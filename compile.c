@@ -878,7 +878,7 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
     BufferPushUInt16(gc, buffer, condition.index);
     BufferPushUInt32(gc, buffer, 0);
     /* Compile true path */
-    left = CompileValue(c, resOpts, form->data[1]);
+    left = CompileValue(c, resOpts, form->data[2]);
     if (opts.isTail && !left.isDud) {
         BufferPushUInt16(gc, buffer, VM_OP_RET);
         BufferPushUInt16(gc, buffer, left.index);
@@ -899,7 +899,7 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
     buffer->count = countAfterFirstBranch;
     /* Compile false path */
     if (form->count == 4) {
-        right = CompileValue(c, resOpts, form->data[1]);
+        right = CompileValue(c, resOpts, form->data[3]);
         if (opts.isTail && !right.isDud) {
             BufferPushUInt16(gc, buffer, VM_OP_RET);
             BufferPushUInt16(gc, buffer, right.index);

@@ -6,6 +6,20 @@
 #include "value.h"
 #include "buffer.h"
 
+/* Print the bytecode for a FuncDef */
+static void FuncDefBytecodePrint(FuncDef * def) {
+    uint32_t count, i;
+    count = def->byteCodeLen;
+	printf("(bytecode)[");
+	if (count) {
+    	for (i = 0; i < count - 1; ++i) {
+    		printf("%04x ", def->byteCode[i]);
+    	}
+		printf("%04x", def->byteCode[i]);
+	}
+	printf("]");
+}
+
 /* Print a value recursively. Used for debugging */
 void ValuePrint(Value * x, uint32_t indent) {
     uint32_t i;
@@ -41,7 +55,9 @@ void ValuePrint(Value * x, uint32_t indent) {
             printf("<cfunction>");
             break;
         case TYPE_FUNCTION:
-            printf("<function>");
+            printf("<function ");
+           	FuncDefBytecodePrint(x->data.func->def);
+           	printf(">");
             break;
         case TYPE_DICTIONARY:
             printf("<dictionary>");
@@ -50,7 +66,9 @@ void ValuePrint(Value * x, uint32_t indent) {
             printf("<bytebuffer>");
             break;
         case TYPE_FUNCDEF:
-            printf("<funcdef>");
+            printf("<funcdef ");
+           	FuncDefBytecodePrint(x->data.funcdef);
+           	printf(">");
             break;
         case TYPE_FUNCENV:
             printf("<funcenv>");
