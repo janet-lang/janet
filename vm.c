@@ -3,12 +3,7 @@
 #include <stdio.h>
 #include "vm.h"
 #include "value.h"
-#include "array.h"
-#include "vstring.h"
-#include "dict.h"
-#include "gc.h"
-#include "buffer.h"
-#include "opcodes.h"
+#include "ds.h"
 
 #define VMArg(i) (vm->base + (i))
 #define VMOpArg(i) (VMArg(vm->pc[(i)]))
@@ -19,32 +14,204 @@ static const char EXPECTED_FUNCTION[] = "Expected function";
 static const char VMS_EXPECTED_NUMBER_ROP[] = "Expected right operand to be number";
 static const char VMS_EXPECTED_NUMBER_LOP[] = "Expected left operand to be number";
 
-/* Mark memory reachable by VM */
-void VMMark(VM * vm) {
-    Value thread;
-    thread.type = TYPE_THREAD;
-    thread.data.array = vm->thread;
-    GCMark(&vm->gc, &thread);
-    GCMark(&vm->gc, &vm->tempRoot);
+/* The metadata header associated with an allocated block of memory */
+#define GCHeader(mem) ((GCMemoryHeader *)(mem) - 1)
+
+/* Memory header struct. Node of a linked list of memory blocks. */
+typedef struct GCMemoryHeader GCMemoryHeader;
+struct GCMemoryHeader {
+    GCMemoryHeader * next;
+    uint32_t color;
+};
+
+/* Forward declaration */
+static void VMMark(VM * vm, Value * x);
+
+/* Helper to mark function environments */
+static void VMMarkFuncEnv(VM * vm, FuncEnv * env) {
+    if (GCHeader(env)->color != vm->black) {
+        Value temp;
+        GCHeader(env)->color = vm->black;
+        if (env->thread) {
+            temp.type = TYPE_THREAD;
+            temp.data.array = env->thread;
+            VMMark(vm, &temp);
+        } else {
+            uint32_t count = env->stackOffset;
+            uint32_t i;
+            GCHeader(env->values)->color = vm->black;
+            for (i = 0; i < count; ++i) {
+                VMMark(vm, env->values + i);
+            }
+        }
+    }
+}
+
+/* Mark allocated memory associated with a value. This is
+ * the main function for doing garbage collection. */
+static void VMMark(VM * vm, Value * x) {
+    switch (x->type) {
+        case TYPE_NIL:
+        case TYPE_BOOLEAN:
+        case TYPE_NUMBER:
+        case TYPE_CFUNCTION:
+            break;
+
+        case TYPE_STRING:
+        case TYPE_SYMBOL:
+            GCHeader(VStringRaw(x->data.string))->color = vm->black;
+            break;
+
+        case TYPE_BYTEBUFFER:
+            GCHeader(x->data.buffer)->color = vm->black;
+            GCHeader(x->data.buffer->data)->color = vm->black;
+            break;
+
+        case TYPE_ARRAY:
+        case TYPE_FORM:
+            if (GCHeader(x->data.array)->color != vm->black) {
+                uint32_t i, count;
+                count = x->data.array->count;
+                GCHeader(x->data.array)->color = vm->black;
+                GCHeader(x->data.array->data)->color = vm->black;
+                for (i = 0; i < count; ++i)
+                   	VMMark(vm, x->data.array->data + i);
+            }
+            break;
+
+        case TYPE_THREAD:
+            if (GCHeader(x->data.array)->color != vm->black) {
+                uint32_t i, count;
+                count = x->data.array->count;
+                GCHeader(x->data.array)->color = vm->black;
+                GCHeader(x->data.array->data)->color = vm->black;
+                if (count) {
+                    count += FrameSize(x->data.array);
+                    for (i = 0; i < count; ++i)
+                        VMMark(vm, x->data.array->data + i);
+                }               
+            }
+            break;
+
+        case TYPE_FUNCTION:
+            if (GCHeader(x->data.func)->color != vm->black) {
+                Func * f = x->data.func;
+                GCHeader(f)->color = vm->black;
+                VMMarkFuncEnv(vm, f->env);
+                {
+                    Value temp;
+                    temp.type = TYPE_FUNCDEF;
+                    temp.data.funcdef = x->data.funcdef;
+                    VMMark(vm, &temp);
+                    if (f->parent) {
+                        temp.type = TYPE_FUNCTION;
+                        temp.data.func = f->parent;
+                        VMMark(vm, &temp);
+                    }
+                }
+            }
+            break;
+
+        case TYPE_DICTIONARY:
+            if (GCHeader(x->data.dict)->color != vm->black) {
+                DictionaryIterator iter;
+                DictBucket * bucket;
+                GCHeader(x->data.dict)->color = vm->black;
+                GCHeader(x->data.dict->buckets)->color = vm->black;
+                DictIterate(x->data.dict, &iter);
+                while (DictIterateNext(&iter, &bucket)) {
+                    GCHeader(bucket)->color = vm->black;
+                    VMMark(vm, &bucket->key);
+                    VMMark(vm, &bucket->value);
+                }
+            }
+            break;
+
+        case TYPE_FUNCDEF:
+            if (GCHeader(x->data.funcdef)->color != vm->black) {
+                GCHeader(x->data.funcdef->byteCode)->color = vm->black;
+                uint32_t count, i;
+                count = x->data.funcdef->literalsLen;
+                if (x->data.funcdef->literals) {
+                    GCHeader(x->data.funcdef->literals)->color = vm->black;
+                    for (i = 0; i < count; ++i)
+                        VMMark(vm, x->data.funcdef->literals + i);
+                }
+            }
+            break;
+
+       	case TYPE_FUNCENV:
+			VMMarkFuncEnv(vm, x->data.funcenv);
+           	break;
+
+    }
+
+}
+
+/* Iterate over all allocated memory, and free memory that is not
+ * marked as reachable. Flip the gc color flag for next sweep. */
+static void VMSweep(VM * vm) {
+    GCMemoryHeader * previous = NULL;
+    GCMemoryHeader * current = vm->blocks;
+    while (current) {
+        if (current->color != vm->black) {
+            if (previous) {
+                previous->next = current->next;
+            } else {
+                vm->blocks = current->next;
+            }
+            free(current);
+        } else {
+            previous = current;
+        }
+        current = current->next;
+    }
+    /* Rotate flag */
+    vm->black = !vm->black;
+}
+
+/* Prepare a memory block */
+static void * VMAllocPrepare(VM * vm, char * rawBlock, uint32_t size) {
+    GCMemoryHeader * mdata;
+    if (rawBlock == NULL) {
+        VMCrash(vm, OOM);
+    }
+    vm->nextCollection += size;
+    mdata = (GCMemoryHeader *) rawBlock;
+    mdata->next = vm->blocks;
+    vm->blocks = mdata;
+    mdata->color = !vm->black;
+    return rawBlock + sizeof(GCMemoryHeader);
+}
+
+/* Allocate some memory that is tracked for garbage collection */
+void * VMAlloc(VM * vm, uint32_t size) {
+    uint32_t totalSize = size + sizeof(GCMemoryHeader);
+    return VMAllocPrepare(vm, malloc(totalSize), totalSize);
+}
+
+/* Allocate some zeroed memory that is tracked for garbage collection */
+void * VMZalloc(VM * vm, uint32_t size) {
+    uint32_t  totalSize = size + sizeof(GCMemoryHeader);
+    return VMAllocPrepare(vm, calloc(1, totalSize), totalSize);
 }
 
 /* Run garbage collection */
 void VMCollect(VM * vm) {
-    VMMark(vm);
-    GCSweep(&vm->gc);
+    Value thread;
+    thread.type = TYPE_THREAD;
+    thread.data.array = vm->thread;
+    VMMark(vm, &thread);
+    VMMark(vm, &vm->tempRoot);
+    VMSweep(vm);
+    vm->nextCollection = 0;
 }
 
 /* Run garbage collection if needed */
 void VMMaybeCollect(VM * vm) {
-    if (GCNeedsCollect(&vm->gc)) {
+    if (vm->nextCollection >= vm->memoryInterval) {
         VMCollect(vm);
     }
-}
-
-/* OOM handler for the vm's gc */
-static void VMHandleOutOfMemory(GC * gc) {
-    VM * vm = (VM *) gc->user;
-    VMError(vm, OOM);
 }
 
 /* Push a stack frame onto a thread */
@@ -58,7 +225,7 @@ static void VMThreadPush(VM * vm, Array * thread, Value callee, uint32_t size) {
 		oldSize = 0;
 		nextCount = FRAME_SIZE;
     }
-	ArrayEnsure(&vm->gc, thread, nextCount + size);
+	ArrayEnsure(vm, thread, nextCount + size);
 	/* Ensure values start out as nil so as to not confuse
 	 * the garabage collector */
 	for (i = nextCount; i < nextCount + size; ++i) {
@@ -84,7 +251,7 @@ static void VMThreadSplitStack(VM * vm, Array * thread) {
     	uint32_t size = FrameSize(thread);
     	env->thread = NULL;
     	env->stackOffset = size;
-    	env->values = GCAlloc(&vm->gc, sizeof(Value) * size);
+    	env->values = VMAlloc(vm, sizeof(Value) * size);
     	memcpy(env->values, ThreadStack(thread), size * sizeof(Value));
 	} 
 }
@@ -191,7 +358,6 @@ static void VMCallOp(VM * vm) {
 
 /* Implementation of the opcode for tail calls */
 static void VMTailCallOp(VM * vm) {
-    GC * gc = &vm->gc;
     uint32_t arity = vm->pc[1];
     Value callee = *VMOpArg(2);
     Value * extra, * argWriter;
@@ -202,7 +368,7 @@ static void VMTailCallOp(VM * vm) {
     if (FrameEnvValue(thread).type == TYPE_FUNCENV) {
         FuncEnv * env = FrameEnv(thread);
         uint16_t frameSize = FrameSize(thread);
-        Value * envValues = GCAlloc(gc, FrameSize(thread) * sizeof(Value));
+        Value * envValues = VMAlloc(vm, FrameSize(thread) * sizeof(Value));
        	env->values = envValues;
         memcpy(envValues, vm->base, frameSize * sizeof(Value));
         env->stackOffset = frameSize;
@@ -217,7 +383,7 @@ static void VMTailCallOp(VM * vm) {
 		VMError(vm, EXPECTED_FUNCTION);
 	}
 	/* Ensure that stack is zeroed in this spot */
-	ArrayEnsure(&vm->gc, thread, thread->count + newFrameSize + arity);
+	ArrayEnsure(vm, thread, thread->count + newFrameSize + arity);
     vm->base = ThreadStack(thread);
 	extra = argWriter = vm->base + FrameSize(thread) + FRAME_SIZE;
     for (i = 0; i < arity; ++i) {
@@ -252,7 +418,7 @@ static void VMMakeClosure(VM * vm, uint16_t ret, uint16_t literal) {
         Array * thread = vm->thread;
         FuncEnv * env = FrameEnv(vm->thread);
         if (!env) {
-            env = GCAlloc(&vm->gc, sizeof(FuncEnv));
+            env = VMAlloc(vm, sizeof(FuncEnv));
             env->thread = thread;
             env->stackOffset = thread->count;
             env->values = NULL;
@@ -264,7 +430,7 @@ static void VMMakeClosure(VM * vm, uint16_t ret, uint16_t literal) {
         if (constant->type != TYPE_FUNCDEF) {
             VMError(vm, EXPECTED_FUNCTION);
         }
-        fn = GCAlloc(&vm->gc, sizeof(Func));
+        fn = VMAlloc(vm, sizeof(Func));
         fn->def = constant->data.funcdef;
         fn->parent = current;
         fn->env = env;
@@ -285,7 +451,7 @@ int VMStart(VM * vm) {
             if (n == 1) {
                 return 0;
             } else {
-                /* Error */
+                /* Error or crash. Handling TODO. */
                 return n;
             }
         }
@@ -491,7 +657,7 @@ int VMStart(VM * vm) {
             	{
                 	uint32_t i;
 					uint32_t arrayLen = vm->pc[2];
-					Array * array = ArrayNew(&vm->gc, arrayLen);
+					Array * array = ArrayNew(vm, arrayLen);
 					array->count = arrayLen;
 					for (i = 0; i < arrayLen; ++i)
     					array->data[i] = *VMOpArg(3 + i);
@@ -507,12 +673,12 @@ int VMStart(VM * vm) {
             	{
 					uint32_t i = 3;
 					uint32_t kvs = vm->pc[2];
-					Dictionary * dict = DictNew(&vm->gc, kvs);
+					Dictionary * dict = DictNew(vm, kvs);
 					kvs = kvs * 2 + 3;
 					while (i < kvs) {
                         v1 = VMOpArg(i++);
                         v2 = VMOpArg(i++);
-					    DictPut(&vm->gc, dict, v1, v2);
+					    DictPut(vm, dict, v1, v2);
                     }
 					vRet->type = TYPE_DICTIONARY;
 					vRet->data.dict = dict;
@@ -574,15 +740,21 @@ int VMStart(VM * vm) {
     }
 }
 
+#undef VMOpArg
+#undef VMArg
+
 /* Initialize the VM */
 void VMInit(VM * vm) {
-    GCInit(&vm->gc, 100000000);
-    vm->gc.handleOutOfMemory = VMHandleOutOfMemory;
     vm->tempRoot.type = TYPE_NIL;
     vm->base = NULL;
     vm->pc = NULL;
     vm->error = NULL;
-    vm->thread = ArrayNew(&vm->gc, 20);
+    vm->thread = ArrayNew(vm, 20);
+	/* Garbage collection */
+    vm->blocks = NULL;
+    vm->nextCollection = 0;
+    vm->memoryInterval = 1024 * 256;
+    vm->black = 0;
 }
 
 /* Load a function into the VM. The function will be called with
@@ -591,15 +763,18 @@ void VMLoad(VM * vm, Func * func) {
     Value callee;
     callee.type = TYPE_FUNCTION;
     callee.data.func = func;
-    vm->thread = ArrayNew(&vm->gc, 20);
+    vm->thread = ArrayNew(vm, 20);
     VMThreadPush(vm, vm->thread, callee, func->def->locals);
     vm->pc = func->def->byteCode;
 }
 
 /* Clear all memory associated with the VM */
 void VMDeinit(VM * vm) {
-    GCClear(&vm->gc);
+    GCMemoryHeader * current = vm->blocks;
+    while (current) {
+        GCMemoryHeader * next = current->next;
+        free(current);
+        current = next;
+    }
+    vm->blocks = NULL;
 }
-
-#undef VMOpArg
-#undef VMArg

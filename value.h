@@ -9,9 +9,9 @@ int ValueCompare(Value * x, Value * y);
 
 int ValueEqual(Value * x, Value * y);
 
-Value ValueLoadCString(GC * gc, const char * string);
+Value ValueLoadCString(VM * vm, const char * string);
 
-uint8_t * ValueToString(GC * gc, Value * x);
+uint8_t * ValueToString(VM * vm, Value * x);
 
 uint32_t ValueHash(Value * x);
 

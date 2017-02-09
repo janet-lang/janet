@@ -1,10 +1,5 @@
 #include "compile.h"
-#include "buffer.h"
-#include "array.h"
-#include "dict.h"
-#include "gc.h"
-#include "opcodes.h"
-#include "vstring.h"
+#include "ds.h"
 #include "value.h"
 #include "vm.h"
 #include <string.h>
@@ -111,18 +106,14 @@ BufferDefine(Int16, int16_t);
  * jump back to start */
 #define CError(c, e) ((c)->error = (e), longjmp((c)->onError, 1))
 
-/* Get the garbage collector for the compiler */
-#define CompilerGC(c) (&(c)->vm->gc)
-
 /* Push a new scope in the compiler and return
  * a pointer to it for configuration. There is
  * more configuration that needs to be done if
  * the new scope is a function declaration. */
 static Scope * CompilerPushScope(Compiler * c, int sameFunction) {
-    GC * gc = CompilerGC(c);
-    Scope * scope = GCAlloc(gc, sizeof(Scope));
-    scope->locals = DictNew(gc, 10);
-    scope->freeHeap = GCAlloc(gc, 10 * sizeof(uint16_t));
+    Scope * scope = VMAlloc(c->vm, sizeof(Scope));
+    scope->locals = DictNew(c->vm, 10);
+    scope->freeHeap = VMAlloc(c->vm, 10 * sizeof(uint16_t));
     scope->heapSize = 0;
     scope->heapCapacity = 10;
     scope->nextScope = NULL;
@@ -138,8 +129,8 @@ static Scope * CompilerPushScope(Compiler * c, int sameFunction) {
         scope->literalsArray = c->tail->literalsArray;
     } else {
         scope->nextLocal = 0;
-        scope->literals = DictNew(gc, 10);
-        scope->literalsArray = ArrayNew(gc, 10);
+        scope->literals = DictNew(c->vm, 10);
+        scope->literalsArray = ArrayNew(c->vm, 10);
     }
     c->tail = scope;
     if (!c->root)
@@ -206,7 +197,6 @@ static uint16_t CompilerGetLocal(Compiler * c, Scope * scope) {
 /* Free a slot on the stack for other locals and/or
  * intermediate values */
 static void CompilerFreeLocal(Compiler * c, Scope * scope, uint16_t slot) {
-    GC * gc = CompilerGC(c);
     if (slot  == scope->nextLocal - 1) {
         --scope->nextLocal;
         return;
@@ -217,7 +207,7 @@ static void CompilerFreeLocal(Compiler * c, Scope * scope, uint16_t slot) {
         /* Ensure heap has space */
         if (scope->heapSize >= scope->heapCapacity) {
             uint32_t newCap = 2 * scope->heapSize;
-            uint16_t * newData = GCAlloc(gc, newCap * sizeof(uint16_t));
+            uint16_t * newData = VMAlloc(c->vm, newCap * sizeof(uint16_t));
             memcpy(newData, scope->freeHeap, scope->heapSize * sizeof(uint16_t));
             scope->freeHeap = newData;
             scope->heapCapacity = newCap;
@@ -245,8 +235,7 @@ static void CompilerFreeLocal(Compiler * c, Scope * scope, uint16_t slot) {
  * are used during compilation to free up slots on the stack
  * after they are no longer needed. */
 static void CompilerTrackerInit(Compiler * c, SlotTracker * tracker) {
-    GC * gc = CompilerGC(c);
-    tracker->slots = GCAlloc(gc, 10 * sizeof(Slot));
+    tracker->slots = VMAlloc(c->vm, 10 * sizeof(Slot));
     tracker->count = 0;
     tracker->capacity = 10;
 }
@@ -266,13 +255,12 @@ static void CompilerDropSlot(Compiler * c, Scope * scope, Slot slot) {
  * Also optionally write slot locations of all slots to the buffer.
  * Useful for dictionary literals, array literals, function calls, etc. */
 static void CompilerTrackerFree(Compiler * c, Scope * scope, SlotTracker * tracker, int writeToBuffer) {
-    GC * gc = CompilerGC(c);
     uint32_t i;
     if (writeToBuffer) {
         Buffer * buffer = c->buffer;
         for (i = 0; i < tracker->count; ++i) {
             Slot * s = tracker->slots + i;
-            BufferPushUInt16(gc, buffer, s->index);
+            BufferPushUInt16(c->vm, buffer, s->index);
         }
     }
     /* Free in reverse order */
@@ -284,10 +272,9 @@ static void CompilerTrackerFree(Compiler * c, Scope * scope, SlotTracker * track
 
 /* Add a new Slot to a slot tracker. */
 static void CompilerTrackerPush(Compiler * c, SlotTracker * tracker, Slot slot) {
-    GC * gc = CompilerGC(c);
     if (tracker->count >= tracker->capacity) {
         uint32_t newCap = 2 * tracker->count;
-        Slot * newData = GCAlloc(gc, newCap * sizeof(Slot));
+        Slot * newData = VMAlloc(c->vm, newCap * sizeof(Slot));
         memcpy(newData, tracker->slots, tracker->count * sizeof(Slot));
         tracker->slots = newData;
         tracker->capacity = newCap;
@@ -299,7 +286,6 @@ static void CompilerTrackerPush(Compiler * c, SlotTracker * tracker, Slot slot) 
  * that one instead of creating a new literal. This allows for some reuse
  * of things like string constants.*/
 static uint16_t CompilerAddLiteral(Compiler * c, Scope * scope, Value x) {
-    GC * gc = CompilerGC(c);
     Value checkDup = DictGet(scope->literals, &x);
     uint16_t literalIndex = 0;
     if (checkDup.type != TYPE_NIL) {
@@ -311,15 +297,14 @@ static uint16_t CompilerAddLiteral(Compiler * c, Scope * scope, Value x) {
         valIndex.type = TYPE_NUMBER;
         literalIndex = scope->literalsArray->count;
         valIndex.data.number = literalIndex;
-        DictPut(gc, scope->literals, &x, &valIndex);
-        ArrayPush(gc, scope->literalsArray, x);
+        DictPut(c->vm, scope->literals, &x, &valIndex);
+        ArrayPush(c->vm, scope->literalsArray, x);
     }
     return literalIndex;
 }
 
 /* Declare a symbol in a given scope. */
 static uint16_t CompilerDeclareSymbol(Compiler * c, Scope * scope, Value sym) {
-    GC * gc = CompilerGC(c);
     if (sym.type != TYPE_SYMBOL) {
         CError(c, "Expected symbol");
     }
@@ -327,7 +312,7 @@ static uint16_t CompilerDeclareSymbol(Compiler * c, Scope * scope, Value sym) {
     uint16_t target = CompilerGetLocal(c, scope);
     x.type = TYPE_NUMBER;
     x.data.number = target;
-    DictPut(gc, scope->locals, &sym, &x);
+    DictPut(c->vm, scope->locals, &sym, &x);
     return target;
 }
 
@@ -366,7 +351,6 @@ static Slot CompileValue(Compiler * c, FormOptions opts, Value x);
 static Slot CompileLiteral(Compiler * c, FormOptions opts, Value x) {
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
-    GC * gc = CompilerGC(c);
     Slot ret = SlotDefault();
     uint16_t literalIndex;
     if (opts.canDrop) {
@@ -380,9 +364,9 @@ static Slot CompileLiteral(Compiler * c, FormOptions opts, Value x) {
         ret.index = opts.target;
     }
     literalIndex = CompilerAddLiteral(c, scope, x);
-    BufferPushUInt16(gc, buffer, VM_OP_CST);
-    BufferPushUInt16(gc, buffer, ret.index);
-    BufferPushUInt16(gc, buffer, literalIndex);
+    BufferPushUInt16(c->vm, buffer, VM_OP_CST);
+    BufferPushUInt16(c->vm, buffer, ret.index);
+    BufferPushUInt16(c->vm, buffer, literalIndex);
     return ret;
 }
 
@@ -390,7 +374,6 @@ static Slot CompileLiteral(Compiler * c, FormOptions opts, Value x) {
 static Slot CompileNonReferenceType(Compiler * c, FormOptions opts, Value x) {
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
-    GC * gc = CompilerGC(c);
     Slot ret = SlotDefault();
     /* If the value is not used, the compiler can just immediately
      * ignore it as there are no side effects. */
@@ -405,29 +388,29 @@ static Slot CompileNonReferenceType(Compiler * c, FormOptions opts, Value x) {
         ret.index = (uint16_t) opts.target;
     }
     if (x.type == TYPE_NIL) {
-        BufferPushUInt16(gc, buffer, VM_OP_NIL);
-        BufferPushUInt16(gc, buffer, ret.index);
+        BufferPushUInt16(c->vm, buffer, VM_OP_NIL);
+        BufferPushUInt16(c->vm, buffer, ret.index);
     } else if (x.type == TYPE_BOOLEAN) {
-        BufferPushUInt16(gc, buffer, x.data.boolean ? VM_OP_TRU : VM_OP_FLS);
-        BufferPushUInt16(gc, buffer, ret.index);
+        BufferPushUInt16(c->vm, buffer, x.data.boolean ? VM_OP_TRU : VM_OP_FLS);
+        BufferPushUInt16(c->vm, buffer, ret.index);
     } else if (x.type == TYPE_NUMBER) {
         Number number = x.data.number;
         int32_t int32Num = (int32_t) number;
         if (number == (Number) int32Num) {
             if (int32Num <= 32767 && int32Num >= -32768) {
                 int16_t int16Num = (int16_t) number;
-                BufferPushUInt16(gc, buffer, VM_OP_I16);
-                BufferPushUInt16(gc, buffer, ret.index);
-                BufferPushInt16(gc, buffer, int16Num);
+                BufferPushUInt16(c->vm, buffer, VM_OP_I16);
+                BufferPushUInt16(c->vm, buffer, ret.index);
+                BufferPushInt16(c->vm, buffer, int16Num);
             } else {
-                BufferPushUInt16(gc, buffer, VM_OP_I32);
-                BufferPushUInt16(gc, buffer, ret.index);
-                BufferPushInt32(gc, buffer, int32Num);
+                BufferPushUInt16(c->vm, buffer, VM_OP_I32);
+                BufferPushUInt16(c->vm, buffer, ret.index);
+                BufferPushInt32(c->vm, buffer, int32Num);
             }
         } else {
-            BufferPushUInt16(gc, buffer, VM_OP_F64);
-            BufferPushUInt16(gc, buffer, ret.index);
-            BufferPushNumber(gc, buffer, number);
+            BufferPushUInt16(c->vm, buffer, VM_OP_F64);
+            BufferPushUInt16(c->vm, buffer, ret.index);
+            BufferPushNumber(c->vm, buffer, number);
         }
     } else {
         CError(c, "Expected boolean, nil, or number type.");
@@ -438,7 +421,6 @@ static Slot CompileNonReferenceType(Compiler * c, FormOptions opts, Value x) {
 /* Compile a symbol. Resolves any kind of symbol. */
 static Slot CompileSymbol(Compiler * c, FormOptions opts, Value sym) {
     Buffer * buffer = c->buffer;
-    GC * gc = CompilerGC(c);
     Scope * scope = c->tail;
     Slot ret = SlotDefault();
     uint16_t index = 0;
@@ -458,10 +440,10 @@ static Slot CompileSymbol(Compiler * c, FormOptions opts, Value sym) {
             } else {
                 ret.index = opts.target;
             }
-            BufferPushUInt16(gc, buffer, VM_OP_UPV);
-            BufferPushUInt16(gc, buffer, ret.index);
-            BufferPushUInt16(gc, buffer, level);
-            BufferPushUInt16(gc, buffer, index);
+            BufferPushUInt16(c->vm, buffer, VM_OP_UPV);
+            BufferPushUInt16(c->vm, buffer, ret.index);
+            BufferPushUInt16(c->vm, buffer, level);
+            BufferPushUInt16(c->vm, buffer, index);
         } else {
             /* Local variable on stack */
             if (opts.canChoose) {
@@ -470,9 +452,9 @@ static Slot CompileSymbol(Compiler * c, FormOptions opts, Value sym) {
                 /* We need to move the variable. This
                  * would occur in a simple assignment like a = b. */
                 ret.index = opts.target;
-                BufferPushUInt16(gc, buffer, VM_OP_MOV);
-                BufferPushUInt16(gc, buffer, ret.index);
-                BufferPushUInt16(gc, buffer, index);
+                BufferPushUInt16(c->vm, buffer, VM_OP_MOV);
+                BufferPushUInt16(c->vm, buffer, ret.index);
+                BufferPushUInt16(c->vm, buffer, index);
             }
         }
     } else {
@@ -487,7 +469,6 @@ static Slot CompileSymbol(Compiler * c, FormOptions opts, Value sym) {
 static Slot CompileDict(Compiler * c, FormOptions opts, Dictionary * dict) {
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
-    GC * gc = CompilerGC(c);
     Slot ret = SlotDefault();
     FormOptions subOpts = FormOptionsDefault();
     DictionaryIterator iter;
@@ -516,9 +497,9 @@ static Slot CompileDict(Compiler * c, FormOptions opts, Dictionary * dict) {
         } else {
             ret.index = opts.target;
         }
-        BufferPushUInt16(gc, buffer, VM_OP_DIC);
-        BufferPushUInt16(gc, buffer, ret.index);
-        BufferPushUInt16(gc, buffer, dict->count);
+        BufferPushUInt16(c->vm, buffer, VM_OP_DIC);
+        BufferPushUInt16(c->vm, buffer, ret.index);
+        BufferPushUInt16(c->vm, buffer, dict->count);
     } else {
         ret.isDud = 1;
     }
@@ -532,7 +513,6 @@ static Slot CompileDict(Compiler * c, FormOptions opts, Dictionary * dict) {
 static Slot CompileArray(Compiler * c, FormOptions opts, Array * array) {
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
-    GC * gc = CompilerGC(c);
     Slot ret = SlotDefault();
     FormOptions subOpts = FormOptionsDefault();
     SlotTracker tracker;
@@ -556,9 +536,9 @@ static Slot CompileArray(Compiler * c, FormOptions opts, Array * array) {
         } else {
             ret.index = opts.target;
         }
-        BufferPushUInt16(gc, buffer, VM_OP_ARR);
-        BufferPushUInt16(gc, buffer, ret.index);
-        BufferPushUInt16(gc, buffer, array->count);
+        BufferPushUInt16(c->vm, buffer, VM_OP_ARR);
+        BufferPushUInt16(c->vm, buffer, ret.index);
+        BufferPushUInt16(c->vm, buffer, array->count);
     } else {
         ret.isDud = 1;
     }
@@ -580,7 +560,6 @@ static Slot CompileArray(Compiler * c, FormOptions opts, Array * array) {
  * also be ignored). */
 static Slot CompileOperator(Compiler * c, FormOptions opts, Array * form,
         int16_t op0, int16_t op1, int16_t op2, int16_t opn) {
-    GC * gc = CompilerGC(c);
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
     Slot ret = SlotDefault();
@@ -602,17 +581,17 @@ static Slot CompileOperator(Compiler * c, FormOptions opts, Array * form,
         /* Write the correct opcode */
         if (form->count < 2) {
             if (op0 < 0) CError(c, "This operator does not take 0 arguments.");
-            BufferPushUInt16(gc, buffer, op0);
+            BufferPushUInt16(c->vm, buffer, op0);
         } else if (form->count == 2) {
             if (op1 < 0) CError(c, "This operator does not take 1 argument.");
-            BufferPushUInt16(gc, buffer, op1);
+            BufferPushUInt16(c->vm, buffer, op1);
         } else if (form->count == 3) {
             if (op2 < 0) CError(c, "This operator does not take 2 arguments.");
-            BufferPushUInt16(gc, buffer, op2);
+            BufferPushUInt16(c->vm, buffer, op2);
         } else {
             if (opn < 0) CError(c, "This operator does not take n arguments.");
-            BufferPushUInt16(gc, buffer, opn);
-            BufferPushUInt16(gc, buffer, form->count - 1);
+            BufferPushUInt16(c->vm, buffer, opn);
+            BufferPushUInt16(c->vm, buffer, form->count - 1);
         }
         if (opts.canChoose) {
             ret.isTemp = 1;
@@ -620,7 +599,7 @@ static Slot CompileOperator(Compiler * c, FormOptions opts, Array * form,
         } else {
             ret.isDud = opts.target;
         }
-        BufferPushUInt16(gc, buffer, ret.index);
+        BufferPushUInt16(c->vm, buffer, ret.index);
     }
     /* Write the location of all of the arguments */
     CompilerTrackerFree(c, scope, &tracker, 1);
@@ -643,7 +622,6 @@ static Slot CompileDivision(Compiler * c, FormOptions opts, Array * form) {
 
 /* Compile an assignment operation */
 static Slot CompileAssign(Compiler * c, FormOptions opts, Value left, Value right) {
-    GC * gc = CompilerGC(c);
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
     FormOptions subOpts = FormOptionsDefault();
@@ -657,10 +635,10 @@ static Slot CompileAssign(Compiler * c, FormOptions opts, Value left, Value righ
             /* Evaluate the right hand side */
             Slot slot = CompileValue(c, subOpts, right);
             /* Set the up value */
-            BufferPushUInt16(gc, buffer, VM_OP_SUV);
-            BufferPushUInt16(gc, buffer, slot.index);
-            BufferPushUInt16(gc, buffer, level);
-            BufferPushUInt16(gc, buffer, target);
+            BufferPushUInt16(c->vm, buffer, VM_OP_SUV);
+            BufferPushUInt16(c->vm, buffer, slot.index);
+            BufferPushUInt16(c->vm, buffer, level);
+            BufferPushUInt16(c->vm, buffer, target);
             /* Drop the possibly temporary slot if it is indeed temporary */
             CompilerDropSlot(c, scope, slot);
             return ret;
@@ -679,21 +657,20 @@ static Slot CompileAssign(Compiler * c, FormOptions opts, Value left, Value righ
         } else {
             ret.index = opts.target;
         }
-        BufferPushUInt16(gc, buffer, VM_OP_NIL);
-        BufferPushUInt16(gc, buffer, ret.index);
+        BufferPushUInt16(c->vm, buffer, VM_OP_NIL);
+        BufferPushUInt16(c->vm, buffer, ret.index);
     }
     return ret;
 }
 
 /* Writes bytecode to return a slot */
 static void CompilerReturnSlot(Compiler * c, Slot slot) {
-    GC * gc = CompilerGC(c);
     Buffer * buffer = c->buffer;
     if (slot.isDud) {
-        BufferPushUInt16(gc, buffer, VM_OP_RTN);
+        BufferPushUInt16(c->vm, buffer, VM_OP_RTN);
     } else {
-        BufferPushUInt16(gc, buffer, VM_OP_RET);
-        BufferPushUInt16(gc, buffer, slot.index);
+        BufferPushUInt16(c->vm, buffer, VM_OP_RET);
+        BufferPushUInt16(c->vm, buffer, slot.index);
     }
 }
 
@@ -725,15 +702,14 @@ static Slot CompileBlock(Compiler * c, FormOptions opts, Array * form, uint32_t 
 /* Extract the last n bytes from the buffer and use them to construct
  * a function definition. */
 static FuncDef * CompilerGenFuncDef(Compiler * c, uint32_t lastNBytes, uint32_t arity) {
-    GC * gc = CompilerGC(c);
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
-    FuncDef * def = GCAlloc(gc, sizeof(FuncDef));
+    FuncDef * def = VMAlloc(c->vm, sizeof(FuncDef));
     /* Create enough space for the new byteCode */
     if (lastNBytes > buffer->count) {
 		CError(c, "Trying to extract more bytes from buffer than in buffer.");
     }
-    uint8_t * byteCode = GCAlloc(gc, lastNBytes);
+    uint8_t * byteCode = VMAlloc(c->vm, lastNBytes);
     def->byteCode = (uint16_t *) byteCode;
     def->byteCodeLen = lastNBytes / 2;
     /* Copy the last chunk of bytes in the buffer into the new
@@ -746,7 +722,7 @@ static FuncDef * CompilerGenFuncDef(Compiler * c, uint32_t lastNBytes, uint32_t 
     def->arity = arity;
     /* Create the literals used by this function */
     if (scope->literalsArray->count) {
-        def->literals = GCAlloc(gc, scope->literalsArray->count * sizeof(Value));
+        def->literals = VMAlloc(c->vm, scope->literalsArray->count * sizeof(Value));
         memcpy(def->literals, scope->literalsArray->data,
             scope->literalsArray->count * sizeof(Value));
     } else {
@@ -760,7 +736,6 @@ static FuncDef * CompilerGenFuncDef(Compiler * c, uint32_t lastNBytes, uint32_t 
 
 /* Compile a function from a function literal */
 static Slot CompileFunction(Compiler * c, FormOptions opts, Array * form) {
-    GC * gc = CompilerGC(c);
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
     uint32_t current = 1;
@@ -819,16 +794,15 @@ static Slot CompileFunction(Compiler * c, FormOptions opts, Array * form) {
         } else {
             ret.index = opts.target;
         }
-        BufferPushUInt16(gc, buffer, VM_OP_CLN);
-        BufferPushUInt16(gc, buffer, ret.index);
-        BufferPushUInt16(gc, buffer, literalIndex);
+        BufferPushUInt16(c->vm, buffer, VM_OP_CLN);
+        BufferPushUInt16(c->vm, buffer, ret.index);
+        BufferPushUInt16(c->vm, buffer, literalIndex);
     }
     return ret;
 }
 
 /* Branching special */
 static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
-    GC * gc = CompilerGC(c);
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
     FormOptions condOpts = FormOptionsDefault();
@@ -858,14 +832,14 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
          * the result to nil before doing anything.
          * Possible optimization - use the condition. */
         if (form->count == 3) {
-            BufferPushUInt16(gc, buffer, VM_OP_NIL);
-            BufferPushUInt16(gc, buffer, ret.index);
+            BufferPushUInt16(c->vm, buffer, VM_OP_NIL);
+            BufferPushUInt16(c->vm, buffer, ret.index);
         }
     } else {
         ret.index = resOpts.target = opts.target;
         if (form->count == 3) {
-            BufferPushUInt16(gc, buffer, VM_OP_NIL);
-            BufferPushUInt16(gc, buffer, ret.index);
+            BufferPushUInt16(c->vm, buffer, VM_OP_NIL);
+            BufferPushUInt16(c->vm, buffer, ret.index);
         }
     }
     /* Mark where the buffer is now so we can write the jump
@@ -874,35 +848,35 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
     /* For now use a long if bytecode instruction.
      * A short if will probably ususually be sufficient. This
      * if byte code will be replaced later with the correct index. */
-    BufferPushUInt16(gc, buffer, VM_OP_JIF);
-    BufferPushUInt16(gc, buffer, condition.index);
-    BufferPushUInt32(gc, buffer, 0);
+    BufferPushUInt16(c->vm, buffer, VM_OP_JIF);
+    BufferPushUInt16(c->vm, buffer, condition.index);
+    BufferPushUInt32(c->vm, buffer, 0);
     /* Compile true path */
     left = CompileValue(c, resOpts, form->data[2]);
     if (opts.isTail && !left.isDud) {
-        BufferPushUInt16(gc, buffer, VM_OP_RET);
-        BufferPushUInt16(gc, buffer, left.index);
+        BufferPushUInt16(c->vm, buffer, VM_OP_RET);
+        BufferPushUInt16(c->vm, buffer, left.index);
     }
     CompilerDropSlot(c, scope, left);
     /* If we need to jump again, do so */
     if (!opts.isTail && form->count == 4) {
         countAtJump = buffer->count;
-        BufferPushUInt16(gc, buffer, VM_OP_JMP);
-        BufferPushUInt32(gc, buffer, 0);
+        BufferPushUInt16(c->vm, buffer, VM_OP_JMP);
+        BufferPushUInt32(c->vm, buffer, 0);
     }
     /* Reinsert jump with correct index */
     countAfterFirstBranch = buffer->count;
     buffer->count = countAtJump;
-    BufferPushUInt16(gc, buffer, VM_OP_JIF);
-    BufferPushUInt16(gc, buffer, condition.index);
-    BufferPushUInt32(gc, buffer, (countAfterFirstBranch - countAtJump) / 2);
+    BufferPushUInt16(c->vm, buffer, VM_OP_JIF);
+    BufferPushUInt16(c->vm, buffer, condition.index);
+    BufferPushUInt32(c->vm, buffer, (countAfterFirstBranch - countAtJump) / 2);
     buffer->count = countAfterFirstBranch;
     /* Compile false path */
     if (form->count == 4) {
         right = CompileValue(c, resOpts, form->data[3]);
         if (opts.isTail && !right.isDud) {
-            BufferPushUInt16(gc, buffer, VM_OP_RET);
-            BufferPushUInt16(gc, buffer, right.index);
+            BufferPushUInt16(c->vm, buffer, VM_OP_RET);
+            BufferPushUInt16(c->vm, buffer, right.index);
         }
         CompilerDropSlot(c, scope, right);
     }
@@ -910,8 +884,8 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
     if (!opts.isTail && form->count == 4) {
         countAfterFirstBranch = buffer->count;
         buffer->count = countAtJump;
-        BufferPushUInt16(gc, buffer, VM_OP_JMP);
-        BufferPushUInt32(gc, buffer, (countAfterFirstBranch - countAtJump) / 2);
+        BufferPushUInt16(c->vm, buffer, VM_OP_JMP);
+        BufferPushUInt32(c->vm, buffer, (countAfterFirstBranch - countAtJump) / 2);
         buffer->count = countAfterFirstBranch;
     }
     return ret;
@@ -928,7 +902,6 @@ static Slot CompileDo(Compiler * c, FormOptions opts, Array * form) {
 
 /* Quote special - returns its argument without parsing. */
 static Slot CompileQuote(Compiler * c, FormOptions opts, Array * form) {
-    GC * gc = CompilerGC(c);
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
     Slot ret = SlotDefault();
@@ -953,9 +926,9 @@ static Slot CompileQuote(Compiler * c, FormOptions opts, Array * form) {
         ret.index = opts.target;
     }
     literalIndex = CompilerAddLiteral(c, scope, x);
-    BufferPushUInt16(gc, buffer, VM_OP_CST);
-    BufferPushUInt16(gc, buffer, ret.index);
-    BufferPushUInt16(gc, buffer, literalIndex);
+    BufferPushUInt16(c->vm, buffer, VM_OP_CST);
+    BufferPushUInt16(c->vm, buffer, ret.index);
+    BufferPushUInt16(c->vm, buffer, literalIndex);
     return ret;
 }
 
@@ -1047,7 +1020,6 @@ static SpecialFormHelper GetSpecial(Array * form) {
 /* Compile a form. Checks for special forms and macros. */
 static Slot CompileForm(Compiler * c, FormOptions opts, Array * form) {
     Scope * scope = c->tail;
-    GC * gc = CompilerGC(c);
     Buffer * buffer = c->buffer;
     SpecialFormHelper helper;
     /* Empty forms evaluate to nil. */
@@ -1074,19 +1046,19 @@ static Slot CompileForm(Compiler * c, FormOptions opts, Array * form) {
         /* If this is in tail position do a tail call. */
         if (opts.isTail) {
             ret.isDud = 1;
-            BufferPushUInt16(gc, buffer, VM_OP_TCL);
+            BufferPushUInt16(c->vm, buffer, VM_OP_TCL);
         } else {
-            BufferPushUInt16(gc, buffer, VM_OP_CAL);
+            BufferPushUInt16(c->vm, buffer, VM_OP_CAL);
             if (opts.canDrop) {
                 ret.isTemp = 1;
                 ret.index = CompilerGetLocal(c, scope);
             } else {
                 ret.index = opts.target;
             }
-            BufferPushUInt16(gc, buffer, ret.index);
+            BufferPushUInt16(c->vm, buffer, ret.index);
         }
         /* Push the number of arguments to the function */
-        BufferPushUInt16(gc, buffer, form->count - 1);
+        BufferPushUInt16(c->vm, buffer, form->count - 1);
         /* Write the location of all of the arguments */
         CompilerTrackerFree(c, scope, &tracker, 1);
         return ret;
@@ -1116,8 +1088,8 @@ static Slot CompileValue(Compiler * c, FormOptions opts, Value x) {
 /* Initialize a Compiler struct */
 void CompilerInit(Compiler * c, VM * vm) {
     c->vm = vm;
-    c->buffer = BufferNew(&vm->gc, 128);
-    c->env = ArrayNew(&vm->gc, 10);
+    c->buffer = BufferNew(vm, 128);
+    c->env = ArrayNew(vm, 10);
     c->tail = c->root = NULL;
     c->error = NULL;
     CompilerPushScope(c, 0);
@@ -1125,17 +1097,15 @@ void CompilerInit(Compiler * c, VM * vm) {
 
 /* Register a global for the compilation environment. */
 void CompilerAddGlobal(Compiler * c, const char * name, Value x) {
-    GC * gc = CompilerGC(c);
-    Value sym = ValueLoadCString(CompilerGC(c), name);
+    Value sym = ValueLoadCString(c->vm, name);
     sym.type = TYPE_SYMBOL;
     CompilerDeclareSymbol(c, c->root, sym);
-    ArrayPush(gc, c->env, x);
+    ArrayPush(c->vm, c->env, x);
 }
 
 /* Compile interface. Returns a function that evaluates the
  * given AST. Returns NULL if there was an error during compilation. */
 Func * CompilerCompile(Compiler * c, Value form) {
-    GC * gc = CompilerGC(c);
     FormOptions opts = FormOptionsDefault();
     FuncDef * def;
     if (setjmp(c->onError)) {
@@ -1151,9 +1121,9 @@ Func * CompilerCompile(Compiler * c, Value form) {
     def = CompilerGenFuncDef(c, c->buffer->count, 0);
     {
         uint32_t envSize = c->env->count;
-        FuncEnv * env = GCAlloc(gc, sizeof(FuncEnv));
-        Func * func = GCAlloc(gc, sizeof(Func));
-        env->values = GCAlloc(gc, sizeof(Value) * envSize);
+        FuncEnv * env = VMAlloc(c->vm, sizeof(FuncEnv));
+        Func * func = VMAlloc(c->vm, sizeof(Func));
+        env->values = VMAlloc(c->vm, sizeof(Value) * envSize);
         memcpy(env->values, c->env->data, envSize * sizeof(Value));
         env->stackOffset = envSize;
         env->thread = NULL;

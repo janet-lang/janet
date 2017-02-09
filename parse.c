@@ -3,13 +3,9 @@
 #include <string.h>
 #include <setjmp.h>
 #include "datatypes.h"
-#include "array.h"
-#include "dict.h"
-#include "gc.h"
-#include "buffer.h"
+#include "ds.h"
 #include "parse.h"
 #include "vm.h"
-#include "vstring.h"
 
 static const char UNEXPECTED_CLOSING_DELIM[] = "Unexpected closing delimiter";
 
@@ -68,11 +64,10 @@ static ParseState * ParserPop(Parser * p) {
 
 /* Add a new, empty ParseState to the ParseStack. */
 static void ParserPush(Parser *p, ParseType type) {
-    GC * gc = &p->vm->gc;
     ParseState * top;
     if (p->count >= p->cap) {
         uint32_t newCap = 2 * p->count;
-        ParseState * data = GCAlloc(gc, newCap);
+        ParseState * data = VMAlloc(p->vm, newCap);
         p->data = data;
         p->cap = newCap;
     }
@@ -86,14 +81,14 @@ static void ParserPush(Parser *p, ParseType type) {
         case PTYPE_STRING:
             top->buf.string.state = STRING_STATE_BASE;
         case PTYPE_TOKEN:
-            top->buf.string.buffer = BufferNew(gc, 10);
+            top->buf.string.buffer = BufferNew(p->vm, 10);
             break;
         case PTYPE_ARRAY:
         case PTYPE_FORM:
-            top->buf.array = ArrayNew(gc, 10);
+            top->buf.array = ArrayNew(p->vm, 10);
             break;
         case PTYPE_DICTIONARY:
-            top->buf.dictState.dict = DictNew(gc, 10);
+            top->buf.dictState.dict = DictNew(p->vm, 10);
             top->buf.dictState.keyFound = 0;
             break;
     }
@@ -101,7 +96,6 @@ static void ParserPush(Parser *p, ParseType type) {
 
 /* Append a value to the top-most state in the Parser's stack. */
 static void ParserTopAppend(Parser * p, Value x) {
-    GC * gc = &p->vm->gc;
     ParseState * top = ParserPeek(p);
     if (!top) return;
     switch (top->type) {
@@ -111,11 +105,11 @@ static void ParserTopAppend(Parser * p, Value x) {
             break;
         case PTYPE_ARRAY:
         case PTYPE_FORM:
-            ArrayPush(gc, top->buf.array, x);
+            ArrayPush(p->vm, top->buf.array, x);
             break;
         case PTYPE_DICTIONARY:
             if (top->buf.dictState.keyFound) {
-                DictPut(gc, top->buf.dictState.dict, &top->buf.dictState.key, &x);
+                DictPut(p->vm, top->buf.dictState.dict, &top->buf.dictState.key, &x);
             } else {
                 top->buf.dictState.key = x;
             }
@@ -261,7 +255,7 @@ static Value ParserBuildTokenBuffer(Parser * p, Buffer * buf) {
             x.type = TYPE_NIL;
         } else {
             x.type = TYPE_SYMBOL;
-            x.data.string = BufferToString(&p->vm->gc, buf);
+            x.data.string = BufferToString(p->vm, buf);
         }
     }
     return x;
@@ -276,7 +270,7 @@ static int ParserTokenState(Parser * p, uint8_t c) {
         ParserTopAppend(p, ParserBuildTokenBuffer(p, buf));
         return !(c == ')' || c == ']' || c == '}');
     } else if (isSymbolChar(c)) {
-        BufferPush(&p->vm->gc, buf, c);
+        BufferPush(p->vm, buf, c);
         return 1;
     } else {
         PError(p, "Expected symbol character.");
@@ -294,11 +288,11 @@ static int ParserStringState(Parser * p, uint8_t c) {
             } else if (c == '"') {
                 Value x;
                 x.type = TYPE_STRING;
-                x.data.string = BufferToString(&p->vm->gc, top->buf.string.buffer);
+                x.data.string = BufferToString(p->vm, top->buf.string.buffer);
                 ParserPop(p);
                 ParserTopAppend(p, x);
             } else {
-                BufferPush(&p->vm->gc, top->buf.string.buffer, c);
+                BufferPush(p->vm, top->buf.string.buffer, c);
             }
             break;
         case STRING_STATE_ESCAPE:
@@ -317,7 +311,7 @@ static int ParserStringState(Parser * p, uint8_t c) {
                           PError(p, "Unknown string escape sequence.");
                           return 1;
                 }
-                BufferPush(&p->vm->gc, top->buf.string.buffer, next);
+                BufferPush(p->vm, top->buf.string.buffer, next);
                 top->buf.string.state = STRING_STATE_BASE;
             }
             break;
@@ -444,7 +438,7 @@ int ParserParseCString(Parser * p, const char * string) {
 /* Parser initialization (memory allocation) */
 void ParserInit(Parser * p, VM * vm) {
     p->vm = vm;
-    ParseState * data = GCAlloc(&vm->gc, sizeof(ParseState) * 10);
+    ParseState * data = VMAlloc(vm, sizeof(ParseState) * 10);
     p->data = data;
     p->count = 0;
     p->cap = 10;

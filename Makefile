@@ -2,11 +2,12 @@
 
 CFLAGS=-std=c99 -Wall -Wextra -g
 
-TARGET=./interp
+TARGET=interp
 PREFIX=/usr/local
 
 # C sources
-SOURCES=main.c parse.c value.c vm.c dict.c array.c buffer.c gc.c compile.c
+HEADERS=vm.h ds.h compile.h parse.h value.h
+SOURCES=main.c parse.c value.c vm.c ds.c compile.c
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 all: $(TARGET)
@@ -14,7 +15,7 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS)
 
-%.o : %.c
+%.o : %.c $(HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 install: $(TARGET)
@@ -31,6 +32,6 @@ debug: $(TARGET)
 	gdb $(TARGET)
 
 valgrind: $(TARGET)
-	valgrind $(TARGET)
+	valgrind ./$(TARGET)
 
 .PHONY: clean install run debug valgrind

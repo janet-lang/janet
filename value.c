@@ -1,10 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "gc.h"
-#include "vstring.h"
 #include "value.h"
-#include "buffer.h"
+#include "ds.h"
+#include "vm.h"
 
 /* Print the bytecode for a FuncDef */
 static void FuncDefBytecodePrint(FuncDef * def) {
@@ -79,8 +78,8 @@ void ValuePrint(Value * x, uint32_t indent) {
     }
 }
 
-static uint8_t * LoadCString(GC * gc, const char * string, uint32_t len) {
-    uint8_t * data = GCAlloc(gc, len + 2 * sizeof(uint32_t));
+static uint8_t * LoadCString(VM * vm, const char * string, uint32_t len) {
+    uint8_t * data = VMAlloc(vm, len + 2 * sizeof(uint32_t));
     data += 2 * sizeof(uint32_t);
     VStringHash(data) = 0;
     VStringSize(data) = len;
@@ -88,16 +87,16 @@ static uint8_t * LoadCString(GC * gc, const char * string, uint32_t len) {
     return data;
 }
 
-Value ValueLoadCString(GC * gc, const char * string) {
+Value ValueLoadCString(VM * vm, const char * string) {
     Value ret;
     ret.type = TYPE_STRING;
-    ret.data.string = LoadCString(gc, string, strlen(string));
+    ret.data.string = LoadCString(vm, string, strlen(string));
     return ret;
 }
 
-static uint8_t * NumberToString(GC * gc, Number x) {
+static uint8_t * NumberToString(VM * vm, Number x) {
     static const uint32_t SIZE = 20;
-    uint8_t * data = GCAlloc(gc, SIZE + 2 * sizeof(uint32_t));
+    uint8_t * data = VMAlloc(vm, SIZE + 2 * sizeof(uint32_t));
     data += 2 * sizeof(uint32_t);
     snprintf((char *) data, SIZE, "%.17g", x);
     VStringHash(data) = 0;
@@ -109,10 +108,10 @@ static const char * HEX_CHARACTERS = "0123456789ABCDEF";
 #define HEX(i) (((uint8_t *) HEX_CHARACTERS)[(i)])
 
 /* Returns a string description for a pointer */
-static uint8_t * StringDescription(GC * gc, const char * title, uint32_t titlelen, void * pointer) {
+static uint8_t * StringDescription(VM * vm, const char * title, uint32_t titlelen, void * pointer) {
     uint32_t len = 3 + titlelen + sizeof(pointer) * 2;
     uint32_t i;
-    uint8_t * data = GCAlloc(gc, len + 2 * sizeof(uint32_t));
+    uint8_t * data = VMAlloc(vm, len + 2 * sizeof(uint32_t));
     uint8_t * c;
     union {
         uint8_t bytes[sizeof(void *)];
@@ -136,39 +135,39 @@ static uint8_t * StringDescription(GC * gc, const char * title, uint32_t titlele
 }
 
 /* Returns a string pointer or NULL if could not allocate memory. */
-uint8_t * ValueToString(GC * gc, Value * x) {
+uint8_t * ValueToString(VM * vm, Value * x) {
     switch (x->type) {
         case TYPE_NIL:
-            return LoadCString(gc, "nil", 3);
+            return LoadCString(vm, "nil", 3);
         case TYPE_BOOLEAN:
             if (x->data.boolean) {
-                return LoadCString(gc, "true", 4);
+                return LoadCString(vm, "true", 4);
             } else {
-                return LoadCString(gc, "false", 5);
+                return LoadCString(vm, "false", 5);
             }
         case TYPE_NUMBER:
-            return NumberToString(gc, x->data.number);
+            return NumberToString(vm, x->data.number);
         case TYPE_ARRAY:
-            return StringDescription(gc, "array", 5, x->data.array);
+            return StringDescription(vm, "array", 5, x->data.array);
         case TYPE_FORM:
-            return StringDescription(gc, "form", 4, x->data.array);
+            return StringDescription(vm, "form", 4, x->data.array);
         case TYPE_STRING:
         case TYPE_SYMBOL:
             return x->data.string;
         case TYPE_BYTEBUFFER:
-            return StringDescription(gc, "buffer", 6, x->data.buffer);
+            return StringDescription(vm, "buffer", 6, x->data.buffer);
         case TYPE_CFUNCTION:
-            return StringDescription(gc, "cfunction", 9, x->data.cfunction);
+            return StringDescription(vm, "cfunction", 9, x->data.cfunction);
         case TYPE_FUNCTION:
-            return StringDescription(gc, "function", 8, x->data.func);
+            return StringDescription(vm, "function", 8, x->data.func);
         case TYPE_DICTIONARY:
-            return StringDescription(gc, "dictionary", 10, x->data.dict);
+            return StringDescription(vm, "dictionary", 10, x->data.dict);
         case TYPE_FUNCDEF:
-            return StringDescription(gc, "funcdef", 7, x->data.funcdef);
+            return StringDescription(vm, "funcdef", 7, x->data.funcdef);
         case TYPE_FUNCENV:
-            return StringDescription(gc, "funcenv", 7, x->data.funcenv);
+            return StringDescription(vm, "funcenv", 7, x->data.funcenv);
         case TYPE_THREAD:
-            return StringDescription(gc, "thread", 6, x->data.array);
+            return StringDescription(vm, "thread", 6, x->data.array);
     }
     return NULL;
 }
@@ -184,7 +183,7 @@ uint32_t djb2(const uint8_t * str) {
 
 /* Check if two values are equal. This is strict equality with no conversion. */
 int ValueEqual(Value * x, Value * y) {
-    int result;
+    int result = 0;
     if (x->type != y->type) {
         result = 0;
     } else {
@@ -245,7 +244,7 @@ int ValueEqual(Value * x, Value * y) {
 
 /* Computes a hash value for a function */
 uint32_t ValueHash(Value * x) {
-    uint32_t hash;
+    uint32_t hash = 0;
     switch (x->type) {
         case TYPE_NIL:
             hash = 0;
