@@ -65,8 +65,6 @@ void debugRepl() {
             reader = buffer;
             buffer[0] = 0;
             continue;
-        } else {
-            printf("Compiled!\n");
         }
 
         /* Execute function */

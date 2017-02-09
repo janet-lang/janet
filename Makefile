@@ -1,8 +1,8 @@
 # TIL
 
-CFLAGS=-std=c99 -Wall -Wextra -m32 -g
+CFLAGS=-std=c99 -Wall -Wextra -g
 
-TARGET=interp
+TARGET=./interp
 PREFIX=/usr/local
 
 # C sources
@@ -30,4 +30,7 @@ run: $(TARGET)
 debug: $(TARGET)
 	gdb $(TARGET)
 
-.PHONY: clean install run debug
+valgrind: $(TARGET)
+	valgrind $(TARGET)
+
+.PHONY: clean install run debug valgrind

@@ -4,18 +4,12 @@
 #include "value.h"
 #include "vstring.h"
 
-void BufferInit(GC * gc, Buffer * buffer, uint32_t capacity) {
-    uint8_t * data;
-    data = GCAlloc(gc, sizeof(uint8_t) * capacity);
+Buffer * BufferNew(GC * gc, uint32_t capacity) {
+    Buffer * buffer = GCAlloc(gc, sizeof(Buffer));
+    uint8_t * data = GCAlloc(gc, sizeof(uint8_t) * capacity);
     buffer->data = data;
     buffer->count = 0;
     buffer->capacity = capacity;
-}
-
-Buffer * BufferNew(GC * gc, uint32_t capacity) {
-    Buffer * buffer;
-    buffer = GCAlloc(gc, sizeof(Buffer));
-    BufferInit(gc, buffer, capacity);
     return buffer;
 }
 

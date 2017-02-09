@@ -576,7 +576,7 @@ int VMStart(VM * vm) {
 
 /* Initialize the VM */
 void VMInit(VM * vm) {
-    GCInit(&vm->gc, 0);
+    GCInit(&vm->gc, 100000000);
     vm->gc.handleOutOfMemory = VMHandleOutOfMemory;
     vm->tempRoot.type = TYPE_NIL;
     vm->base = NULL;

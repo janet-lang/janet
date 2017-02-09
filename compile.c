@@ -310,7 +310,8 @@ static uint16_t CompilerAddLiteral(Compiler * c, Scope * scope, Value x) {
         Value valIndex;
         valIndex.type = TYPE_NUMBER;
         literalIndex = scope->literalsArray->count;
-        DictPut(gc, scope->literals, &valIndex, &x);
+        valIndex.data.number = literalIndex;
+        DictPut(gc, scope->literals, &x, &valIndex);
         ArrayPush(gc, scope->literalsArray, x);
     }
     return literalIndex;
@@ -1154,6 +1155,7 @@ Func * CompilerCompile(Compiler * c, Value form) {
         Func * func = GCAlloc(gc, sizeof(Func));
         env->values = GCAlloc(gc, sizeof(Value) * envSize);
         memcpy(env->values, c->env->data, envSize * sizeof(Value));
+        env->stackOffset = envSize;
         env->thread = NULL;
         func->parent = NULL;
         func->def = def;

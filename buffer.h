@@ -3,8 +3,6 @@
 
 #include "datatypes.h"
 
-void BufferInit(GC * gc, Buffer * buffer, uint32_t capacity);
-
 Buffer * BufferNew(GC * gc, uint32_t capacity);
 
 void BufferEnsure(GC * gc, Buffer * buffer, uint32_t capacity);

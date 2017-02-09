@@ -264,7 +264,14 @@ uint32_t ValueHash(Value * x) {
         case TYPE_FUNCENV:
         case TYPE_THREAD:
             /* Cast the pointer */
-            hash = (uint32_t) x->data.string;
+            {
+				union {
+					void * pointer;
+					uint32_t hash;
+				} u;
+				u.pointer = x->data.pointer;
+				hash = u.hash;
+            }
             break;
     }
     return hash;
