@@ -32,6 +32,6 @@ debug: $(TARGET)
 	gdb $(TARGET)
 
 valgrind: $(TARGET)
-	valgrind ./$(TARGET)
+	valgrind ./$(TARGET) --leak-check=full
 
 .PHONY: clean install run debug valgrind

@@ -109,7 +109,7 @@ static void ParserTopAppend(Parser * p, Value x) {
             break;
         case PTYPE_DICTIONARY:
             if (top->buf.dictState.keyFound) {
-                DictPut(p->vm, top->buf.dictState.dict, &top->buf.dictState.key, &x);
+                DictPut(p->vm, top->buf.dictState.dict, top->buf.dictState.key, x);
             } else {
                 top->buf.dictState.key = x;
             }

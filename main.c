@@ -7,6 +7,18 @@
 #include "compile.h"
 #include "value.h"
 
+Value print(VM * vm) {
+    uint32_t i;
+    Value nil;
+	uint8_t * string = ValueToString(vm, VMGetArg(vm, 0));
+	uint32_t len = VStringSize(string);
+	for (i = 0; i < len; ++i)
+    	fputc(string[i], stdout);
+    fputc('\n', stdout);
+	nil.type = TYPE_NIL;
+	return nil;
+}
+
 /* A simple repl for debugging */
 void debugRepl() {
     char buffer[128] = {0};
@@ -30,7 +42,7 @@ void debugRepl() {
         while (p.status == PARSER_PENDING) {
             /* Get some input if we are done */
             if (*reader == '\0') {
-                printf(">> ");
+                printf("> ");
                 if (!fgets(buffer, sizeof(buffer), stdin)) {
                     return;
                 }
@@ -75,7 +87,7 @@ void debugRepl() {
             buffer[0] = 0;
             continue;
         } else {
-            ValuePrint(&vm.tempRoot, 0);
+            ValuePrint(vm.tempRoot, 0);
             printf("\n");
         }
     }

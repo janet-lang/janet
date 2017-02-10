@@ -68,15 +68,15 @@ Value ArrayPeek(Array * array);
 Dictionary * DictNew(VM * vm, uint32_t capacity);
 
 /* Get a value out of the dictionary */
-Value DictGet(Dictionary * dict, Value * key);
+Value DictGet(Dictionary * dict, Value key);
 
 /* Get a Value from the dictionary, but remove it at the same
  * time. */
-Value DictRemove(VM * vm, Dictionary * dict, Value * key);
+Value DictRemove(VM * vm, Dictionary * dict, Value key);
 
 /* Put a value into the dictionary. Returns 1 if successful, 0 if out of memory.
  * The VM pointer is needed for memory allocation. */
-void DictPut(VM * vm, Dictionary * dict, Value * key, Value * value);
+void DictPut(VM * vm, Dictionary * dict, Value key, Value value);
 
 /* Begin iteration through a dictionary */
 void DictIterate(Dictionary * dict, DictionaryIterator * iterator);

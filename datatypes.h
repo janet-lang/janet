@@ -139,6 +139,7 @@ struct VM {
     uint32_t memoryInterval;
     uint32_t nextCollection;
     uint32_t black : 1;
+    uint32_t lock : 31;
     /* Thread */
     uint16_t * pc;
     Array * thread;

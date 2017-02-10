@@ -44,4 +44,10 @@ void * VMAlloc(VM * vm, uint32_t amount);
 /* Allocate zeroed memory */
 void * VMZalloc(VM * vm, uint32_t amount);
 
+/* Get an argument from the stack */
+Value VMGetArg(VM * vm, uint16_t index);
+
+/* Put a value on the stack */
+void VMSetArg(VM * vm, uint16_t index, Value x);
+
 #endif /* end of include guard: VM_H_C4OZU8CQ */

@@ -198,6 +198,7 @@ void * VMZalloc(VM * vm, uint32_t size) {
 
 /* Run garbage collection */
 void VMCollect(VM * vm) {
+    if (vm->lock > 0) return;
     Value thread;
     thread.type = TYPE_THREAD;
     thread.data.array = vm->thread;
@@ -336,7 +337,9 @@ static void VMCallOp(VM * vm) {
     if (callee.type == TYPE_CFUNCTION) {
         for (i = 0; i < arity; ++i)
             *(argWriter++) = *VMOpArg(4 + i);
+        ++vm->lock;
         VMReturn(vm, callee.data.cfunction(vm));
+        --vm->lock;
         VMMaybeCollect(vm);
 	} else if (callee.type == TYPE_FUNCTION) {
     	Func * f = callee.data.func;
@@ -399,7 +402,9 @@ static void VMTailCallOp(VM * vm) {
 	FrameSize(thread) = newFrameSize;
     FrameCallee(thread) = callee;
     if (callee.type == TYPE_CFUNCTION) {
+        ++vm->lock;
         VMReturn(vm, callee.data.cfunction(vm));
+        --vm->lock;
         VMMaybeCollect(vm);
 	} else {
     	Func * f = callee.data.func;
@@ -630,7 +635,7 @@ int VMStart(VM * vm) {
             case VM_OP_EQL: /* Equality */
                 vRet = VMOpArg(1);
                 vRet->type = TYPE_BOOLEAN;
-                vRet->data.boolean = ValueEqual(VMOpArg(2), VMOpArg(3));
+                vRet->data.boolean = ValueEqual(*VMOpArg(2), *VMOpArg(3));
                 vm->pc += 4;
                 break;
 
@@ -639,7 +644,7 @@ int VMStart(VM * vm) {
                 v1 = VMOpArg(2);
                 v2 = VMOpArg(3);
                 vRet->type = TYPE_BOOLEAN;
-                vRet->data.boolean = (ValueCompare(VMOpArg(2), VMOpArg(3)) == -1);
+                vRet->data.boolean = (ValueCompare(*VMOpArg(2), *VMOpArg(3)) == -1);
                 vm->pc += 4;
                 break;
 
@@ -648,7 +653,7 @@ int VMStart(VM * vm) {
                 v1 = VMOpArg(2);
                 v2 = VMOpArg(3);
                 vRet->type = TYPE_BOOLEAN;
-                vRet->data.boolean = (ValueCompare(VMOpArg(2), VMOpArg(3)) != 1);
+                vRet->data.boolean = (ValueCompare(*VMOpArg(2), *VMOpArg(3)) != 1);
                 vm->pc += 4;
                 break;
 
@@ -678,7 +683,7 @@ int VMStart(VM * vm) {
 					while (i < kvs) {
                         v1 = VMOpArg(i++);
                         v2 = VMOpArg(i++);
-					    DictPut(vm, dict, v1, v2);
+					    DictPut(vm, dict, *v1, *v2);
                     }
 					vRet->type = TYPE_DICTIONARY;
 					vRet->data.dict = dict;
@@ -740,6 +745,20 @@ int VMStart(VM * vm) {
     }
 }
 
+/* Get an argument from the stack */
+Value VMGetArg(VM * vm, uint16_t index) {
+    uint16_t frameSize = FrameSize(vm->thread);
+    VMAssert(vm, frameSize > index, "Cannot get arg out of stack bounds");
+	return *VMArg(index);
+}
+
+/* Put a value on the stack */
+void VMSetArg(VM * vm, uint16_t index, Value x) {
+    uint16_t frameSize = FrameSize(vm->thread);
+    VMAssert(vm, frameSize > index, "Cannot set arg out of stack bounds");
+	*VMArg(index) = x;
+}
+
 #undef VMOpArg
 #undef VMArg
 
@@ -749,12 +768,14 @@ void VMInit(VM * vm) {
     vm->base = NULL;
     vm->pc = NULL;
     vm->error = NULL;
-    vm->thread = ArrayNew(vm, 20);
 	/* Garbage collection */
     vm->blocks = NULL;
     vm->nextCollection = 0;
     vm->memoryInterval = 1024 * 256;
     vm->black = 0;
+    vm->lock = 0;
+    /* Create new thread */
+    vm->thread = ArrayNew(vm, 20);
 }
 
 /* Load a function into the VM. The function will be called with

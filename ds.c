@@ -166,7 +166,7 @@ static void DictReHash(VM * vm, Dictionary * dict, uint32_t size) {
         while (bucket) {
             uint32_t index;
             DictBucket * next = bucket->next;
-            index = ValueHash(&bucket->key) % size;
+            index = ValueHash(bucket->key) % size;
             bucket->next = newBuckets[index];
             newBuckets[index] = bucket;
             bucket = next;
@@ -177,11 +177,11 @@ static void DictReHash(VM * vm, Dictionary * dict, uint32_t size) {
 }
 
 /* Find the bucket that contains the given key */
-static DictBucket * DictFind(Dictionary * dict, Value * key) {
+static DictBucket * DictFind(Dictionary * dict, Value key) {
     uint32_t index = ValueHash(key) % dict->capacity;
     DictBucket * bucket = dict->buckets[index];
     while (bucket) {
-        if (ValueEqual(&bucket->key, key))
+        if (ValueEqual(bucket->key, key))
             return bucket;
         bucket = bucket->next;
     }
@@ -189,7 +189,7 @@ static DictBucket * DictFind(Dictionary * dict, Value * key) {
 }
 
 /* Get a value out of the dictionary */
-Value DictGet(Dictionary * dict, Value * key) {
+Value DictGet(Dictionary * dict, Value key) {
     DictBucket * bucket = DictFind(dict, key);
     if (bucket) {
         return bucket->value;
@@ -201,13 +201,13 @@ Value DictGet(Dictionary * dict, Value * key) {
 }
 
 /* Remove an entry from the dictionary */
-Value DictRemove(VM * vm, Dictionary * dict, Value * key) {
+Value DictRemove(VM * vm, Dictionary * dict, Value key) {
     DictBucket * bucket, * previous;
     uint32_t index = ValueHash(key) % dict->capacity;
     bucket = dict->buckets[index];
     previous = (DictBucket *)0;
     while (bucket) {
-        if (ValueEqual(&bucket->key, key)) {
+        if (ValueEqual(bucket->key, key)) {
             if (previous) {
                 previous->next = bucket->next;
             } else {
@@ -232,16 +232,16 @@ Value DictRemove(VM * vm, Dictionary * dict, Value * key) {
 
 /* Put a value into the dictionary. Returns 1 if successful, 0 if out of memory.
  * The VM pointer is needed for memory allocation. */
-void DictPut(VM * vm, Dictionary * dict, Value * key, Value * value) {
+void DictPut(VM * vm, Dictionary * dict, Value key, Value value) {
     DictBucket * bucket, * previous;
     uint32_t index = ValueHash(key) % dict->capacity;
-    if (key->type == TYPE_NIL) return;
+    if (key.type == TYPE_NIL) return;
     /* Do a removal if value is nil */
-    if (value->type == TYPE_NIL) {
+    if (value.type == TYPE_NIL) {
         bucket = dict->buckets[index];
         previous = (DictBucket *)0;
         while (bucket) {
-            if (ValueEqual(&bucket->key, key)) {
+            if (ValueEqual(bucket->key, key)) {
                 if (previous) {
                     previous->next = bucket->next;
                 } else {
@@ -259,15 +259,15 @@ void DictPut(VM * vm, Dictionary * dict, Value * key, Value * value) {
     } else {
         bucket = DictFind(dict, key);
         if (bucket) {
-            bucket->value = *value;
+            bucket->value = value;
         } else {
             if (dict->count >= 2 * dict->capacity) {
                 DictReHash(vm, dict, 2 * dict->capacity);
             }
             bucket = VMAlloc(vm, sizeof(DictBucket));
             bucket->next = dict->buckets[index];
-            bucket->value = *value;
-            bucket->key = *key;
+            bucket->value = value;
+            bucket->key = key;
             dict->buckets[index] = bucket;
             ++dict->count;
         }
