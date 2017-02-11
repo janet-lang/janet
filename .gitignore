@@ -1,6 +1,9 @@
 # Target
 interp
 
+# Valgrind files
+vgcore.*
+
 # Created by https://www.gitignore.io/api/c
 
 ### C ###

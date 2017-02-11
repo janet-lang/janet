@@ -6,15 +6,19 @@
 #include "parse.h"
 #include "compile.h"
 #include "value.h"
+#include "disasm.h"
 
 Value print(VM * vm) {
-    uint32_t i;
+    uint32_t i, j, count;
     Value nil;
-	uint8_t * string = ValueToString(vm, VMGetArg(vm, 0));
-	uint32_t len = VStringSize(string);
-	for (i = 0; i < len; ++i)
-    	fputc(string[i], stdout);
-    fputc('\n', stdout);
+    count = VMCountArgs(vm);
+    for (j = 0; j < count; ++j) {
+    	uint8_t * string = ValueToString(vm, VMGetArg(vm, j));
+    	uint32_t len = VStringSize(string);
+    	for (i = 0; i < len; ++i)
+        	fputc(string[i], stdout);
+        fputc('\n', stdout);
+    }
 	nil.type = TYPE_NIL;
 	return nil;
 }
@@ -69,6 +73,7 @@ void debugRepl() {
 
         /* Try to compile generated AST */
         CompilerInit(&c, &vm);
+        CompilerAddGlobalCFunc(&c, "print", print);
         func = CompilerCompile(&c, p.value);
 
         /* Check for compilation errors */
@@ -78,6 +83,9 @@ void debugRepl() {
             buffer[0] = 0;
             continue;
         }
+
+        /* Print the function that will be executed */
+        dasmFunc(stdout, func);
 
         /* Execute function */
         VMLoad(&vm, func);

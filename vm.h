@@ -50,4 +50,7 @@ Value VMGetArg(VM * vm, uint16_t index);
 /* Put a value on the stack */
 void VMSetArg(VM * vm, uint16_t index, Value x);
 
+/* Get the number of arguments on the stack */
+uint16_t VMCountArgs(VM * vm);
+
 #endif /* end of include guard: VM_H_C4OZU8CQ */

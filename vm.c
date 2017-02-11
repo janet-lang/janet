@@ -9,7 +9,7 @@
 #define VMOpArg(i) (VMArg(vm->pc[(i)]))
 
 static const char OOM[] = "Out of memory";
-static const char NO_UPVALUE[] = "Out of memory";
+static const char NO_UPVALUE[] = "No upvalue";
 static const char EXPECTED_FUNCTION[] = "Expected function";
 static const char VMS_EXPECTED_NUMBER_ROP[] = "Expected right operand to be number";
 static const char VMS_EXPECTED_NUMBER_LOP[] = "Expected left operand to be number";
@@ -272,7 +272,10 @@ static void VMThreadPop(VM * vm, Array * thread) {
 static Value * GetUpValue(VM * vm, Func * fn, uint16_t level, uint16_t index) {
     FuncEnv * env;
     Value * stack;
-    while (fn && level--)
+    if (!level) {
+		return vm->base + index;
+    }
+    while (fn && --level)
         fn = fn->parent;
     VMAssert(vm, fn, NO_UPVALUE);
     env = fn->env;
@@ -452,6 +455,7 @@ int VMStart(VM * vm) {
     {
         int n;
         if ((n = setjmp(vm->jump))) {
+            vm->lock = 0;
             /* Good return */
             if (n == 1) {
                 return 0;
@@ -569,7 +573,7 @@ int VMStart(VM * vm) {
                     vRet = VMOpArg(1);
                     *vRet = *GetUpValue(vm, callee.data.func, vm->pc[2], vm->pc[3]);
                     vm->pc += 4;
-                	}
+            	}
                 break;
 
             case VM_OP_JIF: /* Jump If */
@@ -679,7 +683,7 @@ int VMStart(VM * vm) {
 					uint32_t i = 3;
 					uint32_t kvs = vm->pc[2];
 					Dictionary * dict = DictNew(vm, kvs);
-					kvs = kvs * 2 + 3;
+					kvs = kvs + 3;
 					while (i < kvs) {
                         v1 = VMOpArg(i++);
                         v2 = VMOpArg(i++);
@@ -757,6 +761,11 @@ void VMSetArg(VM * vm, uint16_t index, Value x) {
     uint16_t frameSize = FrameSize(vm->thread);
     VMAssert(vm, frameSize > index, "Cannot set arg out of stack bounds");
 	*VMArg(index) = x;
+}
+
+/* Get the size of the VMStack */
+uint16_t VMCountArgs(VM * vm) {
+    return FrameSize(vm->thread);
 }
 
 #undef VMOpArg
