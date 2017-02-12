@@ -96,8 +96,8 @@ BufferDefine(Int16, int16_t);
 /* If there is an error during compilation,
  * jump back to start */
 static void CError(Compiler * c, const char * e) {
-	c->error = e;
-	longjmp(c->onError, 1);
+    c->error = e;
+    longjmp(c->onError, 1);
 }
 
 /* Push a new scope in the compiler and return
@@ -117,11 +117,11 @@ static Scope * CompilerPushScope(Compiler * c, int sameFunction) {
         c->tail->nextScope = scope;
         scope->level = c->tail->level + (sameFunction ? 0 : 1);
     } else {
-		scope->level = 0;
+        scope->level = 0;
     }
     if (sameFunction) {
         if (!c->tail) {
-			CError(c, "Cannot inherit scope when root scope");
+            CError(c, "Cannot inherit scope when root scope");
         }
         scope->nextLocal = c->tail->nextLocal;
         scope->literals = c->tail->literals;
@@ -144,17 +144,17 @@ static void CompilerPopScope(Compiler * c) {
         CError(c, "No scope to pop.");
     } else {
         if (last->nextLocal > last->frameSize) {
-			last->frameSize = last->nextLocal;
+            last->frameSize = last->nextLocal;
         }
         c->tail = last->previousScope;
         if (c->tail) {
             if (last->frameSize > c->tail->frameSize) {
-				c->tail->frameSize = last->frameSize;
+                c->tail->frameSize = last->frameSize;
             }
             c->tail->nextScope = NULL;
         } else {
             /* We deleted the last scope */
-			c->root = NULL;
+            c->root = NULL;
         }
     }
 }
@@ -227,39 +227,39 @@ static Slot CompilerReturn(Compiler * c, Slot slot) {
 
 /* Gets a temporary slot for the bottom-most scope. */
 static Slot CompilerGetTemp(Compiler * c) {
-	Scope * scope = c->tail;
-	Slot ret;
-	ret.isTemp = 1;
-	ret.isNil = 0;
-	ret.hasReturned = 0;
-	ret.index = CompilerGetLocal(c, scope);
-	return ret;
+    Scope * scope = c->tail;
+    Slot ret;
+    ret.isTemp = 1;
+    ret.isNil = 0;
+    ret.hasReturned = 0;
+    ret.index = CompilerGetLocal(c, scope);
+    return ret;
 }
 
 /* Return a slot that is the target Slot given some FormOptions. Will
  * Create a temporary slot if needed, so be sure to drop the slot after use. */
 static Slot CompilerGetTarget(Compiler * c, FormOptions opts) {
-	if (opts.canChoose) {
-		return CompilerGetTemp(c);
-	} else {
+    if (opts.canChoose) {
+        return CompilerGetTemp(c);
+    } else {
         Slot ret;
         ret.isTemp = 0;
         ret.isNil = 0;
         ret.hasReturned = 0;
         ret.index = opts.target;
         return ret;
-	}
+    }
 }
 
 /* If a slot is a nil slot, create a slot that has
  * an actual location on the stack. */
 static Slot CompilerRealizeSlot(Compiler * c, Slot slot) {
-	if (slot.isNil) {
-		slot = CompilerGetTemp(c);
+    if (slot.isNil) {
+        slot = CompilerGetTemp(c);
         BufferPushUInt16(c->vm, c->buffer, VM_OP_NIL);
         BufferPushUInt16(c->vm, c->buffer, slot.index);
-	}
-	return slot;
+    }
+    return slot;
 }
 
 /* Helper to get a nil slot */
@@ -368,9 +368,9 @@ static Slot CompileValue(Compiler * c, FormOptions opts, Value x);
 
 /* Compile a structure that evaluates to a literal value. Useful
  * for objects like strings, or anything else that cannot be instatiated else {
-				break;
+ break;
  }
-                * from bytecode and doesn't do anything in the AST. */
+ * from bytecode and doesn't do anything in the AST. */
 static Slot CompileLiteral(Compiler * c, FormOptions opts, Value x) {
     Scope * scope = c->tail;
     Buffer * buffer = c->buffer;
@@ -569,7 +569,7 @@ static Slot CompileOperator(Compiler * c, FormOptions opts, Array * form,
     /* Free up space */
     CompilerTrackerFree(c, scope, &tracker);
     if (opts.resultUnused) {
-		ret = NilSlot();
+        ret = NilSlot();
     } else {
         ret = CompilerGetTarget(c, opts);
         /* Write the correct opcode */
@@ -669,7 +669,7 @@ static Slot CompileAssign(Compiler * c, FormOptions opts, Value left, Value righ
             /* Local variable */
             subOpts.canChoose = 0;
             subOpts.target = target;
-           	slot = CompileValue(c, subOpts, right);
+            slot = CompileValue(c, subOpts, right);
         }
     } else {
         /* We need to declare a new symbol */
@@ -701,8 +701,8 @@ static Slot CompileBlock(Compiler * c, FormOptions opts, Array * form, uint32_t 
         CompilerDropSlot(c, scope, CompileValue(c, subOpts, form->data[current]));
         ++current;
     }
-	/* Compile the last expression in the body */
-	return CompileValue(c, opts, form->data[form->count - 1]);
+    /* Compile the last expression in the body */
+    return CompileValue(c, opts, form->data[form->count - 1]);
 }
 
 /* Extract the last n bytes from the buffer and use them to construct
@@ -713,7 +713,7 @@ static FuncDef * CompilerGenFuncDef(Compiler * c, uint32_t lastNBytes, uint32_t 
     FuncDef * def = VMAlloc(c->vm, sizeof(FuncDef));
     /* Create enough space for the new byteCode */
     if (lastNBytes > buffer->count)
-		CError(c, "Trying to extract more bytes from buffer than in buffer.");
+        CError(c, "Trying to extract more bytes from buffer than in buffer.");
     uint8_t * byteCode = VMAlloc(c->vm, lastNBytes);
     def->byteCode = (uint16_t *) byteCode;
     def->byteCodeLen = lastNBytes / 2;
@@ -726,9 +726,9 @@ static FuncDef * CompilerGenFuncDef(Compiler * c, uint32_t lastNBytes, uint32_t 
     if (scope->literalsArray->count) {
         def->literals = VMAlloc(c->vm, scope->literalsArray->count * sizeof(Value));
         memcpy(def->literals, scope->literalsArray->data,
-            scope->literalsArray->count * sizeof(Value));
+                scope->literalsArray->count * sizeof(Value));
     } else {
-		def->literals = NULL;
+        def->literals = NULL;
     }
     def->literalsLen = scope->literalsArray->count;
     /* Delete the sub scope */
@@ -736,7 +736,7 @@ static FuncDef * CompilerGenFuncDef(Compiler * c, uint32_t lastNBytes, uint32_t 
     /* Initialize the new FuncDef */
     def->locals = scope->frameSize;
     def->arity = arity;
-	return def;
+    return def;
 }
 
 /* Compile a function from a function literal */
@@ -812,7 +812,7 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
     /* If the condition is nil, just compile false path */
     if (condition.isNil) {
         if (form->count == 4) {
-			return CompileValue(c, opts, form->data[3]);
+            return CompileValue(c, opts, form->data[3]);
         }
         return condition;
     }
@@ -823,9 +823,9 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
     BufferPushUInt16(c->vm, buffer, VM_OP_JIF);
     BufferPushUInt16(c->vm, buffer, condition.index);
     BufferPushUInt32(c->vm, buffer, 0);
-	/* Configure branch form options */
-	branchOpts.canChoose = 0;
-	branchOpts.target = condition.index;
+    /* Configure branch form options */
+    branchOpts.canChoose = 0;
+    branchOpts.target = condition.index;
     /* Compile true path */
     left = CompileValue(c, branchOpts, form->data[2]);
     if (opts.isTail) {
@@ -870,21 +870,21 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
 /* While special */
 static Slot CompileWhile(Compiler * c, FormOptions opts, Array * form) {
     Slot cond;
-	uint32_t countAtStart = c->buffer->count;
-	uint32_t countAtJumpDelta;
-	uint32_t countAtFinish;
-	FormOptions defaultOpts = FormOptionsDefault();
+    uint32_t countAtStart = c->buffer->count;
+    uint32_t countAtJumpDelta;
+    uint32_t countAtFinish;
+    FormOptions defaultOpts = FormOptionsDefault();
     CompilerPushScope(c, 1);
     /* Compile condition */
-	cond = CompileValue(c, defaultOpts, form->data[1]);
-	/* Assert that cond is a real value - otherwise do nothing (nil is false,
+    cond = CompileValue(c, defaultOpts, form->data[1]);
+    /* Assert that cond is a real value - otherwise do nothing (nil is false,
      * so loop never runs.) */
-	if (cond.isNil) return cond;
-	/* Leave space for jump later */
-	countAtJumpDelta = c->buffer->count;
-	c->buffer->count += sizeof(uint16_t) * 2 + sizeof(int32_t);
-	/* Compile loop body */
-	defaultOpts.resultUnused = 1;
+    if (cond.isNil) return cond;
+    /* Leave space for jump later */
+    countAtJumpDelta = c->buffer->count;
+    c->buffer->count += sizeof(uint16_t) * 2 + sizeof(int32_t);
+    /* Compile loop body */
+    defaultOpts.resultUnused = 1;
     CompilerDropSlot(c, c->tail, CompileBlock(c, defaultOpts, form, 2));
     /* Jump back to the loop start */
     countAtFinish = c->buffer->count;
@@ -893,16 +893,16 @@ static Slot CompileWhile(Compiler * c, FormOptions opts, Array * form) {
     countAtFinish = c->buffer->count;
     /* Set the jump to the correct length */
     c->buffer->count = countAtJumpDelta;
-	BufferPushUInt16(c->vm, c->buffer, VM_OP_JIF);
-	BufferPushUInt16(c->vm, c->buffer, cond.index);
+    BufferPushUInt16(c->vm, c->buffer, VM_OP_JIF);
+    BufferPushUInt16(c->vm, c->buffer, cond.index);
     BufferPushInt32(c->vm, c->buffer, (int32_t)(countAtFinish - countAtJumpDelta) / 2);
-	/* Pop scope */
-	c->buffer->count = countAtFinish;
+    /* Pop scope */
+    c->buffer->count = countAtFinish;
     CompilerPopScope(c);
-	/* Return nil */
-	if (opts.resultUnused)
-    	return NilSlot();
-	else
+    /* Return nil */
+    if (opts.resultUnused)
+        return NilSlot();
+    else
         return cond;
 }
 
@@ -967,30 +967,30 @@ static SpecialFormHelper GetSpecial(Array * form) {
             case '/': return CompileDivision;
             case '>': return CompileGreaterThan;
             case '<': return CompileLessThan;
-           	case '=': return CompileEquals;
+            case '=': return CompileEquals;
             case '\'': return CompileQuote;
             default:
-                break;
+                       break;
         }
     }
     /* Multi character specials. Mostly control flow. */
     switch (name[0]) {
         case '>':
-        	{
-				if (VStringSize(name) == 2 &&
-				    	name[1] == '=') {
-					return CompileGreaterThanOrEqual;
-		    	}
-        	}
-        	break;
+            {
+                if (VStringSize(name) == 2 &&
+                        name[1] == '=') {
+                    return CompileGreaterThanOrEqual;
+                }
+            }
+            break;
         case '<':
-        	{
-				if (VStringSize(name) == 2 &&
-				    	name[1] == '=') {
-					return CompileLessThanOrEqual;
-		    	}
-        	}
-        	break;
+            {
+                if (VStringSize(name) == 2 &&
+                        name[1] == '=') {
+                    return CompileLessThanOrEqual;
+                }
+            }
+            break;
         case 'd':
             {
                 if (VStringSize(name) == 2 &&
@@ -1015,14 +1015,14 @@ static SpecialFormHelper GetSpecial(Array * form) {
                 }
             }
             break;
-       	case 'n':
-           	{
-				if (VStringSize(name) == 3 &&
-				    	name[1] == 'o' &&
-				    	name[2] == 't') {
-					return CompileNot;
-		    	}
-           	}
+        case 'n':
+            {
+                if (VStringSize(name) == 3 &&
+                        name[1] == 'o' &&
+                        name[2] == 't') {
+                    return CompileNot;
+                }
+            }
         case 'q':
             {
                 if (VStringSize(name) == 5 &&
@@ -1030,7 +1030,7 @@ static SpecialFormHelper GetSpecial(Array * form) {
                         name[2] == 'o' &&
                         name[3] == 't' &&
                         name[4] == 'e') {
-                   return CompileQuote;
+                    return CompileQuote;
                 }
             }
             break;
@@ -1044,15 +1044,15 @@ static SpecialFormHelper GetSpecial(Array * form) {
             }
             break;
         case 'w':
-        	{
-				if (VStringSize(name) == 5 &&
-				    	name[1] == 'h' &&
-				    	name[2] == 'i' &&
-				    	name[3] == 'l' &&
-				    	name[4] == 'e') {
-					return CompileWhile;
-		    	}
-        	}
+            {
+                if (VStringSize(name) == 5 &&
+                        name[1] == 'h' &&
+                        name[2] == 'i' &&
+                        name[3] == 'l' &&
+                        name[4] == 'e') {
+                    return CompileWhile;
+                }
+            }
         default:
             break;
     }
@@ -1149,10 +1149,10 @@ void CompilerAddGlobal(Compiler * c, const char * name, Value x) {
 
 /* Register a global c function for the compilation environment. */
 void CompilerAddGlobalCFunc(Compiler * c, const char * name, CFunction f) {
-	Value func;
-	func.type = TYPE_CFUNCTION;
-	func.data.cfunction = f;
-	return CompilerAddGlobal(c, name, func);
+    Value func;
+    func.type = TYPE_CFUNCTION;
+    func.data.cfunction = f;
+    return CompilerAddGlobal(c, name, func);
 }
 
 /* Compile interface. Returns a function that evaluates the
@@ -1184,4 +1184,28 @@ Func * CompilerCompile(Compiler * c, Value form) {
         func->env = env;
         return func;
     }
+}
+
+/* Macro expansion. Macro expansion happens prior to the compilation process
+ * and is completely separate. This allows the compilation to not have to worry
+ * about garbage collection and other issues that would complicate both the
+ * runtime and the compilation. */
+int CompileMacroExpand(VM * vm, Value x, Dictionary * macros, Value * out) {
+    while (x.type == TYPE_FORM) {
+        Array * form = x.data.array;
+        Value sym, macroFn;
+        if (form->count == 0) break;
+        sym = form->data[0];
+        macroFn = DictGet(macros, sym);
+        if (macroFn.type != TYPE_FUNCTION && macroFn.type != TYPE_CFUNCTION) break;
+        VMLoad(vm, macroFn);
+        if (VMStart(vm)) {
+            /* We encountered an error during parsing */        
+            return 1;;
+        } else {
+            x = vm->ret;
+        }
+    }
+    *out = x;
+    return 0;
 }

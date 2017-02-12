@@ -127,10 +127,11 @@ struct VM {
     uint16_t * pc;
     Array * thread;
     Value * base;
+    Value root; /* Global state - prevents GC cleanup */
     /* Return state */
     const char * error;
     jmp_buf jump;
-    Value tempRoot; /* Temporary GC root */
+    Value ret; /* Returned value from VMStart */
 };
 
 /* Parsing */

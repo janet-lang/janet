@@ -128,16 +128,16 @@ static int isWhitespace(uint8_t c) {
 
 /* Check if a character is a valid symbol character */
 static int isSymbolChar(uint8_t c) {
-	if (c >= 'a' && c <= 'z') return 1;
-	if (c >= 'A' && c <= 'Z') return 1;
-	if (c >= '0' && c <= '9') return 1;
-	if (c >= '<' && c <= '@') return 1;
-	if (c >= '*' && c <= '/') return 1;
-	if (c >= '#' && c <= '&') return 1;
-	if (c == '_') return 1;
-	if (c == '^') return 1;
-	if (c == '!') return 1;
-	return 0;
+    if (c >= 'a' && c <= 'z') return 1;
+    if (c >= 'A' && c <= 'Z') return 1;
+    if (c >= '0' && c <= '9') return 1;
+    if (c >= '<' && c <= '@') return 1;
+    if (c >= '*' && c <= '/') return 1;
+    if (c >= '#' && c <= '&') return 1;
+    if (c == '_') return 1;
+    if (c == '^') return 1;
+    if (c == '!') return 1;
+    return 0;
 }
 
 /* Get an integer power of 10 */
@@ -308,8 +308,8 @@ static int ParserStringState(Parser * p, uint8_t c) {
                     case '\'': next = '\''; break;
                     case 'z': next = '\0'; break;
                     default:
-                          PError(p, "Unknown string escape sequence.");
-                          return 1;
+                              PError(p, "Unknown string escape sequence.");
+                              return 1;
                 }
                 BufferPush(p->vm, top->buf.string.buffer, next);
                 top->buf.string.state = STRING_STATE_BASE;
