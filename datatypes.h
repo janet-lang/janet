@@ -203,7 +203,9 @@ enum OpCode {
     VM_OP_SBM,        /* 0x001d */
     VM_OP_MUM,        /* 0x001e */
     VM_OP_DVM,        /* 0x001f */
-    VM_OP_RTN         /* 0x0020 */
+    VM_OP_RTN,        /* 0x0020 */
+    VM_OP_SET,        /* 0x0021 */
+    VM_OP_GET,        /* 0x0022 */
 };
 
 #endif /* end of include guard: DATATYPES_H_PJJ035NT */

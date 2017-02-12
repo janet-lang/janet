@@ -8,6 +8,7 @@
 #include "value.h"
 #include "disasm.h"
 
+/* Test c function */
 Value print(VM * vm) {
     uint32_t i, j, count;
     Value nil;
@@ -85,7 +86,7 @@ void debugRepl() {
         }
 
         /* Print the function that will be executed */
-        dasmFunc(stdout, func);
+        //dasmFunc(stdout, func);
 
         /* Execute function */
         VMLoad(&vm, func);

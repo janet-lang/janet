@@ -9,6 +9,10 @@ int ValueCompare(Value x, Value y);
 
 int ValueEqual(Value x, Value y);
 
+Value ValueGet(VM * vm, Value ds, Value key);
+
+int ValueSet(VM * vm, Value ds, Value key, Value value);
+
 Value ValueLoadCString(VM * vm, const char * string);
 
 uint8_t * ValueToString(VM * vm, Value x);

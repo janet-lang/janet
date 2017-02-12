@@ -351,3 +351,24 @@ int ValueCompare(Value x, Value y) {
     }
     return 1;
 }
+
+/* Get a value out af an associated data structure. Can throw VM error. */
+Value ValueGet(VM * vm, Value ds, Value key) {
+	switch (ds.type) {
+	case TYPE_ARRAY:
+    case TYPE_FORM:
+    case TYPE_BYTEBUFFER:
+    case TYPE_SYMBOL:
+    case TYPE_STRING:
+    case TYPE_DICTIONARY:
+   	case TYPE_FUNCENV:
+    default:
+        VMError(vm, "Cannot get.");
+        break;
+	}
+}
+
+/* Set a value in an associative data structure. Can throw VM error. */
+int ValueSet(VM * vm, Value ds, Value key, Value value) {
+
+}

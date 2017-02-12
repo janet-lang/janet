@@ -716,6 +716,10 @@ int VMStart(VM * vm) {
                 VMReturn(vm, temp);
                 break;
 
+            case VM_OP_GET:
+
+                break;
+
             default:
                 VMError(vm, "Unknown opcode");
                 break;
@@ -755,7 +759,7 @@ void VMInit(VM * vm) {
     vm->black = 0;
     vm->lock = 0;
     /* Create new thread */
-    vm->thread = ArrayNew(vm, 20);
+    vm->thread = ArrayNew(vm, 32);
 }
 
 /* Load a function into the VM. The function will be called with
@@ -764,7 +768,7 @@ void VMLoad(VM * vm, Func * func) {
     Value callee;
     callee.type = TYPE_FUNCTION;
     callee.data.func = func;
-    vm->thread = ArrayNew(vm, 100);
+    vm->thread = ArrayNew(vm, 32);
     VMThreadPush(vm, vm->thread, callee, func->def->locals);
     vm->pc = func->def->byteCode;
 }
