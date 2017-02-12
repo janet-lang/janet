@@ -41,11 +41,11 @@ static uint32_t dasmPrintVarArgOp(FILE * out, const uint16_t * current,
                                   const char * name, uint32_t extra) {
 	uint32_t i, argCount;
 	dasmPrintArg(out, name);
-	argCount = current[1];
 	for (i = 0; i < extra; ++i) {
-		dasmPrintSlot(out, current[i + 2]);
+		dasmPrintSlot(out, current[i + 1]);
 	}
-	fprintf(out, "| "); /* Argument separator */
+	argCount = current[extra + 1];
+	fprintf(out, ": "); /* Argument separator */
 	for (i = 0; i < argCount; ++i) {
 		dasmPrintSlot(out, current[i + extra + 2]);
 	}
@@ -66,6 +66,8 @@ void dasmFunc(FILE * out, Func * f) {
 void dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
 	uint16_t *current = byteCode;
 	uint16_t *end = byteCode + len;
+
+	fprintf(out, "----- ASM BYTECODE AT %p -----\n", byteCode);
 
 	while (current < end) {
 		switch (*current) {
@@ -197,4 +199,5 @@ void dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
 		}
 		fprintf(out, "\n");
 	}
+	fprintf(out, "----- END ASM BYTECODE -----\n");
 }

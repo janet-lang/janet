@@ -60,23 +60,6 @@ union ValueData {
     uint8_t u8[8];
 } data;
 
-/* Use an Array to represent the stack. A Stack frame is 
- * represented by a grouping of FRAME_SIZE values. */
-#define FRAME_SIZE 4
-
-#define ThreadStack(t)   ((t)->data + (t)->count)
-
-#define FrameMeta(t)     (ThreadStack(t)[-1])
-#define FrameReturn(t)   ((ThreadStack(t) - 1)->data.u16[0])
-#define FrameSize(t)     ((ThreadStack(t) - 1)->data.u16[1])
-#define FramePrevSize(t) ((ThreadStack(t) - 1)->data.u16[2])
-
-#define FrameCallee(t)   (ThreadStack(t)[-2])
-#define FrameEnvValue(t) (ThreadStack(t)[-3])
-#define FrameEnv(t)      ((ThreadStack(t) - 3)->data.funcenv)
-#define FramePCValue(t)  (ThreadStack(t)[-4])
-#define FramePC(t)       ((ThreadStack(t)[-1]).data.pointer)
-
 struct Array {
     uint32_t count;
     uint32_t capacity;

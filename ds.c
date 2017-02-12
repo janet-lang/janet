@@ -83,7 +83,7 @@ void ArrayEnsure(VM * vm, Array * array, uint32_t capacity) {
     Value * newData;
     if (capacity <= array->capacity) return;
     newData = VMAlloc(vm, capacity * sizeof(Value));
-    memcpy(newData, array->data, array->count * sizeof(Value));
+    memcpy(newData, array->data, array->capacity * sizeof(Value));
     array->data = newData;
     array->capacity = capacity;
 }

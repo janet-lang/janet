@@ -192,10 +192,10 @@ int ValueEqual(Value x, Value y) {
                 result = 1;
                 break;
             case TYPE_BOOLEAN:
-                result = x.data.boolean == y.data.boolean;
+                result = (x.data.boolean == y.data.boolean);
                 break;
             case TYPE_NUMBER:
-                result = x.data.number == y.data.number;
+                result = (x.data.number == y.data.number);
                 break;
             /* Assume that when strings are created, equal strings
              * are set to the same string */
@@ -227,7 +227,7 @@ int ValueEqual(Value x, Value y) {
             case TYPE_FUNCENV:
             case TYPE_THREAD:
                 /* compare pointers */
-                result = x.data.array == y.data.array;
+                result = (x.data.array == y.data.array);
                 break;
         }
     }
