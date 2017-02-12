@@ -334,6 +334,7 @@ static void VMReturn(VM * vm, Value ret) {
     if (thread->count == 0) {
         VMExit(vm, ret);
     }
+    frame = ThreadFrame(thread);
     vm->pc = frame->pc;
     vm->base[frame->ret] = ret;
 }
