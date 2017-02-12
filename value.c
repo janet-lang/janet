@@ -9,14 +9,14 @@
 static void FuncDefBytecodePrint(FuncDef * def) {
     uint32_t count, i;
     count = def->byteCodeLen;
-	printf("(bytecode)[");
-	if (count) {
-    	for (i = 0; i < count - 1; ++i) {
-    		printf("%04x ", def->byteCode[i]);
-    	}
-		printf("%04x", def->byteCode[i]);
-	}
-	printf("]");
+    printf("(bytecode)[");
+    if (count) {
+        for (i = 0; i < count - 1; ++i) {
+            printf("%04x ", def->byteCode[i]);
+        }
+        printf("%04x", def->byteCode[i]);
+    }
+    printf("]");
 }
 
 /* Print a value recursively. Used for debugging */
@@ -55,8 +55,8 @@ void ValuePrint(Value x, uint32_t indent) {
             break;
         case TYPE_FUNCTION:
             printf("<function ");
-           	FuncDefBytecodePrint(x.data.func->def);
-           	printf(">");
+            FuncDefBytecodePrint(x.data.func->def);
+            printf(">");
             break;
         case TYPE_DICTIONARY:
             printf("<dictionary>");
@@ -66,8 +66,8 @@ void ValuePrint(Value x, uint32_t indent) {
             break;
         case TYPE_FUNCDEF:
             printf("<funcdef ");
-           	FuncDefBytecodePrint(x.data.funcdef);
-           	printf(">");
+            FuncDefBytecodePrint(x.data.funcdef);
+            printf(">");
             break;
         case TYPE_FUNCENV:
             printf("<funcenv>");
@@ -197,10 +197,10 @@ int ValueEqual(Value x, Value y) {
             case TYPE_NUMBER:
                 result = (x.data.number == y.data.number);
                 break;
-            /* Assume that when strings are created, equal strings
-             * are set to the same string */
+                /* Assume that when strings are created, equal strings
+                 * are set to the same string */
             case TYPE_STRING:
-            /* TODO: keep cache to for symbols to get quick equality. */
+                /* TODO: keep cache to for symbols to get quick equality. */
             case TYPE_SYMBOL:
                 if (x.data.string == y.data.string) {
                     result = 1;
@@ -274,12 +274,12 @@ uint32_t ValueHash(Value x) {
         case TYPE_THREAD:
             /* Cast the pointer */
             {
-				union {
-					void * pointer;
-					uint32_t hash;
-				} u;
-				u.pointer = x.data.pointer;
-				hash = u.hash;
+                union {
+                    void * pointer;
+                    uint32_t hash;
+                } u;
+                u.pointer = x.data.pointer;
+                hash = u.hash;
             }
             break;
     }

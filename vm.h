@@ -4,7 +4,7 @@
 #include "datatypes.h"
 
 /* Exit from the VM normally */
-#define VMExit(vm, r) ((vm)->tempRoot = (r), longjmp((vm)->jump, 1))
+#define VMExit(vm, r) ((vm)->ret = (r), longjmp((vm)->jump, 1))
 
 /* Bail from the VM with an error. */
 #define VMError(vm, e) ((vm)->error = (e), longjmp((vm)->jump, 2))
@@ -16,6 +16,10 @@
 #define VMAssert(vm, cond, e) do \
     { if (!(cond)) { VMError((vm), (e)); } } while (0)
 
+/* Type assertion */
+#define VMAssertType(vm, f, type) \
+    VMAssert(vm, (f).type == (type), "Expected type " type)
+
 /* Initialize the VM */
 void VMInit(VM * vm);
 
@@ -23,13 +27,10 @@ void VMInit(VM * vm);
 void VMDeinit(VM * vm);
 
 /* Load a function to be run on the VM */
-void VMLoad(VM * vm, Func * func);
+void VMLoad(VM * vm, Value func);
 
 /* Start running the VM */
 int VMStart(VM * vm);
-
-/* Get the result after VMStart returns */
-#define VMResult(vm) ((vm)->tempRoot)
 
 /* Run garbage collection */
 void VMCollect(VM * vm);
