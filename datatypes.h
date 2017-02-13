@@ -167,7 +167,6 @@ struct Compiler {
     VM * vm;
     const char * error;
     jmp_buf onError;
-    Scope * root;
     Scope * tail;
     Array * env;
     Buffer * buffer;

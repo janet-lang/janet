@@ -70,8 +70,7 @@ struct Scope {
     Dictionary * literals;
     Array * literalsArray;
     Dictionary * locals;
-    Scope * nextScope;
-    Scope * previousScope;
+    Scope * parent;
 };
 
 /* Provides default FormOptions */
@@ -110,11 +109,9 @@ static Scope * CompilerPushScope(Compiler * c, int sameFunction) {
     scope->freeHeap = VMAlloc(c->vm, 10 * sizeof(uint16_t));
     scope->heapSize = 0;
     scope->heapCapacity = 10;
-    scope->nextScope = NULL;
-    scope->previousScope = c->tail;
+    scope->parent = c->tail;
     scope->frameSize = 0;
     if (c->tail) {
-        c->tail->nextScope = scope;
         scope->level = c->tail->level + (sameFunction ? 0 : 1);
     } else {
         scope->level = 0;
@@ -132,8 +129,6 @@ static Scope * CompilerPushScope(Compiler * c, int sameFunction) {
         scope->literalsArray = ArrayNew(c->vm, 10);
     }
     c->tail = scope;
-    if (!c->root)
-        c->root = scope;
     return scope;
 }
 
@@ -146,15 +141,11 @@ static void CompilerPopScope(Compiler * c) {
         if (last->nextLocal > last->frameSize) {
             last->frameSize = last->nextLocal;
         }
-        c->tail = last->previousScope;
+        c->tail = last->parent;
         if (c->tail) {
             if (last->frameSize > c->tail->frameSize) {
                 c->tail->frameSize = last->frameSize;
             }
-            c->tail->nextScope = NULL;
-        } else {
-            /* We deleted the last scope */
-            c->root = NULL;
         }
     }
 }
@@ -350,7 +341,7 @@ static int ScopeSymbolResolve(Scope * scope, Value x,
             *index = (uint16_t) check.data.number;
             return 1;
         }
-        scope = scope->previousScope;
+        scope = scope->parent;
     }
     return 0;
 }
@@ -1183,7 +1174,7 @@ void CompilerInit(Compiler * c, VM * vm) {
     c->vm = vm;
     c->buffer = BufferNew(vm, 128);
     c->env = ArrayNew(vm, 10);
-    c->tail = c->root = NULL;
+    c->tail = NULL;
     c->error = NULL;
     CompilerPushScope(c, 0);
 }
@@ -1192,7 +1183,7 @@ void CompilerInit(Compiler * c, VM * vm) {
 void CompilerAddGlobal(Compiler * c, const char * name, Value x) {
     Value sym = ValueLoadCString(c->vm, name);
     sym.type = TYPE_SYMBOL;
-    CompilerDeclareSymbol(c, c->root, sym);
+    CompilerDeclareSymbol(c, c->tail, sym);
     ArrayPush(c->vm, c->env, x);
 }
 
@@ -1211,8 +1202,8 @@ Func * CompilerCompile(Compiler * c, Value form) {
     FuncDef * def;
     if (setjmp(c->onError)) {
         /* Clear all but root scope */
-        c->tail = c->root;
-        c->root->nextScope = NULL;
+        if (c->tail)
+            c->tail->parent = NULL;
         return NULL;
     }
     /* Create a scope */

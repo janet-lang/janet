@@ -41,7 +41,8 @@ static void VMMarkFuncEnv(VM * vm, FuncEnv * env) {
             temp.type = TYPE_THREAD;
             temp.data.array = env->thread;
             VMMark(vm, &temp);
-        } else if (env->values) {
+        }
+        if (env->values) {
             uint32_t count = env->stackOffset;
             uint32_t i;
             GCHeader(env->values)->color = vm->black;
@@ -126,8 +127,9 @@ static void VMMark(VM * vm, Value * x) {
             if (GCHeader(x->data.func)->color != vm->black) {
                 Func * f = x->data.func;
                 GCHeader(f)->color = vm->black;
-                VMMarkFuncEnv(vm, f->env);
                 VMMarkFuncDef(vm, f->def);
+                if (f->env)
+                    VMMarkFuncEnv(vm, f->env);
                 if (f->parent) {
                     Value temp;
                     temp.type = TYPE_FUNCTION;
@@ -169,18 +171,20 @@ static void VMMark(VM * vm, Value * x) {
 static void VMSweep(VM * vm) {
     GCMemoryHeader * previous = NULL;
     GCMemoryHeader * current = vm->blocks;
+    GCMemoryHeader * next;
     while (current) {
+        next = current->next;
         if (current->color != vm->black) {
             if (previous) {
-                previous->next = current->next;
+                previous->next = next;
             } else {
-                vm->blocks = current->next;
+                vm->blocks = next;
             }
             free(current);
         } else {
             previous = current;
         }
-        current = current->next;
+        current = next;
     }
     /* Rotate flag */
     vm->black = !vm->black;
@@ -216,10 +220,12 @@ void * VMZalloc(VM * vm, uint32_t size) {
 void VMCollect(VM * vm) {
     if (vm->lock > 0) return;
     /* Thread can be null */
-    Value thread;
-    thread.type = TYPE_THREAD;
-    thread.data.array = vm->thread;
-    VMMark(vm, &thread);
+    if (vm->thread) {
+        Value thread;
+        thread.type = TYPE_THREAD;
+        thread.data.array = vm->thread;
+        VMMark(vm, &thread);
+    }
     VMMark(vm, &vm->ret);
     VMSweep(vm);
     vm->nextCollection = 0;
@@ -271,7 +277,7 @@ static void VMThreadSplitStack(VM * vm) {
         env->stackOffset = size;
         env->values = VMAlloc(vm, sizeof(Value) * size);
         memcpy(env->values, thread->data + thread->count, size * sizeof(Value));
-    } 
+    }
 }
 
 /* Pop the top-most stack frame from stack */
