@@ -43,6 +43,7 @@ typedef struct Parser Parser;
 typedef struct ParseState ParseState;
 typedef struct Scope Scope;
 typedef struct Compiler Compiler;
+typedef struct StackFrame StackFrame;
 
 union ValueData {
     Boolean boolean;
@@ -116,6 +117,15 @@ struct DictBucket {
     DictBucket * next;
 };
 
+struct StackFrame {
+    Value callee;
+    uint16_t size;
+    uint16_t prevSize;
+    uint16_t ret;
+    FuncEnv * env;
+    uint16_t * pc;
+};
+
 struct VM {
     /* Garbage collection */
     void * blocks;
@@ -127,7 +137,7 @@ struct VM {
     uint16_t * pc;
     Array * thread;
     Value * base;
-    Value root; /* Global state - prevents GC cleanup */
+    StackFrame * frame;
     /* Return state */
     const char * error;
     jmp_buf jump;
@@ -206,7 +216,7 @@ enum OpCode {
     VM_OP_DVM,        /* 0x001f */
     VM_OP_RTN,        /* 0x0020 */
     VM_OP_SET,        /* 0x0021 */
-    VM_OP_GET,        /* 0x0022 */
+    VM_OP_GET         /* 0x0022 */
 };
 
-#endif /* end of include guard: DATATYPES_H_PJJ035NT */
+#endif

@@ -29,7 +29,7 @@ uint8_t * BufferToString(VM * vm, Buffer * buffer);
 #define BufferDefine(name, type) \
 static void BufferPush##name (VM * vm, Buffer * buffer, type x) { \
     union { type t; uint8_t bytes[sizeof(type)]; } u; \
-    u.t = x; return BufferAppendData(vm, buffer, u.bytes, sizeof(type)); \
+    u.t = x; BufferAppendData(vm, buffer, u.bytes, sizeof(type)); \
 }
 
 /****/

@@ -67,7 +67,7 @@ void dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
 	uint16_t *current = byteCode;
 	uint16_t *end = byteCode + len;
 
-	fprintf(out, "----- ASM BYTECODE AT %p -----\n", byteCode);
+	fprintf(out, "----- ASM BYTECODE START -----\n");
 
 	while (current < end) {
 		switch (*current) {
@@ -195,6 +195,12 @@ void dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
            	break;
         case VM_OP_RTN:
 			current += dasmPrintFixedOp(out, current, "returnNil", 0);
+            break;
+        case VM_OP_GET:
+            current += dasmPrintFixedOp(out, current, "get", 3);
+            break;
+        case VM_OP_SET:
+            current += dasmPrintFixedOp(out, current, "set", 3);
             break;
 		}
 		fprintf(out, "\n");

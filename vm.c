@@ -11,17 +11,6 @@ static const char EXPECTED_FUNCTION[] = "Expected function";
 static const char VMS_EXPECTED_NUMBER_ROP[] = "Expected right operand to be number";
 static const char VMS_EXPECTED_NUMBER_LOP[] = "Expected left operand to be number";
 
-/* The stack frame data */
-typedef struct StackFrame StackFrame;
-struct StackFrame {
-    Value callee;
-    uint16_t size;
-    uint16_t prevSize;
-    uint16_t ret;
-    FuncEnv * env;
-    uint16_t * pc;
-};
-
 /* The size of a StackFrame in units of Values. */
 #define FRAME_SIZE ((sizeof(StackFrame) + sizeof(Value) - 1) / sizeof(Value))
 
@@ -37,7 +26,7 @@ static StackFrame * ThreadFrame(Array * thread) {
 typedef struct GCMemoryHeader GCMemoryHeader;
 struct GCMemoryHeader {
     GCMemoryHeader * next;
-    uint32_t color;
+    uint32_t color : 1;
 };
 
 /* Forward declaration */
@@ -52,15 +41,41 @@ static void VMMarkFuncEnv(VM * vm, FuncEnv * env) {
             temp.type = TYPE_THREAD;
             temp.data.array = env->thread;
             VMMark(vm, &temp);
-        } else {
+        } else if (env->values) {
             uint32_t count = env->stackOffset;
             uint32_t i;
             GCHeader(env->values)->color = vm->black;
-            for (i = 0; i < count; ++i) {
+            for (i = 0; i < count; ++i)
                 VMMark(vm, env->values + i);
-            }
         }
     }
+}
+
+/* GC helper to mark a FuncDef */
+static void VMMarkFuncDef(VM * vm, FuncDef * def) {
+    if (GCHeader(def)->color != vm->black) {
+        GCHeader(def)->color = vm->black;
+        GCHeader(def->byteCode)->color = vm->black;
+        uint32_t count, i;
+        if (def->literals) {
+            count = def->literalsLen;
+            GCHeader(def->literals)->color = vm->black;
+            for (i = 0; i < count; ++i)
+                VMMark(vm, def->literals + i);
+        }
+    }
+}
+
+/* Helper to mark a stack frame. Returns the next frame. */
+static StackFrame * VMMarkStackFrame(VM * vm, StackFrame * frame) {
+    uint32_t i;
+    Value * stack = (Value *)frame + FRAME_SIZE;
+    VMMark(vm, &frame->callee);
+    if (frame->env)
+        VMMarkFuncEnv(vm, frame->env);
+    for (i = 0; i < frame->size; ++i)
+        VMMark(vm, stack + i);
+    return (StackFrame *)(stack + frame->size);
 }
 
 /* Mark allocated memory associated with a value. This is
@@ -97,22 +112,13 @@ static void VMMark(VM * vm, Value * x) {
 
         case TYPE_THREAD:
             if (GCHeader(x->data.array)->color != vm->black) {
-                uint32_t i;
                 Array * thread = x->data.array;
                 StackFrame * frame = (StackFrame *)thread->data;
-                StackFrame * end = (StackFrame *)(thread->data + thread->count - FRAME_SIZE);
+                StackFrame * end = ThreadFrame(thread);
                 GCHeader(thread)->color = vm->black;
                 GCHeader(thread->data)->color = vm->black;
-                while (frame <= end) {
-                    Value * stack = (Value *)frame + FRAME_SIZE;
-                    VMMark(vm, &frame->callee);
-                    if (frame->env)
-                        VMMarkFuncEnv(vm, frame->env);
-                    for (i = 0; i < frame->size; ++i) {
-                        VMMark(vm, stack + i);
-                    }
-                    frame = (StackFrame *)(stack + frame->size);
-                }
+                while (frame <= end)
+                    frame = VMMarkStackFrame(vm, frame);
             }
             break;
 
@@ -121,16 +127,12 @@ static void VMMark(VM * vm, Value * x) {
                 Func * f = x->data.func;
                 GCHeader(f)->color = vm->black;
                 VMMarkFuncEnv(vm, f->env);
-                {
+                VMMarkFuncDef(vm, f->def);
+                if (f->parent) {
                     Value temp;
-                    temp.type = TYPE_FUNCDEF;
-                    temp.data.funcdef = x->data.funcdef;
+                    temp.type = TYPE_FUNCTION;
+                    temp.data.func = f->parent;
                     VMMark(vm, &temp);
-                    if (f->parent) {
-                        temp.type = TYPE_FUNCTION;
-                        temp.data.func = f->parent;
-                        VMMark(vm, &temp);
-                    }
                 }
             }
             break;
@@ -151,16 +153,7 @@ static void VMMark(VM * vm, Value * x) {
             break;
 
         case TYPE_FUNCDEF:
-            if (GCHeader(x->data.funcdef)->color != vm->black) {
-                GCHeader(x->data.funcdef->byteCode)->color = vm->black;
-                uint32_t count, i;
-                count = x->data.funcdef->literalsLen;
-                if (x->data.funcdef->literals) {
-                    GCHeader(x->data.funcdef->literals)->color = vm->black;
-                    for (i = 0; i < count; ++i)
-                        VMMark(vm, x->data.funcdef->literals + i);
-                }
-            }
+			VMMarkFuncDef(vm, x->data.funcdef);
             break;
 
         case TYPE_FUNCENV:
@@ -223,14 +216,11 @@ void * VMZalloc(VM * vm, uint32_t size) {
 void VMCollect(VM * vm) {
     if (vm->lock > 0) return;
     /* Thread can be null */
-    if (vm->thread) {
-        Value thread;
-        thread.type = TYPE_THREAD;
-        thread.data.array = vm->thread;
-        VMMark(vm, &thread);
-    }
+    Value thread;
+    thread.type = TYPE_THREAD;
+    thread.data.array = vm->thread;
+    VMMark(vm, &thread);
     VMMark(vm, &vm->ret);
-    VMMark(vm, &vm->root);
     VMSweep(vm);
     vm->nextCollection = 0;
 }
@@ -259,22 +249,23 @@ static void VMThreadPush(VM * vm, Array * thread, Value callee, uint32_t size) {
      * the garabage collector */
     for (i = nextCount; i < nextCount + size; ++i)
         thread->data[i].type = TYPE_NIL;
-    frame = ThreadFrame(thread);
+    vm->base = thread->data + thread->count;
+    vm->frame = frame = (StackFrame *)(vm->base - FRAME_SIZE);
     /* Set up the new stack frame */
     frame->prevSize = oldSize;
     frame->size = size;
     frame->env = NULL;
     frame->callee = callee;
-    vm->base = thread->data + thread->count;
 }
 
 /* Copy the current function stack to the current closure
    environment */
-static void VMThreadSplitStack(VM * vm, Array * thread) {
-    StackFrame * frame = ThreadFrame(thread);
+static void VMThreadSplitStack(VM * vm) {
+    StackFrame * frame = vm->frame;
     FuncEnv * env = frame->env;
     /* Check for closures */
     if (env) {
+        Array * thread = vm->thread;
         uint32_t size = frame->size;
         env->thread = NULL;
         env->stackOffset = size;
@@ -284,16 +275,18 @@ static void VMThreadSplitStack(VM * vm, Array * thread) {
 }
 
 /* Pop the top-most stack frame from stack */
-static void VMThreadPop(VM * vm, Array * thread) {
-    StackFrame * frame = ThreadFrame(thread);
+static void VMThreadPop(VM * vm) {
+    Array * thread = vm->thread;
+    StackFrame * frame = vm->frame;
     uint32_t delta = FRAME_SIZE + frame->prevSize;
     if (thread->count) {
-        VMThreadSplitStack(vm, thread);
+        VMThreadSplitStack(vm);
     } else {
         VMError(vm, "Nothing to pop from stack.");
     }
     thread->count -= delta;
     vm->base -= delta;
+    vm->frame = (StackFrame *)(vm->base - FRAME_SIZE);
 }
 
 /* Get an upvalue */
@@ -329,28 +322,24 @@ static int truthy(Value v) {
 
 /* Return from the vm */
 static void VMReturn(VM * vm, Value ret) {
-    Array * thread = vm->thread;
-    StackFrame * frame = ThreadFrame(thread);
-    VMThreadPop(vm, thread);
-    if (thread->count == 0) {
+    VMThreadPop(vm);
+    if (vm->thread->count == 0) {
         VMExit(vm, ret);
     }
-    frame = ThreadFrame(thread);
-    vm->pc = frame->pc;
-    vm->base[frame->ret] = ret;
+    vm->pc = vm->frame->pc;
+    vm->base[vm->frame->ret] = ret;
 }
 
 /* Implementation of the opcode for function calls */
 static void VMCallOp(VM * vm) {
     Array * thread = vm->thread;
-    StackFrame * frame = ThreadFrame(thread);
     Value callee = vm->base[vm->pc[1]];
     uint32_t arity = vm->pc[3];
     uint32_t oldCount = thread->count;
     uint32_t i;
     Value * oldBase;
-    frame->pc = vm->pc + 4 + arity;
-    frame->ret = vm->pc[2];
+    vm->frame->pc = vm->pc + 4 + arity;
+    vm->frame->ret = vm->pc[2];
     if (callee.type == TYPE_FUNCTION) {
         Func * fn = callee.data.func;
         VMThreadPush(vm, thread, callee, fn->def->locals);
@@ -375,19 +364,17 @@ static void VMCallOp(VM * vm) {
             vm->base[i].type = TYPE_NIL;
         vm->pc = f->def->byteCode;
     }
-    VMMaybeCollect(vm);
 }
 
 /* Implementation of the opcode for tail calls */
 static void VMTailCallOp(VM * vm) {
     Array * thread = vm->thread;
-    StackFrame * frame = ThreadFrame(thread);
     Value callee = vm->base[vm->pc[1]];
     uint32_t arity = vm->pc[2];
     uint16_t newFrameSize, currentFrameSize;
     uint32_t i;
     /* Check for closures */
-    VMThreadSplitStack(vm, thread);
+    VMThreadSplitStack(vm);
     if (callee.type == TYPE_CFUNCTION) {
         newFrameSize = arity;
     } else if (callee.type == TYPE_FUNCTION) {
@@ -397,9 +384,8 @@ static void VMTailCallOp(VM * vm) {
         VMError(vm, EXPECTED_FUNCTION);
     }
     /* Ensure stack has enough space for copies of arguments */
-    currentFrameSize = frame->size;
+    currentFrameSize = vm->frame->size;
     ArrayEnsure(vm, thread, thread->count + currentFrameSize + arity);
-    frame = ThreadFrame(thread);
     vm->base = thread->data + thread->count;
     /* Copy the arguments into the extra space */
     for (i = 0; i < arity; ++i) {
@@ -412,9 +398,9 @@ static void VMTailCallOp(VM * vm) {
         vm->base[i].type = TYPE_NIL;
     }
     /* Update the stack frame */
-    frame->size = newFrameSize;
-    frame->callee = callee;
-    frame->env = NULL;
+    vm->frame->size = newFrameSize;
+    vm->frame->callee = callee;
+    vm->frame->env = NULL;
     if (callee.type == TYPE_CFUNCTION) {
         ++vm->lock;
         VMReturn(vm, callee.data.cfunction(vm));
@@ -423,27 +409,25 @@ static void VMTailCallOp(VM * vm) {
         Func * f = callee.data.func;
         vm->pc = f->def->byteCode;
     }
-    VMMaybeCollect(vm);
 }
 
 /* Instantiate a closure */
 static Value VMMakeClosure(VM * vm, uint16_t literal) {
     Array * thread = vm->thread;
-    StackFrame * frame = ThreadFrame(thread);
-    if (frame->callee.type != TYPE_FUNCTION) {
+    if (vm->frame->callee.type != TYPE_FUNCTION) {
         VMError(vm, EXPECTED_FUNCTION);
     } else {
         Value constant, ret;
         Func * fn, * current;
-        FuncEnv * env = frame->env;
+        FuncEnv * env = vm->frame->env;
         if (!env) {
             env = VMAlloc(vm, sizeof(FuncEnv));
             env->thread = thread;
             env->stackOffset = thread->count;
             env->values = NULL;
-            frame->env = env;
+            vm->frame->env = env;
         }
-        current = frame->callee.data.func;
+        current = vm->frame->callee.data.func;
         constant = LoadConstant(vm, current, literal);
         if (constant.type != TYPE_FUNCDEF) {
             VMError(vm, EXPECTED_FUNCTION);
@@ -500,10 +484,10 @@ int VMStart(VM * vm) {
                 DO_BINARY_MATH(-)
 
             case VM_OP_MUL: /* Multiplication */
-                    DO_BINARY_MATH(*)
+                DO_BINARY_MATH(*)
 
             case VM_OP_DIV: /* Division */
-                        DO_BINARY_MATH(/)
+                DO_BINARY_MATH(/)
 
             #undef DO_BINARY_MATH
 
@@ -556,7 +540,7 @@ int VMStart(VM * vm) {
                 break;
 
             case VM_OP_UPV: /* Load Up Value */
-                temp = ThreadFrame(vm->thread)->callee;
+                temp = vm->frame->callee;
                 VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
                 vm->base[vm->pc[1]] = *GetUpValue(vm, temp.data.func, vm->pc[2], vm->pc[3]);
                 vm->pc += 4;
@@ -583,14 +567,14 @@ int VMStart(VM * vm) {
                 break;
 
             case VM_OP_SUV: /* Set Up Value */
-                temp = ThreadFrame(vm->thread)->callee;
+                temp = vm->frame->callee;
                 VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
                 *GetUpValue(vm, temp.data.func, vm->pc[2], vm->pc[3]) = vm->base[vm->pc[1]];
                 vm->pc += 4;
                 break;
 
             case VM_OP_CST: /* Load constant value */
-                temp = ThreadFrame(vm->thread)->callee;
+                temp = vm->frame->callee;
                 VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
                 vm->base[vm->pc[1]] = LoadConstant(vm, temp.data.func, vm->pc[2]);
                 vm->pc += 3;
@@ -653,7 +637,6 @@ int VMStart(VM * vm) {
                     temp.data.array = array;
                     vm->base[vm->pc[1]] = temp;
                     vm->pc += 3 + arrayLen;
-                    VMMaybeCollect(vm);
                 }
                 break;
 
@@ -661,7 +644,7 @@ int VMStart(VM * vm) {
                 {
                     uint32_t i = 3;
                     uint32_t kvs = vm->pc[2];
-                    Dictionary * dict = DictNew(vm, kvs);
+                    Dictionary * dict = DictNew(vm, kvs + 2);
                     kvs = kvs + 3;
                     while (i < kvs) {
                         v1 = vm->base[vm->pc[i++]];
@@ -672,7 +655,6 @@ int VMStart(VM * vm) {
                     temp.data.dict = dict;
                     vm->base[vm->pc[1]] = temp;
                     vm->pc += kvs;
-                    VMMaybeCollect(vm);
                 }
                 break;
 
@@ -718,40 +700,48 @@ int VMStart(VM * vm) {
                 break;
 
             case VM_OP_GET:
+				temp = ValueGet(vm, vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
+				vm->base[vm->pc[1]] = temp;
+				vm->pc += 4;
+                break;
 
+            case VM_OP_SET:
+				ValueSet(vm, vm->base[vm->pc[1]], vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
+				vm->pc += 4;
                 break;
 
             default:
                 VMError(vm, "Unknown opcode");
                 break;
         }
+        VMMaybeCollect(vm);
     }
 }
 
 /* Get an argument from the stack */
 Value VMGetArg(VM * vm, uint16_t index) {
-    uint16_t frameSize = ThreadFrame(vm->thread)->size;
+    uint16_t frameSize = vm->frame->size;
     VMAssert(vm, frameSize > index, "Cannot get arg out of stack bounds");
     return vm->base[index];
 }
 
 /* Put a value on the stack */
 void VMSetArg(VM * vm, uint16_t index, Value x) {
-    uint16_t frameSize = ThreadFrame(vm->thread)->size;
+    uint16_t frameSize = vm->frame->size;
     VMAssert(vm, frameSize > index, "Cannot set arg out of stack bounds");
     vm->base[index] = x;
 }
 
 /* Get the size of the VMStack */
 uint16_t VMCountArgs(VM * vm) {
-    return ThreadFrame(vm->thread)->size;
+    return vm->frame->size;
 }
 
 /* Initialize the VM */
 void VMInit(VM * vm) {
     vm->ret.type = TYPE_NIL;
-    vm->root.type = TYPE_NIL;
     vm->base = NULL;
+    vm->frame = NULL;
     vm->pc = NULL;
     vm->error = NULL;
     /* Garbage collection */
@@ -760,8 +750,8 @@ void VMInit(VM * vm) {
     vm->memoryInterval = 0;
     vm->black = 0;
     vm->lock = 0;
-    /* Set to empty thread */
-    vm->thread = NULL;
+    /* Add thread */
+    vm->thread = ArrayNew(vm, 20);
 }
 
 /* Load a function into the VM. The function will be called with

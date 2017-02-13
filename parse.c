@@ -130,7 +130,7 @@ static int isWhitespace(uint8_t c) {
 static int isSymbolChar(uint8_t c) {
     if (c >= 'a' && c <= 'z') return 1;
     if (c >= 'A' && c <= 'Z') return 1;
-    if (c >= '0' && c <= '9') return 1;
+    if (c >= '0' && c <= ':') return 1;
     if (c >= '<' && c <= '@') return 1;
     if (c >= '*' && c <= '/') return 1;
     if (c >= '#' && c <= '&') return 1;

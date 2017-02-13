@@ -11,7 +11,7 @@ int ValueEqual(Value x, Value y);
 
 Value ValueGet(VM * vm, Value ds, Value key);
 
-int ValueSet(VM * vm, Value ds, Value key, Value value);
+void ValueSet(VM * vm, Value ds, Value key, Value value);
 
 Value ValueLoadCString(VM * vm, const char * string);
 

@@ -17,8 +17,8 @@
     { if (!(cond)) { VMError((vm), (e)); } } while (0)
 
 /* Type assertion */
-#define VMAssertType(vm, f, type) \
-    VMAssert(vm, (f).type == (type), "Expected type " type)
+#define VMAssertType(vm, f, t) \
+    VMAssert((vm), (f).type == (t), "Expected type,")
 
 /* Initialize the VM */
 void VMInit(VM * vm);

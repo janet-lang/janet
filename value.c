@@ -148,26 +148,26 @@ uint8_t * ValueToString(VM * vm, Value x) {
         case TYPE_NUMBER:
             return NumberToString(vm, x.data.number);
         case TYPE_ARRAY:
-            return StringDescription(vm, "array", 5, x.data.array);
+            return StringDescription(vm, "array", 5, x.data.pointer);
         case TYPE_FORM:
-            return StringDescription(vm, "form", 4, x.data.array);
+            return StringDescription(vm, "form", 4, x.data.pointer);
         case TYPE_STRING:
         case TYPE_SYMBOL:
             return x.data.string;
         case TYPE_BYTEBUFFER:
-            return StringDescription(vm, "buffer", 6, x.data.buffer);
+            return StringDescription(vm, "buffer", 6, x.data.pointer);
         case TYPE_CFUNCTION:
-            return StringDescription(vm, "cfunction", 9, x.data.cfunction);
+            return StringDescription(vm, "cfunction", 9, x.data.pointer);
         case TYPE_FUNCTION:
-            return StringDescription(vm, "function", 8, x.data.func);
+            return StringDescription(vm, "function", 8, x.data.pointer);
         case TYPE_DICTIONARY:
-            return StringDescription(vm, "dictionary", 10, x.data.dict);
+            return StringDescription(vm, "dictionary", 10, x.data.pointer);
         case TYPE_FUNCDEF:
-            return StringDescription(vm, "funcdef", 7, x.data.funcdef);
+            return StringDescription(vm, "funcdef", 7, x.data.pointer);
         case TYPE_FUNCENV:
-            return StringDescription(vm, "funcenv", 7, x.data.funcenv);
+            return StringDescription(vm, "funcenv", 7, x.data.pointer);
         case TYPE_THREAD:
-            return StringDescription(vm, "thread", 6, x.data.array);
+            return StringDescription(vm, "thread", 6, x.data.pointer);
     }
     return NULL;
 }
@@ -352,23 +352,115 @@ int ValueCompare(Value x, Value y) {
     return 1;
 }
 
-/* Get a value out af an associated data structure. Can throw VM error. */
-Value ValueGet(VM * vm, Value ds, Value key) {
-	switch (ds.type) {
-	case TYPE_ARRAY:
-    case TYPE_FORM:
-    case TYPE_BYTEBUFFER:
-    case TYPE_SYMBOL:
-    case TYPE_STRING:
-    case TYPE_DICTIONARY:
-   	case TYPE_FUNCENV:
-    default:
-        VMError(vm, "Cannot get.");
-        break;
+/* Allow negative indexing to get from end of array like structure */
+/* This probably isn't very fast - look at Lua conversion function.
+ * I would like to keep this standard C for as long as possible, though. */
+static int32_t ToIndex(Number raw, int64_t len) {
+	int32_t toInt = raw;
+	if ((Number) toInt == raw) {
+		/* We were able to convert */
+		if (toInt < 0) {	
+    		/* Index from end */
+			if (toInt < -len) return -1;	
+			return len + toInt;
+		} else {	
+    		/* Normal indexing */
+    		if (toInt >= len) return -1;
+        	return toInt;
+		}
+	} else {
+        return -1;
 	}
 }
 
-/* Set a value in an associative data structure. Can throw VM error. */
-int ValueSet(VM * vm, Value ds, Value key, Value value) {
+/* Convert a number into a byte. */
+static uint8_t NumberToByte(Number raw) {
+	if (raw > 255) return 255;
+	if (raw < 0) return 0;
+	return (uint8_t) raw;
+}
 
+/* Get a value out af an associated data structure. Can throw VM error. */
+Value ValueGet(VM * vm, Value ds, Value key) {
+    int32_t index;
+    Value ret;
+	switch (ds.type) {
+	case TYPE_ARRAY:
+    case TYPE_FORM:
+        VMAssertType(vm, key, TYPE_NUMBER);
+		index = ToIndex(key.data.number, ds.data.array->count);
+		if (index == -1) VMError(vm, "Invalid array access");
+		return ds.data.array->data[index];
+    case TYPE_BYTEBUFFER:
+        VMAssertType(vm, key, TYPE_NUMBER);
+        index = ToIndex(key.data.number, ds.data.buffer->count);
+		if (index == -1) VMError(vm, "Invalid buffer access");
+		ret.type = TYPE_NUMBER;
+		ret.data.number = ds.data.buffer->data[index];
+		break;
+    case TYPE_SYMBOL:
+    case TYPE_STRING:
+        VMAssertType(vm, key, TYPE_NUMBER);
+        index = ToIndex(key.data.number, VStringSize(ds.data.string));
+		if (index == -1) VMError(vm, "Invalid string access");
+		ret.type = TYPE_NUMBER;
+		ret.data.number = ds.data.string[index];
+		break;
+    case TYPE_DICTIONARY:
+        return DictGet(ds.data.dict, key);
+   	case TYPE_FUNCENV:
+        VMAssertType(vm, key, TYPE_NUMBER);
+        if (ds.data.funcenv->thread) {
+           	Array * thread = ds.data.funcenv->thread;
+			index = ToIndex(key.data.number, vm->frame->size);
+    		if (index == -1) VMError(vm, "Invalid funcenv access");
+    		return thread->data[thread->count + index];
+        } else {
+    		index = ToIndex(key.data.number, ds.data.funcenv->stackOffset);
+    		if (index == -1) VMError(vm, "Invalid funcenv access");
+    		return ds.data.funcenv->values[index];
+        }
+    default:
+        VMError(vm, "Cannot get.");
+	}
+	return ret;
+}
+
+/* Set a value in an associative data structure. Can throw VM error. */
+void ValueSet(VM * vm, Value ds, Value key, Value value) {
+    int32_t index;
+	switch (ds.type) {
+	case TYPE_ARRAY:
+    case TYPE_FORM:
+        VMAssertType(vm, key, TYPE_NUMBER);
+		index = ToIndex(key.data.number, ds.data.array->count);
+		if (index == -1) VMError(vm, "Invalid array access");
+		ds.data.array->data[index] = value;
+		break;
+    case TYPE_BYTEBUFFER:
+        VMAssertType(vm, key, TYPE_NUMBER);
+        VMAssertType(vm, value, TYPE_NUMBER);
+        index = ToIndex(key.data.number, ds.data.buffer->count);
+		if (index == -1) VMError(vm, "Invalid buffer access");
+		ds.data.buffer->data[index] = NumberToByte(value.data.number);
+		break;
+    case TYPE_DICTIONARY:
+        DictPut(vm, ds.data.dict, key, value);
+        break;
+   	case TYPE_FUNCENV:
+        VMAssertType(vm, key, TYPE_NUMBER);
+        if (ds.data.funcenv->thread) {
+           	Array * thread = ds.data.funcenv->thread;
+			index = ToIndex(key.data.number, vm->frame->size);
+    		if (index == -1) VMError(vm, "Invalid funcenv access");
+    		thread->data[thread->count + index] = value;
+        } else {
+    		index = ToIndex(key.data.number, ds.data.funcenv->stackOffset);
+    		if (index == -1) VMError(vm, "Invalid funcenv access");
+    		ds.data.funcenv->values[index] = value;
+        }
+        break;
+    default:
+        VMError(vm, "Cannot set.");
+	}
 }

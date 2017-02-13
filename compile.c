@@ -87,11 +87,11 @@ static FormOptions FormOptionsDefault() {
 /* Create some helpers that allows us to push more than just raw bytes
  * to the byte buffer. This helps us create the byte code for the compiled
  * functions. */
-BufferDefine(UInt32, uint32_t);
-BufferDefine(Int32, int32_t);
-BufferDefine(Number, Number);
-BufferDefine(UInt16, uint16_t);
-BufferDefine(Int16, int16_t);
+BufferDefine(UInt32, uint32_t)
+BufferDefine(Int32, int32_t)
+BufferDefine(Number, Number)
+BufferDefine(UInt16, uint16_t)
+BufferDefine(Int16, int16_t)
 
 /* If there is an error during compilation,
  * jump back to start */
@@ -553,7 +553,7 @@ static Slot CompileArray(Compiler * c, FormOptions opts, Array * array) {
  * called with n arguments, the number of arguments is written
  * after the op code, followed by those arguments.
  *
- * This makes a few assumptions about the opertors. One, no side
+ * This makes a few assumptions about the operators. One, no side
  * effects. With this assumptions, if the result of the operator
  * is unused, it's calculation can be ignored (the evaluation of
  * its argument is still carried out, but their results can
@@ -576,7 +576,7 @@ static Slot CompileOperator(Compiler * c, FormOptions opts, Array * form,
         if (form->count < 2) {
             if (op0 < 0) {
                 if (opn < 0) CError(c, "This operator does not take 0 arguments.");
-                /* Use multiple form */
+                /* Use multiple form of op */
                 BufferPushUInt16(c->vm, buffer, opn);
                 BufferPushUInt16(c->vm, buffer, ret.index);
                 BufferPushUInt16(c->vm, buffer, 0);
@@ -587,7 +587,7 @@ static Slot CompileOperator(Compiler * c, FormOptions opts, Array * form,
         } else if (form->count == 2) {
             if (op1 < 0) {
                 if (opn < 0) CError(c, "This operator does not take 1 argument.");
-                /* Use multiple form */
+                /* Use multiple form of op */
                 BufferPushUInt16(c->vm, buffer, opn);
                 BufferPushUInt16(c->vm, buffer, ret.index);
                 BufferPushUInt16(c->vm, buffer, 1);
@@ -641,6 +641,39 @@ static Slot CompileGreaterThanOrEqual(Compiler * c, FormOptions opts, Array * fo
 }
 static Slot CompileNot(Compiler * c, FormOptions opts, Array * form) {
     return CompileOperator(c, opts, form, VM_OP_FLS, VM_OP_NOT, -1, -1, 0);
+}
+static Slot CompileGet(Compiler * c, FormOptions opts, Array * form) {
+	return CompileOperator(c, opts, form, -1, -1, VM_OP_GET, -1, 0);
+}
+
+/* Associative set */
+static Slot CompileSet(Compiler * c, FormOptions opts, Array * form) {
+    Buffer * buffer = c->buffer;
+    FormOptions subOpts = FormOptionsDefault();
+    Slot ds, key, val;
+    if (form->count != 4) CError(c, "Set expects 4 arguments");
+    if (opts.resultUnused) {
+        ds = CompilerRealizeSlot(c, CompileValue(c, subOpts, form->data[1]));
+    } else {
+        subOpts = opts;
+        subOpts.isTail = 0;
+        ds = CompilerRealizeSlot(c, CompileValue(c, subOpts, form->data[1]));
+        subOpts = FormOptionsDefault();
+    }
+    key = CompilerRealizeSlot(c, CompileValue(c, subOpts, form->data[2]));
+   	val = CompilerRealizeSlot(c, CompileValue(c, subOpts, form->data[3]));
+    BufferPushUInt16(c->vm, buffer, VM_OP_SET);
+    BufferPushUInt16(c->vm, buffer, ds.index);
+    BufferPushUInt16(c->vm, buffer, key.index);
+    BufferPushUInt16(c->vm, buffer,	val.index);
+    CompilerDropSlot(c, c->tail, key);
+    CompilerDropSlot(c, c->tail, val);
+    if (opts.resultUnused) {
+        CompilerDropSlot(c, c->tail, ds);
+        return NilSlot();
+    } else {
+		return ds;
+    }
 }
 
 /* Compile an assignment operation */
@@ -939,7 +972,7 @@ static Slot CompileQuote(Compiler * c, FormOptions opts, Array * form) {
 }
 
 /* Assignment special */
-static Slot CompileSet(Compiler * c, FormOptions opts, Array * form) {
+static Slot CompileVar(Compiler * c, FormOptions opts, Array * form) {
     if (form->count != 3)
         CError(c, "Assignment expects 2 arguments");
     return CompileAssign(c, opts, form->data[1], form->data[2]);
@@ -968,7 +1001,6 @@ static SpecialFormHelper GetSpecial(Array * form) {
             case '>': return CompileGreaterThan;
             case '<': return CompileLessThan;
             case '=': return CompileEquals;
-            case '\'': return CompileQuote;
             default:
                        break;
         }
@@ -991,6 +1023,14 @@ static SpecialFormHelper GetSpecial(Array * form) {
                 }
             }
             break;
+        case 'g':
+            {
+				if (VStringSize(name) == 3 &&
+    				    name[1] == 'e' &&
+    				    name[2] == 't') {
+					return CompileGet;
+			    }
+            }
         case 'd':
             {
                 if (VStringSize(name) == 2 &&
@@ -1053,6 +1093,15 @@ static SpecialFormHelper GetSpecial(Array * form) {
                     return CompileWhile;
                 }
             }
+            break;
+        case ':':
+            {
+                if (VStringSize(name) == 2 &&
+                        name[1] == '=') {
+                    return CompileVar;
+                }
+            }
+            break;
         default:
             break;
     }
@@ -1152,7 +1201,7 @@ void CompilerAddGlobalCFunc(Compiler * c, const char * name, CFunction f) {
     Value func;
     func.type = TYPE_CFUNCTION;
     func.data.cfunction = f;
-    return CompilerAddGlobal(c, name, func);
+    CompilerAddGlobal(c, name, func);
 }
 
 /* Compile interface. Returns a function that evaluates the
@@ -1175,8 +1224,12 @@ Func * CompilerCompile(Compiler * c, Value form) {
         uint32_t envSize = c->env->count;
         FuncEnv * env = VMAlloc(c->vm, sizeof(FuncEnv));
         Func * func = VMAlloc(c->vm, sizeof(Func));
-        env->values = VMAlloc(c->vm, sizeof(Value) * envSize);
-        memcpy(env->values, c->env->data, envSize * sizeof(Value));
+        if (envSize) {
+        	env->values = VMAlloc(c->vm, sizeof(Value) * envSize);
+        	memcpy(env->values, c->env->data, envSize * sizeof(Value));
+        } else {
+			env->values = NULL;
+        }
         env->stackOffset = envSize;
         env->thread = NULL;
         func->parent = NULL;
@@ -1201,7 +1254,7 @@ int CompileMacroExpand(VM * vm, Value x, Dictionary * macros, Value * out) {
         VMLoad(vm, macroFn);
         if (VMStart(vm)) {
             /* We encountered an error during parsing */        
-            return 1;;
+            return 1;
         } else {
             x = vm->ret;
         }

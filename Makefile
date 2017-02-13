@@ -1,6 +1,6 @@
 # TIL
 
-CFLAGS=-std=c99 -Wall -Wextra -g
+CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -g
 
 TARGET=interp
 PREFIX=/usr/local

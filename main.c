@@ -37,7 +37,7 @@ void debugRepl() {
   for (;;) {
 
     /* Run garbage collection */
-    VMMaybeCollect(&vm);
+/*    VMMaybeCollect(&vm);*/
 
     /* Reset state */
     ParserInit(&p, &vm);
@@ -85,6 +85,11 @@ void debugRepl() {
       continue;
     }
 
+    /* Print asm */
+    printf("\n");
+    dasmFunc(stdout, func.data.func);
+    printf("\n");
+
     /* Execute function */
     VMLoad(&vm, func);
     if (VMStart(&vm)) {
@@ -103,4 +108,5 @@ void debugRepl() {
 int main() {
   printf("Super cool interpreter v0.0\n");
   debugRepl();
+  return 0;
 }
