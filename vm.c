@@ -79,7 +79,7 @@ static StackFrame * VMMarkStackFrame(VM * vm, StackFrame * frame) {
 }
 
 /* Mark allocated memory associated with a value. This is
- * the main function for doing garbage collection. */
+ * the main function for doing the garbage collection mark phase. */
 static void VMMark(VM * vm, Value * x) {
     switch (x->type) {
         case TYPE_NIL:
@@ -751,7 +751,7 @@ void VMInit(VM * vm) {
     vm->black = 0;
     vm->lock = 0;
     /* Add thread */
-    vm->thread = ArrayNew(vm, 20);
+    vm->thread = NULL;
 }
 
 /* Load a function into the VM. The function will be called with
