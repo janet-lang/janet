@@ -94,10 +94,6 @@ uint8_t * ValueToString(VM * vm, Value x) {
             return StringDescription(vm, "function", 8, x.data.pointer);
         case TYPE_DICTIONARY:
             return StringDescription(vm, "dictionary", 10, x.data.pointer);
-        case TYPE_FUNCDEF:
-            return StringDescription(vm, "funcdef", 7, x.data.pointer);
-        case TYPE_FUNCENV:
-            return StringDescription(vm, "funcenv", 7, x.data.pointer);
         case TYPE_THREAD:
             return StringDescription(vm, "thread", 6, x.data.pointer);
     }
@@ -155,8 +151,6 @@ int ValueEqual(Value x, Value y) {
             case TYPE_CFUNCTION:
             case TYPE_DICTIONARY:
             case TYPE_FUNCTION:
-            case TYPE_FUNCDEF:
-            case TYPE_FUNCENV:
             case TYPE_THREAD:
                 /* compare pointers */
                 result = (x.data.array == y.data.array);
@@ -201,8 +195,6 @@ uint32_t ValueHash(Value x) {
         case TYPE_CFUNCTION:
         case TYPE_DICTIONARY:
         case TYPE_FUNCTION:
-        case TYPE_FUNCDEF:
-        case TYPE_FUNCENV:
         case TYPE_THREAD:
             /* Cast the pointer */
             {
@@ -269,8 +261,6 @@ int ValueCompare(Value x, Value y) {
             case TYPE_CFUNCTION:
             case TYPE_FUNCTION:
             case TYPE_DICTIONARY:
-            case TYPE_FUNCDEF:
-            case TYPE_FUNCENV:
             case TYPE_THREAD:
                 if (x.data.string == y.data.string) {
                     return 0;
@@ -340,18 +330,6 @@ Value ValueGet(VM * vm, Value ds, Value key) {
 		break;
     case TYPE_DICTIONARY:
         return DictGet(ds.data.dict, key);
-   	case TYPE_FUNCENV:
-        VMAssertType(vm, key, TYPE_NUMBER);
-        if (ds.data.funcenv->thread) {
-           	Array * thread = ds.data.funcenv->thread;
-			index = ToIndex(key.data.number, vm->frame->size);
-    		if (index == -1) VMError(vm, "Invalid funcenv access");
-    		return thread->data[thread->count + index];
-        } else {
-    		index = ToIndex(key.data.number, ds.data.funcenv->stackOffset);
-    		if (index == -1) VMError(vm, "Invalid funcenv access");
-    		return ds.data.funcenv->values[index];
-        }
     default:
         VMError(vm, "Cannot get.");
 	}
@@ -378,19 +356,6 @@ void ValueSet(VM * vm, Value ds, Value key, Value value) {
 		break;
     case TYPE_DICTIONARY:
         DictPut(vm, ds.data.dict, key, value);
-        break;
-   	case TYPE_FUNCENV:
-        VMAssertType(vm, key, TYPE_NUMBER);
-        if (ds.data.funcenv->thread) {
-           	Array * thread = ds.data.funcenv->thread;
-			index = ToIndex(key.data.number, vm->frame->size);
-    		if (index == -1) VMError(vm, "Invalid funcenv access");
-    		thread->data[thread->count + index] = value;
-        } else {
-    		index = ToIndex(key.data.number, ds.data.funcenv->stackOffset);
-    		if (index == -1) VMError(vm, "Invalid funcenv access");
-    		ds.data.funcenv->values[index] = value;
-        }
         break;
     default:
         VMError(vm, "Cannot set.");

@@ -41,9 +41,6 @@ void debugRepl() {
 
     for (;;) {
 
-        /* Run garbage collection */
-        VMMaybeCollect(&vm);
-
         /* Reset state */
         ParserInit(&p, &vm);
 

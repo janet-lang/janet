@@ -806,8 +806,8 @@ static Slot CompileFunction(Compiler * c, FormOptions opts, Array * form) {
         uint16_t literalIndex;
         FuncDef * def = CompilerGenFuncDef(c, buffer->count - sizeBefore, params->count);
         /* Add this FuncDef as a literal in the outer scope */
-        newVal.type = TYPE_FUNCDEF;
-        newVal.data.funcdef = def;
+        newVal.type = TYPE_NIL;
+        newVal.data.pointer = def;
         literalIndex = CompilerAddLiteral(c, scope, newVal);
         BufferPushUInt16(c->vm, buffer, VM_OP_CLN);
         BufferPushUInt16(c->vm, buffer, ret.index);

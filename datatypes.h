@@ -20,9 +20,7 @@ typedef enum Type {
     TYPE_BYTEBUFFER,
     TYPE_FUNCTION,
     TYPE_CFUNCTION,
-    TYPE_DICTIONARY,
-    TYPE_FUNCDEF,
-    TYPE_FUNCENV
+    TYPE_DICTIONARY
 } Type;
 
 typedef double Number;
@@ -54,8 +52,6 @@ union ValueData {
     Dictionary * dict;
     Func * func;
     void * pointer;
-    FuncDef * funcdef;
-    FuncEnv * funcenv;
     CFunction cfunction;
     uint16_t u16[4];
     uint8_t u8[8];

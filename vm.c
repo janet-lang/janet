@@ -61,8 +61,15 @@ static void VMMarkFuncDef(VM * vm, FuncDef * def) {
         if (def->literals) {
             count = def->literalsLen;
             GCHeader(def->literals)->color = vm->black;
-            for (i = 0; i < count; ++i)
-                VMMark(vm, def->literals + i);
+            for (i = 0; i < count; ++i) {
+                /* If the literal is a NIL type, it actually
+                 * contains a FuncDef */
+               	if (def->literals[i].type == TYPE_NIL) {
+					VMMarkFuncDef(vm, (FuncDef *) def->literals[i].data.pointer);
+               	} else {
+                    VMMark(vm, def->literals + i);
+               	}
+            }
         }
     }
 }
@@ -152,14 +159,6 @@ static void VMMark(VM * vm, Value * x) {
                     VMMark(vm, &bucket->value);
                 }
             }
-            break;
-
-        case TYPE_FUNCDEF:
-			VMMarkFuncDef(vm, x->data.funcdef);
-            break;
-
-        case TYPE_FUNCENV:
-            VMMarkFuncEnv(vm, x->data.funcenv);
             break;
 
     }
@@ -435,11 +434,11 @@ static Value VMMakeClosure(VM * vm, uint16_t literal) {
         }
         current = vm->frame->callee.data.func;
         constant = LoadConstant(vm, current, literal);
-        if (constant.type != TYPE_FUNCDEF) {
-            VMError(vm, EXPECTED_FUNCTION);
+        if (constant.type != TYPE_NIL) {
+            VMError(vm, "Error trying to create closure");
         }
         fn = VMAlloc(vm, sizeof(Func));
-        fn->def = constant.data.funcdef;
+        fn->def = (FuncDef *) constant.data.pointer;
         fn->parent = current;
         fn->env = env;
         ret.type = TYPE_FUNCTION;
