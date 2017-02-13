@@ -5,6 +5,7 @@
 #include "datatypes.h"
 #include "ds.h"
 #include "parse.h"
+#include "value.h"
 #include "vm.h"
 
 static const char UNEXPECTED_CLOSING_DELIM[] = "Unexpected closing delimiter";
@@ -12,9 +13,7 @@ static const char UNEXPECTED_CLOSING_DELIM[] = "Unexpected closing delimiter";
 /* The type of a ParseState */
 typedef enum ParseType {
     PTYPE_ROOT,
-    PTYPE_ARRAY,
     PTYPE_FORM,
-    PTYPE_DICTIONARY,
     PTYPE_STRING,
     PTYPE_TOKEN
 } ParseType;
@@ -23,12 +22,10 @@ typedef enum ParseType {
 struct ParseState {
     ParseType type;
     union {
-        Array * array;
         struct {
-            Dictionary * dict;
-            Value key;
-            int keyFound;
-        } dictState;
+			uint8_t endDelimiter;
+            Array * array;
+        } form;
         struct {
             Buffer * buffer;
             enum {
@@ -63,7 +60,7 @@ static ParseState * ParserPop(Parser * p) {
 }
 
 /* Add a new, empty ParseState to the ParseStack. */
-static void ParserPush(Parser *p, ParseType type) {
+static void ParserPush(Parser *p, ParseType type, uint8_t character) {
     ParseState * top;
     if (p->count >= p->cap) {
         uint32_t newCap = 2 * p->count;
@@ -83,13 +80,17 @@ static void ParserPush(Parser *p, ParseType type) {
         case PTYPE_TOKEN:
             top->buf.string.buffer = BufferNew(p->vm, 10);
             break;
-        case PTYPE_ARRAY:
         case PTYPE_FORM:
-            top->buf.array = ArrayNew(p->vm, 10);
-            break;
-        case PTYPE_DICTIONARY:
-            top->buf.dictState.dict = DictNew(p->vm, 10);
-            top->buf.dictState.keyFound = 0;
+            top->buf.form.array = ArrayNew(p->vm, 10);
+            if (character == '(') top->buf.form.endDelimiter = ')';
+            if (character == '[') {
+                top->buf.form.endDelimiter = ']';
+                ArrayPush(p->vm, top->buf.form.array, ValueLoadCString(p->vm, "array"));
+            }
+            if (character == '{') {
+                top->buf.form.endDelimiter = '}';
+                ArrayPush(p->vm, top->buf.form.array, ValueLoadCString(p->vm, "dict"));
+            }
             break;
     }
 }
@@ -103,17 +104,8 @@ static void ParserTopAppend(Parser * p, Value x) {
             p->value = x;
             p->status = PARSER_FULL;
             break;
-        case PTYPE_ARRAY:
         case PTYPE_FORM:
-            ArrayPush(p->vm, top->buf.array, x);
-            break;
-        case PTYPE_DICTIONARY:
-            if (top->buf.dictState.keyFound) {
-                DictPut(p->vm, top->buf.dictState.dict, top->buf.dictState.key, x);
-            } else {
-                top->buf.dictState.key = x;
-            }
-            top->buf.dictState.keyFound = !top->buf.dictState.keyFound;
+            ArrayPush(p->vm, top->buf.form.array, x);
             break;
         default:
             PError(p, "Expected container type.");
@@ -204,33 +196,6 @@ static int checkStrConst(const char * ref, const uint8_t * start, const uint8_t 
     return !*ref && start == end;
 }
 
-/* Handle parsing generic input */
-static int ParserMainState(Parser * p, uint8_t c) {
-    if (c == '(') {
-        ParserPush(p, PTYPE_FORM);
-        return 1;
-    }
-    if (c == '[') {
-        ParserPush(p, PTYPE_ARRAY);
-        return 1;
-    }
-    if (c == '{') {
-        ParserPush(p, PTYPE_DICTIONARY);
-        return 1;
-    }
-    if (c == '"') {
-        ParserPush(p, PTYPE_STRING);
-        return 1;
-    }
-    if (isWhitespace(c)) return 1;
-    if (isSymbolChar(c)) {
-        ParserPush(p, PTYPE_TOKEN);
-        return 0;
-    }
-    PError(p, "Unexpected character.");
-    return 1;
-}
-
 /* Build from the token buffer */
 static Value ParserBuildTokenBuffer(Parser * p, Buffer * buf) {
     Value x;
@@ -254,7 +219,7 @@ static Value ParserBuildTokenBuffer(Parser * p, Buffer * buf) {
             PError(p, "Symbols cannot start with digits.");
             x.type = TYPE_NIL;
         } else {
-            x.type = TYPE_SYMBOL;
+            x.type = TYPE_STRING;
             x.data.string = BufferToString(p->vm, buf);
         }
     }
@@ -286,11 +251,16 @@ static int ParserStringState(Parser * p, uint8_t c) {
             if (c == '\\') {
                 top->buf.string.state = STRING_STATE_ESCAPE;
             } else if (c == '"') {
-                Value x;
+                /* Load a quote form to get the string literal */
+                Value x, array;
                 x.type = TYPE_STRING;
                 x.data.string = BufferToString(p->vm, top->buf.string.buffer);
+                array.type = TYPE_ARRAY;
+                array.data.array = ArrayNew(p->vm, 2);
+                ArrayPush(p->vm, array.data.array, ValueLoadCString(p->vm, "quote"));
+                ArrayPush(p->vm, array.data.array, x);
                 ParserPop(p);
-                ParserTopAppend(p, x);
+                ParserTopAppend(p, array);
             } else {
                 BufferPush(p->vm, top->buf.string.buffer, c);
             }
@@ -323,72 +293,42 @@ static int ParserStringState(Parser * p, uint8_t c) {
     return 1;
 }
 
-/* Handle parsing a form */
-static int ParserFormState(Parser * p, uint8_t c) {
-    if (c == ')') {
-        ParseState * top = ParserPop(p);
-        Array * array = top->buf.array;
-        Value x;
-        x.type = TYPE_FORM;
-        x.data.array = array;
-        ParserTopAppend(p, x);
-        return 1;
-    } else if (c == ']' || c == '}') {
-        PError(p, UNEXPECTED_CLOSING_DELIM);
-        return 1;
-    } else {
-        return ParserMainState(p, c);
-    }
-}
-
-/* Handle parsing an array */
-static int ParserArrayState(Parser * p, uint8_t c) {
-    if (c == ']') {
-        ParseState * top = ParserPop(p);
-        Array * array = top->buf.array;
-        Value x;
-        x.type = TYPE_ARRAY;
-        x.data.array = array;
-        ParserTopAppend(p, x);
-        return 1;
-    } else if (c == ')' || c == '}') {
-        PError(p, UNEXPECTED_CLOSING_DELIM);
-        return 1;
-    } else {
-        return ParserMainState(p, c);
-    }
-}
-
-/* Handle parsing a dictionary */
-static int ParserDictState(Parser * p, uint8_t c) {
-    if (c == '}') {
-        ParseState * top = ParserPop(p);
-        if (!top->buf.dictState.keyFound) {
-            Value x;
-            x.type = TYPE_DICTIONARY;
-            x.data.dict = top->buf.dictState.dict;
-            ParserTopAppend(p, x);
-            return 1;
-        } else {
-            PError(p, "Odd number of items in dictionary literal.");
-            return 1;
-        }
-    } else if (c == ')' || c == ']') {
-        PError(p, UNEXPECTED_CLOSING_DELIM);
-        return 1;
-    } else {
-        return ParserMainState(p, c);
-    }
-}
-
 /* Root state of the parser */
 static int ParserRootState(Parser * p, uint8_t c) {
     if (c == ']' || c == ')' || c == '}') {
         PError(p, UNEXPECTED_CLOSING_DELIM);
         return 1;
-    } else {
-        return ParserMainState(p, c);
     }
+    if (c == '(' || c == '[' || c == '{') {
+        ParserPush(p, PTYPE_FORM, c);
+        return 1;
+    }
+    if (c == '"') {
+        ParserPush(p, PTYPE_STRING, c);
+        return 1;
+    }
+    if (isWhitespace(c)) return 1;
+    if (isSymbolChar(c)) {
+        ParserPush(p, PTYPE_TOKEN, c);
+        return 0;
+    }
+    PError(p, "Unexpected character.");
+    return 1;
+}
+
+/* Handle parsing a form */
+static int ParserFormState(Parser * p, uint8_t c) {
+    ParseState * top = ParserPeek(p);
+    if (c == top->buf.form.endDelimiter) {
+        Array * array = top->buf.form.array;
+        Value x;
+        x.type = TYPE_ARRAY;
+        x.data.array = array;
+    	ParserPop(p);
+        ParserTopAppend(p, x);
+        return 1;
+    }
+    return ParserRootState(p, c);
 }
 
 /* Handle a character */
@@ -406,14 +346,8 @@ static int ParserDispatchChar(Parser * p, uint8_t c) {
             case PTYPE_FORM:
                 done = ParserFormState(p, c);
                 break;
-            case PTYPE_ARRAY:
-                done = ParserArrayState(p, c);
-                break;
             case PTYPE_STRING:
                 done = ParserStringState(p, c);
-                break;
-            case PTYPE_DICTIONARY:
-                done = ParserDictState(p, c);
                 break;
         }
     }
@@ -446,5 +380,5 @@ void ParserInit(Parser * p, VM * vm) {
     p->error = NULL;
     p->status = PARSER_PENDING;
     p->value.type = TYPE_NIL;
-    ParserPush(p, PTYPE_ROOT);
+    ParserPush(p, PTYPE_ROOT, ' ');
 }

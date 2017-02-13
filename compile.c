@@ -318,7 +318,7 @@ static uint16_t CompilerAddLiteral(Compiler * c, Scope * scope, Value x) {
 
 /* Declare a symbol in a given scope. */
 static uint16_t CompilerDeclareSymbol(Compiler * c, Scope * scope, Value sym) {
-    if (sym.type != TYPE_SYMBOL) {
+    if (sym.type != TYPE_STRING) {
         CError(c, "Expected symbol");
     }
     Value x;
@@ -449,47 +449,6 @@ static Slot CompileSymbol(Compiler * c, FormOptions opts, Value sym) {
     return ret;
 }
 
-/* Compile a dictionary literal. The order of compilation
- * is undefined, although a key is evalated before its value,
- * assuming the dictionary is unchanged by macros. */
-static Slot CompileDict(Compiler * c, FormOptions opts, Dictionary * dict) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
-    Slot ret;
-    FormOptions subOpts = FormOptionsDefault();
-    DictionaryIterator iter;
-    DictBucket * bucket;
-    SlotTracker tracker;
-    /* Calculate sub flags */
-    subOpts.resultUnused = opts.resultUnused;
-    /* Compile all of the arguments */
-    CompilerTrackerInit(c, &tracker);
-    DictIterate(dict, &iter);
-    while (DictIterateNext(&iter, &bucket)) {
-        Slot keySlot = CompileValue(c, subOpts, bucket->key);
-        if (subOpts.resultUnused) CompilerDropSlot(c, scope, keySlot);
-        Slot valueSlot = CompileValue(c, subOpts, bucket->value);
-        if (subOpts.resultUnused) CompilerDropSlot(c, scope, valueSlot);
-        if (!subOpts.resultUnused) {
-            CompilerTrackerPush(c, &tracker, keySlot);
-            CompilerTrackerPush(c, &tracker, valueSlot);
-        }
-    }
-    /* Free up slots */
-    CompilerTrackerFree(c, scope, &tracker);
-    if (opts.resultUnused) {
-        ret = NilSlot();
-    } else {
-        ret = CompilerGetTarget(c, opts);
-        BufferPushUInt16(c->vm, buffer, VM_OP_DIC);
-        BufferPushUInt16(c->vm, buffer, ret.index);
-        BufferPushUInt16(c->vm, buffer, dict->count * 2);
-    }
-    /* Write the location of all of the arguments */
-    CompilerTrackerWrite(c, &tracker, 0);
-    return ret;
-}
-
 /* Compile values in an array sequentail and track the returned slots.
  * If the result is unused, immediately drop slots we don't need. Can
  * also ignore the end of an array. */
@@ -512,30 +471,6 @@ static void CompilerTrackerInitArray(Compiler * c, FormOptions opts,
         else
             CompilerTrackerPush(c, tracker, CompilerRealizeSlot(c, slot));
     }
-}
-
-/* Compile an array literal. The array is evaluated left
- * to right. Arrays are normally compiled as forms to be evaluated, however. */
-static Slot CompileArray(Compiler * c, FormOptions opts, Array * array) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
-    Slot ret;
-    SlotTracker tracker;
-    /* Compile contents of array */
-    CompilerTrackerInitArray(c, opts, &tracker, array, 0, 0);
-    /* Free up slots in tracker */
-    CompilerTrackerFree(c, scope, &tracker);
-    if (opts.resultUnused) {
-        ret = NilSlot();
-    } else {
-        ret = CompilerGetTarget(c, opts);
-        BufferPushUInt16(c->vm, buffer, VM_OP_ARR);
-        BufferPushUInt16(c->vm, buffer, ret.index);
-        BufferPushUInt16(c->vm, buffer, array->count);
-    }
-    /* Write the location of all of the arguments */
-    CompilerTrackerWrite(c, &tracker, 0);
-    return ret;
 }
 
 /* Compile a special form in the form of an operator. There
@@ -567,10 +502,7 @@ static Slot CompileOperator(Compiler * c, FormOptions opts, Array * form,
         if (form->count < 2) {
             if (op0 < 0) {
                 if (opn < 0) CError(c, "This operator does not take 0 arguments.");
-                /* Use multiple form of op */
-                BufferPushUInt16(c->vm, buffer, opn);
-                BufferPushUInt16(c->vm, buffer, ret.index);
-                BufferPushUInt16(c->vm, buffer, 0);
+                goto opn;
             } else {
                 BufferPushUInt16(c->vm, buffer, op0);
                 BufferPushUInt16(c->vm, buffer, ret.index);
@@ -578,19 +510,21 @@ static Slot CompileOperator(Compiler * c, FormOptions opts, Array * form,
         } else if (form->count == 2) {
             if (op1 < 0) {
                 if (opn < 0) CError(c, "This operator does not take 1 argument.");
-                /* Use multiple form of op */
-                BufferPushUInt16(c->vm, buffer, opn);
-                BufferPushUInt16(c->vm, buffer, ret.index);
-                BufferPushUInt16(c->vm, buffer, 1);
+                goto opn;
             } else {
                 BufferPushUInt16(c->vm, buffer, op1);
                 BufferPushUInt16(c->vm, buffer, ret.index);
             }
         } else if (form->count == 3) {
-            if (op2 < 0) CError(c, "This operator does not take 2 arguments.");
-            BufferPushUInt16(c->vm, buffer, op2);
-            BufferPushUInt16(c->vm, buffer, ret.index);
+            if (op2 < 0) {
+                if (opn < 0) CError(c, "This operator does not take 2 arguments.");
+                goto opn;
+            } else {
+                BufferPushUInt16(c->vm, buffer, op2);
+                BufferPushUInt16(c->vm, buffer, ret.index);
+            }
         } else {
+            opn:
             if (opn < 0) CError(c, "This operator does not take n arguments.");
             BufferPushUInt16(c->vm, buffer, opn);
             BufferPushUInt16(c->vm, buffer, ret.index);
@@ -635,6 +569,17 @@ static Slot CompileNot(Compiler * c, FormOptions opts, Array * form) {
 }
 static Slot CompileGet(Compiler * c, FormOptions opts, Array * form) {
 	return CompileOperator(c, opts, form, -1, -1, VM_OP_GET, -1, 0);
+}
+static Slot CompileArray(Compiler * c, FormOptions opts, Array * form) {
+	return CompileOperator(c, opts, form, -1, -1, -1, VM_OP_ARR, 0);
+}
+static Slot CompileDict(Compiler * c, FormOptions opts, Array * form) {
+    if ((form->count % 2) == 0) {
+        CError(c, "Dictionary literal requires an even number of arguments");
+        return NilSlot();
+    } else {
+    	return CompileOperator(c, opts, form, -1, -1, -1, VM_OP_DIC, 0);
+    }
 }
 
 /* Associative set */
@@ -786,7 +731,7 @@ static Slot CompileFunction(Compiler * c, FormOptions opts, Array * form) {
     params = form->data[current++].data.array;
     for (i = 0; i < params->count; ++i) {
         Value param = params->data[i];
-        if (param.type != TYPE_SYMBOL)
+        if (param.type != TYPE_STRING)
             CError(c, "Function parameters should be symbols");
         /* The compiler puts the parameter locals
          * in the right place by default - at the beginning
@@ -975,7 +920,7 @@ typedef Slot (*SpecialFormHelper) (Compiler * c, FormOptions opts, Array * form)
 /* Dispatch to a special form */
 static SpecialFormHelper GetSpecial(Array * form) {
     uint8_t * name;
-    if (form->count < 1 || form->data[0].type != TYPE_SYMBOL)
+    if (form->count < 1 || form->data[0].type != TYPE_STRING)
         return NULL;
     name = form->data[0].data.string;
     /* If we have a symbol with a zero length name, we have other
@@ -1014,6 +959,16 @@ static SpecialFormHelper GetSpecial(Array * form) {
                 }
             }
             break;
+        case 'a':
+        	{
+            	if (VStringSize(name) == 5 &&
+                	    name[1] == 'r' &&
+                	    name[2] == 'r' &&
+                	    name[3] == 'a' &&
+                	    name[4] == 'y') {
+					return CompileArray;
+        	    }
+    	    }
         case 'g':
             {
 				if (VStringSize(name) == 3 &&
@@ -1027,6 +982,11 @@ static SpecialFormHelper GetSpecial(Array * form) {
                 if (VStringSize(name) == 2 &&
                         name[1] == 'o') {
                     return CompileDo;
+                } else if (VStringSize(name) == 4 &&
+						name[1] == 'i' &&
+						name[2] == 'c' &&
+						name[3] == 't') {
+					return CompileDict;
                 }
             }
             break;
@@ -1156,14 +1116,10 @@ static Slot CompileValue(Compiler * c, FormOptions opts, Value x) {
         case TYPE_BOOLEAN:
         case TYPE_NUMBER:
             return CompileNonReferenceType(c, opts, x);
-        case TYPE_SYMBOL:
+        case TYPE_STRING:
             return CompileSymbol(c, opts, x);
-        case TYPE_FORM:
-            return CompileForm(c, opts, x.data.array);
         case TYPE_ARRAY:
-            return CompileArray(c, opts, x.data.array);
-        case TYPE_DICTIONARY:
-            return CompileDict(c, opts, x.data.dict);
+            return CompileForm(c, opts, x.data.array);
         default:
             return CompileLiteral(c, opts, x);
     }
@@ -1182,7 +1138,7 @@ void CompilerInit(Compiler * c, VM * vm) {
 /* Register a global for the compilation environment. */
 void CompilerAddGlobal(Compiler * c, const char * name, Value x) {
     Value sym = ValueLoadCString(c->vm, name);
-    sym.type = TYPE_SYMBOL;
+    sym.type = TYPE_STRING;
     CompilerDeclareSymbol(c, c->tail, sym);
     ArrayPush(c->vm, c->env, x);
 }
@@ -1235,7 +1191,7 @@ Func * CompilerCompile(Compiler * c, Value form) {
  * about garbage collection and other issues that would complicate both the
  * runtime and the compilation. */
 int CompileMacroExpand(VM * vm, Value x, Dictionary * macros, Value * out) {
-    while (x.type == TYPE_FORM) {
+    while (x.type == TYPE_ARRAY) {
         Array * form = x.data.array;
         Value sym, macroFn;
         if (form->count == 0) break;

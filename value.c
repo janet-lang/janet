@@ -62,7 +62,7 @@ static uint8_t * StringDescription(VM * vm, const char * title, uint32_t titlele
     }
     *c++ = '>';
     VStringHash(data) = 0;
-    VStringSize(data) = len;
+    VStringSize(data) = c - data;
     return data;
 }
 
@@ -80,11 +80,21 @@ uint8_t * ValueToString(VM * vm, Value x) {
         case TYPE_NUMBER:
             return NumberToString(vm, x.data.number);
         case TYPE_ARRAY:
+            {
+                uint32_t i;
+				Buffer * b = BufferNew(vm, 40);
+				BufferPush(vm, b, '(');
+				for (i = 0; i < x.data.array->count; ++i) {
+    				uint8_t * substr = ValueToString(vm, x.data.array->data[i]);
+					BufferAppendData(vm, b, substr, VStringSize(substr));
+					if (i < x.data.array->count - 1)
+        				BufferPush(vm, b, ' ');
+				}
+				BufferPush(vm, b, ')');
+				return BufferToString(vm, b);
+            }
             return StringDescription(vm, "array", 5, x.data.pointer);
-        case TYPE_FORM:
-            return StringDescription(vm, "form", 4, x.data.pointer);
         case TYPE_STRING:
-        case TYPE_SYMBOL:
             return x.data.string;
         case TYPE_BYTEBUFFER:
             return StringDescription(vm, "buffer", 6, x.data.pointer);
@@ -128,8 +138,6 @@ int ValueEqual(Value x, Value y) {
                 /* Assume that when strings are created, equal strings
                  * are set to the same string */
             case TYPE_STRING:
-                /* TODO: keep cache to for symbols to get quick equality. */
-            case TYPE_SYMBOL:
                 if (x.data.string == y.data.string) {
                     result = 1;
                     break;
@@ -146,7 +154,6 @@ int ValueEqual(Value x, Value y) {
                 result = 0;
                 break;
             case TYPE_ARRAY:
-            case TYPE_FORM:
             case TYPE_BYTEBUFFER:
             case TYPE_CFUNCTION:
             case TYPE_DICTIONARY:
@@ -181,7 +188,6 @@ uint32_t ValueHash(Value x) {
             }
             break;
             /* String hashes */
-        case TYPE_SYMBOL:
         case TYPE_STRING:
             /* Assume 0 is not hashed. */
             if (VStringHash(x.data.string))
@@ -190,7 +196,6 @@ uint32_t ValueHash(Value x) {
                 hash = VStringHash(x.data.string) = djb2(x.data.string);
             break;
         case TYPE_ARRAY:
-        case TYPE_FORM:
         case TYPE_BYTEBUFFER:
         case TYPE_CFUNCTION:
         case TYPE_DICTIONARY:
@@ -232,7 +237,6 @@ int ValueCompare(Value x, Value y) {
                     return x.data.number > y.data.number ? 1 : -1;
                 }
             case TYPE_STRING:
-            case TYPE_SYMBOL:
                 if (x.data.string == y.data.string) {
                     return 0;
                 } else {
@@ -256,7 +260,6 @@ int ValueCompare(Value x, Value y) {
                     }
                 }
             case TYPE_ARRAY:
-            case TYPE_FORM:
             case TYPE_BYTEBUFFER:
             case TYPE_CFUNCTION:
             case TYPE_FUNCTION:
@@ -308,7 +311,6 @@ Value ValueGet(VM * vm, Value ds, Value key) {
     Value ret;
 	switch (ds.type) {
 	case TYPE_ARRAY:
-    case TYPE_FORM:
         VMAssertType(vm, key, TYPE_NUMBER);
 		index = ToIndex(key.data.number, ds.data.array->count);
 		if (index == -1) VMError(vm, "Invalid array access");
@@ -320,7 +322,6 @@ Value ValueGet(VM * vm, Value ds, Value key) {
 		ret.type = TYPE_NUMBER;
 		ret.data.number = ds.data.buffer->data[index];
 		break;
-    case TYPE_SYMBOL:
     case TYPE_STRING:
         VMAssertType(vm, key, TYPE_NUMBER);
         index = ToIndex(key.data.number, VStringSize(ds.data.string));
@@ -341,7 +342,6 @@ void ValueSet(VM * vm, Value ds, Value key, Value value) {
     int32_t index;
 	switch (ds.type) {
 	case TYPE_ARRAY:
-    case TYPE_FORM:
         VMAssertType(vm, key, TYPE_NUMBER);
 		index = ToIndex(key.data.number, ds.data.array->count);
 		if (index == -1) VMError(vm, "Invalid array access");

@@ -97,7 +97,6 @@ static void VMMark(VM * vm, Value * x) {
             break;
 
         case TYPE_STRING:
-        case TYPE_SYMBOL:
             GCHeader(VStringRaw(x->data.string))->color = vm->black;
             break;
 
@@ -107,7 +106,6 @@ static void VMMark(VM * vm, Value * x) {
             break;
 
         case TYPE_ARRAY:
-        case TYPE_FORM:
             if (GCHeader(x->data.array)->color != vm->black) {
                 uint32_t i, count;
                 count = x->data.array->count;
