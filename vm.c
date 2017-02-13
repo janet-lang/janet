@@ -467,259 +467,262 @@ int VMStart(VM * vm) {
     }
 
     for (;;) {
+        Value temp, v1, v2;
         uint16_t opcode = *vm->pc;
 
         switch (opcode) {
-            Value temp, v1, v2;
 
-            #define DO_BINARY_MATH(op) \
-                v1 = vm->base[vm->pc[2]]; \
-                v2 = vm->base[vm->pc[3]]; \
-                VMAssert(vm, v1.type == TYPE_NUMBER, VMS_EXPECTED_NUMBER_LOP); \
-                VMAssert(vm, v2.type == TYPE_NUMBER, VMS_EXPECTED_NUMBER_ROP); \
-                temp.type = TYPE_NUMBER; \
-                temp.data.number = v1.data.number op v2.data.number; \
-                vm->base[vm->pc[1]] = temp; \
-                vm->pc += 4; \
-                break;
+        #define DO_BINARY_MATH(op) \
+            v1 = vm->base[vm->pc[2]]; \
+            v2 = vm->base[vm->pc[3]]; \
+            VMAssert(vm, v1.type == TYPE_NUMBER, VMS_EXPECTED_NUMBER_LOP); \
+            VMAssert(vm, v2.type == TYPE_NUMBER, VMS_EXPECTED_NUMBER_ROP); \
+            temp.type = TYPE_NUMBER; \
+            temp.data.number = v1.data.number op v2.data.number; \
+            vm->base[vm->pc[1]] = temp; \
+            vm->pc += 4; \
+            break;
 
-            case VM_OP_ADD: /* Addition */
-                DO_BINARY_MATH(+)
+        case VM_OP_ADD: /* Addition */
+            DO_BINARY_MATH(+)
 
-            case VM_OP_SUB: /* Subtraction */
-                DO_BINARY_MATH(-)
+        case VM_OP_SUB: /* Subtraction */
+            DO_BINARY_MATH(-)
 
-            case VM_OP_MUL: /* Multiplication */
-                DO_BINARY_MATH(*)
+        case VM_OP_MUL: /* Multiplication */
+            DO_BINARY_MATH(*)
 
-            case VM_OP_DIV: /* Division */
-                DO_BINARY_MATH(/)
+        case VM_OP_DIV: /* Division */
+            DO_BINARY_MATH(/)
 
-            #undef DO_BINARY_MATH
+        #undef DO_BINARY_MATH
 
-            case VM_OP_NOT: /* Boolean unary (Boolean not) */
-                temp.type = TYPE_BOOLEAN;
-                temp.data.boolean = !truthy(vm->base[vm->pc[2]]);
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 3;
-                break;
+        case VM_OP_NOT: /* Boolean unary (Boolean not) */
+            temp.type = TYPE_BOOLEAN;
+            temp.data.boolean = !truthy(vm->base[vm->pc[2]]);
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 3;
+            break;
 
-            case VM_OP_LD0: /* Load 0 */
-                temp.type = TYPE_NUMBER;
-                temp.data.number = 0;
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 2;
-                break;
+        case VM_OP_LD0: /* Load 0 */
+            temp.type = TYPE_NUMBER;
+            temp.data.number = 0;
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 2;
+            break;
 
-            case VM_OP_LD1: /* Load 1 */
-                temp.type = TYPE_NUMBER;
-                temp.data.number = 1;
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 2;
-                break;
+        case VM_OP_LD1: /* Load 1 */
+            temp.type = TYPE_NUMBER;
+            temp.data.number = 1;
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 2;
+            break;
 
-            case VM_OP_FLS: /* Load False */
-                temp.type = TYPE_BOOLEAN;
-                temp.data.boolean = 0;
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 2;
-                break;
+        case VM_OP_FLS: /* Load False */
+            temp.type = TYPE_BOOLEAN;
+            temp.data.boolean = 0;
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 2;
+            break;
 
-            case VM_OP_TRU: /* Load True */
-                temp.type = TYPE_BOOLEAN;
-                temp.data.boolean = 1;
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 2;
-                break;
+        case VM_OP_TRU: /* Load True */
+            temp.type = TYPE_BOOLEAN;
+            temp.data.boolean = 1;
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 2;
+            break;
 
-            case VM_OP_NIL: /* Load Nil */
-                temp.type = TYPE_NIL;
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 2;
-                break;
+        case VM_OP_NIL: /* Load Nil */
+            temp.type = TYPE_NIL;
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 2;
+            break;
 
-            case VM_OP_I16: /* Load Small Integer */
-                temp.type = TYPE_NUMBER;
-                temp.data.number = ((int16_t *)(vm->pc))[2];
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 3;
-                break;
+        case VM_OP_I16: /* Load Small Integer */
+            temp.type = TYPE_NUMBER;
+            temp.data.number = ((int16_t *)(vm->pc))[2];
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 3;
+            break;
 
-            case VM_OP_UPV: /* Load Up Value */
-                temp = vm->frame->callee;
-                VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
-                vm->base[vm->pc[1]] = *GetUpValue(vm, temp.data.func, vm->pc[2], vm->pc[3]);
+        case VM_OP_UPV: /* Load Up Value */
+            temp = vm->frame->callee;
+            VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
+            vm->base[vm->pc[1]] = *GetUpValue(vm, temp.data.func, vm->pc[2], vm->pc[3]);
+            vm->pc += 4;
+            break;
+
+        case VM_OP_JIF: /* Jump If */
+            if (truthy(vm->base[vm->pc[1]])) {
                 vm->pc += 4;
-                break;
-
-            case VM_OP_JIF: /* Jump If */
-                if (truthy(vm->base[vm->pc[1]])) {
-                    vm->pc += 4;
-                } else {
-                    vm->pc += *((int32_t *)(vm->pc + 2));
-                }
-                break;
-
-            case VM_OP_JMP: /* Jump */
-                vm->pc += *((int32_t *)(vm->pc + 1));
-                break;
-
-            case VM_OP_CAL: /* Call */
-                VMCallOp(vm);
-                break;
-
-            case VM_OP_RET: /* Return */
-                VMReturn(vm, vm->base[vm->pc[1]]);
-                break;
-
-            case VM_OP_SUV: /* Set Up Value */
-                temp = vm->frame->callee;
-                VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
-                *GetUpValue(vm, temp.data.func, vm->pc[2], vm->pc[3]) = vm->base[vm->pc[1]];
-                vm->pc += 4;
-                break;
-
-            case VM_OP_CST: /* Load constant value */
-                temp = vm->frame->callee;
-                VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
-                vm->base[vm->pc[1]] = LoadConstant(vm, temp.data.func, vm->pc[2]);
-                vm->pc += 3;
-                break;
-
-            case VM_OP_I32: /* Load 32 bit integer */
-                temp.type = TYPE_NUMBER;
-                temp.data.number = *((int32_t *)(vm->pc + 2));
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 4;
-                break;
-
-            case VM_OP_F64: /* Load 64 bit float */
-                temp.type = TYPE_NUMBER;
-                temp.data.number = (Number) *((double *)(vm->pc + 2));
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 6;
-                break;
-
-            case VM_OP_MOV: /* Move Values */
-                vm->base[vm->pc[1]] = vm->base[vm->pc[2]];
-                vm->pc += 3;
-                break;
-
-            case VM_OP_CLN: /* Create closure from constant FuncDef */
-                vm->base[vm->pc[1]] = VMMakeClosure(vm, vm->pc[2]);
-                vm->pc += 3;
-                break;
-
-            case VM_OP_EQL: /* Equality */
-                temp.type = TYPE_BOOLEAN;
-                temp.data.boolean = ValueEqual(vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 4;
-                break;
-
-            case VM_OP_LTN: /* Less Than */
-                temp.type = TYPE_BOOLEAN;
-                temp.data.boolean = (ValueCompare(vm->base[vm->pc[2]], vm->base[vm->pc[3]]) == -1);
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 4;
-                break;
-
-            case VM_OP_LTE: /* Less Than or Equal to */
-                temp.type = TYPE_BOOLEAN;
-                temp.data.boolean = (ValueEqual(vm->base[vm->pc[2]], vm->base[vm->pc[3]]) != 1);
-                vm->base[vm->pc[1]] = temp;
-                vm->pc += 4;
-                break;
-
-            case VM_OP_ARR: /* Array literal */
-                {
-                    uint32_t i;
-                    uint32_t arrayLen = vm->pc[2];
-                    Array * array = ArrayNew(vm, arrayLen);
-                    array->count = arrayLen;
-                    for (i = 0; i < arrayLen; ++i)
-                        array->data[i] = vm->base[vm->pc[3 + i]];
-                    temp.type = TYPE_ARRAY;
-                    temp.data.array = array;
-                    vm->base[vm->pc[1]] = temp;
-                    vm->pc += 3 + arrayLen;
-                }
-                break;
-
-            case VM_OP_DIC: /* Dictionary literal */
-                {
-                    uint32_t i = 3;
-                    uint32_t kvs = vm->pc[2];
-                    Dictionary * dict = DictNew(vm, kvs + 2);
-                    kvs = kvs + 3;
-                    while (i < kvs) {
-                        v1 = vm->base[vm->pc[i++]];
-                        v2 = vm->base[vm->pc[i++]];
-                        DictPut(vm, dict, v1, v2);
-                    }
-                    temp.type = TYPE_DICTIONARY;
-                    temp.data.dict = dict;
-                    vm->base[vm->pc[1]] = temp;
-                    vm->pc += kvs;
-                }
-                break;
-
-            case VM_OP_TCL: /* Tail call */
-                VMTailCallOp(vm);
-                break;
-
-            /* Macro for generating some math operators */
-            #define DO_MULTI_MATH(op, start) { \
-                uint16_t count = vm->pc[2]; \
-                uint16_t i; \
-                Number accum = start; \
-                for (i = 0; i < count; ++i) { \
-                    v1 = vm->base[vm->pc[3 + i]]; \
-                    VMAssert(vm, v1.type == TYPE_NUMBER, "Expected number"); \
-                    accum = accum op v1.data.number; \
-                } \
-                temp.type = TYPE_NUMBER; \
-                temp.data.number = accum; \
-                vm->base[vm->pc[1]] = temp; \
-                vm->pc += 3 + count; \
-                break; \
+            } else {
+                vm->pc += *((int32_t *)(vm->pc + 2));
             }
+            break;
 
-            /* Vectorized math */
-            case VM_OP_ADM:
-                DO_MULTI_MATH(+, 0)
+        case VM_OP_JMP: /* Jump */
+            vm->pc += *((int32_t *)(vm->pc + 1));
+            break;
 
-            case VM_OP_SBM:
-                DO_MULTI_MATH(-, 0)
+        case VM_OP_CAL: /* Call */
+            VMCallOp(vm);
+            break;
 
-            case VM_OP_MUM:
-                DO_MULTI_MATH(*, 1)
+        case VM_OP_RET: /* Return */
+            VMReturn(vm, vm->base[vm->pc[1]]);
+            break;
 
-            case VM_OP_DVM:
-                DO_MULTI_MATH(/, 1)
+        case VM_OP_SUV: /* Set Up Value */
+            temp = vm->frame->callee;
+            VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
+            *GetUpValue(vm, temp.data.func, vm->pc[2], vm->pc[3]) = vm->base[vm->pc[1]];
+            vm->pc += 4;
+            break;
 
-            #undef DO_MULTI_MATH
+        case VM_OP_CST: /* Load constant value */
+            temp = vm->frame->callee;
+            VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
+            vm->base[vm->pc[1]] = LoadConstant(vm, temp.data.func, vm->pc[2]);
+            vm->pc += 3;
+            break;
 
-            case VM_OP_RTN: /* Return nil */
-                temp.type = TYPE_NIL;
-                VMReturn(vm, temp);
-                break;
+        case VM_OP_I32: /* Load 32 bit integer */
+            temp.type = TYPE_NUMBER;
+            temp.data.number = *((int32_t *)(vm->pc + 2));
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 4;
+            break;
 
-            case VM_OP_GET:
-				temp = ValueGet(vm, vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
-				vm->base[vm->pc[1]] = temp;
-				vm->pc += 4;
-                break;
+        case VM_OP_F64: /* Load 64 bit float */
+            temp.type = TYPE_NUMBER;
+            temp.data.number = (Number) *((double *)(vm->pc + 2));
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 6;
+            break;
 
-            case VM_OP_SET:
-				ValueSet(vm, vm->base[vm->pc[1]], vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
-				vm->pc += 4;
-                break;
+        case VM_OP_MOV: /* Move Values */
+            vm->base[vm->pc[1]] = vm->base[vm->pc[2]];
+            vm->pc += 3;
+            break;
 
-            default:
-                VMError(vm, "Unknown opcode");
-                break;
+        case VM_OP_CLN: /* Create closure from constant FuncDef */
+            vm->base[vm->pc[1]] = VMMakeClosure(vm, vm->pc[2]);
+            vm->pc += 3;
+            break;
+
+        case VM_OP_EQL: /* Equality */
+            temp.type = TYPE_BOOLEAN;
+            temp.data.boolean = ValueEqual(vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 4;
+            break;
+
+        case VM_OP_LTN: /* Less Than */
+            temp.type = TYPE_BOOLEAN;
+            temp.data.boolean = (ValueCompare(vm->base[vm->pc[2]], vm->base[vm->pc[3]]) == -1);
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 4;
+            break;
+
+        case VM_OP_LTE: /* Less Than or Equal to */
+            temp.type = TYPE_BOOLEAN;
+            temp.data.boolean = (ValueEqual(vm->base[vm->pc[2]], vm->base[vm->pc[3]]) != 1);
+            vm->base[vm->pc[1]] = temp;
+            vm->pc += 4;
+            break;
+
+        case VM_OP_ARR: /* Array literal */
+            {
+                uint32_t i;
+                uint32_t arrayLen = vm->pc[2];
+                Array * array = ArrayNew(vm, arrayLen);
+                array->count = arrayLen;
+                for (i = 0; i < arrayLen; ++i)
+                    array->data[i] = vm->base[vm->pc[3 + i]];
+                temp.type = TYPE_ARRAY;
+                temp.data.array = array;
+                vm->base[vm->pc[1]] = temp;
+                vm->pc += 3 + arrayLen;
+            }
+            break;
+
+        case VM_OP_DIC: /* Dictionary literal */
+            {
+                uint32_t i = 3;
+                uint32_t kvs = vm->pc[2];
+                Dictionary * dict = DictNew(vm, kvs + 2);
+                kvs = kvs + 3;
+                while (i < kvs) {
+                    v1 = vm->base[vm->pc[i++]];
+                    v2 = vm->base[vm->pc[i++]];
+                    DictPut(vm, dict, v1, v2);
+                }
+                temp.type = TYPE_DICTIONARY;
+                temp.data.dict = dict;
+                vm->base[vm->pc[1]] = temp;
+                vm->pc += kvs;
+            }
+            break;
+
+        case VM_OP_TCL: /* Tail call */
+            VMTailCallOp(vm);
+            break;
+
+        /* Macro for generating some math operators */
+        #define DO_MULTI_MATH(op, start) { \
+            uint16_t count = vm->pc[2]; \
+            uint16_t i; \
+            Number accum = start; \
+            for (i = 0; i < count; ++i) { \
+                v1 = vm->base[vm->pc[3 + i]]; \
+                VMAssert(vm, v1.type == TYPE_NUMBER, "Expected number"); \
+                accum = accum op v1.data.number; \
+            } \
+            temp.type = TYPE_NUMBER; \
+            temp.data.number = accum; \
+            vm->base[vm->pc[1]] = temp; \
+            vm->pc += 3 + count; \
+            break; \
         }
+
+        /* Vectorized math */
+        case VM_OP_ADM:
+            DO_MULTI_MATH(+, 0)
+
+        case VM_OP_SBM:
+            DO_MULTI_MATH(-, 0)
+
+        case VM_OP_MUM:
+            DO_MULTI_MATH(*, 1)
+
+        case VM_OP_DVM:
+            DO_MULTI_MATH(/, 1)
+
+        #undef DO_MULTI_MATH
+
+        case VM_OP_RTN: /* Return nil */
+            temp.type = TYPE_NIL;
+            VMReturn(vm, temp);
+            break;
+
+        case VM_OP_GET:
+			temp = ValueGet(vm, vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
+			vm->base[vm->pc[1]] = temp;
+			vm->pc += 4;
+            break;
+
+        case VM_OP_SET:
+			ValueSet(vm, vm->base[vm->pc[1]], vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
+			vm->pc += 4;
+            break;
+
+        default:
+            VMError(vm, "Unknown opcode");
+            break;
+        }
+
+        /* Move collection only to places that allocate memory */
+        /* This, however, is good for testing */
         VMMaybeCollect(vm);
     }
 }
@@ -753,6 +756,10 @@ void VMInit(VM * vm) {
     /* Garbage collection */
     vm->blocks = NULL;
     vm->nextCollection = 0;
+    /* Setting memoryInterval to zero currently forces
+     * a collection pretty much every cycle, which is
+     * obviously horrible for performance. It helps ensure
+     * there are no memory bugs during dev */
     vm->memoryInterval = 0;
     vm->black = 0;
     vm->lock = 0;

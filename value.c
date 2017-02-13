@@ -5,79 +5,6 @@
 #include "ds.h"
 #include "vm.h"
 
-/* Print the bytecode for a FuncDef */
-static void FuncDefBytecodePrint(FuncDef * def) {
-    uint32_t count, i;
-    count = def->byteCodeLen;
-    printf("(bytecode)[");
-    if (count) {
-        for (i = 0; i < count - 1; ++i) {
-            printf("%04x ", def->byteCode[i]);
-        }
-        printf("%04x", def->byteCode[i]);
-    }
-    printf("]");
-}
-
-/* Print a value recursively. Used for debugging */
-void ValuePrint(Value x, uint32_t indent) {
-    uint32_t i;
-    for (i = 0; i < indent; ++i)
-        fputc(' ', stdout);
-    switch (x.type) {
-        case TYPE_NIL:
-            printf("<nil>");
-            break;
-        case TYPE_BOOLEAN:
-            printf(x.data.boolean ? "<true>" : "<false>");
-            break;
-        case TYPE_NUMBER:
-            printf("%f", x.data.number);
-            break;
-        case TYPE_FORM:
-        case TYPE_ARRAY:
-            if (x.type == TYPE_ARRAY) printf("  [\n"); else printf("  (\n");
-            for (i = 0; i < x.data.array->count; ++i) {
-                ValuePrint(x.data.array->data[i], indent + 4);
-                printf("\n");
-            }
-            for (i = 0; i < indent; ++i) fputc(' ', stdout);
-            if (x.type == TYPE_ARRAY) printf("  ]\n"); else printf("  )\n");
-            break;
-        case TYPE_STRING:
-            printf("\"%.*s\"", VStringSize(x.data.string), (char *) x.data.string);
-            break;
-        case TYPE_SYMBOL:
-            printf("%.*s", VStringSize(x.data.string), (char *) x.data.string);
-            break;
-        case TYPE_CFUNCTION:
-            printf("<cfunction>");
-            break;
-        case TYPE_FUNCTION:
-            printf("<function ");
-            FuncDefBytecodePrint(x.data.func->def);
-            printf(">");
-            break;
-        case TYPE_DICTIONARY:
-            printf("<dictionary>");
-            break;
-        case TYPE_BYTEBUFFER:
-            printf("<bytebuffer>");
-            break;
-        case TYPE_FUNCDEF:
-            printf("<funcdef ");
-            FuncDefBytecodePrint(x.data.funcdef);
-            printf(">");
-            break;
-        case TYPE_FUNCENV:
-            printf("<funcenv>");
-            break;
-        case TYPE_THREAD:
-            printf("<thread>");
-            break;
-    }
-}
-
 static uint8_t * LoadCString(VM * vm, const char * string, uint32_t len) {
     uint8_t * data = VMAlloc(vm, len + 2 * sizeof(uint32_t));
     data += 2 * sizeof(uint32_t);
@@ -104,12 +31,12 @@ static uint8_t * NumberToString(VM * vm, Number x) {
     return data;
 }
 
-static const char * HEX_CHARACTERS = "0123456789ABCDEF";
+static const char * HEX_CHARACTERS = "0123456789abcdef";
 #define HEX(i) (((uint8_t *) HEX_CHARACTERS)[(i)])
 
 /* Returns a string description for a pointer */
 static uint8_t * StringDescription(VM * vm, const char * title, uint32_t titlelen, void * pointer) {
-    uint32_t len = 3 + titlelen + sizeof(pointer) * 2;
+    uint32_t len = 5 + titlelen + sizeof(void *) * 2;
     uint32_t i;
     uint8_t * data = VMAlloc(vm, len + 2 * sizeof(uint32_t));
     uint8_t * c;
@@ -125,12 +52,17 @@ static uint8_t * StringDescription(VM * vm, const char * title, uint32_t titlele
         *c++ = ((uint8_t *)title) [i];
     }
     *c++ = ' ';
-    for (i = 0; i < sizeof(void *); ++i) {
-        uint8_t byte = buf.bytes[i];
+    *c++ = '0';
+    *c++ = 'x';
+    for (i = sizeof(void *); i > 0; --i) {
+        uint8_t byte = buf.bytes[i - 1];
+        if (!byte) continue;
         *c++ = HEX(byte >> 4);
         *c++ = HEX(byte & 0xF);
     }
     *c++ = '>';
+    VStringHash(data) = 0;
+    VStringSize(data) = len;
     return data;
 }
 

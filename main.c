@@ -7,16 +7,21 @@
 #include "value.h"
 #include "disasm.h"
 
+void StringPut(uint8_t * string) {
+    uint32_t i;
+    uint32_t len = VStringSize(string);
+    for (i = 0; i < len; ++i)
+        fputc(string[i], stdout);
+}
+
 /* Test c function */
 Value print(VM * vm) {
-    uint32_t i, j, count;
+    uint32_t j, count;
     Value nil;
     count = VMCountArgs(vm);
     for (j = 0; j < count; ++j) {
         uint8_t * string = ValueToString(vm, VMGetArg(vm, j));
-        uint32_t len = VStringSize(string);
-        for (i = 0; i < len; ++i)
-            fputc(string[i], stdout);
+        StringPut(string);
         fputc('\n', stdout);
     }
     nil.type = TYPE_NIL;
@@ -25,7 +30,7 @@ Value print(VM * vm) {
 
 /* A simple repl for debugging */
 void debugRepl() {
-    char buffer[128] = {0};
+    char buffer[1024] = {0};
     const char * reader = buffer;
     Value func;
     VM vm;
@@ -46,7 +51,7 @@ void debugRepl() {
         while (p.status == PARSER_PENDING) {
             /* Get some input if we are done */
             if (*reader == '\0') {
-                printf("> ");
+                printf(">> ");
                 if (!fgets(buffer, sizeof(buffer), stdin)) {
                     return;
                 }
@@ -86,9 +91,9 @@ void debugRepl() {
         }
 
         /* Print asm */
-        printf("\n");
-        dasmFunc(stdout, func.data.func);
-        printf("\n");
+        //printf("\n");
+        //dasmFunc(stdout, func.data.func);
+        //printf("\n");
 
         /* Execute function */
         VMLoad(&vm, func);
@@ -98,7 +103,8 @@ void debugRepl() {
             buffer[0] = 0;
             continue;
         } else {
-            ValuePrint(vm.ret, 0);
+            uint8_t * string = ValueToString(&vm, vm.ret);
+            StringPut(string);
             printf("\n");
         }
     }

@@ -3,8 +3,6 @@
 
 #include "datatypes.h"
 
-void ValuePrint(Value x, uint32_t indent);
-
 int ValueCompare(Value x, Value y);
 
 int ValueEqual(Value x, Value y);
