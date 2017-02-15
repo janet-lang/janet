@@ -15,7 +15,7 @@ static const char VMS_EXPECTED_NUMBER_LOP[] = "Expected left operand to be numbe
 #define FRAME_SIZE ((sizeof(StackFrame) + sizeof(Value) - 1) / sizeof(Value))
 
 /* Get the stack frame pointer for a thread */
-static StackFrame * ThreadFrame(Array * thread) {
+static StackFrame * ThreadFrame(Thread * thread) {
     return (StackFrame *)(thread->data + thread->count - FRAME_SIZE);
 }
 
@@ -39,7 +39,7 @@ static void VMMarkFuncEnv(VM * vm, FuncEnv * env) {
         GCHeader(env)->color = vm->black;
         if (env->thread) {
             temp.type = TYPE_THREAD;
-            temp.data.array = env->thread;
+            temp.data.thread = env->thread;
             VMMark(vm, &temp);
         }
         if (env->values) {
@@ -117,8 +117,8 @@ static void VMMark(VM * vm, Value * x) {
             break;
 
         case TYPE_THREAD:
-            if (GCHeader(x->data.array)->color != vm->black) {
-                Array * thread = x->data.array;
+            if (GCHeader(x->data.thread)->color != vm->black) {
+                Thread * thread = x->data.thread;
                 StackFrame * frame = (StackFrame *)thread->data;
                 StackFrame * end = ThreadFrame(thread);
                 GCHeader(thread)->color = vm->black;
@@ -220,7 +220,7 @@ void VMCollect(VM * vm) {
     if (vm->thread) {
         Value thread;
         thread.type = TYPE_THREAD;
-        thread.data.array = vm->thread;
+        thread.data.thread = vm->thread;
         VMMark(vm, &thread);
     }
     VMMark(vm, &vm->ret);
@@ -234,8 +234,19 @@ void VMMaybeCollect(VM * vm) {
         VMCollect(vm);
 }
 
+/* Ensure that a thread has enough space in it */
+static void ThreadEnsure(VM * vm, Thread * thread, uint32_t size) {
+	if (size > thread->capacity) {
+    	uint32_t newCap = size * 2;
+		Value * newData = VMAlloc(vm, sizeof(Value) * newCap);
+		memcpy(newData, thread->data, thread->capacity * sizeof(Value));
+		thread->data = newData;
+		thread->capacity = newCap;
+	}
+}
+
 /* Push a stack frame onto a thread */
-static void VMThreadPush(VM * vm, Array * thread, Value callee, uint32_t size) {
+static void VMThreadPush(VM * vm, Thread * thread, Value callee, uint32_t size) {
     uint16_t oldSize;
     uint32_t nextCount, i;
     StackFrame * frame;
@@ -246,7 +257,7 @@ static void VMThreadPush(VM * vm, Array * thread, Value callee, uint32_t size) {
         oldSize = 0;
     }
     nextCount = thread->count + oldSize + FRAME_SIZE;
-    ArrayEnsure(vm, thread, nextCount + size);
+    ThreadEnsure(vm, thread, nextCount + size);
     thread->count = nextCount;
     /* Ensure values start out as nil so as to not confuse
      * the garabage collector */
@@ -268,7 +279,7 @@ static void VMThreadSplitStack(VM * vm) {
     FuncEnv * env = frame->env;
     /* Check for closures */
     if (env) {
-        Array * thread = vm->thread;
+        Thread * thread = vm->thread;
         uint32_t size = frame->size;
         env->thread = NULL;
         env->stackOffset = size;
@@ -279,7 +290,7 @@ static void VMThreadSplitStack(VM * vm) {
 
 /* Pop the top-most stack frame from stack */
 static void VMThreadPop(VM * vm) {
-    Array * thread = vm->thread;
+    Thread * thread = vm->thread;
     StackFrame * frame = vm->frame;
     uint32_t delta = FRAME_SIZE + frame->prevSize;
     if (thread->count) {
@@ -335,7 +346,7 @@ static void VMReturn(VM * vm, Value ret) {
 
 /* Implementation of the opcode for function calls */
 static void VMCallOp(VM * vm) {
-    Array * thread = vm->thread;
+    Thread * thread = vm->thread;
     Value callee = vm->base[vm->pc[1]];
     uint32_t arity = vm->pc[3];
     uint32_t oldCount = thread->count;
@@ -371,7 +382,7 @@ static void VMCallOp(VM * vm) {
 
 /* Implementation of the opcode for tail calls */
 static void VMTailCallOp(VM * vm) {
-    Array * thread = vm->thread;
+    Thread * thread = vm->thread;
     Value callee = vm->base[vm->pc[1]];
     uint32_t arity = vm->pc[2];
     uint16_t newFrameSize, currentFrameSize;
@@ -388,7 +399,7 @@ static void VMTailCallOp(VM * vm) {
     }
     /* Ensure stack has enough space for copies of arguments */
     currentFrameSize = vm->frame->size;
-    ArrayEnsure(vm, thread, thread->count + currentFrameSize + arity);
+    ThreadEnsure(vm, thread, thread->count + currentFrameSize + arity);
     vm->base = thread->data + thread->count;
     /* Copy the arguments into the extra space */
     for (i = 0; i < arity; ++i) {
@@ -416,7 +427,7 @@ static void VMTailCallOp(VM * vm) {
 
 /* Instantiate a closure */
 static Value VMMakeClosure(VM * vm, uint16_t literal) {
-    Array * thread = vm->thread;
+    Thread * thread = vm->thread;
     if (vm->frame->callee.type != TYPE_FUNCTION) {
         VMError(vm, EXPECTED_FUNCTION);
     } else {
@@ -767,7 +778,11 @@ void VMInit(VM * vm) {
 /* Load a function into the VM. The function will be called with
  * no arguments when run */
 void VMLoad(VM * vm, Value func) {
-    Array * thread = ArrayNew(vm, 100);
+    uint32_t startCapacity = 100;
+    Thread * thread = VMAlloc(vm, sizeof(Thread));
+    thread->data = VMAlloc(vm, sizeof(Value) * startCapacity);
+    thread->capacity = startCapacity;
+    thread->count = 0;
     vm->thread = thread;
     if (func.type == TYPE_FUNCTION) {
         Func * fn = func.data.func;

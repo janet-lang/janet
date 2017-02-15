@@ -14,6 +14,7 @@ Buffer * BufferNew(VM * vm, uint32_t capacity) {
     buffer->data = data;
     buffer->count = 0;
     buffer->capacity = capacity;
+    buffer->flags = 0;
     return buffer;
 }
 
@@ -75,6 +76,7 @@ Array * ArrayNew(VM * vm, uint32_t capacity) {
     array->data = data;
     array->count = 0;
     array->capacity = capacity;
+    array->flags = 0;
     return array;
 }
 
@@ -154,6 +156,7 @@ Dictionary * DictNew(VM * vm, uint32_t capacity) {
     dict->buckets = buckets;
     dict->capacity = capacity;
     dict->count = 0;
+    dict->flags = 0;
     return dict;
 }
 

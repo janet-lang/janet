@@ -4,10 +4,6 @@
 #include <stdint.h>
 #include <setjmp.h>
 
-#define THREAD_STATUS_ALIVE 0
-#define THREAD_STATUS_DEAD 1
-#define THREAD_STATUS_PENDING 2
-
 typedef enum Type {
     TYPE_NIL = 0,
     TYPE_NUMBER,
@@ -39,6 +35,7 @@ typedef struct Parser Parser;
 typedef struct ParseState ParseState;
 typedef struct Scope Scope;
 typedef struct Compiler Compiler;
+typedef struct Thread Thread;
 typedef struct StackFrame StackFrame;
 
 union ValueData {
@@ -49,28 +46,49 @@ union ValueData {
     Buffer * buffer;
     Dictionary * dict;
     Func * func;
+    Thread * thread;
     void * pointer;
     CFunction cfunction;
     uint16_t u16[4];
     uint8_t u8[8];
 } data;
 
+struct Value {
+    Type type;
+    ValueData data;
+};
+
+struct Thread {
+	uint32_t count;
+	uint32_t capacity;
+	Value * data;
+	enum {
+		THREAD_PENDING = 0,
+		THREAD_ALIVE,
+		TRHEAD_DEAD
+	} status;
+};
+
 struct Array {
     uint32_t count;
     uint32_t capacity;
     Value * data;
+    uint32_t flags;
 };
 
 struct Buffer {
     uint32_t count;
     uint32_t capacity;
     uint8_t * data;
+    uint32_t flags;
 };
 
 struct Dictionary {
     uint32_t count;
     uint32_t capacity;
     DictBucket ** buckets;
+    uint32_t flags;
+    Value meta;
 };
 
 struct DictionaryIterator {
@@ -89,7 +107,7 @@ struct FuncDef {
 };
 
 struct FuncEnv {
-    Array * thread; /* When nil, index the local values */
+    Thread * thread; /* When nil, index the local values */
     uint32_t stackOffset; /* Used as environment size when off stack */
     Value * values;
 };
@@ -98,11 +116,6 @@ struct Func {
     FuncDef * def;
     FuncEnv * env;
     Func * parent;
-};
-
-struct Value {
-    Type type;
-    ValueData data;
 };
 
 struct DictBucket {
@@ -129,20 +142,18 @@ struct VM {
     uint32_t lock : 31;
     /* Thread */
     uint16_t * pc;
-    Array * thread;
+    Thread * thread;
     Value * base;
     StackFrame * frame;
     /* Return state */
     const char * error;
     jmp_buf jump;
     Value ret; /* Returned value from VMStart */
+    /* Object definitions */
+    Value metas[TYPE_DICTIONARY];
 };
 
 /* Parsing */
-
-#define PARSER_PENDING 0
-#define PARSER_FULL 1
-#define PARSER_ERROR -1
 
 struct Parser {
     VM * vm;
@@ -152,7 +163,11 @@ struct Parser {
     uint32_t count;
     uint32_t cap;
     uint32_t index;
-    uint32_t status;
+    enum {
+		PARSER_PENDING = 0,
+		PARSER_FULL,
+		PARSER_ERROR
+    } status;
 };
 
 /* Compiling */

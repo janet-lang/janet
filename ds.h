@@ -3,6 +3,11 @@
 
 #include "datatypes.h"
 
+/*
+ * Data type flags
+ */
+#define DS_LOCKED 0x01
+
 /****/
 /* Buffer functions */
 /****/
