@@ -3,18 +3,27 @@
 
 #include "datatypes.h"
 
-int ValueCompare(Value x, Value y);
+/* Compare two gst values. All gst values are comparable and strictly
+ * ordered by default. Return 0 if equal, -1 if x is less than y, and
+ * 1 and x is greater than y. */
+int gst_compare(GstValue x, GstValue y);
 
-int ValueEqual(Value x, Value y);
+/* Returns if two values are equal. */
+int gst_equals(GstValue x, GstValue y);
 
-Value ValueGet(VM * vm, Value ds, Value key);
+/* Get a value from an associative gst object. Can throw errors. */
+GstValue gst_get(Gst *vm, GstValue ds, GstValue key);
 
-void ValueSet(VM * vm, Value ds, Value key, Value value);
+/* Set a value in an associative gst object. Can throw errors. */
+void gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value);
 
-Value ValueLoadCString(VM * vm, const char * string);
+/* Load a c style string into a gst value (copies data) */
+GstValue gst_load_cstring(Gst *vm, const char *string);
 
-uint8_t * ValueToString(VM * vm, Value x);
+/* Convert any gst value into a string */
+uint8_t *gst_to_string(Gst *vm, GstValue x);
 
-uint32_t ValueHash(Value x);
+/* Generate a hash value for a gst object */
+uint32_t gst_hash(GstValue x);
 
 #endif /* end of include guard: VALUE_H_1RJPQKFM */

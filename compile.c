@@ -17,7 +17,7 @@ struct FormOptions {
     uint16_t resultUnused : 1;
     /* Allows the sub expression to evaluate into a
      * temporary slot of it's choice. A temporary Slot
-     * can be allocated with CompilerGetLocal. */
+     * can be allocated with GstCompilerGetLocal. */
     uint16_t canChoose : 1;
     /* True if the form is in the tail position. This allows
      * for tail call optimization. If a helper receives this
@@ -50,31 +50,31 @@ struct Slot {
  * Slots on the stack and free them in bulk. */
 typedef struct SlotTracker SlotTracker;
 struct SlotTracker {
-    Slot * slots;
+    Slot *slots;
     uint32_t count;
     uint32_t capacity;
 };
 
-/* A Scope is a lexical scope in the program. It is
+/* A GstScope is a lexical scope in the program. It is
  * responsible for aliasing programmer facing names to
  * Slots and for keeping track of literals. It also
- * points to the parent Scope, and its current child
- * Scope. */
-struct Scope {
+ * points to the parent GstScope, and its current child
+ * GstScope. */
+struct GstScope {
     uint32_t level;
     uint16_t nextLocal;
     uint16_t frameSize;
     uint32_t heapCapacity;
     uint32_t heapSize;
-    uint16_t * freeHeap;
-    Dictionary * literals;
-    Array * literalsArray;
-    Dictionary * locals;
-    Scope * parent;
+    uint16_t *freeHeap;
+    GstObject *literals;
+    GstArray *literalsArray;
+    GstObject *locals;
+    GstScope *parent;
 };
 
 /* Provides default FormOptions */
-static FormOptions FormOptionsDefault() {
+static FormOptions form_options_default() {
     FormOptions opts;
     opts.canChoose = 1;
     opts.isTail = 0;
@@ -86,15 +86,15 @@ static FormOptions FormOptionsDefault() {
 /* Create some helpers that allows us to push more than just raw bytes
  * to the byte buffer. This helps us create the byte code for the compiled
  * functions. */
-BufferDefine(UInt32, uint32_t)
-BufferDefine(Int32, int32_t)
-BufferDefine(Number, Number)
-BufferDefine(UInt16, uint16_t)
-BufferDefine(Int16, int16_t)
+BUFFER_DEFINE(u32, uint32_t)
+BUFFER_DEFINE(i32, int32_t)
+BUFFER_DEFINE(number, GstNumber)
+BUFFER_DEFINE(u16, uint16_t)
+BUFFER_DEFINE(i16, int16_t)
 
 /* If there is an error during compilation,
  * jump back to start */
-static void CError(Compiler * c, const char * e) {
+static void c_error(GstCompiler *c, const char *e) {
     c->error = e;
     longjmp(c->onError, 1);
 }
@@ -103,10 +103,10 @@ static void CError(Compiler * c, const char * e) {
  * a pointer to it for configuration. There is
  * more configuration that needs to be done if
  * the new scope is a function declaration. */
-static Scope * CompilerPushScope(Compiler * c, int sameFunction) {
-    Scope * scope = VMAlloc(c->vm, sizeof(Scope));
-    scope->locals = DictNew(c->vm, 10);
-    scope->freeHeap = VMAlloc(c->vm, 10 * sizeof(uint16_t));
+static GstScope *compiler_push_scope(GstCompiler *c, int sameFunction) {
+    GstScope *scope = gst_alloc(c->vm, sizeof(GstScope));
+    scope->locals = gst_object(c->vm, 10);
+    scope->freeHeap = gst_alloc(c->vm, 10 * sizeof(uint16_t));
     scope->heapSize = 0;
     scope->heapCapacity = 10;
     scope->parent = c->tail;
@@ -118,25 +118,25 @@ static Scope * CompilerPushScope(Compiler * c, int sameFunction) {
     }
     if (sameFunction) {
         if (!c->tail) {
-            CError(c, "Cannot inherit scope when root scope");
+            c_error(c, "Cannot inherit scope when root scope");
         }
         scope->nextLocal = c->tail->nextLocal;
         scope->literals = c->tail->literals;
         scope->literalsArray = c->tail->literalsArray;
     } else {
         scope->nextLocal = 0;
-        scope->literals = DictNew(c->vm, 10);
-        scope->literalsArray = ArrayNew(c->vm, 10);
+        scope->literals = gst_object(c->vm, 10);
+        scope->literalsArray = gst_array(c->vm, 10);
     }
     c->tail = scope;
     return scope;
 }
 
 /* Remove the inner most scope from the compiler stack */
-static void CompilerPopScope(Compiler * c) {
-    Scope * last = c->tail;
+static void compiler_pop_scope(GstCompiler *c) {
+    GstScope *last = c->tail;
     if (last == NULL) {
-        CError(c, "No scope to pop.");
+        c_error(c, "No scope to pop.");
     } else {
         if (last->nextLocal > last->frameSize) {
             last->frameSize = last->nextLocal;
@@ -152,10 +152,10 @@ static void CompilerPopScope(Compiler * c) {
 
 /* Get the next stack position that is open for
  * a variable */
-static uint16_t CompilerGetLocal(Compiler * c, Scope * scope) {
+static uint16_t compiler_get_local(GstCompiler *c, GstScope *scope) {
     if (scope->heapSize == 0) {
         if (scope->nextLocal + 1 == 0) {
-            CError(c, "Too many local variables. Try splitting up your functions :)");
+            c_error(c, "Too many local variables. Try splitting up your functions :)");
         }
         return scope->nextLocal++;
     } else {
@@ -166,11 +166,11 @@ static uint16_t CompilerGetLocal(Compiler * c, Scope * scope) {
 
 /* Free a slot on the stack for other locals and/or
  * intermediate values */
-static void CompilerFreeLocal(Compiler * c, Scope * scope, uint16_t slot) {
+static void compiler_free_local(GstCompiler *c, GstScope *scope, uint16_t slot) {
     /* Ensure heap has space */
     if (scope->heapSize >= scope->heapCapacity) {
         uint32_t newCap = 2 * scope->heapSize;
-        uint16_t * newData = VMAlloc(c->vm, newCap * sizeof(uint16_t));
+        uint16_t *newData = gst_alloc(c->vm, newCap * sizeof(uint16_t));
         memcpy(newData, scope->freeHeap, scope->heapSize * sizeof(uint16_t));
         scope->freeHeap = newData;
         scope->heapCapacity = newCap;
@@ -181,8 +181,8 @@ static void CompilerFreeLocal(Compiler * c, Scope * scope, uint16_t slot) {
 /* Initializes a SlotTracker. SlotTrackers
  * are used during compilation to free up slots on the stack
  * after they are no longer needed. */
-static void CompilerTrackerInit(Compiler * c, SlotTracker * tracker) {
-    tracker->slots = VMAlloc(c->vm, 10 * sizeof(Slot));
+static void tracker_init(GstCompiler *c, SlotTracker *tracker) {
+    tracker->slots = gst_alloc(c->vm, 10 * sizeof(Slot));
     tracker->count = 0;
     tracker->capacity = 10;
 }
@@ -190,16 +190,16 @@ static void CompilerTrackerInit(Compiler * c, SlotTracker * tracker) {
 /* Free up a slot if it is a temporary slot (does not
  * belong to a named local). If the slot does belong
  * to a named variable, does nothing. */
-static void CompilerDropSlot(Compiler * c, Scope * scope, Slot slot) {
+static void compiler_drop_slot(GstCompiler *c, GstScope *scope, Slot slot) {
     if (!slot.isNil && slot.isTemp) {
-        CompilerFreeLocal(c, scope, slot.index);
+        compiler_free_local(c, scope, slot.index);
     }
 }
 
 /* Helper function to return a slot. Useful for compiling things that return
  * nil. (set, while, etc.). Use this to wrap compilation calls that need
  * to return things. */
-static Slot CompilerReturn(Compiler * c, Slot slot) {
+static Slot compiler_return(GstCompiler *c, Slot slot) {
     Slot ret;
     ret.hasReturned = 1;
     ret.isNil = 1;
@@ -207,31 +207,31 @@ static Slot CompilerReturn(Compiler * c, Slot slot) {
         /* Do nothing */
     } else if (slot.isNil) {
         /* Return nil */
-        BufferPushUInt16(c->vm, c->buffer, VM_OP_RTN);
+        gst_buffer_push_u16(c->vm, c->buffer, GST_OP_RTN);
     } else {
         /* Return normal value */
-        BufferPushUInt16(c->vm, c->buffer, VM_OP_RET);
-        BufferPushUInt16(c->vm, c->buffer, slot.index);
+        gst_buffer_push_u16(c->vm, c->buffer, GST_OP_RET);
+        gst_buffer_push_u16(c->vm, c->buffer, slot.index);
     }
     return ret;
 }
 
 /* Gets a temporary slot for the bottom-most scope. */
-static Slot CompilerGetTemp(Compiler * c) {
-    Scope * scope = c->tail;
+static Slot compiler_get_temp(GstCompiler *c) {
+    GstScope *scope = c->tail;
     Slot ret;
     ret.isTemp = 1;
     ret.isNil = 0;
     ret.hasReturned = 0;
-    ret.index = CompilerGetLocal(c, scope);
+    ret.index = compiler_get_local(c, scope);
     return ret;
 }
 
 /* Return a slot that is the target Slot given some FormOptions. Will
  * Create a temporary slot if needed, so be sure to drop the slot after use. */
-static Slot CompilerGetTarget(Compiler * c, FormOptions opts) {
+static Slot compiler_get_target(GstCompiler *c, FormOptions opts) {
     if (opts.canChoose) {
-        return CompilerGetTemp(c);
+        return compiler_get_temp(c);
     } else {
         Slot ret;
         ret.isTemp = 0;
@@ -244,22 +244,22 @@ static Slot CompilerGetTarget(Compiler * c, FormOptions opts) {
 
 /* If a slot is a nil slot, create a slot that has
  * an actual location on the stack. */
-static Slot CompilerRealizeSlot(Compiler * c, Slot slot) {
+static Slot compiler_realize_slot(GstCompiler *c, Slot slot) {
     if (slot.isNil) {
-        slot = CompilerGetTemp(c);
-        BufferPushUInt16(c->vm, c->buffer, VM_OP_NIL);
-        BufferPushUInt16(c->vm, c->buffer, slot.index);
+        slot = compiler_get_temp(c);
+        gst_buffer_push_u16(c->vm, c->buffer, GST_OP_NIL);
+        gst_buffer_push_u16(c->vm, c->buffer, slot.index);
     }
     return slot;
 }
 
 /* Helper to get a nil slot */
-static Slot NilSlot() { Slot ret; ret.isNil = 1; return ret; }
+static Slot nil_slot() { Slot ret; ret.isNil = 1; return ret; }
 
 /* Writes all of the slots in the tracker to the compiler */
-static void CompilerTrackerWrite(Compiler * c, SlotTracker * tracker, int reverse) {
+static void compiler_tracker_write(GstCompiler *c, SlotTracker *tracker, int reverse) {
     uint32_t i;
-    Buffer * buffer = c->buffer;
+    GstBuffer *buffer = c->buffer;
     for (i = 0; i < tracker->count; ++i) {
         Slot s;
         if (reverse)
@@ -267,27 +267,27 @@ static void CompilerTrackerWrite(Compiler * c, SlotTracker * tracker, int revers
         else
             s = tracker->slots[i];
         if (s.isNil)
-            CError(c, "Trying to write nil slot.");
-        BufferPushUInt16(c->vm, buffer, s.index);
+            c_error(c, "Trying to write nil slot.");
+        gst_buffer_push_u16(c->vm, buffer, s.index);
     }
 }
 
 /* Free the tracker after creation. This unlocks the memory
  * that was allocated by the GC an allows it to be collected. Also
  * frees slots that were tracked by this tracker in the given scope. */
-static void CompilerTrackerFree(Compiler * c, Scope * scope, SlotTracker * tracker) {
+static void compiler_tracker_free(GstCompiler *c, GstScope *scope, SlotTracker *tracker) {
     uint32_t i;
     /* Free in reverse order */
     for (i = tracker->count - 1; i < tracker->count; --i) {
-        CompilerDropSlot(c, scope, tracker->slots[i]);
+        compiler_drop_slot(c, scope, tracker->slots[i]);
     }
 }
 
 /* Add a new Slot to a slot tracker. */
-static void CompilerTrackerPush(Compiler * c, SlotTracker * tracker, Slot slot) {
+static void compiler_tracker_push(GstCompiler *c, SlotTracker *tracker, Slot slot) {
     if (tracker->count >= tracker->capacity) {
         uint32_t newCap = 2 * tracker->count;
-        Slot * newData = VMAlloc(c->vm, newCap * sizeof(Slot));
+        Slot *newData = gst_alloc(c->vm, newCap * sizeof(Slot));
         memcpy(newData, tracker->slots, tracker->count * sizeof(Slot));
         tracker->slots = newData;
         tracker->capacity = newCap;
@@ -298,45 +298,45 @@ static void CompilerTrackerPush(Compiler * c, SlotTracker * tracker, Slot slot) 
 /* Registers a literal in the given scope. If an equal literal is found, uses
  * that one instead of creating a new literal. This allows for some reuse
  * of things like string constants.*/
-static uint16_t CompilerAddLiteral(Compiler * c, Scope * scope, Value x) {
-    Value checkDup = DictGet(scope->literals, x);
+static uint16_t compiler_add_literal(GstCompiler *c, GstScope *scope, GstValue x) {
+    GstValue checkDup = gst_object_get(scope->literals, x);
     uint16_t literalIndex = 0;
-    if (checkDup.type != TYPE_NIL) {
+    if (checkDup.type != GST_NIL) {
         /* An equal literal is already registered in the current scope */
         return (uint16_t) checkDup.data.number;
     } else {
         /* Add our literal for tracking */
-        Value valIndex;
-        valIndex.type = TYPE_NUMBER;
+        GstValue valIndex;
+        valIndex.type = GST_NUMBER;
         literalIndex = scope->literalsArray->count;
         valIndex.data.number = literalIndex;
-        DictPut(c->vm, scope->literals, x, valIndex);
-        ArrayPush(c->vm, scope->literalsArray, x);
+        gst_object_put(c->vm, scope->literals, x, valIndex);
+        gst_array_push(c->vm, scope->literalsArray, x);
     }
     return literalIndex;
 }
 
 /* Declare a symbol in a given scope. */
-static uint16_t CompilerDeclareSymbol(Compiler * c, Scope * scope, Value sym) {
-    if (sym.type != TYPE_STRING) {
-        CError(c, "Expected symbol");
+static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValue sym) {
+    GstValue x;
+    uint16_t target;
+    if (sym.type != GST_STRING) {
+        c_error(c, "Expected symbol");
     }
-    Value x;
-    uint16_t target = CompilerGetLocal(c, scope);
-    x.type = TYPE_NUMBER;
+    target = compiler_get_local(c, scope);
+    x.type = GST_NUMBER;
     x.data.number = target;
-    DictPut(c->vm, scope->locals, sym, x);
+    gst_object_put(c->vm, scope->locals, sym, x);
     return target;
 }
 
 /* Try to resolve a symbol. If the symbol can be resovled, return true and
  * pass back the level and index by reference. */
-static int ScopeSymbolResolve(Scope * scope, Value x,
-        uint16_t * level, uint16_t * index) {
+static int symbol_resolve(GstScope *scope, GstValue x, uint16_t *level, uint16_t *index) {
     uint32_t currentLevel = scope->level;
     while (scope) {
-        Value check = DictGet(scope->locals, x);
-        if (check.type != TYPE_NIL) {
+        GstValue check = gst_object_get(scope->locals, x);
+        if (check.type != GST_NIL) {
             *level = currentLevel - scope->level;
             *index = (uint16_t) check.data.number;
             return 1;
@@ -349,87 +349,87 @@ static int ScopeSymbolResolve(Scope * scope, Value x,
 /* Forward declaration */
 /* Compile a value and return it stack location after loading.
  * If a target > 0 is passed, the returned value must be equal
- * to the targtet. If target < 0, the Compiler can choose whatever
+ * to the targtet. If target < 0, the GstCompiler can choose whatever
  * slot location it likes. If, for example, a symbol resolves to
  * whatever is in a given slot, it makes sense to use that location
  * to 'return' the value. For other expressions, like function
  * calls, the compiler will just pick the lowest free slot
  * as the location on the stack. */
-static Slot CompileValue(Compiler * c, FormOptions opts, Value x);
+static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x);
 
 /* Compile a structure that evaluates to a literal value. Useful
  * for objects like strings, or anything else that cannot be instatiated else {
  break;
  }
  * from bytecode and doesn't do anything in the AST. */
-static Slot CompileLiteral(Compiler * c, FormOptions opts, Value x) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
+static Slot compile_literal(GstCompiler *c, FormOptions opts, GstValue x) {
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
     Slot ret;
     uint16_t literalIndex;
-    if (opts.resultUnused) return NilSlot();
-    ret = CompilerGetTarget(c, opts);
-    literalIndex = CompilerAddLiteral(c, scope, x);
-    BufferPushUInt16(c->vm, buffer, VM_OP_CST);
-    BufferPushUInt16(c->vm, buffer, ret.index);
-    BufferPushUInt16(c->vm, buffer, literalIndex);
+    if (opts.resultUnused) return nil_slot();
+    ret = compiler_get_target(c, opts);
+    literalIndex = compiler_add_literal(c, scope, x);
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_CST);
+    gst_buffer_push_u16(c->vm, buffer, ret.index);
+    gst_buffer_push_u16(c->vm, buffer, literalIndex);
     return ret;
 }
 
 /* Compile boolean, nil, and number values. */
-static Slot CompileNonReferenceType(Compiler * c, FormOptions opts, Value x) {
-    Buffer * buffer = c->buffer;
+static Slot compile_nonref_type(GstCompiler *c, FormOptions opts, GstValue x) {
+    GstBuffer *buffer = c->buffer;
     Slot ret;
-    if (opts.resultUnused) return NilSlot();
-    ret = CompilerGetTarget(c, opts);
-    if (x.type == TYPE_NIL) {
-        BufferPushUInt16(c->vm, buffer, VM_OP_NIL);
-        BufferPushUInt16(c->vm, buffer, ret.index);
-    } else if (x.type == TYPE_BOOLEAN) {
-        BufferPushUInt16(c->vm, buffer, x.data.boolean ? VM_OP_TRU : VM_OP_FLS);
-        BufferPushUInt16(c->vm, buffer, ret.index);
-    } else if (x.type == TYPE_NUMBER) {
-        Number number = x.data.number;
+    if (opts.resultUnused) return nil_slot();
+    ret = compiler_get_target(c, opts);
+    if (x.type == GST_NIL) {
+        gst_buffer_push_u16(c->vm, buffer, GST_OP_NIL);
+        gst_buffer_push_u16(c->vm, buffer, ret.index);
+    } else if (x.type == GST_BOOLEAN) {
+        gst_buffer_push_u16(c->vm, buffer, x.data.boolean ? GST_OP_TRU : GST_OP_FLS);
+        gst_buffer_push_u16(c->vm, buffer, ret.index);
+    } else if (x.type == GST_NUMBER) {
+        GstNumber number = x.data.number;
         int32_t int32Num = (int32_t) number;
-        if (number == (Number) int32Num) {
+        if (number == (GstNumber) int32Num) {
             if (int32Num <= 32767 && int32Num >= -32768) {
                 int16_t int16Num = (int16_t) number;
-                BufferPushUInt16(c->vm, buffer, VM_OP_I16);
-                BufferPushUInt16(c->vm, buffer, ret.index);
-                BufferPushInt16(c->vm, buffer, int16Num);
+                gst_buffer_push_u16(c->vm, buffer, GST_OP_I16);
+                gst_buffer_push_u16(c->vm, buffer, ret.index);
+                gst_buffer_push_i16(c->vm, buffer, int16Num);
             } else {
-                BufferPushUInt16(c->vm, buffer, VM_OP_I32);
-                BufferPushUInt16(c->vm, buffer, ret.index);
-                BufferPushInt32(c->vm, buffer, int32Num);
+                gst_buffer_push_u16(c->vm, buffer, GST_OP_I32);
+                gst_buffer_push_u16(c->vm, buffer, ret.index);
+                gst_buffer_push_i32(c->vm, buffer, int32Num);
             }
         } else {
-            BufferPushUInt16(c->vm, buffer, VM_OP_F64);
-            BufferPushUInt16(c->vm, buffer, ret.index);
-            BufferPushNumber(c->vm, buffer, number);
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_F64);
+            gst_buffer_push_u16(c->vm, buffer, ret.index);
+            gst_buffer_push_number(c->vm, buffer, number);
         }
     } else {
-        CError(c, "Expected boolean, nil, or number type.");
+        c_error(c, "Expected boolean, nil, or number type.");
     }
     return ret;
 }
 
 /* Compile a symbol. Resolves any kind of symbol. */
-static Slot CompileSymbol(Compiler * c, FormOptions opts, Value sym) {
-    Buffer * buffer = c->buffer;
-    Scope * scope = c->tail;
+static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
+    GstBuffer * buffer = c->buffer;
+    GstScope * scope = c->tail;
     uint16_t index = 0;
     uint16_t level = 0;
     Slot ret;
-    if (opts.resultUnused) return NilSlot();
-    if (!ScopeSymbolResolve(scope, sym, &level, &index))
-        CError(c, "Undefined symbol");
+    if (opts.resultUnused) return nil_slot();
+    if (!symbol_resolve(scope, sym, &level, &index))
+        c_error(c, "Undefined symbol");
     if (level > 0) {
         /* We have an upvalue */
-        ret = CompilerGetTarget(c, opts);
-        BufferPushUInt16(c->vm, buffer, VM_OP_UPV);
-        BufferPushUInt16(c->vm, buffer, ret.index);
-        BufferPushUInt16(c->vm, buffer, level);
-        BufferPushUInt16(c->vm, buffer, index);
+        ret = compiler_get_target(c, opts);
+        gst_buffer_push_u16(c->vm, buffer, GST_OP_UPV);
+        gst_buffer_push_u16(c->vm, buffer, ret.index);
+        gst_buffer_push_u16(c->vm, buffer, level);
+        gst_buffer_push_u16(c->vm, buffer, index);
     } else {
         /* Local variable on stack */
         ret.isTemp = 0;
@@ -441,9 +441,9 @@ static Slot CompileSymbol(Compiler * c, FormOptions opts, Value sym) {
             /* We need to move the variable. This
              * would occur in a simple assignment like a = b. */
             ret.index = opts.target;
-            BufferPushUInt16(c->vm, buffer, VM_OP_MOV);
-            BufferPushUInt16(c->vm, buffer, ret.index);
-            BufferPushUInt16(c->vm, buffer, index);
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_MOV);
+            gst_buffer_push_u16(c->vm, buffer, ret.index);
+            gst_buffer_push_u16(c->vm, buffer, index);
         }
     }
     return ret;
@@ -452,24 +452,24 @@ static Slot CompileSymbol(Compiler * c, FormOptions opts, Value sym) {
 /* Compile values in an array sequentail and track the returned slots.
  * If the result is unused, immediately drop slots we don't need. Can
  * also ignore the end of an array. */
-static void CompilerTrackerInitArray(Compiler * c, FormOptions opts, 
-        SlotTracker * tracker, Array * array, uint32_t start, uint32_t fromEnd) {
-    Scope * scope = c->tail;
-    FormOptions subOpts = FormOptionsDefault();
+static void tracker_init_array(GstCompiler *c, FormOptions opts, 
+        SlotTracker *tracker, GstArray *array, uint32_t start, uint32_t fromEnd) {
+    GstScope *scope = c->tail;
+    FormOptions subOpts = form_options_default();
     uint32_t i;
     /* Calculate sub flags */
     subOpts.resultUnused = opts.resultUnused;
     /* Compile all of the arguments */
-    CompilerTrackerInit(c, tracker);
+    tracker_init(c, tracker);
     /* Nothing to compile */
     if (array->count <= fromEnd) return;
     /* Compile body of array */
     for (i = start; i < (array->count - fromEnd); ++i) {
-        Slot slot = CompileValue(c, subOpts, array->data[i]);
+        Slot slot = compile_value(c, subOpts, array->data[i]);
         if (subOpts.resultUnused)
-            CompilerDropSlot(c, scope, slot);
+            compiler_drop_slot(c, scope, slot);
         else
-            CompilerTrackerPush(c, tracker, CompilerRealizeSlot(c, slot));
+            compiler_tracker_push(c, tracker, compiler_realize_slot(c, slot));
     }
 }
 
@@ -484,171 +484,171 @@ static void CompilerTrackerInitArray(Compiler * c, FormOptions opts,
  * is unused, it's calculation can be ignored (the evaluation of
  * its argument is still carried out, but their results can
  * also be ignored). */
-static Slot CompileOperator(Compiler * c, FormOptions opts, Array * form,
+static Slot compile_operator(GstCompiler *c, FormOptions opts, GstArray *form,
         int16_t op0, int16_t op1, int16_t op2, int16_t opn, int reverseOperands) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
     Slot ret;
     SlotTracker tracker;
     /* Compile operands */
-    CompilerTrackerInitArray(c, opts, &tracker, form, 1, 0);
+    tracker_init_array(c, opts, &tracker, form, 1, 0);
     /* Free up space */
-    CompilerTrackerFree(c, scope, &tracker);
+    compiler_tracker_free(c, scope, &tracker);
     if (opts.resultUnused) {
-        ret = NilSlot();
+        ret = nil_slot();
     } else {
-        ret = CompilerGetTarget(c, opts);
+        ret = compiler_get_target(c, opts);
         /* Write the correct opcode */
         if (form->count < 2) {
             if (op0 < 0) {
-                if (opn < 0) CError(c, "This operator does not take 0 arguments.");
+                if (opn < 0) c_error(c, "This operator does not take 0 arguments.");
                 goto opn;
             } else {
-                BufferPushUInt16(c->vm, buffer, op0);
-                BufferPushUInt16(c->vm, buffer, ret.index);
+                gst_buffer_push_u16(c->vm, buffer, op0);
+                gst_buffer_push_u16(c->vm, buffer, ret.index);
             }
         } else if (form->count == 2) {
             if (op1 < 0) {
-                if (opn < 0) CError(c, "This operator does not take 1 argument.");
+                if (opn < 0) c_error(c, "This operator does not take 1 argument.");
                 goto opn;
             } else {
-                BufferPushUInt16(c->vm, buffer, op1);
-                BufferPushUInt16(c->vm, buffer, ret.index);
+                gst_buffer_push_u16(c->vm, buffer, op1);
+                gst_buffer_push_u16(c->vm, buffer, ret.index);
             }
         } else if (form->count == 3) {
             if (op2 < 0) {
-                if (opn < 0) CError(c, "This operator does not take 2 arguments.");
+                if (opn < 0) c_error(c, "This operator does not take 2 arguments.");
                 goto opn;
             } else {
-                BufferPushUInt16(c->vm, buffer, op2);
-                BufferPushUInt16(c->vm, buffer, ret.index);
+                gst_buffer_push_u16(c->vm, buffer, op2);
+                gst_buffer_push_u16(c->vm, buffer, ret.index);
             }
         } else {
             opn:
-            if (opn < 0) CError(c, "This operator does not take n arguments.");
-            BufferPushUInt16(c->vm, buffer, opn);
-            BufferPushUInt16(c->vm, buffer, ret.index);
-            BufferPushUInt16(c->vm, buffer, form->count - 1);
+            if (opn < 0) c_error(c, "This operator does not take n arguments.");
+            gst_buffer_push_u16(c->vm, buffer, opn);
+            gst_buffer_push_u16(c->vm, buffer, ret.index);
+            gst_buffer_push_u16(c->vm, buffer, form->count - 1);
         }
     }
     /* Write the location of all of the arguments */
-    CompilerTrackerWrite(c, &tracker, reverseOperands);
+    compiler_tracker_write(c, &tracker, reverseOperands);
     return ret;
 }
 
 /* Math specials */
-static Slot CompileAddition(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_LD0, -1, VM_OP_ADD, VM_OP_ADM, 0);
+static Slot compile_addition(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_LD0, -1, GST_OP_ADD, GST_OP_ADM, 0);
 }
-static Slot CompileSubtraction(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_LD0, -1, VM_OP_SUB, VM_OP_SBM, 0);
+static Slot compile_subtraction(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_LD0, -1, GST_OP_SUB, GST_OP_SBM, 0);
 }
-static Slot CompileMultiplication(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_LD1, -1, VM_OP_MUL, VM_OP_MUM, 0);
+static Slot compile_multiplication(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_LD1, -1, GST_OP_MUL, GST_OP_MUM, 0);
 }
-static Slot CompileDivision(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_LD1, -1, VM_OP_DIV, VM_OP_DVM, 0);
+static Slot compile_division(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_LD1, -1, GST_OP_DIV, GST_OP_DVM, 0);
 }
-static Slot CompileEquals(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_TRU, VM_OP_TRU, VM_OP_EQL, -1, 0);
+static Slot compile_equals(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_EQL, -1, 0);
 }
-static Slot CompileLessThan(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_TRU, VM_OP_TRU, VM_OP_LTN, -1, 0);
+static Slot compile_lt(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_LTN, -1, 0);
 }
-static Slot CompileLessThanOrEqual(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_TRU, VM_OP_TRU, VM_OP_LTE, -1, 0);
+static Slot compile_lte(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_LTE, -1, 0);
 }
-static Slot CompileGreaterThan(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_TRU, VM_OP_TRU, VM_OP_LTN, -1, 1);
+static Slot compile_gt(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_LTN, -1, 1);
 }
-static Slot CompileGreaterThanOrEqual(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_TRU, VM_OP_TRU, VM_OP_LTE, -1, 1);
+static Slot compile_gte(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_LTE, -1, 1);
 }
-static Slot CompileNot(Compiler * c, FormOptions opts, Array * form) {
-    return CompileOperator(c, opts, form, VM_OP_FLS, VM_OP_NOT, -1, -1, 0);
+static Slot compile_not(GstCompiler *c, FormOptions opts, GstArray *form) {
+    return compile_operator(c, opts, form, GST_OP_FLS, GST_OP_NOT, -1, -1, 0);
 }
-static Slot CompileGet(Compiler * c, FormOptions opts, Array * form) {
-	return CompileOperator(c, opts, form, -1, -1, VM_OP_GET, -1, 0);
+static Slot compile_get(GstCompiler *c, FormOptions opts, GstArray *form) {
+	return compile_operator(c, opts, form, -1, -1, GST_OP_GET, -1, 0);
 }
-static Slot CompileArray(Compiler * c, FormOptions opts, Array * form) {
-	return CompileOperator(c, opts, form, -1, -1, -1, VM_OP_ARR, 0);
+static Slot compile_array(GstCompiler *c, FormOptions opts, GstArray *form) {
+	return compile_operator(c, opts, form, -1, -1, -1, GST_OP_ARR, 0);
 }
-static Slot CompileDict(Compiler * c, FormOptions opts, Array * form) {
+static Slot compile_object(GstCompiler *c, FormOptions opts, GstArray *form) {
     if ((form->count % 2) == 0) {
-        CError(c, "Dictionary literal requires an even number of arguments");
-        return NilSlot();
+        c_error(c, "Dictionary literal requires an even number of arguments");
+        return nil_slot();
     } else {
-    	return CompileOperator(c, opts, form, -1, -1, -1, VM_OP_DIC, 0);
+    	return compile_operator(c, opts, form, -1, -1, -1, GST_OP_DIC, 0);
     }
 }
 
 /* Associative set */
-static Slot CompileSet(Compiler * c, FormOptions opts, Array * form) {
-    Buffer * buffer = c->buffer;
-    FormOptions subOpts = FormOptionsDefault();
+static Slot compile_set(GstCompiler *c, FormOptions opts, GstArray *form) {
+    GstBuffer *buffer = c->buffer;
+    FormOptions subOpts = form_options_default();
     Slot ds, key, val;
-    if (form->count != 4) CError(c, "Set expects 4 arguments");
+    if (form->count != 4) c_error(c, "Set expects 4 arguments");
     if (opts.resultUnused) {
-        ds = CompilerRealizeSlot(c, CompileValue(c, subOpts, form->data[1]));
+        ds = compiler_realize_slot(c, compile_value(c, subOpts, form->data[1]));
     } else {
         subOpts = opts;
         subOpts.isTail = 0;
-        ds = CompilerRealizeSlot(c, CompileValue(c, subOpts, form->data[1]));
-        subOpts = FormOptionsDefault();
+        ds = compiler_realize_slot(c, compile_value(c, subOpts, form->data[1]));
+        subOpts = form_options_default();
     }
-    key = CompilerRealizeSlot(c, CompileValue(c, subOpts, form->data[2]));
-   	val = CompilerRealizeSlot(c, CompileValue(c, subOpts, form->data[3]));
-    BufferPushUInt16(c->vm, buffer, VM_OP_SET);
-    BufferPushUInt16(c->vm, buffer, ds.index);
-    BufferPushUInt16(c->vm, buffer, key.index);
-    BufferPushUInt16(c->vm, buffer,	val.index);
-    CompilerDropSlot(c, c->tail, key);
-    CompilerDropSlot(c, c->tail, val);
+    key = compiler_realize_slot(c, compile_value(c, subOpts, form->data[2]));
+   	val = compiler_realize_slot(c, compile_value(c, subOpts, form->data[3]));
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_SET);
+    gst_buffer_push_u16(c->vm, buffer, ds.index);
+    gst_buffer_push_u16(c->vm, buffer, key.index);
+    gst_buffer_push_u16(c->vm, buffer,	val.index);
+    compiler_drop_slot(c, c->tail, key);
+    compiler_drop_slot(c, c->tail, val);
     if (opts.resultUnused) {
-        CompilerDropSlot(c, c->tail, ds);
-        return NilSlot();
+        compiler_drop_slot(c, c->tail, ds);
+        return nil_slot();
     } else {
 		return ds;
     }
 }
 
 /* Compile an assignment operation */
-static Slot CompileAssign(Compiler * c, FormOptions opts, Value left, Value right) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
+static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstValue right) {
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
     FormOptions subOpts;
     uint16_t target = 0;
     uint16_t level = 0;
     Slot slot;
     subOpts.isTail = 0;
     subOpts.resultUnused = 0;
-    if (ScopeSymbolResolve(scope, left, &level, &target)) {
+    if (symbol_resolve(scope, left, &level, &target)) {
         /* Check if we have an up value. Otherwise, it's just a normal
          * local variable */
         if (level != 0) {
             subOpts.canChoose = 1;
             /* Evaluate the right hand side */
-            slot = CompilerRealizeSlot(c, CompileValue(c, subOpts, right));
+            slot = compiler_realize_slot(c, compile_value(c, subOpts, right));
             /* Set the up value */
-            BufferPushUInt16(c->vm, buffer, VM_OP_SUV);
-            BufferPushUInt16(c->vm, buffer, slot.index);
-            BufferPushUInt16(c->vm, buffer, level);
-            BufferPushUInt16(c->vm, buffer, target);
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_SUV);
+            gst_buffer_push_u16(c->vm, buffer, slot.index);
+            gst_buffer_push_u16(c->vm, buffer, level);
+            gst_buffer_push_u16(c->vm, buffer, target);
         } else {
             /* Local variable */
             subOpts.canChoose = 0;
             subOpts.target = target;
-            slot = CompileValue(c, subOpts, right);
+            slot = compile_value(c, subOpts, right);
         }
     } else {
         /* We need to declare a new symbol */
-        subOpts.target = CompilerDeclareSymbol(c, scope, left);
+        subOpts.target = compiler_declare_symbol(c, scope, left);
         subOpts.canChoose = 0;
-        slot = CompileValue(c, subOpts, right);
+        slot = compile_value(c, subOpts, right);
     }
     if (opts.resultUnused) {
-        CompilerDropSlot(c, scope, slot);
-        return NilSlot();
+        compiler_drop_slot(c, scope, slot);
+        return nil_slot();
     } else {
         return slot;
     }
@@ -656,35 +656,35 @@ static Slot CompileAssign(Compiler * c, FormOptions opts, Value left, Value righ
 
 /* Compile series of expressions. This compiles the meat of
  * function definitions and the inside of do forms. */
-static Slot CompileBlock(Compiler * c, FormOptions opts, Array * form, uint32_t startIndex) {
-    Scope * scope = c->tail;
-    FormOptions subOpts = FormOptionsDefault();
+static Slot compile_block(GstCompiler *c, FormOptions opts, GstArray *form, uint32_t startIndex) {
+    GstScope *scope = c->tail;
+    FormOptions subOpts = form_options_default();
     uint32_t current = startIndex;
     /* Check for empty body */
-    if (form->count <= startIndex) return NilSlot();
+    if (form->count <= startIndex) return nil_slot();
     /* Compile the body */
     subOpts.resultUnused = 1;
     subOpts.isTail = 0;
     subOpts.canChoose = 1;
     while (current < form->count - 1) {
-        CompilerDropSlot(c, scope, CompileValue(c, subOpts, form->data[current]));
+        compiler_drop_slot(c, scope, compile_value(c, subOpts, form->data[current]));
         ++current;
     }
     /* Compile the last expression in the body */
-    return CompileValue(c, opts, form->data[form->count - 1]);
+    return compile_value(c, opts, form->data[form->count - 1]);
 }
 
 /* Extract the last n bytes from the buffer and use them to construct
  * a function definition. */
-static FuncDef * CompilerGenFuncDef(Compiler * c, uint32_t lastNBytes, uint32_t arity) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
-    FuncDef * def = VMAlloc(c->vm, sizeof(FuncDef));
+static GstFuncDef * compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uint32_t arity) {
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
+    GstFuncDef *def = gst_alloc(c->vm, sizeof(GstFuncDef));
     /* Create enough space for the new byteCode */
     if (lastNBytes > buffer->count)
-        CError(c, "Trying to extract more bytes from buffer than in buffer.");
-    uint8_t * byteCode = VMAlloc(c->vm, lastNBytes);
-    def->byteCode = (uint16_t *) byteCode;
+        c_error(c, "Trying to extract more bytes from buffer than in buffer.");
+    uint8_t * byteCode = gst_alloc(c->vm, lastNBytes);
+    def->byteCode = (uint16_t *)byteCode;
     def->byteCodeLen = lastNBytes / 2;
     /* Copy the last chunk of bytes in the buffer into the new
      * memory for the function's byteCOde */
@@ -693,15 +693,15 @@ static FuncDef * CompilerGenFuncDef(Compiler * c, uint32_t lastNBytes, uint32_t 
     buffer->count -= lastNBytes;
     /* Create the literals used by this function */
     if (scope->literalsArray->count) {
-        def->literals = VMAlloc(c->vm, scope->literalsArray->count * sizeof(Value));
+        def->literals = gst_alloc(c->vm, scope->literalsArray->count * sizeof(GstValue));
         memcpy(def->literals, scope->literalsArray->data,
-                scope->literalsArray->count * sizeof(Value));
+                scope->literalsArray->count * sizeof(GstValue));
     } else {
         def->literals = NULL;
     }
     def->literalsLen = scope->literalsArray->count;
     /* Delete the sub scope */
-    CompilerPopScope(c);
+    compiler_pop_scope(c);
     /* Initialize the new FuncDef */
     def->locals = scope->frameSize;
     def->arity = arity;
@@ -709,62 +709,62 @@ static FuncDef * CompilerGenFuncDef(Compiler * c, uint32_t lastNBytes, uint32_t 
 }
 
 /* Compile a function from a function literal */
-static Slot CompileFunction(Compiler * c, FormOptions opts, Array * form) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
+static Slot compile_function(GstCompiler *c, FormOptions opts, GstArray *form) {
+    GstScope * scope = c->tail;
+    GstBuffer * buffer = c->buffer;
     uint32_t current = 1;
     uint32_t i;
     uint32_t sizeBefore; /* Size of buffer before compiling function */
-    Scope * subScope;
-    Array * params;
-    FormOptions subOpts = FormOptionsDefault();
+    GstScope * subGstScope;
+    GstArray * params;
+    FormOptions subOpts = form_options_default();
     Slot ret;
-    if (opts.resultUnused) return NilSlot();
-    ret = CompilerGetTarget(c, opts);
-    subScope = CompilerPushScope(c, 0);
+    if (opts.resultUnused) return nil_slot();
+    ret = compiler_get_target(c, opts);
+    subGstScope = compiler_push_scope(c, 0);
     /* Check for function documentation - for now just ignore. */
-    if (form->data[current].type == TYPE_STRING)
+    if (form->data[current].type == GST_STRING)
         ++current;
     /* Define the function parameters */
-    if (form->data[current].type != TYPE_ARRAY)
-        CError(c, "Expected function arguments");
+    if (form->data[current].type != GST_ARRAY)
+        c_error(c, "Expected function arguments");
     params = form->data[current++].data.array;
     for (i = 0; i < params->count; ++i) {
-        Value param = params->data[i];
-        if (param.type != TYPE_STRING)
-            CError(c, "Function parameters should be symbols");
+        GstValue param = params->data[i];
+        if (param.type != GST_STRING)
+            c_error(c, "Function parameters should be symbols");
         /* The compiler puts the parameter locals
          * in the right place by default - at the beginning
          * of the stack frame. */
-        CompilerDeclareSymbol(c, subScope, param);
+        compiler_declare_symbol(c, subGstScope, param);
     }
     /* Mark where we are on the stack so we can
      * return to it later. */
     sizeBefore = buffer->count;
     /* Compile the body in the subscope */
     subOpts.isTail = 1;
-    CompilerReturn(c, CompileBlock(c, subOpts, form, current));
+    compiler_return(c, compile_block(c, subOpts, form, current));
     /* Create a new FuncDef as a constant in original scope by splicing
      * out the relevant code from the buffer. */
     {
-        Value newVal;
+        GstValue newVal;
         uint16_t literalIndex;
-        FuncDef * def = CompilerGenFuncDef(c, buffer->count - sizeBefore, params->count);
+        GstFuncDef *def = compiler_gen_funcdef(c, buffer->count - sizeBefore, params->count);
         /* Add this FuncDef as a literal in the outer scope */
-        newVal.type = TYPE_NIL;
+        newVal.type = GST_NIL;
         newVal.data.pointer = def;
-        literalIndex = CompilerAddLiteral(c, scope, newVal);
-        BufferPushUInt16(c->vm, buffer, VM_OP_CLN);
-        BufferPushUInt16(c->vm, buffer, ret.index);
-        BufferPushUInt16(c->vm, buffer, literalIndex);
+        literalIndex = compiler_add_literal(c, scope, newVal);
+        gst_buffer_push_u16(c->vm, buffer, GST_OP_CLN);
+        gst_buffer_push_u16(c->vm, buffer, ret.index);
+        gst_buffer_push_u16(c->vm, buffer, literalIndex);
     }
     return ret;
 }
 
 /* Branching special */
-static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
+static Slot compile_if(GstCompiler *c, FormOptions opts, GstArray *form) {
+    GstScope * scope = c->tail;
+    GstBuffer * buffer = c->buffer;
     FormOptions condOpts = opts;
     FormOptions branchOpts = opts;
     Slot left, right, condition;
@@ -773,15 +773,15 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
     uint32_t countAfterFirstBranch;
     /* Check argument count */
     if (form->count < 3 || form->count > 4)
-        CError(c, "if takes either 2 or 3 arguments");
+        c_error(c, "if takes either 2 or 3 arguments");
     /* Compile the condition */
     condOpts.isTail = 0;
     condOpts.resultUnused = 0;
-    condition = CompileValue(c, condOpts, form->data[1]);
+    condition = compile_value(c, condOpts, form->data[1]);
     /* If the condition is nil, just compile false path */
     if (condition.isNil) {
         if (form->count == 4) {
-            return CompileValue(c, opts, form->data[3]);
+            return compile_value(c, opts, form->data[3]);
         }
         return condition;
     }
@@ -789,46 +789,46 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
      * length later */
     countAtJumpIf = buffer->count;
     /* Write jump instruction. Will later be replaced with correct index. */
-    BufferPushUInt16(c->vm, buffer, VM_OP_JIF);
-    BufferPushUInt16(c->vm, buffer, condition.index);
-    BufferPushUInt32(c->vm, buffer, 0);
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_JIF);
+    gst_buffer_push_u16(c->vm, buffer, condition.index);
+    gst_buffer_push_u32(c->vm, buffer, 0);
     /* Configure branch form options */
     branchOpts.canChoose = 0;
     branchOpts.target = condition.index;
     /* Compile true path */
-    left = CompileValue(c, branchOpts, form->data[2]);
+    left = compile_value(c, branchOpts, form->data[2]);
     if (opts.isTail) {
-        CompilerReturn(c, left);
+        compiler_return(c, left);
     } else {
         /* If we need to jump again, do so */
         if (form->count == 4) {
             countAtJump = buffer->count;
-            BufferPushUInt16(c->vm, buffer, VM_OP_JMP);
-            BufferPushUInt32(c->vm, buffer, 0);
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_JMP);
+            gst_buffer_push_u32(c->vm, buffer, 0);
         }
     }
-    CompilerDropSlot(c, scope, left);
+    compiler_drop_slot(c, scope, left);
     /* Reinsert jump with correct index */
     countAfterFirstBranch = buffer->count;
     buffer->count = countAtJumpIf;
-    BufferPushUInt16(c->vm, buffer, VM_OP_JIF);
-    BufferPushUInt16(c->vm, buffer, condition.index);
-    BufferPushUInt32(c->vm, buffer, (countAfterFirstBranch - countAtJumpIf) / 2);
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_JIF);
+    gst_buffer_push_u16(c->vm, buffer, condition.index);
+    gst_buffer_push_u32(c->vm, buffer, (countAfterFirstBranch - countAtJumpIf) / 2);
     buffer->count = countAfterFirstBranch;
     /* Compile false path */
     if (form->count == 4) {
-        right = CompileValue(c, branchOpts, form->data[3]);
-        if (opts.isTail) CompilerReturn(c, right);
-        CompilerDropSlot(c, scope, right);
+        right = compile_value(c, branchOpts, form->data[3]);
+        if (opts.isTail) compiler_return(c, right);
+        compiler_drop_slot(c, scope, right);
     } else if (opts.isTail) {
-        CompilerReturn(c, condition);
+        compiler_return(c, condition);
     }
     /* Reset the second jump length */
     if (!opts.isTail && form->count == 4) {
         countAfterFirstBranch = buffer->count;
         buffer->count = countAtJump;
-        BufferPushUInt16(c->vm, buffer, VM_OP_JMP);
-        BufferPushUInt32(c->vm, buffer, (countAfterFirstBranch - countAtJump) / 2);
+        gst_buffer_push_u16(c->vm, buffer, GST_OP_JMP);
+        gst_buffer_push_u32(c->vm, buffer, (countAfterFirstBranch - countAtJump) / 2);
         buffer->count = countAfterFirstBranch;
     }
     if (opts.isTail)
@@ -837,15 +837,15 @@ static Slot CompileIf(Compiler * c, FormOptions opts, Array * form) {
 }
 
 /* While special */
-static Slot CompileWhile(Compiler * c, FormOptions opts, Array * form) {
+static Slot compile_while(GstCompiler *c, FormOptions opts, GstArray *form) {
     Slot cond;
     uint32_t countAtStart = c->buffer->count;
     uint32_t countAtJumpDelta;
     uint32_t countAtFinish;
-    FormOptions defaultOpts = FormOptionsDefault();
-    CompilerPushScope(c, 1);
+    FormOptions defaultOpts = form_options_default();
+    compiler_push_scope(c, 1);
     /* Compile condition */
-    cond = CompileValue(c, defaultOpts, form->data[1]);
+    cond = compile_value(c, defaultOpts, form->data[1]);
     /* Assert that cond is a real value - otherwise do nothing (nil is false,
      * so loop never runs.) */
     if (cond.isNil) return cond;
@@ -854,202 +854,202 @@ static Slot CompileWhile(Compiler * c, FormOptions opts, Array * form) {
     c->buffer->count += sizeof(uint16_t) * 2 + sizeof(int32_t);
     /* Compile loop body */
     defaultOpts.resultUnused = 1;
-    CompilerDropSlot(c, c->tail, CompileBlock(c, defaultOpts, form, 2));
+    compiler_drop_slot(c, c->tail, compile_block(c, defaultOpts, form, 2));
     /* Jump back to the loop start */
     countAtFinish = c->buffer->count;
-    BufferPushUInt16(c->vm, c->buffer, VM_OP_JMP);
-    BufferPushInt32(c->vm, c->buffer, (int32_t)(countAtFinish - countAtStart) / -2);
+    gst_buffer_push_u16(c->vm, c->buffer, GST_OP_JMP);
+    gst_buffer_push_i32(c->vm, c->buffer, (int32_t)(countAtFinish - countAtStart) / -2);
     countAtFinish = c->buffer->count;
     /* Set the jump to the correct length */
     c->buffer->count = countAtJumpDelta;
-    BufferPushUInt16(c->vm, c->buffer, VM_OP_JIF);
-    BufferPushUInt16(c->vm, c->buffer, cond.index);
-    BufferPushInt32(c->vm, c->buffer, (int32_t)(countAtFinish - countAtJumpDelta) / 2);
+    gst_buffer_push_u16(c->vm, c->buffer, GST_OP_JIF);
+    gst_buffer_push_u16(c->vm, c->buffer, cond.index);
+    gst_buffer_push_i32(c->vm, c->buffer, (int32_t)(countAtFinish - countAtJumpDelta) / 2);
     /* Pop scope */
     c->buffer->count = countAtFinish;
-    CompilerPopScope(c);
+    compiler_pop_scope(c);
     /* Return nil */
     if (opts.resultUnused)
-        return NilSlot();
+        return nil_slot();
     else
         return cond;
 }
 
 /* Do special */
-static Slot CompileDo(Compiler * c, FormOptions opts, Array * form) {
+static Slot compile_do(GstCompiler *c, FormOptions opts, GstArray *form) {
     Slot ret;
-    CompilerPushScope(c, 1);
-    ret = CompileBlock(c, opts, form, 1);
-    CompilerPopScope(c);
+    compiler_push_scope(c, 1);
+    ret = compile_block(c, opts, form, 1);
+    compiler_pop_scope(c);
     return ret;
 }
 
 /* Quote special - returns its argument as is. */
-static Slot CompileQuote(Compiler * c, FormOptions opts, Array * form) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
+static Slot compile_quote(GstCompiler *c, FormOptions opts, GstArray *form) {
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
     Slot ret;
     uint16_t literalIndex;
     if (form->count != 2)
-        CError(c, "Quote takes exactly 1 argument.");
-    Value x = form->data[1];
-    if (x.type == TYPE_NIL ||
-            x.type == TYPE_BOOLEAN ||
-            x.type == TYPE_NUMBER) {
-        return CompileNonReferenceType(c, opts, x);
+        c_error(c, "Quote takes exactly 1 argument.");
+    GstValue x = form->data[1];
+    if (x.type == GST_NIL ||
+            x.type == GST_BOOLEAN ||
+            x.type == GST_NUMBER) {
+        return compile_nonref_type(c, opts, x);
     }
-    if (opts.resultUnused) return NilSlot();
-    ret = CompilerGetTarget(c, opts);
-    literalIndex = CompilerAddLiteral(c, scope, x);
-    BufferPushUInt16(c->vm, buffer, VM_OP_CST);
-    BufferPushUInt16(c->vm, buffer, ret.index);
-    BufferPushUInt16(c->vm, buffer, literalIndex);
+    if (opts.resultUnused) return nil_slot();
+    ret = compiler_get_target(c, opts);
+    literalIndex = compiler_add_literal(c, scope, x);
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_CST);
+    gst_buffer_push_u16(c->vm, buffer, ret.index);
+    gst_buffer_push_u16(c->vm, buffer, literalIndex);
     return ret;
 }
 
 /* Assignment special */
-static Slot CompileVar(Compiler * c, FormOptions opts, Array * form) {
+static Slot compile_var(GstCompiler *c, FormOptions opts, GstArray *form) {
     if (form->count != 3)
-        CError(c, "Assignment expects 2 arguments");
-    return CompileAssign(c, opts, form->data[1], form->data[2]);
+        c_error(c, "Assignment expects 2 arguments");
+    return compile_assign(c, opts, form->data[1], form->data[2]);
 }
 
 /* Define a function type for Special Form helpers */
-typedef Slot (*SpecialFormHelper) (Compiler * c, FormOptions opts, Array * form);
+typedef Slot (*SpecialFormHelper) (GstCompiler *c, FormOptions opts, GstArray *form);
 
 /* Dispatch to a special form */
-static SpecialFormHelper GetSpecial(Array * form) {
-    uint8_t * name;
-    if (form->count < 1 || form->data[0].type != TYPE_STRING)
+static SpecialFormHelper get_special(GstArray *form) {
+    uint8_t *name;
+    if (form->count < 1 || form->data[0].type != GST_STRING)
         return NULL;
     name = form->data[0].data.string;
     /* If we have a symbol with a zero length name, we have other
      * problems. */
-    if (VStringSize(name) == 0)
+    if (gst_string_length(name) == 0)
         return NULL;
     /* One character specials. Mostly math. */
-    if (VStringSize(name) == 1) {
+    if (gst_string_length(name) == 1) {
         switch(name[0]) {
-            case '+': return CompileAddition;
-            case '-': return CompileSubtraction;
-            case '*': return CompileMultiplication;
-            case '/': return CompileDivision;
-            case '>': return CompileGreaterThan;
-            case '<': return CompileLessThan;
-            case '=': return CompileEquals;
+            case '+': return compile_addition;
+            case '-': return compile_subtraction;
+            case '*': return compile_multiplication;
+            case '/': return compile_division;
+            case '>': return compile_gt;
+            case '<': return compile_lt;
+            case '=': return compile_equals;
             default:
-                       break;
+                break;
         }
     }
     /* Multi character specials. Mostly control flow. */
     switch (name[0]) {
         case '>':
             {
-                if (VStringSize(name) == 2 &&
+                if (gst_string_length(name) == 2 &&
                         name[1] == '=') {
-                    return CompileGreaterThanOrEqual;
+                    return compile_gte;
                 }
             }
             break;
         case '<':
             {
-                if (VStringSize(name) == 2 &&
+                if (gst_string_length(name) == 2 &&
                         name[1] == '=') {
-                    return CompileLessThanOrEqual;
+                    return compile_lte;
                 }
             }
             break;
         case 'a':
         	{
-            	if (VStringSize(name) == 5 &&
+            	if (gst_string_length(name) == 5 &&
                 	    name[1] == 'r' &&
                 	    name[2] == 'r' &&
                 	    name[3] == 'a' &&
                 	    name[4] == 'y') {
-					return CompileArray;
+					return compile_array;
         	    }
     	    }
         case 'g':
             {
-				if (VStringSize(name) == 3 &&
+				if (gst_string_length(name) == 3 &&
     				    name[1] == 'e' &&
     				    name[2] == 't') {
-					return CompileGet;
+					return compile_get;
 			    }
             }
         case 'd':
             {
-                if (VStringSize(name) == 2 &&
+                if (gst_string_length(name) == 2 &&
                         name[1] == 'o') {
-                    return CompileDo;
-                } else if (VStringSize(name) == 4 &&
+                    return compile_do;
+                } else if (gst_string_length(name) == 4 &&
 						name[1] == 'i' &&
 						name[2] == 'c' &&
 						name[3] == 't') {
-					return CompileDict;
+					return compile_object;
                 }
             }
             break;
         case 'i':
             {
-                if (VStringSize(name) == 2 &&
+                if (gst_string_length(name) == 2 &&
                         name[1] == 'f') {
-                    return CompileIf;
+                    return compile_if;
                 }
             }
             break;
         case 'f':
             {
-                if (VStringSize(name) == 2 &&
+                if (gst_string_length(name) == 2 &&
                         name[1] == 'n') {
-                    return CompileFunction;
+                    return compile_function;
                 }
             }
             break;
         case 'n':
             {
-                if (VStringSize(name) == 3 &&
+                if (gst_string_length(name) == 3 &&
                         name[1] == 'o' &&
                         name[2] == 't') {
-                    return CompileNot;
+                    return compile_not;
                 }
             }
         case 'q':
             {
-                if (VStringSize(name) == 5 &&
+                if (gst_string_length(name) == 5 &&
                         name[1] == 'u' &&
                         name[2] == 'o' &&
                         name[3] == 't' &&
                         name[4] == 'e') {
-                    return CompileQuote;
+                    return compile_quote;
                 }
             }
             break;
         case 's':
             {
-                if (VStringSize(name) == 3 &&
+                if (gst_string_length(name) == 3 &&
                         name[1] == 'e' &&
                         name[2] == 't') {
-                    return CompileSet;
+                    return compile_set;
                 }
             }
             break;
         case 'w':
             {
-                if (VStringSize(name) == 5 &&
+                if (gst_string_length(name) == 5 &&
                         name[1] == 'h' &&
                         name[2] == 'i' &&
                         name[3] == 'l' &&
                         name[4] == 'e') {
-                    return CompileWhile;
+                    return compile_while;
                 }
             }
             break;
         case ':':
             {
-                if (VStringSize(name) == 2 &&
+                if (gst_string_length(name) == 2 &&
                         name[1] == '=') {
-                    return CompileVar;
+                    return compile_var;
                 }
             }
             break;
@@ -1060,102 +1060,102 @@ static SpecialFormHelper GetSpecial(Array * form) {
 }
 
 /* Compile a form. Checks for special forms and macros. */
-static Slot CompileForm(Compiler * c, FormOptions opts, Array * form) {
-    Scope * scope = c->tail;
-    Buffer * buffer = c->buffer;
+static Slot compile_form(GstCompiler *c, FormOptions opts, GstArray *form) {
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
     SpecialFormHelper helper;
     /* Empty forms evaluate to nil. */
     if (form->count == 0) {
-        Value temp;
-        temp.type = TYPE_NIL;
-        return CompileNonReferenceType(c, opts, temp);
+        GstValue temp;
+        temp.type = GST_NIL;
+        return compile_nonref_type(c, opts, temp);
     }
     /* Check and handle special forms */
-    helper = GetSpecial(form);
+    helper = get_special(form);
     if (helper != NULL) {
         return helper(c, opts, form);
     } else {
         Slot ret, callee;
         SlotTracker tracker;
-        FormOptions subOpts = FormOptionsDefault();
+        FormOptions subOpts = form_options_default();
         uint32_t i;
-        CompilerTrackerInit(c, &tracker);
+        tracker_init(c, &tracker);
         /* Compile function to be called */
-        callee = CompilerRealizeSlot(c, CompileValue(c, subOpts, form->data[0]));
+        callee = compiler_realize_slot(c, compile_value(c, subOpts, form->data[0]));
         /* Compile all of the arguments */
         for (i = 1; i < form->count; ++i) {
-            Slot slot = CompileValue(c, subOpts, form->data[i]);
-            CompilerTrackerPush(c, &tracker, slot);
+            Slot slot = compile_value(c, subOpts, form->data[i]);
+            compiler_tracker_push(c, &tracker, slot);
         }
         /* Free up some slots */
-        CompilerDropSlot(c, scope, callee);
-        CompilerTrackerFree(c, scope, &tracker);
+        compiler_drop_slot(c, scope, callee);
+        compiler_tracker_free(c, scope, &tracker);
         /* If this is in tail position do a tail call. */
         if (opts.isTail) {
-            BufferPushUInt16(c->vm, buffer, VM_OP_TCL);
-            BufferPushUInt16(c->vm, buffer, callee.index);
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_TCL);
+            gst_buffer_push_u16(c->vm, buffer, callee.index);
             ret.hasReturned = 1;
             ret.isNil = 1;
         } else {
-            ret = CompilerGetTarget(c, opts);
-            BufferPushUInt16(c->vm, buffer, VM_OP_CAL);
-            BufferPushUInt16(c->vm, buffer, callee.index);
-            BufferPushUInt16(c->vm, buffer, ret.index);
+            ret = compiler_get_target(c, opts);
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_CAL);
+            gst_buffer_push_u16(c->vm, buffer, callee.index);
+            gst_buffer_push_u16(c->vm, buffer, ret.index);
         }
-        BufferPushUInt16(c->vm, buffer, form->count - 1);
+        gst_buffer_push_u16(c->vm, buffer, form->count - 1);
         /* Write the location of all of the arguments */
-        CompilerTrackerWrite(c, &tracker, 0);
+        compiler_tracker_write(c, &tracker, 0);
         return ret;
     }
 }
 
 /* Recursively compile any value or form */
-static Slot CompileValue(Compiler * c, FormOptions opts, Value x) {
+static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
     switch (x.type) {
-        case TYPE_NIL:
-        case TYPE_BOOLEAN:
-        case TYPE_NUMBER:
-            return CompileNonReferenceType(c, opts, x);
-        case TYPE_STRING:
-            return CompileSymbol(c, opts, x);
-        case TYPE_ARRAY:
-            return CompileForm(c, opts, x.data.array);
+        case GST_NIL:
+        case GST_BOOLEAN:
+        case GST_NUMBER:
+            return compile_nonref_type(c, opts, x);
+        case GST_STRING:
+            return compile_symbol(c, opts, x);
+        case GST_ARRAY:
+            return compile_form(c, opts, x.data.array);
         default:
-            return CompileLiteral(c, opts, x);
+            return compile_literal(c, opts, x);
     }
 }
 
-/* Initialize a Compiler struct */
-void CompilerInit(Compiler * c, VM * vm) {
+/* Initialize a GstCompiler struct */
+void gst_compiler(GstCompiler *c, Gst *vm) {
     c->vm = vm;
-    c->buffer = BufferNew(vm, 128);
-    c->env = ArrayNew(vm, 10);
+    c->buffer = gst_buffer(vm, 128);
+    c->env = gst_array(vm, 10);
     c->tail = NULL;
     c->error = NULL;
-    CompilerPushScope(c, 0);
+    compiler_push_scope(c, 0);
 }
 
 /* Register a global for the compilation environment. */
-void CompilerAddGlobal(Compiler * c, const char * name, Value x) {
-    Value sym = ValueLoadCString(c->vm, name);
-    sym.type = TYPE_STRING;
-    CompilerDeclareSymbol(c, c->tail, sym);
-    ArrayPush(c->vm, c->env, x);
+void gst_compiler_add_global(GstCompiler *c, const char *name, GstValue x) {
+    GstValue sym = gst_load_cstring(c->vm, name);
+    sym.type = GST_STRING;
+    compiler_declare_symbol(c, c->tail, sym);
+    gst_array_push(c->vm, c->env, x);
 }
 
 /* Register a global c function for the compilation environment. */
-void CompilerAddGlobalCFunc(Compiler * c, const char * name, CFunction f) {
-    Value func;
-    func.type = TYPE_CFUNCTION;
+void gst_compiler_add_global_cfunction(GstCompiler *c, const char *name, GstCFunction f) {
+    GstValue func;
+    func.type = GST_CFUNCTION;
     func.data.cfunction = f;
-    CompilerAddGlobal(c, name, func);
+    gst_compiler_add_global(c, name, func);
 }
 
 /* Compile interface. Returns a function that evaluates the
  * given AST. Returns NULL if there was an error during compilation. */
-Func * CompilerCompile(Compiler * c, Value form) {
-    FormOptions opts = FormOptionsDefault();
-    FuncDef * def;
+GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
+    FormOptions opts = form_options_default();
+    GstFuncDef *def;
     if (setjmp(c->onError)) {
         /* Clear all but root scope */
         if (c->tail)
@@ -1164,16 +1164,16 @@ Func * CompilerCompile(Compiler * c, Value form) {
     }
     /* Create a scope */
     opts.isTail = 1;
-    CompilerPushScope(c, 0);
-    CompilerReturn(c, CompileValue(c, opts, form));
-    def = CompilerGenFuncDef(c, c->buffer->count, 0);
+    compiler_push_scope(c, 0);
+    compiler_return(c, compile_value(c, opts, form));
+    def = compiler_gen_funcdef(c, c->buffer->count, 0);
     {
         uint32_t envSize = c->env->count;
-        FuncEnv * env = VMAlloc(c->vm, sizeof(FuncEnv));
-        Func * func = VMAlloc(c->vm, sizeof(Func));
+        GstFuncEnv *env = gst_alloc(c->vm, sizeof(GstFuncEnv));
+        GstFunction *func = gst_alloc(c->vm, sizeof(GstFunction));
         if (envSize) {
-        	env->values = VMAlloc(c->vm, sizeof(Value) * envSize);
-        	memcpy(env->values, c->env->data, envSize * sizeof(Value));
+        	env->values = gst_alloc(c->vm, sizeof(GstValue) * envSize);
+        	memcpy(env->values, c->env->data, envSize * sizeof(GstValue));
         } else {
 			env->values = NULL;
         }
@@ -1190,16 +1190,16 @@ Func * CompilerCompile(Compiler * c, Value form) {
  * and is completely separate. This allows the compilation to not have to worry
  * about garbage collection and other issues that would complicate both the
  * runtime and the compilation. */
-int CompileMacroExpand(VM * vm, Value x, Dictionary * macros, Value * out) {
-    while (x.type == TYPE_ARRAY) {
-        Array * form = x.data.array;
-        Value sym, macroFn;
+int gst_macro_expand(Gst *vm, GstValue x, GstObject *macros, GstValue *out) {
+    while (x.type == GST_ARRAY) {
+        GstArray *form = x.data.array;
+        GstValue sym, macroFn;
         if (form->count == 0) break;
         sym = form->data[0];
-        macroFn = DictGet(macros, sym);
-        if (macroFn.type != TYPE_FUNCTION && macroFn.type != TYPE_CFUNCTION) break;
-        VMLoad(vm, macroFn);
-        if (VMStart(vm)) {
+        macroFn = gst_object_get(macros, sym);
+        if (macroFn.type != GST_FUNCTION && macroFn.type != GST_CFUNCTION) break;
+        gst_load(vm, macroFn);
+        if (gst_start(vm)) {
             /* We encountered an error during parsing */        
             return 1;
         } else {

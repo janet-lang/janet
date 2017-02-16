@@ -7,24 +7,23 @@
 #include "value.h"
 #include "disasm.h"
 
-void StringPut(uint8_t * string) {
+void string_put(uint8_t * string) {
     uint32_t i;
-    uint32_t len = VStringSize(string);
+    uint32_t len = gst_string_length(string);
     for (i = 0; i < len; ++i)
         fputc(string[i], stdout);
 }
 
 /* Test c function */
-Value print(VM * vm) {
+GstValue print(Gst *vm) {
     uint32_t j, count;
-    Value nil;
-    count = VMCountArgs(vm);
+    GstValue nil;
+    count = gst_count_args(vm);
     for (j = 0; j < count; ++j) {
-        uint8_t * string = ValueToString(vm, VMGetArg(vm, j));
-        StringPut(string);
+        string_put(gst_to_string(vm, gst_arg(vm, j)));
         fputc('\n', stdout);
     }
-    nil.type = TYPE_NIL;
+    nil.type = GST_NIL;
     return nil;
 }
 
@@ -32,20 +31,20 @@ Value print(VM * vm) {
 void debugRepl() {
     char buffer[1024] = {0};
     const char * reader = buffer;
-    Value func;
-    VM vm;
-    Parser p;
-    Compiler c;
+    GstValue func;
+    Gst vm;
+    GstParser p;
+    GstCompiler c;
 
-    VMInit(&vm);
+    gst_init(&vm);
 
     for (;;) {
 
         /* Reset state */
-        ParserInit(&p, &vm);
+        gst_parser(&p, &vm);
 
         /* Get and parse input until we have a full form */
-        while (p.status == PARSER_PENDING) {
+        while (p.status == GST_PARSER_PENDING) {
             /* Get some input if we are done */
             if (*reader == '\0') {
                 printf(">> ");
@@ -55,7 +54,7 @@ void debugRepl() {
                 p.index = 0;
                 reader = buffer;
             }
-            reader += ParserParseCString(&p, reader);
+            reader += gst_parse_cstring(&p, reader);
         }
 
         /* Check for parsing errors */
@@ -74,10 +73,10 @@ void debugRepl() {
         }
 
         /* Try to compile generated AST */
-        CompilerInit(&c, &vm);
-        CompilerAddGlobalCFunc(&c, "print", print);
-        func.type = TYPE_FUNCTION;
-        func.data.func = CompilerCompile(&c, p.value);
+        gst_compiler(&c, &vm);
+        gst_compiler_add_global_cfunction(&c, "print", print);
+        func.type = GST_FUNCTION;
+        func.data.function = gst_compiler_compile(&c, p.value);
 
         /* Check for compilation errors */
         if (c.error) {
@@ -93,15 +92,14 @@ void debugRepl() {
         //printf("\n");
 
         /* Execute function */
-        VMLoad(&vm, func);
-        if (VMStart(&vm)) {
+        gst_load(&vm, func);
+        if (gst_start(&vm)) {
             printf("VM error: %s\n", vm.error);
             reader = buffer;
             buffer[0] = 0;
             continue;
         } else {
-            uint8_t * string = ValueToString(&vm, vm.ret);
-            StringPut(string);
+            string_put(gst_to_string(&vm, vm.ret));
             printf("\n");
         }
     }

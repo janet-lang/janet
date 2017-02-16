@@ -5,13 +5,13 @@
 #include <stdio.h>
 
 /* Print disassembly for a given funciton */
-void dasm(FILE * out, uint16_t * byteCode, uint32_t len);
+void gst_dasm(FILE * out, uint16_t * byteCode, uint32_t len);
 
 /* Print the disassembly for a function definition */
-void dasmFuncDef(FILE * out, FuncDef * def);
+void gst_dasm_funcdef(FILE * out, GstFuncDef * def);
 
 /* Print the disassembly for a function */
-void dasmFunc(FILE * out, Func * f);
+void gst_dasm_function(FILE * out, GstFunction * f);
 
 #endif // disasm_h_INCLUDED
 

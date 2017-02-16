@@ -4,227 +4,234 @@
 #include <stdint.h>
 #include <setjmp.h>
 
-typedef enum Type {
-    TYPE_NIL = 0,
-    TYPE_NUMBER,
-    TYPE_BOOLEAN,
-    TYPE_STRING,
-    TYPE_ARRAY,
-    TYPE_THREAD,
-    TYPE_BYTEBUFFER,
-    TYPE_FUNCTION,
-    TYPE_CFUNCTION,
-    TYPE_DICTIONARY
-} Type;
+typedef enum GstType {
+    GST_NIL = 0,
+    GST_NUMBER,
+    GST_BOOLEAN,
+    GST_STRING,
+    GST_ARRAY,
+    GST_THREAD,
+    GST_BYTEBUFFER,
+    GST_FUNCTION,
+    GST_CFUNCTION,
+    GST_OBJECT
+} GstType;
 
-typedef double Number;
-typedef uint8_t Boolean;
-typedef struct VM VM;
-typedef struct Value Value;
-typedef Value (*CFunction)(VM * vm);
-typedef struct Func Func;
-typedef struct FuncDef FuncDef;
-typedef struct FuncEnv FuncEnv;
-typedef union ValueData ValueData;
-typedef struct DictBucket DictBucket;
-typedef struct Array Array;
-typedef struct Buffer Buffer;
-typedef struct Dictionary Dictionary;
-typedef struct DictionaryIterator DictionaryIterator;
-typedef struct Parser Parser;
-typedef struct ParseState ParseState;
-typedef struct Scope Scope;
-typedef struct Compiler Compiler;
-typedef struct Thread Thread;
-typedef struct StackFrame StackFrame;
+/* The state of the virtual machine */
+typedef struct Gst Gst;
 
-union ValueData {
-    Boolean boolean;
-    Number number;
-    uint8_t * string;
-    Array * array;
-    Buffer * buffer;
-    Dictionary * dict;
-    Func * func;
-    Thread * thread;
-    void * pointer;
-    CFunction cfunction;
-    uint16_t u16[4];
-    uint8_t u8[8];
-} data;
+/* A general gst value type */
+typedef struct GstValue GstValue;
 
-struct Value {
-    Type type;
-    ValueData data;
+/* All of the gst types */
+typedef double GstNumber;
+typedef uint8_t GstBoolean;
+typedef struct GstFunction GstFunction;
+typedef struct GstArray GstArray;
+typedef struct GstBuffer GstBuffer;
+typedef struct GstObject GstObject;
+typedef struct GstThread GstThread;
+typedef GstValue (*GstCFunction)(Gst * vm);
+
+/* Implementation details */
+typedef struct GstParser GstParser;
+typedef struct GstCompiler GstCompiler;
+typedef struct GstFuncDef GstFuncDef;
+typedef struct GstFuncEnv GstFuncEnv;
+
+/* Definitely implementation details */
+typedef struct GstStackFrame GstStackFrame;
+typedef struct GstParseState GstParseState;
+typedef struct GstBucket GstBucket;
+typedef struct GstScope GstScope;
+
+/* The general gst value type. Contains a large union and
+ * the type information of the value */
+struct GstValue {
+    GstType type;
+    union {
+        /* The various types */
+        GstBoolean boolean;
+        GstNumber number;
+        GstArray *array;
+        GstBuffer *buffer;
+        GstObject *object;
+        GstThread *thread;
+        GstCFunction cfunction;
+        GstFunction *function;
+        uint8_t *string;
+        void *pointer;
+    } data;
 };
 
-struct Thread {
+/* A lightweight thread in gst. Does not correspond to
+ * operating system threads. Used in coroutines. */
+struct GstThread {
 	uint32_t count;
 	uint32_t capacity;
-	Value * data;
+	GstValue *data;
 	enum {
-		THREAD_PENDING = 0,
-		THREAD_ALIVE,
-		TRHEAD_DEAD
+		GST_THREAD_PENDING = 0,
+		GST_THREAD_ALIVE,
+		GST_TRHEAD_DEAD
 	} status;
 };
 
-struct Array {
+/* A dynamic array type */
+struct GstArray {
     uint32_t count;
     uint32_t capacity;
-    Value * data;
+    GstValue *data;
     uint32_t flags;
 };
 
-struct Buffer {
+/* A bytebuffer type. Used as a mutable string or string builder. */
+struct GstBuffer {
     uint32_t count;
     uint32_t capacity;
-    uint8_t * data;
+    uint8_t *data;
     uint32_t flags;
 };
 
-struct Dictionary {
+/* The main Gst type, an obect. Objects are just hashtables with some meta
+ * information attached in the meta value */
+struct GstObject {
     uint32_t count;
     uint32_t capacity;
-    DictBucket ** buckets;
+    GstBucket **buckets;
     uint32_t flags;
-    Value meta;
+    GstValue meta;
 };
 
-struct DictionaryIterator {
-    Dictionary * dict;
-    uint32_t index;
-    DictBucket * bucket;
-};
-
-struct FuncDef {
+/* A function defintion. Contains information need to instatiate closures. */
+struct GstFuncDef {
     uint32_t locals;
     uint32_t arity;
     uint32_t literalsLen;
     uint32_t byteCodeLen;
-    Value * literals; /* Contains strings, FuncDefs, etc. */
-    uint16_t * byteCode;
+    GstValue *literals; /* Contains strings, FuncDefs, etc. */
+    uint16_t *byteCode;
 };
 
-struct FuncEnv {
-    Thread * thread; /* When nil, index the local values */
+/* A fuction environment */
+struct GstFuncEnv {
+    GstThread *thread; /* When nil, index the local values */
     uint32_t stackOffset; /* Used as environment size when off stack */
-    Value * values;
+    GstValue *values;
 };
 
-struct Func {
-    FuncDef * def;
-    FuncEnv * env;
-    Func * parent;
+/* A function */
+struct GstFunction {
+    GstFuncDef *def;
+    GstFuncEnv *env;
+    GstFunction *parent;
 };
 
-struct DictBucket {
-    Value key;
-    Value value;
-    DictBucket * next;
+/* A hash table bucket in an object */
+struct GstBucket {
+    GstValue key;
+    GstValue value;
+    GstBucket *next;
 };
 
-struct StackFrame {
-    Value callee;
+/* A stack frame in the VM */
+struct GstStackFrame {
+    GstValue callee;
     uint16_t size;
     uint16_t prevSize;
     uint16_t ret;
-    FuncEnv * env;
-    uint16_t * pc;
+    GstFuncEnv *env;
+    uint16_t *pc;
 };
 
-struct VM {
+/* The VM state */
+struct Gst {
     /* Garbage collection */
-    void * blocks;
+    void *blocks;
     uint32_t memoryInterval;
     uint32_t nextCollection;
     uint32_t black : 1;
     uint32_t lock : 31;
     /* Thread */
-    uint16_t * pc;
-    Thread * thread;
-    Value * base;
-    StackFrame * frame;
+    uint16_t *pc;
+    GstThread *thread;
+    GstValue *base;
+    GstStackFrame *frame;
     /* Return state */
-    const char * error;
+    const char *error;
     jmp_buf jump;
-    Value ret; /* Returned value from VMStart */
+    GstValue ret; /* Returned value from VMStart */
     /* Object definitions */
-    Value metas[TYPE_DICTIONARY];
+    GstValue metas[GST_OBJECT];
 };
 
-/* Parsing */
-
-struct Parser {
-    VM * vm;
-    const char * error;
-    ParseState * data;
-    Value value;
+struct GstParser {
+    Gst *vm;
+    const char *error;
+    GstParseState *data;
+    GstValue value;
     uint32_t count;
     uint32_t cap;
     uint32_t index;
     enum {
-		PARSER_PENDING = 0,
-		PARSER_FULL,
-		PARSER_ERROR
+		GST_PARSER_PENDING = 0,
+		GST_PARSER_FULL,
+		GST_PARSER_ERROR
     } status;
 };
 
-/* Compiling */
-
-struct Compiler {
-    VM * vm;
-    const char * error;
+/* Compilation state */
+struct GstCompiler {
+    Gst *vm;
+    const char *error;
     jmp_buf onError;
-    Scope * tail;
-    Array * env;
-    Buffer * buffer;
+    GstScope *tail;
+    GstArray *env;
+    GstBuffer *buffer;
 };
 
 /* String utils */
-
-#define VStringRaw(s) ((uint32_t *)(s) - 2)
-#define VStringSize(v) (VStringRaw(v)[0])
-#define VStringHash(v) (VStringRaw(v)[1])
+#define gst_string_raw(s) ((uint32_t *)(s) - 2)
+#define gst_string_length(v) (gst_string_raw(v)[0])
+#define gst_string_hash(v) (gst_string_raw(v)[1])
 
 /* Bytecode */
-
-enum OpCode {
-    VM_OP_ADD = 0,    /* 0x0000 */
-    VM_OP_SUB,        /* 0x0001 */
-    VM_OP_MUL,        /* 0x0002 */
-    VM_OP_DIV,        /* 0x0003 */
-    VM_OP_NOT,        /* 0x0004 */
-    VM_OP_LD0,        /* 0x0005 */
-    VM_OP_LD1,        /* 0x0006 */
-    VM_OP_FLS,        /* 0x0007 */
-    VM_OP_TRU,        /* 0x0008 */
-    VM_OP_NIL,        /* 0x0009 */
-    VM_OP_I16,        /* 0x000a */
-    VM_OP_UPV,        /* 0x000b */
-    VM_OP_JIF,        /* 0x000c */
-    VM_OP_JMP,        /* 0x000d */
-    VM_OP_CAL,        /* 0x000e */
-    VM_OP_RET,        /* 0x000f */
-    VM_OP_SUV,        /* 0x0010 */
-    VM_OP_CST,        /* 0x0011 */
-    VM_OP_I32,        /* 0x0012 */
-    VM_OP_F64,        /* 0x0013 */
-    VM_OP_MOV,        /* 0x0014 */
-    VM_OP_CLN,        /* 0x0015 */
-    VM_OP_EQL,        /* 0x0016 */
-    VM_OP_LTN,        /* 0x0017 */
-    VM_OP_LTE,        /* 0x0018 */
-    VM_OP_ARR,        /* 0x0019 */
-    VM_OP_DIC,        /* 0x001a */
-    VM_OP_TCL,        /* 0x001b */
-    VM_OP_ADM,        /* 0x001c */
-    VM_OP_SBM,        /* 0x001d */
-    VM_OP_MUM,        /* 0x001e */
-    VM_OP_DVM,        /* 0x001f */
-    VM_OP_RTN,        /* 0x0020 */
-    VM_OP_SET,        /* 0x0021 */
-    VM_OP_GET         /* 0x0022 */
+enum GstOpCode {
+    GST_OP_ADD = 0,    /* 0x0000 */
+    GST_OP_SUB,        /* 0x0001 */
+    GST_OP_MUL,        /* 0x0002 */
+    GST_OP_DIV,        /* 0x0003 */
+    GST_OP_NOT,        /* 0x0004 */
+    GST_OP_LD0,        /* 0x0005 */
+    GST_OP_LD1,        /* 0x0006 */
+    GST_OP_FLS,        /* 0x0007 */
+    GST_OP_TRU,        /* 0x0008 */
+    GST_OP_NIL,        /* 0x0009 */
+    GST_OP_I16,        /* 0x000a */
+    GST_OP_UPV,        /* 0x000b */
+    GST_OP_JIF,        /* 0x000c */
+    GST_OP_JMP,        /* 0x000d */
+    GST_OP_CAL,        /* 0x000e */
+    GST_OP_RET,        /* 0x000f */
+    GST_OP_SUV,        /* 0x0010 */
+    GST_OP_CST,        /* 0x0011 */
+    GST_OP_I32,        /* 0x0012 */
+    GST_OP_F64,        /* 0x0013 */
+    GST_OP_MOV,        /* 0x0014 */
+    GST_OP_CLN,        /* 0x0015 */
+    GST_OP_EQL,        /* 0x0016 */
+    GST_OP_LTN,        /* 0x0017 */
+    GST_OP_LTE,        /* 0x0018 */
+    GST_OP_ARR,        /* 0x0019 */
+    GST_OP_DIC,        /* 0x001a */
+    GST_OP_TCL,        /* 0x001b */
+    GST_OP_ADM,        /* 0x001c */
+    GST_OP_SBM,        /* 0x001d */
+    GST_OP_MUM,        /* 0x001e */
+    GST_OP_DVM,        /* 0x001f */
+    GST_OP_RTN,        /* 0x0020 */
+    GST_OP_SET,        /* 0x0021 */
+    GST_OP_GET         /* 0x0022 */
 };
 
 #endif

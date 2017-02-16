@@ -8,9 +8,9 @@
 /****/
 
 /* Create a new Buffer */
-Buffer * BufferNew(VM * vm, uint32_t capacity) {
-    Buffer * buffer = VMAlloc(vm, sizeof(Buffer));
-    uint8_t * data = VMAlloc(vm, sizeof(uint8_t) * capacity);
+GstBuffer *gst_buffer(Gst *vm, uint32_t capacity) {
+    GstBuffer *buffer = gst_alloc(vm, sizeof(GstBuffer));
+    uint8_t *data = gst_alloc(vm, sizeof(uint8_t) * capacity);
     buffer->data = data;
     buffer->count = 0;
     buffer->capacity = capacity;
@@ -19,17 +19,17 @@ Buffer * BufferNew(VM * vm, uint32_t capacity) {
 }
 
 /* Ensure that the buffer has enough internal capacity */
-void BufferEnsure(VM * vm, Buffer * buffer, uint32_t capacity) {
+void gst_buffer_ensure(Gst *vm, GstBuffer *buffer, uint32_t capacity) {
     uint8_t * newData;
     if (capacity <= buffer->capacity) return;
-    newData = VMAlloc(vm, capacity * sizeof(uint8_t));
+    newData = gst_alloc(vm, capacity * sizeof(uint8_t));
     memcpy(newData, buffer->data, buffer->count * sizeof(uint8_t));
     buffer->data = newData;
     buffer->capacity = capacity;
 }
 
 /* Get a byte from an index in the buffer */
-int32_t BufferGet(Buffer * buffer, uint32_t index) {
+int gst_buffer_get(GstBuffer *buffer, uint32_t index) {
     if (index < buffer->count) {
         return buffer->data[index];
     } else {
@@ -38,29 +38,29 @@ int32_t BufferGet(Buffer * buffer, uint32_t index) {
 }
 
 /* Push a byte into the buffer */
-void BufferPush(VM * vm, Buffer * buffer, uint8_t c) {
+void gst_buffer_push(Gst *vm, GstBuffer * buffer, uint8_t c) {
     if (buffer->count >= buffer->capacity) {
-        BufferEnsure(vm, buffer, 2 * buffer->count);
+        gst_buffer_ensure(vm, buffer, 2 * buffer->count);
     }
     buffer->data[buffer->count++] = c;
 }
 
 /* Push multiple bytes into the buffer */
-void BufferAppendData(VM * vm, Buffer * buffer, uint8_t * string, uint32_t length) {
+void gst_buffer_append(Gst *vm, GstBuffer *buffer, uint8_t *string, uint32_t length) {
     uint32_t newSize = buffer->count + length;
     if (newSize > buffer->capacity) {
-        BufferEnsure(vm, buffer, 2 * newSize);
+        gst_buffer_ensure(vm, buffer, 2 * newSize);
     }
     memcpy(buffer->data + buffer->count, string, length);
     buffer->count = newSize;
 }
 
 /* Convert the buffer to a string */
-uint8_t * BufferToString(VM * vm, Buffer * buffer) {
-    uint8_t * data = VMAlloc(vm, buffer->count + 2 * sizeof(uint32_t));
+uint8_t *gst_buffer_to_string(Gst *vm, GstBuffer *buffer) {
+    uint8_t *data = gst_alloc(vm, buffer->count + 2 * sizeof(uint32_t));
     data += 2 * sizeof(uint32_t);
-    VStringSize(data) = buffer->count;
-    VStringHash(data) = 0;
+    gst_string_length(data) = buffer->count;
+    gst_string_hash(data) = 0;
     memcpy(data, buffer->data, buffer->count * sizeof(uint8_t));
     return data;
 }
@@ -70,9 +70,9 @@ uint8_t * BufferToString(VM * vm, Buffer * buffer) {
 /****/
 
 /* Creates a new array */
-Array * ArrayNew(VM * vm, uint32_t capacity) {
-    Array * array = VMAlloc(vm, sizeof(Array));
-    Value * data = VMAlloc(vm, capacity * sizeof(Value));
+GstArray *gst_array(Gst * vm, uint32_t capacity) {
+    GstArray *array = gst_alloc(vm, sizeof(GstArray));
+    GstValue *data = gst_alloc(vm, capacity * sizeof(GstValue));
     array->data = data;
     array->count = 0;
     array->capacity = capacity;
@@ -81,30 +81,29 @@ Array * ArrayNew(VM * vm, uint32_t capacity) {
 }
 
 /* Ensure the array has enough capacity for capacity elements */
-void ArrayEnsure(VM * vm, Array * array, uint32_t capacity) {
-    Value * newData;
+void gst_array_ensure(Gst *vm, GstArray *array, uint32_t capacity) {
+    GstValue *newData;
     if (capacity <= array->capacity) return;
-    newData = VMAlloc(vm, capacity * sizeof(Value));
-    memcpy(newData, array->data, array->capacity * sizeof(Value));
+    newData = gst_alloc(vm, capacity * sizeof(GstValue));
+    memcpy(newData, array->data, array->capacity * sizeof(GstValue));
     array->data = newData;
     array->capacity = capacity;
 }
 
 /* Get a value of an array with bounds checking. */
-Value ArrayGet(Array * array, uint32_t index) {
+GstValue gst_array_get(GstArray *array, uint32_t index) {
     if (index < array->count) {
         return array->data[index];
     } else {
-        Value v;
-        v.type = TYPE_NIL;
-        v.data.boolean = 0;
+        GstValue v;
+        v.type = GST_NIL;
         return v;
     }
 }
 
 /* Try to set an index in the array. Return 1 if successful, 0
  * on failiure */
-int ArraySet(Array * array, uint32_t index, Value x) {
+int gst_array_set(GstArray *array, uint32_t index, GstValue x) {
     if (index < array->count) {
         array->data[index] = x;
         return 1;
@@ -114,33 +113,31 @@ int ArraySet(Array * array, uint32_t index, Value x) {
 }
 
 /* Add an item to the end of the array */
-void ArrayPush(VM * vm, Array * array, Value x) {
+void gst_array_push(Gst *vm, GstArray *array, GstValue x) {
     if (array->count >= array->capacity) {
-        ArrayEnsure(vm, array, 2 * array->count);
+        gst_array_ensure(vm, array, 2 * array->count);
     }
     array->data[array->count++] = x;
 }
 
 /* Remove the last item from the Array and return it */
-Value ArrayPop(Array * array) {
+GstValue gst_array_pop(GstArray *array) {
     if (array->count) {
         return array->data[--array->count];
     } else {
-        Value v;
-        v.type = TYPE_NIL;
-        v.data.boolean = 0;
+        GstValue v;
+        v.type = GST_NIL;
         return v;
     }
 }
 
 /* Look at the last item in the Array */
-Value ArrayPeek(Array * array) {
+GstValue gst_array_peek(GstArray *array) {
     if (array->count) {
         return array->data[array->count - 1];
     } else {
-        Value v;
-        v.type = TYPE_NIL;
-        v.data.boolean = 0;
+        GstValue v;
+        v.type = GST_NIL;
         return v;
     }
 }
@@ -150,76 +147,76 @@ Value ArrayPeek(Array * array) {
 /****/
 
 /* Create a new dictionary */
-Dictionary * DictNew(VM * vm, uint32_t capacity) {
-    Dictionary * dict = VMAlloc(vm, sizeof(Dictionary));
-    DictBucket ** buckets = VMZalloc(vm, capacity * sizeof(DictBucket *));
-    dict->buckets = buckets;
-    dict->capacity = capacity;
-    dict->count = 0;
-    dict->flags = 0;
-    return dict;
+GstObject* gst_object(Gst *vm, uint32_t capacity) {
+    GstObject *o = gst_alloc(vm, sizeof(GstObject));
+    GstBucket **buckets = gst_zalloc(vm, capacity * sizeof(GstBucket *));
+    o->buckets = buckets;
+    o->capacity = capacity;
+    o->count = 0;
+    o->flags = 0;
+    return o;
 }
 
 /* Resize the dictionary table. */
-static void DictReHash(VM * vm, Dictionary * dict, uint32_t size) {
-    DictBucket ** newBuckets = VMZalloc(vm, size * sizeof(DictBucket *));
+static void gst_object_rehash(Gst *vm, GstObject *o, uint32_t size) {
+    GstBucket **newBuckets = gst_zalloc(vm, size * sizeof(GstBucket *));
     uint32_t i, count;
-    for (i = 0, count = dict->capacity; i < count; ++i) {
-        DictBucket * bucket = dict->buckets[i];
+    for (i = 0, count = o->capacity; i < count; ++i) {
+        GstBucket *bucket = o->buckets[i];
         while (bucket) {
             uint32_t index;
-            DictBucket * next = bucket->next;
-            index = ValueHash(bucket->key) % size;
+            GstBucket *next = bucket->next;
+            index = gst_hash(bucket->key) % size;
             bucket->next = newBuckets[index];
             newBuckets[index] = bucket;
             bucket = next;
         }
     }
-    dict->buckets = newBuckets;
-    dict->capacity = size;
+    o->buckets = newBuckets;
+    o->capacity = size;
 }
 
 /* Find the bucket that contains the given key */
-static DictBucket * DictFind(Dictionary * dict, Value key) {
-    uint32_t index = ValueHash(key) % dict->capacity;
-    DictBucket * bucket = dict->buckets[index];
+static GstBucket *gst_object_find(GstObject *o, GstValue key) {
+    uint32_t index = gst_hash(key) % o->capacity;
+    GstBucket *bucket = o->buckets[index];
     while (bucket) {
-        if (ValueEqual(bucket->key, key))
+        if (gst_equals(bucket->key, key))
             return bucket;
         bucket = bucket->next;
     }
-    return (DictBucket *)0;
+    return (GstBucket *)0;
 }
 
 /* Get a value out of the dictionary */
-Value DictGet(Dictionary * dict, Value key) {
-    DictBucket * bucket = DictFind(dict, key);
+GstValue gst_object_get(GstObject *o, GstValue key) {
+    GstBucket *bucket = gst_object_find(o, key);
     if (bucket) {
         return bucket->value;
     } else {
-        Value nil;
-        nil.type = TYPE_NIL;
+        GstValue nil;
+        nil.type = GST_NIL;
         return nil;
     }
 }
 
 /* Remove an entry from the dictionary */
-Value DictRemove(VM * vm, Dictionary * dict, Value key) {
-    DictBucket * bucket, * previous;
-    uint32_t index = ValueHash(key) % dict->capacity;
-    bucket = dict->buckets[index];
-    previous = (DictBucket *)0;
+GstValue gst_object_remove(Gst * vm, GstObject *o, GstValue key) {
+    GstBucket *bucket, *previous;
+    uint32_t index = gst_hash(key) % o->capacity;
+    bucket = o->buckets[index];
+    previous = (GstBucket *)0;
     while (bucket) {
-        if (ValueEqual(bucket->key, key)) {
+        if (gst_equals(bucket->key, key)) {
             if (previous) {
                 previous->next = bucket->next;
             } else {
-                dict->buckets[index] = bucket->next;
+                o->buckets[index] = bucket->next;
             }
-            if (dict->count < dict->capacity / 4) {
-                DictReHash(vm, dict, dict->capacity / 2);
+            if (o->count < o->capacity / 4) {
+                gst_object_rehash(vm, o, o->capacity / 2);
             }
-            --dict->count;
+            --o->count;
             return bucket->value;
         }
         previous = bucket;
@@ -227,74 +224,52 @@ Value DictRemove(VM * vm, Dictionary * dict, Value key) {
     }
     /* Return nil if we found nothing */
     {
-        Value nil;
-        nil.type = TYPE_NIL;
+        GstValue nil;
+        nil.type = GST_NIL;
         return nil;
     }
 }
 
 /* Put a value into the dictionary. Returns 1 if successful, 0 if out of memory.
  * The VM pointer is needed for memory allocation. */
-void DictPut(VM * vm, Dictionary * dict, Value key, Value value) {
-    DictBucket * bucket, * previous;
-    uint32_t index = ValueHash(key) % dict->capacity;
-    if (key.type == TYPE_NIL) return;
+void gst_object_put(Gst *vm, GstObject *o, GstValue key, GstValue value) {
+    GstBucket *bucket, *previous;
+    uint32_t index = gst_hash(key) % o->capacity;
+    if (key.type == GST_NIL) return;
     /* Do a removal if value is nil */
-    if (value.type == TYPE_NIL) {
-        bucket = dict->buckets[index];
-        previous = (DictBucket *)0;
+    if (value.type == GST_NIL) {
+        bucket = o->buckets[index];
+        previous = (GstBucket *)0;
         while (bucket) {
-            if (ValueEqual(bucket->key, key)) {
+            if (gst_equals(bucket->key, key)) {
                 if (previous) {
                     previous->next = bucket->next;
                 } else {
-                    dict->buckets[index] = bucket->next;
+                    o->buckets[index] = bucket->next;
                 }
-                if (dict->count < dict->capacity / 4) {
-                    DictReHash(vm, dict, dict->capacity / 2);
+                if (o->count < o->capacity / 4) {
+                    gst_object_rehash(vm, o, o->capacity / 2);
                 }
-                --dict->count;
+                --o->count;
                 return;
             }
             previous = bucket;
             bucket = bucket->next;
         }
     } else {
-        bucket = DictFind(dict, key);
+        bucket = gst_object_find(o, key);
         if (bucket) {
             bucket->value = value;
         } else {
-            if (dict->count >= 2 * dict->capacity) {
-                DictReHash(vm, dict, 2 * dict->capacity);
+            if (o->count >= 2 * o->capacity) {
+                gst_object_rehash(vm, o, 2 * o->capacity);
             }
-            bucket = VMAlloc(vm, sizeof(DictBucket));
-            bucket->next = dict->buckets[index];
+            bucket = gst_alloc(vm, sizeof(GstBucket));
+            bucket->next = o->buckets[index];
             bucket->value = value;
             bucket->key = key;
-            dict->buckets[index] = bucket;
-            ++dict->count;
+            o->buckets[index] = bucket;
+            ++o->count;
         }
     }
-}
-
-/* Begin iteration through a dictionary */
-void DictIterate(Dictionary * dict, DictionaryIterator * iterator) {
-    iterator->index = 0;
-    iterator->dict = dict;
-    iterator->bucket = dict->buckets[0];
-}
-
-/* Provides a mechanism for iterating through a table. */
-int DictIterateNext(DictionaryIterator * iterator, DictBucket ** bucket) {
-    Dictionary * dict = iterator->dict;
-    for (;;) {
-        if (iterator->bucket) {
-            *bucket = iterator->bucket;
-            iterator->bucket = iterator->bucket->next;
-            return 1;
-        }
-        if (++iterator->index >= dict->capacity) break;
-        iterator->bucket = dict->buckets[iterator->index];
-    }
-    return 0;
 }

@@ -19,15 +19,15 @@ typedef enum ParseType {
 } ParseType;
 
 /* Contain a parse state that goes on the parse stack */
-struct ParseState {
+struct GstParseState {
     ParseType type;
     union {
         struct {
 			uint8_t endDelimiter;
-            Array * array;
+            GstArray * array;
         } form;
         struct {
-            Buffer * buffer;
+            GstBuffer * buffer;
             enum {
                 STRING_STATE_BASE,
                 STRING_STATE_ESCAPE,
@@ -39,37 +39,37 @@ struct ParseState {
 };
 
 /* Handle error in parsing */
-#define PError(p, e) ((p)->error = (e), (p)->status = PARSER_ERROR)
+#define p_error(p, e) ((p)->error = (e), (p)->status = GST_PARSER_ERROR)
 
 /* Get the top ParseState in the parse stack */
-static ParseState * ParserPeek(Parser * p) {
+static GstParseState *parser_peek(GstParser *p) {
     if (!p->count) {
-        PError(p, "Parser stack underflow. (Peek)");
+        p_error(p, "Parser stack underflow. (Peek)");
         return NULL;
     }
     return p->data + p->count - 1;
 }
 
 /* Remove the top state from the ParseStack */
-static ParseState * ParserPop(Parser * p) {
+static GstParseState *parser_pop(GstParser * p) {
     if (!p->count) {
-        PError(p, "Parser stack underflow. (Pop)");
+        p_error(p, "Parser stack underflow. (Pop)");
         return NULL;
     }
     return p->data + --p->count;
 }
 
 /* Add a new, empty ParseState to the ParseStack. */
-static void ParserPush(Parser *p, ParseType type, uint8_t character) {
-    ParseState * top;
+static void parser_push(GstParser *p, ParseType type, uint8_t character) {
+    GstParseState *top;
     if (p->count >= p->cap) {
         uint32_t newCap = 2 * p->count;
-        ParseState * data = VMAlloc(p->vm, newCap);
+        GstParseState *data = gst_alloc(p->vm, newCap);
         p->data = data;
         p->cap = newCap;
     }
     ++p->count;
-    top = ParserPeek(p);
+    top = parser_peek(p);
     if (!top) return;
     top->type = type;
     switch (type) {
@@ -78,48 +78,48 @@ static void ParserPush(Parser *p, ParseType type, uint8_t character) {
         case PTYPE_STRING:
             top->buf.string.state = STRING_STATE_BASE;
         case PTYPE_TOKEN:
-            top->buf.string.buffer = BufferNew(p->vm, 10);
+            top->buf.string.buffer = gst_buffer(p->vm, 10);
             break;
         case PTYPE_FORM:
-            top->buf.form.array = ArrayNew(p->vm, 10);
+            top->buf.form.array = gst_array(p->vm, 10);
             if (character == '(') top->buf.form.endDelimiter = ')';
             if (character == '[') {
                 top->buf.form.endDelimiter = ']';
-                ArrayPush(p->vm, top->buf.form.array, ValueLoadCString(p->vm, "array"));
+                gst_array_push(p->vm, top->buf.form.array, gst_load_cstring(p->vm, "array"));
             }
             if (character == '{') {
                 top->buf.form.endDelimiter = '}';
-                ArrayPush(p->vm, top->buf.form.array, ValueLoadCString(p->vm, "dict"));
+                gst_array_push(p->vm, top->buf.form.array, gst_load_cstring(p->vm, "dict"));
             }
             break;
     }
 }
 
 /* Append a value to the top-most state in the Parser's stack. */
-static void ParserTopAppend(Parser * p, Value x) {
-    ParseState * top = ParserPeek(p);
+static void parser_append(GstParser *p, GstValue x) {
+    GstParseState *top = parser_peek(p);
     if (!top) return;
     switch (top->type) {
         case PTYPE_ROOT:
             p->value = x;
-            p->status = PARSER_FULL;
+            p->status = GST_PARSER_FULL;
             break;
         case PTYPE_FORM:
-            ArrayPush(p->vm, top->buf.form.array, x);
+            gst_array_push(p->vm, top->buf.form.array, x);
             break;
         default:
-            PError(p, "Expected container type.");
+            p_error(p, "Expected container type.");
             break;
     }
 }
 
 /* Check if a character is whitespace */
-static int isWhitespace(uint8_t c) {
+static int is_whitespace(uint8_t c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\0' || c == ',';
 }
 
 /* Check if a character is a valid symbol character */
-static int isSymbolChar(uint8_t c) {
+static int is_symbol_char(uint8_t c) {
     if (c >= 'a' && c <= 'z') return 1;
     if (c >= 'A' && c <= 'Z') return 1;
     if (c >= '0' && c <= ':') return 1;
@@ -148,10 +148,13 @@ static double exp10(int power) {
     }
 }
 
-/* Read a number from a string */
-static int ParseReadNumber(const uint8_t * string, const uint8_t * end, double * ret, int forceInt) {
+/* Read a number from a string. Returns if successfuly
+ * parsed a number from the enitre input string.
+ * If returned 1, output is int ret.*/
+static int read_number(const uint8_t *string, const uint8_t *end, double *ret, int forceInt) {
     int sign = 1, x = 0;
     double accum = 0, exp = 1, place = 1;
+    /* Check the sign */
     if (*string == '-') {
         sign = -1;
         ++string;
@@ -163,8 +166,10 @@ static int ParseReadNumber(const uint8_t * string, const uint8_t * end, double *
         if (*string == '.' && !forceInt) {
             place = 0.1;
         } else if (!forceInt && (*string == 'e' || *string == 'E')) {
+            /* Read the exponent */
             ++string;
-            if (!ParseReadNumber(string, end, &exp, 1))
+            if (string >= end) return 0;
+            if (!read_number(string, end, &exp, 1))
                 return 0;
             exp = exp10(exp);
             break;
@@ -187,7 +192,7 @@ static int ParseReadNumber(const uint8_t * string, const uint8_t * end, double *
 }
 
 /* Checks if a string slice is equal to a string constant */
-static int checkStrConst(const char * ref, const uint8_t * start, const uint8_t * end) {
+static int check_str_const(const char *ref, const uint8_t *start, const uint8_t *end) {
     while (*ref && start < end) {
         if (*ref != *(char *)start) return 0;
         ++ref;
@@ -197,72 +202,72 @@ static int checkStrConst(const char * ref, const uint8_t * start, const uint8_t 
 }
 
 /* Build from the token buffer */
-static Value ParserBuildTokenBuffer(Parser * p, Buffer * buf) {
-    Value x;
-    Number number;
+static GstValue build_token(GstParser *p, GstBuffer *buf) {
+    GstValue x;
+    GstNumber number;
     uint8_t * data = buf->data;
     uint8_t * back = data + buf->count;
-    if (ParseReadNumber(data, back, &number, 0)) {
-        x.type = TYPE_NUMBER;
+    if (read_number(data, back, &number, 0)) {
+        x.type = GST_NUMBER;
         x.data.number = number;
-    } else if (checkStrConst("nil", data, back)) {
-        x.type = TYPE_NIL;
+    } else if (check_str_const("nil", data, back)) {
+        x.type = GST_NIL;
         x.data.boolean = 0;
-    } else if (checkStrConst("false", data, back)) {
-        x.type = TYPE_BOOLEAN;
+    } else if (check_str_const("false", data, back)) {
+        x.type = GST_BOOLEAN;
         x.data.boolean = 0;
-    } else if (checkStrConst("true", data, back)) {
-        x.type = TYPE_BOOLEAN;
+    } else if (check_str_const("true", data, back)) {
+        x.type = GST_BOOLEAN;
         x.data.boolean = 1;
     } else {
         if (buf->data[0] >= '0' && buf->data[0] <= '9') {
-            PError(p, "Symbols cannot start with digits.");
-            x.type = TYPE_NIL;
+            p_error(p, "Symbols cannot start with digits.");
+            x.type = GST_NIL;
         } else {
-            x.type = TYPE_STRING;
-            x.data.string = BufferToString(p->vm, buf);
+            x.type = GST_STRING;
+            x.data.string = gst_buffer_to_string(p->vm, buf);
         }
     }
     return x;
 }
 
 /* Handle parsing a token */
-static int ParserTokenState(Parser * p, uint8_t c) {
-    ParseState * top = ParserPeek(p);
-    Buffer * buf = top->buf.string.buffer;
-    if (isWhitespace(c) || c == ')' || c == ']' || c == '}') {
-        ParserPop(p);
-        ParserTopAppend(p, ParserBuildTokenBuffer(p, buf));
+static int token_state(GstParser *p, uint8_t c) {
+    GstParseState *top = parser_peek(p);
+    GstBuffer *buf = top->buf.string.buffer;
+    if (is_whitespace(c) || c == ')' || c == ']' || c == '}') {
+        parser_pop(p);
+        parser_append(p, build_token(p, buf));
         return !(c == ')' || c == ']' || c == '}');
-    } else if (isSymbolChar(c)) {
-        BufferPush(p->vm, buf, c);
+    } else if (is_symbol_char(c)) {
+        gst_buffer_push(p->vm, buf, c);
         return 1;
     } else {
-        PError(p, "Expected symbol character.");
+        p_error(p, "Expected symbol character.");
         return 1;
     }
 }
 
 /* Handle parsing a string literal */
-static int ParserStringState(Parser * p, uint8_t c) {
-    ParseState * top = ParserPeek(p);
+static int string_state(GstParser *p, uint8_t c) {
+    GstParseState *top = parser_peek(p);
     switch (top->buf.string.state) {
         case STRING_STATE_BASE:
             if (c == '\\') {
                 top->buf.string.state = STRING_STATE_ESCAPE;
             } else if (c == '"') {
                 /* Load a quote form to get the string literal */
-                Value x, array;
-                x.type = TYPE_STRING;
-                x.data.string = BufferToString(p->vm, top->buf.string.buffer);
-                array.type = TYPE_ARRAY;
-                array.data.array = ArrayNew(p->vm, 2);
-                ArrayPush(p->vm, array.data.array, ValueLoadCString(p->vm, "quote"));
-                ArrayPush(p->vm, array.data.array, x);
-                ParserPop(p);
-                ParserTopAppend(p, array);
+                GstValue x, array;
+                x.type = GST_STRING;
+                x.data.string = gst_buffer_to_string(p->vm, top->buf.string.buffer);
+                array.type = GST_ARRAY;
+                array.data.array = gst_array(p->vm, 2);
+                gst_array_push(p->vm, array.data.array, gst_load_cstring(p->vm, "quote"));
+                gst_array_push(p->vm, array.data.array, x);
+                parser_pop(p);
+                parser_append(p, array);
             } else {
-                BufferPush(p->vm, top->buf.string.buffer, c);
+                gst_buffer_push(p->vm, top->buf.string.buffer, c);
             }
             break;
         case STRING_STATE_ESCAPE:
@@ -278,10 +283,10 @@ static int ParserStringState(Parser * p, uint8_t c) {
                     case '\'': next = '\''; break;
                     case 'z': next = '\0'; break;
                     default:
-                              PError(p, "Unknown string escape sequence.");
+                              p_error(p, "Unknown string escape sequence.");
                               return 1;
                 }
-                BufferPush(p->vm, top->buf.string.buffer, next);
+                gst_buffer_push(p->vm, top->buf.string.buffer, next);
                 top->buf.string.state = STRING_STATE_BASE;
             }
             break;
@@ -294,60 +299,60 @@ static int ParserStringState(Parser * p, uint8_t c) {
 }
 
 /* Root state of the parser */
-static int ParserRootState(Parser * p, uint8_t c) {
+static int root_state(GstParser *p, uint8_t c) {
     if (c == ']' || c == ')' || c == '}') {
-        PError(p, UNEXPECTED_CLOSING_DELIM);
+        p_error(p, UNEXPECTED_CLOSING_DELIM);
         return 1;
     }
     if (c == '(' || c == '[' || c == '{') {
-        ParserPush(p, PTYPE_FORM, c);
+        parser_push(p, PTYPE_FORM, c);
         return 1;
     }
     if (c == '"') {
-        ParserPush(p, PTYPE_STRING, c);
+        parser_push(p, PTYPE_STRING, c);
         return 1;
     }
-    if (isWhitespace(c)) return 1;
-    if (isSymbolChar(c)) {
-        ParserPush(p, PTYPE_TOKEN, c);
+    if (is_whitespace(c)) return 1;
+    if (is_symbol_char(c)) {
+        parser_push(p, PTYPE_TOKEN, c);
         return 0;
     }
-    PError(p, "Unexpected character.");
+    p_error(p, "Unexpected character.");
     return 1;
 }
 
 /* Handle parsing a form */
-static int ParserFormState(Parser * p, uint8_t c) {
-    ParseState * top = ParserPeek(p);
+static int form_state(GstParser *p, uint8_t c) {
+    GstParseState *top = parser_peek(p);
     if (c == top->buf.form.endDelimiter) {
-        Array * array = top->buf.form.array;
-        Value x;
-        x.type = TYPE_ARRAY;
+        GstArray *array = top->buf.form.array;
+        GstValue x;
+        x.type = GST_ARRAY;
         x.data.array = array;
-    	ParserPop(p);
-        ParserTopAppend(p, x);
+    	parser_pop(p);
+        parser_append(p, x);
         return 1;
     }
-    return ParserRootState(p, c);
+    return root_state(p, c);
 }
 
 /* Handle a character */
-static int ParserDispatchChar(Parser * p, uint8_t c) {
+static int dispatch_char(GstParser *p, uint8_t c) {
     int done = 0;
-    while (!done && p->status == PARSER_PENDING) {
-        ParseState * top = ParserPeek(p);
+    while (!done && p->status == GST_PARSER_PENDING) {
+        GstParseState *top = parser_peek(p);
         switch (top->type) {
             case PTYPE_ROOT:
-                done = ParserRootState(p, c);
+                done = root_state(p, c);
                 break;
             case PTYPE_TOKEN:
-                done = ParserTokenState(p, c);
+                done = token_state(p, c);
                 break;
             case PTYPE_FORM:
-                done = ParserFormState(p, c);
+                done = form_state(p, c);
                 break;
             case PTYPE_STRING:
-                done = ParserStringState(p, c);
+                done = string_state(p, c);
                 break;
         }
     }
@@ -360,25 +365,25 @@ static int ParserDispatchChar(Parser * p, uint8_t c) {
  * was not read. Returns 1 if any values were read, otherwise returns 0.
  * Returns the number of bytes read.
  */
-int ParserParseCString(Parser * p, const char * string) {
+int gst_parse_cstring(GstParser *p, const char *string) {
     int bytesRead = 0;
-    p->status = PARSER_PENDING;
-    while ((p->status == PARSER_PENDING) && (string[bytesRead] != '\0')) {
-        ParserDispatchChar(p, string[bytesRead++]);
+    p->status = GST_PARSER_PENDING;
+    while ((p->status == GST_PARSER_PENDING) && (string[bytesRead] != '\0')) {
+        dispatch_char(p, string[bytesRead++]);
     }
     return bytesRead;
 }
 
 /* Parser initialization (memory allocation) */
-void ParserInit(Parser * p, VM * vm) {
+void gst_parser(GstParser *p, Gst *vm) {
     p->vm = vm;
-    ParseState * data = VMAlloc(vm, sizeof(ParseState) * 10);
+    GstParseState *data = gst_alloc(vm, sizeof(GstParseState) * 10);
     p->data = data;
     p->count = 0;
     p->cap = 10;
     p->index = 0;
     p->error = NULL;
-    p->status = PARSER_PENDING;
-    p->value.type = TYPE_NIL;
-    ParserPush(p, PTYPE_ROOT, ' ');
+    p->status = GST_PARSER_PENDING;
+    p->value.type = GST_NIL;
+    parser_push(p, PTYPE_ROOT, ' ');
 }

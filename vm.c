@@ -12,15 +12,85 @@ static const char VMS_EXPECTED_NUMBER_ROP[] = "Expected right operand to be numb
 static const char VMS_EXPECTED_NUMBER_LOP[] = "Expected left operand to be number";
 
 /* The size of a StackFrame in units of Values. */
-#define FRAME_SIZE ((sizeof(StackFrame) + sizeof(Value) - 1) / sizeof(Value))
+#define FRAME_SIZE ((sizeof(GstStackFrame) + sizeof(GstValue) - 1) / sizeof(GstValue))
 
 /* Get the stack frame pointer for a thread */
-static StackFrame * ThreadFrame(Thread * thread) {
-    return (StackFrame *)(thread->data + thread->count - FRAME_SIZE);
+static GstStackFrame *thread_frame(GstThread * thread) {
+    return (GstStackFrame *)(thread->data + thread->count - FRAME_SIZE);
 }
 
+/* Ensure that a thread has enough space in it */
+static void thread_ensure(Gst *vm, GstThread *thread, uint32_t size) {
+	if (size > thread->capacity) {
+    	uint32_t newCap = size * 2;
+		GstValue *newData = gst_alloc(vm, sizeof(GstValue) * newCap);
+		memcpy(newData, thread->data, thread->capacity * sizeof(GstValue));
+		thread->data = newData;
+		thread->capacity = newCap;
+	}
+}
+
+/* Push a stack frame onto a thread */
+static void thread_push(Gst *vm, GstThread *thread, GstValue callee, uint32_t size) {
+    uint16_t oldSize;
+    uint32_t nextCount, i;
+    GstStackFrame *frame;
+    if (thread->count) {
+        frame = thread_frame(thread);
+        oldSize = frame->size;
+    } else {
+        oldSize = 0;
+    }
+    nextCount = thread->count + oldSize + FRAME_SIZE;
+    thread_ensure(vm, thread, nextCount + size);
+    thread->count = nextCount;
+    /* Ensure values start out as nil so as to not confuse
+     * the garabage collector */
+    for (i = nextCount; i < nextCount + size; ++i)
+        thread->data[i].type = GST_NIL;
+    vm->base = thread->data + thread->count;
+    vm->frame = frame = (GstStackFrame *)(vm->base - FRAME_SIZE);
+    /* Set up the new stack frame */
+    frame->prevSize = oldSize;
+    frame->size = size;
+    frame->env = NULL;
+    frame->callee = callee;
+}
+
+/* Copy the current function stack to the current closure
+   environment. Call when exiting function with closures. */
+static void thread_split_env(Gst *vm) {
+    GstStackFrame *frame = vm->frame;
+    GstFuncEnv *env = frame->env;
+    /* Check for closures */
+    if (env) {
+        GstThread *thread = vm->thread;
+        uint32_t size = frame->size;
+        env->thread = NULL;
+        env->stackOffset = size;
+        env->values = gst_alloc(vm, sizeof(GstValue) * size);
+        memcpy(env->values, thread->data + thread->count, size * sizeof(GstValue));
+    }
+}
+
+/* Pop the top-most stack frame from stack */
+static void thread_pop(Gst *vm) {
+    GstThread *thread = vm->thread;
+    GstStackFrame *frame = vm->frame;
+    uint32_t delta = FRAME_SIZE + frame->prevSize;
+    if (thread->count) {
+        thread_split_env(vm);
+    } else {
+        gst_error(vm, "Nothing to pop from stack.");
+    }
+    thread->count -= delta;
+    vm->base -= delta;
+    vm->frame = (GstStackFrame *)(vm->base - FRAME_SIZE);
+}
+
+
 /* The metadata header associated with an allocated block of memory */
-#define GCHeader(mem) ((GCMemoryHeader *)(mem) - 1)
+#define gc_header(mem) ((GCMemoryHeader *)(mem) - 1)
 
 /* Memory header struct. Node of a linked list of memory blocks. */
 typedef struct GCMemoryHeader GCMemoryHeader;
@@ -30,44 +100,44 @@ struct GCMemoryHeader {
 };
 
 /* Forward declaration */
-static void VMMark(VM * vm, Value * x);
+static void gst_mark(Gst *vm, GstValue *x);
 
 /* Helper to mark function environments */
-static void VMMarkFuncEnv(VM * vm, FuncEnv * env) {
-    if (GCHeader(env)->color != vm->black) {
-        Value temp;
-        GCHeader(env)->color = vm->black;
+static void gst_mark_funcenv(Gst *vm, GstFuncEnv *env) {
+    if (gc_header(env)->color != vm->black) {
+        GstValue temp;
+        gc_header(env)->color = vm->black;
         if (env->thread) {
-            temp.type = TYPE_THREAD;
+            temp.type = GST_THREAD;
             temp.data.thread = env->thread;
-            VMMark(vm, &temp);
+            gst_mark(vm, &temp);
         }
         if (env->values) {
             uint32_t count = env->stackOffset;
             uint32_t i;
-            GCHeader(env->values)->color = vm->black;
+            gc_header(env->values)->color = vm->black;
             for (i = 0; i < count; ++i)
-                VMMark(vm, env->values + i);
+                gst_mark(vm, env->values + i);
         }
     }
 }
 
 /* GC helper to mark a FuncDef */
-static void VMMarkFuncDef(VM * vm, FuncDef * def) {
-    if (GCHeader(def)->color != vm->black) {
-        GCHeader(def)->color = vm->black;
-        GCHeader(def->byteCode)->color = vm->black;
+static void gst_mark_funcdef(Gst *vm, GstFuncDef *def) {
+    if (gc_header(def)->color != vm->black) {
+        gc_header(def)->color = vm->black;
+        gc_header(def->byteCode)->color = vm->black;
         uint32_t count, i;
         if (def->literals) {
             count = def->literalsLen;
-            GCHeader(def->literals)->color = vm->black;
+            gc_header(def->literals)->color = vm->black;
             for (i = 0; i < count; ++i) {
                 /* If the literal is a NIL type, it actually
                  * contains a FuncDef */
-               	if (def->literals[i].type == TYPE_NIL) {
-					VMMarkFuncDef(vm, (FuncDef *) def->literals[i].data.pointer);
+               	if (def->literals[i].type == GST_NIL) {
+					gst_mark_funcdef(vm, (GstFuncDef *) def->literals[i].data.pointer);
                	} else {
-                    VMMark(vm, def->literals + i);
+                    gst_mark(vm, def->literals + i);
                	}
             }
         }
@@ -75,86 +145,88 @@ static void VMMarkFuncDef(VM * vm, FuncDef * def) {
 }
 
 /* Helper to mark a stack frame. Returns the next frame. */
-static StackFrame * VMMarkStackFrame(VM * vm, StackFrame * frame) {
+static GstStackFrame *gst_mark_stackframe(Gst *vm, GstStackFrame *frame) {
     uint32_t i;
-    Value * stack = (Value *)frame + FRAME_SIZE;
-    VMMark(vm, &frame->callee);
+    GstValue *stack = (GstValue *)frame + FRAME_SIZE;
+    gst_mark(vm, &frame->callee);
     if (frame->env)
-        VMMarkFuncEnv(vm, frame->env);
+        gst_mark_funcenv(vm, frame->env);
     for (i = 0; i < frame->size; ++i)
-        VMMark(vm, stack + i);
-    return (StackFrame *)(stack + frame->size);
+        gst_mark(vm, stack + i);
+    return (GstStackFrame *)(stack + frame->size);
 }
 
 /* Mark allocated memory associated with a value. This is
  * the main function for doing the garbage collection mark phase. */
-static void VMMark(VM * vm, Value * x) {
+static void gst_mark(Gst *vm, GstValue *x) {
     switch (x->type) {
-        case TYPE_NIL:
-        case TYPE_BOOLEAN:
-        case TYPE_NUMBER:
-        case TYPE_CFUNCTION:
+        case GST_NIL:
+        case GST_BOOLEAN:
+        case GST_NUMBER:
+        case GST_CFUNCTION:
             break;
 
-        case TYPE_STRING:
-            GCHeader(VStringRaw(x->data.string))->color = vm->black;
+        case GST_STRING:
+            gc_header(gst_string_raw(x->data.string))->color = vm->black;
             break;
 
-        case TYPE_BYTEBUFFER:
-            GCHeader(x->data.buffer)->color = vm->black;
-            GCHeader(x->data.buffer->data)->color = vm->black;
+        case GST_BYTEBUFFER:
+            gc_header(x->data.buffer)->color = vm->black;
+            gc_header(x->data.buffer->data)->color = vm->black;
             break;
 
-        case TYPE_ARRAY:
-            if (GCHeader(x->data.array)->color != vm->black) {
+        case GST_ARRAY:
+            if (gc_header(x->data.array)->color != vm->black) {
                 uint32_t i, count;
                 count = x->data.array->count;
-                GCHeader(x->data.array)->color = vm->black;
-                GCHeader(x->data.array->data)->color = vm->black;
+                gc_header(x->data.array)->color = vm->black;
+                gc_header(x->data.array->data)->color = vm->black;
                 for (i = 0; i < count; ++i)
-                    VMMark(vm, x->data.array->data + i);
+                    gst_mark(vm, x->data.array->data + i);
             }
             break;
 
-        case TYPE_THREAD:
-            if (GCHeader(x->data.thread)->color != vm->black) {
-                Thread * thread = x->data.thread;
-                StackFrame * frame = (StackFrame *)thread->data;
-                StackFrame * end = ThreadFrame(thread);
-                GCHeader(thread)->color = vm->black;
-                GCHeader(thread->data)->color = vm->black;
+        case GST_THREAD:
+            if (gc_header(x->data.thread)->color != vm->black) {
+                GstThread *thread = x->data.thread;
+                GstStackFrame *frame = (GstStackFrame *)thread->data;
+                GstStackFrame *end = thread_frame(thread);
+                gc_header(thread)->color = vm->black;
+                gc_header(thread->data)->color = vm->black;
                 while (frame <= end)
-                    frame = VMMarkStackFrame(vm, frame);
+                    frame = gst_mark_stackframe(vm, frame);
             }
             break;
 
-        case TYPE_FUNCTION:
-            if (GCHeader(x->data.func)->color != vm->black) {
-                Func * f = x->data.func;
-                GCHeader(f)->color = vm->black;
-                VMMarkFuncDef(vm, f->def);
+        case GST_FUNCTION:
+            if (gc_header(x->data.function)->color != vm->black) {
+                GstFunction *f = x->data.function;
+                gc_header(f)->color = vm->black;
+                gst_mark_funcdef(vm, f->def);
                 if (f->env)
-                    VMMarkFuncEnv(vm, f->env);
+                    gst_mark_funcenv(vm, f->env);
                 if (f->parent) {
-                    Value temp;
-                    temp.type = TYPE_FUNCTION;
-                    temp.data.func = f->parent;
-                    VMMark(vm, &temp);
+                    GstValue temp;
+                    temp.type = GST_FUNCTION;
+                    temp.data.function = f->parent;
+                    gst_mark(vm, &temp);
                 }
             }
             break;
 
-        case TYPE_DICTIONARY:
-            if (GCHeader(x->data.dict)->color != vm->black) {
-                DictionaryIterator iter;
-                DictBucket * bucket;
-                GCHeader(x->data.dict)->color = vm->black;
-                GCHeader(x->data.dict->buckets)->color = vm->black;
-                DictIterate(x->data.dict, &iter);
-                while (DictIterateNext(&iter, &bucket)) {
-                    GCHeader(bucket)->color = vm->black;
-                    VMMark(vm, &bucket->key);
-                    VMMark(vm, &bucket->value);
+        case GST_OBJECT:
+            if (gc_header(x->data.object)->color != vm->black) {
+                uint32_t i;
+                GstBucket *bucket;
+                gc_header(x->data.object)->color = vm->black;
+                gc_header(x->data.object->buckets)->color = vm->black;
+                for (i = 0; i < x->data.object->capacity; ++i) {
+					bucket = x->data.object->buckets[i];
+					while (bucket) {
+						gst_mark(vm, &bucket->key);
+						gst_mark(vm, &bucket->value);
+						bucket = bucket->next;
+					}
                 }
             }
             break;
@@ -165,10 +237,10 @@ static void VMMark(VM * vm, Value * x) {
 
 /* Iterate over all allocated memory, and free memory that is not
  * marked as reachable. Flip the gc color flag for next sweep. */
-static void VMSweep(VM * vm) {
-    GCMemoryHeader * previous = NULL;
-    GCMemoryHeader * current = vm->blocks;
-    GCMemoryHeader * next;
+static void gst_sweep(Gst *vm) {
+    GCMemoryHeader *previous = NULL;
+    GCMemoryHeader *current = vm->blocks;
+    GCMemoryHeader *next;
     while (current) {
         next = current->next;
         if (current->color != vm->black) {
@@ -188,13 +260,13 @@ static void VMSweep(VM * vm) {
 }
 
 /* Prepare a memory block */
-static void * VMAllocPrepare(VM * vm, char * rawBlock, uint32_t size) {
-    GCMemoryHeader * mdata;
+static void *gst_alloc_prepare(Gst *vm, char *rawBlock, uint32_t size) {
+    GCMemoryHeader *mdata;
     if (rawBlock == NULL) {
-        VMCrash(vm, OOM);
+        gst_crash(vm, OOM);
     }
     vm->nextCollection += size;
-    mdata = (GCMemoryHeader *) rawBlock;
+    mdata = (GCMemoryHeader *)rawBlock;
     mdata->next = vm->blocks;
     vm->blocks = mdata;
     mdata->color = !vm->black;
@@ -202,117 +274,47 @@ static void * VMAllocPrepare(VM * vm, char * rawBlock, uint32_t size) {
 }
 
 /* Allocate some memory that is tracked for garbage collection */
-void * VMAlloc(VM * vm, uint32_t size) {
+void *gst_alloc(Gst *vm, uint32_t size) {
     uint32_t totalSize = size + sizeof(GCMemoryHeader);
-    return VMAllocPrepare(vm, malloc(totalSize), totalSize);
+    return gst_alloc_prepare(vm, malloc(totalSize), totalSize);
 }
 
 /* Allocate some zeroed memory that is tracked for garbage collection */
-void * VMZalloc(VM * vm, uint32_t size) {
+void *gst_zalloc(Gst *vm, uint32_t size) {
     uint32_t totalSize = size + sizeof(GCMemoryHeader);
-    return VMAllocPrepare(vm, calloc(1, totalSize), totalSize);
+    return gst_alloc_prepare(vm, calloc(1, totalSize), totalSize);
 }
 
 /* Run garbage collection */
-void VMCollect(VM * vm) {
+void gst_collect(Gst *vm) {
     if (vm->lock > 0) return;
     /* Thread can be null */
     if (vm->thread) {
-        Value thread;
-        thread.type = TYPE_THREAD;
+        GstValue thread;
+        thread.type = GST_THREAD;
         thread.data.thread = vm->thread;
-        VMMark(vm, &thread);
+        gst_mark(vm, &thread);
     }
-    VMMark(vm, &vm->ret);
-    VMSweep(vm);
+    gst_mark(vm, &vm->ret);
+    gst_sweep(vm);
     vm->nextCollection = 0;
 }
 
 /* Run garbage collection if needed */
-void VMMaybeCollect(VM * vm) {
+void gst_maybe_collect(Gst *vm) {
     if (vm->nextCollection >= vm->memoryInterval)
-        VMCollect(vm);
-}
-
-/* Ensure that a thread has enough space in it */
-static void ThreadEnsure(VM * vm, Thread * thread, uint32_t size) {
-	if (size > thread->capacity) {
-    	uint32_t newCap = size * 2;
-		Value * newData = VMAlloc(vm, sizeof(Value) * newCap);
-		memcpy(newData, thread->data, thread->capacity * sizeof(Value));
-		thread->data = newData;
-		thread->capacity = newCap;
-	}
-}
-
-/* Push a stack frame onto a thread */
-static void VMThreadPush(VM * vm, Thread * thread, Value callee, uint32_t size) {
-    uint16_t oldSize;
-    uint32_t nextCount, i;
-    StackFrame * frame;
-    if (thread->count) {
-        frame = ThreadFrame(thread);
-        oldSize = frame->size;
-    } else {
-        oldSize = 0;
-    }
-    nextCount = thread->count + oldSize + FRAME_SIZE;
-    ThreadEnsure(vm, thread, nextCount + size);
-    thread->count = nextCount;
-    /* Ensure values start out as nil so as to not confuse
-     * the garabage collector */
-    for (i = nextCount; i < nextCount + size; ++i)
-        thread->data[i].type = TYPE_NIL;
-    vm->base = thread->data + thread->count;
-    vm->frame = frame = (StackFrame *)(vm->base - FRAME_SIZE);
-    /* Set up the new stack frame */
-    frame->prevSize = oldSize;
-    frame->size = size;
-    frame->env = NULL;
-    frame->callee = callee;
-}
-
-/* Copy the current function stack to the current closure
-   environment */
-static void VMThreadSplitStack(VM * vm) {
-    StackFrame * frame = vm->frame;
-    FuncEnv * env = frame->env;
-    /* Check for closures */
-    if (env) {
-        Thread * thread = vm->thread;
-        uint32_t size = frame->size;
-        env->thread = NULL;
-        env->stackOffset = size;
-        env->values = VMAlloc(vm, sizeof(Value) * size);
-        memcpy(env->values, thread->data + thread->count, size * sizeof(Value));
-    }
-}
-
-/* Pop the top-most stack frame from stack */
-static void VMThreadPop(VM * vm) {
-    Thread * thread = vm->thread;
-    StackFrame * frame = vm->frame;
-    uint32_t delta = FRAME_SIZE + frame->prevSize;
-    if (thread->count) {
-        VMThreadSplitStack(vm);
-    } else {
-        VMError(vm, "Nothing to pop from stack.");
-    }
-    thread->count -= delta;
-    vm->base -= delta;
-    vm->frame = (StackFrame *)(vm->base - FRAME_SIZE);
+        gst_collect(vm);
 }
 
 /* Get an upvalue */
-static Value * GetUpValue(VM * vm, Func * fn, uint16_t level, uint16_t index) {
-    FuncEnv * env;
-    Value * stack;
-    if (!level) {
+static GstValue *gst_vm_upvalue_location(Gst *vm, GstFunction *fn, uint16_t level, uint16_t index) {
+    GstFuncEnv *env;
+    GstValue *stack;
+    if (!level)
         return vm->base + index;
-    }
     while (fn && --level)
         fn = fn->parent;
-    VMAssert(vm, fn, NO_UPVALUE);
+    gst_assert(vm, fn, NO_UPVALUE);
     env = fn->env;
     if (env->thread)
         stack = env->thread->data + env->stackOffset;
@@ -321,143 +323,141 @@ static Value * GetUpValue(VM * vm, Func * fn, uint16_t level, uint16_t index) {
     return stack + index;
 }
 
-/* Get a constant */
-static Value LoadConstant(VM * vm, Func * fn, uint16_t index) {
+/* Get a literal */
+static GstValue gst_vm_literal(Gst *vm, GstFunction *fn, uint16_t index) {
     if (index > fn->def->literalsLen) {
-        VMError(vm, NO_UPVALUE);
+        gst_error(vm, NO_UPVALUE);
     }
     return fn->def->literals[index];
 }
 
 /* Boolean truth definition */
-static int truthy(Value v) {
-    return v.type != TYPE_NIL && !(v.type == TYPE_BOOLEAN && !v.data.boolean);
+static int truthy(GstValue v) {
+    return v.type != GST_NIL && !(v.type == GST_BOOLEAN && !v.data.boolean);
 }
 
 /* Return from the vm */
-static void VMReturn(VM * vm, Value ret) {
-    VMThreadPop(vm);
+static void gst_vm_return(Gst *vm, GstValue ret) {
+    thread_pop(vm);
     if (vm->thread->count == 0) {
-        VMExit(vm, ret);
+        gst_exit(vm, ret);
     }
     vm->pc = vm->frame->pc;
     vm->base[vm->frame->ret] = ret;
 }
 
 /* Implementation of the opcode for function calls */
-static void VMCallOp(VM * vm) {
-    Thread * thread = vm->thread;
-    Value callee = vm->base[vm->pc[1]];
+static void gst_vm_call(Gst *vm) {
+    GstThread *thread = vm->thread;
+    GstValue callee = vm->base[vm->pc[1]];
     uint32_t arity = vm->pc[3];
     uint32_t oldCount = thread->count;
     uint32_t i;
-    Value * oldBase;
+    GstValue *oldBase;
     vm->frame->pc = vm->pc + 4 + arity;
     vm->frame->ret = vm->pc[2];
-    if (callee.type == TYPE_FUNCTION) {
-        Func * fn = callee.data.func;
-        VMThreadPush(vm, thread, callee, fn->def->locals);
-    } else if (callee.type == TYPE_CFUNCTION) {
-        VMThreadPush(vm, thread, callee, arity);
+    if (callee.type == GST_FUNCTION) {
+        GstFunction *fn = callee.data.function;
+        thread_push(vm, thread, callee, fn->def->locals);
+    } else if (callee.type == GST_CFUNCTION) {
+        thread_push(vm, thread, callee, arity);
     } else {
-        VMError(vm, EXPECTED_FUNCTION);
+        gst_error(vm, EXPECTED_FUNCTION);
     }
     oldBase = thread->data + oldCount;
-    if (callee.type == TYPE_CFUNCTION) {
+    if (callee.type == GST_CFUNCTION) {
         for (i = 0; i < arity; ++i)
             vm->base[i] = oldBase[vm->pc[4 + i]];
         ++vm->lock;
-        VMReturn(vm, callee.data.cfunction(vm));
+        gst_vm_return(vm, callee.data.cfunction(vm));
         --vm->lock;
     } else {
-        Func * f = callee.data.func;
+        GstFunction *f = callee.data.function;
         uint32_t locals = f->def->locals;
         for (i = 0; i < arity; ++i)
             vm->base[i] = oldBase[vm->pc[4 + i]];
         for (; i < locals; ++i)
-            vm->base[i].type = TYPE_NIL;
+            vm->base[i].type = GST_NIL;
         vm->pc = f->def->byteCode;
     }
 }
 
 /* Implementation of the opcode for tail calls */
-static void VMTailCallOp(VM * vm) {
-    Thread * thread = vm->thread;
-    Value callee = vm->base[vm->pc[1]];
+static void gst_vm_tailcall(Gst *vm) {
+    GstThread *thread = vm->thread;
+    GstValue callee = vm->base[vm->pc[1]];
     uint32_t arity = vm->pc[2];
     uint16_t newFrameSize, currentFrameSize;
     uint32_t i;
     /* Check for closures */
-    VMThreadSplitStack(vm);
-    if (callee.type == TYPE_CFUNCTION) {
+    thread_split_env(vm);
+    if (callee.type == GST_CFUNCTION) {
         newFrameSize = arity;
-    } else if (callee.type == TYPE_FUNCTION) {
-        Func * f = callee.data.func;
+    } else if (callee.type == GST_FUNCTION) {
+        GstFunction * f = callee.data.function;
         newFrameSize = f->def->locals;
     } else {
-        VMError(vm, EXPECTED_FUNCTION);
+        gst_error(vm, EXPECTED_FUNCTION);
     }
     /* Ensure stack has enough space for copies of arguments */
     currentFrameSize = vm->frame->size;
-    ThreadEnsure(vm, thread, thread->count + currentFrameSize + arity);
+    thread_ensure(vm, thread, thread->count + currentFrameSize + arity);
     vm->base = thread->data + thread->count;
     /* Copy the arguments into the extra space */
-    for (i = 0; i < arity; ++i) {
+    for (i = 0; i < arity; ++i)
         vm->base[currentFrameSize + i] = vm->base[vm->pc[3 + i]];
-    }
     /* Copy the end of the stack to the parameter position */
-    memcpy(vm->base, vm->base + currentFrameSize, arity * sizeof(Value));
+    memcpy(vm->base, vm->base + currentFrameSize, arity * sizeof(GstValue));
     /* nil the non argument part of the stack for gc */
-    for (i = arity; i < newFrameSize; ++i) {
-        vm->base[i].type = TYPE_NIL;
-    }
+    for (i = arity; i < newFrameSize; ++i)
+        vm->base[i].type = GST_NIL;
     /* Update the stack frame */
     vm->frame->size = newFrameSize;
     vm->frame->callee = callee;
     vm->frame->env = NULL;
-    if (callee.type == TYPE_CFUNCTION) {
+    if (callee.type == GST_CFUNCTION) {
         ++vm->lock;
-        VMReturn(vm, callee.data.cfunction(vm));
+        gst_vm_return(vm, callee.data.cfunction(vm));
         --vm->lock;
     } else {
-        Func * f = callee.data.func;
+        GstFunction *f = callee.data.function;
         vm->pc = f->def->byteCode;
     }
 }
 
 /* Instantiate a closure */
-static Value VMMakeClosure(VM * vm, uint16_t literal) {
-    Thread * thread = vm->thread;
-    if (vm->frame->callee.type != TYPE_FUNCTION) {
-        VMError(vm, EXPECTED_FUNCTION);
+static GstValue gst_vm_closure(Gst *vm, uint16_t literal) {
+    GstThread *thread = vm->thread;
+    if (vm->frame->callee.type != GST_FUNCTION) {
+        gst_error(vm, EXPECTED_FUNCTION);
     } else {
-        Value constant, ret;
-        Func * fn, * current;
-        FuncEnv * env = vm->frame->env;
+        GstValue constant, ret;
+        GstFunction *fn, *current;
+        GstFuncEnv *env = vm->frame->env;
         if (!env) {
-            env = VMAlloc(vm, sizeof(FuncEnv));
+            env = gst_alloc(vm, sizeof(GstFuncEnv));
             env->thread = thread;
             env->stackOffset = thread->count;
             env->values = NULL;
             vm->frame->env = env;
         }
-        current = vm->frame->callee.data.func;
-        constant = LoadConstant(vm, current, literal);
-        if (constant.type != TYPE_NIL) {
-            VMError(vm, "Error trying to create closure");
+        current = vm->frame->callee.data.function;
+        constant = gst_vm_literal(vm, current, literal);
+        if (constant.type != GST_NIL) {
+            gst_error(vm, "Error trying to create closure");
         }
-        fn = VMAlloc(vm, sizeof(Func));
-        fn->def = (FuncDef *) constant.data.pointer;
+        fn = gst_alloc(vm, sizeof(GstFunction));
+        fn->def = (GstFuncDef *) constant.data.pointer;
         fn->parent = current;
         fn->env = env;
-        ret.type = TYPE_FUNCTION;
-        ret.data.func = fn;
+        ret.type = GST_FUNCTION;
+        ret.data.function = fn;
         return ret;
     }
 }
 
 /* Start running the VM */
-int VMStart(VM * vm) {
+int gst_start(Gst *vm) {
 
     /* Set jmp_buf to jump back to for return. */
     {
@@ -475,7 +475,7 @@ int VMStart(VM * vm) {
     }
 
     for (;;) {
-        Value temp, v1, v2;
+        GstValue temp, v1, v2;
         uint16_t opcode = *vm->pc;
 
         switch (opcode) {
@@ -483,84 +483,84 @@ int VMStart(VM * vm) {
         #define DO_BINARY_MATH(op) \
             v1 = vm->base[vm->pc[2]]; \
             v2 = vm->base[vm->pc[3]]; \
-            VMAssert(vm, v1.type == TYPE_NUMBER, VMS_EXPECTED_NUMBER_LOP); \
-            VMAssert(vm, v2.type == TYPE_NUMBER, VMS_EXPECTED_NUMBER_ROP); \
-            temp.type = TYPE_NUMBER; \
+            gst_assert(vm, v1.type == GST_NUMBER, VMS_EXPECTED_NUMBER_LOP); \
+            gst_assert(vm, v2.type == GST_NUMBER, VMS_EXPECTED_NUMBER_ROP); \
+            temp.type = GST_NUMBER; \
             temp.data.number = v1.data.number op v2.data.number; \
             vm->base[vm->pc[1]] = temp; \
             vm->pc += 4; \
             break;
 
-        case VM_OP_ADD: /* Addition */
+        case GST_OP_ADD: /* Addition */
             DO_BINARY_MATH(+)
 
-        case VM_OP_SUB: /* Subtraction */
+        case GST_OP_SUB: /* Subtraction */
             DO_BINARY_MATH(-)
 
-        case VM_OP_MUL: /* Multiplication */
+        case GST_OP_MUL: /* Multiplication */
             DO_BINARY_MATH(*)
 
-        case VM_OP_DIV: /* Division */
+        case GST_OP_DIV: /* Division */
             DO_BINARY_MATH(/)
 
         #undef DO_BINARY_MATH
 
-        case VM_OP_NOT: /* Boolean unary (Boolean not) */
-            temp.type = TYPE_BOOLEAN;
+        case GST_OP_NOT: /* Boolean unary (Boolean not) */
+            temp.type = GST_BOOLEAN;
             temp.data.boolean = !truthy(vm->base[vm->pc[2]]);
             vm->base[vm->pc[1]] = temp;
             vm->pc += 3;
             break;
 
-        case VM_OP_LD0: /* Load 0 */
-            temp.type = TYPE_NUMBER;
+        case GST_OP_LD0: /* Load 0 */
+            temp.type = GST_NUMBER;
             temp.data.number = 0;
             vm->base[vm->pc[1]] = temp;
             vm->pc += 2;
             break;
 
-        case VM_OP_LD1: /* Load 1 */
-            temp.type = TYPE_NUMBER;
+        case GST_OP_LD1: /* Load 1 */
+            temp.type = GST_NUMBER;
             temp.data.number = 1;
             vm->base[vm->pc[1]] = temp;
             vm->pc += 2;
             break;
 
-        case VM_OP_FLS: /* Load False */
-            temp.type = TYPE_BOOLEAN;
+        case GST_OP_FLS: /* Load False */
+            temp.type = GST_BOOLEAN;
             temp.data.boolean = 0;
             vm->base[vm->pc[1]] = temp;
             vm->pc += 2;
             break;
 
-        case VM_OP_TRU: /* Load True */
-            temp.type = TYPE_BOOLEAN;
+        case GST_OP_TRU: /* Load True */
+            temp.type = GST_BOOLEAN;
             temp.data.boolean = 1;
             vm->base[vm->pc[1]] = temp;
             vm->pc += 2;
             break;
 
-        case VM_OP_NIL: /* Load Nil */
-            temp.type = TYPE_NIL;
+        case GST_OP_NIL: /* Load Nil */
+            temp.type = GST_NIL;
             vm->base[vm->pc[1]] = temp;
             vm->pc += 2;
             break;
 
-        case VM_OP_I16: /* Load Small Integer */
-            temp.type = TYPE_NUMBER;
+        case GST_OP_I16: /* Load Small Integer */
+            temp.type = GST_NUMBER;
             temp.data.number = ((int16_t *)(vm->pc))[2];
             vm->base[vm->pc[1]] = temp;
             vm->pc += 3;
             break;
 
-        case VM_OP_UPV: /* Load Up Value */
+        case GST_OP_UPV: /* Load Up Value */
             temp = vm->frame->callee;
-            VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
-            vm->base[vm->pc[1]] = *GetUpValue(vm, temp.data.func, vm->pc[2], vm->pc[3]);
+            gst_assert(vm, temp.type == GST_FUNCTION, EXPECTED_FUNCTION);
+            vm->base[vm->pc[1]] = *gst_vm_upvalue_location(vm, temp.data.function, vm->pc[2], vm->pc[3]);
             vm->pc += 4;
             break;
 
-        case VM_OP_JIF: /* Jump If */
+        case GST_OP_JIF: /* Jump If */
             if (truthy(vm->base[vm->pc[1]])) {
                 vm->pc += 4;
             } else {
@@ -568,125 +568,125 @@ int VMStart(VM * vm) {
             }
             break;
 
-        case VM_OP_JMP: /* Jump */
+        case GST_OP_JMP: /* Jump */
             vm->pc += *((int32_t *)(vm->pc + 1));
             break;
 
-        case VM_OP_CAL: /* Call */
-            VMCallOp(vm);
+        case GST_OP_CAL: /* Call */
+            gst_vm_call(vm);
             break;
 
-        case VM_OP_RET: /* Return */
-            VMReturn(vm, vm->base[vm->pc[1]]);
+        case GST_OP_RET: /* Return */
+            gst_vm_return(vm, vm->base[vm->pc[1]]);
             break;
 
-        case VM_OP_SUV: /* Set Up Value */
+        case GST_OP_SUV: /* Set Up Value */
             temp = vm->frame->callee;
-            VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
-            *GetUpValue(vm, temp.data.func, vm->pc[2], vm->pc[3]) = vm->base[vm->pc[1]];
+            gst_assert(vm, temp.type == GST_FUNCTION, EXPECTED_FUNCTION);
+            *gst_vm_upvalue_location(vm, temp.data.function, vm->pc[2], vm->pc[3]) = vm->base[vm->pc[1]];
             vm->pc += 4;
             break;
 
-        case VM_OP_CST: /* Load constant value */
+        case GST_OP_CST: /* Load constant value */
             temp = vm->frame->callee;
-            VMAssert(vm, temp.type == TYPE_FUNCTION, EXPECTED_FUNCTION);
-            vm->base[vm->pc[1]] = LoadConstant(vm, temp.data.func, vm->pc[2]);
+            gst_assert(vm, temp.type == GST_FUNCTION, EXPECTED_FUNCTION);
+            vm->base[vm->pc[1]] = gst_vm_literal(vm, temp.data.function, vm->pc[2]);
             vm->pc += 3;
             break;
 
-        case VM_OP_I32: /* Load 32 bit integer */
-            temp.type = TYPE_NUMBER;
+        case GST_OP_I32: /* Load 32 bit integer */
+            temp.type = GST_NUMBER;
             temp.data.number = *((int32_t *)(vm->pc + 2));
             vm->base[vm->pc[1]] = temp;
             vm->pc += 4;
             break;
 
-        case VM_OP_F64: /* Load 64 bit float */
-            temp.type = TYPE_NUMBER;
-            temp.data.number = (Number) *((double *)(vm->pc + 2));
+        case GST_OP_F64: /* Load 64 bit float */
+            temp.type = GST_NUMBER;
+            temp.data.number = (GstNumber) *((double *)(vm->pc + 2));
             vm->base[vm->pc[1]] = temp;
             vm->pc += 6;
             break;
 
-        case VM_OP_MOV: /* Move Values */
+        case GST_OP_MOV: /* Move Values */
             vm->base[vm->pc[1]] = vm->base[vm->pc[2]];
             vm->pc += 3;
             break;
 
-        case VM_OP_CLN: /* Create closure from constant FuncDef */
-            vm->base[vm->pc[1]] = VMMakeClosure(vm, vm->pc[2]);
+        case GST_OP_CLN: /* Create closure from constant FuncDef */
+            vm->base[vm->pc[1]] = gst_vm_closure(vm, vm->pc[2]);
             vm->pc += 3;
             break;
 
-        case VM_OP_EQL: /* Equality */
-            temp.type = TYPE_BOOLEAN;
-            temp.data.boolean = ValueEqual(vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
+        case GST_OP_EQL: /* Equality */
+            temp.type = GST_BOOLEAN;
+            temp.data.boolean = gst_equals(vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
             vm->base[vm->pc[1]] = temp;
             vm->pc += 4;
             break;
 
-        case VM_OP_LTN: /* Less Than */
-            temp.type = TYPE_BOOLEAN;
-            temp.data.boolean = (ValueCompare(vm->base[vm->pc[2]], vm->base[vm->pc[3]]) == -1);
+        case GST_OP_LTN: /* Less Than */
+            temp.type = GST_BOOLEAN;
+            temp.data.boolean = (gst_compare(vm->base[vm->pc[2]], vm->base[vm->pc[3]]) == -1);
             vm->base[vm->pc[1]] = temp;
             vm->pc += 4;
             break;
 
-        case VM_OP_LTE: /* Less Than or Equal to */
-            temp.type = TYPE_BOOLEAN;
-            temp.data.boolean = (ValueEqual(vm->base[vm->pc[2]], vm->base[vm->pc[3]]) != 1);
+        case GST_OP_LTE: /* Less Than or Equal to */
+            temp.type = GST_BOOLEAN;
+            temp.data.boolean = (gst_compare(vm->base[vm->pc[2]], vm->base[vm->pc[3]]) != 1);
             vm->base[vm->pc[1]] = temp;
             vm->pc += 4;
             break;
 
-        case VM_OP_ARR: /* Array literal */
+        case GST_OP_ARR: /* Array literal */
             {
                 uint32_t i;
                 uint32_t arrayLen = vm->pc[2];
-                Array * array = ArrayNew(vm, arrayLen);
+                GstArray *array = gst_array(vm, arrayLen);
                 array->count = arrayLen;
                 for (i = 0; i < arrayLen; ++i)
                     array->data[i] = vm->base[vm->pc[3 + i]];
-                temp.type = TYPE_ARRAY;
+                temp.type = GST_ARRAY;
                 temp.data.array = array;
                 vm->base[vm->pc[1]] = temp;
                 vm->pc += 3 + arrayLen;
             }
             break;
 
-        case VM_OP_DIC: /* Dictionary literal */
+        case GST_OP_DIC: /* Object literal */
             {
                 uint32_t i = 3;
                 uint32_t kvs = vm->pc[2];
-                Dictionary * dict = DictNew(vm, kvs + 2);
+                GstObject *o = gst_object(vm, kvs + 2);
                 kvs = kvs + 3;
                 while (i < kvs) {
                     v1 = vm->base[vm->pc[i++]];
                     v2 = vm->base[vm->pc[i++]];
-                    DictPut(vm, dict, v1, v2);
+                    gst_object_put(vm, o, v1, v2);
                 }
-                temp.type = TYPE_DICTIONARY;
-                temp.data.dict = dict;
+                temp.type = GST_OBJECT;
+                temp.data.object = o;
                 vm->base[vm->pc[1]] = temp;
                 vm->pc += kvs;
             }
             break;
 
-        case VM_OP_TCL: /* Tail call */
-            VMTailCallOp(vm);
+        case GST_OP_TCL: /* Tail call */
+            gst_vm_tailcall(vm);
             break;
 
         /* Macro for generating some math operators */
         #define DO_MULTI_MATH(op, start) { \
             uint16_t count = vm->pc[2]; \
             uint16_t i; \
-            Number accum = start; \
+            GstNumber accum = start; \
             for (i = 0; i < count; ++i) { \
                 v1 = vm->base[vm->pc[3 + i]]; \
-                VMAssert(vm, v1.type == TYPE_NUMBER, "Expected number"); \
+                gst_assert(vm, v1.type == GST_NUMBER, "Expected number"); \
                 accum = accum op v1.data.number; \
             } \
-            temp.type = TYPE_NUMBER; \
+            temp.type = GST_NUMBER; \
             temp.data.number = accum; \
             vm->base[vm->pc[1]] = temp; \
             vm->pc += 3 + count; \
@@ -694,69 +694,69 @@ int VMStart(VM * vm) {
         }
 
         /* Vectorized math */
-        case VM_OP_ADM:
+        case GST_OP_ADM:
             DO_MULTI_MATH(+, 0)
 
-        case VM_OP_SBM:
+        case GST_OP_SBM:
             DO_MULTI_MATH(-, 0)
 
-        case VM_OP_MUM:
+        case GST_OP_MUM:
             DO_MULTI_MATH(*, 1)
 
-        case VM_OP_DVM:
+        case GST_OP_DVM:
             DO_MULTI_MATH(/, 1)
 
         #undef DO_MULTI_MATH
 
-        case VM_OP_RTN: /* Return nil */
-            temp.type = TYPE_NIL;
-            VMReturn(vm, temp);
+        case GST_OP_RTN: /* Return nil */
+            temp.type = GST_NIL;
+            gst_vm_return(vm, temp);
             break;
 
-        case VM_OP_GET:
-			temp = ValueGet(vm, vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
+        case GST_OP_GET:
+			temp = gst_get(vm, vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
 			vm->base[vm->pc[1]] = temp;
 			vm->pc += 4;
             break;
 
-        case VM_OP_SET:
-			ValueSet(vm, vm->base[vm->pc[1]], vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
+        case GST_OP_SET:
+			gst_set(vm, vm->base[vm->pc[1]], vm->base[vm->pc[2]], vm->base[vm->pc[3]]);
 			vm->pc += 4;
             break;
 
         default:
-            VMError(vm, "Unknown opcode");
+           	gst_error(vm, "Unknown opcode");
             break;
         }
 
         /* Move collection only to places that allocate memory */
         /* This, however, is good for testing */
-        VMMaybeCollect(vm);
+        gst_maybe_collect(vm);
     }
 }
 
 /* Get an argument from the stack */
-Value VMGetArg(VM * vm, uint16_t index) {
+GstValue gst_arg(Gst *vm, uint16_t index) {
     uint16_t frameSize = vm->frame->size;
-    VMAssert(vm, frameSize > index, "Cannot get arg out of stack bounds");
+    gst_assert(vm, frameSize > index, "Cannot get arg out of stack bounds");
     return vm->base[index];
 }
 
 /* Put a value on the stack */
-void VMSetArg(VM * vm, uint16_t index, Value x) {
+void gst_set_arg(Gst* vm, uint16_t index, GstValue x) {
     uint16_t frameSize = vm->frame->size;
-    VMAssert(vm, frameSize > index, "Cannot set arg out of stack bounds");
+    gst_assert(vm, frameSize > index, "Cannot set arg out of stack bounds");
     vm->base[index] = x;
 }
 
 /* Get the size of the VMStack */
-uint16_t VMCountArgs(VM * vm) {
+uint16_t gst_count_args(Gst *vm) {
     return vm->frame->size;
 }
 
 /* Initialize the VM */
-void VMInit(VM * vm) {
-    vm->ret.type = TYPE_NIL;
+void gst_init(Gst *vm) {
+    vm->ret.type = GST_NIL;
     vm->base = NULL;
     vm->frame = NULL;
     vm->pc = NULL;
@@ -777,19 +777,19 @@ void VMInit(VM * vm) {
 
 /* Load a function into the VM. The function will be called with
  * no arguments when run */
-void VMLoad(VM * vm, Value func) {
+void gst_load(Gst *vm, GstValue callee) {
     uint32_t startCapacity = 100;
-    Thread * thread = VMAlloc(vm, sizeof(Thread));
-    thread->data = VMAlloc(vm, sizeof(Value) * startCapacity);
+    GstThread *thread = gst_alloc(vm, sizeof(GstThread));
+    thread->data = gst_alloc(vm, sizeof(GstValue) * startCapacity);
     thread->capacity = startCapacity;
     thread->count = 0;
     vm->thread = thread;
-    if (func.type == TYPE_FUNCTION) {
-        Func * fn = func.data.func;
-        VMThreadPush(vm, thread, func, fn->def->locals);
+    if (callee.type == GST_FUNCTION) {
+        GstFunction *fn = callee.data.function;
+        thread_push(vm, thread, callee, fn->def->locals);
         vm->pc = fn->def->byteCode;
-    } else if (func.type == TYPE_CFUNCTION) {
-        VMThreadPush(vm, thread, func, 0);
+    } else if (callee.type == GST_CFUNCTION) {
+        thread_push(vm, thread, callee, 0);
         vm->pc = NULL;
     } else {
         return;
@@ -797,10 +797,10 @@ void VMLoad(VM * vm, Value func) {
 }
 
 /* Clear all memory associated with the VM */
-void VMDeinit(VM * vm) {
-    GCMemoryHeader * current = vm->blocks;
+void gst_deinit(Gst *vm) {
+    GCMemoryHeader *current = vm->blocks;
     while (current) {
-        GCMemoryHeader * next = current->next;
+        GCMemoryHeader *next = current->next;
         free(current);
         current = next;
     }

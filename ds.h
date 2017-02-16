@@ -6,35 +6,35 @@
 /*
  * Data type flags
  */
-#define DS_LOCKED 0x01
+#define GST_DS_LOCKED 0x01
 
 /****/
 /* Buffer functions */
 /****/
 
 /* Create a new buffer */
-Buffer * BufferNew(VM * vm, uint32_t capacity);
+GstBuffer *gst_buffer(Gst *vm, uint32_t capacity);
 
 /* Ensure the buffer has enough capacity */
-void BufferEnsure(VM * vm, Buffer * buffer, uint32_t capacity);
+void gst_buffer_ensure(Gst *vm, GstBuffer *buffer, uint32_t capacity);
 
 /* Get a value from the buffer */
-int32_t BufferGet(Buffer * buffer, uint32_t index);
+int gst_buffer_get(GstBuffer *buffer, uint32_t index);
 
 /* Push a value to the buffer */
-void BufferPush(VM * vm, Buffer * buffer, uint8_t c);
+void gst_buffer_push(Gst *vm, GstBuffer *buffer, uint8_t c);
 
 /* Append a piece of memory to the buffer */
-void BufferAppendData(VM * vm, Buffer * buffer, uint8_t * string, uint32_t length);
+void gst_buffer_append(Gst *vm, GstBuffer *buffer, uint8_t *string, uint32_t length);
 
 /* Convert the buffer to a string */
-uint8_t * BufferToString(VM * vm, Buffer * buffer);
+uint8_t *gst_buffer_to_string(Gst * vm, GstBuffer * buffer);
 
 /* Define a push function for pushing a certain type to the buffer */
-#define BufferDefine(name, type) \
-static void BufferPush##name (VM * vm, Buffer * buffer, type x) { \
+#define BUFFER_DEFINE(name, type) \
+static void gst_buffer_push_##name(Gst * vm, GstBuffer * buffer, type x) { \
     union { type t; uint8_t bytes[sizeof(type)]; } u; \
-    u.t = x; BufferAppendData(vm, buffer, u.bytes, sizeof(type)); \
+    u.t = x; gst_buffer_append(vm, buffer, u.bytes, sizeof(type)); \
 }
 
 /****/
@@ -42,51 +42,45 @@ static void BufferPush##name (VM * vm, Buffer * buffer, type x) { \
 /****/
 
 /* Create a new Array */
-Array * ArrayNew(VM * vm, uint32_t capacity);
+GstArray *gst_array(Gst *vm, uint32_t capacity);
 
 /* Get a value of an array with bounds checking. Returns nil if
  * outside bounds. */
-Value ArrayGet(Array * array, uint32_t index);
+GstValue gst_array_get(GstArray *array, uint32_t index);
 
 /* Set a value in the array. Does bounds checking but will not grow
  * or shrink the array */
-int ArraySet(Array * array, uint32_t index, Value x);
+int gst_array_set(GstArray *array, uint32_t index, GstValue x);
 
 /* Ensure that the internal memory hash enough space for capacity items */
-void ArrayEnsure(VM * vm, Array * array, uint32_t capacity);
+void gst_array_ensure(Gst *vm, GstArray *array, uint32_t capacity);
 
 /* Set a value in an array. Will also append to the array if the index is
  * greater than the current max index. */
-void ArrayPush(VM * vm, Array * array, Value x);
+void gst_array_push(Gst *vm, GstArray *array, GstValue x);
 
 /* Pop the last item in the array, or return NIL if empty */
-Value ArrayPop(Array * array);
+GstValue gst_array_pop(GstArray *array);
 
 /* Look at the top most item of an Array */
-Value ArrayPeek(Array * array);
+GstValue ArrayPeek(GstArray *array);
 
 /****/
-/* Dictionary functions */
+/* Object functions */
 /****/
 
-/* Create a new dictionary */
-Dictionary * DictNew(VM * vm, uint32_t capacity);
+/* Create a new object */
+GstObject *gst_object(Gst *vm, uint32_t capacity);
 
 /* Get a value out of the dictionary */
-Value DictGet(Dictionary * dict, Value key);
+GstValue gst_object_get(GstObject *obj, GstValue key);
 
 /* Get a Value from the dictionary, but remove it at the same
  * time. */
-Value DictRemove(VM * vm, Dictionary * dict, Value key);
+GstValue gst_object_remove(Gst *vm, GstObject *obj, GstValue key);
 
 /* Put a value into the dictionary. Returns 1 if successful, 0 if out of memory.
  * The VM pointer is needed for memory allocation. */
-void DictPut(VM * vm, Dictionary * dict, Value key, Value value);
-
-/* Begin iteration through a dictionary */
-void DictIterate(Dictionary * dict, DictionaryIterator * iterator);
-
-/* Provides a mechanism for iterating through a table. */
-int DictIterateNext(DictionaryIterator * iterator, DictBucket ** bucket);
+void gst_object_put(Gst *vm, GstObject *obj, GstValue key, GstValue value);
 
 #endif // ds_h_INCLUDED
