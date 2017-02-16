@@ -89,7 +89,7 @@ static void parser_push(GstParser *p, ParseType type, uint8_t character) {
             }
             if (character == '{') {
                 top->buf.form.endDelimiter = '}';
-                gst_array_push(p->vm, top->buf.form.array, gst_load_cstring(p->vm, "dict"));
+                gst_array_push(p->vm, top->buf.form.array, gst_load_cstring(p->vm, "obj"));
             }
             break;
     }

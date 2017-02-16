@@ -982,11 +982,6 @@ static SpecialFormHelper get_special(GstArray *form) {
                 if (gst_string_length(name) == 2 &&
                         name[1] == 'o') {
                     return compile_do;
-                } else if (gst_string_length(name) == 4 &&
-						name[1] == 'i' &&
-						name[2] == 'c' &&
-						name[3] == 't') {
-					return compile_object;
                 }
             }
             break;
@@ -1014,6 +1009,15 @@ static SpecialFormHelper get_special(GstArray *form) {
                     return compile_not;
                 }
             }
+           	break;
+        case 'o':
+        	{
+				if (gst_string_length(name) == 3 &&
+				    	name[1] == 'b' &&
+				    	name[2] == 'j') {
+					return compile_object;
+		    	}
+        	}
         case 'q':
             {
                 if (gst_string_length(name) == 5 &&

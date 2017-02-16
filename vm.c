@@ -223,6 +223,7 @@ static void gst_mark(Gst *vm, GstValue *x) {
                 for (i = 0; i < x->data.object->capacity; ++i) {
 					bucket = x->data.object->buckets[i];
 					while (bucket) {
+    					gc_header(bucket)->color = vm->black;
 						gst_mark(vm, &bucket->key);
 						gst_mark(vm, &bucket->value);
 						bucket = bucket->next;

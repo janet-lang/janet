@@ -87,9 +87,9 @@ void debugRepl() {
         }
 
         /* Print asm */
-        //printf("\n");
-        //dasmFunc(stdout, func.data.func);
-        //printf("\n");
+        printf("\n");
+        gst_dasm_function(stdout, func.data.function);
+        printf("\n");
 
         /* Execute function */
         gst_load(&vm, func);
