@@ -140,6 +140,8 @@ struct GstStackFrame {
     uint16_t size;
     uint16_t prevSize;
     uint16_t ret;
+    uint16_t errorSlot;
+    uint16_t *errorJump;
     GstFuncEnv *env;
     uint16_t *pc;
 };

@@ -5,11 +5,11 @@
 #include "value.h"
 #include "ds.h"
 
-static const char OOM[] = "Out of memory";
-static const char NO_UPVALUE[] = "No upvalue";
-static const char EXPECTED_FUNCTION[] = "Expected function";
-static const char VMS_EXPECTED_NUMBER_ROP[] = "Expected right operand to be number";
-static const char VMS_EXPECTED_NUMBER_LOP[] = "Expected left operand to be number";
+static const char OOM[] = "out of memory";
+static const char NO_UPVALUE[] = "no upvalue";
+static const char EXPECTED_FUNCTION[] = "expected function";
+static const char VMS_EXPECTED_NUMBER_ROP[] = "expected right operand to be number";
+static const char VMS_EXPECTED_NUMBER_LOP[] = "expected left operand to be number";
 
 /* The size of a StackFrame in units of Values. */
 #define FRAME_SIZE ((sizeof(GstStackFrame) + sizeof(GstValue) - 1) / sizeof(GstValue))
@@ -55,6 +55,7 @@ static void thread_push(Gst *vm, GstThread *thread, GstValue callee, uint32_t si
     frame->size = size;
     frame->env = NULL;
     frame->callee = callee;
+    frame->errorJump = NULL;
 }
 
 /* Copy the current function stack to the current closure
@@ -81,7 +82,7 @@ static void thread_pop(Gst *vm) {
     if (thread->count) {
         thread_split_env(vm);
     } else {
-        gst_error(vm, "Nothing to pop from stack.");
+        gst_crash(vm, "stack underflow");
     }
     thread->count -= delta;
     vm->base -= delta;
@@ -445,7 +446,7 @@ static GstValue gst_vm_closure(Gst *vm, uint16_t literal) {
         current = vm->frame->callee.data.function;
         constant = gst_vm_literal(vm, current, literal);
         if (constant.type != GST_NIL) {
-            gst_error(vm, "Error trying to create closure");
+            gst_error(vm, "cannot create closure");
         }
         fn = gst_alloc(vm, sizeof(GstFunction));
         fn->def = (GstFuncDef *) constant.data.pointer;
@@ -464,12 +465,23 @@ int gst_start(Gst *vm) {
     {
         int n;
         if ((n = setjmp(vm->jump))) {
-            vm->lock = 0;
             /* Good return */
             if (n == 1) {
+                vm->lock = 0;
                 return 0;
+            } else if (n == 2) {
+                /* Error. Handling TODO. */
+                do {
+                    if (vm->thread->count == 0)
+                        return n;
+					thread_pop(vm);
+                } while (!vm->frame->errorJump);
+                /* Jump to the error location */
+                vm->pc = vm->frame->errorJump;
+                vm->lock = 0;
             } else {
-                /* Error or crash. Handling TODO. */
+                /* Crash. just return */
+                vm->lock = 0;
                 return n;
             }
         }
@@ -726,7 +738,7 @@ int gst_start(Gst *vm) {
             break;
 
         default:
-           	gst_error(vm, "Unknown opcode");
+           	gst_error(vm, "unknown opcode");
             break;
         }
 
@@ -739,14 +751,14 @@ int gst_start(Gst *vm) {
 /* Get an argument from the stack */
 GstValue gst_arg(Gst *vm, uint16_t index) {
     uint16_t frameSize = vm->frame->size;
-    gst_assert(vm, frameSize > index, "Cannot get arg out of stack bounds");
+    gst_assert(vm, frameSize > index, "cannot get arg out of stack bounds");
     return vm->base[index];
 }
 
 /* Put a value on the stack */
 void gst_set_arg(Gst* vm, uint16_t index, GstValue x) {
     uint16_t frameSize = vm->frame->size;
-    gst_assert(vm, frameSize > index, "Cannot set arg out of stack bounds");
+    gst_assert(vm, frameSize > index, "cannot set arg out of stack bounds");
     vm->base[index] = x;
 }
 

@@ -152,12 +152,7 @@ int gst_equals(GstValue x, GstValue y) {
                 }
                 result = 0;
                 break;
-            case GST_ARRAY:
-            case GST_BYTEBUFFER:
-            case GST_CFUNCTION:
-            case GST_OBJECT:
-            case GST_FUNCTION:
-            case GST_THREAD:
+            default:
                 /* compare pointers */
                 result = (x.data.array == y.data.array);
                 break;
@@ -194,12 +189,7 @@ uint32_t gst_hash(GstValue x) {
             else
                 hash = gst_string_hash(x.data.string) = djb2(x.data.string);
             break;
-        case GST_ARRAY:
-        case GST_BYTEBUFFER:
-        case GST_CFUNCTION:
-        case GST_OBJECT:
-        case GST_FUNCTION:
-        case GST_THREAD:
+        default:
             /* Cast the pointer */
             {
                 union {
@@ -258,12 +248,7 @@ int gst_compare(GstValue x, GstValue y) {
                         return xlen < ylen ? -1 : 1;
                     }
                 }
-            case GST_ARRAY:
-            case GST_BYTEBUFFER:
-            case GST_CFUNCTION:
-            case GST_FUNCTION:
-            case GST_OBJECT:
-            case GST_THREAD:
+            default:
                 if (x.data.string == y.data.string) {
                     return 0;
                 } else {
@@ -358,5 +343,14 @@ void gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
         break;
     default:
         gst_error(vm, "Cannot set.");
+	}
+}
+
+/* Get the meta value associated with a value */
+GstValue gst_meta(Gst *vm, GstValue x) {
+	switch (x.type) {
+		default: return vm->metas[x.type];
+        case GST_OBJECT:
+            return x.data.object->meta;
 	}
 }

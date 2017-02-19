@@ -26,4 +26,7 @@ uint8_t *gst_to_string(Gst *vm, GstValue x);
 /* Generate a hash value for a gst object */
 uint32_t gst_hash(GstValue x);
 
+/* Get the meta value for a given value */
+GstValue gst_meta(Gst *vm, GstValue x); 
+
 #endif /* end of include guard: VALUE_H_1RJPQKFM */
