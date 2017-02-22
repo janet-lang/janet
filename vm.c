@@ -298,6 +298,7 @@ void gst_collect(Gst *vm) {
         gst_mark(vm, &thread);
     }
     gst_mark(vm, &vm->ret);
+    gst_mark(vm, &vm->error);
     gst_sweep(vm);
     vm->nextCollection = 0;
 }
@@ -471,13 +472,15 @@ int gst_start(Gst *vm) {
                 return 0;
             } else if (n == 2) {
                 /* Error. Handling TODO. */
-                do {
-                    if (vm->thread->count == 0)
-                        return n;
+                while (vm->thread->count && !vm->frame->errorJump) {
 					thread_pop(vm);
-                } while (!vm->frame->errorJump);
+                }
+                if (vm->thread->count == 0)
+                    return n;
                 /* Jump to the error location */
                 vm->pc = vm->frame->errorJump;
+                /* Set error */
+                vm->base[vm->frame->errorSlot] = vm->error;
                 vm->lock = 0;
             } else {
                 /* Crash. just return */
@@ -737,6 +740,22 @@ int gst_start(Gst *vm) {
 			vm->pc += 4;
             break;
 
+    	case GST_OP_ERR:
+			vm->error = vm->base[vm->pc[1]];
+			longjmp(vm->jump, 2);
+        	break;
+
+		case GST_OP_TRY:
+    		vm->frame->errorSlot = vm->pc[1];
+    		vm->frame->errorJump = vm->pc + *(uint32_t *)(vm->pc + 2);
+    		vm->pc += 4;
+    		break;
+
+    	case GST_OP_UTY:
+        	vm->frame->errorJump = NULL;
+			vm->pc++;
+        	break;
+
         default:
            	gst_error(vm, "unknown opcode");
             break;
@@ -770,10 +789,11 @@ uint16_t gst_count_args(Gst *vm) {
 /* Initialize the VM */
 void gst_init(Gst *vm) {
     vm->ret.type = GST_NIL;
+    vm->error.type = GST_NIL;
     vm->base = NULL;
     vm->frame = NULL;
     vm->pc = NULL;
-    vm->error = NULL;
+    vm->crash = NULL;
     /* Garbage collection */
     vm->blocks = NULL;
     vm->nextCollection = 0;

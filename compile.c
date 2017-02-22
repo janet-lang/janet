@@ -86,7 +86,6 @@ static FormOptions form_options_default() {
 /* Create some helpers that allows us to push more than just raw bytes
  * to the byte buffer. This helps us create the byte code for the compiled
  * functions. */
-BUFFER_DEFINE(u32, uint32_t)
 BUFFER_DEFINE(i32, int32_t)
 BUFFER_DEFINE(number, GstNumber)
 BUFFER_DEFINE(u16, uint16_t)
@@ -254,7 +253,7 @@ static Slot compiler_realize_slot(GstCompiler *c, Slot slot) {
 }
 
 /* Helper to get a nil slot */
-static Slot nil_slot() { Slot ret; ret.isNil = 1; return ret; }
+static Slot nil_slot() { Slot ret; ret.isNil = 1; ret.hasReturned = 0; return ret; }
 
 /* Writes all of the slots in the tracker to the compiler */
 static void compiler_tracker_write(GstCompiler *c, SlotTracker *tracker, int reverse) {
@@ -320,9 +319,8 @@ static uint16_t compiler_add_literal(GstCompiler *c, GstScope *scope, GstValue x
 static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValue sym) {
     GstValue x;
     uint16_t target;
-    if (sym.type != GST_STRING) {
+    if (sym.type != GST_STRING)
         c_error(c, "Expected symbol");
-    }
     target = compiler_get_local(c, scope);
     x.type = GST_NUMBER;
     x.data.number = target;
@@ -676,7 +674,7 @@ static Slot compile_block(GstCompiler *c, FormOptions opts, GstArray *form, uint
 
 /* Extract the last n bytes from the buffer and use them to construct
  * a function definition. */
-static GstFuncDef * compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uint32_t arity) {
+static GstFuncDef *compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uint32_t arity) {
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
     GstFuncDef *def = gst_alloc(c->vm, sizeof(GstFuncDef));
@@ -710,13 +708,13 @@ static GstFuncDef * compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, ui
 
 /* Compile a function from a function literal */
 static Slot compile_function(GstCompiler *c, FormOptions opts, GstArray *form) {
-    GstScope * scope = c->tail;
-    GstBuffer * buffer = c->buffer;
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
     uint32_t current = 1;
     uint32_t i;
     uint32_t sizeBefore; /* Size of buffer before compiling function */
-    GstScope * subGstScope;
-    GstArray * params;
+    GstScope *subGstScope;
+    GstArray *params;
     FormOptions subOpts = form_options_default();
     Slot ret;
     if (opts.resultUnused) return nil_slot();
@@ -763,8 +761,8 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, GstArray *form) {
 
 /* Branching special */
 static Slot compile_if(GstCompiler *c, FormOptions opts, GstArray *form) {
-    GstScope * scope = c->tail;
-    GstBuffer * buffer = c->buffer;
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
     FormOptions condOpts = opts;
     FormOptions branchOpts = opts;
     Slot left, right, condition;
@@ -788,10 +786,7 @@ static Slot compile_if(GstCompiler *c, FormOptions opts, GstArray *form) {
     /* Mark where the buffer is now so we can write the jump
      * length later */
     countAtJumpIf = buffer->count;
-    /* Write jump instruction. Will later be replaced with correct index. */
-    gst_buffer_push_u16(c->vm, buffer, GST_OP_JIF);
-    gst_buffer_push_u16(c->vm, buffer, condition.index);
-    gst_buffer_push_u32(c->vm, buffer, 0);
+    buffer->count += sizeof(int32_t) + 2 * sizeof(uint16_t);
     /* Configure branch form options */
     branchOpts.canChoose = 0;
     branchOpts.target = condition.index;
@@ -803,8 +798,7 @@ static Slot compile_if(GstCompiler *c, FormOptions opts, GstArray *form) {
         /* If we need to jump again, do so */
         if (form->count == 4) {
             countAtJump = buffer->count;
-            gst_buffer_push_u16(c->vm, buffer, GST_OP_JMP);
-            gst_buffer_push_u32(c->vm, buffer, 0);
+            buffer->count += sizeof(int32_t) + sizeof(uint16_t);
         }
     }
     compiler_drop_slot(c, scope, left);
@@ -813,7 +807,7 @@ static Slot compile_if(GstCompiler *c, FormOptions opts, GstArray *form) {
     buffer->count = countAtJumpIf;
     gst_buffer_push_u16(c->vm, buffer, GST_OP_JIF);
     gst_buffer_push_u16(c->vm, buffer, condition.index);
-    gst_buffer_push_u32(c->vm, buffer, (countAfterFirstBranch - countAtJumpIf) / 2);
+    gst_buffer_push_i32(c->vm, buffer, (countAfterFirstBranch - countAtJumpIf) / 2);
     buffer->count = countAfterFirstBranch;
     /* Compile false path */
     if (form->count == 4) {
@@ -828,12 +822,90 @@ static Slot compile_if(GstCompiler *c, FormOptions opts, GstArray *form) {
         countAfterFirstBranch = buffer->count;
         buffer->count = countAtJump;
         gst_buffer_push_u16(c->vm, buffer, GST_OP_JMP);
-        gst_buffer_push_u32(c->vm, buffer, (countAfterFirstBranch - countAtJump) / 2);
+        gst_buffer_push_i32(c->vm, buffer, (countAfterFirstBranch - countAtJump) / 2);
         buffer->count = countAfterFirstBranch;
     }
     if (opts.isTail)
         condition.hasReturned = 1;
     return condition;
+}
+
+/* Special to throw an error */
+static Slot compile_error(GstCompiler *c, FormOptions opts, GstArray *form) {
+    GstBuffer *buffer = c->buffer;
+    Slot ret;
+    GstValue x;
+    if (form->count != 2)
+        c_error(c, "error takes exactly 1 argument");
+    x = form->data[1];
+    ret = compiler_realize_slot(c, compile_value(c, opts, x));
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_ERR);
+    gst_buffer_push_u16(c->vm, buffer, ret.index);
+    return nil_slot();
+}
+
+/* Try catch special */
+static Slot compile_try(GstCompiler *c, FormOptions opts, GstArray *form) {
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
+    Slot body;
+    uint16_t errorIndex;
+    uint32_t countAtTry, countTemp, countAtJump;
+    /* Check argument count */
+    if (form->count < 3 || form->count > 4)
+        c_error(c, "try takes either 2 or 3 arguments");
+    /* Check for symbol to bind error to */
+    if (form->data[1].type != GST_STRING)
+        c_error(c, "expected symbol at start of try");
+    /* Add subscope for error variable */
+    GstScope *subScope = compiler_push_scope(c, 1);
+    errorIndex = compiler_declare_symbol(c, subScope, form->data[1]);
+   	/* Leave space for try instruction */
+   	countAtTry = buffer->count;
+    buffer->count += sizeof(uint32_t) + 2 * sizeof(uint16_t);
+    /* Compile the body */
+    body = compile_value(c, opts, form->data[2]);
+    if (opts.isTail) {
+        compiler_return(c, body);
+    } else {
+        /* If we need to jump over the catch, do so */
+        if (form->count == 4) {
+            countAtJump = buffer->count;
+            buffer->count += sizeof(int32_t) + sizeof(uint16_t);
+        }
+    }
+    /* Reinsert try jump with correct index */
+    countTemp = buffer->count;
+    buffer->count = countAtTry;
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_TRY);
+    gst_buffer_push_u16(c->vm, buffer, errorIndex);
+    gst_buffer_push_i32(c->vm, buffer, (countTemp - countAtTry) / 2);
+    buffer->count = countTemp;
+    /* Compile catch path */
+    if (form->count == 4) {
+        Slot catch;
+        countAtJump = buffer->count;
+        catch = compile_value(c, opts, form->data[3]);
+        if (opts.isTail) compiler_return(c, catch);
+        compiler_drop_slot(c, scope, catch);
+    } else if (opts.isTail) {
+        compiler_return(c, nil_slot());
+    }
+    /* Reset the second jump length */
+    if (!opts.isTail && form->count == 4) {
+        countTemp = buffer->count;
+        buffer->count = countAtJump;
+        gst_buffer_push_u16(c->vm, buffer, GST_OP_JMP);
+        gst_buffer_push_i32(c->vm, buffer, (countTemp - countAtJump) / 2);
+        buffer->count = countTemp;
+    }
+    /* Untry */
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_UTY);
+    /* Pop the error scope */
+    compiler_pop_scope(c);
+    if (opts.isTail)
+        body.hasReturned = 1;
+    return body;
 }
 
 /* While special */
@@ -891,7 +963,7 @@ static Slot compile_quote(GstCompiler *c, FormOptions opts, GstArray *form) {
     Slot ret;
     uint16_t literalIndex;
     if (form->count != 2)
-        c_error(c, "Quote takes exactly 1 argument.");
+        c_error(c, "quote takes exactly 1 argument");
     GstValue x = form->data[1];
     if (x.type == GST_NIL ||
             x.type == GST_BOOLEAN ||
@@ -969,6 +1041,16 @@ static SpecialFormHelper get_special(GstArray *form) {
 					return compile_array;
         	    }
     	    }
+    	case 'e':
+    		{
+				if (gst_string_length(name) == 5 &&
+				    	name[1] == 'r' &&
+				    	name[2] == 'r' &&
+				    	name[3] == 'o' &&
+				    	name[4] == 'r') {
+					return compile_error;
+		    	}
+    		}
         case 'g':
             {
 				if (gst_string_length(name) == 3 &&
@@ -1038,6 +1120,14 @@ static SpecialFormHelper get_special(GstArray *form) {
                 }
             }
             break;
+        case 't':
+            {
+                if (gst_string_length(name) == 3 &&
+                        name[1] == 'r' &&
+                        name[2] == 'y') {
+                    return compile_try;
+                }
+            }
         case 'w':
             {
                 if (gst_string_length(name) == 5 &&

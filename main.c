@@ -87,14 +87,20 @@ void debugRepl() {
         }
 
         /* Print asm */
-        printf("\n");
+/*        printf("\n");
         gst_dasm_function(stdout, func.data.function);
-        printf("\n");
+        printf("\n");*/
 
         /* Execute function */
         gst_load(&vm, func);
         if (gst_start(&vm)) {
-            printf("VM error: %s\n", vm.error);
+            if (vm.crash) {
+				printf("VM crash: %s\n", vm.crash);
+            } else {
+                printf("VM error: ");
+                string_put(gst_to_string(&vm, vm.error));
+                printf("\n");
+            }
             reader = buffer;
             buffer[0] = 0;
             continue;

@@ -160,9 +160,10 @@ struct Gst {
     GstValue *base;
     GstStackFrame *frame;
     /* Return state */
-    const char *error;
+    const char *crash;
     jmp_buf jump;
-    GstValue ret; /* Returned value from VMStart */
+    GstValue error;
+    GstValue ret; /* Returned value from VMStart. Also holds errors. */
     /* Object definitions */
     GstValue metas[GST_OBJECT];
 };
@@ -233,7 +234,10 @@ enum GstOpCode {
     GST_OP_DVM,        /* 0x001f */
     GST_OP_RTN,        /* 0x0020 */
     GST_OP_SET,        /* 0x0021 */
-    GST_OP_GET         /* 0x0022 */
+    GST_OP_GET,        /* 0x0022 */
+	GST_OP_ERR,        /* 0x0023 */
+	GST_OP_TRY,        /* 0x0024 */
+	GST_OP_UTY         /* 0x0025 */
 };
 
 #endif
