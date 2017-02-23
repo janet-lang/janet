@@ -5,6 +5,11 @@
 #include "ds.h"
 #include "vm.h"
 
+/* Boolean truth definition */
+int gst_truthy(GstValue v) {
+    return v.type != GST_NIL && !(v.type == GST_BOOLEAN && !v.data.boolean);
+}
+
 static uint8_t * load_cstring(Gst *vm, const char *string, uint32_t len) {
     uint8_t *data = gst_alloc(vm, len + 2 * sizeof(uint32_t));
     data += 2 * sizeof(uint32_t);
@@ -343,14 +348,5 @@ void gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
         break;
     default:
         gst_error(vm, "Cannot set.");
-	}
-}
-
-/* Get the meta value associated with a value */
-GstValue gst_meta(Gst *vm, GstValue x) {
-	switch (x.type) {
-		default: return vm->metas[x.type];
-        case GST_OBJECT:
-            return x.data.object->meta;
 	}
 }

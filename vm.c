@@ -4,310 +4,13 @@
 #include "vm.h"
 #include "value.h"
 #include "ds.h"
+#include "gc.h"
+#include "thread.h"
 
-static const char OOM[] = "out of memory";
-static const char NO_UPVALUE[] = "no upvalue";
-static const char EXPECTED_FUNCTION[] = "expected function";
-static const char VMS_EXPECTED_NUMBER_ROP[] = "expected right operand to be number";
-static const char VMS_EXPECTED_NUMBER_LOP[] = "expected left operand to be number";
-
-/* The size of a StackFrame in units of Values. */
-#define FRAME_SIZE ((sizeof(GstStackFrame) + sizeof(GstValue) - 1) / sizeof(GstValue))
-
-/* Get the stack frame pointer for a thread */
-static GstStackFrame *thread_frame(GstThread * thread) {
-    return (GstStackFrame *)(thread->data + thread->count - FRAME_SIZE);
-}
-
-/* Ensure that a thread has enough space in it */
-static void thread_ensure(Gst *vm, GstThread *thread, uint32_t size) {
-	if (size > thread->capacity) {
-    	uint32_t newCap = size * 2;
-		GstValue *newData = gst_alloc(vm, sizeof(GstValue) * newCap);
-		memcpy(newData, thread->data, thread->capacity * sizeof(GstValue));
-		thread->data = newData;
-		thread->capacity = newCap;
-	}
-}
-
-/* Push a stack frame onto a thread */
-static void thread_push(Gst *vm, GstThread *thread, GstValue callee, uint32_t size) {
-    uint16_t oldSize;
-    uint32_t nextCount, i;
-    GstStackFrame *frame;
-    if (thread->count) {
-        frame = thread_frame(thread);
-        oldSize = frame->size;
-    } else {
-        oldSize = 0;
-    }
-    nextCount = thread->count + oldSize + FRAME_SIZE;
-    thread_ensure(vm, thread, nextCount + size);
-    thread->count = nextCount;
-    /* Ensure values start out as nil so as to not confuse
-     * the garabage collector */
-    for (i = nextCount; i < nextCount + size; ++i)
-        thread->data[i].type = GST_NIL;
-    vm->base = thread->data + thread->count;
-    vm->frame = frame = (GstStackFrame *)(vm->base - FRAME_SIZE);
-    /* Set up the new stack frame */
-    frame->prevSize = oldSize;
-    frame->size = size;
-    frame->env = NULL;
-    frame->callee = callee;
-    frame->errorJump = NULL;
-}
-
-/* Copy the current function stack to the current closure
-   environment. Call when exiting function with closures. */
-static void thread_split_env(Gst *vm) {
-    GstStackFrame *frame = vm->frame;
-    GstFuncEnv *env = frame->env;
-    /* Check for closures */
-    if (env) {
-        GstThread *thread = vm->thread;
-        uint32_t size = frame->size;
-        env->thread = NULL;
-        env->stackOffset = size;
-        env->values = gst_alloc(vm, sizeof(GstValue) * size);
-        memcpy(env->values, thread->data + thread->count, size * sizeof(GstValue));
-    }
-}
-
-/* Pop the top-most stack frame from stack */
-static void thread_pop(Gst *vm) {
-    GstThread *thread = vm->thread;
-    GstStackFrame *frame = vm->frame;
-    uint32_t delta = FRAME_SIZE + frame->prevSize;
-    if (thread->count) {
-        thread_split_env(vm);
-    } else {
-        gst_crash(vm, "stack underflow");
-    }
-    thread->count -= delta;
-    vm->base -= delta;
-    vm->frame = (GstStackFrame *)(vm->base - FRAME_SIZE);
-}
-
-
-/* The metadata header associated with an allocated block of memory */
-#define gc_header(mem) ((GCMemoryHeader *)(mem) - 1)
-
-/* Memory header struct. Node of a linked list of memory blocks. */
-typedef struct GCMemoryHeader GCMemoryHeader;
-struct GCMemoryHeader {
-    GCMemoryHeader * next;
-    uint32_t color : 1;
-};
-
-/* Forward declaration */
-static void gst_mark(Gst *vm, GstValue *x);
-
-/* Helper to mark function environments */
-static void gst_mark_funcenv(Gst *vm, GstFuncEnv *env) {
-    if (gc_header(env)->color != vm->black) {
-        GstValue temp;
-        gc_header(env)->color = vm->black;
-        if (env->thread) {
-            temp.type = GST_THREAD;
-            temp.data.thread = env->thread;
-            gst_mark(vm, &temp);
-        }
-        if (env->values) {
-            uint32_t count = env->stackOffset;
-            uint32_t i;
-            gc_header(env->values)->color = vm->black;
-            for (i = 0; i < count; ++i)
-                gst_mark(vm, env->values + i);
-        }
-    }
-}
-
-/* GC helper to mark a FuncDef */
-static void gst_mark_funcdef(Gst *vm, GstFuncDef *def) {
-    if (gc_header(def)->color != vm->black) {
-        gc_header(def)->color = vm->black;
-        gc_header(def->byteCode)->color = vm->black;
-        uint32_t count, i;
-        if (def->literals) {
-            count = def->literalsLen;
-            gc_header(def->literals)->color = vm->black;
-            for (i = 0; i < count; ++i) {
-                /* If the literal is a NIL type, it actually
-                 * contains a FuncDef */
-               	if (def->literals[i].type == GST_NIL) {
-					gst_mark_funcdef(vm, (GstFuncDef *) def->literals[i].data.pointer);
-               	} else {
-                    gst_mark(vm, def->literals + i);
-               	}
-            }
-        }
-    }
-}
-
-/* Helper to mark a stack frame. Returns the next frame. */
-static GstStackFrame *gst_mark_stackframe(Gst *vm, GstStackFrame *frame) {
-    uint32_t i;
-    GstValue *stack = (GstValue *)frame + FRAME_SIZE;
-    gst_mark(vm, &frame->callee);
-    if (frame->env)
-        gst_mark_funcenv(vm, frame->env);
-    for (i = 0; i < frame->size; ++i)
-        gst_mark(vm, stack + i);
-    return (GstStackFrame *)(stack + frame->size);
-}
-
-/* Mark allocated memory associated with a value. This is
- * the main function for doing the garbage collection mark phase. */
-static void gst_mark(Gst *vm, GstValue *x) {
-    switch (x->type) {
-        case GST_NIL:
-        case GST_BOOLEAN:
-        case GST_NUMBER:
-        case GST_CFUNCTION:
-            break;
-
-        case GST_STRING:
-            gc_header(gst_string_raw(x->data.string))->color = vm->black;
-            break;
-
-        case GST_BYTEBUFFER:
-            gc_header(x->data.buffer)->color = vm->black;
-            gc_header(x->data.buffer->data)->color = vm->black;
-            break;
-
-        case GST_ARRAY:
-            if (gc_header(x->data.array)->color != vm->black) {
-                uint32_t i, count;
-                count = x->data.array->count;
-                gc_header(x->data.array)->color = vm->black;
-                gc_header(x->data.array->data)->color = vm->black;
-                for (i = 0; i < count; ++i)
-                    gst_mark(vm, x->data.array->data + i);
-            }
-            break;
-
-        case GST_THREAD:
-            if (gc_header(x->data.thread)->color != vm->black) {
-                GstThread *thread = x->data.thread;
-                GstStackFrame *frame = (GstStackFrame *)thread->data;
-                GstStackFrame *end = thread_frame(thread);
-                gc_header(thread)->color = vm->black;
-                gc_header(thread->data)->color = vm->black;
-                while (frame <= end)
-                    frame = gst_mark_stackframe(vm, frame);
-            }
-            break;
-
-        case GST_FUNCTION:
-            if (gc_header(x->data.function)->color != vm->black) {
-                GstFunction *f = x->data.function;
-                gc_header(f)->color = vm->black;
-                gst_mark_funcdef(vm, f->def);
-                if (f->env)
-                    gst_mark_funcenv(vm, f->env);
-                if (f->parent) {
-                    GstValue temp;
-                    temp.type = GST_FUNCTION;
-                    temp.data.function = f->parent;
-                    gst_mark(vm, &temp);
-                }
-            }
-            break;
-
-        case GST_OBJECT:
-            if (gc_header(x->data.object)->color != vm->black) {
-                uint32_t i;
-                GstBucket *bucket;
-                gc_header(x->data.object)->color = vm->black;
-                gc_header(x->data.object->buckets)->color = vm->black;
-                for (i = 0; i < x->data.object->capacity; ++i) {
-					bucket = x->data.object->buckets[i];
-					while (bucket) {
-    					gc_header(bucket)->color = vm->black;
-						gst_mark(vm, &bucket->key);
-						gst_mark(vm, &bucket->value);
-						bucket = bucket->next;
-					}
-                }
-            }
-            break;
-
-    }
-
-}
-
-/* Iterate over all allocated memory, and free memory that is not
- * marked as reachable. Flip the gc color flag for next sweep. */
-static void gst_sweep(Gst *vm) {
-    GCMemoryHeader *previous = NULL;
-    GCMemoryHeader *current = vm->blocks;
-    GCMemoryHeader *next;
-    while (current) {
-        next = current->next;
-        if (current->color != vm->black) {
-            if (previous) {
-                previous->next = next;
-            } else {
-                vm->blocks = next;
-            }
-            free(current);
-        } else {
-            previous = current;
-        }
-        current = next;
-    }
-    /* Rotate flag */
-    vm->black = !vm->black;
-}
-
-/* Prepare a memory block */
-static void *gst_alloc_prepare(Gst *vm, char *rawBlock, uint32_t size) {
-    GCMemoryHeader *mdata;
-    if (rawBlock == NULL) {
-        gst_crash(vm, OOM);
-    }
-    vm->nextCollection += size;
-    mdata = (GCMemoryHeader *)rawBlock;
-    mdata->next = vm->blocks;
-    vm->blocks = mdata;
-    mdata->color = !vm->black;
-    return rawBlock + sizeof(GCMemoryHeader);
-}
-
-/* Allocate some memory that is tracked for garbage collection */
-void *gst_alloc(Gst *vm, uint32_t size) {
-    uint32_t totalSize = size + sizeof(GCMemoryHeader);
-    return gst_alloc_prepare(vm, malloc(totalSize), totalSize);
-}
-
-/* Allocate some zeroed memory that is tracked for garbage collection */
-void *gst_zalloc(Gst *vm, uint32_t size) {
-    uint32_t totalSize = size + sizeof(GCMemoryHeader);
-    return gst_alloc_prepare(vm, calloc(1, totalSize), totalSize);
-}
-
-/* Run garbage collection */
-void gst_collect(Gst *vm) {
-    if (vm->lock > 0) return;
-    /* Thread can be null */
-    if (vm->thread) {
-        GstValue thread;
-        thread.type = GST_THREAD;
-        thread.data.thread = vm->thread;
-        gst_mark(vm, &thread);
-    }
-    gst_mark(vm, &vm->ret);
-    gst_mark(vm, &vm->error);
-    gst_sweep(vm);
-    vm->nextCollection = 0;
-}
-
-/* Run garbage collection if needed */
-void gst_maybe_collect(Gst *vm) {
-    if (vm->nextCollection >= vm->memoryInterval)
-        gst_collect(vm);
-}
+static const char GST_NO_UPVALUE[] = "no upvalue";
+static const char GST_EXPECTED_FUNCTION[] = "expected function";
+static const char GST_EXPECTED_NUMBER_ROP[] = "expected right operand to be number";
+static const char GST_EXPECTED_NUMBER_LOP[] = "expected left operand to be number";
 
 /* Get an upvalue */
 static GstValue *gst_vm_upvalue_location(Gst *vm, GstFunction *fn, uint16_t level, uint16_t index) {
@@ -317,7 +20,7 @@ static GstValue *gst_vm_upvalue_location(Gst *vm, GstFunction *fn, uint16_t leve
         return vm->base + index;
     while (fn && --level)
         fn = fn->parent;
-    gst_assert(vm, fn, NO_UPVALUE);
+    gst_assert(vm, fn, GST_NO_UPVALUE);
     env = fn->env;
     if (env->thread)
         stack = env->thread->data + env->stackOffset;
@@ -329,19 +32,14 @@ static GstValue *gst_vm_upvalue_location(Gst *vm, GstFunction *fn, uint16_t leve
 /* Get a literal */
 static GstValue gst_vm_literal(Gst *vm, GstFunction *fn, uint16_t index) {
     if (index > fn->def->literalsLen) {
-        gst_error(vm, NO_UPVALUE);
+        gst_error(vm, GST_NO_UPVALUE);
     }
     return fn->def->literals[index];
 }
 
-/* Boolean truth definition */
-static int truthy(GstValue v) {
-    return v.type != GST_NIL && !(v.type == GST_BOOLEAN && !v.data.boolean);
-}
-
 /* Return from the vm */
 static void gst_vm_return(Gst *vm, GstValue ret) {
-    thread_pop(vm);
+    gst_thread_pop(vm);
     if (vm->thread->count == 0) {
         gst_exit(vm, ret);
     }
@@ -361,11 +59,11 @@ static void gst_vm_call(Gst *vm) {
     vm->frame->ret = vm->pc[2];
     if (callee.type == GST_FUNCTION) {
         GstFunction *fn = callee.data.function;
-        thread_push(vm, thread, callee, fn->def->locals);
+        gst_thread_push(vm, thread, callee, fn->def->locals);
     } else if (callee.type == GST_CFUNCTION) {
-        thread_push(vm, thread, callee, arity);
+        gst_thread_push(vm, thread, callee, arity);
     } else {
-        gst_error(vm, EXPECTED_FUNCTION);
+        gst_error(vm, GST_EXPECTED_FUNCTION);
     }
     oldBase = thread->data + oldCount;
     if (callee.type == GST_CFUNCTION) {
@@ -393,18 +91,18 @@ static void gst_vm_tailcall(Gst *vm) {
     uint16_t newFrameSize, currentFrameSize;
     uint32_t i;
     /* Check for closures */
-    thread_split_env(vm);
+    gst_thread_split_env(vm);
     if (callee.type == GST_CFUNCTION) {
         newFrameSize = arity;
     } else if (callee.type == GST_FUNCTION) {
         GstFunction * f = callee.data.function;
         newFrameSize = f->def->locals;
     } else {
-        gst_error(vm, EXPECTED_FUNCTION);
+        gst_error(vm, GST_EXPECTED_FUNCTION);
     }
     /* Ensure stack has enough space for copies of arguments */
     currentFrameSize = vm->frame->size;
-    thread_ensure(vm, thread, thread->count + currentFrameSize + arity);
+    gst_thread_ensure(vm, thread, thread->count + currentFrameSize + arity);
     vm->base = thread->data + thread->count;
     /* Copy the arguments into the extra space */
     for (i = 0; i < arity; ++i)
@@ -432,7 +130,7 @@ static void gst_vm_tailcall(Gst *vm) {
 static GstValue gst_vm_closure(Gst *vm, uint16_t literal) {
     GstThread *thread = vm->thread;
     if (vm->frame->callee.type != GST_FUNCTION) {
-        gst_error(vm, EXPECTED_FUNCTION);
+        gst_error(vm, GST_EXPECTED_FUNCTION);
     } else {
         GstValue constant, ret;
         GstFunction *fn, *current;
@@ -471,9 +169,9 @@ int gst_start(Gst *vm) {
                 vm->lock = 0;
                 return 0;
             } else if (n == 2) {
-                /* Error. Handling TODO. */
+                /* Error. */
                 while (vm->thread->count && !vm->frame->errorJump) {
-					thread_pop(vm);
+					gst_thread_pop(vm);
                 }
                 if (vm->thread->count == 0)
                     return n;
@@ -499,8 +197,8 @@ int gst_start(Gst *vm) {
         #define DO_BINARY_MATH(op) \
             v1 = vm->base[vm->pc[2]]; \
             v2 = vm->base[vm->pc[3]]; \
-            gst_assert(vm, v1.type == GST_NUMBER, VMS_EXPECTED_NUMBER_LOP); \
-            gst_assert(vm, v2.type == GST_NUMBER, VMS_EXPECTED_NUMBER_ROP); \
+            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP); \
+            gst_assert(vm, v2.type == GST_NUMBER, GST_EXPECTED_NUMBER_ROP); \
             temp.type = GST_NUMBER; \
             temp.data.number = v1.data.number op v2.data.number; \
             vm->base[vm->pc[1]] = temp; \
@@ -523,7 +221,7 @@ int gst_start(Gst *vm) {
 
         case GST_OP_NOT: /* Boolean unary (Boolean not) */
             temp.type = GST_BOOLEAN;
-            temp.data.boolean = !truthy(vm->base[vm->pc[2]]);
+            temp.data.boolean = !gst_truthy(vm->base[vm->pc[2]]);
             vm->base[vm->pc[1]] = temp;
             vm->pc += 3;
             break;
@@ -571,13 +269,13 @@ int gst_start(Gst *vm) {
 
         case GST_OP_UPV: /* Load Up Value */
             temp = vm->frame->callee;
-            gst_assert(vm, temp.type == GST_FUNCTION, EXPECTED_FUNCTION);
+            gst_assert(vm, temp.type == GST_FUNCTION, GST_EXPECTED_FUNCTION);
             vm->base[vm->pc[1]] = *gst_vm_upvalue_location(vm, temp.data.function, vm->pc[2], vm->pc[3]);
             vm->pc += 4;
             break;
 
         case GST_OP_JIF: /* Jump If */
-            if (truthy(vm->base[vm->pc[1]])) {
+            if (gst_truthy(vm->base[vm->pc[1]])) {
                 vm->pc += 4;
             } else {
                 vm->pc += *((int32_t *)(vm->pc + 2));
@@ -598,14 +296,14 @@ int gst_start(Gst *vm) {
 
         case GST_OP_SUV: /* Set Up Value */
             temp = vm->frame->callee;
-            gst_assert(vm, temp.type == GST_FUNCTION, EXPECTED_FUNCTION);
+            gst_assert(vm, temp.type == GST_FUNCTION, GST_EXPECTED_FUNCTION);
             *gst_vm_upvalue_location(vm, temp.data.function, vm->pc[2], vm->pc[3]) = vm->base[vm->pc[1]];
             vm->pc += 4;
             break;
 
         case GST_OP_CST: /* Load constant value */
             temp = vm->frame->callee;
-            gst_assert(vm, temp.type == GST_FUNCTION, EXPECTED_FUNCTION);
+            gst_assert(vm, temp.type == GST_FUNCTION, GST_EXPECTED_FUNCTION);
             vm->base[vm->pc[1]] = gst_vm_literal(vm, temp.data.function, vm->pc[2]);
             vm->pc += 3;
             break;
@@ -699,7 +397,7 @@ int gst_start(Gst *vm) {
             GstNumber accum = start; \
             for (i = 0; i < count; ++i) { \
                 v1 = vm->base[vm->pc[3 + i]]; \
-                gst_assert(vm, v1.type == GST_NUMBER, "Expected number"); \
+                gst_assert(vm, v1.type == GST_NUMBER, "expected number"); \
                 accum = accum op v1.data.number; \
             } \
             temp.type = GST_NUMBER; \
@@ -762,7 +460,7 @@ int gst_start(Gst *vm) {
         }
 
         /* Move collection only to places that allocate memory */
-        /* This, however, is good for testing */
+        /* This, however, is good for testing to ensure no memory leaks */
         gst_maybe_collect(vm);
     }
 }
@@ -801,7 +499,7 @@ void gst_init(Gst *vm) {
      * a collection pretty much every cycle, which is
      * obviously horrible for performance. It helps ensure
      * there are no memory bugs during dev */
-    vm->memoryInterval = 0;
+    vm->memoryInterval = 2000;
     vm->black = 0;
     vm->lock = 0;
     /* Add thread */
@@ -819,10 +517,10 @@ void gst_load(Gst *vm, GstValue callee) {
     vm->thread = thread;
     if (callee.type == GST_FUNCTION) {
         GstFunction *fn = callee.data.function;
-        thread_push(vm, thread, callee, fn->def->locals);
+        gst_thread_push(vm, thread, callee, fn->def->locals);
         vm->pc = fn->def->byteCode;
     } else if (callee.type == GST_CFUNCTION) {
-        thread_push(vm, thread, callee, 0);
+        gst_thread_push(vm, thread, callee, 0);
         vm->pc = NULL;
     } else {
         return;
@@ -831,11 +529,5 @@ void gst_load(Gst *vm, GstValue callee) {
 
 /* Clear all memory associated with the VM */
 void gst_deinit(Gst *vm) {
-    GCMemoryHeader *current = vm->blocks;
-    while (current) {
-        GCMemoryHeader *next = current->next;
-        free(current);
-        current = next;
-    }
-    vm->blocks = NULL;
+    gst_clear_memory(vm);
 }

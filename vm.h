@@ -7,7 +7,7 @@
 /* Exit from the VM normally */
 #define gst_exit(vm, r) ((vm)->ret = (r), longjmp((vm)->jump, 1))
 
-/* Bail from the VM with an error. */
+/* Bail from the VM with an error string. */
 #define gst_error(vm, e) ((vm)->error = gst_load_cstring((vm), (e)), longjmp((vm)->jump, 2))
 
 /* Crash. Not catchable, unlike error. */

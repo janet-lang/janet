@@ -3,6 +3,9 @@
 
 #include "datatypes.h"
 
+/* Check for boolean truthiness */
+int gst_truthy(GstValue x);
+
 /* Compare two gst values. All gst values are comparable and strictly
  * ordered by default. Return 0 if equal, -1 if x is less than y, and
  * 1 and x is greater than y. */
@@ -25,8 +28,5 @@ uint8_t *gst_to_string(Gst *vm, GstValue x);
 
 /* Generate a hash value for a gst object */
 uint32_t gst_hash(GstValue x);
-
-/* Get the meta value for a given value */
-GstValue gst_meta(Gst *vm, GstValue x); 
 
 #endif /* end of include guard: VALUE_H_1RJPQKFM */

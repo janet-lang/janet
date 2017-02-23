@@ -1,1 +1,10 @@
-(do (:= a 0) (while (< a 10) (:= a (+ a 1)) (print a)) a)
+(do
+
+(:= fib (fn (n)
+	(if (< n 2)
+		1
+		(+ (fib (- n 1)) (fib (- n 2))))))
+
+(print 10)
+(print (fib 33))
+)

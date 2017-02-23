@@ -44,7 +44,7 @@ struct GstParseState {
 /* Get the top ParseState in the parse stack */
 static GstParseState *parser_peek(GstParser *p) {
     if (!p->count) {
-        p_error(p, "Parser stack underflow. (Peek)");
+        p_error(p, "parser stack underflow");
         return NULL;
     }
     return p->data + p->count - 1;
@@ -53,7 +53,7 @@ static GstParseState *parser_peek(GstParser *p) {
 /* Remove the top state from the ParseStack */
 static GstParseState *parser_pop(GstParser * p) {
     if (!p->count) {
-        p_error(p, "Parser stack underflow. (Pop)");
+        p_error(p, "parser stack underflow");
         return NULL;
     }
     return p->data + --p->count;

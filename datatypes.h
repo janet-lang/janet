@@ -164,8 +164,6 @@ struct Gst {
     jmp_buf jump;
     GstValue error;
     GstValue ret; /* Returned value from VMStart. Also holds errors. */
-    /* Object definitions */
-    GstValue metas[GST_OBJECT];
 };
 
 struct GstParser {

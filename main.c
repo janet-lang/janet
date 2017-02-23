@@ -7,11 +7,11 @@
 #include "value.h"
 #include "disasm.h"
 
-void string_put(uint8_t * string) {
+void string_put(FILE *out, uint8_t * string) {
     uint32_t i;
     uint32_t len = gst_string_length(string);
     for (i = 0; i < len; ++i)
-        fputc(string[i], stdout);
+        fputc(string[i], out);
 }
 
 /* Test c function */
@@ -20,7 +20,7 @@ GstValue print(Gst *vm) {
     GstValue nil;
     count = gst_count_args(vm);
     for (j = 0; j < count; ++j) {
-        string_put(gst_to_string(vm, gst_arg(vm, j)));
+        string_put(stdout, gst_to_string(vm, gst_arg(vm, j)));
         fputc('\n', stdout);
     }
     nil.type = GST_NIL;
@@ -28,7 +28,7 @@ GstValue print(Gst *vm) {
 }
 
 /* A simple repl for debugging */
-void debugRepl() {
+void debug_repl(FILE *in, FILE *out) {
     char buffer[1024] = {0};
     const char * reader = buffer;
     GstValue func;
@@ -47,8 +47,9 @@ void debugRepl() {
         while (p.status == GST_PARSER_PENDING) {
             /* Get some input if we are done */
             if (*reader == '\0') {
-                printf(">> ");
-                if (!fgets(buffer, sizeof(buffer), stdin)) {
+                if (out)
+                    fprintf(out, ">> ");
+                if (!fgets(buffer, sizeof(buffer), in)) {
                     return;
                 }
                 p.index = 0;
@@ -60,13 +61,15 @@ void debugRepl() {
         /* Check for parsing errors */
         if (p.error) {
             unsigned i;
-            printf("\n");
-            printf("%s\n", buffer);
-            for (i = 0; i < p.index; ++i) {
-                printf(" ");
+            if (out) {
+                fprintf(out, "\n");
+                fprintf(out, "%s\n", buffer);
+                for (i = 0; i < p.index; ++i) {
+                    fprintf(out, " ");
+                }
+                fprintf(out, "^\n");
+                fprintf(out, "\nParse error: %s\n", p.error);
             }
-            printf("^\n");
-            printf("\nParse error: %s\n", p.error);
             reader = buffer; /* Flush the input buffer */
             buffer[0] = '\0';
             continue;
@@ -80,33 +83,39 @@ void debugRepl() {
 
         /* Check for compilation errors */
         if (c.error) {
-            printf("Compiler error: %s\n", c.error);
+            if (out) {
+                fprintf(out, "Compiler error: %s\n", c.error);
+            }
             reader = buffer;
             buffer[0] = 0;
             continue;
         }
 
         /* Print asm */
-/*        printf("\n");
-        gst_dasm_function(stdout, func.data.function);
-        printf("\n");*/
+        if (out) {
+            fprintf(out, "\n");
+            gst_dasm_function(out, func.data.function);
+            fprintf(out, "\n");
+        }
 
         /* Execute function */
         gst_load(&vm, func);
         if (gst_start(&vm)) {
-            if (vm.crash) {
-				printf("VM crash: %s\n", vm.crash);
-            } else {
-                printf("VM error: ");
-                string_put(gst_to_string(&vm, vm.error));
-                printf("\n");
+            if (out) {
+                if (vm.crash) {
+                    fprintf(out, "VM crash: %s\n", vm.crash);
+                } else {
+                    fprintf(out, "VM error: ");
+                    string_put(out, gst_to_string(&vm, vm.error));
+                    printf("\n");
+                }
             }
             reader = buffer;
             buffer[0] = 0;
             continue;
-        } else {
-            string_put(gst_to_string(&vm, vm.ret));
-            printf("\n");
+        } else if (out) {
+            string_put(out, gst_to_string(&vm, vm.ret));
+            fprintf(out, "\n");
         }
     }
 
@@ -114,6 +123,6 @@ void debugRepl() {
 
 int main() {
     printf("Super cool interpreter v0.0\n");
-    debugRepl();
+    debug_repl(stdin, stdout);
     return 0;
 }
