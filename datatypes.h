@@ -77,6 +77,9 @@ struct GstThread {
 	} status;
 };
 
+/* Size of stack frame */
+#define GST_FRAME_SIZE ((sizeof(GstStackFrame) + sizeof(GstValue) + 1) / sizeof(GstValue))
+
 /* A dynamic array type */
 struct GstArray {
     uint32_t count;
@@ -153,12 +156,8 @@ struct Gst {
     uint32_t memoryInterval;
     uint32_t nextCollection;
     uint32_t black : 1;
-    uint32_t lock : 31;
     /* Thread */
-    uint16_t *pc;
     GstThread *thread;
-    GstValue *base;
-    GstStackFrame *frame;
     /* Return state */
     const char *crash;
     jmp_buf jump;
@@ -226,10 +225,6 @@ enum GstOpCode {
     GST_OP_ARR,        /* 0x0019 */
     GST_OP_DIC,        /* 0x001a */
     GST_OP_TCL,        /* 0x001b */
-    GST_OP_ADM,        /* 0x001c */
-    GST_OP_SBM,        /* 0x001d */
-    GST_OP_MUM,        /* 0x001e */
-    GST_OP_DVM,        /* 0x001f */
     GST_OP_RTN,        /* 0x0020 */
     GST_OP_SET,        /* 0x0021 */
     GST_OP_GET,        /* 0x0022 */

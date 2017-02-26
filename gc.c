@@ -1,7 +1,6 @@
 #include "datatypes.h"
 #include "gc.h"
 #include "vm.h"
-#include "thread.h"
 #include <stdlib.h>
 
 /* The metadata header associated with an allocated block of memory */
@@ -102,7 +101,8 @@ void gst_mark(Gst *vm, GstValue *x) {
             if (gc_header(x->data.thread)->color != vm->black) {
                 GstThread *thread = x->data.thread;
                 GstStackFrame *frame = (GstStackFrame *)thread->data;
-                GstStackFrame *end = gst_thread_frame(thread);
+                GstStackFrame *end = (GstStackFrame *)(thread->data +
+                    thread->count - GST_FRAME_SIZE);
                 gc_header(thread)->color = vm->black;
                 gc_header(thread->data)->color = vm->black;
                 while (frame <= end)
@@ -143,9 +143,7 @@ void gst_mark(Gst *vm, GstValue *x) {
                 }
             }
             break;
-
     }
-
 }
 
 /* Iterate over all allocated memory, and free memory that is not
@@ -200,7 +198,6 @@ void *gst_zalloc(Gst *vm, uint32_t size) {
 
 /* Run garbage collection */
 void gst_collect(Gst *vm) {
-    if (vm->lock > 0) return;
     /* Thread can be null */
     if (vm->thread) {
         GstValue thread;

@@ -117,7 +117,7 @@ static GstScope *compiler_push_scope(GstCompiler *c, int sameFunction) {
     }
     if (sameFunction) {
         if (!c->tail) {
-            c_error(c, "Cannot inherit scope when root scope");
+            c_error(c, "cannot inherit scope when root scope");
         }
         scope->nextLocal = c->tail->nextLocal;
         scope->literals = c->tail->literals;
@@ -135,7 +135,7 @@ static GstScope *compiler_push_scope(GstCompiler *c, int sameFunction) {
 static void compiler_pop_scope(GstCompiler *c) {
     GstScope *last = c->tail;
     if (last == NULL) {
-        c_error(c, "No scope to pop.");
+        c_error(c, "no scope to pop");
     } else {
         if (last->nextLocal > last->frameSize) {
             last->frameSize = last->nextLocal;
@@ -154,7 +154,7 @@ static void compiler_pop_scope(GstCompiler *c) {
 static uint16_t compiler_get_local(GstCompiler *c, GstScope *scope) {
     if (scope->heapSize == 0) {
         if (scope->nextLocal + 1 == 0) {
-            c_error(c, "Too many local variables. Try splitting up your functions :)");
+            c_error(c, "too many local variables");
         }
         return scope->nextLocal++;
     } else {
@@ -266,7 +266,7 @@ static void compiler_tracker_write(GstCompiler *c, SlotTracker *tracker, int rev
         else
             s = tracker->slots[i];
         if (s.isNil)
-            c_error(c, "Trying to write nil slot.");
+            c_error(c, "trying to write nil slot");
         gst_buffer_push_u16(c->vm, buffer, s.index);
     }
 }
@@ -320,7 +320,7 @@ static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValu
     GstValue x;
     uint16_t target;
     if (sym.type != GST_STRING)
-        c_error(c, "Expected symbol");
+        c_error(c, "expected symbol");
     target = compiler_get_local(c, scope);
     x.type = GST_NUMBER;
     x.data.number = target;
@@ -406,7 +406,7 @@ static Slot compile_nonref_type(GstCompiler *c, FormOptions opts, GstValue x) {
             gst_buffer_push_number(c->vm, buffer, number);
         }
     } else {
-        c_error(c, "Expected boolean, nil, or number type.");
+        c_error(c, "expected boolean, nil, or number type");
     }
     return ret;
 }
@@ -420,7 +420,7 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
     Slot ret;
     if (opts.resultUnused) return nil_slot();
     if (!symbol_resolve(scope, sym, &level, &index))
-        c_error(c, "Undefined symbol");
+        c_error(c, "undefined symbol");
     if (level > 0) {
         /* We have an upvalue */
         ret = compiler_get_target(c, opts);
@@ -499,7 +499,7 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstArray *form,
         /* Write the correct opcode */
         if (form->count < 2) {
             if (op0 < 0) {
-                if (opn < 0) c_error(c, "This operator does not take 0 arguments.");
+                if (opn < 0) c_error(c, "this operator does not take 0 arguments");
                 goto opn;
             } else {
                 gst_buffer_push_u16(c->vm, buffer, op0);
@@ -507,7 +507,7 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstArray *form,
             }
         } else if (form->count == 2) {
             if (op1 < 0) {
-                if (opn < 0) c_error(c, "This operator does not take 1 argument.");
+                if (opn < 0) c_error(c, "this operator does not take 1 argument");
                 goto opn;
             } else {
                 gst_buffer_push_u16(c->vm, buffer, op1);
@@ -515,7 +515,7 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstArray *form,
             }
         } else if (form->count == 3) {
             if (op2 < 0) {
-                if (opn < 0) c_error(c, "This operator does not take 2 arguments.");
+                if (opn < 0) c_error(c, "this operator does not take 2 arguments");
                 goto opn;
             } else {
                 gst_buffer_push_u16(c->vm, buffer, op2);
@@ -523,7 +523,7 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstArray *form,
             }
         } else {
             opn:
-            if (opn < 0) c_error(c, "This operator does not take n arguments.");
+            if (opn < 0) c_error(c, "this operator does not take n arguments");
             gst_buffer_push_u16(c->vm, buffer, opn);
             gst_buffer_push_u16(c->vm, buffer, ret.index);
             gst_buffer_push_u16(c->vm, buffer, form->count - 1);
@@ -536,16 +536,16 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstArray *form,
 
 /* Math specials */
 static Slot compile_addition(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_LD0, -1, GST_OP_ADD, GST_OP_ADM, 0);
+    return compile_operator(c, opts, form, GST_OP_LD0, -1, GST_OP_ADD, -1, 0);
 }
 static Slot compile_subtraction(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_LD0, -1, GST_OP_SUB, GST_OP_SBM, 0);
+    return compile_operator(c, opts, form, GST_OP_LD0, -1, GST_OP_SUB, -1, 0);
 }
 static Slot compile_multiplication(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_LD1, -1, GST_OP_MUL, GST_OP_MUM, 0);
+    return compile_operator(c, opts, form, GST_OP_LD1, -1, GST_OP_MUL, -1, 0);
 }
 static Slot compile_division(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_LD1, -1, GST_OP_DIV, GST_OP_DVM, 0);
+    return compile_operator(c, opts, form, GST_OP_LD1, -1, GST_OP_DIV, -1, 0);
 }
 static Slot compile_equals(GstCompiler *c, FormOptions opts, GstArray *form) {
     return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_EQL, -1, 0);
@@ -573,7 +573,7 @@ static Slot compile_array(GstCompiler *c, FormOptions opts, GstArray *form) {
 }
 static Slot compile_object(GstCompiler *c, FormOptions opts, GstArray *form) {
     if ((form->count % 2) == 0) {
-        c_error(c, "Dictionary literal requires an even number of arguments");
+        c_error(c, "dictionary literal requires an even number of arguments");
         return nil_slot();
     } else {
     	return compile_operator(c, opts, form, -1, -1, -1, GST_OP_DIC, 0);
@@ -585,7 +585,7 @@ static Slot compile_set(GstCompiler *c, FormOptions opts, GstArray *form) {
     GstBuffer *buffer = c->buffer;
     FormOptions subOpts = form_options_default();
     Slot ds, key, val;
-    if (form->count != 4) c_error(c, "Set expects 4 arguments");
+    if (form->count != 4) c_error(c, "set expects 4 arguments");
     if (opts.resultUnused) {
         ds = compiler_realize_slot(c, compile_value(c, subOpts, form->data[1]));
     } else {
@@ -680,7 +680,7 @@ static GstFuncDef *compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uin
     GstFuncDef *def = gst_alloc(c->vm, sizeof(GstFuncDef));
     /* Create enough space for the new byteCode */
     if (lastNBytes > buffer->count)
-        c_error(c, "Trying to extract more bytes from buffer than in buffer.");
+        c_error(c, "trying to extract more bytes from buffer than in buffer");
     uint8_t * byteCode = gst_alloc(c->vm, lastNBytes);
     def->byteCode = (uint16_t *)byteCode;
     def->byteCodeLen = lastNBytes / 2;
@@ -725,12 +725,12 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, GstArray *form) {
         ++current;
     /* Define the function parameters */
     if (form->data[current].type != GST_ARRAY)
-        c_error(c, "Expected function arguments");
+        c_error(c, "expected function arguments");
     params = form->data[current++].data.array;
     for (i = 0; i < params->count; ++i) {
         GstValue param = params->data[i];
         if (param.type != GST_STRING)
-            c_error(c, "Function parameters should be symbols");
+            c_error(c, "function parameters should be symbols");
         /* The compiler puts the parameter locals
          * in the right place by default - at the beginning
          * of the stack frame. */
@@ -982,7 +982,7 @@ static Slot compile_quote(GstCompiler *c, FormOptions opts, GstArray *form) {
 /* Assignment special */
 static Slot compile_var(GstCompiler *c, FormOptions opts, GstArray *form) {
     if (form->count != 3)
-        c_error(c, "Assignment expects 2 arguments");
+        c_error(c, "assignment expects 2 arguments");
     return compile_assign(c, opts, form->data[1], form->data[2]);
 }
 

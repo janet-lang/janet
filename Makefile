@@ -1,13 +1,13 @@
 # TIL
 
-CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -g -O3
+CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -g
 
 TARGET=interp
 PREFIX=/usr/local
 
 # C sources
-HEADERS=vm.h ds.h compile.h parse.h value.h disasm.h datatypes.h gc.h thread.h
-SOURCES=main.c parse.c value.c vm.c ds.c compile.c disasm.c gc.c thread.c
+HEADERS=vm.h ds.h compile.h parse.h value.h disasm.h datatypes.h gc.h
+SOURCES=main.c parse.c value.c vm.c ds.c compile.c disasm.c gc.c
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 all: $(TARGET)
