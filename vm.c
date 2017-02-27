@@ -56,8 +56,10 @@ int gst_start(Gst *vm) {
                             frame.size * sizeof(GstValue));
                     }
                     stack -= frame.prevSize + GST_FRAME_SIZE;
-                    if (stack <= thread.data)
+                    if (stack <= thread.data) {
+                        thread.count = 0;
                         break;
+                    }
                     frame = *((GstStackFrame *)(stack - GST_FRAME_SIZE));
                 }
                 if (thread.count < GST_FRAME_SIZE)
