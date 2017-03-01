@@ -1,9 +1,8 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "util.h"
 #include "value.h"
 #include "ds.h"
 #include "vm.h"
+#include <stdio.h>
 
 /* Boolean truth definition */
 int gst_truthy(GstValue v) {
@@ -15,7 +14,7 @@ static uint8_t * load_cstring(Gst *vm, const char *string, uint32_t len) {
     data += 2 * sizeof(uint32_t);
     gst_string_hash(data) = 0;
     gst_string_length(data) = len;
-    memcpy(data, string, len);
+    gst_memcpy(data, string, len);
     return data;
 }
 
@@ -30,6 +29,7 @@ static uint8_t * number_to_string(Gst *vm, GstNumber x) {
     static const uint32_t SIZE = 20;
     uint8_t *data = gst_alloc(vm, SIZE + 2 * sizeof(uint32_t));
     data += 2 * sizeof(uint32_t);
+    /* TODO - not depend on stdio */
     snprintf((char *) data, SIZE, "%.17g", x);
     gst_string_hash(data) = 0;
     gst_string_length(data) = strlen((char *) data);

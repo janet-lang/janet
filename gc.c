@@ -1,7 +1,7 @@
 #include "datatypes.h"
 #include "gc.h"
 #include "vm.h"
-#include <stdlib.h>
+#include "util.h"
 
 /* The metadata header associated with an allocated block of memory */
 #define gc_header(mem) ((GCMemoryHeader *)(mem) - 1)
@@ -160,7 +160,7 @@ void gst_sweep(Gst *vm) {
             } else {
                 vm->blocks = next;
             }
-            free(current);
+            gst_raw_free(current);
         } else {
             previous = current;
         }
@@ -187,13 +187,13 @@ static void *gst_alloc_prepare(Gst *vm, char *rawBlock, uint32_t size) {
 /* Allocate some memory that is tracked for garbage collection */
 void *gst_alloc(Gst *vm, uint32_t size) {
     uint32_t totalSize = size + sizeof(GCMemoryHeader);
-    return gst_alloc_prepare(vm, malloc(totalSize), totalSize);
+    return gst_alloc_prepare(vm, gst_raw_alloc(totalSize), totalSize);
 }
 
 /* Allocate some zeroed memory that is tracked for garbage collection */
 void *gst_zalloc(Gst *vm, uint32_t size) {
     uint32_t totalSize = size + sizeof(GCMemoryHeader);
-    return gst_alloc_prepare(vm, calloc(1, totalSize), totalSize);
+    return gst_alloc_prepare(vm, gst_raw_calloc(1, totalSize), totalSize);
 }
 
 /* Run garbage collection */
@@ -222,7 +222,7 @@ void gst_clear_memory(Gst *vm) {
     GCMemoryHeader *current = vm->blocks;
     while (current) {
         GCMemoryHeader *next = current->next;
-        free(current);
+        gst_raw_free(current);
         current = next;
     }
     vm->blocks = NULL;

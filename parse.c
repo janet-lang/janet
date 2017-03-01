@@ -1,7 +1,4 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <setjmp.h>
+#include "util.h"
 #include "datatypes.h"
 #include "ds.h"
 #include "parse.h"

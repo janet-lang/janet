@@ -1,7 +1,7 @@
+#include "util.h"
 #include "ds.h"
 #include "value.h"
 #include "vm.h"
-#include <string.h>
 
 /****/
 /* Buffer functions */
@@ -23,7 +23,7 @@ void gst_buffer_ensure(Gst *vm, GstBuffer *buffer, uint32_t capacity) {
     uint8_t * newData;
     if (capacity <= buffer->capacity) return;
     newData = gst_alloc(vm, capacity * sizeof(uint8_t));
-    memcpy(newData, buffer->data, buffer->count * sizeof(uint8_t));
+    gst_memcpy(newData, buffer->data, buffer->count * sizeof(uint8_t));
     buffer->data = newData;
     buffer->capacity = capacity;
 }
@@ -51,7 +51,7 @@ void gst_buffer_append(Gst *vm, GstBuffer *buffer, uint8_t *string, uint32_t len
     if (newSize > buffer->capacity) {
         gst_buffer_ensure(vm, buffer, 2 * newSize);
     }
-    memcpy(buffer->data + buffer->count, string, length);
+    gst_memcpy(buffer->data + buffer->count, string, length);
     buffer->count = newSize;
 }
 
@@ -61,7 +61,7 @@ uint8_t *gst_buffer_to_string(Gst *vm, GstBuffer *buffer) {
     data += 2 * sizeof(uint32_t);
     gst_string_length(data) = buffer->count;
     gst_string_hash(data) = 0;
-    memcpy(data, buffer->data, buffer->count * sizeof(uint8_t));
+    gst_memcpy(data, buffer->data, buffer->count * sizeof(uint8_t));
     return data;
 }
 
@@ -85,7 +85,7 @@ void gst_array_ensure(Gst *vm, GstArray *array, uint32_t capacity) {
     GstValue *newData;
     if (capacity <= array->capacity) return;
     newData = gst_alloc(vm, capacity * sizeof(GstValue));
-    memcpy(newData, array->data, array->capacity * sizeof(GstValue));
+    gst_memcpy(newData, array->data, array->capacity * sizeof(GstValue));
     array->data = newData;
     array->capacity = capacity;
 }

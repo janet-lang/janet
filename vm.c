@@ -1,7 +1,5 @@
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include "vm.h"
+#include "util.h"
 #include "value.h"
 #include "ds.h"
 #include "gc.h"
@@ -51,7 +49,7 @@ int gst_start(Gst *vm) {
                         frame.env->thread = NULL;
                         frame.env->stackOffset = frame.size;
                         frame.env->values = gst_alloc(vm, sizeof(GstValue) * frame.size);
-                        memcpy(frame.env->values, 
+                        gst_memcpy(frame.env->values, 
                             thread.data + thread.count, 
                             frame.size * sizeof(GstValue));
                     }
@@ -110,20 +108,6 @@ int gst_start(Gst *vm) {
             temp.data.boolean = !gst_truthy(stack[pc[2]]);
             stack[pc[1]] = temp;
             pc += 3;
-            break;
-
-        case GST_OP_LD0: /* Load 0 */
-            temp.type = GST_NUMBER;
-            temp.data.number = 0;
-            stack[pc[1]] = temp;
-            pc += 2;
-            break;
-
-        case GST_OP_LD1: /* Load 1 */
-            temp.type = GST_NUMBER;
-            temp.data.number = 1;
-            stack[pc[1]] = temp;
-            pc += 2;
             break;
 
         case GST_OP_FLS: /* Load False */
@@ -224,7 +208,7 @@ int gst_start(Gst *vm) {
                     if (nextCount + locals > thread.capacity) {
                         uint32_t newCap = (nextCount + locals) * 2;
                         GstValue *newData = gst_alloc(vm, sizeof(GstValue) * newCap);
-                        memcpy(newData, thread.data, thread.capacity * sizeof(GstValue));
+                        gst_memcpy(newData, thread.data, thread.capacity * sizeof(GstValue));
                         thread.data = newData;
                         thread.capacity = newCap;
                     }
@@ -388,7 +372,7 @@ int gst_start(Gst *vm) {
                     frame.env->thread = NULL;
                     frame.env->stackOffset = frame.size;
                     frame.env->values = gst_alloc(vm, sizeof(GstValue) * frame.size);
-                    memcpy(frame.env->values, 
+                    gst_memcpy(frame.env->values, 
                         thread.data + thread.count, 
                         frame.size * sizeof(GstValue));
                     frame.env = NULL;
@@ -415,7 +399,7 @@ int gst_start(Gst *vm) {
                 if (totalCapacity > thread.capacity) {
                     uint32_t newCap = totalCapacity * 2;
                     GstValue *newData = gst_alloc(vm, sizeof(GstValue) * newCap);
-                    memcpy(newData, thread.data, thread.capacity * sizeof(GstValue));
+                    gst_memcpy(newData, thread.data, thread.capacity * sizeof(GstValue));
                     thread.data = newData;
                     thread.capacity = newCap;
                     stack = thread.data + thread.count;
@@ -426,7 +410,7 @@ int gst_start(Gst *vm) {
                     stack[workspace + i] = stack[pc[3 + i]];
 
                 /* Copy the end of the stack to the parameter position */
-                memcpy(stack, stack + workspace, arity * sizeof(GstValue));
+                gst_memcpy(stack, stack + workspace, arity * sizeof(GstValue));
 
                 /* Update the stack frame */
                 frame.callee = temp;
@@ -492,7 +476,7 @@ int gst_start(Gst *vm) {
                     frame.env->thread = NULL;
                     frame.env->stackOffset = frame.size;
                     frame.env->values = gst_alloc(vm, sizeof(GstValue) * frame.size);
-                    memcpy(frame.env->values, 
+                    gst_memcpy(frame.env->values, 
                         thread.data + thread.count, 
                         frame.size * sizeof(GstValue));
                 }

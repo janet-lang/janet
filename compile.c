@@ -2,7 +2,7 @@
 #include "ds.h"
 #include "value.h"
 #include "vm.h"
-#include <string.h>
+#include "util.h"
 
 /* During compilation, FormOptions are passed to ASTs
  * as configuration options to allow for some optimizations. */
@@ -34,7 +34,7 @@ struct Slot {
     uint16_t index;
     /* A nil Slot should not be expected to contain real data. (ignore index).
      * Forms that have side effects but don't evaulate to
-     * anything will try to return bil slots. */
+     * anything will try to return nil slots. */
     uint16_t isNil : 1;
     /* A temp Slot is a Slot on the stack that does not
      * belong to a named local. They can be freed whenever,
@@ -170,7 +170,7 @@ static void compiler_free_local(GstCompiler *c, GstScope *scope, uint16_t slot) 
     if (scope->heapSize >= scope->heapCapacity) {
         uint32_t newCap = 2 * scope->heapSize;
         uint16_t *newData = gst_alloc(c->vm, newCap * sizeof(uint16_t));
-        memcpy(newData, scope->freeHeap, scope->heapSize * sizeof(uint16_t));
+        gst_memcpy(newData, scope->freeHeap, scope->heapSize * sizeof(uint16_t));
         scope->freeHeap = newData;
         scope->heapCapacity = newCap;
     }
@@ -287,7 +287,7 @@ static void compiler_tracker_push(GstCompiler *c, SlotTracker *tracker, Slot slo
     if (tracker->count >= tracker->capacity) {
         uint32_t newCap = 2 * tracker->count;
         Slot *newData = gst_alloc(c->vm, newCap * sizeof(Slot));
-        memcpy(newData, tracker->slots, tracker->count * sizeof(Slot));
+        gst_memcpy(newData, tracker->slots, tracker->count * sizeof(Slot));
         tracker->slots = newData;
         tracker->capacity = newCap;
     }
@@ -536,34 +536,34 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstArray *form,
 
 /* Math specials */
 static Slot compile_addition(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_LD0, -1, GST_OP_ADD, -1, 0);
+    return compile_operator(c, opts, form, -1, -1, GST_OP_ADD, -1, 0);
 }
 static Slot compile_subtraction(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_LD0, -1, GST_OP_SUB, -1, 0);
+    return compile_operator(c, opts, form, -1, -1, GST_OP_SUB, -1, 0);
 }
 static Slot compile_multiplication(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_LD1, -1, GST_OP_MUL, -1, 0);
+    return compile_operator(c, opts, form, -1, -1, GST_OP_MUL, -1, 0);
 }
 static Slot compile_division(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_LD1, -1, GST_OP_DIV, -1, 0);
+    return compile_operator(c, opts, form, -1, -1, GST_OP_DIV, -1, 0);
 }
 static Slot compile_equals(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_EQL, -1, 0);
+    return compile_operator(c, opts, form, -1, -1, GST_OP_EQL, -1, 0);
 }
 static Slot compile_lt(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_LTN, -1, 0);
+    return compile_operator(c, opts, form, -1, -1, GST_OP_LTN, -1, 0);
 }
 static Slot compile_lte(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_LTE, -1, 0);
+    return compile_operator(c, opts, form, -1, -1, GST_OP_LTE, -1, 0);
 }
 static Slot compile_gt(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_LTN, -1, 1);
+    return compile_operator(c, opts, form, -1, -1, GST_OP_LTN, -1, 1);
 }
 static Slot compile_gte(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_TRU, GST_OP_TRU, GST_OP_LTE, -1, 1);
+    return compile_operator(c, opts, form, -1, -1, GST_OP_LTE, -1, 1);
 }
 static Slot compile_not(GstCompiler *c, FormOptions opts, GstArray *form) {
-    return compile_operator(c, opts, form, GST_OP_FLS, GST_OP_NOT, -1, -1, 0);
+    return compile_operator(c, opts, form, -1, GST_OP_NOT, -1, -1, 0);
 }
 static Slot compile_get(GstCompiler *c, FormOptions opts, GstArray *form) {
 	return compile_operator(c, opts, form, -1, -1, GST_OP_GET, -1, 0);
@@ -686,13 +686,13 @@ static GstFuncDef *compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uin
     def->byteCodeLen = lastNBytes / 2;
     /* Copy the last chunk of bytes in the buffer into the new
      * memory for the function's byteCOde */
-    memcpy(byteCode, buffer->data + buffer->count - lastNBytes, lastNBytes);
+    gst_memcpy(byteCode, buffer->data + buffer->count - lastNBytes, lastNBytes);
     /* Remove the byteCode from the end of the buffer */
     buffer->count -= lastNBytes;
     /* Create the literals used by this function */
     if (scope->literalsArray->count) {
         def->literals = gst_alloc(c->vm, scope->literalsArray->count * sizeof(GstValue));
-        memcpy(def->literals, scope->literalsArray->data,
+        gst_memcpy(def->literals, scope->literalsArray->data,
                 scope->literalsArray->count * sizeof(GstValue));
     } else {
         def->literals = NULL;
@@ -1267,7 +1267,7 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
         GstFunction *func = gst_alloc(c->vm, sizeof(GstFunction));
         if (envSize) {
         	env->values = gst_alloc(c->vm, sizeof(GstValue) * envSize);
-        	memcpy(env->values, c->env->data, envSize * sizeof(GstValue));
+        	gst_memcpy(env->values, c->env->data, envSize * sizeof(GstValue));
         } else {
 			env->values = NULL;
         }

@@ -197,40 +197,43 @@ struct GstCompiler {
 
 /* Bytecode */
 enum GstOpCode {
-    GST_OP_ADD = 0,    /* 0x0000 */
-    GST_OP_SUB,        /* 0x0001 */
-    GST_OP_MUL,        /* 0x0002 */
-    GST_OP_DIV,        /* 0x0003 */
-    GST_OP_NOT,        /* 0x0004 */
-    GST_OP_LD0,        /* 0x0005 */
-    GST_OP_LD1,        /* 0x0006 */
-    GST_OP_FLS,        /* 0x0007 */
-    GST_OP_TRU,        /* 0x0008 */
-    GST_OP_NIL,        /* 0x0009 */
-    GST_OP_I16,        /* 0x000a */
-    GST_OP_UPV,        /* 0x000b */
-    GST_OP_JIF,        /* 0x000c */
-    GST_OP_JMP,        /* 0x000d */
-    GST_OP_CAL,        /* 0x000e */
-    GST_OP_RET,        /* 0x000f */
-    GST_OP_SUV,        /* 0x0010 */
-    GST_OP_CST,        /* 0x0011 */
-    GST_OP_I32,        /* 0x0012 */
-    GST_OP_F64,        /* 0x0013 */
-    GST_OP_MOV,        /* 0x0014 */
-    GST_OP_CLN,        /* 0x0015 */
-    GST_OP_EQL,        /* 0x0016 */
-    GST_OP_LTN,        /* 0x0017 */
-    GST_OP_LTE,        /* 0x0018 */
-    GST_OP_ARR,        /* 0x0019 */
-    GST_OP_DIC,        /* 0x001a */
-    GST_OP_TCL,        /* 0x001b */
-    GST_OP_RTN,        /* 0x0020 */
-    GST_OP_SET,        /* 0x0021 */
-    GST_OP_GET,        /* 0x0022 */
-	GST_OP_ERR,        /* 0x0023 */
-	GST_OP_TRY,        /* 0x0024 */
-	GST_OP_UTY         /* 0x0025 */
+    GST_OP_ADD = 0, /* Addition */
+    GST_OP_SUB,     /* Subtraction */
+    GST_OP_MUL,     /* Multiplication */
+    GST_OP_DIV,     /* Division */
+    GST_OP_MOD,     /* Modulo division */
+    GST_OP_EXP,     /* Exponentiation */
+    GST_OP_CCT,     /* Concatenation */
+    GST_OP_NOT,     /* Invert */
+    GST_OP_LEN,     /* Length */
+    GST_OP_TYP,     /* Type */
+    GST_OP_FLS,
+    GST_OP_TRU,
+    GST_OP_NIL,
+    GST_OP_I16,
+    GST_OP_UPV,
+    GST_OP_JIF,
+    GST_OP_JMP,
+    GST_OP_CAL,
+    GST_OP_RET,
+    GST_OP_SUV,
+    GST_OP_CST,
+    GST_OP_I32,
+    GST_OP_F64,
+    GST_OP_MOV,
+    GST_OP_CLN,
+    GST_OP_EQL,
+    GST_OP_LTN,
+    GST_OP_LTE,
+    GST_OP_ARR,
+    GST_OP_DIC,
+    GST_OP_TCL,
+    GST_OP_RTN,
+    GST_OP_SET,
+    GST_OP_GET,
+	GST_OP_ERR,
+	GST_OP_TRY,
+	GST_OP_UTY 
 };
 
 #endif
