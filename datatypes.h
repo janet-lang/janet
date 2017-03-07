@@ -4,12 +4,17 @@
 #include <stdint.h>
 #include <setjmp.h>
 
+/* Flag for immutability in an otherwise mutable datastructure */
+#define GST_IMMUTABLE 1
+
+/* Verious types */
 typedef enum GstType {
     GST_NIL = 0,
     GST_NUMBER,
     GST_BOOLEAN,
     GST_STRING,
     GST_ARRAY,
+    GST_TUPLE,
     GST_THREAD,
     GST_BYTEBUFFER,
     GST_FUNCTION,
@@ -57,6 +62,7 @@ struct GstValue {
         GstBuffer *buffer;
         GstObject *object;
         GstThread *thread;
+        GstValue *tuple;
         GstCFunction cfunction;
         GstFunction *function;
         uint8_t *string;
@@ -80,7 +86,7 @@ struct GstThread {
 /* Size of stack frame */
 #define GST_FRAME_SIZE ((sizeof(GstStackFrame) + sizeof(GstValue) + 1) / sizeof(GstValue))
 
-/* A dynamic array type */
+/* A dynamic array type. Useful for implementing a stack. */
 struct GstArray {
     uint32_t count;
     uint32_t capacity;
@@ -195,6 +201,11 @@ struct GstCompiler {
 #define gst_string_length(v) (gst_string_raw(v)[0])
 #define gst_string_hash(v) (gst_string_raw(v)[1])
 
+/* Tuple utils */
+#define gst_tuple_raw(s) ((uint32_t *)(s) - 2)
+#define gst_tuple_length(v) (gst_tuple_raw(v)[0])
+#define gst_tuple_hash(v) (gst_tuple_raw(v)[1])
+
 /* Bytecode */
 enum GstOpCode {
     GST_OP_ADD = 0, /* Addition */
@@ -202,38 +213,40 @@ enum GstOpCode {
     GST_OP_MUL,     /* Multiplication */
     GST_OP_DIV,     /* Division */
     GST_OP_MOD,     /* Modulo division */
+    GST_OP_IDV,     /* Integer division */
     GST_OP_EXP,     /* Exponentiation */
     GST_OP_CCT,     /* Concatenation */
     GST_OP_NOT,     /* Invert */
     GST_OP_LEN,     /* Length */
     GST_OP_TYP,     /* Type */
-    GST_OP_FLS,
-    GST_OP_TRU,
-    GST_OP_NIL,
-    GST_OP_I16,
-    GST_OP_UPV,
-    GST_OP_JIF,
-    GST_OP_JMP,
-    GST_OP_CAL,
-    GST_OP_RET,
-    GST_OP_SUV,
-    GST_OP_CST,
-    GST_OP_I32,
-    GST_OP_F64,
-    GST_OP_MOV,
-    GST_OP_CLN,
-    GST_OP_EQL,
-    GST_OP_LTN,
-    GST_OP_LTE,
-    GST_OP_ARR,
-    GST_OP_DIC,
-    GST_OP_TCL,
-    GST_OP_RTN,
-    GST_OP_SET,
-    GST_OP_GET,
-	GST_OP_ERR,
-	GST_OP_TRY,
-	GST_OP_UTY 
+    GST_OP_FLS,     /* Load false */
+    GST_OP_TRU,     /* Load true */
+    GST_OP_NIL,     /* Load nil */
+    GST_OP_I16,     /* Load 16 bit signed integer */
+    GST_OP_UPV,     /* Load upvalue */
+    GST_OP_JIF,     /* Jump if */
+    GST_OP_JMP,     /* Jump */
+    GST_OP_CAL,     /* Call function */
+    GST_OP_RET,     /* Return from function */
+    GST_OP_SUV,     /* Set upvalue */
+    GST_OP_CST,     /* Load constant */
+    GST_OP_I32,     /* Load 32 bit signed integer */
+    GST_OP_F64,     /* Load 64 bit IEEE double */
+    GST_OP_MOV,     /* Move value */
+    GST_OP_CLN,     /* Create a closure */
+    GST_OP_EQL,     /* Check equality */
+    GST_OP_LTN,     /* Check less than */
+    GST_OP_LTE,     /* Check less than or equal to */
+    GST_OP_ARR,     /* Create array */
+    GST_OP_DIC,     /* Create object */
+    GST_OP_TUP,     /* Create tuple */
+    GST_OP_TCL,     /* Tail call */
+    GST_OP_RTN,     /* Return nil */
+    GST_OP_SET,     /* Assocaitive set */
+    GST_OP_GET,     /* Associative get */
+	GST_OP_ERR,     /* Throw error */
+	GST_OP_TRY,     /* Begin try block */
+	GST_OP_UTY      /* End try block */
 };
 
 #endif

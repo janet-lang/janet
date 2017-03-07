@@ -97,6 +97,16 @@ void gst_mark(Gst *vm, GstValue *x) {
             }
             break;
 
+        case GST_TUPLE:
+            if (gc_header(gst_tuple_raw(x->data.tuple))->color != vm->black) {
+                uint32_t i, count;
+                count = gst_tuple_length(x->data.tuple);
+                gc_header(gst_tuple_raw(x->data.tuple))->color = vm->black;
+                for (i = 0; i < count; ++i)
+                    gst_mark(vm, x->data.tuple + i);
+            }
+            break;
+
         case GST_THREAD:
             if (gc_header(x->data.thread)->color != vm->black) {
                 GstThread *thread = x->data.thread;
@@ -226,4 +236,71 @@ void gst_clear_memory(Gst *vm) {
         current = next;
     }
     vm->blocks = NULL;
+}
+
+/* Header for managed memory blocks */
+struct MMHeader {
+	struct MMHeader *next;
+	struct MMHeader *previous;
+};
+
+/* Initialize managed memory */
+void gst_mm_init(GstManagedMemory *mm) {
+	*mm = NULL;
+}
+
+/* Allocate some managed memory */
+void *gst_mm_alloc(GstManagedMemory *mm, uint32_t size) {
+	struct MMHeader *mem = gst_raw_alloc(size + sizeof(struct MMHeader));
+	if (mem == NULL)
+    	return NULL;
+    mem->next = *mm;
+    mem->previous = NULL;
+    *mm = mem;
+    return mem + 1;
+}
+
+/* Intialize zeroed managed memory */
+void *gst_mm_zalloc(GstManagedMemory *mm, uint32_t size) {
+	struct MMHeader *mem = gst_raw_calloc(1, size + sizeof(struct MMHeader));
+	if (mem == NULL)
+    	return NULL;
+    mem->next = *mm;
+    mem->previous = NULL;
+    *mm = mem;
+    return mem + 1;
+}
+
+/* Free a memory block used in managed memory */
+void gst_mm_free(GstManagedMemory *mm, void *block) {
+	struct MMHeader *mem = (struct MMHeader *)(((char *)block) - sizeof(struct MMHeader));
+	if (mem->previous != NULL) {
+		mem->previous->next = mem->next;
+	} else {
+		*mm = mem->next;
+	}
+	gst_raw_free(mem);
+}
+
+/* Free all memory in managed memory */
+void gst_mm_clear(GstManagedMemory *mm) {
+	struct MMHeader *block = (struct MMHeader *)(*mm);
+	struct MMHeader *next;
+	while (block != NULL) {
+    	next = block->next;
+		free(block);
+		block = next;
+	};
+	*mm = NULL;
+}
+
+/* Analog to realloc */
+void *gst_mm_realloc(GstManagedMemory *mm, void *block, uint32_t nsize) {
+	struct MMHeader *mem = gst_raw_realloc(block, nsize + sizeof(struct MMHeader));
+	if (mem == NULL)
+    	return NULL;
+    mem->next = *mm;
+    mem->previous = NULL;
+    *mm = mem;
+    return mem + 1;
 }

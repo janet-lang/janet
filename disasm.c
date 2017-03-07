@@ -172,6 +172,9 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
             case GST_OP_DIC:
                 current += dasm_varg_op(out, current, "object", 1);
                 break;
+            case GST_OP_TUP:
+                current += dasm_varg_op(out, current, "tuple", 1);
+                break;
             case GST_OP_TCL:
                 current += dasm_varg_op(out, current, "tailCall", 1);
                 break;

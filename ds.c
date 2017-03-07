@@ -143,6 +143,20 @@ GstValue gst_array_peek(GstArray *array) {
 }
 
 /****/
+/* Tuple functions */
+/****/
+
+/* Create a new emoty tuple of the given size. Expected to be
+ * mutated immediately */
+GstValue *gst_tuple(Gst *vm, uint32_t length) {
+	char *data = gst_alloc(vm, 2 * sizeof(uint32_t) + length * sizeof(GstValue));
+	GstValue *tuple = (GstValue *)(data + (2 * sizeof(uint32_t)));
+	gst_tuple_length(tuple) = length;
+	gst_tuple_hash(tuple) = 0;
+	return tuple;
+}
+
+/****/
 /* Dictionary functions */
 /****/
 

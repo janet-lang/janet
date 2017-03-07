@@ -1,23 +1,6 @@
-#include "datatypes.h"
+#include "dict.h"
 #include "util.h"
 #include "value.h"
-
-#define GST_DICT_FLAG_OCCUPIED 1
-#define GST_DICT_FLAG_TOMBSTONE 2
-
-typedef struct GstDictBucket GstDictBucket;
-struct GstDictBucket {
-    GstValue key;
-    GstValue value;   
-    uint8_t flags;
-};
-
-typedef struct GstDict GstDict;
-struct GstDict {
-    uint32_t capacity;
-    uint32_t count;
-    GstDictBucket *buckets;
-};
 
 /* Initialize a dictionary */
 GstDict *gst_dict_init(GstDict *dict, uint32_t capacity) {
@@ -100,7 +83,7 @@ int gst_dict_get(GstDict *dict, GstValue key, GstValue *value) {
 
 /* Add item to dictionary */
 GstDict *gst_dict_put(GstDict *dict, GstValue key, GstValue value) {
-i   /* Check if we need to increase capacity. The load factor is low
+    /* Check if we need to increase capacity. The load factor is low
      * because we are using linear probing */
     uint32_t index, i;
     uint32_t newCap = dict->count * 2 + 1;
@@ -131,7 +114,7 @@ i   /* Check if we need to increase capacity. The load factor is low
         dict->count++;
         return dict;
     }
-    /* Error should never get here */
+    /* Error - should never get here */
     return NULL;
 }
 

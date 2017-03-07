@@ -87,15 +87,56 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
         case GST_ARRAY:
             {
                 uint32_t i;
-				GstBuffer * b = gst_buffer(vm, 40);
-				gst_buffer_push(vm, b, '(');
+				GstBuffer *b = gst_buffer(vm, 40);
+				gst_buffer_push(vm, b, '[');
 				for (i = 0; i < x.data.array->count; ++i) {
-    				uint8_t * substr = gst_to_string(vm, x.data.array->data[i]);
+    				uint8_t *substr = gst_to_string(vm, x.data.array->data[i]);
 					gst_buffer_append(vm, b, substr, gst_string_length(substr));
 					if (i < x.data.array->count - 1)
         				gst_buffer_push(vm, b, ' ');
 				}
+				gst_buffer_push(vm, b, ']');
+				return gst_buffer_to_string(vm, b);
+            }
+        case GST_TUPLE:
+            {
+                uint32_t i, count;
+				GstBuffer *b = gst_buffer(vm, 40);
+				GstValue *tuple = x.data.tuple;
+				gst_buffer_push(vm, b, '(');
+				count = gst_tuple_length(tuple);
+				for (i = 0; i < count; ++i) {
+    				uint8_t *substr = gst_to_string(vm, tuple[i]);
+					gst_buffer_append(vm, b, substr, gst_string_length(substr));
+					if (i < count - 1)
+        				gst_buffer_push(vm, b, ' ');
+				}
 				gst_buffer_push(vm, b, ')');
+				return gst_buffer_to_string(vm, b);
+            }
+        case GST_OBJECT:
+            {
+                uint32_t i, count;
+                GstBucket *bucket;
+				GstBuffer *b = gst_buffer(vm, 40);
+				GstObject *object = x.data.object;
+				gst_buffer_push(vm, b, '{');
+				count = 0;
+				for (i = 0; i < object->capacity; ++i) {
+    				bucket = object->buckets[i];
+    				while (bucket != NULL) {
+        				uint8_t *substr = gst_to_string(vm, bucket->key);
+    					gst_buffer_append(vm, b, substr, gst_string_length(substr));
+        				gst_buffer_push(vm, b, ' ');
+        				substr = gst_to_string(vm, bucket->value);
+    					gst_buffer_append(vm, b, substr, gst_string_length(substr));
+						count++;
+						if (count < object->count)
+            				gst_buffer_push(vm, b, ' ');
+        				bucket = bucket->next;
+    				}
+				}
+				gst_buffer_push(vm, b, '}');
 				return gst_buffer_to_string(vm, b);
             }
         case GST_STRING:
@@ -106,8 +147,6 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
             return string_description(vm, "cfunction", 9, x.data.pointer);
         case GST_FUNCTION:
             return string_description(vm, "function", 8, x.data.pointer);
-        case GST_OBJECT:
-            return string_description(vm, "object", 6, x.data.pointer);
         case GST_THREAD:
             return string_description(vm, "thread", 6, x.data.pointer);
     }
@@ -115,11 +154,21 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
 }
 
 /* Simple hash function */
-uint32_t djb2(const uint8_t * str) {
+static uint32_t djb2(const uint8_t * str) {
     const uint8_t * end = str + gst_string_length(str);
     uint32_t hash = 5381;
     while (str < end)
         hash = (hash << 5) + hash + *str++;
+    return hash;
+}
+
+/* Simple hash function to get tuple hash */
+static uint32_t tuple_hash(GstValue *tuple) {
+    uint32_t i;
+    uint32_t count = gst_tuple_length(tuple);
+    uint32_t hash = 5387;
+    for (i = 0; i < count; ++i)
+        hash = (hash << 5) + hash + gst_hash(tuple[i]);
     return hash;
 }
 
@@ -157,6 +206,27 @@ int gst_equals(GstValue x, GstValue y) {
                 }
                 result = 0;
                 break;
+            case GST_TUPLE:
+                if (x.data.tuple == y.data.tuple) {
+                    result = 1;
+                    break;
+                }
+                if (gst_hash(x) != gst_hash(y) ||
+                        gst_tuple_length(x.data.string) != gst_tuple_length(y.data.string)) {
+                    result = 0;
+                    break;
+                }
+                result = 1;
+                {
+					uint32_t i;
+					for (i = 0; i < gst_tuple_length(x.data.tuple); ++i) {
+						if (!gst_equals(x.data.tuple[i], y.data.tuple[i])) {
+							result = 0;
+							break;
+						}
+					}
+                }
+                break;
             default:
                 /* compare pointers */
                 result = (x.data.array == y.data.array);
@@ -193,6 +263,12 @@ uint32_t gst_hash(GstValue x) {
                 hash = gst_string_hash(x.data.string);
             else
                 hash = gst_string_hash(x.data.string) = djb2(x.data.string);
+            break;
+        case GST_TUPLE:
+            if (gst_tuple_hash(x.data.tuple))
+                hash = gst_tuple_hash(x.data.tuple);
+            else
+                hash = gst_tuple_hash(x.data.tuple) = tuple_hash(x.data.tuple);
             break;
         default:
             /* Cast the pointer */
@@ -253,6 +329,24 @@ int gst_compare(GstValue x, GstValue y) {
                         return xlen < ylen ? -1 : 1;
                     }
                 }
+                /* Lower indices are most significant */
+            case GST_TUPLE:
+				{
+    				uint32_t i;
+    				uint32_t xlen = gst_tuple_length(x.data.tuple);
+    				uint32_t ylen = gst_tuple_length(y.data.tuple);
+					uint32_t count = xlen < ylen ? xlen : ylen;
+					for (i = 0; i < count; ++i) {
+						int comp = gst_compare(x.data.tuple[i], y.data.tuple[i]);
+						if (comp != 0) return comp;
+					}
+					if (xlen < ylen)
+						return -1;
+					else if (xlen > ylen)
+    					return 1;
+					return 0;
+				}
+                break;
             default:
                 if (x.data.string == y.data.string) {
                     return 0;
@@ -273,7 +367,7 @@ static int32_t to_index(GstNumber raw, int64_t len) {
 	int32_t toInt = raw;
 	if ((GstNumber) toInt == raw) {
 		/* We were able to convert */
-		if (toInt < 0) {	
+		if (toInt < 0 && len > 0) {	
     		/* Index from end */
 			if (toInt < -len) return -1;	
 			return len + toInt;
@@ -302,26 +396,33 @@ GstValue gst_get(Gst *vm, GstValue ds, GstValue key) {
 	case GST_ARRAY:
        	gst_assert_type(vm, key, GST_NUMBER);
 		index = to_index(key.data.number, ds.data.array->count);
-		if (index == -1) gst_error(vm, "Invalid array access");
-		return ds.data.array->data[index];
+		if (index == -1) gst_error(vm, "invalid array access");
+		ret = ds.data.array->data[index];
+		break;
+	case GST_TUPLE:
+       	gst_assert_type(vm, key, GST_NUMBER);
+		index = to_index(key.data.number, gst_tuple_length(ds.data.tuple));
+		if (index < 0) gst_error(vm, "invalid tuple access");
+		ret = ds.data.tuple[index];
+		break;
     case GST_BYTEBUFFER:
         gst_assert_type(vm, key, GST_NUMBER);
         index = to_index(key.data.number, ds.data.buffer->count);
-		if (index == -1) gst_error(vm, "Invalid buffer access");
+		if (index == -1) gst_error(vm, "invalid buffer access");
 		ret.type = GST_NUMBER;
 		ret.data.number = ds.data.buffer->data[index];
 		break;
     case GST_STRING:
         gst_assert_type(vm, key, GST_NUMBER);
         index = to_index(key.data.number, gst_string_length(ds.data.string));
-		if (index == -1) gst_error(vm, "Invalid string access");
+		if (index == -1) gst_error(vm, "invalid string access");
 		ret.type = GST_NUMBER;
 		ret.data.number = ds.data.string[index];
 		break;
     case GST_OBJECT:
         return gst_object_get(ds.data.object, key);
     default:
-        gst_error(vm, "Cannot get.");
+        gst_error(vm, "cannot get");
 	}
 	return ret;
 }
@@ -331,22 +432,31 @@ void gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
     int32_t index;
 	switch (ds.type) {
 	case GST_ARRAY:
+        if (ds.data.array->flags & GST_IMMUTABLE)
+            goto immutable;
        	gst_assert_type(vm, key, GST_NUMBER);
 		index = to_index(key.data.number, ds.data.array->count);
-		if (index == -1) gst_error(vm, "Invalid array access");
+		if (index == -1) gst_error(vm, "invalid array access");
 		ds.data.array->data[index] = value;
 		break;
     case GST_BYTEBUFFER:
+        if (ds.data.buffer->flags & GST_IMMUTABLE)
+            goto immutable;
         gst_assert_type(vm, key, GST_NUMBER);
         gst_assert_type(vm, value, GST_NUMBER);
         index = to_index(key.data.number, ds.data.buffer->count);
-		if (index == -1) gst_error(vm, "Invalid buffer access");
+		if (index == -1) gst_error(vm, "invalid buffer access");
 		ds.data.buffer->data[index] = to_byte(value.data.number);
 		break;
     case GST_OBJECT:
+        if (ds.data.object->flags & GST_IMMUTABLE)
+            goto immutable;
         gst_object_put(vm, ds.data.object, key, value);
         break;
     default:
-        gst_error(vm, "Cannot set.");
+        gst_error(vm, "cannot set");
 	}
+	return;
+    immutable:
+        gst_error(vm, "cannot set immutable value");
 }

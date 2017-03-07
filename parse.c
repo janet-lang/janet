@@ -21,10 +21,17 @@ struct GstParseState {
     union {
         struct {
 			uint8_t endDelimiter;
-            GstArray * array;
+            GstArray *array;
         } form;
         struct {
-            GstBuffer * buffer;
+            GstValue key;
+            int keyFound;
+			GstObject *object;
+        } object;
+        struct {
+            GstBuffer *buffer;
+            uint32_t count;
+            uint32_t accum;
             enum {
                 STRING_STATE_BASE,
                 STRING_STATE_ESCAPE,
@@ -80,15 +87,8 @@ static void parser_push(GstParser *p, ParseType type, uint8_t character) {
         case PTYPE_FORM:
             top->buf.form.array = gst_array(p->vm, 10);
             if (character == '(') top->buf.form.endDelimiter = ')';
-            if (character == '[') {
-                top->buf.form.endDelimiter = ']';
-                gst_array_push(p->vm, top->buf.form.array, gst_load_cstring(p->vm, "array"));
-            }
-            if (character == '{') {
-                top->buf.form.endDelimiter = '}';
-                gst_array_push(p->vm, top->buf.form.array, gst_load_cstring(p->vm, "obj"));
-            }
-            break;
+            if (character == '[') top->buf.form.endDelimiter = ']';
+            if (character == '{') top->buf.form.endDelimiter = '}';
     }
 }
 
@@ -105,7 +105,7 @@ static void parser_append(GstParser *p, GstValue x) {
             gst_array_push(p->vm, top->buf.form.array, x);
             break;
         default:
-            p_error(p, "Expected container type.");
+            p_error(p, "expected container type");
             break;
     }
 }
@@ -218,7 +218,7 @@ static GstValue build_token(GstParser *p, GstBuffer *buf) {
         x.data.boolean = 1;
     } else {
         if (buf->data[0] >= '0' && buf->data[0] <= '9') {
-            p_error(p, "Symbols cannot start with digits.");
+            p_error(p, "symbols cannot start with digits");
             x.type = GST_NIL;
         } else {
             x.type = GST_STRING;
@@ -240,13 +240,27 @@ static int token_state(GstParser *p, uint8_t c) {
         gst_buffer_push(p->vm, buf, c);
         return 1;
     } else {
-        p_error(p, "Expected symbol character.");
+        p_error(p, "expected symbol character");
         return 1;
+    }
+}
+
+/* Get hex digit from a letter */
+static int to_hex(uint8_t c) {
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    } else if (c >= 'a' && c <= 'f') {
+        return 10 + c - 'a';
+    } else if (c >= 'A' && c <= 'F') {
+        return 10 + c - 'A';
+    } else {
+        return -1;
     }
 }
 
 /* Handle parsing a string literal */
 static int string_state(GstParser *p, uint8_t c) {
+    int digit;
     GstParseState *top = parser_peek(p);
     switch (top->buf.string.state) {
         case STRING_STATE_BASE:
@@ -279,15 +293,33 @@ static int string_state(GstParser *p, uint8_t c) {
                     case '"': next = '"'; break;
                     case '\'': next = '\''; break;
                     case 'z': next = '\0'; break;
+                    case 'h': 
+                        top->buf.string.state = STRING_STATE_ESCAPE_HEX; 
+                        top->buf.string.count = 0;
+                        top->buf.string.accum = 0;
+                        return 1;
                     default:
-                              p_error(p, "Unknown string escape sequence.");
-                              return 1;
+                        p_error(p, "unknown string escape sequence");
+                        return 1;
                 }
                 gst_buffer_push(p->vm, top->buf.string.buffer, next);
                 top->buf.string.state = STRING_STATE_BASE;
             }
             break;
         case STRING_STATE_ESCAPE_HEX:
+            digit = to_hex(c);
+            if (digit < 0) {
+                p_error(p, "invalid hexidecimal digit");
+                return 1;
+            } else {
+                top->buf.string.accum *= 16; 
+                top->buf.string.accum += digit; 
+            }
+            top->buf.string.accum += digit;
+            if (++top->buf.string.count == 2) {
+                gst_buffer_push(p->vm, top->buf.string.buffer, top->buf.string.accum);
+                top->buf.string.state = STRING_STATE_BASE;
+            }
             break;
         case STRING_STATE_ESCAPE_UNICODE:
             break;
@@ -314,7 +346,7 @@ static int root_state(GstParser *p, uint8_t c) {
         parser_push(p, PTYPE_TOKEN, c);
         return 0;
     }
-    p_error(p, "Unexpected character.");
+    p_error(p, "unexpected character");
     return 1;
 }
 
@@ -324,8 +356,25 @@ static int form_state(GstParser *p, uint8_t c) {
     if (c == top->buf.form.endDelimiter) {
         GstArray *array = top->buf.form.array;
         GstValue x;
-        x.type = GST_ARRAY;
-        x.data.array = array;
+        if (c == ']') {
+            x.type = GST_ARRAY;
+            x.data.array = array;
+        } else if (c == ')') {
+			x.type = GST_TUPLE;
+			x.data.tuple = gst_tuple(p->vm, array->count);
+			gst_memcpy(x.data.tuple, array->data, array->count * sizeof(GstValue));
+        } else { /* c == '{' */
+            uint32_t i;
+			if (array->count % 2 != 0) {
+    			p_error(p, "object literal must have even number of elements");
+    			return 1;
+			}
+			x.type = GST_OBJECT;
+			x.data.object = gst_object(p->vm, array->count);
+			for (i = 0; i < array->count; i += 2) {
+				gst_object_put(p->vm, x.data.object, array->data[i], array->data[i + 1]);	
+			}
+        }
     	parser_pop(p);
         parser_append(p, x);
         return 1;

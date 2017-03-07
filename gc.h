@@ -26,4 +26,26 @@ void gst_maybe_collect(Gst *vm);
 /* Clear all memory */
 void gst_clear_memory(Gst *vm);
 
+/* Separate memory container. This memory is not gced, but can be freed at once. This
+ * is used in the compiler and parser to prevent memory leaks on errors. */
+typedef void *GstManagedMemory;
+
+/* Initialize managed memory */
+void gst_mm_init(GstManagedMemory *mm);
+
+/* Allocate some managed memory */
+void *gst_mm_alloc(GstManagedMemory *mm, uint32_t size);
+
+/* Intialize zeroed managed memory */
+void *gst_mm_zalloc(GstManagedMemory *mm, uint32_t size);
+
+/* Free a memory block used in managed memory */
+void gst_mm_free(GstManagedMemory *mm, void *block);
+
+/* Free all memory in managed memory */
+void gst_mm_clear(GstManagedMemory *mm);
+
+/* Analog to realloc */
+void *gst_mm_realloc(GstManagedMemory *mm, void *block, uint32_t nsize);
+
 #endif

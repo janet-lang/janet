@@ -1,3 +1,4 @@
+
 #include "vm.h"
 #include "util.h"
 #include "value.h"
@@ -78,7 +79,7 @@ int gst_start(Gst *vm) {
         
         switch (*pc) {
 
-        #define DO_BINARY_MATH(op) \
+        #define OP_BINARY_MATH(op) \
             v1 = stack[pc[2]]; \
             v2 = stack[pc[3]]; \
             gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP); \
@@ -90,18 +91,18 @@ int gst_start(Gst *vm) {
             break;
 
         case GST_OP_ADD: /* Addition */
-            DO_BINARY_MATH(+)
+            OP_BINARY_MATH(+)
 
         case GST_OP_SUB: /* Subtraction */
-            DO_BINARY_MATH(-)
+            OP_BINARY_MATH(-)
 
         case GST_OP_MUL: /* Multiplication */
-            DO_BINARY_MATH(*)
+            OP_BINARY_MATH(*)
 
         case GST_OP_DIV: /* Division */
-            DO_BINARY_MATH(/)
+            OP_BINARY_MATH(/)
 
-        #undef DO_BINARY_MATH
+        #undef OP_BINARY_MATH
 
         case GST_OP_NOT: /* Boolean unary (Boolean not) */
             temp.type = GST_BOOLEAN;
@@ -281,7 +282,7 @@ int gst_start(Gst *vm) {
 
         case GST_OP_CLN: /* Create closure from constant FuncDef */
             {
-                GstFunction *fn, *current;
+                GstFunction *fn;
                 if (frame.callee.type != GST_FUNCTION)
                     gst_error(vm, GST_EXPECTED_FUNCTION);
                 if (!frame.env) {
@@ -291,13 +292,12 @@ int gst_start(Gst *vm) {
                     frame.env->stackOffset = thread.count;
                     frame.env->values = NULL;
                 }
-                current = frame.callee.data.function;
-                temp = gst_vm_literal(vm, current, pc[2]);
+                temp = gst_vm_literal(vm, frame.callee.data.function, pc[2]);
                 if (temp.type != GST_NIL)
                     gst_error(vm, "cannot create closure");
                 fn = gst_alloc(vm, sizeof(GstFunction));
                 fn->def = (GstFuncDef *) temp.data.pointer;
-                fn->parent = current;
+                fn->parent = frame.callee.data.function;
                 fn->env = frame.env;
                 temp.type = GST_FUNCTION;
                 temp.data.function = fn;
@@ -357,6 +357,20 @@ int gst_start(Gst *vm) {
                 temp.data.object = o;
                 stack[pc[1]] = temp;
                 pc += kvs;
+            }
+            break;
+            
+        case GST_OP_TUP: /* Tuple literal */
+            {
+                uint32_t i;
+                uint32_t len = pc[2];
+                GstValue *tuple = gst_tuple(vm, len);
+                for (i = 0; i < len; ++i)
+                    tuple[i] = stack[pc[3 + i]];
+                temp.type = GST_TUPLE;
+                temp.data.tuple = tuple;
+                stack[pc[1]] = temp;
+                pc += 3 + len;
             }
             break;
 

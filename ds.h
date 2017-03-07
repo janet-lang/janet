@@ -66,6 +66,15 @@ GstValue gst_array_pop(GstArray *array);
 GstValue ArrayPeek(GstArray *array);
 
 /****/
+/* Tuple functions */
+/* These really don't do all that much */
+/****/
+
+/* Create an empty tuple. It is expected to be mutated right after
+ * creation. */
+GstValue *gst_tuple(Gst *vm, uint32_t length);
+
+/****/
 /* Object functions */
 /****/
 

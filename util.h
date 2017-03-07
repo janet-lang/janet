@@ -13,10 +13,16 @@
 #define gst_raw_alloc malloc
 #endif
 
-/* Clear allocation */
+/* Zero allocation */
 #ifndef gst_raw_calloc
 #include <stdlib.h>
 #define gst_raw_calloc calloc
+#endif
+
+/* Realloc */
+#ifndef gst_raw_realloc
+#include <stdlib.h>
+#define gst_raw_realloc realloc
 #endif
 
 /* Free */
