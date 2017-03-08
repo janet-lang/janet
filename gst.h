@@ -9,4 +9,3 @@
 #include "value.h"
 
 #endif // gst_h_INCLUDED
-

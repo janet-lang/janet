@@ -30,7 +30,10 @@ struct GstParser {
 /* Initialize a parser */
 void gst_parser(GstParser *p, Gst *vm);
 
-/* Parse a c style string. Returns true if successful */
+/* Parse a c style string. Returns number of bytes read */
 int gst_parse_cstring(GstParser *p, const char *string);
+
+/* Parse a gst string. Returns number of bytes read */
+int gst_parse_string(GstParser *p, uint8_t *string);
 
 #endif /* end of include guard: PARSE_H_ONYWMADW */

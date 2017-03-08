@@ -49,10 +49,16 @@
 /* C function helpers */
 
 /* Return in a c function */
-#define gst_c_return(vm, x) (do { (vm)->ret = (x); return GST_RETURN_OK; } while (0))
+#define gst_c_return(vm, x) do { (vm)->ret = (x); return GST_RETURN_OK; } while (0)
 
 /* Throw error from a c function */
-#define gst_c_throw(vm, e) (do { (vm)->ret = (e); return GST_RETURN_ERROR; } while (0))
+#define gst_c_throw(vm, e) do { (vm)->ret = (e); return GST_RETURN_ERROR; } while (0)
+
+/* Throw c string error from a c function */
+#define gst_c_throwc(vm, e) gst_c_throw((vm), gst_load_cstring((vm), (e)))
+
+/* Assert from a c function */
+#define gst_c_assert(vm, cond, e) do {if (cond) gst_c_throw((vm), (e)); } while (0)
 
 /* What to do when out of memory */
 #ifndef GST_OUT_OF_MEMORY

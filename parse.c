@@ -437,6 +437,17 @@ int gst_parse_cstring(GstParser *p, const char *string) {
     return bytesRead;
 }
 
+/* Parse a gst string */
+int gst_parse_string(GstParser *p, uint8_t *string) {
+    uint32_t i;
+    p->status = GST_PARSER_PENDING;
+	for (i = 0; i < gst_string_length(string); ++i) {
+    	if (p->status != GST_PARSER_PENDING) break;
+        dispatch_char(p, string[i]);
+	}
+    return i;
+}
+
 /* Parser initialization (memory allocation) */
 void gst_parser(GstParser *p, Gst *vm) {
     p->vm = vm;
