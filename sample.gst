@@ -9,4 +9,10 @@
 # Unlike most lisps, it is not a pure functional language. Also unlike lisp, gst does
 # not make much use of a list data structure, instead using arrays and objects for
 # better performance at runtime.
-
+(do
+    (:= a 1)
+    (while (< a 1025)
+        (print a)
+    	(:= a (* a 2))
+    )
+)

@@ -5,8 +5,8 @@
 #include "parse.h"
 #include "compile.h"
 #include "value.h"
-#include "disasm.h"
 
+/* Simple printer for gst strings */
 void string_put(FILE *out, uint8_t * string) {
     uint32_t i;
     uint32_t len = gst_string_length(string);
@@ -91,16 +91,8 @@ void debug_repl(FILE *in, FILE *out) {
             continue;
         }
 
-        /* Print asm */
-        if (out) {
-            fprintf(out, "\n");
-            gst_dasm_function(out, func.data.function);
-            fprintf(out, "\n");
-        }
-
         /* Execute function */
-        gst_load(&vm, func);
-        if (gst_start(&vm)) {
+        if (gst_start(&vm, func)) {
             if (out) {
                 if (vm.crash) {
                     fprintf(out, "VM crash: %s\n", vm.crash);

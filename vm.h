@@ -27,11 +27,8 @@ void gst_init(Gst * vm);
 /* Deinitialize the VM */
 void gst_deinit(Gst * vm);
 
-/* Load a function to be run on the VM */
-void gst_load(Gst * vm, GstValue func);
-
-/* Start running the VM */
-int gst_start(Gst * vm);
+/* Start running the VM with a given entry point */
+int gst_start(Gst * vm, GstValue func);
 
 /* Run garbage collection */
 void gst_collect(Gst * vm);

@@ -18,19 +18,52 @@ static GstValue gst_vm_literal(Gst *vm, GstFunction *fn, uint16_t index) {
     return fn->def->literals[index];
 }
 
+/* Load a function into the VM. The function will be called with
+ * no arguments when run */
+static void gst_load(Gst *vm, GstValue callee) {
+    uint32_t startCapacity;
+    uint32_t locals, i;
+    uint16_t *pc;
+    GstStackFrame *frame;
+    GstThread *thread = gst_alloc(vm, sizeof(GstThread));
+    if (callee.type == GST_FUNCTION) {
+        locals = callee.data.function->def->locals;
+        pc = callee.data.function->def->byteCode;
+    } else if (callee.type == GST_CFUNCTION) {
+        locals = 0;
+        pc = NULL;
+    } else {
+        return;
+    }
+    startCapacity = locals + GST_FRAME_SIZE + 10;
+    thread->data = gst_alloc(vm, sizeof(GstValue) * startCapacity);
+    thread->capacity = startCapacity;
+    thread->count = GST_FRAME_SIZE;
+    vm->thread = thread;
+    frame = (GstStackFrame *)thread->data;
+    frame->prevSize = 0;
+    frame->size = locals;
+    frame->callee = callee;
+    frame->errorJump = NULL;
+    frame->env = NULL;
+    frame->pc = pc;
+    /* Nil arguments */
+    for (i = 0; i < locals; ++i)
+        thread->data[GST_FRAME_SIZE + i].type = GST_NIL;
+}
+
+
 /* Start running the VM */
-int gst_start(Gst *vm) {
+int gst_start(Gst *vm, GstValue func) {
     /* VM state */
-    GstThread thread = *vm->thread;
+    GstThread thread;
     GstValue *stack;
     GstStackFrame frame;
     GstValue temp, v1, v2;
     uint16_t *pc;
-
-    /* Check for proper initialization */
-    if (thread.count == 0) {
-        gst_error(vm, "need thread in vm state");
-    }
+	/* Load the callee */
+	gst_load(vm, func);
+	thread = *vm->thread;
     stack = thread.data + thread.count;
     frame = *((GstStackFrame *)(stack - GST_FRAME_SIZE));
     pc = frame.pc;
@@ -570,40 +603,6 @@ void gst_init(Gst *vm) {
     vm->black = 0;
     /* Add thread */
     vm->thread = NULL;
-}
-
-/* Load a function into the VM. The function will be called with
- * no arguments when run */
-void gst_load(Gst *vm, GstValue callee) {
-    uint32_t startCapacity;
-    uint32_t locals, i;
-    uint16_t *pc;
-    GstStackFrame *frame;
-    GstThread *thread = gst_alloc(vm, sizeof(GstThread));
-    if (callee.type == GST_FUNCTION) {
-        locals = callee.data.function->def->locals;
-        pc = callee.data.function->def->byteCode;
-    } else if (callee.type == GST_CFUNCTION) {
-        locals = 0;
-        pc = NULL;
-    } else {
-        return;
-    }
-    startCapacity = locals + GST_FRAME_SIZE + 10;
-    thread->data = gst_alloc(vm, sizeof(GstValue) * startCapacity);
-    thread->capacity = startCapacity;
-    thread->count = GST_FRAME_SIZE;
-    vm->thread = thread;
-    frame = (GstStackFrame *)thread->data;
-    frame->prevSize = 0;
-    frame->size = locals;
-    frame->callee = callee;
-    frame->errorJump = NULL;
-    frame->env = NULL;
-    frame->pc = pc;
-    /* Nil arguments */
-    for (i = 0; i < locals; ++i)
-        thread->data[GST_FRAME_SIZE + i].type = GST_NIL;
 }
 
 /* Clear all memory associated with the VM */
