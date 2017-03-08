@@ -383,8 +383,27 @@ static int form_state(GstParser *p, uint8_t c) {
 }
 
 /* Handle a character */
-static int dispatch_char(GstParser *p, uint8_t c) {
+static void dispatch_char(GstParser *p, uint8_t c) {
     int done = 0;
+    ++p->index;
+
+    /* Handle comments */
+    if (p->flags & GST_PARSER_FLAG_INCOMMENT) {
+        if (c == '\n') {
+			p->flags = GST_PARSER_FLAG_EXPECTING_COMMENT;
+        }
+		return;
+    } else if (p->flags & GST_PARSER_FLAG_EXPECTING_COMMENT) {
+        if (c == '#') {
+			p->flags = GST_PARSER_FLAG_INCOMMENT;
+			return;
+        } else if (!is_whitespace(c)) {
+			p->flags = 0;
+        } else {
+    		return;
+        }
+    }
+
     while (!done && p->status == GST_PARSER_PENDING) {
         GstParseState *top = parser_peek(p);
         switch (top->type) {
@@ -402,8 +421,6 @@ static int dispatch_char(GstParser *p, uint8_t c) {
                 break;
         }
     }
-    ++p->index;
-    return !done;
 }
 
 /* Parse a C style string. The first value encountered when parsed is put
@@ -431,5 +448,6 @@ void gst_parser(GstParser *p, Gst *vm) {
     p->error = NULL;
     p->status = GST_PARSER_PENDING;
     p->value.type = GST_NIL;
+    p->flags = GST_PARSER_FLAG_EXPECTING_COMMENT;
     parser_push(p, PTYPE_ROOT, ' ');
 }
