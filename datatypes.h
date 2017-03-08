@@ -216,7 +216,9 @@ enum GstOpCode {
     GST_OP_IDV,     /* Integer division */
     GST_OP_EXP,     /* Exponentiation */
     GST_OP_CCT,     /* Concatenation */
-    GST_OP_NOT,     /* Invert */
+    GST_OP_NOT,     /* Boolean invert */
+    GST_OP_NEG,     /* Unary negation */ 
+    GST_OP_INV,     /* Unary multiplicative inverse */
     GST_OP_LEN,     /* Length */
     GST_OP_TYP,     /* Type */
     GST_OP_FLS,     /* Load false */

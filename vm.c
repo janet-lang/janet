@@ -111,6 +111,24 @@ int gst_start(Gst *vm) {
             pc += 3;
             break;
 
+       	case GST_OP_NEG: /* Unary negation */
+       		v1 = stack[pc[2]];
+			gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP);
+			temp.type = GST_NUMBER;
+			temp.data.number = -v1.data.number;
+			stack[pc[1]] = temp;
+			pc += 3;
+       		break;
+
+   		case GST_OP_INV: /* Unary multiplicative inverse */
+       		v1 = stack[pc[2]];
+			gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP);
+			temp.type = GST_NUMBER;
+			temp.data.number = 1 / v1.data.number;
+			stack[pc[1]] = temp;
+			pc += 3;
+       		break;
+
         case GST_OP_FLS: /* Load False */
             temp.type = GST_BOOLEAN;
             temp.data.boolean = 0;
