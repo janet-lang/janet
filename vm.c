@@ -202,6 +202,9 @@ int gst_start(Gst *vm, GstValue func) {
 
         case GST_OP_CAL: /* Call */
             {
+                int varArgs;
+                uint32_t expectedArity;
+                uint32_t normalArity;
                 temp = stack[pc[1]];
                 uint32_t arity = pc[3];
                 uint32_t oldCount = thread.count;
@@ -217,8 +220,15 @@ int gst_start(Gst *vm, GstValue func) {
                 if (temp.type == GST_FUNCTION) {
                     GstFunction *fn = temp.data.function;
                     locals = fn->def->locals;
+                    varArgs = fn->def->flags & GST_FUNCDEF_FLAG_VARARG;
+                    expectedArity = fn->def->arity;
+                    if (arity > expectedArity)
+                        normalArity = expectedArity;
+                    else
+                        normalArity = arity;
                 } else if (temp.type == GST_CFUNCTION) {
-                    locals = arity;
+                    locals = normalArity = expectedArity = arity;
+                    varArgs = 0;
                 } else {
                     gst_error(vm, GST_EXPECTED_FUNCTION);
                 }
@@ -254,8 +264,23 @@ int gst_start(Gst *vm, GstValue func) {
                 oldBase = thread.data + oldCount;
                 
                 /* Write arguments to new stack */
-                for (i = 0; i < arity; ++i)
+                for (i = 0; i < normalArity; ++i)
                     stack[i] = oldBase[pc[4 + i]];
+
+                /* Clear stack */
+                for (; i < locals; ++i)
+                    stack[i].type = GST_NIL;
+
+                /* Check for varargs and put them in a tuple */
+                if (varArgs) {
+                    GstValue *tuple;
+                    uint32_t j;
+					tuple = gst_tuple(vm, arity - expectedArity);
+					for (j = expectedArity; j < arity; ++j)
+						tuple[j - expectedArity] = stack[j];
+				    stack[expectedArity].type = GST_TUPLE;
+				    stack[expectedArity].data.tuple = tuple;
+                }
 
                 /* Call the function */
                 if (temp.type == GST_CFUNCTION) {
@@ -265,14 +290,12 @@ int gst_start(Gst *vm, GstValue func) {
                     *vm->thread = thread;
                     vm->ret.type = GST_NIL;
                     status = temp.data.cfunction(vm);
-					v1 = vm->ret;
+					v2 = vm->ret;
 					if (status == GST_RETURN_OK)
                         goto ret;
                     else
                         goto vm_error;
                 } else {
-                    for (; i < locals; ++i)
-                        stack[i].type = GST_NIL;
                     pc = temp.data.function->def->byteCode;
                 }
             }
@@ -407,6 +430,9 @@ int gst_start(Gst *vm, GstValue func) {
 
         case GST_OP_TCL: /* Tail call */
             {
+                int varArgs;
+                uint32_t expectedArity;
+             	uint32_t normalArity;
                 temp = stack[pc[1]];
                 uint32_t arity = pc[2];
                 uint16_t locals;
@@ -425,14 +451,21 @@ int gst_start(Gst *vm, GstValue func) {
 
                 /* Get size of new stack frame */
                 if (temp.type == GST_CFUNCTION) {
-                    locals = arity;
+                    locals = normalArity = expectedArity = arity;
+                    varArgs = 0;
                 } else if (temp.type == GST_FUNCTION) {
                     locals = temp.data.function->def->locals;
+                    varArgs = temp.data.function->def->flags & GST_FUNCDEF_FLAG_VARARG;
+                    expectedArity = temp.data.function->def->arity;
+                    if (arity > expectedArity)
+                        normalArity = expectedArity;
+                    else
+                        normalArity = arity;
                 } else {
                     gst_error(vm, GST_EXPECTED_FUNCTION);
                 }
 
-                /* Get enough space for manipulating args */
+                /* Get enough space for manipulating args - at least twice current frame size */
                 if (arity > frame.size) {
                     workspace = arity;
                 } else {
@@ -451,19 +484,30 @@ int gst_start(Gst *vm, GstValue func) {
                 }
                 
                 /* Copy the arguments into the extra space */
-                for (i = 0; i < arity; ++i)
+                for (i = 0; i < normalArity; ++i)
                     stack[workspace + i] = stack[pc[3 + i]];
 
                 /* Copy the end of the stack to the parameter position */
-                gst_memcpy(stack, stack + workspace, arity * sizeof(GstValue));
+                gst_memcpy(stack, stack + workspace, normalArity * sizeof(GstValue));
 
                 /* Update the stack frame */
                 frame.callee = temp;
                 frame.size = locals;
 
                 /* Nil the non argument part of the stack for gc */
-                for (i = arity; i < frame.size; ++i)
+                for (i = normalArity; i < frame.size; ++i)
                     stack[i].type = GST_NIL;
+
+                /* Check for varargs and put them in a tuple */
+                if (varArgs) {
+                    GstValue *tuple;
+                    uint32_t j;
+					tuple = gst_tuple(vm, arity - expectedArity);
+					for (j = expectedArity; j < arity; ++j)
+						tuple[j - expectedArity] = stack[workspace + j];
+				    stack[expectedArity].type = GST_TUPLE;
+				    stack[expectedArity].data.tuple = tuple;
+                }
 
                 /* Call the function */
                 if (temp.type == GST_CFUNCTION) {
@@ -473,7 +517,7 @@ int gst_start(Gst *vm, GstValue func) {
                     *vm->thread = thread;
                     vm->ret.type = GST_NIL;
                     status = temp.data.cfunction(vm);
-                    v1 = vm->ret;
+                    v2 = vm->ret;
                     if (status == GST_RETURN_OK)
                         goto ret;
                     else

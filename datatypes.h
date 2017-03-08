@@ -107,12 +107,16 @@ struct GstObject {
     GstValue meta;
 };
 
+/* Some function defintion flags */
+#define GST_FUNCDEF_FLAG_VARARG 1
+
 /* A function defintion. Contains information need to instatiate closures. */
 struct GstFuncDef {
     uint32_t locals;
-    uint32_t arity;
+    uint32_t arity; /* Not including varargs */
     uint32_t literalsLen;
     uint32_t byteCodeLen;
+    uint32_t flags;
     GstValue *literals; /* Contains strings, FuncDefs, etc. */
     uint16_t *byteCode;
 };

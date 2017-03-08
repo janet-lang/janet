@@ -723,10 +723,11 @@ static GstFuncDef *compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uin
     /* Initialize the new FuncDef */
     def->locals = scope->frameSize;
     def->arity = arity;
+    def->flags = 0;
     return def;
 }
 
-/* Compile a function from a function literal */
+/* Compile a function from a function literal source form */
 static Slot compile_function(GstCompiler *c, FormOptions opts, GstValue *form) {
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
