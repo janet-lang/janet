@@ -1,10 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "datatypes.h"
-#include "vm.h"
-#include "parse.h"
-#include "compile.h"
-#include "value.h"
+#include "gst.h"
 
 /* Simple printer for gst strings */
 void string_put(FILE *out, uint8_t * string) {
@@ -15,16 +11,14 @@ void string_put(FILE *out, uint8_t * string) {
 }
 
 /* Test c function */
-GstValue print(Gst *vm) {
+int print(Gst *vm) {
     uint32_t j, count;
-    GstValue nil;
     count = gst_count_args(vm);
     for (j = 0; j < count; ++j) {
         string_put(stdout, gst_to_string(vm, gst_arg(vm, j)));
         fputc('\n', stdout);
     }
-    nil.type = GST_NIL;
-    return nil;
+    return GST_RETURN_OK;
 }
 
 /* A simple repl for debugging */
@@ -98,7 +92,7 @@ void debug_repl(FILE *in, FILE *out) {
                     fprintf(out, "VM crash: %s\n", vm.crash);
                 } else {
                     fprintf(out, "VM error: ");
-                    string_put(out, gst_to_string(&vm, vm.error));
+                    string_put(out, gst_to_string(&vm, vm.ret));
                     printf("\n");
                 }
             }

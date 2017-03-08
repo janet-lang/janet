@@ -2,7 +2,6 @@
 #define DATATYPES_H_PJJ035NT
 
 #include <stdint.h>
-#include <setjmp.h>
 
 /* Flag for immutability in an otherwise mutable datastructure */
 #define GST_IMMUTABLE 1
@@ -36,19 +35,15 @@ typedef struct GstArray GstArray;
 typedef struct GstBuffer GstBuffer;
 typedef struct GstObject GstObject;
 typedef struct GstThread GstThread;
-typedef GstValue (*GstCFunction)(Gst * vm);
+typedef int (*GstCFunction)(Gst * vm);
 
 /* Implementation details */
-typedef struct GstParser GstParser;
-typedef struct GstCompiler GstCompiler;
 typedef struct GstFuncDef GstFuncDef;
 typedef struct GstFuncEnv GstFuncEnv;
 
 /* Definitely implementation details */
 typedef struct GstStackFrame GstStackFrame;
-typedef struct GstParseState GstParseState;
 typedef struct GstBucket GstBucket;
-typedef struct GstScope GstScope;
 
 /* The general gst value type. Contains a large union and
  * the type information of the value */
@@ -155,6 +150,11 @@ struct GstStackFrame {
     uint16_t *pc;
 };
 
+/* VM return status from c function */
+#define GST_RETURN_OK 0
+#define GST_RETURN_ERROR 1
+#define GST_RETURN_CRASH 2
+
 /* The VM state */
 struct Gst {
     /* Garbage collection */
@@ -166,46 +166,8 @@ struct Gst {
     GstThread *thread;
     /* Return state */
     const char *crash;
-    jmp_buf jump;
-    GstValue error;
-    GstValue ret; /* Returned value from VMStart. Also holds errors. */
+    GstValue ret; /* Returned value from gst_start. Also holds errors. */
 };
-
-struct GstParser {
-    Gst *vm;
-    const char *error;
-    GstParseState *data;
-    GstValue value;
-    uint32_t count;
-    uint32_t cap;
-    uint32_t index;
-    uint32_t flags;
-    enum {
-		GST_PARSER_PENDING = 0,
-		GST_PARSER_FULL,
-		GST_PARSER_ERROR
-    } status;
-};
-
-/* Compilation state */
-struct GstCompiler {
-    Gst *vm;
-    const char *error;
-    jmp_buf onError;
-    GstScope *tail;
-    GstArray *env;
-    GstBuffer *buffer;
-};
-
-/* String utils */
-#define gst_string_raw(s) ((uint32_t *)(s) - 2)
-#define gst_string_length(v) (gst_string_raw(v)[0])
-#define gst_string_hash(v) (gst_string_raw(v)[1])
-
-/* Tuple utils */
-#define gst_tuple_raw(s) ((uint32_t *)(s) - 2)
-#define gst_tuple_length(v) (gst_tuple_raw(v)[0])
-#define gst_tuple_hash(v) (gst_tuple_raw(v)[1])
 
 /* Bytecode */
 enum GstOpCode {

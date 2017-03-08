@@ -15,10 +15,10 @@ int gst_compare(GstValue x, GstValue y);
 int gst_equals(GstValue x, GstValue y);
 
 /* Get a value from an associative gst object. Can throw errors. */
-GstValue gst_get(Gst *vm, GstValue ds, GstValue key);
+const char *gst_get(GstValue ds, GstValue key, GstValue *out);
 
 /* Set a value in an associative gst object. Can throw errors. */
-void gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value);
+const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value);
 
 /* Load a c style string into a gst value (copies data) */
 GstValue gst_load_cstring(Gst *vm, const char *string);

@@ -184,7 +184,7 @@ void gst_sweep(Gst *vm) {
 static void *gst_alloc_prepare(Gst *vm, char *rawBlock, uint32_t size) {
     GCMemoryHeader *mdata;
     if (rawBlock == NULL) {
-        gst_crash(vm, "out of memory");
+        GST_OUT_OF_MEMORY;
     }
     vm->nextCollection += size;
     mdata = (GCMemoryHeader *)rawBlock;
@@ -216,7 +216,6 @@ void gst_collect(Gst *vm) {
         gst_mark(vm, &thread);
     }
     gst_mark(vm, &vm->ret);
-    gst_mark(vm, &vm->error);
     gst_sweep(vm);
     vm->nextCollection = 0;
 }

@@ -388,75 +388,78 @@ static uint8_t to_byte(GstNumber raw) {
 	return (uint8_t) raw;
 }
 
-/* Get a value out af an associated data structure. Can throw VM error. */
-GstValue gst_get(Gst *vm, GstValue ds, GstValue key) {
+/* Get a value out af an associated data structure. 
+ * Returns possible c error message, and NULL for no error. The
+ * useful return value is written to out on success */
+const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
     int32_t index;
     GstValue ret;
 	switch (ds.type) {
 	case GST_ARRAY:
-       	gst_assert_type(vm, key, GST_NUMBER);
+        if (key.type != GST_NUMBER) return "expected numeric key";
 		index = to_index(key.data.number, ds.data.array->count);
-		if (index == -1) gst_error(vm, "invalid array access");
+		if (index == -1) return "invalid array access";
 		ret = ds.data.array->data[index];
 		break;
 	case GST_TUPLE:
-       	gst_assert_type(vm, key, GST_NUMBER);
+        if (key.type != GST_NUMBER) return "expected numeric key";
 		index = to_index(key.data.number, gst_tuple_length(ds.data.tuple));
-		if (index < 0) gst_error(vm, "invalid tuple access");
+		if (index < 0) return "invalid tuple access";
 		ret = ds.data.tuple[index];
 		break;
     case GST_BYTEBUFFER:
-        gst_assert_type(vm, key, GST_NUMBER);
+        if (key.type != GST_NUMBER) return "expected numeric key";
         index = to_index(key.data.number, ds.data.buffer->count);
-		if (index == -1) gst_error(vm, "invalid buffer access");
+		if (index == -1) return "invalid buffer access";
 		ret.type = GST_NUMBER;
 		ret.data.number = ds.data.buffer->data[index];
 		break;
     case GST_STRING:
-        gst_assert_type(vm, key, GST_NUMBER);
+        if (key.type != GST_NUMBER) return "expected numeric key";
         index = to_index(key.data.number, gst_string_length(ds.data.string));
-		if (index == -1) gst_error(vm, "invalid string access");
+		if (index == -1) return "invalid string access";
 		ret.type = GST_NUMBER;
 		ret.data.number = ds.data.string[index];
 		break;
     case GST_OBJECT:
-        return gst_object_get(ds.data.object, key);
+       	ret = gst_object_get(ds.data.object, key);
+       	break;
     default:
-        gst_error(vm, "cannot get");
+       return "cannot get";
 	}
-	return ret;
+	*out = ret;
+	return NULL;
 }
 
-/* Set a value in an associative data structure. Can throw VM error. */
-void gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
+/* Set a value in an associative data structure. Returns possible
+ * error message, and NULL if no error. */
+const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
     int32_t index;
 	switch (ds.type) {
 	case GST_ARRAY:
         if (ds.data.array->flags & GST_IMMUTABLE)
-            goto immutable;
-       	gst_assert_type(vm, key, GST_NUMBER);
+            return "cannot set immutable value";
+        if (key.type != GST_NUMBER) return "expected numeric key";
 		index = to_index(key.data.number, ds.data.array->count);
-		if (index == -1) gst_error(vm, "invalid array access");
+		if (index == -1) return "invalid array access";
 		ds.data.array->data[index] = value;
 		break;
     case GST_BYTEBUFFER:
         if (ds.data.buffer->flags & GST_IMMUTABLE)
-            goto immutable;
-        gst_assert_type(vm, key, GST_NUMBER);
-        gst_assert_type(vm, value, GST_NUMBER);
+            return "cannot set immutable value";
+        if (key.type != GST_NUMBER) return "expected numeric key";
+        if (value.type != GST_NUMBER) return "expected numeric value";
         index = to_index(key.data.number, ds.data.buffer->count);
-		if (index == -1) gst_error(vm, "invalid buffer access");
+		if (index == -1) return "invalid buffer access";
 		ds.data.buffer->data[index] = to_byte(value.data.number);
 		break;
     case GST_OBJECT:
         if (ds.data.object->flags & GST_IMMUTABLE)
-            goto immutable;
+            return "cannot set immutable value";
         gst_object_put(vm, ds.data.object, key, value);
         break;
     default:
-        gst_error(vm, "cannot set");
+    	return "cannot set";
 	}
-	return;
-    immutable:
-        gst_error(vm, "cannot set immutable value");
+	return NULL;
 }
