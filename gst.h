@@ -7,5 +7,6 @@
 #include "parse.h"
 #include "compile.h"
 #include "value.h"
+#include "stl.h"
 
 #endif // gst_h_INCLUDED

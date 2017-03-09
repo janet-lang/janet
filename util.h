@@ -3,13 +3,13 @@
 
 /* String utils */
 #define gst_string_raw(s) ((uint32_t *)(s) - 2)
-#define gst_string_length(v) (gst_string_raw(v)[0])
-#define gst_string_hash(v) (gst_string_raw(v)[1])
+#define gst_string_length(s) (gst_string_raw(s)[0])
+#define gst_string_hash(s) (gst_string_raw(s)[1])
 
 /* Tuple utils */
-#define gst_tuple_raw(s) ((uint32_t *)(s) - 2)
-#define gst_tuple_length(v) (gst_tuple_raw(v)[0])
-#define gst_tuple_hash(v) (gst_tuple_raw(v)[1])
+#define gst_tuple_raw(t) ((uint32_t *)(t) - 2)
+#define gst_tuple_length(t) (gst_tuple_raw(t)[0])
+#define gst_tuple_hash(t) (gst_tuple_raw(t)[1])
 
 /* Memcpy for moving memory */
 #ifndef gst_memcpy

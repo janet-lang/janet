@@ -30,7 +30,7 @@ static uint8_t * number_to_string(Gst *vm, GstNumber x) {
     uint8_t *data = gst_alloc(vm, SIZE + 2 * sizeof(uint32_t));
     data += 2 * sizeof(uint32_t);
     /* TODO - not depend on stdio */
-    snprintf((char *) data, SIZE, "%.17g", x);
+    snprintf((char *) data, SIZE, "%.21g", x);
     gst_string_hash(data) = 0;
     gst_string_length(data) = strlen((char *) data);
     return data;
@@ -149,6 +149,8 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
             return string_description(vm, "function", 8, x.data.pointer);
         case GST_THREAD:
             return string_description(vm, "thread", 6, x.data.pointer);
+        case GST_USERDATA:
+            return string_description(vm, "userdata", 8, x.data.pointer);
     }
     return NULL;
 }
@@ -463,3 +465,44 @@ const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
 	}
 	return NULL;
 }
+
+/* Get the class object of a value */
+GstValue gst_get_class(GstValue x) {
+    GstValue ret;
+    ret.type = GST_NIL;
+    switch (x.type) {
+		case GST_OBJECT:
+			if (x.data.object->meta != NULL) {
+				ret.type = GST_OBJECT;
+				ret.data.object = x.data.object->meta;
+			}
+    		break;
+    	case GST_USERDATA:
+        	{
+				GstUserdataHeader *header = (GstUserdataHeader *)x.data.pointer - 1;
+    			if (header->meta != NULL) {
+    				ret.type = GST_OBJECT;
+    				ret.data.object = header->meta;
+    			}
+        	}
+        	break;
+        default:
+            break;
+    }
+    return ret;
+}
+
+/* Set the class object of a value. Returns possible c error string */
+const char *gst_set_class(GstValue x, GstValue class) {
+    switch (x.type) {
+		case GST_OBJECT:
+    		if (class.type != GST_OBJECT) return "class must be of type object";
+    		/* TODO - check for class immutability */
+			x.data.object->meta = class.data.object;
+    		break;
+        default:
+            return "cannot set class object";
+    }
+    return NULL;
+}
+

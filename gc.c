@@ -153,6 +153,16 @@ void gst_mark(Gst *vm, GstValue *x) {
                 }
             }
             break;
+
+        case GST_USERDATA:
+            if (gc_header(x->data.string - sizeof(GstUserdataHeader))->color != vm->black) {
+				GstUserdataHeader *userHeader = (GstUserdataHeader *)x->data.string - 1;
+				gc_header(userHeader)->color = vm->black;
+				GstValue temp;
+				temp.type = GST_OBJECT;
+				temp.data.object = userHeader->meta;
+				gst_mark(vm, &temp);
+            }
     }
 }
 

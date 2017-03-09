@@ -18,7 +18,8 @@ typedef enum GstType {
     GST_BYTEBUFFER,
     GST_FUNCTION,
     GST_CFUNCTION,
-    GST_OBJECT
+    GST_OBJECT,
+    GST_USERDATA
 } GstType;
 
 /* The state of the virtual machine */
@@ -38,6 +39,7 @@ typedef struct GstThread GstThread;
 typedef int (*GstCFunction)(Gst * vm);
 
 /* Implementation details */
+typedef struct GstUserdataHeader GstUserdataHeader;
 typedef struct GstFuncDef GstFuncDef;
 typedef struct GstFuncEnv GstFuncEnv;
 
@@ -104,13 +106,13 @@ struct GstObject {
     uint32_t capacity;
     GstBucket **buckets;
     uint32_t flags;
-    GstValue meta;
+    GstObject *meta;
 };
 
 /* Some function defintion flags */
 #define GST_FUNCDEF_FLAG_VARARG 1
 
-/* A function defintion. Contains information need to instatiate closures. */
+/* A function definition. Contains information need to instatiate closures. */
 struct GstFuncDef {
     uint32_t locals;
     uint32_t arity; /* Not including varargs */
@@ -140,6 +142,12 @@ struct GstBucket {
     GstValue key;
     GstValue value;
     GstBucket *next;
+};
+
+/* Contains information about userdata */
+struct GstUserdataHeader {
+	uint32_t size;
+	GstObject *meta;
 };
 
 /* A stack frame in the VM */

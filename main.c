@@ -3,22 +3,11 @@
 #include "gst.h"
 
 /* Simple printer for gst strings */
-void string_put(FILE *out, uint8_t * string) {
+static void string_put(FILE *out, uint8_t * string) {
     uint32_t i;
     uint32_t len = gst_string_length(string);
     for (i = 0; i < len; ++i)
         fputc(string[i], out);
-}
-
-/* Test c function */
-int print(Gst *vm) {
-    uint32_t j, count;
-    count = gst_count_args(vm);
-    for (j = 0; j < count; ++j) {
-        string_put(stdout, gst_to_string(vm, gst_arg(vm, j)));
-        fputc('\n', stdout);
-    }
-    return GST_RETURN_OK;
 }
 
 /* A simple repl for debugging */
@@ -71,7 +60,9 @@ void debug_repl(FILE *in, FILE *out) {
 
         /* Try to compile generated AST */
         gst_compiler(&c, &vm);
-        gst_compiler_add_global_cfunction(&c, "print", print);
+        gst_stl_load(&c);
+        /* Save last expression */
+        gst_compiler_add_global(&c, "_", vm.ret);
         func.type = GST_FUNCTION;
         func.data.function = gst_compiler_compile(&c, p.value);
 

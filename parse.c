@@ -268,15 +268,17 @@ static int string_state(GstParser *p, uint8_t c) {
                 top->buf.string.state = STRING_STATE_ESCAPE;
             } else if (c == '"') {
                 /* Load a quote form to get the string literal */
-                GstValue x, array;
+                GstValue x, tuplev;
+                GstValue *tuple;
                 x.type = GST_STRING;
                 x.data.string = gst_buffer_to_string(p->vm, top->buf.string.buffer);
-                array.type = GST_ARRAY;
-                array.data.array = gst_array(p->vm, 2);
-                gst_array_push(p->vm, array.data.array, gst_load_cstring(p->vm, "quote"));
-                gst_array_push(p->vm, array.data.array, x);
+                tuple = gst_tuple(p->vm, 2);
+                tuplev.type = GST_TUPLE;
+                tuplev.data.tuple = tuple;
+                tuple[0] = gst_load_cstring(p->vm, "quote");
+                tuple[1] = x;
                 parser_pop(p);
-                parser_append(p, array);
+                parser_append(p, tuplev);
             } else {
                 gst_buffer_push(p->vm, top->buf.string.buffer, c);
             }

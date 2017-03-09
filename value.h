@@ -29,4 +29,10 @@ uint8_t *gst_to_string(Gst *vm, GstValue x);
 /* Generate a hash value for a gst object */
 uint32_t gst_hash(GstValue x);
 
+/* Get the class object of a value */
+GstValue gst_get_class(GstValue x);
+
+/* Set the class object of a value. Returns possible c error string */
+const char *gst_set_class(GstValue obj, GstValue class);
+
 #endif /* end of include guard: VALUE_H_1RJPQKFM */

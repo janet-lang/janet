@@ -157,6 +157,20 @@ GstValue *gst_tuple(Gst *vm, uint32_t length) {
 }
 
 /****/
+/* Userdata functions */
+/****/
+
+/* Create new userdata */
+void *gst_userdata(Gst *vm, uint32_t size, GstObject *meta) {
+	char *data = gst_alloc(vm, sizeof(GstUserdataHeader) + size);
+	GstUserdataHeader *header = (GstUserdataHeader *)data;
+	void *user = data + sizeof(GstUserdataHeader);
+	header->size = size;
+	header->meta = meta;
+	return user;
+}
+
+/****/
 /* Dictionary functions */
 /****/
 

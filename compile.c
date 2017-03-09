@@ -1320,6 +1320,8 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
         /* Clear all but root scope */
         if (c->tail)
             c->tail->parent = NULL;
+        if (c->error == NULL)
+            c->error = "unknown error";
         return NULL;
     }
     /* Create a scope */
