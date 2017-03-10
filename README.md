@@ -1,3 +1,3 @@
-# tape
+# gst
 
-A language and vm for embeddable scripting.
+A language and vm.
