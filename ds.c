@@ -149,11 +149,11 @@ GstValue gst_array_peek(GstArray *array) {
 /* Create a new emoty tuple of the given size. Expected to be
  * mutated immediately */
 GstValue *gst_tuple(Gst *vm, uint32_t length) {
-	char *data = gst_alloc(vm, 2 * sizeof(uint32_t) + length * sizeof(GstValue));
-	GstValue *tuple = (GstValue *)(data + (2 * sizeof(uint32_t)));
-	gst_tuple_length(tuple) = length;
-	gst_tuple_hash(tuple) = 0;
-	return tuple;
+    char *data = gst_alloc(vm, 2 * sizeof(uint32_t) + length * sizeof(GstValue));
+    GstValue *tuple = (GstValue *)(data + (2 * sizeof(uint32_t)));
+    gst_tuple_length(tuple) = length;
+    gst_tuple_hash(tuple) = 0;
+    return tuple;
 }
 
 /****/
@@ -162,12 +162,12 @@ GstValue *gst_tuple(Gst *vm, uint32_t length) {
 
 /* Create new userdata */
 void *gst_userdata(Gst *vm, uint32_t size, GstObject *meta) {
-	char *data = gst_alloc(vm, sizeof(GstUserdataHeader) + size);
-	GstUserdataHeader *header = (GstUserdataHeader *)data;
-	void *user = data + sizeof(GstUserdataHeader);
-	header->size = size;
-	header->meta = meta;
-	return user;
+    char *data = gst_alloc(vm, sizeof(GstUserdataHeader) + size);
+    GstUserdataHeader *header = (GstUserdataHeader *)data;
+    void *user = data + sizeof(GstUserdataHeader);
+    header->size = size;
+    header->meta = meta;
+    return user;
 }
 
 /****/
@@ -231,34 +231,34 @@ GstValue gst_object_get(GstObject *o, GstValue key) {
 /* Get a value of the object with a cstring key */
 GstValue gst_object_get_cstring(GstObject *obj, const char *key) {
     const char *end = key;
-	while (*end++);
-	uint32_t len = end - key;
-	uint32_t hash = gst_cstring_calchash((uint8_t *)key, len);
-	uint32_t index = hash % obj->capacity;
+    while (*end++);
+    uint32_t len = end - key;
+    uint32_t hash = gst_cstring_calchash((uint8_t *)key, len);
+    uint32_t index = hash % obj->capacity;
     GstBucket *bucket = obj->buckets[index];
     while (bucket) {
         if (bucket->key.type == GST_STRING) {
             uint8_t *s = bucket->key.data.string;
-			if (gst_string_length(s) == len) {
-				if (!gst_string_hash(s))
-    				gst_string_hash(s) = gst_string_calchash(s);
-    			if (gst_string_hash(s) == hash) {
-					uint32_t i;
-					for (i = 0; i < len; ++i)
-    					if (s[i] != key[i])
-        					goto notequal;
-					return bucket->value;
-    			}
-			}
+            if (gst_string_length(s) == len) {
+                if (!gst_string_hash(s))
+                    gst_string_hash(s) = gst_string_calchash(s);
+                if (gst_string_hash(s) == hash) {
+                    uint32_t i;
+                    for (i = 0; i < len; ++i)
+                        if (s[i] != key[i])
+                            goto notequal;
+                    return bucket->value;
+                }
+            }
         }
-        notequal:
-		bucket = bucket->next;
+notequal:
+        bucket = bucket->next;
     }
     /* Return nil */
     {
-		GstValue ret;
-		ret.type = GST_NIL;
-		return ret;
+        GstValue ret;
+        ret.type = GST_NIL;
+        return ret;
     }
 }
 

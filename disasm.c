@@ -76,10 +76,10 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
                 break;
             case GST_OP_SUB:
                 current += dasm_fixed_op(out, current, "sub", 3);
-                break;		
+                break;      
             case GST_OP_MUL:
                 current += dasm_fixed_op(out, current, "mul", 3);
-                break;		
+                break;      
             case GST_OP_DIV:
                 current += dasm_fixed_op(out, current, "div", 3);
                 break;
@@ -194,7 +194,7 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
                 current += dasm_fixed_op(out, current, "returnNil", 0);
                 break;
             case GST_OP_PSH:
-				current += dasm_varg_op(out, current, "push", 1);
+                current += dasm_varg_op(out, current, "push", 1);
                 break;
             case GST_OP_CAL:
                 current += dasm_fixed_op(out, current, "call", 1);

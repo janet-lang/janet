@@ -52,8 +52,8 @@
 #define GST_FRAME_SIZE 5
 
 /* Macros for referencing that a stack frame given a stack */
-#define gst_frame_callee(s) 	(*(s - 1))
-#define gst_frame_size(s) 		((s - 2)->data.hws[0])
+#define gst_frame_callee(s)     (*(s - 1))
+#define gst_frame_size(s)       ((s - 2)->data.hws[0])
 #define gst_frame_prevsize(s)   ((s - 2)->data.hws[1])
 #define gst_frame_errloc(s)     ((s - 2)->data.hws[2])
 #define gst_frame_ret(s)        ((s - 2)->data.hws[3])

@@ -495,7 +495,7 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstValue *form,
     uint32_t count = gst_tuple_length(form);
     /* Check for some early exit conditions */
     if (count == 2 && (flags & OP_1_REPEAT)) {
-		return compile_value(c, opts, form[1]);
+        return compile_value(c, opts, form[1]);
     }
     if (opts.resultUnused) {
         ret = nil_slot();
@@ -550,8 +550,8 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstValue *form,
                 uint32_t i;
                 FormOptions subOpts = form_options_default();
                 Slot lhs = compile_value(c, subOpts, form[1]);
-               	Slot rhs = compile_value(c, subOpts, form[2]);
-               	gst_buffer_push_u16(c->vm, buffer, op2);
+                Slot rhs = compile_value(c, subOpts, form[2]);
+                gst_buffer_push_u16(c->vm, buffer, op2);
                 gst_buffer_push_u16(c->vm, buffer, ret.index);
                 gst_buffer_push_u16(c->vm, buffer, lhs.index);
                 gst_buffer_push_u16(c->vm, buffer, rhs.index);
@@ -559,7 +559,7 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstValue *form,
                 compiler_drop_slot(c, scope, rhs);
                 for (i = 3; i < count; ++i) {
                     rhs = compile_value(c, subOpts, form[i]);
-                   	gst_buffer_push_u16(c->vm, buffer, op2);
+                    gst_buffer_push_u16(c->vm, buffer, op2);
                     gst_buffer_push_u16(c->vm, buffer, ret.index);
                     gst_buffer_push_u16(c->vm, buffer, ret.index);
                     gst_buffer_push_u16(c->vm, buffer, rhs.index);
@@ -582,7 +582,7 @@ static Slot compile_operator(GstCompiler *c, FormOptions opts, GstValue *form,
 /* Quickly define some specials */
 #define MAKE_SPECIAL(name, op0, op1, op2, opn, flags) \
 static Slot compile_##name (GstCompiler *c, FormOptions opts, GstValue *form) {\
-	return compile_operator(c, opts, form, (op0), (op1), (op2), (opn), (flags));\
+    return compile_operator(c, opts, form, (op0), (op1), (op2), (opn), (flags));\
 }
 
 MAKE_SPECIAL(addition, 0, -1, GST_OP_ADD, -1, OP_FOLD | OP_DEFAULT_INT | OP_1_REPEAT)
@@ -615,18 +615,18 @@ static Slot compile_set(GstCompiler *c, FormOptions opts, GstValue *form) {
         subOpts = form_options_default();
     }
     key = compiler_realize_slot(c, compile_value(c, subOpts, form[2]));
-   	val = compiler_realize_slot(c, compile_value(c, subOpts, form[3]));
+    val = compiler_realize_slot(c, compile_value(c, subOpts, form[3]));
     gst_buffer_push_u16(c->vm, buffer, GST_OP_SET);
     gst_buffer_push_u16(c->vm, buffer, ds.index);
     gst_buffer_push_u16(c->vm, buffer, key.index);
-    gst_buffer_push_u16(c->vm, buffer,	val.index);
+    gst_buffer_push_u16(c->vm, buffer,  val.index);
     compiler_drop_slot(c, c->tail, key);
     compiler_drop_slot(c, c->tail, val);
     if (opts.resultUnused) {
         compiler_drop_slot(c, c->tail, ds);
         return nil_slot();
     } else {
-		return ds;
+        return ds;
     }
 }
 
@@ -881,8 +881,8 @@ static Slot compile_try(GstCompiler *c, FormOptions opts, GstValue *form) {
     /* Add subscope for error variable */
     GstScope *subScope = compiler_push_scope(c, 1);
     errorIndex = compiler_declare_symbol(c, subScope, form[1]);
-   	/* Leave space for try instruction */
-   	countAtTry = buffer->count;
+    /* Leave space for try instruction */
+    countAtTry = buffer->count;
     buffer->count += sizeof(uint32_t) + 2 * sizeof(uint16_t);
     /* Compile the body */
     body = compile_value(c, opts, form[2]);
@@ -1052,23 +1052,23 @@ static SpecialFormHelper get_special(GstValue *form) {
                 }
             }
             break;
-    	case 'e':
-    		{
-				if (gst_string_length(name) == 5 &&
-				    	name[1] == 'r' &&
-				    	name[2] == 'r' &&
-				    	name[3] == 'o' &&
-				    	name[4] == 'r') {
-					return compile_error;
-		    	}
-    		}
+        case 'e':
+            {
+                if (gst_string_length(name) == 5 &&
+                        name[1] == 'r' &&
+                        name[2] == 'r' &&
+                        name[3] == 'o' &&
+                        name[4] == 'r') {
+                    return compile_error;
+                }
+            }
         case 'g':
             {
-				if (gst_string_length(name) == 3 &&
-    				    name[1] == 'e' &&
-    				    name[2] == 't') {
-					return compile_get;
-			    }
+                if (gst_string_length(name) == 3 &&
+                        name[1] == 'e' &&
+                        name[2] == 't') {
+                    return compile_get;
+                }
             }
         case 'd':
             {
@@ -1102,7 +1102,7 @@ static SpecialFormHelper get_special(GstValue *form) {
                     return compile_not;
                 }
             }
-           	break;
+            break;
         case 'q':
             {
                 if (gst_string_length(name) == 5 &&
@@ -1134,7 +1134,7 @@ static SpecialFormHelper get_special(GstValue *form) {
                         name[2] == 'p' &&
                         name[3] == 'l' &&
                         name[4] == 'e') {
-					return compile_make_tuple;
+                    return compile_make_tuple;
                 }
             }
         case 'w':
@@ -1198,14 +1198,14 @@ static Slot compile_object(GstCompiler *c, FormOptions opts, GstObject *obj) {
     ret = compiler_get_target(c, opts);
     tracker_init(c, &tracker);
     for (i = 0; i < cap; ++i) {
-		bucket = obj->buckets[i];
-		while (bucket != NULL) {
+        bucket = obj->buckets[i];
+        while (bucket != NULL) {
             Slot slot = compile_value(c, subOpts, bucket->key);
             compiler_tracker_push(c, &tracker, compiler_realize_slot(c, slot));
             slot = compile_value(c, subOpts, bucket->value);
             compiler_tracker_push(c, &tracker, compiler_realize_slot(c, slot));
-			bucket = bucket->next;
-		}
+            bucket = bucket->next;
+        }
     }
     compiler_tracker_free(c, scope, &tracker);
     gst_buffer_push_u16(c->vm, buffer, GST_OP_DIC);
@@ -1335,10 +1335,10 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
         GstFuncEnv *env = gst_alloc(c->vm, sizeof(GstFuncEnv));
         GstFunction *func = gst_alloc(c->vm, sizeof(GstFunction));
         if (envSize) {
-        	env->values = gst_alloc(c->vm, sizeof(GstValue) * envSize);
-        	gst_memcpy(env->values, c->env->data, envSize * sizeof(GstValue));
+            env->values = gst_alloc(c->vm, sizeof(GstValue) * envSize);
+            gst_memcpy(env->values, c->env->data, envSize * sizeof(GstValue));
         } else {
-			env->values = NULL;
+            env->values = NULL;
         }
         env->stackOffset = envSize;
         env->thread = NULL;

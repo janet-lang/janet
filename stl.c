@@ -24,41 +24,41 @@ int gst_stl_print(Gst *vm) {
 
 /* Get class value */
 int gst_stl_getclass(Gst *vm) {
-	GstValue class = gst_get_class(gst_arg(vm, 0));
-	gst_c_return(vm, class);
+    GstValue class = gst_get_class(gst_arg(vm, 0));
+    gst_c_return(vm, class);
 }
 
 /* Set class value */
 int gst_stl_setclass(Gst *vm) {
-	GstValue x = gst_arg(vm, 0);
-	GstValue class = gst_arg(vm, 1);
-	const char *err = gst_set_class(x, class);
-	if (err != NULL)
-    	gst_c_throwc(vm, err);
-   	gst_c_return(vm, x);
+    GstValue x = gst_arg(vm, 0);
+    GstValue class = gst_arg(vm, 1);
+    const char *err = gst_set_class(x, class);
+    if (err != NULL)
+        gst_c_throwc(vm, err);
+    gst_c_return(vm, x);
 }
 
 /* Call a function */
 int gst_stl_callforeach(Gst *vm) {
-	GstValue func = gst_arg(vm, 0);
-	uint32_t argCount = gst_count_args(vm);
-	uint32_t i;
-	if (argCount) {
-    	for (i = 0; i < argCount - 1; ++i)
-        	gst_call(vm, func, 1, vm->thread->data + vm->thread->count + 1 + i);
-    	return GST_RETURN_OK;
+    GstValue func = gst_arg(vm, 0);
+    uint32_t argCount = gst_count_args(vm);
+    uint32_t i;
+    if (argCount) {
+        for (i = 0; i < argCount - 1; ++i)
+            gst_call(vm, func, 1, vm->thread->data + vm->thread->count + 1 + i);
+        return GST_RETURN_OK;
     } else {
-		gst_c_throwc(vm, "expected at least one argument");
+        gst_c_throwc(vm, "expected at least one argument");
     }
 }
 
 /* Exit */
 int gst_stl_exit(Gst *vm) {
     int ret;
-	GstValue exitValue = gst_arg(vm, 0);
-	ret = (exitValue.type == GST_NUMBER) ? exitValue.data.number : 0;
-	exit(ret);
-	return GST_RETURN_OK;
+    GstValue exitValue = gst_arg(vm, 0);
+    ret = (exitValue.type == GST_NUMBER) ? exitValue.data.number : 0;
+    exit(ret);
+    return GST_RETURN_OK;
 }
 
 /* Load core */
@@ -76,25 +76,25 @@ void gst_stl_load_core(GstCompiler *c) {
 
 /* Parse a source string into an AST */
 int gst_stl_parse(Gst *vm) {
-	uint8_t *source = gst_to_string(vm, gst_arg(vm, 0));
-	GstParser p;
+    uint8_t *source = gst_to_string(vm, gst_arg(vm, 0));
+    GstParser p;
     /* init state */
     gst_parser(&p, vm);
 
     /* Get and parse input until we have a full form */
     gst_parse_string(&p, source);
-	if (p.status == GST_PARSER_PENDING) {
-		gst_c_throwc(vm, "incomplete source");
-	} else if (p.status == GST_PARSER_ERROR) {
+    if (p.status == GST_PARSER_PENDING) {
+        gst_c_throwc(vm, "incomplete source");
+    } else if (p.status == GST_PARSER_ERROR) {
         gst_c_throwc(vm, p.error);
-	} else {
-		gst_c_return(vm, p.value);
+    } else {
+        gst_c_return(vm, p.value);
     }
 }
 
 /* Load parsing */
 void gst_stl_load_parse(GstCompiler *c) {
-	gst_compiler_add_global_cfunction(c, "parse", gst_stl_parse);
+    gst_compiler_add_global_cfunction(c, "parse", gst_stl_parse);
 }
 
 /****/
@@ -110,25 +110,25 @@ int gst_stl_compile(Gst *vm) {
     /* init state */
     gst_compiler(&c, vm);
     /* Check for environment variables */
-	if (env.type == GST_OBJECT) {
-		/* Iterate through environment, adding globals */
-  	} else if (env.type != GST_NIL) {
-		gst_c_throwc(vm, "invalid type for environment");
-	}
-	/* Prepare return value */
-	ret.type = GST_FUNCTION;
+    if (env.type == GST_OBJECT) {
+        /* Iterate through environment, adding globals */
+    } else if (env.type != GST_NIL) {
+        gst_c_throwc(vm, "invalid type for environment");
+    }
+    /* Prepare return value */
+    ret.type = GST_FUNCTION;
     ret.data.function = gst_compiler_compile(&c, ast);
     /* Check for errors */
     if (c.error == NULL) {
-		gst_c_return(vm, ret);
+        gst_c_return(vm, ret);
     } else {
-		gst_c_throwc(vm, c.error);
+        gst_c_throwc(vm, c.error);
     }
 }
 
 /* Load compilation */
 void gst_stl_load_compile(GstCompiler *c) {
-	gst_compiler_add_global_cfunction(c, "compile", gst_stl_compile);
+    gst_compiler_add_global_cfunction(c, "compile", gst_stl_compile);
 }
 
 /****/
@@ -143,7 +143,7 @@ void gst_stl_load_compile(GstCompiler *c) {
 
 /* Load all libraries */
 void gst_stl_load(GstCompiler *c) {
-	gst_stl_load_core(c);
-	gst_stl_load_parse(c);
-	gst_stl_load_compile(c);
+    gst_stl_load_core(c);
+    gst_stl_load_parse(c);
+    gst_stl_load_compile(c);
 }

@@ -74,14 +74,14 @@ struct GstValue {
 /* A lightweight thread in gst. Does not correspond to
  * operating system threads. Used in coroutines. */
 struct GstThread {
-	uint32_t count;
-	uint32_t capacity;
-	GstValue *data;
-	enum {
-		GST_THREAD_PENDING = 0,
-		GST_THREAD_ALIVE,
-		GST_TRHEAD_DEAD
-	} status;
+    uint32_t count;
+    uint32_t capacity;
+    GstValue *data;
+    enum {
+        GST_THREAD_PENDING = 0,
+        GST_THREAD_ALIVE,
+        GST_TRHEAD_DEAD
+    } status;
 };
 
 /* A dynamic array type. Useful for implementing a stack. */
@@ -147,8 +147,8 @@ struct GstBucket {
 
 /* Contains information about userdata */
 struct GstUserdataHeader {
-	uint32_t size;
-	GstObject *meta;
+    uint32_t size;
+    GstObject *meta;
 };
 
 /* VM return status from c function */
@@ -206,9 +206,9 @@ enum GstOpCode {
     GST_OP_TUP,     /* Create tuple */
     GST_OP_SET,     /* Assocaitive set */
     GST_OP_GET,     /* Associative get */
-	GST_OP_ERR,     /* Throw error */
-	GST_OP_TRY,     /* Begin try block */
-	GST_OP_UTY,     /* End try block */
+    GST_OP_ERR,     /* Throw error */
+    GST_OP_TRY,     /* Begin try block */
+    GST_OP_UTY,     /* End try block */
     GST_OP_RET,     /* Return from function */
     GST_OP_RTN,     /* Return nil */
     GST_OP_PSH,     /* Push a stack frame */

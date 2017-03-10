@@ -20,13 +20,13 @@ struct GstParseState {
     ParseType type;
     union {
         struct {
-			uint8_t endDelimiter;
+            uint8_t endDelimiter;
             GstArray *array;
         } form;
         struct {
             GstValue key;
             int keyFound;
-			GstObject *object;
+            GstObject *object;
         } object;
         struct {
             GstBuffer *buffer;
@@ -362,22 +362,22 @@ static int form_state(GstParser *p, uint8_t c) {
             x.type = GST_ARRAY;
             x.data.array = array;
         } else if (c == ')') {
-			x.type = GST_TUPLE;
-			x.data.tuple = gst_tuple(p->vm, array->count);
-			gst_memcpy(x.data.tuple, array->data, array->count * sizeof(GstValue));
+            x.type = GST_TUPLE;
+            x.data.tuple = gst_tuple(p->vm, array->count);
+            gst_memcpy(x.data.tuple, array->data, array->count * sizeof(GstValue));
         } else { /* c == '{' */
             uint32_t i;
-			if (array->count % 2 != 0) {
-    			p_error(p, "object literal must have even number of elements");
-    			return 1;
-			}
-			x.type = GST_OBJECT;
-			x.data.object = gst_object(p->vm, array->count);
-			for (i = 0; i < array->count; i += 2) {
-				gst_object_put(p->vm, x.data.object, array->data[i], array->data[i + 1]);	
-			}
+            if (array->count % 2 != 0) {
+                p_error(p, "object literal must have even number of elements");
+                return 1;
+            }
+            x.type = GST_OBJECT;
+            x.data.object = gst_object(p->vm, array->count);
+            for (i = 0; i < array->count; i += 2) {
+                gst_object_put(p->vm, x.data.object, array->data[i], array->data[i + 1]);   
+            }
         }
-    	parser_pop(p);
+        parser_pop(p);
         parser_append(p, x);
         return 1;
     }
@@ -392,17 +392,17 @@ static void dispatch_char(GstParser *p, uint8_t c) {
     /* Handle comments */
     if (p->flags & GST_PARSER_FLAG_INCOMMENT) {
         if (c == '\n') {
-			p->flags = GST_PARSER_FLAG_EXPECTING_COMMENT;
+            p->flags = GST_PARSER_FLAG_EXPECTING_COMMENT;
         }
-		return;
+        return;
     } else if (p->flags & GST_PARSER_FLAG_EXPECTING_COMMENT) {
         if (c == '#') {
-			p->flags = GST_PARSER_FLAG_INCOMMENT;
-			return;
+            p->flags = GST_PARSER_FLAG_INCOMMENT;
+            return;
         } else if (!is_whitespace(c)) {
-			p->flags = 0;
+            p->flags = 0;
         } else {
-    		return;
+            return;
         }
     }
 
@@ -443,10 +443,10 @@ int gst_parse_cstring(GstParser *p, const char *string) {
 int gst_parse_string(GstParser *p, uint8_t *string) {
     uint32_t i;
     p->status = GST_PARSER_PENDING;
-	for (i = 0; i < gst_string_length(string); ++i) {
-    	if (p->status != GST_PARSER_PENDING) break;
+    for (i = 0; i < gst_string_length(string); ++i) {
+        if (p->status != GST_PARSER_PENDING) break;
         dispatch_char(p, string[i]);
-	}
+    }
     return i;
 }
 
