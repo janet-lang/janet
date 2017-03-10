@@ -87,8 +87,11 @@ void *gst_userdata(Gst *vm, uint32_t size, GstObject *meta);
 /* Create a new object */
 GstObject *gst_object(Gst *vm, uint32_t capacity);
 
-/* Get a value out of the dictionary */
+/* Get a value out of the object */
 GstValue gst_object_get(GstObject *obj, GstValue key);
+
+/* Get a value of of an object with a string key */
+GstValue gst_object_get_cstring(GstObject *obj, const char *key);
 
 /* Get a Value from the dictionary, but remove it at the same
  * time. */

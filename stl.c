@@ -1,4 +1,4 @@
-/* This implemets a standard library in gst. Some of this
+/* This implements a standard library in gst. Some of this
  * will eventually be ported over to gst if possible */
 #include "stl.h"
 #include "gst.h"
@@ -38,11 +38,36 @@ int gst_stl_setclass(Gst *vm) {
    	gst_c_return(vm, x);
 }
 
+/* Call a function */
+int gst_stl_callforeach(Gst *vm) {
+	GstValue func = gst_arg(vm, 0);
+	uint32_t argCount = gst_count_args(vm);
+	uint32_t i;
+	if (argCount) {
+    	for (i = 0; i < argCount - 1; ++i)
+        	gst_call(vm, func, 1, vm->thread->data + vm->thread->count + 1 + i);
+    	return GST_RETURN_OK;
+    } else {
+		gst_c_throwc(vm, "expected at least one argument");
+    }
+}
+
+/* Exit */
+int gst_stl_exit(Gst *vm) {
+    int ret;
+	GstValue exitValue = gst_arg(vm, 0);
+	ret = (exitValue.type == GST_NUMBER) ? exitValue.data.number : 0;
+	exit(ret);
+	return GST_RETURN_OK;
+}
+
 /* Load core */
 void gst_stl_load_core(GstCompiler *c) {
     gst_compiler_add_global_cfunction(c, "print", gst_stl_print);
     gst_compiler_add_global_cfunction(c, "get-class", gst_stl_getclass);
     gst_compiler_add_global_cfunction(c, "set-class", gst_stl_setclass);
+    gst_compiler_add_global_cfunction(c, "call-for-each", gst_stl_callforeach);
+    gst_compiler_add_global_cfunction(c, "exit", gst_stl_exit);
 }
 
 /****/

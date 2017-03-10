@@ -44,7 +44,6 @@ typedef struct GstFuncDef GstFuncDef;
 typedef struct GstFuncEnv GstFuncEnv;
 
 /* Definitely implementation details */
-typedef struct GstStackFrame GstStackFrame;
 typedef struct GstBucket GstBucket;
 
 /* The general gst value type. Contains a large union and
@@ -63,6 +62,11 @@ struct GstValue {
         GstCFunction cfunction;
         GstFunction *function;
         uint8_t *string;
+        /* Indirectly used union members */
+        uint16_t *u16p;
+        GstFuncEnv *env;
+        uint16_t hws[4];
+        uint8_t bytes[8];
         void *pointer;
     } data;
 };
@@ -79,9 +83,6 @@ struct GstThread {
 		GST_TRHEAD_DEAD
 	} status;
 };
-
-/* Size of stack frame */
-#define GST_FRAME_SIZE ((sizeof(GstStackFrame) + sizeof(GstValue) + 1) / sizeof(GstValue))
 
 /* A dynamic array type. Useful for implementing a stack. */
 struct GstArray {
@@ -150,18 +151,6 @@ struct GstUserdataHeader {
 	GstObject *meta;
 };
 
-/* A stack frame in the VM */
-struct GstStackFrame {
-    GstValue callee;
-    uint16_t size;
-    uint16_t prevSize;
-    uint16_t ret;
-    uint16_t errorSlot;
-    uint16_t *errorJump;
-    GstFuncEnv *env;
-    uint16_t *pc;
-};
-
 /* VM return status from c function */
 #define GST_RETURN_OK 0
 #define GST_RETURN_ERROR 1
@@ -203,8 +192,6 @@ enum GstOpCode {
     GST_OP_UPV,     /* Load upvalue */
     GST_OP_JIF,     /* Jump if */
     GST_OP_JMP,     /* Jump */
-    GST_OP_CAL,     /* Call function */
-    GST_OP_RET,     /* Return from function */
     GST_OP_SUV,     /* Set upvalue */
     GST_OP_CST,     /* Load constant */
     GST_OP_I32,     /* Load 32 bit signed integer */
@@ -217,13 +204,16 @@ enum GstOpCode {
     GST_OP_ARR,     /* Create array */
     GST_OP_DIC,     /* Create object */
     GST_OP_TUP,     /* Create tuple */
-    GST_OP_TCL,     /* Tail call */
-    GST_OP_RTN,     /* Return nil */
     GST_OP_SET,     /* Assocaitive set */
     GST_OP_GET,     /* Associative get */
 	GST_OP_ERR,     /* Throw error */
 	GST_OP_TRY,     /* Begin try block */
-	GST_OP_UTY      /* End try block */
+	GST_OP_UTY,     /* End try block */
+    GST_OP_RET,     /* Return from function */
+    GST_OP_RTN,     /* Return nil */
+    GST_OP_PSH,     /* Push a stack frame */
+    GST_OP_CAL,     /* Call function */
+    GST_OP_TCL      /* Tail call */
 };
 
 #endif

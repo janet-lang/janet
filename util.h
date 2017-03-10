@@ -46,6 +46,21 @@
 #define NULL ((void *)0)
 #endif
 
+/* Stack frame manipulation */
+
+/* Size of stack frame in number of values */
+#define GST_FRAME_SIZE 5
+
+/* Macros for referencing that a stack frame given a stack */
+#define gst_frame_callee(s) 	(*(s - 1))
+#define gst_frame_size(s) 		((s - 2)->data.hws[0])
+#define gst_frame_prevsize(s)   ((s - 2)->data.hws[1])
+#define gst_frame_errloc(s)     ((s - 2)->data.hws[2])
+#define gst_frame_ret(s)        ((s - 2)->data.hws[3])
+#define gst_frame_pc(s)         ((s - 3)->data.u16p)
+#define gst_frame_errjmp(s)     ((s - 4)->data.u16p)
+#define gst_frame_env(s)        ((s - 5)->data.env)
+
 /* C function helpers */
 
 /* Return in a c function */

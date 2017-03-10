@@ -155,9 +155,14 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
     return NULL;
 }
 
-/* Simple hash function */
-static uint32_t djb2(const uint8_t * str) {
-    const uint8_t * end = str + gst_string_length(str);
+/* GST string version */
+uint32_t gst_string_calchash(const uint8_t *str) {
+	return gst_cstring_calchash(str, gst_string_length(str));
+}
+
+/* Simple hash function (djb2) */
+uint32_t gst_cstring_calchash(const uint8_t *str, uint32_t len) {
+    const uint8_t *end = str + len;
     uint32_t hash = 5381;
     while (str < end)
         hash = (hash << 5) + hash + *str++;
@@ -165,7 +170,7 @@ static uint32_t djb2(const uint8_t * str) {
 }
 
 /* Simple hash function to get tuple hash */
-static uint32_t tuple_hash(GstValue *tuple) {
+static uint32_t tuple_calchash(GstValue *tuple) {
     uint32_t i;
     uint32_t count = gst_tuple_length(tuple);
     uint32_t hash = 5387;
@@ -264,13 +269,13 @@ uint32_t gst_hash(GstValue x) {
             if (gst_string_hash(x.data.string))
                 hash = gst_string_hash(x.data.string);
             else
-                hash = gst_string_hash(x.data.string) = djb2(x.data.string);
+                hash = gst_string_hash(x.data.string) = gst_string_calchash(x.data.string);
             break;
         case GST_TUPLE:
             if (gst_tuple_hash(x.data.tuple))
                 hash = gst_tuple_hash(x.data.tuple);
             else
-                hash = gst_tuple_hash(x.data.tuple) = tuple_hash(x.data.tuple);
+                hash = gst_tuple_hash(x.data.tuple) = tuple_calchash(x.data.tuple);
             break;
         default:
             /* Cast the pointer */

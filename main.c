@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "gst.h"
+#include "disasm.h"
 
 /* Simple printer for gst strings */
 static void string_put(FILE *out, uint8_t * string) {
@@ -76,8 +77,11 @@ void debug_repl(FILE *in, FILE *out) {
             continue;
         }
 
+        /* Print asm */
+        /* gst_dasm_function(stdout, func.data.function); */
+
         /* Execute function */
-        if (gst_start(&vm, func)) {
+        if (gst_run(&vm, func)) {
             if (out) {
                 if (vm.crash) {
                     fprintf(out, "VM crash: %s\n", vm.crash);

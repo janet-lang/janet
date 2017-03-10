@@ -11,7 +11,13 @@ void gst_init(Gst * vm);
 void gst_deinit(Gst * vm);
 
 /* Start running the VM with a given entry point */
-int gst_start(Gst * vm, GstValue func);
+int gst_run(Gst *vm, GstValue func);
+
+/* Start running the VM from where it left off. */
+int gst_continue(Gst *vm);
+
+/* Call a gst value */
+int gst_call(Gst *vm, GstValue callee, uint32_t arity, GstValue *args);
 
 /* Run garbage collection */
 void gst_collect(Gst * vm);

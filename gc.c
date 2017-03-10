@@ -55,16 +55,15 @@ static void gst_mark_funcdef(Gst *vm, GstFuncDef *def) {
     }
 }
 
-/* Helper to mark a stack frame. Returns the next frame. */
-static GstStackFrame *gst_mark_stackframe(Gst *vm, GstStackFrame *frame) {
+/* Helper to mark a stack frame. Returns the next stackframe. */
+static GstValue *gst_mark_stackframe(Gst *vm, GstValue *stack) {
     uint32_t i;
-    GstValue *stack = (GstValue *)frame + GST_FRAME_SIZE;
-    gst_mark(vm, &frame->callee);
-    if (frame->env)
-        gst_mark_funcenv(vm, frame->env);
-    for (i = 0; i < frame->size; ++i)
+    gst_mark(vm, &gst_frame_callee(stack));
+    if (gst_frame_env(stack) != NULL)
+        gst_mark_funcenv(vm, gst_frame_env(stack));
+    for (i = 0; i < gst_frame_size(stack); ++i)
         gst_mark(vm, stack + i);
-    return (GstStackFrame *)(stack + frame->size);
+    return stack + gst_frame_size(stack) + GST_FRAME_SIZE;
 }
 
 /* Mark allocated memory associated with a value. This is
@@ -110,9 +109,8 @@ void gst_mark(Gst *vm, GstValue *x) {
         case GST_THREAD:
             if (gc_header(x->data.thread)->color != vm->black) {
                 GstThread *thread = x->data.thread;
-                GstStackFrame *frame = (GstStackFrame *)thread->data;
-                GstStackFrame *end = (GstStackFrame *)(thread->data +
-                    thread->count - GST_FRAME_SIZE);
+                GstValue *frame = thread->data + GST_FRAME_SIZE;
+                GstValue *end = thread->data + thread->count;
                 gc_header(thread)->color = vm->black;
                 gc_header(thread->data)->color = vm->black;
                 while (frame <= end)

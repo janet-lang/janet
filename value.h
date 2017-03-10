@@ -23,6 +23,12 @@ const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value);
 /* Load a c style string into a gst value (copies data) */
 GstValue gst_load_cstring(Gst *vm, const char *string);
 
+/* Simple hash function (djb2) */
+uint32_t gst_string_calchash(const uint8_t *str);
+
+/* C string hash version */
+uint32_t gst_cstring_calchash(const uint8_t *str, uint32_t len);
+
 /* Convert any gst value into a string */
 uint8_t *gst_to_string(Gst *vm, GstValue x);
 
