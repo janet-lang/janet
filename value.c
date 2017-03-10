@@ -87,57 +87,57 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
         case GST_ARRAY:
             {
                 uint32_t i;
-				GstBuffer *b = gst_buffer(vm, 40);
-				gst_buffer_push(vm, b, '[');
-				for (i = 0; i < x.data.array->count; ++i) {
-    				uint8_t *substr = gst_to_string(vm, x.data.array->data[i]);
-					gst_buffer_append(vm, b, substr, gst_string_length(substr));
-					if (i < x.data.array->count - 1)
-        				gst_buffer_push(vm, b, ' ');
-				}
-				gst_buffer_push(vm, b, ']');
-				return gst_buffer_to_string(vm, b);
+                GstBuffer *b = gst_buffer(vm, 40);
+                gst_buffer_push(vm, b, '[');
+                for (i = 0; i < x.data.array->count; ++i) {
+                    uint8_t *substr = gst_to_string(vm, x.data.array->data[i]);
+                    gst_buffer_append(vm, b, substr, gst_string_length(substr));
+                    if (i < x.data.array->count - 1)
+                        gst_buffer_push(vm, b, ' ');
+                }
+                gst_buffer_push(vm, b, ']');
+                return gst_buffer_to_string(vm, b);
             }
         case GST_TUPLE:
             {
                 uint32_t i, count;
-				GstBuffer *b = gst_buffer(vm, 40);
-				GstValue *tuple = x.data.tuple;
-				gst_buffer_push(vm, b, '(');
-				count = gst_tuple_length(tuple);
-				for (i = 0; i < count; ++i) {
-    				uint8_t *substr = gst_to_string(vm, tuple[i]);
-					gst_buffer_append(vm, b, substr, gst_string_length(substr));
-					if (i < count - 1)
-        				gst_buffer_push(vm, b, ' ');
-				}
-				gst_buffer_push(vm, b, ')');
-				return gst_buffer_to_string(vm, b);
+                GstBuffer *b = gst_buffer(vm, 40);
+                GstValue *tuple = x.data.tuple;
+                gst_buffer_push(vm, b, '(');
+                count = gst_tuple_length(tuple);
+                for (i = 0; i < count; ++i) {
+                    uint8_t *substr = gst_to_string(vm, tuple[i]);
+                    gst_buffer_append(vm, b, substr, gst_string_length(substr));
+                    if (i < count - 1)
+                        gst_buffer_push(vm, b, ' ');
+                }
+                gst_buffer_push(vm, b, ')');
+                return gst_buffer_to_string(vm, b);
             }
         case GST_OBJECT:
             {
                 uint32_t i, count;
                 GstBucket *bucket;
-				GstBuffer *b = gst_buffer(vm, 40);
-				GstObject *object = x.data.object;
-				gst_buffer_push(vm, b, '{');
-				count = 0;
-				for (i = 0; i < object->capacity; ++i) {
-    				bucket = object->buckets[i];
-    				while (bucket != NULL) {
-        				uint8_t *substr = gst_to_string(vm, bucket->key);
-    					gst_buffer_append(vm, b, substr, gst_string_length(substr));
-        				gst_buffer_push(vm, b, ' ');
-        				substr = gst_to_string(vm, bucket->value);
-    					gst_buffer_append(vm, b, substr, gst_string_length(substr));
-						count++;
-						if (count < object->count)
-            				gst_buffer_push(vm, b, ' ');
-        				bucket = bucket->next;
-    				}
-				}
-				gst_buffer_push(vm, b, '}');
-				return gst_buffer_to_string(vm, b);
+                GstBuffer *b = gst_buffer(vm, 40);
+                GstObject *object = x.data.object;
+                gst_buffer_push(vm, b, '{');
+                count = 0;
+                for (i = 0; i < object->capacity; ++i) {
+                    bucket = object->buckets[i];
+                    while (bucket != NULL) {
+                        uint8_t *substr = gst_to_string(vm, bucket->key);
+                        gst_buffer_append(vm, b, substr, gst_string_length(substr));
+                        gst_buffer_push(vm, b, ' ');
+                        substr = gst_to_string(vm, bucket->value);
+                        gst_buffer_append(vm, b, substr, gst_string_length(substr));
+                        count++;
+                        if (count < object->count)
+                            gst_buffer_push(vm, b, ' ');
+                        bucket = bucket->next;
+                    }
+                }
+                gst_buffer_push(vm, b, '}');
+                return gst_buffer_to_string(vm, b);
             }
         case GST_STRING:
             return x.data.string;
@@ -157,7 +157,7 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
 
 /* GST string version */
 uint32_t gst_string_calchash(const uint8_t *str) {
-	return gst_cstring_calchash(str, gst_string_length(str));
+    return gst_cstring_calchash(str, gst_string_length(str));
 }
 
 /* Simple hash function (djb2) */
@@ -225,13 +225,13 @@ int gst_equals(GstValue x, GstValue y) {
                 }
                 result = 1;
                 {
-					uint32_t i;
-					for (i = 0; i < gst_tuple_length(x.data.tuple); ++i) {
-						if (!gst_equals(x.data.tuple[i], y.data.tuple[i])) {
-							result = 0;
-							break;
-						}
-					}
+                    uint32_t i;
+                    for (i = 0; i < gst_tuple_length(x.data.tuple); ++i) {
+                        if (!gst_equals(x.data.tuple[i], y.data.tuple[i])) {
+                            result = 0;
+                            break;
+                        }
+                    }
                 }
                 break;
             default:
@@ -338,21 +338,21 @@ int gst_compare(GstValue x, GstValue y) {
                 }
                 /* Lower indices are most significant */
             case GST_TUPLE:
-				{
-    				uint32_t i;
-    				uint32_t xlen = gst_tuple_length(x.data.tuple);
-    				uint32_t ylen = gst_tuple_length(y.data.tuple);
-					uint32_t count = xlen < ylen ? xlen : ylen;
-					for (i = 0; i < count; ++i) {
-						int comp = gst_compare(x.data.tuple[i], y.data.tuple[i]);
-						if (comp != 0) return comp;
-					}
-					if (xlen < ylen)
-						return -1;
-					else if (xlen > ylen)
-    					return 1;
-					return 0;
-				}
+                {
+                    uint32_t i;
+                    uint32_t xlen = gst_tuple_length(x.data.tuple);
+                    uint32_t ylen = gst_tuple_length(y.data.tuple);
+                    uint32_t count = xlen < ylen ? xlen : ylen;
+                    for (i = 0; i < count; ++i) {
+                        int comp = gst_compare(x.data.tuple[i], y.data.tuple[i]);
+                        if (comp != 0) return comp;
+                    }
+                    if (xlen < ylen)
+                        return -1;
+                    else if (xlen > ylen)
+                        return 1;
+                    return 0;
+                }
                 break;
             default:
                 if (x.data.string == y.data.string) {
@@ -371,28 +371,28 @@ int gst_compare(GstValue x, GstValue y) {
 /* This probably isn't very fast - look at Lua conversion function.
  * I would like to keep this standard C for as long as possible, though. */
 static int32_t to_index(GstNumber raw, int64_t len) {
-	int32_t toInt = raw;
-	if ((GstNumber) toInt == raw) {
-		/* We were able to convert */
-		if (toInt < 0 && len > 0) {	
-    		/* Index from end */
-			if (toInt < -len) return -1;	
-			return len + toInt;
-		} else {	
-    		/* Normal indexing */
-    		if (toInt >= len) return -1;
-        	return toInt;
-		}
-	} else {
+    int32_t toInt = raw;
+    if ((GstNumber) toInt == raw) {
+        /* We were able to convert */
+        if (toInt < 0 && len > 0) { 
+            /* Index from end */
+            if (toInt < -len) return -1;    
+            return len + toInt;
+        } else {    
+            /* Normal indexing */
+            if (toInt >= len) return -1;
+            return toInt;
+        }
+    } else {
         return -1;
-	}
+    }
 }
 
 /* Convert a number into a byte. */
 static uint8_t to_byte(GstNumber raw) {
-	if (raw > 255) return 255;
-	if (raw < 0) return 0;
-	return (uint8_t) raw;
+    if (raw > 255) return 255;
+    if (raw < 0) return 0;
+    return (uint8_t) raw;
 }
 
 /* Get a value out af an associated data structure. 
@@ -401,74 +401,74 @@ static uint8_t to_byte(GstNumber raw) {
 const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
     int32_t index;
     GstValue ret;
-	switch (ds.type) {
-	case GST_ARRAY:
+    switch (ds.type) {
+    case GST_ARRAY:
         if (key.type != GST_NUMBER) return "expected numeric key";
-		index = to_index(key.data.number, ds.data.array->count);
-		if (index == -1) return "invalid array access";
-		ret = ds.data.array->data[index];
-		break;
-	case GST_TUPLE:
+        index = to_index(key.data.number, ds.data.array->count);
+        if (index == -1) return "invalid array access";
+        ret = ds.data.array->data[index];
+        break;
+    case GST_TUPLE:
         if (key.type != GST_NUMBER) return "expected numeric key";
-		index = to_index(key.data.number, gst_tuple_length(ds.data.tuple));
-		if (index < 0) return "invalid tuple access";
-		ret = ds.data.tuple[index];
-		break;
+        index = to_index(key.data.number, gst_tuple_length(ds.data.tuple));
+        if (index < 0) return "invalid tuple access";
+        ret = ds.data.tuple[index];
+        break;
     case GST_BYTEBUFFER:
         if (key.type != GST_NUMBER) return "expected numeric key";
         index = to_index(key.data.number, ds.data.buffer->count);
-		if (index == -1) return "invalid buffer access";
-		ret.type = GST_NUMBER;
-		ret.data.number = ds.data.buffer->data[index];
-		break;
+        if (index == -1) return "invalid buffer access";
+        ret.type = GST_NUMBER;
+        ret.data.number = ds.data.buffer->data[index];
+        break;
     case GST_STRING:
         if (key.type != GST_NUMBER) return "expected numeric key";
         index = to_index(key.data.number, gst_string_length(ds.data.string));
-		if (index == -1) return "invalid string access";
-		ret.type = GST_NUMBER;
-		ret.data.number = ds.data.string[index];
-		break;
+        if (index == -1) return "invalid string access";
+        ret.type = GST_NUMBER;
+        ret.data.number = ds.data.string[index];
+        break;
     case GST_OBJECT:
-       	ret = gst_object_get(ds.data.object, key);
-       	break;
+        ret = gst_object_get(ds.data.object, key);
+        break;
     default:
        return "cannot get";
-	}
-	*out = ret;
-	return NULL;
+    }
+    *out = ret;
+    return NULL;
 }
 
 /* Set a value in an associative data structure. Returns possible
  * error message, and NULL if no error. */
 const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
     int32_t index;
-	switch (ds.type) {
-	case GST_ARRAY:
+    switch (ds.type) {
+    case GST_ARRAY:
         if (ds.data.array->flags & GST_IMMUTABLE)
             return "cannot set immutable value";
         if (key.type != GST_NUMBER) return "expected numeric key";
-		index = to_index(key.data.number, ds.data.array->count);
-		if (index == -1) return "invalid array access";
-		ds.data.array->data[index] = value;
-		break;
+        index = to_index(key.data.number, ds.data.array->count);
+        if (index == -1) return "invalid array access";
+        ds.data.array->data[index] = value;
+        break;
     case GST_BYTEBUFFER:
         if (ds.data.buffer->flags & GST_IMMUTABLE)
             return "cannot set immutable value";
         if (key.type != GST_NUMBER) return "expected numeric key";
         if (value.type != GST_NUMBER) return "expected numeric value";
         index = to_index(key.data.number, ds.data.buffer->count);
-		if (index == -1) return "invalid buffer access";
-		ds.data.buffer->data[index] = to_byte(value.data.number);
-		break;
+        if (index == -1) return "invalid buffer access";
+        ds.data.buffer->data[index] = to_byte(value.data.number);
+        break;
     case GST_OBJECT:
         if (ds.data.object->flags & GST_IMMUTABLE)
             return "cannot set immutable value";
         gst_object_put(vm, ds.data.object, key, value);
         break;
     default:
-    	return "cannot set";
-	}
-	return NULL;
+        return "cannot set";
+    }
+    return NULL;
 }
 
 /* Get the class object of a value */
@@ -476,21 +476,21 @@ GstValue gst_get_class(GstValue x) {
     GstValue ret;
     ret.type = GST_NIL;
     switch (x.type) {
-		case GST_OBJECT:
-			if (x.data.object->meta != NULL) {
-				ret.type = GST_OBJECT;
-				ret.data.object = x.data.object->meta;
-			}
-    		break;
-    	case GST_USERDATA:
-        	{
-				GstUserdataHeader *header = (GstUserdataHeader *)x.data.pointer - 1;
-    			if (header->meta != NULL) {
-    				ret.type = GST_OBJECT;
-    				ret.data.object = header->meta;
-    			}
-        	}
-        	break;
+        case GST_OBJECT:
+            if (x.data.object->meta != NULL) {
+                ret.type = GST_OBJECT;
+                ret.data.object = x.data.object->meta;
+            }
+            break;
+        case GST_USERDATA:
+            {
+                GstUserdataHeader *header = (GstUserdataHeader *)x.data.pointer - 1;
+                if (header->meta != NULL) {
+                    ret.type = GST_OBJECT;
+                    ret.data.object = header->meta;
+                }
+            }
+            break;
         default:
             break;
     }
@@ -500,11 +500,11 @@ GstValue gst_get_class(GstValue x) {
 /* Set the class object of a value. Returns possible c error string */
 const char *gst_set_class(GstValue x, GstValue class) {
     switch (x.type) {
-		case GST_OBJECT:
-    		if (class.type != GST_OBJECT) return "class must be of type object";
-    		/* TODO - check for class immutability */
-			x.data.object->meta = class.data.object;
-    		break;
+        case GST_OBJECT:
+            if (class.type != GST_OBJECT) return "class must be of type object";
+            /* TODO - check for class immutability */
+            x.data.object->meta = class.data.object;
+            break;
         default:
             return "cannot set class object";
     }
