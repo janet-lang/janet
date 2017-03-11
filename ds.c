@@ -14,7 +14,6 @@ GstBuffer *gst_buffer(Gst *vm, uint32_t capacity) {
     buffer->data = data;
     buffer->count = 0;
     buffer->capacity = capacity;
-    buffer->flags = 0;
     return buffer;
 }
 
@@ -76,7 +75,6 @@ GstArray *gst_array(Gst * vm, uint32_t capacity) {
     array->data = data;
     array->count = 0;
     array->capacity = capacity;
-    array->flags = 0;
     return array;
 }
 
@@ -181,7 +179,7 @@ GstObject* gst_object(Gst *vm, uint32_t capacity) {
     o->buckets = buckets;
     o->capacity = capacity;
     o->count = 0;
-    o->flags = 0;
+    o->meta = NULL;
     return o;
 }
 
@@ -230,9 +228,8 @@ GstValue gst_object_get(GstObject *o, GstValue key) {
 
 /* Get a value of the object with a cstring key */
 GstValue gst_object_get_cstring(GstObject *obj, const char *key) {
-    const char *end = key;
-    while (*end++);
-    uint32_t len = end - key;
+    uint32_t len;
+	for (len = 0; key[len]; ++len);
     uint32_t hash = gst_cstring_calchash((uint8_t *)key, len);
     uint32_t index = hash % obj->capacity;
     GstBucket *bucket = obj->buckets[index];

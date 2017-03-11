@@ -3,39 +3,36 @@
 
 #include "datatypes.h"
 
-#define GST_DICT_FLAG_OCCUPIED 1
-#define GST_DICT_FLAG_TOMBSTONE 2
+/* Indicates object is implement as unsorted array of keypairs */
+#define GST_OBJECT_FLAG_ISBAG (1 << 31)
 
-typedef struct GstDictBucket GstDictBucket;
-struct GstDictBucket {
-    GstValue key;
-    GstValue value;   
-    uint8_t flags;
-};
+/* Indicates object is immutable */
+#define GST_OBJECT_IMMUTABLE (1 << 30)
+
+/* Count at which the object goes from a linear search to a hash table */
+#define GST_OBJECT_BAG_THRESHOLD 8
 
 typedef struct GstDict GstDict;
 struct GstDict {
     uint32_t capacity;
     uint32_t count;
-    GstDictBucket *buckets;
+    uint32_t flags;
+    GstValue *data;
 };
 
 /* Initialize a dictionary */
-GstDict *gst_dict_init(GstDict *dict, uint32_t capacity);
-
-/* Deinitialize a dictionary */
-GstDict *gst_dict_free(GstDict *dict);
-
-/* Rehash a dictionary */
-GstDict *gst_dict_rehash(GstDict *dict, uint32_t newCapacity);
+GstDict *gst_dict(Gst *vm, uint32_t capacity);
 
 /* Get item from dictionary */
-int gst_dict_get(GstDict *dict, GstValue key, GstValue *value);
+GstValue gst_dict_get(GstDict *dict, GstValue key);
+
+/* Get c string from object */
+GstValue gst_dict_get_cstring(GstDict *dict, const char *key);
 
 /* Add item to dictionary */
-GstDict *gst_dict_put(GstDict *dict, GstValue key, GstValue value);
+void gst_dict_put(Gst *vm, GstDict *dict, GstValue key, GstValue value);
 
 /* Remove item from dictionary */
-int gst_dict_remove(GstDict *dict, GstValue key);
+void gst_dict_remove(GstDict *dict, GstValue key);
 
 #endif // dict_h_INCLUDED

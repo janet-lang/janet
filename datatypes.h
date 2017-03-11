@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-/* Flag for immutability in an otherwise mutable datastructure */
-#define GST_IMMUTABLE 1
+/* Max search depth for classes. */
+#define GST_MAX_SEARCH_DEPTH 128
 
 /* Verious types */
 typedef enum GstType {
@@ -89,7 +89,6 @@ struct GstArray {
     uint32_t count;
     uint32_t capacity;
     GstValue *data;
-    uint32_t flags;
 };
 
 /* A bytebuffer type. Used as a mutable string or string builder. */
@@ -97,7 +96,6 @@ struct GstBuffer {
     uint32_t count;
     uint32_t capacity;
     uint8_t *data;
-    uint32_t flags;
 };
 
 /* The main Gst type, an obect. Objects are just hashtables with some meta
@@ -106,7 +104,6 @@ struct GstObject {
     uint32_t count;
     uint32_t capacity;
     GstBucket **buckets;
-    uint32_t flags;
     GstObject *meta;
 };
 
@@ -168,6 +165,8 @@ struct Gst {
     /* Return state */
     const char *crash;
     GstValue ret; /* Returned value from gst_start. Also holds errors. */
+    /* Temporary array for use in function dispatch */
+    GstValue tempArray[GST_MAX_SEARCH_DEPTH];
 };
 
 /* Bytecode */

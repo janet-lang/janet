@@ -444,16 +444,12 @@ const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
     int32_t index;
     switch (ds.type) {
     case GST_ARRAY:
-        if (ds.data.array->flags & GST_IMMUTABLE)
-            return "cannot set immutable value";
         if (key.type != GST_NUMBER) return "expected numeric key";
         index = to_index(key.data.number, ds.data.array->count);
         if (index == -1) return "invalid array access";
         ds.data.array->data[index] = value;
         break;
     case GST_BYTEBUFFER:
-        if (ds.data.buffer->flags & GST_IMMUTABLE)
-            return "cannot set immutable value";
         if (key.type != GST_NUMBER) return "expected numeric key";
         if (value.type != GST_NUMBER) return "expected numeric value";
         index = to_index(key.data.number, ds.data.buffer->count);
@@ -461,8 +457,8 @@ const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
         ds.data.buffer->data[index] = to_byte(value.data.number);
         break;
     case GST_OBJECT:
-        if (ds.data.object->flags & GST_IMMUTABLE)
-            return "cannot set immutable value";
+        if (ds.data.object->meta != NULL) {
+        }
         gst_object_put(vm, ds.data.object, key, value);
         break;
     default:

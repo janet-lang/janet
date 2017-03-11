@@ -67,7 +67,7 @@ static void gst_load(Gst *vm, GstValue callee) {
 #define GST_STATE_WRITE() do { \
     *vm->thread = thread; \
 } while (0)
-       
+
 /* Start running the VM from where it left off. Continue running
  * until the stack size is smaller than minStackSize. */
 static int gst_continue_size(Gst *vm, uint32_t stackBase) {
@@ -382,27 +382,53 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
         case GST_OP_PSH: /* Push stack frame */
             {
                 GstValue *nextStack;
-                uint32_t expectedArity, normalArity, arity, varArgs, i, locals, nextCount;
+                uint32_t argSlots, fullArgSlots, arity, prefixCount, varArgs, tupleCount, i, locals, nextCount;
 
                 /* Get arguments to op */
                 temp = stack[pc[1]];
                 arity = pc[2];
 
                 /* Get the size of next stack frame */
-                if (temp.type == GST_FUNCTION) {
-                    GstFunction *fn = temp.data.function;
-                    locals = fn->def->locals;
-                    varArgs = fn->def->flags & GST_FUNCDEF_FLAG_VARARG;
-                    expectedArity = fn->def->arity;
-                    if (arity > expectedArity)
-                        normalArity = expectedArity;
-                    else
-                        normalArity = arity;
-                } else if (temp.type == GST_CFUNCTION) {
-                    locals = normalArity = expectedArity = arity;
-                    varArgs = 0;
-                } else {
-                    gst_error(vm, GST_EXPECTED_FUNCTION);
+                prefixCount = 0;
+                recur:
+				switch(temp.type) {
+				default: gst_error(vm, GST_EXPECTED_FUNCTION);
+				case GST_FUNCTION:
+					{
+                        GstFunction *fn = temp.data.function;
+                        locals = fn->def->locals;
+                        varArgs = fn->def->flags & GST_FUNCDEF_FLAG_VARARG;
+                        argSlots = fn->def->arity;
+                        if (arity + prefixCount > argSlots) {
+                            fullArgSlots = argSlots;
+                            tupleCount = arity + prefixCount - fullArgSlots;
+                        } else {
+                            fullArgSlots = arity + prefixCount;
+                            tupleCount = 0;
+                        }
+                        break;
+					}
+				case GST_CFUNCTION:
+    				{
+                        locals = argSlots = fullArgSlots = arity + prefixCount;
+                        varArgs = tupleCount = 0;
+                        break;
+    				}
+    			case GST_OBJECT:
+        			{
+						GstObject *meta = temp.data.object->meta;
+						if (meta == NULL) gst_error(vm, GST_EXPECTED_FUNCTION);
+						vm->tempArray[prefixCount++] = temp;
+						temp = gst_object_get_cstring(meta, "call");
+						goto recur;
+        			}
+    			case GST_USERDATA:
+        			{
+						GstObject *meta = ((GstUserdataHeader *)temp.data.pointer - 1)->meta;
+						vm->tempArray[prefixCount++] = temp;
+						temp = gst_object_get_cstring(meta, "call");
+						goto recur;
+        			}
                 }
 
                 /* Get next frame size */
@@ -426,12 +452,16 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                 gst_frame_env(nextStack) = NULL;
                 gst_frame_callee(nextStack) = temp;
                 gst_frame_errjmp(nextStack) = NULL;
+
+                /* Write prefix args to stack */
+                for (i = 0; i < prefixCount; ++i)
+                    nextStack[i] = vm->tempArray[i];
                 
                 /* Write arguments to new stack */
-                for (i = 0; i < normalArity; ++i)
-                    nextStack[i] = stack[pc[3 + i]];
+                for (; i < fullArgSlots; ++i)
+                    nextStack[i] = stack[pc[3 + i - prefixCount]];
 
-                /* Clear stack */
+                /* Clear rest of stack */
                 for (; i < locals; ++i)
                     nextStack[i].type = GST_NIL;
 
@@ -439,11 +469,14 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                 if (varArgs) {
                     GstValue *tuple;
                     uint32_t j;
-                    tuple = gst_tuple(vm, arity - expectedArity);
-                    for (j = expectedArity; j < arity; ++j)
-                        tuple[j - expectedArity] = stack[pc[3 + j]];
-                    nextStack[expectedArity].type = GST_TUPLE;
-                    nextStack[expectedArity].data.tuple = tuple;
+                    tuple = gst_tuple(vm, tupleCount);
+                    for (j = argSlots; j < arity; ++j)
+                        if (j < prefixCount)
+							tuple[j - argSlots] = vm->tempArray[j - prefixCount];
+                        else
+                            tuple[j - argSlots] = stack[pc[3 + j - prefixCount]];
+                    nextStack[argSlots].type = GST_TUPLE;
+                    nextStack[argSlots].data.tuple = tuple;
                 }
 
                 /* Increment pc */
@@ -486,6 +519,7 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             } else if (v1.type == GST_CFUNCTION) {
                 int status;
                 GST_STATE_WRITE();
+                vm->ret.type = GST_NIL;
                 status = v1.data.cfunction(vm);
                 GST_STATE_SYNC();
                 if (status == GST_RETURN_OK)

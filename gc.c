@@ -149,6 +149,12 @@ void gst_mark(Gst *vm, GstValue *x) {
 						bucket = bucket->next;
 					}
                 }
+                if (x->data.object->meta != NULL) {
+                    GstValue temp;
+                    temp.type = GST_OBJECT;
+                    temp.data.object = x->data.object->meta;
+					gst_mark(vm, &temp);
+                }
             }
             break;
 
