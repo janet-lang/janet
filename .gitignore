@@ -1,6 +1,9 @@
 # Target
 interp
 
+# Tags
+tags
+
 # Valgrind files
 vgcore.*
 
