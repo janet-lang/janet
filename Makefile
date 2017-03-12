@@ -6,8 +6,8 @@ TARGET=interp
 PREFIX=/usr/local
 
 # C sources
-HEADERS=vm.h ds.h compile.h parse.h value.h datatypes.h gc.h util.h gst.h stl.h disasm.h
-SOURCES=main.c parse.c value.c vm.c ds.c compile.c gc.c stl.c disasm.c
+HEADERS=vm.h ds.h compile.h parse.h value.h datatypes.h gc.h util.h gst.h stl.h disasm.h thread.h
+SOURCES=main.c parse.c value.c vm.c ds.c compile.c gc.c stl.c disasm.c thread.c
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 all: $(TARGET)

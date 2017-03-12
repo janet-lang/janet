@@ -165,8 +165,6 @@ struct Gst {
     /* Return state */
     const char *crash;
     GstValue ret; /* Returned value from gst_start. Also holds errors. */
-    /* Temporary array for use in function dispatch */
-    GstValue tempArray[GST_MAX_SEARCH_DEPTH];
 };
 
 /* Bytecode */
@@ -210,7 +208,6 @@ enum GstOpCode {
     GST_OP_UTY,     /* End try block */
     GST_OP_RET,     /* Return from function */
     GST_OP_RTN,     /* Return nil */
-    GST_OP_PSH,     /* Push a stack frame */
     GST_OP_CAL,     /* Call function */
     GST_OP_TCL      /* Tail call */
 };

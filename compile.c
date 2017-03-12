@@ -1246,22 +1246,22 @@ static Slot compile_form(GstCompiler *c, FormOptions opts, GstValue *form) {
         /* Free up some slots */
         compiler_drop_slot(c, scope, callee);
         compiler_tracker_free(c, scope, &tracker);
-        /* Push arguments to stack */
-        gst_buffer_push_u16(c->vm, buffer, GST_OP_PSH);
-        gst_buffer_push_u16(c->vm, buffer, callee.index);
-        gst_buffer_push_u16(c->vm, buffer, gst_tuple_length(form) - 1);
-        /* Write the location of all of the arguments */
-        compiler_tracker_write(c, &tracker, 0);
         /* If this is in tail position do a tail call. */
         if (opts.isTail) {
             gst_buffer_push_u16(c->vm, buffer, GST_OP_TCL);
+            gst_buffer_push_u16(c->vm, buffer, callee.index);
+            gst_buffer_push_u16(c->vm, buffer, gst_tuple_length(form) - 1);
             ret.hasReturned = 1;
             ret.isNil = 1;
         } else {
             ret = compiler_get_target(c, opts);
             gst_buffer_push_u16(c->vm, buffer, GST_OP_CAL);
+            gst_buffer_push_u16(c->vm, buffer, callee.index);
             gst_buffer_push_u16(c->vm, buffer, ret.index);
+            gst_buffer_push_u16(c->vm, buffer, gst_tuple_length(form) - 1);
         }
+        /* Write the location of all of the arguments */
+        compiler_tracker_write(c, &tracker, 0);
         return ret;
     }
 }

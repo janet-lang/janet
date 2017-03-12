@@ -8,5 +8,6 @@
 #include "compile.h"
 #include "value.h"
 #include "stl.h"
+#include "thread.h"
 
 #endif // gst_h_INCLUDED

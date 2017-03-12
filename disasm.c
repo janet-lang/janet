@@ -193,14 +193,11 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
             case GST_OP_RTN:
                 current += dasm_fixed_op(out, current, "returnNil", 0);
                 break;
-            case GST_OP_PSH:
-                current += dasm_varg_op(out, current, "push", 1);
-                break;
             case GST_OP_CAL:
-                current += dasm_fixed_op(out, current, "call", 1);
+                current += dasm_varg_op(out, current, "call", 2);
                 break;
             case GST_OP_TCL:
-                current += dasm_fixed_op(out, current, "tailCall", 0);
+                current += dasm_varg_op(out, current, "tailCall", 1);
                 break;
         }
         fprintf(out, "\n");

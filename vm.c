@@ -3,6 +3,7 @@
 #include "value.h"
 #include "ds.h"
 #include "gc.h"
+#include "thread.h"
 
 /* Macros for errors in the vm */
 
@@ -22,40 +23,6 @@ static const char GST_NO_UPVALUE[] = "no upvalue";
 static const char GST_EXPECTED_FUNCTION[] = "expected function";
 static const char GST_EXPECTED_NUMBER_ROP[] = "expected right operand to be number";
 static const char GST_EXPECTED_NUMBER_LOP[] = "expected left operand to be number";
-
-/* Load a function into the VM. The function will be called with
- * no arguments when run */
-static void gst_load(Gst *vm, GstValue callee) {
-    uint32_t startCapacity;
-    uint32_t locals, i;
-    uint16_t *pc;
-    GstValue *stack;
-    GstThread *thread = gst_alloc(vm, sizeof(GstThread));
-    if (callee.type == GST_FUNCTION) {
-        locals = callee.data.function->def->locals;
-        pc = callee.data.function->def->byteCode;
-    } else if (callee.type == GST_CFUNCTION) {
-        locals = 0;
-        pc = NULL;
-    } else {
-        return;
-    }
-    startCapacity = locals + GST_FRAME_SIZE + 10;
-    thread->data = gst_alloc(vm, sizeof(GstValue) * startCapacity);
-    thread->capacity = startCapacity;
-    thread->count = GST_FRAME_SIZE;
-    vm->thread = thread;
-    stack = thread->data + GST_FRAME_SIZE;
-    gst_frame_prevsize(stack) = 0;
-    gst_frame_size(stack) = locals;
-    gst_frame_callee(stack) = callee;
-    gst_frame_env(stack) = NULL;
-    gst_frame_errjmp(stack) = NULL;
-    gst_frame_pc(stack) = pc;
-    /* Nil arguments */
-    for (i = 0; i < locals; ++i)
-        stack[i].type = GST_NIL;
-}
 
 /* Contextual macro to state in function with VM */
 #define GST_STATE_SYNC() do { \
@@ -358,7 +325,6 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
         case GST_OP_ERR: /* Throw error */
             vm->ret = stack[pc[1]];
             goto vm_error;
-            break;
 
         case GST_OP_TRY: /* Begin try block */
             gst_frame_errloc(stack) = pc[1];
@@ -372,200 +338,83 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             break;
 
         case GST_OP_RTN: /* Return nil */
-            vm->ret.type = GST_NIL;
-            goto ret;
+            stack = gst_thread_popframe(vm, &thread);
+            if (thread.count < stackBase) {
+                vm->ret.type = GST_NIL;
+                return GST_RETURN_OK;
+            }
+            stack[gst_frame_ret(stack)].type = GST_NIL;
+            break;
 
         case GST_OP_RET: /* Return */
-            vm->ret = stack[pc[1]];
-            goto ret;
-
-        case GST_OP_PSH: /* Push stack frame */
-            {
-                GstValue *nextStack;
-                uint32_t argSlots, fullArgSlots, arity, prefixCount, varArgs, tupleCount, i, locals, nextCount;
-
-                /* Get arguments to op */
-                temp = stack[pc[1]];
-                arity = pc[2];
-
-                /* Get the size of next stack frame */
-                prefixCount = 0;
-                recur:
-				switch(temp.type) {
-				default: gst_error(vm, GST_EXPECTED_FUNCTION);
-				case GST_FUNCTION:
-					{
-                        GstFunction *fn = temp.data.function;
-                        locals = fn->def->locals;
-                        varArgs = fn->def->flags & GST_FUNCDEF_FLAG_VARARG;
-                        argSlots = fn->def->arity;
-                        if (arity + prefixCount > argSlots) {
-                            fullArgSlots = argSlots;
-                            tupleCount = arity + prefixCount - fullArgSlots;
-                        } else {
-                            fullArgSlots = arity + prefixCount;
-                            tupleCount = 0;
-                        }
-                        break;
-					}
-				case GST_CFUNCTION:
-    				{
-                        locals = argSlots = fullArgSlots = arity + prefixCount;
-                        varArgs = tupleCount = 0;
-                        break;
-    				}
-    			case GST_OBJECT:
-        			{
-						GstObject *meta = temp.data.object->meta;
-						if (meta == NULL) gst_error(vm, GST_EXPECTED_FUNCTION);
-						vm->tempArray[prefixCount++] = temp;
-						temp = gst_object_get_cstring(meta, "call");
-						goto recur;
-        			}
-    			case GST_USERDATA:
-        			{
-						GstObject *meta = ((GstUserdataHeader *)temp.data.pointer - 1)->meta;
-						vm->tempArray[prefixCount++] = temp;
-						temp = gst_object_get_cstring(meta, "call");
-						goto recur;
-        			}
-                }
-
-                /* Get next frame size */
-                nextCount = thread.count + gst_frame_size(stack) + GST_FRAME_SIZE;
-                
-                /* Ensure capacity */
-                if (nextCount + locals > thread.capacity) {
-                    uint32_t newCap = (nextCount + locals) * 2;
-                    GstValue *newData = gst_alloc(vm, sizeof(GstValue) * newCap);
-                    gst_memcpy(newData, thread.data, thread.capacity * sizeof(GstValue));
-                    thread.data = newData;
-                    thread.capacity = newCap;
-                    stack = thread.data + thread.count;
-                }
-
-                /* Set up the new stack frame */
-                nextStack = thread.data + nextCount;
-                gst_frame_prevsize(nextStack) = gst_frame_size(stack);
-                gst_frame_size(nextStack) = locals;
-                gst_frame_ret(nextStack) = 0;
-                gst_frame_env(nextStack) = NULL;
-                gst_frame_callee(nextStack) = temp;
-                gst_frame_errjmp(nextStack) = NULL;
-
-                /* Write prefix args to stack */
-                for (i = 0; i < prefixCount; ++i)
-                    nextStack[i] = vm->tempArray[i];
-                
-                /* Write arguments to new stack */
-                for (; i < fullArgSlots; ++i)
-                    nextStack[i] = stack[pc[3 + i - prefixCount]];
-
-                /* Clear rest of stack */
-                for (; i < locals; ++i)
-                    nextStack[i].type = GST_NIL;
-
-                /* Check for varargs and put them in a tuple */
-                if (varArgs) {
-                    GstValue *tuple;
-                    uint32_t j;
-                    tuple = gst_tuple(vm, tupleCount);
-                    for (j = argSlots; j < arity; ++j)
-                        if (j < prefixCount)
-							tuple[j - argSlots] = vm->tempArray[j - prefixCount];
-                        else
-                            tuple[j - argSlots] = stack[pc[3 + j - prefixCount]];
-                    nextStack[argSlots].type = GST_TUPLE;
-                    nextStack[argSlots].data.tuple = tuple;
-                }
-
-                /* Increment pc */
-                pc += 3 + arity;
+        	temp = stack[pc[1]];
+            stack = gst_thread_popframe(vm, &thread);
+            if (thread.count < stackBase) {
+                vm->ret = temp;
+                return GST_RETURN_OK;
             }
+            stack[gst_frame_ret(stack)] = temp;
             break;
 
         case GST_OP_CAL: /* Call */
         case GST_OP_TCL: /* Tail call */
-            if (pc[0] == GST_OP_CAL) {
-                gst_frame_ret(stack) = pc[1];
-                gst_frame_pc(stack) = pc + 2;
-                thread.count += gst_frame_size(stack) + GST_FRAME_SIZE;
-                stack = thread.data + thread.count;
-            } else {
-                uint32_t i;
-                GstValue *nextStack = stack + gst_frame_size(stack) + GST_FRAME_SIZE;
-                uint32_t nextSize = gst_frame_size(nextStack);
-                /* Check for closures */
-                if (gst_frame_env(stack) != NULL) {
-                    gst_frame_env(stack)->thread = NULL;
-                    gst_frame_env(stack)->stackOffset = gst_frame_size(stack);
-                    gst_frame_env(stack)->values = gst_alloc(vm, sizeof(GstValue) * gst_frame_size(stack));
-                    gst_memcpy(gst_frame_env(stack)->values,
-                        thread.data + thread.count,
-                        gst_frame_size(stack) * sizeof(GstValue));
-                }
-                /* Copy over most of stack frame */
-                gst_frame_callee(stack) = gst_frame_callee(nextStack);
-                gst_frame_size(stack) = gst_frame_size(nextStack);
-                gst_frame_env(stack) = NULL;
-                gst_frame_errjmp(stack) = NULL;
-                /* Replace current stack frame with next */
-                for (i = 0; i < nextSize; ++i)
-                    stack[i] = nextStack[i];
-            }
-            v1 = gst_frame_callee(stack);
-            if (v1.type == GST_FUNCTION) {
-                pc = v1.data.function->def->byteCode;
-            } else if (v1.type == GST_CFUNCTION) {
-                int status;
-                GST_STATE_WRITE();
-                vm->ret.type = GST_NIL;
-                status = v1.data.cfunction(vm);
-                GST_STATE_SYNC();
-                if (status == GST_RETURN_OK)
-                    goto ret;
-                else
-                    goto vm_error;
-            } else {
-                gst_error(vm, GST_EXPECTED_FUNCTION);
-            }
-            break;
-
-        /* Macro for popping stack frame */
-        #define pop_frame(onUnderflow) do { \
-            if (gst_frame_env(stack) != NULL) { \
-                gst_frame_env(stack)->thread = NULL; \
-                gst_frame_env(stack)->stackOffset = gst_frame_size(stack); \
-                gst_frame_env(stack)->values = gst_alloc(vm, sizeof(GstValue) * gst_frame_size(stack)); \
-                gst_memcpy(gst_frame_env(stack)->values, \
-                    thread.data + thread.count, \
-                    gst_frame_size(stack) * sizeof(GstValue)); \
-            } \
-            if (thread.count <= stackBase) { \
-                thread.count -= gst_frame_prevsize(stack) + GST_FRAME_SIZE; \
-                return (onUnderflow); \
-            } \
-            thread.count -= gst_frame_prevsize(stack) + GST_FRAME_SIZE; \
-            stack = thread.data + thread.count; \
-        } while (0)
-
-        /* Label for return */
-        ret:
-            /* Check for closure */
-            pop_frame(GST_RETURN_OK);
-            pc = gst_frame_pc(stack);
-            stack[gst_frame_ret(stack)] = vm->ret;
-            break;
+        	{
+            	GstValue *oldStack;
+            	temp = stack[pc[1]];
+            	uint32_t i, arity, offset, size;
+            	uint16_t ret = pc[2];
+            	offset = (*pc == GST_OP_CAL) ? 4 : 3;
+				arity = pc[offset - 1];
+				/* Push new frame */
+				stack = gst_thread_beginframe(vm, &thread, temp, arity);
+				oldStack = stack - GST_FRAME_SIZE - gst_frame_prevsize(stack);
+				/* Write arguments */
+				size = gst_frame_size(stack);
+				for (i = 0; i < arity; ++i)
+    				stack[i + size - arity] = oldStack[pc[offset + i]];
+    			/* Finish new frame */
+				gst_thread_endframe(vm, &thread);
+				/* Check tail call - if so, replace frame. */
+				if (*pc == GST_OP_TCL) {
+					stack = gst_thread_tail(vm, &thread);
+				} else {
+					gst_frame_ret(oldStack) = ret;
+				}
+				/* Call function */
+				temp = gst_frame_callee(stack);
+				if (temp.type == GST_FUNCTION) {
+    				/* Save pc and set new pc */
+    				gst_frame_pc(oldStack) = pc + offset + arity;
+    				pc = temp.data.function->def->byteCode;
+				} else {
+					int status;
+					GST_STATE_WRITE();
+					vm->ret.type = GST_NIL;
+					status = temp.data.cfunction(vm);
+					GST_STATE_SYNC();
+					stack = gst_thread_popframe(vm, &thread);
+					pc += offset + arity;
+					if (status == GST_RETURN_OK)
+    					if (thread.count < stackBase)
+        					return status;
+    					else
+        					stack[gst_frame_ret(stack)] = vm->ret;
+					else
+    					goto vm_error;
+				}
+        	}
+        	break;
 
         /* Handle errors from c functions and vm opcodes */
         vm_error:
-            while (gst_frame_errjmp(stack) == NULL)
-                pop_frame(GST_RETURN_ERROR);
+            while (gst_frame_errjmp(stack) == NULL) {
+                stack = gst_thread_popframe(vm, &thread);
+                if (thread.count < stackBase)
+                    return GST_RETURN_ERROR;
+            }
             pc = gst_frame_errjmp(stack);
             stack[gst_frame_errloc(stack)] = vm->ret;
             break;
-
-        #undef pop_frame
 
       } /* end switch */
 
@@ -584,106 +433,34 @@ int gst_continue(Gst *vm) {
 }
 
 /* Run the vm with a given function */
-int gst_run(Gst *vm, GstValue func) {
-    gst_load(vm, func);
+int gst_run(Gst *vm, GstValue callee) {
+    vm->thread = gst_thread(vm, callee, 64);
     return gst_continue(vm);
 }
 
-/* Raw function call implementation for use from c code. Beware code
- * duplication between this function and GST_OP_PSH and GST_OP_CAL/GST_OP_TCL */
+/* Call a gst function */
 int gst_call(Gst *vm, GstValue callee, uint32_t arity, GstValue *args) {
-    GstThread thread;
     GstValue *stack;
-    uint32_t expectedArity, normalArity, varArgs, i, locals, nextCount, size;
-
-    /* Initialize some state */
-    GST_STATE_SYNC();
-
-    /* Get the size of next stack frame */
-    if (callee.type == GST_FUNCTION) {
-        GstFunction *fn = callee.data.function;
-        locals = fn->def->locals;
-        varArgs = fn->def->flags & GST_FUNCDEF_FLAG_VARARG;
-        expectedArity = fn->def->arity;
-        gst_frame_pc(stack) = fn->def->byteCode;
-        if (arity > expectedArity)
-            normalArity = expectedArity;
-        else
-            normalArity = arity;
-    } else if (callee.type == GST_CFUNCTION) {
-        locals = normalArity = expectedArity = arity;
-        varArgs = 0;
-    } else {
-        gst_c_throwc(vm, GST_EXPECTED_FUNCTION);
-    }
-
-    /* Get next frame size */
-    nextCount = thread.count + gst_frame_size(stack) + GST_FRAME_SIZE;
-    
-    /* Ensure capacity */
-    if (nextCount + locals > thread.capacity) {
-        uint32_t newCap = (nextCount + locals) * 2;
-        GstValue *newData = gst_alloc(vm, sizeof(GstValue) * newCap);
-        gst_memcpy(newData, thread.data, thread.capacity * sizeof(GstValue));
-        thread.data = newData;
-        thread.capacity = newCap;
-    }
-
-    /* Save modified thread object */
-    thread.count = nextCount;
-    *vm->thread = thread;
-
-    /* Set up the new stack frame */
-    size = gst_frame_size(stack);
-    stack = thread.data + nextCount;
-    gst_frame_prevsize(stack) = size;
-    gst_frame_size(stack) = locals;
-    gst_frame_env(stack) = NULL;
-    gst_frame_callee(stack) = callee;
-    gst_frame_errjmp(stack) = NULL;
-    
-    /* Write arguments to new stack */
-    for (i = 0; i < normalArity; ++i)
+    uint32_t i;
+    stack = gst_thread_beginframe(vm, vm->thread, callee, arity);
+    for (i = 0; i < arity; ++i) 
         stack[i] = args[i];
-
-    /* Clear stack */
-    for (; i < locals; ++i)
-        stack[i].type = GST_NIL;
-
-    /* Check for varargs and put them in a tuple */
-    if (varArgs) {
-        GstValue *tuple;
-        uint32_t j;
-        tuple = gst_tuple(vm, arity - expectedArity);
-        for (j = expectedArity; j < arity; ++j)
-            tuple[j - expectedArity] = args[j];
-        stack[expectedArity].type = GST_TUPLE;
-        stack[expectedArity].data.tuple = tuple;
-    }
-
-    /* Call the function */
-    if (callee.type == GST_FUNCTION) {
-        return gst_continue_size(vm, thread.count);
-    } else {
-        int status = callee.data.cfunction(vm);
-        GST_STATE_SYNC();
-        /* Check for closures */
-        if (gst_frame_env(stack) != NULL) {
-            gst_frame_env(stack)->thread = NULL;
-            gst_frame_env(stack)->stackOffset = gst_frame_size(stack);
-            gst_frame_env(stack)->values = gst_alloc(vm, sizeof(GstValue) * gst_frame_size(stack));
-            gst_memcpy(gst_frame_env(stack)->values,
-                thread.data + thread.count,
-                gst_frame_size(stack) * sizeof(GstValue));
-        }
-        vm->thread->count -= gst_frame_prevsize(stack) + GST_FRAME_SIZE;
-        return status;
-    }
+    gst_thread_endframe(vm, vm->thread);
+	callee = gst_frame_callee(stack);
+	if (callee.type == GST_FUNCTION) {
+    	return gst_continue(vm);
+	} else {
+		int status;
+		vm->ret.type = GST_NIL;
+		status = callee.data.cfunction(vm);
+		gst_thread_popframe(vm, vm->thread);
+		return status;
+	}
 }
 
 /* Get an argument from the stack */
 GstValue gst_arg(Gst *vm, uint16_t index) {
-    GstValue *stack = vm->thread->data + vm->thread->count;
+    GstValue *stack = gst_thread_stack(vm->thread);
     uint16_t frameSize = gst_frame_size(stack);
     if (frameSize <= index) {
         GstValue ret;
@@ -695,7 +472,7 @@ GstValue gst_arg(Gst *vm, uint16_t index) {
 
 /* Put a value on the stack */
 void gst_set_arg(Gst* vm, uint16_t index, GstValue x) {
-    GstValue *stack = vm->thread->data + vm->thread->count;
+    GstValue *stack = gst_thread_stack(vm->thread);
     uint16_t frameSize = gst_frame_size(stack);
     if (frameSize <= index) return;
     stack[index] = x;
@@ -703,7 +480,7 @@ void gst_set_arg(Gst* vm, uint16_t index, GstValue x) {
 
 /* Get the size of the VMStack */
 uint16_t gst_count_args(Gst *vm) {
-    GstValue *stack = vm->thread->data + vm->thread->count;
+    GstValue *stack = gst_thread_stack(vm->thread);
     return gst_frame_size(stack);
 }
 

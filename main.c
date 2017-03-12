@@ -48,7 +48,7 @@ void debug_repl(FILE *in, FILE *out) {
             if (out) {
                 fprintf(out, "\n");
                 fprintf(out, "%s\n", buffer);
-                for (i = 0; i < p.index; ++i) {
+                for (i = 1; i < p.index; ++i) {
                     fprintf(out, " ");
                 }
                 fprintf(out, "^\n");
@@ -78,7 +78,10 @@ void debug_repl(FILE *in, FILE *out) {
         }
 
         /* Print asm */
-        /* gst_dasm_function(stdout, func.data.function); */
+        //if (out) {
+            //fprintf(out, "\n");
+            //gst_dasm_function(out, func.data.function);
+        //}
 
         /* Execute function */
         if (gst_run(&vm, func)) {

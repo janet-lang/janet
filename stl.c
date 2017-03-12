@@ -44,8 +44,8 @@ int gst_stl_callforeach(Gst *vm) {
     uint32_t argCount = gst_count_args(vm);
     uint32_t i;
     if (argCount) {
-        for (i = 0; i < argCount - 1; ++i)
-            gst_call(vm, func, 1, vm->thread->data + vm->thread->count + 1 + i);
+        for (i = 1; i < argCount; ++i)
+            gst_call(vm, func, 1, vm->thread->data + vm->thread->count + i);
         return GST_RETURN_OK;
     } else {
         gst_c_throwc(vm, "expected at least one argument");
