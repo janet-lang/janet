@@ -18,6 +18,7 @@ typedef enum ParseType {
 /* Contain a parse state that goes on the parse stack */
 struct GstParseState {
     ParseType type;
+    uint32_t quoteCount;
     union {
         struct {
             uint8_t endDelimiter;
@@ -63,6 +64,19 @@ static GstParseState *parser_pop(GstParser * p) {
     return p->data + --p->count;
 }
 
+/* Quote a value */
+static GstValue quote(GstParser *p, GstValue x) {
+    /* Load a quote form to get the string literal */
+    GstValue tuplev;
+    GstValue *tuple;
+    tuple = gst_tuple(p->vm, 2);
+    tuplev.type = GST_TUPLE;
+    tuplev.data.tuple = tuple;
+    tuple[0] = gst_load_cstring(p->vm, "quote");
+    tuple[1] = x;
+    return tuplev;
+}
+
 /* Add a new, empty ParseState to the ParseStack. */
 static void parser_push(GstParser *p, ParseType type, uint8_t character) {
     GstParseState *top;
@@ -71,6 +85,11 @@ static void parser_push(GstParser *p, ParseType type, uint8_t character) {
         GstParseState *data = gst_alloc(p->vm, newCap);
         p->data = data;
         p->cap = newCap;
+    }
+    if (p->count) {
+        top = parser_peek(p);
+        top->quoteCount = p->quoteCount;
+        p->quoteCount = 0;
     }
     ++p->count;
     top = parser_peek(p);
@@ -96,6 +115,8 @@ static void parser_push(GstParser *p, ParseType type, uint8_t character) {
 static void parser_append(GstParser *p, GstValue x) {
     GstParseState *top = parser_peek(p);
     if (!top) return;
+    while (top->quoteCount--)
+        x = quote(p, x); 
     switch (top->type) {
         case PTYPE_ROOT:
             p->value = x;
@@ -267,18 +288,12 @@ static int string_state(GstParser *p, uint8_t c) {
             if (c == '\\') {
                 top->buf.string.state = STRING_STATE_ESCAPE;
             } else if (c == '"') {
-                /* Load a quote form to get the string literal */
-                GstValue x, tuplev;
-                GstValue *tuple;
+                /* Return quoted form */
+                GstValue x;
                 x.type = GST_STRING;
                 x.data.string = gst_buffer_to_string(p->vm, top->buf.string.buffer);
-                tuple = gst_tuple(p->vm, 2);
-                tuplev.type = GST_TUPLE;
-                tuplev.data.tuple = tuple;
-                tuple[0] = gst_load_cstring(p->vm, "quote");
-                tuple[1] = x;
                 parser_pop(p);
-                parser_append(p, tuplev);
+                parser_append(p, quote(p, x));
             } else {
                 gst_buffer_push(p->vm, top->buf.string.buffer, c);
             }
@@ -341,6 +356,10 @@ static int root_state(GstParser *p, uint8_t c) {
     }
     if (c == '"') {
         parser_push(p, PTYPE_STRING, c);
+        return 1;
+    }
+    if (c == '\'') {
+        p->quoteCount++;
         return 1;
     }
     if (is_whitespace(c)) return 1;
@@ -453,10 +472,11 @@ int gst_parse_string(GstParser *p, uint8_t *string) {
 void gst_parser(GstParser *p, Gst *vm) {
     p->vm = vm;
     GstParseState *data = gst_alloc(vm, sizeof(GstParseState) * 10);
+    p->cap = 10;
     p->data = data;
     p->count = 0;
-    p->cap = 10;
     p->index = 0;
+    p->quoteCount = 0;
     p->error = NULL;
     p->status = GST_PARSER_PENDING;
     p->value.type = GST_NIL;

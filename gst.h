@@ -9,5 +9,6 @@
 #include "value.h"
 #include "stl.h"
 #include "thread.h"
+#include "ds.h"
 
 #endif // gst_h_INCLUDED

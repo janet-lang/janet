@@ -3,14 +3,6 @@
 #include "gst.h"
 #include "disasm.h"
 
-/* Simple printer for gst strings */
-static void string_put(FILE *out, uint8_t * string) {
-    uint32_t i;
-    uint32_t len = gst_string_length(string);
-    for (i = 0; i < len; ++i)
-        fputc(string[i], out);
-}
-
 /* A simple repl for debugging */
 void debug_repl(FILE *in, FILE *out) {
     char buffer[1024] = {0};
@@ -21,6 +13,10 @@ void debug_repl(FILE *in, FILE *out) {
     GstCompiler c;
 
     gst_init(&vm);
+
+    vm.rootenv.type = GST_OBJECT;
+    vm.rootenv.data.object = gst_object(&vm, 10);
+    gst_object_put(&vm, vm.rootenv.data.object, gst_load_cstring(&vm, "_ENV"), vm.rootenv);
 
     for (;;) {
 
@@ -61,9 +57,10 @@ void debug_repl(FILE *in, FILE *out) {
 
         /* Try to compile generated AST */
         gst_compiler(&c, &vm);
+        func.type = GST_NIL;
+        gst_compiler_add_global(&c, "ans", func);
         gst_stl_load(&c);
-        /* Save last expression */
-        gst_compiler_add_global(&c, "_", vm.ret);
+        gst_compiler_env(&c, vm.rootenv);
         func.type = GST_FUNCTION;
         func.data.function = gst_compiler_compile(&c, p.value);
 
@@ -90,16 +87,15 @@ void debug_repl(FILE *in, FILE *out) {
                     fprintf(out, "VM crash: %s\n", vm.crash);
                 } else {
                     fprintf(out, "VM error: ");
-                    string_put(out, gst_to_string(&vm, vm.ret));
-                    printf("\n");
+                    fprintf(out, "%s\n", (char *)gst_to_string(&vm, vm.ret));
                 }
             }
             reader = buffer;
             buffer[0] = 0;
             continue;
         } else if (out) {
-            string_put(out, gst_to_string(&vm, vm.ret));
-            fprintf(out, "\n");
+            fprintf(out, "%s\n", (char *)gst_to_string(&vm, vm.ret));
+            gst_object_put(&vm, vm.rootenv.data.object, gst_load_cstring(&vm, "ans"), vm.ret);
         }
     }
 

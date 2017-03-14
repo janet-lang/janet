@@ -20,6 +20,9 @@ struct GstCompiler {
 /* Initialize the Compiler */
 void gst_compiler(GstCompiler *c, Gst *vm);
 
+/* Register an environment for compilation */
+void gst_compiler_env(GstCompiler *c, GstValue env);
+
 /* Register a global for the compilation environment. */
 void gst_compiler_add_global(GstCompiler *c, const char *name, GstValue x);
 

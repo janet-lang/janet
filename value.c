@@ -9,12 +9,13 @@ int gst_truthy(GstValue v) {
     return v.type != GST_NIL && !(v.type == GST_BOOLEAN && !v.data.boolean);
 }
 
-static uint8_t * load_cstring(Gst *vm, const char *string, uint32_t len) {
-    uint8_t *data = gst_alloc(vm, len + 2 * sizeof(uint32_t));
+static uint8_t *load_cstring(Gst *vm, const char *string, uint32_t len) {
+    uint8_t *data = gst_alloc(vm, len + 1 + 2 * sizeof(uint32_t));
     data += 2 * sizeof(uint32_t);
     gst_string_hash(data) = 0;
     gst_string_length(data) = len;
     gst_memcpy(data, string, len);
+    data[len] = 0;
     return data;
 }
 
@@ -27,7 +28,7 @@ GstValue gst_load_cstring(Gst *vm, const char *string) {
 
 static uint8_t * number_to_string(Gst *vm, GstNumber x) {
     static const uint32_t SIZE = 20;
-    uint8_t *data = gst_alloc(vm, SIZE + 2 * sizeof(uint32_t));
+    uint8_t *data = gst_alloc(vm, SIZE + 1 + 2 * sizeof(uint32_t));
     data += 2 * sizeof(uint32_t);
     /* TODO - not depend on stdio */
     snprintf((char *) data, SIZE, "%.21g", x);
@@ -43,7 +44,7 @@ static const char *HEX_CHARACTERS = "0123456789abcdef";
 static uint8_t *string_description(Gst *vm, const char *title, uint32_t titlelen, void *pointer) {
     uint32_t len = 5 + titlelen + sizeof(void *) * 2;
     uint32_t i;
-    uint8_t *data = gst_alloc(vm, len + 2 * sizeof(uint32_t));
+    uint8_t *data = gst_alloc(vm, len + 1 + 2 * sizeof(uint32_t));
     uint8_t *c;
     union {
         uint8_t bytes[sizeof(void *)];
@@ -68,6 +69,7 @@ static uint8_t *string_description(Gst *vm, const char *title, uint32_t titlelen
     *c++ = '>';
     gst_string_hash(data) = 0;
     gst_string_length(data) = c - data;
+    *c = 0;
     return data;
 }
 
@@ -85,60 +87,11 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
         case GST_NUMBER:
             return number_to_string(vm, x.data.number);
         case GST_ARRAY:
-            {
-                uint32_t i;
-                GstBuffer *b = gst_buffer(vm, 40);
-                gst_buffer_push(vm, b, '[');
-                for (i = 0; i < x.data.array->count; ++i) {
-                    uint8_t *substr = gst_to_string(vm, x.data.array->data[i]);
-                    gst_buffer_append(vm, b, substr, gst_string_length(substr));
-                    if (i < x.data.array->count - 1)
-                        gst_buffer_push(vm, b, ' ');
-                }
-                gst_buffer_push(vm, b, ']');
-                return gst_buffer_to_string(vm, b);
-            }
+            return string_description(vm, "array", 5, x.data.pointer);
         case GST_TUPLE:
-            {
-                uint32_t i, count;
-                GstBuffer *b = gst_buffer(vm, 40);
-                GstValue *tuple = x.data.tuple;
-                gst_buffer_push(vm, b, '(');
-                count = gst_tuple_length(tuple);
-                for (i = 0; i < count; ++i) {
-                    uint8_t *substr = gst_to_string(vm, tuple[i]);
-                    gst_buffer_append(vm, b, substr, gst_string_length(substr));
-                    if (i < count - 1)
-                        gst_buffer_push(vm, b, ' ');
-                }
-                gst_buffer_push(vm, b, ')');
-                return gst_buffer_to_string(vm, b);
-            }
+            return string_description(vm, "tuple", 5, x.data.pointer);
         case GST_OBJECT:
-            {
-                uint32_t i, count;
-                GstBucket *bucket;
-                GstBuffer *b = gst_buffer(vm, 40);
-                GstObject *object = x.data.object;
-                gst_buffer_push(vm, b, '{');
-                count = 0;
-                for (i = 0; i < object->capacity; ++i) {
-                    bucket = object->buckets[i];
-                    while (bucket != NULL) {
-                        uint8_t *substr = gst_to_string(vm, bucket->key);
-                        gst_buffer_append(vm, b, substr, gst_string_length(substr));
-                        gst_buffer_push(vm, b, ' ');
-                        substr = gst_to_string(vm, bucket->value);
-                        gst_buffer_append(vm, b, substr, gst_string_length(substr));
-                        count++;
-                        if (count < object->count)
-                            gst_buffer_push(vm, b, ' ');
-                        bucket = bucket->next;
-                    }
-                }
-                gst_buffer_push(vm, b, '}');
-                return gst_buffer_to_string(vm, b);
-            }
+            return string_description(vm, "object", 6, x.data.pointer);
         case GST_STRING:
             return x.data.string;
         case GST_BYTEBUFFER:

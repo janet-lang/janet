@@ -16,6 +16,7 @@ struct GstParser {
     uint32_t cap;
     uint32_t index;
     uint32_t flags;
+    uint32_t quoteCount;
     enum {
 		GST_PARSER_PENDING = 0,
 		GST_PARSER_FULL,

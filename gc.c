@@ -222,13 +222,14 @@ void *gst_zalloc(Gst *vm, uint32_t size) {
 
 /* Run garbage collection */
 void gst_collect(Gst *vm) {
+    GstValue temp;
     /* Thread can be null */
     if (vm->thread) {
-        GstValue thread;
-        thread.type = GST_THREAD;
-        thread.data.thread = vm->thread;
-        gst_mark(vm, &thread);
+        temp.type = GST_THREAD;
+        temp.data.thread = vm->thread;
+        gst_mark(vm, &temp);
     }
+    gst_mark(vm, &vm->rootenv);
     gst_mark(vm, &vm->ret);
     gst_sweep(vm);
     vm->nextCollection = 0;

@@ -541,9 +541,13 @@ void gst_init(Gst *vm) {
     vm->black = 0;
     /* Add thread */
     vm->thread = NULL;
+    vm->rootenv.type = GST_NIL;
 }
 
 /* Clear all memory associated with the VM */
 void gst_deinit(Gst *vm) {
     gst_clear_memory(vm);
+    vm->thread = NULL;
+    vm->rootenv.type = GST_NIL;
+    vm->ret.type = GST_NIL;
 }

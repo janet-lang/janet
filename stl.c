@@ -109,13 +109,11 @@ int gst_stl_compile(Gst *vm) {
     GstValue ret;
     GstCompiler c;
     /* init state */
-    gst_compiler(&c, vm);
-    /* Check for environment variables */
-    if (env.type == GST_OBJECT) {
-        /* Iterate through environment, adding globals */
-    } else if (env.type != GST_NIL) {
-        gst_c_throwc(vm, "invalid type for environment");
+    if (env.type == GST_NIL) {
+        env = vm->rootenv;
     }
+    gst_compiler(&c, vm);
+    gst_compiler_env(&c, env);
     /* Prepare return value */
     ret.type = GST_FUNCTION;
     ret.data.function = gst_compiler_compile(&c, ast);

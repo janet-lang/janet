@@ -1296,6 +1296,25 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
     compiler_push_scope(c, 0);
 }
 
+/* Add environment */
+void gst_compiler_env(GstCompiler *c, GstValue env) {
+    uint32_t i;
+    GstBucket *bucket;
+    /* Register everything in environment */
+    if (env.type == GST_OBJECT) {
+        for (i = 0; i < env.data.object->capacity; ++i) {
+            bucket = env.data.object->buckets[i];
+            while (bucket) {
+                if (bucket->key.type == GST_STRING) {
+                    compiler_declare_symbol(c, c->tail, bucket->key);
+                    gst_array_push(c->vm, c->env, bucket->value);
+                }
+                bucket = bucket->next;
+            }
+        }
+    }
+}
+
 /* Register a global for the compilation environment. */
 void gst_compiler_add_global(GstCompiler *c, const char *name, GstValue x) {
     GstValue sym = gst_load_cstring(c->vm, name);

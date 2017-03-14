@@ -51,7 +51,6 @@ typedef struct GstBucket GstBucket;
 struct GstValue {
     GstType type;
     union {
-        /* The various types */
         GstBoolean boolean;
         GstNumber number;
         GstArray *array;
@@ -62,6 +61,7 @@ struct GstValue {
         GstCFunction cfunction;
         GstFunction *function;
         uint8_t *string;
+        char *cstring; /* Allias for ease of use from c */
         /* Indirectly used union members */
         uint16_t *u16p;
         GstFuncEnv *env;
@@ -162,6 +162,8 @@ struct Gst {
     uint32_t black : 1;
     /* Thread */
     GstThread *thread;
+    /* A GC root */
+    GstValue rootenv;
     /* Return state */
     const char *crash;
     GstValue ret; /* Returned value from gst_start. Also holds errors. */
