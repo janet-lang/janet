@@ -4,3 +4,9 @@
 	(a 2)
 	(a 3)
 )
+
+# Run call-for-each test
+
+(call-for-each print 1 2 3 4)
+
+(call-for-each (fn [a] (print a "hi")) 1 2 3 45)

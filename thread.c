@@ -19,10 +19,10 @@ GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity) {
 	gst_frame_prevsize(stack) = 0;
 	gst_frame_ret(stack) = 0;
 	gst_frame_errloc(stack) = 0;
-	gst_frame_callee(stack) = callee;
 	gst_frame_pc(stack) = NULL;
 	gst_frame_env(stack) = NULL;
 	gst_frame_errjmp(stack) = NULL;
+    gst_thread_expand_callable(vm, thread, callee);
 	gst_thread_endframe(vm, thread);
     return thread;
 }
@@ -83,10 +83,49 @@ void gst_thread_tuplepack(Gst *vm, GstThread *thread, uint32_t n) {
 	}
 }
 
+/* Expand a callee on the stack frame to its delegate function. This means that
+ * objects and userdata that have a "call" attribut in their class will be
+ * replaced with their delegate function. Call this before pushing any
+ * arguments to the stack. Returns the new stack. */
+GstValue *gst_thread_expand_callable(Gst *vm, GstThread *thread, GstValue callee) {
+    uint32_t i;
+    GstValue *stack;
+    GstObject *meta;
+    for (i = 0; i < 200; ++i) {
+        switch(callee.type) {
+            default:
+                return NULL;
+            case GST_FUNCTION:
+                stack = thread->data + thread->count;
+                gst_frame_callee(stack) = callee;
+                gst_frame_pc(stack) = callee.data.function->def->byteCode;
+                return stack;
+            case GST_CFUNCTION:
+                stack = thread->data + thread->count;
+                gst_frame_callee(stack) = callee;
+                gst_frame_pc(stack) = NULL;
+                return stack;
+            case GST_OBJECT:
+                meta = callee.data.object->meta;
+                if (meta == NULL) return NULL;
+                gst_thread_push(vm, thread, callee);
+                callee = gst_object_get_cstring(meta, "call");
+                continue;
+            case GST_USERDATA:
+                meta = ((GstUserdataHeader *)callee.data.pointer - 1)->meta;
+                gst_thread_push(vm, thread, callee);
+                callee = gst_object_get_cstring(meta, "call");
+                continue;
+        }
+    }
+    /* Callables nested to deeply */
+    return NULL;
+}
+
 /* Push a stack frame to a thread, with space for arity arguments. Returns the new
  * stack. */
 GstValue *gst_thread_beginframe(Gst *vm, GstThread *thread, GstValue callee, uint32_t arity) {
-    uint32_t frameOffset, recurCount;
+    uint32_t frameOffset;
     GstValue *oldStack, *newStack;
 
 	/* Push the frame */
@@ -100,43 +139,10 @@ GstValue *gst_thread_beginframe(Gst *vm, GstThread *thread, GstValue callee, uin
 	gst_frame_size(newStack) = 0;
 	thread->count += frameOffset; 
 
-    /* Get the true callee of next stack frame */
-    recurCount = 200;
-    recur:
-    if (!recurCount) {
-       return NULL;
-    }
-	switch(callee.type) {
-	default: return NULL;
-	case GST_FUNCTION:
-    	gst_frame_callee(newStack) = callee;
-    	gst_frame_pc(newStack) = callee.data.function->def->byteCode;
-    	break;
-	case GST_CFUNCTION:
-    	gst_frame_callee(newStack) = callee;
-    	gst_frame_pc(newStack) = NULL;
-        break;
-	case GST_OBJECT:
-		{
-			GstObject *meta = callee.data.object->meta;
-			if (meta == NULL) return NULL;
-			gst_thread_push(vm, thread, callee);
-			callee = gst_object_get_cstring(meta, "call");
-			newStack = thread->data + thread->count;
-			--recurCount;
-			goto recur;
-		}
-	case GST_USERDATA:
-		{
-			GstObject *meta = ((GstUserdataHeader *)callee.data.pointer - 1)->meta;
-			gst_thread_push(vm, thread, callee);
-			callee = gst_object_get_cstring(meta, "call");
-			newStack = thread->data + thread->count;
-			--recurCount;
-			goto recur;
-		}
-    }
-
+    /* Get real callable */
+    if (gst_thread_expand_callable(vm, thread, callee) == NULL)
+        return NULL;
+    
 	/* Ensure the extra space and initialize to nil */
     gst_thread_pushnil(vm, thread, arity);
 

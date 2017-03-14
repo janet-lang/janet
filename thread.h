@@ -21,6 +21,12 @@ void gst_thread_pushnil(Gst *vm, GstThread *thread, uint32_t n);
 /* Package up extra args after and including n into tuple at n*/
 void gst_thread_tuplepack(Gst *vm, GstThread *thread, uint32_t n); 
 
+/* Expand a callee on the stack frame to its delegate function. This means that
+ * objects and userdata that have a "call" attribut in their class will be
+ * replaced with their delegate function. Call this before pushing any
+ * arguments to the stack. Returns the new stack. */
+GstValue *gst_thread_expand_callable(Gst *vm, GstThread *thread, GstValue callee);
+
 /* Push a stack frame to a thread, with space for arity arguments. Returns the new
  * stack. */
 GstValue *gst_thread_beginframe(Gst *vm, GstThread *thread, GstValue callee, uint32_t arity); 
