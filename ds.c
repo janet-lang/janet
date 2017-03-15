@@ -229,7 +229,7 @@ GstValue gst_object_get(GstObject *o, GstValue key) {
 /* Get a value of the object with a cstring key */
 GstValue gst_object_get_cstring(GstObject *obj, const char *key) {
     uint32_t len;
-	for (len = 0; key[len]; ++len);
+    for (len = 0; key[len]; ++len);
     uint32_t hash = gst_cstring_calchash((uint8_t *)key, len);
     uint32_t index = hash % obj->capacity;
     GstBucket *bucket = obj->buckets[index];

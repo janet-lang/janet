@@ -349,7 +349,7 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             continue;
 
         case GST_OP_RET: /* Return */
-        	temp = stack[pc[1]];
+            temp = stack[pc[1]];
             stack = gst_thread_popframe(vm, &thread);
             if (thread.count < stackBase) {
                 vm->ret = temp;
@@ -362,59 +362,59 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
 
         case GST_OP_CAL: /* Call */
         case GST_OP_TCL: /* Tail call */
-        	{
-            	GstValue *oldStack;
-            	temp = stack[pc[1]];
+            {
+                GstValue *oldStack;
+                temp = stack[pc[1]];
                 int isTCall = *pc == GST_OP_TCL;
-            	uint32_t i, arity, offset, size;
-            	uint16_t ret = pc[2];
-            	offset = isTCall ? 3 : 4;
-				arity = pc[offset - 1];
-				/* Push new frame */
-				stack = gst_thread_beginframe(vm, &thread, temp, arity);
-				oldStack = stack - GST_FRAME_SIZE - gst_frame_prevsize(stack);
-				/* Write arguments */
-				size = gst_frame_size(stack);
-				for (i = 0; i < arity; ++i)
-    				stack[i + size - arity] = oldStack[pc[offset + i]];
-    			/* Finish new frame */
-				gst_thread_endframe(vm, &thread);
-				/* Check tail call - if so, replace frame. */
-				if (isTCall) {
-					stack = gst_thread_tail(vm, &thread);
-				} else {
-					gst_frame_ret(oldStack) = ret;
-				}
-				/* Call function */
-				temp = gst_frame_callee(stack);
-				if (temp.type == GST_FUNCTION) {
-    				/* Save pc and set new pc */
+                uint32_t i, arity, offset, size;
+                uint16_t ret = pc[2];
+                offset = isTCall ? 3 : 4;
+                arity = pc[offset - 1];
+                /* Push new frame */
+                stack = gst_thread_beginframe(vm, &thread, temp, arity);
+                oldStack = stack - GST_FRAME_SIZE - gst_frame_prevsize(stack);
+                /* Write arguments */
+                size = gst_frame_size(stack);
+                for (i = 0; i < arity; ++i)
+                    stack[i + size - arity] = oldStack[pc[offset + i]];
+                /* Finish new frame */
+                gst_thread_endframe(vm, &thread);
+                /* Check tail call - if so, replace frame. */
+                if (isTCall) {
+                    stack = gst_thread_tail(vm, &thread);
+                } else {
+                    gst_frame_ret(oldStack) = ret;
+                }
+                /* Call function */
+                temp = gst_frame_callee(stack);
+                if (temp.type == GST_FUNCTION) {
+                    /* Save pc and set new pc */
                     if (!isTCall)
                         gst_frame_pc(oldStack) = pc + offset + arity;
-    				pc = temp.data.function->def->byteCode;
-				} else {
-					int status;
-					GST_STATE_WRITE();
-					vm->ret.type = GST_NIL;
-					status = temp.data.cfunction(vm);
-					GST_STATE_SYNC();
-					stack = gst_thread_popframe(vm, &thread);
-					if (status == GST_RETURN_OK)
-    					if (thread.count < stackBase) {
+                    pc = temp.data.function->def->byteCode;
+                } else {
+                    int status;
+                    GST_STATE_WRITE();
+                    vm->ret.type = GST_NIL;
+                    status = temp.data.cfunction(vm);
+                    GST_STATE_SYNC();
+                    stack = gst_thread_popframe(vm, &thread);
+                    if (status == GST_RETURN_OK)
+                        if (thread.count < stackBase) {
                             GST_STATE_WRITE();
-        					return status;
+                            return status;
                         } else { 
-        					stack[gst_frame_ret(stack)] = vm->ret;
+                            stack[gst_frame_ret(stack)] = vm->ret;
                             if (isTCall)
                                 pc = gst_frame_pc(stack);
                             else
                                 pc += offset + arity;
                         }
-					else
-    					goto vm_error;
-				}
-        	}
-        	break;
+                    else
+                        goto vm_error;
+                }
+            }
+            break;
 
         /* Handle errors from c functions and vm opcodes */
         vm_error:
@@ -453,11 +453,11 @@ int gst_run(Gst *vm, GstValue callee) {
     /* If callee was not actually a function, get the delegate function */
     callee = gst_frame_callee(stack);
     if (callee.type == GST_CFUNCTION) {
-		int status;
-		vm->ret.type = GST_NIL;
-		status = callee.data.cfunction(vm);
-		gst_thread_popframe(vm, vm->thread);
-		return status;
+        int status;
+        vm->ret.type = GST_NIL;
+        status = callee.data.cfunction(vm);
+        gst_thread_popframe(vm, vm->thread);
+        return status;
     } else {
         return gst_continue(vm);
     }
@@ -484,15 +484,15 @@ int gst_call(Gst *vm, GstValue callee, uint32_t arity, GstValue *args) {
     gst_thread_endframe(vm, vm->thread);
 
     /* Call function */
-	callee = gst_frame_callee(stack);
-	if (callee.type == GST_FUNCTION) {
+    callee = gst_frame_callee(stack);
+    if (callee.type == GST_FUNCTION) {
         gst_frame_pc(stack) = callee.data.function->def->byteCode;
-    	status = gst_continue(vm);
-	} else {
-		vm->ret.type = GST_NIL;
-		status = callee.data.cfunction(vm);
-		gst_thread_popframe(vm, vm->thread);
-	}
+        status = gst_continue(vm);
+    } else {
+        vm->ret.type = GST_NIL;
+        status = callee.data.cfunction(vm);
+        gst_thread_popframe(vm, vm->thread);
+    }
 
     /* Pop the extra nil */
     --gst_frame_size(gst_thread_stack(vm->thread));

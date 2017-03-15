@@ -45,11 +45,11 @@ static void gst_mark_funcdef(Gst *vm, GstFuncDef *def) {
             for (i = 0; i < count; ++i) {
                 /* If the literal is a NIL type, it actually
                  * contains a FuncDef */
-               	if (def->literals[i].type == GST_NIL) {
-					gst_mark_funcdef(vm, (GstFuncDef *) def->literals[i].data.pointer);
-               	} else {
+                if (def->literals[i].type == GST_NIL) {
+                    gst_mark_funcdef(vm, (GstFuncDef *) def->literals[i].data.pointer);
+                } else {
                     gst_mark(vm, def->literals + i);
-               	}
+                }
             }
         }
     }
@@ -141,31 +141,31 @@ void gst_mark(Gst *vm, GstValue *x) {
                 gc_header(x->data.object)->color = vm->black;
                 gc_header(x->data.object->buckets)->color = vm->black;
                 for (i = 0; i < x->data.object->capacity; ++i) {
-					bucket = x->data.object->buckets[i];
-					while (bucket) {
-    					gc_header(bucket)->color = vm->black;
-						gst_mark(vm, &bucket->key);
-						gst_mark(vm, &bucket->value);
-						bucket = bucket->next;
-					}
+                    bucket = x->data.object->buckets[i];
+                    while (bucket) {
+                        gc_header(bucket)->color = vm->black;
+                        gst_mark(vm, &bucket->key);
+                        gst_mark(vm, &bucket->value);
+                        bucket = bucket->next;
+                    }
                 }
                 if (x->data.object->meta != NULL) {
                     GstValue temp;
                     temp.type = GST_OBJECT;
                     temp.data.object = x->data.object->meta;
-					gst_mark(vm, &temp);
+                    gst_mark(vm, &temp);
                 }
             }
             break;
 
         case GST_USERDATA:
             if (gc_header(x->data.string - sizeof(GstUserdataHeader))->color != vm->black) {
-				GstUserdataHeader *userHeader = (GstUserdataHeader *)x->data.string - 1;
-				gc_header(userHeader)->color = vm->black;
-				GstValue temp;
-				temp.type = GST_OBJECT;
-				temp.data.object = userHeader->meta;
-				gst_mark(vm, &temp);
+                GstUserdataHeader *userHeader = (GstUserdataHeader *)x->data.string - 1;
+                gc_header(userHeader)->color = vm->black;
+                GstValue temp;
+                temp.type = GST_OBJECT;
+                temp.data.object = userHeader->meta;
+                gst_mark(vm, &temp);
             }
     }
 }
@@ -254,20 +254,20 @@ void gst_clear_memory(Gst *vm) {
 
 /* Header for managed memory blocks */
 struct MMHeader {
-	struct MMHeader *next;
-	struct MMHeader *previous;
+    struct MMHeader *next;
+    struct MMHeader *previous;
 };
 
 /* Initialize managed memory */
 void gst_mm_init(GstManagedMemory *mm) {
-	*mm = NULL;
+    *mm = NULL;
 }
 
 /* Allocate some managed memory */
 void *gst_mm_alloc(GstManagedMemory *mm, uint32_t size) {
-	struct MMHeader *mem = gst_raw_alloc(size + sizeof(struct MMHeader));
-	if (mem == NULL)
-    	return NULL;
+    struct MMHeader *mem = gst_raw_alloc(size + sizeof(struct MMHeader));
+    if (mem == NULL)
+        return NULL;
     mem->next = *mm;
     mem->previous = NULL;
     *mm = mem;
@@ -276,9 +276,9 @@ void *gst_mm_alloc(GstManagedMemory *mm, uint32_t size) {
 
 /* Intialize zeroed managed memory */
 void *gst_mm_zalloc(GstManagedMemory *mm, uint32_t size) {
-	struct MMHeader *mem = gst_raw_calloc(1, size + sizeof(struct MMHeader));
-	if (mem == NULL)
-    	return NULL;
+    struct MMHeader *mem = gst_raw_calloc(1, size + sizeof(struct MMHeader));
+    if (mem == NULL)
+        return NULL;
     mem->next = *mm;
     mem->previous = NULL;
     *mm = mem;
@@ -287,32 +287,32 @@ void *gst_mm_zalloc(GstManagedMemory *mm, uint32_t size) {
 
 /* Free a memory block used in managed memory */
 void gst_mm_free(GstManagedMemory *mm, void *block) {
-	struct MMHeader *mem = (struct MMHeader *)(((char *)block) - sizeof(struct MMHeader));
-	if (mem->previous != NULL) {
-		mem->previous->next = mem->next;
-	} else {
-		*mm = mem->next;
-	}
-	gst_raw_free(mem);
+    struct MMHeader *mem = (struct MMHeader *)(((char *)block) - sizeof(struct MMHeader));
+    if (mem->previous != NULL) {
+        mem->previous->next = mem->next;
+    } else {
+        *mm = mem->next;
+    }
+    gst_raw_free(mem);
 }
 
 /* Free all memory in managed memory */
 void gst_mm_clear(GstManagedMemory *mm) {
-	struct MMHeader *block = (struct MMHeader *)(*mm);
-	struct MMHeader *next;
-	while (block != NULL) {
-    	next = block->next;
-		free(block);
-		block = next;
-	};
-	*mm = NULL;
+    struct MMHeader *block = (struct MMHeader *)(*mm);
+    struct MMHeader *next;
+    while (block != NULL) {
+        next = block->next;
+        free(block);
+        block = next;
+    };
+    *mm = NULL;
 }
 
 /* Analog to realloc */
 void *gst_mm_realloc(GstManagedMemory *mm, void *block, uint32_t nsize) {
-	struct MMHeader *mem = gst_raw_realloc(block, nsize + sizeof(struct MMHeader));
-	if (mem == NULL)
-    	return NULL;
+    struct MMHeader *mem = gst_raw_realloc(block, nsize + sizeof(struct MMHeader));
+    if (mem == NULL)
+        return NULL;
     mem->next = *mm;
     mem->previous = NULL;
     *mm = mem;
