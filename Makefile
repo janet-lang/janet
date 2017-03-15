@@ -2,7 +2,7 @@
 
 CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -g
 
-TARGET=interp
+TARGET=gst
 PREFIX=/usr/local
 
 # C sources
