@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "gst.h"
-#include "disasm.h"
+#include <gst/gst.h>
+#include <gst/disasm.h>
 
 /* A simple repl for debugging */
 void debug_repl(FILE *in, FILE *out) {

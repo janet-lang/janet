@@ -1,7 +1,7 @@
-#include "datatypes.h"
-#include "gc.h"
-#include "vm.h"
-#include "util.h"
+#include <gst/datatypes.h>
+#include <gst/gc.h>
+#include <gst/vm.h>
+#include <gst/util.h>
 
 /* The metadata header associated with an allocated block of memory */
 #define gc_header(mem) ((GCMemoryHeader *)(mem) - 1)

@@ -1,7 +1,7 @@
-#include "util.h"
-#include "value.h"
-#include "ds.h"
-#include "vm.h"
+#include <gst/util.h>
+#include <gst/value.h>
+#include <gst/ds.h>
+#include <gst/vm.h>
 #include <stdio.h>
 
 /* Boolean truth definition */

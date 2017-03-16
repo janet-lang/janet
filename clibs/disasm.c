@@ -1,4 +1,4 @@
-#include "disasm.h"
+#include <gst/disasm.h>
 
 /* Width of padded opcode names */
 #define OP_WIDTH 20

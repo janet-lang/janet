@@ -1,7 +1,7 @@
 /* This implements a standard library in gst. Some of this
  * will eventually be ported over to gst if possible */
-#include "stl.h"
-#include "gst.h"
+#include <gst/stl.h>
+#include <gst/gst.h>
 
 /****/
 /* Core */

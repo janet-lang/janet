@@ -1,9 +1,9 @@
-#include "vm.h"
-#include "util.h"
-#include "value.h"
-#include "ds.h"
-#include "gc.h"
-#include "thread.h"
+#include <gst/vm.h>
+#include <gst/util.h>
+#include <gst/value.h>
+#include <gst/ds.h>
+#include <gst/gc.h>
+#include <gst/thread.h>
 
 /* Macros for errors in the vm */
 

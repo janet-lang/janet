@@ -1,8 +1,8 @@
-#include "compile.h"
-#include "ds.h"
-#include "value.h"
-#include "vm.h"
-#include "util.h"
+#include <gst/compile.h>
+#include <gst/ds.h>
+#include <gst/value.h>
+#include <gst/vm.h>
+#include <gst/util.h>
 
 /* During compilation, FormOptions are passed to ASTs
  * as configuration options to allow for some optimizations. */
