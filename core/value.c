@@ -26,6 +26,13 @@ GstValue gst_load_cstring(Gst *vm, const char *string) {
     return ret;
 }
 
+GstValue gst_load_csymbol(Gst *vm, const char *string) {
+    GstValue ret;
+    ret.type = GST_SYMBOL;
+    ret.data.string = load_cstring(vm, string, strlen(string));
+    return ret;
+}
+
 static uint8_t * number_to_string(Gst *vm, GstNumber x) {
     static const uint32_t SIZE = 20;
     uint8_t *data = gst_alloc(vm, SIZE + 1 + 2 * sizeof(uint32_t));
@@ -94,6 +101,8 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
             return string_description(vm, "object", 6, x.data.pointer);
         case GST_STRING:
             return x.data.string;
+        case GST_SYMBOL:
+            return string_description(vm, "symbol", 6, x.data.pointer);
         case GST_BYTEBUFFER:
             return string_description(vm, "buffer", 6, x.data.pointer);
         case GST_CFUNCTION:
@@ -155,6 +164,7 @@ int gst_equals(GstValue x, GstValue y) {
                 /* Assume that when strings are created, equal strings
                  * are set to the same string */
             case GST_STRING:
+            case GST_SYMBOL:
                 if (x.data.string == y.data.string) {
                     result = 1;
                     break;
@@ -222,6 +232,7 @@ uint32_t gst_hash(GstValue x) {
             break;
             /* String hashes */
         case GST_STRING:
+        case GST_SYMBOL:
             /* Assume 0 is not hashed. */
             if (gst_string_hash(x.data.string))
                 hash = gst_string_hash(x.data.string);
@@ -271,6 +282,7 @@ int gst_compare(GstValue x, GstValue y) {
                     return x.data.number > y.data.number ? 1 : -1;
                 }
             case GST_STRING:
+            case GST_SYMBOL:
                 if (x.data.string == y.data.string) {
                     return 0;
                 } else {
@@ -282,9 +294,9 @@ int gst_compare(GstValue x, GstValue y) {
                         if (x.data.string[i] == y.data.string[i]) {
                             continue;
                         } else if (x.data.string[i] < y.data.string[i]) {
-                            return 1; /* x is less then y */
+                            return -1; /* x is less then y */
                         } else {
-                            return -1; /* y is less than x */
+                            return 1; /* y is less than x */
                         }
                     }
                     if (xlen == ylen) {
@@ -379,6 +391,7 @@ const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
         ret.data.number = ds.data.buffer->data[index];
         break;
     case GST_STRING:
+    case GST_SYMBOL:
         if (key.type != GST_NUMBER) return "expected numeric key";
         index = to_index(key.data.number, gst_string_length(ds.data.string));
         if (index == -1) return "invalid string access";

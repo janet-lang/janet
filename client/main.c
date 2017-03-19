@@ -16,7 +16,7 @@ void debug_repl(FILE *in, FILE *out) {
 
     vm.rootenv.type = GST_OBJECT;
     vm.rootenv.data.object = gst_object(&vm, 10);
-    gst_object_put(&vm, vm.rootenv.data.object, gst_load_cstring(&vm, "_ENV"), vm.rootenv);
+    gst_object_put(&vm, vm.rootenv.data.object, gst_load_csymbol(&vm, "_ENV"), vm.rootenv);
 
     for (;;) {
 
@@ -75,10 +75,10 @@ void debug_repl(FILE *in, FILE *out) {
         }
 
         /* Print asm */
-        //if (out) {
-            //fprintf(out, "\n");
-            //gst_dasm_function(out, func.data.function);
-        //}
+        /*if (out) {
+            fprintf(out, "\n");
+            gst_dasm_function(out, func.data.function);
+        }*/
 
         /* Execute function */
         if (gst_run(&vm, func)) {
@@ -95,7 +95,7 @@ void debug_repl(FILE *in, FILE *out) {
             continue;
         } else if (out) {
             fprintf(out, "%s\n", (char *)gst_to_string(&vm, vm.ret));
-            gst_object_put(&vm, vm.rootenv.data.object, gst_load_cstring(&vm, "ans"), vm.ret);
+            gst_object_put(&vm, vm.rootenv.data.object, gst_load_csymbol(&vm, "ans"), vm.ret);
         }
     }
 

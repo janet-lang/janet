@@ -372,6 +372,7 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                 arity = pc[offset - 1];
                 /* Push new frame */
                 stack = gst_thread_beginframe(vm, &thread, temp, arity);
+                if (stack == NULL) gst_error(vm, "expected function");
                 oldStack = stack - GST_FRAME_SIZE - gst_frame_prevsize(stack);
                 /* Write arguments */
                 size = gst_frame_size(stack);

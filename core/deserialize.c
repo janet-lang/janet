@@ -16,21 +16,22 @@
  * Byte 203: False
  * Byte 204: Number  - double format
  * Byte 205: String  - [u32 length]*[u8... characters]
- * Byte 206: Buffer  - [u32 length]*[u8... characters]
- * Byte 207: Array   - [u32 length]*[value... elements]
- * Byte 208: Tuple   - [u32 length]*[value... elements]
- * Byte 209: Thread  - [u8 state][u32 frames]*[[value callee][value env]
+ * Byte 206: Symbol  - [u32 length]*[u8... characters]
+ * Byte 207: Buffer  - [u32 length]*[u8... characters]
+ * Byte 208: Array   - [u32 length]*[value... elements]
+ * Byte 209: Tuple   - [u32 length]*[value... elements]
+ * Byte 210: Thread  - [u8 state][u32 frames]*[[value callee][value env]
  *  [u32 pcoffset][u32 erroffset][u16 ret][u16 errloc][u16 size]*[value ...stack]
- * Byte 210: Object  - [value meta][u32 length]*2*[value... kvs]
- * Byte 211: FuncDef - [u32 locals][u32 arity][u32 flags][u32 literallen]*[value...
+ * Byte 211: Object  - [value meta][u32 length]*2*[value... kvs]
+ * Byte 212: FuncDef - [u32 locals][u32 arity][u32 flags][u32 literallen]*[value...
  *  literals][u32 bytecodelen]*[u16... bytecode]
- * Byte 212: FunEnv  - [value thread][u32 length]*[value ...upvalues]
+ * Byte 213: FunEnv  - [value thread][u32 length]*[value ...upvalues]
  *  (upvalues is not read if thread is a thread object)
- * Byte 213: Func    - [value parent][value def][value env]
+ * Byte 214: Func    - [value parent][value def][value env]
  *  (nil values indicate empty)
- * Byte 214: LUdata  - [value meta][u32 length]*[u8... bytes]
- * Byte 215: CFunc   - [u32 length]*[u8... idstring]
- * Byte 216: Ref     - [u32 id]
+ * Byte 215: LUdata  - [value meta][u32 length]*[u8... bytes]
+ * Byte 216: CFunc   - [u32 length]*[u8... idstring]
+ * Byte 217: Ref     - [u32 id]
  */
 
 /* Error at buffer end */
@@ -135,7 +136,8 @@ static GstValue gst_deserialize_impl(
             return ret;
 
         case 205: /* String */
-            ret.type = GST_STRING;
+        case 206: /* Symbol */
+            ret.type = data[-1] == 205 ? GST_STRING : GST_SYMBOL;
             length = read_u32(); data += 4;
             data = deser_datacheck(length);
             ret.data.string = 
@@ -148,7 +150,7 @@ static GstValue gst_deserialize_impl(
             gst_array_push(vm, visited, ret);
             return ret;
 
-        case 206: /* Buffer */
+        case 207: /* Buffer */
             ret.type = GST_BUFFER;
             length = read_u32(); data += 4;
             data = deser_datacheck(length);
@@ -161,7 +163,7 @@ static GstValue gst_deserialize_impl(
             gst_array_push(vm, visited, ret);
             return ret;
 
-        case 207: /* Array */
+        case 208: /* Array */
             ret.type = GST_ARRAY;
             length = read_u32(); data += 4;
             buffer = gst_alloc(vm, length * sizeof(GstValue));
@@ -175,7 +177,7 @@ static GstValue gst_deserialize_impl(
             gst_array_push(vm, visited, ret);
             return ret;
 
-        case 208: /* Tuple */
+        case 209: /* Tuple */
             ret.type = GST_TUPLE;
             length = read_u32(); data += 4;
             buffer = gst_alloc(vm, length * sizeof(GstValue) + 2 * sizeof(uint32_t))
@@ -189,7 +191,7 @@ static GstValue gst_deserialize_impl(
             gst_array_push(vm, visited, ret);
             return ret;
 
-        case 209: /* Thread */
+        case 210: /* Thread */
             {
                 GstValue nil;
                 GstThread *t;
@@ -251,7 +253,7 @@ static GstValue gst_deserialize_impl(
             }
             return ret;
 
-        case 210: /* Object */
+        case 211: /* Object */
             {
                 GstValue meta;
                 ret.type = GST_OBJECT;
@@ -272,7 +274,7 @@ static GstValue gst_deserialize_impl(
             }
             return ret;
 
-        case 211: /* Funcdef */
+        case 212: /* Funcdef */
             {
                 GstFuncDef *def;
                 uint32_t locals, arity, literalsLen, byteCodeLen, flags;
@@ -306,7 +308,7 @@ static GstValue gst_deserialize_impl(
             }
             return ret;
 
-        case 212: /* Funcenv */
+        case 213: /* Funcenv */
             {
                 GstValue thread = gst_deserialize_impl(vm, deata, &data, visited);
                 length = read_u32(); data += 4;
@@ -328,7 +330,7 @@ static GstValue gst_deserialize_impl(
             }
             return ret;
 
-        case 213: /* Function */
+        case 214: /* Function */
             {
                 GstValue parent, def, env;
                 parent = gst_deserialize_impl(vm, data, end, &data, visited);
@@ -352,7 +354,7 @@ static GstValue gst_deserialize_impl(
             }
             return ret;
 
-        case 214: /* LUdata */
+        case 215: /* LUdata */
             {
                 GstValue meta;
                 ret.type = GST_USERDATA;
@@ -367,11 +369,11 @@ static GstValue gst_deserialize_impl(
             }
             return ret;
 
-        case 215: /* C function */
+        case 216: /* C function */
 
             return ret;
 
-        case 216: /* Reference */
+        case 217: /* Reference */
             length = read_u32(); data += 4;
             deser_assert(visited->count > length, "invalid reference");
             *newData = data;

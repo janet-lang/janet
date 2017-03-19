@@ -319,7 +319,7 @@ static uint16_t compiler_add_literal(GstCompiler *c, GstScope *scope, GstValue x
 static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValue sym) {
     GstValue x;
     uint16_t target;
-    if (sym.type != GST_STRING)
+    if (sym.type != GST_SYMBOL)
         c_error(c, "expected symbol");
     target = compiler_get_local(c, scope);
     x.type = GST_NUMBER;
@@ -750,7 +750,7 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, GstValue *form) {
     params = form[current++].data.array;
     for (i = 0; i < params->count; ++i) {
         GstValue param = params->data[i];
-        if (param.type != GST_STRING)
+        if (param.type != GST_SYMBOL)
             c_error(c, "function parameters should be symbols");
         /* The compiler puts the parameter locals
          * in the right place by default - at the beginning
@@ -876,7 +876,7 @@ static Slot compile_try(GstCompiler *c, FormOptions opts, GstValue *form) {
     if (gst_tuple_length(form) < 3 || gst_tuple_length(form) > 4)
         c_error(c, "try takes either 2 or 3 arguments");
     /* Check for symbol to bind error to */
-    if (form[1].type != GST_STRING)
+    if (form[1].type != GST_SYMBOL)
         c_error(c, "expected symbol at start of try");
     /* Add subscope for error variable */
     GstScope *subScope = compiler_push_scope(c, 1);
@@ -1013,7 +1013,7 @@ typedef Slot (*SpecialFormHelper) (GstCompiler *c, FormOptions opts, GstValue *f
 /* Dispatch to a special form */
 static SpecialFormHelper get_special(GstValue *form) {
     uint8_t *name;
-    if (gst_tuple_length(form) < 1 || form[0].type != GST_STRING)
+    if (gst_tuple_length(form) < 1 || form[0].type != GST_SYMBOL)
         return NULL;
     name = form[0].data.string;
     /* If we have a symbol with a zero length name, we have other
@@ -1273,7 +1273,7 @@ static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
         case GST_BOOLEAN:
         case GST_NUMBER:
             return compile_nonref_type(c, opts, x);
-        case GST_STRING:
+        case GST_SYMBOL:
             return compile_symbol(c, opts, x);
         case GST_TUPLE:
             return compile_form(c, opts, x.data.tuple);
@@ -1305,7 +1305,7 @@ void gst_compiler_env(GstCompiler *c, GstValue env) {
         for (i = 0; i < env.data.object->capacity; ++i) {
             bucket = env.data.object->buckets[i];
             while (bucket) {
-                if (bucket->key.type == GST_STRING) {
+                if (bucket->key.type == GST_SYMBOL) {
                     compiler_declare_symbol(c, c->tail, bucket->key);
                     gst_array_push(c->vm, c->env, bucket->value);
                 }
@@ -1318,7 +1318,7 @@ void gst_compiler_env(GstCompiler *c, GstValue env) {
 /* Register a global for the compilation environment. */
 void gst_compiler_add_global(GstCompiler *c, const char *name, GstValue x) {
     GstValue sym = gst_load_cstring(c->vm, name);
-    sym.type = GST_STRING;
+    sym.type = GST_SYMBOL;
     compiler_declare_symbol(c, c->tail, sym);
     gst_array_push(c->vm, c->env, x);
 }
