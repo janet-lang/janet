@@ -104,6 +104,10 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
             return string_description(vm, "thread", 6, x.data.pointer);
         case GST_USERDATA:
             return string_description(vm, "userdata", 8, x.data.pointer);
+        case GST_FUNCENV:
+            return string_description(vm, "funcenv", 7, x.data.pointer);
+        case GST_FUNCDEF:
+            return string_description(vm, "funcdef", 7, x.data.pointer);
     }
     return NULL;
 }

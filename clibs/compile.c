@@ -770,8 +770,8 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, GstValue *form) {
         uint16_t literalIndex;
         GstFuncDef *def = compiler_gen_funcdef(c, buffer->count - sizeBefore, params->count);
         /* Add this FuncDef as a literal in the outer scope */
-        newVal.type = GST_NIL;
-        newVal.data.pointer = def;
+        newVal.type = GST_FUNCDEF;
+        newVal.data.def = def;
         literalIndex = compiler_add_literal(c, scope, newVal);
         gst_buffer_push_u16(c->vm, buffer, GST_OP_CLN);
         gst_buffer_push_u16(c->vm, buffer, ret.index);

@@ -221,10 +221,10 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                 if (pc[2] > v1.data.function->def->literalsLen)
                     gst_error(vm, GST_NO_UPVALUE);
                 temp = v1.data.function->def->literals[pc[2]];
-                if (temp.type != GST_NIL)
+                if (temp.type != GST_FUNCDEF)
                     gst_error(vm, "cannot create closure");
                 fn = gst_alloc(vm, sizeof(GstFunction));
-                fn->def = (GstFuncDef *) temp.data.pointer;
+                fn->def = temp.data.def;
                 fn->parent = v1.data.function;
                 fn->env = gst_frame_env(stack);
                 temp.type = GST_FUNCTION;
@@ -394,6 +394,7 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                     pc = temp.data.function->def->byteCode;
                 } else {
                     int status;
+                    gst_frame_pc(stack) = pc;
                     GST_STATE_WRITE();
                     vm->ret.type = GST_NIL;
                     status = temp.data.cfunction(vm);

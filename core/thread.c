@@ -118,7 +118,7 @@ GstValue *gst_thread_expand_callable(Gst *vm, GstThread *thread, GstValue callee
                 continue;
         }
     }
-    /* Callables nested to deeply */
+    /* Callables nested too deeply */
     return NULL;
 }
 
