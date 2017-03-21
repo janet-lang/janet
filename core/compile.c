@@ -597,6 +597,7 @@ MAKE_SPECIAL(gte, 1, 1, GST_OP_LTE, -1, OP_0_BOOLEAN | OP_1_BOOLEAN | OP_REVERSE
 MAKE_SPECIAL(not, -1, GST_OP_NOT, -1, -1, 0)
 MAKE_SPECIAL(get, -1, -1, GST_OP_GET, -1, 0)
 MAKE_SPECIAL(make_tuple, -1, -1, -1, GST_OP_TUP, 0)
+MAKE_SPECIAL(length, -1, GST_OP_LEN, -1, -1, 0)
 
 #undef MAKE_SPECIAL
 
@@ -1030,6 +1031,7 @@ static SpecialFormHelper get_special(GstValue *form) {
             case '>': return compile_gt;
             case '<': return compile_lt;
             case '=': return compile_equals;
+            case ':': return compile_var;
             default:
                 break;
         }
@@ -1094,6 +1096,17 @@ static SpecialFormHelper get_special(GstValue *form) {
                 }
             }
             break;
+        case 'l':
+            {
+                if (gst_string_length(name) == 6 &&
+                        name[1] == 'e' &&
+                        name[2] == 'n' &&
+                        name[3] == 'g' &&
+                        name[4] == 't' &&
+                        name[5] == 'h') {
+                    return compile_length;
+                }
+            }
         case 'n':
             {
                 if (gst_string_length(name) == 3 &&
@@ -1145,14 +1158,6 @@ static SpecialFormHelper get_special(GstValue *form) {
                         name[3] == 'l' &&
                         name[4] == 'e') {
                     return compile_while;
-                }
-            }
-            break;
-        case ':':
-            {
-                if (gst_string_length(name) == 2 &&
-                        name[1] == '=') {
-                    return compile_var;
                 }
             }
             break;

@@ -107,6 +107,17 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             pc += 3;
             continue;
 
+        case GST_OP_LEN: /* Length */
+            {
+                int status = gst_length(vm, stack[pc[2]], &v1);
+                if (status == GST_RETURN_OK)
+                    stack[pc[1]] = v1;
+                else
+                    goto vm_error;
+                pc += 3;
+            }
+            continue;
+
         case GST_OP_FLS: /* Load False */
             temp.type = GST_BOOLEAN;
             temp.data.boolean = 0;
@@ -420,6 +431,8 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
 
         /* Handle errors from c functions and vm opcodes */
         vm_error:
+            if (stack == NULL)
+                return GST_RETURN_ERROR;
             while (gst_frame_errjmp(stack) == NULL) {
                 stack = gst_thread_popframe(vm, &thread);
                 if (thread.count < stackBase)

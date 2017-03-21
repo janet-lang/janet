@@ -2,6 +2,7 @@
  * will eventually be ported over to gst if possible */
 #include <gst/stl.h>
 #include <gst/gst.h>
+#include <gst/serialize.h>
 
 /****/
 /* Core */
@@ -53,6 +54,29 @@ int gst_stl_callforeach(Gst *vm) {
     }
 }
 
+/* Create a buffer */
+int gst_stl_make_buffer(Gst *vm) {
+    uint32_t i, count;
+    GstValue buf;
+    buf.type = GST_BYTEBUFFER;
+    buf.data.buffer = gst_buffer(vm, 10);
+    count = gst_count_args(vm);
+    for (i = 0; i < count; ++i) {
+        uint8_t *string = gst_to_string(vm, gst_arg(vm, i));
+        gst_buffer_append(vm, buf.data.buffer, string, gst_string_length(string));
+    }
+    gst_c_return(vm, buf);
+}
+
+/* To string */
+int gst_stl_tostring(Gst *vm) {
+    GstValue ret;
+    uint8_t *string = gst_to_string(vm, gst_arg(vm, 0));
+    ret.type = GST_STRING;
+    ret.data.string = string;
+    gst_c_return(vm, ret);
+}
+
 /* Exit */
 int gst_stl_exit(Gst *vm) {
     int ret;
@@ -68,6 +92,8 @@ void gst_stl_load_core(GstCompiler *c) {
     gst_compiler_add_global_cfunction(c, "get-class", gst_stl_getclass);
     gst_compiler_add_global_cfunction(c, "set-class", gst_stl_setclass);
     gst_compiler_add_global_cfunction(c, "call-for-each", gst_stl_callforeach);
+    gst_compiler_add_global_cfunction(c, "make-buffer", gst_stl_make_buffer);
+    gst_compiler_add_global_cfunction(c, "tostring", gst_stl_tostring);
     gst_compiler_add_global_cfunction(c, "exit", gst_stl_exit);
 }
 
@@ -131,6 +157,32 @@ void gst_stl_load_compile(GstCompiler *c) {
 }
 
 /****/
+/* Serialization */
+/****/
+
+/* Serialize data into buffer */
+int gst_stl_serialize(Gst *vm) {
+    const char *err;
+    uint32_t i;
+    GstValue buffer = gst_arg(vm, 0);
+    if (buffer.type != GST_BYTEBUFFER)
+        gst_c_throwc(vm, "expected buffer");
+    for (i = 1; i < gst_count_args(vm); ++i) {
+        err = gst_serialize(vm, buffer.data.buffer, gst_arg(vm, i));
+        if (err != NULL)
+            gst_c_throwc(vm, err);
+    }
+    gst_c_return(vm, buffer);
+}
+
+/* Load serilization */
+void gst_stl_load_serialization(GstCompiler *c) {
+    gst_compiler_add_global_cfunction(c, "serialize", gst_stl_serialize);
+}
+
+/* Read data from a linear sequence of memory */
+
+/****/
 /* IO */
 /****/
 
@@ -145,4 +197,5 @@ void gst_stl_load(GstCompiler *c) {
     gst_stl_load_core(c);
     gst_stl_load_parse(c);
     gst_stl_load_compile(c);
+    gst_stl_load_serialization(c);
 }

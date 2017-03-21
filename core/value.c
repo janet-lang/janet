@@ -477,3 +477,44 @@ const char *gst_set_class(GstValue x, GstValue class) {
     return NULL;
 }
 
+/* Get the length of an object. Returns errors for invalid types */
+int gst_length(Gst *vm, GstValue x, GstValue *len) {
+    uint32_t length;
+    switch (x.type) {
+        default:
+            vm->ret = gst_load_cstring(vm, "cannot get length");
+            return GST_RETURN_ERROR;
+        case GST_STRING:
+        case GST_SYMBOL:
+            length = gst_string_length(x.data.string);
+            break;
+        case GST_ARRAY:
+            length = x.data.array->count;
+            break;
+        case GST_BYTEBUFFER:
+            length = x.data.buffer->count;
+            break;
+        case GST_TUPLE:
+            length = gst_tuple_length(x.data.tuple);
+            break;
+        case GST_OBJECT:
+            /* TODO - Check for class override */
+            if (x.data.object->meta != NULL) {
+                GstValue check = gst_object_get_cstring(
+                        x.data.object->meta, "length");
+                if (check.type != GST_NIL) {
+                    int status = gst_call(vm, check, 1, &x);
+                    if (status == GST_RETURN_OK)
+                        *len = vm->ret;
+                    return status;
+                }
+            }
+            length = x.data.object->count;
+            break;
+    }
+    /* Normal numeric return */
+    len->type = GST_NUMBER;
+    len->data.number = (GstNumber) length;
+    return GST_RETURN_OK;
+}
+
