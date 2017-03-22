@@ -34,7 +34,7 @@
 static const char UEB[] = "unexpected end of buffer";
 
 /* Read 4 bytes as an unsigned integer */
-static uint32_t bytes2u32(uint8_t *bytes) {
+static uint32_t bytes2u32(const uint8_t *bytes) {
     union {
         uint8_t bytes[4];
         uint32_t u32;
@@ -44,7 +44,7 @@ static uint32_t bytes2u32(uint8_t *bytes) {
 }
 
 /* Read 2 bytes as unsigned short */
-static uint16_t bytes2u16(uint8_t *bytes) {
+static uint16_t bytes2u16(const uint8_t *bytes) {
     union {
         uint8_t bytes[2];
         uint16_t u16;
@@ -54,7 +54,7 @@ static uint16_t bytes2u16(uint8_t *bytes) {
 }
 
 /* Read 8 bytes as a double */
-static uint32_t bytes2dbl(uint8_t *bytes) {
+static uint32_t bytes2dbl(const uint8_t *bytes) {
     union {
         uint8_t bytes[8];
         double dbl;
@@ -69,16 +69,16 @@ static uint32_t bytes2dbl(uint8_t *bytes) {
  * passed by reference. */
 static const char *gst_deserialize_impl(
         Gst *vm, 
-        uint8_t *data,
-        uint8_t *end,
-        uint8_t **newData,
+        const uint8_t *data,
+        const uint8_t *end,
+        const uint8_t **newData,
         GstArray *visited,
         GstValue *out) {
 
     GstValue ret;
     ret.type = GST_NIL;
     GstValue *buffer;
-    uint8_t *bytebuf;
+    const uint8_t *bytebuf;
     uint32_t length, i;
     const char *err;
 
@@ -135,12 +135,7 @@ static const char *gst_deserialize_impl(
             ret.type = data[-1] == 205 ? GST_STRING : GST_SYMBOL;
             read_u32(length);
             deser_datacheck(length);
-            ret.data.string = gst_alloc(vm, 2 * sizeof(uint32_t) + length + 1);
-            ret.data.string += 2 * sizeof(uint32_t);
-            gst_string_length(ret.data.string) = length;
-            gst_string_hash(ret.data.string) = 0;
-            gst_memcpy(ret.data.string, data, length);
-            ret.data.string[length] = 0;
+            ret.data.string = gst_string_loadbuffer(vm, data, length);
             data += length;
             gst_array_push(vm, visited, ret);
             break;
@@ -151,7 +146,7 @@ static const char *gst_deserialize_impl(
             deser_datacheck(length);
             ret.data.buffer = gst_alloc(vm, sizeof(GstBuffer));
             ret.data.buffer->data = gst_alloc(vm, length);
-            gst_memcpy(ret.data.string, data, length);
+            gst_memcpy(ret.data.buffer->data, data, length);
             ret.data.buffer->count = length;
             ret.data.buffer->capacity = length;
             data += length;
@@ -391,10 +386,10 @@ static const char *gst_deserialize_impl(
 /* Load a value from data */
 const char *gst_deserialize(
         Gst *vm,
-        uint8_t *data,
+        const uint8_t *data,
         uint32_t len,
         GstValue *out,
-        uint8_t *nextData) {
+        const uint8_t *nextData) {
     GstValue ret;
     const char *err;
     GstArray *visited = gst_array(vm, 10);

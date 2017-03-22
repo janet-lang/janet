@@ -6,90 +6,86 @@ int gst_truthy(GstValue v) {
     return v.type != GST_NIL && !(v.type == GST_BOOLEAN && !v.data.boolean);
 }
 
-static uint8_t * number_to_string(Gst *vm, GstNumber x) {
-    static const uint32_t SIZE = 20;
-    uint8_t *data = gst_alloc(vm, SIZE + 1 + 2 * sizeof(uint32_t));
-    data += 2 * sizeof(uint32_t);
+/* Temporary buffer size */
+#define GST_BUFSIZE 36
+
+static const uint8_t *number_to_string(Gst *vm, GstNumber x) {
+    uint8_t buf[GST_BUFSIZE];
     /* TODO - not depend on stdio */
-    snprintf((char *) data, SIZE, "%.21g", x);
-    gst_string_hash(data) = 0;
-    gst_string_length(data) = strlen((char *) data);
-    return data;
+    int count = snprintf((char *) buf, GST_BUFSIZE, "%.21g", x);
+    return gst_string_loadbuffer(vm, buf, (uint32_t) count);
 }
 
 static const char *HEX_CHARACTERS = "0123456789abcdef";
 #define HEX(i) (((uint8_t *) HEX_CHARACTERS)[(i)])
 
-/* Returns a string description for a pointer */
-static uint8_t *string_description(Gst *vm, const char *title, uint32_t titlelen, void *pointer) {
-    uint32_t len = 5 + titlelen + sizeof(void *) * 2;
+/* Returns a string description for a pointer. Max titlelen is GST_BUFSIZE
+ * - 5 - 2 * sizeof(void *). */
+static const uint8_t *string_description(Gst *vm, const char *title, void *pointer) {
+    uint8_t buf[GST_BUFSIZE];
+    uint8_t *c = buf;
     uint32_t i;
-    uint8_t *data = gst_alloc(vm, len + 1 + 2 * sizeof(uint32_t));
-    uint8_t *c;
     union {
         uint8_t bytes[sizeof(void *)];
         void *p;
-    } buf;
-    buf.p = pointer;
-    data += 2 * sizeof(uint32_t);
-    c = data;
+    } pbuf;
+
+    pbuf.p = pointer;
     *c++ = '<';
-    for (i = 0; i < titlelen; ++i) {
+    for (i = 0; title[i]; ++i)
         *c++ = ((uint8_t *)title) [i];
-    }
     *c++ = ' ';
     *c++ = '0';
     *c++ = 'x';
     for (i = sizeof(void *); i > 0; --i) {
-        uint8_t byte = buf.bytes[i - 1];
+        uint8_t byte = pbuf.bytes[i - 1];
         if (!byte) continue;
         *c++ = HEX(byte >> 4);
         *c++ = HEX(byte & 0xF);
     }
     *c++ = '>';
-    gst_string_hash(data) = 0;
-    gst_string_length(data) = c - data;
-    *c = 0;
-    return data;
+    return gst_string_loadbuffer(vm, buf, c - buf);
 }
 
+#undef GST_BUFSIZE
+
 /* Returns a string pointer or NULL if could not allocate memory. */
-uint8_t *gst_to_string(Gst *vm, GstValue x) {
+const uint8_t *gst_to_string(Gst *vm, GstValue x) {
     switch (x.type) {
         case GST_NIL:
-            return gst_load_cstring_rawlen(vm, "nil", 3);
+            return gst_cstring_to_string(vm, "nil");
         case GST_BOOLEAN:
             if (x.data.boolean) {
-                return gst_load_cstring_rawlen(vm, "true", 4);
+                return gst_cstring_to_string(vm, "true");
             } else {
-                return gst_load_cstring_rawlen(vm, "false", 5);
+                return gst_cstring_to_string(vm, "false");
             }
         case GST_NUMBER:
             return number_to_string(vm, x.data.number);
         case GST_ARRAY:
-            return string_description(vm, "array", 5, x.data.pointer);
+            return string_description(vm, "array", x.data.pointer);
         case GST_TUPLE:
-            return string_description(vm, "tuple", 5, x.data.pointer);
+            return string_description(vm, "tuple", x.data.pointer);
         case GST_OBJECT:
-            return string_description(vm, "object", 6, x.data.pointer);
+            return string_description(vm, "object", x.data.pointer);
         case GST_STRING:
             return x.data.string;
         case GST_SYMBOL:
-            return string_description(vm, "symbol", 6, x.data.pointer);
+            return string_description(vm, "symbol", x.data.pointer);
         case GST_BYTEBUFFER:
-            return string_description(vm, "buffer", 6, x.data.pointer);
+            return string_description(vm, "buffer", x.data.pointer);
         case GST_CFUNCTION:
-            return string_description(vm, "cfunction", 9, x.data.pointer);
+            return string_description(vm, "cfunction", x.data.pointer);
         case GST_FUNCTION:
-            return string_description(vm, "function", 8, x.data.pointer);
+            return string_description(vm, "function", x.data.pointer);
         case GST_THREAD:
-            return string_description(vm, "thread", 6, x.data.pointer);
+            return string_description(vm, "thread", x.data.pointer);
         case GST_USERDATA:
-            return string_description(vm, "userdata", 8, x.data.pointer);
+            return string_description(vm, "userdata", x.data.pointer);
         case GST_FUNCENV:
-            return string_description(vm, "funcenv", 7, x.data.pointer);
+            return string_description(vm, "funcenv", x.data.pointer);
         case GST_FUNCDEF:
-            return string_description(vm, "funcdef", 7, x.data.pointer);
+            return string_description(vm, "funcdef", x.data.pointer);
     }
     return NULL;
 }
@@ -173,10 +169,7 @@ uint32_t gst_hash(GstValue x) {
             /* String hashes */
         case GST_STRING:
         case GST_SYMBOL:
-            /* Assume 0 is not hashed. */
             hash = gst_string_hash(x.data.string);
-            if (!hash)
-                hash = gst_string_hash(x.data.string) = gst_string_calchash(x.data.string);
             break;
         case GST_TUPLE:
             if (gst_tuple_hash(x.data.tuple))
@@ -418,8 +411,9 @@ int gst_length(Gst *vm, GstValue x, GstValue *len) {
         case GST_OBJECT:
             /* TODO - Check for class override */
             if (x.data.object->meta != NULL) {
-                GstValue check = gst_object_get_cstring(
-                        x.data.object->meta, "length");
+                GstValue check = gst_object_get(
+                        x.data.object->meta,
+                        gst_load_cstring(vm, "length"));
                 if (check.type != GST_NIL) {
                     int status = gst_call(vm, check, 1, &x);
                     if (status == GST_RETURN_OK)

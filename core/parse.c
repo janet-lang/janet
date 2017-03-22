@@ -219,8 +219,8 @@ static int check_str_const(const char *ref, const uint8_t *start, const uint8_t 
 static GstValue build_token(GstParser *p, GstBuffer *buf) {
     GstValue x;
     GstNumber number;
-    uint8_t * data = buf->data;
-    uint8_t * back = data + buf->count;
+    uint8_t *data = buf->data;
+    uint8_t *back = data + buf->count;
     if (read_number(data, back, &number, 0)) {
         x.type = GST_NUMBER;
         x.data.number = number;
@@ -453,7 +453,7 @@ int gst_parse_cstring(GstParser *p, const char *string) {
 }
 
 /* Parse a gst string */
-int gst_parse_string(GstParser *p, uint8_t *string) {
+int gst_parse_string(GstParser *p, const uint8_t *string) {
     uint32_t i;
     p->status = GST_PARSER_PENDING;
     for (i = 0; i < gst_string_length(string); ++i) {

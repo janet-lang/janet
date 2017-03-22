@@ -42,7 +42,7 @@ void gst_buffer_push(Gst *vm, GstBuffer * buffer, uint8_t c) {
 }
 
 /* Push multiple bytes into the buffer */
-void gst_buffer_append(Gst *vm, GstBuffer *buffer, uint8_t *string, uint32_t length) {
+void gst_buffer_append(Gst *vm, GstBuffer *buffer, const uint8_t *string, uint32_t length) {
     uint32_t newSize = buffer->count + length;
     if (newSize > buffer->capacity) {
         gst_buffer_ensure(vm, buffer, 2 * newSize);
@@ -52,8 +52,8 @@ void gst_buffer_append(Gst *vm, GstBuffer *buffer, uint8_t *string, uint32_t len
 }
 
 /* Convert the buffer to a string */
-uint8_t *gst_buffer_to_string(Gst *vm, GstBuffer *buffer) {
-    return gst_load_cstring_rawlen(vm, (char *) buffer->data, buffer->count);
+const uint8_t *gst_buffer_to_string(Gst *vm, GstBuffer *buffer) {
+    return gst_string_loadbuffer(vm, buffer->data, buffer->count);
 }
 
 /****/
@@ -215,39 +215,6 @@ GstValue gst_object_get(GstObject *o, GstValue key) {
         GstValue nil;
         nil.type = GST_NIL;
         return nil;
-    }
-}
-
-/* Get a value of the object with a cstring key */
-GstValue gst_object_get_cstring(GstObject *obj, const char *key) {
-    uint32_t len;
-    for (len = 0; key[len]; ++len);
-    uint32_t hash = gst_cstring_calchash((uint8_t *)key, len);
-    uint32_t index = hash % obj->capacity;
-    GstBucket *bucket = obj->buckets[index];
-    while (bucket) {
-        if (bucket->key.type == GST_STRING) {
-            uint8_t *s = bucket->key.data.string;
-            if (gst_string_length(s) == len) {
-                if (!gst_string_hash(s))
-                    gst_string_hash(s) = gst_string_calchash(s);
-                if (gst_string_hash(s) == hash) {
-                    uint32_t i;
-                    for (i = 0; i < len; ++i)
-                        if (s[i] != key[i])
-                            goto notequal;
-                    return bucket->value;
-                }
-            }
-        }
-notequal:
-        bucket = bucket->next;
-    }
-    /* Return nil */
-    {
-        GstValue ret;
-        ret.type = GST_NIL;
-        return ret;
     }
 }
 

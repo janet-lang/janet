@@ -105,12 +105,12 @@ GstValue *gst_thread_expand_callable(Gst *vm, GstThread *thread, GstValue callee
                 meta = callee.data.object->meta;
                 if (meta == NULL) return NULL;
                 gst_thread_push(vm, thread, callee);
-                callee = gst_object_get_cstring(meta, "call");
+                callee = gst_object_get(meta, gst_load_cstring(vm, "call"));
                 continue;
             case GST_USERDATA:
                 meta = ((GstUserdataHeader *)callee.data.pointer - 1)->meta;
                 gst_thread_push(vm, thread, callee);
-                callee = gst_object_get_cstring(meta, "call");
+                callee = gst_object_get(meta, gst_load_cstring(vm, "call"));
                 continue;
         }
     }

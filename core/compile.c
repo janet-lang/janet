@@ -1010,7 +1010,7 @@ typedef Slot (*SpecialFormHelper) (GstCompiler *c, FormOptions opts, GstValue *f
 
 /* Dispatch to a special form */
 static SpecialFormHelper get_special(GstValue *form) {
-    uint8_t *name;
+    const uint8_t *name;
     if (gst_tuple_length(form) < 1 || form[0].type != GST_SYMBOL)
         return NULL;
     name = form[0].data.string;

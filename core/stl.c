@@ -13,7 +13,7 @@ int gst_stl_print(Gst *vm) {
     count = gst_count_args(vm);
     for (j = 0; j < count; ++j) {
         uint32_t i;
-        uint8_t *string = gst_to_string(vm, gst_arg(vm, j));
+        const uint8_t *string = gst_to_string(vm, gst_arg(vm, j));
         uint32_t len = gst_string_length(string);
         for (i = 0; i < len; ++i)
             fputc(string[i], stdout);
@@ -46,7 +46,7 @@ int gst_stl_make_buffer(Gst *vm) {
     buf.data.buffer = gst_buffer(vm, 10);
     count = gst_count_args(vm);
     for (i = 0; i < count; ++i) {
-        uint8_t *string = gst_to_string(vm, gst_arg(vm, i));
+        const uint8_t *string = gst_to_string(vm, gst_arg(vm, i));
         gst_buffer_append(vm, buf.data.buffer, string, gst_string_length(string));
     }
     gst_c_return(vm, buf);
@@ -55,7 +55,7 @@ int gst_stl_make_buffer(Gst *vm) {
 /* To string */
 int gst_stl_tostring(Gst *vm) {
     GstValue ret;
-    uint8_t *string = gst_to_string(vm, gst_arg(vm, 0));
+    const uint8_t *string = gst_to_string(vm, gst_arg(vm, 0));
     ret.type = GST_STRING;
     ret.data.string = string;
     gst_c_return(vm, ret);
@@ -147,8 +147,8 @@ static int read_number(const uint8_t *string, const uint8_t *end, double *ret, i
 int gst_stl_parse_number(Gst *vm) {
     GstValue ret;
     double number;
-    uint8_t *str = gst_to_string(vm, gst_arg(vm, 0));
-    uint8_t *end = str + gst_string_length(str);
+    const uint8_t *str = gst_to_string(vm, gst_arg(vm, 0));
+    const uint8_t *end = str + gst_string_length(str);
     if (read_number(str, end, &number, 0)) {
         ret.type = GST_NUMBER;
         ret.data.number = number;
@@ -161,7 +161,7 @@ int gst_stl_parse_number(Gst *vm) {
 
 /* Parse a source string into an AST */
 int gst_stl_parse(Gst *vm) {
-    uint8_t *source = gst_to_string(vm, gst_arg(vm, 0));
+    const uint8_t *source = gst_to_string(vm, gst_arg(vm, 0));
     GstParser p;
     /* init state */
     gst_parser(&p, vm);
