@@ -1,7 +1,5 @@
-#include <gst/datatypes.h>
-#include <gst/gc.h>
-#include <gst/vm.h>
-#include <gst/util.h>
+#include <gst/gst.h>
+#include "stringcache.h"
 
 /* The metadata header associated with an allocated block of memory */
 #define gc_header(mem) ((GCMemoryHeader *)(mem) - 1)
@@ -11,6 +9,7 @@ typedef struct GCMemoryHeader GCMemoryHeader;
 struct GCMemoryHeader {
     GCMemoryHeader * next;
     uint32_t color : 1;
+    uint32_t tags : 31;
 };
 
 /* Helper to mark function environments */
@@ -186,6 +185,10 @@ void gst_sweep(Gst *vm) {
             } else {
                 vm->blocks = next;
             }
+            /* Remove from string cache */
+            if (current->tags & GST_MEMTAG_STRING) {
+                gst_stringcache_remove(vm, (uint8_t *)(current + 1) + 2 * sizeof(uint32_t));
+            }
             gst_raw_free(current);
         } else {
             previous = current;
@@ -207,6 +210,7 @@ static void *gst_alloc_prepare(Gst *vm, char *rawBlock, uint32_t size) {
     mdata->next = vm->blocks;
     vm->blocks = mdata;
     mdata->color = !vm->black;
+    mdata->tags = 0;
     return rawBlock + sizeof(GCMemoryHeader);
 }
 
@@ -220,6 +224,12 @@ void *gst_alloc(Gst *vm, uint32_t size) {
 void *gst_zalloc(Gst *vm, uint32_t size) {
     uint32_t totalSize = size + sizeof(GCMemoryHeader);
     return gst_alloc_prepare(vm, gst_raw_calloc(1, totalSize), totalSize);
+}
+
+/* Tag some memory to mark it with special properties */
+void gst_mem_tag(void *mem, uint32_t tags) {
+    GCMemoryHeader *mh = (GCMemoryHeader *)mem - 1;
+    mh->tags |= tags;
 }
 
 /* Run garbage collection */

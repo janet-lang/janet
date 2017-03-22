@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <gst/gst.h>
+#include <gst/parse.h>
+#include <gst/compile.h>
+#include <gst/stl.h>
 #include <gst/disasm.h>
 
 /* A simple repl for debugging */

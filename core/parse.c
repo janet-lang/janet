@@ -1,9 +1,5 @@
-#include <gst/util.h>
-#include <gst/datatypes.h>
-#include <gst/ds.h>
+#include <gst/gst.h>
 #include <gst/parse.h>
-#include <gst/value.h>
-#include <gst/vm.h>
 
 static const char UNEXPECTED_CLOSING_DELIM[] = "Unexpected closing delimiter";
 

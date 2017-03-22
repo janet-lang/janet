@@ -1,8 +1,4 @@
-#include <gst/datatypes.h>
-#include <gst/thread.h>
-#include <gst/vm.h>
-#include <gst/util.h>
-#include <gst/ds.h>
+#include <gst/gst.h>
 
 /* Create a new thread */
 GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity) {

@@ -7,8 +7,7 @@ CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -g -I./include
 PREFIX=/usr/local
 GST_TARGET=client/gst
 GST_CORELIB=core/libgst.a
-GST_HEADERS=$(addprefix include/gst/,\
-		vm.h ds.h value.h datatypes.h gc.h util.h gst.h stl.h thread.h serialize.h)
+GST_HEADERS=$(addprefix include/gst/, gst.h stl.h compile.h disasm.h parse.h)
 
 all: $(GST_TARGET)
 
@@ -16,7 +15,7 @@ all: $(GST_TARGET)
 ##### The core vm and runtime #####
 ###################################
 GST_CORE_SOURCES=$(addprefix core/,\
-				 compile.c disasm.c parse.c stl.c\
+				 compile.c disasm.c parse.c stl.c strings.c stringcache.c\
 				 value.c vm.c ds.c gc.c thread.c serialize.c)
 GST_CORE_OBJECTS=$(patsubst %.c,%.o,$(GST_CORE_SOURCES))
 $(GST_CORELIB): $(GST_CORE_OBJECTS) $(GST_HEADERS)
@@ -48,5 +47,6 @@ clean:
 	rm $(GST_CORELIB) || true
 	rm $(GST_CORE_OBJECTS) || true
 	rm $(GST_CLIENT_OBJECTS) || true
+	rm vgcore.* || true
 
 .PHONY: clean install run debug valgrind

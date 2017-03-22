@@ -1,8 +1,7 @@
-/* This implements a standard library in gst. Some of this
- * will eventually be ported over to gst if possible */
-#include <gst/stl.h>
 #include <gst/gst.h>
-#include <gst/serialize.h>
+#include <gst/parse.h>
+#include <gst/compile.h>
+#include <gst/stl.h>
 
 /****/
 /* Core */
@@ -37,21 +36,6 @@ int gst_stl_setclass(Gst *vm) {
     if (err != NULL)
         gst_c_throwc(vm, err);
     gst_c_return(vm, x);
-}
-
-/* Call a function */
-int gst_stl_callforeach(Gst *vm) {
-    GstValue func = gst_arg(vm, 0);
-    uint32_t argCount = gst_count_args(vm);
-    uint32_t i;
-    if (argCount) {
-        for (i = 1; i < argCount; ++i)
-            gst_call(vm, func, 1, vm->thread->data + vm->thread->count + i);
-        vm->ret.type = GST_NIL;
-        return GST_RETURN_OK;
-    } else {
-        gst_c_throwc(vm, "expected at least one argument");
-    }
 }
 
 /* Create a buffer */
@@ -91,7 +75,6 @@ void gst_stl_load_core(GstCompiler *c) {
     gst_compiler_add_global_cfunction(c, "print", gst_stl_print);
     gst_compiler_add_global_cfunction(c, "get-class", gst_stl_getclass);
     gst_compiler_add_global_cfunction(c, "set-class", gst_stl_setclass);
-    gst_compiler_add_global_cfunction(c, "call-for-each", gst_stl_callforeach);
     gst_compiler_add_global_cfunction(c, "make-buffer", gst_stl_make_buffer);
     gst_compiler_add_global_cfunction(c, "tostring", gst_stl_tostring);
     gst_compiler_add_global_cfunction(c, "exit", gst_stl_exit);
@@ -100,6 +83,81 @@ void gst_stl_load_core(GstCompiler *c) {
 /****/
 /* Parsing */
 /****/
+
+/* Get an integer power of 10 */
+static double exp10(int power) {
+    if (power == 0) return 1;
+    if (power > 0) {
+        double result = 10;
+        int currentPower = 1;
+        while (currentPower * 2 <= power) {
+            result = result * result;
+            currentPower *= 2;
+        }
+        return result * exp10(power - currentPower);
+    } else {
+        return 1 / exp10(-power);
+    }
+}
+
+/* Read a number from a string. Returns if successfuly
+ * parsed a number from the enitre input string.
+ * If returned 1, output is int ret.*/
+static int read_number(const uint8_t *string, const uint8_t *end, double *ret, int forceInt) {
+    int sign = 1, x = 0;
+    double accum = 0, exp = 1, place = 1;
+    /* Check the sign */
+    if (*string == '-') {
+        sign = -1;
+        ++string;
+    } else if (*string == '+') {
+        ++string;
+    }
+    if (string >= end) return 0;
+    while (string < end) {
+        if (*string == '.' && !forceInt) {
+            place = 0.1;
+        } else if (!forceInt && (*string == 'e' || *string == 'E')) {
+            /* Read the exponent */
+            ++string;
+            if (string >= end) return 0;
+            if (!read_number(string, end, &exp, 1))
+                return 0;
+            exp = exp10(exp);
+            break;
+        } else {
+            x = *string;
+            if (x < '0' || x > '9') return 0;
+            x -= '0';
+            if (place < 1) {
+                accum += x * place;
+                place *= 0.1;
+            } else {
+                accum *= 10;
+                accum += x;
+            }
+        }
+        ++string;
+    }
+    *ret = accum * sign * exp;
+    return 1;
+}
+
+/* Convert string to integer */
+int gst_stl_parse_number(Gst *vm) {
+    GstValue ret;
+    double number;
+    uint8_t *str = gst_to_string(vm, gst_arg(vm, 0));
+    uint8_t *end = str + gst_string_length(str);
+    if (read_number(str, end, &number, 0)) {
+        ret.type = GST_NUMBER;
+        ret.data.number = number;
+    } else {
+        ret.type = GST_NIL;
+    }
+    gst_c_return(vm, ret);
+
+}
 
 /* Parse a source string into an AST */
 int gst_stl_parse(Gst *vm) {
@@ -122,6 +180,7 @@ int gst_stl_parse(Gst *vm) {
 /* Load parsing */
 void gst_stl_load_parse(GstCompiler *c) {
     gst_compiler_add_global_cfunction(c, "parse", gst_stl_parse);
+    gst_compiler_add_global_cfunction(c, "parse-number", gst_stl_parse_number);
 }
 
 /****/

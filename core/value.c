@@ -1,36 +1,9 @@
-#include <gst/util.h>
-#include <gst/value.h>
-#include <gst/ds.h>
-#include <gst/vm.h>
+#include <gst/gst.h>
 #include <stdio.h>
 
 /* Boolean truth definition */
 int gst_truthy(GstValue v) {
     return v.type != GST_NIL && !(v.type == GST_BOOLEAN && !v.data.boolean);
-}
-
-static uint8_t *load_cstring(Gst *vm, const char *string, uint32_t len) {
-    uint8_t *data = gst_alloc(vm, len + 1 + 2 * sizeof(uint32_t));
-    data += 2 * sizeof(uint32_t);
-    gst_string_hash(data) = 0;
-    gst_string_length(data) = len;
-    gst_memcpy(data, string, len);
-    data[len] = 0;
-    return data;
-}
-
-GstValue gst_load_cstring(Gst *vm, const char *string) {
-    GstValue ret;
-    ret.type = GST_STRING;
-    ret.data.string = load_cstring(vm, string, strlen(string));
-    return ret;
-}
-
-GstValue gst_load_csymbol(Gst *vm, const char *string) {
-    GstValue ret;
-    ret.type = GST_SYMBOL;
-    ret.data.string = load_cstring(vm, string, strlen(string));
-    return ret;
 }
 
 static uint8_t * number_to_string(Gst *vm, GstNumber x) {
@@ -84,12 +57,12 @@ static uint8_t *string_description(Gst *vm, const char *title, uint32_t titlelen
 uint8_t *gst_to_string(Gst *vm, GstValue x) {
     switch (x.type) {
         case GST_NIL:
-            return load_cstring(vm, "nil", 3);
+            return gst_load_cstring_rawlen(vm, "nil", 3);
         case GST_BOOLEAN:
             if (x.data.boolean) {
-                return load_cstring(vm, "true", 4);
+                return gst_load_cstring_rawlen(vm, "true", 4);
             } else {
-                return load_cstring(vm, "false", 5);
+                return gst_load_cstring_rawlen(vm, "false", 5);
             }
         case GST_NUMBER:
             return number_to_string(vm, x.data.number);
@@ -121,20 +94,6 @@ uint8_t *gst_to_string(Gst *vm, GstValue x) {
     return NULL;
 }
 
-/* GST string version */
-uint32_t gst_string_calchash(const uint8_t *str) {
-    return gst_cstring_calchash(str, gst_string_length(str));
-}
-
-/* Simple hash function (djb2) */
-uint32_t gst_cstring_calchash(const uint8_t *str, uint32_t len) {
-    const uint8_t *end = str + len;
-    uint32_t hash = 5381;
-    while (str < end)
-        hash = (hash << 5) + hash + *str++;
-    return hash;
-}
-
 /* Simple hash function to get tuple hash */
 static uint32_t tuple_calchash(GstValue *tuple) {
     uint32_t i;
@@ -161,25 +120,6 @@ int gst_equals(GstValue x, GstValue y) {
             case GST_NUMBER:
                 result = (x.data.number == y.data.number);
                 break;
-                /* Assume that when strings are created, equal strings
-                 * are set to the same string */
-            case GST_STRING:
-            case GST_SYMBOL:
-                if (x.data.string == y.data.string) {
-                    result = 1;
-                    break;
-                }
-                if (gst_hash(x) != gst_hash(y) ||
-                        gst_string_length(x.data.string) != gst_string_length(y.data.string)) {
-                    result = 0;
-                    break;
-                }
-                if (!strncmp((char *) x.data.string, (char *) y.data.string, gst_string_length(x.data.string))) {
-                    result = 1;
-                    break;
-                }
-                result = 0;
-                break;
             case GST_TUPLE:
                 if (x.data.tuple == y.data.tuple) {
                     result = 1;
@@ -203,7 +143,7 @@ int gst_equals(GstValue x, GstValue y) {
                 break;
             default:
                 /* compare pointers */
-                result = (x.data.array == y.data.array);
+                result = (x.data.pointer == y.data.pointer);
                 break;
         }
     }
@@ -234,9 +174,8 @@ uint32_t gst_hash(GstValue x) {
         case GST_STRING:
         case GST_SYMBOL:
             /* Assume 0 is not hashed. */
-            if (gst_string_hash(x.data.string))
-                hash = gst_string_hash(x.data.string);
-            else
+            hash = gst_string_hash(x.data.string);
+            if (!hash)
                 hash = gst_string_hash(x.data.string) = gst_string_calchash(x.data.string);
             break;
         case GST_TUPLE:
@@ -283,28 +222,7 @@ int gst_compare(GstValue x, GstValue y) {
                 }
             case GST_STRING:
             case GST_SYMBOL:
-                if (x.data.string == y.data.string) {
-                    return 0;
-                } else {
-                    uint32_t xlen = gst_string_length(x.data.string);
-                    uint32_t ylen = gst_string_length(y.data.string);
-                    uint32_t len = xlen > ylen ? ylen : xlen;
-                    uint32_t i;
-                    for (i = 0; i < len; ++i) {
-                        if (x.data.string[i] == y.data.string[i]) {
-                            continue;
-                        } else if (x.data.string[i] < y.data.string[i]) {
-                            return -1; /* x is less then y */
-                        } else {
-                            return 1; /* y is less than x */
-                        }
-                    }
-                    if (xlen == ylen) {
-                        return 0;
-                    } else {
-                        return xlen < ylen ? -1 : 1;
-                    }
-                }
+                return gst_string_compare(x.data.string, y.data.string);
                 /* Lower indices are most significant */
             case GST_TUPLE:
                 {

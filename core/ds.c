@@ -1,7 +1,4 @@
-#include <gst/util.h>
-#include <gst/ds.h>
-#include <gst/value.h>
-#include <gst/vm.h>
+#include <gst/gst.h>
 
 /****/
 /* Buffer functions */
@@ -56,12 +53,7 @@ void gst_buffer_append(Gst *vm, GstBuffer *buffer, uint8_t *string, uint32_t len
 
 /* Convert the buffer to a string */
 uint8_t *gst_buffer_to_string(Gst *vm, GstBuffer *buffer) {
-    uint8_t *data = gst_alloc(vm, buffer->count + 2 * sizeof(uint32_t));
-    data += 2 * sizeof(uint32_t);
-    gst_string_length(data) = buffer->count;
-    gst_string_hash(data) = 0;
-    gst_memcpy(data, buffer->data, buffer->count * sizeof(uint8_t));
-    return data;
+    return gst_load_cstring_rawlen(vm, (char *) buffer->data, buffer->count);
 }
 
 /****/

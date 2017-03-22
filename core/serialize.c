@@ -1,10 +1,4 @@
-#include <gst/serialize.h>
-#include <gst/datatypes.h>
-#include <gst/vm.h>
-#include <gst/value.h>
-#include <gst/ds.h>
-#include <gst/util.h>
-#include <gst/thread.h>
+#include <gst/gst.h>
 
 /**
  * Data format

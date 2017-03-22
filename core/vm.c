@@ -1,9 +1,5 @@
-#include <gst/vm.h>
-#include <gst/util.h>
-#include <gst/value.h>
-#include <gst/ds.h>
-#include <gst/gc.h>
-#include <gst/thread.h>
+#include <gst/gst.h>
+#include "stringcache.h"
 
 /* Macros for errors in the vm */
 
@@ -557,6 +553,8 @@ void gst_init(Gst *vm) {
     /* Add thread */
     vm->thread = NULL;
     vm->rootenv.type = GST_NIL;
+    /* Set up string cache */
+    gst_stringcache_init(vm, 128);
 }
 
 /* Clear all memory associated with the VM */
@@ -565,4 +563,5 @@ void gst_deinit(Gst *vm) {
     vm->thread = NULL;
     vm->rootenv.type = GST_NIL;
     vm->ret.type = GST_NIL;
+    gst_stringcache_deinit(vm);
 }
