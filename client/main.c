@@ -105,7 +105,7 @@ void debug_repl(FILE *in, FILE *out) {
 }
 
 int main() {
-    printf("Super cool interpreter v0.0\n");
+    printf("GST v0.0 repl\nCopyright 2017 Calvin Rose\n");
     debug_repl(stdin, stdout);
     return 0;
 }

@@ -248,8 +248,7 @@ GstValue gst_object_remove(Gst * vm, GstObject *o, GstValue key) {
     }
 }
 
-/* Put a value into the dictionary. Returns 1 if successful, 0 if out of memory.
- * The VM pointer is needed for memory allocation. */
+/* Put a value into the dictionary. */
 void gst_object_put(Gst *vm, GstObject *o, GstValue key, GstValue value) {
     GstBucket *bucket, *previous;
     uint32_t index = gst_hash(key) % o->capacity;
