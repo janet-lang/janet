@@ -52,68 +52,7 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
         default:
             gst_error(vm, "unknown opcode");
             break;
-
-        #define OP_BINARY_MATH(op) \
-            v1 = stack[pc[2]]; \
-            v2 = stack[pc[3]]; \
-            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP); \
-            gst_assert(vm, v2.type == GST_NUMBER, GST_EXPECTED_NUMBER_ROP); \
-            temp.type = GST_NUMBER; \
-            temp.data.number = v1.data.number op v2.data.number; \
-            stack[pc[1]] = temp; \
-            pc += 4; \
-            continue;
-
-        case GST_OP_ADD: /* Addition */
-            OP_BINARY_MATH(+)
-
-        case GST_OP_SUB: /* Subtraction */
-            OP_BINARY_MATH(-)
-
-        case GST_OP_MUL: /* Multiplication */
-            OP_BINARY_MATH(*)
-
-        case GST_OP_DIV: /* Division */
-            OP_BINARY_MATH(/)
-
-        #undef OP_BINARY_MATH
-
-        case GST_OP_NOT: /* Boolean unary (Boolean not) */
-            temp.type = GST_BOOLEAN;
-            temp.data.boolean = !gst_truthy(stack[pc[2]]);
-            stack[pc[1]] = temp;
-            pc += 3;
-            continue;
-
-        case GST_OP_NEG: /* Unary negation */
-            v1 = stack[pc[2]];
-            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP);
-            temp.type = GST_NUMBER;
-            temp.data.number = -v1.data.number;
-            stack[pc[1]] = temp;
-            pc += 3;
-            continue;
-
-        case GST_OP_INV: /* Unary multiplicative inverse */
-            v1 = stack[pc[2]];
-            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP);
-            temp.type = GST_NUMBER;
-            temp.data.number = 1 / v1.data.number;
-            stack[pc[1]] = temp;
-            pc += 3;
-            continue;
-
-        case GST_OP_LEN: /* Length */
-            {
-                int status = gst_length(vm, stack[pc[2]], &v1);
-                if (status == GST_RETURN_OK)
-                    stack[pc[1]] = v1;
-                else
-                    goto vm_error;
-                pc += 3;
-            }
-            continue;
-
+ 
         case GST_OP_FLS: /* Load False */
             temp.type = GST_BOOLEAN;
             temp.data.boolean = 0;
@@ -241,94 +180,6 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             }
             break;
 
-        case GST_OP_EQL: /* Equality */
-            temp.type = GST_BOOLEAN;
-            temp.data.boolean = gst_equals(stack[pc[2]], stack[pc[3]]);
-            stack[pc[1]] = temp;
-            pc += 4;
-            continue;
-
-        case GST_OP_LTN: /* Less Than */
-            temp.type = GST_BOOLEAN;
-            temp.data.boolean = (gst_compare(stack[pc[2]], stack[pc[3]]) == -1);
-            stack[pc[1]] = temp;
-            pc += 4;
-            continue;
-
-        case GST_OP_LTE: /* Less Than or Equal to */
-            temp.type = GST_BOOLEAN;
-            temp.data.boolean = (gst_compare(stack[pc[2]], stack[pc[3]]) != 1);
-            stack[pc[1]] = temp;
-            pc += 4;
-            continue;
-
-        case GST_OP_ARR: /* Array literal */
-            {
-                uint32_t i;
-                uint32_t arrayLen = pc[2];
-                GstArray *array = gst_array(vm, arrayLen);
-                array->count = arrayLen;
-                for (i = 0; i < arrayLen; ++i)
-                    array->data[i] = stack[pc[3 + i]];
-                temp.type = GST_ARRAY;
-                temp.data.array = array;
-                stack[pc[1]] = temp;
-                pc += 3 + arrayLen;
-            }
-            break;
-
-        case GST_OP_DIC: /* Object literal */
-            {
-                uint32_t i = 3;
-                uint32_t kvs = pc[2];
-                GstObject *o = gst_object(vm, kvs + 2);
-                kvs = kvs + 3;
-                while (i < kvs) {
-                    v1 = stack[pc[i++]];
-                    v2 = stack[pc[i++]];
-                    gst_object_put(vm, o, v1, v2);
-                }
-                temp.type = GST_OBJECT;
-                temp.data.object = o;
-                stack[pc[1]] = temp;
-                pc += kvs;
-            }
-            break;
-            
-        case GST_OP_TUP: /* Tuple literal */
-            {
-                uint32_t i;
-                uint32_t len = pc[2];
-                GstValue *tuple = gst_tuple(vm, len);
-                for (i = 0; i < len; ++i)
-                    tuple[i] = stack[pc[3 + i]];
-                temp.type = GST_TUPLE;
-                temp.data.tuple = tuple;
-                stack[pc[1]] = temp;
-                pc += 3 + len;
-            }
-            break;
-
-        case GST_OP_GET: /* Associative get */
-            {
-                const char *err;
-                err = gst_get(stack[pc[2]], stack[pc[3]], stack + pc[1]);
-                if (err != NULL)
-                    gst_error(vm, err);
-                pc += 4;
-            }
-            continue;
-
-        case GST_OP_SET: /* Associative set */
-            {
-                const char *err;
-                err = gst_set(vm, stack[pc[1]], stack[pc[2]], stack[pc[3]]);
-                if (err != NULL)
-                    gst_error(vm, err);
-                pc += 4;
-            }
-            break;
-
         case GST_OP_ERR: /* Throw error */
             vm->ret = stack[pc[1]];
             goto vm_error;
@@ -408,7 +259,7 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                     status = temp.data.cfunction(vm);
                     GST_STATE_SYNC();
                     stack = gst_thread_popframe(vm, &thread);
-                    if (status == GST_RETURN_OK)
+                    if (status == GST_RETURN_OK) {
                         if (thread.count < stackBase) {
                             GST_STATE_WRITE();
                             return status;
@@ -419,10 +270,147 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                             else
                                 pc += offset + arity;
                         }
-                    else
+                    } else {
                         goto vm_error;
+                    }
                 }
             }
+            break;
+
+        /* Faster implementations of standard functions
+         * These opcodes are nto strictlyre required and can
+         * be reimplemented with stanard library functions */
+
+        #define OP_BINARY_MATH(op) \
+            v1 = stack[pc[2]]; \
+            v2 = stack[pc[3]]; \
+            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP); \
+            gst_assert(vm, v2.type == GST_NUMBER, GST_EXPECTED_NUMBER_ROP); \
+            temp.type = GST_NUMBER; \
+            temp.data.number = v1.data.number op v2.data.number; \
+            stack[pc[1]] = temp; \
+            pc += 4; \
+            continue;
+
+        case GST_OP_ADD: /* Addition */
+            OP_BINARY_MATH(+)
+
+        case GST_OP_SUB: /* Subtraction */
+            OP_BINARY_MATH(-)
+
+        case GST_OP_MUL: /* Multiplication */
+            OP_BINARY_MATH(*)
+
+        case GST_OP_DIV: /* Division */
+            OP_BINARY_MATH(/)
+
+        #undef OP_BINARY_MATH
+
+        case GST_OP_NOT: /* Boolean unary (Boolean not) */
+            temp.type = GST_BOOLEAN;
+            temp.data.boolean = !gst_truthy(stack[pc[2]]);
+            stack[pc[1]] = temp;
+            pc += 3;
+            continue;
+
+        case GST_OP_NEG: /* Unary negation */
+            v1 = stack[pc[2]];
+            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP);
+            temp.type = GST_NUMBER;
+            temp.data.number = -v1.data.number;
+            stack[pc[1]] = temp;
+            pc += 3;
+            continue;
+
+        case GST_OP_INV: /* Unary multiplicative inverse */
+            v1 = stack[pc[2]];
+            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP);
+            temp.type = GST_NUMBER;
+            temp.data.number = 1 / v1.data.number;
+            stack[pc[1]] = temp;
+            pc += 3;
+            continue;
+
+        case GST_OP_EQL: /* Equality */
+            temp.type = GST_BOOLEAN;
+            temp.data.boolean = gst_equals(stack[pc[2]], stack[pc[3]]);
+            stack[pc[1]] = temp;
+            pc += 4;
+            continue;
+
+        case GST_OP_LTN: /* Less Than */
+            temp.type = GST_BOOLEAN;
+            temp.data.boolean = (gst_compare(stack[pc[2]], stack[pc[3]]) == -1);
+            stack[pc[1]] = temp;
+            pc += 4;
+            continue;
+
+        case GST_OP_LTE: /* Less Than or Equal to */
+            temp.type = GST_BOOLEAN;
+            temp.data.boolean = (gst_compare(stack[pc[2]], stack[pc[3]]) != 1);
+            stack[pc[1]] = temp;
+            pc += 4;
+            continue;
+
+        case GST_OP_ARR: /* Array literal */
+            {
+                uint32_t i;
+                uint32_t arrayLen = pc[2];
+                GstArray *array = gst_array(vm, arrayLen);
+                array->count = arrayLen;
+                for (i = 0; i < arrayLen; ++i)
+                    array->data[i] = stack[pc[3 + i]];
+                temp.type = GST_ARRAY;
+                temp.data.array = array;
+                stack[pc[1]] = temp;
+                pc += 3 + arrayLen;
+            }
+            break;
+
+        case GST_OP_DIC: /* Object literal */
+            {
+                uint32_t i = 3;
+                uint32_t kvs = pc[2];
+                GstObject *o = gst_object(vm, kvs + 2);
+                kvs = kvs + 3;
+                while (i < kvs) {
+                    v1 = stack[pc[i++]];
+                    v2 = stack[pc[i++]];
+                    gst_object_put(vm, o, v1, v2);
+                }
+                temp.type = GST_OBJECT;
+                temp.data.object = o;
+                stack[pc[1]] = temp;
+                pc += kvs;
+            }
+            break;
+            
+        case GST_OP_TUP: /* Tuple literal */
+            {
+                uint32_t i;
+                uint32_t len = pc[2];
+                GstValue *tuple = gst_tuple(vm, len);
+                for (i = 0; i < len; ++i)
+                    tuple[i] = stack[pc[3 + i]];
+                temp.type = GST_TUPLE;
+                temp.data.tuple = tuple;
+                stack[pc[1]] = temp;
+                pc += 3 + len;
+            }
+            break;
+
+        case GST_OP_YLD: /* Yield from function */
+            temp = stack[pc[1]];
+            if (thread.parent == NULL) {
+                vm->ret = temp; 
+                return GST_RETURN_OK;
+            }
+            gst_frame_pc(stack) = pc + 2;
+            GST_STATE_WRITE();
+            vm->thread = thread.parent;
+            thread = *vm->thread;
+            stack = thread.data + thread.count;
+            pc = gst_frame_pc(stack);
             break;
 
         /* Handle errors from c functions and vm opcodes */
@@ -454,8 +442,10 @@ int gst_continue(Gst *vm) {
     return gst_continue_size(vm, vm->thread->count);
 }
 
-/* Run the vm with a given function */
+/* Run the vm with a given function. This function is
+ * called to start the vm. */
 int gst_run(Gst *vm, GstValue callee) {
+    int status;
     GstValue *stack;
     vm->thread = gst_thread(vm, callee, 64);
     if (vm->thread == NULL)
@@ -464,7 +454,6 @@ int gst_run(Gst *vm, GstValue callee) {
     /* If callee was not actually a function, get the delegate function */
     callee = gst_frame_callee(stack);
     if (callee.type == GST_CFUNCTION) {
-        int status;
         vm->ret.type = GST_NIL;
         status = callee.data.cfunction(vm);
         gst_thread_popframe(vm, vm->thread);
@@ -472,43 +461,6 @@ int gst_run(Gst *vm, GstValue callee) {
     } else {
         return gst_continue(vm);
     }
-}
-
-/* Call a gst function */
-int gst_call(Gst *vm, GstValue callee, uint32_t arity, GstValue *args) {
-    GstValue *stack;
-    uint32_t i, size;
-    int status;
-
-    /* Set the return position */
-    stack = gst_thread_stack(vm->thread);
-    gst_frame_ret(stack) = gst_frame_size(stack);
-
-    /* Add extra space for returning value */
-    gst_thread_pushnil(vm, vm->thread, 1);
-    stack = gst_thread_beginframe(vm, vm->thread, callee, arity);
-
-    /* Write args to stack */
-    size = gst_frame_size(stack) - arity; 
-    for (i = 0; i < arity; ++i) 
-        stack[i + size] = args[i];
-    gst_thread_endframe(vm, vm->thread);
-
-    /* Call function */
-    callee = gst_frame_callee(stack);
-    if (callee.type == GST_FUNCTION) {
-        gst_frame_pc(stack) = callee.data.function->def->byteCode;
-        status = gst_continue(vm);
-    } else {
-        vm->ret.type = GST_NIL;
-        status = callee.data.cfunction(vm);
-        gst_thread_popframe(vm, vm->thread);
-    }
-
-    /* Pop the extra nil */
-    --gst_frame_size(gst_thread_stack(vm->thread));
-
-    return status;
 }
 
 /* Get an argument from the stack */

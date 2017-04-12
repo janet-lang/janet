@@ -18,7 +18,7 @@
  * Byte 209: Tuple   - [u32 length]*[value... elements]
  * Byte 210: Thread  - [u8 state][u32 frames]*[[value callee][value env]
  *  [u32 pcoffset][u32 erroffset][u16 ret][u16 errloc][u16 size]*[value ...stack]
- * Byte 211: Object  - [value meta][u32 length]*2*[value... kvs]
+ * Byte 211: Object  - [value parent][u32 length]*2*[value... kvs]
  * Byte 212: FuncDef - [u32 locals][u32 arity][u32 flags][u32 literallen]*[value...
  *  literals][u32 bytecodelen]*[u16... bytecode]
  * Byte 213: FunEnv  - [value thread][u32 length]*[value ...upvalues]
@@ -245,10 +245,10 @@ static const char *gst_deserialize_impl(
 
         case 211: /* Object */
             {
-                GstValue meta;
+                GstValue parent;
                 ret.type = GST_OBJECT;
                 ret.data.object = gst_object(vm, 10);
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &meta);
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &parent);
                 if (err != NULL) return err;
                 read_u32(length);
                 for (i = 0; i < length; i += 2) {
@@ -259,8 +259,8 @@ static const char *gst_deserialize_impl(
                     if (err != NULL) return err;
                     gst_object_put(vm, ret.data.object, key, value);
                 }
-                if (meta.type == GST_OBJECT)
-                    ret.data.object->meta = meta.data.object; 
+                if (parent.type == GST_OBJECT)
+                    ret.data.object->parent = parent.data.object; 
                 gst_array_push(vm, visited, ret);
             }
             break;

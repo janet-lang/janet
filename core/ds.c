@@ -136,7 +136,7 @@ GstValue gst_array_peek(GstArray *array) {
 /* Tuple functions */
 /****/
 
-/* Create a new emoty tuple of the given size. Expected to be
+/* Create a new empty tuple of the given size. Expected to be
  * mutated immediately */
 GstValue *gst_tuple(Gst *vm, uint32_t length) {
     char *data = gst_alloc(vm, 2 * sizeof(uint32_t) + length * sizeof(GstValue));
@@ -171,7 +171,7 @@ GstObject* gst_object(Gst *vm, uint32_t capacity) {
     o->buckets = buckets;
     o->capacity = capacity;
     o->count = 0;
-    o->meta = NULL;
+    o->parent = NULL;
     return o;
 }
 

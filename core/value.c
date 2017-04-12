@@ -338,52 +338,10 @@ const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
         ds.data.buffer->data[index] = to_byte(value.data.number);
         break;
     case GST_OBJECT:
-        if (ds.data.object->meta != NULL) {
-        }
         gst_object_put(vm, ds.data.object, key, value);
         break;
     default:
         return "cannot set";
-    }
-    return NULL;
-}
-
-/* Get the class object of a value */
-GstValue gst_get_class(GstValue x) {
-    GstValue ret;
-    ret.type = GST_NIL;
-    switch (x.type) {
-        case GST_OBJECT:
-            if (x.data.object->meta != NULL) {
-                ret.type = GST_OBJECT;
-                ret.data.object = x.data.object->meta;
-            }
-            break;
-        case GST_USERDATA:
-            {
-                GstUserdataHeader *header = (GstUserdataHeader *)x.data.pointer - 1;
-                if (header->meta != NULL) {
-                    ret.type = GST_OBJECT;
-                    ret.data.object = header->meta;
-                }
-            }
-            break;
-        default:
-            break;
-    }
-    return ret;
-}
-
-/* Set the class object of a value. Returns possible c error string */
-const char *gst_set_class(GstValue x, GstValue class) {
-    switch (x.type) {
-        case GST_OBJECT:
-            if (class.type != GST_OBJECT) return "class must be of type object";
-            /* TODO - check for class immutability */
-            x.data.object->meta = class.data.object;
-            break;
-        default:
-            return "cannot set class object";
     }
     return NULL;
 }
@@ -409,18 +367,6 @@ int gst_length(Gst *vm, GstValue x, GstValue *len) {
             length = gst_tuple_length(x.data.tuple);
             break;
         case GST_OBJECT:
-            /* TODO - Check for class override */
-            if (x.data.object->meta != NULL) {
-                GstValue check = gst_object_get(
-                        x.data.object->meta,
-                        gst_load_cstring(vm, "length"));
-                if (check.type != GST_NIL) {
-                    int status = gst_call(vm, check, 1, &x);
-                    if (status == GST_RETURN_OK)
-                        *len = vm->ret;
-                    return status;
-                }
-            }
             length = x.data.object->count;
             break;
     }

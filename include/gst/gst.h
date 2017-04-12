@@ -126,34 +126,38 @@ typedef int (*GstCFunction)(Gst * vm);
 typedef struct GstUserdataHeader GstUserdataHeader;
 typedef struct GstFuncDef GstFuncDef;
 typedef struct GstFuncEnv GstFuncEnv;
+typedef union GstValueUnion GstValueUnion;
 
 /* Definitely implementation details */
 typedef struct GstBucket GstBucket;
+
+/* Union datatype */
+union GstValueUnion {
+    GstBoolean boolean;
+    GstNumber number;
+    GstArray *array;
+    GstBuffer *buffer;
+    GstObject *object;
+    GstThread *thread;
+    GstValue *tuple;
+    GstCFunction cfunction;
+    GstFunction *function;
+    GstFuncEnv *env;
+    GstFuncDef *def;
+    const uint8_t *string;
+    const char *cstring; /* Alias for ease of use from c */
+    /* Indirectly used union members */
+    uint16_t *u16p;
+    uint16_t hws[4];
+    uint8_t bytes[8];
+    void *pointer;
+};
 
 /* The general gst value type. Contains a large union and
  * the type information of the value */
 struct GstValue {
     GstType type;
-    union {
-        GstBoolean boolean;
-        GstNumber number;
-        GstArray *array;
-        GstBuffer *buffer;
-        GstObject *object;
-        GstThread *thread;
-        GstValue *tuple;
-        GstCFunction cfunction;
-        GstFunction *function;
-        GstFuncEnv *env;
-        GstFuncDef *def;
-        const uint8_t *string;
-        const char *cstring; /* Alias for ease of use from c */
-        /* Indirectly used union members */
-        uint16_t *u16p;
-        uint16_t hws[4];
-        uint8_t bytes[8];
-        void *pointer;
-    } data;
+    GstValueUnion data;
 };
 
 /* A lightweight thread in gst. Does not correspond to
@@ -162,6 +166,7 @@ struct GstThread {
     uint32_t count;
     uint32_t capacity;
     GstValue *data;
+    GstThread *parent;
     enum {
         GST_THREAD_PENDING = 0,
         GST_THREAD_ALIVE,
@@ -183,19 +188,18 @@ struct GstBuffer {
     uint8_t *data;
 };
 
-/* The main Gst type, an obect. Objects are just hashtables with some meta
- * information attached in the meta value */
+/* The main Gst type, an obect. Objects are just hashtables with a parent */
 struct GstObject {
     uint32_t count;
     uint32_t capacity;
     GstBucket **buckets;
-    GstObject *meta;
+    GstObject *parent;
 };
 
 /* Some function defintion flags */
 #define GST_FUNCDEF_FLAG_VARARG 1
 
-/* A function definition. Contains information need to instatiate closures. */
+/* A function definition. Contains information need to instantiate closures. */
 struct GstFuncDef {
     uint32_t locals;
     uint32_t arity; /* Not including varargs */
@@ -237,7 +241,6 @@ struct GstUserdataHeader {
 #define GST_RETURN_OK 0
 #define GST_RETURN_ERROR 1
 #define GST_RETURN_CRASH 2
-#define GST_RETURN_YIELD 3
 
 /* The VM state */
 struct Gst {
@@ -257,7 +260,6 @@ struct Gst {
     GstValue rootenv;
     /* Return state */
     const char *crash;
-    uint32_t scratchFlags;
     GstValue ret; /* Returned value from gst_start. Also holds errors. */
 };
 
@@ -267,15 +269,9 @@ enum GstOpCode {
     GST_OP_SUB,     /* Subtraction */
     GST_OP_MUL,     /* Multiplication */
     GST_OP_DIV,     /* Division */
-    GST_OP_MOD,     /* Modulo division */
-    GST_OP_IDV,     /* Integer division */
-    GST_OP_EXP,     /* Exponentiation */
-    GST_OP_CCT,     /* Concatenation */
     GST_OP_NOT,     /* Boolean invert */
     GST_OP_NEG,     /* Unary negation */ 
     GST_OP_INV,     /* Unary multiplicative inverse */
-    GST_OP_LEN,     /* Length */
-    GST_OP_TYP,     /* Type */
     GST_OP_FLS,     /* Load false */
     GST_OP_TRU,     /* Load true */
     GST_OP_NIL,     /* Load nil */
@@ -295,15 +291,14 @@ enum GstOpCode {
     GST_OP_ARR,     /* Create array */
     GST_OP_DIC,     /* Create object */
     GST_OP_TUP,     /* Create tuple */
-    GST_OP_SET,     /* Assocaitive set */
-    GST_OP_GET,     /* Associative get */
     GST_OP_ERR,     /* Throw error */
     GST_OP_TRY,     /* Begin try block */
     GST_OP_UTY,     /* End try block */
     GST_OP_RET,     /* Return from function */
     GST_OP_RTN,     /* Return nil */
     GST_OP_CAL,     /* Call function */
-    GST_OP_TCL      /* Tail call */
+    GST_OP_TCL,     /* Tail call */
+    GST_OP_YLD      /* Yield from function */
 };
 
 /****/
@@ -378,7 +373,6 @@ void gst_thread_ensure_extra(Gst *vm, GstThread *thread, uint32_t extra);
 void gst_thread_push(Gst *vm, GstThread *thread, GstValue x); 
 void gst_thread_pushnil(Gst *vm, GstThread *thread, uint32_t n); 
 void gst_thread_tuplepack(Gst *vm, GstThread *thread, uint32_t n); 
-GstValue *gst_thread_expand_callable(Gst *vm, GstThread *thread, GstValue callee);
 GstValue *gst_thread_beginframe(Gst *vm, GstThread *thread, GstValue callee, uint32_t arity); 
 void gst_thread_endframe(Gst *vm, GstThread *thread);
 GstValue *gst_thread_popframe(Gst *vm, GstThread *thread); 
@@ -396,8 +390,6 @@ const char *gst_get(GstValue ds, GstValue key, GstValue *out);
 const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value);
 const uint8_t *gst_to_string(Gst *vm, GstValue x);
 uint32_t gst_hash(GstValue x);
-GstValue gst_get_class(GstValue x);
-const char *gst_set_class(GstValue obj, GstValue class);
 int gst_length(Gst *vm, GstValue x, GstValue *len);
 
 /****/
@@ -448,7 +440,8 @@ const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x);
 
 #define GST_MEMTAG_STRING 4
 
-void gst_mark(Gst *vm, GstValue *x);
+void gst_mark_value(Gst *vm, GstValue x);
+void gst_mark(Gst *vm, GstValueUnion x, GstType type);
 void gst_sweep(Gst *vm);
 void *gst_alloc(Gst *vm, uint32_t size);
 void *gst_zalloc(Gst *vm, uint32_t size);
@@ -465,7 +458,6 @@ void gst_init(Gst *vm);
 void gst_deinit(Gst *vm);
 int gst_run(Gst *vm, GstValue func);
 int gst_continue(Gst *vm);
-int gst_call(Gst *vm, GstValue callee, uint32_t arity, GstValue *args);
 GstValue gst_arg(Gst *vm, uint16_t index);
 void gst_set_arg(Gst *vm, uint16_t index, GstValue x);
 uint16_t gst_count_args(Gst *vm);

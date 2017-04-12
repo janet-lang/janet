@@ -442,192 +442,6 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
     return ret;
 }
 
-/* Compile values in a sequence and track the returned slots.
- * If the result is unused, immediately drop slots we don't need. Can
- * also ignore the end of the tuple sequence. */
-static void tracker_init_tuple(GstCompiler *c, FormOptions opts, 
-        SlotTracker *tracker, GstValue *tuple, uint32_t start, uint32_t fromEnd) {
-    GstScope *scope = c->tail;
-    FormOptions subOpts = form_options_default();
-    uint32_t i, count;
-    count = gst_tuple_length(tuple);
-    /* Calculate sub flags */
-    subOpts.resultUnused = opts.resultUnused;
-    /* Compile all of the arguments */
-    tracker_init(c, tracker);
-    /* Nothing to compile */
-    if (count <= fromEnd) return;
-    /* Compile body of array */
-    for (i = start; i < (count - fromEnd); ++i) {
-        Slot slot = compile_value(c, subOpts, tuple[i]);
-        if (subOpts.resultUnused)
-            compiler_drop_slot(c, scope, slot);
-        else
-            compiler_tracker_push(c, tracker, compiler_realize_slot(c, slot));
-    }
-}
-
-/* Define some flags for operators */
-#define OP_REVERSE 1
-#define OP_FOLD 2
-#define OP_DEFAULT_INT 4
-#define OP_1_REPEAT 8
-#define OP_1_BOOLEAN 16
-#define OP_0_BOOLEAN 32
-
-/* Compile a special form in the form of an operator. There
- * are four choices for opcodes - when the operator is called
- * with 0, 1, 2, or n arguments. When the operator form is
- * called with n arguments, the number of arguments is written
- * after the op code, followed by those arguments.
- *
- * This function also takes flags to modify the behavior of the operators
- * And give them capabilities beyond binary and unary operator. */
-static Slot compile_operator(GstCompiler *c, FormOptions opts, GstValue *form,
-        int16_t op0, int16_t op1, int16_t op2, int16_t opn, int flags) {
-    GstScope *scope = c->tail;
-    GstBuffer *buffer = c->buffer;
-    Slot ret;
-    SlotTracker tracker;
-    uint32_t count = gst_tuple_length(form);
-    /* Check for some early exit conditions */
-    if (count == 2 && (flags & OP_1_REPEAT)) {
-        return compile_value(c, opts, form[1]);
-    }
-    if (opts.resultUnused) {
-        ret = nil_slot();
-    } else {
-        ret = compiler_get_target(c, opts);
-        /* Write the correct opcode */
-        if (count < 2) {
-            if (flags & OP_DEFAULT_INT) {
-                gst_buffer_push_u16(c->vm, buffer, GST_OP_I16);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-                gst_buffer_push_i16(c->vm, buffer, op0);
-            } else if (flags & OP_0_BOOLEAN) {
-                gst_buffer_push_u16(c->vm, buffer, op0 ? GST_OP_TRU : GST_OP_FLS);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-            } else if (op0 < 0) {
-                if (opn < 0) c_error(c, "this operator does not take 0 arguments");
-                goto opn;
-            } else {
-                gst_buffer_push_u16(c->vm, buffer, op0);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-            }
-        } else if (count == 2) {
-            if (flags & OP_1_BOOLEAN) {
-                gst_buffer_push_u16(c->vm, buffer, op1 ? GST_OP_TRU : GST_OP_FLS);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-                return ret;
-            } else if (op1 < 0) {
-                if (opn < 0) c_error(c, "this operator does not take 1 argument");
-                goto opn;
-            } else {
-                tracker_init_tuple(c, opts, &tracker, form, 1, 0);
-                compiler_tracker_free(c, scope, &tracker);
-                gst_buffer_push_u16(c->vm, buffer, op1);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-                compiler_tracker_write(c, &tracker, flags & OP_REVERSE);
-            }
-        } else if (count == 3) {
-            if (op2 < 0) {
-                if (opn < 0) c_error(c, "this operator does not take 2 arguments");
-                goto opn;
-            } else {
-                tracker_init_tuple(c, opts, &tracker, form, 1, 0);
-                compiler_tracker_free(c, scope, &tracker);
-                gst_buffer_push_u16(c->vm, buffer, op2);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-                compiler_tracker_write(c, &tracker, flags & OP_REVERSE);
-            }
-        } else {
-            opn:
-            /* Use a left-fold for arithmetic operators */
-            if (flags & OP_FOLD) {
-                uint32_t i;
-                FormOptions subOpts = form_options_default();
-                Slot lhs = compile_value(c, subOpts, form[1]);
-                Slot rhs = compile_value(c, subOpts, form[2]);
-                gst_buffer_push_u16(c->vm, buffer, op2);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-                gst_buffer_push_u16(c->vm, buffer, lhs.index);
-                gst_buffer_push_u16(c->vm, buffer, rhs.index);
-                compiler_drop_slot(c, scope, lhs);
-                compiler_drop_slot(c, scope, rhs);
-                for (i = 3; i < count; ++i) {
-                    rhs = compile_value(c, subOpts, form[i]);
-                    gst_buffer_push_u16(c->vm, buffer, op2);
-                    gst_buffer_push_u16(c->vm, buffer, ret.index);
-                    gst_buffer_push_u16(c->vm, buffer, ret.index);
-                    gst_buffer_push_u16(c->vm, buffer, rhs.index);
-                    compiler_drop_slot(c, scope, rhs);
-                }
-            } else {
-                if (opn < 0) c_error(c, "this operator does not take n arguments");
-                tracker_init_tuple(c, opts, &tracker, form, 1, 0);
-                compiler_tracker_free(c, scope, &tracker);
-                gst_buffer_push_u16(c->vm, buffer, opn);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-                gst_buffer_push_u16(c->vm, buffer, count - 1);
-                compiler_tracker_write(c, &tracker, flags & OP_REVERSE);
-            }
-        }
-    }
-    return ret;
-}
-
-/* Quickly define some specials */
-#define MAKE_SPECIAL(name, op0, op1, op2, opn, flags) \
-static Slot compile_##name (GstCompiler *c, FormOptions opts, GstValue *form) {\
-    return compile_operator(c, opts, form, (op0), (op1), (op2), (opn), (flags));\
-}
-
-MAKE_SPECIAL(addition, 0, -1, GST_OP_ADD, -1, OP_FOLD | OP_DEFAULT_INT | OP_1_REPEAT)
-MAKE_SPECIAL(subtraction, 0, GST_OP_NEG, GST_OP_SUB, -1, OP_FOLD | OP_DEFAULT_INT)
-MAKE_SPECIAL(multiplication, 1, -1, GST_OP_MUL, -1, OP_FOLD | OP_DEFAULT_INT | OP_1_REPEAT)
-MAKE_SPECIAL(division, 1, GST_OP_INV, GST_OP_DIV, -1, OP_FOLD | OP_DEFAULT_INT)
-MAKE_SPECIAL(equals, 1, 1, GST_OP_EQL, -1, OP_0_BOOLEAN | OP_1_BOOLEAN)
-MAKE_SPECIAL(lt, 1, 1, GST_OP_LTN, -1, OP_0_BOOLEAN | OP_1_BOOLEAN)
-MAKE_SPECIAL(lte, 1, 1, GST_OP_LTE, -1, OP_0_BOOLEAN | OP_1_BOOLEAN)
-MAKE_SPECIAL(gt, 1, 1, GST_OP_LTN, -1, OP_0_BOOLEAN | OP_1_BOOLEAN | OP_REVERSE)
-MAKE_SPECIAL(gte, 1, 1, GST_OP_LTE, -1, OP_0_BOOLEAN | OP_1_BOOLEAN | OP_REVERSE)
-MAKE_SPECIAL(not, -1, GST_OP_NOT, -1, -1, 0)
-MAKE_SPECIAL(get, -1, -1, GST_OP_GET, -1, 0)
-MAKE_SPECIAL(make_tuple, -1, -1, -1, GST_OP_TUP, 0)
-MAKE_SPECIAL(length, -1, GST_OP_LEN, -1, -1, 0)
-
-#undef MAKE_SPECIAL
-
-/* Associative set */
-static Slot compile_set(GstCompiler *c, FormOptions opts, GstValue *form) {
-    GstBuffer *buffer = c->buffer;
-    FormOptions subOpts = form_options_default();
-    Slot ds, key, val;
-    if (gst_tuple_length(form) != 4) c_error(c, "set expects 4 arguments");
-    if (opts.resultUnused) {
-        ds = compiler_realize_slot(c, compile_value(c, subOpts, form[1]));
-    } else {
-        subOpts = opts;
-        subOpts.isTail = 0;
-        ds = compiler_realize_slot(c, compile_value(c, subOpts, form[1]));
-        subOpts = form_options_default();
-    }
-    key = compiler_realize_slot(c, compile_value(c, subOpts, form[2]));
-    val = compiler_realize_slot(c, compile_value(c, subOpts, form[3]));
-    gst_buffer_push_u16(c->vm, buffer, GST_OP_SET);
-    gst_buffer_push_u16(c->vm, buffer, ds.index);
-    gst_buffer_push_u16(c->vm, buffer, key.index);
-    gst_buffer_push_u16(c->vm, buffer,  val.index);
-    compiler_drop_slot(c, c->tail, key);
-    compiler_drop_slot(c, c->tail, val);
-    if (opts.resultUnused) {
-        compiler_drop_slot(c, c->tail, ds);
-        return nil_slot();
-    } else {
-        return ds;
-    }
-}
-
 /* Compile an assignment operation */
 static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstValue right) {
     GstScope *scope = c->tail;
@@ -849,20 +663,6 @@ static Slot compile_if(GstCompiler *c, FormOptions opts, GstValue *form) {
     return condition;
 }
 
-/* Special to throw an error */
-static Slot compile_error(GstCompiler *c, FormOptions opts, GstValue *form) {
-    GstBuffer *buffer = c->buffer;
-    Slot ret;
-    GstValue x;
-    if (gst_tuple_length(form) != 2)
-        c_error(c, "error takes exactly 1 argument");
-    x = form[1];
-    ret = compiler_realize_slot(c, compile_value(c, opts, x));
-    gst_buffer_push_u16(c->vm, buffer, GST_OP_ERR);
-    gst_buffer_push_u16(c->vm, buffer, ret.index);
-    return nil_slot();
-}
-
 /* Try catch special */
 static Slot compile_try(GstCompiler *c, FormOptions opts, GstValue *form) {
     GstScope *scope = c->tail;
@@ -1018,16 +818,9 @@ static SpecialFormHelper get_special(GstValue *form) {
      * problems. */
     if (gst_string_length(name) == 0)
         return NULL;
-    /* One character specials. Mostly math. */
+    /* One character specials. */
     if (gst_string_length(name) == 1) {
         switch(name[0]) {
-            case '+': return compile_addition;
-            case '-': return compile_subtraction;
-            case '*': return compile_multiplication;
-            case '/': return compile_division;
-            case '>': return compile_gt;
-            case '<': return compile_lt;
-            case '=': return compile_equals;
             case ':': return compile_var;
             default:
                 break;
@@ -1035,40 +828,6 @@ static SpecialFormHelper get_special(GstValue *form) {
     }
     /* Multi character specials. Mostly control flow. */
     switch (name[0]) {
-        case '>':
-            {
-                if (gst_string_length(name) == 2 &&
-                        name[1] == '=') {
-                    return compile_gte;
-                }
-            }
-            break;
-        case '<':
-            {
-                if (gst_string_length(name) == 2 &&
-                        name[1] == '=') {
-                    return compile_lte;
-                }
-            }
-            break;
-        case 'e':
-            {
-                if (gst_string_length(name) == 5 &&
-                        name[1] == 'r' &&
-                        name[2] == 'r' &&
-                        name[3] == 'o' &&
-                        name[4] == 'r') {
-                    return compile_error;
-                }
-            }
-        case 'g':
-            {
-                if (gst_string_length(name) == 3 &&
-                        name[1] == 'e' &&
-                        name[2] == 't') {
-                    return compile_get;
-                }
-            }
         case 'd':
             {
                 if (gst_string_length(name) == 2 &&
@@ -1093,26 +852,6 @@ static SpecialFormHelper get_special(GstValue *form) {
                 }
             }
             break;
-        case 'l':
-            {
-                if (gst_string_length(name) == 6 &&
-                        name[1] == 'e' &&
-                        name[2] == 'n' &&
-                        name[3] == 'g' &&
-                        name[4] == 't' &&
-                        name[5] == 'h') {
-                    return compile_length;
-                }
-            }
-        case 'n':
-            {
-                if (gst_string_length(name) == 3 &&
-                        name[1] == 'o' &&
-                        name[2] == 't') {
-                    return compile_not;
-                }
-            }
-            break;
         case 'q':
             {
                 if (gst_string_length(name) == 5 &&
@@ -1124,27 +863,12 @@ static SpecialFormHelper get_special(GstValue *form) {
                 }
             }
             break;
-        case 's':
-            {
-                if (gst_string_length(name) == 3 &&
-                        name[1] == 'e' &&
-                        name[2] == 't') {
-                    return compile_set;
-                }
-            }
-            break;
         case 't':
             {
                 if (gst_string_length(name) == 3 &&
                         name[1] == 'r' &&
                         name[2] == 'y') {
                     return compile_try;
-                } else if (gst_string_length(name) == 5 &&
-                        name[1] == 'u' &&
-                        name[2] == 'p' &&
-                        name[3] == 'l' &&
-                        name[4] == 'e') {
-                    return compile_make_tuple;
                 }
             }
         case 'w':

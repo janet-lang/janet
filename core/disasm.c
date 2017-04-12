@@ -169,12 +169,6 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
             case GST_OP_TUP:
                 current += dasm_varg_op(out, current, "tuple", 1);
                 break;
-            case GST_OP_GET:
-                current += dasm_fixed_op(out, current, "get", 3);
-                break;
-            case GST_OP_SET:
-                current += dasm_fixed_op(out, current, "set", 3);
-                break;
             case GST_OP_ERR:
                 current += dasm_fixed_op(out, current, "error", 1);
                 break;
