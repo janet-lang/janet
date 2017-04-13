@@ -20,14 +20,14 @@ struct GstCompiler {
 /* Initialize the Compiler */
 void gst_compiler(GstCompiler *c, Gst *vm);
 
-/* Register an environment for compilation */
-void gst_compiler_env(GstCompiler *c, GstValue env);
+/* Add many globals */
+void gst_compiler_globals(GstCompiler *c, GstObject *env);
 
 /* Register a global for the compilation environment. */
-void gst_compiler_add_global(GstCompiler *c, const char *name, GstValue x);
+void gst_compiler_global(GstCompiler *c, const char *name, GstValue x);
 
-/* Register a global c function for the compilation environment. */
-void gst_compiler_add_global_cfunction(GstCompiler *c, const char *name, GstCFunction f);
+/* Use a module */
+void gst_compiler_usemodule(GstCompiler *c, const char *modulename);
 
 /* Compile a function that evaluates the given form. */
 GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form);

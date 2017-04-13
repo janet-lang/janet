@@ -396,12 +396,7 @@ int gst_stl_serialize(Gst *vm) {
 /* Bootstraping */
 /****/
 
-struct GstRegistryItem {
-    const char *name;
-    GstCFunction func;
-};
-
-static const struct GstRegistryItem const registry[] = {
+static const GstModuleItem const std_module[] = {
     {"+", gst_stl_add},
     {"*", gst_stl_mul},
     {"-", gst_stl_sub},
@@ -430,9 +425,7 @@ static const struct GstRegistryItem const registry[] = {
 };
 
 /* Load all libraries */
-void gst_stl_load(GstCompiler *c) {
-    const struct GstRegistryItem *item;
-    for (item = registry; item->name; ++item) {
-        gst_compiler_add_global_cfunction(c, item->name, item->func);
-    }
+void gst_stl_load(Gst *vm) {
+    GstObject *module = gst_c_module(vm, std_module);
+    gst_c_register(vm, "std", module);
 }

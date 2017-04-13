@@ -504,16 +504,17 @@ void gst_init(Gst *vm) {
     vm->black = 0;
     /* Add thread */
     vm->thread = NULL;
-    vm->rootenv.type = GST_NIL;
     /* Set up string cache */
     gst_stringcache_init(vm, 128);
+    /* Set up global env */
+    vm->rootenv = NULL;
 }
 
 /* Clear all memory associated with the VM */
 void gst_deinit(Gst *vm) {
     gst_clear_memory(vm);
     vm->thread = NULL;
-    vm->rootenv.type = GST_NIL;
+    vm->rootenv = NULL;
     vm->ret.type = GST_NIL;
     gst_stringcache_deinit(vm);
 }

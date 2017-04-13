@@ -131,6 +131,15 @@ typedef union GstValueUnion GstValueUnion;
 /* Definitely implementation details */
 typedef struct GstBucket GstBucket;
 
+/* API Types */
+typedef struct GstModuleItem GstModuleItem;
+
+/* C Api data types */
+struct GstModuleItem {
+    const char *name;
+    GstCFunction data;
+};
+
 /* Union datatype */
 union GstValueUnion {
     GstBoolean boolean;
@@ -174,7 +183,7 @@ struct GstThread {
     } status;
 };
 
-/* A dynamic array type. Useful for implementing a stack. */
+/* A dynamic array type. */
 struct GstArray {
     uint32_t count;
     uint32_t capacity;
@@ -257,7 +266,7 @@ struct Gst {
     /* Thread */
     GstThread *thread;
     /* A GC root */
-    GstValue rootenv;
+    GstObject *rootenv;
     /* Return state */
     const char *crash;
     GstValue ret; /* Returned value from gst_start. Also holds errors. */
@@ -461,5 +470,12 @@ int gst_continue(Gst *vm);
 GstValue gst_arg(Gst *vm, uint16_t index);
 void gst_set_arg(Gst *vm, uint16_t index, GstValue x);
 uint16_t gst_count_args(Gst *vm);
+
+/***/
+/* C Api */
+/***/
+
+GstObject *gst_c_module(Gst *vm, const GstModuleItem *mod);
+void gst_c_register(Gst *vm, const char *packagename, GstObject *mod);
 
 #endif // GST_H_defined

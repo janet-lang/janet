@@ -327,7 +327,8 @@ static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValu
 
 /* Try to resolve a symbol. If the symbol can be resovled, return true and
  * pass back the level and index by reference. */
-static int symbol_resolve(GstScope *scope, GstValue x, uint16_t *level, uint16_t *index) {
+static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t *index) {
+    GstScope *scope = c->tail;
     uint32_t currentLevel = scope->level;
     while (scope) {
         GstValue check = gst_object_get(scope->locals, x);
@@ -336,6 +337,7 @@ static int symbol_resolve(GstScope *scope, GstValue x, uint16_t *level, uint16_t
             *index = (uint16_t) check.data.number;
             return 1;
         }
+        
         scope = scope->parent;
     }
     return 0;
@@ -409,13 +411,13 @@ static Slot compile_nonref_type(GstCompiler *c, FormOptions opts, GstValue x) {
 /* Compile a symbol. Resolves any kind of symbol. */
 static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
     GstBuffer * buffer = c->buffer;
-    GstScope * scope = c->tail;
     uint16_t index = 0;
     uint16_t level = 0;
     Slot ret;
     if (opts.resultUnused) return nil_slot();
-    if (!symbol_resolve(scope, sym, &level, &index))
+    if (!symbol_resolve(c, sym, &level, &index)) {
         c_error(c, "undefined symbol");
+    }
     if (level > 0) {
         /* We have an upvalue */
         ret = compiler_get_target(c, opts);
@@ -452,7 +454,7 @@ static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstV
     Slot slot;
     subOpts.isTail = 0;
     subOpts.resultUnused = 0;
-    if (symbol_resolve(scope, left, &level, &target)) {
+    if (symbol_resolve(c, left, &level, &target)) {
         /* Check if we have an up value. Otherwise, it's just a normal
          * local variable */
         if (level != 0) {
@@ -1022,39 +1024,35 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
     compiler_push_scope(c, 0);
 }
 
-/* Add environment */
-void gst_compiler_env(GstCompiler *c, GstValue env) {
+/* Add a global variable */
+void gst_compiler_global(GstCompiler *c, const char *name, GstValue x) {
+    GstValue sym = gst_load_csymbol(c->vm, name);
+    compiler_declare_symbol(c, c->tail, sym);
+    gst_array_push(c->vm, c->env, x);                
+}
+
+/* Add many global variables */
+void gst_compiler_globals(GstCompiler *c, GstObject *env) {
     uint32_t i;
     GstBucket *bucket;
-    /* Register everything in environment */
-    if (env.type == GST_OBJECT) {
-        for (i = 0; i < env.data.object->capacity; ++i) {
-            bucket = env.data.object->buckets[i];
-            while (bucket) {
-                if (bucket->key.type == GST_SYMBOL) {
-                    compiler_declare_symbol(c, c->tail, bucket->key);
-                    gst_array_push(c->vm, c->env, bucket->value);
-                }
-                bucket = bucket->next;
+    for (i = 0; i < env->capacity; ++i) {
+        bucket = env->buckets[i];
+        while (bucket) {
+            if (bucket->key.type == GST_SYMBOL) {
+                compiler_declare_symbol(c, c->tail, bucket->key);
+                gst_array_push(c->vm, c->env, bucket->value);                
             }
+            bucket = bucket->next;
         }
     }
 }
 
-/* Register a global for the compilation environment. */
-void gst_compiler_add_global(GstCompiler *c, const char *name, GstValue x) {
-    GstValue sym = gst_load_cstring(c->vm, name);
-    sym.type = GST_SYMBOL;
-    compiler_declare_symbol(c, c->tail, sym);
-    gst_array_push(c->vm, c->env, x);
-}
-
-/* Register a global c function for the compilation environment. */
-void gst_compiler_add_global_cfunction(GstCompiler *c, const char *name, GstCFunction f) {
-    GstValue func;
-    func.type = GST_CFUNCTION;
-    func.data.cfunction = f;
-    gst_compiler_add_global(c, name, func);
+/* Use a module that was loaded into the vm */
+void gst_compiler_usemodule(GstCompiler *c, const char *modulename) {
+    GstValue mod = gst_object_get(c->vm->rootenv, gst_load_csymbol(c->vm, modulename));
+    if (mod.type == GST_OBJECT) {
+        gst_compiler_globals(c, mod.data.object);
+    }
 }
 
 /* Compile interface. Returns a function that evaluates the

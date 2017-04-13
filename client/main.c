@@ -16,10 +16,7 @@ void debug_repl(FILE *in, FILE *out) {
     GstCompiler c;
 
     gst_init(&vm);
-
-    vm.rootenv.type = GST_OBJECT;
-    vm.rootenv.data.object = gst_object(&vm, 10);
-    gst_object_put(&vm, vm.rootenv.data.object, gst_load_csymbol(&vm, "_ENV"), vm.rootenv);
+    gst_stl_load(&vm);
 
     for (;;) {
 
@@ -61,9 +58,8 @@ void debug_repl(FILE *in, FILE *out) {
         /* Try to compile generated AST */
         gst_compiler(&c, &vm);
         func.type = GST_NIL;
-        gst_compiler_add_global(&c, "ans", func);
-        gst_stl_load(&c);
-        gst_compiler_env(&c, vm.rootenv);
+        gst_compiler_usemodule(&c, "std");
+        gst_compiler_global(&c, "ans", gst_object_get(vm.rootenv, gst_load_csymbol(&vm, "ans")));
         func.type = GST_FUNCTION;
         func.data.function = gst_compiler_compile(&c, p.value);
 
@@ -98,7 +94,7 @@ void debug_repl(FILE *in, FILE *out) {
             continue;
         } else if (out) {
             fprintf(out, "%s\n", (char *)gst_to_string(&vm, vm.ret));
-            gst_object_put(&vm, vm.rootenv.data.object, gst_load_csymbol(&vm, "ans"), vm.ret);
+            gst_object_put(&vm, vm.rootenv, gst_load_csymbol(&vm, "ans"), vm.ret);
         }
     }
 
