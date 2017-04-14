@@ -70,8 +70,6 @@ const uint8_t *gst_to_string(Gst *vm, GstValue x) {
             return string_description(vm, "object", x.data.pointer);
         case GST_STRING:
             return x.data.string;
-        case GST_SYMBOL:
-            return string_description(vm, "symbol", x.data.pointer);
         case GST_BYTEBUFFER:
             return string_description(vm, "buffer", x.data.pointer);
         case GST_CFUNCTION:
@@ -168,7 +166,6 @@ uint32_t gst_hash(GstValue x) {
             break;
             /* String hashes */
         case GST_STRING:
-        case GST_SYMBOL:
             hash = gst_string_hash(x.data.string);
             break;
         case GST_TUPLE:
@@ -214,7 +211,6 @@ int gst_compare(GstValue x, GstValue y) {
                     return x.data.number > y.data.number ? 1 : -1;
                 }
             case GST_STRING:
-            case GST_SYMBOL:
                 return gst_string_compare(x.data.string, y.data.string);
                 /* Lower indices are most significant */
             case GST_TUPLE:
@@ -302,7 +298,6 @@ const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
         ret.data.number = ds.data.buffer->data[index];
         break;
     case GST_STRING:
-    case GST_SYMBOL:
         if (key.type != GST_NUMBER) return "expected numeric key";
         index = to_index(key.data.number, gst_string_length(ds.data.string));
         if (index == -1) return "invalid string access";
@@ -354,7 +349,6 @@ int gst_length(Gst *vm, GstValue x, GstValue *len) {
             vm->ret = gst_load_cstring(vm, "cannot get length");
             return GST_RETURN_ERROR;
         case GST_STRING:
-        case GST_SYMBOL:
             length = gst_string_length(x.data.string);
             break;
         case GST_ARRAY:

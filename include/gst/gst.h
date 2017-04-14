@@ -13,6 +13,12 @@
 #define gst_tuple_length(t) (gst_tuple_raw(t)[0])
 #define gst_tuple_hash(t) (gst_tuple_raw(t)[1])
 
+/* Struct utils */
+#define gst_struct_raw(t) ((uint32_t *)(t) - 2)
+#define gst_struct_length(t) (gst_struct_raw(t)[0])
+#define gst_struct_capacity(t) (gst_struct_length(t) * 3)
+#define gst_struct_hash(t) (gst_struct_raw(t)[1])
+
 /* Memcpy for moving memory */
 #ifndef gst_memcpy
 #include <string.h>
@@ -93,7 +99,6 @@ typedef enum GstType {
     GST_NUMBER,
     GST_BOOLEAN,
     GST_STRING,
-    GST_SYMBOL,
     GST_ARRAY,
     GST_TUPLE,
     GST_THREAD,
@@ -153,6 +158,7 @@ union GstValueUnion {
     GstFunction *function;
     GstFuncEnv *env;
     GstFuncDef *def;
+    GstValue *st;
     const uint8_t *string;
     const char *cstring; /* Alias for ease of use from c */
     /* Indirectly used union members */
@@ -354,7 +360,6 @@ const uint8_t *gst_string_end(Gst *vm, uint8_t *str);
 const uint8_t *gst_string_loadbuffer(Gst *vm, const uint8_t *buf, uint32_t len);
 const uint8_t *gst_cstring_to_string(Gst *vm, const char *cstring);
 GstValue gst_load_cstring(Gst *vm, const char *string);
-GstValue gst_load_csymbol(Gst *vm, const char *string);
 int gst_string_compare(const uint8_t *lhs, const uint8_t *rhs);
 
 /****/

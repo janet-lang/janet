@@ -68,7 +68,7 @@ static GstValue quote(GstParser *p, GstValue x) {
     tuple = gst_tuple(p->vm, 2);
     tuplev.type = GST_TUPLE;
     tuplev.data.tuple = tuple;
-    tuple[0] = gst_load_csymbol(p->vm, "quote");
+    tuple[0] = gst_load_cstring(p->vm, "quote");
     tuple[1] = x;
     return tuplev;
 }
@@ -238,7 +238,7 @@ static GstValue build_token(GstParser *p, GstBuffer *buf) {
             p_error(p, "symbols cannot start with digits");
             x.type = GST_NIL;
         } else {
-            x.type = GST_SYMBOL;
+            x.type = GST_STRING;
             x.data.string = gst_buffer_to_string(p->vm, buf);
         }
     }
@@ -288,7 +288,7 @@ static int string_state(GstParser *p, uint8_t c) {
                 x.type = GST_STRING;
                 x.data.string = gst_buffer_to_string(p->vm, top->buf.string.buffer);
                 parser_pop(p);
-                parser_append(p, x);
+                parser_append(p, quote(p, x));
             } else {
                 gst_buffer_push(p->vm, top->buf.string.buffer, c);
             }

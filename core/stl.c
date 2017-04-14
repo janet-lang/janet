@@ -113,7 +113,6 @@ int gst_stl_length(Gst *vm) {
         default:
             gst_c_throwc(vm, "cannot get length");
         case GST_STRING:
-        case GST_SYMBOL:
             ret.data.number = gst_string_length(x.data.string);
             break;
         case GST_ARRAY:
@@ -166,9 +165,6 @@ int gst_stl_type(Gst *vm) {
         break;
     case GST_STRING:
         typestr = "string";
-        break;
-    case GST_SYMBOL:
-        typestr = "symbol";
         break;
     case GST_ARRAY:
         typestr = "array";
@@ -276,7 +272,7 @@ int gst_stl_strcat(Gst *vm) {
     /* Find length and assert string arguments */
     for (j = 0; j < count; ++j) {
         GstValue arg = gst_arg(vm, j);
-        if (arg.type != GST_STRING && arg.type != GST_SYMBOL)
+        if (arg.type != GST_STRING)
             gst_c_throwc(vm, GST_EXPECTED_STRING);
         length += gst_string_length(arg.data.string);
     }

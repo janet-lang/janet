@@ -111,6 +111,9 @@ static const char *gst_deserialize_impl(
     /* Main switch for types */
     switch (*data++) {
 
+        default:
+            return "unable to deserialize";
+
         case 201: /* Nil */
             ret.type = GST_NIL;
             break;
@@ -131,8 +134,7 @@ static const char *gst_deserialize_impl(
             break;
 
         case 205: /* String */
-        case 206: /* Symbol */
-            ret.type = data[-1] == 205 ? GST_STRING : GST_SYMBOL;
+            ret.type = GST_STRING;
             read_u32(length);
             deser_datacheck(length);
             ret.data.string = gst_string_loadbuffer(vm, data, length);
@@ -463,8 +465,7 @@ const char *gst_serialize_impl(
         default:
            return "unable to serialize type"; 
         case GST_STRING:
-        case GST_SYMBOL:
-           write_byte(x.type == GST_STRING ? 205 : 206);
+           write_byte(205);
            count = gst_string_length(x.data.string);
            write_u32(count);
            for (i = 0; i < count; ++i) {

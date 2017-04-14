@@ -59,7 +59,7 @@ void debug_repl(FILE *in, FILE *out) {
         gst_compiler(&c, &vm);
         func.type = GST_NIL;
         gst_compiler_usemodule(&c, "std");
-        gst_compiler_global(&c, "ans", gst_object_get(vm.rootenv, gst_load_csymbol(&vm, "ans")));
+        gst_compiler_global(&c, "ans", gst_object_get(vm.rootenv, gst_load_cstring(&vm, "ans")));
         func.type = GST_FUNCTION;
         func.data.function = gst_compiler_compile(&c, p.value);
 
@@ -72,12 +72,6 @@ void debug_repl(FILE *in, FILE *out) {
             buffer[0] = 0;
             continue;
         }
-
-        /* Print asm */
-        /*if (out) {
-            fprintf(out, "\n");
-            gst_dasm_function(out, func.data.function);
-        }*/
 
         /* Execute function */
         if (gst_run(&vm, func)) {
@@ -94,7 +88,7 @@ void debug_repl(FILE *in, FILE *out) {
             continue;
         } else if (out) {
             fprintf(out, "%s\n", (char *)gst_to_string(&vm, vm.ret));
-            gst_object_put(&vm, vm.rootenv, gst_load_csymbol(&vm, "ans"), vm.ret);
+            gst_object_put(&vm, vm.rootenv, gst_load_cstring(&vm, "ans"), vm.ret);
         }
     }
 

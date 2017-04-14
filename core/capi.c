@@ -3,7 +3,7 @@
 GstObject *gst_c_module(Gst *vm, const GstModuleItem *mod) {
     GstObject *module = gst_object(vm, 10);
     while (mod->name != NULL) {
-        GstValue key = gst_load_csymbol(vm, mod->name);
+        GstValue key = gst_load_cstring(vm, mod->name);
         GstValue val;
         val.type = GST_CFUNCTION;
         val.data.cfunction = mod->data;
@@ -19,5 +19,5 @@ void gst_c_register(Gst *vm, const char *packagename, GstObject *mod) {
         vm->rootenv = gst_object(vm, 10);
     modv.type = GST_OBJECT;
     modv.data.object = mod;
-    gst_object_put(vm, vm->rootenv, gst_load_csymbol(vm, packagename), modv);
+    gst_object_put(vm, vm->rootenv, gst_load_cstring(vm, packagename), modv);
 }
