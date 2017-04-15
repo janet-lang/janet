@@ -78,7 +78,6 @@ static const char *gst_deserialize_impl(
     GstValue ret;
     ret.type = GST_NIL;
     GstValue *buffer;
-    const uint8_t *bytebuf;
     uint32_t length, i;
     const char *err;
 
@@ -137,8 +136,24 @@ static const char *gst_deserialize_impl(
             ret.type = GST_STRING;
             read_u32(length);
             deser_datacheck(length);
-            ret.data.string = gst_string_loadbuffer(vm, data, length);
+            ret.data.string = gst_string_b(vm, data, length);
             data += length;
+            gst_array_push(vm, visited, ret);
+            break;
+
+        case 206: /* Struct */
+            ret.type = GST_STRUCT;
+            read_u32(length);
+            buffer = gst_struct_begin(vm, length);
+            for (i = 0; i < length; ++i) {
+                GstValue k, v;
+                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &k)))
+                    return err; 
+                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &v)))
+                    return err; 
+                gst_struct_put(buffer, k, v);
+            }
+            ret.data.st = gst_struct_end(vm, buffer);
             gst_array_push(vm, visited, ret);
             break;
 
@@ -172,14 +187,12 @@ static const char *gst_deserialize_impl(
         case 209: /* Tuple */
             ret.type = GST_TUPLE;
             read_u32(length);
-            bytebuf = gst_alloc(vm, length * sizeof(GstValue) + 2 * sizeof(uint32_t));
-            buffer = (GstValue *)(bytebuf + 2 * sizeof(uint32_t));
+            buffer = gst_tuple_begin(vm, length);
             for (i = 0; i < length; ++i)
                 if ((err = gst_deserialize_impl(vm, data, end, &data, visited, buffer + i)))
                     return err;
-            gst_tuple_hash(buffer) = 0;
-            gst_tuple_length(buffer) = length;
-            ret.data.tuple = buffer;
+            ret.type = GST_TUPLE;
+            ret.data.tuple = gst_tuple_end(vm, buffer);
             gst_array_push(vm, visited, ret);
             break;
 

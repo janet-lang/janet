@@ -65,11 +65,11 @@ static GstValue quote(GstParser *p, GstValue x) {
     /* Load a quote form to get the string literal */
     GstValue tuplev;
     GstValue *tuple;
-    tuple = gst_tuple(p->vm, 2);
-    tuplev.type = GST_TUPLE;
-    tuplev.data.tuple = tuple;
-    tuple[0] = gst_load_cstring(p->vm, "quote");
+    tuple = gst_tuple_begin(p->vm, 2);
+    tuple[0] = gst_string_cv(p->vm, "quote");
     tuple[1] = x;
+    tuplev.type = GST_TUPLE;
+    tuplev.data.tuple = gst_tuple_end(p->vm, tuple);
     return tuplev;
 }
 
@@ -376,9 +376,11 @@ static int form_state(GstParser *p, uint8_t c) {
             x.type = GST_ARRAY;
             x.data.array = array;
         } else if (c == ')') {
+            GstValue *tup;
+            tup = gst_tuple_begin(p->vm, array->count);
+            gst_memcpy(tup, array->data, array->count * sizeof(GstValue));
             x.type = GST_TUPLE;
-            x.data.tuple = gst_tuple(p->vm, array->count);
-            gst_memcpy(x.data.tuple, array->data, array->count * sizeof(GstValue));
+            x.data.tuple = gst_tuple_end(p->vm, tup);
         } else { /* c == '{' */
             uint32_t i;
             if (array->count % 2 != 0) {

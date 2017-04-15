@@ -1,5 +1,5 @@
 #include <gst/gst.h>
-#include "stringcache.h"
+#include "cache.h"
 
 /* The metadata header associated with an allocated block of memory */
 #define gc_header(mem) ((GCMemoryHeader *)(mem) - 1)
@@ -102,6 +102,16 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
             }
             break;
 
+        case GST_STRUCT:
+            if (gc_header(gst_struct_raw(x.st))->color != vm->black) {
+                uint32_t i, count;
+                count = gst_struct_capacity(x.st);
+                gc_header(gst_struct_raw(x.st))->color = vm->black;
+                for (i = 0; i < count; ++i)
+                    gst_mark_value(vm, x.st[i]);
+            }
+            break;
+
         case GST_THREAD:
             if (gc_header(x.thread)->color != vm->black) {
                 GstThread *thread = x.thread;
@@ -185,9 +195,13 @@ void gst_sweep(Gst *vm) {
             } else {
                 vm->blocks = next;
             }
-            /* Remove from string cache */
-            if (current->tags & GST_MEMTAG_STRING) {
-                gst_stringcache_remove(vm, (uint8_t *)(current + 1) + 2 * sizeof(uint32_t));
+            if (current->tags) {
+                if (current->tags & GST_MEMTAG_STRING)
+                    gst_cache_remove_string(vm, (char *)(current + 1));
+                if (current->tags & GST_MEMTAG_STRUCT)
+                    gst_cache_remove_struct(vm, (char *)(current + 1));
+                if (current->tags & GST_MEMTAG_TUPLE)
+                    gst_cache_remove_tuple(vm, (char *)(current + 1));
             }
             gst_raw_free(current);
         } else {

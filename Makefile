@@ -7,6 +7,7 @@ CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -g -I./include
 PREFIX=/usr/local
 GST_TARGET=client/gst
 GST_CORELIB=core/libgst.a
+GST_INTERNAL_HEADERS=$(addprefix core/, cache.h)
 GST_HEADERS=$(addprefix include/gst/, gst.h stl.h compile.h disasm.h parse.h)
 
 all: $(GST_TARGET)
@@ -15,7 +16,7 @@ all: $(GST_TARGET)
 ##### The core vm and runtime #####
 ###################################
 GST_CORE_SOURCES=$(addprefix core/,\
-				 compile.c disasm.c parse.c stl.c strings.c \
+				 compile.c disasm.c parse.c stl.c strings.c ids.c \
 				 value.c vm.c ds.c gc.c thread.c serialize.c capi.c)
 GST_CORE_OBJECTS=$(patsubst %.c,%.o,$(GST_CORE_SOURCES))
 $(GST_CORELIB): $(GST_CORE_OBJECTS) $(GST_HEADERS)
@@ -26,11 +27,11 @@ $(GST_CORELIB): $(GST_CORE_OBJECTS) $(GST_HEADERS)
 ##############################
 GST_CLIENT_SOURCES=client/main.c
 GST_CLIENT_OBJECTS=$(patsubst %.c,%.o,$(GST_CLIENT_SOURCES))
-$(GST_TARGET): $(GST_CLIENT_OBJECTS) $(GST_HEADERS) $(GST_CORELIB)
+$(GST_TARGET): $(GST_CLIENT_OBJECTS) $(GST_CORELIB)
 	$(CC) $(CFLAGS) -o $(GST_TARGET) $(GST_CLIENT_OBJECTS) $(GST_CORELIB)
 
 # Compile all .c to .o
-%.o : %.c $(GST_HEADERS)
+%.o : %.c $(GST_HEADERS) $(GST_INTERNAL_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 run: $(GST_TARGET)

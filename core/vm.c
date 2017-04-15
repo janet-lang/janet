@@ -1,5 +1,4 @@
 #include <gst/gst.h>
-#include "stringcache.h"
 
 /* Macros for errors in the vm */
 
@@ -7,7 +6,7 @@
 #define gst_exit(vm, r) return ((vm)->ret = (r), GST_RETURN_OK)
 
 /* Bail from the VM with an error string. */
-#define gst_error(vm, e) do { (vm)->ret = gst_load_cstring((vm), (e)); goto vm_error; } while (0)
+#define gst_error(vm, e) do { (vm)->ret = gst_string_cv((vm), (e)); goto vm_error; } while (0)
 
 /* Crash. Not catchable, unlike error. */
 #define gst_crash(vm, e) return ((vm)->crash = (e), GST_RETURN_CRASH)
@@ -229,8 +228,9 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                 offset = isTCall ? 3 : 4;
                 arity = pc[offset - 1];
                 /* Push new frame */
+                if (temp.type != GST_FUNCTION && temp.type != GST_CFUNCTION)
+                    gst_error(vm, GST_EXPECTED_FUNCTION);
                 stack = gst_thread_beginframe(vm, &thread, temp, arity);
-                if (stack == NULL) gst_error(vm, "expected function");
                 oldStack = stack - GST_FRAME_SIZE - gst_frame_prevsize(stack);
                 /* Write arguments */
                 size = gst_frame_size(stack);
@@ -389,11 +389,11 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             {
                 uint32_t i;
                 uint32_t len = pc[2];
-                GstValue *tuple = gst_tuple(vm, len);
+                GstValue *tuple = gst_tuple_begin(vm, len);
                 for (i = 0; i < len; ++i)
                     tuple[i] = stack[pc[3 + i]];
                 temp.type = GST_TUPLE;
-                temp.data.tuple = tuple;
+                temp.data.tuple = gst_tuple_end(vm, tuple);
                 stack[pc[1]] = temp;
                 pc += 3 + len;
             }
@@ -504,10 +504,16 @@ void gst_init(Gst *vm) {
     vm->black = 0;
     /* Add thread */
     vm->thread = NULL;
-    /* Set up string cache */
-    gst_stringcache_init(vm, 128);
     /* Set up global env */
     vm->rootenv = NULL;
+    /* Set up scratch memory */
+    vm->scratch = NULL;
+    vm->scratch_len = 0;
+    /* Set up the cache */
+    vm->cache = gst_raw_calloc(1, 128 * sizeof(GstValue));
+    vm->cache_capacity = vm->cache == NULL ? 0 : 128;
+    vm->cache_count = 0;
+    vm->cache_deleted = 0;
 }
 
 /* Clear all memory associated with the VM */
@@ -516,5 +522,12 @@ void gst_deinit(Gst *vm) {
     vm->thread = NULL;
     vm->rootenv = NULL;
     vm->ret.type = GST_NIL;
-    gst_stringcache_deinit(vm);
+    vm->scratch = NULL;
+    vm->scratch_len = 0;
+    /* Deinit the cache */
+    gst_raw_free(vm->cache);
+    vm->cache = NULL;
+    vm->cache_count = 0;
+    vm->cache_capacity = 0;
+    vm->cache_deleted = 0;
 }

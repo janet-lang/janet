@@ -488,7 +488,7 @@ static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstV
 
 /* Compile series of expressions. This compiles the meat of
  * function definitions and the inside of do forms. */
-static Slot compile_block(GstCompiler *c, FormOptions opts, GstValue *form, uint32_t startIndex) {
+static Slot compile_block(GstCompiler *c, FormOptions opts, const GstValue *form, uint32_t startIndex) {
     GstScope *scope = c->tail;
     FormOptions subOpts = form_options_default();
     uint32_t current = startIndex;
@@ -542,7 +542,7 @@ static GstFuncDef *compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uin
 }
 
 /* Compile a function from a function literal source form */
-static Slot compile_function(GstCompiler *c, FormOptions opts, GstValue *form) {
+static Slot compile_function(GstCompiler *c, FormOptions opts, const GstValue *form) {
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
     uint32_t current = 1;
@@ -595,7 +595,7 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, GstValue *form) {
 }
 
 /* Branching special */
-static Slot compile_if(GstCompiler *c, FormOptions opts, GstValue *form) {
+static Slot compile_if(GstCompiler *c, FormOptions opts, const GstValue *form) {
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
     FormOptions condOpts = opts;
@@ -666,7 +666,7 @@ static Slot compile_if(GstCompiler *c, FormOptions opts, GstValue *form) {
 }
 
 /* Try catch special */
-static Slot compile_try(GstCompiler *c, FormOptions opts, GstValue *form) {
+static Slot compile_try(GstCompiler *c, FormOptions opts, const GstValue *form) {
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
     Slot body;
@@ -730,7 +730,7 @@ static Slot compile_try(GstCompiler *c, FormOptions opts, GstValue *form) {
 }
 
 /* While special */
-static Slot compile_while(GstCompiler *c, FormOptions opts, GstValue *form) {
+static Slot compile_while(GstCompiler *c, FormOptions opts, const GstValue *form) {
     Slot cond;
     uint32_t countAtStart = c->buffer->count;
     uint32_t countAtJumpDelta;
@@ -769,7 +769,7 @@ static Slot compile_while(GstCompiler *c, FormOptions opts, GstValue *form) {
 }
 
 /* Do special */
-static Slot compile_do(GstCompiler *c, FormOptions opts, GstValue *form) {
+static Slot compile_do(GstCompiler *c, FormOptions opts, const GstValue *form) {
     Slot ret;
     compiler_push_scope(c, 1);
     ret = compile_block(c, opts, form, 1);
@@ -778,7 +778,7 @@ static Slot compile_do(GstCompiler *c, FormOptions opts, GstValue *form) {
 }
 
 /* Quote special - returns its argument as is. */
-static Slot compile_quote(GstCompiler *c, FormOptions opts, GstValue *form) {
+static Slot compile_quote(GstCompiler *c, FormOptions opts, const GstValue *form) {
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
     Slot ret;
@@ -801,17 +801,17 @@ static Slot compile_quote(GstCompiler *c, FormOptions opts, GstValue *form) {
 }
 
 /* Assignment special */
-static Slot compile_var(GstCompiler *c, FormOptions opts, GstValue *form) {
+static Slot compile_var(GstCompiler *c, FormOptions opts, const GstValue *form) {
     if (gst_tuple_length(form) != 3)
         c_error(c, "assignment expects 2 arguments");
     return compile_assign(c, opts, form[1], form[2]);
 }
 
 /* Define a function type for Special Form helpers */
-typedef Slot (*SpecialFormHelper) (GstCompiler *c, FormOptions opts, GstValue *form);
+typedef Slot (*SpecialFormHelper) (GstCompiler *c, FormOptions opts, const GstValue *form);
 
 /* Dispatch to a special form */
-static SpecialFormHelper get_special(GstValue *form) {
+static SpecialFormHelper get_special(const GstValue *form) {
     const uint8_t *name;
     if (gst_tuple_length(form) < 1 || form[0].type != GST_STRING)
         return NULL;
@@ -944,7 +944,7 @@ static Slot compile_object(GstCompiler *c, FormOptions opts, GstObject *obj) {
 }
 
 /* Compile a form. Checks for special forms and macros. */
-static Slot compile_form(GstCompiler *c, FormOptions opts, GstValue *form) {
+static Slot compile_form(GstCompiler *c, FormOptions opts, const GstValue *form) {
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
     SpecialFormHelper helper;
@@ -1026,7 +1026,7 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
 
 /* Add a global variable */
 void gst_compiler_global(GstCompiler *c, const char *name, GstValue x) {
-    GstValue sym = gst_load_cstring(c->vm, name);
+    GstValue sym = gst_string_cv(c->vm, name);
     compiler_declare_symbol(c, c->tail, sym);
     gst_array_push(c->vm, c->env, x);                
 }
@@ -1049,7 +1049,7 @@ void gst_compiler_globals(GstCompiler *c, GstObject *env) {
 
 /* Use a module that was loaded into the vm */
 void gst_compiler_usemodule(GstCompiler *c, const char *modulename) {
-    GstValue mod = gst_object_get(c->vm->rootenv, gst_load_cstring(c->vm, modulename));
+    GstValue mod = gst_object_get(c->vm->rootenv, gst_string_cv(c->vm, modulename));
     if (mod.type == GST_OBJECT) {
         gst_compiler_globals(c, mod.data.object);
     }

@@ -68,14 +68,14 @@ void gst_thread_tuplepack(Gst *vm, GstThread *thread, uint32_t n) {
         gst_thread_pushnil(vm, thread, n - size + 1);
         stack = thread->data + thread->count;
         stack[n].type = GST_TUPLE;
-        stack[n].data.tuple = gst_tuple(vm, 0);
+        stack[n].data.tuple = gst_tuple_end(vm, gst_tuple_begin(vm, 0));
     } else {
         uint32_t i;
-        GstValue *tuple = gst_tuple(vm, size - n);
+        GstValue *tuple = gst_tuple_begin(vm, size - n);
         for (i = n; i < size; ++i)
             tuple[i - n] = stack[i];
         stack[n].type = GST_TUPLE;
-        stack[n].data.tuple = tuple;
+        stack[n].data.tuple = gst_tuple_end(vm, tuple);
         gst_frame_size(stack) = n + 1;
     }
 }

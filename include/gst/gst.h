@@ -16,7 +16,7 @@
 /* Struct utils */
 #define gst_struct_raw(t) ((uint32_t *)(t) - 2)
 #define gst_struct_length(t) (gst_struct_raw(t)[0])
-#define gst_struct_capacity(t) (gst_struct_length(t) * 3)
+#define gst_struct_capacity(t) (gst_struct_length(t) * 4)
 #define gst_struct_hash(t) (gst_struct_raw(t)[1])
 
 /* Memcpy for moving memory */
@@ -78,7 +78,7 @@
 #define gst_c_throw(vm, e) do { (vm)->ret = (e); return GST_RETURN_ERROR; } while (0)
 
 /* Throw c string error from a c function */
-#define gst_c_throwc(vm, e) gst_c_throw((vm), gst_load_cstring((vm), (e)))
+#define gst_c_throwc(vm, e) gst_c_throw((vm), gst_string_cv((vm), (e)))
 
 /* Assert from a c function */
 #define gst_c_assert(vm, cond, e) do {if (cond) gst_c_throw((vm), (e)); } while (0)
@@ -101,6 +101,7 @@ typedef enum GstType {
     GST_STRING,
     GST_ARRAY,
     GST_TUPLE,
+    GST_STRUCT,
     GST_THREAD,
     GST_BYTEBUFFER,
     GST_FUNCTION,
@@ -153,12 +154,12 @@ union GstValueUnion {
     GstBuffer *buffer;
     GstObject *object;
     GstThread *thread;
-    GstValue *tuple;
+    const GstValue *tuple;
     GstCFunction cfunction;
     GstFunction *function;
     GstFuncEnv *env;
     GstFuncDef *def;
-    GstValue *st;
+    const GstValue *st;
     const uint8_t *string;
     const char *cstring; /* Alias for ease of use from c */
     /* Indirectly used union members */
@@ -264,11 +265,14 @@ struct Gst {
     uint32_t memoryInterval;
     uint32_t nextCollection;
     uint32_t black : 1;
-    /* String cache */
-    const uint8_t **strings;
-    uint32_t stringsCapacity;
-    uint32_t stringsCount;
-    uint32_t stringsDeleted;
+    /* Immutable value cache */
+    GstValue *cache;
+    uint32_t cache_capacity;
+    uint32_t cache_count;
+    uint32_t cache_deleted;
+    /* Scratch memory */
+    char *scratch;
+    uint32_t scratch_len;
     /* Thread */
     GstThread *thread;
     /* A GC root */
@@ -346,10 +350,17 @@ void gst_array_push(Gst *vm, GstArray *array, GstValue x);
 GstValue gst_array_pop(GstArray *array);
 
 /****/
+/* Userdata functions */
+/****/
+
+void *gst_userdata(Gst *vm, uint32_t size, GstObject *meta);
+
+/****/
 /* Tuple functions */
 /****/
 
-GstValue *gst_tuple(Gst *vm, uint32_t length);
+GstValue *gst_tuple_begin(Gst *vm, uint32_t length);
+const GstValue *gst_tuple_end(Gst *vm, GstValue *tuple);
 
 /****/
 /* String functions */
@@ -357,16 +368,19 @@ GstValue *gst_tuple(Gst *vm, uint32_t length);
 
 uint8_t *gst_string_begin(Gst *vm, uint32_t len);
 const uint8_t *gst_string_end(Gst *vm, uint8_t *str);
-const uint8_t *gst_string_loadbuffer(Gst *vm, const uint8_t *buf, uint32_t len);
-const uint8_t *gst_cstring_to_string(Gst *vm, const char *cstring);
-GstValue gst_load_cstring(Gst *vm, const char *string);
+const uint8_t *gst_string_b(Gst *vm, const uint8_t *buf, uint32_t len);
+const uint8_t *gst_string_c(Gst *vm, const char *cstring);
+GstValue gst_string_cv(Gst *vm, const char *string);
 int gst_string_compare(const uint8_t *lhs, const uint8_t *rhs);
 
 /****/
-/* Userdata functions */
+/* Struct functions */
 /****/
 
-void *gst_userdata(Gst *vm, uint32_t size, GstObject *meta);
+GstValue *gst_struct_begin(Gst *vm, uint32_t count);
+void gst_struct_put(GstValue *st, GstValue key, GstValue value);
+const GstValue *gst_struct_end(Gst *vm, GstValue *st);
+GstValue gst_struct_get(const GstValue *st, GstValue key);
 
 /****/
 /* Object functions */
@@ -453,6 +467,8 @@ const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x);
 /****/
 
 #define GST_MEMTAG_STRING 4
+#define GST_MEMTAG_TUPLE 8
+#define GST_MEMTAG_STRUCT 16
 
 void gst_mark_value(Gst *vm, GstValue x);
 void gst_mark(Gst *vm, GstValueUnion x, GstType type);

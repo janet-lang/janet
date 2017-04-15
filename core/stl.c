@@ -197,7 +197,7 @@ int gst_stl_type(Gst *vm) {
         typestr = "funcdef";
         break;
     }
-    gst_c_return(vm, gst_load_cstring(vm, typestr));
+    gst_c_return(vm, gst_string_cv(vm, typestr));
 }
 
 /* Create array */
@@ -219,12 +219,12 @@ int gst_stl_tuple(Gst *vm) {
     uint32_t i;
     uint32_t count = gst_count_args(vm);
     GstValue ret;
-    GstValue *tuple= gst_tuple(vm, count);
+    GstValue *tuple= gst_tuple_begin(vm, count);
     for (i = 0; i < count; ++i) {
         tuple[i] = gst_arg(vm, i);
     }
     ret.type = GST_TUPLE;
-    ret.data.tuple = tuple;
+    ret.data.tuple = gst_tuple_end(vm, tuple);
     gst_c_return(vm, ret);
 }
 
@@ -237,12 +237,30 @@ int gst_stl_object(Gst *vm) {
     if (count % 2 != 0) {
         gst_c_throwc(vm, "expected even number of arguments");
     }
-    object = gst_object(vm, count);
+    object = gst_object(vm, count / 2);
     for (i = 0; i < count; i += 2) {
         gst_object_put(vm, object, gst_arg(vm, i), gst_arg(vm, i + 1));
     }
     ret.type = GST_OBJECT;
     ret.data.object = object;
+    gst_c_return(vm, ret);
+}
+
+/* Create struct */
+int gst_stl_struct(Gst *vm) {
+    uint32_t i;
+    uint32_t count = gst_count_args(vm);
+    GstValue ret;
+    GstValue *st;
+    if (count % 2 != 0) {
+        gst_c_throwc(vm, "expected even number of arguments");
+    }
+    st = gst_struct_begin(vm, count / 2);
+    for (i = 0; i < count; i += 2) {
+        gst_struct_put(st, gst_arg(vm, i), gst_arg(vm, i + 1));
+    }
+    ret.type = GST_STRUCT;
+    ret.data.st = gst_struct_end(vm, st);
     gst_c_return(vm, ret);
 }
 
@@ -308,7 +326,6 @@ int gst_stl_rawget(Gst *vm) {
 
 /* Associative rawset */
 int gst_stl_rawset(Gst *vm) {
-    GstValue ret;
     uint32_t count;
     const char *err;
     count = gst_count_args(vm);
@@ -319,8 +336,7 @@ int gst_stl_rawset(Gst *vm) {
     if (err != NULL) {
         gst_c_throwc(vm, err);
     } else {
-        ret.type = GST_NIL;
-        gst_c_return(vm, ret);
+        gst_c_return(vm, gst_arg(vm, 0));
     }
 }
 
@@ -408,6 +424,7 @@ static const GstModuleItem const std_module[] = {
     {"array", gst_stl_array},
     {"tuple", gst_stl_tuple},
     {"object", gst_stl_object},
+    {"struct", gst_stl_struct},
     {"buffer", gst_stl_buffer},
     {"strcat", gst_stl_strcat},
     {"print", gst_stl_print},

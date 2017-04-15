@@ -53,7 +53,7 @@ void gst_buffer_append(Gst *vm, GstBuffer *buffer, const uint8_t *string, uint32
 
 /* Convert the buffer to a string */
 const uint8_t *gst_buffer_to_string(Gst *vm, GstBuffer *buffer) {
-    return gst_string_loadbuffer(vm, buffer->data, buffer->count);
+    return gst_string_b(vm, buffer->data, buffer->count);
 }
 
 /****/
@@ -130,20 +130,6 @@ GstValue gst_array_peek(GstArray *array) {
         v.type = GST_NIL;
         return v;
     }
-}
-
-/****/
-/* Tuple functions */
-/****/
-
-/* Create a new empty tuple of the given size. Expected to be
- * mutated immediately */
-GstValue *gst_tuple(Gst *vm, uint32_t length) {
-    char *data = gst_alloc(vm, 2 * sizeof(uint32_t) + length * sizeof(GstValue));
-    GstValue *tuple = (GstValue *)(data + (2 * sizeof(uint32_t)));
-    gst_tuple_length(tuple) = length;
-    gst_tuple_hash(tuple) = 0;
-    return tuple;
 }
 
 /****/
@@ -290,3 +276,4 @@ void gst_object_put(Gst *vm, GstObject *o, GstValue key, GstValue value) {
         }
     }
 }
+

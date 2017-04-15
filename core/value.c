@@ -13,7 +13,7 @@ static const uint8_t *number_to_string(Gst *vm, GstNumber x) {
     uint8_t buf[GST_BUFSIZE];
     /* TODO - not depend on stdio */
     int count = snprintf((char *) buf, GST_BUFSIZE, "%.21g", x);
-    return gst_string_loadbuffer(vm, buf, (uint32_t) count);
+    return gst_string_b(vm, buf, (uint32_t) count);
 }
 
 static const char *HEX_CHARACTERS = "0123456789abcdef";
@@ -44,7 +44,7 @@ static const uint8_t *string_description(Gst *vm, const char *title, void *point
         *c++ = HEX(byte & 0xF);
     }
     *c++ = '>';
-    return gst_string_loadbuffer(vm, buf, c - buf);
+    return gst_string_b(vm, buf, c - buf);
 }
 
 #undef GST_BUFSIZE
@@ -52,50 +52,42 @@ static const uint8_t *string_description(Gst *vm, const char *title, void *point
 /* Returns a string pointer or NULL if could not allocate memory. */
 const uint8_t *gst_to_string(Gst *vm, GstValue x) {
     switch (x.type) {
-        case GST_NIL:
-            return gst_cstring_to_string(vm, "nil");
-        case GST_BOOLEAN:
-            if (x.data.boolean) {
-                return gst_cstring_to_string(vm, "true");
-            } else {
-                return gst_cstring_to_string(vm, "false");
-            }
-        case GST_NUMBER:
-            return number_to_string(vm, x.data.number);
-        case GST_ARRAY:
-            return string_description(vm, "array", x.data.pointer);
-        case GST_TUPLE:
-            return string_description(vm, "tuple", x.data.pointer);
-        case GST_OBJECT:
-            return string_description(vm, "object", x.data.pointer);
-        case GST_STRING:
-            return x.data.string;
-        case GST_BYTEBUFFER:
-            return string_description(vm, "buffer", x.data.pointer);
-        case GST_CFUNCTION:
-            return string_description(vm, "cfunction", x.data.pointer);
-        case GST_FUNCTION:
-            return string_description(vm, "function", x.data.pointer);
-        case GST_THREAD:
-            return string_description(vm, "thread", x.data.pointer);
-        case GST_USERDATA:
-            return string_description(vm, "userdata", x.data.pointer);
-        case GST_FUNCENV:
-            return string_description(vm, "funcenv", x.data.pointer);
-        case GST_FUNCDEF:
-            return string_description(vm, "funcdef", x.data.pointer);
+    case GST_NIL:
+        return gst_string_c(vm, "nil");
+    case GST_BOOLEAN:
+        if (x.data.boolean) {
+            return gst_string_c(vm, "true");
+        } else {
+            return gst_string_c(vm, "false");
+        }
+    case GST_NUMBER:
+        return number_to_string(vm, x.data.number);
+    case GST_ARRAY:
+        return string_description(vm, "array", x.data.pointer);
+    case GST_TUPLE:
+        return string_description(vm, "tuple", x.data.pointer);
+    case GST_STRUCT:
+        return string_description(vm, "struct", x.data.pointer);
+    case GST_OBJECT:
+        return string_description(vm, "object", x.data.pointer);
+    case GST_STRING:
+        return x.data.string;
+    case GST_BYTEBUFFER:
+        return string_description(vm, "buffer", x.data.pointer);
+    case GST_CFUNCTION:
+        return string_description(vm, "cfunction", x.data.pointer);
+    case GST_FUNCTION:
+        return string_description(vm, "function", x.data.pointer);
+    case GST_THREAD:
+        return string_description(vm, "thread", x.data.pointer);
+    case GST_USERDATA:
+        return string_description(vm, "userdata", x.data.pointer);
+    case GST_FUNCENV:
+        return string_description(vm, "funcenv", x.data.pointer);
+    case GST_FUNCDEF:
+        return string_description(vm, "funcdef", x.data.pointer);
     }
     return NULL;
-}
-
-/* Simple hash function to get tuple hash */
-static uint32_t tuple_calchash(GstValue *tuple) {
-    uint32_t i;
-    uint32_t count = gst_tuple_length(tuple);
-    uint32_t hash = 5387;
-    for (i = 0; i < count; ++i)
-        hash = (hash << 5) + hash + gst_hash(tuple[i]);
-    return hash;
 }
 
 /* Check if two values are equal. This is strict equality with no conversion. */
@@ -105,40 +97,19 @@ int gst_equals(GstValue x, GstValue y) {
         result = 0;
     } else {
         switch (x.type) {
-            case GST_NIL:
-                result = 1;
-                break;
-            case GST_BOOLEAN:
-                result = (x.data.boolean == y.data.boolean);
-                break;
-            case GST_NUMBER:
-                result = (x.data.number == y.data.number);
-                break;
-            case GST_TUPLE:
-                if (x.data.tuple == y.data.tuple) {
-                    result = 1;
-                    break;
-                }
-                if (gst_hash(x) != gst_hash(y) ||
-                        gst_tuple_length(x.data.string) != gst_tuple_length(y.data.string)) {
-                    result = 0;
-                    break;
-                }
-                result = 1;
-                {
-                    uint32_t i;
-                    for (i = 0; i < gst_tuple_length(x.data.tuple); ++i) {
-                        if (!gst_equals(x.data.tuple[i], y.data.tuple[i])) {
-                            result = 0;
-                            break;
-                        }
-                    }
-                }
-                break;
-            default:
-                /* compare pointers */
-                result = (x.data.pointer == y.data.pointer);
-                break;
+        case GST_NIL:
+            result = 1;
+            break;
+        case GST_BOOLEAN:
+            result = (x.data.boolean == y.data.boolean);
+            break;
+        case GST_NUMBER:
+            result = (x.data.number == y.data.number);
+            break;
+        default:
+            /* compare pointers */
+            result = (x.data.pointer == y.data.pointer);
+            break;
         }
     }
     return result;
@@ -148,43 +119,43 @@ int gst_equals(GstValue x, GstValue y) {
 uint32_t gst_hash(GstValue x) {
     uint32_t hash = 0;
     switch (x.type) {
-        case GST_NIL:
-            hash = 0;
-            break;
-        case GST_BOOLEAN:
-            hash = x.data.boolean;
-            break;
-        case GST_NUMBER:
-            {
-                union {
-                    uint32_t hash;
-                    GstNumber number;
-                } u;
-                u.number = x.data.number;
-                hash = u.hash;
-            }
-            break;
-            /* String hashes */
-        case GST_STRING:
-            hash = gst_string_hash(x.data.string);
-            break;
-        case GST_TUPLE:
-            if (gst_tuple_hash(x.data.tuple))
-                hash = gst_tuple_hash(x.data.tuple);
-            else
-                hash = gst_tuple_hash(x.data.tuple) = tuple_calchash(x.data.tuple);
-            break;
-        default:
-            /* Cast the pointer */
-            {
-                union {
-                    void * pointer;
-                    uint32_t hash;
-                } u;
-                u.pointer = x.data.pointer;
-                hash = u.hash;
-            }
-            break;
+    case GST_NIL:
+        hash = 0;
+        break;
+    case GST_BOOLEAN:
+        hash = x.data.boolean;
+        break;
+    case GST_NUMBER:
+        {
+            union {
+                uint32_t hash;
+                GstNumber number;
+            } u;
+            u.number = x.data.number;
+            hash = u.hash;
+        }
+        break;
+        /* String hashes */
+    case GST_STRING:
+        hash = gst_string_hash(x.data.string);
+        break;
+    case GST_TUPLE:
+        hash = gst_tuple_hash(x.data.tuple);
+        break;
+    case GST_STRUCT:
+        hash = gst_struct_hash(x.data.st);
+        break;
+    default:
+        /* Cast the pointer */
+        {
+            union {
+                void * pointer;
+                uint32_t hash;
+            } u;
+            u.pointer = x.data.pointer;
+            hash = u.hash;
+        }
+        break;
     }
     return hash;
 }
@@ -304,6 +275,9 @@ const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
         ret.type = GST_NUMBER;
         ret.data.number = ds.data.string[index];
         break;
+    case GST_STRUCT:
+        ret = gst_struct_get(ds.data.st, key);
+        break;
     case GST_OBJECT:
         ret = gst_object_get(ds.data.object, key);
         break;
@@ -346,7 +320,7 @@ int gst_length(Gst *vm, GstValue x, GstValue *len) {
     uint32_t length;
     switch (x.type) {
         default:
-            vm->ret = gst_load_cstring(vm, "cannot get length");
+            vm->ret = gst_string_cv(vm, "cannot get length");
             return GST_RETURN_ERROR;
         case GST_STRING:
             length = gst_string_length(x.data.string);
@@ -359,6 +333,9 @@ int gst_length(Gst *vm, GstValue x, GstValue *len) {
             break;
         case GST_TUPLE:
             length = gst_tuple_length(x.data.tuple);
+            break;
+        case GST_STRUCT:
+            length = gst_struct_length(x.data.st);
             break;
         case GST_OBJECT:
             length = x.data.object->count;
