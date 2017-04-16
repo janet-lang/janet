@@ -142,16 +142,12 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
         case GST_OBJECT:
             if (gc_header(x.object)->color != vm->black) {
                 uint32_t i;
-                GstBucket *bucket;
                 gc_header(x.object)->color = vm->black;
-                gc_header(x.object->buckets)->color = vm->black;
-                for (i = 0; i < x.object->capacity; ++i) {
-                    bucket = x.object->buckets[i];
-                    while (bucket) {
-                        gc_header(bucket)->color = vm->black;
-                        gst_mark_value(vm, bucket->key);
-                        gst_mark_value(vm, bucket->value);
-                        bucket = bucket->next;
+                gc_header(x.object->data)->color = vm->black;
+                for (i = 0; i < x.object->capacity; i += 2) {
+                    if (x.object->data[i].type != GST_NIL) {
+                        gst_mark_value(vm, x.object->data[i]);
+                        gst_mark_value(vm, x.object->data[i + 1]);
                     }
                 }
                 if (x.object->parent != NULL) {

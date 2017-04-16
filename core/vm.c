@@ -371,7 +371,7 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             {
                 uint32_t i = 3;
                 uint32_t kvs = pc[2];
-                GstObject *o = gst_object(vm, kvs + 2);
+                GstObject *o = gst_object(vm, 2 * kvs + 2);
                 kvs = kvs + 3;
                 while (i < kvs) {
                     v1 = stack[pc[i++]];

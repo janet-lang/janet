@@ -918,21 +918,18 @@ static Slot compile_object(GstCompiler *c, FormOptions opts, GstObject *obj) {
     GstScope *scope = c->tail;
     FormOptions subOpts = form_options_default();
     GstBuffer *buffer = c->buffer;
-    GstBucket *bucket;
     Slot ret;
     SlotTracker tracker;
     uint32_t i, cap;
     cap = obj->capacity;
     ret = compiler_get_target(c, opts);
     tracker_init(c, &tracker);
-    for (i = 0; i < cap; ++i) {
-        bucket = obj->buckets[i];
-        while (bucket != NULL) {
-            Slot slot = compile_value(c, subOpts, bucket->key);
+    for (i = 0; i < cap; i += 2) {
+        if (obj->data[i].type != GST_NIL) {
+            Slot slot = compile_value(c, subOpts, obj->data[i]);
             compiler_tracker_push(c, &tracker, compiler_realize_slot(c, slot));
-            slot = compile_value(c, subOpts, bucket->value);
+            slot = compile_value(c, subOpts, obj->data[i + 1]);
             compiler_tracker_push(c, &tracker, compiler_realize_slot(c, slot));
-            bucket = bucket->next;
         }
     }
     compiler_tracker_free(c, scope, &tracker);
@@ -1034,15 +1031,10 @@ void gst_compiler_global(GstCompiler *c, const char *name, GstValue x) {
 /* Add many global variables */
 void gst_compiler_globals(GstCompiler *c, GstObject *env) {
     uint32_t i;
-    GstBucket *bucket;
-    for (i = 0; i < env->capacity; ++i) {
-        bucket = env->buckets[i];
-        while (bucket) {
-            if (bucket->key.type == GST_STRING) {
-                compiler_declare_symbol(c, c->tail, bucket->key);
-                gst_array_push(c->vm, c->env, bucket->value);                
-            }
-            bucket = bucket->next;
+    for (i = 0; i < env->capacity; i += 2) {
+        if (env->data[i].type == GST_STRING) {
+            compiler_declare_symbol(c, c->tail, env->data[i]);
+            gst_array_push(c->vm, c->env, env->data[i + 1]);                
         }
     }
 }

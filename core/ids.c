@@ -205,32 +205,40 @@ void gst_cache_remove_struct(Gst *vm, char *structmem) {
 
 /* Begin creation of a struct */
 GstValue *gst_struct_begin(Gst *vm, uint32_t count) {
-    char *data = gst_alloc(vm, sizeof(uint32_t) * 2 + 4 * count * sizeof(GstValue));
+    char *data = gst_zalloc(vm, sizeof(uint32_t) * 2 + 4 * count * sizeof(GstValue));
     GstValue *st = (GstValue *) (data + 2 * sizeof(uint32_t));
     gst_struct_length(st) = count;
     return st; 
 }
 
-/* Put a kv pair into a struct that has not yet been fully constructed. */
-void gst_struct_put(GstValue *st, GstValue key, GstValue value) {
+/* Find an item in a struct */
+static const GstValue *gst_struct_find(const GstValue *st, GstValue key) {
     uint32_t cap = gst_struct_capacity(st);
     uint32_t index = (gst_hash(key) % (cap / 2)) * 2;
     uint32_t i;
     for (i = index; i < cap; i += 2) {
-        if (st[i + 1].type == GST_NIL) {
-            st[i] = key;
-            st[i + 1] = value;
-            return;
+        if (st[i].type == GST_NIL || gst_equals(st[i], key)) {
+            return st + i;
         }
     }
     for (i = 0; i < index; i += 2) {
-        if (st[i + 1].type == GST_NIL) {
-            st[i] = key;
-            st[i + 1] = value;
-            return;
+        if (st[i].type == GST_NIL || gst_equals(st[i], key)) {
+            return st + i;
         }
     }
-    /* Should not get here if struct was initialized with proper size */
+    return NULL;
+}
+
+/* Put a kv pair into a struct that has not yet been fully constructed.
+ * Behavior is undefined if too many keys are added, or if a key is added
+ * twice. Nil keys and values are ignored. */
+void gst_struct_put(GstValue *st, GstValue key, GstValue value) {
+    GstValue *bucket;
+    if (key.type == GST_NIL || value.type == GST_NIL) return;
+    bucket = (GstValue *) gst_struct_find(st, key);
+    if (!bucket) return;
+    bucket[0] = key;
+    bucket[1] = value;
 }
 
 /* Finish building a struct */
@@ -246,27 +254,35 @@ const GstValue *gst_struct_end(Gst *vm, GstValue *st) {
 
 /* Get an item from a struct */
 GstValue gst_struct_get(const GstValue *st, GstValue key) {
+    GstValue *bucket = gst_struct_find(st, key);
+    if (!bucket || bucket[0].type == GST_NIL) {
+        GstValue ret;
+        ret.type = GST_NIL;
+        return  ret;
+    } else {
+        return bucket[1];
+    }
+}
+
+/* Get the next key in a struct */
+GstValue gst_struct_next(const GstValue *st, GstValue key) {
     GstValue ret;
-    uint32_t cap = gst_struct_capacity(st);
-    uint32_t index = (gst_hash(key) % (cap / 2)) * 2;
-    uint32_t i;
-    for (i = index; i < cap; i += 2) {
-        if (st[i + 1].type == GST_NIL) {
-            goto notfound;
-        } else if (gst_equals(st[i], key)) {
-            return st[i + 1];
+    const GstValue *bucket;
+    if (key.type == GST_NIL)
+        bucket = st - 2;
+    else
+        bucket = gst_struct_find(st, key); 
+    if (bucket && bucket[0].type != GST_NIL) {
+        const GstValue *nextbucket, *end;
+        end = st + gst_struct_capacity(st);
+        for (nextbucket = bucket + 2; nextbucket < end; nextbucket += 2) {
+            if (nextbucket[0].type != GST_NIL)
+                return nextbucket[0];
         }
     }
-    for (i = 0; i < index; i += 2) {
-        if (st[i + 1].type == GST_NIL) {
-            goto notfound;
-        } else if (gst_equals(st[i], key)) {
-            return st[i + 1];
-        }
-    }
-    notfound:
     ret.type = GST_NIL;
     return ret;
+
 }
 
 /****/

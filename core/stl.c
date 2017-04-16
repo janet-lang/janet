@@ -237,7 +237,7 @@ int gst_stl_object(Gst *vm) {
     if (count % 2 != 0) {
         gst_c_throwc(vm, "expected even number of arguments");
     }
-    object = gst_object(vm, count / 2);
+    object = gst_object(vm, count * 2);
     for (i = 0; i < count; i += 2) {
         gst_object_put(vm, object, gst_arg(vm, i), gst_arg(vm, i + 1));
     }
@@ -255,7 +255,7 @@ int gst_stl_struct(Gst *vm) {
     if (count % 2 != 0) {
         gst_c_throwc(vm, "expected even number of arguments");
     }
-    st = gst_struct_begin(vm, count / 2);
+    st = gst_struct_begin(vm, count * 2);
     for (i = 0; i < count; i += 2) {
         gst_struct_put(st, gst_arg(vm, i), gst_arg(vm, i + 1));
     }
@@ -337,6 +337,19 @@ int gst_stl_rawset(Gst *vm) {
         gst_c_throwc(vm, err);
     } else {
         gst_c_return(vm, gst_arg(vm, 0));
+    }
+}
+
+/* Get next key in struct or object */
+int gst_stl_next(Gst *vm) {
+    GstValue ds = gst_arg(vm, 0);
+    GstValue key = gst_arg(vm, 1);
+    if (ds.type == GST_OBJECT) {
+       gst_c_return(vm, gst_object_next(ds.data.object, key));    
+    } else if (ds.type == GST_STRUCT) {
+       gst_c_return(vm, gst_struct_next(ds.data.st, key));    
+    } else {
+        gst_c_throwc(vm, "expected object or struct");
     }
 }
 

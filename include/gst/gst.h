@@ -134,9 +134,6 @@ typedef struct GstFuncDef GstFuncDef;
 typedef struct GstFuncEnv GstFuncEnv;
 typedef union GstValueUnion GstValueUnion;
 
-/* Definitely implementation details */
-typedef struct GstBucket GstBucket;
-
 /* API Types */
 typedef struct GstModuleItem GstModuleItem;
 
@@ -208,7 +205,8 @@ struct GstBuffer {
 struct GstObject {
     uint32_t count;
     uint32_t capacity;
-    GstBucket **buckets;
+    uint32_t deleted;
+    GstValue *data;
     GstObject *parent;
 };
 
@@ -238,13 +236,6 @@ struct GstFunction {
     GstFuncDef *def;
     GstFuncEnv *env;
     GstFunction *parent;
-};
-
-/* A hash table bucket in an object */
-struct GstBucket {
-    GstValue key;
-    GstValue value;
-    GstBucket *next;
 };
 
 /* Contains information about userdata */
@@ -381,6 +372,7 @@ GstValue *gst_struct_begin(Gst *vm, uint32_t count);
 void gst_struct_put(GstValue *st, GstValue key, GstValue value);
 const GstValue *gst_struct_end(Gst *vm, GstValue *st);
 GstValue gst_struct_get(const GstValue *st, GstValue key);
+GstValue gst_struct_next(const GstValue *st, GstValue key);
 
 /****/
 /* Object functions */
@@ -388,8 +380,9 @@ GstValue gst_struct_get(const GstValue *st, GstValue key);
 
 GstObject *gst_object(Gst *vm, uint32_t capacity);
 GstValue gst_object_get(GstObject *obj, GstValue key);
-GstValue gst_object_remove(Gst *vm, GstObject *obj, GstValue key);
+GstValue gst_object_remove(GstObject *obj, GstValue key);
 void gst_object_put(Gst *vm, GstObject *obj, GstValue key, GstValue value);
+GstValue gst_object_next(GstObject *o, GstValue key);
 
 /****/
 /* Threads */
