@@ -161,8 +161,8 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
                 GstUserdataHeader *userHeader = (GstUserdataHeader *)x.string - 1;
                 gc_header(userHeader)->color = vm->black;
                 GstValueUnion temp;
-                temp.object = userHeader->meta;
-                gst_mark(vm, temp, GST_OBJECT);
+                temp.st = userHeader->meta;
+                gst_mark(vm, temp, GST_STRUCT);
             }
 
         case GST_FUNCENV:

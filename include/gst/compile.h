@@ -21,7 +21,7 @@ struct GstCompiler {
 void gst_compiler(GstCompiler *c, Gst *vm);
 
 /* Add many globals */
-void gst_compiler_globals(GstCompiler *c, GstObject *env);
+void gst_compiler_globals(GstCompiler *c, GstValue env);
 
 /* Register a global for the compilation environment. */
 void gst_compiler_global(GstCompiler *c, const char *name, GstValue x);

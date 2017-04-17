@@ -137,7 +137,7 @@ GstValue gst_array_peek(GstArray *array) {
 /****/
 
 /* Create new userdata */
-void *gst_userdata(Gst *vm, uint32_t size, GstObject *meta) {
+void *gst_userdata(Gst *vm, uint32_t size, const GstValue *meta) {
     char *data = gst_alloc(vm, sizeof(GstUserdataHeader) + size);
     GstUserdataHeader *header = (GstUserdataHeader *)data;
     void *user = data + sizeof(GstUserdataHeader);

@@ -370,10 +370,10 @@ static const char *gst_deserialize_impl(
                 ret.type = GST_USERDATA;
                 err = gst_deserialize_impl(vm, data, end, &data, visited, &meta);
                 if (err != NULL) return err;
-                deser_assert(meta.type == GST_OBJECT, "userdata requires valid meta");
+                deser_assert(meta.type == GST_STRUCT, "userdata requires valid meta struct");
                 read_u32(length);
                 deser_datacheck(length);
-                ret.data.pointer = gst_userdata(vm, length, meta.data.object);
+                ret.data.pointer = gst_userdata(vm, length, meta.data.st);
                 gst_memcpy(ret.data.pointer, data, length);
                 gst_array_push(vm, visited, ret);
             }

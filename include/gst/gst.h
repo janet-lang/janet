@@ -241,7 +241,7 @@ struct GstFunction {
 /* Contains information about userdata */
 struct GstUserdataHeader {
     uint32_t size;
-    GstObject *meta;
+    const GstValue *meta;
 };
 
 /* VM return status from c function */
@@ -344,7 +344,7 @@ GstValue gst_array_pop(GstArray *array);
 /* Userdata functions */
 /****/
 
-void *gst_userdata(Gst *vm, uint32_t size, GstObject *meta);
+void *gst_userdata(Gst *vm, uint32_t size, const GstValue *meta);
 
 /****/
 /* Tuple functions */
@@ -489,7 +489,25 @@ uint16_t gst_count_args(Gst *vm);
 /* C Api */
 /***/
 
-GstObject *gst_c_module(Gst *vm, const GstModuleItem *mod);
-void gst_c_register(Gst *vm, const char *packagename, GstObject *mod);
+GstValue gst_c_module_object(Gst *vm, const GstModuleItem *mod);
+GstValue gst_c_module_struct(Gst *vm, const GstModuleItem *mod);
+void gst_c_register(Gst *vm, const char *packagename, GstValue mod);
+
+/* Wrap data in GstValue */
+GstValue gst_wrap_nil();
+GstValue gst_wrap_number(GstNumber x);
+GstValue gst_wrap_boolean(int x);
+GstValue gst_wrap_string(const uint8_t *x);
+GstValue gst_wrap_array(GstArray *x);
+GstValue gst_wrap_tuple(const GstValue *x);
+GstValue gst_wrap_struct(const GstValue *x);
+GstValue gst_wrap_thread(GstThread *x);
+GstValue gst_wrap_buffer(GstBuffer *x);
+GstValue gst_wrap_function(GstFunction *x);
+GstValue gst_wrap_cfunction(GstCFunction x);
+GstValue gst_wrap_object(GstObject *x);
+GstValue gst_wrap_userdata(void *x);
+GstValue gst_wrap_funcenv(GstFuncEnv *x);
+GstValue gst_wrap_funcdef(GstFuncDef *x);
 
 #endif // GST_H_defined

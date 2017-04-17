@@ -1027,12 +1027,23 @@ void gst_compiler_global(GstCompiler *c, const char *name, GstValue x) {
 }
 
 /* Add many global variables */
-void gst_compiler_globals(GstCompiler *c, GstObject *env) {
+void gst_compiler_globals(GstCompiler *c, GstValue env) {
     uint32_t i;
-    for (i = 0; i < env->capacity; i += 2) {
-        if (env->data[i].type == GST_STRING) {
-            compiler_declare_symbol(c, c->tail, env->data[i]);
-            gst_array_push(c->vm, c->env, env->data[i + 1]);                
+    if (env.type == GST_OBJECT) {
+        GstObject *o = env.data.object;
+        for (i = 0; i < o->capacity; i += 2) {
+            if (o->data[i].type == GST_STRING) {
+                compiler_declare_symbol(c, c->tail, o->data[i]);
+                gst_array_push(c->vm, c->env, o->data[i + 1]);                
+            }
+        }
+    } else if (env.type == GST_STRUCT) {
+        const GstValue *st = env.data.st;
+        for (i = 0; i < gst_struct_capacity(st); i += 2) {
+            if (st[i].type == GST_STRING) {
+                compiler_declare_symbol(c, c->tail, st[i]);
+                gst_array_push(c->vm, c->env, st[i + 1]);                
+            }
         }
     }
 }
@@ -1040,9 +1051,7 @@ void gst_compiler_globals(GstCompiler *c, GstObject *env) {
 /* Use a module that was loaded into the vm */
 void gst_compiler_usemodule(GstCompiler *c, const char *modulename) {
     GstValue mod = gst_object_get(c->vm->rootenv, gst_string_cv(c->vm, modulename));
-    if (mod.type == GST_OBJECT) {
-        gst_compiler_globals(c, mod.data.object);
-    }
+    gst_compiler_globals(c, mod);
 }
 
 /* Compile interface. Returns a function that evaluates the

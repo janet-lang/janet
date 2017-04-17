@@ -204,86 +204,64 @@ int gst_stl_type(Gst *vm) {
 int gst_stl_array(Gst *vm) {
     uint32_t i;
     uint32_t count = gst_count_args(vm);
-    GstValue ret;
     GstArray *array = gst_array(vm, count);
-    for (i = 0; i < count; ++i) {
+    for (i = 0; i < count; ++i)
         array->data[i] = gst_arg(vm, i);
-    }
-    ret.type = GST_ARRAY;
-    ret.data.array = array;
-    gst_c_return(vm, ret);
+    gst_c_return(vm, gst_wrap_array(array));
 }
 
 /* Create tuple */
 int gst_stl_tuple(Gst *vm) {
     uint32_t i;
     uint32_t count = gst_count_args(vm);
-    GstValue ret;
     GstValue *tuple= gst_tuple_begin(vm, count);
-    for (i = 0; i < count; ++i) {
+    for (i = 0; i < count; ++i)
         tuple[i] = gst_arg(vm, i);
-    }
-    ret.type = GST_TUPLE;
-    ret.data.tuple = gst_tuple_end(vm, tuple);
-    gst_c_return(vm, ret);
+    gst_c_return(vm, gst_wrap_tuple(gst_tuple_end(vm, tuple)));
 }
 
 /* Create object */
 int gst_stl_object(Gst *vm) {
     uint32_t i;
     uint32_t count = gst_count_args(vm);
-    GstValue ret;
     GstObject *object;
-    if (count % 2 != 0) {
+    if (count % 2 != 0)
         gst_c_throwc(vm, "expected even number of arguments");
-    }
     object = gst_object(vm, count * 2);
-    for (i = 0; i < count; i += 2) {
+    for (i = 0; i < count; i += 2)
         gst_object_put(vm, object, gst_arg(vm, i), gst_arg(vm, i + 1));
-    }
-    ret.type = GST_OBJECT;
-    ret.data.object = object;
-    gst_c_return(vm, ret);
+    gst_c_return(vm, gst_wrap_object(object));
 }
 
 /* Create struct */
 int gst_stl_struct(Gst *vm) {
     uint32_t i;
     uint32_t count = gst_count_args(vm);
-    GstValue ret;
     GstValue *st;
-    if (count % 2 != 0) {
+    if (count % 2 != 0)
         gst_c_throwc(vm, "expected even number of arguments");
-    }
     st = gst_struct_begin(vm, count * 2);
-    for (i = 0; i < count; i += 2) {
+    for (i = 0; i < count; i += 2)
         gst_struct_put(st, gst_arg(vm, i), gst_arg(vm, i + 1));
-    }
-    ret.type = GST_STRUCT;
-    ret.data.st = gst_struct_end(vm, st);
-    gst_c_return(vm, ret);
+    gst_c_return(vm, gst_wrap_struct(gst_struct_end(vm, st)));
 }
 
 /* Create a buffer */
 int gst_stl_buffer(Gst *vm) {
     uint32_t i, count;
-    GstValue buf;
-    buf.type = GST_BYTEBUFFER;
-    buf.data.buffer = gst_buffer(vm, 10);
+    GstBuffer *buf = gst_buffer(vm, 10);
     count = gst_count_args(vm);
     for (i = 0; i < count; ++i) {
         const uint8_t *string = gst_to_string(vm, gst_arg(vm, i));
-        gst_buffer_append(vm, buf.data.buffer, string, gst_string_length(string));
+        gst_buffer_append(vm, buf, string, gst_string_length(string));
     }
-    gst_c_return(vm, buf);
+    gst_c_return(vm, gst_wrap_buffer(buf));
 }
 
 /* Concatenate string */
 int gst_stl_strcat(Gst *vm) {
-    GstValue ret;
     uint32_t j, count, length, index;
     uint8_t *str;
-    const uint8_t *cstr;
     count = gst_count_args(vm);
     length = 0;
     index = 0;
@@ -302,10 +280,7 @@ int gst_stl_strcat(Gst *vm) {
         gst_memcpy(str + index, arg.data.string, slen);
         index += slen;
     }
-    cstr = gst_string_end(vm, str);
-    ret.type = GST_STRING;
-    ret.data.string = cstr;
-    gst_c_return(vm, ret);
+    gst_c_return(vm, gst_wrap_string(gst_string_end(vm, str)));
 }
 
 /* Associative rawget */
@@ -372,11 +347,8 @@ int gst_stl_print(Gst *vm) {
 
 /* To string */
 int gst_stl_tostring(Gst *vm) {
-    GstValue ret;
     const uint8_t *string = gst_to_string(vm, gst_arg(vm, 0));
-    ret.type = GST_STRING;
-    ret.data.string = string;
-    gst_c_return(vm, ret);
+    gst_c_return(vm, gst_wrap_string(string));
 }
 
 /* Exit */
@@ -454,6 +426,5 @@ static const GstModuleItem const std_module[] = {
 
 /* Load all libraries */
 void gst_stl_load(Gst *vm) {
-    GstObject *module = gst_c_module(vm, std_module);
-    gst_c_register(vm, "std", module);
+    gst_c_register(vm, "std", gst_c_module_struct(vm, std_module));
 }
