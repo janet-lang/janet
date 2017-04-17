@@ -20,7 +20,8 @@ struct GstParser {
     enum {
 		GST_PARSER_PENDING = 0,
 		GST_PARSER_FULL,
-		GST_PARSER_ERROR
+		GST_PARSER_ERROR,
+        GST_PARSER_ROOT
     } status;
 };
 
@@ -36,5 +37,13 @@ int gst_parse_cstring(GstParser *p, const char *string);
 
 /* Parse a gst string. Returns number of bytes read */
 int gst_parse_string(GstParser *p, const uint8_t *string);
+
+/* Check if a parser has a value that needs to be handled. If
+ * so, the parser will not parse any more input until that value
+ * is consumed. */
+int gst_parse_hasvalue(GstParser *p);
+
+/* Gets a value from the parser */
+GstValue gst_parse_consume(GstParser *p);
 
 #endif /* end of include guard: PARSE_H_ONYWMADW */

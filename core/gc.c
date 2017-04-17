@@ -145,10 +145,8 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
                 gc_header(x.object)->color = vm->black;
                 gc_header(x.object->data)->color = vm->black;
                 for (i = 0; i < x.object->capacity; i += 2) {
-                    if (x.object->data[i].type != GST_NIL) {
-                        gst_mark_value(vm, x.object->data[i]);
-                        gst_mark_value(vm, x.object->data[i + 1]);
-                    }
+                    gst_mark_value(vm, x.object->data[i]);
+                    gst_mark_value(vm, x.object->data[i + 1]);
                 }
                 if (x.object->parent != NULL) {
                     GstValueUnion temp;
@@ -254,6 +252,9 @@ void gst_collect(Gst *vm) {
     renv.object = vm->rootenv;
     gst_mark(vm, renv, GST_OBJECT);
     gst_mark_value(vm, vm->ret);
+    if (vm->scratch) {
+        gc_header(vm->scratch)->color = vm->black;
+    }
     gst_sweep(vm);
     vm->nextCollection = 0;
 }

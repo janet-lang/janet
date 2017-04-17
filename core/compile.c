@@ -555,9 +555,6 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, const GstValue *f
     if (opts.resultUnused) return nil_slot();
     ret = compiler_get_target(c, opts);
     subGstScope = compiler_push_scope(c, 0);
-    /* Check for function documentation - for now just ignore. */
-    if (form[current].type == GST_STRING)
-        ++current;
     /* Define the function parameters */
     if (form[current].type != GST_ARRAY)
         c_error(c, "expected function arguments array");
@@ -672,6 +669,7 @@ static Slot compile_try(GstCompiler *c, FormOptions opts, const GstValue *form) 
     Slot body;
     uint16_t errorIndex;
     uint32_t countAtTry, countTemp, countAtJump;
+    countAtJump = 0;
     /* Check argument count */
     if (gst_tuple_length(form) < 3 || gst_tuple_length(form) > 4)
         c_error(c, "try takes either 2 or 3 arguments");

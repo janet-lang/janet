@@ -88,7 +88,7 @@ static const char *gst_deserialize_impl(
 #define deser_assert(c, e) do{if(!(c))deser_error(e);}while(0)
 
     /* Assert enough buffer */
-#define deser_datacheck(len) do{if (end - data < (len)) deser_error(UEB);}while(0)
+#define deser_datacheck(len) do{if (end < (data + len)) deser_error(UEB);}while(0)
 
     /* Check for enough space to read uint32_t */
 #define read_u32(out) do{deser_datacheck(4); (out)=bytes2u32(data); data += 4; }while(0)
@@ -483,6 +483,19 @@ const char *gst_serialize_impl(
            write_u32(count);
            for (i = 0; i < count; ++i) {
                write_byte(x.data.string[i]);
+           }
+           break;
+        case GST_STRUCT:
+           write_byte(206);
+           count = gst_struct_length(x.data.st);
+           write_u32(count);
+           for (i = 0; i < gst_struct_capacity(x.data.st); i += 2) {
+               if (x.data.st[i].type != GST_NIL) {
+                   err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.st[i]); 
+                   if (err != NULL) return err;
+                   err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.st[i + 1]); 
+                   if (err != NULL) return err;
+               }
            }
            break;
         case GST_BYTEBUFFER:

@@ -254,7 +254,7 @@ const GstValue *gst_struct_end(Gst *vm, GstValue *st) {
 
 /* Get an item from a struct */
 GstValue gst_struct_get(const GstValue *st, GstValue key) {
-    GstValue *bucket = gst_struct_find(st, key);
+    const GstValue *bucket = gst_struct_find(st, key);
     if (!bucket || bucket[0].type == GST_NIL) {
         GstValue ret;
         ret.type = GST_NIL;

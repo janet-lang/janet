@@ -19,28 +19,16 @@ static const char GST_EXPECTED_FUNCTION[] = "expected function";
 static const char GST_EXPECTED_NUMBER_ROP[] = "expected right operand to be number";
 static const char GST_EXPECTED_NUMBER_LOP[] = "expected left operand to be number";
 
-/* Contextual macro to state in function with VM */
-#define GST_STATE_SYNC() do { \
-    thread = *vm->thread; \
-    stack = thread.data + thread.count; \
-} while (0)
-
-/* Write local state back to VM */
-#define GST_STATE_WRITE() do { \
-    *vm->thread = thread; \
-} while (0)
-
 /* Start running the VM from where it left off. Continue running
  * until the stack size is smaller than minStackSize. */
 static int gst_continue_size(Gst *vm, uint32_t stackBase) {
     /* VM state */
-    GstThread thread;
     GstValue *stack;
     GstValue temp, v1, v2;
     uint16_t *pc;
 
     /* Intialize local state */
-    GST_STATE_SYNC();
+    stack = vm->thread->data + vm->thread->count;
     pc = gst_frame_pc(stack);
 
     /* Main interpreter loop */
@@ -158,9 +146,8 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                     gst_error(vm, GST_EXPECTED_FUNCTION);
                 if (gst_frame_env(stack) == NULL) {
                     gst_frame_env(stack) = gst_alloc(vm, sizeof(GstFuncEnv));
-                    *vm->thread = thread;
                     gst_frame_env(stack)->thread = vm->thread;
-                    gst_frame_env(stack)->stackOffset = thread.count;
+                    gst_frame_env(stack)->stackOffset = vm->thread->count;
                     gst_frame_env(stack)->values = NULL;
                 }
                 if (pc[2] > v1.data.function->def->literalsLen)
@@ -179,10 +166,6 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             }
             break;
 
-        case GST_OP_ERR: /* Throw error */
-            vm->ret = stack[pc[1]];
-            goto vm_error;
-
         case GST_OP_TRY: /* Begin try block */
             gst_frame_errloc(stack) = pc[1];
             gst_frame_errjmp(stack) = pc + *(uint32_t *)(pc + 2);
@@ -195,10 +178,9 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             continue;
 
         case GST_OP_RTN: /* Return nil */
-            stack = gst_thread_popframe(vm, &thread);
-            if (thread.count < stackBase) {
+            stack = gst_thread_popframe(vm, vm->thread);
+            if (vm->thread->count < stackBase) {
                 vm->ret.type = GST_NIL;
-                GST_STATE_WRITE();
                 return GST_RETURN_OK;
             }
             pc = gst_frame_pc(stack);
@@ -207,10 +189,9 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
 
         case GST_OP_RET: /* Return */
             temp = stack[pc[1]];
-            stack = gst_thread_popframe(vm, &thread);
-            if (thread.count < stackBase) {
+            stack = gst_thread_popframe(vm, vm->thread);
+            if (vm->thread->count < stackBase) {
                 vm->ret = temp;
-                GST_STATE_WRITE();
                 return GST_RETURN_OK;
             }
             pc = gst_frame_pc(stack);
@@ -230,17 +211,17 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                 /* Push new frame */
                 if (temp.type != GST_FUNCTION && temp.type != GST_CFUNCTION)
                     gst_error(vm, GST_EXPECTED_FUNCTION);
-                stack = gst_thread_beginframe(vm, &thread, temp, arity);
+                stack = gst_thread_beginframe(vm, vm->thread, temp, arity);
                 oldStack = stack - GST_FRAME_SIZE - gst_frame_prevsize(stack);
                 /* Write arguments */
                 size = gst_frame_size(stack);
                 for (i = 0; i < arity; ++i)
                     stack[i + size - arity] = oldStack[pc[offset + i]];
                 /* Finish new frame */
-                gst_thread_endframe(vm, &thread);
+                gst_thread_endframe(vm, vm->thread);
                 /* Check tail call - if so, replace frame. */
                 if (isTCall) {
-                    stack = gst_thread_tail(vm, &thread);
+                    stack = gst_thread_tail(vm, vm->thread);
                 } else {
                     gst_frame_ret(oldStack) = ret;
                 }
@@ -254,14 +235,11 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
                 } else {
                     int status;
                     gst_frame_pc(stack) = pc;
-                    GST_STATE_WRITE();
                     vm->ret.type = GST_NIL;
                     status = temp.data.cfunction(vm);
-                    GST_STATE_SYNC();
-                    stack = gst_thread_popframe(vm, &thread);
+                    stack = gst_thread_popframe(vm, vm->thread);
                     if (status == GST_RETURN_OK) {
-                        if (thread.count < stackBase) {
-                            GST_STATE_WRITE();
+                        if (vm->thread->count < stackBase) {
                             return status;
                         } else { 
                             stack[gst_frame_ret(stack)] = vm->ret;
@@ -280,6 +258,10 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
         /* Faster implementations of standard functions
          * These opcodes are nto strictlyre required and can
          * be reimplemented with stanard library functions */
+
+        case GST_OP_ERR: /* Throw error */
+            vm->ret = stack[pc[1]];
+            goto vm_error;
 
         #define OP_BINARY_MATH(op) \
             v1 = stack[pc[2]]; \
@@ -401,15 +383,13 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
 
         case GST_OP_YLD: /* Yield from function */
             temp = stack[pc[1]];
-            if (thread.parent == NULL) {
+            if (vm->thread->parent == NULL) {
                 vm->ret = temp; 
                 return GST_RETURN_OK;
             }
             gst_frame_pc(stack) = pc + 2;
-            GST_STATE_WRITE();
-            vm->thread = thread.parent;
-            thread = *vm->thread;
-            stack = thread.data + thread.count;
+            vm->thread = vm->thread->parent;
+            stack = vm->thread->data + vm->thread->count;
             pc = gst_frame_pc(stack);
             break;
 
@@ -418,8 +398,8 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
             if (stack == NULL)
                 return GST_RETURN_ERROR;
             while (gst_frame_errjmp(stack) == NULL) {
-                stack = gst_thread_popframe(vm, &thread);
-                if (thread.count < stackBase)
+                stack = gst_thread_popframe(vm, vm->thread);
+                if (vm->thread->count < stackBase)
                     return GST_RETURN_ERROR;
             }
             pc = gst_frame_errjmp(stack);
@@ -428,9 +408,9 @@ static int gst_continue_size(Gst *vm, uint32_t stackBase) {
 
         } /* end switch */
 
-        /* TODO: Move collection only to places that allocate memory */
-        /* This, however, is good for testing to ensure no memory leaks */
-        *vm->thread = thread;
+        /* Check for collection every cycle. If the instruction definitely does
+         * not allocate memory, it can use continue instead of break to
+         * skip this check */
         gst_maybe_collect(vm);
 
     } /* end for */

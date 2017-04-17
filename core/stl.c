@@ -363,8 +363,10 @@ int gst_stl_print(Gst *vm) {
         uint32_t len = gst_string_length(string);
         for (i = 0; i < len; ++i)
             fputc(string[i], stdout);
-        fputc('\n', stdout);
+        if (j < count - 1)
+            fputc(' ', stdout);
     }
+    fputc('\n', stdout);
     return GST_RETURN_OK;
 }
 

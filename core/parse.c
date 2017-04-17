@@ -341,6 +341,8 @@ static int string_state(GstParser *p, uint8_t c) {
 
 /* Root state of the parser */
 static int root_state(GstParser *p, uint8_t c) {
+    if (is_whitespace(c)) return 1;
+    p->status = GST_PARSER_PENDING;
     if (c == ']' || c == ')' || c == '}') {
         p_error(p, UNEXPECTED_CLOSING_DELIM);
         return 1;
@@ -357,7 +359,6 @@ static int root_state(GstParser *p, uint8_t c) {
         p->quoteCount++;
         return 1;
     }
-    if (is_whitespace(c)) return 1;
     if (is_symbol_char(c)) {
         parser_push(p, PTYPE_TOKEN, c);
         return 0;
@@ -421,7 +422,7 @@ static void dispatch_char(GstParser *p, uint8_t c) {
         }
     }
     /* Dispatch character to state */
-    while (!done && p->status == GST_PARSER_PENDING) {
+    while (!done && (p->status == GST_PARSER_PENDING || p->status == GST_PARSER_ROOT)) {
         GstParseState *top = parser_peek(p);
         switch (top->type) {
             case PTYPE_ROOT:
@@ -447,8 +448,8 @@ static void dispatch_char(GstParser *p, uint8_t c) {
  */
 int gst_parse_cstring(GstParser *p, const char *string) {
     int bytesRead = 0;
-    p->status = GST_PARSER_PENDING;
-    while ((p->status == GST_PARSER_PENDING) && (string[bytesRead] != '\0')) {
+    while ((p->status == GST_PARSER_PENDING || p->status == GST_PARSER_ROOT)
+            && (string[bytesRead] != '\0')) {
         dispatch_char(p, string[bytesRead++]);
     }
     return bytesRead;
@@ -457,12 +458,24 @@ int gst_parse_cstring(GstParser *p, const char *string) {
 /* Parse a gst string */
 int gst_parse_string(GstParser *p, const uint8_t *string) {
     uint32_t i;
-    p->status = GST_PARSER_PENDING;
     for (i = 0; i < gst_string_length(string); ++i) {
-        if (p->status != GST_PARSER_PENDING) break;
+        if (p->status != GST_PARSER_PENDING && p->status != GST_PARSER_ROOT) break;
         dispatch_char(p, string[i]);
     }
     return i;
+}
+
+/* Check if a parser has a value that needs to be handled. If
+ * so, the parser will not parse any more input until that value
+ * is consumed. */
+int gst_parse_hasvalue(GstParser *p) {
+    return p->status == GST_PARSER_FULL;
+}
+
+/* Gets a value from the parser */
+GstValue gst_parse_consume(GstParser *p) {
+    p->status = GST_PARSER_ROOT;
+    return p->value;
 }
 
 /* Parser initialization (memory allocation) */
@@ -475,7 +488,7 @@ void gst_parser(GstParser *p, Gst *vm) {
     p->index = 0;
     p->quoteCount = 0;
     p->error = NULL;
-    p->status = GST_PARSER_PENDING;
+    p->status = GST_PARSER_ROOT;
     p->value.type = GST_NIL;
     p->flags = GST_PARSER_FLAG_EXPECTING_COMMENT;
     parser_push(p, PTYPE_ROOT, ' ');

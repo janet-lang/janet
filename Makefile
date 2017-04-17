@@ -3,7 +3,7 @@
 ######################################################
 ##### Set global variables for all gst Makefiles #####
 ######################################################
-CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -g -I./include
+CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -I./include -g
 PREFIX=/usr/local
 GST_TARGET=client/gst
 GST_CORELIB=core/libgst.a
