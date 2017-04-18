@@ -56,7 +56,7 @@ GST_WRAP_DEFINE(funcdef, GstFuncDef *, GST_FUNCDEF, def)
 
 #undef GST_WRAP_DEFINE
 
-GstValue gst_c_module_object(Gst *vm, const GstModuleItem *mod) {
+GstValue gst_cmodule_object(Gst *vm, const GstModuleItem *mod) {
     GstObject *module = gst_object(vm, 10);
     while (mod->name != NULL) {
         GstValue key = gst_string_cv(vm, mod->name);
@@ -66,7 +66,7 @@ GstValue gst_c_module_object(Gst *vm, const GstModuleItem *mod) {
     return gst_wrap_object(module);
 }
 
-GstValue gst_c_module_struct(Gst *vm, const GstModuleItem *mod) {
+GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
     uint32_t count = 0;
     const GstModuleItem *m = mod;
     GstValue *st;
@@ -86,8 +86,26 @@ GstValue gst_c_module_struct(Gst *vm, const GstModuleItem *mod) {
     
 }
 
-void gst_c_register(Gst *vm, const char *packagename, GstValue mod) {
-    if (vm->rootenv == NULL)
-        vm->rootenv = gst_object(vm, 10);
-    gst_object_put(vm, vm->rootenv, gst_string_cv(vm, packagename), mod);
+void gst_module_put(Gst *vm, const char *packagename, GstValue mod) {
+    if (vm->modules == NULL)
+        vm->modules = gst_object(vm, 10);
+    gst_object_put(vm, vm->modules, gst_string_cv(vm, packagename), mod);
+}
+
+GstValue gst_module_get(Gst *vm, const char *packagename) {
+    if (!vm->modules)
+        return gst_wrap_nil();
+    return gst_object_get(vm->modules, gst_string_cv(vm, packagename));
+}
+
+void gst_register_put(Gst *vm, const char *name, GstValue c) {
+    if (vm->registry == NULL)
+        vm->registry = gst_object(vm, 10);
+    gst_object_put(vm, vm->registry, gst_string_cv(vm, name), c);
+}
+
+GstValue gst_register_get(Gst *vm, const char *name) {
+    if (!vm->registry)
+        return gst_wrap_nil();
+    return gst_object_get(vm->registry, gst_string_cv(vm, name));
 }

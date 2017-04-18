@@ -414,18 +414,19 @@ int gst_stl_serialize(Gst *vm) {
 /* TODO - add userdata to allow for manipulation of FILE pointers. */
 
 int gst_stl_open(Gst *vm) {
-    GstValue ret;
     const uint8_t *fname = gst_to_string(vm, gst_arg(vm, 0));
     const uint8_t *fmode = gst_to_string(vm, gst_arg(vm, 1));
     FILE *f;
+    FILE **fp;
+    GstValue *st;
     if (gst_count_args(vm) < 2)
         gst_c_throwc(vm, "expected filename and filemode");
     f = fopen((const char *)fname, (const char *)fmode);
     if (!f)
         gst_c_throwc(vm, "could not open file");
-    ret.type = GST_USERDATA;
-    ret.data.pointer = f;
-    gst_c_return(vm, ret);
+    st = gst_struct_begin(vm, 0);
+    fp = gst_userdata(vm, sizeof(FILE *), gst_struct_end(vm, st));
+    gst_c_return(vm, gst_wrap_userdata(fp));
 }
 
 /****/
@@ -464,5 +465,5 @@ static const GstModuleItem const std_module[] = {
 
 /* Load all libraries */
 void gst_stl_load(Gst *vm) {
-    gst_c_register(vm, "std", gst_c_module_struct(vm, std_module));
+    gst_module_put(vm, "std", gst_cmodule_struct(vm, std_module));
 }

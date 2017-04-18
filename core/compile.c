@@ -1072,7 +1072,7 @@ void gst_compiler_globals(GstCompiler *c, GstValue env) {
 
 /* Use a module that was loaded into the vm */
 void gst_compiler_usemodule(GstCompiler *c, const char *modulename) {
-    GstValue mod = gst_object_get(c->vm->rootenv, gst_string_cv(c->vm, modulename));
+    GstValue mod = gst_object_get(c->vm->modules, gst_string_cv(c->vm, modulename));
     gst_compiler_globals(c, mod);
 }
 

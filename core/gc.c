@@ -264,19 +264,14 @@ void gst_mem_tag(void *mem, uint32_t tags) {
 
 /* Run garbage collection */
 void gst_collect(Gst *vm) {
-    GstValueUnion renv;
     /* Thread can be null */
-    if (vm->thread) {
-        GstValueUnion t;
-        t.thread = vm->thread;
-        gst_mark(vm, t, GST_THREAD);
-    }
-    renv.object = vm->rootenv;
-    gst_mark(vm, renv, GST_OBJECT);
+    if (vm->thread)
+        gst_mark_value(vm, gst_wrap_thread(vm->thread));
+    gst_mark_value(vm, gst_wrap_object(vm->modules));
+    gst_mark_value(vm, gst_wrap_object(vm->registry));
     gst_mark_value(vm, vm->ret);
-    if (vm->scratch) {
+    if (vm->scratch)
         gc_header(vm->scratch)->color = vm->black;
-    }
     gst_sweep(vm);
     vm->nextCollection = 0;
 }

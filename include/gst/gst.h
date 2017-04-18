@@ -283,13 +283,13 @@ struct Gst {
     uint32_t cache_capacity;
     uint32_t cache_count;
     uint32_t cache_deleted;
-    /* Scratch memory */
+    /* Scratch memory (should be marked in gc) */
     char *scratch;
     uint32_t scratch_len;
-    /* Thread */
+    /* GC roots */
     GstThread *thread;
-    /* A GC root */
-    GstObject *rootenv;
+    GstObject *modules;
+    GstObject *registry;
     /* Return state */
     const char *crash;
     GstValue ret; /* Returned value from gst_start. Also holds errors. */
@@ -511,9 +511,12 @@ uint16_t gst_count_args(Gst *vm);
 /* C Api */
 /***/
 
-GstValue gst_c_module_object(Gst *vm, const GstModuleItem *mod);
-GstValue gst_c_module_struct(Gst *vm, const GstModuleItem *mod);
-void gst_c_register(Gst *vm, const char *packagename, GstValue mod);
+GstValue gst_cmodule_object(Gst *vm, const GstModuleItem *mod);
+GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod);
+void gst_module_put(Gst *vm, const char *packagename, GstValue mod);
+GstValue gst_module_get(Gst *vm, const char *packagename);
+void gst_register_put(Gst *vm, const char *packagename, GstValue mod);
+GstValue gst_register_get(Gst *vm, const char *name);
 
 /* Wrap data in GstValue */
 GstValue gst_wrap_nil();

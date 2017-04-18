@@ -498,16 +498,17 @@ void gst_init(Gst *vm) {
     /* Garbage collection */
     vm->blocks = NULL;
     vm->nextCollection = 0;
-    /* Setting memoryInterval to zero currently forces
+    /* Setting memoryInterval to zero forces
      * a collection pretty much every cycle, which is
-     * obviously horrible for performance. It helps ensure
+     * obviously horrible for performance, but helps ensure
      * there are no memory bugs during dev */
     vm->memoryInterval = 2000;
     vm->black = 0;
     /* Add thread */
     vm->thread = NULL;
     /* Set up global env */
-    vm->rootenv = NULL;
+    vm->modules = NULL;
+    vm->registry = NULL;
     /* Set up scratch memory */
     vm->scratch = NULL;
     vm->scratch_len = 0;
@@ -522,7 +523,8 @@ void gst_init(Gst *vm) {
 void gst_deinit(Gst *vm) {
     gst_clear_memory(vm);
     vm->thread = NULL;
-    vm->rootenv = NULL;
+    vm->modules = NULL;
+    vm->registry = NULL;
     vm->ret.type = GST_NIL;
     vm->scratch = NULL;
     vm->scratch_len = 0;
