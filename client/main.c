@@ -75,7 +75,7 @@ int debug_run(Gst *vm, FILE *in) {
 
 /* A simple repl */
 int debug_repl(Gst *vm) {
-    char buffer[10] = {0};
+    char buffer[1024] = {0};
     const char *reader = buffer;
     GstParser p;
     int reset;

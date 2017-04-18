@@ -1,0 +1,13 @@
+#!/bin/bash
+shopt -s nullglob
+for p in code/*.c code/*.h client/*.c include/*.h
+do
+    for f in $p; do
+        echo "Prepending license to $f..."
+        f2="${f}_tmp"
+        cat scratch > $f2
+        cat $f >> $f2
+        rm $f
+        mv $f2 $f
+    done
+done
