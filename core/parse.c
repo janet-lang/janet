@@ -422,7 +422,7 @@ static void dispatch_char(GstParser *p, uint8_t c) {
         }
     }
     /* Dispatch character to state */
-    while (!done && (p->status == GST_PARSER_PENDING || p->status == GST_PARSER_ROOT)) {
+    while (!done) {
         GstParseState *top = parser_peek(p);
         switch (top->type) {
             case PTYPE_ROOT:

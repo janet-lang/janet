@@ -391,6 +391,21 @@ int gst_stl_serialize(Gst *vm) {
 
 /* TODO - add userdata to allow for manipulation of FILE pointers. */
 
+int gst_stl_open(Gst *vm) {
+    GstValue ret;
+    const uint8_t *fname = gst_to_string(vm, gst_arg(vm, 0));
+    const uint8_t *fmode = gst_to_string(vm, gst_arg(vm, 1));
+    FILE *f;
+    if (gst_count_args(vm) < 2)
+        gst_c_throwc(vm, "expected filename and filemode");
+    f = fopen((const char *)fname, (const char *)fmode);
+    if (!f)
+        gst_c_throwc(vm, "could not open file");
+    ret.type = GST_USERDATA;
+    ret.data.pointer = f;
+    gst_c_return(vm, ret);
+}
+
 /****/
 /* Bootstraping */
 /****/
@@ -421,6 +436,7 @@ static const GstModuleItem const std_module[] = {
     {"rawset", gst_stl_rawset},
     {"error", gst_stl_error},
     {"serialize", gst_stl_serialize},
+    {"open", gst_stl_open},
     {NULL, NULL}
 };
 
