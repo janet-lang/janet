@@ -28,6 +28,10 @@
 #include <gst/stl.h>
 #include <gst/disasm.h>
 
+/* Use readline support for now */
+#include <readline/readline.h>
+#include <readline/history.h>
+
 /* Compile and run an ast */
 int debug_compile_and_run(Gst *vm, GstValue ast, GstValue env) {
     GstCompiler c;
@@ -43,9 +47,9 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue env) {
         return 1;
     }
     /* Print disasm */
-    printf("%c[31m===== Begin Disassembly =====\n", 27);
-    gst_dasm_function(stdout, func.data.function);
-    printf("=====  End Disassembly  =====%c[0m\n", 27);
+    /*printf("%c[31m===== Begin Disassembly =====\n", 27);*/
+    /*gst_dasm_function(stdout, func.data.function);*/
+    /*printf("=====  End Disassembly  =====%c[0m\n", 27);*/
     /* Execute function */
     if (gst_run(vm, func)) {
         if (vm->crash) {
@@ -102,23 +106,20 @@ int debug_run(Gst *vm, FILE *in) {
 
 /* A simple repl */
 int debug_repl(Gst *vm) {
-    char buffer[1024] = {0};
-    const char *reader = buffer;
+    const char *buffer, *reader;
     GstParser p;
     GstValue *st;
-    int reset;
     for (;;) {
         /* Init parser */
         gst_parser(&p, vm);
-        reset = 1;
+        buffer = reader = NULL;
         while (p.status != GST_PARSER_ERROR && p.status != GST_PARSER_FULL) {
-            if (*reader == '\0') {
-                if (reset)
-                    printf(">> ");
-                reset = 0;
-                if (!fgets(buffer, sizeof(buffer), stdin)) {
-                    break;
-                }
+            gst_parse_cstring(&p, "\n");
+            if (p.status == GST_PARSER_ERROR || p.status == GST_PARSER_FULL)
+                break;
+            if (!reader || *reader == '\0') {
+                buffer = readline(">> ");
+                add_history(buffer);
                 reader = buffer;
             }
             reader += gst_parse_cstring(&p, reader);

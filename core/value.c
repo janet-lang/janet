@@ -236,27 +236,6 @@ int gst_compare(GstValue x, GstValue y) {
     return 1;
 }
 
-/* Allow negative indexing to get from end of array like structure */
-/* This probably isn't very fast - look at Lua conversion function.
- * I would like to keep this standard C for as long as possible, though. */
-static int32_t to_index(GstNumber raw, int64_t len) {
-    int32_t toInt = raw;
-    if ((GstNumber) toInt == raw) {
-        /* We were able to convert */
-        if (toInt < 0 && len > 0) { 
-            /* Index from end */
-            if (toInt < -len) return -1;    
-            return len + toInt;
-        } else {    
-            /* Normal indexing */
-            if (toInt >= len) return -1;
-            return toInt;
-        }
-    } else {
-        return -1;
-    }
-}
-
 /* Convert a number into a byte. */
 static uint8_t to_byte(GstNumber raw) {
     if (raw > 255) return 255;
@@ -273,26 +252,26 @@ const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
     switch (ds.type) {
     case GST_ARRAY:
         if (key.type != GST_NUMBER) return "expected numeric key";
-        index = to_index(key.data.number, ds.data.array->count);
+        index = gst_to_index(key.data.number, ds.data.array->count);
         if (index == -1) return "invalid array access";
         ret = ds.data.array->data[index];
         break;
     case GST_TUPLE:
         if (key.type != GST_NUMBER) return "expected numeric key";
-        index = to_index(key.data.number, gst_tuple_length(ds.data.tuple));
+        index = gst_to_index(key.data.number, gst_tuple_length(ds.data.tuple));
         if (index < 0) return "invalid tuple access";
         ret = ds.data.tuple[index];
         break;
     case GST_BYTEBUFFER:
         if (key.type != GST_NUMBER) return "expected numeric key";
-        index = to_index(key.data.number, ds.data.buffer->count);
+        index = gst_to_index(key.data.number, ds.data.buffer->count);
         if (index == -1) return "invalid buffer access";
         ret.type = GST_NUMBER;
         ret.data.number = ds.data.buffer->data[index];
         break;
     case GST_STRING:
         if (key.type != GST_NUMBER) return "expected numeric key";
-        index = to_index(key.data.number, gst_string_length(ds.data.string));
+        index = gst_to_index(key.data.number, gst_string_length(ds.data.string));
         if (index == -1) return "invalid string access";
         ret.type = GST_NUMBER;
         ret.data.number = ds.data.string[index];
@@ -317,14 +296,14 @@ const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
     switch (ds.type) {
     case GST_ARRAY:
         if (key.type != GST_NUMBER) return "expected numeric key";
-        index = to_index(key.data.number, ds.data.array->count);
+        index = gst_to_index(key.data.number, ds.data.array->count);
         if (index == -1) return "invalid array access";
         ds.data.array->data[index] = value;
         break;
     case GST_BYTEBUFFER:
         if (key.type != GST_NUMBER) return "expected numeric key";
         if (value.type != GST_NUMBER) return "expected numeric value";
-        index = to_index(key.data.number, ds.data.buffer->count);
+        index = gst_to_index(key.data.number, ds.data.buffer->count);
         if (index == -1) return "invalid buffer access";
         ds.data.buffer->data[index] = to_byte(value.data.number);
         break;

@@ -31,13 +31,25 @@ GstValue gst_wrap_nil() {
     return y;
 }
 
+int gst_check_nil(Gst *vm, uint32_t i) {
+    GstValue a = gst_arg(vm, i);
+    return a.type == GST_NIL;
+}
+
 #define GST_WRAP_DEFINE(NAME, TYPE, GTYPE, UM)\
 GstValue gst_wrap_##NAME(TYPE x) {\
     GstValue y;\
     y.type = GTYPE;\
     y.data.UM = x;\
     return y;\
-}
+}\
+\
+int gst_check_##NAME(Gst *vm, uint32_t i, TYPE (*out)) {\
+    GstValue a = gst_arg(vm, i);\
+    if (a.type != GTYPE) return 0;\
+    *out = a.data.UM;\
+    return 1;\
+}\
 
 GST_WRAP_DEFINE(number, GstNumber, GST_NUMBER, number)
 GST_WRAP_DEFINE(boolean, int, GST_BOOLEAN, boolean)
@@ -108,4 +120,47 @@ GstValue gst_register_get(Gst *vm, const char *name) {
     if (!vm->registry)
         return gst_wrap_nil();
     return gst_object_get(vm->registry, gst_string_cv(vm, name));
+}
+
+/****/
+/* Misc */
+/****/
+
+/* Allow negative indexing to get from end of array like structure */
+/* This probably isn't very fast - look at Lua conversion function.
+ * I would like to keep this standard C for as long as possible, though. */
+int32_t gst_to_index(GstNumber raw, int64_t len) {
+    int32_t toInt = raw;
+    if ((GstNumber) toInt == raw) {
+        /* We were able to convert */
+        if (toInt < 0 && len > 0) { 
+            /* Index from end */
+            if (toInt < -len) return -1;    
+            return len + toInt;
+        } else {    
+            /* Normal indexing */
+            if (toInt >= len) return -1;
+            return toInt;
+        }
+    } else {
+        return -1;
+    }
+}
+
+int32_t gst_to_endrange(GstNumber raw, int64_t len) {
+    int32_t toInt = raw;
+    if ((GstNumber) toInt == raw) {
+        /* We were able to convert */
+        if (toInt < 0 && len > 0) { 
+            /* Index from end */
+            if (toInt < -len - 1) return -1;    
+            return len + toInt + 1;
+        } else {    
+            /* Normal indexing */
+            if (toInt >= len) return -1;
+            return toInt;
+        }
+    } else {
+        return -1;
+    }
 }

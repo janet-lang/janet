@@ -168,6 +168,68 @@ int gst_stl_select(Gst *vm) {
     gst_c_return(vm, gst_arg(vm, n + 1));
 }
 
+/* Get a slice of a sequence */
+int gst_stl_slice(Gst *vm) {
+    uint32_t count = gst_count_args(vm);
+    int32_t from, to;
+    GstValue x;
+    const GstValue *data;
+    uint32_t length;
+    uint32_t newlength;
+    GstNumber num;
+
+    /* Check args */
+    if (count < 1)
+        gst_c_throwc(vm, "slice takes at least one argument");
+    x = gst_arg(vm, 0);
+
+    /* Get data */
+    if (x.type == GST_TUPLE) {
+        data = x.data.st;
+        length = gst_tuple_length(x.data.st);
+    } else if (x.type == GST_ARRAY) {
+        data = x.data.array->data;
+        length = x.data.array->count;
+    } else {
+        gst_c_throwc(vm, "expected array or tuple");
+    }
+
+    /* Get from index */
+    if (count < 2) {
+        from = 0;
+    } else {
+        if (!gst_check_number(vm, 1, &num))
+            gst_c_throwc(vm, GST_EXPECTED_NUMBER_OP);
+        from = gst_to_index(num, length);
+    }
+
+    /* Get to index */
+    if (count < 3) {
+        to = length;
+    } else {
+        if (!gst_check_number(vm, 2, &num))
+            gst_c_throwc(vm, GST_EXPECTED_NUMBER_OP);
+        to = gst_to_endrange(num, length);
+    }
+
+    /* Check from bad bounds */
+    if (from < 0 || to < 0)
+        gst_c_throwc(vm, "index out of bounds");
+
+    /* Build slice */
+    newlength = to - from;
+    if (x.type == GST_TUPLE) {
+        GstValue *tup = gst_tuple_begin(vm, newlength);
+        gst_memcpy(tup, data + from, newlength * sizeof(GstValue));
+        gst_c_return(vm, gst_wrap_tuple(gst_tuple_end(vm, tup)));
+    } else {
+        GstArray *arr = gst_array(vm, newlength);
+        arr->count = newlength;
+        gst_memcpy(arr->data, data + from, newlength * sizeof(GstValue));
+        gst_c_return(vm, gst_wrap_array(arr));
+    }
+}
+
 /* Get type of object */
 int gst_stl_type(Gst *vm) {
     GstValue x;
@@ -446,6 +508,7 @@ static const GstModuleItem const std_module[] = {
     {"length", gst_stl_length},
     {"type", gst_stl_type},
     {"select", gst_stl_select},
+    {"slice", gst_stl_slice},
     {"array", gst_stl_array},
     {"tuple", gst_stl_tuple},
     {"object", gst_stl_object},

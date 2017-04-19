@@ -66,7 +66,8 @@ static uint32_t dasm_varg_op(FILE * out, const uint16_t * current,
         dasm_print_slot(out, current[i + 1]);
     }
     argCount = current[extra + 1];
-    fprintf(out, ": "); /* Argument separator */
+    if (extra)
+        fprintf(out, ": "); /* Argument separator */
     for (i = 0; i < argCount; ++i) {
         dasm_print_slot(out, current[i + extra + 2]);
     }

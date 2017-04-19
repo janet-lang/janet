@@ -503,9 +503,9 @@ GstValue gst_arg(Gst *vm, uint16_t index);
 void gst_set_arg(Gst *vm, uint16_t index, GstValue x);
 uint16_t gst_count_args(Gst *vm);
 
-/***/
+/****/
 /* C Api */
-/***/
+/****/
 
 GstValue gst_cmodule_object(Gst *vm, const GstModuleItem *mod);
 GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod);
@@ -530,5 +530,29 @@ GstValue gst_wrap_object(GstObject *x);
 GstValue gst_wrap_userdata(void *x);
 GstValue gst_wrap_funcenv(GstFuncEnv *x);
 GstValue gst_wrap_funcdef(GstFuncDef *x);
+
+/* Check data from arguments */
+int gst_check_nil(Gst *vm, uint32_t i);
+int gst_check_number(Gst *vm, uint32_t i, GstNumber (*x));
+int gst_check_boolean(Gst *vm, uint32_t i, int (*x));
+int gst_check_string(Gst *vm, uint32_t i, const uint8_t *(*x));
+int gst_check_array(Gst *vm, uint32_t i, GstArray *(*x));
+int gst_check_tuple(Gst *vm, uint32_t i, const GstValue *(*x));
+int gst_check_struct(Gst *vm, uint32_t i, const GstValue *(*x));
+int gst_check_thread(Gst *vm, uint32_t i, GstThread *(*x));
+int gst_check_buffer(Gst *vm, uint32_t i, GstBuffer *(*x));
+int gst_check_function(Gst *vm, uint32_t i, GstFunction *(*x));
+int gst_check_cfunction(Gst *vm, uint32_t i, GstCFunction (*x));
+int gst_check_object(Gst *vm, uint32_t i, GstObject *(*x));
+int gst_check_userdata(Gst *vm, uint32_t i, void *(*x));
+int gst_check_funcenv(Gst *vm, uint32_t i, GstFuncEnv *(*x));
+int gst_check_funcdef(Gst *vm, uint32_t i, GstFuncDef *(*x));
+
+/****/
+/* Misc */
+/****/
+
+int32_t gst_to_index(GstNumber raw, int64_t len);
+int32_t gst_to_endrange(GstNumber raw, int64_t len);
 
 #endif // GST_H_defined

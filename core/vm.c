@@ -310,18 +310,6 @@ int gst_continue(Gst *vm) {
             }
             break;
 
-        case GST_OP_YLD: /* Yield to new thread */
-            temp = stack[pc[1]];
-            v1 = stack[pc[2]];
-            gst_assert(vm, v1.type == GST_THREAD, "expected thread");
-            gst_assert(vm, v1.data.thread->status != GST_THREAD_DEAD, "cannot rejoin dead thread");
-            gst_frame_pc(stack) = pc + 3;
-            vm->thread = v1.data.thread;
-            vm->thread->status = GST_THREAD_ALIVE;
-            stack = vm->thread->data + vm->thread->count;
-            pc = gst_frame_pc(stack);
-            continue;
-
         /* Faster implementations of standard functions
          * These opcodes are nto strictlyre required and can
          * be reimplemented with stanard library functions */
@@ -444,6 +432,17 @@ int gst_continue(Gst *vm) {
             }
             break;
 
+        case GST_OP_YLD: /* Yield to new thread */
+            temp = stack[pc[1]];
+            v1 = stack[pc[2]];
+            gst_assert(vm, v1.type == GST_THREAD, "expected thread");
+            gst_assert(vm, v1.data.thread->status != GST_THREAD_DEAD, "cannot rejoin dead thread");
+            gst_frame_pc(stack) = pc + 3;
+            vm->thread = v1.data.thread;
+            vm->thread->status = GST_THREAD_ALIVE;
+            stack = vm->thread->data + vm->thread->count;
+            pc = gst_frame_pc(stack);
+            continue;
 
         /* Handle errors from c functions and vm opcodes */
         vm_error:
