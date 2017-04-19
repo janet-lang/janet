@@ -42,6 +42,10 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue env) {
         printf("Compiler error: %s\n", c.error);
         return 1;
     }
+    /* Print disasm */
+    printf("%c[31m===== Begin Disassembly =====\n", 27);
+    gst_dasm_function(stdout, func.data.function);
+    printf("=====  End Disassembly  =====%c[0m\n", 27);
     /* Execute function */
     if (gst_run(vm, func)) {
         if (vm->crash) {
@@ -132,7 +136,7 @@ int debug_repl(Gst *vm) {
         /* Add _ to environemt */
         st = gst_struct_begin(vm, 1);
         gst_struct_put(st, gst_string_cv(vm, "_"), vm->ret);
-        if (0 == debug_compile_and_run(vm, gst_parse_consume(&p), gst_wrap_struct(gst_struct_end(vm, st)))) {
+        if (!debug_compile_and_run(vm, gst_parse_consume(&p), gst_wrap_struct(gst_struct_end(vm, st)))) {
             printf("%s\n", gst_to_string(vm, vm->ret));
         }
     }

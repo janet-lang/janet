@@ -267,8 +267,10 @@ void gst_collect(Gst *vm) {
     /* Thread can be null */
     if (vm->thread)
         gst_mark_value(vm, gst_wrap_thread(vm->thread));
-    gst_mark_value(vm, gst_wrap_object(vm->modules));
-    gst_mark_value(vm, gst_wrap_object(vm->registry));
+    if (vm->modules)
+        gst_mark_value(vm, gst_wrap_object(vm->modules));
+    if (vm->registry)
+        gst_mark_value(vm, gst_wrap_object(vm->registry));
     gst_mark_value(vm, vm->ret);
     if (vm->scratch)
         gc_header(vm->scratch)->color = vm->black;

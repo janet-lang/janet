@@ -39,7 +39,7 @@
  * Byte 208: Array   - [u32 length]*[value... elements]
  * Byte 209: Tuple   - [u32 length]*[value... elements]
  * Byte 210: Thread  - [u8 state][u32 frames]*[[value callee][value env]
- *  [u32 pcoffset][u32 erroffset][u16 ret][u16 errloc][u16 size]*[value ...stack]
+ *  [u32 pcoffset][u16 ret][u16 args][u16 size]*[value ...stack]
  * Byte 211: Object  - [value parent][u32 length]*2*[value... kvs]
  * Byte 212: FuncDef - [u32 locals][u32 arity][u32 flags][u32 literallen]*[value...
  *  literals][u32 bytecodelen]*[u16... bytecode]
@@ -242,8 +242,8 @@ static const char *gst_deserialize_impl(
                 /* Add frames */
                 for (i = 0; i < length; ++i) {
                     GstValue callee, env;
-                    uint32_t pcoffset, erroffset;
-                    uint16_t ret, errloc, size, j;
+                    uint32_t pcoffset;
+                    uint16_t ret, args, size, j;
                     /* Create a new frame */
                     if (i > 0)
                         gst_thread_beginframe(vm, t, nil, 0);
@@ -253,20 +253,18 @@ static const char *gst_deserialize_impl(
                     err = gst_deserialize_impl(vm, data, end, &data, visited, &env);
                     if (err != NULL) return err;
                     read_u32(pcoffset);
-                    read_u32(erroffset);
                     read_u16(ret);
-                    read_u16(errloc);
+                    read_u16(args);
                     read_u16(size);
                     /* Set up the stack */
                     stack = gst_thread_stack(t);
                     if (callee.type == GST_FUNCTION) {
                         gst_frame_pc(stack) = callee.data.function->def->byteCode + pcoffset;
-                        gst_frame_errjmp(stack) = callee.data.function->def->byteCode + erroffset;
                         if (env.type == GST_FUNCENV)
                             gst_frame_env(stack) = env.data.env;
                     }
                     gst_frame_ret(stack) = ret;
-                    gst_frame_errloc(stack) = errloc;
+                    gst_frame_args(stack) = args;
                     gst_frame_size(stack) = size;
                     gst_frame_prevsize(stack) = prevsize;
                     prevsize = size;

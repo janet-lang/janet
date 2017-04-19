@@ -79,17 +79,16 @@
 /* Stack frame manipulation */
 
 /* Size of stack frame in number of values */
-#define GST_FRAME_SIZE 5
+#define GST_FRAME_SIZE 4
 
 /* Macros for referencing a stack frame given a stack */
 #define gst_frame_callee(s)     (*(s - 1))
 #define gst_frame_size(s)       ((s - 2)->data.hws[0])
 #define gst_frame_prevsize(s)   ((s - 2)->data.hws[1])
-#define gst_frame_errloc(s)     ((s - 2)->data.hws[2])
+#define gst_frame_args(s)       ((s - 2)->data.hws[2])
 #define gst_frame_ret(s)        ((s - 2)->data.hws[3])
 #define gst_frame_pc(s)         ((s - 3)->data.u16p)
-#define gst_frame_errjmp(s)     ((s - 4)->data.u16p)
-#define gst_frame_env(s)        ((s - 5)->data.env)
+#define gst_frame_env(s)        ((s - 4)->data.env)
 
 /* C function helpers */
 
@@ -109,7 +108,7 @@
 #ifndef GST_OUT_OF_MEMORY
 #include <stdlib.h>
 #include <stdio.h>
-#define GST_OUT_OF_MEMORY do { printf("out of memory.\n"); exit(1); } while (0)
+#define GST_OUT_OF_MEMORY do { printf("out of memory\n"); exit(1); } while (0)
 #endif
 
 /* Max search depth for classes. */
@@ -196,7 +195,7 @@ struct GstValue {
 };
 
 /* A lightweight thread in gst. Does not correspond to
- * operating system threads. Used in coroutines. */
+ * operating system threads. Used in coroutines and continuations. */
 struct GstThread {
     uint32_t count;
     uint32_t capacity;
@@ -292,7 +291,7 @@ struct Gst {
     GstObject *registry;
     /* Return state */
     const char *crash;
-    GstValue ret; /* Returned value from gst_start. Also holds errors. */
+    GstValue ret; /* Returned value from gst_start. */
 };
 
 /* Bytecode */
@@ -323,11 +322,10 @@ enum GstOpCode {
     GST_OP_ARR,     /* Create array */
     GST_OP_DIC,     /* Create object */
     GST_OP_TUP,     /* Create tuple */
-    GST_OP_ERR,     /* Throw error */
-    GST_OP_TRY,     /* Begin try block */
-    GST_OP_UTY,     /* End try block */
     GST_OP_RET,     /* Return from function */
     GST_OP_RTN,     /* Return nil */
+    GST_OP_PSK,     /* Push stack */
+    GST_OP_PAR,     /* Push array or tuple */
     GST_OP_CAL,     /* Call function */
     GST_OP_TCL,     /* Tail call */
     GST_OP_YLD      /* Yield from function */
@@ -419,8 +417,6 @@ void gst_thread_tuplepack(Gst *vm, GstThread *thread, uint32_t n);
 GstValue *gst_thread_beginframe(Gst *vm, GstThread *thread, GstValue callee, uint32_t arity); 
 void gst_thread_endframe(Gst *vm, GstThread *thread);
 GstValue *gst_thread_popframe(Gst *vm, GstThread *thread); 
-GstValue *gst_thread_tail(Gst *vm, GstThread *thread);
-
 
 /****/
 /* Value manipulation */

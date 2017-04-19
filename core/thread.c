@@ -36,10 +36,9 @@ GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity) {
     gst_frame_size(stack) = 0;
     gst_frame_prevsize(stack) = 0;
     gst_frame_ret(stack) = 0;
-    gst_frame_errloc(stack) = 0;
+    gst_frame_args(stack) = 0;
     gst_frame_pc(stack) = NULL;
     gst_frame_env(stack) = NULL;
-    gst_frame_errjmp(stack) = NULL;
     gst_frame_callee(stack) = callee;
     gst_thread_endframe(vm, thread);
     thread->parent = NULL;
@@ -115,7 +114,6 @@ GstValue *gst_thread_beginframe(Gst *vm, GstThread *thread, GstValue callee, uin
     newStack = oldStack + frameOffset;
     gst_frame_prevsize(newStack) = gst_frame_size(oldStack);
     gst_frame_env(newStack) = NULL;
-    gst_frame_errjmp(newStack) = NULL;
     gst_frame_size(newStack) = 0;
     gst_frame_callee(newStack) = callee;
     thread->count += frameOffset; 
@@ -144,6 +142,8 @@ void gst_thread_endframe(Gst *vm, GstThread *thread) {
                 gst_thread_pushnil(vm, thread, locals - gst_frame_size(stack));
             }
         }
+        stack = thread->data + thread->count;
+        gst_frame_args(stack) = gst_frame_size(stack) + GST_FRAME_SIZE;
     }
 }
 
@@ -172,45 +172,4 @@ GstValue *gst_thread_popframe(Gst *vm, GstThread *thread) {
         return nextstack;
     else
         return NULL;
-}
-
-/* Move the current stack frame over its parent stack frame, allowing
- * for primitive tail calls. */
-GstValue *gst_thread_tail(Gst *vm, GstThread *thread) {
-    GstFuncEnv *env;
-    GstValue *stack = thread->data + thread->count;
-    GstValue *nextStack = gst_thread_popframe(vm, thread);
-    uint32_t i;
-
-    if (nextStack == NULL) return NULL;
-    env = gst_frame_env(nextStack);
-
-    /* Check for old closures */
-    if (env != NULL) {
-        uint32_t size = gst_frame_size(stack);
-        env->thread = NULL;
-        env->stackOffset = size;
-        env->values = gst_alloc(vm, sizeof(GstValue) * size);
-        gst_memcpy(env->values, stack, sizeof(GstValue) * size);
-    }
-
-    /* Modify new closure */
-    env = gst_frame_env(stack);
-    if (env != NULL) {
-        env->stackOffset = thread->count;
-    }
-
-    /* Copy over (some of) stack frame. Leave ret and prevsize untouched. */
-    gst_frame_env(nextStack) = env;
-    gst_frame_size(nextStack) = gst_frame_size(stack);
-    gst_frame_pc(nextStack) = gst_frame_pc(stack);
-    gst_frame_errjmp(nextStack) = gst_frame_errjmp(stack);
-    gst_frame_errloc(nextStack) = gst_frame_errloc(stack);
-    gst_frame_callee(nextStack) = gst_frame_callee(stack);
-
-    /* Copy stack arguments */
-    for (i = 0; i < gst_frame_size(nextStack); ++i)
-        nextStack[i] = stack[i];
-
-    return nextStack;
 }

@@ -249,7 +249,7 @@ int gst_stl_object(Gst *vm) {
     GstObject *object;
     if (count % 2 != 0)
         gst_c_throwc(vm, "expected even number of arguments");
-    object = gst_object(vm, count * 2);
+    object = gst_object(vm, 4 * count);
     for (i = 0; i < count; i += 2)
         gst_object_put(vm, object, gst_arg(vm, i), gst_arg(vm, i + 1));
     gst_c_return(vm, gst_wrap_object(object));
@@ -457,6 +457,7 @@ static const GstModuleItem const std_module[] = {
     {"exit", gst_stl_exit},
     {"rawget", gst_stl_rawget},
     {"rawset", gst_stl_rawset},
+    {"next", gst_stl_next},
     {"error", gst_stl_error},
     {"serialize", gst_stl_serialize},
     {"open", gst_stl_open},

@@ -684,71 +684,6 @@ static Slot compile_if(GstCompiler *c, FormOptions opts, const GstValue *form) {
     return condition;
 }
 
-/* Try catch special */
-static Slot compile_try(GstCompiler *c, FormOptions opts, const GstValue *form) {
-    GstScope *scope = c->tail;
-    GstBuffer *buffer = c->buffer;
-    Slot body;
-    uint16_t errorIndex;
-    uint32_t countAtTry, countTemp, countAtJump;
-    countAtJump = 0;
-    /* Check argument count */
-    if (gst_tuple_length(form) < 3 || gst_tuple_length(form) > 4)
-        c_error(c, "try takes either 2 or 3 arguments");
-    /* Check for symbol to bind error to */
-    if (form[1].type != GST_STRING)
-        c_error(c, "expected string at start of try");
-    /* Add subscope for error variable */
-    GstScope *subScope = compiler_push_scope(c, 1);
-    errorIndex = compiler_declare_symbol(c, subScope, form[1]);
-    /* Leave space for try instruction */
-    countAtTry = buffer->count;
-    buffer->count += sizeof(uint32_t) + 2 * sizeof(uint16_t);
-    /* Compile the body */
-    body = compile_value(c, opts, form[2]);
-    if (opts.isTail) {
-        compiler_return(c, body);
-    } else {
-        /* If we need to jump over the catch, do so */
-        if (gst_tuple_length(form) == 4) {
-            countAtJump = buffer->count;
-            buffer->count += sizeof(int32_t) + sizeof(uint16_t);
-        }
-    }
-    /* Reinsert try jump with correct index */
-    countTemp = buffer->count;
-    buffer->count = countAtTry;
-    gst_buffer_push_u16(c->vm, buffer, GST_OP_TRY);
-    gst_buffer_push_u16(c->vm, buffer, errorIndex);
-    gst_buffer_push_i32(c->vm, buffer, (countTemp - countAtTry) / 2);
-    buffer->count = countTemp;
-    /* Compile catch path */
-    if (gst_tuple_length(form) == 4) {
-        Slot catch;
-        countAtJump = buffer->count;
-        catch = compile_value(c, opts, form[3]);
-        if (opts.isTail) compiler_return(c, catch);
-        compiler_drop_slot(c, scope, catch);
-    } else if (opts.isTail) {
-        compiler_return(c, nil_slot());
-    }
-    /* Reset the second jump length */
-    if (!opts.isTail && gst_tuple_length(form) == 4) {
-        countTemp = buffer->count;
-        buffer->count = countAtJump;
-        gst_buffer_push_u16(c->vm, buffer, GST_OP_JMP);
-        gst_buffer_push_i32(c->vm, buffer, (countTemp - countAtJump) / 2);
-        buffer->count = countTemp;
-    }
-    /* Untry */
-    gst_buffer_push_u16(c->vm, buffer, GST_OP_UTY);
-    /* Pop the error scope */
-    compiler_pop_scope(c);
-    if (opts.isTail)
-        body.hasReturned = 1;
-    return body;
-}
-
 /* While special */
 static Slot compile_while(GstCompiler *c, FormOptions opts, const GstValue *form) {
     Slot cond;
@@ -885,14 +820,6 @@ static SpecialFormHelper get_special(const GstValue *form) {
                 }
             }
             break;
-        case 't':
-            {
-                if (gst_string_length(name) == 3 &&
-                        name[1] == 'r' &&
-                        name[2] == 'y') {
-                    return compile_try;
-                }
-            }
         case 'w':
             {
                 if (gst_string_length(name) == 5 &&
@@ -991,11 +918,15 @@ static Slot compile_form(GstCompiler *c, FormOptions opts, const GstValue *form)
         /* Free up some slots */
         compiler_drop_slot(c, scope, callee);
         compiler_tracker_free(c, scope, &tracker);
+        /* Prepare next stack frame */
+        gst_buffer_push_u16(c->vm, buffer, GST_OP_PSK);
+        gst_buffer_push_u16(c->vm, buffer, gst_tuple_length(form) - 1);
+        /* Write the location of all of the arguments */
+        compiler_tracker_write(c, &tracker, 0);
         /* If this is in tail position do a tail call. */
         if (opts.isTail) {
             gst_buffer_push_u16(c->vm, buffer, GST_OP_TCL);
             gst_buffer_push_u16(c->vm, buffer, callee.index);
-            gst_buffer_push_u16(c->vm, buffer, gst_tuple_length(form) - 1);
             ret.hasReturned = 1;
             ret.isNil = 1;
         } else {
@@ -1003,10 +934,7 @@ static Slot compile_form(GstCompiler *c, FormOptions opts, const GstValue *form)
             gst_buffer_push_u16(c->vm, buffer, GST_OP_CAL);
             gst_buffer_push_u16(c->vm, buffer, callee.index);
             gst_buffer_push_u16(c->vm, buffer, ret.index);
-            gst_buffer_push_u16(c->vm, buffer, gst_tuple_length(form) - 1);
         }
-        /* Write the location of all of the arguments */
-        compiler_tracker_write(c, &tracker, 0);
         return ret;
     }
 }

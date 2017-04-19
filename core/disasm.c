@@ -191,29 +191,23 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
             case GST_OP_TUP:
                 current += dasm_varg_op(out, current, "tuple", 1);
                 break;
-            case GST_OP_ERR:
-                current += dasm_fixed_op(out, current, "error", 1);
-                break;
-            case GST_OP_TRY:
-                dasm_print_arg(out, "try");
-                dasm_print_slot(out, current[1]);
-                dasm_print_i32(out, *(int32_t *)(current + 2));
-                current += 4;
-                break;
-            case GST_OP_UTY:
-                current += dasm_fixed_op(out, current, "untry", 0);
-                break;
             case GST_OP_RET:
                 current += dasm_fixed_op(out, current, "return", 1);
                 break;
             case GST_OP_RTN:
                 current += dasm_fixed_op(out, current, "returnNil", 0);
                 break;
+            case GST_OP_PSK:
+                current += dasm_varg_op(out, current, "pushArgs", 0);
+                break;
+            case GST_OP_PAR:
+                current += dasm_fixed_op(out, current, "pushSeq", 1);
+                break;
             case GST_OP_CAL:
-                current += dasm_varg_op(out, current, "call", 2);
+                current += dasm_fixed_op(out, current, "call", 2);
                 break;
             case GST_OP_TCL:
-                current += dasm_varg_op(out, current, "tailCall", 1);
+                current += dasm_fixed_op(out, current, "tailCall", 1);
                 break;
         }
         fprintf(out, "\n");
