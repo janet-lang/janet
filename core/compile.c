@@ -762,6 +762,59 @@ static Slot compile_var(GstCompiler *c, FormOptions opts, const GstValue *form) 
     return compile_assign(c, opts, form[1], form[2]);
 }
 
+/* Apply special */
+static Slot compile_apply(GstCompiler *c, FormOptions opts, const GstValue *form) {
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
+    /* Empty forms evaluate to nil. */
+    if (gst_tuple_length(form) < 3)
+        c_error(c, "apply expects at least 2 arguments");
+    {
+        Slot ret, callee;
+        SlotTracker tracker;
+        FormOptions subOpts = form_options_default();
+        uint32_t i;
+        tracker_init(c, &tracker);
+        /* Compile function to be called */
+        callee = compiler_realize_slot(c, compile_value(c, subOpts, form[1]));
+        /* Compile all of the arguments */
+        for (i = 2; i < gst_tuple_length(form) - 1; ++i) {
+            Slot slot = compile_value(c, subOpts, form[i]);
+            compiler_tracker_push(c, &tracker, slot);
+        }
+               /* Write last item */
+        {
+            Slot slot = compile_value(c, subOpts, form[gst_tuple_length(form) - 1]);
+            slot = compiler_realize_slot(c, slot);
+            /* Free up some slots */
+            compiler_drop_slot(c, scope, callee);
+            compiler_drop_slot(c, scope, slot);
+            compiler_tracker_free(c, scope, &tracker);
+            /* Write first arguments */
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_PSK);
+            gst_buffer_push_u16(c->vm, buffer, tracker.count);
+            /* Write the location of all of the arguments */
+            compiler_tracker_write(c, &tracker, 0);
+            /* Write last arguments */
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_PAR);
+            gst_buffer_push_u16(c->vm, buffer, slot.index);
+        }
+        /* If this is in tail position do a tail call. */
+        if (opts.isTail) {
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_TCL);
+            gst_buffer_push_u16(c->vm, buffer, callee.index);
+            ret.hasReturned = 1;
+            ret.isNil = 1;
+        } else {
+            ret = compiler_get_target(c, opts);
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_CAL);
+            gst_buffer_push_u16(c->vm, buffer, callee.index);
+            gst_buffer_push_u16(c->vm, buffer, ret.index);
+        }
+        return ret;
+    }
+}
+
 /* Define a function type for Special Form helpers */
 typedef Slot (*SpecialFormHelper) (GstCompiler *c, FormOptions opts, const GstValue *form);
 
@@ -785,6 +838,16 @@ static SpecialFormHelper get_special(const GstValue *form) {
     }
     /* Multi character specials. Mostly control flow. */
     switch (name[0]) {
+        case 'a':
+            {
+                if (gst_string_length(name) == 5 &&
+                        name[1] == 'p' &&
+                        name[2] == 'p' &&
+                        name[3] == 'l' &&
+                        name[4] == 'y') {
+                    return compile_apply;
+                }
+            }
         case 'd':
             {
                 if (gst_string_length(name) == 2 &&

@@ -317,6 +317,7 @@ int gst_continue(Gst *vm) {
             gst_assert(vm, v1.data.thread->status != GST_THREAD_DEAD, "cannot rejoin dead thread");
             gst_frame_pc(stack) = pc + 3;
             vm->thread = v1.data.thread;
+            vm->thread->status = GST_THREAD_ALIVE;
             stack = vm->thread->data + vm->thread->count;
             pc = gst_frame_pc(stack);
             continue;
