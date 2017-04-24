@@ -251,6 +251,7 @@ int gst_continue(Gst *vm) {
                 uint16_t newStackIndex = gst_frame_args(stack);
                 uint16_t size = gst_frame_size(stack);
                 temp = stack[pc[1]];
+                gst_frame_size(stack) = newStackIndex - GST_FRAME_SIZE;
                 gst_frame_ret(stack) = pc[2];
                 gst_frame_pc(stack) = pc + 3;      
                 if (newStackIndex < GST_FRAME_SIZE)
@@ -452,7 +453,7 @@ void gst_init(Gst *vm) {
      * a collection pretty much every cycle, which is
      * obviously horrible for performance, but helps ensure
      * there are no memory bugs during dev */
-    vm->memoryInterval = 2000;
+    vm->memoryInterval = 0;
     vm->black = 0;
     /* Add thread */
     vm->thread = NULL;
