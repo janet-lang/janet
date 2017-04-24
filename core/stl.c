@@ -104,6 +104,11 @@ COMPARE_FUNCTION(greaterthaneq, gst_compare(lhs, rhs) >= 0)
 
 #undef COMPARE_FUNCTION
 
+/* Boolean not */
+int gst_stl_not(Gst *vm) {
+    gst_c_return(vm, gst_wrap_boolean(!gst_truthy(gst_arg(vm, 0))));
+}
+
 /****/
 /* Core */
 /****/
@@ -533,7 +538,7 @@ int gst_stl_open(Gst *vm) {
 /* Temporary */
 /****/
 
-/* These functions should definitely be moved to a different module, remove, or
+/* These functions should definitely be moved to a different module, removed, or
  * rewritten in gst when the language is complete enough. This is not to say
  * that functions in other section need not be moved. */
 
@@ -564,6 +569,7 @@ static const GstModuleItem const std_module[] = {
     {"=", gst_stl_equal},
     {"<=", gst_stl_lessthaneq},
     {">=", gst_stl_greaterthaneq},
+    {"not", gst_stl_not},
     {"length", gst_stl_length},
     {"to-integer", gst_stl_to_int},
     {"to-real", gst_stl_to_real},

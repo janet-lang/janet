@@ -276,21 +276,20 @@ void gst_object_put(Gst *vm, GstObject *o, GstValue key, GstValue value) {
 
 /* Find next key in an object. Returns nil if no next key. */
 GstValue gst_object_next(GstObject *o, GstValue key) {
-    GstValue ret;
-    GstValue *bucket;
-    if (key.type == GST_NIL)
-       bucket = o->data - 2;
-    else
-       bucket = gst_object_find(o, key); 
-    if (bucket && bucket[0].type != GST_NIL) {
-        GstValue *nextbucket, *end;
-        end = o->data + o->capacity;
-        for (nextbucket = bucket + 2; nextbucket < end; nextbucket += 2) {
-            if (nextbucket[0].type != GST_NIL)
-                return nextbucket[0];
-        }
+    const GstValue *bucket, *end;
+    end = o->data + o->capacity; 
+    if (key.type == GST_NIL) {
+        bucket = o->data;
+    } else {
+        bucket = gst_object_find(o, key); 
+        if (!bucket || bucket[0].type == GST_NIL)
+            return gst_wrap_nil();
+        bucket += 2;
     }
-    ret.type = GST_NIL;
-    return ret;
+    for (; bucket < end; bucket += 2) {
+        if (bucket[0].type != GST_NIL)
+            return bucket[0];
+    }
+    return gst_wrap_nil();
 }
 

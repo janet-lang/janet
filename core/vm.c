@@ -38,7 +38,7 @@ int gst_continue(Gst *vm) {
 #define gst_assert(vm, cond, e) do {if (!(cond)){gst_error((vm), (e));}} while (0)
 
     /* Intialize local state */
-    stack = vm->thread->data + vm->thread->count;
+    stack = gst_thread_stack(vm->thread);
     pc = gst_frame_pc(stack);
 
     /* Main interpreter loop */
@@ -291,7 +291,6 @@ int gst_continue(Gst *vm) {
             gst_frame_env(stack) = NULL;
             gst_thread_endframe(vm, vm->thread);
             stack = vm->thread->data + vm->thread->count;
-            gst_frame_args(stack) = 0;
             temp = gst_frame_callee(stack);
             if (temp.type == GST_FUNCTION) {
                 pc = temp.data.function->def->byteCode;

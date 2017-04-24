@@ -288,23 +288,21 @@ GstValue gst_struct_get(const GstValue *st, GstValue key) {
 
 /* Get the next key in a struct */
 GstValue gst_struct_next(const GstValue *st, GstValue key) {
-    GstValue ret;
-    const GstValue *bucket;
-    if (key.type == GST_NIL)
-        bucket = st - 2;
-    else
+    const GstValue *bucket, *end;
+    end = st + gst_struct_capacity(st);
+    if (key.type == GST_NIL) {
+        bucket = st;
+    } else {
         bucket = gst_struct_find(st, key); 
-    if (bucket && bucket[0].type != GST_NIL) {
-        const GstValue *nextbucket, *end;
-        end = st + gst_struct_capacity(st);
-        for (nextbucket = bucket + 2; nextbucket < end; nextbucket += 2) {
-            if (nextbucket[0].type != GST_NIL)
-                return nextbucket[0];
-        }
+        if (!bucket || bucket[0].type == GST_NIL)
+            return gst_wrap_nil();
+        bucket += 2;
     }
-    ret.type = GST_NIL;
-    return ret;
-
+    for (; bucket < end; bucket += 2) {
+        if (bucket[0].type != GST_NIL)
+            return bucket[0];
+    }
+    return gst_wrap_nil();
 }
 
 /****/
