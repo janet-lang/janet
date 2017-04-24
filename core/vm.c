@@ -24,8 +24,6 @@
 
 static const char GST_NO_UPVALUE[] = "no upvalue";
 static const char GST_EXPECTED_FUNCTION[] = "expected function";
-static const char GST_EXPECTED_NUMBER_ROP[] = "expected right operand to be number";
-static const char GST_EXPECTED_NUMBER_LOP[] = "expected left operand to be number";
 
 /* Start running the VM from where it left off. */
 int gst_continue(Gst *vm) {
@@ -73,8 +71,8 @@ int gst_continue(Gst *vm) {
             continue;
 
         case GST_OP_I16: /* Load Small Integer */
-            temp.type = GST_NUMBER;
-            temp.data.number = ((int16_t *)(pc))[2];
+            temp.type = GST_INTEGER;
+            temp.data.integer = ((int16_t *)(pc))[2];
             stack[pc[1]] = temp;
             pc += 3;
             continue;
@@ -132,15 +130,22 @@ int gst_continue(Gst *vm) {
             continue;
 
         case GST_OP_I32: /* Load 32 bit integer */
-            temp.type = GST_NUMBER;
-            temp.data.number = *((int32_t *)(pc + 2));
+            temp.type = GST_INTEGER;
+            temp.data.integer = *((int32_t *)(pc + 2));
             stack[pc[1]] = temp;
             pc += 4;
             continue;
 
+        case GST_OP_I64: /* Load 64 bit integer */
+            temp.type = GST_INTEGER;
+            temp.data.integer = (GstInteger) *((int64_t *)(pc + 2));
+            stack[pc[1]] = temp;
+            pc += 6;
+            continue;
+
         case GST_OP_F64: /* Load 64 bit float */
-            temp.type = GST_NUMBER;
-            temp.data.number = (GstNumber) *((double *)(pc + 2));
+            temp.type = GST_REAL;
+            temp.data.real = (GstReal) *((double *)(pc + 2));
             stack[pc[1]] = temp;
             pc += 6;
             continue;
@@ -309,81 +314,6 @@ int gst_continue(Gst *vm) {
                 gst_error(vm, GST_EXPECTED_FUNCTION);
             }
             break;
-
-        /* Faster implementations of standard functions
-         * These opcodes are nto strictlyre required and can
-         * be reimplemented with stanard library functions */
-
-        #define OP_BINARY_MATH(op) \
-            v1 = stack[pc[2]]; \
-            v2 = stack[pc[3]]; \
-            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP); \
-            gst_assert(vm, v2.type == GST_NUMBER, GST_EXPECTED_NUMBER_ROP); \
-            temp.type = GST_NUMBER; \
-            temp.data.number = v1.data.number op v2.data.number; \
-            stack[pc[1]] = temp; \
-            pc += 4; \
-            continue;
-
-        case GST_OP_ADD: /* Addition */
-            OP_BINARY_MATH(+)
-
-        case GST_OP_SUB: /* Subtraction */
-            OP_BINARY_MATH(-)
-
-        case GST_OP_MUL: /* Multiplication */
-            OP_BINARY_MATH(*)
-
-        case GST_OP_DIV: /* Division */
-            OP_BINARY_MATH(/)
-
-        #undef OP_BINARY_MATH
-
-        case GST_OP_NOT: /* Boolean unary (Boolean not) */
-            temp.type = GST_BOOLEAN;
-            temp.data.boolean = !gst_truthy(stack[pc[2]]);
-            stack[pc[1]] = temp;
-            pc += 3;
-            continue;
-
-        case GST_OP_NEG: /* Unary negation */
-            v1 = stack[pc[2]];
-            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP);
-            temp.type = GST_NUMBER;
-            temp.data.number = -v1.data.number;
-            stack[pc[1]] = temp;
-            pc += 3;
-            continue;
-
-        case GST_OP_INV: /* Unary multiplicative inverse */
-            v1 = stack[pc[2]];
-            gst_assert(vm, v1.type == GST_NUMBER, GST_EXPECTED_NUMBER_LOP);
-            temp.type = GST_NUMBER;
-            temp.data.number = 1 / v1.data.number;
-            stack[pc[1]] = temp;
-            pc += 3;
-            continue;
-
-        case GST_OP_EQL: /* Equality */
-            temp.type = GST_BOOLEAN;
-            temp.data.boolean = gst_equals(stack[pc[2]], stack[pc[3]]);
-            stack[pc[1]] = temp;
-            pc += 4;
-            continue;
-
-        case GST_OP_LTN: /* Less Than */
-            temp.type = GST_BOOLEAN;
-            temp.data.boolean = (gst_compare(stack[pc[2]], stack[pc[3]]) == -1);
-            stack[pc[1]] = temp;
-            pc += 4;
-            continue;
-
-        case GST_OP_LTE: /* Less Than or Equal to */
-            temp.type = GST_BOOLEAN;
-            temp.data.boolean = (gst_compare(stack[pc[2]], stack[pc[3]]) != 1);
-            stack[pc[1]] = temp;
-            pc += 4;
-            continue;
 
         case GST_OP_ARR: /* Array literal */
             {

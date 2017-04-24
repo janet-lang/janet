@@ -88,10 +88,7 @@ void gst_mark_value(Gst *vm, GstValue x) {
  * the main function for doing the garbage collection mark phase. */
 void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
     switch (type) {
-        case GST_NIL:
-        case GST_BOOLEAN:
-        case GST_NUMBER:
-        case GST_CFUNCTION:
+        default: 
             break;
 
         case GST_STRING:

@@ -31,10 +31,15 @@ int gst_truthy(GstValue v) {
 /* Temporary buffer size */
 #define GST_BUFSIZE 36
 
-static const uint8_t *number_to_string(Gst *vm, GstNumber x) {
+static const uint8_t *real_to_string(Gst *vm, GstReal x) {
     uint8_t buf[GST_BUFSIZE];
-    /* TODO - not depend on stdio */
     int count = snprintf((char *) buf, GST_BUFSIZE, "%.21g", x);
+    return gst_string_b(vm, buf, (uint32_t) count);
+}
+
+static const uint8_t *integer_to_string(Gst *vm, GstInteger x) {
+    uint8_t buf[GST_BUFSIZE];
+    int count = snprintf((char *) buf, GST_BUFSIZE, "%ld", x);
     return gst_string_b(vm, buf, (uint32_t) count);
 }
 
@@ -77,13 +82,14 @@ const uint8_t *gst_to_string(Gst *vm, GstValue x) {
     case GST_NIL:
         return gst_string_c(vm, "nil");
     case GST_BOOLEAN:
-        if (x.data.boolean) {
+        if (x.data.boolean)
             return gst_string_c(vm, "true");
-        } else {
+        else
             return gst_string_c(vm, "false");
-        }
-    case GST_NUMBER:
-        return number_to_string(vm, x.data.number);
+    case GST_REAL:
+        return real_to_string(vm, x.data.real);
+    case GST_INTEGER:
+        return integer_to_string(vm, x.data.integer);
     case GST_ARRAY:
         return string_description(vm, "array", x.data.pointer);
     case GST_TUPLE:
@@ -125,8 +131,11 @@ int gst_equals(GstValue x, GstValue y) {
         case GST_BOOLEAN:
             result = (x.data.boolean == y.data.boolean);
             break;
-        case GST_NUMBER:
-            result = (x.data.number == y.data.number);
+        case GST_REAL:
+            result = (x.data.real == y.data.real);
+            break;
+        case GST_INTEGER:
+            result = (x.data.integer == y.data.integer);
             break;
         default:
             /* compare pointers */
@@ -147,17 +156,6 @@ uint32_t gst_hash(GstValue x) {
     case GST_BOOLEAN:
         hash = x.data.boolean;
         break;
-    case GST_NUMBER:
-        {
-            union {
-                uint32_t hash;
-                GstNumber number;
-            } u;
-            u.number = x.data.number;
-            hash = u.hash;
-        }
-        break;
-        /* String hashes */
     case GST_STRING:
         hash = gst_string_hash(x.data.string);
         break;
@@ -168,15 +166,7 @@ uint32_t gst_hash(GstValue x) {
         hash = gst_struct_hash(x.data.st);
         break;
     default:
-        /* Cast the pointer */
-        {
-            union {
-                void * pointer;
-                uint32_t hash;
-            } u;
-            u.pointer = x.data.pointer;
-            hash = u.hash;
-        }
+        hash = x.data.dwords[0] ^ x.data.dwords[1];
         break;
     }
     return hash;
@@ -196,12 +186,17 @@ int gst_compare(GstValue x, GstValue y) {
                 } else {
                     return x.data.boolean ? 1 : -1;
                 }
-            case GST_NUMBER:
-                /* TODO: define behavior for NaN and infinties. */
-                if (x.data.number == y.data.number) {
+            case GST_REAL:
+                if (x.data.real == y.data.real) {
                     return 0;
                 } else {
-                    return x.data.number > y.data.number ? 1 : -1;
+                    return x.data.real > y.data.real ? 1 : -1;
+                }
+            case GST_INTEGER:
+                if (x.data.integer == y.data.integer) {
+                    return 0;
+                } else {
+                    return x.data.integer > y.data.integer ? 1 : -1;
                 }
             case GST_STRING:
                 return gst_string_compare(x.data.string, y.data.string);
@@ -236,45 +231,38 @@ int gst_compare(GstValue x, GstValue y) {
     return 1;
 }
 
-/* Convert a number into a byte. */
-static uint8_t to_byte(GstNumber raw) {
-    if (raw > 255) return 255;
-    if (raw < 0) return 0;
-    return (uint8_t) raw;
-}
-
 /* Get a value out af an associated data structure. 
  * Returns possible c error message, and NULL for no error. The
  * useful return value is written to out on success */
 const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
-    int32_t index;
+    GstInteger index;
     GstValue ret;
     switch (ds.type) {
     case GST_ARRAY:
-        if (key.type != GST_NUMBER) return "expected numeric key";
-        index = gst_to_index(key.data.number, ds.data.array->count);
-        if (index == -1) return "invalid array access";
+        if (key.type != GST_INTEGER) return "expected integer key";
+        index = gst_startrange(key.data.integer, ds.data.array->count);
+        if (index < 0) return "invalid array access";
         ret = ds.data.array->data[index];
         break;
     case GST_TUPLE:
-        if (key.type != GST_NUMBER) return "expected numeric key";
-        index = gst_to_index(key.data.number, gst_tuple_length(ds.data.tuple));
+        if (key.type != GST_INTEGER) return "expected integer key";
+        index = gst_startrange(key.data.integer, gst_tuple_length(ds.data.tuple));
         if (index < 0) return "invalid tuple access";
         ret = ds.data.tuple[index];
         break;
     case GST_BYTEBUFFER:
-        if (key.type != GST_NUMBER) return "expected numeric key";
-        index = gst_to_index(key.data.number, ds.data.buffer->count);
-        if (index == -1) return "invalid buffer access";
-        ret.type = GST_NUMBER;
-        ret.data.number = ds.data.buffer->data[index];
+        if (key.type != GST_INTEGER) return "expected integer key";
+        index = gst_startrange(key.data.integer, ds.data.buffer->count);
+        if (index < 0) return "invalid buffer access";
+        ret.type = GST_INTEGER;
+        ret.data.integer = ds.data.buffer->data[index];
         break;
     case GST_STRING:
-        if (key.type != GST_NUMBER) return "expected numeric key";
-        index = gst_to_index(key.data.number, gst_string_length(ds.data.string));
-        if (index == -1) return "invalid string access";
-        ret.type = GST_NUMBER;
-        ret.data.number = ds.data.string[index];
+        if (key.type != GST_INTEGER) return "expected integer key";
+        index = gst_startrange(key.data.integer, gst_string_length(ds.data.string));
+        if (index < 0) return "invalid string access";
+        ret.type = GST_INTEGER;
+        ret.data.integer = ds.data.string[index];
         break;
     case GST_STRUCT:
         ret = gst_struct_get(ds.data.st, key);
@@ -292,20 +280,20 @@ const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
 /* Set a value in an associative data structure. Returns possible
  * error message, and NULL if no error. */
 const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
-    int32_t index;
+    GstInteger index;
     switch (ds.type) {
     case GST_ARRAY:
-        if (key.type != GST_NUMBER) return "expected numeric key";
-        index = gst_to_index(key.data.number, ds.data.array->count);
-        if (index == -1) return "invalid array access";
+        if (key.type != GST_INTEGER) return "expected integer key";
+        index = gst_startrange(key.data.integer, ds.data.array->count);
+        if (index < 0) return "invalid array access";
         ds.data.array->data[index] = value;
         break;
     case GST_BYTEBUFFER:
-        if (key.type != GST_NUMBER) return "expected numeric key";
-        if (value.type != GST_NUMBER) return "expected numeric value";
-        index = gst_to_index(key.data.number, ds.data.buffer->count);
-        if (index == -1) return "invalid buffer access";
-        ds.data.buffer->data[index] = to_byte(value.data.number);
+        if (key.type != GST_INTEGER) return "expected integer key";
+        if (value.type != GST_INTEGER) return "expected integer value";
+        index = gst_startrange(key.data.integer, ds.data.buffer->count);
+        if (index < 0) return "invalid buffer access";
+        ds.data.buffer->data[index] = (uint8_t) value.data.integer;
         break;
     case GST_OBJECT:
         gst_object_put(vm, ds.data.object, key, value);
@@ -317,8 +305,8 @@ const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
 }
 
 /* Get the length of an object. Returns errors for invalid types */
-int gst_length(Gst *vm, GstValue x, GstValue *len) {
-    uint32_t length;
+GstInteger gst_length(Gst *vm, GstValue x) {
+    GstInteger length;
     switch (x.type) {
         default:
             vm->ret = gst_string_cv(vm, "cannot get length");
@@ -342,9 +330,6 @@ int gst_length(Gst *vm, GstValue x, GstValue *len) {
             length = x.data.object->count;
             break;
     }
-    /* Normal numeric return */
-    len->type = GST_NUMBER;
-    len->data.number = (GstNumber) length;
-    return GST_RETURN_OK;
+    return length;
 }
 

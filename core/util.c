@@ -51,7 +51,8 @@ int gst_check_##NAME(Gst *vm, uint32_t i, TYPE (*out)) {\
     return 1;\
 }\
 
-GST_WRAP_DEFINE(number, GstNumber, GST_NUMBER, number)
+GST_WRAP_DEFINE(real, GstReal, GST_REAL, real)
+GST_WRAP_DEFINE(integer, GstInteger, GST_INTEGER, integer)
 GST_WRAP_DEFINE(boolean, int, GST_BOOLEAN, boolean)
 GST_WRAP_DEFINE(string, const uint8_t *, GST_STRING, string)
 GST_WRAP_DEFINE(array, GstArray *, GST_ARRAY, array)
@@ -166,41 +167,26 @@ int gst_hashtable_view(GstValue tab, const GstValue **data, uint32_t *cap) {
     return 0;
 }
 
-/* Allow negative indexing to get from end of array like structure */
-/* This probably isn't very fast - look at Lua conversion function.
- * I would like to keep this standard C for as long as possible, though. */
-int32_t gst_to_index(GstNumber raw, int64_t len) {
-    int32_t toInt = raw;
-    if ((GstNumber) toInt == raw) {
-        /* We were able to convert */
-        if (toInt < 0 && len > 0) { 
-            /* Index from end */
-            if (toInt < -len) return -1;    
-            return len + toInt;
-        } else {    
-            /* Normal indexing */
-            if (toInt >= len) return -1;
-            return toInt;
-        }
-    } else {
-        return -1;
-    }
+GstReal gst_integer_to_real(GstInteger x) {
+    return (GstReal) x;
 }
 
-int32_t gst_to_endrange(GstNumber raw, int64_t len) {
-    int32_t toInt = raw;
-    if ((GstNumber) toInt == raw) {
-        /* We were able to convert */
-        if (toInt < 0 && len > 0) { 
-            /* Index from end */
-            if (toInt < -len - 1) return -1;    
-            return len + toInt + 1;
-        } else {    
-            /* Normal indexing */
-            if (toInt >= len) return -1;
-            return toInt;
-        }
-    } else {
+GstInteger gst_real_to_integer(GstReal x) {
+    return (GstInteger) x;
+}
+
+GstInteger gst_startrange(GstInteger raw, uint32_t len) {
+    if (raw > len)
         return -1;
-    }
+    if (raw < 0)
+        return len + raw;
+    return raw;
+}
+
+GstInteger gst_endrange(GstInteger raw, uint32_t len) {
+    if (raw > len)
+        return -1;
+    if (raw < 0)
+        return len + raw + 1;
+    return raw;
 }

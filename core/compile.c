@@ -106,7 +106,8 @@ static FormOptions form_options_default() {
  * to the byte buffer. This helps us create the byte code for the compiled
  * functions. */
 BUFFER_DEFINE(i32, int32_t)
-BUFFER_DEFINE(number, GstNumber)
+BUFFER_DEFINE(i64, int64_t)
+BUFFER_DEFINE(real, GstReal)
 BUFFER_DEFINE(u16, uint16_t)
 BUFFER_DEFINE(i16, int16_t)
 
@@ -321,13 +322,13 @@ static uint16_t compiler_add_literal(GstCompiler *c, GstScope *scope, GstValue x
     uint16_t literalIndex = 0;
     if (checkDup.type != GST_NIL) {
         /* An equal literal is already registered in the current scope */
-        return (uint16_t) checkDup.data.number;
+        return (uint16_t) checkDup.data.integer;
     } else {
         /* Add our literal for tracking */
         GstValue valIndex;
-        valIndex.type = GST_NUMBER;
+        valIndex.type = GST_INTEGER;
         literalIndex = scope->literalsArray->count;
-        valIndex.data.number = literalIndex;
+        valIndex.data.integer = literalIndex;
         gst_object_put(c->vm, scope->literals, x, valIndex);
         gst_array_push(c->vm, scope->literalsArray, x);
     }
@@ -341,8 +342,8 @@ static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValu
     if (sym.type != GST_STRING)
         c_error(c, "expected string");
     target = compiler_get_local(c, scope);
-    x.type = GST_NUMBER;
-    x.data.number = target;
+    x.type = GST_INTEGER;
+    x.data.integer = target;
     gst_object_put(c->vm, scope->locals, sym, x);
     return target;
 }
@@ -356,7 +357,7 @@ static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t 
         GstValue check = gst_object_get(scope->locals, x);
         if (check.type != GST_NIL) {
             *level = currentLevel - scope->level;
-            *index = (uint16_t) check.data.number;
+            *index = (uint16_t) check.data.integer;
             return 1;
         }
         
@@ -405,24 +406,23 @@ static Slot compile_nonref_type(GstCompiler *c, FormOptions opts, GstValue x) {
     } else if (x.type == GST_BOOLEAN) {
         gst_buffer_push_u16(c->vm, buffer, x.data.boolean ? GST_OP_TRU : GST_OP_FLS);
         gst_buffer_push_u16(c->vm, buffer, ret.index);
-    } else if (x.type == GST_NUMBER) {
-        GstNumber number = x.data.number;
-        int32_t int32Num = (int32_t) number;
-        if (number == (GstNumber) int32Num) {
-            if (int32Num <= 32767 && int32Num >= -32768) {
-                int16_t int16Num = (int16_t) number;
-                gst_buffer_push_u16(c->vm, buffer, GST_OP_I16);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-                gst_buffer_push_i16(c->vm, buffer, int16Num);
-            } else {
-                gst_buffer_push_u16(c->vm, buffer, GST_OP_I32);
-                gst_buffer_push_u16(c->vm, buffer, ret.index);
-                gst_buffer_push_i32(c->vm, buffer, int32Num);
-            }
-        } else {
-            gst_buffer_push_u16(c->vm, buffer, GST_OP_F64);
+    } else if (x.type == GST_REAL) {
+        gst_buffer_push_u16(c->vm, buffer, GST_OP_F64);
+        gst_buffer_push_u16(c->vm, buffer, ret.index);
+        gst_buffer_push_real(c->vm, buffer, x.data.real);
+    } else if (x.type == GST_INTEGER) {
+        if (x.data.integer <= 32767 && x.data.integer >= -32768) {
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_I16);
             gst_buffer_push_u16(c->vm, buffer, ret.index);
-            gst_buffer_push_number(c->vm, buffer, number);
+            gst_buffer_push_i16(c->vm, buffer, x.data.integer);
+        } else if (x.data.integer <= 2147483647 && x.data.integer >= -2147483648) {
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_I32);
+            gst_buffer_push_u16(c->vm, buffer, ret.index);
+            gst_buffer_push_i32(c->vm, buffer, x.data.integer);
+        } else {
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_I64);
+            gst_buffer_push_u16(c->vm, buffer, ret.index);
+            gst_buffer_push_i64(c->vm, buffer, x.data.integer);
         }
     } else {
         c_error(c, "expected boolean, nil, or number type");
@@ -743,7 +743,8 @@ static Slot compile_quote(GstCompiler *c, FormOptions opts, const GstValue *form
     GstValue x = form[1];
     if (x.type == GST_NIL ||
             x.type == GST_BOOLEAN ||
-            x.type == GST_NUMBER) {
+            x.type == GST_REAL ||
+            x.type == GST_INTEGER) {
         return compile_nonref_type(c, opts, x);
     }
     if (opts.resultUnused) return nil_slot();
@@ -1007,7 +1008,8 @@ static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
     switch (x.type) {
         case GST_NIL:
         case GST_BOOLEAN:
-        case GST_NUMBER:
+        case GST_REAL:
+        case GST_INTEGER:
             return compile_nonref_type(c, opts, x);
         case GST_STRING:
             return compile_symbol(c, opts, x);

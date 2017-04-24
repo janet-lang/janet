@@ -50,6 +50,7 @@
  * Byte 215: LUdata  - [value meta][u32 length]*[u8... bytes]
  * Byte 216: CFunc   - [u32 length]*[u8... idstring]
  * Byte 217: Ref     - [u32 id]
+ * Byte 218: Integer - [i64 value]
  */
 
 /* Error at buffer end */
@@ -76,13 +77,23 @@ static uint16_t bytes2u16(const uint8_t *bytes) {
 }
 
 /* Read 8 bytes as a double */
-static uint32_t bytes2dbl(const uint8_t *bytes) {
+static double bytes2dbl(const uint8_t *bytes) {
     union {
         uint8_t bytes[8];
         double dbl;
     } u;
     gst_memcpy(u.bytes, bytes, 8 * sizeof(uint8_t));
     return u.dbl;
+}
+
+/* Read 8 bytes as a integer */
+static int64_t bytes2int(const uint8_t *bytes) {
+    union {
+        uint8_t bytes[8];
+        int64_t i;
+    } u;
+    gst_memcpy(u.bytes, bytes, 8 * sizeof(uint8_t));
+    return u.i;
 }
 
 /* Read a string and turn it into a gst value. Returns
@@ -116,14 +127,15 @@ static const char *gst_deserialize_impl(
 #define read_u32(out) do{deser_datacheck(4); (out)=bytes2u32(data); data += 4; }while(0)
 #define read_u16(out) do{deser_datacheck(2); (out)=bytes2u16(data); data += 2; }while(0)
 #define read_dbl(out) do{deser_datacheck(8); (out)=bytes2dbl(data); data += 8; }while(0)
+#define read_i64(out) do{deser_datacheck(8); (out)=bytes2int(data); data += 8; }while(0)
 
     /* Check enough buffer left to read one byte */
     if (data >= end) deser_error(UEB);
 
     /* Small integer */
     if (*data < 201) {
-        ret.type = GST_NUMBER;
-        ret.data.number = *data - 100; 
+        ret.type = GST_INTEGER;
+        ret.data.integer = *data - 100; 
         *newData = data + 1;
         *out = ret;
         return NULL;
@@ -150,8 +162,8 @@ static const char *gst_deserialize_impl(
             break;
 
         case 204: /* Long number (double) */
-            ret.type = GST_NUMBER; 
-            read_dbl(ret.data.number);
+            ret.type = GST_REAL; 
+            read_dbl(ret.data.real);
             break;
 
         case 205: /* String */
@@ -410,6 +422,11 @@ static const char *gst_deserialize_impl(
             deser_assert(visited->count > length, "invalid reference");
             ret = visited->data[length];
             break;
+
+        case 218: /* Integer */
+            ret.type = GST_INTEGER;
+            read_i64(ret.data.integer);
+            break;
     }
 
     /* Handle a successful return */
@@ -435,8 +452,8 @@ const char *gst_deserialize(
 }
     
 /* Allow appending other types to buffers */
-BUFFER_DEFINE(number, GstNumber)
-/*BUFFER_DEFINE(u16, uint16_t)*/
+BUFFER_DEFINE(real, GstReal)
+BUFFER_DEFINE(integer, GstInteger)
 BUFFER_DEFINE(u32, uint32_t)
 
 /* Serialize a value and write to a buffer. Returns possible
@@ -455,7 +472,8 @@ const char *gst_serialize_impl(
 #define write_byte(b) gst_buffer_push(vm, buffer, (b))
 #define write_u32(b) gst_buffer_push_u32(vm, buffer, (b))
 #define write_u16(b) gst_buffer_push_u16(vm, buffer, (b))
-#define write_dbl(b) gst_buffer_push_number(vm, buffer, (b))
+#define write_dbl(b) gst_buffer_push_real(vm, buffer, (b))
+#define write_int(b) gst_buffer_push_integer(vm, buffer, (b))
 
     /* Check non reference types - if successful, return NULL */
     switch (x.type) {
@@ -465,17 +483,16 @@ const char *gst_serialize_impl(
         case GST_BOOLEAN:
             write_byte(x.data.boolean ? 202 : 203);
             return NULL;
-        case GST_NUMBER: 
-            {
-                GstNumber number = x.data.number;
-                int32_t int32Num = (int32_t) number;
-                if (number == (GstNumber) int32Num &&
-                        int32Num <= 100 && int32Num >= -100) {
-                    write_byte(int32Num + 100);
-                } else {
-                    write_byte(204);
-                    write_dbl(number);
-                }
+        case GST_REAL: 
+            write_byte(204);
+            write_dbl(x.data.real);
+            return NULL;
+        case GST_INTEGER:
+            if (x.data.integer <= 100 && x.data.integer >= -100) {
+                write_byte(x.data.integer + 100);
+            } else {
+                write_byte(218);
+                write_int(x.data.integer);
             }
             return NULL;
         case GST_CFUNCTION:
@@ -487,9 +504,9 @@ const char *gst_serialize_impl(
 
     /* Check if already seen - if so, use reference */
     check = gst_object_get(visited, x);
-    if (check.type == GST_NUMBER) {
+    if (check.type == GST_INTEGER) {
         write_byte(217);
-        write_u32((uint32_t) check.data.number);
+        write_u32((uint32_t) check.data.integer);
         return NULL;
     }
 
@@ -549,8 +566,8 @@ const char *gst_serialize_impl(
     }
 
     /* Record reference */
-    check.type = GST_NUMBER;
-    check.data.number = *nextId++;
+    check.type = GST_INTEGER;
+    check.data.integer = *nextId++;
     gst_object_put(vm, visited, x, check);
 
     /* Return success */

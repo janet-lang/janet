@@ -27,67 +27,53 @@
 
 #include <gst/disasm.h>
 
-static const char GST_EXPECTED_NUMBER_OP[] = "expected operand to be number";
+static const char GST_EXPECTED_INTEGER[] = "expected integer";
 static const char GST_EXPECTED_STRING[] = "expected string";
 
 /***/
 /* Arithmetic */
 /***/
 
-#define SIMPLE_ACCUM_FUNCTION(name, start, op)\
-int gst_stl_##name(Gst* vm) {\
-    GstValue ret;\
-    uint32_t j, count;\
-    ret.type = GST_NUMBER;\
-    ret.data.number = start;\
-    count = gst_count_args(vm);\
-    for (j = 0; j < count; ++j) {\
-        GstValue operand = gst_arg(vm, j);\
-        if (operand.type != GST_NUMBER)\
-            gst_c_throwc(vm, GST_EXPECTED_NUMBER_OP);\
-        ret.data.number op operand.data.number;\
-    }\
-    gst_c_return(vm, ret);\
+#define MAKE_BINOP(name, op)\
+GstValue gst_stl_binop_##name(GstValue lhs, GstValue rhs) {\
+    if (lhs.type == GST_INTEGER)\
+        if (rhs.type == GST_INTEGER)\
+            return gst_wrap_integer(lhs.data.integer op rhs.data.integer);\
+        else if (rhs.type == GST_REAL)\
+            return gst_wrap_real(lhs.data.integer op rhs.data.real);\
+        else\
+            return gst_wrap_nil();\
+    else if (lhs.type == GST_REAL)\
+        if (rhs.type == GST_INTEGER)\
+            return gst_wrap_real(lhs.data.real op rhs.data.integer);\
+        else if (rhs.type == GST_REAL)\
+            return gst_wrap_real(lhs.data.real op rhs.data.real);\
+        else\
+            return gst_wrap_nil();\
+    else\
+        return gst_wrap_nil();\
 }
 
-SIMPLE_ACCUM_FUNCTION(add, 0, +=)
-SIMPLE_ACCUM_FUNCTION(mul, 1, *=)
+#define SIMPLE_ACCUM_FUNCTION(name, start, op)\
+MAKE_BINOP(name, op)\
+int gst_stl_##name(Gst* vm) {\
+    GstValue lhs, rhs;\
+    uint32_t j, count;\
+    count = gst_count_args(vm);\
+    lhs = gst_arg(vm, 0);\
+    for (j = 1; j < count; ++j) {\
+        rhs = gst_arg(vm, j);\
+        lhs = gst_stl_binop_##name(lhs, rhs);\
+    }\
+    gst_c_return(vm, lhs);\
+}
+
+SIMPLE_ACCUM_FUNCTION(add, 0, +)
+SIMPLE_ACCUM_FUNCTION(mul, 1, *)
+SIMPLE_ACCUM_FUNCTION(sub, 0, -)
+SIMPLE_ACCUM_FUNCTION(div, 1, /)
 
 #undef SIMPLE_ACCUM_FUNCTION
-
-#define UNARY_ACCUM_FUNCTION(name, zeroval, unaryop, op)\
-int gst_stl_##name(Gst* vm) {\
-    GstValue ret;\
-    GstValue operand;\
-    uint32_t j, count;\
-    ret.type = GST_NUMBER;\
-    count = gst_count_args(vm);\
-    if (count == 0) {\
-        ret.data.number = zeroval;\
-        gst_c_return(vm, ret);\
-    }\
-    operand = gst_arg(vm, 0);\
-    if (operand.type != GST_NUMBER)\
-        gst_c_throwc(vm, GST_EXPECTED_NUMBER_OP);\
-    if (count == 1) {\
-        ret.data.number = unaryop operand.data.number;\
-        gst_c_return(vm, ret);\
-    } else {\
-        ret.data.number = operand.data.number;\
-    }\
-    for (j = 1; j < count; ++j) {\
-        operand = gst_arg(vm, j);\
-        if (operand.type != GST_NUMBER)\
-            gst_c_throwc(vm, GST_EXPECTED_NUMBER_OP);\
-        ret.data.number op operand.data.number;\
-    }\
-    gst_c_return(vm, ret);\
-}
-
-UNARY_ACCUM_FUNCTION(sub, 0, -, -=)
-UNARY_ACCUM_FUNCTION(div, 1, 1/, /=)
-
-#undef UNARY_ACCUM_FUNCTION
 
 #define COMPARE_FUNCTION(name, check)\
 int gst_stl_##name(Gst *vm) {\
@@ -131,43 +117,49 @@ int gst_stl_length(Gst *vm) {
         gst_c_return(vm, ret);
     }
     if (count == 1) {
-        ret.type = GST_NUMBER;
+        ret.type = GST_INTEGER;
         GstValue x = gst_arg(vm, 0);
         switch (x.type) {
         default:
             gst_c_throwc(vm, "cannot get length");
         case GST_STRING:
-            ret.data.number = gst_string_length(x.data.string);
+            ret.data.integer = gst_string_length(x.data.string);
             break;
         case GST_ARRAY:
-            ret.data.number = x.data.array->count;
+            ret.data.integer = x.data.array->count;
             break;
         case GST_BYTEBUFFER:
-            ret.data.number = x.data.buffer->count;
+            ret.data.integer = x.data.buffer->count;
             break;
         case GST_TUPLE:
-            ret.data.number = gst_tuple_length(x.data.tuple);
+            ret.data.integer = gst_tuple_length(x.data.tuple);
             break;
         case GST_OBJECT:
-            ret.data.number = x.data.object->count;
+            ret.data.integer = x.data.object->count;
             break;
         }
     }
     gst_c_return(vm, ret);
 }
 
-/* Get nth argument, not including first argument */
-int gst_stl_select(Gst *vm) {
-    GstValue selector;
-    uint32_t count, n;
-    count = gst_count_args(vm);
-    if (count == 0)
-        gst_c_throwc(vm, "select takes at least one argument");
-    selector = gst_arg(vm, 0);
-    if (selector.type != GST_NUMBER)
-        gst_c_throwc(vm, GST_EXPECTED_NUMBER_OP);
-    n = selector.data.number;
-    gst_c_return(vm, gst_arg(vm, n + 1));
+/* Convert to integer */
+int gst_stl_to_int(Gst *vm) {
+    GstValue x = gst_arg(vm, 0);
+    if (x.type == GST_INTEGER) gst_c_return(vm, x);
+    if (x.type == GST_REAL)
+        gst_c_return(vm, gst_wrap_integer((GstInteger) x.data.real));
+    else
+       gst_c_throwc(vm, "expected number"); 
+}
+
+/* Convert to integer */
+int gst_stl_to_real(Gst *vm) {
+    GstValue x = gst_arg(vm, 0);
+    if (x.type == GST_REAL) gst_c_return(vm, x);
+    if (x.type == GST_INTEGER)
+        gst_c_return(vm, gst_wrap_real((GstReal) x.data.integer));
+    else
+       gst_c_throwc(vm, "expected number"); 
 }
 
 /* Get a slice of a sequence */
@@ -178,7 +170,7 @@ int gst_stl_slice(Gst *vm) {
     const GstValue *data;
     uint32_t length;
     uint32_t newlength;
-    GstNumber num;
+    GstInteger num;
 
     /* Get data */
     x = gst_arg(vm, 0);
@@ -189,18 +181,18 @@ int gst_stl_slice(Gst *vm) {
     if (count < 2) {
         from = 0;
     } else {
-        if (!gst_check_number(vm, 1, &num))
-            gst_c_throwc(vm, GST_EXPECTED_NUMBER_OP);
-        from = gst_to_index(num, length);
+        if (!gst_check_integer(vm, 1, &num))
+            gst_c_throwc(vm, GST_EXPECTED_INTEGER);
+        from = gst_startrange(num, length);
     }
 
     /* Get to index */
     if (count < 3) {
         to = length;
     } else {
-        if (!gst_check_number(vm, 2, &num))
-            gst_c_throwc(vm, GST_EXPECTED_NUMBER_OP);
-        to = gst_to_endrange(num, length);
+        if (!gst_check_integer(vm, 2, &num))
+            gst_c_throwc(vm, GST_EXPECTED_INTEGER);
+        to = gst_endrange(num, length);
     }
 
     /* Check from bad bounds */
@@ -232,8 +224,11 @@ int gst_stl_type(Gst *vm) {
     switch (x.type) {
     default:
         break;
-    case GST_NUMBER:
-        typestr = "number";
+    case GST_REAL:
+        typestr = "real";
+        break;
+    case GST_INTEGER:
+        typestr = "integer";
         break;
     case GST_BOOLEAN:
         typestr = "boolean";
@@ -419,9 +414,9 @@ int gst_stl_ensure(Gst *vm) {
     GstValue cap = gst_arg(vm, 1);
     if (ds.type != GST_ARRAY)
         gst_c_throwc(vm, "expected array");
-    if (cap.type != GST_NUMBER)
-        gst_c_throwc(vm, "expected number");
-    gst_array_ensure(vm, ds.data.array, (uint32_t) cap.data.number);
+    if (cap.type != GST_INTEGER)
+        gst_c_throwc(vm, GST_EXPECTED_INTEGER);
+    gst_array_ensure(vm, ds.data.array, (uint32_t) cap.data.integer);
     gst_c_return(vm, ds);
 }
 
@@ -464,8 +459,8 @@ int gst_stl_tostring(Gst *vm) {
 /* Exit */
 int gst_stl_exit(Gst *vm) {
     int ret;
-    GstValue exitValue = gst_arg(vm, 0);
-    ret = (exitValue.type == GST_NUMBER) ? exitValue.data.number : 0;
+    GstValue x = gst_arg(vm, 0);
+    ret = x.type == GST_INTEGER ? x.data.integer : (x.type == GST_REAL ? x.data.real : 0);
     exit(ret);
     return GST_RETURN_OK;
 }
@@ -532,31 +527,6 @@ int gst_stl_open(Gst *vm) {
     gst_c_return(vm, gst_wrap_userdata(fp));
 }
 
-/* Write a string to a file */
-int gst_stl_write(Gst *vm) {
-    GstValue f = gst_arg(vm, 0);
-    FILE *f;
-    if (f.type != GST_USERDATA)
-        gst_c_throwc(vm, "expected file userdata");
-    f = *(FILE **)f.data.pointer
-}
-
-/* Read an entire file in one go. Will be faster than sequential reads for
- * small to moderately sized files */
-int gst_stl_slurp(Gst *vm) {
-    GstValue x = gst_arg(vm, 0);
-    const uint8_t *fname;
-    FILE *f;
-    if (gst_count_args(vm) < 1 || x.type != GST_STRING)
-        gst_c_throwc(vm, "expected file name");
-    fname = gst_to_string(vm, gst_arg(vm, 0));
-    f = fopen((const char *) fname, "rb");
-    if (!f)
-        gst_c_throwc(vm, "could not open file for reading");
-    // TODO use fseek and like functions to read file into a buffer.
-
-}
-
 /* Write a string to a file in one go. Overwrites an existing file. */
 
 /****/
@@ -595,8 +565,9 @@ static const GstModuleItem const std_module[] = {
     {"<=", gst_stl_lessthaneq},
     {">=", gst_stl_greaterthaneq},
     {"length", gst_stl_length},
+    {"to-integer", gst_stl_to_int},
+    {"to-real", gst_stl_to_real},
     {"type", gst_stl_type},
-    {"select", gst_stl_select},
     {"slice", gst_stl_slice},
     {"array", gst_stl_array},
     {"tuple", gst_stl_tuple},

@@ -83,10 +83,10 @@
 
 /* Macros for referencing a stack frame given a stack */
 #define gst_frame_callee(s)     (*(s - 1))
-#define gst_frame_size(s)       ((s - 2)->data.hws[0])
-#define gst_frame_prevsize(s)   ((s - 2)->data.hws[1])
-#define gst_frame_args(s)       ((s - 2)->data.hws[2])
-#define gst_frame_ret(s)        ((s - 2)->data.hws[3])
+#define gst_frame_size(s)       ((s - 2)->data.words[0])
+#define gst_frame_prevsize(s)   ((s - 2)->data.words[1])
+#define gst_frame_args(s)       ((s - 2)->data.words[2])
+#define gst_frame_ret(s)        ((s - 2)->data.words[3])
 #define gst_frame_pc(s)         ((s - 3)->data.u16p)
 #define gst_frame_env(s)        ((s - 4)->data.env)
 
@@ -111,13 +111,11 @@
 #define GST_OUT_OF_MEMORY do { printf("out of memory\n"); exit(1); } while (0)
 #endif
 
-/* Max search depth for classes. */
-#define GST_MAX_SEARCH_DEPTH 128
-
 /* Various types */
 typedef enum GstType {
     GST_NIL = 0,
-    GST_NUMBER,
+    GST_REAL,
+    GST_INTEGER,
     GST_BOOLEAN,
     GST_STRING,
     GST_ARRAY,
@@ -140,8 +138,9 @@ typedef struct Gst Gst;
 typedef struct GstValue GstValue;
 
 /* All of the gst types */
-typedef double GstNumber;
-typedef uint8_t GstBoolean;
+typedef double GstReal;
+typedef int64_t GstInteger;
+typedef int GstBoolean;
 typedef struct GstFunction GstFunction;
 typedef struct GstArray GstArray;
 typedef struct GstBuffer GstBuffer;
@@ -167,7 +166,8 @@ struct GstModuleItem {
 /* Union datatype */
 union GstValueUnion {
     GstBoolean boolean;
-    GstNumber number;
+    GstReal real;
+    GstInteger integer;
     GstArray *array;
     GstBuffer *buffer;
     GstObject *object;
@@ -179,12 +179,13 @@ union GstValueUnion {
     GstFuncDef *def;
     const GstValue *st;
     const uint8_t *string;
-    const char *cstring; /* Alias for ease of use from c */
     /* Indirectly used union members */
     uint16_t *u16p;
-    uint16_t hws[4];
+    uint32_t dwords[2];
+    uint16_t words[4];
     uint8_t bytes[8];
     void *pointer;
+    const char *cstring;
 };
 
 /* The general gst value type. Contains a large union and
@@ -296,29 +297,20 @@ struct Gst {
 
 /* Bytecode */
 enum GstOpCode {
-    GST_OP_ADD = 0, /* Addition */
-    GST_OP_SUB,     /* Subtraction */
-    GST_OP_MUL,     /* Multiplication */
-    GST_OP_DIV,     /* Division */
-    GST_OP_NOT,     /* Boolean invert */
-    GST_OP_NEG,     /* Unary negation */ 
-    GST_OP_INV,     /* Unary multiplicative inverse */
     GST_OP_FLS,     /* Load false */
     GST_OP_TRU,     /* Load true */
     GST_OP_NIL,     /* Load nil */
-    GST_OP_I16,     /* Load 16 bit signed integer */
     GST_OP_UPV,     /* Load upvalue */
     GST_OP_JIF,     /* Jump if */
     GST_OP_JMP,     /* Jump */
     GST_OP_SUV,     /* Set upvalue */
     GST_OP_CST,     /* Load constant */
+    GST_OP_I16,     /* Load 16 bit signed integer */
     GST_OP_I32,     /* Load 32 bit signed integer */
+    GST_OP_I64,     /* Load 64 bit signed integer */
     GST_OP_F64,     /* Load 64 bit IEEE double */
     GST_OP_MOV,     /* Move value */
     GST_OP_CLN,     /* Create a closure */
-    GST_OP_EQL,     /* Check equality */
-    GST_OP_LTN,     /* Check less than */
-    GST_OP_LTE,     /* Check less than or equal to */
     GST_OP_ARR,     /* Create array */
     GST_OP_DIC,     /* Create object */
     GST_OP_TUP,     /* Create tuple */
@@ -430,7 +422,7 @@ const char *gst_get(GstValue ds, GstValue key, GstValue *out);
 const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value);
 const uint8_t *gst_to_string(Gst *vm, GstValue x);
 uint32_t gst_hash(GstValue x);
-int gst_length(Gst *vm, GstValue x, GstValue *len);
+GstInteger gst_length(Gst *vm, GstValue x);
 
 /****/
 /* Serialization */
@@ -464,6 +456,7 @@ int gst_length(Gst *vm, GstValue x, GstValue *len);
  * Byte 215: LUdata  - [value meta][u32 length]*[u8... bytes]
  * Byte 216: CFunc   - [u32 length]*[u8... idstring]
  * Byte 217: Ref     - [u32 id]
+ * Byte 218: Integer - [i64 value]
  */
 
 const char *gst_deserialize(
@@ -517,7 +510,8 @@ GstValue gst_register_get(Gst *vm, const char *name);
 
 /* Wrap data in GstValue */
 GstValue gst_wrap_nil();
-GstValue gst_wrap_number(GstNumber x);
+GstValue gst_wrap_real(GstReal x);
+GstValue gst_wrap_integer(GstInteger x);
 GstValue gst_wrap_boolean(int x);
 GstValue gst_wrap_string(const uint8_t *x);
 GstValue gst_wrap_array(GstArray *x);
@@ -534,7 +528,8 @@ GstValue gst_wrap_funcdef(GstFuncDef *x);
 
 /* Check data from arguments */
 int gst_check_nil(Gst *vm, uint32_t i);
-int gst_check_number(Gst *vm, uint32_t i, GstNumber (*x));
+int gst_check_real(Gst *vm, uint32_t i, GstReal (*x));
+int gst_check_integer(Gst *vm, uint32_t i, GstInteger (*x));
 int gst_check_boolean(Gst *vm, uint32_t i, int (*x));
 int gst_check_string(Gst *vm, uint32_t i, const uint8_t *(*x));
 int gst_check_array(Gst *vm, uint32_t i, GstArray *(*x));
@@ -557,7 +552,9 @@ int gst_hashtable_view(GstValue tab, const GstValue **data, uint32_t *cap);
 /* Misc */
 /****/
 
-int32_t gst_to_index(GstNumber raw, int64_t len);
-int32_t gst_to_endrange(GstNumber raw, int64_t len);
+GstReal gst_integer_to_real(GstInteger x);
+GstInteger gst_real_to_integer(GstReal x);
+GstInteger gst_startrange(GstInteger raw, uint32_t len);
+GstInteger gst_endrange(GstInteger raw, uint32_t len);
 
 #endif // GST_H_defined

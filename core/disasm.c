@@ -94,21 +94,6 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
             default:
                 current += dasm_fixed_op(out, current, "unknown", 0);
                 break;
-            case GST_OP_ADD:
-                current += dasm_fixed_op(out, current, "add", 3);
-                break;
-            case GST_OP_SUB:
-                current += dasm_fixed_op(out, current, "sub", 3);
-                break;      
-            case GST_OP_MUL:
-                current += dasm_fixed_op(out, current, "mul", 3);
-                break;      
-            case GST_OP_DIV:
-                current += dasm_fixed_op(out, current, "div", 3);
-                break;
-            case GST_OP_NOT:
-                current += dasm_fixed_op(out, current, "not", 2);
-                break;
             case GST_OP_FLS:
                 current += dasm_fixed_op(out, current, "loadFalse", 1);
                 break;
@@ -173,15 +158,6 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
                 dasm_print_slot(out, current[1]);
                 dasm_print_literal(out, current[2]);
                 current += 3;
-                break;
-            case GST_OP_EQL:
-                current += dasm_fixed_op(out, current, "equals", 3);
-                break;
-            case GST_OP_LTN:
-                current += dasm_fixed_op(out, current, "lessThan", 3);
-                break;
-            case GST_OP_LTE:
-                current += dasm_fixed_op(out, current, "lessThanEquals", 3);
                 break;
             case GST_OP_ARR:
                 current += dasm_varg_op(out, current, "array", 1);
