@@ -26,7 +26,6 @@
 #include <gst/parse.h>
 #include <gst/compile.h>
 #include <gst/stl.h>
-#include <gst/disasm.h>
 
 /* Use readline support for now */
 #include <readline/readline.h>
@@ -46,10 +45,6 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue env) {
         printf("Compiler error: %s\n", c.error);
         return 1;
     }
-    /* Print disasm */
-    /*printf("%c[31m===== Begin Disassembly =====\n", 27);*/
-    /*gst_dasm_function(stdout, func.data.function);*/
-    /*printf("=====  End Disassembly  =====%c[0m\n", 27);*/
     /* Execute function */
     if (gst_run(vm, func)) {
         if (vm->crash) {

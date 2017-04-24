@@ -25,6 +25,8 @@
 #include <gst/compile.h>
 #include <gst/stl.h>
 
+#include <gst/disasm.h>
+
 static const char GST_EXPECTED_NUMBER_OP[] = "expected operand to be number";
 static const char GST_EXPECTED_STRING[] = "expected string";
 
@@ -178,21 +180,10 @@ int gst_stl_slice(Gst *vm) {
     uint32_t newlength;
     GstNumber num;
 
-    /* Check args */
-    if (count < 1)
-        gst_c_throwc(vm, "slice takes at least one argument");
-    x = gst_arg(vm, 0);
-
     /* Get data */
-    if (x.type == GST_TUPLE) {
-        data = x.data.st;
-        length = gst_tuple_length(x.data.st);
-    } else if (x.type == GST_ARRAY) {
-        data = x.data.array->data;
-        length = x.data.array->count;
-    } else {
+    x = gst_arg(vm, 0);
+    if (!gst_seq_view(x, &data, &length)) 
         gst_c_throwc(vm, "expected array or tuple");
-    }
 
     /* Get from index */
     if (count < 2) {
@@ -342,26 +333,27 @@ int gst_stl_buffer(Gst *vm) {
     gst_c_return(vm, gst_wrap_buffer(buf));
 }
 
-/* Concatenate string */
+/* Concatenate strings */
 int gst_stl_strcat(Gst *vm) {
-    uint32_t j, count, length, index;
+    uint32_t j;
+    uint32_t count = gst_count_args(vm);
+    uint32_t length = 0;
+    uint32_t index = 0;
     uint8_t *str;
-    count = gst_count_args(vm);
-    length = 0;
-    index = 0;
+    const uint8_t *dat;
+    uint32_t slen;
     /* Find length and assert string arguments */
     for (j = 0; j < count; ++j) {
-        GstValue arg = gst_arg(vm, j);
-        if (arg.type != GST_STRING)
+        if (gst_chararray_view(gst_arg(vm, j), &dat, &slen))
+            length += slen;
+        else
             gst_c_throwc(vm, GST_EXPECTED_STRING);
-        length += gst_string_length(arg.data.string);
     }
     /* Make string */
     str = gst_string_begin(vm, length);
     for (j = 0; j < count; ++j) {
-        GstValue arg = gst_arg(vm, j);
-        uint32_t slen = gst_string_length(arg.data.string);
-        gst_memcpy(str + index, arg.data.string, slen);
+        gst_chararray_view(gst_arg(vm, j), &dat, &slen);
+        gst_memcpy(str + index, dat, slen);
         index += slen;
     }
     gst_c_return(vm, gst_wrap_string(gst_string_end(vm, str)));
@@ -373,9 +365,8 @@ int gst_stl_rawget(Gst *vm) {
     uint32_t count;
     const char *err;
     count = gst_count_args(vm);
-    if (count != 2) {
+    if (count != 2)
         gst_c_throwc(vm, "expects 2 arguments");
-    }
     err = gst_get(gst_arg(vm, 0), gst_arg(vm, 1), &ret);
     if (err != NULL)
         gst_c_throwc(vm, err);
@@ -388,15 +379,50 @@ int gst_stl_rawset(Gst *vm) {
     uint32_t count;
     const char *err;
     count = gst_count_args(vm);
-    if (count != 3) {
+    if (count != 3)
         gst_c_throwc(vm, "expects 3 arguments");
-    }
     err = gst_set(vm, gst_arg(vm, 0), gst_arg(vm, 1), gst_arg(vm, 2));
-    if (err != NULL) {
+    if (err != NULL)
         gst_c_throwc(vm, err);
-    } else {
+    else
         gst_c_return(vm, gst_arg(vm, 0));
-    }
+}
+
+/* Push to end of array */
+int gst_stl_push(Gst *vm) {
+    GstValue ds = gst_arg(vm, 0);
+    if (ds.type != GST_ARRAY)
+        gst_c_throwc(vm, "expected array");
+    gst_array_push(vm, ds.data.array, gst_arg(vm, 1));
+    gst_c_return(vm, ds);
+}
+
+/* Pop from end of array */
+int gst_stl_pop(Gst *vm) {
+    GstValue ds = gst_arg(vm, 0);
+    if (ds.type != GST_ARRAY)
+        gst_c_throwc(vm, "expected array");
+    gst_c_return(vm, gst_array_pop(ds.data.array));
+}
+
+/* Peek at end of array */
+int gst_stl_peek(Gst *vm) {
+    GstValue ds = gst_arg(vm, 0);
+    if (ds.type != GST_ARRAY)
+        gst_c_throwc(vm, "expected array");
+    gst_c_return(vm, gst_array_peek(ds.data.array));
+}
+
+/* Ensure array capacity */
+int gst_stl_ensure(Gst *vm) {
+    GstValue ds = gst_arg(vm, 0);
+    GstValue cap = gst_arg(vm, 1);
+    if (ds.type != GST_ARRAY)
+        gst_c_throwc(vm, "expected array");
+    if (cap.type != GST_NUMBER)
+        gst_c_throwc(vm, "expected number");
+    gst_array_ensure(vm, ds.data.array, (uint32_t) cap.data.number);
+    gst_c_return(vm, ds);
 }
 
 /* Get next key in struct or object */
@@ -404,9 +430,9 @@ int gst_stl_next(Gst *vm) {
     GstValue ds = gst_arg(vm, 0);
     GstValue key = gst_arg(vm, 1);
     if (ds.type == GST_OBJECT) {
-       gst_c_return(vm, gst_object_next(ds.data.object, key));    
+        gst_c_return(vm, gst_object_next(ds.data.object, key));    
     } else if (ds.type == GST_STRUCT) {
-       gst_c_return(vm, gst_struct_next(ds.data.st, key));    
+        gst_c_return(vm, gst_struct_next(ds.data.st, key));    
     } else {
         gst_c_throwc(vm, "expected object or struct");
     }
@@ -446,8 +472,7 @@ int gst_stl_exit(Gst *vm) {
 
 /* Throw error */
 int gst_stl_error(Gst *vm) {
-    GstValue errval = gst_arg(vm, 0);
-    gst_c_throw(vm, errval);
+    gst_c_throw(vm, gst_arg(vm, 0));
 }
 
 /****/
@@ -470,25 +495,89 @@ int gst_stl_serialize(Gst *vm) {
 }
 
 /****/
+/* Registry */
+/****/
+
+int gst_stl_global(Gst *vm) {
+    gst_c_return(vm, gst_object_get(vm->registry, gst_arg(vm, 0)));
+}
+
+int gst_stl_setglobal(Gst *vm) {
+    gst_object_put(vm, vm->registry, gst_arg(vm, 0), gst_arg(vm, 1));
+    gst_c_return(vm, gst_wrap_nil());
+}
+
+/****/
 /* IO */
 /****/
 
 /* TODO - add userdata to allow for manipulation of FILE pointers. */
 
+/* Open a a file and return a userdata wrapper arounf the C file API. */
 int gst_stl_open(Gst *vm) {
     const uint8_t *fname = gst_to_string(vm, gst_arg(vm, 0));
     const uint8_t *fmode = gst_to_string(vm, gst_arg(vm, 1));
     FILE *f;
     FILE **fp;
     GstValue *st;
-    if (gst_count_args(vm) < 2)
+    if (gst_count_args(vm) < 2 || gst_arg(vm, 0).type != GST_STRING 
+            || gst_arg(vm, 1).type != GST_STRING)
         gst_c_throwc(vm, "expected filename and filemode");
     f = fopen((const char *)fname, (const char *)fmode);
     if (!f)
         gst_c_throwc(vm, "could not open file");
     st = gst_struct_begin(vm, 0);
     fp = gst_userdata(vm, sizeof(FILE *), gst_struct_end(vm, st));
+    *fp = f;
     gst_c_return(vm, gst_wrap_userdata(fp));
+}
+
+/* Write a string to a file */
+int gst_stl_write(Gst *vm) {
+    GstValue f = gst_arg(vm, 0);
+    FILE *f;
+    if (f.type != GST_USERDATA)
+        gst_c_throwc(vm, "expected file userdata");
+    f = *(FILE **)f.data.pointer
+}
+
+/* Read an entire file in one go. Will be faster than sequential reads for
+ * small to moderately sized files */
+int gst_stl_slurp(Gst *vm) {
+    GstValue x = gst_arg(vm, 0);
+    const uint8_t *fname;
+    FILE *f;
+    if (gst_count_args(vm) < 1 || x.type != GST_STRING)
+        gst_c_throwc(vm, "expected file name");
+    fname = gst_to_string(vm, gst_arg(vm, 0));
+    f = fopen((const char *) fname, "rb");
+    if (!f)
+        gst_c_throwc(vm, "could not open file for reading");
+    // TODO use fseek and like functions to read file into a buffer.
+
+}
+
+/* Write a string to a file in one go. Overwrites an existing file. */
+
+/****/
+/* Temporary */
+/****/
+
+/* These functions should definitely be moved to a different module, remove, or
+ * rewritten in gst when the language is complete enough. This is not to say
+ * that functions in other section need not be moved. */
+
+/* Print disassembly for a function */
+int gst_stl_dasm(Gst *vm) {
+    GstValue x = gst_arg(vm, 0);
+    if (x.type == GST_FUNCTION) {
+        printf("%c[31m===== Begin Disassembly =====\n", 27);
+        gst_dasm_function(stdout, x.data.function);
+        printf("=====  End Disassembly  =====%c[0m\n", 27);
+    } else {
+        gst_c_throwc(vm, "expected function");
+    }
+    return GST_RETURN_OK;
 }
 
 /****/
@@ -523,7 +612,14 @@ static const GstModuleItem const std_module[] = {
     {"next", gst_stl_next},
     {"error", gst_stl_error},
     {"serialize", gst_stl_serialize},
+    {"global", gst_stl_global},
+    {"setglobal", gst_stl_setglobal},
+    {"push", gst_stl_push},
+    {"pop", gst_stl_pop},
+    {"peek", gst_stl_peek},
+    {"ensure", gst_stl_ensure},
     {"open", gst_stl_open},
+    {"dasm", gst_stl_dasm},
     {NULL, NULL}
 };
 

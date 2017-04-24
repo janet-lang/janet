@@ -253,7 +253,7 @@ int gst_continue(Gst *vm) {
                 vm->thread->count += newStackIndex;
                 stack = gst_thread_stack(vm->thread);
                 gst_frame_size(stack) = size - newStackIndex;
-                gst_frame_prevsize(stack) = newStackIndex;
+                gst_frame_prevsize(stack) = newStackIndex - GST_FRAME_SIZE;
                 gst_frame_callee(stack) = temp;
             }
             goto common_function_call;
@@ -527,9 +527,6 @@ void gst_init(Gst *vm) {
     vm->black = 0;
     /* Add thread */
     vm->thread = NULL;
-    /* Set up global env */
-    vm->modules = NULL;
-    vm->registry = NULL;
     /* Set up scratch memory */
     vm->scratch = NULL;
     vm->scratch_len = 0;
@@ -538,6 +535,9 @@ void gst_init(Gst *vm) {
     vm->cache_capacity = vm->cache == NULL ? 0 : 128;
     vm->cache_count = 0;
     vm->cache_deleted = 0;
+    /* Set up global env */
+    vm->modules = gst_object(vm, 10);
+    vm->registry = gst_object(vm, 10);
 }
 
 /* Clear all memory associated with the VM */

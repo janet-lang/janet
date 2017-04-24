@@ -99,32 +99,72 @@ GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
 }
 
 void gst_module_put(Gst *vm, const char *packagename, GstValue mod) {
-    if (vm->modules == NULL)
-        vm->modules = gst_object(vm, 10);
     gst_object_put(vm, vm->modules, gst_string_cv(vm, packagename), mod);
 }
 
 GstValue gst_module_get(Gst *vm, const char *packagename) {
-    if (!vm->modules)
-        return gst_wrap_nil();
     return gst_object_get(vm->modules, gst_string_cv(vm, packagename));
 }
 
 void gst_register_put(Gst *vm, const char *name, GstValue c) {
-    if (vm->registry == NULL)
-        vm->registry = gst_object(vm, 10);
     gst_object_put(vm, vm->registry, gst_string_cv(vm, name), c);
 }
 
 GstValue gst_register_get(Gst *vm, const char *name) {
-    if (!vm->registry)
-        return gst_wrap_nil();
     return gst_object_get(vm->registry, gst_string_cv(vm, name));
 }
 
 /****/
 /* Misc */
 /****/
+
+/* Utilities for manipulating different types with the same semantics */
+
+/* Read both tuples and arrays as c pointers + uint32_t length. Return 1 if the
+ * view can be constructed, 0 if an invalid type. */
+int gst_seq_view(GstValue seq, const GstValue **data, uint32_t *len) {
+    if (seq.type == GST_ARRAY) {
+        *data = seq.data.array->data;
+        *len = seq.data.array->count;
+        return 1;
+    } else if (seq.type == GST_TUPLE) {
+        *data = seq.data.st;
+        *len = gst_tuple_length(seq.data.st);
+        return 1;
+    } 
+    return 0;
+}
+
+/* Read both strings and buffer as unsigned character array + uint32_t len.
+ * Returns 1 if the view can be constructed and 0 if the type is invalid. */
+int gst_chararray_view(GstValue str, const uint8_t **data, uint32_t *len) {
+    if (str.type == GST_STRING) {
+        *data = str.data.string;
+        *len = gst_string_length(str.data.string);
+        return 1;
+    } else if (str.type == GST_BYTEBUFFER) {
+        *data = str.data.buffer->data;
+        *len = str.data.buffer->count;
+        return 1;
+    }
+    return 0;
+}
+
+/* Read both structs and objects as the entries of a hashtable with
+ * identical structure. Returns 1 if the view can be constructed and
+ * 0 if the type is invalid. */
+int gst_hashtable_view(GstValue tab, const GstValue **data, uint32_t *cap) {
+    if (tab.type == GST_OBJECT) {
+        *data = tab.data.object->data;
+        *cap = tab.data.object->capacity;
+        return 1;
+    } else if (tab.type == GST_STRUCT) {
+        *data = tab.data.st;
+        *cap = gst_struct_capacity(tab.data.st);
+        return 1;
+    }
+    return 0;
+}
 
 /* Allow negative indexing to get from end of array like structure */
 /* This probably isn't very fast - look at Lua conversion function.

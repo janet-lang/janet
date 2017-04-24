@@ -359,6 +359,7 @@ int gst_array_set(GstArray *array, uint32_t index, GstValue x);
 void gst_array_ensure(Gst *vm, GstArray *array, uint32_t capacity);
 void gst_array_push(Gst *vm, GstArray *array, GstValue x);
 GstValue gst_array_pop(GstArray *array);
+GstValue gst_array_peek(GstArray *array);
 
 /****/
 /* Userdata functions */
@@ -547,6 +548,10 @@ int gst_check_object(Gst *vm, uint32_t i, GstObject *(*x));
 int gst_check_userdata(Gst *vm, uint32_t i, void *(*x));
 int gst_check_funcenv(Gst *vm, uint32_t i, GstFuncEnv *(*x));
 int gst_check_funcdef(Gst *vm, uint32_t i, GstFuncDef *(*x));
+
+int gst_seq_view(GstValue seq, const GstValue **data, uint32_t *len);
+int gst_chararray_view(GstValue str, const uint8_t **data, uint32_t *len);
+int gst_hashtable_view(GstValue tab, const GstValue **data, uint32_t *cap);
 
 /****/
 /* Misc */

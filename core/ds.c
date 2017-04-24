@@ -126,8 +126,8 @@ int gst_array_set(GstArray *array, uint32_t index, GstValue x) {
 
 /* Add an item to the end of the array */
 void gst_array_push(Gst *vm, GstArray *array, GstValue x) {
-    if (array->count >= array->capacity) {
-        gst_array_ensure(vm, array, 2 * array->count);
+    if (array->count + 1>= array->capacity) {
+        gst_array_ensure(vm, array, 2 * array->count + 1);
     }
     array->data[array->count++] = x;
 }
