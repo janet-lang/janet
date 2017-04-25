@@ -79,16 +79,16 @@
 /* Stack frame manipulation */
 
 /* Size of stack frame in number of values */
-#define GST_FRAME_SIZE 4
+#define GST_FRAME_SIZE 5
 
 /* Macros for referencing a stack frame given a stack */
 #define gst_frame_callee(s)     (*(s - 1))
-#define gst_frame_size(s)       ((s - 2)->data.words[0])
-#define gst_frame_prevsize(s)   ((s - 2)->data.words[1])
-#define gst_frame_args(s)       ((s - 2)->data.words[2])
-#define gst_frame_ret(s)        ((s - 2)->data.words[3])
-#define gst_frame_pc(s)         ((s - 3)->data.u16p)
-#define gst_frame_env(s)        ((s - 4)->data.env)
+#define gst_frame_size(s)       ((s - 2)->data.dwords[0])
+#define gst_frame_prevsize(s)   ((s - 2)->data.dwords[1])
+#define gst_frame_args(s)       ((s - 3)->data.dwords[0])
+#define gst_frame_ret(s)        ((s - 3)->data.dwords[1])
+#define gst_frame_pc(s)         ((s - 4)->data.u16p)
+#define gst_frame_env(s)        ((s - 5)->data.env)
 
 /* C function helpers */
 
@@ -492,9 +492,9 @@ void gst_init(Gst *vm);
 void gst_deinit(Gst *vm);
 int gst_run(Gst *vm, GstValue func);
 int gst_continue(Gst *vm);
-GstValue gst_arg(Gst *vm, uint16_t index);
-void gst_set_arg(Gst *vm, uint16_t index, GstValue x);
-uint16_t gst_count_args(Gst *vm);
+GstValue gst_arg(Gst *vm, uint32_t index);
+void gst_set_arg(Gst *vm, uint32_t index, GstValue x);
+uint32_t gst_count_args(Gst *vm);
 
 /****/
 /* C Api */

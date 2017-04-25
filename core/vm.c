@@ -417,9 +417,9 @@ int gst_run(Gst *vm, GstValue callee) {
 }
 
 /* Get an argument from the stack */
-GstValue gst_arg(Gst *vm, uint16_t index) {
+GstValue gst_arg(Gst *vm, uint32_t index) {
     GstValue *stack = gst_thread_stack(vm->thread);
-    uint16_t frameSize = gst_frame_size(stack);
+    uint32_t frameSize = gst_frame_size(stack);
     if (frameSize <= index) {
         GstValue ret;
         ret.type = GST_NIL;
@@ -429,15 +429,15 @@ GstValue gst_arg(Gst *vm, uint16_t index) {
 }
 
 /* Put a value on the stack */
-void gst_set_arg(Gst* vm, uint16_t index, GstValue x) {
+void gst_set_arg(Gst* vm, uint32_t index, GstValue x) {
     GstValue *stack = gst_thread_stack(vm->thread);
-    uint16_t frameSize = gst_frame_size(stack);
+    uint32_t frameSize = gst_frame_size(stack);
     if (frameSize <= index) return;
     stack[index] = x;
 }
 
 /* Get the size of the VMStack */
-uint16_t gst_count_args(Gst *vm) {
+uint32_t gst_count_args(Gst *vm) {
     GstValue *stack = gst_thread_stack(vm->thread);
     return gst_frame_size(stack);
 }

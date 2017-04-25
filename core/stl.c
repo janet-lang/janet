@@ -145,6 +145,12 @@ int gst_stl_length(Gst *vm) {
     }
 }
 
+/* Get hash of a value */
+int gst_stl_hash(Gst *vm) {
+    GstInteger h = gst_hash(gst_arg(vm, 0));
+    gst_c_return(vm, gst_wrap_integer(h));
+}
+
 /* Convert to integer */
 int gst_stl_to_int(Gst *vm) {
     GstValue x = gst_arg(vm, 0);
@@ -569,6 +575,7 @@ static const GstModuleItem const std_module[] = {
     {">=", gst_stl_greaterthaneq},
     {"not", gst_stl_not},
     {"length", gst_stl_length},
+    {"hash", gst_stl_hash},
     {"to-integer", gst_stl_to_int},
     {"to-real", gst_stl_to_real},
     {"type", gst_stl_type},
