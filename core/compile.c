@@ -86,9 +86,9 @@ struct GstScope {
     uint32_t heapCapacity;
     uint32_t heapSize;
     uint16_t *freeHeap;
-    GstObject *literals;
+    GstTable *literals;
     GstArray *literalsArray;
-    GstObject *locals;
+    GstTable *locals;
     GstScope *parent;
 };
 
@@ -124,7 +124,7 @@ static void c_error(GstCompiler *c, const char *e) {
  * the new scope is a function declaration. */
 static GstScope *compiler_push_scope(GstCompiler *c, int sameFunction) {
     GstScope *scope = gst_alloc(c->vm, sizeof(GstScope));
-    scope->locals = gst_object(c->vm, 10);
+    scope->locals = gst_table(c->vm, 10);
     scope->freeHeap = gst_alloc(c->vm, 10 * sizeof(uint16_t));
     scope->heapSize = 0;
     scope->heapCapacity = 10;
@@ -144,7 +144,7 @@ static GstScope *compiler_push_scope(GstCompiler *c, int sameFunction) {
         scope->literalsArray = c->tail->literalsArray;
     } else {
         scope->nextLocal = 0;
-        scope->literals = gst_object(c->vm, 10);
+        scope->literals = gst_table(c->vm, 10);
         scope->literalsArray = gst_array(c->vm, 10);
     }
     c->tail = scope;
@@ -318,7 +318,7 @@ static void compiler_tracker_push(GstCompiler *c, SlotTracker *tracker, Slot slo
  * that one instead of creating a new literal. This allows for some reuse
  * of things like string constants.*/
 static uint16_t compiler_add_literal(GstCompiler *c, GstScope *scope, GstValue x) {
-    GstValue checkDup = gst_object_get(scope->literals, x);
+    GstValue checkDup = gst_table_get(scope->literals, x);
     uint16_t literalIndex = 0;
     if (checkDup.type != GST_NIL) {
         /* An equal literal is already registered in the current scope */
@@ -329,7 +329,7 @@ static uint16_t compiler_add_literal(GstCompiler *c, GstScope *scope, GstValue x
         valIndex.type = GST_INTEGER;
         literalIndex = scope->literalsArray->count;
         valIndex.data.integer = literalIndex;
-        gst_object_put(c->vm, scope->literals, x, valIndex);
+        gst_table_put(c->vm, scope->literals, x, valIndex);
         gst_array_push(c->vm, scope->literalsArray, x);
     }
     return literalIndex;
@@ -344,7 +344,7 @@ static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValu
     target = compiler_get_local(c, scope);
     x.type = GST_INTEGER;
     x.data.integer = target;
-    gst_object_put(c->vm, scope->locals, sym, x);
+    gst_table_put(c->vm, scope->locals, sym, x);
     return target;
 }
 
@@ -354,7 +354,7 @@ static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t 
     GstScope *scope = c->tail;
     uint32_t currentLevel = scope->level;
     while (scope) {
-        GstValue check = gst_object_get(scope->locals, x);
+        GstValue check = gst_table_get(scope->locals, x);
         if (check.type != GST_NIL) {
             *level = currentLevel - scope->level;
             *index = (uint16_t) check.data.integer;
@@ -925,28 +925,28 @@ static Slot compile_array(GstCompiler *c, FormOptions opts, GstArray *array) {
 }
 
 /* Compile an object literal */
-static Slot compile_object(GstCompiler *c, FormOptions opts, GstObject *obj) {
+static Slot compile_table(GstCompiler *c, FormOptions opts, GstTable *tab) {
     GstScope *scope = c->tail;
     FormOptions subOpts = form_options_default();
     GstBuffer *buffer = c->buffer;
     Slot ret;
     SlotTracker tracker;
     uint32_t i, cap;
-    cap = obj->capacity;
+    cap = tab->capacity;
     ret = compiler_get_target(c, opts);
     tracker_init(c, &tracker);
     for (i = 0; i < cap; i += 2) {
-        if (obj->data[i].type != GST_NIL) {
-            Slot slot = compile_value(c, subOpts, obj->data[i]);
+        if (tab->data[i].type != GST_NIL) {
+            Slot slot = compile_value(c, subOpts, tab->data[i]);
             compiler_tracker_push(c, &tracker, compiler_realize_slot(c, slot));
-            slot = compile_value(c, subOpts, obj->data[i + 1]);
+            slot = compile_value(c, subOpts, tab->data[i + 1]);
             compiler_tracker_push(c, &tracker, compiler_realize_slot(c, slot));
         }
     }
     compiler_tracker_free(c, scope, &tracker);
     gst_buffer_push_u16(c->vm, buffer, GST_OP_DIC);
     gst_buffer_push_u16(c->vm, buffer, ret.index);
-    gst_buffer_push_u16(c->vm, buffer, obj->count * 2);
+    gst_buffer_push_u16(c->vm, buffer, tab->count * 2);
     compiler_tracker_write(c, &tracker, 0);
     return ret;
 }
@@ -1017,8 +1017,8 @@ static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
             return compile_form(c, opts, x.data.tuple);
         case GST_ARRAY:
             return compile_array(c, opts, x.data.array);
-        case GST_OBJECT:
-            return compile_object(c, opts, x.data.object);
+        case GST_TABLE:
+            return compile_table(c, opts, x.data.table);
         default:
             return compile_literal(c, opts, x);
     }
@@ -1044,12 +1044,12 @@ void gst_compiler_global(GstCompiler *c, const char *name, GstValue x) {
 /* Add many global variables */
 void gst_compiler_globals(GstCompiler *c, GstValue env) {
     uint32_t i;
-    if (env.type == GST_OBJECT) {
-        GstObject *o = env.data.object;
-        for (i = 0; i < o->capacity; i += 2) {
-            if (o->data[i].type == GST_STRING) {
-                compiler_declare_symbol(c, c->tail, o->data[i]);
-                gst_array_push(c->vm, c->env, o->data[i + 1]);                
+    if (env.type == GST_TABLE) {
+        GstTable *t = env.data.table;
+        for (i = 0; i < t->capacity; i += 2) {
+            if (t->data[i].type == GST_STRING) {
+                compiler_declare_symbol(c, c->tail, t->data[i]);
+                gst_array_push(c->vm, c->env, t->data[i + 1]);                
             }
         }
     } else if (env.type == GST_STRUCT) {
@@ -1065,7 +1065,7 @@ void gst_compiler_globals(GstCompiler *c, GstValue env) {
 
 /* Use a module that was loaded into the vm */
 void gst_compiler_usemodule(GstCompiler *c, const char *modulename) {
-    GstValue mod = gst_object_get(c->vm->modules, gst_string_cv(c->vm, modulename));
+    GstValue mod = gst_table_get(c->vm->modules, gst_string_cv(c->vm, modulename));
     gst_compiler_globals(c, mod);
 }
 

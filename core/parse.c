@@ -45,8 +45,8 @@ struct GstParseState {
         struct {
             GstValue key;
             int keyFound;
-            GstObject *object;
-        } object;
+            GstTable *table;
+        } table;
         struct {
             GstBuffer *buffer;
             uint32_t count;
@@ -432,13 +432,13 @@ static int form_state(GstParser *p, uint8_t c) {
         } else { /* c == '{' */
             uint32_t i;
             if (array->count % 2 != 0) {
-                p_error(p, "object literal must have even number of elements");
+                p_error(p, "table literal must have even number of elements");
                 return 1;
             }
-            x.type = GST_OBJECT;
-            x.data.object = gst_object(p->vm, array->count);
+            x.type = GST_TABLE;
+            x.data.table = gst_table(p->vm, array->count);
             for (i = 0; i < array->count; i += 2) {
-                gst_object_put(p->vm, x.data.object, array->data[i], array->data[i + 1]);   
+                gst_table_put(p->vm, x.data.table, array->data[i], array->data[i + 1]);   
             }
         }
         parser_pop(p);

@@ -169,55 +169,54 @@ void *gst_userdata(Gst *vm, uint32_t size, const GstValue *meta) {
 }
 
 /****/
-/* Dictionary functions */
+/* Table functions */
 /****/
 
-/* Create a new dictionary */
-GstObject* gst_object(Gst *vm, uint32_t capacity) {
-    GstObject *o = gst_alloc(vm, sizeof(GstObject));
+/* Create a new table */
+GstTable *gst_table(Gst *vm, uint32_t capacity) {
+    GstTable *t = gst_alloc(vm, sizeof(GstTable));
     GstValue *data = gst_zalloc(vm, capacity * sizeof(GstValue));
-    o->data = data;
-    o->capacity = capacity;
-    o->count = 0;
-    o->parent = NULL;
-    o->deleted = 0;
-    return o;
+    t->data = data;
+    t->capacity = capacity;
+    t->count = 0;
+    t->deleted = 0;
+    return t;
 }
 
 /* Find the bucket that contains the given key. Will also return
- * bucket where key should go if not in object. */
-static GstValue *gst_object_find(GstObject *o, GstValue key) {
-    uint32_t index = (gst_hash(key) % (o->capacity / 2)) * 2;
+ * bucket where key should go if not in the table. */
+static GstValue *gst_table_find(GstTable *t, GstValue key) {
+    uint32_t index = (gst_hash(key) % (t->capacity / 2)) * 2;
     uint32_t i, j;
     uint32_t start[2], end[2];
-    start[0] = index; end[0] = o->capacity;
+    start[0] = index; end[0] = t->capacity;
     start[1] = 0; end[1] = index;
     for (j = 0; j < 2; ++j)
         for (i = start[j]; i < end[j]; i += 2) {
-            if (o->data[i].type == GST_NIL) {
-                if (o->data[i + 1].type == GST_NIL) {
+            if (t->data[i].type == GST_NIL) {
+                if (t->data[i + 1].type == GST_NIL) {
                     /* Empty */
-                    return o->data + i;
+                    return t->data + i;
                 }
-            } else if (gst_equals(o->data[i], key)) {
-                return o->data + i;
+            } else if (gst_equals(t->data[i], key)) {
+                return t->data + i;
             }
         }
     return NULL;
 }
 
 /* Resize the dictionary table. */
-static void gst_object_rehash(Gst *vm, GstObject *o, uint32_t size) {
-    GstValue *olddata = o->data;
+static void gst_table_rehash(Gst *vm, GstTable *t, uint32_t size) {
+    GstValue *olddata = t->data;
     GstValue *newdata = gst_zalloc(vm, size * sizeof(GstValue));
     uint32_t i, oldcapacity;
-    oldcapacity = o->capacity;
-    o->data = newdata;
-    o->capacity = size;
-    o->deleted = 0;
+    oldcapacity = t->capacity;
+    t->data = newdata;
+    t->capacity = size;
+    t->deleted = 0;
     for (i = 0; i < oldcapacity; i += 2) {
         if (olddata[i].type != GST_NIL) {
-            GstValue *bucket = gst_object_find(o, olddata[i]);
+            GstValue *bucket = gst_table_find(t, olddata[i]);
             bucket[0] = olddata[i];
             bucket[1] = olddata[i + 1];
         }
@@ -225,63 +224,58 @@ static void gst_object_rehash(Gst *vm, GstObject *o, uint32_t size) {
 }
 
 /* Get a value out of the object */
-GstValue gst_object_get(GstObject *o, GstValue key) {
-    GstValue *bucket = gst_object_find(o, key);
-    if (bucket && bucket[0].type != GST_NIL) {
+GstValue gst_table_get(GstTable *t, GstValue key) {
+    GstValue *bucket = gst_table_find(t, key);
+    if (bucket && bucket[0].type != GST_NIL)
         return bucket[1];
-    } else {
-        GstValue nil;
-        nil.type = GST_NIL;
-        return nil;
-    }
+    else
+        return gst_wrap_nil();
 }
 
 /* Remove an entry from the dictionary */
-GstValue gst_object_remove(GstObject *o, GstValue key) {
-    GstValue *bucket = gst_object_find(o, key);
+GstValue gst_table_remove(GstTable *t, GstValue key) {
+    GstValue *bucket = gst_table_find(t, key);
     if (bucket && bucket[0].type != GST_NIL) {
         GstValue ret = bucket[1];
-        o->count--;
-        o->deleted++;
+        t->count--;
+        t->deleted++;
         bucket[0].type = GST_NIL;
         bucket[1].type = GST_BOOLEAN;
         return ret;
     } else {
-        GstValue nil;
-        nil.type = GST_NIL;
-        return nil;
+        return gst_wrap_nil();
     }
 }
 
 /* Put a value into the object */
-void gst_object_put(Gst *vm, GstObject *o, GstValue key, GstValue value) {
+void gst_table_put(Gst *vm, GstTable *t, GstValue key, GstValue value) {
     if (key.type == GST_NIL) return;
     if (value.type == GST_NIL) {
-        gst_object_remove(o, key);
+        gst_table_remove(t, key);
     } else {
-        GstValue *bucket = gst_object_find(o, key);
+        GstValue *bucket = gst_table_find(t, key);
         if (bucket && bucket[0].type != GST_NIL) {
             bucket[1] = value;
         } else {
-            if (!bucket || 4 * (o->count + o->deleted) >= o->capacity) {
-                gst_object_rehash(vm, o, 4 * o->count + 6);
+            if (!bucket || 4 * (t->count + t->deleted) >= t->capacity) {
+                gst_table_rehash(vm, t, 4 * t->count + 6);
             }
-            bucket = gst_object_find(o, key);
+            bucket = gst_table_find(t, key);
             bucket[0] = key;
             bucket[1] = value;
-            ++o->count;
+            ++t->count;
         }
     }
 }
 
 /* Find next key in an object. Returns nil if no next key. */
-GstValue gst_object_next(GstObject *o, GstValue key) {
+GstValue gst_table_next(GstTable *t, GstValue key) {
     const GstValue *bucket, *end;
-    end = o->data + o->capacity; 
+    end = t->data + t->capacity; 
     if (key.type == GST_NIL) {
-        bucket = o->data;
+        bucket = t->data;
     } else {
-        bucket = gst_object_find(o, key); 
+        bucket = gst_table_find(t, key); 
         if (!bucket || bucket[0].type == GST_NIL)
             return gst_wrap_nil();
         bucket += 2;

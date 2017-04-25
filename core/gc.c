@@ -158,19 +158,14 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
             }
             break;
 
-        case GST_OBJECT:
-            if (gc_header(x.object)->color != vm->black) {
+        case GST_TABLE:
+            if (gc_header(x.table)->color != vm->black) {
                 uint32_t i;
-                gc_header(x.object)->color = vm->black;
-                gc_header(x.object->data)->color = vm->black;
-                for (i = 0; i < x.object->capacity; i += 2) {
-                    gst_mark_value(vm, x.object->data[i]);
-                    gst_mark_value(vm, x.object->data[i + 1]);
-                }
-                if (x.object->parent != NULL) {
-                    GstValueUnion temp;
-                    temp.object = x.object->parent;
-                    gst_mark(vm, temp, GST_OBJECT);
+                gc_header(x.table)->color = vm->black;
+                gc_header(x.table->data)->color = vm->black;
+                for (i = 0; i < x.table->capacity; i += 2) {
+                    gst_mark_value(vm, x.table->data[i]);
+                    gst_mark_value(vm, x.table->data[i + 1]);
                 }
             }
             break;
@@ -264,8 +259,8 @@ void gst_collect(Gst *vm) {
     /* Thread can be null */
     if (vm->thread)
         gst_mark_value(vm, gst_wrap_thread(vm->thread));
-    gst_mark_value(vm, gst_wrap_object(vm->modules));
-    gst_mark_value(vm, gst_wrap_object(vm->registry));
+    gst_mark_value(vm, gst_wrap_table(vm->modules));
+    gst_mark_value(vm, gst_wrap_table(vm->registry));
     gst_mark_value(vm, vm->ret);
     if (vm->scratch)
         gc_header(vm->scratch)->color = vm->black;

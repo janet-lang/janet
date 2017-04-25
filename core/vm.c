@@ -330,19 +330,19 @@ int gst_continue(Gst *vm) {
             }
             break;
 
-        case GST_OP_DIC: /* Object literal */
+        case GST_OP_DIC: /* Table literal */
             {
                 uint32_t i = 3;
                 uint32_t kvs = pc[2];
-                GstObject *o = gst_object(vm, 2 * kvs);
+                GstTable *t = gst_table(vm, 2 * kvs);
                 kvs = kvs + 3;
                 while (i < kvs) {
                     v1 = stack[pc[i++]];
                     v2 = stack[pc[i++]];
-                    gst_object_put(vm, o, v1, v2);
+                    gst_table_put(vm, t, v1, v2);
                 }
-                temp.type = GST_OBJECT;
-                temp.data.object = o;
+                temp.type = GST_TABLE;
+                temp.data.table = t;
                 stack[pc[1]] = temp;
                 pc += kvs;
             }
@@ -466,8 +466,8 @@ void gst_init(Gst *vm) {
     vm->cache_count = 0;
     vm->cache_deleted = 0;
     /* Set up global env */
-    vm->modules = gst_object(vm, 10);
-    vm->registry = gst_object(vm, 10);
+    vm->modules = gst_table(vm, 10);
+    vm->registry = gst_table(vm, 10);
 }
 
 /* Clear all memory associated with the VM */

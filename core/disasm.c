@@ -163,7 +163,7 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
                 current += dasm_varg_op(out, current, "array", 1);
                 break;
             case GST_OP_DIC:
-                current += dasm_varg_op(out, current, "object", 1);
+                current += dasm_varg_op(out, current, "table", 1);
                 break;
             case GST_OP_TUP:
                 current += dasm_varg_op(out, current, "tuple", 1);

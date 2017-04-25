@@ -115,13 +115,11 @@ int gst_stl_not(Gst *vm) {
 
 /* Get length of object */
 int gst_stl_length(Gst *vm) {
-    GstValue ret;
     uint32_t count = gst_count_args(vm);
     if (count == 0) {
-        ret.type = GST_NIL;
-        gst_c_return(vm, ret);
-    }
-    if (count == 1) {
+        gst_c_return(vm, gst_wrap_nil());
+    } else {
+        GstValue ret;
         ret.type = GST_INTEGER;
         GstValue x = gst_arg(vm, 0);
         switch (x.type) {
@@ -139,12 +137,12 @@ int gst_stl_length(Gst *vm) {
         case GST_TUPLE:
             ret.data.integer = gst_tuple_length(x.data.tuple);
             break;
-        case GST_OBJECT:
-            ret.data.integer = x.data.object->count;
+        case GST_TABLE:
+            ret.data.integer = x.data.table->count;
             break;
         }
+        gst_c_return(vm, ret);
     }
-    gst_c_return(vm, ret);
 }
 
 /* Convert to integer */
@@ -259,8 +257,8 @@ int gst_stl_type(Gst *vm) {
     case GST_CFUNCTION:
         typestr = "cfunction";
         break;
-    case GST_OBJECT:
-        typestr = "object";
+    case GST_TABLE:
+        typestr = "table";
         break;
     case GST_USERDATA:
         typestr = "userdata";
@@ -296,16 +294,16 @@ int gst_stl_tuple(Gst *vm) {
 }
 
 /* Create object */
-int gst_stl_object(Gst *vm) {
+int gst_stl_table(Gst *vm) {
     uint32_t i;
     uint32_t count = gst_count_args(vm);
-    GstObject *object;
+    GstTable *table;
     if (count % 2 != 0)
         gst_c_throwc(vm, "expected even number of arguments");
-    object = gst_object(vm, 4 * count);
+    table = gst_table(vm, 4 * count);
     for (i = 0; i < count; i += 2)
-        gst_object_put(vm, object, gst_arg(vm, i), gst_arg(vm, i + 1));
-    gst_c_return(vm, gst_wrap_object(object));
+        gst_table_put(vm, table, gst_arg(vm, i), gst_arg(vm, i + 1));
+    gst_c_return(vm, gst_wrap_table(table));
 }
 
 /* Create struct */
@@ -425,16 +423,16 @@ int gst_stl_ensure(Gst *vm) {
     gst_c_return(vm, ds);
 }
 
-/* Get next key in struct or object */
+/* Get next key in struct or table */
 int gst_stl_next(Gst *vm) {
     GstValue ds = gst_arg(vm, 0);
     GstValue key = gst_arg(vm, 1);
-    if (ds.type == GST_OBJECT) {
-        gst_c_return(vm, gst_object_next(ds.data.object, key));    
+    if (ds.type == GST_TABLE) {
+        gst_c_return(vm, gst_table_next(ds.data.table, key));    
     } else if (ds.type == GST_STRUCT) {
         gst_c_return(vm, gst_struct_next(ds.data.st, key));    
     } else {
-        gst_c_throwc(vm, "expected object or struct");
+        gst_c_throwc(vm, "expected table or struct");
     }
 }
 
@@ -499,11 +497,11 @@ int gst_stl_serialize(Gst *vm) {
 /****/
 
 int gst_stl_global(Gst *vm) {
-    gst_c_return(vm, gst_object_get(vm->registry, gst_arg(vm, 0)));
+    gst_c_return(vm, gst_table_get(vm->registry, gst_arg(vm, 0)));
 }
 
 int gst_stl_setglobal(Gst *vm) {
-    gst_object_put(vm, vm->registry, gst_arg(vm, 0), gst_arg(vm, 1));
+    gst_table_put(vm, vm->registry, gst_arg(vm, 0), gst_arg(vm, 1));
     gst_c_return(vm, gst_wrap_nil());
 }
 
@@ -577,7 +575,7 @@ static const GstModuleItem const std_module[] = {
     {"slice", gst_stl_slice},
     {"array", gst_stl_array},
     {"tuple", gst_stl_tuple},
-    {"object", gst_stl_object},
+    {"table", gst_stl_table},
     {"struct", gst_stl_struct},
     {"buffer", gst_stl_buffer},
     {"strcat", gst_stl_strcat},

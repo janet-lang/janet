@@ -96,8 +96,8 @@ const uint8_t *gst_to_string(Gst *vm, GstValue x) {
         return string_description(vm, "tuple", x.data.pointer);
     case GST_STRUCT:
         return string_description(vm, "struct", x.data.pointer);
-    case GST_OBJECT:
-        return string_description(vm, "object", x.data.pointer);
+    case GST_TABLE:
+        return string_description(vm, "table", x.data.pointer);
     case GST_STRING:
         return x.data.string;
     case GST_BYTEBUFFER:
@@ -267,8 +267,8 @@ const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
     case GST_STRUCT:
         ret = gst_struct_get(ds.data.st, key);
         break;
-    case GST_OBJECT:
-        ret = gst_object_get(ds.data.object, key);
+    case GST_TABLE:
+        ret = gst_table_get(ds.data.table, key);
         break;
     default:
        return "cannot get";
@@ -295,8 +295,8 @@ const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
         if (index < 0) return "invalid buffer access";
         ds.data.buffer->data[index] = (uint8_t) value.data.integer;
         break;
-    case GST_OBJECT:
-        gst_object_put(vm, ds.data.object, key, value);
+    case GST_TABLE:
+        gst_table_put(vm, ds.data.table, key, value);
         break;
     default:
         return "cannot set";
@@ -326,8 +326,8 @@ GstInteger gst_length(Gst *vm, GstValue x) {
         case GST_STRUCT:
             length = gst_struct_length(x.data.st);
             break;
-        case GST_OBJECT:
-            length = x.data.object->count;
+        case GST_TABLE:
+            length = x.data.table->count;
             break;
     }
     return length;

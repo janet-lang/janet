@@ -40,7 +40,7 @@
  * Byte 209: Tuple   - [u32 length]*[value... elements]
  * Byte 210: Thread  - [u8 state][u32 frames]*[[value callee][value env]
  *  [u32 pcoffset][u16 ret][u16 args][u16 size]*[value ...stack]
- * Byte 211: Object  - [value parent][u32 length]*2*[value... kvs]
+ * Byte 211: Table   - [u32 length]*2*[value... kvs]
  * Byte 212: FuncDef - [u32 locals][u32 arity][u32 flags][u32 literallen]*[value...
  *  literals][u32 bytecodelen]*[u16... bytecode]
  * Byte 213: FunEnv  - [value thread][u32 length]*[value ...upvalues]
@@ -290,24 +290,19 @@ static const char *gst_deserialize_impl(
             }
             break;
 
-        case 211: /* Object */
+        case 211: /* Table */
             {
-                GstValue parent;
-                ret.type = GST_OBJECT;
-                ret.data.object = gst_object(vm, 10);
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &parent);
-                if (err != NULL) return err;
+                ret.type = GST_TABLE;
                 read_u32(length);
+                ret.data.table = gst_table(vm, 2 * length);
                 for (i = 0; i < length; i += 2) {
                     GstValue key, value;
                     err = gst_deserialize_impl(vm, data, end, &data, visited, &key);
                     if (err != NULL) return err;
                     err = gst_deserialize_impl(vm, data, end, &data, visited, &value);
                     if (err != NULL) return err;
-                    gst_object_put(vm, ret.data.object, key, value);
+                    gst_table_put(vm, ret.data.table, key, value);
                 }
-                if (parent.type == GST_OBJECT)
-                    ret.data.object->parent = parent.data.object; 
                 gst_array_push(vm, visited, ret);
             }
             break;
@@ -461,7 +456,7 @@ BUFFER_DEFINE(u32, uint32_t)
 const char *gst_serialize_impl(
         Gst *vm,
         GstBuffer *buffer,
-        GstObject *visited,
+        GstTable *visited,
         uint32_t *nextId,
         GstValue x) {
 
@@ -503,7 +498,7 @@ const char *gst_serialize_impl(
     }
 
     /* Check if already seen - if so, use reference */
-    check = gst_object_get(visited, x);
+    check = gst_table_get(visited, x);
     if (check.type == GST_INTEGER) {
         write_byte(217);
         write_u32((uint32_t) check.data.integer);
@@ -568,7 +563,7 @@ const char *gst_serialize_impl(
     /* Record reference */
     check.type = GST_INTEGER;
     check.data.integer = *nextId++;
-    gst_object_put(vm, visited, x, check);
+    gst_table_put(vm, visited, x, check);
 
     /* Return success */
     return NULL;
@@ -579,7 +574,7 @@ const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x) {
     uint32_t nextId = 0;
     uint32_t oldCount = buffer->count;
     const char *err;
-    GstObject *visited = gst_object(vm, 10);
+    GstTable *visited = gst_table(vm, 10);
     err = gst_serialize_impl(vm, buffer, visited, &nextId, x);
     if (err != NULL) {
         buffer->count = oldCount;

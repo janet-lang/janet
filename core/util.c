@@ -62,21 +62,21 @@ GST_WRAP_DEFINE(thread, GstThread *, GST_THREAD, thread)
 GST_WRAP_DEFINE(buffer, GstBuffer *, GST_BYTEBUFFER, buffer)
 GST_WRAP_DEFINE(function, GstFunction *, GST_FUNCTION, function)
 GST_WRAP_DEFINE(cfunction, GstCFunction, GST_CFUNCTION, cfunction)
-GST_WRAP_DEFINE(object, GstObject *, GST_OBJECT, object)
+GST_WRAP_DEFINE(table, GstTable *, GST_TABLE, table)
 GST_WRAP_DEFINE(userdata, void *, GST_USERDATA, pointer)
 GST_WRAP_DEFINE(funcenv, GstFuncEnv *, GST_FUNCENV, env)
 GST_WRAP_DEFINE(funcdef, GstFuncDef *, GST_FUNCDEF, def)
 
 #undef GST_WRAP_DEFINE
 
-GstValue gst_cmodule_object(Gst *vm, const GstModuleItem *mod) {
-    GstObject *module = gst_object(vm, 10);
+GstValue gst_cmodule_table(Gst *vm, const GstModuleItem *mod) {
+    GstTable *module = gst_table(vm, 10);
     while (mod->name != NULL) {
         GstValue key = gst_string_cv(vm, mod->name);
-        gst_object_put(vm, module, key, gst_wrap_cfunction(mod->data));
+        gst_table_put(vm, module, key, gst_wrap_cfunction(mod->data));
         mod++;
     }
-    return gst_wrap_object(module);
+    return gst_wrap_table(module);
 }
 
 GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
@@ -100,19 +100,19 @@ GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
 }
 
 void gst_module_put(Gst *vm, const char *packagename, GstValue mod) {
-    gst_object_put(vm, vm->modules, gst_string_cv(vm, packagename), mod);
+    gst_table_put(vm, vm->modules, gst_string_cv(vm, packagename), mod);
 }
 
 GstValue gst_module_get(Gst *vm, const char *packagename) {
-    return gst_object_get(vm->modules, gst_string_cv(vm, packagename));
+    return gst_table_get(vm->modules, gst_string_cv(vm, packagename));
 }
 
 void gst_register_put(Gst *vm, const char *name, GstValue c) {
-    gst_object_put(vm, vm->registry, gst_string_cv(vm, name), c);
+    gst_table_put(vm, vm->registry, gst_string_cv(vm, name), c);
 }
 
 GstValue gst_register_get(Gst *vm, const char *name) {
-    return gst_object_get(vm->registry, gst_string_cv(vm, name));
+    return gst_table_get(vm->registry, gst_string_cv(vm, name));
 }
 
 /****/
@@ -151,13 +151,13 @@ int gst_chararray_view(GstValue str, const uint8_t **data, uint32_t *len) {
     return 0;
 }
 
-/* Read both structs and objects as the entries of a hashtable with
+/* Read both structs and tables as the entries of a hashtable with
  * identical structure. Returns 1 if the view can be constructed and
  * 0 if the type is invalid. */
 int gst_hashtable_view(GstValue tab, const GstValue **data, uint32_t *cap) {
-    if (tab.type == GST_OBJECT) {
-        *data = tab.data.object->data;
-        *cap = tab.data.object->capacity;
+    if (tab.type == GST_TABLE) {
+        *data = tab.data.table->data;
+        *cap = tab.data.table->capacity;
         return 1;
     } else if (tab.type == GST_STRUCT) {
         *data = tab.data.st;

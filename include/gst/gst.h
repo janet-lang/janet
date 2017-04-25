@@ -125,7 +125,7 @@ typedef enum GstType {
     GST_BYTEBUFFER,
     GST_FUNCTION,
     GST_CFUNCTION,
-    GST_OBJECT,
+    GST_TABLE,
     GST_USERDATA,
     GST_FUNCENV,
     GST_FUNCDEF
@@ -144,7 +144,7 @@ typedef int GstBoolean;
 typedef struct GstFunction GstFunction;
 typedef struct GstArray GstArray;
 typedef struct GstBuffer GstBuffer;
-typedef struct GstObject GstObject;
+typedef struct GstTable GstTable;
 typedef struct GstThread GstThread;
 typedef int (*GstCFunction)(Gst * vm);
 
@@ -170,7 +170,7 @@ union GstValueUnion {
     GstInteger integer;
     GstArray *array;
     GstBuffer *buffer;
-    GstObject *object;
+    GstTable *table;
     GstThread *thread;
     const GstValue *tuple;
     GstCFunction cfunction;
@@ -223,13 +223,12 @@ struct GstBuffer {
     uint8_t *data;
 };
 
-/* The main Gst type, an obect. Objects are just hashtables with a parent */
-struct GstObject {
+/* A mutable associative data type. Backed by a hashtable. */
+struct GstTable {
     uint32_t count;
     uint32_t capacity;
     uint32_t deleted;
     GstValue *data;
-    GstObject *parent;
 };
 
 /* Some function defintion flags */
@@ -288,8 +287,8 @@ struct Gst {
     uint32_t scratch_len;
     /* GC roots */
     GstThread *thread;
-    GstObject *modules;
-    GstObject *registry;
+    GstTable *modules;
+    GstTable *registry;
     /* Return state */
     const char *crash;
     GstValue ret; /* Returned value from gst_start. */
@@ -388,14 +387,14 @@ GstValue gst_struct_get(const GstValue *st, GstValue key);
 GstValue gst_struct_next(const GstValue *st, GstValue key);
 
 /****/
-/* Object functions */
+/* Table functions */
 /****/
 
-GstObject *gst_object(Gst *vm, uint32_t capacity);
-GstValue gst_object_get(GstObject *obj, GstValue key);
-GstValue gst_object_remove(GstObject *obj, GstValue key);
-void gst_object_put(Gst *vm, GstObject *obj, GstValue key, GstValue value);
-GstValue gst_object_next(GstObject *o, GstValue key);
+GstTable *gst_table(Gst *vm, uint32_t capacity);
+GstValue gst_table_get(GstTable *t, GstValue key);
+GstValue gst_table_remove(GstTable *t, GstValue key);
+void gst_table_put(Gst *vm, GstTable *t, GstValue key, GstValue value);
+GstValue gst_table_next(GstTable *o, GstValue key);
 
 /****/
 /* Threads */
@@ -446,7 +445,7 @@ GstInteger gst_length(Gst *vm, GstValue x);
  * Byte 209: Tuple   - [u32 length]*[value... elements]
  * Byte 210: Thread  - [u8 state][u32 frames]*[[value callee][value env]
  *  [u32 pcoffset][u32 erroffset][u16 ret][u16 errloc][u16 size]*[value ...stack]
- * Byte 211: Object  - [value meta][u32 length]*2*[value... kvs]
+ * Byte 211: Table   - [u32 length]*2*[value... kvs]
  * Byte 212: FuncDef - [u32 locals][u32 arity][u32 flags][u32 literallen]*[value...
  *  literals][u32 bytecodelen]*[u16... bytecode]
  * Byte 213: FunEnv  - [value thread][u32 length]*[value ...upvalues]
@@ -501,7 +500,7 @@ uint16_t gst_count_args(Gst *vm);
 /* C Api */
 /****/
 
-GstValue gst_cmodule_object(Gst *vm, const GstModuleItem *mod);
+GstValue gst_cmodule_table(Gst *vm, const GstModuleItem *mod);
 GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod);
 void gst_module_put(Gst *vm, const char *packagename, GstValue mod);
 GstValue gst_module_get(Gst *vm, const char *packagename);
@@ -521,7 +520,7 @@ GstValue gst_wrap_thread(GstThread *x);
 GstValue gst_wrap_buffer(GstBuffer *x);
 GstValue gst_wrap_function(GstFunction *x);
 GstValue gst_wrap_cfunction(GstCFunction x);
-GstValue gst_wrap_object(GstObject *x);
+GstValue gst_wrap_table(GstTable *x);
 GstValue gst_wrap_userdata(void *x);
 GstValue gst_wrap_funcenv(GstFuncEnv *x);
 GstValue gst_wrap_funcdef(GstFuncDef *x);
@@ -539,7 +538,7 @@ int gst_check_thread(Gst *vm, uint32_t i, GstThread *(*x));
 int gst_check_buffer(Gst *vm, uint32_t i, GstBuffer *(*x));
 int gst_check_function(Gst *vm, uint32_t i, GstFunction *(*x));
 int gst_check_cfunction(Gst *vm, uint32_t i, GstCFunction (*x));
-int gst_check_object(Gst *vm, uint32_t i, GstObject *(*x));
+int gst_check_table(Gst *vm, uint32_t i, GstTable *(*x));
 int gst_check_userdata(Gst *vm, uint32_t i, void *(*x));
 int gst_check_funcenv(Gst *vm, uint32_t i, GstFuncEnv *(*x));
 int gst_check_funcdef(Gst *vm, uint32_t i, GstFuncDef *(*x));
