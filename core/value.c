@@ -33,13 +33,13 @@ int gst_truthy(GstValue v) {
 
 static const uint8_t *real_to_string(Gst *vm, GstReal x) {
     uint8_t buf[GST_BUFSIZE];
-    int count = snprintf((char *) buf, GST_BUFSIZE, "%.21g", x);
+    int count = snprintf((char *) buf, GST_BUFSIZE, "%.21gF", x);
     return gst_string_b(vm, buf, (uint32_t) count);
 }
 
 static const uint8_t *integer_to_string(Gst *vm, GstInteger x) {
     uint8_t buf[GST_BUFSIZE];
-    int count = snprintf((char *) buf, GST_BUFSIZE, "%ld", x);
+    int count = snprintf((char *) buf, GST_BUFSIZE, "%lld", x);
     return gst_string_b(vm, buf, (uint32_t) count);
 }
 
