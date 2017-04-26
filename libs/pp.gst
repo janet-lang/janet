@@ -14,7 +14,7 @@
         (: i (+ 1 i)))
     (if (> len 0) (pop parts))
     (push parts end)
-    (apply strcat start parts)))
+    (apply string start parts)))
 
 # Pretty print an object or struct
 (: print-struct (fn [start end s]
@@ -28,7 +28,7 @@
         (: key (next s key)))
     (if (> (length parts) 0) (pop parts))
     (push parts end)
-    (apply strcat start parts)))
+    (apply string start parts)))
 
 # Pretty 
 

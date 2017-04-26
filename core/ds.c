@@ -159,12 +159,13 @@ GstValue gst_array_peek(GstArray *array) {
 /****/
 
 /* Create new userdata */
-void *gst_userdata(Gst *vm, uint32_t size, const GstValue *meta) {
+void *gst_userdata(Gst *vm, uint32_t size, const GstUserType *utype) {
     char *data = gst_alloc(vm, sizeof(GstUserdataHeader) + size);
     GstUserdataHeader *header = (GstUserdataHeader *)data;
     void *user = data + sizeof(GstUserdataHeader);
     header->size = size;
-    header->meta = meta;
+    header->type = utype;
+    gst_mem_tag(header, GST_MEMTAG_USER);
     return user;
 }
 

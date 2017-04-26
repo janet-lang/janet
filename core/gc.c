@@ -174,10 +174,8 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
             if (gc_header(x.string - sizeof(GstUserdataHeader))->color != vm->black) {
                 GstUserdataHeader *userHeader = (GstUserdataHeader *)x.string - 1;
                 gc_header(userHeader)->color = vm->black;
-                GstValueUnion temp;
-                temp.st = userHeader->meta;
-                gst_mark(vm, temp, GST_STRUCT);
             }
+            break;
 
         case GST_FUNCENV:
             gst_mark_funcenv(vm, x.env);
@@ -210,6 +208,12 @@ void gst_sweep(Gst *vm) {
                     gst_cache_remove_struct(vm, (char *)(current + 1));
                 if (current->tags & GST_MEMTAG_TUPLE)
                     gst_cache_remove_tuple(vm, (char *)(current + 1));
+                if (current->tags & GST_MEMTAG_USER) {
+                    GstUserdataHeader *h = (GstUserdataHeader *)(current + 1); 
+                    if (h->type->finalize) {
+                        h->type->finalize(vm, h + 1, h->size);
+                    }
+                }
             }
             gst_raw_free(current);
         } else {

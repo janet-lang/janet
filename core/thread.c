@@ -173,3 +173,15 @@ GstValue *gst_thread_popframe(Gst *vm, GstThread *thread) {
     else
         return NULL;
 }
+
+/* Count the number of stack frames in a thread */
+uint32_t gst_thread_countframes(GstThread *thread) {
+    uint32_t count = 0;
+    const GstValue *stack = thread->data + GST_FRAME_SIZE;
+    const GstValue *laststack = thread->data + thread->count;
+    while (stack <= laststack) {
+        ++count;
+        stack += gst_frame_size(stack) + GST_FRAME_SIZE;
+    }
+    return count;
+}

@@ -28,5 +28,6 @@
 void gst_cache_remove_string(Gst *vm, char *strmem);
 void gst_cache_remove_tuple(Gst *vm, char *tuplemem);
 void gst_cache_remove_struct(Gst *vm, char *structmem);
+void gst_cache_remove_userdata(Gst *vm, char *usermem);
 
 #endif /* end of include guard: CACHE_H_LVYZMBLR */

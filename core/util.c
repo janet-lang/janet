@@ -63,11 +63,26 @@ GST_WRAP_DEFINE(buffer, GstBuffer *, GST_BYTEBUFFER, buffer)
 GST_WRAP_DEFINE(function, GstFunction *, GST_FUNCTION, function)
 GST_WRAP_DEFINE(cfunction, GstCFunction, GST_CFUNCTION, cfunction)
 GST_WRAP_DEFINE(table, GstTable *, GST_TABLE, table)
-GST_WRAP_DEFINE(userdata, void *, GST_USERDATA, pointer)
 GST_WRAP_DEFINE(funcenv, GstFuncEnv *, GST_FUNCENV, env)
 GST_WRAP_DEFINE(funcdef, GstFuncDef *, GST_FUNCDEF, def)
 
 #undef GST_WRAP_DEFINE
+
+GstValue gst_wrap_userdata(void *x) {
+    GstValue ret;
+    ret.type = GST_USERDATA;
+    ret.data.pointer = x;
+    return ret;
+}
+
+void *gst_check_userdata(Gst *vm, uint32_t i, const GstUserType *type) {
+    GstValue x = gst_arg(vm, i);
+    GstUserdataHeader *h;
+    if (x.type != GST_USERDATA) return NULL;
+    h = ((GstUserdataHeader *)x.data.pointer) - 1;
+    if (h->type != type) return NULL;
+    return x.data.pointer;
+}
 
 GstValue gst_cmodule_table(Gst *vm, const GstModuleItem *mod) {
     GstTable *module = gst_table(vm, 10);

@@ -328,17 +328,21 @@ int gst_stl_struct(Gst *vm) {
 /* Create a buffer */
 int gst_stl_buffer(Gst *vm) {
     uint32_t i, count;
+    const uint8_t *dat;
+    uint32_t slen;
     GstBuffer *buf = gst_buffer(vm, 10);
     count = gst_count_args(vm);
     for (i = 0; i < count; ++i) {
-        const uint8_t *string = gst_to_string(vm, gst_arg(vm, i));
-        gst_buffer_append(vm, buf, string, gst_string_length(string));
+        if (gst_chararray_view(gst_arg(vm, i), &dat, &slen))
+            gst_buffer_append(vm, buf, dat, slen);
+        else
+            gst_c_throwc(vm, GST_EXPECTED_STRING);
     }
     gst_c_return(vm, gst_wrap_buffer(buf));
 }
 
-/* Concatenate strings */
-int gst_stl_strcat(Gst *vm) {
+/* Create a string */
+int gst_stl_string(Gst *vm) {
     uint32_t j;
     uint32_t count = gst_count_args(vm);
     uint32_t length = 0;
@@ -515,7 +519,13 @@ int gst_stl_setglobal(Gst *vm) {
 /* IO */
 /****/
 
-/* TODO - add userdata to allow for manipulation of FILE pointers. */
+/* File type definition */
+static GstUserType gst_stl_filetype = {
+    "io.file",
+    NULL,
+    NULL, 
+    NULL
+};
 
 /* Open a a file and return a userdata wrapper arounf the C file API. */
 int gst_stl_open(Gst *vm) {
@@ -523,20 +533,44 @@ int gst_stl_open(Gst *vm) {
     const uint8_t *fmode = gst_to_string(vm, gst_arg(vm, 1));
     FILE *f;
     FILE **fp;
-    GstValue *st;
     if (gst_count_args(vm) < 2 || gst_arg(vm, 0).type != GST_STRING 
             || gst_arg(vm, 1).type != GST_STRING)
         gst_c_throwc(vm, "expected filename and filemode");
     f = fopen((const char *)fname, (const char *)fmode);
     if (!f)
         gst_c_throwc(vm, "could not open file");
-    st = gst_struct_begin(vm, 0);
-    fp = gst_userdata(vm, sizeof(FILE *), gst_struct_end(vm, st));
+    fp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
     *fp = f;
     gst_c_return(vm, gst_wrap_userdata(fp));
 }
 
-/* Write a string to a file in one go. Overwrites an existing file. */
+/* Read an entire file into memory */
+int gst_stl_slurp(Gst *vm) {
+    GstBuffer *b;
+    long fsize;
+    FILE *f;
+    FILE **fp = gst_check_userdata(vm, 0, &gst_stl_filetype);
+    if (fp == NULL) gst_c_throwc(vm, "expected file");
+    if (!gst_check_buffer(vm, 1, &b)) b = gst_buffer(vm, 10);
+    f = *fp;
+    /* Read whole file */
+    fseek(f, 0, SEEK_END);
+    fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    /* Ensure buffer size */
+    gst_buffer_ensure(vm, b, b->count + fsize);
+    fread((char *)(b->data + b->count), fsize, 1, f);
+    b->count += fsize;
+    gst_c_return(vm, gst_wrap_buffer(b));
+}
+
+/* Close a file */
+int gst_stl_close(Gst *vm) {
+    FILE **fp = gst_check_userdata(vm, 0, &gst_stl_filetype);
+    if (fp == NULL) gst_c_throwc(vm, "expected file");
+    fclose(*fp);
+    gst_c_return(vm, gst_wrap_nil());
+}
 
 /****/
 /* Temporary */
@@ -576,8 +610,8 @@ static const GstModuleItem const std_module[] = {
     {"not", gst_stl_not},
     {"length", gst_stl_length},
     {"hash", gst_stl_hash},
-    {"to-integer", gst_stl_to_int},
-    {"to-real", gst_stl_to_real},
+    {"integer", gst_stl_to_int},
+    {"real", gst_stl_to_real},
     {"type", gst_stl_type},
     {"slice", gst_stl_slice},
     {"array", gst_stl_array},
@@ -585,7 +619,7 @@ static const GstModuleItem const std_module[] = {
     {"table", gst_stl_table},
     {"struct", gst_stl_struct},
     {"buffer", gst_stl_buffer},
-    {"strcat", gst_stl_strcat},
+    {"string", gst_stl_string},
     {"print", gst_stl_print},
     {"tostring", gst_stl_tostring},
     {"exit", gst_stl_exit},
@@ -601,6 +635,8 @@ static const GstModuleItem const std_module[] = {
     {"peek", gst_stl_peek},
     {"ensure", gst_stl_ensure},
     {"open", gst_stl_open},
+    {"slurp", gst_stl_slurp},
+    {"close", gst_stl_close},
     {"dasm", gst_stl_dasm},
     {NULL, NULL}
 };

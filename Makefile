@@ -16,7 +16,7 @@ all: $(GST_TARGET)
 ##### The core vm and runtime #####
 ###################################
 GST_CORE_SOURCES=$(addprefix core/,\
-				 compile.c disasm.c parse.c stl.c strings.c ids.c util.c\
+				 compile.c disasm.c parse.c stl.c ids.c util.c\
 				 value.c vm.c ds.c gc.c thread.c serialize.c)
 GST_CORE_OBJECTS=$(patsubst %.c,%.o,$(GST_CORE_SOURCES))
 $(GST_CORELIB): $(GST_CORE_OBJECTS) $(GST_HEADERS)

@@ -148,14 +148,13 @@ typedef struct GstTable GstTable;
 typedef struct GstThread GstThread;
 typedef int (*GstCFunction)(Gst * vm);
 
-/* Implementation details */
+/* Other structs */
 typedef struct GstUserdataHeader GstUserdataHeader;
 typedef struct GstFuncDef GstFuncDef;
 typedef struct GstFuncEnv GstFuncEnv;
 typedef union GstValueUnion GstValueUnion;
-
-/* API Types */
 typedef struct GstModuleItem GstModuleItem;
+typedef struct GstUserType GstUserType;
 
 /* C Api data types */
 struct GstModuleItem {
@@ -259,10 +258,18 @@ struct GstFunction {
     GstFunction *parent;
 };
 
+/* Defines a type for userdata */
+struct GstUserType {
+    const char *id;
+    GstValue (*serialize)(Gst *vm, void *data, uint32_t len);
+    GstValue (*deserialize)(Gst *vm, GstValue in);
+    void (*finalize)(Gst *vm, void *data, uint32_t len);
+};
+
 /* Contains information about userdata */
 struct GstUserdataHeader {
     uint32_t size;
-    const GstValue *meta;
+    const GstUserType *type;
 };
 
 /* VM return status from c function */
@@ -356,7 +363,7 @@ GstValue gst_array_peek(GstArray *array);
 /* Userdata functions */
 /****/
 
-void *gst_userdata(Gst *vm, uint32_t size, const GstValue *meta);
+void *gst_userdata(Gst *vm, uint32_t size, const GstUserType *utype);
 
 /****/
 /* Tuple functions */
@@ -409,6 +416,7 @@ void gst_thread_tuplepack(Gst *vm, GstThread *thread, uint32_t n);
 GstValue *gst_thread_beginframe(Gst *vm, GstThread *thread, GstValue callee, uint32_t arity); 
 void gst_thread_endframe(Gst *vm, GstThread *thread);
 GstValue *gst_thread_popframe(Gst *vm, GstThread *thread); 
+uint32_t gst_thread_countframes(GstThread *thread);
 
 /****/
 /* Value manipulation */
@@ -427,43 +435,13 @@ GstInteger gst_length(Gst *vm, GstValue x);
 /* Serialization */
 /****/
 
-/**
- * Data format
- * State is encoded as a string of unsigned bytes.
- *
- * Types:
- *
- * Byte 0 to 200: small integer byte - 100
- * Byte 201: Nil
- * Byte 202: True
- * Byte 203: False
- * Byte 204: Number  - double format
- * Byte 205: String  - [u32 length]*[u8... characters]
- * Byte 206: Symbol  - [u32 length]*[u8... characters]
- * Byte 207: Buffer  - [u32 length]*[u8... characters]
- * Byte 208: Array   - [u32 length]*[value... elements]
- * Byte 209: Tuple   - [u32 length]*[value... elements]
- * Byte 210: Thread  - [u8 state][u32 frames]*[[value callee][value env]
- *  [u32 pcoffset][u32 erroffset][u16 ret][u16 errloc][u16 size]*[value ...stack]
- * Byte 211: Table   - [u32 length]*2*[value... kvs]
- * Byte 212: FuncDef - [u32 locals][u32 arity][u32 flags][u32 literallen]*[value...
- *  literals][u32 bytecodelen]*[u16... bytecode]
- * Byte 213: FunEnv  - [value thread][u32 length]*[value ...upvalues]
- *  (upvalues is not read if thread is a thread object)
- * Byte 214: Func    - [value parent][value def][value env]
- *  (nil values indicate empty)
- * Byte 215: LUdata  - [value meta][u32 length]*[u8... bytes]
- * Byte 216: CFunc   - [u32 length]*[u8... idstring]
- * Byte 217: Ref     - [u32 id]
- * Byte 218: Integer - [i64 value]
- */
-
 const char *gst_deserialize(
         Gst *vm,
         const uint8_t *data,
         uint32_t len,
         GstValue *out,
         const uint8_t *nextData);
+
 const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x);
 
 /****/
@@ -473,6 +451,7 @@ const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x);
 #define GST_MEMTAG_STRING 4
 #define GST_MEMTAG_TUPLE 8
 #define GST_MEMTAG_STRUCT 16
+#define GST_MEMTAG_USER 32
 
 void gst_mark_value(Gst *vm, GstValue x);
 void gst_mark(Gst *vm, GstValueUnion x, GstType type);
@@ -539,10 +518,11 @@ int gst_check_buffer(Gst *vm, uint32_t i, GstBuffer *(*x));
 int gst_check_function(Gst *vm, uint32_t i, GstFunction *(*x));
 int gst_check_cfunction(Gst *vm, uint32_t i, GstCFunction (*x));
 int gst_check_table(Gst *vm, uint32_t i, GstTable *(*x));
-int gst_check_userdata(Gst *vm, uint32_t i, void *(*x));
 int gst_check_funcenv(Gst *vm, uint32_t i, GstFuncEnv *(*x));
 int gst_check_funcdef(Gst *vm, uint32_t i, GstFuncDef *(*x));
+void *gst_check_userdata(Gst *vm, uint32_t i, const GstUserType *type);
 
+/* Treat similar types through uniform interfaces */
 int gst_seq_view(GstValue seq, const GstValue **data, uint32_t *len);
 int gst_chararray_view(GstValue str, const uint8_t **data, uint32_t *len);
 int gst_hashtable_view(GstValue tab, const GstValue **data, uint32_t *cap);
