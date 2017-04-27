@@ -367,8 +367,8 @@ int gst_stl_string(Gst *vm) {
     gst_c_return(vm, gst_wrap_string(gst_string_end(vm, str)));
 }
 
-/* Associative rawget */
-int gst_stl_rawget(Gst *vm) {
+/* Associative get */
+int gst_stl_get(Gst *vm) {
     GstValue ret;
     uint32_t count;
     const char *err;
@@ -382,8 +382,8 @@ int gst_stl_rawget(Gst *vm) {
         gst_c_return(vm, ret);
 }
 
-/* Associative rawset */
-int gst_stl_rawset(Gst *vm) {
+/* Associative set */
+int gst_stl_set(Gst *vm) {
     uint32_t count;
     const char *err;
     count = gst_count_args(vm);
@@ -652,17 +652,17 @@ static const GstModuleItem const std_module[] = {
     {"print", gst_stl_print},
     {"tostring", gst_stl_tostring},
     {"exit", gst_stl_exit},
-    {"rawget", gst_stl_rawget},
-    {"rawset", gst_stl_rawset},
+    {"get", gst_stl_get},
+    {"set!", gst_stl_set},
     {"next", gst_stl_next},
     {"error", gst_stl_error},
     {"serialize", gst_stl_serialize},
     {"global", gst_stl_global},
-    {"setglobal", gst_stl_setglobal},
-    {"push", gst_stl_push},
-    {"pop", gst_stl_pop},
+    {"setglobal!", gst_stl_setglobal},
+    {"push!", gst_stl_push},
+    {"pop!", gst_stl_pop},
     {"peek", gst_stl_peek},
-    {"ensure", gst_stl_ensure},
+    {"ensure!", gst_stl_ensure},
     {"open", gst_stl_open},
     {"slurp", gst_stl_slurp},
     {"read", gst_stl_read},
