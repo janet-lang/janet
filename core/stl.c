@@ -564,6 +564,35 @@ int gst_stl_slurp(Gst *vm) {
     gst_c_return(vm, gst_wrap_buffer(b));
 }
 
+/* Read a certain number of bytes into memory */
+int gst_stl_read(Gst *vm) {
+    GstBuffer *b;
+    FILE *f;
+    int64_t len;
+    FILE **fp = gst_check_userdata(vm, 0, &gst_stl_filetype);
+    if (fp == NULL) gst_c_throwc(vm, "expected file");
+    if (!(gst_check_integer(vm, 1, &len))) gst_c_throwc(vm, "expected integer");
+    if (!gst_check_buffer(vm, 2, &b)) b = gst_buffer(vm, 10);
+    f = *fp;
+    /* Ensure buffer size */
+    gst_buffer_ensure(vm, b, b->count + len);
+    b->count += fread((char *)(b->data + b->count), len, 1, f) * len;
+    gst_c_return(vm, gst_wrap_buffer(b));
+}
+
+/* Write bytes to a file */
+int gst_stl_write(Gst *vm) {
+    FILE *f;
+    const uint8_t *data;
+    uint32_t len;
+    FILE **fp = gst_check_userdata(vm, 0, &gst_stl_filetype);
+    if (fp == NULL) gst_c_throwc(vm, "expected file");
+    if (!gst_chararray_view(gst_arg(vm, 1), &data, &len)) gst_c_throwc(vm, "expected string|buffer");
+    f = *fp;
+    fwrite(data, len, 1, f);
+    return GST_RETURN_OK;
+}
+
 /* Close a file */
 int gst_stl_close(Gst *vm) {
     FILE **fp = gst_check_userdata(vm, 0, &gst_stl_filetype);
@@ -636,6 +665,8 @@ static const GstModuleItem const std_module[] = {
     {"ensure", gst_stl_ensure},
     {"open", gst_stl_open},
     {"slurp", gst_stl_slurp},
+    {"read", gst_stl_read},
+    {"write", gst_stl_write},
     {"close", gst_stl_close},
     {"dasm", gst_stl_dasm},
     {NULL, NULL}
