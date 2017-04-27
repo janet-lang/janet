@@ -4,56 +4,56 @@
 (: pp nil)
 
 # Pretty print an array or tuple
-(: print-seq (fn [start end a]
-    (: parts [])
-    (: len (length a))
-    (: i 0)
-    (while (< i len)
-        (push parts (pp (rawget a i)))
-        (push parts " ")
-        (: i (+ 1 i)))
-    (if (> len 0) (pop parts))
-    (push parts end)
-    (apply string start parts)))
+(: print-seq (fn [start end a seen]
+    (: seen (if seen seen {}))
+    (if (get seen s) (get seen s)
+        (do
+            (: parts [])
+            (: len (length a))
+            (: i 0)
+            (while (< i len)
+                (push! parts (pp (get a i) seen))
+                (push! parts " ")
+                (: i (+ 1 i)))
+            (if (> len 0) (pop! parts))
+            (push! parts end)
+            (: ret (apply string start parts))
+            (set! seen s ret)
+            ret))))
 
 # Pretty print an object or struct
-(: print-struct (fn [start end s]
-    (: parts [])
-    (: key (next s))
-    (while (not (= key nil))
-        (push parts (pp key))
-        (push parts " ")
-        (push parts (pp (rawget s key)))
-        (push parts " ")
-        (: key (next s key)))
-    (if (> (length parts) 0) (pop parts))
-    (push parts end)
-    (apply string start parts)))
+(: print-struct (fn [start end s seen]
+    (: seen (if seen seen {}))
+    (if (get seen s) (get seen s)
+        (do
+            (: parts [])
+            (: key (next s))
+            (while (not (= key nil))
+                    (push! parts (pp key seen))
+                    (push! parts " ")
+                    (push! parts (pp (get s key) seen))
+                    (push! parts " ")
+                    (: key (next s key)))
+            (if (> (length parts) 0) (pop! parts))
+            (push! parts end)
+            (: ret (apply string start parts))
+            (set! seen s ret)
+            ret))))
 
-# Pretty 
-
+# Type handlers
 (: handlers {
-    "real" tostring
-    "integer" tostring
-    "nil" tostring
-    "boolean" tostring
-    "userdata" tostring
-    "cfunction" tostring
-    "function" tostring
-    "string" tostring
-    "buffer" tostring
-    "array" (fn [a] (print-seq "[" "]" a))
-    "tuple" (fn [a] (print-seq "(" ")" a))
-    "object" (fn [s] (print-struct "{" "}" s))
-    "struct" (fn [s] (print-struct "#{" "}" s))
-    "thread" tostring 
+    "array" (fn [a seen] (print-seq "[" "]" a seen))
+    "tuple" (fn [a seen] (print-seq "(" ")" a seen))
+    "table" (fn [s seen] (print-struct "{" "}" s seen))
+    "struct" (fn [s seen] (print-struct "#{" "}" s seen))
  })
 
 # Define pretty print
-(: pp (fn [x]
-    (: h (rawget handlers (type x)))
-    (h x)))
+(: pp (fn [x seen]
+    (: h (get handlers (type x)))
+    ((if h h tostring) x seen)))
 
 (print (pp [1 {4 5 6 7} 2 3]))
 
-(print "DONE!")
+# Module export pattern - last expression in file is value of module
+pp
