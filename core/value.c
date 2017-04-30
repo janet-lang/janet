@@ -39,7 +39,29 @@ static const uint8_t *real_to_string(Gst *vm, GstReal x) {
 
 static const uint8_t *integer_to_string(Gst *vm, GstInteger x) {
     uint8_t buf[GST_BUFSIZE];
-    int count = snprintf((char *) buf, GST_BUFSIZE, "%lld", x);
+    int neg = 0;
+    uint8_t *hi, *low;
+    uint32_t count = 0;
+    if (x == 0) return gst_string_c(vm, "0");
+    if (x < 0) {
+        neg = 1;
+        x = -x;
+    }
+    while (x > 0) {
+        uint8_t digit = x % 10;
+        buf[count++] = '0' + digit;
+        x /= 10;
+    }
+    if (neg)
+        buf[count++] = '-';
+    /* Reverse */
+    hi = buf + count - 1;
+    low = buf;
+    while (hi > low) {
+        uint8_t temp = *low;
+        *low++ = *hi;
+        *hi-- = temp;
+    }
     return gst_string_b(vm, buf, (uint32_t) count);
 }
 
