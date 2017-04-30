@@ -601,6 +601,30 @@ int gst_stl_close(Gst *vm) {
     gst_c_return(vm, gst_wrap_nil());
 }
 
+/* Functions in the io module */
+static const GstModuleItem const io_dat[] = {
+    {"open", gst_stl_open},
+    {"slurp", gst_stl_slurp},
+    {"read", gst_stl_read},
+    {"write", gst_stl_write},
+    {NULL, NULL}
+};
+
+/* Load the io module */
+void gst_stlio_load(Gst *vm) {
+    /* Load the normal c functions */
+    GstValue module = gst_cmodule_table(vm, io_dat);
+    GstTable *tab = module.data.table;
+    /* Wrap stdin and stdout */
+    FILE **inp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+    FILE **outp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+    *inp = stdin;
+    *outp = stdout;
+    gst_table_put(vm, tab, gst_string_cv(vm, "stdin"), gst_wrap_userdata(inp));
+    gst_table_put(vm, tab, gst_string_cv(vm, "stdout"), gst_wrap_userdata(outp));
+    gst_module_put(vm, "std.io", module);
+}
+
 /****/
 /* Temporary */
 /****/
@@ -674,5 +698,6 @@ static const GstModuleItem const std_module[] = {
 
 /* Load all libraries */
 void gst_stl_load(Gst *vm) {
+    gst_stlio_load(vm);
     gst_module_put(vm, "std", gst_cmodule_struct(vm, std_module));
 }

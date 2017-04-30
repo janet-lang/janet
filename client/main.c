@@ -38,6 +38,7 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue env) {
     /* Try to compile generated AST */
     gst_compiler(&c, vm);
     gst_compiler_usemodule(&c, "std");
+    gst_compiler_usemodule(&c, "std.io");
     gst_compiler_globals(&c, env);
     func = gst_wrap_function(gst_compiler_compile(&c, ast));
     /* Check for compilation errors */
