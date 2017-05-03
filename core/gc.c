@@ -34,6 +34,11 @@ struct GCMemoryHeader {
     uint32_t tags : 31;
 };
 
+/* Mark a chunk of memory as reachable for the gc */
+void gst_mark_mem(Gst *vm, void *mem) {
+	gc_header(mem)->color = vm->black;
+}
+
 /* Helper to mark function environments */
 static void gst_mark_funcenv(Gst *vm, GstFuncEnv *env) {
     if (gc_header(env)->color != vm->black) {
@@ -172,8 +177,10 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
 
         case GST_USERDATA:
             if (gc_header(x.string - sizeof(GstUserdataHeader))->color != vm->black) {
-                GstUserdataHeader *userHeader = (GstUserdataHeader *)x.string - 1;
-                gc_header(userHeader)->color = vm->black;
+                GstUserdataHeader *h = (GstUserdataHeader *)x.pointer - 1;
+                gc_header(h)->color = vm->black;
+                if (h->type->gcmark)
+                    h->type->gcmark(vm, x.pointer, h->size);
             }
             break;
 

@@ -191,7 +191,7 @@ GstInteger gst_real_to_integer(GstReal x) {
 }
 
 GstInteger gst_startrange(GstInteger raw, uint32_t len) {
-    if (raw > len)
+    if (raw >= len)
         return -1;
     if (raw < 0)
         return len + raw;

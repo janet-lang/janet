@@ -43,11 +43,6 @@ struct GstParseState {
             GstArray *array;
         } form;
         struct {
-            GstValue key;
-            int keyFound;
-            GstTable *table;
-        } table;
-        struct {
             GstBuffer *buffer;
             uint32_t count;
             uint32_t accum;
@@ -539,4 +534,124 @@ void gst_parser(GstParser *p, Gst *vm) {
     p->value.type = GST_NIL;
     p->flags = GST_PARSER_FLAG_EXPECTING_COMMENT;
     parser_push(p, PTYPE_ROOT, ' ');
+}
+
+/* CG finalize a parser */
+static void gst_stl_parser_finalize(Gst *vm, void *data, uint32_t len) {
+	/* printf("Finalizing parser: %p, %d\n", data, len); */
+}
+
+/* GC mark a parser */
+static void gst_stl_parser_mark(Gst *vm, void *data, uint32_t len) {
+    uint32_t i;
+    GstParser *p = (GstParser *) data;
+    gst_mark_mem(vm, p->data);
+    gst_mark_value(vm, p->value);
+    for (i = 0; i < p->count; ++i) {
+		GstParseState *ps = p->data + i;
+		switch (ps->type) {
+    		case PTYPE_ROOT:
+    			break;
+			case PTYPE_FORM:
+    			gst_mark_value(vm, gst_wrap_array(ps->buf.form.array));
+    			break;
+    		case PTYPE_STRING:
+        	case PTYPE_TOKEN:
+            	gst_mark_value(vm, gst_wrap_buffer(ps->buf.string.buffer));
+            	break;
+		}
+    }
+}
+
+/***/
+/* Stl functions */
+/***/
+
+/* Parse filetype */
+static const GstUserType gst_stl_parsetype = {
+	"std.parser",
+	NULL,
+	NULL,
+	&gst_stl_parser_finalize,
+	&gst_stl_parser_mark
+};
+
+/* Create a parser */
+int gst_stl_parser(Gst *vm) {
+	GstParser *p = gst_userdata(vm, sizeof(GstParser), &gst_stl_parsetype);
+	gst_parser(p, vm);
+	gst_c_return(vm, gst_wrap_userdata(p));
+}
+
+/* Consume a value from the parser */
+int gst_stl_parser_consume(Gst *vm) {
+	GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
+	if (p == NULL)
+    	gst_c_throwc(vm, "expected parser");
+    if (!gst_parse_hasvalue(p))
+        gst_c_throwc(vm, "parser has no pending value");
+	gst_c_return(vm, gst_parse_consume(p));
+}
+
+/* Check if the parser has a value to consume */
+int gst_stl_parser_hasvalue(Gst *vm) {
+	GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
+	if (p == NULL)
+    	gst_c_throwc(vm, "expected parser");
+	gst_c_return(vm, gst_wrap_boolean(gst_parse_hasvalue(p)));
+}
+
+/* Parse a single byte. Returns if the byte was successfully parsed. */
+int gst_stl_parser_byte(Gst *vm) {
+    GstInteger b;
+	GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
+	if (p == NULL)
+    	gst_c_throwc(vm, "expected parser");
+	if (!gst_check_integer(vm, 1, &b))
+    	gst_c_throwc(vm, "expected integer");
+    if (p->status == GST_PARSER_PENDING || p->status == GST_PARSER_ROOT) {
+        dispatch_char(p, b);
+        gst_c_return(vm, gst_wrap_boolean(1));
+    } else {
+        gst_c_return(vm, gst_wrap_boolean(0));
+    }
+}
+
+/* Parse a string or buffer. Returns nil if the entire char array is parsed,
+* otherwise returns the remainder of what could not be parsed. */
+int gst_stl_parser_charseq(Gst *vm) {
+    uint32_t i;
+	uint32_t len;
+	const uint8_t *data;
+	GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
+	if (p == NULL)
+    	gst_c_throwc(vm, "expected parser");
+    if (!gst_chararray_view(gst_arg(vm, 1), &data, &len))
+        gst_c_throwc(vm, "expected string/buffer");
+    for (i = 0; i < len; ++i) {
+        if (p->status != GST_PARSER_PENDING && p->status != GST_PARSER_ROOT) break;
+        dispatch_char(p, data[i]);
+    }
+    if (i == len) {
+		/* No remainder */
+		gst_c_return(vm, gst_wrap_nil());
+    } else {
+		/* We have remaining characters */
+		gst_c_return(vm, gst_wrap_string(gst_string_b(vm, data + i, len - i)));
+    }
+}
+
+/* The module */
+static const GstModuleItem gst_parser_module[] = {
+	{"parser", gst_stl_parser},
+	{"parse-byte", gst_stl_parser_byte},
+	{"parse-consume", gst_stl_parser_consume},
+	{"parse-hasvalue", gst_stl_parser_hasvalue},
+	{"parse-charseq", gst_stl_parser_charseq},
+	{NULL, NULL}
+};
+
+/* Load the module */
+void gst_parse_load(Gst *vm) {
+	gst_module_put(vm, "std.parse", gst_cmodule_struct(vm, gst_parser_module));
 }

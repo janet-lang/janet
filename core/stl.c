@@ -524,6 +524,7 @@ static GstUserType gst_stl_filetype = {
     "io.file",
     NULL,
     NULL, 
+    NULL,
     NULL
 };
 
@@ -646,6 +647,12 @@ int gst_stl_dasm(Gst *vm) {
     return GST_RETURN_OK;
 }
 
+/* Force garbage collection */
+int gst_stl_gcollect(Gst *vm) {
+	gst_collect(vm);
+	return GST_RETURN_OK;
+}
+
 /****/
 /* Bootstraping */
 /****/
@@ -693,6 +700,7 @@ static const GstModuleItem const std_module[] = {
     {"write", gst_stl_write},
     {"close", gst_stl_close},
     {"dasm", gst_stl_dasm},
+    {"gcollect", gst_stl_gcollect},
     {NULL, NULL}
 };
 

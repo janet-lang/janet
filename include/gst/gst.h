@@ -264,6 +264,7 @@ struct GstUserType {
     GstValue (*serialize)(Gst *vm, void *data, uint32_t len);
     GstValue (*deserialize)(Gst *vm, GstValue in);
     void (*finalize)(Gst *vm, void *data, uint32_t len);
+    void (*gcmark)(Gst *vm, void *data, uint32_t len);
 };
 
 /* Contains information about userdata */
@@ -462,6 +463,7 @@ void gst_mem_tag(void *mem, uint32_t tags);
 void gst_collect(Gst *vm);
 void gst_maybe_collect(Gst *vm);
 void gst_clear_memory(Gst *vm);
+void gst_mark_mem(Gst *vm, void *mem);
 
 /****/
 /* VM */

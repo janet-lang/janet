@@ -68,4 +68,7 @@ int gst_parse_hasvalue(GstParser *p);
 /* Gets a value from the parser */
 GstValue gst_parse_consume(GstParser *p);
 
+/* Load the parsing library */
+void gst_parse_load(Gst *vm);
+
 #endif /* end of include guard: PARSE_H_ONYWMADW */
