@@ -65,6 +65,8 @@ int gst_stl_##name(Gst* vm) {\
         rhs = gst_arg(vm, j);\
         lhs = gst_stl_binop_##name(lhs, rhs);\
     }\
+    if (lhs.type == GST_NIL)\
+        gst_c_throwc(vm, "expected integer/real");\
     gst_c_return(vm, lhs);\
 }
 

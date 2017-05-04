@@ -536,15 +536,12 @@ void gst_parser(GstParser *p, Gst *vm) {
     parser_push(p, PTYPE_ROOT, ' ');
 }
 
-/* CG finalize a parser */
-static void gst_stl_parser_finalize(Gst *vm, void *data, uint32_t len) {
-	/* printf("Finalizing parser: %p, %d\n", data, len); */
-}
-
 /* GC mark a parser */
 static void gst_stl_parser_mark(Gst *vm, void *data, uint32_t len) {
     uint32_t i;
     GstParser *p = (GstParser *) data;
+    if (len != sizeof(GstParser))
+        return;
     gst_mark_mem(vm, p->data);
     gst_mark_value(vm, p->value);
     for (i = 0; i < p->count; ++i) {
@@ -572,7 +569,7 @@ static const GstUserType gst_stl_parsetype = {
 	"std.parser",
 	NULL,
 	NULL,
-	&gst_stl_parser_finalize,
+	NULL,
 	&gst_stl_parser_mark
 };
 
