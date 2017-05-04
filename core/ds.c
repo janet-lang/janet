@@ -176,7 +176,9 @@ void *gst_userdata(Gst *vm, uint32_t size, const GstUserType *utype) {
 /* Create a new table */
 GstTable *gst_table(Gst *vm, uint32_t capacity) {
     GstTable *t = gst_alloc(vm, sizeof(GstTable));
-    GstValue *data = gst_zalloc(vm, capacity * sizeof(GstValue));
+    GstValue *data;
+    if (capacity < 2) capacity = 2;
+    data = gst_zalloc(vm, capacity * sizeof(GstValue));
     t->data = data;
     t->capacity = capacity;
     t->count = 0;

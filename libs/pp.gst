@@ -6,7 +6,7 @@
 # Pretty print an array or tuple
 (: print-seq (fn [start end a seen]
     (: seen (if seen seen {}))
-    (if (get seen s) (get seen s)
+    (if (get seen a) (get seen a)
         (do
             (: parts [])
             (: len (length a))
@@ -18,7 +18,7 @@
             (if (> len 0) (pop! parts))
             (push! parts end)
             (: ret (apply string start parts))
-            (set! seen s ret)
+            (set! seen a ret)
             ret))))
 
 # Pretty print an object or struct
@@ -53,7 +53,4 @@
     (: h (get handlers (type x)))
     ((if h h tostring) x seen)))
 
-(print (pp [1 {4 5 6 7} 2 3]))
-
-# Module export pattern - last expression in file is value of module
-pp
+# (print (pp [1 {4 5 6 7} 2 3]))

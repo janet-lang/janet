@@ -25,6 +25,3 @@
     'literalsArray []
     'slotMap []
 }))
-
-# Push a scope onto the compiler
-
