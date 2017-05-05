@@ -41,6 +41,11 @@
 #define gst_struct_capacity(t) (gst_struct_length(t) * 4)
 #define gst_struct_hash(t) (gst_struct_raw(t)[1])
 
+/* Userdata utils */
+#define gst_udata_header(u) ((GstUserdataHeader *)(u) - 1)
+#define gst_udata_type(u) (gst_udata_header(u)->type)
+#define gst_udata_size(u) (gst_udata_header(u)->size)
+
 /* Memcpy for moving memory */
 #ifndef gst_memcpy
 #include <string.h>
@@ -260,7 +265,7 @@ struct GstFunction {
 
 /* Defines a type for userdata */
 struct GstUserType {
-    const char *id;
+    const char *name;
     GstValue (*serialize)(Gst *vm, void *data, uint32_t len);
     GstValue (*deserialize)(Gst *vm, GstValue in);
     void (*finalize)(Gst *vm, void *data, uint32_t len);

@@ -96,6 +96,37 @@ static const uint8_t *string_description(Gst *vm, const char *title, void *point
     return gst_string_b(vm, buf, c - buf);
 }
 
+/* Gets the string value of userdata. Allocates memory, so is slower than
+ * string_description. */
+static const uint8_t *string_udata(Gst *vm, const char *title, void *pointer) {
+    uint32_t strlen = 0;
+    uint8_t *c, *buf;
+    uint32_t i;
+    union {
+        uint8_t bytes[sizeof(void *)];
+        void *p;
+    } pbuf;
+
+    while (title[strlen]) ++strlen;
+    c = buf = gst_alloc(vm, strlen + 5 + 2 * sizeof(void *));
+    pbuf.p = pointer;
+    *c++ = '<';
+    for (i = 0; title[i]; ++i)
+        *c++ = ((uint8_t *)title) [i];
+    *c++ = ' ';
+    *c++ = '0';
+    *c++ = 'x';
+    for (i = sizeof(void *); i > 0; --i) {
+        uint8_t byte = pbuf.bytes[i - 1];
+        if (!byte) continue;
+        *c++ = HEX(byte >> 4);
+        *c++ = HEX(byte & 0xF);
+    }
+    *c++ = '>';
+    return gst_string_b(vm, buf, c - buf);
+
+}
+
 #undef GST_BUFSIZE
 
 /* Returns a string pointer or NULL if could not allocate memory. */
@@ -131,7 +162,7 @@ const uint8_t *gst_to_string(Gst *vm, GstValue x) {
     case GST_THREAD:
         return string_description(vm, "thread", x.data.pointer);
     case GST_USERDATA:
-        return string_description(vm, "userdata", x.data.pointer);
+        return string_udata(vm, gst_udata_type(x.data.pointer)->name, x.data.pointer);
     case GST_FUNCENV:
         return string_description(vm, "funcenv", x.data.pointer);
     case GST_FUNCDEF:

@@ -72,6 +72,7 @@ struct SlotTracker {
     Slot *slots;
     uint32_t count;
     uint32_t capacity;
+    SlotTracker *next;
 };
 
 /* A GstScope is a lexical scope in the program. It is
@@ -88,6 +89,8 @@ struct GstScope {
     uint16_t *freeHeap;
     GstTable *literals;
     GstArray *literalsArray;
+    GstTable *namedLiterals;
+    GstTable *nilNamedLiterals; /* Work around tables not containg nil */
     GstTable *locals;
     GstScope *parent;
 };
@@ -142,10 +145,14 @@ static GstScope *compiler_push_scope(GstCompiler *c, int sameFunction) {
         scope->nextLocal = c->tail->nextLocal;
         scope->literals = c->tail->literals;
         scope->literalsArray = c->tail->literalsArray;
+        scope->namedLiterals = c->tail->namedLiterals;
+        scope->nilNamedLiterals = c->tail->nilNamedLiterals;
     } else {
         scope->nextLocal = 0;
         scope->literals = gst_table(c->vm, 10);
         scope->literalsArray = gst_array(c->vm, 10);
+        scope->namedLiterals = gst_table(c->vm, 10);
+        scope->nilNamedLiterals = gst_table(c->vm, 10);
     }
     c->tail = scope;
     return scope;
@@ -204,6 +211,9 @@ static void tracker_init(GstCompiler *c, SlotTracker *tracker) {
     tracker->slots = gst_alloc(c->vm, 10 * sizeof(Slot));
     tracker->count = 0;
     tracker->capacity = 10;
+    /* Push to tracker stack */
+    tracker->next = (SlotTracker *) c->trackers;
+    c->trackers = tracker;
 }
 
 /* Free up a slot if it is a temporary slot (does not
@@ -300,6 +310,8 @@ static void compiler_tracker_free(GstCompiler *c, GstScope *scope, SlotTracker *
     for (i = tracker->count - 1; i < tracker->count; --i) {
         compiler_drop_slot(c, scope, tracker->slots[i]);
     }
+    /* Pop from tracker stack */
+    c->trackers = tracker->next;
 }
 
 /* Add a new Slot to a slot tracker. */
@@ -350,7 +362,7 @@ static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValu
 
 /* Try to resolve a symbol. If the symbol can be resovled, return true and
  * pass back the level and index by reference. */
-static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t *index) {
+static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t *index, GstValue *out) {
     GstScope *scope = c->tail;
     uint32_t currentLevel = scope->level;
     while (scope) {
@@ -360,7 +372,18 @@ static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t 
             *index = (uint16_t) check.data.integer;
             return 1;
         }
-        
+        /* Check for named literals */
+        check = gst_table_get(scope->namedLiterals, x);
+        if (check.type != GST_NIL) {
+            *out = check;
+            return 2; 
+        }
+        /* Check for nil named literal */
+        check = gst_table_get(scope->nilNamedLiterals, x);
+        if (check.type != GST_NIL) {
+            *out = gst_wrap_nil();
+            return 2;
+        }
         scope = scope->parent;
     }
     return 0;
@@ -376,23 +399,6 @@ static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t 
  * calls, the compiler will just pick the lowest free slot
  * as the location on the stack. */
 static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x);
-
-/* Compile a structure that evaluates to a literal value. Useful
- * for objects like strings, or anything else that cannot be instatiated
- * from bytecode and doesn't do anything in the AST. */
-static Slot compile_literal(GstCompiler *c, FormOptions opts, GstValue x) {
-    GstScope *scope = c->tail;
-    GstBuffer *buffer = c->buffer;
-    Slot ret;
-    uint16_t literalIndex;
-    if (opts.resultUnused) return nil_slot();
-    ret = compiler_get_target(c, opts);
-    literalIndex = compiler_add_literal(c, scope, x);
-    gst_buffer_push_u16(c->vm, buffer, GST_OP_CST);
-    gst_buffer_push_u16(c->vm, buffer, ret.index);
-    gst_buffer_push_u16(c->vm, buffer, literalIndex);
-    return ret;
-}
 
 /* Compile boolean, nil, and number values. */
 static Slot compile_nonref_type(GstCompiler *c, FormOptions opts, GstValue x) {
@@ -430,17 +436,48 @@ static Slot compile_nonref_type(GstCompiler *c, FormOptions opts, GstValue x) {
     return ret;
 }
 
+/* Compile a structure that evaluates to a literal value. Useful
+ * for objects like strings, or anything else that cannot be instantiated
+ * from bytecode and doesn't do anything in the AST. */
+static Slot compile_literal(GstCompiler *c, FormOptions opts, GstValue x) {
+    GstScope *scope = c->tail;
+    GstBuffer *buffer = c->buffer;
+    Slot ret;
+    uint16_t literalIndex;
+    if (opts.resultUnused) return nil_slot();
+    switch (x.type) {
+        case GST_INTEGER:
+        case GST_REAL:
+        case GST_BOOLEAN:
+        case GST_NIL:
+            return compile_nonref_type(c, opts, x);
+        default:
+            break;
+    }
+    ret = compiler_get_target(c, opts);
+    literalIndex = compiler_add_literal(c, scope, x);
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_CST);
+    gst_buffer_push_u16(c->vm, buffer, ret.index);
+    gst_buffer_push_u16(c->vm, buffer, literalIndex);
+    return ret;
+}
+
 /* Compile a symbol. Resolves any kind of symbol. */
 static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
+    GstValue lit = gst_wrap_nil();
     GstBuffer * buffer = c->buffer;
     uint16_t index = 0;
     uint16_t level = 0;
     Slot ret;
-    if (opts.resultUnused) return nil_slot();
-    if (!symbol_resolve(c, sym, &level, &index)) {
+    int status = symbol_resolve(c, sym, &level, &index, &lit);
+    if (!status) {
         c_error(c, "undefined symbol");
     }
-    if (level > 0) {
+    if (opts.resultUnused) return nil_slot();
+    if (status == 2) {
+        /* We have a named literal */
+        return compile_literal(c, opts, lit);
+    } else if (level > 0) {
         /* We have an upvalue */
         ret = compiler_get_target(c, opts);
         gst_buffer_push_u16(c->vm, buffer, GST_OP_UPV);
@@ -468,15 +505,20 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
 
 /* Compile an assignment operation */
 static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstValue right) {
+    GstValue lit = gst_wrap_nil();
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
     FormOptions subOpts;
     uint16_t target = 0;
     uint16_t level = 0;
     Slot slot;
+    int status;
     subOpts.isTail = 0;
     subOpts.resultUnused = 0;
-    if (symbol_resolve(c, left, &level, &target)) {
+    status = symbol_resolve(c, left, &level, &target, &lit);
+    if (status == 2) {
+        c_error(c, "cannot set binding");
+    } else if (status == 1) {
         /* Check if we have an up value. Otherwise, it's just a normal
          * local variable */
         if (level != 0) {
@@ -783,7 +825,7 @@ static Slot compile_apply(GstCompiler *c, FormOptions opts, const GstValue *form
             Slot slot = compile_value(c, subOpts, form[i]);
             compiler_tracker_push(c, &tracker, slot);
         }
-               /* Write last item */
+        /* Write last item */
         {
             Slot slot = compile_value(c, subOpts, form[gst_tuple_length(form) - 1]);
             slot = compiler_realize_slot(c, slot);
@@ -1028,39 +1070,32 @@ static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
 void gst_compiler(GstCompiler *c, Gst *vm) {
     c->vm = vm;
     c->buffer = gst_buffer(vm, 128);
-    c->env = gst_array(vm, 10);
     c->tail = NULL;
     c->error = NULL;
+    c->trackers = NULL;
     compiler_push_scope(c, 0);
 }
 
 /* Add a global variable */
 void gst_compiler_global(GstCompiler *c, const char *name, GstValue x) {
+    GstScope *scope = c->tail;
     GstValue sym = gst_string_cv(c->vm, name);
-    compiler_declare_symbol(c, c->tail, sym);
-    gst_array_push(c->vm, c->env, x);                
+    if (x.type == GST_NIL)
+        gst_table_put(c->vm, scope->nilNamedLiterals, sym, gst_wrap_boolean(1));
+    else
+        gst_table_put(c->vm, scope->namedLiterals, sym, x);
 }
 
 /* Add many global variables */
 void gst_compiler_globals(GstCompiler *c, GstValue env) {
+    GstScope *scope = c->tail;
+    const GstValue *data;
+    uint32_t len;
     uint32_t i;
-    if (env.type == GST_TABLE) {
-        GstTable *t = env.data.table;
-        for (i = 0; i < t->capacity; i += 2) {
-            if (t->data[i].type == GST_STRING) {
-                compiler_declare_symbol(c, c->tail, t->data[i]);
-                gst_array_push(c->vm, c->env, t->data[i + 1]);                
-            }
-        }
-    } else if (env.type == GST_STRUCT) {
-        const GstValue *st = env.data.st;
-        for (i = 0; i < gst_struct_capacity(st); i += 2) {
-            if (st[i].type == GST_STRING) {
-                compiler_declare_symbol(c, c->tail, st[i]);
-                gst_array_push(c->vm, c->env, st[i + 1]);                
-            }
-        }
-    }
+    if (gst_hashtable_view(env, &data, &len))
+        for (i = 0; i < len; i += 2)
+            if (data[i].type == GST_STRING)
+                gst_table_put(c->vm, scope->namedLiterals, data[i], data[i + 1]);
 }
 
 /* Use a module that was loaded into the vm */
@@ -1076,6 +1111,7 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
     GstFuncDef *def;
     if (setjmp(c->onError)) {
         /* Clear all but root scope */
+        c->trackers = NULL;
         if (c->tail)
             c->tail->parent = NULL;
         if (c->error == NULL)
@@ -1088,20 +1124,119 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
     compiler_return(c, compile_value(c, opts, form));
     def = compiler_gen_funcdef(c, c->buffer->count, 0);
     {
-        uint32_t envSize = c->env->count;
         GstFuncEnv *env = gst_alloc(c->vm, sizeof(GstFuncEnv));
         GstFunction *func = gst_alloc(c->vm, sizeof(GstFunction));
-        if (envSize) {
-            env->values = gst_alloc(c->vm, sizeof(GstValue) * envSize);
-            gst_memcpy(env->values, c->env->data, envSize * sizeof(GstValue));
-        } else {
-            env->values = NULL;
-        }
-        env->stackOffset = envSize;
+        env->values = NULL;
+        env->stackOffset = 0;
         env->thread = NULL;
         func->parent = NULL;
         func->def = def;
         func->env = env;
         return func;
     }
+}
+
+/***/
+/* Stl */
+/***/
+
+/* GC mark mark all memory used by the compiler */
+static void gst_compiler_mark(Gst *vm, void *data, uint32_t len) {
+    SlotTracker *st;
+    GstScope *scope;
+	GstCompiler *c = (GstCompiler *) data;
+	if (len != sizeof(GstCompiler))
+    	return;
+    /* Mark compiler */
+    gst_mark_value(vm, gst_wrap_buffer(c->buffer));
+    /* Mark trackers */
+    st = (SlotTracker *) c->trackers;
+    while (st) {
+		gst_mark_mem(vm, st->slots);
+		st = st->next;
+    }
+    /* Mark scopes */
+    scope = c->tail;
+    while (scope) {
+        gst_mark_mem(vm, scope->freeHeap);
+        gst_mark_value(vm, gst_wrap_array(scope->literalsArray));
+        gst_mark_value(vm, gst_wrap_table(scope->locals));
+        gst_mark_value(vm, gst_wrap_table(scope->literals));
+        gst_mark_value(vm, gst_wrap_table(scope->namedLiterals));
+        gst_mark_value(vm, gst_wrap_table(scope->nilNamedLiterals));
+		scope = scope->parent;
+    }
+}
+
+/* Compiler userdata type */
+static const GstUserType gst_stl_compilertype = {
+	"std.compiler",
+	NULL,
+	NULL,
+	NULL,
+	&gst_compiler_mark
+};
+
+/* Create a compiler userdata */
+static int gst_stl_compiler(Gst *vm) {
+	GstCompiler *c = gst_userdata(vm, sizeof(GstCompiler), &gst_stl_compilertype);
+	gst_compiler(c, vm);
+	gst_c_return(vm, gst_wrap_userdata(c));
+}
+
+/* Add a binding to the compiler's current scope. */
+static int gst_stl_compiler_binding(Gst *vm) {
+	GstCompiler *c = gst_check_userdata(vm, 0, &gst_stl_compilertype);
+    GstScope *scope;
+    GstValue sym;
+	const uint8_t *data;
+	uint32_t len;
+	if (!c)
+    	gst_c_throwc(vm, "expected compiler");
+    if (!gst_chararray_view(gst_arg(vm, 1), &data, &len))
+        gst_c_throwc(vm, "expected string/buffer");
+    scope = c->tail;
+    sym = gst_wrap_string(gst_string_b(c->vm, data, len));
+    gst_table_put(c->vm, scope->namedLiterals, sym, gst_arg(vm, 2));
+    gst_c_return(vm, gst_wrap_userdata(c));
+}
+
+/* Compile a value */
+static int gst_stl_compiler_compile(Gst *vm) {
+    GstFunction *ret;
+	GstCompiler *c = gst_check_userdata(vm, 0, &gst_stl_compilertype);
+	if (!c)
+    	gst_c_throwc(vm, "expected compiler");
+    ret = gst_compiler_compile(c, gst_arg(vm, 1));
+    if (ret == NULL)
+        gst_c_throwc(vm, c->error);
+    gst_c_return(vm, gst_wrap_function(ret));
+}
+
+/* Use an environment during compilation. Names that are declared more than
+ * once should use their final declared value. */
+static int gst_stl_compiler_bindings(Gst *vm) {
+    GstValue env;
+    GstCompiler *c = gst_check_userdata(vm, 0, &gst_stl_compilertype);
+    if (!c)
+        gst_c_throwc(vm, "expected compiler");
+    env = gst_arg(vm, 1);
+    if (env.type != GST_TABLE && env.type != GST_STRUCT)
+        gst_c_throwc(vm, "expected table/struct");
+    gst_compiler_globals(c, env);
+    gst_c_return(vm, gst_wrap_userdata(c));
+}
+
+/* The module stuff */
+static const GstModuleItem gst_compile_module[] = {
+    {"compiler", gst_stl_compiler},
+    {"compile", gst_stl_compiler_compile},
+    {"binding!", gst_stl_compiler_binding},
+    {"bindings!", gst_stl_compiler_bindings},
+    {NULL, NULL}
+};
+
+/* Load compiler library */
+void gst_compile_load(Gst *vm) {
+    gst_module_put(vm, "std.compile", gst_cmodule_struct(vm, gst_compile_module));
 }

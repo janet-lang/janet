@@ -32,7 +32,7 @@
 #include <readline/history.h>
 
 /* Compile and run an ast */
-int debug_compile_and_run(Gst *vm, GstValue ast, GstValue env) {
+int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
     GstCompiler c;
     GstValue func;
     /* Try to compile generated AST */
@@ -40,7 +40,8 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue env) {
     gst_compiler_usemodule(&c, "std");
     gst_compiler_usemodule(&c, "std.io");
     gst_compiler_usemodule(&c, "std.parse");
-    gst_compiler_globals(&c, env);
+    gst_compiler_usemodule(&c, "std.compile");
+    gst_compiler_global(&c, "_", last);
     func = gst_wrap_function(gst_compiler_compile(&c, ast));
     /* Check for compilation errors */
     if (c.error) {
@@ -105,7 +106,6 @@ int debug_run(Gst *vm, FILE *in) {
 int debug_repl(Gst *vm) {
     const char *buffer, *reader;
     GstParser p;
-    GstValue *st;
     for (;;) {
         /* Init parser */
         gst_parser(&p, vm);
@@ -131,10 +131,7 @@ int debug_repl(Gst *vm) {
             printf("Unexpected end of source\n");
             continue;
         }
-        /* Add _ to environemt */
-        st = gst_struct_begin(vm, 1);
-        gst_struct_put(st, gst_string_cv(vm, "_"), vm->ret);
-        if (!debug_compile_and_run(vm, gst_parse_consume(&p), gst_wrap_struct(gst_struct_end(vm, st)))) {
+        if (!debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret)) {
             printf("%s\n", gst_to_string(vm, vm->ret));
         }
     }
@@ -147,6 +144,7 @@ int main(int argc, const char **argv) {
     gst_init(&vm);
     gst_stl_load(&vm);
     gst_parse_load(&vm);
+    gst_compile_load(&vm);
     if (argc > 1) {
         const char *filename;
         FILE *f;

@@ -35,8 +35,8 @@ struct GstCompiler {
     const char *error;
     jmp_buf onError;
     GstScope *tail;
-    GstArray *env;
     GstBuffer *buffer;
+    void *trackers;
 };
 
 /* Initialize the Compiler */
@@ -53,5 +53,8 @@ void gst_compiler_usemodule(GstCompiler *c, const char *modulename);
 
 /* Compile a function that evaluates the given form. */
 GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form);
+
+/* Load the library */
+void gst_compile_load(Gst *vm);
 
 #endif /* end of include guard: COMPILE_H_9VXF71HY */
