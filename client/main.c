@@ -66,51 +66,44 @@ int debug_run(Gst *vm, FILE *in) {
     char buffer[1024] = {0};
     const char *reader = buffer;
     GstValue ast;
-    GstValue *tup;
-    GstArray *arr;
     GstParser p;
     /* Init parser */
     gst_parser(&p, vm);
-    /* Create do struct */
-    arr = gst_array(vm, 10);
-    gst_array_push(vm, arr, gst_string_cv(vm, "do"));
     /* Get and parse input until we have a full form */
     while (p.status != GST_PARSER_ERROR) {
         if (*reader == '\0') {
             if (!fgets(buffer, sizeof(buffer), in)) {
-                break;
+                /* Check that parser is complete */
+                if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
+                    printf("Unexpected end of source\n");
+                    return 1;
+                }
+                return 0;
             }
             reader = buffer;
         }
-        reader += gst_parse_cstring(&p, reader);
-        if (gst_parse_hasvalue(&p))
-            gst_array_push(vm, arr, gst_parse_consume(&p));
+        if (p.status != GST_PARSER_FULL)
+            reader += gst_parse_cstring(&p, reader);
+        if (gst_parse_hasvalue(&p)) {
+            ast = gst_parse_consume(&p);
+            debug_compile_and_run(vm, ast, gst_wrap_nil());
+        }
     }
-    /* Turn array into tuple */
-    tup = gst_tuple_begin(vm, arr->count);
-    gst_memcpy(tup, arr->data, arr->count * sizeof(GstValue));
-    ast = gst_wrap_tuple(gst_tuple_end(vm, tup));
     /* Check if file read in correctly */
     if (p.error) {
         printf("Parse error: %s\n", p.error);
-        return 1;
     }
-    /* Check that parser is complete */
-    if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
-        printf("Unexpected end of source\n");
-        return 1;
-    }
-    return debug_compile_and_run(vm, ast, gst_wrap_nil());
+    return 1;
 }
 
 /* A simple repl */
 int debug_repl(Gst *vm) {
     const char *buffer, *reader;
     GstParser p;
+    buffer = reader = NULL;
     for (;;) {
         /* Init parser */
         gst_parser(&p, vm);
-        buffer = reader = NULL;
         while (p.status != GST_PARSER_ERROR && p.status != GST_PARSER_FULL) {
             gst_parse_cstring(&p, "\n");
             if (p.status == GST_PARSER_ERROR || p.status == GST_PARSER_FULL)

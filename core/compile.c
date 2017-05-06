@@ -572,7 +572,7 @@ static Slot compile_block(GstCompiler *c, FormOptions opts, const GstValue *form
 
 /* Extract the last n bytes from the buffer and use them to construct
  * a function definition. */
-static GstFuncDef *compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uint32_t arity) {
+static GstFuncDef *compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uint32_t arity, int varargs) {
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
     GstFuncDef *def = gst_alloc(c->vm, sizeof(GstFuncDef));
@@ -601,8 +601,18 @@ static GstFuncDef *compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uin
     /* Initialize the new FuncDef */
     def->locals = scope->frameSize;
     def->arity = arity;
-    def->flags = 0;
+    def->flags = varargs ? GST_FUNCDEF_FLAG_VARARG : 0;
     return def;
+}
+
+/* Check if a string a cstring are equal */
+static int equal_cstr(const uint8_t *str, const char *cstr) {
+    uint32_t i;
+    for (i = 0; i < gst_string_length(str); ++i) {
+        if (cstr[i] == 0) return 0;
+        if (str[i] != ((const uint8_t *)cstr)[i]) return 0;
+    }
+    return cstr[i] == 0;
 }
 
 /* Compile a function from a function literal source form */
@@ -616,6 +626,8 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, const GstValue *f
     GstArray *params;
     FormOptions subOpts = form_options_default();
     Slot ret;
+    int varargs;
+    uint32_t arity;
     if (opts.resultUnused) return nil_slot();
     ret = compiler_get_target(c, opts);
     subGstScope = compiler_push_scope(c, 0);
@@ -623,10 +635,19 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, const GstValue *f
     if (form[current].type != GST_ARRAY)
         c_error(c, "expected function arguments array");
     params = form[current++].data.array;
+    arity = params->count;
     for (i = 0; i < params->count; ++i) {
         GstValue param = params->data[i];
         if (param.type != GST_STRING)
             c_error(c, "function parameters should be strings");
+        /* Check for varargs */
+        if (equal_cstr(param.data.string, "&")) {
+            if (i != params->count - 1) {
+                c_error(c, "& is reserved for vararg argument in function");
+            }
+            varargs = 1;
+            arity--;
+        }
         /* The compiler puts the parameter locals
          * in the right place by default - at the beginning
          * of the stack frame. */
@@ -643,7 +664,7 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, const GstValue *f
     {
         GstValue newVal;
         uint16_t literalIndex;
-        GstFuncDef *def = compiler_gen_funcdef(c, buffer->count - sizeBefore, params->count);
+        GstFuncDef *def = compiler_gen_funcdef(c, buffer->count - sizeBefore, arity, varargs);
         /* Add this FuncDef as a literal in the outer scope */
         newVal.type = GST_FUNCDEF;
         newVal.data.def = def;
@@ -1121,7 +1142,7 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
     /* Create a scope */
     opts.isTail = 1;
     compiler_return(c, compile_value(c, opts, form));
-    def = compiler_gen_funcdef(c, c->buffer->count, 0);
+    def = compiler_gen_funcdef(c, c->buffer->count, 0, 0);
     {
         GstFuncEnv *env = gst_alloc(c->vm, sizeof(GstFuncEnv));
         GstFunction *func = gst_alloc(c->vm, sizeof(GstFunction));

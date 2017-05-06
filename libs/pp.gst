@@ -1,4 +1,4 @@
-# Pretty print
+(do
 
 # Declare pretty print
 (: pp nil)
@@ -50,7 +50,11 @@
 
 # Define pretty print
 (: pp (fn [x seen]
-    (: h (get handlers (type x)))
-    ((if h h tostring) x seen)))
+    (: handler (get handlers (type x)))
+    (: handler (if handler handler tostring))
+    (handler x seen)))
 
-# (print (pp [1 {4 5 6 7} 2 3]))
+# Export pretty print
+(export! 'pp pp)
+
+)

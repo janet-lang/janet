@@ -142,6 +142,9 @@ int gst_stl_length(Gst *vm) {
         case GST_TABLE:
             ret.data.integer = x.data.table->count;
             break;
+        case GST_STRUCT:
+            ret.data.integer = gst_struct_length(x.data.st);
+            break;
         }
         gst_c_return(vm, ret);
     }
@@ -179,14 +182,17 @@ int gst_stl_slice(Gst *vm) {
     int32_t from, to;
     GstValue x;
     const GstValue *data;
+    const uint8_t *cdata;
     uint32_t length;
     uint32_t newlength;
     GstInteger num;
 
     /* Get data */
     x = gst_arg(vm, 0);
-    if (!gst_seq_view(x, &data, &length)) 
+    if (!gst_seq_view(x, &data, &length) &&
+            !gst_chararray_view(x, &cdata, &length))  {
         gst_c_throwc(vm, "expected array or tuple");
+    }
 
     /* Get from index */
     if (count < 2) {
@@ -207,7 +213,7 @@ int gst_stl_slice(Gst *vm) {
     }
 
     /* Check from bad bounds */
-    if (from < 0 || to < 0)
+    if (from < 0 || to < 0 || to < from)
         gst_c_throwc(vm, "index out of bounds");
 
     /* Build slice */
@@ -216,11 +222,18 @@ int gst_stl_slice(Gst *vm) {
         GstValue *tup = gst_tuple_begin(vm, newlength);
         gst_memcpy(tup, data + from, newlength * sizeof(GstValue));
         gst_c_return(vm, gst_wrap_tuple(gst_tuple_end(vm, tup)));
-    } else {
+    } else if (x.type == GST_ARRAY) {
         GstArray *arr = gst_array(vm, newlength);
         arr->count = newlength;
         gst_memcpy(arr->data, data + from, newlength * sizeof(GstValue));
         gst_c_return(vm, gst_wrap_array(arr));
+    } else if (x.type == GST_STRING) {
+        gst_c_return(vm, gst_wrap_string(gst_string_b(vm, x.data.string + from, newlength)));
+    } else { /* buffer */
+        GstBuffer *b = gst_buffer(vm, newlength);
+        gst_memcpy(b->data, x.data.buffer->data, newlength);
+        b->count = newlength;
+        gst_c_return(vm, gst_wrap_buffer(b));
     }
 }
 
@@ -539,6 +552,16 @@ int gst_stl_namespace_set(Gst *vm) {
     gst_c_return(vm, gst_wrap_nil());
 }
 
+/* Get the table or struct associated with a given namespace */
+int gst_stl_namespace_get(Gst *vm) {
+    GstValue name = gst_arg(vm, 0);
+    GstValue check;
+    if (name.type != GST_STRING)
+        gst_c_throwc(vm, "expected string");
+    check = gst_table_get(vm->modules, name);
+    gst_c_return(vm, check);
+}
+
 /****/
 /* IO */
 /****/
@@ -715,6 +738,7 @@ static const GstModuleItem const std_module[] = {
     {"export!", gst_stl_export},
     {"namespace", gst_stl_namespace},
     {"namespace-set!", gst_stl_namespace_set},
+    {"namespace-get", gst_stl_namespace_get},
     {"push!", gst_stl_push},
     {"pop!", gst_stl_pop},
     {"peek", gst_stl_peek},
