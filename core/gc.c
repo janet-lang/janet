@@ -176,8 +176,8 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
             break;
 
         case GST_USERDATA:
-            if (gc_header(x.string - sizeof(GstUserdataHeader))->color != vm->black) {
-                GstUserdataHeader *h = (GstUserdataHeader *)x.pointer - 1;
+            if (gc_header(gst_udata_header(x.pointer))->color != vm->black) {
+                GstUserdataHeader *h = gst_udata_header(x.pointer);
                 gc_header(h)->color = vm->black;
                 if (h->type->gcmark)
                     h->type->gcmark(vm, x.pointer, h->size);

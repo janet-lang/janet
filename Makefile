@@ -41,7 +41,7 @@ debug: $(GST_TARGET)
 	gdb $(GST_TARGET)
 
 valgrind: $(GST_TARGET)
-	valgrind ./$(GST_TARGET)
+	valgrind --leak-check=full ./$(GST_TARGET)
 
 clean:
 	rm $(GST_TARGET) || true

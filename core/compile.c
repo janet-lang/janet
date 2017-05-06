@@ -1140,7 +1140,7 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
 /* Stl */
 /***/
 
-/* GC mark mark all memory used by the compiler */
+/* GC mark all memory used by the compiler */
 static void gst_compiler_mark(Gst *vm, void *data, uint32_t len) {
     SlotTracker *st;
     GstScope *scope;
@@ -1149,16 +1149,19 @@ static void gst_compiler_mark(Gst *vm, void *data, uint32_t len) {
     	return;
     /* Mark compiler */
     gst_mark_value(vm, gst_wrap_buffer(c->buffer));
-    /* Mark trackers */
+    /* Mark trackers - the trackers themselves are all on the stack. */
     st = (SlotTracker *) c->trackers;
     while (st) {
-		gst_mark_mem(vm, st->slots);
+        if (st->slots)
+            gst_mark_mem(vm, st->slots);
 		st = st->next;
     }
     /* Mark scopes */
     scope = c->tail;
     while (scope) {
-        gst_mark_mem(vm, scope->freeHeap);
+        gst_mark_mem(vm, scope);
+        if (scope->freeHeap)
+            gst_mark_mem(vm, scope->freeHeap);
         gst_mark_value(vm, gst_wrap_array(scope->literalsArray));
         gst_mark_value(vm, gst_wrap_table(scope->locals));
         gst_mark_value(vm, gst_wrap_table(scope->literals));
@@ -1173,7 +1176,7 @@ static const GstUserType gst_stl_compilertype = {
 	"std.compiler",
 	NULL,
 	NULL,
-	NULL,
+    NULL,
 	&gst_compiler_mark
 };
 

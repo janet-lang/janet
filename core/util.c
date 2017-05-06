@@ -79,7 +79,7 @@ void *gst_check_userdata(Gst *vm, uint32_t i, const GstUserType *type) {
     GstValue x = gst_arg(vm, i);
     GstUserdataHeader *h;
     if (x.type != GST_USERDATA) return NULL;
-    h = ((GstUserdataHeader *)x.data.pointer) - 1;
+    h = gst_udata_header(x.data.pointer);
     if (h->type != type) return NULL;
     return x.data.pointer;
 }
@@ -111,7 +111,6 @@ GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
         ++m;
     }
     return gst_wrap_struct(gst_struct_end(vm, st));
-    
 }
 
 void gst_module_put(Gst *vm, const char *packagename, GstValue mod) {
