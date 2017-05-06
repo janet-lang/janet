@@ -508,12 +508,34 @@ int gst_stl_serialize(Gst *vm) {
 /* Registry */
 /****/
 
-int gst_stl_global(Gst *vm) {
-    gst_c_return(vm, gst_table_get(vm->registry, gst_arg(vm, 0)));
+/* Export a symbol definition to the current namespace. Used to implement
+ * def */
+int gst_stl_export(Gst *vm) {
+    gst_table_put(vm, vm->registry, gst_arg(vm, 0), gst_arg(vm, 1));
+    gst_c_return(vm, gst_wrap_nil());
 }
 
-int gst_stl_setglobal(Gst *vm) {
-    gst_table_put(vm, vm->registry, gst_arg(vm, 0), gst_arg(vm, 1));
+/* Get everything in the current namespace */
+int gst_stl_namespace(Gst *vm) {
+    gst_c_return(vm, gst_wrap_table(vm->registry));
+}
+
+/* Switch to a new namespace */
+int gst_stl_namespace_set(Gst *vm) {
+    GstValue name = gst_arg(vm, 0);
+    GstValue check;
+    if (name.type != GST_STRING)
+        gst_c_throwc(vm, "expected string");
+    check = gst_table_get(vm->modules, name);
+    if (check.type == GST_TABLE) {
+        vm->registry = check.data.table;
+    } else if (check.type == GST_NIL) {
+        check = gst_wrap_table(gst_table(vm, 10));
+        gst_table_put(vm, vm->modules, name, check);
+        vm->registry = check.data.table;
+    } else {
+        gst_c_throwc(vm, "invalid module found");
+    }
     gst_c_return(vm, gst_wrap_nil());
 }
 
@@ -690,8 +712,9 @@ static const GstModuleItem const std_module[] = {
     {"next", gst_stl_next},
     {"error", gst_stl_error},
     {"serialize", gst_stl_serialize},
-    {"global", gst_stl_global},
-    {"setglobal!", gst_stl_setglobal},
+    {"export!", gst_stl_export},
+    {"namespace", gst_stl_namespace},
+    {"namespace-set!", gst_stl_namespace_set},
     {"push!", gst_stl_push},
     {"pop!", gst_stl_pop},
     {"peek", gst_stl_peek},

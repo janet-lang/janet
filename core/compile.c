@@ -1120,7 +1120,6 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
     }
     /* Create a scope */
     opts.isTail = 1;
-    compiler_push_scope(c, 0);
     compiler_return(c, compile_value(c, opts, form));
     def = compiler_gen_funcdef(c, c->buffer->count, 0);
     {
