@@ -37,7 +37,6 @@ struct GstParser {
     uint32_t count;
     uint32_t cap;
     uint32_t index;
-    uint32_t flags;
     uint32_t quoteCount;
     enum {
 		GST_PARSER_PENDING = 0,
@@ -47,10 +46,6 @@ struct GstParser {
     } status;
 };
 
-/* Some parser flags */
-#define GST_PARSER_FLAG_INCOMMENT 1
-#define GST_PARSER_FLAG_EXPECTING_COMMENT 2
-
 /* Initialize a parser */
 void gst_parser(GstParser *p, Gst *vm);
 
@@ -59,6 +54,9 @@ int gst_parse_cstring(GstParser *p, const char *string);
 
 /* Parse a gst string. Returns number of bytes read */
 int gst_parse_string(GstParser *p, const uint8_t *string);
+
+/* Parse a single byte */
+void gst_parse_byte(GstParser *p, uint8_t byte);
 
 /* Check if a parser has a value that needs to be handled. If
  * so, the parser will not parse any more input until that value

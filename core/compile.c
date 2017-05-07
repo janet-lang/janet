@@ -117,6 +117,11 @@ BUFFER_DEFINE(i16, int16_t)
 /* If there is an error during compilation,
  * jump back to start */
 static void c_error(GstCompiler *c, const char *e) {
+    c->error = gst_string_cv(c->vm, e);
+    longjmp(c->onError, 1);
+}
+
+static void c_error1(GstCompiler *c, GstValue e) {
     c->error = e;
     longjmp(c->onError, 1);
 }
@@ -183,7 +188,11 @@ static uint16_t compiler_get_local(GstCompiler *c, GstScope *scope) {
         if (scope->nextLocal + 1 == 0) {
             c_error(c, "too many local variables");
         }
-        return scope->nextLocal++;
+        ++scope->nextLocal;
+        if (scope->nextLocal > scope->frameSize) {
+            scope->frameSize = scope->nextLocal;
+        }
+        return scope->nextLocal - 1;
     } else {
         return scope->freeHeap[--scope->heapSize];
     }
@@ -471,7 +480,7 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
     Slot ret;
     int status = symbol_resolve(c, sym, &level, &index, &lit);
     if (!status) {
-        c_error(c, "undefined symbol");
+        c_error1(c, sym);
     }
     if (opts.resultUnused) return nil_slot();
     if (status == 2) {
@@ -626,7 +635,7 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, const GstValue *f
     GstArray *params;
     FormOptions subOpts = form_options_default();
     Slot ret;
-    int varargs;
+    int varargs = 0;
     uint32_t arity;
     if (opts.resultUnused) return nil_slot();
     ret = compiler_get_target(c, opts);
@@ -1092,7 +1101,7 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
     c->vm = vm;
     c->buffer = gst_buffer(vm, 128);
     c->tail = NULL;
-    c->error = NULL;
+    c->error.type = GST_NIL;
     c->trackers = NULL;
     compiler_push_scope(c, 0);
 }
@@ -1135,8 +1144,8 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
         c->trackers = NULL;
         if (c->tail)
             c->tail->parent = NULL;
-        if (c->error == NULL)
-            c->error = "unknown error";
+        if (c->error.type == GST_NIL)
+            c->error = gst_string_cv(c->vm, "unknown error");
         return NULL;
     }
     /* Create a scope */
@@ -1169,6 +1178,7 @@ static void gst_compiler_mark(Gst *vm, void *data, uint32_t len) {
     	return;
     /* Mark compiler */
     gst_mark_value(vm, gst_wrap_buffer(c->buffer));
+    gst_mark_value(vm, c->error);
     /* Mark trackers - the trackers themselves are all on the stack. */
     st = (SlotTracker *) c->trackers;
     while (st) {
@@ -1232,7 +1242,7 @@ static int gst_stl_compiler_compile(Gst *vm) {
     	gst_c_throwc(vm, "expected compiler");
     ret = gst_compiler_compile(c, gst_arg(vm, 1));
     if (ret == NULL)
-        gst_c_throwc(vm, c->error);
+        gst_c_throw(vm, c->error);
     gst_c_return(vm, gst_wrap_function(ret));
 }
 

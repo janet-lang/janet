@@ -32,7 +32,7 @@ typedef struct GstScope GstScope;
 /* Compilation state */
 struct GstCompiler {
     Gst *vm;
-    const char *error;
+    GstValue error;
     jmp_buf onError;
     GstScope *tail;
     GstBuffer *buffer;

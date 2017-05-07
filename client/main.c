@@ -45,8 +45,8 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
     gst_compiler_globals(&c, gst_wrap_table(vm->registry));
     func = gst_wrap_function(gst_compiler_compile(&c, ast));
     /* Check for compilation errors */
-    if (c.error) {
-        printf("Compiler error: %s\n", c.error);
+    if (c.error.type != GST_NIL) {
+        printf("Compiler error: %s\n", (const char *)gst_to_string(vm, c.error));
         return 1;
     }
     /* Execute function */
@@ -54,7 +54,7 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
         if (vm->crash) {
             printf("VM crash: %s\n", vm->crash);
         } else {
-            printf("VM error: %s\n", (char *)gst_to_string(vm, vm->ret));
+            printf("VM error: %s\n", (const char *)gst_to_string(vm, vm->ret));
         }
         return 1;
     }
@@ -63,35 +63,43 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
 
 /* Parse a file and execute it */
 int debug_run(Gst *vm, FILE *in) {
-    char buffer[1024] = {0};
+    char buffer[2048] = {0};
     const char *reader = buffer;
-    GstValue ast;
     GstParser p;
-    /* Init parser */
-    gst_parser(&p, vm);
-    /* Get and parse input until we have a full form */
-    while (p.status != GST_PARSER_ERROR) {
-        if (*reader == '\0') {
-            if (!fgets(buffer, sizeof(buffer), in)) {
-                /* Check that parser is complete */
-                if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
-                    printf("Unexpected end of source\n");
-                    return 1;
+    for (;;) {
+        /* Init parser */
+        gst_parser(&p, vm);
+        while (p.status != GST_PARSER_ERROR && p.status != GST_PARSER_FULL) {
+            if (*reader == '\0') {
+                if (!fgets(buffer, sizeof(buffer), in)) {
+                    /* Add possible end of line */
+                    if (p.status == GST_PARSER_PENDING) 
+                        gst_parse_cstring(&p, "\n");
+                    /* Check that parser is complete */
+                    if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
+                        printf("Unexpected end of source\n");
+                        return 1;
+                    }
+                    /* Otherwise we finished the file with no problems*/
+                    return 0;
                 }
-                return 0;
+                reader = buffer;
             }
-            reader = buffer;
-        }
-        if (p.status != GST_PARSER_FULL)
             reader += gst_parse_cstring(&p, reader);
-        if (gst_parse_hasvalue(&p)) {
-            ast = gst_parse_consume(&p);
-            debug_compile_and_run(vm, ast, gst_wrap_nil());
         }
-    }
-    /* Check if file read in correctly */
-    if (p.error) {
-        printf("Parse error: %s\n", p.error);
+        /* Check if file read in correctly */
+        if (p.error) {
+            printf("Parse error: %s\n", p.error);
+            break;
+        }
+        /* Check that parser is complete */
+        if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
+            printf("Unexpected end of source\n");
+            break;
+        }
+        if (debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret)) {
+            break;
+        }
     }
     return 1;
 }

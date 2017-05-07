@@ -1,9 +1,8 @@
 (do
 
-# Declare pretty print
 (: pp nil)
 
-# Pretty print an array or tuple
+"Pretty print an array or tuple"
 (: print-seq (fn [start end a seen]
     (: seen (if seen seen {}))
     (if (get seen a) (get seen a)
@@ -21,7 +20,7 @@
             (set! seen a ret)
             ret))))
 
-# Pretty print an object or struct
+"Pretty print an object or struct"
 (: print-struct (fn [start end s seen]
     (: seen (if seen seen {}))
     (if (get seen s) (get seen s)
@@ -40,7 +39,7 @@
             (set! seen s ret)
             ret))))
 
-# Type handlers
+"Type handlers"
 (: handlers {
     "array" (fn [a seen] (print-seq "[" "]" a seen))
     "tuple" (fn [a seen] (print-seq "(" ")" a seen))
@@ -48,13 +47,13 @@
     "struct" (fn [s seen] (print-struct "#{" "}" s seen))
  })
 
-# Define pretty print
+"Define pretty print"
 (: pp (fn [x seen]
     (: handler (get handlers (type x)))
     (: handler (if handler handler tostring))
     (handler x seen)))
 
-# Export pretty print
+"Export pretty print"
 (export! 'pp pp)
 
 )

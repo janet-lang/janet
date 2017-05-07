@@ -153,7 +153,7 @@ static int is_symbol_char(uint8_t c) {
     if (c >= '0' && c <= ':') return 1;
     if (c >= '<' && c <= '@') return 1;
     if (c >= '*' && c <= '/') return 1;
-    if (c >= '$' && c == '&') return 1;
+    if (c >= '#' && c <= '&') return 1;
     if (c == '_') return 1;
     if (c == '^') return 1;
     if (c == '!') return 1;
@@ -444,22 +444,6 @@ static int form_state(GstParser *p, uint8_t c) {
 static void dispatch_char(GstParser *p, uint8_t c) {
     int done = 0;
     ++p->index;
-    /* Handle comments */
-    if (p->flags & GST_PARSER_FLAG_INCOMMENT) {
-        if (c == '\n') {
-            p->flags = GST_PARSER_FLAG_EXPECTING_COMMENT;
-        }
-        return;
-    } else if (p->flags & GST_PARSER_FLAG_EXPECTING_COMMENT) {
-        if (c == '#') {
-            p->flags = GST_PARSER_FLAG_INCOMMENT;
-            return;
-        } else if (!is_whitespace(c)) {
-            p->flags = 0;
-        } else {
-            return;
-        }
-    }
     /* Dispatch character to state */
     while (!done) {
         GstParseState *top = parser_peek(p);
@@ -504,6 +488,11 @@ int gst_parse_string(GstParser *p, const uint8_t *string) {
     return i;
 }
 
+/* Parse a single byte */
+void gst_parse_byte(GstParser *p, uint8_t byte) {
+    dispatch_char(p, byte);
+}
+
 /* Check if a parser has a value that needs to be handled. If
  * so, the parser will not parse any more input until that value
  * is consumed. */
@@ -529,7 +518,6 @@ void gst_parser(GstParser *p, Gst *vm) {
     p->error = NULL;
     p->status = GST_PARSER_ROOT;
     p->value.type = GST_NIL;
-    p->flags = GST_PARSER_FLAG_EXPECTING_COMMENT;
     parser_push(p, PTYPE_ROOT, ' ');
 }
 

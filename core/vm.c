@@ -242,6 +242,7 @@ int gst_continue(Gst *vm) {
                 stack = gst_thread_stack(vm->thread);
                 for (i = 0; i < count; ++i)
                     stack[oldsize + i] = data[i];
+                /*gst_frame_size(stack) += count;*/
                 pc += 2;
             }
             break;
