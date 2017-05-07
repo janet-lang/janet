@@ -7,6 +7,7 @@
     (: seen (if seen seen {}))
     (if (get seen a) (get seen a)
         (do
+            (set! seen a "<cycle>")
             (: parts [])
             (: len (length a))
             (: i 0)
@@ -25,6 +26,7 @@
     (: seen (if seen seen {}))
     (if (get seen s) (get seen s)
         (do
+            (set! seen s "<cycle>")
             (: parts [])
             (: key (next s))
             (while (not (= key nil))
@@ -54,6 +56,10 @@
     (handler x seen)))
 
 "Export pretty print"
-(export! 'pp pp)
+(export! "pp" pp)
+
+(: arr [1 2 3 4])
+(push! arr arr)
+(print (pp arr))
 
 )

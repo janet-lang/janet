@@ -27,7 +27,6 @@ static const char UNEXPECTED_CLOSING_DELIM[] = "Unexpected closing delimiter";
 
 /* The type of a ParseState */
 typedef enum ParseType {
-    PTYPE_ROOT,
     PTYPE_FORM,
     PTYPE_STRING,
     PTYPE_TOKEN
@@ -36,7 +35,6 @@ typedef enum ParseType {
 /* Contain a parse state that goes on the parse stack */
 struct GstParseState {
     ParseType type;
-    uint32_t quoteCount;
     union {
         struct {
             uint8_t endDelimiter;
@@ -62,7 +60,6 @@ struct GstParseState {
 /* Get the top ParseState in the parse stack */
 static GstParseState *parser_peek(GstParser *p) {
     if (!p->count) {
-        p_error(p, "parser stack underflow");
         return NULL;
     }
     return p->data + p->count - 1;
@@ -96,18 +93,11 @@ static void parser_push(GstParser *p, ParseType type, uint8_t character) {
         p->data = data;
         p->cap = newCap;
     }
-    if (p->count) {
-        top = parser_peek(p);
-        top->quoteCount = p->quoteCount;
-        p->quoteCount = 0;
-    }
     ++p->count;
     top = parser_peek(p);
     if (!top) return;
     top->type = type;
     switch (type) {
-        case PTYPE_ROOT:
-            break;
         case PTYPE_STRING:
             top->buf.string.state = STRING_STATE_BASE;
         case PTYPE_TOKEN:
@@ -118,20 +108,19 @@ static void parser_push(GstParser *p, ParseType type, uint8_t character) {
             if (character == '(') top->buf.form.endDelimiter = ')';
             if (character == '[') top->buf.form.endDelimiter = ']';
             if (character == '{') top->buf.form.endDelimiter = '}';
+            break;
     }
 }
 
 /* Append a value to the top-most state in the Parser's stack. */
 static void parser_append(GstParser *p, GstValue x) {
     GstParseState *top = parser_peek(p);
-    if (!top) return;
-    while (top->quoteCount--)
-        x = quote(p, x); 
+    if (!top) {
+        p->value = x;
+        p->status = GST_PARSER_FULL;
+        return;
+    }
     switch (top->type) {
-        case PTYPE_ROOT:
-            p->value = x;
-            p->status = GST_PARSER_FULL;
-            break;
         case PTYPE_FORM:
             gst_array_push(p->vm, top->buf.form.array, x);
             break;
@@ -394,10 +383,6 @@ static int root_state(GstParser *p, uint8_t c) {
         parser_push(p, PTYPE_STRING, c);
         return 1;
     }
-    if (c == '\'') {
-        p->quoteCount++;
-        return 1;
-    }
     if (is_symbol_char(c)) {
         parser_push(p, PTYPE_TOKEN, c);
         return 0;
@@ -447,19 +432,20 @@ static void dispatch_char(GstParser *p, uint8_t c) {
     /* Dispatch character to state */
     while (!done) {
         GstParseState *top = parser_peek(p);
-        switch (top->type) {
-            case PTYPE_ROOT:
-                done = root_state(p, c);
-                break;
-            case PTYPE_TOKEN:
-                done = token_state(p, c);
-                break;
-            case PTYPE_FORM:
-                done = form_state(p, c);
-                break;
-            case PTYPE_STRING:
-                done = string_state(p, c);
-                break;
+        if (!top) {
+            done = root_state(p, c);
+        } else {
+            switch (top->type) {
+                case PTYPE_TOKEN:
+                    done = token_state(p, c);
+                    break;
+                case PTYPE_FORM:
+                    done = form_state(p, c);
+                    break;
+                case PTYPE_STRING:
+                    done = string_state(p, c);
+                    break;
+            }
         }
     }
 }
@@ -518,7 +504,6 @@ void gst_parser(GstParser *p, Gst *vm) {
     p->error = NULL;
     p->status = GST_PARSER_ROOT;
     p->value.type = GST_NIL;
-    parser_push(p, PTYPE_ROOT, ' ');
 }
 
 /* GC mark a parser */
@@ -532,8 +517,6 @@ static void gst_stl_parser_mark(Gst *vm, void *data, uint32_t len) {
     for (i = 0; i < p->count; ++i) {
 		GstParseState *ps = p->data + i;
 		switch (ps->type) {
-    		case PTYPE_ROOT:
-    			break;
 			case PTYPE_FORM:
     			gst_mark_value(vm, gst_wrap_array(ps->buf.form.array));
     			break;

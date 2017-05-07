@@ -344,6 +344,7 @@ void gst_buffer_ensure(Gst *vm, GstBuffer *buffer, uint32_t capacity);
 int gst_buffer_get(GstBuffer *buffer, uint32_t index);
 void gst_buffer_push(Gst *vm, GstBuffer *buffer, uint8_t c);
 void gst_buffer_append(Gst *vm, GstBuffer *buffer, const uint8_t *string, uint32_t length);
+void gst_buffer_append_cstring(Gst *vm, GstBuffer *buffer, const char *cstring);
 const uint8_t *gst_buffer_to_string(Gst *vm, GstBuffer *buffer);
 
 /* Define a push function for pushing a certain type to the buffer */

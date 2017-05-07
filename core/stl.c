@@ -525,7 +525,7 @@ int gst_stl_serialize(Gst *vm) {
  * def */
 int gst_stl_export(Gst *vm) {
     gst_table_put(vm, vm->registry, gst_arg(vm, 0), gst_arg(vm, 1));
-    gst_c_return(vm, gst_wrap_nil());
+    gst_c_return(vm, gst_arg(vm, 1));
 }
 
 /* Get everything in the current namespace */
@@ -700,6 +700,72 @@ int gst_stl_gcollect(Gst *vm) {
 	return GST_RETURN_OK;
 }
 
+/* Static debug print helper */
+static GstInteger gst_stl_debugp_helper(Gst *vm, GstBuffer *b, GstTable *seen, GstValue x, GstInteger next) {
+    GstValue check = gst_table_get(seen, x);
+    const uint8_t *str;
+    if (check.type == GST_INTEGER) {
+        str = gst_to_string(vm, check);
+        gst_buffer_append_cstring(vm, b, "<visited ");
+        gst_buffer_append(vm, b, str, gst_string_length(str));
+        gst_buffer_append_cstring(vm, b, " >");
+    } else {
+        uint8_t open, close;
+        uint32_t len, i;
+        const GstValue *data;
+        switch (x.type) {
+            default:
+                str = gst_to_string(vm, x);
+                gst_buffer_append(vm, b, str, gst_string_length(str));
+                return next;
+            case GST_STRUCT:
+                open = '<'; close = '>';
+                break;
+            case GST_TABLE:
+                open = '{'; close = '}';
+                break;
+            case GST_TUPLE:
+                open = '('; close = ')';
+                break;
+            case GST_ARRAY:
+                open = '['; close = ']';
+                break;
+        }
+        gst_table_put(vm, seen, x, gst_wrap_integer(next++));
+        gst_buffer_push(vm, b, open);
+        if (gst_hashtable_view(x, &data, &len)) {
+            int isfirst = 1;
+            for (i = 0; i < len; i += 2) {
+                if (data[i].type != GST_NIL) {
+                    if (isfirst)
+                        isfirst = 0;
+                    else
+                        gst_buffer_push(vm, b, ' ');
+                    next = gst_stl_debugp_helper(vm, b, seen, data[i], next);
+                    gst_buffer_push(vm, b, ' ');
+                    next = gst_stl_debugp_helper(vm, b, seen, data[i + 1], next);
+                }
+            } 
+        } else if (gst_seq_view(x, &data, &len)) {
+            for (i = 0; i < len; ++i) {
+                next = gst_stl_debugp_helper(vm, b, seen, data[i], next);
+                if (i != len - 1)
+                    gst_buffer_push(vm, b, ' ');
+            } 
+        }
+        gst_buffer_push(vm, b, close);
+    }
+    return next;
+}
+
+/* Debug print */
+int gst_stl_debugp(Gst *vm) {
+    GstValue x = gst_arg(vm, 0);
+    GstBuffer *buf = gst_buffer(vm, 10);
+    gst_stl_debugp_helper(vm, buf, gst_table(vm, 10), x, 0);
+    gst_c_return(vm, gst_wrap_string(gst_buffer_to_string(vm, buf)));
+}
+
 /****/
 /* Bootstraping */
 /****/
@@ -750,6 +816,7 @@ static const GstModuleItem const std_module[] = {
     {"close", gst_stl_close},
     {"dasm", gst_stl_dasm},
     {"gcollect", gst_stl_gcollect},
+    {"debugp", gst_stl_debugp},
     {NULL, NULL}
 };
 

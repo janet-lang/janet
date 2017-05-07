@@ -73,6 +73,13 @@ void gst_buffer_append(Gst *vm, GstBuffer *buffer, const uint8_t *string, uint32
     buffer->count = newSize;
 }
 
+/* Push a cstring to buffer */
+void gst_buffer_append_cstring(Gst *vm, GstBuffer *buffer, const char *cstring) {
+    uint32_t len = 0;
+    while (cstring[len]) ++len;
+    gst_buffer_append(vm, buffer, (const uint8_t *) cstring, len);
+}
+
 /* Convert the buffer to a string */
 const uint8_t *gst_buffer_to_string(Gst *vm, GstBuffer *buffer) {
     return gst_string_b(vm, buffer->data, buffer->count);

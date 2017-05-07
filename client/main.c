@@ -126,6 +126,7 @@ int debug_repl(Gst *vm) {
         /* Check if file read in correctly */
         if (p.error) {
             printf("Parse error: %s\n", p.error);
+            buffer = reader = NULL;
             continue;
         }
         /* Check that parser is complete */
