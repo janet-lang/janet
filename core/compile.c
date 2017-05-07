@@ -72,7 +72,6 @@ struct SlotTracker {
     Slot *slots;
     uint32_t count;
     uint32_t capacity;
-    SlotTracker *next;
 };
 
 /* A GstScope is a lexical scope in the program. It is
@@ -188,11 +187,7 @@ static uint16_t compiler_get_local(GstCompiler *c, GstScope *scope) {
         if (scope->nextLocal + 1 == 0) {
             c_error(c, "too many local variables");
         }
-        ++scope->nextLocal;
-        if (scope->nextLocal > scope->frameSize) {
-            scope->frameSize = scope->nextLocal;
-        }
-        return scope->nextLocal - 1;
+        return scope->nextLocal++;
     } else {
         return scope->freeHeap[--scope->heapSize];
     }
@@ -220,9 +215,6 @@ static void tracker_init(GstCompiler *c, SlotTracker *tracker) {
     tracker->slots = gst_alloc(c->vm, 10 * sizeof(Slot));
     tracker->count = 0;
     tracker->capacity = 10;
-    /* Push to tracker stack */
-    tracker->next = (SlotTracker *) c->trackers;
-    c->trackers = tracker;
 }
 
 /* Free up a slot if it is a temporary slot (does not
@@ -319,8 +311,6 @@ static void compiler_tracker_free(GstCompiler *c, GstScope *scope, SlotTracker *
     for (i = tracker->count - 1; i < tracker->count; --i) {
         compiler_drop_slot(c, scope, tracker->slots[i]);
     }
-    /* Pop from tracker stack */
-    c->trackers = tracker->next;
 }
 
 /* Add a new Slot to a slot tracker. */
@@ -1102,7 +1092,6 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
     c->buffer = gst_buffer(vm, 128);
     c->tail = NULL;
     c->error.type = GST_NIL;
-    c->trackers = NULL;
     compiler_push_scope(c, 0);
 }
 
@@ -1128,6 +1117,19 @@ void gst_compiler_globals(GstCompiler *c, GstValue env) {
                 gst_table_put(c->vm, scope->namedLiterals, data[i], data[i + 1]);
 }
 
+/* Add many global variables and bind to nil */
+void gst_compiler_nilglobals(GstCompiler *c, GstValue env) {
+    GstScope *scope = c->tail;
+    const GstValue *data;
+    uint32_t len;
+    uint32_t i;
+    if (gst_hashtable_view(env, &data, &len))
+        for (i = 0; i < len; i += 2)
+            if (data[i].type == GST_STRING)
+                gst_table_put(c->vm, scope->namedLiterals, data[i], gst_wrap_nil());
+}
+
+
 /* Use a module that was loaded into the vm */
 void gst_compiler_usemodule(GstCompiler *c, const char *modulename) {
     GstValue mod = gst_table_get(c->vm->modules, gst_string_cv(c->vm, modulename));
@@ -1141,7 +1143,6 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
     GstFuncDef *def;
     if (setjmp(c->onError)) {
         /* Clear all but root scope */
-        c->trackers = NULL;
         if (c->tail)
             c->tail->parent = NULL;
         if (c->error.type == GST_NIL)
@@ -1169,103 +1170,25 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
 /* Stl */
 /***/
 
-/* GC mark all memory used by the compiler */
-static void gst_compiler_mark(Gst *vm, void *data, uint32_t len) {
-    SlotTracker *st;
-    GstScope *scope;
-	GstCompiler *c = (GstCompiler *) data;
-	if (len != sizeof(GstCompiler))
-    	return;
-    /* Mark compiler */
-    gst_mark_value(vm, gst_wrap_buffer(c->buffer));
-    gst_mark_value(vm, c->error);
-    /* Mark trackers - the trackers themselves are all on the stack. */
-    st = (SlotTracker *) c->trackers;
-    while (st) {
-        if (st->slots)
-            gst_mark_mem(vm, st->slots);
-		st = st->next;
-    }
-    /* Mark scopes */
-    scope = c->tail;
-    while (scope) {
-        gst_mark_mem(vm, scope);
-        if (scope->freeHeap)
-            gst_mark_mem(vm, scope->freeHeap);
-        gst_mark_value(vm, gst_wrap_array(scope->literalsArray));
-        gst_mark_value(vm, gst_wrap_table(scope->locals));
-        gst_mark_value(vm, gst_wrap_table(scope->literals));
-        gst_mark_value(vm, gst_wrap_table(scope->namedLiterals));
-        gst_mark_value(vm, gst_wrap_table(scope->nilNamedLiterals));
-		scope = scope->parent;
-    }
-}
-
-/* Compiler userdata type */
-static const GstUserType gst_stl_compilertype = {
-	"std.compiler",
-	NULL,
-	NULL,
-    NULL,
-	&gst_compiler_mark
-};
-
-/* Create a compiler userdata */
-static int gst_stl_compiler(Gst *vm) {
-	GstCompiler *c = gst_userdata(vm, sizeof(GstCompiler), &gst_stl_compilertype);
-	gst_compiler(c, vm);
-	gst_c_return(vm, gst_wrap_userdata(c));
-}
-
-/* Add a binding to the compiler's current scope. */
-static int gst_stl_compiler_binding(Gst *vm) {
-	GstCompiler *c = gst_check_userdata(vm, 0, &gst_stl_compilertype);
-    GstScope *scope;
-    GstValue sym;
-	const uint8_t *data;
-	uint32_t len;
-	if (!c)
-    	gst_c_throwc(vm, "expected compiler");
-    if (!gst_chararray_view(gst_arg(vm, 1), &data, &len))
-        gst_c_throwc(vm, "expected string/buffer");
-    scope = c->tail;
-    sym = gst_wrap_string(gst_string_b(c->vm, data, len));
-    gst_table_put(c->vm, scope->namedLiterals, sym, gst_arg(vm, 2));
-    gst_c_return(vm, gst_wrap_userdata(c));
-}
-
 /* Compile a value */
-static int gst_stl_compiler_compile(Gst *vm) {
+static int gst_stl_compile(Gst *vm) {
     GstFunction *ret;
-	GstCompiler *c = gst_check_userdata(vm, 0, &gst_stl_compilertype);
-	if (!c)
-    	gst_c_throwc(vm, "expected compiler");
-    ret = gst_compiler_compile(c, gst_arg(vm, 1));
-    if (ret == NULL)
-        gst_c_throw(vm, c->error);
+    GstValue std;
+	GstCompiler c;
+    gst_compiler(&c, vm);
+    std = gst_table_get(vm->modules, gst_string_cv(vm, "std"));
+    gst_compiler_globals(&c, std);
+    gst_compiler_globals(&c, gst_arg(vm, 1));
+    gst_compiler_nilglobals(&c, gst_arg(vm, 2));
+    ret = gst_compiler_compile(&c, gst_arg(vm, 0));
+    if (!ret)
+        gst_c_throw(vm, c.error);
     gst_c_return(vm, gst_wrap_function(ret));
-}
-
-/* Use an environment during compilation. Names that are declared more than
- * once should use their final declared value. */
-static int gst_stl_compiler_bindings(Gst *vm) {
-    GstValue env;
-    GstCompiler *c = gst_check_userdata(vm, 0, &gst_stl_compilertype);
-    if (!c)
-        gst_c_throwc(vm, "expected compiler");
-    env = gst_arg(vm, 1);
-    if (env.type != GST_TABLE && env.type != GST_STRUCT)
-        gst_c_throwc(vm, "expected table/struct");
-    gst_compiler_globals(c, env);
-    gst_c_return(vm, gst_wrap_userdata(c));
 }
 
 /* The module stuff */
 static const GstModuleItem gst_compile_module[] = {
-    {"compiler", gst_stl_compiler},
-    {"compile", gst_stl_compiler_compile},
-    {"binding!", gst_stl_compiler_binding},
-    {"bindings!", gst_stl_compiler_bindings},
+    {"compile", gst_stl_compile},
     {NULL, NULL}
 };
 

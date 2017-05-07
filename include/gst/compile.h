@@ -36,7 +36,6 @@ struct GstCompiler {
     jmp_buf onError;
     GstScope *tail;
     GstBuffer *buffer;
-    void *trackers;
 };
 
 /* Initialize the Compiler */
