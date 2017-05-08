@@ -54,7 +54,7 @@ GstValue gst_stl_binop_##name(GstValue lhs, GstValue rhs) {\
         return gst_wrap_nil();\
 }
 
-#define SIMPLE_ACCUM_FUNCTION(name, start, op)\
+#define SIMPLE_ACCUM_FUNCTION(name, op)\
 MAKE_BINOP(name, op)\
 int gst_stl_##name(Gst* vm) {\
     GstValue lhs, rhs;\
@@ -70,10 +70,27 @@ int gst_stl_##name(Gst* vm) {\
     gst_c_return(vm, lhs);\
 }
 
-SIMPLE_ACCUM_FUNCTION(add, 0, +)
-SIMPLE_ACCUM_FUNCTION(mul, 1, *)
-SIMPLE_ACCUM_FUNCTION(sub, 0, -)
-SIMPLE_ACCUM_FUNCTION(div, 1, /)
+SIMPLE_ACCUM_FUNCTION(add, +)
+SIMPLE_ACCUM_FUNCTION(mul, *)
+SIMPLE_ACCUM_FUNCTION(sub, -)
+
+/* Detect division by zero */
+MAKE_BINOP(div, /)
+int gst_stl_div(Gst *vm) {
+    GstValue lhs, rhs;
+    uint32_t j, count;
+    count = gst_count_args(vm);
+    lhs = gst_arg(vm, 0);
+    for (j = 1; j < count; ++j) {
+        rhs = gst_arg(vm, j);
+        if (lhs.type == GST_INTEGER && rhs.type == GST_INTEGER && rhs.data.integer == 0)
+            gst_c_throwc(vm, "cannot integer divide by 0");
+        lhs = gst_stl_binop_div(lhs, rhs);
+    }
+    if (lhs.type == GST_NIL)
+        gst_c_throwc(vm, "expected integer/real");
+    gst_c_return(vm, lhs);
+}
 
 #undef SIMPLE_ACCUM_FUNCTION
 
