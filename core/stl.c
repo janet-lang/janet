@@ -399,6 +399,34 @@ int gst_stl_string(Gst *vm) {
     gst_c_return(vm, gst_wrap_string(gst_string_end(vm, str)));
 }
 
+/* Create a thread */
+int gst_stl_thread(Gst *vm) {
+    GstThread *t;
+    GstValue callee = gst_arg(vm, 0);
+    if (callee.type != GST_FUNCTION && callee.type != GST_CFUNCTION)
+        gst_c_throwc(vm, "expected function");
+    t = gst_thread(vm, callee, 10);
+    t->parent = vm->thread;
+    gst_c_return(vm, gst_wrap_thread(t));
+}
+
+/* Transfer to a new thread */
+int gst_stl_transfer(Gst *vm) {
+    GstThread *t;
+    GstValue ret = gst_arg(vm, 1);
+    if (!gst_check_thread(vm, 0, &t))
+        gst_c_throwc(vm, "expected thread");
+    if (t->status == GST_THREAD_DEAD)
+        gst_c_throwc(vm, "cannot transfer to dead thread");
+    if (t->status == GST_THREAD_ALIVE)
+        gst_c_throwc(vm, "cannot transfer to current thread");
+    gst_thread_beginframe(vm, t, gst_wrap_nil(), 0);
+    vm->thread->status = GST_THREAD_PENDING;
+    t->status = GST_THREAD_ALIVE;
+    vm->thread = t;
+    gst_c_return(vm, ret);
+}
+
 /* Associative get */
 int gst_stl_get(Gst *vm) {
     GstValue ret;
@@ -810,6 +838,8 @@ static const GstModuleItem const std_module[] = {
     {"struct", gst_stl_struct},
     {"buffer", gst_stl_buffer},
     {"string", gst_stl_string},
+    {"thread", gst_stl_thread},
+    {"transfer", gst_stl_transfer},
     {"print", gst_stl_print},
     {"tostring", gst_stl_tostring},
     {"exit", gst_stl_exit},
