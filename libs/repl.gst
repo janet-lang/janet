@@ -16,7 +16,12 @@
 "Create a parser"
 (export! "p" (parser))
 
+"Run a simple repl. Does not handle errors and other
+such details."
 (while 1
+    (write stdout ">> ")
     (: line (readline))
-    (print "Read line: " line)
-)
+    (while line
+        (: line (parse-charseq p line))
+        (if (parse-hasvalue p)
+            (print ((compile (parse-consume p)))))))
