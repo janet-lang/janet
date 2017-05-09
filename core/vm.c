@@ -29,8 +29,10 @@ static const char GST_EXPECTED_FUNCTION[] = "expected function";
 int gst_continue(Gst *vm) {
     /* VM state */
     GstValue *stack;
-    GstValue temp, v1, v2;
     uint16_t *pc;
+
+    /* Some temporary values */
+    GstValue temp, v1, v2;
 
 #define gst_exit(vm, r) return ((vm)->ret = (r), GST_RETURN_OK)
 #define gst_error(vm, e) do { (vm)->ret = gst_string_cv((vm), (e)); goto vm_error; } while (0)
@@ -184,27 +186,12 @@ int gst_continue(Gst *vm) {
             break;
 
         case GST_OP_RTN: /* Return nil */
-            stack = gst_thread_popframe(vm, vm->thread);
-            if (vm->thread->count < GST_FRAME_SIZE) {
-                vm->thread->status = GST_THREAD_DEAD;
-                vm->ret.type = GST_NIL;
-                return GST_RETURN_OK;
-            }
-            pc = gst_frame_pc(stack);
-            stack[gst_frame_ret(stack)].type = GST_NIL;
-            continue;
+            temp.type = GST_NIL;
+            goto vm_return;
 
         case GST_OP_RET: /* Return */
             temp = stack[pc[1]];
-            stack = gst_thread_popframe(vm, vm->thread);
-            if (vm->thread->count < GST_FRAME_SIZE) {
-                vm->thread->status = GST_THREAD_DEAD;
-                vm->ret = temp;
-                return GST_RETURN_OK;
-            }
-            pc = gst_frame_pc(stack);
-            stack[gst_frame_ret(stack)] = temp;
-            continue;
+            goto vm_return;
 
         case GST_OP_PSK: /* Push stack */
             {
@@ -302,16 +289,11 @@ int gst_continue(Gst *vm) {
                 int status;
                 vm->ret.type = GST_NIL;
                 status = temp.data.cfunction(vm);
-                stack = gst_thread_popframe(vm, vm->thread);
                 if (status == GST_RETURN_OK) {
-                    if (vm->thread->count < GST_FRAME_SIZE) {
-                        vm->thread->status = GST_THREAD_DEAD;
-                        return status;
-                    } else { 
-                        stack[gst_frame_ret(stack)] = vm->ret;
-                        pc = gst_frame_pc(stack);
-                    }
+                    temp = vm->ret;
+                    goto vm_return;
                 } else {
+                    stack = gst_thread_popframe(vm, vm->thread);
                     goto vm_error;
                 }
             } else {
@@ -366,24 +348,55 @@ int gst_continue(Gst *vm) {
             }
             break;
 
-        case GST_OP_YLD: /* Yield to new thread */
-            temp = stack[pc[1]];
-            v1 = stack[pc[2]];
-            gst_assert(vm, v1.type == GST_THREAD, "expected thread");
-            gst_assert(vm, v1.data.thread->status != GST_THREAD_DEAD, "cannot rejoin dead thread");
-            gst_frame_pc(stack) = pc + 3;
-            vm->thread = v1.data.thread;
-            vm->thread->status = GST_THREAD_ALIVE;
-            stack = vm->thread->data + vm->thread->count;
+        case GST_OP_TRN: /* Transfer */
+            temp = stack[pc[2]]; /* The thread */
+            v1 = stack[pc[3]]; /* The value to pass in */
+            if (temp.type != GST_THREAD)
+                gst_error(vm, "expected thread");
+            if (temp.data.thread->status == GST_THREAD_DEAD ||
+                temp.data.thread->status == GST_THREAD_ERROR)
+                gst_error(vm, "cannot enter dead thread");
+            gst_frame_ret(stack) = pc[1];
+            vm->thread->status = GST_THREAD_PENDING;
+            gst_frame_pc(stack) = pc + 4;
+            temp.data.thread->status = GST_THREAD_ALIVE;
+            vm->thread = temp.data.thread;
+            stack = gst_thread_stack(temp.data.thread);
+            stack[gst_frame_ret(stack)] = v1;
             pc = gst_frame_pc(stack);
+            continue;
+
+        /* Handle returning from stack frame. Expect return value in temp. */
+        vm_return:
+            stack = gst_thread_popframe(vm, vm->thread);
+            while (vm->thread->count < GST_FRAME_SIZE) {
+                vm->thread->status = GST_THREAD_DEAD;
+                if (vm->thread->parent) {
+                    vm->thread = vm->thread->parent;
+                    stack = vm->thread->data + vm->thread->count;
+                } else {
+                    vm->ret = temp;
+                    return GST_RETURN_OK;
+                }
+            }
+            pc = gst_frame_pc(stack);
+            stack[gst_frame_ret(stack)] = temp;
             continue;
 
         /* Handle errors from c functions and vm opcodes */
         vm_error:
-            if (stack == NULL || vm->thread->parent == NULL)
-                return GST_RETURN_ERROR;
             vm->thread->status = GST_THREAD_ERROR;
+            if (vm->thread->parent == NULL)
+                return GST_RETURN_ERROR;
             vm->thread = vm->thread->parent;
+            while (vm->thread->count < GST_FRAME_SIZE) {
+                if (vm->thread->parent) {
+                    vm->thread->status = GST_THREAD_DEAD;
+                    vm->thread = vm->thread->parent;
+                } else {
+                    return GST_RETURN_ERROR;
+                }
+            }
             stack = vm->thread->data + vm->thread->count;
             pc = gst_frame_pc(stack);
             continue;

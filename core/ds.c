@@ -38,10 +38,10 @@ GstBuffer *gst_buffer(Gst *vm, uint32_t capacity) {
 
 /* Ensure that the buffer has enough internal capacity */
 void gst_buffer_ensure(Gst *vm, GstBuffer *buffer, uint32_t capacity) {
-    uint8_t * newData;
+    uint8_t *newData;
     if (capacity <= buffer->capacity) return;
     newData = gst_alloc(vm, capacity * sizeof(uint8_t));
-    gst_memcpy(newData, buffer->data, buffer->count * sizeof(uint8_t));
+    gst_memcpy(newData, buffer->data, buffer->capacity * sizeof(uint8_t));
     buffer->data = newData;
     buffer->capacity = capacity;
 }

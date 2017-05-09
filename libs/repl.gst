@@ -19,9 +19,11 @@
 "Run a simple repl. Does not handle errors and other
 such details."
 (while 1
-    (write stdout ">> ")
-    (: line (readline))
-    (while line
-        (: line (parse-charseq p line))
-        (if (parse-hasvalue p)
-            (print ((compile (parse-consume p)))))))
+    (: t (thread (fn []
+        (write stdout ">> ")
+        (: line (readline))
+        (while line
+            (: line (parse-charseq p line))
+            (if (parse-hasvalue p)
+                ((compile (parse-consume p))))))))
+    (transfer t))

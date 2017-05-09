@@ -878,6 +878,25 @@ static Slot compile_apply(GstCompiler *c, FormOptions opts, const GstValue *form
     }
 }
 
+/* Transfer special */
+static Slot compile_tran(GstCompiler *c, FormOptions opts, const GstValue *form) {
+    GstBuffer *buffer = c->buffer;
+    Slot t, v, r;
+    if (gst_tuple_length(form) != 3 && gst_tuple_length(form) != 2)
+        c_error(c, "tran expects 2 or 3 arguments");
+    t = compiler_realize_slot(c, compile_value(c, form_options_default(), form[1]));
+    if (gst_tuple_length(form) == 3)
+        v = compiler_realize_slot(c, compile_value(c, form_options_default(), form[2]));
+    else
+        v = compile_value(c, form_options_default(), gst_wrap_nil());
+    r = compiler_get_target(c, opts);
+    gst_buffer_push_u16(c->vm, buffer, GST_OP_TRN);
+    gst_buffer_push_u16(c->vm, buffer, r.index);
+    gst_buffer_push_u16(c->vm, buffer, t.index);
+    gst_buffer_push_u16(c->vm, buffer, v.index);
+    return r;
+}
+
 /* Define a function type for Special Form helpers */
 typedef Slot (*SpecialFormHelper) (GstCompiler *c, FormOptions opts, const GstValue *form);
 
@@ -946,6 +965,15 @@ static SpecialFormHelper get_special(const GstValue *form) {
                 }
             }
             break;
+        case 't':
+            {
+                if (gst_string_length(name) == 4 &&
+                        name[1] == 'r' &&
+                        name[2] == 'a' &&
+                        name[3] == 'n') {
+                    return compile_tran;
+                }
+            }
         case 'w':
             {
                 if (gst_string_length(name) == 5 &&

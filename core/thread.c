@@ -32,6 +32,7 @@ GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity) {
     thread->count = GST_FRAME_SIZE;
     thread->data = data;
     thread->status = GST_THREAD_PENDING;
+    thread->retindex = 0;
     stack = data + GST_FRAME_SIZE;
     gst_frame_size(stack) = 0;
     gst_frame_prevsize(stack) = 0;
@@ -41,7 +42,7 @@ GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity) {
     gst_frame_env(stack) = NULL;
     gst_frame_callee(stack) = callee;
     gst_thread_endframe(vm, thread);
-    thread->parent = NULL;
+    thread->parent = vm->thread;
     return thread;
 }
 

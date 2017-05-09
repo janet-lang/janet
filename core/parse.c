@@ -553,6 +553,8 @@ static int gst_stl_parser_consume(Gst *vm) {
 	GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
 	if (p == NULL)
     	gst_c_throwc(vm, "expected parser");
+    if (p->status == GST_PARSER_ERROR)
+        gst_c_return(vm, gst_string_cv(vm, p->error));
     if (!gst_parse_hasvalue(p))
         gst_c_throwc(vm, "parser has no pending value");
 	gst_c_return(vm, gst_parse_consume(p));

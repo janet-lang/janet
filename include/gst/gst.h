@@ -204,6 +204,7 @@ struct GstValue {
 struct GstThread {
     uint32_t count;
     uint32_t capacity;
+    uint32_t retindex;
     GstValue *data;
     GstThread *parent;
     enum {
@@ -333,7 +334,7 @@ enum GstOpCode {
     GST_OP_PAR,     /* Push array or tuple */
     GST_OP_CAL,     /* Call function */
     GST_OP_TCL,     /* Tail call */
-    GST_OP_YLD      /* Yield from function */
+    GST_OP_TRN,     /* Transfer to new thread */
 };
 
 /****/

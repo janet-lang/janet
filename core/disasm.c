@@ -186,6 +186,8 @@ void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
             case GST_OP_TCL:
                 current += dasm_fixed_op(out, current, "tailCall", 1);
                 break;
+            case GST_OP_TRN:
+                current += dasm_fixed_op(out, current, "transfer", 3);
         }
         fprintf(out, "\n");
     }
