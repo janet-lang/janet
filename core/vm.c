@@ -186,6 +186,7 @@ int gst_continue(Gst *vm) {
         case GST_OP_RTN: /* Return nil */
             stack = gst_thread_popframe(vm, vm->thread);
             if (vm->thread->count < GST_FRAME_SIZE) {
+                vm->thread->status = GST_THREAD_DEAD;
                 vm->ret.type = GST_NIL;
                 return GST_RETURN_OK;
             }
@@ -197,6 +198,7 @@ int gst_continue(Gst *vm) {
             temp = stack[pc[1]];
             stack = gst_thread_popframe(vm, vm->thread);
             if (vm->thread->count < GST_FRAME_SIZE) {
+                vm->thread->status = GST_THREAD_DEAD;
                 vm->ret = temp;
                 return GST_RETURN_OK;
             }
@@ -303,6 +305,7 @@ int gst_continue(Gst *vm) {
                 stack = gst_thread_popframe(vm, vm->thread);
                 if (status == GST_RETURN_OK) {
                     if (vm->thread->count < GST_FRAME_SIZE) {
+                        vm->thread->status = GST_THREAD_DEAD;
                         return status;
                     } else { 
                         stack[gst_frame_ret(stack)] = vm->ret;
@@ -379,7 +382,7 @@ int gst_continue(Gst *vm) {
         vm_error:
             if (stack == NULL || vm->thread->parent == NULL)
                 return GST_RETURN_ERROR;
-            vm->thread->status = GST_THREAD_DEAD;
+            vm->thread->status = GST_THREAD_ERROR;
             vm->thread = vm->thread->parent;
             stack = vm->thread->data + vm->thread->count;
             pc = gst_frame_pc(stack);

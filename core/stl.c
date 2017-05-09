@@ -427,6 +427,46 @@ int gst_stl_transfer(Gst *vm) {
     gst_c_return(vm, ret);
 }
 
+/* Get current thread */
+int gst_stl_current(Gst *vm) {
+    gst_c_return(vm, gst_wrap_thread(vm->thread));
+}
+
+/* Get parent of a thread */
+/* TODO - consider implications of this function
+ * for sandboxing */
+int gst_stl_parent(Gst *vm) {
+    GstThread *t;
+    if (!gst_check_thread(vm, 0, &t))
+        gst_c_throwc(vm, "expected thread");
+    if (t->parent == NULL)
+        gst_c_return(vm, gst_wrap_nil());
+    gst_c_return(vm, gst_wrap_thread(t->parent));
+}
+
+/* Get the status of a thread */
+int gst_stl_status(Gst *vm) {
+    GstThread *t;
+    const char *cstr;
+    if (!gst_check_thread(vm, 0, &t))
+        gst_c_throwc(vm, "expected thread");
+    switch (t->status) {
+        case GST_THREAD_PENDING:
+            cstr = "pending";
+            break;
+        case GST_THREAD_ALIVE:
+            cstr = "alive";
+            break;
+        case GST_THREAD_DEAD:
+            cstr = "dead";
+            break;
+        case GST_THREAD_ERROR:
+            cstr = "error";
+            break;
+    }
+    gst_c_return(vm, gst_string_cv(vm, cstr));
+}
+
 /* Associative get */
 int gst_stl_get(Gst *vm) {
     GstValue ret;
@@ -840,6 +880,9 @@ static const GstModuleItem const std_module[] = {
     {"string", gst_stl_string},
     {"thread", gst_stl_thread},
     {"transfer", gst_stl_transfer},
+    {"status", gst_stl_status},
+    {"current", gst_stl_current},
+    {"parent", gst_stl_parent},
     {"print", gst_stl_print},
     {"tostring", gst_stl_tostring},
     {"exit", gst_stl_exit},

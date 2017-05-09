@@ -209,7 +209,8 @@ struct GstThread {
     enum {
         GST_THREAD_PENDING = 0,
         GST_THREAD_ALIVE,
-        GST_THREAD_DEAD
+        GST_THREAD_DEAD,
+        GST_THREAD_ERROR
     } status;
 };
 

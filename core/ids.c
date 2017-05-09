@@ -238,16 +238,12 @@ static const GstValue *gst_struct_find(const GstValue *st, GstValue key) {
     uint32_t cap = gst_struct_capacity(st);
     uint32_t index = (gst_hash(key) % (cap / 2)) * 2;
     uint32_t i;
-    for (i = index; i < cap; i += 2) {
-        if (st[i].type == GST_NIL || gst_equals(st[i], key)) {
+    for (i = index; i < cap; i += 2)
+        if (st[i].type == GST_NIL || gst_equals(st[i], key))
             return st + i;
-        }
-    }
-    for (i = 0; i < index; i += 2) {
-        if (st[i].type == GST_NIL || gst_equals(st[i], key)) {
+    for (i = 0; i < index; i += 2)
+        if (st[i].type == GST_NIL || gst_equals(st[i], key))
             return st + i;
-        }
-    }
     return NULL;
 }
 
@@ -255,12 +251,56 @@ static const GstValue *gst_struct_find(const GstValue *st, GstValue key) {
  * Behavior is undefined if too many keys are added, or if a key is added
  * twice. Nil keys and values are ignored. */
 void gst_struct_put(GstValue *st, GstValue key, GstValue value) {
-    GstValue *bucket;
+    uint32_t cap = gst_struct_capacity(st);
+    uint32_t hash = gst_hash(key);
+    uint32_t index = (hash % (cap / 2)) * 2;
+    uint32_t i, j, dist;
+    uint32_t bounds[4] = {index, cap, 0, index};
     if (key.type == GST_NIL || value.type == GST_NIL) return;
-    bucket = (GstValue *) gst_struct_find(st, key);
-    if (!bucket) return;
-    bucket[0] = key;
-    bucket[1] = value;
+    for (dist = 0, j = 0; j < 4; j += 2)
+    for (i = bounds[j]; i < bounds[j + 1]; i += 2, dist += 2) {
+        int status;
+        uint32_t otherhash, otherindex, otherdist;
+        /* We found an empty slot, so just add key and value */
+        if (st[i].type == GST_NIL) {
+            st[i] = key;
+            st[i + 1] = value;
+            return;
+        }
+        /* Robinhood hashing - check if colliding kv pair
+         * is closer to their source than current. */
+        otherhash = gst_hash(st[i]);
+        otherindex = (otherhash % (cap / 2)) * 2;
+        otherdist = (i + cap - otherindex) % cap;
+        if (dist < otherdist)
+            status = -1;
+        else if (otherdist < dist)
+            status = 1;
+        else if (hash < otherhash)
+            status = -1;
+        else if (otherhash < hash)
+            status = 1;
+        else
+            status = gst_compare(key, st[i]);
+        /* If other is closer to their ideal slot */
+        if (status == 1) {
+            /* Swap current kv pair with pair in slot */
+            GstValue t1, t2;
+            t1 = st[i];
+            t2 = st[i + 1];
+            st[i] = key;
+            st[i + 1] = value;
+            key = t1;
+            value = t2;
+            /* Save dist and hash of new kv pair */
+            dist = otherdist;
+            hash = otherhash;
+        } else if (status == 0) {
+            /* This should not happen - it means
+             * than a key was added to the struct more than once */
+            return;
+        }
+    }
 }
 
 /* Finish building a struct */
