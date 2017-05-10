@@ -145,8 +145,8 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
                 gc_header(thread->data)->color = vm->black;
                 while (frame <= end)
                     frame = gst_mark_stackframe(vm, frame);
-                if (x.thread->parent)
-                    gst_mark_value(vm, gst_wrap_thread(x.thread->parent));
+                if (thread->parent)
+                    gst_mark_value(vm, gst_wrap_thread(thread->parent));
             }
             break;
 

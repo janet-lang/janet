@@ -398,6 +398,7 @@ int gst_continue(Gst *vm) {
                 }
             }
             stack = vm->thread->data + vm->thread->count;
+            stack[gst_frame_ret(stack)] = vm->ret;
             pc = gst_frame_pc(stack);
             continue;
 

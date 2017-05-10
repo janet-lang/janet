@@ -204,7 +204,6 @@ struct GstValue {
 struct GstThread {
     uint32_t count;
     uint32_t capacity;
-    uint32_t retindex;
     GstValue *data;
     GstThread *parent;
     enum {

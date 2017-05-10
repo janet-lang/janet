@@ -1,8 +1,5 @@
 (namespace-set! "gst.repl")
 
-"Hold all compile time evaluators"
-(export! "evaluators" {})
-
 "Read a line"
 (export! "readline" (fn []
     (: b (buffer))
@@ -16,14 +13,15 @@
 "Create a parser"
 (export! "p" (parser))
 
-"Run a simple repl. Does not handle errors and other
-such details."
+"Run a simple repl."
 (while 1
-    (: t (thread (fn []
-        (write stdout ">> ")
-        (: line (readline))
+    (write stdout ">> ")
+    (: t (thread (fn [line]
+        (: ret 1)
         (while line
             (: line (parse-charseq p line))
             (if (parse-hasvalue p)
-                ((compile (parse-consume p))))))))
-    (transfer t))
+                (: ret ((compile (parse-consume p))))))
+        ret)))
+    (: res (tran t (readline)))
+    (if (= (status t) "dead") (print res) (print "Error: " res)))

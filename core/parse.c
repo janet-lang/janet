@@ -62,7 +62,7 @@ static GstParseState *parser_peek(GstParser *p) {
     if (!p->count) {
         return NULL;
     }
-    return p->data + p->count - 1;
+    return p->data + (p->count - 1);
 }
 
 /* Remove the top state from the ParseStack */
@@ -88,8 +88,9 @@ static GstValue quote(GstParser *p, GstValue x) {
 static void parser_push(GstParser *p, ParseType type, uint8_t character) {
     GstParseState *top;
     if (p->count >= p->cap) {
-        uint32_t newCap = 2 * p->count;
-        GstParseState *data = gst_alloc(p->vm, newCap);
+        uint32_t newCap = 2 * p->count + 2;
+        GstParseState *data = gst_alloc(p->vm, newCap * sizeof(GstParseState));
+        gst_memcpy(data, p->data, p->cap * sizeof(GstParseState));
         p->data = data;
         p->cap = newCap;
     }
