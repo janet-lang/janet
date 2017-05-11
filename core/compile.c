@@ -85,6 +85,8 @@ struct GstScope {
     uint16_t frameSize;
     uint32_t heapCapacity;
     uint32_t heapSize;
+    uint16_t touchParent;
+    uint16_t touchEnv;
     uint16_t *freeHeap;
     GstTable *literals;
     GstArray *literalsArray;
@@ -137,6 +139,8 @@ static GstScope *compiler_push_scope(GstCompiler *c, int sameFunction) {
     scope->heapCapacity = 10;
     scope->parent = c->tail;
     scope->frameSize = 0;
+    scope->touchParent = 0;
+    scope->touchEnv = 0;
     if (c->tail) {
         scope->level = c->tail->level + (sameFunction ? 0 : 1);
     } else {
@@ -478,6 +482,18 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
         return compile_literal(c, opts, lit);
     } else if (level > 0) {
         /* We have an upvalue */
+        if (level > 1) {
+            /* We have an upvalue from a parent function. Make
+             * sure that the chain of functions up to the upvalue keep
+             * their parent references */
+            uint32_t i = level;
+            GstScope *scope = c->tail;
+            for (i = level; i > 1; --i) {
+                scope->touchParent = 1;
+                scope = scope->parent;
+            }
+            scope->touchEnv = 1;
+        }
         ret = compiler_get_target(c, opts);
         gst_buffer_push_u16(c->vm, buffer, GST_OP_UPV);
         gst_buffer_push_u16(c->vm, buffer, ret.index);
@@ -600,7 +616,9 @@ static GstFuncDef *compiler_gen_funcdef(GstCompiler *c, uint32_t lastNBytes, uin
     /* Initialize the new FuncDef */
     def->locals = scope->frameSize;
     def->arity = arity;
-    def->flags = varargs ? GST_FUNCDEF_FLAG_VARARG : 0;
+    def->flags = (varargs ? GST_FUNCDEF_FLAG_VARARG : 0) |
+        (scope->touchParent ? GST_FUNCDEF_FLAG_NEEDSPARENT : 0) |
+        (scope->touchEnv ? GST_FUNCDEF_FLAG_NEEDSENV : 0);
     return def;
 }
 

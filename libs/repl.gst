@@ -24,4 +24,4 @@
                 (: ret ((compile (parse-consume p))))))
         ret)))
     (: res (tran t (readline)))
-    (if (= (status t) "dead") (print res) (print "Error: " res)))
+    (if (= (status t) "dead") (print (debugp res)) (print "Error: " (debugp res))))

@@ -351,7 +351,7 @@ int gst_stl_struct(Gst *vm) {
     GstValue *st;
     if (count % 2 != 0)
         gst_c_throwc(vm, "expected even number of arguments");
-    st = gst_struct_begin(vm, count * 2);
+    st = gst_struct_begin(vm, count / 2);
     for (i = 0; i < count; i += 2)
         gst_struct_put(st, gst_arg(vm, i), gst_arg(vm, i + 1));
     gst_c_return(vm, gst_wrap_struct(gst_struct_end(vm, st)));
@@ -572,16 +572,27 @@ int gst_stl_error(Gst *vm) {
 /* Serialize data into buffer */
 int gst_stl_serialize(Gst *vm) {
     const char *err;
-    uint32_t i;
-    GstValue buffer = gst_arg(vm, 0);
+    GstValue buffer = gst_arg(vm, 1);
     if (buffer.type != GST_BYTEBUFFER)
-        gst_c_throwc(vm, "expected buffer");
-    for (i = 1; i < gst_count_args(vm); ++i) {
-        err = gst_serialize(vm, buffer.data.buffer, gst_arg(vm, i));
-        if (err != NULL)
-            gst_c_throwc(vm, err);
-    }
+        buffer = gst_wrap_buffer(gst_buffer(vm, 10));
+    err = gst_serialize(vm, buffer.data.buffer, gst_arg(vm, 0));
+    if (err != NULL)
+        gst_c_throwc(vm, err);
     gst_c_return(vm, buffer);
+}
+
+/* Deserialize data from a buffer */
+int gst_stl_deserialize(Gst *vm) {
+    GstValue ret;
+    uint32_t len;
+    const uint8_t *data;
+    const char *err;
+    if (!gst_chararray_view(gst_arg(vm, 0), &data, &len))
+        gst_c_throwc(vm, "expected string/buffer");
+    err = gst_deserialize(vm, data, len, &ret, &data);
+    if (err != NULL)
+        gst_c_throwc(vm, err);
+    gst_c_return(vm, ret);
 }
 
 /****/
@@ -629,13 +640,41 @@ int gst_stl_namespace_get(Gst *vm) {
     gst_c_return(vm, check);
 }
 
+/***/
+/* Function reflection */
+/***/
+
+int gst_stl_funcenv(Gst *vm) {
+    GstFunction *fn;
+    if (!gst_check_function(vm, 0, &fn))
+        gst_c_throwc(vm, "expected function");
+    gst_c_return(vm, gst_wrap_funcenv(fn->env));
+}
+
+int gst_stl_funcdef(Gst *vm) {
+    GstFunction *fn;
+    if (!gst_check_function(vm, 0, &fn))
+        gst_c_throwc(vm, "expected function");
+    gst_c_return(vm, gst_wrap_funcdef(fn->def));
+}
+
+int gst_stl_funcparent(Gst *vm) {
+    GstFunction *fn;
+    if (!gst_check_function(vm, 0, &fn))
+        gst_c_throwc(vm, "expected function");
+    if (fn->parent)
+        gst_c_return(vm, gst_wrap_function(fn->parent));
+    else
+        return GST_RETURN_OK;
+}
+
 /****/
 /* IO */
 /****/
 
 /* File type definition */
 static GstUserType gst_stl_filetype = {
-    "io.file",
+    "std.file",
     NULL,
     NULL, 
     NULL,
@@ -775,7 +814,7 @@ static GstInteger gst_stl_debugp_helper(Gst *vm, GstBuffer *b, GstTable *seen, G
         str = gst_to_string(vm, check);
         gst_buffer_append_cstring(vm, b, "<visited ");
         gst_buffer_append(vm, b, str, gst_string_length(str));
-        gst_buffer_append_cstring(vm, b, " >");
+        gst_buffer_append_cstring(vm, b, ">");
     } else {
         uint8_t open, close;
         uint32_t len, i;
@@ -872,6 +911,7 @@ static const GstModuleItem const std_module[] = {
     {"next", gst_stl_next},
     {"error", gst_stl_error},
     {"serialize", gst_stl_serialize},
+    {"deserialize", gst_stl_deserialize},
     {"export!", gst_stl_export},
     {"namespace", gst_stl_namespace},
     {"namespace-set!", gst_stl_namespace_set},
@@ -885,6 +925,9 @@ static const GstModuleItem const std_module[] = {
     {"read", gst_stl_read},
     {"write", gst_stl_write},
     {"close", gst_stl_close},
+    {"funcenv", gst_stl_funcenv},
+    {"funcdef", gst_stl_funcdef},
+    {"funcparent", gst_stl_funcparent},
     {"dasm", gst_stl_dasm},
     {"gcollect", gst_stl_gcollect},
     {"debugp", gst_stl_debugp},

@@ -50,7 +50,7 @@ static int gst_cache_equal(GstValue x, GstValue y) {
     uint32_t i, len;
     if (x.type != y.type) return 0;
     switch (x.type) {
-    /* Don't bother implemeting equality checks for all types. We only care
+    /* Don't bother implementing equality checks for all types. We only care
      * about immutable data structures */
     default:
         return 0;

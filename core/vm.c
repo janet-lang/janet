@@ -173,10 +173,13 @@ int gst_continue(Gst *vm) {
                     gst_error(vm, GST_NO_UPVALUE);
                 temp = v1.data.function->def->literals[pc[2]];
                 if (temp.type != GST_FUNCDEF)
-                    gst_error(vm, "cannot create closure");
+                    gst_error(vm, "cannot create closure from non-funcdef");
                 fn = gst_alloc(vm, sizeof(GstFunction));
                 fn->def = temp.data.def;
-                fn->parent = v1.data.function;
+                if (temp.data.def->flags & GST_FUNCDEF_FLAG_NEEDSPARENT)
+                    fn->parent = v1.data.function;
+                else
+                    fn->parent = NULL;
                 fn->env = gst_frame_env(stack);
                 temp.type = GST_FUNCTION;
                 temp.data.function = fn;

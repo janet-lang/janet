@@ -238,6 +238,8 @@ struct GstTable {
 
 /* Some function defintion flags */
 #define GST_FUNCDEF_FLAG_VARARG 1
+#define GST_FUNCDEF_FLAG_NEEDSPARENT 2
+#define GST_FUNCDEF_FLAG_NEEDSENV 4
 
 /* A function definition. Contains information need to instantiate closures. */
 struct GstFuncDef {
@@ -448,7 +450,7 @@ const char *gst_deserialize(
         const uint8_t *data,
         uint32_t len,
         GstValue *out,
-        const uint8_t *nextData);
+        const uint8_t **nextData);
 
 const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x);
 
