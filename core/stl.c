@@ -648,7 +648,10 @@ int gst_stl_funcenv(Gst *vm) {
     GstFunction *fn;
     if (!gst_check_function(vm, 0, &fn))
         gst_c_throwc(vm, "expected function");
-    gst_c_return(vm, gst_wrap_funcenv(fn->env));
+    if (fn->env)
+        gst_c_return(vm, gst_wrap_funcenv(fn->env));
+    else
+        return GST_RETURN_OK;
 }
 
 int gst_stl_funcdef(Gst *vm) {

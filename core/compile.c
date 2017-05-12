@@ -481,19 +481,16 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
         /* We have a named literal */
         return compile_literal(c, opts, lit);
     } else if (level > 0) {
-        /* We have an upvalue */
-        if (level > 1) {
-            /* We have an upvalue from a parent function. Make
-             * sure that the chain of functions up to the upvalue keep
-             * their parent references */
-            uint32_t i = level;
-            GstScope *scope = c->tail;
-            for (i = level; i > 1; --i) {
-                scope->touchParent = 1;
-                scope = scope->parent;
-            }
-            scope->touchEnv = 1;
+        /* We have an upvalue from a parent function. Make
+         * sure that the chain of functions up to the upvalue keep
+         * their parent references */
+        uint32_t i = level;
+        GstScope *scope = c->tail;
+        for (i = level; i > 1; --i) {
+            scope->touchParent = 1;
+            scope = scope->parent;
         }
+        scope->touchEnv = 1;
         ret = compiler_get_target(c, opts);
         gst_buffer_push_u16(c->vm, buffer, GST_OP_UPV);
         gst_buffer_push_u16(c->vm, buffer, ret.index);

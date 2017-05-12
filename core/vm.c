@@ -161,16 +161,6 @@ int gst_continue(Gst *vm) {
             {
                 GstFunction *fn;
                 v1 = gst_frame_callee(stack);
-                if (v1.type != GST_FUNCTION)
-                    gst_error(vm, GST_EXPECTED_FUNCTION);
-                if (gst_frame_env(stack) == NULL) {
-                    gst_frame_env(stack) = gst_alloc(vm, sizeof(GstFuncEnv));
-                    gst_frame_env(stack)->thread = vm->thread;
-                    gst_frame_env(stack)->stackOffset = vm->thread->count;
-                    gst_frame_env(stack)->values = NULL;
-                }
-                if (pc[2] > v1.data.function->def->literalsLen)
-                    gst_error(vm, GST_NO_UPVALUE);
                 temp = v1.data.function->def->literals[pc[2]];
                 if (temp.type != GST_FUNCDEF)
                     gst_error(vm, "cannot create closure from non-funcdef");
@@ -180,7 +170,20 @@ int gst_continue(Gst *vm) {
                     fn->parent = v1.data.function;
                 else
                     fn->parent = NULL;
-                fn->env = gst_frame_env(stack);
+                if (v1.type != GST_FUNCTION)
+                    gst_error(vm, GST_EXPECTED_FUNCTION);
+                if (gst_frame_env(stack) == NULL && (fn->def->flags & GST_FUNCDEF_FLAG_NEEDSENV)) {
+                    gst_frame_env(stack) = gst_alloc(vm, sizeof(GstFuncEnv));
+                    gst_frame_env(stack)->thread = vm->thread;
+                    gst_frame_env(stack)->stackOffset = vm->thread->count;
+                    gst_frame_env(stack)->values = NULL;
+                }
+                if (pc[2] > v1.data.function->def->literalsLen)
+                    gst_error(vm, GST_NO_UPVALUE);
+                if (fn->def->flags & GST_FUNCDEF_FLAG_NEEDSENV)
+                    fn->env = gst_frame_env(stack);
+                else
+                    fn->env = NULL;
                 temp.type = GST_FUNCTION;
                 temp.data.function = fn;
                 stack[pc[1]] = temp;
@@ -365,6 +368,8 @@ int gst_continue(Gst *vm) {
             temp.data.thread->status = GST_THREAD_ALIVE;
             vm->thread = temp.data.thread;
             stack = gst_thread_stack(temp.data.thread);
+            if (gst_frame_callee(stack).type != GST_FUNCTION)
+                goto vm_return;
             stack[gst_frame_ret(stack)] = v1;
             pc = gst_frame_pc(stack);
             continue;

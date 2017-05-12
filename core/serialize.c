@@ -240,7 +240,8 @@ static const char *gst_deserialize_impl(
                 uint16_t prevsize = 0;
                 uint8_t statusbyte;
                 t = gst_thread(vm, gst_wrap_nil(), 64);
-                gst_array_push(vm, visited, gst_wrap_thread(t));
+                ret = gst_wrap_thread(t);
+                gst_array_push(vm, visited, ret); 
                 err = gst_deserialize_impl(vm, data, end, &data, visited, &ret);
                 if (err != NULL) return err;
                 if (ret.type == GST_NIL) {
@@ -250,30 +251,26 @@ static const char *gst_deserialize_impl(
                 } else {
                     return "expected thread parent to thread";
                 }
-                ret = gst_wrap_thread(t);
                 deser_assert(data < end, UEB);
                 statusbyte = *data++;
                 read_u32(length);
-                /* Check for empty thread - TODO check for valid state */
-                if (length == 0)
-                    break;
                 /* Set status */
-                if (statusbyte == 0) t->status = GST_THREAD_PENDING;
-                else if (statusbyte == 1) t->status = GST_THREAD_ALIVE;
-                else t->status = GST_THREAD_DEAD;
+                t->status = statusbyte % 4;
                 /* Add frames */
                 for (i = 0; i < length; ++i) {
                     GstValue callee, env;
                     uint32_t pcoffset;
                     uint16_t ret, args, size, j;
-                    /* Create a new frame */
-                    if (i > 0)
-                        gst_thread_beginframe(vm, t, gst_wrap_nil(), 0);
                     /* Read the stack */
                     err = gst_deserialize_impl(vm, data, end, &data, visited, &callee);
                     if (err != NULL) return err;
                     err = gst_deserialize_impl(vm, data, end, &data, visited, &env);
                     if (err != NULL) return err;
+                    if (env.type != GST_FUNCENV && env.type != GST_NIL)
+                        return "expected funcenv in stackframe";
+                    /* Create a new frame */
+                    if (i > 0)
+                        gst_thread_beginframe(vm, t, gst_wrap_nil(), 0);
                     read_u32(pcoffset);
                     read_u32(ret);
                     read_u32(args);
@@ -282,15 +279,16 @@ static const char *gst_deserialize_impl(
                     stack = gst_thread_stack(t);
                     if (callee.type == GST_FUNCTION) {
                         gst_frame_pc(stack) = callee.data.function->def->byteCode + pcoffset;
-                        if (env.type == GST_FUNCENV)
-                            gst_frame_env(stack) = env.data.env;
-                        else
-                            gst_frame_env(stack) = NULL;
                     }
                     gst_frame_ret(stack) = ret;
                     gst_frame_args(stack) = args;
                     gst_frame_size(stack) = size;
                     gst_frame_prevsize(stack) = prevsize;
+                    gst_frame_callee(stack) = callee;
+                    if (env.type == GST_NIL)
+                        gst_frame_env(stack) = NULL;
+                    else
+                        gst_frame_env(stack) = env.data.env;
                     prevsize = size;
                     /* Push stack args */
                     for (j = 0; j < size; ++j) {
@@ -333,6 +331,8 @@ static const char *gst_deserialize_impl(
                 def->literalsLen = literalsLen;
                 if (literalsLen > 0) {
                     def->literals = gst_alloc(vm, literalsLen * sizeof(GstValue));
+                } else {
+                    def->literals = NULL;
                 }
                 for (i = 0; i < literalsLen; ++i) {
                     err = gst_deserialize_impl(vm, data, end, &data, visited, def->literals + i);
@@ -385,6 +385,9 @@ static const char *gst_deserialize_impl(
                 if (err != NULL) return err;
                 err = gst_deserialize_impl(vm, data, end, &data, visited, &env);
                 if (err != NULL) return err;
+                printf("parent: %s\n", (const char *)gst_to_string(vm, parent));
+                printf("def: %s\n", (const char *)gst_to_string(vm, def));
+                printf("env: %s\n", (const char *)gst_to_string(vm, env));
                 if (parent.type == GST_NIL) {
                     ret.data.function->parent = NULL;
                 } else if (parent.type == GST_FUNCTION) {
@@ -472,6 +475,7 @@ const char *gst_serialize_impl(
 #define write_u16(b) gst_buffer_push_u16(vm, buffer, (b))
 #define write_dbl(b) gst_buffer_push_real(vm, buffer, (b))
 #define write_int(b) gst_buffer_push_integer(vm, buffer, (b))
+    /*printf("Type: %d\n", x.type);*/
 
     /* Check non reference types - if successful, return NULL */
     switch (x.type) {
@@ -613,9 +617,7 @@ const char *gst_serialize_impl(
                     err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil());
                 if (err != NULL) return err;
                 /* Write the status byte */
-                if (t->status == GST_THREAD_PENDING) write_byte(0);
-                else if (t->status == GST_THREAD_ALIVE) write_byte(1);
-                else write_byte(2);
+                write_byte(t->status);
                 /* Write number of stack frames */
                 write_u32(framecount);
                 /* Write stack frames */
@@ -689,19 +691,17 @@ const char *gst_serialize_impl(
 
         case GST_FUNCTION: /* Function */
             {
+                GstValue pv, ev, dv;
                 GstFunction *fn = x.data.function;
                 write_byte(214);
-                if (fn->parent)
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_function(fn->parent));
-                else
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil());
+                pv = fn->parent ? gst_wrap_function(fn->parent) : gst_wrap_nil();
+                dv = gst_wrap_funcdef(fn->def);
+                ev = fn->env ? gst_wrap_funcenv(fn->env) : gst_wrap_nil();
+                err = gst_serialize_impl(vm, buffer, visited, nextId, pv);
                 if (err != NULL) return err;
-                err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_funcdef(fn->def));
+                err = gst_serialize_impl(vm, buffer, visited, nextId, dv);
                 if (err != NULL) return err;
-                if (fn->env == NULL)
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil());
-                else
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_funcenv(fn->env));
+                err = gst_serialize_impl(vm, buffer, visited, nextId, ev);
                 if (err != NULL) return err;
             }
             break;
