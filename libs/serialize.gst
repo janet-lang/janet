@@ -14,5 +14,9 @@
 (scheck 123412.12)
 (scheck (funcdef (fn [] 1)))
 (scheck (funcenv (fn [] 1)))
-(scheck (funcenv ((fn [a] (fn [] a)) 1)))
+(do
+    (: producer (fn [a] (fn [] a)))
+    (: f        (producer "hello!"))
+    (scheck (funcenv f))
+)
 (scheck (fn [] 1))

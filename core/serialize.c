@@ -381,13 +381,10 @@ static const char *gst_deserialize_impl(
                 gst_array_push(vm, visited, ret);
                 err = gst_deserialize_impl(vm, data, end, &data, visited, &parent);
                 if (err != NULL) return err;
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &def);
-                if (err != NULL) return err;
                 err = gst_deserialize_impl(vm, data, end, &data, visited, &env);
                 if (err != NULL) return err;
-                printf("parent: %s\n", (const char *)gst_to_string(vm, parent));
-                printf("def: %s\n", (const char *)gst_to_string(vm, def));
-                printf("env: %s\n", (const char *)gst_to_string(vm, env));
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &def);
+                if (err != NULL) return err;
                 if (parent.type == GST_NIL) {
                     ret.data.function->parent = NULL;
                 } else if (parent.type == GST_FUNCTION) {
@@ -396,7 +393,7 @@ static const char *gst_deserialize_impl(
                     deser_error("expected function");
                 }
                 deser_assert(def.type == GST_FUNCDEF, "expected funcdef");
-                ret.data.function->def = env.data.def;
+                ret.data.function->def = def.data.def;
                 if (env.type == GST_NIL) {
                     ret.data.function->env = NULL;
                 } else {
@@ -446,6 +443,7 @@ const char *gst_deserialize(
     const char *err;
     GstArray *visited = gst_array(vm, 10);
     err = gst_deserialize_impl(vm, data, data + len, nextData, visited, &ret);
+    printf("Read %ld\n", *nextData - data);
     if (err != NULL) return err;
     *out = ret;
     return NULL;
@@ -699,9 +697,9 @@ const char *gst_serialize_impl(
                 ev = fn->env ? gst_wrap_funcenv(fn->env) : gst_wrap_nil();
                 err = gst_serialize_impl(vm, buffer, visited, nextId, pv);
                 if (err != NULL) return err;
-                err = gst_serialize_impl(vm, buffer, visited, nextId, dv);
-                if (err != NULL) return err;
                 err = gst_serialize_impl(vm, buffer, visited, nextId, ev);
+                if (err != NULL) return err;
+                err = gst_serialize_impl(vm, buffer, visited, nextId, dv);
                 if (err != NULL) return err;
             }
             break;
