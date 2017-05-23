@@ -352,7 +352,7 @@ const uint8_t *gst_buffer_to_string(Gst *vm, GstBuffer *buffer);
 
 /* Define a push function for pushing a certain type to the buffer */
 #define BUFFER_DEFINE(name, type) \
-static void gst_buffer_push_##name(Gst * vm, GstBuffer * buffer, type x) { \
+static void gst_buffer_push_##name(Gst *vm, GstBuffer *buffer, type x) { \
     union { type t; uint8_t bytes[sizeof(type)]; } u; \
     u.t = x; gst_buffer_append(vm, buffer, u.bytes, sizeof(type)); \
 }

@@ -41,7 +41,7 @@ GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity) {
     gst_frame_env(stack) = NULL;
     gst_frame_callee(stack) = callee;
     gst_thread_endframe(vm, thread);
-    thread->parent = vm->thread;
+    thread->parent = NULL; /* Need to set parent manually */
     return thread;
 }
 
@@ -143,8 +143,6 @@ void gst_thread_endframe(Gst *vm, GstThread *thread) {
                 gst_thread_pushnil(vm, thread, locals - gst_frame_size(stack));
             }
         }
-        stack = thread->data + thread->count;
-        gst_frame_args(stack) = gst_frame_size(stack) + GST_FRAME_SIZE;
     }
 }
 

@@ -339,7 +339,7 @@ static const char *gst_deserialize_impl(
                     if (err != NULL) return err;
                 }
                 read_u32(byteCodeLen);
-                deser_datacheck(byteCodeLen);
+                deser_datacheck(byteCodeLen * sizeof(uint16_t));
                 def->byteCode = gst_alloc(vm, byteCodeLen * sizeof(uint16_t));
                 def->byteCodeLen = byteCodeLen;
                 for (i = 0; i < byteCodeLen; ++i) {
@@ -412,8 +412,12 @@ static const char *gst_deserialize_impl(
 
         case 216: /* C function */
             /* TODO - add registry for c functions */
-            read_u32(length);
-            ret.type = GST_NIL;
+            /* For now just add 64 bit integer */
+            {
+                int64_t rawp;
+                read_i64(rawp);
+                ret.type = GST_NIL;
+            }
             break;
 
         case 217: /* Reference */
@@ -443,7 +447,6 @@ const char *gst_deserialize(
     const char *err;
     GstArray *visited = gst_array(vm, 10);
     err = gst_deserialize_impl(vm, data, data + len, nextData, visited, &ret);
-    printf("Read %ld\n", *nextData - data);
     if (err != NULL) return err;
     *out = ret;
     return NULL;
@@ -453,7 +456,7 @@ const char *gst_deserialize(
 BUFFER_DEFINE(real, GstReal)
 BUFFER_DEFINE(integer, GstInteger)
 BUFFER_DEFINE(u32, uint32_t)
-BUFFER_DEFINE(u16, uint32_t)
+BUFFER_DEFINE(u16, uint16_t)
 
 /* Serialize a value and write to a buffer. Returns possible
  * error messages. */
@@ -541,13 +544,13 @@ const char *gst_serialize_impl(
                 if (err != NULL) return err;
             }
         }
-        /* Record reference */
+        /* Record reference after serialization */
         gst_table_put(vm, visited, x, gst_wrap_integer(*nextId));
         *nextId = *nextId + 1;
         return NULL;
     }
 
-    /* Record reference */
+    /* Record reference before serialization */
     gst_table_put(vm, visited, x, gst_wrap_integer(*nextId));
     *nextId = *nextId + 1;
 

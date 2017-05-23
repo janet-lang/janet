@@ -162,6 +162,9 @@ int gst_stl_length(Gst *vm) {
         case GST_STRUCT:
             ret.data.integer = gst_struct_length(x.data.st);
             break;
+        case GST_FUNCDEF:
+            ret.data.integer = x.data.def->byteCodeLen;
+            break;
         }
         gst_c_return(vm, ret);
     }
@@ -404,8 +407,9 @@ int gst_stl_thread(Gst *vm) {
     GstThread *t;
     GstValue callee = gst_arg(vm, 0);
     if (callee.type != GST_FUNCTION && callee.type != GST_CFUNCTION)
-        gst_c_throwc(vm, "expected function");
+        gst_c_throwc(vm, "expected function in thread constructor");
     t = gst_thread(vm, callee, 10);
+    t->parent = vm->thread;
     gst_c_return(vm, gst_wrap_thread(t));
 }
 

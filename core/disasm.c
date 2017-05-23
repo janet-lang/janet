@@ -26,17 +26,17 @@
 #define OP_WIDTH 20
 
 /* Print various register and arguments to instructions */
-static void dasm_print_slot(FILE * out, uint16_t index) { fprintf(out, "%d ", index); }
-static void dasm_print_i16(FILE * out, int16_t number) { fprintf(out, "#%d ", number); }
-static void dasm_print_i32(FILE * out, int32_t number) { fprintf(out, "#%d ", number); }
-static void dasm_print_f64(FILE * out, double number) { fprintf(out, "#%f ", number); }
-static void dasm_print_literal(FILE * out, uint16_t index) { fprintf(out, "(%d) ", index); }
-static void dasm_print_upvalue(FILE * out, uint16_t level, uint16_t index) {
+static void dasm_print_slot(FILE *out, uint16_t index) { fprintf(out, "%d ", index); }
+static void dasm_print_i16(FILE *out, int16_t number) { fprintf(out, "#%d ", number); }
+static void dasm_print_i32(FILE *out, int32_t number) { fprintf(out, "#%d ", number); }
+static void dasm_print_f64(FILE *out, double number) { fprintf(out, "#%f ", number); }
+static void dasm_print_literal(FILE *out, uint16_t index) { fprintf(out, "(%d) ", index); }
+static void dasm_print_upvalue(FILE *out, uint16_t level, uint16_t index) {
     fprintf(out, "<%d, %d> ", level, index);
 }
 
 /* Print the name of the argument but pad it */
-static void dasm_print_arg(FILE * out, const char * name) { 
+static void dasm_print_arg(FILE *out, const char *name) { 
     uint32_t i = 0;
     char c;
     while ((c = *name++)) {
@@ -48,7 +48,7 @@ static void dasm_print_arg(FILE * out, const char * name) {
 }
 
 /* Print instructions that take a fixed number of arguments */
-static uint32_t dasm_fixed_op(FILE * out, const uint16_t * current,
+static uint32_t dasm_fixed_op(FILE *out, const uint16_t *current,
         const char * name, uint32_t size) {
     uint32_t i;
     dasm_print_arg(out, name);
@@ -58,7 +58,7 @@ static uint32_t dasm_fixed_op(FILE * out, const uint16_t * current,
 }
 
 /* Print instructions that take a variable number of arguments */
-static uint32_t dasm_varg_op(FILE * out, const uint16_t * current,
+static uint32_t dasm_varg_op(FILE *out, const uint16_t *current,
         const char * name, uint32_t extra) {
     uint32_t i, argCount;
     dasm_print_arg(out, name);
@@ -75,17 +75,17 @@ static uint32_t dasm_varg_op(FILE * out, const uint16_t * current,
 }
 
 /* Print the disassembly for a function definition */
-void gst_dasm_funcdef(FILE * out, GstFuncDef * def) {
+void gst_dasm_funcdef(FILE *out, GstFuncDef *def) {
     gst_dasm(out, def->byteCode, def->byteCodeLen);
 }
 
 /* Print the disassembly for a function */
-void gst_dasm_function(FILE * out, GstFunction * f) {
+void gst_dasm_function(FILE *out, GstFunction *f) {
     gst_dasm(out, f->def->byteCode, f->def->byteCodeLen);
 }
 
 /* Disassemble some bytecode and display it as opcode + arguments assembly */
-void gst_dasm(FILE * out, uint16_t *byteCode, uint32_t len) {
+void gst_dasm(FILE *out, uint16_t *byteCode, uint32_t len) {
     uint16_t *current = byteCode;
     uint16_t *end = byteCode + len;
 

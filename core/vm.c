@@ -397,14 +397,6 @@ int gst_continue(Gst *vm) {
             if (vm->thread->parent == NULL)
                 return GST_RETURN_ERROR;
             vm->thread = vm->thread->parent;
-            while (vm->thread->count < GST_FRAME_SIZE) {
-                if (vm->thread->parent) {
-                    vm->thread->status = GST_THREAD_DEAD;
-                    vm->thread = vm->thread->parent;
-                } else {
-                    return GST_RETURN_ERROR;
-                }
-            }
             stack = vm->thread->data + vm->thread->count;
             stack[gst_frame_ret(stack)] = vm->ret;
             pc = gst_frame_pc(stack);
@@ -424,21 +416,16 @@ int gst_continue(Gst *vm) {
 /* Run the vm with a given function. This function is
  * called to start the vm. */
 int gst_run(Gst *vm, GstValue callee) {
-    int status;
-    GstValue *stack;
     vm->thread = gst_thread(vm, callee, 64);
     if (vm->thread == NULL)
         return GST_RETURN_CRASH;
-    stack = gst_thread_stack(vm->thread);
-    /* If callee was not actually a function, get the delegate function */
-    callee = gst_frame_callee(stack);
     if (callee.type == GST_CFUNCTION) {
         vm->ret.type = GST_NIL;
-        status = callee.data.cfunction(vm);
-        gst_thread_popframe(vm, vm->thread);
-        return status;
-    } else {
+        return callee.data.cfunction(vm);
+    } else if (callee.type == GST_FUNCTION) {
         return gst_continue(vm);
+    } else {
+        return GST_RETURN_CRASH;
     }
 }
 
