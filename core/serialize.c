@@ -411,9 +411,17 @@ static const char *gst_deserialize_impl(
             break;
 
         case 216: /* C function */
-            /* TODO - add registry for c functions */
             {
-                ret.type = GST_NIL;
+                GstValue id;
+                read_u32(length);
+                deser_datacheck(length);
+                id = gst_wrap_string(gst_string_b(vm, data, length));
+                data += length;
+                ret = gst_table_get(vm->registry, id);
+                if (ret.type != GST_CFUNCTION) {
+                    deser_error("unabled to deserialize c function");
+                }
+                break;
             }
             break;
 
@@ -477,7 +485,6 @@ const char *gst_serialize_impl(
 
     /* Check non reference types - if successful, return NULL */
     switch (x.type) {
-        case GST_CFUNCTION:
         case GST_USERDATA:
         case GST_NIL:
             write_byte(201);
@@ -562,6 +569,18 @@ const char *gst_serialize_impl(
             write_u32(count);
             for (i = 0; i < count; ++i) {
                 write_byte(x.data.string[i]);
+            }
+            break;
+
+        case GST_CFUNCTION:
+            write_byte(216);
+            {
+                GstValue id = gst_table_get(vm->registry, x);
+                count = gst_string_length(id.data.string);
+                write_u32(count);
+                for (i = 0; i < count; ++i) {
+                    write_byte(id.data.string[i]);
+                }
             }
             break;
 

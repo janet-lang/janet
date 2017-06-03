@@ -490,12 +490,10 @@ uint32_t gst_count_args(Gst *vm);
 /* C Api */
 /****/
 
-GstValue gst_cmodule_table(Gst *vm, const GstModuleItem *mod);
-GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod);
-void gst_module_put(Gst *vm, const char *packagename, GstValue mod);
+void gst_module(Gst *vm, const char *packagename, const GstModuleItem *mod);
+void gst_module_mutable(Gst *vm, const char *packagename, const GstModuleItem *mod);
 GstValue gst_module_get(Gst *vm, const char *packagename);
-void gst_register_put(Gst *vm, const char *packagename, GstValue mod);
-GstValue gst_register_get(Gst *vm, const char *name);
+void gst_module_put(Gst *vm, const char *packagename, const char *name, GstValue v);
 
 /* Wrap data in GstValue */
 GstValue gst_wrap_nil();

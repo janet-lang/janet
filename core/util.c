@@ -84,7 +84,24 @@ void *gst_check_userdata(Gst *vm, uint32_t i, const GstUserType *type) {
     return x.data.pointer;
 }
 
-GstValue gst_cmodule_table(Gst *vm, const GstModuleItem *mod) {
+static void gst_cmodule_register(Gst *vm, const char *name, const GstModuleItem *mod) {
+    uint32_t startLength;
+    GstBuffer *buffer = gst_buffer(vm, 10);
+    gst_buffer_append_cstring(vm, buffer, name);
+    gst_buffer_push(vm, buffer, '.');
+    startLength = buffer->count;
+    while (mod->name != NULL) {
+        GstValue key;
+        buffer->count = startLength;
+        gst_buffer_append_cstring(vm, buffer, mod->name);
+        key = gst_wrap_string(gst_buffer_to_string(vm, buffer));
+        gst_table_put(vm, vm->registry, key, gst_wrap_cfunction(mod->data));
+        gst_table_put(vm, vm->registry, gst_wrap_cfunction(mod->data), key);
+        mod++;
+    }
+}
+
+static GstValue gst_cmodule_table(Gst *vm, const GstModuleItem *mod) {
     GstTable *module = gst_table(vm, 10);
     while (mod->name != NULL) {
         GstValue key = gst_string_cv(vm, mod->name);
@@ -94,7 +111,7 @@ GstValue gst_cmodule_table(Gst *vm, const GstModuleItem *mod) {
     return gst_wrap_table(module);
 }
 
-GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
+static GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
     uint32_t count = 0;
     const GstModuleItem *m = mod;
     GstValue *st;
@@ -113,20 +130,36 @@ GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
     return gst_wrap_struct(gst_struct_end(vm, st));
 }
 
-void gst_module_put(Gst *vm, const char *packagename, GstValue mod) {
-    gst_table_put(vm, vm->modules, gst_string_cv(vm, packagename), mod);
+void gst_module(Gst *vm, const char *packagename, const GstModuleItem *mod) {
+    gst_table_put(vm, vm->modules, gst_string_cv(vm, packagename), gst_cmodule_struct(vm, mod));
+    gst_cmodule_register(vm, packagename, mod);
+}
+
+void gst_module_mutable(Gst *vm, const char *packagename, const GstModuleItem *mod) {
+    gst_table_put(vm, vm->modules, gst_string_cv(vm, packagename), gst_cmodule_table(vm, mod));
+    gst_cmodule_register(vm, packagename, mod);
+}
+
+void gst_module_put(Gst *vm, const char *packagename, const char *name, GstValue v) {
+    GstValue modtable = gst_table_get(vm->modules, gst_string_cv(vm, packagename));
+    if (modtable.type == GST_TABLE) {
+        GstTable *table = modtable.data.table;
+        if (v.type == GST_CFUNCTION) {
+            GstValue key;
+            GstBuffer *buffer = gst_buffer(vm, 10);
+            gst_buffer_append_cstring(vm, buffer, packagename);
+            gst_buffer_push(vm, buffer, '.');
+            gst_buffer_append_cstring(vm, buffer, name);
+            key = gst_wrap_string(gst_buffer_to_string(vm, buffer));
+            gst_table_put(vm, vm->registry, key, v);
+            gst_table_put(vm, vm->registry, v, key);
+        }
+        gst_table_put(vm, table, gst_string_cv(vm, name), v);
+    }
 }
 
 GstValue gst_module_get(Gst *vm, const char *packagename) {
     return gst_table_get(vm->modules, gst_string_cv(vm, packagename));
-}
-
-void gst_register_put(Gst *vm, const char *name, GstValue c) {
-    gst_table_put(vm, vm->registry, gst_string_cv(vm, name), c);
-}
-
-GstValue gst_register_get(Gst *vm, const char *name) {
-    return gst_table_get(vm->registry, gst_string_cv(vm, name));
 }
 
 /****/

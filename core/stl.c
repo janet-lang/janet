@@ -603,13 +603,6 @@ int gst_stl_deserialize(Gst *vm) {
 /* Registry */
 /****/
 
-/* Export a symbol definition to the current namespace. Used to implement
- * def */
-int gst_stl_export(Gst *vm) {
-    gst_table_put(vm, vm->registry, gst_arg(vm, 0), gst_arg(vm, 1));
-    gst_c_return(vm, gst_arg(vm, 1));
-}
-
 /* Get everything in the current namespace */
 int gst_stl_namespace(Gst *vm) {
     gst_c_return(vm, gst_wrap_table(vm->registry));
@@ -774,16 +767,14 @@ static const GstModuleItem const io_dat[] = {
 /* Load the io module */
 void gst_stlio_load(Gst *vm) {
     /* Load the normal c functions */
-    GstValue module = gst_cmodule_table(vm, io_dat);
-    GstTable *tab = module.data.table;
+    gst_module_mutable(vm, "std.io", io_dat);
     /* Wrap stdin and stdout */
     FILE **inp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
     FILE **outp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
     *inp = stdin;
     *outp = stdout;
-    gst_table_put(vm, tab, gst_string_cv(vm, "stdin"), gst_wrap_userdata(inp));
-    gst_table_put(vm, tab, gst_string_cv(vm, "stdout"), gst_wrap_userdata(outp));
-    gst_module_put(vm, "std.io", module);
+    gst_module_put(vm, "std.io", "stdin", gst_wrap_userdata(inp));
+    gst_module_put(vm, "std.io", "stdout", gst_wrap_userdata(outp));
 }
 
 /****/
@@ -919,7 +910,6 @@ static const GstModuleItem const std_module[] = {
     {"error", gst_stl_error},
     {"serialize", gst_stl_serialize},
     {"deserialize", gst_stl_deserialize},
-    {"export!", gst_stl_export},
     {"namespace", gst_stl_namespace},
     {"namespace-set!", gst_stl_namespace_set},
     {"namespace-get", gst_stl_namespace_get},
@@ -944,5 +934,5 @@ static const GstModuleItem const std_module[] = {
 /* Load all libraries */
 void gst_stl_load(Gst *vm) {
     gst_stlio_load(vm);
-    gst_module_put(vm, "std", gst_cmodule_struct(vm, std_module));
+    gst_module(vm, "std", std_module);
 }

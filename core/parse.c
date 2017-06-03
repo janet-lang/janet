@@ -648,5 +648,5 @@ static const GstModuleItem gst_parser_module[] = {
 
 /* Load the module */
 void gst_parse_load(Gst *vm) {
-	gst_module_put(vm, "std.parse", gst_cmodule_struct(vm, gst_parser_module));
+	gst_module(vm, "std.parse", gst_parser_module);
 }

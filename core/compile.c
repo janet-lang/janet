@@ -1237,5 +1237,5 @@ static const GstModuleItem gst_compile_module[] = {
 
 /* Load compiler library */
 void gst_compile_load(Gst *vm) {
-    gst_module_put(vm, "std.compile", gst_cmodule_struct(vm, gst_compile_module));
+    gst_module(vm, "std.compile", gst_compile_module);
 }
