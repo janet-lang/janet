@@ -412,10 +412,7 @@ static const char *gst_deserialize_impl(
 
         case 216: /* C function */
             /* TODO - add registry for c functions */
-            /* For now just add 64 bit integer */
             {
-                int64_t rawp;
-                read_i64(rawp);
                 ret.type = GST_NIL;
             }
             break;
