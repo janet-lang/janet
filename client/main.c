@@ -42,7 +42,6 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
     gst_compiler_usemodule(&c, "std.parse");
     gst_compiler_usemodule(&c, "std.compile");
     gst_compiler_global(&c, "_", last);
-    gst_compiler_globals(&c, gst_wrap_table(vm->registry));
     func = gst_wrap_function(gst_compiler_compile(&c, ast));
     /* Check for compilation errors */
     if (c.error.type != GST_NIL) {

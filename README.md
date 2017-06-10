@@ -40,3 +40,32 @@ client directory, so running a program `script.gst` from the project directory
 client/gst script.gst 
 ```
 
+## Todo
+
+* Use serialization to allow creation of bytecode files that can be loaded.
+  This includes defining a file format for the bytecode files.
+* Better error messages, expecially for compilation. This probably means string
+  formating functions.
+* Pattern matching/regex library.
+* Macro/specials system that happens before compilation
+* Module system that happens before compilation. This would be closely tied to
+  the macro/specials system (require implemented as compile time special). For
+  now, a runtime require might make more sense.
+* Change name (gst is the name of many projects, including GNU Smalltalk).
+  Maybe make logo :)?
+* Automated testing, including Makefile target.
+* Travis CI.
+* Change C API to be stack based for fewer potential memory management
+  problems. This could mean making current C API internal and use separate
+  API externally.
+* Store source information in parallel data structure after parsing
+* Use source information during compilation
+* Bitwise operators that operate on integer types
+* Use Lua style memory alocator backend C API (one single function for
+  allocating/reallocating/freeing memory).
+* More CLI functionality for main client
+* Document builtin libraries and functions.
+* Document C API.
+* More builtin libraires.
+* Fuzzing
+
