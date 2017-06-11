@@ -94,6 +94,46 @@ int gst_stl_div(Gst *vm) {
 
 #undef SIMPLE_ACCUM_FUNCTION
 
+#define BITWISE_FUNCTION(name, op) \
+int gst_stl_##name(Gst *vm) {\
+    GstValue ret;\
+    uint32_t i, count;\
+    count = gst_count_args(vm);\
+    ret = gst_arg(vm, 0);\
+    if (ret.type != GST_INTEGER) {\
+        gst_c_throwc(vm, "expected integer");\
+    }\
+    if (count < 2) {\
+        gst_c_return(vm, ret);\
+    }\
+    for (i = 1; i < count; ++i) {\
+        GstValue next = gst_arg(vm, i);\
+        if (next.type != GST_INTEGER) {\
+            gst_c_throwc(vm, "expected integer");\
+        }\
+        ret.data.integer = ret.data.integer op next.data.integer;\
+    }\
+    gst_c_return(vm, ret);\
+}
+
+BITWISE_FUNCTION(band, &)
+BITWISE_FUNCTION(bor, |)
+BITWISE_FUNCTION(bxor, ^)
+BITWISE_FUNCTION(blshift, <<)
+BITWISE_FUNCTION(brshift, >>)
+
+#undef BITWISE_FUNCTION
+
+int gst_stl_bnot(Gst *vm) {
+    GstValue in = gst_arg(vm, 0);
+    uint32_t count = gst_count_args(vm);
+    if (count != 1 || in.type != GST_INTEGER) {
+        gst_c_throwc(vm, "expected 1 integer argument");
+    }
+    in.data.integer = ~in.data.integer;
+    gst_c_return(vm, in);
+}
+
 #define COMPARE_FUNCTION(name, check)\
 int gst_stl_##name(Gst *vm) {\
     GstValue ret;\
@@ -875,15 +915,25 @@ int gst_stl_debugp(Gst *vm) {
 /****/
 
 static const GstModuleItem const std_module[] = {
+    /* Arithmetic */
     {"+", gst_stl_add},
     {"*", gst_stl_mul},
     {"-", gst_stl_sub},
     {"/", gst_stl_div},
+    /* Comparisons */
     {"<", gst_stl_lessthan},
     {">", gst_stl_greaterthan},
     {"=", gst_stl_equal},
     {"<=", gst_stl_lessthaneq},
     {">=", gst_stl_greaterthaneq},
+    /* Bitwise arithmetic */
+    {"band", gst_stl_band},
+    {"bor", gst_stl_bor},
+    {"bxor", gst_stl_bxor},
+    {"blshift", gst_stl_blshift},
+    {"brshift", gst_stl_brshift},
+    {"bnot", gst_stl_bnot},
+    /* Other */
     {"not", gst_stl_not},
     {"length", gst_stl_length},
     {"hash", gst_stl_hash},
