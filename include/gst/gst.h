@@ -24,6 +24,7 @@
 #define GST_H_defined
 
 #include <stdint.h>
+#include <stdarg.h>
 
 /* String utils */
 #define gst_string_raw(s) ((uint32_t *)(s) - 2)
@@ -206,6 +207,7 @@ struct GstThread {
     uint32_t capacity;
     GstValue *data;
     GstThread *parent;
+    GstThread *errorParent;
     enum {
         GST_THREAD_PENDING = 0,
         GST_THREAD_ALIVE,
@@ -490,10 +492,13 @@ uint32_t gst_count_args(Gst *vm);
 /* C Api */
 /****/
 
-void gst_module(Gst *vm, const char *packagename, const GstModuleItem *mod);
-void gst_module_mutable(Gst *vm, const char *packagename, const GstModuleItem *mod);
+void gst_module(Gst *vm, const char *name, const GstModuleItem *mod);
+void gst_module_mutable(Gst *vm, const char *name, const GstModuleItem *mod);
+void gst_module_put(Gst *vm, const char *packagename, const char *name, GstValue x);
 GstValue gst_module_get(Gst *vm, const char *packagename);
-void gst_module_put(Gst *vm, const char *packagename, const char *name, GstValue v);
+void gst_register_put(Gst *vm, const char *packagename, GstValue mod);
+GstValue gst_register_get(Gst *vm, const char *name);
+int gst_callc(Gst *vm, GstCFunction fn, int numargs, ...);
 
 /* Wrap data in GstValue */
 GstValue gst_wrap_nil();

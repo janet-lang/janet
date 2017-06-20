@@ -237,3 +237,18 @@ GstInteger gst_endrange(GstInteger raw, uint32_t len) {
         return len + raw + 1;
     return raw;
 }
+
+int gst_callc(Gst *vm, GstCFunction fn, int numargs, ...) {
+    int result, i;
+    va_list args;
+    GstValue *stack;
+    va_start(args, numargs);
+    stack = gst_thread_beginframe(vm, vm->thread, gst_wrap_cfunction(fn), numargs);
+    for (i = 0; i < numargs; ++i) {
+        stack[i] = va_arg(args, GstValue);
+    }
+    va_end(args);
+    result = fn(vm);
+    gst_thread_popframe(vm, vm->thread);
+    return result;
+}

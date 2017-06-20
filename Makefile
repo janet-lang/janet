@@ -19,12 +19,10 @@ GST_CORE_SOURCES=$(addprefix core/,\
 				 compile.c disasm.c parse.c stl.c ids.c util.c\
 				 value.c vm.c ds.c gc.c thread.c serialize.c)
 GST_CORE_OBJECTS=$(patsubst %.c,%.o,$(GST_CORE_SOURCES))
-$(GST_CORELIB): $(GST_CORE_OBJECTS) $(GST_HEADERS)
-	ar rcs $(GST_CORELIB) $(GST_CORE_OBJECTS)
 
-##############################
-##### The example client #####
-##############################
+######################
+##### The client #####
+######################
 GST_CLIENT_SOURCES=client/main.c
 GST_CLIENT_OBJECTS=$(patsubst %.c,%.o,$(GST_CLIENT_SOURCES))
 $(GST_TARGET): $(GST_CLIENT_OBJECTS) $(GST_CORE_OBJECTS)
@@ -49,5 +47,8 @@ clean:
 	rm $(GST_CORE_OBJECTS) || true
 	rm $(GST_CLIENT_OBJECTS) || true
 	rm vgcore.* || true
+
+test: $(GST_TARGET)
+	gsttests/basic.gst
 
 .PHONY: clean install run debug valgrind

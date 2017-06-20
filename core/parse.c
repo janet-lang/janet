@@ -101,6 +101,8 @@ static void parser_push(GstParser *p, ParseType type, uint8_t character) {
     switch (type) {
         case PTYPE_STRING:
             top->buf.string.state = STRING_STATE_BASE;
+            top->buf.string.buffer = gst_buffer(p->vm, 10);
+            break;
         case PTYPE_TOKEN:
             top->buf.string.buffer = gst_buffer(p->vm, 10);
             break;
@@ -458,6 +460,8 @@ static void dispatch_char(GstParser *p, uint8_t c) {
  */
 int gst_parse_cstring(GstParser *p, const char *string) {
     int bytesRead = 0;
+    if (!string)
+        return 0;
     while ((p->status == GST_PARSER_PENDING || p->status == GST_PARSER_ROOT)
             && (string[bytesRead] != '\0')) {
         dispatch_char(p, string[bytesRead++]);
@@ -468,6 +472,8 @@ int gst_parse_cstring(GstParser *p, const char *string) {
 /* Parse a gst string */
 int gst_parse_string(GstParser *p, const uint8_t *string) {
     uint32_t i;
+    if (!string)
+        return 0;
     for (i = 0; i < gst_string_length(string); ++i) {
         if (p->status != GST_PARSER_PENDING && p->status != GST_PARSER_ROOT) break;
         dispatch_char(p, string[i]);

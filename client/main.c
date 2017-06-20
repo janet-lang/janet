@@ -117,6 +117,8 @@ int debug_repl(Gst *vm) {
                 break;
             if (!reader || *reader == '\0') {
                 buffer = readline(">> ");
+                if (*buffer == '\0')
+                    return 0;
                 add_history(buffer);
                 reader = buffer;
             }

@@ -147,6 +147,8 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
                     frame = gst_mark_stackframe(vm, frame);
                 if (thread->parent)
                     gst_mark_value(vm, gst_wrap_thread(thread->parent));
+                if (thread->errorParent)
+                    gst_mark_value(vm, gst_wrap_thread(thread->errorParent));
             }
             break;
 

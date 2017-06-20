@@ -945,6 +945,7 @@ static SpecialFormHelper get_special(const GstValue *form) {
                     return compile_apply;
                 }
             }
+            break;
         case 'd':
             {
                 if (gst_string_length(name) == 2 &&
@@ -989,6 +990,7 @@ static SpecialFormHelper get_special(const GstValue *form) {
                     return compile_tran;
                 }
             }
+            break;
         case 'w':
             {
                 if (gst_string_length(name) == 5 &&

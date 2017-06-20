@@ -446,9 +446,21 @@ int gst_stl_string(Gst *vm) {
 int gst_stl_thread(Gst *vm) {
     GstThread *t;
     GstValue callee = gst_arg(vm, 0);
+    GstValue parent = gst_arg(vm, 1);
+    GstValue errorParent = gst_arg(vm, 2);
+    t = gst_thread(vm, callee, 10);
     if (callee.type != GST_FUNCTION && callee.type != GST_CFUNCTION)
         gst_c_throwc(vm, "expected function in thread constructor");
-    t = gst_thread(vm, callee, 10);
+    if (parent.type == GST_THREAD) {
+        t->parent = parent.data.thread;    
+    } else if (parent.type != GST_NIL) {
+        gst_c_throwc(vm, "expected thread/nil as parent");
+    }
+    if (errorParent.type == GST_THREAD) {
+        t->errorParent = errorParent.data.thread;    
+    } else if (errorParent.type != GST_NIL) {
+        gst_c_throwc(vm, "expected thread/nil as error parent");
+    }
     t->parent = vm->thread;
     gst_c_return(vm, gst_wrap_thread(t));
 }
@@ -669,12 +681,13 @@ int gst_stl_namespace_set(Gst *vm) {
 
 /* Get the table or struct associated with a given namespace */
 int gst_stl_namespace_get(Gst *vm) {
-    GstValue name = gst_arg(vm, 0);
-    GstValue check;
-    if (name.type != GST_STRING)
-        gst_c_throwc(vm, "expected string");
-    check = gst_table_get(vm->modules, name);
-    gst_c_return(vm, check);
+    return gst_callc(vm, gst_stl_get, 2, gst_wrap_table(vm->modules), gst_arg(vm, 0));
+    /*GstValue name = gst_arg(vm, 0);*/
+    /*GstValue check;*/
+    /*if (name.type != GST_STRING)*/
+        /*gst_c_throwc(vm, "expected string");*/
+    /*check = gst_table_get(vm->modules, name);*/
+    /*gst_c_return(vm, check);*/
 }
 
 /***/
@@ -796,7 +809,7 @@ int gst_stl_close(Gst *vm) {
 }
 
 /* Functions in the io module */
-static const GstModuleItem const io_dat[] = {
+static const GstModuleItem io_dat[] = {
     {"open", gst_stl_open},
     {"slurp", gst_stl_slurp},
     {"read", gst_stl_read},
@@ -914,7 +927,7 @@ int gst_stl_debugp(Gst *vm) {
 /* Bootstraping */
 /****/
 
-static const GstModuleItem const std_module[] = {
+static const GstModuleItem std_module[] = {
     /* Arithmetic */
     {"+", gst_stl_add},
     {"*", gst_stl_mul},

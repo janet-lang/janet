@@ -38,7 +38,7 @@
  * Byte 207: Buffer  - [u32 capacity][u32 length]*[u8... characters]
  * Byte 208: Array   - [u32 length]*[value... elements]
  * Byte 209: Tuple   - [u32 length]*[value... elements]
- * Byte 210: Thread  - [value parent][u8 state][u32 frames]*[[value callee][value env]
+ * Byte 210: Thread  - [value parent][value errorParent][u8 state][u32 frames]*[[value callee][value env]
  *  [u32 pcoffset][u32 ret][u32 args][u32 size]*[value ...stack]]
  * Byte 211: Table   - [u32 length]*2*[value... kvs]
  * Byte 212: FuncDef - [u32 locals][u32 arity][u32 flags][u32 literallen]*[value...
@@ -249,7 +249,16 @@ static const char *gst_deserialize_impl(
                 } else if (ret.type == GST_THREAD) {
                     t->parent = ret.data.thread;
                 } else {
-                    return "expected thread parent to thread";
+                    return "expected thread parent to be thread";
+                }
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &ret);
+                if (err != NULL) return err;
+                if (ret.type == GST_NIL) {
+                    t->errorParent = NULL;
+                } else if (ret.type == GST_THREAD) {
+                    t->errorParent = ret.data.thread;
+                } else {
+                    return "expected thread error parent to be thread";
                 }
                 deser_assert(data < end, UEB);
                 statusbyte = *data++;
@@ -520,10 +529,10 @@ const char *gst_serialize_impl(
     }
 
     /* Check tuples and structs before other reference types.
-     * They ae immutable, and thus cannot be referenced by other values
+     * They are immutable, and thus cannot be referenced by other values
      * until they are fully constructed. This creates some strange behavior
      * if they are treated like other reference types because they cannot
-     * be added to the visited table before recusring into serializing their
+     * be added to the visited table before recursing into serializing their
      * arguments */
     if (x.type == GST_STRUCT || x.type == GST_TUPLE) {
         if (x.type == GST_STRUCT) {
@@ -630,6 +639,11 @@ const char *gst_serialize_impl(
                 write_byte(210);
                 if (t->parent)
                     err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_thread(t->parent));
+                else
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil());
+                if (t->errorParent)
+                    err = gst_serialize_impl(vm, buffer, visited, nextId,
+							gst_wrap_thread(t->errorParent));
                 else
                     err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil());
                 if (err != NULL) return err;

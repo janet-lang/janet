@@ -42,6 +42,7 @@ GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity) {
     gst_frame_callee(stack) = callee;
     gst_thread_endframe(vm, thread);
     thread->parent = NULL; /* Need to set parent manually */
+    thread->errorParent = NULL;
     return thread;
 }
 

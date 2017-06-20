@@ -394,9 +394,9 @@ int gst_continue(Gst *vm) {
         /* Handle errors from c functions and vm opcodes */
         vm_error:
             vm->thread->status = GST_THREAD_ERROR;
-            if (vm->thread->parent == NULL)
+            if (vm->thread->errorParent == NULL)
                 return GST_RETURN_ERROR;
-            vm->thread = vm->thread->parent;
+            vm->thread = vm->thread->errorParent;
             stack = vm->thread->data + vm->thread->count;
             stack[gst_frame_ret(stack)] = vm->ret;
             pc = gst_frame_pc(stack);
