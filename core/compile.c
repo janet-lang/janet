@@ -21,7 +21,6 @@
 */
 
 #include <gst/gst.h>
-#include <gst/compile.h>
 
 /* During compilation, FormOptions are passed to ASTs
  * as configuration options to allow for some optimizations. */
@@ -1209,35 +1208,4 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
         func->env = env;
         return func;
     }
-}
-
-/***/
-/* Stl */
-/***/
-
-/* Compile a value */
-static int gst_stl_compile(Gst *vm) {
-    GstFunction *ret;
-    GstValue std;
-	GstCompiler c;
-    gst_compiler(&c, vm);
-    std = gst_table_get(vm->modules, gst_string_cv(vm, "std"));
-    gst_compiler_globals(&c, std);
-    gst_compiler_globals(&c, gst_arg(vm, 1));
-    gst_compiler_nilglobals(&c, gst_arg(vm, 2));
-    ret = gst_compiler_compile(&c, gst_arg(vm, 0));
-    if (!ret)
-        gst_c_throw(vm, c.error);
-    gst_c_return(vm, gst_wrap_function(ret));
-}
-
-/* The module stuff */
-static const GstModuleItem gst_compile_module[] = {
-    {"compile", gst_stl_compile},
-    {NULL, NULL}
-};
-
-/* Load compiler library */
-void gst_compile_load(Gst *vm) {
-    gst_module(vm, "std.compile", gst_compile_module);
 }

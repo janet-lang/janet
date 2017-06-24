@@ -8,7 +8,7 @@ PREFIX=/usr/local
 GST_TARGET=client/gst
 GST_CORELIB=core/libgst.a
 GST_INTERNAL_HEADERS=$(addprefix core/, cache.h)
-GST_HEADERS=$(addprefix include/gst/, gst.h stl.h compile.h disasm.h parse.h)
+GST_HEADERS=$(addprefix include/gst/, gst.h)
 
 all: $(GST_TARGET)
 
@@ -16,7 +16,7 @@ all: $(GST_TARGET)
 ##### The core vm and runtime #####
 ###################################
 GST_CORE_SOURCES=$(addprefix core/,\
-				 compile.c disasm.c parse.c stl.c ids.c util.c\
+				 compile.c parse.c stl.c ids.c util.c\
 				 value.c vm.c ds.c gc.c thread.c serialize.c)
 GST_CORE_OBJECTS=$(patsubst %.c,%.o,$(GST_CORE_SOURCES))
 
@@ -49,6 +49,6 @@ clean:
 	rm vgcore.* || true
 
 test: $(GST_TARGET)
-	gsttests/basic.gst
+	$(GST_TARGET) gsttests/basic.gst
 
 .PHONY: clean install run debug valgrind

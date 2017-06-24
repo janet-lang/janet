@@ -23,9 +23,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <gst/gst.h>
-#include <gst/parse.h>
-#include <gst/compile.h>
-#include <gst/stl.h>
 
 /* Use readline support for now */
 #include <readline/readline.h>
@@ -38,9 +35,6 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
     /* Try to compile generated AST */
     gst_compiler(&c, vm);
     gst_compiler_usemodule(&c, "std");
-    gst_compiler_usemodule(&c, "std.io");
-    gst_compiler_usemodule(&c, "std.parse");
-    gst_compiler_usemodule(&c, "std.compile");
     gst_compiler_global(&c, "_", last);
     func = gst_wrap_function(gst_compiler_compile(&c, ast));
     /* Check for compilation errors */
@@ -147,8 +141,7 @@ int main(int argc, const char **argv) {
 
     gst_init(&vm);
     gst_stl_load(&vm);
-    gst_parse_load(&vm);
-    gst_compile_load(&vm);
+
     if (argc > 1) {
         const char *filename;
         FILE *f;

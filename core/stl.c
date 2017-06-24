@@ -21,11 +21,6 @@
 */
 
 #include <gst/gst.h>
-#include <gst/parse.h>
-#include <gst/compile.h>
-#include <gst/stl.h>
-
-#include <gst/disasm.h>
 
 static const char GST_EXPECTED_INTEGER[] = "expected integer";
 static const char GST_EXPECTED_STRING[] = "expected string";
@@ -682,12 +677,6 @@ int gst_stl_namespace_set(Gst *vm) {
 /* Get the table or struct associated with a given namespace */
 int gst_stl_namespace_get(Gst *vm) {
     return gst_callc(vm, gst_stl_get, 2, gst_wrap_table(vm->modules), gst_arg(vm, 0));
-    /*GstValue name = gst_arg(vm, 0);*/
-    /*GstValue check;*/
-    /*if (name.type != GST_STRING)*/
-        /*gst_c_throwc(vm, "expected string");*/
-    /*check = gst_table_get(vm->modules, name);*/
-    /*gst_c_return(vm, check);*/
 }
 
 /***/
@@ -808,48 +797,9 @@ int gst_stl_close(Gst *vm) {
     gst_c_return(vm, gst_wrap_nil());
 }
 
-/* Functions in the io module */
-static const GstModuleItem io_dat[] = {
-    {"open", gst_stl_open},
-    {"slurp", gst_stl_slurp},
-    {"read", gst_stl_read},
-    {"write", gst_stl_write},
-    {NULL, NULL}
-};
-
-/* Load the io module */
-void gst_stlio_load(Gst *vm) {
-    /* Load the normal c functions */
-    gst_module_mutable(vm, "std.io", io_dat);
-    /* Wrap stdin and stdout */
-    FILE **inp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
-    FILE **outp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
-    *inp = stdin;
-    *outp = stdout;
-    gst_module_put(vm, "std.io", "stdin", gst_wrap_userdata(inp));
-    gst_module_put(vm, "std.io", "stdout", gst_wrap_userdata(outp));
-}
-
 /****/
 /* Temporary */
 /****/
-
-/* These functions should definitely be moved to a different module, removed, or
- * rewritten in gst when the language is complete enough. This is not to say
- * that functions in other section need not be moved. */
-
-/* Print disassembly for a function */
-int gst_stl_dasm(Gst *vm) {
-    GstValue x = gst_arg(vm, 0);
-    if (x.type == GST_FUNCTION) {
-        printf("%c[31m===== Begin Disassembly =====\n", 27);
-        gst_dasm_function(stdout, x.data.function);
-        printf("=====  End Disassembly  =====%c[0m\n", 27);
-    } else {
-        gst_c_throwc(vm, "expected function");
-    }
-    return GST_RETURN_OK;
-}
 
 /* Force garbage collection */
 int gst_stl_gcollect(Gst *vm) {
@@ -923,6 +873,184 @@ int gst_stl_debugp(Gst *vm) {
     gst_c_return(vm, gst_wrap_string(gst_buffer_to_string(vm, buf)));
 }
 
+/***/
+/* Parsing */
+/***/
+
+/* GC mark a parser */
+static void gst_stl_parser_mark(Gst *vm, void *data, uint32_t len) {
+    uint32_t i;
+    GstParser *p = (GstParser *) data;
+    if (len != sizeof(GstParser))
+        return;
+    gst_mark_mem(vm, p->data);
+    gst_mark_value(vm, p->value);
+    for (i = 0; i < p->count; ++i) {
+        GstParseState *ps = p->data + i;
+        switch (ps->type) {
+            case PTYPE_FORM:
+                gst_mark_value(vm, gst_wrap_array(ps->buf.form.array));
+                break;
+            case PTYPE_STRING:
+            case PTYPE_TOKEN:
+                gst_mark_value(vm, gst_wrap_buffer(ps->buf.string.buffer));
+                break;
+        }
+    }
+}
+
+/* Parse filetype */
+static const GstUserType gst_stl_parsetype = {
+    "std.parser",
+    NULL,
+    NULL,
+    NULL,
+    &gst_stl_parser_mark
+};
+
+/* Create a parser */
+static int gst_stl_parser(Gst *vm) {
+    GstParser *p = gst_userdata(vm, sizeof(GstParser), &gst_stl_parsetype);
+    gst_parser(p, vm);
+    gst_c_return(vm, gst_wrap_userdata(p));
+}
+
+/* Consume a value from the parser */
+static int gst_stl_parser_consume(Gst *vm) {
+    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
+    if (p == NULL)
+        gst_c_throwc(vm, "expected parser");
+    if (p->status == GST_PARSER_ERROR)
+        gst_c_return(vm, gst_string_cv(vm, p->error));
+    if (!gst_parse_hasvalue(p))
+        gst_c_throwc(vm, "parser has no pending value");
+    gst_c_return(vm, gst_parse_consume(p));
+}
+
+/* Check if the parser has a value to consume */
+static int gst_stl_parser_hasvalue(Gst *vm) {
+    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
+    if (p == NULL)
+        gst_c_throwc(vm, "expected parser");
+    gst_c_return(vm, gst_wrap_boolean(gst_parse_hasvalue(p)));
+}
+
+/* Parse a single byte. Returns if the byte was successfully parsed. */
+static int gst_stl_parser_byte(Gst *vm) {
+    GstInteger b;
+    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
+    if (p == NULL)
+        gst_c_throwc(vm, "expected parser");
+    if (!gst_check_integer(vm, 1, &b))
+        gst_c_throwc(vm, "expected integer");
+    if (p->status == GST_PARSER_PENDING || p->status == GST_PARSER_ROOT) {
+        gst_parse_byte(p, b);
+        gst_c_return(vm, gst_wrap_boolean(1));
+    } else {
+        gst_c_return(vm, gst_wrap_boolean(0));
+    }
+}
+
+/* Parse a string or buffer. Returns nil if the entire char array is parsed,
+* otherwise returns the remainder of what could not be parsed. */
+static int gst_stl_parser_charseq(Gst *vm) {
+    uint32_t i;
+    uint32_t len;
+    const uint8_t *data;
+    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
+    if (p == NULL)
+        gst_c_throwc(vm, "expected parser");
+    if (!gst_chararray_view(gst_arg(vm, 1), &data, &len))
+        gst_c_throwc(vm, "expected string/buffer");
+    for (i = 0; i < len; ++i) {
+        if (p->status != GST_PARSER_PENDING && p->status != GST_PARSER_ROOT) break;
+        gst_parse_byte(p, data[i]);
+    }
+    if (i == len) {
+        /* No remainder */
+        gst_c_return(vm, gst_wrap_nil());
+    } else {
+        /* We have remaining characters */
+        gst_c_return(vm, gst_wrap_string(gst_string_b(vm, data + i, len - i)));
+    }
+}
+
+/* Get status of parser */
+static int gst_stl_parser_status(Gst *vm) {
+    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
+    const char *cstr;
+    if (p == NULL)
+        gst_c_throwc(vm, "expected parser");
+    switch (p->status) {
+        case GST_PARSER_ERROR: 
+            cstr = "error";
+            break;
+        case GST_PARSER_FULL:
+            cstr = "full";
+            break;
+        case GST_PARSER_PENDING:
+            cstr = "pending";
+            break;
+        case GST_PARSER_ROOT:
+            cstr = "root";
+            break;
+        default:
+            cstr = "unknown";
+            break;
+    }
+    gst_c_return(vm, gst_string_cv(vm, cstr));
+}
+
+/* Parse a string */
+static int gst_stl_parse(Gst *vm) {
+    uint32_t len, i;
+    GstParser p;
+    const uint8_t *data;
+    if (!gst_chararray_view(gst_arg(vm, 0), &data, &len))
+        gst_c_throwc(vm, "expected string/buffer to parse");
+    gst_parser(&p, vm);
+    for (i = 0; i < len; ++i) {
+        if (p.status != GST_PARSER_PENDING && p.status != GST_PARSER_ROOT) break;
+        gst_parse_byte(&p, data[i]);
+    }
+    switch (p.status) {
+        case GST_PARSER_ERROR: 
+            gst_c_throwc(vm, p.error);
+            break;
+        case GST_PARSER_FULL:
+            gst_c_return(vm, p.value);
+            break;
+        case GST_PARSER_PENDING:
+        case GST_PARSER_ROOT:
+            gst_c_throwc(vm, "unexpected end of source");
+            break;
+        default:
+            gst_c_throwc(vm, "unknown error parsing");
+            break;
+    }
+    return 0;
+}
+
+/***/
+/* Compilation */
+/***/
+
+/* Compile a value */
+static int gst_stl_compile(Gst *vm) {
+    GstFunction *ret;
+    GstValue std;
+    GstCompiler c;
+    gst_compiler(&c, vm);
+    std = gst_table_get(vm->modules, gst_string_cv(vm, "std"));
+    gst_compiler_globals(&c, std);
+    gst_compiler_globals(&c, gst_arg(vm, 1));
+    gst_compiler_nilglobals(&c, gst_arg(vm, 2));
+    ret = gst_compiler_compile(&c, gst_arg(vm, 0));
+    if (!ret)
+        gst_c_throw(vm, c.error);
+    gst_c_return(vm, gst_wrap_function(ret));
+}
+
 /****/
 /* Bootstraping */
 /****/
@@ -946,6 +1074,22 @@ static const GstModuleItem std_module[] = {
     {"blshift", gst_stl_blshift},
     {"brshift", gst_stl_brshift},
     {"bnot", gst_stl_bnot},
+    /* IO */
+    {"open", gst_stl_open},
+    {"slurp", gst_stl_slurp},
+    {"read", gst_stl_read},
+    {"write", gst_stl_write},
+    /* Parsing */
+    {"parser", gst_stl_parser},
+    {"parse-byte", gst_stl_parser_byte},
+    {"parse-consume", gst_stl_parser_consume},
+    {"parse-hasvalue", gst_stl_parser_hasvalue},
+    {"parse-charseq", gst_stl_parser_charseq},
+    {"parse-status", gst_stl_parser_status},
+        {"parse-status", gst_stl_parser_status},
+{"parse", gst_stl_parse},
+    /* Compile */
+    {"compile", gst_stl_compile},
     /* Other */
     {"not", gst_stl_not},
     {"length", gst_stl_length},
@@ -988,7 +1132,6 @@ static const GstModuleItem std_module[] = {
     {"funcenv", gst_stl_funcenv},
     {"funcdef", gst_stl_funcdef},
     {"funcparent", gst_stl_funcparent},
-    {"dasm", gst_stl_dasm},
     {"gcollect", gst_stl_gcollect},
     {"debugp", gst_stl_debugp},
     {NULL, NULL}
@@ -996,6 +1139,16 @@ static const GstModuleItem std_module[] = {
 
 /* Load all libraries */
 void gst_stl_load(Gst *vm) {
-    gst_stlio_load(vm);
-    gst_module(vm, "std", std_module);
+    /* Load the normal c functions */
+    gst_module_mutable(vm, "std", std_module);
+    /* Wrap stdin and stdout */
+    FILE **inp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+    FILE **outp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+    FILE **errp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+    *inp = stdin;
+    *outp = stdout;
+    *errp = stderr;
+    gst_module_put(vm, "std", "stdin", gst_wrap_userdata(inp));
+    gst_module_put(vm, "std", "stdout", gst_wrap_userdata(outp));
+    gst_module_put(vm, "std", "stderr", gst_wrap_userdata(outp));
 }

@@ -513,9 +513,6 @@ const char *gst_serialize_impl(
                 write_int(x.data.integer);
             }
             return NULL;
-        /*case GST_CFUNCTION:*/
-            /* TODO */
-            break;
         default:
             break;
     }

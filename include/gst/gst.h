@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 #include <stdarg.h>
+#include <setjmp.h>
 
 /* String utils */
 #define gst_string_raw(s) ((uint32_t *)(s) - 2)
@@ -161,6 +162,10 @@ typedef struct GstFuncEnv GstFuncEnv;
 typedef union GstValueUnion GstValueUnion;
 typedef struct GstModuleItem GstModuleItem;
 typedef struct GstUserType GstUserType;
+typedef struct GstParser GstParser;
+typedef struct GstParseState GstParseState;
+typedef struct GstCompiler GstCompiler;
+typedef struct GstScope GstScope;
 
 /* C Api data types */
 struct GstModuleItem {
@@ -312,6 +317,62 @@ struct Gst {
     GstValue ret; /* Returned value from gst_start. */
 };
 
+/* The type of a ParseState */
+typedef enum ParseType {
+    PTYPE_FORM,
+    PTYPE_STRING,
+    PTYPE_TOKEN
+} ParseType;
+
+/* Contain a parse state that goes on the parse stack */
+struct GstParseState {
+    ParseType type;
+    union {
+        struct {
+            uint8_t endDelimiter;
+            GstArray *array;
+        } form;
+        struct {
+            GstBuffer *buffer;
+            uint32_t count;
+            uint32_t accum;
+            enum {
+                STRING_STATE_BASE,
+                STRING_STATE_ESCAPE,
+                STRING_STATE_ESCAPE_UNICODE,
+                STRING_STATE_ESCAPE_HEX
+            } state;
+        } string;
+    } buf;
+};
+
+/* Holds the parsing state */
+struct GstParser {
+    Gst *vm;
+    const char *error;
+    GstParseState *data;
+    GstValue value;
+    uint32_t count;
+    uint32_t cap;
+    uint32_t index;
+    uint32_t quoteCount;
+    enum {
+        GST_PARSER_PENDING = 0,
+        GST_PARSER_FULL,
+        GST_PARSER_ERROR,
+        GST_PARSER_ROOT
+    } status;
+};
+
+/* Compilation state */
+struct GstCompiler {
+    Gst *vm;
+    GstValue error;
+    jmp_buf onError;
+    GstScope *tail;
+    GstBuffer *buffer;
+};
+
 /* Bytecode */
 enum GstOpCode {
     GST_OP_FLS,     /* Load false */
@@ -456,6 +517,28 @@ const char *gst_deserialize(
 
 const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x);
 
+/***/
+/* Parsing */
+/***/
+
+void gst_parser(GstParser *p, Gst *vm);
+int gst_parse_cstring(GstParser *p, const char *string);
+int gst_parse_string(GstParser *p, const uint8_t *string);
+void gst_parse_byte(GstParser *p, uint8_t byte);
+int gst_parse_hasvalue(GstParser *p);
+GstValue gst_parse_consume(GstParser *p);
+
+/***/
+/* Compilation */
+/***/
+
+void gst_compiler(GstCompiler *c, Gst *vm);
+void gst_compiler_nilglobals(GstCompiler *c, GstValue env);
+void gst_compiler_globals(GstCompiler *c, GstValue env);
+void gst_compiler_global(GstCompiler *c, const char *name, GstValue x);
+void gst_compiler_usemodule(GstCompiler *c, const char *modulename);
+GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form);
+
 /****/
 /* GC */
 /****/
@@ -487,6 +570,12 @@ int gst_continue(Gst *vm);
 GstValue gst_arg(Gst *vm, uint32_t index);
 void gst_set_arg(Gst *vm, uint32_t index, GstValue x);
 uint32_t gst_count_args(Gst *vm);
+
+/***/
+/* Stl */
+/***/
+
+void gst_stl_load(Gst *vm);
 
 /****/
 /* C Api */
