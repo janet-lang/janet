@@ -252,3 +252,109 @@ int gst_callc(Gst *vm, GstCFunction fn, int numargs, ...) {
     gst_thread_popframe(vm, vm->thread);
     return result;
 }
+
+static GstTable *gst_env_inttab(Gst *vm, GstTable *env, GstInteger i) {
+    GstTable *tab;
+    GstValue key = gst_wrap_integer(i);
+    GstValue maybeTab = gst_table_get(env, key);
+    if (maybeTab.type != GST_TABLE) {
+        tab = gst_table(vm, 10);
+        gst_table_put(vm, env, key, gst_wrap_table(tab));
+    } else {
+        tab = maybeTab.data.table;
+    }
+    return tab;
+}
+
+GstTable *gst_env_nils(Gst *vm, GstTable *env) {
+    return gst_env_inttab(vm, env, GST_ENV_NILS);
+}
+
+GstTable *gst_env_meta(Gst *vm, GstTable *env) {
+    return gst_env_inttab(vm, env, GST_ENV_METADATA);
+}
+
+GstTable *gst_env_vars(Gst *vm, GstTable *env) {
+    return gst_env_inttab(vm, env, GST_ENV_VARS);
+}
+
+/* Add many global variables and bind to nil */
+static void mergenils(Gst *vm, GstTable *destEnv, GstTable *nils) {
+    const GstValue *data = nils->data;
+    uint32_t len = nils->capacity;
+    uint32_t i;
+    GstTable *destNils = gst_env_nils(vm, destEnv);
+    for (i = 0; i < len; i += 2) {
+        if (data[i].type == GST_STRING) {
+            gst_table_put(vm, destEnv, data[i], gst_wrap_nil());
+            gst_table_put(vm, destNils, data[i], gst_wrap_boolean(1));
+        }
+    }
+}
+
+/* Add many global variable metadata */
+static void mergemeta(Gst *vm, GstTable *destEnv, GstTable *meta) {
+    const GstValue *data = meta->data;
+    uint32_t len = meta->capacity;
+    uint32_t i;
+    GstTable *destMeta = gst_env_meta(vm, destEnv);
+    for (i = 0; i < len; i += 2) {
+        if (data[i].type == GST_STRING) {
+            gst_table_put(vm, destMeta, data[i], data[i + 1]);
+        }
+    }
+}
+
+/* Add many global variables */
+void gst_env_merge(Gst *vm, GstTable *destEnv, GstTable *srcEnv) {
+    const GstValue *data = srcEnv->data;
+    uint32_t len = srcEnv->capacity;
+    uint32_t i;
+    for (i = 0; i < len; i += 2) {
+        if (data[i].type == GST_STRING) {
+            gst_table_put(vm, destEnv, data[i], data[i + 1]);
+        } else if (data[i].type == GST_INTEGER) {
+            switch (data[i].data.integer) {
+                case GST_ENV_NILS:
+                    if (data[i + 1].type == GST_TABLE)
+                        mergenils(vm, destEnv, data[i + 1].data.table);
+                    break;
+                case GST_ENV_METADATA:
+                    if (data[i + 1].type == GST_TABLE)
+                        mergemeta(vm, destEnv, data[i + 1].data.table);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+}
+
+void gst_env_put(Gst *vm, GstTable *env, GstValue key, GstValue value) {
+    GstTable *meta = gst_env_meta(vm, env);
+    gst_table_put(vm, meta, key, gst_wrap_nil());
+    gst_table_put(vm, env, key, value);
+    if (value.type == GST_NIL) {
+        gst_table_put(vm, gst_env_nils(vm, env), key, gst_wrap_boolean(1));
+    }
+}
+
+void gst_env_putc(Gst *vm, GstTable *env, const char *key, GstValue value) {
+    GstValue keyv = gst_string_cv(vm, key);
+    gst_env_put(vm, env, keyv, value);
+}
+
+void gst_env_putvar(Gst *vm, GstTable *env, GstValue key, GstValue value) {
+    GstTable *meta = gst_env_meta(vm, env);
+    GstTable *newmeta = gst_table(vm, 4);
+    GstTable *vars = gst_env_vars(vm, env);
+    gst_table_put(vm, vars, key, value);
+    gst_table_put(vm, env, key, gst_wrap_table(vars));
+    gst_table_put(vm, newmeta, gst_string_cv(vm, "mutable"), gst_wrap_boolean(1));
+    gst_table_put(vm, meta, key, gst_wrap_table(newmeta));
+}
+
+void gst_env_putvarc(Gst *vm, GstTable *env, const char *key, GstValue value) {
+    GstValue keyv = gst_string_cv(vm, key);
+    gst_env_putvar(vm, env, keyv, value);
+}

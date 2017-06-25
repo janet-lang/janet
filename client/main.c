@@ -34,8 +34,7 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
     GstValue func;
     /* Try to compile generated AST */
     gst_compiler(&c, vm);
-    gst_compiler_usemodule(&c, "std");
-    gst_compiler_global(&c, "_", last);
+    gst_env_putc(vm, vm->env, "_", last);
     func = gst_wrap_function(gst_compiler_compile(&c, ast));
     /* Check for compilation errors */
     if (c.error.type != GST_NIL) {

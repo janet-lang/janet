@@ -22,6 +22,8 @@
 
 #include <gst/gst.h>
 
+#define GST_LOCAL_FLAG_MUTABLE 1
+
 /* During compilation, FormOptions are passed to ASTs
  * as configuration options to allow for some optimizations. */
 typedef struct FormOptions FormOptions;
@@ -31,7 +33,7 @@ struct FormOptions {
     uint16_t target;
     /* If the result of the value being compiled is not going to
      * be used, some forms can simply return a nil slot and save
-     * copmutation */
+     * co,putation */
     uint16_t resultUnused : 1;
     /* Allows the sub expression to evaluate into a
      * temporary slot of it's choice. A temporary Slot
@@ -89,8 +91,6 @@ struct GstScope {
     uint16_t *freeHeap;
     GstTable *literals;
     GstArray *literalsArray;
-    GstTable *namedLiterals;
-    GstTable *nilNamedLiterals; /* Work around tables not containg nil */
     GstTable *locals;
     GstScope *parent;
 };
@@ -126,16 +126,24 @@ static void c_error1(GstCompiler *c, GstValue e) {
     longjmp(c->onError, 1);
 }
 
+/* Quote something */
+static GstValue quote(Gst *vm, GstValue x) {
+    GstValue *q = gst_tuple_begin(vm, 2);
+    q[0] = gst_string_cv(vm, "quote");
+    q[1] = x; /* lit contains the var container of the environment */
+    return gst_wrap_tuple(gst_tuple_end(vm, q)); 
+}
+
 /* Push a new scope in the compiler and return
  * a pointer to it for configuration. There is
  * more configuration that needs to be done if
  * the new scope is a function declaration. */
 static GstScope *compiler_push_scope(GstCompiler *c, int sameFunction) {
     GstScope *scope = gst_alloc(c->vm, sizeof(GstScope));
-    scope->locals = gst_table(c->vm, 10);
-    scope->freeHeap = gst_alloc(c->vm, 10 * sizeof(uint16_t));
+    scope->locals = gst_table(c->vm, 4);
+    scope->freeHeap = gst_alloc(c->vm, 4 * sizeof(uint16_t));
     scope->heapSize = 0;
-    scope->heapCapacity = 10;
+    scope->heapCapacity = 4;
     scope->parent = c->tail;
     scope->frameSize = 0;
     scope->touchParent = 0;
@@ -152,14 +160,10 @@ static GstScope *compiler_push_scope(GstCompiler *c, int sameFunction) {
         scope->nextLocal = c->tail->nextLocal;
         scope->literals = c->tail->literals;
         scope->literalsArray = c->tail->literalsArray;
-        scope->namedLiterals = c->tail->namedLiterals;
-        scope->nilNamedLiterals = c->tail->nilNamedLiterals;
     } else {
         scope->nextLocal = 0;
-        scope->literals = gst_table(c->vm, 10);
-        scope->literalsArray = gst_array(c->vm, 10);
-        scope->namedLiterals = gst_table(c->vm, 10);
-        scope->nilNamedLiterals = gst_table(c->vm, 10);
+        scope->literals = gst_table(c->vm, 4);
+        scope->literalsArray = gst_array(c->vm, 4);
     }
     c->tail = scope;
     return scope;
@@ -194,7 +198,6 @@ static uint16_t compiler_get_local(GstCompiler *c, GstScope *scope) {
     } else {
         return scope->freeHeap[--scope->heapSize];
     }
-    return 0;
 }
 
 /* Free a slot on the stack for other locals and/or
@@ -286,6 +289,33 @@ static Slot compiler_realize_slot(GstCompiler *c, Slot slot) {
     return slot;
 }
 
+/* Coerce a slot to match form options. Can write to buffer. */
+static Slot compiler_coerce_slot(GstCompiler *c, FormOptions opts, Slot slot) {
+    GstScope *scope = c->tail;
+    if (opts.resultUnused) {
+        compiler_drop_slot(c, scope, slot);
+        slot.isNil = 1;
+        return slot;
+    } else {
+        slot = compiler_realize_slot(c, slot);
+    }
+    if (opts.canChoose) {
+
+    } else {
+        if (slot.index != opts.target) {
+             /* We need to move the variable. This
+             * would occur in a simple assignment like a = b. */
+            GstBuffer *buffer = c->buffer;
+            gst_buffer_push_u16(c->vm, buffer, GST_OP_MOV);
+            gst_buffer_push_u16(c->vm, buffer, opts.target);
+            gst_buffer_push_u16(c->vm, buffer, slot.index);
+            slot.index = opts.target;
+            slot.isTemp = 0; /* We don't own the slot anymore */
+        }
+    }
+    return slot;
+}
+
 /* Helper to get a nil slot */
 static Slot nil_slot() { Slot ret; ret.isNil = 1; ret.hasReturned = 0; return ret; }
 
@@ -350,43 +380,58 @@ static uint16_t compiler_add_literal(GstCompiler *c, GstScope *scope, GstValue x
 }
 
 /* Declare a symbol in a given scope. */
-static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValue sym) {
+static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValue sym, uint16_t flags) {
     GstValue x;
     uint16_t target;
     if (sym.type != GST_STRING)
         c_error(c, "expected string");
     target = compiler_get_local(c, scope);
     x.type = GST_INTEGER;
-    x.data.integer = target;
+    x.data.integer = target + (flags << 16);
     gst_table_put(c->vm, scope->locals, sym, x);
     return target;
 }
 
-/* Try to resolve a symbol. If the symbol can be resovled, return true and
+/* Try to resolve a symbol. If the symbol can be resolved, return true and
  * pass back the level and index by reference. */
-static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t *index, GstValue *out) {
+static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t *index, uint16_t *flags, GstValue *out) {
     GstScope *scope = c->tail;
+    GstValue check;
     uint32_t currentLevel = scope->level;
     while (scope) {
-        GstValue check = gst_table_get(scope->locals, x);
+        check = gst_table_get(scope->locals, x);
         if (check.type != GST_NIL) {
             *level = currentLevel - scope->level;
-            *index = (uint16_t) check.data.integer;
+            *index = (uint16_t) (check.data.integer & 0xFFFF);
+            if (flags) *flags = check.data.integer >> 16;
             return 1;
         }
-        /* Check for named literals */
-        check = gst_table_get(scope->namedLiterals, x);
-        if (check.type != GST_NIL) {
-            *out = check;
-            return 2; 
-        }
-        /* Check for nil named literal */
-        check = gst_table_get(scope->nilNamedLiterals, x);
-        if (check.type != GST_NIL) {
-            *out = gst_wrap_nil();
-            return 2;
-        }
         scope = scope->parent;
+    }
+    /* Check for named literals */
+    check = gst_table_get(c->env, x);
+    if (check.type != GST_NIL) {
+        /* Check metadata for var (mutable) */
+        GstTable *metas = gst_env_meta(c->vm, c->env);
+        GstValue maybeMeta = gst_table_get(metas, x);
+        if (maybeMeta.type == GST_TABLE) {
+            GstValue isMutable = gst_table_get(maybeMeta.data.table, gst_string_cv(c->vm, "mutable"));
+            if (gst_truthy(isMutable)) {
+                if (flags) *flags = GST_LOCAL_FLAG_MUTABLE;
+                *out = check;
+                return 3;
+            }
+        }
+        if (flags) *flags = 0;
+        *out = check;
+        return 2; 
+    }
+    /* Check for nil named literal */
+    check = gst_table_get(gst_env_nils(c->vm, c->env), x);
+    if (check.type != GST_NIL) {
+        if (flags) *flags = 0;
+        *out = gst_wrap_nil();
+        return 2;
     }
     return 0;
 }
@@ -471,7 +516,7 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
     uint16_t index = 0;
     uint16_t level = 0;
     Slot ret;
-    int status = symbol_resolve(c, sym, &level, &index, &lit);
+    int status = symbol_resolve(c, sym, &level, &index, NULL, &lit);
     if (!status) {
         c_error1(c, sym);
     }
@@ -479,6 +524,16 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
     if (status == 2) {
         /* We have a named literal */
         return compile_literal(c, opts, lit);
+    } else if (status == 3) {
+        /* We have a global variable */
+        const GstValue *tup;
+        Gst *vm= c->vm;
+        GstValue *t = gst_tuple_begin(vm, 3);
+        t[0] = gst_string_cv(vm, "get"); /* Todo - replace with ref ro actual cfunc */
+        t[1] = quote(vm, lit);
+        t[2] = quote(vm, sym);
+        tup = gst_tuple_end(vm, t);
+        return compile_value(c, opts, gst_wrap_tuple(tup));
     } else if (level > 0) {
         /* We have an upvalue from a parent function. Make
          * sure that the chain of functions up to the upvalue keep
@@ -522,14 +577,15 @@ static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstV
     FormOptions subOpts;
     uint16_t target = 0;
     uint16_t level = 0;
+    uint16_t flags = 0;
     Slot slot;
     int status;
     subOpts.isTail = 0;
     subOpts.resultUnused = 0;
-    status = symbol_resolve(c, left, &level, &target, &lit);
-    if (status == 2) {
-        c_error(c, "cannot set binding");
-    } else if (status == 1) {
+    status = symbol_resolve(c, left, &level, &target, &flags, &lit);
+    if (status == 1) {
+        if (!(flags & GST_LOCAL_FLAG_MUTABLE))
+            c_error(c, "cannot varset immutable binding");
         /* Check if we have an up value. Otherwise, it's just a normal
          * local variable */
         if (level != 0) {
@@ -547,17 +603,108 @@ static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstV
             subOpts.target = target;
             slot = compile_value(c, subOpts, right);
         }
+    } else if (status == 3) {
+        /* Global var */
+        const GstValue *tup;
+        Gst *vm= c->vm;
+        GstValue *t = gst_tuple_begin(vm, 4);
+        t[0] = gst_string_cv(vm, "set!"); /* Todo - replace with ref ro actual cfunc */
+        t[1] = quote(vm, lit);
+        t[2] = quote(vm, left);
+        t[3] = right;
+        tup = gst_tuple_end(vm, t);
+        subOpts.resultUnused = 1;
+        compile_value(c, subOpts, gst_wrap_tuple(tup));
+        return compile_value(c, opts, left);
     } else {
-        /* We need to declare a new symbol */
-        subOpts.target = compiler_declare_symbol(c, scope, left);
-        subOpts.canChoose = 0;
-        slot = compile_value(c, subOpts, right);
+        c_error(c, "cannot varset immutable binding");
     }
     if (opts.resultUnused) {
         compiler_drop_slot(c, scope, slot);
         return nil_slot();
     } else {
         return slot;
+    }
+}
+
+/* Set a var */
+static Slot compile_varset(GstCompiler *c, FormOptions opts, const GstValue *form) {
+    if (gst_tuple_length(form) != 3)
+        c_error(c, "expected 2 arguments to varset");
+    if (GST_STRING != form[1].type)
+        c_error(c, "expected symbol as first argument");
+    return compile_assign(c, opts, form[1], form[2]);
+}
+
+/* Global var */
+static Slot compile_global_var(GstCompiler *c, FormOptions opts, const GstValue *form) {
+    const GstValue *tup;
+    Gst *vm= c->vm;
+    GstValue *t = gst_tuple_begin(vm, 3);
+    GstValue *q = gst_tuple_begin(vm, 2);
+    q[0] = gst_string_cv(vm, "quote");
+    q[1] = form[1];
+    t[0] = gst_string_cv(vm, "global-var"); /* Todo - replace with ref ro actual cfunc */
+    t[1] = gst_wrap_tuple(gst_tuple_end(vm, q));
+    t[2] = form[2];
+    tup = gst_tuple_end(vm, t);
+    return compile_value(c, opts, gst_wrap_tuple(tup));
+}
+
+/* Global define */
+static Slot compile_global_def(GstCompiler *c, FormOptions opts, const GstValue *form) {
+    const GstValue *tup;
+    Gst *vm= c->vm;
+    GstValue *t = gst_tuple_begin(vm, 3);
+    GstValue *q = gst_tuple_begin(vm, 2);
+    q[0] = gst_string_cv(vm, "quote");
+    q[1] = form[1];
+    t[0] = gst_string_cv(vm, "global-def"); /* Todo - replace with ref ro actual cfunc */
+    t[1] = gst_wrap_tuple(gst_tuple_end(vm, q));
+    t[2] = form[2];
+    tup = gst_tuple_end(vm, t);
+    return compile_value(c, opts, gst_wrap_tuple(tup));
+}
+
+/* Compile def */
+static Slot compile_def(GstCompiler *c, FormOptions opts, const GstValue *form) {
+    GstScope *scope = c->tail;
+    if (gst_tuple_length(form) != 3)
+        c_error(c, "expected 2 arguments to def");
+    if (GST_STRING != form[1].type)
+        c_error(c, "expected symbol as first argument");
+    if (scope->parent) {
+        FormOptions subOpts;
+        Slot slot;
+        subOpts.isTail = opts.isTail;
+        subOpts.resultUnused = 0;
+        subOpts.canChoose = 0;
+        subOpts.target = compiler_declare_symbol(c, scope, form[1], 0);
+        slot = compile_value(c, subOpts, form[2]);
+        return compiler_coerce_slot(c, opts, slot);
+    } else {
+        return compile_global_def(c, opts, form);
+    }
+}
+
+/* Compile var */
+static Slot compile_var(GstCompiler *c, FormOptions opts, const GstValue *form) {
+    GstScope *scope = c->tail;
+    if (gst_tuple_length(form) != 3)
+        c_error(c, "expected 2 arguments to var");
+    if (GST_STRING != form[1].type)
+        c_error(c, "expected symbol as first argument");
+    if (scope->parent) {
+        FormOptions subOpts;
+        Slot slot;
+        subOpts.isTail = opts.isTail;
+        subOpts.resultUnused = 0;
+        subOpts.canChoose = 0;
+        subOpts.target = compiler_declare_symbol(c, scope, form[1], GST_LOCAL_FLAG_MUTABLE);
+        slot = compile_value(c, subOpts, form[2]);
+        return compiler_coerce_slot(c, opts, slot);
+    } else {
+        return compile_global_var(c, opts, form);
     }
 }
 
@@ -664,7 +811,7 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, const GstValue *f
         /* The compiler puts the parameter locals
          * in the right place by default - at the beginning
          * of the stack frame. */
-        compiler_declare_symbol(c, subGstScope, param);
+        compiler_declare_symbol(c, subGstScope, param, 0);
     }
     /* Mark where we are on the stack so we can
      * return to it later. */
@@ -832,13 +979,6 @@ static Slot compile_quote(GstCompiler *c, FormOptions opts, const GstValue *form
     return ret;
 }
 
-/* Assignment special */
-static Slot compile_var(GstCompiler *c, FormOptions opts, const GstValue *form) {
-    if (gst_tuple_length(form) != 3)
-        c_error(c, "assignment expects 2 arguments");
-    return compile_assign(c, opts, form[1], form[2]);
-}
-
 /* Apply special */
 static Slot compile_apply(GstCompiler *c, FormOptions opts, const GstValue *form) {
     GstScope *scope = c->tail;
@@ -927,7 +1067,7 @@ static SpecialFormHelper get_special(const GstValue *form) {
     /* One character specials. */
     if (gst_string_length(name) == 1) {
         switch(name[0]) {
-            case ':': return compile_var;
+            case ':': return compile_def;
             default:
                 break;
         }
@@ -950,6 +1090,10 @@ static SpecialFormHelper get_special(const GstValue *form) {
                 if (gst_string_length(name) == 2 &&
                         name[1] == 'o') {
                     return compile_do;
+                } else if (gst_string_length(name) == 3 &&
+                        name[1] == 'e' &&
+                        name[2] == 'f') {
+                    return compile_def;
                 }
             }
             break;
@@ -988,6 +1132,23 @@ static SpecialFormHelper get_special(const GstValue *form) {
                         name[3] == 'n') {
                     return compile_tran;
                 }
+            }
+            break;
+        case 'v':
+            {
+                if (gst_string_length(name) == 3 &&
+                        name[1] == 'a' &&
+                        name[2] == 'r') {
+                    return compile_var;
+                } 
+                if (gst_string_length(name) == 6 &&
+                        name[1] == 'a' &&
+                        name[2] == 'r' &&
+                        name[3] == 's' &&
+                        name[4] == 'e' &&
+                        name[5] == 't') {
+                    return compile_varset;
+                } 
             }
             break;
         case 'w':
@@ -1057,7 +1218,7 @@ static Slot compile_table(GstCompiler *c, FormOptions opts, GstTable *tab) {
     return ret;
 }
 
-/* Compile a form. Checks for special forms and macros. */
+/* Compile a form. Checks for special forms. */
 static Slot compile_form(GstCompiler *c, FormOptions opts, const GstValue *form) {
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
@@ -1136,48 +1297,8 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
     c->buffer = gst_buffer(vm, 128);
     c->tail = NULL;
     c->error.type = GST_NIL;
+    c->env = vm->env;
     compiler_push_scope(c, 0);
-}
-
-/* Add a global variable */
-void gst_compiler_global(GstCompiler *c, const char *name, GstValue x) {
-    GstScope *scope = c->tail;
-    GstValue sym = gst_string_cv(c->vm, name);
-    if (x.type == GST_NIL)
-        gst_table_put(c->vm, scope->nilNamedLiterals, sym, gst_wrap_boolean(1));
-    else
-        gst_table_put(c->vm, scope->namedLiterals, sym, x);
-}
-
-/* Add many global variables */
-void gst_compiler_globals(GstCompiler *c, GstValue env) {
-    GstScope *scope = c->tail;
-    const GstValue *data;
-    uint32_t len;
-    uint32_t i;
-    if (gst_hashtable_view(env, &data, &len))
-        for (i = 0; i < len; i += 2)
-            if (data[i].type == GST_STRING)
-                gst_table_put(c->vm, scope->namedLiterals, data[i], data[i + 1]);
-}
-
-/* Add many global variables and bind to nil */
-void gst_compiler_nilglobals(GstCompiler *c, GstValue env) {
-    GstScope *scope = c->tail;
-    const GstValue *data;
-    uint32_t len;
-    uint32_t i;
-    if (gst_hashtable_view(env, &data, &len))
-        for (i = 0; i < len; i += 2)
-            if (data[i].type == GST_STRING)
-                gst_table_put(c->vm, scope->namedLiterals, data[i], gst_wrap_nil());
-}
-
-
-/* Use a module that was loaded into the vm */
-void gst_compiler_usemodule(GstCompiler *c, const char *modulename) {
-    GstValue mod = gst_table_get(c->vm->modules, gst_string_cv(c->vm, modulename));
-    gst_compiler_globals(c, mod);
 }
 
 /* Compile interface. Returns a function that evaluates the
@@ -1193,7 +1314,6 @@ GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
             c->error = gst_string_cv(c->vm, "unknown error");
         return NULL;
     }
-    /* Create a scope */
     opts.isTail = 1;
     compiler_return(c, compile_value(c, opts, form));
     def = compiler_gen_funcdef(c, c->buffer->count, 0, 0);

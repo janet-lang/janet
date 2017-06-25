@@ -312,6 +312,7 @@ struct Gst {
     GstThread *thread;
     GstTable *modules;
     GstTable *registry;
+    GstTable *env;
     /* Return state */
     const char *crash;
     GstValue ret; /* Returned value from gst_start. */
@@ -371,6 +372,7 @@ struct GstCompiler {
     jmp_buf onError;
     GstScope *tail;
     GstBuffer *buffer;
+    GstTable *env;
 };
 
 /* Bytecode */
@@ -398,7 +400,7 @@ enum GstOpCode {
     GST_OP_PAR,     /* Push array or tuple */
     GST_OP_CAL,     /* Call function */
     GST_OP_TCL,     /* Tail call */
-    GST_OP_TRN,     /* Transfer to new thread */
+    GST_OP_TRN      /* Transfer to new thread */
 };
 
 /****/
@@ -533,10 +535,8 @@ GstValue gst_parse_consume(GstParser *p);
 /***/
 
 void gst_compiler(GstCompiler *c, Gst *vm);
-void gst_compiler_nilglobals(GstCompiler *c, GstValue env);
-void gst_compiler_globals(GstCompiler *c, GstValue env);
+void gst_compiler_mergeenv(GstCompiler *c, GstValue env);
 void gst_compiler_global(GstCompiler *c, const char *name, GstValue x);
-void gst_compiler_usemodule(GstCompiler *c, const char *modulename);
 GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form);
 
 /****/
@@ -634,9 +634,21 @@ int gst_hashtable_view(GstValue tab, const GstValue **data, uint32_t *cap);
 /* Misc */
 /****/
 
+#define GST_ENV_NILS 0
+#define GST_ENV_METADATA 1
+#define GST_ENV_VARS 2
+
 GstReal gst_integer_to_real(GstInteger x);
 GstInteger gst_real_to_integer(GstReal x);
 GstInteger gst_startrange(GstInteger raw, uint32_t len);
 GstInteger gst_endrange(GstInteger raw, uint32_t len);
+void gst_env_merge(Gst *vm, GstTable *destEnv, GstTable *srcEnv);
+GstTable *gst_env_nils(Gst *vm, GstTable *env);
+GstTable *gst_env_meta(Gst *vm, GstTable *env);
+GstTable *gst_env_vars(Gst *vm, GstTable *env);
+void gst_env_put(Gst *vm, GstTable *env, GstValue key, GstValue value);
+void gst_env_putc(Gst *vm, GstTable *env, const char *key, GstValue value);
+void gst_env_putvar(Gst *vm, GstTable *env, GstValue key, GstValue value);
+void gst_env_putvarc(Gst *vm, GstTable *env, const char *key, GstValue value);
 
 #endif // GST_H_defined

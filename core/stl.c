@@ -710,6 +710,28 @@ int gst_stl_funcparent(Gst *vm) {
         return GST_RETURN_OK;
 }
 
+int gst_stl_def(Gst *vm) {
+    if (gst_count_args(vm) != 2) {
+        gst_c_throwc(vm, "expected 2 arguments to global-def");
+    }
+    if (GST_STRING != gst_arg(vm, 0).type) {
+        gst_c_throwc(vm, "expected string as first argument");
+    }
+    gst_env_put(vm, vm->env, gst_arg(vm, 0), gst_arg(vm, 1));
+    gst_c_return(vm, gst_arg(vm, 1));
+}
+
+int gst_stl_var(Gst *vm) {
+    if (gst_count_args(vm) != 2) {
+        gst_c_throwc(vm, "expected 2 arguments to global-var");
+    }
+    if (GST_STRING != gst_arg(vm, 0).type) {
+        gst_c_throwc(vm, "expected string as first argument");
+    }
+    gst_env_putvar(vm, vm->env, gst_arg(vm, 0), gst_arg(vm, 1));
+    gst_c_return(vm, gst_arg(vm, 1));
+}
+
 /****/
 /* IO */
 /****/
@@ -1038,13 +1060,11 @@ static int gst_stl_parse(Gst *vm) {
 /* Compile a value */
 static int gst_stl_compile(Gst *vm) {
     GstFunction *ret;
-    GstValue std;
     GstCompiler c;
     gst_compiler(&c, vm);
-    std = gst_table_get(vm->modules, gst_string_cv(vm, "std"));
-    gst_compiler_globals(&c, std);
-    gst_compiler_globals(&c, gst_arg(vm, 1));
-    gst_compiler_nilglobals(&c, gst_arg(vm, 2));
+    if (gst_arg(vm, 1).type == GST_TABLE) {
+        c.env = gst_arg(vm, 1).data.table;
+    }
     ret = gst_compiler_compile(&c, gst_arg(vm, 0));
     if (!ret)
         gst_c_throw(vm, c.error);
@@ -1086,8 +1106,8 @@ static const GstModuleItem std_module[] = {
     {"parse-hasvalue", gst_stl_parser_hasvalue},
     {"parse-charseq", gst_stl_parser_charseq},
     {"parse-status", gst_stl_parser_status},
-        {"parse-status", gst_stl_parser_status},
-{"parse", gst_stl_parse},
+    {"parse-status", gst_stl_parser_status},
+    {"parse", gst_stl_parse},
     /* Compile */
     {"compile", gst_stl_compile},
     /* Other */
@@ -1134,11 +1154,14 @@ static const GstModuleItem std_module[] = {
     {"funcparent", gst_stl_funcparent},
     {"gcollect", gst_stl_gcollect},
     {"debugp", gst_stl_debugp},
+    {"global-def", gst_stl_def},
+    {"global-var", gst_stl_var},
     {NULL, NULL}
 };
 
 /* Load all libraries */
 void gst_stl_load(Gst *vm) {
+    GstValue maybeEnv;
     /* Load the normal c functions */
     gst_module_mutable(vm, "std", std_module);
     /* Wrap stdin and stdout */
@@ -1151,4 +1174,7 @@ void gst_stl_load(Gst *vm) {
     gst_module_put(vm, "std", "stdin", gst_wrap_userdata(inp));
     gst_module_put(vm, "std", "stdout", gst_wrap_userdata(outp));
     gst_module_put(vm, "std", "stderr", gst_wrap_userdata(outp));
+    maybeEnv = gst_table_get(vm->modules, gst_string_cv(vm, "std"));
+    if (maybeEnv.type == GST_TABLE)
+        gst_env_merge(vm, vm->env, maybeEnv.data.table);
 }

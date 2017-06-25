@@ -21,6 +21,7 @@
 */
 
 #include <gst/gst.h>
+#include "cache.h"
 
 /****/
 /* Cache */

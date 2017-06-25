@@ -481,6 +481,7 @@ void gst_init(Gst *vm) {
     /* Set up global env */
     vm->modules = gst_table(vm, 10);
     vm->registry = gst_table(vm, 10);
+    vm->env = gst_table(vm, 10);
 }
 
 /* Clear all memory associated with the VM */
