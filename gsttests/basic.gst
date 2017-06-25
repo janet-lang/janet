@@ -1,5 +1,14 @@
 (print "Running basic tests...")
-(def assert (fn [x e] (if x (do (write stdout ".") x) (do (print e) (exit 1)))))
+
+(var numTestsPassed 0)
+(def assert (fn [x e] 
+	(if x 
+		(do 
+			(print "  \e[32m✔\e[0m" e) 
+			(varset numTestsPassed (+ 1 numTestsPassed)) x)
+		(do 
+			(print e)
+			(exit 1)))))
 
 (assert (= 10 (+ 1 2 3 4)) "addition")
 (assert (= -8 (- 1 2 3 4)) "subtraction")
@@ -15,5 +24,6 @@
 
 (assert (= accum 65536) "loop")
 
-(print)
+(print "All" numTestsPassed "tests passed")
+
 (exit 0)

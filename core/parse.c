@@ -306,7 +306,13 @@ static int string_state(GstParser *p, uint8_t c) {
                     case '"': next = '"'; break;
                     case '\'': next = '\''; break;
                     case 'z': next = '\0'; break;
+                    case 'e': next = 27; break;
                     case 'h': 
+                        top->buf.string.state = STRING_STATE_ESCAPE_HEX; 
+                        top->buf.string.count = 0;
+                        top->buf.string.accum = 0;
+                        return 1;
+                    case 'u': 
                         top->buf.string.state = STRING_STATE_ESCAPE_HEX; 
                         top->buf.string.count = 0;
                         top->buf.string.accum = 0;
