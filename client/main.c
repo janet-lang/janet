@@ -24,9 +24,35 @@
 #include <stdio.h>
 #include <gst/gst.h>
 
-/* Use readline support for now */
-#include <readline/readline.h>
-#include <readline/history.h>
+/* Simple read line functionality */
+char *getline() {
+    char *line = malloc(100);
+    char *linep = line;
+    size_t lenmax = 100;
+    size_t len = lenmax;
+    int c;
+    if (line == NULL)
+        return NULL;
+    for (;;) {
+        c = fgetc(stdin);
+        if (c == EOF)
+            break;
+        if (--len == 0) {
+            len = lenmax;
+            char *linen = realloc(linep, lenmax *= 2);
+            if (linen == NULL) {
+                free(linep);
+                return NULL;
+            }
+            line = linen + (line - linep);
+            linep = linen;
+        }
+        if ((*line++ = c) == '\n')
+            break;
+    }
+    *line = '\0';
+    return linep;
+}
 
 /* Compile and run an ast */
 int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
@@ -98,7 +124,7 @@ int debug_run(Gst *vm, FILE *in) {
 
 /* A simple repl */
 int debug_repl(Gst *vm) {
-    const char *buffer, *reader;
+    char *buffer, *reader;
     GstParser p;
     buffer = reader = NULL;
     for (;;) {
@@ -109,10 +135,12 @@ int debug_repl(Gst *vm) {
             if (p.status == GST_PARSER_ERROR || p.status == GST_PARSER_FULL)
                 break;
             if (!reader || *reader == '\0') {
-                buffer = readline(">> ");
-                if (*buffer == '\0')
+                printf("\x1B[32m>>\x1B[0m ");
+                if (buffer)
+                    free(buffer);
+                buffer = getline();
+                if (!buffer || *buffer == '\0')
                     return 0;
-                add_history(buffer);
                 reader = buffer;
             }
             reader += gst_parse_cstring(&p, reader);
