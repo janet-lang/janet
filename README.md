@@ -1,5 +1,7 @@
 # gst
 
+[![Build Status](https://travis-ci.org/bakpakin/gst.svg?branch=master)](https://travis-ci.org/bakpakin/gst)
+
 GST is a language and vm that is small and embeddable, has metaprogramming
 facilities, can interoperate with C, and has enough features to make it
 a useful general purpose programming language. It is a modern variant of
