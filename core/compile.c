@@ -574,7 +574,7 @@ static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstV
     GstValue lit = gst_wrap_nil();
     GstScope *scope = c->tail;
     GstBuffer *buffer = c->buffer;
-    FormOptions subOpts;
+    FormOptions subOpts = form_options_default();
     uint16_t target = 0;
     uint16_t level = 0;
     uint16_t flags = 0;
@@ -1064,15 +1064,7 @@ static SpecialFormHelper get_special(const GstValue *form) {
      * problems. */
     if (gst_string_length(name) == 0)
         return NULL;
-    /* One character specials. */
-    if (gst_string_length(name) == 1) {
-        switch(name[0]) {
-            case ':': return compile_def;
-            default:
-                break;
-        }
-    }
-    /* Multi character specials. Mostly control flow. */
+    /* Specials */
     switch (name[0]) {
         case 'a':
             {
