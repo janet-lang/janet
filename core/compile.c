@@ -529,9 +529,9 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
         const GstValue *tup;
         Gst *vm= c->vm;
         GstValue *t = gst_tuple_begin(vm, 3);
-        t[0] = gst_string_cv(vm, "get"); /* Todo - replace with ref ro actual cfunc */
+        t[0] = gst_string_cv(vm, "get"); /* Todo - replace with actual cfunc or bytecode */
         t[1] = quote(vm, lit);
-        t[2] = quote(vm, sym);
+        t[2] = gst_wrap_integer(0);
         tup = gst_tuple_end(vm, t);
         return compile_value(c, opts, gst_wrap_tuple(tup));
     } else if (level > 0) {
@@ -610,7 +610,7 @@ static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstV
         GstValue *t = gst_tuple_begin(vm, 4);
         t[0] = gst_string_cv(vm, "set!"); /* Todo - replace with ref ro actual cfunc */
         t[1] = quote(vm, lit);
-        t[2] = quote(vm, left);
+        t[2] = gst_wrap_integer(0);
         t[3] = right;
         tup = gst_tuple_end(vm, t);
         subOpts.resultUnused = 1;

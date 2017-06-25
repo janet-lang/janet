@@ -645,7 +645,6 @@ GstInteger gst_endrange(GstInteger raw, uint32_t len);
 void gst_env_merge(Gst *vm, GstTable *destEnv, GstTable *srcEnv);
 GstTable *gst_env_nils(Gst *vm, GstTable *env);
 GstTable *gst_env_meta(Gst *vm, GstTable *env);
-GstTable *gst_env_vars(Gst *vm, GstTable *env);
 void gst_env_put(Gst *vm, GstTable *env, GstValue key, GstValue value);
 void gst_env_putc(Gst *vm, GstTable *env, const char *key, GstValue value);
 void gst_env_putvar(Gst *vm, GstTable *env, GstValue key, GstValue value);

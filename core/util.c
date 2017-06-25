@@ -274,10 +274,6 @@ GstTable *gst_env_meta(Gst *vm, GstTable *env) {
     return gst_env_inttab(vm, env, GST_ENV_METADATA);
 }
 
-GstTable *gst_env_vars(Gst *vm, GstTable *env) {
-    return gst_env_inttab(vm, env, GST_ENV_VARS);
-}
-
 /* Add many global variables and bind to nil */
 static void mergenils(Gst *vm, GstTable *destEnv, GstTable *nils) {
     const GstValue *data = nils->data;
@@ -347,9 +343,10 @@ void gst_env_putc(Gst *vm, GstTable *env, const char *key, GstValue value) {
 void gst_env_putvar(Gst *vm, GstTable *env, GstValue key, GstValue value) {
     GstTable *meta = gst_env_meta(vm, env);
     GstTable *newmeta = gst_table(vm, 4);
-    GstTable *vars = gst_env_vars(vm, env);
-    gst_table_put(vm, vars, key, value);
-    gst_table_put(vm, env, key, gst_wrap_table(vars));
+    GstArray *ref = gst_array(vm, 1);
+    ref->count = 1;
+    ref->data[0] = value;
+    gst_table_put(vm, env, key, gst_wrap_array(ref));
     gst_table_put(vm, newmeta, gst_string_cv(vm, "mutable"), gst_wrap_boolean(1));
     gst_table_put(vm, meta, key, gst_wrap_table(newmeta));
 }
