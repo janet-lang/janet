@@ -1133,12 +1133,13 @@ static SpecialFormHelper get_special(const GstValue *form) {
                         name[2] == 'r') {
                     return compile_var;
                 } 
-                if (gst_string_length(name) == 6 &&
+                if (gst_string_length(name) == 7 &&
                         name[1] == 'a' &&
                         name[2] == 'r' &&
                         name[3] == 's' &&
                         name[4] == 'e' &&
-                        name[5] == 't') {
+                        name[5] == 't' &&
+                        name[6] == '!') {
                     return compile_varset;
                 } 
             }
@@ -1264,23 +1265,36 @@ static Slot compile_form(GstCompiler *c, FormOptions opts, const GstValue *form)
 
 /* Recursively compile any value or form */
 static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
+    Slot ret;
+    /* Check if recursion is too deep */
+    if (c->recursionGuard++ > GST_RECURSION_GUARD) {
+        c_error(c, "recursed too deeply");
+    }
     switch (x.type) {
         case GST_NIL:
         case GST_BOOLEAN:
         case GST_REAL:
         case GST_INTEGER:
-            return compile_nonref_type(c, opts, x);
+            ret = compile_nonref_type(c, opts, x);
+            break;
         case GST_STRING:
-            return compile_symbol(c, opts, x);
+            ret = compile_symbol(c, opts, x);
+            break;
         case GST_TUPLE:
-            return compile_form(c, opts, x.data.tuple);
+            ret = compile_form(c, opts, x.data.tuple);
+            break;
         case GST_ARRAY:
-            return compile_array(c, opts, x.data.array);
+            ret = compile_array(c, opts, x.data.array);
+            break;
         case GST_TABLE:
-            return compile_table(c, opts, x.data.table);
+            ret = compile_table(c, opts, x.data.table);
+            break;
         default:
-            return compile_literal(c, opts, x);
+            ret = compile_literal(c, opts, x);
+            break;
     }
+    c->recursionGuard--;
+    return ret;
 }
 
 /* Initialize a GstCompiler struct */
@@ -1290,6 +1304,7 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
     c->tail = NULL;
     c->error.type = GST_NIL;
     c->env = vm->env;
+    c->recursionGuard = 0;
     compiler_push_scope(c, 0);
 }
 
@@ -1297,6 +1312,7 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
  * given AST. Returns NULL if there was an error during compilation. */
 GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
     FormOptions opts = form_options_default();
+    c->recursionGuard = 0;
     GstFuncDef *def;
     if (setjmp(c->onError)) {
         /* Clear all but root scope */

@@ -5,9 +5,7 @@
 (print _ )
 
 "Comment"
-(do
-    (: i 0)
-    (while (< i 1000)
-        (print i)
-        (: i (+ i 1)))
-)
+(var i 0)
+(while (< i 1000)
+    (print i)
+    (varset i (+ i 1)))

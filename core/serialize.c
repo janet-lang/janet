@@ -106,7 +106,8 @@ static const char *gst_deserialize_impl(
         const uint8_t *end,
         const uint8_t **newData,
         GstArray *visited,
-        GstValue *out) {
+        GstValue *out,
+        int depth) {
 
     GstValue ret;
     ret.type = GST_NIL;
@@ -128,6 +129,11 @@ static const char *gst_deserialize_impl(
 #define read_u16(out) do{deser_datacheck(2); (out)=bytes2u16(data); data += 2; }while(0)
 #define read_dbl(out) do{deser_datacheck(8); (out)=bytes2dbl(data); data += 8; }while(0)
 #define read_i64(out) do{deser_datacheck(8); (out)=bytes2int(data); data += 8; }while(0)
+
+    /* Check if we have recursed too deeply */
+    if (depth++ > GST_RECURSION_GUARD) {
+        return "deserialize recursed too deeply";
+    }
 
     /* Check enough buffer left to read one byte */
     if (data >= end) deser_error(UEB);
@@ -181,9 +187,9 @@ static const char *gst_deserialize_impl(
             buffer = gst_struct_begin(vm, length);
             for (i = 0; i < length; ++i) {
                 GstValue k, v;
-                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &k)))
+                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &k, depth)))
                     return err; 
-                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &v)))
+                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &v, depth)))
                     return err; 
                 gst_struct_put(buffer, k, v);
             }
@@ -217,7 +223,7 @@ static const char *gst_deserialize_impl(
             ret.data.array->capacity = length;
             gst_array_push(vm, visited, ret);
             for (i = 0; i < length; ++i)
-                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, buffer + i)))
+                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, buffer + i, depth)))
                     return err; 
             break;
 
@@ -226,7 +232,7 @@ static const char *gst_deserialize_impl(
             read_u32(length);
             buffer = gst_tuple_begin(vm, length);
             for (i = 0; i < length; ++i)
-                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, buffer + i)))
+                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, buffer + i, depth)))
                     return err;
             ret.type = GST_TUPLE;
             ret.data.tuple = gst_tuple_end(vm, buffer);
@@ -242,7 +248,7 @@ static const char *gst_deserialize_impl(
                 t = gst_thread(vm, gst_wrap_nil(), 64);
                 ret = gst_wrap_thread(t);
                 gst_array_push(vm, visited, ret); 
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &ret);
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &ret, depth);
                 if (err != NULL) return err;
                 if (ret.type == GST_NIL) {
                     t->parent = NULL;
@@ -251,7 +257,7 @@ static const char *gst_deserialize_impl(
                 } else {
                     return "expected thread parent to be thread";
                 }
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &ret);
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &ret, depth);
                 if (err != NULL) return err;
                 if (ret.type == GST_NIL) {
                     t->errorParent = NULL;
@@ -271,9 +277,9 @@ static const char *gst_deserialize_impl(
                     uint32_t pcoffset;
                     uint16_t ret, args, size, j;
                     /* Read the stack */
-                    err = gst_deserialize_impl(vm, data, end, &data, visited, &callee);
+                    err = gst_deserialize_impl(vm, data, end, &data, visited, &callee, depth);
                     if (err != NULL) return err;
-                    err = gst_deserialize_impl(vm, data, end, &data, visited, &env);
+                    err = gst_deserialize_impl(vm, data, end, &data, visited, &env, depth);
                     if (err != NULL) return err;
                     if (env.type != GST_FUNCENV && env.type != GST_NIL)
                         return "expected funcenv in stackframe";
@@ -302,7 +308,7 @@ static const char *gst_deserialize_impl(
                     /* Push stack args */
                     for (j = 0; j < size; ++j) {
                         GstValue temp;
-                        err = gst_deserialize_impl(vm, data, end, &data, visited, &temp);
+                        err = gst_deserialize_impl(vm, data, end, &data, visited, &temp, depth);
                         gst_thread_push(vm, t, temp);
                     }
                 }
@@ -315,9 +321,9 @@ static const char *gst_deserialize_impl(
             gst_array_push(vm, visited, ret);
             for (i = 0; i < length; ++i) {
                 GstValue key, value;
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &key);
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &key, depth);
                 if (err != NULL) return err;
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &value);
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &value, depth);
                 if (err != NULL) return err;
                 gst_table_put(vm, ret.data.table, key, value);
             }
@@ -344,7 +350,7 @@ static const char *gst_deserialize_impl(
                     def->literals = NULL;
                 }
                 for (i = 0; i < literalsLen; ++i) {
-                    err = gst_deserialize_impl(vm, data, end, &data, visited, def->literals + i);
+                    err = gst_deserialize_impl(vm, data, end, &data, visited, def->literals + i, depth);
                     if (err != NULL) return err;
                 }
                 read_u32(byteCodeLen);
@@ -363,7 +369,7 @@ static const char *gst_deserialize_impl(
                 ret.type = GST_FUNCENV;
                 ret.data.env = gst_alloc(vm, sizeof(GstFuncEnv));
                 gst_array_push(vm, visited, ret);
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &thread);
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &thread, depth);
                 if (err != NULL) return err;
                 read_u32(length);
                 ret.data.env->stackOffset = length;
@@ -374,7 +380,7 @@ static const char *gst_deserialize_impl(
                     ret.data.env->values = gst_alloc(vm, sizeof(GstValue) * length);
                     for (i = 0; i < length; ++i) {
                         GstValue item;
-                        err = gst_deserialize_impl(vm, data, end, &data, visited, &item);
+                        err = gst_deserialize_impl(vm, data, end, &data, visited, &item, depth);
                         if (err != NULL) return err;
                         ret.data.env->values[i] = item;
                     }
@@ -388,11 +394,11 @@ static const char *gst_deserialize_impl(
                 ret.type = GST_FUNCTION;
                 ret.data.function = gst_alloc(vm, sizeof(GstFunction));
                 gst_array_push(vm, visited, ret);
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &parent);
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &parent, depth);
                 if (err != NULL) return err;
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &env);
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &env, depth);
                 if (err != NULL) return err;
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &def);
+                err = gst_deserialize_impl(vm, data, end, &data, visited, &def, depth);
                 if (err != NULL) return err;
                 if (parent.type == GST_NIL) {
                     ret.data.function->parent = NULL;
@@ -460,7 +466,7 @@ const char *gst_deserialize(
     GstValue ret;
     const char *err;
     GstArray *visited = gst_array(vm, 10);
-    err = gst_deserialize_impl(vm, data, data + len, nextData, visited, &ret);
+    err = gst_deserialize_impl(vm, data, data + len, nextData, visited, &ret, 0);
     if (err != NULL) return err;
     *out = ret;
     return NULL;
@@ -474,12 +480,13 @@ BUFFER_DEFINE(u16, uint16_t)
 
 /* Serialize a value and write to a buffer. Returns possible
  * error messages. */
-const char *gst_serialize_impl(
+static const char *gst_serialize_impl(
         Gst *vm,
         GstBuffer *buffer,
         GstTable *visited,
         uint32_t *nextId,
-        GstValue x) {
+        GstValue x,
+        int depth) {
 
     uint32_t i, count;
     const char *err;
@@ -491,6 +498,11 @@ const char *gst_serialize_impl(
 #define write_dbl(b) gst_buffer_push_real(vm, buffer, (b))
 #define write_int(b) gst_buffer_push_integer(vm, buffer, (b))
     /*printf("Type: %d\n", x.type);*/
+
+    /* Check if we have gone too deep */
+    if (depth++ > GST_RECURSION_GUARD) {
+        return "serialize recursed too deeply";
+    }
 
     /* Check non reference types - if successful, return NULL */
     switch (x.type) {
@@ -539,9 +551,9 @@ const char *gst_serialize_impl(
             write_u32(gst_struct_length(x.data.st));
             for (i = 0; i < count; i += 2) {
                 if (data[i].type != GST_NIL) {
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i]); 
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i], depth); 
                     if (err != NULL) return err;
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1]); 
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth); 
                     if (err != NULL) return err;
                 }
             }
@@ -550,7 +562,7 @@ const char *gst_serialize_impl(
             count = gst_tuple_length(x.data.tuple);
             write_u32(count);
             for (i = 0; i < count; ++i) {
-                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.tuple[i]); 
+                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.tuple[i], depth); 
                 if (err != NULL) return err;
             }
         }
@@ -598,9 +610,9 @@ const char *gst_serialize_impl(
                 write_u32(x.data.table->count);
                 for (i = 0; i < count; i += 2) {
                     if (data[i].type != GST_NIL) {
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i]); 
+                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i], depth); 
                         if (err != NULL) return err;
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1]); 
+                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth); 
                         if (err != NULL) return err;
                     }
                 }
@@ -622,7 +634,7 @@ const char *gst_serialize_impl(
             count = x.data.array->count;
             write_u32(count);
             for (i = 0; i < count; ++i) {
-                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.array->data[i]); 
+                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.array->data[i], depth); 
                 if (err != NULL) return err;
             }
             break;
@@ -635,14 +647,14 @@ const char *gst_serialize_impl(
                 uint32_t i;
                 write_byte(210);
                 if (t->parent)
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_thread(t->parent));
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_thread(t->parent), depth);
                 else
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil());
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil(), depth);
                 if (t->errorParent)
                     err = gst_serialize_impl(vm, buffer, visited, nextId,
-							gst_wrap_thread(t->errorParent));
+							gst_wrap_thread(t->errorParent), depth);
                 else
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil());
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil(), depth);
                 if (err != NULL) return err;
                 /* Write the status byte */
                 write_byte(t->status);
@@ -653,12 +665,12 @@ const char *gst_serialize_impl(
                     uint32_t j, size;
                     GstValue callee = gst_frame_callee(stack);
                     GstFuncEnv *env = gst_frame_env(stack); 
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, callee); 
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, callee, depth); 
                     if (err != NULL) return err;
                     if (env)
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_funcenv(env));
+                        err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_funcenv(env), depth);
                     else
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil());
+                        err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil(), depth);
                     if (err != NULL) return err;
                     if (callee.type == GST_FUNCTION) {
                         write_u32(gst_frame_pc(stack) - callee.data.function->def->byteCode);
@@ -670,7 +682,7 @@ const char *gst_serialize_impl(
                     size = gst_frame_size(stack);
                     write_u32(size);
                     for (j = 0; j < size; ++j) {
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, stack[j]);
+                        err = gst_serialize_impl(vm, buffer, visited, nextId, stack[j], depth);
                         if (err != NULL) return err;
                     } 
                     /* Next stack frame */
@@ -688,7 +700,7 @@ const char *gst_serialize_impl(
                 write_u32(def->flags);
                 write_u32(def->literalsLen);
                 for (i = 0; i < def->literalsLen; ++i) {
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, def->literals[i]); 
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, def->literals[i], depth); 
                     if (err != NULL) return err;
                 }
                 write_u32(def->byteCodeLen);
@@ -703,14 +715,14 @@ const char *gst_serialize_impl(
                 GstFuncEnv *env = x.data.env;
                 write_byte(213);
                 if (env->thread) {
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_thread(env->thread));
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_thread(env->thread), depth);
                     if (err != NULL) return err;
                     write_u32(env->stackOffset);
                 } else {
                     write_byte(201); /* Write nil */
                     write_u32(env->stackOffset);
                     for (i = 0; i < env->stackOffset; ++i) {
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, env->values[i]);
+                        err = gst_serialize_impl(vm, buffer, visited, nextId, env->values[i], depth);
                         if (err != NULL) return err;
                     }
                 }
@@ -725,11 +737,11 @@ const char *gst_serialize_impl(
                 pv = fn->parent ? gst_wrap_function(fn->parent) : gst_wrap_nil();
                 dv = gst_wrap_funcdef(fn->def);
                 ev = fn->env ? gst_wrap_funcenv(fn->env) : gst_wrap_nil();
-                err = gst_serialize_impl(vm, buffer, visited, nextId, pv);
+                err = gst_serialize_impl(vm, buffer, visited, nextId, pv, depth);
                 if (err != NULL) return err;
-                err = gst_serialize_impl(vm, buffer, visited, nextId, ev);
+                err = gst_serialize_impl(vm, buffer, visited, nextId, ev, depth);
                 if (err != NULL) return err;
-                err = gst_serialize_impl(vm, buffer, visited, nextId, dv);
+                err = gst_serialize_impl(vm, buffer, visited, nextId, dv, depth);
                 if (err != NULL) return err;
             }
             break;
@@ -745,7 +757,7 @@ const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x) {
     uint32_t oldCount = buffer->count;
     const char *err;
     GstTable *visited = gst_table(vm, 10);
-    err = gst_serialize_impl(vm, buffer, visited, &nextId, x);
+    err = gst_serialize_impl(vm, buffer, visited, &nextId, x, 0);
     if (err != NULL) {
         buffer->count = oldCount;
     }

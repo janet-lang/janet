@@ -1130,7 +1130,7 @@ static const GstModuleItem std_module[] = {
     {"parent", gst_stl_parent},
     {"print", gst_stl_print},
     {"tostring", gst_stl_tostring},
-    {"exit", gst_stl_exit},
+    {"exit!", gst_stl_exit},
     {"get", gst_stl_get},
     {"set!", gst_stl_set},
     {"next", gst_stl_next},

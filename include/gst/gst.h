@@ -88,6 +88,10 @@
 /* Size of stack frame in number of values */
 #define GST_FRAME_SIZE 5
 
+/* Prevent some recursive functions from recursing too deeply
+ * ands crashing. */
+#define GST_RECURSION_GUARD 2056
+
 /* Macros for referencing a stack frame given a stack */
 #define gst_frame_callee(s)     (*(s - 1))
 #define gst_frame_size(s)       ((s - 2)->data.dwords[0])
@@ -127,12 +131,12 @@ typedef enum GstType {
     GST_STRING,
     GST_ARRAY,
     GST_TUPLE,
+    GST_TABLE,
     GST_STRUCT,
     GST_THREAD,
     GST_BYTEBUFFER,
     GST_FUNCTION,
     GST_CFUNCTION,
-    GST_TABLE,
     GST_USERDATA,
     GST_FUNCENV,
     GST_FUNCDEF
@@ -373,6 +377,7 @@ struct GstCompiler {
     GstScope *tail;
     GstBuffer *buffer;
     GstTable *env;
+    int recursionGuard;
 };
 
 /* Bytecode */
