@@ -48,6 +48,8 @@
 
 (assert (= accum 65536) "loop")
 
+(assert (= (struct 1 2 3 4 5 6 7 8) (struct 7 8 5 6 3 4 1 2)) "struct order does not matter")
+
 "Serialization tests"
 (def scheck (fn [x]
     (def dat (serialize x))
@@ -64,7 +66,16 @@
 (scheck (tuple 1 2 3))
 (scheck 123412.12)
 (scheck (struct (struct 1 2 3 "a") (struct 1 2 3 "a") false 1 "asdasd" (tuple "a" "b")))
-(scheck "psdafoilasdfbiusbdfliasbldfiubaslidufbliausdbfiluasbdfiulbasldiufbalisudhfiasudbfaisuldfbl")
+(scheck "qwertyuiopasdfghjklzxcvbnm123456789")
+(scheck "qwertyuiopasdfghjklzxcvbnm1234567890!@#$%^&*()")
+
+(def athread (thread (fn [x]
+	(error (string "hello, " x)))))
+
+(def athread-result (tran athread "world!"))
+
+(assert (= athread-result "hello, world!") "thread error result")
+(assert (= (status athread) "error") "thread error status")
 
 "All tests passed"
 

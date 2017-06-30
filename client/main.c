@@ -25,7 +25,7 @@
 #include <gst/gst.h>
 
 /* Simple read line functionality */
-char *getline() {
+static char *gst_getline() {
     char *line = malloc(100);
     char *linep = line;
     size_t lenmax = 100;
@@ -55,7 +55,7 @@ char *getline() {
 }
 
 /* Compile and run an ast */
-int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
+static int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
     GstCompiler c;
     GstValue func;
     /* Try to compile generated AST */
@@ -80,7 +80,7 @@ int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
 }
 
 /* Parse a file and execute it */
-int debug_run(Gst *vm, FILE *in) {
+static int debug_run(Gst *vm, FILE *in) {
     char buffer[2048] = {0};
     const char *reader = buffer;
     GstParser p;
@@ -123,7 +123,7 @@ int debug_run(Gst *vm, FILE *in) {
 }
 
 /* A simple repl */
-int debug_repl(Gst *vm) {
+static int debug_repl(Gst *vm) {
     char *buffer, *reader;
     GstParser p;
     buffer = reader = NULL;
@@ -138,7 +138,7 @@ int debug_repl(Gst *vm) {
                 printf("\x1B[32m>>\x1B[0m ");
                 if (buffer)
                     free(buffer);
-                buffer = getline();
+                buffer = gst_getline();
                 if (!buffer || *buffer == '\0')
                     return 0;
                 reader = buffer;

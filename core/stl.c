@@ -450,13 +450,16 @@ int gst_stl_thread(Gst *vm) {
         t->parent = parent.data.thread;    
     } else if (parent.type != GST_NIL) {
         gst_c_throwc(vm, "expected thread/nil as parent");
+    } else {
+        t->parent = vm->thread;
     }
     if (errorParent.type == GST_THREAD) {
         t->errorParent = errorParent.data.thread;    
     } else if (errorParent.type != GST_NIL) {
         gst_c_throwc(vm, "expected thread/nil as error parent");
+    } else {
+        t->errorParent = vm->thread;
     }
-    t->parent = vm->thread;
     gst_c_return(vm, gst_wrap_thread(t));
 }
 
@@ -830,9 +833,12 @@ int gst_stl_gcollect(Gst *vm) {
 }
 
 /* Static debug print helper */
-static GstInteger gst_stl_debugp_helper(Gst *vm, GstBuffer *b, GstTable *seen, GstValue x, GstInteger next) {
+static GstInteger gst_stl_debugp_helper(Gst *vm, GstBuffer *b, GstTable *seen, GstValue x, GstInteger next, int depth) {
     GstValue check = gst_table_get(seen, x);
     const uint8_t *str;
+    /* Prevent a stack overflow */
+    if (depth++ > GST_RECURSION_GUARD)
+        return -1;
     if (check.type == GST_INTEGER) {
         str = gst_to_string(vm, check);
         gst_buffer_append_cstring(vm, b, "<visited ");
@@ -870,14 +876,20 @@ static GstInteger gst_stl_debugp_helper(Gst *vm, GstBuffer *b, GstTable *seen, G
                         isfirst = 0;
                     else
                         gst_buffer_push(vm, b, ' ');
-                    next = gst_stl_debugp_helper(vm, b, seen, data[i], next);
+                    next = gst_stl_debugp_helper(vm, b, seen, data[i], next, depth);
+                    if (next == -1)
+                        return -1;
                     gst_buffer_push(vm, b, ' ');
-                    next = gst_stl_debugp_helper(vm, b, seen, data[i + 1], next);
+                    next = gst_stl_debugp_helper(vm, b, seen, data[i + 1], next, depth);
+                    if (next == -1)
+                        return -1;
                 }
             } 
         } else if (gst_seq_view(x, &data, &len)) {
             for (i = 0; i < len; ++i) {
-                next = gst_stl_debugp_helper(vm, b, seen, data[i], next);
+                next = gst_stl_debugp_helper(vm, b, seen, data[i], next, depth);
+                if (next == -1)
+                    return -1;
                 if (i != len - 1)
                     gst_buffer_push(vm, b, ' ');
             } 
@@ -891,8 +903,12 @@ static GstInteger gst_stl_debugp_helper(Gst *vm, GstBuffer *b, GstTable *seen, G
 int gst_stl_debugp(Gst *vm) {
     GstValue x = gst_arg(vm, 0);
     GstBuffer *buf = gst_buffer(vm, 10);
-    gst_stl_debugp_helper(vm, buf, gst_table(vm, 10), x, 0);
-    gst_c_return(vm, gst_wrap_string(gst_buffer_to_string(vm, buf)));
+    GstInteger res = gst_stl_debugp_helper(vm, buf, gst_table(vm, 10), x, 0, 0);
+    if (res == -1) {
+        gst_c_throwc(vm, "recursed too deeply in debugp");
+    } else {
+        gst_c_return(vm, gst_wrap_string(gst_buffer_to_string(vm, buf)));
+    }
 }
 
 /***/

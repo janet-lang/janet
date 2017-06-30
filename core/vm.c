@@ -299,7 +299,6 @@ int gst_continue(Gst *vm) {
                     temp = vm->ret;
                     goto vm_return;
                 } else {
-                    stack = gst_thread_popframe(vm, vm->thread);
                     goto vm_error;
                 }
             } else {
@@ -377,7 +376,9 @@ int gst_continue(Gst *vm) {
         /* Handle returning from stack frame. Expect return value in temp. */
         vm_return:
             stack = gst_thread_popframe(vm, vm->thread);
-            while (vm->thread->count < GST_FRAME_SIZE) {
+            while (vm->thread->count < GST_FRAME_SIZE ||
+                vm->thread->status == GST_THREAD_DEAD ||
+                vm->thread->status == GST_THREAD_ERROR) {
                 vm->thread->status = GST_THREAD_DEAD;
                 if (vm->thread->parent) {
                     vm->thread = vm->thread->parent;
@@ -387,6 +388,7 @@ int gst_continue(Gst *vm) {
                     return GST_RETURN_OK;
                 }
             }
+            vm->thread->status = GST_THREAD_ALIVE;
             pc = gst_frame_pc(stack);
             stack[gst_frame_ret(stack)] = temp;
             continue;
@@ -394,9 +396,14 @@ int gst_continue(Gst *vm) {
         /* Handle errors from c functions and vm opcodes */
         vm_error:
             vm->thread->status = GST_THREAD_ERROR;
-            if (vm->thread->errorParent == NULL)
-                return GST_RETURN_ERROR;
-            vm->thread = vm->thread->errorParent;
+            while (vm->thread->count < GST_FRAME_SIZE ||
+                vm->thread->status == GST_THREAD_DEAD ||
+                vm->thread->status == GST_THREAD_ERROR) {
+                if (vm->thread->errorParent == NULL)
+                    return GST_RETURN_ERROR;
+                vm->thread = vm->thread->errorParent;
+            }
+            vm->thread->status = GST_THREAD_ALIVE;
             stack = vm->thread->data + vm->thread->count;
             stack[gst_frame_ret(stack)] = vm->ret;
             pc = gst_frame_pc(stack);
@@ -416,7 +423,12 @@ int gst_continue(Gst *vm) {
 /* Run the vm with a given function. This function is
  * called to start the vm. */
 int gst_run(Gst *vm, GstValue callee) {
-    vm->thread = gst_thread(vm, callee, 64);
+    if (vm->thread == NULL) {
+        vm->thread = gst_thread(vm, callee, 64);
+    } else {
+        /* Reuse old thread */
+        gst_thread_reset(vm, vm->thread, callee);
+    }
     if (vm->thread == NULL)
         return GST_RETURN_CRASH;
     if (callee.type == GST_CFUNCTION) {

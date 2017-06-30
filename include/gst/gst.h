@@ -488,7 +488,8 @@ GstValue gst_table_next(GstTable *o, GstValue key);
 /****/
 
 #define gst_thread_stack(t) ((t)->data + (t)->count)
-GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity); 
+GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity);
+GstThread *gst_thread_reset(Gst *vm, GstThread *thread, GstValue callee);
 void gst_thread_ensure_extra(Gst *vm, GstThread *thread, uint32_t extra); 
 void gst_thread_push(Gst *vm, GstThread *thread, GstValue x); 
 void gst_thread_pushnil(Gst *vm, GstThread *thread, uint32_t n); 

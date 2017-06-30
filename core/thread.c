@@ -25,14 +25,18 @@
 /* Create a new thread */
 GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity) {
     GstThread *thread = gst_alloc(vm, sizeof(GstThread));
-    GstValue *data, *stack;
     if (capacity < GST_FRAME_SIZE) capacity = GST_FRAME_SIZE;
-    data = gst_alloc(vm, sizeof(GstValue) * capacity);
+    thread->data = gst_alloc(vm, sizeof(GstValue) * capacity);
     thread->capacity = capacity;
+    return gst_thread_reset(vm, thread, callee);
+}
+
+/* Clear a thread (reset it) */
+GstThread *gst_thread_reset(Gst *vm, GstThread *thread, GstValue callee) {
+    GstValue *stack;
     thread->count = GST_FRAME_SIZE;
-    thread->data = data;
     thread->status = GST_THREAD_PENDING;
-    stack = data + GST_FRAME_SIZE;
+    stack = thread->data + GST_FRAME_SIZE;
     gst_frame_size(stack) = 0;
     gst_frame_prevsize(stack) = 0;
     gst_frame_ret(stack) = 0;

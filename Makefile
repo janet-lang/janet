@@ -39,7 +39,7 @@ debug: $(GST_TARGET)
 	gdb $(GST_TARGET)
 
 valgrind: $(GST_TARGET)
-	valgrind --leak-check=full ./$(GST_TARGET)
+	valgrind --leak-check=full -v ./$(GST_TARGET)
 
 clean:
 	rm $(GST_TARGET) || true
@@ -51,4 +51,7 @@ clean:
 test: $(GST_TARGET)
 	$(GST_TARGET) gsttests/basic.gst
 
-.PHONY: clean install run debug valgrind
+valtest: $(GST_TARGET)
+	valgrind --leak-check=full -v ./$(GST_TARGET) gsttests/basic.gst
+
+.PHONY: clean install run debug valgrind test valtest
