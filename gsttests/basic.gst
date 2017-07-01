@@ -53,7 +53,8 @@
 
 (assert (= (struct 1 2 3 4 5 6 7 8) (struct 7 8 5 6 3 4 1 2)) "struct order does not matter")
 
-"Serialization tests"
+# Serialization tests
+
 (def scheck (fn [x]
     (def dat (serialize x))
     (def deser (deserialize dat))
@@ -80,7 +81,7 @@
 (assert (= athread-result "hello, world!") "thread error result")
 (assert (= (status athread) "error") "thread error status")
 
-"yield tests"
+# yield tests
 
 (def t (thread (fn [] (tran nil 1) (tran nil 2) 3)))
 
@@ -89,7 +90,7 @@
 (assert (= 3 (tran t)) "return from thread")
 (assert (= (status t) "dead") "finished thread is dead")
 
-"report"
+# report
 
 (print num-tests-passed "of" num-tests-run "tests passed")
 (exit! 0)

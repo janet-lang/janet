@@ -407,7 +407,29 @@ static int form_state(GstParser *p, uint8_t c) {
 /* Handle a character */
 void gst_parse_byte(GstParser *p, uint8_t c) {
     int done = 0;
-    ++p->index;
+    /* Update position in source */
+    if (c == '\n') {
+        p->line++;
+        p->index = 0;
+        p->comment = GST_PCOMMENT_EXPECTING;
+    } else {
+        ++p->index; 
+    }
+    /* Check comments */
+    switch (p->comment) {
+        case GST_PCOMMENT_NOT:
+            break;
+        case GST_PCOMMENT_EXPECTING:
+            if (c == '#') {
+                p->comment = GST_PCOMMENT_INSIDE;
+                return;
+            } else if (!is_whitespace(c)) {
+                p->comment = GST_PCOMMENT_NOT;
+            }
+            break;
+        case GST_PCOMMENT_INSIDE:
+            return;
+    }
     /* Dispatch character to state */
     while (!done) {
         GstParseState *top = parser_peek(p);
@@ -478,8 +500,10 @@ void gst_parser(GstParser *p, Gst *vm) {
     p->data = data;
     p->count = 0;
     p->index = 0;
+    p->line = 1;
     p->quoteCount = 0;
     p->error = NULL;
     p->status = GST_PARSER_ROOT;
     p->value.type = GST_NIL;
+    p->comment = GST_PCOMMENT_EXPECTING;
 }

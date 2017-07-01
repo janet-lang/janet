@@ -360,6 +360,7 @@ struct GstParser {
     uint32_t count;
     uint32_t cap;
     uint32_t index;
+    uint32_t line;
     uint32_t quoteCount;
     enum {
         GST_PARSER_PENDING = 0,
@@ -367,6 +368,11 @@ struct GstParser {
         GST_PARSER_ERROR,
         GST_PARSER_ROOT
     } status;
+    enum {
+        GST_PCOMMENT_NOT,
+        GST_PCOMMENT_EXPECTING,
+        GST_PCOMMENT_INSIDE
+    } comment;
 };
 
 /* Compilation state */
