@@ -1,14 +1,17 @@
 (print "Running basic tests...")
 
-(var numTestsPassed 0)
-(def assert (fn [x e] 
+(var num-tests-passed 0)
+(var num-tests-run 0)
+(def assert (fn [x e]
+	(varset! num-tests-run (+ 1 num-tests-run)) 
 	(if x 
 		(do 
 			(print "  \e[32m✔\e[0m" e) 
-			(varset! numTestsPassed (+ 1 numTestsPassed)) x)
+			(varset! num-tests-passed (+ 1 num-tests-passed))
+			x)
 		(do 
-			(print e)
-			(exit! (+ numTestsPassed 1))))))
+			(print "  \e[31m✘\e[0m" e)
+			x))))
 
 (assert (= 10 (+ 1 2 3 4)) "addition")
 (assert (= -8 (- 1 2 3 4)) "subtraction")
@@ -77,7 +80,7 @@
 (assert (= athread-result "hello, world!") "thread error result")
 (assert (= (status athread) "error") "thread error status")
 
-"All tests passed"
+"report"
 
-(print "All" numTestsPassed "tests passed")
+(print num-tests-passed "of" num-tests-run "tests passed")
 (exit! 0)

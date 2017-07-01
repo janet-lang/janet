@@ -40,6 +40,7 @@ int gst_continue(Gst *vm) {
 #define gst_assert(vm, cond, e) do {if (!(cond)){gst_error((vm), (e));}} while (0)
 
     /* Intialize local state */
+    vm->thread->status = GST_THREAD_ALIVE;
     stack = gst_thread_stack(vm->thread);
     pc = gst_frame_pc(stack);
 
@@ -356,14 +357,20 @@ int gst_continue(Gst *vm) {
         case GST_OP_TRN: /* Transfer */
             temp = stack[pc[2]]; /* The thread */
             v1 = stack[pc[3]]; /* The value to pass in */
-            if (temp.type != GST_THREAD)
+            if (temp.type != GST_THREAD && temp.type != GST_NIL)
                 gst_error(vm, "expected thread");
-            if (temp.data.thread->status == GST_THREAD_DEAD ||
-                temp.data.thread->status == GST_THREAD_ERROR)
-                gst_error(vm, "cannot enter dead thread");
+            if (temp.type == GST_THREAD) {
+                if (temp.data.thread->status == GST_THREAD_DEAD ||
+                    temp.data.thread->status == GST_THREAD_ERROR)
+                    gst_error(vm, "cannot enter dead thread");
+            }
             gst_frame_ret(stack) = pc[1];
             vm->thread->status = GST_THREAD_PENDING;
             gst_frame_pc(stack) = pc + 4;
+            if (temp.type == GST_NIL) {
+                vm->ret = v1;
+                return GST_RETURN_OK;
+            }
             temp.data.thread->status = GST_THREAD_ALIVE;
             vm->thread = temp.data.thread;
             stack = gst_thread_stack(temp.data.thread);
@@ -423,22 +430,35 @@ int gst_continue(Gst *vm) {
 /* Run the vm with a given function. This function is
  * called to start the vm. */
 int gst_run(Gst *vm, GstValue callee) {
-    if (vm->thread == NULL) {
-        vm->thread = gst_thread(vm, callee, 64);
-    } else {
+    int result;
+    if (vm->thread &&
+        (vm->thread->status == GST_THREAD_DEAD ||
+         vm->thread->status == GST_THREAD_ALIVE)) {
         /* Reuse old thread */
         gst_thread_reset(vm, vm->thread, callee);
+    } else {
+        /* Create new thread */
+        vm->thread = gst_thread(vm, callee, 64);
+        if (vm->thread == NULL)
+            return GST_RETURN_CRASH;
     }
-    if (vm->thread == NULL)
-        return GST_RETURN_CRASH;
     if (callee.type == GST_CFUNCTION) {
         vm->ret.type = GST_NIL;
-        return callee.data.cfunction(vm);
+        result = callee.data.cfunction(vm);
     } else if (callee.type == GST_FUNCTION) {
-        return gst_continue(vm);
+        result = gst_continue(vm);
     } else {
         return GST_RETURN_CRASH;
     }
+    /* Handle yields */
+    while (result == GST_RETURN_OK && vm->thread->status == GST_THREAD_PENDING) {
+        /* Send back in the value yielded - TODO - do something useful with this */
+        GstValue *stack = gst_thread_stack(vm->thread);
+        stack[gst_frame_ret(stack)] = vm->ret;
+        /* Resume */
+        result = gst_continue(vm);
+    }
+    return result;
 }
 
 /* Get an argument from the stack */
