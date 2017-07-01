@@ -80,6 +80,15 @@
 (assert (= athread-result "hello, world!") "thread error result")
 (assert (= (status athread) "error") "thread error status")
 
+"yield tests"
+
+(def t (thread (fn [] (tran nil 1) (tran nil 2) 3)))
+
+(assert (= 1 (tran t)) "initial transfer to new thread")
+(assert (= 2 (tran t)) "second transfer to thread")
+(assert (= 3 (tran t)) "return from thread")
+(assert (= (status t) "dead") "finished thread is dead")
+
 "report"
 
 (print num-tests-passed "of" num-tests-run "tests passed")

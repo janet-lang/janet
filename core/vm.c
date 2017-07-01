@@ -359,6 +359,9 @@ int gst_continue(Gst *vm) {
             v1 = stack[pc[3]]; /* The value to pass in */
             if (temp.type != GST_THREAD && temp.type != GST_NIL)
                 gst_error(vm, "expected thread");
+            if (temp.type == GST_NIL && vm->thread->parent) {
+                temp = gst_wrap_thread(vm->thread->parent);
+            }
             if (temp.type == GST_THREAD) {
                 if (temp.data.thread->status == GST_THREAD_DEAD ||
                     temp.data.thread->status == GST_THREAD_ERROR)
