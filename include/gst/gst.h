@@ -1,16 +1,16 @@
 /*
 * Copyright (c) 2017 Calvin Rose
-* 
+*
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
 * deal in the Software without restriction, including without limitation the
 * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 * sell copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
-* 
+*
 * The above copyright notice and this permission notice shall be included in
 * all copies or substantial portions of the Software.
-* 
+*
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -496,13 +496,13 @@ GstValue gst_table_next(GstTable *o, GstValue key);
 #define gst_thread_stack(t) ((t)->data + (t)->count)
 GstThread *gst_thread(Gst *vm, GstValue callee, uint32_t capacity);
 GstThread *gst_thread_reset(Gst *vm, GstThread *thread, GstValue callee);
-void gst_thread_ensure_extra(Gst *vm, GstThread *thread, uint32_t extra); 
-void gst_thread_push(Gst *vm, GstThread *thread, GstValue x); 
-void gst_thread_pushnil(Gst *vm, GstThread *thread, uint32_t n); 
-void gst_thread_tuplepack(Gst *vm, GstThread *thread, uint32_t n); 
-GstValue *gst_thread_beginframe(Gst *vm, GstThread *thread, GstValue callee, uint32_t arity); 
+void gst_thread_ensure_extra(Gst *vm, GstThread *thread, uint32_t extra);
+void gst_thread_push(Gst *vm, GstThread *thread, GstValue x);
+void gst_thread_pushnil(Gst *vm, GstThread *thread, uint32_t n);
+void gst_thread_tuplepack(Gst *vm, GstThread *thread, uint32_t n);
+GstValue *gst_thread_beginframe(Gst *vm, GstThread *thread, GstValue callee, uint32_t arity);
 void gst_thread_endframe(Gst *vm, GstThread *thread);
-GstValue *gst_thread_popframe(Gst *vm, GstThread *thread); 
+GstValue *gst_thread_popframe(Gst *vm, GstThread *thread);
 uint32_t gst_thread_countframes(GstThread *thread);
 
 /****/
@@ -661,5 +661,6 @@ void gst_env_put(Gst *vm, GstTable *env, GstValue key, GstValue value);
 void gst_env_putc(Gst *vm, GstTable *env, const char *key, GstValue value);
 void gst_env_putvar(Gst *vm, GstTable *env, GstValue key, GstValue value);
 void gst_env_putvarc(Gst *vm, GstTable *env, const char *key, GstValue value);
+const uint8_t *gst_description(Gst *vm, GstValue x);
 
 #endif // GST_H_defined

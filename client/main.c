@@ -157,7 +157,7 @@ static int debug_repl(Gst *vm) {
             continue;
         }
         if (!debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret)) {
-            printf("%s\n", gst_to_string(vm, vm->ret));
+            printf("%s\n", gst_description(vm, vm->ret));
         }
     }
 }

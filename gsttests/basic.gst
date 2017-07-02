@@ -58,7 +58,7 @@
 (def scheck (fn [x]
     (def dat (serialize x))
     (def deser (deserialize dat))
-    (assert (= x deser) (string "serialize " (debugp x)))
+    (assert (= x deser) (string "serialize " (description x)))
 ))
 
 (scheck 1)
