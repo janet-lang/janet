@@ -44,15 +44,13 @@ static GstParseState *parser_pop(GstParser * p) {
     return p->data + --p->count;
 }
 
-// /* Quote a value */
-// static GstValue quote(GstParser *p, GstValue x) {
-//     /* Load a quote form to get the string literal */
-//     GstValue *tuple;
-//     tuple = gst_tuple_begin(p->vm, 2);
-//     tuple[0] = gst_string_cv(p->vm, "quote");
-//     tuple[1] = x;
-//     return gst_wrap_tuple(gst_tuple_end(p->vm, tuple));
-// }
+/* Quote a value */
+static GstValue quote(GstParser *p, GstValue x) {
+    GstValue *tuple = gst_tuple_begin(p->vm, 2);
+    tuple[0] = gst_string_cvs(p->vm, "quote");
+    tuple[1] = x;
+    return gst_wrap_tuple(gst_tuple_end(p->vm, tuple));
+}
 
 /* Add a new, empty ParseState to the ParseStack. */
 static void parser_push(GstParser *p, ParseType type, uint8_t character) {
@@ -68,6 +66,8 @@ static void parser_push(GstParser *p, ParseType type, uint8_t character) {
     top = parser_peek(p);
     if (!top) return;
     top->type = type;
+    top->quoteCount = p->quoteCount;
+    p->quoteCount = 0;
     switch (type) {
         case PTYPE_STRING:
             top->buf.string.state = STRING_STATE_BASE;
@@ -87,7 +87,10 @@ static void parser_push(GstParser *p, ParseType type, uint8_t character) {
 
 /* Append a value to the top-most state in the Parser's stack. */
 static void parser_append(GstParser *p, GstValue x) {
+    GstParseState *oldtop = parser_pop(p);
     GstParseState *top = parser_peek(p);
+    while (oldtop->quoteCount--)
+        x = quote(p, x);
     if (!top) {
         p->value = x;
         p->status = GST_PARSER_FULL;
@@ -256,7 +259,6 @@ static int token_state(GstParser *p, uint8_t c) {
     GstParseState *top = parser_peek(p);
     GstBuffer *buf = top->buf.string.buffer;
     if (is_whitespace(c) || c == ')' || c == ']' || c == '}') {
-        parser_pop(p);
         parser_append(p, build_token(p, buf));
         return !(c == ')' || c == ']' || c == '}');
     } else if (is_symbol_char(c)) {
@@ -293,7 +295,6 @@ static int string_state(GstParser *p, uint8_t c) {
                 GstValue x;
                 x.type = GST_STRING;
                 x.data.string = gst_buffer_to_string(p->vm, top->buf.string.buffer);
-                parser_pop(p);
                 parser_append(p, x);
             } else {
                 gst_buffer_push(p->vm, top->buf.string.buffer, c);
@@ -367,6 +368,10 @@ static int root_state(GstParser *p, uint8_t c) {
         parser_push(p, PTYPE_STRING, c);
         return 1;
     }
+    if (c == '\'') {
+        p->quoteCount++;
+        return 1;
+    }
     if (is_symbol_char(c)) {
         parser_push(p, PTYPE_TOKEN, c);
         return 0;
@@ -402,7 +407,6 @@ static int form_state(GstParser *p, uint8_t c) {
                 gst_table_put(p->vm, x.data.table, array->data[i], array->data[i + 1]);
             }
         }
-        parser_pop(p);
         parser_append(p, x);
         return 1;
     }

@@ -333,6 +333,7 @@ typedef enum ParseType {
 /* Contain a parse state that goes on the parse stack */
 struct GstParseState {
     ParseType type;
+    uint32_t quoteCount;
     union {
         struct {
             uint8_t endDelimiter;

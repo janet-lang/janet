@@ -45,6 +45,7 @@
 (assert (= 0 (band 3 4)) "bit and")
 
 (assert (= "hello" :hello) "keyword syntax for strings")
+(assert (= '(1 2 3) (quote (1 2 3)) (tuple 1 2 3)) "quote shorthand")
 
 ((fn []
 	(var accum 1)
