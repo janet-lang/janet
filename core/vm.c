@@ -505,9 +505,6 @@ void gst_init(Gst *vm) {
     vm->black = 0;
     /* Add thread */
     vm->thread = NULL;
-    /* Set up scratch memory */
-    vm->scratch = NULL;
-    vm->scratch_len = 0;
     /* Set up the cache */
     vm->cache = gst_raw_calloc(1, 128 * sizeof(GstValue));
     vm->cache_capacity = vm->cache == NULL ? 0 : 128;
@@ -526,8 +523,6 @@ void gst_deinit(Gst *vm) {
     vm->modules = NULL;
     vm->registry = NULL;
     vm->ret.type = GST_NIL;
-    vm->scratch = NULL;
-    vm->scratch_len = 0;
     /* Deinit the cache */
     gst_raw_free(vm->cache);
     vm->cache = NULL;

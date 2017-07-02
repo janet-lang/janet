@@ -605,8 +605,6 @@ int gst_stl_print(Gst *vm) {
     return GST_RETURN_OK;
 }
 
-
-
 /* Long description */
 int gst_stl_description(Gst *vm) {
     GstValue x = gst_arg(vm, 0);

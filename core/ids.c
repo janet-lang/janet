@@ -82,6 +82,19 @@ static int gst_cache_equal(GstValue x, GstValue y) {
     }
 }
 
+/* Check if a value x is equal to a string. Special version of
+ * gst_cache_equal */
+static int gst_cache_strequal(GstValue x, const uint8_t *str, uint32_t len, uint32_t hash) {
+    uint32_t i;
+    if (x.type != GST_STRING) return 0;
+    if (gst_string_hash(x.data.string) != hash) return 0;
+    if (gst_string_length(x.data.string) != len) return 0;
+    for (i = 0; i < len; ++i)
+        if (x.data.string[i] != str[i])
+            return 0;
+    return 1;
+}
+
 /* Find an item in the cache and return its location.
  * If the item is not found, return the location
  * where one would put it. */
@@ -126,6 +139,53 @@ static GstValue *gst_cache_find(Gst *vm, GstValue key, int *success) {
     return firstEmpty;
 }
 
+/* Find an item in the cache and return its location.
+ * If the item is not found, return the location
+ * where one would put it. Special case of gst_cache_find */
+static GstValue *gst_cache_strfind(Gst *vm,
+        const uint8_t *str,
+        uint32_t len,
+        uint32_t hash,
+        int *success) {
+    uint32_t bounds[4];
+    uint32_t i, j, index;
+    GstValue *firstEmpty = NULL;
+    index = hash % vm->cache_capacity;
+    bounds[0] = index;
+    bounds[1] = vm->cache_capacity;
+    bounds[2] = 0;
+    bounds[3] = index;
+    for (j = 0; j < 4; j += 2)
+        for (i = bounds[j]; i < bounds[j+1]; ++i) {
+            GstValue test = vm->cache[i];
+            /* Check empty spots */
+            if (test.type == GST_NIL) {
+                if (firstEmpty == NULL)
+                    firstEmpty = vm->cache + i;
+                goto notfound;
+            }
+            /* Check for marked deleted - use booleans as deleted */
+            if (test.type == GST_BOOLEAN) {
+                if (firstEmpty == NULL)
+                    firstEmpty = vm->cache + i;
+                continue;
+            }
+            if (gst_cache_strequal(test, str, len, hash)) {
+                /* Replace first deleted */
+                *success = 1;
+                if (firstEmpty != NULL) {
+                    *firstEmpty = test;
+                    vm->cache[i].type = GST_BOOLEAN;
+                    return firstEmpty;
+                }
+                return vm->cache + i;
+            }
+        }
+    notfound:
+    *success = 0;
+    return firstEmpty;
+}
+
 /* Resize the cache. */
 static void gst_cache_resize(Gst *vm, uint32_t newCapacity) {
     uint32_t i, oldCapacity;
@@ -155,37 +215,45 @@ static void gst_cache_resize(Gst *vm, uint32_t newCapacity) {
     gst_raw_free(oldCache);
 }
 
+/* Add a value to the cache given we know it is not
+ * already in the cache and we have a bucket. */
+static GstValue gst_cache_add_bucket(Gst *vm, GstValue x, GstValue *bucket) {
+    if ((vm->cache_count + vm->cache_deleted) * 2 > vm->cache_capacity) {
+        int status;
+        gst_cache_resize(vm, vm->cache_count * 4);
+        bucket = gst_cache_find(vm, x, &status);
+    }
+    /* Mark the memory for the gc */
+    switch (x.type) {
+    default:
+        break;
+    case GST_STRING:
+        gst_mem_tag(gst_string_raw(x.data.string), GST_MEMTAG_STRING);
+        break;
+    case GST_STRUCT:
+        gst_mem_tag(gst_struct_raw(x.data.st), GST_MEMTAG_STRUCT);
+        break;
+    case GST_TUPLE:
+        gst_mem_tag(gst_tuple_raw(x.data.tuple), GST_MEMTAG_TUPLE);
+        break;
+    }
+    /* Add x to the cache */
+    vm->cache_count++;
+    *bucket = x;
+    return x;
+}
+
 /* Add a value to the cache */
 static GstValue gst_cache_add(Gst *vm, GstValue x) {
     int status = 0;
     GstValue *bucket = gst_cache_find(vm, x, &status);
     if (!status) {
-        if ((vm->cache_count + vm->cache_deleted) * 2 > vm->cache_capacity) {
-            gst_cache_resize(vm, vm->cache_count * 4);
-            bucket = gst_cache_find(vm, x, &status);
-        }
-        /* Mark the memory for the gc */
-        switch (x.type) {
-        default:
-            break;
-        case GST_STRING:
-            gst_mem_tag(gst_string_raw(x.data.string), GST_MEMTAG_STRING);
-            break;
-        case GST_STRUCT:
-            gst_mem_tag(gst_struct_raw(x.data.st), GST_MEMTAG_STRUCT);
-            break;
-        case GST_TUPLE:
-            gst_mem_tag(gst_tuple_raw(x.data.tuple), GST_MEMTAG_TUPLE);
-            break;
-        }
-        /* Add x to the cache */
-        vm->cache_count++;
-        *bucket = x;
-        return x;
+        return gst_cache_add_bucket(vm, x, bucket);
     } else {
         return *bucket;
     }
 }
+
 
 /* Remove a value from the cache */
 static void gst_cache_remove(Gst *vm, GstValue x) {
@@ -397,28 +465,20 @@ const uint8_t *gst_string_end(Gst *vm, uint8_t *str) {
 
 /* Load a buffer as a string */
 const uint8_t *gst_string_b(Gst *vm, const uint8_t *buf, uint32_t len) {
-    GstValue cached;
-    GstValue check;
-    uint32_t newbufsize = len + 2 * sizeof(uint32_t) + 1;
-    uint8_t *str;
-    /* Ensure enough scratch memory */
-    if (vm->scratch_len < newbufsize) {
-        vm->scratch = gst_alloc(vm, newbufsize);
-        vm->scratch_len = newbufsize;
+    uint32_t hash = gst_string_calchash(buf, len);
+    int status = 0;
+    GstValue *bucket = gst_cache_strfind(vm, buf, len, hash, &status);
+    if (status) {
+        return bucket->data.string;
+    } else {
+        uint32_t newbufsize = len + 2 * sizeof(uint32_t) + 1;
+        uint8_t *str = (uint8_t *)(gst_alloc(vm, newbufsize) + 2 * sizeof(uint32_t));
+        gst_memcpy(str, buf, len);
+        gst_string_length(str) = len;
+        gst_string_hash(str) = hash;
+        str[len] = 0;
+        return gst_cache_add_bucket(vm, gst_wrap_string(str), bucket).data.string;
     }
-    str = (uint8_t *)(vm->scratch + 2 * sizeof(uint32_t));
-    gst_memcpy(str, buf, len);
-    gst_string_length(str) = len;
-    gst_string_hash(str) = gst_string_calchash(str, gst_string_length(str));
-    str[len] = 0;
-    check.type = GST_STRING;
-    check.data.string = (const uint8_t *) str;
-    cached = gst_cache_add(vm, check);
-    if (cached.data.string == (const uint8_t *) str) {
-        vm->scratch_len = 0;
-        vm->scratch = NULL;
-    }
-    return cached.data.string;
 }
 
 /* Load a c string */

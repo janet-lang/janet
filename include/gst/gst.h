@@ -310,9 +310,6 @@ struct Gst {
     uint32_t cache_capacity;
     uint32_t cache_count;
     uint32_t cache_deleted;
-    /* Scratch memory (should be marked in gc) */
-    char *scratch;
-    uint32_t scratch_len;
     /* GC roots */
     GstThread *thread;
     GstTable *modules;

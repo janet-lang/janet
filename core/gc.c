@@ -279,8 +279,6 @@ void gst_collect(Gst *vm) {
     gst_mark_value(vm, gst_wrap_table(vm->registry));
     gst_mark_value(vm, gst_wrap_table(vm->env));
     gst_mark_value(vm, vm->ret);
-    if (vm->scratch)
-        gc_header(vm->scratch)->color = vm->black;
     gst_sweep(vm);
     vm->nextCollection = 0;
 }
