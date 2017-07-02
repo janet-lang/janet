@@ -239,8 +239,13 @@ static GstValue build_token(GstParser *p, GstBuffer *buf) {
             p_error(p, "symbols cannot start with digits");
             x.type = GST_NIL;
         } else {
-            x.type = GST_SYMBOL;
-            x.data.string = gst_buffer_to_string(p->vm, buf);
+            if (buf->data[0] == ':' && buf->count >= 2) {
+                x.type = GST_STRING;
+                x.data.string = gst_string_b(p->vm, buf->data + 1, buf->count - 1);
+            } else {
+                x.type = GST_SYMBOL;
+                x.data.string = gst_buffer_to_string(p->vm, buf);
+            }
         }
     }
     return x;

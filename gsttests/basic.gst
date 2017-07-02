@@ -28,6 +28,7 @@
 (assert (>= 6.0 5.0 4.0 4.0 3.0 2.0 1.0) "greater than or equal to reals")
 
 (assert (< nil 1.0 1 false true "hi"
+	(quote hello)
 	(array 1 2 3)
 	(tuple 1 2 3)
 	(table "a" "b" "c" false)
@@ -42,6 +43,8 @@
 (assert (not nil) "nil literal")
 (assert (= 7 (bor 3 4)) "bit or")
 (assert (= 0 (band 3 4)) "bit and")
+
+(assert (= "hello" :hello) "keyword syntax for strings")
 
 ((fn []
 	(var accum 1)
