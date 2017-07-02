@@ -103,9 +103,6 @@ static int debug_run(Gst *vm, FILE *in) {
         while (p.status != GST_PARSER_ERROR && p.status != GST_PARSER_FULL) {
             if (*reader == '\0') {
                 if (!fgets(buffer, sizeof(buffer), in)) {
-                    /* Add possible end of line */
-                    if (p.status == GST_PARSER_PENDING)
-                        gst_parse_cstring(&p, "\n");
                     /* Check that parser is complete */
                     if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
                         printf("Unexpected end of source\n");
@@ -144,7 +141,6 @@ static int debug_repl(Gst *vm, uint64_t flags) {
         /* Init parser */
         gst_parser(&p, vm);
         while (p.status != GST_PARSER_ERROR && p.status != GST_PARSER_FULL) {
-            gst_parse_cstring(&p, "\n");
             if (p.status == GST_PARSER_ERROR || p.status == GST_PARSER_FULL)
                 break;
             if (!reader || *reader == '\0') {

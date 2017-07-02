@@ -97,6 +97,7 @@ void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
             break;
 
         case GST_STRING:
+        case GST_SYMBOL:
             gc_header(gst_string_raw(x.string))->color = vm->black;
             break;
 

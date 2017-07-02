@@ -129,6 +129,7 @@ typedef enum GstType {
     GST_INTEGER,
     GST_BOOLEAN,
     GST_STRING,
+    GST_SYMBOL,
     GST_ARRAY,
     GST_TUPLE,
     GST_TABLE,
@@ -459,7 +460,7 @@ GstValue *gst_tuple_begin(Gst *vm, uint32_t length);
 const GstValue *gst_tuple_end(Gst *vm, GstValue *tuple);
 
 /****/
-/* String functions */
+/* String/Symbol functions */
 /****/
 
 uint8_t *gst_string_begin(Gst *vm, uint32_t len);
@@ -467,6 +468,7 @@ const uint8_t *gst_string_end(Gst *vm, uint8_t *str);
 const uint8_t *gst_string_b(Gst *vm, const uint8_t *buf, uint32_t len);
 const uint8_t *gst_string_c(Gst *vm, const char *cstring);
 GstValue gst_string_cv(Gst *vm, const char *string);
+GstValue gst_string_cvs(Gst *vm, const char *string);
 int gst_string_compare(const uint8_t *lhs, const uint8_t *rhs);
 
 /****/
@@ -609,6 +611,7 @@ GstValue gst_wrap_real(GstReal x);
 GstValue gst_wrap_integer(GstInteger x);
 GstValue gst_wrap_boolean(int x);
 GstValue gst_wrap_string(const uint8_t *x);
+GstValue gst_wrap_symbol(const uint8_t *x);
 GstValue gst_wrap_array(GstArray *x);
 GstValue gst_wrap_tuple(const GstValue *x);
 GstValue gst_wrap_struct(const GstValue *x);
@@ -627,6 +630,7 @@ int gst_check_real(Gst *vm, uint32_t i, GstReal (*x));
 int gst_check_integer(Gst *vm, uint32_t i, GstInteger (*x));
 int gst_check_boolean(Gst *vm, uint32_t i, int (*x));
 int gst_check_string(Gst *vm, uint32_t i, const uint8_t *(*x));
+int gst_check_symbol(Gst *vm, uint32_t i, const uint8_t *(*x));
 int gst_check_array(Gst *vm, uint32_t i, GstArray *(*x));
 int gst_check_tuple(Gst *vm, uint32_t i, const GstValue *(*x));
 int gst_check_struct(Gst *vm, uint32_t i, const GstValue *(*x));

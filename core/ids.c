@@ -437,6 +437,16 @@ GstValue gst_string_cv(Gst *vm, const char *str) {
     return ret;
 }
 
+/* Load a c string and return it as a GstValue. Return the symbol. */
+GstValue gst_string_cvs(Gst *vm, const char *str) {
+    GstValue ret;
+    /* Only put strings in cache */
+    const uint8_t *data = gst_string_c(vm, str);
+    ret.type = GST_SYMBOL;
+    ret.data.string = data;
+    return ret;
+}
+
 /* Compares two strings */
 int gst_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
     uint32_t xlen = gst_string_length(lhs);

@@ -51,6 +51,7 @@
  * Byte 216: CFunc   - [u32 length]*[u8... idstring]
  * Byte 217: Ref     - [u32 id]
  * Byte 218: Integer - [i64 value]
+ * Byte 219: Symbol  - [u32 length]*[u8... characters]
  */
 
 /* Error at buffer end */
@@ -173,7 +174,8 @@ static const char *gst_deserialize_impl(
             break;
 
         case 205: /* String */
-            ret.type = GST_STRING;
+        case 219: /* Symbol */
+            ret.type = data[-1] == 205 ? GST_STRING : GST_SYMBOL;
             read_u32(length);
             deser_datacheck(length);
             ret.data.string = gst_string_b(vm, data, length);
@@ -582,7 +584,8 @@ static const char *gst_serialize_impl(
             return "unable to serialize type";
 
         case GST_STRING:
-            write_byte(205);
+        case GST_SYMBOL:
+            write_byte(x.type == GST_STRING ? 205 : 219);
             count = gst_string_length(x.data.string);
             write_u32(count);
             for (i = 0; i < count; ++i) {

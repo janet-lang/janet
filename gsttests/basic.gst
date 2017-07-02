@@ -43,13 +43,20 @@
 (assert (= 7 (bor 3 4)) "bit or")
 (assert (= 0 (band 3 4)) "bit and")
 
+((fn []
+	(var accum 1)
+	(var count 0)
+	(while (< count 16)
+		(varset! accum (blshift accum 1))
+		(varset! count (+ 1 count)))
+	(assert (= accum 65536) "loop in closure")))
+
 (var accum 1)
 (var count 0)
 (while (< count 16)
 	(varset! accum (blshift accum 1))
 	(varset! count (+ 1 count)))
-
-(assert (= accum 65536) "loop")
+(assert (= accum 65536) "loop globally")
 
 (assert (= (struct 1 2 3 4 5 6 7 8) (struct 7 8 5 6 3 4 1 2)) "struct order does not matter")
 

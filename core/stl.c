@@ -180,6 +180,7 @@ int gst_stl_length(Gst *vm) {
         default:
             gst_c_throwc(vm, "cannot get length");
         case GST_STRING:
+        case GST_SYMBOL:
             ret.data.integer = gst_string_length(x.data.string);
             break;
         case GST_ARRAY:
@@ -284,6 +285,8 @@ int gst_stl_slice(Gst *vm) {
         gst_c_return(vm, gst_wrap_array(arr));
     } else if (x.type == GST_STRING) {
         gst_c_return(vm, gst_wrap_string(gst_string_b(vm, x.data.string + from, newlength)));
+    } else if (x.type == GST_SYMBOL) {
+        gst_c_return(vm, gst_wrap_symbol(gst_string_b(vm, x.data.string + from, newlength)));
     } else { /* buffer */
         GstBuffer *b = gst_buffer(vm, newlength);
         gst_memcpy(b->data, x.data.buffer->data, newlength);
@@ -314,6 +317,9 @@ int gst_stl_type(Gst *vm) {
         break;
     case GST_STRING:
         typestr = "string";
+        break;
+    case GST_SYMBOL:
+        typestr = "symbol";
         break;
     case GST_ARRAY:
         typestr = "array";
@@ -659,7 +665,7 @@ int gst_stl_deserialize(Gst *vm) {
     const uint8_t *data;
     const char *err;
     if (!gst_chararray_view(gst_arg(vm, 0), &data, &len))
-        gst_c_throwc(vm, "expected string/buffer");
+        gst_c_throwc(vm, "expected string/buffer/symbol");
     err = gst_deserialize(vm, data, len, &ret, &data);
     if (err != NULL)
         gst_c_throwc(vm, err);
@@ -679,8 +685,9 @@ int gst_stl_namespace(Gst *vm) {
 int gst_stl_namespace_set(Gst *vm) {
     GstValue name = gst_arg(vm, 0);
     GstValue check;
-    if (name.type != GST_STRING)
-        gst_c_throwc(vm, "expected string");
+    if (name.type != GST_STRING || name.type == GST_SYMBOL)
+        gst_c_throwc(vm, "expected string/symbol");
+    name.type = GST_SYMBOL;
     check = gst_table_get(vm->modules, name);
     if (check.type == GST_TABLE) {
         vm->registry = check.data.table;
@@ -731,24 +738,28 @@ int gst_stl_funcparent(Gst *vm) {
 }
 
 int gst_stl_def(Gst *vm) {
+    GstValue key = gst_arg(vm, 0);
     if (gst_count_args(vm) != 2) {
         gst_c_throwc(vm, "expected 2 arguments to global-def");
     }
-    if (GST_STRING != gst_arg(vm, 0).type) {
-        gst_c_throwc(vm, "expected string as first argument");
+    if (key.type != GST_STRING && key.type != GST_SYMBOL) {
+        gst_c_throwc(vm, "expected string/symbol as first argument");
     }
-    gst_env_put(vm, vm->env, gst_arg(vm, 0), gst_arg(vm, 1));
+    key.type = GST_SYMBOL;
+    gst_env_put(vm, vm->env, key, gst_arg(vm, 1));
     gst_c_return(vm, gst_arg(vm, 1));
 }
 
 int gst_stl_var(Gst *vm) {
+    GstValue key = gst_arg(vm, 0);
     if (gst_count_args(vm) != 2) {
         gst_c_throwc(vm, "expected 2 arguments to global-var");
     }
-    if (GST_STRING != gst_arg(vm, 0).type) {
+    if (key.type != GST_STRING && key.type != GST_SYMBOL) {
         gst_c_throwc(vm, "expected string as first argument");
     }
-    gst_env_putvar(vm, vm->env, gst_arg(vm, 0), gst_arg(vm, 1));
+    key.type = GST_SYMBOL;
+    gst_env_putvar(vm, vm->env, key, gst_arg(vm, 1));
     gst_c_return(vm, gst_arg(vm, 1));
 }
 
@@ -937,7 +948,7 @@ static int gst_stl_parser_charseq(Gst *vm) {
     if (p == NULL)
         gst_c_throwc(vm, "expected parser");
     if (!gst_chararray_view(gst_arg(vm, 1), &data, &len))
-        gst_c_throwc(vm, "expected string/buffer");
+        gst_c_throwc(vm, "expected string/buffer/symbol");
     for (i = 0; i < len; ++i) {
         if (p->status != GST_PARSER_PENDING && p->status != GST_PARSER_ROOT) break;
         gst_parse_byte(p, data[i]);
@@ -983,7 +994,7 @@ static int gst_stl_parse(Gst *vm) {
     GstParser p;
     const uint8_t *data;
     if (!gst_chararray_view(gst_arg(vm, 0), &data, &len))
-        gst_c_throwc(vm, "expected string/buffer to parse");
+        gst_c_throwc(vm, "expected string/buffer/symbol to parse");
     gst_parser(&p, vm);
     for (i = 0; i < len; ++i) {
         if (p.status != GST_PARSER_PENDING && p.status != GST_PARSER_ROOT) break;
@@ -1129,7 +1140,7 @@ void gst_stl_load(Gst *vm) {
     gst_module_put(vm, "std", "stdin", gst_wrap_userdata(inp));
     gst_module_put(vm, "std", "stdout", gst_wrap_userdata(outp));
     gst_module_put(vm, "std", "stderr", gst_wrap_userdata(outp));
-    maybeEnv = gst_table_get(vm->modules, gst_string_cv(vm, "std"));
+    maybeEnv = gst_table_get(vm->modules, gst_string_cvs(vm, "std"));
     if (maybeEnv.type == GST_TABLE)
         gst_env_merge(vm, vm->env, maybeEnv.data.table);
 }

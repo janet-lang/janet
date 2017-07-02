@@ -44,15 +44,15 @@ static GstParseState *parser_pop(GstParser * p) {
     return p->data + --p->count;
 }
 
-/* Quote a value */
-static GstValue quote(GstParser *p, GstValue x) {
-    /* Load a quote form to get the string literal */
-    GstValue *tuple;
-    tuple = gst_tuple_begin(p->vm, 2);
-    tuple[0] = gst_string_cv(p->vm, "quote");
-    tuple[1] = x;
-    return gst_wrap_tuple(gst_tuple_end(p->vm, tuple));
-}
+// /* Quote a value */
+// static GstValue quote(GstParser *p, GstValue x) {
+//     /* Load a quote form to get the string literal */
+//     GstValue *tuple;
+//     tuple = gst_tuple_begin(p->vm, 2);
+//     tuple[0] = gst_string_cv(p->vm, "quote");
+//     tuple[1] = x;
+//     return gst_wrap_tuple(gst_tuple_end(p->vm, tuple));
+// }
 
 /* Add a new, empty ParseState to the ParseStack. */
 static void parser_push(GstParser *p, ParseType type, uint8_t character) {
@@ -239,7 +239,7 @@ static GstValue build_token(GstParser *p, GstBuffer *buf) {
             p_error(p, "symbols cannot start with digits");
             x.type = GST_NIL;
         } else {
-            x.type = GST_STRING;
+            x.type = GST_SYMBOL;
             x.data.string = gst_buffer_to_string(p->vm, buf);
         }
     }
@@ -289,7 +289,7 @@ static int string_state(GstParser *p, uint8_t c) {
                 x.type = GST_STRING;
                 x.data.string = gst_buffer_to_string(p->vm, top->buf.string.buffer);
                 parser_pop(p);
-                parser_append(p, quote(p, x));
+                parser_append(p, x);
             } else {
                 gst_buffer_push(p->vm, top->buf.string.buffer, c);
             }

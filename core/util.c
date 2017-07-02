@@ -55,6 +55,7 @@ GST_WRAP_DEFINE(real, GstReal, GST_REAL, real)
 GST_WRAP_DEFINE(integer, GstInteger, GST_INTEGER, integer)
 GST_WRAP_DEFINE(boolean, int, GST_BOOLEAN, boolean)
 GST_WRAP_DEFINE(string, const uint8_t *, GST_STRING, string)
+GST_WRAP_DEFINE(symbol, const uint8_t *, GST_SYMBOL, string)
 GST_WRAP_DEFINE(array, GstArray *, GST_ARRAY, array)
 GST_WRAP_DEFINE(tuple, const GstValue *, GST_TUPLE, tuple)
 GST_WRAP_DEFINE(struct, const GstValue *, GST_STRUCT, st)
@@ -94,7 +95,7 @@ static void gst_cmodule_register(Gst *vm, const char *name, const GstModuleItem 
         GstValue key;
         buffer->count = startLength;
         gst_buffer_append_cstring(vm, buffer, mod->name);
-        key = gst_wrap_string(gst_buffer_to_string(vm, buffer));
+        key = gst_wrap_symbol(gst_buffer_to_string(vm, buffer));
         gst_table_put(vm, vm->registry, key, gst_wrap_cfunction(mod->data));
         gst_table_put(vm, vm->registry, gst_wrap_cfunction(mod->data), key);
         mod++;
@@ -104,7 +105,7 @@ static void gst_cmodule_register(Gst *vm, const char *name, const GstModuleItem 
 static GstValue gst_cmodule_table(Gst *vm, const GstModuleItem *mod) {
     GstTable *module = gst_table(vm, 10);
     while (mod->name != NULL) {
-        GstValue key = gst_string_cv(vm, mod->name);
+        GstValue key = gst_string_cvs(vm, mod->name);
         gst_table_put(vm, module, key, gst_wrap_cfunction(mod->data));
         mod++;
     }
@@ -123,7 +124,7 @@ static GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
     m = mod;
     while (m->name != NULL) {
         gst_struct_put(st,
-                gst_string_cv(vm, m->name),
+                gst_string_cvs(vm, m->name),
                 gst_wrap_cfunction(m->data));
         ++m;
     }
@@ -131,17 +132,17 @@ static GstValue gst_cmodule_struct(Gst *vm, const GstModuleItem *mod) {
 }
 
 void gst_module(Gst *vm, const char *packagename, const GstModuleItem *mod) {
-    gst_table_put(vm, vm->modules, gst_string_cv(vm, packagename), gst_cmodule_struct(vm, mod));
+    gst_table_put(vm, vm->modules, gst_string_cvs(vm, packagename), gst_cmodule_struct(vm, mod));
     gst_cmodule_register(vm, packagename, mod);
 }
 
 void gst_module_mutable(Gst *vm, const char *packagename, const GstModuleItem *mod) {
-    gst_table_put(vm, vm->modules, gst_string_cv(vm, packagename), gst_cmodule_table(vm, mod));
+    gst_table_put(vm, vm->modules, gst_string_cvs(vm, packagename), gst_cmodule_table(vm, mod));
     gst_cmodule_register(vm, packagename, mod);
 }
 
 void gst_module_put(Gst *vm, const char *packagename, const char *name, GstValue v) {
-    GstValue modtable = gst_table_get(vm->modules, gst_string_cv(vm, packagename));
+    GstValue modtable = gst_table_get(vm->modules, gst_string_cvs(vm, packagename));
     if (modtable.type == GST_TABLE) {
         GstTable *table = modtable.data.table;
         if (v.type == GST_CFUNCTION) {
@@ -154,12 +155,12 @@ void gst_module_put(Gst *vm, const char *packagename, const char *name, GstValue
             gst_table_put(vm, vm->registry, key, v);
             gst_table_put(vm, vm->registry, v, key);
         }
-        gst_table_put(vm, table, gst_string_cv(vm, name), v);
+        gst_table_put(vm, table, gst_string_cvs(vm, name), v);
     }
 }
 
 GstValue gst_module_get(Gst *vm, const char *packagename) {
-    return gst_table_get(vm->modules, gst_string_cv(vm, packagename));
+    return gst_table_get(vm->modules, gst_string_cvs(vm, packagename));
 }
 
 /****/
@@ -186,7 +187,7 @@ int gst_seq_view(GstValue seq, const GstValue **data, uint32_t *len) {
 /* Read both strings and buffer as unsigned character array + uint32_t len.
  * Returns 1 if the view can be constructed and 0 if the type is invalid. */
 int gst_chararray_view(GstValue str, const uint8_t **data, uint32_t *len) {
-    if (str.type == GST_STRING) {
+    if (str.type == GST_STRING || str.type == GST_SYMBOL) {
         *data = str.data.string;
         *len = gst_string_length(str.data.string);
         return 1;
@@ -281,7 +282,7 @@ static void mergenils(Gst *vm, GstTable *destEnv, GstTable *nils) {
     uint32_t i;
     GstTable *destNils = gst_env_nils(vm, destEnv);
     for (i = 0; i < len; i += 2) {
-        if (data[i].type == GST_STRING) {
+        if (data[i].type == GST_SYMBOL) {
             gst_table_put(vm, destEnv, data[i], gst_wrap_nil());
             gst_table_put(vm, destNils, data[i], gst_wrap_boolean(1));
         }
@@ -295,7 +296,7 @@ static void mergemeta(Gst *vm, GstTable *destEnv, GstTable *meta) {
     uint32_t i;
     GstTable *destMeta = gst_env_meta(vm, destEnv);
     for (i = 0; i < len; i += 2) {
-        if (data[i].type == GST_STRING) {
+        if (data[i].type == GST_SYMBOL) {
             gst_table_put(vm, destMeta, data[i], data[i + 1]);
         }
     }
@@ -307,7 +308,7 @@ void gst_env_merge(Gst *vm, GstTable *destEnv, GstTable *srcEnv) {
     uint32_t len = srcEnv->capacity;
     uint32_t i;
     for (i = 0; i < len; i += 2) {
-        if (data[i].type == GST_STRING) {
+        if (data[i].type == GST_SYMBOL) {
             gst_table_put(vm, destEnv, data[i], data[i + 1]);
         } else if (data[i].type == GST_INTEGER) {
             switch (data[i].data.integer) {
@@ -336,7 +337,7 @@ void gst_env_put(Gst *vm, GstTable *env, GstValue key, GstValue value) {
 }
 
 void gst_env_putc(Gst *vm, GstTable *env, const char *key, GstValue value) {
-    GstValue keyv = gst_string_cv(vm, key);
+    GstValue keyv = gst_string_cvs(vm, key);
     gst_env_put(vm, env, keyv, value);
 }
 
@@ -347,11 +348,11 @@ void gst_env_putvar(Gst *vm, GstTable *env, GstValue key, GstValue value) {
     ref->count = 1;
     ref->data[0] = value;
     gst_table_put(vm, env, key, gst_wrap_array(ref));
-    gst_table_put(vm, newmeta, gst_string_cv(vm, "mutable"), gst_wrap_boolean(1));
+    gst_table_put(vm, newmeta, gst_string_cvs(vm, "mutable"), gst_wrap_boolean(1));
     gst_table_put(vm, meta, key, gst_wrap_table(newmeta));
 }
 
 void gst_env_putvarc(Gst *vm, GstTable *env, const char *key, GstValue value) {
-    GstValue keyv = gst_string_cv(vm, key);
+    GstValue keyv = gst_string_cvs(vm, key);
     gst_env_putvar(vm, env, keyv, value);
 }

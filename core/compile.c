@@ -126,14 +126,6 @@ static void c_error1(GstCompiler *c, GstValue e) {
     longjmp(c->onError, 1);
 }
 
-/* Quote something */
-static GstValue quote(Gst *vm, GstValue x) {
-    GstValue *q = gst_tuple_begin(vm, 2);
-    q[0] = gst_string_cv(vm, "quote");
-    q[1] = x; /* lit contains the var container of the environment */
-    return gst_wrap_tuple(gst_tuple_end(vm, q));
-}
-
 /* Push a new scope in the compiler and return
  * a pointer to it for configuration. There is
  * more configuration that needs to be done if
@@ -383,8 +375,8 @@ static uint16_t compiler_add_literal(GstCompiler *c, GstScope *scope, GstValue x
 static uint16_t compiler_declare_symbol(GstCompiler *c, GstScope *scope, GstValue sym, uint16_t flags) {
     GstValue x;
     uint16_t target;
-    if (sym.type != GST_STRING)
-        c_error(c, "expected string");
+    if (sym.type != GST_SYMBOL)
+        c_error(c, "expected symbol");
     target = compiler_get_local(c, scope);
     x.type = GST_INTEGER;
     x.data.integer = target + (flags << 16);
@@ -415,7 +407,7 @@ static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t 
         GstTable *metas = gst_env_meta(c->vm, c->env);
         GstValue maybeMeta = gst_table_get(metas, x);
         if (maybeMeta.type == GST_TABLE) {
-            GstValue isMutable = gst_table_get(maybeMeta.data.table, gst_string_cv(c->vm, "mutable"));
+            GstValue isMutable = gst_table_get(maybeMeta.data.table, gst_string_cvs(c->vm, "mutable"));
             if (gst_truthy(isMutable)) {
                 if (flags) *flags = GST_LOCAL_FLAG_MUTABLE;
                 *out = check;
@@ -509,6 +501,14 @@ static Slot compile_literal(GstCompiler *c, FormOptions opts, GstValue x) {
     return ret;
 }
 
+/* Quote a value */
+static GstValue quote(Gst *vm, GstValue x) {
+    GstValue *tuple = gst_tuple_begin(vm, 2);
+    tuple[0] = gst_string_cvs(vm, "quote");
+    tuple[1] = x;
+    return gst_wrap_tuple(gst_tuple_end(vm, tuple));
+}
+
 /* Compile a symbol. Resolves any kind of symbol. */
 static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
     GstValue lit = gst_wrap_nil();
@@ -529,7 +529,7 @@ static Slot compile_symbol(GstCompiler *c, FormOptions opts, GstValue sym) {
         const GstValue *tup;
         Gst *vm= c->vm;
         GstValue *t = gst_tuple_begin(vm, 3);
-        t[0] = gst_string_cv(vm, "get"); /* Todo - replace with actual cfunc or bytecode */
+        t[0] = gst_string_cvs(vm, "get"); /* Todo - replace with actual cfunc or bytecode */
         t[1] = quote(vm, lit);
         t[2] = gst_wrap_integer(0);
         tup = gst_tuple_end(vm, t);
@@ -608,8 +608,8 @@ static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstV
         const GstValue *tup;
         Gst *vm= c->vm;
         GstValue *t = gst_tuple_begin(vm, 4);
-        t[0] = gst_string_cv(vm, "set!"); /* Todo - replace with ref ro actual cfunc */
-        t[1] = quote(vm, lit);
+        t[0] = gst_string_cvs(vm, "set!"); /* Todo - replace with ref ro actual cfunc */
+        t[1] = quote(c->vm, lit);
         t[2] = gst_wrap_integer(0);
         t[3] = right;
         tup = gst_tuple_end(vm, t);
@@ -631,7 +631,7 @@ static Slot compile_assign(GstCompiler *c, FormOptions opts, GstValue left, GstV
 static Slot compile_varset(GstCompiler *c, FormOptions opts, const GstValue *form) {
     if (gst_tuple_length(form) != 3)
         c_error(c, "expected 2 arguments to varset");
-    if (GST_STRING != form[1].type)
+    if (GST_SYMBOL != form[1].type)
         c_error(c, "expected symbol as first argument");
     return compile_assign(c, opts, form[1], form[2]);
 }
@@ -641,11 +641,9 @@ static Slot compile_global_var(GstCompiler *c, FormOptions opts, const GstValue 
     const GstValue *tup;
     Gst *vm= c->vm;
     GstValue *t = gst_tuple_begin(vm, 3);
-    GstValue *q = gst_tuple_begin(vm, 2);
-    q[0] = gst_string_cv(vm, "quote");
-    q[1] = form[1];
-    t[0] = gst_string_cv(vm, "global-var"); /* Todo - replace with ref ro actual cfunc */
-    t[1] = gst_wrap_tuple(gst_tuple_end(vm, q));
+    t[0] = gst_string_cvs(vm, "global-var"); /* Todo - replace with ref ro actual cfunc */
+    t[1] = form[1];
+    t[1].type = GST_STRING;
     t[2] = form[2];
     tup = gst_tuple_end(vm, t);
     return compile_value(c, opts, gst_wrap_tuple(tup));
@@ -656,11 +654,9 @@ static Slot compile_global_def(GstCompiler *c, FormOptions opts, const GstValue 
     const GstValue *tup;
     Gst *vm= c->vm;
     GstValue *t = gst_tuple_begin(vm, 3);
-    GstValue *q = gst_tuple_begin(vm, 2);
-    q[0] = gst_string_cv(vm, "quote");
-    q[1] = form[1];
-    t[0] = gst_string_cv(vm, "global-def"); /* Todo - replace with ref ro actual cfunc */
-    t[1] = gst_wrap_tuple(gst_tuple_end(vm, q));
+    t[0] = gst_string_cvs(vm, "global-def"); /* Todo - replace with ref ro actual cfunc */
+    t[1] = form[1];
+    t[1].type = GST_STRING;
     t[2] = form[2];
     tup = gst_tuple_end(vm, t);
     return compile_value(c, opts, gst_wrap_tuple(tup));
@@ -671,7 +667,7 @@ static Slot compile_def(GstCompiler *c, FormOptions opts, const GstValue *form) 
     GstScope *scope = c->tail;
     if (gst_tuple_length(form) != 3)
         c_error(c, "expected 2 arguments to def");
-    if (GST_STRING != form[1].type)
+    if (GST_SYMBOL != form[1].type)
         c_error(c, "expected symbol as first argument");
     if (scope->parent) {
         FormOptions subOpts;
@@ -692,7 +688,7 @@ static Slot compile_var(GstCompiler *c, FormOptions opts, const GstValue *form) 
     GstScope *scope = c->tail;
     if (gst_tuple_length(form) != 3)
         c_error(c, "expected 2 arguments to var");
-    if (GST_STRING != form[1].type)
+    if (GST_SYMBOL != form[1].type)
         c_error(c, "expected symbol as first argument");
     if (scope->parent) {
         FormOptions subOpts;
@@ -798,8 +794,8 @@ static Slot compile_function(GstCompiler *c, FormOptions opts, const GstValue *f
     arity = params->count;
     for (i = 0; i < params->count; ++i) {
         GstValue param = params->data[i];
-        if (param.type != GST_STRING)
-            c_error(c, "function parameters should be strings");
+        if (param.type != GST_SYMBOL)
+            c_error(c, "function parameters should be symbols");
         /* Check for varargs */
         if (equal_cstr(param.data.string, "&")) {
             if (i != params->count - 1) {
@@ -1057,7 +1053,7 @@ typedef Slot (*SpecialFormHelper) (GstCompiler *c, FormOptions opts, const GstVa
 /* Dispatch to a special form */
 static SpecialFormHelper get_special(const GstValue *form) {
     const uint8_t *name;
-    if (gst_tuple_length(form) < 1 || form[0].type != GST_STRING)
+    if (gst_tuple_length(form) < 1 || form[0].type != GST_SYMBOL)
         return NULL;
     name = form[0].data.string;
     /* If we have a symbol with a zero length name, we have other
@@ -1277,7 +1273,7 @@ static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
         case GST_INTEGER:
             ret = compile_nonref_type(c, opts, x);
             break;
-        case GST_STRING:
+        case GST_SYMBOL:
             ret = compile_symbol(c, opts, x);
             break;
         case GST_TUPLE:

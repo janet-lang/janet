@@ -180,6 +180,8 @@ const uint8_t *gst_short_description(Gst *vm, GstValue x) {
         return string_description(vm, "struct", x.data.pointer);
     case GST_TABLE:
         return string_description(vm, "table", x.data.pointer);
+    case GST_SYMBOL:
+        return x.data.string;
     case GST_STRING:
     {
         GstBuffer *buf = gst_buffer(vm, gst_string_length(x.data.string) + 4);
@@ -226,6 +228,9 @@ static GstInteger gst_description_helper(Gst *vm, GstBuffer *b, GstTable *seen, 
                 return next;
             case GST_STRING:
                 gst_escape_string(vm, b, x.data.string);
+                return next;
+            case GST_SYMBOL:
+                gst_buffer_append(vm, b, x.data.string, gst_string_length(x.data.string));
                 return next;
             case GST_NIL:
                 gst_buffer_append_cstring(vm, b, "nil");
@@ -287,7 +292,7 @@ const uint8_t *gst_description(Gst *vm, GstValue x) {
 }
 
 const uint8_t *gst_to_string(Gst *vm, GstValue x) {
-    if (x.type == GST_STRING) {
+    if (x.type == GST_STRING || x.type == GST_SYMBOL) {
         return x.data.string;
     } else if (x.type == GST_BYTEBUFFER) {
         return gst_buffer_to_string(vm, x.data.buffer);
@@ -335,6 +340,7 @@ uint32_t gst_hash(GstValue x) {
         hash = x.data.boolean;
         break;
     case GST_STRING:
+    case GST_SYMBOL:
         hash = gst_string_hash(x.data.string);
         break;
     case GST_TUPLE:
@@ -436,6 +442,7 @@ const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
         ret.data.integer = ds.data.buffer->data[index];
         break;
     case GST_STRING:
+    case GST_SYMBOL:
         if (key.type != GST_INTEGER) return "expected integer key";
         index = gst_startrange(key.data.integer, gst_string_length(ds.data.string));
         if (index < 0) return "invalid string access";
