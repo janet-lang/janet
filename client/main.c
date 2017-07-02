@@ -24,6 +24,19 @@
 #include <stdio.h>
 #include <gst/gst.h>
 
+static int client_strequal(const char *a, const char *b) {
+    while (*a)
+        if (*a++ != *b++) return 0;
+    return *a == *b;
+}
+
+#define GST_CLIENT_HELP 1
+#define GST_CLIENT_VERBOSE 2
+#define GST_CLIENT_VERSION 4
+#define GST_CLIENT_REPL 8
+#define GST_CLIENT_NOCOLOR 16
+#define GST_CLIENT_UNKNOWN 32
+
 /* Simple read line functionality */
 static char *gst_getline() {
     char *line = malloc(100);
@@ -123,7 +136,7 @@ static int debug_run(Gst *vm, FILE *in) {
 }
 
 /* A simple repl */
-static int debug_repl(Gst *vm) {
+static int debug_repl(Gst *vm, uint64_t flags) {
     char *buffer, *reader;
     GstParser p;
     buffer = reader = NULL;
@@ -135,7 +148,11 @@ static int debug_repl(Gst *vm) {
             if (p.status == GST_PARSER_ERROR || p.status == GST_PARSER_FULL)
                 break;
             if (!reader || *reader == '\0') {
-                printf("\x1B[32m>>\x1B[0m ");
+                if (flags & GST_CLIENT_NOCOLOR) {
+                    printf(">>> ");
+                } else {
+                    printf("\x1B[33m>>>\x1B[0m ");
+                }
                 if (buffer)
                     free(buffer);
                 buffer = gst_getline();
@@ -157,22 +174,14 @@ static int debug_repl(Gst *vm) {
             continue;
         }
         if (!debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret)) {
-            printf("%s\n", gst_description(vm, vm->ret));
+            if (flags & GST_CLIENT_NOCOLOR) {
+                printf("%s\n", gst_description(vm, vm->ret));
+            } else {
+                printf("\x1B[36m%s\x1B[0m\n", gst_description(vm, vm->ret));
+            }
         }
     }
 }
-
-static int client_strequal(const char *a, const char *b) {
-    while (*a)
-        if (*a++ != *b++) return 0;
-    return *a == *b;
-}
-
-#define GST_CLIENT_HELP 1
-#define GST_CLIENT_VERBOSE 2
-#define GST_CLIENT_VERSION 4
-#define GST_CLIENT_REPL 8
-#define GST_CLIENT_UNKNOWN 16
 
 int main(int argc, const char **argv) {
     Gst vm;
@@ -196,6 +205,8 @@ int main(int argc, const char **argv) {
                     flags |= GST_CLIENT_VERBOSE;
                 } else if (client_strequal(arg + 2, "repl")) {
                     flags |= GST_CLIENT_REPL;
+                } else if (client_strequal(arg + 2, "nocolor")) {
+                    flags |= GST_CLIENT_NOCOLOR;
                 } else {
                     flags |= GST_CLIENT_UNKNOWN;
                 }
@@ -207,14 +218,17 @@ int main(int argc, const char **argv) {
                         case 'h':
                             flags |= GST_CLIENT_HELP;
                             break;
-                        case 'V':
+                        case 'v':
                             flags |= GST_CLIENT_VERSION;
                             break;
-                        case 'v':
+                        case 'V':
                             flags |= GST_CLIENT_VERBOSE;
                             break;
                         case 'r':
                             flags |= GST_CLIENT_REPL;
+                            break;
+                        case 'c':
+                            flags |= GST_CLIENT_NOCOLOR;
                             break;
                         default:
                             flags |= GST_CLIENT_UNKNOWN;
@@ -233,6 +247,7 @@ int main(int argc, const char **argv) {
                 "  -h      --help     : Shows this information.\n"
                 "  -V      --verbose  : Show more output.\n"
                 "  -r      --repl     : Launch a repl after all files are processed.\n"
+                "  -c      --nocolor  : Don't use VT100 color codes in the repl.\n"
                 "  -v      --version  : Print the version number and exit.\n\n",
                 argv[0]);
         return 0;
@@ -258,7 +273,7 @@ int main(int argc, const char **argv) {
     }
 
     if (!fileRead || (flags & GST_CLIENT_REPL)) {
-        status = debug_repl(&vm);
+        status = debug_repl(&vm, flags);
     }
 
     gst_deinit(&vm);

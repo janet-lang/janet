@@ -8,7 +8,7 @@ VERSION=\"0.0.0-beta\"
 
 CFLAGS=-std=c99 -Wall -Wextra -I./include -g -DGST_VERSION=$(VERSION)
 PREFIX=/usr/local
-GST_TARGET=client/gst
+GST_TARGET=gst
 GST_CORELIB=core/libgst.a
 GST_INTERNAL_HEADERS=$(addprefix core/, cache.h)
 GST_HEADERS=$(addprefix include/gst/, gst.h)
@@ -39,7 +39,7 @@ run: $(GST_TARGET)
 	./$(GST_TARGET)
 
 debug: $(GST_TARGET)
-	gdb $(GST_TARGET)
+	gdb ./$(GST_TARGET)
 
 valgrind: $(GST_TARGET)
 	valgrind --leak-check=full -v ./$(GST_TARGET)
@@ -52,7 +52,7 @@ clean:
 	rm vgcore.* || true
 
 test: $(GST_TARGET)
-	$(GST_TARGET) gsttests/basic.gst
+	./$(GST_TARGET) gsttests/basic.gst
 
 valtest: $(GST_TARGET)
 	valgrind --leak-check=full -v ./$(GST_TARGET) gsttests/basic.gst
