@@ -21,7 +21,7 @@
 (assert (< 1 2 3 4 5 6) "less than integers")
 (assert (< 1.0 2.0 3.0 4.0 5.0 6.0) "less than reals")
 (assert (> 6 5 4 3 2 1) "greater than integers")
-(assert (> 6.0 5.0 4.0 3.0 2.0 1.0) "greater then reals")
+(assert (> 6.0 5.0 4.0 3.0 2.0 1.0) "greater than reals")
 (assert (<= 1 2 3 3 4 5 6) "less than or equal to integers")
 (assert (<= 1.0 2.0 3.0 3.0 4.0 5.0 6.0) "less than or equal to reals")
 (assert (>= 6 5 4 4 3 2 1) "greater than or equal to integers")

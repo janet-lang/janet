@@ -599,7 +599,24 @@ int gst_stl_print(Gst *vm) {
     return GST_RETURN_OK;
 }
 
-/* To string */
+
+
+/* Long description */
+int gst_stl_description(Gst *vm) {
+    GstValue x = gst_arg(vm, 0);
+    const uint8_t *buf = gst_description(vm, x);
+    gst_c_return(vm, gst_wrap_string(buf));
+}
+
+/* Short description */
+int gst_stl_short_description(Gst *vm) {
+    GstValue x = gst_arg(vm, 0);
+    const uint8_t *buf = gst_short_description(vm, x);
+    gst_c_return(vm, gst_wrap_string(buf));
+}
+
+/* To string. Like long description, but if passed a string,
+ * will retun it unchanged. Buffers will return their contents as a string. */
 int gst_stl_tostring(Gst *vm) {
     const uint8_t *string = gst_to_string(vm, gst_arg(vm, 0));
     gst_c_return(vm, gst_wrap_string(string));
@@ -830,13 +847,6 @@ int gst_stl_close(Gst *vm) {
 int gst_stl_gcollect(Gst *vm) {
 	gst_collect(vm);
 	return GST_RETURN_OK;
-}
-
-/* Debug print */
-int gst_stl_description(Gst *vm) {
-    GstValue x = gst_arg(vm, 0);
-    const uint8_t *buf = gst_description(vm, x);
-    gst_c_return(vm, gst_wrap_string(buf));
 }
 
 /***/
@@ -1074,6 +1084,8 @@ static const GstModuleItem std_module[] = {
     {"parent", gst_stl_parent},
     {"print", gst_stl_print},
     {"tostring", gst_stl_tostring},
+    {"description", gst_stl_description},
+    {"short-description", gst_stl_short_description},
     {"exit!", gst_stl_exit},
     {"get", gst_stl_get},
     {"set!", gst_stl_set},
@@ -1097,7 +1109,6 @@ static const GstModuleItem std_module[] = {
     {"funcdef", gst_stl_funcdef},
     {"funcparent", gst_stl_funcparent},
     {"gcollect", gst_stl_gcollect},
-    {"description", gst_stl_description},
     {"global-def", gst_stl_def},
     {"global-var", gst_stl_var},
     {NULL, NULL}

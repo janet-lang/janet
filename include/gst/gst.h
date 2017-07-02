@@ -515,6 +515,8 @@ int gst_equals(GstValue x, GstValue y);
 const char *gst_get(GstValue ds, GstValue key, GstValue *out);
 const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value);
 const uint8_t *gst_to_string(Gst *vm, GstValue x);
+const uint8_t *gst_description(Gst *vm, GstValue x);
+const uint8_t *gst_short_description(Gst *vm, GstValue x);
 uint32_t gst_hash(GstValue x);
 GstInteger gst_length(Gst *vm, GstValue x);
 

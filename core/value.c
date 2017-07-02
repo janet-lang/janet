@@ -124,13 +124,42 @@ static const uint8_t *string_udata(Gst *vm, const char *title, void *pointer) {
     }
     *c++ = '>';
     return gst_string_b(vm, buf, c - buf);
-
 }
 
 #undef GST_BUFSIZE
 
-/* Returns a string pointer or NULL if could not allocate memory. */
-const uint8_t *gst_to_string(Gst *vm, GstValue x) {
+void gst_escape_string(Gst *vm, GstBuffer *b, const uint8_t *str) {
+    uint32_t i;
+    gst_buffer_push(vm, b, '"');
+    for (i = 0; i < gst_string_length(str); ++i) {
+        uint8_t c = str[i];
+        switch (c) {
+            case '"':
+                gst_buffer_push(vm, b, '\\');
+                gst_buffer_push(vm, b, '"');
+                break;
+            case '\n':
+                gst_buffer_push(vm, b, '\\');
+                gst_buffer_push(vm, b, 'n');
+                break;
+            case '\r':
+                gst_buffer_push(vm, b, '\\');
+                gst_buffer_push(vm, b, 'r');
+                break;
+            case '\0':
+                gst_buffer_push(vm, b, '\\');
+                gst_buffer_push(vm, b, '0');
+                break;
+            default:
+                gst_buffer_push(vm, b, c);
+                break;
+        }
+    }
+    gst_buffer_push(vm, b, '"');
+}
+
+/* Returns a string pointer with the description of the string */
+const uint8_t *gst_short_description(Gst *vm, GstValue x) {
     switch (x.type) {
     case GST_NIL:
         return gst_string_c(vm, "nil");
@@ -152,7 +181,11 @@ const uint8_t *gst_to_string(Gst *vm, GstValue x) {
     case GST_TABLE:
         return string_description(vm, "table", x.data.pointer);
     case GST_STRING:
-        return x.data.string;
+    {
+        GstBuffer *buf = gst_buffer(vm, gst_string_length(x.data.string) + 4);
+        gst_escape_string(vm, buf, x.data.string);
+        return gst_buffer_to_string(vm, buf);
+    }
     case GST_BYTEBUFFER:
         return string_description(vm, "buffer", x.data.pointer);
     case GST_CFUNCTION:
@@ -168,7 +201,99 @@ const uint8_t *gst_to_string(Gst *vm, GstValue x) {
     case GST_FUNCDEF:
         return string_description(vm, "funcdef", x.data.pointer);
     }
-    return NULL;
+}
+
+/* Static debug print helper */
+static GstInteger gst_description_helper(Gst *vm, GstBuffer *b, GstTable *seen, GstValue x, GstInteger next, int depth) {
+    GstValue check = gst_table_get(seen, x);
+    const uint8_t *str;
+    /* Prevent a stack overflow */
+    if (depth++ > GST_RECURSION_GUARD)
+        return -1;
+    if (check.type == GST_INTEGER) {
+        str = integer_to_string(vm, check.data.integer);
+        gst_buffer_append_cstring(vm, b, "<visited ");
+        gst_buffer_append(vm, b, str, gst_string_length(str));
+        gst_buffer_append_cstring(vm, b, ">");
+    } else {
+        uint8_t open, close;
+        uint32_t len, i;
+        const GstValue *data;
+        switch (x.type) {
+            default:
+                str = gst_short_description(vm, x);
+                gst_buffer_append(vm, b, str, gst_string_length(str));
+                return next;
+            case GST_STRING:
+                gst_escape_string(vm, b, x.data.string);
+                return next;
+            case GST_NIL:
+                gst_buffer_append_cstring(vm, b, "nil");
+                return next;
+            case GST_BOOLEAN:
+                gst_buffer_append_cstring(vm, b, x.data.boolean ? "true" : "false");
+                return next;
+            case GST_STRUCT:
+                open = '<'; close = '>';
+                break;
+            case GST_TABLE:
+                open = '{'; close = '}';
+                break;
+            case GST_TUPLE:
+                open = '('; close = ')';
+                break;
+            case GST_ARRAY:
+                open = '['; close = ']';
+                break;
+        }
+        gst_table_put(vm, seen, x, gst_wrap_integer(next++));
+        gst_buffer_push(vm, b, open);
+        if (gst_hashtable_view(x, &data, &len)) {
+            int isfirst = 1;
+            for (i = 0; i < len; i += 2) {
+                if (data[i].type != GST_NIL) {
+                    if (isfirst)
+                        isfirst = 0;
+                    else
+                        gst_buffer_push(vm, b, ' ');
+                    next = gst_description_helper(vm, b, seen, data[i], next, depth);
+                    if (next == -1)
+                        gst_buffer_append_cstring(vm, b, "...");
+                    gst_buffer_push(vm, b, ' ');
+                    next = gst_description_helper(vm, b, seen, data[i + 1], next, depth);
+                    if (next == -1)
+                        gst_buffer_append_cstring(vm, b, "...");
+                }
+            }
+        } else if (gst_seq_view(x, &data, &len)) {
+            for (i = 0; i < len; ++i) {
+                next = gst_description_helper(vm, b, seen, data[i], next, depth);
+                if (next == -1)
+                    return -1;
+                if (i != len - 1)
+                    gst_buffer_push(vm, b, ' ');
+            }
+        }
+        gst_buffer_push(vm, b, close);
+    }
+    return next;
+}
+
+/* Debug print. Returns a description of an object as a buffer. */
+const uint8_t *gst_description(Gst *vm, GstValue x) {
+    GstBuffer *buf = gst_buffer(vm, 10);
+    gst_description_helper(vm, buf, gst_table(vm, 10), x, 0, 0);
+    return gst_buffer_to_string(vm, buf);
+}
+
+const uint8_t *gst_to_string(Gst *vm, GstValue x) {
+    if (x.type == GST_STRING) {
+        return x.data.string;
+    } else if (x.type == GST_BYTEBUFFER) {
+        return gst_buffer_to_string(vm, x.data.buffer);
+    } else {
+        return gst_description(vm, x);
+    }
 }
 
 /* Check if two values are equal. This is strict equality with no conversion. */
