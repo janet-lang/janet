@@ -1,16 +1,16 @@
 /*
 * Copyright (c) 2017 Calvin Rose
-* 
+*
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
 * deal in the Software without restriction, including without limitation the
 * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 * sell copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
-* 
+*
 * The above copyright notice and this permission notice shall be included in
 * all copies or substantial portions of the Software.
-* 
+*
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -46,13 +46,13 @@ int gst_continue(Gst *vm) {
 
     /* Main interpreter loop */
     for (;;) {
-        
+
         switch (*pc) {
 
         default:
             gst_error(vm, "unknown opcode");
             break;
- 
+
         case GST_OP_FLS: /* Load False */
             temp.type = GST_BOOLEAN;
             temp.data.boolean = 0;
@@ -250,7 +250,7 @@ int gst_continue(Gst *vm) {
                 temp = stack[pc[1]];
                 gst_frame_size(stack) = newStackIndex - GST_FRAME_SIZE;
                 gst_frame_ret(stack) = pc[2];
-                gst_frame_pc(stack) = pc + 3;      
+                gst_frame_pc(stack) = pc + 3;
                 if (newStackIndex < GST_FRAME_SIZE)
                     gst_error(vm, "invalid call instruction");
                 vm->thread->count += newStackIndex;
@@ -339,7 +339,7 @@ int gst_continue(Gst *vm) {
                 pc += kvs;
             }
             break;
-            
+
         case GST_OP_TUP: /* Tuple literal */
             {
                 uint32_t i;

@@ -1,16 +1,16 @@
 /*
 * Copyright (c) 2017 Calvin Rose
-* 
+*
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
 * deal in the Software without restriction, including without limitation the
 * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 * sell copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
-* 
+*
 * The above copyright notice and this permission notice shall be included in
 * all copies or substantial portions of the Software.
-* 
+*
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -93,7 +93,7 @@ void gst_mark_value(Gst *vm, GstValue x) {
  * the main function for doing the garbage collection mark phase. */
 void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
     switch (type) {
-        default: 
+        default:
             break;
 
         case GST_STRING:
@@ -220,7 +220,7 @@ void gst_sweep(Gst *vm) {
                 if (current->tags & GST_MEMTAG_TUPLE)
                     gst_cache_remove_tuple(vm, (char *)(current + 1));
                 if (current->tags & GST_MEMTAG_USER) {
-                    GstUserdataHeader *h = (GstUserdataHeader *)(current + 1); 
+                    GstUserdataHeader *h = (GstUserdataHeader *)(current + 1);
                     if (h->type->finalize) {
                         h->type->finalize(vm, h + 1, h->size);
                     }

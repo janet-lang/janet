@@ -1,16 +1,16 @@
 /*
 * Copyright (c) 2017 Calvin Rose
-* 
+*
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
 * deal in the Software without restriction, including without limitation the
 * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 * sell copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
-* 
+*
 * The above copyright notice and this permission notice shall be included in
 * all copies or substantial portions of the Software.
-* 
+*
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -101,7 +101,7 @@ static int64_t bytes2int(const uint8_t *bytes) {
  * deserialization. If successful, the resulting value is
  * passed by reference. */
 static const char *gst_deserialize_impl(
-        Gst *vm, 
+        Gst *vm,
         const uint8_t *data,
         const uint8_t *end,
         const uint8_t **newData,
@@ -141,11 +141,11 @@ static const char *gst_deserialize_impl(
     /* Small integer */
     if (*data < 201) {
         ret.type = GST_INTEGER;
-        ret.data.integer = *data - 100; 
+        ret.data.integer = *data - 100;
         *newData = data + 1;
         *out = ret;
         return NULL;
-    } 
+    }
 
     /* Main switch for types */
     switch (*data++) {
@@ -168,7 +168,7 @@ static const char *gst_deserialize_impl(
             break;
 
         case 204: /* Long number (double) */
-            ret.type = GST_REAL; 
+            ret.type = GST_REAL;
             read_dbl(ret.data.real);
             break;
 
@@ -188,9 +188,9 @@ static const char *gst_deserialize_impl(
             for (i = 0; i < length; ++i) {
                 GstValue k, v;
                 if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &k, depth)))
-                    return err; 
+                    return err;
                 if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &v, depth)))
-                    return err; 
+                    return err;
                 gst_struct_put(buffer, k, v);
             }
             ret.data.st = gst_struct_end(vm, buffer);
@@ -224,7 +224,7 @@ static const char *gst_deserialize_impl(
             gst_array_push(vm, visited, ret);
             for (i = 0; i < length; ++i)
                 if ((err = gst_deserialize_impl(vm, data, end, &data, visited, buffer + i, depth)))
-                    return err; 
+                    return err;
             break;
 
         case 209: /* Tuple */
@@ -247,7 +247,7 @@ static const char *gst_deserialize_impl(
                 uint8_t statusbyte;
                 t = gst_thread(vm, gst_wrap_nil(), 64);
                 ret = gst_wrap_thread(t);
-                gst_array_push(vm, visited, ret); 
+                gst_array_push(vm, visited, ret);
                 err = gst_deserialize_impl(vm, data, end, &data, visited, &ret, depth);
                 if (err != NULL) return err;
                 if (ret.type == GST_NIL) {
@@ -421,7 +421,7 @@ static const char *gst_deserialize_impl(
         case 215: /* LUdata */
             {
                 /* TODO enable deserialization of userdata through registration
-                 * to names in vm. */ 
+                 * to names in vm. */
             }
             break;
 
@@ -513,7 +513,7 @@ static const char *gst_serialize_impl(
         case GST_BOOLEAN:
             write_byte(x.data.boolean ? 202 : 203);
             return NULL;
-        case GST_REAL: 
+        case GST_REAL:
             write_byte(204);
             write_dbl(x.data.real);
             return NULL;
@@ -551,9 +551,9 @@ static const char *gst_serialize_impl(
             write_u32(gst_struct_length(x.data.st));
             for (i = 0; i < count; i += 2) {
                 if (data[i].type != GST_NIL) {
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i], depth); 
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i], depth);
                     if (err != NULL) return err;
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth); 
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth);
                     if (err != NULL) return err;
                 }
             }
@@ -562,7 +562,7 @@ static const char *gst_serialize_impl(
             count = gst_tuple_length(x.data.tuple);
             write_u32(count);
             for (i = 0; i < count; ++i) {
-                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.tuple[i], depth); 
+                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.tuple[i], depth);
                 if (err != NULL) return err;
             }
         }
@@ -579,7 +579,7 @@ static const char *gst_serialize_impl(
     /* Check reference types */
     switch (x.type) {
         default:
-            return "unable to serialize type"; 
+            return "unable to serialize type";
 
         case GST_STRING:
             write_byte(205);
@@ -610,9 +610,9 @@ static const char *gst_serialize_impl(
                 write_u32(x.data.table->count);
                 for (i = 0; i < count; i += 2) {
                     if (data[i].type != GST_NIL) {
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i], depth); 
+                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i], depth);
                         if (err != NULL) return err;
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth); 
+                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth);
                         if (err != NULL) return err;
                     }
                 }
@@ -634,7 +634,7 @@ static const char *gst_serialize_impl(
             count = x.data.array->count;
             write_u32(count);
             for (i = 0; i < count; ++i) {
-                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.array->data[i], depth); 
+                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.array->data[i], depth);
                 if (err != NULL) return err;
             }
             break;
@@ -664,8 +664,8 @@ static const char *gst_serialize_impl(
                 for (i = 0; i < framecount; ++i) {
                     uint32_t j, size;
                     GstValue callee = gst_frame_callee(stack);
-                    GstFuncEnv *env = gst_frame_env(stack); 
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, callee, depth); 
+                    GstFuncEnv *env = gst_frame_env(stack);
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, callee, depth);
                     if (err != NULL) return err;
                     if (env)
                         err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_funcenv(env), depth);
@@ -684,7 +684,7 @@ static const char *gst_serialize_impl(
                     for (j = 0; j < size; ++j) {
                         err = gst_serialize_impl(vm, buffer, visited, nextId, stack[j], depth);
                         if (err != NULL) return err;
-                    } 
+                    }
                     /* Next stack frame */
                     stack += size + GST_FRAME_SIZE;
                 }
@@ -700,7 +700,7 @@ static const char *gst_serialize_impl(
                 write_u32(def->flags);
                 write_u32(def->literalsLen);
                 for (i = 0; i < def->literalsLen; ++i) {
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, def->literals[i], depth); 
+                    err = gst_serialize_impl(vm, buffer, visited, nextId, def->literals[i], depth);
                     if (err != NULL) return err;
                 }
                 write_u32(def->byteCodeLen);

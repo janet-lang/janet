@@ -1,16 +1,16 @@
 /*
 * Copyright (c) 2017 Calvin Rose
-* 
+*
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
 * deal in the Software without restriction, including without limitation the
 * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 * sell copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
-* 
+*
 * The above copyright notice and this permission notice shall be included in
 * all copies or substantial portions of the Software.
-* 
+*
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -218,7 +218,7 @@ int gst_stl_to_int(Gst *vm) {
     if (x.type == GST_REAL)
         gst_c_return(vm, gst_wrap_integer((GstInteger) x.data.real));
     else
-       gst_c_throwc(vm, "expected number"); 
+       gst_c_throwc(vm, "expected number");
 }
 
 /* Convert to integer */
@@ -228,7 +228,7 @@ int gst_stl_to_real(Gst *vm) {
     if (x.type == GST_INTEGER)
         gst_c_return(vm, gst_wrap_real((GstReal) x.data.integer));
     else
-       gst_c_throwc(vm, "expected number"); 
+       gst_c_throwc(vm, "expected number");
 }
 
 /* Get a slice of a sequence */
@@ -447,14 +447,14 @@ int gst_stl_thread(Gst *vm) {
     if (callee.type != GST_FUNCTION && callee.type != GST_CFUNCTION)
         gst_c_throwc(vm, "expected function in thread constructor");
     if (parent.type == GST_THREAD) {
-        t->parent = parent.data.thread;    
+        t->parent = parent.data.thread;
     } else if (parent.type != GST_NIL) {
         gst_c_throwc(vm, "expected thread/nil as parent");
     } else {
         t->parent = vm->thread;
     }
     if (errorParent.type == GST_THREAD) {
-        t->errorParent = errorParent.data.thread;    
+        t->errorParent = errorParent.data.thread;
     } else if (errorParent.type != GST_NIL) {
         gst_c_throwc(vm, "expected thread/nil as error parent");
     } else {
@@ -574,9 +574,9 @@ int gst_stl_next(Gst *vm) {
     GstValue ds = gst_arg(vm, 0);
     GstValue key = gst_arg(vm, 1);
     if (ds.type == GST_TABLE) {
-        gst_c_return(vm, gst_table_next(ds.data.table, key));    
+        gst_c_return(vm, gst_table_next(ds.data.table, key));
     } else if (ds.type == GST_STRUCT) {
-        gst_c_return(vm, gst_struct_next(ds.data.st, key));    
+        gst_c_return(vm, gst_struct_next(ds.data.st, key));
     } else {
         gst_c_throwc(vm, "expected table or struct");
     }
@@ -743,7 +743,7 @@ int gst_stl_var(Gst *vm) {
 static GstUserType gst_stl_filetype = {
     "std.file",
     NULL,
-    NULL, 
+    NULL,
     NULL,
     NULL
 };
@@ -754,7 +754,7 @@ int gst_stl_open(Gst *vm) {
     const uint8_t *fmode = gst_to_string(vm, gst_arg(vm, 1));
     FILE *f;
     FILE **fp;
-    if (gst_count_args(vm) < 2 || gst_arg(vm, 0).type != GST_STRING 
+    if (gst_count_args(vm) < 2 || gst_arg(vm, 0).type != GST_STRING
             || gst_arg(vm, 1).type != GST_STRING)
         gst_c_throwc(vm, "expected filename and filemode");
     f = fopen((const char *)fname, (const char *)fmode);
@@ -884,7 +884,7 @@ static GstInteger gst_stl_debugp_helper(Gst *vm, GstBuffer *b, GstTable *seen, G
                     if (next == -1)
                         return -1;
                 }
-            } 
+            }
         } else if (gst_seq_view(x, &data, &len)) {
             for (i = 0; i < len; ++i) {
                 next = gst_stl_debugp_helper(vm, b, seen, data[i], next, depth);
@@ -892,7 +892,7 @@ static GstInteger gst_stl_debugp_helper(Gst *vm, GstBuffer *b, GstTable *seen, G
                     return -1;
                 if (i != len - 1)
                     gst_buffer_push(vm, b, ' ');
-            } 
+            }
         }
         gst_buffer_push(vm, b, close);
     }
@@ -1020,7 +1020,7 @@ static int gst_stl_parser_status(Gst *vm) {
     if (p == NULL)
         gst_c_throwc(vm, "expected parser");
     switch (p->status) {
-        case GST_PARSER_ERROR: 
+        case GST_PARSER_ERROR:
             cstr = "error";
             break;
         case GST_PARSER_FULL:
@@ -1052,7 +1052,7 @@ static int gst_stl_parse(Gst *vm) {
         gst_parse_byte(&p, data[i]);
     }
     switch (p.status) {
-        case GST_PARSER_ERROR: 
+        case GST_PARSER_ERROR:
             gst_c_throwc(vm, p.error);
             break;
         case GST_PARSER_FULL:

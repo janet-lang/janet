@@ -1,15 +1,15 @@
-(print "Running basic tests...")
+(print "\nRunning basic tests...\n")
 
 (var num-tests-passed 0)
 (var num-tests-run 0)
 (def assert (fn [x e]
-	(varset! num-tests-run (+ 1 num-tests-run)) 
-	(if x 
-		(do 
-			(print "  \e[32m✔\e[0m" e) 
+	(varset! num-tests-run (+ 1 num-tests-run))
+	(if x
+		(do
+			(print "  \e[32m✔\e[0m" e)
 			(varset! num-tests-passed (+ 1 num-tests-passed))
 			x)
-		(do 
+		(do
 			(print "  \e[31m✘\e[0m" e)
 			x))))
 
@@ -27,7 +27,7 @@
 (assert (>= 6 5 4 4 3 2 1) "greater than or equal to integers")
 (assert (>= 6.0 5.0 4.0 4.0 3.0 2.0 1.0) "greater than or equal to reals")
 
-(assert (< nil 1.0 1 false true "hi" 
+(assert (< nil 1.0 1 false true "hi"
 	(array 1 2 3)
 	(tuple 1 2 3)
 	(table "a" "b" "c" false)
@@ -41,7 +41,7 @@
 (assert true "true literal")
 (assert (not nil) "nil literal")
 (assert (= 7 (bor 3 4)) "bit or")
-(assert (= 0 (band 3 4)) "bit and") 
+(assert (= 0 (band 3 4)) "bit and")
 
 (var accum 1)
 (var count 0)

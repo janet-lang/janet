@@ -1,16 +1,16 @@
 /*
 * Copyright (c) 2017 Calvin Rose
-* 
+*
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
 * deal in the Software without restriction, including without limitation the
 * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 * sell copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
-* 
+*
 * The above copyright notice and this permission notice shall be included in
 * all copies or substantial portions of the Software.
-* 
+*
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -91,7 +91,7 @@ static int debug_run(Gst *vm, FILE *in) {
             if (*reader == '\0') {
                 if (!fgets(buffer, sizeof(buffer), in)) {
                     /* Add possible end of line */
-                    if (p.status == GST_PARSER_PENDING) 
+                    if (p.status == GST_PARSER_PENDING)
                         gst_parse_cstring(&p, "\n");
                     /* Check that parser is complete */
                     if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
@@ -173,7 +173,7 @@ int main(int argc, const char **argv) {
         const char *filename;
         FILE *f;
         filename = argv[1];
-        f = fopen(filename, "rb"); 
+        f = fopen(filename, "rb");
         status = debug_run(&vm, f);
     } else {
         status = debug_repl(&vm);

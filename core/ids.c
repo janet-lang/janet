@@ -1,16 +1,16 @@
 /*
 * Copyright (c) 2017 Calvin Rose
-* 
+*
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
 * deal in the Software without restriction, including without limitation the
 * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 * sell copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
-* 
+*
 * The above copyright notice and this permission notice shall be included in
 * all copies or substantial portions of the Software.
-* 
+*
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -161,7 +161,7 @@ static GstValue gst_cache_add(Gst *vm, GstValue x) {
     GstValue *bucket = gst_cache_find(vm, x, &status);
     if (!status) {
         if ((vm->cache_count + vm->cache_deleted) * 2 > vm->cache_capacity) {
-            gst_cache_resize(vm, vm->cache_count * 4); 
+            gst_cache_resize(vm, vm->cache_count * 4);
             bucket = gst_cache_find(vm, x, &status);
         }
         /* Mark the memory for the gc */
@@ -231,7 +231,7 @@ GstValue *gst_struct_begin(Gst *vm, uint32_t count) {
     char *data = gst_zalloc(vm, sizeof(uint32_t) * 2 + 4 * count * sizeof(GstValue));
     GstValue *st = (GstValue *) (data + 2 * sizeof(uint32_t));
     gst_struct_length(st) = count;
-    return st; 
+    return st;
 }
 
 /* Find an item in a struct */
@@ -334,7 +334,7 @@ GstValue gst_struct_next(const GstValue *st, GstValue key) {
     if (key.type == GST_NIL) {
         bucket = st;
     } else {
-        bucket = gst_struct_find(st, key); 
+        bucket = gst_struct_find(st, key);
         if (!bucket || bucket[0].type == GST_NIL)
             return gst_wrap_nil();
         bucket += 2;

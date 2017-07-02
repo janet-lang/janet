@@ -1,16 +1,16 @@
 /*
 * Copyright (c) 2017 Calvin Rose
-* 
+*
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
 * deal in the Software without restriction, including without limitation the
 * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 * sell copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
-* 
+*
 * The above copyright notice and this permission notice shall be included in
 * all copies or substantial portions of the Software.
-* 
+*
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -307,13 +307,13 @@ static int string_state(GstParser *p, uint8_t c) {
                     case '\'': next = '\''; break;
                     case 'z': next = '\0'; break;
                     case 'e': next = 27; break;
-                    case 'h': 
-                        top->buf.string.state = STRING_STATE_ESCAPE_HEX; 
+                    case 'h':
+                        top->buf.string.state = STRING_STATE_ESCAPE_HEX;
                         top->buf.string.count = 0;
                         top->buf.string.accum = 0;
                         return 1;
-                    case 'u': 
-                        top->buf.string.state = STRING_STATE_ESCAPE_HEX; 
+                    case 'u':
+                        top->buf.string.state = STRING_STATE_ESCAPE_HEX;
                         top->buf.string.count = 0;
                         top->buf.string.accum = 0;
                         return 1;
@@ -331,8 +331,8 @@ static int string_state(GstParser *p, uint8_t c) {
                 p_error(p, "invalid hexidecimal digit");
                 return 1;
             } else {
-                top->buf.string.accum *= 16; 
-                top->buf.string.accum += digit; 
+                top->buf.string.accum *= 16;
+                top->buf.string.accum += digit;
             }
             top->buf.string.accum += digit;
             if (++top->buf.string.count == 2) {
@@ -394,7 +394,7 @@ static int form_state(GstParser *p, uint8_t c) {
             x.type = GST_TABLE;
             x.data.table = gst_table(p->vm, array->count);
             for (i = 0; i < array->count; i += 2) {
-                gst_table_put(p->vm, x.data.table, array->data[i], array->data[i + 1]);   
+                gst_table_put(p->vm, x.data.table, array->data[i], array->data[i + 1]);
             }
         }
         parser_pop(p);
@@ -413,7 +413,7 @@ void gst_parse_byte(GstParser *p, uint8_t c) {
         p->index = 0;
         p->comment = GST_PCOMMENT_EXPECTING;
     } else {
-        ++p->index; 
+        ++p->index;
     }
     /* Check comments */
     switch (p->comment) {

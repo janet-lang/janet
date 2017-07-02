@@ -1,16 +1,16 @@
 /*
 * Copyright (c) 2017 Calvin Rose
-* 
+*
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
 * deal in the Software without restriction, including without limitation the
 * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 * sell copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
-* 
+*
 * The above copyright notice and this permission notice shall be included in
 * all copies or substantial portions of the Software.
-* 
+*
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -131,7 +131,7 @@ static GstValue quote(Gst *vm, GstValue x) {
     GstValue *q = gst_tuple_begin(vm, 2);
     q[0] = gst_string_cv(vm, "quote");
     q[1] = x; /* lit contains the var container of the environment */
-    return gst_wrap_tuple(gst_tuple_end(vm, q)); 
+    return gst_wrap_tuple(gst_tuple_end(vm, q));
 }
 
 /* Push a new scope in the compiler and return
@@ -424,7 +424,7 @@ static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t 
         }
         if (flags) *flags = 0;
         *out = check;
-        return 2; 
+        return 2;
     }
     /* Check for nil named literal */
     check = gst_table_get(gst_env_nils(c->vm, c->env), x);
@@ -1132,7 +1132,7 @@ static SpecialFormHelper get_special(const GstValue *form) {
                         name[1] == 'a' &&
                         name[2] == 'r') {
                     return compile_var;
-                } 
+                }
                 if (gst_string_length(name) == 7 &&
                         name[1] == 'a' &&
                         name[2] == 'r' &&
@@ -1141,7 +1141,7 @@ static SpecialFormHelper get_special(const GstValue *form) {
                         name[5] == 't' &&
                         name[6] == '!') {
                     return compile_varset;
-                } 
+                }
             }
             break;
         case 'w':
