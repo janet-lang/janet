@@ -4,6 +4,8 @@
 ##### Set global variables for all gst Makefiles #####
 ######################################################
 
+PREFIX?=/usr/local
+BINDIR=$(PREFIX)/bin
 VERSION=\"0.0.0-beta\"
 
 CFLAGS=-std=c99 -Wall -Wextra -I./include -g -DGST_VERSION=$(VERSION)
@@ -57,4 +59,10 @@ test: $(GST_TARGET)
 valtest: $(GST_TARGET)
 	valgrind --leak-check=full -v ./$(GST_TARGET) gsttests/basic.gst
 
-.PHONY: clean install run debug valgrind test valtest
+install: $(GST_TARGET)
+	cp $(GST_TARGET) $(BINDIR)/gst
+
+uninstall:
+	rm $(BINDIR)/gst
+
+.PHONY: clean install run debug valgrind test valtest install uninstall
