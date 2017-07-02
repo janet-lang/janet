@@ -162,20 +162,102 @@ static int debug_repl(Gst *vm) {
     }
 }
 
+static int client_strequal(const char *a, const char *b) {
+    while (*a)
+        if (*a++ != *b++) return 0;
+    return *a == *b;
+}
+
+#define GST_CLIENT_HELP 1
+#define GST_CLIENT_VERBOSE 2
+#define GST_CLIENT_VERSION 4
+#define GST_CLIENT_REPL 8
+#define GST_CLIENT_UNKNOWN 16
+
 int main(int argc, const char **argv) {
     Gst vm;
-    int status = 0;
+    int status = -1;
+    int i;
+    int fileRead = 0;
+    uint64_t flags = 0;
 
+    /* Read the arguments. Ignore files. */
+    for (i = 1; i < argc; ++i) {
+        const char *arg = argv[i];
+        if (*arg == '-') {
+            /* Flag or option */
+            if (arg[1] == '-') {
+                /* Option */
+                if (client_strequal(arg + 2, "help")) {
+                    flags |= GST_CLIENT_HELP;
+                } else if (client_strequal(arg + 2, "version")) {
+                    flags |= GST_CLIENT_VERSION;
+                } else if (client_strequal(arg + 2, "verbose")) {
+                    flags |= GST_CLIENT_VERBOSE;
+                } else if (client_strequal(arg + 2, "repl")) {
+                    flags |= GST_CLIENT_REPL;
+                } else {
+                    flags |= GST_CLIENT_UNKNOWN;
+                }
+            } else {
+                /* Flag */
+                const char *c = arg;
+                while (*(++c)) {
+                   switch (*c) {
+                        case 'h':
+                            flags |= GST_CLIENT_HELP;
+                            break;
+                        case 'V':
+                            flags |= GST_CLIENT_VERSION;
+                            break;
+                        case 'v':
+                            flags |= GST_CLIENT_VERBOSE;
+                            break;
+                        case 'r':
+                            flags |= GST_CLIENT_REPL;
+                            break;
+                        default:
+                            flags |= GST_CLIENT_UNKNOWN;
+                            break;
+                   }
+                }
+            }
+        }
+    }
+
+    /* Handle flags and options */
+    if ((flags & GST_CLIENT_HELP) || (flags & GST_CLIENT_UNKNOWN)) {
+        printf( "Usage:\n"
+                "%s -opts --fullopt1 --fullopt2 file1 file2...\n"
+                "\n"
+                "  -h      --help     : Shows this information.\n"
+                "  -V      --verbose  : Show more output.\n"
+                "  -r      --repl     : Launch a repl after all files are processed.\n"
+                "  -v      --version  : Print the version number and exit.\n\n",
+                argv[0]);
+        return 0;
+    }
+    if (flags & GST_CLIENT_VERSION) {
+        printf("%s\n", GST_VERSION);
+        return 0;
+    }
+
+    /* Set up VM */
     gst_init(&vm);
     gst_stl_load(&vm);
 
-    if (argc > 1) {
-        const char *filename;
-        FILE *f;
-        filename = argv[1];
-        f = fopen(filename, "rb");
-        status = debug_run(&vm, f);
-    } else {
+    /* Read the arguments. Only process files. */
+    for (i = 1; i < argc; ++i) {
+        const char *arg = argv[i];
+        if (*arg != '-') {
+            FILE *f;
+            f = fopen(arg, "rb");
+            fileRead = 1;
+            status = debug_run(&vm, f);
+        }
+    }
+
+    if (!fileRead || (flags & GST_CLIENT_REPL)) {
         status = debug_repl(&vm);
     }
 

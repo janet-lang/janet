@@ -93,4 +93,3 @@
 # report
 
 (print num-tests-passed "of" num-tests-run "tests passed")
-(exit! 0)
