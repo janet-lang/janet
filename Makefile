@@ -22,7 +22,8 @@ all: $(GST_TARGET)
 ###################################
 GST_CORE_SOURCES=$(addprefix core/,\
 				 compile.c parse.c stl.c ids.c util.c\
-				 value.c vm.c ds.c gc.c thread.c serialize.c)
+				 value.c vm.c ds.c gc.c thread.c serialize.c\
+				 string.c)
 GST_CORE_OBJECTS=$(patsubst %.c,%.o,$(GST_CORE_SOURCES))
 
 ######################
