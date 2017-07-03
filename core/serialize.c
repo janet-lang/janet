@@ -24,11 +24,10 @@
 
 /**
  * Data format
- * State is encoded as a string of unsigned bytes.
  *
  * Types:
  *
- * Byte 0 to 200: small integer byte - 100
+ * Byte 0 to 200: small integer with value (byte - 100)
  * Byte 201: Nil
  * Byte 202: True
  * Byte 203: False
