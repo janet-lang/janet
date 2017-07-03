@@ -104,4 +104,5 @@
 
 # report
 
-(print num-tests-passed " of " num-tests-run " tests passed")
+(print "\n" num-tests-passed " of " num-tests-run " tests passed\n")
+(if (not (= num-tests-passed num-tests-run)) (exit! 1))

@@ -363,9 +363,8 @@ int gst_continue(Gst *vm) {
                 temp = gst_wrap_thread(vm->thread->parent);
             }
             if (temp.type == GST_THREAD) {
-                if (temp.data.thread->status == GST_THREAD_DEAD ||
-                    temp.data.thread->status == GST_THREAD_ERROR)
-                    gst_error(vm, "cannot enter dead thread");
+                if (temp.data.thread->status != GST_THREAD_PENDING)
+                    gst_error(vm, "can only enter pending thread");
             }
             gst_frame_ret(stack) = pc[1];
             vm->thread->status = GST_THREAD_PENDING;
