@@ -6,11 +6,11 @@
 	(varset! num-tests-run (+ 1 num-tests-run))
 	(if x
 		(do
-			(print "  \e[32m✔\e[0m" e)
+			(print "  \e[32m✔\e[0m " e)
 			(varset! num-tests-passed (+ 1 num-tests-passed))
 			x)
 		(do
-			(print "  \e[31m✘\e[0m" e)
+			(print "  \e[31m✘\e[0m " e)
 			x))))
 
 (assert (= 10 (+ 1 2 3 4)) "addition")
@@ -46,6 +46,7 @@
 
 (assert (= "hello" :hello) "keyword syntax for strings")
 (assert (= '(1 2 3) (quote (1 2 3)) (tuple 1 2 3)) "quote shorthand")
+(assert (= (symbol :banana) 'banana) "symbol function")
 
 ((fn []
 	(var accum 1)
@@ -103,4 +104,4 @@
 
 # report
 
-(print num-tests-passed "of" num-tests-run "tests passed")
+(print num-tests-passed " of " num-tests-run " tests passed")

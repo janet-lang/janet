@@ -38,13 +38,13 @@ $(GST_TARGET): $(GST_CLIENT_OBJECTS) $(GST_CORE_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 run: $(GST_TARGET)
-	./$(GST_TARGET)
+	@ ./$(GST_TARGET)
 
 debug: $(GST_TARGET)
-	gdb ./$(GST_TARGET)
+	@ gdb ./$(GST_TARGET)
 
 valgrind: $(GST_TARGET)
-	valgrind --leak-check=full -v ./$(GST_TARGET)
+	@ valgrind --leak-check=full -v ./$(GST_TARGET)
 
 clean:
 	rm $(GST_TARGET) || true
@@ -54,7 +54,7 @@ clean:
 	rm vgcore.* || true
 
 test: $(GST_TARGET)
-	./$(GST_TARGET) gsttests/basic.gst
+	@ ./$(GST_TARGET) gsttests/basic.gst
 
 valtest: $(GST_TARGET)
 	valgrind --leak-check=full -v ./$(GST_TARGET) gsttests/basic.gst

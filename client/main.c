@@ -82,12 +82,11 @@ static char *gst_getline() {
 }
 
 /* Compile and run an ast */
-static int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last, int64_t flags) {
+static int debug_compile_and_run(Gst *vm, GstValue ast, int64_t flags) {
     GstCompiler c;
     GstValue func;
     /* Try to compile generated AST */
     gst_compiler(&c, vm);
-    gst_env_putc(vm, vm->env, "_", last);
     func = gst_wrap_function(gst_compiler_compile(&c, ast));
     /* Check for compilation errors */
     if (c.error.type != GST_NIL) {
@@ -139,7 +138,7 @@ static int debug_run(Gst *vm, FILE *in, int64_t flags) {
             printf_flags(flags, "31", "parse error: unexpected end of source%s\n", "");
             break;
         }
-        if (debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret, flags)) {
+        if (debug_compile_and_run(vm, gst_parse_consume(&p), flags)) {
             break;
         }
     }
@@ -179,7 +178,8 @@ static int debug_repl(Gst *vm, uint64_t flags) {
             printf_flags(flags, "31", "parse error: unexpected end of source%s\n", "");
             continue;
         }
-        if (!debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret, flags)) {
+        gst_env_putc(vm, vm->env, "_", vm->ret);
+        if (!debug_compile_and_run(vm, gst_parse_consume(&p), flags)) {
             printf_flags(flags, "36", "%s\n", (const char *) gst_description(vm, vm->ret));
         }
     }

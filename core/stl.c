@@ -443,6 +443,15 @@ int gst_stl_string(Gst *vm) {
     gst_c_return(vm, gst_wrap_string(gst_string_end(vm, str)));
 }
 
+/* Create a symbol */
+int gst_stl_symbol(Gst *vm) {
+    int ret = gst_stl_string(vm);
+    if (ret == GST_RETURN_OK) {
+        vm->ret.type = GST_SYMBOL;
+    }
+    return ret;
+}
+
 /* Create a thread */
 int gst_stl_thread(Gst *vm) {
     GstThread *t;
@@ -598,8 +607,6 @@ int gst_stl_print(Gst *vm) {
         uint32_t len = gst_string_length(string);
         for (i = 0; i < len; ++i)
             fputc(string[i], stdout);
-        if (j < count - 1)
-            fputc(' ', stdout);
     }
     fputc('\n', stdout);
     return GST_RETURN_OK;
@@ -1087,6 +1094,7 @@ static const GstModuleItem std_module[] = {
     {"struct", gst_stl_struct},
     {"buffer", gst_stl_buffer},
     {"string", gst_stl_string},
+    {"symbol", gst_stl_symbol},
     {"thread", gst_stl_thread},
     {"status", gst_stl_status},
     {"current", gst_stl_current},

@@ -161,14 +161,12 @@ static GstValue build_token(GstParser *p, GstBuffer *buf) {
         if (buf->data[0] >= '0' && buf->data[0] <= '9') {
             p_error(p, "symbols cannot start with digits");
             x.type = GST_NIL;
+        } else if (buf->data[0] == ':' && buf->count >= 2) {
+            x.type = GST_STRING;
+            x.data.string = gst_string_b(p->vm, buf->data + 1, buf->count - 1);
         } else {
-            if (buf->data[0] == ':' && buf->count >= 2) {
-                x.type = GST_STRING;
-                x.data.string = gst_string_b(p->vm, buf->data + 1, buf->count - 1);
-            } else {
-                x.type = GST_SYMBOL;
-                x.data.string = gst_buffer_to_string(p->vm, buf);
-            }
+            x.type = GST_SYMBOL;
+            x.data.string = gst_buffer_to_string(p->vm, buf);
         }
     }
     return x;
@@ -234,11 +232,6 @@ static int string_state(GstParser *p, uint8_t c) {
                     case 'z': next = '\0'; break;
                     case 'e': next = 27; break;
                     case 'h':
-                        top->buf.string.state = STRING_STATE_ESCAPE_HEX;
-                        top->buf.string.count = 0;
-                        top->buf.string.accum = 0;
-                        return 1;
-                    case 'u':
                         top->buf.string.state = STRING_STATE_ESCAPE_HEX;
                         top->buf.string.count = 0;
                         top->buf.string.accum = 0;
