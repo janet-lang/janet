@@ -30,12 +30,26 @@ static int client_strequal(const char *a, const char *b) {
     return *a == *b;
 }
 
+static int client_strequal_witharg(const char *a, const char *b) {
+    while (*b)
+        if (*a++ != *b++) return 0;
+    return *a == '=';
+}
+
 #define GST_CLIENT_HELP 1
 #define GST_CLIENT_VERBOSE 2
 #define GST_CLIENT_VERSION 4
 #define GST_CLIENT_REPL 8
 #define GST_CLIENT_NOCOLOR 16
 #define GST_CLIENT_UNKNOWN 32
+
+static void printf_flags(int64_t flags, const char *col, const char *fmt, const char *arg) {
+    if (!(flags & GST_CLIENT_NOCOLOR))
+        printf("\x1B[%sm", col);
+    printf(fmt, arg);
+    if (!(flags & GST_CLIENT_NOCOLOR))
+        printf("\x1B[0m");
+}
 
 /* Simple read line functionality */
 static char *gst_getline() {
@@ -68,7 +82,7 @@ static char *gst_getline() {
 }
 
 /* Compile and run an ast */
-static int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
+static int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last, int64_t flags) {
     GstCompiler c;
     GstValue func;
     /* Try to compile generated AST */
@@ -77,15 +91,15 @@ static int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
     func = gst_wrap_function(gst_compiler_compile(&c, ast));
     /* Check for compilation errors */
     if (c.error.type != GST_NIL) {
-        printf("Compiler error: %s\n", (const char *)gst_to_string(vm, c.error));
+        printf_flags(flags, "31", "compiler error: %s\n", (const char *)gst_to_string(vm, c.error));
         return 1;
     }
     /* Execute function */
     if (gst_run(vm, func)) {
         if (vm->crash) {
-            printf("VM crash: %s\n", vm->crash);
+            printf_flags(flags, "31", "vm crash: %s\n", vm->crash);
         } else {
-            printf("VM error: %s\n", (const char *)gst_to_string(vm, vm->ret));
+            printf_flags(flags, "31", "vm error: %s\n", (const char *)gst_to_string(vm, vm->ret));
         }
         return 1;
     }
@@ -93,7 +107,7 @@ static int debug_compile_and_run(Gst *vm, GstValue ast, GstValue last) {
 }
 
 /* Parse a file and execute it */
-static int debug_run(Gst *vm, FILE *in) {
+static int debug_run(Gst *vm, FILE *in, int64_t flags) {
     char buffer[2048] = {0};
     const char *reader = buffer;
     GstParser p;
@@ -105,7 +119,7 @@ static int debug_run(Gst *vm, FILE *in) {
                 if (!fgets(buffer, sizeof(buffer), in)) {
                     /* Check that parser is complete */
                     if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
-                        printf("Unexpected end of source\n");
+                        printf_flags(flags, "31", "parse error: unexpected end of source%s\n", "");
                         return 1;
                     }
                     /* Otherwise we finished the file with no problems*/
@@ -117,15 +131,15 @@ static int debug_run(Gst *vm, FILE *in) {
         }
         /* Check if file read in correctly */
         if (p.error) {
-            printf("Parse error: %s\n", p.error);
+            printf_flags(flags, "31", "parse error: %s\n", p.error);
             break;
         }
         /* Check that parser is complete */
         if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
-            printf("Unexpected end of source\n");
+            printf_flags(flags, "31", "parse error: unexpected end of source%s\n", "");
             break;
         }
-        if (debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret)) {
+        if (debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret, flags)) {
             break;
         }
     }
@@ -144,11 +158,7 @@ static int debug_repl(Gst *vm, uint64_t flags) {
             if (p.status == GST_PARSER_ERROR || p.status == GST_PARSER_FULL)
                 break;
             if (!reader || *reader == '\0') {
-                if (flags & GST_CLIENT_NOCOLOR) {
-                    printf(">>> ");
-                } else {
-                    printf("\x1B[33m>>>\x1B[0m ");
-                }
+                printf_flags(flags, "33", "> %s", "");
                 if (buffer)
                     free(buffer);
                 buffer = gst_getline();
@@ -160,21 +170,17 @@ static int debug_repl(Gst *vm, uint64_t flags) {
         }
         /* Check if file read in correctly */
         if (p.error) {
-            printf("Parse error: %s\n", p.error);
+            printf_flags(flags, "31", "parse error: %s\n", p.error);
             buffer = reader = NULL;
             continue;
         }
         /* Check that parser is complete */
         if (p.status != GST_PARSER_FULL && p.status != GST_PARSER_ROOT) {
-            printf("Unexpected end of source\n");
+            printf_flags(flags, "31", "parse error: unexpected end of source%s\n", "");
             continue;
         }
-        if (!debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret)) {
-            if (flags & GST_CLIENT_NOCOLOR) {
-                printf("%s\n", gst_description(vm, vm->ret));
-            } else {
-                printf("\x1B[36m%s\x1B[0m\n", gst_description(vm, vm->ret));
-            }
+        if (!debug_compile_and_run(vm, gst_parse_consume(&p), vm->ret, flags)) {
+            printf_flags(flags, "36", "%s\n", (const char *) gst_description(vm, vm->ret));
         }
     }
 }
@@ -184,6 +190,7 @@ int main(int argc, const char **argv) {
     int status = -1;
     int i;
     int fileRead = 0;
+    uint32_t memoryInterval = 4096;
     uint64_t flags = 0;
 
     /* Read the arguments. Ignore files. */
@@ -203,6 +210,20 @@ int main(int argc, const char **argv) {
                     flags |= GST_CLIENT_REPL;
                 } else if (client_strequal(arg + 2, "nocolor")) {
                     flags |= GST_CLIENT_NOCOLOR;
+                } else if (client_strequal_witharg(arg + 2, "memchunk")) {
+                    int64_t val = memoryInterval;
+                    const uint8_t *end = (const uint8_t *)(arg + 2);
+                    while (*end) ++end;
+                    int status = gst_read_integer((const uint8_t *)arg + 11, end, &val);
+                    if (status) {
+                        if (val > 0xFFFFFFFF) {
+                            memoryInterval = 0xFFFFFFFF;
+                        } else if (val < 0) {
+                            memoryInterval = 0;
+                        } else {
+                            memoryInterval = val;
+                        }
+                    }
                 } else {
                     flags |= GST_CLIENT_UNKNOWN;
                 }
@@ -240,11 +261,14 @@ int main(int argc, const char **argv) {
         printf( "Usage:\n"
                 "%s -opts --fullopt1 --fullopt2 file1 file2...\n"
                 "\n"
-                "  -h      --help     : Shows this information.\n"
-                "  -V      --verbose  : Show more output.\n"
-                "  -r      --repl     : Launch a repl after all files are processed.\n"
-                "  -c      --nocolor  : Don't use VT100 color codes in the repl.\n"
-                "  -v      --version  : Print the version number and exit.\n\n",
+                "  -h      --help           : Shows this information.\n"
+                "  -V      --verbose        : Show more output.\n"
+                "  -r      --repl           : Launch a repl after all files are processed.\n"
+                "  -c      --nocolor        : Don't use VT100 color codes in the repl.\n"
+                "  -v      --version        : Print the version number and exit.\n"
+                "          --memchunk=[int] : Set the amount of memory to allocate before\n"
+                "                             forcing a collection in bytes. Max is 2^32-1,\n"
+                "                             min is 0.\n\n",
                 argv[0]);
         return 0;
     }
@@ -255,6 +279,7 @@ int main(int argc, const char **argv) {
 
     /* Set up VM */
     gst_init(&vm);
+    vm.memoryInterval = memoryInterval;
     gst_stl_load(&vm);
 
     /* Read the arguments. Only process files. */
@@ -264,7 +289,7 @@ int main(int argc, const char **argv) {
             FILE *f;
             f = fopen(arg, "rb");
             fileRead = 1;
-            status = debug_run(&vm, f);
+            status = debug_run(&vm, f, flags);
         }
     }
 

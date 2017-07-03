@@ -499,7 +499,7 @@ void gst_init(Gst *vm) {
     vm->nextCollection = 0;
     /* Setting memoryInterval to zero forces
      * a collection pretty much every cycle, which is
-     * obviously horrible for performance, but helps ensure
+     * horrible for performance, but helps ensure
      * there are no memory bugs during dev */
     vm->memoryInterval = 0;
     vm->black = 0;

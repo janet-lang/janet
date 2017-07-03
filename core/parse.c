@@ -22,7 +22,7 @@
 
 #include <gst/gst.h>
 
-static const char UNEXPECTED_CLOSING_DELIM[] = "Unexpected closing delimiter";
+static const char UNEXPECTED_CLOSING_DELIM[] = "unexpected closing delimiter";
 
 /* Handle error in parsing */
 #define p_error(p, e) ((p)->error = (e), (p)->status = GST_PARSER_ERROR)
@@ -125,86 +125,6 @@ static int is_symbol_char(uint8_t c) {
     return 0;
 }
 
-/* Get an integer power of 10 */
-static double exp10(int power) {
-    if (power == 0) return 1;
-    if (power > 0) {
-        double result = 10;
-        int currentPower = 1;
-        while (currentPower * 2 <= power) {
-            result = result * result;
-            currentPower *= 2;
-        }
-        return result * exp10(power - currentPower);
-    } else {
-        return 1 / exp10(-power);
-    }
-}
-
-/* Read a real from a string. Returns if successfuly
- * parsed a real from the enitre input string.
- * If returned 1, output is int ret.*/
-static int read_real(const uint8_t *string, const uint8_t *end, double *ret, int forceInt) {
-    int sign = 1, x = 0;
-    double accum = 0, exp = 1, place = 1;
-    /* Check the sign */
-    if (*string == '-') {
-        sign = -1;
-        ++string;
-    } else if (*string == '+') {
-        ++string;
-    }
-    if (string >= end) return 0;
-    while (string < end) {
-        if (*string == '.' && !forceInt) {
-            place = 0.1;
-        } else if (!forceInt && (*string == 'e' || *string == 'E')) {
-            /* Read the exponent */
-            ++string;
-            if (string >= end) return 0;
-            if (!read_real(string, end, &exp, 1))
-                return 0;
-            exp = exp10(exp);
-            break;
-        } else {
-            x = *string;
-            if (x < '0' || x > '9') return 0;
-            x -= '0';
-            if (place < 1) {
-                accum += x * place;
-                place *= 0.1;
-            } else {
-                accum *= 10;
-                accum += x;
-            }
-        }
-        ++string;
-    }
-    *ret = accum * sign * exp;
-    return 1;
-}
-
-static int read_integer(const uint8_t *string, const uint8_t *end, int64_t *ret) {
-    int sign = 1, x = 0;
-    int64_t accum = 0;
-    if (*string == '-') {
-        sign = -1;
-        ++string;
-    } else if (*string == '+') {
-        ++string;
-    }
-    if (string >= end) return 0;
-    while (string < end) {
-        x = *string;
-        if (x < '0' || x > '9') return 0;
-        x -= '0';
-        accum = accum * 10 + x;
-        ++string;
-    }
-    *ret = accum * sign;
-    return 1;
-}
-
 /* Checks if a string slice is equal to a string constant */
 static int check_str_const(const char *ref, const uint8_t *start, const uint8_t *end) {
     while (*ref && start < end) {
@@ -222,10 +142,10 @@ static GstValue build_token(GstParser *p, GstBuffer *buf) {
     GstInteger integer;
     uint8_t *data = buf->data;
     uint8_t *back = data + buf->count;
-    if (read_integer(data, back, &integer)) {
+    if (gst_read_integer(data, back, &integer)) {
         x.type = GST_INTEGER;
         x.data.integer = integer;
-    } else if (read_real(data, back, &real, 0)) {
+    } else if (gst_read_real(data, back, &real, 0)) {
         x.type = GST_REAL;
         x.data.real = real;
     } else if (check_str_const("nil", data, back)) {

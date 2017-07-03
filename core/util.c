@@ -85,6 +85,95 @@ void *gst_check_userdata(Gst *vm, uint32_t i, const GstUserType *type) {
     return x.data.pointer;
 }
 
+/****/
+/* Parsing utils */
+/****/
+
+
+/* Get an integer power of 10 */
+static double exp10(int power) {
+    if (power == 0) return 1;
+    if (power > 0) {
+        double result = 10;
+        int currentPower = 1;
+        while (currentPower * 2 <= power) {
+            result = result * result;
+            currentPower *= 2;
+        }
+        return result * exp10(power - currentPower);
+    } else {
+        return 1 / exp10(-power);
+    }
+}
+
+int gst_read_integer(const uint8_t *string, const uint8_t *end, int64_t *ret) {
+    int sign = 1, x = 0;
+    int64_t accum = 0;
+    if (*string == '-') {
+        sign = -1;
+        ++string;
+    } else if (*string == '+') {
+        ++string;
+    }
+    if (string >= end) return 0;
+    while (string < end) {
+        x = *string;
+        if (x < '0' || x > '9') return 0;
+        x -= '0';
+        accum = accum * 10 + x;
+        ++string;
+    }
+    *ret = accum * sign;
+    return 1;
+}
+
+/* Read a real from a string. Returns if successfuly
+ * parsed a real from the enitre input string.
+ * If returned 1, output is int ret.*/
+int gst_read_real(const uint8_t *string, const uint8_t *end, double *ret, int forceInt) {
+    int sign = 1, x = 0;
+    double accum = 0, exp = 1, place = 1;
+    /* Check the sign */
+    if (*string == '-') {
+        sign = -1;
+        ++string;
+    } else if (*string == '+') {
+        ++string;
+    }
+    if (string >= end) return 0;
+    while (string < end) {
+        if (*string == '.' && !forceInt) {
+            place = 0.1;
+        } else if (!forceInt && (*string == 'e' || *string == 'E')) {
+            /* Read the exponent */
+            ++string;
+            if (string >= end) return 0;
+            if (!gst_read_real(string, end, &exp, 1))
+                return 0;
+            exp = exp10(exp);
+            break;
+        } else {
+            x = *string;
+            if (x < '0' || x > '9') return 0;
+            x -= '0';
+            if (place < 1) {
+                accum += x * place;
+                place *= 0.1;
+            } else {
+                accum *= 10;
+                accum += x;
+            }
+        }
+        ++string;
+    }
+    *ret = accum * sign * exp;
+    return 1;
+}
+
+/****/
+/* Module utils */
+/****/
+
 static void gst_cmodule_register(Gst *vm, const char *name, const GstModuleItem *mod) {
     uint32_t startLength;
     GstBuffer *buffer = gst_buffer(vm, 10);

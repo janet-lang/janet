@@ -654,6 +654,8 @@ int gst_hashtable_view(GstValue tab, const GstValue **data, uint32_t *cap);
 #define GST_ENV_METADATA 1
 #define GST_ENV_VARS 2
 
+int gst_read_real(const uint8_t *string, const uint8_t *end, double *ret, int forceInt);
+int gst_read_integer(const uint8_t *string, const uint8_t *end, int64_t *ret);
 GstReal gst_integer_to_real(GstInteger x);
 GstInteger gst_real_to_integer(GstReal x);
 GstInteger gst_startrange(GstInteger raw, uint32_t len);
