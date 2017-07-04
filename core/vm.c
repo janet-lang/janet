@@ -391,6 +391,12 @@ int gst_continue(Gst *vm) {
                 vm->thread->status = GST_THREAD_DEAD;
                 if (vm->thread->parent) {
                     vm->thread = vm->thread->parent;
+                    if (vm->thread->status == GST_THREAD_ALIVE) {
+                        /* If the parent thread is still alive,
+                           we are inside a cfunction */
+                        vm->ret = temp;
+                        return GST_RETURN_OK;
+                    }
                     stack = vm->thread->data + vm->thread->count;
                 } else {
                     vm->ret = temp;
@@ -411,6 +417,11 @@ int gst_continue(Gst *vm) {
                 if (vm->thread->errorParent == NULL)
                     return GST_RETURN_ERROR;
                 vm->thread = vm->thread->errorParent;
+                if (vm->thread->status == GST_THREAD_ALIVE) {
+                    /* If the parent thread is still alive,
+                       we are inside a cfunction */
+                    return GST_RETURN_ERROR;
+                }
             }
             vm->thread->status = GST_THREAD_ALIVE;
             stack = vm->thread->data + vm->thread->count;

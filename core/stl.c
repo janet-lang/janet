@@ -153,6 +153,7 @@ int gst_stl_##name(Gst *vm) {\
 COMPARE_FUNCTION(lessthan, gst_compare(lhs, rhs) < 0)
 COMPARE_FUNCTION(greaterthan, gst_compare(lhs, rhs) > 0)
 COMPARE_FUNCTION(equal, gst_equals(lhs, rhs))
+COMPARE_FUNCTION(notequal, !gst_equals(lhs, rhs))
 COMPARE_FUNCTION(lessthaneq, gst_compare(lhs, rhs) <= 0)
 COMPARE_FUNCTION(greaterthaneq, gst_compare(lhs, rhs) >= 0)
 
@@ -428,10 +429,15 @@ int gst_stl_string(Gst *vm) {
     uint32_t slen;
     /* Find length and assert string arguments */
     for (j = 0; j < count; ++j) {
-        if (gst_chararray_view(gst_arg(vm, j), &dat, &slen))
-            length += slen;
-        else
-            gst_c_throwc(vm, GST_EXPECTED_STRING);
+        if (!gst_chararray_view(gst_arg(vm, j), &dat, &slen)) {
+            GstValue newarg;
+            dat = gst_to_string(vm, gst_arg(vm, j));
+            slen = gst_string_length(dat);
+            newarg.type = GST_STRING;
+            newarg.data.string = dat;
+            gst_set_arg(vm, j, newarg);
+        }
+        length += slen;
     }
     /* Make string */
     str = gst_string_begin(vm, length);
@@ -624,13 +630,6 @@ int gst_stl_short_description(Gst *vm) {
     GstValue x = gst_arg(vm, 0);
     const uint8_t *buf = gst_short_description(vm, x);
     gst_c_return(vm, gst_wrap_string(buf));
-}
-
-/* To string. Like long description, but if passed a string,
- * will retun it unchanged. Buffers will return their contents as a string. */
-int gst_stl_tostring(Gst *vm) {
-    const uint8_t *string = gst_to_string(vm, gst_arg(vm, 0));
-    gst_c_return(vm, gst_wrap_string(string));
 }
 
 /* Exit */
@@ -1055,6 +1054,7 @@ static const GstModuleItem std_module[] = {
     {"<", gst_stl_lessthan},
     {">", gst_stl_greaterthan},
     {"=", gst_stl_equal},
+    {"not=", gst_stl_notequal},
     {"<=", gst_stl_lessthaneq},
     {">=", gst_stl_greaterthaneq},
     /* Bitwise arithmetic */
@@ -1100,7 +1100,6 @@ static const GstModuleItem std_module[] = {
     {"current", gst_stl_current},
     {"parent", gst_stl_parent},
     {"print", gst_stl_print},
-    {"tostring", gst_stl_tostring},
     {"description", gst_stl_description},
     {"short-description", gst_stl_short_description},
     {"exit!", gst_stl_exit},
