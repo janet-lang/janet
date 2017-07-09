@@ -1263,7 +1263,7 @@ static Slot compile_form(GstCompiler *c, FormOptions opts, const GstValue *form)
 static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
     Slot ret;
     /* Check if recursion is too deep */
-    if (c->recursionGuard++ > GST_RECURSION_GUARD) {
+    if (--c->recursionGuard == 0) {
         c_error(c, "recursed too deeply");
     }
     switch (x.type) {
@@ -1289,7 +1289,7 @@ static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
             ret = compile_literal(c, opts, x);
             break;
     }
-    c->recursionGuard--;
+    c->recursionGuard++;
     return ret;
 }
 
@@ -1300,7 +1300,7 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
     c->tail = NULL;
     c->error.type = GST_NIL;
     c->env = vm->env;
-    c->recursionGuard = 0;
+    c->recursionGuard = GST_RECURSION_GUARD;
     compiler_push_scope(c, 0);
 }
 
@@ -1308,7 +1308,7 @@ void gst_compiler(GstCompiler *c, Gst *vm) {
  * given AST. Returns NULL if there was an error during compilation. */
 GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
     FormOptions opts = form_options_default();
-    c->recursionGuard = 0;
+    c->recursionGuard = GST_RECURSION_GUARD;
     GstFuncDef *def;
     if (setjmp(c->onError)) {
         /* Clear all but root scope */

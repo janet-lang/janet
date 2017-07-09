@@ -131,7 +131,7 @@ static const char *gst_deserialize_impl(
 #define read_i64(out) do{deser_datacheck(8); (out)=bytes2int(data); data += 8; }while(0)
 
     /* Check if we have recursed too deeply */
-    if (depth++ > GST_RECURSION_GUARD) {
+    if (--depth == 0) {
         return "deserialize recursed too deeply";
     }
 
@@ -467,7 +467,7 @@ const char *gst_deserialize(
     GstValue ret;
     const char *err;
     GstArray *visited = gst_array(vm, 10);
-    err = gst_deserialize_impl(vm, data, data + len, nextData, visited, &ret, 0);
+    err = gst_deserialize_impl(vm, data, data + len, nextData, visited, &ret, GST_RECURSION_GUARD);
     if (err != NULL) return err;
     *out = ret;
     return NULL;
@@ -501,7 +501,7 @@ static const char *gst_serialize_impl(
     /*printf("Type: %d\n", x.type);*/
 
     /* Check if we have gone too deep */
-    if (depth++ > GST_RECURSION_GUARD) {
+    if (--depth == 0) {
         return "serialize recursed too deeply";
     }
 
@@ -759,7 +759,7 @@ const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x) {
     uint32_t oldCount = buffer->count;
     const char *err;
     GstTable *visited = gst_table(vm, 10);
-    err = gst_serialize_impl(vm, buffer, visited, &nextId, x, 0);
+    err = gst_serialize_impl(vm, buffer, visited, &nextId, x, GST_RECURSION_GUARD);
     if (err != NULL) {
         buffer->count = oldCount;
     }
