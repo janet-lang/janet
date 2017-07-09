@@ -296,4 +296,3 @@ GstValue gst_table_next(GstTable *t, GstValue key) {
     }
     return gst_wrap_nil();
 }
-

@@ -445,7 +445,7 @@ void gst_env_putvar(Gst *vm, GstTable *env, GstValue key, GstValue value) {
     ref->count = 1;
     ref->data[0] = value;
     gst_table_put(vm, env, key, gst_wrap_array(ref));
-    gst_table_put(vm, newmeta, gst_string_cvs(vm, "mutable"), gst_wrap_boolean(1));
+    gst_table_put(vm, newmeta, gst_string_cv(vm, "mutable"), gst_wrap_boolean(1));
     gst_table_put(vm, meta, key, gst_wrap_table(newmeta));
 }
 

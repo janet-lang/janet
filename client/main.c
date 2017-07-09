@@ -171,6 +171,7 @@ static int debug_repl(Gst *vm, uint64_t flags) {
             continue;
         }
         gst_env_putc(vm, vm->env, "_", vm->ret);
+        gst_env_putc(vm, vm->env, "-env-", gst_wrap_table(vm->env));
         if (!debug_compile_and_run(vm, gst_parse_consume(&p), flags)) {
             printf_flags(flags, "36", "%s\n", (const char *) gst_description(vm, vm->ret));
         }

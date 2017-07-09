@@ -422,7 +422,7 @@ static int symbol_resolve(GstCompiler *c, GstValue x, uint16_t *level, uint16_t 
         GstTable *metas = gst_env_meta(c->vm, c->env);
         GstValue maybeMeta = gst_table_get(metas, x);
         if (maybeMeta.type == GST_TABLE) {
-            GstValue isMutable = gst_table_get(maybeMeta.data.table, gst_string_cvs(c->vm, "mutable"));
+            GstValue isMutable = gst_table_get(maybeMeta.data.table, gst_string_cv(c->vm, "mutable"));
             if (gst_truthy(isMutable)) {
                 if (flags) *flags = GST_LOCAL_FLAG_MUTABLE;
                 *out = check;
