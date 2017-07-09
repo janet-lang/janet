@@ -91,11 +91,7 @@ static int debug_compile_and_run(Gst *vm, GstValue ast, int64_t flags) {
     }
     /* Execute function */
     if (gst_run(vm, func)) {
-        if (vm->crash) {
-            printf_flags(flags, "31", "vm crash: %s\n", vm->crash);
-        } else {
-            printf_flags(flags, "31", "vm error: %s\n", (const char *)gst_to_string(vm, vm->ret));
-        }
+        printf_flags(flags, "31", "vm error: %s\n", (const char *)gst_to_string(vm, vm->ret));
         return 1;
     }
     return 0;

@@ -294,7 +294,6 @@ struct GstUserdataHeader {
 /* VM return status from c function */
 #define GST_RETURN_OK 0
 #define GST_RETURN_ERROR 1
-#define GST_RETURN_CRASH 2
 
 /* The VM state */
 struct Gst {
@@ -314,8 +313,7 @@ struct Gst {
     GstTable *registry;
     GstTable *env;
     /* Return state */
-    const char *crash;
-    GstValue ret; /* Returned value from gst_start. */
+    GstValue ret;
 };
 
 /* The type of a ParseState */

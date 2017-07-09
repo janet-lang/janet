@@ -36,7 +36,6 @@ int gst_continue(Gst *vm) {
 
 #define gst_exit(vm, r) return ((vm)->ret = (r), GST_RETURN_OK)
 #define gst_error(vm, e) do { (vm)->ret = gst_string_cv((vm), (e)); goto vm_error; } while (0)
-#define gst_crash(vm, e) return ((vm)->crash = (e), GST_RETURN_CRASH)
 #define gst_assert(vm, cond, e) do {if (!(cond)){gst_error((vm), (e));}} while (0)
 
     /* Intialize local state */
@@ -452,8 +451,6 @@ int gst_run(Gst *vm, GstValue callee) {
     } else {
         /* Create new thread */
         vm->thread = gst_thread(vm, callee, 64);
-        if (vm->thread == NULL)
-            return GST_RETURN_CRASH;
     }
     if (callee.type == GST_CFUNCTION) {
         vm->ret.type = GST_NIL;
@@ -461,7 +458,8 @@ int gst_run(Gst *vm, GstValue callee) {
     } else if (callee.type == GST_FUNCTION) {
         result = gst_continue(vm);
     } else {
-        return GST_RETURN_CRASH;
+        vm->ret = gst_string_cv(vm, "expected function");
+        return GST_RETURN_ERROR;
     }
     /* Handle yields */
     while (result == GST_RETURN_OK && vm->thread->status == GST_THREAD_PENDING) {
@@ -503,7 +501,6 @@ uint32_t gst_count_args(Gst *vm) {
 /* Initialize the VM */
 void gst_init(Gst *vm) {
     vm->ret.type = GST_NIL;
-    vm->crash = NULL;
     /* Garbage collection */
     vm->blocks = NULL;
     vm->nextCollection = 0;
