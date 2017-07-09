@@ -24,9 +24,25 @@
 
 #define GST_LOCAL_FLAG_MUTABLE 1
 
+/* Compiler typedefs */
+typedef struct GstCompiler GstCompiler;
+typedef struct FormOptions FormOptions;
+typedef struct SlotTracker SlotTracker;
+typedef struct GstScope GstScope;
+
+/* Compilation state */
+struct GstCompiler {
+    Gst *vm;
+    GstValue error;
+    jmp_buf onError;
+    GstScope *tail;
+    GstBuffer *buffer;
+    GstTable *env;
+    int recursionGuard;
+};
+
 /* During compilation, FormOptions are passed to ASTs
  * as configuration options to allow for some optimizations. */
-typedef struct FormOptions FormOptions;
 struct FormOptions {
     /* The location the returned Slot must be in. Can be ignored
      * if either canDrop or canChoose is true */
@@ -68,7 +84,6 @@ struct Slot {
 
 /* A SlotTracker provides a handy way to keep track of
  * Slots on the stack and free them in bulk. */
-typedef struct SlotTracker SlotTracker;
 struct SlotTracker {
     Slot *slots;
     uint32_t count;
@@ -1293,43 +1308,36 @@ static Slot compile_value(GstCompiler *c, FormOptions opts, GstValue x) {
     return ret;
 }
 
-/* Initialize a GstCompiler struct */
-void gst_compiler(GstCompiler *c, Gst *vm) {
-    c->vm = vm;
-    c->buffer = gst_buffer(vm, 128);
-    c->tail = NULL;
-    c->error.type = GST_NIL;
-    c->env = vm->env;
-    c->recursionGuard = GST_RECURSION_GUARD;
-    compiler_push_scope(c, 0);
-}
-
 /* Compile interface. Returns a function that evaluates the
  * given AST. Returns NULL if there was an error during compilation. */
-GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form) {
+GstValue gst_compile(Gst *vm, GstTable *env, GstValue form) {
+    GstCompiler c;
     FormOptions opts = form_options_default();
-    c->recursionGuard = GST_RECURSION_GUARD;
     GstFuncDef *def;
-    if (setjmp(c->onError)) {
-        /* Clear all but root scope */
-        if (c->tail)
-            c->tail->parent = NULL;
-        if (c->error.type == GST_NIL)
-            c->error = gst_string_cv(c->vm, "unknown error");
-        return NULL;
+    if (setjmp(c.onError)) {
+        if (c.error.type == GST_NIL)
+            return gst_string_cv(vm, "unknown error");
+        return c.error;
     }
+    c.error.type = GST_NIL;
+    c.env = env;
+    c.vm = vm;
+    c.tail = NULL;
+    c.buffer = gst_buffer(vm, 24);
+    c.recursionGuard = GST_RECURSION_GUARD;
+    compiler_push_scope(&c, 0);
     opts.isTail = 1;
-    compiler_return(c, compile_value(c, opts, form));
-    def = compiler_gen_funcdef(c, c->buffer->count, 0, 0);
+    compiler_return(&c, compile_value(&c, opts, form));
+    def = compiler_gen_funcdef(&c, c.buffer->count, 0, 0);
     {
-        GstFuncEnv *env = gst_alloc(c->vm, sizeof(GstFuncEnv));
-        GstFunction *func = gst_alloc(c->vm, sizeof(GstFunction));
+        GstFuncEnv *env = gst_alloc(vm, sizeof(GstFuncEnv));
+        GstFunction *func = gst_alloc(vm, sizeof(GstFunction));
         env->values = NULL;
         env->stackOffset = 0;
         env->thread = NULL;
         func->parent = NULL;
         func->def = def;
         func->env = env;
-        return func;
+        return gst_wrap_function(func);
     }
 }

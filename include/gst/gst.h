@@ -169,8 +169,6 @@ typedef struct GstModuleItem GstModuleItem;
 typedef struct GstUserType GstUserType;
 typedef struct GstParser GstParser;
 typedef struct GstParseState GstParseState;
-typedef struct GstCompiler GstCompiler;
-typedef struct GstScope GstScope;
 
 /* C Api data types */
 struct GstModuleItem {
@@ -374,17 +372,6 @@ struct GstParser {
     } comment;
 };
 
-/* Compilation state */
-struct GstCompiler {
-    Gst *vm;
-    GstValue error;
-    jmp_buf onError;
-    GstScope *tail;
-    GstBuffer *buffer;
-    GstTable *env;
-    int recursionGuard;
-};
-
 /* Bytecode */
 enum GstOpCode {
     GST_OP_FLS,     /* Load false */
@@ -548,10 +535,7 @@ GstValue gst_parse_consume(GstParser *p);
 /* Compilation */
 /***/
 
-void gst_compiler(GstCompiler *c, Gst *vm);
-void gst_compiler_mergeenv(GstCompiler *c, GstValue env);
-void gst_compiler_global(GstCompiler *c, const char *name, GstValue x);
-GstFunction *gst_compiler_compile(GstCompiler *c, GstValue form);
+GstValue gst_compile(Gst *vm, GstTable *env, GstValue form);
 
 /****/
 /* GC */

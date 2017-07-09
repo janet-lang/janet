@@ -83,14 +83,10 @@ static char *gst_getline() {
 
 /* Compile and run an ast */
 static int debug_compile_and_run(Gst *vm, GstValue ast, int64_t flags) {
-    GstCompiler c;
-    GstValue func;
-    /* Try to compile generated AST */
-    gst_compiler(&c, vm);
-    func = gst_wrap_function(gst_compiler_compile(&c, ast));
+    GstValue func = gst_compile(vm, vm->env, ast);
     /* Check for compilation errors */
-    if (c.error.type != GST_NIL) {
-        printf_flags(flags, "31", "compiler error: %s\n", (const char *)gst_to_string(vm, c.error));
+    if (func.type != GST_FUNCTION) {
+        printf_flags(flags, "31", "compiler error: %s\n", (const char *)gst_to_string(vm, func));
         return 1;
     }
     /* Execute function */

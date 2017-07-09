@@ -994,16 +994,11 @@ static int gst_stl_parse(Gst *vm) {
 
 /* Compile a value */
 static int gst_stl_compile(Gst *vm) {
-    GstFunction *ret;
-    GstCompiler c;
-    gst_compiler(&c, vm);
+    GstTable *env = vm->env;
     if (gst_arg(vm, 1).type == GST_TABLE) {
-        c.env = gst_arg(vm, 1).data.table;
+        env = gst_arg(vm, 1).data.table;
     }
-    ret = gst_compiler_compile(&c, gst_arg(vm, 0));
-    if (!ret)
-        gst_c_throw(vm, c.error);
-    gst_c_return(vm, gst_wrap_function(ret));
+    gst_c_return(vm, gst_compile(vm, env, gst_arg(vm, 0)));
 }
 
 /****/
