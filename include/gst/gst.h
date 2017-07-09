@@ -210,8 +210,8 @@ struct GstValue {
     GstValueUnion data;
 };
 
-/* A lightweight thread in gst. Does not correspond to
- * operating system threads. Used in coroutines and continuations. */
+/* A lightweight green thread in gst. Does not correspond to
+ * operating system threads. */
 struct GstThread {
     uint32_t count;
     uint32_t capacity;
