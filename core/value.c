@@ -77,7 +77,13 @@ uint32_t gst_hash(GstValue x) {
         hash = gst_struct_hash(x.data.st);
         break;
     default:
-        hash = x.data.dwords[0] ^ x.data.dwords[1];
+        if (sizeof(double) == sizeof(void *)) {
+            /* Assuming 8 byte pointer */
+            hash = x.data.dwords[0] ^ x.data.dwords[1];
+        } else {
+            /* Assuming 4 byte pointer (or smaller) */
+            hash = (uint32_t) x.data.pointer;
+        }
         break;
     }
     return hash;
