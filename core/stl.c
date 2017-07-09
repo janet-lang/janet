@@ -1088,22 +1088,29 @@ static const GstModuleItem std_module[] = {
     {NULL, NULL}
 };
 
-/* Load all libraries */
+/* Load stl library into the current environment. Create stl module object
+ * only if it is not yet created. */
 void gst_stl_load(Gst *vm) {
-    GstValue maybeEnv;
-    /* Load the normal c functions */
-    gst_module_mutable(vm, "std", std_module);
-    /* Wrap stdin and stdout */
-    FILE **inp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
-    FILE **outp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
-    FILE **errp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
-    *inp = stdin;
-    *outp = stdout;
-    *errp = stderr;
-    gst_module_put(vm, "std", "stdin", gst_wrap_userdata(inp));
-    gst_module_put(vm, "std", "stdout", gst_wrap_userdata(outp));
-    gst_module_put(vm, "std", "stderr", gst_wrap_userdata(outp));
-    maybeEnv = gst_table_get(vm->modules, gst_string_cvs(vm, "std"));
-    if (maybeEnv.type == GST_TABLE)
+    GstValue maybeEnv = gst_table_get(vm->modules, gst_string_cvs(vm, "std"));
+    if (maybeEnv.type == GST_TABLE) {
+        /* Module already created, so merge into main vm. */
         gst_env_merge(vm, vm->env, maybeEnv.data.table);
+    } else {
+        /* Module not yet created */
+        /* Load the normal c functions */
+        gst_module_mutable(vm, "std", std_module);
+        /* Wrap stdin and stdout */
+        FILE **inp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+        FILE **outp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+        FILE **errp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+        *inp = stdin;
+        *outp = stdout;
+        *errp = stderr;
+        gst_module_put(vm, "std", "stdin", gst_wrap_userdata(inp));
+        gst_module_put(vm, "std", "stdout", gst_wrap_userdata(outp));
+        gst_module_put(vm, "std", "stderr", gst_wrap_userdata(outp));
+        // Now merge
+        maybeEnv = gst_table_get(vm->modules, gst_string_cvs(vm, "std"));
+        gst_env_merge(vm, vm->env, maybeEnv.data.table);
+    }
 }

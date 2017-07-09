@@ -343,9 +343,9 @@ int gst_callc(Gst *vm, GstCFunction fn, int numargs, ...) {
     return result;
 }
 
-static GstTable *gst_env_inttab(Gst *vm, GstTable *env, GstInteger i) {
+static GstTable *gst_env_keytab(Gst *vm, GstTable *env, const char *keyword) {
     GstTable *tab;
-    GstValue key = gst_wrap_integer(i);
+    GstValue key = gst_string_cv(vm, keyword);
     GstValue maybeTab = gst_table_get(env, key);
     if (maybeTab.type != GST_TABLE) {
         tab = gst_table(vm, 10);
@@ -357,11 +357,11 @@ static GstTable *gst_env_inttab(Gst *vm, GstTable *env, GstInteger i) {
 }
 
 GstTable *gst_env_nils(Gst *vm, GstTable *env) {
-    return gst_env_inttab(vm, env, GST_ENV_NILS);
+    return gst_env_keytab(vm, env, "nils");
 }
 
 GstTable *gst_env_meta(Gst *vm, GstTable *env) {
-    return gst_env_inttab(vm, env, GST_ENV_METADATA);
+    return gst_env_keytab(vm, env, "meta");
 }
 
 /* Add many global variables and bind to nil */
@@ -391,6 +391,18 @@ static void mergemeta(Gst *vm, GstTable *destEnv, GstTable *meta) {
     }
 }
 
+/* Simple strequal between gst string ans c string, no 0s in b allowed */
+static int streq(const char *str, const uint8_t *b) {
+    uint32_t len = gst_string_length(b);
+    uint32_t i;
+    const uint8_t *ustr = (const uint8_t *)str;
+    for (i = 0; i < len; ++i) {
+        if (ustr[i] != b[i])
+            return 0;
+    }
+    return 1;
+}
+
 /* Add many global variables */
 void gst_env_merge(Gst *vm, GstTable *destEnv, GstTable *srcEnv) {
     const GstValue *data = srcEnv->data;
@@ -399,18 +411,14 @@ void gst_env_merge(Gst *vm, GstTable *destEnv, GstTable *srcEnv) {
     for (i = 0; i < len; i += 2) {
         if (data[i].type == GST_SYMBOL) {
             gst_table_put(vm, destEnv, data[i], data[i + 1]);
-        } else if (data[i].type == GST_INTEGER) {
-            switch (data[i].data.integer) {
-                case GST_ENV_NILS:
-                    if (data[i + 1].type == GST_TABLE)
-                        mergenils(vm, destEnv, data[i + 1].data.table);
-                    break;
-                case GST_ENV_METADATA:
-                    if (data[i + 1].type == GST_TABLE)
-                        mergemeta(vm, destEnv, data[i + 1].data.table);
-                    break;
-                default:
-                    break;
+        } else if (data[i].type == GST_STRING) {
+            const uint8_t *k = data[i].data.string;
+            if (streq("nils", k)) {
+                if (data[i + 1].type == GST_TABLE)
+                    mergenils(vm, destEnv, data[i + 1].data.table);
+            } else if (streq("meta", k)) {
+               if (data[i + 1].type == GST_TABLE)
+                mergemeta(vm, destEnv, data[i + 1].data.table);
             }
         }
     }
