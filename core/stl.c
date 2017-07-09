@@ -676,40 +676,6 @@ int gst_stl_deserialize(Gst *vm) {
     gst_c_return(vm, ret);
 }
 
-/****/
-/* Registry */
-/****/
-
-/* Get everything in the current namespace */
-int gst_stl_namespace(Gst *vm) {
-    gst_c_return(vm, gst_wrap_table(vm->registry));
-}
-
-/* Switch to a new namespace */
-int gst_stl_namespace_set(Gst *vm) {
-    GstValue name = gst_arg(vm, 0);
-    GstValue check;
-    if (name.type != GST_STRING || name.type == GST_SYMBOL)
-        gst_c_throwc(vm, "expected string/symbol");
-    name.type = GST_SYMBOL;
-    check = gst_table_get(vm->modules, name);
-    if (check.type == GST_TABLE) {
-        vm->registry = check.data.table;
-    } else if (check.type == GST_NIL) {
-        check = gst_wrap_table(gst_table(vm, 10));
-        gst_table_put(vm, vm->modules, name, check);
-        vm->registry = check.data.table;
-    } else {
-        gst_c_throwc(vm, "invalid module found");
-    }
-    gst_c_return(vm, gst_wrap_nil());
-}
-
-/* Get the table or struct associated with a given namespace */
-int gst_stl_namespace_get(Gst *vm) {
-    return gst_callc(vm, gst_stl_get, 2, gst_wrap_table(vm->modules), gst_arg(vm, 0));
-}
-
 /***/
 /* Function reflection */
 /***/
@@ -1109,9 +1075,6 @@ static const GstModuleItem std_module[] = {
     {"error", gst_stl_error},
     {"serialize", gst_stl_serialize},
     {"deserialize", gst_stl_deserialize},
-    {"namespace", gst_stl_namespace},
-    {"namespace-set!", gst_stl_namespace_set},
-    {"namespace-get", gst_stl_namespace_get},
     {"push!", gst_stl_push},
     {"pop!", gst_stl_pop},
     {"peek", gst_stl_peek},
