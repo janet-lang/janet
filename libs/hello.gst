@@ -2,9 +2,9 @@
 
 (do (+ 1 2 3))
 
-(print _ )
+(print (+ 1 2 3))
 
-"Comment"
+# Comment
 (var i 0)
 (while (< i 1000)
     (print i)

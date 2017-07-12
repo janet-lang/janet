@@ -113,7 +113,7 @@ static int debug_run(Gst *vm, FILE *in, int64_t flags) {
                         printf_flags(flags, "31", "parse error: unexpected end of source%s\n", "");
                         return 1;
                     }
-                    /* Otherwise we finished the file with no problems*/
+                    /* Otherwise we finished the file with no problems */
                     return 0;
                 }
                 reader = buffer;
