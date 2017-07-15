@@ -2,6 +2,9 @@
 /client/gst
 gst
 
+# Generated files
+*.genh
+
 # Tags
 tags
 

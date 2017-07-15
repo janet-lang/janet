@@ -1020,6 +1020,21 @@ static int gst_stl_compile(Gst *vm) {
     gst_c_return(vm, gst_compile(vm, env, gst_arg(vm, 0)));
 }
 
+/* Get vm->env */
+static int gst_stl_getenv(Gst *vm) {
+    gst_c_return(vm, gst_wrap_table(vm->env));
+}
+
+/* Set vm->env */
+static int gst_stl_setenv(Gst *vm) {
+    GstValue newEnv = gst_arg(vm, 0);
+    if (newEnv.type != GST_TABLE) {
+        gst_c_throwc(vm, "expected table");
+    }
+    vm->env = newEnv.data.table;
+    return GST_RETURN_OK;
+}
+
 /****/
 /* Bootstraping */
 /****/
@@ -1058,6 +1073,8 @@ static const GstModuleItem std_module[] = {
     {"parse-status", gst_stl_parser_status},
     {"parse", gst_stl_parse},
     /* Compile */
+    {"getenv", gst_stl_getenv},
+    {"setenv", gst_stl_setenv},
     {"compile", gst_stl_compile},
     /* Other */
     {"not", gst_stl_not},
