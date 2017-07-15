@@ -278,6 +278,16 @@ void gst_table_put(Gst *vm, GstTable *t, GstValue key, GstValue value) {
     }
 }
 
+/* Clear a table */
+void gst_table_clear(GstTable *t) {
+    uint32_t capacity = t->capacity;
+    uint32_t i;
+    GstValue *data = t->data;
+    for (i = 0; i < capacity; i += 2)
+        data[i].type = GST_NIL;
+    t->count = 0;
+}
+
 /* Find next key in an object. Returns nil if no next key. */
 GstValue gst_table_next(GstTable *t, GstValue key) {
     const GstValue *bucket, *end;

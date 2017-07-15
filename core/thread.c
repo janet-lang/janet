@@ -138,15 +138,14 @@ void gst_thread_endframe(Gst *vm, GstThread *thread) {
     GstValue callee = gst_frame_callee(stack);
     if (callee.type == GST_FUNCTION) {
         GstFunction *fn = callee.data.function;
+        uint32_t locals = fn->def->locals;
         gst_frame_pc(stack) = fn->def->byteCode;
         if (fn->def->flags & GST_FUNCDEF_FLAG_VARARG) {
             uint32_t arity = fn->def->arity;
             gst_thread_tuplepack(vm, thread, arity);
-        } else {
-            uint32_t locals = fn->def->locals;
-            if (gst_frame_size(stack) < locals) {
-                gst_thread_pushnil(vm, thread, locals - gst_frame_size(stack));
-            }
+        }
+        if (gst_frame_size(stack) < locals) {
+            gst_thread_pushnil(vm, thread, locals - gst_frame_size(stack));
         }
     }
 }

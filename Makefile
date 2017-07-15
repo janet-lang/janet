@@ -15,6 +15,10 @@ GST_CORELIB=core/libgst.a
 GST_INTERNAL_HEADERS=$(addprefix core/, cache.h)
 GST_HEADERS=$(addprefix include/gst/, gst.h)
 
+# Use gdb. On mac use lldb
+DEBUGGER=lldb
+CC=clang
+
 all: $(GST_TARGET)
 
 ###################################
@@ -42,7 +46,7 @@ run: $(GST_TARGET)
 	@ ./$(GST_TARGET)
 
 debug: $(GST_TARGET)
-	@ gdb ./$(GST_TARGET)
+	@ $(DEBUGGER) ./$(GST_TARGET)
 
 valgrind: $(GST_TARGET)
 	@ valgrind --leak-check=full -v ./$(GST_TARGET)

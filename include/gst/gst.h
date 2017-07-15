@@ -472,6 +472,7 @@ GstTable *gst_table(Gst *vm, uint32_t capacity);
 GstValue gst_table_get(GstTable *t, GstValue key);
 GstValue gst_table_remove(GstTable *t, GstValue key);
 void gst_table_put(Gst *vm, GstTable *t, GstValue key, GstValue value);
+void gst_table_clear(GstTable *t);
 GstValue gst_table_next(GstTable *o, GstValue key);
 
 /****/

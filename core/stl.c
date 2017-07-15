@@ -168,6 +168,25 @@ int gst_stl_not(Gst *vm) {
 /* Core */
 /****/
 
+/* Empty a mutable datastructure */
+int gst_stl_clear(Gst *vm) {
+    GstValue x = gst_arg(vm, 0);
+    switch (x.type) {
+    default:
+        gst_c_throwc(vm, "cannot get length");
+    case GST_ARRAY:
+        x.data.array->count = 0;
+        break;
+    case GST_BYTEBUFFER:
+        x.data.buffer->count = 0;
+        break;
+    case GST_TABLE:
+        gst_table_clear(x.data.table);
+        break;
+    }
+    gst_c_return(vm, x);
+}
+
 /* Get length of object */
 int gst_stl_length(Gst *vm) {
     uint32_t count = gst_count_args(vm);
@@ -1037,12 +1056,12 @@ static const GstModuleItem std_module[] = {
     {"parse-hasvalue", gst_stl_parser_hasvalue},
     {"parse-charseq", gst_stl_parser_charseq},
     {"parse-status", gst_stl_parser_status},
-    {"parse-status", gst_stl_parser_status},
     {"parse", gst_stl_parse},
     /* Compile */
     {"compile", gst_stl_compile},
     /* Other */
     {"not", gst_stl_not},
+    {"clear", gst_stl_clear},
     {"length", gst_stl_length},
     {"hash", gst_stl_hash},
     {"integer", gst_stl_to_int},
