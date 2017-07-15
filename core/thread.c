@@ -90,7 +90,7 @@ void gst_thread_pushnil(Gst *vm, GstThread *thread, uint32_t n) {
 void gst_thread_tuplepack(Gst *vm, GstThread *thread, uint32_t n) {
     GstValue *stack = thread->data + thread->count;
     uint32_t size = gst_frame_size(stack);
-    if (n > size) {
+    if (n >= size) {
         /* Push one extra nil to ensure space for tuple */
         gst_thread_pushnil(vm, thread, n - size + 1);
         stack = thread->data + thread->count;

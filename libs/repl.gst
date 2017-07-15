@@ -17,8 +17,8 @@
 		(clear b))
 	(parse-consume p)))
 
-(def eval (fn [x]
-	(apply (*compile* x) 123)))
+(def eval (fn [x &]
+	(apply (*compile* x) &)))
 
 (def t (thread (fn []
 	(while true

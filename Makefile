@@ -16,8 +16,7 @@ GST_INTERNAL_HEADERS=$(addprefix core/, cache.h)
 GST_HEADERS=$(addprefix include/gst/, gst.h)
 
 # Use gdb. On mac use lldb
-DEBUGGER=lldb
-CC=clang
+DEBUGGER=gdb
 
 all: $(GST_TARGET)
 

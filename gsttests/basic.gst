@@ -102,6 +102,15 @@
 (assert (= 3 (tran t)) "return from thread")
 (assert (= (status t) "dead") "finished thread is dead")
 
+# Var arg tests
+
+(def vargf (fn [x &] (apply + (if x x 0) 100 &)))
+(assert (= 100 (vargf)) "var arg no arguments")
+(assert (= 101 (vargf 1)) "var arg no packed arguments")
+(assert (= 103 (vargf 1 2)) "var arg tuple size 1")
+(assert (= 110 (vargf 1 2 3 4)) "var arg tuple size 3")
+(assert (= 210 (vargf 1 2 3 4 10 10 10 10 10 10 10 10 10 10)) "var arg large tuple")
+
 # report
 
 (print "\n" num-tests-passed " of " num-tests-run " tests passed\n")
