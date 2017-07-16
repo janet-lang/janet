@@ -111,6 +111,18 @@
 (assert (= 110 (vargf 1 2 3 4)) "var arg tuple size 3")
 (assert (= 210 (vargf 1 2 3 4 10 10 10 10 10 10 10 10 10 10)) "var arg large tuple")
 
+# Gensym tests
+
+(assert (not= (gensym) (gensym)) "two gensyms not equal")
+(assert (not= (gensym 'abc) (gensym 'abc)) "two gensyms with arg not equal")
+((fn []
+	(def syms (table))
+	(var count 0)
+	(while (< count 128)
+		(set! syms (gensym 'beep) true)
+		(varset! count (+ 1 count)))
+	(assert (= (length syms) 128) "many symbols")))
+
 # report
 
 (print "\n" num-tests-passed " of " num-tests-run " tests passed\n")

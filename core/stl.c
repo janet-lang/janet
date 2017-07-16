@@ -267,7 +267,7 @@ int gst_stl_slice(Gst *vm) {
     x = gst_arg(vm, 0);
     if (!gst_seq_view(x, &data, &length) &&
             !gst_chararray_view(x, &cdata, &length))  {
-        gst_c_throwc(vm, "expected array or tuple");
+        gst_c_throwc(vm, "expected array/tuple/buffer/symbol/string");
     }
 
     /* Get from index */
@@ -1011,6 +1011,22 @@ static int gst_stl_parse(Gst *vm) {
 /* Compilation */
 /***/
 
+/* Generate a unique symbol */
+static int gst_stl_gensym(Gst *vm) {
+    GstValue source = gst_arg(vm, 0);
+    const uint8_t *sym = NULL;
+    uint32_t len;
+    const uint8_t *data;
+    if (source.type == GST_NIL) {
+        sym = gst_string_cu(vm, "");
+    } else if (gst_chararray_view(source, &data, &len)) {
+        sym = gst_string_bu(vm, data, len);
+    } else {
+        gst_c_throwc(vm, "exepcted string/buffer/symbol/nil");
+    }
+    gst_c_return(vm, gst_wrap_symbol(sym));
+}
+
 /* Compile a value */
 static int gst_stl_compile(Gst *vm) {
     GstTable *env = vm->env;
@@ -1073,6 +1089,7 @@ static const GstModuleItem std_module[] = {
     {"parse-status", gst_stl_parser_status},
     {"parse", gst_stl_parse},
     /* Compile */
+    {"gensym", gst_stl_gensym},
     {"getenv", gst_stl_getenv},
     {"setenv", gst_stl_setenv},
     {"compile", gst_stl_compile},
@@ -1145,7 +1162,7 @@ void gst_stl_load(Gst *vm) {
         gst_module_put(vm, "std", "stdin", gst_wrap_userdata(inp));
         gst_module_put(vm, "std", "stdout", gst_wrap_userdata(outp));
         gst_module_put(vm, "std", "stderr", gst_wrap_userdata(outp));
-        // Now merge
+        /* Now merge */
         maybeEnv = gst_table_get(vm->modules, gst_string_cvs(vm, "std"));
         gst_env_merge(vm, vm->env, maybeEnv.data.table);
     }

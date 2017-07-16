@@ -460,7 +460,6 @@ const uint8_t *gst_string_end(Gst *vm, uint8_t *str) {
     check.data.string = (const uint8_t *) str;
     cached = gst_cache_add(vm, check);
     return cached.data.string;
-
 }
 
 /* Load a buffer as a string */
@@ -479,6 +478,60 @@ const uint8_t *gst_string_b(Gst *vm, const uint8_t *buf, uint32_t len) {
         str[len] = 0;
         return gst_cache_add_bucket(vm, gst_wrap_string(str), bucket).data.string;
     }
+}
+
+static void inc_counter(uint8_t *digits, int base, int len) {
+    int i;
+    uint8_t carry = 1;
+    for (i = len - 1; i >= 0; --i) {
+        digits[i] += carry;
+        carry = 0;
+        if (digits[i] == base) {
+            digits[i] = 0;
+            carry = 1;
+        }
+    }
+}
+
+/* Generate a unique symbol */
+const uint8_t *gst_string_bu(Gst *vm, const uint8_t *buf, uint32_t len) {
+    static const char base64[] =
+        "0123456789"
+        "abcdefghijklmnopqrstuvwxyz"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "+-";
+    GstValue *bucket;
+    uint32_t hash;
+    uint8_t counter[6] = {63, 63, 63, 63, 63, 63};
+    /* Leave spaces for 6 base 64 digits and two dashes. That means 64^6 possible symbols, which
+     * is enough */
+    uint32_t newlen = len + 8;
+    uint32_t newbufsize = newlen + 2 * sizeof(uint32_t) + 1;
+    uint8_t *str = (uint8_t *)(gst_alloc(vm, newbufsize) + 2 * sizeof(uint32_t));
+    gst_string_length(str) = newlen;
+    gst_memcpy(str, buf, len);
+    str[len] = '-';
+    str[len + 1] = '-';
+    str[newlen] = 0;
+    uint8_t *saltbuf = str + len + 2;
+    int status = 1;
+    while (status) {
+        int i;
+        inc_counter(counter, 64, 6);
+        for (i = 0; i < 6; ++i)
+            saltbuf[i] = base64[counter[i]];
+        hash = gst_string_calchash(str, newlen);
+        bucket = gst_cache_strfind(vm, str, newlen, hash, &status);
+    }
+    gst_string_hash(str) = hash;
+    return gst_cache_add_bucket(vm, gst_wrap_string(str), bucket).data.string;
+}
+
+/* Generate a unique string from a cstring */
+const uint8_t *gst_string_cu(Gst *vm, const char *s) {
+    uint32_t len = 0;
+    while (s[len]) ++len;
+    return gst_string_bu(vm, (const uint8_t *)s, len);
 }
 
 /* Load a c string */

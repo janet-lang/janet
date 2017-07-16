@@ -453,6 +453,8 @@ const uint8_t *gst_string_c(Gst *vm, const char *cstring);
 GstValue gst_string_cv(Gst *vm, const char *string);
 GstValue gst_string_cvs(Gst *vm, const char *string);
 int gst_string_compare(const uint8_t *lhs, const uint8_t *rhs);
+const uint8_t *gst_string_bu(Gst *vm, const uint8_t *buf, uint32_t len);
+const uint8_t *gst_string_cu(Gst *vm, const char *s);
 
 /****/
 /* Struct functions */
