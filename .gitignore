@@ -3,7 +3,10 @@
 gst
 
 # Generated files
-*.genh
+*.gen.h
+
+# Tools
+xxd
 
 # Tags
 tags

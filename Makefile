@@ -8,17 +8,31 @@ PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 VERSION=\"0.0.0-beta\"
 
-CFLAGS=-std=c99 -Wall -Wextra -I./include -g -DGST_VERSION=$(VERSION)
+CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DGST_VERSION=$(VERSION)
 PREFIX=/usr/local
 GST_TARGET=gst
-GST_CORELIB=core/libgst.a
+GST_XXD=xxd
+# Use gdb. On mac use lldb
+DEBUGGER=gdb
 GST_INTERNAL_HEADERS=$(addprefix core/, cache.h)
 GST_HEADERS=$(addprefix include/gst/, gst.h)
 
-# Use gdb. On mac use lldb
-DEBUGGER=gdb
+#############################
+##### Generated headers #####
+#############################
+GST_LANG_SOURCES=$(addprefix libs/, bootstrap.gst)
+GST_LANG_HEADERS=$(patsubst %.gst,%.gen.h,$(GST_LANG_SOURCES))
 
 all: $(GST_TARGET)
+
+#######################
+##### Build tools #####
+#######################
+$(GST_XXD): libs/xxd.c
+	$(CC) -o $(GST_XXD) libs/xxd.c
+
+%.gen.h : %.gst $(GST_XXD)
+	./$(GST_XXD) $< $@ $(basename $(notdir $<))
 
 ###################################
 ##### The core vm and runtime #####
@@ -34,11 +48,11 @@ GST_CORE_OBJECTS=$(patsubst %.c,%.o,$(GST_CORE_SOURCES))
 ######################
 GST_CLIENT_SOURCES=client/main.c
 GST_CLIENT_OBJECTS=$(patsubst %.c,%.o,$(GST_CLIENT_SOURCES))
-$(GST_TARGET): $(GST_CLIENT_OBJECTS) $(GST_CORE_OBJECTS)
+$(GST_TARGET): $(GST_CLIENT_OBJECTS) $(GST_CORE_OBJECTS) $(GST_LANG_HEADERS)
 	$(CC) $(CFLAGS) -o $(GST_TARGET) $(GST_CLIENT_OBJECTS) $(GST_CORE_OBJECTS)
 
 # Compile all .c to .o
-%.o : %.c $(GST_HEADERS) $(GST_INTERNAL_HEADERS)
+%.o : %.c $(GST_HEADERS) $(GST_INTERNAL_HEADERS) $(GST_LANG_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 run: $(GST_TARGET)
@@ -52,10 +66,11 @@ valgrind: $(GST_TARGET)
 
 clean:
 	rm $(GST_TARGET) || true
-	rm $(GST_CORELIB) || true
 	rm $(GST_CORE_OBJECTS) || true
 	rm $(GST_CLIENT_OBJECTS) || true
+	rm $(GST_LANG_HEADERS) || true
 	rm vgcore.* || true
+	rm $(GST_XXD) || true
 
 test: $(GST_TARGET)
 	@ ./$(GST_TARGET) gsttests/basic.gst
