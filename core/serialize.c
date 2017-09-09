@@ -20,7 +20,8 @@
 * IN THE SOFTWARE.
 */
 
-#include <gst/gst.h>
+#include <dst/dst.h>
+#include "internal.h"
 
 /**
  * Data format
@@ -37,7 +38,7 @@
  * Byte 207: Buffer  - [u32 capacity][u32 length]*[u8... characters]
  * Byte 208: Array   - [u32 length]*[value... elements]
  * Byte 209: Tuple   - [u32 length]*[value... elements]
- * Byte 210: Thread  - [value parent][value errorParent][u8 state][u32 frames]*[[value callee][value env]
+ * Byte 210: Thread  - [value parent][u8 state][u32 frames]*[[value callee][value env]
  *  [u32 pcoffset][u32 ret][u32 args][u32 size]*[value ...stack]]
  * Byte 211: Table   - [u32 length]*2*[value... kvs]
  * Byte 212: FuncDef - [u32 locals][u32 arity][u32 flags][u32 literallen]*[value...
@@ -62,7 +63,7 @@ static uint32_t bytes2u32(const uint8_t *bytes) {
         uint8_t bytes[4];
         uint32_t u32;
     } u;
-    gst_memcpy(u.bytes, bytes, 4 * sizeof(uint8_t));
+    dst_memcpy(u.bytes, bytes, 4 * sizeof(uint8_t));
     return u.u32;
 }
 
@@ -72,7 +73,7 @@ static uint16_t bytes2u16(const uint8_t *bytes) {
         uint8_t bytes[2];
         uint16_t u16;
     } u;
-    gst_memcpy(u.bytes, bytes, 2 * sizeof(uint8_t));
+    dst_memcpy(u.bytes, bytes, 2 * sizeof(uint8_t));
     return u.u16;
 }
 
@@ -82,7 +83,7 @@ static double bytes2dbl(const uint8_t *bytes) {
         uint8_t bytes[8];
         double dbl;
     } u;
-    gst_memcpy(u.bytes, bytes, 8 * sizeof(uint8_t));
+    dst_memcpy(u.bytes, bytes, 8 * sizeof(uint8_t));
     return u.dbl;
 }
 
@@ -92,26 +93,26 @@ static int64_t bytes2int(const uint8_t *bytes) {
         uint8_t bytes[8];
         int64_t i;
     } u;
-    gst_memcpy(u.bytes, bytes, 8 * sizeof(uint8_t));
+    dst_memcpy(u.bytes, bytes, 8 * sizeof(uint8_t));
     return u.i;
 }
 
-/* Read a string and turn it into a gst value. Returns
+/* Read a string and turn it into a dst value. Returns
  * an error message if there is an error message during
  * deserialization. If successful, the resulting value is
  * passed by reference. */
-static const char *gst_deserialize_impl(
-        Gst *vm,
+static const char *dst_deserialize_impl(
+        Dst *vm,
         const uint8_t *data,
         const uint8_t *end,
         const uint8_t **newData,
-        GstArray *visited,
-        GstValue *out,
+        DstArray *visited,
+        DstValue *out,
         int depth) {
 
-    GstValue ret;
-    ret.type = GST_NIL;
-    GstValue *buffer;
+    DstValue ret;
+    ret.type = DST_NIL;
+    DstValue *buffer;
     uint32_t length, i;
     const char *err;
 
@@ -140,7 +141,7 @@ static const char *gst_deserialize_impl(
 
     /* Small integer */
     if (*data < 201) {
-        ret.type = GST_INTEGER;
+        ret.type = DST_INTEGER;
         ret.data.integer = *data - 100;
         *newData = data + 1;
         *out = ret;
@@ -154,118 +155,109 @@ static const char *gst_deserialize_impl(
             return "unable to deserialize";
 
         case 201: /* Nil */
-            ret.type = GST_NIL;
+            ret.type = DST_NIL;
             break;
 
         case 202: /* True */
-            ret.type = GST_BOOLEAN;
+            ret.type = DST_BOOLEAN;
             ret.data.boolean = 1;
             break;
 
         case 203: /* False */
-            ret.type = GST_BOOLEAN;
+            ret.type = DST_BOOLEAN;
             ret.data.boolean = 0;
             break;
 
         case 204: /* Long number (double) */
-            ret.type = GST_REAL;
+            ret.type = DST_REAL;
             read_dbl(ret.data.real);
             break;
 
         case 205: /* String */
         case 219: /* Symbol */
-            ret.type = data[-1] == 205 ? GST_STRING : GST_SYMBOL;
+            ret.type = data[-1] == 205 ? DST_STRING : DST_SYMBOL;
             read_u32(length);
             deser_datacheck(length);
-            ret.data.string = gst_string_b(vm, data, length);
+            ret.data.string = dst_string_b(vm, data, length);
             data += length;
-            gst_array_push(vm, visited, ret);
+            dst_array_push(vm, visited, ret);
             break;
 
         case 206: /* Struct */
-            ret.type = GST_STRUCT;
+            ret.type = DST_STRUCT;
             read_u32(length);
-            buffer = gst_struct_begin(vm, length);
+            buffer = dst_struct_begin(vm, length);
             for (i = 0; i < length; ++i) {
-                GstValue k, v;
-                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &k, depth)))
+                DstValue k, v;
+                if ((err = dst_deserialize_impl(vm, data, end, &data, visited, &k, depth)))
                     return err;
-                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, &v, depth)))
+                if ((err = dst_deserialize_impl(vm, data, end, &data, visited, &v, depth)))
                     return err;
-                gst_struct_put(buffer, k, v);
+                dst_struct_put(buffer, k, v);
             }
-            ret.data.st = gst_struct_end(vm, buffer);
-            gst_array_push(vm, visited, ret);
+            ret.data.st = dst_struct_end(vm, buffer);
+            dst_array_push(vm, visited, ret);
             break;
 
         case 207: /* Buffer */
             {
                 uint32_t cap;
-                ret.type = GST_BYTEBUFFER;
+                ret.type = DST_BYTEBUFFER;
                 read_u32(cap);
                 read_u32(length);
                 deser_datacheck(length);
-                ret.data.buffer = gst_alloc(vm, sizeof(GstBuffer));
-                ret.data.buffer->data = gst_alloc(vm, cap);
-                gst_memcpy(ret.data.buffer->data, data, length);
+                ret.data.buffer = dst_alloc(vm, sizeof(DstBuffer));
+                ret.data.buffer->data = dst_alloc(vm, cap);
+                dst_memcpy(ret.data.buffer->data, data, length);
                 ret.data.buffer->count = length;
                 ret.data.buffer->capacity = cap;
-                gst_array_push(vm, visited, ret);
+                dst_array_push(vm, visited, ret);
             }
             break;
 
         case 208: /* Array */
-            ret.type = GST_ARRAY;
+            ret.type = DST_ARRAY;
             read_u32(length);
-            buffer = gst_alloc(vm, length * sizeof(GstValue));
-            ret.data.array = gst_alloc(vm, sizeof(GstArray));
+            buffer = dst_alloc(vm, length * sizeof(DstValue));
+            ret.data.array = dst_alloc(vm, sizeof(DstArray));
             ret.data.array->data = buffer;
             ret.data.array->count = length;
             ret.data.array->capacity = length;
-            gst_array_push(vm, visited, ret);
+            dst_array_push(vm, visited, ret);
             for (i = 0; i < length; ++i)
-                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, buffer + i, depth)))
+                if ((err = dst_deserialize_impl(vm, data, end, &data, visited, buffer + i, depth)))
                     return err;
             break;
 
         case 209: /* Tuple */
-            ret.type = GST_TUPLE;
+            ret.type = DST_TUPLE;
             read_u32(length);
-            buffer = gst_tuple_begin(vm, length);
+            buffer = dst_tuple_begin(vm, length);
             for (i = 0; i < length; ++i)
-                if ((err = gst_deserialize_impl(vm, data, end, &data, visited, buffer + i, depth)))
+                if ((err = dst_deserialize_impl(vm, data, end, &data, visited, buffer + i, depth)))
                     return err;
-            ret.type = GST_TUPLE;
-            ret.data.tuple = gst_tuple_end(vm, buffer);
-            gst_array_push(vm, visited, ret);
+            ret.type = DST_TUPLE;
+            ret.data.tuple = dst_tuple_end(vm, buffer);
+            dst_array_push(vm, visited, ret);
             break;
 
         case 210: /* Thread */
             {
-                GstThread *t;
-                GstValue *stack;
+                DstThread *t;
+                DstValue *stack;
                 uint16_t prevsize = 0;
                 uint8_t statusbyte;
-                t = gst_thread(vm, gst_wrap_nil(), 64);
-                ret = gst_wrap_thread(t);
-                gst_array_push(vm, visited, ret);
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &ret, depth);
+                t = dst_thread(vm, dst_wrap_nil(), 64);
+                ret = dst_wrap_thread(t);
+                dst_array_push(vm, visited, ret);
+                err = dst_deserialize_impl(vm, data, end, &data, visited, &ret, depth);
                 if (err != NULL) return err;
-                if (ret.type == GST_NIL) {
+                if (ret.type == DST_NIL) {
                     t->parent = NULL;
-                } else if (ret.type == GST_THREAD) {
+                } else if (ret.type == DST_THREAD) {
                     t->parent = ret.data.thread;
                 } else {
                     return "expected thread parent to be thread";
-                }
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &ret, depth);
-                if (err != NULL) return err;
-                if (ret.type == GST_NIL) {
-                    t->errorParent = NULL;
-                } else if (ret.type == GST_THREAD) {
-                    t->errorParent = ret.data.thread;
-                } else {
-                    return "expected thread error parent to be thread";
                 }
                 deser_assert(data < end, UEB);
                 statusbyte = *data++;
@@ -274,43 +266,43 @@ static const char *gst_deserialize_impl(
                 t->status = statusbyte % 4;
                 /* Add frames */
                 for (i = 0; i < length; ++i) {
-                    GstValue callee, env;
+                    DstValue callee, env;
                     uint32_t pcoffset;
                     uint16_t ret, args, size, j;
                     /* Read the stack */
-                    err = gst_deserialize_impl(vm, data, end, &data, visited, &callee, depth);
+                    err = dst_deserialize_impl(vm, data, end, &data, visited, &callee, depth);
                     if (err != NULL) return err;
-                    err = gst_deserialize_impl(vm, data, end, &data, visited, &env, depth);
+                    err = dst_deserialize_impl(vm, data, end, &data, visited, &env, depth);
                     if (err != NULL) return err;
-                    if (env.type != GST_FUNCENV && env.type != GST_NIL)
+                    if (env.type != DST_FUNCENV && env.type != DST_NIL)
                         return "expected funcenv in stackframe";
                     /* Create a new frame */
                     if (i > 0)
-                        gst_thread_beginframe(vm, t, gst_wrap_nil(), 0);
+                        dst_thread_beginframe(vm, t, dst_wrap_nil(), 0);
                     read_u32(pcoffset);
                     read_u32(ret);
                     read_u32(args);
                     read_u32(size);
                     /* Set up the stack */
-                    stack = gst_thread_stack(t);
-                    if (callee.type == GST_FUNCTION) {
-                        gst_frame_pc(stack) = callee.data.function->def->byteCode + pcoffset;
+                    stack = dst_thread_stack(t);
+                    if (callee.type == DST_FUNCTION) {
+                        dst_frame_pc(stack) = callee.data.function->def->byteCode + pcoffset;
                     }
-                    gst_frame_ret(stack) = ret;
-                    gst_frame_args(stack) = args;
-                    gst_frame_size(stack) = size;
-                    gst_frame_prevsize(stack) = prevsize;
-                    gst_frame_callee(stack) = callee;
-                    if (env.type == GST_NIL)
-                        gst_frame_env(stack) = NULL;
+                    dst_frame_ret(stack) = ret;
+                    dst_frame_args(stack) = args;
+                    dst_frame_size(stack) = size;
+                    dst_frame_prevsize(stack) = prevsize;
+                    dst_frame_callee(stack) = callee;
+                    if (env.type == DST_NIL)
+                        dst_frame_env(stack) = NULL;
                     else
-                        gst_frame_env(stack) = env.data.env;
+                        dst_frame_env(stack) = env.data.env;
                     prevsize = size;
                     /* Push stack args */
                     for (j = 0; j < size; ++j) {
-                        GstValue temp;
-                        err = gst_deserialize_impl(vm, data, end, &data, visited, &temp, depth);
-                        gst_thread_push(vm, t, temp);
+                        DstValue temp;
+                        err = dst_deserialize_impl(vm, data, end, &data, visited, &temp, depth);
+                        dst_thread_push(vm, t, temp);
                     }
                 }
             }
@@ -318,45 +310,45 @@ static const char *gst_deserialize_impl(
 
         case 211: /* Table */
             read_u32(length);
-            ret = gst_wrap_table(gst_table(vm, 2 * length));
-            gst_array_push(vm, visited, ret);
+            ret = dst_wrap_table(dst_table(vm, 2 * length));
+            dst_array_push(vm, visited, ret);
             for (i = 0; i < length; ++i) {
-                GstValue key, value;
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &key, depth);
+                DstValue key, value;
+                err = dst_deserialize_impl(vm, data, end, &data, visited, &key, depth);
                 if (err != NULL) return err;
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &value, depth);
+                err = dst_deserialize_impl(vm, data, end, &data, visited, &value, depth);
                 if (err != NULL) return err;
-                gst_table_put(vm, ret.data.table, key, value);
+                dst_table_put(vm, ret.data.table, key, value);
             }
             break;
 
         case 212: /* Funcdef */
             {
-                GstFuncDef *def;
+                DstFuncDef *def;
                 uint32_t locals, arity, literalsLen, byteCodeLen, flags;
                 read_u32(locals);
                 read_u32(arity);
                 read_u32(flags);
                 read_u32(literalsLen);
-                def = gst_alloc(vm, sizeof(GstFuncDef));
-                ret = gst_wrap_funcdef(def);
-                gst_array_push(vm, visited, ret);
+                def = dst_alloc(vm, sizeof(DstFuncDef));
+                ret = dst_wrap_funcdef(def);
+                dst_array_push(vm, visited, ret);
                 def->locals = locals;
                 def->arity = arity;
                 def->flags = flags;
                 def->literalsLen = literalsLen;
                 if (literalsLen > 0) {
-                    def->literals = gst_alloc(vm, literalsLen * sizeof(GstValue));
+                    def->literals = dst_alloc(vm, literalsLen * sizeof(DstValue));
                 } else {
                     def->literals = NULL;
                 }
                 for (i = 0; i < literalsLen; ++i) {
-                    err = gst_deserialize_impl(vm, data, end, &data, visited, def->literals + i, depth);
+                    err = dst_deserialize_impl(vm, data, end, &data, visited, def->literals + i, depth);
                     if (err != NULL) return err;
                 }
                 read_u32(byteCodeLen);
                 deser_datacheck(byteCodeLen * sizeof(uint16_t));
-                def->byteCode = gst_alloc(vm, byteCodeLen * sizeof(uint16_t));
+                def->byteCode = dst_alloc(vm, byteCodeLen * sizeof(uint16_t));
                 def->byteCodeLen = byteCodeLen;
                 for (i = 0; i < byteCodeLen; ++i) {
                     read_u16(def->byteCode[i]);
@@ -366,22 +358,22 @@ static const char *gst_deserialize_impl(
 
         case 213: /* Funcenv */
             {
-                GstValue thread;
-                ret.type = GST_FUNCENV;
-                ret.data.env = gst_alloc(vm, sizeof(GstFuncEnv));
-                gst_array_push(vm, visited, ret);
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &thread, depth);
+                DstValue thread;
+                ret.type = DST_FUNCENV;
+                ret.data.env = dst_alloc(vm, sizeof(DstFuncEnv));
+                dst_array_push(vm, visited, ret);
+                err = dst_deserialize_impl(vm, data, end, &data, visited, &thread, depth);
                 if (err != NULL) return err;
                 read_u32(length);
                 ret.data.env->stackOffset = length;
-                if (thread.type == GST_THREAD) {
+                if (thread.type == DST_THREAD) {
                     ret.data.env->thread = thread.data.thread;
                 } else {
                     ret.data.env->thread = NULL;
-                    ret.data.env->values = gst_alloc(vm, sizeof(GstValue) * length);
+                    ret.data.env->values = dst_alloc(vm, sizeof(DstValue) * length);
                     for (i = 0; i < length; ++i) {
-                        GstValue item;
-                        err = gst_deserialize_impl(vm, data, end, &data, visited, &item, depth);
+                        DstValue item;
+                        err = dst_deserialize_impl(vm, data, end, &data, visited, &item, depth);
                         if (err != NULL) return err;
                         ret.data.env->values[i] = item;
                     }
@@ -391,29 +383,29 @@ static const char *gst_deserialize_impl(
 
         case 214: /* Function */
             {
-                GstValue parent, def, env;
-                ret.type = GST_FUNCTION;
-                ret.data.function = gst_alloc(vm, sizeof(GstFunction));
-                gst_array_push(vm, visited, ret);
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &parent, depth);
+                DstValue parent, def, env;
+                ret.type = DST_FUNCTION;
+                ret.data.function = dst_alloc(vm, sizeof(DstFunction));
+                dst_array_push(vm, visited, ret);
+                err = dst_deserialize_impl(vm, data, end, &data, visited, &parent, depth);
                 if (err != NULL) return err;
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &env, depth);
+                err = dst_deserialize_impl(vm, data, end, &data, visited, &env, depth);
                 if (err != NULL) return err;
-                err = gst_deserialize_impl(vm, data, end, &data, visited, &def, depth);
+                err = dst_deserialize_impl(vm, data, end, &data, visited, &def, depth);
                 if (err != NULL) return err;
-                if (parent.type == GST_NIL) {
+                if (parent.type == DST_NIL) {
                     ret.data.function->parent = NULL;
-                } else if (parent.type == GST_FUNCTION) {
+                } else if (parent.type == DST_FUNCTION) {
                     ret.data.function->parent = parent.data.function;
                 } else {
                     deser_error("expected function");
                 }
-                deser_assert(def.type == GST_FUNCDEF, "expected funcdef");
+                deser_assert(def.type == DST_FUNCDEF, "expected funcdef");
                 ret.data.function->def = def.data.def;
-                if (env.type == GST_NIL) {
+                if (env.type == DST_NIL) {
                     ret.data.function->env = NULL;
                 } else {
-                    deser_assert(env.type == GST_FUNCENV, "expected funcenv");
+                    deser_assert(env.type == DST_FUNCENV, "expected funcenv");
                     ret.data.function->env = env.data.env;
                 }
             }
@@ -428,13 +420,13 @@ static const char *gst_deserialize_impl(
 
         case 216: /* C function */
             {
-                GstValue id;
+                DstValue id;
                 read_u32(length);
                 deser_datacheck(length);
-                id = gst_wrap_string(gst_string_b(vm, data, length));
+                id = dst_wrap_string(dst_string_b(vm, data, length));
                 data += length;
-                ret = gst_table_get(vm->registry, id);
-                if (ret.type != GST_CFUNCTION) {
+                ret = dst_table_get(vm->registry, id);
+                if (ret.type != DST_CFUNCTION) {
                     deser_error("unabled to deserialize c function");
                 }
                 break;
@@ -448,7 +440,7 @@ static const char *gst_deserialize_impl(
             break;
 
         case 218: /* Integer */
-            ret.type = GST_INTEGER;
+            ret.type = DST_INTEGER;
             read_i64(ret.data.integer);
             break;
     }
@@ -458,46 +450,46 @@ static const char *gst_deserialize_impl(
 }
 
 /* Load a value from data */
-const char *gst_deserialize(
-        Gst *vm,
+const char *dst_deserialize_internal(
+        Dst *vm,
         const uint8_t *data,
         uint32_t len,
-        GstValue *out,
+        DstValue *out,
         const uint8_t **nextData) {
-    GstValue ret;
+    DstValue ret;
     const char *err;
-    GstArray *visited = gst_array(vm, 10);
-    err = gst_deserialize_impl(vm, data, data + len, nextData, visited, &ret, GST_RECURSION_GUARD);
+    DstArray *visited = dst_array(vm, 10);
+    err = dst_deserialize_impl(vm, data, data + len, nextData, visited, &ret, DST_RECURSION_GUARD);
     if (err != NULL) return err;
     *out = ret;
     return NULL;
 }
 
 /* Allow appending other types to buffers */
-BUFFER_DEFINE(real, GstReal)
-BUFFER_DEFINE(integer, GstInteger)
+BUFFER_DEFINE(real, DstReal)
+BUFFER_DEFINE(integer, DstInteger)
 BUFFER_DEFINE(u32, uint32_t)
 BUFFER_DEFINE(u16, uint16_t)
 
 /* Serialize a value and write to a buffer. Returns possible
  * error messages. */
-static const char *gst_serialize_impl(
-        Gst *vm,
-        GstBuffer *buffer,
-        GstTable *visited,
+static const char *dst_serialize_impl(
+        Dst *vm,
+        DstBuffer *buffer,
+        DstTable *visited,
         uint32_t *nextId,
-        GstValue x,
+        DstValue x,
         int depth) {
 
     uint32_t i, count;
     const char *err;
-    GstValue check;
+    DstValue check;
 
-#define write_byte(b) gst_buffer_push(vm, buffer, (b))
-#define write_u32(b) gst_buffer_push_u32(vm, buffer, (b))
-#define write_u16(b) gst_buffer_push_u16(vm, buffer, (b))
-#define write_dbl(b) gst_buffer_push_real(vm, buffer, (b))
-#define write_int(b) gst_buffer_push_integer(vm, buffer, (b))
+#define write_byte(b) dst_buffer_push(vm, buffer, (b))
+#define write_u32(b) dst_buffer_push_u32(vm, buffer, (b))
+#define write_u16(b) dst_buffer_push_u16(vm, buffer, (b))
+#define write_dbl(b) dst_buffer_push_real(vm, buffer, (b))
+#define write_int(b) dst_buffer_push_integer(vm, buffer, (b))
     /*printf("Type: %d\n", x.type);*/
 
     /* Check if we have gone too deep */
@@ -507,18 +499,18 @@ static const char *gst_serialize_impl(
 
     /* Check non reference types - if successful, return NULL */
     switch (x.type) {
-        case GST_USERDATA:
-        case GST_NIL:
+        case DST_USERDATA:
+        case DST_NIL:
             write_byte(201);
             return NULL;
-        case GST_BOOLEAN:
+        case DST_BOOLEAN:
             write_byte(x.data.boolean ? 202 : 203);
             return NULL;
-        case GST_REAL:
+        case DST_REAL:
             write_byte(204);
             write_dbl(x.data.real);
             return NULL;
-        case GST_INTEGER:
+        case DST_INTEGER:
             if (x.data.integer <= 100 && x.data.integer >= -100) {
                 write_byte(x.data.integer + 100);
             } else {
@@ -531,8 +523,8 @@ static const char *gst_serialize_impl(
     }
 
     /* Check if already seen - if so, use reference */
-    check = gst_table_get(visited, x);
-    if (check.type == GST_INTEGER) {
+    check = dst_table_get(visited, x);
+    if (check.type == DST_INTEGER) {
         write_byte(217);
         write_u32((uint32_t) check.data.integer);
         return NULL;
@@ -544,37 +536,37 @@ static const char *gst_serialize_impl(
      * if they are treated like other reference types because they cannot
      * be added to the visited table before recursing into serializing their
      * arguments */
-    if (x.type == GST_STRUCT || x.type == GST_TUPLE) {
-        if (x.type == GST_STRUCT) {
-            const GstValue *data;
+    if (x.type == DST_STRUCT || x.type == DST_TUPLE) {
+        if (x.type == DST_STRUCT) {
+            const DstValue *data;
             write_byte(206);
-            gst_hashtable_view(x, &data, &count);
-            write_u32(gst_struct_length(x.data.st));
+            dst_hashtable_view(x, &data, &count);
+            write_u32(dst_struct_length(x.data.st));
             for (i = 0; i < count; i += 2) {
-                if (data[i].type != GST_NIL) {
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i], depth);
+                if (data[i].type != DST_NIL) {
+                    err = dst_serialize_impl(vm, buffer, visited, nextId, data[i], depth);
                     if (err != NULL) return err;
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth);
+                    err = dst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth);
                     if (err != NULL) return err;
                 }
             }
         } else {
             write_byte(209);
-            count = gst_tuple_length(x.data.tuple);
+            count = dst_tuple_length(x.data.tuple);
             write_u32(count);
             for (i = 0; i < count; ++i) {
-                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.tuple[i], depth);
+                err = dst_serialize_impl(vm, buffer, visited, nextId, x.data.tuple[i], depth);
                 if (err != NULL) return err;
             }
         }
         /* Record reference after serialization */
-        gst_table_put(vm, visited, x, gst_wrap_integer(*nextId));
+        dst_table_put(vm, visited, x, dst_wrap_integer(*nextId));
         *nextId = *nextId + 1;
         return NULL;
     }
 
     /* Record reference before serialization */
-    gst_table_put(vm, visited, x, gst_wrap_integer(*nextId));
+    dst_table_put(vm, visited, x, dst_wrap_integer(*nextId));
     *nextId = *nextId + 1;
 
     /* Check reference types */
@@ -582,21 +574,21 @@ static const char *gst_serialize_impl(
         default:
             return "unable to serialize type";
 
-        case GST_STRING:
-        case GST_SYMBOL:
-            write_byte(x.type == GST_STRING ? 205 : 219);
-            count = gst_string_length(x.data.string);
+        case DST_STRING:
+        case DST_SYMBOL:
+            write_byte(x.type == DST_STRING ? 205 : 219);
+            count = dst_string_length(x.data.string);
             write_u32(count);
             for (i = 0; i < count; ++i) {
                 write_byte(x.data.string[i]);
             }
             break;
 
-        case GST_CFUNCTION:
+        case DST_CFUNCTION:
             write_byte(216);
             {
-                GstValue id = gst_table_get(vm->registry, x);
-                count = gst_string_length(id.data.string);
+                DstValue id = dst_table_get(vm->registry, x);
+                count = dst_string_length(id.data.string);
                 write_u32(count);
                 for (i = 0; i < count; ++i) {
                     write_byte(id.data.string[i]);
@@ -604,24 +596,24 @@ static const char *gst_serialize_impl(
             }
             break;
 
-        case GST_TABLE:
+        case DST_TABLE:
             {
-                const GstValue *data;
+                const DstValue *data;
                 write_byte(211);
-                gst_hashtable_view(x, &data, &count);
+                dst_hashtable_view(x, &data, &count);
                 write_u32(x.data.table->count);
                 for (i = 0; i < count; i += 2) {
-                    if (data[i].type != GST_NIL) {
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i], depth);
+                    if (data[i].type != DST_NIL) {
+                        err = dst_serialize_impl(vm, buffer, visited, nextId, data[i], depth);
                         if (err != NULL) return err;
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth);
+                        err = dst_serialize_impl(vm, buffer, visited, nextId, data[i + 1], depth);
                         if (err != NULL) return err;
                     }
                 }
             }
             break;
 
-        case GST_BYTEBUFFER:
+        case DST_BYTEBUFFER:
             write_byte(207);
             count = x.data.buffer->count;
             write_u32(x.data.buffer->capacity);
@@ -631,32 +623,27 @@ static const char *gst_serialize_impl(
             }
             break;
 
-        case GST_ARRAY:
+        case DST_ARRAY:
             write_byte(208);
             count = x.data.array->count;
             write_u32(count);
             for (i = 0; i < count; ++i) {
-                err = gst_serialize_impl(vm, buffer, visited, nextId, x.data.array->data[i], depth);
+                err = dst_serialize_impl(vm, buffer, visited, nextId, x.data.array->data[i], depth);
                 if (err != NULL) return err;
             }
             break;
 
-        case GST_THREAD:
+        case DST_THREAD:
             {
-                GstThread *t = x.data.thread;
-                const GstValue *stack = t->data + GST_FRAME_SIZE;
-                uint32_t framecount = gst_thread_countframes(t);
+                DstThread *t = x.data.thread;
+                const DstValue *stack = t->data + DST_FRAME_SIZE;
+                uint32_t framecount = dst_thread_countframes(t);
                 uint32_t i;
                 write_byte(210);
                 if (t->parent)
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_thread(t->parent), depth);
+                    err = dst_serialize_impl(vm, buffer, visited, nextId, dst_wrap_thread(t->parent), depth);
                 else
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil(), depth);
-                if (t->errorParent)
-                    err = gst_serialize_impl(vm, buffer, visited, nextId,
-							gst_wrap_thread(t->errorParent), depth);
-                else
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil(), depth);
+                    err = dst_serialize_impl(vm, buffer, visited, nextId, dst_wrap_nil(), depth);
                 if (err != NULL) return err;
                 /* Write the status byte */
                 write_byte(t->status);
@@ -665,44 +652,44 @@ static const char *gst_serialize_impl(
                 /* Write stack frames */
                 for (i = 0; i < framecount; ++i) {
                     uint32_t j, size;
-                    GstValue callee = gst_frame_callee(stack);
-                    GstFuncEnv *env = gst_frame_env(stack);
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, callee, depth);
+                    DstValue callee = dst_frame_callee(stack);
+                    DstFuncEnv *env = dst_frame_env(stack);
+                    err = dst_serialize_impl(vm, buffer, visited, nextId, callee, depth);
                     if (err != NULL) return err;
                     if (env)
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_funcenv(env), depth);
+                        err = dst_serialize_impl(vm, buffer, visited, nextId, dst_wrap_funcenv(env), depth);
                     else
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_nil(), depth);
+                        err = dst_serialize_impl(vm, buffer, visited, nextId, dst_wrap_nil(), depth);
                     if (err != NULL) return err;
-                    if (callee.type == GST_FUNCTION) {
-                        write_u32(gst_frame_pc(stack) - callee.data.function->def->byteCode);
+                    if (callee.type == DST_FUNCTION) {
+                        write_u32(dst_frame_pc(stack) - callee.data.function->def->byteCode);
                     } else {
                         write_u32(0);
                     }
-                    write_u32(gst_frame_ret(stack));
-                    write_u32(gst_frame_args(stack));
-                    size = gst_frame_size(stack);
+                    write_u32(dst_frame_ret(stack));
+                    write_u32(dst_frame_args(stack));
+                    size = dst_frame_size(stack);
                     write_u32(size);
                     for (j = 0; j < size; ++j) {
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, stack[j], depth);
+                        err = dst_serialize_impl(vm, buffer, visited, nextId, stack[j], depth);
                         if (err != NULL) return err;
                     }
                     /* Next stack frame */
-                    stack += size + GST_FRAME_SIZE;
+                    stack += size + DST_FRAME_SIZE;
                 }
             }
             break;
 
-        case GST_FUNCDEF: /* Funcdef */
+        case DST_FUNCDEF: /* Funcdef */
             {
-                GstFuncDef *def = x.data.def;
+                DstFuncDef *def = x.data.def;
                 write_byte(212);
                 write_u32(def->locals);
                 write_u32(def->arity);
                 write_u32(def->flags);
                 write_u32(def->literalsLen);
                 for (i = 0; i < def->literalsLen; ++i) {
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, def->literals[i], depth);
+                    err = dst_serialize_impl(vm, buffer, visited, nextId, def->literals[i], depth);
                     if (err != NULL) return err;
                 }
                 write_u32(def->byteCodeLen);
@@ -712,38 +699,38 @@ static const char *gst_serialize_impl(
             }
             break;
 
-        case GST_FUNCENV: /* Funcenv */
+        case DST_FUNCENV: /* Funcenv */
             {
-                GstFuncEnv *env = x.data.env;
+                DstFuncEnv *env = x.data.env;
                 write_byte(213);
                 if (env->thread) {
-                    err = gst_serialize_impl(vm, buffer, visited, nextId, gst_wrap_thread(env->thread), depth);
+                    err = dst_serialize_impl(vm, buffer, visited, nextId, dst_wrap_thread(env->thread), depth);
                     if (err != NULL) return err;
                     write_u32(env->stackOffset);
                 } else {
                     write_byte(201); /* Write nil */
                     write_u32(env->stackOffset);
                     for (i = 0; i < env->stackOffset; ++i) {
-                        err = gst_serialize_impl(vm, buffer, visited, nextId, env->values[i], depth);
+                        err = dst_serialize_impl(vm, buffer, visited, nextId, env->values[i], depth);
                         if (err != NULL) return err;
                     }
                 }
             }
             break;
 
-        case GST_FUNCTION: /* Function */
+        case DST_FUNCTION: /* Function */
             {
-                GstValue pv, ev, dv;
-                GstFunction *fn = x.data.function;
+                DstValue pv, ev, dv;
+                DstFunction *fn = x.data.function;
                 write_byte(214);
-                pv = fn->parent ? gst_wrap_function(fn->parent) : gst_wrap_nil();
-                dv = gst_wrap_funcdef(fn->def);
-                ev = fn->env ? gst_wrap_funcenv(fn->env) : gst_wrap_nil();
-                err = gst_serialize_impl(vm, buffer, visited, nextId, pv, depth);
+                pv = fn->parent ? dst_wrap_function(fn->parent) : dst_wrap_nil();
+                dv = dst_wrap_funcdef(fn->def);
+                ev = fn->env ? dst_wrap_funcenv(fn->env) : dst_wrap_nil();
+                err = dst_serialize_impl(vm, buffer, visited, nextId, pv, depth);
                 if (err != NULL) return err;
-                err = gst_serialize_impl(vm, buffer, visited, nextId, ev, depth);
+                err = dst_serialize_impl(vm, buffer, visited, nextId, ev, depth);
                 if (err != NULL) return err;
-                err = gst_serialize_impl(vm, buffer, visited, nextId, dv, depth);
+                err = dst_serialize_impl(vm, buffer, visited, nextId, dv, depth);
                 if (err != NULL) return err;
             }
             break;
@@ -754,12 +741,12 @@ static const char *gst_serialize_impl(
 }
 
 /* Serialize an object */
-const char *gst_serialize(Gst *vm, GstBuffer *buffer, GstValue x) {
+const char *dst_serialize_internal(Dst *vm, DstBuffer *buffer, DstValue x) {
     uint32_t nextId = 0;
     uint32_t oldCount = buffer->count;
     const char *err;
-    GstTable *visited = gst_table(vm, 10);
-    err = gst_serialize_impl(vm, buffer, visited, &nextId, x, GST_RECURSION_GUARD);
+    DstTable *visited = dst_table(vm, 10);
+    err = dst_serialize_impl(vm, buffer, visited, &nextId, x, DST_RECURSION_GUARD);
     if (err != NULL) {
         buffer->count = oldCount;
     }

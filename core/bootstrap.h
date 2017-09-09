@@ -20,13 +20,19 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef CACHE_H_LVYZMBLR
-#define CACHE_H_LVYZMBLR
+#ifndef DST_BOOTSTRAP_H_defined
+#define DST_BOOTSTRAP_H_defined
 
-#include <gst/gst.h>
+#define PARSE_OK 0
+#define PARSE_ERROR 1
+#define PARSE_UNEXPECTED_EOS 2
 
-void gst_cache_remove_string(Gst *vm, char *strmem);
-void gst_cache_remove_tuple(Gst *vm, char *tuplemem);
-void gst_cache_remove_struct(Gst *vm, char *structmem);
+int dst_parseb(Dst *vm, uint32_t dest, const uint8_t *src, const uint8_t **newsrc, uint32_t len);
 
-#endif /* end of include guard: CACHE_H_LVYZMBLR */
+/* Parse a c string */
+int dst_parsec(Dst *vm, uint32_t dest, const char *src);
+
+/* Parse a DST char seq (Buffer, String, Symbol) */
+int dst_parse(Dst *vm, uint32_t dest, uint32_t src);
+
+#endif /* DST_BOOTSTRAP_H_defined */

@@ -1,87 +1,81 @@
-# GST
+# DST
 
-######################################################
-##### Set global variables for all gst Makefiles #####
-######################################################
+################################
+##### Set global variables #####
+################################
 
 PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 VERSION=\"0.0.0-beta\"
 
-CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DGST_VERSION=$(VERSION)
+CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=$(VERSION)
 PREFIX=/usr/local
-GST_TARGET=gst
-GST_XXD=xxd
+DST_TARGET=dst
+DST_XXD=xxd
 # Use gdb. On mac use lldb
 DEBUGGER=gdb
-GST_INTERNAL_HEADERS=$(addprefix core/, cache.h)
-GST_HEADERS=$(addprefix include/gst/, gst.h)
+DST_INTERNAL_HEADERS=$(addprefix core/, internal.h bootstrap.h)
+DST_HEADERS=$(addprefix include/dst/, dst.h)
 
 #############################
 ##### Generated headers #####
 #############################
-GST_LANG_SOURCES=$(addprefix libs/, bootstrap.gst)
-GST_LANG_HEADERS=$(patsubst %.gst,%.gen.h,$(GST_LANG_SOURCES))
+DST_LANG_SOURCES=$(addprefix libs/, bootstrap.dst)
+DST_LANG_HEADERS=$(patsubst %.dst,%.gen.h,$(DST_LANG_SOURCES))
 
-all: $(GST_TARGET)
+all: $(DST_TARGET)
 
 #######################
 ##### Build tools #####
 #######################
-$(GST_XXD): libs/xxd.c
-	$(CC) -o $(GST_XXD) libs/xxd.c
+$(DST_XXD): libs/xxd.c
+	$(CC) -o $(DST_XXD) libs/xxd.c
 
-%.gen.h : %.gst $(GST_XXD)
-	./$(GST_XXD) $< $@ $(basename $(notdir $<))
+%.gen.h: %.dst $(DST_XXD)
+	./$(DST_XXD) $< $@ $(basename $(notdir $<))
 
 ###################################
 ##### The core vm and runtime #####
 ###################################
-GST_CORE_SOURCES=$(addprefix core/,\
-				 compile.c parse.c stl.c ids.c util.c env.c module.c\
+DST_CORE_SOURCES=$(addprefix core/,\
+				 util.c wrap.c\
 				 value.c vm.c ds.c gc.c thread.c serialize.c\
-				 string.c)
-GST_CORE_OBJECTS=$(patsubst %.c,%.o,$(GST_CORE_SOURCES))
+				 string.c bootstrap_parse.c client.c)
+DST_CORE_OBJECTS=$(patsubst %.c,%.o,$(DST_CORE_SOURCES))
 
-######################
-##### The client #####
-######################
-GST_CLIENT_SOURCES=client/main.c
-GST_CLIENT_OBJECTS=$(patsubst %.c,%.o,$(GST_CLIENT_SOURCES))
-$(GST_TARGET): $(GST_CLIENT_OBJECTS) $(GST_CORE_OBJECTS) $(GST_LANG_HEADERS)
-	$(CC) $(CFLAGS) -o $(GST_TARGET) $(GST_CLIENT_OBJECTS) $(GST_CORE_OBJECTS)
+$(DST_TARGET): $(DST_CORE_OBJECTS) $(DST_LANG_HEADERS)
+	$(CC) $(CFLAGS) -o $(DST_TARGET) $(DST_CORE_OBJECTS)
 
 # Compile all .c to .o
-%.o : %.c $(GST_HEADERS) $(GST_INTERNAL_HEADERS) $(GST_LANG_HEADERS)
+%.o: %.c $(DST_HEADERS) $(DST_INTERNAL_HEADERS) $(DST_LANG_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-run: $(GST_TARGET)
-	@ ./$(GST_TARGET)
+run: $(DST_TARGET)
+	@ ./$(DST_TARGET)
 
-debug: $(GST_TARGET)
-	@ $(DEBUGGER) ./$(GST_TARGET)
+debug: $(DST_TARGET)
+	@ $(DEBUGGER) ./$(DST_TARGET)
 
-valgrind: $(GST_TARGET)
-	@ valgrind --leak-check=full -v ./$(GST_TARGET)
+valgrind: $(DST_TARGET)
+	@ valgrind --leak-check=full -v ./$(DST_TARGET)
 
 clean:
-	rm $(GST_TARGET) || true
-	rm $(GST_CORE_OBJECTS) || true
-	rm $(GST_CLIENT_OBJECTS) || true
-	rm $(GST_LANG_HEADERS) || true
+	rm $(DST_TARGET) || true
+	rm $(DST_CORE_OBJECTS) || true
+	rm $(DST_LANG_HEADERS) || true
 	rm vgcore.* || true
-	rm $(GST_XXD) || true
+	rm $(DST_XXD) || true
 
-test: $(GST_TARGET)
-	@ ./$(GST_TARGET) gsttests/basic.gst
+test: $(DST_TARGET)
+	@ ./$(DST_TARGET) dsttests/basic.dst
 
-valtest: $(GST_TARGET)
-	valgrind --leak-check=full -v ./$(GST_TARGET) gsttests/basic.gst
+valtest: $(DST_TARGET)
+	valgrind --leak-check=full -v ./$(DST_TARGET) dsttests/basic.dst
 
-install: $(GST_TARGET)
-	cp $(GST_TARGET) $(BINDIR)/gst
+install: $(DST_TARGET)
+	cp $(DST_TARGET) $(BINDIR)/dst
 
 uninstall:
-	rm $(BINDIR)/gst
+	rm $(BINDIR)/dst
 
 .PHONY: clean install run debug valgrind test valtest install uninstall

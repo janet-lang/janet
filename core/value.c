@@ -20,31 +20,30 @@
 * IN THE SOFTWARE.
 */
 
-#include <gst/gst.h>
-#include <stdio.h>
+#include "internal.h"
 
 /* Boolean truth definition */
-int gst_truthy(GstValue v) {
-    return v.type != GST_NIL && !(v.type == GST_BOOLEAN && !v.data.boolean);
+int dst_value_truthy(DstValue v) {
+    return v.type != DST_NIL && !(v.type == DST_BOOLEAN && !v.data.boolean);
 }
 
 /* Check if two values are equal. This is strict equality with no conversion. */
-int gst_equals(GstValue x, GstValue y) {
+int dst_value_equals(DstValue x, DstValue y) {
     int result = 0;
     if (x.type != y.type) {
         result = 0;
     } else {
         switch (x.type) {
-        case GST_NIL:
+        case DST_NIL:
             result = 1;
             break;
-        case GST_BOOLEAN:
+        case DST_BOOLEAN:
             result = (x.data.boolean == y.data.boolean);
             break;
-        case GST_REAL:
+        case DST_REAL:
             result = (x.data.real == y.data.real);
             break;
-        case GST_INTEGER:
+        case DST_INTEGER:
             result = (x.data.integer == y.data.integer);
             break;
         default:
@@ -57,24 +56,24 @@ int gst_equals(GstValue x, GstValue y) {
 }
 
 /* Computes a hash value for a function */
-uint32_t gst_hash(GstValue x) {
+uint32_t dst_value_hash(DstValue x) {
     uint32_t hash = 0;
     switch (x.type) {
-    case GST_NIL:
+    case DST_NIL:
         hash = 0;
         break;
-    case GST_BOOLEAN:
+    case DST_BOOLEAN:
         hash = x.data.boolean;
         break;
-    case GST_STRING:
-    case GST_SYMBOL:
-        hash = gst_string_hash(x.data.string);
+    case DST_STRING:
+    case DST_SYMBOL:
+        hash = dst_string_hash(x.data.string);
         break;
-    case GST_TUPLE:
-        hash = gst_tuple_hash(x.data.tuple);
+    case DST_TUPLE:
+        hash = dst_tuple_hash(x.data.tuple);
         break;
-    case GST_STRUCT:
-        hash = gst_struct_hash(x.data.st);
+    case DST_STRUCT:
+        hash = dst_struct_hash(x.data.st);
         break;
     default:
         if (sizeof(double) == sizeof(void *)) {
@@ -92,40 +91,40 @@ uint32_t gst_hash(GstValue x) {
 /* Compares x to y. If they are equal retuns 0. If x is less, returns -1.
  * If y is less, returns 1. All types are comparable
  * and should have strict ordering. */
-int gst_compare(GstValue x, GstValue y) {
+int dst_value_compare(DstValue x, DstValue y) {
     if (x.type == y.type) {
         switch (x.type) {
-            case GST_NIL:
+            case DST_NIL:
                 return 0;
-            case GST_BOOLEAN:
+            case DST_BOOLEAN:
                 if (x.data.boolean == y.data.boolean) {
                     return 0;
                 } else {
                     return x.data.boolean ? 1 : -1;
                 }
-            case GST_REAL:
+            case DST_REAL:
                 if (x.data.real == y.data.real) {
                     return 0;
                 } else {
                     return x.data.real > y.data.real ? 1 : -1;
                 }
-            case GST_INTEGER:
+            case DST_INTEGER:
                 if (x.data.integer == y.data.integer) {
                     return 0;
                 } else {
                     return x.data.integer > y.data.integer ? 1 : -1;
                 }
-            case GST_STRING:
-                return gst_string_compare(x.data.string, y.data.string);
+            case DST_STRING:
+                return dst_string_compare(x.data.string, y.data.string);
                 /* Lower indices are most significant */
-            case GST_TUPLE:
+            case DST_TUPLE:
                 {
                     uint32_t i;
-                    uint32_t xlen = gst_tuple_length(x.data.tuple);
-                    uint32_t ylen = gst_tuple_length(y.data.tuple);
+                    uint32_t xlen = dst_tuple_length(x.data.tuple);
+                    uint32_t ylen = dst_tuple_length(y.data.tuple);
                     uint32_t count = xlen < ylen ? xlen : ylen;
                     for (i = 0; i < count; ++i) {
-                        int comp = gst_compare(x.data.tuple[i], y.data.tuple[i]);
+                        int comp = dst_value_compare(x.data.tuple[i], y.data.tuple[i]);
                         if (comp != 0) return comp;
                     }
                     if (xlen < ylen)
@@ -148,106 +147,77 @@ int gst_compare(GstValue x, GstValue y) {
     return 1;
 }
 
-/* Get a value out af an associated data structure.
- * Returns possible c error message, and NULL for no error. The
- * useful return value is written to out on success */
-const char *gst_get(GstValue ds, GstValue key, GstValue *out) {
-    GstInteger index;
-    GstValue ret;
-    switch (ds.type) {
-    case GST_ARRAY:
-        if (key.type != GST_INTEGER) return "expected integer key";
-        index = gst_startrange(key.data.integer, ds.data.array->count);
-        if (index < 0) return "invalid array access";
-        ret = ds.data.array->data[index];
-        break;
-    case GST_TUPLE:
-        if (key.type != GST_INTEGER) return "expected integer key";
-        index = gst_startrange(key.data.integer, gst_tuple_length(ds.data.tuple));
-        if (index < 0) return "invalid tuple access";
-        ret = ds.data.tuple[index];
-        break;
-    case GST_BYTEBUFFER:
-        if (key.type != GST_INTEGER) return "expected integer key";
-        index = gst_startrange(key.data.integer, ds.data.buffer->count);
-        if (index < 0) return "invalid buffer access";
-        ret.type = GST_INTEGER;
-        ret.data.integer = ds.data.buffer->data[index];
-        break;
-    case GST_STRING:
-    case GST_SYMBOL:
-        if (key.type != GST_INTEGER) return "expected integer key";
-        index = gst_startrange(key.data.integer, gst_string_length(ds.data.string));
-        if (index < 0) return "invalid string access";
-        ret.type = GST_INTEGER;
-        ret.data.integer = ds.data.string[index];
-        break;
-    case GST_STRUCT:
-        ret = gst_struct_get(ds.data.st, key);
-        break;
-    case GST_TABLE:
-        ret = gst_table_get(ds.data.table, key);
-        break;
-    default:
-       return "cannot get";
-    }
-    *out = ret;
-    return NULL;
+int dst_truthy(Dst *vm, uint32_t x) {
+    return dst_value_truthy(dst_arg(vm, x));
 }
-
-/* Set a value in an associative data structure. Returns possible
- * error message, and NULL if no error. */
-const char *gst_set(Gst *vm, GstValue ds, GstValue key, GstValue value) {
-    GstInteger index;
-    switch (ds.type) {
-    case GST_ARRAY:
-        if (key.type != GST_INTEGER) return "expected integer key";
-        index = gst_startrange(key.data.integer, ds.data.array->count);
-        if (index < 0) return "invalid array access";
-        ds.data.array->data[index] = value;
-        break;
-    case GST_BYTEBUFFER:
-        if (key.type != GST_INTEGER) return "expected integer key";
-        if (value.type != GST_INTEGER) return "expected integer value";
-        index = gst_startrange(key.data.integer, ds.data.buffer->count);
-        if (index < 0) return "invalid buffer access";
-        ds.data.buffer->data[index] = (uint8_t) value.data.integer;
-        break;
-    case GST_TABLE:
-        gst_table_put(vm, ds.data.table, key, value);
-        break;
-    default:
-        return "cannot set";
-    }
-    return NULL;
+uint32_t dst_hash(Dst *vm, uint32_t x) {
+    return dst_value_hash(dst_arg(vm, x));
+}
+int dst_compare(Dst *vm, uint32_t x, uint32_t y) {
+    return dst_value_compare(dst_arg(vm, x), dst_arg(vm, y));
+}
+int dst_equals(Dst *vm, uint32_t x, uint32_t y) {
+    return dst_value_equals(dst_arg(vm, x), dst_arg(vm, y));
 }
 
 /* Get the length of an object. Returns errors for invalid types */
-GstInteger gst_length(Gst *vm, GstValue x) {
-    GstInteger length;
+uint32_t dst_length(Dst *vm, uint32_t n) {
+    DstValue x = dst_arg(vm, n);
+    uint32_t length;
     switch (x.type) {
         default:
-            vm->ret = gst_string_cv(vm, "cannot get length");
-            return GST_RETURN_ERROR;
-        case GST_STRING:
-            length = gst_string_length(x.data.string);
+            vm->ret = dst_string_cv(vm, "cannot get length");
+            vm->flags = 1;
+            return 0;
+        case DST_STRING:
+            length = dst_string_length(x.data.string);
             break;
-        case GST_ARRAY:
+        case DST_ARRAY:
             length = x.data.array->count;
             break;
-        case GST_BYTEBUFFER:
+        case DST_BYTEBUFFER:
             length = x.data.buffer->count;
             break;
-        case GST_TUPLE:
-            length = gst_tuple_length(x.data.tuple);
+        case DST_TUPLE:
+            length = dst_tuple_length(x.data.tuple);
             break;
-        case GST_STRUCT:
-            length = gst_struct_length(x.data.st);
+        case DST_STRUCT:
+            length = dst_struct_length(x.data.st);
             break;
-        case GST_TABLE:
+        case DST_TABLE:
             length = x.data.table->count;
             break;
     }
     return length;
 }
 
+/* Get the capacity of an object. Returns errors for invalid types */
+uint32_t dst_capacity(Dst *vm, uint32_t n) {
+    DstValue x = dst_arg(vm, n);
+    uint32_t cap;
+    switch (x.type) {
+        default:
+            vm->ret = dst_string_cv(vm, "cannot get capacity");
+            vm->flags = 1;
+            return 0;
+        case DST_STRING:
+            cap = dst_string_length(x.data.string);
+            break;
+        case DST_ARRAY:
+            cap = x.data.array->capacity;
+            break;
+        case DST_BYTEBUFFER:
+            cap = x.data.buffer->capacity;
+            break;
+        case DST_TUPLE:
+            cap = dst_tuple_length(x.data.tuple);
+            break;
+        case DST_STRUCT:
+            cap = dst_struct_length(x.data.st);
+            break;
+        case DST_TABLE:
+            cap = x.data.table->capacity;
+            break;
+    }
+    return cap;
+}

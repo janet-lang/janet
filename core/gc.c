@@ -20,8 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include <gst/gst.h>
-#include "cache.h"
+#include "internal.h"
 
 /* The metadata header associated with an allocated block of memory */
 #define gc_header(mem) ((GCMemoryHeader *)(mem) - 1)
@@ -35,31 +34,31 @@ struct GCMemoryHeader {
 };
 
 /* Mark a chunk of memory as reachable for the gc */
-void gst_mark_mem(Gst *vm, void *mem) {
+void dst_mark_mem(Dst *vm, void *mem) {
 	gc_header(mem)->color = vm->black;
 }
 
 /* Helper to mark function environments */
-static void gst_mark_funcenv(Gst *vm, GstFuncEnv *env) {
+static void dst_mark_funcenv(Dst *vm, DstFuncEnv *env) {
     if (gc_header(env)->color != vm->black) {
         gc_header(env)->color = vm->black;
         if (env->thread) {
-            GstValueUnion x;
+            DstValueUnion x;
             x.thread = env->thread;
-            gst_mark(vm, x, GST_THREAD);
+            dst_mark(vm, x, DST_THREAD);
         }
         if (env->values) {
             uint32_t count = env->stackOffset;
             uint32_t i;
             gc_header(env->values)->color = vm->black;
             for (i = 0; i < count; ++i)
-                gst_mark_value(vm, env->values[i]);
+                dst_mark_value(vm, env->values[i]);
         }
     }
 }
 
 /* GC helper to mark a FuncDef */
-static void gst_mark_funcdef(Gst *vm, GstFuncDef *def) {
+static void dst_mark_funcdef(Dst *vm, DstFuncDef *def) {
     if (gc_header(def)->color != vm->black) {
         gc_header(def)->color = vm->black;
         gc_header(def->byteCode)->color = vm->black;
@@ -68,140 +67,140 @@ static void gst_mark_funcdef(Gst *vm, GstFuncDef *def) {
             count = def->literalsLen;
             gc_header(def->literals)->color = vm->black;
             for (i = 0; i < count; ++i)
-                gst_mark_value(vm, def->literals[i]);
+                dst_mark_value(vm, def->literals[i]);
         }
     }
 }
 
 /* Helper to mark a stack frame. Returns the next stackframe. */
-static GstValue *gst_mark_stackframe(Gst *vm, GstValue *stack) {
+static DstValue *dst_mark_stackframe(Dst *vm, DstValue *stack) {
     uint32_t i;
-    gst_mark_value(vm, gst_frame_callee(stack));
-    if (gst_frame_env(stack) != NULL)
-        gst_mark_funcenv(vm, gst_frame_env(stack));
-    for (i = 0; i < gst_frame_size(stack); ++i)
-        gst_mark_value(vm, stack[i]);
-    return stack + gst_frame_size(stack) + GST_FRAME_SIZE;
+    dst_mark_value(vm, dst_frame_callee(stack));
+    if (dst_frame_env(stack) != NULL)
+        dst_mark_funcenv(vm, dst_frame_env(stack));
+    for (i = 0; i < dst_frame_size(stack); ++i)
+        dst_mark_value(vm, stack[i]);
+    return stack + dst_frame_size(stack) + DST_FRAME_SIZE;
 }
 
 /* Wrapper for marking values */
-void gst_mark_value(Gst *vm, GstValue x) {
-    gst_mark(vm, x.data, x.type);
+void dst_mark_value(Dst *vm, DstValue x) {
+    dst_mark(vm, x.data, x.type);
 }
 
 /* Mark allocated memory associated with a value. This is
  * the main function for doing the garbage collection mark phase. */
-void gst_mark(Gst *vm, GstValueUnion x, GstType type) {
+void dst_mark(Dst *vm, DstValueUnion x, DstType type) {
+    /* Allow for explicit tail recursion */
+    begin:
     switch (type) {
         default:
             break;
 
-        case GST_STRING:
-        case GST_SYMBOL:
-            gc_header(gst_string_raw(x.string))->color = vm->black;
+        case DST_STRING:
+        case DST_SYMBOL:
+            gc_header(dst_string_raw(x.string))->color = vm->black;
             break;
 
-        case GST_BYTEBUFFER:
+        case DST_BYTEBUFFER:
             gc_header(x.buffer)->color = vm->black;
             gc_header(x.buffer->data)->color = vm->black;
             break;
 
-        case GST_ARRAY:
+        case DST_ARRAY:
             if (gc_header(x.array)->color != vm->black) {
                 uint32_t i, count;
                 count = x.array->count;
                 gc_header(x.array)->color = vm->black;
                 gc_header(x.array->data)->color = vm->black;
                 for (i = 0; i < count; ++i)
-                    gst_mark_value(vm, x.array->data[i]);
+                    dst_mark_value(vm, x.array->data[i]);
             }
             break;
 
-        case GST_TUPLE:
-            if (gc_header(gst_tuple_raw(x.tuple))->color != vm->black) {
+        case DST_TUPLE:
+            if (gc_header(dst_tuple_raw(x.tuple))->color != vm->black) {
                 uint32_t i, count;
-                count = gst_tuple_length(x.tuple);
-                gc_header(gst_tuple_raw(x.tuple))->color = vm->black;
+                count = dst_tuple_length(x.tuple);
+                gc_header(dst_tuple_raw(x.tuple))->color = vm->black;
                 for (i = 0; i < count; ++i)
-                    gst_mark_value(vm, x.tuple[i]);
+                    dst_mark_value(vm, x.tuple[i]);
             }
             break;
 
-        case GST_STRUCT:
-            if (gc_header(gst_struct_raw(x.st))->color != vm->black) {
+        case DST_STRUCT:
+            if (gc_header(dst_struct_raw(x.st))->color != vm->black) {
                 uint32_t i, count;
-                count = gst_struct_capacity(x.st);
-                gc_header(gst_struct_raw(x.st))->color = vm->black;
+                count = dst_struct_capacity(x.st);
+                gc_header(dst_struct_raw(x.st))->color = vm->black;
                 for (i = 0; i < count; ++i)
-                    gst_mark_value(vm, x.st[i]);
+                    dst_mark_value(vm, x.st[i]);
             }
             break;
 
-        case GST_THREAD:
+        case DST_THREAD:
             if (gc_header(x.thread)->color != vm->black) {
-                GstThread *thread = x.thread;
-                GstValue *frame = thread->data + GST_FRAME_SIZE;
-                GstValue *end = thread->data + thread->count;
+                DstThread *thread = x.thread;
+                DstValue *frame = thread->data + DST_FRAME_SIZE;
+                DstValue *end = thread->data + thread->count;
                 gc_header(thread)->color = vm->black;
                 gc_header(thread->data)->color = vm->black;
                 while (frame <= end)
-                    frame = gst_mark_stackframe(vm, frame);
-                if (thread->parent)
-                    gst_mark_value(vm, gst_wrap_thread(thread->parent));
-                if (thread->errorParent)
-                    gst_mark_value(vm, gst_wrap_thread(thread->errorParent));
-            }
-            break;
-
-        case GST_FUNCTION:
-            if (gc_header(x.function)->color != vm->black) {
-                GstFunction *f = x.function;
-                gc_header(f)->color = vm->black;
-                gst_mark_funcdef(vm, f->def);
-                if (f->env)
-                    gst_mark_funcenv(vm, f->env);
-                if (f->parent) {
-                    GstValueUnion pval;
-                    pval.function = f->parent;
-                    gst_mark(vm, pval, GST_FUNCTION);
+                    frame = dst_mark_stackframe(vm, frame);
+                if (thread->parent) {
+                    x.thread = thread->parent;
+                    goto begin;
                 }
             }
             break;
 
-        case GST_TABLE:
+        case DST_FUNCTION:
+            if (gc_header(x.function)->color != vm->black) {
+                DstFunction *f = x.function;
+                gc_header(f)->color = vm->black;
+                dst_mark_funcdef(vm, f->def);
+                if (f->env)
+                    dst_mark_funcenv(vm, f->env);
+                if (f->parent) {
+                    DstValueUnion pval;
+                    pval.function = f->parent;
+                    dst_mark(vm, pval, DST_FUNCTION);
+                }
+            }
+            break;
+
+        case DST_TABLE:
             if (gc_header(x.table)->color != vm->black) {
                 uint32_t i;
                 gc_header(x.table)->color = vm->black;
                 gc_header(x.table->data)->color = vm->black;
                 for (i = 0; i < x.table->capacity; i += 2) {
-                    gst_mark_value(vm, x.table->data[i]);
-                    gst_mark_value(vm, x.table->data[i + 1]);
+                    dst_mark_value(vm, x.table->data[i]);
+                    dst_mark_value(vm, x.table->data[i + 1]);
                 }
             }
             break;
 
-        case GST_USERDATA:
-            if (gc_header(gst_udata_header(x.pointer))->color != vm->black) {
-                GstUserdataHeader *h = gst_udata_header(x.pointer);
+        case DST_USERDATA:
+            {
+                DstUserdataHeader *h = dst_udata_header(x.pointer);
                 gc_header(h)->color = vm->black;
-                if (h->type->gcmark)
-                    h->type->gcmark(vm, x.pointer, h->size);
             }
             break;
 
-        case GST_FUNCENV:
-            gst_mark_funcenv(vm, x.env);
+        case DST_FUNCENV:
+            dst_mark_funcenv(vm, x.env);
             break;
 
-        case GST_FUNCDEF:
-            gst_mark_funcdef(vm, x.def);
+        case DST_FUNCDEF:
+            dst_mark_funcdef(vm, x.def);
             break;
     }
 }
 
 /* Iterate over all allocated memory, and free memory that is not
  * marked as reachable. Flip the gc color flag for next sweep. */
-void gst_sweep(Gst *vm) {
+void dst_sweep(Dst *vm) {
     GCMemoryHeader *previous = NULL;
     GCMemoryHeader *current = vm->blocks;
     GCMemoryHeader *next;
@@ -214,20 +213,20 @@ void gst_sweep(Gst *vm) {
                 vm->blocks = next;
             }
             if (current->tags) {
-                if (current->tags & GST_MEMTAG_STRING)
-                    gst_cache_remove_string(vm, (char *)(current + 1));
-                if (current->tags & GST_MEMTAG_STRUCT)
-                    gst_cache_remove_struct(vm, (char *)(current + 1));
-                if (current->tags & GST_MEMTAG_TUPLE)
-                    gst_cache_remove_tuple(vm, (char *)(current + 1));
-                if (current->tags & GST_MEMTAG_USER) {
-                    GstUserdataHeader *h = (GstUserdataHeader *)(current + 1);
+                if (current->tags & DST_MEMTAG_STRING)
+                    dst_cache_remove_string(vm, (char *)(current + 1));
+                if (current->tags & DST_MEMTAG_STRUCT)
+                    dst_cache_remove_struct(vm, (char *)(current + 1));
+                if (current->tags & DST_MEMTAG_TUPLE)
+                    dst_cache_remove_tuple(vm, (char *)(current + 1));
+                if (current->tags & DST_MEMTAG_USER) {
+                    DstUserdataHeader *h = (DstUserdataHeader *)(current + 1);
                     if (h->type->finalize) {
                         h->type->finalize(vm, h + 1, h->size);
                     }
                 }
             }
-            gst_raw_free(current);
+            dst_raw_free(current);
         } else {
             previous = current;
         }
@@ -238,10 +237,10 @@ void gst_sweep(Gst *vm) {
 }
 
 /* Prepare a memory block */
-static void *gst_alloc_prepare(Gst *vm, char *rawBlock, uint32_t size) {
+static void *dst_alloc_prepare(Dst *vm, char *rawBlock, uint32_t size) {
     GCMemoryHeader *mdata;
     if (rawBlock == NULL) {
-        GST_OUT_OF_MEMORY;
+        return NULL;
     }
     vm->nextCollection += size;
     mdata = (GCMemoryHeader *)rawBlock;
@@ -253,48 +252,78 @@ static void *gst_alloc_prepare(Gst *vm, char *rawBlock, uint32_t size) {
 }
 
 /* Allocate some memory that is tracked for garbage collection */
-void *gst_alloc(Gst *vm, uint32_t size) {
+void *dst_alloc(Dst *vm, uint32_t size) {
     uint32_t totalSize = size + sizeof(GCMemoryHeader);
-    return gst_alloc_prepare(vm, gst_raw_alloc(totalSize), totalSize);
+    void *mem = dst_alloc_prepare(vm, dst_raw_alloc(totalSize), totalSize);
+    if (!mem) {
+        DST_LOW_MEMORY;
+        dst_collect(vm);
+        mem = dst_alloc_prepare(vm, dst_raw_alloc(totalSize), totalSize);
+        if (!mem) {
+            DST_OUT_OF_MEMORY;
+        }
+    }
+    return mem;
 }
 
 /* Allocate some zeroed memory that is tracked for garbage collection */
-void *gst_zalloc(Gst *vm, uint32_t size) {
+void *dst_zalloc(Dst *vm, uint32_t size) {
     uint32_t totalSize = size + sizeof(GCMemoryHeader);
-    return gst_alloc_prepare(vm, gst_raw_calloc(1, totalSize), totalSize);
+    void *mem = dst_alloc_prepare(vm, dst_raw_calloc(1, totalSize), totalSize);
+    if (!mem) {
+        DST_LOW_MEMORY;
+        dst_collect(vm);
+        mem = dst_alloc_prepare(vm, dst_raw_calloc(1, totalSize), totalSize);
+        if (!mem) {
+            DST_OUT_OF_MEMORY;
+        }
+    }
+    return mem;
 }
 
 /* Tag some memory to mark it with special properties */
-void gst_mem_tag(void *mem, uint32_t tags) {
+void dst_mem_tag(void *mem, uint32_t tags) {
     GCMemoryHeader *mh = (GCMemoryHeader *)mem - 1;
     mh->tags |= tags;
 }
 
 /* Run garbage collection */
-void gst_collect(Gst *vm) {
+void dst_collect(Dst *vm) {
+    DstValue x;
     /* Thread can be null */
-    if (vm->thread)
-        gst_mark_value(vm, gst_wrap_thread(vm->thread));
-    gst_mark_value(vm, gst_wrap_table(vm->modules));
-    gst_mark_value(vm, gst_wrap_table(vm->registry));
-    gst_mark_value(vm, gst_wrap_table(vm->env));
-    gst_mark_value(vm, vm->ret);
-    gst_sweep(vm);
+    if (vm->thread) {
+        x.type = DST_THREAD;
+        x.data.thread = vm->thread;
+        dst_mark_value(vm, x);
+    }
+    x.type = DST_TABLE;
+
+    x.data.table = vm->modules;
+    dst_mark_value(vm, x);
+
+    x.data.table = vm->registry;
+    dst_mark_value(vm, x);
+
+    x.data.table = vm->env;
+    dst_mark_value(vm, x);
+
+    dst_mark_value(vm, vm->ret);
+    dst_sweep(vm);
     vm->nextCollection = 0;
 }
 
 /* Run garbage collection if needed */
-void gst_maybe_collect(Gst *vm) {
+void dst_maybe_collect(Dst *vm) {
     if (vm->nextCollection >= vm->memoryInterval)
-        gst_collect(vm);
+        dst_collect(vm);
 }
 
 /* Free all allocated memory */
-void gst_clear_memory(Gst *vm) {
+void dst_clear_memory(Dst *vm) {
     GCMemoryHeader *current = vm->blocks;
     while (current) {
         GCMemoryHeader *next = current->next;
-        gst_raw_free(current);
+        dst_raw_free(current);
         current = next;
     }
     vm->blocks = NULL;

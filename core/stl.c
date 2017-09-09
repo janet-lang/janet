@@ -20,49 +20,98 @@
 * IN THE SOFTWARE.
 */
 
-#include <gst/gst.h>
+#include <dst/dst.h>
+#include "internal.h"
 
-static const char GST_EXPECTED_INTEGER[] = "expected integer";
-static const char GST_EXPECTED_STRING[] = "expected string";
+static const char DST_EXPECTED_INTEGER[] = "expected integer";
+static const char DST_EXPECTED_STRING[] = "expected string";
+
+static const char *types[] = {
+    "nil",
+    "real",
+    "integer",
+    "boolean",
+    "string",
+    "symbol",
+    "array",
+    "tuple",
+    "table",
+    "struct",
+    "thread",
+    "buffer",
+    "function",
+    "cfunction",
+    "userdata",
+    "funcenv",
+    "funcdef"
+};
+
+static DstValue nil() {
+    DstValue n;
+    n.type = DST_NIL;
+    n.data.integer = 0;
+    return n;
+}
+
+static DstValue integer(DstInteger i) {
+    DstValue n;
+    n.type = DST_INTEGER;
+    n.data.integer = i;
+    return n;
+}
+
+static DstValue real(DstReal r) {
+    DstValue n;
+    n.type = DST_REAL;
+    n.data.real = r;
+    return n;
+}
+
+static DstValue boolean(int b) {
+    DstValue n;
+    n.type = DST_BOOLEAN;
+    n.data.boolean = b;
+    return n;
+}
 
 /***/
 /* Arithmetic */
 /***/
 
 #define MAKE_BINOP(name, op)\
-GstValue gst_stl_binop_##name(GstValue lhs, GstValue rhs) {\
-    if (lhs.type == GST_INTEGER)\
-        if (rhs.type == GST_INTEGER)\
-            return gst_wrap_integer(lhs.data.integer op rhs.data.integer);\
-        else if (rhs.type == GST_REAL)\
-            return gst_wrap_real(lhs.data.integer op rhs.data.real);\
+static DstValue dst_stl_binop_##name(DstValue lhs, DstValue rhs) {\
+    if (lhs.type == DST_INTEGER)\
+        if (rhs.type == DST_INTEGER)\
+            return integer(lhs.data.integer op rhs.data.integer);\
+        else if (rhs.type == DST_REAL)\
+            return real(lhs.data.integer op rhs.data.real);\
         else\
-            return gst_wrap_nil();\
-    else if (lhs.type == GST_REAL)\
-        if (rhs.type == GST_INTEGER)\
-            return gst_wrap_real(lhs.data.real op rhs.data.integer);\
-        else if (rhs.type == GST_REAL)\
-            return gst_wrap_real(lhs.data.real op rhs.data.real);\
+            return nil();\
+    else if (lhs.type == DST_REAL)\
+        if (rhs.type == DST_INTEGER)\
+            return real(lhs.data.real op rhs.data.integer);\
+        else if (rhs.type == DST_REAL)\
+            return real(lhs.data.real op rhs.data.real);\
         else\
-            return gst_wrap_nil();\
+            return nil();\
     else\
-        return gst_wrap_nil();\
+        return nil();\
 }
 
 #define SIMPLE_ACCUM_FUNCTION(name, op)\
 MAKE_BINOP(name, op)\
-int gst_stl_##name(Gst* vm) {\
-    GstValue lhs, rhs;\
+int dst_stl_##name(Dst* vm) {\
+    DstValue lhs, rhs;\
     uint32_t j, count;\
-    count = gst_count_args(vm);\
-    lhs = gst_arg(vm, 0);\
+    count = dst_args(vm);\
+    lhs = dst_arg(vm, 0);\
     for (j = 1; j < count; ++j) {\
-        rhs = gst_arg(vm, j);\
-        lhs = gst_stl_binop_##name(lhs, rhs);\
+        rhs = dst_arg(vm, j);\
+        lhs = dst_stl_binop_##name(lhs, rhs);\
     }\
-    if (lhs.type == GST_NIL)\
-        gst_c_throwc(vm, "expected integer/real");\
-    gst_c_return(vm, lhs);\
+    if (lhs.type == DST_NIL)\
+        dst_c_throwc(vm, "expected integer/real");\
+    dst_c_return(vm, lhs);\
 }
 
 SIMPLE_ACCUM_FUNCTION(add, +)
@@ -71,44 +120,44 @@ SIMPLE_ACCUM_FUNCTION(sub, -)
 
 /* Detect division by zero */
 MAKE_BINOP(div, /)
-int gst_stl_div(Gst *vm) {
-    GstValue lhs, rhs;
+int dst_stl_div(Dst *vm) {
+    DstValue lhs, rhs;
     uint32_t j, count;
-    count = gst_count_args(vm);
-    lhs = gst_arg(vm, 0);
+    count = dst_args(vm);
+    lhs = dst_arg(vm, 0);
     for (j = 1; j < count; ++j) {
-        rhs = gst_arg(vm, j);
-        if (lhs.type == GST_INTEGER && rhs.type == GST_INTEGER && rhs.data.integer == 0)
-            gst_c_throwc(vm, "cannot integer divide by 0");
-        lhs = gst_stl_binop_div(lhs, rhs);
+        rhs = dst_arg(vm, j);
+        if (lhs.type == DST_INTEGER && rhs.type == DST_INTEGER && rhs.data.integer == 0)
+            dst_c_throwc(vm, "cannot integer divide by 0");
+        lhs = dst_stl_binop_div(lhs, rhs);
     }
-    if (lhs.type == GST_NIL)
-        gst_c_throwc(vm, "expected integer/real");
-    gst_c_return(vm, lhs);
+    if (lhs.type == DST_NIL)
+        dst_c_throwc(vm, "expected integer/real");
+    dst_c_return(vm, lhs);
 }
 
 #undef SIMPLE_ACCUM_FUNCTION
 
 #define BITWISE_FUNCTION(name, op) \
-int gst_stl_##name(Gst *vm) {\
-    GstValue ret;\
+int dst_stl_##name(Dst *vm) {\
+    DstValue ret;\
     uint32_t i, count;\
-    count = gst_count_args(vm);\
-    ret = gst_arg(vm, 0);\
-    if (ret.type != GST_INTEGER) {\
-        gst_c_throwc(vm, "expected integer");\
+    count = dst_args(vm);\
+    ret = dst_arg(vm, 0);\
+    if (ret.type != DST_INTEGER) {\
+        dst_c_throwc(vm, "expected integer");\
     }\
     if (count < 2) {\
-        gst_c_return(vm, ret);\
+        dst_c_return(vm, ret);\
     }\
     for (i = 1; i < count; ++i) {\
-        GstValue next = gst_arg(vm, i);\
-        if (next.type != GST_INTEGER) {\
-            gst_c_throwc(vm, "expected integer");\
+        DstValue next = dst_arg(vm, i);\
+        if (next.type != DST_INTEGER) {\
+            dst_c_throwc(vm, "expected integer");\
         }\
         ret.data.integer = ret.data.integer op next.data.integer;\
     }\
-    gst_c_return(vm, ret);\
+    dst_c_return(vm, ret);\
 }
 
 BITWISE_FUNCTION(band, &)
@@ -119,49 +168,49 @@ BITWISE_FUNCTION(brshift, >>)
 
 #undef BITWISE_FUNCTION
 
-int gst_stl_bnot(Gst *vm) {
-    GstValue in = gst_arg(vm, 0);
-    uint32_t count = gst_count_args(vm);
-    if (count != 1 || in.type != GST_INTEGER) {
-        gst_c_throwc(vm, "expected 1 integer argument");
+int dst_stl_bnot(Dst *vm) {
+    DstValue in = dst_arg(vm, 0);
+    uint32_t count = dst_args(vm);
+    if (count != 1 || in.type != DST_INTEGER) {
+        dst_c_throwc(vm, "expected 1 integer argument");
     }
     in.data.integer = ~in.data.integer;
-    gst_c_return(vm, in);
+    dst_c_return(vm, in);
 }
 
 #define COMPARE_FUNCTION(name, check)\
-int gst_stl_##name(Gst *vm) {\
-    GstValue ret;\
+int dst_stl_##name(Dst *vm) {\
+    DstValue ret;\
     uint32_t i, count;\
-    count = gst_count_args(vm);\
+    count = dst_args(vm);\
     ret.data.boolean = 1;\
-    ret.type = GST_BOOLEAN;\
+    ret.type = DST_BOOLEAN;\
     if (count < 2) {\
-        gst_c_return(vm, ret);\
+        dst_c_return(vm, ret);\
     }\
     for (i = 1; i < count; ++i) {\
-        GstValue lhs = gst_arg(vm, i - 1);\
-        GstValue rhs = gst_arg(vm, i);\
+        DstValue lhs = dst_arg(vm, i - 1);\
+        DstValue rhs = dst_arg(vm, i);\
         if (!(check)) {\
             ret.data.boolean = 0;\
             break;\
         }\
     }\
-    gst_c_return(vm, ret);\
+    dst_c_return(vm, ret);\
 }
 
-COMPARE_FUNCTION(lessthan, gst_compare(lhs, rhs) < 0)
-COMPARE_FUNCTION(greaterthan, gst_compare(lhs, rhs) > 0)
-COMPARE_FUNCTION(equal, gst_equals(lhs, rhs))
-COMPARE_FUNCTION(notequal, !gst_equals(lhs, rhs))
-COMPARE_FUNCTION(lessthaneq, gst_compare(lhs, rhs) <= 0)
-COMPARE_FUNCTION(greaterthaneq, gst_compare(lhs, rhs) >= 0)
+COMPARE_FUNCTION(lessthan, dst_compare(lhs, rhs) < 0)
+COMPARE_FUNCTION(greaterthan, dst_compare(lhs, rhs) > 0)
+COMPARE_FUNCTION(equal, dst_equals(lhs, rhs))
+COMPARE_FUNCTION(notequal, !dst_equals(lhs, rhs))
+COMPARE_FUNCTION(lessthaneq, dst_compare(lhs, rhs) <= 0)
+COMPARE_FUNCTION(greaterthaneq, dst_compare(lhs, rhs) >= 0)
 
 #undef COMPARE_FUNCTION
 
 /* Boolean not */
-int gst_stl_not(Gst *vm) {
-    gst_c_return(vm, gst_wrap_boolean(!gst_truthy(gst_arg(vm, 0))));
+int dst_stl_not(Dst *vm) {
+    dst_c_return(vm, boolean(!dst_truthy(dst_arg(vm, 0))));
 }
 
 /****/
@@ -169,278 +218,247 @@ int gst_stl_not(Gst *vm) {
 /****/
 
 /* Empty a mutable datastructure */
-int gst_stl_clear(Gst *vm) {
-    GstValue x = gst_arg(vm, 0);
+int dst_stl_clear(Dst *vm) {
+    DstValue x = dst_arg(vm, 0);
     switch (x.type) {
     default:
-        gst_c_throwc(vm, "cannot get length");
-    case GST_ARRAY:
+        dst_c_throwc(vm, "cannot clear");
+    case DST_ARRAY:
         x.data.array->count = 0;
         break;
-    case GST_BYTEBUFFER:
+    case DST_BYTEBUFFER:
         x.data.buffer->count = 0;
         break;
-    case GST_TABLE:
-        gst_table_clear(x.data.table);
+    case DST_TABLE:
+        dst_table_clear(x.data.table);
         break;
     }
-    gst_c_return(vm, x);
+    dst_c_return(vm, x);
 }
 
 /* Get length of object */
-int gst_stl_length(Gst *vm) {
-    uint32_t count = gst_count_args(vm);
-    if (count == 0) {
-        gst_c_return(vm, gst_wrap_nil());
-    } else {
-        GstValue ret;
-        ret.type = GST_INTEGER;
-        GstValue x = gst_arg(vm, 0);
-        switch (x.type) {
-        default:
-            gst_c_throwc(vm, "cannot get length");
-        case GST_STRING:
-        case GST_SYMBOL:
-            ret.data.integer = gst_string_length(x.data.string);
-            break;
-        case GST_ARRAY:
-            ret.data.integer = x.data.array->count;
-            break;
-        case GST_BYTEBUFFER:
-            ret.data.integer = x.data.buffer->count;
-            break;
-        case GST_TUPLE:
-            ret.data.integer = gst_tuple_length(x.data.tuple);
-            break;
-        case GST_TABLE:
-            ret.data.integer = x.data.table->count;
-            break;
-        case GST_STRUCT:
-            ret.data.integer = gst_struct_length(x.data.st);
-            break;
-        case GST_FUNCDEF:
-            ret.data.integer = x.data.def->byteCodeLen;
-            break;
-        }
-        gst_c_return(vm, ret);
-    }
+int dst_stl_length(Dst *vm) {
+    dst_set_integer(vm, 0, dst_length(vm, 0));
+    dst_return(vm, 0);
+    return 0;
 }
 
 /* Get hash of a value */
-int gst_stl_hash(Gst *vm) {
-    GstInteger h = gst_hash(gst_arg(vm, 0));
-    gst_c_return(vm, gst_wrap_integer(h));
+int dst_stl_hash(Dst *vm) {
+    dst_set_integer(vm, 0, dst_hash(vm, 0););
+    dst_return(vm, 0);
+    return 0;
 }
 
 /* Convert to integer */
-int gst_stl_to_int(Gst *vm) {
-    GstValue x = gst_arg(vm, 0);
-    if (x.type == GST_INTEGER) gst_c_return(vm, x);
-    if (x.type == GST_REAL)
-        gst_c_return(vm, gst_wrap_integer((GstInteger) x.data.real));
+int dst_stl_to_int(Dst *vm) {
+    DstValue x = dst_arg(vm, 0);
+    if (x.type == DST_INTEGER) dst_c_return(vm, x);
+    if (x.type == DST_REAL)
+        dst_c_return(vm, integer((DstInteger) x.data.real));
     else
-       gst_c_throwc(vm, "expected number");
+       dst_c_throwc(vm, "expected number");
 }
 
 /* Convert to integer */
-int gst_stl_to_real(Gst *vm) {
-    GstValue x = gst_arg(vm, 0);
-    if (x.type == GST_REAL) gst_c_return(vm, x);
-    if (x.type == GST_INTEGER)
-        gst_c_return(vm, gst_wrap_real((GstReal) x.data.integer));
+int dst_stl_to_real(Dst *vm) {
+    DstValue x = dst_arg(vm, 0);
+    if (x.type == DST_REAL) dst_c_return(vm, x);
+    if (x.type == DST_INTEGER)
+        dst_c_return(vm, dst_wrap_real((DstReal) x.data.integer));
     else
-       gst_c_throwc(vm, "expected number");
+       dst_c_throwc(vm, "expected number");
 }
 
 /* Get a slice of a sequence */
-int gst_stl_slice(Gst *vm) {
-    uint32_t count = gst_count_args(vm);
+int dst_stl_slice(Dst *vm) {
+    uint32_t count = dst_args(vm);
     int32_t from, to;
-    GstValue x;
-    const GstValue *data;
+    DstValue x;
+    const DstValue *data;
     const uint8_t *cdata;
     uint32_t length;
     uint32_t newlength;
-    GstInteger num;
+    DstInteger num;
 
     /* Get data */
-    x = gst_arg(vm, 0);
-    if (!gst_seq_view(x, &data, &length) &&
-            !gst_chararray_view(x, &cdata, &length))  {
-        gst_c_throwc(vm, "expected array/tuple/buffer/symbol/string");
+    x = dst_arg(vm, 0);
+    if (!dst_seq_view(x, &data, &length) &&
+            !dst_chararray_view(x, &cdata, &length))  {
+        dst_c_throwc(vm, "expected array/tuple/buffer/symbol/string");
     }
 
     /* Get from index */
     if (count < 2) {
         from = 0;
     } else {
-        if (!gst_check_integer(vm, 1, &num))
-            gst_c_throwc(vm, GST_EXPECTED_INTEGER);
-        from = gst_startrange(num, length);
+        if (!dst_check_integer(vm, 1, &num))
+            dst_c_throwc(vm, DST_EXPECTED_INTEGER);
+        from = dst_startrange(num, length);
     }
 
     /* Get to index */
     if (count < 3) {
         to = length;
     } else {
-        if (!gst_check_integer(vm, 2, &num))
-            gst_c_throwc(vm, GST_EXPECTED_INTEGER);
-        to = gst_endrange(num, length);
+        if (!dst_check_integer(vm, 2, &num))
+            dst_c_throwc(vm, DST_EXPECTED_INTEGER);
+        to = dst_endrange(num, length);
     }
 
     /* Check from bad bounds */
     if (from < 0 || to < 0 || to < from)
-        gst_c_throwc(vm, "index out of bounds");
+        dst_c_throwc(vm, "index out of bounds");
 
     /* Build slice */
     newlength = to - from;
-    if (x.type == GST_TUPLE) {
-        GstValue *tup = gst_tuple_begin(vm, newlength);
-        gst_memcpy(tup, data + from, newlength * sizeof(GstValue));
-        gst_c_return(vm, gst_wrap_tuple(gst_tuple_end(vm, tup)));
-    } else if (x.type == GST_ARRAY) {
-        GstArray *arr = gst_array(vm, newlength);
+    if (x.type == DST_TUPLE) {
+        DstValue *tup = dst_tuple_begin(vm, newlength);
+        dst_memcpy(tup, data + from, newlength * sizeof(DstValue));
+        dst_c_return(vm, dst_wrap_tuple(dst_tuple_end(vm, tup)));
+    } else if (x.type == DST_ARRAY) {
+        DstArray *arr = dst_array(vm, newlength);
         arr->count = newlength;
-        gst_memcpy(arr->data, data + from, newlength * sizeof(GstValue));
-        gst_c_return(vm, gst_wrap_array(arr));
-    } else if (x.type == GST_STRING) {
-        gst_c_return(vm, gst_wrap_string(gst_string_b(vm, x.data.string + from, newlength)));
-    } else if (x.type == GST_SYMBOL) {
-        gst_c_return(vm, gst_wrap_symbol(gst_string_b(vm, x.data.string + from, newlength)));
+        dst_memcpy(arr->data, data + from, newlength * sizeof(DstValue));
+        dst_c_return(vm, dst_wrap_array(arr));
+    } else if (x.type == DST_STRING) {
+        dst_c_return(vm, dst_wrap_string(dst_string_b(vm, x.data.string + from, newlength)));
+    } else if (x.type == DST_SYMBOL) {
+        dst_c_return(vm, dst_wrap_symbol(dst_string_b(vm, x.data.string + from, newlength)));
     } else { /* buffer */
-        GstBuffer *b = gst_buffer(vm, newlength);
-        gst_memcpy(b->data, x.data.buffer->data, newlength);
+        DstBuffer *b = dst_buffer(vm, newlength);
+        dst_memcpy(b->data, x.data.buffer->data, newlength);
         b->count = newlength;
-        gst_c_return(vm, gst_wrap_buffer(b));
+        dst_c_return(vm, dst_wrap_buffer(b));
     }
 }
 
 /* Get type of object */
-int gst_stl_type(Gst *vm) {
-    GstValue x;
+int dst_stl_type(Dst *vm) {
+    DstValue x;
     const char *typestr = "nil";
-    uint32_t count = gst_count_args(vm);
+    uint32_t count = dst_args(vm);
     if (count == 0)
-        gst_c_throwc(vm, "expected at least 1 argument");
-    x = gst_arg(vm, 0);
+        dst_c_throwc(vm, "expected at least 1 argument");
+    x = dst_arg(vm, 0);
     switch (x.type) {
     default:
         break;
-    case GST_REAL:
+    case DST_REAL:
         typestr = "real";
         break;
-    case GST_INTEGER:
+    case DST_INTEGER:
         typestr = "integer";
         break;
-    case GST_BOOLEAN:
+    case DST_BOOLEAN:
         typestr = "boolean";
         break;
-    case GST_STRING:
+    case DST_STRING:
         typestr = "string";
         break;
-    case GST_SYMBOL:
+    case DST_SYMBOL:
         typestr = "symbol";
         break;
-    case GST_ARRAY:
+    case DST_ARRAY:
         typestr = "array";
         break;
-    case GST_TUPLE:
+    case DST_TUPLE:
         typestr = "tuple";
         break;
-    case GST_THREAD:
+    case DST_THREAD:
         typestr = "thread";
         break;
-    case GST_BYTEBUFFER:
+    case DST_BYTEBUFFER:
         typestr = "buffer";
         break;
-    case GST_FUNCTION:
+    case DST_FUNCTION:
         typestr = "function";
         break;
-    case GST_CFUNCTION:
+    case DST_CFUNCTION:
         typestr = "cfunction";
         break;
-    case GST_TABLE:
+    case DST_TABLE:
         typestr = "table";
         break;
-    case GST_USERDATA:
+    case DST_USERDATA:
         typestr = "userdata";
         break;
-    case GST_FUNCENV:
+    case DST_FUNCENV:
         typestr = "funcenv";
         break;
-    case GST_FUNCDEF:
+    case DST_FUNCDEF:
         typestr = "funcdef";
         break;
     }
-    gst_c_return(vm, gst_string_cv(vm, typestr));
+    dst_c_return(vm, dst_string_cv(vm, typestr));
 }
 
 /* Create array */
-int gst_stl_array(Gst *vm) {
+int dst_stl_array(Dst *vm) {
     uint32_t i;
-    uint32_t count = gst_count_args(vm);
-    GstArray *array = gst_array(vm, count);
+    uint32_t count = dst_args(vm);
+    DstArray *array = dst_array(vm, count);
     for (i = 0; i < count; ++i)
-        array->data[i] = gst_arg(vm, i);
-    gst_c_return(vm, gst_wrap_array(array));
+        array->data[i] = dst_arg(vm, i);
+    dst_c_return(vm, dst_wrap_array(array));
 }
 
 /* Create tuple */
-int gst_stl_tuple(Gst *vm) {
+int dst_stl_tuple(Dst *vm) {
     uint32_t i;
-    uint32_t count = gst_count_args(vm);
-    GstValue *tuple= gst_tuple_begin(vm, count);
+    uint32_t count = dst_args(vm);
+    DstValue *tuple= dst_tuple_begin(vm, count);
     for (i = 0; i < count; ++i)
-        tuple[i] = gst_arg(vm, i);
-    gst_c_return(vm, gst_wrap_tuple(gst_tuple_end(vm, tuple)));
+        tuple[i] = dst_arg(vm, i);
+    dst_c_return(vm, dst_wrap_tuple(dst_tuple_end(vm, tuple)));
 }
 
 /* Create object */
-int gst_stl_table(Gst *vm) {
+int dst_stl_table(Dst *vm) {
     uint32_t i;
-    uint32_t count = gst_count_args(vm);
-    GstTable *table;
+    uint32_t count = dst_args(vm);
+    DstTable *table;
     if (count % 2 != 0)
-        gst_c_throwc(vm, "expected even number of arguments");
-    table = gst_table(vm, 4 * count);
+        dst_c_throwc(vm, "expected even number of arguments");
+    table = dst_table(vm, 4 * count);
     for (i = 0; i < count; i += 2)
-        gst_table_put(vm, table, gst_arg(vm, i), gst_arg(vm, i + 1));
-    gst_c_return(vm, gst_wrap_table(table));
+        dst_table_put(vm, table, dst_arg(vm, i), dst_arg(vm, i + 1));
+    dst_c_return(vm, dst_wrap_table(table));
 }
 
 /* Create struct */
-int gst_stl_struct(Gst *vm) {
+int dst_stl_struct(Dst *vm) {
     uint32_t i;
-    uint32_t count = gst_count_args(vm);
-    GstValue *st;
+    uint32_t count = dst_args(vm);
+    DstValue *st;
     if (count % 2 != 0)
-        gst_c_throwc(vm, "expected even number of arguments");
-    st = gst_struct_begin(vm, count / 2);
+        dst_c_throwc(vm, "expected even number of arguments");
+    st = dst_struct_begin(vm, count / 2);
     for (i = 0; i < count; i += 2)
-        gst_struct_put(st, gst_arg(vm, i), gst_arg(vm, i + 1));
-    gst_c_return(vm, gst_wrap_struct(gst_struct_end(vm, st)));
+        dst_struct_put(st, dst_arg(vm, i), dst_arg(vm, i + 1));
+    dst_c_return(vm, dst_wrap_struct(dst_struct_end(vm, st)));
 }
 
 /* Create a buffer */
-int gst_stl_buffer(Gst *vm) {
+int dst_stl_buffer(Dst *vm) {
     uint32_t i, count;
     const uint8_t *dat;
     uint32_t slen;
-    GstBuffer *buf = gst_buffer(vm, 10);
-    count = gst_count_args(vm);
+    DstBuffer *buf = dst_buffer(vm, 10);
+    count = dst_args(vm);
     for (i = 0; i < count; ++i) {
-        if (gst_chararray_view(gst_arg(vm, i), &dat, &slen))
-            gst_buffer_append(vm, buf, dat, slen);
+        if (dst_chararray_view(dst_arg(vm, i), &dat, &slen))
+            dst_buffer_append(vm, buf, dat, slen);
         else
-            gst_c_throwc(vm, GST_EXPECTED_STRING);
+            dst_c_throwc(vm, DST_EXPECTED_STRING);
     }
-    gst_c_return(vm, gst_wrap_buffer(buf));
+    dst_c_return(vm, dst_wrap_buffer(buf));
 }
 
 /* Create a string */
-int gst_stl_string(Gst *vm) {
+int dst_stl_string(Dst *vm) {
     uint32_t j;
-    uint32_t count = gst_count_args(vm);
+    uint32_t count = dst_args(vm);
     uint32_t length = 0;
     uint32_t index = 0;
     uint8_t *str;
@@ -448,221 +466,214 @@ int gst_stl_string(Gst *vm) {
     uint32_t slen;
     /* Find length and assert string arguments */
     for (j = 0; j < count; ++j) {
-        if (!gst_chararray_view(gst_arg(vm, j), &dat, &slen)) {
-            GstValue newarg;
-            dat = gst_to_string(vm, gst_arg(vm, j));
-            slen = gst_string_length(dat);
-            newarg.type = GST_STRING;
+        if (!dst_chararray_view(dst_arg(vm, j), &dat, &slen)) {
+            DstValue newarg;
+            dat = dst_to_string(vm, dst_arg(vm, j));
+            slen = dst_string_length(dat);
+            newarg.type = DST_STRING;
             newarg.data.string = dat;
-            gst_set_arg(vm, j, newarg);
+            dst_set_arg(vm, j, newarg);
         }
         length += slen;
     }
     /* Make string */
-    str = gst_string_begin(vm, length);
+    str = dst_string_begin(vm, length);
     for (j = 0; j < count; ++j) {
-        gst_chararray_view(gst_arg(vm, j), &dat, &slen);
-        gst_memcpy(str + index, dat, slen);
+        dst_chararray_view(dst_arg(vm, j), &dat, &slen);
+        dst_memcpy(str + index, dat, slen);
         index += slen;
     }
-    gst_c_return(vm, gst_wrap_string(gst_string_end(vm, str)));
+    dst_c_return(vm, dst_wrap_string(dst_string_end(vm, str)));
 }
 
 /* Create a symbol */
-int gst_stl_symbol(Gst *vm) {
-    int ret = gst_stl_string(vm);
-    if (ret == GST_RETURN_OK) {
-        vm->ret.type = GST_SYMBOL;
+int dst_stl_symbol(Dst *vm) {
+    int ret = dst_stl_string(vm);
+    if (ret == DST_RETURN_OK) {
+        vm->ret.type = DST_SYMBOL;
     }
     return ret;
 }
 
 /* Create a thread */
-int gst_stl_thread(Gst *vm) {
-    GstThread *t;
-    GstValue callee = gst_arg(vm, 0);
-    GstValue parent = gst_arg(vm, 1);
-    GstValue errorParent = gst_arg(vm, 2);
-    t = gst_thread(vm, callee, 10);
-    if (callee.type != GST_FUNCTION && callee.type != GST_CFUNCTION)
-        gst_c_throwc(vm, "expected function in thread constructor");
-    if (parent.type == GST_THREAD) {
+int dst_stl_thread(Dst *vm) {
+    DstThread *t;
+    DstValue callee = dst_arg(vm, 0);
+    DstValue parent = dst_arg(vm, 1);
+    DstValue errorParent = dst_arg(vm, 2);
+    t = dst_thread(vm, callee, 10);
+    if (callee.type != DST_FUNCTION && callee.type != DST_CFUNCTION)
+        dst_c_throwc(vm, "expected function in thread constructor");
+    if (parent.type == DST_THREAD) {
         t->parent = parent.data.thread;
-    } else if (parent.type != GST_NIL) {
-        gst_c_throwc(vm, "expected thread/nil as parent");
+    } else if (parent.type != DST_NIL) {
+        dst_c_throwc(vm, "expected thread/nil as parent");
     } else {
         t->parent = vm->thread;
     }
-    if (errorParent.type == GST_THREAD) {
-        t->errorParent = errorParent.data.thread;
-    } else if (errorParent.type != GST_NIL) {
-        gst_c_throwc(vm, "expected thread/nil as error parent");
-    } else {
-        t->errorParent = vm->thread;
-    }
-    gst_c_return(vm, gst_wrap_thread(t));
+    dst_c_return(vm, dst_wrap_thread(t));
 }
 
 /* Get current thread */
-int gst_stl_current(Gst *vm) {
-    gst_c_return(vm, gst_wrap_thread(vm->thread));
+int dst_stl_current(Dst *vm) {
+    dst_c_return(vm, dst_wrap_thread(vm->thread));
 }
 
 /* Get parent of a thread */
 /* TODO - consider implications of this function
  * for sandboxing */
-int gst_stl_parent(Gst *vm) {
-    GstThread *t;
-    if (!gst_check_thread(vm, 0, &t))
-        gst_c_throwc(vm, "expected thread");
+int dst_stl_parent(Dst *vm) {
+    DstThread *t;
+    if (!dst_check_thread(vm, 0, &t))
+        dst_c_throwc(vm, "expected thread");
     if (t->parent == NULL)
-        gst_c_return(vm, gst_wrap_nil());
-    gst_c_return(vm, gst_wrap_thread(t->parent));
+        dst_c_return(vm, dst_wrap_nil());
+    dst_c_return(vm, dst_wrap_thread(t->parent));
 }
 
 /* Get the status of a thread */
-int gst_stl_status(Gst *vm) {
-    GstThread *t;
+int dst_stl_status(Dst *vm) {
+    DstThread *t;
     const char *cstr;
-    if (!gst_check_thread(vm, 0, &t))
-        gst_c_throwc(vm, "expected thread");
+    if (!dst_check_thread(vm, 0, &t))
+        dst_c_throwc(vm, "expected thread");
     switch (t->status) {
-        case GST_THREAD_PENDING:
+        case DST_THREAD_PENDING:
             cstr = "pending";
             break;
-        case GST_THREAD_ALIVE:
+        case DST_THREAD_ALIVE:
             cstr = "alive";
             break;
-        case GST_THREAD_DEAD:
+        case DST_THREAD_DEAD:
             cstr = "dead";
             break;
-        case GST_THREAD_ERROR:
+        case DST_THREAD_ERROR:
             cstr = "error";
             break;
     }
-    gst_c_return(vm, gst_string_cv(vm, cstr));
+    dst_c_return(vm, dst_string_cv(vm, cstr));
 }
 
 /* Associative get */
-int gst_stl_get(Gst *vm) {
-    GstValue ret;
+int dst_stl_get(Dst *vm) {
+    DstValue ret;
     uint32_t count;
     const char *err;
-    count = gst_count_args(vm);
+    count = dst_args(vm);
     if (count != 2)
-        gst_c_throwc(vm, "expects 2 arguments");
-    err = gst_get(gst_arg(vm, 0), gst_arg(vm, 1), &ret);
+        dst_c_throwc(vm, "expects 2 arguments");
+    err = dst_get(dst_arg(vm, 0), dst_arg(vm, 1), &ret);
     if (err != NULL)
-        gst_c_throwc(vm, err);
+        dst_c_throwc(vm, err);
     else
-        gst_c_return(vm, ret);
+        dst_c_return(vm, ret);
 }
 
 /* Associative set */
-int gst_stl_set(Gst *vm) {
+int dst_stl_set(Dst *vm) {
     uint32_t count;
     const char *err;
-    count = gst_count_args(vm);
+    count = dst_args(vm);
     if (count != 3)
-        gst_c_throwc(vm, "expects 3 arguments");
-    err = gst_set(vm, gst_arg(vm, 0), gst_arg(vm, 1), gst_arg(vm, 2));
+        dst_c_throwc(vm, "expects 3 arguments");
+    err = dst_set(vm, dst_arg(vm, 0), dst_arg(vm, 1), dst_arg(vm, 2));
     if (err != NULL)
-        gst_c_throwc(vm, err);
+        dst_c_throwc(vm, err);
     else
-        gst_c_return(vm, gst_arg(vm, 0));
+        dst_c_return(vm, dst_arg(vm, 0));
 }
 
 /* Push to end of array */
-int gst_stl_push(Gst *vm) {
-    GstValue ds = gst_arg(vm, 0);
-    if (ds.type != GST_ARRAY)
-        gst_c_throwc(vm, "expected array");
-    gst_array_push(vm, ds.data.array, gst_arg(vm, 1));
-    gst_c_return(vm, ds);
+int dst_stl_push(Dst *vm) {
+    DstValue ds = dst_arg(vm, 0);
+    if (ds.type != DST_ARRAY)
+        dst_c_throwc(vm, "expected array");
+    dst_array_push(vm, ds.data.array, dst_arg(vm, 1));
+    dst_c_return(vm, ds);
 }
 
 /* Pop from end of array */
-int gst_stl_pop(Gst *vm) {
-    GstValue ds = gst_arg(vm, 0);
-    if (ds.type != GST_ARRAY)
-        gst_c_throwc(vm, "expected array");
-    gst_c_return(vm, gst_array_pop(ds.data.array));
+int dst_stl_pop(Dst *vm) {
+    DstValue ds = dst_arg(vm, 0);
+    if (ds.type != DST_ARRAY)
+        dst_c_throwc(vm, "expected array");
+    dst_c_return(vm, dst_array_pop(ds.data.array));
 }
 
 /* Peek at end of array */
-int gst_stl_peek(Gst *vm) {
-    GstValue ds = gst_arg(vm, 0);
-    if (ds.type != GST_ARRAY)
-        gst_c_throwc(vm, "expected array");
-    gst_c_return(vm, gst_array_peek(ds.data.array));
+int dst_stl_peek(Dst *vm) {
+    DstValue ds = dst_arg(vm, 0);
+    if (ds.type != DST_ARRAY)
+        dst_c_throwc(vm, "expected array");
+    dst_c_return(vm, dst_array_peek(ds.data.array));
 }
 
 /* Ensure array capacity */
-int gst_stl_ensure(Gst *vm) {
-    GstValue ds = gst_arg(vm, 0);
-    GstValue cap = gst_arg(vm, 1);
-    if (ds.type != GST_ARRAY)
-        gst_c_throwc(vm, "expected array");
-    if (cap.type != GST_INTEGER)
-        gst_c_throwc(vm, GST_EXPECTED_INTEGER);
-    gst_array_ensure(vm, ds.data.array, (uint32_t) cap.data.integer);
-    gst_c_return(vm, ds);
+int dst_stl_ensure(Dst *vm) {
+    DstValue ds = dst_arg(vm, 0);
+    DstValue cap = dst_arg(vm, 1);
+    if (ds.type != DST_ARRAY)
+        dst_c_throwc(vm, "expected array");
+    if (cap.type != DST_INTEGER)
+        dst_c_throwc(vm, DST_EXPECTED_INTEGER);
+    dst_array_ensure(vm, ds.data.array, (uint32_t) cap.data.integer);
+    dst_c_return(vm, ds);
 }
 
 /* Get next key in struct or table */
-int gst_stl_next(Gst *vm) {
-    GstValue ds = gst_arg(vm, 0);
-    GstValue key = gst_arg(vm, 1);
-    if (ds.type == GST_TABLE) {
-        gst_c_return(vm, gst_table_next(ds.data.table, key));
-    } else if (ds.type == GST_STRUCT) {
-        gst_c_return(vm, gst_struct_next(ds.data.st, key));
+int dst_stl_next(Dst *vm) {
+    DstValue ds = dst_arg(vm, 0);
+    DstValue key = dst_arg(vm, 1);
+    if (ds.type == DST_TABLE) {
+        dst_c_return(vm, dst_table_next(ds.data.table, key));
+    } else if (ds.type == DST_STRUCT) {
+        dst_c_return(vm, dst_struct_next(ds.data.st, key));
     } else {
-        gst_c_throwc(vm, "expected table or struct");
+        dst_c_throwc(vm, "expected table or struct");
     }
 }
 
 /* Print values for inspection */
-int gst_stl_print(Gst *vm) {
+int dst_stl_print(Dst *vm) {
     uint32_t j, count;
-    count = gst_count_args(vm);
+    count = dst_args(vm);
     for (j = 0; j < count; ++j) {
         uint32_t i;
-        const uint8_t *string = gst_to_string(vm, gst_arg(vm, j));
-        uint32_t len = gst_string_length(string);
+        const uint8_t *string = dst_to_string(vm, dst_arg(vm, j));
+        uint32_t len = dst_string_length(string);
         for (i = 0; i < len; ++i)
             fputc(string[i], stdout);
     }
     fputc('\n', stdout);
-    return GST_RETURN_OK;
+    return DST_RETURN_OK;
 }
 
 /* Long description */
-int gst_stl_description(Gst *vm) {
-    GstValue x = gst_arg(vm, 0);
-    const uint8_t *buf = gst_description(vm, x);
-    gst_c_return(vm, gst_wrap_string(buf));
+int dst_stl_description(Dst *vm) {
+    DstValue x = dst_arg(vm, 0);
+    const uint8_t *buf = dst_description(vm, x);
+    dst_c_return(vm, dst_wrap_string(buf));
 }
 
 /* Short description */
-int gst_stl_short_description(Gst *vm) {
-    GstValue x = gst_arg(vm, 0);
-    const uint8_t *buf = gst_short_description(vm, x);
-    gst_c_return(vm, gst_wrap_string(buf));
+int dst_stl_short_description(Dst *vm) {
+    DstValue x = dst_arg(vm, 0);
+    const uint8_t *buf = dst_short_description(vm, x);
+    dst_c_return(vm, dst_wrap_string(buf));
 }
 
 /* Exit */
-int gst_stl_exit(Gst *vm) {
+int dst_stl_exit(Dst *vm) {
     int ret;
-    GstValue x = gst_arg(vm, 0);
-    ret = x.type == GST_INTEGER ? x.data.integer : (x.type == GST_REAL ? x.data.real : 0);
+    DstValue x = dst_arg(vm, 0);
+    ret = x.type == DST_INTEGER ? x.data.integer : (x.type == DST_REAL ? x.data.real : 0);
     exit(ret);
-    return GST_RETURN_OK;
+    return DST_RETURN_OK;
 }
 
 /* Throw error */
-int gst_stl_error(Gst *vm) {
-    gst_c_throw(vm, gst_arg(vm, 0));
+int dst_stl_error(Dst *vm) {
+    dst_c_throw(vm, dst_arg(vm, 0));
 }
 
 /****/
@@ -670,86 +681,86 @@ int gst_stl_error(Gst *vm) {
 /****/
 
 /* Serialize data into buffer */
-int gst_stl_serialize(Gst *vm) {
+int dst_stl_serialize(Dst *vm) {
     const char *err;
-    GstValue buffer = gst_arg(vm, 1);
-    if (buffer.type != GST_BYTEBUFFER)
-        buffer = gst_wrap_buffer(gst_buffer(vm, 10));
-    err = gst_serialize(vm, buffer.data.buffer, gst_arg(vm, 0));
+    DstValue buffer = dst_arg(vm, 1);
+    if (buffer.type != DST_BYTEBUFFER)
+        buffer = dst_wrap_buffer(dst_buffer(vm, 10));
+    err = dst_serialize(vm, buffer.data.buffer, dst_arg(vm, 0));
     if (err != NULL)
-        gst_c_throwc(vm, err);
-    gst_c_return(vm, buffer);
+        dst_c_throwc(vm, err);
+    dst_c_return(vm, buffer);
 }
 
 /* Deserialize data from a buffer */
-int gst_stl_deserialize(Gst *vm) {
-    GstValue ret;
+int dst_stl_deserialize(Dst *vm) {
+    DstValue ret;
     uint32_t len;
     const uint8_t *data;
     const char *err;
-    if (!gst_chararray_view(gst_arg(vm, 0), &data, &len))
-        gst_c_throwc(vm, "expected string/buffer/symbol");
-    err = gst_deserialize(vm, data, len, &ret, &data);
+    if (!dst_chararray_view(dst_arg(vm, 0), &data, &len))
+        dst_c_throwc(vm, "expected string/buffer/symbol");
+    err = dst_deserialize(vm, data, len, &ret, &data);
     if (err != NULL)
-        gst_c_throwc(vm, err);
-    gst_c_return(vm, ret);
+        dst_c_throwc(vm, err);
+    dst_c_return(vm, ret);
 }
 
 /***/
 /* Function reflection */
 /***/
 
-int gst_stl_funcenv(Gst *vm) {
-    GstFunction *fn;
-    if (!gst_check_function(vm, 0, &fn))
-        gst_c_throwc(vm, "expected function");
+int dst_stl_funcenv(Dst *vm) {
+    DstFunction *fn;
+    if (!dst_check_function(vm, 0, &fn))
+        dst_c_throwc(vm, "expected function");
     if (fn->env)
-        gst_c_return(vm, gst_wrap_funcenv(fn->env));
+        dst_c_return(vm, dst_wrap_funcenv(fn->env));
     else
-        return GST_RETURN_OK;
+        return DST_RETURN_OK;
 }
 
-int gst_stl_funcdef(Gst *vm) {
-    GstFunction *fn;
-    if (!gst_check_function(vm, 0, &fn))
-        gst_c_throwc(vm, "expected function");
-    gst_c_return(vm, gst_wrap_funcdef(fn->def));
+int dst_stl_funcdef(Dst *vm) {
+    DstFunction *fn;
+    if (!dst_check_function(vm, 0, &fn))
+        dst_c_throwc(vm, "expected function");
+    dst_c_return(vm, dst_wrap_funcdef(fn->def));
 }
 
-int gst_stl_funcparent(Gst *vm) {
-    GstFunction *fn;
-    if (!gst_check_function(vm, 0, &fn))
-        gst_c_throwc(vm, "expected function");
+int dst_stl_funcparent(Dst *vm) {
+    DstFunction *fn;
+    if (!dst_check_function(vm, 0, &fn))
+        dst_c_throwc(vm, "expected function");
     if (fn->parent)
-        gst_c_return(vm, gst_wrap_function(fn->parent));
+        dst_c_return(vm, dst_wrap_function(fn->parent));
     else
-        return GST_RETURN_OK;
+        return DST_RETURN_OK;
 }
 
-int gst_stl_def(Gst *vm) {
-    GstValue key = gst_arg(vm, 0);
-    if (gst_count_args(vm) != 2) {
-        gst_c_throwc(vm, "expected 2 arguments to global-def");
+int dst_stl_def(Dst *vm) {
+    DstValue key = dst_arg(vm, 0);
+    if (dst_args(vm) != 2) {
+        dst_c_throwc(vm, "expected 2 arguments to global-def");
     }
-    if (key.type != GST_STRING && key.type != GST_SYMBOL) {
-        gst_c_throwc(vm, "expected string/symbol as first argument");
+    if (key.type != DST_STRING && key.type != DST_SYMBOL) {
+        dst_c_throwc(vm, "expected string/symbol as first argument");
     }
-    key.type = GST_SYMBOL;
-    gst_env_put(vm, vm->env, key, gst_arg(vm, 1));
-    gst_c_return(vm, gst_arg(vm, 1));
+    key.type = DST_SYMBOL;
+    dst_env_put(vm, vm->env, key, dst_arg(vm, 1));
+    dst_c_return(vm, dst_arg(vm, 1));
 }
 
-int gst_stl_var(Gst *vm) {
-    GstValue key = gst_arg(vm, 0);
-    if (gst_count_args(vm) != 2) {
-        gst_c_throwc(vm, "expected 2 arguments to global-var");
+int dst_stl_var(Dst *vm) {
+    DstValue key = dst_arg(vm, 0);
+    if (dst_args(vm) != 2) {
+        dst_c_throwc(vm, "expected 2 arguments to global-var");
     }
-    if (key.type != GST_STRING && key.type != GST_SYMBOL) {
-        gst_c_throwc(vm, "expected string as first argument");
+    if (key.type != DST_STRING && key.type != DST_SYMBOL) {
+        dst_c_throwc(vm, "expected string as first argument");
     }
-    key.type = GST_SYMBOL;
-    gst_env_putvar(vm, vm->env, key, gst_arg(vm, 1));
-    gst_c_return(vm, gst_arg(vm, 1));
+    key.type = DST_SYMBOL;
+    dst_env_putvar(vm, vm->env, key, dst_arg(vm, 1));
+    dst_c_return(vm, dst_arg(vm, 1));
 }
 
 /****/
@@ -757,7 +768,7 @@ int gst_stl_var(Gst *vm) {
 /****/
 
 /* File type definition */
-static GstUserType gst_stl_filetype = {
+static DstUserType dst_stl_filetype = {
     "std.file",
     NULL,
     NULL,
@@ -766,77 +777,77 @@ static GstUserType gst_stl_filetype = {
 };
 
 /* Open a a file and return a userdata wrapper arounf the C file API. */
-int gst_stl_open(Gst *vm) {
-    const uint8_t *fname = gst_to_string(vm, gst_arg(vm, 0));
-    const uint8_t *fmode = gst_to_string(vm, gst_arg(vm, 1));
+int dst_stl_open(Dst *vm) {
+    const uint8_t *fname = dst_to_string(vm, dst_arg(vm, 0));
+    const uint8_t *fmode = dst_to_string(vm, dst_arg(vm, 1));
     FILE *f;
     FILE **fp;
-    if (gst_count_args(vm) < 2 || gst_arg(vm, 0).type != GST_STRING
-            || gst_arg(vm, 1).type != GST_STRING)
-        gst_c_throwc(vm, "expected filename and filemode");
+    if (dst_args(vm) < 2 || dst_arg(vm, 0).type != DST_STRING
+            || dst_arg(vm, 1).type != DST_STRING)
+        dst_c_throwc(vm, "expected filename and filemode");
     f = fopen((const char *)fname, (const char *)fmode);
     if (!f)
-        gst_c_throwc(vm, "could not open file");
-    fp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+        dst_c_throwc(vm, "could not open file");
+    fp = dst_userdata(vm, sizeof(FILE *), &dst_stl_filetype);
     *fp = f;
-    gst_c_return(vm, gst_wrap_userdata(fp));
+    dst_c_return(vm, dst_wrap_userdata(fp));
 }
 
 /* Read an entire file into memory */
-int gst_stl_slurp(Gst *vm) {
-    GstBuffer *b;
+int dst_stl_slurp(Dst *vm) {
+    DstBuffer *b;
     long fsize;
     FILE *f;
-    FILE **fp = gst_check_userdata(vm, 0, &gst_stl_filetype);
-    if (fp == NULL) gst_c_throwc(vm, "expected file");
-    if (!gst_check_buffer(vm, 1, &b)) b = gst_buffer(vm, 10);
+    FILE **fp = dst_check_userdata(vm, 0, &dst_stl_filetype);
+    if (fp == NULL) dst_c_throwc(vm, "expected file");
+    if (!dst_check_buffer(vm, 1, &b)) b = dst_buffer(vm, 10);
     f = *fp;
     /* Read whole file */
     fseek(f, 0, SEEK_END);
     fsize = ftell(f);
     fseek(f, 0, SEEK_SET);
     /* Ensure buffer size */
-    gst_buffer_ensure(vm, b, b->count + fsize);
+    dst_buffer_ensure(vm, b, b->count + fsize);
     fread((char *)(b->data + b->count), fsize, 1, f);
     b->count += fsize;
-    gst_c_return(vm, gst_wrap_buffer(b));
+    dst_c_return(vm, dst_wrap_buffer(b));
 }
 
 /* Read a certain number of bytes into memory */
-int gst_stl_read(Gst *vm) {
-    GstBuffer *b;
+int dst_stl_read(Dst *vm) {
+    DstBuffer *b;
     FILE *f;
     int64_t len;
-    FILE **fp = gst_check_userdata(vm, 0, &gst_stl_filetype);
-    if (fp == NULL) gst_c_throwc(vm, "expected file");
-    if (!(gst_check_integer(vm, 1, &len))) gst_c_throwc(vm, "expected integer");
-    if (!gst_check_buffer(vm, 2, &b)) b = gst_buffer(vm, 10);
+    FILE **fp = dst_check_userdata(vm, 0, &dst_stl_filetype);
+    if (fp == NULL) dst_c_throwc(vm, "expected file");
+    if (!(dst_check_integer(vm, 1, &len))) dst_c_throwc(vm, "expected integer");
+    if (!dst_check_buffer(vm, 2, &b)) b = dst_buffer(vm, 10);
     f = *fp;
     /* Ensure buffer size */
-    gst_buffer_ensure(vm, b, b->count + len);
+    dst_buffer_ensure(vm, b, b->count + len);
     b->count += fread((char *)(b->data + b->count), len, 1, f) * len;
-    gst_c_return(vm, gst_wrap_buffer(b));
+    dst_c_return(vm, dst_wrap_buffer(b));
 }
 
 /* Write bytes to a file */
-int gst_stl_write(Gst *vm) {
+int dst_stl_write(Dst *vm) {
     FILE *f;
     const uint8_t *data;
     uint32_t len;
-    FILE **fp = gst_check_userdata(vm, 0, &gst_stl_filetype);
-    if (fp == NULL) gst_c_throwc(vm, "expected file");
-    if (!gst_chararray_view(gst_arg(vm, 1), &data, &len)) gst_c_throwc(vm, "expected string|buffer");
+    FILE **fp = dst_check_userdata(vm, 0, &dst_stl_filetype);
+    if (fp == NULL) dst_c_throwc(vm, "expected file");
+    if (!dst_chararray_view(dst_arg(vm, 1), &data, &len)) dst_c_throwc(vm, "expected string|buffer");
     f = *fp;
     fwrite(data, len, 1, f);
-    return GST_RETURN_OK;
+    return DST_RETURN_OK;
 }
 
 /* Close a file */
-int gst_stl_close(Gst *vm) {
-    FILE **fp = gst_check_userdata(vm, 0, &gst_stl_filetype);
-    if (fp == NULL) gst_c_throwc(vm, "expected file");
+int dst_stl_close(Dst *vm) {
+    FILE **fp = dst_check_userdata(vm, 0, &dst_stl_filetype);
+    if (fp == NULL) dst_c_throwc(vm, "expected file");
     fclose(*fp);
-    gst_c_return(vm, gst_wrap_nil());
+    dst_c_return(vm, dst_wrap_nil());
 }
 
 /****/
@@ -844,167 +855,9 @@ int gst_stl_close(Gst *vm) {
 /****/
 
 /* Force garbage collection */
-int gst_stl_gcollect(Gst *vm) {
-	gst_collect(vm);
-	return GST_RETURN_OK;
-}
-
-/***/
-/* Parsing */
-/***/
-
-/* GC mark a parser */
-static void gst_stl_parser_mark(Gst *vm, void *data, uint32_t len) {
-    uint32_t i;
-    GstParser *p = (GstParser *) data;
-    if (len != sizeof(GstParser))
-        return;
-    gst_mark_mem(vm, p->data);
-    gst_mark_value(vm, p->value);
-    for (i = 0; i < p->count; ++i) {
-        GstParseState *ps = p->data + i;
-        switch (ps->type) {
-            case PTYPE_FORM:
-                gst_mark_value(vm, gst_wrap_array(ps->buf.form.array));
-                break;
-            case PTYPE_STRING:
-            case PTYPE_TOKEN:
-                gst_mark_value(vm, gst_wrap_buffer(ps->buf.string.buffer));
-                break;
-        }
-    }
-}
-
-/* Parse filetype */
-static const GstUserType gst_stl_parsetype = {
-    "std.parser",
-    NULL,
-    NULL,
-    NULL,
-    &gst_stl_parser_mark
-};
-
-/* Create a parser */
-static int gst_stl_parser(Gst *vm) {
-    GstParser *p = gst_userdata(vm, sizeof(GstParser), &gst_stl_parsetype);
-    gst_parser(p, vm);
-    gst_c_return(vm, gst_wrap_userdata(p));
-}
-
-/* Consume a value from the parser */
-static int gst_stl_parser_consume(Gst *vm) {
-    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
-    if (p == NULL)
-        gst_c_throwc(vm, "expected parser");
-    if (p->status == GST_PARSER_ERROR)
-        gst_c_return(vm, gst_string_cv(vm, p->error));
-    if (!gst_parse_hasvalue(p))
-        gst_c_throwc(vm, "parser has no pending value");
-    gst_c_return(vm, gst_parse_consume(p));
-}
-
-/* Check if the parser has a value to consume */
-static int gst_stl_parser_hasvalue(Gst *vm) {
-    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
-    if (p == NULL)
-        gst_c_throwc(vm, "expected parser");
-    gst_c_return(vm, gst_wrap_boolean(gst_parse_hasvalue(p)));
-}
-
-/* Parse a single byte. Returns if the byte was successfully parsed. */
-static int gst_stl_parser_byte(Gst *vm) {
-    GstInteger b;
-    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
-    if (p == NULL)
-        gst_c_throwc(vm, "expected parser");
-    if (!gst_check_integer(vm, 1, &b))
-        gst_c_throwc(vm, "expected integer");
-    if (p->status == GST_PARSER_PENDING || p->status == GST_PARSER_ROOT) {
-        gst_parse_byte(p, b);
-        gst_c_return(vm, gst_wrap_boolean(1));
-    } else {
-        gst_c_return(vm, gst_wrap_boolean(0));
-    }
-}
-
-/* Parse a string or buffer. Returns nil if the entire char array is parsed,
-* otherwise returns the remainder of what could not be parsed. */
-static int gst_stl_parser_charseq(Gst *vm) {
-    uint32_t i;
-    uint32_t len;
-    const uint8_t *data;
-    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
-    if (p == NULL)
-        gst_c_throwc(vm, "expected parser");
-    if (!gst_chararray_view(gst_arg(vm, 1), &data, &len))
-        gst_c_throwc(vm, "expected string/buffer/symbol");
-    for (i = 0; i < len; ++i) {
-        if (p->status != GST_PARSER_PENDING && p->status != GST_PARSER_ROOT) break;
-        gst_parse_byte(p, data[i]);
-    }
-    if (i == len) {
-        /* No remainder */
-        gst_c_return(vm, gst_wrap_nil());
-    } else {
-        /* We have remaining characters */
-        gst_c_return(vm, gst_wrap_string(gst_string_b(vm, data + i, len - i)));
-    }
-}
-
-/* Get status of parser */
-static int gst_stl_parser_status(Gst *vm) {
-    GstParser *p = gst_check_userdata(vm, 0, &gst_stl_parsetype);
-    const char *cstr;
-    if (p == NULL)
-        gst_c_throwc(vm, "expected parser");
-    switch (p->status) {
-        case GST_PARSER_ERROR:
-            cstr = "error";
-            break;
-        case GST_PARSER_FULL:
-            cstr = "full";
-            break;
-        case GST_PARSER_PENDING:
-            cstr = "pending";
-            break;
-        case GST_PARSER_ROOT:
-            cstr = "root";
-            break;
-        default:
-            cstr = "unknown";
-            break;
-    }
-    gst_c_return(vm, gst_string_cv(vm, cstr));
-}
-
-/* Parse a string */
-static int gst_stl_parse(Gst *vm) {
-    uint32_t len, i;
-    GstParser p;
-    const uint8_t *data;
-    if (!gst_chararray_view(gst_arg(vm, 0), &data, &len))
-        gst_c_throwc(vm, "expected string/buffer/symbol to parse");
-    gst_parser(&p, vm);
-    for (i = 0; i < len; ++i) {
-        if (p.status != GST_PARSER_PENDING && p.status != GST_PARSER_ROOT) break;
-        gst_parse_byte(&p, data[i]);
-    }
-    switch (p.status) {
-        case GST_PARSER_ERROR:
-            gst_c_throwc(vm, p.error);
-            break;
-        case GST_PARSER_FULL:
-            gst_c_return(vm, p.value);
-            break;
-        case GST_PARSER_PENDING:
-        case GST_PARSER_ROOT:
-            gst_c_throwc(vm, "unexpected end of source");
-            break;
-        default:
-            gst_c_throwc(vm, "unknown error parsing");
-            break;
-    }
-    return 0;
+int dst_stl_gcollect(Dst *vm) {
+	dst_collect(vm);
+	return DST_RETURN_OK;
 }
 
 /***/
@@ -1012,158 +865,150 @@ static int gst_stl_parse(Gst *vm) {
 /***/
 
 /* Generate a unique symbol */
-static int gst_stl_gensym(Gst *vm) {
-    GstValue source = gst_arg(vm, 0);
+static int dst_stl_gensym(Dst *vm) {
+    DstValue source = dst_arg(vm, 0);
     const uint8_t *sym = NULL;
     uint32_t len;
     const uint8_t *data;
-    if (source.type == GST_NIL) {
-        sym = gst_string_cu(vm, "");
-    } else if (gst_chararray_view(source, &data, &len)) {
-        sym = gst_string_bu(vm, data, len);
+    if (source.type == DST_NIL) {
+        sym = dst_string_cu(vm, "");
+    } else if (dst_chararray_view(source, &data, &len)) {
+        sym = dst_string_bu(vm, data, len);
     } else {
-        gst_c_throwc(vm, "exepcted string/buffer/symbol/nil");
+        dst_c_throwc(vm, "exepcted string/buffer/symbol/nil");
     }
-    gst_c_return(vm, gst_wrap_symbol(sym));
+    dst_c_return(vm, dst_wrap_symbol(sym));
 }
 
 /* Compile a value */
-static int gst_stl_compile(Gst *vm) {
-    GstTable *env = vm->env;
-    if (gst_arg(vm, 1).type == GST_TABLE) {
-        env = gst_arg(vm, 1).data.table;
+static int dst_stl_compile(Dst *vm) {
+    DstTable *env = vm->env;
+    if (dst_arg(vm, 1).type == DST_TABLE) {
+        env = dst_arg(vm, 1).data.table;
     }
-    gst_c_return(vm, gst_compile(vm, env, gst_arg(vm, 0)));
+    dst_c_return(vm, dst_compile(vm, env, dst_arg(vm, 0)));
 }
 
 /* Get vm->env */
-static int gst_stl_getenv(Gst *vm) {
-    gst_c_return(vm, gst_wrap_table(vm->env));
+static int dst_stl_getenv(Dst *vm) {
+    dst_c_return(vm, dst_wrap_table(vm->env));
 }
 
 /* Set vm->env */
-static int gst_stl_setenv(Gst *vm) {
-    GstValue newEnv = gst_arg(vm, 0);
-    if (newEnv.type != GST_TABLE) {
-        gst_c_throwc(vm, "expected table");
+static int dst_stl_setenv(Dst *vm) {
+    DstValue newEnv = dst_arg(vm, 0);
+    if (newEnv.type != DST_TABLE) {
+        dst_c_throwc(vm, "expected table");
     }
     vm->env = newEnv.data.table;
-    return GST_RETURN_OK;
+    return DST_RETURN_OK;
 }
 
 /****/
 /* Bootstraping */
 /****/
 
-static const GstModuleItem std_module[] = {
+static const DstModuleItem std_module[] = {
     /* Arithmetic */
-    {"+", gst_stl_add},
-    {"*", gst_stl_mul},
-    {"-", gst_stl_sub},
-    {"/", gst_stl_div},
+    {"+", dst_stl_add},
+    {"*", dst_stl_mul},
+    {"-", dst_stl_sub},
+    {"/", dst_stl_div},
     /* Comparisons */
-    {"<", gst_stl_lessthan},
-    {">", gst_stl_greaterthan},
-    {"=", gst_stl_equal},
-    {"not=", gst_stl_notequal},
-    {"<=", gst_stl_lessthaneq},
-    {">=", gst_stl_greaterthaneq},
+    {"<", dst_stl_lessthan},
+    {">", dst_stl_greaterthan},
+    {"=", dst_stl_equal},
+    {"not=", dst_stl_notequal},
+    {"<=", dst_stl_lessthaneq},
+    {">=", dst_stl_greaterthaneq},
     /* Bitwise arithmetic */
-    {"band", gst_stl_band},
-    {"bor", gst_stl_bor},
-    {"bxor", gst_stl_bxor},
-    {"blshift", gst_stl_blshift},
-    {"brshift", gst_stl_brshift},
-    {"bnot", gst_stl_bnot},
+    {"band", dst_stl_band},
+    {"bor", dst_stl_bor},
+    {"bxor", dst_stl_bxor},
+    {"blshift", dst_stl_blshift},
+    {"brshift", dst_stl_brshift},
+    {"bnot", dst_stl_bnot},
     /* IO */
-    {"open", gst_stl_open},
-    {"slurp", gst_stl_slurp},
-    {"read", gst_stl_read},
-    {"write", gst_stl_write},
-    /* Parsing */
-    {"parser", gst_stl_parser},
-    {"parse-byte", gst_stl_parser_byte},
-    {"parse-consume", gst_stl_parser_consume},
-    {"parse-hasvalue", gst_stl_parser_hasvalue},
-    {"parse-charseq", gst_stl_parser_charseq},
-    {"parse-status", gst_stl_parser_status},
-    {"parse", gst_stl_parse},
+    {"open", dst_stl_open},
+    {"slurp", dst_stl_slurp},
+    {"read", dst_stl_read},
+    {"write", dst_stl_write},
     /* Compile */
-    {"gensym", gst_stl_gensym},
-    {"getenv", gst_stl_getenv},
-    {"setenv", gst_stl_setenv},
-    {"compile", gst_stl_compile},
+    {"gensym", dst_stl_gensym},
+    {"getenv", dst_stl_getenv},
+    {"setenv", dst_stl_setenv},
+    {"compile", dst_stl_compile},
     /* Other */
-    {"not", gst_stl_not},
-    {"clear", gst_stl_clear},
-    {"length", gst_stl_length},
-    {"hash", gst_stl_hash},
-    {"integer", gst_stl_to_int},
-    {"real", gst_stl_to_real},
-    {"type", gst_stl_type},
-    {"slice", gst_stl_slice},
-    {"array", gst_stl_array},
-    {"tuple", gst_stl_tuple},
-    {"table", gst_stl_table},
-    {"struct", gst_stl_struct},
-    {"buffer", gst_stl_buffer},
-    {"string", gst_stl_string},
-    {"symbol", gst_stl_symbol},
-    {"thread", gst_stl_thread},
-    {"status", gst_stl_status},
-    {"current", gst_stl_current},
-    {"parent", gst_stl_parent},
-    {"print", gst_stl_print},
-    {"description", gst_stl_description},
-    {"short-description", gst_stl_short_description},
-    {"exit!", gst_stl_exit},
-    {"get", gst_stl_get},
-    {"set!", gst_stl_set},
-    {"next", gst_stl_next},
-    {"error", gst_stl_error},
-    {"serialize", gst_stl_serialize},
-    {"deserialize", gst_stl_deserialize},
-    {"push!", gst_stl_push},
-    {"pop!", gst_stl_pop},
-    {"peek", gst_stl_peek},
-    {"ensure!", gst_stl_ensure},
-    {"open", gst_stl_open},
-    {"slurp", gst_stl_slurp},
-    {"read", gst_stl_read},
-    {"write", gst_stl_write},
-    {"close", gst_stl_close},
-    {"funcenv", gst_stl_funcenv},
-    {"funcdef", gst_stl_funcdef},
-    {"funcparent", gst_stl_funcparent},
-    {"gcollect", gst_stl_gcollect},
-    {"global-def", gst_stl_def},
-    {"global-var", gst_stl_var},
+    {"not", dst_stl_not},
+    {"clear", dst_stl_clear},
+    {"length", dst_stl_length},
+    {"hash", dst_stl_hash},
+    {"integer", dst_stl_to_int},
+    {"real", dst_stl_to_real},
+    {"type", dst_stl_type},
+    {"slice", dst_stl_slice},
+    {"array", dst_stl_array},
+    {"tuple", dst_stl_tuple},
+    {"table", dst_stl_table},
+    {"struct", dst_stl_struct},
+    {"buffer", dst_stl_buffer},
+    {"string", dst_stl_string},
+    {"symbol", dst_stl_symbol},
+    {"thread", dst_stl_thread},
+    {"status", dst_stl_status},
+    {"current", dst_stl_current},
+    {"parent", dst_stl_parent},
+    {"print", dst_stl_print},
+    {"description", dst_stl_description},
+    {"short-description", dst_stl_short_description},
+    {"exit!", dst_stl_exit},
+    {"get", dst_stl_get},
+    {"set!", dst_stl_set},
+    {"next", dst_stl_next},
+    {"error", dst_stl_error},
+    {"serialize", dst_stl_serialize},
+    {"deserialize", dst_stl_deserialize},
+    {"push!", dst_stl_push},
+    {"pop!", dst_stl_pop},
+    {"peek", dst_stl_peek},
+    {"ensure!", dst_stl_ensure},
+    {"open", dst_stl_open},
+    {"slurp", dst_stl_slurp},
+    {"read", dst_stl_read},
+    {"write", dst_stl_write},
+    {"close", dst_stl_close},
+    {"funcenv", dst_stl_funcenv},
+    {"funcdef", dst_stl_funcdef},
+    {"funcparent", dst_stl_funcparent},
+    {"gcollect", dst_stl_gcollect},
+    {"global-def", dst_stl_def},
+    {"global-var", dst_stl_var},
     {NULL, NULL}
 };
 
 /* Load stl library into the current environment. Create stl module object
  * only if it is not yet created. */
-void gst_stl_load(Gst *vm) {
-    GstValue maybeEnv = gst_table_get(vm->modules, gst_string_cvs(vm, "std"));
-    if (maybeEnv.type == GST_TABLE) {
+void dst_stl_load(Dst *vm) {
+    DstValue maybeEnv = dst_table_get(vm->modules, dst_string_cvs(vm, "std"));
+    if (maybeEnv.type == DST_TABLE) {
         /* Module already created, so merge into main vm. */
-        gst_env_merge(vm, vm->env, maybeEnv.data.table);
+        dst_env_merge(vm, vm->env, maybeEnv.data.table);
     } else {
         /* Module not yet created */
         /* Load the normal c functions */
-        gst_module_mutable(vm, "std", std_module);
+        dst_module_mutable(vm, "std", std_module);
         /* Wrap stdin and stdout */
-        FILE **inp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
-        FILE **outp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
-        FILE **errp = gst_userdata(vm, sizeof(FILE *), &gst_stl_filetype);
+        FILE **inp = dst_userdata(vm, sizeof(FILE *), &dst_stl_filetype);
+        FILE **outp = dst_userdata(vm, sizeof(FILE *), &dst_stl_filetype);
+        FILE **errp = dst_userdata(vm, sizeof(FILE *), &dst_stl_filetype);
         *inp = stdin;
         *outp = stdout;
         *errp = stderr;
-        gst_module_put(vm, "std", "stdin", gst_wrap_userdata(inp));
-        gst_module_put(vm, "std", "stdout", gst_wrap_userdata(outp));
-        gst_module_put(vm, "std", "stderr", gst_wrap_userdata(outp));
+        dst_module_put(vm, "std", "stdin", dst_wrap_userdata(inp));
+        dst_module_put(vm, "std", "stdout", dst_wrap_userdata(outp));
+        dst_module_put(vm, "std", "stderr", dst_wrap_userdata(outp));
         /* Now merge */
-        maybeEnv = gst_table_get(vm->modules, gst_string_cvs(vm, "std"));
-        gst_env_merge(vm, vm->env, maybeEnv.data.table);
+        maybeEnv = dst_table_get(vm->modules, dst_string_cvs(vm, "std"));
+        dst_env_merge(vm, vm->env, maybeEnv.data.table);
     }
 }

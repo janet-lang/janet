@@ -1,8 +1,8 @@
-# gst
+# dst
 
-[![Build Status](https://travis-ci.org/bakpakin/gst.svg?branch=master)](https://travis-ci.org/bakpakin/gst)
+[![Build Status](https://travis-ci.org/bakpakin/dst.svg?branch=master)](https://travis-ci.org/bakpakin/dst)
 
-gst is a language and vm that is small and embeddable, has metaprogramming
+dst is a language and vm that is small and embeddable, has metaprogramming
 facilities, can interoperate with C, and has enough features to make it
 a useful general purpose programming language. It is a variant of
 Lisp with several native useful datatypes. Some of the more interesting and
@@ -18,7 +18,7 @@ defined, like the module system and macros.
 
 There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
-gst could be embedded into other programs.
+dst could be embedded into other programs.
 
 ## Compiling and Running
 
@@ -32,10 +32,10 @@ To build the runtime and launch a repl.
 
 To run some basic programs, run the client with one argument, the name of the
 file to run. For example, the client that is built will be located in the
-client directory, so running a program `script.gst` from the project directory
+client directory, so running a program `script.dst` from the project directory
 would be
 ```bash
-client/gst script.gst
+client/dst script.dst
 ```
 
 You can also use the `--help` option to see more usage information for the vm.
@@ -56,7 +56,7 @@ Simply run `make test` to run the currently minimal test suite.
   formating functions.
 * Macro/specials system that happens before compilation
 * Module system. Something similar to node's require.
-* Change name (gst is the name of many projects, including GNU Smalltalk).
+* Change name (dst is the name of many projects, including GNU Smalltalk).
   Maybe make logo :)?
 * Change C API to be stack based for fewer potential memory management
   problems. This could mean making current C API internal and use separate

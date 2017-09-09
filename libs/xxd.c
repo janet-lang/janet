@@ -29,7 +29,7 @@
 #include <stdint.h>
 
 #define BUFSIZE 1024
-#define PERLINE 16
+#define PERLINE 10
 
 int main(int argc, const char **argv) {
 
@@ -60,7 +60,7 @@ int main(int argc, const char **argv) {
 	/* Write the header */
 	fprintf(out, "/* Auto generated - DO NOT EDIT */\n\n");
 	fprintf(out, "#include <stdint.h>\n\n");
-	fprintf(out, "const uint8_t gst_gen_%s[] = {", argv[3]);
+	fprintf(out, "const uint8_t dst_gen_%s[] = {", argv[3]);
 
 	/* Read in chunks from buffer */
 	while ((bytesRead = fread(buf, 1, sizeof(buf), in)) > 0) {

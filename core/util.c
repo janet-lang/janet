@@ -20,70 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include <gst/gst.h>
-
-/* Wrapper functions wrap a data type that is used from C into a
- * gst value, which can then be used in gst. */
-
-GstValue gst_wrap_nil() {
-    GstValue y;
-    y.type = GST_NIL;
-    return y;
-}
-
-int gst_check_nil(Gst *vm, uint32_t i) {
-    GstValue a = gst_arg(vm, i);
-    return a.type == GST_NIL;
-}
-
-#define GST_WRAP_DEFINE(NAME, TYPE, GTYPE, UM)\
-GstValue gst_wrap_##NAME(TYPE x) {\
-    GstValue y;\
-    y.type = GTYPE;\
-    y.data.UM = x;\
-    return y;\
-}\
-\
-int gst_check_##NAME(Gst *vm, uint32_t i, TYPE (*out)) {\
-    GstValue a = gst_arg(vm, i);\
-    if (a.type != GTYPE) return 0;\
-    *out = a.data.UM;\
-    return 1;\
-}\
-
-GST_WRAP_DEFINE(real, GstReal, GST_REAL, real)
-GST_WRAP_DEFINE(integer, GstInteger, GST_INTEGER, integer)
-GST_WRAP_DEFINE(boolean, int, GST_BOOLEAN, boolean)
-GST_WRAP_DEFINE(string, const uint8_t *, GST_STRING, string)
-GST_WRAP_DEFINE(symbol, const uint8_t *, GST_SYMBOL, string)
-GST_WRAP_DEFINE(array, GstArray *, GST_ARRAY, array)
-GST_WRAP_DEFINE(tuple, const GstValue *, GST_TUPLE, tuple)
-GST_WRAP_DEFINE(struct, const GstValue *, GST_STRUCT, st)
-GST_WRAP_DEFINE(thread, GstThread *, GST_THREAD, thread)
-GST_WRAP_DEFINE(buffer, GstBuffer *, GST_BYTEBUFFER, buffer)
-GST_WRAP_DEFINE(function, GstFunction *, GST_FUNCTION, function)
-GST_WRAP_DEFINE(cfunction, GstCFunction, GST_CFUNCTION, cfunction)
-GST_WRAP_DEFINE(table, GstTable *, GST_TABLE, table)
-GST_WRAP_DEFINE(funcenv, GstFuncEnv *, GST_FUNCENV, env)
-GST_WRAP_DEFINE(funcdef, GstFuncDef *, GST_FUNCDEF, def)
-
-#undef GST_WRAP_DEFINE
-
-GstValue gst_wrap_userdata(void *x) {
-    GstValue ret;
-    ret.type = GST_USERDATA;
-    ret.data.pointer = x;
-    return ret;
-}
-
-void *gst_check_userdata(Gst *vm, uint32_t i, const GstUserType *type) {
-    GstValue x = gst_arg(vm, i);
-    GstUserdataHeader *h;
-    if (x.type != GST_USERDATA) return NULL;
-    h = gst_udata_header(x.data.pointer);
-    if (h->type != type) return NULL;
-    return x.data.pointer;
-}
+#include "internal.h"
 
 /****/
 /* Parsing utils */
@@ -105,7 +42,7 @@ static double exp10(int power) {
     }
 }
 
-int gst_read_integer(const uint8_t *string, const uint8_t *end, int64_t *ret) {
+int dst_read_integer(const uint8_t *string, const uint8_t *end, int64_t *ret) {
     int sign = 1, x = 0;
     int64_t accum = 0;
     if (*string == '-') {
@@ -129,7 +66,7 @@ int gst_read_integer(const uint8_t *string, const uint8_t *end, int64_t *ret) {
 /* Read a real from a string. Returns if successfuly
  * parsed a real from the enitre input string.
  * If returned 1, output is int ret.*/
-int gst_read_real(const uint8_t *string, const uint8_t *end, double *ret, int forceInt) {
+int dst_read_real(const uint8_t *string, const uint8_t *end, double *ret, int forceInt) {
     int sign = 1, x = 0;
     double accum = 0, exp = 1, place = 1;
     /* Check the sign */
@@ -147,7 +84,7 @@ int gst_read_real(const uint8_t *string, const uint8_t *end, double *ret, int fo
             /* Read the exponent */
             ++string;
             if (string >= end) return 0;
-            if (!gst_read_real(string, end, &exp, 1))
+            if (!dst_read_real(string, end, &exp, 1))
                 return 0;
             exp = exp10(exp);
             break;
@@ -173,14 +110,14 @@ int gst_read_real(const uint8_t *string, const uint8_t *end, double *ret, int fo
 
 /* Read both tuples and arrays as c pointers + uint32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */
-int gst_seq_view(GstValue seq, const GstValue **data, uint32_t *len) {
-    if (seq.type == GST_ARRAY) {
+int dst_seq_view(DstValue seq, const DstValue **data, uint32_t *len) {
+    if (seq.type == DST_ARRAY) {
         *data = seq.data.array->data;
         *len = seq.data.array->count;
         return 1;
-    } else if (seq.type == GST_TUPLE) {
+    } else if (seq.type == DST_TUPLE) {
         *data = seq.data.st;
-        *len = gst_tuple_length(seq.data.st);
+        *len = dst_tuple_length(seq.data.st);
         return 1;
     }
     return 0;
@@ -188,12 +125,12 @@ int gst_seq_view(GstValue seq, const GstValue **data, uint32_t *len) {
 
 /* Read both strings and buffer as unsigned character array + uint32_t len.
  * Returns 1 if the view can be constructed and 0 if the type is invalid. */
-int gst_chararray_view(GstValue str, const uint8_t **data, uint32_t *len) {
-    if (str.type == GST_STRING || str.type == GST_SYMBOL) {
+int dst_chararray_view(DstValue str, const uint8_t **data, uint32_t *len) {
+    if (str.type == DST_STRING || str.type == DST_SYMBOL) {
         *data = str.data.string;
-        *len = gst_string_length(str.data.string);
+        *len = dst_string_length(str.data.string);
         return 1;
-    } else if (str.type == GST_BYTEBUFFER) {
+    } else if (str.type == DST_BYTEBUFFER) {
         *data = str.data.buffer->data;
         *len = str.data.buffer->count;
         return 1;
@@ -204,28 +141,28 @@ int gst_chararray_view(GstValue str, const uint8_t **data, uint32_t *len) {
 /* Read both structs and tables as the entries of a hashtable with
  * identical structure. Returns 1 if the view can be constructed and
  * 0 if the type is invalid. */
-int gst_hashtable_view(GstValue tab, const GstValue **data, uint32_t *cap) {
-    if (tab.type == GST_TABLE) {
+int dst_hashtable_view(DstValue tab, const DstValue **data, uint32_t *cap) {
+    if (tab.type == DST_TABLE) {
         *data = tab.data.table->data;
         *cap = tab.data.table->capacity;
         return 1;
-    } else if (tab.type == GST_STRUCT) {
+    } else if (tab.type == DST_STRUCT) {
         *data = tab.data.st;
-        *cap = gst_struct_capacity(tab.data.st);
+        *cap = dst_struct_capacity(tab.data.st);
         return 1;
     }
     return 0;
 }
 
-GstReal gst_integer_to_real(GstInteger x) {
-    return (GstReal) x;
+DstReal dst_integer_to_real(DstInteger x) {
+    return (DstReal) x;
 }
 
-GstInteger gst_real_to_integer(GstReal x) {
-    return (GstInteger) x;
+DstInteger dst_real_to_integer(DstReal x) {
+    return (DstInteger) x;
 }
 
-GstInteger gst_startrange(GstInteger raw, uint32_t len) {
+uint32_t dst_startrange(DstInteger raw, uint32_t len) {
     if (raw >= len)
         return -1;
     if (raw < 0)
@@ -233,7 +170,7 @@ GstInteger gst_startrange(GstInteger raw, uint32_t len) {
     return raw;
 }
 
-GstInteger gst_endrange(GstInteger raw, uint32_t len) {
+uint32_t dst_endrange(DstInteger raw, uint32_t len) {
     if (raw > len)
         return -1;
     if (raw < 0)
@@ -241,17 +178,176 @@ GstInteger gst_endrange(GstInteger raw, uint32_t len) {
     return raw;
 }
 
-int gst_callc(Gst *vm, GstCFunction fn, int numargs, ...) {
+static DstValue cfunction(DstCFunction fn) {
+    DstValue n;
+    n.type = DST_CFUNCTION;
+    n.data.cfunction = fn;
+    return n;
+}
+
+int dst_callc(Dst *vm, DstCFunction fn, int numargs, ...) {
     int result, i;
     va_list args;
-    GstValue *stack;
+    DstValue *stack;
     va_start(args, numargs);
-    stack = gst_thread_beginframe(vm, vm->thread, gst_wrap_cfunction(fn), numargs);
+    stack = dst_thread_beginframe(vm, vm->thread, cfunction(fn), numargs);
     for (i = 0; i < numargs; ++i) {
-        stack[i] = va_arg(args, GstValue);
+        stack[i] = va_arg(args, DstValue);
     }
     va_end(args);
     result = fn(vm);
-    gst_thread_popframe(vm, vm->thread);
+    dst_thread_popframe(vm, vm->thread);
     return result;
+}
+
+
+/* Stack manipulation functions */
+int dst_checkerr(Dst *vm) {
+    return !!vm->flags;
+}
+
+/* Get an argument from the stack */
+DstValue dst_arg(Dst *vm, uint32_t index) {
+    DstValue *stack = dst_thread_stack(vm->thread);
+    uint32_t frameSize = dst_frame_size(stack);
+    if (frameSize <= index) {
+        DstValue ret;
+        ret.type = DST_NIL;
+        return ret;
+    }
+    return stack[index];
+}
+
+/* Put a value on the stack */
+void dst_set_arg(Dst* vm, uint32_t index, DstValue x) {
+    DstValue *stack = dst_thread_stack(vm->thread);
+    uint32_t frameSize = dst_frame_size(stack);
+    if (frameSize <= index) return;
+    stack[index] = x;
+}
+
+/* Get the size of the VMStack */
+uint32_t dst_args(Dst *vm) {
+    DstValue *stack = dst_thread_stack(vm->thread);
+    return dst_frame_size(stack);
+}
+
+void dst_addsize(Dst *vm, uint32_t n) {
+    dst_thread_pushnil(vm, vm->thread, n);
+}
+
+void dst_setsize(Dst *vm, uint32_t n) {
+    DstValue *stack = dst_thread_stack(vm->thread);
+    uint32_t frameSize = dst_frame_size(stack);
+    if (frameSize < n) {
+        dst_thread_ensure_extra(vm, vm->thread, n - frameSize);
+    }
+    dst_frame_size(stack) = n;
+}
+
+void dst_swap(Dst *vm, uint32_t x, uint32_t y) {
+    DstValue oldx = dst_arg(vm, x);
+    DstValue oldy = dst_arg(vm, y);
+    dst_set_arg(vm, x, oldy);
+    dst_set_arg(vm, y, oldx);
+}
+
+void dst_move(Dst *vm, uint32_t dest, uint32_t src) {
+    dst_set_arg(vm, dest, dst_arg(vm, src));
+}
+
+void dst_nil(Dst *vm, uint32_t dest) {
+    DstValue n;
+    n.type = DST_NIL;
+    dst_set_arg(vm, dest, n);
+}
+
+void dst_true(Dst *vm, uint32_t dest) {
+    dst_set_boolean(vm, dest, 1);
+}
+
+void dst_false(Dst *vm, uint32_t dest) {
+    dst_set_boolean(vm, dest, 0);
+}
+
+/* Boolean Functions */
+void dst_set_boolean(Dst *vm, uint32_t dest, int val) {
+    DstValue n;
+    n.type = DST_BOOLEAN;
+    n.data.boolean = val;
+    dst_set_arg(vm, dest, n);
+}
+
+int dst_get_boolean(Dst *vm, uint32_t b) {
+    DstValue x = dst_arg(vm, b);
+    if (x.type != DST_BOOLEAN) {
+        return 0;
+    }
+    return x.data.boolean;
+}
+
+/* Integer functions */
+void dst_set_integer(Dst *vm, uint32_t dest, int64_t val) {
+    DstValue n;
+    n.type = DST_INTEGER;
+    n.data.integer = val;
+    dst_set_arg(vm, dest, n);
+}
+
+int64_t dst_get_integer(Dst *vm, uint32_t i) {
+    DstValue x = dst_arg(vm, i);
+    if (x.type != DST_INTEGER) {
+        return 0;
+    }
+    return x.data.integer;
+}
+
+/* Real functions */
+void dst_set_real(Dst *vm, uint32_t dest, double val) {
+    DstValue n;
+    n.type = DST_REAL;
+    n.data.real = val;
+    dst_set_arg(vm, dest, n);
+}
+
+double dst_get_real(Dst *vm, uint32_t r) {
+    DstValue x = dst_arg(vm, r);
+    if (x.type != DST_REAL) {
+        return 0.0;
+    }
+    return x.data.real;
+}
+
+/* CFunction functions */
+void dst_set_cfunction(Dst *vm, uint32_t dest, DstCFunction cfn) {
+    DstValue n;
+    n.type = DST_CFUNCTION;
+    n.data.cfunction = cfn;
+    dst_set_arg(vm, dest, n);
+}
+
+DstCFunction dst_get_cfunction(Dst *vm, uint32_t cfn) {
+    DstValue x = dst_arg(vm, cfn);
+    if (x.type != DST_CFUNCTION) {
+        return NULL;
+    }
+    return x.data.cfunction;
+}
+
+void dst_return(Dst *vm, uint32_t index) {
+    vm->ret = dst_arg(vm, index);
+}
+
+void dst_throw(Dst *vm, uint32_t index) {
+    vm->flags = 1;
+    vm->ret = dst_arg(vm, index);
+}
+
+void dst_cerr(Dst *vm, const char *message) {
+    vm->flags = 1;
+    vm->ret = dst_string_cv(vm, message);
+}
+
+int dst_checktype(Dst *vm, uint32_t n, DstType type) {
+    return dst_arg(vm, n).type == type;
 }
