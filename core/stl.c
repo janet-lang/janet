@@ -20,7 +20,6 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
 #include "internal.h"
 
 static const char DST_EXPECTED_INTEGER[] = "expected integer";
@@ -49,28 +48,28 @@ static const char *types[] = {
 static DstValue nil() {
     DstValue n;
     n.type = DST_NIL;
-    n.data.integer = 0;
+    n.as.integer = 0;
     return n;
 }
 
 static DstValue integer(DstInteger i) {
     DstValue n;
     n.type = DST_INTEGER;
-    n.data.integer = i;
+    n.as.integer = i;
     return n;
 }
 
 static DstValue real(DstReal r) {
     DstValue n;
     n.type = DST_REAL;
-    n.data.real = r;
+    n.as.real = r;
     return n;
 }
 
 static DstValue boolean(int b) {
     DstValue n;
     n.type = DST_BOOLEAN;
-    n.data.boolean = b;
+    n.as.boolean = b;
     return n;
 }
 
@@ -82,16 +81,16 @@ static DstValue boolean(int b) {
 static DstValue dst_stl_binop_##name(DstValue lhs, DstValue rhs) {\
     if (lhs.type == DST_INTEGER)\
         if (rhs.type == DST_INTEGER)\
-            return integer(lhs.data.integer op rhs.data.integer);\
+            return integer(lhs.as.integer op rhs.as.integer);\
         else if (rhs.type == DST_REAL)\
-            return real(lhs.data.integer op rhs.data.real);\
+            return real(lhs.as.integer op rhs.as.real);\
         else\
             return nil();\
     else if (lhs.type == DST_REAL)\
         if (rhs.type == DST_INTEGER)\
-            return real(lhs.data.real op rhs.data.integer);\
+            return real(lhs.as.real op rhs.as.integer);\
         else if (rhs.type == DST_REAL)\
-            return real(lhs.data.real op rhs.data.real);\
+            return real(lhs.as.real op rhs.as.real);\
         else\
             return nil();\
     else\
@@ -127,7 +126,7 @@ int dst_stl_div(Dst *vm) {
     lhs = dst_arg(vm, 0);
     for (j = 1; j < count; ++j) {
         rhs = dst_arg(vm, j);
-        if (lhs.type == DST_INTEGER && rhs.type == DST_INTEGER && rhs.data.integer == 0)
+        if (lhs.type == DST_INTEGER && rhs.type == DST_INTEGER && rhs.as.integer == 0)
             dst_c_throwc(vm, "cannot integer divide by 0");
         lhs = dst_stl_binop_div(lhs, rhs);
     }
@@ -155,7 +154,7 @@ int dst_stl_##name(Dst *vm) {\
         if (next.type != DST_INTEGER) {\
             dst_c_throwc(vm, "expected integer");\
         }\
-        ret.data.integer = ret.data.integer op next.data.integer;\
+        ret.as.integer = ret.as.integer op next.as.integer;\
     }\
     dst_c_return(vm, ret);\
 }
@@ -174,7 +173,7 @@ int dst_stl_bnot(Dst *vm) {
     if (count != 1 || in.type != DST_INTEGER) {
         dst_c_throwc(vm, "expected 1 integer argument");
     }
-    in.data.integer = ~in.data.integer;
+    in.as.integer = ~in.as.integer;
     dst_c_return(vm, in);
 }
 
@@ -183,7 +182,7 @@ int dst_stl_##name(Dst *vm) {\
     DstValue ret;\
     uint32_t i, count;\
     count = dst_args(vm);\
-    ret.data.boolean = 1;\
+    ret.as.boolean = 1;\
     ret.type = DST_BOOLEAN;\
     if (count < 2) {\
         dst_c_return(vm, ret);\
@@ -192,7 +191,7 @@ int dst_stl_##name(Dst *vm) {\
         DstValue lhs = dst_arg(vm, i - 1);\
         DstValue rhs = dst_arg(vm, i);\
         if (!(check)) {\
-            ret.data.boolean = 0;\
+            ret.as.boolean = 0;\
             break;\
         }\
     }\
@@ -224,13 +223,13 @@ int dst_stl_clear(Dst *vm) {
     default:
         dst_c_throwc(vm, "cannot clear");
     case DST_ARRAY:
-        x.data.array->count = 0;
+        x.as.array->count = 0;
         break;
-    case DST_BYTEBUFFER:
-        x.data.buffer->count = 0;
+    case DST_BUFFER:
+        x.as.buffer->count = 0;
         break;
     case DST_TABLE:
-        dst_table_clear(x.data.table);
+        dst_table_clear(x.as.table);
         break;
     }
     dst_c_return(vm, x);
@@ -255,7 +254,7 @@ int dst_stl_to_int(Dst *vm) {
     DstValue x = dst_arg(vm, 0);
     if (x.type == DST_INTEGER) dst_c_return(vm, x);
     if (x.type == DST_REAL)
-        dst_c_return(vm, integer((DstInteger) x.data.real));
+        dst_c_return(vm, integer((DstInteger) x.as.real));
     else
        dst_c_throwc(vm, "expected number");
 }
@@ -265,7 +264,7 @@ int dst_stl_to_real(Dst *vm) {
     DstValue x = dst_arg(vm, 0);
     if (x.type == DST_REAL) dst_c_return(vm, x);
     if (x.type == DST_INTEGER)
-        dst_c_return(vm, dst_wrap_real((DstReal) x.data.integer));
+        dst_c_return(vm, dst_wrap_real((DstReal) x.as.integer));
     else
        dst_c_throwc(vm, "expected number");
 }
@@ -322,12 +321,12 @@ int dst_stl_slice(Dst *vm) {
         dst_memcpy(arr->data, data + from, newlength * sizeof(DstValue));
         dst_c_return(vm, dst_wrap_array(arr));
     } else if (x.type == DST_STRING) {
-        dst_c_return(vm, dst_wrap_string(dst_string_b(vm, x.data.string + from, newlength)));
+        dst_c_return(vm, dst_wrap_string(dst_string_b(vm, x.as.string + from, newlength)));
     } else if (x.type == DST_SYMBOL) {
-        dst_c_return(vm, dst_wrap_symbol(dst_string_b(vm, x.data.string + from, newlength)));
+        dst_c_return(vm, dst_wrap_symbol(dst_string_b(vm, x.as.string + from, newlength)));
     } else { /* buffer */
         DstBuffer *b = dst_buffer(vm, newlength);
-        dst_memcpy(b->data, x.data.buffer->data, newlength);
+        dst_memcpy(b->data, x.as.buffer->data, newlength);
         b->count = newlength;
         dst_c_return(vm, dst_wrap_buffer(b));
     }
@@ -368,7 +367,7 @@ int dst_stl_type(Dst *vm) {
     case DST_THREAD:
         typestr = "thread";
         break;
-    case DST_BYTEBUFFER:
+    case DST_BUFFER:
         typestr = "buffer";
         break;
     case DST_FUNCTION:
@@ -471,7 +470,7 @@ int dst_stl_string(Dst *vm) {
             dat = dst_to_string(vm, dst_arg(vm, j));
             slen = dst_string_length(dat);
             newarg.type = DST_STRING;
-            newarg.data.string = dat;
+            newarg.as.string = dat;
             dst_set_arg(vm, j, newarg);
         }
         length += slen;
@@ -505,7 +504,7 @@ int dst_stl_thread(Dst *vm) {
     if (callee.type != DST_FUNCTION && callee.type != DST_CFUNCTION)
         dst_c_throwc(vm, "expected function in thread constructor");
     if (parent.type == DST_THREAD) {
-        t->parent = parent.data.thread;
+        t->parent = parent.as.thread;
     } else if (parent.type != DST_NIL) {
         dst_c_throwc(vm, "expected thread/nil as parent");
     } else {
@@ -588,7 +587,7 @@ int dst_stl_push(Dst *vm) {
     DstValue ds = dst_arg(vm, 0);
     if (ds.type != DST_ARRAY)
         dst_c_throwc(vm, "expected array");
-    dst_array_push(vm, ds.data.array, dst_arg(vm, 1));
+    dst_array_push(vm, ds.as.array, dst_arg(vm, 1));
     dst_c_return(vm, ds);
 }
 
@@ -597,7 +596,7 @@ int dst_stl_pop(Dst *vm) {
     DstValue ds = dst_arg(vm, 0);
     if (ds.type != DST_ARRAY)
         dst_c_throwc(vm, "expected array");
-    dst_c_return(vm, dst_array_pop(ds.data.array));
+    dst_c_return(vm, dst_array_pop(ds.as.array));
 }
 
 /* Peek at end of array */
@@ -605,7 +604,7 @@ int dst_stl_peek(Dst *vm) {
     DstValue ds = dst_arg(vm, 0);
     if (ds.type != DST_ARRAY)
         dst_c_throwc(vm, "expected array");
-    dst_c_return(vm, dst_array_peek(ds.data.array));
+    dst_c_return(vm, dst_array_peek(ds.as.array));
 }
 
 /* Ensure array capacity */
@@ -616,7 +615,7 @@ int dst_stl_ensure(Dst *vm) {
         dst_c_throwc(vm, "expected array");
     if (cap.type != DST_INTEGER)
         dst_c_throwc(vm, DST_EXPECTED_INTEGER);
-    dst_array_ensure(vm, ds.data.array, (uint32_t) cap.data.integer);
+    dst_array_ensure(vm, ds.as.array, (uint32_t) cap.as.integer);
     dst_c_return(vm, ds);
 }
 
@@ -625,9 +624,9 @@ int dst_stl_next(Dst *vm) {
     DstValue ds = dst_arg(vm, 0);
     DstValue key = dst_arg(vm, 1);
     if (ds.type == DST_TABLE) {
-        dst_c_return(vm, dst_table_next(ds.data.table, key));
+        dst_c_return(vm, dst_table_next(ds.as.table, key));
     } else if (ds.type == DST_STRUCT) {
-        dst_c_return(vm, dst_struct_next(ds.data.st, key));
+        dst_c_return(vm, dst_struct_next(ds.as.st, key));
     } else {
         dst_c_throwc(vm, "expected table or struct");
     }
@@ -666,7 +665,7 @@ int dst_stl_short_description(Dst *vm) {
 int dst_stl_exit(Dst *vm) {
     int ret;
     DstValue x = dst_arg(vm, 0);
-    ret = x.type == DST_INTEGER ? x.data.integer : (x.type == DST_REAL ? x.data.real : 0);
+    ret = x.type == DST_INTEGER ? x.as.integer : (x.type == DST_REAL ? x.as.real : 0);
     exit(ret);
     return DST_RETURN_OK;
 }
@@ -674,36 +673,6 @@ int dst_stl_exit(Dst *vm) {
 /* Throw error */
 int dst_stl_error(Dst *vm) {
     dst_c_throw(vm, dst_arg(vm, 0));
-}
-
-/****/
-/* Serialization */
-/****/
-
-/* Serialize data into buffer */
-int dst_stl_serialize(Dst *vm) {
-    const char *err;
-    DstValue buffer = dst_arg(vm, 1);
-    if (buffer.type != DST_BYTEBUFFER)
-        buffer = dst_wrap_buffer(dst_buffer(vm, 10));
-    err = dst_serialize(vm, buffer.data.buffer, dst_arg(vm, 0));
-    if (err != NULL)
-        dst_c_throwc(vm, err);
-    dst_c_return(vm, buffer);
-}
-
-/* Deserialize data from a buffer */
-int dst_stl_deserialize(Dst *vm) {
-    DstValue ret;
-    uint32_t len;
-    const uint8_t *data;
-    const char *err;
-    if (!dst_chararray_view(dst_arg(vm, 0), &data, &len))
-        dst_c_throwc(vm, "expected string/buffer/symbol");
-    err = dst_deserialize(vm, data, len, &ret, &data);
-    if (err != NULL)
-        dst_c_throwc(vm, err);
-    dst_c_return(vm, ret);
 }
 
 /***/
@@ -884,7 +853,7 @@ static int dst_stl_gensym(Dst *vm) {
 static int dst_stl_compile(Dst *vm) {
     DstTable *env = vm->env;
     if (dst_arg(vm, 1).type == DST_TABLE) {
-        env = dst_arg(vm, 1).data.table;
+        env = dst_arg(vm, 1).as.table;
     }
     dst_c_return(vm, dst_compile(vm, env, dst_arg(vm, 0)));
 }
@@ -900,7 +869,7 @@ static int dst_stl_setenv(Dst *vm) {
     if (newEnv.type != DST_TABLE) {
         dst_c_throwc(vm, "expected table");
     }
-    vm->env = newEnv.data.table;
+    vm->env = newEnv.as.table;
     return DST_RETURN_OK;
 }
 
@@ -966,8 +935,6 @@ static const DstModuleItem std_module[] = {
     {"set!", dst_stl_set},
     {"next", dst_stl_next},
     {"error", dst_stl_error},
-    {"serialize", dst_stl_serialize},
-    {"deserialize", dst_stl_deserialize},
     {"push!", dst_stl_push},
     {"pop!", dst_stl_pop},
     {"peek", dst_stl_peek},
@@ -992,7 +959,7 @@ void dst_stl_load(Dst *vm) {
     DstValue maybeEnv = dst_table_get(vm->modules, dst_string_cvs(vm, "std"));
     if (maybeEnv.type == DST_TABLE) {
         /* Module already created, so merge into main vm. */
-        dst_env_merge(vm, vm->env, maybeEnv.data.table);
+        dst_env_merge(vm, vm->env, maybeEnv.as.table);
     } else {
         /* Module not yet created */
         /* Load the normal c functions */
@@ -1009,6 +976,6 @@ void dst_stl_load(Dst *vm) {
         dst_module_put(vm, "std", "stderr", dst_wrap_userdata(outp));
         /* Now merge */
         maybeEnv = dst_table_get(vm->modules, dst_string_cvs(vm, "std"));
-        dst_env_merge(vm, vm->env, maybeEnv.data.table);
+        dst_env_merge(vm, vm->env, maybeEnv.as.table);
     }
 }

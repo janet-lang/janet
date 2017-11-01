@@ -24,7 +24,8 @@
 #define DST_INTERNAL_H_defined
 
 #include <dst/dst.h>
-#include <setjmp.h>
+#include <string.h>
+#include <stdlib.h>
 
 /* String utils */
 #define dst_string_raw(s) ((uint32_t *)(s) - 2)
@@ -47,41 +48,6 @@
 #define dst_udata_type(u) (dst_udata_header(u)->type)
 #define dst_udata_size(u) (dst_udata_header(u)->size)
 
-/* Memcpy for moving memory */
-#ifndef dst_memcpy
-#include <string.h>
-#define dst_memcpy memcpy
-#endif
-
-/* Allocation */
-#ifndef dst_raw_alloc
-#include <stdlib.h>
-#define dst_raw_alloc malloc
-#endif
-
-/* Zero allocation */
-#ifndef dst_raw_calloc
-#include <stdlib.h>
-#define dst_raw_calloc calloc
-#endif
-
-/* Realloc */
-#ifndef dst_raw_realloc
-#include <stdlib.h>
-#define dst_raw_realloc realloc
-#endif
-
-/* Free */
-#ifndef dst_raw_free
-#include <stdlib.h>
-#define dst_raw_free free
-#endif
-
-/* Null */
-#ifndef NULL
-#define NULL ((void *)0)
-#endif
-
 /* Stack frame manipulation */
 
 /* Size of stack frame in number of values */
@@ -89,7 +55,7 @@
 
 /* Prevent some recursive functions from recursing too deeply
  * ands crashing. */
-#define DST_RECURSION_GUARD 2056
+#define DST_RECURSION_GUARD 1000
 
 /* Macros for referencing a stack frame given a stack */
 #define dst_frame_callee(s)     (*(s - 1))
@@ -116,24 +82,14 @@
 
 /* What to do when out of memory */
 #ifndef DST_OUT_OF_MEMORY
-#include <stdlib.h>
 #include <stdio.h>
 #define DST_OUT_OF_MEMORY do { printf("out of memory\n"); exit(1); } while (0)
-#endif
-
-/* What to do when memory is low */
-#ifndef DST_LOW_MEMORY
-#include <stdlib.h>
-#include <stdio.h>
-#define DST_LOW_MEMORY do { printf("low memory\n"); } while (0)
 #endif
 
 /* A general dst value type */
 typedef struct DstValue DstValue;
 
 /* All of the dst types */
-typedef double DstReal;
-typedef int64_t DstInteger;
 typedef int DstBoolean;
 typedef struct DstFunction DstFunction;
 typedef struct DstArray DstArray;
@@ -146,22 +102,15 @@ typedef struct DstUserdataHeader DstUserdataHeader;
 typedef struct DstFuncDef DstFuncDef;
 typedef struct DstFuncEnv DstFuncEnv;
 typedef union DstValueUnion DstValueUnion;
-typedef struct DstModuleItem DstModuleItem;
 typedef struct DstUserType DstUserType;
 typedef struct DstParser DstParser;
 typedef struct DstParseState DstParseState;
 
-/* C Api data types */
-struct DstModuleItem {
-    const char *name;
-    DstCFunction data;
-};
-
 /* Union datatype */
 union DstValueUnion {
     DstBoolean boolean;
-    DstReal real;
-    DstInteger integer;
+    double real;
+    int64_t integer;
     DstArray *array;
     DstBuffer *buffer;
     DstTable *table;
@@ -169,8 +118,6 @@ union DstValueUnion {
     const DstValue *tuple;
     DstCFunction cfunction;
     DstFunction *function;
-    DstFuncEnv *env;
-    DstFuncDef *def;
     const DstValue *st;
     const uint8_t *string;
     /* Indirectly used union members */
@@ -186,7 +133,7 @@ union DstValueUnion {
  * the type information of the value */
 struct DstValue {
     DstType type;
-    DstValueUnion data;
+    DstValueUnion as;
 };
 
 /* A lightweight green thread in dst. Does not correspond to
@@ -228,18 +175,21 @@ struct DstTable {
 
 /* Some function defintion flags */
 #define DST_FUNCDEF_FLAG_VARARG 1
-#define DST_FUNCDEF_FLAG_NEEDSPARENT 2
 #define DST_FUNCDEF_FLAG_NEEDSENV 4
 
-/* A function definition. Contains information need to instantiate closures. */
+/* A function definition. Contains information needed to instantiate closures. */
 struct DstFuncDef {
-    uint32_t locals;
-    uint32_t arity; /* Not including varargs */
-    uint32_t literalsLen;
-    uint32_t byteCodeLen;
     uint32_t flags;
+    uint32_t locals; /* The amount of stack space required for the function */
+    uint32_t arity; /* Not including varargs */
+    uint32_t literalsLen; /* Number of literals */
+    uint32_t byteCodeLen; /* Length of bytcode */
+    uint32_t envLen; /* Number of environments */
+
+    uint32_t *envSizes; /* Minimum sizes of environments (for static analysis) */
+    uint32_t *envCaptures; /* Which environments to capture from parent. Is a bitset with the parent's envLen bits. */
     DstValue *literals; /* Contains strings, FuncDefs, etc. */
-    uint16_t *byteCode;
+    uint32_t *byteCode;
 };
 
 /* A fuction environment */
@@ -252,8 +202,7 @@ struct DstFuncEnv {
 /* A function */
 struct DstFunction {
     DstFuncDef *def;
-    DstFuncEnv *env;
-    DstFunction *parent;
+    DstFuncEnv *envs;
 };
 
 /* Defines a type for userdata */
@@ -321,23 +270,31 @@ enum DstOpCode {
 };
 
 /****/
-/* Internal buffer functions */
+/* Value Stack Manipulation */
 /****/
-void dst_value_buffer_ensure(Dst *vm, DstBuffer *buffer, uint32_t capacity);
-void dst_buffer_append_bytes(Dst *vm, DstBuffer *buffer, const uint8_t *string, uint32_t length);
-void dst_buffer_append_cstring(Dst *vm, DstBuffer *buffer, const char *cstring);
-
-/* Define a push function for pushing a certain type to the buffer */
-#define BUFFER_DEFINE(name, type) \
-static void dst_buffer_push_##name(Dst *vm, DstBuffer *buffer, type x) { \
-    union { type t; uint8_t bytes[sizeof(type)]; } u; \
-    u.t = x; dst_buffer_append(vm, buffer, u.bytes, sizeof(type)); \
-}
+void dst_switchv(Dst *vm, DstValue x);
+DstValue dst_popv(Dst *vm);
+DstValue dst_peekv(Dst *vm);
+void dst_pushv(Dst *vm, DstValue x);
+DstValue dst_getv(Dst *vm, int64_t index);
+void dst_setv(Dst *vm, int64_t index, DstValue x);
 
 /****/
-/* Table functions */
+/* Buffer functions */
+/****/
+void dst_buffer_ensure_(Dst *vm, DstBuffer *buffer, uint32_t capacity);
+void dst_buffer_push_u8_(Dst *vm, DstBuffer *buffer, uint8_t x);
+void dst_buffer_push_u16_(Dst *vm, DstBuffer *buffer, uint16_t x);
+void dst_buffer_push_u32_(Dst *vm, DstBuffer *buffer, uint32_t x);
+void dst_buffer_push_u64_(Dst *vm, DstBuffer *buffer, uint64_t x);
+void dst_buffer_push_bytes_(Dst *vm, DstBuffer *buffer, const uint8_t *bytes, uint32_t len);
+void dst_buffer_push_cstring_(Dst *vm, DstBuffer *buffer, const char *string);
+
+/****/
+/* Array functions */
 /****/
 DstArray *dst_make_array(Dst *vm, uint32_t capacity);
+void dst_array_ensure_(Dst *vm, DstArray *array, uint32_t capacity);
 
 /****/
 /* Tuple functions */
@@ -350,8 +307,6 @@ const DstValue *dst_tuple_end(Dst *vm, DstValue *tuple);
 /* String/Symbol functions */
 /****/
 
-uint8_t *dst_string_begin(Dst *vm, uint32_t len);
-void dst_string_end(Dst *vm, uint32_t dest, uint8_t *str);
 const uint8_t *dst_string_b(Dst *vm, const uint8_t *buf, uint32_t len);
 const uint8_t *dst_string_c(Dst *vm, const char *cstring);
 DstValue dst_string_cv(Dst *vm, const char *string);
@@ -409,129 +364,42 @@ const char *dst_deserialize_internal(
 
 const char *dst_serialize_internal(Dst *vm, DstBuffer *buffer, DstValue x);
 
-/****/
-/* GC */
-/****/
-
-#define DST_MEMTAG_STRING 4
-#define DST_MEMTAG_TUPLE 8
-#define DST_MEMTAG_STRUCT 16
-#define DST_MEMTAG_USER 32
-
-void dst_mark_value(Dst *vm, DstValue x);
-void dst_mark(Dst *vm, DstValueUnion x, DstType type);
-void dst_sweep(Dst *vm);
-void *dst_alloc(Dst *vm, uint32_t size);
-void *dst_zalloc(Dst *vm, uint32_t size);
-void dst_mem_tag(void *mem, uint32_t tags);
-void dst_collect(Dst *vm);
-void dst_maybe_collect(Dst *vm);
-void dst_clear_memory(Dst *vm);
-void dst_mark_mem(Dst *vm, void *mem);
-
-/****/
-/* VM */
-/****/
-
-DstValue dst_arg(Dst *vm, uint32_t index);
-void dst_set_arg(Dst *vm, uint32_t index, DstValue x);
-uint32_t dst_args(Dst *vm);
-
-/***/
-/* Stl */
-/***/
-
-void dst_stl_load(Dst *vm);
-
-/****/
-/* C Api */
-/****/
-
-void dst_module(Dst *vm, const char *name, const DstModuleItem *mod);
-void dst_module_mutable(Dst *vm, const char *name, const DstModuleItem *mod);
-void dst_module_put(Dst *vm, const char *packagename, const char *name, DstValue x);
-DstValue dst_module_get(Dst *vm, const char *packagename);
-void dst_register_put(Dst *vm, const char *packagename, DstValue mod);
-DstValue dst_register_get(Dst *vm, const char *name);
-int dst_callc(Dst *vm, DstCFunction fn, int numargs, ...);
-
 /* Treat similar types through uniform interfaces for iteration */
 int dst_seq_view(DstValue seq, const DstValue **data, uint32_t *len);
 int dst_chararray_view(DstValue str, const uint8_t **data, uint32_t *len);
 int dst_hashtable_view(DstValue tab, const DstValue **data, uint32_t *cap);
 
 /****/
-/* Caching for immutable data */
+/* Parse functions */
 /****/
 
-void dst_cache_remove_string(Dst *vm, char *strmem);
-void dst_cache_remove_tuple(Dst *vm, char *tuplemem);
-void dst_cache_remove_struct(Dst *vm, char *structmem);
+#define PARSE_OK 0
+#define PARSE_ERROR 1
+#define PARSE_UNEXPECTED_EOS 2
 
-/****/
-/* Misc */
-/****/
+int dst_parseb(Dst *vm, const uint8_t *src, const uint8_t **newsrc, uint32_t len);
 
-uint32_t dst_index(Dst *vm, int i);
-int dst_read_real(const uint8_t *string, const uint8_t *end, double *ret, int forceInt);
-int dst_read_integer(const uint8_t *string, const uint8_t *end, int64_t *ret);
-DstReal dst_integer_to_real(DstInteger x);
-DstInteger dst_real_to_integer(DstReal x);
-uint32_t dst_startrange(DstInteger raw, uint32_t len);
-uint32_t dst_endrange(DstInteger raw, uint32_t len);
-void dst_env_merge(Dst *vm, DstTable *destEnv, DstTable *srcEnv);
-DstTable *dst_env_nils(Dst *vm, DstTable *env);
-DstTable *dst_env_meta(Dst *vm, DstTable *env);
-void dst_env_put(Dst *vm, DstTable *env, DstValue key, DstValue value);
-void dst_env_putc(Dst *vm, DstTable *env, const char *key, DstValue value);
-void dst_env_putvar(Dst *vm, DstTable *env, DstValue key, DstValue value);
-void dst_env_putvarc(Dst *vm, DstTable *env, const char *key, DstValue value);
+/* Parse a c string */
+int dst_parsec(Dst *vm, const char *src, const char **newsrc);
+
+/* Parse a DST char seq (Buffer, String, Symbol) */
+int dst_parse(Dst *vm);
 
 /****/
 /* Value functions */
 /****/
 
-int dst_value_truthy(DstValue v);
-int dst_value_equals(DstValue x, DstValue y);
-uint32_t dst_value_hash(DstValue x);
-int dst_value_compare(DstValue x, DstValue y);
+int dst_truthy(DstValue v);
+int dst_equals(DstValue x, DstValue y);
+uint32_t dst_hash(DstValue x);
+int dst_compare(DstValue x, DstValue y);
+uint32_t dst_calchash_array(const DstValue *array, uint32_t len);
 
-/* Wrap data in GstValue */
-DstValue dst_wrap_nil();
-DstValue dst_wrap_real(DstReal x);
-DstValue dst_wrap_integer(DstInteger x);
-DstValue dst_wrap_boolean(int x);
-DstValue dst_wrap_string(const uint8_t *x);
-DstValue dst_wrap_symbol(const uint8_t *x);
-DstValue dst_wrap_array(DstArray *x);
-DstValue dst_wrap_tuple(const DstValue *x);
-DstValue dst_wrap_struct(const DstValue *x);
-DstValue dst_wrap_thread(DstThread *x);
-DstValue dst_wrap_buffer(DstBuffer *x);
-DstValue dst_wrap_function(DstFunction *x);
-DstValue dst_wrap_cfunction(DstCFunction x);
-DstValue dst_wrap_table(DstTable *x);
-DstValue dst_wrap_userdata(void *x);
-DstValue dst_wrap_funcenv(DstFuncEnv *x);
-DstValue dst_wrap_funcdef(DstFuncDef *x);
-
-/* Check data from arguments */
-int dst_check_nil(Dst *vm, uint32_t i);
-int dst_check_real(Dst *vm, uint32_t i);
-int dst_check_integer(Dst *vm, uint32_t i);
-int dst_check_boolean(Dst *vm, uint32_t i);
-int dst_check_string(Dst *vm, uint32_t i);
-int dst_check_symbol(Dst *vm, uint32_t i);
-int dst_check_array(Dst *vm, uint32_t i);
-int dst_check_tuple(Dst *vm, uint32_t i);
-int dst_check_struct(Dst *vm, uint32_t i);
-int dst_check_thread(Dst *vm, uint32_t i);
-int dst_check_buffer(Dst *vm, uint32_t i);
-int dst_check_function(Dst *vm, uint32_t i);
-int dst_check_cfunction(Dst *vm, uint32_t i);
-int dst_check_table(Dst *vm, uint32_t i);
-int dst_check_funcenv(Dst *vm, uint32_t i);
-int dst_check_funcdef(Dst *vm, uint32_t i);
-void dst_check_userdata(Dst *vm, uint32_t i;
+/****/
+/* Helper functions */
+/****/
+uint32_t dst_startrange(int64_t index, uint32_t modulo);
+uint32_t dst_endrange(int64_t index, uint32_t modulo);
+int64_t dst_normalize_index(Dst *vm, int64_t index);
 
 #endif /* DST_INTERNAL_H_defined */

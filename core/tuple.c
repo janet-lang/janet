@@ -20,19 +20,28 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_BOOTSTRAP_H_defined
-#define DST_BOOTSTRAP_H_defined
+#include "internal.h"
+#include "cache.h"
+#include "wrap.h"
 
-#define PARSE_OK 0
-#define PARSE_ERROR 1
-#define PARSE_UNEXPECTED_EOS 2
+/* Create a new empty tuple of the given size. This will return memory
+ * which should be filled with DstValues. The memory will not be collected until
+ * dst_tuple_end is called. */
+DstValue *dst_tuple_begin(Dst *vm, uint32_t length) {
+    char *data = dst_alloc(vm, DST_MEMORY_TUPLE, 2 * sizeof(uint32_t) + length * sizeof(DstValue));
+    DstValue *tuple = (DstValue *)(data + (2 * sizeof(uint32_t)));
+    dst_tuple_length(tuple) = length;
+    return tuple;
+}
 
-int dst_parseb(Dst *vm, uint32_t dest, const uint8_t *src, const uint8_t **newsrc, uint32_t len);
+/* Finish building a tuple */
+const DstValue *dst_tuple_end(Dst *vm, DstValue *tuple) {
+    dst_tuple_hash(tuple) = dst_calchash_array(tuple, dst_tuple_length(tuple));
+    return dst_cache_add(vm, dst_wrap_tuple((const DstValue *) tuple)).as.tuple;
+}
 
-/* Parse a c string */
-int dst_parsec(Dst *vm, uint32_t dest, const char *src);
-
-/* Parse a DST char seq (Buffer, String, Symbol) */
-int dst_parse(Dst *vm, uint32_t dest, uint32_t src);
-
-#endif /* DST_BOOTSTRAP_H_defined */
+const DstValue *dst_tuple_n(Dst *vm, DstValue *values, uint32_t n) {
+    DstValue *t = dst_tuple_begin(vm, n);
+    memcpy(t, values, sizeof(DstValue) * n);
+    return dst_tuple_end(vm, t);
+}

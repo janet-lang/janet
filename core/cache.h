@@ -20,46 +20,20 @@
 * IN THE SOFTWARE.
 */
 
-#include <stdlib.h>
-#include <stdio.h>
+#ifndef DST_CACHE_H_defined
+#define DST_CACHE_H_defined
+
 #include <dst/dst.h>
-#include "bootstrap.h"
+#include "internal.h"
 
-void teststr(Dst *vm, const char *src) {
-    uint32_t len = 0;
-    const uint8_t *bytes;
-    const char *ns = NULL;
-    int status = dst_parsec(vm, src, &ns);
-    if (status) {
-        printf("Parse failed: ");
-        bytes = dst_bytes(vm, -1, &len);
-        for (uint32_t i = 0; i < len; i++)
-            putc(bytes[i], stdout);
-        putc('\n', stdout);
-        printf("%s\n", src);
-        for (const char *scan = src + 1; scan < ns; ++scan)
-            putc(' ', stdout);
-        putc('^', stdout);
-        putc('\n', stdout);
-        return;
-    }
-    dst_description(vm);
-    bytes = dst_bytes(vm, -1, &len);
-    for (uint32_t i = 0; i < len; i++)
-        putc(bytes[i], stdout);
-    putc('\n', stdout);
-}
+DstValue dst_cache_add(Dst *vm, DstValue x);
+DstValue *dst_cache_strfind(Dst *vm,
+        const uint8_t *str,
+        uint32_t len,
+        uint32_t hash,
+        int *success);
+DstValue dst_cache_add_bucket(Dst *vm, DstValue x, DstValue *bucket);
 
-int main() {
+void dst_cache_remove(Dst *vm, DstValue x);
 
-    Dst *vm = dst_init();
-
-    teststr(vm, "[+ 1 2 3 \"porkpie\" ]");
-    teststr(vm, "(+ 1 2 \t asdajs 1035.89 3)");
-    teststr(vm, "[+ 1 2 :bokr]");
-    teststr(vm, "{+ 1 2 3}");
-
-    dst_deinit(vm);
-
-    return 0;
-}
+#endif

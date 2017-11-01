@@ -373,13 +373,13 @@ static uint16_t compiler_add_literal(DstCompiler *c, DstScope *scope, DstValue x
     uint16_t literalIndex = 0;
     if (checkDup.type != DST_NIL) {
         /* An equal literal is already registered in the current scope */
-        return (uint16_t) checkDup.data.integer;
+        return (uint16_t) checkDup.as.integer;
     } else {
         /* Add our literal for tracking */
         DstValue valIndex;
         valIndex.type = DST_INTEGER;
         literalIndex = scope->literalsArray->count;
-        valIndex.data.integer = literalIndex;
+        valIndex.as.integer = literalIndex;
         dst_table_put(c->vm, scope->literals, x, valIndex);
         dst_array_push(c->vm, scope->literalsArray, x);
     }
@@ -394,7 +394,7 @@ static uint16_t compiler_declare_symbol(DstCompiler *c, DstScope *scope, DstValu
         c_error(c, "expected symbol");
     target = compiler_get_local(c, scope);
     x.type = DST_INTEGER;
-    x.data.integer = target + (flags << 16);
+    x.as.integer = target + (flags << 16);
     dst_table_put(c->vm, scope->locals, sym, x);
     return target;
 }
@@ -409,8 +409,8 @@ static int symbol_resolve(DstCompiler *c, DstValue x, uint16_t *level, uint16_t 
         check = dst_table_get(scope->locals, x);
         if (check.type != DST_NIL) {
             *level = currentLevel - scope->level;
-            *index = (uint16_t) (check.data.integer & 0xFFFF);
-            if (flags) *flags = check.data.integer >> 16;
+            *index = (uint16_t) (check.as.integer & 0xFFFF);
+            if (flags) *flags = check.as.integer >> 16;
             return 1;
         }
         scope = scope->parent;
@@ -422,7 +422,7 @@ static int symbol_resolve(DstCompiler *c, DstValue x, uint16_t *level, uint16_t 
         DstTable *metas = dst_env_meta(c->vm, c->env);
         DstValue maybeMeta = dst_table_get(metas, x);
         if (maybeMeta.type == DST_TABLE) {
-            DstValue isMutable = dst_table_get(maybeMeta.data.table, dst_string_cv(c->vm, "mutable"));
+            DstValue isMutable = dst_table_get(maybeMeta.as.table, dst_string_cv(c->vm, "mutable"));
             if (dst_truthy(isMutable)) {
                 if (flags) *flags = DST_LOCAL_FLAG_MUTABLE;
                 *out = check;
@@ -464,25 +464,25 @@ static Slot compile_nonref_type(DstCompiler *c, FormOptions opts, DstValue x) {
         dst_buffer_push_u16(c->vm, buffer, DST_OP_NIL);
         dst_buffer_push_u16(c->vm, buffer, ret.index);
     } else if (x.type == DST_BOOLEAN) {
-        dst_buffer_push_u16(c->vm, buffer, x.data.boolean ? DST_OP_TRU : DST_OP_FLS);
+        dst_buffer_push_u16(c->vm, buffer, x.as.boolean ? DST_OP_TRU : DST_OP_FLS);
         dst_buffer_push_u16(c->vm, buffer, ret.index);
     } else if (x.type == DST_REAL) {
         dst_buffer_push_u16(c->vm, buffer, DST_OP_F64);
         dst_buffer_push_u16(c->vm, buffer, ret.index);
-        dst_buffer_push_real(c->vm, buffer, x.data.real);
+        dst_buffer_push_real(c->vm, buffer, x.as.real);
     } else if (x.type == DST_INTEGER) {
-        if (x.data.integer <= 32767 && x.data.integer >= -32768) {
+        if (x.as.integer <= 32767 && x.as.integer >= -32768) {
             dst_buffer_push_u16(c->vm, buffer, DST_OP_I16);
             dst_buffer_push_u16(c->vm, buffer, ret.index);
-            dst_buffer_push_i16(c->vm, buffer, x.data.integer);
-        } else if (x.data.integer <= 2147483647 && x.data.integer >= -2147483648) {
+            dst_buffer_push_i16(c->vm, buffer, x.as.integer);
+        } else if (x.as.integer <= 2147483647 && x.as.integer >= -2147483648) {
             dst_buffer_push_u16(c->vm, buffer, DST_OP_I32);
             dst_buffer_push_u16(c->vm, buffer, ret.index);
-            dst_buffer_push_i32(c->vm, buffer, x.data.integer);
+            dst_buffer_push_i32(c->vm, buffer, x.as.integer);
         } else {
             dst_buffer_push_u16(c->vm, buffer, DST_OP_I64);
             dst_buffer_push_u16(c->vm, buffer, ret.index);
-            dst_buffer_push_i64(c->vm, buffer, x.data.integer);
+            dst_buffer_push_i64(c->vm, buffer, x.as.integer);
         }
     } else {
         c_error(c, "expected boolean, nil, or number type");
@@ -805,14 +805,14 @@ static Slot compile_function(DstCompiler *c, FormOptions opts, const DstValue *f
     /* Define the function parameters */
     if (form[current].type != DST_ARRAY)
         c_error(c, "expected function arguments array");
-    params = form[current++].data.array;
+    params = form[current++].as.array;
     arity = params->count;
     for (i = 0; i < params->count; ++i) {
         DstValue param = params->data[i];
         if (param.type != DST_SYMBOL)
             c_error(c, "function parameters should be symbols");
         /* Check for varargs */
-        if (equal_cstr(param.data.string, "&")) {
+        if (equal_cstr(param.as.string, "&")) {
             if (i != params->count - 1) {
                 c_error(c, "& is reserved for vararg argument in function");
             }
@@ -838,7 +838,7 @@ static Slot compile_function(DstCompiler *c, FormOptions opts, const DstValue *f
         DstFuncDef *def = compiler_gen_funcdef(c, buffer->count - sizeBefore, arity, varargs);
         /* Add this FuncDef as a literal in the outer scope */
         newVal.type = DST_FUNCDEF;
-        newVal.data.def = def;
+        newVal.as.def = def;
         literalIndex = compiler_add_literal(c, scope, newVal);
         dst_buffer_push_u16(c->vm, buffer, DST_OP_CLN);
         dst_buffer_push_u16(c->vm, buffer, ret.index);
@@ -1070,7 +1070,7 @@ static SpecialFormHelper get_special(const DstValue *form) {
     const uint8_t *name;
     if (dst_tuple_length(form) < 1 || form[0].type != DST_SYMBOL)
         return NULL;
-    name = form[0].data.string;
+    name = form[0].as.string;
     /* If we have a symbol with a zero length name, we have other
      * problems. */
     if (dst_string_length(name) == 0)
@@ -1292,13 +1292,13 @@ static Slot compile_value(DstCompiler *c, FormOptions opts, DstValue x) {
             ret = compile_symbol(c, opts, x);
             break;
         case DST_TUPLE:
-            ret = compile_form(c, opts, x.data.tuple);
+            ret = compile_form(c, opts, x.as.tuple);
             break;
         case DST_ARRAY:
-            ret = compile_array(c, opts, x.data.array);
+            ret = compile_array(c, opts, x.as.array);
             break;
         case DST_TABLE:
-            ret = compile_table(c, opts, x.data.table);
+            ret = compile_table(c, opts, x.as.table);
             break;
         default:
             ret = compile_literal(c, opts, x);

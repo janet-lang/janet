@@ -20,37 +20,34 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
-#include "internal.h"
+#include "wrap.h"
 
 /* Wrapper functions wrap a data type that is used from C into a
- * gst value, which can then be used in gst. */
+ * dst value, which can then be used in dst internal functions. Use
+ * these functions sparingly, as these function will let the programmer
+ * leak memory, where as the stack based API ensures that all values can
+ * be collected by the garbage collector. */
 
 DstValue dst_wrap_nil() {
-    GstValue y;
-    y.type = GST_NIL;
+    DstValue y;
+    y.type = DST_NIL;
     return y;
-}
-
-int dst_check_nil(Gst *vm, uint32_t i) {
-    DstValue a = dst_arg(vm, i);
-    return a.type == DST_NIL;
 }
 
 #define DST_WRAP_DEFINE(NAME, TYPE, DTYPE, UM)\
 DstValue dst_wrap_##NAME(TYPE x) {\
     DstValue y;\
     y.type = DTYPE;\
-    y.data.UM = x;\
+    y.as.UM = x;\
     return y;\
 }\
 \
-int dst_check_##NAME(Dst *vm, uint32_t i) {\
-    return dst_arg(vm, i).type == DTYPE;\
+TYPE dst_unwrap_##NAME(Dst *vm, int64_t i) {\
+    return dst_getv(vm, i).as.UM;\
 }\
 
-DST_WRAP_DEFINE(real, DstReal, DST_REAL, real)
-DST_WRAP_DEFINE(integer, DstInteger, DST_INTEGER, integer)
+DST_WRAP_DEFINE(real, double, DST_REAL, real)
+DST_WRAP_DEFINE(integer, int64_t, DST_INTEGER, integer)
 DST_WRAP_DEFINE(boolean, int, DST_BOOLEAN, boolean)
 DST_WRAP_DEFINE(string, const uint8_t *, DST_STRING, string)
 DST_WRAP_DEFINE(symbol, const uint8_t *, DST_SYMBOL, string)
@@ -58,27 +55,10 @@ DST_WRAP_DEFINE(array, DstArray *, DST_ARRAY, array)
 DST_WRAP_DEFINE(tuple, const DstValue *, DST_TUPLE, tuple)
 DST_WRAP_DEFINE(struct, const DstValue *, DST_STRUCT, st)
 DST_WRAP_DEFINE(thread, DstThread *, DST_THREAD, thread)
-DST_WRAP_DEFINE(buffer, DstBuffer *, DST_BYTEBUFFER, buffer)
+DST_WRAP_DEFINE(buffer, DstBuffer *, DST_BUFFER, buffer)
 DST_WRAP_DEFINE(function, DstFunction *, DST_FUNCTION, function)
 DST_WRAP_DEFINE(cfunction, DstCFunction, DST_CFUNCTION, cfunction)
 DST_WRAP_DEFINE(table, DstTable *, DST_TABLE, table)
-DST_WRAP_DEFINE(funcenv, DstFuncEnv *, DST_FUNCENV, env)
-DST_WRAP_DEFINE(funcdef, DstFuncDef *, DST_FUNCDEF, def)
+DST_WRAP_DEFINE(userdata, void *, DST_USERDATA, pointer)
 
 #undef DST_WRAP_DEFINE
-
-DstValue dst_wrap_userdata(void *x) {
-    DstValue ret;
-    ret.type = DST_USERDATA;
-    ret.data.pointer = x;
-    return ret;
-}
-
-void *dst_check_userdata(Dst *vm, uint32_t i, const DstUserType *type) {
-    DstValue x = dst_arg(vm, i);
-    DstUserdataHeader *h;
-    if (x.type != DST_USERDATA) return NULL;
-    h = dst_udata_header(x.data.pointer);
-    if (h->type != type) return NULL;
-    return x.data.pointer;
-}

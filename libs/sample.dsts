@@ -1,0 +1,68 @@
+# A .dsts file will contain VM, assembly for a dst function. This includes
+# associated constants and what not. The assembler should be able to
+# simply construct a FuncDef from this file. This file is also parsed
+# in the same markup as dst itself (extended S expressions)
+{
+    stack 10
+    arity 3
+    signature (integer integer integer integer)
+    source "source file path"
+    varargs false
+# Name for reference by nested funcdefs
+    name outerfunc
+# Contains the bytecode for this function. This can be assembly
+# instructions or integers. Assembly will be converted to integer bytecodes immediately.
+    bytecode [
+        (typecheck 0 integer)
+        (typecheck 1 integer)
+        (typecheck 2 integer)
+        :checked-entry
+        (load-constant 3 bork)
+        (load-constant 4 bip)
+        (add-integer-unchecked 5 0 1)
+        (add-integer-unchecked 5 5 2)
+        (add-integer-unchecked 5 5 3)
+        (add-integer-unchecked 5 5 4)
+        (return 5)
+    ]
+# A source map is optional. The sourcemap corresponds with the byte code.
+# Each number is a 64 bit integer, the concatenation of two 32 bit integers.
+# These integers represent source line, source column for each instruction.
+# This format may change.
+     source-map [
+        0x0000123400000123
+        0x0000123400000123
+        0x0000123400000125
+        0x0000123400000134
+        0x0000123400000134
+        0x0000123400000135
+        ...
+     ]
+# Slots can be named as well for convenience.
+     slots [
+        x
+        y
+        z
+     ]
+# Captured outer environments that are referenced
+     environments [
+        outer1
+        outer2
+     ]
+# Constants are an array or tuple. For named constants, use a tuple that begins with let
+# For a literal tuple, use (quote tuple), or 'tuple. Without names, constants must be indexed
+# from their number
+     constants [
+         "hello"
+         (let bork 123)
+         (let bip 456)
+         '(1 2 3)
+         (let atuple (1 2 3))
+         (567)
+# Functions can be recursively defined.
+         (funcdef funcname {
+            ...
+         })
+# Literal FuncEnvs and Functions may be possible later
+     ]
+}

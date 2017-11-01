@@ -21,6 +21,7 @@
 */
 
 #include "internal.h"
+#include "wrap.h"
 
 static const char DST_NO_UPVALUE[] = "no upvalue";
 static const char DST_EXPECTED_FUNCTION[] = "expected function";
@@ -54,14 +55,14 @@ int dst_continue(Dst *vm) {
 
         case DST_OP_FLS: /* Load False */
             temp.type = DST_BOOLEAN;
-            temp.data.boolean = 0;
+            temp.as.boolean = 0;
             stack[pc[1]] = temp;
             pc += 2;
             continue;
 
         case DST_OP_TRU: /* Load True */
             temp.type = DST_BOOLEAN;
-            temp.data.boolean = 1;
+            temp.as.boolean = 1;
             stack[pc[1]] = temp;
             pc += 2;
             continue;
@@ -74,7 +75,7 @@ int dst_continue(Dst *vm) {
 
         case DST_OP_I16: /* Load Small Integer */
             temp.type = DST_INTEGER;
-            temp.data.integer = ((int16_t *)(pc))[2];
+            temp.as.integer = ((int16_t *)(pc))[2];
             stack[pc[1]] = temp;
             pc += 3;
             continue;
@@ -88,7 +89,7 @@ int dst_continue(Dst *vm) {
                 uint16_t level = pc[2];
                 temp = dst_frame_callee(stack);
                 dst_assert(vm, temp.type == DST_FUNCTION, DST_EXPECTED_FUNCTION);
-                fn = temp.data.function;
+                fn = temp.as.function;
                 if (level == 0)
                     upv = stack + pc[3];
                 else {
@@ -125,29 +126,29 @@ int dst_continue(Dst *vm) {
         case DST_OP_CST: /* Load constant value */
             v1 = dst_frame_callee(stack);
             dst_assert(vm, v1.type == DST_FUNCTION, DST_EXPECTED_FUNCTION);
-            if (pc[2] > v1.data.function->def->literalsLen)
+            if (pc[2] > v1.as.function->def->literalsLen)
                 dst_error(vm, DST_NO_UPVALUE);
-            stack[pc[1]] = v1.data.function->def->literals[pc[2]];
+            stack[pc[1]] = v1.as.function->def->literals[pc[2]];
             pc += 3;
             continue;
 
         case DST_OP_I32: /* Load 32 bit integer */
             temp.type = DST_INTEGER;
-            temp.data.integer = *((int32_t *)(pc + 2));
+            temp.as.integer = *((int32_t *)(pc + 2));
             stack[pc[1]] = temp;
             pc += 4;
             continue;
 
         case DST_OP_I64: /* Load 64 bit integer */
             temp.type = DST_INTEGER;
-            temp.data.integer = (DstInteger) *((int64_t *)(pc + 2));
+            temp.as.integer = *((int64_t *)(pc + 2));
             stack[pc[1]] = temp;
             pc += 6;
             continue;
 
         case DST_OP_F64: /* Load 64 bit float */
             temp.type = DST_REAL;
-            temp.data.real = (DstReal) *((double *)(pc + 2));
+            temp.as.real = *((double *)(pc + 2));
             stack[pc[1]] = temp;
             pc += 6;
             continue;
@@ -161,31 +162,32 @@ int dst_continue(Dst *vm) {
             {
                 DstFunction *fn;
                 v1 = dst_frame_callee(stack);
-                temp = v1.data.function->def->literals[pc[2]];
+                temp = v1.as.function->def->literals[pc[2]];
                 if (temp.type != DST_FUNCDEF)
                     dst_error(vm, "cannot create closure from non-funcdef");
-                fn = dst_alloc(vm, sizeof(DstFunction));
-                fn->def = temp.data.def;
-                if (temp.data.def->flags & DST_FUNCDEF_FLAG_NEEDSPARENT)
-                    fn->parent = v1.data.function;
+                fn = dst_mem_resumegc(dst_alloc(vm, sizeof(DstFunction)));
+                fn->def = temp.as.def;
+                /* Don't always set the parent. We might want to let the gc get it */
+                if (temp.as.def->flags & DST_FUNCDEF_FLAG_NEEDSPARENT)
+                    fn->parent = v1.as.function;
                 else
                     fn->parent = NULL;
                 if (v1.type != DST_FUNCTION)
                     dst_error(vm, DST_EXPECTED_FUNCTION);
                 if (dst_frame_env(stack) == NULL && (fn->def->flags & DST_FUNCDEF_FLAG_NEEDSENV)) {
-                    dst_frame_env(stack) = dst_alloc(vm, sizeof(DstFuncEnv));
+                    dst_frame_env(stack) = dst_mem_resumegc(dst_alloc(vm, sizeof(DstFuncEnv)));
                     dst_frame_env(stack)->thread = vm->thread;
                     dst_frame_env(stack)->stackOffset = vm->thread->count;
                     dst_frame_env(stack)->values = NULL;
                 }
-                if (pc[2] > v1.data.function->def->literalsLen)
+                if (pc[2] > v1.as.function->def->literalsLen)
                     dst_error(vm, DST_NO_UPVALUE);
                 if (fn->def->flags & DST_FUNCDEF_FLAG_NEEDSENV)
                     fn->env = dst_frame_env(stack);
                 else
                     fn->env = NULL;
                 temp.type = DST_FUNCTION;
-                temp.data.function = fn;
+                temp.as.function = fn;
                 stack[pc[1]] = temp;
                 pc += 3;
             }
@@ -224,11 +226,11 @@ int dst_continue(Dst *vm) {
                 const DstValue *data;
                 temp = stack[pc[1]];
                 if (temp.type == DST_TUPLE) {
-                    count = dst_tuple_length(temp.data.tuple);
-                    data = temp.data.tuple;
+                    count = dst_tuple_length(temp.as.tuple);
+                    data = temp.as.tuple;
                 } else if (temp.type == DST_ARRAY){
-                    count = temp.data.array->count;
-                    data = temp.data.array->data;
+                    count = temp.as.array->count;
+                    data = temp.as.array->data;
                 } else {
                     dst_error(vm, "expected array or tuple");
                 }
@@ -271,7 +273,7 @@ int dst_continue(Dst *vm) {
                     DstFuncEnv *env = dst_frame_env(stack);
                     env->thread = NULL;
                     env->stackOffset = size;
-                    env->values = dst_alloc(vm, sizeof(DstValue) * size);
+                    env->values = dst_mem_resumegc(dst_alloc(vm, sizeof(DstValue) * size));
                     dst_memcpy(env->values, stack, sizeof(DstValue) * size);
                 }
                 if (newStackIndex)
@@ -290,11 +292,11 @@ int dst_continue(Dst *vm) {
             stack = vm->thread->data + vm->thread->count;
             temp = dst_frame_callee(stack);
             if (temp.type == DST_FUNCTION) {
-                pc = temp.data.function->def->byteCode;
+                pc = temp.as.function->def->byteCode;
             } else if (temp.type == DST_CFUNCTION) {
                 int status;
                 vm->ret.type = DST_NIL;
-                status = temp.data.cfunction(vm);
+                status = temp.as.cfunction(vm);
                 if (status) {
                     goto vm_error;
                 } else {
@@ -315,7 +317,7 @@ int dst_continue(Dst *vm) {
                 for (i = 0; i < arrayLen; ++i)
                     array->data[i] = stack[pc[3 + i]];
                 temp.type = DST_ARRAY;
-                temp.data.array = array;
+                temp.as.array = array;
                 stack[pc[1]] = temp;
                 pc += 3 + arrayLen;
             }
@@ -326,6 +328,8 @@ int dst_continue(Dst *vm) {
                 uint32_t i = 3;
                 uint32_t kvs = pc[2];
                 DstTable *t = dst_make_table(vm, 2 * kvs);
+                dst_mem_suspendgc(t);
+                dst_mem_suspendgc(t->data);
                 kvs = kvs + 3;
                 while (i < kvs) {
                     v1 = stack[pc[i++]];
@@ -333,8 +337,10 @@ int dst_continue(Dst *vm) {
                     dst_table_put(vm, t, v1, v2);
                 }
                 temp.type = DST_TABLE;
-                temp.data.table = t;
+                temp.as.table = t;
                 stack[pc[1]] = temp;
+                dst_mem_resumegc(t);
+                dst_mem_resumegc(t->data);
                 pc += kvs;
             }
             break;
@@ -347,7 +353,7 @@ int dst_continue(Dst *vm) {
                 for (i = 0; i < len; ++i)
                     tuple[i] = stack[pc[3 + i]];
                 temp.type = DST_TUPLE;
-                temp.data.tuple = dst_tuple_end(vm, tuple);
+                temp.as.tuple = dst_tuple_end(vm, tuple);
                 stack[pc[1]] = temp;
                 pc += 3 + len;
             }
@@ -360,10 +366,10 @@ int dst_continue(Dst *vm) {
                 dst_error(vm, "expected thread");
             if (temp.type == DST_NIL && vm->thread->parent) {
                 temp.type = DST_THREAD;
-                temp.data.thread = vm->thread->parent;
+                temp.as.thread = vm->thread->parent;
             }
             if (temp.type == DST_THREAD) {
-                if (temp.data.thread->status != DST_THREAD_PENDING)
+                if (temp.as.thread->status != DST_THREAD_PENDING)
                     dst_error(vm, "can only enter pending thread");
             }
             dst_frame_ret(stack) = pc[1];
@@ -373,9 +379,9 @@ int dst_continue(Dst *vm) {
                 vm->ret = v1;
                 return 0;
             }
-            temp.data.thread->status = DST_THREAD_ALIVE;
-            vm->thread = temp.data.thread;
-            stack = dst_thread_stack(temp.data.thread);
+            temp.as.thread->status = DST_THREAD_ALIVE;
+            vm->thread = temp.as.thread;
+            stack = dst_thread_stack(temp.as.thread);
             if (dst_frame_callee(stack).type != DST_FUNCTION)
                 goto vm_return;
             stack[dst_frame_ret(stack)] = v1;
@@ -455,7 +461,7 @@ int dst_run(Dst *vm, DstValue callee) {
     }
     if (callee.type == DST_CFUNCTION) {
         vm->ret.type = DST_NIL;
-        result = callee.data.cfunction(vm);
+        result = callee.as.cfunction(vm);
     } else if (callee.type == DST_FUNCTION) {
         result = dst_continue(vm);
     } else {
@@ -475,7 +481,10 @@ int dst_run(Dst *vm, DstValue callee) {
 
 /* Setup functions */
 Dst *dst_init() {
-    Dst *vm = dst_raw_alloc(sizeof(Dst));
+    Dst *vm = malloc(sizeof(Dst));
+    if (NULL == vm) {
+        DST_OUT_OF_MEMORY;
+    }
     vm->ret.type = DST_NIL;
     /* Garbage collection */
     vm->blocks = NULL;
@@ -485,9 +494,8 @@ Dst *dst_init() {
      * horrible for performance, but helps ensure
      * there are no memory bugs during dev */
     vm->memoryInterval = 0;
-    vm->black = 0;
     /* Set up the cache */
-    vm->cache = dst_raw_calloc(1, 128 * sizeof(DstValue));
+    vm->cache = calloc(1, 128 * sizeof(DstValue));
     vm->cache_capacity = vm->cache == NULL ? 0 : 128;
     vm->cache_count = 0;
     vm->cache_deleted = 0;
@@ -509,11 +517,11 @@ void dst_deinit(Dst *vm) {
     vm->registry = NULL;
     vm->ret.type = DST_NIL;
     /* Deinit the cache */
-    dst_raw_free(vm->cache);
+    free(vm->cache);
     vm->cache = NULL;
     vm->cache_count = 0;
     vm->cache_capacity = 0;
     vm->cache_deleted = 0;
     /* Free the vm */
-    dst_raw_free(vm);
+    free(vm);
 }

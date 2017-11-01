@@ -13,8 +13,8 @@ PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
 # Use gdb. On mac use lldb
-DEBUGGER=gdb
-DST_INTERNAL_HEADERS=$(addprefix core/, internal.h bootstrap.h)
+DEBUGGER=lldb
+DST_INTERNAL_HEADERS=$(addprefix core/, internal.h bootstrap.h cache.h)
 DST_HEADERS=$(addprefix include/dst/, dst.h)
 
 #############################
@@ -38,9 +38,9 @@ $(DST_XXD): libs/xxd.c
 ##### The core vm and runtime #####
 ###################################
 DST_CORE_SOURCES=$(addprefix core/,\
-				 util.c wrap.c\
-				 value.c vm.c ds.c gc.c thread.c serialize.c\
-				 string.c bootstrap_parse.c client.c)
+				 util.c wrap.c buffer.c array.c table.c userdata.c func.c\
+				 value.c vm.c ds.c gc.c thread.c serialize.c tuple.c\
+				 string.c bootstrap_parse.c client.c cache.c struct.c)
 DST_CORE_OBJECTS=$(patsubst %.c,%.o,$(DST_CORE_SOURCES))
 
 $(DST_TARGET): $(DST_CORE_OBJECTS) $(DST_LANG_HEADERS)

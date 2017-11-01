@@ -21,13 +21,19 @@
 */
 
 #include "internal.h"
+#include "wrap.h"
+#include "gc.h"
 
-/* Create a new thread */
+/* Initialize a new thread */
 DstThread *dst_thread(Dst *vm, DstValue callee, uint32_t capacity) {
-    DstThread *thread = dst_alloc(vm, sizeof(DstThread));
+    DstThread *thread = dst_alloc(vm, DST_MEMORY_THREAD, sizeof(DstThread));
     if (capacity < DST_FRAME_SIZE) capacity = DST_FRAME_SIZE;
-    thread->data = dst_alloc(vm, sizeof(DstValue) * capacity);
     thread->capacity = capacity;
+    DstValue *data = malloc(vm, sizeof(DstValue) * capacity);
+    if (NULL == data) {
+        DST_OUT_OF_MEMORY;
+    }
+    thread->data = data;
     return dst_thread_reset(vm, thread, callee);
 }
 
@@ -49,7 +55,7 @@ DstThread *dst_thread_reset(Dst *vm, DstThread *thread, DstValue callee) {
     return thread;
 }
 
-/* Ensure that the thread has enough EXTRA capacity */
+/* Ensure that the thread has enough extra capacity */
 void dst_thread_ensure_extra(Dst *vm, DstThread *thread, uint32_t extra) {
     DstValue *newData, *stack;
     uint32_t usedCapacity, neededCapacity, newCapacity;
@@ -58,8 +64,12 @@ void dst_thread_ensure_extra(Dst *vm, DstThread *thread, uint32_t extra) {
     neededCapacity = usedCapacity + extra;
     if (thread->capacity >= neededCapacity) return;
     newCapacity = 2 * neededCapacity;
-    newData = dst_alloc(vm, sizeof(DstValue) * newCapacity);
-    dst_memcpy(newData, thread->data, sizeof(DstValue) * usedCapacity);
+
+    newData = realloc(thread->data, sizeof(DstValue) * newCapacity);
+    if (NULL == newData) {
+        DST_OUT_OF_MEMORY;
+    }
+
     thread->data = newData;
     thread->capacity = newCapacity;
 }
@@ -85,7 +95,8 @@ void dst_thread_pushnil(Dst *vm, DstThread *thread, uint32_t n) {
     dst_frame_size(stack) += n;
 }
 
-/* Package up extra args after and including n into tuple at n*/
+/* Package up extra args after and including n into tuple at n. Used for
+ * packing up varargs to variadic functions. */
 void dst_thread_tuplepack(Dst *vm, DstThread *thread, uint32_t n) {
     DstValue *stack = thread->data + thread->count;
     uint32_t size = dst_frame_size(stack);
@@ -94,7 +105,7 @@ void dst_thread_tuplepack(Dst *vm, DstThread *thread, uint32_t n) {
         dst_thread_pushnil(vm, thread, n - size + 1);
         stack = thread->data + thread->count;
         stack[n].type = DST_TUPLE;
-        stack[n].data.tuple = dst_tuple_end(vm, dst_tuple_begin(vm, 0));
+        stack[n].as.tuple = dst_tuple_end(vm, dst_tuple_begin(vm, 0));
         dst_frame_size(stack) = n + 1;
     } else {
         uint32_t i;
@@ -102,7 +113,7 @@ void dst_thread_tuplepack(Dst *vm, DstThread *thread, uint32_t n) {
         for (i = n; i < size; ++i)
             tuple[i - n] = stack[i];
         stack[n].type = DST_TUPLE;
-        stack[n].data.tuple = dst_tuple_end(vm, tuple);
+        stack[n].as.tuple = dst_tuple_end(vm, tuple);
     }
 }
 
@@ -136,7 +147,7 @@ void dst_thread_endframe(Dst *vm, DstThread *thread) {
     DstValue *stack = thread->data + thread->count;
     DstValue callee = dst_frame_callee(stack);
     if (callee.type == DST_FUNCTION) {
-        DstFunction *fn = callee.data.function;
+        DstFunction *fn = callee.as.function;
         uint32_t locals = fn->def->locals;
         dst_frame_pc(stack) = fn->def->byteCode;
         if (fn->def->flags & DST_FUNCDEF_FLAG_VARARG) {
@@ -162,8 +173,8 @@ DstValue *dst_thread_popframe(Dst *vm, DstThread *thread) {
         uint32_t size = dst_frame_size(stack);
         env->thread = NULL;
         env->stackOffset = size;
-        env->values = dst_alloc(vm, sizeof(DstValue) * size);
-        dst_memcpy(env->values, stack, sizeof(DstValue) * size);
+        env->values = malloc(sizeof(DstValue) * size);
+        memcpy(env->values, stack, sizeof(DstValue) * size);
     }
 
     /* Shrink stack */

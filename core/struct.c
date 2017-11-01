@@ -1,0 +1,184 @@
+/*
+* Copyright (c) 2017 Calvin Rose
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to
+* deal in the Software without restriction, including without limitation the
+* rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+* sell copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*/
+
+#include "internal.h"
+#include "cache.h"
+
+/* Begin creation of a struct */
+DstValue *dst_struct_begin(Dst *vm, uint32_t count) {
+    /* This expression determines size of structs. It must be a pure
+     * function of count, and hold at least enough space for count 
+     * key value pairs. The minimum it could be is 
+     * sizeof(uint32_t) * 2 + 2 * count * sizeof(DstValue). Adding more space
+     * ensures that structs are less likely to have hash collisions. If more space
+     * is added or s is changed, change the macro dst_struct_capacity in internal.h */
+    size_t s = sizeof(uint32_t) * 2 + 4 * count * sizeof(DstValue);
+    char *data = dst_alloc(vm, DST_MEMORY_STRUCT, s);
+    memset(data, 0, s)
+    DstValue *st = (DstValue *) (data + 2 * sizeof(uint32_t));
+    dst_struct_length(st) = count;
+    /* Use the hash storage space as a counter to see how many items
+     * were successfully added. If this number is not equal to the
+     * original number, we will need to remake the struct using
+     * only the kv pairs in the struct */
+    dst_struct_hash(st) = 0;
+    return st;
+}
+
+/* Find an item in a struct */
+static const DstValue *dst_struct_find(const DstValue *st, DstValue key) {
+    uint32_t cap = dst_struct_capacity(st);
+    uint32_t index = (dst_value_hash(key) % (cap / 2)) * 2;
+    uint32_t i;
+    for (i = index; i < cap; i += 2)
+        if (st[i].type == DST_NIL || dst_equals(st[i], key))
+            return st + i;
+    for (i = 0; i < index; i += 2)
+        if (st[i].type == DST_NIL || dst_equals(st[i], key))
+            return st + i;
+    return NULL;
+}
+
+/* Put a kv pair into a struct that has not yet been fully constructed.
+ * Nil keys and values are ignored, extra keys are ignore, and duplicate keys are
+ * ignored. */
+void dst_struct_put(DstValue *st, DstValue key, DstValue value) {
+    uint32_t cap = dst_struct_capacity(st);
+    uint32_t hash = dst_hash(key);
+    uint32_t index = (hash % (cap / 2)) * 2;
+    uint32_t i, j, dist;
+    uint32_t bounds[4] = {index, cap, 0, index};
+    if (key.type == DST_NIL || value.type == DST_NIL) return;
+    /* Avoid extra items */
+    if (dst_struct_hash(st) == dst_struct_length(st)) return;
+    for (dist = 0, j = 0; j < 4; j += 2)
+    for (i = bounds[j]; i < bounds[j + 1]; i += 2, dist += 2) {
+        int status;
+        uint32_t otherhash, otherindex, otherdist;
+        /* We found an empty slot, so just add key and value */
+        if (st[i].type == DST_NIL) {
+            st[i] = key;
+            st[i + 1] = value;
+            /* Update the temporary count */
+            dst_struct_hash(st)++;
+            return;
+        }
+        /* Robinhood hashing - check if colliding kv pair
+         * is closer to their source than current. We use robinhood
+         * hashing to ensure that equivalent structs that are contsructed
+         * with different order have the same internal layout, and therefor
+         * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}. */
+        otherhash = dst_hash(st[i]);
+        otherindex = (otherhash % (cap / 2)) * 2;
+        otherdist = (i + cap - otherindex) % cap;
+        if (dist < otherdist)
+            status = -1;
+        else if (otherdist < dist)
+            status = 1;
+        else if (hash < otherhash)
+            status = -1;
+        else if (otherhash < hash)
+            status = 1;
+        else
+            status = dst_compare(key, st[i]);
+        /* If other is closer to their ideal slot */
+        if (status == 1) {
+            /* Swap current kv pair with pair in slot */
+            DstValue t1, t2;
+            t1 = st[i];
+            t2 = st[i + 1];
+            st[i] = key;
+            st[i + 1] = value;
+            key = t1;
+            value = t2;
+            /* Save dist and hash of new kv pair */
+            dist = otherdist;
+            hash = otherhash;
+        } else {
+            /* This should not happen - it means
+             * than a key was added to the struct more than once */
+            return;
+        }
+    }
+}
+
+/* Finish building a struct */
+static const DstValue *dst_struct_end(Dst *vm, DstValue *st) {
+    DstValue cached;
+    DstValue check;
+    /* For explicit tail recursion */
+    recur:
+    if (dst_struct_hash(st) != dst_struct_length(st)) {
+        /* Error building struct, probably duplicate values. We need to rebuild
+         * the struct using only the values that went in. The second creation should always
+         * succeed. */
+        uint32_t i, realCount;
+        DstValue *newst;
+        realCount = 0;
+        for (i = 0; i < dst_struct_capacity(st); i += 2) {
+            realCount += st[i].type != DST_NIL;
+        }
+        newst = dst_struct_begin(vm, realCount);
+        for (i = 0; i < dst_struct_capacity(st); i += 2) {
+            if (st[i].type != DST_NIL) {
+                dst_struct_put(newst, st[i], st[i + 1]);
+            }
+        }
+        st = newst;
+        goto recur;
+    }
+    dst_struct_hash(st) = dst_calchash_array(st, dst_struct_capacity(st));
+    check.type = DST_STRUCT;
+    check.as.st = (const DstValue *) st;
+    return dst_cache_add(vm, check).as.st;
+}
+
+/* Get an item from a struct */
+DstValue dst_struct_get(const DstValue *st, DstValue key) {
+    const DstValue *bucket = dst_struct_find(st, key);
+    if (!bucket || bucket[0].type == DST_NIL) {
+        DstValue ret;
+        ret.type = DST_NIL;
+        return  ret;
+    } else {
+        return bucket[1];
+    }
+}
+
+/* Get the next key in a struct */
+DstValue dst_struct_next(const DstValue *st, DstValue key) {
+    const DstValue *bucket, *end;
+    end = st + dst_struct_capacity(st);
+    if (key.type == DST_NIL) {
+        bucket = st;
+    } else {
+        bucket = dst_struct_find(st, key);
+        if (!bucket || bucket[0].type == DST_NIL)
+            return dst_wrap_nil();
+        bucket += 2;
+    }
+    for (; bucket < end; bucket += 2) {
+        if (bucket[0].type != DST_NIL)
+            return bucket[0];
+    }
+    return dst_wrap_nil();
+}

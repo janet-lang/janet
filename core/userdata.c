@@ -20,46 +20,16 @@
 * IN THE SOFTWARE.
 */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <dst/dst.h>
-#include "bootstrap.h"
+#include "internal.h"
+#include "wrap.h"
 
-void teststr(Dst *vm, const char *src) {
-    uint32_t len = 0;
-    const uint8_t *bytes;
-    const char *ns = NULL;
-    int status = dst_parsec(vm, src, &ns);
-    if (status) {
-        printf("Parse failed: ");
-        bytes = dst_bytes(vm, -1, &len);
-        for (uint32_t i = 0; i < len; i++)
-            putc(bytes[i], stdout);
-        putc('\n', stdout);
-        printf("%s\n", src);
-        for (const char *scan = src + 1; scan < ns; ++scan)
-            putc(' ', stdout);
-        putc('^', stdout);
-        putc('\n', stdout);
-        return;
-    }
-    dst_description(vm);
-    bytes = dst_bytes(vm, -1, &len);
-    for (uint32_t i = 0; i < len; i++)
-        putc(bytes[i], stdout);
-    putc('\n', stdout);
-}
-
-int main() {
-
-    Dst *vm = dst_init();
-
-    teststr(vm, "[+ 1 2 3 \"porkpie\" ]");
-    teststr(vm, "(+ 1 2 \t asdajs 1035.89 3)");
-    teststr(vm, "[+ 1 2 :bokr]");
-    teststr(vm, "{+ 1 2 3}");
-
-    dst_deinit(vm);
-
-    return 0;
+/* Create new userdata */
+void *dst_userdata(Dst *vm, uint32_t size, const DstUserType *utype) {
+    DstValue ud;
+    char *data = dst_alloc(vm, DST_USERDATA, sizeof(DstUserdataHeader) + size);
+    DstUserdataHeader *header = (DstUserdataHeader *)data;
+    void *user = data + sizeof(DstUserdataHeader);
+    header->size = size;
+    header->type = utype;
+    return dst_wrap_userdata(user);
 }
