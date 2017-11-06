@@ -302,6 +302,11 @@ void dst_sweep() {
 void *dst_alloc(DstMemoryType type, size_t size) {
     DstGCMemoryHeader *mdata;
     size_t total = size + sizeof(DstGCMemoryHeader);
+
+    /* Make sure everything is inited */
+    if (NULL == dst_vm_cache) {
+        DST_PLEASE_INIT;
+    }
     void *mem = malloc(total);
 
     /* Check for bad malloc */

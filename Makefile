@@ -30,7 +30,6 @@ CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=$(VERSION)
 PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
-# Use gdb. On osx use lldb
 DEBUGGER=lldb
 DST_INTERNAL_HEADERS=$(addprefix core/,cache.h opcodes.h)
 DST_HEADERS=$(addprefix include/dst/,dst.h)
@@ -79,13 +78,15 @@ $(DST_TARGET): $(DST_CORE_OBJECTS)
 CCU_FLAGS = $(CFLAGS) -DDST_UNIT_TEST
 
 DST_UNIT_BINARIES=$(addprefix unittests/,\
-				  array_test.out)
+				  array_test.out buffer_test.out table_test.out)
 
 %.out: %.c $(DST_CORE_OBJECTS) $(DST_ALL_HEADERS) unittests/unit.h
 	$(CC) $(CCU_FLAGS) $(DST_CORE_OBJECTS) $< -o $@
 
 unit: $(DST_UNIT_BINARIES)
 	unittests/array_test.out
+	unittests/buffer_test.out
+	unittests/table_test.out
 
 ###################
 ##### Testing #####

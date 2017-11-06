@@ -22,9 +22,19 @@
 
 
 #include <dst/dst.h>
+#include <stdio.h>
 
 int dst_print(DstFiber *fiber, DstValue *argv, uint32_t argn) {
-    printf("Hello!\n");
+    uint32_t i;
+    for (i = 0; i < argn; ++i) {
+        uint32_t j, len;
+        const uint8_t *vstr = dst_to_string(argv[i]);
+        len = dst_string_length(vstr);
+        for (j = 0; j < len; ++j) {
+            putc(vstr[j], stdout);
+        }
+    }
+    putc('\n', stdout);
     return 0;
 }
 

@@ -33,7 +33,7 @@
  */
 
 /* Cache state */
-DstValue *dst_vm_cache;
+DstValue *dst_vm_cache = NULL;
 uint32_t dst_vm_cache_capacity;
 uint32_t dst_vm_cache_count;
 uint32_t dst_vm_cache_deleted;

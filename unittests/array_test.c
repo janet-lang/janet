@@ -3,6 +3,7 @@
 
 int main() {
     int64_t i;
+    dst_init();
     DstArray *array = dst_array(10);
     assert(array->capacity == 10);
     assert(array->count == 0);
