@@ -5,6 +5,9 @@ dst
 # Generated files
 *.gen.h
 
+# Generate test files
+*.out
+
 # Tools
 xxd
 

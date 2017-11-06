@@ -20,14 +20,12 @@
 * IN THE SOFTWARE.
 */
 
-#include "internal.h"
 #include <dst/dst.h>
 
-/* Iniializes an array. Assumes the pointer to the array is already on the stack. */
-DstArray *dst_array(Dst *vm, uint32_t capacity) {
-    DstArray *array = dst_alloc(vm, DST_MEMORY_ARRAY, sizeof(DstArray));
+/* Iniializes an array */
+DstArray *dst_array_init(DstArray *array, uint32_t capacity) {
     DstValue *data = (DstValue *) malloc(sizeof(DstValue) * capacity);
-    if (NULL == array || NULL == data) {
+    if (NULL == data) {
         DST_OUT_OF_MEMORY;
     }
     array->count = 0;
@@ -36,8 +34,18 @@ DstArray *dst_array(Dst *vm, uint32_t capacity) {
     return array;
 }
 
+void dst_array_deinit(DstArray *array) {
+    free(array->data);
+}
+
+/* Creates a new array */
+DstArray *dst_array(uint32_t capacity) {
+    DstArray *array = dst_alloc(DST_MEMORY_ARRAY, sizeof(DstArray));
+    return dst_array_init(array, capacity);
+}
+
 /* Ensure the array has enough capacity for elements */
-void dst_array_ensure(Dst *vm, DstArray *array, uint32_t capacity) {
+void dst_array_ensure(DstArray *array, uint32_t capacity) {
     DstValue *newData;
     DstValue *old = array->data;
     if (capacity <= array->capacity) return;
@@ -50,10 +58,10 @@ void dst_array_ensure(Dst *vm, DstArray *array, uint32_t capacity) {
 }
 
 /* Set the count of an array. Extend with nil if needed. */
-void dst_array_setcount(Dst *vm, DstArray *array, uint32_t count) {
+void dst_array_setcount(DstArray *array, uint32_t count) {
     if (count > array->count) {
         uint32_t i;
-        dst_array_ensure(vm, array, count + 1);
+        dst_array_ensure(array, count + 1);
         for (i = array->count; i < count; ++i)
             array->data[i].type = DST_NIL;
     }
@@ -61,10 +69,10 @@ void dst_array_setcount(Dst *vm, DstArray *array, uint32_t count) {
 }
 
 /* Push a value to the top of the array */
-void dst_array_push(Dst *vm, DstArray *array, DstValue x) {
+void dst_array_push(DstArray *array, DstValue x) {
     uint32_t newcount = array->count + 1;
-    if (newcount >= array->capacity) }
-        dst_array_ensure(vm, array, newcount * 2);
+    if (newcount >= array->capacity) {
+        dst_array_ensure(array, newcount * 2);
     }
     array->data[array->count] = x;
     array->count = newcount;

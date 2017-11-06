@@ -20,7 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include "internal.h"
+#include <dst/dst.h>
 
 /*
  * Define a number of functions that can be used internally on ANY DstValue.
@@ -82,7 +82,8 @@ uint32_t dst_hash(DstValue x) {
     default:
         if (sizeof(double) == sizeof(void *)) {
             /* Assuming 8 byte pointer */
-            hash = x.as.dwords[0] ^ x.as.dwords[1];
+            uint64_t i = x.as.integer;
+            hash = (i >> 32) ^ (i & 0xFFFFFFFF);
         } else {
             /* Assuming 4 byte pointer (or smaller) */
             hash = (uint32_t) x.as.pointer;
@@ -97,7 +98,7 @@ uint32_t dst_calchash_array(const DstValue *array, uint32_t len) {
     const DstValue *end = array + len;
     uint32_t hash = 5381;
     while (array < end)
-        hash = (hash << 5) + hash + dst_value_hash(*array++);
+        hash = (hash << 5) + hash + dst_hash(*array++);
     return hash;
 }
 
@@ -138,6 +139,15 @@ int dst_compare(DstValue x, DstValue y) {
                     return x.as.boolean ? 1 : -1;
                 }
             case DST_REAL:
+                
+                /* Check for nans to ensure total order */
+                if (x.as.real != x.as.real)
+                    return y.as.real != y.as.real
+                        ? 0
+                        : -1;
+                if (y.as.real != y.as.real)
+                    return 1;
+
                 if (x.as.real == y.as.real) {
                     return 0;
                 } else {
@@ -159,7 +169,7 @@ int dst_compare(DstValue x, DstValue y) {
                     uint32_t ylen = dst_tuple_length(y.as.tuple);
                     uint32_t count = xlen < ylen ? xlen : ylen;
                     for (i = 0; i < count; ++i) {
-                        int comp = dst_value_compare(x.as.tuple[i], y.as.tuple[i]);
+                        int comp = dst_compare(x.as.tuple[i], y.as.tuple[i]);
                         if (comp != 0) return comp;
                     }
                     if (xlen < ylen)
@@ -169,6 +179,7 @@ int dst_compare(DstValue x, DstValue y) {
                     return 0;
                 }
                 break;
+                /* TODO - how should structs compare by default? For now, just use pointers. */
             default:
                 if (x.as.string == y.as.string) {
                     return 0;

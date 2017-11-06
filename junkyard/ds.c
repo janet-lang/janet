@@ -20,7 +20,6 @@
 * IN THE SOFTWARE.
 */
 
-#include "internal.h"
 #include "cache.h"
 #include <dst/dst.h>
 
@@ -71,7 +70,7 @@ const char *dst_value_get(DstValue ds, DstValue key, DstValue *out) {
     return NULL;
 }
 
-void dst_get(Dst *vm) {
+int dst_get(Dst *vm) {
     DstValue ds = dst_popv(vm);
     DstValue key = dst_popv(vm);
     DstValue ret;

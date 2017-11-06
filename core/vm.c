@@ -20,508 +20,661 @@
 * IN THE SOFTWARE.
 */
 
-#include "internal.h"
-#include "wrap.h"
+#include <dst/dst.h>
+#include "opcodes.h"
 
-static const char DST_NO_UPVALUE[] = "no upvalue";
-static const char DST_EXPECTED_FUNCTION[] = "expected function";
+/* VM State */
+DstFiber *dst_vm_fiber;
 
 /* Start running the VM from where it left off. */
-int dst_continue(Dst *vm) {
+int dst_continue(DstFiber *fiber) {
+
     /* VM state */
     DstValue *stack;
-    uint16_t *pc;
+    uint32_t *pc;
+    DstFunction *func;
 
-    /* Some temporary values */
-    DstValue temp, v1, v2;
+    /* Used to extract bits from the opcode that correspond to arguments.
+     * Pulls out unsigned integers */
+#define oparg(shift, mask) ((*pc >> ((shift) << 3)) & (mask))
 
-#define dst_exit(vm, r) return ((vm)->ret = (r), DST_RETURN_OK)
-#define dst_error(vm, e) do { (vm)->ret = dst_string_cv((vm), (e)); goto vm_error; } while (0)
-#define dst_assert(vm, cond, e) do {if (!(cond)){dst_error((vm), (e));}} while (0)
+#define vm_throw(e) do { fiber->ret = dst_wrap_string(dst_cstring((e))); goto vm_error; } while (0)
+#define vm_assert(cond, e) do {if (!(cond)) vm_throw((e)); } while (0)
 
-    /* Intialize local state */
-    vm->thread->status = DST_THREAD_ALIVE;
-    stack = dst_thread_stack(vm->thread);
-    pc = dst_frame_pc(stack);
+#define vm_binop_integer(op) \
+    stack[oparg(1, 0xFF)] = dst_wrap_integer(\
+        stack[oparg(2, 0xFF)].as.integer op stack[oparg(3, 0xFF)].as.integer\
+    );\
+    pc++;\
+    continue;
 
-    /* Main interpreter loop */
+#define vm_binop_real(op)\
+    stack[oparg(1, 0xFF)] = dst_wrap_real(\
+        stack[oparg(2, 0xFF)].as.real op stack[oparg(3, 0xFF)].as.real\
+    );\
+    pc++;\
+    continue;
+
+#define vm_binop_immediate(op)\
+    stack[oparg(1, 0xFF)] = dst_wrap_integer(\
+        stack[oparg(2, 0xFF)].as.integer op (*((int32_t *)pc) >> 24)\
+    );\
+    pc++;\
+    continue;
+
+#define vm_binop(op)\
+    {\
+        DstValue op1 = stack[oparg(2, 0xFF)];\
+        DstValue op2 = stack[oparg(3, 0xFF)];\
+        vm_assert(op1.type == DST_INTEGER || op1.type == DST_REAL, "expected number");\
+        vm_assert(op2.type == DST_INTEGER || op2.type == DST_REAL, "expected number");\
+        stack[oparg(1, 0xFF)] = op1.type == DST_INTEGER\
+            ? op2.type == DST_INTEGER\
+                ? dst_wrap_integer(op1.as.integer op op2.as.integer)\
+                : dst_wrap_real(dst_integer_to_real(op1.as.integer) op op2.as.real)\
+            : op2.type == DST_INTEGER\
+                ? dst_wrap_real(op1.as.real op dst_integer_to_real(op2.as.integer))\
+                : dst_wrap_real(op1.as.real op op2.as.real);\
+        pc++;\
+        continue;\
+    }
+
+#define vm_init_fiber_state() \
+    fiber->status = DST_FIBER_ALIVE;\
+    stack = fiber->data + fiber->frame;\
+    pc = dst_stack_frame(stack)->pc;\
+    func = dst_stack_frame(stack)->func;
+
+    vm_init_fiber_state();
+
+    /* Main interpreter loop. It is large, but it is
+     * is maintainable. Adding new opcodes is mostly just adding newcases
+     * to this loop, adding the opcode to opcodes.h, and adding it to the assembler.
+     * Some opcodes, especially ones that do arithmetic, are almost entirely
+     * templated by the above macros. */
     for (;;) {
 
-        switch (*pc) {
+        switch (*pc & 0xFF) {
 
         default:
-            dst_error(vm, "unknown opcode");
+            vm_throw("unknown opcode");
             break;
 
-        case DST_OP_FLS: /* Load False */
-            temp.type = DST_BOOLEAN;
-            temp.as.boolean = 0;
-            stack[pc[1]] = temp;
-            pc += 2;
+        case DOP_NOOP:
+            pc++;
             continue;
 
-        case DST_OP_TRU: /* Load True */
-            temp.type = DST_BOOLEAN;
-            temp.as.boolean = 1;
-            stack[pc[1]] = temp;
-            pc += 2;
+        case DOP_ERROR:
+            fiber->ret = stack[oparg(1, 0xFF)];
+            goto vm_error;
+
+        case DOP_TYPECHECK:
+            vm_assert((1 << stack[oparg(1, 0xFF)].type) & oparg(2, 0xFFFF),
+                    "typecheck failed");
+            pc++;
             continue;
 
-        case DST_OP_NIL: /* Load Nil */
-            temp.type = DST_NIL;
-            stack[pc[1]] = temp;
-            pc += 2;
-            continue;
+        case DOP_RETURN:
+            fiber->ret = stack[oparg(1, 0xFFFFFF)];
+            goto vm_return;
 
-        case DST_OP_I16: /* Load Small Integer */
-            temp.type = DST_INTEGER;
-            temp.as.integer = ((int16_t *)(pc))[2];
-            stack[pc[1]] = temp;
-            pc += 3;
-            continue;
+        case DOP_RETURN_NIL:
+            fiber->ret.type = DST_NIL;
+            goto vm_return;
 
-        case DST_OP_UPV: /* Load Up Value */
-        case DST_OP_SUV: /* Set Up Value */
-            {
-                DstValue *upv;
-                DstFunction *fn;
-                DstFuncEnv *env;
-                uint16_t level = pc[2];
-                temp = dst_frame_callee(stack);
-                dst_assert(vm, temp.type == DST_FUNCTION, DST_EXPECTED_FUNCTION);
-                fn = temp.as.function;
-                if (level == 0)
-                    upv = stack + pc[3];
-                else {
-                    while (fn && --level)
-                        fn = fn->parent;
-                    dst_assert(vm, fn, DST_NO_UPVALUE);
-                    env = fn->env;
-                    if (env->thread)
-                        upv = env->thread->data + env->stackOffset + pc[3];
-                    else
-                        upv = env->values + pc[3];
-                }
-                if (pc[0] == DST_OP_UPV) {
-                    stack[pc[1]] = *upv;
-                } else {
-                    *upv = stack[pc[1]];
-                }
-                pc += 4;
-            }
-            continue;
-
-        case DST_OP_JIF: /* Jump If */
-            if (dst_value_truthy(stack[pc[1]])) {
-                pc += 4;
+        case DOP_COERCE_INTEGER:
+        {
+            DstValue input = stack[oparg(2, 0xFFFF)];
+            if (input.type == DST_INTEGER) {
+                stack[oparg(1, 0xFF)] = input;
+            } else if (input.type == DST_REAL) {
+                stack[oparg(1, 0xFF)] = dst_wrap_integer(dst_real_to_integer(input.as.real));
             } else {
-                pc += *((int32_t *)(pc + 2));
+                vm_throw("expected number");
             }
             continue;
+        }
 
-        case DST_OP_JMP: /* Jump */
-            pc += *((int32_t *)(pc + 1));
-            continue;
-
-        case DST_OP_CST: /* Load constant value */
-            v1 = dst_frame_callee(stack);
-            dst_assert(vm, v1.type == DST_FUNCTION, DST_EXPECTED_FUNCTION);
-            if (pc[2] > v1.as.function->def->literalsLen)
-                dst_error(vm, DST_NO_UPVALUE);
-            stack[pc[1]] = v1.as.function->def->literals[pc[2]];
-            pc += 3;
-            continue;
-
-        case DST_OP_I32: /* Load 32 bit integer */
-            temp.type = DST_INTEGER;
-            temp.as.integer = *((int32_t *)(pc + 2));
-            stack[pc[1]] = temp;
-            pc += 4;
-            continue;
-
-        case DST_OP_I64: /* Load 64 bit integer */
-            temp.type = DST_INTEGER;
-            temp.as.integer = *((int64_t *)(pc + 2));
-            stack[pc[1]] = temp;
-            pc += 6;
-            continue;
-
-        case DST_OP_F64: /* Load 64 bit float */
-            temp.type = DST_REAL;
-            temp.as.real = *((double *)(pc + 2));
-            stack[pc[1]] = temp;
-            pc += 6;
-            continue;
-
-        case DST_OP_MOV: /* Move Values */
-            stack[pc[1]] = stack[pc[2]];
-            pc += 3;
-            continue;
-
-        case DST_OP_CLN: /* Create closure from constant FuncDef */
-            {
-                DstFunction *fn;
-                v1 = dst_frame_callee(stack);
-                temp = v1.as.function->def->literals[pc[2]];
-                if (temp.type != DST_FUNCDEF)
-                    dst_error(vm, "cannot create closure from non-funcdef");
-                fn = dst_mem_resumegc(dst_alloc(vm, sizeof(DstFunction)));
-                fn->def = temp.as.def;
-                /* Don't always set the parent. We might want to let the gc get it */
-                if (temp.as.def->flags & DST_FUNCDEF_FLAG_NEEDSPARENT)
-                    fn->parent = v1.as.function;
-                else
-                    fn->parent = NULL;
-                if (v1.type != DST_FUNCTION)
-                    dst_error(vm, DST_EXPECTED_FUNCTION);
-                if (dst_frame_env(stack) == NULL && (fn->def->flags & DST_FUNCDEF_FLAG_NEEDSENV)) {
-                    dst_frame_env(stack) = dst_mem_resumegc(dst_alloc(vm, sizeof(DstFuncEnv)));
-                    dst_frame_env(stack)->thread = vm->thread;
-                    dst_frame_env(stack)->stackOffset = vm->thread->count;
-                    dst_frame_env(stack)->values = NULL;
-                }
-                if (pc[2] > v1.as.function->def->literalsLen)
-                    dst_error(vm, DST_NO_UPVALUE);
-                if (fn->def->flags & DST_FUNCDEF_FLAG_NEEDSENV)
-                    fn->env = dst_frame_env(stack);
-                else
-                    fn->env = NULL;
-                temp.type = DST_FUNCTION;
-                temp.as.function = fn;
-                stack[pc[1]] = temp;
-                pc += 3;
+        case DOP_COERCE_REAL:
+        {
+            DstValue input = stack[oparg(2, 0xFFFF)];
+            if (input.type == DST_INTEGER) {
+                stack[oparg(1, 0xFF)] = dst_wrap_real(dst_integer_to_real(input.as.integer));
+            } else if (input.type == DST_REAL) {
+                stack[oparg(1, 0xFF)] = input;
+            } else {
+                vm_throw("expected number");
             }
+            continue;
+        }
+
+        case DOP_COERCE_STRING:
+            stack[oparg(1, 0xFF)] = dst_wrap_string(dst_to_string(stack[oparg(2, 0xFFFF)]));
+            pc++;
             break;
 
-        case DST_OP_RTN: /* Return nil */
-            temp.type = DST_NIL;
-            goto vm_return;
+        case DOP_ADD_INTEGER:
+            vm_binop_integer(+);
 
-        case DST_OP_RET: /* Return */
-            temp = stack[pc[1]];
-            goto vm_return;
+        case DOP_ADD_IMMEDIATE:
+            vm_binop_immediate(+);
 
-        case DST_OP_PSK: /* Push stack */
+        case DOP_ADD_REAL:
+            vm_binop_real(+);
+
+        case DOP_ADD:
+            vm_binop(+);
+
+        case DOP_SUBTRACT_INTEGER:
+            vm_binop_integer(-);
+
+        case DOP_SUBTRACT_REAL:
+            vm_binop_real(-);
+
+        case DOP_SUBTRACT:
+            vm_binop(-);
+            
+        case DOP_MULTIPLY_INTEGER:
+            vm_binop_integer(*);
+
+        case DOP_MULTIPLY_IMMEDIATE:
+            vm_binop_immediate(*);
+
+        case DOP_MULTIPLY_REAL:
+            vm_binop_real(*);
+
+        case DOP_MULTIPLY:
+            vm_binop(*);
+
+        case DOP_DIVIDE_INTEGER:
+            vm_assert(stack[oparg(3, 0xFF)].as.integer != 0, "integer divide by zero");
+            vm_assert(!(stack[oparg(3, 0xFF)].as.integer == -1 && 
+                        stack[oparg(2, 0xFF)].as.integer == DST_INTEGER_MIN),
+                    "integer divide overflow");
+            vm_binop_integer(/);
+        
+        case DOP_DIVIDE_IMMEDIATE:
             {
-                uint16_t arity = pc[1];
-                uint16_t i;
-                uint16_t newBase = dst_frame_size(stack) + DST_FRAME_SIZE;
-                dst_frame_args(stack) = newBase;
-                dst_thread_ensure_extra(vm, vm->thread, DST_FRAME_SIZE + arity);
-                stack = dst_thread_stack(vm->thread);
-                dst_frame_size(stack) += DST_FRAME_SIZE + arity;
-                /* Nil stuff */
-                for (i = 0; i < DST_FRAME_SIZE; ++i)
-                    stack[newBase + i - DST_FRAME_SIZE].type = DST_NIL;
-                /* Write arguments */
-                for (i = 0; i < arity; ++i)
-                    stack[newBase + i] = stack[pc[2 + i]];
-                pc += 2 + arity;
+                int64_t op1 = stack[oparg(2, 0xFF)].as.integer;
+                int64_t op2 = *((int32_t *)pc) >> 24;
+                /* Check for degenerate integer division (divide by zero, and dividing
+                 * min value by -1). These checks could be omitted if the arg is not 
+                 * 0 or -1. */
+                if (op2 == 0)
+                    vm_throw("integer divide by zero");
+                if (op2 == -1)
+                    vm_throw("integer divide overflow");
+                else
+                    stack[oparg(1, 0xFF)] = dst_wrap_integer(op1 / op2);
+                pc++;
+                continue;
             }
-            break;
 
-        case DST_OP_PAR: /* Push array or tuple */
+        case DOP_DIVIDE_REAL:
+            vm_binop_real(/);
+
+        case DOP_DIVIDE:
             {
-                uint32_t count, i, oldsize;
-                const DstValue *data;
-                temp = stack[pc[1]];
-                if (temp.type == DST_TUPLE) {
-                    count = dst_tuple_length(temp.as.tuple);
-                    data = temp.as.tuple;
-                } else if (temp.type == DST_ARRAY){
-                    count = temp.as.array->count;
-                    data = temp.as.array->data;
+                DstValue op1 = stack[oparg(2, 0xFF)];
+                DstValue op2 = stack[oparg(3, 0xFF)];
+                vm_assert(op1.type == DST_INTEGER || op1.type == DST_REAL, "expected number");
+                vm_assert(op2.type == DST_INTEGER || op2.type == DST_REAL, "expected number");
+                if (op2.type == DST_INTEGER && op2.as.integer == 0)
+                    op2 = dst_wrap_real(0.0);
+                if (op2.type == DST_INTEGER && op2.as.integer == -1 &&
+                    op1.type == DST_INTEGER && op1.as.integer == DST_INTEGER_MIN)
+                    op2 = dst_wrap_real(-1);
+                stack[oparg(1, 0xFF)] = op1.type == DST_INTEGER
+                    ? op2.type == DST_INTEGER
+                        ? dst_wrap_integer(op1.as.integer / op2.as.integer)
+                        : dst_wrap_real(dst_integer_to_real(op1.as.integer) / op2.as.real)
+                    : op2.type == DST_INTEGER
+                        ? dst_wrap_real(op1.as.real / dst_integer_to_real(op2.as.integer))
+                        : dst_wrap_real(op1.as.real / op2.as.real);
+                pc++;
+                continue;
+            }
+
+        case DOP_BAND:
+            vm_binop_integer(&);
+
+        case DOP_BOR:
+            vm_binop_integer(|);
+
+        case DOP_BXOR:
+            vm_binop_integer(^);
+
+        case DOP_BNOT:
+            stack[oparg(1, 0xFF)] = dst_wrap_integer(~stack[oparg(2, 0xFFFF)].as.integer);
+            continue;
+            
+        case DOP_SHIFT_RIGHT_UNSIGNED:
+            stack[oparg(1, 0xFF)] = dst_wrap_integer(
+                stack[oparg(2, 0xFF)].as.uinteger
+                >>
+                stack[oparg(3, 0xFF)].as.uinteger
+            );
+            pc++;
+            continue;
+
+        case DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE:
+            stack[oparg(1, 0xFF)] = dst_wrap_integer(
+                stack[oparg(2, 0xFF)].as.uinteger >> oparg(3, 0xFF)
+            );
+            pc++;
+            continue;
+
+        case DOP_SHIFT_RIGHT:
+            vm_binop_integer(>>);
+
+        case DOP_SHIFT_RIGHT_IMMEDIATE:
+            stack[oparg(1, 0xFF)] = dst_wrap_integer(
+                stack[oparg(2, 0xFF)].as.uinteger >> oparg(3, 0xFF)
+            );
+            pc++;
+            continue;
+
+        case DOP_SHIFT_LEFT:
+            vm_binop_integer(<<);
+
+        case DOP_MOVE:
+            stack[oparg(1, 0xFF)] = stack[oparg(2, 0xFFFF)];
+            pc++;
+            continue;
+
+        case DOP_JUMP:
+            pc += (*(int32_t *)pc) >> 8;
+            continue;
+
+        case DOP_JUMP_IF:
+            if (dst_truthy(stack[oparg(1, 0xFF)])) {
+                pc += (*(int32_t *)pc) >> 16;
+            } else {
+                pc++;
+            }
+            continue;
+
+        case DOP_GREATER_THAN:
+            stack[oparg(1, 0xFF)].type = DST_BOOLEAN;
+            stack[oparg(1, 0xFF)].as.boolean = dst_compare(
+                    stack[oparg(2, 0xFF)],
+                    stack[oparg(3 ,0xFF)]
+                ) > 0;
+            pc++;
+            continue;
+
+        case DOP_EQUALS:
+            stack[oparg(1, 0xFF)].type = DST_BOOLEAN;
+            stack[oparg(1, 0xFF)].as.boolean = dst_equals(
+                    stack[oparg(2, 0xFF)],
+                    stack[oparg(3 ,0xFF)]
+                );
+            pc++;
+            continue;
+
+        case DOP_COMPARE:
+            stack[oparg(1, 0xFF)].type = DST_INTEGER;
+            stack[oparg(1, 0xFF)].as.integer = dst_compare(
+                    stack[oparg(2, 0xFF)],
+                    stack[oparg(3 ,0xFF)]
+                );
+            pc++;
+            continue;
+
+        case DOP_LOAD_NIL:
+            stack[oparg(1, 0xFFFFFF)].type = DST_NIL;
+            pc++;
+            continue;
+
+        case DOP_LOAD_BOOLEAN:
+            stack[oparg(1, 0xFF)] = dst_wrap_boolean(oparg(2, 0xFFFF));
+            pc++;
+            continue;
+
+        case DOP_LOAD_INTEGER:
+            stack[oparg(1, 0xFF)] = dst_wrap_integer(*((int32_t *)pc) >> 16);
+            pc++;
+            continue;
+
+        case DOP_LOAD_CONSTANT:
+            vm_assert(oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
+            stack[oparg(1, 0xFF)] = func->def->constants[oparg(2, 0xFFFF)];
+            pc++;
+            continue;
+
+        case DOP_LOAD_UPVALUE:
+            {
+                uint32_t eindex = oparg(2, 0xFF);
+                uint32_t vindex = oparg(3, 0xFF);
+                DstFuncEnv *env;
+                vm_assert(func->def->environments_length > eindex, "invalid upvalue");
+                env = func->envs[eindex];
+                vm_assert(env->length > vindex, "invalid upvalue");
+                if (env->offset) {
+                    /* On stack */
+                    stack[oparg(1, 0xFF)] = env->as.fiber->data[env->offset + vindex];
                 } else {
-                    dst_error(vm, "expected array or tuple");
+                    /* Off stack */
+                    stack[oparg(1, 0xFF)] = env->as.values[vindex];
                 }
-                oldsize = dst_frame_size(stack);
-                dst_thread_pushnil(vm, vm->thread, count);
-                stack = dst_thread_stack(vm->thread);
-                for (i = 0; i < count; ++i)
-                    stack[oldsize + i] = data[i];
-                /*dst_frame_size(stack) += count;*/
-                pc += 2;
+                pc++;
+                continue;
             }
+
+        case DOP_SET_UPVALUE:
+            {
+                uint32_t eindex = oparg(2, 0xFF);
+                uint32_t vindex = oparg(3, 0xFF);
+                DstFuncEnv *env;
+                vm_assert(func->def->environments_length > eindex, "invalid upvalue");
+                env = func->envs[eindex];
+                vm_assert(env->length > vindex, "invalid upvalue");
+                if (env->offset) {
+                    env->as.fiber->data[env->offset + vindex] = stack[oparg(1, 0xFF)];
+                } else {
+                    env->as.values[vindex] = stack[oparg(1, 0xFF)];
+                }
+                pc++;
+                continue;
+            }
+
+        case DOP_CLOSURE:
+            {
+                uint32_t i;
+                DstFunction *fn;
+                DstFuncDef *fd;
+                vm_assert(oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
+                vm_assert(func->def->constants[oparg(2, 0xFFFF)].type == DST_NIL, "constant must be funcdef");
+                fd = (DstFuncDef *)(func->def->constants[oparg(2, 0xFFFF)].as.pointer);
+                fn = dst_alloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
+                fn->envs = malloc(sizeof(DstFuncEnv *) * fd->environments_length);
+                if (NULL == fn->envs) {
+                    DST_OUT_OF_MEMORY;
+                }
+                if (fd->flags & DST_FUNCDEF_FLAG_NEEDSENV) {
+                    /* Delayed capture of current stack frame */
+                    DstFuncEnv *env = dst_alloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
+                    env->offset = fiber->frame;
+                    env->as.fiber = fiber;
+                    env->length = func->def->slotcount;
+                    fn->envs[0] = env;
+                } else {
+                    fn->envs[0] = NULL;
+                }
+                for (i = 1; i < fd->environments_length; ++i) {
+                    uint32_t inherit = fd->environments[i];
+                    fn->envs[i] = func->envs[inherit];
+                }
+                stack[oparg(1, 0xFF)] = dst_wrap_function(fn);
+                pc++;
+                break;
+            }
+
+        case DOP_PUSH:
+            dst_fiber_push(fiber, stack[oparg(1, 0xFFFFFF)]);
+            pc++;
             break;
 
-        case DST_OP_CAL: /* Call */
-            {
-                uint16_t newStackIndex = dst_frame_args(stack);
-                uint16_t size = dst_frame_size(stack);
-                temp = stack[pc[1]];
-                dst_frame_size(stack) = newStackIndex - DST_FRAME_SIZE;
-                dst_frame_ret(stack) = pc[2];
-                dst_frame_pc(stack) = pc + 3;
-                if (newStackIndex < DST_FRAME_SIZE)
-                    dst_error(vm, "invalid call instruction");
-                vm->thread->count += newStackIndex;
-                stack = dst_thread_stack(vm->thread);
-                dst_frame_size(stack) = size - newStackIndex;
-                dst_frame_prevsize(stack) = newStackIndex - DST_FRAME_SIZE;
-                dst_frame_callee(stack) = temp;
-            }
-            goto common_function_call;
+        case DOP_PUSH_2:
+            dst_fiber_push2(fiber, 
+                stack[oparg(1, 0xFF)],
+                stack[oparg(2, 0xFFFF)]);
+            pc++;
+            break;;
 
-        case DST_OP_TCL: /* Tail call */
+        case DOP_PUSH_3:
+            dst_fiber_push3(fiber, 
+                stack[oparg(1, 0xFF)],
+                stack[oparg(2, 0xFF)],
+                stack[oparg(3, 0xFF)]);
+            pc++;
+            break;
+
+        case DOP_PUSH_ARRAY:
             {
-                uint16_t newStackIndex = dst_frame_args(stack);
-                uint16_t size = dst_frame_size(stack);
-                uint16_t i;
-                temp = stack[pc[1]];
-                /* Check for closures */
-                if (dst_frame_env(stack)) {
-                    DstFuncEnv *env = dst_frame_env(stack);
-                    env->thread = NULL;
-                    env->stackOffset = size;
-                    env->values = dst_mem_resumegc(dst_alloc(vm, sizeof(DstValue) * size));
-                    dst_memcpy(env->values, stack, sizeof(DstValue) * size);
+                uint32_t count;
+                const DstValue *array;
+                if (dst_seq_view(stack[oparg(1, 0xFFFFFF)], &array, &count)) {
+                    dst_fiber_pushn(fiber, array, count);
+                } else {
+                    vm_throw("expected array or tuple");
                 }
-                if (newStackIndex)
-                    for (i = 0; i < size - newStackIndex; ++i)
-                        stack[i] = stack[newStackIndex + i];
-                dst_frame_size(stack) = size - newStackIndex;
-                dst_frame_callee(stack) = temp;
+                pc++;
+                break;
             }
-            goto common_function_call;
 
-        /* Code common to all function calls */
-        common_function_call:
-            dst_frame_args(stack) = 0;
-            dst_frame_env(stack) = NULL;
-            dst_thread_endframe(vm, vm->thread);
-            stack = vm->thread->data + vm->thread->count;
-            temp = dst_frame_callee(stack);
-            if (temp.type == DST_FUNCTION) {
-                pc = temp.as.function->def->byteCode;
-            } else if (temp.type == DST_CFUNCTION) {
-                int status;
-                vm->ret.type = DST_NIL;
-                status = temp.as.cfunction(vm);
-                if (status) {
+        case DOP_CALL:
+        {
+            DstValue callee = stack[oparg(2, 0xFFFF)];
+            if (callee.type == DST_FUNCTION) {
+                func = callee.as.function;
+                dst_fiber_funcframe(fiber, func);
+                stack = fiber->data + fiber->frame;
+                pc = func->def->bytecode;
+                break;
+            } else if (callee.type == DST_CFUNCTION) {
+                dst_fiber_cframe(fiber);
+                stack = fiber->data + fiber->frame;
+                fiber->ret.type = DST_NIL;
+                if (callee.as.cfunction(fiber, stack, fiber->frametop - fiber->frame)) {
+                    dst_fiber_popframe(fiber);
                     goto vm_error;
                 } else {
-                    temp = vm->ret;
+                    dst_fiber_popframe(fiber);
                     goto vm_return;
                 }
             } else {
-                dst_error(vm, DST_EXPECTED_FUNCTION);
+                vm_throw("cannot call non-function type");
             }
             break;
+        }
 
-        case DST_OP_ARR: /* Array literal */
-            {
-                uint32_t i;
-                uint32_t arrayLen = pc[2];
-                DstArray *array = dst_make_array(vm, arrayLen);
-                array->count = arrayLen;
-                for (i = 0; i < arrayLen; ++i)
-                    array->data[i] = stack[pc[3 + i]];
-                temp.type = DST_ARRAY;
-                temp.as.array = array;
-                stack[pc[1]] = temp;
-                pc += 3 + arrayLen;
-            }
-            break;
-
-        case DST_OP_DIC: /* Table literal */
-            {
-                uint32_t i = 3;
-                uint32_t kvs = pc[2];
-                DstTable *t = dst_make_table(vm, 2 * kvs);
-                dst_mem_suspendgc(t);
-                dst_mem_suspendgc(t->data);
-                kvs = kvs + 3;
-                while (i < kvs) {
-                    v1 = stack[pc[i++]];
-                    v2 = stack[pc[i++]];
-                    dst_table_put(vm, t, v1, v2);
+        case DOP_TAILCALL:
+        {
+            DstValue callee = stack[oparg(2, 0xFFFF)];
+            if (callee.type == DST_FUNCTION) {
+                func = callee.as.function;
+                dst_fiber_funcframe_tail(fiber, func);
+                stack = fiber->data + fiber->frame;
+                pc = func->def->bytecode;
+                break;
+            } else if (callee.type == DST_CFUNCTION) {
+                dst_fiber_cframe_tail(fiber);
+                stack = fiber->data + fiber->frame;
+                fiber->ret.type = DST_NIL;
+                if (callee.as.cfunction(fiber, stack, fiber->frametop - fiber->frame)) {
+                    dst_fiber_popframe(fiber);
+                    goto vm_error;
+                } else {
+                    dst_fiber_popframe(fiber);
+                    goto vm_return;
                 }
-                temp.type = DST_TABLE;
-                temp.as.table = t;
-                stack[pc[1]] = temp;
-                dst_mem_resumegc(t);
-                dst_mem_resumegc(t->data);
-                pc += kvs;
+            } else {
+                vm_throw("expected function");
             }
             break;
+        }
 
-        case DST_OP_TUP: /* Tuple literal */
+        case DOP_SYSCALL:
             {
-                uint32_t i;
-                uint32_t len = pc[2];
-                DstValue *tuple = dst_tuple_begin(vm, len);
-                for (i = 0; i < len; ++i)
-                    tuple[i] = stack[pc[3 + i]];
-                temp.type = DST_TUPLE;
-                temp.as.tuple = dst_tuple_end(vm, tuple);
-                stack[pc[1]] = temp;
-                pc += 3 + len;
+                DstCFunction f = dst_vm_syscalls[oparg(2, 0xFF)];
+                vm_assert(NULL != f, "invalid syscall");
+                dst_fiber_cframe(fiber);
+                stack = fiber->data + fiber->frame;
+                fiber->ret.type = DST_NIL;
+                if (f(fiber, stack, fiber->frametop - fiber->frame)) {
+                    dst_fiber_popframe(fiber);
+                    goto vm_error;
+                } else {
+                    dst_fiber_popframe(fiber);
+                    goto vm_return;
+                }
+                continue;
             }
-            break;
 
-        case DST_OP_TRN: /* Transfer */
-            temp = stack[pc[2]]; /* The thread */
-            v1 = stack[pc[3]]; /* The value to pass in */
-            if (temp.type != DST_THREAD && temp.type != DST_NIL)
-                dst_error(vm, "expected thread");
-            if (temp.type == DST_NIL && vm->thread->parent) {
-                temp.type = DST_THREAD;
-                temp.as.thread = vm->thread->parent;
+        case DOP_LOAD_SYSCALL:
+            {
+                DstCFunction f = dst_vm_syscalls[oparg(2, 0xFF)];
+                vm_assert(NULL != f, "invalid syscall");
+                stack[oparg(1, 0xFF)] = dst_wrap_cfunction(f);
+                pc++;
+                continue;
             }
-            if (temp.type == DST_THREAD) {
-                if (temp.as.thread->status != DST_THREAD_PENDING)
-                    dst_error(vm, "can only enter pending thread");
-            }
-            dst_frame_ret(stack) = pc[1];
-            vm->thread->status = DST_THREAD_PENDING;
-            dst_frame_pc(stack) = pc + 4;
-            if (temp.type == DST_NIL) {
-                vm->ret = v1;
+
+        case DOP_TRANSFER:
+        {
+            DstFiber *nextfiber;
+            DstStackFrame *frame = dst_stack_frame(stack);
+            DstValue temp = stack[oparg(2, 0xFF)];
+            DstValue retvalue = stack[oparg(3, 0xFF)];
+            vm_assert(temp.type == DST_FIBER ||
+                      temp.type == DST_NIL, "expected fiber");
+            nextfiber = temp.type == DST_FIBER
+                ? temp.as.fiber
+                : fiber->parent;
+            /* Check for root fiber */
+            if (NULL == nextfiber) {
+                frame->pc = pc;
+                fiber->ret = retvalue;
                 return 0;
             }
-            temp.as.thread->status = DST_THREAD_ALIVE;
-            vm->thread = temp.as.thread;
-            stack = dst_thread_stack(temp.as.thread);
-            if (dst_frame_callee(stack).type != DST_FUNCTION)
-                goto vm_return;
-            stack[dst_frame_ret(stack)] = v1;
-            pc = dst_frame_pc(stack);
+            vm_assert(nextfiber->status == DST_FIBER_PENDING, "can only transfer to pending fiber");
+            frame->pc = pc;
+            fiber->status = DST_FIBER_PENDING;
+            fiber = nextfiber;
+            vm_init_fiber_state();
+            stack[oparg(1, 0xFF)] = retvalue;
+            pc++;
             continue;
+        }
 
-        /* Handle returning from stack frame. Expect return value in temp. */
+        /* Handle returning from stack frame. Expect return value in fiber->ret */
         vm_return:
-            stack = dst_thread_popframe(vm, vm->thread);
-            while (vm->thread->count < DST_FRAME_SIZE ||
-                vm->thread->status == DST_THREAD_DEAD ||
-                vm->thread->status == DST_THREAD_ERROR) {
-                vm->thread->status = DST_THREAD_DEAD;
-                if (vm->thread->parent) {
-                    vm->thread = vm->thread->parent;
-                    if (vm->thread->status == DST_THREAD_ALIVE) {
+        {
+            DstValue ret = fiber->ret;
+            dst_fiber_popframe(fiber);
+            while (fiber->frame ||
+                fiber->status == DST_FIBER_DEAD ||
+                fiber->status == DST_FIBER_ERROR) {
+                fiber->status = DST_FIBER_DEAD;
+                if (fiber->parent) {
+                    fiber = fiber->parent;
+                    if (fiber->status == DST_FIBER_ALIVE) {
                         /* If the parent thread is still alive,
                            we are inside a cfunction */
-                        vm->ret = temp;
                         return 0;
                     }
-                    stack = vm->thread->data + vm->thread->count;
+                    stack = fiber->data + fiber->frame;
                 } else {
-                    vm->ret = temp;
                     return 0;
                 }
             }
-            vm->thread->status = DST_THREAD_ALIVE;
-            pc = dst_frame_pc(stack);
-            stack[dst_frame_ret(stack)] = temp;
+            fiber->status = DST_FIBER_ALIVE;
+            stack = fiber->data + fiber->frame;
+            pc = dst_stack_frame(stack)->pc;
+            stack[oparg(1, 0xFF)] = ret;
+            pc++;
             continue;
+        }
 
         /* Handle errors from c functions and vm opcodes */
         vm_error:
-            vm->thread->status = DST_THREAD_ERROR;
-            while (vm->thread->count < DST_FRAME_SIZE ||
-                vm->thread->status == DST_THREAD_DEAD ||
-                vm->thread->status == DST_THREAD_ERROR) {
-                if (vm->thread->parent == NULL)
+        {
+            DstValue ret = fiber->ret;
+            fiber->status = DST_FIBER_ERROR;
+            while (fiber->frame ||
+                fiber->status == DST_FIBER_DEAD ||
+                fiber->status == DST_FIBER_ERROR) {
+                if (fiber->parent == NULL)
                     return 1;
-                vm->thread = vm->thread->parent;
-                if (vm->thread->status == DST_THREAD_ALIVE) {
+                fiber = fiber->parent;
+                if (fiber->status == DST_FIBER_ALIVE) {
                     /* If the parent thread is still alive,
                        we are inside a cfunction */
                     return 1;
                 }
             }
-            vm->thread->status = DST_THREAD_ALIVE;
-            stack = vm->thread->data + vm->thread->count;
-            stack[dst_frame_ret(stack)] = vm->ret;
-            pc = dst_frame_pc(stack);
+            fiber->status = DST_FIBER_ALIVE;
+            stack = fiber->data + fiber->frame;
+            pc = dst_stack_frame(stack)->pc;
+            stack[oparg(1, 0xFF)] = ret;
+            pc++;
             continue;
-
+        }
+    
         } /* end switch */
 
         /* Check for collection every cycle. If the instruction definitely does
          * not allocate memory, it can use continue instead of break to
          * skip this check */
-        dst_maybe_collect(vm);
+        dst_maybe_collect();
 
     } /* end for */
+
+#undef oparg
+
+#undef vm_error
+#undef vm_assert
+#undef vm_binop
+#undef vm_binop_real
+#undef vm_binop_integer
+#undef vm_binop_immediate
+#undef vm_init_fiber_state
 
 }
 
 /* Run the vm with a given function. This function is
  * called to start the vm. */
-int dst_run(Dst *vm, DstValue callee) {
+int dst_run(DstValue callee) {
     int result;
-    if (vm->thread &&
-        (vm->thread->status == DST_THREAD_DEAD ||
-         vm->thread->status == DST_THREAD_ALIVE)) {
-        /* Reuse old thread */
-        dst_thread_reset(vm, vm->thread, callee);
-    } else {
-        /* Create new thread */
-        vm->thread = dst_thread(vm, callee, 64);
-    }
     if (callee.type == DST_CFUNCTION) {
-        vm->ret.type = DST_NIL;
-        result = callee.as.cfunction(vm);
+        dst_vm_fiber = dst_fiber(NULL, 0);
+        dst_vm_fiber->ret.type = DST_NIL;
+        dst_fiber_cframe(dst_vm_fiber);
+        result = callee.as.cfunction(dst_vm_fiber, dst_vm_fiber->data + dst_vm_fiber->frame, 0);
     } else if (callee.type == DST_FUNCTION) {
-        result = dst_continue(vm);
+        dst_vm_fiber = dst_fiber(callee.as.function, 64);
+        result = dst_continue(dst_vm_fiber);
     } else {
-        vm->ret = dst_string_cv(vm, "expected function");
-        return 1;
-    }
-    /* Handle yields */
-    while (!result && vm->thread->status == DST_THREAD_PENDING) {
-        /* Send back in the value yielded - TODO - do something useful with this */
-        DstValue *stack = dst_thread_stack(vm->thread);
-        stack[dst_frame_ret(stack)] = vm->ret;
-        /* Resume */
-        result = dst_continue(vm);
+        dst_vm_fiber->ret = dst_wrap_string(dst_cstring("expected function"));
+        result = 1;
     }
     return result;
 }
 
 /* Setup functions */
-Dst *dst_init() {
-    Dst *vm = malloc(sizeof(Dst));
-    if (NULL == vm) {
-        DST_OUT_OF_MEMORY;
-    }
-    vm->ret.type = DST_NIL;
+int dst_init() {
     /* Garbage collection */
-    vm->blocks = NULL;
-    vm->nextCollection = 0;
+    dst_vm_blocks = NULL;
+    dst_vm_next_collection = 0;
     /* Setting memoryInterval to zero forces
      * a collection pretty much every cycle, which is
      * horrible for performance, but helps ensure
      * there are no memory bugs during dev */
-    vm->memoryInterval = 0;
+    dst_vm_memory_interval = 0;
+
+    uint32_t initialCacheCapacity = 1024;
     /* Set up the cache */
-    vm->cache = calloc(1, 128 * sizeof(DstValue));
-    vm->cache_capacity = vm->cache == NULL ? 0 : 128;
-    vm->cache_count = 0;
-    vm->cache_deleted = 0;
-    /* Set up global env */
-    vm->modules = dst_make_table(vm, 10);
-    vm->registry = dst_make_table(vm, 10);
-    vm->env = dst_make_table(vm, 10);
+    dst_vm_cache = calloc(1, initialCacheCapacity * sizeof(DstValue));
+    if (NULL == dst_vm_cache) {
+        return 1;
+    }
+    dst_vm_cache_capacity = dst_vm_cache == NULL ? 0 : initialCacheCapacity;
+    dst_vm_cache_count = 0;
+    dst_vm_cache_deleted = 0;
     /* Set thread */
-    vm->thread = dst_thread(vm, vm->ret, 100);
-    dst_thread_pushnil(vm, vm->thread, 10);
-    return vm;
+    dst_vm_fiber = NULL;
+    return 0;
 }
 
 /* Clear all memory associated with the VM */
-void dst_deinit(Dst *vm) {
-    dst_clear_memory(vm);
-    vm->thread = NULL;
-    vm->modules = NULL;
-    vm->registry = NULL;
-    vm->ret.type = DST_NIL;
+void dst_deinit() {
+    dst_clear_memory();
+    dst_vm_fiber = NULL;
     /* Deinit the cache */
-    free(vm->cache);
-    vm->cache = NULL;
-    vm->cache_count = 0;
-    vm->cache_capacity = 0;
-    vm->cache_deleted = 0;
-    /* Free the vm */
-    free(vm);
+    free(dst_vm_cache);
+    dst_vm_cache = NULL;
+    dst_vm_cache_count = 0;
+    dst_vm_cache_capacity = 0;
+    dst_vm_cache_deleted = 0;
 }

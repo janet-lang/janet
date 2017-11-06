@@ -20,16 +20,14 @@
 * IN THE SOFTWARE.
 */
 
-#include "internal.h"
-#include "wrap.h"
+#include <dst/dst.h>
 
 /* Create new userdata */
-void *dst_userdata(Dst *vm, uint32_t size, const DstUserType *utype) {
-    DstValue ud;
-    char *data = dst_alloc(vm, DST_USERDATA, sizeof(DstUserdataHeader) + size);
+void *dst_userdata(uint32_t size, const DstUserType *utype) {
+    char *data = dst_alloc(DST_MEMORY_USERDATA, sizeof(DstUserdataHeader) + size);
     DstUserdataHeader *header = (DstUserdataHeader *)data;
     void *user = data + sizeof(DstUserdataHeader);
     header->size = size;
     header->type = utype;
-    return dst_wrap_userdata(user);
+    return user;
 }

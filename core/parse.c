@@ -20,7 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include "internal.h"
+#include <dst/dst.h>
 
 /* Get an integer power of 10 */
 static double exp10(int power) {
@@ -115,10 +115,12 @@ static int check_str_const(const char *ref, const uint8_t *start, const uint8_t 
 }
 
 /* Quote a value */
-static void quote(Dst *vm) {
-    dst_cstring(vm, "quote");
-    dst_hoist(vm, -2);
-    dst_tuple(vm, 2);
+static DstValue quote(DstValue x) {
+    DstValue sym = dst_wrap_symbol(dst_cstring("quote"));
+    DstValue *t = dst_tuple_begin(2);
+    t[0] = sym;
+    t[1] = x;
+    return dst_wrap_tuple(dst_tuple_end(t));
 }
 
 /* Check if a character is whitespace */
@@ -161,11 +163,14 @@ static int to_hex(uint8_t c) {
 }
 
 typedef struct {
-    Dst *vm;
+    DstFiber *fiber;
     const uint8_t *end;
     const char *errmsg;
-    int64_t sourcemap;
-    int status;
+    enum {
+        DST_PARSE_OK,
+        DST_PARSE_ERROR,
+        DST_PARSE_UNEPECTED_EOS
+    } status;
 } ParseArgs;
 
 /* Entry point of the recursive descent parser */
@@ -174,9 +179,9 @@ static const uint8_t *parse_recur(
     const uint8_t *src,
     uint32_t recur) {
 
-    Dst *vm = args->vm;
     const uint8_t *end = args->end;
     uint32_t qcount = 0;
+    DstValue ret;
 
     /* Prevent stack overflow */
     if (recur == 0) goto too_much_recur;
@@ -205,20 +210,20 @@ static const uint8_t *parse_recur(
                 tokenend++;
             if (tokenend >= end) goto unexpected_eos;
             if (read_integer(src, tokenend, &integer)) {
-                dst_integer(vm, integer);
+                ret = dst_wrap_integer(integer);
             } else if (read_real(src, tokenend, &real, 0)) {
-                dst_real(vm, real);
+                ret = dst_wrap_real(real);
             } else if (check_str_const("nil", src, tokenend)) {
-                dst_nil(vm);
+                ret = dst_wrap_nil();
             } else if (check_str_const("false", src, tokenend)) {
-                dst_false(vm);
+                ret = dst_wrap_boolean(0);
             } else if (check_str_const("true", src, tokenend)) {
-                dst_true(vm);
+                ret = dst_wrap_boolean(1);
             } else {
                 if (*src >= '0' && *src <= '9') {
                     goto sym_nodigits;
                 } else {
-                    dst_symbol(vm, src, tokenend - src);
+                    ret = dst_wrap_symbol(dst_string(src, tokenend - src));
                 }
             }
             src = tokenend;
@@ -230,7 +235,7 @@ static const uint8_t *parse_recur(
             while (tokenend < end && is_symbol_char(*tokenend))
                 tokenend++;
             if (tokenend >= end) goto unexpected_eos;
-            dst_string(vm, src, tokenend - src);
+            ret = dst_wrap_string(dst_string(src, tokenend - src));
             src = tokenend;
             break;
         }
@@ -256,7 +261,7 @@ static const uint8_t *parse_recur(
                 }
             }
             if (containsEscape) {
-                uint8_t *buf = dst_string_begin(vm, len);
+                uint8_t *buf = dst_string_begin(len);
                 uint8_t *write = buf;
                 while (src < strend) {
                     if (*src == '\\') {
@@ -285,9 +290,9 @@ static const uint8_t *parse_recur(
                         *write++ = *src++;
                     }
                 }
-                dst_string_end(vm, buf);
+                ret = dst_wrap_string(dst_string_end(buf));
             } else {
-                dst_string(vm, strstart, strend - strstart);
+                ret = dst_wrap_string(dst_string(strstart, strend - strstart));
                 src = strend + 1;
             }
             break;
@@ -297,7 +302,7 @@ static const uint8_t *parse_recur(
         case '(':
         case '[':
         case '{': {
-            uint32_t n = 0;
+            uint32_t n = 0, i = 0;
             uint8_t close;
             switch (*src++) {
                 case '[': close = ']'; break;
@@ -316,22 +321,36 @@ static const uint8_t *parse_recur(
             src++;
             switch (close) {
                 case ')':
-                    dst_tuple(vm, n);
-                    break;
                 case ']':
-                    dst_arrayn(vm, n);
+                {
+                    DstValue *tup = dst_tuple_begin(n);
+                    for (i = n; i > 0; i--)
+                        tup[i - 1] = dst_fiber_popvalue(args->fiber);
+                    ret = dst_wrap_tuple(dst_tuple_end(tup));
                     break;
+                }
                 case '}':
+                {
                     if (n & 1) goto struct_oddargs;
-                    dst_struct(vm, n/2);
+                    DstValue *st = dst_struct_begin(n >> 1);
+                    for (i = n; i > 0; i -= 2) {
+                        DstValue val = dst_fiber_popvalue(args->fiber);
+                        DstValue key = dst_fiber_popvalue(args->fiber);
+                        dst_struct_put(st, key, val);
+                    }
+                    ret = dst_wrap_struct(dst_struct_end(st));
                     break;
+                }
             }
             break;
         }
     }
 
     /* Quote the returned value qcount times */
-    while (qcount--) quote(vm);
+    while (qcount--) ret = quote(ret);
+
+    /* Push the result to the stack */
+    dst_fiber_push(args->fiber, ret);
 
     /* Return the new source position for further calls */
     return src;
@@ -340,88 +359,77 @@ static const uint8_t *parse_recur(
 
     unexpected_eos:
     args->errmsg = "unexpected end of source";
-    args->status = PARSE_UNEXPECTED_EOS;
+    args->status = DST_PARSE_UNEXPECTED_EOS;
     return NULL;
 
     unexpected_character:
     args->errmsg = "unexpected character";
-    args->status = PARSE_ERROR;
+    args->status = DST_PARSE_ERROR;
     return src;
 
     sym_nodigits:
     args->errmsg = "symbols cannot start with digits";
-    args->status = PARSE_ERROR;
+    args->status = DST_PARSE_ERROR;
     return src;
 
     struct_oddargs:
     args->errmsg = "struct literal needs an even number of arguments";
-    args->status = PARSE_ERROR;
+    args->status = DST_PARSE_ERROR;
     return src;
 
     unknown_strescape:
     args->errmsg = "unknown string escape sequence";
-    args->status = PARSE_ERROR;
+    args->status = DST_PARSE_ERROR;
     return src;
 
     invalid_hex:
     args->errmsg = "invalid hex escape in string";
-    args->status = PARSE_ERROR;
+    args->status = DST_PARSE_ERROR;
     return src;
 
     too_much_recur:
     args->errmsg = "recursed too deeply in parsing";
-    args->status = PARSE_ERROR;
+    args->status = DST_PARSE_ERROR;
     return src;
 }
 
-/* Parse an array of bytes */
-int dst_parseb(Dst *vm, const uint8_t *src, const uint8_t **newsrc, uint32_t len) {
+/* Parse an array of bytes. Return value in the fiber return value. */
+int dst_parse(const uint8_t *src, uint32_t len, const uint8_t **newsrc) {
     ParseArgs args;
-    uint32_t nargs;
+    DstFiber *fiber = dst_vm_fiber;
 
-    /* Create a source map */
-    dst_table(vm, 10);
+    /* Save original stack top */
+    uint32_t oldstacktop = fiber->stacktop;
 
-    nargs = dst_stacksize(vm);
-
-    args.vm = vm;
-    args.status = PARSE_OK;
+    args.fiber = fiber;
+    args.status = DST_PARSE_OK;
     args.end = src + len;
     args.errmsg = NULL;
-    args.sourcemap = dst_normalize_index(vm, -1);
 
-    src = parse_recur(&args, src, 2048);
-    if (newsrc) *newsrc = src;
+    src = parse_recur(&args, src, DST_RECURSION_GUARD);
+    if (NULL != newsrc) *newsrc = src;
 
     if (args.errmsg) {
-        /* Unwind the stack */
-        dst_trimstack(vm, nargs);
-        dst_cstring(vm, args.errmsg);
+        fiber->ret = dst_wrap_string(dst_cstring(args.errmsg));
+    } else {
+        fiber->ret = dst_fiber_popvalue(fiber);
     }
+
+    /* Reset stacktop */
+    fiber->stacktop = oldstacktop;
 
     return args.status;
 }
 
 /* Parse a c string */
-int dst_parsec(Dst *vm, const char *src, const char **newsrc) {
+int dst_parsec(const char *src, const char **newsrc) {
     uint32_t len = 0;
     const uint8_t *ns = NULL;
     int status;
     while (src[len]) ++len;
-    status = dst_parseb(vm, (const uint8_t *)src, &ns, len);
+    status = dst_parse((const uint8_t *)src, len, &ns);
     if (newsrc) {
         *newsrc = (const char *)ns;
     }
-    return status;
-}
-
-/* Parse a DST char seq (Buffer, String, Symbol) */
-int dst_parse(Dst *vm)  {
-    int status;
-    uint32_t len;
-    const uint8_t *bytes = dst_bytes(vm, -1, &len);
-    status = dst_parseb(vm, bytes, NULL, len);
-    dst_swap(vm, -1, -2);
-    dst_pop(vm);
     return status;
 }

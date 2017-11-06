@@ -20,15 +20,13 @@
 * IN THE SOFTWARE.
 */
 
-#include "internal.h"
-#include "wrap.h"
-#include "gc.h"
+#include <dst/dst.h>
 
 /* Initialize a table */
-DstTable *dst_table(Dst *vm, uint32_t capacity) {
-    DstTable *table = dst_alloc(vm, DST_MEMORY_TABLE, sizeof(DstTable));
-    DstValue *data = calloc(sizeof(DstValue), capacity);
+DstTable *dst_table_init(DstTable *table, uint32_t capacity) {
+    DstValue *data;
     if (capacity < 2) capacity = 2;
+    data = calloc(sizeof(DstValue), capacity);
     if (NULL == data) {
         DST_OUT_OF_MEMORY;
     }
@@ -37,6 +35,17 @@ DstTable *dst_table(Dst *vm, uint32_t capacity) {
     table->count = 0;
     table->deleted = 0;
     return table;
+}
+
+/* Deinitialize a table */
+void dst_table_deinit(DstTable *table) {
+    free(table->data);
+}
+
+/* Create a new table */
+DstTable *dst_table(uint32_t capacity) {
+    DstTable *table = dst_alloc(DST_MEMORY_TABLE, sizeof(DstTable));
+    return dst_table_init(table, capacity);
 }
 
 /* Find the bucket that contains the given key. Will also return
@@ -63,7 +72,7 @@ static DstValue *dst_table_find(DstTable *t, DstValue key) {
 }
 
 /* Resize the dictionary table. */
-static void dst_table_rehash(Dst *vm, DstTable *t, uint32_t size) {
+static void dst_table_rehash(DstTable *t, uint32_t size) {
     DstValue *olddata = t->data;
     DstValue *newdata = calloc(sizeof(DstValue), size);
     if (NULL == newdata) {
@@ -110,7 +119,7 @@ DstValue dst_table_remove(DstTable *t, DstValue key) {
 }
 
 /* Put a value into the object */
-void dst_table_put(Dst *vm, DstTable *t, DstValue key, DstValue value) {
+void dst_table_put(DstTable *t, DstValue key, DstValue value) {
     if (key.type == DST_NIL) return;
     if (value.type == DST_NIL) {
         dst_table_remove(t, key);
@@ -120,7 +129,7 @@ void dst_table_put(Dst *vm, DstTable *t, DstValue key, DstValue value) {
             bucket[1] = value;
         } else {
             if (!bucket || 4 * (t->count + t->deleted) >= t->capacity) {
-                dst_table_rehash(vm, t, 4 * t->count + 6);
+                dst_table_rehash(t, 4 * t->count + 6);
             }
             bucket = dst_table_find(t, key);
             if (bucket[1].type == DST_BOOLEAN)

@@ -3,7 +3,6 @@
 # simply construct a FuncDef from this file. This file is also parsed
 # in the same markup as dst itself (extended S expressions)
 {
-    stack 10
     arity 3
     signature (integer integer integer integer)
     source "source file path"
@@ -38,7 +37,8 @@
         0x0000123400000135
         ...
      ]
-# Slots can be named as well for convenience.
+# The number of slots available for the function.
+# Slots can be named as well for convenience. 
      slots [
         x
         y

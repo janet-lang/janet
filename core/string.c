@@ -20,28 +20,8 @@
 * IN THE SOFTWARE.
 */
 
-#include "internal.h"
+#include <dst/dst.h>
 #include "cache.h"
-#include "wrap.h"
-#include "gc.h"
-
-static const char *types[] = {
-    "nil",
-    "real",
-    "integer",
-    "boolean",
-    "string",
-    "symbol",
-    "array",
-    "tuple",
-    "table",
-    "struct",
-    "thread",
-    "buffer",
-    "function",
-    "cfunction",
-    "userdata"
-};
 
 static const char base64[] =
     "0123456789"
@@ -59,8 +39,8 @@ static uint32_t dst_string_calchash(const uint8_t *str, uint32_t len) {
 }
 
 /* Begin building a string */
-uint8_t *dst_string_begin(Dst *vm, uint32_t length) {
-    char *data = dst_alloc(vm, DST_MEMORY_NONE, 2 * sizeof(uint32_t) + length + 1);
+uint8_t *dst_string_begin(uint32_t length) {
+    char *data = dst_alloc(DST_MEMORY_NONE, 2 * sizeof(uint32_t) + length + 1);
     uint8_t *str = (uint8_t *) (data + 2 * sizeof(uint32_t));
     dst_string_length(str) = length;
     str[length] = 0;
@@ -68,28 +48,32 @@ uint8_t *dst_string_begin(Dst *vm, uint32_t length) {
 }
 
 /* Finish building a string */
-const uint8_t *dst_string_end(Dst *vm, uint8_t *str) {
-    DstValue check = dst_string_calchash(str, dst_string_length(str));
-    const uint8_t *ret = dst_cache_add(vm, dst_wrap_string(check)).as.string;
-    gc_settype(dst_string_raw(ret), DST_MEMORY_STRING);
-    return ret;
+const uint8_t *dst_string_end(uint8_t *str) {
+    DstValue check;
+    dst_string_hash(str) = dst_string_calchash(str, dst_string_length(str));
+    check = dst_cache_add(dst_wrap_string(str));
+    /* Don't tag the memory of the string builder directly. If the string is
+     * already cached, we don't want the gc to remove it from cache when the original
+     * string builder is gced (check will contained the cached string) */
+    dst_gc_settype(dst_string_raw(check.as.string), DST_MEMORY_STRING);
+    return check.as.string;
 }
 
 /* Load a buffer as a string */
-static const uint8_t *dst_string(Dst *vm, const uint8_t *buf, uint32_t len) {
+const uint8_t *dst_string(const uint8_t *buf, uint32_t len) {
     uint32_t hash = dst_string_calchash(buf, len);
     int status = 0;
-    DstValue *bucket = dst_cache_strfind(vm, buf, len, hash, &status);
+    DstValue *bucket = dst_cache_strfind(buf, len, hash, &status);
     if (status) {
-        return bucket->data.string;
+        return bucket->as.string;
     } else {
         uint32_t newbufsize = len + 2 * sizeof(uint32_t) + 1;
-        uint8_t *str = (uint8_t *)(dst_alloc(vm, DST_MEMORY_STRING, newbufsize) + 2 * sizeof(uint32_t));
-        dst_memcpy(str, buf, len);
+        uint8_t *str = (uint8_t *)(dst_alloc(DST_MEMORY_STRING, newbufsize) + 2 * sizeof(uint32_t));
+        memcpy(str, buf, len);
         dst_string_length(str) = len;
         dst_string_hash(str) = hash;
         str[len] = 0;
-        return dst_cache_add_bucket(vm, dst_wrap_string(str), bucket).as.string;
+        return dst_cache_add_bucket(dst_wrap_string(str), bucket).as.string;
     }
 }
 
@@ -111,7 +95,7 @@ static void inc_counter(uint8_t *digits, int base, int len) {
 /* Generate a unique symbol. This is used in the library function gensym. The
  * symbol string data does not have GC enabled on it yet. You must manuallyb enable
  * it later. */
-const uint8_t *dst_string_unique(Dst *vm, const uint8_t *buf, uint32_t len) {
+const uint8_t *dst_string_unique(const uint8_t *buf, uint32_t len) {
     DstValue *bucket;
     uint32_t hash;
     uint8_t counter[6] = {63, 63, 63, 63, 63, 63};
@@ -119,7 +103,7 @@ const uint8_t *dst_string_unique(Dst *vm, const uint8_t *buf, uint32_t len) {
      * is enough for resolving collisions. */
     uint32_t newlen = len + 8;
     uint32_t newbufsize = newlen + 2 * sizeof(uint32_t) + 1;
-    uint8_t *str = (uint8_t *)(dst_alloc(vm, DST_MEMORY_STRING, newbufsize) + 2 * sizeof(uint32_t));
+    uint8_t *str = (uint8_t *)(dst_alloc(DST_MEMORY_STRING, newbufsize) + 2 * sizeof(uint32_t));
     dst_string_length(str) = newlen;
     memcpy(str, buf, len);
     str[len] = '-';
@@ -133,24 +117,24 @@ const uint8_t *dst_string_unique(Dst *vm, const uint8_t *buf, uint32_t len) {
         for (i = 0; i < 6; ++i)
             saltbuf[i] = base64[counter[i]];
         hash = dst_string_calchash(str, newlen);
-        bucket = dst_cache_strfind(vm, str, newlen, hash, &status);
+        bucket = dst_cache_strfind(str, newlen, hash, &status);
     }
     dst_string_hash(str) = hash;
-    return dst_cache_add_bucket(vm, dst_wrap_string(str), bucket).as.string;
+    return dst_cache_add_bucket(dst_wrap_string(str), bucket).as.string;
 }
 
 /* Generate a unique string from a cstring */
-const uint8_t *dst_cstring_unique(Dst *vm, const char *s) {
+const uint8_t *dst_cstring_unique(const char *s) {
     uint32_t len = 0;
     while (s[len]) ++len;
-    return dst_string_unique(vm, (const uint8_t *)s, len);
+    return dst_string_unique((const uint8_t *)s, len);
 }
 
 /* Load a c string */
-const uint8_t *dst_cstring(Dst *vm, const char *str) {
+const uint8_t *dst_cstring(const char *str) {
     uint32_t len = 0;
     while (str[len]) ++len;
-    return dst_string(vm, (const uint8_t *)str, len);
+    return dst_string((const uint8_t *)str, len);
 }
 
 /* Temporary buffer size */
@@ -161,14 +145,14 @@ static uint32_t real_to_string_impl(uint8_t *buf, double x) {
     return (uint32_t) count;
 }
 
-static void real_to_string_b(Dst *vm, DstBuffer *buffer, double x) {
-    dst_buffer_ensure_(vm, buffer, buffer->count + DST_BUFSIZE);
+static void real_to_string_b(DstBuffer *buffer, double x) {
+    dst_buffer_ensure(buffer, buffer->count + DST_BUFSIZE);
     buffer->count += real_to_string_impl(buffer->data + buffer->count, x);
 }
 
-static void real_to_string(Dst *vm, double x) {
+static const uint8_t *real_to_string(double x) {
     uint8_t buf[DST_BUFSIZE];
-    dst_string(vm, buf, real_to_string_impl(buf, x));
+    return dst_string(buf, real_to_string_impl(buf, x));
 }
 
 static uint32_t integer_to_string_impl(uint8_t *buf, int64_t x) {
@@ -201,14 +185,14 @@ static uint32_t integer_to_string_impl(uint8_t *buf, int64_t x) {
     return count;
 }
 
-static void integer_to_string_b(Dst *vm, DstBuffer *buffer, int64_t x) {
-    dst_buffer_extra(vm, buffer, DST_BUFSIZE);
+static void integer_to_string_b(DstBuffer *buffer, int64_t x) {
+    dst_buffer_extra(buffer, DST_BUFSIZE);
     buffer->count += integer_to_string_impl(buffer->data + buffer->count, x);
 }
 
-static void integer_to_string(Dst *vm, int64_t x) {
+static const uint8_t *integer_to_string(int64_t x) {
     uint8_t buf[DST_BUFSIZE];
-    dst_string(vm, buf, integer_to_string_impl(buf, x));
+    return dst_string(buf, integer_to_string_impl(buf, x));
 }
 
 #define HEX(i) (((uint8_t *) base64)[(i)])
@@ -240,14 +224,16 @@ static uint32_t string_description_impl(uint8_t *buf, const char *title, void *p
     return (uint32_t) (c - buf);
 }
 
-static void string_description_b(Dst *vm, DstBuffer *buffer, const char *title, void *pointer) {
-    dst_buffer_ensure_(vm, buffer, buffer->count + DST_BUFSIZE);
+static void string_description_b(DstBuffer *buffer, const char *title, void *pointer) {
+    dst_buffer_ensure(buffer, buffer->count + DST_BUFSIZE);
     buffer->count += string_description_impl(buffer->data + buffer->count, title, pointer);
 }
 
-static const uint8_t *string_description(Dst *vm, const char *title, void *pointer) {
+/* Describes a pointer with a title (string_description("bork",  myp) returns 
+ * a string "<bork 0x12345678>") */
+static const uint8_t *string_description(const char *title, void *pointer) {
     uint8_t buf[DST_BUFSIZE];
-    return dst_string(vm, buf, string_description_impl(buf, title, pointer));
+    return dst_string(buf, string_description_impl(buf, title, pointer));
 }
 
 #undef HEX
@@ -302,82 +288,82 @@ static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str) {
     buf[j++] = '"';
 }
 
-static void dst_escape_string_b(Dst *vm, DstBuffer *buffer, const uint8_t *str) {
+void dst_escape_string_b(DstBuffer *buffer, const uint8_t *str) {
     uint32_t len = dst_escape_string_length(str);
-    dst_buffer_extra(vm, buffer, len);
+    dst_buffer_extra(buffer, len);
     dst_escape_string_impl(buffer->data + buffer->count, str);
     buffer->count += len;
 }
 
-static const uint8_t *dst_escape_string(Dst *vm, const uint8_t *str) {
+const uint8_t *dst_escape_string(const uint8_t *str) {
     uint32_t len = dst_escape_string_length(str);
-    uint8_t *buf = dst_string_begin(vm, len);
+    uint8_t *buf = dst_string_begin(len);
     dst_escape_string_impl(buf, str);
-    return dst_string_end(vm, buf);
+    return dst_string_end(buf);
 }
 
 /* Returns a string pointer with the description of the string */
-static const uint8_t *dst_short_description(Dst *vm) {
+const uint8_t *dst_short_description(DstValue x) {
     switch (x.type) {
     case DST_NIL:
-        return dst_cstring(vm, "nil");
+        return dst_cstring("nil");
     case DST_BOOLEAN:
         if (x.as.boolean)
-            return dst_cstring(vm, "true");
+            return dst_cstring("true");
         else
-            return dst_cstring(vm, "false");
+            return dst_cstring("false");
     case DST_REAL:
-        return real_to_string(vm, x.as.real);
+        return real_to_string(x.as.real);
     case DST_INTEGER:
-        return integer_to_string(vm, x.as.integer);
+        return integer_to_string(x.as.integer);
     case DST_SYMBOL:
         return x.as.string;
     case DST_STRING:
-        return dst_escape_string(vm, x.as.string);
+        return dst_escape_string(x.as.string);
     case DST_USERDATA:
-        return string_description(vm, dst_udata_type(x.as.pointer)->name, x.as.pointer);
+        return string_description(dst_userdata_type(x.as.pointer)->name, x.as.pointer);
     default:
-        return string_description(vm, types[x.type], x.as.pointer);
+        return string_description(dst_type_names[x.type], x.as.pointer);
     }
 }
 
-static void dst_short_description_b(Dst *vm, DstBuffer *buffer, DstValue x) {
+void dst_short_description_b(DstBuffer *buffer, DstValue x) {
     switch (x.type) {
     case DST_NIL:
-        dst_buffer_push_cstring(vm, buffer, "nil");
+        dst_buffer_push_cstring(buffer, "nil");
         return;
     case DST_BOOLEAN:
         if (x.as.boolean)
-            dst_buffer_push_cstring(vm, buffer, "true");
+            dst_buffer_push_cstring(buffer, "true");
         else
-            dst_buffer_push_cstring(vm, buffer, "false");
+            dst_buffer_push_cstring(buffer, "false");
         return;
     case DST_REAL:
-        real_to_string_b(vm, buffer, x.as.real);
+        real_to_string_b(buffer, x.as.real);
         return;
     case DST_INTEGER:
-        integer_to_string_b(vm, buffer, x.as.integer);
+        integer_to_string_b(buffer, x.as.integer);
         return;
     case DST_SYMBOL:
-        dst_buffer_push_bytes(vm, buffer, x.as.string, dst_string_length(x.as.string));
+        dst_buffer_push_bytes(buffer, x.as.string, dst_string_length(x.as.string));
         return;
     case DST_STRING:
-        dst_escape_string_b(vm, buffer, x.as.string);
+        dst_escape_string_b(buffer, x.as.string);
         return;
     case DST_USERDATA:
-        string_description_b(vm, buffer, dst_udata_type(x.as.pointer)->name, x.as.pointer);
+        string_description_b(buffer, dst_userdata_type(x.as.pointer)->name, x.as.pointer);
         return;
     default:
-        string_description_b(vm, buffer, types[x.type], x.as.pointer);
+        string_description_b(buffer, dst_type_names[x.type], x.as.pointer);
         break;
     }
 }
 
 /* Static debug print helper */
-static int64_t dst_description_helper(Dst *vm, DstBuffer *b, DstTable *seen, DstValue x, int64_t next, int depth) {
+static int64_t dst_description_helper(DstBuffer *b, DstTable *seen, DstValue x, int64_t next, int depth) {
     DstValue check = dst_table_get(seen, x);
     if (check.type == DST_INTEGER) {
-        dst_buffer_push_cstring(vm, b, "<cycle>");
+        dst_buffer_push_cstring(b, "<cycle>");
     } else {
         const char *open;
         const char *close;
@@ -385,7 +371,7 @@ static int64_t dst_description_helper(Dst *vm, DstBuffer *b, DstTable *seen, Dst
         const DstValue *data;
         switch (x.type) {
             default:
-                dst_short_description_b(vm, b, x);
+                dst_short_description_b(b, x);
                 return next;
             case DST_STRUCT:
                 open = "{"; close = "}";
@@ -400,10 +386,10 @@ static int64_t dst_description_helper(Dst *vm, DstBuffer *b, DstTable *seen, Dst
                 open = "["; close = "]";
                 break;
         }
-        dst_table_put(vm, seen, x, dst_wrap_integer(next++));
-        dst_buffer_push_cstring(vm, b, open);
+        dst_table_put(seen, x, dst_wrap_integer(next++));
+        dst_buffer_push_cstring(b, open);
         if (depth == 0) {
-            dst_buffer_push_cstring(vm, b, "...");
+            dst_buffer_push_cstring(b, "...");
         } else if (dst_hashtable_view(x, &data, &len)) {
             int isfirst = 1;
             for (i = 0; i < len; i += 2) {
@@ -411,45 +397,45 @@ static int64_t dst_description_helper(Dst *vm, DstBuffer *b, DstTable *seen, Dst
                     if (isfirst)
                         isfirst = 0;
                     else
-                        dst_buffer_push_u8(vm, b, ' ');
-                    next = dst_description_helper(vm, b, seen, data[i], next, depth - 1);
-                    dst_buffer_push_u8(vm, b, ' ');
-                    next = dst_description_helper(vm, b, seen, data[i + 1], next, depth - 1);
+                        dst_buffer_push_u8(b, ' ');
+                    next = dst_description_helper(b, seen, data[i], next, depth - 1);
+                    dst_buffer_push_u8(b, ' ');
+                    next = dst_description_helper(b, seen, data[i + 1], next, depth - 1);
                 }
             }
         } else if (dst_seq_view(x, &data, &len)) {
             for (i = 0; i < len; ++i) {
-                next = dst_description_helper(vm, b, seen, data[i], next, depth - 1);
+                next = dst_description_helper(b, seen, data[i], next, depth - 1);
                 if (i != len - 1)
-                    dst_buffer_push_u8(vm, b, ' ');
+                    dst_buffer_push_u8(b, ' ');
             }
         }
-        dst_buffer_push_cstring(vm, b, close);
+        dst_buffer_push_cstring(b, close);
     }
     return next;
 }
 
 /* Debug print. Returns a description of an object as a string. */
-const uint8_t *dst_description(Dst *vm, DstValue x) {
-    DstBuffer *buf = dst_buffer(vm, 10);
-    DstTable *seen = dst_table(vm, 10);
+const uint8_t *dst_description(DstValue x) {
+    DstBuffer *buf = dst_buffer(10);
+    DstTable *seen = dst_table(10);
 
     /* Only print description up to a depth of 4 */
-    dst_description_helper(vm, buf, seen, x, 0, 4);
+    dst_description_helper(buf, seen, x, 0, 4);
 
-    return dst_string(vm, buf->data, buf->count);
+    return dst_string(buf->data, buf->count);
 }
 
-/* Convert any value to a dst string */
-const uint8_t *dst_to_string(Dst *vm, DstValue x) {
-    DstValue x = dst_getv(vm, -1);
+/* Convert any value to a dst string. Similar to description, but
+ * strings, symbols, and buffers will return their content. */
+const uint8_t *dst_to_string(DstValue x) {
     switch (x.type) {
         default:
-            return dst_description(vm, x);
+            return dst_description(x);
         case DST_STRING:
         case DST_SYMBOL:
             return x.as.string;
         case DST_BUFFER:
-            return dst_string(vm, x.as.buffer->data, x.as.buffer->count);
+            return dst_string(x.as.buffer->data, x.as.buffer->count);
     }
 }

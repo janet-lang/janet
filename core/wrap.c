@@ -20,7 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include "wrap.h"
+#include <dst/dst.h>
 
 /* Wrapper functions wrap a data type that is used from C into a
  * dst value, which can then be used in dst internal functions. Use
@@ -40,11 +40,7 @@ DstValue dst_wrap_##NAME(TYPE x) {\
     y.type = DTYPE;\
     y.as.UM = x;\
     return y;\
-}\
-\
-TYPE dst_unwrap_##NAME(Dst *vm, int64_t i) {\
-    return dst_getv(vm, i).as.UM;\
-}\
+}
 
 DST_WRAP_DEFINE(real, double, DST_REAL, real)
 DST_WRAP_DEFINE(integer, int64_t, DST_INTEGER, integer)
@@ -54,7 +50,7 @@ DST_WRAP_DEFINE(symbol, const uint8_t *, DST_SYMBOL, string)
 DST_WRAP_DEFINE(array, DstArray *, DST_ARRAY, array)
 DST_WRAP_DEFINE(tuple, const DstValue *, DST_TUPLE, tuple)
 DST_WRAP_DEFINE(struct, const DstValue *, DST_STRUCT, st)
-DST_WRAP_DEFINE(thread, DstThread *, DST_THREAD, thread)
+DST_WRAP_DEFINE(thread, DstFiber *, DST_FIBER, fiber)
 DST_WRAP_DEFINE(buffer, DstBuffer *, DST_BUFFER, buffer)
 DST_WRAP_DEFINE(function, DstFunction *, DST_FUNCTION, function)
 DST_WRAP_DEFINE(cfunction, DstCFunction, DST_CFUNCTION, cfunction)

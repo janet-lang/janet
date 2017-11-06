@@ -20,31 +20,14 @@
 * IN THE SOFTWARE.
 */
 
+
 #include <dst/dst.h>
-#include "cache.h"
 
-/* Create a new empty tuple of the given size. This will return memory
- * which should be filled with DstValues. The memory will not be collected until
- * dst_tuple_end is called. */
-DstValue *dst_tuple_begin(uint32_t length) {
-    char *data = dst_alloc(DST_MEMORY_NONE, 2 * sizeof(uint32_t) + length * sizeof(DstValue));
-    DstValue *tuple = (DstValue *)(data + (2 * sizeof(uint32_t)));
-    dst_tuple_length(tuple) = length;
-    return tuple;
+int dst_print(DstFiber *fiber, DstValue *argv, uint32_t argn) {
+    printf("Hello!\n");
+    return 0;
 }
 
-/* Finish building a tuple */
-const DstValue *dst_tuple_end(DstValue *tuple) {
-    DstValue check;
-    dst_tuple_hash(tuple) = dst_calchash_array(tuple, dst_tuple_length(tuple));
-    check = dst_cache_add(dst_wrap_tuple((const DstValue *) tuple));
-    dst_gc_settype(dst_tuple_raw(check.as.tuple), DST_MEMORY_TUPLE);
-    return check.as.tuple;
-}
-
-/* Build a tuple with n values */
-const DstValue *dst_tuple_n(DstValue *values, uint32_t n) {
-    DstValue *t = dst_tuple_begin(n);
-    memcpy(t, values, sizeof(DstValue) * n);
-    return dst_tuple_end(t);
-}
+DstCFunction dst_vm_syscalls[256] = {
+    dst_print
+};

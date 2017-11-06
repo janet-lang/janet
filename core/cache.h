@@ -24,16 +24,15 @@
 #define DST_CACHE_H_defined
 
 #include <dst/dst.h>
-#include "internal.h"
 
-DstValue dst_cache_add(Dst *vm, DstValue x);
-DstValue *dst_cache_strfind(Dst *vm,
+DstValue dst_cache_add(DstValue x);
+DstValue *dst_cache_strfind(
         const uint8_t *str,
         uint32_t len,
         uint32_t hash,
         int *success);
-DstValue dst_cache_add_bucket(Dst *vm, DstValue x, DstValue *bucket);
+DstValue dst_cache_add_bucket(DstValue x, DstValue *bucket);
 
-void dst_cache_remove(Dst *vm, DstValue x);
+void dst_cache_remove(DstValue x);
 
 #endif

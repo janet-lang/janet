@@ -20,23 +20,28 @@
 * IN THE SOFTWARE.
 */
 
-#include "internal.h"
+#include <dst/dst.h>
 
-int dst_checkerr(Dst *vm) { return !!vm->flags; }
 
-void dst_return(Dst *vm, DstValue x) {
-    vm->ret = x;
-}
-
-void dst_throw(Dst *vm) {
-    vm->flags = 1;
-    vm->ret = dst_popv(vm);
-}
-
-void dst_cerr(Dst *vm, const char *message) {
-    vm->flags = 1;
-    vm->ret = dst_string_cv(vm, message);
-}
+/* The DST value types in order. These types can be used as
+ * mnemonics instead of a bit pattern for type checking */
+const char *dst_type_names[15] = {
+    "nil",
+    "real",
+    "integer",
+    "boolean",
+    "string",
+    "symbol",
+    "array",
+    "tuple",
+    "table",
+    "struct",
+    "fiber",
+    "buffer",
+    "function",
+    "cfunction",
+    "userdata"
+};
 
 /* Read both tuples and arrays as c pointers + uint32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */
@@ -84,6 +89,18 @@ int dst_hashtable_view(DstValue tab, const DstValue **data, uint32_t *cap) {
     return 0;
 }
 
+/* Convert a real to int */
+int64_t dst_real_to_integer(double real) {
+    /* TODO - consider c undefined behavior */
+    return (int64_t) real;
+}
+
+/* Convert an integer to a real */
+double dst_integer_to_real(int64_t integer) {
+    /* TODO - consider c undefined behavior */
+    return (double) integer;
+}
+
 /* Convert an index used by the capi to an absolute index */
 uint32_t dst_startrange(int64_t index, uint32_t modulo) {
     if (index < 0) index += modulo;
@@ -93,12 +110,4 @@ uint32_t dst_startrange(int64_t index, uint32_t modulo) {
 /* Convert an index used by the capi to an absolute index */
 uint32_t dst_endrange(int64_t index, uint32_t modulo) {
     return dst_startrange(index, modulo + 1);
-}
-
-/* Convert a possibly negative index to a positive index on the current stack. */
-int64_t dst_normalize_index(Dst *vm, int64_t index) {
-    if (index < 0) {
-        index += dst_frame_size(dst_thread_stack(vm->thread));
-    }
-    return index;
 }
