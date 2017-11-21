@@ -27,7 +27,7 @@
 DstFiber *dst_vm_fiber;
 
 /* Start running the VM from where it left off. */
-int dst_continue(DstFiber *fiber) {
+int dst_continue() {
 
     /* VM state */
     DstValue *stack;
@@ -36,9 +36,9 @@ int dst_continue(DstFiber *fiber) {
 
     /* Used to extract bits from the opcode that correspond to arguments.
      * Pulls out unsigned integers */
-#define oparg(shift, mask) ((*pc >> ((shift) << 3)) & (mask))
+#define oparg(shift, mask) (((*pc) >> ((shift) << 3)) & (mask))
 
-#define vm_throw(e) do { fiber->ret = dst_wrap_string(dst_cstring((e))); goto vm_error; } while (0)
+#define vm_throw(e) do { dst_vm_fiber->ret = dst_wrap_string(dst_cstring((e))); goto vm_error; } while (0)
 #define vm_assert(cond, e) do {if (!(cond)) vm_throw((e)); } while (0)
 
 #define vm_binop_integer(op) \
@@ -69,19 +69,19 @@ int dst_continue(DstFiber *fiber) {
         vm_assert(op1.type == DST_INTEGER || op1.type == DST_REAL, "expected number");\
         vm_assert(op2.type == DST_INTEGER || op2.type == DST_REAL, "expected number");\
         stack[oparg(1, 0xFF)] = op1.type == DST_INTEGER\
-            ? op2.type == DST_INTEGER\
+            ? (op2.type == DST_INTEGER\
                 ? dst_wrap_integer(op1.as.integer op op2.as.integer)\
-                : dst_wrap_real(dst_integer_to_real(op1.as.integer) op op2.as.real)\
-            : op2.type == DST_INTEGER\
+                : dst_wrap_real(dst_integer_to_real(op1.as.integer) op op2.as.real))\
+            : (op2.type == DST_INTEGER\
                 ? dst_wrap_real(op1.as.real op dst_integer_to_real(op2.as.integer))\
-                : dst_wrap_real(op1.as.real op op2.as.real);\
+                : dst_wrap_real(op1.as.real op op2.as.real));\
         pc++;\
         continue;\
     }
 
 #define vm_init_fiber_state() \
-    fiber->status = DST_FIBER_ALIVE;\
-    stack = fiber->data + fiber->frame;\
+    dst_vm_fiber->status = DST_FIBER_ALIVE;\
+    stack = dst_vm_fiber->data + dst_vm_fiber->frame;\
     pc = dst_stack_frame(stack)->pc;\
     func = dst_stack_frame(stack)->func;
 
@@ -105,7 +105,7 @@ int dst_continue(DstFiber *fiber) {
             continue;
 
         case DOP_ERROR:
-            fiber->ret = stack[oparg(1, 0xFF)];
+            dst_vm_fiber->ret = stack[oparg(1, 0xFF)];
             goto vm_error;
 
         case DOP_TYPECHECK:
@@ -115,11 +115,11 @@ int dst_continue(DstFiber *fiber) {
             continue;
 
         case DOP_RETURN:
-            fiber->ret = stack[oparg(1, 0xFFFFFF)];
+            dst_vm_fiber->ret = stack[oparg(1, 0xFFFFFF)];
             goto vm_return;
 
         case DOP_RETURN_NIL:
-            fiber->ret.type = DST_NIL;
+            dst_vm_fiber->ret.type = DST_NIL;
             goto vm_return;
 
         case DOP_COERCE_INTEGER:
@@ -394,8 +394,8 @@ int dst_continue(DstFiber *fiber) {
                 if (fd->flags & DST_FUNCDEF_FLAG_NEEDSENV) {
                     /* Delayed capture of current stack frame */
                     DstFuncEnv *env = dst_alloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
-                    env->offset = fiber->frame;
-                    env->as.fiber = fiber;
+                    env->offset = dst_vm_fiber->frame;
+                    env->as.fiber = dst_vm_fiber;
                     env->length = func->def->slotcount;
                     fn->envs[0] = env;
                 } else {
@@ -411,19 +411,19 @@ int dst_continue(DstFiber *fiber) {
             }
 
         case DOP_PUSH:
-            dst_fiber_push(fiber, stack[oparg(1, 0xFFFFFF)]);
+            dst_fiber_push(dst_vm_fiber, stack[oparg(1, 0xFFFFFF)]);
             pc++;
             break;
 
         case DOP_PUSH_2:
-            dst_fiber_push2(fiber, 
+            dst_fiber_push2(dst_vm_fiber, 
                 stack[oparg(1, 0xFF)],
                 stack[oparg(2, 0xFFFF)]);
             pc++;
             break;;
 
         case DOP_PUSH_3:
-            dst_fiber_push3(fiber, 
+            dst_fiber_push3(dst_vm_fiber, 
                 stack[oparg(1, 0xFF)],
                 stack[oparg(2, 0xFF)],
                 stack[oparg(3, 0xFF)]);
@@ -435,7 +435,7 @@ int dst_continue(DstFiber *fiber) {
                 uint32_t count;
                 const DstValue *array;
                 if (dst_seq_view(stack[oparg(1, 0xFFFFFF)], &array, &count)) {
-                    dst_fiber_pushn(fiber, array, count);
+                    dst_fiber_pushn(dst_vm_fiber, array, count);
                 } else {
                     vm_throw("expected array or tuple");
                 }
@@ -448,19 +448,19 @@ int dst_continue(DstFiber *fiber) {
             DstValue callee = stack[oparg(2, 0xFFFF)];
             if (callee.type == DST_FUNCTION) {
                 func = callee.as.function;
-                dst_fiber_funcframe(fiber, func);
-                stack = fiber->data + fiber->frame;
+                dst_fiber_funcframe(dst_vm_fiber, func);
+                stack = dst_vm_fiber->data + dst_vm_fiber->frame;
                 pc = func->def->bytecode;
                 break;
             } else if (callee.type == DST_CFUNCTION) {
-                dst_fiber_cframe(fiber);
-                stack = fiber->data + fiber->frame;
-                fiber->ret.type = DST_NIL;
-                if (callee.as.cfunction(fiber, stack, fiber->frametop - fiber->frame)) {
-                    dst_fiber_popframe(fiber);
+                dst_fiber_cframe(dst_vm_fiber);
+                stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+                dst_vm_fiber->ret.type = DST_NIL;
+                if (callee.as.cfunction(stack, dst_vm_fiber->frametop - dst_vm_fiber->frame)) {
+                    dst_fiber_popframe(dst_vm_fiber);
                     goto vm_error;
                 } else {
-                    dst_fiber_popframe(fiber);
+                    dst_fiber_popframe(dst_vm_fiber);
                     goto vm_return;
                 }
             } else {
@@ -474,19 +474,19 @@ int dst_continue(DstFiber *fiber) {
             DstValue callee = stack[oparg(2, 0xFFFF)];
             if (callee.type == DST_FUNCTION) {
                 func = callee.as.function;
-                dst_fiber_funcframe_tail(fiber, func);
-                stack = fiber->data + fiber->frame;
+                dst_fiber_funcframe_tail(dst_vm_fiber, func);
+                stack = dst_vm_fiber->data + dst_vm_fiber->frame;
                 pc = func->def->bytecode;
                 break;
             } else if (callee.type == DST_CFUNCTION) {
-                dst_fiber_cframe_tail(fiber);
-                stack = fiber->data + fiber->frame;
-                fiber->ret.type = DST_NIL;
-                if (callee.as.cfunction(fiber, stack, fiber->frametop - fiber->frame)) {
-                    dst_fiber_popframe(fiber);
+                dst_fiber_cframe_tail(dst_vm_fiber);
+                stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+                dst_vm_fiber->ret.type = DST_NIL;
+                if (callee.as.cfunction(stack, dst_vm_fiber->frametop - dst_vm_fiber->frame)) {
+                    dst_fiber_popframe(dst_vm_fiber);
                     goto vm_error;
                 } else {
-                    dst_fiber_popframe(fiber);
+                    dst_fiber_popframe(dst_vm_fiber);
                     goto vm_return;
                 }
             } else {
@@ -499,14 +499,14 @@ int dst_continue(DstFiber *fiber) {
             {
                 DstCFunction f = dst_vm_syscalls[oparg(2, 0xFF)];
                 vm_assert(NULL != f, "invalid syscall");
-                dst_fiber_cframe(fiber);
-                stack = fiber->data + fiber->frame;
-                fiber->ret.type = DST_NIL;
-                if (f(fiber, stack, fiber->frametop - fiber->frame)) {
-                    dst_fiber_popframe(fiber);
+                dst_fiber_cframe(dst_vm_fiber);
+                stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+                dst_vm_fiber->ret.type = DST_NIL;
+                if (f(stack, dst_vm_fiber->frametop - dst_vm_fiber->frame)) {
+                    dst_fiber_popframe(dst_vm_fiber);
                     goto vm_error;
                 } else {
-                    dst_fiber_popframe(fiber);
+                    dst_fiber_popframe(dst_vm_fiber);
                     goto vm_return;
                 }
                 continue;
@@ -531,17 +531,17 @@ int dst_continue(DstFiber *fiber) {
                       temp.type == DST_NIL, "expected fiber");
             nextfiber = temp.type == DST_FIBER
                 ? temp.as.fiber
-                : fiber->parent;
+                : dst_vm_fiber->parent;
             /* Check for root fiber */
             if (NULL == nextfiber) {
                 frame->pc = pc;
-                fiber->ret = retvalue;
+                dst_vm_fiber->ret = retvalue;
                 return 0;
             }
             vm_assert(nextfiber->status == DST_FIBER_PENDING, "can only transfer to pending fiber");
             frame->pc = pc;
-            fiber->status = DST_FIBER_PENDING;
-            fiber = nextfiber;
+            dst_vm_fiber->status = DST_FIBER_PENDING;
+            dst_vm_fiber = nextfiber;
             vm_init_fiber_state();
             stack[oparg(1, 0xFF)] = retvalue;
             pc++;
@@ -551,26 +551,26 @@ int dst_continue(DstFiber *fiber) {
         /* Handle returning from stack frame. Expect return value in fiber->ret */
         vm_return:
         {
-            DstValue ret = fiber->ret;
-            dst_fiber_popframe(fiber);
-            while (fiber->frame ||
-                fiber->status == DST_FIBER_DEAD ||
-                fiber->status == DST_FIBER_ERROR) {
-                fiber->status = DST_FIBER_DEAD;
-                if (fiber->parent) {
-                    fiber = fiber->parent;
-                    if (fiber->status == DST_FIBER_ALIVE) {
+            DstValue ret = dst_vm_fiber->ret;
+            dst_fiber_popframe(dst_vm_fiber);
+            while (!dst_vm_fiber->frame ||
+                dst_vm_fiber->status == DST_FIBER_DEAD ||
+                dst_vm_fiber->status == DST_FIBER_ERROR) {
+                dst_vm_fiber->status = DST_FIBER_DEAD;
+                if (NULL != dst_vm_fiber->parent) {
+                    dst_vm_fiber = dst_vm_fiber->parent;
+                    if (dst_vm_fiber->status == DST_FIBER_ALIVE) {
                         /* If the parent thread is still alive,
                            we are inside a cfunction */
                         return 0;
                     }
-                    stack = fiber->data + fiber->frame;
+                    stack = dst_vm_fiber->data + dst_vm_fiber->frame;
                 } else {
                     return 0;
                 }
             }
-            fiber->status = DST_FIBER_ALIVE;
-            stack = fiber->data + fiber->frame;
+            dst_vm_fiber->status = DST_FIBER_ALIVE;
+            stack = dst_vm_fiber->data + dst_vm_fiber->frame;
             pc = dst_stack_frame(stack)->pc;
             stack[oparg(1, 0xFF)] = ret;
             pc++;
@@ -580,22 +580,22 @@ int dst_continue(DstFiber *fiber) {
         /* Handle errors from c functions and vm opcodes */
         vm_error:
         {
-            DstValue ret = fiber->ret;
-            fiber->status = DST_FIBER_ERROR;
-            while (fiber->frame ||
-                fiber->status == DST_FIBER_DEAD ||
-                fiber->status == DST_FIBER_ERROR) {
-                if (fiber->parent == NULL)
+            DstValue ret = dst_vm_fiber->ret;
+            dst_vm_fiber->status = DST_FIBER_ERROR;
+            while (!dst_vm_fiber->frame ||
+                dst_vm_fiber->status == DST_FIBER_DEAD ||
+                dst_vm_fiber->status == DST_FIBER_ERROR) {
+                if (dst_vm_fiber->parent == NULL)
                     return 1;
-                fiber = fiber->parent;
-                if (fiber->status == DST_FIBER_ALIVE) {
+                dst_vm_fiber = dst_vm_fiber->parent;
+                if (dst_vm_fiber->status == DST_FIBER_ALIVE) {
                     /* If the parent thread is still alive,
                        we are inside a cfunction */
                     return 1;
                 }
             }
-            fiber->status = DST_FIBER_ALIVE;
-            stack = fiber->data + fiber->frame;
+            dst_vm_fiber->status = DST_FIBER_ALIVE;
+            stack = dst_vm_fiber->data + dst_vm_fiber->frame;
             pc = dst_stack_frame(stack)->pc;
             stack[oparg(1, 0xFF)] = ret;
             pc++;
@@ -626,20 +626,21 @@ int dst_continue(DstFiber *fiber) {
 /* Run the vm with a given function. This function is
  * called to start the vm. */
 int dst_run(DstValue callee) {
-    int result;
+    if (NULL == dst_vm_fiber) {
+        dst_vm_fiber = dst_fiber(0);
+    } else {
+        dst_fiber_reset(dst_vm_fiber);
+    }
     if (callee.type == DST_CFUNCTION) {
-        dst_vm_fiber = dst_fiber(NULL, 0);
         dst_vm_fiber->ret.type = DST_NIL;
         dst_fiber_cframe(dst_vm_fiber);
-        result = callee.as.cfunction(dst_vm_fiber, dst_vm_fiber->data + dst_vm_fiber->frame, 0);
+        return callee.as.cfunction(dst_vm_fiber->data + dst_vm_fiber->frame, 0);
     } else if (callee.type == DST_FUNCTION) {
-        dst_vm_fiber = dst_fiber(callee.as.function, 64);
-        result = dst_continue(dst_vm_fiber);
-    } else {
-        dst_vm_fiber->ret = dst_wrap_string(dst_cstring("expected function"));
-        result = 1;
+        dst_fiber_funcframe(dst_vm_fiber, callee.as.function);
+        return dst_continue();
     }
-    return result;
+    dst_vm_fiber->ret = dst_wrap_string(dst_cstring("expected function"));
+    return 1;
 }
 
 /* Setup functions */

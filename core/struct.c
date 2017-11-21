@@ -47,7 +47,7 @@ DstValue *dst_struct_begin(uint32_t count) {
 /* Find an item in a struct */
 static const DstValue *dst_struct_find(const DstValue *st, DstValue key) {
     uint32_t cap = dst_struct_capacity(st);
-    uint32_t index = (dst_hash(key) % (cap / 2)) * 2;
+    uint32_t index = (dst_hash(key) % cap) & (~1);
     uint32_t i;
     for (i = index; i < cap; i += 2)
         if (st[i].type == DST_NIL || dst_equals(st[i], key))
@@ -64,7 +64,7 @@ static const DstValue *dst_struct_find(const DstValue *st, DstValue key) {
 void dst_struct_put(DstValue *st, DstValue key, DstValue value) {
     uint32_t cap = dst_struct_capacity(st);
     uint32_t hash = dst_hash(key);
-    uint32_t index = (hash % (cap / 2)) * 2;
+    uint32_t index = (hash % cap) & (~1);
     uint32_t i, j, dist;
     uint32_t bounds[4] = {index, cap, 0, index};
     if (key.type == DST_NIL || value.type == DST_NIL) return;
@@ -88,7 +88,7 @@ void dst_struct_put(DstValue *st, DstValue key, DstValue value) {
          * with different order have the same internal layout, and therefor
          * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}. */
         otherhash = dst_hash(st[i]);
-        otherindex = (otherhash % (cap / 2)) * 2;
+        otherindex = (otherhash % cap) & (~1);
         otherdist = (i + cap - otherindex) % cap;
         if (dist < otherdist)
             status = -1;
@@ -113,7 +113,7 @@ void dst_struct_put(DstValue *st, DstValue key, DstValue value) {
             /* Save dist and hash of new kv pair */
             dist = otherdist;
             hash = otherhash;
-        } else {
+        } else if (status == 0) {
             /* This should not happen - it means
              * than a key was added to the struct more than once */
             return;
@@ -177,4 +177,16 @@ DstValue dst_struct_next(const DstValue *st, DstValue key) {
             return bucket[0];
     }
     return dst_wrap_nil();
+}
+
+/* Convert struct to table */
+DstTable *dst_struct_to_table(const DstValue *st) {
+    DstTable *table = dst_table(dst_struct_capacity(st));
+    uint32_t i;
+    for (i = 0; i < dst_struct_capacity(st); i += 2) {
+        if (st[i].type != DST_NIL) {
+            dst_table_put(table, st[i], st[i + 1]);
+        }
+    }
+    return table;
 }

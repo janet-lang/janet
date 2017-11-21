@@ -78,14 +78,18 @@ $(DST_TARGET): $(DST_CORE_OBJECTS)
 CCU_FLAGS = $(CFLAGS) -DDST_UNIT_TEST
 
 DST_UNIT_BINARIES=$(addprefix unittests/,\
-				  array_test.out buffer_test.out table_test.out)
+				  asm_test.out array_test.out buffer_test.out fiber_test.out parse_test.out \
+				  table_test.out)
 
 %.out: %.c $(DST_CORE_OBJECTS) $(DST_ALL_HEADERS) unittests/unit.h
 	$(CC) $(CCU_FLAGS) $(DST_CORE_OBJECTS) $< -o $@
 
 unit: $(DST_UNIT_BINARIES)
 	unittests/array_test.out
+	unittests/asm_test.out
 	unittests/buffer_test.out
+	unittests/fiber_test.out
+	unittests/parse_test.out
 	unittests/table_test.out
 
 ###################

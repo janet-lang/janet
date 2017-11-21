@@ -11,5 +11,9 @@ int main() {
     assert(table->count == 2);
     dst_table_remove(table, dst_cstringv("a"));
     assert(table->count == 1);
+    assert(dst_equals(
+            dst_table_get(table, dst_cstringv("b")),
+            dst_cstringv("a")
+          ));
     return 0;
 }

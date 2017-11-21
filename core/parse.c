@@ -116,9 +116,8 @@ static int check_str_const(const char *ref, const uint8_t *start, const uint8_t 
 
 /* Quote a value */
 static DstValue quote(DstValue x) {
-    DstValue sym = dst_wrap_symbol(dst_cstring("quote"));
     DstValue *t = dst_tuple_begin(2);
-    t[0] = sym;
+    t[0] = dst_cstrings("quote");
     t[1] = x;
     return dst_wrap_tuple(dst_tuple_end(t));
 }
@@ -153,24 +152,20 @@ static int is_symbol_char(uint8_t c) {
 static int to_hex(uint8_t c) {
     if (c >= '0' && c <= '9') {
         return c - '0';
-    } else if (c >= 'a' && c <= 'f') {
-        return 10 + c - 'a';
     } else if (c >= 'A' && c <= 'F') {
         return 10 + c - 'A';
+    } else if (c >= 'a' && c <= 'f') {
+        return 10 + c - 'a';
     } else {
         return -1;
     }
 }
 
 typedef struct {
-    DstFiber *fiber;
+    DstArray stack;
     const uint8_t *end;
     const char *errmsg;
-    enum {
-        DST_PARSE_OK,
-        DST_PARSE_ERROR,
-        DST_PARSE_UNEPECTED_EOS
-    } status;
+    DstParseStatus status;
 } ParseArgs;
 
 /* Entry point of the recursive descent parser */
@@ -185,6 +180,9 @@ static const uint8_t *parse_recur(
 
     /* Prevent stack overflow */
     if (recur == 0) goto too_much_recur;
+
+    /* try parsing again */
+    begin:
 
     /* Trim leading whitespace and count quotes */
     while (src < end && (is_whitespace(*src) || *src == '\'')) {
@@ -201,7 +199,9 @@ static const uint8_t *parse_recur(
     switch (*src) {
 
         /* Numbers, symbols, simple literals */
-        default: {
+        default: 
+        atom:
+        {
             double real;
             int64_t integer;
             const uint8_t *tokenend = src;
@@ -230,7 +230,17 @@ static const uint8_t *parse_recur(
             break;
         }
 
-        case ':': {
+        case '#':
+        {
+            /* Jump to next newline */
+            while (src < end && *src != '\n')
+                ++src;
+            goto begin;
+        }
+
+        /* Check keyword style strings */
+        case ':':
+        {
             const uint8_t *tokenend = ++src;
             while (tokenend < end && is_symbol_char(*tokenend))
                 tokenend++;
@@ -241,9 +251,10 @@ static const uint8_t *parse_recur(
         }
 
         /* String literals */
-        case '"': {
+        case '"':
+        {
             const uint8_t *strend = ++src;
-            const uint8_t *strstart = src;
+            const uint8_t *strstart = strend;
             uint32_t len = 0;
             int containsEscape = 0;
             /* Preprocess string to check for escapes and string end */
@@ -253,10 +264,11 @@ static const uint8_t *parse_recur(
                     containsEscape = 1;
                     if (strend >= end) goto unexpected_eos;
                     if (*strend == 'h') {
-                        strend += 2;
+                        strend += 3;
                         if (strend >= end) goto unexpected_eos;
                     } else {
                         strend++;
+                        if (strend >= end) goto unexpected_eos;
                     }
                 }
             }
@@ -266,7 +278,7 @@ static const uint8_t *parse_recur(
                 while (src < strend) {
                     if (*src == '\\') {
                         src++;
-                        switch (*++src) {
+                        switch (*src++) {
                             case 'n': *write++ = '\n'; break;
                             case 'r': *write++ = '\r'; break;
                             case 't': *write++ = '\t'; break;
@@ -293,22 +305,31 @@ static const uint8_t *parse_recur(
                 ret = dst_wrap_string(dst_string_end(buf));
             } else {
                 ret = dst_wrap_string(dst_string(strstart, strend - strstart));
-                src = strend + 1;
             }
+            src = strend + 1;
             break;
         }
 
         /* Data Structure literals */
+        case '@':
+            if (src[1] != '{')
+                goto atom;
         case '(':
         case '[':
-        case '{': {
+        case '{': 
+        {
             uint32_t n = 0, i = 0;
+            uint32_t istable = 0;
             uint8_t close;
             switch (*src++) {
                 case '[': close = ']'; break;
                 case '{': close = '}'; break;
+                case '@': close = '}'; src++; istable = 1; break;
                 default: close = ')'; break;
             }
+            /* Trim trailing whitespace */
+            while (src < end && (is_whitespace(*src)))
+                ++src;
             /* Recursively parse inside literal */
             while (*src != close) {
                 src = parse_recur(args, src, recur - 1);
@@ -321,24 +342,42 @@ static const uint8_t *parse_recur(
             src++;
             switch (close) {
                 case ')':
-                case ']':
                 {
                     DstValue *tup = dst_tuple_begin(n);
                     for (i = n; i > 0; i--)
-                        tup[i - 1] = dst_fiber_popvalue(args->fiber);
+                        tup[i - 1] = dst_array_pop(&args->stack);
                     ret = dst_wrap_tuple(dst_tuple_end(tup));
+                    break;
+                }
+                case ']':
+                {
+                    DstArray *arr = dst_array(n);
+                    for (i = n; i > 0; i--)
+                        arr->data[i - 1] = dst_array_pop(&args->stack);
+                    arr->count = n;
+                    ret = dst_wrap_array(arr);
                     break;
                 }
                 case '}':
                 {
                     if (n & 1) goto struct_oddargs;
-                    DstValue *st = dst_struct_begin(n >> 1);
-                    for (i = n; i > 0; i -= 2) {
-                        DstValue val = dst_fiber_popvalue(args->fiber);
-                        DstValue key = dst_fiber_popvalue(args->fiber);
-                        dst_struct_put(st, key, val);
+                    if (istable) {
+                        DstTable *t = dst_table(n);
+                        for (i = n; i > 0; i -= 2) {
+                            DstValue val = dst_array_pop(&args->stack);
+                            DstValue key = dst_array_pop(&args->stack);
+                            dst_table_put(t, key, val);
+                        }
+                        ret = dst_wrap_table(t);
+                    } else {
+                        DstValue *st = dst_struct_begin(n >> 1);
+                        for (i = n; i > 0; i -= 2) {
+                            DstValue val = dst_array_pop(&args->stack);
+                            DstValue key = dst_array_pop(&args->stack);
+                            dst_struct_put(st, key, val);
+                        }
+                        ret = dst_wrap_struct(dst_struct_end(st));
                     }
-                    ret = dst_wrap_struct(dst_struct_end(st));
                     break;
                 }
             }
@@ -350,7 +389,7 @@ static const uint8_t *parse_recur(
     while (qcount--) ret = quote(ret);
 
     /* Push the result to the stack */
-    dst_fiber_push(args->fiber, ret);
+    dst_array_push(&args->stack, ret);
 
     /* Return the new source position for further calls */
     return src;
@@ -394,42 +433,37 @@ static const uint8_t *parse_recur(
 }
 
 /* Parse an array of bytes. Return value in the fiber return value. */
-int dst_parse(const uint8_t *src, uint32_t len, const uint8_t **newsrc) {
+DstParseResult dst_parse(const uint8_t *src, uint32_t len) {
+    DstParseResult res;
     ParseArgs args;
-    DstFiber *fiber = dst_vm_fiber;
+    const uint8_t *newsrc;
 
-    /* Save original stack top */
-    uint32_t oldstacktop = fiber->stacktop;
-
-    args.fiber = fiber;
+    dst_array_init(&args.stack, 10);
     args.status = DST_PARSE_OK;
     args.end = src + len;
     args.errmsg = NULL;
 
-    src = parse_recur(&args, src, DST_RECURSION_GUARD);
-    if (NULL != newsrc) *newsrc = src;
+    newsrc = parse_recur(&args, src, DST_RECURSION_GUARD);
+    res.status = args.status;
+    res.bytes_read = (uint32_t) (newsrc - src);
+
+    /* TODO - source maps */
+    res.map = dst_wrap_nil();
 
     if (args.errmsg) {
-        fiber->ret = dst_wrap_string(dst_cstring(args.errmsg));
+        res.result.error = dst_cstring(args.errmsg);
     } else {
-        fiber->ret = dst_fiber_popvalue(fiber);
+        res.result.value = dst_array_pop(&args.stack);
     }
 
-    /* Reset stacktop */
-    fiber->stacktop = oldstacktop;
+    dst_array_deinit(&args.stack);
 
-    return args.status;
+    return res;
 }
 
 /* Parse a c string */
-int dst_parsec(const char *src, const char **newsrc) {
+DstParseResult dst_parsec(const char *src) {
     uint32_t len = 0;
-    const uint8_t *ns = NULL;
-    int status;
     while (src[len]) ++len;
-    status = dst_parse((const uint8_t *)src, len, &ns);
-    if (newsrc) {
-        *newsrc = (const char *)ns;
-    }
-    return status;
+    return dst_parse((const uint8_t *)src, len);
 }

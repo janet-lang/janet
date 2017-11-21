@@ -76,14 +76,16 @@ int dst_chararray_view(DstValue str, const uint8_t **data, uint32_t *len) {
 /* Read both structs and tables as the entries of a hashtable with
  * identical structure. Returns 1 if the view can be constructed and
  * 0 if the type is invalid. */
-int dst_hashtable_view(DstValue tab, const DstValue **data, uint32_t *cap) {
+int dst_hashtable_view(DstValue tab, const DstValue **data, uint32_t *len, uint32_t *cap) {
     if (tab.type == DST_TABLE) {
         *data = tab.as.table->data;
         *cap = tab.as.table->capacity;
+        *len = tab.as.table->count;
         return 1;
     } else if (tab.type == DST_STRUCT) {
         *data = tab.as.st;
         *cap = dst_struct_capacity(tab.as.st);
+        *len = dst_struct_length(tab.as.st);
         return 1;
     }
     return 0;

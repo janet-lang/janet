@@ -24,7 +24,7 @@
 #include <dst/dst.h>
 #include <stdio.h>
 
-int dst_print(DstFiber *fiber, DstValue *argv, uint32_t argn) {
+int dst_print(DstValue *argv, uint32_t argn) {
     uint32_t i;
     for (i = 0; i < argn; ++i) {
         uint32_t j, len;

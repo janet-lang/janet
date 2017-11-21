@@ -24,57 +24,27 @@
 #include "gc.h"
 
 /* Initialize a new fiber */
-DstFiber *dst_fiber(DstFunction *func, uint32_t capacity) {
+DstFiber *dst_fiber(uint32_t capacity) {
     DstFiber *fiber = dst_alloc(DST_MEMORY_FIBER, sizeof(DstFiber));
-    if (capacity < 2 * DST_FRAME_SIZE)
-        capacity = 2 * DST_FRAME_SIZE;
     fiber->capacity = capacity;
-    DstValue *data = malloc(sizeof(DstValue) * capacity);
-    if (NULL == data) {
-        DST_OUT_OF_MEMORY;
+    if (capacity) {
+        DstValue *data = malloc(sizeof(DstValue) * capacity);
+        if (NULL == data) {
+            DST_OUT_OF_MEMORY;
+        }
+        fiber->data = data;
+    } else {
+        fiber->data = NULL;
     }
-    fiber->data = data;
-    return dst_fiber_reset(fiber, func);
+    return dst_fiber_reset(fiber);
 }
 
 /* Clear a fiber (reset it) */
-DstFiber *dst_fiber_reset(DstFiber *fiber, DstFunction *func) {
-    uint32_t i;
-    DstStackFrame *frame;
-
-    if (NULL == func) {
-        /* Cfunction */
-        fiber->frame = DST_FRAME_SIZE;
-        fiber->frametop = DST_FRAME_SIZE;
-        fiber->stacktop = fiber->frametop + DST_FRAME_SIZE;
-        fiber->status = DST_FIBER_PENDING;
-        frame = dst_fiber_frame(fiber);
-
-        /* Initialize the frame */
-        frame->prevframe = 0;
-        frame->pc = NULL;
-        frame->func = NULL;
-    } else {
-        /* Set the frame to the first available index */
-        fiber->frame = DST_FRAME_SIZE;
-        fiber->frametop = DST_FRAME_SIZE + func->def->slotcount;
-        fiber->stacktop = fiber->frametop + DST_FRAME_SIZE;
-        fiber->status = DST_FIBER_PENDING;
-        frame = dst_fiber_frame(fiber);
-
-        /* Initialize the frame */
-        frame->prevframe = 0;
-        frame->pc = func->def->bytecode;
-        frame->func = func;
-
-        /* Nil slots */
-        for (i = DST_FRAME_SIZE; i < fiber->frametop; ++i) {
-            fiber->data[i].type = DST_NIL;
-        }
-    }
-
-    /* Reset parent. Set it manually if needed. */
-    fiber->parent = NULL;
+DstFiber *dst_fiber_reset(DstFiber *fiber) {
+    fiber->frame = 0;
+    fiber->frametop = 0;
+    fiber->stacktop = DST_FRAME_SIZE;
+    fiber->status = DST_FIBER_DEAD;
     return fiber;
 }
 
@@ -133,7 +103,7 @@ void dst_fiber_pushn(DstFiber *fiber, const DstValue *arr, uint32_t n) {
  * If there is nothing to pop of of the stack, return nil. */
 DstValue dst_fiber_popvalue(DstFiber *fiber) {
    uint32_t newstacktop = fiber->stacktop - 1;
-   if (newstacktop <= fiber->frametop + DST_FRAME_SIZE) {
+   if (newstacktop < fiber->frametop + DST_FRAME_SIZE) {
        return dst_wrap_nil();
    }
    fiber->stacktop = newstacktop;
@@ -262,6 +232,10 @@ void dst_fiber_cframe_tail(DstFiber *fiber) {
     uint32_t size = (fiber->stacktop - fiber->frametop) - DST_FRAME_SIZE;
     uint32_t nextframetop = fiber->frame + size;;
     uint32_t nextstacktop = nextframetop + DST_FRAME_SIZE;
+
+    if (fiber->frame == 0) {
+        return dst_fiber_cframe(fiber);
+    }
 
     DstValue *stack = fiber->data + fiber->frame;
     DstValue *args = fiber->data + fiber->frametop + DST_FRAME_SIZE;

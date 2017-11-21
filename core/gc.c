@@ -58,24 +58,6 @@ void dst_mark(DstValue x) {
     }
 }
 
-/* Unpin a value. This enables the GC to collect the value's
- * memory again. */
-void dst_unpin(DstValue x) {
-    switch (x.type) {
-        default: break;
-        case DST_STRING:
-        case DST_SYMBOL: dst_unpin_string(x.as.string); break;
-        case DST_FUNCTION: dst_unpin_function(x.as.function); break;
-        case DST_ARRAY: dst_unpin_array(x.as.array); break;
-        case DST_TABLE: dst_unpin_table(x.as.table); break;
-        case DST_STRUCT: dst_unpin_struct(x.as.st); break;
-        case DST_TUPLE: dst_unpin_tuple(x.as.tuple); break;
-        case DST_BUFFER: dst_unpin_buffer(x.as.buffer); break;
-        case DST_FIBER: dst_unpin_fiber(x.as.fiber); break;
-        case DST_USERDATA: dst_unpin_userdata(x.as.pointer); break;
-    }
-}
-
 /* Pin a value. This prevents a value from being garbage collected.
  * Needed if the valueis not accesible to the garbage collector, but
  * still in use by the program. For example, a c function that
@@ -95,6 +77,24 @@ void dst_pin(DstValue x) {
         case DST_BUFFER: dst_pin_buffer(x.as.buffer); break;
         case DST_FIBER: dst_pin_fiber(x.as.fiber); break;
         case DST_USERDATA: dst_pin_userdata(x.as.pointer); break;
+    }
+}
+
+/* Unpin a value. This enables the GC to collect the value's
+ * memory again. */
+void dst_unpin(DstValue x) {
+    switch (x.type) {
+        default: break;
+        case DST_STRING:
+        case DST_SYMBOL: dst_unpin_string(x.as.string); break;
+        case DST_FUNCTION: dst_unpin_function(x.as.function); break;
+        case DST_ARRAY: dst_unpin_array(x.as.array); break;
+        case DST_TABLE: dst_unpin_table(x.as.table); break;
+        case DST_STRUCT: dst_unpin_struct(x.as.st); break;
+        case DST_TUPLE: dst_unpin_tuple(x.as.tuple); break;
+        case DST_BUFFER: dst_unpin_buffer(x.as.buffer); break;
+        case DST_FIBER: dst_unpin_fiber(x.as.fiber); break;
+        case DST_USERDATA: dst_unpin_userdata(x.as.pointer); break;
     }
 }
 
@@ -188,9 +188,10 @@ static void dst_mark_function(DstFunction *func) {
         return;
     dst_gc_mark(func);
     numenvs = func->def->environments_length;
-    for (i = 0; i < numenvs; ++i)
-        if (NULL != func->envs[i])
-            dst_mark_funcenv(func->envs[i]);
+    if (NULL != func->envs)
+        for (i = 0; i < numenvs; ++i)
+            if (NULL != func->envs[i])
+                dst_mark_funcenv(func->envs[i]);
     dst_mark_funcdef(func->def);
 }
 

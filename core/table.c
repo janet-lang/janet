@@ -170,3 +170,15 @@ DstValue dst_table_next(DstTable *t, DstValue key) {
     }
     return dst_wrap_nil();
 }
+
+/* Convert table to struct */
+const DstValue *dst_table_to_struct(DstTable *t) {
+    uint32_t i;
+    const DstValue *st;
+    st = dst_struct_begin(t->count);
+    for (i = 0; i < t->capacity; i++) {
+        if (t->data[i].type != DST_NIL)
+            dst_struct_put(st, t->data[i], t->data[i + 1]);
+    }
+    return dst_struct_end(st);
+}

@@ -23,6 +23,7 @@
 #include <setjmp.h>
 
 #include <dst/dst.h>
+#include "opcodes.h"
 
 /* Bytecode op argument types */
 
@@ -70,6 +71,7 @@ enum DstInstructionType {
     DIT_SI,
     DIT_SU, /* Unsigned */
     DIT_SSS,
+    DIT_SSI,
     DIT_SES,
     DIT_SC
 };
@@ -79,7 +81,7 @@ typedef struct DstInstructionDef DstInstructionDef;
 struct DstInstructionDef {
     const char *name;
     DstInstructionType type;
-    uint8_t opcode;
+    DstOpCode opcode;
 };
 
 /* Hold all state needed during assembly */
@@ -88,7 +90,7 @@ struct DstAssembler {
     DstAssembler *parent;
     DstFuncDef *def;
     jmp_buf on_error;
-    const char *errmessage;
+    const uint8_t *errmessage;
 
     uint32_t environments_capacity;
     uint32_t bytecode_count; /* Used for calculating labels */
@@ -105,40 +107,59 @@ struct DstAssembler {
  * time and is easier to setup statically than a hash table or
  * prefix tree. */
 static const DstInstructionDef dst_ops[] = {
-    {"add", DIT_SSS, 0x01},
-    {"bitand", DIT_SSS, 0x02},
-    {"bitor", DIT_SSS, 0x03},
-    {"bitxor", DIT_SSS, 0x04},
-    {"call", DIT_SS, 0x05},
-    {"closure", DIT_SC, 0x06},
-    {"divide", DIT_SSS, 0x07},
-    {"jump", DIT_L, 0x08},
-    {"jump-if", DIT_SL, 0x09},
-    {"load-constant", DIT_SC, 0x0A},
-    {"load-false", DIT_S, 0x0B},
-    {"load-integer", DIT_SI, 0x0C},
-    {"load-nil", DIT_S, 0x0D},
-    {"load-true", DIT_S, 0x0E},
-    {"load-upvalue", DIT_SES, 0x0F},
-    {"move", DIT_SS, 0x10},
-    {"modulo", DIT_SSS, 0x11},
-    {"multiply", DIT_SSS, 0x12},
-    {"noop", DIT_0, 0x00},
-    {"push", DIT_S, 0x13},
-    {"push2", DIT_SS, 0x14},
-    {"push3", DIT_SSS, 0x15},
-    {"push-array", DIT_S, 0x16},
-    {"return", DIT_S, 0x19},
-    {"return-nil", DIT_0, 0x1A},
-    {"save-upvalue", DIT_SES, 0x1B},
-    {"shift-left", DIT_SSS, 0x1C},
-    {"shift-right", DIT_SSS, 0x1D},
-    {"shift-right-signed", DIT_SSS, 0x1E},
+    {"add", DIT_SSS, DOP_ADD},
+    {"add-immediate", DIT_SSI, DOP_ADD_IMMEDIATE},
+    {"add-integer", DIT_SSS, DOP_ADD_INTEGER},
+    {"add-real", DIT_SSS, DOP_ADD_REAL},
+    {"bitand", DIT_SSS, DOP_BAND},
+    {"bitnot", DIT_SS, DOP_BNOT},
+    {"bitor", DIT_SSS, DOP_BOR},
+    {"bitxor", DIT_SSS, DOP_BXOR},
+    {"call", DIT_SS, DOP_CALL},
+    {"closure", DIT_SC, DOP_CLOSURE},
+    {"coerce-integer", DIT_SS, DOP_COERCE_INTEGER},
+    {"coerce-real", DIT_SS, DOP_COERCE_REAL},
+    {"coerce-string", DIT_SS, DOP_COERCE_STRING},
+    {"compare", DIT_SSS, DOP_COMPARE},
+    {"divide", DIT_SSS, DOP_DIVIDE},
+    {"divide-immediate", DIT_SSI, DOP_DIVIDE_IMMEDIATE},
+    {"divide-integer", DIT_SSS, DOP_DIVIDE_INTEGER},
+    {"divide-real", DIT_SSS, DOP_DIVIDE_REAL},
+    {"equals", DIT_SSS, DOP_EQUALS},
+    {"error", DIT_S, DOP_ERROR},
+    {"greater-than", DIT_SSS, DOP_GREATER_THAN},
+    {"jump", DIT_L, DOP_JUMP},
+    {"jump-if", DIT_SL, DOP_JUMP_IF},
+    {"load-boolean", DIT_S, DOP_LOAD_BOOLEAN},
+    {"load-constant", DIT_SC, DOP_LOAD_CONSTANT},
+    {"load-integer", DIT_SI, DOP_LOAD_INTEGER},
+    {"load-nil", DIT_S, DOP_LOAD_NIL},
+    {"load-syscall", DIT_SU, DOP_LOAD_SYSCALL},
+    {"load-upvalue", DIT_SES, DOP_LOAD_UPVALUE},
+    {"move", DIT_SS, DOP_MOVE},
+    {"multiply", DIT_SSS, DOP_MULTIPLY},
+    {"multiply-immediate", DIT_SSI, DOP_MULTIPLY_IMMEDIATE},
+    {"multiply-integer", DIT_SSS, DOP_MULTIPLY_INTEGER},
+    {"multiply-real", DIT_SSS, DOP_MULTIPLY_REAL},
+    {"noop", DIT_0, DOP_NOOP},
+    {"push", DIT_S, DOP_PUSH},
+    {"push2", DIT_SS, DOP_PUSH_2},
+    {"push3", DIT_SSS, DOP_PUSH_3},
+    {"push-array", DIT_S, DOP_PUSH_ARRAY},
+    {"return", DIT_S, DOP_RETURN},
+    {"return-nil", DIT_0, DOP_RETURN_NIL},
+    {"set-upvalue", DIT_SES, DOP_SET_UPVALUE},
+    {"shift-left", DIT_SSS, DOP_SHIFT_LEFT},
+    {"shift-left-immediate", DIT_SSI, DOP_SHIFT_LEFT_IMMEDIATE},
+    {"shift-right", DIT_SSS, DOP_SHIFT_RIGHT},
+    {"shift-right-immediate", DIT_SSI, DOP_SHIFT_RIGHT_IMMEDIATE},
+    {"shift-right-unsigned", DIT_SSS, DOP_SHIFT_RIGHT_UNSIGNED},
+    {"shift-right-unsigned-immediate", DIT_SSS, DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
     {"subtract", DIT_SSS, 0x1F},
-    {"syscall", DIT_SU, 0x21},
-    {"tailcall", DIT_S, 0x22},
-    {"transfer", DIT_SSS, 0x23},
-    {"typecheck", DIT_ST, 0x24},
+    {"syscall", DIT_SU, DOP_SYSCALL},
+    {"tailcall", DIT_S, DOP_TAILCALL},
+    {"transfer", DIT_SSS, DOP_TRANSFER},
+    {"typecheck", DIT_ST, DOP_TYPECHECK},
 };
 
 /* Compare a DST string to a native 0 terminated c string. Used in the 
@@ -205,10 +226,16 @@ static void dst_asm_deinit(DstAssembler *a) {
 
 /* Throw some kind of assembly error */
 static void dst_asm_error(DstAssembler *a, const char *message) {
-    a->errmessage = message;
+    a->errmessage = dst_cstring(message);
     longjmp(a->on_error, 1);
 }
 #define dst_asm_assert(a, c, m) do { if (!(c)) dst_asm_error((a), (m)); } while (0)
+
+/* Throw some kind of assembly error */
+static void dst_asm_errorv(DstAssembler *a, const uint8_t *m) {
+    a->errmessage = m;
+    longjmp(a->on_error, 1);
+}
 
 /* Parse an argument to an assembly instruction, and return the result as an
  * integer. This integer will need to be trimmed and bound checked. */
@@ -261,42 +288,44 @@ static int64_t doarg_1(DstAssembler *a, DstOpArgType argtype, DstValue x) {
                         return result.as.integer - a->bytecode_count;
                     return result.as.integer; 
                 } else {
-                    dst_asm_error(a, "unknown name");
+                    dst_asm_errorv(a, dst_formatc("unknown name %q", x));
                 }
             } else if (argtype == DST_OAT_TYPE || argtype == DST_OAT_SIMPLETYPE) {
                 int index = strsearch(x.as.string, dst_type_names);
                 if (index != -1) {
                     return (int64_t) index;
                 } else {
-                    dst_asm_error(a, "unknown type");
+                    dst_asm_errorv(a, dst_formatc("unknown type %q", x));
                 }
             }
             break;
         }
     }
-    dst_asm_error(a, "unexpected type parsing instruction argument");
+    dst_asm_errorv(a, dst_formatc("unexpected type %t parsing instruction argument", x.type));
     return 0;
 }
 
-/* Trim a bytecode operand to 1, 2, or 3 bytes. Error out if
- * the given argument doesn't fit in the required number of bytes. */
-static uint32_t doarg_2(DstAssembler *a, int nbytes, int hassign, int64_t arg) {
+/* Parse a single argument to an instruction. Trims it as well as
+ * try to convert arguments to bit patterns */
+static uint32_t doarg(
+        DstAssembler *a,
+        DstOpArgType argtype,
+        int nth,
+        int nbytes,
+        int hassign,
+        DstValue x) {
+    int64_t arg = doarg_1(a, argtype, x);
     /* Calculate the min and max values that can be stored given
      * nbytes, and whether or not the storage is signed */
     int64_t min = (-hassign) << ((nbytes << 3) - 1);
     int64_t max = ~((-1) << ((nbytes << 3) - hassign));
     if (arg < min)
-        dst_asm_error(a, "instruction argument is too small");
+        dst_asm_errorv(a, dst_formatc("instruction argument %v is too small, must be %d byte%s",
+                    x, nbytes, nbytes > 1 ? "s" : ""));
     if (arg > max)
-        dst_asm_error(a, "instruction argument is too large");
-    return (uint32_t) (arg & 0xFFFFFFFF);
-}
-
-/* Parse a single argument to an instruction. Trims it as well as
- * try to convert arguments to bit patterns */
-static uint32_t doarg(DstAssembler *a, DstOpArgType argtype, int nth, int nbytes, int hassign, DstValue x) {
-    int64_t arg1 = doarg_1(a, argtype, x);
-    return doarg_2(a, nbytes, hassign, arg1) << (nth << 3);
+        dst_asm_errorv(a, dst_formatc("instruction argument %v is too large, must be %d byte%s",
+                    x, nbytes, nbytes > 1 ? "s" : ""));
+    return ((uint32_t) (arg & 0xFFFFFFFF)) << (nth << 3);
 }
 
 /* Provide parsing methods for the different kinds of arguments */
@@ -313,14 +342,14 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
         {
             if (dst_tuple_length(argt) != 2)
                 dst_asm_error(a, "expected 1 argument: (op, slot)");
-            instr |= doarg(a, DST_OAT_SLOT, 3, 3, 0, argt[1]);
+            instr |= doarg(a, DST_OAT_SLOT, 1, 3, 0, argt[1]);
             break;
         }
         case DIT_L:
         {
             if (dst_tuple_length(argt) != 2)
                 dst_asm_error(a, "expected 1 argument: (op, label)");
-            instr |= doarg(a, DST_OAT_LABEL, 3, 3, 1, argt[1]);
+            instr |= doarg(a, DST_OAT_LABEL, 1, 3, 1, argt[1]);
             break;
         }
         case DIT_SS:
@@ -328,7 +357,7 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             if (dst_tuple_length(argt) != 3)
                 dst_asm_error(a, "expected 2 arguments: (op, slot, slot)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_SLOT, 3, 2, 0, argt[2]);
+            instr |= doarg(a, DST_OAT_SLOT, 2, 2, 0, argt[2]);
             break;
         }
         case DIT_SL:
@@ -336,7 +365,7 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             if (dst_tuple_length(argt) != 3)
                 dst_asm_error(a, "expected 2 arguments: (op, slot, label)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_LABEL, 3, 2, 1, argt[2]);
+            instr |= doarg(a, DST_OAT_LABEL, 2, 2, 1, argt[2]);
             break;
         }
         case DIT_ST:
@@ -344,7 +373,7 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             if (dst_tuple_length(argt) != 3)
                 dst_asm_error(a, "expected 2 arguments: (op, slot, type)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_TYPE, 3, 2, 0, argt[2]);
+            instr |= doarg(a, DST_OAT_TYPE, 2, 2, 0, argt[2]);
             break;
         }
         case DIT_SI:
@@ -353,7 +382,7 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             if (dst_tuple_length(argt) != 3)
                 dst_asm_error(a, "expected 2 arguments: (op, slot, integer)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_INTEGER, 3, 2, idef->type == DIT_SI, argt[2]);
+            instr |= doarg(a, DST_OAT_INTEGER, 2, 2, idef->type == DIT_SI, argt[2]);
             break;
         }
         case DIT_SSS:
@@ -365,6 +394,15 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             instr |= doarg(a, DST_OAT_SLOT, 3, 1, 0, argt[3]);
             break;
         }
+        case DIT_SSI:
+        {
+            if (dst_tuple_length(argt) != 4)
+                dst_asm_error(a, "expected 3 arguments: (op, slot, slot, integer)");
+            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, DST_OAT_SLOT, 2, 1, 0, argt[2]);
+            instr |= doarg(a, DST_OAT_INTEGER, 3, 1, 1, argt[3]);
+            break;
+        }
         case DIT_SES:
         {
             DstAssembler *b = a;
@@ -372,7 +410,7 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             if (dst_tuple_length(argt) != 4)
                 dst_asm_error(a, "expected 3 arguments: (op, slot, environment, envslot)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            env = doarg(a, DST_OAT_ENVIRONMENT, 0, 1, 0, argt[2]);
+            env = doarg(a, DST_OAT_ENVIRONMENT, 2, 1, 0, argt[2]);
             instr |= env << 16;
             for (env += 1; env > 0; env--) {
                 b = b->parent;
@@ -387,13 +425,12 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             if (dst_tuple_length(argt) != 3)
                 dst_asm_error(a, "expected 2 arguments: (op, slot, constant)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_CONSTANT, 3, 2, 0, argt[2]);
+            instr |= doarg(a, DST_OAT_CONSTANT, 2, 2, 0, argt[2]);
             break;
         }
     }
     return instr;
 }
-
 
 /* Add a closure environment to the assembler. Sub funcdefs may need
  * to reference outer function environments, and may change the outer environment. 
@@ -429,10 +466,11 @@ static int64_t dst_asm_addenv(DstAssembler *a, DstValue envname) {
     return (int64_t) oldlen;
 }
 
-/* Helper to assembly. Return the assembled funcdef */
-static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **errout) {
+/* Helper to assembly. Return the assembly result */
+static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts) {
+    DstAssembleResult result;
     DstAssembler a;
-    DstTable *t = src.as.table;
+    const DstValue *st = opts.source.as.st;
     DstFuncDef *def;
     uint32_t count, i;
     const DstValue *arr;
@@ -440,9 +478,6 @@ static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **err
 
     /* Initialize funcdef */
     def = dst_alloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
-    if (NULL == def) {
-        DST_OUT_OF_MEMORY;
-    }
     def->environments = NULL;
     def->constants = NULL;
     def->bytecode = NULL;
@@ -451,7 +486,7 @@ static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **err
     def->arity = 0;
     def->constants_length = 0;
     def->bytecode_length = 0;
-    def->environments_length = 0;
+    def->environments_length = 1;
 
     /* Initialize Assembler */
     a.def = def;
@@ -470,18 +505,19 @@ static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **err
         if (NULL != a.parent) {
             longjmp(a.parent->on_error, 1);
         }
-        *errout = a.errmessage;
-        return NULL;
+        result.result.error = a.errmessage;
+        result.status = DST_ASSEMBLE_ERROR;
+        return result;
     }
 
-    dst_asm_assert(&a, src.type == DST_TABLE, "expected table for assembly");
+    dst_asm_assert(&a, opts.source.type == DST_STRUCT, "expected struct for assembly source");
 
     /* Set function arity */
-    x = dst_table_get(t, dst_wrap_symbol(dst_cstring("arity")));
+    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("arity")));
     def->arity = x.type == DST_INTEGER ? x.as.integer : 0;
 
     /* Create slot aliases */
-    x = dst_table_get(t, dst_wrap_symbol(dst_cstring("slots")));
+    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("slots")));
     if (dst_seq_view(x, &arr, &count)) {
         def->slotcount = count;
         for (i = 0; i < count; i++) {
@@ -507,7 +543,7 @@ static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **err
 
 
     /* Create environment aliases */
-    x = dst_table_get(t, dst_wrap_symbol(dst_cstring("environments")));
+    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("environments")));
     if (dst_seq_view(x, &arr, &count)) {
         for (i = 0; i < count; i++) {
             dst_asm_assert(&a, arr[i].type == DST_SYMBOL, "environment must be a symbol");
@@ -518,7 +554,7 @@ static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **err
     }
 
     /* Parse constants */
-    x = dst_table_get(t, dst_wrap_symbol(dst_cstring("constants")));
+    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("constants")));
     if (dst_seq_view(x, &arr, &count)) {
         def->constants_length = count;
         def->constants = malloc(sizeof(DstValue) * count);
@@ -540,7 +576,7 @@ static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **err
                     def->constants[i] = ct.as.tuple[2];
                     dst_table_put(&a.constants, ct.as.tuple[1], dst_wrap_integer(i));
                 } else {
-                    dst_asm_error(&a, "could not parse constant");
+                    dst_asm_errorv(&a, dst_formatc("could not parse constant \"%v\"", ct));
                 }
                 /* Todo - parse nested funcdefs */
             } else {
@@ -553,7 +589,7 @@ static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **err
     }
 
     /* Parse bytecode and labels */
-    x = dst_table_get(t, dst_wrap_symbol(dst_cstring("bytecode")));
+    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("bytecode")));
     if (dst_seq_view(x, &arr, &count)) {
         /* Do labels and find length */
         uint32_t blength = 0;
@@ -588,7 +624,8 @@ static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **err
                     dst_asm_assert(&a, instr.as.tuple[0].type == DST_SYMBOL,
                             "expected symbol in assembly instruction");
                     idef = dst_findi(instr.as.tuple[0].as.string);
-                    dst_asm_assert(&a, NULL != idef, "unknown instruction");
+                    if (NULL == idef)
+                        dst_asm_errorv(&a, dst_formatc("unknown instruction %v", instr));
                     op = read_instruction(&a, idef, instr.as.tuple);
                 }
                 def->bytecode[a.bytecode_count++] = op;
@@ -602,16 +639,23 @@ static DstFuncDef *dst_asm1(DstAssembler *parent, DstValue src, const char **err
     dst_asm_deinit(&a);
     def->environments =
         realloc(def->environments, def->environments_length * sizeof(uint32_t));
-    return def;
+    result.result.def = def;
+    result.status = DST_ASSEMBLE_OK;
+    return result;
 }
 
-/* Assembled a function definition. */
-int dst_asm(DstFuncDef **out, DstValue source) {
-    const char *err;
-    DstFuncDef *ret = dst_asm1(NULL, source, &err);
-    if (NULL == ret) {
-        return 1;
+/* Assemble a function */
+DstAssembleResult dst_asm(DstAssembleOptions opts) {
+    return dst_asm1(NULL, opts);
+}
+
+/* Build a function from the result */
+DstFunction *dst_asm_func(DstAssembleResult result) {
+    if (result.status != DST_ASSEMBLE_OK) {
+        return NULL;
     }
-    *out = ret;
-    return 0;
+    DstFunction *func = dst_alloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
+    func->def = result.result.def;
+    func->envs = NULL;
+    return func;
 }
