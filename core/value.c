@@ -192,3 +192,182 @@ int dst_compare(DstValue x, DstValue y) {
     }
     return 1;
 }
+
+/* Get a value out af an associated data structure.
+ * Returns possible c error message, and NULL for no error. The
+ * useful return value is written to out on success */
+const char *dst_try_get(DstValue ds, DstValue key, DstValue *out) {
+    int64_t index;
+    DstValue ret;
+    switch (ds.type) {
+    case DST_ARRAY:
+        if (key.type != DST_INTEGER) return "expected integer key";
+        index = key.as.integer;
+        if (index < 0 || index >= ds.as.array->count)
+            return "invalid array access";
+        ret = ds.as.array->data[index];
+        break;
+    case DST_TUPLE:
+        if (key.type != DST_INTEGER) return "expected integer key";
+        index = key.as.integer;
+        if (index < 0 || index >= dst_tuple_length(ds.as.tuple))
+            return "invalid tuple access";
+        ret = ds.as.tuple[index];
+        break;
+    case DST_BUFFER:
+        if (key.type != DST_INTEGER) return "expected integer key";
+        index = key.as.integer;
+        if (index < 0 || index >= ds.as.buffer->count)
+            return "invalid buffer access";
+        ret.type = DST_INTEGER;
+        ret.as.integer = ds.as.buffer->data[index];
+        break;
+    case DST_STRING:
+    case DST_SYMBOL:
+        if (key.type != DST_INTEGER) return "expected integer key";
+        index = key.as.integer;
+        if (index < 0 || index >= dst_string_length(ds.as.string))
+            return "invalid string access";
+        ret.type = DST_INTEGER;
+        ret.as.integer = ds.as.string[index];
+        break;
+    case DST_STRUCT:
+        ret = dst_struct_get(ds.as.st, key);
+        break;
+    case DST_TABLE:
+        ret = dst_table_get(ds.as.table, key);
+        break;
+    default:
+        return "cannot get";
+    }
+    *out = ret;
+    return NULL;
+}
+
+/* Set a value in an associative data structure. Returns possible
+ * error message, and NULL if no error. */
+const char *dst_try_put(DstValue ds, DstValue key, DstValue value) {
+    int64_t index;
+    switch (ds.type) {
+    case DST_ARRAY:
+        if (key.type != DST_INTEGER) return "expected integer key";
+        index = key.as.integer;
+        if (index < 0 || index >= ds.as.array->count)
+            return "invalid array access";
+        ds.as.array->data[index] = value;
+        break;
+    case DST_BUFFER:
+        if (key.type != DST_INTEGER) return "expected integer key";
+        index = key.as.integer;
+        if (value.type != DST_INTEGER) return "expected integer value";
+        if (index < 0 || index >= ds.as.buffer->count)
+            return "invalid buffer access";
+        ds.as.buffer->data[index] = (uint8_t) value.as.integer;
+        break;
+    case DST_TABLE:
+        dst_table_put(ds.as.table, key, value);
+        break;
+    default:
+        return "cannot set";
+    }
+    return NULL;
+}
+
+/* Get the next key in an associative data structure. Used for iterating through an
+ * associative data structure. */
+const char *dst_try_next(DstValue ds, DstValue key, DstValue *out) {
+    switch(ds.type) {
+        default:
+            return "expected table or struct";
+        case DST_TABLE:
+            *out = dst_table_next(ds.as.table, key);
+            return NULL;
+        case DST_STRUCT:
+            *out = dst_struct_next(ds.as.st, key);
+            return NULL;
+    }
+}
+
+/* Get the length of an object. Returns errors for invalid types */
+uint32_t dst_length(DstValue x) {
+    switch (x.type) {
+        default:
+            return 0;
+        case DST_STRING:
+            return dst_string_length(x.as.string);
+        case DST_ARRAY:
+            return x.as.array->count;
+        case DST_BUFFER:
+            return x.as.buffer->count;
+        case DST_TUPLE:
+            return dst_tuple_length(x.as.tuple);
+        case DST_STRUCT:
+            return dst_struct_length(x.as.st);
+        case DST_TABLE:
+            return x.as.table->count;
+    }
+}
+
+/* Get the capacity of an object. Returns 0 for invalid types */
+uint32_t dst_capacity(DstValue x) {
+    switch (x.type) {
+        default:
+            return 0;
+        case DST_STRING:
+            return dst_string_length(x.as.string);
+        case DST_ARRAY:
+            return x.as.array->capacity;
+        case DST_BUFFER:
+            return x.as.buffer->capacity;
+        case DST_TUPLE:
+            return dst_tuple_length(x.as.tuple);
+        case DST_STRUCT:
+            return dst_struct_length(x.as.st);
+        case DST_TABLE:
+            return x.as.table->capacity;
+    }
+}
+
+/* Index into a data structure. Returns nil for out of bounds or invliad data structure */
+DstValue dst_getindex(DstValue ds, uint32_t index) {
+    switch (ds.type) {
+        default:
+            return dst_wrap_nil();
+        case DST_STRING:
+            if (index >= dst_string_length(ds.as.string)) return dst_wrap_nil();
+            return dst_wrap_integer(ds.as.string[index]);
+        case DST_ARRAY:
+            if (index >= ds.as.array->count) return dst_wrap_nil();
+            return ds.as.array->data[index];
+        case DST_BUFFER:
+            if (index >= ds.as.buffer->count) return dst_wrap_nil();
+            return dst_wrap_integer(ds.as.buffer->data[index]);
+        case DST_TUPLE:
+            if (index >= dst_tuple_length(ds.as.tuple)) return dst_wrap_nil();
+            return ds.as.tuple[index];
+    }
+}
+
+/* Set an index in a linear data structure. Does nothing if data structure
+ * is invalid */
+void dst_setindex(DstValue ds, DstValue value, uint32_t index) {
+    switch (ds.type) {
+        default:
+            return;
+        case DST_ARRAY:
+            if (index >= ds.as.array->count) {
+                dst_array_ensure(ds.as.array, 2 * index);
+                ds.as.array->count = index + 1;
+            }
+            ds.as.array->data[index] = value;
+            return;
+        case DST_BUFFER:
+            if (value.type != DST_INTEGER) return;
+            if (index >= ds.as.buffer->count) {
+                dst_buffer_ensure(ds.as.buffer, 2 * index);
+                ds.as.buffer->count = index + 1;
+            }
+            ds.as.buffer->data[index] = value.as.integer;
+            return;
+    }
+}

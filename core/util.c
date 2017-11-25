@@ -102,14 +102,3 @@ double dst_integer_to_real(int64_t integer) {
     /* TODO - consider c undefined behavior */
     return (double) integer;
 }
-
-/* Convert an index used by the capi to an absolute index */
-uint32_t dst_startrange(int64_t index, uint32_t modulo) {
-    if (index < 0) index += modulo;
-    return ((index >= 0 && index < modulo)) ? ((uint32_t) index) : 0;
-}
-
-/* Convert an index used by the capi to an absolute index */
-uint32_t dst_endrange(int64_t index, uint32_t modulo) {
-    return dst_startrange(index, modulo + 1);
-}

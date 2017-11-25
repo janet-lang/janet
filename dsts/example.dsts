@@ -51,7 +51,7 @@
 # from their number
 # Literal FuncEnvs and Functions may be possible later
      constants [
-         "hello"
+         :hello
          (def bork 123)
          (def bip 456)
          '(1 2 3)

@@ -72,6 +72,7 @@ enum DstInstructionType {
     DIT_SU, /* Unsigned */
     DIT_SSS,
     DIT_SSI,
+    DIT_SSU,
     DIT_SES,
     DIT_SC
 };
@@ -117,9 +118,6 @@ static const DstInstructionDef dst_ops[] = {
     {"bitxor", DIT_SSS, DOP_BXOR},
     {"call", DIT_SS, DOP_CALL},
     {"closure", DIT_SC, DOP_CLOSURE},
-    {"coerce-integer", DIT_SS, DOP_COERCE_INTEGER},
-    {"coerce-real", DIT_SS, DOP_COERCE_REAL},
-    {"coerce-string", DIT_SS, DOP_COERCE_STRING},
     {"compare", DIT_SSS, DOP_COMPARE},
     {"divide", DIT_SSS, DOP_DIVIDE},
     {"divide-immediate", DIT_SSI, DOP_DIVIDE_IMMEDIATE},
@@ -127,9 +125,13 @@ static const DstInstructionDef dst_ops[] = {
     {"divide-real", DIT_SSS, DOP_DIVIDE_REAL},
     {"equals", DIT_SSS, DOP_EQUALS},
     {"error", DIT_S, DOP_ERROR},
+    {"get", DIT_SSS, DOP_GET},
+    {"get-index", DIT_SSU, DOP_GET_INDEX},
     {"greater-than", DIT_SSS, DOP_GREATER_THAN},
     {"jump", DIT_L, DOP_JUMP},
     {"jump-if", DIT_SL, DOP_JUMP_IF},
+    {"jump-if-not", DIT_SL, DOP_JUMP_IF_NOT},
+    {"less-than", DIT_SSS, DOP_LESS_THAN},
     {"load-boolean", DIT_S, DOP_LOAD_BOOLEAN},
     {"load-constant", DIT_SC, DOP_LOAD_CONSTANT},
     {"load-integer", DIT_SI, DOP_LOAD_INTEGER},
@@ -143,9 +145,11 @@ static const DstInstructionDef dst_ops[] = {
     {"multiply-real", DIT_SSS, DOP_MULTIPLY_REAL},
     {"noop", DIT_0, DOP_NOOP},
     {"push", DIT_S, DOP_PUSH},
+    {"push-array", DIT_S, DOP_PUSH_ARRAY},
     {"push2", DIT_SS, DOP_PUSH_2},
     {"push3", DIT_SSS, DOP_PUSH_3},
-    {"push-array", DIT_S, DOP_PUSH_ARRAY},
+    {"put", DIT_SSS, DOP_PUT},
+    {"put-index", DIT_SSU, DOP_PUT_INDEX},
     {"return", DIT_S, DOP_RETURN},
     {"return-nil", DIT_0, DOP_RETURN_NIL},
     {"set-upvalue", DIT_SES, DOP_SET_UPVALUE},
@@ -240,6 +244,7 @@ static void dst_asm_errorv(DstAssembler *a, const uint8_t *m) {
 /* Parse an argument to an assembly instruction, and return the result as an
  * integer. This integer will need to be trimmed and bound checked. */
 static int64_t doarg_1(DstAssembler *a, DstOpArgType argtype, DstValue x) {
+    int64_t ret = -1;
     DstTable *c;
     switch (argtype) {
         case DST_OAT_SLOT:
@@ -264,44 +269,58 @@ static int64_t doarg_1(DstAssembler *a, DstOpArgType argtype, DstValue x) {
     }
     switch (x.type) {
         default:
+            goto error;
             break;
         case DST_INTEGER:
-            return x.as.integer;
+            ret = x.as.integer;
+            break;
         case DST_TUPLE:
         {
             if (argtype == DST_OAT_TYPE) {
-                int64_t result = 0;
+                ret = 0;
                 uint32_t i = 0;
                 for (i = 0; i < dst_tuple_length(x.as.tuple); i++) {
-                    result |= doarg_1(a, DST_OAT_SIMPLETYPE, x.as.tuple[i]);
+                    ret |= doarg_1(a, DST_OAT_SIMPLETYPE, x.as.tuple[i]);
                 }
-                return result;
+            } else {
+                goto error;
             }
             break;
         }
         case DST_SYMBOL:
+        case DST_STRING:
         {
+            x.type = DST_SYMBOL;
             if (NULL != c) {
                 DstValue result = dst_table_get(c, x);
                 if (result.type == DST_INTEGER) {
-                    if (argtype == DST_OAT_LABEL)
-                        return result.as.integer - a->bytecode_count;
-                    return result.as.integer; 
+                    if (argtype == DST_OAT_LABEL) {
+                        ret = result.as.integer - a->bytecode_count;
+                    } else {
+                        ret = result.as.integer; 
+                    }
                 } else {
                     dst_asm_errorv(a, dst_formatc("unknown name %q", x));
                 }
             } else if (argtype == DST_OAT_TYPE || argtype == DST_OAT_SIMPLETYPE) {
                 int index = strsearch(x.as.string, dst_type_names);
                 if (index != -1) {
-                    return (int64_t) index;
+                    ret = (int64_t) index;
                 } else {
                     dst_asm_errorv(a, dst_formatc("unknown type %q", x));
                 }
+            } else {
+                goto error;
             }
             break;
         }
     }
-    dst_asm_errorv(a, dst_formatc("unexpected type %t parsing instruction argument", x.type));
+    if (argtype == DST_OAT_SLOT && ret >= a->def->slotcount)
+        a->def->slotcount = (uint32_t) ret + 1;
+    return ret;
+
+    error:
+    dst_asm_errorv(a, dst_formatc("error parsing instruction argument %v", x));
     return 0;
 }
 
@@ -395,12 +414,13 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             break;
         }
         case DIT_SSI:
+        case DIT_SSU:
         {
             if (dst_tuple_length(argt) != 4)
                 dst_asm_error(a, "expected 3 arguments: (op, slot, slot, integer)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
             instr |= doarg(a, DST_OAT_SLOT, 2, 1, 0, argt[2]);
-            instr |= doarg(a, DST_OAT_INTEGER, 3, 1, 1, argt[3]);
+            instr |= doarg(a, DST_OAT_INTEGER, 3, 1, idef->type == DIT_SSI, argt[3]);
             break;
         }
         case DIT_SES:
@@ -410,7 +430,7 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             if (dst_tuple_length(argt) != 4)
                 dst_asm_error(a, "expected 3 arguments: (op, slot, environment, envslot)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            env = doarg(a, DST_OAT_ENVIRONMENT, 2, 1, 0, argt[2]);
+            env = doarg(a, DST_OAT_ENVIRONMENT, 0, 1, 0, argt[2]);
             instr |= env << 16;
             for (env += 1; env > 0; env--) {
                 b = b->parent;
@@ -519,7 +539,6 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     /* Create slot aliases */
     x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("slots")));
     if (dst_seq_view(x, &arr, &count)) {
-        def->slotcount = count;
         for (i = 0; i < count; i++) {
             DstValue v = arr[i];
             if (v.type == DST_TUPLE) {
@@ -535,12 +554,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
                 dst_asm_error(&a, "slot names must be symbols or tuple of symbols");
             }
         }
-    } else if (x.type == DST_INTEGER) {
-        def->slotcount = (uint32_t) x.as.integer;
-    } else {
-        dst_asm_error(&a, "slots must be specified");
     }
-
 
     /* Create environment aliases */
     x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("environments")));
@@ -596,6 +610,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
         for (i = 0; i < count; ++i) {
             DstValue instr = arr[i];
             if (instr.type == DST_STRING) {
+                instr.type = DST_SYMBOL;
                 dst_table_put(&a.labels, instr, dst_wrap_integer(blength));
             } else if (instr.type == DST_TUPLE) {
                 blength++;

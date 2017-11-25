@@ -141,7 +141,7 @@ static int is_symbol_char(uint8_t c) {
     if (c >= '0' && c <= ':') return 1;
     if (c >= '<' && c <= '@') return 1;
     if (c >= '*' && c <= '/') return 1;
-    if (c >= '#' && c <= '&') return 1;
+    if (c >= '$' && c <= '&') return 1;
     if (c == '_') return 1;
     if (c == '^') return 1;
     if (c == '!') return 1;

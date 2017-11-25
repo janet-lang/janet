@@ -7,7 +7,7 @@ int main() {
     DstAssembleResult ares;
     DstFunction *func;
 
-    FILE *f = fopen("./unittests/sample.dsts", "rb");
+    FILE *f = fopen("./dsts/minimal.dsts", "rb");
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);  //same as rewind(f);
