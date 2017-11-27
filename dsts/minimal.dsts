@@ -1,6 +1,6 @@
 {
   bytecode [
-    (load-integer 0 10000)
+    (load-integer 0 15)
     (load-integer 1 0)
     (load-constant 3 lookup)
 
@@ -8,10 +8,10 @@
     (equals 2 1 0)
     (jump-if 2 :done) 
     (push 0)
-    (shift-right-immediate 0 0 1)
+    (add-immediate 0 0 -1)
     (syscall 2 0)
     (get 2 3 0)
-    (push3 2 3 0)
+    (push 2)
     (syscall 2 0)
     (jump :label)
 

@@ -193,98 +193,80 @@ int dst_compare(DstValue x, DstValue y) {
     return 1;
 }
 
-/* Get a value out af an associated data structure.
- * Returns possible c error message, and NULL for no error. The
- * useful return value is written to out on success */
-const char *dst_try_get(DstValue ds, DstValue key, DstValue *out) {
-    int64_t index;
-    DstValue ret;
+/* Get a value out af an associated data structure. For invalid
+ * data structure or invalid key, returns nil. */
+DstValue dst_get(DstValue ds, DstValue key) {
     switch (ds.type) {
     case DST_ARRAY:
-        if (key.type != DST_INTEGER) return "expected integer key";
-        index = key.as.integer;
-        if (index < 0 || index >= ds.as.array->count)
-            return "invalid array access";
-        ret = ds.as.array->data[index];
+        if (key.type == DST_INTEGER &&
+                key.as.integer >= 0 &&
+                key.as.integer < ds.as.array->count)
+            return ds.as.array->data[key.as.integer];
         break;
     case DST_TUPLE:
-        if (key.type != DST_INTEGER) return "expected integer key";
-        index = key.as.integer;
-        if (index < 0 || index >= dst_tuple_length(ds.as.tuple))
-            return "invalid tuple access";
-        ret = ds.as.tuple[index];
+        if (key.type == DST_INTEGER &&
+                key.as.integer >= 0 &&
+                key.as.integer < dst_tuple_length(ds.as.tuple))
+            return ds.as.tuple[key.as.integer];
         break;
     case DST_BUFFER:
-        if (key.type != DST_INTEGER) return "expected integer key";
-        index = key.as.integer;
-        if (index < 0 || index >= ds.as.buffer->count)
-            return "invalid buffer access";
-        ret.type = DST_INTEGER;
-        ret.as.integer = ds.as.buffer->data[index];
+        if (key.type == DST_INTEGER &&
+                key.as.integer >= 0 &&
+                key.as.integer < ds.as.buffer->count)
+            return dst_wrap_integer(ds.as.buffer->data[key.as.integer]);
         break;
     case DST_STRING:
     case DST_SYMBOL:
-        if (key.type != DST_INTEGER) return "expected integer key";
-        index = key.as.integer;
-        if (index < 0 || index >= dst_string_length(ds.as.string))
-            return "invalid string access";
-        ret.type = DST_INTEGER;
-        ret.as.integer = ds.as.string[index];
+        if (key.type == DST_INTEGER &&
+                key.as.integer >= 0 &&
+                key.as.integer < dst_string_length(ds.as.string))
+            return dst_wrap_integer(ds.as.string[key.as.integer]);
         break;
     case DST_STRUCT:
-        ret = dst_struct_get(ds.as.st, key);
-        break;
+        return dst_struct_get(ds.as.st, key);
     case DST_TABLE:
-        ret = dst_table_get(ds.as.table, key);
-        break;
+        return dst_table_get(ds.as.table, key);
     default:
-        return "cannot get";
+        break;
     }
-    *out = ret;
-    return NULL;
+    return dst_wrap_nil();
 }
 
 /* Set a value in an associative data structure. Returns possible
  * error message, and NULL if no error. */
-const char *dst_try_put(DstValue ds, DstValue key, DstValue value) {
-    int64_t index;
+void dst_put(DstValue ds, DstValue key, DstValue value) {
     switch (ds.type) {
     case DST_ARRAY:
-        if (key.type != DST_INTEGER) return "expected integer key";
-        index = key.as.integer;
-        if (index < 0 || index >= ds.as.array->count)
-            return "invalid array access";
-        ds.as.array->data[index] = value;
-        break;
+        if (key.type == DST_INTEGER &&
+                key.as.integer >= 0 &&
+                key.as.integer < ds.as.array->count)
+            ds.as.array->data[key.as.integer] = value;
+        return;
     case DST_BUFFER:
-        if (key.type != DST_INTEGER) return "expected integer key";
-        index = key.as.integer;
-        if (value.type != DST_INTEGER) return "expected integer value";
-        if (index < 0 || index >= ds.as.buffer->count)
-            return "invalid buffer access";
-        ds.as.buffer->data[index] = (uint8_t) value.as.integer;
-        break;
+        if (key.type == DST_INTEGER &&
+                value.type == DST_INTEGER &&
+                key.as.integer >= 0 &&
+                key.as.integer < ds.as.buffer->count)
+            ds.as.buffer->data[key.as.integer] = value.as.integer;
+        return;
     case DST_TABLE:
         dst_table_put(ds.as.table, key, value);
-        break;
+        return;
     default:
-        return "cannot set";
+        return;
     }
-    return NULL;
 }
 
 /* Get the next key in an associative data structure. Used for iterating through an
  * associative data structure. */
-const char *dst_try_next(DstValue ds, DstValue key, DstValue *out) {
+DstValue dst_next(DstValue ds, DstValue key) {
     switch(ds.type) {
         default:
-            return "expected table or struct";
+            return dst_wrap_nil();
         case DST_TABLE:
-            *out = dst_table_next(ds.as.table, key);
-            return NULL;
+            return dst_table_next(ds.as.table, key);
         case DST_STRUCT:
-            *out = dst_struct_next(ds.as.st, key);
-            return NULL;
+            return dst_struct_next(ds.as.st, key);
     }
 }
 

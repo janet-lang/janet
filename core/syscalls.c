@@ -101,19 +101,33 @@ int dst_sys_struct(DstValue *argv, uint32_t argn) {
 
 int dst_sys_get(DstValue *argv, uint32_t argn) {
     uint32_t i;
-    if (argn < 2) {
+    DstValue ds;
+    if (argn < 1) {
         dst_vm_fiber->ret = dst_cstringv("expected at least 1 argument");
         return 1;
     }
-    DstValue ds = argv[0];
+    ds = argv[0];
     for (i = 1; i < argn; i++) {
-        const char *err = dst_try_get(ds, argv[i], &ds);
-        if (NULL != err) {
-            dst_vm_fiber->ret = dst_cstringv(err);
-            return 1;
-        }
+        ds = dst_get(ds, argv[i]);
+        if (ds.type == DST_NIL)
+            break;
     }
     dst_vm_fiber->ret = ds;
+    return 0;
+}
+
+int dst_sys_put(DstValue *argv, uint32_t argn) {
+    DstValue ds, key, value;
+    if (argn < 3) {
+        dst_vm_fiber->ret = dst_cstringv("expected at least 3 arguments");
+        return 1;
+    }
+    if(dst_sys_get(argv, argn - 2))
+        return 1;
+    ds = dst_vm_fiber->ret;
+    key = argv[argn - 2];
+    value = argv[argn - 1];
+    dst_put(ds, key, value);
     return 0;
 }
 
@@ -124,5 +138,7 @@ DstCFunction dst_vm_syscalls[256] = {
     dst_sys_array,
     dst_sys_struct,
     dst_sys_table,
+    dst_sys_get,
+    dst_sys_put,
     NULL
 };
