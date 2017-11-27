@@ -11,8 +11,9 @@ int main() {
     dst_buffer_push_u8(buffer, 'l');
     dst_buffer_push_u8(buffer, 'l');
     dst_buffer_push_u8(buffer, 'o');
+    dst_buffer_push_cstring(buffer, " world!");
     assert(dst_equals(
-        dst_wrap_string(dst_cstring("hello")),
+        dst_wrap_string(dst_cstring("hello world!")),
         dst_wrap_string(dst_string(buffer->data, buffer->count))
     ));
     return 0;

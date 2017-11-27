@@ -20,19 +20,14 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_CACHE_H_defined
-#define DST_CACHE_H_defined
+#ifndef DST_SYMCACHE_H_defined
+#define DST_SYMCACHE_H_defined
 
 #include <dst/dst.h>
 
-DstValue dst_cache_add(DstValue x);
-DstValue *dst_cache_strfind(
-        const uint8_t *str,
-        uint32_t len,
-        uint32_t hash,
-        int *success);
-DstValue dst_cache_add_bucket(DstValue x, DstValue *bucket);
-
-void dst_cache_remove(DstValue x);
+/* Initialize the cache (allocate cache memory) */
+void dst_symcache_init();
+void dst_symcache_deinit();
+void dst_symbol_deinit(const uint8_t *sym);
 
 #endif

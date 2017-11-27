@@ -1,4 +1,5 @@
 {
+  bork 'boop
   bytecode [
     (load-integer 0 15)
     (load-integer 1 0)

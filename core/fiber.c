@@ -21,7 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include "gc.h"
 
 /* Initialize a new fiber */
 DstFiber *dst_fiber(uint32_t capacity) {
@@ -36,6 +35,7 @@ DstFiber *dst_fiber(uint32_t capacity) {
     } else {
         fiber->data = NULL;
     }
+    fiber->parent = NULL;
     return dst_fiber_reset(fiber);
 }
 
@@ -45,6 +45,8 @@ DstFiber *dst_fiber_reset(DstFiber *fiber) {
     fiber->frametop = 0;
     fiber->stacktop = DST_FRAME_SIZE;
     fiber->status = DST_FIBER_DEAD;
+    fiber->parent = NULL;
+    fiber->ret = dst_wrap_nil();
     return fiber;
 }
 

@@ -22,6 +22,12 @@
 
 #include <dst/dst.h>
 
+/* Base 64 lookup table for digits */
+const char dst_base64[65] =
+    "0123456789"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "_=";
 
 /* The DST value types in order. These types can be used as
  * mnemonics instead of a bit pattern for type checking */
@@ -42,6 +48,24 @@ const char *dst_type_names[15] = {
     "cfunction",
     "userdata"
 };
+
+/* Computes hash of an array of values */
+uint32_t dst_array_calchash(const DstValue *array, uint32_t len) {
+    const DstValue *end = array + len;
+    uint32_t hash = 5381;
+    while (array < end)
+        hash = (hash << 5) + hash + dst_hash(*array++);
+    return hash;
+}
+
+/* Calculate hash for string */
+uint32_t dst_string_calchash(const uint8_t *str, uint32_t len) {
+    const uint8_t *end = str + len;
+    uint32_t hash = 5381;
+    while (str < end)
+        hash = (hash << 5) + hash + *str++;
+    return hash;
+}
 
 /* Read both tuples and arrays as c pointers + uint32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */

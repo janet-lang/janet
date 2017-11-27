@@ -131,7 +131,7 @@ int dst_sys_put(DstValue *argv, uint32_t argn) {
     return 0;
 }
 
-DstCFunction dst_vm_syscalls[256] = {
+const DstCFunction dst_vm_syscalls[256] = {
     dst_sys_print,
     dst_sys_asm,
     dst_sys_tuple,

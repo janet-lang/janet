@@ -21,113 +21,74 @@
 */
 
 #include <dst/dst.h>
-#include "cache.h"
-
-static const char base64[] =
-    "0123456789"
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz"
-    "_=";
-
-/* Calculate hash for string */
-static uint32_t dst_string_calchash(const uint8_t *str, uint32_t len) {
-    const uint8_t *end = str + len;
-    uint32_t hash = 5381;
-    while (str < end)
-        hash = (hash << 5) + hash + *str++;
-    return hash;
-}
 
 /* Begin building a string */
 uint8_t *dst_string_begin(uint32_t length) {
-    char *data = dst_alloc(DST_MEMORY_NONE, 2 * sizeof(uint32_t) + length + 1);
+    char *data = dst_alloc(DST_MEMORY_STRING, 2 * sizeof(uint32_t) + length);
     uint8_t *str = (uint8_t *) (data + 2 * sizeof(uint32_t));
     dst_string_length(str) = length;
-    str[length] = 0;
     return str;
 }
 
 /* Finish building a string */
 const uint8_t *dst_string_end(uint8_t *str) {
-    DstValue check;
     dst_string_hash(str) = dst_string_calchash(str, dst_string_length(str));
-    check = dst_cache_add(dst_wrap_string(str));
-    /* Don't tag the memory of the string builder directly. If the string is
-     * already cached, we don't want the gc to remove it from cache when the original
-     * string builder is gced (check will contained the cached string) */
-    dst_gc_settype(dst_string_raw(check.as.string), DST_MEMORY_STRING);
-    return check.as.string;
+    return str;
 }
 
 /* Load a buffer as a string */
 const uint8_t *dst_string(const uint8_t *buf, uint32_t len) {
     uint32_t hash = dst_string_calchash(buf, len);
-    int status = 0;
-    DstValue *bucket = dst_cache_strfind(buf, len, hash, &status);
-    if (status) {
-        return bucket->as.string;
-    } else {
-        uint32_t newbufsize = len + 2 * sizeof(uint32_t) + 1;
-        uint8_t *str = (uint8_t *)(dst_alloc(DST_MEMORY_STRING, newbufsize) + 2 * sizeof(uint32_t));
-        memcpy(str, buf, len);
-        dst_string_length(str) = len;
-        dst_string_hash(str) = hash;
-        str[len] = 0;
-        return dst_cache_add_bucket(dst_wrap_string(str), bucket).as.string;
-    }
+    char *data = dst_alloc(DST_MEMORY_STRING, 2 * sizeof(uint32_t) + len);
+    uint8_t *str = (uint8_t *) (data + 2 * sizeof(uint32_t));
+    memcpy(str, buf, len);
+    dst_string_length(str) = len;
+    dst_string_hash(str) = hash;
+    return str;
 }
 
-/* Helper for creating a unique string. Increment an integer
- * represented as an array of integer digits. */
-static void inc_counter(uint8_t *digits, int base, int len) {
-    int i;
-    uint8_t carry = 1;
-    for (i = len - 1; i >= 0; --i) {
-        digits[i] += carry;
-        carry = 0;
-        if (digits[i] == base) {
-            digits[i] = 0;
-            carry = 1;
+/* Compare two strings */
+int dst_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
+    uint32_t xlen = dst_string_length(lhs);
+    uint32_t ylen = dst_string_length(rhs);
+    uint32_t len = xlen > ylen ? ylen : xlen;
+    uint32_t i;
+    for (i = 0; i < len; ++i) {
+        if (lhs[i] == rhs[i]) {
+            continue;
+        } else if (lhs[i] < rhs[i]) {
+            return -1; /* x is less than y */
+        } else {
+            return 1; /* y is less than x */
         }
     }
-}
-
-/* Generate a unique symbol. This is used in the library function gensym. The
- * symbol string data does not have GC enabled on it yet. You must manuallyb enable
- * it later. */
-const uint8_t *dst_string_unique(const uint8_t *buf, uint32_t len) {
-    DstValue *bucket;
-    uint32_t hash;
-    uint8_t counter[6] = {63, 63, 63, 63, 63, 63};
-    /* Leave spaces for 6 base 64 digits and two dashes. That means 64^6 possible suffixes, which
-     * is enough for resolving collisions. */
-    uint32_t newlen = len + 8;
-    uint32_t newbufsize = newlen + 2 * sizeof(uint32_t) + 1;
-    uint8_t *str = (uint8_t *)(dst_alloc(DST_MEMORY_STRING, newbufsize) + 2 * sizeof(uint32_t));
-    dst_string_length(str) = newlen;
-    memcpy(str, buf, len);
-    str[len] = '-';
-    str[len + 1] = '-';
-    str[newlen] = 0;
-    uint8_t *saltbuf = str + len + 2;
-    int status = 1;
-    while (status) {
-        int i;
-        inc_counter(counter, 64, 6);
-        for (i = 0; i < 6; ++i)
-            saltbuf[i] = base64[counter[i]];
-        hash = dst_string_calchash(str, newlen);
-        bucket = dst_cache_strfind(str, newlen, hash, &status);
+    if (xlen == ylen) {
+        return 0;
+    } else {
+        return xlen < ylen ? -1 : 1;
     }
-    dst_string_hash(str) = hash;
-    return dst_cache_add_bucket(dst_wrap_string(str), bucket).as.string;
 }
 
-/* Generate a unique string from a cstring */
-const uint8_t *dst_cstring_unique(const char *s) {
-    uint32_t len = 0;
-    while (s[len]) ++len;
-    return dst_string_unique((const uint8_t *)s, len);
+/* Compare a dst string with a piece of memory */
+int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, uint32_t rlen, uint32_t rhash) {
+    uint32_t index;
+    uint32_t lhash = dst_string_hash(lhs);
+    uint32_t llen = dst_string_length(lhs);
+    if (lhs == rhs)
+        return 1;
+    if (lhash != rhash || llen != rlen)
+        return 0;
+    for (index = 0; index < llen; index++) {
+        if (lhs[index] != rhs[index])
+            return 0;
+    }
+    return 1;
+}
+
+/* Check if two strings are equal */
+int dst_string_equal(const uint8_t *lhs, const uint8_t *rhs) {
+    return dst_string_equalconst(lhs, rhs,
+            dst_string_length(rhs), dst_string_hash(rhs));
 }
 
 /* Load a c string */
@@ -195,7 +156,7 @@ static const uint8_t *integer_to_string(int64_t x) {
     return dst_string(buf, integer_to_string_impl(buf, x));
 }
 
-#define HEX(i) (((uint8_t *) base64)[(i)])
+#define HEX(i) (((uint8_t *) dst_base64)[(i)])
 
 /* Returns a string description for a pointer. Truncates
  * title to 12 characters */

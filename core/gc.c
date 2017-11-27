@@ -21,7 +21,7 @@
 */
 
 #include <dst/dst.h>
-#include "cache.h"
+#include "symcache.h"
 
 /* GC State */
 void *dst_vm_blocks;
@@ -224,30 +224,23 @@ static void dst_mark_fiber(DstFiber *fiber) {
 static void dst_deinit_block(DstGCMemoryHeader *block) {
     void *mem = ((char *)(block + 1));
     DstUserdataHeader *h = (DstUserdataHeader *)mem;
-    void *smem = mem + 2 * sizeof(uint32_t);
     switch (block->flags & DST_MEM_TYPEBITS) {
         default:
             break; /* Do nothing for non gc types */ 
-        case DST_MEMORY_STRING:
-            dst_cache_remove(dst_wrap_string(smem));
+        case DST_MEMORY_SYMBOL:
+            dst_symbol_deinit((const uint8_t *)mem + 2 * sizeof(uint32_t));
             break;
         case DST_MEMORY_ARRAY:
-            free(((DstArray*) mem)->data);
-            break;
-        case DST_MEMORY_TUPLE:
-            dst_cache_remove(dst_wrap_tuple(smem));
+            dst_array_deinit((DstArray*) mem);
             break;
         case DST_MEMORY_TABLE:
-            free(((DstTable*) mem)->data);
-            break;
-        case DST_MEMORY_STRUCT:
-            dst_cache_remove(dst_wrap_struct(smem));
+            dst_table_deinit((DstTable*) mem);
             break;
         case DST_MEMORY_FIBER:
             free(((DstFiber *) mem)->data);
             break;
         case DST_MEMORY_BUFFER:
-            free(((DstBuffer *) mem)->data);
+            dst_buffer_deinit((DstBuffer *) mem);
             break; 
         case DST_MEMORY_FUNCTION:
             free(((DstFunction *)mem)->envs);
@@ -281,20 +274,20 @@ void dst_sweep() {
     DstGCMemoryHeader *previous = NULL;
     DstGCMemoryHeader *current = dst_vm_blocks;
     DstGCMemoryHeader *next;
-    while (current) {
+    while (NULL != current) {
         next = current->next;
         if (current->flags & (DST_MEM_REACHABLE | DST_MEM_DISABLED)) {
             previous = current;
+            current->flags &= ~DST_MEM_REACHABLE;
         } else {
             dst_deinit_block(current);
-            if (previous) {
+            if (NULL != previous) {
                 previous->next = next;
             } else {
                 dst_vm_blocks = next;
             }
             free(current);
         }
-        current->flags &= ~DST_MEM_REACHABLE;
         current = next;
     }
 }

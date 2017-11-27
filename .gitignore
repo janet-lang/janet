@@ -16,6 +16,7 @@ tags
 
 # Valgrind files
 vgcore.*
+core.*
 
 # Created by https://www.gitignore.io/api/c
 

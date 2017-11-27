@@ -50,6 +50,12 @@ int dst_equals(DstValue x, DstValue y) {
         case DST_INTEGER:
             result = (x.as.integer == y.as.integer);
             break;
+        case DST_STRING:
+            result = dst_string_equal(x.as.string, y.as.string);
+            break;
+        case DST_STRUCT:
+            result = dst_struct_equal(x.as.st, y.as.st);
+            break;
         default:
             /* compare pointers */
             result = (x.as.pointer == y.as.pointer);
@@ -74,54 +80,31 @@ uint32_t dst_hash(DstValue x) {
         hash = dst_string_hash(x.as.string);
         break;
     case DST_TUPLE:
-        hash = dst_tuple_hash(x.as.tuple);
+        if (0 == dst_tuple_hash(x.as.tuple))
+            hash = dst_tuple_hash(x.as.tuple) =
+                dst_array_calchash(x.as.tuple, dst_tuple_length(x.as.tuple));
+        else
+            hash = dst_tuple_hash(x.as.tuple);
         break;
     case DST_STRUCT:
-        hash = dst_struct_hash(x.as.st);
+        if (0 == dst_struct_hash(x.as.st))
+            hash = dst_struct_hash(x.as.st) =
+                dst_array_calchash(x.as.st, dst_struct_capacity(x.as.st));
+        else
+            hash = dst_struct_hash(x.as.st);
         break;
     default:
         if (sizeof(double) == sizeof(void *)) {
             /* Assuming 8 byte pointer */
             uint64_t i = x.as.integer;
-            hash = (i >> 32) ^ (i & 0xFFFFFFFF);
+            hash = (uint32_t)(i >> 32) ^ (uint32_t)(i & 0xFFFFFFFF);
         } else {
             /* Assuming 4 byte pointer (or smaller) */
-            hash = (uint32_t) x.as.pointer;
+            hash = (uint32_t) (x.as.pointer - NULL);
         }
         break;
     }
     return hash;
-}
-
-/* Computes hash of an array of values */
-uint32_t dst_calchash_array(const DstValue *array, uint32_t len) {
-    const DstValue *end = array + len;
-    uint32_t hash = 5381;
-    while (array < end)
-        hash = (hash << 5) + hash + dst_hash(*array++);
-    return hash;
-}
-
-/* Compare two strings */
-int dst_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
-    uint32_t xlen = dst_string_length(lhs);
-    uint32_t ylen = dst_string_length(rhs);
-    uint32_t len = xlen > ylen ? ylen : xlen;
-    uint32_t i;
-    for (i = 0; i < len; ++i) {
-        if (lhs[i] == rhs[i]) {
-            continue;
-        } else if (lhs[i] < rhs[i]) {
-            return -1; /* x is less than y */
-        } else {
-            return 1; /* y is less than x */
-        }
-    }
-    if (xlen == ylen) {
-        return 0;
-    } else {
-        return xlen < ylen ? -1 : 1;
-    }
 }
 
 /* Compares x to y. If they are equal retuns 0. If x is less, returns -1.
@@ -161,25 +144,10 @@ int dst_compare(DstValue x, DstValue y) {
                 }
             case DST_STRING:
                 return dst_string_compare(x.as.string, y.as.string);
-                /* Lower indices are most significant */
             case DST_TUPLE:
-                {
-                    uint32_t i;
-                    uint32_t xlen = dst_tuple_length(x.as.tuple);
-                    uint32_t ylen = dst_tuple_length(y.as.tuple);
-                    uint32_t count = xlen < ylen ? xlen : ylen;
-                    for (i = 0; i < count; ++i) {
-                        int comp = dst_compare(x.as.tuple[i], y.as.tuple[i]);
-                        if (comp != 0) return comp;
-                    }
-                    if (xlen < ylen)
-                        return -1;
-                    else if (xlen > ylen)
-                        return 1;
-                    return 0;
-                }
-                break;
-                /* TODO - how should structs compare by default? For now, just use pointers. */
+                return dst_tuple_compare(x.as.tuple, y.as.tuple);
+            case DST_STRUCT:
+                return dst_struct_compare(x.as.st, y.as.st);
             default:
                 if (x.as.string == y.as.string) {
                     return 0;

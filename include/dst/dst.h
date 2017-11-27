@@ -282,13 +282,13 @@ extern uint32_t dst_vm_memory_interval;
 extern uint32_t dst_vm_next_collection;
 
 /* Immutable value cache */
-extern DstValue *dst_vm_cache;
+extern const uint8_t **dst_vm_cache;
 extern uint32_t dst_vm_cache_capacity;
 extern uint32_t dst_vm_cache_count;
 extern uint32_t dst_vm_cache_deleted;
 
 /* Syscall table */
-extern DstCFunction dst_vm_syscalls[256];
+extern const DstCFunction dst_vm_syscalls[256];
 
 /* GC roots - TODO consider a top level fiber pool (per thread?) */
 extern DstFiber *dst_vm_fiber;
@@ -323,6 +323,8 @@ void dst_buffer_push_u64(DstBuffer *buffer, uint64_t x);
 DstValue *dst_tuple_begin(uint32_t length);
 const DstValue *dst_tuple_end(DstValue *tuple);
 const DstValue *dst_tuple_n(DstValue *values, uint32_t n);
+int dst_tuple_equal(const DstValue *lhs, const DstValue *rhs);
+int dst_tuple_compare(const DstValue *lhs, const DstValue *rhs);
 
 /* String/Symbol functions */
 #define dst_string_raw(s) ((uint32_t *)(s) - 2)
@@ -333,14 +335,23 @@ const uint8_t *dst_string_end(uint8_t *str);
 const uint8_t *dst_string(const uint8_t *buf, uint32_t len);
 const uint8_t *dst_cstring(const char *cstring);
 int dst_string_compare(const uint8_t *lhs, const uint8_t *rhs);
+int dst_string_equal(const uint8_t *lhs, const uint8_t *rhs);
+int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, uint32_t rlen, uint32_t rhash);
 const uint8_t *dst_string_unique(const uint8_t *buf, uint32_t len);
 const uint8_t *dst_cstring_unique(const char *s);
 const uint8_t *dst_description(DstValue x);
 const uint8_t *dst_to_string(DstValue x);
 #define dst_cstringv(cstr) dst_wrap_string(dst_cstring(cstr))
-#define dst_cstrings(cstr) dst_wrap_symbol(dst_cstring(cstr))
 const uint8_t *dst_formatc(const char *format, ...);
 void dst_puts(const uint8_t *str);
+
+/* Symbol functions */
+const uint8_t *dst_symbol(const uint8_t *str, uint32_t len);
+const uint8_t *dst_symbol_from_string(const uint8_t *str);
+const uint8_t *dst_csymbol(const char *str);
+const uint8_t *dst_symbol_gen(const uint8_t *buf, uint32_t len);
+#define dst_symbolv(str, len) dst_wrap_symbol(dst_symbol((str), (len)))
+#define dst_csymbolv(cstr) dst_wrap_symbol(dst_csymbol(cstr))
 
 /* Structs */
 #define dst_struct_raw(t) ((uint32_t *)(t) - 2)
@@ -353,6 +364,8 @@ const DstValue *dst_struct_end(DstValue *st);
 DstValue dst_struct_get(const DstValue *st, DstValue key);
 DstValue dst_struct_next(const DstValue *st, DstValue key);
 DstTable *dst_struct_to_table(const DstValue *st);
+int dst_struct_equal(const DstValue *lhs, const DstValue *rhs);
+int dst_struct_compare(const DstValue *lhs, const DstValue *rhs);
 
 /* Table functions */
 DstTable *dst_table(uint32_t capacity);
@@ -431,8 +444,11 @@ DstValue dst_getindex(DstValue ds, uint32_t index);
 void dst_setindex(DstValue ds, DstValue value, uint32_t index);
 
 /* Utils */
+extern const char dst_base64[65];
 int64_t dst_real_to_integer(double real);
 double dst_integer_to_real(int64_t integer);
+uint32_t dst_array_calchash(const DstValue *array, uint32_t len);
+uint32_t dst_string_calchash(const uint8_t *str, uint32_t len);
 
 /* Parsing */
 typedef enum {
@@ -506,6 +522,7 @@ typedef enum DstMemoryType DstMemoryType;
 enum DstMemoryType {
     DST_MEMORY_NONE,
     DST_MEMORY_STRING,
+    DST_MEMORY_SYMBOL,
     DST_MEMORY_ARRAY,
     DST_MEMORY_TUPLE,
     DST_MEMORY_TABLE,
@@ -518,13 +535,13 @@ enum DstMemoryType {
     DST_MEMORY_FUNCDEF
 };
 
-/* Prevent GC from freeing some memory. */
-#define dst_disablegc(m) (dst_gc_header(m)->flags |= DST_MEM_DISABLED, (m))
+/* Preventn GC from freeing some memory. */
+#define dst_disablegc(m) dst_gc_header(m)->flags |= DST_MEM_DISABLED
 
 /* To allocate collectable memory, one must calk dst_alloc, initialize the memory,
  * and then call when dst_enablegc when it is initailize and reachable by the gc (on the DST stack) */
 void *dst_alloc(DstMemoryType type, size_t size);
-#define dst_enablegc(m) (dst_gc_header(m)->flags &= ~DST_MEM_DISABLED, (m))
+#define dst_enablegc(m) dst_gc_header(m)->flags &= ~DST_MEM_DISABLED
 
 /* When doing C interop, it is often needed to disable GC on a value.
  * This is needed when a garbage collection could occur in the middle

@@ -22,6 +22,7 @@
 
 #include <dst/dst.h>
 #include "opcodes.h"
+#include "symcache.h"
 
 /* VM State */
 DstFiber *dst_vm_fiber;
@@ -649,7 +650,7 @@ int dst_run(DstValue callee) {
         dst_fiber_reset(dst_vm_fiber);
     }
     if (callee.type == DST_CFUNCTION) {
-        dst_vm_fiber->ret.type = DST_NIL;
+        dst_vm_fiber->ret = dst_wrap_nil();
         dst_fiber_cframe(dst_vm_fiber);
         return callee.as.cfunction(dst_vm_fiber->data + dst_vm_fiber->frame, 0);
     } else if (callee.type == DST_FUNCTION) {
@@ -670,16 +671,7 @@ int dst_init() {
      * horrible for performance, but helps ensure
      * there are no memory bugs during dev */
     dst_vm_memory_interval = 0;
-
-    uint32_t initialCacheCapacity = 1024;
-    /* Set up the cache */
-    dst_vm_cache = calloc(1, initialCacheCapacity * sizeof(DstValue));
-    if (NULL == dst_vm_cache) {
-        return 1;
-    }
-    dst_vm_cache_capacity = dst_vm_cache == NULL ? 0 : initialCacheCapacity;
-    dst_vm_cache_count = 0;
-    dst_vm_cache_deleted = 0;
+    dst_symcache_init();
     /* Set thread */
     dst_vm_fiber = NULL;
     return 0;
@@ -689,10 +681,5 @@ int dst_init() {
 void dst_deinit() {
     dst_clear_memory();
     dst_vm_fiber = NULL;
-    /* Deinit the cache */
-    free(dst_vm_cache);
-    dst_vm_cache = NULL;
-    dst_vm_cache_count = 0;
-    dst_vm_cache_capacity = 0;
-    dst_vm_cache_deleted = 0;
+    dst_symcache_deinit();
 }

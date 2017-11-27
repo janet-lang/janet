@@ -533,11 +533,11 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     dst_asm_assert(&a, opts.source.type == DST_STRUCT, "expected struct for assembly source");
 
     /* Set function arity */
-    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("arity")));
+    x = dst_struct_get(st, dst_csymbolv("arity"));
     def->arity = x.type == DST_INTEGER ? x.as.integer : 0;
 
     /* Create slot aliases */
-    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("slots")));
+    x = dst_struct_get(st, dst_csymbolv("slots"));
     if (dst_seq_view(x, &arr, &count)) {
         for (i = 0; i < count; i++) {
             DstValue v = arr[i];
@@ -557,7 +557,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     }
 
     /* Create environment aliases */
-    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("environments")));
+    x = dst_struct_get(st, dst_csymbolv("environments"));
     if (dst_seq_view(x, &arr, &count)) {
         for (i = 0; i < count; i++) {
             dst_asm_assert(&a, arr[i].type == DST_SYMBOL, "environment must be a symbol");
@@ -568,7 +568,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     }
 
     /* Parse constants */
-    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("constants")));
+    x = dst_struct_get(st, dst_csymbolv("constants"));
     if (dst_seq_view(x, &arr, &count)) {
         def->constants_length = count;
         def->constants = malloc(sizeof(DstValue) * count);
@@ -603,14 +603,13 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     }
 
     /* Parse bytecode and labels */
-    x = dst_struct_get(st, dst_wrap_symbol(dst_cstring("bytecode")));
+    x = dst_struct_get(st, dst_csymbolv("bytecode"));
     if (dst_seq_view(x, &arr, &count)) {
         /* Do labels and find length */
         uint32_t blength = 0;
         for (i = 0; i < count; ++i) {
             DstValue instr = arr[i];
-            if (instr.type == DST_STRING) {
-                instr.type = DST_SYMBOL;
+            if (instr.type == DST_SYMBOL) {
                 dst_table_put(&a.labels, instr, dst_wrap_integer(blength));
             } else if (instr.type == DST_TUPLE) {
                 blength++;
@@ -627,7 +626,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
         /* Do bytecode */
         for (i = 0; i < count; ++i) {
             DstValue instr = arr[i];
-            if (instr.type == DST_STRING) {
+            if (instr.type == DST_SYMBOL) {
                 continue;
             } else {
                 uint32_t op;

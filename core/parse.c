@@ -117,7 +117,7 @@ static int check_str_const(const char *ref, const uint8_t *start, const uint8_t 
 /* Quote a value */
 static DstValue quote(DstValue x) {
     DstValue *t = dst_tuple_begin(2);
-    t[0] = dst_cstrings("quote");
+    t[0] = dst_csymbolv("quote");
     t[1] = x;
     return dst_wrap_tuple(dst_tuple_end(t));
 }
@@ -223,7 +223,7 @@ static const uint8_t *parse_recur(
                 if (*src >= '0' && *src <= '9') {
                     goto sym_nodigits;
                 } else {
-                    ret = dst_wrap_symbol(dst_string(src, tokenend - src));
+                    ret = dst_symbolv(src, tokenend - src);
                 }
             }
             src = tokenend;
@@ -236,18 +236,6 @@ static const uint8_t *parse_recur(
             while (src < end && *src != '\n')
                 ++src;
             goto begin;
-        }
-
-        /* Check keyword style strings */
-        case ':':
-        {
-            const uint8_t *tokenend = ++src;
-            while (tokenend < end && is_symbol_char(*tokenend))
-                tokenend++;
-            if (tokenend >= end) goto unexpected_eos;
-            ret = dst_wrap_string(dst_string(src, tokenend - src));
-            src = tokenend;
-            break;
         }
 
         /* String literals */

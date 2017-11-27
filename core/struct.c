@@ -21,7 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include "cache.h"
 
 /* Begin creation of a struct */
 DstValue *dst_struct_begin(uint32_t count) {
@@ -123,7 +122,6 @@ void dst_struct_put(DstValue *st, DstValue key, DstValue value) {
 
 /* Finish building a struct */
 const DstValue *dst_struct_end(DstValue *st) {
-    DstValue check;
     if (dst_struct_hash(st) != dst_struct_length(st)) {
         /* Error building struct, probably duplicate values. We need to rebuild
          * the struct using only the values that went in. The second creation should always
@@ -142,10 +140,8 @@ const DstValue *dst_struct_end(DstValue *st) {
         }
         st = newst;
     }
-    dst_struct_hash(st) = dst_calchash_array(st, dst_struct_capacity(st));
-    check = dst_cache_add(dst_wrap_struct(st));
-    dst_gc_settype(dst_tuple_raw(check.as.st), DST_MEMORY_STRUCT);
-    return check.as.st;
+    dst_struct_hash(st) = 0;
+    return (const DstValue *)st;
 }
 
 /* Get an item from a struct */
@@ -189,4 +185,52 @@ DstTable *dst_struct_to_table(const DstValue *st) {
         }
     }
     return table;
+}
+
+/* Check if two structs are equal */
+int dst_struct_equal(const DstValue *lhs, const DstValue *rhs) {
+    uint32_t index;
+    uint32_t llen = dst_struct_capacity(lhs);
+    uint32_t rlen = dst_struct_capacity(rhs);
+    uint32_t lhash = dst_struct_hash(lhs);
+    uint32_t rhash = dst_struct_hash(rhs);
+    if (llen != rlen)
+        return 0;
+    if (lhash == 0)
+        lhash = dst_struct_hash(lhs) = dst_array_calchash(lhs, llen);
+    if (rhash == 0)
+        rhash = dst_struct_hash(rhs) = dst_array_calchash(rhs, rlen);
+    if (lhash != rhash)
+        return 0;
+    for (index = 0; index < llen; index++) {
+        if (!dst_equals(lhs[index], rhs[index]))
+            return 0;
+    }
+    return 1;
+}
+
+/* Compare structs */
+int dst_struct_compare(const DstValue *lhs, const DstValue *rhs) {
+    uint32_t i;
+    uint32_t lhash = dst_struct_hash(lhs);
+    uint32_t rhash = dst_struct_hash(rhs);
+    uint32_t llen = dst_struct_capacity(lhs);
+    uint32_t rlen = dst_struct_capacity(rhs);
+    if (llen < rlen)
+        return -1;
+    if (llen > rlen)
+        return 1;
+    if (0 == lhash)
+        lhash = dst_struct_hash(lhs) = dst_array_calchash(lhs, llen);
+    if (0 == rhash)
+        rhash = dst_struct_hash(rhs) = dst_array_calchash(rhs, rlen);
+    if (lhash < rhash)
+        return -1;
+    if (lhash > rhash)
+        return 1;
+    for (i = 0; i < llen; ++i) {
+        int comp = dst_compare(lhs[i], rhs[i]);
+        if (comp != 0) return comp;
+    }
+    return 0;
 }

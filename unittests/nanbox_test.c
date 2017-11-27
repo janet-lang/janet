@@ -180,7 +180,7 @@ static inline dst_t dst_nanbox_from_bits(uint64_t bits) {
 
 void dst_nanbox_print(dst_t x) {
     assert(dst_nanbox_checktype(x, dst_nanbox_type(x)));
-    printf("hex: 0x%llx, "
+    printf("hex: 0x%lx, "
            "description: ", x.u64);
     switch (dst_nanbox_type(x)) {
         case DST_T_NIL:
@@ -229,7 +229,7 @@ void dst_nanbox_print(dst_t x) {
             printf("<buffer %p>\n", dst_nanbox_unwrap_buffer(x));
             break;
         default:
-            printf("unknown type 0x%llu\n", dst_nanbox_type(x));
+            printf("unknown type 0x%lu\n", dst_nanbox_type(x));
         case DST_T_REAL:
             printf("%.21g\n", dst_nanbox_unwrap_real(x));
             break;
