@@ -32,7 +32,8 @@ union dst_t {
 /* This representation uses 48 bit pointers. The trade off vs. the LuaJIT style
  * 47 bit payload representaion is that the type bits are no long contiguous. Type
  * checking can still be fast, but typewise polymorphism takes a bit longer. However, 
- * we can avoid some annoying problems with a full 48 bit address space. */
+ * hopefully we can avoid some annoying problems that occur when trying to use 47 bit pointers
+ * in a 48 bit address space (Linux on ARM) */
 
 enum dst_t_tag {
     DST_T_NIL,
@@ -95,6 +96,10 @@ enum dst_t_tag {
         : (!dst_nanbox_isreal(x) && (((x).u64 >> 48) == dst_nanbox_tag(t))))
 
 static inline void *dst_nanbox_to_pointer(dst_t x) {
+    /* We need to do this shift to keep the higher bits of the pointer
+     * the same as bit 47 as required by the x86 architecture. We may save
+     * an instruction if we do x.u64 & DST_NANBOX_POINTERBITS, but this 0s
+     * th high bits. */
     x.i64 = (x.i64 << 16) >> 16;
     return x.pointer;
 }
@@ -174,6 +179,7 @@ static inline dst_t dst_nanbox_from_bits(uint64_t bits) {
 #define dst_nanbox_unwrap_cfunction(x) ((DstCFunction)dst_nanbox_to_pointer(x))
 
 void dst_nanbox_print(dst_t x) {
+    assert(dst_nanbox_checktype(x, dst_nanbox_type(x)));
     printf("hex: 0x%llx, "
            "description: ", x.u64);
     switch (dst_nanbox_type(x)) {
@@ -232,7 +238,7 @@ void dst_nanbox_print(dst_t x) {
 
 int main() {
     printf("--- nan box test ---\n");
-    printf("sizeof(dst_t) = %d\n", sizeof(dst_t));
+    printf("sizeof(dst_t) = %lu\n", sizeof(dst_t));
 
     DstArray array;
 
