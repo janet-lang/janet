@@ -26,9 +26,9 @@
 /* Create a new empty tuple of the given size. This will return memory
  * which should be filled with DstValues. The memory will not be collected until
  * dst_tuple_end is called. */
-DstValue *dst_tuple_begin(uint32_t length) {
-    char *data = dst_alloc(DST_MEMORY_TUPLE, 2 * sizeof(uint32_t) + length * sizeof(DstValue));
-    DstValue *tuple = (DstValue *)(data + (2 * sizeof(uint32_t)));
+DstValue *dst_tuple_begin(int32_t length) {
+    char *data = dst_alloc(DST_MEMORY_TUPLE, 2 * sizeof(int32_t) + length * sizeof(DstValue));
+    DstValue *tuple = (DstValue *)(data + (2 * sizeof(int32_t)));
     dst_tuple_length(tuple) = length;
     dst_tuple_hash(tuple) = 0;
     return tuple;
@@ -40,7 +40,7 @@ const DstValue *dst_tuple_end(DstValue *tuple) {
 }
 
 /* Build a tuple with n values */
-const DstValue *dst_tuple_n(DstValue *values, uint32_t n) {
+const DstValue *dst_tuple_n(DstValue *values, int32_t n) {
     DstValue *t = dst_tuple_begin(n);
     memcpy(t, values, sizeof(DstValue) * n);
     return dst_tuple_end(t);
@@ -48,11 +48,11 @@ const DstValue *dst_tuple_n(DstValue *values, uint32_t n) {
 
 /* Check if two tuples are equal */
 int dst_tuple_equal(const DstValue *lhs, const DstValue *rhs) {
-    uint32_t index;
-    uint32_t llen = dst_tuple_length(lhs);
-    uint32_t rlen = dst_tuple_length(rhs);
-    uint32_t lhash = dst_tuple_hash(lhs);
-    uint32_t rhash = dst_tuple_hash(rhs);
+    int32_t index;
+    int32_t llen = dst_tuple_length(lhs);
+    int32_t rlen = dst_tuple_length(rhs);
+    int32_t lhash = dst_tuple_hash(lhs);
+    int32_t rhash = dst_tuple_hash(rhs);
     if (llen != rlen)
         return 0;
     if (lhash == 0)
@@ -70,10 +70,10 @@ int dst_tuple_equal(const DstValue *lhs, const DstValue *rhs) {
 
 /* Compare tuples */
 int dst_tuple_compare(const DstValue *lhs, const DstValue *rhs) {
-    uint32_t i;
-    uint32_t llen = dst_tuple_length(lhs);
-    uint32_t rlen = dst_tuple_length(rhs);
-    uint32_t count = llen < rlen ? llen : rlen;
+    int32_t i;
+    int32_t llen = dst_tuple_length(lhs);
+    int32_t rlen = dst_tuple_length(rhs);
+    int32_t count = llen < rlen ? llen : rlen;
     for (i = 0; i < count; ++i) {
         int comp = dst_compare(lhs[i], rhs[i]);
         if (comp != 0) return comp;

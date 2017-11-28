@@ -24,10 +24,10 @@
 #include <dst/dst.h>
 #include <stdio.h>
 
-int dst_sys_print(DstValue *argv, uint32_t argn) {
-    uint32_t i;
+int dst_sys_print(DstValue *argv, int32_t argn) {
+    int32_t i;
     for (i = 0; i < argn; ++i) {
-        uint32_t j, len;
+        int32_t j, len;
         const uint8_t *vstr = dst_to_string(argv[i]);
         len = dst_string_length(vstr);
         for (j = 0; j < len; ++j) {
@@ -38,7 +38,7 @@ int dst_sys_print(DstValue *argv, uint32_t argn) {
     return 0;
 }
 
-int dst_sys_asm(DstValue *argv, uint32_t argn) {
+int dst_sys_asm(DstValue *argv, int32_t argn) {
     DstAssembleOptions opts;
     DstAssembleResult res;
     if (argn < 1) {
@@ -58,12 +58,12 @@ int dst_sys_asm(DstValue *argv, uint32_t argn) {
     }
 }
 
-int dst_sys_tuple(DstValue *argv, uint32_t argn) {
+int dst_sys_tuple(DstValue *argv, int32_t argn) {
     dst_vm_fiber->ret = dst_wrap_tuple(dst_tuple_n(argv, argn));
     return 0;
 }
 
-int dst_sys_array(DstValue *argv, uint32_t argn) {
+int dst_sys_array(DstValue *argv, int32_t argn) {
     DstArray *array = dst_array(argn);
     array->count = argn;
     memcpy(array->data, argv, argn * sizeof(DstValue));
@@ -71,8 +71,8 @@ int dst_sys_array(DstValue *argv, uint32_t argn) {
     return 0;
 }
 
-int dst_sys_table(DstValue *argv, uint32_t argn) {
-    uint32_t i;
+int dst_sys_table(DstValue *argv, int32_t argn) {
+    int32_t i;
     DstTable *table = dst_table(argn/2);
     if (argn & 1) {
         dst_vm_fiber->ret = dst_cstringv("expected even number of arguments");
@@ -85,8 +85,8 @@ int dst_sys_table(DstValue *argv, uint32_t argn) {
     return 0;
 }
 
-int dst_sys_struct(DstValue *argv, uint32_t argn) {
-    uint32_t i;
+int dst_sys_struct(DstValue *argv, int32_t argn) {
+    int32_t i;
     DstValue *st = dst_struct_begin(argn/2);
     if (argn & 1) {
         dst_vm_fiber->ret = dst_cstringv("expected even number of arguments");
@@ -99,8 +99,8 @@ int dst_sys_struct(DstValue *argv, uint32_t argn) {
     return 0;
 }
 
-int dst_sys_get(DstValue *argv, uint32_t argn) {
-    uint32_t i;
+int dst_sys_get(DstValue *argv, int32_t argn) {
+    int32_t i;
     DstValue ds;
     if (argn < 1) {
         dst_vm_fiber->ret = dst_cstringv("expected at least 1 argument");
@@ -116,7 +116,7 @@ int dst_sys_get(DstValue *argv, uint32_t argn) {
     return 0;
 }
 
-int dst_sys_put(DstValue *argv, uint32_t argn) {
+int dst_sys_put(DstValue *argv, int32_t argn) {
     DstValue ds, key, value;
     if (argn < 3) {
         dst_vm_fiber->ret = dst_cstringv("expected at least 3 arguments");

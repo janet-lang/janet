@@ -26,39 +26,33 @@
  * Define a number of functions that can be used internally on ANY DstValue.
  */
 
-/* Boolean truth definition */
-int dst_truthy(DstValue v) {
-    return v.type != DST_NIL && !(v.type == DST_BOOLEAN && !v.as.boolean);
-}
-
 /* Check if two values are equal. This is strict equality with no conversion. */
 int dst_equals(DstValue x, DstValue y) {
     int result = 0;
-    if (x.type != y.type) {
+    if (dst_type(x) != dst_type(y)) {
         result = 0;
     } else {
-        switch (x.type) {
+        switch (dst_type(x)) {
         case DST_NIL:
+        case DST_TRUE:
+        case DST_FALSE:
             result = 1;
             break;
-        case DST_BOOLEAN:
-            result = (x.as.boolean == y.as.boolean);
-            break;
         case DST_REAL:
-            result = (x.as.real == y.as.real);
+            result = (dst_unwrap_real(x) == dst_unwrap_real(y));
             break;
         case DST_INTEGER:
-            result = (x.as.integer == y.as.integer);
+            result = (dst_unwrap_integer(x) == dst_unwrap_integer(y));
             break;
         case DST_STRING:
-            result = dst_string_equal(x.as.string, y.as.string);
+            result = dst_string_equal(dst_unwrap_string(x), dst_unwrap_string(y));
             break;
         case DST_STRUCT:
-            result = dst_struct_equal(x.as.st, y.as.st);
+            result = dst_struct_equal(dst_unwrap_struct(x), dst_unwrap_struct(y));
             break;
         default:
             /* compare pointers */
-            result = (x.as.pointer == y.as.pointer);
+            result = (dst_unwrap_pointer(x) == dst_unwrap_pointer(y));
             break;
         }
     }
@@ -66,41 +60,40 @@ int dst_equals(DstValue x, DstValue y) {
 }
 
 /* Computes a hash value for a function */
-uint32_t dst_hash(DstValue x) {
-    uint32_t hash = 0;
-    switch (x.type) {
+int32_t dst_hash(DstValue x) {
+    int32_t hash = 0;
+    switch (dst_type(x)) {
     case DST_NIL:
-        hash = 0;
-        break;
-    case DST_BOOLEAN:
-        hash = x.as.boolean;
+    case DST_FALSE:
+    case DST_TRUE:
+        hash = dst_type(x);
         break;
     case DST_STRING:
     case DST_SYMBOL:
-        hash = dst_string_hash(x.as.string);
+        hash = dst_string_hash(dst_unwrap_string(x));
         break;
     case DST_TUPLE:
-        if (0 == dst_tuple_hash(x.as.tuple))
-            hash = dst_tuple_hash(x.as.tuple) =
-                dst_array_calchash(x.as.tuple, dst_tuple_length(x.as.tuple));
+        if (0 == dst_tuple_hash(dst_unwrap_tuple(x)))
+            hash = dst_tuple_hash(dst_unwrap_tuple(x)) =
+                dst_array_calchash(dst_unwrap_tuple(x), dst_tuple_length(dst_unwrap_tuple(x)));
         else
-            hash = dst_tuple_hash(x.as.tuple);
+            hash = dst_tuple_hash(dst_unwrap_tuple(x));
         break;
     case DST_STRUCT:
-        if (0 == dst_struct_hash(x.as.st))
-            hash = dst_struct_hash(x.as.st) =
-                dst_array_calchash(x.as.st, dst_struct_capacity(x.as.st));
+        if (0 == dst_struct_hash(dst_unwrap_struct(x)))
+            hash = dst_struct_hash(dst_unwrap_struct(x)) =
+                dst_array_calchash(dst_unwrap_struct(x), dst_struct_capacity(dst_unwrap_struct(x)));
         else
-            hash = dst_struct_hash(x.as.st);
+            hash = dst_struct_hash(dst_unwrap_struct(x));
         break;
     default:
         if (sizeof(double) == sizeof(void *)) {
             /* Assuming 8 byte pointer */
-            uint64_t i = x.as.integer;
-            hash = (uint32_t)(i >> 32) ^ (uint32_t)(i & 0xFFFFFFFF);
+            uint64_t i = dst_u64(x);
+            hash = (int32_t)(i >> 32) ^ (int32_t)(i & 0xFFFFFFFF);
         } else {
             /* Assuming 4 byte pointer (or smaller) */
-            hash = (uint32_t) (x.as.pointer - NULL);
+            hash = (int32_t) (dst_unwrap_pointer(x) - NULL);
         }
         break;
     }
@@ -111,51 +104,47 @@ uint32_t dst_hash(DstValue x) {
  * If y is less, returns 1. All types are comparable
  * and should have strict ordering. */
 int dst_compare(DstValue x, DstValue y) {
-    if (x.type == y.type) {
-        switch (x.type) {
+    if (dst_type(x) == dst_type(y)) {
+        switch (dst_type(x)) {
             case DST_NIL:
+            case DST_FALSE:
+            case DST_TRUE:
                 return 0;
-            case DST_BOOLEAN:
-                if (x.as.boolean == y.as.boolean) {
-                    return 0;
-                } else {
-                    return x.as.boolean ? 1 : -1;
-                }
             case DST_REAL:
                 
                 /* Check for nans to ensure total order */
-                if (x.as.real != x.as.real)
-                    return y.as.real != y.as.real
+                if (dst_unwrap_real(x) != dst_unwrap_real(x))
+                    return dst_unwrap_real(y) != dst_unwrap_real(y)
                         ? 0
                         : -1;
-                if (y.as.real != y.as.real)
+                if (dst_unwrap_real(y) != dst_unwrap_real(y))
                     return 1;
 
-                if (x.as.real == y.as.real) {
+                if (dst_unwrap_real(x) == dst_unwrap_real(y)) {
                     return 0;
                 } else {
-                    return x.as.real > y.as.real ? 1 : -1;
+                    return dst_unwrap_real(x) > dst_unwrap_real(y) ? 1 : -1;
                 }
             case DST_INTEGER:
-                if (x.as.integer == y.as.integer) {
+                if (dst_unwrap_integer(x) == dst_unwrap_integer(y)) {
                     return 0;
                 } else {
-                    return x.as.integer > y.as.integer ? 1 : -1;
+                    return dst_unwrap_integer(x) > dst_unwrap_integer(y) ? 1 : -1;
                 }
             case DST_STRING:
-                return dst_string_compare(x.as.string, y.as.string);
+                return dst_string_compare(dst_unwrap_string(x), dst_unwrap_string(y));
             case DST_TUPLE:
-                return dst_tuple_compare(x.as.tuple, y.as.tuple);
+                return dst_tuple_compare(dst_unwrap_tuple(x), dst_unwrap_tuple(y));
             case DST_STRUCT:
-                return dst_struct_compare(x.as.st, y.as.st);
+                return dst_struct_compare(dst_unwrap_struct(x), dst_unwrap_struct(y));
             default:
-                if (x.as.string == y.as.string) {
+                if (dst_unwrap_string(x) == dst_unwrap_string(y)) {
                     return 0;
                 } else {
-                    return x.as.string > y.as.string ? 1 : -1;
+                    return dst_unwrap_string(x) > dst_unwrap_string(y) ? 1 : -1;
                 }
         }
-    } else if (x.type < y.type) {
+    } else if (dst_type(x) < dst_type(y)) {
         return -1;
     }
     return 1;
@@ -164,36 +153,36 @@ int dst_compare(DstValue x, DstValue y) {
 /* Get a value out af an associated data structure. For invalid
  * data structure or invalid key, returns nil. */
 DstValue dst_get(DstValue ds, DstValue key) {
-    switch (ds.type) {
+    switch (dst_type(ds)) {
     case DST_ARRAY:
-        if (key.type == DST_INTEGER &&
-                key.as.integer >= 0 &&
-                key.as.integer < ds.as.array->count)
-            return ds.as.array->data[key.as.integer];
+        if (dst_checktype(key, DST_INTEGER) &&
+                dst_unwrap_integer(key) >= 0 &&
+                dst_unwrap_integer(key) < dst_unwrap_array(ds)->count)
+            return dst_unwrap_array(ds)->data[dst_unwrap_integer(key)];
         break;
     case DST_TUPLE:
-        if (key.type == DST_INTEGER &&
-                key.as.integer >= 0 &&
-                key.as.integer < dst_tuple_length(ds.as.tuple))
-            return ds.as.tuple[key.as.integer];
+        if (dst_checktype(key, DST_INTEGER) &&
+                dst_unwrap_integer(key) >= 0 &&
+                dst_unwrap_integer(key) < dst_tuple_length(dst_unwrap_tuple(ds)))
+            return dst_unwrap_tuple(ds)[dst_unwrap_integer(key)];
         break;
     case DST_BUFFER:
-        if (key.type == DST_INTEGER &&
-                key.as.integer >= 0 &&
-                key.as.integer < ds.as.buffer->count)
-            return dst_wrap_integer(ds.as.buffer->data[key.as.integer]);
+        if (dst_checktype(key, DST_INTEGER) &&
+                dst_unwrap_integer(key) >= 0 &&
+                dst_unwrap_integer(key) < dst_unwrap_buffer(ds)->count)
+            return dst_wrap_integer(dst_unwrap_buffer(ds)->data[dst_unwrap_integer(key)]);
         break;
     case DST_STRING:
     case DST_SYMBOL:
-        if (key.type == DST_INTEGER &&
-                key.as.integer >= 0 &&
-                key.as.integer < dst_string_length(ds.as.string))
-            return dst_wrap_integer(ds.as.string[key.as.integer]);
+        if (dst_checktype(key, DST_INTEGER) &&
+                dst_unwrap_integer(key) >= 0 &&
+                dst_unwrap_integer(key) < dst_string_length(dst_unwrap_string(ds)))
+            return dst_wrap_integer(dst_unwrap_string(ds)[dst_unwrap_integer(key)]);
         break;
     case DST_STRUCT:
-        return dst_struct_get(ds.as.st, key);
+        return dst_struct_get(dst_unwrap_struct(ds), key);
     case DST_TABLE:
-        return dst_table_get(ds.as.table, key);
+        return dst_table_get(dst_unwrap_table(ds), key);
     default:
         break;
     }
@@ -203,22 +192,22 @@ DstValue dst_get(DstValue ds, DstValue key) {
 /* Set a value in an associative data structure. Returns possible
  * error message, and NULL if no error. */
 void dst_put(DstValue ds, DstValue key, DstValue value) {
-    switch (ds.type) {
+    switch (dst_type(ds)) {
     case DST_ARRAY:
-        if (key.type == DST_INTEGER &&
-                key.as.integer >= 0 &&
-                key.as.integer < ds.as.array->count)
-            ds.as.array->data[key.as.integer] = value;
+        if (dst_checktype(key, DST_INTEGER) &&
+                dst_unwrap_integer(key) >= 0 &&
+                dst_unwrap_integer(key) < dst_unwrap_array(ds)->count)
+            dst_unwrap_array(ds)->data[dst_unwrap_integer(key)] = value;
         return;
     case DST_BUFFER:
-        if (key.type == DST_INTEGER &&
-                value.type == DST_INTEGER &&
-                key.as.integer >= 0 &&
-                key.as.integer < ds.as.buffer->count)
-            ds.as.buffer->data[key.as.integer] = value.as.integer;
+        if (dst_checktype(key, DST_INTEGER) &&
+                dst_checktype(value, DST_INTEGER) &&
+                dst_unwrap_integer(key) >= 0 &&
+                dst_unwrap_integer(key) < dst_unwrap_buffer(ds)->count)
+            dst_unwrap_buffer(ds)->data[dst_unwrap_integer(key)] = dst_unwrap_integer(value);
         return;
     case DST_TABLE:
-        dst_table_put(ds.as.table, key, value);
+        dst_table_put(dst_unwrap_table(ds), key, value);
         return;
     default:
         return;
@@ -228,96 +217,96 @@ void dst_put(DstValue ds, DstValue key, DstValue value) {
 /* Get the next key in an associative data structure. Used for iterating through an
  * associative data structure. */
 DstValue dst_next(DstValue ds, DstValue key) {
-    switch(ds.type) {
+    switch(dst_type(ds)) {
         default:
             return dst_wrap_nil();
         case DST_TABLE:
-            return dst_table_next(ds.as.table, key);
+            return dst_table_next(dst_unwrap_table(ds), key);
         case DST_STRUCT:
-            return dst_struct_next(ds.as.st, key);
+            return dst_struct_next(dst_unwrap_struct(ds), key);
     }
 }
 
 /* Get the length of an object. Returns errors for invalid types */
-uint32_t dst_length(DstValue x) {
-    switch (x.type) {
+int32_t dst_length(DstValue x) {
+    switch (dst_type(x)) {
         default:
             return 0;
         case DST_STRING:
-            return dst_string_length(x.as.string);
+            return dst_string_length(dst_unwrap_string(x));
         case DST_ARRAY:
-            return x.as.array->count;
+            return dst_unwrap_array(x)->count;
         case DST_BUFFER:
-            return x.as.buffer->count;
+            return dst_unwrap_buffer(x)->count;
         case DST_TUPLE:
-            return dst_tuple_length(x.as.tuple);
+            return dst_tuple_length(dst_unwrap_tuple(x));
         case DST_STRUCT:
-            return dst_struct_length(x.as.st);
+            return dst_struct_length(dst_unwrap_struct(x));
         case DST_TABLE:
-            return x.as.table->count;
+            return dst_unwrap_table(x)->count;
     }
 }
 
 /* Get the capacity of an object. Returns 0 for invalid types */
-uint32_t dst_capacity(DstValue x) {
-    switch (x.type) {
+int32_t dst_capacity(DstValue x) {
+    switch (dst_type(x)) {
         default:
             return 0;
         case DST_STRING:
-            return dst_string_length(x.as.string);
+            return dst_string_length(dst_unwrap_string(x));
         case DST_ARRAY:
-            return x.as.array->capacity;
+            return dst_unwrap_array(x)->capacity;
         case DST_BUFFER:
-            return x.as.buffer->capacity;
+            return dst_unwrap_buffer(x)->capacity;
         case DST_TUPLE:
-            return dst_tuple_length(x.as.tuple);
+            return dst_tuple_length(dst_unwrap_tuple(x));
         case DST_STRUCT:
-            return dst_struct_length(x.as.st);
+            return dst_struct_length(dst_unwrap_struct(x));
         case DST_TABLE:
-            return x.as.table->capacity;
+            return dst_unwrap_table(x)->capacity;
     }
 }
 
 /* Index into a data structure. Returns nil for out of bounds or invliad data structure */
-DstValue dst_getindex(DstValue ds, uint32_t index) {
-    switch (ds.type) {
+DstValue dst_getindex(DstValue ds, int32_t index) {
+    switch (dst_type(ds)) {
         default:
             return dst_wrap_nil();
         case DST_STRING:
-            if (index >= dst_string_length(ds.as.string)) return dst_wrap_nil();
-            return dst_wrap_integer(ds.as.string[index]);
+            if (index >= dst_string_length(dst_unwrap_string(ds))) return dst_wrap_nil();
+            return dst_wrap_integer(dst_unwrap_string(ds)[index]);
         case DST_ARRAY:
-            if (index >= ds.as.array->count) return dst_wrap_nil();
-            return ds.as.array->data[index];
+            if (index >= dst_unwrap_array(ds)->count) return dst_wrap_nil();
+            return dst_unwrap_array(ds)->data[index];
         case DST_BUFFER:
-            if (index >= ds.as.buffer->count) return dst_wrap_nil();
-            return dst_wrap_integer(ds.as.buffer->data[index]);
+            if (index >= dst_unwrap_buffer(ds)->count) return dst_wrap_nil();
+            return dst_wrap_integer(dst_unwrap_buffer(ds)->data[index]);
         case DST_TUPLE:
-            if (index >= dst_tuple_length(ds.as.tuple)) return dst_wrap_nil();
-            return ds.as.tuple[index];
+            if (index >= dst_tuple_length(dst_unwrap_tuple(ds))) return dst_wrap_nil();
+            return dst_unwrap_tuple(ds)[index];
     }
 }
 
 /* Set an index in a linear data structure. Does nothing if data structure
  * is invalid */
-void dst_setindex(DstValue ds, DstValue value, uint32_t index) {
-    switch (ds.type) {
+void dst_setindex(DstValue ds, DstValue value, int32_t index) {
+    switch (dst_type(ds)) {
         default:
             return;
         case DST_ARRAY:
-            if (index >= ds.as.array->count) {
-                dst_array_ensure(ds.as.array, 2 * index);
-                ds.as.array->count = index + 1;
+            if (index >= dst_unwrap_array(ds)->count) {
+                dst_array_ensure(dst_unwrap_array(ds), 2 * index);
+                dst_unwrap_array(ds)->count = index + 1;
             }
-            ds.as.array->data[index] = value;
+            dst_unwrap_array(ds)->data[index] = value;
             return;
         case DST_BUFFER:
-            if (value.type != DST_INTEGER) return;
-            if (index >= ds.as.buffer->count) {
-                dst_buffer_ensure(ds.as.buffer, 2 * index);
-                ds.as.buffer->count = index + 1;
+            if (!dst_checktype(value, DST_INTEGER)) return;
+            if (index >= dst_unwrap_buffer(ds)->count) {
+                dst_buffer_ensure(dst_unwrap_buffer(ds), 2 * index);
+                dst_unwrap_buffer(ds)->count = index + 1;
             }
-            ds.as.buffer->data[index] = value.as.integer;
+            dst_unwrap_buffer(ds)->data[index] = dst_unwrap_integer(value);
             return;
     }
 }

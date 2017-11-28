@@ -172,10 +172,10 @@ typedef struct {
 static const uint8_t *parse_recur(
     ParseArgs *args,
     const uint8_t *src,
-    uint32_t recur) {
+    int32_t recur) {
 
     const uint8_t *end = args->end;
-    uint32_t qcount = 0;
+    int32_t qcount = 0;
     DstValue ret;
 
     /* Prevent stack overflow */
@@ -243,7 +243,7 @@ static const uint8_t *parse_recur(
         {
             const uint8_t *strend = ++src;
             const uint8_t *strstart = strend;
-            uint32_t len = 0;
+            int32_t len = 0;
             int containsEscape = 0;
             /* Preprocess string to check for escapes and string end */
             while (strend < end && *strend != '"') {
@@ -306,8 +306,8 @@ static const uint8_t *parse_recur(
         case '[':
         case '{': 
         {
-            uint32_t n = 0, i = 0;
-            uint32_t istable = 0;
+            int32_t n = 0, i = 0;
+            int32_t istable = 0;
             uint8_t close;
             switch (*src++) {
                 case '[': close = ']'; break;
@@ -421,7 +421,7 @@ static const uint8_t *parse_recur(
 }
 
 /* Parse an array of bytes. Return value in the fiber return value. */
-DstParseResult dst_parse(const uint8_t *src, uint32_t len) {
+DstParseResult dst_parse(const uint8_t *src, int32_t len) {
     DstParseResult res;
     ParseArgs args;
     const uint8_t *newsrc;
@@ -433,7 +433,7 @@ DstParseResult dst_parse(const uint8_t *src, uint32_t len) {
 
     newsrc = parse_recur(&args, src, DST_RECURSION_GUARD);
     res.status = args.status;
-    res.bytes_read = (uint32_t) (newsrc - src);
+    res.bytes_read = (int32_t) (newsrc - src);
 
     /* TODO - source maps */
     res.map = dst_wrap_nil();
@@ -451,7 +451,7 @@ DstParseResult dst_parse(const uint8_t *src, uint32_t len) {
 
 /* Parse a c string */
 DstParseResult dst_parsec(const char *src) {
-    uint32_t len = 0;
+    int32_t len = 0;
     while (src[len]) ++len;
     return dst_parse((const uint8_t *)src, len);
 }

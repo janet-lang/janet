@@ -23,7 +23,7 @@
 #include <dst/dst.h>
 
 /* Create new userdata */
-void *dst_userdata(uint32_t size, const DstUserType *utype) {
+void *dst_userdata(size_t size, const DstUserType *utype) {
     char *data = dst_alloc(DST_MEMORY_USERDATA, sizeof(DstUserdataHeader) + size);
     DstUserdataHeader *header = (DstUserdataHeader *)data;
     void *user = data + sizeof(DstUserdataHeader);

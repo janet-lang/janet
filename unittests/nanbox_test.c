@@ -35,25 +35,6 @@ union dst_t {
  * hopefully we can avoid some annoying problems that occur when trying to use 47 bit pointers
  * in a 48 bit address space (Linux on ARM) */
 
-enum dst_t_tag {
-    DST_T_NIL,
-    DST_T_TRUE,
-    DST_T_FALSE,
-    DST_T_INTEGER,
-    DST_T_FIBER,
-    DST_T_STRUCT,
-    DST_T_TUPLE,
-    DST_T_ARRAY,
-    DST_T_BUFFER,
-    DST_T_TABLE,
-    DST_T_USERDATA,
-    DST_T_FUNCTION,
-    DST_T_CFUNCTION,
-    DST_T_STRING,
-    DST_T_SYMBOL,
-    DST_T_REAL
-};
-
 /*                    |.......Tag.......|.......................Payload..................| */
 /* Non-double:        t|11111111111|1ttt|xxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */
 /* Types of NIL, TRUE, and FALSE must have payload set to all 1s. */
@@ -65,6 +46,7 @@ enum dst_t_tag {
 /* Quiet nan is nil. Sign bit should be 0. */
 
 #define DST_NANBOX_TYPEBITS    0x0007000000000000lu
+#define DST_NANBOX_TAGBITS     0xFFFF000000000000lu
 
 #ifdef DST_64
 #define DST_NANBOX_POINTERBITS 0x0000FFFFFFFFFFFFlu
@@ -74,10 +56,15 @@ enum dst_t_tag {
 
 #define DST_NANBOX_QUIET_BIT   0x0008000000000000lu
 
-#define dst_nanbox_isreal(x) (!isnan((x).real))
-
 #define dst_nanbox_tag(type) \
     ((((uint64_t)(type) & 0x8) << 12) | 0x7FF8 | (type))
+
+#define dst_nanbox_checkauxtype(x, type) \
+    (((x).u64 & DST_NANBOX_TAGBITS) == (dst_nanbox_tag((type)) << 48))
+
+/* Check if number is nan or if number is real double */
+#define dst_nanbox_isreal(x) \
+    (!isnan((x).real) || dst_nanbox_checkauxtype((x), DST_REAL))
 
 #define dst_nanbox_tagbits(x) \
     ((x).u64 & 0xFFFF000000000000lu)
@@ -86,14 +73,14 @@ enum dst_t_tag {
     ((x).u64 & 0x0000FFFFFFFFFFFFlu)
 
 #define dst_nanbox_type(x) \
-    (dst_nanbox_isreal(x) \
-        ? DST_T_REAL \
-        : (((x).u64 & DST_NANBOX_TYPEBITS) >> 48) | (((x).u64 >> 60) & 0x8))
+    (isnan((x).real) \
+        ? (((x).u64 & DST_NANBOX_TYPEBITS) >> 48) | (((x).u64 >> 60) & 0x8) \
+        : DST_REAL)
 
 #define dst_nanbox_checktype(x, t) \
-    (((t) == DST_T_REAL) \
+    (((t) == DST_REAL) \
         ? dst_nanbox_isreal(x) \
-        : (!dst_nanbox_isreal(x) && (((x).u64 >> 48) == dst_nanbox_tag(t))))
+        : dst_nanbox_checkauxtype((x), (t)))
 
 static inline void *dst_nanbox_to_pointer(dst_t x) {
     /* We need to do this shift to keep the higher bits of the pointer
@@ -115,9 +102,9 @@ static inline dst_t dst_nanbox_from_pointer(void *p, uint64_t tagmask) {
 static inline dst_t dst_nanbox_from_double(double d) {
     dst_t ret;
     ret.real = d;
-    /* Normalize NaNs to nil */
+    /* Normalize NaNs */
     if (d != d)
-        ret.u64 = dst_nanbox_tag(DST_T_NIL) << 48;
+        ret.u64 = dst_nanbox_tag(DST_REAL) << 48;
     return ret;
 }
 
@@ -137,15 +124,15 @@ static inline dst_t dst_nanbox_from_bits(uint64_t bits) {
     dst_nanbox_from_pointer((p), (dst_nanbox_tag(t) << 48) | 0x7FF8000000000000lu)
 
 /* Wrap the simple types */
-#define dst_nanbox_wrap_nil() dst_nanbox_from_payload(DST_T_NIL, 0xFFFFFFFFFFFFlu)
-#define dst_nanbox_wrap_true() dst_nanbox_from_payload(DST_T_TRUE, 0xFFFFFFFFFFFFlu)
-#define dst_nanbox_wrap_false() dst_nanbox_from_payload(DST_T_FALSE, 0xFFFFFFFFFFFFlu)
-#define dst_nanbox_wrap_boolean(b) dst_nanbox_from_payload((b) ? DST_T_TRUE : DST_T_FALSE, 0xFFFFFFFFFFFFlu)
-#define dst_nanbox_wrap_integer(i) dst_nanbox_from_payload(DST_T_INTEGER, (uint32_t)(i))
+#define dst_nanbox_wrap_nil() dst_nanbox_from_payload(DST_NIL, 1)
+#define dst_nanbox_wrap_true() dst_nanbox_from_payload(DST_TRUE, 1)
+#define dst_nanbox_wrap_false() dst_nanbox_from_payload(DST_FALSE, 1)
+#define dst_nanbox_wrap_boolean(b) dst_nanbox_from_payload((b) ? DST_TRUE : DST_FALSE, 1)
+#define dst_nanbox_wrap_integer(i) dst_nanbox_from_payload(DST_INTEGER, (uint32_t)(i))
 #define dst_nanbox_wrap_real(r) dst_nanbox_from_double(r)
 
 #define dst_nanbox_unwrap_boolean(x) \
-    (((x).u64 >> 48) == dst_nanbox_tag(DST_T_TRUE))
+    (((x).u64 >> 48) == dst_nanbox_tag(DST_TRUE))
 
 #define dst_nanbox_unwrap_integer(x) \
     ((int32_t)((x).u64 & 0xFFFFFFFFlu))
@@ -153,17 +140,17 @@ static inline dst_t dst_nanbox_from_bits(uint64_t bits) {
 #define dst_nanbox_unwrap_real(x) ((x).real)
 
 /* Wrap the pointer types */
-#define dst_nanbox_wrap_struct(s) dst_nanbox_wrap_((s), DST_T_STRUCT)
-#define dst_nanbox_wrap_tuple(s) dst_nanbox_wrap_((s), DST_T_TUPLE)
-#define dst_nanbox_wrap_fiber(s) dst_nanbox_wrap_((s), DST_T_FIBER)
-#define dst_nanbox_wrap_array(s) dst_nanbox_wrap_((s), DST_T_ARRAY)
-#define dst_nanbox_wrap_table(s) dst_nanbox_wrap_((s), DST_T_TABLE)
-#define dst_nanbox_wrap_buffer(s) dst_nanbox_wrap_((s), DST_T_BUFFER)
-#define dst_nanbox_wrap_string(s) dst_nanbox_wrap_((s), DST_T_STRING)
-#define dst_nanbox_wrap_symbol(s) dst_nanbox_wrap_((s), DST_T_SYMBOL)
-#define dst_nanbox_wrap_userdata(s) dst_nanbox_wrap_((s), DST_T_USERDATA)
-#define dst_nanbox_wrap_function(s) dst_nanbox_wrap_((s), DST_T_FUNCTION)
-#define dst_nanbox_wrap_cfunction(s) dst_nanbox_wrap_((s), DST_T_CFUNCTION)
+#define dst_nanbox_wrap_struct(s) dst_nanbox_wrap_((s), DST_STRUCT)
+#define dst_nanbox_wrap_tuple(s) dst_nanbox_wrap_((s), DST_TUPLE)
+#define dst_nanbox_wrap_fiber(s) dst_nanbox_wrap_((s), DST_FIBER)
+#define dst_nanbox_wrap_array(s) dst_nanbox_wrap_((s), DST_ARRAY)
+#define dst_nanbox_wrap_table(s) dst_nanbox_wrap_((s), DST_TABLE)
+#define dst_nanbox_wrap_buffer(s) dst_nanbox_wrap_((s), DST_BUFFER)
+#define dst_nanbox_wrap_string(s) dst_nanbox_wrap_((s), DST_STRING)
+#define dst_nanbox_wrap_symbol(s) dst_nanbox_wrap_((s), DST_SYMBOL)
+#define dst_nanbox_wrap_userdata(s) dst_nanbox_wrap_((s), DST_USERDATA)
+#define dst_nanbox_wrap_function(s) dst_nanbox_wrap_((s), DST_FUNCTION)
+#define dst_nanbox_wrap_cfunction(s) dst_nanbox_wrap_((s), DST_CFUNCTION)
 
 /* Unwrap the pointer types */
 #define dst_nanbox_unwrap_struct(x) ((const DstValue *)dst_nanbox_to_pointer(x))
@@ -179,61 +166,61 @@ static inline dst_t dst_nanbox_from_bits(uint64_t bits) {
 #define dst_nanbox_unwrap_cfunction(x) ((DstCFunction)dst_nanbox_to_pointer(x))
 
 void dst_nanbox_print(dst_t x) {
-    assert(dst_nanbox_checktype(x, dst_nanbox_type(x)));
     printf("hex: 0x%lx, "
            "description: ", x.u64);
     switch (dst_nanbox_type(x)) {
-        case DST_T_NIL:
+        case DST_NIL:
             printf("nil\n");
             break;
-        case DST_T_TRUE:
+        case DST_TRUE:
             printf("true\n");
             break;
-        case DST_T_FALSE:
+        case DST_FALSE:
             printf("false\n");
             break;
-        case DST_T_INTEGER:
+        case DST_INTEGER:
             printf("%dI\n", dst_nanbox_unwrap_integer(x));
             break;
-        case DST_T_STRUCT:
+        case DST_STRUCT:
             printf("<struct %p>\n", dst_nanbox_unwrap_struct(x));
             break;
-        case DST_T_TUPLE:
+        case DST_TUPLE:
             printf("<tuple %p>\n", dst_nanbox_unwrap_tuple(x));
             break;
-        case DST_T_FIBER:
+        case DST_FIBER:
             printf("<fiber %p>\n", dst_nanbox_unwrap_fiber(x));
             break;
-        case DST_T_ARRAY:
+        case DST_ARRAY:
             printf("<array %p>\n", dst_nanbox_unwrap_array(x));
             break;
-        case DST_T_TABLE:
+        case DST_TABLE:
             printf("<table %p>\n", dst_nanbox_unwrap_table(x));
             break;
-        case DST_T_STRING:
+        case DST_STRING:
             printf("<string %p>\n", dst_nanbox_unwrap_string(x));
             break;
-        case DST_T_SYMBOL:
+        case DST_SYMBOL:
             printf("<symbol %p>\n", dst_nanbox_unwrap_symbol(x));
             break;
-        case DST_T_USERDATA:
+        case DST_USERDATA:
             printf("<userdata %p>\n", dst_nanbox_unwrap_userdata(x));
             break;
-        case DST_T_FUNCTION:
+        case DST_FUNCTION:
             printf("<function %p>\n", dst_nanbox_unwrap_function(x));
             break;
-        case DST_T_CFUNCTION:
+        case DST_CFUNCTION:
             printf("<cfunction %p>\n", dst_nanbox_unwrap_cfunction(x));
             break;
-        case DST_T_BUFFER:
+        case DST_BUFFER:
             printf("<buffer %p>\n", dst_nanbox_unwrap_buffer(x));
             break;
         default:
             printf("unknown type 0x%lu\n", dst_nanbox_type(x));
-        case DST_T_REAL:
+        case DST_REAL:
             printf("%.21g\n", dst_nanbox_unwrap_real(x));
             break;
     }
+    assert(dst_nanbox_checktype(x, dst_nanbox_type(x)));
 }
 
 int main() {
@@ -241,6 +228,10 @@ int main() {
     printf("sizeof(dst_t) = %lu\n", sizeof(dst_t));
 
     DstArray array;
+
+    dst_t a = dst_nanbox_wrap_real(0.123);
+    dst_t b = dst_nanbox_wrap_nil();
+    dst_nanbox_print(dst_nanbox_wrap_real(dst_nanbox_unwrap_real(a) + dst_nanbox_unwrap_real(b)));
 
     dst_nanbox_print(dst_nanbox_wrap_real(0.125));     
     dst_nanbox_print(dst_nanbox_wrap_real(19236910.125));     
@@ -252,6 +243,7 @@ int main() {
     dst_nanbox_print(dst_nanbox_wrap_real(0.0/0.0));     
     dst_nanbox_print(dst_nanbox_wrap_true());     
     dst_nanbox_print(dst_nanbox_wrap_false());     
+    dst_nanbox_print(dst_nanbox_wrap_nil());     
     dst_nanbox_print(dst_nanbox_wrap_integer(123));     
     dst_nanbox_print(dst_nanbox_wrap_integer(-123));     
     dst_nanbox_print(dst_nanbox_wrap_integer(0));     

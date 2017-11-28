@@ -67,26 +67,26 @@ int dst_continue() {
      * Pulls out unsigned integers */
 #define oparg(shift, mask) (((*pc) >> ((shift) << 3)) & (mask))
 
-#define vm_throw(e) do { dst_vm_fiber->ret = dst_wrap_string(dst_cstring((e))); goto vm_error; } while (0)
+#define vm_throw(e) do { dst_vm_fiber->ret = dst_cstringv((e)); goto vm_error; } while (0)
 #define vm_assert(cond, e) do {if (!(cond)) vm_throw((e)); } while (0)
 
 #define vm_binop_integer(op) \
     stack[oparg(1, 0xFF)] = dst_wrap_integer(\
-        stack[oparg(2, 0xFF)].as.integer op stack[oparg(3, 0xFF)].as.integer\
+        dst_unwrap_integer(stack[oparg(2, 0xFF)]) op dst_unwrap_integer(stack[oparg(3, 0xFF)])\
     );\
     pc++;\
     vm_next();
 
 #define vm_binop_real(op)\
     stack[oparg(1, 0xFF)] = dst_wrap_real(\
-        stack[oparg(2, 0xFF)].as.real op stack[oparg(3, 0xFF)].as.real\
+        dst_unwrap_real(stack[oparg(2, 0xFF)]) op dst_unwrap_real(stack[oparg(3, 0xFF)])\
     );\
     pc++;\
     vm_next();
 
 #define vm_binop_immediate(op)\
     stack[oparg(1, 0xFF)] = dst_wrap_integer(\
-        stack[oparg(2, 0xFF)].as.integer op (*((int32_t *)pc) >> 24)\
+        dst_unwrap_integer(stack[oparg(2, 0xFF)]) op (*((int32_t *)pc) >> 24)\
     );\
     pc++;\
     vm_next();
@@ -95,15 +95,15 @@ int dst_continue() {
     {\
         DstValue op1 = stack[oparg(2, 0xFF)];\
         DstValue op2 = stack[oparg(3, 0xFF)];\
-        vm_assert(op1.type == DST_INTEGER || op1.type == DST_REAL, "expected number");\
-        vm_assert(op2.type == DST_INTEGER || op2.type == DST_REAL, "expected number");\
-        stack[oparg(1, 0xFF)] = op1.type == DST_INTEGER\
-            ? (op2.type == DST_INTEGER\
-                ? dst_wrap_integer(op1.as.integer op op2.as.integer)\
-                : dst_wrap_real(dst_integer_to_real(op1.as.integer) op op2.as.real))\
-            : (op2.type == DST_INTEGER\
-                ? dst_wrap_real(op1.as.real op dst_integer_to_real(op2.as.integer))\
-                : dst_wrap_real(op1.as.real op op2.as.real));\
+        vm_assert(dst_checktype(op1, DST_INTEGER) || dst_checktype(op1, DST_REAL), "expected number");\
+        vm_assert(dst_checktype(op2, DST_INTEGER) || dst_checktype(op2, DST_REAL), "expected number");\
+        stack[oparg(1, 0xFF)] = dst_checktype(op1, DST_INTEGER)\
+            ? (dst_checktype(op2, DST_INTEGER)\
+                ? dst_wrap_integer(dst_unwrap_integer(op1) op dst_unwrap_integer(op2))\
+                : dst_wrap_real((double)dst_unwrap_integer(op1) op dst_unwrap_real(op2)))\
+            : (dst_checktype(op2, DST_INTEGER)\
+                ? dst_wrap_real(dst_unwrap_real(op1) op (double)dst_unwrap_integer(op2))\
+                : dst_wrap_real(dst_unwrap_real(op1) op dst_unwrap_real(op2)));\
         pc++;\
         vm_next();\
     }
@@ -137,7 +137,7 @@ int dst_continue() {
         goto vm_error;
 
         case DOP_TYPECHECK:
-        vm_assert((1 << stack[oparg(1, 0xFF)].type) & oparg(2, 0xFFFF),
+        vm_assert((1 << dst_type(stack[oparg(1, 0xFF)])) & oparg(2, 0xFFFF),
                 "typecheck failed");
         pc++;
         vm_next();
@@ -147,7 +147,7 @@ int dst_continue() {
         goto vm_return;
 
         case DOP_RETURN_NIL:
-        dst_vm_fiber->ret.type = DST_NIL;
+        dst_vm_fiber->ret = dst_wrap_nil();
         goto vm_return;
 
         case DOP_ADD_INTEGER:
@@ -184,16 +184,16 @@ int dst_continue() {
         vm_binop(*);
 
         case DOP_DIVIDE_INTEGER:
-        vm_assert(stack[oparg(3, 0xFF)].as.integer != 0, "integer divide by zero");
-        vm_assert(!(stack[oparg(3, 0xFF)].as.integer == -1 && 
-                    stack[oparg(2, 0xFF)].as.integer == DST_INTEGER_MIN),
+        vm_assert(dst_unwrap_integer(stack[oparg(3, 0xFF)]) != 0, "integer divide by zero");
+        vm_assert(!(dst_unwrap_integer(stack[oparg(3, 0xFF)]) == -1 && 
+                    dst_unwrap_integer(stack[oparg(2, 0xFF)]) == DST_INTEGER_MIN),
                 "integer divide overflow");
         vm_binop_integer(/);
         
         case DOP_DIVIDE_IMMEDIATE:
         {
-            int64_t op1 = stack[oparg(2, 0xFF)].as.integer;
-            int64_t op2 = *((int32_t *)pc) >> 24;
+            int32_t op1 = dst_unwrap_integer(stack[oparg(2, 0xFF)]);
+            int32_t op2 = *((int32_t *)pc) >> 24;
             /* Check for degenerate integer division (divide by zero, and dividing
              * min value by -1). These checks could be omitted if the arg is not 
              * 0 or -1. */
@@ -214,20 +214,20 @@ int dst_continue() {
         {
             DstValue op1 = stack[oparg(2, 0xFF)];
             DstValue op2 = stack[oparg(3, 0xFF)];
-            vm_assert(op1.type == DST_INTEGER || op1.type == DST_REAL, "expected number");
-            vm_assert(op2.type == DST_INTEGER || op2.type == DST_REAL, "expected number");
-            if (op2.type == DST_INTEGER && op2.as.integer == 0)
+            vm_assert(dst_checktype(op1, DST_INTEGER) || dst_checktype(op1, DST_REAL), "expected number");
+            vm_assert(dst_checktype(op2, DST_INTEGER) || dst_checktype(op2, DST_REAL), "expected number");
+            if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == 0)
                 op2 = dst_wrap_real(0.0);
-            if (op2.type == DST_INTEGER && op2.as.integer == -1 &&
-                op1.type == DST_INTEGER && op1.as.integer == DST_INTEGER_MIN)
-                op2 = dst_wrap_real(-1);
-            stack[oparg(1, 0xFF)] = op1.type == DST_INTEGER
-                ? op2.type == DST_INTEGER
-                    ? dst_wrap_integer(op1.as.integer / op2.as.integer)
-                    : dst_wrap_real(dst_integer_to_real(op1.as.integer) / op2.as.real)
-                : op2.type == DST_INTEGER
-                    ? dst_wrap_real(op1.as.real / dst_integer_to_real(op2.as.integer))
-                    : dst_wrap_real(op1.as.real / op2.as.real);
+            if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == -1 &&
+                dst_checktype(op1, DST_INTEGER) && dst_unwrap_integer(op1) == DST_INTEGER_MIN)
+                op2 = dst_wrap_real(-1.0);
+            stack[oparg(1, 0xFF)] = dst_checktype(op1, DST_INTEGER)
+                ? (dst_checktype(op2, DST_INTEGER)
+                    ? dst_wrap_integer(dst_unwrap_integer(op1) / dst_unwrap_integer(op2))
+                    : dst_wrap_real((double)dst_unwrap_integer(op1) / dst_unwrap_real(op2)))
+                : (dst_checktype(op2, DST_INTEGER)
+                    ? dst_wrap_real(dst_unwrap_real(op1) / (double)dst_unwrap_integer(op2))
+                    : dst_wrap_real(dst_unwrap_real(op1) / dst_unwrap_real(op2)));
             pc++;
             vm_next();
         }
@@ -242,21 +242,21 @@ int dst_continue() {
         vm_binop_integer(^);
 
         case DOP_BNOT:
-        stack[oparg(1, 0xFF)] = dst_wrap_integer(~stack[oparg(2, 0xFFFF)].as.integer);
+        stack[oparg(1, 0xFF)] = dst_wrap_integer(~dst_unwrap_integer(stack[oparg(2, 0xFFFF)]));
         vm_next();
             
         case DOP_SHIFT_RIGHT_UNSIGNED:
         stack[oparg(1, 0xFF)] = dst_wrap_integer(
-            stack[oparg(2, 0xFF)].as.uinteger
+            (int32_t)(((uint32_t)dst_unwrap_integer(stack[oparg(2, 0xFF)]))
             >>
-            stack[oparg(3, 0xFF)].as.uinteger
+            dst_unwrap_integer(stack[oparg(3, 0xFF)]))
         );
         pc++;
         vm_next();
 
         case DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE:
         stack[oparg(1, 0xFF)] = dst_wrap_integer(
-            stack[oparg(2, 0xFF)].as.uinteger >> oparg(3, 0xFF)
+            (int32_t) (((uint32_t)dst_unwrap_integer(stack[oparg(2, 0xFF)])) >> oparg(3, 0xFF))
         );
         pc++;
         vm_next();
@@ -266,7 +266,7 @@ int dst_continue() {
 
         case DOP_SHIFT_RIGHT_IMMEDIATE:
         stack[oparg(1, 0xFF)] = dst_wrap_integer(
-            (int64_t)(stack[oparg(2, 0xFF)].as.uinteger >> oparg(3, 0xFF))
+            (int32_t)(dst_unwrap_integer(stack[oparg(2, 0xFF)]) >> oparg(3, 0xFF))
         );
         pc++;
         vm_next();
@@ -276,7 +276,7 @@ int dst_continue() {
 
         case DOP_SHIFT_LEFT_IMMEDIATE:
         stack[oparg(1, 0xFF)] = dst_wrap_integer(
-            stack[oparg(2, 0xFF)].as.integer << oparg(3, 0xFF)
+            dst_unwrap_integer(stack[oparg(2, 0xFF)]) << oparg(3, 0xFF)
         );
         pc++;
         vm_next();
@@ -307,43 +307,39 @@ int dst_continue() {
         vm_next();
 
         case DOP_LESS_THAN:
-        stack[oparg(1, 0xFF)].type = DST_BOOLEAN;
-        stack[oparg(1, 0xFF)].as.boolean = dst_compare(
+        stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_compare(
                 stack[oparg(2, 0xFF)],
                 stack[oparg(3, 0xFF)]
-            ) < 0;
+            ) < 0);
         pc++;
         vm_next();
 
         case DOP_GREATER_THAN:
-        stack[oparg(1, 0xFF)].type = DST_BOOLEAN;
-        stack[oparg(1, 0xFF)].as.boolean = dst_compare(
+        stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_compare(
                 stack[oparg(2, 0xFF)],
                 stack[oparg(3, 0xFF)]
-            ) > 0;
+            ) > 0);
         pc++;
         vm_next();
 
         case DOP_EQUALS:
-        stack[oparg(1, 0xFF)].type = DST_BOOLEAN;
-        stack[oparg(1, 0xFF)].as.boolean = dst_equals(
+        stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_equals(
                 stack[oparg(2, 0xFF)],
                 stack[oparg(3, 0xFF)]
-            );
+            ));
         pc++;
         vm_next();
 
         case DOP_COMPARE:
-        stack[oparg(1, 0xFF)].type = DST_INTEGER;
-        stack[oparg(1, 0xFF)].as.integer = dst_compare(
-                stack[oparg(2, 0xFF)],
-                stack[oparg(3, 0xFF)]
-            );
+        stack[oparg(1, 0xFF)] = dst_wrap_integer(dst_compare(
+            stack[oparg(2, 0xFF)],
+            stack[oparg(3, 0xFF)]
+        ));
         pc++;
         vm_next();
 
         case DOP_LOAD_NIL:
-        stack[oparg(1, 0xFFFFFF)].type = DST_NIL;
+        stack[oparg(1, 0xFFFFFF)] = dst_wrap_nil();
         pc++;
         vm_next();
 
@@ -358,15 +354,15 @@ int dst_continue() {
         vm_next();
 
         case DOP_LOAD_CONSTANT:
-        vm_assert(oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
-        stack[oparg(1, 0xFF)] = func->def->constants[oparg(2, 0xFFFF)];
+        vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
+        stack[oparg(1, 0xFF)] = func->def->constants[(int32_t)oparg(2, 0xFFFF)];
         pc++;
         vm_next();
 
         case DOP_LOAD_UPVALUE:
         {
-            uint32_t eindex = oparg(2, 0xFF);
-            uint32_t vindex = oparg(3, 0xFF);
+            int32_t eindex = oparg(2, 0xFF);
+            int32_t vindex = oparg(3, 0xFF);
             DstFuncEnv *env;
             vm_assert(func->def->environments_length > eindex, "invalid upvalue");
             env = func->envs[eindex];
@@ -384,8 +380,8 @@ int dst_continue() {
 
         case DOP_SET_UPVALUE:
         {
-            uint32_t eindex = oparg(2, 0xFF);
-            uint32_t vindex = oparg(3, 0xFF);
+            int32_t eindex = oparg(2, 0xFF);
+            int32_t vindex = oparg(3, 0xFF);
             DstFuncEnv *env;
             vm_assert(func->def->environments_length > eindex, "invalid upvalue");
             env = func->envs[eindex];
@@ -401,12 +397,12 @@ int dst_continue() {
 
         case DOP_CLOSURE:
         {
-            uint32_t i;
+            int32_t i;
             DstFunction *fn;
             DstFuncDef *fd;
-            vm_assert(oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
-            vm_assert(func->def->constants[oparg(2, 0xFFFF)].type == DST_NIL, "constant must be funcdef");
-            fd = (DstFuncDef *)(func->def->constants[oparg(2, 0xFFFF)].as.pointer);
+            vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
+            vm_assert(dst_checktype(func->def->constants[oparg(2, 0xFFFF)], DST_NIL), "constant must be funcdef");
+            fd = (DstFuncDef *)(dst_unwrap_pointer(func->def->constants[(int32_t)oparg(2, 0xFFFF)]));
             fn = dst_alloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
             fn->envs = malloc(sizeof(DstFuncEnv *) * fd->environments_length);
             if (NULL == fn->envs) {
@@ -423,7 +419,7 @@ int dst_continue() {
                 fn->envs[0] = NULL;
             }
             for (i = 1; i < fd->environments_length; ++i) {
-                uint32_t inherit = fd->environments[i];
+                int32_t inherit = fd->environments[i];
                 fn->envs[i] = func->envs[inherit];
             }
             stack[oparg(1, 0xFF)] = dst_wrap_function(fn);
@@ -453,7 +449,7 @@ int dst_continue() {
 
         case DOP_PUSH_ARRAY:
         {
-            uint32_t count;
+            int32_t count;
             const DstValue *array;
             if (dst_seq_view(stack[oparg(1, 0xFFFFFF)], &array, &count)) {
                 dst_fiber_pushn(dst_vm_fiber, array, count);
@@ -467,16 +463,16 @@ int dst_continue() {
         case DOP_CALL:
         {
             DstValue callee = stack[oparg(2, 0xFFFF)];
-            if (callee.type == DST_FUNCTION) {
-                func = callee.as.function;
+            if (dst_checktype(callee, DST_FUNCTION)) {
+                func = dst_unwrap_function(callee);
                 dst_fiber_funcframe(dst_vm_fiber, func);
                 stack = dst_vm_fiber->data + dst_vm_fiber->frame;
                 pc = func->def->bytecode;
                 vm_checkgc_next();
-            } else if (callee.type == DST_CFUNCTION) {
+            } else if (dst_checktype(callee, DST_CFUNCTION)) {
                 dst_fiber_cframe(dst_vm_fiber);
-                dst_vm_fiber->ret.type = DST_NIL;
-                if (callee.as.cfunction(
+                dst_vm_fiber->ret = dst_wrap_nil();
+                if (dst_unwrap_cfunction(callee)(
                         dst_vm_fiber->data + dst_vm_fiber->frame,
                         dst_vm_fiber->frametop - dst_vm_fiber->frame)) {
                     goto vm_error;
@@ -489,16 +485,16 @@ int dst_continue() {
         case DOP_TAILCALL:
         {
             DstValue callee = stack[oparg(2, 0xFFFF)];
-            if (callee.type == DST_FUNCTION) {
-                func = callee.as.function;
+            if (dst_checktype(callee, DST_FUNCTION)) {
+                func = dst_unwrap_function(callee);
                 dst_fiber_funcframe_tail(dst_vm_fiber, func);
                 stack = dst_vm_fiber->data + dst_vm_fiber->frame;
                 pc = func->def->bytecode;
                 vm_checkgc_next();
-            } else if (callee.type == DST_CFUNCTION) {
+            } else if (dst_checktype(callee, DST_CFUNCTION)) {
                 dst_fiber_cframe_tail(dst_vm_fiber);
-                dst_vm_fiber->ret.type = DST_NIL;
-                if (callee.as.cfunction(
+                dst_vm_fiber->ret = dst_wrap_nil();
+                if (dst_unwrap_cfunction(callee)(
                             dst_vm_fiber->data + dst_vm_fiber->frame, 
                             dst_vm_fiber->frametop - dst_vm_fiber->frame)) {
                     goto vm_error;
@@ -513,7 +509,7 @@ int dst_continue() {
             DstCFunction f = dst_vm_syscalls[oparg(2, 0xFF)];
             vm_assert(NULL != f, "invalid syscall");
             dst_fiber_cframe(dst_vm_fiber);
-            dst_vm_fiber->ret.type = DST_NIL;
+            dst_vm_fiber->ret = dst_wrap_nil();
             if (f(dst_vm_fiber->data + dst_vm_fiber->frame,
                         dst_vm_fiber->frametop - dst_vm_fiber->frame)) {
                 goto vm_error;
@@ -536,10 +532,10 @@ int dst_continue() {
             DstStackFrame *frame = dst_stack_frame(stack);
             DstValue temp = stack[oparg(2, 0xFF)];
             DstValue retvalue = stack[oparg(3, 0xFF)];
-            vm_assert(temp.type == DST_FIBER ||
-                      temp.type == DST_NIL, "expected fiber");
-            nextfiber = temp.type == DST_FIBER
-                ? temp.as.fiber
+            vm_assert(dst_checktype(temp, DST_FIBER) ||
+                      dst_checktype(temp, DST_NIL), "expected fiber");
+            nextfiber = dst_checktype(temp, DST_FIBER)
+                ? dst_unwrap_fiber(temp)
                 : dst_vm_fiber->parent;
             /* Check for root fiber */
             if (NULL == nextfiber) {
@@ -649,15 +645,15 @@ int dst_run(DstValue callee) {
     } else {
         dst_fiber_reset(dst_vm_fiber);
     }
-    if (callee.type == DST_CFUNCTION) {
+    if (dst_checktype(callee, DST_CFUNCTION)) {
         dst_vm_fiber->ret = dst_wrap_nil();
         dst_fiber_cframe(dst_vm_fiber);
-        return callee.as.cfunction(dst_vm_fiber->data + dst_vm_fiber->frame, 0);
-    } else if (callee.type == DST_FUNCTION) {
-        dst_fiber_funcframe(dst_vm_fiber, callee.as.function);
+        return dst_unwrap_cfunction(callee)(dst_vm_fiber->data + dst_vm_fiber->frame, 0);
+    } else if (dst_checktype(callee, DST_FUNCTION)) {
+        dst_fiber_funcframe(dst_vm_fiber, dst_unwrap_function(callee));
         return dst_continue();
     }
-    dst_vm_fiber->ret = dst_wrap_string(dst_cstring("expected function"));
+    dst_vm_fiber->ret = dst_cstringv("expected function");
     return 1;
 }
 

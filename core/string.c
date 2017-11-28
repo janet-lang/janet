@@ -23,9 +23,9 @@
 #include <dst/dst.h>
 
 /* Begin building a string */
-uint8_t *dst_string_begin(uint32_t length) {
-    char *data = dst_alloc(DST_MEMORY_STRING, 2 * sizeof(uint32_t) + length);
-    uint8_t *str = (uint8_t *) (data + 2 * sizeof(uint32_t));
+uint8_t *dst_string_begin(int32_t length) {
+    char *data = dst_alloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + length);
+    uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
     dst_string_length(str) = length;
     return str;
 }
@@ -37,10 +37,10 @@ const uint8_t *dst_string_end(uint8_t *str) {
 }
 
 /* Load a buffer as a string */
-const uint8_t *dst_string(const uint8_t *buf, uint32_t len) {
-    uint32_t hash = dst_string_calchash(buf, len);
-    char *data = dst_alloc(DST_MEMORY_STRING, 2 * sizeof(uint32_t) + len);
-    uint8_t *str = (uint8_t *) (data + 2 * sizeof(uint32_t));
+const uint8_t *dst_string(const uint8_t *buf, int32_t len) {
+    int32_t hash = dst_string_calchash(buf, len);
+    char *data = dst_alloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + len);
+    uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
     memcpy(str, buf, len);
     dst_string_length(str) = len;
     dst_string_hash(str) = hash;
@@ -49,10 +49,10 @@ const uint8_t *dst_string(const uint8_t *buf, uint32_t len) {
 
 /* Compare two strings */
 int dst_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
-    uint32_t xlen = dst_string_length(lhs);
-    uint32_t ylen = dst_string_length(rhs);
-    uint32_t len = xlen > ylen ? ylen : xlen;
-    uint32_t i;
+    int32_t xlen = dst_string_length(lhs);
+    int32_t ylen = dst_string_length(rhs);
+    int32_t len = xlen > ylen ? ylen : xlen;
+    int32_t i;
     for (i = 0; i < len; ++i) {
         if (lhs[i] == rhs[i]) {
             continue;
@@ -70,10 +70,10 @@ int dst_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
 }
 
 /* Compare a dst string with a piece of memory */
-int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, uint32_t rlen, uint32_t rhash) {
-    uint32_t index;
-    uint32_t lhash = dst_string_hash(lhs);
-    uint32_t llen = dst_string_length(lhs);
+int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash) {
+    int32_t index;
+    int32_t lhash = dst_string_hash(lhs);
+    int32_t llen = dst_string_length(lhs);
     if (lhs == rhs)
         return 1;
     if (lhash != rhash || llen != rlen)
@@ -93,7 +93,7 @@ int dst_string_equal(const uint8_t *lhs, const uint8_t *rhs) {
 
 /* Load a c string */
 const uint8_t *dst_cstring(const char *str) {
-    uint32_t len = 0;
+    int32_t len = 0;
     while (str[len]) ++len;
     return dst_string((const uint8_t *)str, len);
 }
@@ -101,9 +101,9 @@ const uint8_t *dst_cstring(const char *str) {
 /* Temporary buffer size */
 #define DST_BUFSIZE 36
 
-static uint32_t real_to_string_impl(uint8_t *buf, double x) {
+static int32_t real_to_string_impl(uint8_t *buf, double x) {
     int count = snprintf((char *) buf, DST_BUFSIZE, "%.21g", x);
-    return (uint32_t) count;
+    return (int32_t) count;
 }
 
 static void real_to_string_b(DstBuffer *buffer, double x) {
@@ -116,10 +116,10 @@ static const uint8_t *real_to_string(double x) {
     return dst_string(buf, real_to_string_impl(buf, x));
 }
 
-static uint32_t integer_to_string_impl(uint8_t *buf, int64_t x) {
+static int32_t integer_to_string_impl(uint8_t *buf, int64_t x) {
     int neg = 0;
     uint8_t *hi, *low;
-    uint32_t count = 0;
+    int32_t count = 0;
     if (x == 0) {
         buf[0] = '0';
         return 1;
@@ -160,9 +160,9 @@ static const uint8_t *integer_to_string(int64_t x) {
 
 /* Returns a string description for a pointer. Truncates
  * title to 12 characters */
-static uint32_t string_description_impl(uint8_t *buf, const char *title, void *pointer) {
+static int32_t string_description_impl(uint8_t *buf, const char *title, void *pointer) {
     uint8_t *c = buf;
-    uint32_t i;
+    int32_t i;
     union {
         uint8_t bytes[sizeof(void *)];
         void *p;
@@ -182,7 +182,7 @@ static uint32_t string_description_impl(uint8_t *buf, const char *title, void *p
         *c++ = HEX(byte & 0xF);
     }
     *c++ = '>';
-    return (uint32_t) (c - buf);
+    return (int32_t) (c - buf);
 }
 
 static void string_description_b(DstBuffer *buffer, const char *title, void *pointer) {
@@ -200,9 +200,9 @@ static const uint8_t *string_description(const char *title, void *pointer) {
 #undef HEX
 #undef DST_BUFSIZE
 
-static uint32_t dst_escape_string_length(const uint8_t *str) {
-    uint32_t len = 2;
-    uint32_t i;
+static int32_t dst_escape_string_length(const uint8_t *str) {
+    int32_t len = 2;
+    int32_t i;
     for (i = 0; i < dst_string_length(str); ++i) {
         switch (str[i]) {
             case '"':
@@ -220,7 +220,7 @@ static uint32_t dst_escape_string_length(const uint8_t *str) {
 }
 
 static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str) {
-    uint32_t i, j;
+    int32_t i, j;
     buf[0] = '"';
     for (i = 0, j = 1; i < dst_string_length(str); ++i) {
         uint8_t c = str[i];
@@ -250,14 +250,14 @@ static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str) {
 }
 
 void dst_escape_string_b(DstBuffer *buffer, const uint8_t *str) {
-    uint32_t len = dst_escape_string_length(str);
+    int32_t len = dst_escape_string_length(str);
     dst_buffer_extra(buffer, len);
     dst_escape_string_impl(buffer->data + buffer->count, str);
     buffer->count += len;
 }
 
 const uint8_t *dst_escape_string(const uint8_t *str) {
-    uint32_t len = dst_escape_string_length(str);
+    int32_t len = dst_escape_string_length(str);
     uint8_t *buf = dst_string_begin(len);
     dst_escape_string_impl(buf, str);
     return dst_string_end(buf);
@@ -265,57 +265,56 @@ const uint8_t *dst_escape_string(const uint8_t *str) {
 
 /* Returns a string pointer with the description of the string */
 const uint8_t *dst_short_description(DstValue x) {
-    switch (x.type) {
+    switch (dst_type(x)) {
     case DST_NIL:
         return dst_cstring("nil");
-    case DST_BOOLEAN:
-        if (x.as.boolean)
-            return dst_cstring("true");
-        else
-            return dst_cstring("false");
+    case DST_TRUE:
+        return dst_cstring("true");
+    case DST_FALSE:
+        return dst_cstring("false");
     case DST_REAL:
-        return real_to_string(x.as.real);
+        return real_to_string(dst_unwrap_real(x));
     case DST_INTEGER:
-        return integer_to_string(x.as.integer);
+        return integer_to_string(dst_unwrap_integer(x));
     case DST_SYMBOL:
-        return x.as.string;
+        return dst_unwrap_string(x);
     case DST_STRING:
-        return dst_escape_string(x.as.string);
+        return dst_escape_string(dst_unwrap_string(x));
     case DST_USERDATA:
-        return string_description(dst_userdata_type(x.as.pointer)->name, x.as.pointer);
+        return string_description(dst_userdata_type(dst_unwrap_pointer(x))->name, dst_unwrap_pointer(x));
     default:
-        return string_description(dst_type_names[x.type], x.as.pointer);
+        return string_description(dst_type_names[dst_type(x)], dst_unwrap_pointer(x));
     }
 }
 
 void dst_short_description_b(DstBuffer *buffer, DstValue x) {
-    switch (x.type) {
+    switch (dst_type(x)) {
     case DST_NIL:
         dst_buffer_push_cstring(buffer, "nil");
         return;
-    case DST_BOOLEAN:
-        if (x.as.boolean)
-            dst_buffer_push_cstring(buffer, "true");
-        else
-            dst_buffer_push_cstring(buffer, "false");
+    case DST_TRUE:
+        dst_buffer_push_cstring(buffer, "true");
+        return;
+    case DST_FALSE:
+        dst_buffer_push_cstring(buffer, "false");
         return;
     case DST_REAL:
-        real_to_string_b(buffer, x.as.real);
+        real_to_string_b(buffer, dst_unwrap_real(x));
         return;
     case DST_INTEGER:
-        integer_to_string_b(buffer, x.as.integer);
+        integer_to_string_b(buffer, dst_unwrap_integer(x));
         return;
     case DST_SYMBOL:
-        dst_buffer_push_bytes(buffer, x.as.string, dst_string_length(x.as.string));
+        dst_buffer_push_bytes(buffer, dst_unwrap_string(x), dst_string_length(dst_unwrap_string(x)));
         return;
     case DST_STRING:
-        dst_escape_string_b(buffer, x.as.string);
+        dst_escape_string_b(buffer, dst_unwrap_string(x));
         return;
     case DST_USERDATA:
-        string_description_b(buffer, dst_userdata_type(x.as.pointer)->name, x.as.pointer);
+        string_description_b(buffer, dst_userdata_type(dst_unwrap_pointer(x))->name, dst_unwrap_pointer(x));
         return;
     default:
-        string_description_b(buffer, dst_type_names[x.type], x.as.pointer);
+        string_description_b(buffer, dst_type_names[dst_type(x)], dst_unwrap_pointer(x));
         break;
     }
 }
@@ -327,10 +326,10 @@ struct DstPrinter {
     DstTable seen;
     uint32_t flags;
     int64_t next;
-    uint32_t indent;
-    uint32_t indent_size;
-    uint32_t token_line_limit;
-    uint32_t depth;
+    int32_t indent;
+    int32_t indent_size;
+    int32_t token_line_limit;
+    int32_t depth;
 };
 
 #define DST_PRINTFLAG_INDENT 1
@@ -340,7 +339,7 @@ struct DstPrinter {
 
 /* Go to next line for printer */
 static void dst_print_indent(DstPrinter *p) {
-    uint32_t i, len;
+    int32_t i, len;
     len = p->indent_size * p->indent;
     for (i = 0; i < len; i++) {
         dst_buffer_push_u8(&p->buffer, ' ');
@@ -349,7 +348,7 @@ static void dst_print_indent(DstPrinter *p) {
 
 /* Check if a value is a print atom (not a printable data structure) */
 static int is_print_ds(DstValue v) {
-    switch (v.type) {
+    switch (dst_type(v)) {
         default: return 0;
         case DST_ARRAY:
         case DST_STRUCT:
@@ -381,8 +380,8 @@ static const char *dst_type_colors[15] = {
 static void dst_description_helper(DstPrinter *p, DstValue x);
 
 /* Print a hastable view inline */
-static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, uint32_t len, uint32_t cap) {
-    uint32_t i;
+static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, int32_t len, int32_t cap) {
+    int32_t i;
     int doindent = 0;
     if (p->flags & DST_PRINTFLAG_INDENT) {
         if (len <= p->token_line_limit) {
@@ -400,7 +399,7 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, uint3
         dst_buffer_push_u8(&p->buffer, '\n');
         p->indent++;
         for (i = 0; i < cap; i += 2) {
-            if (data[i].type != DST_NIL) {
+            if (dst_checktype(data[i], DST_NIL)) {
                 dst_print_indent(p);
                 dst_description_helper(p, data[i]);
                 dst_buffer_push_u8(&p->buffer, ' ');
@@ -413,7 +412,7 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, uint3
     } else {
         int isfirst = 1;
         for (i = 0; i < cap; i += 2) {
-            if (data[i].type != DST_NIL) {
+            if (dst_checktype(data[i], DST_NIL)) {
                 if (isfirst)
                     isfirst = 0;
                 else
@@ -427,8 +426,8 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, uint3
 }
 
 /* Help print a sequence */
-static void dst_print_seq_inner(DstPrinter *p, const DstValue *data, uint32_t len) {
-    uint32_t i;
+static void dst_print_seq_inner(DstPrinter *p, const DstValue *data, int32_t len) {
+    int32_t i;
     int doindent = 0;
     if (p->flags & DST_PRINTFLAG_INDENT) {
         if (len <= p->token_line_limit) {
@@ -465,19 +464,19 @@ static void dst_print_seq_inner(DstPrinter *p, const DstValue *data, uint32_t le
 static void dst_description_helper(DstPrinter *p, DstValue x) {
     p->depth--;
     DstValue check = dst_table_get(&p->seen, x);
-    if (check.type == DST_INTEGER) {
+    if (dst_checktype(check, DST_INTEGER)) {
         dst_buffer_push_cstring(&p->buffer, "<cycle ");
-        integer_to_string_b(&p->buffer, check.as.integer);
+        integer_to_string_b(&p->buffer, dst_unwrap_integer(check));
         dst_buffer_push_cstring(&p->buffer, ">");
     } else {
         const char *open;
         const char *close;
-        uint32_t len, cap;
+        int32_t len, cap;
         const DstValue *data;
-        switch (x.type) {
+        switch (dst_type(x)) {
             default:
                 if (p->flags & DST_PRINTFLAG_COLORIZE) {
-                    dst_buffer_push_cstring(&p->buffer, dst_type_colors[x.type]);
+                    dst_buffer_push_cstring(&p->buffer, dst_type_colors[dst_type(x)]);
                     dst_short_description_b(&p->buffer, x);
                     dst_buffer_push_cstring(&p->buffer, "\x1B[0m");
                 } else {
@@ -547,12 +546,12 @@ const uint8_t *dst_description(DstValue x) {
 /* Convert any value to a dst string. Similar to description, but
  * strings, symbols, and buffers will return their content. */
 const uint8_t *dst_to_string(DstValue x) {
-    switch (x.type) {
+    switch (dst_type(x)) {
         default:
             return dst_short_description(x);
         case DST_STRING:
         case DST_SYMBOL:
-            return x.as.string;
+            return dst_unwrap_string(x);
     }
 }
 
@@ -560,8 +559,8 @@ const uint8_t *dst_to_string(DstValue x) {
  * Similiar to printf, but specialized for operating with dst. */
 const uint8_t *dst_formatc(const char *format, ...) {
     va_list args;
-    uint32_t len = 0;
-    uint32_t i;
+    int32_t len = 0;
+    int32_t i;
     const uint8_t *ret;
     DstPrinter printer;
     DstBuffer *bufp = &printer.buffer;
@@ -654,8 +653,8 @@ const uint8_t *dst_formatc(const char *format, ...) {
 
 /* Print string to stdout */
 void dst_puts(const uint8_t *str) {
-    uint32_t i;
-    uint32_t len = dst_string_length(str);
+    int32_t i;
+    int32_t len = dst_string_length(str);
     for (i = 0; i < len; i++) {
         putc(str[i], stdout);
     }

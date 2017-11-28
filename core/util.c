@@ -50,48 +50,48 @@ const char *dst_type_names[15] = {
 };
 
 /* Computes hash of an array of values */
-uint32_t dst_array_calchash(const DstValue *array, uint32_t len) {
+int32_t dst_array_calchash(const DstValue *array, int32_t len) {
     const DstValue *end = array + len;
     uint32_t hash = 5381;
     while (array < end)
         hash = (hash << 5) + hash + dst_hash(*array++);
-    return hash;
+    return (int32_t) hash;
 }
 
 /* Calculate hash for string */
-uint32_t dst_string_calchash(const uint8_t *str, uint32_t len) {
+int32_t dst_string_calchash(const uint8_t *str, int32_t len) {
     const uint8_t *end = str + len;
     uint32_t hash = 5381;
     while (str < end)
         hash = (hash << 5) + hash + *str++;
-    return hash;
+    return (int32_t) hash;
 }
 
-/* Read both tuples and arrays as c pointers + uint32_t length. Return 1 if the
+/* Read both tuples and arrays as c pointers + int32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */
-int dst_seq_view(DstValue seq, const DstValue **data, uint32_t *len) {
-    if (seq.type == DST_ARRAY) {
-        *data = seq.as.array->data;
-        *len = seq.as.array->count;
+int dst_seq_view(DstValue seq, const DstValue **data, int32_t *len) {
+    if (dst_checktype(seq, DST_ARRAY)) {
+        *data = dst_unwrap_array(seq)->data;
+        *len = dst_unwrap_array(seq)->count;
         return 1;
-    } else if (seq.type == DST_TUPLE) {
-        *data = seq.as.st;
-        *len = dst_tuple_length(seq.as.st);
+    } else if (dst_checktype(seq, DST_TUPLE)) {
+        *data = dst_unwrap_struct(seq);
+        *len = dst_tuple_length(dst_unwrap_struct(seq));
         return 1;
     }
     return 0;
 }
 
-/* Read both strings and buffer as unsigned character array + uint32_t len.
+/* Read both strings and buffer as unsigned character array + int32_t len.
  * Returns 1 if the view can be constructed and 0 if the type is invalid. */
-int dst_chararray_view(DstValue str, const uint8_t **data, uint32_t *len) {
-    if (str.type == DST_STRING || str.type == DST_SYMBOL) {
-        *data = str.as.string;
-        *len = dst_string_length(str.as.string);
+int dst_chararray_view(DstValue str, const uint8_t **data, int32_t *len) {
+    if (dst_checktype(str, DST_STRING) || dst_checktype(str, DST_SYMBOL)) {
+        *data = dst_unwrap_string(str);
+        *len = dst_string_length(dst_unwrap_string(str));
         return 1;
-    } else if (str.type == DST_BUFFER) {
-        *data = str.as.buffer->data;
-        *len = str.as.buffer->count;
+    } else if (dst_checktype(str, DST_BUFFER)) {
+        *data = dst_unwrap_buffer(str)->data;
+        *len = dst_unwrap_buffer(str)->count;
         return 1;
     }
     return 0;
@@ -100,29 +100,17 @@ int dst_chararray_view(DstValue str, const uint8_t **data, uint32_t *len) {
 /* Read both structs and tables as the entries of a hashtable with
  * identical structure. Returns 1 if the view can be constructed and
  * 0 if the type is invalid. */
-int dst_hashtable_view(DstValue tab, const DstValue **data, uint32_t *len, uint32_t *cap) {
-    if (tab.type == DST_TABLE) {
-        *data = tab.as.table->data;
-        *cap = tab.as.table->capacity;
-        *len = tab.as.table->count;
+int dst_hashtable_view(DstValue tab, const DstValue **data, int32_t *len, int32_t *cap) {
+    if (dst_checktype(tab, DST_TABLE)) {
+        *data = dst_unwrap_table(tab)->data;
+        *cap = dst_unwrap_table(tab)->capacity;
+        *len = dst_unwrap_table(tab)->count;
         return 1;
-    } else if (tab.type == DST_STRUCT) {
-        *data = tab.as.st;
-        *cap = dst_struct_capacity(tab.as.st);
-        *len = dst_struct_length(tab.as.st);
+    } else if (dst_checktype(tab, DST_STRUCT)) {
+        *data = dst_unwrap_struct(tab);
+        *cap = dst_struct_capacity(dst_unwrap_struct(tab));
+        *len = dst_struct_length(dst_unwrap_struct(tab));
         return 1;
     }
     return 0;
-}
-
-/* Convert a real to int */
-int64_t dst_real_to_integer(double real) {
-    /* TODO - consider c undefined behavior */
-    return (int64_t) real;
-}
-
-/* Convert an integer to a real */
-double dst_integer_to_real(int64_t integer) {
-    /* TODO - consider c undefined behavior */
-    return (double) integer;
 }

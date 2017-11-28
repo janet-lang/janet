@@ -61,11 +61,11 @@ void dst_symcache_deinit() {
  * where one would put it. */
 static const uint8_t **dst_symcache_findmem(
         const uint8_t *str,
-        uint32_t len,
-        uint32_t hash,
+        int32_t len,
+        int32_t hash,
         int *success) {
-    uint32_t bounds[4];
-    uint32_t i, j, index;
+    int32_t bounds[4];
+    int32_t i, j, index;
     const uint8_t **firstEmpty = NULL;
 
     /* We will search two ranges - index to the end,
@@ -110,8 +110,8 @@ static const uint8_t **dst_symcache_findmem(
     dst_symcache_findmem((str), dst_string_length(str), dst_string_hash(str), (success))
 
 /* Resize the cache. */
-static void dst_cache_resize(uint32_t newCapacity) {
-    uint32_t i, oldCapacity;
+static void dst_cache_resize(int32_t newCapacity) {
+    int32_t i, oldCapacity;
     const uint8_t **oldCache = dst_vm_cache;
     const uint8_t **newCache = calloc(1, newCapacity * sizeof(const uint8_t **));
     if (newCache == NULL) {
@@ -163,15 +163,15 @@ void dst_symbol_deinit(const uint8_t *sym) {
 }
 
 /* Create a symbol from a byte string */
-const uint8_t *dst_symbol(const uint8_t *str, uint32_t len) {
-    uint32_t hash = dst_string_calchash(str, len);
+const uint8_t *dst_symbol(const uint8_t *str, int32_t len) {
+    int32_t hash = dst_string_calchash(str, len);
     uint8_t *newstr;
     int success = 0;
     const uint8_t **bucket = dst_symcache_findmem(str, len, hash, &success);
     if (success)
         return *bucket;
-    newstr = dst_alloc(DST_MEMORY_SYMBOL, 2 * sizeof(uint32_t) + len)
-        + (2 * sizeof(uint32_t));
+    newstr = dst_alloc(DST_MEMORY_SYMBOL, 2 * sizeof(int32_t) + len)
+        + (2 * sizeof(int32_t));
     dst_string_hash(newstr) = hash;
     dst_string_length(newstr) = len;
     memcpy(newstr, str, len);
@@ -181,7 +181,7 @@ const uint8_t *dst_symbol(const uint8_t *str, uint32_t len) {
 
 /* Get a symbol from a cstring */
 const uint8_t *dst_csymbol(const char *cstr) {
-    uint32_t len = 0;
+    int32_t len = 0;
     while (cstr[len]) len++;
     return dst_symbol((const uint8_t *)cstr, len);
 }
@@ -215,15 +215,15 @@ static void inc_counter(uint8_t *digits, int base, int len) {
 /* Generate a unique symbol. This is used in the library function gensym. The
  * symbol will be of the format prefix--XXXXXX, where X is a base64 digit, and
  * prefix is the argument passed.  */
-const uint8_t *dst_symbol_gen(const uint8_t *buf, uint32_t len) {
+const uint8_t *dst_symbol_gen(const uint8_t *buf, int32_t len) {
     const uint8_t **bucket;
-    uint32_t hash;
+    int32_t hash;
     uint8_t counter[6] = {63, 63, 63, 63, 63, 63};
     /* Leave spaces for 6 base 64 digits and two dashes. That means 64^6 possible suffixes, which
      * is enough for resolving collisions. */
-    uint32_t newlen = len + 8;
-    uint32_t newbufsize = newlen + 2 * sizeof(uint32_t);
-    uint8_t *str = (uint8_t *)(dst_alloc(DST_MEMORY_SYMBOL, newbufsize) + 2 * sizeof(uint32_t));
+    int32_t newlen = len + 8;
+    int32_t newbufsize = newlen + 2 * sizeof(int32_t);
+    uint8_t *str = (uint8_t *)(dst_alloc(DST_MEMORY_SYMBOL, newbufsize) + 2 * sizeof(int32_t));
     dst_string_length(str) = newlen;
     memcpy(str, buf, len);
     str[len] = '-';

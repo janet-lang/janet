@@ -23,7 +23,8 @@
 #include <dst/dst.h>
 
 /* Iniializes an array */
-DstArray *dst_array_init(DstArray *array, uint32_t capacity) {
+DstArray *dst_array_init(DstArray *array, int32_t capacity) {
+    if (capacity < 0) capacity = 0;
     DstValue *data = (DstValue *) malloc(sizeof(DstValue) * capacity);
     if (NULL == data) {
         DST_OUT_OF_MEMORY;
@@ -39,13 +40,13 @@ void dst_array_deinit(DstArray *array) {
 }
 
 /* Creates a new array */
-DstArray *dst_array(uint32_t capacity) {
+DstArray *dst_array(int32_t capacity) {
     DstArray *array = dst_alloc(DST_MEMORY_ARRAY, sizeof(DstArray));
     return dst_array_init(array, capacity);
 }
 
 /* Ensure the array has enough capacity for elements */
-void dst_array_ensure(DstArray *array, uint32_t capacity) {
+void dst_array_ensure(DstArray *array, int32_t capacity) {
     DstValue *newData;
     DstValue *old = array->data;
     if (capacity <= array->capacity) return;
@@ -58,19 +59,18 @@ void dst_array_ensure(DstArray *array, uint32_t capacity) {
 }
 
 /* Set the count of an array. Extend with nil if needed. */
-void dst_array_setcount(DstArray *array, uint32_t count) {
+void dst_array_setcount(DstArray *array, int32_t count) {
     if (count > array->count) {
-        uint32_t i;
         dst_array_ensure(array, count + 1);
-        for (i = array->count; i < count; ++i)
-            array->data[i].type = DST_NIL;
+        dst_memempty(array->data + array->count, count - array->count);
     }
-    array->count = count;
+    if (count > 0)
+        array->count = count;
 }
 
 /* Push a value to the top of the array */
 void dst_array_push(DstArray *array, DstValue x) {
-    uint32_t newcount = array->count + 1;
+    int32_t newcount = array->count + 1;
     if (newcount >= array->capacity) {
         dst_array_ensure(array, newcount * 2);
     }

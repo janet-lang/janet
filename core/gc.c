@@ -43,18 +43,18 @@ static void dst_mark_udata(void *udata);
 
 /* Mark a value */
 void dst_mark(DstValue x) {
-    switch (x.type) {
+    switch (dst_type(x)) {
         default: break;
         case DST_STRING:
-        case DST_SYMBOL: dst_mark_string(x.as.string); break;
-        case DST_FUNCTION: dst_mark_function(x.as.function); break;
-        case DST_ARRAY: dst_mark_array(x.as.array); break;
-        case DST_TABLE: dst_mark_table(x.as.table); break;
-        case DST_STRUCT: dst_mark_struct(x.as.st); break;
-        case DST_TUPLE: dst_mark_tuple(x.as.tuple); break;
-        case DST_BUFFER: dst_mark_buffer(x.as.buffer); break;
-        case DST_FIBER: dst_mark_fiber(x.as.fiber); break;
-        case DST_USERDATA: dst_mark_udata(x.as.pointer); break;
+        case DST_SYMBOL: dst_mark_string(dst_unwrap_string(x)); break;
+        case DST_FUNCTION: dst_mark_function(dst_unwrap_function(x)); break;
+        case DST_ARRAY: dst_mark_array(dst_unwrap_array(x)); break;
+        case DST_TABLE: dst_mark_table(dst_unwrap_table(x)); break;
+        case DST_STRUCT: dst_mark_struct(dst_unwrap_struct(x)); break;
+        case DST_TUPLE: dst_mark_tuple(dst_unwrap_tuple(x)); break;
+        case DST_BUFFER: dst_mark_buffer(dst_unwrap_buffer(x)); break;
+        case DST_FIBER: dst_mark_fiber(dst_unwrap_fiber(x)); break;
+        case DST_USERDATA: dst_mark_udata(dst_unwrap_pointer(x)); break;
     }
 }
 
@@ -65,36 +65,36 @@ void dst_mark(DstValue x) {
  * ever saving the table anywhere (except on the c stack, which
  * the gc cannot inspect). */
 void dst_pin(DstValue x) {
-    switch (x.type) {
+    switch (dst_type(x)) {
         default: break;
         case DST_STRING:
-        case DST_SYMBOL: dst_pin_string(x.as.string); break;
-        case DST_FUNCTION: dst_pin_function(x.as.function); break;
-        case DST_ARRAY: dst_pin_array(x.as.array); break;
-        case DST_TABLE: dst_pin_table(x.as.table); break;
-        case DST_STRUCT: dst_pin_struct(x.as.st); break;
-        case DST_TUPLE: dst_pin_tuple(x.as.tuple); break;
-        case DST_BUFFER: dst_pin_buffer(x.as.buffer); break;
-        case DST_FIBER: dst_pin_fiber(x.as.fiber); break;
-        case DST_USERDATA: dst_pin_userdata(x.as.pointer); break;
+        case DST_SYMBOL: dst_pin_string(dst_unwrap_string(x)); break;
+        case DST_FUNCTION: dst_pin_function(dst_unwrap_function(x)); break;
+        case DST_ARRAY: dst_pin_array(dst_unwrap_array(x)); break;
+        case DST_TABLE: dst_pin_table(dst_unwrap_table(x)); break;
+        case DST_STRUCT: dst_pin_struct(dst_unwrap_struct(x)); break;
+        case DST_TUPLE: dst_pin_tuple(dst_unwrap_tuple(x)); break;
+        case DST_BUFFER: dst_pin_buffer(dst_unwrap_buffer(x)); break;
+        case DST_FIBER: dst_pin_fiber(dst_unwrap_fiber(x)); break;
+        case DST_USERDATA: dst_pin_userdata(dst_unwrap_pointer(x)); break;
     }
 }
 
 /* Unpin a value. This enables the GC to collect the value's
  * memory again. */
 void dst_unpin(DstValue x) {
-    switch (x.type) {
+    switch (dst_type(x)) {
         default: break;
         case DST_STRING:
-        case DST_SYMBOL: dst_unpin_string(x.as.string); break;
-        case DST_FUNCTION: dst_unpin_function(x.as.function); break;
-        case DST_ARRAY: dst_unpin_array(x.as.array); break;
-        case DST_TABLE: dst_unpin_table(x.as.table); break;
-        case DST_STRUCT: dst_unpin_struct(x.as.st); break;
-        case DST_TUPLE: dst_unpin_tuple(x.as.tuple); break;
-        case DST_BUFFER: dst_unpin_buffer(x.as.buffer); break;
-        case DST_FIBER: dst_unpin_fiber(x.as.fiber); break;
-        case DST_USERDATA: dst_unpin_userdata(x.as.pointer); break;
+        case DST_SYMBOL: dst_unpin_string(dst_unwrap_string(x)); break;
+        case DST_FUNCTION: dst_unpin_function(dst_unwrap_function(x)); break;
+        case DST_ARRAY: dst_unpin_array(dst_unwrap_array(x)); break;
+        case DST_TABLE: dst_unpin_table(dst_unwrap_table(x)); break;
+        case DST_STRUCT: dst_unpin_struct(dst_unwrap_struct(x)); break;
+        case DST_TUPLE: dst_unpin_tuple(dst_unwrap_tuple(x)); break;
+        case DST_BUFFER: dst_unpin_buffer(dst_unwrap_buffer(x)); break;
+        case DST_FIBER: dst_unpin_fiber(dst_unwrap_fiber(x)); break;
+        case DST_USERDATA: dst_unpin_userdata(dst_unwrap_pointer(x)); break;
     }
 }
 
@@ -111,7 +111,7 @@ static void dst_mark_udata(void *udata) {
 }
 
 /* Mark a bunch of items in memory */
-static void dst_mark_many(const DstValue *values, uint32_t n) {
+static void dst_mark_many(const DstValue *values, int32_t n) {
     const DstValue *end = values + n;
     while (values < end) {
         dst_mark(*values);
@@ -163,7 +163,7 @@ static void dst_mark_funcenv(DstFuncEnv *env) {
 
 /* GC helper to mark a FuncDef */
 static void dst_mark_funcdef(DstFuncDef *def) {
-    uint32_t count, i;
+    int32_t count, i;
     if (dst_gc_reachable(def))
         return;
     dst_gc_mark(def);
@@ -171,9 +171,9 @@ static void dst_mark_funcdef(DstFuncDef *def) {
         count = def->constants_length;
         for (i = 0; i < count; ++i) {
             DstValue v = def->constants[i];
-            /* Funcdefs use boolean literals to store other funcdefs */
-            if (v.type == DST_BOOLEAN) {
-                dst_mark_funcdef((DstFuncDef *) v.as.pointer);
+            /* Funcdefs use nil literals to store other funcdefs */
+            if (v.type == DST_NIL) {
+                dst_mark_funcdef((DstFuncDef *) dst_unwrap_pointer(v));
             } else {
                 dst_mark(v);
             }
@@ -182,8 +182,8 @@ static void dst_mark_funcdef(DstFuncDef *def) {
 }
 
 static void dst_mark_function(DstFunction *func) {
-    uint32_t i;
-    uint32_t numenvs;
+    int32_t i;
+    int32_t numenvs;
     if (dst_gc_reachable(func))
         return;
     dst_gc_mark(func);
@@ -196,7 +196,7 @@ static void dst_mark_function(DstFunction *func) {
 }
 
 static void dst_mark_fiber(DstFiber *fiber) {
-    uint32_t i, j;
+    int32_t i, j;
     DstStackFrame *frame;
     if (dst_gc_reachable(fiber))
         return;
@@ -204,7 +204,7 @@ static void dst_mark_fiber(DstFiber *fiber) {
     
     i = fiber->frame;
     j = fiber->frametop;
-    while (i != 0) {
+    while (i > 0) {
         frame = (DstStackFrame *)(fiber->data + i - DST_FRAME_SIZE);
         if (NULL != frame->func)
             dst_mark_function(frame->func);
@@ -228,7 +228,7 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
         default:
             break; /* Do nothing for non gc types */ 
         case DST_MEMORY_SYMBOL:
-            dst_symbol_deinit((const uint8_t *)mem + 2 * sizeof(uint32_t));
+            dst_symbol_deinit((const uint8_t *)mem + 2 * sizeof(int32_t));
             break;
         case DST_MEMORY_ARRAY:
             dst_array_deinit((DstArray*) mem);
