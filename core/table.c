@@ -22,11 +22,13 @@
 
 #include <dst/dst.h>
 
+#define dst_table_maphash(cap, hash) (((uint32_t)(hash) % (cap)) & 0xFFFFFFFE)
+
 /* Initialize a table */
 DstTable *dst_table_init(DstTable *table, int32_t capacity) {
     DstValue *data;
     if (capacity < 2) capacity = 2;
-    data = calloc(sizeof(DstValue), capacity);
+    data = (DstValue *) dst_memalloc_empty(capacity);
     if (NULL == data) {
         DST_OUT_OF_MEMORY;
     }
@@ -51,7 +53,7 @@ DstTable *dst_table(int32_t capacity) {
 /* Find the bucket that contains the given key. Will also return
  * bucket where key should go if not in the table. */
 static DstValue *dst_table_find(DstTable *t, DstValue key) {
-    int32_t index = (dst_hash(key) % t->capacity) & (~1);
+    int32_t index = dst_table_maphash(t->capacity, dst_hash(key));
     int32_t i, j;
     int32_t start[2], end[2];
     start[0] = index; end[0] = t->capacity;
@@ -74,7 +76,7 @@ static DstValue *dst_table_find(DstTable *t, DstValue key) {
 /* Resize the dictionary table. */
 static void dst_table_rehash(DstTable *t, int32_t size) {
     DstValue *olddata = t->data;
-    DstValue *newdata = calloc(sizeof(DstValue), size);
+    DstValue *newdata = (DstValue *) dst_memalloc_empty(size);
     if (NULL == newdata) {
         DST_OUT_OF_MEMORY;
     }
@@ -179,3 +181,5 @@ const DstValue *dst_table_to_struct(DstTable *t) {
     }
     return dst_struct_end(st);
 }
+
+#undef dst_table_maphash

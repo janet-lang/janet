@@ -7,6 +7,8 @@ int main() {
     DstAssembleResult ares;
     DstFunction *func;
 
+    printf("sizeof(DstValue) = %lu\n", sizeof(DstValue));
+
     FILE *f = fopen("./dsts/minimal.dsts", "rb");
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
@@ -30,6 +32,7 @@ int main() {
     assert(pres.status == DST_PARSE_OK);
     dst_puts(dst_formatc("\nparse result: %v\n\n", pres.result.value));
 
+    /*
     opts.flags = 0;
     opts.source = pres.result.value;
     opts.parsemap = dst_wrap_nil();
@@ -45,6 +48,9 @@ int main() {
     
     dst_run(dst_wrap_function(func));
     dst_puts(dst_formatc("result: %v\n", dst_vm_fiber->ret));
+    */
+
+    dst_deinit();
 
     return 0;
 }

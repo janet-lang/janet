@@ -24,7 +24,7 @@
 
 #ifdef DST_NANBOX
 
-void *dst_nanbox_to_pointer(dst_t x) {
+void *dst_nanbox_to_pointer(DstValue x) {
     /* We need to do this shift to keep the higher bits of the pointer
      * the same as bit 47 as required by the x86 architecture. We may save
      * an instruction if we do x.u64 & DST_NANBOX_POINTERBITS, but this 0s
@@ -41,6 +41,14 @@ DstValue dst_nanbox_from_pointer(void *p, uint64_t tagmask) {
     return ret;
 }
 
+DstValue dst_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
+    DstValue ret;
+    ret.cpointer = p;
+    ret.u64 &= DST_NANBOX_POINTERBITS;
+    ret.u64 |= tagmask;
+    return ret;
+}
+
 DstValue dst_nanbox_from_double(double d) {
     DstValue ret;
     ret.real = d;
@@ -51,13 +59,23 @@ DstValue dst_nanbox_from_double(double d) {
 }
 
 DstValue dst_nanbox_from_bits(uint64_t bits) {
-    dst_t ret;
+    DstValue ret;
     ret.u64 = bits;
     return ret;
 }
 
-void dst_nanbox_memempty(DstValue *mem, uint32_t count) {
-    uint32_t i;
+void *dst_nanbox_memalloc_empty(int32_t count) {
+    int32_t i;
+    void *mem = malloc(count * sizeof(DstValue));
+    DstValue *mmem = (DstValue *)mem;
+    for (i = 0; i < count; i++) {
+        mmem[i] = dst_wrap_nil();
+    }
+    return mem;
+}
+
+void dst_nanbox_memempty(DstValue *mem, int32_t count) {
+    int32_t i;
     for (i = 0; i < count; i++) {
         mem[i] = dst_wrap_nil();
     }
@@ -74,24 +92,28 @@ void dst_nanbox_memempty(DstValue *mem, uint32_t count) {
 DstValue dst_wrap_nil() {
     DstValue y;
     y.type = DST_NIL;
+    y.as.u64 = 0;
     return y;
 }
 
 DstValue dst_wrap_true() {
     DstValue y;
     y.type = DST_TRUE;
+    y.as.u64 = 0;
     return y;
 }
 
 DstValue dst_wrap_false() {
     DstValue y;
-    y.type = DST_TRUE;
+    y.type = DST_FALSE;
+    y.as.u64 = 0;
     return y;
 }
 
 DstValue dst_wrap_boolean(int x) {
     DstValue y;
     y.type = x ? DST_TRUE : DST_FALSE;
+    y.as.u64 = 0;
     return y;
 }
 

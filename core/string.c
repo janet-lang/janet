@@ -319,13 +319,14 @@ void dst_short_description_b(DstBuffer *buffer, DstValue x) {
     }
 }
 
-/* Helper structure for stringifying deeply nested structures */
+/* Helper structure for stringifying nested structures */
 typedef struct DstPrinter DstPrinter;
 struct DstPrinter {
     DstBuffer buffer;
     DstTable seen;
     uint32_t flags;
-    int64_t next;
+    uint32_t state;
+    int32_t next;
     int32_t indent;
     int32_t indent_size;
     int32_t token_line_limit;
@@ -399,7 +400,7 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, int32
         dst_buffer_push_u8(&p->buffer, '\n');
         p->indent++;
         for (i = 0; i < cap; i += 2) {
-            if (dst_checktype(data[i], DST_NIL)) {
+            if (!dst_checktype(data[i], DST_NIL)) {
                 dst_print_indent(p);
                 dst_description_helper(p, data[i]);
                 dst_buffer_push_u8(&p->buffer, ' ');
@@ -412,7 +413,7 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, int32
     } else {
         int isfirst = 1;
         for (i = 0; i < cap; i += 2) {
-            if (dst_checktype(data[i], DST_NIL)) {
+            if (!dst_checktype(data[i], DST_NIL)) {
                 if (isfirst)
                     isfirst = 0;
                 else
@@ -462,52 +463,57 @@ static void dst_print_seq_inner(DstPrinter *p, const DstValue *data, int32_t len
 
 /* Static debug print helper */
 static void dst_description_helper(DstPrinter *p, DstValue x) {
+    const char *open;
+    const char *close;
+    int32_t len, cap;
+    const DstValue *data;
+    DstValue check;
     p->depth--;
-    DstValue check = dst_table_get(&p->seen, x);
+    switch (dst_type(x)) {
+        default:
+            if (p->flags & DST_PRINTFLAG_COLORIZE) {
+                dst_buffer_push_cstring(&p->buffer, dst_type_colors[dst_type(x)]);
+                dst_short_description_b(&p->buffer, x);
+                dst_buffer_push_cstring(&p->buffer, "\x1B[0m");
+            } else {
+                dst_short_description_b(&p->buffer, x);
+            }
+            p->depth++;
+            return;
+        case DST_STRUCT:
+            open = "{"; close = "}";
+            break;
+        case DST_TABLE:
+            open = "@{"; close = "}";
+            break;
+        case DST_TUPLE:
+            open = "("; close = ")";
+            break;
+        case DST_ARRAY:
+            open = "["; close = "]";
+            break;
+    }
+    if (!p->state) {
+        dst_table_init(&p->seen, 10);
+        p->state = 1;
+    }
+    check = dst_table_get(&p->seen, x);
     if (dst_checktype(check, DST_INTEGER)) {
         dst_buffer_push_cstring(&p->buffer, "<cycle ");
         integer_to_string_b(&p->buffer, dst_unwrap_integer(check));
         dst_buffer_push_cstring(&p->buffer, ">");
-    } else {
-        const char *open;
-        const char *close;
-        int32_t len, cap;
-        const DstValue *data;
-        switch (dst_type(x)) {
-            default:
-                if (p->flags & DST_PRINTFLAG_COLORIZE) {
-                    dst_buffer_push_cstring(&p->buffer, dst_type_colors[dst_type(x)]);
-                    dst_short_description_b(&p->buffer, x);
-                    dst_buffer_push_cstring(&p->buffer, "\x1B[0m");
-                } else {
-                    dst_short_description_b(&p->buffer, x);
-                }
-                p->depth++;
-                return;
-            case DST_STRUCT:
-                open = "{"; close = "}";
-                break;
-            case DST_TABLE:
-                open = "@{"; close = "}";
-                break;
-            case DST_TUPLE:
-                open = "("; close = ")";
-                break;
-            case DST_ARRAY:
-                open = "["; close = "]";
-                break;
-        }
-        dst_table_put(&p->seen, x, dst_wrap_integer(p->next++));
-        dst_buffer_push_cstring(&p->buffer, open);
-        if (p->depth == 0) {
-            dst_buffer_push_cstring(&p->buffer, "...");
-        } else if (dst_hashtable_view(x, &data, &len, &cap)) {
-            dst_print_hashtable_inner(p, data, len, cap);
-        } else if (dst_seq_view(x, &data, &len)) {
-            dst_print_seq_inner(p, data, len);
-        }
-        dst_buffer_push_cstring(&p->buffer, close);
+        return;
     }
+    dst_table_put(&p->seen, x, dst_wrap_integer(p->next++));
+    dst_buffer_push_cstring(&p->buffer, open);
+    if (p->depth == 0) {
+        dst_buffer_push_cstring(&p->buffer, "...");
+    } else if (dst_hashtable_view(x, &data, &len, &cap)) {
+        dst_print_hashtable_inner(p, data, len, cap);
+    } else if (dst_seq_view(x, &data, &len)) {
+        dst_print_seq_inner(p, data, len);
+    }
+    dst_buffer_push_cstring(&p->buffer, close);
     /* Remove from seen as we know that printing completes, we
      * can print in multiple times and we know we are not recursing */
     dst_table_remove(&p->seen, x);
@@ -530,16 +536,16 @@ const uint8_t *dst_description(DstValue x) {
     const uint8_t *ret;
 
     dst_printer_defaults(&printer);
+    printer.state = 0;
     dst_buffer_init(&printer.buffer, 0);
-    dst_table_init(&printer.seen, 10);
 
     /* Only print description up to a depth of 4 */
     dst_description_helper(&printer, x);
     ret = dst_string(printer.buffer.data, printer.buffer.count);
 
     dst_buffer_deinit(&printer.buffer);
-    dst_table_deinit(&printer.seen);
-
+    if (printer.state)
+        dst_table_deinit(&printer.seen);
     return ret;
 }
 
@@ -564,6 +570,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
     const uint8_t *ret;
     DstPrinter printer;
     DstBuffer *bufp = &printer.buffer;
+    printer.state = 0;
     
     /* Calculate length */
     while (format[len]) len++;
@@ -607,13 +614,10 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     case 'c':
                         dst_buffer_push_u8(bufp, va_arg(args, int64_t));
                         break;
-                    case 'p':
+                    case 'v':
                     {
                         dst_printer_defaults(&printer);
-                        dst_table_init(&printer.seen, 10);
-                        /* Only print description up to a depth of 4 */
                         dst_description_helper(&printer, va_arg(args, DstValue));
-                        dst_table_deinit(&printer.seen);
                         break;
                     }
                     case 'q':
@@ -629,14 +633,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     }
                     case 'V': 
                     {
-                        const uint8_t *str = dst_short_description(va_arg(args, DstValue));
-                        dst_buffer_push_bytes(bufp, str, dst_string_length(str));
-                        break;
-                    }
-                    case 'v': 
-                    {
-                        const uint8_t *str = dst_description(va_arg(args, DstValue));
-                        dst_buffer_push_bytes(bufp, str, dst_string_length(str));
+                        dst_short_description_b(bufp, va_arg(args, DstValue));
                         break;
                     }
                 }
@@ -648,6 +645,8 @@ const uint8_t *dst_formatc(const char *format, ...) {
 
     ret = dst_string(printer.buffer.data, printer.buffer.count);
     dst_buffer_deinit(&printer.buffer);
+    if (printer.state)
+        dst_table_deinit(&printer.seen);
     return ret;
 }
 

@@ -104,6 +104,8 @@
  * ands crashing (the parser). Instead, error out. */
 #define DST_RECURSION_GUARD 1000
 
+/* #define DST_NANBOX */
+
 #ifdef DST_NANBOX
 typedef union DstValue DstValue;
 #else
@@ -171,10 +173,13 @@ typedef enum DstType {
 
 #ifdef DST_NANBOX
 
+#include <math.h>
+
 union DstValue {
     uint64_t u64;
     int64_t i64;
     void *pointer;
+    const void *cpointer;
     double real;
 };
 
@@ -228,11 +233,14 @@ union DstValue {
 
 void *dst_nanbox_to_pointer(DstValue x);
 void dst_nanbox_memempty(DstValue *mem, int32_t count);
+void *dst_nanbox_memalloc_empty(int32_t count);
 DstValue dst_nanbox_from_pointer(void *p, uint64_t tagmask);
+DstValue dst_nanbox_from_cpointer(const void *p, uint64_t tagmask);
 DstValue dst_nanbox_from_double(double d);
 DstValue dst_nanbox_from_bits(uint64_t bits);
 
-#define dst_memempty dst_nanbox_memempty
+#define dst_memempty(mem, len) dst_nanbox_memempty((mem), (len))
+#define dst_memalloc_empty(count) dst_nanbox_memalloc_empty(count)
 
 /* Todo - check for single mask operation */
 #define dst_truthy(x) \
@@ -243,6 +251,9 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
 
 #define dst_nanbox_wrap_(p, t) \
     dst_nanbox_from_pointer((p), dst_nanbox_tag(t) | 0x7FF8000000000000lu)
+
+#define dst_nanbox_wrap_c(p, t) \
+    dst_nanbox_from_cpointer((p), dst_nanbox_tag(t) | 0x7FF8000000000000lu)
 
 /* Wrap the simple types */
 #define dst_wrap_nil() dst_nanbox_from_payload(DST_NIL, 1)
@@ -260,14 +271,14 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
 #define dst_unwrap_real(x) ((x).real)
 
 /* Wrap the pointer types */
-#define dst_wrap_struct(s) dst_nanbox_wrap_((s), DST_STRUCT)
-#define dst_wrap_tuple(s) dst_nanbox_wrap_((s), DST_TUPLE)
+#define dst_wrap_struct(s) dst_nanbox_wrap_c((s), DST_STRUCT)
+#define dst_wrap_tuple(s) dst_nanbox_wrap_c((s), DST_TUPLE)
 #define dst_wrap_fiber(s) dst_nanbox_wrap_((s), DST_FIBER)
 #define dst_wrap_array(s) dst_nanbox_wrap_((s), DST_ARRAY)
 #define dst_wrap_table(s) dst_nanbox_wrap_((s), DST_TABLE)
 #define dst_wrap_buffer(s) dst_nanbox_wrap_((s), DST_BUFFER)
-#define dst_wrap_string(s) dst_nanbox_wrap_((s), DST_STRING)
-#define dst_wrap_symbol(s) dst_nanbox_wrap_((s), DST_SYMBOL)
+#define dst_wrap_string(s) dst_nanbox_wrap_c((s), DST_STRING)
+#define dst_wrap_symbol(s) dst_nanbox_wrap_c((s), DST_SYMBOL)
 #define dst_wrap_userdata(s) dst_nanbox_wrap_((s), DST_USERDATA)
 #define dst_wrap_function(s) dst_nanbox_wrap_((s), DST_FUNCTION)
 #define dst_wrap_cfunction(s) dst_nanbox_wrap_((s), DST_CFUNCTION)
@@ -303,6 +314,7 @@ struct DstValue {
 
 #define dst_u64(x) ((x).as.u64)
 #define dst_memempty(mem, count) memset((mem), 0, sizeof(DstValue) * (count))
+#define dst_memalloc_empty(count) calloc((count), sizeof(DstValue))
 #define dst_type(x) ((x).type)
 #define dst_checktype(x, t) ((x).type == (t))
 #define dst_truthy(x) \

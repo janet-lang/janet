@@ -73,18 +73,10 @@ int32_t dst_hash(DstValue x) {
         hash = dst_string_hash(dst_unwrap_string(x));
         break;
     case DST_TUPLE:
-        if (0 == dst_tuple_hash(dst_unwrap_tuple(x)))
-            hash = dst_tuple_hash(dst_unwrap_tuple(x)) =
-                dst_array_calchash(dst_unwrap_tuple(x), dst_tuple_length(dst_unwrap_tuple(x)));
-        else
-            hash = dst_tuple_hash(dst_unwrap_tuple(x));
+        hash = dst_tuple_hash(dst_unwrap_tuple(x));
         break;
     case DST_STRUCT:
-        if (0 == dst_struct_hash(dst_unwrap_struct(x)))
-            hash = dst_struct_hash(dst_unwrap_struct(x)) =
-                dst_array_calchash(dst_unwrap_struct(x), dst_struct_capacity(dst_unwrap_struct(x)));
-        else
-            hash = dst_struct_hash(dst_unwrap_struct(x));
+        hash = dst_struct_hash(dst_unwrap_struct(x));
         break;
     default:
         if (sizeof(double) == sizeof(void *)) {

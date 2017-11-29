@@ -64,13 +64,13 @@ static const uint8_t **dst_symcache_findmem(
         int32_t len,
         int32_t hash,
         int *success) {
-    int32_t bounds[4];
-    int32_t i, j, index;
+    uint32_t bounds[4];
+    uint32_t i, j, index;
     const uint8_t **firstEmpty = NULL;
 
     /* We will search two ranges - index to the end,
      * and 0 to the index. */
-    index = hash % dst_vm_cache_capacity;
+    index = (uint32_t)hash % dst_vm_cache_capacity;
     bounds[0] = index;
     bounds[1] = dst_vm_cache_capacity;
     bounds[2] = 0;
@@ -110,8 +110,8 @@ static const uint8_t **dst_symcache_findmem(
     dst_symcache_findmem((str), dst_string_length(str), dst_string_hash(str), (success))
 
 /* Resize the cache. */
-static void dst_cache_resize(int32_t newCapacity) {
-    int32_t i, oldCapacity;
+static void dst_cache_resize(uint32_t newCapacity) {
+    uint32_t i, oldCapacity;
     const uint8_t **oldCache = dst_vm_cache;
     const uint8_t **newCache = calloc(1, newCapacity * sizeof(const uint8_t **));
     if (newCache == NULL) {

@@ -30,12 +30,12 @@ DstValue *dst_tuple_begin(int32_t length) {
     char *data = dst_alloc(DST_MEMORY_TUPLE, 2 * sizeof(int32_t) + length * sizeof(DstValue));
     DstValue *tuple = (DstValue *)(data + (2 * sizeof(int32_t)));
     dst_tuple_length(tuple) = length;
-    dst_tuple_hash(tuple) = 0;
     return tuple;
 }
 
 /* Finish building a tuple */
 const DstValue *dst_tuple_end(DstValue *tuple) {
+    dst_tuple_hash(tuple) = dst_array_calchash(tuple, dst_tuple_length(tuple));
     return (const DstValue *)tuple;
 }
 
@@ -53,13 +53,13 @@ int dst_tuple_equal(const DstValue *lhs, const DstValue *rhs) {
     int32_t rlen = dst_tuple_length(rhs);
     int32_t lhash = dst_tuple_hash(lhs);
     int32_t rhash = dst_tuple_hash(rhs);
-    if (llen != rlen)
-        return 0;
     if (lhash == 0)
         lhash = dst_tuple_hash(lhs) = dst_array_calchash(lhs, llen);
     if (rhash == 0)
         rhash = dst_tuple_hash(rhs) = dst_array_calchash(rhs, rlen);
     if (lhash != rhash)
+        return 0;
+    if (llen != rlen)
         return 0;
     for (index = 0; index < llen; index++) {
         if (!dst_equals(lhs[index], rhs[index]))

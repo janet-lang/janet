@@ -11,6 +11,9 @@ dst
 # Tools
 xxd
 
+# Swap files
+*.swp
+
 # Tags
 tags
 

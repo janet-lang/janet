@@ -60,12 +60,13 @@ void dst_array_ensure(DstArray *array, int32_t capacity) {
 
 /* Set the count of an array. Extend with nil if needed. */
 void dst_array_setcount(DstArray *array, int32_t count) {
+    if (count < 0)
+        return;
     if (count > array->count) {
         dst_array_ensure(array, count + 1);
         dst_memempty(array->data + array->count, count - array->count);
     }
-    if (count > 0)
-        array->count = count;
+    array->count = count;
 }
 
 /* Push a value to the top of the array */

@@ -172,7 +172,7 @@ static void dst_mark_funcdef(DstFuncDef *def) {
         for (i = 0; i < count; ++i) {
             DstValue v = def->constants[i];
             /* Funcdefs use nil literals to store other funcdefs */
-            if (v.type == DST_NIL) {
+            if (dst_checktype(v, DST_NIL)) {
                 dst_mark_funcdef((DstFuncDef *) dst_unwrap_pointer(v));
             } else {
                 dst_mark(v);

@@ -22,6 +22,8 @@
 
 #include <dst/dst.h>
 
+#define dst_struct_maphash(cap, hash) (((uint32_t)(hash) % (cap)) & 0xFFFFFFFE);
+
 /* Begin creation of a struct */
 DstValue *dst_struct_begin(int32_t count) {
     /* This expression determines size of structs. It must be a pure
@@ -30,10 +32,11 @@ DstValue *dst_struct_begin(int32_t count) {
      * sizeof(int32_t) * 2 + 2 * count * sizeof(DstValue). Adding more space
      * ensures that structs are less likely to have hash collisions. If more space
      * is added or s is changed, change the macro dst_struct_capacity in internal.h */
-    size_t s = sizeof(int32_t) * 2 + 4 * count * sizeof(DstValue);
+    int32_t capacity = 4 * count;
+    size_t s = sizeof(int32_t) * 2 + (capacity * sizeof(DstValue));
     char *data = dst_alloc(DST_MEMORY_STRUCT, s);
-    memset(data, 0, s);
     DstValue *st = (DstValue *) (data + 2 * sizeof(int32_t));
+    dst_memempty(st, capacity);
     dst_struct_length(st) = count;
     /* Use the hash storage space as a counter to see how many items
      * were successfully added. If this number is not equal to the
@@ -46,13 +49,13 @@ DstValue *dst_struct_begin(int32_t count) {
 /* Find an item in a struct */
 static const DstValue *dst_struct_find(const DstValue *st, DstValue key) {
     int32_t cap = dst_struct_capacity(st);
-    int32_t index = (dst_hash(key) % cap) & (~1);
+    int32_t index = dst_struct_maphash(cap, dst_hash(key));
     int32_t i;
     for (i = index; i < cap; i += 2)
-        if (st[i].type == DST_NIL || dst_equals(st[i], key))
+        if (dst_checktype(st[i], DST_NIL) || dst_equals(st[i], key))
             return st + i;
     for (i = 0; i < index; i += 2)
-        if (st[i].type == DST_NIL || dst_equals(st[i], key))
+        if (dst_checktype(st[i], DST_NIL) || dst_equals(st[i], key))
             return st + i;
     return NULL;
 }
@@ -63,10 +66,10 @@ static const DstValue *dst_struct_find(const DstValue *st, DstValue key) {
 void dst_struct_put(DstValue *st, DstValue key, DstValue value) {
     int32_t cap = dst_struct_capacity(st);
     int32_t hash = dst_hash(key);
-    int32_t index = (hash % cap) & (~1);
+    int32_t index = dst_struct_maphash(cap, hash);
     int32_t i, j, dist;
     int32_t bounds[4] = {index, cap, 0, index};
-    if (key.type == DST_NIL || value.type == DST_NIL) return;
+    if (dst_checktype(key, DST_NIL) || dst_checktype(value, DST_NIL)) return;
     /* Avoid extra items */
     if (dst_struct_hash(st) == dst_struct_length(st)) return;
     for (dist = 0, j = 0; j < 4; j += 2)
@@ -75,7 +78,7 @@ void dst_struct_put(DstValue *st, DstValue key, DstValue value) {
         int32_t otherhash;
         int32_t otherindex, otherdist;
         /* We found an empty slot, so just add key and value */
-        if (st[i].type == DST_NIL) {
+        if (dst_checktype(st[i], DST_NIL)) {
             st[i] = key;
             st[i + 1] = value;
             /* Update the temporary count */
@@ -88,7 +91,7 @@ void dst_struct_put(DstValue *st, DstValue key, DstValue value) {
          * with different order have the same internal layout, and therefor
          * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}. */
         otherhash = dst_hash(st[i]);
-        otherindex = (otherhash % cap) & (~1);
+        otherindex = dst_struct_maphash(cap, otherhash);
         otherdist = (i + cap - otherindex) % cap;
         if (dist < otherdist)
             status = -1;
@@ -131,27 +134,25 @@ const DstValue *dst_struct_end(DstValue *st) {
         DstValue *newst;
         realCount = 0;
         for (i = 0; i < dst_struct_capacity(st); i += 2) {
-            realCount += st[i].type != DST_NIL;
+            realCount += dst_checktype(st[i], DST_NIL) ? 1 : 0;
         }
         newst = dst_struct_begin(realCount);
         for (i = 0; i < dst_struct_capacity(st); i += 2) {
-            if (st[i].type != DST_NIL) {
+            if (!dst_checktype(st[i], DST_NIL)) {
                 dst_struct_put(newst, st[i], st[i + 1]);
             }
         }
         st = newst;
     }
-    dst_struct_hash(st) = 0;
+    dst_struct_hash(st) = dst_array_calchash(st, dst_struct_capacity(st));
     return (const DstValue *)st;
 }
 
 /* Get an item from a struct */
 DstValue dst_struct_get(const DstValue *st, DstValue key) {
     const DstValue *bucket = dst_struct_find(st, key);
-    if (!bucket || bucket[0].type == DST_NIL) {
-        DstValue ret;
-        ret.type = DST_NIL;
-        return  ret;
+    if (NULL == bucket || dst_checktype(*bucket, DST_NIL)) {
+        return dst_wrap_nil();
     } else {
         return bucket[1];
     }
@@ -161,16 +162,16 @@ DstValue dst_struct_get(const DstValue *st, DstValue key) {
 DstValue dst_struct_next(const DstValue *st, DstValue key) {
     const DstValue *bucket, *end;
     end = st + dst_struct_capacity(st);
-    if (key.type == DST_NIL) {
+    if (dst_checktype(key, DST_NIL)) {
         bucket = st;
     } else {
         bucket = dst_struct_find(st, key);
-        if (!bucket || bucket[0].type == DST_NIL)
+        if (NULL == bucket || dst_checktype(*bucket, DST_NIL))
             return dst_wrap_nil();
         bucket += 2;
     }
     for (; bucket < end; bucket += 2) {
-        if (bucket[0].type != DST_NIL)
+        if (!dst_checktype(bucket[0], DST_NIL))
             return bucket[0];
     }
     return dst_wrap_nil();
@@ -181,7 +182,7 @@ DstTable *dst_struct_to_table(const DstValue *st) {
     DstTable *table = dst_table(dst_struct_capacity(st));
     int32_t i;
     for (i = 0; i < dst_struct_capacity(st); i += 2) {
-        if (st[i].type != DST_NIL) {
+        if (!dst_checktype(st[i], DST_NIL)) {
             dst_table_put(table, st[i], st[i + 1]);
         }
     }
@@ -235,3 +236,5 @@ int dst_struct_compare(const DstValue *lhs, const DstValue *rhs) {
     }
     return 0;
 }
+
+#undef dst_struct_maphash

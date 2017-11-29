@@ -109,7 +109,7 @@ int dst_sys_get(DstValue *argv, int32_t argn) {
     ds = argv[0];
     for (i = 1; i < argn; i++) {
         ds = dst_get(ds, argv[i]);
-        if (ds.type == DST_NIL)
+        if (dst_checktype(ds, DST_NIL))
             break;
     }
     dst_vm_fiber->ret = ds;
