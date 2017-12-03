@@ -121,6 +121,7 @@ DstValue dst_wrap_boolean(int x) {
 DstValue dst_wrap_##NAME(TYPE x) {\
     DstValue y;\
     y.type = DTYPE;\
+    y.as.u64 = 0; /* zero other bits in case of 32 bit integer */ \
     y.as.UM = x;\
     return y;\
 }
