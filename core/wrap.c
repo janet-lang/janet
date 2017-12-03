@@ -138,6 +138,7 @@ DST_WRAP_DEFINE(function, DstFunction *, DST_FUNCTION, pointer)
 DST_WRAP_DEFINE(cfunction, DstCFunction, DST_CFUNCTION, pointer)
 DST_WRAP_DEFINE(table, DstTable *, DST_TABLE, pointer)
 DST_WRAP_DEFINE(userdata, void *, DST_USERDATA, pointer)
+DST_WRAP_DEFINE(pointer, void *, DST_USERDATA, pointer)
 
 #undef DST_WRAP_DEFINE
 

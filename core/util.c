@@ -31,18 +31,19 @@ const char dst_base64[65] =
 
 /* The DST value types in order. These types can be used as
  * mnemonics instead of a bit pattern for type checking */
-const char *dst_type_names[15] = {
+const char *dst_type_names[16] = {
     "nil",
-    "real",
+    "false",
+    "true",
+    "fiber",
     "integer",
-    "boolean",
+    "real",
     "string",
     "symbol",
     "array",
     "tuple",
     "table",
     "struct",
-    "fiber",
     "buffer",
     "function",
     "cfunction",

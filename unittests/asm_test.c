@@ -31,6 +31,7 @@ int main() {
     }
     assert(pres.status == DST_PARSE_OK);
     dst_puts(dst_formatc("\nparse result: %v\n\n", pres.result.value));
+    dst_puts(dst_formatc("\nparse map result: %v\n\n", pres.map));
 
     /*
     opts.flags = 0;

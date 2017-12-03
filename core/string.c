@@ -200,6 +200,7 @@ static const uint8_t *string_description(const char *title, void *pointer) {
 #undef HEX
 #undef DST_BUFSIZE
 
+/* TODO - add more characters to escapes */
 static int32_t dst_escape_string_length(const uint8_t *str) {
     int32_t len = 2;
     int32_t i;
@@ -359,10 +360,12 @@ static int is_print_ds(DstValue v) {
 }
 
 /* VT100 Colors for types */
-static const char *dst_type_colors[15] = {
+/* TODO - generalize into configurable headers and footers */
+static const char *dst_type_colors[16] = {
     "\x1B[35m",
     "\x1B[33m",
     "\x1B[33m",
+    "\x1B[35m",
     "\x1B[35m",
     "\x1B[32m",
     "\x1B[36m",
@@ -524,7 +527,7 @@ static void dst_description_helper(DstPrinter *p, DstValue x) {
 static void dst_printer_defaults(DstPrinter *p) {
     p->next = 0;
     p->flags = DST_PRINTFLAG_INDENT;
-    p->depth = 4;
+    p->depth = 10;
     p->indent = 0;
     p->indent_size = 2;
     p->token_line_limit = 5;

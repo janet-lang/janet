@@ -104,7 +104,7 @@
  * ands crashing (the parser). Instead, error out. */
 #define DST_RECURSION_GUARD 1000
 
-/* #define DST_NANBOX */
+#define DST_NANBOX
 
 #ifdef DST_NANBOX
 typedef union DstValue DstValue;
@@ -129,7 +129,7 @@ typedef struct DstUserType DstUserType;
 typedef int (*DstCFunction)(DstValue *argv, int32_t argn);
 
 /* Names of all of the types */
-extern const char *dst_type_names[15];
+extern const char *dst_type_names[16];
 
 /* Basic types for all Dst Values */
 typedef enum DstType {
@@ -280,6 +280,7 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
 #define dst_wrap_string(s) dst_nanbox_wrap_c((s), DST_STRING)
 #define dst_wrap_symbol(s) dst_nanbox_wrap_c((s), DST_SYMBOL)
 #define dst_wrap_userdata(s) dst_nanbox_wrap_((s), DST_USERDATA)
+#define dst_wrap_pointer(s) dst_nanbox_wrap_((s), DST_USERDATA)
 #define dst_wrap_function(s) dst_nanbox_wrap_((s), DST_FUNCTION)
 #define dst_wrap_cfunction(s) dst_nanbox_wrap_((s), DST_CFUNCTION)
 
@@ -353,6 +354,7 @@ DstValue dst_wrap_function(DstFunction *x);
 DstValue dst_wrap_cfunction(DstCFunction x);
 DstValue dst_wrap_table(DstTable *x);
 DstValue dst_wrap_userdata(void *x);
+DstValue dst_wrap_pointer(void *x);
 
 /* End of tagged union implementation */
 #endif

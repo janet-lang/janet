@@ -33,11 +33,19 @@ union dst_t {
  * 47 bit payload representaion is that the type bits are no long contiguous. Type
  * checking can still be fast, but typewise polymorphism takes a bit longer. However, 
  * hopefully we can avoid some annoying problems that occur when trying to use 47 bit pointers
- * in a 48 bit address space (Linux on ARM) */
+ * in a 48 bit address space (Linux on ARM), or when generating Signaling NaNs. */
 
 /*                    |.......Tag.......|.......................Payload..................| */
 /* Non-double:        t|11111111111|1ttt|xxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */
 /* Types of NIL, TRUE, and FALSE must have payload set to all 1s. */
+
+/* Other possible representations: */
+
+/* Common Style */
+/* Non-double:        1|11111111111|tttt|xxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+
+/* LuaJIT style */
+/* Non-double:        1|11111111111|1ttt|txxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */
 
 /* Double (no NaNs):   x xxxxxxxxxxx xxxx xxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */
 

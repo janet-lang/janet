@@ -62,7 +62,8 @@ static int read_integer(const uint8_t *string, const uint8_t *end, int64_t *ret)
 
 /* Read a real from a string. Returns if successfuly
  * parsed a real from the enitre input string.
- * If returned 1, output is int ret.*/
+ * If returned 1, output is int ret.
+ * TODO - consider algorithm that does not lose precision. */
 static int read_real(const uint8_t *string, const uint8_t *end, double *ret, int forceInt) {
     int sign = 1, x = 0;
     double accum = 0, exp = 1, place = 1;
@@ -133,7 +134,7 @@ static int is_whitespace(uint8_t c) {
 }
 
 /* Check if a character is a valid symbol character */
-/* TODO - wlloe utf8 - shouldn't be difficult, err on side
+/* TODO - allow utf8 - shouldn't be difficult, err on side
  * of inclusivity */
 static int is_symbol_char(uint8_t c) {
     if (c >= 'a' && c <= 'z') return 1;
@@ -161,8 +162,35 @@ static int to_hex(uint8_t c) {
     }
 }
 
+/* Make source mapping for atom (non recursive structure) */
+static DstValue atom_map(int32_t start, int32_t end) {
+    DstValue *t = dst_tuple_begin(2);
+    t[0] = dst_wrap_integer(start);
+    t[1] = dst_wrap_integer(end);
+    return dst_wrap_tuple(dst_tuple_end(t));
+}
+
+/* Create mappingd for recursive data structure */
+static DstValue ds_map(int32_t start, int32_t end, DstValue submap) {
+    DstValue *t = dst_tuple_begin(3);
+    t[0] = dst_wrap_integer(start);
+    t[1] = dst_wrap_integer(end);
+    t[2] = submap;
+    return dst_wrap_tuple(dst_tuple_end(t));
+}
+
+/* Create a sourcemapping for a key value pair */
+static DstValue kv_map(DstValue k, DstValue v) {
+    DstValue *t = dst_tuple_begin(2);
+    t[0] = k;
+    t[1] = v;
+    return dst_wrap_tuple(dst_tuple_end(t));
+}
+
 typedef struct {
     DstArray stack;
+    DstArray mapstack;
+    const uint8_t *srcstart;
     const uint8_t *end;
     const char *errmsg;
     DstParseStatus status;
@@ -175,8 +203,10 @@ static const uint8_t *parse_recur(
     int32_t recur) {
 
     const uint8_t *end = args->end;
+    const uint8_t *mapstart;
     int32_t qcount = 0;
     DstValue ret;
+    DstValue submapping;
 
     /* Prevent stack overflow */
     if (recur == 0) goto too_much_recur;
@@ -194,6 +224,10 @@ static const uint8_t *parse_recur(
 
     /* Check for end of source */
     if (src >= end) goto unexpected_eos;
+    
+    /* Open mapping */
+    mapstart = src;
+    submapping = dst_wrap_nil();
 
     /* Detect token type based on first character */
     switch (*src) {
@@ -332,18 +366,27 @@ static const uint8_t *parse_recur(
                 case ')':
                 {
                     DstValue *tup = dst_tuple_begin(n);
-                    for (i = n; i > 0; i--)
+                    DstValue *subtup = dst_tuple_begin(n);
+                    for (i = n; i > 0; i--) {
                         tup[i - 1] = dst_array_pop(&args->stack);
+                        subtup[i - 1] = dst_array_pop(&args->mapstack);
+                    }
                     ret = dst_wrap_tuple(dst_tuple_end(tup));
+                    submapping = dst_wrap_tuple(dst_tuple_end(subtup));
                     break;
                 }
                 case ']':
                 {
                     DstArray *arr = dst_array(n);
-                    for (i = n; i > 0; i--)
+                    DstArray *subarr = dst_array(n);
+                    for (i = n; i > 0; i--) {
                         arr->data[i - 1] = dst_array_pop(&args->stack);
+                        subarr->data[i - 1] = dst_array_pop(&args->mapstack);
+                    }
                     arr->count = n;
+                    subarr->count = n;
                     ret = dst_wrap_array(arr);
+                    submapping = dst_wrap_array(subarr);
                     break;
                 }
                 case '}':
@@ -351,20 +394,32 @@ static const uint8_t *parse_recur(
                     if (n & 1) goto struct_oddargs;
                     if (istable) {
                         DstTable *t = dst_table(n);
+                        DstTable *subt = dst_table(n);
                         for (i = n; i > 0; i -= 2) {
                             DstValue val = dst_array_pop(&args->stack);
                             DstValue key = dst_array_pop(&args->stack);
+                            DstValue subval = dst_array_pop(&args->mapstack);
+                            DstValue subkey = dst_array_pop(&args->mapstack);
+
                             dst_table_put(t, key, val);
+                            dst_table_put(subt, key, kv_map(subkey, subval));
                         }
                         ret = dst_wrap_table(t);
+                        submapping = dst_wrap_table(subt);
                     } else {
                         DstValue *st = dst_struct_begin(n >> 1);
+                        DstValue *subst = dst_struct_begin(n >> 1);
                         for (i = n; i > 0; i -= 2) {
                             DstValue val = dst_array_pop(&args->stack);
                             DstValue key = dst_array_pop(&args->stack);
+                            DstValue subval = dst_array_pop(&args->mapstack);
+                            DstValue subkey = dst_array_pop(&args->mapstack);
+
                             dst_struct_put(st, key, val);
+                            dst_struct_put(subst, key, kv_map(subkey, subval));
                         }
                         ret = dst_wrap_struct(dst_struct_end(st));
+                        submapping = dst_wrap_struct(dst_struct_end(subst));
                     }
                     break;
                 }
@@ -378,6 +433,20 @@ static const uint8_t *parse_recur(
 
     /* Push the result to the stack */
     dst_array_push(&args->stack, ret);
+    
+    /* Push source mapping */
+    if (dst_checktype(submapping, DST_NIL)) {
+        /* We just parsed an atom */
+        dst_array_push(&args->mapstack, atom_map(
+                    mapstart - args->srcstart,
+                    src - args->srcstart));
+    } else {
+        /* We just parsed a recursive data structure */
+        dst_array_push(&args->mapstack, ds_map(
+                    mapstart - args->srcstart,
+                    src - args->srcstart,
+                    submapping));
+    }
 
     /* Return the new source position for further calls */
     return src;
@@ -428,23 +497,26 @@ DstParseResult dst_parse(const uint8_t *src, int32_t len) {
 
     dst_array_init(&args.stack, 10);
     args.status = DST_PARSE_OK;
+    args.srcstart = src;
     args.end = src + len;
     args.errmsg = NULL;
+
+    dst_array_init(&args.mapstack, 10);
 
     newsrc = parse_recur(&args, src, DST_RECURSION_GUARD);
     res.status = args.status;
     res.bytes_read = (int32_t) (newsrc - src);
 
-    /* TODO - source maps */
-    res.map = dst_wrap_nil();
-
     if (args.errmsg) {
         res.result.error = dst_cstring(args.errmsg);
+        res.map = dst_wrap_nil();
     } else {
         res.result.value = dst_array_pop(&args.stack);
+        res.map = dst_array_pop(&args.mapstack);
     }
 
     dst_array_deinit(&args.stack);
+    dst_array_deinit(&args.mapstack);
 
     return res;
 }
