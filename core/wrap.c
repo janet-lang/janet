@@ -28,7 +28,9 @@ void *dst_nanbox_to_pointer(DstValue x) {
     /* We need to do this shift to keep the higher bits of the pointer
      * the same as bit 47 as required by the x86 architecture. We may save
      * an instruction if we do x.u64 & DST_NANBOX_POINTERBITS, but this 0s
-     * the high bits, and may make the pointer non-canocial on x86. */
+     * the high bits, and may make the pointer non-canocial on x86. If we switch
+     * to 47 bit pointers (which is what userspace uses on Windows, we can use
+     * the single mask rather than two shifts. */
     x.i64 = (x.i64 << 16) >> 16;
     return x.pointer;
 }

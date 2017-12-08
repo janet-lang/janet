@@ -50,11 +50,6 @@ static int dst_update_fiber() {
     return 0;
 }
 
-/* Eventually use computed gotos for more effient vm loop. */
-#define vm_next() continue
-#define vm_checkgc_next() dst_maybe_collect(); continue
-
-
 /* Start running the VM from where it left off. */
 int dst_continue() {
 
@@ -62,6 +57,10 @@ int dst_continue() {
     DstValue *stack;
     uint32_t *pc;
     DstFunction *func;
+
+/* Eventually use computed gotos for more effient vm loop. */
+#define vm_next() continue
+#define vm_checkgc_next() dst_maybe_collect(); continue
 
     /* Used to extract bits from the opcode that correspond to arguments.
      * Pulls out unsigned integers */

@@ -21,89 +21,7 @@
 */
 
 #include <dst/dst.h>
-
-/* Get an integer power of 10 */
-static double exp10(int power) {
-    if (power == 0) return 1;
-    if (power > 0) {
-        double result = 10;
-        int currentPower = 1;
-        while (currentPower * 2 <= power) {
-            result = result * result;
-            currentPower *= 2;
-        }
-        return result * exp10(power - currentPower);
-    } else {
-        return 1 / exp10(-power);
-    }
-}
-
-/* Read an integer */
-static int read_integer(const uint8_t *string, const uint8_t *end, int64_t *ret) {
-    int sign = 1, x = 0;
-    int64_t accum = 0;
-    if (*string == '-') {
-        sign = -1;
-        ++string;
-    } else if (*string == '+') {
-        ++string;
-    }
-    if (string >= end) return 0;
-    while (string < end) {
-        x = *string;
-        if (x < '0' || x > '9') return 0;
-        x -= '0';
-        accum = accum * 10 + x;
-        ++string;
-    }
-    *ret = accum * sign;
-    return 1;
-}
-
-/* Read a real from a string. Returns if successfuly
- * parsed a real from the enitre input string.
- * If returned 1, output is int ret.
- * TODO - consider algorithm that does not lose precision. */
-static int read_real(const uint8_t *string, const uint8_t *end, double *ret, int forceInt) {
-    int sign = 1, x = 0;
-    double accum = 0, exp = 1, place = 1;
-    /* Check the sign */
-    if (*string == '-') {
-        sign = -1;
-        ++string;
-    } else if (*string == '+') {
-        ++string;
-    }
-    if (string >= end) return 0;
-    while (string < end) {
-        if (*string == '.' && !forceInt) {
-            place = 0.1;
-        } else if (!forceInt && (*string == 'e' || *string == 'E')) {
-            /* Read the exponent */
-            ++string;
-            if (string >= end) return 0;
-            if (!read_real(string, end, &exp, 1))
-                return 0;
-            exp = exp10(exp);
-            break;
-        } else {
-            x = *string;
-            if (x < '0' || x > '9') return 0;
-            x -= '0';
-            if (place < 1) {
-                accum += x * place;
-                place *= 0.1;
-            } else {
-                accum *= 10;
-                accum += x;
-            }
-        }
-        ++string;
-    }
-    *ret = accum * sign * exp;
-    return 1;
-}
-
+#include "strtod.h"
 
 /* Checks if a string slice is equal to a string constant */
 static int check_str_const(const char *ref, const uint8_t *start, const uint8_t *end) {
@@ -236,17 +154,14 @@ static const uint8_t *parse_recur(
         default: 
         atom:
         {
-            double real;
-            int64_t integer;
+            DstValue numcheck;
             const uint8_t *tokenend = src;
             if (!is_symbol_char(*src)) goto unexpected_character;
             while (tokenend < end && is_symbol_char(*tokenend))
                 tokenend++;
-            if (tokenend >= end) goto unexpected_eos;
-            if (read_integer(src, tokenend, &integer)) {
-                ret = dst_wrap_integer(integer);
-            } else if (read_real(src, tokenend, &real, 0)) {
-                ret = dst_wrap_real(real);
+            numcheck = dst_scan_number(src, tokenend - src);
+            if (!dst_checktype(numcheck, DST_NIL)) {
+                ret = numcheck;
             } else if (check_str_const("nil", src, tokenend)) {
                 ret = dst_wrap_nil();
             } else if (check_str_const("false", src, tokenend)) {
@@ -509,10 +424,10 @@ DstParseResult dst_parse(const uint8_t *src, int32_t len) {
 
     if (args.errmsg) {
         res.result.error = dst_cstring(args.errmsg);
-        res.map = dst_wrap_nil();
+        res.map = NULL;
     } else {
         res.result.value = dst_array_pop(&args.stack);
-        res.map = dst_array_pop(&args.mapstack);
+        res.map = dst_unwrap_tuple(dst_array_pop(&args.mapstack));
     }
 
     dst_array_deinit(&args.stack);
@@ -526,4 +441,57 @@ DstParseResult dst_parsec(const char *src) {
     int32_t len = 0;
     while (src[len]) ++len;
     return dst_parse((const uint8_t *)src, len);
+}
+
+/* Get the sub source map by indexing a value. Used to traverse
+ * into arrays and tuples */
+const DstValue *dst_parse_submap_index(const DstValue *map, int32_t index) {
+    if (NULL != map && dst_tuple_length(map) >= 3) {
+        const DstValue *seq;
+        int32_t len;
+        if (dst_seq_view(map[2], &seq, &len)) {
+            if (index >= 0 && index < len) {
+                if (dst_checktype(seq[index], DST_TUPLE)) {
+                    const DstValue *ret = dst_unwrap_tuple(seq[index]);
+                    if (dst_tuple_length(ret) >= 2 &&
+                        dst_checktype(ret[0], DST_INTEGER) &&
+                        dst_checktype(ret[1], DST_INTEGER)) {
+                        return ret;
+                    }
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
+/* Traverse into tables and structs */
+static const DstValue *dst_parse_submap_kv(const DstValue *map, DstValue key, int kv) {
+    if (NULL != map && dst_tuple_length(map) >= 3) {
+        DstValue kvpair = dst_get(map[2], key);
+        if (dst_checktype(kvpair, DST_TUPLE)) {
+            const DstValue *kvtup = dst_unwrap_tuple(kvpair);
+            if (dst_tuple_length(kvtup) >= 2) {
+                if (dst_checktype(kvtup[kv], DST_TUPLE)) {
+                    const DstValue *ret = dst_unwrap_tuple(kvtup[kv]);
+                    if (dst_tuple_length(ret) >= 2 &&
+                        dst_checktype(ret[0], DST_INTEGER) &&
+                        dst_checktype(ret[1], DST_INTEGER)) {
+                        return ret;
+                    }
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
+/* Traverse into a key of a table or struct */
+const DstValue *dst_parse_submap_key(const DstValue *map, DstValue key) {
+    return dst_parse_submap_kv(map, key, 0);
+}
+
+/* Traverse into a value of a table or struct */
+const DstValue *dst_parse_submap_value(const DstValue *map, DstValue key) {
+    return dst_parse_submap_kv(map, key, 1);
 }

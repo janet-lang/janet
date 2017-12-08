@@ -26,21 +26,20 @@ int main() {
     free(string);
 
     if (pres.status == DST_PARSE_ERROR) {
-        dst_puts(dst_formatc("parse error at %d: %s\n", pres.bytes_read, pres.result.error));
+        dst_puts(dst_formatc("parse error at %d: %S\n", pres.bytes_read, pres.result.error));
         return 1;
     }
     assert(pres.status == DST_PARSE_OK);
     dst_puts(dst_formatc("\nparse result: %v\n\n", pres.result.value));
-    dst_puts(dst_formatc("\nparse map result: %v\n\n", pres.map));
 
-    /*
     opts.flags = 0;
     opts.source = pres.result.value;
-    opts.parsemap = dst_wrap_nil();
+    opts.sourcemap = pres.map;
 
     ares = dst_asm(opts);
     if (ares.status == DST_ASSEMBLE_ERROR) {
-        dst_puts(dst_formatc("assembly error: %s\n", ares.result.error));
+        dst_puts(dst_formatc("assembly error: %S\n", ares.result.error));
+        dst_puts(dst_formatc("error location: %d, %d\n", ares.error_start, ares.error_end));
         return 1;
     }
     assert(ares.status == DST_ASSEMBLE_OK);
@@ -49,7 +48,6 @@ int main() {
     
     dst_run(dst_wrap_function(func));
     dst_puts(dst_formatc("result: %v\n", dst_vm_fiber->ret));
-    */
 
     dst_deinit();
 

@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include "strtod.h"
 
 /* Begin building a string */
 uint8_t *dst_string_begin(int32_t length) {
@@ -102,7 +103,7 @@ const uint8_t *dst_cstring(const char *str) {
 #define DST_BUFSIZE 36
 
 static int32_t real_to_string_impl(uint8_t *buf, double x) {
-    int count = snprintf((char *) buf, DST_BUFSIZE, "%.21g", x);
+    int count = snprintf((char *) buf, DST_BUFSIZE, "%.17g", x);
     return (int32_t) count;
 }
 
@@ -323,7 +324,7 @@ void dst_short_description_b(DstBuffer *buffer, DstValue x) {
 /* Helper structure for stringifying nested structures */
 typedef struct DstPrinter DstPrinter;
 struct DstPrinter {
-    DstBuffer buffer;
+    DstBuffer *buffer;
     DstTable seen;
     uint32_t flags;
     uint32_t state;
@@ -344,7 +345,7 @@ static void dst_print_indent(DstPrinter *p) {
     int32_t i, len;
     len = p->indent_size * p->indent;
     for (i = 0; i < len; i++) {
-        dst_buffer_push_u8(&p->buffer, ' ');
+        dst_buffer_push_u8(p->buffer, ' ');
     }
 }
 
@@ -400,15 +401,15 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, int32
         }
     }
     if (doindent) {
-        dst_buffer_push_u8(&p->buffer, '\n');
+        dst_buffer_push_u8(p->buffer, '\n');
         p->indent++;
         for (i = 0; i < cap; i += 2) {
             if (!dst_checktype(data[i], DST_NIL)) {
                 dst_print_indent(p);
                 dst_description_helper(p, data[i]);
-                dst_buffer_push_u8(&p->buffer, ' ');
+                dst_buffer_push_u8(p->buffer, ' ');
                 dst_description_helper(p, data[i + 1]);
-                dst_buffer_push_u8(&p->buffer, '\n');
+                dst_buffer_push_u8(p->buffer, '\n');
             }
         }
         p->indent--;
@@ -420,9 +421,9 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, int32
                 if (isfirst)
                     isfirst = 0;
                 else
-                    dst_buffer_push_u8(&p->buffer, ' ');
+                    dst_buffer_push_u8(p->buffer, ' ');
                 dst_description_helper(p, data[i]);
-                dst_buffer_push_u8(&p->buffer, ' ');
+                dst_buffer_push_u8(p->buffer, ' ');
                 dst_description_helper(p, data[i + 1]);
             }
         }
@@ -446,12 +447,12 @@ static void dst_print_seq_inner(DstPrinter *p, const DstValue *data, int32_t len
         }
     }
     if (doindent) {
-        dst_buffer_push_u8(&p->buffer, '\n');
+        dst_buffer_push_u8(p->buffer, '\n');
         p->indent++;
         for (i = 0; i < len; ++i) {
             dst_print_indent(p);
             dst_description_helper(p, data[i]);
-            dst_buffer_push_u8(&p->buffer, '\n');
+            dst_buffer_push_u8(p->buffer, '\n');
         }
         p->indent--;
         dst_print_indent(p);
@@ -459,7 +460,7 @@ static void dst_print_seq_inner(DstPrinter *p, const DstValue *data, int32_t len
         for (i = 0; i < len; ++i) {
             dst_description_helper(p, data[i]);
             if (i != len - 1)
-                dst_buffer_push_u8(&p->buffer, ' ');
+                dst_buffer_push_u8(p->buffer, ' ');
         }
     }
 }
@@ -475,11 +476,11 @@ static void dst_description_helper(DstPrinter *p, DstValue x) {
     switch (dst_type(x)) {
         default:
             if (p->flags & DST_PRINTFLAG_COLORIZE) {
-                dst_buffer_push_cstring(&p->buffer, dst_type_colors[dst_type(x)]);
-                dst_short_description_b(&p->buffer, x);
-                dst_buffer_push_cstring(&p->buffer, "\x1B[0m");
+                dst_buffer_push_cstring(p->buffer, dst_type_colors[dst_type(x)]);
+                dst_short_description_b(p->buffer, x);
+                dst_buffer_push_cstring(p->buffer, "\x1B[0m");
             } else {
-                dst_short_description_b(&p->buffer, x);
+                dst_short_description_b(p->buffer, x);
             }
             p->depth++;
             return;
@@ -502,21 +503,21 @@ static void dst_description_helper(DstPrinter *p, DstValue x) {
     }
     check = dst_table_get(&p->seen, x);
     if (dst_checktype(check, DST_INTEGER)) {
-        dst_buffer_push_cstring(&p->buffer, "<cycle ");
-        integer_to_string_b(&p->buffer, dst_unwrap_integer(check));
-        dst_buffer_push_cstring(&p->buffer, ">");
+        dst_buffer_push_cstring(p->buffer, "<cycle ");
+        integer_to_string_b(p->buffer, dst_unwrap_integer(check));
+        dst_buffer_push_cstring(p->buffer, ">");
         return;
     }
     dst_table_put(&p->seen, x, dst_wrap_integer(p->next++));
-    dst_buffer_push_cstring(&p->buffer, open);
+    dst_buffer_push_cstring(p->buffer, open);
     if (p->depth == 0) {
-        dst_buffer_push_cstring(&p->buffer, "...");
+        dst_buffer_push_cstring(p->buffer, "...");
     } else if (dst_hashtable_view(x, &data, &len, &cap)) {
         dst_print_hashtable_inner(p, data, len, cap);
     } else if (dst_seq_view(x, &data, &len)) {
         dst_print_seq_inner(p, data, len);
     }
-    dst_buffer_push_cstring(&p->buffer, close);
+    dst_buffer_push_cstring(p->buffer, close);
     /* Remove from seen as we know that printing completes, we
      * can print in multiple times and we know we are not recursing */
     dst_table_remove(&p->seen, x);
@@ -538,15 +539,17 @@ const uint8_t *dst_description(DstValue x) {
     DstPrinter printer;
     const uint8_t *ret;
 
+    DstBuffer buffer;
     dst_printer_defaults(&printer);
     printer.state = 0;
-    dst_buffer_init(&printer.buffer, 0);
+    dst_buffer_init(&buffer, 0);
+    printer.buffer = &buffer;
 
     /* Only print description up to a depth of 4 */
     dst_description_helper(&printer, x);
-    ret = dst_string(printer.buffer.data, printer.buffer.count);
+    ret = dst_string(buffer.data, buffer.count);
 
-    dst_buffer_deinit(&printer.buffer);
+    dst_buffer_deinit(&buffer);
     if (printer.state)
         dst_table_deinit(&printer.seen);
     return ret;
@@ -572,7 +575,8 @@ const uint8_t *dst_formatc(const char *format, ...) {
     int32_t i;
     const uint8_t *ret;
     DstPrinter printer;
-    DstBuffer *bufp = &printer.buffer;
+    DstBuffer buffer;
+    DstBuffer *bufp = &buffer;
     printer.state = 0;
     
     /* Calculate length */
@@ -580,6 +584,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
 
     /* Initialize buffer */
     dst_buffer_init(bufp, len);
+    printer.buffer = bufp;
 
     /* Start args */
     va_start(args, format);
@@ -646,8 +651,8 @@ const uint8_t *dst_formatc(const char *format, ...) {
 
     va_end(args);
 
-    ret = dst_string(printer.buffer.data, printer.buffer.count);
-    dst_buffer_deinit(&printer.buffer);
+    ret = dst_string(buffer.data, buffer.count);
+    dst_buffer_deinit(&buffer);
     if (printer.state)
         dst_table_deinit(&printer.seen);
     return ret;

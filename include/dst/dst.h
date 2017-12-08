@@ -599,10 +599,12 @@ struct DstAssembleResult {
         DstFuncDef *def;
         const uint8_t *error;
     } result;
+    int32_t error_start;
+    int32_t error_end;
     DstAssembleStatus status;
 };
 struct DstAssembleOptions {
-    DstValue parsemap;
+    const DstValue *sourcemap;
     DstValue source;
     uint32_t flags;
 };
@@ -648,12 +650,15 @@ struct DstParseResult {
         DstValue value;
         const uint8_t *error;
     } result;
-    DstValue map;
+    const DstValue *map;
     int32_t bytes_read;
     DstParseStatus status;
 };
 DstParseResult dst_parse(const uint8_t *src, int32_t len);
 DstParseResult dst_parsec(const char *src);
+const DstValue *dst_parse_submap_index(const DstValue *map, int32_t index);
+const DstValue *dst_parse_submap_key(const DstValue *map, DstValue key);
+const DstValue *dst_parse_submap_value(const DstValue *map, DstValue key);
 
 /* VM functions */
 int dst_init();
@@ -661,9 +666,6 @@ void dst_deinit();
 int dst_continue();
 int dst_run(DstValue callee);
 DstValue dst_transfer(DstFiber *fiber, DstValue x);
-
-/* Wrap data in DstValue */
-
 
 /* GC */
 

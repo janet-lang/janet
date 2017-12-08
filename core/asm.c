@@ -92,6 +92,7 @@ struct DstAssembler {
     DstFuncDef *def;
     jmp_buf on_error;
     const uint8_t *errmessage;
+    const DstValue *errmap;
 
     int32_t environments_capacity;
     int32_t bytecode_count; /* Used for calculating labels */
@@ -229,21 +230,27 @@ static void dst_asm_deinit(DstAssembler *a) {
 }
 
 /* Throw some kind of assembly error */
-static void dst_asm_error(DstAssembler *a, const char *message) {
+static void dst_asm_error(DstAssembler *a, const DstValue *map, const char *message) {
     a->errmessage = dst_cstring(message);
+    a->errmap = map;
     longjmp(a->on_error, 1);
 }
-#define dst_asm_assert(a, c, m) do { if (!(c)) dst_asm_error((a), (m)); } while (0)
+#define dst_asm_assert(a, c, map, m) do { if (!(c)) dst_asm_error((a), (map), (m)); } while (0)
 
 /* Throw some kind of assembly error */
-static void dst_asm_errorv(DstAssembler *a, const uint8_t *m) {
+static void dst_asm_errorv(DstAssembler *a, const DstValue *map, const uint8_t *m) {
     a->errmessage = m;
+    a->errmap = map;
     longjmp(a->on_error, 1);
 }
 
 /* Parse an argument to an assembly instruction, and return the result as an
  * integer. This integer will need to be trimmed and bound checked. */
-static int32_t doarg_1(DstAssembler *a, DstOpArgType argtype, DstValue x) {
+static int32_t doarg_1(
+        DstAssembler *a,
+        const DstValue *map,
+        DstOpArgType argtype,
+        DstValue x) {
     int32_t ret = -1;
     DstTable *c;
     switch (argtype) {
@@ -281,7 +288,7 @@ static int32_t doarg_1(DstAssembler *a, DstOpArgType argtype, DstValue x) {
                 int32_t i = 0;
                 ret = 0;
                 for (i = 0; i < dst_tuple_length(t); i++) {
-                    ret |= doarg_1(a, DST_OAT_SIMPLETYPE, t[i]);
+                    ret |= doarg_1(a, map, DST_OAT_SIMPLETYPE, t[i]);
                 }
             } else {
                 goto error;
@@ -299,14 +306,14 @@ static int32_t doarg_1(DstAssembler *a, DstOpArgType argtype, DstValue x) {
                         ret = dst_unwrap_integer(result);
                     }
                 } else {
-                    dst_asm_errorv(a, dst_formatc("unknown name %q", x));
+                    dst_asm_errorv(a, map, dst_formatc("unknown name %q", x));
                 }
             } else if (argtype == DST_OAT_TYPE || argtype == DST_OAT_SIMPLETYPE) {
                 int32_t index = strsearch(dst_unwrap_symbol(x), dst_type_names);
                 if (index != -1) {
                     ret = index;
                 } else {
-                    dst_asm_errorv(a, dst_formatc("unknown type %q", x));
+                    dst_asm_errorv(a, map, dst_formatc("unknown type %q", x));
                 }
             } else {
                 goto error;
@@ -319,7 +326,7 @@ static int32_t doarg_1(DstAssembler *a, DstOpArgType argtype, DstValue x) {
     return ret;
 
     error:
-    dst_asm_errorv(a, dst_formatc("error parsing instruction argument %v", x));
+    dst_asm_errorv(a, map, dst_formatc("error parsing instruction argument %v", x));
     return 0;
 }
 
@@ -327,99 +334,104 @@ static int32_t doarg_1(DstAssembler *a, DstOpArgType argtype, DstValue x) {
  * try to convert arguments to bit patterns */
 static uint32_t doarg(
         DstAssembler *a,
+        const DstValue *map,
         DstOpArgType argtype,
         int nth,
         int nbytes,
         int hassign,
         DstValue x) {
-    int32_t arg = doarg_1(a, argtype, x);
+    int32_t arg = doarg_1(a, map, argtype, x);
     /* Calculate the min and max values that can be stored given
      * nbytes, and whether or not the storage is signed */
     int32_t min = (-hassign) << ((nbytes << 3) - 1);
     int32_t max = ~((-1) << ((nbytes << 3) - hassign));
     if (arg < min)
-        dst_asm_errorv(a, dst_formatc("instruction argument %v is too small, must be %d byte%s",
+        dst_asm_errorv(a, map, dst_formatc("instruction argument %v is too small, must be %d byte%s",
                     x, nbytes, nbytes > 1 ? "s" : ""));
     if (arg > max)
-        dst_asm_errorv(a, dst_formatc("instruction argument %v is too large, must be %d byte%s",
+        dst_asm_errorv(a, map, dst_formatc("instruction argument %v is too large, must be %d byte%s",
                     x, nbytes, nbytes > 1 ? "s" : ""));
     return ((uint32_t) arg) << (nth << 3);
 }
 
 /* Provide parsing methods for the different kinds of arguments */
-static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef, const DstValue *argt) {
+static uint32_t read_instruction(
+        DstAssembler *a, 
+        const DstValue *map,
+        const DstInstructionDef *idef,
+        const DstValue *argt) {
     uint32_t instr = idef->opcode;
     switch (idef->type) {
         case DIT_0:
         {
             if (dst_tuple_length(argt) != 1)
-                dst_asm_error(a, "expected 0 arguments: (op)");
+                dst_asm_error(a, map, "expected 0 arguments: (op)");
             break;
         }
         case DIT_S:
         {
             if (dst_tuple_length(argt) != 2)
-                dst_asm_error(a, "expected 1 argument: (op, slot)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 3, 0, argt[1]);
+                dst_asm_error(a, map, "expected 1 argument: (op, slot)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_SLOT, 1, 3, 0, argt[1]);
             break;
         }
         case DIT_L:
         {
             if (dst_tuple_length(argt) != 2)
-                dst_asm_error(a, "expected 1 argument: (op, label)");
-            instr |= doarg(a, DST_OAT_LABEL, 1, 3, 1, argt[1]);
+                dst_asm_error(a, map, "expected 1 argument: (op, label)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_LABEL, 1, 3, 1, argt[1]);
             break;
         }
         case DIT_SS:
         {
             if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, slot)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_SLOT, 2, 2, 0, argt[2]);
+                dst_asm_error(a, map, "expected 2 arguments: (op, slot, slot)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, dst_parse_submap_index(map, 2), DST_OAT_SLOT, 2, 2, 0, argt[2]);
             break;
         }
         case DIT_SL:
         {
             if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, label)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_LABEL, 2, 2, 1, argt[2]);
+                dst_asm_error(a, map, "expected 2 arguments: (op, slot, label)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, dst_parse_submap_index(map, 2), DST_OAT_LABEL, 2, 2, 1, argt[2]);
             break;
         }
         case DIT_ST:
         {
             if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, type)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_TYPE, 2, 2, 0, argt[2]);
+                dst_asm_error(a, map, "expected 2 arguments: (op, slot, type)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, dst_parse_submap_index(map, 2), DST_OAT_TYPE, 2, 2, 0, argt[2]);
             break;
         }
         case DIT_SI:
         case DIT_SU:
         {
             if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, integer)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_INTEGER, 2, 2, idef->type == DIT_SI, argt[2]);
+                dst_asm_error(a, map, "expected 2 arguments: (op, slot, integer)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, dst_parse_submap_index(map, 2), DST_OAT_INTEGER, 2, 2, idef->type == DIT_SI, argt[2]);
             break;
         }
         case DIT_SSS:
         {
             if (dst_tuple_length(argt) != 4)
-                dst_asm_error(a, "expected 3 arguments: (op, slot, slot, slot)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_SLOT, 2, 1, 0, argt[2]);
-            instr |= doarg(a, DST_OAT_SLOT, 3, 1, 0, argt[3]);
+                dst_asm_error(a, map, "expected 3 arguments: (op, slot, slot, slot)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, dst_parse_submap_index(map, 2), DST_OAT_SLOT, 2, 1, 0, argt[2]);
+            instr |= doarg(a, dst_parse_submap_index(map, 3), DST_OAT_SLOT, 3, 1, 0, argt[3]);
             break;
         }
         case DIT_SSI:
         case DIT_SSU:
         {
             if (dst_tuple_length(argt) != 4)
-                dst_asm_error(a, "expected 3 arguments: (op, slot, slot, integer)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_SLOT, 2, 1, 0, argt[2]);
-            instr |= doarg(a, DST_OAT_INTEGER, 3, 1, idef->type == DIT_SSI, argt[3]);
+                dst_asm_error(a, map, "expected 3 arguments: (op, slot, slot, integer)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, dst_parse_submap_index(map, 2), DST_OAT_SLOT, 2, 1, 0, argt[2]);
+            instr |= doarg(a, dst_parse_submap_index(map, 3), DST_OAT_INTEGER, 3, 1, idef->type == DIT_SSI, argt[3]);
             break;
         }
         case DIT_SES:
@@ -427,24 +439,24 @@ static uint32_t read_instruction(DstAssembler *a, const DstInstructionDef *idef,
             DstAssembler *b = a;
             uint32_t env;
             if (dst_tuple_length(argt) != 4)
-                dst_asm_error(a, "expected 3 arguments: (op, slot, environment, envslot)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            env = doarg(a, DST_OAT_ENVIRONMENT, 0, 1, 0, argt[2]);
+                dst_asm_error(a, map, "expected 3 arguments: (op, slot, environment, envslot)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_SLOT, 1, 1, 0, argt[1]);
+            env = doarg(a, dst_parse_submap_index(map, 2), DST_OAT_ENVIRONMENT, 0, 1, 0, argt[2]);
             instr |= env << 16;
             for (env += 1; env > 0; env--) {
                 b = b->parent;
                 if (NULL == b)
-                    dst_asm_error(a, "invalid environment index");
+                    dst_asm_error(a, dst_parse_submap_index(map, 2), "invalid environment index");
             }
-            instr |= doarg(b, DST_OAT_SLOT, 3, 1, 0, argt[3]);
+            instr |= doarg(b, dst_parse_submap_index(map, 3), DST_OAT_SLOT, 3, 1, 0, argt[3]);
             break;
         }
         case DIT_SC:
         {
             if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, constant)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_CONSTANT, 2, 2, 0, argt[2]);
+                dst_asm_error(a, map, "expected 2 arguments: (op, slot, constant)");
+            instr |= doarg(a, dst_parse_submap_index(map, 1), DST_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, dst_parse_submap_index(map, 2), DST_OAT_CONSTANT, 2, 2, 0, argt[2]);
             break;
         }
     }
@@ -513,23 +525,33 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     a.errmessage = NULL;
     a.environments_capacity = 0;
     a.bytecode_count = 0;
+    a.errmap = NULL;
     dst_table_init(&a.labels, 10);
     dst_table_init(&a.constants, 10);
     dst_table_init(&a.slots, 10);
     dst_table_init(&a.envs, 10);
 
+    /* Initialize result */
+    result.error_start = -1;
+    result.error_end = -1;
+
     /* Set error jump */
     if (setjmp(a.on_error)) {
-        dst_asm_deinit(&a);
         if (NULL != a.parent) {
+            dst_asm_deinit(&a);
             longjmp(a.parent->on_error, 1);
         }
         result.result.error = a.errmessage;
         result.status = DST_ASSEMBLE_ERROR;
+        if (a.errmap != NULL) {
+            result.error_start = dst_unwrap_integer(a.errmap[0]);
+            result.error_end = dst_unwrap_integer(a.errmap[1]);
+        }
+        dst_asm_deinit(&a);
         return result;
     }
 
-    dst_asm_assert(&a, dst_checktype(opts.source, DST_STRUCT), "expected struct for assembly source");
+    dst_asm_assert(&a, dst_checktype(opts.source, DST_STRUCT), opts.sourcemap, "expected struct for assembly source");
 
     /* Set function arity */
     x = dst_struct_get(st, dst_csymbolv("arity"));
@@ -538,20 +560,24 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     /* Create slot aliases */
     x = dst_struct_get(st, dst_csymbolv("slots"));
     if (dst_seq_view(x, &arr, &count)) {
+        const DstValue *slotmap = 
+            dst_parse_submap_value(opts.sourcemap, dst_csymbolv("slots"));
         for (i = 0; i < count; i++) {
+            const DstValue *imap = dst_parse_submap_index(slotmap, i);
             DstValue v = arr[i];
             if (dst_checktype(v, DST_TUPLE)) {
                 const DstValue *t = dst_unwrap_tuple(v);
                 int32_t j; 
                 for (j = 0; j < dst_tuple_length(t); j++) {
+                    const DstValue *tjmap = dst_parse_submap_index(imap, j);
                     if (!dst_checktype(t[j], DST_SYMBOL))
-                        dst_asm_error(&a, "slot names must be symbols");
+                        dst_asm_error(&a, tjmap, "slot names must be symbols");
                     dst_table_put(&a.slots, t[j], dst_wrap_integer(i));
                 }
             } else if (dst_checktype(v, DST_SYMBOL)) {
                 dst_table_put(&a.slots, v, dst_wrap_integer(i));
             } else {
-                dst_asm_error(&a, "slot names must be symbols or tuple of symbols");
+                dst_asm_error(&a, imap, "slot names must be symbols or tuple of symbols");
             }
         }
     }
@@ -559,10 +585,13 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     /* Create environment aliases */
     x = dst_struct_get(st, dst_csymbolv("environments"));
     if (dst_seq_view(x, &arr, &count)) {
+        const DstValue *emap =
+            dst_parse_submap_value(opts.sourcemap, dst_csymbolv("environments"));
         for (i = 0; i < count; i++) {
-            dst_asm_assert(&a, dst_checktype(arr[i], DST_SYMBOL), "environment must be a symbol");
+            const DstValue *imap = dst_parse_submap_index(emap, i);
+            dst_asm_assert(&a, dst_checktype(arr[i], DST_SYMBOL), imap, "environment must be a symbol");
             if (dst_asm_addenv(&a, arr[i]) < 0) {
-                dst_asm_error(&a, "environment not found");
+                dst_asm_error(&a, imap, "environment not found");
             }
         }
     }
@@ -570,12 +599,15 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     /* Parse constants */
     x = dst_struct_get(st, dst_csymbolv("constants"));
     if (dst_seq_view(x, &arr, &count)) {
+        const DstValue *cmap =
+            dst_parse_submap_value(opts.sourcemap, dst_csymbolv("constants"));
         def->constants_length = count;
         def->constants = malloc(sizeof(DstValue) * count);
         if (NULL == def->constants) {
             DST_OUT_OF_MEMORY;
         }
         for (i = 0; i < count; i++) {
+            const DstValue *imap = dst_parse_submap_index(cmap, i);
             DstValue ct = arr[i];
             if (dst_checktype(ct, DST_TUPLE) &&
                 dst_tuple_length(dst_unwrap_tuple(ct)) > 1 &&
@@ -591,7 +623,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
                     def->constants[i] = t[2];
                     dst_table_put(&a.constants, t[1], dst_wrap_integer(i));
                 } else {
-                    dst_asm_errorv(&a, dst_formatc("could not parse constant \"%v\"", ct));
+                    dst_asm_errorv(&a, imap, dst_formatc("could not parse constant \"%v\"", ct));
                 }
                 /* Todo - parse nested funcdefs */
             } else {
@@ -606,16 +638,19 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     /* Parse bytecode and labels */
     x = dst_struct_get(st, dst_csymbolv("bytecode"));
     if (dst_seq_view(x, &arr, &count)) {
+        const DstValue *bmap =
+            dst_parse_submap_value(opts.sourcemap, dst_csymbolv("bytecode"));
         /* Do labels and find length */
         int32_t blength = 0;
         for (i = 0; i < count; ++i) {
+            const DstValue *imap = dst_parse_submap_index(bmap, i);
             DstValue instr = arr[i];
             if (dst_checktype(instr, DST_SYMBOL)) {
                 dst_table_put(&a.labels, instr, dst_wrap_integer(blength));
             } else if (dst_checktype(instr, DST_TUPLE)) {
                 blength++;
             } else {
-                dst_asm_error(&a, "expected assembly instruction");
+                dst_asm_error(&a, imap, "expected assembly instruction");
             }
         }
         /* Allocate bytecode array */
@@ -626,6 +661,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
         }
         /* Do bytecode */
         for (i = 0; i < count; ++i) {
+            const DstValue *imap = dst_parse_submap_index(bmap, i);
             DstValue instr = arr[i];
             if (dst_checktype(instr, DST_SYMBOL)) {
                 continue;
@@ -633,23 +669,23 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
                 uint32_t op;
                 const DstInstructionDef *idef;
                 const DstValue *t;
-                dst_asm_assert(&a, dst_checktype(instr, DST_TUPLE), "expected tuple");
+                dst_asm_assert(&a, dst_checktype(instr, DST_TUPLE), imap, "expected tuple");
                 t = dst_unwrap_tuple(instr);
                 if (dst_tuple_length(t) == 0) {
                     op = 0;
                 } else {
-                    dst_asm_assert(&a, dst_checktype(t[0], DST_SYMBOL),
+                    dst_asm_assert(&a, dst_checktype(t[0], DST_SYMBOL), imap,
                             "expected symbol in assembly instruction");
                     idef = dst_findi(dst_unwrap_symbol(t[0]));
                     if (NULL == idef)
-                        dst_asm_errorv(&a, dst_formatc("unknown instruction %v", instr));
-                    op = read_instruction(&a, idef, t);
+                        dst_asm_errorv(&a, imap, dst_formatc("unknown instruction %v", instr));
+                    op = read_instruction(&a, imap, idef, t);
                 }
                 def->bytecode[a.bytecode_count++] = op;
             }
         }
     } else {
-        dst_asm_error(&a, "bytecode expected");
+        dst_asm_error(&a, opts.sourcemap, "bytecode expected");
     }
 
     /* Finish everything and return funcdef */

@@ -46,7 +46,9 @@ int dst_sys_asm(DstValue *argv, int32_t argn) {
         return 1;
     }
     opts.source = argv[0];
-    opts.parsemap = argn >= 2 ? argv[1] : dst_wrap_nil();
+    opts.sourcemap = (argn >= 2 && dst_checktype(argv[1], DST_TUPLE))
+        ? dst_unwrap_tuple(argv[1])
+        : NULL;
     opts.flags = 0;
     res = dst_asm(opts);
     if (res.status == DST_ASSEMBLE_OK) {

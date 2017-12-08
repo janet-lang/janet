@@ -29,12 +29,42 @@ typedef struct DstCompiler DstCompiler;
 typedef struct FormOptions FormOptions;
 typedef struct SlotTracker SlotTracker;
 typedef struct DstScope DstScope;
+typedef struct DstCFunctionOptimizer DstCFunctionOptimizer;
+
+#define DST_SLOT_CONSTANT 1
+#define DST_SLOT_TEMP 2
+#define DST_SLOT_RETURNED 4
+#define DST_SLOT_NIL 8
 
 /* A stack slot */
 struct DstSlot {
     int32_t index;
     uint32_t flags;
     uint32_t types; /* bit set of possible primitive types */
+    DstValue constant; /* If the slot has a constant value */
+}
+
+/* Most forms that return a constant will not generate any bytecode */
+
+/* Special forms that need support */
+/* cond
+ * while (continue, break)
+ * quote
+ * fn
+ * def
+ * var
+ * do
+ */
+
+#define DST_OPTIMIZER_CONSTANTS 1
+#define DST_OPTIMIZER_BYTECODE 2
+#define DST_OPTIMIZER_PARTIAL_CONSTANTS 4
+
+/* A grouping of optimization on a cfunction given certain conditions
+ * on the arguments (such as all constants, or some known types). The appropriate
+ * optimizations should be tried before compiling a normal function call. */
+struct DstCFunctionOptimizer {
+    uint32_t flags; /* Indicate what kind of optimizations can be performed */
 }
 
 /* A lexical scope during compilation */
@@ -61,6 +91,6 @@ struct DstFormOptions {
     DstCompiler *compiler;
     DstValue x;
     uint32_t flags;
-    uint32_t types; /* bit set of accepeted primitive types */
+    uint32_t types; /* bit set of accepted primitive types */
     int32_t target_slot;
 };

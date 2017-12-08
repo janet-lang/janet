@@ -1,5 +1,5 @@
+# A fairly minimal example of a dst assembly file
 {
-  bork 'boop
   bytecode [
     (load-integer 0 15)
     (load-integer 1 0)
@@ -8,9 +8,7 @@
     :label
     (equals 2 1 0)
     (jump-if 2 :done) 
-    (push 0)
     (add-immediate 0 0 -1)
-    (syscall 2 0)
     (get 2 3 0)
     (push 2)
     (syscall 2 0)
@@ -18,6 +16,9 @@
 
     :done
     (return-nil)
+    
+    :extra
+    (push 2r1010101010101010)
   ]
   constants [
     (def lookup "0123456789abcdef")
