@@ -630,7 +630,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     }
                     case 'q':
                     {
-                        const uint8_t *str = dst_to_string(va_arg(args, DstValue));
+                        const uint8_t *str = va_arg(args, const uint8_t *);
                         dst_escape_string_b(bufp, str);
                         break;
                     }

@@ -85,16 +85,29 @@
 #define DST_LITTLE_ENDIAN 1
 #endif
 
+/* Handle runtime errors */
+#ifndef dst_exit
+#include <stdlib.h>
+#include <stdio.h>
+#define dst_exit(m) do { \
+    printf("runtime error at line %d in file %s: %s\n",\
+        __LINE__,\
+        __FILE__,\
+        (m));\
+    exit(-1);\
+} while (0)
+#endif
+
+#ifndef DST_NOASSERT
+#define dst_assert(c, m) do { \
+    if (!(c)) dst_exit((m)); \
+} while (0)
+#endif
+
 /* What to do when out of memory */
 #ifndef DST_OUT_OF_MEMORY
 #include <stdio.h>
 #define DST_OUT_OF_MEMORY do { printf("out of memory\n"); exit(1); } while (0)
-#endif
-
-/* What to do when dst is used in unitialized state */
-#ifndef DST_PLEASE_INIT
-#include <stdio.h>
-#define DST_PLEASE_INIT do { printf("dst is uninitialized\n"); exit(1); } while (0)
 #endif
 
 #define DST_INTEGER_MIN INT32_MIN
@@ -717,13 +730,16 @@ enum DstMemoryType {
 void *dst_alloc(DstMemoryType type, size_t size);
 #define dst_enablegc(m) dst_gc_header(m)->flags &= ~DST_MEM_DISABLED
 
-/* When doing C interop, it is often needed to disable GC on a value.
- * This is needed when a garbage collection could occur in the middle
- * of a c function. This could happen, for example, if one calls back
- * into dst inside of a c function. The pin and unpin functions toggle
- * garbage collection on a value when needed. Note that no dst functions
- * will call gc when you don't want it to. GC only happens automatically
- * in the interpreter loop. */
+/* When doing C interop, it is often needed to disable GC on a value.  This is
+ * needed when a garbage collection could occur in the middle of a c function.
+ * This could happen, for example, if one calls back into dst inside of a c
+ * function. The pin and unpin functions toggle garbage collection on a value
+ * when needed. Note that no dst functions will call gc when you don't want it
+ * to. GC only happens automatically in the interpreter loop. Pinning values
+ * wil NOT recursively pin sub values. 
+ *
+ * Be careful whennig bypassing garbage collection like this. It can easily
+ * lead to memory leaks or other undesirable side effects. */
 void dst_pin(DstValue x);
 void dst_unpin(DstValue x);
 

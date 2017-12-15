@@ -31,7 +31,7 @@ PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
 DEBUGGER=lldb
-DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h)
+DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h)
 DST_HEADERS=$(addprefix include/dst/,dst.h)
 
 #############################

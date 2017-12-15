@@ -298,9 +298,7 @@ void *dst_alloc(DstMemoryType type, size_t size) {
     size_t total = size + sizeof(DstGCMemoryHeader);
 
     /* Make sure everything is inited */
-    if (NULL == dst_vm_cache) {
-        DST_PLEASE_INIT;
-    }
+    dst_assert(NULL != dst_vm_cache, "please initialize dst before use");
     void *mem = malloc(total);
 
     /* Check for bad malloc */
