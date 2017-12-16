@@ -280,8 +280,13 @@ int dst_continue() {
         pc++;
         vm_next();
 
-        case DOP_MOVE:
+        case DOP_MOVE_NEAR:
         stack[oparg(1, 0xFF)] = stack[oparg(2, 0xFFFF)];
+        pc++;
+        vm_next();
+
+        case DOP_MOVE_FAR:
+        stack[oparg(2, 0xFFFF)] = stack[oparg(1, 0xFF)];
         pc++;
         vm_next();
 
@@ -342,8 +347,13 @@ int dst_continue() {
         pc++;
         vm_next();
 
-        case DOP_LOAD_BOOLEAN:
-        stack[oparg(1, 0xFF)] = dst_wrap_boolean(oparg(2, 0xFFFF));
+        case DOP_LOAD_TRUE:
+        stack[oparg(1, 0xFFFFFF)] = dst_wrap_boolean(1);
+        pc++;
+        vm_next();
+
+        case DOP_LOAD_FALSE:
+        stack[oparg(1, 0xFFFFFF)] = dst_wrap_boolean(0);
         pc++;
         vm_next();
 
@@ -355,6 +365,11 @@ int dst_continue() {
         case DOP_LOAD_CONSTANT:
         vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
         stack[oparg(1, 0xFF)] = func->def->constants[(int32_t)oparg(2, 0xFFFF)];
+        pc++;
+        vm_next();
+
+        case DOP_LOAD_SELF:
+        stack[oparg(1, 0xFFFFFF)] = dst_wrap_function(func);
         pc++;
         vm_next();
 

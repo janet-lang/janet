@@ -20,8 +20,8 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_NANBOX_H_defined
-#define DST_NANBOX_H_defined
+#ifndef DST_H_defined
+#define DST_H_defined
 
 #include <stdint.h>
 #include <string.h>
@@ -679,6 +679,30 @@ void dst_deinit();
 int dst_continue();
 int dst_run(DstValue callee);
 DstValue dst_transfer(DstFiber *fiber, DstValue x);
+
+/* Compile */
+typedef enum DstCompileStatus {
+    DST_COMPILE_OK,
+    DST_COMPILE_ERROR
+} DstCompileStatus;
+
+/* Results of compilation */
+typedef struct DstCompileResults {
+    DstCompileStatus status;
+    DstFuncDef *funcdef;
+    const uint8_t *error;
+    int32_t error_start;
+    int32_t error_end;
+} DstCompileResults;
+
+typedef struct DstCompileOptions {
+    uint32_t flags;
+    const DstValue *sourcemap;
+    DstValue src;
+} DstCompileOptions;
+
+/* Compile source code into FuncDef. */
+DstCompileResults dst_compile(DstCompileOptions opts);
 
 /* GC */
 
