@@ -439,7 +439,7 @@ static void dst_compile_return(DstCompiler *c, const DstValue *sourcemap, DstSlo
     } else {
         DstLocalSlot ls = dst_compile_slot_pre(
                 c, sourcemap, 0xFFFF, -1,
-                1, 1, s);
+                0, 1, s);
         dst_compile_emit(c, sourcemap, DOP_RETURN | (ls.index << 8));
         dst_compile_slot_post(c, sourcemap, ls);
     }
@@ -516,30 +516,48 @@ static DstFuncDef *dst_compile_pop_funcdef(DstCompiler *c) {
 
     /* Initialize funcdef */
     def = dst_alloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
-    def->environments_length = scope->envcount;
-    def->environments = malloc(sizeof(int32_t) * def->environments_length);
-    def->constants_length = 0;
-    def->constants = malloc(sizeof(DstValue) * scope->constants.count);
-    def->bytecode_length = c->buffercount - scope->bytecode_start;
-    def->bytecode = malloc(sizeof(uint32_t) * def->bytecode_length);
+    def->environments = NULL;
+    def->constants = NULL;
     def->slotcount = scope->slots.count;
 
-    if (NULL == def->environments ||
-        NULL == def->constants ||
-        NULL == def->bytecode) {
-        DST_OUT_OF_MEMORY;
+    /* Copy envs */
+    def->environments_length = scope->envcount;
+    if (def->environments_length) {
+        def->environments = malloc(sizeof(int32_t) * def->environments_length);
+        if (def->environments == NULL) {
+            DST_OUT_OF_MEMORY;
+        }
+        memcpy(def->environments, scope->envs, def->environments_length * sizeof(int32_t));
     }
 
-    memcpy(def->environments, scope->envs, def->environments_length * sizeof(int32_t));
-    memcpy(def->constants, scope->constants.data, def->constants_length * sizeof(DstValue));
-    memcpy(def->bytecode, c->buffer + c->buffercount, def->bytecode_length * sizeof(uint32_t));
+    /* Copy constants */
+    def->constants_length = scope->constants.count;
+    if (def->constants) {
+        def->constants = malloc(sizeof(DstValue) * scope->constants.count);
+        if (NULL == def->constants) {
+            DST_OUT_OF_MEMORY;
+        }
+        memcpy(def->constants, scope->constants.data, def->constants_length * sizeof(DstValue));
+    }
 
+    /* Copy bytecode */
+    def->bytecode_length = c->buffercount - scope->bytecode_start;
+    if (def->bytecode_length) {
+        def->bytecode = malloc(sizeof(uint32_t) * def->bytecode_length);
+        if (NULL == def->bytecode) {
+            DST_OUT_OF_MEMORY;
+        }
+        memcpy(def->bytecode, c->buffer + c->buffercount, def->bytecode_length * sizeof(uint32_t));
+    }
+
+
+    /* Copy source map over */
     if (c->mapbuffer) {
-        def->sourcemap = malloc(sizeof(uint32_t) * 2 * def->bytecode_length);
+        def->sourcemap = malloc(sizeof(int32_t) * 2 * def->bytecode_length);
         if (NULL == def->sourcemap) {
             DST_OUT_OF_MEMORY;
         }
-        memcpy(def->sourcemap, c->mapbuffer + 2 * c->buffercount, def->bytecode_length * 2 * sizeof(uint32_t));
+        memcpy(def->sourcemap, c->mapbuffer + 2 * c->buffercount, def->bytecode_length * 2 * sizeof(int32_t));
     }
 
     /* Reset bytecode gen */
