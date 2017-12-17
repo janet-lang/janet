@@ -5,7 +5,7 @@
 {
     arity 3
     source "source file path"
-    varargs false
+    vararg false
 # Name for reference by nested funcdefs
     name outerfunc
 # Contains the bytecode for this function. This can be assembly
@@ -22,9 +22,7 @@
         (return 0)
     ]
 # A source map is optional. The sourcemap corresponds with the byte code.
-# Each number is a 64 bit integer, the concatenation of two 32 bit integers.
-# These integers represent source character index for each instruction.
-# This format may change.
+# Each instruction has two source map entries, offset start and offset end.
 #    map [
 #       1
 #       2
@@ -45,7 +43,7 @@
         z
      ]
 # Captured outer environments that are referenced
-     environments [   ]
+     captures [   ]
 # Constants are an array or tuple. For named constants, use a tuple that begins with let
 # For a literal tuple, use (quote tuple), or 'tuple. Without names, constants must be indexed
 # from their number

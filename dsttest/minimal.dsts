@@ -18,7 +18,7 @@
     (return-nil)
     
     :extra
-    (push 2r1010101010101010)
+    (push 2)
   ]
   constants [
     (def lookup "0123456789abcdef")

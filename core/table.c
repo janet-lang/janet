@@ -175,7 +175,7 @@ DstValue dst_table_next(DstTable *t, DstValue key) {
 const DstValue *dst_table_to_struct(DstTable *t) {
     int32_t i;
     DstValue *st = dst_struct_begin(t->count);
-    for (i = 0; i < t->capacity; i++) {
+    for (i = 0; i < t->capacity; i += 2) {
         if (!dst_checktype(t->data[i], DST_NIL))
             dst_struct_put(st, t->data[i], t->data[i + 1]);
     }

@@ -3,11 +3,11 @@
 
 int main() {
     DstParseResult pres;
-    DstAssembleOptions opts;
-    DstAssembleResult ares;
+    DstCompileOptions opts;
+    DstCompileResults cres;
     DstFunction *func;
 
-    FILE *f = fopen("./dsttest/minimal.dsts", "rb");
+    FILE *f = fopen("./dsttest/basic.dst", "rb");
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);  //same as rewind(f);
@@ -34,17 +34,17 @@ int main() {
     opts.source = pres.value;
     opts.sourcemap = pres.map;
 
-    ares = dst_asm(opts);
-    if (ares.status == DST_ASSEMBLE_ERROR) {
-        dst_puts(dst_formatc("assembly error: %S\n", ares.error));
-        dst_puts(dst_formatc("error location: %d, %d\n", ares.error_start, ares.error_end));
+    cres = dst_compile(opts);
+    if (cres.status == DST_COMPILE_ERROR) {
+        dst_puts(dst_formatc("compilation error: %S\n", cres.error));
+        dst_puts(dst_formatc("error location: %d, %d\n", cres.error_start, cres.error_end));
         return 1;
     }
-    assert(ares.status == DST_ASSEMBLE_OK);
+    assert(cres.status == DST_COMPILE_OK);
 
-    func = dst_asm_func(ares);
-
-    dst_puts(dst_formatc("\nfuncdef: %v\n\n", dst_disasm(ares.funcdef)));
+    dst_puts(dst_formatc("\nfuncdef: %v\n\n", dst_disasm(cres.funcdef)));
+    
+    func = dst_compile_func(cres);
     
     dst_run(dst_wrap_function(func));
     dst_puts(dst_formatc("result: %v\n", dst_vm_fiber->ret));

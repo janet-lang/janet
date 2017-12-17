@@ -38,10 +38,8 @@ typedef struct DstCFunctionOptimizer DstCFunctionOptimizer;
 
 #define DST_SLOT_CONSTANT 0x10000
 #define DST_SLOT_NAMED 0x20000
-#define DST_SLOT_RETURNED 0x40000
-#define DST_SLOT_NIL 0x80000
-#define DST_SLOT_MUTABLE 0x100000
-#define DST_SLOT_NOTEMPTY 0x200000
+#define DST_SLOT_MUTABLE 0x40000
+#define DST_SLOT_NOTEMPTY 0x80000
 
 #define DST_SLOTTYPE_ANY 0xFFFF
 
@@ -116,7 +114,7 @@ struct DstCompiler {
     int32_t buffercap;
     int32_t buffercount;
     uint32_t *buffer;
-    int32_t (*mapbuffer)[2];
+    int32_t *mapbuffer;
 
     DstCompileResults results;
 };
@@ -130,6 +128,7 @@ struct DstFormOptions {
     DstValue x;
     const DstValue *sourcemap;
     uint32_t flags; /* bit set of accepted primitive types */
+    int32_t hint;
 };
 
 /* A grouping of optimizations on a cfunction given certain conditions

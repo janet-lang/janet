@@ -55,7 +55,7 @@ int dst_sys_asm(DstValue *argv, int32_t argn) {
         dst_vm_fiber->ret = dst_wrap_function(dst_asm_func(res));
         return 0;
     } else {
-        dst_vm_fiber->ret = dst_wrap_string(res.result.error);
+        dst_vm_fiber->ret = dst_wrap_string(res.error);
         return 1;
     }
 }

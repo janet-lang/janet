@@ -423,10 +423,12 @@ DstParseResult dst_parse(const uint8_t *src, int32_t len) {
     res.bytes_read = (int32_t) (newsrc - src);
 
     if (args.errmsg) {
-        res.result.error = dst_cstring(args.errmsg);
+        res.error = dst_cstring(args.errmsg);
+        res.value = dst_wrap_nil();
         res.map = NULL;
     } else {
-        res.result.value = dst_array_pop(&args.stack);
+        res.value = dst_array_pop(&args.stack);
+        res.error = NULL;
         res.map = dst_unwrap_tuple(dst_array_pop(&args.mapstack));
     }
 

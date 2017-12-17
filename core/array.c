@@ -24,10 +24,12 @@
 
 /* Iniializes an array */
 DstArray *dst_array_init(DstArray *array, int32_t capacity) {
-    if (capacity < 0) capacity = 0;
-    DstValue *data = (DstValue *) malloc(sizeof(DstValue) * capacity);
-    if (NULL == data) {
-        DST_OUT_OF_MEMORY;
+    DstValue *data = NULL;
+    if (capacity > 0) {
+        data = (DstValue *) malloc(sizeof(DstValue) * capacity);
+        if (NULL == data) {
+            DST_OUT_OF_MEMORY;
+        }
     }
     array->count = 0;
     array->capacity = capacity;

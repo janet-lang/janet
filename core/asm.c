@@ -518,6 +518,9 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     def->flags = 0;
     def->slotcount = 0;
     def->arity = 0;
+    def->source = NULL;
+    def->sourcepath = NULL;
+    def->sourcemap = NULL;
     def->constants_length = 0;
     def->bytecode_length = 0;
     def->environments_length = 1;
@@ -544,7 +547,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
             dst_asm_deinit(&a);
             longjmp(a.parent->on_error, 1);
         }
-        result.result.error = a.errmessage;
+        result.error = a.errmessage;
         result.status = DST_ASSEMBLE_ERROR;
         if (a.errmap != NULL) {
             result.error_start = dst_unwrap_integer(a.errmap[0]);
@@ -559,6 +562,23 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     /* Set function arity */
     x = dst_struct_get(st, dst_csymbolv("arity"));
     def->arity = dst_checktype(x, DST_INTEGER) ? dst_unwrap_integer(x) : 0;
+
+    /* Check vararg */
+    x = dst_struct_get(st, dst_csymbolv("vararg"));
+    if (dst_truthy(x))
+        def->flags |= DST_FUNCDEF_FLAG_VARARG;
+
+    /* Check source */
+    x = dst_struct_get(st, dst_csymbolv("source"));
+    if (dst_checktype(x, DST_STRING)) {
+        def->source = dst_unwrap_string(x);
+    }
+
+    /* Check source path */
+    x = dst_struct_get(st, dst_csymbolv("sourcepath"));
+    if (dst_checktype(x, DST_STRING)) {
+        def->sourcepath = dst_unwrap_string(x);
+    }
 
     /* Create slot aliases */
     x = dst_struct_get(st, dst_csymbolv("slots"));
@@ -586,10 +606,10 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     }
 
     /* Create environment aliases */
-    x = dst_struct_get(st, dst_csymbolv("environments"));
+    x = dst_struct_get(st, dst_csymbolv("captures"));
     if (dst_seq_view(x, &arr, &count)) {
         const DstValue *emap =
-            dst_parse_submap_value(opts.sourcemap, dst_csymbolv("environments"));
+            dst_parse_submap_value(opts.sourcemap, dst_csymbolv("captures"));
         for (i = 0; i < count; i++) {
             const DstValue *imap = dst_parse_submap_index(emap, i);
             dst_asm_assert(&a, dst_checktype(arr[i], DST_SYMBOL), imap, "environment must be a symbol");
@@ -690,12 +710,38 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     } else {
         dst_asm_error(&a, opts.sourcemap, "bytecode expected");
     }
+    
+    /* Check for source mapping */
+    x = dst_struct_get(st, dst_csymbolv("sourcemap"));
+    if (dst_seq_view(x, &arr, &count)) {
+        const DstValue *bmap =
+            dst_parse_submap_value(opts.sourcemap, dst_csymbolv("sourcemap"));
+        dst_asm_assert(&a, count != 2 * def->bytecode_length, bmap, "sourcemap must have twice the length of the bytecode");
+        def->sourcemap = malloc(sizeof(int32_t) * 2 * count);
+        for (i = 0; i < count; i += 2) {
+            DstValue start = arr[i];
+            DstValue end = arr[i + 1];
+            if (!(dst_checktype(start, DST_INTEGER) ||
+                dst_unwrap_integer(start) < 0)) {
+                const DstValue *submap = dst_parse_submap_index(bmap, i);
+                dst_asm_error(&a, submap, "expected positive integer");
+            }
+            if (!(dst_checktype(end, DST_INTEGER) ||
+                dst_unwrap_integer(end) < 0)) {
+                const DstValue *submap = dst_parse_submap_index(bmap, i + 1);
+                dst_asm_error(&a, submap, "expected positive integer");
+            }
+            def->sourcemap[i] = dst_unwrap_integer(start);
+            def->sourcemap[i+1] = dst_unwrap_integer(end);
+        }
+
+    }
 
     /* Finish everything and return funcdef */
     dst_asm_deinit(&a);
     def->environments =
         realloc(def->environments, def->environments_length * sizeof(int32_t));
-    result.result.def = def;
+    result.funcdef = def;
     result.status = DST_ASSEMBLE_OK;
     return result;
 }
@@ -711,7 +757,154 @@ DstFunction *dst_asm_func(DstAssembleResult result) {
         return NULL;
     }
     DstFunction *func = dst_alloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
-    func->def = result.result.def;
+    func->def = result.funcdef;
     func->envs = NULL;
     return func;
+}
+
+/* Disassembly */
+
+/* Find the deinfintion of an instruction given the instruction word. Return
+ * NULL if not found. */
+static const DstInstructionDef *dst_asm_reverse_lookup(uint32_t instr) {
+    size_t i;
+    uint32_t opcode = instr & 0xFF;
+    for (i = 0; i < sizeof(dst_ops)/sizeof(DstInstructionDef); i++) {
+        const DstInstructionDef *def = dst_ops + i;
+        if (def->opcode == opcode) 
+            return def;
+    }
+    return NULL;
+}
+
+/* Create some constant sized tuples */
+static DstValue tup1(DstValue x) {
+    DstValue *tup = dst_tuple_begin(1);
+    tup[0] = x;
+    return dst_wrap_tuple(dst_tuple_end(tup));
+}
+static DstValue tup2(DstValue x, DstValue y) {
+    DstValue *tup = dst_tuple_begin(2);
+    tup[0] = x;
+    tup[1] = y;
+    return dst_wrap_tuple(dst_tuple_end(tup));
+}
+static DstValue tup3(DstValue x, DstValue y, DstValue z) {
+    DstValue *tup = dst_tuple_begin(3);
+    tup[0] = x;
+    tup[1] = y;
+    tup[2] = z;
+    return dst_wrap_tuple(dst_tuple_end(tup));
+}
+static DstValue tup4(DstValue w, DstValue x, DstValue y, DstValue z) {
+    DstValue *tup = dst_tuple_begin(4);
+    tup[0] = w;
+    tup[1] = x;
+    tup[2] = y;
+    tup[3] = z;
+    return dst_wrap_tuple(dst_tuple_end(tup));
+}
+
+/* Given an argument, convert it to the appriate integer or symbol */
+static DstValue dst_asm_decode_instruction(uint32_t instr) {
+    const DstInstructionDef *def = dst_asm_reverse_lookup(instr);
+    DstValue name;
+    if (NULL == def) {
+        return dst_wrap_integer((int32_t)instr);
+    }
+    name = dst_csymbolv(def->name);
+#define oparg(shift, mask) ((instr >> ((shift) << 3)) & (mask))
+    switch (def->type) {
+        case DIT_0:
+            return tup1(name);
+        case DIT_S:
+            return tup2(name, dst_wrap_integer(oparg(1, 0xFFFFFF)));
+        case DIT_L:
+            return tup2(name, dst_wrap_integer((int32_t)instr >> 8));
+        case DIT_SS:
+        case DIT_ST:
+        case DIT_SC:
+        case DIT_SU:
+            return tup3(name, 
+                    dst_wrap_integer(oparg(1, 0xFF)),
+                    dst_wrap_integer(oparg(2, 0xFFFF)));
+        case DIT_SI:
+        case DIT_SL:
+            return tup3(name, 
+                    dst_wrap_integer(oparg(1, 0xFF)),
+                    dst_wrap_integer((int32_t)instr >> 16));
+        case DIT_SSS:
+        case DIT_SES:
+        case DIT_SSU:
+            return tup4(name, 
+                    dst_wrap_integer(oparg(1, 0xFF)),
+                    dst_wrap_integer(oparg(2, 0xFF)),
+                    dst_wrap_integer(oparg(3, 0xFF)));
+        case DIT_SSI:
+            return tup4(name, 
+                    dst_wrap_integer(oparg(1, 0xFF)),
+                    dst_wrap_integer(oparg(2, 0xFF)),
+                    dst_wrap_integer((int32_t)instr >> 24));
+    }
+#undef oparg
+}
+
+DstValue dst_disasm(DstFuncDef *def) {
+    int32_t i;
+    DstArray *bcode = dst_array(def->bytecode_length);
+    DstArray *constants = dst_array(def->constants_length);
+    DstTable *ret = dst_table(10);
+    dst_table_put(ret, dst_csymbolv("arity"), dst_wrap_integer(def->arity));
+    dst_table_put(ret, dst_csymbolv("bytecode"), dst_wrap_array(bcode));
+    dst_table_put(ret, dst_csymbolv("constants"), dst_wrap_array(constants));
+    if (def->sourcepath) {
+        dst_table_put(ret, dst_csymbolv("sourcepath"), dst_wrap_string(def->sourcepath));
+    }
+    if (def->source) {
+        dst_table_put(ret, dst_csymbolv("source"), dst_wrap_string(def->source));
+    }
+    if (def->flags & DST_FUNCDEF_FLAG_VARARG) {
+        dst_table_put(ret, dst_csymbolv("vararg"), dst_wrap_true());
+    }
+
+    /* Add constants */
+    for (i = 0; i < def->constants_length; i++) {
+        DstValue src = def->constants[i];
+        DstValue dest;
+        if (dst_checktype(src, DST_TUPLE)) {
+            dest = tup2(dst_csymbolv("quote"), src);
+        } else {
+            dest = src;
+        }
+        constants->data[i] = dest;
+    }
+    constants->count = def->constants_length;
+
+    /* Add bytecode */
+    for (i = 0; i < def->bytecode_length; i++) {
+        bcode->data[i] = dst_asm_decode_instruction(def->bytecode[i]);
+    }
+    bcode->count = def->bytecode_length;
+
+    /* Add source map */
+    if (def->sourcemap) {
+        DstArray *sourcemap = dst_array(def->bytecode_length * 2);
+        for (i = 0; i < def->bytecode_length * 2; i++) {
+            sourcemap->data[i] = dst_wrap_integer(def->sourcemap[i]);
+        }
+        sourcemap->count = def->bytecode_length * 2;
+        dst_table_put(ret, dst_csymbolv("sourcemap"), dst_wrap_array(sourcemap));
+    }
+
+    /* Add environments */
+    if (def->environments) {
+        DstArray *envs = dst_array(def->environments_length);
+        for (i = 0; i < def->environments_length; i++) {
+            envs->data[i] = dst_wrap_integer(def->environments[i]);
+        }
+        envs->count = def->environments_length;
+        dst_table_put(ret, dst_csymbolv("environments"), dst_wrap_array(envs));
+    }
+
+    return dst_wrap_struct(dst_table_to_struct(ret));
 }

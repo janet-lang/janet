@@ -59,7 +59,8 @@ $(DST_XXD): libs/xxd.c
 ###################################
 
 DST_CORE_SOURCES=$(addprefix core/,\
-				 array.c asm.c buffer.c compile.c fiber.c func.c gc.c parse.c string.c strtod.c\
+				 array.c asm.c buffer.c compile.c compile_slotpool.c \
+				 fiber.c func.c gc.c parse.c string.c strtod.c\
 				 struct.c symcache.c syscalls.c table.c tuple.c userdata.c util.c\
 				 value.c vm.c wrap.c)
 DST_CORE_OBJECTS=$(patsubst %.c,%.o,$(DST_CORE_SOURCES))
@@ -78,7 +79,7 @@ $(DST_TARGET): $(DST_CORE_OBJECTS)
 CCU_FLAGS = $(CFLAGS) -DDST_UNIT_TEST
 
 DST_UNIT_BINARIES=$(addprefix unittests/,\
-				  asm_test.out array_test.out buffer_test.out fiber_test.out \
+				  asm_test.out array_test.out buffer_test.out compile_test.out fiber_test.out \
 				  parse_test.out strtod_test.out table_test.out)
 
 %.out: %.c $(DST_CORE_OBJECTS) $(DST_ALL_HEADERS) unittests/unit.h
@@ -88,6 +89,7 @@ unit: $(DST_UNIT_BINARIES)
 	unittests/array_test.out
 	unittests/asm_test.out
 	unittests/buffer_test.out
+	unittests/compile_test.out
 	unittests/fiber_test.out
 	unittests/parse_test.out
 	unittests/strtod_test.out

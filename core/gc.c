@@ -179,6 +179,10 @@ static void dst_mark_funcdef(DstFuncDef *def) {
             }
         }
     }
+    if (def->source)
+        dst_mark_string(def->source);
+    if (def->sourcepath)
+        dst_mark_string(def->sourcepath);
 }
 
 static void dst_mark_function(DstFunction *func) {
@@ -263,6 +267,7 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
                 free(def->environments);
                 free(def->constants);
                 free(def->bytecode);
+                free(def->sourcemap);
             }
             break;
     }

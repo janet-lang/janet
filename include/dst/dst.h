@@ -432,6 +432,11 @@ struct DstFuncDef {
     DstValue *constants; /* Contains strings, FuncDefs, etc. */
     uint32_t *bytecode;
 
+    /* Various debug information */
+    int32_t *sourcemap;
+    const uint8_t *source;
+    const uint8_t *sourcepath;
+
     uint32_t flags;
     int32_t slotcount; /* The amount of stack space required for the function */
     int32_t arity; /* Not including varargs */
@@ -543,6 +548,7 @@ int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, 
 const uint8_t *dst_string_unique(const uint8_t *buf, int32_t len);
 const uint8_t *dst_cstring_unique(const char *s);
 const uint8_t *dst_description(DstValue x);
+const uint8_t *dst_short_description(DstValue x);
 const uint8_t *dst_to_string(DstValue x);
 #define dst_cstringv(cstr) dst_wrap_string(dst_cstring(cstr))
 const uint8_t *dst_formatc(const char *format, ...);
@@ -608,10 +614,8 @@ typedef enum {
 typedef struct DstAssembleResult DstAssembleResult;
 typedef struct DstAssembleOptions DstAssembleOptions;
 struct DstAssembleResult {
-    union {
-        DstFuncDef *def;
-        const uint8_t *error;
-    } result;
+    DstFuncDef *funcdef;
+    const uint8_t *error;
     int32_t error_start;
     int32_t error_end;
     DstAssembleStatus status;
@@ -623,6 +627,7 @@ struct DstAssembleOptions {
 };
 DstAssembleResult dst_asm(DstAssembleOptions opts);
 DstFunction *dst_asm_func(DstAssembleResult result);
+DstValue dst_disasm(DstFuncDef *def);
 
 /* Treat similar types through uniform interfaces for iteration */
 int dst_seq_view(DstValue seq, const DstValue **data, int32_t *len);
@@ -659,10 +664,8 @@ typedef enum {
 } DstParseStatus;
 typedef struct DstParseResult DstParseResult;
 struct DstParseResult {
-    union {
-        DstValue value;
-        const uint8_t *error;
-    } result;
+    DstValue value;
+    const uint8_t *error;
     const DstValue *map;
     int32_t bytes_read;
     DstParseStatus status;
@@ -698,11 +701,12 @@ typedef struct DstCompileResults {
 typedef struct DstCompileOptions {
     uint32_t flags;
     const DstValue *sourcemap;
-    DstValue src;
+    DstValue source;
 } DstCompileOptions;
 
 /* Compile source code into FuncDef. */
 DstCompileResults dst_compile(DstCompileOptions opts);
+DstFunction *dst_compile_func(DstCompileResults results);
 
 /* GC */
 

@@ -24,29 +24,17 @@
 #include "compile.h"
 
 /* Lazily sort the optimizers */
-static int optimizers_sorted = 0;
+/*static int optimizers_sorted = 0;*/
 
 /* Lookups for specials and optimizable c functions. */
-DstCFunctionOptimizer dst_compiler_optimizers[255];
-DstSpecial dst_compiler_specials[16];
-
-/* Deinitialize a compiler struct */
-static void dst_compile_cleanup(DstCompiler *c) {
-    while (c->scopecount)
-        dst_compile_popscope(c);
-    free(c->scopes);
-    free(c->buffer);
-    free(c->mapbuffer);
-    c->buffer = NULL;
-    c->mapbuffer = NULL;
-    c->scopes = NULL;
-}
+/*DstCFunctionOptimizer dst_compiler_optimizers[255];*/
+/*DstSpecial dst_compiler_specials[16];*/
 
 /* Throw an error with a dst string */
 void dst_compile_error(DstCompiler *c, const DstValue *sourcemap, const uint8_t *m) {
-    c->error_start = dst_unwrap_integer(sourcemap[0]);
-    c->error_end = dst_unwrap_integer(sourcemap[1]);
-    c->error = dst_wrap_string(m);
+    c->results.error_start = dst_unwrap_integer(sourcemap[0]);
+    c->results.error_end = dst_unwrap_integer(sourcemap[1]);
+    c->results.error = m;
     longjmp(c->on_error, 1);
 }
 
@@ -77,72 +65,6 @@ DstFormOptions dst_compile_getopts_value(DstFormOptions opts, DstValue key) {
     opts.sourcemap = sourcemap;
     return opts;
 }
-
-void dst_compile_slotpool_init(DstSlotPool *pool) {
-    pool->s = NULL;
-    pool->count = 0;
-    pool->free = 0;
-    pool->cap = 0;
-}
-
-void dst_compile_slotpool_deinit(DstSlotPool *pool) {
-    free(pool->s);
-    pool->s = NULL;
-    pool->cap = 0;
-    pool->count = 0;
-}
-
-void dst_compile_slotpool_extend(DstSlotPool *pool, int32_t extra) {
-    int32_t i;
-    int32_t newcount = pool->count + extra;
-    if (newcount > pool->cap) {
-        int32_t newcap = 2 * newcount;
-        pool->s = realloc(pool->s, newcap * sizeof(DstSlot));
-        if (NULL == pool->s) {
-            DST_OUT_OF_MEMORY;
-        }
-        pool->cap = newcap;
-    }
-    /* Mark all slots as free */
-    for (i = pool->count; i < newcount; i++) {
-        pool->s[i].flags = 0;
-    }
-    pool->count = newcount;
-}
-
-DstSlot *dst_compile_slotpool_alloc(DstSlotPool *pool) {
-    int32_t oldcount = pool->count;
-    int32_t newcount = oldcount == 0xF0 ? 0x101 : oldcount + 1;
-    while (pool->free < pool->count) {
-        if (!(pool->s[pool->free].flags & DST_SLOT_NOTEMPTY)) {
-            return pool->s + pool->free; 
-        }
-        pool->free++;
-    }
-    dst_compile_slotpool_extend(pool, newcount - oldcount);
-    pool->s[oldcount].flags = DST_SLOT_NOTEMPTY;
-    pool->s[oldcount].index = newcount - 1;
-    return pool->s + newcount - 1;
-}
-
-void dst_compile_slotpool_freeindex(DstSlotPool *pool, int32_t index) {
-    if (index > 0 && index < pool->count) {
-        pool->s[index].flags = 0;
-        if (index < pool->free)
-            pool->free = index;
-    }
-}
-
-void dst_compile_slotpool_free(DstSlotPool *pool, DstSlot *s) {
-    DstSlot *oldfree = pool->s + pool->free;
-    if (s >= pool->s && s < (pool->s + pool->count)) {
-        if (s < oldfree) {
-            pool->free = s - pool->s;
-        }
-        s->flags = 0;
-    }
-}
-
 /* Eneter a new scope */
 void dst_compile_scope(DstCompiler *c, int newfn) {
     int32_t newcount, oldcount;
@@ -154,7 +76,7 @@ void dst_compile_scope(DstCompiler *c, int newfn) {
         ? c->scopes[c->scopecount - 1].level
         : 0;
     newlevel = oldlevel + newfn;
-    if (newcount < c->scopecap) {
+    if (newcount > c->scopecap) {
         int32_t newcap = 2 * newcount;
         c->scopes = realloc(c->scopes, newcap * sizeof(DstScope));
         if (NULL == c->scopes) {
@@ -164,7 +86,7 @@ void dst_compile_scope(DstCompiler *c, int newfn) {
     }
     scope = c->scopes + oldcount;
     c->scopecount = newcount;
-    dst_array_init(&scope->constants, 0);
+    dst_array_init(&(scope->constants), 0);
     dst_table_init(&scope->symbols, 4);
     dst_table_init(&scope->constantrev, 4);
 
@@ -206,7 +128,7 @@ DstSlot *dst_compile_constantslot(DstCompiler *c, DstValue x) {
     ret->flags = (1 << dst_type(x)) | DST_SLOT_CONSTANT | DST_SLOT_NOTEMPTY;
     ret->index = -1;
     ret->constant = x;
-    ret->envindex = scope->level;
+    ret->envindex = 0;
     return ret;
 }
 
@@ -331,72 +253,13 @@ DstSlot *dst_compile_resolve(
     return ret;
 }
 
-DstSlot *dst_compile_def(DstFormOptions opts, int32_t argn, const DstValue *argv) {
-    DstScope *scope;
-    DstSlot *rvalue;
-    DstFormOptions subopts;
-    DstValue check;
-    if (argn != 2)
-        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
-    if (!dst_checktype(argv[0], DST_SYMBOL))
-        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected symbol");
-    scope = dst_compile_topscope(opts.compiler);
-    check = dst_table_get(&scope->symbols, argv[0]);
-    if (dst_checktype(check, DST_INTEGER)) {
-        dst_compile_cerror(opts.compiler, opts.sourcemap, "cannot redefine symbol");
-    }
-    subopts = dst_compile_getopts_index(opts, 1);
-    rvalue = dst_compile_value(subopts);
-    dst_table_put(&scope->symbols, argv[0], dst_wrap_userdata(rvalue));
-    return rvalue;
-}
-
-/* Compile an array */
-
-/* Compile a single value */
-DstSlot *dst_compile_value(DstFormOptions opts) {
-    DstSlot *ret;
-    if (opts.compiler->recursion_guard <= 0) {
-        dst_compile_cerror(opts.compiler, opts.sourcemap, "recursed too deeply");
-    }
-    opts.compiler->recursion_guard--;
-    switch (dst_type(opts.x)) {
-        default:
-            ret = dst_compile_constantslot(opts.compiler, opts.x);
-            break;
-        case DST_SYMBOL:
-            {
-                const uint8_t *sym = dst_unwrap_symbol(opts.x);
-                if (dst_string_length(sym) > 0 && sym[0] != ':')
-                    ret = dst_compile_resolve(opts.compiler, opts.sourcemap, sym);
-                else
-                    ret = dst_compile_constantslot(opts.compiler, opts.x);
-                break;
-            }
-        /*case DST_TUPLE:*/
-            /*ret = dst_compile_tuple(opts); */
-            /*break;*/
-        /*case DST_ARRAY:*/
-            /*ret = dst_compile_array(opts); */
-            /*break;*/
-        /*case DST_STRUCT:*/
-            /*ret = dst_compile_struct(opts); */
-            /*break;*/
-        /*case DST_TABLE:*/
-            /*ret = dst_compile_table(opts);*/
-            /*break;*/
-    }
-    opts.compiler->recursion_guard++;
-    return ret;
-}
-
 /* Emit a raw instruction with source mapping. */
 void dst_compile_emit(DstCompiler *c, const DstValue *sourcemap, uint32_t instr) {
     int32_t index = c->buffercount;
     int32_t newcount = index + 1;
     if (newcount > c->buffercap) {
         int32_t newcap = 2 * newcount;
-        c->buffer = realloc(c->buffer, newcap * sizeof(int32_t));
+        c->buffer = realloc(c->buffer, newcap * sizeof(uint32_t));
         c->mapbuffer = realloc(c->mapbuffer, newcap * sizeof(int32_t) * 2);
         if (NULL == c->buffer || NULL == c->mapbuffer) {
             DST_OUT_OF_MEMORY;
@@ -405,8 +268,8 @@ void dst_compile_emit(DstCompiler *c, const DstValue *sourcemap, uint32_t instr)
     }
     c->buffercount = newcount;
     if (NULL != sourcemap) {
-        c->mapbuffer[index][0] = dst_unwrap_integer(sourcemap[0]);
-        c->mapbuffer[index][1] = dst_unwrap_integer(sourcemap[1]);
+        c->mapbuffer[index * 2] = dst_unwrap_integer(sourcemap[0]);
+        c->mapbuffer[index * 2 + 1] = dst_unwrap_integer(sourcemap[1]);
     }
     c->buffer[index] = instr;
 }
@@ -569,30 +432,168 @@ static void dst_compile_slot_post(
     }
 }
 
-static void dst_compile_pop_funcdef(DstCompiler *c) {
-    DstScope *scope = dst_compiler_topscope(c);
+/* Generate the return instruction for a slot. */
+static void dst_compile_return(DstCompiler *c, const DstValue *sourcemap, DstSlot *s) {
+    if (s->flags & DST_SLOT_CONSTANT && dst_checktype(s->constant, DST_NIL)) {
+            dst_compile_emit(c, sourcemap, DOP_RETURN_NIL);
+    } else {
+        DstLocalSlot ls = dst_compile_slot_pre(
+                c, sourcemap, 0xFFFF, -1,
+                1, 1, s);
+        dst_compile_emit(c, sourcemap, DOP_RETURN | (ls.index << 8));
+        dst_compile_slot_post(c, sourcemap, ls);
+    }
+}
+
+DstSlot *dst_compile_def(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+    DstScope *scope;
+    DstSlot *rvalue;
+    DstFormOptions subopts;
+    DstValue check;
+    if (argn != 2)
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
+    if (!dst_checktype(argv[0], DST_SYMBOL))
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected symbol");
+    scope = dst_compile_topscope(opts.compiler);
+    check = dst_table_get(&scope->symbols, argv[0]);
+    if (dst_checktype(check, DST_INTEGER)) {
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "cannot redefine symbol");
+    }
+    subopts = dst_compile_getopts_index(opts, 1);
+    rvalue = dst_compile_value(subopts);
+    dst_table_put(&scope->symbols, argv[0], dst_wrap_userdata(rvalue));
+    return rvalue;
+}
+
+/* Compile an array */
+
+/* Compile a single value */
+DstSlot *dst_compile_value(DstFormOptions opts) {
+    DstSlot *ret;
+    int doreturn = opts.flags & DST_FOPTS_TAIL;
+    if (opts.compiler->recursion_guard <= 0) {
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "recursed too deeply");
+    }
+    opts.compiler->recursion_guard--;
+    switch (dst_type(opts.x)) {
+        default:
+            ret = dst_compile_constantslot(opts.compiler, opts.x);
+            break;
+        case DST_SYMBOL:
+            {
+                const uint8_t *sym = dst_unwrap_symbol(opts.x);
+                if (dst_string_length(sym) > 0 && sym[0] != ':') {
+                    ret = dst_compile_resolve(opts.compiler, opts.sourcemap, sym);
+                } else {
+                    ret = dst_compile_constantslot(opts.compiler, opts.x);
+                }
+                break;
+            }
+        /*case DST_TUPLE:*/
+            /*ret = dst_compile_tuple(opts); */
+            /*break;*/
+        /*case DST_ARRAY:*/
+            /*ret = dst_compile_array(opts); */
+            /*break;*/
+        /*case DST_STRUCT:*/
+            /*ret = dst_compile_struct(opts); */
+            /*break;*/
+        /*case DST_TABLE:*/
+            /*ret = dst_compile_table(opts);*/
+            /*break;*/
+    }
+    if (doreturn) {
+        dst_compile_return(opts.compiler, opts.sourcemap, ret);
+    }
+    opts.compiler->recursion_guard++;
+    return ret;
+}
+
+/* Compile a funcdef */
+static DstFuncDef *dst_compile_pop_funcdef(DstCompiler *c) {
+    DstScope *scope = dst_compile_topscope(c);
     DstFuncDef *def;
 
     /* Initialize funcdef */
     def = dst_alloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
-    def->environments = NULL;
-    def->constants = NULL;
-    def->bytecode = NULL;
-    def->flags = 0;
-    def->slotcount = 0;
-    def->arity = 0;
+    def->environments_length = scope->envcount;
+    def->environments = malloc(sizeof(int32_t) * def->environments_length);
     def->constants_length = 0;
-    def->bytecode_length = 0;
-    def->environments_length = 1;
+    def->constants = malloc(sizeof(DstValue) * scope->constants.count);
+    def->bytecode_length = c->buffercount - scope->bytecode_start;
+    def->bytecode = malloc(sizeof(uint32_t) * def->bytecode_length);
+    def->slotcount = scope->slots.count;
+
+    if (NULL == def->environments ||
+        NULL == def->constants ||
+        NULL == def->bytecode) {
+        DST_OUT_OF_MEMORY;
+    }
+
+    memcpy(def->environments, scope->envs, def->environments_length * sizeof(int32_t));
+    memcpy(def->constants, scope->constants.data, def->constants_length * sizeof(DstValue));
+    memcpy(def->bytecode, c->buffer + c->buffercount, def->bytecode_length * sizeof(uint32_t));
+
+    if (c->mapbuffer) {
+        def->sourcemap = malloc(sizeof(uint32_t) * 2 * def->bytecode_length);
+        if (NULL == def->sourcemap) {
+            DST_OUT_OF_MEMORY;
+        }
+        memcpy(def->sourcemap, c->mapbuffer + 2 * c->buffercount, def->bytecode_length * 2 * sizeof(uint32_t));
+    }
+
+    /* Reset bytecode gen */
+    c->buffercount = scope->bytecode_start;
+
+    /* Manually set arity and flags later */
+    def->flags = 0;
+    def->arity = 0;
+
+    /* Set some flags */
+    if (scope->flags & DST_SCOPE_ENV) {
+        def->flags |= DST_FUNCDEF_FLAG_NEEDSENV;
+    }
+
+    /* Pop the scope */
+    dst_compile_popscope(c);
+
+    return def;
+}
+
+/* Print a slot for debugging */
+/*static void print_slot(DstSlot *s) {*/
+    /*if (!(s->flags & DST_SLOT_NOTEMPTY)) {*/
+        /*printf("X");*/
+    /*} else if (s->flags & DST_SLOT_CONSTANT) {*/
+        /*dst_puts(dst_short_description(s->constant));*/
+    /*} else if (s->envindex > 0) {*/
+        /*printf("UP%d[%d]", s->envindex, s->index);*/
+    /*} else {*/
+        /*printf("%d", s->index);*/
+    /*}*/
+/*}*/
+
+/* Deinitialize a compiler struct */
+static void dst_compile_cleanup(DstCompiler *c) {
+    while (c->scopecount)
+        dst_compile_popscope(c);
+    free(c->scopes);
+    free(c->buffer);
+    free(c->mapbuffer);
+    c->buffer = NULL;
+    c->mapbuffer = NULL;
+    c->scopes = NULL;
 }
 
 DstCompileResults dst_compile(DstCompileOptions opts) {
     DstCompiler c;
+    DstFormOptions fopts;
+    DstSlot *s;
 
     if (setjmp(c.on_error)) {
         c.results.status = DST_COMPILE_ERROR;
         dst_compile_cleanup(&c);
-        results.funcdef = NULL;
+        c.results.funcdef = NULL;
         return c.results;
     }
 
@@ -602,9 +603,36 @@ DstCompileResults dst_compile(DstCompileOptions opts) {
     c.scopes = NULL;
     c.buffercap = 0;
     c.buffercount = 0;
-    c->buffer = NULL;
-    c->mapbuffer;
-    c->recursion_guard = 1024;
+    c.buffer = NULL;
+    c.mapbuffer = NULL;
+    c.recursion_guard = 1024;
 
-    
+    /* Push a function scope */
+    dst_compile_scope(&c, 1);
+
+    fopts.compiler = &c;
+    fopts.sourcemap = opts.sourcemap;
+    fopts.flags = DST_FOPTS_TAIL | DST_SLOTTYPE_ANY;
+    fopts.hint = 0;
+    fopts.x = opts.source;
+
+    /* Compile the value */
+    s = dst_compile_value(fopts);
+
+    c.results.funcdef = dst_compile_pop_funcdef(&c);
+    c.results.status = DST_COMPILE_OK;
+
+    dst_compile_cleanup(&c);
+
+    return c.results;
+}
+
+DstFunction *dst_compile_func(DstCompileResults res) {
+    if (res.status != DST_COMPILE_OK) {
+        return NULL;
+    }
+    DstFunction *func = dst_alloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
+    func->def = res.funcdef;
+    func->envs = NULL;
+    return func;
 }
