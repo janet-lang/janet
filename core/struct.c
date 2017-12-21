@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include "gc.h"
 
 #define dst_struct_maphash(cap, hash) (((uint32_t)(hash) % (cap)) & 0xFFFFFFFE);
 
@@ -34,7 +35,7 @@ DstValue *dst_struct_begin(int32_t count) {
      * is added or s is changed, change the macro dst_struct_capacity in internal.h */
     int32_t capacity = 4 * count;
     size_t s = sizeof(int32_t) * 2 + (capacity * sizeof(DstValue));
-    char *data = dst_alloc(DST_MEMORY_STRUCT, s);
+    char *data = dst_gcalloc(DST_MEMORY_STRUCT, s);
     DstValue *st = (DstValue *) (data + 2 * sizeof(int32_t));
     dst_memempty(st, capacity);
     dst_struct_length(st) = count;

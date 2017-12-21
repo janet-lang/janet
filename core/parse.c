@@ -51,20 +51,94 @@ static int is_whitespace(uint8_t c) {
         || c == ',';
 }
 
-/* Check if a character is a valid symbol character */
-/* TODO - allow utf8 - shouldn't be difficult, err on side
- * of inclusivity */
-static int is_symbol_char(uint8_t c) {
+/* Code gen
+
+printf("static uint32_t symchars[8] = {\n\t");
+for (int i = 0; i < 256; i += 32) {
+    uint32_t block = 0;
+    for (int j = 0; j < 32; j++) {
+        block |= is_symbol_char_gen(i + j) << j;
+    }
+    printf("0x%08x%s", block, (i == (256 - 32)) ? "" : ", ");
+}
+printf("\n};\n");
+
+static int is_symbol_char_gen(uint8_t c) {
     if (c >= 'a' && c <= 'z') return 1;
     if (c >= 'A' && c <= 'Z') return 1;
-    if (c >= '0' && c <= ':') return 1;
-    if (c >= '<' && c <= '@') return 1;
-    if (c >= '*' && c <= '/') return 1;
-    if (c >= '$' && c <= '&') return 1;
-    if (c == '_') return 1;
-    if (c == '^') return 1;
-    if (c == '!') return 1;
-    return 0;
+    if (c >= '0' && c <= '9') return 1;
+    return (c == '!' ||
+        c == '$' ||
+        c == '&' ||
+        c == '*' ||
+        c == '+' ||
+        c == '-' ||
+        c == '.' ||
+        c == '/' ||
+        c == ':' ||
+        c == '<' ||
+        c == '=' ||
+        c == '>' ||
+        c == '@' ||
+        c == '\\' ||
+        c == '^' ||
+        c == '_' ||
+        c == '~' ||
+        c == '|');
+}
+
+The table contains 256 bits, where each bit is 1
+if the corresponding ascci code is a symbol char, and 0
+if not. */
+static uint32_t symchars[256] = {
+	0x00000000, 0x77ffec52, 0xd7ffffff, 0x57fffffe,
+	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
+};
+
+/* Check if a character is a valid symbol character */
+/* TODO - allow utf8 - shouldn't be difficult, err on side
+ * of inclusivity
+ * symbol chars are A-Z, a-z, 0-9, or one of !$&*+-./:<=>@\^_~| */
+static int is_symbol_char(uint8_t c) {
+    return symchars[c >> 5] & (1 << (c & 0x1F));
+}
+
+/* Validate some utf8. Useful for identifiers. Only validates
+ * the encoding, does not check for valid codepoints (they
+ * are less well defined than the encoding). */
+static int valid_utf8(const uint8_t *str, int32_t len) {
+    int32_t i = 0;
+    int32_t j;
+    while (i < len) {
+        int32_t nexti;
+        uint8_t c = str[i];
+
+        /* Check the number of bytes in code point */
+        if (c < 0x80) nexti = i + 1;
+        else if ((c >> 5) == 0x06) nexti = i + 2;
+        else if ((c >> 4) == 0x0E) nexti = i + 3;
+        else if ((c >> 3) == 0x1E) nexti = i + 4;
+        /* Don't allow 5 or 6 byte code points */
+        else return 0;
+
+        /* No overflow */
+        if (nexti > len)
+            return 0;
+
+        /* Ensure trailing bytes are well formed (10XX XXXX) */
+        for (j = i + 1; j < nexti; j++) {
+            if ((str[j] >> 6) != 2)
+                return 0;
+        }
+
+        /* Check for overlong encodings */ 
+        if ((nexti == i + 2) && str[i] < 0xC2) return 0;
+        if ((str[i] == 0xE0) && str[i + 1] < 0xA0) return 0;
+        if ((str[i] == 0xF0) && str[i + 1] < 0x90) return 0;
+
+        i = nexti;
+    }
+    return 1;
 }
 
 /* Get hex digit from a letter */
@@ -172,6 +246,8 @@ static const uint8_t *parse_recur(
                 if (*src >= '0' && *src <= '9') {
                     goto sym_nodigits;
                 } else {
+                    if (!valid_utf8(src, tokenend - src))
+                        goto invalid_utf8;
                     ret = dst_symbolv(src, tokenend - src);
                 }
             }
@@ -395,6 +471,11 @@ static const uint8_t *parse_recur(
 
     invalid_hex:
     args->errmsg = "invalid hex escape in string";
+    args->status = DST_PARSE_ERROR;
+    return src;
+
+    invalid_utf8:
+    args->errmsg = "identifier is not valid utf-8";
     args->status = DST_PARSE_ERROR;
     return src;
 

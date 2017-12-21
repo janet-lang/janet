@@ -24,6 +24,7 @@
 
 #include <dst/dst.h>
 #include "opcodes.h"
+#include "gc.h"
 
 /* Bytecode op argument types */
 
@@ -511,7 +512,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
     DstValue x;
 
     /* Initialize funcdef */
-    def = dst_alloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
+    def = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
     def->environments = NULL;
     def->constants = NULL;
     def->bytecode = NULL;
@@ -756,7 +757,7 @@ DstFunction *dst_asm_func(DstAssembleResult result) {
     if (result.status != DST_ASSEMBLE_OK) {
         return NULL;
     }
-    DstFunction *func = dst_alloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
+    DstFunction *func = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
     func->def = result.funcdef;
     func->envs = NULL;
     return func;
@@ -905,6 +906,9 @@ DstValue dst_disasm(DstFuncDef *def) {
         envs->count = def->environments_length;
         dst_table_put(ret, dst_csymbolv("environments"), dst_wrap_array(envs));
     }
+
+    /* Add slotcount */
+    dst_table_put(ret, dst_csymbolv("slotcount"), dst_wrap_integer(def->slotcount));
 
     return dst_wrap_struct(dst_table_to_struct(ret));
 }

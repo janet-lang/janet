@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include "gc.h"
 
 /* Iniializes an array */
 DstArray *dst_array_init(DstArray *array, int32_t capacity) {
@@ -43,7 +44,7 @@ void dst_array_deinit(DstArray *array) {
 
 /* Creates a new array */
 DstArray *dst_array(int32_t capacity) {
-    DstArray *array = dst_alloc(DST_MEMORY_ARRAY, sizeof(DstArray));
+    DstArray *array = dst_gcalloc(DST_MEMORY_ARRAY, sizeof(DstArray));
     return dst_array_init(array, capacity);
 }
 

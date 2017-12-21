@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include "gc.h"
 
 #define dst_table_maphash(cap, hash) (((uint32_t)(hash) % (cap)) & 0xFFFFFFFE)
 
@@ -46,7 +47,7 @@ void dst_table_deinit(DstTable *table) {
 
 /* Create a new table */
 DstTable *dst_table(int32_t capacity) {
-    DstTable *table = dst_alloc(DST_MEMORY_TABLE, sizeof(DstTable));
+    DstTable *table = dst_gcalloc(DST_MEMORY_TABLE, sizeof(DstTable));
     return dst_table_init(table, capacity);
 }
 
@@ -56,6 +57,7 @@ static DstValue *dst_table_find(DstTable *t, DstValue key) {
     int32_t index = dst_table_maphash(t->capacity, dst_hash(key));
     int32_t i, j;
     int32_t start[2], end[2];
+    DstValue *first_bucket = NULL;
     start[0] = index; end[0] = t->capacity;
     start[1] = 0; end[1] = index;
     for (j = 0; j < 2; ++j) {
@@ -64,13 +66,16 @@ static DstValue *dst_table_find(DstTable *t, DstValue key) {
                 if (dst_checktype(t->data[i + 1], DST_NIL)) {
                     /* Empty */
                     return t->data + i;
+                } else if (NULL == first_bucket) {
+                    /* Marked deleted and not seen free bucket yet. */
+                    first_bucket = t->data + i;
                 }
             } else if (dst_equals(t->data[i], key)) {
                 return t->data + i;
             }
         }
     }
-    return NULL;
+    return first_bucket;
 }
 
 /* Resize the dictionary table. */
@@ -176,10 +181,24 @@ const DstValue *dst_table_to_struct(DstTable *t) {
     int32_t i;
     DstValue *st = dst_struct_begin(t->count);
     for (i = 0; i < t->capacity; i += 2) {
-        if (!dst_checktype(t->data[i], DST_NIL))
+        if (!dst_checktype(t->data[i], DST_NIL)) {
             dst_struct_put(st, t->data[i], t->data[i + 1]);
+        }
     }
     return dst_struct_end(st);
+}
+
+/* Merge a struct or another table into a table. */
+void dst_table_merge(DstTable *t,  DstValue other) {
+    int32_t count, cap, i;
+    const DstValue *hmap;
+    if (dst_hashtable_view(other, &hmap, &count, &cap)) {
+        for (i = 0; i < cap; i += 2) {
+            if (!dst_checktype(hmap[i], DST_NIL)) {
+                dst_table_put(t, hmap[i], hmap[i + 1]);
+            }
+        }
+    }
 }
 
 #undef dst_table_maphash

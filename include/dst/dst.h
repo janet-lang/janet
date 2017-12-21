@@ -113,6 +113,9 @@
 #define DST_INTEGER_MIN INT32_MIN
 #define DST_INTEGER_MAX INT32_MAX
 
+/* Helper for debugging */
+#define dst_trace(x) dst_puts(dst_formatc("DST TRACE %s, %d: %v\n", __FILE__, __LINE__, x))
+
 /* Prevent some recursive functions from recursing too deeply
  * ands crashing (the parser). Instead, error out. */
 #define DST_RECURSION_GUARD 1000
@@ -133,13 +136,22 @@ typedef struct DstTable DstTable;
 typedef struct DstFiber DstFiber;
 
 /* Other structs */
+typedef struct DstReg DstReg;
 typedef struct DstUserdataHeader DstUserdataHeader;
 typedef struct DstFuncDef DstFuncDef;
 typedef struct DstFuncEnv DstFuncEnv;
 typedef struct DstStackFrame DstStackFrame;
-typedef union DstValueUnion DstValueUnion;
 typedef struct DstUserType DstUserType;
 typedef int (*DstCFunction)(DstValue *argv, int32_t argn);
+
+typedef enum DstAssembleStatus DstAssembleStatus;
+typedef struct DstAssembleResult DstAssembleResult;
+typedef struct DstAssembleOptions DstAssembleOptions;
+typedef enum DstCompileStatus DstCompileStatus;
+typedef struct DstCompileOptions DstCompileOptions;
+typedef struct DstCompileResults DstCompileResults;
+typedef struct DstParseResult DstParseResult;
+typedef enum DstParseStatus DstParseStatus;
 
 /* Names of all of the types */
 extern const char *dst_type_names[16];
@@ -372,6 +384,12 @@ DstValue dst_wrap_pointer(void *x);
 /* End of tagged union implementation */
 #endif
 
+/* Used for creating libraries of cfunctions. */
+struct DstReg {
+    const char *name;
+    DstCFunction function;
+};
+
 /* A lightweight green thread in dst. Does not correspond to
  * operating system threads. */
 struct DstFiber {
@@ -452,7 +470,7 @@ struct DstFuncEnv {
         DstValue *values;
     } as;
     int32_t length; /* Size of environment */
-    int32_t offset; /* Stack offset when values still on stack. If offset is 0, then
+    int32_t offset; /* Stack offset when values still on stack. If offset is <= 0, then
         environment is no longer on the stack. */
 };
 
@@ -477,12 +495,64 @@ struct DstUserdataHeader {
     size_t size;
 };
 
-/* The VM state. Rather than a struct that is passed
- * around, the vm state is global for simplicity and performance. */
+/* Assemble structs */
+enum DstAssembleStatus {
+    DST_ASSEMBLE_OK,
+    DST_ASSEMBLE_ERROR
+};
 
-/* TODO - somehow wrap these for windows dynamic linking. Either that,
- * or force static linking. see
- * https://stackoverflow.com/questions/19373061/what-happens-to-global-and-static-variables-in-a-shared-library-when-it-is-dynam */
+struct DstAssembleOptions {
+    const DstValue *sourcemap;
+    DstValue source;
+    uint32_t flags;
+};
+
+struct DstAssembleResult {
+    DstFuncDef *funcdef;
+    const uint8_t *error;
+    int32_t error_start;
+    int32_t error_end;
+    DstAssembleStatus status;
+};
+
+/* Compile structs */
+enum DstCompileStatus {
+    DST_COMPILE_OK,
+    DST_COMPILE_ERROR
+};
+
+struct DstCompileResults {
+    DstCompileStatus status;
+    DstFuncDef *funcdef;
+    const uint8_t *error;
+    int32_t error_start;
+    int32_t error_end;
+};
+
+struct DstCompileOptions {
+    uint32_t flags;
+    const DstValue *sourcemap;
+    DstValue source;
+    DstValue env;
+};
+
+/* Parse structs */
+enum DstParseStatus {
+    DST_PARSE_OK,
+    DST_PARSE_ERROR,
+    DST_PARSE_UNEXPECTED_EOS
+};
+
+struct DstParseResult {
+    DstValue value;
+    const uint8_t *error;
+    const DstValue *map;
+    int32_t bytes_read;
+    DstParseStatus status;
+};
+
+/* The VM state. Rather than a struct that is passed
+ * around, the vm state is global for simplicity. */
 
 /* Garbage collection */
 extern void *dst_vm_blocks;
@@ -497,6 +567,11 @@ extern uint32_t dst_vm_cache_deleted;
 
 /* Syscall table */
 extern const DstCFunction dst_vm_syscalls[256];
+
+/* GC roots */
+extern DstValue *dst_vm_roots;
+extern uint32_t dst_vm_root_count;
+extern uint32_t dst_vm_root_capacity;
 
 /* GC roots - TODO consider a top level fiber pool (per thread?) */
 extern DstFiber *dst_vm_fiber;
@@ -585,6 +660,7 @@ DstValue dst_table_remove(DstTable *t, DstValue key);
 void dst_table_put(DstTable *t, DstValue key, DstValue value);
 DstValue dst_table_next(DstTable *t, DstValue key);
 const DstValue *dst_table_to_struct(DstTable *t);
+void dst_table_merge(DstTable *t,  DstValue other);
 
 /* Fiber */
 DstFiber *dst_fiber(int32_t capacity);
@@ -607,24 +683,6 @@ void dst_fiber_popframe(DstFiber *fiber);
 void dst_function_detach(DstFunction *func);
 
 /* Assembly */
-typedef enum {
-    DST_ASSEMBLE_OK,
-    DST_ASSEMBLE_ERROR
-} DstAssembleStatus;
-typedef struct DstAssembleResult DstAssembleResult;
-typedef struct DstAssembleOptions DstAssembleOptions;
-struct DstAssembleResult {
-    DstFuncDef *funcdef;
-    const uint8_t *error;
-    int32_t error_start;
-    int32_t error_end;
-    DstAssembleStatus status;
-};
-struct DstAssembleOptions {
-    const DstValue *sourcemap;
-    DstValue source;
-    uint32_t flags;
-};
 DstAssembleResult dst_asm(DstAssembleOptions opts);
 DstFunction *dst_asm_func(DstAssembleResult result);
 DstValue dst_disasm(DstFuncDef *def);
@@ -655,21 +713,9 @@ void dst_setindex(DstValue ds, DstValue value, int32_t index);
 extern const char dst_base64[65];
 int32_t dst_array_calchash(const DstValue *array, int32_t len);
 int32_t dst_string_calchash(const uint8_t *str, int32_t len);
+DstValue dst_loadreg(DstReg *regs, size_t count);
 
 /* Parsing */
-typedef enum {
-    DST_PARSE_OK,
-    DST_PARSE_ERROR,
-    DST_PARSE_UNEXPECTED_EOS
-} DstParseStatus;
-typedef struct DstParseResult DstParseResult;
-struct DstParseResult {
-    DstValue value;
-    const uint8_t *error;
-    const DstValue *map;
-    int32_t bytes_read;
-    DstParseStatus status;
-};
 DstParseResult dst_parse(const uint8_t *src, int32_t len);
 DstParseResult dst_parsec(const char *src);
 const DstValue *dst_parse_submap_index(const DstValue *map, int32_t index);
@@ -684,25 +730,6 @@ int dst_run(DstValue callee);
 DstValue dst_transfer(DstFiber *fiber, DstValue x);
 
 /* Compile */
-typedef enum DstCompileStatus {
-    DST_COMPILE_OK,
-    DST_COMPILE_ERROR
-} DstCompileStatus;
-
-/* Results of compilation */
-typedef struct DstCompileResults {
-    DstCompileStatus status;
-    DstFuncDef *funcdef;
-    const uint8_t *error;
-    int32_t error_start;
-    int32_t error_end;
-} DstCompileResults;
-
-typedef struct DstCompileOptions {
-    uint32_t flags;
-    const DstValue *sourcemap;
-    DstValue source;
-} DstCompileOptions;
 
 /* Compile source code into FuncDef. */
 DstCompileResults dst_compile(DstCompileOptions opts);
@@ -710,98 +737,12 @@ DstFunction *dst_compile_func(DstCompileResults results);
 
 /* GC */
 
-/* The metadata header associated with an allocated block of memory */
-#define dst_gc_header(mem) ((DstGCMemoryHeader *)(mem) - 1)
-
-#define DST_MEM_TYPEBITS 0xFF
-#define DST_MEM_REACHABLE 0x100
-#define DST_MEM_DISABLED 0x200
-
-#define dst_gc_settype(m, t) ((dst_gc_header(m)->flags |= (0xFF & (t))))
-#define dst_gc_type(m) (dst_gc_header(m)->flags & 0xFF)
-
-#define dst_gc_mark(m) (dst_gc_header(m)->flags |= DST_MEM_REACHABLE)
-#define dst_gc_unmark(m) (dst_gc_header(m)->flags &= ~DST_MEM_COLOR)
-#define dst_gc_reachable(m) (dst_gc_header(m)->flags & DST_MEM_REACHABLE)
-
-
-/* Memory header struct. Node of a linked list of memory blocks. */
-typedef struct DstGCMemoryHeader DstGCMemoryHeader;
-struct DstGCMemoryHeader {
-    DstGCMemoryHeader *next;
-    uint32_t flags;
-};
-
-/* Memory types for the GC. Different from DstType to include funcenv and funcdef. */
-typedef enum DstMemoryType DstMemoryType;
-enum DstMemoryType {
-    DST_MEMORY_NONE,
-    DST_MEMORY_STRING,
-    DST_MEMORY_SYMBOL,
-    DST_MEMORY_ARRAY,
-    DST_MEMORY_TUPLE,
-    DST_MEMORY_TABLE,
-    DST_MEMORY_STRUCT,
-    DST_MEMORY_FIBER,
-    DST_MEMORY_BUFFER,
-    DST_MEMORY_FUNCTION,
-    DST_MEMORY_USERDATA,
-    DST_MEMORY_FUNCENV,
-    DST_MEMORY_FUNCDEF
-};
-
-/* Preventn GC from freeing some memory. */
-#define dst_disablegc(m) dst_gc_header(m)->flags |= DST_MEM_DISABLED
-
-/* To allocate collectable memory, one must calk dst_alloc, initialize the memory,
- * and then call when dst_enablegc when it is initailize and reachable by the gc (on the DST stack) */
-void *dst_alloc(DstMemoryType type, size_t size);
-#define dst_enablegc(m) dst_gc_header(m)->flags &= ~DST_MEM_DISABLED
-
-/* When doing C interop, it is often needed to disable GC on a value.  This is
- * needed when a garbage collection could occur in the middle of a c function.
- * This could happen, for example, if one calls back into dst inside of a c
- * function. The pin and unpin functions toggle garbage collection on a value
- * when needed. Note that no dst functions will call gc when you don't want it
- * to. GC only happens automatically in the interpreter loop. Pinning values
- * wil NOT recursively pin sub values. 
- *
- * Be careful whennig bypassing garbage collection like this. It can easily
- * lead to memory leaks or other undesirable side effects. */
-void dst_pin(DstValue x);
-void dst_unpin(DstValue x);
-
-/* Specific types can also be pinned and unpinned as well. */
-#define dst_pin_table dst_disablegc
-#define dst_pin_array dst_disablegc
-#define dst_pin_buffer dst_disablegc
-#define dst_pin_function dst_disablegc
-#define dst_pin_fiber dst_disablegc
-#define dst_pin_string(s) dst_disablegc(dst_string_raw(s))
-#define dst_pin_symbol(s) dst_disablegc(dst_string_raw(s))
-#define dst_pin_tuple(s) dst_disablegc(dst_tuple_raw(s))
-#define dst_pin_struct(s) dst_disablegc(dst_struct_raw(s))
-#define dst_pin_userdata(s) dst_disablegc(dst_userdata_header(s))
-
-#define dst_unpin_table dst_enablegc
-#define dst_unpin_array dst_enablegc
-#define dst_unpin_buffer dst_enablegc
-#define dst_unpin_function dst_enablegc
-#define dst_unpin_fiber dst_enablegc
-#define dst_unpin_string(s) dst_enablegc(dst_string_raw(s))
-#define dst_unpin_symbol(s) dst_enablegc(dst_string_raw(s))
-#define dst_unpin_tuple(s) dst_enablegc(dst_tuple_raw(s))
-#define dst_unpin_struct(s) dst_enablegc(dst_struct_raw(s))
-#define dst_unpin_userdata(s) dst_enablegc(dst_userdata_header(s))
-
 void dst_mark(DstValue x);
 void dst_sweep();
-
-/* Collect some memory */
 void dst_collect();
-
-/* Clear all memory. */
 void dst_clear_memory();
+void dst_gcroot(DstValue root);
+int dst_gcunroot(DstValue root);
 
 /* Run garbage collection if needed */
 #define dst_maybe_collect() do {\

@@ -22,12 +22,13 @@
 
 #include <dst/dst.h>
 #include "symcache.h"
+#include "gc.h"
 
 /* Create a new empty tuple of the given size. This will return memory
  * which should be filled with DstValues. The memory will not be collected until
  * dst_tuple_end is called. */
 DstValue *dst_tuple_begin(int32_t length) {
-    char *data = dst_alloc(DST_MEMORY_TUPLE, 2 * sizeof(int32_t) + length * sizeof(DstValue));
+    char *data = dst_gcalloc(DST_MEMORY_TUPLE, 2 * sizeof(int32_t) + length * sizeof(DstValue));
     DstValue *tuple = (DstValue *)(data + (2 * sizeof(int32_t)));
     dst_tuple_length(tuple) = length;
     return tuple;

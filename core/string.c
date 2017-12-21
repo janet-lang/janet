@@ -22,10 +22,11 @@
 
 #include <dst/dst.h>
 #include "strtod.h"
+#include "gc.h"
 
 /* Begin building a string */
 uint8_t *dst_string_begin(int32_t length) {
-    char *data = dst_alloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + length);
+    char *data = dst_gcalloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + length);
     uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
     dst_string_length(str) = length;
     return str;
@@ -40,7 +41,7 @@ const uint8_t *dst_string_end(uint8_t *str) {
 /* Load a buffer as a string */
 const uint8_t *dst_string(const uint8_t *buf, int32_t len) {
     int32_t hash = dst_string_calchash(buf, len);
-    char *data = dst_alloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + len);
+    char *data = dst_gcalloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + len);
     uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
     memcpy(str, buf, len);
     dst_string_length(str) = len;

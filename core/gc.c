@@ -22,11 +22,17 @@
 
 #include <dst/dst.h>
 #include "symcache.h"
+#include "gc.h"
 
 /* GC State */
 void *dst_vm_blocks;
 uint32_t dst_vm_memory_interval;
 uint32_t dst_vm_next_collection;
+
+/* Roots */
+DstValue *dst_vm_roots;
+uint32_t dst_vm_root_count;
+uint32_t dst_vm_root_capacity;
 
 /* Helpers for marking the various gc types */
 static void dst_mark_funcenv(DstFuncEnv *env);
@@ -55,46 +61,6 @@ void dst_mark(DstValue x) {
         case DST_BUFFER: dst_mark_buffer(dst_unwrap_buffer(x)); break;
         case DST_FIBER: dst_mark_fiber(dst_unwrap_fiber(x)); break;
         case DST_USERDATA: dst_mark_udata(dst_unwrap_pointer(x)); break;
-    }
-}
-
-/* Pin a value. This prevents a value from being garbage collected.
- * Needed if the valueis not accesible to the garbage collector, but
- * still in use by the program. For example, a c function that
- * creates a table, and then runs the garbage collector without
- * ever saving the table anywhere (except on the c stack, which
- * the gc cannot inspect). */
-void dst_pin(DstValue x) {
-    switch (dst_type(x)) {
-        default: break;
-        case DST_STRING:
-        case DST_SYMBOL: dst_pin_string(dst_unwrap_string(x)); break;
-        case DST_FUNCTION: dst_pin_function(dst_unwrap_function(x)); break;
-        case DST_ARRAY: dst_pin_array(dst_unwrap_array(x)); break;
-        case DST_TABLE: dst_pin_table(dst_unwrap_table(x)); break;
-        case DST_STRUCT: dst_pin_struct(dst_unwrap_struct(x)); break;
-        case DST_TUPLE: dst_pin_tuple(dst_unwrap_tuple(x)); break;
-        case DST_BUFFER: dst_pin_buffer(dst_unwrap_buffer(x)); break;
-        case DST_FIBER: dst_pin_fiber(dst_unwrap_fiber(x)); break;
-        case DST_USERDATA: dst_pin_userdata(dst_unwrap_pointer(x)); break;
-    }
-}
-
-/* Unpin a value. This enables the GC to collect the value's
- * memory again. */
-void dst_unpin(DstValue x) {
-    switch (dst_type(x)) {
-        default: break;
-        case DST_STRING:
-        case DST_SYMBOL: dst_unpin_string(dst_unwrap_string(x)); break;
-        case DST_FUNCTION: dst_unpin_function(dst_unwrap_function(x)); break;
-        case DST_ARRAY: dst_unpin_array(dst_unwrap_array(x)); break;
-        case DST_TABLE: dst_unpin_table(dst_unwrap_table(x)); break;
-        case DST_STRUCT: dst_unpin_struct(dst_unwrap_struct(x)); break;
-        case DST_TUPLE: dst_unpin_tuple(dst_unwrap_tuple(x)); break;
-        case DST_BUFFER: dst_unpin_buffer(dst_unwrap_buffer(x)); break;
-        case DST_FIBER: dst_unpin_fiber(dst_unwrap_fiber(x)); break;
-        case DST_USERDATA: dst_unpin_userdata(dst_unwrap_pointer(x)); break;
     }
 }
 
@@ -298,7 +264,7 @@ void dst_sweep() {
 }
 
 /* Allocate some memory that is tracked for garbage collection */
-void *dst_alloc(DstMemoryType type, size_t size) {
+void *dst_gcalloc(DstMemoryType type, size_t size) {
     DstGCMemoryHeader *mdata;
     size_t total = size + sizeof(DstGCMemoryHeader);
 
@@ -326,10 +292,45 @@ void *dst_alloc(DstMemoryType type, size_t size) {
 
 /* Run garbage collection */
 void dst_collect() {
+    uint32_t i;
     if (dst_vm_fiber)
         dst_mark_fiber(dst_vm_fiber);
+    for (i = 0; i < dst_vm_root_count; i++)
+        dst_mark(dst_vm_roots[i]);
     dst_sweep();
     dst_vm_next_collection = 0;
+}
+
+/* Add a root value to the GC. This prevents the GC from removing a value
+ * and all of its children. If gcroot is called on a value n times, unroot
+ * must also be called n times to remove it as a gc root. */
+void dst_gcroot(DstValue root) {
+    uint32_t newcount = dst_vm_root_count + 1;
+    if (newcount > dst_vm_root_capacity) {
+        uint32_t newcap = 2 * newcount;
+        dst_vm_roots = realloc(dst_vm_roots, sizeof(DstValue) * newcap);
+        if (NULL == dst_vm_roots) {
+            DST_OUT_OF_MEMORY;
+        }
+        dst_vm_root_capacity = newcap;
+    }
+    dst_vm_roots[dst_vm_root_count] = root;
+    dst_vm_root_count = newcount;
+}
+
+/* Remove a root value from the GC. This allows the gc to potentially reclaim
+ * a value and all its children. */
+int dst_gcunroot(DstValue root) {
+    DstValue *vtop = dst_vm_roots + dst_vm_root_count;
+    DstValue *v = dst_vm_roots;
+    /* Search from top to bottom as access is most likely LIFO */
+    for (v = dst_vm_roots; v < vtop; v++) {
+        if (dst_equals(root, *v)) {
+            *v = dst_vm_roots[--dst_vm_root_count];
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /* Free all allocated memory */

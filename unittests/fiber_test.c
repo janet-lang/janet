@@ -1,10 +1,11 @@
 #include "unit.h"
+#include "../core/gc.h"
 #include <dst/dst.h>
 #include <stdio.h>
 
 /* Create dud funcdef and function */
 static DstFunction *dud_func(uint32_t slotcount, uint32_t arity, int varargs) {
-    DstFuncDef *def = dst_alloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
+    DstFuncDef *def = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
     def->environments_length = 0;
     def->constants_length = 0;
     def->bytecode_length = 0;
@@ -14,7 +15,7 @@ static DstFunction *dud_func(uint32_t slotcount, uint32_t arity, int varargs) {
     def->flags = varargs ? DST_FUNCDEF_FLAG_VARARG : 0;
     def->arity = arity;
     def->slotcount = slotcount;
-    DstFunction *f = dst_alloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
+    DstFunction *f = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
     f->envs = NULL;
     f->def = def;
     return f;
@@ -83,6 +84,8 @@ int main() {
     }
     dst_fiber_funcframe_tail(fiber1, dud_func(20, 0, 0));
     debug_print_fiber(fiber1, 1);
+
+    //dst_deinit();
 
     return 0;
 }

@@ -1,6 +1,15 @@
 #include "unit.h"
 #include <dst/dst.h>
 
+int testprint(DstValue *argv, int32_t argn) {
+    printf("hello!\n");
+    return 0;
+}
+
+DstReg testreg[] = {
+    {"print", testprint}
+};
+
 int main() {
     DstParseResult pres;
     DstCompileOptions opts;
@@ -33,6 +42,8 @@ int main() {
     opts.flags = 0;
     opts.source = pres.value;
     opts.sourcemap = pres.map;
+    opts.env = dst_loadreg(testreg, sizeof(testreg)/sizeof(DstReg));
+    dst_puts(dst_formatc("initial compile env: %v\n", opts.env));
 
     cres = dst_compile(opts);
     if (cres.status == DST_COMPILE_ERROR) {

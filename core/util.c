@@ -116,3 +116,16 @@ int dst_hashtable_view(DstValue tab, const DstValue **data, int32_t *len, int32_
     return 0;
 }
 
+/* Load c functions into an environment */
+DstValue dst_loadreg(DstReg *regs, size_t count) {
+    size_t i;
+    DstTable *t = dst_table(count);
+    for (i = 0; i < count; i++) {
+        DstValue sym = dst_csymbolv(regs[i].name);
+        DstValue func = dst_wrap_cfunction(regs[i].function);
+        DstTable *subt = dst_table(1);
+        dst_table_put(subt, dst_csymbolv("value"), func);
+        dst_table_put(t, sym, dst_wrap_table(subt));
+    }
+    return dst_wrap_table(t);
+}

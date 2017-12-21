@@ -21,10 +21,11 @@
 */
 
 #include <dst/dst.h>
+#include "gc.h"
 
 /* Create new userdata */
 void *dst_userdata(size_t size, const DstUserType *utype) {
-    char *data = dst_alloc(DST_MEMORY_USERDATA, sizeof(DstUserdataHeader) + size);
+    char *data = dst_gcalloc(DST_MEMORY_USERDATA, sizeof(DstUserdataHeader) + size);
     DstUserdataHeader *header = (DstUserdataHeader *)data;
     void *user = data + sizeof(DstUserdataHeader);
     header->size = size;

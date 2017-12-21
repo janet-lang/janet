@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include "gc.h"
 
 /* Initialize a buffer */
 DstBuffer *dst_buffer_init(DstBuffer *buffer, int32_t capacity) {
@@ -44,7 +45,7 @@ void dst_buffer_deinit(DstBuffer *buffer) {
 
 /* Initialize a buffer */
 DstBuffer *dst_buffer(int32_t capacity) {
-    DstBuffer *buffer = dst_alloc(DST_MEMORY_BUFFER, sizeof(DstBuffer));
+    DstBuffer *buffer = dst_gcalloc(DST_MEMORY_BUFFER, sizeof(DstBuffer));
     return dst_buffer_init(buffer, capacity);
 }
 

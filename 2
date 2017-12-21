@@ -26,7 +26,7 @@
 void dst_compile_slotpool_init(DstSlotPool *pool) {
     pool->s = NULL;
     pool->count = 0;
-    pool->free = 0;
+    pool->max;
     pool->cap = 0;
 }
 
@@ -34,35 +34,34 @@ void dst_compile_slotpool_deinit(DstSlotPool *pool) {
     free(pool->s);
     pool->s = NULL;
     pool->cap = 0;
+    pool->max = 0;
     pool->count = 0;
-    pool->free = 0;
 }
 
 void dst_compile_slotpool_extend(DstSlotPool *pool, int32_t extra) {
     int32_t i;
-    int32_t newcount = pool->count + extra;
-    if (newcount > pool->cap) {
-        int32_t newcap = 2 * newcount;
+    int32_t newcap = pool->cap + extra;
+    if (newcap > pool->cap) {
+        newcap *= 2;
         pool->s = realloc(pool->s, newcap * sizeof(DstSlot));
         if (NULL == pool->s) {
             DST_OUT_OF_MEMORY;
         }
-        pool->cap = newcap;
     }
+    pool->cap = newcap;
     /* Mark all new slots as free */
-    for (i = pool->count; i < newcount; i++) {
+    for (i = pool->count; i < newcap; i++) {
         pool->s[i].flags = 0;
     }
-    pool->count = newcount;
 }
 
 DstSlot *dst_compile_slotpool_alloc(DstSlotPool *pool) {
     int32_t oldcount = pool->count;
     int32_t newcount = oldcount == 0xF0 ? 0x101 : oldcount + 1;
     int32_t index = newcount - 1;
-    while (pool->free < pool->count) {
-        if (!(pool->s[pool->free].flags & DST_SLOT_NOTEMPTY)) {
-            return pool->s + pool->free; 
+    while (pool->count < pool->cap) {
+        if (!(pool->s[pool->count].flags & DST_SLOT_NOTEMPTY)) {
+            return pool->s + pool->count; 
         }
         pool->free++;
     }

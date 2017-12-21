@@ -39,7 +39,8 @@ typedef struct DstCFunctionOptimizer DstCFunctionOptimizer;
 #define DST_SLOT_CONSTANT 0x10000
 #define DST_SLOT_NAMED 0x20000
 #define DST_SLOT_MUTABLE 0x40000
-#define DST_SLOT_NOTEMPTY 0x80000
+#define DST_SLOT_REF 0x80000
+/* Needed for handling single element arrays as global vars. */
 
 #define DST_SLOTTYPE_ANY 0xFFFF
 
@@ -62,33 +63,35 @@ struct DstSlot {
  * var
  * varset
  * do
+ * apply (overloaded with normal function)
  */
 
 #define DST_SCOPE_FUNCTION 1
 #define DST_SCOPE_LASTSLOT 2
 #define DST_SCOPE_FIRSTSLOT 4
 #define DST_SCOPE_ENV 8
-
-/* Hold a bunch of slots together */
-typedef struct DstSlotPool DstSlotPool;
-struct DstSlotPool {
-    DstSlot *s;
-    int32_t count;
-    int32_t cap;
-    int32_t free;
-};
+#define DST_SCOPE_TOP 16
 
 /* A lexical scope during compilation */
 struct DstScope {
-    int32_t level;
-    DstArray constants; /* Constants for the funcdef */
-    DstTable constantrev; /* Map constants -> constant inidices */
-    DstTable symbols; /* Map symbols -> Slot pointers */
 
-    /* Hold all slots in use. Data structures that store
-     * slots should link them to this datatstructure */
-    DstSlotPool slots;
-    DstSlotPool unorderedslots;
+    /* Constants for this funcdef */
+    int32_t ccount;
+    int32_t ccap;
+    DstValue *consts;
+
+    /* Map of symbols to slots. Use a simple linear scan for symbols. */
+    int32_t symcap;
+    int32_t symcount;
+    struct {
+        const uint8_t *sym;
+        DstSlot slot;
+    } *syms;
+
+    /* Bit vector with allocated slot indices. Used to allocate new slots */
+    uint32_t *slots;
+    int32_t scap;
+    int32_t smax;
 
     /* Referenced closure environents. The values at each index correspond
      * to which index to get the environment from in the parent. The enironment
@@ -116,11 +119,14 @@ struct DstCompiler {
     uint32_t *buffer;
     int32_t *mapbuffer;
 
+    /* Hold the environment */
+    DstValue env;
+
     DstCompileResults results;
 };
 
 #define DST_FOPTS_TAIL 0x10000
-#define DST_FOPTS_FORCESLOT 0x20000
+#define DST_FOPTS_HINT 0x20000
 
 /* Compiler state */
 struct DstFormOptions {
@@ -128,7 +134,7 @@ struct DstFormOptions {
     DstValue x;
     const DstValue *sourcemap;
     uint32_t flags; /* bit set of accepted primitive types */
-    int32_t hint;
+    DstSlot hint;
 };
 
 /* A grouping of optimizations on a cfunction given certain conditions
@@ -149,25 +155,18 @@ extern DstCFunctionOptimizer dst_compiler_optimizers[255];
 /* An array of special forms */
 extern DstSpecial dst_compiler_specials[16];
 
-void dst_compile_slotpool_init(DstSlotPool *pool);
-void dst_compile_slotpool_deinit(DstSlotPool *pool);
-DstSlot *dst_compile_slotpool_alloc(DstSlotPool *pool);
-void dst_compile_slotpool_extend(DstSlotPool *pool, int32_t extra);
-void dst_compile_slotpool_free(DstSlotPool *pool, DstSlot *s);
-void dst_compile_slotpool_freeindex(DstSlotPool *pool, int32_t index);
-
 /* Dispatch to correct form compiler */
-DstSlot *dst_compile_value(DstFormOptions opts);
+DstSlot dst_compile_value(DstFormOptions opts);
 
 /* Compile special forms */
-DstSlot *dst_compile_do(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot *dst_compile_fn(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot *dst_compile_cond(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot *dst_compile_while(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot *dst_compile_quote(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot *dst_compile_def(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot *dst_compile_var(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot *dst_compile_varset(DstFormOptions opts, int32_t argn, const DstValue *argv);
+DstSlot dst_compile_do(DstFormOptions opts, int32_t argn, const DstValue *argv);
+DstSlot dst_compile_fn(DstFormOptions opts, int32_t argn, const DstValue *argv);
+DstSlot dst_compile_cond(DstFormOptions opts, int32_t argn, const DstValue *argv);
+DstSlot dst_compile_while(DstFormOptions opts, int32_t argn, const DstValue *argv);
+DstSlot dst_compile_quote(DstFormOptions opts, int32_t argn, const DstValue *argv);
+DstSlot dst_compile_def(DstFormOptions opts, int32_t argn, const DstValue *argv);
+DstSlot dst_compile_var(DstFormOptions opts, int32_t argn, const DstValue *argv);
+DstSlot dst_compile_varset(DstFormOptions opts, int32_t argn, const DstValue *argv);
 
 /****************************************************/
 
@@ -183,14 +182,13 @@ DstFormOptions dst_compile_getopts_value(DstFormOptions opts, DstValue key);
 void dst_compile_scope(DstCompiler *c, int newfn);
 void dst_compile_popscope(DstCompiler *c);
 
-DstSlot *dst_compile_constantslot(DstCompiler *c, DstValue x);
-void dst_compile_freeslot(DstCompiler *c, DstSlot *slot);
+DstSlot dst_compile_constantslot(DstValue x);
+void dst_compile_freeslot(DstCompiler *c, DstSlot slot);
 
 /* Search for a symbol */
-DstSlot *dst_compile_resolve(DstCompiler *c, const DstValue *sourcemap, const uint8_t *sym);
+DstSlot dst_compile_resolve(DstCompiler *c, const DstValue *sourcemap, const uint8_t *sym);
 
 /* Emit instructions. */
-
 void dst_compile_emit(DstCompiler *c, const DstValue *sourcemap, uint32_t instr);
 
 #endif

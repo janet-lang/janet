@@ -31,7 +31,7 @@ PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
 DEBUGGER=lldb
-DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h)
+DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h gc.h)
 DST_HEADERS=$(addprefix include/dst/,dst.h)
 
 #############################
@@ -59,7 +59,7 @@ $(DST_XXD): libs/xxd.c
 ###################################
 
 DST_CORE_SOURCES=$(addprefix core/,\
-				 array.c asm.c buffer.c compile.c compile_slotpool.c \
+				 array.c asm.c buffer.c compile.c\
 				 fiber.c func.c gc.c parse.c string.c strtod.c\
 				 struct.c symcache.c syscalls.c table.c tuple.c userdata.c util.c\
 				 value.c vm.c wrap.c)

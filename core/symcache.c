@@ -26,6 +26,7 @@
  * whole program. Equality is then just a pointer check. */
 
 #include <dst/dst.h>
+#include "gc.h"
 
 /* Cache state */
 const uint8_t **dst_vm_cache = NULL;
@@ -170,7 +171,7 @@ const uint8_t *dst_symbol(const uint8_t *str, int32_t len) {
     const uint8_t **bucket = dst_symcache_findmem(str, len, hash, &success);
     if (success)
         return *bucket;
-    newstr = dst_alloc(DST_MEMORY_SYMBOL, 2 * sizeof(int32_t) + len)
+    newstr = dst_gcalloc(DST_MEMORY_SYMBOL, 2 * sizeof(int32_t) + len)
         + (2 * sizeof(int32_t));
     dst_string_hash(newstr) = hash;
     dst_string_length(newstr) = len;
@@ -223,7 +224,7 @@ const uint8_t *dst_symbol_gen(const uint8_t *buf, int32_t len) {
      * is enough for resolving collisions. */
     int32_t newlen = len + 8;
     int32_t newbufsize = newlen + 2 * sizeof(int32_t);
-    uint8_t *str = (uint8_t *)(dst_alloc(DST_MEMORY_SYMBOL, newbufsize) + 2 * sizeof(int32_t));
+    uint8_t *str = (uint8_t *)(dst_gcalloc(DST_MEMORY_SYMBOL, newbufsize) + 2 * sizeof(int32_t));
     dst_string_length(str) = newlen;
     memcpy(str, buf, len);
     str[len] = '-';

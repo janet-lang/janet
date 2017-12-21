@@ -23,9 +23,10 @@
 #include <dst/dst.h>
 #include "opcodes.h"
 #include "symcache.h"
+#include "gc.h"
 
 /* VM State */
-DstFiber *dst_vm_fiber;
+DstFiber *dst_vm_fiber = NULL;
 
 /* Helper to ensure proper fiber is activated after returning */
 static int dst_update_fiber() {
@@ -417,14 +418,14 @@ int dst_continue() {
             vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
             vm_assert(dst_checktype(func->def->constants[oparg(2, 0xFFFF)], DST_NIL), "constant must be funcdef");
             fd = (DstFuncDef *)(dst_unwrap_pointer(func->def->constants[(int32_t)oparg(2, 0xFFFF)]));
-            fn = dst_alloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
+            fn = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
             fn->envs = malloc(sizeof(DstFuncEnv *) * fd->environments_length);
             if (NULL == fn->envs) {
                 DST_OUT_OF_MEMORY;
             }
             if (fd->flags & DST_FUNCDEF_FLAG_NEEDSENV) {
                 /* Delayed capture of current stack frame */
-                DstFuncEnv *env = dst_alloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
+                DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
                 env->offset = dst_vm_fiber->frame;
                 env->as.fiber = dst_vm_fiber;
                 env->length = func->def->slotcount;
@@ -498,7 +499,7 @@ int dst_continue() {
 
         case DOP_TAILCALL:
         {
-            DstValue callee = stack[oparg(2, 0xFFFF)];
+            DstValue callee = stack[oparg(1, 0xFFFFFF)];
             if (dst_checktype(callee, DST_FUNCTION)) {
                 func = dst_unwrap_function(callee);
                 dst_fiber_funcframe_tail(dst_vm_fiber, func);
@@ -684,6 +685,10 @@ int dst_init() {
     dst_symcache_init();
     /* Set thread */
     dst_vm_fiber = NULL;
+    /* Initialize gc roots */
+    dst_vm_roots = NULL;
+    dst_vm_root_count = 0;
+    dst_vm_root_capacity = 0;
     return 0;
 }
 
@@ -692,4 +697,8 @@ void dst_deinit() {
     dst_clear_memory();
     dst_vm_fiber = NULL;
     dst_symcache_deinit();
+    free(dst_vm_roots);
+    dst_vm_roots = NULL;
+    dst_vm_root_count = 0;
+    dst_vm_root_capacity = 0;
 }

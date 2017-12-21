@@ -21,10 +21,11 @@
 */
 
 #include <dst/dst.h>
+#include "gc.h"
 
 /* Initialize a new fiber */
 DstFiber *dst_fiber(int32_t capacity) {
-    DstFiber *fiber = dst_alloc(DST_MEMORY_FIBER, sizeof(DstFiber));
+    DstFiber *fiber = dst_gcalloc(DST_MEMORY_FIBER, sizeof(DstFiber));
     fiber->capacity = capacity;
     if (capacity) {
         DstValue *data = malloc(sizeof(DstValue) * capacity);
