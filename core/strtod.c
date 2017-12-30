@@ -70,7 +70,7 @@ static uint8_t digit_lookup[128] = {
 /* Read in a mantissa and exponent of a certain base, and give
  * back the double value. Should properly handle 0s, Inifinties, and
  * denormalized numbers. (When the exponent values are too large) */
-static double dst_convert_mantissa_exp(
+static double convert(
         int negative,
         uint64_t mantissa,
         int32_t base,
@@ -117,41 +117,58 @@ static double dst_convert_mantissa_exp(
             }
         }
     }
-
-    /* Build the number to return */
-    return ldexp(mantissa, exponent2);
+    
+    return negative
+        ? -ldexp(mantissa, exponent2)
+        : ldexp(mantissa, exponent2);
 }
+
+/* Result of scanning a number source */
+struct DstScanRes {
+    uint64_t mant;
+    int32_t ex;
+    int error;
+    int base;
+    int seenpoint;
+    int foundexp;
+    int neg;
+};
 
 /* Get the mantissa and exponent of decimal number. The
  * mantissa will be stored in a 64 bit unsigned integer (always positive).
  * The exponent will be in a signed 32 bit integer. Will also check if 
  * the decimal point has been seen. Returns -1 if there is an invalid
  * number. */
-DstValue dst_scan_number(
+static struct DstScanRes dst_scan_impl(
         const uint8_t *str, 
         int32_t len) {
 
+    struct DstScanRes res;
     const uint8_t *end = str + len;
-    int32_t seenpoint = 0;
-    uint64_t mant = 0;
-    int32_t neg = 0;
-    int32_t ex = 0;
-    int foundExp = 0;
 
-    /* Set some constants */
-    int base = 10;
+    /* Initialize flags */
+    int seenadigit = 0;
+
+    /* Initialize result */
+    res.mant = 0;
+    res.ex = 0;
+    res.error = 0;
+    res.base = 10;
+    res.seenpoint = 0;
+    res.foundexp = 0;
+    res.neg = 0;
 
     /* Prevent some kinds of overflow bugs relating to the exponent
      * overflowing.  For example, if a string was passed 2GB worth of 0s after
      * the decimal point, exponent could wrap around and become positive. It's
      * easier to reject ridiculously large inputs than to check for overflows.
      * */
-    if (len > INT32_MAX / base) goto error;
+    if (len > INT32_MAX / 40) goto error;
 
     /* Get sign */
     if (str >= end) goto error;
     if (*str == '-') {
-        neg = 1;
+        res.neg = 1;
         str++;
     } else if (*str == '+') {
         str++;
@@ -159,53 +176,59 @@ DstValue dst_scan_number(
 
     /* Skip leading zeros */
     while (str < end && (*str == '0' || *str == '.')) {
-        if (seenpoint) ex--;
+        if (res.seenpoint) res.ex--;
         if (*str == '.') {
-            if (seenpoint) goto error;
-            seenpoint = 1;
+            if (res.seenpoint) goto error;
+            res.seenpoint = 1;
         }
+        seenadigit = 1;
         str++;
     }
 
     /* Parse significant digits */
     while (str < end) {
         if (*str == '.') {
-            if (seenpoint) goto error;
-            seenpoint = 1;
+            if (res.seenpoint) goto error;
+            res.seenpoint = 1;
         } else if (*str == '&') {
-            foundExp = 1;
+            res.foundexp = 1;
             break;
-        } else if (base == 10 && (*str == 'E' || *str == 'e')) {
-            foundExp = 1;
+        } else if (res.base == 10 && (*str == 'E' || *str == 'e')) {
+            res.foundexp = 1;
             break;
         } else if (*str == 'x' || *str == 'X') {
-            if (seenpoint || mant > 0) goto error;
-            base = 16;
-            mant = 0;
+            if (res.seenpoint || res.mant > 0) goto error;
+            res.base = 16;
+            res.mant = 0;
         } else if (*str == 'r' || *str == 'R')  {
-            if (seenpoint) goto error;
-            if (mant < 2 || mant > 36) goto error;
-            base = mant;
-            mant = 0;
+            if (res.seenpoint) goto error;
+            if (res.mant < 2 || res.mant > 36) goto error;
+            res.base = res.mant;
+            res.mant = 0;
         } else if (*str == '_')  {
             ;
             /* underscores are ignored - can be used for separator */
         } else {
             int digit = digit_lookup[*str & 0x7F];
-            if (digit >= base) goto error;
-            if (seenpoint) ex--;
-            if (mant > 0x00ffffffffffffff)
-                ex++;
+            if (digit >= res.base) goto error;
+            if (res.seenpoint) res.ex--;
+            if (res.mant > 0x00ffffffffffffff)
+                res.ex++;
             else
-                mant = base * mant + digit;
+                res.mant = res.base * res.mant + digit;
+            seenadigit = 1;
         }
         str++;
     }
 
+    if (!seenadigit)
+        goto error;
+
     /* Read exponent */
-    if (str < end && foundExp) {
+    if (str < end && res.foundexp) {
         int eneg = 0;
         int ee = 0;
+        seenadigit = 0;
         str++;
         if (str >= end) goto error;
         if (*str == '-') {
@@ -216,27 +239,81 @@ DstValue dst_scan_number(
         }
         /* Skip leading 0s in exponent */
         while (str < end && *str == '0') str++;
-        while (str < end && ee < (INT32_MAX / base - base)) {
+        while (str < end && ee < (INT32_MAX / 40)) {
             int digit = digit_lookup[*str & 0x7F];
-            if (digit >= base) goto error;
-            ee = base * ee + digit;
+            if (digit >= res.base) goto error;
+            ee = res.base * ee + digit;
             str++;
+            seenadigit = 1;
         }
-        if (eneg) ex -= ee; else ex += ee;
-    } else if (!seenpoint) {
-        /* Check for integer literal */
-        int64_t i64 = neg ? -mant : mant;
-        if (i64 <= INT32_MAX && i64 >= INT32_MIN)
-            return dst_wrap_integer((int32_t) i64);
-    } else if (str < end) {
+        if (eneg) res.ex -= ee; else res.ex += ee;
+    } 
+
+    if (!seenadigit)
         goto error;
-    }
     
-    /* Convert mantissa and exponent into double */
-    return dst_wrap_real(dst_convert_mantissa_exp(neg, mant, base, ex));
+    return res;
+    /* return dst_wrap_real(dst_convert_mantissa_exp(neg, mant, base, ex)); */
 
     error:
-    return dst_wrap_nil();
-
+    res.error = 1;
+    return res;
 }
 
+/* Scan an integer from a string. If the string cannot be converted into
+ * and integer, set *err to 1 and return 0. */
+int32_t dst_scan_integer(
+        const uint8_t *str,
+        int32_t len,
+        int *err) {
+    struct DstScanRes res = dst_scan_impl(str, len);
+    int64_t i64;
+    if (res.error)
+        goto error; 
+    i64 = res.neg ? -res.mant : res.mant;
+    if (i64 > INT32_MAX || i64 < INT32_MIN)
+        goto error;
+    if (NULL != err)
+        *err = 0;
+    return (int32_t) i64;
+    error:
+    if (NULL != err)
+        *err = 1;
+    return 0;
+}
+
+/* Scan a real (double) from a string. If the string cannot be converted into
+ * and integer, set *err to 1 and return 0. */
+double dst_scan_real(
+        const uint8_t *str,
+        int32_t len,
+        int *err) {
+    struct DstScanRes res = dst_scan_impl(str, len);
+    if (res.error) {
+        if (NULL != err)
+            *err = 1;
+        return 0.0;
+    } else {
+        if (NULL != err)
+            *err = 0;
+    }
+    return convert(res.neg, res.mant, res.base, res.ex);
+}
+
+/* Scans a number from a string. Can return either an integer or a real if
+ * the number cannot be represented as an integer. Will return nil in case of
+ * an error. */
+DstValue dst_scan_number(
+        const uint8_t *str,
+        int32_t len) {
+    struct DstScanRes res = dst_scan_impl(str, len);
+    if (res.error)
+        return dst_wrap_nil();
+    if (!res.foundexp && !res.seenpoint) {
+        int64_t i64 = res.neg ? -res.mant : res.mant;
+        if (i64 <= INT32_MAX && i64 >= INT32_MIN) {
+            return dst_wrap_integer((int32_t) i64);
+        }
+    }
+    return dst_wrap_real(convert(res.neg, res.mant, res.base, res.ex));
+}

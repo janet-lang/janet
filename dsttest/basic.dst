@@ -1,4 +1,5 @@
-# A really basic for to compile. for testing the compiler. Will extend
+# A really basic form to compile for testing the compiler. Will extend
 # as compiler is extended.
-(∑ 1 2 3)
-
+(print (+
+  (* 1 2 3 4 5 6 7 8 9 10)
+  -12839189321))

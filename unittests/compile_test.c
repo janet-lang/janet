@@ -1,19 +1,30 @@
 #include "unit.h"
 #include <dst/dst.h>
+#include <dst/dststl.h>
 
 int testprint(DstValue *argv, int32_t argn) {
-    printf("hello!\n");
+    int32_t i;
+    for (i = 0; i < argn; i++) {
+        dst_puts(dst_formatc("%v\n", argv[i]));
+    }
     return 0;
 }
 
 DstReg testreg[] = {
-    {"print", testprint}
+    {"print", testprint},
+    {"+", dst_add},
+    {"-", dst_subtract},
+    {"*", dst_multiply},
+    {"/", dst_divide},
+    {"%", dst_modulo},
+    {"acos", dst_acos},
+    {"asin", dst_asin}
 };
 
 int main() {
     DstParseResult pres;
     DstCompileOptions opts;
-    DstCompileResults cres;
+    DstCompileResult cres;
     DstFunction *func;
 
     FILE *f = fopen("./dsttest/basic.dst", "rb");

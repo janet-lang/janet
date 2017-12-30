@@ -52,12 +52,13 @@ static int dst_update_fiber() {
 }
 
 /* Start running the VM from where it left off. */
-int dst_continue() {
+static int dst_continue(DstValue *returnreg) {
 
     /* VM state */
     DstValue *stack;
     uint32_t *pc;
     DstFunction *func;
+    DstValue retreg;
 
 /* Eventually use computed gotos for more effient vm loop. */
 #define vm_next() continue
@@ -67,7 +68,7 @@ int dst_continue() {
      * Pulls out unsigned integers */
 #define oparg(shift, mask) (((*pc) >> ((shift) << 3)) & (mask))
 
-#define vm_throw(e) do { dst_vm_fiber->ret = dst_cstringv((e)); goto vm_error; } while (0)
+#define vm_throw(e) do { retreg = dst_cstringv((e)); goto vm_error; } while (0)
 #define vm_assert(cond, e) do {if (!(cond)) vm_throw((e)); } while (0)
 
 #define vm_binop_integer(op) \
@@ -133,7 +134,7 @@ int dst_continue() {
         vm_next();
 
         case DOP_ERROR:
-        dst_vm_fiber->ret = stack[oparg(1, 0xFF)];
+        retreg = stack[oparg(1, 0xFF)];
         goto vm_error;
 
         case DOP_TYPECHECK:
@@ -143,11 +144,11 @@ int dst_continue() {
         vm_next();
 
         case DOP_RETURN:
-        dst_vm_fiber->ret = stack[oparg(1, 0xFFFFFF)];
+        retreg = stack[oparg(1, 0xFFFFFF)];
         goto vm_return;
 
         case DOP_RETURN_NIL:
-        dst_vm_fiber->ret = dst_wrap_nil();
+        retreg = dst_wrap_nil();
         goto vm_return;
 
         case DOP_ADD_INTEGER:
@@ -184,10 +185,10 @@ int dst_continue() {
         vm_binop(*);
 
         case DOP_DIVIDE_INTEGER:
-        vm_assert(dst_unwrap_integer(stack[oparg(3, 0xFF)]) != 0, "integer divide by zero");
+        vm_assert(dst_unwrap_integer(stack[oparg(3, 0xFF)]) != 0, "integer divide error");
         vm_assert(!(dst_unwrap_integer(stack[oparg(3, 0xFF)]) == -1 && 
-                    dst_unwrap_integer(stack[oparg(2, 0xFF)]) == DST_INTEGER_MIN),
-                "integer divide overflow");
+                    dst_unwrap_integer(stack[oparg(2, 0xFF)]) == INT32_MIN),
+                "integer divide error");
         vm_binop_integer(/);
         
         case DOP_DIVIDE_IMMEDIATE:
@@ -198,9 +199,9 @@ int dst_continue() {
              * min value by -1). These checks could be omitted if the arg is not 
              * 0 or -1. */
             if (op2 == 0)
-                vm_throw("integer divide by zero");
-            if (op2 == -1)
-                vm_throw("integer divide overflow");
+                vm_throw("integer divide error");
+            if (op2 == -1 && op1 == INT32_MIN)
+                vm_throw("integer divide error");
             else
                 stack[oparg(1, 0xFF)] = dst_wrap_integer(op1 / op2);
             pc++;
@@ -217,10 +218,10 @@ int dst_continue() {
             vm_assert(dst_checktype(op1, DST_INTEGER) || dst_checktype(op1, DST_REAL), "expected number");
             vm_assert(dst_checktype(op2, DST_INTEGER) || dst_checktype(op2, DST_REAL), "expected number");
             if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == 0)
-                op2 = dst_wrap_real(0.0);
+                vm_throw("integer divide error");
             if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == -1 &&
-                dst_checktype(op1, DST_INTEGER) && dst_unwrap_integer(op1) == DST_INTEGER_MIN)
-                op2 = dst_wrap_real(-1.0);
+                dst_checktype(op1, DST_INTEGER) && dst_unwrap_integer(op1) == INT32_MIN)
+                vm_throw("integer divide error");
             stack[oparg(1, 0xFF)] = dst_checktype(op1, DST_INTEGER)
                 ? (dst_checktype(op2, DST_INTEGER)
                     ? dst_wrap_integer(dst_unwrap_integer(op1) / dst_unwrap_integer(op2))
@@ -486,10 +487,11 @@ int dst_continue() {
                 vm_checkgc_next();
             } else if (dst_checktype(callee, DST_CFUNCTION)) {
                 dst_fiber_cframe(dst_vm_fiber);
-                dst_vm_fiber->ret = dst_wrap_nil();
+                retreg = dst_wrap_nil();
                 if (dst_unwrap_cfunction(callee)(
+                        dst_vm_fiber->frametop - dst_vm_fiber->frame,
                         dst_vm_fiber->data + dst_vm_fiber->frame,
-                        dst_vm_fiber->frametop - dst_vm_fiber->frame)) {
+                        &retreg)) {
                     goto vm_error;
                 }
                 goto vm_return_cfunc;
@@ -508,10 +510,11 @@ int dst_continue() {
                 vm_checkgc_next();
             } else if (dst_checktype(callee, DST_CFUNCTION)) {
                 dst_fiber_cframe_tail(dst_vm_fiber);
-                dst_vm_fiber->ret = dst_wrap_nil();
+                retreg = dst_wrap_nil();
                 if (dst_unwrap_cfunction(callee)(
-                            dst_vm_fiber->data + dst_vm_fiber->frame, 
-                            dst_vm_fiber->frametop - dst_vm_fiber->frame)) {
+                        dst_vm_fiber->frametop - dst_vm_fiber->frame,
+                        dst_vm_fiber->data + dst_vm_fiber->frame,
+                        &retreg)) {
                     goto vm_error;
                 }
                 goto vm_return_cfunc;
@@ -519,34 +522,12 @@ int dst_continue() {
             vm_throw("expected function");
         }
 
-        case DOP_SYSCALL:
-        {
-            DstCFunction f = dst_vm_syscalls[oparg(2, 0xFF)];
-            vm_assert(NULL != f, "invalid syscall");
-            dst_fiber_cframe(dst_vm_fiber);
-            dst_vm_fiber->ret = dst_wrap_nil();
-            if (f(dst_vm_fiber->data + dst_vm_fiber->frame,
-                        dst_vm_fiber->frametop - dst_vm_fiber->frame)) {
-                goto vm_error;
-            }
-            goto vm_return_cfunc;
-        }
-
-        case DOP_LOAD_SYSCALL:
-        {
-            DstCFunction f = dst_vm_syscalls[oparg(2, 0xFF)];
-            vm_assert(NULL != f, "invalid syscall");
-            stack[oparg(1, 0xFF)] = dst_wrap_cfunction(f);
-            pc++;
-            vm_next();
-        }
-
         case DOP_TRANSFER:
         {
             DstFiber *nextfiber;
             DstStackFrame *frame = dst_stack_frame(stack);
             DstValue temp = stack[oparg(2, 0xFF)];
-            DstValue retvalue = stack[oparg(3, 0xFF)];
+            retreg = stack[oparg(3, 0xFF)];
             vm_assert(dst_checktype(temp, DST_FIBER) ||
                       dst_checktype(temp, DST_NIL), "expected fiber");
             nextfiber = dst_checktype(temp, DST_FIBER)
@@ -555,7 +536,7 @@ int dst_continue() {
             /* Check for root fiber */
             if (NULL == nextfiber) {
                 frame->pc = pc;
-                dst_vm_fiber->ret = retvalue;
+                *returnreg = retreg;
                 return 0;
             }
             vm_assert(nextfiber->status == DST_FIBER_PENDING, "can only transfer to pending fiber");
@@ -563,7 +544,7 @@ int dst_continue() {
             dst_vm_fiber->status = DST_FIBER_PENDING;
             dst_vm_fiber = nextfiber;
             vm_init_fiber_state();
-            stack[oparg(1, 0xFF)] = retvalue;
+            stack[oparg(1, 0xFF)] = retreg;
             pc++;
             vm_next();
         }
@@ -577,7 +558,7 @@ int dst_continue() {
 
         case DOP_PUT_INDEX:
         dst_setindex(stack[oparg(1, 0xFF)],
-                stack[oparg(3, 0xFF)],
+                stack[oparg(2, 0xFF)],
                 oparg(3, 0xFF));
         ++pc;
         vm_next();
@@ -599,11 +580,12 @@ int dst_continue() {
         /* Return from c function. Simpler than retuning from dst function */
         vm_return_cfunc:
         {
-            DstValue ret = dst_vm_fiber->ret;
             dst_fiber_popframe(dst_vm_fiber);
-            if (dst_update_fiber())
+            if (dst_update_fiber()) {
+                *returnreg = retreg;
                 return 0;
-            stack[oparg(1, 0xFF)] = ret;
+            }
+            stack[oparg(1, 0xFF)] = retreg;
             pc++;
             vm_checkgc_next();
         }
@@ -611,13 +593,14 @@ int dst_continue() {
         /* Handle returning from stack frame. Expect return value in fiber->ret */
         vm_return:
         {
-            DstValue ret = dst_vm_fiber->ret;
             dst_fiber_popframe(dst_vm_fiber);
-            if (dst_update_fiber())
+            if (dst_update_fiber()) {
+                *returnreg = retreg;
                 return 0;
+            }
             stack = dst_vm_fiber->data + dst_vm_fiber->frame;
             pc = dst_stack_frame(stack)->pc;
-            stack[oparg(1, 0xFF)] = ret;
+            stack[oparg(1, 0xFF)] = retreg;
             pc++;
             vm_checkgc_next();
         }
@@ -625,13 +608,14 @@ int dst_continue() {
         /* Handle errors from c functions and vm opcodes */
         vm_error:
         {
-            DstValue ret = dst_vm_fiber->ret;
             dst_vm_fiber->status = DST_FIBER_ERROR;
-            if (dst_update_fiber())
+            if (dst_update_fiber()) {
+                *returnreg = retreg;
                 return 1;
+            }
             stack = dst_vm_fiber->data + dst_vm_fiber->frame;
             pc = dst_stack_frame(stack)->pc;
-            stack[oparg(1, 0xFF)] = ret;
+            stack[oparg(1, 0xFF)] = retreg;
             pc++;
             vm_checkgc_next();
         }
@@ -654,21 +638,24 @@ int dst_continue() {
 
 /* Run the vm with a given function. This function is
  * called to start the vm. */
-int dst_run(DstValue callee) {
+int dst_run(DstValue callee, DstValue *returnreg) {
     if (NULL == dst_vm_fiber) {
         dst_vm_fiber = dst_fiber(0);
     } else {
         dst_fiber_reset(dst_vm_fiber);
     }
     if (dst_checktype(callee, DST_CFUNCTION)) {
-        dst_vm_fiber->ret = dst_wrap_nil();
+        *returnreg = dst_wrap_nil();
         dst_fiber_cframe(dst_vm_fiber);
-        return dst_unwrap_cfunction(callee)(dst_vm_fiber->data + dst_vm_fiber->frame, 0);
+        return dst_unwrap_cfunction(callee)(
+                0,
+                dst_vm_fiber->data + dst_vm_fiber->frame,
+                returnreg);
     } else if (dst_checktype(callee, DST_FUNCTION)) {
         dst_fiber_funcframe(dst_vm_fiber, dst_unwrap_function(callee));
-        return dst_continue();
+        return dst_continue(returnreg);
     }
-    dst_vm_fiber->ret = dst_cstringv("expected function");
+    *returnreg = dst_cstringv("expected function");
     return 1;
 }
 
@@ -681,7 +668,7 @@ int dst_init() {
      * a collection pretty much every cycle, which is
      * horrible for performance, but helps ensure
      * there are no memory bugs during dev */
-    dst_vm_memory_interval = 0x0000000;
+    dst_vm_gc_interval = 0x0000000;
     dst_symcache_init();
     /* Set thread */
     dst_vm_fiber = NULL;

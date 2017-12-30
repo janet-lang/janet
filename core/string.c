@@ -363,23 +363,41 @@ static int is_print_ds(DstValue v) {
 
 /* VT100 Colors for types */
 /* TODO - generalize into configurable headers and footers */
+/*
+    DST_NIL,
+    DST_FALSE,
+    DST_TRUE,
+    DST_FIBER,
+    DST_INTEGER,
+    DST_REAL,
+    DST_STRING,
+    DST_SYMBOL,
+    DST_ARRAY,
+    DST_TUPLE,
+    DST_TABLE,
+    DST_STRUCT,
+    DST_BUFFER,
+    DST_FUNCTION,
+    DST_CFUNCTION,
+    DST_USERDATA
+*/
 static const char *dst_type_colors[16] = {
     "\x1B[35m",
-    "\x1B[33m",
-    "\x1B[33m",
     "\x1B[35m",
     "\x1B[35m",
-    "\x1B[32m",
+    "",
+    "\x1B[33m",
+    "\x1B[33m",
     "\x1B[36m",
     "",
     "",
     "",
     "",
-    "\x1B[37m",
-    "\x1B[37m",
-    "\x1B[37m",
-    "\x1B[37m",
-    "\x1B[37m"
+    "",
+    "",
+    "",
+    "",
+    ""
 };
 
 /* Forward declaration */
@@ -626,6 +644,13 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     case 'v':
                     {
                         dst_printer_defaults(&printer);
+                        dst_description_helper(&printer, va_arg(args, DstValue));
+                        break;
+                    }
+                    case 'C':
+                    {
+                        dst_printer_defaults(&printer);
+                        printer.flags |= DST_PRINTFLAG_COLORIZE;
                         dst_description_helper(&printer, va_arg(args, DstValue));
                         break;
                     }

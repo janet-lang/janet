@@ -24,196 +24,159 @@
 #include <stdio.h>
 #include <dst/dst.h>
 
-static int client_strequal(const char *a, const char *b) {
-    while (*a)
-        if (*a++ != *b++) return 0;
-    return *a == *b;
-}
-
-static int client_strequal_witharg(const char *a, const char *b) {
-    while (*b)
-        if (*a++ != *b++) return 0;
-    return *a == '=';
-}
-
 #define DST_CLIENT_HELP 1
 #define DST_CLIENT_VERBOSE 2
 #define DST_CLIENT_VERSION 4
 #define DST_CLIENT_REPL 8
-#define DST_CLIENT_NOCOLOR 16
-#define DST_CLIENT_UNKNOWN 32
+#define DST_CLIENT_UNKNOWN 16
 
-static void printf_flags(int64_t flags, const char *col, const char *fmt, const char *arg) {
-    if (!(flags & DST_CLIENT_NOCOLOR))
-        printf("\x1B[%sm", col);
-    printf(fmt, arg);
-    if (!(flags & DST_CLIENT_NOCOLOR))
-        printf("\x1B[0m");
+static DstValue env;
+
+static int client_strequal(const char *a, const char *b) {
+    while (*a) if (*a++ != *b++) return 0;
+    return *a == *b;
 }
 
-/* Simple read line functionality */
-static char *dst_getline() {
-    char *line = malloc(100);
-    char *linep = line;
-    size_t lenmax = 100;
-    size_t len = lenmax;
-    int c;
-    if (line == NULL)
-        return NULL;
-    for (;;) {
-        c = fgetc(stdin);
-        if (c == EOF)
-            break;
-        if (--len == 0) {
-            len = lenmax;
-            char *linen = realloc(linep, lenmax *= 2);
-            if (linen == NULL) {
-                free(linep);
-                return NULL;
-            }
-            line = linen + (line - linep);
-            linep = linen;
-        }
-        if ((*line++ = c) == '\n')
-            break;
-    }
-    *line = '\0';
-    return linep;
+static int client_strequal_witharg(const char *a, const char *b) {
+    while (*b) if (*a++ != *b++) return 0;
+    return *a == '=';
 }
 
-/* Compile and run an ast */
-static int debug_compile_and_run(Dst *vm, DstValue ast, int64_t flags) {
-    DstValue func = dst_compile(vm, vm->env, ast);
-    /* Check for compilation errors */
-    if (func.type != DST_FUNCTION) {
-        printf_flags(flags, "31", "compiler error: %s\n", (const char *)dst_to_string(vm, func));
-        return 1;
-    }
-    /* Execute function */
-    if (dst_run(vm, func)) {
-        printf_flags(flags, "31", "vm error: %s\n", (const char *)dst_to_string(vm, vm->ret));
-        return 1;
-    }
-    return 0;
-}
-
-/* Parse a file and execute it */
-static int debug_run(Dst *vm, FILE *in, int64_t flags) {
+/* Load source from a file */
+static const uint8_t *loadsource(const char *fpath, int32_t *len) {
+    FILE *f = fopen(fpath, "rb");
+    long fsize;
+    size_t fsizet;
     uint8_t *source = NULL;
-    uint32_t sourceSize = 0;
-    long bufsize;
+    if (fseek(f, 0, SEEK_END)) goto error;
+    fsize = ftell(f);
+    if (fsize > INT32_MAX || fsize < 0) goto error;
+    fsizet = fsize;
+    if (fseek(f, 0, SEEK_SET)) goto error;
+    if (!fsize) goto error;
+    source = malloc(fsize);
+    if (fread(source, 1, fsize, f) != fsizet) goto error;
+    if (fclose(f)) goto error;
+    *len = (int32_t) fsizet;
+    return source;
 
-    /* Read file into memory */
-    if (!fseek(in, 0L, SEEK_END) == 0) goto file_error;
-    bufsize = ftell(in);
-    if (bufsize == -1)  goto file_error;
-    sourceSize = (uint32_t) bufsize;
-    source = malloc(bufsize);
-    if (!source) goto file_error;
-    if (fseek(in, 0L, SEEK_SET) != 0) goto file_error;
-    fread(source, sizeof(char), bufsize, in);
-    if (ferror(in) != 0) goto file_error;
-
-    while (source) {
-        source = dst_parseb(vm, 0, source, sourceSize);
-    }
-
-    /* Finish up */
-    fclose(in);
-    return 0;
-
-    /* Handle errors */
-    file_error:
-    if (source) {
-        free(source);
-    }
-    printf_flags(flags, "31", "parse error: could not read file%s\n", "");
-    fclose(in);
-    return 1;
-
-    char buffer[2048] = {0};
-    const char *reader = buffer;
-    for (;;) {
-        int status = dst_parsec(vm, )
-        while (p.status != DST_PARSER_ERROR && p.status != DST_PARSER_FULL) {
-            if (*reader == '\0') {
-                if (!fgets(buffer, sizeof(buffer), in)) {
-                    /* Check that parser is complete */
-                    if (p.status != DST_PARSER_FULL && p.status != DST_PARSER_ROOT) {
-                        printf_flags(flags, "31", "parse error: unexpected end of source%s\n", "");
-                        return 1;
-                    }
-                    /* Otherwise we finished the file with no problems */
-                    return 0;
-                }
-                reader = buffer;
-            }
-            reader += dst_parse_cstring(&p, reader);
-        }
-        /* Check if file read in correctly */
-        if (p.error) {
-            printf_flags(flags, "31", "parse error: %s\n", p.error);
-            break;
-        }
-        /* Check that parser is complete */
-        if (p.status != DST_PARSER_FULL && p.status != DST_PARSER_ROOT) {
-            printf_flags(flags, "31", "parse error: unexpected end of source%s\n", "");
-            break;
-        }
-        if (debug_compile_and_run(vm, dst_parse_consume(&p), flags)) {
-            break;
-        }
-    }
-    return 1;
+    error:
+    free(source);
+    return NULL;
 }
 
-/* A simple repl */
-static int debug_repl(Dst *vm, uint64_t flags) {
-    char *buffer, *reader;
-    DstParser p;
-    buffer = reader = NULL;
+/* simple repl */
+static int repl() {
+    DstBuffer b;
+    dst_buffer_init(&b, 256);
     for (;;) {
-        /* Init parser */
-        dst_parser(&p, vm);
-        while (p.status != DST_PARSER_ERROR && p.status != DST_PARSER_FULL) {
-            if (p.status == DST_PARSER_ERROR || p.status == DST_PARSER_FULL)
+        int c;
+        DstParseResult res;
+        DstCompileResult cres;
+        DstCompileOptions opts;
+        if (b.count == 0)
+            printf("> ");
+        else
+            printf(">> ");
+        for (;;) {
+            c = fgetc(stdin);
+            if (c == EOF) {
+                printf("\n");
+                goto done;
+            }
+            dst_buffer_push_u8(&b, c);
+            if (c == '\n') break;
+        }
+        res = dst_parse(b.data, b.count);
+        switch (res.status) {
+            case DST_PARSE_NODATA:
+                b.count = 0;
                 break;
-            if (!reader || *reader == '\0') {
-                printf_flags(flags, "33", "> %s", "");
-                if (buffer)
-                    free(buffer);
-                buffer = dst_getline();
-                if (!buffer || *buffer == '\0')
-                    return 0;
-                reader = buffer;
-            }
-            reader += dst_parse_cstring(&p, reader);
+            case DST_PARSE_UNEXPECTED_EOS:
+                break;
+            case DST_PARSE_ERROR:
+                dst_puts(dst_formatc("syntax error at %d: %S\n",
+                            res.bytes_read + 1, res.error)); 
+                b.count = 0;
+                break;
+            case DST_PARSE_OK:
+                {
+                    opts.source = res.value;
+                    opts.flags = 0;
+                    opts.sourcemap = res.map;
+                    opts.env = env;
+                    cres = dst_compile(opts);
+                    if (cres.status == DST_COMPILE_OK) {
+                        DstFunction *f = dst_compile_func(cres);
+                        DstValue ret;
+                        if (dst_run(dst_wrap_function(f), &ret)) {
+                            dst_puts(dst_formatc("runtime error: %v\n", ret)); 
+                        } else {
+                            dst_puts(dst_formatc("%v\n", ret)); 
+                        }
+                    } else {
+                        dst_puts(dst_formatc("compile error at %d: %S\n",
+                                    cres.error_start + 1, cres.error)); 
+                    }
+                    b.count = 0;
+                }
+                break;
         }
-        /* Check if file read in correctly */
-        if (p.error) {
-            printf_flags(flags, "31", "parse error: %s\n", p.error);
-            buffer = reader = NULL;
-            continue;
+    }
+    done:
+    dst_buffer_deinit(&b);
+    return 0;
+}
+
+/* Run file */
+static void runfile(const uint8_t *src, int32_t len) {
+    DstCompileOptions opts;
+    DstCompileResult cres;
+    DstParseResult res;
+    const uint8_t *s = src;
+    const uint8_t *end = src + len;
+    while (s < end) {
+        res = dst_parse(s, end - s);
+        switch (res.status) {
+            case DST_PARSE_NODATA:
+                return;
+            case DST_PARSE_UNEXPECTED_EOS:
+            case DST_PARSE_ERROR:
+                dst_puts(dst_formatc("syntax error at %d: %S\n",
+                            s - src + res.bytes_read + 1, res.error)); 
+                break;
+            case DST_PARSE_OK:
+                {
+                    opts.source = res.value;
+                    opts.flags = 0;
+                    opts.sourcemap = res.map;
+                    opts.env = env;
+                    cres = dst_compile(opts);
+                    if (cres.status == DST_COMPILE_OK) {
+                        DstValue ret = dst_wrap_nil();
+                        DstFunction *f = dst_compile_func(cres);
+                        if (dst_run(dst_wrap_function(f), &ret)) {
+                            dst_puts(dst_formatc("runtime error: %v\n", ret)); 
+                        } else {
+                            dst_puts(dst_formatc("runtime error: %v\n", ret));
+                            break;
+                        }
+                    } else {
+                        dst_puts(dst_formatc("compile error at %d: %S\n",
+                                    s - src + cres.error_start + 1, cres.error)); 
+                    }
+                }
+                break;
         }
-        /* Check that parser is complete */
-        if (p.status != DST_PARSER_FULL && p.status != DST_PARSER_ROOT) {
-            printf_flags(flags, "31", "parse error: unexpected end of source%s\n", "");
-            continue;
-        }
-        dst_env_putc(vm, vm->env, "_", vm->ret);
-        dst_env_putc(vm, vm->env, "-env-", dst_wrap_table(vm->env));
-        if (!debug_compile_and_run(vm, dst_parse_consume(&p), flags)) {
-            printf_flags(flags, "36", "%s\n", (const char *) dst_description(vm, vm->ret));
-        }
+        s += res.bytes_read;
     }
 }
 
-int main(int argc, const char **argv) {
-    Dst vm;
+int main(int argc, char **argv) {
     int status = -1;
     int i;
     int fileRead = 0;
-    uint32_t memoryInterval = 4096;
+    uint32_t gcinterval = 8192;
     uint64_t flags = 0;
 
     /* Read the arguments. Ignore files. */
@@ -231,22 +194,15 @@ int main(int argc, const char **argv) {
                     flags |= DST_CLIENT_VERBOSE;
                 } else if (client_strequal(arg + 2, "repl")) {
                     flags |= DST_CLIENT_REPL;
-                } else if (client_strequal(arg + 2, "nocolor")) {
-                    flags |= DST_CLIENT_NOCOLOR;
-                } else if (client_strequal_witharg(arg + 2, "memchunk")) {
-                    int64_t val = memoryInterval;
-                    const uint8_t *end = (const uint8_t *)(arg + 2);
+                } else if (client_strequal_witharg(arg + 2, "gcinterval")) {
+                    int status = 0;
+                    int32_t m;
+                    const uint8_t *start = (const uint8_t *)(arg + 13);
+                    const uint8_t *end = start;
                     while (*end) ++end;
-                    int status = dst_read_integer((const uint8_t *)arg + 11, end, &val);
-                    if (status) {
-                        if (val > 0xFFFFFFFF) {
-                            memoryInterval = 0xFFFFFFFF;
-                        } else if (val < 0) {
-                            memoryInterval = 0;
-                        } else {
-                            memoryInterval = val;
-                        }
-                    }
+                    m = dst_scan_integer(start, end - start, &status);
+                    if (!status)
+                        gcinterval = m;
                 } else {
                     flags |= DST_CLIENT_UNKNOWN;
                 }
@@ -267,9 +223,6 @@ int main(int argc, const char **argv) {
                         case 'r':
                             flags |= DST_CLIENT_REPL;
                             break;
-                        case 'c':
-                            flags |= DST_CLIENT_NOCOLOR;
-                            break;
                         default:
                             flags |= DST_CLIENT_UNKNOWN;
                             break;
@@ -284,14 +237,13 @@ int main(int argc, const char **argv) {
         printf( "Usage:\n"
                 "%s -opts --fullopt1 --fullopt2 file1 file2...\n"
                 "\n"
-                "  -h      --help           : Shows this information.\n"
-                "  -V      --verbose        : Show more output.\n"
-                "  -r      --repl           : Launch a repl after all files are processed.\n"
-                "  -c      --nocolor        : Don't use VT100 color codes in the repl.\n"
-                "  -v      --version        : Print the version number and exit.\n"
-                "          --memchunk=[int] : Set the amount of memory to allocate before\n"
-                "                             forcing a collection in bytes. Max is 2^32-1,\n"
-                "                             min is 0.\n\n",
+                "  -h      --help              Shows this information.\n"
+                "  -V      --verbose           Show more output.\n"
+                "  -r      --repl              Launch a repl after all files are processed.\n"
+                "  -v      --version           Print the version number and exit.\n"
+                "          --gcinterval=[int]  Set the amount of memory to allocate before\n"
+                "                              forcing a collection in bytes. Max is 2^31-1,\n"
+                "                              min is 0.\n\n",
                 argv[0]);
         return 0;
     }
@@ -301,26 +253,31 @@ int main(int argc, const char **argv) {
     }
 
     /* Set up VM */
-    dst_init(&vm);
-    vm.memoryInterval = memoryInterval;
-    dst_stl_load(&vm);
+    dst_init();
+    dst_vm_gc_interval = gcinterval;
+    env = dst_loadstl(DST_LOAD_ROOT);
 
     /* Read the arguments. Only process files. */
     for (i = 1; i < argc; ++i) {
         const char *arg = argv[i];
         if (*arg != '-') {
-            FILE *f;
-            f = fopen(arg, "rb");
             fileRead = 1;
-            status = debug_run(&vm, f, flags);
+            int32_t len;
+            const uint8_t *s = loadsource(arg, &len);
+            if (NULL == s) {
+                printf("could not load file %s\n", arg);
+            } else {
+                runfile(s, len);
+            }
         }
     }
 
+    /* Run a repl if nothing else happened, or the flag is set */
     if (!fileRead || (flags & DST_CLIENT_REPL)) {
-        status = debug_repl(&vm, flags);
+        status = repl();
     }
 
-    dst_deinit(&vm);
+    dst_deinit();
 
     return status;
 }

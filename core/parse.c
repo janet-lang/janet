@@ -48,6 +48,7 @@ static int is_whitespace(uint8_t c) {
         || c == '\n'
         || c == '\r'
         || c == '\0'
+        || c == ';'
         || c == ',';
 }
 
@@ -69,6 +70,7 @@ static int is_symbol_char_gen(uint8_t c) {
     if (c >= '0' && c <= '9') return 1;
     return (c == '!' ||
         c == '$' ||
+        c == '%' ||
         c == '&' ||
         c == '*' ||
         c == '+' ||
@@ -89,9 +91,10 @@ static int is_symbol_char_gen(uint8_t c) {
 
 The table contains 256 bits, where each bit is 1
 if the corresponding ascci code is a symbol char, and 0
-if not. */
+if not. The upper characters are also considered symbol
+chars and are then checked for utf-8 compliance. */
 static uint32_t symchars[256] = {
-	0x00000000, 0x77ffec52, 0xd7ffffff, 0x57fffffe,
+	0x00000000, 0x77ffec72, 0xd7ffffff, 0x57fffffe,
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
 };
 
@@ -215,7 +218,13 @@ static const uint8_t *parse_recur(
     }
 
     /* Check for end of source */
-    if (src >= end) goto unexpected_eos;
+    if (src >= end) {
+        if (qcount || recur != DST_RECURSION_GUARD) {
+            goto unexpected_eos;
+        } else {
+            goto nodata;
+        }
+    }
     
     /* Open mapping */
     mapstart = src;
@@ -248,7 +257,11 @@ static const uint8_t *parse_recur(
                 } else {
                     if (!valid_utf8(src, tokenend - src))
                         goto invalid_utf8;
-                    ret = dst_symbolv(src, tokenend - src);
+                    if (*src == ':') {
+                        ret = dst_stringv(src + 1, tokenend - src - 1);
+                    } else {
+                        ret = dst_symbolv(src, tokenend - src);
+                    }
                 }
             }
             src = tokenend;
@@ -382,7 +395,11 @@ static const uint8_t *parse_recur(
                 }
                 case '}':
                 {
-                    if (n & 1) goto struct_oddargs;
+                    if (n & 1) {
+                        if (istable)
+                            goto table_oddargs;
+                        goto struct_oddargs;
+                    }
                     if (istable) {
                         DstTable *t = dst_table(n);
                         DstTable *subt = dst_table(n);
@@ -419,12 +436,6 @@ static const uint8_t *parse_recur(
         }
     }
 
-    /* Quote the returned value qcount times */
-    while (qcount--) ret = quote(ret);
-
-    /* Push the result to the stack */
-    dst_array_push(&args->stack, ret);
-    
     /* Push source mapping */
     if (dst_checktype(submapping, DST_NIL)) {
         /* We just parsed an atom */
@@ -439,10 +450,32 @@ static const uint8_t *parse_recur(
                     submapping));
     }
 
+    /* Quote the returned value qcount times */
+    while (qcount--) {
+        int32_t start = mapstart - args->srcstart;
+        int32_t end = src - args->srcstart;
+        DstValue sourcemap = dst_array_pop(&args->mapstack);
+        DstValue* tup = dst_tuple_begin(2);
+        tup[0] = atom_map(start, end);
+        tup[1] = sourcemap;
+        ret = quote(ret);
+        dst_array_push(&args->mapstack, ds_map(
+                    start,
+                    end,
+                    dst_wrap_tuple(dst_tuple_end(tup))));
+    }
+
+    /* Push the result to the stack */
+    dst_array_push(&args->stack, ret);
+
     /* Return the new source position for further calls */
     return src;
 
     /* Errors below */
+
+    nodata:
+    args->status = DST_PARSE_NODATA;
+    return NULL;
 
     unexpected_eos:
     args->errmsg = "unexpected end of source";
@@ -456,6 +489,11 @@ static const uint8_t *parse_recur(
 
     sym_nodigits:
     args->errmsg = "symbols cannot start with digits";
+    args->status = DST_PARSE_ERROR;
+    return src;
+
+    table_oddargs:
+    args->errmsg = "table literal needs an even number of arguments";
     args->status = DST_PARSE_ERROR;
     return src;
 
@@ -524,57 +562,4 @@ DstParseResult dst_parsec(const char *src) {
     int32_t len = 0;
     while (src[len]) ++len;
     return dst_parse((const uint8_t *)src, len);
-}
-
-/* Get the sub source map by indexing a value. Used to traverse
- * into arrays and tuples */
-const DstValue *dst_parse_submap_index(const DstValue *map, int32_t index) {
-    if (NULL != map && dst_tuple_length(map) >= 3) {
-        const DstValue *seq;
-        int32_t len;
-        if (dst_seq_view(map[2], &seq, &len)) {
-            if (index >= 0 && index < len) {
-                if (dst_checktype(seq[index], DST_TUPLE)) {
-                    const DstValue *ret = dst_unwrap_tuple(seq[index]);
-                    if (dst_tuple_length(ret) >= 2 &&
-                        dst_checktype(ret[0], DST_INTEGER) &&
-                        dst_checktype(ret[1], DST_INTEGER)) {
-                        return ret;
-                    }
-                }
-            }
-        }
-    }
-    return NULL;
-}
-
-/* Traverse into tables and structs */
-static const DstValue *dst_parse_submap_kv(const DstValue *map, DstValue key, int kv) {
-    if (NULL != map && dst_tuple_length(map) >= 3) {
-        DstValue kvpair = dst_get(map[2], key);
-        if (dst_checktype(kvpair, DST_TUPLE)) {
-            const DstValue *kvtup = dst_unwrap_tuple(kvpair);
-            if (dst_tuple_length(kvtup) >= 2) {
-                if (dst_checktype(kvtup[kv], DST_TUPLE)) {
-                    const DstValue *ret = dst_unwrap_tuple(kvtup[kv]);
-                    if (dst_tuple_length(ret) >= 2 &&
-                        dst_checktype(ret[0], DST_INTEGER) &&
-                        dst_checktype(ret[1], DST_INTEGER)) {
-                        return ret;
-                    }
-                }
-            }
-        }
-    }
-    return NULL;
-}
-
-/* Traverse into a key of a table or struct */
-const DstValue *dst_parse_submap_key(const DstValue *map, DstValue key) {
-    return dst_parse_submap_kv(map, key, 0);
-}
-
-/* Traverse into a value of a table or struct */
-const DstValue *dst_parse_submap_value(const DstValue *map, DstValue key) {
-    return dst_parse_submap_kv(map, key, 1);
 }

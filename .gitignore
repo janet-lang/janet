@@ -1,6 +1,6 @@
 # Target
 /client/dst
-./dst
+dst
 
 # Generated files
 *.gen.h

@@ -47,7 +47,6 @@ DstFiber *dst_fiber_reset(DstFiber *fiber) {
     fiber->stacktop = DST_FRAME_SIZE;
     fiber->status = DST_FIBER_DEAD;
     fiber->parent = NULL;
-    fiber->ret = dst_wrap_nil();
     return fiber;
 }
 
@@ -233,7 +232,7 @@ void dst_fiber_cframe(DstFiber *fiber) {
 /* Create a cframe for a tail call */
 void dst_fiber_cframe_tail(DstFiber *fiber) {
     int32_t size = (fiber->stacktop - fiber->frametop) - DST_FRAME_SIZE;
-    int32_t nextframetop = fiber->frame + size;;
+    int32_t nextframetop = fiber->frame + size;
     int32_t nextstacktop = nextframetop + DST_FRAME_SIZE;
 
     if (fiber->frame == 0) {

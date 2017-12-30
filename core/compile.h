@@ -67,10 +67,8 @@ struct DstSlot {
  */
 
 #define DST_SCOPE_FUNCTION 1
-#define DST_SCOPE_LASTSLOT 2
-#define DST_SCOPE_FIRSTSLOT 4
-#define DST_SCOPE_ENV 8
-#define DST_SCOPE_TOP 16
+#define DST_SCOPE_ENV 2
+#define DST_SCOPE_TOP 4
 
 /* A lexical scope during compilation */
 struct DstScope {
@@ -101,7 +99,7 @@ struct DstScope {
     int32_t envcap;
 
     int32_t bytecode_start;
-    uint32_t flags;
+    int flags;
 };
 
 #define dst_compile_topscope(c) ((c)->scopes + (c)->scopecount - 1)
@@ -122,7 +120,7 @@ struct DstCompiler {
     /* Hold the environment */
     DstValue env;
 
-    DstCompileResults results;
+    DstCompileResult result;
 };
 
 #define DST_FOPTS_TAIL 0x10000
@@ -152,21 +150,8 @@ typedef struct DstSpecial {
 /* An array of optimizers sorted by key */
 extern DstCFunctionOptimizer dst_compiler_optimizers[255];
 
-/* An array of special forms */
-extern DstSpecial dst_compiler_specials[16];
-
 /* Dispatch to correct form compiler */
 DstSlot dst_compile_value(DstFormOptions opts);
-
-/* Compile special forms */
-DstSlot dst_compile_do(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot dst_compile_fn(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot dst_compile_cond(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot dst_compile_while(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot dst_compile_quote(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot dst_compile_def(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot dst_compile_var(DstFormOptions opts, int32_t argn, const DstValue *argv);
-DstSlot dst_compile_varset(DstFormOptions opts, int32_t argn, const DstValue *argv);
 
 /****************************************************/
 

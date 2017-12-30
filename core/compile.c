@@ -21,21 +21,27 @@
 */
 
 #include <dst/dst.h>
+#include <dst/dststl.h>
 #include "compile.h"
 #include "gc.h"
+#include "sourcemap.h"
 
 /* Lazily sort the optimizers */
 /*static int optimizers_sorted = 0;*/
 
 /* Lookups for specials and optimizable c functions. */
 /*DstCFunctionOptimizer dst_compiler_optimizers[255];*/
-/*DstSpecial dst_compiler_specials[16];*/
 
 /* Throw an error with a dst string */
 void dst_compile_error(DstCompiler *c, const DstValue *sourcemap, const uint8_t *m) {
-    c->results.error_start = dst_unwrap_integer(sourcemap[0]);
-    c->results.error_end = dst_unwrap_integer(sourcemap[1]);
-    c->results.error = m;
+    if (NULL != sourcemap) {
+        c->result.error_start = dst_unwrap_integer(sourcemap[0]);
+        c->result.error_end = dst_unwrap_integer(sourcemap[1]);
+    } else {
+        c->result.error_start = -1;
+        c->result.error_end = -1;
+    }
+    c->result.error = m;
     longjmp(c->on_error, 1);
 }
 
@@ -47,20 +53,22 @@ void dst_compile_cerror(DstCompiler *c, const DstValue *sourcemap, const char *m
 /* Use these to get sub options. They will traverse the source map so
  * compiler errors make sense. Then modify the returned options. */
 DstFormOptions dst_compile_getopts_index(DstFormOptions opts, int32_t index) {
-    const DstValue *sourcemap = dst_parse_submap_index(opts.sourcemap, index);
+    const DstValue *sourcemap = dst_sourcemap_index(opts.sourcemap, index);
     DstValue nextval = dst_getindex(opts.x, index);
     opts.x = nextval;
     opts.sourcemap = sourcemap;
     return opts;
 }
+
 DstFormOptions dst_compile_getopts_key(DstFormOptions opts, DstValue key) {
-    const DstValue *sourcemap = dst_parse_submap_key(opts.sourcemap, key);
+    const DstValue *sourcemap = dst_sourcemap_key(opts.sourcemap, key);
     opts.x = key;
     opts.sourcemap = sourcemap;
     return opts;
 }
+
 DstFormOptions dst_compile_getopts_value(DstFormOptions opts, DstValue key) {
-    const DstValue *sourcemap = dst_parse_submap_value(opts.sourcemap, key);
+    const DstValue *sourcemap = dst_sourcemap_value(opts.sourcemap, key);
     DstValue nextval = dst_get(opts.x, key);
     opts.x = nextval;
     opts.sourcemap = sourcemap;
@@ -163,6 +171,12 @@ static void slotsym(DstScope *scope, const uint8_t *sym, DstSlot s) {
 static int32_t addconst(DstCompiler *c, const DstValue *sourcemap, DstValue x) {
     DstScope *scope = dst_compile_topscope(c);
     int32_t i, index, newcount;
+    /* Get the topmost function scope */
+    while (scope > c->scopes) {
+        if (scope->flags & DST_SCOPE_FUNCTION)
+            break;
+        scope--;
+    }
     for (i = 0; i < scope->ccount; i++) {
         if (dst_equals(x, scope->consts[i]))
             return i;
@@ -185,7 +199,7 @@ static int32_t addconst(DstCompiler *c, const DstValue *sourcemap, DstValue x) {
 }
 
 /* Enter a new scope */
-void dst_compile_scope(DstCompiler *c, int newfn) {
+void dst_compile_scope(DstCompiler *c, int flags) {
     int32_t newcount, oldcount;
     DstScope *scope;
     oldcount = c->scopecount;
@@ -222,7 +236,7 @@ void dst_compile_scope(DstCompiler *c, int newfn) {
     scope->scap = 0;
     scope->smax = -1;
 
-    scope->flags = newfn ? DST_SCOPE_FUNCTION : 0;
+    scope->flags = flags;
 }
 
 /* Leave a scope. */
@@ -302,7 +316,7 @@ DstSlot dst_compile_resolve(
             DstValue ref = dst_get(check, dst_csymbolv("ref"));
             if (dst_checktype(ref, DST_ARRAY)) {
                 DstSlot ret = dst_compile_constantslot(ref);
-                ret.flags |= DST_SLOT_REF;
+                ret.flags |= DST_SLOT_REF | DST_SLOT_NAMED | DST_SLOT_MUTABLE;
                 return ret;
             } else {
                 DstValue value = dst_get(check, dst_csymbolv("value"));
@@ -393,6 +407,16 @@ void dst_compile_emit(DstCompiler *c, const DstValue *sourcemap, uint32_t instr)
     c->buffer[index] = instr;
 }
 
+/* Helper */
+static int32_t slotalloc_temp(DstScope *scope, int32_t max, int32_t nth) {
+    int32_t ret = slotalloc_index(scope);
+    if (ret > max) {
+        slotfree_index(scope, ret);
+        ret = 0xF0 + nth;
+    }
+    return ret;
+}
+
 /* Realize any slot to a local slot. Call this to get a slot index
  * that can be used in an instruction. */
 static int32_t dst_compile_preread(
@@ -410,11 +434,7 @@ static int32_t dst_compile_preread(
 
     if (s.flags & DST_SLOT_CONSTANT) {
         int32_t cindex;
-        ret = slotalloc_index(scope);
-        if (ret > max) {
-            slotfree_index(scope, ret);
-            ret = 0xF0 + nth;
-        }
+        ret = slotalloc_temp(scope, max, nth);
         /* Use instructions for loading certain constants */
         switch (dst_type(s.constant)) {
             case DST_NIL:
@@ -454,28 +474,18 @@ static int32_t dst_compile_preread(
                     DOP_GET_INDEX);
         }
     } else if (s.envindex > 0 || s.index > max) {
-        /* Get a local slot to shadow the environment or far slot */
-        ret = slotalloc_index(scope);
-        if (ret > max) {
-            slotfree_index(scope, ret);
-            ret = 0xF0 + nth;
-        }
-        /* Move the remote slot into the local space */
-        if (s.envindex > 0) {
-            /* Load the higher slot */
-            dst_compile_emit(c, sourcemap, 
-                    ((uint32_t)(s.index) << 24) |
-                    ((uint32_t)(s.envindex) << 16) |
-                    ((uint32_t)(ret) << 8) |
-                    DOP_LOAD_UPVALUE);
-        } else {
-            /* Slot is a far slot: greater than 0xFF. Get
-             * the far data and bring it to the near slot. */
-            dst_compile_emit(c, sourcemap, 
-                    ((uint32_t)(s.index) << 16) |
-                    ((uint32_t)(ret) << 8) |
+        ret = slotalloc_temp(scope, max, nth);
+        dst_compile_emit(c, sourcemap, 
+                ((uint32_t)(s.index) << 24) |
+                ((uint32_t)(s.envindex) << 16) |
+                ((uint32_t)(ret) << 8) |
+                DOP_LOAD_UPVALUE);
+    } else if (s.index > max) {
+        ret = slotalloc_temp(scope, max, nth);
+        dst_compile_emit(c, sourcemap, 
+                ((uint32_t)(s.index) << 16) |
+                ((uint32_t)(ret) << 8) |
                     DOP_MOVE_NEAR);
-        }
     } else {
         /* We have a normal slot that fits in the required bit width */            
         ret = s.index;
@@ -492,96 +502,91 @@ static void dst_compile_postread(DstCompiler *c, DstSlot s, int32_t index) {
     }
 }
 
-/* Get a write slot index to emit an instruction. */
-static int32_t dst_compile_prewrite(
+/* Move values from one slot to another. The destination must be mutable. */
+static void dst_compile_copy(
         DstCompiler *c,
         const DstValue *sourcemap,
-        int32_t nth,
-        DstSlot s) {
-    int32_t ret = 0;
-    if (s.flags & DST_SLOT_CONSTANT) {
-        if (!(s.flags & DST_SLOT_REF)) {
-            dst_compile_cerror(c, sourcemap, "cannot write to constant");
-        }
-    } else if (s.envindex > 0 || s.index > 0xFF) {
-        DstScope *scope = dst_compile_topscope(c);
-        /* Get a local slot to shadow the environment or far slot */
-        ret = slotalloc_index(scope);
-        if (ret > 0xFF) {
-            slotfree_index(scope, ret);
-            ret = 0xF0 + nth;
-        }
-        /* Move the remote slot into the local space */
-        if (s.envindex > 0) {
-            /* Load the higher slot */
-            dst_compile_emit(c, sourcemap, 
-                    ((uint32_t)(s.index) << 24) |
-                    ((uint32_t)(s.envindex) << 16) |
-                    ((uint32_t)(ret) << 8) |
-                    DOP_LOAD_UPVALUE);
+        DstSlot dest,
+        DstSlot src) {
+    int writeback = 0;
+    int32_t destlocal = -1;
+    int32_t srclocal = -1;
+    int32_t reflocal = -1;
+    DstScope *scope = dst_compile_topscope(c);
+
+    /* Only write to mutable slots */
+    if (!(dest.flags & DST_SLOT_MUTABLE)) {
+        dst_compile_cerror(c, sourcemap, "cannot write to constant");
+    }
+
+    /* Short circuit if dest and source are equal */
+    if (dest.flags == src.flags &&
+        dest.index == src.index &&
+        dest.envindex == src.envindex) {
+        if (dest.flags & DST_SLOT_REF) {
+            if (dst_equals(dest.constant, src.constant))
+                return;
         } else {
-            /* Slot is a far slot: greater than 0xFF. Get
-             * the far data and bring it to the near slot. */
-            dst_compile_emit(c, sourcemap, 
-                    ((uint32_t)(s.index) << 16) |
-                    ((uint32_t)(ret) << 8) |
-                    DOP_MOVE_NEAR);
+            return;
         }
-    } else {
-        /* We have a normal slot that fits in the required bit width */            
-        ret = s.index;
     }
-    return ret;
-}
 
-/* Release a write index after emitting the instruction */
-static void dst_compile_postwrite(
-        DstCompiler *c,
-        const DstValue *sourcemap,
-        DstSlot s,
-        int32_t index) {
+    /* Process: src -> srclocal -> destlocal -> dest */
+    
+    /* src -> srclocal */
+    srclocal = dst_compile_preread(c, sourcemap, 0xFF, 1, src);
 
-    /* Set the ref */
-    if (s.flags & DST_SLOT_REF) {
-        DstScope *scope = dst_compile_topscope(c);
-        int32_t cindex = addconst(c, sourcemap, s.constant);
-        int32_t refindex = slotalloc_index(scope);
-        if (refindex > 0xFF) {
-            slotfree_index(scope, refindex);
-            refindex = 0xFF;
-        }
-        dst_compile_emit(c, sourcemap, 
-                (cindex << 16) |
-                (refindex << 8) |
-                DOP_LOAD_CONSTANT);
+    /* Pull down dest (find destlocal) */
+    if (dest.flags & DST_SLOT_REF) {
+        writeback = 1;
+        destlocal = srclocal;
+        reflocal = slotalloc_temp(scope, 0xFF, 2);
         dst_compile_emit(c, sourcemap,
-                (index << 16) |
-                (refindex << 8) |
-                DOP_PUT_INDEX);
-        slotfree_index(scope, refindex);
-        return;
+                (addconst(c, sourcemap, dest.constant) << 16) |
+                (reflocal << 8) |
+                DOP_LOAD_CONSTANT);
+    } else if (dest.envindex > 0) {
+        writeback = 2;
+        destlocal = srclocal;
+    } else if (dest.index > 0xFF) {
+        writeback = 3;
+        destlocal = srclocal;
+    } else {
+        destlocal = dest.index;
     }
 
-    /* We need to save the data in the local slot to the original slot */
-    if (s.envindex > 0) {
-        /* Load the higher slot */
+    /* srclocal -> destlocal */
+    if (srclocal != destlocal) {
+        dst_compile_emit(c, sourcemap,
+                ((uint32_t)(srclocal) << 16) |
+                ((uint32_t)(destlocal) << 8) |
+                DOP_MOVE_NEAR);
+    }
+
+    /* destlocal -> dest */ 
+    if (writeback == 1) {
+        dst_compile_emit(c, sourcemap,
+                (destlocal << 16) |
+                (reflocal << 8) |
+                DOP_PUT_INDEX);
+    } else if (writeback == 2) {
         dst_compile_emit(c, sourcemap, 
-                ((uint32_t)(s.index) << 24) |
-                ((uint32_t)(s.envindex) << 16) |
-                ((uint32_t)(index) << 8) |
+                ((uint32_t)(dest.index) << 24) |
+                ((uint32_t)(dest.envindex) << 16) |
+                ((uint32_t)(destlocal) << 8) |
                 DOP_SET_UPVALUE);
-    } else if (s.index != index) {
-        /* There was a local remapping */
-        dst_compile_emit(c, sourcemap, 
-                ((uint32_t)(s.index) << 16) |
-                ((uint32_t)(index) << 8) |
+    } else if (writeback == 3) {
+        dst_compile_emit(c, sourcemap,
+                ((uint32_t)(dest.index) << 16) |
+                ((uint32_t)(destlocal) << 8) |
                 DOP_MOVE_FAR);
     }
-    if (index != s.index || s.envindex > 0) {
-        /* We need to free the temporary slot */
-        DstScope *scope = dst_compile_topscope(c);
-        slotfree_index(scope, index);
+
+    /* Cleanup */
+    if (reflocal >= 0) {
+        slotfree_index(scope, reflocal);
     }
+    dst_compile_postread(c, src, srclocal);
 }
 
 /* Generate the return instruction for a slot. */
@@ -685,6 +690,201 @@ static void dst_compile_pushtuple(
     }
 }
 
+/* Quote */
+DstSlot dst_compile_quote(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+    if (argn != 1)
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected 1 argument");
+    return dst_compile_constantslot(argv[0]);
+}
+
+/* Var */
+DstSlot dst_compile_var(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+    DstScope *scope = dst_compile_topscope(opts.compiler);
+    DstFormOptions subopts;
+    DstSlot ret;
+    if (argn != 2)
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
+    if (!dst_checktype(argv[0], DST_SYMBOL))
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected symbol");
+    subopts = dst_compile_getopts_index(opts, 2);
+    subopts.flags &= ~DST_FOPTS_TAIL;
+    ret = dst_compile_value(subopts);
+    if (scope->flags & DST_SCOPE_TOP) {
+        DstCompiler *c = opts.compiler;
+        const DstValue *sm = opts.sourcemap;
+        DstSlot refslot, refarrayslot;
+        /* Global var, generate var */
+        DstTable *reftab = dst_table(1);
+        DstArray *ref = dst_array(1);
+        dst_array_push(ref, dst_wrap_nil());
+        dst_table_put(reftab, dst_csymbolv("ref"), dst_wrap_array(ref));
+        dst_put(opts.compiler->env, argv[0], dst_wrap_table(reftab));
+        refslot = dst_compile_constantslot(dst_wrap_array(ref));
+        refarrayslot = refslot;
+        refslot.flags |= DST_SLOT_REF | DST_SLOT_NAMED | DST_SLOT_MUTABLE;
+        /* Generate code to set ref */
+        int32_t refarrayindex = dst_compile_preread(c, sm, 0xFF, 1, refarrayslot);
+        int32_t retindex = dst_compile_preread(c, sm, 0xFF, 2, ret);
+        dst_compile_emit(c, sm,
+                (retindex << 16) |
+                (refarrayindex << 8) |
+                DOP_PUT_INDEX);
+        dst_compile_postread(c, refarrayslot, refarrayindex);
+        dst_compile_postread(c, ret, retindex);
+        dst_compile_freeslot(c, refarrayslot);
+        ret = refslot;
+    } else {
+        /* Non root scope, bring to local slot */
+        DstSlot localslot = dst_compile_gettarget(opts);
+        localslot.flags |= DST_SLOT_NAMED | DST_SLOT_MUTABLE;
+        dst_compile_copy(opts.compiler, opts.sourcemap, localslot, ret);
+        slotsym(scope, dst_unwrap_symbol(argv[0]), localslot); 
+        ret = localslot;
+    }
+    return ret;
+}
+
+/* Varset */
+DstSlot dst_compile_varset(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+    DstFormOptions subopts;
+    DstSlot ret, dest;
+    if (argn != 2)
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
+    if (!dst_checktype(argv[0], DST_SYMBOL))
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected symbol");
+    subopts = dst_compile_getopts_index(opts, 2);
+    subopts.flags &= ~DST_FOPTS_TAIL;
+    dest = dst_compile_resolve(opts.compiler, opts.sourcemap, dst_unwrap_symbol(argv[0]));
+    if (!(dest.flags & DST_SLOT_MUTABLE)) {
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "cannot set constant");
+    }
+    subopts.flags |= DST_FOPTS_HINT;
+    subopts.hint = dest;
+    ret = dst_compile_value(subopts);
+    return ret;
+}
+
+/* Def */
+DstSlot dst_compile_def(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+    DstScope *scope = dst_compile_topscope(opts.compiler);
+    DstFormOptions subopts;
+    DstSlot ret;
+    if (argn != 2)
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
+    if (!dst_checktype(argv[0], DST_SYMBOL))
+        dst_compile_cerror(opts.compiler, opts.sourcemap, "expected symbol");
+    subopts = dst_compile_getopts_index(opts, 2);
+    subopts.flags &= ~DST_FOPTS_TAIL;
+    ret = dst_compile_value(subopts);
+    ret.flags |= DST_SLOT_NAMED;
+    if (scope->flags & DST_SCOPE_TOP) {
+        /* Global def, generate code to store in env when executed */
+        DstCompiler *c = opts.compiler;
+        const DstValue *sm = opts.sourcemap;
+        /* Root scope, add to def table */
+        DstSlot envslot = dst_compile_constantslot(c->env);
+        DstSlot nameslot = dst_compile_constantslot(argv[0]);
+        DstSlot valsymslot = dst_compile_constantslot(dst_csymbolv("value"));
+        DstSlot tableslot = dst_compile_constantslot(dst_wrap_cfunction(dst_stl_table));
+        /* Create env entry */
+        int32_t valsymindex = dst_compile_preread(c, sm, 0xFF, 1, valsymslot);
+        int32_t retindex = dst_compile_preread(c, sm, 0xFFFF, 2, ret);
+        dst_compile_emit(c, sm,
+                (retindex << 16) |
+                (valsymindex << 8) |
+                DOP_PUSH_2);
+        dst_compile_postread(c, ret, retindex);
+        dst_compile_postread(c, valsymslot, valsymindex);
+        dst_compile_freeslot(c, valsymslot);
+        int32_t tableindex = dst_compile_preread(opts.compiler, opts.sourcemap, 0xFF, 1, tableslot);
+        dst_compile_emit(c, sm,
+                (tableindex << 16) |
+                (tableindex << 8) |
+                DOP_CALL);
+        /* Add env entry to env */
+        int32_t nameindex = dst_compile_preread(opts.compiler, opts.sourcemap, 0xFF, 2, nameslot);
+        int32_t envindex = dst_compile_preread(opts.compiler, opts.sourcemap, 0xFF, 3, envslot);
+        dst_compile_emit(opts.compiler, opts.sourcemap, 
+                (tableindex << 24) |
+                (nameindex << 16) |
+                (envindex << 8) |
+                DOP_PUT);
+        dst_compile_postread(opts.compiler, envslot, envindex);
+        dst_compile_postread(opts.compiler, nameslot, nameindex);
+        dst_compile_postread(c, tableslot, tableindex);
+        dst_compile_freeslot(c, tableslot);
+        dst_compile_freeslot(c, envslot);
+        dst_compile_freeslot(c, tableslot);
+    } else {
+        /* Non root scope, simple slot alias */
+        slotsym(scope, dst_unwrap_symbol(argv[0]), ret); 
+    }
+    return ret;
+}
+
+/* Do */
+DstSlot dst_compile_do(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+    int32_t i;
+    DstSlot ret;
+    dst_compile_scope(opts.compiler, 0);
+    for (i = 0; i < argn; i++) {
+        DstFormOptions subopts = dst_compile_getopts_index(opts, i + 1);
+        subopts.x = argv[i];
+        if (i == argn - 1) {
+            subopts.flags |= DST_FOPTS_TAIL;
+        } else {
+            subopts.flags &= ~DST_FOPTS_TAIL;
+        }
+        ret = dst_compile_value(subopts);
+        if (i != argn - 1) {
+            dst_compile_freeslot(opts.compiler, ret);
+        }
+    }
+    dst_compile_popscope(opts.compiler);
+    return ret;
+}
+
+/* Keep in lexographic order */
+static const DstSpecial dst_compiler_specials[] = {
+    {"def", dst_compile_def},
+    {"do", dst_compile_do},
+    {"quote", dst_compile_quote},
+    {"var", dst_compile_var},
+    {"varset", dst_compile_varset}
+};
+
+static int dst_strcompare(const uint8_t *str, const char *other) {
+    int32_t len = dst_string_length(str);
+    int32_t index;
+    for (index = 0; index < len; index++) {
+        uint8_t c = str[index];
+        uint8_t k = ((const uint8_t *)other)[index];
+        if (c < k) return -1;
+        if (c > k) return 1;
+        if (k == '\0') break;
+    }
+    return (other[index] == '\0') ? 0 : -1;
+}
+
+/* Find an instruction definition given its name */
+static const DstSpecial *dst_finds(const uint8_t *key) {
+    const DstSpecial *low = dst_compiler_specials;
+    const DstSpecial *hi = dst_compiler_specials +
+        (sizeof(dst_compiler_specials) / sizeof(DstSpecial));
+    while (low < hi) {
+        const DstSpecial *mid = low + ((hi - low) / 2);
+        int comp = dst_strcompare(key, mid->name);
+        if (comp < 0) {
+            hi = mid;
+        } else if (comp > 0) {
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+    return NULL;
+}
+
 /* Compile a tuplle */
 DstSlot dst_compile_tuple(DstFormOptions opts) {
     DstSlot head;
@@ -698,18 +898,21 @@ DstSlot dst_compile_tuple(DstFormOptions opts) {
         return dst_compile_constantslot(opts.x);
     }
     if (dst_checktype(tup[0], DST_SYMBOL)) {
-        /* Check specials */
-    } else {
+        const DstSpecial *s = dst_finds(dst_unwrap_symbol(tup[0]));
+        if (NULL != s) {
+            return s->compile(opts, dst_tuple_length(tup) - 1, tup + 1);
+        }
+    }
+    if (!headcompiled) {
         head = dst_compile_value(subopts);
         headcompiled = 1;
-        if ((head.flags & DST_SLOT_CONSTANT)) {
+        /*
+         if ((head.flags & DST_SLOT_CONSTANT)) {
             if (dst_checktype(head.constant, DST_CFUNCTION)) {
-                /* Cfunction optimization */
                 printf("add cfunction optimization here...\n");
             }
-            /* Could also later check for other optimizations here, such
-             * as function inlining and aot evaluation on pure functions. */
         }
+        */
     }
     /* Compile a normal function call */
     {
@@ -750,11 +953,7 @@ DstSlot dst_compile_value(DstFormOptions opts) {
         case DST_SYMBOL:
             {
                 const uint8_t *sym = dst_unwrap_symbol(opts.x);
-                if (dst_string_length(sym) > 0 && sym[0] != ':') {
-                    ret = dst_compile_resolve(opts.compiler, opts.sourcemap, sym);
-                } else {
-                    ret = dst_compile_constantslot(opts.x);
-                }
+                ret = dst_compile_resolve(opts.compiler, opts.sourcemap, sym);
                 break;
             }
         case DST_TUPLE:
@@ -772,6 +971,9 @@ DstSlot dst_compile_value(DstFormOptions opts) {
     }
     if ((opts.flags & DST_FOPTS_TAIL) && !dst_compile_did_return(opts.compiler)) {
         dst_compile_return(opts.compiler, opts.sourcemap, ret);
+    } else if (opts.flags & DST_FOPTS_HINT) {
+        dst_compile_copy(opts.compiler, opts.sourcemap, opts.hint, ret);
+        ret = opts.hint;
     }
     opts.compiler->recursion_guard++;
     return ret;
@@ -807,7 +1009,9 @@ static DstFuncDef *dst_compile_pop_funcdef(DstCompiler *c) {
         if (NULL == def->constants) {
             DST_OUT_OF_MEMORY;
         }
-        memcpy(def->constants, scope->consts, def->constants_length * sizeof(DstValue));
+        memcpy(def->constants,
+                scope->consts,
+                def->constants_length * sizeof(DstValue));
     }
 
     /* Copy bytecode */
@@ -817,7 +1021,9 @@ static DstFuncDef *dst_compile_pop_funcdef(DstCompiler *c) {
         if (NULL == def->bytecode) {
             DST_OUT_OF_MEMORY;
         }
-        memcpy(def->bytecode, c->buffer + scope->bytecode_start, def->bytecode_length * sizeof(uint32_t));
+        memcpy(def->bytecode,
+                c->buffer + scope->bytecode_start,
+                def->bytecode_length * sizeof(uint32_t));
     }
 
     /* Copy source map over */
@@ -826,7 +1032,9 @@ static DstFuncDef *dst_compile_pop_funcdef(DstCompiler *c) {
         if (NULL == def->sourcemap) {
             DST_OUT_OF_MEMORY;
         }
-        memcpy(def->sourcemap, c->mapbuffer + 2 * scope->bytecode_start, def->bytecode_length * 2 * sizeof(int32_t));
+        memcpy(def->sourcemap, 
+                c->mapbuffer + 2 * scope->bytecode_start, 
+                def->bytecode_length * 2 * sizeof(int32_t));
     }
 
     /* Reset bytecode gen */
@@ -847,31 +1055,8 @@ static DstFuncDef *dst_compile_pop_funcdef(DstCompiler *c) {
     return def;
 }
 
-/* Merge an environment */
-
-
-
-/* Load an environment */
-void dst_compile_loadenv(DstCompiler *c, DstValue env) {
-    int32_t count, cap;
-    const DstValue *hmap;
-    DstValue defs = dst_get(env, dst_csymbolv("defs"));
-    /*DstValue vars = dst_get(env, dst_csymbol("vars"));*/
-    /* TODO - add global vars via single element arrays. */
-    if (dst_hashtable_view(defs, &hmap, &count, &cap)) {
-        DstScope *scope = dst_compile_topscope(c);
-        int32_t i;
-        for (i = 0; i < cap; i += 2) {
-            const uint8_t *sym;
-            if (!dst_checktype(hmap[i], DST_SYMBOL)) continue;
-            sym = dst_unwrap_symbol(hmap[i]);
-            slotsym(scope, sym, dst_compile_constantslot(hmap[i+1]));
-        }
-    }
-}
-
 /* Initialize a compiler */
-static void dst_compile_init(DstCompiler *c) {
+static void dst_compile_init(DstCompiler *c, DstValue env) {
     c->scopecount = 0;
     c->scopecap = 0;
     c->scopes = NULL;
@@ -880,8 +1065,9 @@ static void dst_compile_init(DstCompiler *c) {
     c->buffer = NULL;
     c->mapbuffer = NULL;
     c->recursion_guard = DST_RECURSION_GUARD;
+    c->env = env;
 
-    /* Push an empty function scope. This will be the global scope. */
+    /* Push an empty scope. This will be the global scope. */
     dst_compile_scope(c, 0);
     
     dst_compile_topscope(c)->flags |= DST_SCOPE_TOP;
@@ -901,7 +1087,7 @@ static void dst_compile_deinit(DstCompiler *c) {
 }
 
 /* Compile a single form */
-DstCompileResults dst_compile_one(DstCompiler *c, DstCompileOptions opts) {
+DstCompileResult dst_compile_one(DstCompiler *c, DstCompileOptions opts) {
     DstFormOptions fopts;
     DstSlot s;
 
@@ -910,13 +1096,13 @@ DstCompileResults dst_compile_one(DstCompiler *c, DstCompileOptions opts) {
         dst_compile_popscope(c);
 
     if (setjmp(c->on_error)) {
-        c->results.status = DST_COMPILE_ERROR;
-        c->results.funcdef = NULL;
-        return c->results;
+        c->result.status = DST_COMPILE_ERROR;
+        c->result.funcdef = NULL;
+        return c->result;
     }
 
     /* Push a function scope */
-    dst_compile_scope(c, 1);
+    dst_compile_scope(c, DST_SCOPE_FUNCTION | DST_SCOPE_TOP);
 
     /* Set the global environment */
     c->env = opts.env;
@@ -930,18 +1116,18 @@ DstCompileResults dst_compile_one(DstCompiler *c, DstCompileOptions opts) {
     /* Compile the value */
     s = dst_compile_value(fopts);
 
-    c->results.funcdef = dst_compile_pop_funcdef(c);
-    c->results.status = DST_COMPILE_OK;
+    c->result.funcdef = dst_compile_pop_funcdef(c);
+    c->result.status = DST_COMPILE_OK;
 
-    return c->results;
+    return c->result;
 }
 
 /* Compile a form. */
-DstCompileResults dst_compile(DstCompileOptions opts) {
+DstCompileResult dst_compile(DstCompileOptions opts) {
     DstCompiler c;
-    DstCompileResults res;
+    DstCompileResult res;
 
-    dst_compile_init(&c);
+    dst_compile_init(&c, opts.env);
 
     res = dst_compile_one(&c, opts);
 
@@ -950,7 +1136,7 @@ DstCompileResults dst_compile(DstCompileOptions opts) {
     return res;
 }
 
-DstFunction *dst_compile_func(DstCompileResults res) {
+DstFunction *dst_compile_func(DstCompileResult res) {
     if (res.status != DST_COMPILE_OK) {
         return NULL;
     }

@@ -26,13 +26,13 @@ PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 VERSION=\"0.0.0-beta\"
 
-CFLAGS=-std=c99 -Wall -Wextra -Wfatal-errors -I./include -I./libs -g -DDST_VERSION=$(VERSION)
+CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=$(VERSION)
 PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
 DEBUGGER=lldb
-DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h gc.h)
-DST_HEADERS=$(addprefix include/dst/,dst.h)
+DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h gc.h sourcemap.h)
+DST_HEADERS=$(addprefix include/dst/,dst.h dstconfig.h dsttypes.h dststate.h dststl.h)
 
 #############################
 ##### Generated headers #####
@@ -60,13 +60,13 @@ $(DST_XXD): libs/xxd.c
 
 DST_CORE_SOURCES=$(addprefix core/,\
 				 array.c asm.c buffer.c compile.c\
-				 fiber.c func.c gc.c parse.c string.c strtod.c\
-				 struct.c symcache.c syscalls.c table.c tuple.c userdata.c util.c\
+				 fiber.c func.c gc.c math.c parse.c sourcemap.c string.c stl.c strtod.c\
+				 struct.c symcache.c table.c tuple.c userdata.c util.c\
 				 value.c vm.c wrap.c)
 DST_CORE_OBJECTS=$(patsubst %.c,%.o,$(DST_CORE_SOURCES))
 
-$(DST_TARGET): $(DST_CORE_OBJECTS)
-	$(CC) $(CFLAGS) -o $(DST_TARGET) $(DST_CORE_OBJECTS)
+$(DST_TARGET): client/main.o $(DST_CORE_OBJECTS)
+	$(CC) $(CFLAGS) -o $(DST_TARGET) $^
 
 # Compile all .c to .o
 %.o: %.c $(DST_ALL_HEADERS)

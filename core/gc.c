@@ -26,7 +26,7 @@
 
 /* GC State */
 void *dst_vm_blocks;
-uint32_t dst_vm_memory_interval;
+uint32_t dst_vm_gc_interval;
 uint32_t dst_vm_next_collection;
 
 /* Roots */
@@ -331,6 +331,22 @@ int dst_gcunroot(DstValue root) {
         }
     }
     return 0;
+}
+
+/* Remove a root value from the GC. This sets the effective reference count to 0. */
+int dst_gcunrootall(DstValue root) {
+    DstValue *vtop = dst_vm_roots + dst_vm_root_count;
+    DstValue *v = dst_vm_roots;
+    int ret = 0;
+    /* Search from top to bottom as access is most likely LIFO */
+    for (v = dst_vm_roots; v < vtop; v++) {
+        if (dst_equals(root, *v)) {
+            *v = dst_vm_roots[--dst_vm_root_count];
+            vtop--;
+            ret = 1;
+        }
+    }
+    return ret;
 }
 
 /* Free all allocated memory */

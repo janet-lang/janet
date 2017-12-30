@@ -79,8 +79,6 @@ enum DstOpCode {
     DOP_PUSH_ARRAY,
     DOP_CALL,
     DOP_TAILCALL,
-    DOP_SYSCALL,
-    DOP_LOAD_SYSCALL,
     DOP_TRANSFER,
     DOP_GET,
     DOP_PUT,
