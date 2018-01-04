@@ -133,7 +133,6 @@ DstValue dst_fiber_popvalue(DstFiber *fiber);
 void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func);
 void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func);
 void dst_fiber_cframe(DstFiber *fiber);
-void dst_fiber_cframe_tail(DstFiber *fiber);
 void dst_fiber_popframe(DstFiber *fiber);
 
 /* Functions */
@@ -143,16 +142,17 @@ void dst_function_detach(DstFunction *func);
 DstAssembleResult dst_asm(DstAssembleOptions opts);
 DstFunction *dst_asm_func(DstAssembleResult result);
 DstValue dst_disasm(DstFuncDef *def);
+DstValue dst_asm_decode_instruction(uint32_t instr);
 
 /* Treat similar types through uniform interfaces for iteration */
 int dst_seq_view(DstValue seq, const DstValue **data, int32_t *len);
 int dst_chararray_view(DstValue str, const uint8_t **data, int32_t *len);
 int dst_hashtable_view(DstValue tab, const DstValue **data, int32_t *len, int32_t *cap);
 
-/* Userdata */
-#define dst_userdata_header(u) ((DstUserdataHeader *)(u) - 1)
-#define dst_userdata_type(u) (dst_userdata_header(u)->type)
-#define dst_userdata_size(u) (dst_userdata_header(u)->size)
+/* Abstract */
+#define dst_abstract_header(u) ((DstAbstractHeader *)(u) - 1)
+#define dst_abstract_type(u) (dst_abstract_header(u)->type)
+#define dst_abstract_size(u) (dst_abstract_header(u)->size)
 
 /* Value functions */
 int dst_equals(DstValue x, DstValue y);

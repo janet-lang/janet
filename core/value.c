@@ -47,6 +47,9 @@ int dst_equals(DstValue x, DstValue y) {
         case DST_STRING:
             result = dst_string_equal(dst_unwrap_string(x), dst_unwrap_string(y));
             break;
+        case DST_TUPLE:
+            result = dst_tuple_equal(dst_unwrap_tuple(x), dst_unwrap_tuple(y));
+            break;
         case DST_STRUCT:
             result = dst_struct_equal(dst_unwrap_struct(x), dst_unwrap_struct(y));
             break;
@@ -259,7 +262,7 @@ int32_t dst_capacity(DstValue x) {
     }
 }
 
-/* Index into a data structure. Returns nil for out of bounds or invliad data structure */
+/* Index into a data structure. Returns nil for out of bounds or invlalid data structure */
 DstValue dst_getindex(DstValue ds, int32_t index) {
     switch (dst_type(ds)) {
         default:

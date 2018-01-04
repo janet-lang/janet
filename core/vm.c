@@ -68,7 +68,7 @@ static int dst_continue(DstValue *returnreg) {
      * Pulls out unsigned integers */
 #define oparg(shift, mask) (((*pc) >> ((shift) << 3)) & (mask))
 
-#define vm_throw(e) do { retreg = dst_cstringv((e)); goto vm_error; } while (0)
+#define vm_throw(e) do { retreg = dst_wrap_string(dst_formatc("%s, %v", (e), dst_asm_decode_instruction(*pc))); goto vm_error; } while (0)
 #define vm_assert(cond, e) do {if (!(cond)) vm_throw((e)); } while (0)
 
 #define vm_binop_integer(op) \
@@ -124,10 +124,13 @@ static int dst_continue(DstValue *returnreg) {
      * templated by the above macros. */
     for (;;) {
 
+        /*dst_puts(dst_formatc("trace: %C\n", dst_asm_decode_instruction(*pc)));*/
+
         switch (*pc & 0xFF) {
 
         default:
-        vm_throw("unknown opcode");
+        retreg = dst_wrap_string(dst_formatc("unknown opcode %d", *pc & 0xFF));
+        goto vm_error;
 
         case DOP_NOOP:
         pc++;
@@ -365,10 +368,13 @@ static int dst_continue(DstValue *returnreg) {
         vm_next();
 
         case DOP_LOAD_CONSTANT:
-        vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
-        stack[oparg(1, 0xFF)] = func->def->constants[(int32_t)oparg(2, 0xFFFF)];
-        pc++;
-        vm_next();
+        {
+            int32_t index = oparg(2, 0xFFFF);
+            vm_assert(index < func->def->constants_length, "invalid constant");
+            stack[oparg(1, 0xFF)] = func->def->constants[index];
+            pc++;
+            vm_next();
+        }
 
         case DOP_LOAD_SELF:
         stack[oparg(1, 0xFFFFFF)] = dst_wrap_function(func);
@@ -416,23 +422,18 @@ static int dst_continue(DstValue *returnreg) {
             int32_t i;
             DstFunction *fn;
             DstFuncDef *fd;
-            vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->constants_length, "invalid constant");
-            vm_assert(dst_checktype(func->def->constants[oparg(2, 0xFFFF)], DST_NIL), "constant must be funcdef");
-            fd = (DstFuncDef *)(dst_unwrap_pointer(func->def->constants[(int32_t)oparg(2, 0xFFFF)]));
+            vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->defs_length, "invalid funcdef");
+            fd = func->def->defs[(int32_t)oparg(2, 0xFFFF)];
             fn = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
-            fn->envs = malloc(sizeof(DstFuncEnv *) * fd->environments_length);
-            if (NULL == fn->envs) {
-                DST_OUT_OF_MEMORY;
-            }
-            if (fd->flags & DST_FUNCDEF_FLAG_NEEDSENV) {
-                /* Delayed capture of current stack frame */
-                DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
-                env->offset = dst_vm_fiber->frame;
-                env->as.fiber = dst_vm_fiber;
-                env->length = func->def->slotcount;
-                fn->envs[0] = env;
-            } else {
+            fn->def = fd;
+            if (fd->environments_length) {
+                fn->envs = malloc(sizeof(DstFuncEnv *) * fd->environments_length);
+                if (NULL == fn->envs) {
+                    DST_OUT_OF_MEMORY;
+                }
                 fn->envs[0] = NULL;
+            } else {
+                fn->envs = NULL;
             }
             for (i = 1; i < fd->environments_length; ++i) {
                 int32_t inherit = fd->environments[i];
@@ -446,6 +447,7 @@ static int dst_continue(DstValue *returnreg) {
         case DOP_PUSH:
         dst_fiber_push(dst_vm_fiber, stack[oparg(1, 0xFFFFFF)]);
         pc++;
+        stack = dst_vm_fiber->data + dst_vm_fiber->frame;
         vm_checkgc_next();
 
         case DOP_PUSH_2:
@@ -453,6 +455,7 @@ static int dst_continue(DstValue *returnreg) {
             stack[oparg(1, 0xFF)],
             stack[oparg(2, 0xFFFF)]);
         pc++;
+        stack = dst_vm_fiber->data + dst_vm_fiber->frame;
         vm_checkgc_next();
 
         case DOP_PUSH_3:
@@ -461,42 +464,32 @@ static int dst_continue(DstValue *returnreg) {
             stack[oparg(2, 0xFF)],
             stack[oparg(3, 0xFF)]);
         pc++;
+        stack = dst_vm_fiber->data + dst_vm_fiber->frame;
         vm_checkgc_next();
-
-        case DOP_PUSH_ARRAY:
-        {
-            int32_t count;
-            const DstValue *array;
-            if (dst_seq_view(stack[oparg(1, 0xFFFFFF)], &array, &count)) {
-                dst_fiber_pushn(dst_vm_fiber, array, count);
-            } else {
-                vm_throw("expected array or tuple");
-            }
-            pc++;
-            vm_checkgc_next();
-        }
 
         case DOP_CALL:
         {
             DstValue callee = stack[oparg(2, 0xFFFF)];
             if (dst_checktype(callee, DST_FUNCTION)) {
                 func = dst_unwrap_function(callee);
+                dst_stack_frame(stack)->pc = pc;
                 dst_fiber_funcframe(dst_vm_fiber, func);
                 stack = dst_vm_fiber->data + dst_vm_fiber->frame;
                 pc = func->def->bytecode;
                 vm_checkgc_next();
             } else if (dst_checktype(callee, DST_CFUNCTION)) {
+                int32_t argn = dst_vm_fiber->stacktop - dst_vm_fiber->stackstart;
                 dst_fiber_cframe(dst_vm_fiber);
                 retreg = dst_wrap_nil();
                 if (dst_unwrap_cfunction(callee)(
-                        dst_vm_fiber->frametop - dst_vm_fiber->frame,
-                        dst_vm_fiber->data + dst_vm_fiber->frame,
-                        &retreg)) {
+                            argn,
+                            dst_vm_fiber->data + dst_vm_fiber->frame,
+                            &retreg)) {
                     goto vm_error;
                 }
                 goto vm_return_cfunc;
             }
-            vm_throw("cannot call non-function type");
+            vm_throw("expected function");
         }
 
         case DOP_TAILCALL:
@@ -509,15 +502,16 @@ static int dst_continue(DstValue *returnreg) {
                 pc = func->def->bytecode;
                 vm_checkgc_next();
             } else if (dst_checktype(callee, DST_CFUNCTION)) {
-                dst_fiber_cframe_tail(dst_vm_fiber);
+                int32_t argn = dst_vm_fiber->stacktop - dst_vm_fiber->stackstart;
+                dst_fiber_cframe(dst_vm_fiber);
                 retreg = dst_wrap_nil();
                 if (dst_unwrap_cfunction(callee)(
-                        dst_vm_fiber->frametop - dst_vm_fiber->frame,
-                        dst_vm_fiber->data + dst_vm_fiber->frame,
-                        &retreg)) {
+                            argn,
+                            dst_vm_fiber->data + dst_vm_fiber->frame,
+                            &retreg)) {
                     goto vm_error;
                 }
-                goto vm_return_cfunc;
+                goto vm_return_cfunc_tail;
             }
             vm_throw("expected function");
         }
@@ -585,12 +579,23 @@ static int dst_continue(DstValue *returnreg) {
                 *returnreg = retreg;
                 return 0;
             }
+            stack = dst_vm_fiber->data + dst_vm_fiber->frame;
             stack[oparg(1, 0xFF)] = retreg;
             pc++;
             vm_checkgc_next();
         }
 
-        /* Handle returning from stack frame. Expect return value in fiber->ret */
+        vm_return_cfunc_tail:
+        {
+            dst_fiber_popframe(dst_vm_fiber);
+            if (dst_update_fiber()) {
+                *returnreg = retreg;
+                return 0;
+            }
+            /* Fall through to normal return */
+        }
+
+        /* Handle returning from stack frame. Expect return value in retreg */
         vm_return:
         {
             dst_fiber_popframe(dst_vm_fiber);
@@ -599,6 +604,7 @@ static int dst_continue(DstValue *returnreg) {
                 return 0;
             }
             stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+            func = dst_stack_frame(stack)->func;
             pc = dst_stack_frame(stack)->pc;
             stack[oparg(1, 0xFF)] = retreg;
             pc++;
@@ -614,6 +620,7 @@ static int dst_continue(DstValue *returnreg) {
                 return 1;
             }
             stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+            func = dst_stack_frame(stack)->func;
             pc = dst_stack_frame(stack)->pc;
             stack[oparg(1, 0xFF)] = retreg;
             pc++;
@@ -668,7 +675,7 @@ int dst_init() {
      * a collection pretty much every cycle, which is
      * horrible for performance, but helps ensure
      * there are no memory bugs during dev */
-    dst_vm_gc_interval = 0x0000000;
+    dst_vm_gc_interval = 0x00000000;
     dst_symcache_init();
     /* Set thread */
     dst_vm_fiber = NULL;

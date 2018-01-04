@@ -40,6 +40,7 @@ typedef struct DstCFunctionOptimizer DstCFunctionOptimizer;
 #define DST_SLOT_NAMED 0x20000
 #define DST_SLOT_MUTABLE 0x40000
 #define DST_SLOT_REF 0x80000
+#define DST_SLOT_RETURNED 0x100000
 /* Needed for handling single element arrays as global vars. */
 
 #define DST_SLOTTYPE_ANY 0xFFFF
@@ -69,6 +70,7 @@ struct DstSlot {
 #define DST_SCOPE_FUNCTION 1
 #define DST_SCOPE_ENV 2
 #define DST_SCOPE_TOP 4
+#define DST_SCOPE_UNUSED 8
 
 /* A lexical scope during compilation */
 struct DstScope {
@@ -90,6 +92,11 @@ struct DstScope {
     uint32_t *slots;
     int32_t scap;
     int32_t smax;
+
+    /* FuncDefs */
+    int32_t dcount;
+    int32_t dcap;
+    DstFuncDef **defs;
 
     /* Referenced closure environents. The values at each index correspond
      * to which index to get the environment from in the parent. The enironment
@@ -125,8 +132,9 @@ struct DstCompiler {
 
 #define DST_FOPTS_TAIL 0x10000
 #define DST_FOPTS_HINT 0x20000
+#define DST_FOPTS_DROP 0x40000
 
-/* Compiler state */
+/* Options for compiling a single form */
 struct DstFormOptions {
     DstCompiler *compiler;
     DstValue x;

@@ -116,6 +116,6 @@
 #define DST_RECURSION_GUARD 1000
 
 /* Use nanboxed values - uses 8 bytes per value instead of 12 or 16. */
-#define DST_NANBOX
+//#define DST_NANBOX
 
 #endif /* DST_CONFIG_H_defined */

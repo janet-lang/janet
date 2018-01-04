@@ -26,7 +26,7 @@ PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 VERSION=\"0.0.0-beta\"
 
-CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=$(VERSION)
+CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g  -fsanitize=address -DDST_VERSION=$(VERSION)
 PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
@@ -38,39 +38,25 @@ DST_HEADERS=$(addprefix include/dst/,dst.h dstconfig.h dsttypes.h dststate.h dst
 ##### Generated headers #####
 #############################
 
-DST_LANG_SOURCES=$(addprefix libs/, bootstrap.dst)
-DST_LANG_HEADERS=$(patsubst %.dst,%.gen.h,$(DST_LANG_SOURCES))
-DST_ALL_HEADERS=$(DST_HEADERS) $(DST_INTERNAL_HEADERS) $(DST_LANG_HEADERS)
+DST_ALL_HEADERS=$(DST_HEADERS) $(DST_INTERNAL_HEADERS)
 
 all: $(DST_TARGET)
-
-#######################
-##### Build tools #####
-#######################
-
-$(DST_XXD): libs/xxd.c
-	$(CC) -o $(DST_XXD) libs/xxd.c
-
-%.gen.h: %.dst $(DST_XXD)
-	./$(DST_XXD) $< $@ $(basename $(notdir $<))
 
 ###################################
 ##### The core vm and runtime #####
 ###################################
 
 DST_CORE_SOURCES=$(addprefix core/,\
-				 array.c asm.c buffer.c compile.c\
-				 fiber.c func.c gc.c math.c parse.c sourcemap.c string.c stl.c strtod.c\
-				 struct.c symcache.c table.c tuple.c userdata.c util.c\
+				 abstract.c array.c asm.c buffer.c compile.c\
+				 fiber.c func.c gc.c math.c parse.c sourcemap.c string.c\
+				 stl.c strtod.c struct.c symcache.c table.c tuple.c util.c\
 				 value.c vm.c wrap.c)
-DST_CORE_OBJECTS=$(patsubst %.c,%.o,$(DST_CORE_SOURCES))
 
-$(DST_TARGET): client/main.o $(DST_CORE_OBJECTS)
-	$(CC) $(CFLAGS) -o $(DST_TARGET) $^
+DST_CLIENT_SOURCES=$(addprefix client/,\
+				   main.c)
 
-# Compile all .c to .o
-%.o: %.c $(DST_ALL_HEADERS)
-	$(CC) $(CFLAGS) -o $@ -c $<
+$(DST_TARGET): $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(DST_ALL_HEADERS)
+	$(CC) $(CFLAGS) $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) -o $(DST_TARGET)
 
 ######################
 ##### Unit Tests #####
@@ -120,7 +106,9 @@ valtest: $(DST_TARGET)
 
 clean:
 	rm $(DST_TARGET) || true
-	rm $(DST_CORE_OBJECTS) || true
+	rm *.o || true
+	rm client/*.o || true
+	rm core/*.o || true
 	rm $(DST_LANG_HEADERS) || true
 	rm vgcore.* || true
 	rm unittests/*.out || true

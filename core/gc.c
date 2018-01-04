@@ -45,7 +45,7 @@ static void dst_mark_tuple(const DstValue *tuple);
 static void dst_mark_buffer(DstBuffer *buffer);
 static void dst_mark_string(const uint8_t *str);
 static void dst_mark_fiber(DstFiber *fiber);
-static void dst_mark_udata(void *udata);
+static void dst_mark_abstract(void *adata);
 
 /* Mark a value */
 void dst_mark(DstValue x) {
@@ -60,7 +60,7 @@ void dst_mark(DstValue x) {
         case DST_TUPLE: dst_mark_tuple(dst_unwrap_tuple(x)); break;
         case DST_BUFFER: dst_mark_buffer(dst_unwrap_buffer(x)); break;
         case DST_FIBER: dst_mark_fiber(dst_unwrap_fiber(x)); break;
-        case DST_USERDATA: dst_mark_udata(dst_unwrap_pointer(x)); break;
+        case DST_ABSTRACT: dst_mark_abstract(dst_unwrap_abstract(x)); break;
     }
 }
 
@@ -72,8 +72,8 @@ static void dst_mark_buffer(DstBuffer *buffer) {
     dst_gc_mark(buffer);
 }
 
-static void dst_mark_udata(void *udata) {
-    dst_gc_mark(dst_userdata_header(udata));
+static void dst_mark_abstract(void *adata) {
+    dst_gc_mark(dst_abstract_header(adata));
 }
 
 /* Mark a bunch of items in memory */
@@ -129,21 +129,13 @@ static void dst_mark_funcenv(DstFuncEnv *env) {
 
 /* GC helper to mark a FuncDef */
 static void dst_mark_funcdef(DstFuncDef *def) {
-    int32_t count, i;
+    int32_t i;
     if (dst_gc_reachable(def))
         return;
     dst_gc_mark(def);
-    if (def->constants) {
-        count = def->constants_length;
-        for (i = 0; i < count; ++i) {
-            DstValue v = def->constants[i];
-            /* Funcdefs use nil literals to store other funcdefs */
-            if (dst_checktype(v, DST_NIL)) {
-                dst_mark_funcdef((DstFuncDef *) dst_unwrap_pointer(v));
-            } else {
-                dst_mark(v);
-            }
-        }
+    dst_mark_many(def->constants, def->constants_length);
+    for (i = 0; i < def->defs_length; ++i) {
+        dst_mark_funcdef(def->defs[i]);
     }
     if (def->source)
         dst_mark_string(def->source);
@@ -173,7 +165,7 @@ static void dst_mark_fiber(DstFiber *fiber) {
     dst_gc_mark(fiber);
     
     i = fiber->frame;
-    j = fiber->frametop;
+    j = fiber->stackstart - DST_FRAME_SIZE;
     while (i > 0) {
         frame = (DstStackFrame *)(fiber->data + i - DST_FRAME_SIZE);
         if (NULL != frame->func)
@@ -186,14 +178,12 @@ static void dst_mark_fiber(DstFiber *fiber) {
 
     if (NULL != fiber->parent)
         dst_mark_fiber(fiber->parent);
-
-    dst_mark(fiber->ret);
 }
 
 /* Deinitialize a block of memory */
 static void dst_deinit_block(DstGCMemoryHeader *block) {
     void *mem = ((char *)(block + 1));
-    DstUserdataHeader *h = (DstUserdataHeader *)mem;
+    DstAbstractHeader *h = (DstAbstractHeader *)mem;
     switch (block->flags & DST_MEM_TYPEBITS) {
         default:
             break; /* Do nothing for non gc types */ 
@@ -215,7 +205,7 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
         case DST_MEMORY_FUNCTION:
             free(((DstFunction *)mem)->envs);
             break;
-        case DST_MEMORY_USERDATA:
+        case DST_MEMORY_ABSTRACT:
             if (h->type->finalize)
                 h->type->finalize((void *)(h + 1), h->size);
             break;
@@ -251,6 +241,7 @@ void dst_sweep() {
             previous = current;
             current->flags &= ~DST_MEM_REACHABLE;
         } else {
+            /*printf("freeing block %p\n", current);*/
             dst_deinit_block(current);
             if (NULL != previous) {
                 previous->next = next;
@@ -262,6 +253,22 @@ void dst_sweep() {
         current = next;
     }
 }
+
+/*static const char *memtypes[] = {*/
+    /*"none",*/
+    /*"string",*/
+    /*"symbol",*/
+    /*"array",*/
+    /*"tuple",*/
+    /*"table",*/
+    /*"struct",*/
+    /*"fiber",*/
+    /*"buffer",*/
+    /*"function",*/
+    /*"abstract",*/
+    /*"funcenv",*/
+    /*"funcdef"*/
+/*};*/
 
 /* Allocate some memory that is tracked for garbage collection */
 void *dst_gcalloc(DstMemoryType type, size_t size) {
@@ -286,6 +293,8 @@ void *dst_gcalloc(DstMemoryType type, size_t size) {
     dst_vm_next_collection += size;
     mdata->next = dst_vm_blocks;
     dst_vm_blocks = mdata;
+
+    /*printf("created block %p of size %lu, type %s\n", mem, size, memtypes[type]);*/
 
     return mem + sizeof(DstGCMemoryHeader);
 }

@@ -41,11 +41,11 @@ typedef struct DstFiber DstFiber;
 
 /* Other structs */
 typedef struct DstReg DstReg;
-typedef struct DstUserdataHeader DstUserdataHeader;
+typedef struct DstAbstractHeader DstAbstractHeader;
 typedef struct DstFuncDef DstFuncDef;
 typedef struct DstFuncEnv DstFuncEnv;
 typedef struct DstStackFrame DstStackFrame;
-typedef struct DstUserType DstUserType;
+typedef struct DstAbstractType DstAbstractType;
 typedef int (*DstCFunction)(int32_t argn, DstValue *argv, DstValue *ret);
 
 typedef enum DstAssembleStatus DstAssembleStatus;
@@ -74,7 +74,7 @@ typedef enum DstType {
     DST_BUFFER,
     DST_FUNCTION,
     DST_CFUNCTION,
-    DST_USERDATA
+    DST_ABSTRACT
 } DstType;
 
 /* We provide two possible implemenations of DstValues. The preferred
@@ -205,8 +205,7 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
 #define dst_wrap_buffer(s) dst_nanbox_wrap_((s), DST_BUFFER)
 #define dst_wrap_string(s) dst_nanbox_wrap_c((s), DST_STRING)
 #define dst_wrap_symbol(s) dst_nanbox_wrap_c((s), DST_SYMBOL)
-#define dst_wrap_userdata(s) dst_nanbox_wrap_((s), DST_USERDATA)
-#define dst_wrap_pointer(s) dst_nanbox_wrap_((s), DST_USERDATA)
+#define dst_wrap_abstract(s) dst_nanbox_wrap_((s), DST_ABSTRACT)
 #define dst_wrap_function(s) dst_nanbox_wrap_((s), DST_FUNCTION)
 #define dst_wrap_cfunction(s) dst_nanbox_wrap_((s), DST_CFUNCTION)
 
@@ -219,7 +218,7 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
 #define dst_unwrap_buffer(x) ((DstBuffer *)dst_nanbox_to_pointer(x))
 #define dst_unwrap_string(x) ((const uint8_t *)dst_nanbox_to_pointer(x))
 #define dst_unwrap_symbol(x) ((const uint8_t *)dst_nanbox_to_pointer(x))
-#define dst_unwrap_userdata(x) (dst_nanbox_to_pointer(x))
+#define dst_unwrap_abstract(x) (dst_nanbox_to_pointer(x))
 #define dst_unwrap_pointer(x) (dst_nanbox_to_pointer(x))
 #define dst_unwrap_function(x) ((DstFunction *)dst_nanbox_to_pointer(x))
 #define dst_unwrap_cfunction(x) ((DstCFunction)dst_nanbox_to_pointer(x))
@@ -255,7 +254,7 @@ struct DstValue {
 #define dst_unwrap_buffer(x) ((DstBuffer *)(x).as.pointer)
 #define dst_unwrap_string(x) ((const uint8_t *)(x).as.pointer)
 #define dst_unwrap_symbol(x) ((const uint8_t *)(x).as.pointer)
-#define dst_unwrap_userdata(x) ((x).as.pointer)
+#define dst_unwrap_abstract(x) ((x).as.pointer)
 #define dst_unwrap_pointer(x) ((x).as.pointer)
 #define dst_unwrap_function(x) ((DstFunction *)(x).as.pointer)
 #define dst_unwrap_cfunction(x) ((DstCFunction)(x).as.pointer)
@@ -279,8 +278,7 @@ DstValue dst_wrap_buffer(DstBuffer *x);
 DstValue dst_wrap_function(DstFunction *x);
 DstValue dst_wrap_cfunction(DstCFunction x);
 DstValue dst_wrap_table(DstTable *x);
-DstValue dst_wrap_userdata(void *x);
-DstValue dst_wrap_pointer(void *x);
+DstValue dst_wrap_abstract(void *x);
 
 /* End of tagged union implementation */
 #endif
@@ -297,7 +295,7 @@ struct DstFiber {
     DstValue *data;
     DstFiber *parent;
     int32_t frame; /* Index of the stack frame */
-    int32_t frametop; /* Index of top of stack frame */
+    int32_t stackstart; /* Beginning of next args */
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
     int32_t capacity;
     enum {
@@ -347,7 +345,8 @@ struct DstTable {
 /* A function definition. Contains information needed to instantiate closures. */
 struct DstFuncDef {
     int32_t *environments; /* Which environments to capture from parent. */
-    DstValue *constants; /* Contains strings, FuncDefs, etc. */
+    DstValue *constants;
+    DstFuncDef **defs;
     uint32_t *bytecode;
 
     /* Various debug information */
@@ -361,6 +360,7 @@ struct DstFuncDef {
     int32_t constants_length;
     int32_t bytecode_length;
     int32_t environments_length; 
+    int32_t defs_length; 
 };
 
 /* A fuction environment */
@@ -381,8 +381,8 @@ struct DstFunction {
     DstFuncEnv **envs;
 };
 
-/* Defines a type for userdata */
-struct DstUserType {
+/* Defines an abstract type */
+struct DstAbstractType {
     const char *name;
     int (*serialize)(void *data, size_t len);
     int (*deserialize)();
@@ -390,8 +390,8 @@ struct DstUserType {
 };
 
 /* Contains information about userdata */
-struct DstUserdataHeader {
-    const DstUserType *type;
+struct DstAbstractHeader {
+    const DstAbstractType *type;
     size_t size;
 };
 
@@ -402,7 +402,6 @@ enum DstAssembleStatus {
 };
 
 struct DstAssembleOptions {
-    const DstValue *sourcemap;
     DstValue source;
     uint32_t flags;
 };
@@ -410,8 +409,6 @@ struct DstAssembleOptions {
 struct DstAssembleResult {
     DstFuncDef *funcdef;
     const uint8_t *error;
-    int32_t error_start;
-    int32_t error_end;
     DstAssembleStatus status;
 };
 

@@ -24,11 +24,11 @@
 #include "gc.h"
 
 /* Create new userdata */
-void *dst_userdata(size_t size, const DstUserType *utype) {
-    char *data = dst_gcalloc(DST_MEMORY_USERDATA, sizeof(DstUserdataHeader) + size);
-    DstUserdataHeader *header = (DstUserdataHeader *)data;
-    void *user = data + sizeof(DstUserdataHeader);
+void *dst_abstract(size_t size, const DstAbstractType *atype) {
+    char *data = dst_gcalloc(DST_MEMORY_ABSTRACT, sizeof(DstAbstractHeader) + size);
+    DstAbstractHeader *header = (DstAbstractHeader *)data;
+    void *a = data + sizeof(DstAbstractHeader);
     header->size = size;
-    header->type = utype;
-    return user;
+    header->type = atype;
+    return a;
 }

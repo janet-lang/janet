@@ -47,7 +47,7 @@ const char *dst_type_names[16] = {
     "buffer",
     "function",
     "cfunction",
-    "userdata"
+    "abstract"
 };
 
 /* Computes hash of an array of values */

@@ -65,6 +65,14 @@ static const uint8_t *loadsource(const char *fpath, int32_t *len) {
     return NULL;
 }
 
+/* Shift bytes in buffer down */
+static void bshift(DstBuffer *buf, int32_t delta) {
+    buf->count -= delta;
+    if (delta) {
+        memmove(buf->data, buf->data + delta, buf->count);
+    }
+}
+
 /* simple repl */
 static int repl() {
     DstBuffer b;
@@ -74,29 +82,27 @@ static int repl() {
         DstParseResult res;
         DstCompileResult cres;
         DstCompileOptions opts;
-        if (b.count == 0)
-            printf("> ");
-        else
-            printf(">> ");
-        for (;;) {
-            c = fgetc(stdin);
-            if (c == EOF) {
-                printf("\n");
-                goto done;
-            }
-            dst_buffer_push_u8(&b, c);
-            if (c == '\n') break;
-        }
         res = dst_parse(b.data, b.count);
         switch (res.status) {
             case DST_PARSE_NODATA:
                 b.count = 0;
-                break;
             case DST_PARSE_UNEXPECTED_EOS:
+                if (b.count == 0)
+                    printf("> ");
+                else
+                    printf(">> ");
+                for (;;) {
+                    c = fgetc(stdin);
+                    if (c == EOF) {
+                        printf("\n");
+                        goto done;
+                    }
+                    dst_buffer_push_u8(&b, c);
+                    if (c == '\n') break;
+                }
                 break;
             case DST_PARSE_ERROR:
-                dst_puts(dst_formatc("syntax error at %d: %S\n",
-                            res.bytes_read + 1, res.error)); 
+                dst_puts(dst_formatc("syntax error: %S\n", res.error)); 
                 b.count = 0;
                 break;
             case DST_PARSE_OK:
@@ -107,18 +113,18 @@ static int repl() {
                     opts.env = env;
                     cres = dst_compile(opts);
                     if (cres.status == DST_COMPILE_OK) {
+                        /*dst_puts(dst_formatc("asm: %v\n", dst_disasm(cres.funcdef)));*/
                         DstFunction *f = dst_compile_func(cres);
                         DstValue ret;
                         if (dst_run(dst_wrap_function(f), &ret)) {
-                            dst_puts(dst_formatc("runtime error: %v\n", ret)); 
+                            dst_puts(dst_formatc("runtime error: %S\n", dst_to_string(ret))); 
                         } else {
                             dst_puts(dst_formatc("%v\n", ret)); 
                         }
                     } else {
-                        dst_puts(dst_formatc("compile error at %d: %S\n",
-                                    cres.error_start + 1, cres.error)); 
+                        dst_puts(dst_formatc("compile error: %S\n", cres.error)); 
                     }
-                    b.count = 0;
+                    bshift(&b, res.bytes_read);
                 }
                 break;
         }
@@ -157,9 +163,6 @@ static void runfile(const uint8_t *src, int32_t len) {
                         DstFunction *f = dst_compile_func(cres);
                         if (dst_run(dst_wrap_function(f), &ret)) {
                             dst_puts(dst_formatc("runtime error: %v\n", ret)); 
-                        } else {
-                            dst_puts(dst_formatc("runtime error: %v\n", ret));
-                            break;
                         }
                     } else {
                         dst_puts(dst_formatc("compile error at %d: %S\n",
@@ -176,7 +179,7 @@ int main(int argc, char **argv) {
     int status = -1;
     int i;
     int fileRead = 0;
-    uint32_t gcinterval = 8192;
+    uint32_t gcinterval = 0x10000;
     uint64_t flags = 0;
 
     /* Read the arguments. Ignore files. */

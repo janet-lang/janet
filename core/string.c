@@ -283,8 +283,10 @@ const uint8_t *dst_short_description(DstValue x) {
         return dst_unwrap_string(x);
     case DST_STRING:
         return dst_escape_string(dst_unwrap_string(x));
-    case DST_USERDATA:
-        return string_description(dst_userdata_type(dst_unwrap_pointer(x))->name, dst_unwrap_pointer(x));
+    case DST_ABSTRACT:
+        return string_description(
+                dst_abstract_type(dst_unwrap_abstract(x))->name,
+                dst_unwrap_abstract(x));
     default:
         return string_description(dst_type_names[dst_type(x)], dst_unwrap_pointer(x));
     }
@@ -308,13 +310,17 @@ void dst_short_description_b(DstBuffer *buffer, DstValue x) {
         integer_to_string_b(buffer, dst_unwrap_integer(x));
         return;
     case DST_SYMBOL:
-        dst_buffer_push_bytes(buffer, dst_unwrap_string(x), dst_string_length(dst_unwrap_string(x)));
+        dst_buffer_push_bytes(buffer, 
+                dst_unwrap_string(x), 
+                dst_string_length(dst_unwrap_string(x)));
         return;
     case DST_STRING:
         dst_escape_string_b(buffer, dst_unwrap_string(x));
         return;
-    case DST_USERDATA:
-        string_description_b(buffer, dst_userdata_type(dst_unwrap_pointer(x))->name, dst_unwrap_pointer(x));
+    case DST_ABSTRACT:
+        string_description_b(buffer, 
+                dst_abstract_type(dst_unwrap_abstract(x))->name, 
+                dst_unwrap_abstract(x));
         return;
     default:
         string_description_b(buffer, dst_type_names[dst_type(x)], dst_unwrap_pointer(x));
@@ -379,7 +385,7 @@ static int is_print_ds(DstValue v) {
     DST_BUFFER,
     DST_FUNCTION,
     DST_CFUNCTION,
-    DST_USERDATA
+    DST_ABSTRACT
 */
 static const char *dst_type_colors[16] = {
     "\x1B[35m",

@@ -39,6 +39,22 @@ int dst_stl_print(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
+int dst_stl_describe(int32_t argn, DstValue *argv, DstValue *ret) {
+    (void)ret;
+
+    int32_t i;
+    for (i = 0; i < argn; ++i) {
+        int32_t j, len;
+        const uint8_t *vstr = dst_description(argv[i]);
+        len = dst_string_length(vstr);
+        for (j = 0; j < len; ++j) {
+            putc(vstr[j], stdout);
+        }
+    }
+    putc('\n', stdout);
+    return 0;
+}
+
 int dst_stl_asm(int32_t argn, DstValue *argv, DstValue *ret) {
     DstAssembleOptions opts;
     DstAssembleResult res;
@@ -47,9 +63,6 @@ int dst_stl_asm(int32_t argn, DstValue *argv, DstValue *ret) {
         return 1;
     }
     opts.source = argv[0];
-    opts.sourcemap = (argn >= 2 && dst_checktype(argv[1], DST_TUPLE))
-        ? dst_unwrap_tuple(argv[1])
-        : NULL;
     opts.flags = 0;
     res = dst_asm(opts);
     if (res.status == DST_ASSEMBLE_OK) {
@@ -59,6 +72,17 @@ int dst_stl_asm(int32_t argn, DstValue *argv, DstValue *ret) {
         *ret = dst_wrap_string(res.error);
         return 1;
     }
+}
+
+int dst_stl_disasm(int32_t argn, DstValue *argv, DstValue *ret) {
+    DstFunction *f;
+    if (argn < 1 || !dst_checktype(argv[0], DST_FUNCTION)) {
+        *ret = dst_cstringv("expected function");
+        return 1;
+    }
+    f = dst_unwrap_function(argv[0]);
+    *ret = dst_disasm(f->def);
+    return 0;
 }
 
 int dst_stl_tuple(int32_t argn, DstValue *argv, DstValue *ret) {
@@ -159,6 +183,11 @@ static int dst_stl_notequal(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
+static int dst_stl_not(int32_t argn, DstValue *argv, DstValue *ret) {
+    *ret = dst_wrap_boolean(argn == 0 || !dst_truthy(argv[0]));
+    return 0;
+}
+
 #define DST_DEFINE_COMPARATOR(name, pred)\
 static int dst_stl_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
     int32_t i;\
@@ -179,11 +208,13 @@ DST_DEFINE_COMPARATOR(notascending, < 0)
 
 static DstReg stl[] = {
     {"print", dst_stl_print},
+    {"describe", dst_stl_describe},
     {"table", dst_stl_table},
     {"array", dst_stl_array},
     {"tuple", dst_stl_tuple},
     {"struct", dst_stl_struct},
     {"asm", dst_stl_asm},
+    {"disasm", dst_stl_disasm},
     {"get", dst_stl_get},
     {"put", dst_stl_put},
     {"+", dst_add},
@@ -203,12 +234,20 @@ static DstReg stl[] = {
     {"sqrt", dst_sqrt},
     {"floor", dst_floor},
     {"ceil", dst_ceil},
+    {"pow", dst_pow},
     {"=", dst_stl_equal},
     {"not=", dst_stl_notequal},
     {"<", dst_stl_ascending},
     {">", dst_stl_descending},
     {"<=", dst_stl_notdescending},
-    {">=", dst_stl_notascending}
+    {">=", dst_stl_notascending},
+    {"|", dst_bor},
+    {"&", dst_band},
+    {"^", dst_bxor},
+    {">>", dst_lshift},
+    {"<<", dst_rshift},
+    {">>>", dst_lshiftu},
+    {"not", dst_stl_not}
 };
 
 DstValue dst_loadstl(int flags) {

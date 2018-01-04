@@ -120,10 +120,9 @@ int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
 }
 
 DST_DEFINE_REDUCER(add, dst_op_add, 0)
-DST_DEFINE_REDUCER(subtract, dst_op_subtract, 0)
 DST_DEFINE_REDUCER(multiply, dst_op_multiply, 1)
 
-#define DST_DEFINE_DIVIDER(name)\
+#define DST_DEFINE_DIVIDER(name, unarystart)\
 int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
     int32_t i;\
     DstValue accum;\
@@ -131,7 +130,7 @@ int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
         *ret = dst_cstringv("expected at least one argument");\
         return 1;\
     } else if (argn == 1) {\
-        accum = dst_wrap_real(1);\
+        accum = dst_wrap_real(unarystart);\
         i = 0;\
     } else {\
         accum = argv[0];\
@@ -148,8 +147,9 @@ int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
     return 0;\
 }
 
-DST_DEFINE_DIVIDER(divide)
-DST_DEFINE_DIVIDER(modulo)
+DST_DEFINE_DIVIDER(divide, 1)
+DST_DEFINE_DIVIDER(modulo, 1)
+DST_DEFINE_DIVIDER(subtract, 0)
 
 #undef ADD
 #undef SUB
@@ -189,6 +189,33 @@ int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
 DST_DEFINE_BITOP(band, &=, -1)
 DST_DEFINE_BITOP(bor, |=, 0)
 DST_DEFINE_BITOP(bxor, ^=, 0)
+
+int dst_lshift(int argn, DstValue *argv, DstValue *ret) {
+    if (argn != 2 || !dst_checktype(argv[0], DST_INTEGER) || !dst_checktype(argv[1], DST_INTEGER)) {
+        *ret = dst_cstringv("expected 2 integers"); 
+        return 1;
+    }
+    *ret = dst_wrap_integer(dst_unwrap_integer(argv[0]) >> dst_unwrap_integer(argv[1]));
+    return 0;
+}
+
+int dst_rshift(int argn, DstValue *argv, DstValue *ret) {
+    if (argn != 2 || !dst_checktype(argv[0], DST_INTEGER) || !dst_checktype(argv[1], DST_INTEGER)) {
+        *ret = dst_cstringv("expected 2 integers"); 
+        return 1;
+    }
+    *ret = dst_wrap_integer(dst_unwrap_integer(argv[0]) << dst_unwrap_integer(argv[1]));
+    return 0;
+}
+
+int dst_lshiftu(int argn, DstValue *argv, DstValue *ret) {
+    if (argn != 2 || !dst_checktype(argv[0], DST_INTEGER) || !dst_checktype(argv[1], DST_INTEGER)) {
+        *ret = dst_cstringv("expected 2 integers"); 
+        return 1;
+    }
+    *ret = dst_wrap_integer((int32_t)((uint32_t)dst_unwrap_integer(argv[0]) >> dst_unwrap_integer(argv[1])));
+    return 0;
+}
 
 #define DST_DEFINE_MATHOP(name, fop)\
 int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\

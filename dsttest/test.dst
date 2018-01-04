@@ -1,0 +1,8 @@
+# Simple test file
+(def borker (fn [name] (print "Hello, " name ", you sexy beast!")))
+
+(def make-borker (fn [name] (fn [] (borker name))))
+
+(def calvin-borker (make-borker "Calvin"))
+
+(calvin-borker)

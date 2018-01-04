@@ -47,10 +47,19 @@ int dst_sqrt(int32_t argn, DstValue *argv, DstValue *ret);
 int dst_ceil(int32_t argn, DstValue *argv, DstValue *ret); 
 int dst_fabs(int32_t argn, DstValue *argv, DstValue *ret); 
 int dst_floor(int32_t argn, DstValue *argv, DstValue *ret); 
+int dst_pow(int32_t argn, DstValue *argv, DstValue *ret); 
 
 int dst_stl_table(int32_t argn, DstValue *argv, DstValue *ret);
 int dst_stl_array(int32_t argn, DstValue *argv, DstValue *ret);
 int dst_stl_struct(int32_t argn, DstValue *argv, DstValue *ret);
 int dst_stl_tuple(int32_t argn, DstValue *argv, DstValue *ret);
+
+int dst_band(int32_t argn, DstValue *argv, DstValue *ret);
+int dst_bor(int32_t argn, DstValue *argv, DstValue *ret);
+int dst_bxor(int32_t argn, DstValue *argv, DstValue *ret);
+
+int dst_lshift(int argn, DstValue *argv, DstValue *ret);
+int dst_rshift(int argn, DstValue *argv, DstValue *ret);
+int dst_lshiftu(int argn, DstValue *argv, DstValue *ret);
 
 #endif /* DST_MATH_H_defined */
