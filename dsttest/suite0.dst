@@ -47,22 +47,48 @@
 (assert (>= 6 5 4 4 3 2 1) "greater than or equal to integers")
 (assert (>= 6.0 5.0 4.0 4.0 3.0 2.0 1.0) "greater than or equal to reals")
 
-(assert (< nil 1.0 1 false true "hi"
+(assert (< nil false true
+	(fiber (fn [x] x))
+    1 1.0 "hi"
 	(quote hello)
 	(array 1 2 3)
 	(tuple 1 2 3)
-	(table "a" "b" "c" false)
-	(struct 1 2)
-	(fiber (fn [x] x))
+    (table "a" "b" "c" "d")
+    (struct 1 2 3 4)
 	(buffer "hi")
 	(fn [x] (+ x x))
 	+) "type ordering")
+
+(assert (= (get {} 1) nil) "get nil from empty struct")
+(assert (= (get @{} 1) nil) "get nil from empty table")
+(assert (= (get {:boop :bap} :boop) :bap) "get non nil from struct")
+(assert (= (get @{:boop :bap} :boop) :bap) "get non nil from table")
+(assert (put @{} :boop :bap) "can add to empty table")
+(assert (put @{1 3} :boop :bap) "can add to non-empty table")
 
 (assert (not false) "false literal")
 (assert true "true literal")
 (assert (not nil) "nil literal")
 (assert (= 7 (| 3 4)) "bit or")
 (assert (= 0 (& 3 4)) "bit and")
+
+# Set global variables to prevent some compiler optimizations that defeat point of the test
+(var zero 0)
+(var one 1)
+(var two 2)
+(var three 3)
+(var plus +)
+(assert (= 22 (plus one (plus 1 2 two) (plus 8 (plus zero 1) 4 three))) "nested function calls")
+
+# Mcarthy's 91 function
+(var f91 nil)
+(varset! f91 (fn [n] (if (> n 100) (- n 10) (f91 (f91 (+ n 11))))))
+(assert (= 91 (f91 10)), "f91(10) = 91")
+(assert (= 91 (f91 100)), "f91(100) = 91")
+(assert (= 91 (f91 101)), "f91(101) = 91")
+(assert (= 92 (f91 102)), "f91(102) = 92")
+(assert (= 93 (f91 103)), "f91(103) = 93")
+(assert (= 94 (f91 104)), "f91(104) = 94")
 
 (assert (= "hello" :hello) "keyword syntax for strings")
 (assert (= '(1 2 3) (quote (1 2 3)) (tuple 1 2 3)) "quote shorthand")

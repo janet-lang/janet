@@ -211,14 +211,14 @@ void dst_put(DstValue ds, DstValue key, DstValue value) {
 
 /* Get the next key in an associative data structure. Used for iterating through an
  * associative data structure. */
-DstValue dst_next(DstValue ds, DstValue key) {
+const DstKV *dst_next(DstValue ds, const DstKV *kv) {
     switch(dst_type(ds)) {
         default:
-            return dst_wrap_nil();
+            return NULL;
         case DST_TABLE:
-            return dst_table_next(dst_unwrap_table(ds), key);
+            return (const DstKV *) dst_table_next(dst_unwrap_table(ds), kv);
         case DST_STRUCT:
-            return dst_struct_next(dst_unwrap_struct(ds), key);
+            return dst_struct_next(dst_unwrap_struct(ds), kv);
     }
 }
 

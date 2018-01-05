@@ -95,18 +95,19 @@ const uint8_t *dst_symbol_gen(const uint8_t *buf, int32_t len);
 #define dst_csymbolv(cstr) dst_wrap_symbol(dst_csymbol(cstr))
 
 /* Structs */
-#define dst_struct_raw(t) ((int32_t *)(t) - 2)
+#define dst_struct_raw(t) ((int32_t *)(t) - 4)
 #define dst_struct_length(t) (dst_struct_raw(t)[0])
-#define dst_struct_capacity(t) (dst_struct_length(t) * 4)
-#define dst_struct_hash(t) ((dst_struct_raw(t)[1]))
-DstValue *dst_struct_begin(int32_t count);
-void dst_struct_put(DstValue *st, DstValue key, DstValue value);
-const DstValue *dst_struct_end(DstValue *st);
-DstValue dst_struct_get(const DstValue *st, DstValue key);
-DstValue dst_struct_next(const DstValue *st, DstValue key);
-DstTable *dst_struct_to_table(const DstValue *st);
-int dst_struct_equal(const DstValue *lhs, const DstValue *rhs);
-int dst_struct_compare(const DstValue *lhs, const DstValue *rhs);
+#define dst_struct_capacity(t) (dst_struct_raw(t)[1])
+#define dst_struct_hash(t) (dst_struct_raw(t)[2])
+/* Do something with the 4th header slot - flags? */
+DstKV *dst_struct_begin(int32_t count);
+void dst_struct_put(DstKV *st, DstValue key, DstValue value);
+const DstKV *dst_struct_end(DstKV *st);
+DstValue dst_struct_get(const DstKV *st, DstValue key);
+const DstKV *dst_struct_next(const DstKV *st, const DstKV *kv);
+DstTable *dst_struct_to_table(const DstKV *st);
+int dst_struct_equal(const DstKV *lhs, const DstKV *rhs);
+int dst_struct_compare(const DstKV *lhs, const DstKV *rhs);
 
 /* Table functions */
 DstTable *dst_table(int32_t capacity);
@@ -115,9 +116,9 @@ void dst_table_deinit(DstTable *table);
 DstValue dst_table_get(DstTable *t, DstValue key);
 DstValue dst_table_remove(DstTable *t, DstValue key);
 void dst_table_put(DstTable *t, DstValue key, DstValue value);
-DstValue dst_table_next(DstTable *t, DstValue key);
-const DstValue *dst_table_to_struct(DstTable *t);
-void dst_table_merge(DstTable *t,  DstValue other);
+const DstKV *dst_table_next(DstTable *t, const DstKV *kv);
+const DstKV *dst_table_to_struct(DstTable *t);
+void dst_table_merge(DstTable *t, DstValue other);
 
 /* Fiber */
 DstFiber *dst_fiber(int32_t capacity);
@@ -129,14 +130,10 @@ void dst_fiber_push(DstFiber *fiber, DstValue x);
 void dst_fiber_push2(DstFiber *fiber, DstValue x, DstValue y);
 void dst_fiber_push3(DstFiber *fiber, DstValue x, DstValue y, DstValue z);
 void dst_fiber_pushn(DstFiber *fiber, const DstValue *arr, int32_t n);
-DstValue dst_fiber_popvalue(DstFiber *fiber);
 void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func);
 void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func);
 void dst_fiber_cframe(DstFiber *fiber);
 void dst_fiber_popframe(DstFiber *fiber);
-
-/* Functions */
-void dst_function_detach(DstFunction *func);
 
 /* Assembly */
 DstAssembleResult dst_asm(DstAssembleOptions opts);
@@ -147,7 +144,7 @@ DstValue dst_asm_decode_instruction(uint32_t instr);
 /* Treat similar types through uniform interfaces for iteration */
 int dst_seq_view(DstValue seq, const DstValue **data, int32_t *len);
 int dst_chararray_view(DstValue str, const uint8_t **data, int32_t *len);
-int dst_hashtable_view(DstValue tab, const DstValue **data, int32_t *len, int32_t *cap);
+int dst_hashtable_view(DstValue tab, const DstKV **data, int32_t *len, int32_t *cap);
 
 /* Abstract */
 #define dst_abstract_header(u) ((DstAbstractHeader *)(u) - 1)
@@ -160,7 +157,7 @@ int32_t dst_hash(DstValue x);
 int dst_compare(DstValue x, DstValue y);
 DstValue dst_get(DstValue ds, DstValue key);
 void dst_put(DstValue ds, DstValue key, DstValue value);
-DstValue dst_next(DstValue ds, DstValue key);
+const DstKV *dst_next(DstValue ds, const DstKV *kv);
 int32_t dst_length(DstValue x);
 int32_t dst_capacity(DstValue x);
 DstValue dst_getindex(DstValue ds, int32_t index);
@@ -169,11 +166,19 @@ void dst_setindex(DstValue ds, DstValue value, int32_t index);
 /* Utils */
 extern const char dst_base64[65];
 int32_t dst_array_calchash(const DstValue *array, int32_t len);
+int32_t dst_kv_calchash(const DstKV *kvs, int32_t len);
 int32_t dst_string_calchash(const uint8_t *str, int32_t len);
+int32_t dst_tablen(int32_t n);
 DstValue dst_loadreg(DstReg *regs, size_t count);
 DstValue dst_scan_number(const uint8_t *src, int32_t len);
 int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);
 double dst_scan_real(const uint8_t *str, int32_t len, int *err);
+int dst_cstrcmp(const uint8_t *str, const char *other);
+const void *dst_strbinsearch(
+        const void *tab,
+        size_t tabcount,
+        size_t itemsize,
+        const uint8_t *key);
 
 /* Parsing */
 DstParseResult dst_parse(const uint8_t *src, int32_t len);

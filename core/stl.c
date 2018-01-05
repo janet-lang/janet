@@ -100,7 +100,7 @@ int dst_stl_array(int32_t argn, DstValue *argv, DstValue *ret) {
 
 int dst_stl_table(int32_t argn, DstValue *argv, DstValue *ret) {
     int32_t i;
-    DstTable *table = dst_table(argn/2);
+    DstTable *table = dst_table(argn >> 1);
     if (argn & 1) {
         *ret = dst_cstringv("expected even number of arguments");
         return 1;
@@ -114,7 +114,7 @@ int dst_stl_table(int32_t argn, DstValue *argv, DstValue *ret) {
 
 int dst_stl_struct(int32_t argn, DstValue *argv, DstValue *ret) {
     int32_t i;
-    DstValue *st = dst_struct_begin(argn >> 1);
+    DstKV *st = dst_struct_begin(argn >> 1);
     if (argn & 1) {
         *ret = dst_cstringv("expected even number of arguments");
         return 1;
@@ -123,6 +123,49 @@ int dst_stl_struct(int32_t argn, DstValue *argv, DstValue *ret) {
         dst_struct_put(st, argv[i], argv[i + 1]);
     }
     *ret = dst_wrap_struct(dst_struct_end(st));
+    return 0;
+}
+
+int dst_stl_fiber(int32_t argn, DstValue *argv, DstValue *ret) {
+    DstFiber *fiber;
+    if (argn < 1) {
+        *ret = dst_cstringv("expected at least one argument");
+        return 1;
+    }
+    if (!dst_checktype(argv[0], DST_FUNCTION)) {
+        *ret = dst_cstringv("expected a function");
+        return 1;
+    }
+    fiber = dst_fiber(64);
+    dst_fiber_funcframe(fiber, dst_unwrap_function(argv[0]));
+    fiber->parent = dst_vm_fiber;
+    *ret = dst_wrap_fiber(fiber);
+    return 0;
+}
+
+int dst_stl_buffer(int32_t argn, DstValue *argv, DstValue *ret) {
+    DstBuffer *buffer = dst_buffer(10);
+    int32_t i;
+    for (i = 0; i < argn; ++i) {
+        const uint8_t *bytes = dst_to_string(argv[i]);
+        int32_t len = dst_string_length(bytes);
+        dst_buffer_push_bytes(buffer, bytes, len);
+    }
+    *ret = dst_wrap_buffer(buffer);
+    return 0;
+}
+
+int dst_stl_gensym(int32_t argn, DstValue *argv, DstValue *ret) {
+    if (argn > 1) {
+        *ret = dst_cstringv("expected one argument");
+        return 1;
+    }
+    if (argn == 0) {
+        *ret = dst_wrap_symbol(dst_symbol_gen(NULL, 0));
+    } else {
+        const uint8_t *s = dst_to_string(argv[0]);
+        *ret = dst_wrap_symbol(dst_symbol_gen(s, dst_string_length(s)));
+    }
     return 0;
 }
 
@@ -213,6 +256,9 @@ static DstReg stl[] = {
     {"array", dst_stl_array},
     {"tuple", dst_stl_tuple},
     {"struct", dst_stl_struct},
+    {"fiber", dst_stl_fiber},
+    {"buffer", dst_stl_buffer},
+    {"gensym", dst_stl_gensym},
     {"asm", dst_stl_asm},
     {"disasm", dst_stl_disasm},
     {"get", dst_stl_get},

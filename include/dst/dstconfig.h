@@ -28,7 +28,8 @@
 
 /*
  * Detect OS and endianess.
- * From webkit source. 
+ * From webkit source. There is likely some extreneous
+ * detection for unsupported platforms
  */
 
 /* Check Unix */
@@ -116,6 +117,14 @@
 #define DST_RECURSION_GUARD 1000
 
 /* Use nanboxed values - uses 8 bytes per value instead of 12 or 16. */
-//#define DST_NANBOX
+#define DST_NANBOX
+#define DST_NANBOX_47
+
+/* Alignment for pointers */
+#ifdef DST_32
+#define DST_WALIGN 4
+#else
+#define DST_WALIGN 8
+#endif
 
 #endif /* DST_CONFIG_H_defined */

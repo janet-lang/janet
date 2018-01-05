@@ -44,6 +44,7 @@ typedef struct DstReg DstReg;
 typedef struct DstAbstractHeader DstAbstractHeader;
 typedef struct DstFuncDef DstFuncDef;
 typedef struct DstFuncEnv DstFuncEnv;
+typedef struct DstKV DstKV;
 typedef struct DstStackFrame DstStackFrame;
 typedef struct DstAbstractType DstAbstractType;
 typedef int (*DstCFunction)(int32_t argn, DstValue *argv, DstValue *ret);
@@ -109,11 +110,13 @@ union DstValue {
     double real;
 };
 
+#define dst_u64(x) ((x).u64)
+
 /* This representation uses 48 bit pointers. The trade off vs. the LuaJIT style
  * 47 bit payload representaion is that the type bits are no long contiguous. Type
  * checking can still be fast, but typewise polymorphism takes a bit longer. However, 
  * hopefully we can avoid some annoying problems that occur when trying to use 47 bit pointers
- * in a 48 bit address space (Linux on ARM) */
+ * in a 48 bit address space (Linux on ARM). If DST_NANBOX_47 is set, use 47 bit tagged pointers. */
 
 /*                    |.......Tag.......|.......................Payload..................| */
 /* Non-double:        t|11111111111|1ttt|xxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */
@@ -121,36 +124,53 @@ union DstValue {
 
 /* Double (no NaNs):   x xxxxxxxxxxx xxxx xxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */
 
-/* A simple scheme for nan boxed values */
-/* normal doubles, denormalized doubles, and infinities are doubles */
-/* Quiet nan is nil. Sign bit should be 0. */
+#if defined (DST_NANBOX_47) || defined (DST_32)
 
-#define DST_NANBOX_TYPEBITS    0x0007000000000000lu
+#define DST_NANBOX_TAGBITS     0xFFFF800000000000lu
+#define DST_NANBOX_PAYLOADBITS 0x00007FFFFFFFFFFFlu
+
+
+#define dst_nanbox_lowtag(type) \
+    ((uint64_t)(type) | 0x1FFF0)
+
+#define dst_nanbox_tag(type) \
+    (dst_nanbox_lowtag(type) << 47)
+
+#define dst_type(x) \
+    (isnan((x).real) \
+        ? (((x).u64 >> 47) & 0xF) \
+        : DST_REAL)
+
+#else /* defined (DST_NANBOX_47) || defined (DST_32) */
+
 #define DST_NANBOX_TAGBITS     0xFFFF000000000000lu
 #define DST_NANBOX_PAYLOADBITS 0x0000FFFFFFFFFFFFlu
-#ifdef DST_64
-#define DST_NANBOX_POINTERBITS 0x0000FFFFFFFFFFFFlu
-#else
-#define DST_NANBOX_POINTERBITS 0x00000000FFFFFFFFlu
-#endif
 
-#define dst_u64(x) ((x).u64)
 #define dst_nanbox_lowtag(type) \
-    ((((uint64_t)(type) & 0x8) << 12) | 0x7FF8 | (type))
+    ((((uint64_t)(type) & 0x1) << 15) | 0x7FF8 | ((type) >> 1))
+
 #define dst_nanbox_tag(type) \
     (dst_nanbox_lowtag(type) << 48)
+
+#define dst_type(x) \
+    (isnan((x).real) \
+        ? (((x).u64 >> 47) & 0xE) | ((x).u64 >> 63) \
+        : DST_REAL)
+
+#endif /* defined (DST_NANBOX_47) || defined (DST_32) */
+
+/* 32 bit mode will not use the full payload for pointers. */
+#ifdef DST_32
+#define DST_NANBOX_POINTERBITS 0xFFFFFFFFlu
+#else
+#define DST_NANBOX_POINTERBITS DST_NANBOX_PAYLOADBITS
+#endif
 
 #define dst_nanbox_checkauxtype(x, type) \
     (((x).u64 & DST_NANBOX_TAGBITS) == dst_nanbox_tag((type)))
 
-/* Check if number is nan or if number is real double */
 #define dst_nanbox_isreal(x) \
     (!isnan((x).real) || dst_nanbox_checkauxtype((x), DST_REAL))
-
-#define dst_type(x) \
-    (isnan((x).real) \
-        ? (((x).u64 & DST_NANBOX_TYPEBITS) >> 48) | (((x).u64 >> 60) & 0x8) \
-        : DST_REAL)
 
 #define dst_checktype(x, t) \
     (((t) == DST_REAL) \
@@ -158,7 +178,7 @@ union DstValue {
         : dst_nanbox_checkauxtype((x), (t)))
 
 void *dst_nanbox_to_pointer(DstValue x);
-void dst_nanbox_memempty(DstValue *mem, int32_t count);
+void dst_nanbox_memempty(DstKV *mem, int32_t count);
 void *dst_nanbox_memalloc_empty(int32_t count);
 DstValue dst_nanbox_from_pointer(void *p, uint64_t tagmask);
 DstValue dst_nanbox_from_cpointer(const void *p, uint64_t tagmask);
@@ -176,10 +196,10 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
     dst_nanbox_from_bits(dst_nanbox_tag(t) | (p))
 
 #define dst_nanbox_wrap_(p, t) \
-    dst_nanbox_from_pointer((p), dst_nanbox_tag(t) | 0x7FF8000000000000lu)
+    dst_nanbox_from_pointer((p), dst_nanbox_tag(t))
 
 #define dst_nanbox_wrap_c(p, t) \
-    dst_nanbox_from_cpointer((p), dst_nanbox_tag(t) | 0x7FF8000000000000lu)
+    dst_nanbox_from_cpointer((p), dst_nanbox_tag(t))
 
 /* Wrap the simple types */
 #define dst_wrap_nil() dst_nanbox_from_payload(DST_NIL, 1)
@@ -191,7 +211,7 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
 
 /* Unwrap the simple types */
 #define dst_unwrap_boolean(x) \
-    (((x).u64 >> 48) == dst_nanbox_lowtag(DST_TRUE))
+    (dst_checktype(x, DST_TRUE))
 #define dst_unwrap_integer(x) \
     ((int32_t)((x).u64 & 0xFFFFFFFFlu))
 #define dst_unwrap_real(x) ((x).real)
@@ -210,7 +230,7 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
 #define dst_wrap_cfunction(s) dst_nanbox_wrap_((s), DST_CFUNCTION)
 
 /* Unwrap the pointer types */
-#define dst_unwrap_struct(x) ((const DstValue *)dst_nanbox_to_pointer(x))
+#define dst_unwrap_struct(x) ((const DstKV *)dst_nanbox_to_pointer(x))
 #define dst_unwrap_tuple(x) ((const DstValue *)dst_nanbox_to_pointer(x))
 #define dst_unwrap_fiber(x) ((DstFiber *)dst_nanbox_to_pointer(x))
 #define dst_unwrap_array(x) ((DstArray *)dst_nanbox_to_pointer(x))
@@ -239,14 +259,14 @@ struct DstValue {
 };
 
 #define dst_u64(x) ((x).as.u64)
-#define dst_memempty(mem, count) memset((mem), 0, sizeof(DstValue) * (count))
-#define dst_memalloc_empty(count) calloc((count), sizeof(DstValue))
+#define dst_memempty(mem, count) memset((mem), 0, sizeof(DstKV) * (count))
+#define dst_memalloc_empty(count) calloc((count), sizeof(DstKV))
 #define dst_type(x) ((x).type)
 #define dst_checktype(x, t) ((x).type == (t))
 #define dst_truthy(x) \
     ((x).type != DST_NIL && (x).type != DST_FALSE)
 
-#define dst_unwrap_struct(x) ((const DstValue *)(x).as.pointer)
+#define dst_unwrap_struct(x) ((const DstKV *)(x).as.pointer)
 #define dst_unwrap_tuple(x) ((const DstValue *)(x).as.pointer)
 #define dst_unwrap_fiber(x) ((DstFiber *)(x).as.pointer)
 #define dst_unwrap_array(x) ((DstArray *)(x).as.pointer)
@@ -272,7 +292,7 @@ DstValue dst_wrap_string(const uint8_t *x);
 DstValue dst_wrap_symbol(const uint8_t *x);
 DstValue dst_wrap_array(DstArray *x);
 DstValue dst_wrap_tuple(const DstValue *x);
-DstValue dst_wrap_struct(const DstValue *x);
+DstValue dst_wrap_struct(const DstKV *x);
 DstValue dst_wrap_fiber(DstFiber *x);
 DstValue dst_wrap_buffer(DstBuffer *x);
 DstValue dst_wrap_function(DstFunction *x);
@@ -332,10 +352,16 @@ struct DstBuffer {
 
 /* A mutable associative data type. Backed by a hashtable. */
 struct DstTable {
-    DstValue *data;
+    DstKV *data;
     int32_t count;
     int32_t capacity;
     int32_t deleted;
+};
+
+/* A key value pair in a struct or table */
+struct DstKV {
+    DstValue key;
+    DstValue value;
 };
 
 /* Some function defintion flags */

@@ -101,17 +101,6 @@ void dst_fiber_pushn(DstFiber *fiber, const DstValue *arr, int32_t n) {
     fiber->stacktop = newtop;
 }
 
-/* Pop a value off of the stack. Will not destroy a current stack frame.
- * If there is nothing to pop of of the stack, return nil. */
-DstValue dst_fiber_popvalue(DstFiber *fiber) {
-   int32_t newstacktop = fiber->stacktop - 1;
-   if (newstacktop < fiber->stackstart) {
-       return dst_wrap_nil();
-   }
-   fiber->stacktop = newstacktop;
-   return fiber->data[newstacktop];
-}
-
 /* Help set up function */
 static void funcframe_helper(DstFiber *fiber, DstFunction *func) {
     /* Check varargs */
@@ -166,6 +155,23 @@ void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
     /* Check varargs */
     funcframe_helper(fiber, func);
 
+}
+
+/* If a frame has a closure environment, detach it from
+ * the stack and have it keep its own values */
+static void dst_function_detach(DstFunction *func) {
+    /* Check for closure environment */
+    if (NULL != func->envs && NULL != func->envs[0]) {
+        DstFuncEnv *env = func->envs[0];
+        size_t s = sizeof(DstValue) * env->length;
+        DstValue *vmem = malloc(s);
+        if (NULL == vmem) {
+            DST_OUT_OF_MEMORY;
+        }
+        memcpy(vmem, env->as.fiber->data + env->offset, s);
+        env->offset = 0;
+        env->as.values = vmem;
+    }
 }
 
 /* Create a tail frame for a function */

@@ -31,14 +31,21 @@ void *dst_nanbox_to_pointer(DstValue x) {
      * the high bits, and may make the pointer non-canocial on x86. If we switch
      * to 47 bit pointers (which is what userspace uses on Windows, we can use
      * the single mask rather than two shifts. */
+#if defined (DST_NANBOX_47) || defined (DST_32)
+    x.i64 &= DST_NANBOX_POINTERBITS;
+#else
     x.i64 = (x.i64 << 16) >> 16;
+#endif
     return x.pointer;
 }
 
 DstValue dst_nanbox_from_pointer(void *p, uint64_t tagmask) {
     DstValue ret;
     ret.pointer = p;
+#if defined (DST_NANBOX_47) || defined (DST_32)
+#else
     ret.u64 &= DST_NANBOX_POINTERBITS;
+#endif
     ret.u64 |= tagmask;
     return ret;
 }
@@ -46,7 +53,10 @@ DstValue dst_nanbox_from_pointer(void *p, uint64_t tagmask) {
 DstValue dst_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
     DstValue ret;
     ret.cpointer = p;
+#if defined (DST_NANBOX_47) || defined (DST_32)
+#else
     ret.u64 &= DST_NANBOX_POINTERBITS;
+#endif
     ret.u64 |= tagmask;
     return ret;
 }
@@ -68,18 +78,21 @@ DstValue dst_nanbox_from_bits(uint64_t bits) {
 
 void *dst_nanbox_memalloc_empty(int32_t count) {
     int32_t i;
-    void *mem = malloc(count * sizeof(DstValue));
-    DstValue *mmem = (DstValue *)mem;
+    void *mem = malloc(count * sizeof(DstKV));
+    DstKV *mmem = (DstKV *)mem;
     for (i = 0; i < count; i++) {
-        mmem[i] = dst_wrap_nil();
+        DstKV *kv = mmem + i;
+        kv->key = dst_wrap_nil();
+        kv->value = dst_wrap_nil();
     }
     return mem;
 }
 
-void dst_nanbox_memempty(DstValue *mem, int32_t count) {
+void dst_nanbox_memempty(DstKV *mem, int32_t count) {
     int32_t i;
     for (i = 0; i < count; i++) {
-        mem[i] = dst_wrap_nil();
+        mem[i].key = dst_wrap_nil();
+        mem[i].value = dst_wrap_nil();
     }
 }
 
@@ -134,8 +147,8 @@ DST_WRAP_DEFINE(string, const uint8_t *, DST_STRING, cpointer)
 DST_WRAP_DEFINE(symbol, const uint8_t *, DST_SYMBOL, cpointer)
 DST_WRAP_DEFINE(array, DstArray *, DST_ARRAY, pointer)
 DST_WRAP_DEFINE(tuple, const DstValue *, DST_TUPLE, cpointer)
-DST_WRAP_DEFINE(struct, const DstValue *, DST_STRUCT, cpointer)
-DST_WRAP_DEFINE(thread, DstFiber *, DST_FIBER, pointer)
+DST_WRAP_DEFINE(struct, const DstKV *, DST_STRUCT, cpointer)
+DST_WRAP_DEFINE(fiber, DstFiber *, DST_FIBER, pointer)
 DST_WRAP_DEFINE(buffer, DstBuffer *, DST_BUFFER, pointer)
 DST_WRAP_DEFINE(function, DstFunction *, DST_FUNCTION, pointer)
 DST_WRAP_DEFINE(cfunction, DstCFunction, DST_CFUNCTION, pointer)

@@ -410,13 +410,15 @@ static const char *dst_type_colors[16] = {
 static void dst_description_helper(DstPrinter *p, DstValue x);
 
 /* Print a hastable view inline */
-static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, int32_t len, int32_t cap) {
+static void dst_print_hashtable_inner(DstPrinter *p, const DstKV *data, int32_t len, int32_t cap) {
     int32_t i;
     int doindent = 0;
     if (p->flags & DST_PRINTFLAG_INDENT) {
         if (len <= p->token_line_limit) {
-            for (i = 0; i < cap; i += 2) {
-                if (is_print_ds(data[i]) || is_print_ds(data[i + 1])) {
+            for (i = 0; i < cap; i++) {
+                const DstKV *kv = data + i;
+                if (is_print_ds(kv->key) ||
+                    is_print_ds(kv->value)) {
                     doindent = 1;
                     break;
                 }
@@ -428,12 +430,13 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, int32
     if (doindent) {
         dst_buffer_push_u8(p->buffer, '\n');
         p->indent++;
-        for (i = 0; i < cap; i += 2) {
-            if (!dst_checktype(data[i], DST_NIL)) {
+        for (i = 0; i < cap; i++) {
+            const DstKV *kv = data + i;
+            if (!dst_checktype(kv->key, DST_NIL)) {
                 dst_print_indent(p);
-                dst_description_helper(p, data[i]);
+                dst_description_helper(p, kv->key);
                 dst_buffer_push_u8(p->buffer, ' ');
-                dst_description_helper(p, data[i + 1]);
+                dst_description_helper(p, kv->value);
                 dst_buffer_push_u8(p->buffer, '\n');
             }
         }
@@ -441,15 +444,16 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstValue *data, int32
         dst_print_indent(p);
     } else {
         int isfirst = 1;
-        for (i = 0; i < cap; i += 2) {
-            if (!dst_checktype(data[i], DST_NIL)) {
+        for (i = 0; i < cap; i++) {
+            const DstKV *kv = data + i;
+            if (!dst_checktype(kv->key, DST_NIL)) {
                 if (isfirst)
                     isfirst = 0;
                 else
                     dst_buffer_push_u8(p->buffer, ' ');
-                dst_description_helper(p, data[i]);
+                dst_description_helper(p, kv->key);
                 dst_buffer_push_u8(p->buffer, ' ');
-                dst_description_helper(p, data[i + 1]);
+                dst_description_helper(p, kv->value);
             }
         }
     }
@@ -496,6 +500,7 @@ static void dst_description_helper(DstPrinter *p, DstValue x) {
     const char *close;
     int32_t len, cap;
     const DstValue *data;
+    const DstKV *kvs;
     DstValue check;
     p->depth--;
     switch (dst_type(x)) {
@@ -537,8 +542,8 @@ static void dst_description_helper(DstPrinter *p, DstValue x) {
     dst_buffer_push_cstring(p->buffer, open);
     if (p->depth == 0) {
         dst_buffer_push_cstring(p->buffer, "...");
-    } else if (dst_hashtable_view(x, &data, &len, &cap)) {
-        dst_print_hashtable_inner(p, data, len, cap);
+    } else if (dst_hashtable_view(x, &kvs, &len, &cap)) {
+        dst_print_hashtable_inner(p, kvs, len, cap);
     } else if (dst_seq_view(x, &data, &len)) {
         dst_print_seq_inner(p, data, len);
     }

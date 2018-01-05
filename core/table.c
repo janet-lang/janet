@@ -23,18 +23,23 @@
 #include <dst/dst.h>
 #include "gc.h"
 
-#define dst_table_maphash(cap, hash) (((uint32_t)(hash) % (cap)) & 0xFFFFFFFE)
+#define dst_table_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
 
 /* Initialize a table */
 DstTable *dst_table_init(DstTable *table, int32_t capacity) {
-    DstValue *data;
-    if (capacity < 2) capacity = 2;
-    data = (DstValue *) dst_memalloc_empty(capacity);
-    if (NULL == data) {
-        DST_OUT_OF_MEMORY;
+    DstKV *data;
+    capacity = dst_tablen(capacity);
+    if (capacity) {
+        data = (DstKV *) dst_memalloc_empty(capacity);
+        if (NULL == data) {
+            DST_OUT_OF_MEMORY;
+        }
+        table->data = data;
+        table->capacity = capacity;
+    } else {
+        table->data = NULL;
+        table->capacity = 0;
     }
-    table->data = data;
-    table->capacity = capacity;
     table->count = 0;
     table->deleted = 0;
     return table;
@@ -53,26 +58,34 @@ DstTable *dst_table(int32_t capacity) {
 
 /* Find the bucket that contains the given key. Will also return
  * bucket where key should go if not in the table. */
-static DstValue *dst_table_find(DstTable *t, DstValue key) {
+static DstKV *dst_table_find(DstTable *t, DstValue key) {
     int32_t index = dst_table_maphash(t->capacity, dst_hash(key));
-    int32_t i, j;
-    int32_t start[2], end[2];
-    DstValue *first_bucket = NULL;
-    start[0] = index; end[0] = t->capacity;
-    start[1] = 0; end[1] = index;
-    for (j = 0; j < 2; ++j) {
-        for (i = start[j]; i < end[j]; i += 2) {
-            if (dst_checktype(t->data[i], DST_NIL)) {
-                if (dst_checktype(t->data[i + 1], DST_NIL)) {
-                    /* Empty */
-                    return t->data + i;
-                } else if (NULL == first_bucket) {
-                    /* Marked deleted and not seen free bucket yet. */
-                    first_bucket = t->data + i;
-                }
-            } else if (dst_equals(t->data[i], key)) {
-                return t->data + i;
+    int32_t i;
+    DstKV *first_bucket = NULL;
+    /* Higher half */
+    for (i = index; i < t->capacity; i++) {
+        DstKV *kv = t->data + i;
+        if (dst_checktype(kv->key, DST_NIL)) {
+            if (dst_checktype(kv->value, DST_NIL)) {
+                return kv;
+            } else if (NULL == first_bucket) {
+                first_bucket = kv;
             }
+        } else if (dst_equals(kv->key, key)) {
+            return t->data + i;
+        }
+    }
+    /* Lower half */
+    for (i = 0; i < index; i++) {
+        DstKV *kv = t->data + i;
+        if (dst_checktype(kv->key, DST_NIL)) {
+            if (dst_checktype(kv->value, DST_NIL)) {
+                return kv;
+            } else if (NULL == first_bucket) {
+                first_bucket = kv;
+            }
+        } else if (dst_equals(kv->key, key)) {
+            return t->data + i;
         }
     }
     return first_bucket;
@@ -80,8 +93,8 @@ static DstValue *dst_table_find(DstTable *t, DstValue key) {
 
 /* Resize the dictionary table. */
 static void dst_table_rehash(DstTable *t, int32_t size) {
-    DstValue *olddata = t->data;
-    DstValue *newdata = (DstValue *) dst_memalloc_empty(size);
+    DstKV *olddata = t->data;
+    DstKV *newdata = (DstKV *) dst_memalloc_empty(size);
     if (NULL == newdata) {
         DST_OUT_OF_MEMORY;
     }
@@ -90,11 +103,11 @@ static void dst_table_rehash(DstTable *t, int32_t size) {
     t->data = newdata;
     t->capacity = size;
     t->deleted = 0;
-    for (i = 0; i < oldcapacity; i += 2) {
-        if (!dst_checktype(olddata[i], DST_NIL)) {
-            DstValue *bucket = dst_table_find(t, olddata[i]);
-            bucket[0] = olddata[i];
-            bucket[1] = olddata[i + 1];
+    for (i = 0; i < oldcapacity; i++) {
+        DstKV *kv = olddata + i;
+        if (!dst_checktype(kv->key, DST_NIL)) {
+            DstKV *newkv = dst_table_find(t, kv->key);
+            *newkv = *kv;
         }
     }
     free(olddata);
@@ -102,9 +115,9 @@ static void dst_table_rehash(DstTable *t, int32_t size) {
 
 /* Get a value out of the object */
 DstValue dst_table_get(DstTable *t, DstValue key) {
-    DstValue *bucket = dst_table_find(t, key);
-    if (NULL != bucket && !dst_checktype(bucket[0], DST_NIL))
-        return bucket[1];
+    DstKV *bucket = dst_table_find(t, key);
+    if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL))
+        return bucket->value;
     else
         return dst_wrap_nil();
 }
@@ -112,13 +125,13 @@ DstValue dst_table_get(DstTable *t, DstValue key) {
 /* Remove an entry from the dictionary. Return the value that
  * was removed. */
 DstValue dst_table_remove(DstTable *t, DstValue key) {
-    DstValue *bucket = dst_table_find(t, key);
-    if (NULL != bucket && !dst_checktype(bucket[0], DST_NIL)) {
-        DstValue ret = bucket[1];
+    DstKV *bucket = dst_table_find(t, key);
+    if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL)) {
+        DstValue ret = bucket->key;
         t->count--;
         t->deleted++;
-        bucket[0] = dst_wrap_nil();
-        bucket[1] = dst_wrap_false();
+        bucket->key = dst_wrap_nil();
+        bucket->value = dst_wrap_false();
         return ret;
     } else {
         return dst_wrap_nil();
@@ -131,18 +144,18 @@ void dst_table_put(DstTable *t, DstValue key, DstValue value) {
     if (dst_checktype(value, DST_NIL)) {
         dst_table_remove(t, key);
     } else {
-        DstValue *bucket = dst_table_find(t, key);
-        if (NULL != bucket && !dst_checktype(bucket[0], DST_NIL)) {
-            bucket[1] = value;
+        DstKV *bucket = dst_table_find(t, key);
+        if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL)) {
+            bucket->value = value;
         } else {
-            if (NULL == bucket || 4 * (t->count + t->deleted) >= t->capacity) {
-                dst_table_rehash(t, 4 * t->count + 6);
+            if (NULL == bucket || 2 * (t->count + t->deleted + 1) > t->capacity) {
+                dst_table_rehash(t, dst_tablen(2 * t->count + 2));
             }
             bucket = dst_table_find(t, key);
-            if (dst_checktype(bucket[1], DST_FALSE))
+            if (dst_checktype(bucket->value, DST_FALSE))
                 --t->deleted;
-            bucket[0] = key;
-            bucket[1] = value;
+            bucket->key = key;
+            bucket->value = value;
             ++t->count;
         }
     }
@@ -151,54 +164,35 @@ void dst_table_put(DstTable *t, DstValue key, DstValue value) {
 /* Clear a table */
 void dst_table_clear(DstTable *t) {
     int32_t capacity = t->capacity;
-    DstValue *data = t->data;
+    DstKV *data = t->data;
     dst_memempty(data, capacity);
     t->count = 0;
     t->deleted = 0;
 }
 
-/* Find next key in an object. Returns nil if no next key. */
-DstValue dst_table_next(DstTable *t, DstValue key) {
-    const DstValue *bucket, *end;
-    end = t->data + t->capacity;
-    if (dst_checktype(key, DST_NIL)) {
-        bucket = t->data;
-    } else {
-        bucket = dst_table_find(t, key);
-        if (NULL == bucket || dst_checktype(bucket[0], DST_NIL))
-            return dst_wrap_nil();
-        bucket += 2;
+/* Find next key in an object. Returns NULL if no next key. */
+const DstKV *dst_table_next(DstTable *t, const DstKV *kv) {
+    DstKV *end = t->data + t->capacity;
+    kv = (kv == NULL) ? t->data : kv + 1;
+    while (kv < end) {
+        if (!dst_checktype(kv->key, DST_NIL))
+            return kv;
+        kv++;
     }
-    for (; bucket < end; bucket += 2) {
-        if (!dst_checktype(bucket[0], DST_NIL))
-            return bucket[0];
-    }
-    return dst_wrap_nil();
+    return NULL;
 }
 
 /* Convert table to struct */
-const DstValue *dst_table_to_struct(DstTable *t) {
-    int32_t i;
-    DstValue *st = dst_struct_begin(t->count);
-    for (i = 0; i < t->capacity; i += 2) {
-        if (!dst_checktype(t->data[i], DST_NIL)) {
-            dst_struct_put(st, t->data[i], t->data[i + 1]);
-        }
+const DstKV *dst_table_to_struct(DstTable *t) {
+    DstKV *st = dst_struct_begin(t->count);
+    DstKV *kv = t->data;
+    DstKV *end = t->data + t->capacity;
+    while (kv < end) {
+        if (!dst_checktype(kv->key, DST_NIL))
+            dst_struct_put(st, kv->key, kv->value);
+        kv++;
     }
     return dst_struct_end(st);
-}
-
-/* Merge a struct or another table into a table. */
-void dst_table_merge(DstTable *t,  DstValue other) {
-    int32_t count, cap, i;
-    const DstValue *hmap;
-    if (dst_hashtable_view(other, &hmap, &count, &cap)) {
-        for (i = 0; i < cap; i += 2) {
-            if (!dst_checktype(hmap[i], DST_NIL)) {
-                dst_table_put(t, hmap[i], hmap[i + 1]);
-            }
-        }
-    }
 }
 
 #undef dst_table_maphash

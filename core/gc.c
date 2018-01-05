@@ -40,7 +40,7 @@ static void dst_mark_funcdef(DstFuncDef *def);
 static void dst_mark_function(DstFunction *func);
 static void dst_mark_array(DstArray *array);
 static void dst_mark_table(DstTable *table);
-static void dst_mark_struct(const DstValue *st);
+static void dst_mark_struct(const DstKV *st);
 static void dst_mark_tuple(const DstValue *tuple);
 static void dst_mark_buffer(DstBuffer *buffer);
 static void dst_mark_string(const uint8_t *str);
@@ -85,6 +85,16 @@ static void dst_mark_many(const DstValue *values, int32_t n) {
     }
 }
 
+/* Mark a bunch of key values items in memory */
+static void dst_mark_kvs(const DstKV *kvs, int32_t n) {
+    const DstKV *end = kvs + n;
+    while (kvs < end) {
+        dst_mark(kvs->key);
+        dst_mark(kvs->value);
+        kvs++;
+    }
+}
+
 static void dst_mark_array(DstArray *array) {
     if (dst_gc_reachable(array))
         return;
@@ -96,14 +106,14 @@ static void dst_mark_table(DstTable *table) {
     if (dst_gc_reachable(table))
         return;
     dst_gc_mark(table);
-    dst_mark_many(table->data, table->capacity);
+    dst_mark_kvs(table->data, table->capacity);
 }
 
-static void dst_mark_struct(const DstValue *st) {
+static void dst_mark_struct(const DstKV *st) {
     if (dst_gc_reachable(dst_struct_raw(st)))
         return;
     dst_gc_mark(dst_struct_raw(st));
-    dst_mark_many(st, dst_struct_capacity(st));
+    dst_mark_kvs(st, dst_struct_capacity(st));
 }
 
 static void dst_mark_tuple(const DstValue *tuple) {
@@ -197,7 +207,7 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
             dst_table_deinit((DstTable*) mem);
             break;
         case DST_MEMORY_FIBER:
-            free(((DstFiber *) mem)->data);
+            free(((DstFiber *)mem)->data);
             break;
         case DST_MEMORY_BUFFER:
             dst_buffer_deinit((DstBuffer *) mem);
@@ -220,6 +230,7 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
             {
                 DstFuncDef *def = (DstFuncDef *)mem;
                 /* TODO - get this all with one alloc and one free */
+                free(def->defs);
                 free(def->environments);
                 free(def->constants);
                 free(def->bytecode);
@@ -241,7 +252,6 @@ void dst_sweep() {
             previous = current;
             current->flags &= ~DST_MEM_REACHABLE;
         } else {
-            /*printf("freeing block %p\n", current);*/
             dst_deinit_block(current);
             if (NULL != previous) {
                 previous->next = next;
@@ -253,22 +263,6 @@ void dst_sweep() {
         current = next;
     }
 }
-
-/*static const char *memtypes[] = {*/
-    /*"none",*/
-    /*"string",*/
-    /*"symbol",*/
-    /*"array",*/
-    /*"tuple",*/
-    /*"table",*/
-    /*"struct",*/
-    /*"fiber",*/
-    /*"buffer",*/
-    /*"function",*/
-    /*"abstract",*/
-    /*"funcenv",*/
-    /*"funcdef"*/
-/*};*/
 
 /* Allocate some memory that is tracked for garbage collection */
 void *dst_gcalloc(DstMemoryType type, size_t size) {
@@ -293,8 +287,6 @@ void *dst_gcalloc(DstMemoryType type, size_t size) {
     dst_vm_next_collection += size;
     mdata->next = dst_vm_blocks;
     dst_vm_blocks = mdata;
-
-    /*printf("created block %p of size %lu, type %s\n", mem, size, memtypes[type]);*/
 
     return mem + sizeof(DstGCMemoryHeader);
 }
@@ -361,7 +353,7 @@ int dst_gcunrootall(DstValue root) {
 /* Free all allocated memory */
 void dst_clear_memory() {
     DstGCMemoryHeader *current = dst_vm_blocks;
-    while (current) {
+    while (NULL != current) {
         dst_deinit_block(current);
         DstGCMemoryHeader *next = current->next;
         free(current);

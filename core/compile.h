@@ -53,8 +53,6 @@ struct DstSlot {
     DstValue constant; /* If the slot has a constant value */
 };
 
-/* Most forms that return a constant will not generate any bytecode */
-
 /* Special forms that need support */
 /* cond
  * while (continue, break)
@@ -72,55 +70,42 @@ struct DstSlot {
 #define DST_SCOPE_TOP 4
 #define DST_SCOPE_UNUSED 8
 
+/* A symbol and slot pair */
+typedef struct SymPair {
+    const uint8_t *sym;
+    DstSlot slot;
+} SymPair;
+
 /* A lexical scope during compilation */
 struct DstScope {
 
     /* Constants for this funcdef */
-    int32_t ccount;
-    int32_t ccap;
     DstValue *consts;
 
     /* Map of symbols to slots. Use a simple linear scan for symbols. */
-    int32_t symcap;
-    int32_t symcount;
-    struct {
-        const uint8_t *sym;
-        DstSlot slot;
-    } *syms;
+    SymPair *syms;
 
     /* Bit vector with allocated slot indices. Used to allocate new slots */
     uint32_t *slots;
-    int32_t scap;
     int32_t smax;
 
     /* FuncDefs */
-    int32_t dcount;
-    int32_t dcap;
     DstFuncDef **defs;
 
     /* Referenced closure environents. The values at each index correspond
-     * to which index to get the environment from in the parent. The enironment
+     * to which index to get the environment from in the parent. The environment
      * that corresponds to the direct parent's stack will always have value 0. */
     int32_t *envs;
-    int32_t envcount;
-    int32_t envcap;
 
     int32_t bytecode_start;
     int flags;
 };
 
-#define dst_compile_topscope(c) ((c)->scopes + (c)->scopecount - 1)
-
 /* Compilation state */
 struct DstCompiler {
-    jmp_buf on_error;
     int recursion_guard;
-    int32_t scopecount;
-    int32_t scopecap;
     DstScope *scopes;
     
-    int32_t buffercap;
-    int32_t buffercount;
     uint32_t *buffer;
     int32_t *mapbuffer;
 
@@ -156,32 +141,32 @@ typedef struct DstSpecial {
 } DstSpecial;
 
 /* An array of optimizers sorted by key */
-extern DstCFunctionOptimizer dst_compiler_optimizers[255];
+extern DstCFunctionOptimizer dstcr_optimizers[255];
 
 /* Dispatch to correct form compiler */
-DstSlot dst_compile_value(DstFormOptions opts);
+DstSlot dstc_value(DstFormOptions opts);
 
 /****************************************************/
 
-void dst_compile_error(DstCompiler *c, const DstValue *sourcemap, const uint8_t *m);
-void dst_compile_cerror(DstCompiler *c, const DstValue *sourcemap, const char *m);
+void dstc_error(DstCompiler *c, const DstValue *sourcemap, const uint8_t *m);
+void dstc_cerror(DstCompiler *c, const DstValue *sourcemap, const char *m);
 
 /* Use these to get sub options. They will traverse the source map so
  * compiler errors make sense. Then modify the returned options. */
-DstFormOptions dst_compile_getopts_index(DstFormOptions opts, int32_t index);
-DstFormOptions dst_compile_getopts_key(DstFormOptions opts, DstValue key);
-DstFormOptions dst_compile_getopts_value(DstFormOptions opts, DstValue key);
+DstFormOptions dstc_getindex(DstFormOptions opts, int32_t index);
+DstFormOptions dstc_getkey(DstFormOptions opts, DstValue key);
+DstFormOptions dstc_getvalue(DstFormOptions opts, DstValue key);
 
-void dst_compile_scope(DstCompiler *c, int newfn);
-void dst_compile_popscope(DstCompiler *c);
+void dstc_scope(DstCompiler *c, int newfn);
+void dstc_popscope(DstCompiler *c);
 
-DstSlot dst_compile_constantslot(DstValue x);
-void dst_compile_freeslot(DstCompiler *c, DstSlot slot);
+DstSlot dstc_cslot(DstValue x);
+void dstc_freeslot(DstCompiler *c, DstSlot slot);
 
 /* Search for a symbol */
-DstSlot dst_compile_resolve(DstCompiler *c, const DstValue *sourcemap, const uint8_t *sym);
+DstSlot dstc_resolve(DstCompiler *c, const DstValue *sourcemap, const uint8_t *sym);
 
 /* Emit instructions. */
-void dst_compile_emit(DstCompiler *c, const DstValue *sourcemap, uint32_t instr);
+void dstc_emit(DstCompiler *c, const DstValue *sourcemap, uint32_t instr);
 
 #endif

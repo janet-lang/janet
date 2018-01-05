@@ -59,6 +59,18 @@ int32_t dst_array_calchash(const DstValue *array, int32_t len) {
     return (int32_t) hash;
 }
 
+/* Computes hash of an array of values */
+int32_t dst_kv_calchash(const DstKV *kvs, int32_t len) {
+    const DstKV *end = kvs + len;
+    uint32_t hash = 5381;
+    while (kvs < end) {
+        hash = (hash << 5) + hash + dst_hash(kvs->key);
+        hash = (hash << 5) + hash + dst_hash(kvs->value);
+        kvs++;
+    }
+    return (int32_t) hash;
+}
+
 /* Calculate hash for string */
 int32_t dst_string_calchash(const uint8_t *str, int32_t len) {
     const uint8_t *end = str + len;
@@ -66,6 +78,58 @@ int32_t dst_string_calchash(const uint8_t *str, int32_t len) {
     while (str < end)
         hash = (hash << 5) + hash + *str++;
     return (int32_t) hash;
+}
+
+/* Calculate next power of 2. May overflow. If n is 0,
+ * will return 0. */
+int32_t dst_tablen(int32_t n) {
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    return n + 1;
+}
+
+/* Compare a dst string with a cstring. more efficient than loading
+ * c string as a dst string. */
+int dst_cstrcmp(const uint8_t *str, const char *other) {
+    int32_t len = dst_string_length(str);
+    int32_t index;
+    for (index = 0; index < len; index++) {
+        uint8_t c = str[index];
+        uint8_t k = ((const uint8_t *)other)[index];
+        if (c < k) return -1;
+        if (c > k) return 1;
+        if (k == '\0') break;
+    }
+    return (other[index] == '\0') ? 0 : -1;
+}
+
+/* Do a binary search on a static array of structs. Each struct must
+ * have a string as its first element, and the struct must be sorted
+ * lexogrpahically by that element. */
+const void *dst_strbinsearch(
+        const void *tab,
+        size_t tabcount,
+        size_t itemsize,
+        const uint8_t *key) {
+    size_t low = 0;
+    size_t hi = tabcount;
+    while (low < hi) {
+        size_t mid = low + ((hi - low) / 2);
+        const char **item = (const char **)(tab + mid * itemsize);
+        const char *name = *item;
+        int comp = dst_cstrcmp(key, name);
+        if (comp < 0) {
+            hi = mid;
+        } else if (comp > 0) {
+            low = mid + 1;
+        } else {
+            return (const void *)item;
+        }
+    }
+    return NULL;
 }
 
 /* Read both tuples and arrays as c pointers + int32_t length. Return 1 if the
@@ -76,7 +140,7 @@ int dst_seq_view(DstValue seq, const DstValue **data, int32_t *len) {
         *len = dst_unwrap_array(seq)->count;
         return 1;
     } else if (dst_checktype(seq, DST_TUPLE)) {
-        *data = dst_unwrap_struct(seq);
+        *data = dst_unwrap_tuple(seq);
         *len = dst_tuple_length(dst_unwrap_struct(seq));
         return 1;
     }
@@ -101,7 +165,7 @@ int dst_chararray_view(DstValue str, const uint8_t **data, int32_t *len) {
 /* Read both structs and tables as the entries of a hashtable with
  * identical structure. Returns 1 if the view can be constructed and
  * 0 if the type is invalid. */
-int dst_hashtable_view(DstValue tab, const DstValue **data, int32_t *len, int32_t *cap) {
+int dst_hashtable_view(DstValue tab, const DstKV **data, int32_t *len, int32_t *cap) {
     if (dst_checktype(tab, DST_TABLE)) {
         *data = dst_unwrap_table(tab)->data;
         *cap = dst_unwrap_table(tab)->capacity;

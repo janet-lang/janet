@@ -66,8 +66,11 @@ void dst_array_setcount(DstArray *array, int32_t count) {
     if (count < 0)
         return;
     if (count > array->count) {
+        int32_t i;
         dst_array_ensure(array, count + 1);
-        dst_memempty(array->data + array->count, count - array->count);
+        for (i = array->count; i < count; i++) {
+            array->data[i] = dst_wrap_nil();
+        }
     }
     array->count = count;
 }

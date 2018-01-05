@@ -237,11 +237,13 @@ static const uint8_t *parse_recur(
         default: 
         atom:
         {
+            int ascii = 1;
             DstValue numcheck;
             const uint8_t *tokenend = src;
             if (!is_symbol_char(*src)) goto unexpected_character;
-            while (tokenend < end && is_symbol_char(*tokenend))
-                tokenend++;
+            while (tokenend < end && is_symbol_char(*tokenend)) {
+                if (*tokenend++ > 127) ascii = 0;
+            }
             numcheck = dst_scan_number(src, tokenend - src);
             if (!dst_checktype(numcheck, DST_NIL)) {
                 ret = numcheck;
@@ -255,7 +257,9 @@ static const uint8_t *parse_recur(
                 if (*src >= '0' && *src <= '9') {
                     goto sym_nodigits;
                 } else {
-                    if (!valid_utf8(src, tokenend - src))
+                    /* Don't do full utf8 check unless we have seen non ascii characters. */
+                    int valid = ascii || valid_utf8(src, tokenend - src);
+                    if (!valid)
                         goto invalid_utf8;
                     if (*src == ':') {
                         ret = dst_stringv(src + 1, tokenend - src - 1);
@@ -415,8 +419,8 @@ static const uint8_t *parse_recur(
                         ret = dst_wrap_table(t);
                         submapping = dst_wrap_table(subt);
                     } else {
-                        DstValue *st = dst_struct_begin(n >> 1);
-                        DstValue *subst = dst_struct_begin(n >> 1);
+                        DstKV *st = dst_struct_begin(n >> 1);
+                        DstKV *subst = dst_struct_begin(n >> 1);
                         for (i = n; i > 0; i -= 2) {
                             DstValue val = dst_array_pop(&args->stack);
                             DstValue key = dst_array_pop(&args->stack);

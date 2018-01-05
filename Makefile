@@ -26,12 +26,12 @@ PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 VERSION=\"0.0.0-beta\"
 
-CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g  -fsanitize=address -DDST_VERSION=$(VERSION)
+CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -fsanitize=address -DDST_VERSION=$(VERSION)
 PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
 DEBUGGER=lldb
-DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h gc.h sourcemap.h)
+DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h gc.h sourcemap.h vector.h)
 DST_HEADERS=$(addprefix include/dst/,dst.h dstconfig.h dsttypes.h dststate.h dststl.h)
 
 #############################
@@ -48,38 +48,15 @@ all: $(DST_TARGET)
 
 DST_CORE_SOURCES=$(addprefix core/,\
 				 abstract.c array.c asm.c buffer.c compile.c\
-				 fiber.c func.c gc.c math.c parse.c sourcemap.c string.c\
+				 fiber.c gc.c math.c parse.c sourcemap.c string.c\
 				 stl.c strtod.c struct.c symcache.c table.c tuple.c util.c\
-				 value.c vm.c wrap.c)
+				 value.c vector.c vm.c wrap.c)
 
 DST_CLIENT_SOURCES=$(addprefix client/,\
 				   main.c)
 
 $(DST_TARGET): $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(DST_ALL_HEADERS)
 	$(CC) $(CFLAGS) $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) -o $(DST_TARGET)
-
-######################
-##### Unit Tests #####
-######################
-
-CCU_FLAGS = $(CFLAGS) -DDST_UNIT_TEST
-
-DST_UNIT_BINARIES=$(addprefix unittests/,\
-				  asm_test.out array_test.out buffer_test.out compile_test.out fiber_test.out \
-				  parse_test.out strtod_test.out table_test.out)
-
-%.out: %.c $(DST_CORE_OBJECTS) $(DST_ALL_HEADERS) unittests/unit.h
-	$(CC) $(CCU_FLAGS) $(DST_CORE_OBJECTS) $< -o $@
-
-unit: $(DST_UNIT_BINARIES)
-	unittests/array_test.out
-	unittests/asm_test.out
-	unittests/buffer_test.out
-	unittests/compile_test.out
-	unittests/fiber_test.out
-	unittests/parse_test.out
-	unittests/strtod_test.out
-	unittests/table_test.out
 
 ###################
 ##### Testing #####
@@ -95,7 +72,7 @@ valgrind: $(DST_TARGET)
 	@ valgrind --leak-check=full -v ./$(DST_TARGET)
 
 test: $(DST_TARGET)
-	@ ./$(DST_TARGET) dsttests/basic.dst
+	@ ./$(DST_TARGET) dsttest/suite0.dst
 
 valtest: $(DST_TARGET)
 	valgrind --leak-check=full -v ./$(DST_TARGET) dsttests/basic.dst

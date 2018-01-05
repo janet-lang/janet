@@ -43,7 +43,7 @@ static int dst_update_fiber() {
                 return 1;
             }
         } else {
-            /* The root thread has termiated */
+            /* The root thread has terminated */
             return 1;
         }
     }
@@ -68,7 +68,7 @@ static int dst_continue(DstValue *returnreg) {
      * Pulls out unsigned integers */
 #define oparg(shift, mask) (((*pc) >> ((shift) << 3)) & (mask))
 
-#define vm_throw(e) do { retreg = dst_wrap_string(dst_formatc("%s, %v", (e), dst_asm_decode_instruction(*pc))); goto vm_error; } while (0)
+#define vm_throw(e) do { retreg = dst_cstringv(e); goto vm_error; } while (0)
 #define vm_assert(cond, e) do {if (!(cond)) vm_throw((e)); } while (0)
 
 #define vm_binop_integer(op) \
