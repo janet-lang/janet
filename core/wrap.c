@@ -24,7 +24,7 @@
 
 #ifdef DST_NANBOX
 
-void *dst_nanbox_to_pointer(DstValue x) {
+void *dst_nanbox_to_pointer(Dst x) {
     /* We need to do this shift to keep the higher bits of the pointer
      * the same as bit 47 as required by the x86 architecture. We may save
      * an instruction if we do x.u64 & DST_NANBOX_POINTERBITS, but this 0s
@@ -39,8 +39,8 @@ void *dst_nanbox_to_pointer(DstValue x) {
     return x.pointer;
 }
 
-DstValue dst_nanbox_from_pointer(void *p, uint64_t tagmask) {
-    DstValue ret;
+Dst dst_nanbox_from_pointer(void *p, uint64_t tagmask) {
+    Dst ret;
     ret.pointer = p;
 #if defined (DST_NANBOX_47) || defined (DST_32)
 #else
@@ -50,8 +50,8 @@ DstValue dst_nanbox_from_pointer(void *p, uint64_t tagmask) {
     return ret;
 }
 
-DstValue dst_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
-    DstValue ret;
+Dst dst_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
+    Dst ret;
     ret.cpointer = p;
 #if defined (DST_NANBOX_47) || defined (DST_32)
 #else
@@ -61,8 +61,8 @@ DstValue dst_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
     return ret;
 }
 
-DstValue dst_nanbox_from_double(double d) {
-    DstValue ret;
+Dst dst_nanbox_from_double(double d) {
+    Dst ret;
     ret.real = d;
     /* Normalize NaNs */
     if (d != d)
@@ -70,8 +70,8 @@ DstValue dst_nanbox_from_double(double d) {
     return ret;
 }
 
-DstValue dst_nanbox_from_bits(uint64_t bits) {
-    DstValue ret;
+Dst dst_nanbox_from_bits(uint64_t bits) {
+    Dst ret;
     ret.u64 = bits;
     return ret;
 }
@@ -104,37 +104,37 @@ void dst_nanbox_memempty(DstKV *mem, int32_t count) {
  * leak memory, where as the stack based API ensures that all values can
  * be collected by the garbage collector. */
 
-DstValue dst_wrap_nil() {
-    DstValue y;
+Dst dst_wrap_nil() {
+    Dst y;
     y.type = DST_NIL;
     y.as.u64 = 0;
     return y;
 }
 
-DstValue dst_wrap_true() {
-    DstValue y;
+Dst dst_wrap_true() {
+    Dst y;
     y.type = DST_TRUE;
     y.as.u64 = 0;
     return y;
 }
 
-DstValue dst_wrap_false() {
-    DstValue y;
+Dst dst_wrap_false() {
+    Dst y;
     y.type = DST_FALSE;
     y.as.u64 = 0;
     return y;
 }
 
-DstValue dst_wrap_boolean(int x) {
-    DstValue y;
+Dst dst_wrap_boolean(int x) {
+    Dst y;
     y.type = x ? DST_TRUE : DST_FALSE;
     y.as.u64 = 0;
     return y;
 }
 
 #define DST_WRAP_DEFINE(NAME, TYPE, DTYPE, UM)\
-DstValue dst_wrap_##NAME(TYPE x) {\
-    DstValue y;\
+Dst dst_wrap_##NAME(TYPE x) {\
+    Dst y;\
     y.type = DTYPE;\
     y.as.u64 = 0; /* zero other bits in case of 32 bit integer */ \
     y.as.UM = x;\
@@ -146,7 +146,7 @@ DST_WRAP_DEFINE(integer, int32_t, DST_INTEGER, integer)
 DST_WRAP_DEFINE(string, const uint8_t *, DST_STRING, cpointer)
 DST_WRAP_DEFINE(symbol, const uint8_t *, DST_SYMBOL, cpointer)
 DST_WRAP_DEFINE(array, DstArray *, DST_ARRAY, pointer)
-DST_WRAP_DEFINE(tuple, const DstValue *, DST_TUPLE, cpointer)
+DST_WRAP_DEFINE(tuple, const Dst *, DST_TUPLE, cpointer)
 DST_WRAP_DEFINE(struct, const DstKV *, DST_STRUCT, cpointer)
 DST_WRAP_DEFINE(fiber, DstFiber *, DST_FIBER, pointer)
 DST_WRAP_DEFINE(buffer, DstBuffer *, DST_BUFFER, pointer)

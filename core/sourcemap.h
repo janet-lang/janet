@@ -27,18 +27,18 @@
 
 /* Get the sub source map by indexing a value. Used to traverse
  * into arrays and tuples */
-const DstValue *dst_sourcemap_index(const DstValue *map, int32_t index);
+const Dst *dst_sourcemap_index(const Dst *map, int32_t index);
 
 /* Traverse into a key of a table or struct */
-const DstValue *dst_sourcemap_key(const DstValue *map, DstValue key);
+const Dst *dst_sourcemap_key(const Dst *map, Dst key);
 
 /* Traverse into a value of a table or struct */
-const DstValue *dst_sourcemap_value(const DstValue *map, DstValue key);
+const Dst *dst_sourcemap_value(const Dst *map, Dst key);
 
 /* Try to rebuild a source map from given another map */
-const DstValue *dst_sourcemap_remap(
-        const DstValue *oldmap,
-        DstValue oldsource,
-        DstValue newsource);
+const Dst *dst_sourcemap_remap(
+        const Dst *oldmap,
+        Dst oldsource,
+        Dst newsource);
 
 #endif

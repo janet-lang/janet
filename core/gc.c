@@ -30,7 +30,7 @@ uint32_t dst_vm_gc_interval;
 uint32_t dst_vm_next_collection;
 
 /* Roots */
-DstValue *dst_vm_roots;
+Dst *dst_vm_roots;
 uint32_t dst_vm_root_count;
 uint32_t dst_vm_root_capacity;
 
@@ -41,14 +41,14 @@ static void dst_mark_function(DstFunction *func);
 static void dst_mark_array(DstArray *array);
 static void dst_mark_table(DstTable *table);
 static void dst_mark_struct(const DstKV *st);
-static void dst_mark_tuple(const DstValue *tuple);
+static void dst_mark_tuple(const Dst *tuple);
 static void dst_mark_buffer(DstBuffer *buffer);
 static void dst_mark_string(const uint8_t *str);
 static void dst_mark_fiber(DstFiber *fiber);
 static void dst_mark_abstract(void *adata);
 
 /* Mark a value */
-void dst_mark(DstValue x) {
+void dst_mark(Dst x) {
     switch (dst_type(x)) {
         default: break;
         case DST_STRING:
@@ -77,8 +77,8 @@ static void dst_mark_abstract(void *adata) {
 }
 
 /* Mark a bunch of items in memory */
-static void dst_mark_many(const DstValue *values, int32_t n) {
-    const DstValue *end = values + n;
+static void dst_mark_many(const Dst *values, int32_t n) {
+    const Dst *end = values + n;
     while (values < end) {
         dst_mark(*values);
         values += 1;
@@ -116,7 +116,7 @@ static void dst_mark_struct(const DstKV *st) {
     dst_mark_kvs(st, dst_struct_capacity(st));
 }
 
-static void dst_mark_tuple(const DstValue *tuple) {
+static void dst_mark_tuple(const Dst *tuple) {
     if (dst_gc_reachable(dst_tuple_raw(tuple)))
         return;
     dst_gc_mark(dst_tuple_raw(tuple));
@@ -305,11 +305,11 @@ void dst_collect() {
 /* Add a root value to the GC. This prevents the GC from removing a value
  * and all of its children. If gcroot is called on a value n times, unroot
  * must also be called n times to remove it as a gc root. */
-void dst_gcroot(DstValue root) {
+void dst_gcroot(Dst root) {
     uint32_t newcount = dst_vm_root_count + 1;
     if (newcount > dst_vm_root_capacity) {
         uint32_t newcap = 2 * newcount;
-        dst_vm_roots = realloc(dst_vm_roots, sizeof(DstValue) * newcap);
+        dst_vm_roots = realloc(dst_vm_roots, sizeof(Dst) * newcap);
         if (NULL == dst_vm_roots) {
             DST_OUT_OF_MEMORY;
         }
@@ -321,9 +321,9 @@ void dst_gcroot(DstValue root) {
 
 /* Remove a root value from the GC. This allows the gc to potentially reclaim
  * a value and all its children. */
-int dst_gcunroot(DstValue root) {
-    DstValue *vtop = dst_vm_roots + dst_vm_root_count;
-    DstValue *v = dst_vm_roots;
+int dst_gcunroot(Dst root) {
+    Dst *vtop = dst_vm_roots + dst_vm_root_count;
+    Dst *v = dst_vm_roots;
     /* Search from top to bottom as access is most likely LIFO */
     for (v = dst_vm_roots; v < vtop; v++) {
         if (dst_equals(root, *v)) {
@@ -335,9 +335,9 @@ int dst_gcunroot(DstValue root) {
 }
 
 /* Remove a root value from the GC. This sets the effective reference count to 0. */
-int dst_gcunrootall(DstValue root) {
-    DstValue *vtop = dst_vm_roots + dst_vm_root_count;
-    DstValue *v = dst_vm_roots;
+int dst_gcunrootall(Dst root) {
+    Dst *vtop = dst_vm_roots + dst_vm_root_count;
+    Dst *v = dst_vm_roots;
     int ret = 0;
     /* Search from top to bottom as access is most likely LIFO */
     for (v = dst_vm_roots; v < vtop; v++) {

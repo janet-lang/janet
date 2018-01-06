@@ -25,10 +25,10 @@
 #include "compile.h"
 #include "gc.h"
 #include "sourcemap.h"
-#include "vector.h"
+#include "util.h"
 
 /* Throw an error with a dst string. */
-void dstc_error(DstCompiler *c, const DstValue *sourcemap, const uint8_t *m) {
+void dstc_error(DstCompiler *c, const Dst *sourcemap, const uint8_t *m) {
     /* Don't override first error */
     if (c->result.status == DST_COMPILE_ERROR) {
         return;
@@ -45,15 +45,15 @@ void dstc_error(DstCompiler *c, const DstValue *sourcemap, const uint8_t *m) {
 }
 
 /* Throw an error with a message in a cstring */
-void dstc_cerror(DstCompiler *c, const DstValue *sourcemap, const char *m) {
+void dstc_cerror(DstCompiler *c, const Dst *sourcemap, const char *m) {
     dstc_error(c, sourcemap, dst_cstring(m));
 }
 
 /* Use these to get sub options. They will traverse the source map so
  * compiler errors make sense. Then modify the returned options. */
-DstFormOptions dstc_getindex(DstFormOptions opts, int32_t index) {
-    const DstValue *sourcemap = dst_sourcemap_index(opts.sourcemap, index);
-    DstValue nextval = dst_getindex(opts.x, index);
+DstFopts dstc_getindex(DstFopts opts, int32_t index) {
+    const Dst *sourcemap = dst_sourcemap_index(opts.sourcemap, index);
+    Dst nextval = dst_getindex(opts.x, index);
     opts.x = nextval;
     opts.flags = 0;
     opts.sourcemap = sourcemap;
@@ -61,8 +61,8 @@ DstFormOptions dstc_getindex(DstFormOptions opts, int32_t index) {
 }
 
 /* Index into the key of a table or struct */
-DstFormOptions dstc_getkey(DstFormOptions opts, DstValue key) {
-    const DstValue *sourcemap = dst_sourcemap_key(opts.sourcemap, key);
+DstFopts dstc_getkey(DstFopts opts, Dst key) {
+    const Dst *sourcemap = dst_sourcemap_key(opts.sourcemap, key);
     opts.x = key;
     opts.sourcemap = sourcemap;
     opts.flags = 0;
@@ -70,9 +70,9 @@ DstFormOptions dstc_getkey(DstFormOptions opts, DstValue key) {
 }
 
 /* Index into the value of a table or struct */
-DstFormOptions dstc_getvalue(DstFormOptions opts, DstValue key) {
-    const DstValue *sourcemap = dst_sourcemap_value(opts.sourcemap, key);
-    DstValue nextval = dst_get(opts.x, key);
+DstFopts dstc_getvalue(DstFopts opts, Dst key) {
+    const Dst *sourcemap = dst_sourcemap_value(opts.sourcemap, key);
+    Dst nextval = dst_get(opts.x, key);
     opts.x = nextval;
     opts.sourcemap = sourcemap;
     opts.flags = 0;
@@ -80,7 +80,7 @@ DstFormOptions dstc_getvalue(DstFormOptions opts, DstValue key) {
 }
 
 /* Check error */
-static int dstc_iserr(DstFormOptions *opts) {
+static int dstc_iserr(DstFopts *opts) {
     return (opts->compiler->result.status == DST_COMPILE_ERROR);
 }
 
@@ -151,7 +151,7 @@ static void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s) {
 }
 
 /* Add a constant to the current scope. Return the index of the constant. */
-static int32_t dstc_const(DstCompiler *c, const DstValue *sourcemap, DstValue x) {
+static int32_t dstc_const(DstCompiler *c, const Dst *sourcemap, Dst x) {
     DstScope *scope = &dst_v_last(c->scopes);
     int32_t i, len;
     /* Get the topmost function scope */
@@ -203,13 +203,6 @@ void dstc_popscope(DstCompiler *c) {
     int32_t oldcount = dst_v_count(c->scopes);
     dst_assert(oldcount, "could not pop scope");
     scope = dst_v_last(c->scopes);
-    /* Move free slots to parent scope if not a new function.
-     * We need to know the total number of slots used when compiling the function. */
-    if (!(scope.flags & (DST_SCOPE_FUNCTION | DST_SCOPE_UNUSED)) && oldcount > 1) {
-        DstScope *newscope = &dst_v_last(c->scopes);
-        if (newscope->smax < scope.smax) 
-            newscope->smax = scope.smax;
-    }
     /* Free the scope */
     dst_v_free(scope.consts);
     dst_v_free(scope.syms);
@@ -217,10 +210,17 @@ void dstc_popscope(DstCompiler *c) {
     dst_v_free(scope.defs);
     dst_v_free(scope.slots);
     dst_v_pop(c->scopes);
+    /* Move free slots to parent scope if not a new function.
+     * We need to know the total number of slots used when compiling the function. */
+    if (!(scope.flags & (DST_SCOPE_FUNCTION | DST_SCOPE_UNUSED)) && oldcount > 1) {
+        DstScope *newscope = &dst_v_last(c->scopes);
+        if (newscope->smax < scope.smax) 
+            newscope->smax = scope.smax;
+    }
 }
 
 /* Create a slot with a constant */
-DstSlot dstc_cslot(DstValue x) {
+DstSlot dstc_cslot(Dst x) {
     DstSlot ret;
     ret.flags = (1 << dst_type(x)) | DST_SLOT_CONSTANT;
     ret.index = -1;
@@ -232,7 +232,7 @@ DstSlot dstc_cslot(DstValue x) {
 /* Allow searching for symbols. Return information about the symbol */
 DstSlot dstc_resolve(
         DstCompiler *c,
-        const DstValue *sourcemap,
+        const Dst *sourcemap,
         const uint8_t *sym) {
 
     DstSlot ret = dstc_cslot(dst_wrap_nil());
@@ -261,8 +261,8 @@ DstSlot dstc_resolve(
 
     /* Symbol not found - check for global */
     {
-        DstValue check = dst_get(c->env, dst_wrap_symbol(sym));
-        DstValue ref;
+        Dst check = dst_get(c->env, dst_wrap_symbol(sym));
+        Dst ref;
         if (!(dst_checktype(check, DST_STRUCT) || dst_checktype(check, DST_TABLE))) {
             dstc_error(c, sourcemap, dst_formatc("unknown symbol %q", sym));
             return dstc_cslot(dst_wrap_nil());
@@ -275,7 +275,7 @@ DstSlot dstc_resolve(
             ret.flags &= ~DST_SLOT_CONSTANT;
             return ret;
         } else {
-            DstValue value = dst_get(check, dst_csymbolv("value"));
+            Dst value = dst_get(check, dst_csymbolv("value"));
             return dstc_cslot(value);
         }
     }
@@ -333,7 +333,7 @@ DstSlot dstc_resolve(
 }
 
 /* Emit a raw instruction with source mapping. */
-void dstc_emit(DstCompiler *c, const DstValue *sourcemap, uint32_t instr) {
+void dstc_emit(DstCompiler *c, const Dst *sourcemap, uint32_t instr) {
     dst_v_push(c->buffer, instr);
     if (NULL != sourcemap) {
         dst_v_push(c->mapbuffer, dst_unwrap_integer(sourcemap[0]));
@@ -345,7 +345,7 @@ void dstc_emit(DstCompiler *c, const DstValue *sourcemap, uint32_t instr) {
 }
 
 /* Load a constant into a local slot */
-static void dstc_loadconst(DstCompiler *c, const DstValue *sourcemap, DstValue k, int32_t dest) {
+static void dstc_loadconst(DstCompiler *c, const Dst *sourcemap, Dst k, int32_t dest) {
     switch (dst_type(k)) {
         case DST_NIL:
             dstc_emit(c, sourcemap, (dest << 8) | DOP_LOAD_NIL);
@@ -384,7 +384,7 @@ static void dstc_loadconst(DstCompiler *c, const DstValue *sourcemap, DstValue k
  * that can be used in an instruction. */
 static int32_t dstc_preread(
         DstCompiler *c,
-        const DstValue *sourcemap,
+        const Dst *sourcemap,
         int32_t max,
         int nth,
         DstSlot s) {
@@ -436,7 +436,7 @@ static void dstc_postread(DstCompiler *c, DstSlot s, int32_t index) {
  * be writeable (not a literal). */
 static void dstc_copy(
         DstCompiler *c,
-        const DstValue *sourcemap,
+        const Dst *sourcemap,
         DstSlot dest,
         DstSlot src) {
     int writeback = 0;
@@ -559,7 +559,7 @@ static void dstc_copy(
 }
 
 /* Generate the return instruction for a slot. */
-static DstSlot dstc_return(DstCompiler *c, const DstValue *sourcemap, DstSlot s) {
+static DstSlot dstc_return(DstCompiler *c, const Dst *sourcemap, DstSlot s) {
     if (!(s.flags & DST_SLOT_RETURNED)) {
         if (s.flags & DST_SLOT_CONSTANT && dst_checktype(s.constant, DST_NIL)) {
             dstc_emit(c, sourcemap, DOP_RETURN_NIL);
@@ -575,7 +575,7 @@ static DstSlot dstc_return(DstCompiler *c, const DstValue *sourcemap, DstSlot s)
 
 /* Get a target slot for emitting an instruction. Will always return
  * a local slot. */
-static DstSlot dstc_gettarget(DstFormOptions opts) {
+static DstSlot dstc_gettarget(DstFopts opts) {
     DstSlot slot;
     if ((opts.flags & DST_FOPTS_HINT) &&
         (opts.hint.envindex == 0) &&
@@ -593,17 +593,17 @@ static DstSlot dstc_gettarget(DstFormOptions opts) {
 /* Slot and map pairing */
 typedef struct SlotMap {
     DstSlot slot;
-    const DstValue *map;
+    const Dst *map;
 } SlotMap;
 
 /* Get a bunch of slots for function arguments */
-SlotMap *toslots(DstFormOptions opts, int32_t start) {
+SlotMap *toslots(DstFopts opts, int32_t start) {
     int32_t i, len;
     SlotMap *ret = NULL;
     len = dst_length(opts.x);
     for (i = start; i < len; i++) {
         SlotMap sm;
-        DstFormOptions subopts = dstc_getindex(opts, i);
+        DstFopts subopts = dstc_getindex(opts, i);
         sm.slot = dstc_value(subopts);
         sm.map = subopts.sourcemap;
         dst_v_push(ret, sm);
@@ -612,13 +612,13 @@ SlotMap *toslots(DstFormOptions opts, int32_t start) {
 }
 
 /* Get a bunch of slots for function arguments */
-static SlotMap *toslotskv(DstFormOptions opts) {
+static SlotMap *toslotskv(DstFopts opts) {
     SlotMap *ret = NULL;
     const DstKV *kv = NULL;
     while (NULL != (kv = dst_next(opts.x, kv))) {
         SlotMap km, vm;
-        DstFormOptions kopts = dstc_getkey(opts, kv->key);
-        DstFormOptions vopts = dstc_getvalue(opts, kv->key);
+        DstFopts kopts = dstc_getkey(opts, kv->key);
+        DstFopts vopts = dstc_getvalue(opts, kv->key);
         km.slot = dstc_value(kopts);
         km.map = kopts.sourcemap;
         vm.slot = dstc_value(vopts);
@@ -630,9 +630,9 @@ static SlotMap *toslotskv(DstFormOptions opts) {
 }
 
 /* Push slots load via toslots. */
-static void pushslots(DstFormOptions opts, SlotMap *sms) {
+static void pushslots(DstFopts opts, SlotMap *sms) {
     DstCompiler *c = opts.compiler;
-    const DstValue *sm = opts.sourcemap;
+    const Dst *sm = opts.sourcemap;
     int32_t i;
     for (i = 0; i < dst_v_count(sms) - 2; i += 3) {
         int32_t ls1 = dstc_preread(c, sms[i].map, 0xFF, 1, sms[i].slot);
@@ -666,7 +666,7 @@ static void pushslots(DstFormOptions opts, SlotMap *sms) {
 }
 
 /* Free slots loaded via toslots */
-static void freeslots(DstFormOptions opts, SlotMap *sms) {
+static void freeslots(DstFopts opts, SlotMap *sms) {
     int32_t i;
     for (i = 0; i < dst_v_count(sms); i++) {
         dstc_freeslot(opts.compiler, sms[i].slot);
@@ -674,7 +674,7 @@ static void freeslots(DstFormOptions opts, SlotMap *sms) {
     dst_v_free(sms);
 }
 
-DstSlot dstc_quote(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+DstSlot dstc_quote(DstFopts opts, int32_t argn, const Dst *argv) {
     if (argn != 1) {
         dstc_cerror(opts.compiler, opts.sourcemap, "expected 1 argument");
         return dstc_cslot(dst_wrap_nil());
@@ -682,9 +682,9 @@ DstSlot dstc_quote(DstFormOptions opts, int32_t argn, const DstValue *argv) {
     return dstc_cslot(argv[0]);
 }
 
-DstSlot dstc_var(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+DstSlot dstc_var(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    DstFormOptions subopts;
+    DstFopts subopts;
     DstSlot ret;
     if (argn != 2) {
         dstc_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
@@ -699,7 +699,7 @@ DstSlot dstc_var(DstFormOptions opts, int32_t argn, const DstValue *argv) {
     ret = dstc_value(subopts);
     if (dst_v_last(c->scopes).flags & DST_SCOPE_TOP) {
         DstCompiler *c = opts.compiler;
-        const DstValue *sm = opts.sourcemap;
+        const Dst *sm = opts.sourcemap;
         DstSlot refslot, refarrayslot;
         /* Global var, generate var */
         DstTable *reftab = dst_table(1);
@@ -742,8 +742,8 @@ DstSlot dstc_var(DstFormOptions opts, int32_t argn, const DstValue *argv) {
     return ret;
 }
 
-DstSlot dstc_varset(DstFormOptions opts, int32_t argn, const DstValue *argv) {
-    DstFormOptions subopts;
+DstSlot dstc_varset(DstFopts opts, int32_t argn, const Dst *argv) {
+    DstFopts subopts;
     DstSlot ret, dest;
     if (argn != 2) {
         dstc_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
@@ -766,9 +766,9 @@ DstSlot dstc_varset(DstFormOptions opts, int32_t argn, const DstValue *argv) {
     return ret;
 }
 
-DstSlot dstc_def(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    DstFormOptions subopts;
+    DstFopts subopts;
     DstSlot ret;
     if (argn != 2) {
         dstc_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
@@ -785,7 +785,7 @@ DstSlot dstc_def(DstFormOptions opts, int32_t argn, const DstValue *argv) {
     if (dst_v_last(c->scopes).flags & DST_SCOPE_TOP) {
         /* Global def, generate code to store in env when executed */
         DstCompiler *c = opts.compiler;
-        const DstValue *sm = opts.sourcemap;
+        const Dst *sm = opts.sourcemap;
         /* Root scope, add to def table */
         DstSlot envslot = dstc_cslot(c->env);
         DstSlot nameslot = dstc_cslot(argv[0]);
@@ -830,7 +830,7 @@ DstSlot dstc_def(DstFormOptions opts, int32_t argn, const DstValue *argv) {
 /* Compile some code that will be thrown away. Used to ensure
  * that dead code is well formed without including it in the final
  * bytecode. */
-static void dstc_throwaway(DstFormOptions opts) {
+static void dstc_throwaway(DstFopts opts) {
     DstCompiler *c = opts.compiler;
     int32_t bufstart = dst_v_count(c->buffer);
     dstc_scope(c, DST_SCOPE_UNUSED);
@@ -854,11 +854,11 @@ static void dstc_throwaway(DstFormOptions opts) {
  * ...
  * :done
  */
-DstSlot dstc_if(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    const DstValue *sm = opts.sourcemap;
+    const Dst *sm = opts.sourcemap;
     int32_t labelr, labeljr, labeld, labeljd, condlocal;
-    DstFormOptions leftopts, rightopts, condopts;
+    DstFopts leftopts, rightopts, condopts;
     DstSlot cond, left, right, target;
     const int tail = opts.flags & DST_FOPTS_TAIL;
     const int drop = opts.flags & DST_FOPTS_DROP;
@@ -893,7 +893,7 @@ DstSlot dstc_if(DstFormOptions opts, int32_t argn, const DstValue *argv) {
     /* Check constant condition. */
     /* TODO: Use type info for more short circuits */
     if ((cond.flags & DST_SLOT_CONSTANT) && !(cond.flags & DST_SLOT_REF)) {
-        DstFormOptions goodopts, badopts;
+        DstFopts goodopts, badopts;
         if (dst_truthy(cond.constant)) {
             goodopts = leftopts;
             badopts = rightopts;
@@ -946,13 +946,13 @@ DstSlot dstc_if(DstFormOptions opts, int32_t argn, const DstValue *argv) {
     return target;
 }
 
-DstSlot dstc_do(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+DstSlot dstc_do(DstFopts opts, int32_t argn, const Dst *argv) {
     int32_t i;
     DstSlot ret;
     dstc_scope(opts.compiler, 0);
     (void) argv;
     for (i = 0; i < argn; i++) {
-        DstFormOptions subopts = dstc_getindex(opts, i + 1);
+        DstFopts subopts = dstc_getindex(opts, i + 1);
         if (i != argn - 1) {
             subopts.flags = DST_FOPTS_DROP;
         } else if (opts.flags & DST_FOPTS_TAIL) {
@@ -976,9 +976,9 @@ DstSlot dstc_do(DstFormOptions opts, int32_t argn, const DstValue *argv) {
  * jump :whiletop
  * :done
  */
-DstSlot dstc_while(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    const DstValue *sm = opts.sourcemap;
+    const Dst *sm = opts.sourcemap;
     DstSlot cond;
     int32_t condlocal, labelwt, labeld, labeljt, labelc, i;
     int infinite = 0;
@@ -1016,7 +1016,7 @@ DstSlot dstc_while(DstFormOptions opts, int32_t argn, const DstValue *argv) {
 
     /* Compile body */
     for (i = 1; i < argn; i++) {
-        DstFormOptions subopts = dstc_getindex(opts, i + 1);
+        DstFopts subopts = dstc_getindex(opts, i + 1);
         subopts.flags = DST_FOPTS_DROP;
         dstc_freeslot(c, dstc_value(subopts));
     }
@@ -1101,14 +1101,14 @@ static int32_t dstc_addfuncdef(DstCompiler *c, DstFuncDef *def) {
     return dst_v_count(scope->defs) - 1;
 }
 
-DstSlot dstc_fn(DstFormOptions opts, int32_t argn, const DstValue *argv) {
+DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    const DstValue *sm = opts.sourcemap;
+    const Dst *sm = opts.sourcemap;
     DstFuncDef *def;
     DstSlot ret;
     int32_t paramcount, argi, parami, arity, localslot, defindex;
-    const DstValue *params;
-    const DstValue *psm;
+    const Dst *params;
+    const Dst *psm;
     int varargs = 0;
 
     if (argn < 2) {
@@ -1131,7 +1131,7 @@ DstSlot dstc_fn(DstFormOptions opts, int32_t argn, const DstValue *argv) {
         psm = dst_sourcemap_index(sm, parami + 1);
         int32_t i;
         for (i = 0; i < paramcount; i++) {
-            const DstValue *psmi = dst_sourcemap_index(psm, i);
+            const Dst *psmi = dst_sourcemap_index(psm, i);
             if (dst_checktype(params[i], DST_SYMBOL)) {
                 DstSlot slot;
                 /* Check for varargs */
@@ -1163,7 +1163,7 @@ DstSlot dstc_fn(DstFormOptions opts, int32_t argn, const DstValue *argv) {
     /* Compile function body */
     for (argi = parami + 1; argi < argn; argi++) {
         DstSlot s;
-        DstFormOptions subopts = dstc_getindex(opts, argi + 1);
+        DstFopts subopts = dstc_getindex(opts, argi + 1);
         subopts.flags = argi == (argn - 1) ? DST_FOPTS_TAIL : DST_FOPTS_DROP;
         s = dstc_value(subopts);
         dstc_freeslot(c, s);
@@ -1210,11 +1210,11 @@ static const DstSpecial dstc_specials[] = {
 };
 
 /* Compile a tuple */
-DstSlot dstc_tuple(DstFormOptions opts) {
+DstSlot dstc_tuple(DstFopts opts) {
     DstSlot head;
-    DstFormOptions subopts;
+    DstFopts subopts;
     DstCompiler *c = opts.compiler;
-    const DstValue *tup = dst_unwrap_tuple(opts.x);
+    const Dst *tup = dst_unwrap_tuple(opts.x);
     int headcompiled = 0;
     subopts = dstc_getindex(opts, 0);
     subopts.flags = DST_FUNCTION | DST_CFUNCTION;
@@ -1268,9 +1268,9 @@ DstSlot dstc_tuple(DstFormOptions opts) {
     }
 }
 
-static DstSlot dstc_array(DstFormOptions opts) {
+static DstSlot dstc_array(DstFopts opts) {
     DstCompiler *c = opts.compiler;
-    const DstValue *sm = opts.sourcemap;
+    const Dst *sm = opts.sourcemap;
     DstSlot ctor, retslot;
     SlotMap *sms;
     int32_t localindex;
@@ -1291,9 +1291,9 @@ static DstSlot dstc_array(DstFormOptions opts) {
     return retslot;
 }
 
-static DstSlot dstc_tablector(DstFormOptions opts, DstCFunction cfun) {
+static DstSlot dstc_tablector(DstFopts opts, DstCFunction cfun) {
     DstCompiler *c = opts.compiler;
-    const DstValue *sm = opts.sourcemap;
+    const Dst *sm = opts.sourcemap;
     DstSlot ctor, retslot;
     SlotMap *sms;
     int32_t localindex;
@@ -1315,7 +1315,7 @@ static DstSlot dstc_tablector(DstFormOptions opts, DstCFunction cfun) {
 }
 
 /* Compile a single value */
-DstSlot dstc_value(DstFormOptions opts) {
+DstSlot dstc_value(DstFopts opts) {
     DstSlot ret;
     if (dstc_iserr(&opts)) {
         return dstc_cslot(dst_wrap_nil());
@@ -1356,7 +1356,7 @@ DstSlot dstc_value(DstFormOptions opts) {
 }
 
 /* Initialize a compiler */
-static void dstc_init(DstCompiler *c, DstValue env) {
+static void dstc_init(DstCompiler *c, Dst env) {
     c->scopes = NULL;
     c->buffer = NULL;
     c->mapbuffer = NULL;
@@ -1382,7 +1382,7 @@ static void dstc_deinit(DstCompiler *c) {
 /* Compile a form. */
 DstCompileResult dst_compile(DstCompileOptions opts) {
     DstCompiler c;
-    DstFormOptions fopts;
+    DstFopts fopts;
     DstSlot s;
 
     dstc_init(&c, opts.env);

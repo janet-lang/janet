@@ -45,7 +45,7 @@ extern uint32_t dst_vm_cache_count;
 extern uint32_t dst_vm_cache_deleted;
 
 /* GC roots */
-extern DstValue *dst_vm_roots;
+extern Dst *dst_vm_roots;
 extern uint32_t dst_vm_root_count;
 extern uint32_t dst_vm_root_capacity;
 

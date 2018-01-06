@@ -23,7 +23,7 @@
 #include <dst/dst.h>
 #include <dst/dststl.h>
 
-int dst_stl_print(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_print(int32_t argn, Dst *argv, Dst *ret) {
     (void)ret;
 
     int32_t i;
@@ -39,7 +39,7 @@ int dst_stl_print(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_stl_describe(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_describe(int32_t argn, Dst *argv, Dst *ret) {
     (void)ret;
 
     int32_t i;
@@ -55,7 +55,7 @@ int dst_stl_describe(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_stl_asm(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_asm(int32_t argn, Dst *argv, Dst *ret) {
     DstAssembleOptions opts;
     DstAssembleResult res;
     if (argn < 1) {
@@ -74,7 +74,7 @@ int dst_stl_asm(int32_t argn, DstValue *argv, DstValue *ret) {
     }
 }
 
-int dst_stl_disasm(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_disasm(int32_t argn, Dst *argv, Dst *ret) {
     DstFunction *f;
     if (argn < 1 || !dst_checktype(argv[0], DST_FUNCTION)) {
         *ret = dst_cstringv("expected function");
@@ -85,20 +85,20 @@ int dst_stl_disasm(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_stl_tuple(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_tuple(int32_t argn, Dst *argv, Dst *ret) {
     *ret = dst_wrap_tuple(dst_tuple_n(argv, argn));
     return 0;
 }
 
-int dst_stl_array(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_array(int32_t argn, Dst *argv, Dst *ret) {
     DstArray *array = dst_array(argn);
     array->count = argn;
-    memcpy(array->data, argv, argn * sizeof(DstValue));
+    memcpy(array->data, argv, argn * sizeof(Dst));
     *ret = dst_wrap_array(array);
     return 0;
 }
 
-int dst_stl_table(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_table(int32_t argn, Dst *argv, Dst *ret) {
     int32_t i;
     DstTable *table = dst_table(argn >> 1);
     if (argn & 1) {
@@ -112,7 +112,7 @@ int dst_stl_table(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_stl_struct(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_struct(int32_t argn, Dst *argv, Dst *ret) {
     int32_t i;
     DstKV *st = dst_struct_begin(argn >> 1);
     if (argn & 1) {
@@ -126,7 +126,7 @@ int dst_stl_struct(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_stl_fiber(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_fiber(int32_t argn, Dst *argv, Dst *ret) {
     DstFiber *fiber;
     if (argn < 1) {
         *ret = dst_cstringv("expected at least one argument");
@@ -143,7 +143,7 @@ int dst_stl_fiber(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_stl_buffer(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_buffer(int32_t argn, Dst *argv, Dst *ret) {
     DstBuffer *buffer = dst_buffer(10);
     int32_t i;
     for (i = 0; i < argn; ++i) {
@@ -155,7 +155,7 @@ int dst_stl_buffer(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_stl_gensym(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_gensym(int32_t argn, Dst *argv, Dst *ret) {
     if (argn > 1) {
         *ret = dst_cstringv("expected one argument");
         return 1;
@@ -169,9 +169,9 @@ int dst_stl_gensym(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_stl_get(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_stl_get(int32_t argn, Dst *argv, Dst *ret) {
     int32_t i;
-    DstValue ds;
+    Dst ds;
     if (argn < 1) {
         *ret = dst_cstringv("expected at least 1 argument");
         return 1;
@@ -186,8 +186,8 @@ int dst_stl_get(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_stl_put(int32_t argn, DstValue *argv, DstValue *ret) {
-    DstValue ds, key, value;
+int dst_stl_put(int32_t argn, Dst *argv, Dst *ret) {
+    Dst ds, key, value;
     if (argn < 3) {
         *ret = dst_cstringv("expected at least 3 arguments");
         return 1;
@@ -202,7 +202,7 @@ int dst_stl_put(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-static int dst_stl_equal(int32_t argn, DstValue *argv, DstValue *ret) {
+static int dst_stl_equal(int32_t argn, Dst *argv, Dst *ret) {
     int32_t i;
     for (i = 0; i < argn - 1; i++) {
         if (!dst_equals(argv[i], argv[i+1])) {
@@ -214,25 +214,25 @@ static int dst_stl_equal(int32_t argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-static int dst_stl_notequal(int32_t argn, DstValue *argv, DstValue *ret) {
+static int dst_stl_notequal(int32_t argn, Dst *argv, Dst *ret) {
     int32_t i;
     for (i = 0; i < argn - 1; i++) {
         if (dst_equals(argv[i], argv[i+1])) {
-            *ret = dst_wrap_true();
+            *ret = dst_wrap_false();
             return 0;
         }
     }
-    *ret = dst_wrap_false();
+    *ret = dst_wrap_true();
     return 0;
 }
 
-static int dst_stl_not(int32_t argn, DstValue *argv, DstValue *ret) {
+static int dst_stl_not(int32_t argn, Dst *argv, Dst *ret) {
     *ret = dst_wrap_boolean(argn == 0 || !dst_truthy(argv[0]));
     return 0;
 }
 
 #define DST_DEFINE_COMPARATOR(name, pred)\
-static int dst_stl_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
+static int dst_stl_##name(int32_t argn, Dst *argv, Dst *ret) {\
     int32_t i;\
     for (i = 0; i < argn - 1; i++) {\
         if (dst_compare(argv[i], argv[i+1]) pred) {\
@@ -250,6 +250,8 @@ DST_DEFINE_COMPARATOR(notdescending, > 0)
 DST_DEFINE_COMPARATOR(notascending, < 0)
 
 static DstReg stl[] = {
+    {"int", dst_int},
+    {"real", dst_real},
     {"print", dst_stl_print},
     {"describe", dst_stl_describe},
     {"table", dst_stl_table},
@@ -296,8 +298,8 @@ static DstReg stl[] = {
     {"not", dst_stl_not}
 };
 
-DstValue dst_loadstl(int flags) {
-    DstValue ret = dst_loadreg(stl, sizeof(stl)/sizeof(DstReg));
+Dst dst_loadstl(int flags) {
+    Dst ret = dst_loadreg(stl, sizeof(stl)/sizeof(DstReg));
     if (flags & DST_LOAD_ROOT) {
         dst_gcroot(ret);
     }

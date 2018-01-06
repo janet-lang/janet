@@ -23,11 +23,11 @@
 #include <dst/dst.h>
 
 /*
- * Define a number of functions that can be used internally on ANY DstValue.
+ * Define a number of functions that can be used internally on ANY Dst.
  */
 
 /* Check if two values are equal. This is strict equality with no conversion. */
-int dst_equals(DstValue x, DstValue y) {
+int dst_equals(Dst x, Dst y) {
     int result = 0;
     if (dst_type(x) != dst_type(y)) {
         result = 0;
@@ -63,7 +63,7 @@ int dst_equals(DstValue x, DstValue y) {
 }
 
 /* Computes a hash value for a function */
-int32_t dst_hash(DstValue x) {
+int32_t dst_hash(Dst x) {
     int32_t hash = 0;
     switch (dst_type(x)) {
     case DST_NIL:
@@ -98,7 +98,7 @@ int32_t dst_hash(DstValue x) {
 /* Compares x to y. If they are equal retuns 0. If x is less, returns -1.
  * If y is less, returns 1. All types are comparable
  * and should have strict ordering. */
-int dst_compare(DstValue x, DstValue y) {
+int dst_compare(Dst x, Dst y) {
     if (dst_type(x) == dst_type(y)) {
         switch (dst_type(x)) {
             case DST_NIL:
@@ -147,7 +147,7 @@ int dst_compare(DstValue x, DstValue y) {
 
 /* Get a value out af an associated data structure. For invalid
  * data structure or invalid key, returns nil. */
-DstValue dst_get(DstValue ds, DstValue key) {
+Dst dst_get(Dst ds, Dst key) {
     switch (dst_type(ds)) {
     case DST_ARRAY:
         if (dst_checktype(key, DST_INTEGER) &&
@@ -186,7 +186,7 @@ DstValue dst_get(DstValue ds, DstValue key) {
 
 /* Set a value in an associative data structure. Returns possible
  * error message, and NULL if no error. */
-void dst_put(DstValue ds, DstValue key, DstValue value) {
+void dst_put(Dst ds, Dst key, Dst value) {
     switch (dst_type(ds)) {
     case DST_ARRAY:
         if (dst_checktype(key, DST_INTEGER) &&
@@ -211,7 +211,7 @@ void dst_put(DstValue ds, DstValue key, DstValue value) {
 
 /* Get the next key in an associative data structure. Used for iterating through an
  * associative data structure. */
-const DstKV *dst_next(DstValue ds, const DstKV *kv) {
+const DstKV *dst_next(Dst ds, const DstKV *kv) {
     switch(dst_type(ds)) {
         default:
             return NULL;
@@ -223,7 +223,7 @@ const DstKV *dst_next(DstValue ds, const DstKV *kv) {
 }
 
 /* Get the length of an object. Returns errors for invalid types */
-int32_t dst_length(DstValue x) {
+int32_t dst_length(Dst x) {
     switch (dst_type(x)) {
         default:
             return 0;
@@ -243,7 +243,7 @@ int32_t dst_length(DstValue x) {
 }
 
 /* Get the capacity of an object. Returns 0 for invalid types */
-int32_t dst_capacity(DstValue x) {
+int32_t dst_capacity(Dst x) {
     switch (dst_type(x)) {
         default:
             return 0;
@@ -263,7 +263,7 @@ int32_t dst_capacity(DstValue x) {
 }
 
 /* Index into a data structure. Returns nil for out of bounds or invlalid data structure */
-DstValue dst_getindex(DstValue ds, int32_t index) {
+Dst dst_getindex(Dst ds, int32_t index) {
     switch (dst_type(ds)) {
         default:
             return dst_wrap_nil();
@@ -284,7 +284,7 @@ DstValue dst_getindex(DstValue ds, int32_t index) {
 
 /* Set an index in a linear data structure. Does nothing if data structure
  * is invalid */
-void dst_setindex(DstValue ds, DstValue value, int32_t index) {
+void dst_setindex(Dst ds, Dst value, int32_t index) {
     switch (dst_type(ds)) {
         default:
             return;

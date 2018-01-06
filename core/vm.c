@@ -52,13 +52,13 @@ static int dst_update_fiber() {
 }
 
 /* Start running the VM from where it left off. */
-static int dst_continue(DstValue *returnreg) {
+static int dst_continue(Dst *returnreg) {
 
     /* VM state */
-    DstValue *stack;
+    Dst *stack;
     uint32_t *pc;
     DstFunction *func;
-    DstValue retreg;
+    Dst retreg;
 
 /* Eventually use computed gotos for more effient vm loop. */
 #define vm_next() continue
@@ -94,8 +94,8 @@ static int dst_continue(DstValue *returnreg) {
 
 #define vm_binop(op)\
     {\
-        DstValue op1 = stack[oparg(2, 0xFF)];\
-        DstValue op2 = stack[oparg(3, 0xFF)];\
+        Dst op1 = stack[oparg(2, 0xFF)];\
+        Dst op2 = stack[oparg(3, 0xFF)];\
         vm_assert(dst_checktype(op1, DST_INTEGER) || dst_checktype(op1, DST_REAL), "expected number");\
         vm_assert(dst_checktype(op2, DST_INTEGER) || dst_checktype(op2, DST_REAL), "expected number");\
         stack[oparg(1, 0xFF)] = dst_checktype(op1, DST_INTEGER)\
@@ -216,8 +216,8 @@ static int dst_continue(DstValue *returnreg) {
 
         case DOP_DIVIDE:
         {
-            DstValue op1 = stack[oparg(2, 0xFF)];
-            DstValue op2 = stack[oparg(3, 0xFF)];
+            Dst op1 = stack[oparg(2, 0xFF)];
+            Dst op2 = stack[oparg(3, 0xFF)];
             vm_assert(dst_checktype(op1, DST_INTEGER) || dst_checktype(op1, DST_REAL), "expected number");
             vm_assert(dst_checktype(op2, DST_INTEGER) || dst_checktype(op2, DST_REAL), "expected number");
             if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == 0)
@@ -469,7 +469,7 @@ static int dst_continue(DstValue *returnreg) {
 
         case DOP_CALL:
         {
-            DstValue callee = stack[oparg(2, 0xFFFF)];
+            Dst callee = stack[oparg(2, 0xFFFF)];
             if (dst_checktype(callee, DST_FUNCTION)) {
                 func = dst_unwrap_function(callee);
                 dst_stack_frame(stack)->pc = pc;
@@ -494,7 +494,7 @@ static int dst_continue(DstValue *returnreg) {
 
         case DOP_TAILCALL:
         {
-            DstValue callee = stack[oparg(1, 0xFFFFFF)];
+            Dst callee = stack[oparg(1, 0xFFFFFF)];
             if (dst_checktype(callee, DST_FUNCTION)) {
                 func = dst_unwrap_function(callee);
                 dst_fiber_funcframe_tail(dst_vm_fiber, func);
@@ -520,7 +520,7 @@ static int dst_continue(DstValue *returnreg) {
         {
             DstFiber *nextfiber;
             DstStackFrame *frame = dst_stack_frame(stack);
-            DstValue temp = stack[oparg(2, 0xFF)];
+            Dst temp = stack[oparg(2, 0xFF)];
             retreg = stack[oparg(3, 0xFF)];
             vm_assert(dst_checktype(temp, DST_FIBER) ||
                       dst_checktype(temp, DST_NIL), "expected fiber");
@@ -645,7 +645,7 @@ static int dst_continue(DstValue *returnreg) {
 
 /* Run the vm with a given function. This function is
  * called to start the vm. */
-int dst_run(DstValue callee, DstValue *returnreg) {
+int dst_run(Dst callee, Dst *returnreg) {
     if (NULL == dst_vm_fiber) {
         dst_vm_fiber = dst_fiber(0);
     } else {

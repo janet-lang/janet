@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include "util.h"
 
 /* Base 64 lookup table for digits */
 const char dst_base64[65] =
@@ -51,8 +52,8 @@ const char *dst_type_names[16] = {
 };
 
 /* Computes hash of an array of values */
-int32_t dst_array_calchash(const DstValue *array, int32_t len) {
-    const DstValue *end = array + len;
+int32_t dst_array_calchash(const Dst *array, int32_t len) {
+    const Dst *end = array + len;
     uint32_t hash = 5381;
     while (array < end)
         hash = (hash << 5) + hash + dst_hash(*array++);
@@ -134,7 +135,7 @@ const void *dst_strbinsearch(
 
 /* Read both tuples and arrays as c pointers + int32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */
-int dst_seq_view(DstValue seq, const DstValue **data, int32_t *len) {
+int dst_seq_view(Dst seq, const Dst **data, int32_t *len) {
     if (dst_checktype(seq, DST_ARRAY)) {
         *data = dst_unwrap_array(seq)->data;
         *len = dst_unwrap_array(seq)->count;
@@ -149,7 +150,7 @@ int dst_seq_view(DstValue seq, const DstValue **data, int32_t *len) {
 
 /* Read both strings and buffer as unsigned character array + int32_t len.
  * Returns 1 if the view can be constructed and 0 if the type is invalid. */
-int dst_chararray_view(DstValue str, const uint8_t **data, int32_t *len) {
+int dst_chararray_view(Dst str, const uint8_t **data, int32_t *len) {
     if (dst_checktype(str, DST_STRING) || dst_checktype(str, DST_SYMBOL)) {
         *data = dst_unwrap_string(str);
         *len = dst_string_length(dst_unwrap_string(str));
@@ -165,7 +166,7 @@ int dst_chararray_view(DstValue str, const uint8_t **data, int32_t *len) {
 /* Read both structs and tables as the entries of a hashtable with
  * identical structure. Returns 1 if the view can be constructed and
  * 0 if the type is invalid. */
-int dst_hashtable_view(DstValue tab, const DstKV **data, int32_t *len, int32_t *cap) {
+int dst_hashtable_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap) {
     if (dst_checktype(tab, DST_TABLE)) {
         *data = dst_unwrap_table(tab)->data;
         *cap = dst_unwrap_table(tab)->capacity;
@@ -181,15 +182,69 @@ int dst_hashtable_view(DstValue tab, const DstKV **data, int32_t *len, int32_t *
 }
 
 /* Load c functions into an environment */
-DstValue dst_loadreg(DstReg *regs, size_t count) {
+Dst dst_loadreg(DstReg *regs, size_t count) {
     size_t i;
     DstTable *t = dst_table(count);
     for (i = 0; i < count; i++) {
-        DstValue sym = dst_csymbolv(regs[i].name);
-        DstValue func = dst_wrap_cfunction(regs[i].function);
+        Dst sym = dst_csymbolv(regs[i].name);
+        Dst func = dst_wrap_cfunction(regs[i].function);
         DstTable *subt = dst_table(1);
         dst_table_put(subt, dst_csymbolv("value"), func);
         dst_table_put(t, sym, dst_wrap_table(subt));
     }
     return dst_wrap_table(t);
+}
+
+/* Vector code */
+
+/* Grow the buffer dynamically. Used for push operations. */
+void *dst_v_grow(void *v, int32_t increment, int32_t itemsize) {
+    int32_t dbl_cur = (NULL != v) ? 2 * dst_v__cap(v) : 0;
+    int32_t min_needed = dst_v_count(v) + increment;
+    int32_t m = dbl_cur > min_needed ? dbl_cur : min_needed;
+    int32_t *p = (int32_t *) realloc(v ? dst_v__raw(v) : 0, itemsize * m + sizeof(int32_t)*2);
+    if (NULL != p) {
+        if (!v) p[1] = 0;
+        p[0] = m;
+        return p + 2;
+   } else {
+       {
+           DST_OUT_OF_MEMORY;
+       }
+       return (void *) (2 * sizeof(int32_t)); // try to force a NULL pointer exception later
+   }
+}
+
+/* Clone a buffer. */
+void *dst_v_copymem(void *v, int32_t itemsize) {
+    int32_t *p;
+    if (NULL == v) return NULL;
+    p = malloc(2 * sizeof(int32_t) + itemsize * dst_v__cap(v));
+    if (NULL != p) {
+        memcpy(p, dst_v__raw(v), 2 * sizeof(int32_t) + itemsize * dst_v__cnt(v));
+        return p + 2;
+    } else {
+       {
+           DST_OUT_OF_MEMORY;
+       }
+       return (void *) (2 * sizeof(int32_t)); // try to force a NULL pointer exception later
+    }
+}
+
+/* Convert a buffer to normal allocated memory (forget capacity) */
+void *dst_v_flattenmem(void *v, int32_t itemsize) {
+    int32_t *p;
+    int32_t sizen;
+    if (NULL == v) return NULL;
+    sizen = itemsize * dst_v__cnt(v);
+    p = malloc(sizen);
+    if (NULL != p) {
+        memcpy(p, v, sizen);
+        return p;
+    } else {
+       {
+           DST_OUT_OF_MEMORY;
+       }
+       return NULL;
+    }
 }

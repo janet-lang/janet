@@ -23,12 +23,14 @@
 #include <dst/dst.h>
 #include "strtod.h"
 #include "gc.h"
+#include "util.h"
 
 /* Begin building a string */
 uint8_t *dst_string_begin(int32_t length) {
-    char *data = dst_gcalloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + length);
+    char *data = dst_gcalloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + length + 1);
     uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
     dst_string_length(str) = length;
+    str[length] = 0;
     return str;
 }
 
@@ -41,9 +43,10 @@ const uint8_t *dst_string_end(uint8_t *str) {
 /* Load a buffer as a string */
 const uint8_t *dst_string(const uint8_t *buf, int32_t len) {
     int32_t hash = dst_string_calchash(buf, len);
-    char *data = dst_gcalloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + len);
+    char *data = dst_gcalloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + len + 1);
     uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
     memcpy(str, buf, len);
+    str[len] = 0;
     dst_string_length(str) = len;
     dst_string_hash(str) = hash;
     return str;
@@ -267,7 +270,7 @@ const uint8_t *dst_escape_string(const uint8_t *str) {
 }
 
 /* Returns a string pointer with the description of the string */
-const uint8_t *dst_short_description(DstValue x) {
+const uint8_t *dst_short_description(Dst x) {
     switch (dst_type(x)) {
     case DST_NIL:
         return dst_cstring("nil");
@@ -292,7 +295,7 @@ const uint8_t *dst_short_description(DstValue x) {
     }
 }
 
-void dst_short_description_b(DstBuffer *buffer, DstValue x) {
+void dst_short_description_b(DstBuffer *buffer, Dst x) {
     switch (dst_type(x)) {
     case DST_NIL:
         dst_buffer_push_cstring(buffer, "nil");
@@ -357,7 +360,7 @@ static void dst_print_indent(DstPrinter *p) {
 }
 
 /* Check if a value is a print atom (not a printable data structure) */
-static int is_print_ds(DstValue v) {
+static int is_print_ds(Dst v) {
     switch (dst_type(v)) {
         default: return 0;
         case DST_ARRAY:
@@ -407,7 +410,7 @@ static const char *dst_type_colors[16] = {
 };
 
 /* Forward declaration */
-static void dst_description_helper(DstPrinter *p, DstValue x);
+static void dst_description_helper(DstPrinter *p, Dst x);
 
 /* Print a hastable view inline */
 static void dst_print_hashtable_inner(DstPrinter *p, const DstKV *data, int32_t len, int32_t cap) {
@@ -460,7 +463,7 @@ static void dst_print_hashtable_inner(DstPrinter *p, const DstKV *data, int32_t 
 }
 
 /* Help print a sequence */
-static void dst_print_seq_inner(DstPrinter *p, const DstValue *data, int32_t len) {
+static void dst_print_seq_inner(DstPrinter *p, const Dst *data, int32_t len) {
     int32_t i;
     int doindent = 0;
     if (p->flags & DST_PRINTFLAG_INDENT) {
@@ -495,13 +498,13 @@ static void dst_print_seq_inner(DstPrinter *p, const DstValue *data, int32_t len
 }
 
 /* Static debug print helper */
-static void dst_description_helper(DstPrinter *p, DstValue x) {
+static void dst_description_helper(DstPrinter *p, Dst x) {
     const char *open;
     const char *close;
     int32_t len, cap;
-    const DstValue *data;
+    const Dst *data;
     const DstKV *kvs;
-    DstValue check;
+    Dst check;
     p->depth--;
     switch (dst_type(x)) {
         default:
@@ -565,7 +568,7 @@ static void dst_printer_defaults(DstPrinter *p) {
 }
 
 /* Debug print. Returns a description of an object as a string. */
-const uint8_t *dst_description(DstValue x) {
+const uint8_t *dst_description(Dst x) {
     DstPrinter printer;
     const uint8_t *ret;
 
@@ -587,7 +590,7 @@ const uint8_t *dst_description(DstValue x) {
 
 /* Convert any value to a dst string. Similar to description, but
  * strings, symbols, and buffers will return their content. */
-const uint8_t *dst_to_string(DstValue x) {
+const uint8_t *dst_to_string(Dst x) {
     switch (dst_type(x)) {
         default:
             return dst_short_description(x);
@@ -655,14 +658,14 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     case 'v':
                     {
                         dst_printer_defaults(&printer);
-                        dst_description_helper(&printer, va_arg(args, DstValue));
+                        dst_description_helper(&printer, va_arg(args, Dst));
                         break;
                     }
                     case 'C':
                     {
                         dst_printer_defaults(&printer);
                         printer.flags |= DST_PRINTFLAG_COLORIZE;
-                        dst_description_helper(&printer, va_arg(args, DstValue));
+                        dst_description_helper(&printer, va_arg(args, Dst));
                         break;
                     }
                     case 'q':
@@ -678,7 +681,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     }
                     case 'V': 
                     {
-                        dst_short_description_b(bufp, va_arg(args, DstValue));
+                        dst_short_description_b(bufp, va_arg(args, Dst));
                         break;
                     }
                 }

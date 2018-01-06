@@ -27,9 +27,9 @@
 #include "dstconfig.h"
 
 #ifdef DST_NANBOX
-typedef union DstValue DstValue;
+typedef union Dst Dst;
 #else
-typedef struct DstValue DstValue;
+typedef struct Dst Dst;
 #endif
 
 /* All of the dst types */
@@ -47,7 +47,7 @@ typedef struct DstFuncEnv DstFuncEnv;
 typedef struct DstKV DstKV;
 typedef struct DstStackFrame DstStackFrame;
 typedef struct DstAbstractType DstAbstractType;
-typedef int (*DstCFunction)(int32_t argn, DstValue *argv, DstValue *ret);
+typedef int (*DstCFunction)(int32_t argn, Dst *argv, Dst *ret);
 
 typedef enum DstAssembleStatus DstAssembleStatus;
 typedef struct DstAssembleResult DstAssembleResult;
@@ -78,11 +78,11 @@ typedef enum DstType {
     DST_ABSTRACT
 } DstType;
 
-/* We provide two possible implemenations of DstValues. The preferred
+/* We provide two possible implemenations of Dsts. The preferred
  * nanboxing approach, and the standard C version. Code in the rest of the
  * application must interact through exposed interface. */
 
-/* Required interface for DstValue */
+/* Required interface for Dst */
 /* wrap and unwrap for all types */
 /* Get type quickly */
 /* Check against type quickly */
@@ -102,7 +102,7 @@ typedef enum DstType {
 
 #include <math.h>
 
-union DstValue {
+union Dst {
     uint64_t u64;
     int64_t i64;
     void *pointer;
@@ -177,13 +177,13 @@ union DstValue {
         ? dst_nanbox_isreal(x) \
         : dst_nanbox_checkauxtype((x), (t)))
 
-void *dst_nanbox_to_pointer(DstValue x);
+void *dst_nanbox_to_pointer(Dst x);
 void dst_nanbox_memempty(DstKV *mem, int32_t count);
 void *dst_nanbox_memalloc_empty(int32_t count);
-DstValue dst_nanbox_from_pointer(void *p, uint64_t tagmask);
-DstValue dst_nanbox_from_cpointer(const void *p, uint64_t tagmask);
-DstValue dst_nanbox_from_double(double d);
-DstValue dst_nanbox_from_bits(uint64_t bits);
+Dst dst_nanbox_from_pointer(void *p, uint64_t tagmask);
+Dst dst_nanbox_from_cpointer(const void *p, uint64_t tagmask);
+Dst dst_nanbox_from_double(double d);
+Dst dst_nanbox_from_bits(uint64_t bits);
 
 #define dst_memempty(mem, len) dst_nanbox_memempty((mem), (len))
 #define dst_memalloc_empty(count) dst_nanbox_memalloc_empty(count)
@@ -231,7 +231,7 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
 
 /* Unwrap the pointer types */
 #define dst_unwrap_struct(x) ((const DstKV *)dst_nanbox_to_pointer(x))
-#define dst_unwrap_tuple(x) ((const DstValue *)dst_nanbox_to_pointer(x))
+#define dst_unwrap_tuple(x) ((const Dst *)dst_nanbox_to_pointer(x))
 #define dst_unwrap_fiber(x) ((DstFiber *)dst_nanbox_to_pointer(x))
 #define dst_unwrap_array(x) ((DstArray *)dst_nanbox_to_pointer(x))
 #define dst_unwrap_table(x) ((DstTable *)dst_nanbox_to_pointer(x))
@@ -247,7 +247,7 @@ DstValue dst_nanbox_from_bits(uint64_t bits);
 #else
 
 /* A general dst value type */
-struct DstValue {
+struct Dst {
     union {
         uint64_t u64;
         double real;
@@ -267,7 +267,7 @@ struct DstValue {
     ((x).type != DST_NIL && (x).type != DST_FALSE)
 
 #define dst_unwrap_struct(x) ((const DstKV *)(x).as.pointer)
-#define dst_unwrap_tuple(x) ((const DstValue *)(x).as.pointer)
+#define dst_unwrap_tuple(x) ((const Dst *)(x).as.pointer)
 #define dst_unwrap_fiber(x) ((DstFiber *)(x).as.pointer)
 #define dst_unwrap_array(x) ((DstArray *)(x).as.pointer)
 #define dst_unwrap_table(x) ((DstTable *)(x).as.pointer)
@@ -282,23 +282,23 @@ struct DstValue {
 #define dst_unwrap_integer(x) ((x).as.integer)
 #define dst_unwrap_real(x) ((x).as.real)
 
-DstValue dst_wrap_nil();
-DstValue dst_wrap_real(double x);
-DstValue dst_wrap_integer(int32_t x);
-DstValue dst_wrap_true();
-DstValue dst_wrap_false();
-DstValue dst_wrap_boolean(int x);
-DstValue dst_wrap_string(const uint8_t *x);
-DstValue dst_wrap_symbol(const uint8_t *x);
-DstValue dst_wrap_array(DstArray *x);
-DstValue dst_wrap_tuple(const DstValue *x);
-DstValue dst_wrap_struct(const DstKV *x);
-DstValue dst_wrap_fiber(DstFiber *x);
-DstValue dst_wrap_buffer(DstBuffer *x);
-DstValue dst_wrap_function(DstFunction *x);
-DstValue dst_wrap_cfunction(DstCFunction x);
-DstValue dst_wrap_table(DstTable *x);
-DstValue dst_wrap_abstract(void *x);
+Dst dst_wrap_nil();
+Dst dst_wrap_real(double x);
+Dst dst_wrap_integer(int32_t x);
+Dst dst_wrap_true();
+Dst dst_wrap_false();
+Dst dst_wrap_boolean(int x);
+Dst dst_wrap_string(const uint8_t *x);
+Dst dst_wrap_symbol(const uint8_t *x);
+Dst dst_wrap_array(DstArray *x);
+Dst dst_wrap_tuple(const Dst *x);
+Dst dst_wrap_struct(const DstKV *x);
+Dst dst_wrap_fiber(DstFiber *x);
+Dst dst_wrap_buffer(DstBuffer *x);
+Dst dst_wrap_function(DstFunction *x);
+Dst dst_wrap_cfunction(DstCFunction x);
+Dst dst_wrap_table(DstTable *x);
+Dst dst_wrap_abstract(void *x);
 
 /* End of tagged union implementation */
 #endif
@@ -312,7 +312,7 @@ struct DstReg {
 /* A lightweight green thread in dst. Does not correspond to
  * operating system threads. */
 struct DstFiber {
-    DstValue *data;
+    Dst *data;
     DstFiber *parent;
     int32_t frame; /* Index of the stack frame */
     int32_t stackstart; /* Beginning of next args */
@@ -333,12 +333,12 @@ struct DstStackFrame {
     int32_t prevframe;
 };
 
-/* Number of DstValues a frame takes up in the stack */
-#define DST_FRAME_SIZE ((sizeof(DstStackFrame) + sizeof(DstValue) - 1)/ sizeof(DstValue))
+/* Number of Dsts a frame takes up in the stack */
+#define DST_FRAME_SIZE ((sizeof(DstStackFrame) + sizeof(Dst) - 1)/ sizeof(Dst))
 
 /* A dynamic array type. */
 struct DstArray {
-    DstValue *data;
+    Dst *data;
     int32_t count;
     int32_t capacity;
 };
@@ -360,8 +360,8 @@ struct DstTable {
 
 /* A key value pair in a struct or table */
 struct DstKV {
-    DstValue key;
-    DstValue value;
+    Dst key;
+    Dst value;
 };
 
 /* Some function defintion flags */
@@ -371,7 +371,7 @@ struct DstKV {
 /* A function definition. Contains information needed to instantiate closures. */
 struct DstFuncDef {
     int32_t *environments; /* Which environments to capture from parent. */
-    DstValue *constants;
+    Dst *constants;
     DstFuncDef **defs;
     uint32_t *bytecode;
 
@@ -393,7 +393,7 @@ struct DstFuncDef {
 struct DstFuncEnv {
     union {
         DstFiber *fiber;
-        DstValue *values;
+        Dst *values;
     } as;
     int32_t length; /* Size of environment */
     int32_t offset; /* Stack offset when values still on stack. If offset is <= 0, then
@@ -428,7 +428,7 @@ enum DstAssembleStatus {
 };
 
 struct DstAssembleOptions {
-    DstValue source;
+    Dst source;
     uint32_t flags;
 };
 
@@ -454,9 +454,9 @@ struct DstCompileResult {
 
 struct DstCompileOptions {
     uint32_t flags;
-    const DstValue *sourcemap;
-    DstValue source;
-    DstValue env;
+    const Dst *sourcemap;
+    Dst source;
+    Dst env;
 };
 
 /* Parse structs */
@@ -468,9 +468,9 @@ enum DstParseStatus {
 };
 
 struct DstParseResult {
-    DstValue value;
+    Dst value;
     const uint8_t *error;
-    const DstValue *map;
+    const Dst *map;
     int32_t bytes_read;
     DstParseStatus status;
 };

@@ -22,6 +22,7 @@
 
 #include <dst/dst.h>
 #include "gc.h"
+#include "util.h"
 
 #define dst_table_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
 
@@ -58,7 +59,7 @@ DstTable *dst_table(int32_t capacity) {
 
 /* Find the bucket that contains the given key. Will also return
  * bucket where key should go if not in the table. */
-static DstKV *dst_table_find(DstTable *t, DstValue key) {
+static DstKV *dst_table_find(DstTable *t, Dst key) {
     int32_t index = dst_table_maphash(t->capacity, dst_hash(key));
     int32_t i;
     DstKV *first_bucket = NULL;
@@ -114,7 +115,7 @@ static void dst_table_rehash(DstTable *t, int32_t size) {
 }
 
 /* Get a value out of the object */
-DstValue dst_table_get(DstTable *t, DstValue key) {
+Dst dst_table_get(DstTable *t, Dst key) {
     DstKV *bucket = dst_table_find(t, key);
     if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL))
         return bucket->value;
@@ -124,10 +125,10 @@ DstValue dst_table_get(DstTable *t, DstValue key) {
 
 /* Remove an entry from the dictionary. Return the value that
  * was removed. */
-DstValue dst_table_remove(DstTable *t, DstValue key) {
+Dst dst_table_remove(DstTable *t, Dst key) {
     DstKV *bucket = dst_table_find(t, key);
     if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL)) {
-        DstValue ret = bucket->key;
+        Dst ret = bucket->key;
         t->count--;
         t->deleted++;
         bucket->key = dst_wrap_nil();
@@ -139,7 +140,7 @@ DstValue dst_table_remove(DstTable *t, DstValue key) {
 }
 
 /* Put a value into the object */
-void dst_table_put(DstTable *t, DstValue key, DstValue value) {
+void dst_table_put(DstTable *t, Dst key, Dst value) {
     if (dst_checktype(key, DST_NIL)) return;
     if (dst_checktype(value, DST_NIL)) {
         dst_table_remove(t, key);

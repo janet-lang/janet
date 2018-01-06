@@ -28,7 +28,7 @@
  * reasonable).
  *
  * This version has been modified for much greater flexibility in parsing, such
- * as choosing the radix, supporting integer output, and returning DstValues
+ * as choosing the radix, supporting integer output, and returning Dsts
  * directly. 
  *
  * Numbers are of the form [-+]R[rR]I.F[eE&][-+]X where R is the radix, I is
@@ -253,7 +253,6 @@ static struct DstScanRes dst_scan_impl(
         goto error;
     
     return res;
-    /* return dst_wrap_real(dst_convert_mantissa_exp(neg, mant, base, ex)); */
 
     error:
     res.error = 1;
@@ -303,7 +302,7 @@ double dst_scan_real(
 /* Scans a number from a string. Can return either an integer or a real if
  * the number cannot be represented as an integer. Will return nil in case of
  * an error. */
-DstValue dst_scan_number(
+Dst dst_scan_number(
         const uint8_t *str,
         int32_t len) {
     struct DstScanRes res = dst_scan_impl(str, len);

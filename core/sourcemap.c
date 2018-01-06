@@ -25,14 +25,14 @@
 
 /* Get the sub source map by indexing a value. Used to traverse
  * into arrays and tuples */
-const DstValue *dst_sourcemap_index(const DstValue *map, int32_t index) {
+const Dst *dst_sourcemap_index(const Dst *map, int32_t index) {
     if (NULL != map && dst_tuple_length(map) >= 3) {
-        const DstValue *seq;
+        const Dst *seq;
         int32_t len;
         if (dst_seq_view(map[2], &seq, &len)) {
             if (index >= 0 && index < len) {
                 if (dst_checktype(seq[index], DST_TUPLE)) {
-                    const DstValue *ret = dst_unwrap_tuple(seq[index]);
+                    const Dst *ret = dst_unwrap_tuple(seq[index]);
                     if (dst_tuple_length(ret) >= 2 &&
                         dst_checktype(ret[0], DST_INTEGER) &&
                         dst_checktype(ret[1], DST_INTEGER)) {
@@ -46,14 +46,14 @@ const DstValue *dst_sourcemap_index(const DstValue *map, int32_t index) {
 }
 
 /* Traverse into tables and structs */
-static const DstValue *dst_sourcemap_kv(const DstValue *map, DstValue key, int kv) {
+static const Dst *dst_sourcemap_kv(const Dst *map, Dst key, int kv) {
     if (NULL != map && dst_tuple_length(map) >= 3) {
-        DstValue kvpair = dst_get(map[2], key);
+        Dst kvpair = dst_get(map[2], key);
         if (dst_checktype(kvpair, DST_TUPLE)) {
-            const DstValue *kvtup = dst_unwrap_tuple(kvpair);
+            const Dst *kvtup = dst_unwrap_tuple(kvpair);
             if (dst_tuple_length(kvtup) >= 2) {
                 if (dst_checktype(kvtup[kv], DST_TUPLE)) {
-                    const DstValue *ret = dst_unwrap_tuple(kvtup[kv]);
+                    const Dst *ret = dst_unwrap_tuple(kvtup[kv]);
                     if (dst_tuple_length(ret) >= 2 &&
                         dst_checktype(ret[0], DST_INTEGER) &&
                         dst_checktype(ret[1], DST_INTEGER)) {
@@ -67,11 +67,11 @@ static const DstValue *dst_sourcemap_kv(const DstValue *map, DstValue key, int k
 }
 
 /* Traverse into a key of a table or struct */
-const DstValue *dst_sourcemap_key(const DstValue *map, DstValue key) {
+const Dst *dst_sourcemap_key(const Dst *map, Dst key) {
     return dst_sourcemap_kv(map, key, 0);
 }
 
 /* Traverse into a value of a table or struct */
-const DstValue *dst_sourcemap_value(const DstValue *map, DstValue key) {
+const Dst *dst_sourcemap_value(const Dst *map, Dst key) {
     return dst_sourcemap_kv(map, key, 1);
 }

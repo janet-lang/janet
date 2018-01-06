@@ -23,32 +23,33 @@
 #include <dst/dst.h>
 #include "symcache.h"
 #include "gc.h"
+#include "util.h"
 
 /* Create a new empty tuple of the given size. This will return memory
- * which should be filled with DstValues. The memory will not be collected until
+ * which should be filled with Dsts. The memory will not be collected until
  * dst_tuple_end is called. */
-DstValue *dst_tuple_begin(int32_t length) {
-    char *data = dst_gcalloc(DST_MEMORY_TUPLE, 2 * sizeof(int32_t) + length * sizeof(DstValue));
-    DstValue *tuple = (DstValue *)(data + (2 * sizeof(int32_t)));
+Dst *dst_tuple_begin(int32_t length) {
+    char *data = dst_gcalloc(DST_MEMORY_TUPLE, 2 * sizeof(int32_t) + length * sizeof(Dst));
+    Dst *tuple = (Dst *)(data + (2 * sizeof(int32_t)));
     dst_tuple_length(tuple) = length;
     return tuple;
 }
 
 /* Finish building a tuple */
-const DstValue *dst_tuple_end(DstValue *tuple) {
+const Dst *dst_tuple_end(Dst *tuple) {
     dst_tuple_hash(tuple) = dst_array_calchash(tuple, dst_tuple_length(tuple));
-    return (const DstValue *)tuple;
+    return (const Dst *)tuple;
 }
 
 /* Build a tuple with n values */
-const DstValue *dst_tuple_n(DstValue *values, int32_t n) {
-    DstValue *t = dst_tuple_begin(n);
-    memcpy(t, values, sizeof(DstValue) * n);
+const Dst *dst_tuple_n(Dst *values, int32_t n) {
+    Dst *t = dst_tuple_begin(n);
+    memcpy(t, values, sizeof(Dst) * n);
     return dst_tuple_end(t);
 }
 
 /* Check if two tuples are equal */
-int dst_tuple_equal(const DstValue *lhs, const DstValue *rhs) {
+int dst_tuple_equal(const Dst *lhs, const Dst *rhs) {
     int32_t index;
     int32_t llen = dst_tuple_length(lhs);
     int32_t rlen = dst_tuple_length(rhs);
@@ -70,7 +71,7 @@ int dst_tuple_equal(const DstValue *lhs, const DstValue *rhs) {
 }
 
 /* Compare tuples */
-int dst_tuple_compare(const DstValue *lhs, const DstValue *rhs) {
+int dst_tuple_compare(const Dst *lhs, const Dst *rhs) {
     int32_t i;
     int32_t llen = dst_tuple_length(lhs);
     int32_t rlen = dst_tuple_length(rhs);

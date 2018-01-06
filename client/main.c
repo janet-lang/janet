@@ -30,7 +30,7 @@
 #define DST_CLIENT_REPL 8
 #define DST_CLIENT_UNKNOWN 16
 
-static DstValue env;
+static Dst env;
 
 static int client_strequal(const char *a, const char *b) {
     while (*a) if (*a++ != *b++) return 0;
@@ -115,7 +115,7 @@ static int repl() {
                     if (cres.status == DST_COMPILE_OK) {
                         /*dst_puts(dst_formatc("asm: %v\n", dst_disasm(cres.funcdef)));*/
                         DstFunction *f = dst_compile_func(cres);
-                        DstValue ret;
+                        Dst ret;
                         if (dst_run(dst_wrap_function(f), &ret)) {
                             dst_puts(dst_formatc("runtime error: %S\n", dst_to_string(ret))); 
                         } else {
@@ -159,7 +159,7 @@ static void runfile(const uint8_t *src, int32_t len) {
                     opts.env = env;
                     cres = dst_compile(opts);
                     if (cres.status == DST_COMPILE_OK) {
-                        DstValue ret = dst_wrap_nil();
+                        Dst ret = dst_wrap_nil();
                         DstFunction *f = dst_compile_func(cres);
                         if (dst_run(dst_wrap_function(f), &ret)) {
                             dst_puts(dst_formatc("runtime error: %v\n", ret)); 

@@ -25,41 +25,47 @@
 
 #include "dsttypes.h"
 
-int dst_add(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_subtract(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_multiply(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_divide(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_modulo(int32_t argn, DstValue *argv, DstValue *ret);
+/* File type definition */
+extern DstAbstractType dst_stl_filetype;
 
-int dst_acos(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_asin(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_atan(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_cos(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_cosh(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_sin(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_sinh(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_tan(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_tanh(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_exp(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_log(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_log10(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_sqrt(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_ceil(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_fabs(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_floor(int32_t argn, DstValue *argv, DstValue *ret); 
-int dst_pow(int32_t argn, DstValue *argv, DstValue *ret); 
+int dst_int(int32_t argn, Dst *argv, Dst *ret);
+int dst_real(int32_t argn, Dst *argv, Dst *ret);
 
-int dst_stl_table(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_stl_array(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_stl_struct(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_stl_tuple(int32_t argn, DstValue *argv, DstValue *ret);
+int dst_add(int32_t argn, Dst *argv, Dst *ret);
+int dst_subtract(int32_t argn, Dst *argv, Dst *ret);
+int dst_multiply(int32_t argn, Dst *argv, Dst *ret);
+int dst_divide(int32_t argn, Dst *argv, Dst *ret);
+int dst_modulo(int32_t argn, Dst *argv, Dst *ret);
 
-int dst_band(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_bor(int32_t argn, DstValue *argv, DstValue *ret);
-int dst_bxor(int32_t argn, DstValue *argv, DstValue *ret);
+int dst_acos(int32_t argn, Dst *argv, Dst *ret);
+int dst_asin(int32_t argn, Dst *argv, Dst *ret);
+int dst_atan(int32_t argn, Dst *argv, Dst *ret);
+int dst_cos(int32_t argn, Dst *argv, Dst *ret); 
+int dst_cosh(int32_t argn, Dst *argv, Dst *ret); 
+int dst_sin(int32_t argn, Dst *argv, Dst *ret); 
+int dst_sinh(int32_t argn, Dst *argv, Dst *ret); 
+int dst_tan(int32_t argn, Dst *argv, Dst *ret); 
+int dst_tanh(int32_t argn, Dst *argv, Dst *ret); 
+int dst_exp(int32_t argn, Dst *argv, Dst *ret); 
+int dst_log(int32_t argn, Dst *argv, Dst *ret); 
+int dst_log10(int32_t argn, Dst *argv, Dst *ret); 
+int dst_sqrt(int32_t argn, Dst *argv, Dst *ret); 
+int dst_ceil(int32_t argn, Dst *argv, Dst *ret); 
+int dst_fabs(int32_t argn, Dst *argv, Dst *ret); 
+int dst_floor(int32_t argn, Dst *argv, Dst *ret); 
+int dst_pow(int32_t argn, Dst *argv, Dst *ret); 
 
-int dst_lshift(int argn, DstValue *argv, DstValue *ret);
-int dst_rshift(int argn, DstValue *argv, DstValue *ret);
-int dst_lshiftu(int argn, DstValue *argv, DstValue *ret);
+int dst_stl_table(int32_t argn, Dst *argv, Dst *ret);
+int dst_stl_array(int32_t argn, Dst *argv, Dst *ret);
+int dst_stl_struct(int32_t argn, Dst *argv, Dst *ret);
+int dst_stl_tuple(int32_t argn, Dst *argv, Dst *ret);
+
+int dst_band(int32_t argn, Dst *argv, Dst *ret);
+int dst_bor(int32_t argn, Dst *argv, Dst *ret);
+int dst_bxor(int32_t argn, Dst *argv, Dst *ret);
+
+int dst_lshift(int argn, Dst *argv, Dst *ret);
+int dst_rshift(int argn, Dst *argv, Dst *ret);
+int dst_lshiftu(int argn, Dst *argv, Dst *ret);
 
 #endif /* DST_MATH_H_defined */

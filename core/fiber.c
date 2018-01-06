@@ -28,7 +28,7 @@ DstFiber *dst_fiber(int32_t capacity) {
     DstFiber *fiber = dst_gcalloc(DST_MEMORY_FIBER, sizeof(DstFiber));
     fiber->capacity = capacity;
     if (capacity) {
-        DstValue *data = malloc(sizeof(DstValue) * capacity);
+        Dst *data = malloc(sizeof(Dst) * capacity);
         if (NULL == data) {
             DST_OUT_OF_MEMORY;
         }
@@ -52,7 +52,7 @@ DstFiber *dst_fiber_reset(DstFiber *fiber) {
 
 /* Ensure that the fiber has enough extra capacity */
 void dst_fiber_setcapacity(DstFiber *fiber, int32_t n) {
-    DstValue *newData = realloc(fiber->data, sizeof(DstValue) * n);
+    Dst *newData = realloc(fiber->data, sizeof(Dst) * n);
     if (NULL == newData) {
         DST_OUT_OF_MEMORY;
     }
@@ -61,7 +61,7 @@ void dst_fiber_setcapacity(DstFiber *fiber, int32_t n) {
 }
 
 /* Push a value on the next stack frame */
-void dst_fiber_push(DstFiber *fiber, DstValue x) {
+void dst_fiber_push(DstFiber *fiber, Dst x) {
     if (fiber->stacktop >= fiber->capacity) {
         dst_fiber_setcapacity(fiber, 2 * fiber->stacktop);
     }
@@ -69,7 +69,7 @@ void dst_fiber_push(DstFiber *fiber, DstValue x) {
 }
 
 /* Push 2 values on the next stack frame */
-void dst_fiber_push2(DstFiber *fiber, DstValue x, DstValue y) {
+void dst_fiber_push2(DstFiber *fiber, Dst x, Dst y) {
     int32_t newtop = fiber->stacktop + 2;
     if (newtop > fiber->capacity) {
         dst_fiber_setcapacity(fiber, 2 * newtop);
@@ -80,7 +80,7 @@ void dst_fiber_push2(DstFiber *fiber, DstValue x, DstValue y) {
 }
 
 /* Push 3 values on the next stack frame */
-void dst_fiber_push3(DstFiber *fiber, DstValue x, DstValue y, DstValue z) {
+void dst_fiber_push3(DstFiber *fiber, Dst x, Dst y, Dst z) {
     int32_t newtop = fiber->stacktop + 3;
     if (newtop > fiber->capacity) {
         dst_fiber_setcapacity(fiber, 2 * newtop);
@@ -92,12 +92,12 @@ void dst_fiber_push3(DstFiber *fiber, DstValue x, DstValue y, DstValue z) {
 }
 
 /* Push an array on the next stack frame */
-void dst_fiber_pushn(DstFiber *fiber, const DstValue *arr, int32_t n) {
+void dst_fiber_pushn(DstFiber *fiber, const Dst *arr, int32_t n) {
     int32_t newtop = fiber->stacktop + n;
     if (newtop > fiber->capacity) {
         dst_fiber_setcapacity(fiber, 2 * newtop);
     }
-    memcpy(fiber->data + fiber->stacktop, arr, n * sizeof(DstValue));
+    memcpy(fiber->data + fiber->stacktop, arr, n * sizeof(Dst));
     fiber->stacktop = newtop;
 }
 
@@ -163,8 +163,8 @@ static void dst_function_detach(DstFunction *func) {
     /* Check for closure environment */
     if (NULL != func->envs && NULL != func->envs[0]) {
         DstFuncEnv *env = func->envs[0];
-        size_t s = sizeof(DstValue) * env->length;
-        DstValue *vmem = malloc(s);
+        size_t s = sizeof(Dst) * env->length;
+        Dst *vmem = malloc(s);
         if (NULL == vmem) {
             DST_OUT_OF_MEMORY;
         }
@@ -185,14 +185,14 @@ void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
         dst_fiber_setcapacity(fiber, 2 * nextstacktop);
     }
 
-    DstValue *stack = fiber->data + fiber->frame;
-    DstValue *args = fiber->data + fiber->stackstart;
+    Dst *stack = fiber->data + fiber->frame;
+    Dst *args = fiber->data + fiber->stackstart;
 
     /* Detatch old function */
     if (NULL != dst_fiber_frame(fiber)->func)
         dst_function_detach(dst_fiber_frame(fiber)->func);
 
-    memmove(stack, args, stacksize * sizeof(DstValue));
+    memmove(stack, args, stacksize * sizeof(Dst));
 
     /* Set stack stuff */
     fiber->stacktop = fiber->stackstart = nextstacktop;

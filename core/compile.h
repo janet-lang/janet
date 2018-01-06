@@ -33,7 +33,7 @@ typedef struct FormOptions FormOptions;
 typedef struct SlotTracker SlotTracker;
 typedef struct DstScope DstScope;
 typedef struct DstSlot DstSlot;
-typedef struct DstFormOptions DstFormOptions;
+typedef struct DstFopts DstFopts;
 typedef struct DstCFunctionOptimizer DstCFunctionOptimizer;
 
 #define DST_SLOT_CONSTANT 0x10000
@@ -50,7 +50,7 @@ struct DstSlot {
     int32_t index;
     int32_t envindex; /* 0 is local, positive number is an upvalue */
     uint32_t flags;
-    DstValue constant; /* If the slot has a constant value */
+    Dst constant; /* If the slot has a constant value */
 };
 
 /* Special forms that need support */
@@ -80,7 +80,7 @@ typedef struct SymPair {
 struct DstScope {
 
     /* Constants for this funcdef */
-    DstValue *consts;
+    Dst *consts;
 
     /* Map of symbols to slots. Use a simple linear scan for symbols. */
     SymPair *syms;
@@ -110,7 +110,7 @@ struct DstCompiler {
     int32_t *mapbuffer;
 
     /* Hold the environment */
-    DstValue env;
+    Dst env;
 
     DstCompileResult result;
 };
@@ -120,10 +120,10 @@ struct DstCompiler {
 #define DST_FOPTS_DROP 0x40000
 
 /* Options for compiling a single form */
-struct DstFormOptions {
+struct DstFopts {
     DstCompiler *compiler;
-    DstValue x;
-    const DstValue *sourcemap;
+    Dst x;
+    const Dst *sourcemap;
     uint32_t flags; /* bit set of accepted primitive types */
     DstSlot hint;
 };
@@ -133,40 +133,40 @@ struct DstFormOptions {
  * optimizations should be tried before compiling a normal function call. */
 struct DstCFunctionOptimizer {
     DstCFunction cfun;
-    DstSlot (*optimize)(DstFormOptions opts, int32_t argn, const DstValue *argv);
+    DstSlot (*optimize)(DstFopts opts, int32_t argn, const Dst *argv);
 };
 typedef struct DstSpecial {
     const char *name;
-    DstSlot (*compile)(DstFormOptions opts, int32_t argn, const DstValue *argv);
+    DstSlot (*compile)(DstFopts opts, int32_t argn, const Dst *argv);
 } DstSpecial;
 
 /* An array of optimizers sorted by key */
 extern DstCFunctionOptimizer dstcr_optimizers[255];
 
 /* Dispatch to correct form compiler */
-DstSlot dstc_value(DstFormOptions opts);
+DstSlot dstc_value(DstFopts opts);
 
 /****************************************************/
 
-void dstc_error(DstCompiler *c, const DstValue *sourcemap, const uint8_t *m);
-void dstc_cerror(DstCompiler *c, const DstValue *sourcemap, const char *m);
+void dstc_error(DstCompiler *c, const Dst *sourcemap, const uint8_t *m);
+void dstc_cerror(DstCompiler *c, const Dst *sourcemap, const char *m);
 
 /* Use these to get sub options. They will traverse the source map so
  * compiler errors make sense. Then modify the returned options. */
-DstFormOptions dstc_getindex(DstFormOptions opts, int32_t index);
-DstFormOptions dstc_getkey(DstFormOptions opts, DstValue key);
-DstFormOptions dstc_getvalue(DstFormOptions opts, DstValue key);
+DstFopts dstc_getindex(DstFopts opts, int32_t index);
+DstFopts dstc_getkey(DstFopts opts, Dst key);
+DstFopts dstc_getvalue(DstFopts opts, Dst key);
 
 void dstc_scope(DstCompiler *c, int newfn);
 void dstc_popscope(DstCompiler *c);
 
-DstSlot dstc_cslot(DstValue x);
+DstSlot dstc_cslot(Dst x);
 void dstc_freeslot(DstCompiler *c, DstSlot slot);
 
 /* Search for a symbol */
-DstSlot dstc_resolve(DstCompiler *c, const DstValue *sourcemap, const uint8_t *sym);
+DstSlot dstc_resolve(DstCompiler *c, const Dst *sourcemap, const uint8_t *sym);
 
 /* Emit instructions. */
-void dstc_emit(DstCompiler *c, const DstValue *sourcemap, uint32_t instr);
+void dstc_emit(DstCompiler *c, const Dst *sourcemap, uint32_t instr);
 
 #endif

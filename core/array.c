@@ -25,9 +25,9 @@
 
 /* Iniializes an array */
 DstArray *dst_array_init(DstArray *array, int32_t capacity) {
-    DstValue *data = NULL;
+    Dst *data = NULL;
     if (capacity > 0) {
-        data = (DstValue *) malloc(sizeof(DstValue) * capacity);
+        data = (Dst *) malloc(sizeof(Dst) * capacity);
         if (NULL == data) {
             DST_OUT_OF_MEMORY;
         }
@@ -50,10 +50,10 @@ DstArray *dst_array(int32_t capacity) {
 
 /* Ensure the array has enough capacity for elements */
 void dst_array_ensure(DstArray *array, int32_t capacity) {
-    DstValue *newData;
-    DstValue *old = array->data;
+    Dst *newData;
+    Dst *old = array->data;
     if (capacity <= array->capacity) return;
-    newData = realloc(old, capacity * sizeof(DstValue));
+    newData = realloc(old, capacity * sizeof(Dst));
     if (NULL == newData) {
         DST_OUT_OF_MEMORY;
     }
@@ -76,7 +76,7 @@ void dst_array_setcount(DstArray *array, int32_t count) {
 }
 
 /* Push a value to the top of the array */
-void dst_array_push(DstArray *array, DstValue x) {
+void dst_array_push(DstArray *array, Dst x) {
     int32_t newcount = array->count + 1;
     if (newcount >= array->capacity) {
         dst_array_ensure(array, newcount * 2);
@@ -86,7 +86,7 @@ void dst_array_push(DstArray *array, DstValue x) {
 }
 
 /* Pop a value from the top of the array */
-DstValue dst_array_pop(DstArray *array) {
+Dst dst_array_pop(DstArray *array) {
     if (array->count) {
         return array->data[--array->count];
     } else {
@@ -95,7 +95,7 @@ DstValue dst_array_pop(DstArray *array) {
 }
 
 /* Look at the last value in the array */
-DstValue dst_array_peek(DstArray *array) {
+Dst dst_array_peek(DstArray *array) {
     if (array->count) {
         return array->data[array->count - 1];
     } else {

@@ -24,7 +24,7 @@
 #include <math.h>
 
 /* Convert a number to an integer */
-int dst_int(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_int(int32_t argn, Dst *argv, Dst *ret) {
     if (argn != 1) {
         *ret = dst_cstringv("expected 1 argument");
         return 1;
@@ -44,7 +44,7 @@ int dst_int(int32_t argn, DstValue *argv, DstValue *ret) {
 }
 
 /* Convert a number to a real number */
-int dst_real(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_real(int32_t argn, Dst *argv, Dst *ret) {
     if (argn != 1) {
         *ret = dst_cstringv("expected 1 argument");
         return 1;
@@ -70,7 +70,7 @@ int dst_real(int32_t argn, DstValue *argv, DstValue *ret) {
 #define DIV(x, y) ((x) / (y))
 
 #define DST_DEFINE_BINOP(name, op, rop, onerr)\
-DstValue dst_op_##name(DstValue lhs, DstValue rhs) {\
+Dst dst_op_##name(Dst lhs, Dst rhs) {\
     if (!(dst_checktype(lhs, DST_INTEGER) || dst_checktype(lhs, DST_REAL))) onerr;\
     if (!(dst_checktype(rhs, DST_INTEGER) || dst_checktype(rhs, DST_REAL))) onerr;\
     return dst_checktype(lhs, DST_INTEGER)\
@@ -87,7 +87,7 @@ DST_DEFINE_BINOP(subtract, SUB, SUB, return dst_wrap_nil())
 DST_DEFINE_BINOP(multiply, MUL, MUL, return dst_wrap_nil())
 
 #define DST_DEFINE_DIVIDER_OP(name, op, rop)\
-DstValue dst_op_##name(DstValue lhs, DstValue rhs) {\
+Dst dst_op_##name(Dst lhs, Dst rhs) {\
     if (!(dst_checktype(lhs, DST_INTEGER) || dst_checktype(lhs, DST_REAL))) return dst_wrap_nil();\
     if (!(dst_checktype(rhs, DST_INTEGER) || dst_checktype(rhs, DST_REAL))) return dst_wrap_nil();\
     return dst_checktype(lhs, DST_INTEGER)\
@@ -105,9 +105,9 @@ DST_DEFINE_DIVIDER_OP(divide, DIV, DIV)
 DST_DEFINE_DIVIDER_OP(modulo, MOD, fmod)
 
 #define DST_DEFINE_REDUCER(name, fop, start)\
-int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
+int dst_##name(int32_t argn, Dst *argv, Dst *ret) {\
     int32_t i;\
-    DstValue accum = dst_wrap_integer(start);\
+    Dst accum = dst_wrap_integer(start);\
     for (i = 0; i < argn; i++) {\
         accum = fop(accum, argv[i]);\
     }\
@@ -123,9 +123,9 @@ DST_DEFINE_REDUCER(add, dst_op_add, 0)
 DST_DEFINE_REDUCER(multiply, dst_op_multiply, 1)
 
 #define DST_DEFINE_DIVIDER(name, unarystart)\
-int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
+int dst_##name(int32_t argn, Dst *argv, Dst *ret) {\
     int32_t i;\
-    DstValue accum;\
+    Dst accum;\
     if (argn < 1) {\
         *ret = dst_cstringv("expected at least one argument");\
         return 1;\
@@ -157,7 +157,7 @@ DST_DEFINE_DIVIDER(subtract, 0)
 #undef MOD
 #undef DST_DEFINE_BINOP
 
-int dst_bnot(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_bnot(int32_t argn, Dst *argv, Dst *ret) {
     if (argn != 1) {
         *ret = dst_cstringv("expected 1 argument");
         return 1;
@@ -171,11 +171,11 @@ int dst_bnot(int32_t argn, DstValue *argv, DstValue *ret) {
 }
 
 #define DST_DEFINE_BITOP(name, op, start)\
-int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
+int dst_##name(int32_t argn, Dst *argv, Dst *ret) {\
     int32_t i;\
     int32_t accum = start;\
     for (i = 0; i < argn; i++) {\
-        DstValue arg = argv[i];\
+        Dst arg = argv[i];\
         if (!dst_checktype(arg, DST_INTEGER)) {\
             *ret = dst_cstringv("expected integer");\
             return -1;\
@@ -190,7 +190,7 @@ DST_DEFINE_BITOP(band, &=, -1)
 DST_DEFINE_BITOP(bor, |=, 0)
 DST_DEFINE_BITOP(bxor, ^=, 0)
 
-int dst_lshift(int argn, DstValue *argv, DstValue *ret) {
+int dst_lshift(int argn, Dst *argv, Dst *ret) {
     if (argn != 2 || !dst_checktype(argv[0], DST_INTEGER) || !dst_checktype(argv[1], DST_INTEGER)) {
         *ret = dst_cstringv("expected 2 integers"); 
         return 1;
@@ -199,7 +199,7 @@ int dst_lshift(int argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_rshift(int argn, DstValue *argv, DstValue *ret) {
+int dst_rshift(int argn, Dst *argv, Dst *ret) {
     if (argn != 2 || !dst_checktype(argv[0], DST_INTEGER) || !dst_checktype(argv[1], DST_INTEGER)) {
         *ret = dst_cstringv("expected 2 integers"); 
         return 1;
@@ -208,7 +208,7 @@ int dst_rshift(int argn, DstValue *argv, DstValue *ret) {
     return 0;
 }
 
-int dst_lshiftu(int argn, DstValue *argv, DstValue *ret) {
+int dst_lshiftu(int argn, Dst *argv, Dst *ret) {
     if (argn != 2 || !dst_checktype(argv[0], DST_INTEGER) || !dst_checktype(argv[1], DST_INTEGER)) {
         *ret = dst_cstringv("expected 2 integers"); 
         return 1;
@@ -218,7 +218,7 @@ int dst_lshiftu(int argn, DstValue *argv, DstValue *ret) {
 }
 
 #define DST_DEFINE_MATHOP(name, fop)\
-int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
+int dst_##name(int32_t argn, Dst *argv, Dst *ret) {\
     if (argn != 1) {\
         *ret = dst_cstringv("expected 1 argument");\
         return 1;\
@@ -252,7 +252,7 @@ DST_DEFINE_MATHOP(fabs, fabs)
 DST_DEFINE_MATHOP(floor, floor)
 
 #define DST_DEFINE_MATH2OP(name, fop)\
-int dst_##name(int32_t argn, DstValue *argv, DstValue *ret) {\
+int dst_##name(int32_t argn, Dst *argv, Dst *ret) {\
     if (argn != 2) {\
         *ret = dst_cstringv("expected 2 arguments");\
         return 1;\
@@ -274,9 +274,9 @@ DST_DEFINE_MATH2OP(atan2, atan2)
 DST_DEFINE_MATH2OP(pow, pow)
 DST_DEFINE_MATH2OP(fmod, fmod)
 
-int dst_modf(int32_t argn, DstValue *argv, DstValue *ret) {
+int dst_modf(int32_t argn, Dst *argv, Dst *ret) {
     double intpart;
-    DstValue *tup;
+    Dst *tup;
     if (argn != 1) {
         *ret = dst_cstringv("expected 1 argument");
         return 1;

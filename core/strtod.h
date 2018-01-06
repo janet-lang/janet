@@ -23,7 +23,7 @@
 #ifndef DST_STRTOD_H_defined
 #define DST_STRTOD_H_defined
 
-DstValue dst_scan_number(
+Dst dst_scan_number(
         const uint8_t *str, 
         int32_t len);
 

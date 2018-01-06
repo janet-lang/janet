@@ -22,6 +22,7 @@
 
 #include <dst/dst.h>
 #include "gc.h"
+#include "util.h"
 
 #define dst_struct_maphash(cap, hash) ((uint32_t)(hash & (cap - 1)));
 
@@ -43,7 +44,7 @@ DstKV *dst_struct_begin(int32_t count) {
 }
 
 /* Find an item in a struct */
-static const DstKV *dst_struct_find(const DstKV *st, DstValue key) {
+static const DstKV *dst_struct_find(const DstKV *st, Dst key) {
     int32_t cap = dst_struct_capacity(st);
     int32_t index = dst_struct_maphash(cap, dst_hash(key));
     int32_t i;
@@ -59,7 +60,7 @@ static const DstKV *dst_struct_find(const DstKV *st, DstValue key) {
 /* Put a kv pair into a struct that has not yet been fully constructed.
  * Nil keys and values are ignored, extra keys are ignore, and duplicate keys are
  * ignored. */
-void dst_struct_put(DstKV *st, DstValue key, DstValue value) {
+void dst_struct_put(DstKV *st, Dst key, Dst value) {
     int32_t cap = dst_struct_capacity(st);
     int32_t hash = dst_hash(key);
     int32_t index = dst_struct_maphash(cap, hash);
@@ -147,7 +148,7 @@ const DstKV *dst_struct_end(DstKV *st) {
 }
 
 /* Get an item from a struct */
-DstValue dst_struct_get(const DstKV *st, DstValue key) {
+Dst dst_struct_get(const DstKV *st, Dst key) {
     const DstKV *kv = dst_struct_find(st, key);
     if (NULL == kv || dst_checktype(kv->key, DST_NIL)) {
         return dst_wrap_nil();

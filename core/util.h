@@ -20,19 +20,34 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_VECTOR_H_defined
-#define DST_VECTOR_H_defined
+#ifndef DST_UTIL_H_defined
+#define DST_UTIL_H_defined
+
+#include <dst/dst.h>
+
+/* Utils internal to dst. */
+
+/* Utils */
+extern const char dst_base64[65];
+int32_t dst_array_calchash(const Dst *array, int32_t len);
+int32_t dst_kv_calchash(const DstKV *kvs, int32_t len);
+int32_t dst_string_calchash(const uint8_t *str, int32_t len);
+int32_t dst_tablen(int32_t n);
+int dst_cstrcmp(const uint8_t *str, const char *other);
+const void *dst_strbinsearch(
+        const void *tab,
+        size_t tabcount,
+        size_t itemsize,
+        const uint8_t *key);
 
 /*
- * Modified from
+ * vector code modified from
  * https://github.com/nothings/stb/blob/master/stretchy_buffer.h
 */
 
 /* This is mainly used code such as the assembler or compiler, which
  * need vector like data structures that are not garbage collected
  * and used only from C */
-
-#include <dst/dst.h>
 
 #define dst_v_free(v)         (((v) != NULL) ? (free(dst_v__raw(v)), 0) : 0)
 #define dst_v_push(v, x)      (dst_v__maybegrow(v, 1), (v)[dst_v__cnt(v)++] = (x))
@@ -41,7 +56,7 @@
 #define dst_v_add(v, n)       (dst_v__maybegrow(v, n), dst_v_cnt(v) += (n), &(v)[dst_v__cnt(v) - (n)])
 #define dst_v_last(v)         ((v)[dst_v__cnt(v) - 1])
 #define dst_v_copy(v)         (dst_v_copymem((v), sizeof(*(v))))
-#define dst_v_flatten(v)         (dst_v_flattenmem((v), sizeof(*(v))))
+#define dst_v_flatten(v)      (dst_v_flattenmem((v), sizeof(*(v))))
 
 #define dst_v__raw(v) ((int32_t *)(v) - 2)
 #define dst_v__cap(v) dst_v__raw(v)[0]
