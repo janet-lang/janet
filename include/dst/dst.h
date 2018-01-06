@@ -47,13 +47,13 @@ DstBuffer *dst_buffer(int32_t capacity);
 DstBuffer *dst_buffer_init(DstBuffer *buffer, int32_t capacity);
 void dst_buffer_deinit(DstBuffer *buffer);
 void dst_buffer_ensure(DstBuffer *buffer, int32_t capacity);
-void dst_buffer_extra(DstBuffer *buffer, int32_t n);
-void dst_buffer_push_bytes(DstBuffer *buffer, const uint8_t *string, int32_t len);
-void dst_buffer_push_cstring(DstBuffer *buffer, const char *cstring);
-void dst_buffer_push_u8(DstBuffer *buffer, uint8_t x);
-void dst_buffer_push_u16(DstBuffer *buffer, uint16_t x);
-void dst_buffer_push_u32(DstBuffer *buffer, uint32_t x);
-void dst_buffer_push_u64(DstBuffer *buffer, uint64_t x);
+int dst_buffer_extra(DstBuffer *buffer, int32_t n);
+int dst_buffer_push_bytes(DstBuffer *buffer, const uint8_t *string, int32_t len);
+int dst_buffer_push_cstring(DstBuffer *buffer, const char *cstring);
+int dst_buffer_push_u8(DstBuffer *buffer, uint8_t x);
+int dst_buffer_push_u16(DstBuffer *buffer, uint16_t x);
+int dst_buffer_push_u32(DstBuffer *buffer, uint32_t x);
+int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x);
 
 /* Tuple */
 #define dst_tuple_raw(t) ((int32_t *)(t) - 2)

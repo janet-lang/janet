@@ -64,7 +64,11 @@ void dst_buffer_ensure(DstBuffer *buffer, int32_t capacity) {
 
 /* Adds capacity for enough extra bytes to the buffer. Ensures that the
  * next n bytes pushed to the buffer will not cause a reallocation */
-void dst_buffer_extra(DstBuffer *buffer, int32_t n) {
+int dst_buffer_extra(DstBuffer *buffer, int32_t n) {
+    /* Check for buffer overflow */
+    if ((int64_t)n + buffer->count > INT32_MAX) {
+        return -1;
+    }
     int32_t new_size = buffer->count + n;
     if (new_size > buffer->capacity) {
         int32_t new_capacity = new_size * 2;
@@ -75,55 +79,55 @@ void dst_buffer_extra(DstBuffer *buffer, int32_t n) {
         buffer->data = new_data;
         buffer->capacity = new_capacity;
     }
-}
-
-/* Push multiple bytes into the buffer */
-void dst_buffer_push_bytes(DstBuffer *buffer, const uint8_t *string, int32_t length) {
-    int32_t new_size = buffer->count + length;
-    dst_buffer_ensure(buffer, new_size);
-    memcpy(buffer->data + buffer->count, string, length);
-    buffer->count = new_size;
+    return 0;
 }
 
 /* Push a cstring to buffer */
-void dst_buffer_push_cstring(DstBuffer *buffer, const char *cstring) {
+int dst_buffer_push_cstring(DstBuffer *buffer, const char *cstring) {
     int32_t len = 0;
     while (cstring[len]) ++len;
-    dst_buffer_push_bytes(buffer, (const uint8_t *) cstring, len);
+    return dst_buffer_push_bytes(buffer, (const uint8_t *) cstring, len);
+}
+
+/* Push multiple bytes into the buffer */
+int dst_buffer_push_bytes(DstBuffer *buffer, const uint8_t *string, int32_t length) {
+    if (dst_buffer_extra(buffer, length)) return -1;
+    memcpy(buffer->data + buffer->count, string, length);
+    buffer->count += length;
+    return 0;
 }
 
 /* Push a single byte to the buffer */
-void dst_buffer_push_u8(DstBuffer *buffer, uint8_t byte) {
-    int32_t new_size = buffer->count + 1;
-    dst_buffer_ensure(buffer, new_size);
+int dst_buffer_push_u8(DstBuffer *buffer, uint8_t byte) {
+    if (dst_buffer_extra(buffer, 1)) return -1;
     buffer->data[buffer->count] = byte;
-    buffer->count = new_size;
+    buffer->count++;
+    return 0;
 }
 
 /* Push a 16 bit unsigned integer to the buffer */
-void dst_buffer_push_u16(DstBuffer *buffer, uint16_t x) {
-    int32_t new_size = buffer->count + 1;
-    dst_buffer_ensure(buffer, new_size);
+int dst_buffer_push_u16(DstBuffer *buffer, uint16_t x) {
+    if (dst_buffer_extra(buffer, 2)) return -1;
     buffer->data[buffer->count] = x & 0xFF;
     buffer->data[buffer->count + 1] = (x >> 8) & 0xFF;
-    buffer->count = new_size;
+    buffer->count += 2;
+    return 0;
 }
 
 /* Push a 32 bit unsigned integer to the buffer */
-void dst_buffer_push_u32(DstBuffer *buffer, uint32_t x) {
-    int32_t new_size = buffer->count + 4;
-    dst_buffer_ensure(buffer, new_size);
+int dst_buffer_push_u32(DstBuffer *buffer, uint32_t x) {
+    if (dst_buffer_extra(buffer, 4)) return -1;
     buffer->data[buffer->count] = x & 0xFF;
     buffer->data[buffer->count + 1] = (x >> 8) & 0xFF;
     buffer->data[buffer->count + 2] = (x >> 16) & 0xFF;
     buffer->data[buffer->count + 3] = (x >> 24) & 0xFF;
-    buffer->count = new_size;
+    buffer->count += 4;
+    return 0;
 }
 
 /* Push a 64 bit unsigned integer to the buffer */
-void dst_buffer_push_u64(DstBuffer *buffer, uint64_t x) {
-    int32_t new_size = buffer->count + 8;
-    dst_buffer_ensure(buffer, new_size);
+int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x) {
+    if (dst_buffer_extra(buffer, 8)) return -1;
     buffer->data[buffer->count] = x & 0xFF;
     buffer->data[buffer->count + 1] = (x >> 8) & 0xFF;
     buffer->data[buffer->count + 2] = (x >> 16) & 0xFF;
@@ -132,5 +136,6 @@ void dst_buffer_push_u64(DstBuffer *buffer, uint64_t x) {
     buffer->data[buffer->count + 5] = (x >> 40) & 0xFF;
     buffer->data[buffer->count + 6] = (x >> 48) & 0xFF;
     buffer->data[buffer->count + 7] = (x >> 56) & 0xFF;
-    buffer->count = new_size;
+    buffer->count += 8;
+    return 0;
 }

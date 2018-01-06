@@ -27,6 +27,12 @@
 
 /* Utils internal to dst. */
 
+/* Type check Dst C Function arguments */
+typedef struct DstCSig {
+    int32_t flags;
+    DstAbstractType abs;
+} DstCSig;
+
 /* Utils */
 extern const char dst_base64[65];
 int32_t dst_array_calchash(const Dst *array, int32_t len);
