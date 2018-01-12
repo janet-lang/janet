@@ -26,7 +26,7 @@ PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 VERSION=\"0.0.0-beta\"
 
-CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=$(VERSION)
+CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -lm -g -DDST_VERSION=$(VERSION)
 PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
