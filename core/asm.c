@@ -832,6 +832,7 @@ Dst dst_asm_decode_instruction(uint32_t instr) {
                     dst_wrap_integer((int32_t)instr >> 24));
     }
 #undef oparg
+    return dst_wrap_nil();
 }
 
 Dst dst_disasm(DstFuncDef *def) {

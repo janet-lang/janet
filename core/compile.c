@@ -856,7 +856,6 @@ static void dstc_deinit(DstCompiler *c) {
 DstCompileResult dst_compile(DstCompileOptions opts) {
     DstCompiler c;
     DstFopts fopts;
-    DstSlot s;
 
     dstc_init(&c, opts.env);
 
@@ -871,7 +870,7 @@ DstCompileResult dst_compile(DstCompileOptions opts) {
     fopts.x = opts.source;
 
     /* Compile the value */
-    s = dstc_value(fopts);
+    dstc_value(fopts);
 
     if (c.result.status == DST_COMPILE_OK) {
         c.result.funcdef = dstc_pop_funcdef(&c);
