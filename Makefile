@@ -26,7 +26,8 @@ PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 VERSION=\"0.0.0-beta\"
 
-CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -lm -g -DDST_VERSION=$(VERSION)
+CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=$(VERSION)
+CLIBS=-lm
 PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
@@ -56,7 +57,7 @@ DST_CLIENT_SOURCES=$(addprefix client/,\
 				   main.c)
 
 $(DST_TARGET): $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(DST_ALL_HEADERS)
-	$(CC) $(CFLAGS) $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) -o $(DST_TARGET)
+	$(CC) $(CFLAGS) -o $(DST_TARGET) $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(CLIBS)
 
 ###################
 ##### Testing #####
