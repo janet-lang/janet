@@ -55,6 +55,21 @@ int dst_stl_describe(int32_t argn, Dst *argv, Dst *ret) {
     return 0;
 }
 
+int dst_stl_string(int32_t argn, Dst *argv, Dst *ret) {
+    int32_t i;
+    DstBuffer b;
+    dst_buffer_init(&b, 0);
+    for (i = 0; i < argn; ++i) {
+        int32_t len;
+        const uint8_t *str = dst_to_string(argv[i]);
+        len = dst_string_length(str);
+        dst_buffer_push_bytes(&b, str, len);
+    }
+    *ret = dst_stringv(b.data, b.count);
+    dst_buffer_deinit(&b);
+    return 0;
+}
+
 int dst_stl_asm(int32_t argn, Dst *argv, Dst *ret) {
     DstAssembleOptions opts;
     DstAssembleResult res;
@@ -254,6 +269,7 @@ static DstReg stl[] = {
     {"real", dst_real},
     {"print", dst_stl_print},
     {"describe", dst_stl_describe},
+    {"string", dst_stl_string},
     {"table", dst_stl_table},
     {"array", dst_stl_array},
     {"tuple", dst_stl_tuple},
@@ -295,7 +311,11 @@ static DstReg stl[] = {
     {">>", dst_lshift},
     {"<<", dst_rshift},
     {">>>", dst_lshiftu},
-    {"not", dst_stl_not}
+    {"not", dst_stl_not},
+    {"fopen", dst_stl_fileopen},
+    {"fclose", dst_stl_fileclose},
+    {"fwrite", dst_stl_filewrite},
+    {"fread", dst_stl_fileread}
 };
 
 Dst dst_loadstl(int flags) {

@@ -151,6 +151,7 @@ int dst_hashtable_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap);
 #define dst_abstract_header(u) ((DstAbstractHeader *)(u) - 1)
 #define dst_abstract_type(u) (dst_abstract_header(u)->type)
 #define dst_abstract_size(u) (dst_abstract_header(u)->size)
+void *dst_abstract(const DstAbstractType *type, size_t size);
 
 /* Value functions */
 int dst_equals(Dst x, Dst y);

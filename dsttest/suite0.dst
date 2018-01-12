@@ -112,21 +112,21 @@
 
 # Fiber tests
 
-(def athread (thread (fn [x]
+(def afiber (fiber (fn [x]
 	(error (string "hello, " x)))))
 
-(def athread-result (tran athread "world!"))
+(def afiber-result (transfer afiber "world!"))
 
-(assert (= athread-result "hello, world!") "thread error result")
-(assert (= (status athread) "error") "thread error status")
+(assert (= afiber-result "hello, world!") "fiber error result")
+(assert (= (status afiber) "error") "fiber error status")
 
 # yield tests
 
-(def t (thread (fn [] (tran nil 1) (tran nil 2) 3)))
+(def t (fiber (fn [] (transfer nil 1) (transfer nil 2) 3)))
 
-(assert (= 1 (tran t)) "initial transfer to new thread")
-(assert (= 2 (tran t)) "second transfer to thread")
-(assert (= 3 (tran t)) "return from thread")
+(assert (= 1 (transfer t)) "initial transfer to new thread")
+(assert (= 2 (transfer t)) "second transfer to thread")
+(assert (= 3 (transfer t)) "return from thread")
 (assert (= (status t) "dead") "finished thread is dead")
 
 # Var arg tests

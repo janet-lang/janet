@@ -24,7 +24,7 @@
 #include "gc.h"
 
 /* Create new userdata */
-void *dst_abstract(size_t size, const DstAbstractType *atype) {
+void *dst_abstract(const DstAbstractType *atype, size_t size) {
     char *data = dst_gcalloc(DST_MEMORY_ABSTRACT, sizeof(DstAbstractHeader) + size);
     DstAbstractHeader *header = (DstAbstractHeader *)data;
     void *a = data + sizeof(DstAbstractHeader);

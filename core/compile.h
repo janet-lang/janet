@@ -53,6 +53,12 @@ struct DstSlot {
     Dst constant; /* If the slot has a constant value */
 };
 
+/* Slot and map pairing */
+typedef struct DstSM {
+    DstSlot slot;
+    const Dst *map;
+} DstSM;
+
 /* Special forms that need support */
 /* cond
  * while (continue, break)
@@ -131,25 +137,92 @@ struct DstFopts {
 /* A grouping of optimizations on a cfunction given certain conditions
  * on the arguments (such as all constants, or some known types). The appropriate
  * optimizations should be tried before compiling a normal function call. */
-struct DstCFunctionOptimizer {
+typedef struct DstCFunOptimizer {
     DstCFunction cfun;
     DstSlot (*optimize)(DstFopts opts, int32_t argn, const Dst *argv);
-};
+} DstCFunOptimizer;
+
+/* A grouping of a named special and the corresponding compiler fragment */
 typedef struct DstSpecial {
     const char *name;
     DstSlot (*compile)(DstFopts opts, int32_t argn, const Dst *argv);
 } DstSpecial;
 
-/* An array of optimizers sorted by key */
-extern DstCFunctionOptimizer dstcr_optimizers[255];
+/****************************************************/
+
+/* Get a cfunction optimizer. Return NULL if none exists.  */
+const DstCFunOptimizer *dstc_cfunopt(DstCFunction cfun);
+
+/* Get a special. Return NULL if none exists */
+const DstSpecial *dstc_special(const uint8_t *name);
+
+/* Check error */
+int dstc_iserr(DstFopts *opts);
+
+/* Allocate a slot index */
+int32_t dstc_lsloti(DstCompiler *c);
+
+/* Free a slot index */
+void dstc_sfreei(DstCompiler *c, int32_t index);
+
+/* Allocate a local near (n) slot and return its index. Slot
+ * has maximum index max. Common value for max would be 0xFF,
+ * the highest slot index representable with one byte. */
+int32_t dstc_lslotn(DstCompiler *c, int32_t max, int32_t nth);
+
+/* Free a slot */
+void dstc_freeslot(DstCompiler *c, DstSlot s);
+
+/* Add a slot to a scope with a symbol associated with it (def or var). */
+void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s);
+
+/* Realize any slot to a local slot. Call this to get a slot index
+ * that can be used in an instruction. */
+int32_t dstc_preread(
+        DstCompiler *c,
+        const Dst *sourcemap,
+        int32_t max,
+        int nth,
+        DstSlot s);
+
+/* Call this to release a read handle after emitting the instruction. */
+void dstc_postread(DstCompiler *c, DstSlot s, int32_t index);
+
+/* Move value from one slot to another. Cannot copy to constant slots. */
+void dstc_copy(
+        DstCompiler *c,
+        const Dst *sourcemap,
+        DstSlot dest,
+        DstSlot src);
+
+/* Throw away some code after checking that it is well formed. */
+void dstc_throwaway(DstFopts opts);
+
+/* Generate the return instruction for a slot. */
+DstSlot dstc_return(DstCompiler *c, const Dst *sourcemap, DstSlot s);
+
+/* Get a target slot for emitting an instruction. Will always return
+ * a local slot. */
+DstSlot dstc_gettarget(DstFopts opts);
+
+/* Get a bunch of slots for function arguments */
+DstSM *dstc_toslots(DstFopts opts, int32_t start);
+
+/* Get a bunch of slots for function arguments */
+DstSM *dstc_toslotskv(DstFopts opts);
+
+/* Push slots load via dstc_toslots. */
+void dstc_pushslots(DstFopts opts, DstSM *sms);
+
+/* Free slots loaded via dstc_toslots */
+void dstc_freeslots(DstFopts opts, DstSM *sms);
+
+/* Store an error */
+void dstc_error(DstCompiler *c, const Dst *sourcemap, const uint8_t *m);
+void dstc_cerror(DstCompiler *c, const Dst *sourcemap, const char *m);
 
 /* Dispatch to correct form compiler */
 DstSlot dstc_value(DstFopts opts);
-
-/****************************************************/
-
-void dstc_error(DstCompiler *c, const Dst *sourcemap, const uint8_t *m);
-void dstc_cerror(DstCompiler *c, const Dst *sourcemap, const char *m);
 
 /* Use these to get sub options. They will traverse the source map so
  * compiler errors make sense. Then modify the returned options. */
@@ -157,10 +230,15 @@ DstFopts dstc_getindex(DstFopts opts, int32_t index);
 DstFopts dstc_getkey(DstFopts opts, Dst key);
 DstFopts dstc_getvalue(DstFopts opts, Dst key);
 
+/* Push and pop from the scope stack */
 void dstc_scope(DstCompiler *c, int newfn);
 void dstc_popscope(DstCompiler *c);
+DstFuncDef *dstc_pop_funcdef(DstCompiler *c);
 
+/* Create a destory slots */
 DstSlot dstc_cslot(Dst x);
+
+/* Free a slot */
 void dstc_freeslot(DstCompiler *c, DstSlot slot);
 
 /* Search for a symbol */

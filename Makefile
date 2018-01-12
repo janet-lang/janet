@@ -26,7 +26,7 @@ PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 VERSION=\"0.0.0-beta\"
 
-CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -fsanitize=address -DDST_VERSION=$(VERSION)
+CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=$(VERSION)
 PREFIX=/usr/local
 DST_TARGET=dst
 DST_XXD=xxd
@@ -47,8 +47,8 @@ all: $(DST_TARGET)
 ###################################
 
 DST_CORE_SOURCES=$(addprefix core/,\
-				 abstract.c array.c asm.c buffer.c compile.c\
-				 fiber.c gc.c math.c parse.c sourcemap.c string.c\
+				 abstract.c array.c asm.c buffer.c compile.c compile_specials.c\
+				 fiber.c gc.c io.c math.c parse.c sourcemap.c string.c\
 				 stl.c strtod.c struct.c symcache.c table.c tuple.c util.c\
 				 value.c vm.c wrap.c)
 

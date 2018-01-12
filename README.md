@@ -2,23 +2,32 @@
 
 [![Build Status](https://travis-ci.org/bakpakin/dst.svg?branch=master)](https://travis-ci.org/bakpakin/dst)
 
-dst is a language and vm that is small and embeddable, has metaprogramming
-facilities, can interoperate with C, and has enough features to make it
-a useful general purpose programming language. It is a variant of
+dst is a functional programming language and vm. It is a variant of
 Lisp with several native useful datatypes. Some of the more interesting and
 useful features are first class functions and closures, immutable and mutable
 hashtables, arrays, and bytebuffers, macros (NYI), tail-call optimization,
-and continuations (coroutines, error handling). The runtime and bootstrapping
+and continuations (coroutines, error handling). The runtime and 
 compiler are written in C99, but should eventually be completely compatible
 with C89 compilers.
-
-As of July 2017, still WIP. While the basic runtime is in place, as are many
-native functions, several important features are still being implemented and
-defined, like the module system and macros.
 
 There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
 dst could be embedded into other programs.
+
+## Features
+
+First class closures
+Garbage collection
+lexical scoping
+First class green threads (continuations)
+Mutable and immutable arrays (array/tuple)
+Mutable and immutable hashtables (table/struct)
+Mutable and immutable strings (buffer/string)
+Byte code interpreter with an assembly interface
+Proper tail calls for functional code
+Direct interop with C
+
+
 
 ## Compiling and Running
 

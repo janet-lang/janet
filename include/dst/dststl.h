@@ -68,4 +68,10 @@ int dst_lshift(int argn, Dst *argv, Dst *ret);
 int dst_rshift(int argn, Dst *argv, Dst *ret);
 int dst_lshiftu(int argn, Dst *argv, Dst *ret);
 
+int dst_stl_fileopen(int32_t argn, Dst *argv, Dst *ret);
+int dst_stl_slurp(int32_t argn, Dst *argv, Dst *ret);
+int dst_stl_fileread(int32_t argn, Dst *argv, Dst *ret);
+int dst_stl_filewrite(int32_t argn, Dst *argv, Dst *ret);
+int dst_stl_fileclose(int32_t argn, Dst *argv, Dst *ret);
+
 #endif /* DST_MATH_H_defined */

@@ -80,12 +80,12 @@ DstFopts dstc_getvalue(DstFopts opts, Dst key) {
 }
 
 /* Check error */
-static int dstc_iserr(DstFopts *opts) {
+int dstc_iserr(DstFopts *opts) {
     return (opts->compiler->result.status == DST_COMPILE_ERROR);
 }
 
 /* Allocate a slot index */
-static int32_t dstc_lsloti(DstCompiler *c) {
+int32_t dstc_lsloti(DstCompiler *c) {
     DstScope *scope = &dst_v_last(c->scopes);
     /* Get the nth bit in the array */
     int32_t i, biti, len;
@@ -113,7 +113,7 @@ static int32_t dstc_lsloti(DstCompiler *c) {
 }
 
 /* Free a slot index */
-static void dstc_sfreei(DstCompiler *c, int32_t index) {
+void dstc_sfreei(DstCompiler *c, int32_t index) {
     DstScope *scope = &dst_v_last(c->scopes);
     /* Don't free the pre allocated slots */
     if (index >= 0 && (index < 0xF0 || index > 0xFF) && 
@@ -124,7 +124,7 @@ static void dstc_sfreei(DstCompiler *c, int32_t index) {
 /* Allocate a local near (n) slot and return its index. Slot
  * has maximum index max. Common value for max would be 0xFF,
  * the highest slot index representable with one byte. */
-static int32_t dstc_lslotn(DstCompiler *c, int32_t max, int32_t nth) {
+int32_t dstc_lslotn(DstCompiler *c, int32_t max, int32_t nth) {
     int32_t ret = dstc_lsloti(c);
     if (ret > max) {
         dstc_sfreei(c, ret);
@@ -141,38 +141,13 @@ void dstc_freeslot(DstCompiler *c, DstSlot s) {
 }
 
 /* Add a slot to a scope with a symbol associated with it (def or var). */
-static void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s) {
+void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s) {
     DstScope *scope = &dst_v_last(c->scopes);
     SymPair sp;
     sp.sym = sym;
     sp.slot = s;
     sp.slot.flags |= DST_SLOT_NAMED;
     dst_v_push(scope->syms, sp);
-}
-
-/* Add a constant to the current scope. Return the index of the constant. */
-static int32_t dstc_const(DstCompiler *c, const Dst *sourcemap, Dst x) {
-    DstScope *scope = &dst_v_last(c->scopes);
-    int32_t i, len;
-    /* Get the topmost function scope */
-    while (scope > c->scopes) {
-        if (scope->flags & DST_SCOPE_FUNCTION)
-            break;
-        scope--;
-    }
-    /* Check if already added */
-    len = dst_v_count(scope->consts);
-    for (i = 0; i < len; i++) {
-        if (dst_equals(x, scope->consts[i]))
-            return i;
-    }
-    /* Ensure not too many constsants. */
-    if (len >= 0xFFFF) {
-        dstc_cerror(c, sourcemap, "too many constants");
-        return 0;
-    }
-    dst_v_push(scope->consts, x);
-    return len;
 }
 
 /* Enter a new scope */
@@ -344,6 +319,31 @@ void dstc_emit(DstCompiler *c, const Dst *sourcemap, uint32_t instr) {
     }
 }
 
+/* Add a constant to the current scope. Return the index of the constant. */
+static int32_t dstc_const(DstCompiler *c, const Dst *sourcemap, Dst x) {
+    DstScope *scope = &dst_v_last(c->scopes);
+    int32_t i, len;
+    /* Get the topmost function scope */
+    while (scope > c->scopes) {
+        if (scope->flags & DST_SCOPE_FUNCTION)
+            break;
+        scope--;
+    }
+    /* Check if already added */
+    len = dst_v_count(scope->consts);
+    for (i = 0; i < len; i++) {
+        if (dst_equals(x, scope->consts[i]))
+            return i;
+    }
+    /* Ensure not too many constsants. */
+    if (len >= 0xFFFF) {
+        dstc_cerror(c, sourcemap, "too many constants");
+        return 0;
+    }
+    dst_v_push(scope->consts, x);
+    return len;
+}
+
 /* Load a constant into a local slot */
 static void dstc_loadconst(DstCompiler *c, const Dst *sourcemap, Dst k, int32_t dest) {
     switch (dst_type(k)) {
@@ -382,7 +382,7 @@ static void dstc_loadconst(DstCompiler *c, const Dst *sourcemap, Dst k, int32_t 
 
 /* Realize any slot to a local slot. Call this to get a slot index
  * that can be used in an instruction. */
-static int32_t dstc_preread(
+int32_t dstc_preread(
         DstCompiler *c,
         const Dst *sourcemap,
         int32_t max,
@@ -425,7 +425,7 @@ static int32_t dstc_preread(
 }
 
 /* Call this to release a read handle after emitting the instruction. */
-static void dstc_postread(DstCompiler *c, DstSlot s, int32_t index) {
+void dstc_postread(DstCompiler *c, DstSlot s, int32_t index) {
     if (index != s.index || s.envindex > 0 || s.flags & DST_SLOT_CONSTANT) {
         /* We need to free the temporary slot */
         dstc_sfreei(c, index);
@@ -434,7 +434,7 @@ static void dstc_postread(DstCompiler *c, DstSlot s, int32_t index) {
 
 /* Move values from one slot to another. The destination must
  * be writeable (not a literal). */
-static void dstc_copy(
+void dstc_copy(
         DstCompiler *c,
         const Dst *sourcemap,
         DstSlot dest,
@@ -559,7 +559,7 @@ static void dstc_copy(
 }
 
 /* Generate the return instruction for a slot. */
-static DstSlot dstc_return(DstCompiler *c, const Dst *sourcemap, DstSlot s) {
+DstSlot dstc_return(DstCompiler *c, const Dst *sourcemap, DstSlot s) {
     if (!(s.flags & DST_SLOT_RETURNED)) {
         if (s.flags & DST_SLOT_CONSTANT && dst_checktype(s.constant, DST_NIL)) {
             dstc_emit(c, sourcemap, DOP_RETURN_NIL);
@@ -575,7 +575,7 @@ static DstSlot dstc_return(DstCompiler *c, const Dst *sourcemap, DstSlot s) {
 
 /* Get a target slot for emitting an instruction. Will always return
  * a local slot. */
-static DstSlot dstc_gettarget(DstFopts opts) {
+DstSlot dstc_gettarget(DstFopts opts) {
     DstSlot slot;
     if ((opts.flags & DST_FOPTS_HINT) &&
         (opts.hint.envindex == 0) &&
@@ -590,19 +590,13 @@ static DstSlot dstc_gettarget(DstFopts opts) {
     return slot;
 }
 
-/* Slot and map pairing */
-typedef struct SlotMap {
-    DstSlot slot;
-    const Dst *map;
-} SlotMap;
-
 /* Get a bunch of slots for function arguments */
-SlotMap *toslots(DstFopts opts, int32_t start) {
+DstSM *dstc_toslots(DstFopts opts, int32_t start) {
     int32_t i, len;
-    SlotMap *ret = NULL;
+    DstSM *ret = NULL;
     len = dst_length(opts.x);
     for (i = start; i < len; i++) {
-        SlotMap sm;
+        DstSM sm;
         DstFopts subopts = dstc_getindex(opts, i);
         sm.slot = dstc_value(subopts);
         sm.map = subopts.sourcemap;
@@ -612,11 +606,11 @@ SlotMap *toslots(DstFopts opts, int32_t start) {
 }
 
 /* Get a bunch of slots for function arguments */
-static SlotMap *toslotskv(DstFopts opts) {
-    SlotMap *ret = NULL;
+DstSM *dstc_toslotskv(DstFopts opts) {
+    DstSM *ret = NULL;
     const DstKV *kv = NULL;
     while (NULL != (kv = dst_next(opts.x, kv))) {
-        SlotMap km, vm;
+        DstSM km, vm;
         DstFopts kopts = dstc_getkey(opts, kv->key);
         DstFopts vopts = dstc_getvalue(opts, kv->key);
         km.slot = dstc_value(kopts);
@@ -629,8 +623,8 @@ static SlotMap *toslotskv(DstFopts opts) {
     return ret;
 }
 
-/* Push slots load via toslots. */
-static void pushslots(DstFopts opts, SlotMap *sms) {
+/* Push slots load via dstc_toslots. */
+void dstc_pushslots(DstFopts opts, DstSM *sms) {
     DstCompiler *c = opts.compiler;
     const Dst *sm = opts.sourcemap;
     int32_t i;
@@ -665,8 +659,8 @@ static void pushslots(DstFopts opts, SlotMap *sms) {
     }
 }
 
-/* Free slots loaded via toslots */
-static void freeslots(DstFopts opts, SlotMap *sms) {
+/* Free slots loaded via dstc_toslots */
+void dstc_freeslots(DstFopts opts, DstSM *sms) {
     int32_t i;
     for (i = 0; i < dst_v_count(sms); i++) {
         dstc_freeslot(opts.compiler, sms[i].slot);
@@ -674,163 +668,10 @@ static void freeslots(DstFopts opts, SlotMap *sms) {
     dst_v_free(sms);
 }
 
-DstSlot dstc_quote(DstFopts opts, int32_t argn, const Dst *argv) {
-    if (argn != 1) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected 1 argument");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    return dstc_cslot(argv[0]);
-}
-
-DstSlot dstc_var(DstFopts opts, int32_t argn, const Dst *argv) {
-    DstCompiler *c = opts.compiler;
-    DstFopts subopts;
-    DstSlot ret;
-    if (argn != 2) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    if (!dst_checktype(argv[0], DST_SYMBOL)) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected symbol");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    subopts = dstc_getindex(opts, 2);
-    subopts.flags = opts.flags & ~DST_FOPTS_TAIL;
-    ret = dstc_value(subopts);
-    if (dst_v_last(c->scopes).flags & DST_SCOPE_TOP) {
-        DstCompiler *c = opts.compiler;
-        const Dst *sm = opts.sourcemap;
-        DstSlot refslot, refarrayslot;
-        /* Global var, generate var */
-        DstTable *reftab = dst_table(1);
-        DstArray *ref = dst_array(1);
-        dst_array_push(ref, dst_wrap_nil());
-        dst_table_put(reftab, dst_csymbolv("ref"), dst_wrap_array(ref));
-        dst_put(opts.compiler->env, argv[0], dst_wrap_table(reftab));
-        refslot = dstc_cslot(dst_wrap_array(ref));
-        refarrayslot = refslot;
-        refslot.flags |= DST_SLOT_REF | DST_SLOT_NAMED | DST_SLOT_MUTABLE;
-        /* Generate code to set ref */
-        int32_t refarrayindex = dstc_preread(c, sm, 0xFF, 1, refarrayslot);
-        int32_t retindex = dstc_preread(c, sm, 0xFF, 2, ret);
-        dstc_emit(c, sm,
-                (retindex << 16) |
-                (refarrayindex << 8) |
-                DOP_PUT_INDEX);
-        dstc_postread(c, refarrayslot, refarrayindex);
-        dstc_postread(c, ret, retindex);
-        /*dstc_freeslot(c, refarrayslot);*/
-        ret = refslot;
-    } else {
-        /* Non root scope, bring to local slot */
-        if (ret.flags & DST_SLOT_NAMED ||
-            ret.envindex != 0 ||
-            ret.index < 0 ||
-            ret.index > 0xFF) {
-            /* Slot is not able to be named */
-            DstSlot localslot;
-            localslot.index = dstc_lsloti(c);
-            /* infer type? */
-            localslot.flags = DST_SLOT_NAMED | DST_SLOT_MUTABLE;
-            localslot.envindex = 0;
-            localslot.constant = dst_wrap_nil();
-            dstc_copy(opts.compiler, opts.sourcemap, localslot, ret);
-            ret = localslot;
-        }
-        dstc_nameslot(c, dst_unwrap_symbol(argv[0]), ret); 
-    }
-    return ret;
-}
-
-DstSlot dstc_varset(DstFopts opts, int32_t argn, const Dst *argv) {
-    DstFopts subopts;
-    DstSlot ret, dest;
-    if (argn != 2) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    if (!dst_checktype(argv[0], DST_SYMBOL)) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected symbol");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    dest = dstc_resolve(opts.compiler, opts.sourcemap, dst_unwrap_symbol(argv[0]));
-    if (!(dest.flags & DST_SLOT_MUTABLE)) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "cannot set constant");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    subopts = dstc_getindex(opts, 2);
-    subopts.flags = DST_FOPTS_HINT;
-    subopts.hint = dest;
-    ret = dstc_value(subopts);
-    dstc_copy(opts.compiler, subopts.sourcemap, dest, ret);
-    return ret;
-}
-
-DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
-    DstCompiler *c = opts.compiler;
-    DstFopts subopts;
-    DstSlot ret;
-    if (argn != 2) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    if (!dst_checktype(argv[0], DST_SYMBOL)) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected symbol");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    subopts = dstc_getindex(opts, 2);
-    subopts.flags &= ~DST_FOPTS_TAIL;
-    ret = dstc_value(subopts);
-    ret.flags |= DST_SLOT_NAMED;
-    if (dst_v_last(c->scopes).flags & DST_SCOPE_TOP) {
-        /* Global def, generate code to store in env when executed */
-        DstCompiler *c = opts.compiler;
-        const Dst *sm = opts.sourcemap;
-        /* Root scope, add to def table */
-        DstSlot envslot = dstc_cslot(c->env);
-        DstSlot nameslot = dstc_cslot(argv[0]);
-        DstSlot valsymslot = dstc_cslot(dst_csymbolv("value"));
-        DstSlot tableslot = dstc_cslot(dst_wrap_cfunction(dst_stl_table));
-        /* Create env entry */
-        int32_t valsymindex = dstc_preread(c, sm, 0xFF, 1, valsymslot);
-        int32_t retindex = dstc_preread(c, sm, 0xFFFF, 2, ret);
-        dstc_emit(c, sm,
-                (retindex << 16) |
-                (valsymindex << 8) |
-                DOP_PUSH_2);
-        dstc_postread(c, ret, retindex);
-        dstc_postread(c, valsymslot, valsymindex);
-        dstc_freeslot(c, valsymslot);
-        int32_t tableindex = dstc_preread(opts.compiler, opts.sourcemap, 0xFF, 1, tableslot);
-        dstc_emit(c, sm,
-                (tableindex << 16) |
-                (tableindex << 8) |
-                DOP_CALL);
-        /* Add env entry to env */
-        int32_t nameindex = dstc_preread(opts.compiler, opts.sourcemap, 0xFF, 2, nameslot);
-        int32_t envindex = dstc_preread(opts.compiler, opts.sourcemap, 0xFF, 3, envslot);
-        dstc_emit(opts.compiler, opts.sourcemap, 
-                (tableindex << 24) |
-                (nameindex << 16) |
-                (envindex << 8) |
-                DOP_PUT);
-        dstc_postread(opts.compiler, envslot, envindex);
-        dstc_postread(opts.compiler, nameslot, nameindex);
-        dstc_postread(c, tableslot, tableindex);
-        dstc_freeslot(c, tableslot);
-        dstc_freeslot(c, envslot);
-        dstc_freeslot(c, tableslot);
-    } else {
-        /* Non root scope, simple slot alias */
-        dstc_nameslot(c, dst_unwrap_symbol(argv[0]), ret); 
-    }
-    return ret;
-}
-
 /* Compile some code that will be thrown away. Used to ensure
  * that dead code is well formed without including it in the final
  * bytecode. */
-static void dstc_throwaway(DstFopts opts) {
+void dstc_throwaway(DstFopts opts) {
     DstCompiler *c = opts.compiler;
     int32_t bufstart = dst_v_count(c->buffer);
     dstc_scope(c, DST_SCOPE_UNUSED);
@@ -843,201 +684,99 @@ static void dstc_throwaway(DstFopts opts) {
     }
 }
 
-/*
- * :condition
- * ...
- * jump-if-not condition :right
- * :left
- * ...
- * jump done (only if not tail)
- * :right
- * ...
- * :done
- */
-DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
+/* Compile a call or tailcall instruction */
+static DstSlot dstc_call(DstFopts opts, DstSM *sms, DstSlot fun) {
+    DstSlot retslot;
+    int32_t localindex;
     DstCompiler *c = opts.compiler;
     const Dst *sm = opts.sourcemap;
-    int32_t labelr, labeljr, labeld, labeljd, condlocal;
-    DstFopts leftopts, rightopts, condopts;
-    DstSlot cond, left, right, target;
-    const int tail = opts.flags & DST_FOPTS_TAIL;
-    const int drop = opts.flags & DST_FOPTS_DROP;
-    (void) argv;
-
-    if (argn < 2 || argn > 3) {
-        dstc_cerror(c, sm, "expected 2 or 3 arguments to if");
-        return dstc_cslot(dst_wrap_nil());
+    dstc_pushslots(opts, sms);
+    dstc_freeslots(opts, sms);
+    localindex = dstc_preread(c, sm, 0xFF, 1, fun);
+    if (opts.flags & DST_FOPTS_TAIL) {
+        dstc_emit(c, sm, (localindex << 8) | DOP_TAILCALL);
+        retslot = dstc_cslot(dst_wrap_nil());
+        retslot.flags = DST_SLOT_RETURNED;
+    } else {
+        retslot = dstc_gettarget(opts);
+        dstc_emit(c, sm, (localindex << 16) | (retslot.index << 8) | DOP_CALL);
     }
-
-    /* Get options */
-    condopts = dstc_getindex(opts, 1);
-    leftopts = dstc_getindex(opts, 2);
-    rightopts = dstc_getindex(opts, 3);
-    if (argn == 2) rightopts.sourcemap = opts.sourcemap;
-    if (opts.flags & DST_FOPTS_HINT) {
-        leftopts.flags |= DST_FOPTS_HINT;
-        rightopts.flags |= DST_FOPTS_HINT;
-    }
-    if (tail) {
-        leftopts.flags |= DST_FOPTS_TAIL;
-        rightopts.flags |= DST_FOPTS_TAIL;
-    }
-    if (drop) {
-        leftopts.flags |= DST_FOPTS_DROP;
-        rightopts.flags |= DST_FOPTS_DROP;
-    }
-
-    /* Compile condition */
-    cond = dstc_value(condopts);
-
-    /* Check constant condition. */
-    /* TODO: Use type info for more short circuits */
-    if ((cond.flags & DST_SLOT_CONSTANT) && !(cond.flags & DST_SLOT_REF)) {
-        DstFopts goodopts, badopts;
-        if (dst_truthy(cond.constant)) {
-            goodopts = leftopts;
-            badopts = rightopts;
-        } else {
-            goodopts = rightopts;
-            badopts = leftopts;
-        }
-        dstc_scope(c, 0);
-        target = dstc_value(goodopts);
-        dstc_popscope(c);
-        dstc_throwaway(badopts);
-        return target;
-    }
-
-    /* Set target for compilation */
-    target = (!drop && !tail) 
-        ? dstc_gettarget(opts)
-        : dstc_cslot(dst_wrap_nil());
-
-    /* Compile jump to right */
-    condlocal = dstc_preread(c, sm, 0xFF, 1, cond);
-    labeljr = dst_v_count(c->buffer);
-    dstc_emit(c, sm, DOP_JUMP_IF_NOT | (condlocal << 8));
-    dstc_postread(c, cond, condlocal);
-    dstc_freeslot(c, cond);
-
-    /* Condition left body */
-    dstc_scope(c, 0);
-    left = dstc_value(leftopts);
-    if (!drop && !tail) dstc_copy(c, sm, target, left); 
-    dstc_popscope(c);
-
-    /* Compile jump to done */
-    labeljd = dst_v_count(c->buffer);
-    if (!tail) dstc_emit(c, sm, DOP_JUMP);
-
-    /* Compile right body */
-    labelr = dst_v_count(c->buffer);
-    dstc_scope(c, 0);
-    right = dstc_value(rightopts);
-    if (!drop && !tail) dstc_copy(c, sm, target, right); 
-    dstc_popscope(c);
-
-    /* Write jumps - only add jump lengths if jump actually emitted */
-    labeld = dst_v_count(c->buffer);
-    c->buffer[labeljr] |= (labelr - labeljr) << 16;
-    if (!tail) c->buffer[labeljd] |= (labeld - labeljd) << 8;
-
-    if (tail) target.flags |= DST_SLOT_RETURNED;
-    return target;
+    dstc_postread(c, fun, localindex);
+    return retslot;
 }
 
-DstSlot dstc_do(DstFopts opts, int32_t argn, const Dst *argv) {
-    int32_t i;
-    DstSlot ret;
-    dstc_scope(opts.compiler, 0);
-    (void) argv;
-    for (i = 0; i < argn; i++) {
-        DstFopts subopts = dstc_getindex(opts, i + 1);
-        if (i != argn - 1) {
-            subopts.flags = DST_FOPTS_DROP;
-        } else if (opts.flags & DST_FOPTS_TAIL) {
-            subopts.flags = DST_FOPTS_TAIL;
-        }
-        ret = dstc_value(subopts);
-        if (i != argn - 1) {
-            dstc_freeslot(opts.compiler, ret);
+/* Compile a tuple */
+DstSlot dstc_tuple(DstFopts opts) {
+    DstSlot head;
+    DstFopts subopts;
+    const Dst *tup = dst_unwrap_tuple(opts.x);
+    /* Empty tuple is tuple literal */
+    if (dst_tuple_length(tup) == 0) return dstc_cslot(opts.x);
+    /* Symbols could be specials */
+    if (dst_checktype(tup[0], DST_SYMBOL)) {
+        const DstSpecial *s = dstc_special(dst_unwrap_symbol(tup[0]));
+        if (NULL != s) {
+            return s->compile(opts, dst_tuple_length(tup) - 1, tup + 1);
         }
     }
-    dstc_popscope(opts.compiler);
+    /* Compile the head of the tuple */
+    subopts = dstc_getindex(opts, 0);
+    subopts.flags = DST_FUNCTION | DST_CFUNCTION;
+    head = dstc_value(subopts);
+    return dstc_call(opts, dstc_toslots(opts, 1), head);
+}
+
+static DstSlot dstc_array(DstFopts opts) {
+    return dstc_call(opts, dstc_toslots(opts, 0), dstc_cslot(dst_wrap_cfunction(dst_stl_array)));
+}
+
+static DstSlot dstc_tablector(DstFopts opts, DstCFunction cfun) {
+    return dstc_call(opts, dstc_toslotskv(opts), dstc_cslot(dst_wrap_cfunction(cfun)));
+}
+
+/* Compile a single value */
+DstSlot dstc_value(DstFopts opts) {
+    DstSlot ret;
+    if (dstc_iserr(&opts)) {
+        return dstc_cslot(dst_wrap_nil());
+    }
+    if (opts.compiler->recursion_guard <= 0) {
+        dstc_cerror(opts.compiler, opts.sourcemap, "recursed too deeply");
+        return dstc_cslot(dst_wrap_nil());
+    }
+    opts.compiler->recursion_guard--;
+    switch (dst_type(opts.x)) {
+        default:
+            ret = dstc_cslot(opts.x);
+            break;
+        case DST_SYMBOL:
+            {
+                const uint8_t *sym = dst_unwrap_symbol(opts.x);
+                ret = dstc_resolve(opts.compiler, opts.sourcemap, sym);
+                break;
+            }
+        case DST_TUPLE:
+            ret = dstc_tuple(opts);
+            break;
+        case DST_ARRAY:
+            ret = dstc_array(opts); 
+            break;
+        case DST_STRUCT:
+            ret = dstc_tablector(opts, dst_stl_struct); 
+            break;
+        case DST_TABLE:
+            ret = dstc_tablector(opts, dst_stl_table);
+            break;
+    }
+    if (opts.flags & DST_FOPTS_TAIL) {
+        ret = dstc_return(opts.compiler, opts.sourcemap, ret);
+    }
+    opts.compiler->recursion_guard++;
     return ret;
 }
 
-/*
- * :whiletop
- * ...
- * :condition
- * jump-if-not cond :done
- * ...
- * jump :whiletop
- * :done
- */
-DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
-    DstCompiler *c = opts.compiler;
-    const Dst *sm = opts.sourcemap;
-    DstSlot cond;
-    int32_t condlocal, labelwt, labeld, labeljt, labelc, i;
-    int infinite = 0;
-    (void) argv;
-
-    if (argn < 2) {
-        dstc_cerror(c, sm, "expected at least 2 arguments");
-        return dstc_cslot(dst_wrap_nil());
-    }
-
-    labelwt = dst_v_count(c->buffer);
-
-    /* Compile condition */
-    cond = dstc_value(dstc_getindex(opts, 1));
-
-    /* Check for constant condition */
-    if (cond.flags & DST_SLOT_CONSTANT) {
-        /* Loop never executes */
-        if (!dst_truthy(cond.constant)) {
-            return dstc_cslot(dst_wrap_nil());
-        }
-        /* Infinite loop */
-        infinite = 1;
-    }
-
-    dstc_scope(c, 0);
-
-    /* Infinite loop does not need to check condition */
-    if (!infinite) {
-        condlocal = dstc_preread(c, sm, 0xFF, 1, cond);
-        labelc = dst_v_count(c->buffer);
-        dstc_emit(c, sm, DOP_JUMP_IF_NOT | (condlocal << 8));
-        dstc_postread(c, cond, condlocal);
-    }
-
-    /* Compile body */
-    for (i = 1; i < argn; i++) {
-        DstFopts subopts = dstc_getindex(opts, i + 1);
-        subopts.flags = DST_FOPTS_DROP;
-        dstc_freeslot(c, dstc_value(subopts));
-    }
-
-    /* Compile jump to whiletop */
-    labeljt = dst_v_count(c->buffer);
-    dstc_emit(c, sm, DOP_JUMP);
-
-    /* Calculate jumps */
-    labeld = dst_v_count(c->buffer);
-    if (!infinite) c->buffer[labelc] |= (labeld - labelc) << 16;
-    c->buffer[labeljt] |= (labelwt - labeljt) << 8;
-
-    /* Pop scope and return nil slot */
-    dstc_popscope(opts.compiler);
-
-    return dstc_cslot(dst_wrap_nil());
-}
-
 /* Compile a funcdef */
-static DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
+DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
     DstScope scope = dst_v_last(c->scopes);
     DstFuncDef *def = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
     def->source = NULL;
@@ -1088,272 +827,6 @@ static DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
     return def;
 }
 
-/* Add a funcdef to the top most function scope */
-static int32_t dstc_addfuncdef(DstCompiler *c, DstFuncDef *def) {
-    DstScope *scope = &dst_v_last(c->scopes);
-    while (scope >= c->scopes) {
-        if (scope->flags & DST_SCOPE_FUNCTION)
-            break;
-        scope--;
-    }
-    dst_assert(scope >= c->scopes, "could not add funcdef");
-    dst_v_push(scope->defs, def);
-    return dst_v_count(scope->defs) - 1;
-}
-
-DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
-    DstCompiler *c = opts.compiler;
-    const Dst *sm = opts.sourcemap;
-    DstFuncDef *def;
-    DstSlot ret;
-    int32_t paramcount, argi, parami, arity, localslot, defindex;
-    const Dst *params;
-    const Dst *psm;
-    int varargs = 0;
-
-    if (argn < 2) {
-        dstc_cerror(c, sm, "expected at least 2 arguments to function literal");
-        return dstc_cslot(dst_wrap_nil());
-    }
-
-    /* Begin function */
-    dstc_scope(c, DST_SCOPE_FUNCTION);
-
-    /* Read function parameters */
-    parami = 0;
-    arity = 0;
-    if (dst_checktype(argv[0], DST_SYMBOL)) parami = 1;
-    if (parami >= argn) {
-        dstc_cerror(c, sm, "expected function parameters");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    if (dst_seq_view(argv[parami], &params, &paramcount)) {
-        psm = dst_sourcemap_index(sm, parami + 1);
-        int32_t i;
-        for (i = 0; i < paramcount; i++) {
-            const Dst *psmi = dst_sourcemap_index(psm, i);
-            if (dst_checktype(params[i], DST_SYMBOL)) {
-                DstSlot slot;
-                /* Check for varargs */
-                if (0 == dst_cstrcmp(dst_unwrap_symbol(params[i]), "&")) {
-                    if (i != paramcount - 2) {
-                        dstc_cerror(c, psmi, "variable argument symbol in unexpected location");
-                        return dstc_cslot(dst_wrap_nil());
-                    }
-                    varargs = 1;
-                    arity--;
-                    continue;
-                }
-                slot.flags = DST_SLOT_NAMED;
-                slot.envindex = 0;
-                slot.constant = dst_wrap_nil();
-                slot.index = dstc_lsloti(c);
-                dstc_nameslot(c, dst_unwrap_symbol(params[i]), slot);
-                arity++;
-            } else {
-                dstc_cerror(c, psmi, "expected symbol as function parameter");
-                return dstc_cslot(dst_wrap_nil());
-            }
-        }
-    } else {
-        dstc_cerror(c, sm, "expected function parameters");
-        return dstc_cslot(dst_wrap_nil());
-    }
-
-    /* Compile function body */
-    for (argi = parami + 1; argi < argn; argi++) {
-        DstSlot s;
-        DstFopts subopts = dstc_getindex(opts, argi + 1);
-        subopts.flags = argi == (argn - 1) ? DST_FOPTS_TAIL : DST_FOPTS_DROP;
-        s = dstc_value(subopts);
-        dstc_freeslot(c, s);
-    }
-    
-    /* Build function */
-    def = dstc_pop_funcdef(c);
-    def->arity = arity;
-    if (varargs) def->flags |= DST_FUNCDEF_FLAG_VARARG;
-    defindex = dstc_addfuncdef(c, def);
-
-    /* Instantiate closure */
-    ret.flags = 0;
-    ret.envindex = 0;
-    ret.constant = dst_wrap_nil();
-    ret.index = dstc_lsloti(c);
-
-    localslot = ret.index > 0xF0 ? 0xF1 : ret.index;
-    dstc_emit(c, sm,
-            (defindex << 16) |
-            (localslot << 8) |
-            DOP_CLOSURE);
-    
-    if (ret.index != localslot) {
-        dstc_emit(c, sm, 
-                (ret.index << 16) |
-                (localslot << 8) |
-                DOP_MOVE_FAR);
-    }
-
-    return ret;
-}
-
-/* Keep in lexographic order */
-static const DstSpecial dstc_specials[] = {
-    {"def", dstc_def},
-    {"do", dstc_do},
-    {"fn", dstc_fn},
-    {"if", dstc_if},
-    {"quote", dstc_quote},
-    {"var", dstc_var},
-    {"varset!", dstc_varset},
-    {"while", dstc_while}
-};
-
-/* Compile a tuple */
-DstSlot dstc_tuple(DstFopts opts) {
-    DstSlot head;
-    DstFopts subopts;
-    DstCompiler *c = opts.compiler;
-    const Dst *tup = dst_unwrap_tuple(opts.x);
-    int headcompiled = 0;
-    subopts = dstc_getindex(opts, 0);
-    subopts.flags = DST_FUNCTION | DST_CFUNCTION;
-    if (dst_tuple_length(tup) == 0) {
-        return dstc_cslot(opts.x);
-    }
-    if (dst_checktype(tup[0], DST_SYMBOL)) {
-        const DstSpecial *s = dst_strbinsearch(
-                &dstc_specials,
-                sizeof(dstc_specials)/sizeof(DstSpecial),
-                sizeof(DstSpecial),
-                dst_unwrap_symbol(tup[0]));
-        if (NULL != s) {
-            return s->compile(opts, dst_tuple_length(tup) - 1, tup + 1);
-        }
-    }
-    if (!headcompiled) {
-        head = dstc_value(subopts);
-        headcompiled = 1;
-        /*
-         if ((head.flags & DST_SLOT_CONSTANT)) {
-            if (dst_checktype(head.constant, DST_CFUNCTION)) {
-                printf("add cfunction optimization here...\n");
-            }
-        }
-        */
-    }
-    /* Compile a normal function call */
-    {
-        int32_t headindex;
-        DstSlot retslot;
-        SlotMap *sms;
-        if (!headcompiled) {
-            head = dstc_value(subopts);
-            headcompiled = 1;
-        }
-        headindex = dstc_preread(c, subopts.sourcemap, 0xFFFF, 1, head);
-        sms = toslots(opts, 1);
-        pushslots(opts, sms);
-        freeslots(opts, sms);
-        if (opts.flags & DST_FOPTS_TAIL) {
-            dstc_emit(c, subopts.sourcemap, (headindex << 8) | DOP_TAILCALL);
-            retslot = dstc_cslot(dst_wrap_nil());
-            retslot.flags = DST_SLOT_RETURNED;
-        } else {
-            retslot = dstc_gettarget(opts);
-            dstc_emit(c, subopts.sourcemap, (headindex << 16) | (retslot.index << 8) | DOP_CALL);
-        }
-        dstc_postread(c, head, headindex);
-        return retslot;
-    }
-}
-
-static DstSlot dstc_array(DstFopts opts) {
-    DstCompiler *c = opts.compiler;
-    const Dst *sm = opts.sourcemap;
-    DstSlot ctor, retslot;
-    SlotMap *sms;
-    int32_t localindex;
-    sms = toslots(opts, 0);
-    pushslots(opts, sms);
-    freeslots(opts, sms);
-    ctor = dstc_cslot(dst_wrap_cfunction(dst_stl_array));
-    localindex = dstc_preread(c, sm, 0xFF, 1, ctor);
-    if (opts.flags & DST_FOPTS_TAIL) {
-        dstc_emit(c, sm, (localindex << 8) | DOP_TAILCALL);
-        retslot = dstc_cslot(dst_wrap_nil());
-        retslot.flags = DST_SLOT_RETURNED;
-    } else {
-        retslot = dstc_gettarget(opts);
-        dstc_emit(c, sm, (localindex << 16) | (retslot.index << 8) | DOP_CALL);
-    }
-    dstc_postread(c, ctor, localindex);
-    return retslot;
-}
-
-static DstSlot dstc_tablector(DstFopts opts, DstCFunction cfun) {
-    DstCompiler *c = opts.compiler;
-    const Dst *sm = opts.sourcemap;
-    DstSlot ctor, retslot;
-    SlotMap *sms;
-    int32_t localindex;
-    sms = toslotskv(opts);
-    pushslots(opts, sms);
-    freeslots(opts, sms);
-    ctor = dstc_cslot(dst_wrap_cfunction(cfun));
-    localindex = dstc_preread(c, sm, 0xFF, 1, ctor);
-    if (opts.flags & DST_FOPTS_TAIL) {
-        dstc_emit(c, sm, (localindex << 8) | DOP_TAILCALL);
-        retslot = dstc_cslot(dst_wrap_nil());
-        retslot.flags = DST_SLOT_RETURNED;
-    } else {
-        retslot = dstc_gettarget(opts);
-        dstc_emit(c, sm, (localindex << 16) | (retslot.index << 8) | DOP_CALL);
-    }
-    dstc_postread(c, ctor, localindex);
-    return retslot;
-}
-
-/* Compile a single value */
-DstSlot dstc_value(DstFopts opts) {
-    DstSlot ret;
-    if (dstc_iserr(&opts)) {
-        return dstc_cslot(dst_wrap_nil());
-    }
-    if (opts.compiler->recursion_guard <= 0) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "recursed too deeply");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    opts.compiler->recursion_guard--;
-    switch (dst_type(opts.x)) {
-        default:
-            ret = dstc_cslot(opts.x);
-            break;
-        case DST_SYMBOL:
-            {
-                const uint8_t *sym = dst_unwrap_symbol(opts.x);
-                ret = dstc_resolve(opts.compiler, opts.sourcemap, sym);
-                break;
-            }
-        case DST_TUPLE:
-            ret = dstc_tuple(opts);
-            break;
-        case DST_ARRAY:
-            ret = dstc_array(opts); 
-            break;
-        case DST_STRUCT:
-            ret = dstc_tablector(opts, dst_stl_struct); 
-            break;
-        case DST_TABLE:
-            ret = dstc_tablector(opts, dst_stl_table);
-            break;
-    }
-    if (opts.flags & DST_FOPTS_TAIL) {
-        ret = dstc_return(opts.compiler, opts.sourcemap, ret);
-    }
-    opts.compiler->recursion_guard++;
-    return ret;
-}
 
 /* Initialize a compiler */
 static void dstc_init(DstCompiler *c, Dst env) {
