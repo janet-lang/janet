@@ -184,6 +184,15 @@ int dst_stl_gensym(int32_t argn, Dst *argv, Dst *ret) {
     return 0;
 }
 
+int dst_stl_length(int32_t argn, Dst *argv, Dst *ret) {
+    if (argn != 1) {
+        *ret = dst_cstringv("expected at least 1 argument");
+        return 1;
+    }
+    *ret = dst_wrap_integer(dst_length(argv[0]));
+    return 0;
+}
+
 int dst_stl_get(int32_t argn, Dst *argv, Dst *ret) {
     int32_t i;
     Dst ds;
@@ -281,6 +290,7 @@ static DstReg stl[] = {
     {"disasm", dst_stl_disasm},
     {"get", dst_stl_get},
     {"put", dst_stl_put},
+    {"length", dst_stl_length},
     {"+", dst_add},
     {"-", dst_subtract},
     {"*", dst_multiply},

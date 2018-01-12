@@ -131,12 +131,28 @@
 
 # Var arg tests
 
-(def vargf (fn [x & more] (apply + (if x x 0) 100 more)))
-(assert (= 100 (vargf)) "var arg no arguments")
-(assert (= 101 (vargf 1)) "var arg no packed arguments")
-(assert (= 103 (vargf 1 2)) "var arg tuple size 1")
-(assert (= 110 (vargf 1 2 3 4)) "var arg tuple size 3")
-(assert (= 210 (vargf 1 2 3 4 10 10 10 10 10 10 10 10 10 10)) "var arg large tuple")
+(def apply (asm '{
+  arity 2
+  bytecode [
+    (push-array 1)
+    (tailcall 0) 
+  ] 
+}))
+
+(def error (asm '{
+  arity 1
+  bytecode [
+    (error 0)
+  ]
+}))
+
+(def vargf (fn [more] (apply + more)))
+
+(assert (= 0 (vargf [])) "var arg no arguments")
+(assert (= 1 (vargf [1])) "var arg no packed arguments")
+(assert (= 3 (vargf [1 2])) "var arg tuple size 1")
+(assert (= 10 (vargf [1 2 3 4])) "var arg tuple size 3")
+(assert (= 110 (vargf [1 2 3 4 10 10 10 10 10 10 10 10 10 10])) "var arg large tuple")
 
 # Gensym tests
 
@@ -146,7 +162,7 @@
 	(def syms (table))
 	(var count 0)
 	(while (< count 128)
-		(set! syms (gensym 'beep) true)
+		(put syms (gensym 'beep) true)
 		(varset! count (+ 1 count)))
 	(assert (= (length syms) 128) "many symbols")))
 

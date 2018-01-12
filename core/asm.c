@@ -149,6 +149,7 @@ static const DstInstructionDef dst_ops[] = {
     {"multiply-real", DIT_SSS, DOP_MULTIPLY_REAL},
     {"noop", DIT_0, DOP_NOOP},
     {"push", DIT_S, DOP_PUSH},
+    {"push-array", DIT_S, DOP_PUSH_ARRAY},
     {"push2", DIT_SS, DOP_PUSH_2},
     {"push3", DIT_SSS, DOP_PUSH_3},
     {"put", DIT_SSS, DOP_PUT},

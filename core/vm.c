@@ -467,6 +467,20 @@ static int dst_continue(Dst *returnreg) {
         stack = dst_vm_fiber->data + dst_vm_fiber->frame;
         vm_checkgc_next();
 
+        case DOP_PUSH_ARRAY:
+        {
+            const Dst *vals;
+            int32_t len;
+            if (dst_seq_view(stack[oparg(1, 0xFFFFFF)], &vals, &len)) {
+                dst_fiber_pushn(dst_vm_fiber, vals, len);        
+            } else {
+                vm_throw("expected array/tuple");
+            }
+        }
+        pc++;
+        stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+        vm_checkgc_next();
+
         case DOP_CALL:
         {
             Dst callee = stack[oparg(2, 0xFFFF)];

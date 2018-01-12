@@ -102,19 +102,7 @@ void dst_fiber_pushn(DstFiber *fiber, const Dst *arr, int32_t n) {
 }
 
 /* Help set up function */
-static void funcframe_helper(DstFiber *fiber, DstFunction *func) {
-    /* Check varargs */
-    if (func->def->flags & DST_FUNCDEF_FLAG_VARARG) {
-        int32_t tuplehead = fiber->frame + func->def->arity;
-        if (tuplehead >= fiber->stacktop) {
-            fiber->data[tuplehead] = dst_wrap_tuple(dst_tuple_n(NULL, 0));
-        } else {
-            fiber->data[tuplehead] = dst_wrap_tuple(dst_tuple_n(
-                fiber->data + tuplehead,
-                fiber->stacktop - tuplehead));
-        }
-    }
-
+static void funcframe_env(DstFiber *fiber, DstFunction *func) {
     /* Check closure env */
     if (func->def->flags & DST_FUNCDEF_FLAG_NEEDSENV) {
         /* Delayed capture of current stack frame */
@@ -131,6 +119,7 @@ void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
     DstStackFrame *newframe;
 
     int32_t i;
+    int32_t oldtop = fiber->stacktop;
     int32_t oldframe = fiber->frame;
     int32_t nextframe = fiber->stackstart;
     int32_t nextstacktop = nextframe + func->def->slotcount + DST_FRAME_SIZE;
@@ -153,8 +142,19 @@ void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
     newframe->func = func;
 
     /* Check varargs */
-    funcframe_helper(fiber, func);
+    if (func->def->flags & DST_FUNCDEF_FLAG_VARARG) {
+        int32_t tuplehead = fiber->frame + func->def->arity;
+        if (tuplehead >= oldtop) {
+            fiber->data[tuplehead] = dst_wrap_tuple(dst_tuple_n(NULL, 0));
+        } else {
+            fiber->data[tuplehead] = dst_wrap_tuple(dst_tuple_n(
+                fiber->data + tuplehead,
+                oldtop - tuplehead));
+        }
+    }
 
+    /* Check env */
+    funcframe_env(fiber, func) ;
 }
 
 /* If a frame has a closure environment, detach it from
@@ -179,7 +179,7 @@ void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
     int32_t i;
     int32_t nextframetop = fiber->frame + func->def->slotcount;
     int32_t nextstacktop = nextframetop + DST_FRAME_SIZE;
-    int32_t stacksize = fiber->stacktop - fiber->stackstart;
+    int32_t stacksize;
 
     if (fiber->capacity < nextstacktop) {
         dst_fiber_setcapacity(fiber, 2 * nextstacktop);
@@ -192,18 +192,34 @@ void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
     if (NULL != dst_fiber_frame(fiber)->func)
         dst_function_detach(dst_fiber_frame(fiber)->func);
 
-    memmove(stack, args, stacksize * sizeof(Dst));
+    /* Check varargs */
+    if (func->def->flags & DST_FUNCDEF_FLAG_VARARG) {
+        int32_t tuplehead = fiber->stackstart + func->def->arity;
+        if (tuplehead >= fiber->stacktop) {
+            if (tuplehead >= fiber->capacity) dst_fiber_setcapacity(fiber, 2 * (tuplehead + 1));
+            for (i = fiber->stacktop; i < tuplehead; ++i) fiber->data[i] = dst_wrap_nil();
+            fiber->data[tuplehead] = dst_wrap_tuple(dst_tuple_n(NULL, 0));
+        } else {
+            fiber->data[tuplehead] = dst_wrap_tuple(dst_tuple_n(
+                fiber->data + tuplehead,
+                fiber->stacktop - tuplehead));
+        }
+        stacksize = tuplehead - fiber->stackstart + 1;
+    } else {
+        stacksize = fiber->stacktop - fiber->stackstart;
+    }
+
+    if (stacksize) memmove(stack, args, stacksize * sizeof(Dst));
+
+    /* Nil unset locals (Needed for functional correctness) */
+    for (i = fiber->frame + stacksize; i < nextframetop; ++i)
+        fiber->data[i] = dst_wrap_nil();
 
     /* Set stack stuff */
     fiber->stacktop = fiber->stackstart = nextstacktop;
 
-    /* Nil unset locals (Needed for functional correctness) */
-    for (i = fiber->frame + stacksize; i < nextframetop; ++i) {
-        fiber->data[i] = dst_wrap_nil();
-    }
-
     /* Varargs and func envs */
-    funcframe_helper(fiber, func);
+    funcframe_env(fiber, func);
 
     /* Set frame stuff */
     dst_fiber_frame(fiber)->func = func;
