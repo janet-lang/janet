@@ -23,6 +23,15 @@
 #include <dst/dst.h>
 #include <dst/dststl.h>
 
+int dst_stl_exit(int32_t argn, Dst *argv, Dst *ret) {
+    (void)ret;
+    int32_t exitcode = 0;
+    if (argn > 0) {
+        exitcode = dst_hash(argv[0]);
+    }
+    exit(exitcode);
+}
+
 int dst_stl_print(int32_t argn, Dst *argv, Dst *ret) {
     (void)ret;
 
@@ -210,6 +219,37 @@ int dst_stl_get(int32_t argn, Dst *argv, Dst *ret) {
     return 0;
 }
 
+int dst_stl_status(int32_t argn, Dst *argv, Dst *ret) {
+    const char *status;
+    if (argn != 1) {
+        *ret = dst_cstringv("expected 1 argument");
+        return 1;
+    }
+    if (!dst_checktype(argv[0], DST_FIBER)) {
+        *ret = dst_cstringv("expected fiber");
+        return 1;
+    }
+    switch(dst_unwrap_fiber(argv[0])->status) {
+        case DST_FIBER_PENDING:
+            status = "pending";
+            break;
+        case DST_FIBER_NEW:
+            status = "new";
+            break;
+        case DST_FIBER_ALIVE:
+            status = "alive";
+            break;
+        case DST_FIBER_DEAD:
+            status = "dead";
+            break;
+        case DST_FIBER_ERROR:
+            status = "error";
+            break;
+    }
+    *ret = dst_cstringv(status);
+    return 0;
+}
+
 int dst_stl_put(int32_t argn, Dst *argv, Dst *ret) {
     Dst ds, key, value;
     if (argn < 3) {
@@ -284,6 +324,7 @@ static DstReg stl[] = {
     {"tuple", dst_stl_tuple},
     {"struct", dst_stl_struct},
     {"fiber", dst_stl_fiber},
+    {"status", dst_stl_status},
     {"buffer", dst_stl_buffer},
     {"gensym", dst_stl_gensym},
     {"asm", dst_stl_asm},
@@ -325,7 +366,8 @@ static DstReg stl[] = {
     {"fopen", dst_stl_fileopen},
     {"fclose", dst_stl_fileclose},
     {"fwrite", dst_stl_filewrite},
-    {"fread", dst_stl_fileread}
+    {"fread", dst_stl_fileread},
+    {"exit!", dst_stl_exit}
 };
 
 Dst dst_loadstl(int flags) {

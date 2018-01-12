@@ -532,6 +532,7 @@ static int dst_continue(Dst *returnreg) {
 
         case DOP_TRANSFER:
         {
+            int status;
             DstFiber *nextfiber;
             DstStackFrame *frame = dst_stack_frame(stack);
             Dst temp = stack[oparg(2, 0xFF)];
@@ -547,14 +548,31 @@ static int dst_continue(Dst *returnreg) {
                 *returnreg = retreg;
                 return 0;
             }
-            vm_assert(nextfiber->status == DST_FIBER_PENDING, "can only transfer to pending fiber");
+            status = nextfiber->status;
+            vm_assert(status == DST_FIBER_PENDING ||
+                    status == DST_FIBER_NEW, "can only transfer to new or pending fiber");
             frame->pc = pc;
             dst_vm_fiber->status = DST_FIBER_PENDING;
             dst_vm_fiber = nextfiber;
             vm_init_fiber_state();
-            stack[oparg(1, 0xFF)] = retreg;
-            pc++;
-            vm_next();
+            if (status == DST_FIBER_PENDING) {
+                /* The next fiber is currently on a transfer instruction. */
+                stack[oparg(1, 0xFF)] = retreg;
+                pc++;
+            } else {
+                /* The next fiber is new and is on the first instruction */
+                if ((func->def->flags & DST_FUNCDEF_FLAG_VARARG) &&
+                        !func->def->arity) {
+                    /* Fully var arg function */
+                    Dst *tup = dst_tuple_begin(1);
+                    tup[0] = retreg;
+                    stack[0] = dst_wrap_tuple(dst_tuple_end(tup));
+                } else if (func->def->arity) {
+                    /* Non zero arity function */
+                    stack[0] = retreg;
+                }
+            }
+            vm_checkgc_next();
         }
 
         case DOP_PUT:
@@ -569,7 +587,7 @@ static int dst_continue(Dst *returnreg) {
                 stack[oparg(2, 0xFF)],
                 oparg(3, 0xFF));
         ++pc;
-        vm_next();
+        vm_checkgc_next();
 
         case DOP_GET:
         stack[oparg(1, 0xFF)] = dst_get(

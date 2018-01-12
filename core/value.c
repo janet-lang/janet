@@ -67,9 +67,13 @@ int32_t dst_hash(Dst x) {
     int32_t hash = 0;
     switch (dst_type(x)) {
     case DST_NIL:
+        hash = 0;
+        break;
     case DST_FALSE:
+        hash = 1;
+        break;
     case DST_TRUE:
-        hash = dst_type(x);
+        hash = 2;
         break;
     case DST_STRING:
     case DST_SYMBOL:
@@ -81,6 +85,8 @@ int32_t dst_hash(Dst x) {
     case DST_STRUCT:
         hash = dst_struct_hash(dst_unwrap_struct(x));
         break;
+    case DST_INTEGER:
+        hash = dst_unwrap_integer(x);
     default:
         if (sizeof(double) == sizeof(void *)) {
             /* Assuming 8 byte pointer */

@@ -176,7 +176,7 @@ static void runfile(const uint8_t *src, int32_t len) {
 }
 
 int main(int argc, char **argv) {
-    int status = -1;
+    int status = 0;
     int i;
     int fileRead = 0;
     uint32_t gcinterval = 0x10000;

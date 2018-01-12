@@ -72,7 +72,7 @@ valgrind: $(DST_TARGET)
 	@ valgrind --leak-check=full -v ./$(DST_TARGET)
 
 test: $(DST_TARGET)
-	@ ./$(DST_TARGET) dsttest/suite0.dst
+	@ ./$(DST_TARGET) --gcinterval=0 dsttest/suite0.dst
 
 valtest: $(DST_TARGET)
 	valgrind --leak-check=full -v ./$(DST_TARGET) dsttests/basic.dst

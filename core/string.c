@@ -121,7 +121,7 @@ static const uint8_t *real_to_string(double x) {
     return dst_string(buf, real_to_string_impl(buf, x));
 }
 
-static int32_t integer_to_string_impl(uint8_t *buf, int64_t x) {
+static int32_t integer_to_string_impl(uint8_t *buf, int32_t x) {
     int neg = 0;
     uint8_t *hi, *low;
     int32_t count = 0;
@@ -151,12 +151,12 @@ static int32_t integer_to_string_impl(uint8_t *buf, int64_t x) {
     return count;
 }
 
-static void integer_to_string_b(DstBuffer *buffer, int64_t x) {
+static void integer_to_string_b(DstBuffer *buffer, int32_t x) {
     dst_buffer_extra(buffer, DST_BUFSIZE);
     buffer->count += integer_to_string_impl(buffer->data + buffer->count, x);
 }
 
-static const uint8_t *integer_to_string(int64_t x) {
+static const uint8_t *integer_to_string(int32_t x) {
     uint8_t buf[DST_BUFSIZE];
     return dst_string(buf, integer_to_string_impl(buf, x));
 }
@@ -641,7 +641,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
                         real_to_string_b(bufp, va_arg(args, double));
                         break;
                     case 'd': 
-                        integer_to_string_b(bufp, va_arg(args, int64_t));
+                        integer_to_string_b(bufp, va_arg(args, int32_t));
                         break;
                     case 'S':
                     {
@@ -653,7 +653,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
                         dst_buffer_push_cstring(bufp, va_arg(args, const char *));
                         break;
                     case 'c':
-                        dst_buffer_push_u8(bufp, va_arg(args, int64_t));
+                        dst_buffer_push_u8(bufp, va_arg(args, long));
                         break;
                     case 'v':
                     {

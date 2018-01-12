@@ -123,7 +123,8 @@ static double convert(
         : ldexp(mantissa, exponent2);
 }
 
-/* Result of scanning a number source */
+/* Result of scanning a number source string. Will be further processed
+ * depending on the desired resultant type. */
 struct DstScanRes {
     uint64_t mant;
     int32_t ex;

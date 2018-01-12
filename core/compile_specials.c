@@ -491,6 +491,9 @@ DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     if (varargs) def->flags |= DST_FUNCDEF_FLAG_VARARG;
     defindex = dstc_addfuncdef(c, def);
 
+    /* Ensure enough slots for vararg function. */
+    if (arity + varargs > def->slotcount) def->slotcount = arity + varargs;
+
     /* Instantiate closure */
     ret.flags = 0;
     ret.envindex = 0;

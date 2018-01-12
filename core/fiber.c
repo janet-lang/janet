@@ -45,7 +45,7 @@ DstFiber *dst_fiber_reset(DstFiber *fiber) {
     fiber->frame = 0;
     fiber->stackstart = DST_FRAME_SIZE;
     fiber->stacktop = DST_FRAME_SIZE;
-    fiber->status = DST_FIBER_PENDING;
+    fiber->status = DST_FIBER_NEW;
     fiber->parent = NULL;
     return fiber;
 }

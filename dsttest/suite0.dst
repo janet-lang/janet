@@ -112,6 +112,13 @@
 
 # Fiber tests
 
+(def error (asm '{
+  arity 1
+  bytecode [
+    (error 0)
+  ]
+}))
+
 (def afiber (fiber (fn [x]
 	(error (string "hello, " x)))))
 
@@ -124,10 +131,10 @@
 
 (def t (fiber (fn [] (transfer nil 1) (transfer nil 2) 3)))
 
-(assert (= 1 (transfer t)) "initial transfer to new thread")
-(assert (= 2 (transfer t)) "second transfer to thread")
-(assert (= 3 (transfer t)) "return from thread")
-(assert (= (status t) "dead") "finished thread is dead")
+(assert (= 1 (transfer t)) "initial transfer to new fiber")
+(assert (= 2 (transfer t)) "second transfer to fiber")
+(assert (= 3 (transfer t)) "return from fiber")
+(assert (= (status t) "dead") "finished fiber is dead")
 
 # Var arg tests
 
@@ -137,13 +144,6 @@
     (push-array 1)
     (tailcall 0) 
   ] 
-}))
-
-(def error (asm '{
-  arity 1
-  bytecode [
-    (error 0)
-  ]
 }))
 
 (def vargf (fn [more] (apply + more)))
@@ -169,4 +169,4 @@
 # report
 
 (print "\n" num-tests-passed " of " num-tests-run " tests passed\n")
-(if (not (= num-tests-passed num-tests-run)) (exit! 1))
+(if (not= num-tests-passed num-tests-run) (exit! 1))

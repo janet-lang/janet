@@ -319,7 +319,8 @@ struct DstFiber {
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
     int32_t capacity;
     enum {
-        DST_FIBER_PENDING = 0,
+        DST_FIBER_PENDING,
+        DST_FIBER_NEW,
         DST_FIBER_ALIVE,
         DST_FIBER_DEAD,
         DST_FIBER_ERROR
