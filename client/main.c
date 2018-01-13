@@ -73,10 +73,18 @@ static void bshift(DstBuffer *buf, int32_t delta) {
     }
 }
 
+/* Wrap a value to add to the env */
+static void set_underscore(Dst val) {
+    DstTable *t = dst_table(0);
+    dst_table_put(t, dst_csymbolv("value"), val);
+    dst_put(env, dst_csymbolv("_"), dst_wrap_table(t));
+}
+
 /* simple repl */
 static int repl() {
     DstBuffer b;
     dst_buffer_init(&b, 256);
+    set_underscore(dst_wrap_nil());
     for (;;) {
         int c;
         DstParseResult res;
@@ -120,6 +128,7 @@ static int repl() {
                             dst_puts(dst_formatc("runtime error: %S\n", dst_to_string(ret))); 
                         } else {
                             dst_puts(dst_formatc("%v\n", ret)); 
+                            set_underscore(ret);
                         }
                     } else {
                         dst_puts(dst_formatc("compile error: %S\n", cres.error)); 

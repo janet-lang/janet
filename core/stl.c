@@ -378,7 +378,7 @@ Dst dst_loadstl(int flags) {
     if (dst_checktype(ret, DST_TABLE)) {
         DstTable *v = dst_table(1);
         dst_table_put(v, dst_csymbolv("value"), ret);
-        dst_put(ret, dst_csymbolv("-env-"), dst_wrap_table(v));
+        dst_put(ret, dst_csymbolv("_env"), dst_wrap_table(v));
     }
     return ret;
 }

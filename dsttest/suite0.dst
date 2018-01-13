@@ -72,7 +72,7 @@
 (assert (= 7 (| 3 4)) "bit or")
 (assert (= 0 (& 3 4)) "bit and")
 
-# Set global variables to prevent some compiler optimizations that defeat point of the test
+# Set global variables to prevent some possible compiler optimizations that defeat point of the test
 (var zero 0)
 (var one 1)
 (var two 2)
@@ -84,6 +84,9 @@
 (var f91 nil)
 (varset! f91 (fn [n] (if (> n 100) (- n 10) (f91 (f91 (+ n 11))))))
 (assert (= 91 (f91 10)), "f91(10) = 91")
+(assert (= 91 (f91 11)), "f91(11) = 91")
+(assert (= 91 (f91 20)), "f91(20) = 91")
+(assert (= 91 (f91 31)), "f91(31) = 91")
 (assert (= 91 (f91 100)), "f91(100) = 91")
 (assert (= 91 (f91 101)), "f91(101) = 91")
 (assert (= 92 (f91 102)), "f91(102) = 92")
