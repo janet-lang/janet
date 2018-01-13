@@ -93,7 +93,7 @@ The table contains 256 bits, where each bit is 1
 if the corresponding ascci code is a symbol char, and 0
 if not. The upper characters are also considered symbol
 chars and are then checked for utf-8 compliance. */
-static uint32_t symchars[256] = {
+static uint32_t symchars[8] = {
 	0x00000000, 0x77ffec72, 0xd7ffffff, 0x57fffffe,
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
 };

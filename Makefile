@@ -30,7 +30,6 @@ CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=$(VERSION)
 CLIBS=-lm
 PREFIX=/usr/local
 DST_TARGET=dst
-DST_XXD=xxd
 DEBUGGER=lldb
 DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h gc.h sourcemap.h util.h)
 DST_HEADERS=$(addprefix include/dst/,dst.h dstconfig.h dsttypes.h dststate.h dststl.h)
