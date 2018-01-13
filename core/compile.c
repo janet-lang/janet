@@ -296,6 +296,7 @@ DstSlot dstc_resolve(
             /* Add the environment if it is not already referenced */
             if (!scopefound) {
                 if (!dst_v_count(scope->envs)) dst_v_push(scope->envs, 0);
+                len = dst_v_count(scope->envs);
                 dst_v_push(scope->envs, envindex);
                 envindex = len;
             }

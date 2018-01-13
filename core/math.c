@@ -130,7 +130,7 @@ int dst_##name(int32_t argn, Dst *argv, Dst *ret) {\
         *ret = dst_cstringv("expected at least one argument");\
         return 1;\
     } else if (argn == 1) {\
-        accum = dst_wrap_real(unarystart);\
+        accum = unarystart;\
         i = 0;\
     } else {\
         accum = argv[0];\
@@ -147,9 +147,9 @@ int dst_##name(int32_t argn, Dst *argv, Dst *ret) {\
     return 0;\
 }
 
-DST_DEFINE_DIVIDER(divide, 1)
-DST_DEFINE_DIVIDER(modulo, 1)
-DST_DEFINE_DIVIDER(subtract, 0)
+DST_DEFINE_DIVIDER(divide, dst_wrap_real(1))
+DST_DEFINE_DIVIDER(modulo, dst_wrap_real(1))
+DST_DEFINE_DIVIDER(subtract, dst_wrap_integer(0))
 
 #undef ADD
 #undef SUB

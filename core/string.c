@@ -107,7 +107,7 @@ const uint8_t *dst_cstring(const char *str) {
 #define DST_BUFSIZE 36
 
 static int32_t real_to_string_impl(uint8_t *buf, double x) {
-    int count = snprintf((char *) buf, DST_BUFSIZE, "%.17g", x);
+    int count = snprintf((char *) buf, DST_BUFSIZE, "%.17gr", x);
     return (int32_t) count;
 }
 

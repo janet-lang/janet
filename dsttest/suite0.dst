@@ -157,6 +157,27 @@
 (assert (= 10 (vargf [1 2 3 4])) "var arg tuple size 3")
 (assert (= 110 (vargf [1 2 3 4 10 10 10 10 10 10 10 10 10 10])) "var arg large tuple")
 
+# Higher order functions
+
+(def compose (fn [f g] (fn [& xs] (f (apply g xs)))))
+
+(def -+ (compose - +))
+(def +- (compose + -))
+
+(assert (= (-+ 1 2 3 4) -10) "compose - +")
+(assert (= (+- 1 2 3 4) -8) "compose + -")
+(assert (= ((compose -+ +-) 1 2 3 4) 8) "compose -+ +-")
+(assert (= ((compose +- -+) 1 2 3 4) 10) "compose +- -+")
+
+# UTF-8
+
+#🐙🐙🐙🐙
+
+(def 🦊 :fox)
+(def 🐮 :cow)
+(assert (= (string "🐼" 🦊 🐮) "🐼foxcow") "emojis 🙉 :)")
+(assert (not= 🦊 :🦊) "utf8 strings are not symbols and vice versa")
+
 # Gensym tests
 
 (assert (not= (gensym) (gensym)) "two gensyms not equal")

@@ -23,6 +23,76 @@
 #include <dst/dst.h>
 #include <dst/dststl.h>
 
+int dst_stl_parse(int32_t argn, Dst *argv, Dst *ret) {
+    const uint8_t *src;
+    int32_t len;
+    DstParseResult res;
+    const char *status_string = "ok";
+    DstTable *t;
+    if (argn < 1) {
+        *ret = dst_cstringv("expected at least on argument");
+        return 1;
+    }
+    if (!dst_chararray_view(argv[0], &src, &len)) {
+        *ret = dst_cstringv("expected string/buffer");
+        return 1;
+    }
+    res = dst_parse(src, len);
+    t = dst_table(4);
+    switch (res.status) {
+        case DST_PARSE_OK:
+            status_string = "ok";
+            break;
+        case DST_PARSE_ERROR:
+            status_string = "error";
+            break;
+        case DST_PARSE_NODATA:
+            status_string = "nodata";
+            break;
+        case DST_PARSE_UNEXPECTED_EOS:
+            status_string = "eos";
+            break;
+    }
+    dst_table_put(t, dst_cstringv("status"), dst_cstringv(status_string));
+    if (res.status == DST_PARSE_OK) dst_table_put(t, dst_cstringv("map"), dst_wrap_tuple(res.map));
+    if (res.status == DST_PARSE_OK) dst_table_put(t, dst_cstringv("value"), res.value);
+    if (res.status == DST_PARSE_ERROR) dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
+    dst_table_put(t, dst_cstringv("bytes-read"), dst_wrap_integer(res.bytes_read));
+    *ret = dst_wrap_table(t);
+    return 0;
+}
+
+int dst_stl_compile(int32_t argn, Dst *argv, Dst *ret) {
+    DstCompileOptions opts;
+    DstCompileResult res;
+    DstTable *t;
+    if (argn < 1) {
+        *ret = dst_cstringv("expected at least on argument");
+        return 1;
+    }
+    if (argn >= 3 && !dst_checktype(argv[2], DST_TUPLE)) {
+        *ret = dst_cstringv("expected source map to be tuple");
+        return 1;
+    }
+    opts.source = argv[0];
+    opts.env = argn >= 2 ? argv[1] : dst_loadstl(0);
+    opts.sourcemap = argn >= 3 ? dst_unwrap_tuple(argv[2]) : NULL;
+    opts.flags = 0;
+    res = dst_compile(opts);
+    if (res.status == DST_COMPILE_OK) {
+        DstFunction *fun = dst_compile_func(res);
+        *ret = dst_wrap_function(fun);
+    } else {
+        t = dst_table(2);
+        dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
+        dst_table_put(t, dst_cstringv("error-start"), dst_wrap_integer(res.error_start));
+        dst_table_put(t, dst_cstringv("error-end"), dst_wrap_integer(res.error_end));
+        *ret = dst_wrap_table(t);
+    }
+    return 0;
+    
+}
+
 int dst_stl_exit(int32_t argn, Dst *argv, Dst *ret) {
     (void)ret;
     int32_t exitcode = 0;
@@ -30,6 +100,7 @@ int dst_stl_exit(int32_t argn, Dst *argv, Dst *ret) {
         exitcode = dst_hash(argv[0]);
     }
     exit(exitcode);
+    return 0;
 }
 
 int dst_stl_print(int32_t argn, Dst *argv, Dst *ret) {
@@ -314,6 +385,8 @@ DST_DEFINE_COMPARATOR(notdescending, > 0)
 DST_DEFINE_COMPARATOR(notascending, < 0)
 
 static DstReg stl[] = {
+    {"parse", dst_stl_parse},
+    {"compile", dst_stl_compile},
     {"int", dst_int},
     {"real", dst_real},
     {"print", dst_stl_print},
