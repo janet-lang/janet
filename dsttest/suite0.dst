@@ -180,8 +180,7 @@
 
 # Merge sort
 
-(def empty? (fn [xs] (= 0 (length xs))))
-
+# Impertiave merge sort merge
 (def merge (fn [xs ys] 
     (def ret [])
     (def xlen (length xs))
@@ -206,6 +205,11 @@
       (push ret yj)
       (varset! j (+ j 1)))    
     ret))
+
+(assert (apply <= (merge [1 3 5] [2 4 6])) "merge sort merge 1")
+(assert (apply <= (merge [1 2 3] [4 5 6])) "merge sort merge 2")
+(assert (apply <= (merge [1 3 5] [2 4 6 6 6 9])) "merge sort merge 3")
+(assert (apply <= (merge '(1 3 5) [2 4 6 6 6 9])) "merge sort merge 4")
 
 # Gensym tests
 

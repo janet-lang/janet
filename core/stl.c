@@ -23,6 +23,20 @@
 #include <dst/dst.h>
 #include <dst/dststl.h>
 
+int dst_stl_push(int32_t argn, Dst *argv, Dst *ret) {
+    if (argn != 2) {
+        *ret = dst_cstringv("expected 2 arguments");
+        return 1;
+    }
+    if (!dst_checktype(argv[0], DST_ARRAY)) {
+        *ret = dst_cstringv("expected array");
+        return 1;
+    }
+    dst_array_push(dst_unwrap_array(argv[0]), argv[1]);
+    *ret = argv[0];
+    return 0;
+}
+
 int dst_stl_parse(int32_t argn, Dst *argv, Dst *ret) {
     const uint8_t *src;
     int32_t len;
@@ -385,6 +399,7 @@ DST_DEFINE_COMPARATOR(notdescending, > 0)
 DST_DEFINE_COMPARATOR(notascending, < 0)
 
 static DstReg stl[] = {
+    {"push", dst_stl_push},
     {"load-native", dst_load_native},
     {"parse", dst_stl_parse},
     {"compile", dst_stl_compile},
