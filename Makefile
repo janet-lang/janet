@@ -24,15 +24,16 @@
 
 PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
-VERSION=\"0.0.0-beta\"
+VERSION=0.0.0-beta
 
-CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=$(VERSION)
-CLIBS=-lm
+CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=\"$(VERSION)\"
+CLIBS=-lm -ldl
 PREFIX=/usr/local
 DST_TARGET=dst
 DEBUGGER=lldb
 DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h gc.h sourcemap.h util.h)
 DST_HEADERS=$(addprefix include/dst/,dst.h dstconfig.h dsttypes.h dststate.h dststl.h)
+DST_C_LIBS=$(addprefix libs/,testlib.so)
 
 #############################
 ##### Generated headers #####
@@ -57,6 +58,14 @@ DST_CLIENT_SOURCES=$(addprefix client/,\
 
 $(DST_TARGET): $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(DST_ALL_HEADERS)
 	$(CC) $(CFLAGS) -o $(DST_TARGET) $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(CLIBS)
+
+#######################
+##### C Libraries #####
+#######################
+
+%.so: %.c $(DST_HEADERS)
+	$(CC) $(CFLAGS) -shared -undefined dynamic_lookup -o $@ $<
+
 
 ###################
 ##### Testing #####

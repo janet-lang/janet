@@ -23,6 +23,31 @@
 #include <dst/dst.h>
 #include <dst/dststl.h>
 
+#include <dlfcn.h>
+int dst_stl_loadc(int32_t argn, Dst *argv, Dst *ret) {
+    void *lib;
+    DstCFunction init;
+    if (argn < 1) {
+        *ret = dst_cstringv("expected at least on argument");
+        return 1;
+    }
+    if (!dst_checktype(argv[0], DST_STRING)) {
+        *ret = dst_cstringv("expected string");
+        return 1;
+    }
+    lib = dlopen((const char *)dst_unwrap_string(argv[0]), RTLD_NOW);
+    if (NULL == lib) {
+        *ret = dst_cstringv(dlerror());
+        return 1;
+    }
+    init = dlsym(lib, "_dst_init");
+    if (NULL == init) {
+        *ret = dst_cstringv("could not find lib init function");
+        return 1;
+    }
+    return init(argn, argv, ret);
+}
+
 int dst_stl_parse(int32_t argn, Dst *argv, Dst *ret) {
     const uint8_t *src;
     int32_t len;
@@ -385,6 +410,7 @@ DST_DEFINE_COMPARATOR(notdescending, > 0)
 DST_DEFINE_COMPARATOR(notascending, < 0)
 
 static DstReg stl[] = {
+    {"load-native", dst_stl_loadc},
     {"parse", dst_stl_parse},
     {"compile", dst_stl_compile},
     {"int", dst_int},
