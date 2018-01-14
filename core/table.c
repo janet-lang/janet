@@ -196,4 +196,25 @@ const DstKV *dst_table_to_struct(DstTable *t) {
     return dst_struct_end(st);
 }
 
+/* Merge a table or struct into a table */
+static void dst_table_mergekv(DstTable *table, const DstKV *kvs, int32_t cap) {
+    int32_t i;
+    for (i = 0; i < cap; i++) {
+        const DstKV *kv = kvs + i;
+        if (!dst_checktype(kv->key, DST_NIL)) {
+            dst_table_put(table, kv->key, kv->value);
+        }
+    }
+}
+
+/* Merge a table other into another table */
+void dst_table_merge_table(DstTable *table, DstTable *other) {
+    dst_table_mergekv(table, other->data, other->capacity);
+}
+
+/* Merge a struct into a table */
+void dst_table_merge_struct(DstTable *table, const DstKV *other) {
+    dst_table_mergekv(table, other, dst_struct_capacity(other));
+}
+
 #undef dst_table_maphash

@@ -47,7 +47,8 @@ typedef struct DstFuncEnv DstFuncEnv;
 typedef struct DstKV DstKV;
 typedef struct DstStackFrame DstStackFrame;
 typedef struct DstAbstractType DstAbstractType;
-typedef int (*DstCFunction)(int32_t argn, Dst *argv, Dst *ret);
+typedef struct DstArgs DstArgs;
+typedef int (*DstCFunction)(DstArgs args);
 
 typedef enum DstAssembleStatus DstAssembleStatus;
 typedef struct DstAssembleResult DstAssembleResult;
@@ -307,6 +308,13 @@ Dst dst_wrap_abstract(void *x);
 struct DstReg {
     const char *name;
     DstCFunction function;
+};
+
+/* Hold components of arguments passed to DstCFunction. */
+struct DstArgs {
+    int32_t n;
+    Dst *v;
+    Dst *ret;
 };
 
 /* A lightweight green thread in dst. Does not correspond to

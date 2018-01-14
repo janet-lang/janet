@@ -119,7 +119,8 @@ Dst dst_table_remove(DstTable *t, Dst key);
 void dst_table_put(DstTable *t, Dst key, Dst value);
 const DstKV *dst_table_next(DstTable *t, const DstKV *kv);
 const DstKV *dst_table_to_struct(DstTable *t);
-void dst_table_merge(DstTable *t, Dst other);
+void dst_table_merge_table(DstTable *table, DstTable *other);
+void dst_table_merge_struct(DstTable *table, const DstKV *other);
 
 /* Fiber */
 DstFiber *dst_fiber(int32_t capacity);
@@ -171,7 +172,7 @@ DstParseResult dst_parsec(const char *src);
 
 /* Native */
 DstCFunction dst_native(const char *name, const uint8_t **error);
-int dst_load_native(int32_t argn, Dst *argv, Dst *ret);
+int dst_load_native(DstArgs args);
 
 /* VM functions */
 int dst_init();

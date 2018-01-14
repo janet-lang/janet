@@ -53,21 +53,21 @@ DstCFunction dst_native(const char *name, const uint8_t **error) {
     return init;
 }
 
-int dst_load_native(int32_t argn, Dst *argv, Dst *ret) {
+int dst_load_native(DstArgs args) {
     DstCFunction init;
     const uint8_t *error = NULL;
-    if (argn < 1) {
-        *ret = dst_cstringv("expected at least one argument");
+    if (args.n < 1) {
+        *args.ret = dst_cstringv("expected at least one argument");
         return 1;
     }
-    if (!dst_checktype(argv[0], DST_STRING)) {
-        *ret = dst_cstringv("expected string");
+    if (!dst_checktype(args.v[0], DST_STRING)) {
+        *args.ret = dst_cstringv("expected string");
         return 1;
     }
-    init = dst_native((const char *)dst_unwrap_string(argv[0]), &error);
+    init = dst_native((const char *)dst_unwrap_string(args.v[0]), &error);
     if (!init) {
-        *ret = dst_wrap_string(error);
+        *args.ret = dst_wrap_string(error);
         return 1;
     }
-    return init(argn, argv, ret);
+    return init(args);
 }

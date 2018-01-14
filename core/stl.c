@@ -23,32 +23,32 @@
 #include <dst/dst.h>
 #include <dst/dststl.h>
 
-int dst_stl_push(int32_t argn, Dst *argv, Dst *ret) {
-    if (argn != 2) {
-        *ret = dst_cstringv("expected 2 arguments");
+int dst_stl_push(DstArgs args) {
+    if (args.n != 2) {
+        *args.ret = dst_cstringv("expected 2 arguments");
         return 1;
     }
-    if (!dst_checktype(argv[0], DST_ARRAY)) {
-        *ret = dst_cstringv("expected array");
+    if (!dst_checktype(args.v[0], DST_ARRAY)) {
+        *args.ret = dst_cstringv("expected array");
         return 1;
     }
-    dst_array_push(dst_unwrap_array(argv[0]), argv[1]);
-    *ret = argv[0];
+    dst_array_push(dst_unwrap_array(args.v[0]), args.v[1]);
+    *args.ret = args.v[0];
     return 0;
 }
 
-int dst_stl_parse(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_parse(DstArgs args) {
     const uint8_t *src;
     int32_t len;
     DstParseResult res;
     const char *status_string = "ok";
     DstTable *t;
-    if (argn < 1) {
-        *ret = dst_cstringv("expected at least on argument");
+    if (args.n < 1) {
+        *args.ret = dst_cstringv("expected at least on argument");
         return 1;
     }
-    if (!dst_chararray_view(argv[0], &src, &len)) {
-        *ret = dst_cstringv("expected string/buffer");
+    if (!dst_chararray_view(args.v[0], &src, &len)) {
+        *args.ret = dst_cstringv("expected string/buffer");
         return 1;
     }
     res = dst_parse(src, len);
@@ -72,58 +72,55 @@ int dst_stl_parse(int32_t argn, Dst *argv, Dst *ret) {
     if (res.status == DST_PARSE_OK) dst_table_put(t, dst_cstringv("value"), res.value);
     if (res.status == DST_PARSE_ERROR) dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
     dst_table_put(t, dst_cstringv("bytes-read"), dst_wrap_integer(res.bytes_read));
-    *ret = dst_wrap_table(t);
+    *args.ret = dst_wrap_table(t);
     return 0;
 }
 
-int dst_stl_compile(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_compile(DstArgs args) {
     DstCompileOptions opts;
     DstCompileResult res;
     DstTable *t;
-    if (argn < 1) {
-        *ret = dst_cstringv("expected at least on argument");
+    if (args.n < 1) {
+        *args.ret = dst_cstringv("expected at least on argument");
         return 1;
     }
-    if (argn >= 3 && !dst_checktype(argv[2], DST_TUPLE)) {
-        *ret = dst_cstringv("expected source map to be tuple");
+    if (args.n >= 3 && !dst_checktype(args.v[2], DST_TUPLE)) {
+        *args.ret = dst_cstringv("expected source map to be tuple");
         return 1;
     }
-    opts.source = argv[0];
-    opts.env = argn >= 2 ? argv[1] : dst_loadstl(0);
-    opts.sourcemap = argn >= 3 ? dst_unwrap_tuple(argv[2]) : NULL;
+    opts.source = args.v[0];
+    opts.env = args.n >= 2 ? args.v[1] : dst_loadstl(0);
+    opts.sourcemap = args.n >= 3 ? dst_unwrap_tuple(args.v[2]) : NULL;
     opts.flags = 0;
     res = dst_compile(opts);
     if (res.status == DST_COMPILE_OK) {
         DstFunction *fun = dst_compile_func(res);
-        *ret = dst_wrap_function(fun);
+        *args.ret = dst_wrap_function(fun);
     } else {
         t = dst_table(2);
         dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
         dst_table_put(t, dst_cstringv("error-start"), dst_wrap_integer(res.error_start));
         dst_table_put(t, dst_cstringv("error-end"), dst_wrap_integer(res.error_end));
-        *ret = dst_wrap_table(t);
+        *args.ret = dst_wrap_table(t);
     }
     return 0;
     
 }
 
-int dst_stl_exit(int32_t argn, Dst *argv, Dst *ret) {
-    (void)ret;
+int dst_stl_exit(DstArgs args) {
     int32_t exitcode = 0;
-    if (argn > 0) {
-        exitcode = dst_hash(argv[0]);
+    if (args.n > 0) {
+        exitcode = dst_hash(args.v[0]);
     }
     exit(exitcode);
     return 0;
 }
 
-int dst_stl_print(int32_t argn, Dst *argv, Dst *ret) {
-    (void)ret;
-
+int dst_stl_print(DstArgs args) {
     int32_t i;
-    for (i = 0; i < argn; ++i) {
+    for (i = 0; i < args.n; ++i) {
         int32_t j, len;
-        const uint8_t *vstr = dst_to_string(argv[i]);
+        const uint8_t *vstr = dst_to_string(args.v[i]);
         len = dst_string_length(vstr);
         for (j = 0; j < len; ++j) {
             putc(vstr[j], stdout);
@@ -133,13 +130,11 @@ int dst_stl_print(int32_t argn, Dst *argv, Dst *ret) {
     return 0;
 }
 
-int dst_stl_describe(int32_t argn, Dst *argv, Dst *ret) {
-    (void)ret;
-
+int dst_stl_describe(DstArgs args) {
     int32_t i;
-    for (i = 0; i < argn; ++i) {
+    for (i = 0; i < args.n; ++i) {
         int32_t j, len;
-        const uint8_t *vstr = dst_description(argv[i]);
+        const uint8_t *vstr = dst_description(args.v[i]);
         len = dst_string_length(vstr);
         for (j = 0; j < len; ++j) {
             putc(vstr[j], stdout);
@@ -149,172 +144,172 @@ int dst_stl_describe(int32_t argn, Dst *argv, Dst *ret) {
     return 0;
 }
 
-int dst_stl_string(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_string(DstArgs args) {
     int32_t i;
     DstBuffer b;
     dst_buffer_init(&b, 0);
-    for (i = 0; i < argn; ++i) {
+    for (i = 0; i < args.n; ++i) {
         int32_t len;
-        const uint8_t *str = dst_to_string(argv[i]);
+        const uint8_t *str = dst_to_string(args.v[i]);
         len = dst_string_length(str);
         dst_buffer_push_bytes(&b, str, len);
     }
-    *ret = dst_stringv(b.data, b.count);
+    *args.ret = dst_stringv(b.data, b.count);
     dst_buffer_deinit(&b);
     return 0;
 }
 
-int dst_stl_asm(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_asm(DstArgs args) {
     DstAssembleOptions opts;
     DstAssembleResult res;
-    if (argn < 1) {
-        *ret = dst_cstringv("expected assembly source");
+    if (args.n < 1) {
+        *args.ret = dst_cstringv("expected assembly source");
         return 1;
     }
-    opts.source = argv[0];
+    opts.source = args.v[0];
     opts.flags = 0;
     res = dst_asm(opts);
     if (res.status == DST_ASSEMBLE_OK) {
-        *ret = dst_wrap_function(dst_asm_func(res));
+        *args.ret = dst_wrap_function(dst_asm_func(res));
         return 0;
     } else {
-        *ret = dst_wrap_string(res.error);
+        *args.ret = dst_wrap_string(res.error);
         return 1;
     }
 }
 
-int dst_stl_disasm(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_disasm(DstArgs args) {
     DstFunction *f;
-    if (argn < 1 || !dst_checktype(argv[0], DST_FUNCTION)) {
-        *ret = dst_cstringv("expected function");
+    if (args.n < 1 || !dst_checktype(args.v[0], DST_FUNCTION)) {
+        *args.ret = dst_cstringv("expected function");
         return 1;
     }
-    f = dst_unwrap_function(argv[0]);
-    *ret = dst_disasm(f->def);
+    f = dst_unwrap_function(args.v[0]);
+    *args.ret = dst_disasm(f->def);
     return 0;
 }
 
-int dst_stl_tuple(int32_t argn, Dst *argv, Dst *ret) {
-    *ret = dst_wrap_tuple(dst_tuple_n(argv, argn));
+int dst_stl_tuple(DstArgs args) {
+    *args.ret = dst_wrap_tuple(dst_tuple_n(args.v, args.n));
     return 0;
 }
 
-int dst_stl_array(int32_t argn, Dst *argv, Dst *ret) {
-    DstArray *array = dst_array(argn);
-    array->count = argn;
-    memcpy(array->data, argv, argn * sizeof(Dst));
-    *ret = dst_wrap_array(array);
+int dst_stl_array(DstArgs args) {
+    DstArray *array = dst_array(args.n);
+    array->count = args.n;
+    memcpy(array->data, args.v, args.n * sizeof(Dst));
+    *args.ret = dst_wrap_array(array);
     return 0;
 }
 
-int dst_stl_table(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_table(DstArgs args) {
     int32_t i;
-    DstTable *table = dst_table(argn >> 1);
-    if (argn & 1) {
-        *ret = dst_cstringv("expected even number of arguments");
+    DstTable *table = dst_table(args.n >> 1);
+    if (args.n & 1) {
+        *args.ret = dst_cstringv("expected even number of arguments");
         return 1;
     }
-    for (i = 0; i < argn; i += 2) {
-        dst_table_put(table, argv[i], argv[i + 1]);
+    for (i = 0; i < args.n; i += 2) {
+        dst_table_put(table, args.v[i], args.v[i + 1]);
     }
-    *ret = dst_wrap_table(table);
+    *args.ret = dst_wrap_table(table);
     return 0;
 }
 
-int dst_stl_struct(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_struct(DstArgs args) {
     int32_t i;
-    DstKV *st = dst_struct_begin(argn >> 1);
-    if (argn & 1) {
-        *ret = dst_cstringv("expected even number of arguments");
+    DstKV *st = dst_struct_begin(args.n >> 1);
+    if (args.n & 1) {
+        *args.ret = dst_cstringv("expected even number of arguments");
         return 1;
     }
-    for (i = 0; i < argn; i += 2) {
-        dst_struct_put(st, argv[i], argv[i + 1]);
+    for (i = 0; i < args.n; i += 2) {
+        dst_struct_put(st, args.v[i], args.v[i + 1]);
     }
-    *ret = dst_wrap_struct(dst_struct_end(st));
+    *args.ret = dst_wrap_struct(dst_struct_end(st));
     return 0;
 }
 
-int dst_stl_fiber(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_fiber(DstArgs args) {
     DstFiber *fiber;
-    if (argn < 1) {
-        *ret = dst_cstringv("expected at least one argument");
+    if (args.n < 1) {
+        *args.ret = dst_cstringv("expected at least one argument");
         return 1;
     }
-    if (!dst_checktype(argv[0], DST_FUNCTION)) {
-        *ret = dst_cstringv("expected a function");
+    if (!dst_checktype(args.v[0], DST_FUNCTION)) {
+        *args.ret = dst_cstringv("expected a function");
         return 1;
     }
     fiber = dst_fiber(64);
-    dst_fiber_funcframe(fiber, dst_unwrap_function(argv[0]));
+    dst_fiber_funcframe(fiber, dst_unwrap_function(args.v[0]));
     fiber->parent = dst_vm_fiber;
-    *ret = dst_wrap_fiber(fiber);
+    *args.ret = dst_wrap_fiber(fiber);
     return 0;
 }
 
-int dst_stl_buffer(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_buffer(DstArgs args) {
     DstBuffer *buffer = dst_buffer(10);
     int32_t i;
-    for (i = 0; i < argn; ++i) {
-        const uint8_t *bytes = dst_to_string(argv[i]);
+    for (i = 0; i < args.n; ++i) {
+        const uint8_t *bytes = dst_to_string(args.v[i]);
         int32_t len = dst_string_length(bytes);
         dst_buffer_push_bytes(buffer, bytes, len);
     }
-    *ret = dst_wrap_buffer(buffer);
+    *args.ret = dst_wrap_buffer(buffer);
     return 0;
 }
 
-int dst_stl_gensym(int32_t argn, Dst *argv, Dst *ret) {
-    if (argn > 1) {
-        *ret = dst_cstringv("expected one argument");
+int dst_stl_gensym(DstArgs args) {
+    if (args.n > 1) {
+        *args.ret = dst_cstringv("expected one argument");
         return 1;
     }
-    if (argn == 0) {
-        *ret = dst_wrap_symbol(dst_symbol_gen(NULL, 0));
+    if (args.n == 0) {
+        *args.ret = dst_wrap_symbol(dst_symbol_gen(NULL, 0));
     } else {
-        const uint8_t *s = dst_to_string(argv[0]);
-        *ret = dst_wrap_symbol(dst_symbol_gen(s, dst_string_length(s)));
+        const uint8_t *s = dst_to_string(args.v[0]);
+        *args.ret = dst_wrap_symbol(dst_symbol_gen(s, dst_string_length(s)));
     }
     return 0;
 }
 
-int dst_stl_length(int32_t argn, Dst *argv, Dst *ret) {
-    if (argn != 1) {
-        *ret = dst_cstringv("expected at least 1 argument");
+int dst_stl_length(DstArgs args) {
+    if (args.n != 1) {
+        *args.ret = dst_cstringv("expected at least 1 argument");
         return 1;
     }
-    *ret = dst_wrap_integer(dst_length(argv[0]));
+    *args.ret = dst_wrap_integer(dst_length(args.v[0]));
     return 0;
 }
 
-int dst_stl_get(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_get(DstArgs args) {
     int32_t i;
     Dst ds;
-    if (argn < 1) {
-        *ret = dst_cstringv("expected at least 1 argument");
+    if (args.n < 1) {
+        *args.ret = dst_cstringv("expected at least 1 argument");
         return 1;
     }
-    ds = argv[0];
-    for (i = 1; i < argn; i++) {
-        ds = dst_get(ds, argv[i]);
+    ds = args.v[0];
+    for (i = 1; i < args.n; i++) {
+        ds = dst_get(ds, args.v[i]);
         if (dst_checktype(ds, DST_NIL))
             break;
     }
-    *ret = ds;
+    *args.ret = ds;
     return 0;
 }
 
-int dst_stl_status(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_status(DstArgs args) {
     const char *status;
-    if (argn != 1) {
-        *ret = dst_cstringv("expected 1 argument");
+    if (args.n != 1) {
+        *args.ret = dst_cstringv("expected 1 argument");
         return 1;
     }
-    if (!dst_checktype(argv[0], DST_FIBER)) {
-        *ret = dst_cstringv("expected fiber");
+    if (!dst_checktype(args.v[0], DST_FIBER)) {
+        *args.ret = dst_cstringv("expected fiber");
         return 1;
     }
-    switch(dst_unwrap_fiber(argv[0])->status) {
+    switch(dst_unwrap_fiber(args.v[0])->status) {
         case DST_FIBER_PENDING:
             status = "pending";
             break;
@@ -331,65 +326,67 @@ int dst_stl_status(int32_t argn, Dst *argv, Dst *ret) {
             status = "error";
             break;
     }
-    *ret = dst_cstringv(status);
+    *args.ret = dst_cstringv(status);
     return 0;
 }
 
-int dst_stl_put(int32_t argn, Dst *argv, Dst *ret) {
+int dst_stl_put(DstArgs args) {
     Dst ds, key, value;
-    if (argn < 3) {
-        *ret = dst_cstringv("expected at least 3 arguments");
+    DstArgs subargs = args;
+    if (args.n < 3) {
+        *args.ret = dst_cstringv("expected at least 3 arguments");
         return 1;
     }
-    if (dst_stl_get(argn - 2, argv, ret)) {
+    subargs.n -= 2;
+    if (dst_stl_get(subargs)) {
         return 1;
     }
-    ds = *ret;
-    key = argv[argn - 2];
-    value = argv[argn - 1];
+    ds = *args.ret;
+    key = args.v[args.n - 2];
+    value = args.v[args.n - 1];
     dst_put(ds, key, value);
     return 0;
 }
 
-static int dst_stl_equal(int32_t argn, Dst *argv, Dst *ret) {
+static int dst_stl_equal(DstArgs args) {
     int32_t i;
-    for (i = 0; i < argn - 1; i++) {
-        if (!dst_equals(argv[i], argv[i+1])) {
-            *ret = dst_wrap_false();
+    for (i = 0; i < args.n - 1; i++) {
+        if (!dst_equals(args.v[i], args.v[i+1])) {
+            *args.ret = dst_wrap_false();
             return 0;
         }
     }
-    *ret = dst_wrap_true();
+    *args.ret = dst_wrap_true();
     return 0;
 }
 
-static int dst_stl_notequal(int32_t argn, Dst *argv, Dst *ret) {
+static int dst_stl_notequal(DstArgs args) {
     int32_t i;
-    for (i = 0; i < argn - 1; i++) {
-        if (dst_equals(argv[i], argv[i+1])) {
-            *ret = dst_wrap_false();
+    for (i = 0; i < args.n - 1; i++) {
+        if (dst_equals(args.v[i], args.v[i+1])) {
+            *args.ret = dst_wrap_false();
             return 0;
         }
     }
-    *ret = dst_wrap_true();
+    *args.ret = dst_wrap_true();
     return 0;
 }
 
-static int dst_stl_not(int32_t argn, Dst *argv, Dst *ret) {
-    *ret = dst_wrap_boolean(argn == 0 || !dst_truthy(argv[0]));
+static int dst_stl_not(DstArgs args) {
+    *args.ret = dst_wrap_boolean(args.n == 0 || !dst_truthy(args.v[0]));
     return 0;
 }
 
 #define DST_DEFINE_COMPARATOR(name, pred)\
-static int dst_stl_##name(int32_t argn, Dst *argv, Dst *ret) {\
+static int dst_stl_##name(DstArgs args) {\
     int32_t i;\
-    for (i = 0; i < argn - 1; i++) {\
-        if (dst_compare(argv[i], argv[i+1]) pred) {\
-            *ret = dst_wrap_false();\
+    for (i = 0; i < args.n - 1; i++) {\
+        if (dst_compare(args.v[i], args.v[i+1]) pred) {\
+            *args.ret = dst_wrap_false();\
             return 0;\
         }\
     }\
-    *ret = dst_wrap_true();\
+    *args.ret = dst_wrap_true();\
     return 0;\
 }
 

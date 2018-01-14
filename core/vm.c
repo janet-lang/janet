@@ -492,13 +492,13 @@ static int dst_continue(Dst *returnreg) {
                 pc = func->def->bytecode;
                 vm_checkgc_next();
             } else if (dst_checktype(callee, DST_CFUNCTION)) {
-                int32_t argn = dst_vm_fiber->stacktop - dst_vm_fiber->stackstart;
+                DstArgs args;
+                args.n = dst_vm_fiber->stacktop - dst_vm_fiber->stackstart;
                 dst_fiber_cframe(dst_vm_fiber);
                 retreg = dst_wrap_nil();
-                if (dst_unwrap_cfunction(callee)(
-                            argn,
-                            dst_vm_fiber->data + dst_vm_fiber->frame,
-                            &retreg)) {
+                args.v = dst_vm_fiber->data + dst_vm_fiber->frame;
+                args.ret = &retreg;
+                if (dst_unwrap_cfunction(callee)(args)) {
                     goto vm_error;
                 }
                 goto vm_return_cfunc;
@@ -516,13 +516,13 @@ static int dst_continue(Dst *returnreg) {
                 pc = func->def->bytecode;
                 vm_checkgc_next();
             } else if (dst_checktype(callee, DST_CFUNCTION)) {
-                int32_t argn = dst_vm_fiber->stacktop - dst_vm_fiber->stackstart;
+                DstArgs args;
+                args.n = dst_vm_fiber->stacktop - dst_vm_fiber->stackstart;
                 dst_fiber_cframe(dst_vm_fiber);
                 retreg = dst_wrap_nil();
-                if (dst_unwrap_cfunction(callee)(
-                            argn,
-                            dst_vm_fiber->data + dst_vm_fiber->frame,
-                            &retreg)) {
+                args.v = dst_vm_fiber->data + dst_vm_fiber->frame;
+                args.ret = &retreg;
+                if (dst_unwrap_cfunction(callee)(args)) {
                     goto vm_error;
                 }
                 goto vm_return_cfunc_tail;
@@ -684,12 +684,13 @@ int dst_run(Dst callee, Dst *returnreg) {
         dst_fiber_reset(dst_vm_fiber);
     }
     if (dst_checktype(callee, DST_CFUNCTION)) {
+        DstArgs args;
         *returnreg = dst_wrap_nil();
         dst_fiber_cframe(dst_vm_fiber);
-        return dst_unwrap_cfunction(callee)(
-                0,
-                dst_vm_fiber->data + dst_vm_fiber->frame,
-                returnreg);
+        args.n = 0;
+        args.v = dst_vm_fiber->data + dst_vm_fiber->frame;
+        args.ret = returnreg;
+        return dst_unwrap_cfunction(callee)(args);
     } else if (dst_checktype(callee, DST_FUNCTION)) {
         dst_fiber_funcframe(dst_vm_fiber, dst_unwrap_function(callee));
         return dst_continue(returnreg);
