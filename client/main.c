@@ -159,6 +159,9 @@ static void runfile(const uint8_t *src, int32_t len) {
             case DST_PARSE_ERROR:
                 dst_puts(dst_formatc("syntax error at %d: %S\n",
                             s - src + res.bytes_read + 1, res.error)); 
+                if (res.bytes_read == 0) {
+                    s++;
+                }
                 break;
             case DST_PARSE_OK:
                 {

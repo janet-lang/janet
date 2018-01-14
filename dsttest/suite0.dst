@@ -178,6 +178,35 @@
 (assert (= (string "🐼" 🦊 🐮) "🐼foxcow") "emojis 🙉 :)")
 (assert (not= 🦊 :🦊) "utf8 strings are not symbols and vice versa")
 
+# Merge sort
+
+(def empty? (fn [xs] (= 0 (length xs))))
+
+(def merge (fn [xs ys] 
+    (def ret [])
+    (def xlen (length xs))
+    (def ylen (length ys))
+    (var i 0)
+    (var j 0)
+    # Main merge
+    (while (if (< i xlen) (< j ylen))
+      (def xi (get xs i))
+      (def yj (get ys j))
+      (if (< xi yj)
+        (do (push ret xi) (varset! i (+ i 1)))    
+        (do (push ret yj) (varset! j (+ j 1)))))
+    # Push rest of xs
+    (while (< i xlen)
+      (def xi (get xs i))
+      (push ret xi)
+      (varset! i (+ i 1)))    
+    # Push rest of ys
+    (while (< j ylen)
+      (def yj (get ys j))
+      (push ret yj)
+      (varset! j (+ j 1)))    
+    ret))
+
 # Gensym tests
 
 (assert (not= (gensym) (gensym)) "two gensyms not equal")
