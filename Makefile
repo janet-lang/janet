@@ -49,7 +49,7 @@ all: $(DST_TARGET)
 
 DST_CORE_SOURCES=$(addprefix core/,\
 				 abstract.c array.c asm.c buffer.c compile.c compile_specials.c\
-				 fiber.c gc.c io.c math.c parse.c sourcemap.c string.c\
+				 fiber.c gc.c io.c math.c native.c parse.c sourcemap.c string.c\
 				 stl.c strtod.c struct.c symcache.c table.c tuple.c util.c\
 				 value.c vm.c wrap.c)
 

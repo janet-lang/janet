@@ -169,6 +169,10 @@ void dst_setindex(Dst ds, Dst value, int32_t index);
 DstParseResult dst_parse(const uint8_t *src, int32_t len);
 DstParseResult dst_parsec(const char *src);
 
+/* Native */
+DstCFunction dst_native(const char *name, const uint8_t **error);
+int dst_load_native(int32_t argn, Dst *argv, Dst *ret);
+
 /* VM functions */
 int dst_init();
 void dst_deinit();
