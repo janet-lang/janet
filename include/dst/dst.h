@@ -142,6 +142,8 @@ DstAssembleResult dst_asm(DstAssembleOptions opts);
 DstFunction *dst_asm_func(DstAssembleResult result);
 Dst dst_disasm(DstFuncDef *def);
 Dst dst_asm_decode_instruction(uint32_t instr);
+int dst_asm_cfun(DstArgs args);
+int dst_disasm_cfun(DstArgs args);
 
 /* Treat similar types through uniform interfaces for iteration */
 int dst_seq_view(Dst seq, const Dst **data, int32_t *len);
@@ -171,6 +173,7 @@ void dst_setindex(Dst ds, Dst value, int32_t index);
 /* Parsing */
 DstParseResult dst_parse(const uint8_t *src, int32_t len);
 DstParseResult dst_parsec(const char *src);
+int dst_parse_cfun(DstArgs args);
 
 /* Native */
 DstCFunction dst_native(const char *name, const uint8_t **error);
@@ -199,6 +202,7 @@ void dst_module_var(DstTable *module, const char *name, Dst val);
 /* Compile */
 DstCompileResult dst_compile(DstCompileOptions opts);
 DstFunction *dst_compile_func(DstCompileResult result);
+int dst_compile_cfun(DstArgs args);
 
 /* STL */
 Dst dst_stl_env();

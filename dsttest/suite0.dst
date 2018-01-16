@@ -93,6 +93,21 @@
 (assert (= 93 (f91 103)), "f91(103) = 93")
 (assert (= 94 (f91 104)), "f91(104) = 94")
 
+# Fibonacci
+(def fib (do (var fib nil) (varset! fib (fn [n] (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))))
+
+(assert (= (fib 0) 0) "fib(0)")
+(assert (= (fib 1) 1) "fib(1)")
+(assert (= (fib 2) 1) "fib(2)")
+(assert (= (fib 3) 2) "fib(3)")
+(assert (= (fib 4) 3) "fib(4)")
+(assert (= (fib 5) 5) "fib(5)")
+(assert (= (fib 6) 8) "fib(6)")
+(assert (= (fib 7) 13) "fib(7)")
+(assert (= (fib 8) 21) "fib(8)")
+(assert (= (fib 9) 34) "fib(9)")
+(assert (= (fib 10) 55) "fib(10)")
+
 (assert (= "hello" :hello) "keyword syntax for strings")
 (assert (= '(1 2 3) (quote (1 2 3)) (tuple 1 2 3)) "quote shorthand")
 
@@ -226,4 +241,4 @@
 # report
 
 (print "\n" num-tests-passed " of " num-tests-run " tests passed\n")
-(if (not= num-tests-passed num-tests-run) (exit! 1))
+(if (not= num-tests-passed num-tests-run) (exit 1))

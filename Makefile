@@ -71,7 +71,7 @@ $(DST_TARGET): $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(DST_ALL_HEADERS)
 ##### Testing #####
 ###################
 
-run: $(DST_TARGET)
+repl: $(DST_TARGET)
 	@ ./$(DST_TARGET)
 
 debug: $(DST_TARGET)
@@ -106,4 +106,4 @@ install: $(DST_TARGET)
 uninstall:
 	rm $(BINDIR)/dst
 
-.PHONY: clean install run debug valgrind test valtest install uninstall
+.PHONY: clean install repl debug valgrind test valtest install uninstall

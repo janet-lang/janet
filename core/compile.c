@@ -102,6 +102,7 @@ int32_t dstc_lsloti(DstCompiler *c) {
         break;
     }
     if (biti == -1) {
+        /* Extend bit vector for slots */
         dst_v_push(scope->slots, len == 7 ? 0xFFFF0000 : 0);
         biti = len << 5;
     }
@@ -110,6 +111,19 @@ int32_t dstc_lsloti(DstCompiler *c) {
     if (biti > scope->smax)
         scope->smax = biti;
     return biti;
+}
+
+/* Allocate a given slot index */
+static void slotalloci(DstCompiler *c, int32_t index) {
+    int32_t count;
+    int32_t block = index >> 5;
+    DstScope *scope = &dst_v_last(c->scopes);
+    if (index < 0) return;
+    while ((count = dst_v_count(scope->slots)) <= block) {
+        /* Extend bit vector for slots */
+        dst_v_push(scope->slots, count == 7 ? 0xFFFF0000 : 0);
+    }
+    scope->slots[block] |= 1 << (index & 0x1F);
 }
 
 /* Free a slot index */
@@ -135,7 +149,7 @@ int32_t dstc_lslotn(DstCompiler *c, int32_t max, int32_t nth) {
 
 /* Free a slot */
 void dstc_freeslot(DstCompiler *c, DstSlot s) {
-    if (s.flags & (DST_SLOT_CONSTANT | DST_SLOT_NAMED)) return;
+    if (s.flags & (DST_SLOT_CONSTANT | DST_SLOT_REF | DST_SLOT_NAMED)) return;
     if (s.envindex > 0) return;
     dstc_sfreei(c, s.index);
 }
@@ -191,6 +205,14 @@ void dstc_popscope(DstCompiler *c) {
         DstScope *newscope = &dst_v_last(c->scopes);
         if (newscope->smax < scope.smax) 
             newscope->smax = scope.smax;
+    }
+}
+
+/* Leave a scope but keep a slot allocated. */
+void dstc_popscope_keepslot(DstCompiler *c, DstSlot retslot) {
+    dstc_popscope(c);
+    if (retslot.envindex == 0 && retslot.index >= 0) {
+        slotalloci(c, retslot.index);
     }
 }
 
@@ -433,6 +455,20 @@ void dstc_postread(DstCompiler *c, DstSlot s, int32_t index) {
     }
 }
 
+/* Check if two slots are equal */
+int dstc_sequal(DstSlot lhs, DstSlot rhs) {
+    if (lhs.flags == rhs.flags &&
+            lhs.index == rhs.index &&
+            lhs.envindex == rhs.envindex) {
+        if (lhs.flags & (DST_SLOT_REF | DST_SLOT_CONSTANT)) {
+            return dst_equals(lhs.constant, rhs.constant);
+        } else {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Move values from one slot to another. The destination must
  * be writeable (not a literal). */
 void dstc_copy(
@@ -452,16 +488,7 @@ void dstc_copy(
     }
 
     /* Short circuit if dest and source are equal */
-    if (dest.flags == src.flags &&
-        dest.index == src.index &&
-        dest.envindex == src.envindex) {
-        if (dest.flags & (DST_SLOT_REF)) {
-            if (dst_equals(dest.constant, src.constant))
-                return;
-        } else {
-            return;
-        }
-    }
+    if (dstc_sequal(dest, src)) return;
 
     /* Types of slots - src */
     /* constants */
@@ -772,6 +799,10 @@ DstSlot dstc_value(DstFopts opts) {
     if (opts.flags & DST_FOPTS_TAIL) {
         ret = dstc_return(opts.compiler, opts.sourcemap, ret);
     }
+    if (opts.flags & DST_FOPTS_HINT && !dstc_sequal(opts.hint, ret)) {
+        dstc_copy(opts.compiler, opts.sourcemap, opts.hint, ret);
+        ret = opts.hint;
+    }
     opts.compiler->recursion_guard++;
     return ret;
 }
@@ -820,6 +851,9 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
     def->flags = 0;
     if (scope.flags & DST_SCOPE_ENV) {
         def->flags |= DST_FUNCDEF_FLAG_NEEDSENV;
+        if (def->environments_length == 0) {
+            def->environments_length = 1;
+        }
     }
 
     /* Pop the scope */
@@ -888,6 +922,40 @@ DstFunction *dst_compile_func(DstCompileResult res) {
     }
     DstFunction *func = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
     func->def = res.funcdef;
-    func->envs = NULL;
+    if (res.funcdef->flags & DST_FUNCDEF_FLAG_NEEDSENV) {
+        func->envs = malloc(sizeof(DstFuncEnv *));
+        if (NULL == func->envs) {
+            DST_OUT_OF_MEMORY;
+        }
+        func->envs[0] = NULL;
+    } else {
+        func->envs = NULL;
+    }
     return func;
+}
+
+/* C Function for compiling */
+int dst_compile_cfun(DstArgs args) {
+    DstCompileOptions opts;
+    DstCompileResult res;
+    DstTable *t;
+    if (args.n < 1)
+        return dst_throw(args, "expected at least one argument");
+    if (args.n >= 3 && !dst_checktype(args.v[2], DST_TUPLE))
+        return dst_throw(args, "expected source map to be tuple");
+    opts.source = args.v[0];
+    opts.env = args.n >= 2 ? args.v[1] : dst_stl_env();
+    opts.sourcemap = args.n >= 3 ? dst_unwrap_tuple(args.v[2]) : NULL;
+    opts.flags = 0;
+    res = dst_compile(opts);
+    if (res.status == DST_COMPILE_OK) {
+        DstFunction *fun = dst_compile_func(res);
+        return dst_return(args, dst_wrap_function(fun));
+    } else {
+        t = dst_table(2);
+        dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
+        dst_table_put(t, dst_cstringv("error-start"), dst_wrap_integer(res.error_start));
+        dst_table_put(t, dst_cstringv("error-end"), dst_wrap_integer(res.error_end));
+        return dst_return(args, dst_wrap_table(t));
+    }
 }

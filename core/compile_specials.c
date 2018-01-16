@@ -308,7 +308,7 @@ DstSlot dstc_do(DstFopts opts, int32_t argn, const Dst *argv) {
             dstc_freeslot(opts.compiler, ret);
         }
     }
-    dstc_popscope(opts.compiler);
+    dstc_popscope_keepslot(opts.compiler, ret);
     return ret;
 }
 
@@ -501,10 +501,7 @@ DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     if (arity + varargs > def->slotcount) def->slotcount = arity + varargs;
 
     /* Instantiate closure */
-    ret.flags = 0;
-    ret.envindex = 0;
-    ret.constant = dst_wrap_nil();
-    ret.index = dstc_lsloti(c);
+    ret = dstc_gettarget(opts);
 
     localslot = ret.index > 0xF0 ? 0xF1 : ret.index;
     dstc_emit(c, sm,

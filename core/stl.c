@@ -30,63 +30,6 @@ int dst_stl_push(DstArgs args) {
     return dst_return(args, args.v[0]);
 }
 
-int dst_stl_parse(DstArgs args) {
-    const uint8_t *src;
-    int32_t len;
-    DstParseResult res;
-    const char *status_string = "ok";
-    DstTable *t;
-    if (args.n < 1) return dst_throw(args, "expected at least on argument");
-    if (!dst_chararray_view(args.v[0], &src, &len)) return dst_throw(args, "expected string/buffer");
-    res = dst_parse(src, len);
-    t = dst_table(4);
-    switch (res.status) {
-        case DST_PARSE_OK:
-            status_string = "ok";
-            break;
-        case DST_PARSE_ERROR:
-            status_string = "error";
-            break;
-        case DST_PARSE_NODATA:
-            status_string = "nodata";
-            break;
-        case DST_PARSE_UNEXPECTED_EOS:
-            status_string = "eos";
-            break;
-    }
-    dst_table_put(t, dst_cstringv("status"), dst_cstringv(status_string));
-    if (res.status == DST_PARSE_OK) dst_table_put(t, dst_cstringv("map"), dst_wrap_tuple(res.map));
-    if (res.status == DST_PARSE_OK) dst_table_put(t, dst_cstringv("value"), res.value);
-    if (res.status == DST_PARSE_ERROR) dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
-    dst_table_put(t, dst_cstringv("bytes-read"), dst_wrap_integer(res.bytes_read));
-    return dst_return(args, dst_wrap_table(t));
-}
-
-int dst_stl_compile(DstArgs args) {
-    DstCompileOptions opts;
-    DstCompileResult res;
-    DstTable *t;
-    if (args.n < 1)
-        return dst_throw(args, "expected at least one argument");
-    if (args.n >= 3 && !dst_checktype(args.v[2], DST_TUPLE))
-        return dst_throw(args, "expected source map to be tuple");
-    opts.source = args.v[0];
-    opts.env = args.n >= 2 ? args.v[1] : dst_stl_env();
-    opts.sourcemap = args.n >= 3 ? dst_unwrap_tuple(args.v[2]) : NULL;
-    opts.flags = 0;
-    res = dst_compile(opts);
-    if (res.status == DST_COMPILE_OK) {
-        DstFunction *fun = dst_compile_func(res);
-        return dst_return(args, dst_wrap_function(fun));
-    } else {
-        t = dst_table(2);
-        dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
-        dst_table_put(t, dst_cstringv("error-start"), dst_wrap_integer(res.error_start));
-        dst_table_put(t, dst_cstringv("error-end"), dst_wrap_integer(res.error_end));
-        return dst_return(args, dst_wrap_table(t));
-    }
-}
-
 int dst_stl_exit(DstArgs args) {
     int32_t exitcode = 0;
     if (args.n > 0) {
@@ -145,28 +88,6 @@ int dst_stl_buffer_to_string(DstArgs args) {
     if (!dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
     b = dst_unwrap_buffer(args.v[0]);
     return dst_return(args, dst_wrap_string(dst_string(b->data, b->count)));
-}
-
-int dst_stl_asm(DstArgs args) {
-    DstAssembleOptions opts;
-    DstAssembleResult res;
-    if (args.n < 1) return dst_throw(args, "expected assembly source");
-    opts.source = args.v[0];
-    opts.flags = 0;
-    res = dst_asm(opts);
-    if (res.status == DST_ASSEMBLE_OK) {
-        return dst_return(args, dst_wrap_function(dst_asm_func(res)));
-    } else {
-        return dst_throwv(args, dst_wrap_string(res.error));
-    }
-}
-
-int dst_stl_disasm(DstArgs args) {
-    DstFunction *f;
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_FUNCTION))
-        return dst_throw(args, "expected function");
-    f = dst_unwrap_function(args.v[0]);
-    return dst_return(args, dst_disasm(f->def));
 }
 
 int dst_cfun_tuple(DstArgs args) {
@@ -312,8 +233,6 @@ Dst dst_stl_env() {
 
     dst_module_def(module, "native", dst_wrap_cfunction(dst_load_native));
     dst_module_def(module, "push", dst_wrap_cfunction(dst_stl_push));
-    dst_module_def(module, "parse", dst_wrap_cfunction(dst_stl_parse));
-    dst_module_def(module, "compile", dst_wrap_cfunction(dst_stl_compile));
     dst_module_def(module, "print", dst_wrap_cfunction(dst_stl_print));
     dst_module_def(module, "describe", dst_wrap_cfunction(dst_stl_describe));
     dst_module_def(module, "string", dst_wrap_cfunction(dst_stl_string));
@@ -326,14 +245,17 @@ Dst dst_stl_env() {
     dst_module_def(module, "status", dst_wrap_cfunction(dst_stl_status));
     dst_module_def(module, "buffer", dst_wrap_cfunction(dst_stl_buffer));
     dst_module_def(module, "gensym", dst_wrap_cfunction(dst_stl_gensym));
-    dst_module_def(module, "asm", dst_wrap_cfunction(dst_stl_asm));
-    dst_module_def(module, "disasm", dst_wrap_cfunction(dst_stl_disasm));
     dst_module_def(module, "get", dst_wrap_cfunction(dst_stl_get));
     dst_module_def(module, "put", dst_wrap_cfunction(dst_stl_put));
     dst_module_def(module, "length", dst_wrap_cfunction(dst_stl_length));
     dst_module_def(module, "gccollect", dst_wrap_cfunction(dst_stl_gccollect));
     dst_module_def(module, "type", dst_wrap_cfunction(dst_stl_type));
-    dst_module_def(module, "exit!", dst_wrap_cfunction(dst_stl_exit));
+    dst_module_def(module, "exit", dst_wrap_cfunction(dst_stl_exit));
+
+    dst_module_def(module, "parse", dst_wrap_cfunction(dst_parse_cfun));
+    dst_module_def(module, "compile", dst_wrap_cfunction(dst_compile_cfun));
+    dst_module_def(module, "asm", dst_wrap_cfunction(dst_asm_cfun));
+    dst_module_def(module, "disasm", dst_wrap_cfunction(dst_disasm_cfun));
 
     /* Allow references to the environment */
     dst_module_def(module, "_env", ret);

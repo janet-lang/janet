@@ -422,15 +422,16 @@ static int dst_continue(Dst *returnreg) {
 
         case DOP_CLOSURE:
         {
-            int32_t i;
+            int32_t i, elen;
             DstFunction *fn;
             DstFuncDef *fd;
             vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->defs_length, "invalid funcdef");
             fd = func->def->defs[(int32_t)oparg(2, 0xFFFF)];
             fn = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
             fn->def = fd;
-            if (fd->environments_length) {
-                fn->envs = malloc(sizeof(DstFuncEnv *) * fd->environments_length);
+            elen = fd->environments_length;
+            if (elen) {
+                fn->envs = malloc(sizeof(DstFuncEnv *) * elen);
                 if (NULL == fn->envs) {
                     DST_OUT_OF_MEMORY;
                 }

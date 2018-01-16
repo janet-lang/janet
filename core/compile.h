@@ -224,6 +224,9 @@ void dstc_cerror(DstCompiler *c, const Dst *sourcemap, const char *m);
 /* Dispatch to correct form compiler */
 DstSlot dstc_value(DstFopts opts);
 
+/* Check if two slots are equal */
+int dstc_sequal(DstSlot lhs, DstSlot rhs);
+
 /* Use these to get sub options. They will traverse the source map so
  * compiler errors make sense. Then modify the returned options. */
 DstFopts dstc_getindex(DstFopts opts, int32_t index);
@@ -233,6 +236,7 @@ DstFopts dstc_getvalue(DstFopts opts, Dst key);
 /* Push and pop from the scope stack */
 void dstc_scope(DstCompiler *c, int newfn);
 void dstc_popscope(DstCompiler *c);
+void dstc_popscope_keepslot(DstCompiler *c, DstSlot retslot);
 DstFuncDef *dstc_pop_funcdef(DstCompiler *c);
 
 /* Create a destory slots */

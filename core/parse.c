@@ -565,3 +565,36 @@ DstParseResult dst_parsec(const char *src) {
     while (src[len]) ++len;
     return dst_parse((const uint8_t *)src, len);
 }
+
+/* C Function parser */
+int dst_parse_cfun(DstArgs args) {
+    const uint8_t *src;
+    int32_t len;
+    DstParseResult res;
+    const char *status_string = "ok";
+    DstTable *t;
+    if (args.n < 1) return dst_throw(args, "expected at least on argument");
+    if (!dst_chararray_view(args.v[0], &src, &len)) return dst_throw(args, "expected string/buffer");
+    res = dst_parse(src, len);
+    t = dst_table(4);
+    switch (res.status) {
+        case DST_PARSE_OK:
+            status_string = "ok";
+            break;
+        case DST_PARSE_ERROR:
+            status_string = "error";
+            break;
+        case DST_PARSE_NODATA:
+            status_string = "nodata";
+            break;
+        case DST_PARSE_UNEXPECTED_EOS:
+            status_string = "eos";
+            break;
+    }
+    dst_table_put(t, dst_cstringv("status"), dst_cstringv(status_string));
+    if (res.status == DST_PARSE_OK) dst_table_put(t, dst_cstringv("map"), dst_wrap_tuple(res.map));
+    if (res.status == DST_PARSE_OK) dst_table_put(t, dst_cstringv("value"), res.value);
+    if (res.status == DST_PARSE_ERROR) dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
+    dst_table_put(t, dst_cstringv("bytes-read"), dst_wrap_integer(res.bytes_read));
+    return dst_return(args, dst_wrap_table(t));
+}

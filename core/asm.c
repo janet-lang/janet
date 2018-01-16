@@ -913,3 +913,26 @@ Dst dst_disasm(DstFuncDef *def) {
 
     return dst_wrap_struct(dst_table_to_struct(ret));
 }
+
+/* C Function for assembly */
+int dst_asm_cfun(DstArgs args) {
+    DstAssembleOptions opts;
+    DstAssembleResult res;
+    if (args.n < 1) return dst_throw(args, "expected assembly source");
+    opts.source = args.v[0];
+    opts.flags = 0;
+    res = dst_asm(opts);
+    if (res.status == DST_ASSEMBLE_OK) {
+        return dst_return(args, dst_wrap_function(dst_asm_func(res)));
+    } else {
+        return dst_throwv(args, dst_wrap_string(res.error));
+    }
+}
+
+int dst_disasm_cfun(DstArgs args) {
+    DstFunction *f;
+    if (args.n < 1 || !dst_checktype(args.v[0], DST_FUNCTION))
+        return dst_throw(args, "expected function");
+    f = dst_unwrap_function(args.v[0]);
+    return dst_return(args, dst_disasm(f->def));
+}
