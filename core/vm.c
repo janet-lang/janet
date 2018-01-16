@@ -55,9 +55,12 @@ static int dst_update_fiber() {
 static int dst_continue(Dst *returnreg) {
 
     /* VM state */
-    Dst *stack;
-    uint32_t *pc;
-    DstFunction *func;
+    register Dst *stack;
+    register uint32_t *pc;
+    register DstFunction *func;
+
+    /* Keep in mind the garbage collector cannot see this value.
+     * Values stored here should be used immediately */
     Dst retreg;
 
 /* Eventually use computed gotos for more effient vm loop. */

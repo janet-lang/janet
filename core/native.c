@@ -69,5 +69,6 @@ int dst_load_native(DstArgs args) {
         *args.ret = dst_wrap_string(error);
         return 1;
     }
-    return init(args);
+    *args.ret = dst_wrap_cfunction(init);
+    return 0;
 }

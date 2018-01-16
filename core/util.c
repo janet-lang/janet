@@ -107,6 +107,34 @@ int dst_cstrcmp(const uint8_t *str, const char *other) {
     return (other[index] == '\0') ? 0 : -1;
 }
 
+/* Add a module definition */
+void dst_module_def(DstTable *module, const char *name, Dst val) {
+    DstTable *subt = dst_table(1);
+    dst_table_put(subt, dst_csymbolv("value"), val);
+    dst_table_put(module, dst_csymbolv(name), dst_wrap_table(subt));
+}
+
+/* Add a module var */
+void dst_module_var(DstTable *module, const char *name, Dst val) {
+    DstArray *array = dst_array(1);
+    DstTable *subt = dst_table(1);
+    dst_array_push(array, val);
+    dst_table_put(subt, dst_csymbolv("ref"), dst_wrap_array(array));
+    dst_table_put(module, dst_csymbolv(name), dst_wrap_table(subt));
+}
+
+/* Get module from the arguments passed to library */
+DstTable *dst_get_module(DstArgs args) {
+    DstTable *module;
+    if (args.n >= 1 && dst_checktype(args.v[0], DST_TABLE)) {
+        module = dst_unwrap_table(args.v[0]);
+    } else {
+        module = dst_table(0);
+    }
+    *args.ret = dst_wrap_table(module);
+    return module;
+}
+
 /* Do a binary search on a static array of structs. Each struct must
  * have a string as its first element, and the struct must be sorted
  * lexogrpahically by that element. */
@@ -179,20 +207,6 @@ int dst_hashtable_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap) 
         return 1;
     }
     return 0;
-}
-
-/* Load c functions into an environment */
-Dst dst_loadreg(DstReg *regs, size_t count) {
-    size_t i;
-    DstTable *t = dst_table(count);
-    for (i = 0; i < count; i++) {
-        Dst sym = dst_csymbolv(regs[i].name);
-        Dst func = dst_wrap_cfunction(regs[i].function);
-        DstTable *subt = dst_table(1);
-        dst_table_put(subt, dst_csymbolv("value"), func);
-        dst_table_put(t, sym, dst_wrap_table(subt));
-    }
-    return dst_wrap_table(t);
 }
 
 /* Vector code */

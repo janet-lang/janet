@@ -31,7 +31,7 @@ CLIBS=-lm -ldl
 PREFIX=/usr/local
 DST_TARGET=dst
 DEBUGGER=lldb
-DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h strtod.h compile.h gc.h sourcemap.h util.h)
+DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h compile.h gc.h sourcemap.h util.h)
 DST_HEADERS=$(addprefix include/dst/,dst.h dstconfig.h dsttypes.h dststate.h dststl.h)
 DST_C_LIBS=$(addprefix libs/,testlib.so)
 
@@ -64,7 +64,7 @@ $(DST_TARGET): $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(DST_ALL_HEADERS)
 #######################
 
 %.so: %.c $(DST_HEADERS)
-	$(CC) $(CFLAGS) -shared -undefined dynamic_lookup -o $@ $<
+	$(CC) $(CFLAGS) -DDST_LIB -shared -undefined dynamic_lookup -o $@ $<
 
 
 ###################

@@ -24,17 +24,10 @@
 #include <dst/dststl.h>
 
 int dst_stl_push(DstArgs args) {
-    if (args.n != 2) {
-        *args.ret = dst_cstringv("expected 2 arguments");
-        return 1;
-    }
-    if (!dst_checktype(args.v[0], DST_ARRAY)) {
-        *args.ret = dst_cstringv("expected array");
-        return 1;
-    }
+    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
+    if (!dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
     dst_array_push(dst_unwrap_array(args.v[0]), args.v[1]);
-    *args.ret = args.v[0];
-    return 0;
+    return dst_return(args, args.v[0]);
 }
 
 int dst_stl_parse(DstArgs args) {
@@ -43,14 +36,8 @@ int dst_stl_parse(DstArgs args) {
     DstParseResult res;
     const char *status_string = "ok";
     DstTable *t;
-    if (args.n < 1) {
-        *args.ret = dst_cstringv("expected at least on argument");
-        return 1;
-    }
-    if (!dst_chararray_view(args.v[0], &src, &len)) {
-        *args.ret = dst_cstringv("expected string/buffer");
-        return 1;
-    }
+    if (args.n < 1) return dst_throw(args, "expected at least on argument");
+    if (!dst_chararray_view(args.v[0], &src, &len)) return dst_throw(args, "expected string/buffer");
     res = dst_parse(src, len);
     t = dst_table(4);
     switch (res.status) {
@@ -72,39 +59,32 @@ int dst_stl_parse(DstArgs args) {
     if (res.status == DST_PARSE_OK) dst_table_put(t, dst_cstringv("value"), res.value);
     if (res.status == DST_PARSE_ERROR) dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
     dst_table_put(t, dst_cstringv("bytes-read"), dst_wrap_integer(res.bytes_read));
-    *args.ret = dst_wrap_table(t);
-    return 0;
+    return dst_return(args, dst_wrap_table(t));
 }
 
 int dst_stl_compile(DstArgs args) {
     DstCompileOptions opts;
     DstCompileResult res;
     DstTable *t;
-    if (args.n < 1) {
-        *args.ret = dst_cstringv("expected at least on argument");
-        return 1;
-    }
-    if (args.n >= 3 && !dst_checktype(args.v[2], DST_TUPLE)) {
-        *args.ret = dst_cstringv("expected source map to be tuple");
-        return 1;
-    }
+    if (args.n < 1)
+        return dst_throw(args, "expected at least one argument");
+    if (args.n >= 3 && !dst_checktype(args.v[2], DST_TUPLE))
+        return dst_throw(args, "expected source map to be tuple");
     opts.source = args.v[0];
-    opts.env = args.n >= 2 ? args.v[1] : dst_loadstl(0);
+    opts.env = args.n >= 2 ? args.v[1] : dst_stl_env();
     opts.sourcemap = args.n >= 3 ? dst_unwrap_tuple(args.v[2]) : NULL;
     opts.flags = 0;
     res = dst_compile(opts);
     if (res.status == DST_COMPILE_OK) {
         DstFunction *fun = dst_compile_func(res);
-        *args.ret = dst_wrap_function(fun);
+        return dst_return(args, dst_wrap_function(fun));
     } else {
         t = dst_table(2);
         dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
         dst_table_put(t, dst_cstringv("error-start"), dst_wrap_integer(res.error_start));
         dst_table_put(t, dst_cstringv("error-end"), dst_wrap_integer(res.error_end));
-        *args.ret = dst_wrap_table(t);
+        return dst_return(args, dst_wrap_table(t));
     }
-    return 0;
-    
 }
 
 int dst_stl_exit(DstArgs args) {
@@ -159,92 +139,75 @@ int dst_stl_string(DstArgs args) {
     return 0;
 }
 
+int dst_stl_buffer_to_string(DstArgs args) {
+    DstBuffer *b;
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    if (!dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
+    b = dst_unwrap_buffer(args.v[0]);
+    return dst_return(args, dst_wrap_string(dst_string(b->data, b->count)));
+}
+
 int dst_stl_asm(DstArgs args) {
     DstAssembleOptions opts;
     DstAssembleResult res;
-    if (args.n < 1) {
-        *args.ret = dst_cstringv("expected assembly source");
-        return 1;
-    }
+    if (args.n < 1) return dst_throw(args, "expected assembly source");
     opts.source = args.v[0];
     opts.flags = 0;
     res = dst_asm(opts);
     if (res.status == DST_ASSEMBLE_OK) {
-        *args.ret = dst_wrap_function(dst_asm_func(res));
-        return 0;
+        return dst_return(args, dst_wrap_function(dst_asm_func(res)));
     } else {
-        *args.ret = dst_wrap_string(res.error);
-        return 1;
+        return dst_throwv(args, dst_wrap_string(res.error));
     }
 }
 
 int dst_stl_disasm(DstArgs args) {
     DstFunction *f;
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_FUNCTION)) {
-        *args.ret = dst_cstringv("expected function");
-        return 1;
-    }
+    if (args.n < 1 || !dst_checktype(args.v[0], DST_FUNCTION))
+        return dst_throw(args, "expected function");
     f = dst_unwrap_function(args.v[0]);
-    *args.ret = dst_disasm(f->def);
-    return 0;
+    return dst_return(args, dst_disasm(f->def));
 }
 
-int dst_stl_tuple(DstArgs args) {
-    *args.ret = dst_wrap_tuple(dst_tuple_n(args.v, args.n));
-    return 0;
+int dst_cfun_tuple(DstArgs args) {
+    return dst_return(args, dst_wrap_tuple(dst_tuple_n(args.v, args.n)));
 }
 
-int dst_stl_array(DstArgs args) {
+int dst_cfun_array(DstArgs args) {
     DstArray *array = dst_array(args.n);
     array->count = args.n;
     memcpy(array->data, args.v, args.n * sizeof(Dst));
-    *args.ret = dst_wrap_array(array);
-    return 0;
+    return dst_return(args, dst_wrap_array(array));
 }
 
-int dst_stl_table(DstArgs args) {
+int dst_cfun_table(DstArgs args) {
     int32_t i;
     DstTable *table = dst_table(args.n >> 1);
-    if (args.n & 1) {
-        *args.ret = dst_cstringv("expected even number of arguments");
-        return 1;
-    }
+    if (args.n & 1) return dst_throw(args, "expected even number of arguments");
     for (i = 0; i < args.n; i += 2) {
         dst_table_put(table, args.v[i], args.v[i + 1]);
     }
-    *args.ret = dst_wrap_table(table);
-    return 0;
+    return dst_return(args, dst_wrap_table(table));
 }
 
-int dst_stl_struct(DstArgs args) {
+int dst_cfun_struct(DstArgs args) {
     int32_t i;
     DstKV *st = dst_struct_begin(args.n >> 1);
-    if (args.n & 1) {
-        *args.ret = dst_cstringv("expected even number of arguments");
-        return 1;
-    }
+    if (args.n & 1) return dst_throw(args, "expected even number of arguments");
     for (i = 0; i < args.n; i += 2) {
         dst_struct_put(st, args.v[i], args.v[i + 1]);
     }
-    *args.ret = dst_wrap_struct(dst_struct_end(st));
-    return 0;
+    return dst_return(args, dst_wrap_struct(dst_struct_end(st)));
 }
 
 int dst_stl_fiber(DstArgs args) {
     DstFiber *fiber;
-    if (args.n < 1) {
-        *args.ret = dst_cstringv("expected at least one argument");
-        return 1;
-    }
-    if (!dst_checktype(args.v[0], DST_FUNCTION)) {
-        *args.ret = dst_cstringv("expected a function");
-        return 1;
-    }
+    if (args.n < 1) return dst_throw(args, "expected at least one argument");
+    if (!dst_checktype(args.v[0], DST_FUNCTION)) return dst_throw(args, "expected a function");
     fiber = dst_fiber(64);
     dst_fiber_funcframe(fiber, dst_unwrap_function(args.v[0]));
     fiber->parent = dst_vm_fiber;
-    *args.ret = dst_wrap_fiber(fiber);
-    return 0;
+    return dst_return(args, dst_wrap_fiber(fiber));
 }
 
 int dst_stl_buffer(DstArgs args) {
@@ -255,60 +218,41 @@ int dst_stl_buffer(DstArgs args) {
         int32_t len = dst_string_length(bytes);
         dst_buffer_push_bytes(buffer, bytes, len);
     }
-    *args.ret = dst_wrap_buffer(buffer);
-    return 0;
+    return dst_return(args, dst_wrap_buffer(buffer));
 }
 
 int dst_stl_gensym(DstArgs args) {
-    if (args.n > 1) {
-        *args.ret = dst_cstringv("expected one argument");
-        return 1;
-    }
+    if (args.n > 1) return dst_throw(args, "expected one argument");
     if (args.n == 0) {
-        *args.ret = dst_wrap_symbol(dst_symbol_gen(NULL, 0));
+        return dst_return(args, dst_wrap_symbol(dst_symbol_gen(NULL, 0)));
     } else {
         const uint8_t *s = dst_to_string(args.v[0]);
-        *args.ret = dst_wrap_symbol(dst_symbol_gen(s, dst_string_length(s)));
+        return dst_return(args, dst_wrap_symbol(dst_symbol_gen(s, dst_string_length(s))));
     }
-    return 0;
 }
 
 int dst_stl_length(DstArgs args) {
-    if (args.n != 1) {
-        *args.ret = dst_cstringv("expected at least 1 argument");
-        return 1;
-    }
-    *args.ret = dst_wrap_integer(dst_length(args.v[0]));
-    return 0;
+    if (args.n != 1) return dst_throw(args, "expected at least 1 argument");
+    return dst_return(args, dst_wrap_integer(dst_length(args.v[0])));
 }
 
 int dst_stl_get(DstArgs args) {
     int32_t i;
     Dst ds;
-    if (args.n < 1) {
-        *args.ret = dst_cstringv("expected at least 1 argument");
-        return 1;
-    }
+    if (args.n < 1) return dst_throw(args, "expected at least 1 argument");
     ds = args.v[0];
     for (i = 1; i < args.n; i++) {
         ds = dst_get(ds, args.v[i]);
         if (dst_checktype(ds, DST_NIL))
             break;
     }
-    *args.ret = ds;
-    return 0;
+    return dst_return(args, ds);
 }
 
 int dst_stl_status(DstArgs args) {
     const char *status;
-    if (args.n != 1) {
-        *args.ret = dst_cstringv("expected 1 argument");
-        return 1;
-    }
-    if (!dst_checktype(args.v[0], DST_FIBER)) {
-        *args.ret = dst_cstringv("expected fiber");
-        return 1;
-    }
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    if (!dst_checktype(args.v[0], DST_FIBER)) return dst_throw(args, "expected fiber");
     switch(dst_unwrap_fiber(args.v[0])->status) {
         case DST_FIBER_PENDING:
             status = "pending";
@@ -326,21 +270,15 @@ int dst_stl_status(DstArgs args) {
             status = "error";
             break;
     }
-    *args.ret = dst_cstringv(status);
-    return 0;
+    return dst_return(args, dst_cstringv(status));
 }
 
 int dst_stl_put(DstArgs args) {
     Dst ds, key, value;
     DstArgs subargs = args;
-    if (args.n < 3) {
-        *args.ret = dst_cstringv("expected at least 3 arguments");
-        return 1;
-    }
+    if (args.n < 3) return dst_throw(args, "expected at least 3 arguments");
     subargs.n -= 2;
-    if (dst_stl_get(subargs)) {
-        return 1;
-    }
+    if (dst_stl_get(subargs)) return 1;
     ds = *args.ret;
     key = args.v[args.n - 2];
     value = args.v[args.n - 1];
@@ -348,123 +286,61 @@ int dst_stl_put(DstArgs args) {
     return 0;
 }
 
-static int dst_stl_equal(DstArgs args) {
-    int32_t i;
-    for (i = 0; i < args.n - 1; i++) {
-        if (!dst_equals(args.v[i], args.v[i+1])) {
-            *args.ret = dst_wrap_false();
-            return 0;
-        }
-    }
-    *args.ret = dst_wrap_true();
+int dst_stl_gccollect(DstArgs args) {
+    (void) args;
+    dst_collect();
     return 0;
 }
 
-static int dst_stl_notequal(DstArgs args) {
-    int32_t i;
-    for (i = 0; i < args.n - 1; i++) {
-        if (dst_equals(args.v[i], args.v[i+1])) {
-            *args.ret = dst_wrap_false();
-            return 0;
-        }
+int dst_stl_type(DstArgs args) {
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    if (dst_checktype(args.v[0], DST_ABSTRACT)) {
+        return dst_return(args, dst_cstringv(dst_abstract_type(dst_unwrap_abstract(args.v[0]))->name));
+    } else {
+        return dst_return(args, dst_cstringv(dst_type_names[dst_type(args.v[0])]));
     }
-    *args.ret = dst_wrap_true();
-    return 0;
 }
 
-static int dst_stl_not(DstArgs args) {
-    *args.ret = dst_wrap_boolean(args.n == 0 || !dst_truthy(args.v[0]));
-    return 0;
-}
+Dst dst_stl_env() {
+    Dst ret;
+    DstArgs args;
+    DstTable *module = dst_table(0);
+    ret = dst_wrap_table(module);
+    args.n = 1;
+    args.v = &ret;
+    args.ret = &ret;
 
-#define DST_DEFINE_COMPARATOR(name, pred)\
-static int dst_stl_##name(DstArgs args) {\
-    int32_t i;\
-    for (i = 0; i < args.n - 1; i++) {\
-        if (dst_compare(args.v[i], args.v[i+1]) pred) {\
-            *args.ret = dst_wrap_false();\
-            return 0;\
-        }\
-    }\
-    *args.ret = dst_wrap_true();\
-    return 0;\
-}
+    dst_module_def(module, "native", dst_wrap_cfunction(dst_load_native));
+    dst_module_def(module, "push", dst_wrap_cfunction(dst_stl_push));
+    dst_module_def(module, "parse", dst_wrap_cfunction(dst_stl_parse));
+    dst_module_def(module, "compile", dst_wrap_cfunction(dst_stl_compile));
+    dst_module_def(module, "print", dst_wrap_cfunction(dst_stl_print));
+    dst_module_def(module, "describe", dst_wrap_cfunction(dst_stl_describe));
+    dst_module_def(module, "string", dst_wrap_cfunction(dst_stl_string));
+    dst_module_def(module, "buffer-to-string", dst_wrap_cfunction(dst_stl_buffer_to_string));
+    dst_module_def(module, "table", dst_wrap_cfunction(dst_cfun_table));
+    dst_module_def(module, "array", dst_wrap_cfunction(dst_cfun_array));
+    dst_module_def(module, "tuple", dst_wrap_cfunction(dst_cfun_tuple));
+    dst_module_def(module, "struct", dst_wrap_cfunction(dst_cfun_struct));
+    dst_module_def(module, "fiber", dst_wrap_cfunction(dst_stl_fiber));
+    dst_module_def(module, "status", dst_wrap_cfunction(dst_stl_status));
+    dst_module_def(module, "buffer", dst_wrap_cfunction(dst_stl_buffer));
+    dst_module_def(module, "gensym", dst_wrap_cfunction(dst_stl_gensym));
+    dst_module_def(module, "asm", dst_wrap_cfunction(dst_stl_asm));
+    dst_module_def(module, "disasm", dst_wrap_cfunction(dst_stl_disasm));
+    dst_module_def(module, "get", dst_wrap_cfunction(dst_stl_get));
+    dst_module_def(module, "put", dst_wrap_cfunction(dst_stl_put));
+    dst_module_def(module, "length", dst_wrap_cfunction(dst_stl_length));
+    dst_module_def(module, "gccollect", dst_wrap_cfunction(dst_stl_gccollect));
+    dst_module_def(module, "type", dst_wrap_cfunction(dst_stl_type));
+    dst_module_def(module, "exit!", dst_wrap_cfunction(dst_stl_exit));
 
-DST_DEFINE_COMPARATOR(ascending, >= 0)
-DST_DEFINE_COMPARATOR(descending, <= 0)
-DST_DEFINE_COMPARATOR(notdescending, > 0)
-DST_DEFINE_COMPARATOR(notascending, < 0)
+    /* Allow references to the environment */
+    dst_module_def(module, "_env", ret);
 
-static DstReg stl[] = {
-    {"push", dst_stl_push},
-    {"load-native", dst_load_native},
-    {"parse", dst_stl_parse},
-    {"compile", dst_stl_compile},
-    {"int", dst_int},
-    {"real", dst_real},
-    {"print", dst_stl_print},
-    {"describe", dst_stl_describe},
-    {"string", dst_stl_string},
-    {"table", dst_stl_table},
-    {"array", dst_stl_array},
-    {"tuple", dst_stl_tuple},
-    {"struct", dst_stl_struct},
-    {"fiber", dst_stl_fiber},
-    {"status", dst_stl_status},
-    {"buffer", dst_stl_buffer},
-    {"gensym", dst_stl_gensym},
-    {"asm", dst_stl_asm},
-    {"disasm", dst_stl_disasm},
-    {"get", dst_stl_get},
-    {"put", dst_stl_put},
-    {"length", dst_stl_length},
-    {"+", dst_add},
-    {"-", dst_subtract},
-    {"*", dst_multiply},
-    {"/", dst_divide},
-    {"%", dst_modulo},
-    {"cos", dst_cos},
-    {"sin", dst_sin},
-    {"tan", dst_tan},
-    {"acos", dst_acos},
-    {"asin", dst_asin},
-    {"atan", dst_atan},
-    {"exp", dst_exp},
-    {"log", dst_log},
-    {"log10", dst_log10},
-    {"sqrt", dst_sqrt},
-    {"floor", dst_floor},
-    {"ceil", dst_ceil},
-    {"pow", dst_pow},
-    {"=", dst_stl_equal},
-    {"not=", dst_stl_notequal},
-    {"<", dst_stl_ascending},
-    {">", dst_stl_descending},
-    {"<=", dst_stl_notdescending},
-    {">=", dst_stl_notascending},
-    {"|", dst_bor},
-    {"&", dst_band},
-    {"^", dst_bxor},
-    {">>", dst_lshift},
-    {"<<", dst_rshift},
-    {">>>", dst_lshiftu},
-    {"not", dst_stl_not},
-    {"fopen", dst_stl_fileopen},
-    {"fclose", dst_stl_fileclose},
-    {"fwrite", dst_stl_filewrite},
-    {"fread", dst_stl_fileread},
-    {"exit!", dst_stl_exit}
-};
+    /*Load auxiliary modules */
+    dst_io_init(args);
+    dst_math_init(args);
 
-Dst dst_loadstl(int flags) {
-    Dst ret = dst_loadreg(stl, sizeof(stl)/sizeof(DstReg));
-    if (flags & DST_LOAD_ROOT) {
-        dst_gcroot(ret);
-    }
-    if (dst_checktype(ret, DST_TABLE)) {
-        DstTable *v = dst_table(1);
-        dst_table_put(v, dst_csymbolv("value"), ret);
-        dst_put(ret, dst_csymbolv("_env"), dst_wrap_table(v));
-    }
     return ret;
 }

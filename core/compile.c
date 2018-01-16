@@ -728,7 +728,7 @@ DstSlot dstc_tuple(DstFopts opts) {
 }
 
 static DstSlot dstc_array(DstFopts opts) {
-    return dstc_call(opts, dstc_toslots(opts, 0), dstc_cslot(dst_wrap_cfunction(dst_stl_array)));
+    return dstc_call(opts, dstc_toslots(opts, 0), dstc_cslot(dst_wrap_cfunction(dst_cfun_array)));
 }
 
 static DstSlot dstc_tablector(DstFopts opts, DstCFunction cfun) {
@@ -763,10 +763,10 @@ DstSlot dstc_value(DstFopts opts) {
             ret = dstc_array(opts); 
             break;
         case DST_STRUCT:
-            ret = dstc_tablector(opts, dst_stl_struct); 
+            ret = dstc_tablector(opts, dst_cfun_struct); 
             break;
         case DST_TABLE:
-            ret = dstc_tablector(opts, dst_stl_table);
+            ret = dstc_tablector(opts, dst_cfun_table);
             break;
     }
     if (opts.flags & DST_FOPTS_TAIL) {

@@ -216,8 +216,12 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
             free(((DstFunction *)mem)->envs);
             break;
         case DST_MEMORY_ABSTRACT:
-            if (h->type->finalize)
-                h->type->finalize((void *)(h + 1), h->size);
+            if (h->type->gc) {
+                if (h->type->gc((void *)(h + 1), h->size)) {
+                    /* finalizer failed. try again later? */
+                    ;
+                }
+            }
             break;
         case DST_MEMORY_FUNCENV:
             {

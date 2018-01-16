@@ -270,7 +270,8 @@ int main(int argc, char **argv) {
     /* Set up VM */
     dst_init();
     dst_vm_gc_interval = gcinterval;
-    env = dst_loadstl(DST_LOAD_ROOT);
+    env = dst_stl_env();
+    dst_gcroot(env);
 
     /* Read the arguments. Only process files. */
     for (i = 1; i < argc; ++i) {

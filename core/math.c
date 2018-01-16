@@ -293,3 +293,102 @@ int dst_modf(DstArgs args) {
     *args.ret = dst_wrap_tuple(dst_tuple_end(tup));
     return 0;
 }
+
+/* Comparison */
+#define DST_DEFINE_COMPARATOR(name, pred)\
+static int dst_math_##name(DstArgs args) {\
+    int32_t i;\
+    for (i = 0; i < args.n - 1; i++) {\
+        if (dst_compare(args.v[i], args.v[i+1]) pred) {\
+            *args.ret = dst_wrap_false();\
+            return 0;\
+        }\
+    }\
+    *args.ret = dst_wrap_true();\
+    return 0;\
+}
+
+DST_DEFINE_COMPARATOR(ascending, >= 0)
+DST_DEFINE_COMPARATOR(descending, <= 0)
+DST_DEFINE_COMPARATOR(notdescending, > 0)
+DST_DEFINE_COMPARATOR(notascending, < 0)
+
+/* Boolean logic */
+static int dst_math_equal(DstArgs args) {
+    int32_t i;
+    for (i = 0; i < args.n - 1; i++) {
+        if (!dst_equals(args.v[i], args.v[i+1])) {
+            *args.ret = dst_wrap_false();
+            return 0;
+        }
+    }
+    *args.ret = dst_wrap_true();
+    return 0;
+}
+
+static int dst_math_notequal(DstArgs args) {
+    int32_t i;
+    for (i = 0; i < args.n - 1; i++) {
+        if (dst_equals(args.v[i], args.v[i+1])) {
+            *args.ret = dst_wrap_false();
+            return 0;
+        }
+    }
+    *args.ret = dst_wrap_true();
+    return 0;
+}
+
+static int dst_math_not(DstArgs args) {
+    *args.ret = dst_wrap_boolean(args.n == 0 || !dst_truthy(args.v[0]));
+    return 0;
+}
+
+/* CMath entry point */
+
+/* Define the entry point of the library */
+#ifdef DST_LIB
+#define dst_math_init _dst_init
+#endif
+
+/* Module entry point */
+int dst_math_init(DstArgs args) {
+    DstTable *module = dst_get_module(args);
+    dst_module_def(module, "int", dst_wrap_cfunction(dst_int));
+    dst_module_def(module, "real", dst_wrap_cfunction(dst_real));
+    dst_module_def(module, "+", dst_wrap_cfunction(dst_add));
+    dst_module_def(module, "-", dst_wrap_cfunction(dst_subtract));
+    dst_module_def(module, "*", dst_wrap_cfunction(dst_multiply));
+    dst_module_def(module, "/", dst_wrap_cfunction(dst_divide));
+    dst_module_def(module, "%", dst_wrap_cfunction(dst_modulo));
+    dst_module_def(module, "=", dst_wrap_cfunction(dst_math_equal));
+    dst_module_def(module, "not=", dst_wrap_cfunction(dst_math_notequal));
+    dst_module_def(module, "<", dst_wrap_cfunction(dst_math_ascending));
+    dst_module_def(module, ">", dst_wrap_cfunction(dst_math_descending));
+    dst_module_def(module, "<=", dst_wrap_cfunction(dst_math_notdescending));
+    dst_module_def(module, ">=", dst_wrap_cfunction(dst_math_notascending));
+    dst_module_def(module, "|", dst_wrap_cfunction(dst_bor));
+    dst_module_def(module, "&", dst_wrap_cfunction(dst_band));
+    dst_module_def(module, "^", dst_wrap_cfunction(dst_bxor));
+    dst_module_def(module, "~", dst_wrap_cfunction(dst_bnot));
+    dst_module_def(module, ">>", dst_wrap_cfunction(dst_lshift));
+    dst_module_def(module, "<<", dst_wrap_cfunction(dst_rshift));
+    dst_module_def(module, ">>>", dst_wrap_cfunction(dst_lshiftu));
+    dst_module_def(module, "not", dst_wrap_cfunction(dst_math_not));
+    dst_module_def(module, "cos", dst_wrap_cfunction(dst_cos));
+    dst_module_def(module, "sin", dst_wrap_cfunction(dst_sin));
+    dst_module_def(module, "tan", dst_wrap_cfunction(dst_tan));
+    dst_module_def(module, "acos", dst_wrap_cfunction(dst_acos));
+    dst_module_def(module, "asin", dst_wrap_cfunction(dst_asin));
+    dst_module_def(module, "atan", dst_wrap_cfunction(dst_atan));
+    dst_module_def(module, "exp", dst_wrap_cfunction(dst_exp));
+    dst_module_def(module, "log", dst_wrap_cfunction(dst_log));
+    dst_module_def(module, "log10", dst_wrap_cfunction(dst_log10));
+    dst_module_def(module, "sqrt", dst_wrap_cfunction(dst_sqrt));
+    dst_module_def(module, "floor", dst_wrap_cfunction(dst_floor));
+    dst_module_def(module, "ceil", dst_wrap_cfunction(dst_ceil));
+    dst_module_def(module, "pow", dst_wrap_cfunction(dst_pow));
+    dst_module_def(module, "pi", dst_wrap_real(M_PI));
+    dst_module_def(module, "\xCF\x80", dst_wrap_real(M_PI));
+    dst_module_def(module, "e", dst_wrap_real(M_E));
+    return 0;
+}

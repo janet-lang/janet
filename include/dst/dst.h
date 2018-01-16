@@ -158,6 +158,8 @@ void *dst_abstract(const DstAbstractType *type, size_t size);
 int dst_equals(Dst x, Dst y);
 int32_t dst_hash(Dst x);
 int dst_compare(Dst x, Dst y);
+
+/* Data structure functions */
 Dst dst_get(Dst ds, Dst key);
 void dst_put(Dst ds, Dst key, Dst value);
 const DstKV *dst_next(Dst ds, const DstKV *kv);
@@ -179,19 +181,29 @@ int dst_init();
 void dst_deinit();
 int dst_run(Dst callee, Dst *returnreg);
 
-/* Misc */
-Dst dst_loadreg(DstReg *regs, size_t count);
+/* Number scanning */
 Dst dst_scan_number(const uint8_t *src, int32_t len);
 int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);
 double dst_scan_real(const uint8_t *str, int32_t len, int *err);
+
+/* Module helpers */
+DstTable *dst_get_module(DstArgs args);
+void dst_module_def(DstTable *module, const char *name, Dst val);
+void dst_module_var(DstTable *module, const char *name, Dst val);
+
+/* C Function helpers */
+#define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)
+#define dst_throwv(a, v) (*((a).ret) = (v), 1)
+#define dst_return(a, v) (*((a).ret) = (v), 0)
 
 /* Compile */
 DstCompileResult dst_compile(DstCompileOptions opts);
 DstFunction *dst_compile_func(DstCompileResult result);
 
 /* STL */
-#define DST_LOAD_ROOT 1
-Dst dst_loadstl(int flags);
+Dst dst_stl_env();
+int dst_io_init(DstArgs args);
+int dst_math_init(DstArgs args);
 
 /* GC */
 void dst_mark(Dst x);

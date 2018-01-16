@@ -40,7 +40,6 @@ typedef struct DstTable DstTable;
 typedef struct DstFiber DstFiber;
 
 /* Other structs */
-typedef struct DstReg DstReg;
 typedef struct DstAbstractHeader DstAbstractHeader;
 typedef struct DstFuncDef DstFuncDef;
 typedef struct DstFuncEnv DstFuncEnv;
@@ -304,12 +303,6 @@ Dst dst_wrap_abstract(void *x);
 /* End of tagged union implementation */
 #endif
 
-/* Used for creating libraries of cfunctions. */
-struct DstReg {
-    const char *name;
-    DstCFunction function;
-};
-
 /* Hold components of arguments passed to DstCFunction. */
 struct DstArgs {
     int32_t n;
@@ -419,9 +412,7 @@ struct DstFunction {
 /* Defines an abstract type */
 struct DstAbstractType {
     const char *name;
-    int (*serialize)(void *data, size_t len);
-    int (*deserialize)();
-    void (*finalize)(void *data, size_t len);
+    int (*gc)(void *data, size_t len);
 };
 
 /* Contains information about userdata */

@@ -1,19 +1,14 @@
 #include <dst/dst.h>
 
-static void additem(DstTable *t, const char *name, Dst val) {
-    DstTable *subt = dst_table(1);
-    dst_table_put(subt, dst_csymbolv("value"), val);
-    dst_table_put(t, dst_csymbolv(name), dst_wrap_table(subt));
-}
+#ifdef DST_LIB
+#define dst_entry _dst_init
+#else
+#define dst_entry dst_testlib_init
+#endif
 
-int _dst_init(int32_t argn, Dst *argv, Dst *ret) {
-    DstTable *table;
-    if (argn >= 2 && dst_checktype(argv[1], DST_TABLE)) {
-        table = dst_unwrap_table(argv[1]);
-    } else {
-        table = dst_table(0);
-    }
-    additem(table, "pi", dst_wrap_real(M_PI));
-    *ret = dst_wrap_table(table);
+int dst_entry(DstArgs args) {
+    DstTable *module = dst_get_module(args);
+    dst_module_def(module, "pi", dst_wrap_real(M_PI));
+    *args.ret = dst_wrap_table(module);
     return 0;
 }

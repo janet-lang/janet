@@ -25,53 +25,31 @@
 
 #include "dsttypes.h"
 
-/* File type definition */
-extern DstAbstractType dst_stl_filetype;
-
+/* Basic C Functions. These are good
+ * candidates for optimizations like bytecode
+ * inlining and costant folding */
 int dst_int(DstArgs args);
 int dst_real(DstArgs args);
-
 int dst_add(DstArgs args);
 int dst_subtract(DstArgs args);
 int dst_multiply(DstArgs args);
 int dst_divide(DstArgs args);
 int dst_modulo(DstArgs args);
-
-int dst_acos(DstArgs args);
-int dst_asin(DstArgs args);
-int dst_atan(DstArgs args);
-int dst_cos(DstArgs args); 
-int dst_cosh(DstArgs args); 
-int dst_sin(DstArgs args); 
-int dst_sinh(DstArgs args); 
-int dst_tan(DstArgs args); 
-int dst_tanh(DstArgs args); 
-int dst_exp(DstArgs args); 
-int dst_log(DstArgs args); 
-int dst_log10(DstArgs args); 
-int dst_sqrt(DstArgs args); 
-int dst_ceil(DstArgs args); 
-int dst_fabs(DstArgs args); 
-int dst_floor(DstArgs args); 
-int dst_pow(DstArgs args); 
-
-int dst_stl_table(DstArgs args);
-int dst_stl_array(DstArgs args);
-int dst_stl_struct(DstArgs args);
-int dst_stl_tuple(DstArgs args);
-
 int dst_band(DstArgs args);
 int dst_bor(DstArgs args);
 int dst_bxor(DstArgs args);
-
 int dst_lshift(DstArgs arsg);
 int dst_rshift(DstArgs args);
 int dst_lshiftu(DstArgs args);
 
-int dst_stl_fileopen(DstArgs args);
-int dst_stl_slurp(DstArgs args);
-int dst_stl_fileread(DstArgs args);
-int dst_stl_filewrite(DstArgs args);
-int dst_stl_fileclose(DstArgs args);
+/* Native type constructors */
+int dst_cfun_table(DstArgs args);
+int dst_cfun_array(DstArgs args);
+int dst_cfun_struct(DstArgs args);
+int dst_cfun_tuple(DstArgs args);
+
+/* Initialize builtin libraries */
+int dst_io_init(DstArgs args);
+int dst_cmath_init(DstArgs args);
 
 #endif /* DST_MATH_H_defined */

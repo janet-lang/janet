@@ -22,179 +22,233 @@
 
 #include <dst/dst.h>
 
-DstAbstractType dst_stl_filetype = {
-    "stl.file",
-    NULL,
-    NULL,
-    NULL
+#define IO_WRITE 1
+#define IO_READ 2
+#define IO_APPEND 4
+#define IO_UPDATE 8
+#define IO_NOT_CLOSEABLE 16
+#define IO_CLOSED 32
+#define IO_BINARY 64
+#define IO_SERIALIZABLE 128
+
+typedef struct IOFile IOFile;
+struct IOFile {
+    FILE *file;
+    int flags;
 };
 
+static int dst_io_gc(void *p, size_t len);
+
+DstAbstractType dst_io_filetype = {
+    "io.file",
+    dst_io_gc
+};
+
+/* Check argupments to fopen */
+static int checkflags(const uint8_t *str, int32_t len) {
+    int flags = 0;
+    int32_t i;
+    if (!len || len > 3) return -1;
+    switch (*str) {
+        default:
+            return -1;
+        case 'w':
+            flags |= IO_WRITE;
+            break;
+        case 'a':
+            flags |= IO_APPEND;
+            break;
+        case 'r':
+            flags |= IO_READ;
+            break;
+    }
+    for (i = 1; i < len; i++) {
+        switch (str[i]) {
+            default:
+                return -1;
+            case '+':
+                if (flags & IO_UPDATE) return -1;
+                flags |= IO_UPDATE;
+                break;
+            case 'b':
+                if (flags & IO_BINARY) return -1;
+                flags |= IO_BINARY;
+                break;
+        }
+    }
+    return flags;
+}
+
 /* Check file argument */
-static FILE **checkfile(int32_t argn, Dst *argv, Dst *ret, int32_t n) {
-    FILE **fp;
-    if (n >= argn) {
-        *ret = dst_cstringv("expected stl.file");
+static IOFile *checkfile(DstArgs args, int32_t n) {
+    IOFile *iof;
+    if (n >= args.n) {
+        dst_throw(args, "expected io.file");
         return NULL;
     }
-    if (!dst_checktype(argv[n], DST_ABSTRACT)) {
-        *ret = dst_cstringv("expected stl.file");
+    if (!dst_checktype(args.v[n], DST_ABSTRACT)) {
+        dst_throw(args, "expected io.file");
         return NULL;
     }
-    fp = (FILE **) dst_unwrap_abstract(argv[n]);
-    if (dst_abstract_type(fp) != &dst_stl_filetype) {
-        *ret = dst_cstringv("expected stl.file");
+    iof = (IOFile *) dst_unwrap_abstract(args.v[n]);
+    if (dst_abstract_type(iof) != &dst_io_filetype) {
+        dst_throw(args, "expected io.file");
         return NULL;
     }
-    return fp;
+    return iof;
 }
 
 /* Check buffer argument */
-static DstBuffer *checkbuffer(int32_t argn, Dst *argv, Dst *ret, int32_t n, int optional) {
-    if (optional && n == argn) {
+static DstBuffer *checkbuffer(DstArgs args, int32_t n, int optional) {
+    if (optional && n == args.n) {
         return dst_buffer(0);
     }
-    if (n >= argn) {
-        *ret = dst_cstringv("expected buffer");
+    if (n >= args.n) {
+        dst_throw(args, "expected buffer");
         return NULL;
     }
-    if (!dst_checktype(argv[n], DST_BUFFER)) {
-        *ret = dst_cstringv("expected buffer");
+    if (!dst_checktype(args.v[n], DST_BUFFER)) {
+        dst_throw(args, "expected buffer");
         return NULL;
     }
-    return dst_unwrap_abstract(argv[n]);
+    return dst_unwrap_abstract(args.v[n]);
 }
 
 /* Check char array argument */
-static int checkchars(int32_t argn, Dst *argv, Dst *ret, int32_t n, const uint8_t **str, int32_t *len) {
-    if (n >= argn) {
-        *ret = dst_cstringv("expected string/buffer");
+static int checkchars(DstArgs args, int32_t n, const uint8_t **str, int32_t *len) {
+    if (n >= args.n) {
+        dst_throw(args, "expected string/buffer");
         return 0;
     }
-    if (!dst_chararray_view(argv[n], str, len)) {
-        *ret = dst_cstringv("expected string/buffer");
+    if (!dst_chararray_view(args.v[n], str, len)) {
+        dst_throw(args, "expected string/buffer");
         return 0;
     }
     return 1;
 }
 
-/* Open a a file and return a userdata wrapper around the C file API. */
-int dst_stl_fileopen(int32_t argn, Dst *argv, Dst *ret) {
-    if (argn < 2) {
-        *ret = dst_cstringv("expected at least 2 arguments");
-        return 1;
-    }
-    const uint8_t *fname = dst_to_string(argv[0]);
-    const uint8_t *fmode = dst_to_string(argv[1]);
-    FILE *f;
-    FILE **fp;
-    f = fopen((const char *)fname, (const char *)fmode);
-    if (!f) {
-        *ret = dst_cstringv("could not open file");
-        return 1;
-    }
-    fp = dst_abstract(&dst_stl_filetype, sizeof(FILE *));
-    *fp = f;
-    *ret = dst_wrap_abstract(fp);
-    return 0;
+static Dst makef(FILE *f, int flags) {
+    IOFile *iof = (IOFile *) dst_abstract(&dst_io_filetype, sizeof(IOFile));
+    iof->file = f;
+    iof->flags = flags;
+    return dst_wrap_abstract(iof);
 }
 
-/* Read an entire file into memory */
-int dst_stl_slurp(int32_t argn, Dst *argv, Dst *ret) {
-    DstBuffer *b;
-    size_t fsize;
+/* Open a a file and return a userdata wrapper around the C file API. */
+static int dst_io_fopen(DstArgs args) {
+    const uint8_t *fname, *fmode;
+    int32_t modelen;
     FILE *f;
-    FILE **fp = checkfile(argn, argv, ret, 0);
-    if (!fp) return 1;
-    b = checkbuffer(argn, argv, ret, 1, 1);
-    if (!b) return 1;
-    f = *fp;
-    /* Read whole file */
-    fseek(f, 0, SEEK_END);
-    fsize = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if (fsize > INT32_MAX || dst_buffer_extra(b, fsize)) {
-        *ret = dst_cstringv("buffer overflow");
-        return 1;
+    int flags;
+    if (args.n < 1 || args.n > 2) return dst_throw(args, "expected 1 or 2 arguments");
+    if (!dst_checktype(args.v[0], DST_STRING)) return dst_throw(args, "expected string filename");
+    fname = dst_unwrap_string(args.v[0]);
+    if (args.n == 2) {
+        if (!dst_checktype(args.v[1], DST_STRING)) return dst_throw(args, "expected string mode");
+        fmode = dst_unwrap_string(args.v[1]);
+        modelen = dst_string_length(fmode);
+    } else {
+        fmode = (const uint8_t *)"r";
+        modelen = 1;
     }
-    /* Ensure buffer size */
-    if (fsize != fread((char *)(b->data + b->count), fsize, 1, f)) {
-        *ret = dst_cstringv("error reading file");
-        return 1;
-    }
-    b->count += fsize;
-    /* return */
-    *ret = dst_wrap_buffer(b);
-    return 0;
+    if ((flags = checkflags(fmode, modelen)) < 0) return dst_throw(args, "invalid file mode");
+    f = fopen((const char *)fname, (const char *)fmode);
+    if (!f) return dst_throw(args, "could not open file");
+    return dst_return(args, makef(f, flags));
 }
 
 /* Read a certain number of bytes into memory */
-int dst_stl_fileread(int32_t argn, Dst *argv, Dst *ret) {
+static int dst_io_fread(DstArgs args) {
     DstBuffer *b;
-    FILE *f;
     int32_t len;
-    FILE **fp = checkfile(argn, argv, ret, 0);
-    if (!fp) return 1;
-    if (!dst_checktype(argv[1], DST_INTEGER)) {
-        *ret = dst_cstringv("expected positive integer");
-        return 1;
-    }
-    len = dst_unwrap_integer(argv[1]);
-    if (len < 0) {
-        *ret = dst_cstringv("expected positive integer");
-        return 1;
-    }
-    b = checkbuffer(argn, argv, ret, 2, 1);
+    size_t ntoread, nread;
+    IOFile *iof = checkfile(args, 0);
+    if (!iof) return 1;
+    if (!dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected positive integer");
+    len = dst_unwrap_integer(args.v[1]);
+    if (len < 0) return dst_throw(args, "expected positive integer");
+    b = checkbuffer(args, 2, 1);
     if (!b) return 1;
-
-    f = *fp;
+    if (!(iof->flags & (IO_READ | IO_UPDATE))) return dst_throw(args, "file is not readable");
     /* Ensure buffer size */
-    if (dst_buffer_extra(b, len)) {
-        *ret = dst_cstringv("buffer overflow");
-        return 1;
-    }
-    b->count += fread((char *)(b->data + b->count), len, 1, f) * len;
-    *ret = dst_wrap_buffer(b);
-    return 0;
+    if (dst_buffer_extra(b, len)) return dst_throw(args, "buffer overflow");
+    ntoread = len;
+    nread = fread((char *)(b->data + b->count), 1, ntoread, iof->file);
+    if (nread != ntoread && ferror(iof->file)) return dst_throw(args, "could not read file");
+    b->count += len;
+    return dst_return(args, dst_wrap_buffer(b));
 }
 
 /* Write bytes to a file */
-int dst_stl_filewrite(int32_t argn, Dst *argv, Dst *ret) {
-    FILE *f;
+static int dst_io_fwrite(DstArgs args) {
     int32_t len, i;
-    FILE **fp = checkfile(argn, argv, ret, 0);
     const uint8_t *str;
-    if (!fp) return 1;
-    if (!dst_checktype(argv[1], DST_INTEGER)) {
-        *ret = dst_cstringv("expected positive integer");
-        return 1;
+    IOFile *iof = checkfile(args, 0);
+    if (!iof) return 1;
+    if (!(iof->flags & (IO_WRITE | IO_APPEND | IO_UPDATE)))
+        return dst_throw(args, "file is not writeable");
+    for (i = 1; i < args.n; i++) {
+        if (!checkchars(args, i, &str, &len)) return 1;
+        if (!fwrite(str, len, 1, iof->file)) return dst_throw(args, "error writing to file");
     }
-    len = dst_unwrap_integer(argv[1]);
-    if (len < 0) {
-        *ret = dst_cstringv("expected positive integer");
-        return 1;
-    }
-    
-    for (i = 1; i < argn; i++) {
-        if (!checkchars(argn, argv, ret, i, &str, &len)) return 1;
-        
-        f = *fp;
-        if (len != (int32_t) fwrite(str, len, 1, f)) {
-            *ret = dst_cstringv("error writing to file");
-            return 1;
-        }
+    return dst_return(args, dst_wrap_abstract(iof));
+}
+
+/* Flush the bytes in the file */
+static int dst_io_fflush(DstArgs args) {
+    IOFile *iof = checkfile(args, 0);
+    if (!iof) return 1;
+    if (!(iof->flags & (IO_WRITE | IO_APPEND | IO_UPDATE)))
+        return dst_throw(args, "file is not flushable");
+    if (fflush(iof->file)) return dst_throw(args, "could not flush file");
+    return dst_return(args, dst_wrap_abstract(iof));
+}
+
+/* Cleanup a file */
+static int dst_io_gc(void *p, size_t len) {
+    (void) len;
+    IOFile *iof = (IOFile *)p;
+    if (!(iof->flags & (IO_NOT_CLOSEABLE | IO_CLOSED))) {
+        return fclose(iof->file);
     }
     return 0;
 }
 
 /* Close a file */
-int dst_stl_fileclose(int32_t argn, Dst *argv, Dst *ret) {
-    FILE *f;
-    FILE **fp = checkfile(argn, argv, ret, 0);
-    if (!fp) return 1;
-    f = *fp;
-    if (fclose(f)) {
-        *ret = dst_cstringv("could not close file");
-        return 1;
-    }
+static int dst_io_fclose(DstArgs args) {
+    IOFile *iof = checkfile(args, 0);
+    if (!iof) return 1;
+    if (iof->flags & (IO_CLOSED | IO_NOT_CLOSEABLE)) return dst_throw(args, "could not close file");
+    if (fclose(iof->file)) return dst_throw(args, "could not close file");
+    iof->flags |= IO_CLOSED;
+    return dst_return(args, dst_wrap_abstract(iof));
+}
+
+/* Define the entry point of the library */
+#ifdef DST_LIB
+#define dst_io_init _dst_init
+#endif
+
+/* Module entry point */
+int dst_io_init(DstArgs args) {
+    DstTable *module = dst_get_module(args);
+    dst_module_def(module, "fopen", dst_wrap_cfunction(dst_io_fopen));
+    dst_module_def(module, "fclose", dst_wrap_cfunction(dst_io_fclose));
+    dst_module_def(module, "fread", dst_wrap_cfunction(dst_io_fread));
+    dst_module_def(module, "fwrite", dst_wrap_cfunction(dst_io_fwrite));
+    dst_module_def(module, "fflush", dst_wrap_cfunction(dst_io_fflush));
+
+    /* stdout */
+    dst_module_def(module, "stdout",
+            makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
+
+    /* stderr */
+    dst_module_def(module, "stderr",
+            makef(stderr, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
+
+    /* stdin */
+    dst_module_def(module, "stdin",
+            makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
+
     return 0;
 }

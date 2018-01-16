@@ -21,7 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include "strtod.h"
 
 /* Checks if a string slice is equal to a string constant */
 static int check_str_const(const char *ref, const uint8_t *start, const uint8_t *end) {
