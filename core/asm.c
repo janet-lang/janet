@@ -25,7 +25,6 @@
 #include <dst/dst.h>
 #include "opcodes.h"
 #include "gc.h"
-#include "sourcemap.h"
 #include "util.h"
 
 /* Bytecode op argument types */

@@ -47,6 +47,8 @@ typedef struct DstKV DstKV;
 typedef struct DstStackFrame DstStackFrame;
 typedef struct DstAbstractType DstAbstractType;
 typedef struct DstArgs DstArgs;
+typedef struct DstAst DstAst;
+typedef struct DstContext DstContext;
 typedef int (*DstCFunction)(DstArgs args);
 
 typedef enum DstAssembleStatus DstAssembleStatus;
@@ -413,6 +415,7 @@ struct DstFunction {
 struct DstAbstractType {
     const char *name;
     int (*gc)(void *data, size_t len);
+    int (*gcmark)(void *data, size_t len);
 };
 
 /* Contains information about userdata */
@@ -454,9 +457,17 @@ struct DstCompileResult {
 
 struct DstCompileOptions {
     uint32_t flags;
-    const Dst *sourcemap;
     Dst source;
     Dst env;
+};
+
+/* ASTs are simple wrappers around values. They contain information about sourcemapping
+ * and other meta data. Possibly types? They are used mainly during compilation and parsing */
+struct DstAst {
+    Dst value;
+    int32_t source_start;
+    int32_t source_end;
+    int flags;
 };
 
 /* Parse structs */
@@ -470,9 +481,28 @@ enum DstParseStatus {
 struct DstParseResult {
     Dst value;
     const uint8_t *error;
-    const Dst *map;
     int32_t bytes_read;
     DstParseStatus status;
+};
+
+typedef enum {
+    DST_CONTEXT_ERROR_PARSE,
+    DST_CONTEXT_ERROR_COMPILE,
+    DST_CONTEXT_ERROR_RUNTIME
+} DstContextErrorType;
+
+/* Evaluation context. Encapsulates parsing and compiling for easier integration
+ * with client programs. */
+struct DstContext {
+    Dst env;
+    DstBuffer buffer;
+    size_t flushed_bytes;
+    void *user;
+
+    void (*read_chunk)(DstContext *self);
+    void (*on_error)(DstContext *self, DstContextErrorType type, Dst err, size_t start, size_t end);
+    void (*on_value)(DstContext *self, Dst value);
+    void (*deinit)(DstContext *self);
 };
 
 #endif /* DST_TYPES_H_defined */

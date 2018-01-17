@@ -73,7 +73,12 @@ static void dst_mark_buffer(DstBuffer *buffer) {
 }
 
 static void dst_mark_abstract(void *adata) {
+    if (dst_gc_reachable(dst_abstract_header(adata)))
+        return;
     dst_gc_mark(dst_abstract_header(adata));
+    if (dst_abstract_header(adata)->type->gcmark) {
+        dst_abstract_header(adata)->type->gcmark(adata, dst_abstract_size(adata));
+    }
 }
 
 /* Mark a bunch of items in memory */

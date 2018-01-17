@@ -170,6 +170,12 @@ int32_t dst_capacity(Dst x);
 Dst dst_getindex(Dst ds, int32_t index);
 void dst_setindex(Dst ds, Dst value, int32_t index);
 
+/* AST */
+Dst dst_ast_wrap(Dst x, int32_t start, int32_t end);
+DstAst *dst_ast_node(Dst x);
+Dst dst_ast_unwrap1(Dst x);
+Dst dst_ast_unwrap(Dst x);
+
 /* Parsing */
 DstParseResult dst_parse(const uint8_t *src, int32_t len);
 DstParseResult dst_parsec(const char *src);
@@ -193,6 +199,10 @@ double dst_scan_real(const uint8_t *str, int32_t len, int *err);
 DstTable *dst_get_module(DstArgs args);
 void dst_module_def(DstTable *module, const char *name, Dst val);
 void dst_module_var(DstTable *module, const char *name, Dst val);
+
+/* Context functions */
+void dst_context_repl(DstContext *c, Dst env);
+int dst_context_run(DstContext *c);
 
 /* C Function helpers */
 #define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)

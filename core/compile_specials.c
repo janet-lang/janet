@@ -24,50 +24,49 @@
 #include <dst/dststl.h>
 #include "compile.h"
 #include "gc.h"
-#include "sourcemap.h"
 #include "util.h"
 
-DstSlot dstc_quote(DstFopts opts, int32_t argn, const Dst *argv) {
+DstSlot dstc_quote(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     if (argn != 1) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected 1 argument");
+        dstc_cerror(opts.compiler, ast, "expected 1 argument");
         return dstc_cslot(dst_wrap_nil());
     }
-    return dstc_cslot(argv[0]);
+    return dstc_cslot(dst_ast_unwrap(argv[0]));
 }
 
-DstSlot dstc_varset(DstFopts opts, int32_t argn, const Dst *argv) {
-    DstFopts subopts;
+DstSlot dstc_varset(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+    DstFopts subopts = dstc_fopts_default(opts.compiler);
     DstSlot ret, dest;
+    Dst head;
     if (argn != 2) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected 2 arguments");
+        dstc_cerror(opts.compiler, ast, "expected 2 arguments");
         return dstc_cslot(dst_wrap_nil());
     }
-    if (!dst_checktype(argv[0], DST_SYMBOL)) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected symbol");
+    head = dst_ast_unwrap(argv[0]);
+    if (!dst_checktype(head, DST_SYMBOL)) {
+        dstc_cerror(opts.compiler, ast, "expected symbol");
         return dstc_cslot(dst_wrap_nil());
     }
-    dest = dstc_resolve(opts.compiler, opts.sourcemap, dst_unwrap_symbol(argv[0]));
+    dest = dstc_resolve(opts.compiler, ast, dst_unwrap_symbol(head));
     if (!(dest.flags & DST_SLOT_MUTABLE)) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "cannot set constant");
+        dstc_cerror(opts.compiler, ast, "cannot set constant");
         return dstc_cslot(dst_wrap_nil());
     }
-    subopts = dstc_getindex(opts, 2);
     subopts.flags = DST_FOPTS_HINT;
     subopts.hint = dest;
-    ret = dstc_value(subopts);
-    dstc_copy(opts.compiler, subopts.sourcemap, dest, ret);
+    ret = dstc_value(subopts, argv[1]);
+    dstc_copy(opts.compiler, ast, dest, ret);
     return ret;
 }
 
 /* Add attributes to a global def or var table */
-static void handleattr(DstFopts opts, int32_t argn, const Dst *argv, DstTable *tab) {
+static void handleattr(DstCompiler *c, int32_t argn, const Dst *argv, DstTable *tab) {
     int32_t i;
     for (i = 1; i < argn - 1; i++) {
-        Dst attr = argv[i];
-        DstFopts subopts = dstc_getindex(opts, i + 1);
+        Dst attr = dst_ast_unwrap1(argv[i]);
         switch (dst_type(attr)) {
             default:
-                dstc_cerror(opts.compiler, subopts.sourcemap, "could not add meta data to def");
+                dstc_cerror(c, dst_ast_node(argv[i]), "could not add metadata to binding");
                 return;
             case DST_SYMBOL:
                 dst_table_put(tab, attr, dst_wrap_true());
@@ -79,45 +78,44 @@ static void handleattr(DstFopts opts, int32_t argn, const Dst *argv, DstTable *t
     }
 }
 
-DstSlot dstc_var(DstFopts opts, int32_t argn, const Dst *argv) {
+DstSlot dstc_var(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    DstFopts subopts;
+    DstFopts subopts = dstc_fopts_default(c);
+    Dst head;
     DstSlot ret;
     if (argn < 2) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected at least 2 arguments");
+        dstc_cerror(c, ast, "expected at least 2 arguments");
         return dstc_cslot(dst_wrap_nil());
     }
-    if (!dst_checktype(argv[0], DST_SYMBOL)) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected symbol");
+    head = dst_ast_unwrap1(argv[0]);
+    if (!dst_checktype(head, DST_SYMBOL)) {
+        dstc_cerror(c, dst_ast_node(argv[0]), "expected symbol");
         return dstc_cslot(dst_wrap_nil());
     }
-    subopts = dstc_getindex(opts, argn);
     subopts.flags = opts.flags & ~DST_FOPTS_TAIL;
-    ret = dstc_value(subopts);
+    subopts.hint = opts.hint;
+    ret = dstc_value(subopts, argv[argn - 1]);
     if (dst_v_last(c->scopes).flags & DST_SCOPE_TOP) {
-        DstCompiler *c = opts.compiler;
-        const Dst *sm = opts.sourcemap;
         DstSlot refslot, refarrayslot;
         /* Global var, generate var */
         DstTable *reftab = dst_table(1);
         DstArray *ref = dst_array(1);
         dst_array_push(ref, dst_wrap_nil());
         dst_table_put(reftab, dst_csymbolv("ref"), dst_wrap_array(ref));
-        handleattr(opts, argn, argv, reftab);
-        dst_put(opts.compiler->env, argv[0], dst_wrap_table(reftab));
+        handleattr(c, argn, argv, reftab);
+        dst_put(c->env, head, dst_wrap_table(reftab));
         refslot = dstc_cslot(dst_wrap_array(ref));
         refarrayslot = refslot;
         refslot.flags |= DST_SLOT_REF | DST_SLOT_NAMED | DST_SLOT_MUTABLE;
         /* Generate code to set ref */
-        int32_t refarrayindex = dstc_preread(c, sm, 0xFF, 1, refarrayslot);
-        int32_t retindex = dstc_preread(c, sm, 0xFF, 2, ret);
-        dstc_emit(c, sm,
+        int32_t refarrayindex = dstc_preread(c, ast, 0xFF, 1, refarrayslot);
+        int32_t retindex = dstc_preread(c, ast, 0xFF, 2, ret);
+        dstc_emit(c, ast,
                 (retindex << 16) |
                 (refarrayindex << 8) |
                 DOP_PUT_INDEX);
         dstc_postread(c, refarrayslot, refarrayindex);
         dstc_postread(c, ret, retindex);
-        /*dstc_freeslot(c, refarrayslot);*/
         ret = refslot;
     } else {
         /* Non root scope, bring to local slot */
@@ -132,30 +130,30 @@ DstSlot dstc_var(DstFopts opts, int32_t argn, const Dst *argv) {
             localslot.flags = DST_SLOT_NAMED | DST_SLOT_MUTABLE;
             localslot.envindex = 0;
             localslot.constant = dst_wrap_nil();
-            dstc_copy(opts.compiler, opts.sourcemap, localslot, ret);
+            dstc_copy(c, ast, localslot, ret);
             ret = localslot;
         }
-        dstc_nameslot(c, dst_unwrap_symbol(argv[0]), ret); 
+        dstc_nameslot(c, dst_unwrap_symbol(head), ret); 
     }
     return ret;
 }
 
-DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
+DstSlot dstc_def(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    const Dst *sm = opts.sourcemap;
-    DstFopts subopts;
+    DstFopts subopts = dstc_fopts_default(c);
     DstSlot ret;
+    Dst head;
     if (argn < 2) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected at least 2 arguments");
+        dstc_cerror(c, ast, "expected at least 2 arguments");
         return dstc_cslot(dst_wrap_nil());
     }
-    if (!dst_checktype(argv[0], DST_SYMBOL)) {
-        dstc_cerror(opts.compiler, opts.sourcemap, "expected symbol");
+    head = dst_ast_unwrap1(argv[0]);
+    if (!dst_checktype(head, DST_SYMBOL)) {
+        dstc_cerror(c, dst_ast_node(argv[0]), "expected symbol");
         return dstc_cslot(dst_wrap_nil());
     }
-    subopts = dstc_getindex(opts, argn);
-    subopts.flags &= ~DST_FOPTS_TAIL;
-    ret = dstc_value(subopts);
+    subopts.flags = opts.flags & ~DST_FOPTS_TAIL;
+    ret = dstc_value(subopts, argv[argn - 1]);
     ret.flags |= DST_SLOT_NAMED;
     if (dst_v_last(c->scopes).flags & DST_SCOPE_TOP) {
         DstTable *tab = dst_table(2);
@@ -164,14 +162,14 @@ DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
         DstSlot tabslot = dstc_cslot(dst_wrap_table(tab));
 
         /* Add env entry to env */
-        handleattr(opts, argn, argv, tab);
-        dst_put(c->env, argv[0], dst_wrap_table(tab));
+        handleattr(c, argn, argv, tab);
+        dst_put(c->env, head, dst_wrap_table(tab));
 
         /* Put value in table when evaulated */
-        tableindex = dstc_preread(c, sm, 0xFF, 1, tabslot);
-        valsymindex = dstc_preread(c, sm, 0xFF, 2, valsym);
-        valueindex = dstc_preread(c, sm, 0xFF, 3, ret);
-        dstc_emit(c, sm, 
+        tableindex = dstc_preread(c, ast, 0xFF, 1, tabslot);
+        valsymindex = dstc_preread(c, ast, 0xFF, 2, valsym);
+        valueindex = dstc_preread(c, ast, 0xFF, 3, ret);
+        dstc_emit(c, ast, 
                 (valueindex << 24) |
                 (valsymindex << 16) |
                 (tableindex << 8) |
@@ -181,7 +179,7 @@ DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
         dstc_postread(c, ret, valueindex);
     } else {
         /* Non root scope, simple slot alias */
-        dstc_nameslot(c, dst_unwrap_symbol(argv[0]), ret); 
+        dstc_nameslot(c, dst_unwrap_symbol(head), ret); 
     }
     return ret;
 }
@@ -197,57 +195,45 @@ DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
  * ...
  * :done
  */
-DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
+DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    const Dst *sm = opts.sourcemap;
     int32_t labelr, labeljr, labeld, labeljd, condlocal;
-    DstFopts leftopts, rightopts, condopts;
+    DstFopts condopts, bodyopts;
     DstSlot cond, left, right, target;
+    Dst truebody, falsebody;
     const int tail = opts.flags & DST_FOPTS_TAIL;
     const int drop = opts.flags & DST_FOPTS_DROP;
     (void) argv;
 
     if (argn < 2 || argn > 3) {
-        dstc_cerror(c, sm, "expected 2 or 3 arguments to if");
+        dstc_cerror(c, ast, "expected 2 or 3 arguments to if");
         return dstc_cslot(dst_wrap_nil());
     }
 
+    /* Get the bodies of the if expression */
+    truebody = argv[1];
+    falsebody = argn > 2 ? argv[2] : dst_wrap_nil();
+
     /* Get options */
-    condopts = dstc_getindex(opts, 1);
-    leftopts = dstc_getindex(opts, 2);
-    rightopts = dstc_getindex(opts, 3);
-    if (argn == 2) rightopts.sourcemap = opts.sourcemap;
-    if (opts.flags & DST_FOPTS_HINT) {
-        leftopts.flags |= DST_FOPTS_HINT;
-        rightopts.flags |= DST_FOPTS_HINT;
-    }
-    if (tail) {
-        leftopts.flags |= DST_FOPTS_TAIL;
-        rightopts.flags |= DST_FOPTS_TAIL;
-    }
-    if (drop) {
-        leftopts.flags |= DST_FOPTS_DROP;
-        rightopts.flags |= DST_FOPTS_DROP;
-    }
+    condopts = dstc_fopts_default(c);
+    bodyopts = opts;
 
     /* Compile condition */
-    cond = dstc_value(condopts);
+    cond = dstc_value(condopts, argv[0]);
 
     /* Check constant condition. */
     /* TODO: Use type info for more short circuits */
     if ((cond.flags & DST_SLOT_CONSTANT) && !(cond.flags & DST_SLOT_REF)) {
-        DstFopts goodopts, badopts;
-        if (dst_truthy(cond.constant)) {
-            goodopts = leftopts;
-            badopts = rightopts;
-        } else {
-            goodopts = rightopts;
-            badopts = leftopts;
+        if (!dst_truthy(cond.constant)) {
+            /* Swap the true and false bodies */
+            Dst temp = falsebody;
+            falsebody = truebody;
+            truebody = temp;
         }
         dstc_scope(c, 0);
-        target = dstc_value(goodopts);
+        target = dstc_value(bodyopts, truebody);
         dstc_popscope(c);
-        dstc_throwaway(badopts);
+        dstc_throwaway(bodyopts, falsebody);
         return target;
     }
 
@@ -257,27 +243,27 @@ DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
         : dstc_cslot(dst_wrap_nil());
 
     /* Compile jump to right */
-    condlocal = dstc_preread(c, sm, 0xFF, 1, cond);
+    condlocal = dstc_preread(c, ast, 0xFF, 1, cond);
     labeljr = dst_v_count(c->buffer);
-    dstc_emit(c, sm, DOP_JUMP_IF_NOT | (condlocal << 8));
+    dstc_emit(c, ast, DOP_JUMP_IF_NOT | (condlocal << 8));
     dstc_postread(c, cond, condlocal);
     dstc_freeslot(c, cond);
 
     /* Condition left body */
     dstc_scope(c, 0);
-    left = dstc_value(leftopts);
-    if (!drop && !tail) dstc_copy(c, sm, target, left); 
+    left = dstc_value(bodyopts, truebody);
+    if (!drop && !tail) dstc_copy(c, ast, target, left); 
     dstc_popscope(c);
 
     /* Compile jump to done */
     labeljd = dst_v_count(c->buffer);
-    if (!tail) dstc_emit(c, sm, DOP_JUMP);
+    if (!tail) dstc_emit(c, ast, DOP_JUMP);
 
     /* Compile right body */
     labelr = dst_v_count(c->buffer);
     dstc_scope(c, 0);
-    right = dstc_value(rightopts);
-    if (!drop && !tail) dstc_copy(c, sm, target, right); 
+    right = dstc_value(bodyopts, falsebody);
+    if (!drop && !tail) dstc_copy(c, ast, target, right); 
     dstc_popscope(c);
 
     /* Write jumps - only add jump lengths if jump actually emitted */
@@ -291,44 +277,44 @@ DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
 
 /* Compile a do form. Do forms execute their body sequentially and
  * evaluate to the last expression in the body. */
-DstSlot dstc_do(DstFopts opts, int32_t argn, const Dst *argv) {
+DstSlot dstc_do(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     int32_t i;
     DstSlot ret;
-    dstc_scope(opts.compiler, 0);
-    (void) argv;
+    DstCompiler *c = opts.compiler;
+    DstFopts subopts = dstc_fopts_default(c);
+    (void) ast;
+    dstc_scope(c, 0);
     for (i = 0; i < argn; i++) {
-        DstFopts subopts = dstc_getindex(opts, i + 1);
         if (i != argn - 1) {
             subopts.flags = DST_FOPTS_DROP;
         } else if (opts.flags & DST_FOPTS_TAIL) {
             subopts.flags = DST_FOPTS_TAIL;
         }
-        ret = dstc_value(subopts);
+        ret = dstc_value(subopts, argv[i]);
         if (i != argn - 1) {
-            dstc_freeslot(opts.compiler, ret);
+            dstc_freeslot(c, ret);
         }
     }
-    dstc_popscope_keepslot(opts.compiler, ret);
+    dstc_popscope_keepslot(c, ret);
     return ret;
 }
 
-DstSlot dstc_transfer(DstFopts opts, int32_t argn, const Dst *argv) {
+DstSlot dstc_transfer(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    const Dst *sm = opts.sourcemap;
+    DstFopts subopts = dstc_fopts_default(c);;
     DstSlot dest, fib, val;
     int32_t destindex, fibindex, valindex;
-    (void) argv;
     if (argn > 2) {
-        dstc_cerror(c, sm, "expected no more than 2 arguments");
+        dstc_cerror(c, ast, "expected no more than 2 arguments");
         return dstc_cslot(dst_wrap_nil());
     }
     dest = dstc_gettarget(opts);
-    fib = (argn > 0) ? dstc_value(dstc_getindex(opts, 1)) : dstc_cslot(dst_wrap_nil());
-    val = (argn > 1) ? dstc_value(dstc_getindex(opts, 2)) : dstc_cslot(dst_wrap_nil());
-    destindex = dstc_preread(c, sm, 0xFF, 1, dest);
-    fibindex = dstc_preread(c, sm, 0xFF, 2, fib);
-    valindex = dstc_preread(c, sm, 0xFF, 3, val);
-    dstc_emit(c, sm, 
+    fib = (argn > 0) ? dstc_value(subopts, argv[0]) : dstc_cslot(dst_wrap_nil());
+    val = (argn > 1) ? dstc_value(subopts, argv[1]) : dstc_cslot(dst_wrap_nil());
+    destindex = dstc_preread(c, ast, 0xFF, 1, dest);
+    fibindex = dstc_preread(c, ast, 0xFF, 2, fib);
+    valindex = dstc_preread(c, ast, 0xFF, 3, val);
+    dstc_emit(c, ast, 
             (valindex << 24) |
             (fibindex << 16) |
             (destindex << 8) |
@@ -350,23 +336,22 @@ DstSlot dstc_transfer(DstFopts opts, int32_t argn, const Dst *argv) {
  * jump :whiletop
  * :done
  */
-DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
+DstSlot dstc_while(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    const Dst *sm = opts.sourcemap;
     DstSlot cond;
+    DstFopts subopts = dstc_fopts_default(c);
     int32_t condlocal, labelwt, labeld, labeljt, labelc, i;
     int infinite = 0;
-    (void) argv;
 
     if (argn < 2) {
-        dstc_cerror(c, sm, "expected at least 2 arguments");
+        dstc_cerror(c, ast, "expected at least 2 arguments");
         return dstc_cslot(dst_wrap_nil());
     }
 
     labelwt = dst_v_count(c->buffer);
 
     /* Compile condition */
-    cond = dstc_value(dstc_getindex(opts, 1));
+    cond = dstc_value(subopts, argv[0]);
 
     /* Check for constant condition */
     if (cond.flags & DST_SLOT_CONSTANT) {
@@ -382,22 +367,21 @@ DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
 
     /* Infinite loop does not need to check condition */
     if (!infinite) {
-        condlocal = dstc_preread(c, sm, 0xFF, 1, cond);
+        condlocal = dstc_preread(c, ast, 0xFF, 1, cond);
         labelc = dst_v_count(c->buffer);
-        dstc_emit(c, sm, DOP_JUMP_IF_NOT | (condlocal << 8));
+        dstc_emit(c, ast, DOP_JUMP_IF_NOT | (condlocal << 8));
         dstc_postread(c, cond, condlocal);
     }
 
     /* Compile body */
     for (i = 1; i < argn; i++) {
-        DstFopts subopts = dstc_getindex(opts, i + 1);
         subopts.flags = DST_FOPTS_DROP;
-        dstc_freeslot(c, dstc_value(subopts));
+        dstc_freeslot(c, dstc_value(subopts, argv[i]));
     }
 
     /* Compile jump to whiletop */
     labeljt = dst_v_count(c->buffer);
-    dstc_emit(c, sm, DOP_JUMP);
+    dstc_emit(c, ast, DOP_JUMP);
 
     /* Calculate jumps */
     labeld = dst_v_count(c->buffer);
@@ -405,7 +389,7 @@ DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
     c->buffer[labeljt] |= (labelwt - labeljt) << 8;
 
     /* Pop scope and return nil slot */
-    dstc_popscope(opts.compiler);
+    dstc_popscope(c);
 
     return dstc_cslot(dst_wrap_nil());
 }
@@ -423,18 +407,18 @@ static int32_t dstc_addfuncdef(DstCompiler *c, DstFuncDef *def) {
     return dst_v_count(scope->defs) - 1;
 }
 
-DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
+DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
-    const Dst *sm = opts.sourcemap;
     DstFuncDef *def;
     DstSlot ret;
+    Dst head, paramv;
     int32_t paramcount, argi, parami, arity, localslot, defindex;
+    DstFopts subopts = dstc_fopts_default(c);
     const Dst *params;
-    const Dst *psm;
     int varargs = 0;
 
     if (argn < 2) {
-        dstc_cerror(c, sm, "expected at least 2 arguments to function literal");
+        dstc_cerror(c, ast, "expected at least 2 arguments to function literal");
         return dstc_cslot(dst_wrap_nil());
     }
 
@@ -444,22 +428,23 @@ DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     /* Read function parameters */
     parami = 0;
     arity = 0;
-    if (dst_checktype(argv[0], DST_SYMBOL)) parami = 1;
+    head = dst_ast_unwrap(argv[0]);
+    if (dst_checktype(head, DST_SYMBOL)) parami = 1;
     if (parami >= argn) {
-        dstc_cerror(c, sm, "expected function parameters");
+        dstc_cerror(c, dst_ast_node(argv[0]), "expected function parameters");
         return dstc_cslot(dst_wrap_nil());
     }
-    if (dst_seq_view(argv[parami], &params, &paramcount)) {
-        psm = dst_sourcemap_index(sm, parami + 1);
+    paramv = dst_ast_unwrap(argv[parami]);
+    if (dst_seq_view(paramv, &params, &paramcount)) {
         int32_t i;
         for (i = 0; i < paramcount; i++) {
-            const Dst *psmi = dst_sourcemap_index(psm, i);
-            if (dst_checktype(params[i], DST_SYMBOL)) {
+            Dst param = dst_ast_unwrap(params[i]);
+            if (dst_checktype(param, DST_SYMBOL)) {
                 DstSlot slot;
                 /* Check for varargs */
-                if (0 == dst_cstrcmp(dst_unwrap_symbol(params[i]), "&")) {
+                if (0 == dst_cstrcmp(dst_unwrap_symbol(param), "&")) {
                     if (i != paramcount - 2) {
-                        dstc_cerror(c, psmi, "variable argument symbol in unexpected location");
+                        dstc_cerror(c, dst_ast_node(params[i]), "variable argument symbol in unexpected location");
                         return dstc_cslot(dst_wrap_nil());
                     }
                     varargs = 1;
@@ -470,24 +455,23 @@ DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
                 slot.envindex = 0;
                 slot.constant = dst_wrap_nil();
                 slot.index = dstc_lsloti(c);
-                dstc_nameslot(c, dst_unwrap_symbol(params[i]), slot);
+                dstc_nameslot(c, dst_unwrap_symbol(param), slot);
                 arity++;
             } else {
-                dstc_cerror(c, psmi, "expected symbol as function parameter");
+                dstc_cerror(c, dst_ast_node(params[i]), "expected symbol as function parameter");
                 return dstc_cslot(dst_wrap_nil());
             }
         }
     } else {
-        dstc_cerror(c, sm, "expected function parameters");
+        dstc_cerror(c, ast, "expected function parameters");
         return dstc_cslot(dst_wrap_nil());
     }
 
     /* Compile function body */
     for (argi = parami + 1; argi < argn; argi++) {
         DstSlot s;
-        DstFopts subopts = dstc_getindex(opts, argi + 1);
         subopts.flags = argi == (argn - 1) ? DST_FOPTS_TAIL : DST_FOPTS_DROP;
-        s = dstc_value(subopts);
+        s = dstc_value(subopts, argv[argi]);
         dstc_freeslot(c, s);
     }
     
@@ -504,13 +488,13 @@ DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     ret = dstc_gettarget(opts);
 
     localslot = ret.index > 0xF0 ? 0xF1 : ret.index;
-    dstc_emit(c, sm,
+    dstc_emit(c, ast,
             (defindex << 16) |
             (localslot << 8) |
             DOP_CLOSURE);
     
     if (ret.index != localslot) {
-        dstc_emit(c, sm, 
+        dstc_emit(c, ast, 
                 (ret.index << 16) |
                 (localslot << 8) |
                 DOP_MOVE_FAR);

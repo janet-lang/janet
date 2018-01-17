@@ -56,20 +56,8 @@ struct DstSlot {
 /* Slot and map pairing */
 typedef struct DstSM {
     DstSlot slot;
-    const Dst *map;
+    DstAst *map;
 } DstSM;
-
-/* Special forms that need support */
-/* cond
- * while (continue, break)
- * quote
- * fn
- * def
- * var
- * varset
- * do
- * apply (overloaded with normal function)
- */
 
 #define DST_SCOPE_FUNCTION 1
 #define DST_SCOPE_ENV 2
@@ -128,24 +116,25 @@ struct DstCompiler {
 /* Options for compiling a single form */
 struct DstFopts {
     DstCompiler *compiler;
-    Dst x;
-    const Dst *sourcemap;
     uint32_t flags; /* bit set of accepted primitive types */
     DstSlot hint;
 };
+
+/* Get the default form options */
+DstFopts dstc_fopts_default(DstCompiler *c);
 
 /* A grouping of optimizations on a cfunction given certain conditions
  * on the arguments (such as all constants, or some known types). The appropriate
  * optimizations should be tried before compiling a normal function call. */
 typedef struct DstCFunOptimizer {
     DstCFunction cfun;
-    DstSlot (*optimize)(DstFopts opts, int32_t argn, const Dst *argv);
+    DstSlot (*optimize)(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv);
 } DstCFunOptimizer;
 
 /* A grouping of a named special and the corresponding compiler fragment */
 typedef struct DstSpecial {
     const char *name;
-    DstSlot (*compile)(DstFopts opts, int32_t argn, const Dst *argv);
+    DstSlot (*compile)(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv);
 } DstSpecial;
 
 /****************************************************/
@@ -180,7 +169,7 @@ void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s);
  * that can be used in an instruction. */
 int32_t dstc_preread(
         DstCompiler *c,
-        const Dst *sourcemap,
+        DstAst *ast,
         int32_t max,
         int nth,
         DstSlot s);
@@ -191,47 +180,41 @@ void dstc_postread(DstCompiler *c, DstSlot s, int32_t index);
 /* Move value from one slot to another. Cannot copy to constant slots. */
 void dstc_copy(
         DstCompiler *c,
-        const Dst *sourcemap,
+        DstAst *ast,
         DstSlot dest,
         DstSlot src);
 
 /* Throw away some code after checking that it is well formed. */
-void dstc_throwaway(DstFopts opts);
+void dstc_throwaway(DstFopts opts, Dst x);
 
 /* Generate the return instruction for a slot. */
-DstSlot dstc_return(DstCompiler *c, const Dst *sourcemap, DstSlot s);
+DstSlot dstc_return(DstCompiler *c, DstAst *ast, DstSlot s);
 
 /* Get a target slot for emitting an instruction. Will always return
  * a local slot. */
 DstSlot dstc_gettarget(DstFopts opts);
 
 /* Get a bunch of slots for function arguments */
-DstSM *dstc_toslots(DstFopts opts, int32_t start);
+DstSM *dstc_toslots(DstCompiler *c, const Dst *vals, int32_t len);
 
 /* Get a bunch of slots for function arguments */
-DstSM *dstc_toslotskv(DstFopts opts);
+DstSM *dstc_toslotskv(DstCompiler *c, Dst ds);
 
 /* Push slots load via dstc_toslots. */
-void dstc_pushslots(DstFopts opts, DstSM *sms);
+void dstc_pushslots(DstCompiler *c, DstAst *ast, DstSM *sms);
 
 /* Free slots loaded via dstc_toslots */
-void dstc_freeslots(DstFopts opts, DstSM *sms);
+void dstc_freeslots(DstCompiler *c, DstSM *sms);
 
 /* Store an error */
-void dstc_error(DstCompiler *c, const Dst *sourcemap, const uint8_t *m);
-void dstc_cerror(DstCompiler *c, const Dst *sourcemap, const char *m);
+void dstc_error(DstCompiler *c, DstAst *ast, const uint8_t *m);
+void dstc_cerror(DstCompiler *c, DstAst *ast, const char *m);
 
 /* Dispatch to correct form compiler */
-DstSlot dstc_value(DstFopts opts);
+DstSlot dstc_value(DstFopts opts, Dst x);
 
 /* Check if two slots are equal */
 int dstc_sequal(DstSlot lhs, DstSlot rhs);
-
-/* Use these to get sub options. They will traverse the source map so
- * compiler errors make sense. Then modify the returned options. */
-DstFopts dstc_getindex(DstFopts opts, int32_t index);
-DstFopts dstc_getkey(DstFopts opts, Dst key);
-DstFopts dstc_getvalue(DstFopts opts, Dst key);
 
 /* Push and pop from the scope stack */
 void dstc_scope(DstCompiler *c, int newfn);
@@ -246,9 +229,9 @@ DstSlot dstc_cslot(Dst x);
 void dstc_freeslot(DstCompiler *c, DstSlot slot);
 
 /* Search for a symbol */
-DstSlot dstc_resolve(DstCompiler *c, const Dst *sourcemap, const uint8_t *sym);
+DstSlot dstc_resolve(DstCompiler *c, DstAst *ast, const uint8_t *sym);
 
 /* Emit instructions. */
-void dstc_emit(DstCompiler *c, const Dst *sourcemap, uint32_t instr);
+void dstc_emit(DstCompiler *c, DstAst *ast, uint32_t instr);
 
 #endif

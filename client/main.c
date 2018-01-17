@@ -117,7 +117,6 @@ static int repl() {
                 {
                     opts.source = res.value;
                     opts.flags = 0;
-                    opts.sourcemap = res.map;
                     opts.env = env;
                     cres = dst_compile(opts);
                     if (cres.status == DST_COMPILE_OK) {
@@ -167,7 +166,6 @@ static void runfile(const uint8_t *src, int32_t len) {
                 {
                     opts.source = res.value;
                     opts.flags = 0;
-                    opts.sourcemap = res.map;
                     opts.env = env;
                     cres = dst_compile(opts);
                     if (cres.status == DST_COMPILE_OK) {
@@ -290,7 +288,9 @@ int main(int argc, char **argv) {
 
     /* Run a repl if nothing else happened, or the flag is set */
     if (!fileRead || (flags & DST_CLIENT_REPL)) {
-        status = repl();
+        DstContext ctxt;
+        dst_context_repl(&ctxt, env);
+        status = dst_context_run(&ctxt);
     }
 
     dst_deinit();
