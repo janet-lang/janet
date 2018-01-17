@@ -161,6 +161,7 @@ typedef struct {
     const uint8_t *end;
     const char *errmsg;
     DstParseStatus status;
+    int flags;
 } ParseArgs;
 
 
@@ -397,12 +398,14 @@ static const uint8_t *parse_recur(
 
     /* Quote the returned value qcount times */
     while (qcount--) {
-        ret = dst_ast_wrap(ret, mapstart - args->srcstart, src - args->srcstart);
+        if (args->flags & DST_PARSEFLAG_SOURCEMAP)
+            ret = dst_ast_wrap(ret, mapstart - args->srcstart, src - args->srcstart);
         ret = quote(ret);
     }
 
     /* Ast wrap */
-    ret = dst_ast_wrap(ret, mapstart - args->srcstart, src - args->srcstart);
+    if (args->flags & DST_PARSEFLAG_SOURCEMAP)
+        ret = dst_ast_wrap(ret, mapstart - args->srcstart, src - args->srcstart);
 
     /* Push the result to the stack */
     dst_array_push(&args->stack, ret);
@@ -463,7 +466,7 @@ static const uint8_t *parse_recur(
 }
 
 /* Parse an array of bytes. Return value in the fiber return value. */
-DstParseResult dst_parse(const uint8_t *src, int32_t len) {
+DstParseResult dst_parse(const uint8_t *src, int32_t len, int flags) {
     DstParseResult res;
     ParseArgs args;
     const uint8_t *newsrc;
@@ -473,6 +476,7 @@ DstParseResult dst_parse(const uint8_t *src, int32_t len) {
     args.srcstart = src;
     args.end = src + len;
     args.errmsg = NULL;
+    args.flags = flags;
 
     newsrc = parse_recur(&args, src, DST_RECURSION_GUARD);
     res.status = args.status;
@@ -492,10 +496,10 @@ DstParseResult dst_parse(const uint8_t *src, int32_t len) {
 }
 
 /* Parse a c string */
-DstParseResult dst_parsec(const char *src) {
+DstParseResult dst_parsec(const char *src, int flags) {
     int32_t len = 0;
     while (src[len]) ++len;
-    return dst_parse((const uint8_t *)src, len);
+    return dst_parse((const uint8_t *)src, len, flags);
 }
 
 /* C Function parser */
@@ -507,7 +511,7 @@ int dst_parse_cfun(DstArgs args) {
     DstTable *t;
     if (args.n < 1) return dst_throw(args, "expected at least on argument");
     if (!dst_chararray_view(args.v[0], &src, &len)) return dst_throw(args, "expected string/buffer");
-    res = dst_parse(src, len);
+    res = dst_parse(src, len, 0);
     t = dst_table(4);
     switch (res.status) {
         case DST_PARSE_OK:

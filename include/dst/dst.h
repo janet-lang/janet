@@ -179,8 +179,8 @@ Dst dst_ast_unwrap1(Dst x);
 Dst dst_ast_unwrap(Dst x);
 
 /* Parsing */
-DstParseResult dst_parse(const uint8_t *src, int32_t len);
-DstParseResult dst_parsec(const char *src);
+DstParseResult dst_parse(const uint8_t *src, int32_t len, int flags);
+DstParseResult dst_parsec(const char *src, int flags);
 int dst_parse_cfun(DstArgs args);
 
 /* Native */

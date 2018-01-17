@@ -50,7 +50,7 @@ static void replonvalue(DstContext *c, Dst value) {
     (void) c;
     dst_puts(dst_formatc("%v\n", value)); 
     if (dst_checktype(c->env, DST_TABLE))
-        dst_module_def(dst_unwrap_table(c->env), "_", dst_wrap_nil());
+        dst_module_def(dst_unwrap_table(c->env), "_", value);
 }
 
 /* Handle errors on repl */
@@ -138,7 +138,7 @@ int dst_context_run(DstContext *c) {
     while (!done) {
         DstCompileResult cres;
         DstCompileOptions opts;
-        DstParseResult res = dst_parse(c->buffer.data, c->buffer.count);
+        DstParseResult res = dst_parse(c->buffer.data, c->buffer.count, DST_PARSEFLAG_SOURCEMAP);
         switch (res.status) {
             case DST_PARSE_NODATA:
                 flushcontext(c);

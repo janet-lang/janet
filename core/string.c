@@ -204,11 +204,14 @@ static const uint8_t *string_description(const char *title, void *pointer) {
 #undef HEX
 #undef DST_BUFSIZE
 
-/* TODO - add more characters to escapes */
-static int32_t dst_escape_string_length(const uint8_t *str) {
+/* TODO - add more characters to escape. 
+ *
+ * When more escapes are added, they must correspond
+ * to dst_escape_string_impl exactly or a buffer overrun could occur. */
+static int32_t dst_escape_string_length(const uint8_t *str, int32_t slen) {
     int32_t len = 2;
     int32_t i;
-    for (i = 0; i < dst_string_length(str); ++i) {
+    for (i = 0; i < slen; ++i) {
         switch (str[i]) {
             case '"':
             case '\n':
@@ -224,10 +227,10 @@ static int32_t dst_escape_string_length(const uint8_t *str) {
     return len;
 }
 
-static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str) {
+static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str, int32_t len) {
     int32_t i, j;
     buf[0] = '"';
-    for (i = 0, j = 1; i < dst_string_length(str); ++i) {
+    for (i = 0, j = 1; i < len; ++i) {
         uint8_t c = str[i];
         switch (c) {
             case '"':
@@ -255,17 +258,30 @@ static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str) {
 }
 
 void dst_escape_string_b(DstBuffer *buffer, const uint8_t *str) {
-    int32_t len = dst_escape_string_length(str);
-    dst_buffer_extra(buffer, len);
-    dst_escape_string_impl(buffer->data + buffer->count, str);
-    buffer->count += len;
+    int32_t len = dst_string_length(str);
+    int32_t elen = dst_escape_string_length(str, len);
+    dst_buffer_extra(buffer, elen);
+    dst_escape_string_impl(buffer->data + buffer->count, str, len);
+    buffer->count += elen;
 }
 
 const uint8_t *dst_escape_string(const uint8_t *str) {
-    int32_t len = dst_escape_string_length(str);
-    uint8_t *buf = dst_string_begin(len);
-    dst_escape_string_impl(buf, str);
+    int32_t len = dst_string_length(str);
+    int32_t elen = dst_escape_string_length(str, len);
+    uint8_t *buf = dst_string_begin(elen);
+    dst_escape_string_impl(buf, str, len); 
     return dst_string_end(buf);
+}
+
+void dst_escape_buffer_b(DstBuffer *buffer, DstBuffer *bx) {
+    int32_t elen = dst_escape_string_length(bx->data, bx->count);
+    dst_buffer_push_u8(buffer, '@');
+    dst_buffer_extra(buffer, elen);
+    dst_escape_string_impl(
+            buffer->data + buffer->count,
+            bx->data,
+            bx->count);
+    buffer->count += elen;
 }
 
 /* Returns a string pointer with the description of the string */
@@ -318,6 +334,9 @@ void dst_short_description_b(DstBuffer *buffer, Dst x) {
         return;
     case DST_STRING:
         dst_escape_string_b(buffer, dst_unwrap_string(x));
+        return;
+    case DST_BUFFER:
+        dst_escape_buffer_b(buffer, dst_unwrap_buffer(x));
         return;
     case DST_ABSTRACT:
         string_description_b(buffer, 
@@ -593,6 +612,8 @@ const uint8_t *dst_to_string(Dst x) {
     switch (dst_type(x)) {
         default:
             return dst_short_description(x);
+        case DST_BUFFER:
+            return dst_string(dst_unwrap_buffer(x)->data, dst_unwrap_buffer(x)->count);
         case DST_STRING:
         case DST_SYMBOL:
             return dst_unwrap_string(x);

@@ -73,7 +73,7 @@ static void runfile(const uint8_t *src, int32_t len) {
     const uint8_t *s = src;
     const uint8_t *end = src + len;
     while (s < end) {
-        res = dst_parse(s, end - s);
+        res = dst_parse(s, end - s, DST_PARSEFLAG_SOURCEMAP);
         switch (res.status) {
             case DST_PARSE_NODATA:
                 return;

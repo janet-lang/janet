@@ -470,6 +470,8 @@ struct DstAst {
     int flags;
 };
 
+#define DST_PARSEFLAG_SOURCEMAP 1
+
 /* Parse structs */
 enum DstParseStatus {
     DST_PARSE_OK,
