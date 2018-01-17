@@ -73,6 +73,19 @@ static void replerror(DstContext *c, DstContextErrorType type, Dst err, size_t s
     dst_puts(dst_formatc("%s error: %v\n", errtype, err));
 }
 
+void dst_context_init(DstContext *c, Dst env) {
+    dst_buffer_init(&c->buffer, 1024);
+    c->env = env;
+    dst_gcroot(env);
+    c->flushed_bytes = 0;
+}
+
+void dst_context_deinit(DstContext *c) {
+    dst_buffer_deinit(&c->buffer);
+    if (c->deinit) c->deinit(c);
+    dst_gcunroot(c->env);
+}
+
 void dst_context_repl(DstContext *c, Dst env) {
     dst_buffer_init(&c->buffer, 1024);
     c->env = env;
@@ -81,7 +94,6 @@ void dst_context_repl(DstContext *c, Dst env) {
     c->user = NULL;
     if (dst_checktype(c->env, DST_TABLE))
         dst_module_def(dst_unwrap_table(c->env), "_", dst_wrap_nil());
-    
     c->read_chunk = replread;
     c->on_error = replerror;
     c->on_value = replonvalue;
@@ -103,6 +115,22 @@ static void bshift(DstContext *c, int32_t delta) {
     }
 }
 
+/* Do something on an error. Return flags to or with current flags. */
+static int doerror(
+        DstContext *c,
+        DstContextErrorType type,
+        Dst err,
+        int32_t bstart,
+        int32_t bend) {
+    if (c->on_error) {
+        c->on_error(c, type, 
+                err,
+                c->flushed_bytes + bstart,
+                c->flushed_bytes + bend);
+    }
+    return 1 << type;
+}
+
 /* Start a context */
 int dst_context_run(DstContext *c) {
     int done = 0;
@@ -121,24 +149,18 @@ int dst_context_run(DstContext *c) {
                     /* If the last chunk was empty, finish */
                     if (c->buffer.count == countbefore) {
                         done = 1;
-                        flags |= 1 << DST_CONTEXT_ERROR_PARSE;
-                        if (c->on_error) {
-                            c->on_error(c, DST_CONTEXT_ERROR_PARSE, 
-                                    dst_wrap_string(res.error),
-                                    c->flushed_bytes + res.bytes_read,
-                                    c->flushed_bytes + res.bytes_read);
-                        }
+                        flags |= doerror(c, DST_CONTEXT_ERROR_PARSE, 
+                                dst_cstringv("unexpected end of source"),
+                                res.bytes_read,
+                                res.bytes_read);
                     }
                     break;
                 }
             case DST_PARSE_ERROR:
-                if (c->on_error) {
-                    flags |= 1 << DST_CONTEXT_ERROR_PARSE;
-                    c->on_error(c, DST_CONTEXT_ERROR_PARSE, 
-                            dst_wrap_string(res.error),
-                            c->flushed_bytes + res.bytes_read,
-                            c->flushed_bytes + res.bytes_read);
-                }
+                flags |= doerror(c, DST_CONTEXT_ERROR_PARSE, 
+                        dst_wrap_string(res.error),
+                        res.bytes_read,
+                        res.bytes_read);
                 bshift(c, res.bytes_read);
                 break;
             case DST_PARSE_OK:
@@ -151,33 +173,24 @@ int dst_context_run(DstContext *c) {
                         DstFunction *f = dst_compile_func(cres);
                         Dst ret;
                         if (dst_run(dst_wrap_function(f), &ret)) {
-                            /* Get location from stacktrace */
-                            if (c->on_error) {
-                                flags |= 1 << DST_CONTEXT_ERROR_RUNTIME;
-                                c->on_error(c, DST_CONTEXT_ERROR_RUNTIME, ret, -1, -1);
-                            }
+                            /* Get location from stacktrace? */
+                            flags |= doerror(c, DST_CONTEXT_ERROR_RUNTIME, ret, -1, -1);
                         } else {
                             if (c->on_value) {
                                 c->on_value(c, ret);
                             }
                         }
                     } else {
-                        if (c->on_error) {
-                            flags |= 1 << DST_CONTEXT_ERROR_COMPILE;
-                            c->on_error(c, DST_CONTEXT_ERROR_COMPILE,
-                                    dst_wrap_string(cres.error),
-                                    c->flushed_bytes + cres.error_start,
-                                    c->flushed_bytes + cres.error_end);
-                        }
+                        flags |= doerror(c, DST_CONTEXT_ERROR_COMPILE,
+                                dst_wrap_string(cres.error),
+                                cres.error_start,
+                                cres.error_end);
                     }
                     bshift(c, res.bytes_read);
                 }
                 break;
         }
     }
-    dst_buffer_deinit(&c->buffer);
-    if (c->deinit) c->deinit(c);
-    dst_gcunroot(c->env);
 
     return flags;
 }

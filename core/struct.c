@@ -44,7 +44,7 @@ DstKV *dst_struct_begin(int32_t count) {
 }
 
 /* Find an item in a struct */
-static const DstKV *dst_struct_find(const DstKV *st, Dst key) {
+const DstKV *dst_struct_find(const DstKV *st, Dst key) {
     int32_t cap = dst_struct_capacity(st);
     int32_t index = dst_struct_maphash(cap, dst_hash(key));
     int32_t i;

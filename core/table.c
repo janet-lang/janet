@@ -59,7 +59,7 @@ DstTable *dst_table(int32_t capacity) {
 
 /* Find the bucket that contains the given key. Will also return
  * bucket where key should go if not in the table. */
-static DstKV *dst_table_find(DstTable *t, Dst key) {
+DstKV *dst_table_find(DstTable *t, Dst key) {
     int32_t index = dst_table_maphash(t->capacity, dst_hash(key));
     int32_t i;
     DstKV *first_bucket = NULL;

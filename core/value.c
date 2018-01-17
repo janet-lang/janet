@@ -87,14 +87,20 @@ int32_t dst_hash(Dst x) {
         break;
     case DST_INTEGER:
         hash = dst_unwrap_integer(x);
+        break;
     default:
+        /* TODO - test performance with different hash functions */
         if (sizeof(double) == sizeof(void *)) {
             /* Assuming 8 byte pointer */
             uint64_t i = dst_u64(x);
-            hash = (int32_t)(i >> 32) ^ (int32_t)(i & 0xFFFFFFFF);
+            hash = (int32_t)(i & 0xFFFFFFFF);
+            /* Get a bit more entropy by shifting the low bits out */
+            hash >>= 3;
+            hash ^= (int32_t) (i >> 32);
         } else {
             /* Assuming 4 byte pointer (or smaller) */
             hash = (int32_t) (dst_unwrap_pointer(x) - NULL);
+            hash >>= 2;
         }
         break;
     }

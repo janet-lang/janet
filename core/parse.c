@@ -211,7 +211,10 @@ static const uint8_t *parse_recur(
             int ascii = 1;
             Dst numcheck;
             const uint8_t *tokenend = src;
-            if (!is_symbol_char(*src)) goto unexpected_character;
+            if (!is_symbol_char(*src)) {
+                src++;
+                goto unexpected_character;
+            }
             while (tokenend < end && is_symbol_char(*tokenend)) {
                 if (*tokenend++ > 127) ascii = 0;
             }

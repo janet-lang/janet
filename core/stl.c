@@ -222,6 +222,36 @@ int dst_stl_type(DstArgs args) {
     }
 }
 
+int dst_stl_next(DstArgs args) {
+    Dst ds;
+    const DstKV *kv;
+    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
+    ds = args.v[0];
+    if (dst_checktype(ds, DST_TABLE)) {
+        DstTable *t = dst_unwrap_table(ds);
+        kv = dst_checktype(args.v[1], DST_NIL)
+            ? t->data
+            : dst_table_find(t, args.v[1]);
+    } else if (dst_checktype(ds, DST_STRUCT)) {
+        const DstKV *st = dst_unwrap_struct(ds);
+        kv = dst_checktype(args.v[1], DST_NIL)
+            ? st
+            : dst_struct_find(st, args.v[1]);
+    } else {
+        return dst_throw(args, "expected table/struct");
+    }
+    kv = dst_next(ds, kv);
+    if (kv) {
+        return dst_return(args, kv->key);
+    }
+    return dst_return(args, dst_wrap_nil());
+}
+
+int dst_stl_hash(DstArgs args) {
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    return dst_return(args, dst_wrap_integer(dst_hash(args.v[0])));
+}
+
 Dst dst_stl_env() {
     Dst ret;
     DstArgs args;
@@ -250,6 +280,8 @@ Dst dst_stl_env() {
     dst_module_def(module, "length", dst_wrap_cfunction(dst_stl_length));
     dst_module_def(module, "gccollect", dst_wrap_cfunction(dst_stl_gccollect));
     dst_module_def(module, "type", dst_wrap_cfunction(dst_stl_type));
+    dst_module_def(module, "next", dst_wrap_cfunction(dst_stl_next));
+    dst_module_def(module, "hash", dst_wrap_cfunction(dst_stl_hash));
     dst_module_def(module, "exit", dst_wrap_cfunction(dst_stl_exit));
 
     dst_module_def(module, "parse", dst_wrap_cfunction(dst_parse_cfun));

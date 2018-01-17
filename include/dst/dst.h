@@ -109,6 +109,7 @@ const DstKV *dst_struct_next(const DstKV *st, const DstKV *kv);
 DstTable *dst_struct_to_table(const DstKV *st);
 int dst_struct_equal(const DstKV *lhs, const DstKV *rhs);
 int dst_struct_compare(const DstKV *lhs, const DstKV *rhs);
+const DstKV *dst_struct_find(const DstKV *st, Dst key);
 
 /* Table functions */
 DstTable *dst_table(int32_t capacity);
@@ -121,6 +122,7 @@ const DstKV *dst_table_next(DstTable *t, const DstKV *kv);
 const DstKV *dst_table_to_struct(DstTable *t);
 void dst_table_merge_table(DstTable *table, DstTable *other);
 void dst_table_merge_struct(DstTable *table, const DstKV *other);
+DstKV *dst_table_find(DstTable *t, Dst key);
 
 /* Fiber */
 DstFiber *dst_fiber(int32_t capacity);
@@ -201,6 +203,8 @@ void dst_module_def(DstTable *module, const char *name, Dst val);
 void dst_module_var(DstTable *module, const char *name, Dst val);
 
 /* Context functions */
+void dst_context_init(DstContext *c, Dst env);
+void dst_context_deinit(DstContext *c);
 void dst_context_repl(DstContext *c, Dst env);
 int dst_context_run(DstContext *c);
 
