@@ -32,7 +32,7 @@ PREFIX=/usr/local
 DST_TARGET=dst
 DEBUGGER=lldb
 DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h compile.h gc.h util.h)
-DST_HEADERS=$(addprefix include/dst/,dst.h dstconfig.h dsttypes.h dststate.h dststl.h)
+DST_HEADERS=$(addprefix include/dst/,dst.h dstconfig.h dstcontext.h dsttypes.h dststate.h dststl.h)
 DST_C_LIBS=$(addprefix libs/,testlib.so)
 
 #############################
@@ -81,7 +81,7 @@ valgrind: $(DST_TARGET)
 	@ valgrind --leak-check=full -v ./$(DST_TARGET)
 
 test: $(DST_TARGET)
-	@ ./$(DST_TARGET) --gcinterval=0 dsttest/suite0.dst
+	@ ./$(DST_TARGET) --gcinterval=0x10000 dsttest/suite0.dst
 
 valtest: $(DST_TARGET)
 	valgrind --leak-check=full -v ./$(DST_TARGET) dsttests/basic.dst

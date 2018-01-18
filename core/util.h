@@ -61,6 +61,7 @@ const void *dst_strbinsearch(
 #define dst_v_count(v)        (((v) != NULL) ? dst_v__cnt(v) : 0)
 #define dst_v_add(v, n)       (dst_v__maybegrow(v, n), dst_v_cnt(v) += (n), &(v)[dst_v__cnt(v) - (n)])
 #define dst_v_last(v)         ((v)[dst_v__cnt(v) - 1])
+#define dst_v_empty(v)        (((v) != NULL) ? (dst_v__cnt(v) = 0) : 0)
 #define dst_v_copy(v)         (dst_v_copymem((v), sizeof(*(v))))
 #define dst_v_flatten(v)      (dst_v_flattenmem((v), sizeof(*(v))))
 

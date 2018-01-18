@@ -21,14 +21,12 @@
 */
 
 #include <dst/dst.h>
+#include <dst/dstcontext.h>
 
-/*static void deinit_file(DstContext *c) {*/
-    /*FILE *f = (FILE *) (c->user);*/
-    /*fclose(f);*/
-/*}*/
+#define CHUNKSIZE 1024
 
 /* Read input for a repl */
-static void replread(DstContext *c) {
+static int replread(DstContext *c) {
     if (c->buffer.count == 0)
         printf("> ");
     else
@@ -43,18 +41,18 @@ static void replread(DstContext *c) {
         dst_buffer_push_u8(&c->buffer, x);
         if (x == '\n') break;
     }
+    return 0;
 }
 
 /* Output for a repl */
 static void replonvalue(DstContext *c, Dst value) {
     (void) c;
     dst_puts(dst_formatc("%v\n", value)); 
-    if (dst_checktype(c->env, DST_TABLE))
-        dst_module_def(dst_unwrap_table(c->env), "_", value);
+    dst_env_def(c->env, "_", value);
 }
 
 /* Handle errors on repl */
-static void replerror(DstContext *c, DstContextErrorType type, Dst err, size_t start, size_t end) {
+static void simpleerror(DstContext *c, DstContextErrorType type, Dst err, size_t start, size_t end) {
     const char *errtype;
     (void) c;
     (void) start;
@@ -70,49 +68,63 @@ static void replerror(DstContext *c, DstContextErrorType type, Dst err, size_t s
             errtype = "compile";
             break;
     }
-    dst_puts(dst_formatc("%s error: %v\n", errtype, err));
+    dst_puts(dst_formatc("%s error: %s\n", errtype, dst_to_string(err)));
 }
 
-void dst_context_init(DstContext *c, Dst env) {
-    dst_buffer_init(&c->buffer, 1024);
+static void filedeinit(DstContext *c) {
+    fclose((FILE *) (c->user));
+}
+
+static int fileread(DstContext *c) {
+    size_t nread;
+    FILE *f = (FILE *) c->user;
+    dst_buffer_ensure(&c->buffer, CHUNKSIZE);
+    nread = fread(c->buffer.data, 1, CHUNKSIZE, f);
+    if (nread != CHUNKSIZE && ferror(f)) {
+        return -1;
+    }
+    c->buffer.count = (int32_t) nread;
+    return 0;
+}
+
+void dst_context_init(DstContext *c, DstTable *env) {
+    dst_buffer_init(&c->buffer, CHUNKSIZE);
     c->env = env;
-    dst_gcroot(env);
-    c->flushed_bytes = 0;
+    dst_gcroot(dst_wrap_table(env));
+    c->index = 0;
+    c->read_chunk = NULL;
+    c->on_error = NULL;
+    c->on_value = NULL;
+    c->deinit = NULL;
 }
 
 void dst_context_deinit(DstContext *c) {
     dst_buffer_deinit(&c->buffer);
     if (c->deinit) c->deinit(c);
-    dst_gcunroot(c->env);
+    dst_gcunroot(dst_wrap_table(c->env));
 }
 
-void dst_context_repl(DstContext *c, Dst env) {
-    dst_buffer_init(&c->buffer, 1024);
-    c->env = env;
-    dst_gcroot(env);
-    c->flushed_bytes = 0;
+int dst_context_repl(DstContext *c, DstTable *env) {
+    dst_context_init(c, env);
     c->user = NULL;
-    if (dst_checktype(c->env, DST_TABLE))
-        dst_module_def(dst_unwrap_table(c->env), "_", dst_wrap_nil());
+    dst_env_def(c->env, "_", dst_wrap_nil());
     c->read_chunk = replread;
-    c->on_error = replerror;
+    c->on_error = simpleerror;
     c->on_value = replonvalue;
+    return 0;
 }
 
-/* Remove everything in the current buffer */
-static void flushcontext(DstContext *c) {
-    c->flushed_bytes += c->buffer.count;
-    c->buffer.count = 0;
-}
-
-/* Shift bytes in buffer down */
-/* TODO Make parser online so there is no need to
- * do too much book keeping with the buffer. */
-static void bshift(DstContext *c, int32_t delta) {
-    c->buffer.count -= delta;
-    if (delta) {
-        memmove(c->buffer.data, c->buffer.data + delta, c->buffer.count);
+int dst_context_file(DstContext *c, DstTable *env, const char *path) {
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        return -1;
     }
+    dst_context_init(c, env);
+    c->user = f;
+    c->read_chunk = fileread;
+    c->on_error = simpleerror;
+    c->deinit = filedeinit;
+    return 0;
 }
 
 /* Do something on an error. Return flags to or with current flags. */
@@ -125,72 +137,69 @@ static int doerror(
     if (c->on_error) {
         c->on_error(c, type, 
                 err,
-                c->flushed_bytes + bstart,
-                c->flushed_bytes + bend);
+                bstart,
+                bend);
     }
     return 1 << type;
 }
 
 /* Start a context */
-int dst_context_run(DstContext *c) {
+int dst_context_run(DstContext *c, int flags) {
     int done = 0;
-    int flags = 0;
+    int errflags = 0;
+    DstParser parser;
+    dst_parser_init(&parser, flags);
     while (!done) {
-        DstCompileResult cres;
-        DstCompileOptions opts;
-        DstParseResult res = dst_parse(c->buffer.data, c->buffer.count, DST_PARSEFLAG_SOURCEMAP);
-        switch (res.status) {
-            case DST_PARSE_NODATA:
-                flushcontext(c);
-            case DST_PARSE_UNEXPECTED_EOS:
-                {
-                    int32_t countbefore = c->buffer.count;
-                    c->read_chunk(c);
-                    /* If the last chunk was empty, finish */
-                    if (c->buffer.count == countbefore) {
-                        done = 1;
-                        flags |= doerror(c, DST_CONTEXT_ERROR_PARSE, 
-                                dst_cstringv("unexpected end of source"),
-                                res.bytes_read,
-                                res.bytes_read);
+        int bufferdone = 0;
+        while (!bufferdone) {
+            DstParserStatus status = dst_parser_status(&parser);
+            switch (status) {
+                case DST_PARSE_FULL:
+                    {
+                        DstCompileResult cres = dst_compile(dst_parser_produce(&parser), c->env, flags);
+                        if (cres.status == DST_COMPILE_OK) {
+                            DstFunction *f = dst_compile_func(cres);
+                            Dst ret;
+                            if (dst_run(dst_wrap_function(f), &ret)) {
+                                /* Get location from stacktrace? */
+                                errflags |= doerror(c, DST_CONTEXT_ERROR_RUNTIME, ret, -1, -1);
+                            } else {
+                                if (c->on_value) {
+                                    c->on_value(c, ret);
+                                }
+                            }
+                        } else {
+                            errflags |= doerror(c, DST_CONTEXT_ERROR_COMPILE,
+                                    dst_wrap_string(cres.error),
+                                    cres.error_start,
+                                    cres.error_end);
+                        }
                     }
                     break;
-                }
-            case DST_PARSE_ERROR:
-                flags |= doerror(c, DST_CONTEXT_ERROR_PARSE, 
-                        dst_wrap_string(res.error),
-                        res.bytes_read,
-                        res.bytes_read);
-                bshift(c, res.bytes_read);
-                break;
-            case DST_PARSE_OK:
-                {
-                    opts.source = res.value;
-                    opts.flags = 0;
-                    opts.env = c->env;
-                    cres = dst_compile(opts);
-                    if (cres.status == DST_COMPILE_OK) {
-                        DstFunction *f = dst_compile_func(cres);
-                        Dst ret;
-                        if (dst_run(dst_wrap_function(f), &ret)) {
-                            /* Get location from stacktrace? */
-                            flags |= doerror(c, DST_CONTEXT_ERROR_RUNTIME, ret, -1, -1);
-                        } else {
-                            if (c->on_value) {
-                                c->on_value(c, ret);
-                            }
-                        }
-                    } else {
-                        flags |= doerror(c, DST_CONTEXT_ERROR_COMPILE,
-                                dst_wrap_string(cres.error),
-                                cres.error_start,
-                                cres.error_end);
+                case DST_PARSE_ERROR:
+                    doerror(c, DST_CONTEXT_ERROR_PARSE, 
+                            dst_cstringv(dst_parser_error(&parser)),
+                            parser.index,
+                            parser.index);
+                    break;
+                case DST_PARSE_PENDING:
+                case DST_PARSE_ROOT:
+                    if (c->index >= c->buffer.count) {
+                        bufferdone = 1;
+                        break;
                     }
-                    bshift(c, res.bytes_read);
-                }
-                break;
+                    dst_parser_consume(&parser, c->buffer.data[c->index++]);
+                    break;
+            }
+        }
+        /* Refill the buffer */
+        c->buffer.count = 0;
+        c->index = 0;
+        if (c->read_chunk(c) || c->buffer.count == 0) {
+            done = 1;
         }
     }
 
-    return flags;
+    dst_parser_deinit(&parser);
+    return errflags;
 }

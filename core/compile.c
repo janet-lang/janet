@@ -235,7 +235,7 @@ DstSlot dstc_resolve(
 
     /* Symbol not found - check for global */
     {
-        Dst check = dst_get(c->env, dst_wrap_symbol(sym));
+        Dst check = dst_table_get(c->env, dst_wrap_symbol(sym));
         Dst ref;
         if (!(dst_checktype(check, DST_STRUCT) || dst_checktype(check, DST_TABLE))) {
             dstc_error(c, ast, dst_formatc("unknown symbol %q", sym));
@@ -846,7 +846,7 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
 
 
 /* Initialize a compiler */
-static void dstc_init(DstCompiler *c, Dst env) {
+static void dstc_init(DstCompiler *c, DstTable *env) {
     c->scopes = NULL;
     c->buffer = NULL;
     c->mapbuffer = NULL;
@@ -866,15 +866,16 @@ static void dstc_deinit(DstCompiler *c) {
     dst_v_free(c->scopes);
     dst_v_free(c->buffer);
     dst_v_free(c->mapbuffer);
-    c->env = dst_wrap_nil();
+    c->env = NULL;
 }
 
 /* Compile a form. */
-DstCompileResult dst_compile(DstCompileOptions opts) {
+DstCompileResult dst_compile(Dst source, DstTable *env, int flags) {
     DstCompiler c;
     DstFopts fopts;
+    (void) flags;
 
-    dstc_init(&c, opts.env);
+    dstc_init(&c, env);
 
     /* Push a function scope */
     dstc_scope(&c, DST_SCOPE_FUNCTION | DST_SCOPE_TOP);
@@ -885,7 +886,7 @@ DstCompileResult dst_compile(DstCompileOptions opts) {
     fopts.hint = dstc_cslot(dst_wrap_nil());
 
     /* Compile the value */
-    dstc_value(fopts, opts.source);
+    dstc_value(fopts, source);
 
     if (c.result.status == DST_COMPILE_OK) {
         c.result.funcdef = dstc_pop_funcdef(&c);
@@ -916,15 +917,18 @@ DstFunction *dst_compile_func(DstCompileResult res) {
 
 /* C Function for compiling */
 int dst_compile_cfun(DstArgs args) {
-    DstCompileOptions opts;
     DstCompileResult res;
     DstTable *t;
+    DstTable *env;
     if (args.n < 1)
         return dst_throw(args, "expected at least one argument");
-    opts.source = args.v[0];
-    opts.env = args.n >= 2 ? args.v[1] : dst_stl_env();
-    opts.flags = 0;
-    res = dst_compile(opts);
+    if (args.n >= 2) {
+        if (!dst_checktype(args.v[1], DST_TABLE)) return dst_throw(args, "expected table as environment");
+        env = dst_unwrap_table(args.v[1]);
+    } else {
+        env = dst_stl_env();
+    }
+    res = dst_compile(args.v[0], env, 0);
     if (res.status == DST_COMPILE_OK) {
         DstFunction *fun = dst_compile_func(res);
         return dst_return(args, dst_wrap_function(fun));

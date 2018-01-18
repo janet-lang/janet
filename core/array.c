@@ -102,3 +102,58 @@ Dst dst_array_peek(DstArray *array) {
         return dst_wrap_nil();
     }
 }
+
+/* C Functions */
+
+static int cfun_pop(DstArgs args) {
+    if (args.n != 1 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    return dst_return(args, dst_array_pop(dst_unwrap_array(args.v[0])));
+}
+
+static int cfun_peek(DstArgs args) {
+    if (args.n != 1 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    return dst_return(args, dst_array_peek(dst_unwrap_array(args.v[0])));
+}
+
+static int cfun_push(DstArgs args) {
+    DstArray *array;
+    int32_t newcount;
+    if (args.n < 1 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    array = dst_unwrap_array(args.v[0]);
+    newcount = array->count - 1 + args.n;
+    dst_array_ensure(array, newcount);
+    if (args.n > 1) memcpy(array->data + array->count, args.v + 1, (args.n - 1) * sizeof(Dst));
+    array->count = newcount;
+    return dst_return(args, args.v[0]);
+}
+
+static int cfun_setcount(DstArgs args) {
+    int32_t newcount;
+    if (args.n != 2 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    if (!dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected positive integer");
+    newcount = dst_unwrap_integer(args.v[1]);
+    if (newcount < 0) return dst_throw(args, "expected positive integer");
+    dst_array_setcount(dst_unwrap_array(args.v[0]), newcount);
+    return dst_return(args, args.v[0]);
+}
+
+static int cfun_ensure(DstArgs args) {
+    int32_t newcount;
+    if (args.n != 2 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    if (!dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected positive integer");
+    newcount = dst_unwrap_integer(args.v[1]);
+    if (newcount < 0) return dst_throw(args, "expected positive integer");
+    dst_array_ensure(dst_unwrap_array(args.v[0]), newcount);
+    return dst_return(args, args.v[0]);
+}
+
+/* Load the array module */
+int dst_lib_array(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_def(env, "array-pop", dst_wrap_cfunction(cfun_pop));
+    dst_env_def(env, "array-peek", dst_wrap_cfunction(cfun_peek));
+    dst_env_def(env, "array-push", dst_wrap_cfunction(cfun_push));
+    dst_env_def(env, "array-setcount", dst_wrap_cfunction(cfun_setcount));
+    dst_env_def(env, "array-ensure", dst_wrap_cfunction(cfun_ensure));
+    return 0;
+}

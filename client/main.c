@@ -23,14 +23,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <dst/dst.h>
+#include <dst/dstcontext.h>
 
 #define DST_CLIENT_HELP 1
 #define DST_CLIENT_VERBOSE 2
 #define DST_CLIENT_VERSION 4
 #define DST_CLIENT_REPL 8
 #define DST_CLIENT_UNKNOWN 16
-
-static Dst env;
 
 static int client_strequal(const char *a, const char *b) {
     while (*a) if (*a++ != *b++) return 0;
@@ -42,78 +41,13 @@ static int client_strequal_witharg(const char *a, const char *b) {
     return *a == '=';
 }
 
-/* Load source from a file */
-static const uint8_t *loadsource(const char *fpath, int32_t *len) {
-    FILE *f = fopen(fpath, "rb");
-    long fsize;
-    size_t fsizet;
-    uint8_t *source = NULL;
-    if (fseek(f, 0, SEEK_END)) goto error;
-    fsize = ftell(f);
-    if (fsize > INT32_MAX || fsize < 0) goto error;
-    fsizet = fsize;
-    if (fseek(f, 0, SEEK_SET)) goto error;
-    if (!fsize) goto error;
-    source = malloc(fsize);
-    if (fread(source, 1, fsize, f) != fsizet) goto error;
-    if (fclose(f)) goto error;
-    *len = (int32_t) fsizet;
-    return source;
-
-    error:
-    free(source);
-    return NULL;
-}
-
-/* Run file */
-static void runfile(const uint8_t *src, int32_t len) {
-    DstCompileOptions opts;
-    DstCompileResult cres;
-    DstParseResult res;
-    const uint8_t *s = src;
-    const uint8_t *end = src + len;
-    while (s < end) {
-        res = dst_parse(s, end - s, DST_PARSEFLAG_SOURCEMAP);
-        switch (res.status) {
-            case DST_PARSE_NODATA:
-                return;
-            case DST_PARSE_UNEXPECTED_EOS:
-            case DST_PARSE_ERROR:
-                dst_puts(dst_formatc("syntax error at %d: %S\n",
-                            s - src + res.bytes_read + 1, res.error)); 
-                if (res.bytes_read == 0) {
-                    s++;
-                }
-                break;
-            case DST_PARSE_OK:
-                {
-                    opts.source = res.value;
-                    opts.flags = 0;
-                    opts.env = env;
-                    cres = dst_compile(opts);
-                    if (cres.status == DST_COMPILE_OK) {
-                        Dst ret = dst_wrap_nil();
-                        DstFunction *f = dst_compile_func(cres);
-                        if (dst_run(dst_wrap_function(f), &ret)) {
-                            dst_puts(dst_formatc("runtime error: %v\n", ret)); 
-                        }
-                    } else {
-                        dst_puts(dst_formatc("compile error at %d: %S\n",
-                                    s - src + cres.error_start + 1, cres.error)); 
-                    }
-                }
-                break;
-        }
-        s += res.bytes_read;
-    }
-}
-
 int main(int argc, char **argv) {
     int status = 0;
     int i;
     int fileRead = 0;
     uint32_t gcinterval = 0x10000;
     uint64_t flags = 0;
+    DstTable *env;
 
     /* Read the arguments. Ignore files. */
     for (i = 1; i < argc; ++i) {
@@ -192,20 +126,19 @@ int main(int argc, char **argv) {
     dst_init();
     dst_vm_gc_interval = gcinterval;
     env = dst_stl_env();
-    dst_gcroot(env);
+    dst_gcroot(dst_wrap_table(env));
 
     /* Read the arguments. Only process files. */
     for (i = 1; i < argc; ++i) {
         const char *arg = argv[i];
         if (*arg != '-') {
+            DstContext ctxt;
             fileRead = 1;
-            int32_t len;
-            const uint8_t *s = loadsource(arg, &len);
-            if (NULL == s) {
-                printf("could not load file %s\n", arg);
-            } else {
-                runfile(s, len);
+            if (dst_context_file(&ctxt, env, arg)) {
+                printf("file %s not found\n", arg);
+                continue;
             }
+            status = dst_context_run(&ctxt, DST_PARSEFLAG_SOURCEMAP);
         }
     }
 
@@ -213,7 +146,7 @@ int main(int argc, char **argv) {
     if (!fileRead || (flags & DST_CLIENT_REPL)) {
         DstContext ctxt;
         dst_context_repl(&ctxt, env);
-        status = dst_context_run(&ctxt);
+        status = dst_context_run(&ctxt, DST_PARSEFLAG_SOURCEMAP);
     }
 
     dst_deinit();

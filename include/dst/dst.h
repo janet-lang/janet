@@ -139,14 +139,6 @@ void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func);
 void dst_fiber_cframe(DstFiber *fiber);
 void dst_fiber_popframe(DstFiber *fiber);
 
-/* Assembly */
-DstAssembleResult dst_asm(DstAssembleOptions opts);
-DstFunction *dst_asm_func(DstAssembleResult result);
-Dst dst_disasm(DstFuncDef *def);
-Dst dst_asm_decode_instruction(uint32_t instr);
-int dst_asm_cfun(DstArgs args);
-int dst_disasm_cfun(DstArgs args);
-
 /* Treat similar types through uniform interfaces for iteration */
 int dst_seq_view(Dst seq, const Dst **data, int32_t *len);
 int dst_chararray_view(Dst str, const uint8_t **data, int32_t *len);
@@ -163,6 +155,17 @@ int dst_equals(Dst x, Dst y);
 int32_t dst_hash(Dst x);
 int dst_compare(Dst x, Dst y);
 
+/* GC */
+void dst_mark(Dst x);
+void dst_sweep();
+void dst_collect();
+void dst_clear_memory();
+void dst_gcroot(Dst root);
+int dst_gcunroot(Dst root);
+int dst_gcunrootall(Dst root);
+#define dst_maybe_collect() do {\
+    if (dst_vm_next_collection >= dst_vm_gc_interval) dst_collect(); } while (0)
+
 /* Data structure functions */
 Dst dst_get(Dst ds, Dst key);
 void dst_put(Dst ds, Dst key, Dst value);
@@ -177,11 +180,6 @@ Dst dst_ast_wrap(Dst x, int32_t start, int32_t end);
 DstAst *dst_ast_node(Dst x);
 Dst dst_ast_unwrap1(Dst x);
 Dst dst_ast_unwrap(Dst x);
-
-/* Parsing */
-DstParseResult dst_parse(const uint8_t *src, int32_t len, int flags);
-DstParseResult dst_parsec(const char *src, int flags);
-int dst_parse_cfun(DstArgs args);
 
 /* Native */
 DstCFunction dst_native(const char *name, const uint8_t **error);
@@ -198,40 +196,89 @@ int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);
 double dst_scan_real(const uint8_t *str, int32_t len, int *err);
 
 /* Module helpers */
-DstTable *dst_get_module(DstArgs args);
-void dst_module_def(DstTable *module, const char *name, Dst val);
-void dst_module_var(DstTable *module, const char *name, Dst val);
-
-/* Context functions */
-void dst_context_init(DstContext *c, Dst env);
-void dst_context_deinit(DstContext *c);
-void dst_context_repl(DstContext *c, Dst env);
-int dst_context_run(DstContext *c);
+void dst_env_def(DstTable *env, const char *name, Dst val);
+void dst_env_var(DstTable *env, const char *name, Dst val);
+Dst dst_env_resolve(DstTable *env, const char *name);
+DstTable *dst_env_arg(DstArgs args);
 
 /* C Function helpers */
 #define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)
 #define dst_throwv(a, v) (*((a).ret) = (v), 1)
 #define dst_return(a, v) (*((a).ret) = (v), 0)
 
+/* Parsing */
+typedef enum DstParserStatus DstParserStatus;
+typedef struct DstParseState DstParseState;
+typedef struct DstParser DstParser;
+enum DstParserStatus {
+    DST_PARSE_ROOT,
+    DST_PARSE_ERROR,
+    DST_PARSE_FULL,
+    DST_PARSE_PENDING
+};
+struct DstParser {
+    Dst* argstack;
+    DstParseState *states;
+    uint8_t *buf;
+    const char *error;
+    size_t index;
+    int lookback;
+    int flags;
+};
+#define DST_PARSEFLAG_SOURCEMAP 1
+void dst_parser_init(DstParser *parser, int flags);
+void dst_parser_deinit(DstParser *parser);
+int dst_parser_consume(DstParser *parser, uint8_t c);
+DstParserStatus dst_parser_status(DstParser *parser);
+Dst dst_parser_produce(DstParser *parser);
+const char *dst_parser_error(DstParser *parser);
+int dst_parse_cfun(DstArgs args);
+
 /* Compile */
-DstCompileResult dst_compile(DstCompileOptions opts);
+typedef enum DstCompileStatus DstCompileStatus;
+typedef struct DstCompileOptions DstCompileOptions;
+typedef struct DstCompileResult DstCompileResult;
+enum DstCompileStatus {
+    DST_COMPILE_OK,
+    DST_COMPILE_ERROR
+};
+struct DstCompileResult {
+    DstCompileStatus status;
+    DstFuncDef *funcdef;
+    const uint8_t *error;
+    int32_t error_start;
+    int32_t error_end;
+};
+DstCompileResult dst_compile(Dst source, DstTable *env, int flags);
 DstFunction *dst_compile_func(DstCompileResult result);
 int dst_compile_cfun(DstArgs args);
 
-/* STL */
-Dst dst_stl_env();
-int dst_io_init(DstArgs args);
-int dst_math_init(DstArgs args);
+/* Assembly */
+typedef enum DstAssembleStatus DstAssembleStatus;
+typedef struct DstAssembleResult DstAssembleResult;
+typedef struct DstAssembleOptions DstAssembleOptions;
+enum DstAssembleStatus {
+    DST_ASSEMBLE_OK,
+    DST_ASSEMBLE_ERROR
+};
+struct DstAssembleResult {
+    DstFuncDef *funcdef;
+    const uint8_t *error;
+    DstAssembleStatus status;
+};
+DstAssembleResult dst_asm(Dst source, int flags);
+DstFunction *dst_asm_func(DstAssembleResult result);
+Dst dst_disasm(DstFuncDef *def);
+Dst dst_asm_decode_instruction(uint32_t instr);
+int dst_asm_cfun(DstArgs args);
+int dst_disasm_cfun(DstArgs args);
 
-/* GC */
-void dst_mark(Dst x);
-void dst_sweep();
-void dst_collect();
-void dst_clear_memory();
-void dst_gcroot(Dst root);
-int dst_gcunroot(Dst root);
-int dst_gcunrootall(Dst root);
-#define dst_maybe_collect() do {\
-    if (dst_vm_next_collection >= dst_vm_gc_interval) dst_collect(); } while (0)
+/* STL */
+DstTable *dst_stl_env();
+int dst_lib_io(DstArgs args);
+int dst_lib_math(DstArgs args);
+int dst_lib_array(DstArgs args);
+int dst_lib_buffer(DstArgs args);
+int dst_lib_parse(DstArgs args);
 
 #endif /* DST_H_defined */

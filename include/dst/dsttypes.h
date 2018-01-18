@@ -23,7 +23,6 @@
 #ifndef DST_TYPES_H_defined
 #define DST_TYPES_H_defined
 
-#include <stdint.h>
 #include "dstconfig.h"
 
 #ifdef DST_NANBOX
@@ -48,17 +47,7 @@ typedef struct DstStackFrame DstStackFrame;
 typedef struct DstAbstractType DstAbstractType;
 typedef struct DstArgs DstArgs;
 typedef struct DstAst DstAst;
-typedef struct DstContext DstContext;
 typedef int (*DstCFunction)(DstArgs args);
-
-typedef enum DstAssembleStatus DstAssembleStatus;
-typedef struct DstAssembleResult DstAssembleResult;
-typedef struct DstAssembleOptions DstAssembleOptions;
-typedef enum DstCompileStatus DstCompileStatus;
-typedef struct DstCompileOptions DstCompileOptions;
-typedef struct DstCompileResult DstCompileResult;
-typedef struct DstParseResult DstParseResult;
-typedef enum DstParseStatus DstParseStatus;
 
 /* Basic types for all Dst Values */
 typedef enum DstType {
@@ -424,42 +413,7 @@ struct DstAbstractHeader {
     size_t size;
 };
 
-/* Assemble structs */
-enum DstAssembleStatus {
-    DST_ASSEMBLE_OK,
-    DST_ASSEMBLE_ERROR
-};
-
-struct DstAssembleOptions {
-    Dst source;
-    uint32_t flags;
-};
-
-struct DstAssembleResult {
-    DstFuncDef *funcdef;
-    const uint8_t *error;
-    DstAssembleStatus status;
-};
-
 /* Compile structs */
-enum DstCompileStatus {
-    DST_COMPILE_OK,
-    DST_COMPILE_ERROR
-};
-
-struct DstCompileResult {
-    DstCompileStatus status;
-    DstFuncDef *funcdef;
-    const uint8_t *error;
-    int32_t error_start;
-    int32_t error_end;
-};
-
-struct DstCompileOptions {
-    uint32_t flags;
-    Dst source;
-    Dst env;
-};
 
 /* ASTs are simple wrappers around values. They contain information about sourcemapping
  * and other meta data. Possibly types? They are used mainly during compilation and parsing */
@@ -468,43 +422,6 @@ struct DstAst {
     int32_t source_start;
     int32_t source_end;
     int flags;
-};
-
-#define DST_PARSEFLAG_SOURCEMAP 1
-
-/* Parse structs */
-enum DstParseStatus {
-    DST_PARSE_OK,
-    DST_PARSE_ERROR,
-    DST_PARSE_UNEXPECTED_EOS,
-    DST_PARSE_NODATA
-};
-
-struct DstParseResult {
-    Dst value;
-    const uint8_t *error;
-    int32_t bytes_read;
-    DstParseStatus status;
-};
-
-typedef enum {
-    DST_CONTEXT_ERROR_PARSE,
-    DST_CONTEXT_ERROR_COMPILE,
-    DST_CONTEXT_ERROR_RUNTIME
-} DstContextErrorType;
-
-/* Evaluation context. Encapsulates parsing and compiling for easier integration
- * with client programs. */
-struct DstContext {
-    Dst env;
-    DstBuffer buffer;
-    size_t flushed_bytes;
-    void *user;
-
-    void (*read_chunk)(DstContext *self);
-    void (*on_error)(DstContext *self, DstContextErrorType type, Dst err, size_t start, size_t end);
-    void (*on_value)(DstContext *self, Dst value);
-    void (*deinit)(DstContext *self);
 };
 
 #endif /* DST_TYPES_H_defined */

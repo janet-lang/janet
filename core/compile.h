@@ -104,7 +104,7 @@ struct DstCompiler {
     int32_t *mapbuffer;
 
     /* Hold the environment */
-    Dst env;
+    DstTable *env;
 
     DstCompileResult result;
 };

@@ -139,3 +139,50 @@ int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x) {
     buffer->count += 8;
     return 0;
 }
+
+/* C functions */
+static int cfun_u8(DstArgs args) {
+    int32_t i;
+    DstBuffer *buffer;
+    if (args.n < 1 || !dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
+    buffer = dst_unwrap_buffer(args.v[0]);
+    for (i = 1; i < args.n; i++) {
+        if (!dst_checktype(args.v[i], DST_INTEGER)) return dst_throw(args, "expected integer");
+        if (dst_buffer_push_u8(buffer, (uint8_t) (dst_unwrap_integer(args.v[i]) & 0xFF))) return dst_throw(args, "buffer overflow");
+    }
+    return dst_return(args, args.v[0]);
+}
+
+static int cfun_int(DstArgs args) {
+    int32_t i;
+    DstBuffer *buffer;
+    if (args.n < 1 || !dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
+    buffer = dst_unwrap_buffer(args.v[0]);
+    for (i = 1; i < args.n; i++) {
+        if (!dst_checktype(args.v[i], DST_INTEGER)) return dst_throw(args, "expected integer");
+        if (dst_buffer_push_u32(buffer, (uint32_t) dst_unwrap_integer(args.v[i]))) return dst_throw(args, "buffer overflow");
+    }
+    return dst_return(args, args.v[0]);
+}
+
+static int cfun_chars(DstArgs args) {
+    int32_t i;
+    DstBuffer *buffer;
+    if (args.n < 1 || !dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
+    buffer = dst_unwrap_buffer(args.v[0]);
+    for (i = 1; i < args.n; i++) {
+        int32_t len;
+        const uint8_t *str;
+        if (!dst_chararray_view(args.v[i], &str, &len)) return dst_throw(args, "expected string/buffer");
+        if (dst_buffer_push_bytes(buffer, str, len)) return dst_throw(args, "buffer overflow");
+    }
+    return dst_return(args, args.v[0]);
+}
+
+int dst_lib_buffer(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_def(env, "buffer-push-byte", dst_wrap_cfunction(cfun_u8));
+    dst_env_def(env, "buffer-push-integer", dst_wrap_cfunction(cfun_int));
+    dst_env_def(env, "buffer-push-string", dst_wrap_cfunction(cfun_chars));
+    return 0;
+}

@@ -23,13 +23,6 @@
 #include <dst/dst.h>
 #include <dst/dststl.h>
 
-int dst_stl_push(DstArgs args) {
-    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
-    if (!dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
-    dst_array_push(dst_unwrap_array(args.v[0]), args.v[1]);
-    return dst_return(args, args.v[0]);
-}
-
 int dst_stl_exit(DstArgs args) {
     int32_t exitcode = 0;
     if (args.n > 0) {
@@ -252,49 +245,51 @@ int dst_stl_hash(DstArgs args) {
     return dst_return(args, dst_wrap_integer(dst_hash(args.v[0])));
 }
 
-Dst dst_stl_env() {
-    Dst ret;
-    DstArgs args;
-    DstTable *module = dst_table(0);
-    ret = dst_wrap_table(module);
-    args.n = 1;
-    args.v = &ret;
-    args.ret = &ret;
+DstTable *dst_stl_env() {
+    DstTable *env = dst_table(0);
+    Dst ret = dst_wrap_table(env);
 
-    dst_module_def(module, "native", dst_wrap_cfunction(dst_load_native));
-    dst_module_def(module, "push", dst_wrap_cfunction(dst_stl_push));
-    dst_module_def(module, "print", dst_wrap_cfunction(dst_stl_print));
-    dst_module_def(module, "describe", dst_wrap_cfunction(dst_stl_describe));
-    dst_module_def(module, "string", dst_wrap_cfunction(dst_stl_string));
-    dst_module_def(module, "buffer-to-string", dst_wrap_cfunction(dst_stl_buffer_to_string));
-    dst_module_def(module, "table", dst_wrap_cfunction(dst_cfun_table));
-    dst_module_def(module, "array", dst_wrap_cfunction(dst_cfun_array));
-    dst_module_def(module, "tuple", dst_wrap_cfunction(dst_cfun_tuple));
-    dst_module_def(module, "struct", dst_wrap_cfunction(dst_cfun_struct));
-    dst_module_def(module, "fiber", dst_wrap_cfunction(dst_stl_fiber));
-    dst_module_def(module, "status", dst_wrap_cfunction(dst_stl_status));
-    dst_module_def(module, "buffer", dst_wrap_cfunction(dst_stl_buffer));
-    dst_module_def(module, "gensym", dst_wrap_cfunction(dst_stl_gensym));
-    dst_module_def(module, "get", dst_wrap_cfunction(dst_stl_get));
-    dst_module_def(module, "put", dst_wrap_cfunction(dst_stl_put));
-    dst_module_def(module, "length", dst_wrap_cfunction(dst_stl_length));
-    dst_module_def(module, "gccollect", dst_wrap_cfunction(dst_stl_gccollect));
-    dst_module_def(module, "type", dst_wrap_cfunction(dst_stl_type));
-    dst_module_def(module, "next", dst_wrap_cfunction(dst_stl_next));
-    dst_module_def(module, "hash", dst_wrap_cfunction(dst_stl_hash));
-    dst_module_def(module, "exit", dst_wrap_cfunction(dst_stl_exit));
+    dst_env_def(env, "native", dst_wrap_cfunction(dst_load_native));
+    dst_env_def(env, "print", dst_wrap_cfunction(dst_stl_print));
+    dst_env_def(env, "describe", dst_wrap_cfunction(dst_stl_describe));
+    dst_env_def(env, "string", dst_wrap_cfunction(dst_stl_string));
+    dst_env_def(env, "buffer-to-string", dst_wrap_cfunction(dst_stl_buffer_to_string));
+    dst_env_def(env, "table", dst_wrap_cfunction(dst_cfun_table));
+    dst_env_def(env, "array", dst_wrap_cfunction(dst_cfun_array));
+    dst_env_def(env, "tuple", dst_wrap_cfunction(dst_cfun_tuple));
+    dst_env_def(env, "struct", dst_wrap_cfunction(dst_cfun_struct));
+    dst_env_def(env, "fiber", dst_wrap_cfunction(dst_stl_fiber));
+    dst_env_def(env, "status", dst_wrap_cfunction(dst_stl_status));
+    dst_env_def(env, "buffer", dst_wrap_cfunction(dst_stl_buffer));
+    dst_env_def(env, "gensym", dst_wrap_cfunction(dst_stl_gensym));
+    dst_env_def(env, "get", dst_wrap_cfunction(dst_stl_get));
+    dst_env_def(env, "put", dst_wrap_cfunction(dst_stl_put));
+    dst_env_def(env, "length", dst_wrap_cfunction(dst_stl_length));
+    dst_env_def(env, "gccollect", dst_wrap_cfunction(dst_stl_gccollect));
+    dst_env_def(env, "type", dst_wrap_cfunction(dst_stl_type));
+    dst_env_def(env, "next", dst_wrap_cfunction(dst_stl_next));
+    dst_env_def(env, "hash", dst_wrap_cfunction(dst_stl_hash));
+    dst_env_def(env, "exit", dst_wrap_cfunction(dst_stl_exit));
 
-    dst_module_def(module, "parse", dst_wrap_cfunction(dst_parse_cfun));
-    dst_module_def(module, "compile", dst_wrap_cfunction(dst_compile_cfun));
-    dst_module_def(module, "asm", dst_wrap_cfunction(dst_asm_cfun));
-    dst_module_def(module, "disasm", dst_wrap_cfunction(dst_disasm_cfun));
+    dst_env_def(env, "compile", dst_wrap_cfunction(dst_compile_cfun));
+    dst_env_def(env, "asm", dst_wrap_cfunction(dst_asm_cfun));
+    dst_env_def(env, "disasm", dst_wrap_cfunction(dst_disasm_cfun));
 
     /* Allow references to the environment */
-    dst_module_def(module, "_env", ret);
+    dst_env_def(env, "_env", ret);
 
-    /*Load auxiliary modules */
-    dst_io_init(args);
-    dst_math_init(args);
+    /*Load auxiliary envs */
+    {
+        DstArgs args;
+        args.n = 1;
+        args.v = &ret;
+        args.ret = &ret;
+        dst_lib_io(args);
+        dst_lib_math(args);
+        dst_lib_array(args);
+        dst_lib_buffer(args);
+        dst_lib_parse(args);
+    }
 
-    return ret;
+    return env;
 }

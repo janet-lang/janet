@@ -103,7 +103,7 @@ DstSlot dstc_var(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
         dst_array_push(ref, dst_wrap_nil());
         dst_table_put(reftab, dst_csymbolv("ref"), dst_wrap_array(ref));
         handleattr(c, argn, argv, reftab);
-        dst_put(c->env, head, dst_wrap_table(reftab));
+        dst_table_put(c->env, head, dst_wrap_table(reftab));
         refslot = dstc_cslot(dst_wrap_array(ref));
         refarrayslot = refslot;
         refslot.flags |= DST_SLOT_REF | DST_SLOT_NAMED | DST_SLOT_MUTABLE;
@@ -163,7 +163,7 @@ DstSlot dstc_def(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
 
         /* Add env entry to env */
         handleattr(c, argn, argv, tab);
-        dst_put(c->env, head, dst_wrap_table(tab));
+        dst_table_put(c->env, head, dst_wrap_table(tab));
 
         /* Put value in table when evaulated */
         tableindex = dstc_preread(c, ast, 0xFF, 1, tabslot);

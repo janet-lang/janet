@@ -227,28 +227,28 @@ static int dst_io_fclose(DstArgs args) {
 
 /* Define the entry point of the library */
 #ifdef DST_LIB
-#define dst_io_init _dst_init
+#define dst_lib_io _dst_init
 #endif
 
 /* Module entry point */
-int dst_io_init(DstArgs args) {
-    DstTable *module = dst_get_module(args);
-    dst_module_def(module, "fopen", dst_wrap_cfunction(dst_io_fopen));
-    dst_module_def(module, "fclose", dst_wrap_cfunction(dst_io_fclose));
-    dst_module_def(module, "fread", dst_wrap_cfunction(dst_io_fread));
-    dst_module_def(module, "fwrite", dst_wrap_cfunction(dst_io_fwrite));
-    dst_module_def(module, "fflush", dst_wrap_cfunction(dst_io_fflush));
+int dst_lib_io(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_def(env, "fopen", dst_wrap_cfunction(dst_io_fopen));
+    dst_env_def(env, "fclose", dst_wrap_cfunction(dst_io_fclose));
+    dst_env_def(env, "fread", dst_wrap_cfunction(dst_io_fread));
+    dst_env_def(env, "fwrite", dst_wrap_cfunction(dst_io_fwrite));
+    dst_env_def(env, "fflush", dst_wrap_cfunction(dst_io_fflush));
 
     /* stdout */
-    dst_module_def(module, "stdout",
+    dst_env_def(env, "stdout",
             makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
 
     /* stderr */
-    dst_module_def(module, "stderr",
+    dst_env_def(env, "stderr",
             makef(stderr, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
 
     /* stdin */
-    dst_module_def(module, "stdin",
+    dst_env_def(env, "stdin",
             makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
 
     return 0;

@@ -217,6 +217,7 @@ static int32_t dst_escape_string_length(const uint8_t *str, int32_t slen) {
             case '\n':
             case '\r':
             case '\0':
+            case '\\':
                 len += 2;
                 break;
             default:
@@ -248,6 +249,10 @@ static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str, int32_t len
             case '\0':
                 buf[j++] = '\\';
                 buf[j++] = '0';
+                break;
+            case '\\':
+                buf[j++] = '\\';
+                buf[j++] = '\\';
                 break;
             default:
                 buf[j++] = c;

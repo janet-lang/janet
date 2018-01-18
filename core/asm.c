@@ -481,14 +481,15 @@ static uint32_t read_instruction(
 }
 
 /* Helper to assembly. Return the assembly result */
-static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts) {
+static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     DstAssembleResult result;
     DstAssembler a;
-    Dst s = opts.source;
+    Dst s = source;
     DstFuncDef *def;
     int32_t count, i;
     const Dst *arr;
     Dst x;
+    (void) flags;
 
     /* Initialize funcdef */
     def = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
@@ -619,12 +620,9 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
         int32_t i;
         for (i = 0; i < count; i++) {
             DstAssembleResult subres;
-            DstAssembleOptions subopts;
             Dst subname;
             int32_t newlen;
-            subopts.source = arr[i];
-            subopts.flags = opts.flags;
-            subres = dst_asm1(&a, subopts);
+            subres = dst_asm1(&a, arr[i], flags);
             if (subres.status != DST_ASSEMBLE_OK) {
                 dst_asm_errorv(&a, subres.error);
             }
@@ -730,8 +728,8 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, DstAssembleOptions opts)
 }
 
 /* Assemble a function */
-DstAssembleResult dst_asm(DstAssembleOptions opts) {
-    return dst_asm1(NULL, opts);
+DstAssembleResult dst_asm(Dst source, int flags) {
+    return dst_asm1(NULL, source, flags);
 }
 
 /* Build a function from the result */
@@ -915,12 +913,9 @@ Dst dst_disasm(DstFuncDef *def) {
 
 /* C Function for assembly */
 int dst_asm_cfun(DstArgs args) {
-    DstAssembleOptions opts;
     DstAssembleResult res;
     if (args.n < 1) return dst_throw(args, "expected assembly source");
-    opts.source = args.v[0];
-    opts.flags = 0;
-    res = dst_asm(opts);
+    res = dst_asm(args.v[0], 0);
     if (res.status == DST_ASSEMBLE_OK) {
         return dst_return(args, dst_wrap_function(dst_asm_func(res)));
     } else {

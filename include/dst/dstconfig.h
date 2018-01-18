@@ -24,7 +24,6 @@
 #define DST_CONFIG_H_defined
 
 #include <stdint.h>
-#include "dst.h"
 
 /*
  * Detect OS and endianess.

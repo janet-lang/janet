@@ -343,52 +343,45 @@ static int dst_math_not(DstArgs args) {
     return 0;
 }
 
-/* CMath entry point */
-
-/* Define the entry point of the library */
-#ifdef DST_LIB
-#define dst_math_init _dst_init
-#endif
-
 /* Module entry point */
-int dst_math_init(DstArgs args) {
-    DstTable *module = dst_get_module(args);
-    dst_module_def(module, "int", dst_wrap_cfunction(dst_int));
-    dst_module_def(module, "real", dst_wrap_cfunction(dst_real));
-    dst_module_def(module, "+", dst_wrap_cfunction(dst_add));
-    dst_module_def(module, "-", dst_wrap_cfunction(dst_subtract));
-    dst_module_def(module, "*", dst_wrap_cfunction(dst_multiply));
-    dst_module_def(module, "/", dst_wrap_cfunction(dst_divide));
-    dst_module_def(module, "%", dst_wrap_cfunction(dst_modulo));
-    dst_module_def(module, "=", dst_wrap_cfunction(dst_math_equal));
-    dst_module_def(module, "not=", dst_wrap_cfunction(dst_math_notequal));
-    dst_module_def(module, "<", dst_wrap_cfunction(dst_math_ascending));
-    dst_module_def(module, ">", dst_wrap_cfunction(dst_math_descending));
-    dst_module_def(module, "<=", dst_wrap_cfunction(dst_math_notdescending));
-    dst_module_def(module, ">=", dst_wrap_cfunction(dst_math_notascending));
-    dst_module_def(module, "|", dst_wrap_cfunction(dst_bor));
-    dst_module_def(module, "&", dst_wrap_cfunction(dst_band));
-    dst_module_def(module, "^", dst_wrap_cfunction(dst_bxor));
-    dst_module_def(module, "~", dst_wrap_cfunction(dst_bnot));
-    dst_module_def(module, ">>", dst_wrap_cfunction(dst_lshift));
-    dst_module_def(module, "<<", dst_wrap_cfunction(dst_rshift));
-    dst_module_def(module, ">>>", dst_wrap_cfunction(dst_lshiftu));
-    dst_module_def(module, "not", dst_wrap_cfunction(dst_math_not));
-    dst_module_def(module, "cos", dst_wrap_cfunction(dst_cos));
-    dst_module_def(module, "sin", dst_wrap_cfunction(dst_sin));
-    dst_module_def(module, "tan", dst_wrap_cfunction(dst_tan));
-    dst_module_def(module, "acos", dst_wrap_cfunction(dst_acos));
-    dst_module_def(module, "asin", dst_wrap_cfunction(dst_asin));
-    dst_module_def(module, "atan", dst_wrap_cfunction(dst_atan));
-    dst_module_def(module, "exp", dst_wrap_cfunction(dst_exp));
-    dst_module_def(module, "log", dst_wrap_cfunction(dst_log));
-    dst_module_def(module, "log10", dst_wrap_cfunction(dst_log10));
-    dst_module_def(module, "sqrt", dst_wrap_cfunction(dst_sqrt));
-    dst_module_def(module, "floor", dst_wrap_cfunction(dst_floor));
-    dst_module_def(module, "ceil", dst_wrap_cfunction(dst_ceil));
-    dst_module_def(module, "pow", dst_wrap_cfunction(dst_pow));
-    dst_module_def(module, "pi", dst_wrap_real(M_PI));
-    dst_module_def(module, "\xCF\x80", dst_wrap_real(M_PI));
-    dst_module_def(module, "e", dst_wrap_real(M_E));
+int dst_lib_math(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_def(env, "int", dst_wrap_cfunction(dst_int));
+    dst_env_def(env, "real", dst_wrap_cfunction(dst_real));
+    dst_env_def(env, "+", dst_wrap_cfunction(dst_add));
+    dst_env_def(env, "-", dst_wrap_cfunction(dst_subtract));
+    dst_env_def(env, "*", dst_wrap_cfunction(dst_multiply));
+    dst_env_def(env, "/", dst_wrap_cfunction(dst_divide));
+    dst_env_def(env, "%", dst_wrap_cfunction(dst_modulo));
+    dst_env_def(env, "=", dst_wrap_cfunction(dst_math_equal));
+    dst_env_def(env, "not=", dst_wrap_cfunction(dst_math_notequal));
+    dst_env_def(env, "<", dst_wrap_cfunction(dst_math_ascending));
+    dst_env_def(env, ">", dst_wrap_cfunction(dst_math_descending));
+    dst_env_def(env, "<=", dst_wrap_cfunction(dst_math_notdescending));
+    dst_env_def(env, ">=", dst_wrap_cfunction(dst_math_notascending));
+    dst_env_def(env, "|", dst_wrap_cfunction(dst_bor));
+    dst_env_def(env, "&", dst_wrap_cfunction(dst_band));
+    dst_env_def(env, "^", dst_wrap_cfunction(dst_bxor));
+    dst_env_def(env, "~", dst_wrap_cfunction(dst_bnot));
+    dst_env_def(env, ">>", dst_wrap_cfunction(dst_lshift));
+    dst_env_def(env, "<<", dst_wrap_cfunction(dst_rshift));
+    dst_env_def(env, ">>>", dst_wrap_cfunction(dst_lshiftu));
+    dst_env_def(env, "not", dst_wrap_cfunction(dst_math_not));
+    dst_env_def(env, "cos", dst_wrap_cfunction(dst_cos));
+    dst_env_def(env, "sin", dst_wrap_cfunction(dst_sin));
+    dst_env_def(env, "tan", dst_wrap_cfunction(dst_tan));
+    dst_env_def(env, "acos", dst_wrap_cfunction(dst_acos));
+    dst_env_def(env, "asin", dst_wrap_cfunction(dst_asin));
+    dst_env_def(env, "atan", dst_wrap_cfunction(dst_atan));
+    dst_env_def(env, "exp", dst_wrap_cfunction(dst_exp));
+    dst_env_def(env, "log", dst_wrap_cfunction(dst_log));
+    dst_env_def(env, "log10", dst_wrap_cfunction(dst_log10));
+    dst_env_def(env, "sqrt", dst_wrap_cfunction(dst_sqrt));
+    dst_env_def(env, "floor", dst_wrap_cfunction(dst_floor));
+    dst_env_def(env, "ceil", dst_wrap_cfunction(dst_ceil));
+    dst_env_def(env, "pow", dst_wrap_cfunction(dst_pow));
+    dst_env_def(env, "pi", dst_wrap_real(3.1415926535897931));
+    dst_env_def(env, "\xCF\x80", dst_wrap_real(3.1415926535897931));
+    dst_env_def(env, "e", dst_wrap_real(2.7182818284590451));
     return 0;
 }
