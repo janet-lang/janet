@@ -24,40 +24,41 @@
 
 PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
-VERSION=0.0.0-beta
 
-CFLAGS=-std=c99 -Wall -Wextra -I./include -I./libs -g -DDST_VERSION=\"$(VERSION)\"
+CFLAGS=-std=c99 -Wall -Wextra -I./src/include -g
 CLIBS=-lm -ldl
 PREFIX=/usr/local
 DST_TARGET=dst
 DEBUGGER=lldb
-DST_INTERNAL_HEADERS=$(addprefix core/,symcache.h opcodes.h compile.h gc.h util.h)
-DST_HEADERS=$(addprefix include/dst/,dst.h dstconfig.h dstcontext.h dsttypes.h dststate.h dststl.h)
+
 DST_C_LIBS=$(addprefix libs/,testlib.so)
 
-#############################
-##### Generated headers #####
-#############################
+DST_HEADERS=$(sort $(wildcard src/include/dst/*.h))
+DST_LIBHEADERS=$(sort $(wildcard src/include/headerlibs/*.h))
+DST_ALL_HEADERS=$(DST_HEADERS) $(DST_LIB_HEADERS)
 
-DST_ALL_HEADERS=$(DST_HEADERS) $(DST_INTERNAL_HEADERS)
+DST_ASM_SOURCES=$(sort $(wildcard src/assembler/*.c))
+DST_COMPILER_SOURCES=$(sort $(wildcard src/compiler/*.c))
+DST_CONTEXT_SOURCES=$(sort $(wildcard src/context/*.c))
+DST_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
+DST_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
+DST_PARSER_SOURCES=$(sort $(wildcard src/parser/*.c))
 
 all: $(DST_TARGET)
 
-###################################
-##### The core vm and runtime #####
-###################################
+########################################
+##### The main interpreter program #####
+########################################
 
-DST_CORE_SOURCES=$(addprefix core/,\
-				 abstract.c array.c asm.c ast.c buffer.c compile.c compile_specials.c\
-				 context.c fiber.c gc.c io.c math.c native.c parse.c string.c\
-				 stl.c strtod.c struct.c symcache.c table.c tuple.c util.c\
-				 value.c vm.c wrap.c)
+DST_ALL_SOURCES=$(DST_ASM_SOURCES) \
+				$(DST_COMPILER_SOURCES) \
+				$(DST_CONTEXT_SOURCES) \
+				$(DST_CORE_SOURCES) \
+				$(DST_MAINCLIENT_SOURCES) \
+				$(DST_PARSER_SOURCES)
 
-DST_CLIENT_SOURCES=$(addprefix client/,\
-				   main.c)
-
-$(DST_TARGET): $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(DST_ALL_HEADERS)
-	$(CC) $(CFLAGS) -o $(DST_TARGET) $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(CLIBS)
+$(DST_TARGET): $(DST_ALL_SOURCES) $(DST_ALL_HEADERS)
+	$(CC) $(CFLAGS) -o $(DST_TARGET) $(DST_ALL_SOURCES) $(CLIBS)
 
 #######################
 ##### C Libraries #####
@@ -65,7 +66,6 @@ $(DST_TARGET): $(DST_CORE_SOURCES) $(DST_CLIENT_SOURCES) $(DST_ALL_HEADERS)
 
 %.so: %.c $(DST_HEADERS)
 	$(CC) $(CFLAGS) -DDST_LIB -shared -undefined dynamic_lookup -o $@ $<
-
 
 ###################
 ##### Testing #####
@@ -81,7 +81,7 @@ valgrind: $(DST_TARGET)
 	@ valgrind --leak-check=full -v ./$(DST_TARGET)
 
 test: $(DST_TARGET)
-	@ ./$(DST_TARGET) --gcinterval=0x10000 dsttest/suite0.dst
+	@ ./$(DST_TARGET) --gcinterval=0x10000 test/suite0.dst
 
 valtest: $(DST_TARGET)
 	valgrind --leak-check=full -v ./$(DST_TARGET) dsttests/basic.dst
@@ -92,13 +92,8 @@ valtest: $(DST_TARGET)
 
 clean:
 	rm $(DST_TARGET) || true
-	rm *.o || true
-	rm client/*.o || true
-	rm core/*.o || true
-	rm $(DST_LANG_HEADERS) || true
+	rm src/**/*.o || true
 	rm vgcore.* || true
-	rm unittests/*.out || true
-	rm $(DST_XXD) || true
 
 install: $(DST_TARGET)
 	cp $(DST_TARGET) $(BINDIR)/dst
