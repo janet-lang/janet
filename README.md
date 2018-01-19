@@ -27,31 +27,17 @@ Byte code interpreter with an assembly interface
 Proper tail calls for functional code
 Direct interop with C
 
-
-
 ## Compiling and Running
 
-Clone the repository and run:
+To build the runtime and run test, run
 ```sh
-make run
-```
-To build the runtime and launch a repl.
-
-## Basic programs
-
-To run some basic programs, run the client with one argument, the name of the
-file to run. For example, the client that is built will be located in the
-client directory, so running a program `script.dst` from the project directory
-would be
-```bash
-client/dst script.dst
+make test
 ```
 
-You can also use the `--help` option to see more usage information for the vm.
-
-## Running Tests
-
-Simply run `make test` to run the currently minimal test suite.
+A repl can also be run with
+```sh
+make repl
+```
 
 ## Todo
 

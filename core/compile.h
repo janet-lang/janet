@@ -91,6 +91,9 @@ struct DstScope {
      * that corresponds to the direct parent's stack will always have value 0. */
     int32_t *envs;
 
+    /* Where to add reference to self in constants */
+    int32_t selfconst;
+
     int32_t bytecode_start;
     int flags;
 };

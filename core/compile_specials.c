@@ -416,6 +416,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstFopts subopts = dstc_fopts_default(c);
     const Dst *params;
     int varargs = 0;
+    int selfref = 0;
 
     if (argn < 2) {
         dstc_cerror(c, ast, "expected at least 2 arguments to function literal");
@@ -428,8 +429,11 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     /* Read function parameters */
     parami = 0;
     arity = 0;
-    head = dst_ast_unwrap(argv[0]);
-    if (dst_checktype(head, DST_SYMBOL)) parami = 1;
+    head = dst_ast_unwrap1(argv[0]);
+    if (dst_checktype(head, DST_SYMBOL)) {
+        selfref = 1;
+        parami = 1;
+    }
     if (parami >= argn) {
         dstc_cerror(c, dst_ast_node(argv[0]), "expected function parameters");
         return dstc_cslot(dst_wrap_nil());
@@ -438,7 +442,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     if (dst_seq_view(paramv, &params, &paramcount)) {
         int32_t i;
         for (i = 0; i < paramcount; i++) {
-            Dst param = dst_ast_unwrap(params[i]);
+            Dst param = dst_ast_unwrap1(params[i]);
             if (dst_checktype(param, DST_SYMBOL)) {
                 DstSlot slot;
                 /* Check for varargs */
@@ -465,6 +469,17 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     } else {
         dstc_cerror(c, ast, "expected function parameters");
         return dstc_cslot(dst_wrap_nil());
+    }
+
+    /* Check for self ref */
+    if (selfref) {
+        DstSlot slot;
+        slot.envindex = 0;
+        slot.flags = DST_SLOT_NAMED | DST_FUNCTION;
+        slot.constant = dst_wrap_nil();
+        slot.index = dstc_lsloti(c);
+        dstc_emit(c, ast, (slot.index << 8) | DOP_LOAD_SELF);
+        dstc_nameslot(c, dst_unwrap_symbol(head), slot);
     }
 
     /* Compile function body */

@@ -150,6 +150,7 @@ void dstc_scope(DstCompiler *c, int flags) {
     scope.defs = NULL;
     scope.slots = NULL;
     scope.smax = -1;
+    scope.selfconst = -1;
     scope.bytecode_start = dst_v_count(c->buffer);
     scope.flags = flags;
 
@@ -224,7 +225,6 @@ DstSlot dstc_resolve(
         for (i = 0; i < len; i++) {
             if (scope->syms[i].sym == sym) {
                 ret = scope->syms[i].slot;
-                ret.flags |= DST_SLOT_NAMED;
                 goto found;
             }
         }
