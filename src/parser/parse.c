@@ -115,13 +115,11 @@ static int valid_utf8(const uint8_t *str, int32_t len) {
         else return 0;
 
         /* No overflow */
-        if (nexti > len)
-            return 0;
+        if (nexti > len) return 0;
 
         /* Ensure trailing bytes are well formed (10XX XXXX) */
         for (j = i + 1; j < nexti; j++) {
-            if ((str[j] >> 6) != 2)
-                return 0;
+            if ((str[j] >> 6) != 2) return 0;
         }
 
         /* Check for overlong encodings */ 

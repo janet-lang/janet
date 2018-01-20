@@ -27,20 +27,6 @@
 #include <dst/dstopcodes.h>
 #include <headerlibs/strbinsearch.h>
 
-/* Bytecode op argument types */
-
-typedef enum DstOpArgType DstOpArgType;
-enum DstOpArgType {
-    DST_OAT_SLOT,
-    DST_OAT_ENVIRONMENT,
-    DST_OAT_CONSTANT,
-    DST_OAT_INTEGER,
-    DST_OAT_TYPE,
-    DST_OAT_SIMPLETYPE,
-    DST_OAT_LABEL,
-    DST_OAT_FUNCDEF
-};
-
 /* Convert a slot to to an integer for bytecode */
 
 /* Types of instructions (some of them) */
@@ -55,25 +41,6 @@ enum DstOpArgType {
  * _ses - op.dest.up.which (load-upvalue, save-upvalue)
  * _sc - op.dest.CC.CC (load-constant, closure)
  */
-
-/* Various types of instructions */
-typedef enum DstInstructionType DstInstructionType;
-enum DstInstructionType {
-    DIT_0, /* No args */
-    DIT_S, /* One slot */
-    DIT_L, /* One label */
-    DIT_SS, /* Two slots */
-    DIT_SL,
-    DIT_ST,
-    DIT_SI,
-    DIT_SD, /* Closures (D for funcDef) */
-    DIT_SU, /* Unsigned */
-    DIT_SSS,
-    DIT_SSI,
-    DIT_SSU,
-    DIT_SES,
-    DIT_SC
-};
 
 /* Definition for an instruction in the assembler */
 typedef struct DstInstructionDef DstInstructionDef;
@@ -704,10 +671,17 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
         }
     }
 
-    /* Finish everything and return funcdef */
-    dst_asm_deinit(&a);
+    /* Set environments */
     def->environments =
         realloc(def->environments, def->environments_length * sizeof(int32_t));
+
+    /* Verify the func def */
+    if (dst_verify(def)) {
+        dst_asm_error(&a, "invalid assembly");
+    }
+
+    /* Finish everything and return funcdef */
+    dst_asm_deinit(&a);
     result.funcdef = def;
     result.status = DST_ASSEMBLE_OK;
     return result;

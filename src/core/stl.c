@@ -283,7 +283,7 @@ DstTable *dst_stl_env() {
     /* Allow references to the environment */
     dst_env_def(env, "_env", ret);
 
-    /*Load auxiliary envs */
+    /* Load auxiliary envs */
     {
         DstArgs args;
         args.n = 1;
@@ -293,7 +293,6 @@ DstTable *dst_stl_env() {
         dst_lib_math(args);
         dst_lib_array(args);
         dst_lib_buffer(args);
-        dst_lib_parse(args);
     }
 
     return env;

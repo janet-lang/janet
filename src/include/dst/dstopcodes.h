@@ -23,6 +23,38 @@
 #ifndef DST_OPCODES_H_defined
 #define DST_OPCODES_H_defined
 
+/* Bytecode op argument types */
+typedef enum DstOpArgType DstOpArgType;
+enum DstOpArgType {
+    DST_OAT_SLOT,
+    DST_OAT_ENVIRONMENT,
+    DST_OAT_CONSTANT,
+    DST_OAT_INTEGER,
+    DST_OAT_TYPE,
+    DST_OAT_SIMPLETYPE,
+    DST_OAT_LABEL,
+    DST_OAT_FUNCDEF
+};
+
+/* Various types of instructions */
+typedef enum DstInstructionType DstInstructionType;
+enum DstInstructionType {
+    DIT_0, /* No args */
+    DIT_S, /* Slot(3) */
+    DIT_L, /* Label(3) */
+    DIT_SS, /* Slot(1), Slot(2) */
+    DIT_SL, /* Slot(1), Label(2) */
+    DIT_ST, /* Slot(1), Slot(2) */
+    DIT_SI, /* Slot(1), Immediate(2) */
+    DIT_SD, /* Slot(1), Closure(2) */
+    DIT_SU, /* Slot(1), Unsigned Immediate(2) */
+    DIT_SSS, /* Slot(1), Slot(1), Slot(1) */
+    DIT_SSI, /* Slot(1), Slot(1), Immediate(1) */
+    DIT_SSU, /* Slot(1), Slot(1), Unsigned Immediate(1) */
+    DIT_SES, /* Slot(1), Environment(1), Far Slot(1) */
+    DIT_SC /* Slot(1), Constant(2) */
+};
+
 typedef enum DstOpCode DstOpCode;
 enum DstOpCode {
     DOP_NOOP,
@@ -84,7 +116,11 @@ enum DstOpCode {
     DOP_PUT,
     DOP_GET_INDEX,
     DOP_PUT_INDEX,
-    DOP_LENGTH
+    DOP_LENGTH,
+    DOP_INSTRUCTION_COUNT
 };
+
+/* Info about all instructions */
+extern DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT];
 
 #endif

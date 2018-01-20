@@ -49,6 +49,7 @@ set(CORE_SOURCES
 src/core/abstract.c
 src/core/array.c
 src/core/buffer.c
+src/core/bytecode.c
 src/core/fiber.c
 src/core/gc.c
 src/core/io.c
@@ -95,14 +96,13 @@ ${PARSER_SOURCES}
 # Build the executable
 add_executable(${TARGET_NAME} ${SOURCES})
 target_link_libraries(${TARGET_NAME} m dl)
-# TODO dont do this on windows
-target_link_libraries(${TARGET_NAME} dl)
 
 # Build some modules
-add_library(dstvm MODULE ${CORE_SOURCES} ${ASSEMBLER_SOURCES})
-target_link_libraries(dstvm m)
+add_library(dstvm SHARED ${CORE_SOURCES} ${ASSEMBLER_SOURCES})
+target_link_libraries(dstvm m dl)
 
-#add_library(dstasm MODULE ${ASSEMBLER_SOURCES})
+add_library(dstasm SHARED ${ASSEMBLER_SOURCES})
+target_link_libraries(dstasm dstvm)
 
 #add_library(dstparser MODULE ${PARSER_SOURCES})
 #target_link_libraries(dstparser m)

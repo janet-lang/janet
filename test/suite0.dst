@@ -193,6 +193,15 @@
 (assert (= (string "🐼" 🦊 🐮) "🐼foxcow") "emojis 🙉 :)")
 (assert (not= 🦊 :🦊) "utf8 strings are not symbols and vice versa")
 
+# Symbols with @ symbol
+
+(def @ 1)
+(assert (= @ 1) "@ symbol")
+(def @@ 2)
+(assert (= @@ 2) "@@ symbol")
+(def @hey 3)
+(assert (= @hey 3) "@hey symbol")
+
 # Merge sort
 
 # Imperative merge sort merge

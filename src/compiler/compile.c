@@ -889,7 +889,8 @@ DstCompileResult dst_compile(Dst source, DstTable *env, int flags) {
     dstc_value(fopts, source);
 
     if (c.result.status == DST_COMPILE_OK) {
-        c.result.funcdef = dstc_pop_funcdef(&c);
+        DstFuncDef *def = dstc_pop_funcdef(&c);
+        c.result.funcdef = def;
     }
 
     dstc_deinit(&c);

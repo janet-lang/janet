@@ -164,6 +164,7 @@ int dst_gcunrootall(Dst root);
 /* Functions */
 DstFuncDef *dst_funcdef_alloc();
 DstFunction *dst_function(DstFuncDef *def, DstFunction *parent);
+int dst_verify(DstFuncDef *def);
 
 /* Misc */
 int dst_equals(Dst x, Dst y);
