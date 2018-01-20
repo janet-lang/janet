@@ -25,7 +25,7 @@
 PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 
-CFLAGS=-std=c99 -Wall -Wextra -I./src/include -g
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -g
 CLIBS=-lm -ldl
 PREFIX=/usr/local
 DST_TARGET=dst
