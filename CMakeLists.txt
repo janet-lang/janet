@@ -18,7 +18,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.9)
 project(dst)
 
 # Set Some Variables
@@ -94,11 +94,20 @@ ${PARSER_SOURCES}
 
 # Build the executable
 add_executable(${TARGET_NAME} ${SOURCES})
-target_link_libraries(${TARGET_NAME} m)
-
-# Build some modules
-add_library(testlib MODULE ${TESTLIB_SOURCES})
-
+target_link_libraries(${TARGET_NAME} m dl)
 # TODO dont do this on windows
 target_link_libraries(${TARGET_NAME} dl)
 
+# Build some modules
+add_library(dstvm MODULE ${CORE_SOURCES} ${ASSEMBLER_SOURCES})
+target_link_libraries(dstvm m)
+
+#add_library(dstasm MODULE ${ASSEMBLER_SOURCES})
+
+#add_library(dstparser MODULE ${PARSER_SOURCES})
+#target_link_libraries(dstparser m)
+
+#add_library(dstcompiler MODULE ${COMPILER_SOURCES})
+#target_link_libraries(dstvm m)
+
+#add_library(testlib MODULE ${TESTLIB_SOURCES})
