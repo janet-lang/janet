@@ -1,6 +1,7 @@
 # Target
 dst
-build
+!*/**/dst
+/build
 
 # Generated files
 *.gen.h
