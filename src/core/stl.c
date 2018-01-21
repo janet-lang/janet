@@ -300,14 +300,27 @@ DstTable *dst_stl_env() {
        DOP_TAILCALL
     };
 
+    static uint32_t yield_asm[] = {
+        DOP_LOAD_NIL | (1 << 8),
+        DOP_TRANSFER | (1 << 16),
+        DOP_RETURN
+    };
+
+    static uint32_t transfer_asm[] = {
+        DOP_TRANSFER | (1 << 24),
+        DOP_RETURN
+    };
+
     DstTable *env = dst_table(0);
     Dst ret = dst_wrap_table(env);
 
     /* Load main functions */
     dst_env_cfuns(env, cfuns);
 
-    dst_env_def(env, "error", dst_wrap_function(dst_quick_asm(1, 0, 1, error_asm, sizeof(uint32_t))));
-    dst_env_def(env, "apply", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, 2 * sizeof(uint32_t))));
+    dst_env_def(env, "error", dst_wrap_function(dst_quick_asm(1, 0, 1, error_asm, sizeof(error_asm))));
+    dst_env_def(env, "apply", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, sizeof(apply_asm))));
+    dst_env_def(env, "yield", dst_wrap_function(dst_quick_asm(1, 0, 2, yield_asm, sizeof(yield_asm))));
+    dst_env_def(env, "transfer", dst_wrap_function(dst_quick_asm(2, 0, 2, transfer_asm, sizeof(transfer_asm))));
 
     /* Allow references to the environment */
     dst_env_def(env, "_env", ret);

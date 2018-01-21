@@ -301,34 +301,6 @@ DstSlot dstc_do(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     return ret;
 }
 
-DstSlot dstc_transfer(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
-    DstCompiler *c = opts.compiler;
-    DstFopts subopts = dstc_fopts_default(c);;
-    DstSlot dest, fib, val;
-    int32_t destindex, fibindex, valindex;
-    if (argn > 2) {
-        dstc_cerror(c, ast, "expected no more than 2 arguments");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    dest = dstc_gettarget(opts);
-    fib = (argn > 0) ? dstc_value(subopts, argv[0]) : dstc_cslot(dst_wrap_nil());
-    val = (argn > 1) ? dstc_value(subopts, argv[1]) : dstc_cslot(dst_wrap_nil());
-    destindex = dstc_preread(c, ast, 0xFF, 1, dest);
-    fibindex = dstc_preread(c, ast, 0xFF, 2, fib);
-    valindex = dstc_preread(c, ast, 0xFF, 3, val);
-    dstc_emit(c, ast, 
-            (valindex << 24) |
-            (fibindex << 16) |
-            (destindex << 8) |
-            DOP_TRANSFER);
-    dstc_postread(c, dest, destindex);
-    dstc_postread(c, fib, fibindex);
-    dstc_postread(c, val, valindex);
-    dstc_freeslot(c, fib);
-    dstc_freeslot(c, val);
-    return dest;
-}
-
 /*
  * :whiletop
  * ...
@@ -528,7 +500,6 @@ static const DstSpecial dstc_specials[] = {
     {"fn", dstc_fn},
     {"if", dstc_if},
     {"quote", dstc_quote},
-    {"transfer", dstc_transfer},
     {"var", dstc_var},
     {"varset!", dstc_varset},
     {"while", dstc_while}

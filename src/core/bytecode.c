@@ -251,6 +251,7 @@ DstFunction *dst_quick_asm(int32_t arity, int varargs, int32_t slots, const uint
     def->flags = varargs ? DST_FUNCDEF_FLAG_VARARG : 0;
     def->slotcount = slots;
     def->bytecode = malloc(bytecode_size);
+    def->bytecode_length = bytecode_size / sizeof(uint32_t);
     if (!def->bytecode) {
         DST_OUT_OF_MEMORY;
     }
