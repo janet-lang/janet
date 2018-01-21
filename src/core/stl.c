@@ -23,6 +23,7 @@
 #include <dst/dst.h>
 #include <dst/dststl.h>
 #include <dst/dstasm.h>
+#include <dst/dstopcodes.h>
 
 int dst_stl_exit(DstArgs args) {
     int32_t exitcode = 0;
@@ -274,11 +275,23 @@ static const DstReg cfuns[] = {
 };
 
 DstTable *dst_stl_env() {
+    static uint32_t error_asm[] = {
+        DOP_ERROR
+    };
+
+    static uint32_t apply_asm[] = {
+       DOP_PUSH_ARRAY | (1 << 8),
+       DOP_TAILCALL
+    };
+
     DstTable *env = dst_table(0);
     Dst ret = dst_wrap_table(env);
 
     /* Load main functions */
     dst_env_cfuns(env, cfuns);
+
+    dst_env_def(env, "error", dst_wrap_function(dst_quick_asm(1, 0, 1, error_asm, sizeof(uint32_t))));
+    dst_env_def(env, "apply", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, 2 * sizeof(uint32_t))));
 
     /* Allow references to the environment */
     dst_env_def(env, "_env", ret);

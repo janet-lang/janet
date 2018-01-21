@@ -141,16 +141,17 @@
 	(varset! count (+ 1 count)))
 (assert (= accum 65536) "loop globally")
 
-(assert (= (struct 1 2 3 4 5 6 7 8) (struct 7 8 5 6 3 4 1 2)) "struct order does not matter")
+(assert (= (struct 1 2 3 4 5 6 7 8) (struct 7 8 5 6 3 4 1 2)) "struct order does not matter 1")
+(assert (= (struct 
+            :apple 1 
+            6 :bork
+            '(1 2 3) 5)
+         (struct 
+            6 :bork
+            '(1 2 3) 5
+            :apple 1)) "struct order does not matter 2")
 
 # Fiber tests
-
-(def error (asm '{
-  arity 1
-  bytecode [
-    (error 0)
-  ]
-}))
 
 (def afiber (fiber (fn [x]
 	(error (string "hello, " x)))))
@@ -170,14 +171,6 @@
 (assert (= (status t) "dead") "finished fiber is dead")
 
 # Var arg tests
-
-(def apply (asm '{
-  arity 2
-  bytecode [
-    (push-array 1)
-    (tailcall 0) 
-  ] 
-}))
 
 (def vargf (fn [more] (apply + more)))
 
