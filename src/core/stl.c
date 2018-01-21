@@ -77,6 +77,21 @@ int dst_stl_string(DstArgs args) {
     return 0;
 }
 
+int dst_stl_symbol(DstArgs args) {
+    int32_t i;
+    DstBuffer b;
+    dst_buffer_init(&b, 0);
+    for (i = 0; i < args.n; ++i) {
+        int32_t len;
+        const uint8_t *str = dst_to_string(args.v[i]);
+        len = dst_string_length(str);
+        dst_buffer_push_bytes(&b, str, len);
+    }
+    *args.ret = dst_symbolv(b.data, b.count);
+    dst_buffer_deinit(&b);
+    return 0;
+}
+
 int dst_stl_buffer_to_string(DstArgs args) {
     DstBuffer *b;
     if (args.n != 1) return dst_throw(args, "expected 1 argument");
@@ -252,6 +267,7 @@ static const DstReg cfuns[] = {
     {"print", dst_stl_print},
     {"describe", dst_stl_describe},
     {"string", dst_stl_string},
+    {"symbol", dst_stl_symbol},
     {"buffer-string", dst_stl_buffer_to_string},
     {"table", dst_cfun_table},
     {"array", dst_cfun_array},

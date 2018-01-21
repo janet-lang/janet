@@ -419,4 +419,13 @@ struct DstReg {
     DstCFunction cfun;
 };
 
+/* ASTs are simple wrappers around values. They contain information about sourcemapping
+ * and other meta data. Possibly types? They are used mainly during compilation and parsing */
+struct DstAst {
+    Dst value;
+    int32_t source_start;
+    int32_t source_end;
+    int flags;
+};
+
 #endif /* DST_TYPES_H_defined */

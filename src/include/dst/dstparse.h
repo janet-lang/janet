@@ -29,21 +29,6 @@ typedef enum DstParserStatus DstParserStatus;
 typedef struct DstParseState DstParseState;
 typedef struct DstParser DstParser;
 
-/* ASTs are simple wrappers around values. They contain information about sourcemapping
- * and other meta data. Possibly types? They are used mainly during compilation and parsing */
-struct DstAst {
-    Dst value;
-    int32_t source_start;
-    int32_t source_end;
-    int flags;
-};
-
-/* AST */
-Dst dst_ast_wrap(Dst x, int32_t start, int32_t end);
-DstAst *dst_ast_node(Dst x);
-Dst dst_ast_unwrap1(Dst x);
-Dst dst_ast_unwrap(Dst x);
-
 /* Number scanning */
 Dst dst_scan_number(const uint8_t *src, int32_t len);
 int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);

@@ -21,7 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstparse.h>
 
 /* Mark an ast node */
 static int dst_ast_gcmark(void *p, size_t size) {

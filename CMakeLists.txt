@@ -48,6 +48,7 @@ src/compiler/compile.h
 set(CORE_SOURCES
 src/core/abstract.c
 src/core/array.c
+src/core/ast.c
 src/core/buffer.c
 src/core/bytecode.c
 src/core/fiber.c
@@ -76,7 +77,6 @@ src/mainclient/main.c
 )
 
 set(PARSER_SOURCES
-src/parser/ast.c
 src/parser/parse.c
 src/parser/strtod.c
 )
@@ -96,18 +96,3 @@ ${PARSER_SOURCES}
 # Build the executable
 add_executable(${TARGET_NAME} ${SOURCES})
 target_link_libraries(${TARGET_NAME} m dl)
-
-# Build some modules
-add_library(dstvm SHARED ${CORE_SOURCES} ${ASSEMBLER_SOURCES})
-target_link_libraries(dstvm m dl)
-
-add_library(dstasm SHARED ${ASSEMBLER_SOURCES})
-target_link_libraries(dstasm dstvm)
-
-#add_library(dstparser MODULE ${PARSER_SOURCES})
-#target_link_libraries(dstparser m)
-
-#add_library(dstcompiler MODULE ${COMPILER_SOURCES})
-#target_link_libraries(dstvm m)
-
-#add_library(testlib MODULE ${TESTLIB_SOURCES})
