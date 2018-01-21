@@ -24,7 +24,6 @@
 #define DST_COMPILE_H
 
 #include <dst/dst.h>
-#include <setjmp.h>
 #include <dst/dstcompile.h>
 #include <dst/dstopcodes.h>
 
@@ -68,6 +67,7 @@ typedef struct DstSM {
 /* A symbol and slot pair */
 typedef struct SymPair {
     const uint8_t *sym;
+    int keep;
     DstSlot slot;
 } SymPair;
 
@@ -105,7 +105,7 @@ struct DstCompiler {
     DstScope *scopes;
     
     uint32_t *buffer;
-    int32_t *mapbuffer;
+    DstAst **mapbuffer;
 
     /* Hold the environment */
     DstTable *env;

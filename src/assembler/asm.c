@@ -46,7 +46,6 @@
 typedef struct DstInstructionDef DstInstructionDef;
 struct DstInstructionDef {
     const char *name;
-    DstInstructionType type;
     DstOpCode opcode;
 };
 
@@ -76,63 +75,63 @@ struct DstAssembler {
  * time and is easier to setup statically than a hash table or
  * prefix tree. */
 static const DstInstructionDef dst_ops[] = {
-    {"add", DIT_SSS, DOP_ADD},
-    {"add-immediate", DIT_SSI, DOP_ADD_IMMEDIATE},
-    {"add-integer", DIT_SSS, DOP_ADD_INTEGER},
-    {"add-real", DIT_SSS, DOP_ADD_REAL},
-    {"band", DIT_SSS, DOP_BAND},
-    {"bnot", DIT_SS, DOP_BNOT},
-    {"bor", DIT_SSS, DOP_BOR},
-    {"bxor", DIT_SSS, DOP_BXOR},
-    {"call", DIT_SS, DOP_CALL},
-    {"closure", DIT_SD, DOP_CLOSURE},
-    {"compare", DIT_SSS, DOP_COMPARE},
-    {"divide", DIT_SSS, DOP_DIVIDE},
-    {"divide-immediate", DIT_SSI, DOP_DIVIDE_IMMEDIATE},
-    {"divide-integer", DIT_SSS, DOP_DIVIDE_INTEGER},
-    {"divide-real", DIT_SSS, DOP_DIVIDE_REAL},
-    {"equals", DIT_SSS, DOP_EQUALS},
-    {"error", DIT_S, DOP_ERROR},
-    {"get", DIT_SSS, DOP_GET},
-    {"get-index", DIT_SSU, DOP_GET_INDEX},
-    {"greater-than", DIT_SSS, DOP_GREATER_THAN},
-    {"jump", DIT_L, DOP_JUMP},
-    {"jump-if", DIT_SL, DOP_JUMP_IF},
-    {"jump-if-not", DIT_SL, DOP_JUMP_IF_NOT},
-    {"less-than", DIT_SSS, DOP_LESS_THAN},
-    {"load-constant", DIT_SC, DOP_LOAD_CONSTANT},
-    {"load-false", DIT_S, DOP_LOAD_FALSE},
-    {"load-integer", DIT_SI, DOP_LOAD_INTEGER},
-    {"load-nil", DIT_S, DOP_LOAD_NIL},
-    {"load-self", DIT_S, DOP_LOAD_SELF},
-    {"load-true", DIT_S, DOP_LOAD_TRUE},
-    {"load-upvalue", DIT_SES, DOP_LOAD_UPVALUE},
-    {"move-far", DIT_SS, DOP_MOVE_FAR},
-    {"move-near", DIT_SS, DOP_MOVE_NEAR},
-    {"multiply", DIT_SSS, DOP_MULTIPLY},
-    {"multiply-immediate", DIT_SSI, DOP_MULTIPLY_IMMEDIATE},
-    {"multiply-integer", DIT_SSS, DOP_MULTIPLY_INTEGER},
-    {"multiply-real", DIT_SSS, DOP_MULTIPLY_REAL},
-    {"noop", DIT_0, DOP_NOOP},
-    {"push", DIT_S, DOP_PUSH},
-    {"push-array", DIT_S, DOP_PUSH_ARRAY},
-    {"push2", DIT_SS, DOP_PUSH_2},
-    {"push3", DIT_SSS, DOP_PUSH_3},
-    {"put", DIT_SSS, DOP_PUT},
-    {"put-index", DIT_SSU, DOP_PUT_INDEX},
-    {"return", DIT_S, DOP_RETURN},
-    {"return-nil", DIT_0, DOP_RETURN_NIL},
-    {"set-upvalue", DIT_SES, DOP_SET_UPVALUE},
-    {"shift-left", DIT_SSS, DOP_SHIFT_LEFT},
-    {"shift-left-immediate", DIT_SSI, DOP_SHIFT_LEFT_IMMEDIATE},
-    {"shift-right", DIT_SSS, DOP_SHIFT_RIGHT},
-    {"shift-right-immediate", DIT_SSI, DOP_SHIFT_RIGHT_IMMEDIATE},
-    {"shift-right-unsigned", DIT_SSS, DOP_SHIFT_RIGHT_UNSIGNED},
-    {"shift-right-unsigned-immediate", DIT_SSS, DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
-    {"subtract", DIT_SSS, DOP_SUBTRACT},
-    {"tailcall", DIT_S, DOP_TAILCALL},
-    {"transfer", DIT_SSS, DOP_TRANSFER},
-    {"typecheck", DIT_ST, DOP_TYPECHECK},
+    {"add", DOP_ADD},
+    {"add-immediate", DOP_ADD_IMMEDIATE},
+    {"add-integer", DOP_ADD_INTEGER},
+    {"add-real", DOP_ADD_REAL},
+    {"band", DOP_BAND},
+    {"bnot", DOP_BNOT},
+    {"bor", DOP_BOR},
+    {"bxor", DOP_BXOR},
+    {"call", DOP_CALL},
+    {"closure", DOP_CLOSURE},
+    {"compare", DOP_COMPARE},
+    {"divide", DOP_DIVIDE},
+    {"divide-immediate", DOP_DIVIDE_IMMEDIATE},
+    {"divide-integer", DOP_DIVIDE_INTEGER},
+    {"divide-real", DOP_DIVIDE_REAL},
+    {"equals", DOP_EQUALS},
+    {"error", DOP_ERROR},
+    {"get", DOP_GET},
+    {"get-index", DOP_GET_INDEX},
+    {"greater-than", DOP_GREATER_THAN},
+    {"jump", DOP_JUMP},
+    {"jump-if", DOP_JUMP_IF},
+    {"jump-if-not", DOP_JUMP_IF_NOT},
+    {"less-than", DOP_LESS_THAN},
+    {"load-constant", DOP_LOAD_CONSTANT},
+    {"load-false", DOP_LOAD_FALSE},
+    {"load-integer", DOP_LOAD_INTEGER},
+    {"load-nil", DOP_LOAD_NIL},
+    {"load-self", DOP_LOAD_SELF},
+    {"load-true", DOP_LOAD_TRUE},
+    {"load-upvalue", DOP_LOAD_UPVALUE},
+    {"move-far", DOP_MOVE_FAR},
+    {"move-near", DOP_MOVE_NEAR},
+    {"multiply", DOP_MULTIPLY},
+    {"multiply-immediate", DOP_MULTIPLY_IMMEDIATE},
+    {"multiply-integer", DOP_MULTIPLY_INTEGER},
+    {"multiply-real", DOP_MULTIPLY_REAL},
+    {"noop", DOP_NOOP},
+    {"push", DOP_PUSH},
+    {"push-array", DOP_PUSH_ARRAY},
+    {"push2", DOP_PUSH_2},
+    {"push3", DOP_PUSH_3},
+    {"put", DOP_PUT},
+    {"put-index", DOP_PUT_INDEX},
+    {"return", DOP_RETURN},
+    {"return-nil", DOP_RETURN_NIL},
+    {"set-upvalue", DOP_SET_UPVALUE},
+    {"shift-left", DOP_SHIFT_LEFT},
+    {"shift-left-immediate", DOP_SHIFT_LEFT_IMMEDIATE},
+    {"shift-right", DOP_SHIFT_RIGHT},
+    {"shift-right-immediate", DOP_SHIFT_RIGHT_IMMEDIATE},
+    {"shift-right-unsigned", DOP_SHIFT_RIGHT_UNSIGNED},
+    {"shift-right-unsigned-immediate", DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
+    {"subtract", DOP_SUBTRACT},
+    {"tailcall", DOP_TAILCALL},
+    {"transfer", DOP_TRANSFER},
+    {"typecheck", DOP_TYPECHECK},
 };
 
 /* Check a dst string against a bunch of test_strings. Return the 
@@ -337,7 +336,8 @@ static uint32_t read_instruction(
         const DstInstructionDef *idef,
         const Dst *argt) {
     uint32_t instr = idef->opcode;
-    switch (idef->type) {
+    DstInstructionType type = dst_instructions[idef->opcode];
+    switch (type) {
         case DIT_0:
         {
             if (dst_tuple_length(argt) != 1)
@@ -388,7 +388,7 @@ static uint32_t read_instruction(
             if (dst_tuple_length(argt) != 3)
                 dst_asm_error(a, "expected 2 arguments: (op, slot, integer)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_INTEGER, 2, 2, idef->type == DIT_SI, argt[2]);
+            instr |= doarg(a, DST_OAT_INTEGER, 2, 2, type == DIT_SI, argt[2]);
             break;
         }
         case DIT_SD:
@@ -415,7 +415,7 @@ static uint32_t read_instruction(
                 dst_asm_error(a, "expected 3 arguments: (op, slot, slot, integer)");
             instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
             instr |= doarg(a, DST_OAT_SLOT, 2, 1, 0, argt[2]);
-            instr |= doarg(a, DST_OAT_INTEGER, 3, 1, idef->type == DIT_SSI, argt[3]);
+            instr |= doarg(a, DST_OAT_INTEGER, 3, 1, type == DIT_SSI, argt[3]);
             break;
         }
         case DIT_SES:
@@ -744,7 +744,7 @@ Dst dst_asm_decode_instruction(uint32_t instr) {
     }
     name = dst_csymbolv(def->name);
 #define oparg(shift, mask) ((instr >> ((shift) << 3)) & (mask))
-    switch (def->type) {
+    switch (dst_instructions[def->opcode]) {
         case DIT_0:
             return tup1(name);
         case DIT_S:

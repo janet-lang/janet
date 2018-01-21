@@ -141,6 +141,7 @@ void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s) {
     SymPair sp;
     sp.sym = sym;
     sp.slot = s;
+    sp.keep = 0;
     sp.slot.flags |= DST_SLOT_NAMED;
     dst_v_push(scope->syms, sp);
 }
@@ -174,20 +175,33 @@ void dstc_popscope(DstCompiler *c) {
     int32_t oldcount = dst_v_count(c->scopes);
     dst_assert(oldcount, "could not pop scope");
     scope = dst_v_last(c->scopes);
+    dst_v_pop(c->scopes);
+    /* Move free slots to parent scope if not a new function.
+     * We need to know the total number of slots used when compiling the function. */
+    if (!(scope.flags & (DST_SCOPE_FUNCTION | DST_SCOPE_UNUSED)) && oldcount > 1) {
+        int32_t i;
+        DstScope *newscope = &dst_v_last(c->scopes);
+        if (newscope->smax < scope.smax) 
+            newscope->smax = scope.smax;
+
+        /* Keep upvalue slots */
+        for (i = 0; i < dst_v_count(scope.syms); i++) {
+            SymPair pair = scope.syms[i];
+            if (pair.keep) {
+                /* The variable should not be lexically accessible */
+                pair.sym = NULL;
+                dst_v_push(newscope->syms, pair);
+                slotalloci(c, pair.slot.index);
+            }
+        }
+
+    }
     /* Free the scope */
     dst_v_free(scope.consts);
     dst_v_free(scope.syms);
     dst_v_free(scope.envs);
     dst_v_free(scope.defs);
     dst_v_free(scope.slots);
-    dst_v_pop(c->scopes);
-    /* Move free slots to parent scope if not a new function.
-     * We need to know the total number of slots used when compiling the function. */
-    if (!(scope.flags & (DST_SCOPE_FUNCTION | DST_SCOPE_UNUSED)) && oldcount > 1) {
-        DstScope *newscope = &dst_v_last(c->scopes);
-        if (newscope->smax < scope.smax) 
-            newscope->smax = scope.smax;
-    }
 }
 
 /* Leave a scope but keep a slot allocated. */
@@ -217,6 +231,7 @@ DstSlot dstc_resolve(
     DstSlot ret = dstc_cslot(dst_wrap_nil());
     DstScope *top = &dst_v_last(c->scopes);
     DstScope *scope = top;
+    SymPair *pair;
     int foundlocal = 1;
     int unused = 0;
 
@@ -227,8 +242,9 @@ DstSlot dstc_resolve(
             unused = 1;
         len = dst_v_count(scope->syms);
         for (i = 0; i < len; i++) {
-            if (scope->syms[i].sym == sym) {
-                ret = scope->syms[i].slot;
+            pair = scope->syms + i;
+            if (pair->sym == sym) {
+                ret = pair->slot;
                 goto found;
             }
         }
@@ -272,14 +288,12 @@ DstSlot dstc_resolve(
     }
 
     /* non-local scope needs to expose its environment */
-    if (!foundlocal) {
-        /* Find function scope */
-        while (scope >= c->scopes && !(scope->flags & DST_SCOPE_FUNCTION)) scope--;
-        dst_assert(scope >= c->scopes, "invalid scopes");
-        scope->flags |= DST_SCOPE_ENV;
-        if (!dst_v_count(scope->envs)) dst_v_push(scope->envs, 0);
-        scope++;
-    }
+    pair->keep = 1;
+    while (scope >= c->scopes && !(scope->flags & DST_SCOPE_FUNCTION)) scope--;
+    dst_assert(scope >= c->scopes, "invalid scopes");
+    scope->flags |= DST_SCOPE_ENV;
+    if (!dst_v_count(scope->envs)) dst_v_push(scope->envs, 0);
+    scope++;
 
     /* Propogate env up to current scope */
     int32_t envindex = 0;
@@ -314,13 +328,7 @@ DstSlot dstc_resolve(
 /* Emit a raw instruction with source mapping. */
 void dstc_emit(DstCompiler *c, DstAst *ast, uint32_t instr) {
     dst_v_push(c->buffer, instr);
-    if (NULL != ast) {
-        dst_v_push(c->mapbuffer, ast->source_start);
-        dst_v_push(c->mapbuffer, ast->source_end);
-    } else {
-        dst_v_push(c->mapbuffer, -1);
-        dst_v_push(c->mapbuffer, -1);
-    }
+    dst_v_push(c->mapbuffer, ast);
 }
 
 /* Add a constant to the current scope. Return the index of the constant. */
@@ -782,6 +790,9 @@ DstSlot dstc_value(DstFopts opts, Dst x) {
             ret = dstc_tablector(opts, ast, x, dst_cfun_table);
             break;
     }
+    if (dstc_iserr(&opts)) {
+        return dstc_cslot(dst_wrap_nil());
+    }
     if (opts.flags & DST_FOPTS_TAIL) {
         ret = dstc_return(opts.compiler, ast, ret);
     }
@@ -798,6 +809,8 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
     DstScope scope = dst_v_last(c->scopes);
     DstFuncDef *def = dst_funcdef_alloc();
     def->slotcount = scope.smax + 1;
+
+    dst_assert(scope.flags & DST_SCOPE_FUNCTION, "expected function scope");
 
     /* Copy envs */
     def->environments_length = dst_v_count(scope.envs);
@@ -820,11 +833,22 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
         memcpy(def->bytecode, c->buffer + scope.bytecode_start, s);
         dst_v__cnt(c->buffer) = scope.bytecode_start;
         if (NULL != c->mapbuffer) {
+            int32_t i;
+            size_t s = sizeof(int32_t) * 2 * dst_v_count(c->mapbuffer);
             def->sourcemap = malloc(2 * s);
             if (NULL == def->sourcemap) {
                 DST_OUT_OF_MEMORY;
             }
-            memcpy(def->sourcemap, c->mapbuffer + scope.bytecode_start, 2 * s);
+            for (i = 0; i < dst_v_count(c->mapbuffer); i++) {
+                DstAst *a = c->mapbuffer[i];
+                if (a) {
+                    def->sourcemap[2 * i] = a->source_start;
+                    def->sourcemap[2 * i + 1] = a->source_end;
+                } else {
+                    def->sourcemap[2 * i] = -1;
+                    def->sourcemap[2 * i + 1] = -1;
+                }
+            }
             dst_v__cnt(c->mapbuffer) = scope.bytecode_start;
         }
     }

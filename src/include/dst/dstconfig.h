@@ -98,11 +98,9 @@
 } while (0)
 #endif
 
-#ifndef DST_NOASSERT
 #define dst_assert(c, m) do { \
     if (!(c)) dst_exit((m)); \
 } while (0)
-#endif
 
 /* What to do when out of memory */
 #ifndef DST_OUT_OF_MEMORY
@@ -115,7 +113,7 @@
 
 /* Prevent some recursive functions from recursing too deeply
  * ands crashing (the parser). Instead, error out. */
-#define DST_RECURSION_GUARD 1000
+#define DST_RECURSION_GUARD 1024
 
 /* Use nanboxed values - uses 8 bytes per value instead of 12 or 16. */
 #define DST_NANBOX

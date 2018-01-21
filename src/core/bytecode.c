@@ -22,7 +22,9 @@
 
 #include <dst/dsttypes.h>
 #include <dst/dstopcodes.h>
+#include "gc.h"
 
+/* Look up table for instructions */
 DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
     DIT_0, /* DOP_NOOP, */
     DIT_S, /* DOP_ERROR, */
@@ -86,37 +88,8 @@ DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
     DIT_SS /* DOP_LENGTH */
 };
 
-/* Hold state in stack during the breadth first traversal */
-typedef struct Node Node;
-struct Node {
-    DstFuncDef *def;
-    int32_t index;
-};
-
-/* An in memory stack of FuncDefs to verify */
-
-/* Thread local */
-static Node *stack = NULL;
-static int32_t stackcap = 0;
-static int32_t stackcount = 0;
-
-/* Push a Node to the stack */
-static void push(DstFuncDef *def, int32_t index) {
-    Node n;
-    n.def = def;
-    n.index = index;
-    if (stackcount >= stackcap) {
-        stackcap = 2 * stackcount + 2;
-        stack = realloc(stack, sizeof(Node) * stackcap);
-        if (!stack) {
-            DST_OUT_OF_MEMORY;
-        }
-    }
-    stack[stackcount++] = n;
-}
-
 /* Verify some bytecode */
-static int32_t dst_verify_one(DstFuncDef *def) {
+int32_t dst_verify(DstFuncDef *def) {
     int vargs = def->flags & DST_FUNCDEF_FLAG_VARARG;
     int32_t i;
     int32_t maxslot = def->arity + vargs;
@@ -224,23 +197,49 @@ static int32_t dst_verify_one(DstFuncDef *def) {
         }
     }
 
-    /* Verify sub funcdefs by pushing next node to stack */
-    if (def->defs_length) push(def, 0);
-
     return 0;
 }
 
-/* Verify */
-int32_t dst_verify(DstFuncDef *def) {
-    int32_t status;
-    stackcount = 0;
-    status = dst_verify_one(def);
-    while (!status && stackcount) {
-        Node n = stack[--stackcount];
-        if (n.index < n.def->defs_length) {
-            status = dst_verify_one(n.def->defs[n.index]);
-            push(n.def, n.index + 1);
+/* Allocate an empty funcdef. This function may have added functionality
+ * as commonalities between asm and compile arise. */
+DstFuncDef *dst_funcdef_alloc() {
+    DstFuncDef *def = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
+    def->environments = NULL;
+    def->constants = NULL;
+    def->bytecode = NULL;
+    def->flags = 0;
+    def->slotcount = 0;
+    def->arity = 0;
+    def->source = NULL;
+    def->sourcepath = NULL;
+    def->sourcemap = NULL;
+    def->defs = NULL;
+    def->defs_length = 0;
+    def->constants_length = 0;
+    def->bytecode_length = 0;
+    def->environments_length = 1;
+    return def;
+}
+
+/* Create a closure from a funcdef and a parent function */
+DstFunction *dst_function(DstFuncDef *def, DstFunction *parent) {
+    int32_t i;
+    DstFunction *func = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
+    int32_t elen = def->environments_length;
+    func->def = def;
+    if (elen) {
+        func->envs = malloc(sizeof(DstFuncEnv *) * elen);
+        if (elen > 1 && !parent) return NULL;
+        if (NULL == func->envs) {
+            DST_OUT_OF_MEMORY;
         }
+        func->envs[0] = NULL;
+    } else {
+        func->envs = NULL;
     }
-    return status;
+    for (i = 1; i < def->environments_length; ++i) {
+        int32_t inherit = def->environments[i];
+        func->envs[i] = parent->envs[inherit];
+    }
+    return func;
 }

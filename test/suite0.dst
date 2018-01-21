@@ -95,18 +95,33 @@
 
 # Fibonacci
 (def fib (do (var fib nil) (varset! fib (fn [n] (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))))
+(def fib2 (fn fib2 [n] (if (< n 2) n (+ (fib2 (- n 1)) (fib2 (- n 2))))))
 
-(assert (= (fib 0) 0) "fib(0)")
-(assert (= (fib 1) 1) "fib(1)")
-(assert (= (fib 2) 1) "fib(2)")
-(assert (= (fib 3) 2) "fib(3)")
-(assert (= (fib 4) 3) "fib(4)")
-(assert (= (fib 5) 5) "fib(5)")
-(assert (= (fib 6) 8) "fib(6)")
-(assert (= (fib 7) 13) "fib(7)")
-(assert (= (fib 8) 21) "fib(8)")
-(assert (= (fib 9) 34) "fib(9)")
-(assert (= (fib 10) 55) "fib(10)")
+(assert (= (fib 0) (fib2 0) 0) "fib(0)")
+(assert (= (fib 1) (fib2 1) 1) "fib(1)")
+(assert (= (fib 2) (fib2 2) 1) "fib(2)")
+(assert (= (fib 3) (fib2 3) 2) "fib(3)")
+(assert (= (fib 4) (fib2 4) 3) "fib(4)")
+(assert (= (fib 5) (fib2 5) 5) "fib(5)")
+(assert (= (fib 6) (fib2 6) 8) "fib(6)")
+(assert (= (fib 7) (fib2 7) 13) "fib(7)")
+(assert (= (fib 8) (fib2 8) 21) "fib(8)")
+(assert (= (fib 9) (fib2 9) 34) "fib(9)")
+(assert (= (fib 10) (fib2 10) 55) "fib(10)")
+
+# Closure in non function scope
+(def outerfun (fn [x y]
+    (def c (do
+      (def someval (+ 10 y))
+      (def ctemp (if x (fn [] someval) (fn [] y)))
+      ctemp
+    ))
+    (+ 1 2 3 4 5 6 7)
+    c))
+
+(assert (= ((outerfun 1 2)) 12) "inner closure 1")
+(assert (= ((outerfun nil 2)) 2) "inner closure 2")
+(assert (= ((outerfun false 3)) 3) "inner closure 3")
 
 (assert (= "hello" :hello) "keyword syntax for strings")
 (assert (= '(1 2 3) (quote (1 2 3)) (tuple 1 2 3)) "quote shorthand")
