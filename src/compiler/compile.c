@@ -703,18 +703,31 @@ static DstSlot dstc_call(DstFopts opts, DstAst *ast, DstSM *sms, DstSlot fun) {
     DstSlot retslot;
     int32_t localindex;
     DstCompiler *c = opts.compiler;
-    dstc_pushslots(c, ast, sms);
-    dstc_freeslots(c, sms);
-    localindex = dstc_preread(c, ast, 0xFF, 1, fun);
-    if (opts.flags & DST_FOPTS_TAIL) {
-        dstc_emit(c, ast, (localindex << 8) | DOP_TAILCALL);
-        retslot = dstc_cslot(dst_wrap_nil());
-        retslot.flags = DST_SLOT_RETURNED;
-    } else {
-        retslot = dstc_gettarget(opts);
-        dstc_emit(c, ast, (localindex << 16) | (retslot.index << 8) | DOP_CALL);
+    int specialized = 0;
+    if (fun.flags & DST_SLOT_CONSTANT) {
+        if (dst_checktype(fun.constant, DST_CFUNCTION)) {
+            const DstCFunOptimizer *o = dstc_cfunopt(dst_unwrap_cfunction(fun.constant));
+            if (o && o->can_optimize(opts, ast, sms)) {
+                specialized = 1;
+                retslot = o->optimize(opts, ast, sms);
+            }
+        }
+        /* TODO dst function inlining (no c functions)*/
     }
-    dstc_postread(c, fun, localindex);
+    if (!specialized) {
+        dstc_pushslots(c, ast, sms);
+        localindex = dstc_preread(c, ast, 0xFF, 1, fun);
+        if (opts.flags & DST_FOPTS_TAIL) {
+            dstc_emit(c, ast, (localindex << 8) | DOP_TAILCALL);
+            retslot = dstc_cslot(dst_wrap_nil());
+            retslot.flags = DST_SLOT_RETURNED;
+        } else {
+            retslot = dstc_gettarget(opts);
+            dstc_emit(c, ast, (localindex << 16) | (retslot.index << 8) | DOP_CALL);
+        }
+        dstc_postread(c, fun, localindex);
+    }
+    dstc_freeslots(c, sms);
     return retslot;
 }
 

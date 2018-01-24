@@ -39,7 +39,8 @@ src/assembler/asm.c
 
 set(COMPILER_SOURCES
 src/compiler/compile.c
-src/compiler/compile_specials.c
+src/compiler/specials.c
+src/compiler/cfuns.c
 src/compiler/context.c
 
 src/compiler/compile.h

@@ -155,6 +155,7 @@ struct DstParseState {
 };
 
 #define PFLAG_CONTAINER 1
+#define PFLAG_WASTOKEN 2
 
 static void pushstate(DstParser *p, Consumer consumer, int flags) {
     DstParseState s;
@@ -475,10 +476,14 @@ const char *dst_parser_error(DstParser *parser) {
 
 Dst dst_parser_produce(DstParser *parser) {
     Dst ret;
+    int32_t i;
     DstParserStatus status = dst_parser_status(parser);
     if (status != DST_PARSE_FULL) return dst_wrap_nil();
-    ret = dst_v_last(parser->argstack);
-    dst_v_pop(parser->argstack);
+    ret = parser->argstack[0];
+    for (i = 1; i < dst_v_count(parser->argstack); i++) {
+        parser->argstack[i - 1] = parser->argstack[i];
+    }
+    dst_v__cnt(parser->argstack)--;
     return ret;
 }
 

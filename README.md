@@ -7,8 +7,7 @@ Lisp with several native useful datatypes. Some of the more interesting and
 useful features are first class functions and closures, immutable and mutable
 hashtables, arrays, and bytebuffers, macros (NYI), tail-call optimization,
 and continuations (coroutines, error handling). The runtime and 
-compiler are written in C99, but should eventually be completely compatible
-with C89 compilers.
+compiler are written in C99.
 
 There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
@@ -16,16 +15,20 @@ dst could be embedded into other programs.
 
 ## Features
 
-First class closures
-Garbage collection
-lexical scoping
-First class green threads (continuations)
-Mutable and immutable arrays (array/tuple)
-Mutable and immutable hashtables (table/struct)
-Mutable and immutable strings (buffer/string)
-Byte code interpreter with an assembly interface
-Proper tail calls for functional code
-Direct interop with C
+* First class closures
+* Garbage collection
+* Lexical scoping
+* First class green threads (continuations)
+* Mutable and immutable arrays (array/tuple)
+* Mutable and immutable hashtables (table/struct)
+* Mutable and immutable strings (buffer/string)
+* Byte code interpreter with an assembly interface, as well as bytecode verification
+* Proper tail calls for functional code
+* Direct interop with C
+* REPL (read eval print loop)
+
+The code can be compiled to be either a bytecode interpreter and runtime, or
+a full language.
 
 ## Compiling and Running
 

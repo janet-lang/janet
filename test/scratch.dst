@@ -1,0 +1,18 @@
+(def fib (asm '{
+  bytecode [
+    (load-integer 2 2)
+    (less-than 2 0 2)
+    (jump-if-not 2 2)
+    (return 0)
+    (load-self 1)
+    (add-immediate 0 0 -1)
+    (push 0)
+    (call 2 1)
+    (add-immediate 0 0 -1)
+    (push 0)
+    (call 3 1)
+    (add-integer 0 2 3)
+    (return 0)
+  ]
+  arity 1
+}))

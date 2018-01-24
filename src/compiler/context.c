@@ -27,11 +27,11 @@
 #define CHUNKSIZE 1024
 
 /* Read input for a repl */
-static int replread(DstContext *c) {
-    if (c->buffer.count == 0)
-        printf("> ");
-    else
+static int replread(DstContext *c, DstParserStatus status) {
+    if (status == DST_PARSE_PENDING)
         printf(">> ");
+    else
+        printf("> ");
     for (;;) {
         int x = fgetc(stdin);
         if (x == EOF) {
@@ -76,9 +76,10 @@ static void filedeinit(DstContext *c) {
     fclose((FILE *) (c->user));
 }
 
-static int fileread(DstContext *c) {
+static int fileread(DstContext *c, DstParserStatus status) {
     size_t nread;
     FILE *f = (FILE *) c->user;
+    (void) status;
     dst_buffer_ensure(&c->buffer, CHUNKSIZE);
     nread = fread(c->buffer.data, 1, CHUNKSIZE, f);
     if (nread != CHUNKSIZE && ferror(f)) {
@@ -149,11 +150,12 @@ int dst_context_run(DstContext *c, int flags) {
     int done = 0;
     int errflags = 0;
     DstParser parser;
+    DstParserStatus status;
     dst_parser_init(&parser, flags);
     while (!done) {
         int bufferdone = 0;
         while (!bufferdone) {
-            DstParserStatus status = dst_parser_status(&parser);
+            status = dst_parser_status(&parser);
             switch (status) {
                 case DST_PARSE_FULL:
                     {
@@ -196,7 +198,7 @@ int dst_context_run(DstContext *c, int flags) {
         /* Refill the buffer */
         c->buffer.count = 0;
         c->index = 0;
-        if (c->read_chunk(c) || c->buffer.count == 0) {
+        if (c->read_chunk(c, status) || c->buffer.count == 0) {
             done = 1;
         }
     }

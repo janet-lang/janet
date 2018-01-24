@@ -67,7 +67,7 @@ struct DstContext {
     void *user;
     int32_t index;
 
-    int (*read_chunk)(DstContext *self);
+    int (*read_chunk)(DstContext *self, DstParserStatus status);
     void (*on_error)(DstContext *self, DstContextErrorType type, Dst err, size_t start, size_t end);
     void (*on_value)(DstContext *self, Dst value);
     void (*deinit)(DstContext *self);

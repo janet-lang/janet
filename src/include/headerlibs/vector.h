@@ -54,6 +54,7 @@
 /* Vector code */
 
 /* Grow the buffer dynamically. Used for push operations. */
+#ifndef DST_V_NODEF_GROW
 static void *dst_v_grow(void *v, int32_t increment, int32_t itemsize) {
     int32_t dbl_cur = (NULL != v) ? 2 * dst_v__cap(v) : 0;
     int32_t min_needed = dst_v_count(v) + increment;
@@ -70,6 +71,7 @@ static void *dst_v_grow(void *v, int32_t increment, int32_t itemsize) {
        return (void *) (2 * sizeof(int32_t)); // try to force a NULL pointer exception later
    }
 }
+#endif
 
 /* Clone a buffer. */
 #ifdef DST_V_DEF_COPYMEM

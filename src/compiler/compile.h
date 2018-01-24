@@ -34,7 +34,8 @@ typedef struct SlotTracker SlotTracker;
 typedef struct DstScope DstScope;
 typedef struct DstSlot DstSlot;
 typedef struct DstFopts DstFopts;
-typedef struct DstCFunctionOptimizer DstCFunctionOptimizer;
+typedef struct DstCFunOptimizer DstCFunOptimizer;
+typedef struct DstSpecial DstSpecial;
 
 #define DST_SLOT_CONSTANT 0x10000
 #define DST_SLOT_NAMED 0x20000
@@ -130,16 +131,17 @@ DstFopts dstc_fopts_default(DstCompiler *c);
 /* A grouping of optimizations on a cfunction given certain conditions
  * on the arguments (such as all constants, or some known types). The appropriate
  * optimizations should be tried before compiling a normal function call. */
-typedef struct DstCFunOptimizer {
+struct DstCFunOptimizer {
     DstCFunction cfun;
-    DstSlot (*optimize)(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv);
-} DstCFunOptimizer;
+    int (*can_optimize)(DstFopts opts, DstAst *ast, DstSM *args);
+    DstSlot (*optimize)(DstFopts opts, DstAst *ast, DstSM *args);
+};
 
 /* A grouping of a named special and the corresponding compiler fragment */
-typedef struct DstSpecial {
+struct DstSpecial {
     const char *name;
     DstSlot (*compile)(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv);
-} DstSpecial;
+};
 
 /****************************************************/
 

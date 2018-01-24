@@ -151,6 +151,10 @@
             '(1 2 3) 5
             :apple 1)) "struct order does not matter 2")
 
+# Symbol function
+
+(assert (= (symbol "abc" 1 2 3) 'abc123) "symbol function")
+
 # Fiber tests
 
 (def afiber (fiber (fn [x]
@@ -163,7 +167,7 @@
 
 # yield tests
 
-(def t (fiber (fn [] (transfer nil 1) (transfer nil 2) 3)))
+(def t (fiber (fn [] (transfer nil 1) (yield 2) 3)))
 
 (assert (= 1 (transfer t)) "initial transfer to new fiber")
 (assert (= 2 (transfer t)) "second transfer to fiber")
