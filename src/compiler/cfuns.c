@@ -23,17 +23,17 @@
 #include <dst/dst.h>
 #include <dst/dststl.h>
 #include "compile.h"
-#define DST_V_NODEF_GROW
 #include <headerlibs/vector.h>
 #undef DST_V_NODEF_GROW
 
 /* This logic needs to be expanded for more types */
 
-/* Check if a function recieved only numbers */
-static int numbers(DstFopts opts, DstSM *args) {
+/* Check if a function received only numbers */
+static int numbers(DstFopts opts, DstAst *ast, DstSM *args) {
    int32_t i;
    int32_t len = dst_v_count(args);
    (void) opts;
+   (void) ast;
    for (i = 0; i < len; i++) {
        DstSlot s = args[i].slot;
        if (s.flags & DST_SLOT_CONSTANT) {
@@ -48,12 +48,34 @@ static int numbers(DstFopts opts, DstSM *args) {
    return 1;
 }
 
-static int can_add(DstFopts opts, DstAst *ast, DstSM *args) {
-    (void) ast;
-    return numbers(opts, args);
+/* Fold constants in a DstSM */
+static DstSM *foldc(DstSM *sms, DstAst *ast, Dst (*fn)(Dst lhs, Dst rhs)) {
+    int32_t ccount;
+    int32_t i;
+    DstSM *ret = NULL;
+    DstSM sm;
+    Dst current;
+    for (ccount = 0; ccount < dst_v_count(sms); ccount++) {
+        if (sms[ccount].slot.flags & DST_SLOT_CONSTANT) continue;
+        break;
+    }
+    if (ccount < 2) return sms;
+    current = fn(sms[0].slot.constant, sms[1].slot.constant);
+    for (i = 2; i < ccount; i++) {
+        Dst nextarg = sms[i].slot.constant;
+        current = fn(current, nextarg);
+    }
+    sm.slot = dstc_cslot(current);
+    sm.map = ast;
+    dst_v_push(ret, sm);
+    for (; i < dst_v_count(sms); i++) {
+        dst_v_push(ret, sms[i]);
+    }
+    return ret;
 }
 
-static DstSlot add(DstFopts opts, DstAst *ast, DstSM *args) {
+/* Emit a series of instructions instead of a function call to a math op */
+static DstSlot opreduce(DstFopts opts, DstAst *ast, DstSM *args, int op) {
     DstCompiler *c = opts.compiler;
     int32_t i, len;
     int32_t op1, op2;
@@ -68,20 +90,44 @@ static DstSlot add(DstFopts opts, DstAst *ast, DstSM *args) {
     /* Compile initial two arguments */
     op1 = dstc_preread(c, args[0].map, 0xFF, 1, args[0].slot);
     op2 = dstc_preread(c, args[1].map, 0xFF, 2, args[1].slot);
-    dstc_emit(c, ast, (t.index << 8) | (op1 << 16) | (op2 << 24) | DOP_ADD);
+    dstc_emit(c, ast, (t.index << 8) | (op1 << 16) | (op2 << 24) | op);
     dstc_postread(c, args[0].slot, op1);
     dstc_postread(c, args[1].slot, op2);
     for (i = 2; i < len; i++) {
         op1 = dstc_preread(c, args[i].map, 0xFF, 1, args[i].slot);
-        dstc_emit(c, ast, (t.index << 8) | (t.index << 16) | (op1 << 24) | DOP_ADD);
+        dstc_emit(c, ast, (t.index << 8) | (t.index << 16) | (op1 << 24) | op);
         dstc_postread(c, args[i].slot, op1);
     }
     return t;
 }
 
+static DstSlot add(DstFopts opts, DstAst *ast, DstSM *args) {
+    DstSM *newargs = foldc(args, ast, dst_op_add);
+    DstSlot ret = opreduce(opts, ast, newargs, DOP_ADD);
+    if (newargs != args) dstc_freeslots(opts.compiler, newargs);
+    return ret;
+}
+
+static DstSlot sub(DstFopts opts, DstAst *ast, DstSM *args) {
+    DstSM *newargs;
+    if (dst_v_count(args) == 1) {
+        newargs = NULL;
+        dst_v_push(newargs, args[0]);
+        dst_v_push(newargs, args[0]);
+        newargs[0].slot = dstc_cslot(dst_wrap_integer(0));
+        newargs[0].map = ast;
+    } else {
+        newargs = foldc(args, ast, dst_op_subtract);
+    }
+    DstSlot ret = opreduce(opts, ast, newargs, DOP_SUBTRACT);
+    if (newargs != args) dstc_freeslots(opts.compiler, newargs);
+    return ret;
+}
+
 /* Keep in lexographic order */
 static const DstCFunOptimizer optimizers[] = {
-    {dst_add, can_add, add}
+    {dst_add, numbers, add},
+    {dst_subtract, numbers, sub}
 };
 
 /* Get a cfunction optimizer. Return NULL if none exists.  */

@@ -46,6 +46,9 @@ int dst_lshift(DstArgs arsg);
 int dst_rshift(DstArgs args);
 int dst_lshiftu(DstArgs args);
 
+Dst dst_op_add(Dst lhs, Dst rhs);
+Dst dst_op_subtract(Dst lhs, Dst rhs);
+
 /* Native type constructors */
 int dst_cfun_table(DstArgs args);
 int dst_cfun_array(DstArgs args);

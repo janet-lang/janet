@@ -121,19 +121,19 @@ static const uint8_t *real_to_string(double x) {
 }
 
 static int32_t integer_to_string_impl(uint8_t *buf, int32_t x) {
-    int neg = 0;
+    int neg = 1;
     uint8_t *hi, *low;
     int32_t count = 0;
     if (x == 0) {
         buf[0] = '0';
         return 1;
     }
-    if (x < 0) {
-        neg = 1;
+    if (x > 0) {
+        neg = 0;
         x = -x;
     }
-    while (x > 0) {
-        uint8_t digit = x % 10;
+    while (x < 0) {
+        uint8_t digit = (uint8_t) -(x % 10);
         buf[count++] = '0' + digit;
         x /= 10;
     }
