@@ -23,6 +23,10 @@
 #ifndef DST_OPCODES_H_defined
 #define DST_OPCODES_H_defined
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Bytecode op argument types */
 typedef enum DstOpArgType DstOpArgType;
 enum DstOpArgType {
@@ -122,5 +126,9 @@ enum DstOpCode {
 
 /* Info about all instructions */
 extern DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT];
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

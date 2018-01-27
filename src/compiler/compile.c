@@ -960,3 +960,9 @@ int dst_compile_cfun(DstArgs args) {
         return dst_return(args, dst_wrap_table(t));
     }
 }
+
+int dst_lib_compile(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_def(env, "compile", dst_wrap_cfunction(dst_compile_cfun));
+    return 0;
+}

@@ -23,6 +23,10 @@
 #ifndef DST_MATH_H_defined
 #define DST_MATH_H_defined
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "dsttypes.h"
 
 /* Basic C Functions. These are good
@@ -59,7 +63,14 @@ int dst_cfun_tuple(DstArgs args);
 int dst_lib_io(DstArgs args);
 int dst_lib_math(DstArgs args);
 int dst_lib_array(DstArgs args);
+int dst_lib_ast(DstArgs args);
+int dst_lib_tuple(DstArgs args);
 int dst_lib_buffer(DstArgs args);
 int dst_lib_parse(DstArgs args);
+int dst_lib_compile(DstArgs args);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DST_MATH_H_defined */

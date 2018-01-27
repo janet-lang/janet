@@ -23,6 +23,10 @@
 #ifndef DST_CONFIG_H_defined
 #define DST_CONFIG_H_defined
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 #define DST_VERSION "0.0.0"
@@ -124,6 +128,10 @@
 #define DST_WALIGN 4
 #else
 #define DST_WALIGN 8
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* DST_CONFIG_H_defined */

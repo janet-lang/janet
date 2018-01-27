@@ -653,7 +653,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     /* Check for source mapping */
     x = dst_get(s, dst_csymbolv("sourcemap"));
     if (dst_seq_view(x, &arr, &count)) {
-        dst_asm_assert(&a, count != 2 * def->bytecode_length, "sourcemap must have twice the length of the bytecode");
+        dst_asm_assert(&a, count == 2 * def->bytecode_length, "sourcemap must have twice the length of the bytecode");
         def->sourcemap = malloc(sizeof(int32_t) * 2 * count);
         for (i = 0; i < count; i += 2) {
             Dst start = arr[i];

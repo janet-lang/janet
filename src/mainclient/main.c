@@ -31,6 +31,9 @@
 #define DST_CLIENT_REPL 8
 #define DST_CLIENT_UNKNOWN 16
 
+static const char *replsplash =
+"Dst " DST_VERSION "  Copyright (C) 2017-2018 Calvin Rose";
+
 static int client_strequal(const char *a, const char *b) {
     while (*a) if (*a++ != *b++) return 0;
     return *a == *b;
@@ -146,6 +149,7 @@ int main(int argc, char **argv) {
     if (!fileRead || (flags & DST_CLIENT_REPL)) {
         DstContext ctxt;
         dst_context_repl(&ctxt, env);
+        puts(replsplash);
         status = dst_context_run(&ctxt, DST_PARSEFLAG_SOURCEMAP);
     }
 

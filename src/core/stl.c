@@ -334,7 +334,11 @@ DstTable *dst_stl_env() {
         dst_lib_io(args);
         dst_lib_math(args);
         dst_lib_array(args);
+        dst_lib_ast(args);
+        dst_lib_tuple(args);
         dst_lib_buffer(args);
+        dst_lib_parse(args);
+        dst_lib_compile(args);
     }
 
     return env;

@@ -23,6 +23,10 @@
 #ifndef DST_TYPES_H_defined
 #define DST_TYPES_H_defined
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "dstconfig.h"
 
 #ifdef DST_NANBOX
@@ -427,5 +431,9 @@ struct DstAst {
     int32_t source_end;
     int flags;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DST_TYPES_H_defined */

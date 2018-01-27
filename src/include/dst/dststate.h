@@ -23,6 +23,10 @@
 #ifndef DST_STATE_H_defined
 #define DST_STATE_H_defined
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include "dstconfig.h"
 #include "dsttypes.h"
@@ -51,5 +55,9 @@ extern uint32_t dst_vm_root_capacity;
 
 /* GC roots - TODO consider a top level fiber pool (per thread?) */
 extern DstFiber *dst_vm_fiber;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DST_STATE_H_defined */

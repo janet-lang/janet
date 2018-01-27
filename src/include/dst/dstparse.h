@@ -23,6 +23,10 @@
 #ifndef DST_PARSE_H_defined
 #define DST_PARSE_H_defined
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "dsttypes.h"
 
 typedef enum DstParserStatus DstParserStatus;
@@ -60,5 +64,9 @@ DstParserStatus dst_parser_status(DstParser *parser);
 Dst dst_parser_produce(DstParser *parser);
 const char *dst_parser_error(DstParser *parser);
 int dst_parse_cfun(DstArgs args);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DST_PARSE_H_defined */

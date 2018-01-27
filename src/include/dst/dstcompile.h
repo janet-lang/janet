@@ -23,6 +23,10 @@
 #ifndef DST_COMPILE_H_defined
 #define DST_COMPILE_H_defined
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "dsttypes.h"
 #include "dstparse.h"
 
@@ -73,5 +77,8 @@ struct DstContext {
     void (*deinit)(DstContext *self);
 };
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DST_COMPILE_H_defined */

@@ -5,8 +5,8 @@
 dst is a functional programming language and vm. It is a variant of
 Lisp with several native useful datatypes. Some of the more interesting and
 useful features are first class functions and closures, immutable and mutable
-hashtables, arrays, and bytebuffers, macros (NYI), tail-call optimization,
-and continuations (coroutines, error handling). The runtime and 
+hashtables, arrays, and bytebuffers, macros, tail-call optimization,
+and continuations. The runtime and 
 compiler are written in C99.
 
 There is a repl for trying out the language, as well as the ability
@@ -24,11 +24,9 @@ dst could be embedded into other programs.
 * Mutable and immutable strings (buffer/string)
 * Byte code interpreter with an assembly interface, as well as bytecode verification
 * Proper tail calls for functional code
-* Direct interop with C
+* Direct interop with C via abstract types and C functions
+* Dynamically load C libraries
 * REPL (read eval print loop)
-
-The code can be compiled to be either a bytecode interpreter and runtime, or
-a full language.
 
 ## Compiling and Running
 

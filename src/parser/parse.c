@@ -155,7 +155,7 @@ struct DstParseState {
 };
 
 #define PFLAG_CONTAINER 1
-#define PFLAG_WASTOKEN 2
+#define PFLAG_BUFFER 2
 
 static void pushstate(DstParser *p, Consumer consumer, int flags) {
     DstParseState s;
@@ -254,7 +254,14 @@ static int stringchar(DstParser *p, DstParseState *state, uint8_t c) {
     /* String end */
     if (c == '"') {
         /* String end */
-        Dst ret = dst_wrap_string(dst_string(p->buf, dst_v_count(p->buf)));
+        Dst ret;
+        if (state->flags & PFLAG_BUFFER) {
+            DstBuffer *b = dst_buffer(dst_v_count(p->buf));
+            dst_buffer_push_bytes(b, p->buf, dst_v_count(p->buf));
+            ret = dst_wrap_buffer(b);
+        } else {
+            ret = dst_wrap_string(dst_string(p->buf, dst_v_count(p->buf)));
+        }
         dst_v_empty(p->buf);
         popstate(p, ret);
         return 1;
@@ -401,6 +408,9 @@ static int ampersand(DstParser *p, DstParseState *state, uint8_t c) {
     if (c == '{') {
         pushstate(p, dotable, PFLAG_CONTAINER);
         return 1;
+    } else if (c == '"') {
+        pushstate(p, stringchar, PFLAG_BUFFER);
+        return 1;
     }
     pushstate(p, tokenchar, 0);
     dst_v_push(p->buf, '@'); /* Push the leading ampersand that was dropped */
@@ -544,11 +554,104 @@ static int cfun_parser(DstArgs args) {
     return dst_return(args, dst_wrap_abstract(p));
 }
 
+/* Check file argument */
+static DstParser *checkparser(DstArgs args) {
+    DstParser *p;
+    if (args.n == 0) {
+        dst_throw(args, "expected stl.parser");
+        return NULL;
+    }
+    if (!dst_checktype(args.v[0], DST_ABSTRACT)) {
+        dst_throw(args, "expected stl.parser");
+        return NULL;
+    }
+    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
+    if (dst_abstract_type(p) != &dst_parse_parsertype) {
+        dst_throw(args, "expected stl.parser");
+        return NULL;
+    }
+    return p;
+}
+
+static int cfun_consume(DstArgs args) {
+    const uint8_t *bytes;
+    int32_t len;
+    DstParser *p;
+    int32_t i;
+    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
+    p = checkparser(args);
+    if (!p) return 1;
+    if (!dst_chararray_view(args.v[1], &bytes, &len)) return dst_throw(args, "expected string/buffer");
+    for (i = 0; i < len; i++) {
+        dst_parser_consume(p, bytes[i]);
+        switch (dst_parser_status(p)) {
+            case DST_PARSE_ROOT:
+            case DST_PARSE_PENDING:
+                break;
+            default:
+                {
+                    DstBuffer *b = dst_buffer(len - i);
+                    dst_buffer_push_bytes(b, bytes + i + 1, len - i - 1);
+                    return dst_return(args, dst_wrap_buffer(b));
+                }
+        }
+    }
+    return dst_return(args, dst_wrap_nil());
+}
+
+static int cfun_status(DstArgs args) {
+    const char *stat = NULL;
+    DstParser *p = checkparser(args);
+    if (!p) return 1;
+    switch (dst_parser_status(p)) {
+        case DST_PARSE_FULL:
+            stat = "full";
+            break;
+        case DST_PARSE_PENDING:
+            stat = "pending";
+            break;
+        case DST_PARSE_ERROR:
+            stat = "error";
+            break;
+        case DST_PARSE_ROOT:
+            stat = "root";
+            break;
+    }
+    return dst_return(args, dst_cstringv(stat));
+}
+
+static int cfun_error(DstArgs args) {
+    const char *err;
+    DstParser *p = checkparser(args);
+    if (!p) return 1;
+    err = dst_parser_error(p);
+    if (err) {
+        return dst_return(args, dst_cstringv(err));
+    } else {
+        return dst_return(args, dst_wrap_nil());
+    }
+}
+
+static int cfun_produce(DstArgs args) {
+    Dst val;
+    DstParser *p = checkparser(args);
+    if (!p) return 1;
+    val = dst_parser_produce(p);
+    return dst_return(args, val);
+}
+
+static const DstReg cfuns[] = {
+    {"parser", cfun_parser},
+    {"parser-produce", cfun_produce},
+    {"parser-consume", cfun_consume},
+    {"parser-error", cfun_error},
+    {"parser-status", cfun_status},
+    {NULL, NULL}
+};
+
 /* Load the library */
 int dst_lib_parse(DstArgs args) {
     DstTable *env = dst_env_arg(args);
-
-    dst_env_def(env, "parser", dst_wrap_cfunction(cfun_parser));
-
+    dst_env_cfuns(env, cfuns);
     return 0;
 }

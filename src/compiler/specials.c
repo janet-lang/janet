@@ -36,6 +36,14 @@ DstSlot dstc_quote(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     return dstc_cslot(dst_ast_unwrap(argv[0]));
 }
 
+DstSlot dstc_astquote(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+    if (argn != 1) {
+        dstc_cerror(opts.compiler, ast, "expected 1 argument");
+        return dstc_cslot(dst_wrap_nil());
+    }
+    return dstc_cslot(argv[0]);
+}
+
 DstSlot dstc_varset(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstFopts subopts = dstc_fopts_default(opts.compiler);
     DstSlot ret, dest;
@@ -495,6 +503,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
 
 /* Keep in lexographic order */
 static const DstSpecial dstc_specials[] = {
+    {"ast-quote", dstc_astquote},
     {"def", dstc_def},
     {"do", dstc_do},
     {"fn", dstc_fn},

@@ -147,6 +147,43 @@ static int cfun_ensure(DstArgs args) {
     return dst_return(args, args.v[0]);
 }
 
+static int cfun_slice(DstArgs args) {
+    const Dst *vals;
+    int32_t len;
+    DstArray *ret;
+    int32_t start, end;
+    if (args.n < 1 || !dst_seq_view(args.v[0], &vals, &len)) return dst_throw(args, "expected array/tuple");
+    /* Get start */
+    if (args.n < 2) {
+        start = 0;
+    } else if (dst_checktype(args.v[1], DST_INTEGER)) {
+        start = dst_unwrap_integer(args.v[1]);
+    } else {
+        return dst_throw(args, "expected integer");
+    }
+    /* Get end */
+    if (args.n < 3) {
+        end = -1;
+    } else if (dst_checktype(args.v[2], DST_INTEGER)) {
+        end = dst_unwrap_integer(args.v[2]);
+    } else {
+        return dst_throw(args, "expected integer");
+    }
+    if (start < 0) start = len + start;
+    if (end < 0) end = len + end + 1;
+    if (end >= start) {
+        int32_t i, j;
+        ret = dst_array(end - start);
+        for (j = 0, i = start; i < end; j++, i++) {
+            ret->data[j] = vals[i];
+        }
+        ret->count = j;
+    } else {
+        ret = dst_array(0);
+    }
+    return dst_return(args, dst_wrap_array(ret));
+}
+
 /* Load the array module */
 int dst_lib_array(DstArgs args) {
     DstTable *env = dst_env_arg(args);
@@ -155,5 +192,6 @@ int dst_lib_array(DstArgs args) {
     dst_env_def(env, "array-push", dst_wrap_cfunction(cfun_push));
     dst_env_def(env, "array-setcount", dst_wrap_cfunction(cfun_setcount));
     dst_env_def(env, "array-ensure", dst_wrap_cfunction(cfun_ensure));
+    dst_env_def(env, "array-slice", dst_wrap_cfunction(cfun_slice));
     return 0;
 }

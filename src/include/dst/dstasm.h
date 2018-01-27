@@ -23,6 +23,10 @@
 #ifndef DST_ASM_H_defined
 #define DST_ASM_H_defined
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "dsttypes.h"
 
 /* Assembly */
@@ -43,5 +47,9 @@ Dst dst_disasm(DstFuncDef *def);
 Dst dst_asm_decode_instruction(uint32_t instr);
 int dst_asm_cfun(DstArgs args);
 int dst_disasm_cfun(DstArgs args);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DST_ASM_H_defined */

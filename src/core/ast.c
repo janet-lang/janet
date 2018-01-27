@@ -184,5 +184,25 @@ Dst dst_ast_unwrap(Dst x) {
     }
 }
 
+/* C Functions */
+static int cfun_unwrap1(DstArgs args) {
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    return dst_return(args, dst_ast_unwrap1(args.v[0]));
+}
 
+static int cfun_unwrap(DstArgs args) {
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    return dst_return(args, dst_ast_unwrap(args.v[0]));
+}
 
+static const DstReg cfuns[] = {
+    {"ast-unwrap", cfun_unwrap},
+    {"ast-unwrap1", cfun_unwrap1},
+    {NULL, NULL}
+};
+
+int dst_lib_ast(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_cfuns(env, cfuns);
+    return 0;
+}

@@ -86,3 +86,48 @@ int dst_tuple_compare(const Dst *lhs, const Dst *rhs) {
         return 1;
     return 0;
 }
+
+/* C Functions */
+
+static int cfun_slice(DstArgs args) {
+    const Dst *vals;
+    int32_t len;
+    Dst *ret;
+    int32_t start, end;
+    if (args.n < 1 || !dst_seq_view(args.v[0], &vals, &len)) return dst_throw(args, "expected array/tuple");
+    /* Get start */
+    if (args.n < 2) {
+        start = 0;
+    } else if (dst_checktype(args.v[1], DST_INTEGER)) {
+        start = dst_unwrap_integer(args.v[1]);
+    } else {
+        return dst_throw(args, "expected integer");
+    }
+    /* Get end */
+    if (args.n < 3) {
+        end = -1;
+    } else if (dst_checktype(args.v[2], DST_INTEGER)) {
+        end = dst_unwrap_integer(args.v[2]);
+    } else {
+        return dst_throw(args, "expected integer");
+    }
+    if (start < 0) start = len + start;
+    if (end < 0) end = len + end + 1;
+    if (end >= start) {
+        int32_t i, j;
+        ret = dst_tuple_begin(end - start);
+        for (j = 0, i = start; i < end; j++, i++) {
+            ret[j] = vals[i];
+        }
+    } else {
+        ret = dst_tuple_begin(0);
+    }
+    return dst_return(args, dst_wrap_tuple(dst_tuple_end(ret)));
+}
+
+/* Load the tuple module */
+int dst_lib_tuple(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_def(env, "tuple-slice", dst_wrap_cfunction(cfun_slice));
+    return 0;
+}

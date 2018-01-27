@@ -23,6 +23,10 @@
 #ifndef DST_H_defined
 #define DST_H_defined
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
@@ -208,5 +212,9 @@ Dst dst_ast_wrap(Dst x, int32_t start, int32_t end);
 DstAst *dst_ast_node(Dst x);
 Dst dst_ast_unwrap1(Dst x);
 Dst dst_ast_unwrap(Dst x);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DST_H_defined */
