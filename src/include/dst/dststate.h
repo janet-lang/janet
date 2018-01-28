@@ -41,6 +41,7 @@ extern const char *dst_type_names[16];
 extern void *dst_vm_blocks;
 extern uint32_t dst_vm_gc_interval;
 extern uint32_t dst_vm_next_collection;
+extern int dst_vm_gc_suspend;
 
 /* Immutable value cache */
 extern const uint8_t **dst_vm_cache;

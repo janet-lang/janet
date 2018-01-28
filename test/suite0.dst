@@ -59,6 +59,7 @@
 	(fn [x] (+ x x))
 	+) "type ordering")
 
+(assert (= (string (buffer "123" "456")) (string @"123456")) "buffer literal")
 (assert (= (get {} 1) nil) "get nil from empty struct")
 (assert (= (get @{} 1) nil) "get nil from empty table")
 (assert (= (get {:boop :bap} :boop) :bap) "get non nil from struct")
@@ -258,6 +259,35 @@
 		(put syms (gensym 'beep) true)
 		(varset! count (+ 1 count)))
 	(assert (= (length syms) 128) "many symbols")))
+
+# Macros
+
+(def defmacro macro (fn [name & more]
+  (tuple 'def name 'macro (tuple-prepend (tuple-prepend more name) 'fn))))
+(defmacro defn 
+  [name & more]
+  (tuple 
+   'def
+   name 
+   (tuple-prepend (tuple-prepend more name) 'fn)))
+
+(defmacro when [cond & body] (tuple 'if cond (tuple-prepend body 'do)))
+
+(defn dub [x] (+ x x))
+(assert (= 2 (dub 1)) "defn macro")
+(do 
+ (defn trip [x] (+ x x x))
+ (assert (= 3 (trip 1)) "defn macro triple"))
+(do
+ (var i 0)
+ (when true
+  (varset! i (+ i 1))
+  (varset! i (+ i 1))
+  (varset! i (+ i 1))
+  (varset! i (+ i 1))
+  (varset! i (+ i 1))
+  (varset! i (+ i 1)))
+ (assert (= i 6) "when macro"))
 
 # report
 

@@ -28,6 +28,7 @@
 void *dst_vm_blocks;
 uint32_t dst_vm_gc_interval;
 uint32_t dst_vm_next_collection;
+int dst_vm_gc_suspend = 0;
 
 /* Roots */
 Dst *dst_vm_roots;
@@ -303,6 +304,7 @@ void *dst_gcalloc(DstMemoryType type, size_t size) {
 /* Run garbage collection */
 void dst_collect() {
     uint32_t i;
+    if (dst_vm_gc_suspend) return;
     if (dst_vm_fiber)
         dst_mark_fiber(dst_vm_fiber);
     for (i = 0; i < dst_vm_root_count; i++)

@@ -231,11 +231,11 @@ static int dst_io_fclose(DstArgs args) {
 #endif
 
 static const DstReg cfuns[] = {
-    {"fopen", dst_io_fopen},
-    {"fclose", dst_io_fclose},
-    {"fread", dst_io_fread},
-    {"fwrite", dst_io_fwrite},
-    {"fflush", dst_io_fflush},
+    {"file-open", dst_io_fopen},
+    {"file-close", dst_io_fclose},
+    {"file-read", dst_io_fread},
+    {"file-write", dst_io_fwrite},
+    {"file-flush", dst_io_fflush},
     {NULL, NULL}
 };
 

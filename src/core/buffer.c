@@ -179,10 +179,24 @@ static int cfun_chars(DstArgs args) {
     return dst_return(args, args.v[0]);
 }
 
+static int cfun_clear(DstArgs args) {
+    DstBuffer *buffer;
+    if (args.n < 1 || !dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
+    buffer = dst_unwrap_buffer(args.v[0]);
+    buffer->count = 0;
+    return dst_return(args, args.v[0]);
+}
+
+static const DstReg cfuns[] = {
+    {"buffer-push-byte", cfun_u8},
+    {"buffer-push-integer", cfun_int},
+    {"buffer-push-string", cfun_chars},
+    {"buffer-clear", cfun_clear},
+    {NULL, NULL}
+};
+
 int dst_lib_buffer(DstArgs args) {
     DstTable *env = dst_env_arg(args);
-    dst_env_def(env, "buffer-push-byte", dst_wrap_cfunction(cfun_u8));
-    dst_env_def(env, "buffer-push-integer", dst_wrap_cfunction(cfun_int));
-    dst_env_def(env, "buffer-push-string", dst_wrap_cfunction(cfun_chars));
+    dst_env_cfuns(env, cfuns);
     return 0;
 }

@@ -125,9 +125,35 @@ static int cfun_slice(DstArgs args) {
     return dst_return(args, dst_wrap_tuple(dst_tuple_end(ret)));
 }
 
+static int cfun_prepend(DstArgs args) {
+    const Dst *t;
+    Dst *n;
+    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
+    if (!dst_checktype(args.v[0], DST_TUPLE)) return dst_throw(args, "expected tuple");
+    t = dst_unwrap_tuple(args.v[0]);
+    n = dst_tuple_begin(dst_tuple_length(t) + 1);
+    memcpy(n + 1, t, sizeof(Dst) * dst_tuple_length(t));
+    n[0] = args.v[1];
+    return dst_return(args, dst_wrap_tuple(dst_tuple_end(n)));
+}
+
+static int cfun_append(DstArgs args) {
+    const Dst *t;
+    Dst *n;
+    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
+    if (!dst_checktype(args.v[0], DST_TUPLE)) return dst_throw(args, "expected tuple");
+    t = dst_unwrap_tuple(args.v[0]);
+    n = dst_tuple_begin(dst_tuple_length(t) + 1);
+    memcpy(n, t, sizeof(Dst) * dst_tuple_length(t));
+    n[dst_tuple_length(t)] = args.v[1];
+    return dst_return(args, dst_wrap_tuple(dst_tuple_end(n)));
+}
+
 /* Load the tuple module */
 int dst_lib_tuple(DstArgs args) {
     DstTable *env = dst_env_arg(args);
     dst_env_def(env, "tuple-slice", dst_wrap_cfunction(cfun_slice));
+    dst_env_def(env, "tuple-append", dst_wrap_cfunction(cfun_append));
+    dst_env_def(env, "tuple-prepend", dst_wrap_cfunction(cfun_prepend));
     return 0;
 }

@@ -164,6 +164,8 @@ int dst_gcunroot(Dst root);
 int dst_gcunrootall(Dst root);
 #define dst_maybe_collect() do {\
     if (dst_vm_next_collection >= dst_vm_gc_interval) dst_collect(); } while (0)
+#define dst_gclock() (dst_vm_gc_suspend++)
+#define dst_gcunlock() (dst_vm_gc_suspend--)
 
 /* Functions */
 DstFuncDef *dst_funcdef_alloc();
@@ -191,6 +193,7 @@ DstCFunction dst_native(const char *name, const uint8_t **error);
 int dst_init();
 void dst_deinit();
 int dst_run(Dst callee, Dst *returnreg);
+int dst_call(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv);
 
 /* C Function helpers */
 #define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)

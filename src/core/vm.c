@@ -685,6 +685,36 @@ int dst_run(Dst callee, Dst *returnreg) {
     return 1;
 }
 
+/* Run from inside a cfunction. This should only be used for
+ * short functions as it prevents re-entering the current fiber
+ * and suspend garbage collection. */
+int dst_call(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv) {
+    int ret;
+    int lock;
+    DstFiber *oldfiber = dst_vm_fiber;
+    lock = dst_vm_gc_suspend++;
+    dst_vm_fiber = dst_fiber(0);
+    dst_fiber_pushn(dst_vm_fiber, argv, argn);
+    if (dst_checktype(callee, DST_CFUNCTION)) {
+        DstArgs args;
+        *returnreg = dst_wrap_nil();
+        dst_fiber_cframe(dst_vm_fiber);
+        args.n = argn;
+        args.v = dst_vm_fiber->data + dst_vm_fiber->frame;
+        args.ret = returnreg;
+        ret = dst_unwrap_cfunction(callee)(args);
+    } else if (dst_checktype(callee, DST_FUNCTION)) {
+        dst_fiber_funcframe(dst_vm_fiber, dst_unwrap_function(callee));
+        ret = dst_continue(returnreg);
+    } else {
+        *returnreg = dst_cstringv("expected function");
+        ret = 1;
+    }
+    dst_vm_fiber = oldfiber;
+    dst_vm_gc_suspend = lock;
+    return ret;
+}
+
 /* Setup functions */
 int dst_init() {
     /* Garbage collection */

@@ -731,29 +731,6 @@ static DstSlot dstc_call(DstFopts opts, DstAst *ast, DstSM *sms, DstSlot fun) {
     return retslot;
 }
 
-/* Compile a tuple */
-DstSlot dstc_tuple(DstFopts opts, DstAst *ast, Dst x) {
-    Dst headval;
-    DstSlot head;
-    DstCompiler *c = opts.compiler;
-    DstFopts subopts = dstc_fopts_default(c);
-    const Dst *tup = dst_unwrap_tuple(x);
-    /* Empty tuple is tuple literal */
-    if (dst_tuple_length(tup) == 0) return dstc_cslot(x);
-    /* Symbols could be specials */
-    headval = dst_ast_unwrap1(tup[0]);
-    if (dst_checktype(headval, DST_SYMBOL)) {
-        const DstSpecial *s = dstc_special(dst_unwrap_symbol(headval));
-        if (NULL != s) {
-            return s->compile(opts, ast, dst_tuple_length(tup) - 1, tup + 1);
-        }
-    }
-    /* Compile the head of the tuple */
-    subopts.flags = DST_FUNCTION | DST_CFUNCTION;
-    head = dstc_value(subopts, tup[0]);
-    return dstc_call(opts, ast, dstc_toslots(c, tup + 1, dst_tuple_length(tup) - 1), head);
-}
-
 static DstSlot dstc_array(DstFopts opts, DstAst *ast, Dst x) {
     DstCompiler *c = opts.compiler;
     DstArray *a = dst_unwrap_array(x);
@@ -770,7 +747,11 @@ static DstSlot dstc_tablector(DstFopts opts, DstAst *ast, Dst x, DstCFunction cf
 /* Compile a single value */
 DstSlot dstc_value(DstFopts opts, Dst x) {
     DstSlot ret;
-    DstAst *ast = dst_ast_node(x);
+    DstAst *ast;
+    DstCompiler *c = opts.compiler;
+    opts.compiler->recursion_guard--;
+recur:
+    ast = dst_ast_node(x);
     x = dst_ast_unwrap1(x);
     if (dstc_iserr(&opts)) {
         return dstc_cslot(dst_wrap_nil());
@@ -779,7 +760,6 @@ DstSlot dstc_value(DstFopts opts, Dst x) {
         dstc_cerror(opts.compiler, ast, "recursed too deeply");
         return dstc_cslot(dst_wrap_nil());
     }
-    opts.compiler->recursion_guard--;
     switch (dst_type(x)) {
         default:
             ret = dstc_cslot(x);
@@ -791,7 +771,52 @@ DstSlot dstc_value(DstFopts opts, Dst x) {
                 break;
             }
         case DST_TUPLE:
-            ret = dstc_tuple(opts, ast, x);
+            {
+                int compiled = 0;
+                Dst headval;
+                DstSlot head;
+                DstFopts subopts = dstc_fopts_default(c);
+                const Dst *tup = dst_unwrap_tuple(x);
+                /* Empty tuple is tuple literal */
+                if (dst_tuple_length(tup) == 0) {
+                    compiled = 1;
+                    ret = dstc_cslot(x);
+                } else {
+                    /* Symbols could be specials */
+                    headval = dst_ast_unwrap1(tup[0]);
+                    if (dst_checktype(headval, DST_SYMBOL)) {
+                        const DstSpecial *s = dstc_special(dst_unwrap_symbol(headval));
+                        if (NULL != s) {
+                            ret = s->compile(opts, ast, dst_tuple_length(tup) - 1, tup + 1);
+                            compiled = 1;
+                        } else {
+                            /* Check macro */
+                            DstTable *env = c->env;
+                            int status;
+                            Dst fn;
+                            Dst entry = dst_table_get(env, headval);
+                            for (;;) {
+                                if (dst_checktype(entry, DST_NIL)) break;
+                                if (dst_checktype(dst_get(entry, dst_csymbolv("macro")), DST_NIL)) break;
+                                fn = dst_get(entry, dst_csymbolv("value"));
+                                if (!dst_checktype(fn, DST_FUNCTION)) break;
+                                status = dst_call(fn, &x, dst_tuple_length(tup) - 1, tup + 1);
+                                if (status) {
+                                    dstc_cerror(c, ast, "error in macro expansion");
+                                }
+                                /* Tail recur on the value */
+                                goto recur;
+                            }
+                        }
+                    }
+                    if (!compiled) {
+                        /* Compile the head of the tuple */
+                        subopts.flags = DST_FUNCTION | DST_CFUNCTION;
+                        head = dstc_value(subopts, tup[0]);
+                        ret = dstc_call(opts, ast, dstc_toslots(c, tup + 1, dst_tuple_length(tup) - 1), head);
+                    }
+                }
+            }
             break;
         case DST_ARRAY:
             ret = dstc_array(opts, ast, x); 
@@ -880,7 +905,6 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
 
     return def;
 }
-
 
 /* Initialize a compiler */
 static void dstc_init(DstCompiler *c, DstTable *env) {
