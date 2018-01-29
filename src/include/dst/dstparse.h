@@ -29,7 +29,6 @@ extern "C" {
 
 #include "dsttypes.h"
 
-typedef enum DstParserStatus DstParserStatus;
 typedef struct DstParseState DstParseState;
 typedef struct DstParser DstParser;
 
@@ -60,7 +59,7 @@ struct DstParser {
 void dst_parser_init(DstParser *parser, int flags);
 void dst_parser_deinit(DstParser *parser);
 int dst_parser_consume(DstParser *parser, uint8_t c);
-DstParserStatus dst_parser_status(DstParser *parser);
+enum DstParserStatus dst_parser_status(DstParser *parser);
 Dst dst_parser_produce(DstParser *parser);
 const char *dst_parser_error(DstParser *parser);
 int dst_parse_cfun(DstArgs args);

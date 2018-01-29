@@ -18,7 +18,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-(print "\nRunning basic tests...\n")
+(print "\nRunning Suite 0 tests...\n")
 
 (var num-tests-passed 0)
 (var num-tests-run 0)

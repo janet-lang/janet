@@ -464,7 +464,7 @@ int dst_parser_consume(DstParser *parser, uint8_t c) {
     return 1;
 }
 
-DstParserStatus dst_parser_status(DstParser *parser) {
+enum DstParserStatus dst_parser_status(DstParser *parser) {
     if (parser->error) return DST_PARSE_ERROR;
     if (dst_v_count(parser->states) > 1) return DST_PARSE_PENDING;
     if (dst_v_count(parser->argstack)) return DST_PARSE_FULL;
@@ -472,7 +472,7 @@ DstParserStatus dst_parser_status(DstParser *parser) {
 }
 
 const char *dst_parser_error(DstParser *parser) {
-    DstParserStatus status = dst_parser_status(parser);
+    enum DstParserStatus status = dst_parser_status(parser);
     if (status == DST_PARSE_ERROR) {
         const char *e = parser->error;
         dst_v_empty(parser->argstack);
@@ -487,7 +487,7 @@ const char *dst_parser_error(DstParser *parser) {
 Dst dst_parser_produce(DstParser *parser) {
     Dst ret;
     int32_t i;
-    DstParserStatus status = dst_parser_status(parser);
+    enum DstParserStatus status = dst_parser_status(parser);
     if (status != DST_PARSE_FULL) return dst_wrap_nil();
     ret = parser->argstack[0];
     for (i = 1; i < dst_v_count(parser->argstack); i++) {

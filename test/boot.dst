@@ -1,0 +1,76 @@
+# Copyright (c) 2017 Calvin Rose
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+# IN THE SOFTWARE.
+
+# Bootstrap the language 
+
+(def defmacro macro (fn [name & more]
+  (tuple 'def name 'macro (tuple-prepend (tuple-prepend more name) 'fn))))
+(defmacro defn 
+  [name & more]
+  (tuple 'def name 
+   (tuple-prepend (tuple-prepend more name) 'fn)))
+
+(defmacro when [cond & body] (tuple 'if cond (tuple-prepend body 'do)))
+
+(defn array-seq [x]
+  (def len (length x))
+  (var i 0)
+  {
+    :more (fn [] (< i len))
+    :next (fn []
+      (def ret (get x i))
+      (varset! i (+ i 1))
+      ret) 
+  })
+
+(def seqs {
+  :array array-seq
+  :tuple array-seq
+  :struct (fn [x] x)})
+
+(defn seq [x]
+ (def makeseq (get seqs (type x)))
+ (if makeseq (makeseq x) (error "expected sequence")))
+
+(defn range [top]
+  (var i 0)
+  {
+    :more (fn [] (< i top))
+    :next (fn []
+      (def ret i)
+      (varset! i (+ i 1))
+      i) 
+  })
+
+(defn doseq [s f] 
+ (def s (seq s))
+ (def more? (get s :more))
+ (def getnext (get s :next))
+ (while (more?)
+    (f (getnext))))
+
+(defn map [f s]
+ (def s (seq s))
+ (def more (get s :more))
+ (def getnext (get s :next))
+ {
+  :more more
+  :next (f (getnext))
+ })

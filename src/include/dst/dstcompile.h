@@ -30,7 +30,6 @@ extern "C" {
 #include "dsttypes.h"
 #include "dstparse.h"
 
-typedef enum DstCompileStatus DstCompileStatus;
 typedef struct DstCompileOptions DstCompileOptions;
 typedef struct DstCompileResult DstCompileResult;
 enum DstCompileStatus {
@@ -38,7 +37,7 @@ enum DstCompileStatus {
     DST_COMPILE_ERROR
 };
 struct DstCompileResult {
-    DstCompileStatus status;
+    enum DstCompileStatus status;
     DstFuncDef *funcdef;
     const uint8_t *error;
     int32_t error_start;
@@ -57,11 +56,11 @@ int dst_context_file(DstContext *c, DstTable *env, const char *path);
 int dst_context_run(DstContext *c, int flags);
 
 /* Parse structs */
-typedef enum {
+enum DstContextErrorType {
     DST_CONTEXT_ERROR_PARSE,
     DST_CONTEXT_ERROR_COMPILE,
     DST_CONTEXT_ERROR_RUNTIME
-} DstContextErrorType;
+};
 
 /* Evaluation context. Encapsulates parsing and compiling for easier integration
  * with client programs. */
@@ -71,8 +70,8 @@ struct DstContext {
     void *user;
     int32_t index;
 
-    int (*read_chunk)(DstContext *self, DstParserStatus status);
-    void (*on_error)(DstContext *self, DstContextErrorType type, Dst err, size_t start, size_t end);
+    int (*read_chunk)(DstContext *self, enum DstParserStatus status);
+    void (*on_error)(DstContext *self, enum DstContextErrorType type, Dst err, size_t start, size_t end);
     void (*on_value)(DstContext *self, Dst value);
     void (*deinit)(DstContext *self);
 };

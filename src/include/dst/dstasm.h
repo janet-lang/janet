@@ -30,7 +30,6 @@ extern "C" {
 #include "dsttypes.h"
 
 /* Assembly */
-typedef enum DstAssembleStatus DstAssembleStatus;
 typedef struct DstAssembleResult DstAssembleResult;
 typedef struct DstAssembleOptions DstAssembleOptions;
 enum DstAssembleStatus {
@@ -40,7 +39,7 @@ enum DstAssembleStatus {
 struct DstAssembleResult {
     DstFuncDef *funcdef;
     const uint8_t *error;
-    DstAssembleStatus status;
+    enum DstAssembleStatus status;
 };
 DstAssembleResult dst_asm(Dst source, int flags);
 Dst dst_disasm(DstFuncDef *def);

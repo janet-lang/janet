@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
                 } else {
                     flags |= DST_CLIENT_UNKNOWN;
                 }
-            } else {
+            } else if (*arg) {
                 /* Flag */
                 const char *c = arg;
                 while (*(++c)) {
@@ -139,9 +139,10 @@ int main(int argc, char **argv) {
             fileRead = 1;
             if (dst_context_file(&ctxt, env, arg)) {
                 printf("file %s not found\n", arg);
+                status |= 2;
                 continue;
             }
-            status = dst_context_run(&ctxt, DST_PARSEFLAG_SOURCEMAP);
+            status |= dst_context_run(&ctxt, DST_PARSEFLAG_SOURCEMAP);
         }
     }
 

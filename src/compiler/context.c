@@ -27,7 +27,7 @@
 #define CHUNKSIZE 1024
 
 /* Read input for a repl */
-static int replread(DstContext *c, DstParserStatus status) {
+static int replread(DstContext *c, enum DstParserStatus status) {
     if (status == DST_PARSE_PENDING)
         printf(">> ");
     else
@@ -53,7 +53,7 @@ static void replonvalue(DstContext *c, Dst value) {
 }
 
 /* Handle errors on repl */
-static void simpleerror(DstContext *c, DstContextErrorType type, Dst err, size_t start, size_t end) {
+static void simpleerror(DstContext *c, enum DstContextErrorType type, Dst err, size_t start, size_t end) {
     const char *errtype;
     (void) c;
     (void) start;
@@ -76,7 +76,7 @@ static void filedeinit(DstContext *c) {
     fclose((FILE *) (c->user));
 }
 
-static int fileread(DstContext *c, DstParserStatus status) {
+static int fileread(DstContext *c, enum DstParserStatus status) {
     size_t nread;
     FILE *f = (FILE *) c->user;
     (void) status;
@@ -132,7 +132,7 @@ int dst_context_file(DstContext *c, DstTable *env, const char *path) {
 /* Do something on an error. Return flags to or with current flags. */
 static int doerror(
         DstContext *c,
-        DstContextErrorType type,
+        enum DstContextErrorType type,
         Dst err,
         int32_t bstart,
         int32_t bend) {
@@ -150,7 +150,7 @@ int dst_context_run(DstContext *c, int flags) {
     int done = 0;
     int errflags = 0;
     DstParser parser;
-    DstParserStatus status;
+    enum DstParserStatus status;
     dst_parser_init(&parser, flags);
     while (!done) {
         int bufferdone = 0;

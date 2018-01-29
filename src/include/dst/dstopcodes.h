@@ -28,7 +28,6 @@ extern "C" {
 #endif
 
 /* Bytecode op argument types */
-typedef enum DstOpArgType DstOpArgType;
 enum DstOpArgType {
     DST_OAT_SLOT,
     DST_OAT_ENVIRONMENT,
@@ -41,7 +40,6 @@ enum DstOpArgType {
 };
 
 /* Various types of instructions */
-typedef enum DstInstructionType DstInstructionType;
 enum DstInstructionType {
     DIT_0, /* No args */
     DIT_S, /* Slot(3) */
@@ -59,7 +57,6 @@ enum DstInstructionType {
     DIT_SC /* Slot(1), Constant(2) */
 };
 
-typedef enum DstOpCode DstOpCode;
 enum DstOpCode {
     DOP_NOOP,
     DOP_ERROR,
@@ -125,7 +122,7 @@ enum DstOpCode {
 };
 
 /* Info about all instructions */
-extern DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT];
+extern enum DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT];
 
 #ifdef __cplusplus
 }

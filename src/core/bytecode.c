@@ -25,7 +25,7 @@
 #include "gc.h"
 
 /* Look up table for instructions */
-DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
+enum DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
     DIT_0, /* DOP_NOOP, */
     DIT_S, /* DOP_ERROR, */
     DIT_ST, /* DOP_TYPECHECK, */
@@ -106,7 +106,7 @@ int32_t dst_verify(DstFuncDef *def) {
         if ((instr & 0xFF) >= DOP_INSTRUCTION_COUNT) {
             return 3;
         }
-        DstInstructionType type = dst_instructions[instr & 0xFF];
+        enum DstInstructionType type = dst_instructions[instr & 0xFF];
         switch (type) {
             case DIT_0:
                 continue;

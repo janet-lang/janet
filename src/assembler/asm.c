@@ -46,7 +46,7 @@
 typedef struct DstInstructionDef DstInstructionDef;
 struct DstInstructionDef {
     const char *name;
-    DstOpCode opcode;
+    enum DstOpCode opcode;
 };
 
 /* Hold all state needed during assembly */
@@ -216,7 +216,7 @@ static int32_t dst_asm_addenv(DstAssembler *a, Dst envname) {
  * integer. This integer will need to be bounds checked. */
 static int32_t doarg_1(
         DstAssembler *a,
-        DstOpArgType argtype,
+        enum DstOpArgType argtype,
         Dst x) {
     int32_t ret = -1;
     DstTable *c;
@@ -311,7 +311,7 @@ static int32_t doarg_1(
  * try to convert arguments to bit patterns */
 static uint32_t doarg(
         DstAssembler *a,
-        DstOpArgType argtype,
+        enum DstOpArgType argtype,
         int nth,
         int nbytes,
         int hassign,
@@ -336,7 +336,7 @@ static uint32_t read_instruction(
         const DstInstructionDef *idef,
         const Dst *argt) {
     uint32_t instr = idef->opcode;
-    DstInstructionType type = dst_instructions[idef->opcode];
+    enum DstInstructionType type = dst_instructions[idef->opcode];
     switch (type) {
         case DIT_0:
         {

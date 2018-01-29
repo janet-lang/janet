@@ -33,9 +33,10 @@ static const void *dst_strbinsearch(
         const uint8_t *key) {
     size_t low = 0;
     size_t hi = tabcount;
+    const char *t = (const char *)tab;
     while (low < hi) {
         size_t mid = low + ((hi - low) / 2);
-        const char **item = (const char **)(tab + mid * itemsize);
+        const char **item = (const char **)(t + mid * itemsize);
         const char *name = *item;
         int comp = dst_cstrcmp(key, name);
         if (comp < 0) {

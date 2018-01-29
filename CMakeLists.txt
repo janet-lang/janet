@@ -18,18 +18,13 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.7)
 project(dst)
 
 # Set Some Variables
 set(TARGET_NAME ${PROJECT_NAME})
-if (CMAKE_VERSION VERSION_LESS "3.1")
-    if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-        set (CMAKE_C_FLAGS "--std=gnu99 ${CMAKE_C_FLAGS}")
-    endif ()
-else ()
-    set (CMAKE_C_STANDARD 99)
-endif ()
+set (CMAKE_C_STANDARD 99)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
 
 include_directories(src/include)
 
@@ -86,7 +81,7 @@ set(TESTLIB_SOURCES
 src/testlib/testlib.c
 )
 
-set(SOURCES
+set(REPL_SOURCES
 ${ASSEMBLER_SOURCES}
 ${COMPILER_SOURCES}
 ${CORE_SOURCES}
@@ -94,6 +89,39 @@ ${MAINCLIENT_SOURCES}
 ${PARSER_SOURCES}
 )
 
+# Set Public headers
+set(DST_PUBLIC_HEADERS
+src/include/dst/dst.h
+src/include/dst/dstasm.h
+src/include/dst/dstcompile.h
+src/include/dst/dstconfig.h
+src/include/dst/dstopcodes.h
+src/include/dst/dstparse.h
+src/include/dst/dststate.h
+src/include/dst/dststl.h
+src/include/dst/dsttypes.h
+)
+
 # Build the executable
-add_executable(${TARGET_NAME} ${SOURCES})
+add_executable(${TARGET_NAME} ${REPL_SOURCES})
 target_link_libraries(${TARGET_NAME} m dl)
+set_target_properties(${TARGET_NAME} PROPERTIES PUBLIC_HEADER "${DST_PUBLIC_HEADERS}")
+
+# Install
+install(TARGETS ${TARGET_NAME}
+        LIBRARY DESTINATION "lib"
+        RUNTIME DESTINATION "bin"
+        PUBLIC_HEADER DESTINATION "include/dst"
+)
+
+# Add some test scripts
+enable_testing()
+add_test(suite0 ${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/test/suite0.dst)
+add_test(suite1 ${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/test/suite1.dst)
+
+# Add convenience script to run repl
+add_custom_target(run
+    COMMAND ${TARGET_NAME}
+    DEPENDS ${TARGET_NAME}
+    WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
+)

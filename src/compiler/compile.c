@@ -241,7 +241,8 @@ DstSlot dstc_resolve(
         if (scope->flags & DST_SCOPE_UNUSED)
             unused = 1;
         len = dst_v_count(scope->syms);
-        for (i = 0; i < len; i++) {
+        /* Search in reverse order */
+        for (i = len - 1; i >= 0; i--) {
             pair = scope->syms + i;
             if (pair->sym == sym) {
                 ret = pair->slot;
