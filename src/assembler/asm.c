@@ -879,3 +879,16 @@ int dst_disasm_cfun(DstArgs args) {
     f = dst_unwrap_function(args.v[0]);
     return dst_return(args, dst_disasm(f->def));
 }
+
+static const DstReg cfuns[] = {
+    {"asm", dst_asm_cfun},
+    {"disasm", dst_disasm_cfun},
+    {NULL, NULL}
+};
+
+/* Load the library */
+int dst_lib_asm(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_cfuns(env, cfuns);
+    return 0;
+}

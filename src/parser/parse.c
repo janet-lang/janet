@@ -303,7 +303,7 @@ static int tokenchar(DstParser *p, DstParseState *state, uint8_t c) {
         ret = dst_wrap_false();
     } else if (!check_str_const("true", p->buf, blen)) {
         ret = dst_wrap_true();
-    } else {
+    } else if (p->buf) {
         if (p->buf[0] >= '0' && p->buf[0] <= '9') {
             p->error = "symbol literal cannot start with a digit";
             return 0;
@@ -320,6 +320,9 @@ static int tokenchar(DstParser *p, DstParseState *state, uint8_t c) {
                 ret = dst_symbolv(p->buf, blen);
             }
         }
+    } else {
+        p->error = "empty symbol invalid";
+        return 0;
     }
     dst_v_empty(p->buf);
     popstate(p, ret);
@@ -534,7 +537,7 @@ static int parsergc(void *p, size_t size) {
 }
 
 DstAbstractType dst_parse_parsertype = {
-    "stl.parser",
+    "parse.parser",
     parsergc,
     parsermark
 };
@@ -558,16 +561,16 @@ static int cfun_parser(DstArgs args) {
 static DstParser *checkparser(DstArgs args) {
     DstParser *p;
     if (args.n == 0) {
-        dst_throw(args, "expected stl.parser");
+        dst_throw(args, "expected parse.parser");
         return NULL;
     }
     if (!dst_checktype(args.v[0], DST_ABSTRACT)) {
-        dst_throw(args, "expected stl.parser");
+        dst_throw(args, "expected parse.parser");
         return NULL;
     }
     p = (DstParser *) dst_unwrap_abstract(args.v[0]);
     if (dst_abstract_type(p) != &dst_parse_parsertype) {
-        dst_throw(args, "expected stl.parser");
+        dst_throw(args, "expected parse.parser");
         return NULL;
     }
     return p;

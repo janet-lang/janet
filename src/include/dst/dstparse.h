@@ -64,6 +64,8 @@ Dst dst_parser_produce(DstParser *parser);
 const char *dst_parser_error(DstParser *parser);
 int dst_parse_cfun(DstArgs args);
 
+int dst_lib_parse(DstArgs args);
+
 #ifdef __cplusplus
 }
 #endif

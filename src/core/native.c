@@ -21,7 +21,7 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dststl.h>
+#include <dst/dstcorelib.h>
 
 /* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
  * with native code. */
@@ -54,7 +54,7 @@ DstCFunction dst_native(const char *name, const uint8_t **error) {
     return init;
 }
 
-int dst_load_native(DstArgs args) {
+int dst_core_native(DstArgs args) {
     DstCFunction init;
     const uint8_t *error = NULL;
     if (args.n < 1) {

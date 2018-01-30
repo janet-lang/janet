@@ -49,10 +49,14 @@ int dst_compile_cfun(DstArgs args);
 /* Context - for executing dst in the interpretted form. */
 typedef struct DstContext DstContext;
 
+/* Get the default environment for dst */
+DstTable *dst_stl_env();
+
 void dst_context_init(DstContext *c, DstTable *env);
 void dst_context_deinit(DstContext *c);
 int dst_context_repl(DstContext *c, DstTable *env);
 int dst_context_file(DstContext *c, DstTable *env, const char *path);
+int dst_context_cstring(DstContext *c, DstTable *env, const char *source);
 int dst_context_run(DstContext *c, int flags);
 
 /* Parse structs */
@@ -75,6 +79,8 @@ struct DstContext {
     void (*on_value)(DstContext *self, Dst value);
     void (*deinit)(DstContext *self);
 };
+
+int dst_lib_compile(DstArgs args);
 
 #ifdef __cplusplus
 }

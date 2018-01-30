@@ -21,7 +21,7 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dststl.h>
+#include <dst/dstcorelib.h>
 #include "compile.h"
 
 #define DST_V_DEF_COPYMEM
@@ -737,7 +737,7 @@ static DstSlot dstc_array(DstFopts opts, DstAst *ast, Dst x) {
     DstArray *a = dst_unwrap_array(x);
     return dstc_call(opts, ast,
             dstc_toslots(c, a->data, a->count),
-            dstc_cslot(dst_wrap_cfunction(dst_cfun_array)));
+            dstc_cslot(dst_wrap_cfunction(dst_core_array)));
 }
 
 static DstSlot dstc_tablector(DstFopts opts, DstAst *ast, Dst x, DstCFunction cfun) {
@@ -750,10 +750,11 @@ DstSlot dstc_value(DstFopts opts, Dst x) {
     DstSlot ret;
     DstAst *ast;
     DstCompiler *c = opts.compiler;
+    int macrorecur = 0;
     opts.compiler->recursion_guard--;
-recur:
     ast = dst_ast_node(x);
     x = dst_ast_unwrap1(x);
+recur:
     if (dstc_iserr(&opts)) {
         return dstc_cslot(dst_wrap_nil());
     }
@@ -801,12 +802,17 @@ recur:
                                 if (dst_checktype(dst_get(entry, dst_csymbolv("macro")), DST_NIL)) break;
                                 fn = dst_get(entry, dst_csymbolv("value"));
                                 if (!dst_checktype(fn, DST_FUNCTION)) break;
-                                status = dst_call(fn, &x, dst_tuple_length(tup) - 1, tup + 1);
-                                if (status) {
-                                    dstc_cerror(c, ast, "error in macro expansion");
+                                if (macrorecur++ > DST_RECURSION_GUARD) {
+                                    dstc_cerror(c, ast, "macro expansion recursed too deeply");
+                                    return dstc_cslot(dst_wrap_nil());
+                                } else {
+                                    status = dst_call(fn, &x, dst_tuple_length(tup) - 1, tup + 1);
+                                    if (status) {
+                                        dstc_cerror(c, ast, "error in macro expansion");
+                                    }
+                                    /* Tail recur on the value */
+                                    goto recur;
                                 }
-                                /* Tail recur on the value */
-                                goto recur;
                             }
                         }
                     }
@@ -823,10 +829,10 @@ recur:
             ret = dstc_array(opts, ast, x); 
             break;
         case DST_STRUCT:
-            ret = dstc_tablector(opts, ast, x, dst_cfun_struct); 
+            ret = dstc_tablector(opts, ast, x, dst_core_struct); 
             break;
         case DST_TABLE:
-            ret = dstc_tablector(opts, ast, x, dst_cfun_table);
+            ret = dstc_tablector(opts, ast, x, dst_core_table);
             break;
     }
     if (dstc_iserr(&opts)) {

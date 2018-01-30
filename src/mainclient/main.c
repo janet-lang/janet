@@ -25,6 +25,9 @@
 #include <dst/dst.h>
 #include <dst/dstcompile.h>
 
+#include "linenoise.h"
+#include <errno.h>
+
 #define DST_CLIENT_HELP 1
 #define DST_CLIENT_VERBOSE 2
 #define DST_CLIENT_VERSION 4
@@ -42,6 +45,22 @@ static int client_strequal(const char *a, const char *b) {
 static int client_strequal_witharg(const char *a, const char *b) {
     while (*b) if (*a++ != *b++) return 0;
     return *a == '=';
+}
+
+static int linenoiseread(DstContext *c, enum DstParserStatus status) {
+    const char *prompt = (status == DST_PARSE_PENDING)
+        ? ">> "
+        : "> ";
+    char *line = linenoise(prompt);
+    if (line) {
+        linenoiseHistoryAdd(line);
+        dst_buffer_push_cstring(&c->buffer, line);
+        free(line);
+    } else if (errno) {
+        return 1;
+    }
+    dst_buffer_push_u8(&c->buffer, '\n');
+    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -150,6 +169,8 @@ int main(int argc, char **argv) {
     if (!fileRead || (flags & DST_CLIENT_REPL)) {
         DstContext ctxt;
         dst_context_repl(&ctxt, env);
+        ctxt.read_chunk = linenoiseread;
+        linenoiseSetMultiLine(1);
         puts(replsplash);
         status = dst_context_run(&ctxt, DST_PARSEFLAG_SOURCEMAP);
     }

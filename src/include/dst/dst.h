@@ -154,6 +154,9 @@ int dst_hashtable_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap);
 #define dst_abstract_size(u) (dst_abstract_header(u)->size)
 void *dst_abstract(const DstAbstractType *type, size_t size);
 
+/* Native */
+DstCFunction dst_native(const char *name, const uint8_t **error);
+
 /* GC */
 void dst_mark(Dst x);
 void dst_sweep();
@@ -185,9 +188,6 @@ int32_t dst_capacity(Dst x);
 Dst dst_getindex(Dst ds, int32_t index);
 void dst_setindex(Dst ds, Dst value, int32_t index);
 int dst_cstrcmp(const uint8_t *str, const char *other);
-
-/* Native */
-DstCFunction dst_native(const char *name, const uint8_t **error);
 
 /* VM functions */
 int dst_init();

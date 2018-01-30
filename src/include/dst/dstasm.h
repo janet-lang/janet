@@ -47,6 +47,8 @@ Dst dst_asm_decode_instruction(uint32_t instr);
 int dst_asm_cfun(DstArgs args);
 int dst_disasm_cfun(DstArgs args);
 
+int dst_lib_asm(DstArgs args);
+
 #ifdef __cplusplus
 }
 #endif

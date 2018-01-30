@@ -40,7 +40,7 @@ struct IOFile {
 static int dst_io_gc(void *p, size_t len);
 
 DstAbstractType dst_io_filetype = {
-    "io.file",
+    "core.file",
     dst_io_gc,
     NULL
 };
@@ -84,16 +84,16 @@ static int checkflags(const uint8_t *str, int32_t len) {
 static IOFile *checkfile(DstArgs args, int32_t n) {
     IOFile *iof;
     if (n >= args.n) {
-        dst_throw(args, "expected io.file");
+        dst_throw(args, "expected core.file");
         return NULL;
     }
     if (!dst_checktype(args.v[n], DST_ABSTRACT)) {
-        dst_throw(args, "expected io.file");
+        dst_throw(args, "expected core.file");
         return NULL;
     }
     iof = (IOFile *) dst_unwrap_abstract(args.v[n]);
     if (dst_abstract_type(iof) != &dst_io_filetype) {
-        dst_throw(args, "expected io.file");
+        dst_throw(args, "expected core.file");
         return NULL;
     }
     return iof;

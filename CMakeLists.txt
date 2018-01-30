@@ -37,6 +37,7 @@ src/compiler/compile.c
 src/compiler/specials.c
 src/compiler/cfuns.c
 src/compiler/context.c
+src/compiler/stl.c
 
 src/compiler/compile.h
 )
@@ -47,12 +48,12 @@ src/core/array.c
 src/core/ast.c
 src/core/buffer.c
 src/core/bytecode.c
+src/core/corelib.c
 src/core/fiber.c
 src/core/gc.c
 src/core/io.c
 src/core/math.c
 src/core/native.c
-src/core/stl.c
 src/core/string.c
 src/core/struct.c
 src/core/symcache.c
@@ -70,6 +71,9 @@ src/core/util.h
 
 set(MAINCLIENT_SOURCES
 src/mainclient/main.c
+src/mainclient/linenoise.c
+
+src/mainclient/linenoise.h
 )
 
 set(PARSER_SOURCES

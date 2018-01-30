@@ -1,0 +1,126 @@
+/*
+* Copyright (c) 2017 Calvin Rose
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to
+* deal in the Software without restriction, including without limitation the
+* rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+* sell copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*/
+
+#include <dst/dst.h>
+#include <dst/dstopcodes.h>
+#include <dst/dstcorelib.h>
+#include <dst/dstasm.h>
+#include <dst/dstparse.h>
+#include <dst/dstcompile.h>
+
+static const DstReg cfuns[] = {
+    {"native", dst_core_native},
+    {"print", dst_core_print},
+    {"describe", dst_core_describe},
+    {"string", dst_core_string},
+    {"symbol", dst_core_symbol},
+    {"buffer-string", dst_core_buffer_to_string},
+    {"table", dst_core_table},
+    {"array", dst_core_array},
+    {"tuple", dst_core_tuple},
+    {"struct", dst_core_struct},
+    {"fiber", dst_core_fiber},
+    {"status", dst_core_status},
+    {"buffer", dst_core_buffer},
+    {"gensym", dst_core_gensym},
+    {"get", dst_core_get},
+    {"put", dst_core_put},
+    {"length", dst_core_length},
+    {"gccollect", dst_core_gccollect},
+    {"type", dst_core_type},
+    {"next", dst_core_next},
+    {"hash", dst_core_hash},
+    {"exit", dst_core_exit},
+    {NULL, NULL}
+};
+
+static const char *bootstrap =
+"(def defmacro macro (fn [name & more] (tuple 'def name 'macro (tuple-prepend (tuple-prepend more name) 'fn))))\n"
+"(defmacro defn [name & more] (tuple 'def name (tuple-prepend (tuple-prepend more name) 'fn)))\n"
+"(defmacro when [cond & body] (tuple 'if cond (tuple-prepend body 'do)))\n";
+
+DstTable *dst_stl_env() {
+    static uint32_t error_asm[] = {
+        DOP_ERROR
+    };
+
+    static uint32_t apply_asm[] = {
+       DOP_PUSH_ARRAY | (1 << 8),
+       DOP_TAILCALL
+    };
+
+    static uint32_t yield_asm[] = {
+        DOP_LOAD_NIL | (1 << 8),
+        DOP_TRANSFER | (1 << 16),
+        DOP_RETURN
+    };
+
+    static uint32_t transfer_asm[] = {
+        DOP_TRANSFER | (1 << 24),
+        DOP_RETURN
+    };
+
+    DstTable *env = dst_table(0);
+    Dst ret = dst_wrap_table(env);
+
+    /* Load main functions */
+    dst_env_cfuns(env, cfuns);
+
+    dst_env_def(env, "error", dst_wrap_function(dst_quick_asm(1, 0, 1, error_asm, sizeof(error_asm))));
+    dst_env_def(env, "apply", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, sizeof(apply_asm))));
+    dst_env_def(env, "yield", dst_wrap_function(dst_quick_asm(1, 0, 2, yield_asm, sizeof(yield_asm))));
+    dst_env_def(env, "transfer", dst_wrap_function(dst_quick_asm(2, 0, 2, transfer_asm, sizeof(transfer_asm))));
+
+    /* Allow references to the environment */
+    dst_env_def(env, "_env", ret);
+
+    /* Set as gc root */
+    dst_gcroot(dst_wrap_table(env));
+
+    /* Load auxiliary envs */
+    {
+        DstArgs args;
+        args.n = 1;
+        args.v = &ret;
+        args.ret = &ret;
+        dst_lib_io(args);
+        dst_lib_math(args);
+        dst_lib_array(args);
+        dst_lib_ast(args);
+        dst_lib_tuple(args);
+        dst_lib_buffer(args);
+        dst_lib_parse(args);
+        dst_lib_compile(args);
+        dst_lib_asm(args);
+    }
+
+    /* Run bootstrap source */
+    {
+        DstContext ctxt;
+        dst_context_cstring(&ctxt, env, bootstrap);
+        dst_context_run(&ctxt, 0);
+    }
+
+    dst_gcunroot(dst_wrap_table(env));
+
+    return env;
+}

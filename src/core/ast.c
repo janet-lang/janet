@@ -32,7 +32,7 @@ static int dst_ast_gcmark(void *p, size_t size) {
 
 /* AST type */
 static DstAbstractType dst_ast_type = {
-    "ast",
+    "core.ast",
     NULL,
     dst_ast_gcmark
 };

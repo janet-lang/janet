@@ -21,7 +21,7 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dststl.h>
+#include <dst/dstcorelib.h>
 #include "compile.h"
 #include <headerlibs/vector.h>
 #undef DST_V_NODEF_GROW

@@ -26,7 +26,7 @@
 
 #define CHUNKSIZE 1024
 
-/* Read input for a repl */
+/* read input for a repl */
 static int replread(DstContext *c, enum DstParserStatus status) {
     if (status == DST_PARSE_PENDING)
         printf(">> ");
@@ -42,6 +42,24 @@ static int replread(DstContext *c, enum DstParserStatus status) {
         dst_buffer_push_u8(&c->buffer, x);
         if (x == '\n') break;
     }
+    return 0;
+}
+
+static int cstringread(DstContext *c, enum DstParserStatus status) {
+    char *src = (char *)(c->user);
+    (void) status;
+    DstBuffer *b = &c->buffer;
+    if (!b->capacity) {
+        dst_buffer_ensure(b, CHUNKSIZE);
+    }
+    if (!*src) return 1;
+    while (*src && b->count < b->capacity) {
+        dst_buffer_push_u8(b, *src++);
+    }
+    if (!*src) {
+        dst_buffer_push_u8(b, '\n');
+    }
+    c->user = src;
     return 0;
 }
 
@@ -126,6 +144,13 @@ int dst_context_file(DstContext *c, DstTable *env, const char *path) {
     c->read_chunk = fileread;
     c->on_error = simpleerror;
     c->deinit = filedeinit;
+    return 0;
+}
+
+int dst_context_cstring(DstContext *c, DstTable *env, const char *source) {
+    dst_context_init(c, env);
+    c->user = (void *) source;
+    c->read_chunk = cstringread;
     return 0;
 }
 

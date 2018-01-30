@@ -35,7 +35,10 @@ extern "C" {
  * so that compiles can inject them into funcdefs. Later, a
  * different serialization mechanism might be used for cfunctions. */
 
-int dst_load_native(DstArgs args);
+/* Native */
+int dst_core_native(DstArgs args);
+
+/* Math functions */
 int dst_int(DstArgs args);
 int dst_real(DstArgs args);
 int dst_add(DstArgs args);
@@ -43,21 +46,56 @@ int dst_subtract(DstArgs args);
 int dst_multiply(DstArgs args);
 int dst_divide(DstArgs args);
 int dst_modulo(DstArgs args);
-int dst_band(DstArgs args);
+int dst_math_equal(DstArgs args);
+int dst_math_notequal(DstArgs args);
+int dst_math_ascending(DstArgs args);
+int dst_math_descending(DstArgs args);
+int dst_math_notdescending(DstArgs args);
+int dst_math_notascending(DstArgs args);
 int dst_bor(DstArgs args);
+int dst_band(DstArgs args);
 int dst_bxor(DstArgs args);
-int dst_lshift(DstArgs arsg);
+int dst_bnot(DstArgs args);
+int dst_lshift(DstArgs args);
 int dst_rshift(DstArgs args);
 int dst_lshiftu(DstArgs args);
+int dst_math_not(DstArgs args);
+int dst_cos(DstArgs args);
+int dst_sin(DstArgs args);
+int dst_tan(DstArgs args);
+int dst_acos(DstArgs args);
+int dst_asin(DstArgs args);
+int dst_atan(DstArgs args);
+int dst_exp(DstArgs args);
+int dst_log(DstArgs args);
+int dst_log10(DstArgs args);
+int dst_sqrt(DstArgs args);
+int dst_floor(DstArgs args);
+int dst_ceil(DstArgs args);
+int dst_pow(DstArgs args);
 
-Dst dst_op_add(Dst lhs, Dst rhs);
-Dst dst_op_subtract(Dst lhs, Dst rhs);
-
-/* Native type constructors */
-int dst_cfun_table(DstArgs args);
-int dst_cfun_array(DstArgs args);
-int dst_cfun_struct(DstArgs args);
-int dst_cfun_tuple(DstArgs args);
+/* Misc core functions */
+int dst_core_exit(DstArgs args);
+int dst_core_print(DstArgs args);
+int dst_core_describe(DstArgs args);
+int dst_core_string(DstArgs args);
+int dst_core_symbol(DstArgs args);
+int dst_core_buffer_to_string(DstArgs args);
+int dst_core_tuple(DstArgs args);
+int dst_core_array(DstArgs args);
+int dst_core_table(DstArgs args);
+int dst_core_struct(DstArgs args);
+int dst_core_fiber(DstArgs args);
+int dst_core_buffer(DstArgs args);
+int dst_core_gensym(DstArgs args);
+int dst_core_length(DstArgs args);
+int dst_core_get(DstArgs args);
+int dst_core_status(DstArgs args);
+int dst_core_put(DstArgs args);
+int dst_core_gccollect(DstArgs args);
+int dst_core_type(DstArgs args);
+int dst_core_next(DstArgs args);
+int dst_core_hash(DstArgs args);
 
 /* Initialize builtin libraries */
 int dst_lib_io(DstArgs args);
@@ -66,8 +104,10 @@ int dst_lib_array(DstArgs args);
 int dst_lib_ast(DstArgs args);
 int dst_lib_tuple(DstArgs args);
 int dst_lib_buffer(DstArgs args);
-int dst_lib_parse(DstArgs args);
-int dst_lib_compile(DstArgs args);
+
+/* Useful for compiler */
+Dst dst_op_add(Dst lhs, Dst rhs);
+Dst dst_op_subtract(Dst lhs, Dst rhs);
 
 #ifdef __cplusplus
 }

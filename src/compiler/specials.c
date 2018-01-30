@@ -21,7 +21,7 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dststl.h>
+#include <dst/dstcorelib.h>
 #include <dst/dstcompile.h>
 #include <dst/dstparse.h>
 #include "compile.h"
