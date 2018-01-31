@@ -45,6 +45,7 @@ struct DstCompileResult {
 };
 DstCompileResult dst_compile(Dst source, DstTable *env, int flags);
 int dst_compile_cfun(DstArgs args);
+int dst_lib_compile(DstArgs args);
 
 /* Context - for executing dst in the interpretted form. */
 typedef struct DstContext DstContext;
@@ -52,12 +53,16 @@ typedef struct DstContext DstContext;
 /* Get the default environment for dst */
 DstTable *dst_stl_env();
 
+/* Different levels of reporting and configuration */
 void dst_context_init(DstContext *c, DstTable *env);
-void dst_context_deinit(DstContext *c);
-int dst_context_repl(DstContext *c, DstTable *env);
 int dst_context_file(DstContext *c, DstTable *env, const char *path);
-int dst_context_cstring(DstContext *c, DstTable *env, const char *source);
+int dst_context_repl(DstContext *c, DstTable *env);
+int dst_context_bytes(DstContext *c, DstTable *env, const uint8_t *bytes, int32_t len);
+
+/* Evaluate a form in the context */
 int dst_context_run(DstContext *c, int flags);
+
+void dst_context_deinit(DstContext *c);
 
 /* Parse structs */
 enum DstContextErrorType {
@@ -72,6 +77,7 @@ struct DstContext {
     DstTable *env;
     DstBuffer buffer;
     void *user;
+    int32_t bufsize;
     int32_t index;
 
     int (*read_chunk)(DstContext *self, enum DstParserStatus status);
@@ -79,8 +85,6 @@ struct DstContext {
     void (*on_value)(DstContext *self, Dst value);
     void (*deinit)(DstContext *self);
 };
-
-int dst_lib_compile(DstArgs args);
 
 #ifdef __cplusplus
 }

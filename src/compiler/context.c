@@ -45,21 +45,40 @@ static int replread(DstContext *c, enum DstParserStatus status) {
     return 0;
 }
 
-static int cstringread(DstContext *c, enum DstParserStatus status) {
-    char *src = (char *)(c->user);
+static int bytesread(DstContext *c, enum DstParserStatus status) {
+    const uint8_t *src = (const uint8_t *)(c->user);
     (void) status;
+    int32_t n = CHUNKSIZE;
     DstBuffer *b = &c->buffer;
-    if (!b->capacity) {
-        dst_buffer_ensure(b, CHUNKSIZE);
-    }
-    if (!*src) return 1;
-    while (*src && b->count < b->capacity) {
-        dst_buffer_push_u8(b, *src++);
-    }
-    if (!*src) {
+    b->count = 0;
+    if (!c->bufsize) {
         dst_buffer_push_u8(b, '\n');
+        return 1;
     }
-    c->user = src;
+    if (c->bufsize < n) n = c->bufsize;
+    dst_buffer_push_bytes(b, src, n);
+    c->bufsize -= n;
+    c->user = (void *)(src + n);
+    return 0;
+}
+
+/* Chunk readers */
+static void filedeinit(DstContext *c) {
+    fclose((FILE *) (c->user));
+}
+
+/* Read chunk from file */
+static int32_t fileread(DstContext *c, enum DstParserStatus status) {
+    size_t nread;
+    FILE *f = (FILE *) c->user;
+    (void) status;
+    c->buffer.count = 0;
+    dst_buffer_ensure(&c->buffer, CHUNKSIZE);
+    nread = fread(c->buffer.data, 1, CHUNKSIZE, f);
+    if (nread != CHUNKSIZE && ferror(f)) {
+        return -1;
+    }
+    c->buffer.count = (int32_t) nread;
     return 0;
 }
 
@@ -88,23 +107,6 @@ static void simpleerror(DstContext *c, enum DstContextErrorType type, Dst err, s
             break;
     }
     dst_puts(dst_formatc("%s error: %s\n", errtype, dst_to_string(err)));
-}
-
-static void filedeinit(DstContext *c) {
-    fclose((FILE *) (c->user));
-}
-
-static int fileread(DstContext *c, enum DstParserStatus status) {
-    size_t nread;
-    FILE *f = (FILE *) c->user;
-    (void) status;
-    dst_buffer_ensure(&c->buffer, CHUNKSIZE);
-    nread = fread(c->buffer.data, 1, CHUNKSIZE, f);
-    if (nread != CHUNKSIZE && ferror(f)) {
-        return -1;
-    }
-    c->buffer.count = (int32_t) nread;
-    return 0;
 }
 
 void dst_context_init(DstContext *c, DstTable *env) {
@@ -147,10 +149,11 @@ int dst_context_file(DstContext *c, DstTable *env, const char *path) {
     return 0;
 }
 
-int dst_context_cstring(DstContext *c, DstTable *env, const char *source) {
+int dst_context_bytes(DstContext *c, DstTable *env, const uint8_t *bytes, int32_t len) {
     dst_context_init(c, env);
-    c->user = (void *) source;
-    c->read_chunk = cstringread;
+    c->user = (void *) bytes;
+    c->bufsize = len;
+    c->read_chunk = bytesread;
     return 0;
 }
 

@@ -20,20 +20,14 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_MATH_H_defined
-#define DST_MATH_H_defined
+#ifndef DST_CORELIB_H_defined
+#define DST_CORELIB_H_defined
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "dsttypes.h"
-
-/* Basic C Functions. These are good
- * candidates for optimizations like bytecode
- * inlining and costant folding. They are exposed publicly
- * so that compiles can inject them into funcdefs. Later, a
- * different serialization mechanism might be used for cfunctions. */
 
 /* Native */
 int dst_core_native(DstArgs args);
@@ -80,7 +74,7 @@ int dst_core_print(DstArgs args);
 int dst_core_describe(DstArgs args);
 int dst_core_string(DstArgs args);
 int dst_core_symbol(DstArgs args);
-int dst_core_buffer_to_string(DstArgs args);
+int dst_core_buffer(DstArgs args);
 int dst_core_tuple(DstArgs args);
 int dst_core_array(DstArgs args);
 int dst_core_table(DstArgs args);
@@ -113,4 +107,4 @@ Dst dst_op_subtract(Dst lhs, Dst rhs);
 }
 #endif
 
-#endif /* DST_MATH_H_defined */
+#endif /* DST_CORELIB_H_defined */

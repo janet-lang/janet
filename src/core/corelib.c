@@ -55,8 +55,9 @@ int dst_core_describe(DstArgs args) {
         for (j = 0; j < len; ++j) {
             putc(vstr[j], stdout);
         }
+        putc('\n', stdout);
     }
-    putc('\n', stdout);
+    if (!i) putc('\n', stdout);
     return 0;
 }
 
@@ -90,12 +91,16 @@ int dst_core_symbol(DstArgs args) {
     return 0;
 }
 
-int dst_core_buffer_to_string(DstArgs args) {
-    DstBuffer *b;
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
-    if (!dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
-    b = dst_unwrap_buffer(args.v[0]);
-    return dst_return(args, dst_wrap_string(dst_string(b->data, b->count)));
+int dst_core_buffer(DstArgs args) {
+    int32_t i;
+    DstBuffer *b = dst_buffer(0);
+    for (i = 0; i < args.n; ++i) {
+        int32_t len;
+        const uint8_t *str = dst_to_string(args.v[i]);
+        len = dst_string_length(str);
+        dst_buffer_push_bytes(b, str, len);
+    }
+    return dst_return(args, dst_wrap_buffer(b));
 }
 
 int dst_core_tuple(DstArgs args) {
@@ -137,17 +142,6 @@ int dst_core_fiber(DstArgs args) {
     dst_fiber_funcframe(fiber, dst_unwrap_function(args.v[0]));
     fiber->parent = dst_vm_fiber;
     return dst_return(args, dst_wrap_fiber(fiber));
-}
-
-int dst_core_buffer(DstArgs args) {
-    DstBuffer *buffer = dst_buffer(10);
-    int32_t i;
-    for (i = 0; i < args.n; ++i) {
-        const uint8_t *bytes = dst_to_string(args.v[i]);
-        int32_t len = dst_string_length(bytes);
-        dst_buffer_push_bytes(buffer, bytes, len);
-    }
-    return dst_return(args, dst_wrap_buffer(buffer));
 }
 
 int dst_core_gensym(DstArgs args) {

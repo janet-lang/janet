@@ -27,13 +27,16 @@
 #include <dst/dstparse.h>
 #include <dst/dstcompile.h>
 
+/* Generated header */
+#include "dststlbootstrap.h"
+
 static const DstReg cfuns[] = {
     {"native", dst_core_native},
     {"print", dst_core_print},
     {"describe", dst_core_describe},
     {"string", dst_core_string},
     {"symbol", dst_core_symbol},
-    {"buffer-string", dst_core_buffer_to_string},
+    {"buffer", dst_core_buffer},
     {"table", dst_core_table},
     {"array", dst_core_array},
     {"tuple", dst_core_tuple},
@@ -53,10 +56,7 @@ static const DstReg cfuns[] = {
     {NULL, NULL}
 };
 
-static const char *bootstrap =
-"(def defmacro macro (fn [name & more] (tuple 'def name 'macro (tuple-prepend (tuple-prepend more name) 'fn))))\n"
-"(defmacro defn [name & more] (tuple 'def name (tuple-prepend (tuple-prepend more name) 'fn)))\n"
-"(defmacro when [cond & body] (tuple 'if cond (tuple-prepend body 'do)))\n";
+#include <unistd.h>
 
 DstTable *dst_stl_env() {
     static uint32_t error_asm[] = {
@@ -116,7 +116,7 @@ DstTable *dst_stl_env() {
     /* Run bootstrap source */
     {
         DstContext ctxt;
-        dst_context_cstring(&ctxt, env, bootstrap);
+        dst_context_bytes(&ctxt, env, dst_stl_bootstrap_gen, sizeof(dst_stl_bootstrap_gen));
         dst_context_run(&ctxt, 0);
     }
 

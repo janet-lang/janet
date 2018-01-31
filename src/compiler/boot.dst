@@ -1,0 +1,78 @@
+(def defmacro macro
+  (fn [name & more] (tuple 'def name 'macro (tuple-prepend (tuple-prepend more name) 'fn))))
+
+(defmacro defn
+ [name & more] 
+ (tuple 'def name (tuple-prepend (tuple-prepend more name) 'fn)))
+
+(defmacro when
+ [cond & body] 
+ (tuple 'if cond (tuple-prepend body 'do)))
+
+(def seq (do
+  (defn array-seq [x]
+    (def len (length x))
+    (var i 0)
+    {
+      :more (fn [] (< i len))
+      :next (fn []
+        (def ret (get x i))
+        (varset! i (+ i 1))
+        ret) 
+    })
+  (def seqs {
+    :array array-seq
+    :tuple array-seq
+    :struct (fn [x] x)})
+  (fn [x]
+   (def makeseq (get seqs (type x)))
+   (if makeseq (makeseq x) (error "expected sequence")))))
+
+(defn range [top]
+  (var i 0)
+  {
+    :more (fn [] (< i top))
+    :next (fn []
+      (def ret i)
+      (varset! i (+ i 1))
+      ret) 
+  })
+
+(defn doseq [s] 
+ (def s (seq s))
+ (def more? (get s :more))
+ (def getnext (get s :next))
+ (while (more?)
+    (getnext)))
+
+(defn map [f s]
+ (def s (seq s))
+ (def more (get s :more))
+ (def getnext (get s :next))
+ {
+  :more more
+  :next (fn [] (f (getnext)))
+ })
+
+(defn reduce [f start s]
+  (def s (seq s))
+  (def more? (get s :more))
+  (def getnext (get s :next))
+  (var ret start)
+  (while (more?)
+    (varset! ret (f ret (getnext))))
+  ret)
+
+(defmacro for [head & body]
+  (def head (ast-unwrap head))
+  (def sym (get head 0))
+  (def start (get head 1))
+  (def end (get head 2))
+  (def _inc (get head 3))
+  (def inc (if _inc _inc 1))
+  (tuple 'do
+    (tuple 'var sym start)
+    (tuple 'while (tuple '< sym end)
+     (tuple-prepend body 'do)
+     (tuple 'varset! sym (tuple '+ sym 1))
+      )))

@@ -27,6 +27,18 @@ set (CMAKE_C_STANDARD 99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
 
 include_directories(src/include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+# Make tools for generating embeddable headers
+add_executable(xxd src/tools/xxd.c)
+
+# Generate header containing standard library
+add_custom_command(
+    OUTPUT dststlbootstrap.h
+    COMMAND xxd ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler/boot.dst dststlbootstrap.h dst_stl_bootstrap_gen
+    DEPENDS xxd src/compiler/boot.dst
+    COMMENT "Generating stl bootstrap C header for embedding"
+)
 
 set(ASSEMBLER_SOURCES
 src/assembler/asm.c
@@ -38,6 +50,7 @@ src/compiler/specials.c
 src/compiler/cfuns.c
 src/compiler/context.c
 src/compiler/stl.c
+dststlbootstrap.h
 
 src/compiler/compile.h
 )
