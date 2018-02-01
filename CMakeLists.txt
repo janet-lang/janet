@@ -115,7 +115,7 @@ src/include/dst/dstconfig.h
 src/include/dst/dstopcodes.h
 src/include/dst/dstparse.h
 src/include/dst/dststate.h
-src/include/dst/dststl.h
+src/include/dst/dstcorelib.h
 src/include/dst/dsttypes.h
 )
 

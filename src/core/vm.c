@@ -798,7 +798,7 @@ int dst_init() {
      * a collection pretty much every cycle, which is
      * horrible for performance, but helps ensure
      * there are no memory bugs during dev */
-    dst_vm_gc_interval = 0x00000000;
+    dst_vm_gc_interval = 0x100000;
     dst_symcache_init();
     /* Set thread */
     dst_vm_fiber = NULL;
