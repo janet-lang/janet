@@ -107,7 +107,7 @@ const uint8_t *dst_cstring(const char *str) {
 
 static int32_t real_to_string_impl(uint8_t *buf, double x) {
     /* Use 16 decimal places to ignore one ulp errors for now */
-    int count = snprintf((char *) buf, DST_BUFSIZE, "%.16g", x);
+    int count = snprintf((char *) buf, DST_BUFSIZE, "%.16gR", x);
     return (int32_t) count;
 }
 
