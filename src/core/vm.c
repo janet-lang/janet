@@ -63,8 +63,8 @@ static int dst_continue(Dst *returnreg) {
      * Values stored here should be used immediately */
     Dst retreg;
 
-/* Use computed gotos for GCC, otherwise use switch */
-#ifdef __GNUCC__
+/* Use computed gotos for GCC and clang, otherwise use switch */
+#ifdef __GNUC__
 #define VM_START() {vm_next();
 #define VM_END() }
 #define VM_OP(op) label_##op :
