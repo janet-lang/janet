@@ -36,8 +36,9 @@ before_build:
     cd build
     cmake --version
     cmake .. -G %generator%
+	ls
 build:
-  project: c:\projects\dst\build\template.sln
+  project: c:\projects\dst\build\dst.sln
   verbosity: minimal
   parallel: true
 only_commits:
