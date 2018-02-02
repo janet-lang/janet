@@ -4,14 +4,13 @@ branches:
   - master
 clone_folder: c:\projects\dst
 image:
-- Visual Studio 2013
-- Visual Studio 2015
 - Visual Studio 2017
 configuration:
 - Release
 - Debug
 platform:
 - x64
+- x86
 environment:
   matrix:
   - arch: Win64
