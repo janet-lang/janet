@@ -169,8 +169,10 @@ int main(int argc, char **argv) {
     if (!fileRead || (flags & DST_CLIENT_REPL)) {
         DstContext ctxt;
         dst_context_repl(&ctxt, env);
+#ifndef DST_WINDOWS
         ctxt.read_chunk = linenoiseread;
         linenoiseSetMultiLine(1);
+#endif
         puts(replsplash);
         status = dst_context_run(&ctxt, DST_PARSEFLAG_SOURCEMAP);
     }

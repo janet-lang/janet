@@ -159,9 +159,9 @@ DstCFunction dst_native(const char *name, const uint8_t **error);
 
 /* GC */
 void dst_mark(Dst x);
-void dst_sweep();
-void dst_collect();
-void dst_clear_memory();
+void dst_sweep(void);
+void dst_collect(void);
+void dst_clear_memory(void);
 void dst_gcroot(Dst root);
 int dst_gcunroot(Dst root);
 int dst_gcunrootall(Dst root);
@@ -171,7 +171,7 @@ int dst_gcunrootall(Dst root);
 #define dst_gcunlock() (dst_vm_gc_suspend--)
 
 /* Functions */
-DstFuncDef *dst_funcdef_alloc();
+DstFuncDef *dst_funcdef_alloc(void);
 DstFunction *dst_function(DstFuncDef *def, DstFunction *parent);
 int dst_verify(DstFuncDef *def);
 DstFunction *dst_quick_asm(int32_t arity, int varargs, int32_t slots, const uint32_t *bytecode, size_t bytecode_size);
@@ -190,8 +190,8 @@ void dst_setindex(Dst ds, Dst value, int32_t index);
 int dst_cstrcmp(const uint8_t *str, const char *other);
 
 /* VM functions */
-int dst_init();
-void dst_deinit();
+int dst_init(void);
+void dst_deinit(void);
 int dst_run(Dst callee, Dst *returnreg);
 int dst_call(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv);
 
@@ -208,7 +208,7 @@ Dst dst_env_resolve(DstTable *env, const char *name);
 DstTable *dst_env_arg(DstArgs args);
 
 /* STL */
-DstTable *dst_stl_env();
+DstTable *dst_stl_env(void);
 
 /* AST */
 Dst dst_ast_wrap(Dst x, int32_t start, int32_t end);

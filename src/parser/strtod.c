@@ -82,7 +82,7 @@ static double convert(
     if (mantissa == 0)
         return 0.0;
     if (exponent > 1022)
-        return negative ? -1.0/0.0 : 1.0/0.0;
+        return negative ? -INFINITY : INFINITY;
 
     /* TODO add fast paths */
 

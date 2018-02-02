@@ -101,8 +101,6 @@ typedef enum DstType {
 union Dst {
     uint64_t u64;
     int64_t i64;
-    void *pointer;
-    const void *cpointer;
     double real;
 };
 
@@ -122,8 +120,8 @@ union Dst {
 
 #if defined (DST_NANBOX_47) || defined (DST_32)
 
-#define DST_NANBOX_TAGBITS     0xFFFF800000000000lu
-#define DST_NANBOX_PAYLOADBITS 0x00007FFFFFFFFFFFlu
+#define DST_NANBOX_TAGBITS     0xFFFF800000000000llu
+#define DST_NANBOX_PAYLOADBITS 0x00007FFFFFFFFFFFllu
 
 
 #define dst_nanbox_lowtag(type) \
@@ -139,8 +137,8 @@ union Dst {
 
 #else /* defined (DST_NANBOX_47) || defined (DST_32) */
 
-#define DST_NANBOX_TAGBITS     0xFFFF000000000000lu
-#define DST_NANBOX_PAYLOADBITS 0x0000FFFFFFFFFFFFlu
+#define DST_NANBOX_TAGBITS     0xFFFF000000000000llu
+#define DST_NANBOX_PAYLOADBITS 0x0000FFFFFFFFFFFFllu
 
 #define dst_nanbox_lowtag(type) \
     ((((uint64_t)(type) & 0x1) << 15) | 0x7FF8 | ((type) >> 1))
@@ -157,7 +155,8 @@ union Dst {
 
 /* 32 bit mode will not use the full payload for pointers. */
 #ifdef DST_32
-#define DST_NANBOX_POINTERBITS 0xFFFFFFFFlu
+
+#define DST_NANBOX_POINTERBITS 0xFFFFFFFFllu
 #else
 #define DST_NANBOX_POINTERBITS DST_NANBOX_PAYLOADBITS
 #endif

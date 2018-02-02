@@ -36,12 +36,12 @@ void *dst_nanbox_to_pointer(Dst x) {
 #else
     x.i64 = (x.i64 << 16) >> 16;
 #endif
-    return x.pointer;
+    return (void *)x.i64;
 }
 
 Dst dst_nanbox_from_pointer(void *p, uint64_t tagmask) {
     Dst ret;
-    ret.pointer = p;
+    ret.u64 = (int64_t)p;
 #if defined (DST_NANBOX_47) || defined (DST_32)
 #else
     ret.u64 &= DST_NANBOX_POINTERBITS;
@@ -52,7 +52,7 @@ Dst dst_nanbox_from_pointer(void *p, uint64_t tagmask) {
 
 Dst dst_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
     Dst ret;
-    ret.cpointer = p;
+    ret.u64 = (int64_t)p;
 #if defined (DST_NANBOX_47) || defined (DST_32)
 #else
     ret.u64 &= DST_NANBOX_POINTERBITS;

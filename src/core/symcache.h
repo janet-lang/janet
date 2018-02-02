@@ -26,8 +26,8 @@
 #include <dst/dst.h>
 
 /* Initialize the cache (allocate cache memory) */
-void dst_symcache_init();
-void dst_symcache_deinit();
+void dst_symcache_init(void);
+void dst_symcache_deinit(void);
 void dst_symbol_deinit(const uint8_t *sym);
 
 #endif

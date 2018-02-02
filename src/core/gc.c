@@ -275,7 +275,7 @@ void dst_sweep() {
 }
 
 /* Allocate some memory that is tracked for garbage collection */
-void *dst_gcalloc(DstMemoryType type, size_t size) {
+void *dst_gcalloc(enum DstMemoryType type, size_t size) {
     DstGCMemoryHeader *mdata;
     size_t total = size + sizeof(DstGCMemoryHeader);
 
@@ -298,11 +298,11 @@ void *dst_gcalloc(DstMemoryType type, size_t size) {
     mdata->next = dst_vm_blocks;
     dst_vm_blocks = mdata;
 
-    return mem + sizeof(DstGCMemoryHeader);
+    return (char *) mem + sizeof(DstGCMemoryHeader);
 }
 
 /* Run garbage collection */
-void dst_collect() {
+void dst_collect(void) {
     uint32_t i;
     if (dst_vm_gc_suspend) return;
     if (dst_vm_fiber)
@@ -362,7 +362,7 @@ int dst_gcunrootall(Dst root) {
 }
 
 /* Free all allocated memory */
-void dst_clear_memory() {
+void dst_clear_memory(void) {
     DstGCMemoryHeader *current = dst_vm_blocks;
     while (NULL != current) {
         dst_deinit_block(current);

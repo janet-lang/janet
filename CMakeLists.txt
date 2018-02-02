@@ -24,7 +24,7 @@ project(dst)
 # Set Some Variables
 set(TARGET_NAME ${PROJECT_NAME})
 set (CMAKE_C_STANDARD 99)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
 include_directories(src/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -121,7 +121,9 @@ src/include/dst/dsttypes.h
 
 # Build the executable
 add_executable(${TARGET_NAME} ${REPL_SOURCES})
-target_link_libraries(${TARGET_NAME} m dl)
+if (UNIX)
+	target_link_libraries(${TARGET_NAME} m dl)
+endif (UNIX)
 set_target_properties(${TARGET_NAME} PROPERTIES PUBLIC_HEADER "${DST_PUBLIC_HEADERS}")
 
 # Install

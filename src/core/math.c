@@ -388,6 +388,6 @@ int dst_lib_math(DstArgs args) {
 
     dst_env_def(env, "pi", dst_wrap_real(3.1415926535897931));
     dst_env_def(env, "e", dst_wrap_real(2.7182818284590451));
-    dst_env_def(env, "inf", dst_wrap_real(1.0 / 0.0));
+    dst_env_def(env, "inf", dst_wrap_real(INFINITY));
     return 0;
 }

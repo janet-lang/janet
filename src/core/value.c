@@ -99,7 +99,7 @@ int32_t dst_hash(Dst x) {
             hash ^= (int32_t) (i >> 32);
         } else {
             /* Assuming 4 byte pointer (or smaller) */
-            hash = (int32_t) (dst_unwrap_pointer(x) - NULL);
+            hash = (int32_t) ((char *)dst_unwrap_pointer(x) - (char *)0);
             hash >>= 2;
         }
         break;

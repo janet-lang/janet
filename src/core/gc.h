@@ -48,7 +48,6 @@ struct DstGCMemoryHeader {
 };
 
 /* Memory types for the GC. Different from DstType to include funcenv and funcdef. */
-typedef enum DstMemoryType DstMemoryType;
 enum DstMemoryType {
     DST_MEMORY_NONE,
     DST_MEMORY_STRING,
@@ -67,6 +66,6 @@ enum DstMemoryType {
 
 /* To allocate collectable memory, one must calk dst_alloc, initialize the memory,
  * and then call when dst_enablegc when it is initailize and reachable by the gc (on the DST stack) */
-void *dst_gcalloc(DstMemoryType type, size_t size);
+void *dst_gcalloc(enum DstMemoryType type, size_t size);
 
 #endif

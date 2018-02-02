@@ -56,8 +56,6 @@ static const DstReg cfuns[] = {
     {NULL, NULL}
 };
 
-#include <unistd.h>
-
 DstTable *dst_stl_env() {
     static uint32_t error_asm[] = {
         DOP_ERROR

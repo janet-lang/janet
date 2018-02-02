@@ -12,6 +12,9 @@ dst
 # Tools
 xxd
 
+# VSCode
+.vs
+
 # Swap files
 *.swp
 
