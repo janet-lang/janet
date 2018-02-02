@@ -173,7 +173,7 @@ int dst_core_get(DstArgs args) {
 }
 
 int dst_core_status(DstArgs args) {
-    const char *status;
+    const char *status = "";
     if (args.n != 1) return dst_throw(args, "expected 1 argument");
     if (!dst_checktype(args.v[0], DST_FIBER)) return dst_throw(args, "expected fiber");
     switch(dst_unwrap_fiber(args.v[0])->status) {

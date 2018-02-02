@@ -553,7 +553,7 @@ static int cfun_parser(DstArgs args) {
         flags = 0;
     }
     DstParser *p = dst_abstract(&dst_parse_parsertype, sizeof(DstParser));
-    dst_parser_init(p, 0);
+    dst_parser_init(p, flags);
     return dst_return(args, dst_wrap_abstract(p));
 }
 
@@ -561,16 +561,16 @@ static int cfun_parser(DstArgs args) {
 static DstParser *checkparser(DstArgs args) {
     DstParser *p;
     if (args.n == 0) {
-        dst_throw(args, "expected parse.parser");
+    	*args.ret = dst_cstringv("expected parse.parser");
         return NULL;
     }
     if (!dst_checktype(args.v[0], DST_ABSTRACT)) {
-        dst_throw(args, "expected parse.parser");
+    	*args.ret = dst_cstringv("expected parse.parser");
         return NULL;
     }
     p = (DstParser *) dst_unwrap_abstract(args.v[0]);
     if (dst_abstract_type(p) != &dst_parse_parsertype) {
-        dst_throw(args, "expected parse.parser");
+    	*args.ret = dst_cstringv("expected parse.parser");
         return NULL;
     }
     return p;

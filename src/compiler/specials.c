@@ -353,6 +353,8 @@ DstSlot dstc_while(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
         labelc = dst_v_count(c->buffer);
         dstc_emit(c, ast, DOP_JUMP_IF_NOT | (condlocal << 8));
         dstc_postread(c, cond, condlocal);
+    } else {
+        labelc = 0;
     }
 
     /* Compile body */

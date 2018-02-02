@@ -84,16 +84,16 @@ static int checkflags(const uint8_t *str, int32_t len) {
 static IOFile *checkfile(DstArgs args, int32_t n) {
     IOFile *iof;
     if (n >= args.n) {
-        dst_throw(args, "expected core.file");
+	*args.ret = dst_cstringv("expected core.file");
         return NULL;
     }
     if (!dst_checktype(args.v[n], DST_ABSTRACT)) {
-        dst_throw(args, "expected core.file");
+	*args.ret = dst_cstringv("expected core.file");
         return NULL;
     }
     iof = (IOFile *) dst_unwrap_abstract(args.v[n]);
     if (dst_abstract_type(iof) != &dst_io_filetype) {
-        dst_throw(args, "expected core.file");
+	*args.ret = dst_cstringv("expected core.file");
         return NULL;
     }
     return iof;
@@ -105,11 +105,11 @@ static DstBuffer *checkbuffer(DstArgs args, int32_t n, int optional) {
         return dst_buffer(0);
     }
     if (n >= args.n) {
-        dst_throw(args, "expected buffer");
+	*args.ret = dst_cstringv("expected buffer");
         return NULL;
     }
     if (!dst_checktype(args.v[n], DST_BUFFER)) {
-        dst_throw(args, "expected buffer");
+	*args.ret = dst_cstringv("expected buffer");
         return NULL;
     }
     return dst_unwrap_abstract(args.v[n]);
@@ -118,11 +118,11 @@ static DstBuffer *checkbuffer(DstArgs args, int32_t n, int optional) {
 /* Check char array argument */
 static int checkchars(DstArgs args, int32_t n, const uint8_t **str, int32_t *len) {
     if (n >= args.n) {
-        dst_throw(args, "expected string/buffer");
+        *args.ret = dst_cstringv("expected string/buffer");
         return 0;
     }
     if (!dst_chararray_view(args.v[n], str, len)) {
-        dst_throw(args, "expected string/buffer");
+        *args.ret = dst_cstringv("expected string/buffer");
         return 0;
     }
     return 1;

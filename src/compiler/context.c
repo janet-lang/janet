@@ -91,7 +91,7 @@ static void replonvalue(DstContext *c, Dst value) {
 
 /* Handle errors on repl */
 static void simpleerror(DstContext *c, enum DstContextErrorType type, Dst err, size_t start, size_t end) {
-    const char *errtype;
+    const char *errtype = "";
     (void) c;
     (void) start;
     (void) end;
