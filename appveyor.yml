@@ -36,7 +36,7 @@ before_build:
     cd build
     cmake --version
     cmake .. -G %generator%
-	ls
+    ls
 build:
   project: c:\projects\dst\build\dst.sln
   verbosity: minimal
