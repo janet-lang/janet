@@ -1,6 +1,7 @@
 # dst
 
 [![Build Status](https://travis-ci.org/bakpakin/dst.svg?branch=master)](https://travis-ci.org/bakpakin/dst)
+[![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)
 
 dst is a functional programming language and vm. The language is a lisp that replaces
 the list with other data structures that have better realworld characteristics and performance.
