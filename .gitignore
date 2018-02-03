@@ -2,6 +2,8 @@
 dst
 !*/**/dst
 /build
+/Release
+/Debug
 
 # Generated files
 *.gen.h
