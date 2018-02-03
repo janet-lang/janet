@@ -232,12 +232,12 @@ int dst_core_next(DstArgs args) {
     if (dst_checktype(ds, DST_TABLE)) {
         DstTable *t = dst_unwrap_table(ds);
         kv = dst_checktype(args.v[1], DST_NIL)
-            ? t->data
+            ? NULL
             : dst_table_find(t, args.v[1]);
     } else if (dst_checktype(ds, DST_STRUCT)) {
         const DstKV *st = dst_unwrap_struct(ds);
         kv = dst_checktype(args.v[1], DST_NIL)
-            ? st
+            ? NULL
             : dst_struct_find(st, args.v[1]);
     } else {
         return dst_throw(args, "expected table/struct");

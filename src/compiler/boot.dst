@@ -77,49 +77,56 @@
      (tuple 'varset! sym (tuple '+ sym 1))
       )))
 
-(defn pp-seq [pp buf a indent start end]
- (def len (length a))
- (buffer-push-string buf start)
- (for [i 0 len]
-  (when (not= i 0) (buffer-push-string buf " "))
-  (pp buf (get a i) indent))
- (buffer-push-string buf end)
- buf)
+(def pp (do
 
-(defn push-line [buf indent]
-  (buffer-push-string buf "\n")
-  (for [i 0 indent] (buffer-push-string buf " "))
-)
+(defn pp-seq [pp seen buf a start end]
+ (if (get seen a)
+  (buffer-push-string buf "<cycle>")
+  (do
+   (put seen a true)
+   (def len (length a))
+   (buffer-push-string buf start)
+   (for [i 0 len]
+    (when (not= i 0) (buffer-push-string buf " "))
+    (pp seen buf (get a i)))
+   (buffer-push-string buf end)
+  ))
+ buf)
   
-(defn pp-dict [pp buf a indent start end]
- (var k (next a nil))
- (buffer-push-string buf start)
- (def newindent (+ 2 indent))
- (push-line buf newindent)
- (while k
-  (def v (get a k))
-  (pp buf k)
-  (buffer-push-string buf " ")
-  (pp buf v)
-  (varset! k (next a k))
-  (push-line buf (if k newindent indent))
- )
- (buffer-push-string buf end)
+(defn pp-dict [pp seen buf a start end]
+ (if (get seen a)
+  (buffer-push-string buf "<cycle>")
+  (do
+   (put seen a true)
+   (var k (next a nil))
+   (buffer-push-string buf start)
+   (while k
+    (def v (get a k))
+    (pp seen buf k)
+    (buffer-push-string buf " ")
+    (pp seen buf v)
+    (varset! k (next a k))
+    (when k (buffer-push-string buf " "))
+   )
+   (buffer-push-string buf end)
+  ))
  buf)
 
 (def _printers {
- :array  (fn [pp buf x i] (pp-seq pp buf x i "[" "]"))
- :tuple  (fn [pp buf x i] (pp-seq pp buf x i "(" ")"))
- :table  (fn [pp buf x i] (pp-dict pp buf x i "@{" "}"))
- :struct (fn [pp buf x i] (pp-dict pp buf x i "{" "}"))
+ :array  (fn [pp seen buf x] (pp-seq pp seen buf x "[" "]"))
+ :tuple  (fn [pp seen buf x] (pp-seq pp seen buf x "(" ")"))
+ :table  (fn [pp seen buf x] (pp-dict pp seen buf x "@{" "}"))
+ :struct (fn [pp seen buf x] (pp-dict pp seen buf x "{" "}"))
 })
 
-(defn _default_printer [_ buf x] (buffer-push-string buf (string x)) buf)
+(defn _default_printer [pp seen buf x] 
+ (buffer-push-string buf (string x)) 
+ buf)
 
-(defn pp1 [buf x indent]
+(defn pp1 [seen buf x]
   (def pmaybe (get _printers (type x)))
   (def p (if pmaybe pmaybe _default_printer))
-  (p pp1 buf x indent))
+  (p pp1 seen buf x))
 
-(defn pp [x] (print (pp1 (buffer) x 0)))
-
+(fn [x] (print (pp1 @{} @"" x)))
+))

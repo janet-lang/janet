@@ -746,6 +746,15 @@ static DstSlot dstc_tablector(DstFopts opts, DstAst *ast, Dst x, DstCFunction cf
     return dstc_call(opts, ast, dstc_toslotskv(c, x), dstc_cslot(dst_wrap_cfunction(cfun)));
 }
 
+static DstSlot dstc_bufferctor(DstFopts opts, DstAst *ast, Dst x) {
+    DstCompiler *c = opts.compiler;
+    DstBuffer *b = dst_unwrap_buffer(x);
+    Dst onearg = dst_stringv(b->data, b->count);
+    return dstc_call(opts, ast,
+            dstc_toslots(c, &onearg, 1),
+            dstc_cslot(dst_wrap_cfunction(dst_core_buffer)));
+}
+
 /* Compile a symbol */
 DstSlot dstc_symbol(DstFopts opts, DstAst *ast, const uint8_t *sym) {
     if (dst_string_length(sym) && sym[0] != ':') {
@@ -845,6 +854,9 @@ recur:
             break;
         case DST_TABLE:
             ret = dstc_tablector(opts, ast, x, dst_core_table);
+            break;
+        case DST_BUFFER:
+            ret = dstc_bufferctor(opts, ast, x);
             break;
     }
     if (dstc_iserr(&opts)) {
@@ -1009,3 +1021,4 @@ int dst_lib_compile(DstArgs args) {
     dst_env_def(env, "compile", dst_wrap_cfunction(dst_compile_cfun));
     return 0;
 }
+
