@@ -123,8 +123,8 @@ static DstSlot namelocal(DstCompiler *c, DstAst *ast, Dst head, int32_t flags, D
         dstc_copy(c, ast, localslot, ret);
         ret = localslot;
     }
+    ret.flags |= flags;
     dstc_nameslot(c, dst_unwrap_symbol(head), ret); 
-    ret.flags |= DST_SLOT_NAMED;
     return ret;
 }
 

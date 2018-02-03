@@ -40,7 +40,7 @@ struct IOFile {
 static int dst_io_gc(void *p, size_t len);
 
 DstAbstractType dst_io_filetype = {
-    "core.file",
+    ":core.file",
     dst_io_gc,
     NULL
 };

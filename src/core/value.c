@@ -254,26 +254,6 @@ int32_t dst_length(Dst x) {
     }
 }
 
-/* Get the capacity of an object. Returns 0 for invalid types */
-int32_t dst_capacity(Dst x) {
-    switch (dst_type(x)) {
-        default:
-            return 0;
-        case DST_STRING:
-            return dst_string_length(dst_unwrap_string(x));
-        case DST_ARRAY:
-            return dst_unwrap_array(x)->capacity;
-        case DST_BUFFER:
-            return dst_unwrap_buffer(x)->capacity;
-        case DST_TUPLE:
-            return dst_tuple_length(dst_unwrap_tuple(x));
-        case DST_STRUCT:
-            return dst_struct_length(dst_unwrap_struct(x));
-        case DST_TABLE:
-            return dst_unwrap_table(x)->capacity;
-    }
-}
-
 /* Index into a data structure. Returns nil for out of bounds or invlalid data structure */
 Dst dst_getindex(Dst ds, int32_t index) {
     switch (dst_type(ds)) {

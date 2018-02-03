@@ -218,7 +218,7 @@ int dst_core_gccollect(DstArgs args) {
 int dst_core_type(DstArgs args) {
     if (args.n != 1) return dst_throw(args, "expected 1 argument");
     if (dst_checktype(args.v[0], DST_ABSTRACT)) {
-        return dst_return(args, dst_cstringv(dst_abstract_type(dst_unwrap_abstract(args.v[0]))->name));
+        return dst_return(args, dst_csymbolv(dst_abstract_type(dst_unwrap_abstract(args.v[0]))->name));
     } else {
         return dst_return(args, dst_csymbolv(dst_type_names[dst_type(args.v[0])]));
     }

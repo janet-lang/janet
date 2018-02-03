@@ -184,7 +184,6 @@ Dst dst_get(Dst ds, Dst key);
 void dst_put(Dst ds, Dst key, Dst value);
 const DstKV *dst_next(Dst ds, const DstKV *kv);
 int32_t dst_length(Dst x);
-int32_t dst_capacity(Dst x);
 Dst dst_getindex(Dst ds, int32_t index);
 void dst_setindex(Dst ds, Dst value, int32_t index);
 int dst_cstrcmp(const uint8_t *str, const char *other);

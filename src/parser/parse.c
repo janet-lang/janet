@@ -533,7 +533,7 @@ static int parsergc(void *p, size_t size) {
 }
 
 DstAbstractType dst_parse_parsertype = {
-    "parse.parser",
+    ":parse.parser",
     parsergc,
     parsermark
 };

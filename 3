@@ -77,49 +77,40 @@
      (tuple 'varset! sym (tuple '+ sym 1))
       )))
 
-(defn pp-seq [pp buf a indent start end]
+(defn pp-seq [pp buf a start end]
  (def len (length a))
  (buffer-push-string buf start)
  (for [i 0 len]
   (when (not= i 0) (buffer-push-string buf " "))
-  (pp buf (get a i) indent))
+  (pp buf (get a i)))
  (buffer-push-string buf end)
  buf)
 
-(defn push-line [buf indent]
-  (buffer-push-string buf "\n")
-  (for [i 0 indent] (buffer-push-string buf " "))
-)
-  
-(defn pp-dict [pp buf a indent start end]
+(defn pp-dict [pp buf a start end]
  (var k (next a nil))
  (buffer-push-string buf start)
- (def newindent (+ 2 indent))
- (push-line buf newindent)
  (while k
   (def v (get a k))
   (pp buf k)
   (buffer-push-string buf " ")
   (pp buf v)
+  (buffer-push-string buf "\n")
   (varset! k (next a k))
-  (push-line buf (if k newindent indent))
  )
  (buffer-push-string buf end)
  buf)
 
 (def _printers {
- :array  (fn [pp buf x i] (pp-seq pp buf x i "[" "]"))
- :tuple  (fn [pp buf x i] (pp-seq pp buf x i "(" ")"))
- :table  (fn [pp buf x i] (pp-dict pp buf x i "@{" "}"))
- :struct (fn [pp buf x i] (pp-dict pp buf x i "{" "}"))
+ :array  (fn [pp buf x] (pp-seq pp buf x "[" "]"))
+ :tuple  (fn [pp buf x] (pp-seq pp buf x "(" ")"))
+ :table  (fn [pp buf x] (pp-dict pp buf x "@{" "}"))
+ :struct (fn [pp buf x] (pp-dict pp buf x "{" "}"))
 })
 
 (defn _default_printer [_ buf x] (buffer-push-string buf (string x)) buf)
 
-(defn pp1 [buf x indent]
+(defn pp [buf x]
   (def pmaybe (get _printers (type x)))
   (def p (if pmaybe pmaybe _default_printer))
-  (p pp1 buf x indent))
-
-(defn pp [x] (print (pp1 (buffer) x 0)))
+  (p pp buf x))
 
