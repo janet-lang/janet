@@ -178,22 +178,22 @@ int dst_core_status(DstArgs args) {
     if (!dst_checktype(args.v[0], DST_FIBER)) return dst_throw(args, "expected fiber");
     switch(dst_unwrap_fiber(args.v[0])->status) {
         case DST_FIBER_PENDING:
-            status = "pending";
+            status = ":pending";
             break;
         case DST_FIBER_NEW:
-            status = "new";
+            status = ":new";
             break;
         case DST_FIBER_ALIVE:
-            status = "alive";
+            status = ":alive";
             break;
         case DST_FIBER_DEAD:
-            status = "dead";
+            status = ":dead";
             break;
         case DST_FIBER_ERROR:
-            status = "error";
+            status = ":error";
             break;
     }
-    return dst_return(args, dst_cstringv(status));
+    return dst_return(args, dst_csymbolv(status));
 }
 
 int dst_core_put(DstArgs args) {
@@ -220,7 +220,7 @@ int dst_core_type(DstArgs args) {
     if (dst_checktype(args.v[0], DST_ABSTRACT)) {
         return dst_return(args, dst_cstringv(dst_abstract_type(dst_unwrap_abstract(args.v[0]))->name));
     } else {
-        return dst_return(args, dst_cstringv(dst_type_names[dst_type(args.v[0])]));
+        return dst_return(args, dst_csymbolv(dst_type_names[dst_type(args.v[0])]));
     }
 }
 

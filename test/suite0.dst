@@ -124,7 +124,6 @@
 (assert (= ((outerfun nil 2)) 2) "inner closure 2")
 (assert (= ((outerfun false 3)) 3) "inner closure 3")
 
-(assert (= "hello" :hello) "keyword syntax for strings")
 (assert (= '(1 2 3) (quote (1 2 3)) (tuple 1 2 3)) "quote shorthand")
 
 ((fn []
@@ -164,7 +163,7 @@
 (def afiber-result (transfer afiber "world!"))
 
 (assert (= afiber-result "hello, world!") "fiber error result")
-(assert (= (status afiber) "error") "fiber error status")
+(assert (= (status afiber) :error) "fiber error status")
 
 # yield tests
 
@@ -173,7 +172,7 @@
 (assert (= 1 (transfer t)) "initial transfer to new fiber")
 (assert (= 2 (transfer t)) "second transfer to fiber")
 (assert (= 3 (transfer t)) "return from fiber")
-(assert (= (status t) "dead") "finished fiber is dead")
+(assert (= (status t) :dead) "finished fiber is dead")
 
 # Var arg tests
 
@@ -203,7 +202,7 @@
 
 (def 🦊 :fox)
 (def 🐮 :cow)
-(assert (= (string "🐼" 🦊 🐮) "🐼foxcow") "emojis 🙉 :)")
+(assert (= (string "🐼" 🦊 🐮) "🐼:fox:cow") "emojis 🙉 :)")
 (assert (not= 🦊 :🦊) "utf8 strings are not symbols and vice versa")
 
 # Symbols with @ symbol

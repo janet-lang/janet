@@ -312,7 +312,7 @@ const uint8_t *dst_short_description(Dst x) {
                 dst_abstract_type(dst_unwrap_abstract(x))->name,
                 dst_unwrap_abstract(x));
     default:
-        return string_description(dst_type_names[dst_type(x)], dst_unwrap_pointer(x));
+        return string_description(dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
     }
 }
 
@@ -350,7 +350,7 @@ void dst_short_description_b(DstBuffer *buffer, Dst x) {
                 dst_unwrap_abstract(x));
         return;
     default:
-        string_description_b(buffer, dst_type_names[dst_type(x)], dst_unwrap_pointer(x));
+        string_description_b(buffer, dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
         break;
     }
 }

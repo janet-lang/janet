@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include <dst/dstparse.h>
 #include <dst/dstcorelib.h>
 #include "compile.h"
 
@@ -745,6 +746,17 @@ static DstSlot dstc_tablector(DstFopts opts, DstAst *ast, Dst x, DstCFunction cf
     return dstc_call(opts, ast, dstc_toslotskv(c, x), dstc_cslot(dst_wrap_cfunction(cfun)));
 }
 
+/* Compile a symbol */
+DstSlot dstc_symbol(DstFopts opts, DstAst *ast, const uint8_t *sym) {
+    if (dst_string_length(sym) && sym[0] != ':') {
+        /* Non keyword */
+        return dstc_resolve(opts.compiler, ast, sym);
+    } else {
+        /* Keyword */
+        return dstc_cslot(dst_wrap_symbol(sym));
+    } 
+}
+
 /* Compile a single value */
 DstSlot dstc_value(DstFopts opts, Dst x) {
     DstSlot ret;
@@ -769,7 +781,7 @@ recur:
         case DST_SYMBOL:
             {
                 const uint8_t *sym = dst_unwrap_symbol(x);
-                ret = dstc_resolve(opts.compiler, ast, sym);
+                ret = dstc_symbol(opts, ast, sym);
                 break;
             }
         case DST_TUPLE:

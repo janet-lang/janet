@@ -95,7 +95,6 @@ int dst_core_hash(DstArgs args);
 int dst_lib_io(DstArgs args);
 int dst_lib_math(DstArgs args);
 int dst_lib_array(DstArgs args);
-int dst_lib_ast(DstArgs args);
 int dst_lib_tuple(DstArgs args);
 int dst_lib_buffer(DstArgs args);
 

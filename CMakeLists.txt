@@ -58,7 +58,6 @@ src/compiler/compile.h
 set(CORE_SOURCES
 src/core/abstract.c
 src/core/array.c
-src/core/ast.c
 src/core/buffer.c
 src/core/bytecode.c
 src/core/corelib.c
@@ -90,6 +89,7 @@ src/mainclient/linenoise.h
 )
 
 set(PARSER_SOURCES
+src/parser/ast.c
 src/parser/parse.c
 src/parser/strtod.c
 )

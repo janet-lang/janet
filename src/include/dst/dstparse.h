@@ -29,6 +29,12 @@ extern "C" {
 
 #include "dsttypes.h"
 
+/* AST */
+Dst dst_ast_wrap(Dst x, int32_t start, int32_t end);
+DstAst *dst_ast_node(Dst x);
+Dst dst_ast_unwrap1(Dst x);
+Dst dst_ast_unwrap(Dst x);
+
 typedef struct DstParseState DstParseState;
 typedef struct DstParser DstParser;
 

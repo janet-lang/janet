@@ -49,6 +49,10 @@ DstAbstractType dst_io_filetype = {
 static int checkflags(const uint8_t *str, int32_t len) {
     int flags = 0;
     int32_t i;
+    if (len && str[0] == ':') {
+        len--;
+        str++;
+    }
     if (!len || len > 3) return -1;
     switch (*str) {
         default:

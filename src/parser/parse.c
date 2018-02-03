@@ -314,11 +314,7 @@ static int tokenchar(DstParser *p, DstParseState *state, uint8_t c) {
                 p->error = "invalid utf-8 in symbol";
                 return 0;
             }
-            if (p->buf[0] == ':') {
-                ret = dst_stringv(p->buf + 1, blen - 1);
-            } else {
-                ret = dst_symbolv(p->buf, blen);
-            }
+            ret = dst_symbolv(p->buf, blen);
         }
     } else {
         p->error = "empty symbol invalid";
@@ -643,12 +639,51 @@ static int cfun_produce(DstArgs args) {
     return dst_return(args, val);
 }
 
+/* AST */
+static int cfun_unwrap1(DstArgs args) {
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    return dst_return(args, dst_ast_unwrap1(args.v[0]));
+}
+
+static int cfun_unwrap(DstArgs args) {
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    return dst_return(args, dst_ast_unwrap(args.v[0]));
+}
+
+static int cfun_wrap(DstArgs args) {
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    return dst_return(args, dst_ast_wrap(args.v[0], -1, -1));
+}
+
+static int cfun_node(DstArgs args) {
+    DstAst *ast;
+    Dst *tup;
+    int32_t start, end;
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    ast = dst_ast_node(args.v[0]);
+    if (ast) {
+        start = ast->source_start;
+        end = ast->source_end;
+    } else {
+        start = -1;
+        end = -1;
+    }
+    tup = dst_tuple_begin(2);
+    tup[0] = dst_wrap_integer(start);
+    tup[1] = dst_wrap_integer(end);
+    return dst_return(args, dst_wrap_tuple(dst_tuple_end(tup)));
+}
+
 static const DstReg cfuns[] = {
     {"parser", cfun_parser},
     {"parser-produce", cfun_produce},
     {"parser-consume", cfun_consume},
     {"parser-error", cfun_error},
     {"parser-status", cfun_status},
+    {"ast-unwrap", cfun_unwrap},
+    {"ast-unwrap1", cfun_unwrap1},
+    {"ast-wrap", cfun_wrap},
+    {"ast-node", cfun_node},
     {NULL, NULL}
 };
 
