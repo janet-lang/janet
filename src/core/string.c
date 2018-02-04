@@ -307,10 +307,13 @@ const uint8_t *dst_short_description(Dst x) {
         return dst_unwrap_string(x);
     case DST_STRING:
         return dst_escape_string(dst_unwrap_string(x));
-    case DST_ABSTRACT:
-        return string_description(
-                dst_abstract_type(dst_unwrap_abstract(x))->name,
-                dst_unwrap_abstract(x));
+    case DST_ABSTRACT: 
+        {
+            const char *n = dst_abstract_type(dst_unwrap_abstract(x))->name;
+            return string_description(
+                    n[0] == ':' ? n + 1 : n,
+                    dst_unwrap_abstract(x));
+        }
     default:
         return string_description(dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
     }
@@ -345,10 +348,12 @@ void dst_short_description_b(DstBuffer *buffer, Dst x) {
         dst_escape_buffer_b(buffer, dst_unwrap_buffer(x));
         return;
     case DST_ABSTRACT:
-        string_description_b(buffer, 
-                dst_abstract_type(dst_unwrap_abstract(x))->name, 
-                dst_unwrap_abstract(x));
-        return;
+        {
+            const char *n = dst_abstract_type(dst_unwrap_abstract(x))->name;
+            return string_description_b(buffer, 
+                    n[0] == ':' ? n + 1 : n,
+                    dst_unwrap_abstract(x));
+        }
     default:
         string_description_b(buffer, dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
         break;

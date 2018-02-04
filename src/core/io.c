@@ -169,11 +169,37 @@ static int dst_io_fread(DstArgs args) {
     size_t ntoread, nread;
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
-    if (!dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected positive integer");
-    len = dst_unwrap_integer(args.v[1]);
-    if (len < 0) return dst_throw(args, "expected positive integer");
     b = checkbuffer(args, 2, 1);
     if (!b) return 1;
+    if (dst_checktype(args.v[1], DST_SYMBOL)) {
+        const uint8_t *sym = dst_unwrap_symbol(args.v[1]);
+        if (!dst_cstrcmp(sym, ":all")) {
+            /* Read whole file */
+            long fsize;
+            fseek(iof->file, 0, SEEK_END);
+            fsize = ftell(iof->file);
+            fseek(iof->file, 0, SEEK_SET);
+            if (fsize > INT32_MAX) return dst_throw(args, "buffer overflow");
+            len = fsize;
+            /* Fall through to normal code */
+        } else if (!dst_cstrcmp(sym, ":line")) {
+            for (;;) {
+                int x = fgetc(iof->file);
+                if (x == EOF || x == '\n') {
+                    break;
+                }
+                if (dst_buffer_push_u8(b, (uint8_t)x)) return dst_throw(args, "buffer overflow");
+            }
+            return dst_return(args, dst_wrap_buffer(b));
+        } else {
+            return dst_throw(args, "expected one of :all, :line");
+        } 
+    } else if (!dst_checktype(args.v[1], DST_INTEGER)) {
+        return dst_throw(args, "expected positive integer");
+    } else {
+        len = dst_unwrap_integer(args.v[1]);
+        if (len < 0) return dst_throw(args, "expected positive integer");
+    }
     if (!(iof->flags & (IO_READ | IO_UPDATE))) return dst_throw(args, "file is not readable");
     /* Ensure buffer size */
     if (dst_buffer_extra(b, len)) return dst_throw(args, "buffer overflow");
