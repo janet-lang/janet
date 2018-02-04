@@ -49,10 +49,6 @@ DstAbstractType dst_io_filetype = {
 static int checkflags(const uint8_t *str, int32_t len) {
     int flags = 0;
     int32_t i;
-    if (len && str[0] == ':') {
-        len--;
-        str++;
-    }
     if (!len || len > 3) return -1;
     switch (*str) {
         default:
@@ -149,12 +145,18 @@ static int dst_io_fopen(DstArgs args) {
     if (!dst_checktype(args.v[0], DST_STRING)) return dst_throw(args, "expected string filename");
     fname = dst_unwrap_string(args.v[0]);
     if (args.n == 2) {
-        if (!dst_checktype(args.v[1], DST_STRING)) return dst_throw(args, "expected string mode");
+        if (!dst_checktype(args.v[1], DST_STRING) &&
+            !dst_checktype(args.v[1], DST_SYMBOL))
+            return dst_throw(args, "expected string mode");
         fmode = dst_unwrap_string(args.v[1]);
         modelen = dst_string_length(fmode);
     } else {
         fmode = (const uint8_t *)"r";
         modelen = 1;
+    }
+    if (fmode[0] == ':') {
+        fmode++;
+        modelen--;
     }
     if ((flags = checkflags(fmode, modelen)) < 0) return dst_throw(args, "invalid file mode");
     f = fopen((const char *)fname, (const char *)fmode);
@@ -249,10 +251,42 @@ static int dst_io_gc(void *p, size_t len) {
 static int dst_io_fclose(DstArgs args) {
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
-    if (iof->flags & (IO_CLOSED | IO_NOT_CLOSEABLE)) return dst_throw(args, "could not close file");
+    if (iof->flags & (IO_CLOSED | IO_NOT_CLOSEABLE))
+        return dst_throw(args, "could not close file");
     if (fclose(iof->file)) return dst_throw(args, "could not close file");
     iof->flags |= IO_CLOSED;
     return dst_return(args, dst_wrap_abstract(iof));
+}
+
+/* Seek a file */
+static int dst_io_fseek(DstArgs args) {
+    long int offset = 0;
+    int whence = SEEK_CUR;
+    IOFile *iof = checkfile(args, 0);
+    if (!iof) return 1;
+    if (args.n >= 2) {
+        const uint8_t *whence_sym;
+        if (!dst_checktype(args.v[1], DST_SYMBOL))
+            return dst_throw(args, "expected symbol");
+        whence_sym = dst_unwrap_symbol(args.v[1]);
+        if (!dst_cstrcmp(whence_sym, ":cur")) {
+            whence = SEEK_CUR;
+        } else if (!dst_cstrcmp(whence_sym, ":set")) {
+            whence = SEEK_SET;
+        } else if (!dst_cstrcmp(whence_sym, ":end")) {
+            whence = SEEK_END;
+        } else {
+            return dst_throw(args, "expected one of :cur, :set, :end");
+        }
+        if (args.n >= 3) {
+            if (!dst_checktype(args.v[2], DST_INTEGER))
+                return dst_throw(args, "expected integer");
+            offset = dst_unwrap_integer(args.v[2]);
+        }
+    }
+    if (fseek(iof->file, offset, whence))
+        return dst_throw(args, "error seeking file");
+    return dst_return(args, args.v[0]);
 }
 
 /* Define the entry point of the library */
@@ -266,6 +300,7 @@ static const DstReg cfuns[] = {
     {"file-read", dst_io_fread},
     {"file-write", dst_io_fwrite},
     {"file-flush", dst_io_fflush},
+    {"file-seek", dst_io_fseek},
     {NULL, NULL}
 };
 
