@@ -44,6 +44,72 @@ DstSlot dstc_astquote(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv)
     return dstc_cslot(argv[0]);
 }
 
+static void destructure(DstCompiler *c, Dst left, DstSlot right,
+        void (*leaf)(DstCompiler *c, 
+            DstAst *ast,
+            const uint8_t *sym,
+            DstSlot s,
+            int32_t argn,
+            const Dst *argv),
+        int32_t argn,
+        const Dst *argv) {
+    DstAst *ast = dst_ast_node(left);
+    left = dst_ast_unwrap1(left);
+    switch (dst_type(left)) {
+        default:
+            printf("%s\n", dst_type_names[dst_type(left)]);
+            dstc_cerror(c, ast, "unexpected type in destructuring");
+            break;
+        case DST_SYMBOL:
+            /* Leaf, assign right to left */
+            leaf(c, ast, dst_unwrap_symbol(left), right, argn, argv);
+            break;
+        case DST_TUPLE:
+        case DST_ARRAY:
+            {
+                int32_t i, len, localright, localsub;
+                len = dst_length(left);
+                for (i = 0; i < len; i++) {
+                    DstSlot newright;
+                    Dst subval = dst_getindex(left, i);
+                    localright = dstc_preread(c, ast, 0xFF, 1, right);
+                    localsub = dstc_lsloti(c);
+                    if (i < 0x100) {
+                        dstc_emit(c, ast, 
+                                (i << 24) |
+                                (localright << 16) |
+                                (localsub << 8) |
+                                DOP_GET_INDEX);
+                    } else {
+                        DstSlot islot = dstc_cslot(dst_wrap_integer(i));
+                        int32_t locali = dstc_preread(c, ast, 0xFF, 2, islot);
+                        dstc_emit(c, ast, 
+                                (locali << 24) |
+                                (localright << 16) |
+                                (localsub << 8) |
+                                DOP_GET);
+                        dstc_postread(c, islot, locali);
+                    }
+                    newright.index = localsub;
+                    newright.envindex = 0;
+                    newright.constant = dst_wrap_nil();
+                    newright.flags = DST_SLOTTYPE_ANY;
+                    /* Traverse into the structure */
+                    destructure(c, subval, newright, leaf, argn, argv);
+                    dstc_postread(c, right, localright);
+                }
+            }
+            /* Free right */
+            dstc_freeslot(c, right);
+            break;
+            /* TODO table destructuring */
+        /*case DST_TABLE:*/
+        /*case DST_STRUCT:*/
+            /*break;*/
+    }
+
+}
+
 DstSlot dstc_varset(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstFopts subopts = dstc_fopts_default(opts.compiler);
     DstSlot ret, dest;
@@ -96,10 +162,6 @@ static DstSlot dohead(DstCompiler *c, DstFopts opts, DstAst *ast, Dst *head, int
         return dstc_cslot(dst_wrap_nil());
     }
     *head = dst_ast_unwrap1(argv[0]);
-    if (!dst_checktype(*head, DST_SYMBOL)) {
-        dstc_cerror(c, dst_ast_node(argv[0]), "expected symbol");
-        return dstc_cslot(dst_wrap_nil());
-    }
     subopts.flags = opts.flags & ~(DST_FOPTS_TAIL | DST_FOPTS_DROP);
     subopts.hint = opts.hint;
     ret = dstc_value(subopts, argv[argn - 1]);
@@ -128,11 +190,13 @@ static DstSlot namelocal(DstCompiler *c, DstAst *ast, Dst head, int32_t flags, D
     return ret;
 }
 
-DstSlot dstc_var(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
-    DstCompiler *c = opts.compiler;
-    Dst head;
-    DstSlot ret = dohead(c, opts, ast, &head, argn, argv);
-    if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
+static void varleaf(
+        DstCompiler *c,
+        DstAst *ast,
+        const uint8_t *sym,
+        DstSlot s,
+        int32_t argn,
+        const Dst *argv) {
     if (dst_v_last(c->scopes).flags & DST_SCOPE_TOP) {
         DstSlot refslot, refarrayslot;
         /* Global var, generate var */
@@ -141,32 +205,40 @@ DstSlot dstc_var(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
         dst_array_push(ref, dst_wrap_nil());
         dst_table_put(reftab, dst_csymbolv("ref"), dst_wrap_array(ref));
         handleattr(c, argn, argv, reftab);
-        dst_table_put(c->env, head, dst_wrap_table(reftab));
+        dst_table_put(c->env, dst_wrap_symbol(sym), dst_wrap_table(reftab));
         refslot = dstc_cslot(dst_wrap_array(ref));
         refarrayslot = refslot;
         refslot.flags |= DST_SLOT_REF | DST_SLOT_NAMED | DST_SLOT_MUTABLE;
         /* Generate code to set ref */
         int32_t refarrayindex = dstc_preread(c, ast, 0xFF, 1, refarrayslot);
-        int32_t retindex = dstc_preread(c, ast, 0xFF, 2, ret);
+        int32_t retindex = dstc_preread(c, ast, 0xFF, 2, s);
         dstc_emit(c, ast,
                 (retindex << 16) |
                 (refarrayindex << 8) |
                 DOP_PUT_INDEX);
         dstc_postread(c, refarrayslot, refarrayindex);
-        dstc_postread(c, ret, retindex);
-        ret = refslot;
+        dstc_postread(c, s, retindex);
     } else {
-        ret = namelocal(c, ast, head, DST_SLOT_NAMED | DST_SLOT_MUTABLE, ret);
+        namelocal(c, ast, dst_wrap_symbol(sym), DST_SLOT_NAMED | DST_SLOT_MUTABLE, s) ;
     }
-    return ret;
 }
 
-DstSlot dstc_def(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+DstSlot dstc_var(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     Dst head;
-    opts.flags &= ~DST_FOPTS_HINT;
     DstSlot ret = dohead(c, opts, ast, &head, argn, argv);
     if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
+    destructure(c, argv[0], ret, varleaf, argn, argv);
+    return dstc_cslot(dst_wrap_nil());
+}
+
+static void defleaf(
+        DstCompiler *c,
+        DstAst *ast,
+        const uint8_t *sym,
+        DstSlot s,
+        int32_t argn,
+        const Dst *argv) {
     if (dst_v_last(c->scopes).flags & DST_SCOPE_TOP) {
         DstTable *tab = dst_table(2);
         int32_t tableindex, valsymindex, valueindex;
@@ -175,12 +247,12 @@ DstSlot dstc_def(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
 
         /* Add env entry to env */
         handleattr(c, argn, argv, tab);
-        dst_table_put(c->env, head, dst_wrap_table(tab));
+        dst_table_put(c->env, dst_wrap_symbol(sym), dst_wrap_table(tab));
 
         /* Put value in table when evaulated */
         tableindex = dstc_preread(c, ast, 0xFF, 1, tabslot);
         valsymindex = dstc_preread(c, ast, 0xFF, 2, valsym);
-        valueindex = dstc_preread(c, ast, 0xFF, 3, ret);
+        valueindex = dstc_preread(c, ast, 0xFF, 3, s);
         dstc_emit(c, ast, 
                 (valueindex << 24) |
                 (valsymindex << 16) |
@@ -188,11 +260,20 @@ DstSlot dstc_def(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
                 DOP_PUT);
         dstc_postread(c, tabslot, tableindex);
         dstc_postread(c, valsym, valsymindex);
-        dstc_postread(c, ret, valueindex);
+        dstc_postread(c, s, valueindex);
     } else {
-        ret = namelocal(c, ast, head, DST_SLOT_NAMED, ret);
+        namelocal(c, ast, dst_wrap_symbol(sym), DST_SLOT_NAMED, s);
     }
-    return ret;
+}
+
+DstSlot dstc_def(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+    DstCompiler *c = opts.compiler;
+    Dst head;
+    opts.flags &= ~DST_FOPTS_HINT;
+    DstSlot ret = dohead(c, opts, ast, &head, argn, argv);
+    if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
+    destructure(c, argv[0], ret, defleaf, argn, argv);
+    return dstc_cslot(dst_wrap_nil());
 }
 
 /*
