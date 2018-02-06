@@ -187,10 +187,8 @@ static int dst_io_fread(DstArgs args) {
         } else if (!dst_cstrcmp(sym, ":line")) {
             for (;;) {
                 int x = fgetc(iof->file);
-                if (x == EOF || x == '\n') {
-                    break;
-                }
-                if (dst_buffer_push_u8(b, (uint8_t)x)) return dst_throw(args, "buffer overflow");
+                if (x != EOF && dst_buffer_push_u8(b, (uint8_t)x)) return dst_throw(args, "buffer overflow");
+                if (x == EOF || x == '\n') break;
             }
             return dst_return(args, dst_wrap_buffer(b));
         } else {

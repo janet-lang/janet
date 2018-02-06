@@ -130,3 +130,33 @@
 
 (fn [x] (print (pp1 @{} @"" x)))
 ))
+
+(defn pairs [x]
+ (var lastkey (next x nil))
+ {
+    :more (fn [] lastkey)
+    :next (fn []
+        (def ret (tuple lastkey (get x lastkey)))
+        (varset! lastkey (next x lastkey))
+        ret)
+ })
+
+(defn keys [x]
+ (var lastkey (next x nil))
+ {
+    :more (fn [] lastkey)
+    :next (fn []
+        (def ret lastkey)
+        (varset! lastkey (next x lastkey))
+        ret)
+ })
+
+(defn values [x]
+ (var lastkey (next x nil))
+ {
+    :more (fn [] lastkey)
+    :next (fn []
+        (def ret (get x lastkey))
+        (varset! lastkey (next x lastkey))
+        ret)
+ })
