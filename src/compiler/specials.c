@@ -57,7 +57,6 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
     left = dst_ast_unwrap1(left);
     switch (dst_type(left)) {
         default:
-            printf("%s\n", dst_type_names[dst_type(left)]);
             dstc_cerror(c, ast, "unexpected type in destructuring");
             break;
         case DST_SYMBOL:
@@ -73,7 +72,7 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
                     DstSlot newright;
                     Dst subval = dst_getindex(left, i);
                     localright = dstc_preread(c, ast, 0xFF, 1, right);
-                    localsub = dstc_lsloti(c);
+                    localsub = dstc_lslotn(c, 0xFF, 3);
                     if (i < 0x100) {
                         dstc_emit(c, ast, 
                                 (i << 24) |
@@ -102,10 +101,36 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
             /* Free right */
             dstc_freeslot(c, right);
             break;
-            /* TODO table destructuring */
-        /*case DST_TABLE:*/
-        /*case DST_STRUCT:*/
-            /*break;*/
+        case DST_TABLE:
+        case DST_STRUCT:
+            {
+                int32_t localright, localsub;
+                const DstKV *kv = NULL;
+                while ((kv = dst_next(left, kv))) {
+                    DstSlot newright;
+                    DstSlot kslot = dstc_cslot(dst_ast_unwrap(kv->key));
+                    Dst subval = kv->value;
+                    localright = dstc_preread(c, ast, 0xFF, 1, right);
+                    localsub = dstc_lslotn(c, 0xFF, 3);
+                    int32_t localk = dstc_preread(c, ast, 0xFF, 2, kslot);
+                    dstc_emit(c, ast, 
+                            (localk << 24) |
+                            (localright << 16) |
+                            (localsub << 8) |
+                            DOP_GET);
+                    dstc_postread(c, kslot, localk);
+                    newright.index = localsub;
+                    newright.envindex = 0;
+                    newright.constant = dst_wrap_nil();
+                    newright.flags = DST_SLOTTYPE_ANY;
+                    /* Traverse into the structure */
+                    destructure(c, subval, newright, leaf, argn, argv);
+                    dstc_postread(c, right, localright);
+                }
+            }
+            /* Free right */
+            dstc_freeslot(c, right);
+            break;
     }
 
 }
