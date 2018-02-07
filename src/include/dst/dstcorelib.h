@@ -93,6 +93,7 @@ int dst_core_gcinterval(DstArgs args);
 int dst_core_type(DstArgs args);
 int dst_core_next(DstArgs args);
 int dst_core_hash(DstArgs args);
+int dst_core_string_slice(DstArgs args);
 
 /* Initialize builtin libraries */
 int dst_lib_io(DstArgs args);

@@ -1,0 +1,76 @@
+#
+# Copyright (c) 2017 Calvin Rose
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+# IN THE SOFTWARE.
+#
+
+# Define a simple pretty printer
+
+(def pp (do
+
+(defn pp-seq [pp seen buf a start end]
+ (if (get seen a)
+  (buffer-push-string buf "<cycle>")
+  (do
+   (put seen a true)
+   (def len (length a))
+   (buffer-push-string buf start)
+   (for [i 0 len]
+    (when (not= i 0) (buffer-push-string buf " "))
+    (pp seen buf (get a i)))
+   (buffer-push-string buf end)
+  ))
+ buf)
+  
+(defn pp-dict [pp seen buf a start end]
+ (if (get seen a)
+  (buffer-push-string buf "<cycle>")
+  (do
+   (put seen a true)
+   (var k (next a nil))
+   (buffer-push-string buf start)
+   (while k
+    (def v (get a k))
+    (pp seen buf k)
+    (buffer-push-string buf " ")
+    (pp seen buf v)
+    (varset! k (next a k))
+    (when k (buffer-push-string buf " "))
+   )
+   (buffer-push-string buf end)
+  ))
+ buf)
+
+(def _printers {
+ :array  (fn [pp seen buf x] (pp-seq pp seen buf x "[" "]"))
+ :tuple  (fn [pp seen buf x] (pp-seq pp seen buf x "(" ")"))
+ :table  (fn [pp seen buf x] (pp-dict pp seen buf x "@{" "}"))
+ :struct (fn [pp seen buf x] (pp-dict pp seen buf x "{" "}"))
+})
+
+(defn _default_printer [pp seen buf x] 
+ (buffer-push-string buf (string x)) 
+ buf)
+
+(defn pp1 [seen buf x]
+  (def pmaybe (get _printers (type x)))
+  (def p (if pmaybe pmaybe _default_printer))
+  (p pp1 seen buf x))
+
+(fn [x] (print (pp1 @{} @"" x)))))

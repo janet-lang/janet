@@ -55,6 +55,7 @@ static const DstReg cfuns[] = {
     {"type", dst_core_type},
     {"next", dst_core_next},
     {"hash", dst_core_hash},
+    {"string-slice", dst_core_string_slice},
     {"exit", dst_core_exit},
     {NULL, NULL}
 };

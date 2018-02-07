@@ -270,3 +270,35 @@ int dst_core_hash(DstArgs args) {
     if (args.n != 1) return dst_throw(args, "expected 1 argument");
     return dst_return(args, dst_wrap_integer(dst_hash(args.v[0])));
 }
+
+int dst_core_string_slice(DstArgs args) {
+    const uint8_t *data;
+    int32_t len, start, end;
+    const uint8_t *ret;
+    if (args.n < 1 || !dst_chararray_view(args.v[0], &data, &len))
+        return dst_throw(args, "expected buffer/string");
+    /* Get start */
+    if (args.n < 2) {
+        start = 0;
+    } else if (dst_checktype(args.v[1], DST_INTEGER)) {
+        start = dst_unwrap_integer(args.v[1]);
+    } else {
+        return dst_throw(args, "expected integer");
+    }
+    /* Get end */
+    if (args.n < 3) {
+        end = -1;
+    } else if (dst_checktype(args.v[2], DST_INTEGER)) {
+        end = dst_unwrap_integer(args.v[2]);
+    } else {
+        return dst_throw(args, "expected integer");
+    }
+    if (start < 0) start = len + start;
+    if (end < 0) end = len + end + 1;
+    if (end >= start) {
+        ret = dst_string(data + start, end - start);
+    } else {
+        ret = dst_cstring("");
+    }
+    return dst_return(args, dst_wrap_string(ret));
+}

@@ -420,6 +420,10 @@ static int root(DstParser *p, DstParseState *state, uint8_t c) {
     switch (c) {
         default:
             if (is_whitespace(c)) return 1;
+            if (!is_symbol_char(c)) {
+                p->error = "unexpected character";
+                return 1;
+            }
             pushstate(p, tokenchar, 0);
             return 0;
         case '\'':

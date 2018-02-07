@@ -9,6 +9,9 @@
  [cond & body] 
  (tuple 'if cond (tuple-prepend body 'do)))
 
+(defmacro or [x y] (tuple 'if x true y))
+(defmacro and [x y] (tuple 'if x y false))
+
 (def identity (fn [x] x))
 
 (def seq (do
@@ -79,60 +82,6 @@
      (tuple 'varset! sym (tuple '+ sym 1))
       )))
 
-(def pp (do
-
-(defn pp-seq [pp seen buf a start end]
- (if (get seen a)
-  (buffer-push-string buf "<cycle>")
-  (do
-   (put seen a true)
-   (def len (length a))
-   (buffer-push-string buf start)
-   (for [i 0 len]
-    (when (not= i 0) (buffer-push-string buf " "))
-    (pp seen buf (get a i)))
-   (buffer-push-string buf end)
-  ))
- buf)
-  
-(defn pp-dict [pp seen buf a start end]
- (if (get seen a)
-  (buffer-push-string buf "<cycle>")
-  (do
-   (put seen a true)
-   (var k (next a nil))
-   (buffer-push-string buf start)
-   (while k
-    (def v (get a k))
-    (pp seen buf k)
-    (buffer-push-string buf " ")
-    (pp seen buf v)
-    (varset! k (next a k))
-    (when k (buffer-push-string buf " "))
-   )
-   (buffer-push-string buf end)
-  ))
- buf)
-
-(def _printers {
- :array  (fn [pp seen buf x] (pp-seq pp seen buf x "[" "]"))
- :tuple  (fn [pp seen buf x] (pp-seq pp seen buf x "(" ")"))
- :table  (fn [pp seen buf x] (pp-dict pp seen buf x "@{" "}"))
- :struct (fn [pp seen buf x] (pp-dict pp seen buf x "{" "}"))
-})
-
-(defn _default_printer [pp seen buf x] 
- (buffer-push-string buf (string x)) 
- buf)
-
-(defn pp1 [seen buf x]
-  (def pmaybe (get _printers (type x)))
-  (def p (if pmaybe pmaybe _default_printer))
-  (p pp1 seen buf x))
-
-(fn [x] (print (pp1 @{} @"" x)))
-))
-
 (defn pairs [x]
  (var lastkey (next x nil))
  {
@@ -163,17 +112,14 @@
         ret)
  })
 
-# Handle errors
 (defn onerr [t e]
  (print (string t " error: " e)))
 
 (var *read* nil)
 (var *onvalue* identity)
 
-# Cache for require
 (def require-loading @{})
 
-# Create a char stream from a function that gets input
 (defn char-stream [getchunk ondone]
  (fiber (fn [parent]
    (def buf @"")
@@ -186,7 +132,6 @@
         (transfer parent (get buf i))))
    (ondone))))
 
-# Convert a charstream into a value
 (defn val-stream [chars]
  (fiber (fn [parent]
     (var up parent)
@@ -197,9 +142,7 @@
       (if (= s :full)
        (varset! up (transfer up (parser-produce p)))
        (if (= s :error)
-        # Parse error
         (onerr "parse" (parser-error p))
-        # Normal state, get next char
         (parser-byte p (transfer chars me))))))))
 
 (defn require [path]
@@ -208,7 +151,7 @@
  (def oldread *read*)
  (def oldonvalue *onvalue*)
  (def f (file-open path))
- (def getter (fn [buf] (file-read f 1024 buf)))
+ (def getter (fn [buf] (file-read f 1024 buf) buf))
  (def cs (char-stream getter (fn []
     (put require-loading path nil)
     (file-close f)
@@ -234,7 +177,19 @@
   (describe ret)))
  (varset! *read* (fn [] (transfer vs (fiber-current)))))
 
-# Main loop
+(defn dostring [str]
+ (def oldread *read*)
+ (def cs (char-stream (fn [buf]
+    (buffer-push-string buf str)
+    (buffer-push-string buf "\n")
+    buf)
+  (fn []
+    (varset! *read* oldread)
+    nil)))
+ (def vs (val-stream cs))
+ (varset! *onvalue* identity)
+ (varset! *read* (fn [] (transfer vs (fiber-current)))))
+
 (defn init-loop []
  (while *read*
   (def wrapper (fiber (fn []

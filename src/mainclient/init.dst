@@ -1,7 +1,37 @@
-(print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
+(do
+
+(var dorepl false)
+(var nofile true)
+
+# Flag handlers
+(def handlers {
+  "h" (fn [] 
+        (print "usage: " (get args 0) " [options] scripts...")
+        (print "Options are:")
+        (print "  -h Show this help")
+        (print "  -v Print the version string")
+        (print "  -r Enter the repl after running all scripts")
+        (exit 0))
+  "v" (fn [] (print VERSION) (exit 0))
+  "r" (fn [] (varset! dorepl true))
+})
+
+(defn dohandler [n]
+ (def h (get handlers n))
+ (if h (h) (print "unknown flag -" n)))
 
 # Process arguments
-(for [i 0 (length args)]
- (print (get args i)))
+(def nargs (length args))
+(for [i 1 nargs]
+ (def arg (get args i))
+ (if (= "-" (string-slice arg 0 1))
+  (dohandler (string-slice arg 1 2))
+  (do
+   (varset! nofile false)
+   (require arg)
+   (init-loop))))
 
-(init-repl)
+(when (or dorepl nofile) 
+ (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
+ (init-repl))
+)

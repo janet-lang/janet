@@ -187,11 +187,46 @@ static int cfun_clear(DstArgs args) {
     return dst_return(args, args.v[0]);
 }
 
+static int cfun_slice(DstArgs args) {
+    const uint8_t *data;
+    int32_t len, start, end;
+    DstBuffer *ret;
+    if (args.n < 1 || !dst_chararray_view(args.v[0], &data, &len))
+        return dst_throw(args, "expected buffer/string");
+    /* Get start */
+    if (args.n < 2) {
+        start = 0;
+    } else if (dst_checktype(args.v[1], DST_INTEGER)) {
+        start = dst_unwrap_integer(args.v[1]);
+    } else {
+        return dst_throw(args, "expected integer");
+    }
+    /* Get end */
+    if (args.n < 3) {
+        end = -1;
+    } else if (dst_checktype(args.v[2], DST_INTEGER)) {
+        end = dst_unwrap_integer(args.v[2]);
+    } else {
+        return dst_throw(args, "expected integer");
+    }
+    if (start < 0) start = len + start;
+    if (end < 0) end = len + end + 1;
+    if (end >= start) {
+        ret = dst_buffer(end - start);
+        memcpy(ret->data, data + start, end - start);
+        ret->count = end - start;
+    } else {
+        ret = dst_buffer(0);
+    }
+    return dst_return(args, dst_wrap_buffer(ret));
+}
+
 static const DstReg cfuns[] = {
     {"buffer-push-byte", cfun_u8},
     {"buffer-push-integer", cfun_int},
     {"buffer-push-string", cfun_chars},
     {"buffer-clear", cfun_clear},
+    {"buffer-slice", cfun_slice},
     {NULL, NULL}
 };
 
