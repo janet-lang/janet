@@ -206,7 +206,7 @@ static int dst_io_fread(DstArgs args) {
     ntoread = len;
     nread = fread((char *)(b->data + b->count), 1, ntoread, iof->file);
     if (nread != ntoread && ferror(iof->file)) return dst_throw(args, "could not read file");
-    b->count += len;
+    b->count += nread;
     return dst_return(args, dst_wrap_buffer(b));
 }
 

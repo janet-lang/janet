@@ -253,6 +253,7 @@ void dst_fiber_cframe(DstFiber *fiber) {
  * NULL if there are no more frames */
 void dst_fiber_popframe(DstFiber *fiber) {
     DstStackFrame *frame = dst_fiber_frame(fiber);
+    if (fiber->frame == 0) return;
     
     /* Clean up the frame (detach environments) */
     if (NULL != frame->func)

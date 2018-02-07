@@ -163,7 +163,7 @@
 (def afiber-result (transfer afiber "world!"))
 
 (assert (= afiber-result "hello, world!") "fiber error result")
-(assert (= (status afiber) :error) "fiber error status")
+(assert (= (fiber-status afiber) :error) "fiber error status")
 
 # yield tests
 
@@ -172,7 +172,7 @@
 (assert (= 1 (transfer t)) "initial transfer to new fiber")
 (assert (= 2 (transfer t)) "second transfer to fiber")
 (assert (= 3 (transfer t)) "return from fiber")
-(assert (= (status t) :dead) "finished fiber is dead")
+(assert (= (fiber-status t) :dead) "finished fiber is dead")
 
 # Var arg tests
 

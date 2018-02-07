@@ -1,0 +1,7 @@
+(print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
+
+# Process arguments
+(for [i 0 (length args)]
+ (print (get args i)))
+
+(init-repl)

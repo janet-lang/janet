@@ -598,25 +598,35 @@ static int cfun_consume(DstArgs args) {
     return dst_return(args, dst_wrap_nil());
 }
 
+static int cfun_byte(DstArgs args) {
+    DstParser *p;
+    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
+    p = checkparser(args);
+    if (!p) return 1;
+    if (!dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected integer");
+    dst_parser_consume(p, 0xFF & dst_unwrap_integer(args.v[1]));
+    return dst_return(args, args.v[0]);
+}
+
 static int cfun_status(DstArgs args) {
     const char *stat = NULL;
     DstParser *p = checkparser(args);
     if (!p) return 1;
     switch (dst_parser_status(p)) {
         case DST_PARSE_FULL:
-            stat = "full";
+            stat = ":full";
             break;
         case DST_PARSE_PENDING:
-            stat = "pending";
+            stat = ":pending";
             break;
         case DST_PARSE_ERROR:
-            stat = "error";
+            stat = ":error";
             break;
         case DST_PARSE_ROOT:
-            stat = "root";
+            stat = ":root";
             break;
     }
-    return dst_return(args, dst_cstringv(stat));
+    return dst_return(args, dst_csymbolv(stat));
 }
 
 static int cfun_error(DstArgs args) {
@@ -678,6 +688,7 @@ static const DstReg cfuns[] = {
     {"parser", cfun_parser},
     {"parser-produce", cfun_produce},
     {"parser-consume", cfun_consume},
+    {"parser-byte", cfun_byte},
     {"parser-error", cfun_error},
     {"parser-status", cfun_status},
     {"ast-unwrap", cfun_unwrap},

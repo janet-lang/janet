@@ -40,18 +40,26 @@ add_custom_command(
     COMMENT "Generating stl bootstrap C header for embedding"
 )
 
+# Generate header containing main client script
+add_custom_command(
+    OUTPUT clientinit.h
+    COMMAND xxd ${CMAKE_CURRENT_SOURCE_DIR}/src/mainclient/init.dst clientinit.h dst_mainclient_init
+    DEPENDS xxd src/mainclient/init.dst
+    COMMENT "Generating mainclient init C header for embedding"
+)
+
 set(ASSEMBLER_SOURCES
 src/assembler/asm.c
 )
 
 set(COMPILER_SOURCES
 src/compiler/compile.c
-src/compiler/specials.c
 src/compiler/cfuns.c
-src/compiler/context.c
+src/compiler/run.c
+src/compiler/specials.c
 src/compiler/stl.c
-dststlbootstrap.h
 
+dststlbootstrap.h
 src/compiler/compile.h
 )
 
@@ -83,9 +91,7 @@ src/core/util.h
 
 set(MAINCLIENT_SOURCES
 src/mainclient/main.c
-src/mainclient/linenoise.c
-
-src/mainclient/linenoise.h
+clientinit.h
 )
 
 set(PARSER_SOURCES

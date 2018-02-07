@@ -42,13 +42,16 @@ static const DstReg cfuns[] = {
     {"tuple", dst_core_tuple},
     {"struct", dst_core_struct},
     {"fiber", dst_core_fiber},
-    {"status", dst_core_status},
+    {"fiber-status", dst_core_fiber_status},
+    {"fiber-current", dst_core_fiber_current},
     {"buffer", dst_core_buffer},
     {"gensym", dst_core_gensym},
     {"get", dst_core_get},
     {"put", dst_core_put},
     {"length", dst_core_length},
     {"gccollect", dst_core_gccollect},
+    {"gcsetinterval", dst_core_gcsetinterval},
+    {"gcinterval", dst_core_gcinterval},
     {"type", dst_core_type},
     {"next", dst_core_next},
     {"hash", dst_core_hash},
@@ -88,6 +91,8 @@ DstTable *dst_stl_env() {
     dst_env_def(env, "yield", dst_wrap_function(dst_quick_asm(1, 0, 2, yield_asm, sizeof(yield_asm))));
     dst_env_def(env, "transfer", dst_wrap_function(dst_quick_asm(2, 0, 2, transfer_asm, sizeof(transfer_asm))));
 
+    dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
+
     /* Allow references to the environment */
     dst_env_def(env, "_env", ret);
 
@@ -111,11 +116,7 @@ DstTable *dst_stl_env() {
     }
 
     /* Run bootstrap source */
-    {
-        DstContext ctxt;
-        dst_context_bytes(&ctxt, env, dst_stl_bootstrap_gen, sizeof(dst_stl_bootstrap_gen));
-        dst_context_run(&ctxt, 0);
-    }
+    dst_dobytes(env, dst_stl_bootstrap_gen, sizeof(dst_stl_bootstrap_gen));
 
     dst_gcunroot(dst_wrap_table(env));
 

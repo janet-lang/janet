@@ -995,23 +995,19 @@ int dst_compile_cfun(DstArgs args) {
     DstCompileResult res;
     DstTable *t;
     DstTable *env;
-    if (args.n < 1)
-        return dst_throw(args, "expected at least one argument");
-    if (args.n >= 2) {
-        if (!dst_checktype(args.v[1], DST_TABLE)) return dst_throw(args, "expected table as environment");
-        env = dst_unwrap_table(args.v[1]);
-    } else {
-        env = dst_stl_env();
-    }
+    if (args.n < 2)
+        return dst_throw(args, "expected at least 2 arguments");
+    if (!dst_checktype(args.v[1], DST_TABLE)) return dst_throw(args, "expected table as environment");
+    env = dst_unwrap_table(args.v[1]);
     res = dst_compile(args.v[0], env, 0);
     if (res.status == DST_COMPILE_OK) {
         DstFunction *fun = dst_function(res.funcdef, NULL);
         return dst_return(args, dst_wrap_function(fun));
     } else {
         t = dst_table(2);
-        dst_table_put(t, dst_cstringv("error"), dst_wrap_string(res.error));
-        dst_table_put(t, dst_cstringv("error-start"), dst_wrap_integer(res.error_start));
-        dst_table_put(t, dst_cstringv("error-end"), dst_wrap_integer(res.error_end));
+        dst_table_put(t, dst_csymbolv(":error"), dst_wrap_string(res.error));
+        dst_table_put(t, dst_csymbolv(":error-start"), dst_wrap_integer(res.error_start));
+        dst_table_put(t, dst_csymbolv(":error-end"), dst_wrap_integer(res.error_end));
         return dst_return(args, dst_wrap_table(t));
     }
 }
@@ -1021,4 +1017,3 @@ int dst_lib_compile(DstArgs args) {
     dst_env_def(env, "compile", dst_wrap_cfunction(dst_compile_cfun));
     return 0;
 }
-

@@ -9,6 +9,8 @@
  [cond & body] 
  (tuple 'if cond (tuple-prepend body 'do)))
 
+(def identity (fn [x] x))
+
 (def seq (do
   (defn array-seq [x]
     (def len (length x))
@@ -160,3 +162,89 @@
         (varset! lastkey (next x lastkey))
         ret)
  })
+
+# Handle errors
+(defn onerr [t e]
+ (print (string t " error: " e)))
+
+(var *read* nil)
+(var *onvalue* identity)
+
+# Cache for require
+(def require-loading @{})
+
+# Create a char stream from a function that gets input
+(defn char-stream [getchunk ondone]
+ (fiber (fn [parent]
+   (def buf @"")
+   (var len 1)
+   (while (< 0 len)
+      (buffer-clear buf)
+      (getchunk buf) 
+      (varset! len (length buf))
+      (for [i 0 len]
+        (transfer parent (get buf i))))
+   (ondone))))
+
+# Convert a charstream into a value
+(defn val-stream [chars]
+ (fiber (fn [parent]
+    (var up parent)
+    (def me (fiber-current))
+    (def p (parser)) 
+    (while true
+      (def s (parser-status p)) 
+      (if (= s :full)
+       (varset! up (transfer up (parser-produce p)))
+       (if (= s :error)
+        # Parse error
+        (onerr "parse" (parser-error p))
+        # Normal state, get next char
+        (parser-byte p (transfer chars me))))))))
+
+(defn require [path]
+ (when (get require-loading path)
+  (error (string "circular dependency: module " path "is already loading")))
+ (def oldread *read*)
+ (def oldonvalue *onvalue*)
+ (def f (file-open path))
+ (def getter (fn [buf] (file-read f 1024 buf)))
+ (def cs (char-stream getter (fn []
+    (put require-loading path nil)
+    (file-close f)
+    (varset! *read* oldread)
+    (varset! *onvalue* oldonvalue)
+    nil)))
+ (def vs (val-stream cs))
+ (varset! *onvalue* identity)
+ (varset! *read* (fn [] (transfer vs (fiber-current))))
+ nil)
+
+(defn dorepl []
+ (def oldread *read*)
+ (def cs (char-stream (fn [buf]
+    (file-write stdout ">> ")
+    (file-read stdin :line buf))
+  (fn []
+    (varset! *read* oldread)
+    nil)))
+ (def vs (val-stream cs))
+ (varset! *onvalue* (fn [ret]
+  (put _env '_ @{'value ret})
+  (describe ret)))
+ (varset! *read* (fn [] (transfer vs (fiber-current)))))
+
+# Main loop
+(defn init-loop []
+ (while *read*
+  (def wrapper (fiber (fn []
+    (while *read*
+      (def source (*read*))
+      (def res (compile source _env))
+      (if (= (type res) :function)
+        (*onvalue* (res))
+        (onerr "compile" (get res :error)))))))
+  (def eb (transfer wrapper))
+  (if (= (fiber-status wrapper) :error) (onerr "runtime" eb))))
+
+(defn init-repl [] (dorepl) (init-loop))

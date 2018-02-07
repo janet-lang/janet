@@ -139,8 +139,8 @@ int dst_core_fiber(DstArgs args) {
     if (args.n < 1) return dst_throw(args, "expected at least one argument");
     if (!dst_checktype(args.v[0], DST_FUNCTION)) return dst_throw(args, "expected a function");
     fiber = dst_fiber(64);
-    dst_fiber_funcframe(fiber, dst_unwrap_function(args.v[0]));
     fiber->parent = dst_vm_fiber;
+    dst_fiber_funcframe(fiber, dst_unwrap_function(args.v[0]));
     return dst_return(args, dst_wrap_fiber(fiber));
 }
 
@@ -172,7 +172,7 @@ int dst_core_get(DstArgs args) {
     return dst_return(args, ds);
 }
 
-int dst_core_status(DstArgs args) {
+int dst_core_fiber_status(DstArgs args) {
     const char *status = "";
     if (args.n != 1) return dst_throw(args, "expected 1 argument");
     if (!dst_checktype(args.v[0], DST_FIBER)) return dst_throw(args, "expected fiber");
@@ -196,6 +196,10 @@ int dst_core_status(DstArgs args) {
     return dst_return(args, dst_csymbolv(status));
 }
 
+int dst_core_fiber_current(DstArgs args) {
+    return dst_return(args, dst_wrap_fiber(dst_vm_fiber));
+}
+
 int dst_core_put(DstArgs args) {
     Dst ds, key, value;
     DstArgs subargs = args;
@@ -213,6 +217,19 @@ int dst_core_gccollect(DstArgs args) {
     (void) args;
     dst_collect();
     return 0;
+}
+
+int dst_core_gcsetinterval(DstArgs args) {
+    if (args.n < 1 ||
+            !dst_checktype(args.v[0], DST_INTEGER) ||
+            dst_unwrap_integer(args.v[0]) < 0)
+        return dst_throw(args, "expected non-negative integer");
+    dst_vm_gc_interval = dst_unwrap_integer(args.v[0]);
+    return dst_return(args, dst_wrap_integer(dst_vm_gc_interval));
+}
+
+int dst_core_gcinterval(DstArgs args) {
+    return dst_return(args, dst_wrap_integer(dst_vm_gc_interval));
 }
 
 int dst_core_type(DstArgs args) {

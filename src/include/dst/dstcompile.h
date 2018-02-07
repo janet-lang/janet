@@ -28,7 +28,6 @@ extern "C" {
 #endif
 
 #include "dsttypes.h"
-#include "dstparse.h"
 
 typedef struct DstCompileOptions DstCompileOptions;
 typedef struct DstCompileResult DstCompileResult;
@@ -47,47 +46,14 @@ DstCompileResult dst_compile(Dst source, DstTable *env, int flags);
 int dst_compile_cfun(DstArgs args);
 int dst_lib_compile(DstArgs args);
 
-/* Context - for executing dst in the interpretted form. */
-typedef struct DstContext DstContext;
-
 /* Get the default environment for dst */
 DstTable *dst_stl_env();
 
-/* Different levels of reporting and configuration */
-void dst_context_init(DstContext *c, DstTable *env);
-int dst_context_file(DstContext *c, DstTable *env, const char *path);
-int dst_context_repl(DstContext *c, DstTable *env);
-int dst_context_bytes(DstContext *c, DstTable *env, const uint8_t *bytes, int32_t len);
-
-/* Evaluate a form in the context */
-int dst_context_run(DstContext *c, int flags);
-
-void dst_context_deinit(DstContext *c);
-
-/* Parse structs */
-enum DstContextErrorType {
-    DST_CONTEXT_ERROR_PARSE,
-    DST_CONTEXT_ERROR_COMPILE,
-    DST_CONTEXT_ERROR_RUNTIME
-};
-
-/* Evaluation context. Encapsulates parsing and compiling for easier integration
- * with client programs. */
-struct DstContext {
-    DstTable *env;
-    DstBuffer buffer;
-    void *user;
-    int32_t bufsize;
-    int32_t index;
-
-    int (*read_chunk)(DstContext *self, enum DstParserStatus status);
-    void (*on_error)(DstContext *self, enum DstContextErrorType type, Dst err, size_t start, size_t end);
-    void (*on_value)(DstContext *self, Dst value);
-    void (*deinit)(DstContext *self);
-};
+int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len);
+int dst_dostring(DstTable *env, const char *str);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* DST_COMPILE_H_defined */
+#endif 
