@@ -296,7 +296,7 @@ int dst_modf(DstArgs args) {
 
 /* Comparison */
 #define DST_DEFINE_COMPARATOR(name, pred)\
-static int dst_math_##name(DstArgs args) {\
+static int dst_##name(DstArgs args) {\
     int32_t i;\
     for (i = 0; i < args.n - 1; i++) {\
         if (dst_compare(args.v[i], args.v[i+1]) pred) {\
@@ -314,7 +314,7 @@ DST_DEFINE_COMPARATOR(notdescending, > 0)
 DST_DEFINE_COMPARATOR(notascending, < 0)
 
 /* Boolean logic */
-static int dst_math_equal(DstArgs args) {
+static int dst_strict_equal(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n - 1; i++) {
         if (!dst_equals(args.v[i], args.v[i+1])) {
@@ -326,7 +326,7 @@ static int dst_math_equal(DstArgs args) {
     return 0;
 }
 
-static int dst_math_notequal(DstArgs args) {
+static int dst_strict_notequal(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n - 1; i++) {
         if (dst_equals(args.v[i], args.v[i+1])) {
@@ -338,10 +338,45 @@ static int dst_math_notequal(DstArgs args) {
     return 0;
 }
 
-static int dst_math_not(DstArgs args) {
+static int dst_not(DstArgs args) {
     *args.ret = dst_wrap_boolean(args.n == 0 || !dst_truthy(args.v[0]));
     return 0;
 }
+
+static int toreal(Dst x, double *out) {
+    if (dst_checktype(x, DST_REAL)) {
+        *out = dst_unwrap_real(x);
+        return 0;
+    } else if (dst_checktype(x, DST_INTEGER)) {
+        *out = (double)dst_unwrap_integer(x);
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
+#define DEF_NUMERIC_COMP(name, op) \
+int dst_numeric_##name(DstArgs args) { \
+    int32_t i; \
+    for (i = 1; i < args.n; i++) { \
+        int xbad, ybad; \
+        double x, y; \
+        xbad = toreal(args.v[0], &x); \
+        ybad = toreal(args.v[1], &y); \
+        if (xbad | ybad) return dst_throw(args, "expected number"); \
+        if (!(x op y)) { \
+            return dst_return(args, dst_wrap_false()); \
+        } \
+    } \
+    return dst_return(args, dst_wrap_true()); \
+}
+
+DEF_NUMERIC_COMP(gt, >)
+DEF_NUMERIC_COMP(lt, <)
+DEF_NUMERIC_COMP(lte, <=)
+DEF_NUMERIC_COMP(gte, >=)
+DEF_NUMERIC_COMP(eq, ==)
+DEF_NUMERIC_COMP(neq, !=)
 
 static const DstReg cfuns[] = {
     {"int", dst_int},
@@ -351,12 +386,18 @@ static const DstReg cfuns[] = {
     {"*", dst_multiply},
     {"/", dst_divide},
     {"%", dst_modulo},
-    {"=", dst_math_equal},
-    {"not=", dst_math_notequal},
-    {"<", dst_math_ascending},
-    {">", dst_math_descending},
-    {"<=", dst_math_notdescending},
-    {">=", dst_math_notascending},
+    {"=", dst_strict_equal},
+    {"not=", dst_strict_notequal},
+    {"order<", dst_ascending},
+    {"order>", dst_descending},
+    {"order<=", dst_notdescending},
+    {"order>=", dst_notascending},
+    {"==", dst_numeric_eq},
+    {"not==", dst_numeric_neq},
+    {"<", dst_numeric_lt},
+    {">", dst_numeric_gt},
+    {"<=", dst_numeric_lte},
+    {">=", dst_numeric_gte},
     {"|", dst_bor},
     {"&", dst_band},
     {"^", dst_bxor},
@@ -364,7 +405,7 @@ static const DstReg cfuns[] = {
     {">>", dst_lshift},
     {"<<", dst_rshift},
     {">>>", dst_lshiftu},
-    {"not", dst_math_not},
+    {"not", dst_not},
     {"cos", dst_cos},
     {"sin", dst_sin},
     {"tan", dst_tan},

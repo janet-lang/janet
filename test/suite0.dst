@@ -47,7 +47,7 @@
 (assert (>= 6 5 4 4 3 2 1) "greater than or equal to integers")
 (assert (>= 6.0 5.0 4.0 4.0 3.0 2.0 1.0) "greater than or equal to reals")
 
-(assert (< nil false true
+(assert (order< nil false true
 	(fiber (fn [x] x))
     1 1.0 "hi"
 	(quote hello)

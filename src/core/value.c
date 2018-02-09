@@ -118,7 +118,6 @@ int dst_compare(Dst x, Dst y) {
             case DST_TRUE:
                 return 0;
             case DST_REAL:
-                
                 /* Check for nans to ensure total order */
                 if (dst_unwrap_real(x) != dst_unwrap_real(x))
                     return dst_unwrap_real(y) != dst_unwrap_real(y)
