@@ -75,9 +75,11 @@
   (def end (get head 2))
   (def _inc (get head 3))
   (def inc (if _inc _inc 1))
+  (def endsym (gensym))
   (tuple 'do
     (tuple 'var sym start)
-    (tuple 'while (tuple '< sym end)
+    (tuple 'def endsym end)
+    (tuple 'while (tuple '< sym endsym)
      (tuple-prepend body 'do)
      (tuple 'varset! sym (tuple '+ sym 1))
       )))
@@ -136,7 +138,7 @@
  (fiber (fn [parent]
     (var up parent)
     (def me (fiber-current))
-    (def p (parser)) 
+    (def p (parser 1)) 
     (while true
       (def s (parser-status p)) 
       (if (= s :full)

@@ -120,6 +120,11 @@ extern "C" {
  * ands crashing (the parser). Instead, error out. */
 #define DST_RECURSION_GUARD 1024
 
+/* Define max stack size for stacks before raising a stack overflow error.
+ * If this is not defined, fiber stacks can grow without limit (until memory
+ * runs out) */
+#define DST_STACK_MAX 4096
+
 /* Use nanboxed values - uses 8 bytes per value instead of 12 or 16. */
 #define DST_NANBOX
 #define DST_NANBOX_47

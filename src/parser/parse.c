@@ -458,12 +458,12 @@ static int root(DstParser *p, DstParseState *state, uint8_t c) {
 int dst_parser_consume(DstParser *parser, uint8_t c) {
     int consumed = 0;
     if (parser->error) return 0;
+    parser->index++;
     while (!consumed && !parser->error) {
         DstParseState *state = &dst_v_last(parser->states);
         consumed = state->consumer(parser, state, c);
     }
     parser->lookback = c;
-    parser->index++;
     return 1;
 }
 
