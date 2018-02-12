@@ -494,32 +494,63 @@ static void *op_lookup[255] = {
     VM_OP(DOP_CLOSURE)
     {
         DstFuncDef *fd;
+        DstFunction *fn;
         vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->defs_length, "invalid funcdef");
         fd = func->def->defs[(int32_t)oparg(2, 0xFFFF)];
-        stack[oparg(1, 0xFF)] = dst_wrap_function(dst_function(fd, func));
+        fn = dst_thunk(fd);
+        {
+            int32_t elen = fd->environments_length;
+            if (elen) {
+                int32_t i;
+                fn->envs = malloc(sizeof(DstFuncEnv *) * elen);
+                if (NULL == fn->envs) {
+                    DST_OUT_OF_MEMORY;
+                }
+                for (i = 0; i < elen; ++i) {
+                    int32_t inherit = fd->environments[i];
+                    if (inherit == -1) {
+                        DstStackFrame *frame = (DstStackFrame *)stack - 1;
+                        if (!frame->env) {
+                            /* Lazy capture of current stack frame */
+                            DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
+                            env->offset = dst_vm_fiber->frame;
+                            env->as.fiber = dst_vm_fiber;
+                            env->length = func->def->slotcount;
+                            frame->env = env;
+                        }
+                        fn->envs[i] = frame->env;
+                    } else {
+                        fn->envs[i] = func->envs[inherit];
+                    }
+                }
+            } else {
+                fn->envs = NULL;
+            }
+        }
+        stack[oparg(1, 0xFF)] = dst_wrap_function(fn);
         pc++;
         vm_checkgc_next();
     }
 
     VM_OP(DOP_PUSH)
-    dst_fiber_push(dst_vm_fiber, stack[oparg(1, 0xFFFFFF)]);
-    pc++;
-    stack = dst_vm_fiber->data + dst_vm_fiber->frame;
-    vm_checkgc_next();
+        dst_fiber_push(dst_vm_fiber, stack[oparg(1, 0xFFFFFF)]);
+        pc++;
+        stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+        vm_checkgc_next();
 
     VM_OP(DOP_PUSH_2)
-    dst_fiber_push2(dst_vm_fiber, 
-        stack[oparg(1, 0xFF)],
-        stack[oparg(2, 0xFFFF)]);
+        dst_fiber_push2(dst_vm_fiber, 
+                stack[oparg(1, 0xFF)],
+                stack[oparg(2, 0xFFFF)]);
     pc++;
     stack = dst_vm_fiber->data + dst_vm_fiber->frame;
     vm_checkgc_next();
 
     VM_OP(DOP_PUSH_3)
-    dst_fiber_push3(dst_vm_fiber, 
-        stack[oparg(1, 0xFF)],
-        stack[oparg(2, 0xFF)],
-        stack[oparg(3, 0xFF)]);
+        dst_fiber_push3(dst_vm_fiber, 
+                stack[oparg(1, 0xFF)],
+                stack[oparg(2, 0xFF)],
+                stack[oparg(3, 0xFF)]);
     pc++;
     stack = dst_vm_fiber->data + dst_vm_fiber->frame;
     vm_checkgc_next();
@@ -743,10 +774,10 @@ static void *op_lookup[255] = {
 /* Run the vm with a given function. This function is
  * called to start the vm. */
 int dst_run(Dst callee, Dst *returnreg) {
-    if (NULL == dst_vm_fiber) {
-        dst_vm_fiber = dst_fiber(0);
+    if (dst_vm_fiber) {
+       dst_fiber_reset(dst_vm_fiber); 
     } else {
-        dst_fiber_reset(dst_vm_fiber);
+        dst_vm_fiber = dst_fiber(64);
     }
     if (dst_checktype(callee, DST_CFUNCTION)) {
         DstArgs args;
@@ -772,7 +803,7 @@ int dst_call(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv) {
     int lock;
     DstFiber *oldfiber = dst_vm_fiber;
     lock = dst_vm_gc_suspend++;
-    dst_vm_fiber = dst_fiber(0);
+    dst_vm_fiber = dst_fiber(64);
     dst_fiber_pushn(dst_vm_fiber, argv, argn);
     if (dst_checktype(callee, DST_CFUNCTION)) {
         DstArgs args;

@@ -40,7 +40,7 @@ int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len) {
                     Dst form = dst_parser_produce(&parser);
                     DstCompileResult cres = dst_compile(form, env, 0);
                     if (cres.status == DST_COMPILE_OK) {
-                        DstFunction *f = dst_function(cres.funcdef, NULL);
+                        DstFunction *f = dst_thunk(cres.funcdef);
                         Dst ret;
                         if (dst_run(dst_wrap_function(f), &ret)) {
                             printf("internal runtime error: %s\n", (const char *) dst_to_string(ret));

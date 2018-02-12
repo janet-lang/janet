@@ -132,7 +132,7 @@ int32_t dstc_lslotn(DstCompiler *c, int32_t max, int32_t nth) {
 /* Free a slot */
 void dstc_freeslot(DstCompiler *c, DstSlot s) {
     if (s.flags & (DST_SLOT_CONSTANT | DST_SLOT_REF | DST_SLOT_NAMED)) return;
-    if (s.envindex > 0) return;
+    if (s.envindex >= 0) return;
     dstc_sfreei(c, s.index);
 }
 
@@ -208,7 +208,7 @@ void dstc_popscope(DstCompiler *c) {
 /* Leave a scope but keep a slot allocated. */
 void dstc_popscope_keepslot(DstCompiler *c, DstSlot retslot) {
     dstc_popscope(c);
-    if (retslot.envindex == 0 && retslot.index >= 0) {
+    if (retslot.envindex < 0 && retslot.index >= 0) {
         slotalloci(c, retslot.index);
     }
 }
@@ -219,7 +219,7 @@ DstSlot dstc_cslot(Dst x) {
     ret.flags = (1 << dst_type(x)) | DST_SLOT_CONSTANT;
     ret.index = -1;
     ret.constant = x;
-    ret.envindex = 0;
+    ret.envindex = -1;
     return ret;
 }
 
@@ -285,7 +285,7 @@ DstSlot dstc_resolve(
 
     /* Unused references and locals shouldn't add captured envs. */
     if (unused || foundlocal) {
-        ret.envindex = 0;
+        ret.envindex = -1;
         return ret;
     }
 
@@ -294,18 +294,17 @@ DstSlot dstc_resolve(
     while (scope >= c->scopes && !(scope->flags & DST_SCOPE_FUNCTION)) scope--;
     dst_assert(scope >= c->scopes, "invalid scopes");
     scope->flags |= DST_SCOPE_ENV;
-    if (!dst_v_count(scope->envs)) dst_v_push(scope->envs, 0);
     scope++;
 
     /* Propogate env up to current scope */
-    int32_t envindex = 0;
+    int32_t envindex = -1;
     while (scope <= top) {
         if (scope->flags & DST_SCOPE_FUNCTION) {
             int32_t j, len;
             int scopefound = 0;
             /* Check if scope already has env. If so, break */
             len = dst_v_count(scope->envs);
-            for (j = 1; j < len; j++) {
+            for (j = 0; j < len; j++) {
                 if (scope->envs[j] == envindex) {
                     scopefound = 1;
                     envindex = j;
@@ -314,7 +313,6 @@ DstSlot dstc_resolve(
             }
             /* Add the environment if it is not already referenced */
             if (!scopefound) {
-                if (!dst_v_count(scope->envs)) dst_v_push(scope->envs, 0);
                 len = dst_v_count(scope->envs);
                 dst_v_push(scope->envs, envindex);
                 envindex = len;
@@ -418,7 +416,7 @@ int32_t dstc_preread(
                     (ret << 8) |
                     DOP_GET_INDEX);
         }
-    } else if (s.envindex > 0 || s.index > max) {
+    } else if (s.envindex >= 0 || s.index > max) {
         ret = dstc_lslotn(c, max, nth);
         dstc_emit(c, ast, 
                 ((uint32_t)(s.index) << 24) |
@@ -440,7 +438,7 @@ int32_t dstc_preread(
 
 /* Call this to release a read handle after emitting the instruction. */
 void dstc_postread(DstCompiler *c, DstSlot s, int32_t index) {
-    if (index != s.index || s.envindex > 0 || s.flags & DST_SLOT_CONSTANT) {
+    if (index != s.index || s.envindex >= 0 || s.flags & DST_SLOT_CONSTANT) {
         /* We need to free the temporary slot */
         dstc_sfreei(c, index);
     }
@@ -495,7 +493,7 @@ void dstc_copy(
     /* far index */
 
     /* If dest is a near index, do some optimization */
-    if (dest.envindex == 0 && dest.index >= 0 && dest.index <= 0xFF) {
+    if (dest.envindex < 0 && dest.index >= 0 && dest.index <= 0xFF) {
         if (src.flags & DST_SLOT_CONSTANT) {
             dstc_loadconst(c, ast, src.constant, dest.index);
         } else if (src.flags & DST_SLOT_REF) {
@@ -504,7 +502,7 @@ void dstc_copy(
                     (dest.index << 16) |
                     (dest.index << 8) |
                     DOP_GET_INDEX);
-        } else if (src.envindex > 0) {
+        } else if (src.envindex >= 0) {
             dstc_emit(c, ast,
                     (src.index << 24) |
                     (src.envindex << 16) |
@@ -533,7 +531,7 @@ void dstc_copy(
                 (dstc_const(c, ast, dest.constant) << 16) |
                 (reflocal << 8) |
                 DOP_LOAD_CONSTANT);
-    } else if (dest.envindex > 0) {
+    } else if (dest.envindex >= 0) {
         writeback = 2;
         destlocal = srclocal;
     } else if (dest.index > 0xFF) {
@@ -597,11 +595,11 @@ DstSlot dstc_return(DstCompiler *c, DstAst *ast, DstSlot s) {
 DstSlot dstc_gettarget(DstFopts opts) {
     DstSlot slot;
     if ((opts.flags & DST_FOPTS_HINT) &&
-        (opts.hint.envindex == 0) &&
+        (opts.hint.envindex < 0) &&
         (opts.hint.index >= 0 && opts.hint.index <= 0xFF)) {
         slot = opts.hint;
     } else {
-        slot.envindex = 0;
+        slot.envindex = -1;
         slot.constant = dst_wrap_nil();
         slot.flags = 0;
         slot.index = dstc_lslotn(opts.compiler, 0xFF, 4);
@@ -883,7 +881,7 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
 
     /* Copy envs */
     def->environments_length = dst_v_count(scope.envs);
-    if (def->environments_length > 1) def->environments = dst_v_flatten(scope.envs);
+    def->environments = dst_v_flatten(scope.envs);
 
     def->constants_length = dst_v_count(scope.consts);
     def->constants = dst_v_flatten(scope.consts);
@@ -926,9 +924,6 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
     def->flags = 0;
     if (scope.flags & DST_SCOPE_ENV) {
         def->flags |= DST_FUNCDEF_FLAG_NEEDSENV;
-        if (def->environments_length == 0) {
-            def->environments_length = 1;
-        }
     }
 
     /* Pop the scope */
@@ -1001,7 +996,7 @@ int dst_compile_cfun(DstArgs args) {
     env = dst_unwrap_table(args.v[1]);
     res = dst_compile(args.v[0], env, 0);
     if (res.status == DST_COMPILE_OK) {
-        DstFunction *fun = dst_function(res.funcdef, NULL);
+        DstFunction *fun = dst_thunk(res.funcdef);
         return dst_return(args, dst_wrap_function(fun));
     } else {
         t = dst_table(2);

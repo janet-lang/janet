@@ -101,19 +101,6 @@ void dst_fiber_pushn(DstFiber *fiber, const Dst *arr, int32_t n) {
     fiber->stacktop = newtop;
 }
 
-/* Help set up function */
-static void funcframe_env(DstFiber *fiber, DstFunction *func) {
-    /* Check closure env */
-    if (func->def->flags & DST_FUNCDEF_FLAG_NEEDSENV) {
-        /* Delayed capture of current stack frame */
-        DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
-        env->offset = fiber->frame;
-        env->as.fiber = fiber;
-        env->length = func->def->slotcount;
-        func->envs[0] = env;
-    }
-}
-
 /* Push a stack frame to a fiber */
 void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
     DstStackFrame *newframe;
@@ -140,6 +127,7 @@ void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
     newframe->prevframe = oldframe;
     newframe->pc = func->def->bytecode;
     newframe->func = func;
+    newframe->env = NULL;
 
     /* Check varargs */
     if (func->def->flags & DST_FUNCDEF_FLAG_VARARG) {
@@ -152,17 +140,13 @@ void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
                 oldtop - tuplehead));
         }
     }
-
-    /* Check env */
-    funcframe_env(fiber, func) ;
 }
 
 /* If a frame has a closure environment, detach it from
  * the stack and have it keep its own values */
-static void dst_function_detach(DstFunction *func) {
+static void dst_env_detach(DstFuncEnv *env) {
     /* Check for closure environment */
-    if (NULL != func->envs && NULL != func->envs[0]) {
-        DstFuncEnv *env = func->envs[0];
+    if (env) {
         size_t s = sizeof(Dst) * env->length;
         Dst *vmem = malloc(s);
         if (NULL == vmem) {
@@ -190,7 +174,8 @@ void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
 
     /* Detatch old function */
     if (NULL != dst_fiber_frame(fiber)->func)
-        dst_function_detach(dst_fiber_frame(fiber)->func);
+        dst_env_detach(dst_fiber_frame(fiber)->env);
+    dst_fiber_frame(fiber)->env = NULL;
 
     /* Check varargs */
     if (func->def->flags & DST_FUNCDEF_FLAG_VARARG) {
@@ -217,9 +202,6 @@ void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
 
     /* Set stack stuff */
     fiber->stacktop = fiber->stackstart = nextstacktop;
-
-    /* Varargs and func envs */
-    funcframe_env(fiber, func);
 
     /* Set frame stuff */
     dst_fiber_frame(fiber)->func = func;
@@ -257,7 +239,7 @@ void dst_fiber_popframe(DstFiber *fiber) {
     
     /* Clean up the frame (detach environments) */
     if (NULL != frame->func)
-        dst_function_detach(frame->func);
+        dst_env_detach(frame->env);
 
     /* Shrink stack */
     fiber->stacktop = fiber->stackstart = fiber->frame;

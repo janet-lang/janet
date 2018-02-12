@@ -186,6 +186,8 @@ static void dst_mark_fiber(DstFiber *fiber) {
         frame = (DstStackFrame *)(fiber->data + i - DST_FRAME_SIZE);
         if (NULL != frame->func)
             dst_mark_function(frame->func);
+        if (NULL != frame->env)
+            dst_mark_funcenv(frame->env);
         /* Mark all values in the stack frame */
         dst_mark_many(fiber->data + i, j - i);
         j = i - DST_FRAME_SIZE;

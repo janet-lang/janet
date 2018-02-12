@@ -221,26 +221,11 @@ DstFuncDef *dst_funcdef_alloc() {
     return def;
 }
 
-/* Create a closure from a funcdef and a parent function */
-DstFunction *dst_function(DstFuncDef *def, DstFunction *parent) {
-    int32_t i;
+/* Create a simple closure from a funcdef */
+DstFunction *dst_thunk(DstFuncDef *def) {
     DstFunction *func = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
-    int32_t elen = def->environments_length;
     func->def = def;
-    if (elen) {
-        func->envs = malloc(sizeof(DstFuncEnv *) * elen);
-        if (elen > 1 && !parent) return NULL;
-        if (NULL == func->envs) {
-            DST_OUT_OF_MEMORY;
-        }
-        func->envs[0] = NULL;
-    } else {
-        func->envs = NULL;
-    }
-    for (i = 1; i < def->environments_length; ++i) {
-        int32_t inherit = def->environments[i];
-        func->envs[i] = parent->envs[inherit];
-    }
+    func->envs = NULL;
     return func;
 }
 
@@ -256,5 +241,5 @@ DstFunction *dst_quick_asm(int32_t arity, int varargs, int32_t slots, const uint
         DST_OUT_OF_MEMORY;
     }
     memcpy(def->bytecode, bytecode, bytecode_size);
-    return dst_function(def, NULL);
+    return dst_thunk(def);
 }

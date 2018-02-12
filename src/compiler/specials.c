@@ -90,7 +90,7 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
                         dstc_postread(c, islot, locali);
                     }
                     newright.index = localsub;
-                    newright.envindex = 0;
+                    newright.envindex = -1;
                     newright.constant = dst_wrap_nil();
                     newright.flags = DST_SLOTTYPE_ANY;
                     /* Traverse into the structure */
@@ -120,7 +120,7 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
                             DOP_GET);
                     dstc_postread(c, kslot, localk);
                     newright.index = localsub;
-                    newright.envindex = 0;
+                    newright.envindex = -1;
                     newright.constant = dst_wrap_nil();
                     newright.flags = DST_SLOTTYPE_ANY;
                     /* Traverse into the structure */
@@ -197,7 +197,7 @@ static DstSlot dohead(DstCompiler *c, DstFopts opts, DstAst *ast, Dst *head, int
 static DstSlot namelocal(DstCompiler *c, DstAst *ast, Dst head, int32_t flags, DstSlot ret) {
     /* Non root scope, bring to local slot */
     if (ret.flags & DST_SLOT_NAMED ||
-            ret.envindex != 0 ||
+            ret.envindex >= 0 ||
             ret.index < 0 ||
             ret.index > 0xFF) {
         /* Slot is not able to be named */
@@ -205,7 +205,7 @@ static DstSlot namelocal(DstCompiler *c, DstAst *ast, Dst head, int32_t flags, D
         localslot.index = dstc_lsloti(c);
         /* infer type? */
         localslot.flags = flags;
-        localslot.envindex = 0;
+        localslot.envindex = -1;
         localslot.constant = dst_wrap_nil();
         dstc_copy(c, ast, localslot, ret);
         ret = localslot;
@@ -546,7 +546,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
                     continue;
                 }
                 slot.flags = DST_SLOT_NAMED;
-                slot.envindex = 0;
+                slot.envindex = -1;
                 slot.constant = dst_wrap_nil();
                 slot.index = dstc_lsloti(c);
                 dstc_nameslot(c, dst_unwrap_symbol(param), slot);
@@ -564,7 +564,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     /* Check for self ref */
     if (selfref) {
         DstSlot slot;
-        slot.envindex = 0;
+        slot.envindex = -1;
         slot.flags = DST_SLOT_NAMED | DST_FUNCTION;
         slot.constant = dst_wrap_nil();
         slot.index = dstc_lsloti(c);

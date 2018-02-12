@@ -328,6 +328,7 @@ struct DstStackFrame {
     DstFunction *func;
     uint32_t *pc;
     int32_t prevframe;
+    DstFuncEnv *env;
 };
 
 /* Number of Dsts a frame takes up in the stack */

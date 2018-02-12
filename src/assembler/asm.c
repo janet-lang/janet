@@ -187,17 +187,19 @@ static int32_t dst_asm_addenv(DstAssembler *a, Dst envname) {
     int32_t envindex;
     int32_t res;
     if (dst_equals(a->name, envname)) {
-        return 0;
+        return -1;
     }
     /* Check for memoized value */
     check = dst_table_get(&a->envs, envname);
-    if (dst_checktype(check, DST_INTEGER)) return dst_unwrap_integer(check);
-    if (NULL == a->parent) return -1;
+    if (dst_checktype(check, DST_INTEGER)) {
+        return dst_unwrap_integer(check);
+    }
+    if (NULL == a->parent) return -2;
     res = dst_asm_addenv(a->parent, envname);
-    if (res < 0)
+    if (res < -1) {
         return res;
+    }
     envindex = def->environments_length;
-    if (envindex == 0) envindex = 1;
     dst_table_put(&a->envs, envname, dst_wrap_integer(envindex));
     if (envindex >= a->environments_capacity) {
         int32_t newcap = 2 * envindex;
@@ -291,7 +293,7 @@ static int32_t doarg_1(
             if (argtype == DST_OAT_ENVIRONMENT && ret == -1) {
                 /* Add a new env */
                 ret = dst_asm_addenv(a, x);
-                if (ret < 0) {
+                if (ret < -1) {
                     dst_asm_errorv(a, dst_formatc("unknown environment %q", x));
                 }
             }
@@ -788,8 +790,7 @@ Dst dst_disasm(DstFuncDef *def) {
     DstArray *bcode = dst_array(def->bytecode_length);
     DstArray *constants;
     DstTable *ret = dst_table(10);
-    if (def->arity)
-        dst_table_put(ret, dst_csymbolv("arity"), dst_wrap_integer(def->arity));
+    dst_table_put(ret, dst_csymbolv("arity"), dst_wrap_integer(def->arity));
     dst_table_put(ret, dst_csymbolv("bytecode"), dst_wrap_array(bcode));
     if (NULL != def->sourcepath) {
         dst_table_put(ret, dst_csymbolv("sourcepath"), 
@@ -871,7 +872,7 @@ int dst_asm_cfun(DstArgs args) {
     if (args.n < 1) return dst_throw(args, "expected assembly source");
     res = dst_asm(args.v[0], 0);
     if (res.status == DST_ASSEMBLE_OK) {
-        return dst_return(args, dst_wrap_function(dst_function(res.funcdef, NULL)));
+        return dst_return(args, dst_wrap_function(dst_thunk(res.funcdef)));
     } else {
         return dst_throwv(args, dst_wrap_string(res.error));
     }
