@@ -76,62 +76,62 @@ struct DstAssembler {
  * prefix tree. */
 static const DstInstructionDef dst_ops[] = {
     {"add", DOP_ADD},
-    {"add-immediate", DOP_ADD_IMMEDIATE},
-    {"add-integer", DOP_ADD_INTEGER},
-    {"add-real", DOP_ADD_REAL},
+    {"addim", DOP_ADD_IMMEDIATE},
+    {"addi", DOP_ADD_INTEGER},
+    {"addr", DOP_ADD_REAL},
     {"band", DOP_BAND},
     {"bnot", DOP_BNOT},
     {"bor", DOP_BOR},
     {"bxor", DOP_BXOR},
     {"call", DOP_CALL},
-    {"closure", DOP_CLOSURE},
-    {"compare", DOP_COMPARE},
-    {"divide", DOP_DIVIDE},
-    {"divide-immediate", DOP_DIVIDE_IMMEDIATE},
-    {"divide-integer", DOP_DIVIDE_INTEGER},
-    {"divide-real", DOP_DIVIDE_REAL},
-    {"equals", DOP_EQUALS},
-    {"error", DOP_ERROR},
+    {"clo", DOP_CLOSURE},
+    {"cmp", DOP_COMPARE},
+    {"div", DOP_DIVIDE},
+    {"divim", DOP_DIVIDE_IMMEDIATE},
+    {"divi", DOP_DIVIDE_INTEGER},
+    {"divr", DOP_DIVIDE_REAL},
+    {"eq", DOP_EQUALS},
+    {"err", DOP_ERROR},
     {"get", DOP_GET},
-    {"get-index", DOP_GET_INDEX},
-    {"greater-than", DOP_GREATER_THAN},
-    {"jump", DOP_JUMP},
-    {"jump-if", DOP_JUMP_IF},
-    {"jump-if-not", DOP_JUMP_IF_NOT},
-    {"less-than", DOP_LESS_THAN},
-    {"load-constant", DOP_LOAD_CONSTANT},
-    {"load-false", DOP_LOAD_FALSE},
-    {"load-integer", DOP_LOAD_INTEGER},
-    {"load-nil", DOP_LOAD_NIL},
-    {"load-self", DOP_LOAD_SELF},
-    {"load-true", DOP_LOAD_TRUE},
-    {"load-upvalue", DOP_LOAD_UPVALUE},
-    {"move-far", DOP_MOVE_FAR},
-    {"move-near", DOP_MOVE_NEAR},
-    {"multiply", DOP_MULTIPLY},
-    {"multiply-immediate", DOP_MULTIPLY_IMMEDIATE},
-    {"multiply-integer", DOP_MULTIPLY_INTEGER},
-    {"multiply-real", DOP_MULTIPLY_REAL},
+    {"geti", DOP_GET_INDEX},
+    {"gt", DOP_GREATER_THAN},
+    {"jmp", DOP_JUMP},
+    {"jmpi", DOP_JUMP_IF},
+    {"jmpn", DOP_JUMP_IF_NOT},
+    {"lt", DOP_LESS_THAN},
+    {"lc", DOP_LOAD_CONSTANT},
+    {"lf", DOP_LOAD_FALSE},
+    {"li", DOP_LOAD_INTEGER},
+    {"ln", DOP_LOAD_NIL},
+    {"ls", DOP_LOAD_SELF},
+    {"lt", DOP_LOAD_TRUE},
+    {"lu", DOP_LOAD_UPVALUE},
+    {"movf", DOP_MOVE_FAR},
+    {"movn", DOP_MOVE_NEAR},
+    {"mul", DOP_MULTIPLY},
+    {"mulim", DOP_MULTIPLY_IMMEDIATE},
+    {"muli", DOP_MULTIPLY_INTEGER},
+    {"mulr", DOP_MULTIPLY_REAL},
     {"noop", DOP_NOOP},
     {"push", DOP_PUSH},
-    {"push-array", DOP_PUSH_ARRAY},
+    {"pusha", DOP_PUSH_ARRAY},
     {"push2", DOP_PUSH_2},
     {"push3", DOP_PUSH_3},
     {"put", DOP_PUT},
-    {"put-index", DOP_PUT_INDEX},
-    {"return", DOP_RETURN},
-    {"return-nil", DOP_RETURN_NIL},
-    {"set-upvalue", DOP_SET_UPVALUE},
-    {"shift-left", DOP_SHIFT_LEFT},
-    {"shift-left-immediate", DOP_SHIFT_LEFT_IMMEDIATE},
-    {"shift-right", DOP_SHIFT_RIGHT},
-    {"shift-right-immediate", DOP_SHIFT_RIGHT_IMMEDIATE},
-    {"shift-right-unsigned", DOP_SHIFT_RIGHT_UNSIGNED},
-    {"shift-right-unsigned-immediate", DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
-    {"subtract", DOP_SUBTRACT},
-    {"tailcall", DOP_TAILCALL},
-    {"transfer", DOP_TRANSFER},
-    {"typecheck", DOP_TYPECHECK},
+    {"puti", DOP_PUT_INDEX},
+    {"ret", DOP_RETURN},
+    {"retn", DOP_RETURN_NIL},
+    {"setu", DOP_SET_UPVALUE},
+    {"sl", DOP_SHIFT_LEFT},
+    {"slim", DOP_SHIFT_LEFT_IMMEDIATE},
+    {"sr", DOP_SHIFT_RIGHT},
+    {"srim", DOP_SHIFT_RIGHT_IMMEDIATE},
+    {"sru", DOP_SHIFT_RIGHT_UNSIGNED},
+    {"sruim", DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
+    {"sub", DOP_SUBTRACT},
+    {"tcall", DOP_TAILCALL},
+    {"tran", DOP_TRANSFER},
+    {"tchck", DOP_TYPECHECK}
 };
 
 /* Check a dst string against a bunch of test_strings. Return the 
@@ -653,21 +653,23 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     /* Check for source mapping */
     x = dst_get(s, dst_csymbolv("sourcemap"));
     if (dst_seq_view(x, &arr, &count)) {
-        dst_asm_assert(&a, count == 2 * def->bytecode_length, "sourcemap must have twice the length of the bytecode");
+        dst_asm_assert(&a, count == def->bytecode_length, "sourcemap must have the same length as the bytecode");
         def->sourcemap = malloc(sizeof(int32_t) * 2 * count);
-        for (i = 0; i < count; i += 2) {
-            Dst start = arr[i];
-            Dst end = arr[i + 1];
-            if (!(dst_checktype(start, DST_INTEGER) ||
-                dst_unwrap_integer(start) < 0)) {
-                dst_asm_error(&a, "expected positive integer");
+        for (i = 0; i < count; i++) {
+            const Dst *tup;
+            Dst entry = arr[i];
+            if (!dst_checktype(entry, DST_TUPLE)) {
+                dst_asm_error(&a, "expected tuple");
             }
-            if (!(dst_checktype(end, DST_INTEGER) ||
-                dst_unwrap_integer(end) < 0)) {
-                dst_asm_error(&a, "expected positive integer");
+            tup = dst_unwrap_tuple(entry);
+            if (!dst_checktype(tup[0], DST_INTEGER)) {
+                dst_asm_error(&a, "expected integer");
             }
-            def->sourcemap[i] = dst_unwrap_integer(start);
-            def->sourcemap[i+1] = dst_unwrap_integer(end);
+            if (!dst_checktype(tup[1], DST_INTEGER)) {
+                dst_asm_error(&a, "expected integer");
+            }
+            def->sourcemap[2*i] = dst_unwrap_integer(tup[0]);
+            def->sourcemap[2*i+1] = dst_unwrap_integer(tup[1]);
         }
     }
 
@@ -825,11 +827,14 @@ Dst dst_disasm(DstFuncDef *def) {
 
     /* Add source map */
     if (NULL != def->sourcemap) {
-        DstArray *sourcemap = dst_array(def->bytecode_length * 2);
-        for (i = 0; i < def->bytecode_length * 2; i++) {
-            sourcemap->data[i] = dst_wrap_integer(def->sourcemap[i]);
+        DstArray *sourcemap = dst_array(def->bytecode_length);
+        for (i = 0; i < def->bytecode_length * 2; i += 2) {
+            Dst *t = dst_tuple_begin(2);
+            t[0] = dst_wrap_integer(def->sourcemap[i]);
+            t[1] = dst_wrap_integer(def->sourcemap[i + 1]);
+            sourcemap->data[i / 2] = dst_wrap_tuple(dst_tuple_end(t));
         }
-        sourcemap->count = def->bytecode_length * 2;
+        sourcemap->count = def->bytecode_length;
         dst_table_put(ret, dst_csymbolv("sourcemap"), dst_wrap_array(sourcemap));
     }
 
