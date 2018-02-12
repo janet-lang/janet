@@ -37,6 +37,7 @@ DstFiber *dst_fiber(int32_t capacity) {
         fiber->data = NULL;
     }
     fiber->parent = NULL;
+    fiber->maxstack = DST_STACK_MAX;
     return dst_fiber_reset(fiber);
 }
 

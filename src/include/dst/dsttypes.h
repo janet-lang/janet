@@ -314,6 +314,7 @@ struct DstFiber {
     int32_t stackstart; /* Beginning of next args */
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
     int32_t capacity;
+    int32_t maxstack; /* Arbitrary defined limit for stack overflow */
     enum {
         DST_FIBER_PENDING,
         DST_FIBER_NEW,

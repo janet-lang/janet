@@ -572,11 +572,10 @@ static void *op_lookup[255] = {
     VM_OP(DOP_CALL)
     {
         Dst callee = stack[oparg(2, 0xFFFF)];
-#ifdef DST_STACK_MAX
-        if (dst_vm_fiber->stacktop > DST_STACK_MAX) {
+        if (dst_vm_fiber->maxstack &&
+                dst_vm_fiber->stacktop > dst_vm_fiber->maxstack) {
             vm_throw("stack overflow");
         }
-#endif
         if (dst_checktype(callee, DST_FUNCTION)) {
             func = dst_unwrap_function(callee);
             dst_stack_frame(stack)->pc = pc;
