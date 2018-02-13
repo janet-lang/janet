@@ -402,8 +402,7 @@ struct DstFuncEnv {
 /* A function */
 struct DstFunction {
     DstFuncDef *def;
-    /* Consider allocating envs with entire function struct */
-    DstFuncEnv **envs;
+    DstFuncEnv *envs[];
 };
 
 /* Defines an abstract type */

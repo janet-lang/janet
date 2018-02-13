@@ -230,6 +230,7 @@ void dst_fiber_cframe(DstFiber *fiber) {
     newframe->prevframe = oldframe;
     newframe->pc = NULL;
     newframe->func = NULL;
+    newframe->env = NULL;
 }
 
 /* Pop a stack frame from the fiber. Returns the new stack frame, or

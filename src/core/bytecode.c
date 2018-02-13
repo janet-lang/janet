@@ -217,7 +217,7 @@ DstFuncDef *dst_funcdef_alloc() {
     def->defs_length = 0;
     def->constants_length = 0;
     def->bytecode_length = 0;
-    def->environments_length = 1;
+    def->environments_length = 0;
     return def;
 }
 
@@ -225,7 +225,7 @@ DstFuncDef *dst_funcdef_alloc() {
 DstFunction *dst_thunk(DstFuncDef *def) {
     DstFunction *func = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
     func->def = def;
-    func->envs = NULL;
+    dst_assert(def->environments_length == 0, "tried to create thunk that needs upvalues");
     return func;
 }
 

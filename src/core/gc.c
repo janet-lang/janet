@@ -166,10 +166,9 @@ static void dst_mark_function(DstFunction *func) {
         return;
     dst_gc_mark(func);
     numenvs = func->def->environments_length;
-    if (NULL != func->envs)
-        for (i = 0; i < numenvs; ++i)
-            if (NULL != func->envs[i])
-                dst_mark_funcenv(func->envs[i]);
+    for (i = 0; i < numenvs; ++i) {
+        dst_mark_funcenv(func->envs[i]);
+    }
     dst_mark_funcdef(func->def);
 }
 
@@ -204,6 +203,7 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
     DstAbstractHeader *h = (DstAbstractHeader *)mem;
     switch (block->flags & DST_MEM_TYPEBITS) {
         default:
+        case DST_MEMORY_FUNCTION:
             break; /* Do nothing for non gc types */ 
         case DST_MEMORY_SYMBOL:
             dst_symbol_deinit((const uint8_t *)mem + 2 * sizeof(int32_t));
@@ -220,9 +220,6 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
         case DST_MEMORY_BUFFER:
             dst_buffer_deinit((DstBuffer *) mem);
             break; 
-        case DST_MEMORY_FUNCTION:
-            free(((DstFunction *)mem)->envs);
-            break;
         case DST_MEMORY_ABSTRACT:
             if (h->type->gc) {
                 if (h->type->gc((void *)(h + 1), h->size)) {

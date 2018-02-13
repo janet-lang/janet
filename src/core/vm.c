@@ -495,36 +495,30 @@ static void *op_lookup[255] = {
     {
         DstFuncDef *fd;
         DstFunction *fn;
+        int32_t elen;
         vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->defs_length, "invalid funcdef");
         fd = func->def->defs[(int32_t)oparg(2, 0xFFFF)];
-        fn = dst_thunk(fd);
+        elen = fd->environments_length;
+        fn = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction) + (elen * sizeof(DstFuncEnv *)));
+        fn->def = fd;
         {
-            int32_t elen = fd->environments_length;
-            if (elen) {
-                int32_t i;
-                fn->envs = malloc(sizeof(DstFuncEnv *) * elen);
-                if (NULL == fn->envs) {
-                    DST_OUT_OF_MEMORY;
-                }
-                for (i = 0; i < elen; ++i) {
-                    int32_t inherit = fd->environments[i];
-                    if (inherit == -1) {
-                        DstStackFrame *frame = (DstStackFrame *)stack - 1;
-                        if (!frame->env) {
-                            /* Lazy capture of current stack frame */
-                            DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
-                            env->offset = dst_vm_fiber->frame;
-                            env->as.fiber = dst_vm_fiber;
-                            env->length = func->def->slotcount;
-                            frame->env = env;
-                        }
-                        fn->envs[i] = frame->env;
-                    } else {
-                        fn->envs[i] = func->envs[inherit];
+            int32_t i;
+            for (i = 0; i < elen; ++i) {
+                int32_t inherit = fd->environments[i];
+                if (inherit == -1) {
+                    DstStackFrame *frame = (DstStackFrame *)stack - 1;
+                    if (!frame->env) {
+                        /* Lazy capture of current stack frame */
+                        DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
+                        env->offset = dst_vm_fiber->frame;
+                        env->as.fiber = dst_vm_fiber;
+                        env->length = func->def->slotcount;
+                        frame->env = env;
                     }
+                    fn->envs[i] = frame->env;
+                } else {
+                    fn->envs[i] = func->envs[inherit];
                 }
-            } else {
-                fn->envs = NULL;
             }
         }
         stack[oparg(1, 0xFF)] = dst_wrap_function(fn);
