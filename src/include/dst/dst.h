@@ -193,6 +193,7 @@ int dst_init(void);
 void dst_deinit(void);
 int dst_run(Dst callee, Dst *returnreg);
 int dst_call(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv);
+int dst_call_suspend(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv);
 
 /* C Function helpers */
 #define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)

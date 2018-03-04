@@ -825,7 +825,7 @@ recur:
                                     dstc_cerror(c, ast, "macro expansion recursed too deeply");
                                     return dstc_cslot(dst_wrap_nil());
                                 } else {
-                                    status = dst_call(fn, &x, dst_tuple_length(tup) - 1, tup + 1);
+                                    status = dst_call_suspend(fn, &x, dst_tuple_length(tup) - 1, tup + 1);
                                     if (status) {
                                         dstc_cerror(c, ast, "error in macro expansion");
                                     }

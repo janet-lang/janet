@@ -1,24 +1,38 @@
-A collection of thoughts and todo tasks for the project.
+# Thoughts
 
-- Track depth of C stack in vm. While the VM is stackless, C functions can create
-  new VM stack frames as needed. We should provide a configurable hard limit on
-  stack that will simply error out immediately. This would prevent a stack overflow.
+A collection of thoughts and todo tasks for the project.
 
 - Allow entrances into the VM to track the size of the stack when they entered, and return
   when the stack is less that. This would make calling dst functions from C feasible (
   The programmer would still have to ensure no GC violations).
+
+  Instead, we can just keep allocating new Fibers when we call a dst function from C. A pool
+  of fibers would mostly mitigate the overhead of allocation. (going with this).
+
+  We can now call into dst from C without suspending the entire garbage collector. A separate
+  function does exactly that.
 
 - Make unknown instruction in vm trap and put current fiber in a new state, 'debug'.
   This could allow implementation of a debugger. Since opcodes are encoded in one byte,
   we can use the most significant bit (0x80) to set breakpoints in code, assuming all valid
   opcodes are in the range [0, 127]. The debugger could simply set the MSB of the opcode for each
   instruction that was marked. This would allow debugging with 0 overhead.
-  
+ 
   We could also add a debugger instruction, much like JavaScripts debugger; statement very easily.
 
   Lastly, to make continuation after a breakpoint easier, stopping on the first instruction
   could be optional. This could be as simple as selecting the first 7 bits of the instructions
   instead of the usual 8 for the very instruction executed after entering the vm loop.
+
+  What exactly should happen on a trapped instruction is another issue. It would be preferable
+  for the runtime to be able to handle a trap in dst, but allow nested fibers to not capture
+  debugging signals unless needed.
+
+  Fiber's currently propagate all states to their direct parent, but perhaps each fiber
+  could have a mask for different signals - error, debug, return. So a single fiber could
+  say capture returns, error, but not debug. Possibly like try - catch in other languages, where
+  we only catch certain kinds of errors. The default fiber would be to only mask debug, so a single fiber
+  could wrap an entire running application for debugging.
 
 - Remove the concept of 'Ast node'. While providing fine-grained source mapping is
   is reasonably useful, it complicates the implementation of macros and other source
@@ -34,7 +48,17 @@ A collection of thoughts and todo tasks for the project.
   which potentially duplicates a fair amount of data. Macros would be easier to write without
   needing to either unwrap ast values or sacrifice all source mapping.
 
-- Serialization and deserialization of all datatypes. This would allow
+- Keep track of source file information in the compiler. The compiler could simply accept
+  and extra argument, sourcefile, which woud append the appropriate metadata to all function
+  definitions generated with this one form.
+
+- Serialization and deserialization of all datatypes. This would allow loading of bytecode
+  without needing the compiler present. However, loading C functions is currently problamatic.
+  C functions could perhaps be wrapped in data structures that contain some meta information
+  about them, say home module and types. This could also allow some automated type checking for
+  C functions rather than writing it manually. Some slight overhead could perhaps be compensated
+  for by adding optional ommission of typechecking later for C functions if it can be statically
+  shown the types are sound.
 
 - Better support for custom user datatypes. Tables and structs do work well for creating
   custom 'objects' and records, but lack ability to differentiate between object style
@@ -64,5 +88,9 @@ A collection of thoughts and todo tasks for the project.
   by symbol. The current compiler does not do full SSA optimization, so named values
   are always accessible in the stack when in scope.
 
+- Create a pool for fibers. Whlie the general purpose allocator and GC can be made more efficient,
+  Fiber's can be well pooled because the allocated stack is large and can be reused. The stack
+  size parameter on dst_fiber could simply become the minimum memory allocated for the stack. (Do
+  a linear search throught the pool).
 
 - Implement multi-methods. 

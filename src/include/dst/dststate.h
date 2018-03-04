@@ -37,6 +37,9 @@ extern const char *dst_type_names[16];
 /* The VM state. Rather than a struct that is passed
  * around, the vm state is global for simplicity. */
 
+/* How many VM stacks have been entered */
+extern int dst_vm_stackn;
+
 /* Garbage collection */
 extern void *dst_vm_blocks;
 extern uint32_t dst_vm_gc_interval;
