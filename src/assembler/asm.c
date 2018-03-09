@@ -86,6 +86,7 @@ static const DstInstructionDef dst_ops[] = {
     {"call", DOP_CALL},
     {"clo", DOP_CLOSURE},
     {"cmp", DOP_COMPARE},
+    {"debug", DOP_DEBUG},
     {"div", DOP_DIVIDE},
     {"divim", DOP_DIVIDE_IMMEDIATE},
     {"divi", DOP_DIVIDE_INTEGER},

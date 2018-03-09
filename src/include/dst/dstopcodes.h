@@ -118,6 +118,7 @@ enum DstOpCode {
     DOP_GET_INDEX,
     DOP_PUT_INDEX,
     DOP_LENGTH,
+    DOP_DEBUG,
     DOP_INSTRUCTION_COUNT
 };
 

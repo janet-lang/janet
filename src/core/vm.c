@@ -30,19 +30,16 @@ DstFiber *dst_vm_fiber = NULL;
 int dst_vm_stackn = 0;
 
 /* Helper to ensure proper fiber is activated after returning */
-static int dst_update_fiber() {
+static int dst_update_fiber(uint32_t mask) {
     if (dst_vm_fiber->frame == 0) {
         dst_vm_fiber->status = DST_FIBER_DEAD;
     }
     while (dst_vm_fiber->status == DST_FIBER_DEAD ||
-            dst_vm_fiber->status == DST_FIBER_ERROR) {
+            dst_vm_fiber->status == DST_FIBER_ERROR ||
+            dst_vm_fiber->status == DST_FIBER_DEBUG ||
+            dst_vm_fiber->flags & mask) {
         if (NULL != dst_vm_fiber->parent) {
             dst_vm_fiber = dst_vm_fiber->parent;
-            if (dst_vm_fiber->status == DST_FIBER_ALIVE) {
-                /* If the parent thread is still alive,
-                   we are inside a cfunction */
-                return 1;
-            }
         } else {
             /* The root thread has terminated */
             return 1;
@@ -139,6 +136,7 @@ static void *op_lookup[255] = {
     &&label_DOP_GET_INDEX,
     &&label_DOP_PUT_INDEX,
     &&label_DOP_LENGTH,
+    &&label_DOP_DEBUG,
     &&label_unknown_op
 };
 #else
@@ -204,16 +202,13 @@ static void *op_lookup[255] = {
 
     vm_init_fiber_state();
 
-    /* Main interpreter loop. It is large, but it is
-     * is maintainable. Adding new opcodes is mostly just adding newcases
-     * to this loop, adding the opcode to opcodes.h, and adding it to the assembler.
-     * Some opcodes, especially ones that do arithmetic, are almost entirely
-     * templated by the above macros. */
+    /* Main interpreter loop. Sematically is a switch on
+     * (*pc & 0xFF) inside of an infinte loop. */
     VM_START();
 
     VM_DEFAULT();
-    retreg = dst_wrap_string(dst_formatc("unknown opcode %d", *pc & 0xFF));
-    goto vm_error;
+    VM_OP(DOP_DEBUG)
+    goto vm_debug;
 
     VM_OP(DOP_NOOP)
     pc++;
@@ -707,60 +702,78 @@ static void *op_lookup[255] = {
     vm_return_cfunc:
     {
         dst_fiber_popframe(dst_vm_fiber);
-        if (dst_update_fiber()) {
-            *returnreg = retreg;
-            dst_vm_stackn--;
-            return 0;
-        }
+        if (dst_update_fiber(DST_FIBER_MASK_RETURN)) goto vm_exit_value;
         stack = dst_vm_fiber->data + dst_vm_fiber->frame;
         stack[oparg(1, 0xFF)] = retreg;
         pc++;
         vm_checkgc_next();
     }
 
+    /* Return from a cfunction that is in tail position (pop 2 stack frames) */
     vm_return_cfunc_tail:
     {
         dst_fiber_popframe(dst_vm_fiber);
-        if (dst_update_fiber()) {
-            *returnreg = retreg;
-            dst_vm_stackn--;
-            return 0;
-        }
-        /* Fall through to normal return */
+        if (dst_update_fiber(DST_FIBER_MASK_RETURN)) goto vm_exit_value;
+        goto vm_return;
     }
 
     /* Handle returning from stack frame. Expect return value in retreg */
     vm_return:
     {
         dst_fiber_popframe(dst_vm_fiber);
-        if (dst_update_fiber()) {
-            *returnreg = retreg;
-            dst_vm_stackn--;
-            return 0;
-        }
-        stack = dst_vm_fiber->data + dst_vm_fiber->frame;
-        func = dst_stack_frame(stack)->func;
-        pc = dst_stack_frame(stack)->pc;
-        stack[oparg(1, 0xFF)] = retreg;
-        pc++;
-        vm_checkgc_next();
+        if (dst_update_fiber(DST_FIBER_MASK_RETURN)) goto vm_exit_value;
+        goto vm_reset;
     }
 
     /* Handle errors from c functions and vm opcodes */
     vm_error:
     {
         dst_vm_fiber->status = DST_FIBER_ERROR;
-        if (dst_update_fiber()) {
-            *returnreg = retreg;
-            dst_vm_stackn--;
-            return 1;
-        }
+        if (dst_update_fiber(DST_FIBER_MASK_ERROR)) goto vm_exit_error;
+        goto vm_reset;
+    }
+
+    /* Handle debugger interrupts */
+    vm_debug:
+    {
+        dst_vm_fiber->status = DST_FIBER_DEBUG;
+        if (dst_update_fiber(DST_FIBER_MASK_DEBUG)) goto vm_exit_debug;
+        goto vm_reset;
+    }
+
+    /* Reset state of machine */
+    vm_reset:
+    {
         stack = dst_vm_fiber->data + dst_vm_fiber->frame;
         func = dst_stack_frame(stack)->func;
         pc = dst_stack_frame(stack)->pc;
         stack[oparg(1, 0xFF)] = retreg;
         pc++;
         vm_checkgc_next();
+    }   
+
+    /* Exit loop with return value */
+    vm_exit_value:
+    {
+        *returnreg = retreg;
+        dst_vm_stackn--;
+        return 0;
+    }
+
+    /* Exit loop with error value */
+    vm_exit_error:
+    {
+        *returnreg = retreg;
+        dst_vm_stackn--;
+        return 1;
+    }
+
+    /* Exit loop with debug */
+    vm_exit_debug:
+    {
+        *returnreg = dst_wrap_nil();
+        dst_vm_stackn--;
+        return 2;
     }
     
     VM_END()

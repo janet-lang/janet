@@ -192,6 +192,9 @@ int dst_core_fiber_status(DstArgs args) {
         case DST_FIBER_ERROR:
             status = ":error";
             break;
+        case DST_FIBER_DEBUG:
+            status = ":debug";
+            break;
     }
     return dst_return(args, dst_csymbolv(status));
 }

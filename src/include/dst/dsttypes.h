@@ -305,6 +305,11 @@ struct DstArgs {
     Dst *ret;
 };
 
+/* Fiber signal masks */
+#define DST_FIBER_MASK_RETURN 1
+#define DST_FIBER_MASK_ERROR 2
+#define DST_FIBER_MASK_DEBUG 4
+
 /* A lightweight green thread in dst. Does not correspond to
  * operating system threads. */
 struct DstFiber {
@@ -315,12 +320,14 @@ struct DstFiber {
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
     int32_t capacity;
     int32_t maxstack; /* Arbitrary defined limit for stack overflow */
+    uint32_t flags; /* Various flags */
     enum {
         DST_FIBER_PENDING,
         DST_FIBER_NEW,
         DST_FIBER_ALIVE,
         DST_FIBER_DEAD,
-        DST_FIBER_ERROR
+        DST_FIBER_ERROR,
+        DST_FIBER_DEBUG
     } status;
 };
 
