@@ -114,13 +114,16 @@
         ret)
  })
 
-(defn onerr [t e]
- (print (string t " error: " e)))
+# Compile time
 
 (var *read* nil)
 (var *onvalue* identity)
+(var *env* _env)
 
 (def require-loading @{})
+
+(defn onerr [t e]
+ (print (string t " error: " e)))
 
 (defn char-stream [getchunk ondone]
  (fiber (fn [parent]
@@ -197,7 +200,7 @@
   (def wrapper (fiber (fn []
     (while *read*
       (def source (*read*))
-      (def res (compile source _env))
+      (def res (compile source *env*))
       (if (= (type res) :function)
         (*onvalue* (res))
         (onerr "compile" (get res :error)))))))

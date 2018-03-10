@@ -43,6 +43,7 @@ DstTable *dst_table_init(DstTable *table, int32_t capacity) {
     }
     table->count = 0;
     table->deleted = 0;
+    table->proto = NULL;
     return table;
 }
 
@@ -114,8 +115,25 @@ static void dst_table_rehash(DstTable *t, int32_t size) {
     free(olddata);
 }
 
-/* Get a value out of the object */
+/* Get a value out of the table */
 Dst dst_table_get(DstTable *t, Dst key) {
+    DstKV *bucket = dst_table_find(t, key);
+    if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL))
+        return bucket->value;
+    /* Check prototypes */
+    {
+        int i;
+        for (i = DST_MAX_PROTO_DEPTH, t = t->proto; t && i; t = t->proto, --i) {
+            bucket = dst_table_find(t, key);
+            if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL))
+                return bucket->value;
+        }
+    }
+    return dst_wrap_nil();
+}
+
+/* Get a value out of the table. Don't check prototype tables. */
+Dst dst_table_rawget(DstTable *t, Dst key) {
     DstKV *bucket = dst_table_find(t, key);
     if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL))
         return bucket->value;

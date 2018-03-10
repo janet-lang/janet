@@ -172,6 +172,33 @@ int dst_core_get(DstArgs args) {
     return dst_return(args, ds);
 }
 
+int dst_core_rawget(DstArgs args) {
+    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
+    if (!dst_checktype(args.v[0], DST_TABLE)) return dst_throw(args, "expected table");
+    return dst_return(args, dst_table_rawget(dst_unwrap_table(args.v[0]), args.v[1]));
+}
+
+int dst_core_getproto(DstArgs args) {
+    DstTable *t;
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    if (!dst_checktype(args.v[0], DST_TABLE)) return dst_throw(args, "expected table");
+    t = dst_unwrap_table(args.v[0]);
+    return dst_return(args, t->proto
+            ? dst_wrap_table(t->proto)
+            : dst_wrap_nil());
+}
+
+int dst_core_setproto(DstArgs args) {
+    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
+    if (!dst_checktype(args.v[0], DST_TABLE)) return dst_throw(args, "expected table");
+    if (!dst_checktype(args.v[1], DST_TABLE) && !dst_checktype(args.v[1], DST_NIL))
+        return dst_throw(args, "expected table");
+    dst_unwrap_table(args.v[0])->proto = dst_checktype(args.v[1], DST_TABLE)
+        ? dst_unwrap_table(args.v[1])
+        : NULL;
+    return dst_return(args, args.v[0]);
+}
+
 int dst_core_fiber_status(DstArgs args) {
     const char *status = "";
     if (args.n != 1) return dst_throw(args, "expected 1 argument");

@@ -120,6 +120,9 @@ extern "C" {
  * ands crashing (the parser). Instead, error out. */
 #define DST_RECURSION_GUARD 1024
 
+/* Maximum depth to follow table prototypes before giving up and returning nil. */
+#define DST_MAX_PROTO_DEPTH 200
+
 /* Define max stack size for stacks before raising a stack overflow error.
  * If this is not defined, fiber stacks can grow without limit (until memory
  * runs out) */

@@ -359,6 +359,7 @@ struct DstBuffer {
 /* A mutable associative data type. Backed by a hashtable. */
 struct DstTable {
     DstKV *data;
+    DstTable *proto;
     int32_t count;
     int32_t capacity;
     int32_t deleted;

@@ -109,10 +109,15 @@ static void dst_mark_array(DstArray *array) {
 }
 
 static void dst_mark_table(DstTable *table) {
+    recur: /* Manual tail recursion */
     if (dst_gc_reachable(table))
         return;
     dst_gc_mark(table);
     dst_mark_kvs(table->data, table->capacity);
+    if (table->proto) {
+        table = table->proto;
+        goto recur;
+    }
 }
 
 static void dst_mark_struct(const DstKV *st) {

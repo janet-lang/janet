@@ -120,6 +120,7 @@ DstTable *dst_table(int32_t capacity);
 DstTable *dst_table_init(DstTable *table, int32_t capacity);
 void dst_table_deinit(DstTable *table);
 Dst dst_table_get(DstTable *t, Dst key);
+Dst dst_table_rawget(DstTable *t, Dst key);
 Dst dst_table_remove(DstTable *t, Dst key);
 void dst_table_put(DstTable *t, Dst key, Dst value);
 const DstKV *dst_table_next(DstTable *t, const DstKV *kv);
