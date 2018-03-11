@@ -137,10 +137,9 @@ int dst_core_struct(DstArgs args) {
 int dst_core_fiber(DstArgs args) {
     DstFiber *fiber;
     if (args.n < 1) return dst_throw(args, "expected at least one argument");
-    if (!dst_checktype(args.v[0], DST_FUNCTION)) return dst_throw(args, "expected a function");
-    fiber = dst_fiber(64);
-    fiber->parent = dst_vm_fiber;
-    dst_fiber_funcframe(fiber, dst_unwrap_function(args.v[0]));
+    if (!dst_checktype(args.v[0], DST_FUNCTION))
+        return dst_throw(args, "expected a function");
+    fiber = dst_fiber(dst_unwrap_function(args.v[0]), 64);
     return dst_return(args, dst_wrap_fiber(fiber));
 }
 
@@ -224,10 +223,6 @@ int dst_core_fiber_status(DstArgs args) {
             break;
     }
     return dst_return(args, dst_csymbolv(status));
-}
-
-int dst_core_fiber_current(DstArgs args) {
-    return dst_return(args, dst_wrap_fiber(dst_vm_fiber));
 }
 
 int dst_core_put(DstArgs args) {

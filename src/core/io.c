@@ -249,8 +249,10 @@ static int dst_io_gc(void *p, size_t len) {
 static int dst_io_fclose(DstArgs args) {
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
-    if (iof->flags & (IO_CLOSED | IO_NOT_CLOSEABLE))
-        return dst_throw(args, "could not close file");
+    if (iof->flags & (IO_CLOSED))
+        return dst_throw(args, "file already closed");
+    if (iof->flags & (IO_NOT_CLOSEABLE))
+        return dst_throw(args, "file not closable");
     if (fclose(iof->file)) return dst_throw(args, "could not close file");
     iof->flags |= IO_CLOSED;
     return dst_return(args, dst_wrap_abstract(iof));

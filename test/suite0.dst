@@ -160,18 +160,18 @@
 (def afiber (fiber (fn [x]
 	(error (string "hello, " x)))))
 
-(def afiber-result (transfer afiber "world!"))
+(def afiber-result (resume afiber "world!"))
 
 (assert (= afiber-result "hello, world!") "fiber error result")
 (assert (= (fiber-status afiber) :error) "fiber error status")
 
 # yield tests
 
-(def t (fiber (fn [] (transfer nil 1) (yield 2) 3)))
+(def t (fiber (fn [] (yield 1) (yield 2) 3)))
 
-(assert (= 1 (transfer t)) "initial transfer to new fiber")
-(assert (= 2 (transfer t)) "second transfer to fiber")
-(assert (= 3 (transfer t)) "return from fiber")
+(assert (= 1 (resume t)) "initial transfer to new fiber")
+(assert (= 2 (resume t)) "second transfer to fiber")
+(assert (= 3 (resume t)) "return from fiber")
 (assert (= (fiber-status t) :dead) "finished fiber is dead")
 
 # Var arg tests

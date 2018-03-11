@@ -22,35 +22,15 @@
 
 #include <dst/dst.h>
 #include <dst/dstopcodes.h>
-#include "symcache.h"
+#include "fiber.h"
 #include "gc.h"
+#include "symcache.h"
 
-/* VM State */
-DstFiber *dst_vm_fiber = NULL;
+/* VM state */
 int dst_vm_stackn = 0;
 
-/* Helper to ensure proper fiber is activated after returning */
-static int dst_update_fiber(uint32_t mask) {
-    if (dst_vm_fiber->frame == 0) {
-        dst_vm_fiber->status = DST_FIBER_DEAD;
-    }
-    while (dst_vm_fiber->status == DST_FIBER_DEAD ||
-            dst_vm_fiber->status == DST_FIBER_ERROR ||
-            dst_vm_fiber->status == DST_FIBER_DEBUG ||
-            dst_vm_fiber->flags & mask) {
-        if (NULL != dst_vm_fiber->parent) {
-            dst_vm_fiber = dst_vm_fiber->parent;
-        } else {
-            /* The root thread has terminated */
-            return 1;
-        }
-    }
-    dst_vm_fiber->status = DST_FIBER_ALIVE;
-    return 0;
-}
-
 /* Start running the VM from where it left off. */
-static int dst_continue(Dst *returnreg) {
+Dst dst_run(DstFiber *fiber) {
 
     /* VM state */
     register Dst *stack;
@@ -63,10 +43,21 @@ static int dst_continue(Dst *returnreg) {
 
     /* Increment the stackn */
     if (dst_vm_stackn >= DST_RECURSION_GUARD) {
-        *returnreg = dst_cstringv("C stack recursed too deeply");
-        return 1;
+        fiber->status = DST_FIBER_ERROR;
+        return dst_cstringv("C stack recursed too deeply");
     }
     dst_vm_stackn++;
+
+    /* Reset fiber state */
+    if (fiber->flags & DST_FIBER_FLAG_NEW) {
+        dst_fiber_funcframe(fiber, fiber->root);
+        fiber->flags &= ~DST_FIBER_FLAG_NEW;
+    }
+    fiber->status = DST_FIBER_ALIVE;
+    dst_gcroot(dst_wrap_fiber(fiber));
+    stack = fiber->data + fiber->frame;
+    pc = dst_stack_frame(stack)->pc;
+    func = dst_stack_frame(stack)->func;
 
 /* Use computed gotos for GCC and clang, otherwise use switch */
 #ifdef __GNUC__
@@ -130,7 +121,8 @@ static void *op_lookup[255] = {
     &&label_DOP_PUSH_ARRAY,
     &&label_DOP_CALL,
     &&label_DOP_TAILCALL,
-    &&label_DOP_TRANSFER,
+    &&label_DOP_RESUME,
+    &&label_DOP_YIELD,
     &&label_DOP_GET,
     &&label_DOP_PUT,
     &&label_DOP_GET_INDEX,
@@ -147,7 +139,7 @@ static void *op_lookup[255] = {
 #define vm_next() continue
 #endif
 
-#define vm_checkgc_next() dst_maybe_collect(); vm_next()
+#define vm_checkgc_next() do { dst_maybe_collect(); vm_next() } while (0)
 
     /* Used to extract bits from the opcode that correspond to arguments.
      * Pulls out unsigned integers */
@@ -193,14 +185,6 @@ static void *op_lookup[255] = {
         pc++;\
         vm_next();\
     }
-
-#define vm_init_fiber_state() \
-    dst_vm_fiber->status = DST_FIBER_ALIVE;\
-    stack = dst_vm_fiber->data + dst_vm_fiber->frame;\
-    pc = dst_stack_frame(stack)->pc;\
-    func = dst_stack_frame(stack)->func;
-
-    vm_init_fiber_state();
 
     /* Main interpreter loop. Sematically is a switch on
      * (*pc & 0xFF) inside of an infinte loop. */
@@ -513,8 +497,8 @@ static void *op_lookup[255] = {
                     if (!frame->env) {
                         /* Lazy capture of current stack frame */
                         DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
-                        env->offset = dst_vm_fiber->frame;
-                        env->as.fiber = dst_vm_fiber;
+                        env->offset = fiber->frame;
+                        env->as.fiber = fiber;
                         env->length = func->def->slotcount;
                         frame->env = env;
                     }
@@ -527,29 +511,29 @@ static void *op_lookup[255] = {
         stack[oparg(1, 0xFF)] = dst_wrap_function(fn);
         pc++;
         vm_checkgc_next();
-    }
+    } 
 
     VM_OP(DOP_PUSH)
-        dst_fiber_push(dst_vm_fiber, stack[oparg(1, 0xFFFFFF)]);
+        dst_fiber_push(fiber, stack[oparg(1, 0xFFFFFF)]);
         pc++;
-        stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+        stack = fiber->data + fiber->frame;
         vm_checkgc_next();
 
     VM_OP(DOP_PUSH_2)
-        dst_fiber_push2(dst_vm_fiber, 
+        dst_fiber_push2(fiber, 
                 stack[oparg(1, 0xFF)],
                 stack[oparg(2, 0xFFFF)]);
     pc++;
-    stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+    stack = fiber->data + fiber->frame;
     vm_checkgc_next();
 
     VM_OP(DOP_PUSH_3)
-        dst_fiber_push3(dst_vm_fiber, 
+        dst_fiber_push3(fiber, 
                 stack[oparg(1, 0xFF)],
                 stack[oparg(2, 0xFF)],
                 stack[oparg(3, 0xFF)]);
     pc++;
-    stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+    stack = fiber->data + fiber->frame;
     vm_checkgc_next();
 
     VM_OP(DOP_PUSH_ARRAY)
@@ -557,35 +541,35 @@ static void *op_lookup[255] = {
         const Dst *vals;
         int32_t len;
         if (dst_seq_view(stack[oparg(1, 0xFFFFFF)], &vals, &len)) {
-            dst_fiber_pushn(dst_vm_fiber, vals, len);        
+            dst_fiber_pushn(fiber, vals, len);        
         } else {
             vm_throw("expected array/tuple");
         }
     }
     pc++;
-    stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+    stack = fiber->data + fiber->frame;
     vm_checkgc_next();
 
     VM_OP(DOP_CALL)
     {
         Dst callee = stack[oparg(2, 0xFFFF)];
-        if (dst_vm_fiber->maxstack &&
-                dst_vm_fiber->stacktop > dst_vm_fiber->maxstack) {
+        if (fiber->maxstack &&
+                fiber->stacktop > fiber->maxstack) {
             vm_throw("stack overflow");
         }
         if (dst_checktype(callee, DST_FUNCTION)) {
             func = dst_unwrap_function(callee);
             dst_stack_frame(stack)->pc = pc;
-            dst_fiber_funcframe(dst_vm_fiber, func);
-            stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+            dst_fiber_funcframe(fiber, func);
+            stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
             vm_checkgc_next();
         } else if (dst_checktype(callee, DST_CFUNCTION)) {
             DstArgs args;
-            args.n = dst_vm_fiber->stacktop - dst_vm_fiber->stackstart;
-            dst_fiber_cframe(dst_vm_fiber);
+            args.n = fiber->stacktop - fiber->stackstart;
+            dst_fiber_cframe(fiber);
             retreg = dst_wrap_nil();
-            args.v = dst_vm_fiber->data + dst_vm_fiber->frame;
+            args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
             if (dst_unwrap_cfunction(callee)(args)) {
                 goto vm_error;
@@ -600,16 +584,16 @@ static void *op_lookup[255] = {
         Dst callee = stack[oparg(1, 0xFFFFFF)];
         if (dst_checktype(callee, DST_FUNCTION)) {
             func = dst_unwrap_function(callee);
-            dst_fiber_funcframe_tail(dst_vm_fiber, func);
-            stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+            dst_fiber_funcframe_tail(fiber, func);
+            stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
             vm_checkgc_next();
         } else if (dst_checktype(callee, DST_CFUNCTION)) {
             DstArgs args;
-            args.n = dst_vm_fiber->stacktop - dst_vm_fiber->stackstart;
-            dst_fiber_cframe(dst_vm_fiber);
+            args.n = fiber->stacktop - fiber->stackstart;
+            dst_fiber_cframe(fiber);
             retreg = dst_wrap_nil();
-            args.v = dst_vm_fiber->data + dst_vm_fiber->frame;
+            args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
             if (dst_unwrap_cfunction(callee)(args)) {
                 goto vm_error;
@@ -619,50 +603,57 @@ static void *op_lookup[255] = {
         vm_throw("expected function");
     }
 
-    VM_OP(DOP_TRANSFER)
+    VM_OP(DOP_RESUME)
     {
-        int status;
         DstFiber *nextfiber;
-        DstStackFrame *frame = dst_stack_frame(stack);
-        Dst temp = stack[oparg(2, 0xFF)];
-        retreg = stack[oparg(3, 0xFF)];
-        vm_assert(dst_checktype(temp, DST_FIBER) ||
-                  dst_checktype(temp, DST_NIL), "expected fiber");
-        nextfiber = dst_checktype(temp, DST_FIBER)
-            ? dst_unwrap_fiber(temp)
-            : dst_vm_fiber->parent;
-        /* Check for root fiber */
-        if (NULL == nextfiber) {
-            frame->pc = pc;
-            *returnreg = retreg;
-            dst_vm_stackn--;
-            return 0;
+        Dst fiberval = stack[oparg(2, 0xFF)];
+        Dst val = stack[oparg(3, 0xFF)];
+        vm_assert(dst_checktype(fiberval, DST_FIBER), "expected fiber");
+        nextfiber = dst_unwrap_fiber(fiberval);
+        switch (nextfiber->status) {
+            default:
+                vm_throw("expected pending or new fiber");
+            case DST_FIBER_NEW:
+                {
+                    dst_fiber_push(nextfiber, val);
+                    dst_fiber_funcframe(nextfiber, nextfiber->root);
+                    nextfiber->flags &= ~DST_FIBER_FLAG_NEW;
+                    break;
+                }
+            case DST_FIBER_PENDING:
+                {
+                    DstStackFrame *nextframe = dst_fiber_frame(nextfiber);
+                    nextfiber->data[nextfiber->frame + ((*nextframe->pc >> 8) & 0xFF)] = val;
+                    nextframe->pc++;
+                    break;
+                }
         }
-        status = nextfiber->status;
-        vm_assert(status == DST_FIBER_PENDING ||
-                status == DST_FIBER_NEW, "can only transfer to new or pending fiber");
-        frame->pc = pc;
-        dst_vm_fiber->status = DST_FIBER_PENDING;
-        dst_vm_fiber = nextfiber;
-        vm_init_fiber_state();
-        if (status == DST_FIBER_PENDING) {
-            /* The next fiber is currently on a transfer instruction. */
-            stack[oparg(1, 0xFF)] = retreg;
-            pc++;
-        } else {
-            /* The next fiber is new and is on the first instruction */
-            if ((func->def->flags & DST_FUNCDEF_FLAG_VARARG) &&
-                    !func->def->arity) {
-                /* Fully var arg function */
-                Dst *tup = dst_tuple_begin(1);
-                tup[0] = retreg;
-                stack[0] = dst_wrap_tuple(dst_tuple_end(tup));
-            } else if (func->def->arity) {
-                /* Non zero arity function */
-                stack[0] = retreg;
-            }
+        fiber->child = nextfiber;
+        retreg = dst_run(nextfiber);
+        switch (nextfiber->status) {
+            case DST_FIBER_DEBUG:
+                if (fiber->flags & DST_FIBER_MASK_DEBUG) goto vm_debug;
+                fiber->child = NULL;
+                break;
+            case DST_FIBER_ERROR:
+                if (fiber->flags & DST_FIBER_MASK_ERROR) goto vm_error;
+                fiber->child = NULL;
+                break;
+            default:
+                fiber->child = NULL;
+                if (fiber->flags & DST_FIBER_MASK_RETURN) goto vm_return_root;
+                break;
         }
+        stack[oparg(1, 0xFF)] = retreg;
+        pc++;
         vm_checkgc_next();
+    }
+
+    VM_OP(DOP_YIELD)
+    {
+        retreg = stack[oparg(2, 0xFFFF)];
+        fiber->status = DST_FIBER_PENDING;
+        goto vm_exit;
     }
 
     VM_OP(DOP_PUT)
@@ -698,12 +689,12 @@ static void *op_lookup[255] = {
     ++pc;
     vm_next();
 
-    /* Return from c function. Simpler than retuning from dst function */
+    /* Return from c function. Simpler than returning from dst function */
     vm_return_cfunc:
     {
-        dst_fiber_popframe(dst_vm_fiber);
-        if (dst_update_fiber(DST_FIBER_MASK_RETURN)) goto vm_exit_value;
-        stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+        dst_fiber_popframe(fiber);
+        if (fiber->frame == 0) goto vm_return_root;
+        stack = fiber->data + fiber->frame;
         stack[oparg(1, 0xFF)] = retreg;
         pc++;
         vm_checkgc_next();
@@ -712,39 +703,54 @@ static void *op_lookup[255] = {
     /* Return from a cfunction that is in tail position (pop 2 stack frames) */
     vm_return_cfunc_tail:
     {
-        dst_fiber_popframe(dst_vm_fiber);
-        if (dst_update_fiber(DST_FIBER_MASK_RETURN)) goto vm_exit_value;
-        goto vm_return;
+        dst_fiber_popframe(fiber);
+        dst_fiber_popframe(fiber);
+        if (fiber->frame == 0) goto vm_return_root;
+        goto vm_reset;
     }
 
     /* Handle returning from stack frame. Expect return value in retreg */
     vm_return:
     {
-        dst_fiber_popframe(dst_vm_fiber);
-        if (dst_update_fiber(DST_FIBER_MASK_RETURN)) goto vm_exit_value;
+        dst_fiber_popframe(fiber);
+        if (fiber->frame == 0) goto vm_return_root;
         goto vm_reset;
+    }
+
+    /* Exit loop with return value */
+    vm_return_root:
+    {
+        fiber->status = DST_FIBER_DEAD;
+        goto vm_exit;
     }
 
     /* Handle errors from c functions and vm opcodes */
     vm_error:
     {
-        dst_vm_fiber->status = DST_FIBER_ERROR;
-        if (dst_update_fiber(DST_FIBER_MASK_ERROR)) goto vm_exit_error;
-        goto vm_reset;
+        fiber->status = DST_FIBER_ERROR;
+        goto vm_exit;
     }
 
     /* Handle debugger interrupts */
     vm_debug:
     {
-        dst_vm_fiber->status = DST_FIBER_DEBUG;
-        if (dst_update_fiber(DST_FIBER_MASK_DEBUG)) goto vm_exit_debug;
-        goto vm_reset;
+        fiber->status = DST_FIBER_DEBUG;
+        goto vm_exit;
+    }
+
+    /* Exit from vm loop */
+    vm_exit:
+    {
+        dst_stack_frame(stack)->pc = pc;
+        dst_vm_stackn--;
+        dst_gcunroot(dst_wrap_fiber(fiber));
+        return retreg;
     }
 
     /* Reset state of machine */
     vm_reset:
     {
-        stack = dst_vm_fiber->data + dst_vm_fiber->frame;
+        stack = fiber->data + fiber->frame;
         func = dst_stack_frame(stack)->func;
         pc = dst_stack_frame(stack)->pc;
         stack[oparg(1, 0xFF)] = retreg;
@@ -752,30 +758,6 @@ static void *op_lookup[255] = {
         vm_checkgc_next();
     }   
 
-    /* Exit loop with return value */
-    vm_exit_value:
-    {
-        *returnreg = retreg;
-        dst_vm_stackn--;
-        return 0;
-    }
-
-    /* Exit loop with error value */
-    vm_exit_error:
-    {
-        *returnreg = retreg;
-        dst_vm_stackn--;
-        return 1;
-    }
-
-    /* Exit loop with debug */
-    vm_exit_debug:
-    {
-        *returnreg = dst_wrap_nil();
-        dst_vm_stackn--;
-        return 2;
-    }
-    
     VM_END()
 
 #undef oparg
@@ -786,81 +768,33 @@ static void *op_lookup[255] = {
 #undef vm_binop_real
 #undef vm_binop_integer
 #undef vm_binop_immediate
-#undef vm_init_fiber_state
 
 }
-
-/* Run the vm with a given function. This function is
- * called to start the vm. */
-int dst_run(Dst callee, Dst *returnreg) {
-    if (dst_vm_fiber) {
-       dst_fiber_reset(dst_vm_fiber); 
-    } else {
-        dst_vm_fiber = dst_fiber(64);
+    
+Dst dst_resume(DstFiber *fiber, int32_t argn, const Dst *argv) {
+    switch (fiber->status) {
+        default:
+            dst_exit("expected new or pending or fiber");
+        case DST_FIBER_NEW:
+            {
+                int32_t i;
+                for (i = 0; i < argn; i++)
+                    dst_fiber_push(fiber, argv[i]);
+                dst_fiber_funcframe(fiber, fiber->root);
+                fiber->flags &= ~DST_FIBER_FLAG_NEW;
+                break;
+            }
+        case DST_FIBER_PENDING:
+            {
+                DstStackFrame *frame = dst_fiber_frame(fiber);
+                fiber->data[fiber->frame + ((*frame->pc >> 8) & 0xFF)] = argn > 0
+                    ? argv[0]
+                    : dst_wrap_nil();
+                frame->pc++;
+                break;
+            }
     }
-    if (dst_checktype(callee, DST_CFUNCTION)) {
-        DstArgs args;
-        *returnreg = dst_wrap_nil();
-        dst_fiber_cframe(dst_vm_fiber);
-        args.n = 0;
-        args.v = dst_vm_fiber->data + dst_vm_fiber->frame;
-        args.ret = returnreg;
-        return dst_unwrap_cfunction(callee)(args);
-    } else if (dst_checktype(callee, DST_FUNCTION)) {
-        dst_fiber_funcframe(dst_vm_fiber, dst_unwrap_function(callee));
-        return dst_continue(returnreg);
-    }
-    *returnreg = dst_cstringv("expected function");
-    return 1;
-}
-
-/* Helper for calling a function */
-static int dst_call_help(Dst callee, Dst *returnreg, int32_t argn, const Dst* argv) {
-    dst_vm_fiber = dst_fiber(64);
-    dst_fiber_pushn(dst_vm_fiber, argv, argn);
-    if (dst_checktype(callee, DST_CFUNCTION)) {
-        DstArgs args;
-        *returnreg = dst_wrap_nil();
-        dst_fiber_cframe(dst_vm_fiber);
-        args.n = argn;
-        args.v = dst_vm_fiber->data + dst_vm_fiber->frame;
-        args.ret = returnreg;
-        return dst_unwrap_cfunction(callee)(args);
-    } else if (dst_checktype(callee, DST_FUNCTION)) {
-        dst_fiber_funcframe(dst_vm_fiber, dst_unwrap_function(callee));
-        return dst_continue(returnreg);
-    } else {
-        *returnreg = dst_cstringv("expected function");
-        return 1;
-    }
-}
-
-/* Run from inside a cfunction. This should only be used for
- * short functions as it prevents re-entering the current fiber
- * and suspend garbage collection. Currently used in the compiler
- * for macro evaluation. */
-int dst_call_suspend(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv) {
-    int ret;
-    int lock;
-    DstFiber *oldfiber = dst_vm_fiber;
-    lock = dst_vm_gc_suspend++;
-    ret = dst_call_help(callee, returnreg, argn, argv);
-    dst_vm_fiber = oldfiber;
-    dst_vm_gc_suspend = lock;
-    return ret;
-}
-
-/* Run from inside a cfunction. This will not suspend GC, so
- * the caller must be sure that no Dst*'s are left dangling in the calling function.
- * Such values can be locked with dst_gcroot and unlocked with dst_gcunroot. */
-int dst_call(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv) {
-    int ret;
-    DstFiber *oldfiber = dst_vm_fiber;
-    dst_gcroot(dst_wrap_fiber(oldfiber));
-    ret = dst_call_help(callee, returnreg, argn, argv);
-    dst_gcunroot(dst_wrap_fiber(oldfiber));
-    dst_vm_fiber = oldfiber;
-    return ret;
+    return dst_run(fiber);
 }
 
 /* Setup functions */
@@ -874,8 +808,6 @@ int dst_init() {
      * there are no memory bugs during dev */
     dst_vm_gc_interval = 0x100000;
     dst_symcache_init();
-    /* Set thread */
-    dst_vm_fiber = NULL;
     /* Initialize gc roots */
     dst_vm_roots = NULL;
     dst_vm_root_count = 0;
@@ -886,7 +818,6 @@ int dst_init() {
 /* Clear all memory associated with the VM */
 void dst_deinit() {
     dst_clear_memory();
-    dst_vm_fiber = NULL;
     dst_symcache_deinit();
     free(dst_vm_roots);
     dst_vm_roots = NULL;

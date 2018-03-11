@@ -310,11 +310,14 @@ struct DstArgs {
 #define DST_FIBER_MASK_ERROR 2
 #define DST_FIBER_MASK_DEBUG 4
 
+#define DST_FIBER_FLAG_NEW 8
+
 /* A lightweight green thread in dst. Does not correspond to
  * operating system threads. */
 struct DstFiber {
     Dst *data;
-    DstFiber *parent;
+    DstFiber *child; /* When a fiber enters the error or debug state, keep track of the original fiber that raised the error. */
+    DstFunction *root; /* First value */
     int32_t frame; /* Index of the stack frame */
     int32_t stackstart; /* Beginning of next args */
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */

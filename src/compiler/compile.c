@@ -813,7 +813,6 @@ recur:
                         } else {
                             /* Check macro */
                             DstTable *env = c->env;
-                            int status;
                             Dst fn;
                             Dst entry = dst_table_get(env, headval);
                             for (;;) {
@@ -825,8 +824,11 @@ recur:
                                     dstc_cerror(c, ast, "macro expansion recursed too deeply");
                                     return dstc_cslot(dst_wrap_nil());
                                 } else {
-                                    status = dst_call_suspend(fn, &x, dst_tuple_length(tup) - 1, tup + 1);
-                                    if (status) {
+                                    DstFiber *f = dst_fiber(dst_unwrap_function(fn), 64);
+                                    int lock = dst_gclock();
+                                    x = dst_resume(f, dst_tuple_length(tup) - 1, tup + 1);
+                                    dst_gcunlock(lock);
+                                    if (f->status == DST_FIBER_ERROR || f->status == DST_FIBER_DEBUG) {
                                         dstc_cerror(c, ast, "error in macro expansion");
                                     }
                                     /* Tail recur on the value */

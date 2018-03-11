@@ -130,19 +130,7 @@ void dst_table_merge_struct(DstTable *table, const DstKV *other);
 DstKV *dst_table_find(DstTable *t, Dst key);
 
 /* Fiber */
-DstFiber *dst_fiber(int32_t capacity);
-#define dst_stack_frame(s) ((DstStackFrame *)((s) - DST_FRAME_SIZE))
-#define dst_fiber_frame(f) dst_stack_frame((f)->data + (f)->frame)
-DstFiber *dst_fiber_reset(DstFiber *fiber);
-void dst_fiber_setcapacity(DstFiber *fiber, int32_t n);
-void dst_fiber_push(DstFiber *fiber, Dst x);
-void dst_fiber_push2(DstFiber *fiber, Dst x, Dst y);
-void dst_fiber_push3(DstFiber *fiber, Dst x, Dst y, Dst z);
-void dst_fiber_pushn(DstFiber *fiber, const Dst *arr, int32_t n);
-void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func);
-void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func);
-void dst_fiber_cframe(DstFiber *fiber);
-void dst_fiber_popframe(DstFiber *fiber);
+DstFiber *dst_fiber(DstFunction *callee, int32_t capacity);
 
 /* Treat similar types through uniform interfaces for iteration */
 int dst_seq_view(Dst seq, const Dst **data, int32_t *len);
@@ -169,7 +157,7 @@ int dst_gcunrootall(Dst root);
 #define dst_maybe_collect() do {\
     if (dst_vm_next_collection >= dst_vm_gc_interval) dst_collect(); } while (0)
 #define dst_gclock() (dst_vm_gc_suspend++)
-#define dst_gcunlock() (dst_vm_gc_suspend--)
+#define dst_gcunlock(lock) (dst_vm_gc_suspend = lock)
 
 /* Functions */
 DstFuncDef *dst_funcdef_alloc(void);
@@ -192,9 +180,8 @@ int dst_cstrcmp(const uint8_t *str, const char *other);
 /* VM functions */
 int dst_init(void);
 void dst_deinit(void);
-int dst_run(Dst callee, Dst *returnreg);
-int dst_call(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv);
-int dst_call_suspend(Dst callee, Dst *returnreg, int32_t argn, const Dst *argv);
+Dst dst_run(DstFiber *fiber);
+Dst dst_resume(DstFiber *fiber, int32_t argn, const Dst *argv);
 
 /* C Function helpers */
 #define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)

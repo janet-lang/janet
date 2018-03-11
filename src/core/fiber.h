@@ -20,45 +20,22 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_STATE_H_defined
-#define DST_STATE_H_defined
+#ifndef DST_FIBER_H_defined
+#define DST_FIBER_H_defined
 
-#ifdef __cplusplus
-extern "C" {
+#include <dst/dst.h>
+
+#define dst_stack_frame(s) ((DstStackFrame *)((s) - DST_FRAME_SIZE))
+#define dst_fiber_frame(f) dst_stack_frame((f)->data + (f)->frame)
+DstFiber *dst_fiber_reset(DstFiber *fiber, DstFunction *callee);
+void dst_fiber_setcapacity(DstFiber *fiber, int32_t n);
+void dst_fiber_push(DstFiber *fiber, Dst x);
+void dst_fiber_push2(DstFiber *fiber, Dst x, Dst y);
+void dst_fiber_push3(DstFiber *fiber, Dst x, Dst y, Dst z);
+void dst_fiber_pushn(DstFiber *fiber, const Dst *arr, int32_t n);
+void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func);
+void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func);
+void dst_fiber_cframe(DstFiber *fiber);
+void dst_fiber_popframe(DstFiber *fiber);
+
 #endif
-
-#include <stdint.h>
-#include "dstconfig.h"
-#include "dsttypes.h"
-
-/* Names of all of the types */
-extern const char *dst_type_names[16];
-
-/* The VM state. Rather than a struct that is passed
- * around, the vm state is global for simplicity. */
-
-/* How many VM stacks have been entered */
-extern int dst_vm_stackn;
-
-/* Garbage collection */
-extern void *dst_vm_blocks;
-extern uint32_t dst_vm_gc_interval;
-extern uint32_t dst_vm_next_collection;
-extern int dst_vm_gc_suspend;
-
-/* Immutable value cache */
-extern const uint8_t **dst_vm_cache;
-extern uint32_t dst_vm_cache_capacity;
-extern uint32_t dst_vm_cache_count;
-extern uint32_t dst_vm_cache_deleted;
-
-/* GC roots */
-extern Dst *dst_vm_roots;
-extern uint32_t dst_vm_root_count;
-extern uint32_t dst_vm_root_capacity;
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* DST_STATE_H_defined */

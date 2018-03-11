@@ -120,6 +120,7 @@ static const DstInstructionDef dst_ops[] = {
     {"push3", DOP_PUSH_3},
     {"put", DOP_PUT},
     {"puti", DOP_PUT_INDEX},
+    {"res", DOP_RESUME},
     {"ret", DOP_RETURN},
     {"retn", DOP_RETURN_NIL},
     {"setu", DOP_SET_UPVALUE},
@@ -131,8 +132,8 @@ static const DstInstructionDef dst_ops[] = {
     {"sruim", DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
     {"sub", DOP_SUBTRACT},
     {"tcall", DOP_TAILCALL},
-    {"tran", DOP_TRANSFER},
-    {"tchck", DOP_TYPECHECK}
+    {"tchck", DOP_TYPECHECK},
+    {"yield", DOP_YIELD}
 };
 
 /* Check a dst string against a bunch of test_strings. Return the 

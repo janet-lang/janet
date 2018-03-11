@@ -21,11 +21,15 @@
 */
 
 #include <dst/dst.h>
+#include "fiber.h"
 #include "gc.h"
 
 /* Initialize a new fiber */
-DstFiber *dst_fiber(int32_t capacity) {
+DstFiber *dst_fiber(DstFunction *callee, int32_t capacity) {
     DstFiber *fiber = dst_gcalloc(DST_MEMORY_FIBER, sizeof(DstFiber));
+    if (capacity < 16) {
+        capacity = 16;
+    }
     fiber->capacity = capacity;
     if (capacity) {
         Dst *data = malloc(sizeof(Dst) * capacity);
@@ -33,22 +37,21 @@ DstFiber *dst_fiber(int32_t capacity) {
             DST_OUT_OF_MEMORY;
         }
         fiber->data = data;
-    } else {
-        fiber->data = NULL;
     }
-    fiber->parent = NULL;
     fiber->maxstack = DST_STACK_MAX;
     fiber->flags = DST_FIBER_MASK_DEBUG;
-    return dst_fiber_reset(fiber);
+    return dst_fiber_reset(fiber, callee);
 }
 
 /* Clear a fiber (reset it) */
-DstFiber *dst_fiber_reset(DstFiber *fiber) {
+DstFiber *dst_fiber_reset(DstFiber *fiber, DstFunction *callee) {
     fiber->frame = 0;
     fiber->stackstart = DST_FRAME_SIZE;
     fiber->stacktop = DST_FRAME_SIZE;
     fiber->status = DST_FIBER_NEW;
-    fiber->parent = NULL;
+    fiber->root = callee;
+    fiber->child = NULL;
+    fiber->flags |= DST_FIBER_FLAG_NEW;
     return fiber;
 }
 

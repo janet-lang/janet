@@ -80,7 +80,8 @@ enum DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
     DIT_S, /* DOP_PUSH_ARRAY, */
     DIT_SS, /* DOP_CALL, */
     DIT_S, /* DOP_TAILCALL, */
-    DIT_SSS, /* DOP_TRANSFER, */
+    DIT_SSS, /* DOP_RESUME, */
+    DIT_SS, /* DOP_YIELD, */
     DIT_SSS, /* DOP_GET, */
     DIT_SSS, /* DOP_PUT, */
     DIT_SSU, /* DOP_GET_INDEX, */

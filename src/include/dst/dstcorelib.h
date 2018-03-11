@@ -94,7 +94,7 @@ int dst_core_rawget(DstArgs args);
 int dst_core_getproto(DstArgs args);
 int dst_core_setproto(DstArgs args);
 int dst_core_fiber_status(DstArgs args);
-int dst_core_fiber_current(DstArgs args);
+int dst_core_fiber_location(DstArgs args);
 int dst_core_put(DstArgs args);
 int dst_core_gccollect(DstArgs args);
 int dst_core_gcsetinterval(DstArgs args);

@@ -43,7 +43,6 @@ static const DstReg cfuns[] = {
     {"struct", dst_core_struct},
     {"fiber", dst_core_fiber},
     {"fiber-status", dst_core_fiber_status},
-    {"fiber-current", dst_core_fiber_current},
     {"buffer", dst_core_buffer},
     {"gensym", dst_core_gensym},
     {"get", dst_core_get},
@@ -74,13 +73,12 @@ DstTable *dst_stl_env() {
     };
 
     static uint32_t yield_asm[] = {
-        DOP_LOAD_NIL | (1 << 8),
-        DOP_TRANSFER | (1 << 16),
+        DOP_YIELD,
         DOP_RETURN
     };
 
-    static uint32_t transfer_asm[] = {
-        DOP_TRANSFER | (1 << 24),
+    static uint32_t resume_asm[] = {
+        DOP_RESUME | (1 << 24),
         DOP_RETURN
     };
 
@@ -93,12 +91,9 @@ DstTable *dst_stl_env() {
     dst_env_def(env, "error", dst_wrap_function(dst_quick_asm(1, 0, 1, error_asm, sizeof(error_asm))));
     dst_env_def(env, "apply", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, sizeof(apply_asm))));
     dst_env_def(env, "yield", dst_wrap_function(dst_quick_asm(1, 0, 2, yield_asm, sizeof(yield_asm))));
-    dst_env_def(env, "transfer", dst_wrap_function(dst_quick_asm(2, 0, 2, transfer_asm, sizeof(transfer_asm))));
+    dst_env_def(env, "resume", dst_wrap_function(dst_quick_asm(2, 0, 2, resume_asm, sizeof(resume_asm))));
 
     dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
-
-    /* Allow references to the environment */
-    dst_env_def(env, "_env", ret);
 
     /* Set as gc root */
     dst_gcroot(dst_wrap_table(env));
@@ -118,6 +113,9 @@ DstTable *dst_stl_env() {
         dst_lib_compile(args);
         dst_lib_asm(args);
     }
+
+    /* Allow references to the environment */
+    dst_env_def(env, "_env", ret);
 
     /* Run bootstrap source */
     dst_dobytes(env, dst_stl_bootstrap_gen, sizeof(dst_stl_bootstrap_gen));

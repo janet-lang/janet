@@ -180,9 +180,13 @@ static void dst_mark_function(DstFunction *func) {
 static void dst_mark_fiber(DstFiber *fiber) {
     int32_t i, j;
     DstStackFrame *frame;
+recur:
     if (dst_gc_reachable(fiber))
         return;
     dst_gc_mark(fiber);
+
+    if (fiber->flags & DST_FIBER_FLAG_NEW) 
+        dst_mark_function(fiber->root);
     
     i = fiber->frame;
     j = fiber->stackstart - DST_FRAME_SIZE;
@@ -198,8 +202,10 @@ static void dst_mark_fiber(DstFiber *fiber) {
         i = frame->prevframe;
     }
 
-    if (NULL != fiber->parent)
-        dst_mark_fiber(fiber->parent);
+    if (fiber->child) {
+        fiber = fiber->child;
+        goto recur;
+    }
 }
 
 /* Deinitialize a block of memory */
@@ -309,8 +315,6 @@ void *dst_gcalloc(enum DstMemoryType type, size_t size) {
 void dst_collect(void) {
     uint32_t i;
     if (dst_vm_gc_suspend) return;
-    if (dst_vm_fiber)
-        dst_mark_fiber(dst_vm_fiber);
     for (i = 0; i < dst_vm_root_count; i++)
         dst_mark(dst_vm_roots[i]);
     dst_sweep();

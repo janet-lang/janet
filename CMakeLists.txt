@@ -85,6 +85,7 @@ src/core/vm.c
 src/core/wrap.c
 
 src/core/gc.h
+src/core/fiber.h
 src/core/symcache.h
 src/core/util.h
 )
