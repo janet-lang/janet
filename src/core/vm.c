@@ -612,7 +612,9 @@ static void *op_lookup[255] = {
         nextfiber = dst_unwrap_fiber(fiberval);
         switch (nextfiber->status) {
             default:
-                vm_throw("expected pending or new fiber");
+                vm_throw("expected pending, new, or debug fiber");
+            case DST_FIBER_DEBUG:
+                break;
             case DST_FIBER_NEW:
                 {
                     dst_fiber_push(nextfiber, val);
@@ -632,16 +634,16 @@ static void *op_lookup[255] = {
         retreg = dst_run(nextfiber);
         switch (nextfiber->status) {
             case DST_FIBER_DEBUG:
-                if (fiber->flags & DST_FIBER_MASK_DEBUG) goto vm_debug;
+                if (nextfiber->flags & DST_FIBER_MASK_DEBUG) goto vm_debug;
                 fiber->child = NULL;
                 break;
             case DST_FIBER_ERROR:
-                if (fiber->flags & DST_FIBER_MASK_ERROR) goto vm_error;
+                if (nextfiber->flags & DST_FIBER_MASK_ERROR) goto vm_error;
                 fiber->child = NULL;
                 break;
             default:
                 fiber->child = NULL;
-                if (fiber->flags & DST_FIBER_MASK_RETURN) goto vm_return_root;
+                if (nextfiber->flags & DST_FIBER_MASK_RETURN) goto vm_return_root;
                 break;
         }
         stack[oparg(1, 0xFF)] = retreg;
@@ -774,7 +776,9 @@ static void *op_lookup[255] = {
 Dst dst_resume(DstFiber *fiber, int32_t argn, const Dst *argv) {
     switch (fiber->status) {
         default:
-            dst_exit("expected new or pending or fiber");
+            dst_exit("expected new, pending or debug fiber");
+        case DST_FIBER_DEBUG:
+            break;
         case DST_FIBER_NEW:
             {
                 int32_t i;
