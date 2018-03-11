@@ -90,7 +90,21 @@
     (tuple 'def endsym end)
     (tuple 'while (tuple '< sym endsym)
      (tuple-prepend body 'do)
-     (tuple 'varset! sym (tuple '+ sym 1)))))
+     (tuple 'varset! sym (tuple '+ sym inc)))))
+
+(defn even? [x] (== 0 (% x 2)))
+(defn odd? [x] (== 1 (% x 2)))
+
+(defmacro let [bindings & body]
+  (def head (ast-unwrap1 bindings))
+  (when (odd? (length head)) (error "expected even number of bindings to let"))
+  (var accum ['do])
+  (for [i 0 (length head) 2]
+   (array-push accum (tuple 'def 
+                     (get head i)
+                     (get head (+ 1 i)))))
+  (array-push accum (tuple-prepend body 'do))
+  (apply tuple accum))
 
 (defn pairs [x]
  (var lastkey (next x nil))

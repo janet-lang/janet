@@ -704,7 +704,7 @@ DstAssembleResult dst_asm(Dst source, int flags) {
  * NULL if not found. */
 static const DstInstructionDef *dst_asm_reverse_lookup(uint32_t instr) {
     size_t i;
-    uint32_t opcode = instr & 0xFF;
+    uint32_t opcode = instr & 0x7F;
     for (i = 0; i < sizeof(dst_ops)/sizeof(DstInstructionDef); i++) {
         const DstInstructionDef *def = dst_ops + i;
         if (def->opcode == opcode) 

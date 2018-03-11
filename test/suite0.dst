@@ -259,6 +259,12 @@
 		(varset! count (+ 1 count)))
 	(assert (= (length syms) 128) "many symbols")))
 
+# Let
+
+(assert (= (let [a 1 b 2] (+ a b)) 3), "simple let")
+(assert (= (let [[a b] [1 2]] (+ a b)) 3), "destructured let")
+(assert (= (let [[a [c d] b] [1 (tuple 4 3) 2]] (+ a b c d)) 10), "double destructured let")
+
 # Macros
 
 (def defmacro macro (fn [name & more]
