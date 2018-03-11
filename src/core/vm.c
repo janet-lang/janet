@@ -139,7 +139,7 @@ static void *op_lookup[255] = {
 #define vm_next() continue
 #endif
 
-#define vm_checkgc_next() do { dst_maybe_collect(); vm_next() } while (0)
+#define vm_checkgc_next() dst_maybe_collect(); vm_next()
 
     /* Used to extract bits from the opcode that correspond to arguments.
      * Pulls out unsigned integers */
