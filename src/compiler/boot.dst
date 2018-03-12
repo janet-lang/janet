@@ -32,18 +32,20 @@
  (apply tuple (array-concat
   ['defn name 'private] more)))
 
+(defmacro comment
+ "Ignores the body of the comment."
+ [])
+
 (defmacro when
- "(when cond & body)
- Evaluates the body when the condition is true. Otherwise returns nil."
+ "Evaluates the body when the condition is true. Otherwise returns nil."
  [cond & body] 
  (tuple 'if cond (tuple-prepend body 'do)))
 
 (defmacro cond
- "(cond & body)
- Evaluates conditions sequentially until the first true condition
- is found, and then executes the corresponding body. If there are an
- odd number of forms, the last expression is executed if no forms
- are matched. If there are no matches, return nil."
+"Evaluates conditions sequentially until the first true condition
+is found, and then executes the corresponding body. If there are an
+odd number of forms, the last expression is executed if no forms
+are matched. If there are no matches, return nil."
  [& pairs]
   (defn aux [i]
     (def restlen (- (length pairs) i))
@@ -55,8 +57,7 @@
   (aux 0))
 
 (defn doc
- "(doc sym)
- Shows documentation for the given symbol."
+ "Shows documentation for the given symbol."
  [sym]
  (def x (get *env* sym))
  (if (not x)
@@ -66,10 +67,9 @@
    (print "\n" (if d d "no documentation found.") "\n"))))
 
 (defmacro select
-"(select dispatch & body)
- Select the body that equals the dispatch value. When pairs
- has an odd number of arguments, the last is the default expression.
- If no match is found, returns nil"
+"Select the body that equals the dispatch value. When pairs
+has an odd number of arguments, the last is the default expression.
+If no match is found, returns nil"
  [dispatch & pairs]
   (def sym (gensym))
   (defn aux [i]
@@ -87,8 +87,7 @@
 (defmacro and [x y] (tuple 'if x y false))
 
 (defn identity 
- "(identity x)
- A function that returns its first argument."
+ "A function that returns its first argument."
 [x] x)
 
 (def seq (do
@@ -204,8 +203,6 @@
      (tuple-prepend body 'do)
      (tuple 'varset! sym (tuple '+ sym inc)))))
 
-# Compile time
-
 (defn make-env [parent]
  (def parent (if parent parent _env))
  (def newenv (setproto @{} parent))
@@ -213,18 +210,17 @@
 (put _env '_env nil)
 
 (def run-context 
- "(run-context env chunks onvalue onerr)
- Run a context. This evaluates expressions of dst in an environment,
- and is encapsulates the parsing, compilation, and evaluation of dst.
- env is the environment to evaluate the code in, chunks is a function
- that returns strings or buffers of source code (from a repl, file,
- network connection, etc. onvalue and onerr are callbacks that are
- invoked when a result is returned and when an error is produced,
- respectively.
+"Run a context. This evaluates expressions of dst in an environment,
+and is encapsulates the parsing, compilation, and evaluation of dst.
+env is the environment to evaluate the code in, chunks is a function
+that returns strings or buffers of source code (from a repl, file,
+network connection, etc. onvalue and onerr are callbacks that are
+invoked when a result is returned and when an error is produced,
+respectively.
  
- This function can be used to implemement a repl very easily, simply
- pass a function that reads line from stdin to chunks, and print to
- onvalue."
+This function can be used to implemement a repl very easily, simply
+pass a function that reads line from stdin to chunks, and print to
+onvalue."
 (do
 (defn val-stream [chunks onerr]
  (var going true)
@@ -259,7 +255,6 @@
   (do (varset! temp nil) tempval)
   (resume f)))
  {:more more :next next})
-
 (fn [env chunks onvalue onerr]
  (defn doone [source]
   (def f (fiber (fn []
@@ -301,8 +296,7 @@
  (def {
   :prefix prefix
   } (apply table args))
- (defn one [pair]
-  (def [k v] pair)
+ (defn one [[k v]]
   (when (not (get v 'private))
    (put *env* (symbol (if prefix prefix "") k) v)))
  (doseq (map one (pairs env))))
