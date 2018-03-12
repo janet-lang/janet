@@ -137,7 +137,8 @@ If no match is found, returns nil"
  {:more more :next (fn [] (f (next)))})
 
 (defn reduce [f start s]
-  (def {:more more :next next} (seq s))
+  (def s (seq s))
+  (def {:more more :next next} s)
   (if (more)
    (reduce f (f start (next)) s)
    start))
@@ -208,6 +209,28 @@ If no match is found, returns nil"
  (def newenv (setproto @{} parent))
  newenv)
 (put _env '_env nil)
+
+(defmacro ->
+ [x & forms]
+ (defn fop [last nextform]
+  (def n (ast-unwrap1 nextform))
+  (def [h t] (if (= :tuple (type n))
+        [(get n 0) (array-slice n 1)]
+        [n []]))
+  (def parts (array-concat [h last] t))
+  (apply tuple parts))
+ (reduce fop x forms))
+
+(defmacro ->>
+ [x & forms]
+ (defn fop [last nextform]
+  (def n (ast-unwrap1 nextform))
+  (def [h t] (if (= :tuple (type n))
+        [(get n 0) (array-slice n 1)]
+        [n []]))
+  (def parts (array-concat [h] t last))
+  (apply tuple parts))
+ (reduce fop x forms))
 
 (def run-context 
 "Run a context. This evaluates expressions of dst in an environment,
