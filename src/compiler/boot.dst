@@ -26,6 +26,12 @@
    (def args (array-concat [] name 'macro more))
    (apply defn* args))))
 
+(defmacro defn-
+ "Define a private function that will not be exported."
+ [name & more]
+ (apply tuple (array-concat
+  ['defn name 'private] more)))
+
 (defmacro when
  "(when cond & body)
  Evaluates the body when the condition is true. Otherwise returns nil."
@@ -80,7 +86,10 @@
 (defmacro or [x y] (tuple 'if x true y))
 (defmacro and [x y] (tuple 'if x y false))
 
-(def identity (fn [x] x))
+(defn identity 
+ "(identity x)
+ A function that returns its first argument."
+[x] x)
 
 (def seq (do
   (defn array-seq [x]
@@ -294,7 +303,8 @@
   } (apply table args))
  (defn one [pair]
   (def [k v] pair)
-  (put *env* (symbol (if prefix prefix "") k) v))
+  (when (not (get v 'private))
+   (put *env* (symbol (if prefix prefix "") k) v)))
  (doseq (map one (pairs env))))
 
 (defn repl []
