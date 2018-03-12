@@ -1,7 +1,7 @@
 (do
 
-(var dorepl false)
-(var nofile true)
+(var should-repl false)
+(var no-file true)
 
 # Flag handlers
 (def handlers {
@@ -13,7 +13,7 @@
         (print "  -r Enter the repl after running all scripts")
         (exit 0))
   "v" (fn [] (print VERSION) (exit 0))
-  "r" (fn [] (varset! dorepl true))
+  "r" (fn [] (varset! should-repl true))
 })
 
 (defn dohandler [n]
@@ -27,11 +27,11 @@
  (if (= "-" (string-slice arg 0 1))
   (dohandler (string-slice arg 1 2))
   (do
-   (varset! nofile false)
-   (require arg)
-   (init-loop))))
+   (varset! no-file false)
+   (require arg))))
 
-(when (or dorepl nofile) 
+(when (or should-repl no-file) 
  (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
- (init-repl))
+ (repl))
+
 )

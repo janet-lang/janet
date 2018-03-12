@@ -184,6 +184,31 @@ static int cfun_slice(DstArgs args) {
     return dst_return(args, dst_wrap_array(ret));
 }
 
+static int cfun_concat(DstArgs args) {
+    int32_t i;
+    DstArray *array;
+    if (args.n < 1 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    array = dst_unwrap_array(args.v[0]);
+    for (i = 1; i < args.n; i++) {
+        switch (dst_type(args.v[i])) {
+            default:
+                dst_array_push(array, args.v[i]);
+                break;
+            case DST_ARRAY:
+            case DST_TUPLE:
+                {
+                    int32_t j, len;       
+                    const Dst *vals;
+                    dst_seq_view(args.v[i], &vals, &len);
+                    for (j = 0; j < len; j++)
+                        dst_array_push(array, vals[j]);
+                }
+                break;
+        }
+    }
+    return dst_return(args, args.v[0]);
+}
+
 /* Load the array module */
 int dst_lib_array(DstArgs args) {
     DstTable *env = dst_env_arg(args);
@@ -193,5 +218,6 @@ int dst_lib_array(DstArgs args) {
     dst_env_def(env, "array-setcount", dst_wrap_cfunction(cfun_setcount));
     dst_env_def(env, "array-ensure", dst_wrap_cfunction(cfun_ensure));
     dst_env_def(env, "array-slice", dst_wrap_cfunction(cfun_slice));
+    dst_env_def(env, "array-concat", dst_wrap_cfunction(cfun_concat));
     return 0;
 }
