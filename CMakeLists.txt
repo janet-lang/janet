@@ -29,25 +29,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 include_directories(src/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-# Make tools for generating embeddable headers
-add_executable(xxd src/tools/xxd.c)
-
-# Generate header containing standard library
-add_custom_command(
-    OUTPUT dststlbootstrap.h
-    COMMAND xxd ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler/boot.dst dststlbootstrap.h dst_stl_bootstrap_gen
-    DEPENDS xxd src/compiler/boot.dst
-    COMMENT "Generating stl bootstrap C header for embedding"
-)
-
-# Generate header containing main client script
-add_custom_command(
-    OUTPUT clientinit.h
-    COMMAND xxd ${CMAKE_CURRENT_SOURCE_DIR}/src/mainclient/init.dst clientinit.h dst_mainclient_init
-    DEPENDS xxd src/mainclient/init.dst
-    COMMENT "Generating mainclient init C header for embedding"
-)
-
 set(ASSEMBLER_SOURCES
 src/assembler/asm.c
 )
@@ -128,10 +109,26 @@ src/include/dst/dsttypes.h
 
 # Build the executable
 add_executable(${TARGET_NAME} ${REPL_SOURCES})
-if (UNIX)
+if (UNIX AND NOT EMSCRIPTEN)
 	target_link_libraries(${TARGET_NAME} m dl)
-endif (UNIX)
+endif (UNIX AND NOT EMSCRIPTEN)
 set_target_properties(${TARGET_NAME} PROPERTIES PUBLIC_HEADER "${DST_PUBLIC_HEADERS}")
+
+# Generate header containing standard library
+add_custom_command(
+    OUTPUT dststlbootstrap.h
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dststlbootstrap.cmake
+    DEPENDS src/compiler/boot.dst
+    COMMENT "Generating stl bootstrap C header for embedding"
+)
+
+# Generate header containing main client script
+add_custom_command(
+    OUTPUT clientinit.h
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dstmainclientinit.cmake
+    DEPENDS src/mainclient/init.dst
+    COMMENT "Generating mainclient init C header for embedding"
+)
 
 # Install
 install(TARGETS ${TARGET_NAME}
@@ -139,6 +136,15 @@ install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION "bin"
         PUBLIC_HEADER DESTINATION "include/dst"
 )
+
+# Emscripten specifics
+if (DEFINED EMSCRIPTEN)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s ABORTING_MALLOC=0") 
+    # set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".html")
+    # Copy index.html to build folder.
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/web/index.html
+        ${CMAKE_CURRENT_BINARY_DIR}/index.html COPYONLY)
+endif (DEFINED EMSCRIPTEN)
 
 # Add some test scripts
 enable_testing()

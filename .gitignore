@@ -4,6 +4,7 @@ dst
 /build
 /Release
 /Debug
+/Emscripten
 
 # Generated files
 *.gen.h

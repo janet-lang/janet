@@ -53,7 +53,9 @@ extern "C" {
 #endif
 
 /* Check Windows */
-#if defined(WIN32) || defined(_WIN32)
+#ifdef __EMSCRIPTEN__
+#define DST_WEB 1
+#elif defined(WIN32) || defined(_WIN32)
 #define DST_WINDOWS 1
 #endif
 

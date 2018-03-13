@@ -31,6 +31,13 @@ typedef HINSTANCE Clib;
 #define load_clib(name) LoadLibrary((name))
 #define symbol_clib(lib, sym) GetProcAddress((lib), (sym))
 #define error_clib() "could not load dynamic library"
+#elif defined(DST_WEB)
+#include <emscripten.h>
+/* TODO - figure out how loading modules will work in JS */
+typedef int Clib;
+#define load_clib(name) 0
+#define symbol_clib(lib, sym) 0
+#define error_clib() "could not load dynamic library"
 #else
 #include <dlfcn.h>
 typedef void *Clib;

@@ -145,6 +145,8 @@ If no match is found, returns nil"
 
 (defn even? [x] (== 0 (% x 2)))
 (defn odd? [x] (== 1 (% x 2)))
+(defn inc [x] (+ x 1))
+(defn dec [x] (- x 1))
 
 (defmacro let [bindings & body]
   (def head (ast-unwrap1 bindings))
@@ -247,6 +249,7 @@ onvalue."
 (do
 (defn val-stream [chunks onerr]
  (var going true)
+ # Stream of characters
  (def chars (fiber (fn []
    (def buf @"")
    (var len 1)
@@ -259,6 +262,7 @@ onvalue."
    0)))
  (var temp nil)
  (var tempval nil)
+ # Stream of values
  (def f (fiber (fn []
     (def p (parser 1)) 
     (while going
@@ -328,6 +332,7 @@ onvalue."
  (def newenv (make-env))
  (defn chunks [buf]
     (file-write stdout ">> ")
+    (file-flush stdout)
     (file-read stdin :line buf))
  (defn onvalue [x]
   (put newenv '_ @{'value x})
