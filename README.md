@@ -56,3 +56,7 @@ The repl can also be run with the CMake run target.
 ```sh
 make run
 ```
+
+### Example
+
+See the lin directory for some example dst code.

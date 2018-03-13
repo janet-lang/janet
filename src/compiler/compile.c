@@ -817,7 +817,7 @@ recur:
                             Dst entry = dst_table_get(env, headval);
                             for (;;) {
                                 if (dst_checktype(entry, DST_NIL)) break;
-                                if (dst_checktype(dst_get(entry, dst_csymbolv("macro")), DST_NIL)) break;
+                                if (dst_checktype(dst_get(entry, dst_csymbolv(":macro")), DST_NIL)) break;
                                 fn = dst_get(entry, dst_csymbolv("value"));
                                 if (!dst_checktype(fn, DST_FUNCTION)) break;
                                 if (macrorecur++ > DST_RECURSION_GUARD) {
