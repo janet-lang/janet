@@ -35,6 +35,9 @@ static void simpleline(DstBuffer *buffer) {
     char c;
     for (;;) {
         c = fgetc(stdin);
+        if (feof(stdin) || c < 0) {
+            break;
+        }
         dst_buffer_push_u8(buffer, (uint8_t) c);
         if (c == '\n') break;
     }
@@ -92,42 +95,27 @@ static char **history = NULL;
 static int historyi = 0;
 static struct termios termios_start;
 
-/* Key codes */
-enum KEY_ACTION {
-	KEY_NULL = 0,	    /* NULL */
-	CTRL_A = 1,         /* Ctrl+a */
-	CTRL_B = 2,         /* Ctrl-b */
-	CTRL_C = 3,         /* Ctrl-c */
-	CTRL_D = 4,         /* Ctrl-d */
-	CTRL_E = 5,         /* Ctrl-e */
-	CTRL_F = 6,         /* Ctrl-f */
-	CTRL_H = 8,         /* Ctrl-h */
-	TAB = 9,            /* Tab */
-	CTRL_K = 11,        /* Ctrl+k */
-	CTRL_L = 12,        /* Ctrl+l */
-	ENTER = 13,         /* Enter */
-	CTRL_N = 14,        /* Ctrl-n */
-	CTRL_P = 16,        /* Ctrl-p */
-	CTRL_T = 20,        /* Ctrl-t */
-	CTRL_U = 21,        /* Ctrl+u */
-	CTRL_W = 23,        /* Ctrl+w */
-	ESC = 27,           /* Escape */
-	BACKSPACE =  127    /* Backspace */
+/* Unsupported terminal list from linenoise */
+static const char *badterms[] = {
+    "cons25",
+    "dumb",
+    "emacs",
+    NULL
 };
 
 /* Ansi terminal raw mode */
 static int rawmode() {
-    struct termios raw;
+    struct termios t;
     if (!isatty(STDIN_FILENO)) goto fatal;
     if (tcgetattr(STDIN_FILENO, &termios_start) == -1) goto fatal;
-    raw = termios_start;
-    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    raw.c_oflag &= ~(OPOST);
-    raw.c_cflag |= (CS8);
-    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    raw.c_cc[VMIN] = 1;
-    raw.c_cc[VTIME] = 0;
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) < 0) goto fatal;
+    t = termios_start;
+    t.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    t.c_oflag &= ~(OPOST);
+    t.c_cflag |= (CS8);
+    t.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    t.c_cc[VMIN] = 1;
+    t.c_cc[VTIME] = 0;
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &t) < 0) goto fatal;
     israwmode = 1;
     return 0;
 fatal:
@@ -152,13 +140,11 @@ static int curpos() {
         i++;
     }
     buf[i] = '\0';
-    if (buf[0] != ESC || buf[1] != '[') return -1;
+    if (buf[0] != 27 || buf[1] != '[') return -1;
     if (sscanf(buf + 2, "%d;%d", &rows, &cols) != 2) return -1;
     return cols;
 }
 
-/* Try to get the number of columns in the current terminal, or assume 80
- * if it fails. */
 static int getcols() {
     struct winsize ws;
     if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
@@ -181,12 +167,10 @@ failed:
     return 80;
 }
 
-/* Clear the screen. Used to handle ctrl+l */
 static void clear() {
     if (write(STDOUT_FILENO,"\x1b[H\x1b[2J",7) <= 0) {}
 }
 
-/* Refresh the line */
 static void refresh() {
     char seq[64];
     DstBuffer b;
@@ -325,31 +309,41 @@ static int line() {
         if (nread <= 0) return -1;
 
         switch(c) {
-        case ENTER:    /* enter */
+        default:
+            if (insert(c)) return -1;
+            break;
+        case 13:    /* enter */
             return 0;
-        case CTRL_C:     /* ctrl-c */
+        case 3:     /* ctrl-c */
             errno = EAGAIN;
             return -1;
-        case BACKSPACE:   /* backspace */
+        case 127:   /* backspace */
         case 8:     /* ctrl-h */
             kbackspace();
             break;
-        case CTRL_D:     /* ctrl-d, eof */
+        case 4:     /* ctrl-d, eof */
             return -1;
-        case CTRL_B:     /* ctrl-b */
+        case 2:     /* ctrl-b */
             kleft();
             break;
-        case CTRL_F:     /* ctrl-f */
+        case 6:     /* ctrl-f */
             kright();
             break;
-        case ESC:    /* escape sequence */
+        case 21:
+            buf[0] = '\0';
+            pos = len = 0;
+            refresh();
+            break;
+        case 12:
+            clear();
+            refresh();
+            break;
+        case 27:    /* escape sequence */
             /* Read the next two bytes representing the escape sequence.
              * Use two calls to handle slow terminals returning the two
              * chars at different times. */
             if (read(STDIN_FILENO, seq, 1) == -1) break;
-            if (read(STDIN_FILENO, seq + 1 ,1) == -1) break;
-
-            /* ESC [ sequences. */
+            if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
             if (seq[0] == '[') {
                 if (seq[1] >= '0' && seq[1] <= '9') {
                     /* Extended escape, read additional byte. */
@@ -362,6 +356,8 @@ static int line() {
                     }
                 } else {
                     switch (seq[1]) {
+                    default:
+                        break;
                     case 'A':
                         historymove(1);
                         break;
@@ -384,10 +380,7 @@ static int line() {
                         break;
                     }
                 }
-            }
-
-            /* ESC O sequences. */
-            else if (seq[0] == 'O') {
+            } else if (seq[0] == 'O') {
                 switch (seq[1]) {
                 default:
                     break;
@@ -402,18 +395,6 @@ static int line() {
                 }
             }
             break;
-        default:
-            if (insert(c)) return -1;
-            break;
-        case CTRL_U:
-            buf[0] = '\0';
-            pos = len = 0;
-            refresh();
-            break;
-        case CTRL_L:
-            clear();
-            refresh();
-            break;
         }
     }
     return 0;
@@ -424,13 +405,30 @@ void dst_line_init() {
 }
 
 void dst_line_deinit() {
+    int i;
     norawmode();
+    for (i = 0; i < dst_v_count(history); i++)
+        free(history[i]);
     dst_v_free(history);
+    historyi = 0;
+}
+
+static int checktermsupport() {
+    const char *t = getenv("TERM");
+    int i;
+    if (!t) return 1;
+    for (i = 0; badterms[i]; i++)
+        if (!strcasecmp(t, badterms[i])) return 0;
+    return 1;
 }
 
 void dst_line_get(DstBuffer *buffer) {
     buffer->count = 0;
     historyi = 0;
+    if (!isatty(STDIN_FILENO) || !checktermsupport()) {
+        simpleline(buffer);
+        return;
+    }
     if (rawmode()) {
         simpleline(buffer);
         return;
@@ -446,7 +444,6 @@ void dst_line_get(DstBuffer *buffer) {
     memcpy(buffer->data, buf, len);
     buffer->data[len] = '\n';
     buffer->count = len + 1;
-
     replacehistory();
 }
 
