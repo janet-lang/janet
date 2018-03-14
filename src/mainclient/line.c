@@ -55,7 +55,7 @@ void dst_line_deinit() {
 }
 
 void dst_line_get(DstBuffer *buffer) {
-    fputs(">> ", stdout);
+    fputs("> ", stdout);
     simpleline(buffer);
 }
 
@@ -85,8 +85,8 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 #define DST_LINE_MAX 1024
 #define DST_HISTORY_MAX 100
 static int israwmode = 0;
-static const char *prompt = ">> ";
-static int plen = 3;
+static const char *prompt = "> ";
+static int plen = 2;
 static char buf[DST_LINE_MAX];
 static int len = 0;
 static int pos = 0;

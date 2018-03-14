@@ -355,7 +355,7 @@ onvalue."
 (defn repl [getchunk]
  (def newenv (make-env))
  (defn chunks [buf]
-    (file-write stdout ">> ")
+    (file-write stdout "> ")
     (file-flush stdout)
     (file-read stdin :line buf))
  (defn onvalue [x]
