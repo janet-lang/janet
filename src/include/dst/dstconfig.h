@@ -29,7 +29,7 @@ extern "C" {
 
 #include <stdint.h>
 
-#define DST_VERSION "0.0.0"
+#define DST_VERSION "0.0.0 alpha"
 
 /*
  * Detect OS and endianess.

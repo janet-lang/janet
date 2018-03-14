@@ -132,6 +132,10 @@ If no match is found, returns nil"
  (def {:more more :next next} (seq s))
  (while (more) (next)))
 
+(defn domap [f s] 
+ (def {:more more :next next} (seq s))
+ (while (more) (f (next))))
+
 (defn map [f s]
  (def {:more more :next next} (seq s))
  {:more more :next (fn [] (f (next)))})
@@ -348,7 +352,7 @@ onvalue."
    (put *env* (symbol (if prefix prefix "") k) v)))
  (doseq (map one (pairs env))))
 
-(defn repl []
+(defn repl [getchunk]
  (def newenv (make-env))
  (defn chunks [buf]
     (file-write stdout ">> ")
@@ -357,5 +361,5 @@ onvalue."
  (defn onvalue [x]
   (put newenv '_ @{'value x})
   (describe x))
- (run-context newenv chunks onvalue
+ (run-context newenv (if getchunk getchunk chunks) onvalue
   (fn [t x] (print (string t " error: " x)))))

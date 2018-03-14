@@ -20,41 +20,15 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef DST_LINE_H_defined
+#define DST_LINE_H_defined
+
 #include <dst/dst.h>
-#include <dst/dstcompile.h>
 
-#include "clientinit.h"
-#include "line.h"
+void dst_line_init();
+void dst_line_deinit();
 
-int main(int argc, char **argv) {
-    int i, status;
-    DstArray *args;
-    DstTable *env;
+void dst_line_get(DstBuffer *buffer);
+int dst_line_getter(DstArgs args);
 
-    /* Set up VM */
-    dst_init();
-    env = dst_stl_env();
-    dst_gcroot(dst_wrap_table(env));
-
-    /* Create process tuple */
-    args = dst_array(argc);
-    for (i = 0; i < argc; i++) {
-        dst_array_push(args, dst_cstringv(argv[i]));
-    }
-
-    /* Allow access to runtime argument */
-    dst_env_def(env, "args", dst_wrap_array(args));
-
-    /* Expose line getter */
-    dst_env_def(env, "getline", dst_wrap_cfunction(dst_line_getter));
-    dst_line_init();
-
-    /* Run startup script */
-    status = dst_dobytes(env, dst_mainclient_init, sizeof(dst_mainclient_init));
-
-    /* Deinitialize vm */
-    dst_deinit();
-    dst_line_deinit();
-
-    return status;
-}
+#endif

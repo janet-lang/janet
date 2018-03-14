@@ -32,7 +32,6 @@
 
 (when (or should-repl no-file) 
  (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
- (repl)
- (print "bye!"))
+ (repl getline))
 
 )

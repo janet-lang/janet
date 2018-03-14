@@ -73,6 +73,8 @@ src/core/util.h
 
 set(MAINCLIENT_SOURCES
 src/mainclient/main.c
+src/mainclient/line.c
+src/mainclient/line.h
 clientinit.h
 )
 
