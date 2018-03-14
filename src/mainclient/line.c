@@ -41,7 +41,7 @@ static void simpleline(DstBuffer *buffer) {
 }
 
 /* Windows */
-#ifdef DST_WIN
+#ifdef DST_WINDOWS
 
 void dst_line_init() {
     ;
