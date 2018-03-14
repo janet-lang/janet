@@ -279,7 +279,7 @@ const uint8_t *dst_escape_string(const uint8_t *str) {
     return dst_string_end(buf);
 }
 
-void dst_escape_buffer_b(DstBuffer *buffer, DstBuffer *bx) {
+static void dst_escape_buffer_b(DstBuffer *buffer, DstBuffer *bx) {
     int32_t elen = dst_escape_string_length(bx->data, bx->count);
     dst_buffer_push_u8(buffer, '@');
     dst_buffer_extra(buffer, elen);
@@ -290,36 +290,7 @@ void dst_escape_buffer_b(DstBuffer *buffer, DstBuffer *bx) {
     buffer->count += elen;
 }
 
-/* Returns a string pointer with the description of the string */
-const uint8_t *dst_short_description(Dst x) {
-    switch (dst_type(x)) {
-    case DST_NIL:
-        return dst_cstring("nil");
-    case DST_TRUE:
-        return dst_cstring("true");
-    case DST_FALSE:
-        return dst_cstring("false");
-    case DST_REAL:
-        return real_to_string(dst_unwrap_real(x));
-    case DST_INTEGER:
-        return integer_to_string(dst_unwrap_integer(x));
-    case DST_SYMBOL:
-        return dst_unwrap_string(x);
-    case DST_STRING:
-        return dst_escape_string(dst_unwrap_string(x));
-    case DST_ABSTRACT: 
-        {
-            const char *n = dst_abstract_type(dst_unwrap_abstract(x))->name;
-            return string_description(
-                    n[0] == ':' ? n + 1 : n,
-                    dst_unwrap_abstract(x));
-        }
-    default:
-        return string_description(dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
-    }
-}
-
-void dst_short_description_b(DstBuffer *buffer, Dst x) {
+void dst_description_b(DstBuffer *buffer, Dst x) {
     switch (dst_type(x)) {
     case DST_NIL:
         dst_buffer_push_cstring(buffer, "nil");
@@ -360,261 +331,42 @@ void dst_short_description_b(DstBuffer *buffer, Dst x) {
     }
 }
 
-/* Helper structure for stringifying nested structures */
-typedef struct DstPrinter DstPrinter;
-struct DstPrinter {
-    DstBuffer *buffer;
-    DstTable seen;
-    uint32_t flags;
-    uint32_t state;
-    int32_t next;
-    int32_t indent;
-    int32_t indent_size;
-    int32_t token_line_limit;
-    int32_t depth;
-};
-
-#define DST_PRINTFLAG_INDENT 1
-#define DST_PRINTFLAG_TABLEPAIR 2
-#define DST_PRINTFLAG_COLORIZE 4
-#define DST_PRINTFLAG_ALLMAN 8
-
-/* Go to next line for printer */
-static void dst_print_indent(DstPrinter *p) {
-    int32_t i, len;
-    len = p->indent_size * p->indent;
-    for (i = 0; i < len; i++) {
-        dst_buffer_push_u8(p->buffer, ' ');
-    }
-}
-
-/* Check if a value is a print atom (not a printable data structure) */
-static int is_print_ds(Dst v) {
-    switch (dst_type(v)) {
-        default: return 0;
-        case DST_ARRAY:
-        case DST_STRUCT:
-        case DST_TUPLE:
-        case DST_TABLE: return 1;
-    }
-}
-
-/* VT100 Colors for types */
-/* TODO - generalize into configurable headers and footers */
-/*
-    DST_NIL,
-    DST_FALSE,
-    DST_TRUE,
-    DST_FIBER,
-    DST_INTEGER,
-    DST_REAL,
-    DST_STRING,
-    DST_SYMBOL,
-    DST_ARRAY,
-    DST_TUPLE,
-    DST_TABLE,
-    DST_STRUCT,
-    DST_BUFFER,
-    DST_FUNCTION,
-    DST_CFUNCTION,
-    DST_ABSTRACT
-*/
-static const char *dst_type_colors[16] = {
-    "\x1B[35m",
-    "\x1B[35m",
-    "\x1B[35m",
-    "",
-    "\x1B[33m",
-    "\x1B[33m",
-    "\x1B[36m",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    ""
-};
-
-/* Forward declaration */
-static void dst_description_helper(DstPrinter *p, Dst x);
-
-/* Print a hastable view inline */
-static void dst_print_hashtable_inner(DstPrinter *p, const DstKV *data, int32_t len, int32_t cap) {
-    int32_t i;
-    int doindent = 0;
-    if (p->flags & DST_PRINTFLAG_INDENT) {
-        if (len <= p->token_line_limit) {
-            for (i = 0; i < cap; i++) {
-                const DstKV *kv = data + i;
-                if (is_print_ds(kv->key) ||
-                    is_print_ds(kv->value)) {
-                    doindent = 1;
-                    break;
-                }
-            }
-        } else {
-            doindent = 1;
-        }
-    }
-    if (doindent) {
-        dst_buffer_push_u8(p->buffer, '\n');
-        p->indent++;
-        for (i = 0; i < cap; i++) {
-            const DstKV *kv = data + i;
-            if (!dst_checktype(kv->key, DST_NIL)) {
-                dst_print_indent(p);
-                dst_description_helper(p, kv->key);
-                dst_buffer_push_u8(p->buffer, ' ');
-                dst_description_helper(p, kv->value);
-                dst_buffer_push_u8(p->buffer, '\n');
-            }
-        }
-        p->indent--;
-        dst_print_indent(p);
-    } else {
-        int isfirst = 1;
-        for (i = 0; i < cap; i++) {
-            const DstKV *kv = data + i;
-            if (!dst_checktype(kv->key, DST_NIL)) {
-                if (isfirst)
-                    isfirst = 0;
-                else
-                    dst_buffer_push_u8(p->buffer, ' ');
-                dst_description_helper(p, kv->key);
-                dst_buffer_push_u8(p->buffer, ' ');
-                dst_description_helper(p, kv->value);
-            }
-        }
-    }
-}
-
-/* Help print a sequence */
-static void dst_print_seq_inner(DstPrinter *p, const Dst *data, int32_t len) {
-    int32_t i;
-    int doindent = 0;
-    if (p->flags & DST_PRINTFLAG_INDENT) {
-        if (len <= p->token_line_limit) {
-            for (i = 0; i < len; ++i) {
-                if (is_print_ds(data[i])) {
-                    doindent = 1;
-                    break;
-                }
-            }
-        } else {
-            doindent = 1;
-        }
-    }
-    if (doindent) {
-        dst_buffer_push_u8(p->buffer, '\n');
-        p->indent++;
-        for (i = 0; i < len; ++i) {
-            dst_print_indent(p);
-            dst_description_helper(p, data[i]);
-            dst_buffer_push_u8(p->buffer, '\n');
-        }
-        p->indent--;
-        dst_print_indent(p);
-    } else {
-        for (i = 0; i < len; ++i) {
-            dst_description_helper(p, data[i]);
-            if (i != len - 1)
-                dst_buffer_push_u8(p->buffer, ' ');
-        }
-    }
-}
-
-/* Static debug print helper */
-static void dst_description_helper(DstPrinter *p, Dst x) {
-    const char *open;
-    const char *close;
-    int32_t len, cap;
-    const Dst *data;
-    const DstKV *kvs;
-    Dst check;
-    p->depth--;
-    switch (dst_type(x)) {
-        default:
-            if (p->flags & DST_PRINTFLAG_COLORIZE) {
-                dst_buffer_push_cstring(p->buffer, dst_type_colors[dst_type(x)]);
-                dst_short_description_b(p->buffer, x);
-                dst_buffer_push_cstring(p->buffer, "\x1B[0m");
-            } else {
-                dst_short_description_b(p->buffer, x);
-            }
-            p->depth++;
-            return;
-        case DST_STRUCT:
-            open = "{"; close = "}";
-            break;
-        case DST_TABLE:
-            open = "@{"; close = "}";
-            break;
-        case DST_TUPLE:
-            open = "("; close = ")";
-            break;
-        case DST_ARRAY:
-            open = "["; close = "]";
-            break;
-    }
-    if (!p->state) {
-        dst_table_init(&p->seen, 10);
-        p->state = 1;
-    }
-    check = dst_table_get(&p->seen, x);
-    if (dst_checktype(check, DST_INTEGER)) {
-        dst_buffer_push_cstring(p->buffer, "<cycle ");
-        integer_to_string_b(p->buffer, dst_unwrap_integer(check));
-        dst_buffer_push_cstring(p->buffer, ">");
-        return;
-    }
-    dst_table_put(&p->seen, x, dst_wrap_integer(p->next++));
-    dst_buffer_push_cstring(p->buffer, open);
-    if (p->depth == 0) {
-        dst_buffer_push_cstring(p->buffer, "...");
-    } else if (dst_hashtable_view(x, &kvs, &len, &cap)) {
-        dst_print_hashtable_inner(p, kvs, len, cap);
-    } else if (dst_seq_view(x, &data, &len)) {
-        dst_print_seq_inner(p, data, len);
-    }
-    dst_buffer_push_cstring(p->buffer, close);
-    /* Remove from seen as we know that printing completes, we
-     * can print in multiple times and we know we are not recursing */
-    dst_table_remove(&p->seen, x);
-    p->depth++;
-}
-
-/* Init printer to defaults */
-static void dst_printer_defaults(DstPrinter *p) {
-    p->next = 0;
-    p->flags = DST_PRINTFLAG_INDENT;
-    p->depth = 10;
-    p->indent = 0;
-    p->indent_size = 2;
-    p->token_line_limit = 5;
-}
-
-/* Debug print. Returns a description of an object as a string. */
 const uint8_t *dst_description(Dst x) {
-    DstPrinter printer;
-    const uint8_t *ret;
-
-    DstBuffer buffer;
-    dst_printer_defaults(&printer);
-    printer.state = 0;
-    dst_buffer_init(&buffer, 0);
-    printer.buffer = &buffer;
-
-    /* Only print description up to a depth of 4 */
-    dst_description_helper(&printer, x);
-    ret = dst_string(buffer.data, buffer.count);
-
-    dst_buffer_deinit(&buffer);
-    if (printer.state)
-        dst_table_deinit(&printer.seen);
-    return ret;
+    switch (dst_type(x)) {
+    case DST_NIL:
+        return dst_cstring("nil");
+    case DST_TRUE:
+        return dst_cstring("true");
+    case DST_FALSE:
+        return dst_cstring("false");
+    case DST_REAL:
+        return real_to_string(dst_unwrap_real(x));
+    case DST_INTEGER:
+        return integer_to_string(dst_unwrap_integer(x));
+    case DST_SYMBOL:
+        return dst_unwrap_symbol(x);
+    case DST_STRING:
+        return dst_escape_string(dst_unwrap_string(x));
+    case DST_BUFFER:
+        {
+            DstBuffer b;
+            const uint8_t *ret;
+            dst_buffer_init(&b, 3);
+            dst_escape_buffer_b(&b, dst_unwrap_buffer(x));
+            ret = dst_string(b.data, b.count);
+            dst_buffer_deinit(&b);
+            return ret;
+        }
+    case DST_ABSTRACT:
+        {
+            const char *n = dst_abstract_type(dst_unwrap_abstract(x))->name;
+            return string_description( 
+                    n[0] == ':' ? n + 1 : n,
+                    dst_unwrap_abstract(x));
+        }
+    default:
+        return string_description(dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
+    }
 }
 
 /* Convert any value to a dst string. Similar to description, but
@@ -622,7 +374,7 @@ const uint8_t *dst_description(Dst x) {
 const uint8_t *dst_to_string(Dst x) {
     switch (dst_type(x)) {
         default:
-            return dst_short_description(x);
+            return dst_description(x);
         case DST_BUFFER:
             return dst_string(dst_unwrap_buffer(x)->data, dst_unwrap_buffer(x)->count);
         case DST_STRING:
@@ -638,17 +390,14 @@ const uint8_t *dst_formatc(const char *format, ...) {
     int32_t len = 0;
     int32_t i;
     const uint8_t *ret;
-    DstPrinter printer;
     DstBuffer buffer;
     DstBuffer *bufp = &buffer;
-    printer.state = 0;
     
     /* Calculate length */
     while (format[len]) len++;
 
     /* Initialize buffer */
     dst_buffer_init(bufp, len);
-    printer.buffer = bufp;
 
     /* Start args */
     va_start(args, format);
@@ -686,19 +435,6 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     case 'c':
                         dst_buffer_push_u8(bufp, va_arg(args, long));
                         break;
-                    case 'v':
-                    {
-                        dst_printer_defaults(&printer);
-                        dst_description_helper(&printer, va_arg(args, Dst));
-                        break;
-                    }
-                    case 'C':
-                    {
-                        dst_printer_defaults(&printer);
-                        printer.flags |= DST_PRINTFLAG_COLORIZE;
-                        dst_description_helper(&printer, va_arg(args, Dst));
-                        break;
-                    }
                     case 'q':
                     {
                         const uint8_t *str = va_arg(args, const uint8_t *);
@@ -711,8 +447,9 @@ const uint8_t *dst_formatc(const char *format, ...) {
                         break;
                     }
                     case 'V': 
+                    case 'v': 
                     {
-                        dst_short_description_b(bufp, va_arg(args, Dst));
+                        dst_description_b(bufp, va_arg(args, Dst));
                         break;
                     }
                 }
@@ -724,8 +461,6 @@ const uint8_t *dst_formatc(const char *format, ...) {
 
     ret = dst_string(buffer.data, buffer.count);
     dst_buffer_deinit(&buffer);
-    if (printer.state)
-        dst_table_deinit(&printer.seen);
     return ret;
 }
 

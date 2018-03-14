@@ -435,7 +435,7 @@ void dst_line_get(DstBuffer *buffer) {
     }
     if (line()) {
         norawmode();
-        exit(0);
+        fputc('\n', stdout);
         return;
     }
     norawmode();

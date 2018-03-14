@@ -83,7 +83,6 @@ int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, 
 const uint8_t *dst_string_unique(const uint8_t *buf, int32_t len);
 const uint8_t *dst_cstring_unique(const char *s);
 const uint8_t *dst_description(Dst x);
-const uint8_t *dst_short_description(Dst x);
 const uint8_t *dst_to_string(Dst x);
 const char *dst_to_zerostring(Dst x);
 #define dst_cstringv(cstr) dst_wrap_string(dst_cstring(cstr))
