@@ -48,16 +48,16 @@ int dst_core_print(DstArgs args) {
 
 int dst_core_describe(DstArgs args) {
     int32_t i;
+    DstBuffer b;
+    dst_buffer_init(&b, 0);
     for (i = 0; i < args.n; ++i) {
-        int32_t j, len;
-        const uint8_t *vstr = dst_description(args.v[i]);
-        len = dst_string_length(vstr);
-        for (j = 0; j < len; ++j) {
-            putc(vstr[j], stdout);
-        }
-        putc('\n', stdout);
+        int32_t len;
+        const uint8_t *str = dst_description(args.v[i]);
+        len = dst_string_length(str);
+        dst_buffer_push_bytes(&b, str, len);
     }
-    if (!i) putc('\n', stdout);
+    *args.ret = dst_stringv(b.data, b.count);
+    dst_buffer_deinit(&b);
     return 0;
 }
 

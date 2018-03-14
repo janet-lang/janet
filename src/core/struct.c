@@ -59,7 +59,13 @@ const DstKV *dst_struct_find(const DstKV *st, Dst key) {
 
 /* Put a kv pair into a struct that has not yet been fully constructed.
  * Nil keys and values are ignored, extra keys are ignore, and duplicate keys are
- * ignored. */
+ * ignored. 
+ *
+ * Much of this complexity is in the robinhood hashing scheme, an
+ * attempt to make structs that are created with arguments in a different
+ * order to have the same internal representation. If this turns out to be
+ * incorrect or too complicated, another scheme that would definitely work
+ * is inserting all keys in sorted order with any deterministic hashing scheme. */
 void dst_struct_put(DstKV *st, Dst key, Dst value) {
     int32_t cap = dst_struct_capacity(st);
     int32_t hash = dst_hash(key);

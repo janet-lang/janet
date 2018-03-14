@@ -360,6 +360,6 @@ onvalue."
     (file-read stdin :line buf))
  (defn onvalue [x]
   (put newenv '_ @{'value x})
-  (print x))
+  (print (describe x)))
  (run-context newenv (if getchunk getchunk chunks) onvalue
   (fn [t x] (print (string t " error: " x)))))
