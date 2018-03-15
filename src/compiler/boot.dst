@@ -32,6 +32,14 @@
  (apply tuple (array-concat
   ['defn name :private] more)))
 
+(defn even? [x] (== 0 (% x 2)))
+(defn odd? [x] (== 1 (% x 2)))
+(defn nil? [x] (= x nil))
+(defn zero? [x] (== x 0))
+(defn one? [x] (== x 1))
+(defn inc [x] (+ x 1))
+(defn dec [x] (- x 1))
+
 (defmacro comment
  "Ignores the body of the comment."
  [])
@@ -83,8 +91,19 @@ If no match is found, returns nil"
    (tuple 'def sym dispatch)
    (aux 0)))
 
-(defmacro or [x y] (tuple 'if x true y))
-(defmacro and [x y] (tuple 'if x y false))
+(defmacro and [& forms] 
+ (def len (length forms))
+ (if (= len 0) true ((fn aux [i]
+  (cond
+   (>= (inc i) len) (get forms i)
+   (tuple 'if (get forms i) (aux (inc i)) false))) 0)))
+
+(defmacro or [& forms] 
+ (def len (length forms))
+ (if (= len 0) false ((fn aux [i]
+  (cond
+   (>= (inc i) len) (get forms i)
+   (tuple 'if (get forms i) true (aux (inc i))))) 0)))
 
 (defn identity 
  "A function that returns its first argument."
@@ -136,6 +155,12 @@ If no match is found, returns nil"
  (def {:more more :next next} (seq s))
  (while (more) (f (next))))
 
+(defn seq-array [s] 
+ (def {:more more :next next} (seq s))
+ (def a [])
+ (while (more) (array-push a (next)))
+ a)
+
 (defn map [f s]
  (def {:more more :next next} (seq s))
  {:more more :next (fn [] (f (next)))})
@@ -163,14 +188,6 @@ If no match is found, returns nil"
  (defn nnext [] (def ret temp) (varset! temp (nextgood)) ret)
  (defn nmore [] (when isnew (varset! isnew false) (nnext)) alive)
  {:more nmore :next nnext})
-
-(defn even? [x] (== 0 (% x 2)))
-(defn odd? [x] (== 1 (% x 2)))
-(defn nil? [x] (= x nil))
-(defn zero? [x] (== x 0))
-(defn one? [x] (== x 1))
-(defn inc [x] (+ x 1))
-(defn dec [x] (- x 1))
 
 (defmacro let [bindings & body]
   (def head (ast-unwrap1 bindings))
@@ -302,6 +319,11 @@ If no match is found, returns nil"
 
   (fn [x] (print (pp1 @{} @"" x)))))
 # End pretty printer
+
+(defn unique [s]
+  (def tab @{})
+  (domap (fn [x] (put tab x true)) s)
+  (keys tab))
 
 (defn make-env [parent]
  (def parent (if parent parent _env))

@@ -1,0 +1,14 @@
+(defn sum3
+ "Solve the 3SUM problem O(n^2) time."
+ [s]
+ (def tab @{})
+ (def solutions [])
+ (def len (length s))
+ (for [k 0 len]
+  (put tab (get s k) k))
+ (for [i 0 len]
+  (for [j 0 len]
+   (def k (get tab (- 0 (get s i) (get s j))))
+   (when (and k (not= k i) (not= k j) (not= i j))
+    (array-push solutions [i j k]))))
+ solutions)
