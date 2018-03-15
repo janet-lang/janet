@@ -4,8 +4,7 @@
  "Get the number of occurences of each value in a sequence."
  [s]
  (let [freqs @{}
-       fop (fn [x] 
-         (let [n (get freqs x)]
-          (put freqs x (if n (+ 1 n) 1))))
-       _ (domap fop s)]
+       _ (foreach s (fn [x] 
+          (let [n (get freqs x)]
+           (put freqs x (if n (+ 1 n) 1)))))]
   freqs))

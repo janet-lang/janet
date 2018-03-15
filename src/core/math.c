@@ -23,16 +23,26 @@
 #include <dst/dst.h>
 #include <math.h>
 
+/* Get a random number */
+int dst_rand(DstArgs args) {
+    double r = (rand() % RAND_MAX) / ((double) RAND_MAX);
+    return dst_return(args, dst_wrap_real(r));
+}
+
+/* Seed the random number generator */
+int dst_srand(DstArgs args) {
+  if (args.n != 1 || !dst_checktype(args.v[0], DST_INTEGER))
+      return dst_throw(args, "expected integer");
+  srand((unsigned) dst_unwrap_integer(args.v[0]));
+  return 0;
+}
+
 /* Convert a number to an integer */
 int dst_int(DstArgs args) {
-    if (args.n != 1) {
-        *args.ret = dst_cstringv("expected 1 argument");
-        return 1;
-    }
+    if (args.n != 1) return dst_throw(args, "expected one argument");
     switch (dst_type(args.v[0])) {
         default:
-            *args.ret = dst_cstringv("could not convert to integer");
-            return 1;
+            return dst_throw(args, "could not convert to integer");
         case DST_REAL:
             *args.ret = dst_wrap_integer((int32_t) dst_unwrap_real(args.v[0]));
             break;
@@ -45,14 +55,10 @@ int dst_int(DstArgs args) {
 
 /* Convert a number to a real number */
 int dst_real(DstArgs args) {
-    if (args.n != 1) {
-        *args.ret = dst_cstringv("expected 1 argument");
-        return 1;
-    }
+    if (args.n != 1) return dst_throw(args, "expected one argument");
     switch (dst_type(args.v[0])) {
         default:
-            *args.ret = dst_cstringv("could not convert to real");
-            return 1;
+            return dst_throw(args, "could not convert to real");
         case DST_REAL:
             *args.ret = args.v[0];
             break;
@@ -379,6 +385,8 @@ DEF_NUMERIC_COMP(eq, ==)
 DEF_NUMERIC_COMP(neq, !=)
 
 static const DstReg cfuns[] = {
+    {"random", dst_rand},
+    {"seedrandom", dst_srand},
     {"int", dst_int},
     {"real", dst_real},
     {"+", dst_add},

@@ -39,6 +39,14 @@
 (defn one? [x] (== x 1))
 (defn inc [x] (+ x 1))
 (defn dec [x] (- x 1))
+(def atomic? (do
+  (def non-atomic-types {
+   :array true
+   :tuple true
+   :table true
+   :struct true
+  })
+  (fn [x] (not (get non-atomic-types (type x))))))
 
 (defmacro comment
  "Ignores the body of the comment."
@@ -109,8 +117,8 @@ If no match is found, returns nil"
  "A function that returns its first argument."
 [x] x)
 
-(def seq (do
-  (defn array-seq [x]
+(def iter (do
+  (defn array-iter [x]
     (def len (length x))
     (var i 0)
     {
@@ -120,22 +128,13 @@ If no match is found, returns nil"
         (varset! i (+ i 1))
         ret) 
     })
-  (defn fiber-seq [x]
-    {
-      :more (fn [] (or
-            (= (fiber-status x) :pending)
-            (= (fiber-status x) :new)))
-      :next (fn []
-          (resume x))
-    })
-  (def seqs {
-    :array array-seq
-    :tuple array-seq
-    :fiber fiber-seq
+  (def iters {
+    :array array-iter
+    :tuple array-iter
     :struct (fn [x] x)})
   (fn [x]
-   (def makeseq (get seqs (type x)))
-   (if makeseq (makeseq x) (error "expected sequence")))))
+   (def makei (get iters (type x)))
+   (if makei (makei x) (error "expected sequence")))))
 
 (defn range [top]
   (var i 0)
@@ -147,34 +146,34 @@ If no match is found, returns nil"
       ret) 
   })
 
-(defn doseq [s] 
- (def {:more more :next next} (seq s))
+(defn doiter [itr] 
+ (def {:more more :next next} (iter itr))
  (while (more) (next)))
 
-(defn domap [f s] 
- (def {:more more :next next} (seq s))
+(defn foreach [itr f] 
+ (def {:more more :next next} (iter itr))
  (while (more) (f (next))))
 
-(defn seq-array [s] 
- (def {:more more :next next} (seq s))
+(defn iter2array [itr] 
+ (def {:more more :next next} (iter itr))
  (def a [])
  (while (more) (array-push a (next)))
  a)
 
-(defn map [f s]
- (def {:more more :next next} (seq s))
+(defn map [f itr]
+ (def {:more more :next next} (iter itr))
  {:more more :next (fn [] (f (next)))})
 
-(defn reduce [f start s]
-  (def s (seq s))
-  (def {:more more :next next} s)
+(defn reduce [f start itr]
+  (def itr (iter itr))
+  (def {:more more :next next} itr)
   (if (more)
-   (reduce f (f start (next)) s)
+   (reduce f (f start (next)) itr)
    start))
 
-(defn filter [pred s]
- (def s (seq s))
- (def {:more more :next next} s)
+(defn filter [pred itr]
+ (def itr (iter itr))
+ (def {:more more :next next} itr)
  (var alive true)
  (var temp nil)
  (var isnew true)
@@ -322,13 +321,15 @@ If no match is found, returns nil"
 
 (defn unique [s]
   (def tab @{})
-  (domap (fn [x] (put tab x true)) s)
+  (foreach s (fn [x] (put tab x true)))
   (keys tab))
 
 (defn make-env [parent]
  (def parent (if parent parent _env))
  (def newenv (setproto @{} parent))
  newenv)
+
+# Remove the reference to the default _env
 (put _env '_env nil)
 
 (def run-context 
@@ -392,7 +393,7 @@ onvalue."
    (onvalue res)))
  (def oldenv *env*)
  (varset! *env* env) 
- (doseq (map doone (val-stream chunks onerr)))
+ (foreach (val-stream chunks onerr) doone)
  (varset! *env* oldenv)
  env)))
 
@@ -420,10 +421,9 @@ onvalue."
  (def {
   :prefix prefix
   } (apply table args))
- (defn one [[k v]]
+ (foreach (pairs env) (fn [[k v]]
   (when (not (get v :private))
-   (put *env* (symbol (if prefix prefix "") k) v)))
- (doseq (map one (pairs env))))
+   (put *env* (symbol (if prefix prefix "") k) v)))))
 
 (defn repl [getchunk]
  (def newenv (make-env))

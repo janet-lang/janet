@@ -40,6 +40,8 @@ int dst_subtract(DstArgs args);
 int dst_multiply(DstArgs args);
 int dst_divide(DstArgs args);
 int dst_modulo(DstArgs args);
+int dst_rand(DstArgs args);
+int dst_srand(DstArgs args);
 int dst_strict_equal(DstArgs args);
 int dst_strict_notequal(DstArgs args);
 int dst_ascending(DstArgs args);
