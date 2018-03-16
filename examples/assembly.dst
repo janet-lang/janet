@@ -1,0 +1,22 @@
+# Example of dst assembly
+
+# Fibonacci sequence, implemented with naive recursion.
+(def fibasm (asm '{
+  arity 1
+  bytecode [
+    (ldi 1 0x2)          # $1 = 2
+    (lt 1 0 1)          # $1 = $0 < $1
+    (jmpn 1 :recursive) # if (not $1) goto :recursive
+    (ret 0)             # return $0
+    :recursive
+    (lds 1)              # $1 = self
+    (addim 0 0 -0x1)    # $0 = $0 - 1
+    (push 0)            # push($0)
+    (call 2 1)          # $2 = call($1)
+    (addim 0 0 -0x1)    # $0 = $0 - 1
+    (push 0)            # push($0)
+    (call 0 1)          # $0 = call($1)
+    (addi 0 0 2)        # $0 = $0 + $2 (integers)
+    (ret 0)             # return $0
+  ]
+}))

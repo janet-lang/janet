@@ -56,6 +56,7 @@ struct DstAssembler {
     DstFuncDef *def;
     jmp_buf on_error;
     const uint8_t *errmessage;
+    int32_t errindex;
 
     int32_t environments_capacity;
     int32_t defs_capacity;
@@ -76,8 +77,8 @@ struct DstAssembler {
  * prefix tree. */
 static const DstInstructionDef dst_ops[] = {
     {"add", DOP_ADD},
-    {"addim", DOP_ADD_IMMEDIATE},
     {"addi", DOP_ADD_INTEGER},
+    {"addim", DOP_ADD_IMMEDIATE},
     {"addr", DOP_ADD_REAL},
     {"band", DOP_BAND},
     {"bnot", DOP_BNOT},
@@ -88,8 +89,8 @@ static const DstInstructionDef dst_ops[] = {
     {"cmp", DOP_COMPARE},
     {"debug", DOP_DEBUG},
     {"div", DOP_DIVIDE},
-    {"divim", DOP_DIVIDE_IMMEDIATE},
     {"divi", DOP_DIVIDE_INTEGER},
+    {"divim", DOP_DIVIDE_IMMEDIATE},
     {"divr", DOP_DIVIDE_REAL},
     {"eq", DOP_EQUALS},
     {"err", DOP_ERROR},
@@ -99,25 +100,25 @@ static const DstInstructionDef dst_ops[] = {
     {"jmp", DOP_JUMP},
     {"jmpi", DOP_JUMP_IF},
     {"jmpn", DOP_JUMP_IF_NOT},
+    {"ldc", DOP_LOAD_CONSTANT},
+    {"ldf", DOP_LOAD_FALSE},
+    {"ldi", DOP_LOAD_INTEGER},
+    {"ldn", DOP_LOAD_NIL},
+    {"lds", DOP_LOAD_SELF},
+    {"ldt", DOP_LOAD_TRUE},
+    {"ldu", DOP_LOAD_UPVALUE},
     {"lt", DOP_LESS_THAN},
-    {"lc", DOP_LOAD_CONSTANT},
-    {"lf", DOP_LOAD_FALSE},
-    {"li", DOP_LOAD_INTEGER},
-    {"ln", DOP_LOAD_NIL},
-    {"ls", DOP_LOAD_SELF},
-    {"lt", DOP_LOAD_TRUE},
-    {"lu", DOP_LOAD_UPVALUE},
     {"movf", DOP_MOVE_FAR},
     {"movn", DOP_MOVE_NEAR},
     {"mul", DOP_MULTIPLY},
-    {"mulim", DOP_MULTIPLY_IMMEDIATE},
     {"muli", DOP_MULTIPLY_INTEGER},
+    {"mulim", DOP_MULTIPLY_IMMEDIATE},
     {"mulr", DOP_MULTIPLY_REAL},
     {"noop", DOP_NOOP},
     {"push", DOP_PUSH},
-    {"pusha", DOP_PUSH_ARRAY},
     {"push2", DOP_PUSH_2},
     {"push3", DOP_PUSH_3},
+    {"pusha", DOP_PUSH_ARRAY},
     {"put", DOP_PUT},
     {"puti", DOP_PUT_INDEX},
     {"res", DOP_RESUME},
@@ -168,7 +169,7 @@ static void dst_asm_deinit(DstAssembler *a) {
 
 /* Throw some kind of assembly error */
 static void dst_asm_error(DstAssembler *a, const char *message) {
-    a->errmessage = dst_cstring(message);
+    a->errmessage = dst_formatc("%s, instruction %d", message, a->errindex);
     longjmp(a->on_error, 1);
 }
 #define dst_asm_assert(a, c, m) do { if (!(c)) dst_asm_error((a), (m)); } while (0)
@@ -469,6 +470,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     a.def = def;
     a.parent = parent;
     a.errmessage = NULL;
+    a.errindex = 0;
     a.environments_capacity = 0;
     a.bytecode_count = 0;
     a.defs_capacity = 0;
@@ -613,6 +615,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
             } else if (dst_checktype(instr, DST_TUPLE)) {
                 blength++;
             } else {
+                a.errindex = i;
                 dst_asm_error(&a, "expected assembly instruction");
             }
         }
@@ -631,6 +634,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
                 uint32_t op;
                 const DstInstructionDef *idef;
                 const Dst *t;
+                a.errindex = i;
                 dst_asm_assert(&a, dst_checktype(instr, DST_TUPLE), "expected tuple");
                 t = dst_unwrap_tuple(instr);
                 if (dst_tuple_length(t) == 0) {
@@ -653,6 +657,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     } else {
         dst_asm_error(&a, "bytecode expected");
     }
+    a.errindex = -1;
     
     /* Check for source mapping */
     x = dst_get(s, dst_csymbolv("sourcemap"));

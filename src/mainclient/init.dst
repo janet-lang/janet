@@ -28,7 +28,7 @@
   (dohandler (string-slice arg 1 2))
   (do
    (varset! no-file false)
-   (require arg))))
+   (import arg))))
 
 (when (or should-repl no-file) 
  (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))

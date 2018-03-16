@@ -335,14 +335,12 @@ If no match is found, returns nil"
   (foreach s (fn [x] (put tab x true)))
   (keys tab))
 
-(defn make-env [parent]
+(defn make-env [parent safe]
  (def parent (if parent parent _env))
  (def newenv (setproto @{} parent))
- (put newenv '_env @{'value newenv})
+ (if (not safe)
+   (put newenv '_env @{'value newenv}))
  newenv)
-
-# Remove the reference to the default _env
-(put _env '_env nil)
 
 (def run-context 
 "Run a context. This evaluates expressions of dst in an environment,
