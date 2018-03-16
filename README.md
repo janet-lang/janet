@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/bakpakin/dst.svg?branch=master)](https://travis-ci.org/bakpakin/dst)
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/bakpakin/dst)
 
-Dst is a general purpose functional programming language and bytecode interpreter. The syntax
+Dst is a functional and imperative programming language and bytecode interpreter. The syntax
 resembles lisp (and the language does inherit a lot from lisp), but lists are replaced
 by other data structures with better utility and performance (arrays, tables, structs, tuples).
 The language can also easily bridge to native code, and supports abstract datatypes
@@ -36,6 +36,7 @@ or the file `src/compiler/boot.dst` to get a sense of what dst code looks like.
 * Direct interop with C via abstract types and C functions
 * Dynamically load C libraries
 * Lexical scoping
+* Imperative Programming as well as functional
 * REPL
 
 ## Usage
