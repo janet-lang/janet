@@ -18,6 +18,10 @@ Implemented in mostly standard C99, dst runs on Windows, Linux and macOS.
 The few features that are not standard C (dynamic library loading, compiler specific optimizations),
 are fairly straight forward. Dst can be easily ported to new platforms.
 
+There is not much in the way of documentation yet because it is still a "personal project" and
+I don't want to freeze features prematurely. You can look in the examples directory, the test directory,
+or the file `src/compiler/boot.dst` to get a sense of what dst code looks like.
+
 ## Features
 
 * First class closures

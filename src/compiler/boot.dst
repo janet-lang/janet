@@ -139,7 +139,7 @@ If no match is found, returns nil"
       :more (fn [] (< i len))
       :next (fn []
         (def ret (get x i))
-        (varset! i (+ i 1))
+        (:= i (+ i 1))
         ret) 
     })
   (def iters {
@@ -156,7 +156,7 @@ If no match is found, returns nil"
     :more (fn [] (< i top))
     :next (fn []
       (def ret i)
-      (varset! i (+ i 1))
+      (:= i (+ i 1))
       ret) 
   })
 
@@ -199,9 +199,9 @@ If no match is found, returns nil"
      (do
       (def n (next))
       (if (pred n) n (nextgood)))
-     (varset! alive false))))
- (defn nnext [] (def ret temp) (varset! temp (nextgood)) ret)
- (defn nmore [] (when isnew (varset! isnew false) (nnext)) alive)
+     (:= alive false))))
+ (defn nnext [] (def ret temp) (:= temp (nextgood)) ret)
+ (defn nmore [] (when isnew (:= isnew false) (nnext)) alive)
  {:more nmore :next nnext})
 
 (defmacro let [bindings & body]
@@ -213,7 +213,7 @@ If no match is found, returns nil"
    (array-push accum (tuple 'def 
                      (get head i)
                      (get head (+ 1 i))))
-   (varset! i (+ i 2)))
+   (:= i (+ i 2)))
   (array-push accum (tuple-prepend body 'do))
   (apply1 tuple accum))
 
@@ -223,7 +223,7 @@ If no match is found, returns nil"
     :more (fn [] lastkey)
     :next (fn []
         (def ret (tuple lastkey (get x lastkey)))
-        (varset! lastkey (next x lastkey))
+        (:= lastkey (next x lastkey))
         ret)
  })
 
@@ -233,7 +233,7 @@ If no match is found, returns nil"
     :more (fn [] lastkey)
     :next (fn []
         (def ret lastkey)
-        (varset! lastkey (next x lastkey))
+        (:= lastkey (next x lastkey))
         ret)
  })
 
@@ -243,7 +243,7 @@ If no match is found, returns nil"
     :more (fn [] lastkey)
     :next (fn []
         (def ret (get x lastkey))
-        (varset! lastkey (next x lastkey))
+        (:= lastkey (next x lastkey))
         ret)
  })
 
@@ -260,7 +260,7 @@ If no match is found, returns nil"
     (tuple 'def endsym end)
     (tuple 'while (tuple '< sym endsym)
      (tuple-prepend body 'do)
-     (tuple 'varset! sym (tuple '+ sym inc)))))
+     (tuple ':= sym (tuple '+ sym inc)))))
 
 (defmacro ->
  [x & forms]
@@ -311,7 +311,7 @@ If no match is found, returns nil"
       (pp seen buf k)
       (buffer-push-string buf " ")
       (pp seen buf v)
-      (varset! k (next a k))
+      (:= k (next a k))
       (when k (buffer-push-string buf " ")))
      (buffer-push-string buf end)))
    buf)
@@ -369,7 +369,7 @@ onvalue."
    (while (< 0 len)
       (buffer-clear buf)
       (chunks buf) 
-      (varset! len (length buf))
+      (:= len (length buf))
       (for [i 0 len]
         (yield (get buf i))))
    0)))
@@ -385,17 +385,17 @@ onvalue."
        (select (fiber-status chars)
         :new (parser-byte p (resume chars))
         :pending (parser-byte p (resume chars))
-        (varset! going false))))
+        (:= going false))))
     (when (not= :root (parser-status p))
      (onerr "parse" "unexpected end of source"))
     nil)))
  (defn more [] (if temp true 
   (do 
-   (varset! temp true)
-   (varset! tempval (resume f))
+   (:= temp true)
+   (:= tempval (resume f))
    going)))
  (defn next [] (if temp
-  (do (varset! temp nil) tempval)
+  (do (:= temp nil) tempval)
   (resume f)))
  {:more more :next next})
 (fn [env chunks onvalue onerr]

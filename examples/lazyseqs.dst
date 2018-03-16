@@ -11,10 +11,11 @@
    state
    (do 
     (def n (f))
-    (varset! state n)
-    (varset! loaded true)
+    (:= state n)
+    (:= loaded true)
     n))))
 
+# This creates one more closure than necessary but oh well
 (defmacro delay 
  "Macro for lazy evaluation"
  [& forms] (tuple mem0 (apply1 tuple (array-concat ['fn []] forms))))

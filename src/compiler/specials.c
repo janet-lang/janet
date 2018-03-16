@@ -615,6 +615,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
 
 /* Keep in lexographic order */
 static const DstSpecial dstc_specials[] = {
+    {":=", dstc_varset},
     {"ast-quote", dstc_astquote},
     {"def", dstc_def},
     {"do", dstc_do},
@@ -622,7 +623,6 @@ static const DstSpecial dstc_specials[] = {
     {"if", dstc_if},
     {"quote", dstc_quote},
     {"var", dstc_var},
-    {"varset!", dstc_varset},
     {"while", dstc_while}
 };
 

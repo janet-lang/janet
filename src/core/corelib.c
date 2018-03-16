@@ -136,7 +136,7 @@ int dst_core_struct(DstArgs args) {
 
 int dst_core_fiber(DstArgs args) {
     DstFiber *fiber;
-    if (args.n < 1) return dst_throw(args, "expected at least one argument");
+    if (args.n < 1) return dst_throw(args, "expected at least 1 argument");
     if (!dst_checktype(args.v[0], DST_FUNCTION))
         return dst_throw(args, "expected a function");
     fiber = dst_fiber(dst_unwrap_function(args.v[0]), 64);
