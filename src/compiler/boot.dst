@@ -53,6 +53,21 @@
   })
   (fn [x] (not (get non-atomic-types (type x))))))
 
+# C style macros for imperative sugar
+(defmacro ++ [x] (tuple ':= x (tuple + x 1)))
+(defmacro -- [x] (tuple ':= x (tuple - x 1)))
+(defmacro += [x n] (tuple ':= x (tuple + x n)))
+(defmacro -= [x n] (tuple ':= x (tuple - x n)))
+(defmacro *= [x n] (tuple ':= x (tuple * x n)))
+(defmacro /= [x n] (tuple ':= x (tuple / x n)))
+(defmacro %= [x n] (tuple ':= x (tuple % x n)))
+(defmacro &= [x n] (tuple ':= x (tuple & x n)))
+(defmacro |= [x n] (tuple ':= x (tuple | x n)))
+(defmacro ^= [x n] (tuple ':= x (tuple ^ x n)))
+(defmacro >>= [x n] (tuple ':= x (tuple >> x n)))
+(defmacro <<= [x n] (tuple ':= x (tuple << x n)))
+(defmacro >>>= [x n] (tuple ':= x (tuple >>> x n)))
+
 (defmacro comment
  "Ignores the body of the comment."
  [])

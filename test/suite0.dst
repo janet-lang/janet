@@ -23,11 +23,11 @@
 (var num-tests-passed 0)
 (var num-tests-run 0)
 (def assert (fn [x e]
-	(varset! num-tests-run (+ 1 num-tests-run))
+	(:= num-tests-run (+ 1 num-tests-run))
 	(if x
 		(do
 			(print "  \e[32m✔\e[0m " e)
-			(varset! num-tests-passed (+ 1 num-tests-passed))
+			(:= num-tests-passed (+ 1 num-tests-passed))
 			x)
 		(do
 			(print "  \e[31m✘\e[0m " e)
@@ -83,7 +83,7 @@
 
 # Mcarthy's 91 function
 (var f91 nil)
-(varset! f91 (fn [n] (if (> n 100) (- n 10) (f91 (f91 (+ n 11))))))
+(:= f91 (fn [n] (if (> n 100) (- n 10) (f91 (f91 (+ n 11))))))
 (assert (= 91 (f91 10)), "f91(10) = 91")
 (assert (= 91 (f91 11)), "f91(11) = 91")
 (assert (= 91 (f91 20)), "f91(20) = 91")
@@ -95,7 +95,7 @@
 (assert (= 94 (f91 104)), "f91(104) = 94")
 
 # Fibonacci
-(def fib (do (var fib nil) (varset! fib (fn [n] (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))))
+(def fib (do (var fib nil) (:= fib (fn [n] (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))))
 (def fib2 (fn fib2 [n] (if (< n 2) n (+ (fib2 (- n 1)) (fib2 (- n 2))))))
 
 (assert (= (fib 0) (fib2 0) 0) "fib(0)")
@@ -130,15 +130,15 @@
 	(var accum 1)
 	(var count 0)
 	(while (< count 16)
-		(varset! accum (<< accum 1))
-		(varset! count (+ 1 count)))
+		(:= accum (<< accum 1))
+		(:= count (+ 1 count)))
 	(assert (= accum 65536) "loop in closure")))
 
 (var accum 1)
 (var count 0)
 (while (< count 16)
-	(varset! accum (<< accum 1))
-	(varset! count (+ 1 count)))
+	(:= accum (<< accum 1))
+	(:= count (+ 1 count)))
 (assert (= accum 65536) "loop globally")
 
 (assert (= (struct 1 2 3 4 5 6 7 8) (struct 7 8 5 6 3 4 1 2)) "struct order does not matter 1")
@@ -228,18 +228,18 @@
       (def xi (get xs i))
       (def yj (get ys j))
       (if (< xi yj)
-        (do (array-push ret xi) (varset! i (+ i 1)))    
-        (do (array-push ret yj) (varset! j (+ j 1)))))
+        (do (array-push ret xi) (:= i (+ i 1)))    
+        (do (array-push ret yj) (:= j (+ j 1)))))
     # Push rest of xs
     (while (< i xlen)
       (def xi (get xs i))
       (array-push ret xi)
-      (varset! i (+ i 1)))    
+      (:= i (+ i 1)))    
     # Push rest of ys
     (while (< j ylen)
       (def yj (get ys j))
       (array-push ret yj)
-      (varset! j (+ j 1)))    
+      (:= j (+ j 1)))    
     ret))
 
 (assert (apply <= (merge [1 3 5] [2 4 6])) "merge sort merge 1")
@@ -256,7 +256,7 @@
 	(var count 0)
 	(while (< count 128)
 		(put syms (gensym 'beep) true)
-		(varset! count (+ 1 count)))
+		(:= count (+ 1 count)))
 	(assert (= (length syms) 128) "many symbols")))
 
 # Let
@@ -267,17 +267,6 @@
 
 # Macros
 
-(def defmacro macro (fn [name & more]
-  (tuple 'def name 'macro (tuple-prepend (tuple-prepend more name) 'fn))))
-(defmacro defn 
-  [name & more]
-  (tuple 
-   'def
-   name 
-   (tuple-prepend (tuple-prepend more name) 'fn)))
-
-(defmacro when [cond & body] (tuple 'if cond (tuple-prepend body 'do)))
-
 (defn dub [x] (+ x x))
 (assert (= 2 (dub 1)) "defn macro")
 (do 
@@ -286,12 +275,12 @@
 (do
  (var i 0)
  (when true
-  (varset! i (+ i 1))
-  (varset! i (+ i 1))
-  (varset! i (+ i 1))
-  (varset! i (+ i 1))
-  (varset! i (+ i 1))
-  (varset! i (+ i 1)))
+  (:= i (+ i 1))
+  (:= i (+ i 1))
+  (:= i (+ i 1))
+  (:= i (+ i 1))
+  (:= i (+ i 1))
+  (:= i (+ i 1)))
  (assert (= i 6) "when macro"))
 
 # report
