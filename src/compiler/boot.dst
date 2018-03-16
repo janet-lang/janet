@@ -89,7 +89,7 @@ are matched. If there are no matches, return nil."
 (defmacro doc
  "Shows documentation for the given symbol."
  [sym]
- (tuple doc* '_env sym))
+ (tuple doc* '_env (tuple 'quote sym)))
 
 (def apply
  (fn [f & args]
