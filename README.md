@@ -34,6 +34,29 @@ are fairly straight forward. Dst can be easily ported to new platforms.
 * Lexical scoping
 * REPL
 
+## Usage
+
+A repl is launched when the binary is invoked with no arguments. Pass the -h flag
+to display the usage information.
+
+```
+$ ./dst
+Dst 0.0.0 alpha  Copyright (C) 2017-2018 Calvin Rose
+> (+ 1 2 3)
+6
+> (print "Hello, World!")
+Hello, World!
+nil
+> (exit)
+$ ./dst -h
+usage: ./dst [options] scripts...
+Options are:
+-h Show this help
+-v Print the version string
+-r Enter the repl after running all scripts
+$
+```
+
 ## Compiling and Running
 
 Dst is built using CMake. There used to be a hand-written Makefile, but in the interest of 
@@ -57,6 +80,11 @@ The repl can also be run with the CMake run target.
 make run
 ```
 
-### Example
+### Examples
 
-See the lin directory for some example dst code.
+See the examples directory for some example dst code.
+
+### Editor
+
+There is some preliminary vim syntax highlighting in [dst.vim](https://github.com/bakpakin/dst.vim).
+Generic lisp synatx highlighting should provide good results, however.
