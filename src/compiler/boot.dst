@@ -13,7 +13,7 @@
    (def start (fstart 0))
    (def fnbody (tuple-prepend (tuple-prepend (tuple-slice more start) name) 'fn))
    (def formargs (array-concat ['def name] (array-slice more 0 start) [fnbody]))
-   (apply tuple formargs)))
+   (apply1 tuple formargs)))
 
 (def defmacro :macro
  "Define a macro."
@@ -21,18 +21,18 @@
   (def defn* (get (get _env 'defn) 'value))
   (fn [name & more] 
    (def args (array-concat [] name :macro more))
-   (apply defn* args))))
+   (apply1 defn* args))))
 
 (defmacro defmacro-
  "Define a private macro that will not be exported."
  [name & more]
- (apply tuple (array-concat
+ (apply1 tuple (array-concat
   ['defmacro name :private] more)))
 
 (defmacro defn-
  "Define a private function that will not be exported."
  [name & more]
- (apply tuple (array-concat
+ (apply1 tuple (array-concat
   ['defn name :private] more)))
 
 (defn even? [x] (== 0 (% x 2)))
@@ -90,6 +90,11 @@ are matched. If there are no matches, return nil."
  "Shows documentation for the given symbol."
  [sym]
  (tuple doc* '_env sym))
+
+(def apply
+ (fn [f & args]
+  (def last (- (length args) 1))
+  (apply1 f (array-concat (array-slice args 0 -2) (get args last)))))
 
 (defmacro select
 "Select the body that equals the dispatch value. When pairs
@@ -210,7 +215,7 @@ If no match is found, returns nil"
                      (get head (+ 1 i))))
    (varset! i (+ i 2)))
   (array-push accum (tuple-prepend body 'do))
-  (apply tuple accum))
+  (apply1 tuple accum))
 
 (defn pairs [x]
  (var lastkey (next x nil))
@@ -265,7 +270,7 @@ If no match is found, returns nil"
         [(get n 0) (array-slice n 1)]
         [n []]))
   (def parts (array-concat [h last] t))
-  (apply tuple parts))
+  (apply1 tuple parts))
  (reduce fop x forms))
 
 (defmacro ->>
@@ -276,7 +281,7 @@ If no match is found, returns nil"
         [(get n 0) (array-slice n 1)]
         [n []]))
   (def parts (array-concat [h] t [last]))
-  (apply tuple parts))
+  (apply1 tuple parts))
  (reduce fop x forms))
 
 # Start pretty printer
@@ -380,7 +385,10 @@ onvalue."
        (select (fiber-status chars)
         :new (parser-byte p (resume chars))
         :pending (parser-byte p (resume chars))
-        (varset! going false)))))))
+        (varset! going false))))
+    (when (not= :root (parser-status p))
+     (onerr "parse" "unexpected end of source"))
+    nil)))
  (defn more [] (if temp true 
   (do 
    (varset! temp true)
@@ -427,13 +435,13 @@ onvalue."
  (def newenv (require path))
  (def {
   :prefix prefix
-  } (apply table args))
+  } (apply1 table args))
  (foreach (pairs newenv) (fn [[k v]]
   (when (not (get v :private))
    (put env (symbol (if prefix prefix "") k) v)))))
 
 (defmacro import [path & args]
- (apply tuple (array-concat [import* '_env path] args))) 
+ (apply1 tuple (array-concat [import* '_env path] args))) 
 
 (defn repl [getchunk]
  (def newenv (make-env))

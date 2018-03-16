@@ -17,7 +17,7 @@
 
 (defmacro delay 
  "Macro for lazy evaluation"
- [& forms] (tuple mem0 (apply tuple (array-concat ['fn []] forms))))
+ [& forms] (tuple mem0 (apply1 tuple (array-concat ['fn []] forms))))
 
 # Use tuples instead of structs to save memory
 (def HEAD :private 0)
@@ -56,7 +56,7 @@
  "Return a sequence of integers [start, end)."
  [start end]
  (if (< start end)
-  (cons start (range (+ 1 start) end))
+  (cons start (range2 (+ 1 start) end))
   empty-seq))
 
 (defn range
@@ -85,7 +85,7 @@
  [n s]
  (delay
   (def x (s))
-  (if (s) (if (zero? n) s (drop (- n 1) (tail s))) empty-seq))
+  (if (s) (if (zero? n) s (drop (- n 1) (tail s))) empty-seq)))
 
 (defn take
  "Returns at most the first n values of s."
@@ -97,5 +97,9 @@
 (defn take-while
  "Returns a sequence of values until the predicate is false."
  [pred s]
- (delay (if (s) )))
+ (delay 
+  (def x (s))
+  (when x
+   (def thehead (get HEAD x))
+   (if thehead (tuple thehead (take-while pred (get TAIL x)))))))
 

@@ -89,7 +89,7 @@ DstTable *dst_stl_env() {
     dst_env_cfuns(env, cfuns);
 
     dst_env_def(env, "error", dst_wrap_function(dst_quick_asm(1, 0, 1, error_asm, sizeof(error_asm))));
-    dst_env_def(env, "apply", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, sizeof(apply_asm))));
+    dst_env_def(env, "apply1", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, sizeof(apply_asm))));
     dst_env_def(env, "yield", dst_wrap_function(dst_quick_asm(1, 0, 2, yield_asm, sizeof(yield_asm))));
     dst_env_def(env, "resume", dst_wrap_function(dst_quick_asm(2, 0, 2, resume_asm, sizeof(resume_asm))));
 
