@@ -1,11 +1,6 @@
 # Bootstrap the dst environment
 # Copyright 2018 (C) Calvin Rose
 
-# Capture the current env
-(var *env*
- "A var that points to the current environment."
- _env)
-
 (def defn :macro
  "Define a function"
   (fn [name & more] 
@@ -82,15 +77,19 @@ are matched. If there are no matches, return nil."
        (aux (+ i 2))))))
   (aux 0))
 
-(defn doc
- "Shows documentation for the given symbol."
- [sym]
- (def x (get *env* sym))
+(defn doc*
+ [env sym]
+ (def x (get env sym))
  (if (not x)
   (print "symbol " x " not found.")
   (do
    (def d (get x 'doc))
    (print "\n" (if d d "no documentation found.") "\n"))))
+
+(defmacro doc
+ "Shows documentation for the given symbol."
+ [sym]
+ (tuple doc* '_env sym))
 
 (defmacro select
 "Select the body that equals the dispatch value. When pairs
@@ -141,13 +140,13 @@ If no match is found, returns nil"
   (def iters {
     :array array-iter
     :tuple array-iter
-    :struct (fn [x] x)})
+    :struct identity})
   (fn [x]
    (def makei (get iters (type x)))
    (if makei (makei x) (error "expected sequence")))))
 
-(defn range [top]
-  (var i 0)
+(defn range2 [bottom top]
+  (var i bottom)
   {
     :more (fn [] (< i top))
     :next (fn []
@@ -155,6 +154,8 @@ If no match is found, returns nil"
       (varset! i (+ i 1))
       ret) 
   })
+
+(defn range [top] (range2 0 top))
 
 (defn doiter [itr] 
  (def {:more more :next next} (iter itr))
@@ -337,6 +338,7 @@ If no match is found, returns nil"
 (defn make-env [parent]
  (def parent (if parent parent _env))
  (def newenv (setproto @{} parent))
+ (put newenv '_env @{'value newenv})
  newenv)
 
 # Remove the reference to the default _env
@@ -401,10 +403,7 @@ onvalue."
   (if (= (fiber-status f) :error)
    (onerr "runtime" res)
    (onvalue res)))
- (def oldenv *env*)
- (varset! *env* env) 
  (foreach (val-stream chunks onerr) doone)
- (varset! *env* oldenv)
  env)))
 
 (def require (do
@@ -426,14 +425,17 @@ onvalue."
      (put loading path nil)
      newenv)))))
 
-(defn import [path & args]
- (def env (require path))
+(defn import* [env path & args]
+ (def newenv (require path))
  (def {
   :prefix prefix
   } (apply table args))
- (foreach (pairs env) (fn [[k v]]
+ (foreach (pairs newenv) (fn [[k v]]
   (when (not (get v :private))
-   (put *env* (symbol (if prefix prefix "") k) v)))))
+   (put env (symbol (if prefix prefix "") k) v)))))
+
+(defmacro import [path & args]
+ (apply tuple (array-concat [import* '_env path] args))) 
 
 (defn repl [getchunk]
  (def newenv (make-env))

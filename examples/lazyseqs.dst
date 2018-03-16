@@ -17,7 +17,7 @@
 
 (defmacro delay 
  "Macro for lazy evaluation"
- [x] (tuple mem0 (tuple 'fn [] x)))
+ [& forms] (tuple mem0 (apply tuple (array-concat ['fn []] forms))))
 
 # Use tuples instead of structs to save memory
 (def HEAD :private 0)
@@ -31,6 +31,11 @@
  "Create a new sequence by prepending a value to the original sequence."
  [h t]
  (delay (tuple h t)))
+
+(defn cons1
+ "Create a new sequence cons by prepending a value to the original sequence."
+ [h t]
+ (tuple h t))
 
 (defn empty? 
  "Check if a sequence is empty."
@@ -47,17 +52,24 @@
  [s]
  (get (s) TAIL))
 
-(defn range 
+(defn range2 
  "Return a sequence of integers [start, end)."
  [start end]
  (if (< start end)
   (cons start (range (+ 1 start) end))
   empty-seq))
 
+(defn range
+ "Return a sequence of integers [0, end)."
+ [end]
+ (range2 0 end))
+
 (defn map
  "Return a sequence that is the result of apply f to each value in s."
  [f s]
- (if (s) (cons (f (head s)) (map f (tail s))) empty-seq))
+ (delay
+  (def x (s))
+  (if x (tuple (f (get x HEAD)) (map f (get x TAIL))))))
 
 (defn realize
  "Force evaluation of a lazy sequence."
@@ -71,7 +83,9 @@
 (defn drop 
  "Ignores the first n values of the sequence and returns the rest."
  [n s]
- (if (s) (if (zero? n) s (drop (- n 1) (tail s))) empty-seq))
+ (delay
+  (def x (s))
+  (if (s) (if (zero? n) s (drop (- n 1) (tail s))) empty-seq))
 
 (defn take
  "Returns at most the first n values of s."
@@ -79,4 +93,9 @@
  (if (and (s) (pos? n))
   (cons (head s) (take (- n 1) (tail s)))
   empty-seq))
+
+(defn take-while
+ "Returns a sequence of values until the predicate is false."
+ [pred s]
+ (delay (if (s) )))
 
