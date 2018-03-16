@@ -658,10 +658,11 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     x = dst_get(s, dst_csymbolv("sourcemap"));
     if (dst_seq_view(x, &arr, &count)) {
         dst_asm_assert(&a, count == def->bytecode_length, "sourcemap must have the same length as the bytecode");
-        def->sourcemap = malloc(sizeof(int32_t) * 2 * count);
+        def->sourcemap = malloc(sizeof(DstSourceMapping) * count);
         for (i = 0; i < count; i++) {
             const Dst *tup;
             Dst entry = arr[i];
+            DstSourceMapping mapping;
             if (!dst_checktype(entry, DST_TUPLE)) {
                 dst_asm_error(&a, "expected tuple");
             }
@@ -672,8 +673,9 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
             if (!dst_checktype(tup[1], DST_INTEGER)) {
                 dst_asm_error(&a, "expected integer");
             }
-            def->sourcemap[2*i] = dst_unwrap_integer(tup[0]);
-            def->sourcemap[2*i+1] = dst_unwrap_integer(tup[1]);
+            mapping.start = dst_unwrap_integer(tup[0]);
+            mapping.end = dst_unwrap_integer(tup[1]);
+            def->sourcemap[i] = mapping;
         }
     }
 
@@ -831,11 +833,12 @@ Dst dst_disasm(DstFuncDef *def) {
     /* Add source map */
     if (NULL != def->sourcemap) {
         DstArray *sourcemap = dst_array(def->bytecode_length);
-        for (i = 0; i < def->bytecode_length * 2; i += 2) {
+        for (i = 0; i < def->bytecode_length; i++) {
             Dst *t = dst_tuple_begin(2);
-            t[0] = dst_wrap_integer(def->sourcemap[i]);
-            t[1] = dst_wrap_integer(def->sourcemap[i + 1]);
-            sourcemap->data[i / 2] = dst_wrap_tuple(dst_tuple_end(t));
+            DstSourceMapping mapping = def->sourcemap[i];
+            t[0] = dst_wrap_integer(mapping.start);
+            t[1] = dst_wrap_integer(mapping.end);
+            sourcemap->data[i] = dst_wrap_tuple(dst_tuple_end(t));
         }
         sourcemap->count = def->bytecode_length;
         dst_table_put(ret, dst_csymbolv("sourcemap"), dst_wrap_array(sourcemap));

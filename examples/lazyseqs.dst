@@ -1,0 +1,82 @@
+# An example implementation of functional, lazy
+# sequences, like in clojure.
+# Use with (import "./path/to/this/file" :prefix "seq/")
+
+(defn- mem0 [f]
+ "Memoize a 0 arity function."
+ (var state nil)
+ (var loaded nil)
+ (fn []
+  (if loaded
+   state
+   (do 
+    (def n (f))
+    (varset! state n)
+    (varset! loaded true)
+    n))))
+
+(defmacro delay 
+ "Macro for lazy evaluation"
+ [x] (tuple mem0 (tuple 'fn [] x)))
+
+# Use tuples instead of structs to save memory
+(def HEAD :private 0)
+(def TAIL :private 1)
+
+(defn empty-seq 
+ "The empty sequence." 
+ [] nil)
+
+(defn cons 
+ "Create a new sequence by prepending a value to the original sequence."
+ [h t]
+ (delay (tuple h t)))
+
+(defn empty? 
+ "Check if a sequence is empty."
+ [s]
+ (not (s)))
+
+(defn head
+ "Get the next value of the sequence."
+ [s]
+ (get (s) HEAD))
+
+(defn tail
+ "Get the rest of a sequence"
+ [s]
+ (get (s) TAIL))
+
+(defn range 
+ "Return a sequence of integers [start, end)."
+ [start end]
+ (if (< start end)
+  (cons start (range (+ 1 start) end))
+  empty-seq))
+
+(defn map
+ "Return a sequence that is the result of apply f to each value in s."
+ [f s]
+ (if (s) (cons (f (head s)) (map f (tail s))) empty-seq))
+
+(defn realize
+ "Force evaluation of a lazy sequence."
+ [s]
+ (when (s) (realize (tail s))))
+
+(defn realize-map [f s]
+ "Evaluate f on each member of the sequence. Forces evaluation."
+ (when (s) (f (head s)) (realize-map f (tail s))))
+
+(defn drop 
+ "Ignores the first n values of the sequence and returns the rest."
+ [n s]
+ (if (s) (if (zero? n) s (drop (- n 1) (tail s))) empty-seq))
+
+(defn take
+ "Returns at most the first n values of s."
+ [n s]
+ (if (and (s) (pos? n))
+  (cons (head s) (take (- n 1) (tail s)))
+  empty-seq))
+

@@ -52,6 +52,7 @@ typedef struct DstAbstractType DstAbstractType;
 typedef struct DstArgs DstArgs;
 typedef struct DstAst DstAst;
 typedef struct DstReg DstReg;
+typedef struct DstSourceMapping DstSourceMapping;
 typedef int (*DstCFunction)(DstArgs args);
 
 /* Basic types for all Dst Values */
@@ -378,6 +379,11 @@ struct DstKV {
 #define DST_FUNCDEF_FLAG_VARARG 1
 #define DST_FUNCDEF_FLAG_NEEDSENV 4
 
+struct DstSourceMapping {
+    int32_t start;
+    int32_t end;
+};
+
 /* A function definition. Contains information needed to instantiate closures. */
 struct DstFuncDef {
     int32_t *environments; /* Which environments to capture from parent. */
@@ -386,7 +392,7 @@ struct DstFuncDef {
     uint32_t *bytecode;
 
     /* Various debug information */
-    int32_t *sourcemap;
+    DstSourceMapping *sourcemap;
     const uint8_t *source;
     const uint8_t *sourcepath;
 

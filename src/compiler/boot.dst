@@ -1,3 +1,5 @@
+# Bootstrap the dst environment
+# Copyright 2018 (C) Calvin Rose
 
 # Capture the current env
 (var *env*
@@ -26,6 +28,12 @@
    (def args (array-concat [] name :macro more))
    (apply defn* args))))
 
+(defmacro defmacro-
+ "Define a private macro that will not be exported."
+ [name & more]
+ (apply tuple (array-concat
+  ['defmacro name :private] more)))
+
 (defmacro defn-
  "Define a private function that will not be exported."
  [name & more]
@@ -36,6 +44,8 @@
 (defn odd? [x] (== 1 (% x 2)))
 (defn nil? [x] (= x nil))
 (defn zero? [x] (== x 0))
+(defn pos? [x] (> x 0))
+(defn neg? [x] (< x 0))
 (defn one? [x] (== x 1))
 (defn inc [x] (+ x 1))
 (defn dec [x] (- x 1))

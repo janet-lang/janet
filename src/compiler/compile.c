@@ -903,20 +903,22 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
         dst_v__cnt(c->buffer) = scope.bytecode_start;
         if (NULL != c->mapbuffer) {
             int32_t i;
-            size_t s = sizeof(int32_t) * 2 * dst_v_count(c->mapbuffer);
-            def->sourcemap = malloc(2 * s);
+            size_t s = sizeof(DstSourceMapping) * dst_v_count(c->mapbuffer);
+            def->sourcemap = malloc(s);
             if (NULL == def->sourcemap) {
                 DST_OUT_OF_MEMORY;
             }
             for (i = 0; i < dst_v_count(c->mapbuffer); i++) {
                 DstAst *a = c->mapbuffer[i];
+                DstSourceMapping mapping;
                 if (a) {
-                    def->sourcemap[2 * i] = a->source_start;
-                    def->sourcemap[2 * i + 1] = a->source_end;
+                    mapping.start = a->source_start;
+                    mapping.end = a->source_end;
                 } else {
-                    def->sourcemap[2 * i] = -1;
-                    def->sourcemap[2 * i + 1] = -1;
+                    mapping.start = -1;
+                    mapping.end = -1;
                 }
+                def->sourcemap[i] = mapping;
             }
             dst_v__cnt(c->mapbuffer) = scope.bytecode_start;
         }
