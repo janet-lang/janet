@@ -39,6 +39,7 @@ static int is_whitespace(uint8_t c) {
         || c == '\n'
         || c == '\r'
         || c == '\0'
+        || c == '\f'
         || c == ';'
         || c == ',';
 }
