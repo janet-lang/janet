@@ -4,25 +4,23 @@
 # that must be called (realizing it), and the memoized.
 # Use with (import "./path/to/this/file" :prefix "seq/")
 
-# This shows the need for syntax quoting D:
+(defn- mem0 [f]
+ "Memoize a 0 arity function."
+ (var state nil)
+ (var loaded nil)
+ (fn []
+  (if loaded
+   state
+   (do 
+    (:= loaded true)
+    (:= state (f))))))
+
+# This creates one more closure than necessary but oh well
 (defmacro delay 
  "Macro for lazy evaluation. Returns a function that will evaluate
 the body when invoked. If called a second time, will return the first return value
 that was memoized."
- [& forms]
- (def $state (gensym "state"))
- (def $loaded (gensym "loaded"))
- (def $temp (gensym "temp"))
- (tuple 'do
-  (tuple 'var $state nil)
-  (tuple 'var $loaded nil)
-  (tuple 'fn []
-   (tuple 'if $loaded $state
-    (tuple 'do
-      (tuple 'def $temp (tuple-prepend forms 'do))
-      (tuple := $state $temp)
-      (tuple := $loaded true)
-      $temp)))))
+ [& forms] (tuple mem0 (apply tuple 'fn [] forms)))
 
 # Use tuples instead of structs to save memory
 (def HEAD :private 0)
@@ -32,7 +30,7 @@ that was memoized."
  "The empty sequence." 
  [] nil)
 
-(defn cons 
+(defmacro cons 
  "Create a new sequence by prepending a value to the original sequence."
  [h t]
  (def x (tuple h t))
@@ -57,7 +55,7 @@ that was memoized."
  "Return a sequence of integers [start, end)."
  [start end]
  (if (< start end)
-  (cons start (range2 (+ 1 start) end))
+  (delay (tuple start (range2 (+ 1 start) end)))
   empty-seq))
 
 (defn range
@@ -65,12 +63,13 @@ that was memoized."
  [end]
  (range2 0 end))
 
-(defn map
+(defn maps
  "Return a sequence that is the result of apply f to each value in s."
  [f s]
  (delay
   (def x (s))
-  (if x (tuple (f (get x HEAD)) (map f (get x TAIL))))))
+  (if x (tuple (f (get x HEAD)) (maps f (get x TAIL))))))
+(def map maps)
 
 (defn realize
  "Force evaluation of a lazy sequence."
@@ -86,14 +85,15 @@ that was memoized."
  [n s]
  (delay
   (def x (s))
-  (if (s) (if (zero? n) s (drop (- n 1) (tail s))) empty-seq)))
+  (if (and x (pos? n)) ((drop (- n 1) (get x TAIL))))))
 
 (defn take
  "Returns at most the first n values of s."
  [n s]
- (if (and (s) (pos? n))
-  (cons (head s) (take (- n 1) (tail s)))
-  empty-seq))
+ (delay 
+  (def x (s))
+  (if (and x (pos? n))
+   (tuple (get x HEAD) (take (- n 1) (get x TAIL))))))
 
 (defn randseq
  "Return a sequence of random numbers."
