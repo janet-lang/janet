@@ -109,6 +109,7 @@ DstTable *dst_stl_env() {
         dst_lib_array(args);
         dst_lib_tuple(args);
         dst_lib_buffer(args);
+        dst_lib_table(args);
         dst_lib_parse(args);
         dst_lib_compile(args);
         dst_lib_asm(args);

@@ -228,7 +228,7 @@ static void varleaf(
         reftab->proto = attr;
         DstArray *ref = dst_array(1);
         dst_array_push(ref, dst_wrap_nil());
-        dst_table_put(reftab, dst_csymbolv("ref"), dst_wrap_array(ref));
+        dst_table_put(reftab, dst_csymbolv(":ref"), dst_wrap_array(ref));
         dst_table_put(c->env, dst_wrap_symbol(sym), dst_wrap_table(reftab));
         refslot = dstc_cslot(dst_wrap_array(ref));
         refarrayslot = refslot;
@@ -266,7 +266,7 @@ static void defleaf(
         DstTable *tab = dst_table(2);
         tab->proto = attr;
         int32_t tableindex, valsymindex, valueindex;
-        DstSlot valsym = dstc_cslot(dst_csymbolv("value"));
+        DstSlot valsym = dstc_cslot(dst_csymbolv(":value"));
         DstSlot tabslot = dstc_cslot(dst_wrap_table(tab));
 
         /* Add env entry to env */

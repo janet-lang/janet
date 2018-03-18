@@ -263,7 +263,7 @@ DstSlot dstc_resolve(
             dstc_error(c, ast, dst_formatc("unknown symbol %q", sym));
             return dstc_cslot(dst_wrap_nil());
         }
-        ref = dst_get(check, dst_csymbolv("ref"));
+        ref = dst_get(check, dst_csymbolv(":ref"));
         if (dst_checktype(ref, DST_ARRAY)) {
             DstSlot ret = dstc_cslot(ref);
             /* TODO save type info */
@@ -271,7 +271,7 @@ DstSlot dstc_resolve(
             ret.flags &= ~DST_SLOT_CONSTANT;
             return ret;
         } else {
-            Dst value = dst_get(check, dst_csymbolv("value"));
+            Dst value = dst_get(check, dst_csymbolv(":value"));
             return dstc_cslot(value);
         }
     }
@@ -819,7 +819,7 @@ recur:
                             for (;;) {
                                 if (dst_checktype(entry, DST_NIL)) break;
                                 if (dst_checktype(dst_get(entry, dst_csymbolv(":macro")), DST_NIL)) break;
-                                fn = dst_get(entry, dst_csymbolv("value"));
+                                fn = dst_get(entry, dst_csymbolv(":value"));
                                 if (!dst_checktype(fn, DST_FUNCTION)) break;
                                 if (macrorecur++ > DST_RECURSION_GUARD) {
                                     dstc_cerror(c, ast, "macro expansion recursed too deeply");

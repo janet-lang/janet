@@ -112,7 +112,7 @@ int dst_cstrcmp(const uint8_t *str, const char *other) {
 /* Add a module definition */
 void dst_env_def(DstTable *env, const char *name, Dst val) {
     DstTable *subt = dst_table(1);
-    dst_table_put(subt, dst_csymbolv("value"), val);
+    dst_table_put(subt, dst_csymbolv(":value"), val);
     dst_table_put(env, dst_csymbolv(name), dst_wrap_table(subt));
 }
 
@@ -121,7 +121,7 @@ void dst_env_var(DstTable *env, const char *name, Dst val) {
     DstArray *array = dst_array(1);
     DstTable *subt = dst_table(1);
     dst_array_push(array, val);
-    dst_table_put(subt, dst_csymbolv("ref"), dst_wrap_array(array));
+    dst_table_put(subt, dst_csymbolv(":ref"), dst_wrap_array(array));
     dst_table_put(env, dst_csymbolv(name), dst_wrap_table(subt));
 }
 
@@ -139,11 +139,11 @@ Dst dst_env_resolve(DstTable *env, const char *name) {
     Dst ref;
     Dst entry = dst_table_get(env, dst_csymbolv(name));
     if (dst_checktype(entry, DST_NIL)) return dst_wrap_nil();
-    ref = dst_get(entry, dst_csymbolv("ref"));
+    ref = dst_get(entry, dst_csymbolv(":ref"));
     if (dst_checktype(ref, DST_ARRAY)) {
         return dst_getindex(ref, 0);
     }
-    return dst_get(entry, dst_csymbolv("value"));
+    return dst_get(entry, dst_csymbolv(":value"));
 }
 
 /* Get module from the arguments passed to library */

@@ -152,6 +152,7 @@ static Dst astunwrap_table(DstTable *other) {
     }
     if (!prescan) return dst_wrap_table(other);
     table = dst_table(other->capacity);
+    table->proto = other->proto;
     iter = NULL;
     while ((iter = dst_table_next(other, iter))) {
         if (iter == prescan) break;

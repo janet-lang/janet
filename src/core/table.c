@@ -235,4 +235,25 @@ void dst_table_merge_struct(DstTable *table, const DstKV *other) {
     dst_table_mergekv(table, other, dst_struct_capacity(other));
 }
 
+static int cfun_tostruct(DstArgs args) {
+    DstTable *t;
+    if (args.n != 1 || !dst_checktype(args.v[0], DST_TABLE)) {
+        return dst_throw(args, "expected table");
+    }
+    t = dst_unwrap_table(args.v[0]);
+    return dst_return(args, dst_wrap_struct(dst_table_to_struct(t)));
+}
+
+static const DstReg cfuns[] = {
+    {"table-to-struct", cfun_tostruct},
+    {NULL, NULL}
+};
+
+/* Load the table module */
+int dst_lib_table(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_cfuns(env, cfuns);
+    return 0;
+}
+
 #undef dst_table_maphash
