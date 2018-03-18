@@ -324,8 +324,8 @@ static uint32_t doarg(
     int32_t arg = doarg_1(a, argtype, x);
     /* Calculate the min and max values that can be stored given
      * nbytes, and whether or not the storage is signed */
-    int32_t min = (-hassign) << ((nbytes << 3) - 1);
-    int32_t max = ~((-1) << ((nbytes << 3) - hassign));
+    int32_t max = (1 << ((nbytes << 3) - hassign)) - 1;
+    int32_t min = hassign ? -max - 1 : 0;
     if (arg < min)
         dst_asm_errorv(a, dst_formatc("instruction argument %v is too small, must be %d byte%s",
                     x, nbytes, nbytes > 1 ? "s" : ""));

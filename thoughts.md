@@ -16,10 +16,6 @@ A collection of thoughts and todo tasks for the project.
   which potentially duplicates a fair amount of data. Macros would be easier to write without
   needing to either unwrap ast values or sacrifice all source mapping.
 
-- Keep track of source file information in the compiler. The compiler could simply accept
-  and extra argument, sourcefile, which woud append the appropriate metadata to all function
-  definitions generated with this one form.
-
 - Serialization and deserialization of all datatypes. This would allow loading of bytecode
   without needing the compiler present. However, loading C functions is currently problematic.
   C functions could perhaps be wrapped in data structures that contain some meta information
@@ -43,6 +39,10 @@ A collection of thoughts and todo tasks for the project.
   a metastruct. Implementations of Lua (LuaJIT) do not allow (or do not acknowledge) 
   changing certain values of a metatables after it is set, such as gc, for performance
   reasons.
+
+  Currently, tables can have a prototype table, which is used to look up values recursively if they
+  are not found in the original table. This provides a partial solution to custom user types,
+  but does not have the felxibility of Lua style metatables.
 
 - Actually make a debugger. While the VM changes to enable debugging are relatively
   simple, make  a useful debugger would be another project. At first, simply inspection

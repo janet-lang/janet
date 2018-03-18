@@ -1,4 +1,4 @@
-# Example of dst assembly
+# Example of dst bytecode assembly
 
 # Fibonacci sequence, implemented with naive recursion.
 (def fibasm (asm '{

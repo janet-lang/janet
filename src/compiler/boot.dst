@@ -415,15 +415,19 @@ onvalue."
  {:more more :next next})
 (fn [env chunks onvalue onerr]
  (defn doone [source]
+  (var good true)
   (def f (fiber (fn []
     (def res (compile source env))
     (if (= (type res) :function)
       (res)
-      (onerr "compile" (get res :error))))))
+      (do
+       (:= good false)
+       (onerr "compile" (get res :error)))))))
   (def res (resume f))
-  (if (= (fiber-status f) :error)
-   (onerr "runtime" res)
-   (onvalue res)))
+   (if good
+    (if (= (fiber-status f) :error)
+     (onerr "runtime" res)
+     (onvalue res))))
  (foreach (val-stream chunks onerr) doone)
  env)))
 

@@ -71,13 +71,13 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <headerlibs/vector.h>
 
@@ -102,6 +102,15 @@ static const char *badterms[] = {
     "emacs",
     NULL
 };
+
+static char *sdup(const char *s) {
+    size_t len = strlen(s) + 1;
+    char *mem = malloc(len);
+    if (!mem) {
+        return NULL;
+    }
+    return memcpy(mem, s, len);
+}
 
 /* Ansi terminal raw mode */
 static int rawmode() {
@@ -227,7 +236,7 @@ static int insert(char c) {
 static void historymove(int delta) {
     if (dst_v_count(history) > 1) {
         free(history[historyi]);
-        history[historyi] = strdup(buf);
+        history[historyi] = sdup(buf);
 
         historyi += delta;
         if (historyi < 0) {
@@ -247,7 +256,7 @@ static void historymove(int delta) {
 
 static void addhistory() {
     int i, len;
-    char *newline = strdup(buf);
+    char *newline = sdup(buf);
     if (!newline) return;
     len = dst_v_count(history);
     if (len < DST_HISTORY_MAX) {
@@ -261,7 +270,7 @@ static void addhistory() {
 }
 
 static void replacehistory() {
-    char *newline = strdup(buf);
+    char *newline = sdup(buf);
     if (!newline) return;
     history[0] = newline;
 }
@@ -418,7 +427,7 @@ static int checktermsupport() {
     int i;
     if (!t) return 1;
     for (i = 0; badterms[i]; i++)
-        if (!strcasecmp(t, badterms[i])) return 0;
+        if (!strcmp(t, badterms[i])) return 0;
     return 1;
 }
 

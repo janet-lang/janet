@@ -28,7 +28,7 @@
 #include <dst/dstcompile.h>
 
 /* Generated header */
-#include "dststlbootstrap.h"
+#include "dststlbootstrap.gen.h"
 
 static const DstReg cfuns[] = {
     {"native", dst_core_native},

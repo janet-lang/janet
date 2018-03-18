@@ -1,24 +1,28 @@
 # An example implementation of functional, lazy
-# sequences, like in clojure.
+# sequences, as in clojure. The lazy seq is essentially
+# A lazy linked list, where the next value is a function
+# that must be called (realizing it), and the memoized.
 # Use with (import "./path/to/this/file" :prefix "seq/")
 
-(defn- mem0 [f]
- "Memoize a 0 arity function."
- (var state nil)
- (var loaded nil)
- (fn []
-  (if loaded
-   state
-   (do 
-    (def n (f))
-    (:= state n)
-    (:= loaded true)
-    n))))
-
-# This creates one more closure than necessary but oh well
+# This shows the need for syntax quoting D:
 (defmacro delay 
- "Macro for lazy evaluation"
- [& forms] (tuple mem0 (apply1 tuple (array-concat ['fn []] forms))))
+ "Macro for lazy evaluation. Returns a function that will evaluate
+the body when invoked. If called a second time, will return the first return value
+that was memoized."
+ [& forms]
+ (def $state (gensym "state"))
+ (def $loaded (gensym "loaded"))
+ (def $temp (gensym "temp"))
+ (tuple 'do
+  (tuple 'var $state nil)
+  (tuple 'var $loaded nil)
+  (tuple 'fn []
+   (tuple 'if $loaded $state
+    (tuple 'do
+      (tuple 'def $temp (tuple-prepend forms 'do))
+      (tuple := $state $temp)
+      (tuple := $loaded true)
+      $temp)))))
 
 # Use tuples instead of structs to save memory
 (def HEAD :private 0)
@@ -32,11 +36,6 @@
  "Create a new sequence by prepending a value to the original sequence."
  [h t]
  (delay (tuple h t)))
-
-(defn cons1
- "Create a new sequence cons by prepending a value to the original sequence."
- [h t]
- (tuple h t))
 
 (defn empty? 
  "Check if a sequence is empty."
@@ -94,6 +93,11 @@
  (if (and (s) (pos? n))
   (cons (head s) (take (- n 1) (tail s)))
   empty-seq))
+
+(defn randseq
+ "Return a sequence of random numbers."
+ []
+ (delay (tuple (random) (randseq))))
 
 (defn take-while
  "Returns a sequence of values until the predicate is false."

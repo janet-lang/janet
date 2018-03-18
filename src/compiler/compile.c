@@ -378,9 +378,10 @@ static void dstc_loadconst(DstCompiler *c, DstAst *ast, Dst k, int32_t dest) {
                             DOP_LOAD_INTEGER);
                     break;
                 }
-                /* fallthrough */
+                goto do_constant;
             }
         default:
+        do_constant:
             {
                 int32_t cindex = dstc_const(c, ast, k);
                 dstc_emit(c, ast, 

@@ -219,8 +219,8 @@ static void inc_counter(uint8_t *digits, int base, int len) {
  * symbol will be of the format prefix--XXXXXX, where X is a base64 digit, and
  * prefix is the argument passed.  */
 const uint8_t *dst_symbol_gen(const uint8_t *buf, int32_t len) {
-    const uint8_t **bucket;
-    int32_t hash;
+    const uint8_t **bucket = NULL;
+    int32_t hash = 0;
     uint8_t counter[6] = {63, 63, 63, 63, 63, 63};
     /* Leave spaces for 6 base 64 digits and two dashes. That means 64^6 possible suffixes, which
      * is enough for resolving collisions. */

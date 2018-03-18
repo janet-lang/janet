@@ -64,10 +64,21 @@ $
 
 ## Compiling and Running
 
-Dst is built using CMake. There used to be a hand-written Makefile, but in the interest of 
-easier Windows support I have switched to CMake.
+Dst can be built with Make or CMake.
+Use Make if you are on a posix system and don't like CMake.
+Use CMake if you are on Windows or like CMake.
 
-On a posix system using make, compiling and running is as follows (this is the same as 
+### Make
+
+```sh
+cd somewhere/my/projects/dst
+make
+make test
+```
+
+### CMake
+
+On a posix system using make as the backend, compiling and running is as follows (this is the same as 
 most CMake based projects).
 
 ### Build

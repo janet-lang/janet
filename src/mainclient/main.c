@@ -23,7 +23,7 @@
 #include <dst/dst.h>
 #include <dst/dstcompile.h>
 
-#include "clientinit.h"
+#include "clientinit.gen.h"
 #include "line.h"
 
 int main(int argc, char **argv) {
