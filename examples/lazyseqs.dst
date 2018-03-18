@@ -35,7 +35,8 @@ that was memoized."
 (defn cons 
  "Create a new sequence by prepending a value to the original sequence."
  [h t]
- (delay (tuple h t)))
+ (def x (tuple h t))
+ (fn [] x))
 
 (defn empty? 
  "Check if a sequence is empty."
