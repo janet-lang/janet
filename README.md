@@ -81,7 +81,6 @@ make test
 On a posix system using make as the backend, compiling and running is as follows (this is the same as 
 most CMake based projects).
 
-### Build
 ```sh
 cd somewhere/my/projects/dst
 mkdir -p build
@@ -96,11 +95,11 @@ The repl can also be run with the CMake run target.
 make run
 ```
 
-### Examples
+## Examples
 
 See the examples directory for some example dst code.
 
-### Editor
+## Editor
 
 There is some preliminary vim syntax highlighting in [dst.vim](https://github.com/bakpakin/dst.vim).
 Generic lisp synatx highlighting should provide good results, however.

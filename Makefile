@@ -94,17 +94,17 @@ $(DST_TARGET): $(DST_ALL_SOURCES) $(DST_ALL_HEADERS)
 ###################
 
 repl: $(DST_TARGET)
-	@ ./$(DST_TARGET)
+	./$(DST_TARGET)
 
 debug: $(DST_TARGET)
-	@ $(DEBUGGER) ./$(DST_TARGET)
+	$(DEBUGGER) ./$(DST_TARGET)
 
 valgrind: $(DST_TARGET)
-	@ valgrind --leak-check=full -v ./$(DST_TARGET)
+	valgrind --leak-check=full -v ./$(DST_TARGET)
 
 test: $(DST_TARGET)
-	@ ./$(DST_TARGET) test/suite0.dst
-	@ ./$(DST_TARGET) test/suite1.dst
+	./$(DST_TARGET) test/suite0.dst
+	./$(DST_TARGET) test/suite1.dst
 
 valtest: $(DST_TARGET)
 	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite0.dst
