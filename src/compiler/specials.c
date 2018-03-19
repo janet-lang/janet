@@ -352,9 +352,9 @@ DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     }
 
     /* Set target for compilation */
-    target = (!drop && !tail) 
-        ? dstc_gettarget(opts)
-        : dstc_cslot(dst_wrap_nil());
+    target = (drop || tail) 
+        ? dstc_cslot(dst_wrap_nil())
+        : dstc_gettarget(opts);
 
     /* Compile jump to right */
     condlocal = dstc_preread(c, ast, 0xFF, 1, cond);
@@ -393,7 +393,7 @@ DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
  * evaluate to the last expression in the body. */
 DstSlot dstc_do(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     int32_t i;
-    DstSlot ret;
+    DstSlot ret = dstc_cslot(dst_wrap_nil());
     DstCompiler *c = opts.compiler;
     DstFopts subopts = dstc_fopts_default(c);
     (void) ast;
@@ -401,8 +401,8 @@ DstSlot dstc_do(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     for (i = 0; i < argn; i++) {
         if (i != argn - 1) {
             subopts.flags = DST_FOPTS_DROP;
-        } else if (opts.flags & DST_FOPTS_TAIL) {
-            subopts.flags = DST_FOPTS_TAIL;
+        } else {
+            subopts = opts;
         }
         ret = dstc_value(subopts, argv[i]);
         if (i != argn - 1) {

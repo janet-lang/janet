@@ -305,8 +305,8 @@ If no match is found, returns nil"
 
 # Start pretty printer
 (def pp (do
-  (defn- pp-seq [pp seen buf a start end]
-   (if (get seen a)
+  (defn- pp-seq [pp seen buf a start end checkcycle]
+   (if (and checkcycle (get seen a))
     (buffer-push-string buf "<cycle>")
     (do
      (put seen a true)
@@ -318,8 +318,8 @@ If no match is found, returns nil"
      (buffer-push-string buf end)))
    buf)
 
-  (defn- pp-dict [pp seen buf a start end]
-   (if (get seen a)
+  (defn- pp-dict [pp seen buf a start end checkcycle]
+   (if (and checkcycle (get seen a))
     (buffer-push-string buf "<cycle>")
     (do
      (put seen a true)
@@ -336,9 +336,9 @@ If no match is found, returns nil"
    buf)
 
   (def printers :private {
-   :array  (fn [pp seen buf x] (pp-seq pp seen buf x "[" "]"))
+   :array  (fn [pp seen buf x] (pp-seq pp seen buf x "[" "]" true))
    :tuple  (fn [pp seen buf x] (pp-seq pp seen buf x "(" ")"))
-   :table  (fn [pp seen buf x] (pp-dict pp seen buf x "@{" "}"))
+   :table  (fn [pp seen buf x] (pp-dict pp seen buf x "@{" "}" true))
    :struct (fn [pp seen buf x] (pp-dict pp seen buf x "{" "}"))
   })
 

@@ -4,23 +4,21 @@
 # that must be called (realizing it), and the memoized.
 # Use with (import "./path/to/this/file" :prefix "seq/")
 
-(defn- mem0 [f]
- "Memoize a 0 arity function."
- (var state nil)
- (var loaded nil)
- (fn []
-  (if loaded
-   state
-   (do 
-    (:= loaded true)
-    (:= state (f))))))
-
-# This creates one more closure than necessary but oh well
-(defmacro delay 
- "Macro for lazy evaluation. Returns a function that will evaluate
-the body when invoked. If called a second time, will return the first return value
-that was memoized."
- [& forms] (tuple mem0 (apply tuple 'fn [] forms)))
+(defmacro delay [& forms]
+ "Lazily evaluate a series of expressions. Returns a function that
+returns the result of the last expression. Will only evaluate the
+body once, and then memoizes the result."
+ (def $state (gensym))
+ (def $loaded (gensym))
+ (tuple 'do
+  (tuple 'var $state nil)
+  (tuple 'var $loaded nil)
+  (tuple 'fn (array)
+   (tuple 'if $loaded
+    $state
+    (tuple 'do
+     (tuple ':= $loaded true)
+     (tuple ':= $state (tuple-prepend forms 'do)))))))
 
 # Use tuples instead of structs to save memory
 (def HEAD :private 0)
@@ -63,13 +61,12 @@ that was memoized."
  [end]
  (range2 0 end))
 
-(defn maps
+(defn map
  "Return a sequence that is the result of apply f to each value in s."
  [f s]
  (delay
   (def x (s))
-  (if x (tuple (f (get x HEAD)) (maps f (get x TAIL))))))
-(def map maps)
+  (if x (tuple (f (get x HEAD)) (map f (get x TAIL))))))
 
 (defn realize
  "Force evaluation of a lazy sequence."
@@ -108,4 +105,3 @@ that was memoized."
   (when x
    (def thehead (get HEAD x))
    (if thehead (tuple thehead (take-while pred (get TAIL x)))))))
-

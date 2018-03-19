@@ -20,5 +20,37 @@
 
 (print "\nRunning Suite 1 Tests...\n")
 
+(var num-tests-passed 0)
+(var num-tests-run 0)
+(def assert (fn [x e]
+	(:= num-tests-run (+ 1 num-tests-run))
+	(if x
+		(do
+			(print "  \e[32m✔\e[0m " e)
+			(:= num-tests-passed (+ 1 num-tests-passed))
+			x)
+		(do
+			(print "  \e[31m✘\e[0m " e)
+			x))))
+
 (if (not= 400.0 (sqrt 160000)) (error "sqrt(160000)=400"))
 (if (not= (real 400) (sqrt 160000)) (error "sqrt(160000)=400"))
+
+(def test-struct {'def 1 'bork 2 'sam 3 'a 'b 'het [1 2 3 4 5]})
+(assert (= (get test-struct 'def) 1) "struct get")
+(assert (= (get test-struct 'bork) 2) "struct get")
+(assert (= (get test-struct 'sam) 3) "struct get")
+(assert (= (get test-struct 'a) 'b) "struct get")
+(assert (= :array (type (get test-struct 'het))) "struct get")
+
+(defn myfun [x]
+  (var a 10)
+  (:= a (do
+         (def y x)
+         (if x 8 9))))
+
+(assert (= (myfun true) 8) "check do form regression")
+(assert (= (myfun false) 9) "check do form regression")
+
+(print "\n" num-tests-passed " of " num-tests-run " tests passed\n")
+(if (not= num-tests-passed num-tests-run) (exit 1))

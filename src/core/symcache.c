@@ -216,7 +216,7 @@ static void inc_counter(uint8_t *digits, int base, int len) {
 }
 
 /* Generate a unique symbol. This is used in the library function gensym. The
- * symbol will be of the format prefix--XXXXXX, where X is a base64 digit, and
+ * symbol will be of the format prefix_XXXXXX, where X is a base64 digit, and
  * prefix is the argument passed.  */
 const uint8_t *dst_symbol_gen(const uint8_t *buf, int32_t len) {
     const uint8_t **bucket = NULL;
@@ -224,15 +224,14 @@ const uint8_t *dst_symbol_gen(const uint8_t *buf, int32_t len) {
     uint8_t counter[6] = {63, 63, 63, 63, 63, 63};
     /* Leave spaces for 6 base 64 digits and two dashes. That means 64^6 possible suffixes, which
      * is enough for resolving collisions. */
-    int32_t newlen = len + 8;
+    int32_t newlen = len + 7;
     int32_t newbufsize = newlen + 2 * sizeof(int32_t) + 1;
     uint8_t *str = (uint8_t *)dst_gcalloc(DST_MEMORY_SYMBOL, newbufsize) + 2 * sizeof(int32_t);
     dst_string_length(str) = newlen;
     memcpy(str, buf, len);
-    str[len] = '-';
-    str[len + 1] = '-';
+    str[len] = '_';
     str[newlen] = 0;
-    uint8_t *saltbuf = str + len + 2;
+    uint8_t *saltbuf = str + len + 1;
     int status = 1;
     while (status) {
         int i;

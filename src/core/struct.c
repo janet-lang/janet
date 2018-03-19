@@ -31,7 +31,7 @@ DstKV *dst_struct_begin(int32_t count) {
 
     /* Calculate capacity as power of 2 after 2 * count. */
     int32_t capacity = dst_tablen(2 * count);
-    if (capacity < 0) capacity = dst_tablen(count);
+    if (capacity < 0) capacity = dst_tablen(count + 1);
 
     size_t s = sizeof(int32_t) * 4 + (capacity * sizeof(DstKV));
     char *data = dst_gcalloc(DST_MEMORY_STRUCT, s);
@@ -40,6 +40,7 @@ DstKV *dst_struct_begin(int32_t count) {
     dst_struct_length(st) = count;
     dst_struct_capacity(st) = capacity;
     dst_struct_hash(st) = 0;
+    (dst_struct_raw(st)[3]) = 0;
     return st;
 }
 
@@ -155,7 +156,7 @@ const DstKV *dst_struct_end(DstKV *st) {
 /* Get an item from a struct */
 Dst dst_struct_get(const DstKV *st, Dst key) {
     const DstKV *kv = dst_struct_find(st, key);
-    if (NULL == kv || dst_checktype(kv->key, DST_NIL)) {
+    if (NULL == kv) {
         return dst_wrap_nil();
     } else {
         return kv->value;
