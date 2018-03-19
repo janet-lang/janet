@@ -1,5 +1,3 @@
-(do
-
 (var should-repl false)
 (var no-file true)
 
@@ -33,5 +31,3 @@
 (when (or should-repl no-file) 
  (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
  (repl getline))
-
-)
