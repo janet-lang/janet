@@ -3,6 +3,7 @@
 (defn array? [x] (= (type x) :array))
 (defn tuple? [x] (= (type x) :tuple))
 
+
 (defn- reverse-array
     "Reverses the order of the elements in a given array"
   [t]
@@ -26,8 +27,9 @@
    reversed)
 
 '(arrays are more efficient so reverse-tuple will not be used)
+
 (defn reverse
-  "Reverses order of give array or tuple"
+  "Reverses order of elements in a given array or tuple"
   [t]
   (def the-type (type t))
   (cond (= the-type :tuple) (->> t iter2array reverse-array (apply tuple) )
@@ -48,8 +50,8 @@
 
 
 (defmacro if-let
-"Takes the first one or two forms in vector and if true binds
- all the forms with let and evaluates first expression else
+"Takes the first one or two forms in a vector and if true binds
+ all the forms with let and evaluates the first expression else
  evaluates the second"
   [bindings then else]
   (def head (ast-unwrap1 bindings))
@@ -61,7 +63,7 @@
 
 (defmacro when-let
 "Takes the first one or two forms in vector and if true binds
- all the forms  with let and evaluates body "
+ all the forms  with let and evaluates body"
   [bindings & body]
   (def head (ast-unwrap1 bindings))
   (tuple 'let head
@@ -78,8 +80,7 @@
 
 (defn comp
 "Takes multiple functions and returns a function that is the composition
- of those functions. Resulting function accepts a variable number of
- arguments"
+ of those functions."
   [& functions]
  (def len  (length functions))
  (if (zero? len)
@@ -95,9 +96,9 @@
      (apply comp  (comp0 f g) (array-slice functions  2 -1))) )))
 
 
-(defn zip-coll
-"Creates an table of map from two arrays/tuple. Defaults to table when no thrid
- argumet is given"
+(defn zipcoll
+"Creates an table or tuple from two arrays/tuples. Result is table if no
+third argument is given"
   [coll-1 coll-2 the-type]
   (var zipping-table @{})
   (def {:more more1 :next next1} (iter coll-1))
@@ -105,44 +106,39 @@
   (while (more1)
     (put  zipping-table (next1) (next2)))
   (if (= :struct the-type)
-    (table-to-struct zippint-table )
+    (table-to-struct zipping-table )
     zipping-table))
 
 (defn update
-"Uses a function to change the value in a collection"
+"Accepts a key argument and passes its associated value to a function.
+ The key, then is associated to that value"
   [coll a-key a-function & args]
   (def old-value (get coll a-key) )
   (put coll a-key (apply a-function old-value args)))
 
+
+(defn-  create-merger [container]
+  (fn [x]
+    (var key (next  x nil))
+    (while (not= nil key)
+      (put container (macroexpand1 key) (macroexpand1 (get x key)))
+      (:= key (next x key)))))
+
+
 (defn merge
-"Merges mutliple tables/structs to one. If a key appears in more than one
- collection, then subsequence values replace previous ones
- The type of the first collection determines the type of the resulting
- collection"
-  [head & colls]
-  (if   (:= tmp head)
-       (tuple-prepend head colls))
-  (defn  create-merger [container]
-    (fn [x]
-      (def {:more more :next next} (pairs x))
-      (var tmp (next))
-      (while (more)
-        (put container (get tmp 0) (get tmp 1)))
-      (:= tmp (next))))
-  (def is-table (table? head))
-  (def merger (create-merger (if is-table head
-                               (do (var container @{}) container))))
+  "Merges mutliple tables/structs to one. If a key appears in more than one
+   collection, then later values replace any previous ones.
+   The type of the first collection determines the type of the resulting
+   collection"
+  [& colls]
+  (var container @{})
+  (def merger (create-merger container))
   (foreach colls merger)
-(if is-table head (table-to-struct container)))
+  (if (table? (get colls 0)) container (table-to-struct container)))
+
 
 (defn juxt
 "Takes a set of functions and returns the juxtaposition of those functions"
   [& functions]
   (fn [& x]
-  (map (fn [f] (apply f x))  functions)))
-
-
-
-
-
-
+    (iter2array (map (fn [f] (apply f x)) functions))))
