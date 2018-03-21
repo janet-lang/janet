@@ -1,4 +1,6 @@
-(defn- reverse-array [t]
+(defn- reverse-array
+    "Reverses the order of the elements in a given array"
+  [t]
   (var  n (dec  (length t))  )
   (var reversed [])
   (while (>= n 0)
@@ -7,7 +9,9 @@
    reversed)
 
 
-(defn- reverse-tuple [t]
+(defn- reverse-tuple
+   "Reverses the order of the elements of a given tuple"
+  [t]
   (def max (length t))
   (var  n  0)
   (var reversed (tuple))
@@ -33,30 +37,38 @@
          exp-2))
 
 (defmacro when-not
-"Sorthand for (if (not ... "
+"Sorthand for (when (not ... "
   [condition exp-1]
   (tuple 'when (tuple 'not condition) exp-1))
 
 
+
+
 (defmacro if-let
+"Takes the first one or two forms in vector and if true binds
+ all the forms with let and evaluates first expression else
+ evaluates the second"
   [bindings then else]
   (def head (ast-unwrap1 bindings))
   (tuple 'let head
-         (tuple 'if (get head 1)
+         (tuple 'if (and (get head 1) (if (get head 2) (get head 3) true))
               then
               else)))
 
 
 (defmacro when-let
-  [bindings & then]
+"Takes the first one or two forms in vector and if true binds
+ all the forms  with let and evaluates body "
+  [bindings & body]
   (def head (ast-unwrap1 bindings))
   (tuple 'let head
       (tuple
         'when
-        (get head 1)  (apply tuple (array-concat ['do] (ast-unwrap1 then)))  )))
+        (and (get head 1) (if (get head 2) (get head 3) true))
+        (apply tuple (array-concat ['do] (ast-unwrap1 body)))  )))
 
 
-(defn comp0-
+(defn- comp0
   "Compose two functions. Second function must accept only one argument)"
  [f g] (fn [x] (f (g x))))
 
@@ -77,6 +89,6 @@
     (do
       (def f (get functions 0))
       (def g (get  functions 1))
-     (apply comp  (comp0- f g) (array-slice functions  2 -1))) )))
+     (apply comp  (comp0 f g) (array-slice functions  2 -1))) )))
 
 
