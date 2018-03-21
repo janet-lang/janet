@@ -1,3 +1,8 @@
+(defn table? [x] (= (type x) :table ))
+(defn struct? [x] (= (type x) :struct))
+(defn array? [x] (= (type x) :array))
+(defn tuple? [x] (= (type x) :tuple))
+
 (defn- reverse-array
     "Reverses the order of the elements in a given array"
   [t]
@@ -40,8 +45,6 @@
 "Sorthand for (when (not ... "
   [condition exp-1]
   (tuple 'when (tuple 'not condition) exp-1))
-
-
 
 
 (defmacro if-let
@@ -90,5 +93,56 @@
       (def f (get functions 0))
       (def g (get  functions 1))
      (apply comp  (comp0 f g) (array-slice functions  2 -1))) )))
+
+
+(defn zip-coll
+"Creates an table of map from two arrays/tuple. Defaults to table when no thrid
+ argumet is given"
+  [coll-1 coll-2 the-type]
+  (var zipping-table @{})
+  (def {:more more1 :next next1} (iter coll-1))
+  (def {:more more2 :next next2} (iter coll-2))
+  (while (more1)
+    (put  zipping-table (next1) (next2)))
+  (if (= :struct the-type)
+    (table-to-struct zippint-table )
+    zipping-table))
+
+(defn update
+"Uses a function to change the value in a collection"
+  [coll a-key a-function & args]
+  (def old-value (get coll a-key) )
+  (put coll a-key (apply a-function old-value args)))
+
+(defn merge
+"Merges mutliple tables/structs to one. If a key appears in more than one
+ collection, then subsequence values replace previous ones
+ The type of the first collection determines the type of the resulting
+ collection"
+  [head & colls]
+  (if   (:= tmp head)
+       (tuple-prepend head colls))
+  (defn  create-merger [container]
+    (fn [x]
+      (def {:more more :next next} (pairs x))
+      (var tmp (next))
+      (while (more)
+        (put container (get tmp 0) (get tmp 1)))
+      (:= tmp (next))))
+  (def is-table (table? head))
+  (def merger (create-merger (if is-table head
+                               (do (var container @{}) container))))
+  (foreach colls merger)
+(if is-table head (table-to-struct container)))
+
+(defn juxt
+"Takes a set of functions and returns the juxtaposition of those functions"
+  [& functions]
+  (fn [& x]
+  (map (fn [f] (apply f x))  functions)))
+
+
+
+
 
 
