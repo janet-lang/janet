@@ -1,4 +1,12 @@
-(defn- reverse-array [t]
+(defn table? [x] (= (type x) :table ))
+(defn struct? [x] (= (type x) :struct))
+(defn array? [x] (= (type x) :array))
+(defn tuple? [x] (= (type x) :tuple))
+
+
+(defn- reverse-array
+    "Reverses the order of the elements in a given array"
+  [t]
   (var  n (dec  (length t))  )
   (var reversed [])
   (while (>= n 0)
@@ -7,7 +15,9 @@
    reversed)
 
 
-(defn- reverse-tuple [t]
+(defn- reverse-tuple
+   "Reverses the order of the elements of a given tuple"
+  [t]
   (def max (length t))
   (var  n  0)
   (var reversed (tuple))
@@ -16,10 +26,13 @@
     (++ n))
    reversed)
 
+'(arrays are more efficient so reverse-tuple will not be used)
 
-(defn reverse [t]
+(defn reverse
+  "Reverses order of elements in a given array or tuple"
+  [t]
   (def the-type (type t))
-  (cond (= the-type  :tuple) (reverse-tuple t)
+  (cond (= the-type :tuple) (->> t iter2array reverse-array (apply tuple) )
         (= the-type :array) (reverse-array t)))
 
 
@@ -30,15 +43,44 @@
          exp-1
          exp-2))
 
-(defn comp0-
+(defmacro when-not
+"Sorthand for (when (not ... "
+  [condition exp-1]
+  (tuple 'when (tuple 'not condition) exp-1))
+
+
+(defmacro if-let
+"Takes the first one or two forms in a vector and if true binds
+ all the forms with let and evaluates the first expression else
+ evaluates the second"
+  [bindings then else]
+  (def head (ast-unwrap1 bindings))
+  (tuple 'let head
+         (tuple 'if (and (get head 1) (if (get head 2) (get head 3) true))
+              then
+              else)))
+
+
+(defmacro when-let
+"Takes the first one or two forms in vector and if true binds
+ all the forms  with let and evaluates body"
+  [bindings & body]
+  (def head (ast-unwrap1 bindings))
+  (tuple 'let head
+      (tuple
+        'when
+        (and (get head 1) (if (get head 2) (get head 3) true))
+        (apply tuple (array-concat ['do] (ast-unwrap1 body)))  )))
+
+
+(defn- comp0
   "Compose two functions. Second function must accept only one argument)"
  [f g] (fn [x] (f (g x))))
 
 
 (defn comp
 "Takes multiple functions and returns a function that is the composition
- of those functions. Resulting function accepts a variable number of
- arguments"
+ of those functions."
   [& functions]
  (def len  (length functions))
  (if (zero? len)
@@ -54,3 +96,49 @@
      (apply comp  (comp0 f g) (array-slice functions  2 -1))) )))
 
 
+(defn zipcoll
+"Creates an table or tuple from two arrays/tuples. Result is table if no
+third argument is given"
+  [coll-1 coll-2 the-type]
+  (var zipping-table @{})
+  (def {:more more1 :next next1} (iter coll-1))
+  (def {:more more2 :next next2} (iter coll-2))
+  (while (more1)
+    (put  zipping-table (next1) (next2)))
+  (if (= :struct the-type)
+    (table-to-struct zipping-table )
+    zipping-table))
+
+(defn update
+"Accepts a key argument and passes its associated value to a function.
+ The key, then is associated to that value"
+  [coll a-key a-function & args]
+  (def old-value (get coll a-key) )
+  (put coll a-key (apply a-function old-value args)))
+
+
+(defn-  create-merger [container]
+  (fn [x]
+    (var key (next  x nil))
+    (while (not= nil key)
+      (put container (macroexpand1 key) (macroexpand1 (get x key)))
+      (:= key (next x key)))))
+
+
+(defn merge
+  "Merges mutliple tables/structs to one. If a key appears in more than one
+   collection, then later values replace any previous ones.
+   The type of the first collection determines the type of the resulting
+   collection"
+  [& colls]
+  (var container @{})
+  (def merger (create-merger container))
+  (foreach colls merger)
+  (if (table? (get colls 0)) container (table-to-struct container)))
+
+
+(defn juxt
+"Takes a set of functions and returns the juxtaposition of those functions"
+  [& functions]
+  (fn [& x]
+    (iter2array (map (fn [f] (apply f x)) functions))))
