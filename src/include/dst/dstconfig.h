@@ -50,10 +50,7 @@ extern "C" {
     || defined(sun) || defined(__sun) /* Solaris */ \
     || defined(unix) || defined(__unix) || defined(__unix__)
 #define DST_UNIX 1
-#endif
-
-/* Check Windows */
-#ifdef __EMSCRIPTEN__
+#elif defined(__EMSCRIPTEN__)
 #define DST_WEB 1
 #elif defined(WIN32) || defined(_WIN32)
 #define DST_WINDOWS 1

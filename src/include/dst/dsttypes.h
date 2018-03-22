@@ -348,7 +348,7 @@ struct DstStackFrame {
 };
 
 /* Number of Dsts a frame takes up in the stack */
-#define DST_FRAME_SIZE ((sizeof(DstStackFrame) + sizeof(Dst) - 1)/ sizeof(Dst))
+#define DST_FRAME_SIZE ((sizeof(DstStackFrame) + sizeof(Dst) - 1) / sizeof(Dst))
 
 /* A dynamic array type. */
 struct DstArray {

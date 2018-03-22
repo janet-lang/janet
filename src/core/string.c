@@ -180,14 +180,19 @@ static int32_t string_description_impl(uint8_t *buf, const char *title, void *po
     *c++ = ' ';
     *c++ = '0';
     *c++ = 'x';
-    for (i = sizeof(void *); i > 0; --i) {
+#if defined(DST_64)
+#define POINTSIZE 6
+#else
+#define POINTSIZE (sizeof(void *))
+#endif
+    for (i = POINTSIZE; i > 0; --i) {
         uint8_t byte = pbuf.bytes[i - 1];
-        if (!byte) continue;
         *c++ = HEX(byte >> 4);
         *c++ = HEX(byte & 0xF);
     }
     *c++ = '>';
     return (int32_t) (c - buf);
+#undef POINTSIZE
 }
 
 static void string_description_b(DstBuffer *buffer, const char *title, void *pointer) {

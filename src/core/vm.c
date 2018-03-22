@@ -493,7 +493,7 @@ static void *op_lookup[255] = {
             for (i = 0; i < elen; ++i) {
                 int32_t inherit = fd->environments[i];
                 if (inherit == -1) {
-                    DstStackFrame *frame = (DstStackFrame *)stack - 1;
+                    DstStackFrame *frame = dst_stack_frame(stack);
                     if (!frame->env) {
                         /* Lazy capture of current stack frame */
                         DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
