@@ -120,24 +120,26 @@ body once, and then memoizes the result."
   (iter-self next))
 
 (defn lazy2iter
-"turn a lazy-seq to an iterator"
+  "turn a lazy-seq to an iterator"
   [lazy-seq]
-  (var state lazy-seq)
-  {:more  state
-   :next (fn []     (def result (head state) )
-                    (def rest  (tail state))
-                    (if rest
-                      (:= state rest))
-                    result)})
+  (var result (head lazy-seq) )
+  (var  rest (tail lazy-seq))
+  {:more  (fn [] result)
+   :next (fn [] (def next result)
+           (when result
+             (:= result (head rest))
+             (:= rest (tail rest)))
+           next)})
 
 
 #Now we can use the nonfuctional filter from boot.dst
 #to write a filter version that returns a lazy sequence
-
+#Be carefull when creating lazy sequences from mutable
+#data structures as their values are references to this
+#data structures. Same is true for iterators
 
 (defn filter2 [pred coll]
   (tail (iter2lazy (filter pred coll))))
-
 
 
 
