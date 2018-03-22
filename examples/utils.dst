@@ -1,0 +1,56 @@
+(defn- reverse-array [t]
+  (var  n (dec  (length t))  )
+  (var reversed [])
+  (while (>= n 0)
+    (array-push  reversed (get t n))
+    (-- n))
+   reversed)
+
+
+(defn- reverse-tuple [t]
+  (def max (length t))
+  (var  n  0)
+  (var reversed (tuple))
+  (while (< n max )
+    (:= reversed (tuple-prepend reversed (get t n)))
+    (++ n))
+   reversed)
+
+
+(defn reverse [t]
+  (def the-type (type t))
+  (cond (= the-type  :tuple) (reverse-tuple t)
+        (= the-type :array) (reverse-array t)))
+
+
+(defmacro if-not
+"Sorthand for (if (not ... "
+  [condition exp-1 exp-2]
+  (tuple 'if (tuple 'not condition)
+         exp-1
+         exp-2))
+
+(defn comp0-
+  "Compose two functions. Second function must accept only one argument)"
+ [f g] (fn [x] (f (g x))))
+
+
+(defn comp
+"Takes multiple functions and returns a function that is the composition
+ of those functions. Resulting function accepts a variable number of
+ arguments"
+  [& functions]
+ (def len  (length functions))
+ (if (zero? len)
+   nil
+   (if (one? len)
+     (do
+       (def the-composition (get functions 0))
+       (fn [& x]
+         (apply the-composition x)))
+    (do
+      (def f (get functions 0))
+      (def g (get  functions 1))
+     (apply comp  (comp0 f g) (array-slice functions  2 -1))) )))
+
+
