@@ -24,17 +24,17 @@ body once, and then memoizes the result."
 (def HEAD :private 0)
 (def TAIL :private 1)
 
-(defn empty-seq 
- "The empty sequence." 
+(defn empty-seq
+ "The empty sequence."
  [] nil)
 
-(defmacro cons 
+(defmacro cons
  "Create a new sequence by prepending a value to the original sequence."
  [h t]
  (def x (tuple h t))
  (fn [] x))
 
-(defn empty? 
+(defn empty?
  "Check if a sequence is empty."
  [s]
  (not (s)))
@@ -49,7 +49,7 @@ body once, and then memoizes the result."
  [s]
  (get (s) TAIL))
 
-(defn range2 
+(defn range2
  "Return a sequence of integers [start, end)."
  [start end]
  (if (< start end)
@@ -62,7 +62,7 @@ body once, and then memoizes the result."
  (range2 0 end))
 
 (defn map
- "Return a sequence that is the result of apply f to each value in s."
+ "Return a sequence that is the result of applying f to each value in s."
  [f s]
  (delay
   (def x (s))
@@ -77,7 +77,7 @@ body once, and then memoizes the result."
  "Evaluate f on each member of the sequence. Forces evaluation."
  (when (s) (f (head s)) (realize-map f (tail s))))
 
-(defn drop 
+(defn drop
  "Ignores the first n values of the sequence and returns the rest."
  [n s]
  (delay
@@ -87,7 +87,7 @@ body once, and then memoizes the result."
 (defn take
  "Returns at most the first n values of s."
  [n s]
- (delay 
+ (delay
   (def x (s))
   (if (and x (pos? n))
    (tuple (get x HEAD) (take (- n 1) (get x TAIL))))))
@@ -100,8 +100,44 @@ body once, and then memoizes the result."
 (defn take-while
  "Returns a sequence of values until the predicate is false."
  [pred s]
- (delay 
+ (delay
   (def x (s))
   (when x
    (def thehead (get HEAD x))
    (if thehead (tuple thehead (take-while pred (get TAIL x)))))))
+
+#Iterators is a conscept that looks a lot like lazy seq
+#The following functions turn iterators to lazy seq and vice versa
+
+(defn- iter-self
+  [next]
+  (delay (tuple (next) (iter-self next))))
+
+(defn iter2lazy
+"Create a lazy sequence froma an iterator"
+  [iter]
+  (def  {:more more :next next} iter)
+  (iter-self next))
+
+(defn lazy2iter
+"turn a lazy-seq to an iterator"
+  [lazy-seq]
+  (var state lazy-seq)
+  {:more  state
+   :next (fn []     (def result (head state) )
+                    (def rest  (tail state))
+                    (if rest
+                      (:= state rest))
+                    result)})
+
+
+#Now we can use the nonfuctional filter from boot.dst
+#to write a filter version that returns a lazy sequence
+
+
+(defn filter2 [pred coll]
+  (tail (iter2lazy (filter pred coll))))
+
+
+
+
