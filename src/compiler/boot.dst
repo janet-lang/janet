@@ -543,8 +543,7 @@ onvalue."
 
 (defn default-error-handler
  [t x f]
- (print)
- (file-write stdout "error: ")
+ (file-write stdout (string t " error: "))
  (pp x)
  (when f
   (def st (fiber-stack f))
@@ -563,8 +562,7 @@ onvalue."
    (when func (file-write stdout (string " " func)))
    (when pc (file-write stdout (string " (pc=" pc ")")))
    (when tail (file-write stdout " (tailcall)"))
-   (file-write stdout "\n")))
- (print))
+   (file-write stdout "\n"))))
 
 (def require (do
  (def cache @{})
