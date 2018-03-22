@@ -41,8 +41,6 @@ static const DstReg cfuns[] = {
     {"array", dst_core_array},
     {"tuple", dst_core_tuple},
     {"struct", dst_core_struct},
-    {"fiber", dst_core_fiber},
-    {"fiber-status", dst_core_fiber_status},
     {"buffer", dst_core_buffer},
     {"gensym", dst_core_gensym},
     {"get", dst_core_get},
@@ -110,6 +108,7 @@ DstTable *dst_stl_env() {
         dst_lib_tuple(args);
         dst_lib_buffer(args);
         dst_lib_table(args);
+        dst_lib_fiber(args);
         dst_lib_parse(args);
         dst_lib_compile(args);
         dst_lib_asm(args);

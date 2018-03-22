@@ -215,6 +215,7 @@ DstFuncDef *dst_funcdef_alloc() {
     def->source = NULL;
     def->sourcepath = NULL;
     def->sourcemap = NULL;
+    def->name = NULL;
     def->defs = NULL;
     def->defs_length = 0;
     def->constants_length = 0;

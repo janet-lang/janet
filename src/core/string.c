@@ -103,21 +103,21 @@ const uint8_t *dst_cstring(const char *str) {
 }
 
 /* Temporary buffer size */
-#define DST_BUFSIZE 36
+#define BUFSIZE 36
 
 static int32_t real_to_string_impl(uint8_t *buf, double x) {
     /* Use 16 decimal places to ignore one ulp errors for now */
-    int count = snprintf((char *) buf, DST_BUFSIZE, "%.16gR", x);
+    int count = snprintf((char *) buf, BUFSIZE, "%.16gR", x);
     return (int32_t) count;
 }
 
 static void real_to_string_b(DstBuffer *buffer, double x) {
-    dst_buffer_ensure(buffer, buffer->count + DST_BUFSIZE);
+    dst_buffer_ensure(buffer, buffer->count + BUFSIZE);
     buffer->count += real_to_string_impl(buffer->data + buffer->count, x);
 }
 
 static const uint8_t *real_to_string(double x) {
-    uint8_t buf[DST_BUFSIZE];
+    uint8_t buf[BUFSIZE];
     return dst_string(buf, real_to_string_impl(buf, x));
 }
 
@@ -152,12 +152,12 @@ static int32_t integer_to_string_impl(uint8_t *buf, int32_t x) {
 }
 
 static void integer_to_string_b(DstBuffer *buffer, int32_t x) {
-    dst_buffer_extra(buffer, DST_BUFSIZE);
+    dst_buffer_extra(buffer, BUFSIZE);
     buffer->count += integer_to_string_impl(buffer->data + buffer->count, x);
 }
 
 static const uint8_t *integer_to_string(int32_t x) {
-    uint8_t buf[DST_BUFSIZE];
+    uint8_t buf[BUFSIZE];
     return dst_string(buf, integer_to_string_impl(buf, x));
 }
 
@@ -191,19 +191,19 @@ static int32_t string_description_impl(uint8_t *buf, const char *title, void *po
 }
 
 static void string_description_b(DstBuffer *buffer, const char *title, void *pointer) {
-    dst_buffer_ensure(buffer, buffer->count + DST_BUFSIZE);
+    dst_buffer_ensure(buffer, buffer->count + BUFSIZE);
     buffer->count += string_description_impl(buffer->data + buffer->count, title, pointer);
 }
 
 /* Describes a pointer with a title (string_description("bork",  myp) returns 
  * a string "<bork 0x12345678>") */
 static const uint8_t *string_description(const char *title, void *pointer) {
-    uint8_t buf[DST_BUFSIZE];
+    uint8_t buf[BUFSIZE];
     return dst_string(buf, string_description_impl(buf, title, pointer));
 }
 
 #undef HEX
-#undef DST_BUFSIZE
+#undef BUFSIZE
 
 /* TODO - add more characters to escape. 
  *

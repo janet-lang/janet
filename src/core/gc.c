@@ -162,6 +162,8 @@ static void dst_mark_funcdef(DstFuncDef *def) {
         dst_mark_string(def->source);
     if (def->sourcepath)
         dst_mark_string(def->sourcepath);
+    if (def->name)
+        dst_mark_string(def->name);
 }
 
 static void dst_mark_function(DstFunction *func) {

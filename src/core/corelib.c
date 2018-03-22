@@ -134,15 +134,6 @@ int dst_core_struct(DstArgs args) {
     return dst_return(args, dst_wrap_struct(dst_struct_end(st)));
 }
 
-int dst_core_fiber(DstArgs args) {
-    DstFiber *fiber;
-    if (args.n < 1) return dst_throw(args, "expected at least 1 argument");
-    if (!dst_checktype(args.v[0], DST_FUNCTION))
-        return dst_throw(args, "expected a function");
-    fiber = dst_fiber(dst_unwrap_function(args.v[0]), 64);
-    return dst_return(args, dst_wrap_fiber(fiber));
-}
-
 int dst_core_gensym(DstArgs args) {
     if (args.n > 1) return dst_throw(args, "expected one argument");
     if (args.n == 0) {
@@ -196,33 +187,6 @@ int dst_core_setproto(DstArgs args) {
         ? dst_unwrap_table(args.v[1])
         : NULL;
     return dst_return(args, args.v[0]);
-}
-
-int dst_core_fiber_status(DstArgs args) {
-    const char *status = "";
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
-    if (!dst_checktype(args.v[0], DST_FIBER)) return dst_throw(args, "expected fiber");
-    switch(dst_unwrap_fiber(args.v[0])->status) {
-        case DST_FIBER_PENDING:
-            status = ":pending";
-            break;
-        case DST_FIBER_NEW:
-            status = ":new";
-            break;
-        case DST_FIBER_ALIVE:
-            status = ":alive";
-            break;
-        case DST_FIBER_DEAD:
-            status = ":dead";
-            break;
-        case DST_FIBER_ERROR:
-            status = ":error";
-            break;
-        case DST_FIBER_DEBUG:
-            status = ":debug";
-            break;
-    }
-    return dst_return(args, dst_csymbolv(status));
 }
 
 int dst_core_put(DstArgs args) {

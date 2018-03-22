@@ -589,6 +589,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     def = dstc_pop_funcdef(c);
     def->arity = arity;
     if (varargs) def->flags |= DST_FUNCDEF_FLAG_VARARG;
+    if (selfref) def->name = dst_unwrap_symbol(head);
     defindex = dstc_addfuncdef(c, def);
 
     /* Ensure enough slots for vararg function. */

@@ -133,6 +133,7 @@ void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
     newframe->pc = func->def->bytecode;
     newframe->func = func;
     newframe->env = NULL;
+    newframe->flags = 0;
 
     /* Check varargs */
     if (func->def->flags & DST_FUNCDEF_FLAG_VARARG) {
@@ -211,6 +212,7 @@ void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
     /* Set frame stuff */
     dst_fiber_frame(fiber)->func = func;
     dst_fiber_frame(fiber)->pc = func->def->bytecode;
+    dst_fiber_frame(fiber)->flags |= DST_STACKFRAME_TAILCALL;
 }
 
 /* Push a stack frame to a fiber for a c function */
@@ -235,6 +237,7 @@ void dst_fiber_cframe(DstFiber *fiber) {
     newframe->pc = NULL;
     newframe->func = NULL;
     newframe->env = NULL;
+    newframe->flags = 0;
 }
 
 /* Pop a stack frame from the fiber. Returns the new stack frame, or
@@ -250,4 +253,109 @@ void dst_fiber_popframe(DstFiber *fiber) {
     /* Shrink stack */
     fiber->stacktop = fiber->stackstart = fiber->frame;
     fiber->frame = frame->prevframe;
+}
+
+/* CFuns */
+
+static int cfun_fiber(DstArgs args) {
+    DstFiber *fiber;
+    if (args.n < 1) return dst_throw(args, "expected at least 1 argument");
+    if (!dst_checktype(args.v[0], DST_FUNCTION))
+        return dst_throw(args, "expected a function");
+    fiber = dst_fiber(dst_unwrap_function(args.v[0]), 64);
+    return dst_return(args, dst_wrap_fiber(fiber));
+}
+
+static int cfun_status(DstArgs args) {
+    const char *status = "";
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    if (!dst_checktype(args.v[0], DST_FIBER)) return dst_throw(args, "expected fiber");
+    switch(dst_unwrap_fiber(args.v[0])->status) {
+        case DST_FIBER_PENDING:
+            status = ":pending";
+            break;
+        case DST_FIBER_NEW:
+            status = ":new";
+            break;
+        case DST_FIBER_ALIVE:
+            status = ":alive";
+            break;
+        case DST_FIBER_DEAD:
+            status = ":dead";
+            break;
+        case DST_FIBER_ERROR:
+            status = ":error";
+            break;
+        case DST_FIBER_DEBUG:
+            status = ":debug";
+            break;
+    }
+    return dst_return(args, dst_csymbolv(status));
+}
+
+/* Extract info from one stack frame */
+static Dst doframe(DstStackFrame *frame) {
+    int32_t off;
+    DstTable *t = dst_table(3);
+    DstFuncDef *def = NULL;
+    if (frame->func) {
+        dst_table_put(t, dst_csymbolv(":function"), dst_wrap_function(frame->func));
+        def = frame->func->def;
+        if (def->name) {
+            dst_table_put(t, dst_csymbolv(":name"), dst_wrap_string(def->name));
+        }
+    } else {
+        dst_table_put(t, dst_csymbolv(":c"), dst_wrap_true());
+    }
+    if (frame->flags & DST_STACKFRAME_TAILCALL) {
+        dst_table_put(t, dst_csymbolv(":tail"), dst_wrap_true());
+    }
+    if (frame->pc) {
+        off = frame->pc - def->bytecode;
+        dst_table_put(t, dst_csymbolv(":pc"), dst_wrap_integer(off));
+        if (def->sourcemap) {
+            DstSourceMapping mapping = def->sourcemap[off];
+            dst_table_put(t, dst_csymbolv(":source-start"), dst_wrap_integer(mapping.start));
+            dst_table_put(t, dst_csymbolv(":source-end"), dst_wrap_integer(mapping.end));
+        }
+        if (def->source) {
+            dst_table_put(t, dst_csymbolv(":source"), dst_wrap_string(def->source));
+        } else if (def->sourcepath) {
+            dst_table_put(t, dst_csymbolv(":sourcepath"), dst_wrap_string(def->sourcepath));
+        }
+    }
+    return dst_wrap_table(t);
+}
+
+static int cfun_stack(DstArgs args) {
+    DstFiber *fiber;
+    DstArray *array;
+    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    if (!dst_checktype(args.v[0], DST_FIBER)) return dst_throw(args, "expected fiber");
+    fiber = dst_unwrap_fiber(args.v[0]);
+    array = dst_array(0);
+    {
+        int32_t i = fiber->frame;
+        DstStackFrame *frame;
+        while (i > 0) {
+            frame = (DstStackFrame *)(fiber->data + i - DST_FRAME_SIZE);
+            dst_array_push(array, doframe(frame));
+            i = frame->prevframe;
+        }
+    }
+    return dst_return(args, dst_wrap_array(array));
+}
+
+static const DstReg cfuns[] = {
+    {"fiber", cfun_fiber},
+    {"fiber-status", cfun_status},
+    {"fiber-stack", cfun_stack},
+    {NULL, NULL}
+};
+
+/* Module entry point */
+int dst_lib_fiber(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_cfuns(env, cfuns);
+    return 0;
 }

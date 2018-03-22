@@ -335,12 +335,16 @@ struct DstFiber {
     } status;
 };
 
+/* Mark if a stack frame is a tail call for debugging */
+#define DST_STACKFRAME_TAILCALL 1
+
 /* A stack frame on the fiber. Is stored along with the stack values. */
 struct DstStackFrame {
     DstFunction *func;
     uint32_t *pc;
-    int32_t prevframe;
     DstFuncEnv *env;
+    int32_t prevframe;
+    uint32_t flags;
 };
 
 /* Number of Dsts a frame takes up in the stack */
@@ -395,6 +399,7 @@ struct DstFuncDef {
     DstSourceMapping *sourcemap;
     const uint8_t *source;
     const uint8_t *sourcepath;
+    const uint8_t *name;
 
     uint32_t flags;
     int32_t slotcount; /* The amount of stack space required for the function */

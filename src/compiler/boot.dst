@@ -2,7 +2,7 @@
 # Copyright 2018 (C) Calvin Rose
 
 (var *env* 
- "The current environment. Is dynamically bound."
+ "The current environment."
  _env)
 
 (def defn :macro
@@ -39,6 +39,7 @@
  (apply1 tuple (array-concat
   ['defn name :private] more)))
 
+# Basic predicates
 (defn even? [x] (== 0 (% x 2)))
 (defn odd? [x] (== 1 (% x 2)))
 (defn nil? [x] (= x nil))
@@ -46,8 +47,6 @@
 (defn pos? [x] (> x 0))
 (defn neg? [x] (< x 0))
 (defn one? [x] (== x 1))
-(defn inc [x] (+ x 1))
-(defn dec [x] (- x 1))
 (def atomic? (do
   (def non-atomic-types {
    :array true
@@ -57,7 +56,9 @@
   })
   (fn [x] (not (get non-atomic-types (type x))))))
 
-# C style macros for imperative sugar
+# C style macros and functions for imperative sugar
+(defn inc [x] (+ x 1))
+(defn dec [x] (- x 1))
 (defmacro ++ [x] (tuple ':= x (tuple + x 1)))
 (defmacro -- [x] (tuple ':= x (tuple - x 1)))
 (defmacro += [x n] (tuple ':= x (tuple + x n)))
@@ -266,6 +267,10 @@ If no match is found, returns nil"
         ret)
  })
 
+(defn partial [f & more]
+ (if (zero? (length more)) f
+  (fn [& r] (apply1 f (array-concat [] more r)))))
+
 (defmacro for [head & body]
   (def head (ast-unwrap1 head))
   (def sym (get head 0))
@@ -280,6 +285,23 @@ If no match is found, returns nil"
     (tuple 'while (tuple '< sym endsym)
      (tuple-prepend body 'do)
      (tuple ':= sym (tuple '+ sym inc)))))
+
+(defn juxt*
+  [& funs]
+  (def len (length funs))
+  (fn [& args]
+   (def ret [])
+   (for [i 0 len]
+    (array-push ret (apply1 (get funs i) args)))
+   (apply1 tuple ret)))
+
+(defmacro juxt
+ [& funs]
+ (def parts ['tuple])
+ (def $args (gensym))
+ (for [i 0 (length funs)]
+  (array-push parts (tuple apply1 (get funs i) $args)))
+ (tuple 'fn ['& $args] (apply1 tuple parts)))
 
 (defmacro ->
  [x & forms]
@@ -514,10 +536,35 @@ onvalue."
   (def res (resume f))
    (if good
     (if (= (fiber-status f) :error)
-     (onerr "runtime" res)
+     (onerr "runtime" res f)
      (onvalue res))))
  (foreach (val-stream chunks onerr) doone)
  env)))
+
+(defn default-error-handler
+ [t x f]
+ (print)
+ (file-write stdout "error: ")
+ (pp x)
+ (when f
+  (def st (fiber-stack f))
+  (def len (length st))
+  (for [i 0 len]
+   (def {
+    :function func
+    :tail tail
+    :pc pc
+    :c c
+    :name name
+    } (get st i))
+   (file-write stdout "  in")
+   (when c (file-write stdout " cfunction"))
+   (when name (file-write stdout (string " " name))) 
+   (when func (file-write stdout (string " " func)))
+   (when pc (file-write stdout (string " (pc=" pc ")")))
+   (when tail (file-write stdout " (tailcall)"))
+   (file-write stdout "\n")))
+ (print))
 
 (def require (do
  (def cache @{})
@@ -534,8 +581,7 @@ onvalue."
      (defn chunks [buf] (file-read f 1024 buf))
      (def oldenv *env*)
      (:= *env* newenv)
-     (run-context newenv chunks identity
-      (fn [t x] (print (string t " error: " x))))
+     (run-context newenv chunks identity default-error-handler)
      (file-close f)
      (:= *env* oldenv)
      (put loading path nil)
@@ -551,7 +597,7 @@ onvalue."
    (put env (symbol (if prefix prefix "") k) v)))))
 
 (defmacro import [path & args]
- (apply1 tuple (array-concat [import* '_env path] args))) 
+ (apply tuple import* '_env path args)) 
 
 (defn repl [getchunk]
  (def newenv (make-env))
@@ -562,5 +608,5 @@ onvalue."
  (defn onvalue [x]
   (put newenv '_ @{:value x})
   (pp x))
- (run-context newenv (if getchunk getchunk chunks) onvalue
-  (fn [t x] (print (string t " error: " x)))))
+ (run-context newenv (if getchunk getchunk chunks)
+  onvalue default-error-handler))

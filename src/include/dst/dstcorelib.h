@@ -87,7 +87,6 @@ int dst_core_tuple(DstArgs args);
 int dst_core_array(DstArgs args);
 int dst_core_table(DstArgs args);
 int dst_core_struct(DstArgs args);
-int dst_core_fiber(DstArgs args);
 int dst_core_buffer(DstArgs args);
 int dst_core_gensym(DstArgs args);
 int dst_core_length(DstArgs args);
@@ -95,8 +94,6 @@ int dst_core_get(DstArgs args);
 int dst_core_rawget(DstArgs args);
 int dst_core_getproto(DstArgs args);
 int dst_core_setproto(DstArgs args);
-int dst_core_fiber_status(DstArgs args);
-int dst_core_fiber_location(DstArgs args);
 int dst_core_put(DstArgs args);
 int dst_core_gccollect(DstArgs args);
 int dst_core_gcsetinterval(DstArgs args);
@@ -113,6 +110,7 @@ int dst_lib_array(DstArgs args);
 int dst_lib_tuple(DstArgs args);
 int dst_lib_buffer(DstArgs args);
 int dst_lib_table(DstArgs args);
+int dst_lib_fiber(DstArgs args);
 
 /* Useful for compiler */
 Dst dst_op_add(Dst lhs, Dst rhs);
