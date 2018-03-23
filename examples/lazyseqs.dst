@@ -141,5 +141,11 @@ body once, and then memoizes the result."
 (defn filter2 [pred coll]
   (tail (iter2lazy (filter pred coll))))
 
+(def arr [0 -1 -2 33 -3 0 302 -3 2 8  54 3 -2 0])
 
+(def filtered (filter2 pos? arr))
 
+(defn run-me [] (realize filtered))
+
+#be carfull with the filter function. First element in (filter pos? arr) is nil
+#last element is false
