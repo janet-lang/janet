@@ -45,7 +45,7 @@ DstSlot dstc_astquote(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv)
 }
 
 static void destructure(DstCompiler *c, Dst left, DstSlot right,
-        void (*leaf)(DstCompiler *c, 
+        void (*leaf)(DstCompiler *c,
             DstAst *ast,
             const uint8_t *sym,
             DstSlot s,
@@ -72,7 +72,7 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
                     localright = dstc_preread(c, ast, 0xFF, 1, right);
                     localsub = dstc_lslotn(c, 0xFF, 3);
                     if (i < 0x100) {
-                        dstc_emit(c, ast, 
+                        dstc_emit(c, ast,
                                 (i << 24) |
                                 (localright << 16) |
                                 (localsub << 8) |
@@ -80,7 +80,7 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
                     } else {
                         DstSlot islot = dstc_cslot(dst_wrap_integer(i));
                         int32_t locali = dstc_preread(c, ast, 0xFF, 2, islot);
-                        dstc_emit(c, ast, 
+                        dstc_emit(c, ast,
                                 (locali << 24) |
                                 (localright << 16) |
                                 (localsub << 8) |
@@ -111,7 +111,7 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
                     localright = dstc_preread(c, ast, 0xFF, 1, right);
                     localsub = dstc_lslotn(c, 0xFF, 3);
                     int32_t localk = dstc_preread(c, ast, 0xFF, 2, kslot);
-                    dstc_emit(c, ast, 
+                    dstc_emit(c, ast,
                             (localk << 24) |
                             (localright << 16) |
                             (localsub << 8) |
@@ -211,7 +211,7 @@ static DstSlot namelocal(DstCompiler *c, DstAst *ast, Dst head, int32_t flags, D
         ret = localslot;
     }
     ret.flags |= flags;
-    dstc_nameslot(c, dst_unwrap_symbol(head), ret); 
+    dstc_nameslot(c, dst_unwrap_symbol(head), ret);
     return ret;
 }
 
@@ -276,7 +276,7 @@ static void defleaf(
         tableindex = dstc_preread(c, ast, 0xFF, 1, tabslot);
         valsymindex = dstc_preread(c, ast, 0xFF, 2, valsym);
         valueindex = dstc_preread(c, ast, 0xFF, 3, s);
-        dstc_emit(c, ast, 
+        dstc_emit(c, ast,
                 (valueindex << 24) |
                 (valsymindex << 16) |
                 (tableindex << 8) |
@@ -352,7 +352,7 @@ DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     }
 
     /* Set target for compilation */
-    target = (drop || tail) 
+    target = (drop || tail)
         ? dstc_cslot(dst_wrap_nil())
         : dstc_gettarget(opts);
 
@@ -366,7 +366,7 @@ DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     /* Condition left body */
     dstc_scope(c, 0);
     left = dstc_value(bodyopts, truebody);
-    if (!drop && !tail) dstc_copy(c, ast, target, left); 
+    if (!drop && !tail) dstc_copy(c, ast, target, left);
     dstc_popscope(c);
 
     /* Compile jump to done */
@@ -377,7 +377,7 @@ DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     labelr = dst_v_count(c->buffer);
     dstc_scope(c, 0);
     right = dstc_value(bodyopts, falsebody);
-    if (!drop && !tail) dstc_copy(c, ast, target, right); 
+    if (!drop && !tail) dstc_copy(c, ast, target, right);
     dstc_popscope(c);
 
     /* Write jumps - only add jump lengths if jump actually emitted */
@@ -584,7 +584,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
         dstc_freeslot(c, s);
         if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
     }
-    
+
     /* Build function */
     def = dstc_pop_funcdef(c);
     def->arity = arity;
@@ -603,9 +603,9 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
             (defindex << 16) |
             (localslot << 8) |
             DOP_CLOSURE);
-    
+
     if (ret.index != localslot) {
-        dstc_emit(c, ast, 
+        dstc_emit(c, ast,
                 (ret.index << 16) |
                 (localslot << 8) |
                 DOP_MOVE_FAR);
@@ -614,7 +614,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     return ret;
 }
 
-/* Keep in lexographic order */
+/* Keep in lexicographic order */
 static const DstSpecial dstc_specials[] = {
     {":=", dstc_varset},
     {"ast-quote", dstc_astquote},
