@@ -42,11 +42,18 @@
 # Basic predicates
 (defn even? [x] (== 0 (% x 2)))
 (defn odd? [x] (== 1 (% x 2)))
-(defn nil? [x] (= x nil))
 (defn zero? [x] (== x 0))
 (defn pos? [x] (> x 0))
 (defn neg? [x] (< x 0))
 (defn one? [x] (== x 1))
+(defn table? [x] (= (type x) :table ))
+(defn struct? [x] (= (type x) :struct))
+(defn array? [x] (= (type x) :array))
+(defn tuple? [x] (= (type x) :tuple))
+(defn boolean? [x] (= (type x) :boolean))
+(defn true? [x] (= (type x) true))
+(defn false? [x] (= (type x) false))
+(defn nil? [x] (= x nil))
 (def atomic? (do
   (def non-atomic-types {
    :array true
@@ -324,6 +331,111 @@ If no match is found, returns nil"
   (def parts (array-concat [h] t [last]))
   (apply1 tuple parts))
  (reduce fop x forms))
+
+(defn reverse-array
+ "Reverses the order of the elements in a given array or tuple and returns a new array."
+ [t]
+ (var n (dec (length t)))
+ (var reversed [])
+ (while (>= n 0)
+  (array-push reversed (get t n))
+  (-- n))
+  reversed)
+
+(defn reverse-tuple
+ "Reverses the order of the elements given an array or tuple and returns a tuple"
+ [t]
+ (apply1 tuple (reverse-array t)))
+
+(defn reverse
+ "Reverses order of elements in a given array or tuple"
+ [t]
+ (select (type t)
+  :tuple (reverse-tuple t)
+  :array (reverse-array t)))
+
+(defmacro if-not
+ "Sorthand for (if (not ... "
+ [condition exp-1 exp-2]
+ (tuple 'if (tuple not condition)
+       exp-1
+       exp-2))
+
+(defmacro when-not
+ "Sorthand for (when (not ... "
+  [condition exp-1]
+  (tuple 'when (tuple not condition) exp-1))
+
+(defmacro if-let
+"Takes the first one or two forms in a vector and if true binds
+ all the forms with let and evaluates the first expression else
+ evaluates the second"
+  [bindings then else]
+  (def head (ast-unwrap1 bindings))
+  (tuple 'let head
+         (tuple 'if (and (get head 1) (if (get head 2) (get head 3) true))
+              then
+              else)))
+
+(defmacro when-let
+"Takes the first one or two forms in vector and if true binds
+ all the forms  with let and evaluates body"
+  [bindings & body]
+  (def head (ast-unwrap1 bindings))
+  (tuple 'let head
+      (tuple
+        'when
+        (and (get head 1) (if (get head 2) (get head 3) true))
+        (apply1 tuple (array-concat ['do] (ast-unwrap1 body))))))
+
+(defn comp
+"Takes multiple functions and returns a function that is the composition
+ of those functions."
+ [& functions]
+ (select (length functions)
+  0 nil
+  1 (get functions 0)
+  2 (let [[f g]       functions] (fn [x] (f (g x))))
+  3 (let [[f g h]     functions] (fn [x] (f (g (h x)))))
+  4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
+    (let [[f g h i j] functions]
+     (apply comp (fn [x] (f (g (h (i (j x))))))
+      (array-slice functions 5 -1)))))
+
+(defn zipcoll
+"Creates an table or tuple from two arrays/tuples. Result is table if no
+third argument is given"
+  [coll-1 coll-2 the-type]
+  (var zipping-table @{})
+  (def {:more more1 :next next1} (iter coll-1))
+  (def {:more more2 :next next2} (iter coll-2))
+  (while (and (more1) (more2))
+    (put zipping-table (next1) (next2)))
+  (if (= :struct the-type)
+    (table-to-struct zipping-table)
+    zipping-table))
+
+(defn update
+"Accepts a key argument and passes its associated value to a function.
+ The key, then is associated to that value"
+  [coll a-key a-function & args]
+  (def old-value (get coll a-key) )
+  (put coll a-key (apply a-function old-value args)))
+
+(defn merge
+  "Merges mutliple tables/structs to one. If a key appears in more than one
+   collection, then later values replace any previous ones.
+   The type of the first collection determines the type of the resulting
+   collection"
+  [& colls]
+  (def container @{})
+  (for [i 0 (length colls)]
+   (def c (get colls i))
+   (var key (next c nil))
+   (while (not= nil key)
+     (put container key (get c key))
+     (:= key (next c key))))
+  (if (table? (get colls 0)) container (table-to-struct container)))
 
 # Start pretty printer
 (def pp (do
