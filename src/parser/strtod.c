@@ -268,11 +268,16 @@ int32_t dst_scan_integer(
         int *err) {
     struct DstScanRes res = dst_scan_impl(str, len);
     int64_t i64;
-    if (res.error)
-        goto error; 
+    if (res.error) goto error; 
+    if (res.seenpoint) goto error;
+    if (res.ex < 0) goto error;
     i64 = res.neg ? -res.mant : res.mant;
-    if (i64 > INT32_MAX || i64 < INT32_MIN)
-        goto error;
+    while (res.ex > 0) {
+        i64 *= res.base;
+        if (i64 > INT32_MAX || i64 < INT32_MIN) goto error;
+        res.ex--;
+    }
+    if (i64 > INT32_MAX || i64 < INT32_MIN) goto error;
     if (NULL != err)
         *err = 0;
     return (int32_t) i64;
