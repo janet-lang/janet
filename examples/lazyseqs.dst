@@ -109,15 +109,14 @@ body once, and then memoizes the result."
 #Iterators is a conscept that looks a lot like lazy seq
 #The following functions turn iterators to lazy seq and vice versa
 
-(defn- iter-self
-  [next]
-  (delay (tuple (next) (iter-self next))))
 
 (defn iter2lazy
-"Create a lazy sequence froma an iterator"
+"Create a lazy sequence from  an iterator"
   [iter]
   (def  {:more more :next next} iter)
-  (iter-self next))
+  (if (more)
+    (delay (tuple  (next) (iter2lazy iter)))
+    empty-seq))
 
 (defn lazy2iter
   "turn a lazy-seq to an iterator"
@@ -138,8 +137,7 @@ body once, and then memoizes the result."
 #data structures as their values are references to this
 #data structures. Same is true for iterators
 
-(defn filter2 [pred coll]
-  (tail (iter2lazy (filter pred coll))))
+(defn filter2 [pred coll]  (iter2lazy (filter pred coll)))
 
 (def arr [0 -1 -2 33 -3 0 302 -3 2 8  54 3 -2 0])
 
