@@ -689,6 +689,20 @@ static int cfun_node(DstArgs args) {
     return dst_return(args, dst_wrap_tuple(dst_tuple_end(tup)));
 }
 
+static int cfun_parsenumber(DstArgs args) {
+    const uint8_t *data;
+    Dst x;
+    int32_t len;
+    if (args.n != 1) return dst_throw(args, "expected string or buffer");
+    if (!dst_chararray_view(args.v[0], &data, &len))
+        return dst_throw(args, "expected string or buffer");
+    x = dst_scan_number(data, len);
+    if (!dst_checktype(x, DST_INTEGER) && !dst_checktype(x, DST_REAL)) {
+        return dst_throw(args, "error parsing number");
+    }
+    return dst_return(args, x);
+}
+
 static const DstReg cfuns[] = {
     {"parser", cfun_parser},
     {"parser-produce", cfun_produce},
@@ -700,6 +714,7 @@ static const DstReg cfuns[] = {
     {"ast-unwrap1", cfun_unwrap1},
     {"ast-wrap", cfun_wrap},
     {"ast-node", cfun_node},
+    {"parse-number", cfun_parsenumber},
     {NULL, NULL}
 };
 
