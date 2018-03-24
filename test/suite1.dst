@@ -33,10 +33,10 @@
 			(print "  \e[31m✘\e[0m " e)
 			x))))
 
-(if (not= 400.0 (sqrt 160000)) (error "sqrt(160000)=400"))
-(if (not= (real 400) (sqrt 160000)) (error "sqrt(160000)=400"))
+(assert (= 400.0 (sqrt 160000)) "sqrt(160000)=400")
+(assert (= (real 400) (sqrt 160000)) "sqrt(160000)=400")
 
-(def test-struct {'def 1 'bork 2 'sam 3 'a 'b 'het [1 2 3 4 5]})
+(def test-struct {'def 1 'bork 2 'sam 3 'a 'b 'het @[1 2 3 4 5]})
 (assert (= (get test-struct 'def) 1) "struct get")
 (assert (= (get test-struct 'bork) 2) "struct get")
 (assert (= (get test-struct 'sam) 3) "struct get")

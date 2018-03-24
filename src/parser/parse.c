@@ -157,6 +157,7 @@ struct DstParseState {
 
 #define PFLAG_CONTAINER 1
 #define PFLAG_BUFFER 2
+#define PFLAG_SQRBRACKETS 4
 
 static void pushstate(DstParser *p, Consumer consumer, int flags) {
     DstParseState s;
@@ -336,7 +337,9 @@ static int comment(DstParser *p, DstParseState *state, uint8_t c) {
 static int root(DstParser *p, DstParseState *state, uint8_t c);
 
 static int dotuple(DstParser *p, DstParseState *state, uint8_t c) {
-    if (c == ')') {
+    if (state->flags & PFLAG_SQRBRACKETS
+            ? c == ']'
+            : c == ')') {
         int32_t i;
         Dst *ret = dst_tuple_begin(state->argn);
         for (i = state->argn - 1; i >= 0; i--) {
@@ -349,7 +352,9 @@ static int dotuple(DstParser *p, DstParseState *state, uint8_t c) {
 }
 
 static int doarray(DstParser *p, DstParseState *state, uint8_t c) {
-    if (c == ']') {
+    if (state->flags & PFLAG_SQRBRACKETS
+            ? c == ']'
+            : c == ')') {
         int32_t i;
         DstArray *array = dst_array(state->argn);
         for (i = state->argn - 1; i >= 0; i--) {
@@ -405,12 +410,21 @@ static int dotable(DstParser *p, DstParseState *state, uint8_t c) {
 static int ampersand(DstParser *p, DstParseState *state, uint8_t c) {
     (void) state;
     dst_v_pop(p->states);
-    if (c == '{') {
+    switch (c) {
+    case '{':
         pushstate(p, dotable, PFLAG_CONTAINER);
         return 1;
-    } else if (c == '"') {
+    case '"':
         pushstate(p, stringchar, PFLAG_BUFFER);
         return 1;
+    case '[':
+        pushstate(p, doarray, PFLAG_CONTAINER | PFLAG_SQRBRACKETS);
+        return 1;
+    case '(':
+        pushstate(p, doarray, PFLAG_CONTAINER);
+        return 1;
+    default:
+        break;
     }
     pushstate(p, tokenchar, 0);
     dst_v_push(p->buf, '@'); /* Push the leading ampersand that was dropped */
@@ -448,7 +462,7 @@ static int root(DstParser *p, DstParseState *state, uint8_t c) {
             pushstate(p, dotuple, PFLAG_CONTAINER);
             return 1;
         case '[':
-            pushstate(p, doarray, PFLAG_CONTAINER);
+            pushstate(p, dotuple, PFLAG_CONTAINER | PFLAG_SQRBRACKETS);
             return 1;
         case '{':
             pushstate(p, dostruct, PFLAG_CONTAINER);

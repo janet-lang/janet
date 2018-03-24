@@ -1,5 +1,5 @@
-(var should-repl false)
-(var no-file true)
+(var *should-repl* false)
+(var *no-file* true)
 
 # Flag handlers
 (def handlers {
@@ -11,7 +11,7 @@
         (print "  -r Enter the repl after running all scripts")
         (exit 0))
   "v" (fn [] (print VERSION) (exit 0))
-  "r" (fn [] (:= should-repl true))
+  "r" (fn [] (:= *should-repl* true))
 })
 
 (defn dohandler [n]
@@ -25,9 +25,9 @@
  (if (= "-" (string-slice arg 0 1))
   (dohandler (string-slice arg 1 2))
   (do
-   (:= no-file false)
+   (:= *no-file* false)
    (import arg))))
 
-(when (or should-repl no-file) 
+(when (or *should-repl* *no-file*) 
  (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
  (repl getline))

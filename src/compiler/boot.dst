@@ -16,7 +16,7 @@
     (if (if tuple? tuple? array?) i (recur (+ i 1)))))
    (def start (fstart 0))
    (def fnbody (tuple-prepend (tuple-prepend (tuple-slice more start) name) 'fn))
-   (def formargs (array-concat ['def name] (array-slice more 0 start) [fnbody]))
+   (def formargs (array-concat @['def name] (array-slice more 0 start) @[fnbody]))
    (apply1 tuple formargs)))
 
 (def defmacro :macro
@@ -24,20 +24,20 @@
  (do
   (def defn* (get (get _env 'defn) :value))
   (fn [name & more] 
-   (def args (array-concat [] name :macro more))
+   (def args (array-concat @[] name :macro more))
    (apply1 defn* args))))
 
 (defmacro defmacro-
  "Define a private macro that will not be exported."
  [name & more]
  (apply1 tuple (array-concat
-  ['defmacro name :private] more)))
+  @['defmacro name :private] more)))
 
 (defmacro defn-
  "Define a private function that will not be exported."
  [name & more]
  (apply1 tuple (array-concat
-  ['defn name :private] more)))
+  @['defn name :private] more)))
 
 # Basic predicates
 (defn even? [x] (== 0 (% x 2)))
@@ -199,7 +199,7 @@ If no match is found, returns nil"
 
 (defn iter2array [itr] 
  (def {:more more :next next} (iter itr))
- (def a [])
+ (def a @[])
  (while (more) (array-push a (next)))
  a)
 
@@ -235,7 +235,8 @@ If no match is found, returns nil"
   (def head (ast-unwrap1 bindings))
   (when (odd? (length head)) (error "expected even number of bindings to let"))
   (def len (length head))
-  (var [i accum] [0 ['do]])
+  (var i 0)
+  (var accum @['do])
   (while (< i len)
    (array-push accum (tuple 'def 
                      (get head i)
@@ -276,7 +277,7 @@ If no match is found, returns nil"
 
 (defn partial [f & more]
  (if (zero? (length more)) f
-  (fn [& r] (apply1 f (array-concat [] more r)))))
+  (fn [& r] (apply1 f (array-concat @[] more r)))))
 
 (defmacro for [head & body]
   (def head (ast-unwrap1 head))
@@ -297,27 +298,27 @@ If no match is found, returns nil"
   [& funs]
   (def len (length funs))
   (fn [& args]
-   (def ret [])
+   (def ret @[])
    (for [i 0 len]
     (array-push ret (apply1 (get funs i) args)))
    (apply1 tuple ret)))
 
 (defmacro juxt
  [& funs]
- (def parts ['tuple])
+ (def parts @['tuple])
  (def $args (gensym))
  (for [i 0 (length funs)]
   (array-push parts (tuple apply1 (get funs i) $args)))
- (tuple 'fn ['& $args] (apply1 tuple parts)))
+ (tuple 'fn (tuple '& $args) (apply1 tuple parts)))
 
 (defmacro ->
  [x & forms]
  (defn fop [last nextform]
   (def n (ast-unwrap1 nextform))
   (def [h t] (if (= :tuple (type n))
-        [(get n 0) (array-slice n 1)]
-        [n []]))
-  (def parts (array-concat [h last] t))
+        [tuple (get n 0) (array-slice n 1)]
+        [tuple n @[]]))
+  (def parts (array-concat @[h last] t))
   (apply1 tuple parts))
  (reduce fop x forms))
 
@@ -326,9 +327,9 @@ If no match is found, returns nil"
  (defn fop [last nextform]
   (def n (ast-unwrap1 nextform))
   (def [h t] (if (= :tuple (type n))
-        [(get n 0) (array-slice n 1)]
-        [n []]))
-  (def parts (array-concat [h] t [last]))
+        [tuple (get n 0) (array-slice n 1)]
+        [tuple n @[]]))
+  (def parts (array-concat @[h] t @[last]))
   (apply1 tuple parts))
  (reduce fop x forms))
 
@@ -336,7 +337,7 @@ If no match is found, returns nil"
  "Reverses the order of the elements in a given array or tuple and returns a new array."
  [t]
  (var n (dec (length t)))
- (var reversed [])
+ (var reversed @[])
  (while (>= n 0)
   (array-push reversed (get t n))
   (-- n))
@@ -386,7 +387,7 @@ If no match is found, returns nil"
       (tuple
         'when
         (and (get head 1) (if (get head 2) (get head 3) true))
-        (apply1 tuple (array-concat ['do] (ast-unwrap1 body))))))
+        (apply1 tuple (array-concat @['do] (ast-unwrap1 body))))))
 
 (defn comp
 "Takes multiple functions and returns a function that is the composition
@@ -400,7 +401,7 @@ If no match is found, returns nil"
   4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
     (let [[f g h i j] functions]
      (apply comp (fn [x] (f (g (h (i (j x))))))
-      (array-slice functions 5 -1)))))
+      (tuple-slice functions 5 -1)))))
 
 (defn zipcoll
 "Creates an table or tuple from two arrays/tuples. Result is table if no
@@ -419,7 +420,7 @@ third argument is given"
 "Accepts a key argument and passes its associated value to a function.
  The key, then is associated to that value"
   [coll a-key a-function & args]
-  (def old-value (get coll a-key) )
+  (def old-value (get coll a-key))
   (put coll a-key (apply a-function old-value args)))
 
 (defn merge
@@ -470,7 +471,7 @@ third argument is given"
    buf)
 
   (def printers :private {
-   :array  (fn [pp seen buf x] (pp-seq pp seen buf x "[" "]" true))
+   :array  (fn [pp seen buf x] (pp-seq pp seen buf x "@[" "]" true))
    :tuple  (fn [pp seen buf x] (pp-seq pp seen buf x "(" ")"))
    :table  (fn [pp seen buf x] (pp-dict pp seen buf x "@{" "}" true))
    :struct (fn [pp seen buf x] (pp-dict pp seen buf x "{" "}"))
@@ -499,7 +500,7 @@ third argument is given"
 
  (defn doarray [a] 
   (def len (length a))
-  (def newa [])
+  (def newa @[])
   (for [i 0 len] 
    (array-push newa (macroexpand1 (get a i))))
   newa)
@@ -577,11 +578,10 @@ third argument is given"
   (:= current (macroexpand1 current)))
  current)
 
-(defn make-env [parent safe]
+(defn make-env [parent]
  (def parent (if parent parent _env))
  (def newenv (setproto @{} parent))
- (if (not safe)
-   (put newenv '_env @{:value newenv}))
+ (put newenv '_env @{:value newenv :private true})
  newenv)
 
 (def run-context 

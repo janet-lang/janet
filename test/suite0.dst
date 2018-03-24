@@ -178,11 +178,11 @@
 
 (def vargf (fn [more] (apply + more)))
 
-(assert (= 0 (vargf [])) "var arg no arguments")
-(assert (= 1 (vargf [1])) "var arg no packed arguments")
-(assert (= 3 (vargf [1 2])) "var arg tuple size 1")
-(assert (= 10 (vargf [1 2 3 4])) "var arg tuple size 3")
-(assert (= 110 (vargf [1 2 3 4 10 10 10 10 10 10 10 10 10 10])) "var arg large tuple")
+(assert (= 0 (vargf @[])) "var arg no arguments")
+(assert (= 1 (vargf @[1])) "var arg no packed arguments")
+(assert (= 3 (vargf @[1 2])) "var arg tuple size 1")
+(assert (= 10 (vargf @[1 2 3 4])) "var arg tuple size 2, 2 normal args")
+(assert (= 110 (vargf @[1 2 3 4 10 10 10 10 10 10 10 10 10 10])) "var arg large tuple")
 
 # Higher order functions
 
@@ -205,7 +205,7 @@
 (assert (= (string "🐼" 🦊 🐮) "🐼:fox:cow") "emojis 🙉 :)")
 (assert (not= 🦊 :🦊) "utf8 strings are not symbols and vice versa")
 
-# Symbols with @ symbol
+# Symbols with @ character
 
 (def @ 1)
 (assert (= @ 1) "@ symbol")
@@ -218,7 +218,7 @@
 
 # Imperative merge sort merge
 (def merge (fn [xs ys] 
-    (def ret [])
+    (def ret @[])
     (def xlen (length xs))
     (def ylen (length ys))
     (var i 0)
@@ -242,10 +242,10 @@
       (:= j (+ j 1)))    
     ret))
 
-(assert (apply <= (merge [1 3 5] [2 4 6])) "merge sort merge 1")
-(assert (apply <= (merge [1 2 3] [4 5 6])) "merge sort merge 2")
-(assert (apply <= (merge [1 3 5] [2 4 6 6 6 9])) "merge sort merge 3")
-(assert (apply <= (merge '(1 3 5) [2 4 6 6 6 9])) "merge sort merge 4")
+(assert (apply <= (merge @[1 3 5] @[2 4 6])) "merge sort merge 1")
+(assert (apply <= (merge @[1 2 3] @[4 5 6])) "merge sort merge 2")
+(assert (apply <= (merge @[1 3 5] @[2 4 6 6 6 9])) "merge sort merge 3")
+(assert (apply <= (merge '(1 3 5) @[2 4 6 6 6 9])) "merge sort merge 4")
 
 # Gensym tests
 
@@ -262,8 +262,8 @@
 # Let
 
 (assert (= (let [a 1 b 2] (+ a b)) 3), "simple let")
-(assert (= (let [[a b] [1 2]] (+ a b)) 3), "destructured let")
-(assert (= (let [[a [c d] b] [1 (tuple 4 3) 2]] (+ a b c d)) 10), "double destructured let")
+(assert (= (let [[a b] @[1 2]] (+ a b)) 3), "destructured let")
+(assert (= (let [[a [c d] b] @[1 (tuple 4 3) 2]] (+ a b c d)) 10), "double destructured let")
 
 # Macros
 
@@ -275,13 +275,14 @@
 (do
  (var i 0)
  (when true
-  (:= i (+ i 1))
-  (:= i (+ i 1))
-  (:= i (+ i 1))
-  (:= i (+ i 1))
-  (:= i (+ i 1))
-  (:= i (+ i 1)))
+  (++ i)
+  (++ i)
+  (++ i)
+  (++ i)
+  (++ i)
+  (++ i))
  (assert (= i 6) "when macro"))
+
 
 # report
 
