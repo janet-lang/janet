@@ -1,0 +1,22 @@
+
+(defn put-in [coll keys val]
+  (defn assoc [the-coll n]
+    (if-let [current-key (get keys n)
+             current-val (get the-coll current-key)]
+          (put the-coll current-key (assoc current-val (inc n)))
+      val))
+  (assoc coll 0))
+
+
+(defn update-in [coll keys an-fn]
+  (def new-keys (array-slice  coll 0 -2) )
+  (def last-key (get (array-slice  coll -1 -2) 0))
+  (defn assoc [the-coll n]
+    (if-let [current-key (get keys n)
+             current-val (get the-coll current-key)]
+      (put the-coll current-key (assoc current-val (inc n)))
+      ( update  the-coll last-key an-fn )))
+  (assoc coll  new-keys   0))
+
+
+;; (defn update-in-test [ ] (update-in @{:a "x" :b {:y {"pipa" 3}}} [:b :y "pipa"] type))
