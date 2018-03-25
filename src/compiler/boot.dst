@@ -371,7 +371,6 @@ If no match is found, returns nil"
  all the forms with let and evaluates the first expression else
  evaluates the second"
   [bindings then else]
-  #(tuple 'print   (tuple '> (tuple 'length bindings) 2))
   (tuple 'let bindings
          (tuple 'if (tuple 'and (tuple 'get bindings 1)
                            (tuple 'if
@@ -384,8 +383,7 @@ If no match is found, returns nil"
 "Takes the first one or two forms in vector and if true binds
  all the forms  with let and evaluates the body"
   [bindings & body]
-  (def head (ast-unwrap1 bindings))
-  (tuple 'let head
+  (tuple 'let bindings
       (tuple
         'when
         (tuple 'and (tuple 'get bindings 1)
