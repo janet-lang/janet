@@ -367,13 +367,16 @@ If no match is found, returns nil"
   (tuple 'when (tuple not condition) exp-1))
 
 (defmacro if-let
-"Takes the first one or two forms in a vector and if true binds
+"Takes the first one or two forms in a vector and if both are  true binds
  all the forms with let and evaluates the first expression else
  evaluates the second"
   [bindings then else]
-  (def head (ast-unwrap1 bindings))
-  (tuple 'let head
-         (tuple 'if (and (get head 1) (if (get head 2) (get head 3) true))
+  #(tuple 'print   (tuple '> (tuple 'length bindings) 2))
+  (tuple 'let bindings
+         (tuple 'if (tuple 'and (tuple 'get bindings 1)
+                           (tuple 'if
+                                  (tuple '> (tuple 'length bindings) 2)
+                                  (tuple 'get bindings 3) 'true))
               then
               else)))
 
@@ -385,7 +388,10 @@ If no match is found, returns nil"
   (tuple 'let head
       (tuple
         'when
-        (and (get head 1) (if (get head 2) (get head 3) true))
+        (tuple 'and (tuple 'get bindings 1)
+                           (tuple 'if
+                                  (tuple '> (tuple 'length bindings) 2)
+                                  (tuple 'get bindings 3) 'true))
         (apply1 tuple (array-concat ['do] (ast-unwrap1 body))))))
 
 (defn comp
