@@ -187,6 +187,23 @@ static int cfun_clear(DstArgs args) {
     return dst_return(args, args.v[0]);
 }
 
+static int cfun_popn(DstArgs args) {
+    DstBuffer *buffer;
+    int32_t i;
+    if (args.n < 2
+            || !dst_checktype(args.v[0], DST_BUFFER)
+            || !dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected buffer and integer");
+    buffer = dst_unwrap_buffer(args.v[0]);
+    i = dst_unwrap_integer(args.v[1]);
+    if (i < 0) return dst_throw(args, "expected positive integer");
+    if (buffer->count < i) {
+        buffer->count = 0;
+    } else {
+        buffer->count -= i;
+    }
+    return dst_return(args, args.v[0]);
+}
+
 static int cfun_slice(DstArgs args) {
     const uint8_t *data;
     int32_t len, start, end;
@@ -225,6 +242,7 @@ static const DstReg cfuns[] = {
     {"buffer-push-byte", cfun_u8},
     {"buffer-push-integer", cfun_int},
     {"buffer-push-string", cfun_chars},
+    {"buffer-popn", cfun_popn},
     {"buffer-clear", cfun_clear},
     {"buffer-slice", cfun_slice},
     {NULL, NULL}

@@ -294,6 +294,17 @@ If no match is found, returns nil"
      (tuple-prepend body 'do)
      (tuple ':= sym (tuple '+ sym inc)))))
 
+(defn every? [pred seq]
+ (var res true)
+ (var i 0)
+ (def len (length seq))
+ (while (< i len)
+  (def item (get seq i))
+  (if (pred item)
+   (++ i)
+   (do (:= res false) (:= i len))))
+ res)
+
 (defn juxt*
   [& funs]
   (def len (length funs))
@@ -443,54 +454,89 @@ If no match is found, returns nil"
   (if (table? (get colls 0)) container (table-to-struct container)))
 
 # Start pretty printer
-(def pp (do
-  (defn- pp-seq [pp seen buf a start end checkcycle]
-   (if (and checkcycle (get seen a))
-    (buffer-push-string buf "<cycle>")
+(defn pp [x]
+
+  (def buf @"")
+  (def indent @"\n")
+  (def seen @{})
+  (var nextid 0)
+
+  # Forward declaration
+  (var recur nil)
+
+  (defn do-ds
+   [y start end checkcycle dispatch]
+   (def id (get seen y))
+   (if (and checkcycle id)
     (do
-     (put seen a true)
-     (def len (length a))
+     (buffer-push-string buf "<cycle ")
+     (buffer-push-string buf (string id))
+     (buffer-push-string buf ">"))
+    (do
+     (put seen y (++ nextid))
      (buffer-push-string buf start)
+     (dispatch y)
+     (buffer-push-string buf end))))
+
+  (defn pp-seq [y]
+   (def len (length y))
+   (if (< len 5)
+    (do
      (for [i 0 len]
       (when (not= i 0) (buffer-push-string buf " "))
-      (pp seen buf (get a i)))
-     (buffer-push-string buf end)))
-   buf)
-
-  (defn- pp-dict [pp seen buf a start end checkcycle]
-   (if (and checkcycle (get seen a))
-    (buffer-push-string buf "<cycle>")
+      (recur (get y i))))
     (do
-     (put seen a true)
-     (var k (next a nil))
-     (buffer-push-string buf start)
-     (while k
-      (def v (get a k))
-      (pp seen buf k)
-      (buffer-push-string buf " ")
-      (pp seen buf v)
-      (:= k (next a k))
-      (when k (buffer-push-string buf " ")))
-     (buffer-push-string buf end)))
-   buf)
+      (buffer-push-string indent "  ")
+      (for [i 0 len]
+       (when (not= i len) (buffer-push-string buf indent))
+       (recur (get y i)))
+      (buffer-popn indent 2)
+      (buffer-push-string buf indent))))
 
-  (def printers :private {
-   :array  (fn [pp seen buf x] (pp-seq pp seen buf x "@[" "]" true))
-   :tuple  (fn [pp seen buf x] (pp-seq pp seen buf x "(" ")"))
-   :table  (fn [pp seen buf x] (pp-dict pp seen buf x "@{" "}" true))
-   :struct (fn [pp seen buf x] (pp-dict pp seen buf x "{" "}"))
+  (defn pp-dict-nested [y]
+   (var k (next y nil))
+   (buffer-push-string indent "  ")
+   (buffer-push-string buf indent)
+   (while k
+    (def v (get y k))
+    (recur k)
+    (buffer-push-string buf " ")
+    (recur v)
+    (:= k (next y k))
+    (when k (buffer-push-string buf indent)))
+   (buffer-popn indent 2)
+   (buffer-push-string buf indent))
+
+  (defn pp-dict-simple [y]
+   (var k (next y nil))
+   (while k
+    (def v (get y k))
+    (recur k)
+    (buffer-push-string buf " ")
+    (recur v)
+    (:= k (next y k))
+    (when k (buffer-push-string buf " "))))
+
+  (defn pp-dict [y]
+   ((if (> 4 (length y)) pp-dict-simple pp-dict-nested) y))
+
+  (def printers {
+   :array  (fn [y] (do-ds y "@[" "]" true pp-seq))
+   :tuple  (fn [y] (do-ds y "(" ")" false pp-seq))
+   :table  (fn [y] (do-ds y "@{" "}" true pp-dict))
+   :struct  (fn [y] (do-ds y "{" "}" false pp-dict))
   })
+  
+  (:= recur (fn [y]
+    (def p (get printers (type y)))
+    (if p
+     (p y)
+     (buffer-push-string buf (describe y)))))
 
-  (defn- default_printer [pp seen buf x]
-   (buffer-push-string buf (describe x))
-   buf)
+  (recur x)
+  (buffer-push-string buf "\n")
 
-  (defn- pp1 [seen buf x]
-    (def pmaybe (get printers (type x)))
-    (def p (if pmaybe pmaybe default_printer))
-    (p pp1 seen buf x))
-
-  (fn [x] (print (pp1 @{} @"" x)))))
+  (file-write stdout buf))
 # End pretty printer
 
 (defn unique [s]
