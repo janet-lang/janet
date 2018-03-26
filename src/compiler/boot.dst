@@ -1,13 +1,13 @@
 # Bootstrap the dst environment
 # Copyright 2018 (C) Calvin Rose
 
-(var *env* 
+(var *env*
  "The current environment."
  _env)
 
 (def defn :macro
  "Define a function"
-  (fn [name & more] 
+  (fn [name & more]
    (def fstart (fn recur [i]
     (def ith (ast-unwrap1 (get more i)))
     (def t (type ith))
@@ -24,8 +24,8 @@
  (do
   (def defn* (get (get _env 'defn) :value))
   (fn [name & more] 
-   (def args (array-concat @[] name :macro more))
-   (apply1 defn* args))))
+   (apply1 defn* (array-concat
+    @[name :macro] more)))))
 
 (defmacro defmacro-
  "Define a private macro that will not be exported."
@@ -86,7 +86,7 @@
 
 (defmacro when
  "Evaluates the body when the condition is true. Otherwise returns nil."
- [cond & body] 
+ [cond & body]
  (tuple 'if cond (tuple-prepend body 'do)))
 
 (defmacro cond
@@ -140,21 +140,21 @@ If no match is found, returns nil"
    (tuple 'def sym dispatch)
    (aux 0)))
 
-(defmacro and [& forms] 
+(defmacro and [& forms]
  (def len (length forms))
  (if (= len 0) true ((fn aux [i]
   (cond
    (>= (inc i) len) (get forms i)
    (tuple 'if (get forms i) (aux (inc i)) false))) 0)))
 
-(defmacro or [& forms] 
+(defmacro or [& forms]
  (def len (length forms))
  (if (= len 0) false ((fn aux [i]
   (cond
    (>= (inc i) len) (get forms i)
    (tuple 'if (get forms i) true (aux (inc i))))) 0)))
 
-(defn identity 
+(defn identity
  "A function that returns its first argument."
 [x] x)
 
@@ -167,7 +167,7 @@ If no match is found, returns nil"
       :next (fn []
         (def ret (get x i))
         (:= i (+ i 1))
-        ret) 
+        ret)
     })
   (def iters {
     :array array-iter
@@ -184,20 +184,20 @@ If no match is found, returns nil"
     :next (fn []
       (def ret i)
       (:= i (+ i 1))
-      ret) 
+      ret)
   })
 
 (defn range [top] (range2 0 top))
 
-(defn doiter [itr] 
+(defn doiter [itr]
  (def {:more more :next next} (iter itr))
  (while (more) (next)))
 
-(defn foreach [itr f] 
+(defn foreach [itr f]
  (def {:more more :next next} (iter itr))
  (while (more) (f (next))))
 
-(defn iter2array [itr] 
+(defn iter2array [itr]
  (def {:more more :next next} (iter itr))
  (def a @[])
  (while (more) (array-push a (next)))
@@ -238,7 +238,7 @@ If no match is found, returns nil"
   (var i 0)
   (var accum @['do])
   (while (< i len)
-   (array-push accum (tuple 'def 
+   (array-push accum (tuple 'def
                      (get head i)
                      (get head (+ 1 i))))
    (:= i (+ i 2)))
@@ -368,26 +368,30 @@ If no match is found, returns nil"
   (tuple 'when (tuple not condition) exp-1))
 
 (defmacro if-let
-"Takes the first one or two forms in a vector and if true binds
+"Takes the first one or two forms in a vector and if both are  true binds
  all the forms with let and evaluates the first expression else
  evaluates the second"
   [bindings then else]
-  (def head (ast-unwrap1 bindings))
-  (tuple 'let head
-         (tuple 'if (and (get head 1) (if (get head 2) (get head 3) true))
+  (tuple 'let bindings
+         (tuple 'if (tuple 'and (tuple 'get bindings 1)
+                           (tuple 'if
+                                  (tuple '> (tuple 'length bindings) 2)
+                                  (tuple 'get bindings 3) 'true))
               then
               else)))
 
 (defmacro when-let
 "Takes the first one or two forms in vector and if true binds
- all the forms  with let and evaluates body"
+ all the forms  with let and evaluates the body"
   [bindings & body]
-  (def head (ast-unwrap1 bindings))
-  (tuple 'let head
+  (tuple 'let bindings
       (tuple
         'when
-        (and (get head 1) (if (get head 2) (get head 3) true))
-        (apply1 tuple (array-concat @['do] (ast-unwrap1 body))))))
+        (tuple 'and (tuple 'get bindings 1)
+                           (tuple 'if
+                                  (tuple '> (tuple 'length bindings) 2)
+                                  (tuple 'get bindings 3) 'true))
+        (apply1 tuple (array-concat @['do] body)))))
 
 (defn comp
 "Takes multiple functions and returns a function that is the composition
@@ -404,21 +408,21 @@ If no match is found, returns nil"
       (tuple-slice functions 5 -1)))))
 
 (defn zipcoll
-"Creates an table or tuple from two arrays/tuples. Result is table if no
-third argument is given"
+"Creates an table or tuple from two arrays/tuples. If a third argument of
+ :struct is givent resault is struct else is table."
   [coll-1 coll-2 the-type]
   (var zipping-table @{})
   (def {:more more1 :next next1} (iter coll-1))
   (def {:more more2 :next next2} (iter coll-2))
   (while (and (more1) (more2))
     (put zipping-table (next1) (next2)))
-  (if (= :struct the-type)
+  (if (struct? the-type)
     (table-to-struct zipping-table)
     zipping-table))
 
 (defn update
-"Accepts a key argument and passes its associated value to a function.
- The key, then is associated to that value"
+"Accepts a key argument and passes its' associated value to a function.
+ The key then, is associated to the function's return value"
   [coll a-key a-function & args]
   (def old-value (get coll a-key))
   (put coll a-key (apply a-function old-value args)))
@@ -477,8 +481,8 @@ third argument is given"
    :struct (fn [pp seen buf x] (pp-dict pp seen buf x "{" "}"))
   })
 
-  (defn- default_printer [pp seen buf x] 
-   (buffer-push-string buf (describe x)) 
+  (defn- default_printer [pp seen buf x]
+   (buffer-push-string buf (describe x))
    buf)
 
   (defn- pp1 [seen buf x]
@@ -498,7 +502,7 @@ third argument is given"
  "Expand macros in a form, but do not recursively expand macros."
  [x]
 
- (defn doarray [a] 
+ (defn doarray [a]
   (def len (length a))
   (def newa @[])
   (for [i 0 len] 
@@ -536,7 +540,7 @@ third argument is given"
       'quote identity
       'var expandlast
       'while expandall
-   }) 
+   })
 
  (defn dotup [t]
   (def h (get t 0))
@@ -589,7 +593,7 @@ third argument is given"
  (put newenv '_env @{:value newenv :private true})
  newenv)
 
-(def run-context 
+(def run-context
 "Run a context. This evaluates expressions of dst in an environment,
 and is encapsulates the parsing, compilation, and evaluation of dst.
 env is the environment to evaluate the code in, chunks is a function
@@ -597,7 +601,7 @@ that returns strings or buffers of source code (from a repl, file,
 network connection, etc. onvalue and onerr are callbacks that are
 invoked when a result is returned and when an error is produced,
 respectively.
- 
+
 This function can be used to implemement a repl very easily, simply
 pass a function that reads line from stdin to chunks, and print to
 onvalue."
@@ -610,7 +614,7 @@ onvalue."
    (var len 1)
    (while (< 0 len)
       (buffer-clear buf)
-      (chunks buf) 
+      (chunks buf)
       (:= len (length buf))
       (for [i 0 len]
         (yield (get buf i))))
@@ -678,7 +682,7 @@ onvalue."
     } (get st i))
    (file-write stdout "  in")
    (when c (file-write stdout " cfunction"))
-   (when name (file-write stdout (string " " name))) 
+   (when name (file-write stdout (string " " name)))
    (when func (file-write stdout (string " " func)))
    (when pc (file-write stdout (string " (pc=" pc ")")))
    (when tail (file-write stdout " (tailcall)"))
@@ -712,7 +716,7 @@ onvalue."
    (put env (symbol (if prefix prefix "") k) v)))))
 
 (defmacro import [path & args]
- (apply tuple import* '_env path args)) 
+ (apply tuple import* '_env path args))
 
 (defn repl [getchunk]
  (def newenv (make-env))

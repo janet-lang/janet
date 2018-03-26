@@ -136,8 +136,7 @@ body once, and then memoizes the result."
 # data structures as their values are references to this
 # data structures. Same is true for iterators
 
-(defn filter2 [pred coll]
-  (tail (iter2lazy (filter pred coll))))
+(defn filter2 [pred coll] (iter2lazy (filter pred coll)))
 
 # be careful with the filter function. First element in (filter pos? arr) is nil
 # last element is false
