@@ -106,46 +106,38 @@ body once, and then memoizes the result."
    (def thehead (get HEAD x))
    (if thehead (tuple thehead (take-while pred (get TAIL x)))))))
 
-#Iterators is a conscept that looks a lot like lazy seq
-#The following functions turn iterators to lazy seq and vice versa
+# Iterators are a concept that looks a lot like lazy seq
+# The following functions turn iterators to lazy seq and vice versa
 
 (defn- iter-self
-  [next]
-  (delay (tuple (next) (iter-self next))))
+  [next more]
+  (delay 
+   (if (more) (tuple (next) (iter-self next more)))))
 
 (defn iter2lazy
-"Create a lazy sequence froma an iterator"
+"Create a lazy sequence from an iterator"
   [iter]
-  (def  {:more more :next next} iter)
-  (iter-self next))
+  (def {:more more :next next} iter)
+  (iter-self next more))
 
 (defn lazy2iter
   "turn a lazy-seq to an iterator"
   [lazy-seq]
-  (var result (head lazy-seq) )
-  (var  rest (tail lazy-seq))
-  {:more  (fn [] result)
-   :next (fn [] (def next result)
-           (when result
-             (:= result (head rest))
-             (:= rest (tail rest)))
-           next)})
+  (var node lazy-seq)
+  {:more (fn [] (node))
+   :next (fn []
+       (when-let [n (node)]
+        (:= node (get n 1))
+        (get n 0)))})
 
-
-#Now we can use the nonfuctional filter from boot.dst
-#to write a filter version that returns a lazy sequence
-#Be carefull when creating lazy sequences from mutable
-#data structures as their values are references to this
-#data structures. Same is true for iterators
+# Now we can use the non-functional filter from boot.dst
+# to write a filter version that returns a lazy sequence
+# Be careful when creating lazy sequences from mutable
+# data structures as their values are references to this
+# data structures. Same is true for iterators
 
 (defn filter2 [pred coll]
   (tail (iter2lazy (filter pred coll))))
 
-(def arr [0 -1 -2 33 -3 0 302 -3 2 8  54 3 -2 0])
-
-(def filtered (filter2 pos? arr))
-
-(defn run-me [] (realize filtered))
-
-#be carfull with the filter function. First element in (filter pos? arr) is nil
-#last element is false
+# be careful with the filter function. First element in (filter pos? arr) is nil
+# last element is false

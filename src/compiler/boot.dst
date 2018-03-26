@@ -578,6 +578,11 @@ third argument is given"
   (:= current (macroexpand1 current)))
  current)
 
+(defmacro coro
+ "A wrapper for making fibers. Same as (fiber (fn [] ...body))."
+ [& body]
+ (tuple fiber (apply tuple 'fn [] body)))
+
 (defn make-env [parent]
  (def parent (if parent parent _env))
  (def newenv (setproto @{} parent))
@@ -613,19 +618,19 @@ onvalue."
  (var temp nil)
  (var tempval nil)
  # Stream of values
- (def f (fiber (fn []
-    (def p (parser 1)) 
-    (while going
-      (select (parser-status p)
-       :full (yield (parser-produce p))
-       :error (onerr "parse" (parser-error p))
-       (select (fiber-status chars)
-        :new (parser-byte p (resume chars))
-        :pending (parser-byte p (resume chars))
-        (:= going false))))
-    (when (not= :root (parser-status p))
-     (onerr "parse" "unexpected end of source"))
-    nil)))
+ (def f (coro
+  (def p (parser 1)) 
+  (while going
+    (select (parser-status p)
+     :full (yield (parser-produce p))
+     :error (onerr "parse" (parser-error p))
+     (select (fiber-status chars)
+      :new (parser-byte p (resume chars))
+      :pending (parser-byte p (resume chars))
+      (:= going false))))
+  (when (not= :root (parser-status p))
+   (onerr "parse" "unexpected end of source"))
+  nil))
  (defn more [] (if temp true 
   (do 
    (:= temp true)
@@ -638,19 +643,22 @@ onvalue."
 (fn [env chunks onvalue onerr]
  (defn doone [source]
   (var good true)
-  (def f (fiber (fn []
+  (def f (coro
     (def res (compile source env))
     (if (= (type res) :function)
       (res)
       (do
        (:= good false)
-       (onerr "compile" (get res :error)))))))
+       (onerr "compile" (get res :error))))))
   (def res (resume f))
    (if good
     (if (= (fiber-status f) :error)
      (onerr "runtime" res f)
      (onvalue res))))
+ (def oldenv *env*)
+ (:= *env* env)
  (foreach (val-stream chunks onerr) doone)
+ (:= *env* oldenv)
  env)))
 
 (defn default-error-handler
@@ -689,11 +697,8 @@ onvalue."
      (put loading path true)
      (def f (file-open path))
      (defn chunks [buf] (file-read f 1024 buf))
-     (def oldenv *env*)
-     (:= *env* newenv)
      (run-context newenv chunks identity default-error-handler)
      (file-close f)
-     (:= *env* oldenv)
      (put loading path nil)
      newenv)))))
 
