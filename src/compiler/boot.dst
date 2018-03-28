@@ -266,6 +266,11 @@ evaluates to true."
          fal))))))
   (aux 0))
 
+(defmacro default
+ "Suplies a default argument when a value is nil."
+ [sym default-value]
+ (tuple 'def sym (tuple 'or sym default-value)))
+
 (defmacro when-let
 "Takes the first one or two forms in vector and if true binds
  all the forms  with let and evaluates the body"
@@ -298,9 +303,47 @@ evaluates to true."
 
 ###
 ###
-### Indexed Conbinators
+### Indexed Combinators
 ###
 ###
+
+(def sort 
+ "Sort an array in-place. Uses quicksort and is not a stable sort."
+ (do
+
+  (defn partition
+   [a lo hi by]
+   (def pivot (get a hi))
+   (var i lo)
+   (for [j lo hi]
+    (def aj (get a j))
+    (when (by aj pivot)
+     (def ai (get a i))
+     (put a i aj)
+     (put a j ai)
+     (++ i)))
+   (put a hi (get a i))
+   (put a i pivot)
+   i)
+
+  (defn sort-help
+   [a lo hi by]
+   (when (> hi lo)
+    (def piv (partition a lo hi by))
+    (sort-help a lo (- piv 1) by)
+    (sort-help a (+ piv 1) hi by))
+   a)
+
+  (fn [a by]
+    (sort-help a 0 (- (length a) 1) (or by order<)))))
+
+(defn sorted
+ "Returns the sorted version of an indexed data structure."
+ [ind by]
+ (def sa (sort (apply1 array ind) by))
+ (if (= :tuple (type ind))
+  (apply1 tuple sa)
+  sa))
 
 (defn reduce
  "Reduce, also know as foldleft in many languages, transform
