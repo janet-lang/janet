@@ -1,5 +1,7 @@
 # Get the number of occurences of elements in a set
 
+(import "examples/iterators.dst")
+
 (defn frequencies
  "Get the number of occurences of each value in a sequence."
  [s]

@@ -1,6 +1,12 @@
 # Bootstrap the dst environment
 # Copyright 2018 (C) Calvin Rose
 
+###
+###
+### Macros and Basic Functions
+###
+###
+
 (var *env*
  "The current environment."
  _env)
@@ -39,6 +45,12 @@
  (apply1 tuple (array-concat
   @['defn name :private] more)))
 
+(defmacro def-
+ "Define a private value that will not be exported."
+ [name & more]
+ (apply1 tuple (array-concat
+  @['def name :private] more)))
+
 # Basic predicates
 (defn even? [x] (== 0 (% x 2)))
 (defn odd? [x] (== 1 (% x 2)))
@@ -51,6 +63,9 @@
 (defn array? [x] (= (type x) :array))
 (defn tuple? [x] (= (type x) :tuple))
 (defn boolean? [x] (= (type x) :boolean))
+(defn function? [x] 
+ (def t (type x)) 
+ (if (= t :function) true (= t :cfunction)))
 (defn true? [x] (= (type x) true))
 (defn false? [x] (= (type x) false))
 (defn nil? [x] (= x nil))
@@ -84,10 +99,20 @@
  "Ignores the body of the comment."
  [])
 
+(defmacro if-not
+ "Sorthand for (if (not ... "
+ [condition exp-1 exp-2]
+ (tuple 'if condition exp-2 exp-1))
+
 (defmacro when
  "Evaluates the body when the condition is true. Otherwise returns nil."
- [cond & body]
- (tuple 'if cond (tuple-prepend body 'do)))
+ [condition & body]
+ (tuple 'if condition (tuple-prepend body 'do)))
+
+(defmacro when-not
+ "Sorthand for (when (not ... "
+  [condition & body]
+  (tuple 'if condition nil (tuple-prepend body 'do)))
 
 (defmacro cond
 "Evaluates conditions sequentially until the first true condition
@@ -95,14 +120,14 @@ is found, and then executes the corresponding body. If there are an
 odd number of forms, the last expression is executed if no forms
 are matched. If there are no matches, return nil."
  [& pairs]
-  (defn aux [i]
-    (def restlen (- (length pairs) i))
-    (if (= restlen 0) nil
-     (if (= restlen 1) (get pairs i)
-      (tuple 'if (get pairs i)
-       (get pairs (+ i 1))
-       (aux (+ i 2))))))
-  (aux 0))
+ (defn aux [i]
+  (def restlen (- (length pairs) i))
+  (if (= restlen 0) nil
+   (if (= restlen 1) (get pairs i)
+    (tuple 'if (get pairs i)
+     (get pairs (+ i 1))
+     (aux (+ i 2))))))
+ (aux 0))
 
 (defn doc*
  [env sym]
@@ -118,17 +143,21 @@ are matched. If there are no matches, return nil."
  [sym]
  (tuple doc* '_env (tuple 'quote sym)))
 
-(def apply
- (fn [f & args]
+(defn apply
+ "Evaluate to (f ...args), where the final value of args must be an array or
+tuple and will be spliced into the function call. For example, (apply + 1 2 @[3 4])
+evaluates to 10."
+ [f & args]
   (def last (- (length args) 1))
-  (apply1 f (array-concat (array-slice args 0 -2) (get args last)))))
+  (apply1 f (array-concat (array-slice args 0 -2) (get args last))))
 
-(defmacro select
+(defmacro switch
 "Select the body that equals the dispatch value. When pairs
 has an odd number of arguments, the last is the default expression.
 If no match is found, returns nil"
  [dispatch & pairs]
-  (def sym (gensym))
+  (def atm (atomic? (ast-unwrap1 dispatch)))
+  (def sym (if atm dispatch (gensym)))
   (defn aux [i]
     (def restlen (- (length pairs) i))
     (if (= restlen 0) nil
@@ -136,104 +165,19 @@ If no match is found, returns nil"
       (tuple 'if (tuple = sym (get pairs i))
        (get pairs (+ i 1))
        (aux (+ i 2))))))
-  (tuple 'do
-   (tuple 'def sym dispatch)
-   (aux 0)))
+  (if atm
+   (aux 0)
+   (tuple 'do
+    (tuple 'def sym dispatch)
+    (aux 0))))
 
-(defmacro and [& forms]
- (def len (length forms))
- (if (= len 0) true ((fn aux [i]
-  (cond
-   (>= (inc i) len) (get forms i)
-   (tuple 'if (get forms i) (aux (inc i)) false))) 0)))
-
-(defmacro or [& forms]
- (def len (length forms))
- (if (= len 0) false ((fn aux [i]
-  (cond
-   (>= (inc i) len) (get forms i)
-   (tuple 'if (get forms i) true (aux (inc i))))) 0)))
-
-(defn identity
- "A function that returns its first argument."
-[x] x)
-
-(def iter (do
-  (defn array-iter [x]
-    (def len (length x))
-    (var i 0)
-    {
-      :more (fn [] (< i len))
-      :next (fn []
-        (def ret (get x i))
-        (:= i (+ i 1))
-        ret)
-    })
-  (def iters {
-    :array array-iter
-    :tuple array-iter
-    :struct identity})
-  (fn [x]
-   (def makei (get iters (type x)))
-   (if makei (makei x) (error "expected sequence")))))
-
-(defn range2 [bottom top]
-  (var i bottom)
-  {
-    :more (fn [] (< i top))
-    :next (fn []
-      (def ret i)
-      (:= i (+ i 1))
-      ret)
-  })
-
-(defn range [top] (range2 0 top))
-
-(defn doiter [itr]
- (def {:more more :next next} (iter itr))
- (while (more) (next)))
-
-(defn foreach [itr f]
- (def {:more more :next next} (iter itr))
- (while (more) (f (next))))
-
-(defn iter2array [itr]
- (def {:more more :next next} (iter itr))
- (def a @[])
- (while (more) (array-push a (next)))
- a)
-
-(defn map [f itr]
- (def {:more more :next next} (iter itr))
- {:more more :next (fn [] (f (next)))})
-
-(defn reduce [f start itr]
-  (def itr (iter itr))
-  (def {:more more :next next} itr)
-  (if (more)
-   (reduce f (f start (next)) itr)
-   start))
-
-(defn filter [pred itr]
- (def itr (iter itr))
- (def {:more more :next next} itr)
- (var alive true)
- (var temp nil)
- (var isnew true)
- (defn nextgood []
-   (if alive
-    (if (more)
-     (do
-      (def n (next))
-      (if (pred n) n (nextgood)))
-     (:= alive false))))
- (defn nnext [] (def ret temp) (:= temp (nextgood)) ret)
- (defn nmore [] (when isnew (:= isnew false) (nnext)) alive)
- {:more nmore :next nnext})
-
-(defmacro let [bindings & body]
+(defmacro let
+"Create a scope and bind values to symbols. Each pair in bindings is
+assigned as if with def, and the body of the let form returns the last
+value."
+ [bindings & body]
   (def head (ast-unwrap1 bindings))
-  (when (odd? (length head)) (error "expected even number of bindings to let"))
+  (if (odd? (length head)) (error "expected even number of bindings to let"))
   (def len (length head))
   (var i 0)
   (var accum @['do])
@@ -241,69 +185,236 @@ If no match is found, returns nil"
    (array-push accum (tuple 'def
                      (get head i)
                      (get head (+ 1 i))))
-   (:= i (+ i 2)))
-  (array-push accum (tuple-prepend body 'do))
+   (+= i 2))
+  (array-concat accum body)
   (apply1 tuple accum))
 
-(defn pairs [x]
- (var lastkey (next x nil))
- {
-    :more (fn [] lastkey)
-    :next (fn []
-        (def ret (tuple lastkey (get x lastkey)))
-        (:= lastkey (next x lastkey))
-        ret)
- })
-
-(defn keys [x]
- (var lastkey (next x nil))
- {
-    :more (fn [] lastkey)
-    :next (fn []
-        (def ret lastkey)
-        (:= lastkey (next x lastkey))
-        ret)
- })
-
-(defn values [x]
- (var lastkey (next x nil))
- {
-    :more (fn [] lastkey)
-    :next (fn []
-        (def ret (get x lastkey))
-        (:= lastkey (next x lastkey))
-        ret)
- })
-
-(defn partial [f & more]
- (if (zero? (length more)) f
-  (fn [& r] (apply1 f (array-concat @[] more r)))))
-
-(defmacro for [head & body]
-  (def head (ast-unwrap1 head))
-  (def sym (get head 0))
-  (def start (get head 1))
-  (def end (get head 2))
-  (def _inc (get head 3))
+(defmacro for 
+ "An imperative for loop over an integer range. Use with caution and discretion."
+ [head & body]
+  (def [sym start end _inc] (ast-unwrap1 head))
   (def inc (if _inc _inc 1))
   (def endsym (gensym))
   (tuple 'do
     (tuple 'var sym start)
     (tuple 'def endsym end)
-    (tuple 'while (tuple '< sym endsym)
+    (tuple 'while (tuple < sym endsym)
      (tuple-prepend body 'do)
-     (tuple ':= sym (tuple '+ sym inc)))))
+     (tuple ':= sym (tuple + sym inc)))))
 
-(defn every? [pred seq]
- (var res true)
- (var i 0)
- (def len (length seq))
- (while (< i len)
-  (def item (get seq i))
-  (if (pred item)
-   (++ i)
-   (do (:= res false) (:= i len))))
+(defmacro and
+ "Evaluates to the last argument if all preceding elements are true, otherwise
+evaluates to false."
+ [& forms]
+ (def len (length forms))
+ (if (= len 0) true ((fn aux [i]
+  (cond
+   (>= (inc i) len) (get forms i)
+   (tuple 'if (get forms i) (aux (inc i)) false))) 0)))
+
+(defmacro or
+ "Evaluates to the last argument if all preceding elements are false, otherwise
+evaluates to true."
+ [& forms]
+ (def len (length forms))
+ (if (= len 0) false ((fn aux [i]
+  (def fi (get forms i))
+  (if
+   (>= (inc i) len) fi
+   (do
+    (if (atomic? (ast-unwrap1 fi))
+     (tuple 'if fi fi (aux (inc i)))
+     (do
+      (def $fi (gensym))
+      (tuple 'do (tuple 'def $fi fi)
+        (tuple 'if $fi $fi (aux (inc i))))))))) 0)))
+
+(defmacro coro
+ "A wrapper for making fibers. Same as (fiber (fn [] ...body))."
+ [& body]
+ (tuple fiber (apply tuple 'fn [] body)))
+
+(defmacro if-let
+"Takes the first one or two forms in a vector and if both are true binds
+ all the forms with let and evaluates the first expression else
+ evaluates the second"
+  [bindings tru fal]
+  (def bindings (ast-unwrap1 bindings))
+  (def len (length bindings))
+  (if (zero? len) (error "expected at least 1 binding"))
+  (if (odd? len) (error "expected an even number of bindings"))
+  (defn aux [i]
+    (def bl (get bindings i))
+    (def br (get bindings (+ 1 i)))
+    (if (>= i len)
+     tru
+     (do
+      (def atm (atomic? (ast-unwrap1 bl)))
+      (def sym (if atm bl (gensym)))
+      (if atm 
+       # Simple binding
+       (tuple 'do
+        (tuple 'def sym br)
+        (tuple 'if sym (aux (+ 2 i)) fal))
+       # Destructured binding
+       (tuple 'do
+        (tuple 'def sym br)
+        (tuple 'if sym
+         (tuple 'do 
+          (tuple 'def bl sym)
+          (aux (+ 2 i)))
+         fal))))))
+  (aux 0))
+
+(defmacro when-let
+"Takes the first one or two forms in vector and if true binds
+ all the forms  with let and evaluates the body"
+  [bindings & body]
+  (tuple 'if-let bindings (tuple-prepend body 'do)))
+
+(defn comp
+"Takes multiple functions and returns a function that is the composition
+ of those functions."
+ [& functions]
+ (switch (length functions)
+  0 nil
+  1 (get functions 0)
+  2 (let [[f g]       functions] (fn [x] (f (g x))))
+  3 (let [[f g h]     functions] (fn [x] (f (g (h x)))))
+  4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
+    (let [[f g h i j] functions]
+     (apply comp (fn [x] (f (g (h (i (j x))))))
+      (tuple-slice functions 5 -1)))))
+
+(defn identity
+ "A function that returns its first argument."
+ [x]
+ x)
+
+(defn complement
+ "Returns a function that is the complement to the argument."
+ [f]
+ (fn [x] (not (f x))))
+
+###
+###
+### Indexed Conbinators
+###
+###
+
+(defn reduce
+ "Reduce, also know as foldleft in many languages, transform
+an indexed type (array, tuple) with a function to produce a value."
+ [f init ind]
+ (var res init)
+ (for [i 0 (length ind)]
+  (:= res (f res (get ind i))))
  res)
+
+(defn foreach
+ "Call function f on every value in indexed ind."
+ [f ind]
+ (for [i 0 (length ind)]
+  (f (get ind i))))
+
+(defn map
+ "Map a function over every element in an array or tuple and return
+the same type as the input sequence."
+ [f ind t]
+ (def res @[])
+ (for [i 0 (length ind)]
+  (array-push res (f (get ind i))))
+ (if (= :tuple (type (or t ind)))
+  (apply1 tuple res)
+  res))
+
+(defn mapcat
+ "Map a function over every element in an array or tuple and 
+use array concat to concatentae the results. Returns the same
+type as the input sequence."
+ [f ind t]
+ (def res @[])
+ (for [i 0 (length ind)]
+  (array-concat res (f (get ind i))))
+ (if (= :tuple (type (or t ind)))
+  (apply1 tuple res)
+  res))
+
+(defn filter
+ "Given a predicate, take only elements from an array or tuple for
+which (pred element) is truthy. Returns the same type as the input sequence."
+ [pred ind t]
+ (def res @[])
+ (for [i 0 (length ind)]
+  (def item (get ind i))
+  (if (pred item)
+   (array-push res item)))
+ (if (= :tuple (type (or t ind)))
+  (apply1 tuple res)
+  res))
+
+(defn find-index
+ "Find the index of indexed type for which pred is true. Returns nil if not found."
+ [pred ind]
+ (def len (length ind))
+ (var i 0)
+ (var going true)
+ (while (if (< i len) going)
+  (def item (get ind i))
+  (if (pred item) (:= going false) (++ i)))
+ (if going nil i))
+
+(defn find
+ "Find the first value in an indexed collection that satsifies a predicate. Returns
+ nil if not found. Note their is no way to differentiate a nil from the indexed collection
+ and a not found. Consider find-index if this is an issue."
+ [pred ind]
+ (get ind (find-index pred ind)))
+
+(defn take-until
+ "Given a predicate, take only elements from an indexed type that satsify
+the predicate, and abort on first failiure. Returns a new indexed type that is
+the same type as the input."
+ [pred ind t]
+ (def i (find-index pred ind))
+ (if (= :tuple (type (or t ind)))
+  (tuple-slice ind 0 i)
+  (array-slice ind 0 i)))
+
+(defn take-while
+ "Same as (take-until (complement pred) ind t)."
+ [pred ind t]
+ (take-until (complement pred) ind t))
+
+(defn drop-until
+ "Given a predicate, remove elements from an indexed type that satsify
+the predicate, and abort on first failiure."
+ [pred ind t]
+ (def i (find-index pred ind))
+ (if (= :tuple (type (or t ind)))
+  (tuple-slice ind i -1)
+  (array-slice ind i -1)))
+
+(defn drop-while
+ "Same as (drop-until (complement pred) ind t)."
+ [pred ind t]
+ (drop-until (complement pred) ind t))
+
+(defn zip
+ [& seqs]
+ (def lens (length seqs))
+ (def ret @[])
+ (if (= 0 lens) (error "expected at least 1 sequence"))
+ (var minlen (length (get seqs 0)))
+ (for [j 1 lens]
+  (def sl (length (get seqs j)))
+  (if (< sl minlen) (:= minlen sl)))
+ (for [i 0 minlen]
+  (def accum @[])
+  (for [j 0 lens]
+   (array-push accum (get seqs j i)))
+  (array-push ret (apply1 tuple accum)))
+ (apply1 tuple ret))
 
 (defn juxt*
   [& funs]
@@ -344,6 +455,23 @@ If no match is found, returns nil"
   (apply1 tuple parts))
  (reduce fop x forms))
 
+(defn partial 
+ "Partial function application."
+ [f & more]
+ (if (zero? (length more)) f
+  (fn [& r] (apply1 f (array-concat @[] more r)))))
+
+(defn every? [pred seq]
+ (var res true)
+ (var i 0)
+ (def len (length seq))
+ (while (< i len)
+  (def item (get seq i))
+  (if (pred item)
+   (++ i)
+   (do (:= res false) (:= i len))))
+ res)
+
 (defn reverse-array
  "Reverses the order of the elements in a given array or tuple and returns a new array."
  [t]
@@ -362,74 +490,23 @@ If no match is found, returns nil"
 (defn reverse
  "Reverses order of elements in a given array or tuple"
  [t]
- (select (type t)
+ (switch (type t)
   :tuple (reverse-tuple t)
   :array (reverse-array t)))
 
-(defmacro if-not
- "Sorthand for (if (not ... "
- [condition exp-1 exp-2]
- (tuple 'if (tuple not condition)
-       exp-1
-       exp-2))
-
-(defmacro when-not
- "Sorthand for (when (not ... "
-  [condition exp-1]
-  (tuple 'when (tuple not condition) exp-1))
-
-(defmacro if-let
-"Takes the first one or two forms in a vector and if both are  true binds
- all the forms with let and evaluates the first expression else
- evaluates the second"
-  [bindings then else]
-  (tuple 'let bindings
-         (tuple 'if (tuple 'and (tuple 'get bindings 1)
-                           (tuple 'if
-                                  (tuple '> (tuple 'length bindings) 2)
-                                  (tuple 'get bindings 3) 'true))
-              then
-              else)))
-
-(defmacro when-let
-"Takes the first one or two forms in vector and if true binds
- all the forms  with let and evaluates the body"
-  [bindings & body]
-  (tuple 'let bindings
-      (tuple
-        'when
-        (tuple 'and (tuple 'get bindings 1)
-                           (tuple 'if
-                                  (tuple '> (tuple 'length bindings) 2)
-                                  (tuple 'get bindings 3) 'true))
-        (apply1 tuple (array-concat @['do] body)))))
-
-(defn comp
-"Takes multiple functions and returns a function that is the composition
- of those functions."
- [& functions]
- (select (length functions)
-  0 nil
-  1 (get functions 0)
-  2 (let [[f g]       functions] (fn [x] (f (g x))))
-  3 (let [[f g h]     functions] (fn [x] (f (g (h x)))))
-  4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
-    (let [[f g h i j] functions]
-     (apply comp (fn [x] (f (g (h (i (j x))))))
-      (tuple-slice functions 5 -1)))))
-
 (defn zipcoll
 "Creates an table or tuple from two arrays/tuples. If a third argument of
- :struct is givent resault is struct else is table."
-  [coll-1 coll-2 the-type]
-  (var zipping-table @{})
-  (def {:more more1 :next next1} (iter coll-1))
-  (def {:more more2 :next next2} (iter coll-2))
-  (while (and (more1) (more2))
-    (put zipping-table (next1) (next2)))
-  (if (struct? the-type)
-    (table-to-struct zipping-table)
-    zipping-table))
+ :struct is given result is struct else is table."
+  [keys vals t]
+  (def res @{})
+  (def lk (length keys))
+  (def lv (length vals))
+  (def len (if (< lk lv) lk lv))
+  (for [i 0 len]
+   (put res (get keys i) (get vals i)))
+  (if (= :struct t)
+    (table-to-struct res)
+    res))
 
 (defn update
 "Accepts a key argument and passes its' associated value to a function.
@@ -453,8 +530,16 @@ If no match is found, returns nil"
      (:= key (next c key))))
   (if (table? (get colls 0)) container (table-to-struct container)))
 
-# Start pretty printer
-(defn pp [x]
+###
+###
+### Pretty Printer
+###
+###
+
+(defn pp 
+ "Pretty print a value. Displays values inside collections, and is safe
+to call on any table. Does not print table prototype information."
+ [x]
 
   (def buf @"")
   (def indent @"\n")
@@ -537,12 +622,12 @@ If no match is found, returns nil"
   (buffer-push-string buf "\n")
 
   (file-write stdout buf))
-# End pretty printer
 
-(defn unique [s]
-  (def tab @{})
-  (foreach s (fn [x] (put tab x true)))
-  (keys tab))
+###
+###
+### Macro Expansion
+###
+###
 
 (defn macroexpand1
  "Expand macros in a form, but do not recursively expand macros."
@@ -608,7 +693,7 @@ If no match is found, returns nil"
   (if (= (table-to-struct res) (table-to-struct t)) t res))
 
  (def ux (ast-unwrap1 x))
- (select (type ux)
+ (switch (type ux)
   :tuple (dotup ux)
   :array (doarray* ux)
   :struct (table-to-struct (dotable ux))
@@ -628,18 +713,13 @@ If no match is found, returns nil"
   (:= current (macroexpand1 current)))
  current)
 
-(defmacro coro
- "A wrapper for making fibers. Same as (fiber (fn [] ...body))."
- [& body]
- (tuple fiber (apply tuple 'fn [] body)))
-
 (defn make-env [parent]
  (def parent (if parent parent _env))
  (def newenv (setproto @{} parent))
  (put newenv '_env @{:value newenv :private true})
  newenv)
 
-(def run-context
+(defn run-context
 "Run a context. This evaluates expressions of dst in an environment,
 and is encapsulates the parsing, compilation, and evaluation of dst.
 env is the environment to evaluate the code in, chunks is a function
@@ -651,11 +731,13 @@ respectively.
 This function can be used to implemement a repl very easily, simply
 pass a function that reads line from stdin to chunks, and print to
 onvalue."
-(do
-(defn val-stream [chunks onerr]
+ [env chunks onvalue onerr]
+
+ # Are we done yet?
  (var going true)
- # Stream of characters
- (def chars (fiber (fn []
+
+ # Fiber stream of characters
+ (def chars (coro
    (def buf @"")
    (var len 1)
    (while (< 0 len)
@@ -664,34 +746,24 @@ onvalue."
       (:= len (length buf))
       (for [i 0 len]
         (yield (get buf i))))
-   0)))
- (var temp nil)
- (var tempval nil)
- # Stream of values
- (def f (coro
+   0))
+
+ # Fiber stream of values
+ (def vals (coro
   (def p (parser 1)) 
   (while going
-    (select (parser-status p)
+    (switch (parser-status p)
      :full (yield (parser-produce p))
      :error (onerr "parse" (parser-error p))
-     (select (fiber-status chars)
+     (switch (fiber-status chars)
       :new (parser-byte p (resume chars))
       :pending (parser-byte p (resume chars))
       (:= going false))))
   (when (not= :root (parser-status p))
-   (onerr "parse" "unexpected end of source"))
-  nil))
- (defn more [] (if temp true 
-  (do 
-   (:= temp true)
-   (:= tempval (resume f))
-   going)))
- (defn next [] (if temp
-  (do (:= temp nil) tempval)
-  (resume f)))
- {:more more :next next})
-(fn [env chunks onvalue onerr]
- (defn doone [source]
+   (onerr "parse" "unexpected end of source"))))
+
+ # Evaluate 1 source form
+ (defn eval1 [source]
   (var good true)
   (def f (coro
     (def res (compile source env))
@@ -701,15 +773,18 @@ onvalue."
        (:= good false)
        (onerr "compile" (get res :error))))))
   (def res (resume f))
-   (if good
-    (if (= (fiber-status f) :error)
-     (onerr "runtime" res f)
-     (onvalue res))))
+  (if good
+   (if (= (fiber-status f) :error)
+    (onerr "runtime" res f)
+    (onvalue res))))
+
+ # Run loop
  (def oldenv *env*)
  (:= *env* env)
- (foreach (val-stream chunks onerr) doone)
+ (while going (eval1 (resume vals)))
  (:= *env* oldenv)
- env)))
+
+ env)
 
 (defn default-error-handler
  [t x f]
@@ -757,14 +832,21 @@ onvalue."
  (def {
   :prefix prefix
   } (apply1 table args))
- (foreach (pairs newenv) (fn [[k v]]
+ (var k (next newenv nil))
+ (def prefix (if prefix prefix ""))
+ (while k
+  (def v (get newenv k))
   (when (not (get v :private))
-   (put env (symbol (if prefix prefix "") k) v)))))
+   (put env (symbol prefix k) v))
+  (:= k (next newenv k)))
+ env)
 
 (defmacro import [path & args]
  (apply tuple import* '_env path args))
 
 (defn repl [getchunk]
+ "Run a repl. The first paramets is an optional function to call to
+get a chunk of soure code. Should return nil for end of file."
  (def newenv (make-env))
  (defn chunks [buf]
     (file-write stdout "> ")

@@ -1,8 +1,10 @@
-(var *should-repl* false)
-(var *no-file* true)
+(do
+
+(var *should-repl* :private false)
+(var *no-file* :private true)
 
 # Flag handlers
-(def handlers {
+(def handlers :private {
   "h" (fn [] 
         (print "usage: " (get args 0) " [options] scripts...")
         (print "Options are:")
@@ -14,13 +16,12 @@
   "r" (fn [] (:= *should-repl* true))
 })
 
-(defn dohandler [n]
+(defn- dohandler [n]
  (def h (get handlers n))
  (if h (h) (print "unknown flag -" n)))
 
 # Process arguments
-(def nargs (length args))
-(for [i 1 nargs]
+(for [i 1 (length args)]
  (def arg (get args i))
  (if (= "-" (string-slice arg 0 1))
   (dohandler (string-slice arg 1 2))
@@ -31,3 +32,5 @@
 (when (or *should-repl* *no-file*) 
  (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
  (repl getline))
+
+)

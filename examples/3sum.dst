@@ -1,3 +1,6 @@
+
+(import "examples/iterators.dst")
+
 (defn sum3
  "Solve the 3SUM problem O(n^2) time."
  [s]

@@ -830,10 +830,6 @@ recur:
                                     x = dst_resume(f, dst_tuple_length(tup) - 1, tup + 1);
                                     dst_gcunlock(lock);
                                     if (f->status == DST_FIBER_ERROR || f->status == DST_FIBER_DEBUG) {
-                                        dst_puts(dst_unwrap_string(x));
-                                        printf("\n");
-                                        dst_puts(dst_unwrap_string(headval));
-                                        printf("\n");
                                         dstc_cerror(c, ast, "error in macro expansion");
                                     }
                                     /* Tail recur on the value */
