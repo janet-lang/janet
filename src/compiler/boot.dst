@@ -63,6 +63,9 @@
 (defn array? [x] (= (type x) :array))
 (defn tuple? [x] (= (type x) :tuple))
 (defn boolean? [x] (= (type x) :boolean))
+(defn indexed? [x]
+ (def t (type x))
+ (if (= t :array) true (= t :tuple)))
 (defn function? [x] 
  (def t (type x)) 
  (if (= t :function) true (= t :cfunction)))
@@ -573,6 +576,36 @@ the predicate, and abort on first failiure."
      (:= key (next c key))))
   (if (table? (get colls 0)) container (table-to-struct container)))
 
+(defn keys
+ "Get the keys of an associative data structure."
+ [x]
+ (def arr @[])
+ (var k (next x nil))
+ (while k
+  (array-push arr k)
+  (:= k (next x k)))
+ arr)
+
+(defn values
+ "Get the values of an associative data structure."
+ [x]
+ (def arr @[])
+ (var k (next x nil))
+ (while k
+  (array-push arr (get x k))
+  (:= k (next x k)))
+ arr)
+
+(defn pairs
+ "Get the values of an associative data structure."
+ [x]
+ (def arr @[])
+ (var k (next x nil))
+ (while k
+  (array-push arr (tuple k (get x k)))
+  (:= k (next x k)))
+ arr)
+
 ###
 ###
 ### Pretty Printer
@@ -622,28 +655,25 @@ to call on any table. Does not print table prototype information."
       (buffer-push-string buf indent))))
 
   (defn pp-dict-nested [y]
-   (var k (next y nil))
    (buffer-push-string indent "  ")
-   (buffer-push-string buf indent)
-   (while k
-    (def v (get y k))
+   (def ps (sort (pairs y)))
+   (for [i 0 (length ps)]
+    (def [k v] (get ps i))
+    (buffer-push-string buf indent)
     (recur k)
     (buffer-push-string buf " ")
-    (recur v)
-    (:= k (next y k))
-    (when k (buffer-push-string buf indent)))
+    (recur v))
    (buffer-popn indent 2)
    (buffer-push-string buf indent))
 
   (defn pp-dict-simple [y]
-   (var k (next y nil))
-   (while k
-    (def v (get y k))
+   (def ps (sort (pairs y)))
+   (for [i 0 (length ps)]
+    (def [k v] (get ps i))
+    (if (pos? i) (buffer-push-string buf " "))
     (recur k)
     (buffer-push-string buf " ")
-    (recur v)
-    (:= k (next y k))
-    (when k (buffer-push-string buf " "))))
+    (recur v)))
 
   (defn pp-dict [y]
    ((if (> 4 (length y)) pp-dict-simple pp-dict-nested) y))
@@ -755,6 +785,12 @@ to call on any table. Does not print table prototype information."
   (:= previous current)
   (:= current (macroexpand1 current)))
  current)
+
+###
+###
+### Evaluation and Compilation
+###
+###
 
 (defn make-env [parent]
  (def parent (if parent parent _env))

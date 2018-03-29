@@ -138,6 +138,7 @@ int dst_compare(Dst x, Dst y) {
                     return dst_unwrap_integer(x) > dst_unwrap_integer(y) ? 1 : -1;
                 }
             case DST_STRING:
+            case DST_SYMBOL:
                 return dst_string_compare(dst_unwrap_string(x), dst_unwrap_string(y));
             case DST_TUPLE:
                 return dst_tuple_compare(dst_unwrap_tuple(x), dst_unwrap_tuple(y));
