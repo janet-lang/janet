@@ -62,6 +62,11 @@ Options are:
 $
 ```
 
+## Docmentation
+
+API documentation and design documents will be added to the `doc` folder as they are written.
+As of March 2018, specifications are sparse because dst is evolving.
+
 ## Compiling and Running
 
 Dst can be built with Make or CMake.
