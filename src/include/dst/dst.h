@@ -27,12 +27,13 @@
 extern "C" {
 #endif
 
+#include "dstconfig.h"
+
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
 
-#include "dstconfig.h"
 #include "dsttypes.h"
 #include "dststate.h"
 

@@ -27,7 +27,6 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
 
 #define DST_VERSION "0.0.0 alpha"
 
@@ -50,6 +49,8 @@ extern "C" {
     || defined(sun) || defined(__sun) /* Solaris */ \
     || defined(unix) || defined(__unix) || defined(__unix__)
 #define DST_UNIX 1
+/* Enable certain posix features */
+#define _POSIX_C_SOURCE 200112L
 #elif defined(__EMSCRIPTEN__)
 #define DST_WEB 1
 #elif defined(WIN32) || defined(_WIN32)
@@ -88,6 +89,9 @@ extern "C" {
 #else
 #define DST_LITTLE_ENDIAN 1
 #endif
+
+/* Include default headers */
+#include <stdint.h>
 
 /* Handle runtime errors */
 #ifndef dst_exit

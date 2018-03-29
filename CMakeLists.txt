@@ -55,6 +55,7 @@ src/core/gc.c
 src/core/io.c
 src/core/math.c
 src/core/native.c
+src/core/os.c
 src/core/string.c
 src/core/struct.c
 src/core/symcache.c
