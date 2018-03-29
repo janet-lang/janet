@@ -23,15 +23,6 @@
 #include <dst/dst.h>
 #include <dst/dstcorelib.h>
 
-int dst_core_exit(DstArgs args) {
-    int32_t exitcode = 0;
-    if (args.n > 0) {
-        exitcode = dst_hash(args.v[0]);
-    }
-    exit(exitcode);
-    return 0;
-}
-
 int dst_core_print(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n; ++i) {

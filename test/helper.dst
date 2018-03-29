@@ -19,5 +19,4 @@
 (defn end-suite []
  (print "\nTest suite " suite-num " finished.")
  (print num-tests-passed " of " num-tests-run " tests passed.\n")
- (if (not= num-tests-passed num-tests-run) (exit 1)))
-
+ (if (not= num-tests-passed num-tests-run) (os-exit 1)))

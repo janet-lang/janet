@@ -11,8 +11,8 @@
         (print "  -h Show this help")
         (print "  -v Print the version string")
         (print "  -r Enter the repl after running all scripts")
-        (exit 0))
-  "v" (fn [] (print VERSION) (exit 0))
+        (os-exit 0))
+  "v" (fn [] (print VERSION) (os-exit 0))
   "r" (fn [] (:= *should-repl* true))
 })
 

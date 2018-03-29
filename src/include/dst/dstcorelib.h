@@ -77,7 +77,6 @@ int dst_ceil(DstArgs args);
 int dst_pow(DstArgs args);
 
 /* Misc core functions */
-int dst_core_exit(DstArgs args);
 int dst_core_print(DstArgs args);
 int dst_core_describe(DstArgs args);
 int dst_core_string(DstArgs args);
