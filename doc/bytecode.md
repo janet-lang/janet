@@ -1,5 +1,7 @@
 # Dst Bytecode Interpreter
 
+### Dst alpha 0.0.0
+
 This document outlines the Dst bytecode format, and core ideas in the runtime.
 the are closely related to the bytecode. It should enable the reader
 to write dst assembly code and hopefully understand the dst internals better.
@@ -133,63 +135,89 @@ A listing of all opcode values can be found in src/include/dst/dstopcodes.h. The
 short names can be found src/assembler/asm.c. In this document, we will refer to the instructions
 by their short names as presented to the assembler rather than their numerical values.
 
-* `add`:
-* `addi`:
-* `addim`:
-* `addr`:
-* `band`:
-* `bnot`:
-* `bor`:
-* `bxor`:
-* `call`:
-* `clo`:
-* `cmp`:
-* `debug`:
-* `div`:
-* `divi`:
-* `divim`:
-* `divr`:
-* `eq`:
-* `err`:
-* `get`:
-* `geti`:
-* `gt`:
-* `jmp`:
-* `jmpi`:
-* `jmpn`:
-* `ldc`:
-* `ldf`:
-* `ldi`:
-* `ldn`:
-* `lds`:
-* `ldt`:
-* `ldu`:
-* `lt`:
-* `movf`:
-* `movn`:
-* `mul`:
-* `muli`:
-* `mulim`:
-* `mulr`:
-* `noop`:
-* `push`:
-* `push2`:
-* `push3`:
-* `pusha`:
-* `put`:
-* `puti`:
-* `res`:
-* `ret`:
-* `retn`:
-* `setu`:
-* `sl`:
-* `slim`:
-* `sr`:
-* `srim`:
-* `sru`:
-* `sruim`:
-* `sub`:
-* `tcall`:
-* `tchck`:
-* `yield`:
+Each instruction is also listed with a signature, which are the arguments the instruction
+expects. There are a handful of instruction signatures, which combine the arity and type
+of the instruction. The assembler does not
+do any typechecking per closure, but does prevent jumping to invalid instructions and
+failiure to return or error.
+
+### Notation
+
+* The $ prefix indicates that a instruction parameter is acting as a virtual register (slot).
+  If a parameter does not have the $ suffix in the description, it is acting as some kind
+  of literal (usually an unisgned integer for indexes, and a signed integer for literal integers).
+
+* Some operators in the description have the suffix 'i' or 'r'. These indicate
+  that these operators correspond to integers or real numbers only, respectively. All
+  bitwise operators and bit shifts only work with integers. 
+
+* The `>>>` indicates unsigned right shift, as in Java. Because all integers in dst are
+  signed, we differentiate the two kinds of right bit shift.
+
+* The 'im' suffix in the instruction name is short for immediate. The 'i' suffix is short for integer,
+  and the 'r' suffix is short for real.
+
+### Reference Table
+
+| Instruction | Signature                   | Description                       |
+| ----------- | --------------------------- | --------------------------------- |
+| `add`       | `(add dest lhs rhs)`        | $dest = $lhs + $rhs               | 
+| `addi`      | `(addi dest lhs rhs)`       | $dest = $lhs +i $rhs              |
+| `addim`     | `(addim dest lhs im)`       | $dest = $lhs +i im                |
+| `addr`      | `(addr dest lhs rhs)`       | $dest = $lhs +r $rhs              |
+| `band`      | `(band dest lhs rhs)`       | $dest = $lhs & $rhs               |
+| `bnot`      | `(bnot dest operand)`       | $dest = ~$operand                 |
+| `bor`       | `(bor dest lhs rhs)`        | $dest = $lhs | $rhs               |
+| `bxor`      | `(bxor dest lhs rhs)`       | $dest = $lhs ^ $rhs               |
+| `call`      | `(call dest callee)`        | $dest = call($callee)             |
+| `clo`       | `(clo dest index)`          | $dest = closure(defs[$index])     |
+| `cmp`       | `(cmp dest lhs rhs)`        | $dest = dst_compare($lhs, $rhs)   |
+| `debug`     | `(debug)`                   | Suspend current fiber             |
+| `div`       | `(div dest lhs rhs)`        | $dest = $lhs / $rhs               |
+| `divi`      | `(divi dest lhs rhs)`       | $dest = $lhs /i $rhs              |
+| `divim`     | `(divim dest lhs im)`       | $dest = $lhs /i im                |
+| `divr`      | `(divr dest lhs rhs)`       | $dest = $lhs /r $rhs              |
+| `eq`        | `(eq dest lhs rhs)`         | $dest = $lhs == $rhs              |
+| `err`       | `(err message)`             | Throw error $message.             |
+| `get`       | `(get dest ds key)`         | $dest = $ds[$key]                 |
+| `geti`      | `(geti dest ds index)`      | $dest = $ds[index]                |
+| `gt`        | `(gt dest lhs rhs)`         | $dest = $lhs > $rhs               |
+| `jmp`       | `(jmp label)`               | pc = label, pc += offset          |
+| `jmpif`     | `(jmpif cond label)`        | if $cond pc = label else pc++     |
+| `jmpno`     | `(jmpno cond label)`        | if $cond pc++ else pc = label     |
+| `ldc`       | `(ldc dest index)`          | $dest = constants[index]          |
+| `ldf`       | `(ldf dest)`                | $dest = false                     |
+| `ldi`       | `(ldi dest integer)`        | $dest = integer                   |
+| `ldn`       | `(ldn dest)`                | $dest = nil                       |
+| `lds`       | `(lds dest)`                | $dest = current closure (self)    |
+| `ldt`       | `(ldt dest)`                | $dest = true                      |
+| `ldu`       | `(ldu dest env index)`      | $dest = envs[env][index]          |
+| `lt`        | `(lt dest lhs rhs)`         | $dest = $lhs < $rhs               |
+| `movf`      | `(movf src dest)`           | $dest = $src                      |
+| `movn`      | `(movn dest src)`           | $dest = $src                      |
+| `mul`       | `(mul dest lhs rhs)`        | $dest = $lhs * $rhs               |
+| `muli`      | `(muli dest lhs rhs)`       | $dest = $lhs \*i $rhs             |
+| `mulim`     | `(mulim dest lhs im)`       | $dest = $lhs \*i im               |
+| `mulr`      | `(mulr dest lhs rhs)`       | $dest = $lhs \*r $rhs             |
+| `noop`      | `(noop)`                    | Does nothing.                     |
+| `push`      | `(push val)`                | Push $val as arg                  |
+| `push2`     | `(push2 val1 val3)`         | Push $val1, $val2 as args         |
+| `push3`     | `(push3 val1 val2 val3)`    | Push $val1, $val2, $val3, as args |
+| `pusha`     | `(pusha array)`             | Push values in $array as args     |
+| `put`       | `(put ds key val)`          | $ds[$key] = $val                  |
+| `puti`      | `(puti ds index val)`       | $ds[index] = $val                 |
+| `res`       | `(res fiber val)`           | Resume $fiber with value $val     |
+| `ret`       | `(ret val)`                 | Return $val                       |
+| `retn`      | `(retn)`                    | Return nil                        |
+| `setu`      | `(setu env index val)`      | envs[env][index] = $val           |
+| `sl`        | `(sl dest lhs rhs)`         | $dest = $lhs << $rhs              |
+| `slim`      | `(slim dest lhs shamt)`     | $dest = $lhs << shamt             |
+| `sr`        | `(sr dest lhs rhs)`         | $dest = $lhs >> $rhs              |
+| `srim`      | `(srim dest lhs shamt)`     | $dest = $lhs >> shamt             |
+| `sru`       | `(sru dest lhs rhs)`        | $dest = $lhs >>> $rhs             |
+| `sruim`     | `(sruim dest lhs shamt)`    | $dest = $lhs >>> shamt            |
+| `sub`       | `(sub dest lhs rhs)`        | $dest = $lhs - $rhs               |
+| `tcall`     | `(tcall callee)`            | Return call($callee)              |
+| `tchck`     | `(tcheck slot types)`       | Assert $slot does matches types   |
+| `yield`     | `(yield value)`             | Yield $value to parent fiber      |
 
