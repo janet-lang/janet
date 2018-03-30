@@ -25,15 +25,15 @@
 #include "gc.h"
 
 /* GC State */
-void *dst_vm_blocks;
-uint32_t dst_vm_gc_interval;
-uint32_t dst_vm_next_collection;
-int dst_vm_gc_suspend = 0;
+DST_THREAD_LOCAL void *dst_vm_blocks;
+DST_THREAD_LOCAL uint32_t dst_vm_gc_interval;
+DST_THREAD_LOCAL uint32_t dst_vm_next_collection;
+DST_THREAD_LOCAL int dst_vm_gc_suspend = 0;
 
 /* Roots */
-Dst *dst_vm_roots;
-uint32_t dst_vm_root_count;
-uint32_t dst_vm_root_capacity;
+DST_THREAD_LOCAL Dst *dst_vm_roots;
+DST_THREAD_LOCAL uint32_t dst_vm_root_count;
+DST_THREAD_LOCAL uint32_t dst_vm_root_capacity;
 
 /* Helpers for marking the various gc types */
 static void dst_mark_funcenv(DstFuncEnv *env);

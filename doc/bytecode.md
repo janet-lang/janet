@@ -1,9 +1,9 @@
-# Dst Bytecode Interpreter
+# Dst Bytecode Reference
 
 ### Dst alpha 0.0.0
 
-This document outlines the Dst bytecode format, and core ideas in the runtime.
-the are closely related to the bytecode. It should enable the reader
+This document outlines the Dst bytecode format, and core ideas in the runtime
+that are closely related to the bytecode. It should enable the reader
 to write dst assembly code and hopefully understand the dst internals better.
 It will also talk about the C abstractions used to implement some of these ideas.
 Some experience with basic computer organization is helpful for understanding

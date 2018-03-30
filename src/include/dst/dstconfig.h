@@ -27,7 +27,6 @@
 extern "C" {
 #endif
 
-
 #define DST_VERSION "0.0.0 alpha"
 
 /*
@@ -88,6 +87,15 @@ extern "C" {
 #define DST_BIG_ENDIAN 1
 #else
 #define DST_LITTLE_ENDIAN 1
+#endif
+
+/* Check compiler */
+#if defined(__GNUC__)
+#define DST_THREAD_LOCAL __thread
+#elif defined(_MSC_BUILD)
+#define DST_THREAD_LOCAL __declspec(thread)
+#else
+#define DST_THREAD_LOCAL
 #endif
 
 /* Include default headers */

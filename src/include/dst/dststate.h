@@ -38,24 +38,24 @@ extern const char *dst_type_names[16];
  * around, the vm state is global for simplicity. */
 
 /* How many VM stacks have been entered */
-extern int dst_vm_stackn;
+extern DST_THREAD_LOCAL int dst_vm_stackn;
 
 /* Garbage collection */
-extern void *dst_vm_blocks;
-extern uint32_t dst_vm_gc_interval;
-extern uint32_t dst_vm_next_collection;
-extern int dst_vm_gc_suspend;
+extern DST_THREAD_LOCAL void *dst_vm_blocks;
+extern DST_THREAD_LOCAL uint32_t dst_vm_gc_interval;
+extern DST_THREAD_LOCAL uint32_t dst_vm_next_collection;
+extern DST_THREAD_LOCAL int dst_vm_gc_suspend;
 
 /* Immutable value cache */
-extern const uint8_t **dst_vm_cache;
-extern uint32_t dst_vm_cache_capacity;
-extern uint32_t dst_vm_cache_count;
-extern uint32_t dst_vm_cache_deleted;
+extern DST_THREAD_LOCAL const uint8_t **dst_vm_cache;
+extern DST_THREAD_LOCAL uint32_t dst_vm_cache_capacity;
+extern DST_THREAD_LOCAL uint32_t dst_vm_cache_count;
+extern DST_THREAD_LOCAL uint32_t dst_vm_cache_deleted;
 
 /* GC roots */
-extern Dst *dst_vm_roots;
-extern uint32_t dst_vm_root_count;
-extern uint32_t dst_vm_root_capacity;
+extern DST_THREAD_LOCAL Dst *dst_vm_roots;
+extern DST_THREAD_LOCAL uint32_t dst_vm_root_count;
+extern DST_THREAD_LOCAL uint32_t dst_vm_root_capacity;
 
 #ifdef __cplusplus
 }

@@ -27,7 +27,7 @@
 #include "symcache.h"
 
 /* VM state */
-int dst_vm_stackn = 0;
+DST_THREAD_LOCAL int dst_vm_stackn = 0;
 
 /* Start running the VM from where it left off. */
 Dst dst_run(DstFiber *fiber) {

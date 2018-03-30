@@ -30,10 +30,10 @@
 #include "util.h"
 
 /* Cache state */
-const uint8_t **dst_vm_cache = NULL;
-uint32_t dst_vm_cache_capacity = 0;
-uint32_t dst_vm_cache_count = 0;
-uint32_t dst_vm_cache_deleted = 0;
+DST_THREAD_LOCAL const uint8_t **dst_vm_cache = NULL;
+DST_THREAD_LOCAL uint32_t dst_vm_cache_capacity = 0;
+DST_THREAD_LOCAL uint32_t dst_vm_cache_count = 0;
+DST_THREAD_LOCAL uint32_t dst_vm_cache_deleted = 0;
 
 /* Initialize the cache (allocate cache memory) */
 void dst_symcache_init() {
