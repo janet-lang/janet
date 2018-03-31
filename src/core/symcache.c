@@ -26,6 +26,7 @@
  * whole program. Equality is then just a pointer check. */
 
 #include <dst/dst.h>
+#include "state.h"
 #include "gc.h"
 #include "util.h"
 

@@ -49,7 +49,9 @@ extern "C" {
     || defined(unix) || defined(__unix) || defined(__unix__)
 #define DST_UNIX 1
 /* Enable certain posix features */
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200112L
+#endif
 #elif defined(__EMSCRIPTEN__)
 #define DST_WEB 1
 #elif defined(WIN32) || defined(_WIN32)

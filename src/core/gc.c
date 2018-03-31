@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include "state.h"
 #include "symcache.h"
 #include "gc.h"
 
@@ -382,3 +383,7 @@ void dst_clear_memory(void) {
     }
     dst_vm_blocks = NULL;
 }
+
+/* Primitives for suspending GC. */
+int dst_gclock() { return dst_vm_gc_suspend++; }
+void dst_gcunlock(int handle) { dst_vm_gc_suspend = handle; }

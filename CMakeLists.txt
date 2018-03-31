@@ -69,14 +69,15 @@ src/core/wrap.c
 src/core/gc.h
 src/core/fiber.h
 src/core/symcache.h
+src/core/state.h
 src/core/util.h
 )
 
 set(MAINCLIENT_SOURCES
+clientinit.h
 src/mainclient/main.c
 src/mainclient/line.c
 src/mainclient/line.h
-clientinit.h
 )
 
 set(PARSER_SOURCES
@@ -105,7 +106,6 @@ src/include/dst/dstcompile.h
 src/include/dst/dstconfig.h
 src/include/dst/dstopcodes.h
 src/include/dst/dstparse.h
-src/include/dst/dststate.h
 src/include/dst/dstcorelib.h
 src/include/dst/dsttypes.h
 )

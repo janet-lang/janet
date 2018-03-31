@@ -22,6 +22,7 @@
 
 #include <dst/dst.h>
 #include <dst/dstcorelib.h>
+#include "state.h"
 
 int dst_core_print(DstArgs args) {
     int32_t i;

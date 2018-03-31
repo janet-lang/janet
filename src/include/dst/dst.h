@@ -35,7 +35,6 @@ extern "C" {
 #include <stdarg.h>
 
 #include "dsttypes.h"
-#include "dststate.h"
 
 /* Array functions */
 DstArray *dst_array(int32_t capacity);
@@ -154,10 +153,8 @@ void dst_clear_memory(void);
 void dst_gcroot(Dst root);
 int dst_gcunroot(Dst root);
 int dst_gcunrootall(Dst root);
-#define dst_maybe_collect() do {\
-    if (dst_vm_next_collection >= dst_vm_gc_interval) dst_collect(); } while (0)
-#define dst_gclock() (dst_vm_gc_suspend++)
-#define dst_gcunlock(lock) (dst_vm_gc_suspend = lock)
+int dst_gclock();
+void dst_gcunlock(int handle);
 
 /* Functions */
 DstFuncDef *dst_funcdef_alloc(void);

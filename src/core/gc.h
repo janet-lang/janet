@@ -39,6 +39,8 @@
 #define dst_gc_unmark(m) (dst_gc_header(m)->flags &= ~DST_MEM_COLOR)
 #define dst_gc_reachable(m) (dst_gc_header(m)->flags & DST_MEM_REACHABLE)
 
+// #define dst_gclock() (dst_vm_gc_suspend++)
+// #define dst_gcunlock(lock) (dst_vm_gc_suspend = lock)
 
 /* Memory header struct. Node of a linked list of memory blocks. */
 typedef struct DstGCMemoryHeader DstGCMemoryHeader;

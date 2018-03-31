@@ -22,12 +22,17 @@
 
 #include <dst/dst.h>
 #include <dst/dstopcodes.h>
+#include "state.h"
 #include "fiber.h"
 #include "gc.h"
 #include "symcache.h"
 
 /* VM state */
 DST_THREAD_LOCAL int dst_vm_stackn = 0;
+
+/* Maybe collect garbage */
+#define dst_maybe_collect() do {\
+    if (dst_vm_next_collection >= dst_vm_gc_interval) dst_collect(); } while (0)
 
 /* Start running the VM from where it left off. */
 Dst dst_run(DstFiber *fiber) {

@@ -32,7 +32,7 @@ extern "C" {
 /* Native */
 int dst_core_native(DstArgs args);
 
-/* Math functions */
+/* Arithmetic */
 int dst_int(DstArgs args);
 int dst_real(DstArgs args);
 int dst_add(DstArgs args);
@@ -62,6 +62,8 @@ int dst_lshift(DstArgs args);
 int dst_rshift(DstArgs args);
 int dst_lshiftu(DstArgs args);
 int dst_not(DstArgs args);
+
+/* Math */
 int dst_cos(DstArgs args);
 int dst_sin(DstArgs args);
 int dst_tan(DstArgs args);
@@ -94,13 +96,15 @@ int dst_core_rawget(DstArgs args);
 int dst_core_getproto(DstArgs args);
 int dst_core_setproto(DstArgs args);
 int dst_core_put(DstArgs args);
-int dst_core_gccollect(DstArgs args);
-int dst_core_gcsetinterval(DstArgs args);
-int dst_core_gcinterval(DstArgs args);
 int dst_core_type(DstArgs args);
 int dst_core_next(DstArgs args);
 int dst_core_hash(DstArgs args);
 int dst_core_string_slice(DstArgs args);
+
+/* GC */
+int dst_core_gccollect(DstArgs args);
+int dst_core_gcsetinterval(DstArgs args);
+int dst_core_gcinterval(DstArgs args);
 
 /* Initialize builtin libraries */
 int dst_lib_io(DstArgs args);

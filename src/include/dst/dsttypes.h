@@ -29,6 +29,9 @@ extern "C" {
 
 #include "dstconfig.h"
 
+/* Names of all of the types */
+extern const char *const dst_type_names[16];
+
 #ifdef DST_NANBOX
 typedef union Dst Dst;
 #else

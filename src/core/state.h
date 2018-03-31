@@ -28,11 +28,8 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include "dstconfig.h"
-#include "dsttypes.h"
-
-/* Names of all of the types */
-extern const char *dst_type_names[16];
+#include <dst/dstconfig.h>
+#include <dst/dsttypes.h>
 
 /* The VM state. Rather than a struct that is passed
  * around, the vm state is global for simplicity. */
@@ -40,17 +37,17 @@ extern const char *dst_type_names[16];
 /* How many VM stacks have been entered */
 extern DST_THREAD_LOCAL int dst_vm_stackn;
 
-/* Garbage collection */
-extern DST_THREAD_LOCAL void *dst_vm_blocks;
-extern DST_THREAD_LOCAL uint32_t dst_vm_gc_interval;
-extern DST_THREAD_LOCAL uint32_t dst_vm_next_collection;
-extern DST_THREAD_LOCAL int dst_vm_gc_suspend;
-
 /* Immutable value cache */
 extern DST_THREAD_LOCAL const uint8_t **dst_vm_cache;
 extern DST_THREAD_LOCAL uint32_t dst_vm_cache_capacity;
 extern DST_THREAD_LOCAL uint32_t dst_vm_cache_count;
 extern DST_THREAD_LOCAL uint32_t dst_vm_cache_deleted;
+
+/* Garbage collection */
+extern DST_THREAD_LOCAL void *dst_vm_blocks;
+extern DST_THREAD_LOCAL uint32_t dst_vm_gc_interval;
+extern DST_THREAD_LOCAL uint32_t dst_vm_next_collection;
+extern DST_THREAD_LOCAL int dst_vm_gc_suspend;
 
 /* GC roots */
 extern DST_THREAD_LOCAL Dst *dst_vm_roots;

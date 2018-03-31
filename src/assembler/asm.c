@@ -139,7 +139,7 @@ static const DstInstructionDef dst_ops[] = {
 
 /* Check a dst string against a bunch of test_strings. Return the 
  * index of the matching test_string, or -1 if not found. */
-static int32_t strsearch(const uint8_t *str, const char **test_strings) {
+static int32_t strsearch(const uint8_t *str, const char *const *test_strings) {
     int32_t len = dst_string_length(str);
     int index;
     for (index = 0; ; index++) {
