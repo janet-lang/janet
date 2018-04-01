@@ -304,6 +304,23 @@ evaluates to true."
  [f]
  (fn [x] (not (f x))))
 
+(defn extreme
+ "Returns the most extreme value in args based on the orderer order.
+Returns nil if args is empty."
+ [order args]
+ (def len (length args))
+ (when (pos? len)
+  (var ret (get args 0))
+  (for [i 0 len]
+   (def v (get args i))
+   (if (order v ret) (:= ret v)))
+  ret))
+
+(defn max [& args] (extreme > args))
+(defn min [& args] (extreme < args))
+(defn max-order [& args] (extreme order> args))
+(defn min-order [& args] (extreme order< args))
+
 ###
 ###
 ### Indexed Combinators
@@ -366,13 +383,25 @@ an indexed type (array, tuple) with a function to produce a value."
 (defn map
  "Map a function over every element in an array or tuple and return
 the same type as the input sequence."
- [f ind t]
+ [f & inds]
  (def res @[])
- (for [i 0 (length ind)]
-  (array-push res (f (get ind i))))
- (if (= :tuple (type (or t ind)))
-  (apply1 tuple res)
-  res))
+ (def ninds (length inds))
+ (if (= 0 ninds) (error "expected at least 1 indexed collection."))
+ (var limit (length (get inds 0)))
+ (for [i 0 ninds]
+  (def l (length (get inds i)))
+  (if (< l limit) (:= limit l)))
+ (def [i1 i2 i3 i4] inds)
+ (switch ninds
+  1 (for [i 0 limit] (array-push res (f (get i1 i))))
+  2 (for [i 0 limit] (array-push res (f (get i1 i) (get i2 i))))
+  3 (for [i 0 limit] (array-push res (f (get i1 i) (get i2 i) (get i3 i))))
+  4 (for [i 0 limit] (array-push res (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
+  (for [i 0 limit] 
+   (def args @[])
+   (for [j 0 ninds] (array-push args (get (get inds j) i)))
+   (array-push res (apply1 f args))))
+ res)
 
 (defn mapcat
  "Map a function over every element in an array or tuple and 

@@ -1,36 +1,18 @@
 # Find the maximum path from the top (root)
 # of the triangle to the leaves of the triangle.
   
-(defn vmap2 [f m1 m2] 
- (def len (length m1))
- (def arr @[])
- (for [i 0 len] (array-push arr (f (get m1 i) (get m2 i))))
- arr)
-
-(defn reduce [s f c]
- (var res s)
- (for [i 0 (length c)]
-  (:= res (f res (get c i))))
- res)
-
-(defn max1 [l r] (if (< l r) r l))
-    
 (defn myfold [xs ys]
  (def xs1 (tuple-prepend xs 0))
  (def xs2 (tuple-append xs 0))
- (def m1 (vmap2 + xs1 ys))
- (def m2 (vmap2 + xs2 ys))
- (vmap2 max1 m1 m2))
-
-(defn max [a]
- (var m (get a 0))
- (for [i 0 (length a)]
-  (if (< m (get a i))
-   (:= m (get a i))))
- m)
+ (def m1 (map + xs1 ys))
+ (def m2 (map + xs2 ys))
+ (map max m1 m2))
 
 (defn maxpath [t]
- (max (reduce () myfold t)))
+ (extreme > (reduce myfold () t)))
+
+# Test it
+# Maximum path is 3 -> 10 -> 3 -> 9 for a total of 25
 
 (def triangle @[
  @[3]
