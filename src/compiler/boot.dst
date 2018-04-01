@@ -14,12 +14,14 @@
 (def defn :macro
  "Define a function"
   (fn [name & more]
+   (def len (length more))
    (def fstart (fn recur [i]
     (def ith (ast-unwrap1 (get more i)))
     (def t (type ith))
     (def tuple? (= t :tuple))
     (def array? (= t :array))
-    (if (if tuple? tuple? array?) i (recur (+ i 1)))))
+    (if (if tuple? tuple? array?) i 
+     (if (< i len) (recur (+ i 1))))))
    (def start (fstart 0))
    (def fnbody (tuple-prepend (tuple-prepend (tuple-slice more start) name) 'fn))
    (def formargs (array-concat @['def name] (array-slice more 0 start) @[fnbody]))
@@ -475,22 +477,6 @@ the predicate, and abort on first failiure."
  [pred ind t]
  (drop-until (complement pred) ind t))
 
-(defn zip
- [& seqs]
- (def lens (length seqs))
- (def ret @[])
- (if (= 0 lens) (error "expected at least 1 sequence"))
- (var minlen (length (get seqs 0)))
- (for [j 1 lens]
-  (def sl (length (get seqs j)))
-  (if (< sl minlen) (:= minlen sl)))
- (for [i 0 minlen]
-  (def accum @[])
-  (for [j 0 lens]
-   (array-push accum (get seqs j i)))
-  (array-push ret (apply1 tuple accum)))
- (apply1 tuple ret))
-
 (defn juxt*
   [& funs]
   (def len (length funs))
@@ -509,6 +495,9 @@ the predicate, and abort on first failiure."
  (tuple 'fn (tuple '& $args) (apply1 tuple parts)))
 
 (defmacro ->
+ "Threading macro. Inserts x as the second value in the first form
+in form, and inserts the modified firsts form into the second form
+in the same manner, and so on. Useful for expressing pipelines of data."
  [x & forms]
  (defn fop [last nextform]
   (def n (ast-unwrap1 nextform))
@@ -520,6 +509,9 @@ the predicate, and abort on first failiure."
  (reduce fop x forms))
 
 (defmacro ->>
+ "Threading macro. Inserts x as the last value in the first form
+in form, and inserts the modified firsts form into the second form
+in the same manner, and so on. Useful for expressing pipelines of data."
  [x & forms]
  (defn fop [last nextform]
   (def n (ast-unwrap1 nextform))

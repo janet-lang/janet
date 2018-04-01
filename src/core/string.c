@@ -336,6 +336,25 @@ void dst_description_b(DstBuffer *buffer, Dst x) {
     }
 }
 
+void dst_to_string_b(DstBuffer *buffer, Dst x) {
+    switch (dst_type(x)) {
+        default:
+            dst_description_b(buffer, x);
+            break;
+        case DST_BUFFER:
+            dst_buffer_push_bytes(buffer, 
+                    dst_unwrap_buffer(x)->data,
+                    dst_unwrap_buffer(x)->count);
+            break;
+        case DST_STRING:
+        case DST_SYMBOL:
+            dst_buffer_push_bytes(buffer, 
+                    dst_unwrap_string(x),
+                    dst_string_length(dst_unwrap_string(x)));
+            break;
+    }
+}
+
 const uint8_t *dst_description(Dst x) {
     switch (dst_type(x)) {
     case DST_NIL:
@@ -452,6 +471,10 @@ const uint8_t *dst_formatc(const char *format, ...) {
                         break;
                     }
                     case 'V': 
+                    {
+                        dst_to_string_b(bufp, va_arg(args, Dst));
+                        break;
+                    }
                     case 'v': 
                     {
                         dst_description_b(bufp, va_arg(args, Dst));

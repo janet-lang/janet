@@ -830,7 +830,8 @@ recur:
                                     x = dst_resume(f, dst_tuple_length(tup) - 1, tup + 1);
                                     dst_gcunlock(lock);
                                     if (f->status == DST_FIBER_ERROR || f->status == DST_FIBER_DEBUG) {
-                                        dstc_cerror(c, ast, "error in macro expansion");
+                                        const uint8_t *es = dst_formatc("error in macro expansion: %V", x);
+                                        dstc_error(c, ast, es);
                                     }
                                     /* Tail recur on the value */
                                     goto recur;
