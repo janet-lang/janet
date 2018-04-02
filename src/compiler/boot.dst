@@ -602,7 +602,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
  [x]
  (def arr @[])
  (var k (next x nil))
- (while k
+ (while (not= nil k)
   (array-push arr k)
   (:= k (next x k)))
  arr)
@@ -612,7 +612,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
  [x]
  (def arr @[])
  (var k (next x nil))
- (while k
+ (while (not= nil k)
   (array-push arr (get x k))
   (:= k (next x k)))
  arr)
@@ -622,7 +622,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
  [x]
  (def arr @[])
  (var k (next x nil))
- (while k
+ (while (not= nil k)
   (array-push arr (tuple k (get x k)))
   (:= k (next x k)))
  arr)
