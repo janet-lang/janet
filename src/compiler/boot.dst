@@ -368,7 +368,7 @@ Returns nil if args is empty."
   sa))
 
 (defn reduce
- "Reduce, also know as foldleft in many languages, transform
+ "Reduce, also know as foldleft in many languages, transforms
 an indexed type (array, tuple) with a function to produce a value."
  [f init ind]
  (var res init)
