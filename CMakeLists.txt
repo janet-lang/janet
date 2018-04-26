@@ -113,6 +113,7 @@ src/include/dst/dsttypes.h
 # Build the executable
 add_executable(${TARGET_NAME} ${REPL_SOURCES})
 if (UNIX AND NOT EMSCRIPTEN)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -rdynamic")
 	target_link_libraries(${TARGET_NAME} m dl)
 endif (UNIX AND NOT EMSCRIPTEN)
 set_target_properties(${TARGET_NAME} PROPERTIES PUBLIC_HEADER "${DST_PUBLIC_HEADERS}")

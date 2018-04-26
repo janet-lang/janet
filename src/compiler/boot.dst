@@ -917,15 +917,18 @@ onvalue."
     (error (string "circular dependency: module " path " is loading")))
    (def check (get cache path))
    (if check check (do
-     (def newenv (make-env))
-     (put cache path newenv)
-     (put loading path true)
-     (def f (file-open path))
-     (defn chunks [buf] (file-read f 1024 buf))
-     (run-context newenv chunks identity default-error-handler)
-     (file-close f)
-     (put loading path nil)
-     newenv)))))
+     (if (= ".so" (string-slice path -3 -1))
+      ((native path))
+      (do
+       (def newenv (make-env))
+       (put cache path newenv)
+       (put loading path true)
+       (def f (file-open path))
+       (defn chunks [buf] (file-read f 1024 buf))
+       (run-context newenv chunks identity default-error-handler)
+       (file-close f)
+       (put loading path nil)
+       newenv)))))))
 
 (defn import* [env path & args]
  (def newenv (require path))

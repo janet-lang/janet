@@ -2,6 +2,7 @@
 dst
 !*/**/dst
 /build
+/Build
 /Release
 /Debug
 /Emscripten

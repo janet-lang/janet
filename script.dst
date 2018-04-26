@@ -1,0 +1,3 @@
+(import "natives/hello/hello.so" :prefix "h/")
+
+(h/hello)

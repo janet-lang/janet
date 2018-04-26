@@ -37,7 +37,7 @@ typedef HINSTANCE Clib;
 typedef int Clib;
 #define load_clib(name) 0
 #define symbol_clib(lib, sym) 0
-#define error_clib() "could not load dynamic library"
+#define error_clib() "dynamic libraries not supported"
 #else
 #include <dlfcn.h>
 typedef void *Clib;

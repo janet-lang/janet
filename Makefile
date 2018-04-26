@@ -25,7 +25,11 @@
 PREFIX?=/usr/local
 BINDIR=$(PREFIX)/bin
 
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -s -O3
+# CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Wl,--dynamic-list=src/exported.list -s -O3
+# TODO - when api is finalized, only export public symbols instead of using rdynamic
+# which exports all symbols.
+
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -rdynamic -s -O3
 CLIBS=-lm -ldl
 PREFIX=/usr/local
 DST_TARGET=dst
