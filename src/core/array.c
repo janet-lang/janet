@@ -106,19 +106,22 @@ Dst dst_array_peek(DstArray *array) {
 /* C Functions */
 
 static int cfun_pop(DstArgs args) {
-    if (args.n != 1 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_ARRAY);
     return dst_return(args, dst_array_pop(dst_unwrap_array(args.v[0])));
 }
 
 static int cfun_peek(DstArgs args) {
-    if (args.n != 1 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_ARRAY);
     return dst_return(args, dst_array_peek(dst_unwrap_array(args.v[0])));
 }
 
 static int cfun_push(DstArgs args) {
     DstArray *array;
     int32_t newcount;
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    dst_minarity(args, 1);
+    dst_check(args, 0, DST_ARRAY);
     array = dst_unwrap_array(args.v[0]);
     newcount = array->count - 1 + args.n;
     dst_array_ensure(array, newcount);
@@ -129,8 +132,9 @@ static int cfun_push(DstArgs args) {
 
 static int cfun_setcount(DstArgs args) {
     int32_t newcount;
-    if (args.n != 2 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
-    if (!dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected positive integer");
+    dst_fixarity(args, 2);
+    dst_check(args, 0, DST_ARRAY);
+    dst_check(args, 1, DST_INTEGER);
     newcount = dst_unwrap_integer(args.v[1]);
     if (newcount < 0) return dst_throw(args, "expected positive integer");
     dst_array_setcount(dst_unwrap_array(args.v[0]), newcount);
@@ -139,8 +143,9 @@ static int cfun_setcount(DstArgs args) {
 
 static int cfun_ensure(DstArgs args) {
     int32_t newcount;
-    if (args.n != 2 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
-    if (!dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected positive integer");
+    dst_fixarity(args, 2);
+    dst_check(args, 0, DST_ARRAY);
+    dst_check(args, 1, DST_INTEGER);
     newcount = dst_unwrap_integer(args.v[1]);
     if (newcount < 0) return dst_throw(args, "expected positive integer");
     dst_array_ensure(dst_unwrap_array(args.v[0]), newcount);
@@ -152,7 +157,10 @@ static int cfun_slice(DstArgs args) {
     int32_t len;
     DstArray *ret;
     int32_t start, end;
-    if (args.n < 1 || !dst_seq_view(args.v[0], &vals, &len)) return dst_throw(args, "expected array/tuple");
+    dst_minarity(args, 1);
+    dst_maxarity(args, 3);
+    if (!dst_seq_view(args.v[0], &vals, &len))
+        return dst_throw(args, "expected array|tuple");
     /* Get start */
     if (args.n < 2) {
         start = 0;
@@ -187,7 +195,8 @@ static int cfun_slice(DstArgs args) {
 static int cfun_concat(DstArgs args) {
     int32_t i;
     DstArray *array;
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_ARRAY)) return dst_throw(args, "expected array");
+    dst_minarity(args, 1);
+    dst_check(args, 0, DST_ARRAY);
     array = dst_unwrap_array(args.v[0]);
     for (i = 1; i < args.n; i++) {
         switch (dst_type(args.v[i])) {

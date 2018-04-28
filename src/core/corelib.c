@@ -127,7 +127,7 @@ int dst_core_struct(DstArgs args) {
 }
 
 int dst_core_gensym(DstArgs args) {
-    if (args.n > 1) return dst_throw(args, "expected one argument");
+    dst_maxarity(args, 1);
     if (args.n == 0) {
         return dst_return(args, dst_wrap_symbol(dst_symbol_gen(NULL, 0)));
     } else {
@@ -137,14 +137,14 @@ int dst_core_gensym(DstArgs args) {
 }
 
 int dst_core_length(DstArgs args) {
-    if (args.n != 1) return dst_throw(args, "expected at least 1 argument");
+    dst_checkmany(args, 0, DST_TFLAG_LENGTHABLE);
     return dst_return(args, dst_wrap_integer(dst_length(args.v[0])));
 }
 
 int dst_core_get(DstArgs args) {
     int32_t i;
     Dst ds;
-    if (args.n < 1) return dst_throw(args, "expected at least 1 argument");
+    dst_minarity(args, 1);
     ds = args.v[0];
     for (i = 1; i < args.n; i++) {
         ds = dst_get(ds, args.v[i]);
@@ -155,15 +155,15 @@ int dst_core_get(DstArgs args) {
 }
 
 int dst_core_rawget(DstArgs args) {
-    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
-    if (!dst_checktype(args.v[0], DST_TABLE)) return dst_throw(args, "expected table");
+    dst_fixarity(args, 2);
+    dst_check(args, 0, DST_TABLE);
     return dst_return(args, dst_table_rawget(dst_unwrap_table(args.v[0]), args.v[1]));
 }
 
 int dst_core_getproto(DstArgs args) {
     DstTable *t;
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
-    if (!dst_checktype(args.v[0], DST_TABLE)) return dst_throw(args, "expected table");
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_TABLE);
     t = dst_unwrap_table(args.v[0]);
     return dst_return(args, t->proto
             ? dst_wrap_table(t->proto)
@@ -171,10 +171,9 @@ int dst_core_getproto(DstArgs args) {
 }
 
 int dst_core_setproto(DstArgs args) {
-    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
-    if (!dst_checktype(args.v[0], DST_TABLE)) return dst_throw(args, "expected table");
-    if (!dst_checktype(args.v[1], DST_TABLE) && !dst_checktype(args.v[1], DST_NIL))
-        return dst_throw(args, "expected table");
+    dst_fixarity(args, 2);
+    dst_check(args, 0, DST_TABLE);
+    dst_checkmany(args, 1, DST_TFLAG_TABLE | DST_TFLAG_NIL);
     dst_unwrap_table(args.v[0])->proto = dst_checktype(args.v[1], DST_TABLE)
         ? dst_unwrap_table(args.v[1])
         : NULL;
@@ -184,7 +183,7 @@ int dst_core_setproto(DstArgs args) {
 int dst_core_put(DstArgs args) {
     Dst ds, key, value;
     DstArgs subargs = args;
-    if (args.n < 3) return dst_throw(args, "expected at least 3 arguments");
+    dst_minarity(args, 3);
     subargs.n -= 2;
     if (dst_core_get(subargs)) return 1;
     ds = *args.ret;
@@ -201,20 +200,23 @@ int dst_core_gccollect(DstArgs args) {
 }
 
 int dst_core_gcsetinterval(DstArgs args) {
-    if (args.n < 1 ||
-            !dst_checktype(args.v[0], DST_INTEGER) ||
-            dst_unwrap_integer(args.v[0]) < 0)
+    int32_t val;
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_INTEGER);
+    val = dst_unwrap_integer(args.v[0]);
+    if (val < 0)
         return dst_throw(args, "expected non-negative integer");
-    dst_vm_gc_interval = dst_unwrap_integer(args.v[0]);
-    return dst_return(args, dst_wrap_integer(dst_vm_gc_interval));
+    dst_vm_gc_interval = val;
+    return dst_return(args, args.v[0]); 
 }
 
 int dst_core_gcinterval(DstArgs args) {
+    dst_fixarity(args, 0);
     return dst_return(args, dst_wrap_integer(dst_vm_gc_interval));
 }
 
 int dst_core_type(DstArgs args) {
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    dst_fixarity(args, 1);
     if (dst_checktype(args.v[0], DST_ABSTRACT)) {
         return dst_return(args, dst_csymbolv(dst_abstract_type(dst_unwrap_abstract(args.v[0]))->name));
     } else {
@@ -225,20 +227,19 @@ int dst_core_type(DstArgs args) {
 int dst_core_next(DstArgs args) {
     Dst ds;
     const DstKV *kv;
-    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
+    dst_fixarity(args, 2);
+    dst_checkmany(args, 0, DST_TFLAG_DICTIONARY);
     ds = args.v[0];
     if (dst_checktype(ds, DST_TABLE)) {
         DstTable *t = dst_unwrap_table(ds);
         kv = dst_checktype(args.v[1], DST_NIL)
             ? NULL
             : dst_table_find(t, args.v[1]);
-    } else if (dst_checktype(ds, DST_STRUCT)) {
+    } else {
         const DstKV *st = dst_unwrap_struct(ds);
         kv = dst_checktype(args.v[1], DST_NIL)
             ? NULL
             : dst_struct_find(st, args.v[1]);
-    } else {
-        return dst_throw(args, "expected table/struct");
     }
     kv = dst_next(ds, kv);
     if (kv) {
@@ -248,7 +249,7 @@ int dst_core_next(DstArgs args) {
 }
 
 int dst_core_hash(DstArgs args) {
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    dst_fixarity(args, 1);
     return dst_return(args, dst_wrap_integer(dst_hash(args.v[0])));
 }
 
@@ -256,8 +257,10 @@ int dst_core_string_slice(DstArgs args) {
     const uint8_t *data;
     int32_t len, start, end;
     const uint8_t *ret;
-    if (args.n < 1 || !dst_chararray_view(args.v[0], &data, &len))
-        return dst_throw(args, "expected buffer/string");
+    dst_minarity(args, 1);
+    dst_maxarity(args, 3);
+    if (!dst_chararray_view(args.v[0], &data, &len))
+        return dst_throw(args, "expected buffer|string|symbol");
     /* Get start */
     if (args.n < 2) {
         start = 0;

@@ -205,3 +205,48 @@ int dst_hashtable_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap) 
     }
     return 0;
 }
+
+int dst_type_err(DstArgs args, int32_t n, DstType expected) {
+    DstType actual = n < args.n ? dst_type(args.v[n]) : DST_NIL;
+    const uint8_t *message = dst_formatc(
+            "bad argument #%d, expected %t, got %t",
+            n,
+            expected,
+            actual);
+    return dst_throwv(args, dst_wrap_string(message));
+}
+
+int dst_typemany_err(DstArgs args, int32_t n, int expected) {
+    int i;
+    int first = 1;
+    const uint8_t *message;
+    DstType actual = n < args.n ? dst_type(args.v[n]) : DST_NIL;
+    DstBuffer buf;
+    dst_buffer_init(&buf, 20);
+    dst_buffer_push_string(&buf, dst_formatc("bad argument #%d, expected ", n));
+    i = 0;
+    while (expected) {
+        if (1 & expected) {
+            if (first) {
+                first = 0;
+            } else {
+                dst_buffer_push_u8(&buf, '|');
+            }
+            dst_buffer_push_cstring(&buf, dst_type_names[i] + 1);
+        }
+        i++;
+        expected >>= 1;
+    }
+    dst_buffer_push_cstring(&buf, ", got ");
+    dst_buffer_push_cstring(&buf, dst_type_names[actual] + 1);
+    message = dst_string(buf.data, buf.count);
+    dst_buffer_deinit(&buf);
+    return dst_throwv(args, dst_wrap_string(message));
+}
+
+int dst_arity_err(DstArgs args, int32_t n, const char *prefix) {
+    return dst_throwv(args,
+            dst_wrap_string(dst_formatc(
+                    "expected %s%d argument%s, got %d", 
+                    prefix, n, n == 1 ? "" : "s", args.n)));
+}

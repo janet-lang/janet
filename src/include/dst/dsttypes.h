@@ -78,6 +78,35 @@ typedef enum DstType {
     DST_ABSTRACT
 } DstType;
 
+#define DST_COUNT_TYPES (DST_ABSTRACT + 1)
+
+/* Type flags */
+#define DST_TFLAG_NIL (1 << DST_NIL)
+#define DST_TFLAG_FALSE (1 << DST_FALSE)
+#define DST_TFLAG_TRUE (1 << DST_TRUE)
+#define DST_TFLAG_FIBER (1 << DST_FIBER)
+#define DST_TFLAG_INTEGER (1 << DST_INTEGER)
+#define DST_TFLAG_REAL (1 << DST_REAL)
+#define DST_TFLAG_STRING (1 << DST_STRING)
+#define DST_TFLAG_SYMBOL (1 << DST_SYMBOL)
+#define DST_TFLAG_ARRAY (1 << DST_ARRAY)
+#define DST_TFLAG_TUPLE (1 << DST_TUPLE)
+#define DST_TFLAG_TABLE (1 << DST_TABLE)
+#define DST_TFLAG_STRUCT (1 << DST_STRUCT)
+#define DST_TFLAG_BUFFER (1 << DST_BUFFER)
+#define DST_TFLAG_FUNCTION (1 << DST_FUNCTION)
+#define DST_TFLAG_CFUNCTION (1 << DST_CFUNCTION)
+#define DST_TFLAG_ABSTRACT (1 << DST_ABSTRACT)
+
+/* Some abstractions */
+#define DST_TFLAG_BOOLEAN (DST_TFLAG_TRUE | DST_TFLAG_FALSE)
+#define DST_TFLAG_NUMBER (DST_TFLAG_REAL | DST_TFLAG_INTEGER)
+#define DST_TFLAG_CALLABLE (DST_TFLAG_FUNCTION | DST_TFLAG_CFUNCTION)
+#define DST_TFLAG_CHARS (DST_TFLAG_STRING | DST_TFLAG_SYMBOL | DST_TFLAG_BUFFER)
+#define DST_TFLAG_INDEXED (DST_TFLAG_ARRAY | DST_TFLAG_TUPLE)
+#define DST_TFLAG_DICTIONARY (DST_TFLAG_TABLE | DST_TFLAG_STRUCT)
+#define DST_TFLAG_LENGTHABLE (DST_TFLAG_CHARS | DST_TFLAG_INDEXED | DST_TFLAG_DICTIONARY)
+
 /* We provide two possible implemenations of Dsts. The preferred
  * nanboxing approach, and the standard C version. Code in the rest of the
  * application must interact through exposed interface. */

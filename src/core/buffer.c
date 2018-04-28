@@ -97,6 +97,10 @@ int dst_buffer_push_bytes(DstBuffer *buffer, const uint8_t *string, int32_t leng
     return 0;
 }
 
+int dst_buffer_push_string(DstBuffer *buffer, const uint8_t *string) {
+    return dst_buffer_push_bytes(buffer, string, dst_string_length(string));
+}
+
 /* Push a single byte to the buffer */
 int dst_buffer_push_u8(DstBuffer *buffer, uint8_t byte) {
     if (dst_buffer_extra(buffer, 1)) return -1;

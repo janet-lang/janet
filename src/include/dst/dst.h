@@ -53,6 +53,7 @@ void dst_buffer_deinit(DstBuffer *buffer);
 void dst_buffer_ensure(DstBuffer *buffer, int32_t capacity);
 int dst_buffer_extra(DstBuffer *buffer, int32_t n);
 int dst_buffer_push_bytes(DstBuffer *buffer, const uint8_t *string, int32_t len);
+int dst_buffer_push_string(DstBuffer *buffer, const uint8_t *string);
 int dst_buffer_push_cstring(DstBuffer *buffer, const char *cstring);
 int dst_buffer_push_u8(DstBuffer *buffer, uint8_t x);
 int dst_buffer_push_u16(DstBuffer *buffer, uint16_t x);
@@ -180,11 +181,6 @@ void dst_deinit(void);
 Dst dst_run(DstFiber *fiber);
 Dst dst_resume(DstFiber *fiber, int32_t argn, const Dst *argv);
 
-/* C Function helpers */
-#define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)
-#define dst_throwv(a, v) (*((a).ret) = (v), 1)
-#define dst_return(a, v) (*((a).ret) = (v), 0)
-
 /* Env helpers */
 void dst_env_def(DstTable *env, const char *name, Dst val);
 void dst_env_var(DstTable *env, const char *name, Dst val);
@@ -194,6 +190,35 @@ DstTable *dst_env_arg(DstArgs args);
 
 /* STL */
 DstTable *dst_stl_env(void);
+
+/* C Function helpers */
+int dst_arity_err(DstArgs args, int32_t n, const char *prefix);
+int dst_type_err(DstArgs args, int32_t n, DstType expected);
+int dst_typemany_err(DstArgs args, int32_t n, int expected);
+#define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)
+#define dst_throwv(a, v) (*((a).ret) = (v), 1)
+#define dst_return(a, v) (*((a).ret) = (v), 0)
+#define dst_maxarity(A, N) do { if ((A).n > (N))\
+    return dst_arity_err(A, N, "at most "); } while (0)
+#define dst_minarity(A, N) do { if ((A).n < (N))\
+    return dst_arity_err(A, N, "at least "); } while (0)
+#define dst_fixarity(A, N) do { if ((A).n != (N))\
+    return dst_arity_err(A, N, ""); } while (0)
+#define dst_check(A, N, T) do {\
+    if ((A).n > (N)) {\
+       if (!dst_checktype((A).v[(N)], (T))) return dst_type_err(A, N, T);\
+    } else {\
+       if ((T) != DST_NIL) return dst_type_err(A, N, T);\
+    }\
+} while (0)
+#define dst_checkmany(A, N, TS) do {\
+    if ((A).n > (N)) {\
+        DstType t = dst_type((A).v[(N)]);\
+        if (!((1 << t) & (TS))) return dst_typemany_err(A, N, TS);\
+    } else {\
+       if (!((TS) & DST_NIL)) return dst_type_err(A, N, TS);\
+    }\
+} while (0)
 
 #ifdef __cplusplus
 }
