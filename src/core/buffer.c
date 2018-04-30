@@ -62,6 +62,18 @@ void dst_buffer_ensure(DstBuffer *buffer, int32_t capacity) {
     buffer->capacity = capacity;
 }
 
+/* Ensure that the buffer has enough internal capacity */
+void dst_buffer_setcount(DstBuffer *buffer, int32_t count) {
+    if (count < 0)
+        return;
+    if (count > buffer->count) {
+        int32_t oldcount = buffer->count;
+        dst_buffer_ensure(buffer, count);
+        memset(buffer->data + oldcount, 0, count - oldcount);
+    }
+    buffer->count = count;
+}
+
 /* Adds capacity for enough extra bytes to the buffer. Ensures that the
  * next n bytes pushed to the buffer will not cause a reallocation */
 int dst_buffer_extra(DstBuffer *buffer, int32_t n) {
@@ -148,11 +160,13 @@ int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x) {
 static int cfun_u8(DstArgs args) {
     int32_t i;
     DstBuffer *buffer;
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
-    buffer = dst_unwrap_buffer(args.v[0]);
+    dst_minarity(args, 1);
+    dst_arg_buffer(buffer, args, 0);
     for (i = 1; i < args.n; i++) {
-        if (!dst_checktype(args.v[i], DST_INTEGER)) return dst_throw(args, "expected integer");
-        if (dst_buffer_push_u8(buffer, (uint8_t) (dst_unwrap_integer(args.v[i]) & 0xFF))) return dst_throw(args, "buffer overflow");
+        int32_t integer;
+        dst_arg_integer(integer, args, i);
+        if (dst_buffer_push_u8(buffer, (uint8_t) (integer & 0xFF)))
+            return dst_throw(args, "buffer overflow");
     }
     return dst_return(args, args.v[0]);
 }
@@ -160,11 +174,13 @@ static int cfun_u8(DstArgs args) {
 static int cfun_int(DstArgs args) {
     int32_t i;
     DstBuffer *buffer;
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
-    buffer = dst_unwrap_buffer(args.v[0]);
+    dst_minarity(args, 1);
+    dst_arg_buffer(buffer, args, 0);
     for (i = 1; i < args.n; i++) {
-        if (!dst_checktype(args.v[i], DST_INTEGER)) return dst_throw(args, "expected integer");
-        if (dst_buffer_push_u32(buffer, (uint32_t) dst_unwrap_integer(args.v[i]))) return dst_throw(args, "buffer overflow");
+        int32_t integer;
+        dst_arg_integer(integer, args, i);
+        if (dst_buffer_push_u32(buffer, (uint32_t) integer)) 
+            return dst_throw(args, "buffer overflow");
     }
     return dst_return(args, args.v[0]);
 }
@@ -172,38 +188,37 @@ static int cfun_int(DstArgs args) {
 static int cfun_chars(DstArgs args) {
     int32_t i;
     DstBuffer *buffer;
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
-    buffer = dst_unwrap_buffer(args.v[0]);
+    dst_minarity(args, 1);
+    dst_arg_buffer(buffer, args, 0);
     for (i = 1; i < args.n; i++) {
         int32_t len;
         const uint8_t *str;
-        if (!dst_chararray_view(args.v[i], &str, &len)) return dst_throw(args, "expected string/buffer");
-        if (dst_buffer_push_bytes(buffer, str, len)) return dst_throw(args, "buffer overflow");
+        if (!dst_chararray_view(args.v[i], &str, &len)) 
+            return dst_throw(args, "expected string|symbol|buffer");
+        if (dst_buffer_push_bytes(buffer, str, len)) 
+            return dst_throw(args, "buffer overflow");
     }
     return dst_return(args, args.v[0]);
 }
 
 static int cfun_clear(DstArgs args) {
     DstBuffer *buffer;
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_BUFFER)) return dst_throw(args, "expected buffer");
-    buffer = dst_unwrap_buffer(args.v[0]);
+    dst_fixarity(args, 1);
+    dst_arg_buffer(buffer, args, 0);
     buffer->count = 0;
     return dst_return(args, args.v[0]);
 }
 
 static int cfun_popn(DstArgs args) {
     DstBuffer *buffer;
-    int32_t i;
-    if (args.n < 2
-            || !dst_checktype(args.v[0], DST_BUFFER)
-            || !dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected buffer and integer");
-    buffer = dst_unwrap_buffer(args.v[0]);
-    i = dst_unwrap_integer(args.v[1]);
-    if (i < 0) return dst_throw(args, "expected positive integer");
-    if (buffer->count < i) {
+    int32_t n;
+    dst_fixarity(args, 2);
+    dst_arg_buffer(buffer, args, 0);
+    dst_arg_integer(n, args, 1);
+    if (buffer->count < n) {
         buffer->count = 0;
     } else {
-        buffer->count -= i;
+        buffer->count -= n;
     }
     return dst_return(args, args.v[0]);
 }

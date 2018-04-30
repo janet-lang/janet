@@ -151,10 +151,8 @@ int dst_compare(Dst x, Dst y) {
                     return dst_unwrap_string(x) > dst_unwrap_string(y) ? 1 : -1;
                 }
         }
-    } else if (dst_type(x) < dst_type(y)) {
-        return -1;
-    }
-    return 1;
+    } 
+    return (dst_type(x) < dst_type(y)) ? -1 : 1;
 }
 
 /* Get a value out af an associated data structure. For invalid
@@ -200,19 +198,36 @@ Dst dst_get(Dst ds, Dst key) {
  * error message, and NULL if no error. */
 void dst_put(Dst ds, Dst key, Dst value) {
     switch (dst_type(ds)) {
-    case DST_ARRAY:
-        if (dst_checktype(key, DST_INTEGER) &&
-                dst_unwrap_integer(key) >= 0 &&
-                dst_unwrap_integer(key) < dst_unwrap_array(ds)->count)
-            dst_unwrap_array(ds)->data[dst_unwrap_integer(key)] = value;
+    case DST_ARRAY: 
+    {
+        int32_t index;
+        DstArray *array = dst_unwrap_array(ds);
+        if (!dst_checktype(key, DST_INTEGER) || dst_unwrap_integer(key) < 0)
+            return;
+        index = dst_unwrap_integer(key);
+        if (index == INT32_MAX) return;
+        if (index >= array->count) {
+            dst_array_setcount(array, index + 1);
+        }
+        array->data[index]= value;
         return;
+    }
     case DST_BUFFER:
-        if (dst_checktype(key, DST_INTEGER) &&
-                dst_checktype(value, DST_INTEGER) &&
-                dst_unwrap_integer(key) >= 0 &&
-                dst_unwrap_integer(key) < dst_unwrap_buffer(ds)->count)
-            dst_unwrap_buffer(ds)->data[dst_unwrap_integer(key)] = dst_unwrap_integer(value);
+    {
+        int32_t index;
+        DstBuffer *buffer = dst_unwrap_buffer(ds);
+        if (!dst_checktype(key, DST_INTEGER) || dst_unwrap_integer(key) < 0)
+            return;
+        index = dst_unwrap_integer(key);
+        if (index == INT32_MAX) return;
+        if (!dst_checktype(value, DST_INTEGER))
+            return;
+        if (index >= buffer->count) {
+            dst_buffer_setcount(buffer, index + 1);
+        }
+        buffer->data[index] = (uint8_t) (dst_unwrap_integer(value) & 0xFF);
         return;
+    }
     case DST_TABLE:
         dst_table_put(dst_unwrap_table(ds), key, value);
         return;

@@ -259,17 +259,16 @@ void dst_fiber_popframe(DstFiber *fiber) {
 
 static int cfun_fiber(DstArgs args) {
     DstFiber *fiber;
-    if (args.n < 1) return dst_throw(args, "expected at least 1 argument");
-    if (!dst_checktype(args.v[0], DST_FUNCTION))
-        return dst_throw(args, "expected a function");
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_FUNCTION);
     fiber = dst_fiber(dst_unwrap_function(args.v[0]), 64);
     return dst_return(args, dst_wrap_fiber(fiber));
 }
 
 static int cfun_status(DstArgs args) {
     const char *status = "";
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
-    if (!dst_checktype(args.v[0], DST_FIBER)) return dst_throw(args, "expected fiber");
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_FIBER);
     switch(dst_unwrap_fiber(args.v[0])->status) {
         case DST_FIBER_PENDING:
             status = ":pending";
@@ -330,8 +329,8 @@ static Dst doframe(DstStackFrame *frame) {
 static int cfun_stack(DstArgs args) {
     DstFiber *fiber;
     DstArray *array;
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
-    if (!dst_checktype(args.v[0], DST_FIBER)) return dst_throw(args, "expected fiber");
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_FIBER);
     fiber = dst_unwrap_fiber(args.v[0]);
     array = dst_array(0);
     {

@@ -206,13 +206,20 @@ int dst_hashtable_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap) 
     return 0;
 }
 
-int dst_type_err(DstArgs args, int32_t n, DstType expected) {
+/* Get actual type name of a value for debugging purposes */
+static const char *typestr(DstArgs args, int32_t n) {
     DstType actual = n < args.n ? dst_type(args.v[n]) : DST_NIL;
+    return (actual == DST_ABSTRACT)
+        ? dst_abstract_type(dst_unwrap_abstract(args.v[n]))->name
+        : dst_type_names[actual];
+}
+
+int dst_type_err(DstArgs args, int32_t n, DstType expected) {
     const uint8_t *message = dst_formatc(
-            "bad argument #%d, expected %t, got %t",
+            "bad argument #%d, expected %t, got %s",
             n,
             expected,
-            actual);
+            typestr(args, n));
     return dst_throwv(args, dst_wrap_string(message));
 }
 
@@ -220,7 +227,6 @@ int dst_typemany_err(DstArgs args, int32_t n, int expected) {
     int i;
     int first = 1;
     const uint8_t *message;
-    DstType actual = n < args.n ? dst_type(args.v[n]) : DST_NIL;
     DstBuffer buf;
     dst_buffer_init(&buf, 20);
     dst_buffer_push_string(&buf, dst_formatc("bad argument #%d, expected ", n));
@@ -238,7 +244,7 @@ int dst_typemany_err(DstArgs args, int32_t n, int expected) {
         expected >>= 1;
     }
     dst_buffer_push_cstring(&buf, ", got ");
-    dst_buffer_push_cstring(&buf, dst_type_names[actual] + 1);
+    dst_buffer_push_cstring(&buf, typestr(args, n));
     message = dst_string(buf.data, buf.count);
     dst_buffer_deinit(&buf);
     return dst_throwv(args, dst_wrap_string(message));
@@ -249,4 +255,11 @@ int dst_arity_err(DstArgs args, int32_t n, const char *prefix) {
             dst_wrap_string(dst_formatc(
                     "expected %s%d argument%s, got %d", 
                     prefix, n, n == 1 ? "" : "s", args.n)));
+}
+
+int dst_typeabstract_err(DstArgs args, int32_t n, DstAbstractType *at) {
+    return dst_throwv(args,
+            dst_wrap_string(dst_formatc(
+                    "bad argument #%d, expected %t, got %s", 
+                    n, at->name, typestr(args, n)))); 
 }

@@ -23,7 +23,7 @@
 #include <dst/dst.h>
 #include "gc.h"
 
-/* Iniializes an array */
+/* Initializes an array */
 DstArray *dst_array_init(DstArray *array, int32_t capacity) {
     Dst *data = NULL;
     if (capacity > 0) {
@@ -67,7 +67,7 @@ void dst_array_setcount(DstArray *array, int32_t count) {
         return;
     if (count > array->count) {
         int32_t i;
-        dst_array_ensure(array, count + 1);
+        dst_array_ensure(array, count);
         for (i = array->count; i < count; i++) {
             array->data[i] = dst_wrap_nil();
         }

@@ -51,6 +51,7 @@ DstBuffer *dst_buffer(int32_t capacity);
 DstBuffer *dst_buffer_init(DstBuffer *buffer, int32_t capacity);
 void dst_buffer_deinit(DstBuffer *buffer);
 void dst_buffer_ensure(DstBuffer *buffer, int32_t capacity);
+void dst_buffer_setcount(DstBuffer *buffer, int32_t count);
 int dst_buffer_extra(DstBuffer *buffer, int32_t n);
 int dst_buffer_push_bytes(DstBuffer *buffer, const uint8_t *string, int32_t len);
 int dst_buffer_push_string(DstBuffer *buffer, const uint8_t *string);
@@ -195,9 +196,12 @@ DstTable *dst_stl_env(void);
 int dst_arity_err(DstArgs args, int32_t n, const char *prefix);
 int dst_type_err(DstArgs args, int32_t n, DstType expected);
 int dst_typemany_err(DstArgs args, int32_t n, int expected);
+int dst_typeabstract_err(DstArgs args, int32_t n, DstAbstractType *at);
 #define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)
 #define dst_throwv(a, v) (*((a).ret) = (v), 1)
 #define dst_return(a, v) (*((a).ret) = (v), 0)
+
+/* Early exit macros */
 #define dst_maxarity(A, N) do { if ((A).n > (N))\
     return dst_arity_err(A, N, "at most "); } while (0)
 #define dst_minarity(A, N) do { if ((A).n < (N))\
@@ -219,6 +223,53 @@ int dst_typemany_err(DstArgs args, int32_t n, int expected);
        if (!((TS) & DST_NIL)) return dst_type_err(A, N, TS);\
     }\
 } while (0)
+
+#define dst_checkabstract(A, N, AT) do {\
+    if ((A).n <= (N) || !dst_checktype() {\
+        Dst x = (A).v[(N)];\
+        if (!dst_checktype(x, DST_ABSTRACT) ||\
+                dst_abstract_type(dst_unwrap_abstract(x)) != (AT))\
+        return dst_typeabstract_err(A, N, AT);\
+    } else {\
+        return dst_typeabstract_err(A, N, AT);\
+    }\
+} while (0)
+
+#define dst_arg_abstract(DEST, A, N, AT) do {\
+    dst_checkabstract(A, N, AT);\
+    DEST = dst_unwrap_abstract((A).v[(N)]);\
+} while (0)
+
+#define dst_arg_integer(DEST, A, N) do { \
+    dst_check(A, N, DST_INTEGER);\
+    DEST = dst_unwrap_integer((A).v[(N)]); } while (0)
+
+#define dst_arg_real(DEST, A, N) do { \
+    dst_check(A, N, DST_REAL);\
+    DEST = dst_unwrap_real((A).v[(N)]); } while (0)
+
+#define dst_arg_number(DEST, A, N) do { \
+    if ((A).n <= (N)) return dst_typemany_err(A, N, DST_TFLAG_NUMBER);\
+    Dst val = (A).v[(N)];\
+    if (dst_checktype(val, DST_REAL)) { DEST = dst_unwrap_real(val); }\
+    else if (dst_checktype(val, DST_INTEGER)) { DEST = (double) dst_unwrap_integer(val); }\
+    else dst_typemany_err(A, N, DST_TFLAG_NUMBER); } while (0)
+
+#define dst_arg_boolean(DEST, A, N) do { \
+    dst_checkmany(A, N, DST_TFLAG_TRUE | DST_TFLAG_FALSE);\
+    DEST = dst_unwrap_boolean((A).v[(N)]); } while (0)
+
+#define dst_arg_string(DEST, A, N) do { \
+    dst_check(A, N, DST_STRING);\
+    DEST = dst_unwrap_string((A).v[(N)]); } while (0)
+
+#define dst_arg_symbol(DEST, A, N) do { \
+    dst_check(A, N, DST_SYMBOL);\
+    DEST = dst_unwrap_string((A).v[(N)]); } while (0)
+
+#define dst_arg_buffer(DEST, A, N) do { \
+    dst_check(A, N, DST_BUFFER);\
+    DEST = dst_unwrap_buffer((A).v[(N)]); } while (0)
 
 #ifdef __cplusplus
 }

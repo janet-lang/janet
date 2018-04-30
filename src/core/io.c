@@ -84,16 +84,16 @@ static int checkflags(const uint8_t *str, int32_t len) {
 static IOFile *checkfile(DstArgs args, int32_t n) {
     IOFile *iof;
     if (n >= args.n) {
-	*args.ret = dst_cstringv("expected core.file");
+        *args.ret = dst_cstringv("expected core.file");
         return NULL;
     }
     if (!dst_checktype(args.v[n], DST_ABSTRACT)) {
-	*args.ret = dst_cstringv("expected core.file");
+        *args.ret = dst_cstringv("expected core.file");
         return NULL;
     }
     iof = (IOFile *) dst_unwrap_abstract(args.v[n]);
     if (dst_abstract_type(iof) != &dst_io_filetype) {
-	*args.ret = dst_cstringv("expected core.file");
+        *args.ret = dst_cstringv("expected core.file");
         return NULL;
     }
     return iof;
@@ -105,11 +105,11 @@ static DstBuffer *checkbuffer(DstArgs args, int32_t n, int optional) {
         return dst_buffer(0);
     }
     if (n >= args.n) {
-	*args.ret = dst_cstringv("expected buffer");
+        *args.ret = dst_cstringv("expected buffer");
         return NULL;
     }
     if (!dst_checktype(args.v[n], DST_BUFFER)) {
-	*args.ret = dst_cstringv("expected buffer");
+        *args.ret = dst_cstringv("expected buffer");
         return NULL;
     }
     return dst_unwrap_abstract(args.v[n]);
@@ -141,8 +141,9 @@ static int dst_io_fopen(DstArgs args) {
     int32_t modelen;
     FILE *f;
     int flags;
-    if (args.n < 1 || args.n > 2) return dst_throw(args, "expected 1 or 2 arguments");
-    if (!dst_checktype(args.v[0], DST_STRING)) return dst_throw(args, "expected string filename");
+    dst_minarity(args, 1);
+    dst_maxarity(args, 2);
+    dst_check(args, 0, DST_STRING);
     fname = dst_unwrap_string(args.v[0]);
     if (args.n == 2) {
         if (!dst_checktype(args.v[1], DST_STRING) &&
