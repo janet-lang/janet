@@ -675,7 +675,7 @@ to call on any table. Does not print table prototype information."
       (buffer-popn indent 2)
       (buffer-push-string buf indent))))
 
-  (defn pp-dict-nested [y]
+  (defn pp-dict-nested [y proto?]
    (buffer-push-string indent "  ")
    (def ps (sort (pairs y)))
    (for [i 0 (length ps)]
@@ -684,6 +684,10 @@ to call on any table. Does not print table prototype information."
     (recur k)
     (buffer-push-string buf " ")
     (recur v))
+   (when proto?
+    (buffer-push-string buf indent)
+    (buffer-push-string buf "{proto} ")
+    (recur proto?))
    (buffer-popn indent 2)
    (buffer-push-string buf indent))
 
@@ -697,7 +701,9 @@ to call on any table. Does not print table prototype information."
     (recur v)))
 
   (defn pp-dict [y]
-   ((if (> 4 (length y)) pp-dict-simple pp-dict-nested) y))
+   (def proto? (and (table? y) (getproto y)))
+   (def complex? (or proto? (> (length y) 4)))
+   ((if complex? pp-dict-nested pp-dict-simple) y proto?))
 
   (def printers {
    :array  (fn [y] (do-ds y "@[" "]" true pp-seq))

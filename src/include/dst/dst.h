@@ -235,19 +235,6 @@ int dst_typeabstract_err(DstArgs args, int32_t n, DstAbstractType *at);
     }\
 } while (0)
 
-#define dst_arg_abstract(DEST, A, N, AT) do {\
-    dst_checkabstract(A, N, AT);\
-    DEST = dst_unwrap_abstract((A).v[(N)]);\
-} while (0)
-
-#define dst_arg_integer(DEST, A, N) do { \
-    dst_check(A, N, DST_INTEGER);\
-    DEST = dst_unwrap_integer((A).v[(N)]); } while (0)
-
-#define dst_arg_real(DEST, A, N) do { \
-    dst_check(A, N, DST_REAL);\
-    DEST = dst_unwrap_real((A).v[(N)]); } while (0)
-
 #define dst_arg_number(DEST, A, N) do { \
     if ((A).n <= (N)) return dst_typemany_err(A, N, DST_TFLAG_NUMBER);\
     Dst val = (A).v[(N)];\
@@ -259,17 +246,24 @@ int dst_typeabstract_err(DstArgs args, int32_t n, DstAbstractType *at);
     dst_checkmany(A, N, DST_TFLAG_TRUE | DST_TFLAG_FALSE);\
     DEST = dst_unwrap_boolean((A).v[(N)]); } while (0)
 
-#define dst_arg_string(DEST, A, N) do { \
-    dst_check(A, N, DST_STRING);\
-    DEST = dst_unwrap_string((A).v[(N)]); } while (0)
+#define _dst_arg(TYPE, NAME, DEST, A, N) do { \
+    dst_check(A, N, TYPE);\
+    DEST = dst_unwrap_##NAME((A).v[(N)]); } while (0)
 
-#define dst_arg_symbol(DEST, A, N) do { \
-    dst_check(A, N, DST_SYMBOL);\
-    DEST = dst_unwrap_string((A).v[(N)]); } while (0)
+#define dst_arg_fiber(DEST, A, N) _dst_arg(DST_FIBER, fiber, DEST, A, N)
+#define dst_arg_integer(DEST, A, N) _dst_arg(DST_INTEGER, integer, DEST, A, N)
+#define dst_arg_real(DEST, A, N) _dst_arg(DST_REAL, real, DEST, A, N)
+#define dst_arg_string(DEST, A, N) _dst_arg(DST_STRING, string, DEST, A, N)
+#define dst_arg_symbol(DEST, A, N) _dst_arg(DST_SYMBOL, symbol, DEST, A, N)
+#define dst_arg_array(DEST, A, N) _dst_arg(DST_ARRAY, array, DEST, A, N)
+#define dst_arg_tuple(DEST, A, N) _dst_arg(DST_TUPLE, tuple, DEST, A, N)
+#define dst_arg_table(DEST, A, N) _dst_arg(DST_TABLE, table, DEST, A, N)
+#define dst_arg_struct(DEST, A, N) _dst_arg(DST_STRUCT, st, DEST, A, N)
+#define dst_arg_buffer(DEST, A, N) _dst_arg(DST_BUFFER, buffer, DEST, A, N)
+#define dst_arg_function(DEST, A, N) _dst_arg(DST_FUNCTION, function, DEST, A, N)
+#define dst_arg_cfunction(DEST, A, N) _dst_arg(DST_CFUNCTION, cfunction, DEST, A, N)
 
-#define dst_arg_buffer(DEST, A, N) do { \
-    dst_check(A, N, DST_BUFFER);\
-    DEST = dst_unwrap_buffer((A).v[(N)]); } while (0)
+#define dst_arg_abstract(DEST, A, N) _dst_arg(DST_ABSTRACT, abstract, DEST, A, N)
 
 #ifdef __cplusplus
 }

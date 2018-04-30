@@ -32,7 +32,10 @@ extern "C" {
 #include <dst/dsttypes.h>
 
 /* The VM state. Rather than a struct that is passed
- * around, the vm state is global for simplicity. */
+ * around, the vm state is global for simplicity. If 
+ * at some point a a global state object, or contenxt,
+ * is required to be passed around, this is waht would
+ * be in it. */
 
 /* How many VM stacks have been entered */
 extern DST_THREAD_LOCAL int dst_vm_stackn;
