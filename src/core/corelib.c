@@ -95,6 +95,82 @@ int dst_core_buffer(DstArgs args) {
     return dst_return(args, dst_wrap_buffer(b));
 }
 
+int dst_core_format(DstArgs args) {
+    const uint8_t *format;
+    int32_t i, len, n;
+    DstBuffer buf;
+    dst_minarity(args, 1);
+    dst_arg_bytes(format, len, args, 0);
+    n = 1;
+    dst_buffer_init(&buf, len);
+    for (i = 0; i < len; i++) {
+        uint8_t c = format[i];
+        if (c != '%') {
+            dst_buffer_push_u8(&buf, c);
+        } else {
+            if (++i == len) break;
+            c = format[i];
+            switch (c) {
+                default:
+                    dst_buffer_push_u8(&buf, c);
+                    break;
+                case 's':
+                {
+                    if (n >= args.n) goto noarg;
+                    dst_buffer_push_string(&buf, dst_to_string(args.v[n++]));
+                    break;
+                }
+            }
+        }
+    }
+    *args.ret = dst_wrap_string(dst_string(buf.data, buf.count));
+    dst_buffer_deinit(&buf);
+    return 0;
+noarg:
+    dst_buffer_deinit(&buf);
+    return dst_throw(args, "not enough arguments to format");
+}
+
+int dst_core_scannumber(DstArgs args) {
+    const uint8_t *data;
+    Dst x;
+    int32_t len;
+    dst_fixarity(args, 1);
+    dst_arg_bytes(data, len, args, 0);
+    x = dst_scan_number(data, len);
+    if (!dst_checktype(x, DST_INTEGER) && !dst_checktype(x, DST_REAL)) {
+        return dst_throw(args, "error parsing number");
+    }
+    return dst_return(args, x);
+}
+
+int dst_core_scaninteger(DstArgs args) {
+    const uint8_t *data;
+    int32_t len, ret;
+    int err = 0;
+    dst_fixarity(args, 1);
+    dst_arg_bytes(data, len, args, 0);
+    ret = dst_scan_integer(data, len, &err);
+    if (err) {
+        return dst_throw(args, "error parsing integer");
+    }
+    return dst_return(args, dst_wrap_integer(ret));
+}
+
+int dst_core_scanreal(DstArgs args) {
+    const uint8_t *data;
+    int32_t len;
+    double ret;
+    int err = 0;
+    dst_fixarity(args, 1);
+    dst_arg_bytes(data, len, args, 0);
+    ret = dst_scan_real(data, len, &err);
+    if (err) {
+        return dst_throw(args, "error parsing real");
+    }
+    return dst_return(args, dst_wrap_real(ret));
+}
+
 int dst_core_tuple(DstArgs args) {
     return dst_return(args, dst_wrap_tuple(dst_tuple_n(args.v, args.n)));
 }
@@ -137,7 +213,7 @@ int dst_core_gensym(DstArgs args) {
 }
 
 int dst_core_length(DstArgs args) {
-    dst_checkmany(args, 0, DST_TFLAG_LENGTHABLE);
+    dst_fixarity(args, 1);
     return dst_return(args, dst_wrap_integer(dst_length(args.v[0])));
 }
 

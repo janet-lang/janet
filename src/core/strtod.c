@@ -211,7 +211,7 @@ static struct DstScanRes dst_scan_impl(
             /* underscores are ignored - can be used for separator */
         } else {
             int digit = digit_lookup[*str & 0x7F];
-            if (digit >= res.base) goto error;
+            if (*str > 127 || digit >= res.base) goto error;
             if (res.seenpoint) res.ex--;
             if (res.mant > 0x00ffffffffffffff)
                 res.ex++;
@@ -242,7 +242,7 @@ static struct DstScanRes dst_scan_impl(
         while (str < end && *str == '0') str++;
         while (str < end && ee < (INT32_MAX / 40)) {
             int digit = digit_lookup[*str & 0x7F];
-            if (digit >= res.base) goto error;
+            if (*str > 127 || digit >= res.base) goto error;
             ee = res.base * ee + digit;
             str++;
             seenadigit = 1;

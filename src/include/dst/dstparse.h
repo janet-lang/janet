@@ -38,11 +38,6 @@ Dst dst_ast_unwrap(Dst x);
 typedef struct DstParseState DstParseState;
 typedef struct DstParser DstParser;
 
-/* Number scanning */
-Dst dst_scan_number(const uint8_t *src, int32_t len);
-int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);
-double dst_scan_real(const uint8_t *str, int32_t len, int *err);
-
 enum DstParserStatus {
     DST_PARSE_ROOT,
     DST_PARSE_ERROR,

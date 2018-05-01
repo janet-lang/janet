@@ -218,15 +218,20 @@ static int cfun_concat(DstArgs args) {
     return dst_return(args, args.v[0]);
 }
 
+static const DstReg cfuns[] = {
+    {"array-pop", cfun_pop},
+    {"array-peek", cfun_peek},
+    {"array-push", cfun_push},
+    {"array-setcount", cfun_setcount},
+    {"array-ensure", cfun_ensure},
+    {"array-slice", cfun_slice},
+    {"array-concat", cfun_concat},
+    {NULL, NULL}
+};
+
 /* Load the array module */
 int dst_lib_array(DstArgs args) {
     DstTable *env = dst_env_arg(args);
-    dst_env_def(env, "array-pop", dst_wrap_cfunction(cfun_pop));
-    dst_env_def(env, "array-peek", dst_wrap_cfunction(cfun_peek));
-    dst_env_def(env, "array-push", dst_wrap_cfunction(cfun_push));
-    dst_env_def(env, "array-setcount", dst_wrap_cfunction(cfun_setcount));
-    dst_env_def(env, "array-ensure", dst_wrap_cfunction(cfun_ensure));
-    dst_env_def(env, "array-slice", dst_wrap_cfunction(cfun_slice));
-    dst_env_def(env, "array-concat", dst_wrap_cfunction(cfun_concat));
+    dst_env_cfuns(env, cfuns);
     return 0;
 }

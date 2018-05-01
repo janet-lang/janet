@@ -36,6 +36,11 @@ extern "C" {
 
 #include "dsttypes.h"
 
+/* Number scanning */
+Dst dst_scan_number(const uint8_t *src, int32_t len);
+int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);
+double dst_scan_real(const uint8_t *str, int32_t len, int *err);
+
 /* Array functions */
 DstArray *dst_array(int32_t capacity);
 DstArray *dst_array_init(DstArray *array, int32_t capacity);
@@ -249,6 +254,13 @@ int dst_typeabstract_err(DstArgs args, int32_t n, DstAbstractType *at);
 #define _dst_arg(TYPE, NAME, DEST, A, N) do { \
     dst_check(A, N, TYPE);\
     DEST = dst_unwrap_##NAME((A).v[(N)]); } while (0)
+
+#define dst_arg_bytes(DESTBYTES, DESTLEN, A, N) do {\
+    if ((A).n <= (N)) return dst_typemany_err(A, N, DST_TFLAG_BYTES);\
+    if (dst_chararray_view((A).v[(N)], &(DESTBYTES), &(DESTLEN))) {\
+        dst_typemany_err(A, N, DST_TFLAG_BYTES);\
+    }\
+} while (0)
 
 #define dst_arg_fiber(DEST, A, N) _dst_arg(DST_FIBER, fiber, DEST, A, N)
 #define dst_arg_integer(DEST, A, N) _dst_arg(DST_INTEGER, integer, DEST, A, N)

@@ -57,6 +57,7 @@ src/core/math.c
 src/core/native.c
 src/core/os.c
 src/core/string.c
+src/core/strtod.c
 src/core/struct.c
 src/core/symcache.c
 src/core/table.c
@@ -83,7 +84,6 @@ src/mainclient/line.h
 set(PARSER_SOURCES
 src/parser/ast.c
 src/parser/parse.c
-src/parser/strtod.c
 )
 
 set(TESTLIB_SOURCES

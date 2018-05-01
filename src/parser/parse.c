@@ -86,7 +86,7 @@ The table contains 256 bits, where each bit is 1
 if the corresponding ascci code is a symbol char, and 0
 if not. The upper characters are also considered symbol
 chars and are then checked for utf-8 compliance. */
-static uint32_t symchars[8] = {
+static const uint32_t symchars[8] = {
 	0x00000000, 0xF7ffec72, 0xd7ffffff, 0x57fffffe,
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
 };
@@ -703,49 +703,6 @@ static int cfun_node(DstArgs args) {
     return dst_return(args, dst_wrap_tuple(dst_tuple_end(tup)));
 }
 
-static int cfun_parsenumber(DstArgs args) {
-    const uint8_t *data;
-    Dst x;
-    int32_t len;
-    if (args.n != 1) return dst_throw(args, "expected string or buffer");
-    if (!dst_chararray_view(args.v[0], &data, &len))
-        return dst_throw(args, "expected string or buffer");
-    x = dst_scan_number(data, len);
-    if (!dst_checktype(x, DST_INTEGER) && !dst_checktype(x, DST_REAL)) {
-        return dst_throw(args, "error parsing number");
-    }
-    return dst_return(args, x);
-}
-
-static int cfun_parseint(DstArgs args) {
-    const uint8_t *data;
-    int32_t len, ret;
-    int err = 0;
-    if (args.n != 1) return dst_throw(args, "expected string or buffer");
-    if (!dst_chararray_view(args.v[0], &data, &len))
-        return dst_throw(args, "expected string or buffer");
-    ret = dst_scan_integer(data, len, &err);
-    if (err) {
-        return dst_throw(args, "error parsing integer");
-    }
-    return dst_return(args, dst_wrap_integer(ret));
-}
-
-static int cfun_parsereal(DstArgs args) {
-    const uint8_t *data;
-    int32_t len;
-    double ret;
-    int err = 0;
-    if (args.n != 1) return dst_throw(args, "expected string or buffer");
-    if (!dst_chararray_view(args.v[0], &data, &len))
-        return dst_throw(args, "expected string or buffer");
-    ret = dst_scan_real(data, len, &err);
-    if (err) {
-        return dst_throw(args, "error parsing real");
-    }
-    return dst_return(args, dst_wrap_real(ret));
-}
-
 static const DstReg cfuns[] = {
     {"parser", cfun_parser},
     {"parser-produce", cfun_produce},
@@ -757,9 +714,6 @@ static const DstReg cfuns[] = {
     {"ast-unwrap1", cfun_unwrap1},
     {"ast-wrap", cfun_wrap},
     {"ast-node", cfun_node},
-    {"parse-number", cfun_parsenumber},
-    {"parse-int", cfun_parseint},
-    {"parse-real", cfun_parsereal},
     {NULL, NULL}
 };
 
