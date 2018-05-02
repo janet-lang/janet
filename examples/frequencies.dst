@@ -1,12 +1,10 @@
 # Get the number of occurences of elements in a set
 
-(import "examples/iterators.dst")
-
 (defn frequencies
- "Get the number of occurences of each value in a sequence."
- [s]
- (let [freqs @{}
-       _ (foreach s (fn [x] 
-          (let [n (get freqs x)]
-           (put freqs x (if n (+ 1 n) 1)))))]
-  freqs))
+ "Get the number of occurences of each value in a indexed structure."
+ [ind]
+ (def freqs @{})
+ (map (fn [x] 
+    (let [n (get freqs x)]
+     (put freqs x (if n (+ 1 n) 1)))) ind)
+ freqs)

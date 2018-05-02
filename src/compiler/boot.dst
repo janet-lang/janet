@@ -100,6 +100,12 @@
 (defmacro <<= [x n] (tuple ':= x (tuple << x n)))
 (defmacro >>>= [x n] (tuple ':= x (tuple >>> x n)))
 
+(defmacro default
+ "Define a default value for an optional argument.
+Expands to (def sym (if (= nil sym) val sym))"
+ [sym val]
+ (tuple 'def sym (tuple 'if (tuple = nil sym) val sym)))
+
 (defmacro comment
  "Ignores the body of the comment."
  [])
@@ -271,11 +277,6 @@ evaluates to true."
          fal))))))
   (aux 0))
 
-(defmacro default
- "Supplies a default argument when a value is nil."
- [sym default-value]
- (tuple 'def sym (tuple 'or sym default-value)))
-
 (defmacro when-let
 "Takes the first one or two forms in vector and if true binds
  all the forms  with let and evaluates the body"
@@ -375,12 +376,6 @@ an indexed type (array, tuple) with a function to produce a value."
  (for [i 0 (length ind)]
   (:= res (f res (get ind i))))
  res)
-
-(defn foreach
- "Call function f on every value in indexed ind."
- [f ind]
- (for [i 0 (length ind)]
-  (f (get ind i))))
 
 (defn map
  "Map a function over every element in an array or tuple and return
