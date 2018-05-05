@@ -4,7 +4,7 @@
  "Get the number of occurences of each value in a indexed structure."
  [ind]
  (def freqs @{})
- (map (fn [x] 
+ (each (fn [x] 
     (let [n (get freqs x)]
      (put freqs x (if n (+ 1 n) 1)))) ind)
  freqs)

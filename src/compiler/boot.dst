@@ -20,7 +20,7 @@
     (def t (type ith))
     (def tuple? (= t :tuple))
     (def array? (= t :array))
-    (if (if tuple? tuple? array?) i 
+    (if (if tuple? tuple? array?) i
      (if (< i len) (recur (+ i 1))))))
    (def start (fstart 0))
    (def fnbody (tuple-prepend (tuple-prepend (tuple-slice more start) name) 'fn))
@@ -31,7 +31,7 @@
  "Define a macro."
  (do
   (def defn* (get (get _env 'defn) :value))
-  (fn [name & more] 
+  (fn [name & more]
    (apply1 defn* (array-concat
     @[name :macro] more)))))
 
@@ -68,8 +68,8 @@
 (defn indexed? [x]
  (def t (type x))
  (if (= t :array) true (= t :tuple)))
-(defn function? [x] 
- (def t (type x)) 
+(defn function? [x]
+ (def t (type x))
  (if (= t :function) true (= t :cfunction)))
 (defn true? [x] (= (type x) true))
 (defn false? [x] (= (type x) false))
@@ -200,7 +200,7 @@ value."
   (array-concat accum body)
   (apply1 tuple accum))
 
-(defmacro for 
+(defmacro for
  "An imperative for loop over an integer range. Use with caution and discretion."
  [head & body]
   (def [sym start end _inc] (ast-unwrap1 head))
@@ -262,7 +262,7 @@ evaluates to true."
      (do
       (def atm (atomic? (ast-unwrap1 bl)))
       (def sym (if atm bl (gensym)))
-      (if atm 
+      (if atm
        # Simple binding
        (tuple 'do
         (tuple 'def sym br)
@@ -271,7 +271,7 @@ evaluates to true."
        (tuple 'do
         (tuple 'def sym br)
         (tuple 'if sym
-         (tuple 'do 
+         (tuple 'do
           (tuple 'def bl sym)
           (aux (+ 2 i)))
          fal))))))
@@ -330,7 +330,7 @@ Returns nil if args is empty."
 ###
 ###
 
-(def sort 
+(def sort
  "Sort an array in-place. Uses quicksort and is not a stable sort."
  (do
 
@@ -394,14 +394,35 @@ the same type as the input sequence."
   2 (for [i 0 limit] (array-push res (f (get i1 i) (get i2 i))))
   3 (for [i 0 limit] (array-push res (f (get i1 i) (get i2 i) (get i3 i))))
   4 (for [i 0 limit] (array-push res (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
-  (for [i 0 limit] 
+  (for [i 0 limit]
    (def args @[])
    (for [j 0 ninds] (array-push args (get (get inds j) i)))
    (array-push res (apply1 f args))))
  res)
 
+(defn each
+ "Map a function over every element in an array or tuple but do not
+return a new indexed type."
+ [f & inds]
+ (def ninds (length inds))
+ (if (= 0 ninds) (error "expected at least 1 indexed collection."))
+ (var limit (length (get inds 0)))
+ (for [i 0 ninds]
+  (def l (length (get inds i)))
+  (if (< l limit) (:= limit l)))
+ (def [i1 i2 i3 i4] inds)
+ (switch ninds
+  1 (for [i 0 limit] (f (get i1 i)))
+  2 (for [i 0 limit] (f (get i1 i) (get i2 i)))
+  3 (for [i 0 limit] (f (get i1 i) (get i2 i) (get i3 i)))
+  4 (for [i 0 limit] (f (get i1 i) (get i2 i) (get i3 i) (get i4 i)))
+  (for [i 0 limit]
+   (def args @[])
+   (for [j 0 ninds] (array-push args (get (get inds j) i)))
+   (apply1 f args))))
+
 (defn mapcat
- "Map a function over every element in an array or tuple and 
+ "Map a function over every element in an array or tuple and
 use array to concatenate the results. Returns the same
 type as the input sequence."
  [f ind t]
@@ -517,7 +538,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
   (apply1 tuple parts))
  (reduce fop x forms))
 
-(defn partial 
+(defn partial
  "Partial function application."
  [f & more]
  (if (zero? (length more)) f
@@ -628,7 +649,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
 ###
 ###
 
-(defn pp 
+(defn pp
  "Pretty print a value. Displays values inside collections, and is safe
 to call on any table. Does not print table prototype information."
  [x]
@@ -706,7 +727,7 @@ to call on any table. Does not print table prototype information."
    :table  (fn [y] (do-ds y "@{" "}" true pp-dict))
    :struct  (fn [y] (do-ds y "{" "}" false pp-dict))
   })
-  
+
   (:= recur (fn [y]
     (def p (get printers (type y)))
     (if p
@@ -731,7 +752,7 @@ to call on any table. Does not print table prototype information."
  (defn doarray [a]
   (def len (length a))
   (def newa @[])
-  (for [i 0 len] 
+  (for [i 0 len]
    (array-push newa (macroexpand1 (get a i))))
   newa)
 
@@ -851,7 +872,7 @@ onvalue."
 
  # Fiber stream of values
  (def vals (coro
-  (def p (parser 1)) 
+  (def p (parser 1))
   (while going
     (switch (parser-status p)
      :full (yield (parser-produce p))

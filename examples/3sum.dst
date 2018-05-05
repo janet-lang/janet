@@ -2,7 +2,7 @@
 (import "examples/iterators.dst")
 
 (defn sum3
- "Solve the 3SUM problem O(n^2) time."
+ "Solve the 3SUM problem in O(n^2) time."
  [s]
  (def tab @{})
  (def solutions @{})
