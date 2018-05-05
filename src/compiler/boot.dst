@@ -691,7 +691,7 @@ to call on any table. Does not print table prototype information."
       (buffer-popn indent 2)
       (buffer-push-string buf indent))))
 
-  (defn pp-dict-nested [y proto?]
+  (defn pp-dict-nested [y]
    (buffer-push-string indent "  ")
    (def ps (sort (pairs y)))
    (for [i 0 (length ps)]
@@ -700,10 +700,6 @@ to call on any table. Does not print table prototype information."
     (recur k)
     (buffer-push-string buf " ")
     (recur v))
-   (when proto?
-    (buffer-push-string buf indent)
-    (buffer-push-string buf "{proto} ")
-    (recur proto?))
    (buffer-popn indent 2)
    (buffer-push-string buf indent))
 
@@ -717,9 +713,8 @@ to call on any table. Does not print table prototype information."
     (recur v)))
 
   (defn pp-dict [y]
-   (def proto? (and (table? y) (getproto y)))
-   (def complex? (or proto? (> (length y) 4)))
-   ((if complex? pp-dict-nested pp-dict-simple) y proto?))
+   (def complex? (> (length y) 4))
+   ((if complex? pp-dict-nested pp-dict-simple) y))
 
   (def printers {
    :array  (fn [y] (do-ds y "@[" "]" true pp-seq))
@@ -898,7 +893,7 @@ onvalue."
   (if good
    (if (= (fiber-status f) :error)
     (onerr "runtime" res f)
-    (onvalue res))))
+    (if going (onvalue res)))))
 
  # Run loop
  (def oldenv *env*)
@@ -931,6 +926,20 @@ onvalue."
    (when tail (file-write stdout " (tailcall)"))
    (file-write stdout "\n"))))
 
+(defn eval 
+ "Evaluates a string in the current environment. If more control over the
+environment is needed, use run-context."
+ [str]
+ (var state (string str))
+ (defn chunks [buf] 
+  (def ret state)
+  (:= state nil)
+  (if ret
+    (buffer-push-string buf ret)))
+ (var returnval nil)
+ (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler)
+ returnval)
+
 (def require (do
  (def cache @{})
  (def loading @{})
@@ -939,7 +948,9 @@ onvalue."
     (error (string "circular dependency: module " path " is loading")))
    (def check (get cache path))
    (if check check (do
-     (if (= ".so" (string-slice path -3 -1))
+     (if (or
+          (= ".so" (string-slice path -3 -1))
+          (= ".dll" (string-slice path -4 -1)))
       ((native path))
       (do
        (def newenv (make-env))
@@ -963,8 +974,7 @@ onvalue."
   (def v (get newenv k))
   (when (not (get v :private))
    (put env (symbol prefix k) v))
-  (:= k (next newenv k)))
- env)
+  (:= k (next newenv k))))
 
 (defmacro import [path & args]
  (apply tuple import* '_env path args))

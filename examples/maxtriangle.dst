@@ -14,11 +14,11 @@
 # Test it
 # Maximum path is 3 -> 10 -> 3 -> 9 for a total of 25
 
-(def triangle @[
- @[3]
- @[7 10]
- @[4 3 7]
- @[8 9 1 3]
+(def triangle '[
+ [3]
+ [7 10]
+ [4 3 7]
+ [8 9 1 3]
 ])
 
 (print (maxpath triangle))
