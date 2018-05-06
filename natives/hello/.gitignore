@@ -1,21 +1,4 @@
 
-# Created by https://www.gitignore.io/api/cmake
-
-### CMake ###
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
-Makefile
-cmake_install.cmake
-install_manifest.txt
-compile_commands.json
-CTestTestfile.cmake
-build
-
-
-# End of https://www.gitignore.io/api/cmake
-
 # Created by https://www.gitignore.io/api/c
 
 ### C ###
@@ -74,3 +57,20 @@ dkms.conf
 
 
 # End of https://www.gitignore.io/api/c
+
+# Created by https://www.gitignore.io/api/cmake
+
+### CMake ###
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+build
+
+
+# End of https://www.gitignore.io/api/cmake

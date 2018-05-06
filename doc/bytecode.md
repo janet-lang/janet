@@ -82,22 +82,23 @@ as well as constants referenced by the function.
 
 ## C Functions
 
-Dst uses c functions to bridge to native code. A C function
+Dst uses C functions to bridge to native code. A C function
 (`DstCFunction *` in C) is a C function pointer that can be called like
 a normal dst closure. From the perspective of the bytecode instruction set, there is no difference
-in invoking a c function and invoking a normal dst function.
+in invoking a C function and invoking a normal dst function.
 
 ## Bytecode Format
 
-Dst bytecode presents an interface to virtual machine with a large number
+Dst bytecode presents an interface to a virtual machine with a large number
 of identical registers that can hold any Dst value (`Dst *` in C). Most instructions
 have a destination register, and 1 or 2 source register. Registers are simply
 named with positive integers.
 
 Each instruction is a 32 bit integer, meaning that the instruction set is a constant
 width instruction set like MIPS. The opcode of each instruction is the least significant
-byte of the instruction. This means there are 256 possible opcodes, but half of those
-are reserved, so 128 possible opcodes. The current implementation uses about half of these.
+byte of the instruction. The highest bit of
+this leading byte is reserved for debugging purpose, so there are 128 possible opcodes encodable
+with this scheme. The current implementation uses about half of these possible opcodes.
 
 ```
 X - Payload bits
@@ -114,7 +115,7 @@ There are a few instruction variants that divide these payload bits.
 
 * 0 arg - Used for noops, returning nil, or other instructions that take no
   arguments. The payload is essentially ignored.
-* 1 arg - All payload bits correspond to a single value, usually a signed or a signed integer/
+* 1 arg - All payload bits correspond to a single value, usually a signed or unsigned integer.
   Used for instructions of 1 argument, like returning a value, yielding a value to the parent fiber,
   or doing a jump.
 * 2 arg - Payload is split into byte 2 and bytes 3 and 4.
@@ -139,13 +140,13 @@ Each instruction is also listed with a signature, which are the arguments the in
 expects. There are a handful of instruction signatures, which combine the arity and type
 of the instruction. The assembler does not
 do any typechecking per closure, but does prevent jumping to invalid instructions and
-failiure to return or error.
+failure to return or error.
 
 ### Notation
 
 * The $ prefix indicates that a instruction parameter is acting as a virtual register (slot).
   If a parameter does not have the $ suffix in the description, it is acting as some kind
-  of literal (usually an unisgned integer for indexes, and a signed integer for literal integers).
+  of literal (usually an unsigned integer for indexes, and a signed integer for literal integers).
 
 * Some operators in the description have the suffix 'i' or 'r'. These indicate
   that these operators correspond to integers or real numbers only, respectively. All

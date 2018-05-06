@@ -20,6 +20,10 @@
 * IN THE SOFTWARE.
 */
 
+#ifdef ONEFILE
+#include "sqlite3.c"
+#endif
+
 #include "sqlite3.h"
 
 #include <dst/dst.h>
