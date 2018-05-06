@@ -237,7 +237,7 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
         case DST_MEMORY_ABSTRACT:
             if (h->type->gc) {
                 if (h->type->gc((void *)(h + 1), h->size)) {
-                    /* finalizer failed. try again later? */
+                    /* finalizer failed. try again later? Panic? For now do nothing. */
                     ;
                 }
             }

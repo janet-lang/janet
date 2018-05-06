@@ -257,9 +257,9 @@ int dst_arity_err(DstArgs args, int32_t n, const char *prefix) {
                     prefix, n, n == 1 ? "" : "s", args.n)));
 }
 
-int dst_typeabstract_err(DstArgs args, int32_t n, DstAbstractType *at) {
+int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at) {
     return dst_throwv(args,
             dst_wrap_string(dst_formatc(
-                    "bad argument #%d, expected %t, got %s", 
+                    "bad argument #%d, expected %s, got %s", 
                     n, at->name, typestr(args, n)))); 
 }

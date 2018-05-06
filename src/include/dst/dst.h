@@ -201,7 +201,7 @@ DstTable *dst_stl_env(void);
 int dst_arity_err(DstArgs args, int32_t n, const char *prefix);
 int dst_type_err(DstArgs args, int32_t n, DstType expected);
 int dst_typemany_err(DstArgs args, int32_t n, int expected);
-int dst_typeabstract_err(DstArgs args, int32_t n, DstAbstractType *at);
+int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
 #define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)
 #define dst_throwv(a, v) (*((a).ret) = (v), 1)
 #define dst_return(a, v) (*((a).ret) = (v), 0)
@@ -230,7 +230,7 @@ int dst_typeabstract_err(DstArgs args, int32_t n, DstAbstractType *at);
 } while (0)
 
 #define dst_checkabstract(A, N, AT) do {\
-    if ((A).n <= (N) || !dst_checktype() {\
+    if ((A).n > (N)) {\
         Dst x = (A).v[(N)];\
         if (!dst_checktype(x, DST_ABSTRACT) ||\
                 dst_abstract_type(dst_unwrap_abstract(x)) != (AT))\
