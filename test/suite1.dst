@@ -67,4 +67,10 @@
 (assert (= nil (get roottab :childprop)), "table get 2")
 (assert (= 456 (get childtab :childprop)), "proto no effect")
 
+# Long strings
+
+(assert (= "hello, world" \==\hello, world\==\), "simple long string")
+(assert (= "hello, \"world\"" \\hello, "world"\\), "long string with embedded quotes")
+(assert (= "hello, \\\\\\ \"world\"" \=\hello, \\\ "world"\=\), "long string with embedded quotes and backslashes")
+
 (end-suite)

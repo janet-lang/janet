@@ -169,7 +169,6 @@ static uint8_t checkescape(uint8_t c) {
         case 'f': return '\f';
         case 'e': return 27;
         case '"': return '"'; 
-        case '\'': return '\''; 
         case '\\': return '\\'; 
     }
 }

@@ -149,6 +149,7 @@ static struct DstScanRes dst_scan_impl(
 
     /* Initialize flags */
     int seenadigit = 0;
+    int gotradix = 0;
 
     /* Initialize result */
     res.mant = 0;
@@ -197,15 +198,19 @@ static struct DstScanRes dst_scan_impl(
         } else if (res.base == 10 && (*str == 'E' || *str == 'e')) {
             res.foundexp = 1;
             break;
-        } else if (*str == 'x' || *str == 'X') {
+        } else if (!gotradix && (*str == 'x' || *str == 'X')) {
             if (res.seenpoint || res.mant > 0) goto error;
             res.base = 16;
             res.mant = 0;
-        } else if (*str == 'r' || *str == 'R')  {
+            seenadigit = 0;
+            gotradix = 1;
+        } else if (!gotradix && (*str == 'r' || *str == 'R'))  {
             if (res.seenpoint) goto error;
             if (res.mant < 2 || res.mant > 36) goto error;
             res.base = res.mant;
             res.mant = 0;
+            seenadigit = 0;
+            gotradix = 1;
         } else if (*str == '_')  {
             ;
             /* underscores are ignored - can be used for separator */
@@ -242,6 +247,10 @@ static struct DstScanRes dst_scan_impl(
         while (str < end && *str == '0') str++;
         while (str < end && ee < (INT32_MAX / 40)) {
             int digit = digit_lookup[*str & 0x7F];
+            if (*str == '_') {
+                str++;
+                continue;
+            }
             if (*str > 127 || digit >= res.base) goto error;
             ee = res.base * ee + digit;
             str++;
