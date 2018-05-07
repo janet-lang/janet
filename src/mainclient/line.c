@@ -24,9 +24,12 @@
 
 /* Common */
 int dst_line_getter(DstArgs args) {
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_BUFFER))
-        return dst_throw(args, "expected buffer");
-    dst_line_get(dst_unwrap_buffer(args.v[0]));
+    dst_fixarity(args, 2);
+    dst_check(args, 0, DST_STRING);
+    dst_check(args, 1, DST_BUFFER);
+    dst_line_get(
+            dst_unwrap_string(args.v[0]),
+            dst_unwrap_buffer(args.v[1]));
     return dst_return(args, args.v[0]);
 }
 
@@ -54,8 +57,8 @@ void dst_line_deinit() {
     ;
 }
 
-void dst_line_get(DstBuffer *buffer) {
-    fputs("> ", stdout);
+void dst_line_get(const uint8_t *p, DstBuffer *buffer) {
+    fputs((const char *)p, stdout);
     simpleline(buffer);
 }
 
@@ -431,7 +434,8 @@ static int checktermsupport() {
     return 1;
 }
 
-void dst_line_get(DstBuffer *buffer) {
+void dst_line_get(const uint8_t *p, DstBuffer *buffer) {
+    prompt = (const char *)p; 
     buffer->count = 0;
     historyi = 0;
     if (!isatty(STDIN_FILENO) || !checktermsupport()) {

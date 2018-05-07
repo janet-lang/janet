@@ -853,13 +853,16 @@ onvalue."
  # Are we done yet?
  (var going true)
 
+ # The parser object
+ (def p (parser 1))
+
  # Fiber stream of characters
  (def chars (coro
    (def buf @"")
    (var len 1)
    (while (< 0 len)
       (buffer-clear buf)
-      (chunks buf)
+      (chunks buf p)
       (:= len (length buf))
       (for [i 0 len]
         (yield (get buf i))))
@@ -867,7 +870,6 @@ onvalue."
 
  # Fiber stream of values
  (def vals (coro
-  (def p (parser 1))
   (while going
     (switch (parser-status p)
      :full (yield (parser-produce p))
@@ -977,18 +979,18 @@ environment is needed, use run-context."
   (:= k (next newenv k))))
 
 (defmacro import [path & args]
- (apply tuple import* '_env path args))
+  (apply tuple import* '_env path args))
 
 (defn repl [getchunk]
- "Run a repl. The first parameter is an optional function to call to
+  "Run a repl. The first parameter is an optional function to call to
 get a chunk of source code. Should return nil for end of file."
  (def newenv (make-env))
- (defn chunks [buf]
-    (file-write stdout "> ")
-    (file-flush stdout)
-    (file-read stdin :line buf))
+ (defn chunks [buf p]
+   (file-write stdout (string (parser-state p) "> "))
+   (file-flush stdout)
+   (file-read stdin :line buf))
  (defn onvalue [x]
-  (put newenv '_ @{:value x})
-  (pp x))
+   (put newenv '_ @{:value x})
+   (pp x))
  (run-context newenv (if getchunk getchunk chunks)
   onvalue default-error-handler))

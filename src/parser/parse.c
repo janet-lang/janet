@@ -120,7 +120,10 @@ struct DstParseState {
 
 #define PFLAG_CONTAINER 1
 #define PFLAG_BUFFER 2
-#define PFLAG_SQRBRACKETS 4
+#define PFLAG_PARENS 4
+#define PFLAG_SQRBRACKETS 8
+#define PFLAG_CURLYBRACKETS 16
+#define PFLAG_STRING 32
 
 static void pushstate(DstParser *p, Consumer consumer, int flags) {
     DstParseState s;
@@ -372,8 +375,8 @@ static int dotable(DstParser *p, DstParseState *state, uint8_t c) {
     return root(p, state, c);
 }
 
-#define PFLAG_INSTRING 8
-#define PFLAG_END_CANDIDATE 16
+#define PFLAG_INSTRING 64
+#define PFLAG_END_CANDIDATE 128
 static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
     if (state->flags & PFLAG_INSTRING) {
         /* We are inside the long string */
@@ -426,19 +429,19 @@ static int ampersand(DstParser *p, DstParseState *state, uint8_t c) {
     dst_v_pop(p->states);
     switch (c) {
     case '{':
-        pushstate(p, dotable, PFLAG_CONTAINER);
+        pushstate(p, dotable, PFLAG_CONTAINER | PFLAG_CURLYBRACKETS);
         return 1;
     case '"':
-        pushstate(p, stringchar, PFLAG_BUFFER);
+        pushstate(p, stringchar, PFLAG_BUFFER | PFLAG_STRING);
         return 1;
     case '\\':
-        pushstate(p, longstring, PFLAG_BUFFER);
+        pushstate(p, longstring, PFLAG_BUFFER | PFLAG_STRING);
         return 1;
     case '[':
         pushstate(p, doarray, PFLAG_CONTAINER | PFLAG_SQRBRACKETS);
         return 1;
     case '(':
-        pushstate(p, doarray, PFLAG_CONTAINER);
+        pushstate(p, doarray, PFLAG_CONTAINER | PFLAG_PARENS);
         return 1;
     default:
         break;
@@ -479,13 +482,13 @@ static int root(DstParser *p, DstParseState *state, uint8_t c) {
             p->error = "mismatched delimiter";
             return 1;
         case '(':
-            pushstate(p, dotuple, PFLAG_CONTAINER);
+            pushstate(p, dotuple, PFLAG_CONTAINER | PFLAG_PARENS);
             return 1;
         case '[':
             pushstate(p, dotuple, PFLAG_CONTAINER | PFLAG_SQRBRACKETS);
             return 1;
         case '{':
-            pushstate(p, dostruct, PFLAG_CONTAINER);
+            pushstate(p, dostruct, PFLAG_CONTAINER | PFLAG_CURLYBRACKETS);
             return 1;
     }
 }
@@ -509,14 +512,18 @@ enum DstParserStatus dst_parser_status(DstParser *parser) {
     return DST_PARSE_ROOT;
 }
 
+void dst_parser_flush(DstParser *parser) {
+    dst_v_empty(parser->argstack);
+    dst_v__cnt(parser->states) = 1;
+    dst_v_empty(parser->buf);
+}
+
 const char *dst_parser_error(DstParser *parser) {
     enum DstParserStatus status = dst_parser_status(parser);
     if (status == DST_PARSE_ERROR) {
         const char *e = parser->error;
-        dst_v_empty(parser->argstack);
-        dst_v__cnt(parser->states) = 1;
         parser->error = NULL;
-        dst_v_empty(parser->buf);
+        dst_parser_flush(parser);
         return e;
     }
     return NULL;
@@ -688,6 +695,36 @@ static int cfun_produce(DstArgs args) {
     return dst_return(args, val);
 }
 
+static int cfun_flush(DstArgs args) {
+    DstParser *p = checkparser(args);
+    if (!p) return 1;
+    dst_parser_flush(p);
+    return dst_return(args, args.v[0]);
+}
+
+static int cfun_state(DstArgs args) {
+    int32_t i;
+    uint8_t *buf = NULL;
+    const uint8_t *str;
+    DstParser *p = checkparser(args);
+    if (!p) return 1;
+    for (i = 0; i < dst_v_count(p->states); i++) {
+        DstParseState *s = p->states + i;
+        if (s->flags & PFLAG_PARENS) {
+            dst_v_push(buf, '(');
+        } else if (s->flags & PFLAG_SQRBRACKETS) {
+            dst_v_push(buf, '[');
+        } else if (s->flags & PFLAG_CURLYBRACKETS) {
+            dst_v_push(buf, '{');
+        } else if (s->flags & PFLAG_STRING) {
+            dst_v_push(buf, '"');
+        }
+    }
+    str = dst_string(buf, dst_v_count(buf));
+    dst_v_free(buf);
+    return dst_return(args, dst_wrap_string(str));
+}
+
 /* AST */
 static int cfun_unwrap1(DstArgs args) {
     if (args.n != 1) return dst_throw(args, "expected 1 argument");
@@ -730,6 +767,8 @@ static const DstReg cfuns[] = {
     {"parser-byte", cfun_byte},
     {"parser-error", cfun_error},
     {"parser-status", cfun_status},
+    {"parser-flush", cfun_flush},
+    {"parser-state", cfun_state},
     {"ast-unwrap", cfun_unwrap},
     {"ast-unwrap1", cfun_unwrap1},
     {"ast-wrap", cfun_wrap},

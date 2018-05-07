@@ -2,6 +2,7 @@
 
 (var *should-repl* :private false)
 (var *no-file* :private true)
+(var *use-getline* :private true)
 
 # Flag handlers
 (def handlers :private {
@@ -10,11 +11,13 @@
         (print "Options are:")
         (print "  -h Show this help")
         (print "  -v Print the version string")
+        (print "  -s Use raw stdin instead of getline like functionality")
         (print "  -e Execute a string of dst")
         (print "  -r Enter the repl after running all scripts")
         (os-exit 0)
         1)
   "v" (fn [] (print VERSION) (os-exit 0) 1)
+  "s" (fn [] (:= *use-getline* false) (:= *should-repl* true) 1)
   "r" (fn [] (:= *should-repl* true) 1)
   "e" (fn [i] 
        (:= *no-file* false)
@@ -38,8 +41,12 @@
    (import arg)
    (++ i))))
 
+(defn xgetline [buf p]
+  (def prompt (string (parser-state p) "> "))
+  (getline prompt buf))
+
 (when (or *should-repl* *no-file*) 
  (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
- (repl getline))
+ (repl (if *use-getline* xgetline)))
 
 )

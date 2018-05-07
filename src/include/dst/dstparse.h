@@ -63,6 +63,7 @@ int dst_parser_consume(DstParser *parser, uint8_t c);
 enum DstParserStatus dst_parser_status(DstParser *parser);
 Dst dst_parser_produce(DstParser *parser);
 const char *dst_parser_error(DstParser *parser);
+void dst_parser_flush(DstParser *parser);
 
 int dst_parse_cfun(DstArgs args);
 

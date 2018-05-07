@@ -28,7 +28,7 @@
 void dst_line_init();
 void dst_line_deinit();
 
-void dst_line_get(DstBuffer *buffer);
+void dst_line_get(const uint8_t *p, DstBuffer *buffer);
 int dst_line_getter(DstArgs args);
 
 #endif

@@ -73,4 +73,6 @@
 (assert (= "hello, \"world\"" \\hello, "world"\\), "long string with embedded quotes")
 (assert (= "hello, \\\\\\ \"world\"" \=\hello, \\\ "world"\=\), "long string with embedded quotes and backslashes")
 
+(print :hello)
+
 (end-suite)

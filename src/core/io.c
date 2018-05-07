@@ -221,7 +221,9 @@ static int dst_io_fwrite(DstArgs args) {
         return dst_throw(args, "file is not writeable");
     for (i = 1; i < args.n; i++) {
         if (!checkchars(args, i, &str, &len)) return 1;
-        if (!fwrite(str, len, 1, iof->file)) return dst_throw(args, "error writing to file");
+        if (len) {
+            if (!fwrite(str, len, 1, iof->file)) return dst_throw(args, "error writing to file");
+        }
     }
     return dst_return(args, dst_wrap_abstract(iof));
 }
