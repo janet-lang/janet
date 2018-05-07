@@ -124,6 +124,7 @@ struct DstParseState {
 #define PFLAG_SQRBRACKETS 8
 #define PFLAG_CURLYBRACKETS 16
 #define PFLAG_STRING 32
+#define PFLAG_LONGSTRING 64
 
 static void pushstate(DstParser *p, Consumer consumer, int flags) {
     DstParseState s;
@@ -375,8 +376,8 @@ static int dotable(DstParser *p, DstParseState *state, uint8_t c) {
     return root(p, state, c);
 }
 
-#define PFLAG_INSTRING 64
-#define PFLAG_END_CANDIDATE 128
+#define PFLAG_INSTRING 128
+#define PFLAG_END_CANDIDATE 256
 static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
     if (state->flags & PFLAG_INSTRING) {
         /* We are inside the long string */
@@ -435,7 +436,7 @@ static int ampersand(DstParser *p, DstParseState *state, uint8_t c) {
         pushstate(p, stringchar, PFLAG_BUFFER | PFLAG_STRING);
         return 1;
     case '\\':
-        pushstate(p, longstring, PFLAG_BUFFER | PFLAG_STRING);
+        pushstate(p, longstring, PFLAG_BUFFER | PFLAG_LONGSTRING);
         return 1;
     case '[':
         pushstate(p, doarray, PFLAG_CONTAINER | PFLAG_SQRBRACKETS);
@@ -465,7 +466,7 @@ static int root(DstParser *p, DstParseState *state, uint8_t c) {
             state->qcount++;
             return 1;
         case '"':
-            pushstate(p, stringchar, 0);
+            pushstate(p, stringchar, PFLAG_STRING);
             return 1;
         case '#':
             pushstate(p, comment, 0);
@@ -474,7 +475,7 @@ static int root(DstParser *p, DstParseState *state, uint8_t c) {
             pushstate(p, ampersand, 0);
             return 1;
         case '\\':
-            pushstate(p, longstring, 0);
+            pushstate(p, longstring, PFLAG_LONGSTRING);
             return 1;
         case ')':
         case ']':
@@ -718,6 +719,13 @@ static int cfun_state(DstArgs args) {
             dst_v_push(buf, '{');
         } else if (s->flags & PFLAG_STRING) {
             dst_v_push(buf, '"');
+        } else if (s->flags & PFLAG_LONGSTRING) {
+            int32_t i;
+            dst_v_push(buf, '\\');
+            for (i = 0; i < s->argn; i++) {
+                dst_v_push(buf, '=');
+            }
+            dst_v_push(buf, '\\');
         }
     }
     str = dst_string(buf, dst_v_count(buf));

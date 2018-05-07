@@ -2,7 +2,7 @@
 
 (var *should-repl* :private false)
 (var *no-file* :private true)
-(var *use-getline* :private true)
+(var *raw-stdin* :private false)
 
 # Flag handlers
 (def handlers :private {
@@ -17,7 +17,7 @@
         (os-exit 0)
         1)
   "v" (fn [] (print VERSION) (os-exit 0) 1)
-  "s" (fn [] (:= *use-getline* false) (:= *should-repl* true) 1)
+  "s" (fn [] (:= *raw-stdin* true) (:= *should-repl* true) 1)
   "r" (fn [] (:= *should-repl* true) 1)
   "e" (fn [i] 
        (:= *no-file* false)
@@ -46,7 +46,10 @@
   (getline prompt buf))
 
 (when (or *should-repl* *no-file*) 
- (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
- (repl (if *use-getline* xgetline)))
+  (if *raw-stdin*
+    (repl nil identity)
+    (do
+      (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
+      (repl xgetline))))
 
 )
