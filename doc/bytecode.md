@@ -172,17 +172,24 @@ failure to return or error.
 | `bxor`      | `(bxor dest lhs rhs)`       | $dest = $lhs ^ $rhs               |
 | `call`      | `(call dest callee)`        | $dest = call($callee)             |
 | `clo`       | `(clo dest index)`          | $dest = closure(defs[$index])     |
-| `cmp`       | `(cmp dest lhs rhs)`        | $dest = dst_compare($lhs, $rhs)   |
+| `cmp`       | `(cmp dest lhs rhs)`        | $dest = dst\_compare($lhs, $rhs)  |
 | `debug`     | `(debug)`                   | Suspend current fiber             |
 | `div`       | `(div dest lhs rhs)`        | $dest = $lhs / $rhs               |
 | `divi`      | `(divi dest lhs rhs)`       | $dest = $lhs /i $rhs              |
 | `divim`     | `(divim dest lhs im)`       | $dest = $lhs /i im                |
 | `divr`      | `(divr dest lhs rhs)`       | $dest = $lhs /r $rhs              |
 | `eq`        | `(eq dest lhs rhs)`         | $dest = $lhs == $rhs              |
+| `eqi`       | `(eqi dest lhs rhs)`        | $dest = $lhs ==i $rhs             |
+| `eqim`      | `(eqim dest lhs im)`        | $dest = $lhs ==i im               |
+| `eqr`       | `(eqr dest lhs rhs)`        | $dest = $lhs ==r $rhs             |
 | `err`       | `(err message)`             | Throw error $message.             |
 | `get`       | `(get dest ds key)`         | $dest = $ds[$key]                 |
 | `geti`      | `(geti dest ds index)`      | $dest = $ds[index]                |
 | `gt`        | `(gt dest lhs rhs)`         | $dest = $lhs > $rhs               |
+| `gti`       | `(gti dest lhs rhs)`        | $dest = $lhs \>i $rhs             |
+| `gtim`      | `(gtim dest lhs im)`        | $dest = $lhs \>i im               |
+| `gtr`       | `(gtr dest lhs rhs)`        | $dest = $lhs \>r $rhs             |
+| `gter`      | `(gter dest lhs rhs)`       | $dest = $lhs >=r $rhs             |
 | `jmp`       | `(jmp label)`               | pc = label, pc += offset          |
 | `jmpif`     | `(jmpif cond label)`        | if $cond pc = label else pc++     |
 | `jmpno`     | `(jmpno cond label)`        | if $cond pc++ else pc = label     |
@@ -194,6 +201,10 @@ failure to return or error.
 | `ldt`       | `(ldt dest)`                | $dest = true                      |
 | `ldu`       | `(ldu dest env index)`      | $dest = envs[env][index]          |
 | `lt`        | `(lt dest lhs rhs)`         | $dest = $lhs < $rhs               |
+| `lti`       | `(lti dest lhs rhs)`        | $dest = $lhs \<i $rhs             |
+| `ltim`      | `(ltim dest lhs im)`        | $dest = $lhs \<i im               |
+| `ltr`       | `(ltr dest lhs rhs)`        | $dest = $lhs \<r $rhs             |
+| `lter`      | `(lter dest lhs rhs)`       | $dest = $lhs <=r $rhs             |
 | `movf`      | `(movf src dest)`           | $dest = $src                      |
 | `movn`      | `(movn dest src)`           | $dest = $src                      |
 | `mul`       | `(mul dest lhs rhs)`        | $dest = $lhs * $rhs               |

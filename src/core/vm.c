@@ -108,8 +108,19 @@ static void *op_lookup[255] = {
     &&label_DOP_JUMP_IF,
     &&label_DOP_JUMP_IF_NOT,
     &&label_DOP_GREATER_THAN,
+    &&label_DOP_GREATER_THAN_INTEGER,
+    &&label_DOP_GREATER_THAN_IMMEDIATE,
+    &&label_DOP_GREATER_THAN_REAL,
+    &&label_DOP_GREATER_THAN_EQUAL_REAL,
     &&label_DOP_LESS_THAN,
+    &&label_DOP_LESS_THAN_INTEGER,
+    &&label_DOP_LESS_THAN_IMMEDIATE,
+    &&label_DOP_LESS_THAN_REAL,
+    &&label_DOP_LESS_THAN_EQUAL_REAL,
     &&label_DOP_EQUALS,
+    &&label_DOP_EQUALS_INTEGER,
+    &&label_DOP_EQUALS_IMMEDIATE,
+    &&label_DOP_EQUALS_REAL,
     &&label_DOP_COMPARE,
     &&label_DOP_LOAD_NIL,
     &&label_DOP_LOAD_TRUE,
@@ -389,6 +400,39 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
+    /* Candidate */
+    VM_OP(DOP_LESS_THAN_INTEGER)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_integer(stack[oparg(2, 0xFF)]) <
+            dst_unwrap_integer(stack[oparg(3, 0xFF)]));
+    pc++;
+    vm_next();
+
+    /* Candidate */
+    VM_OP(DOP_LESS_THAN_IMMEDIATE)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_integer(stack[oparg(2, 0xFF)]) < ((*(int32_t *)pc) >> 24)
+    );
+    pc++;
+    vm_next();
+
+    /* Candidate */
+    VM_OP(DOP_LESS_THAN_REAL)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_real(stack[oparg(2, 0xFF)]) <
+            dst_unwrap_real(stack[oparg(3, 0xFF)]));
+    pc++;
+    vm_next();
+
+    /* Candidate */
+    VM_OP(DOP_LESS_THAN_EQUAL_REAL)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_real(stack[oparg(2, 0xFF)]) <=
+            dst_unwrap_real(stack[oparg(3, 0xFF)]));
+    pc++;
+    vm_next();
+
+
     VM_OP(DOP_GREATER_THAN)
     stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_compare(
             stack[oparg(2, 0xFF)],
@@ -397,11 +441,69 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
+    /* Candidate */
+    VM_OP(DOP_GREATER_THAN_INTEGER)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_integer(stack[oparg(2, 0xFF)]) >
+            dst_unwrap_integer(stack[oparg(3, 0xFF)]));
+    pc++;
+    vm_next();
+
+    /* Candidate */
+    VM_OP(DOP_GREATER_THAN_IMMEDIATE)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_integer(stack[oparg(2, 0xFF)]) > ((*(int32_t *)pc) >> 24)
+    );
+    pc++;
+    vm_next();
+
+    /* Candidate */
+    VM_OP(DOP_GREATER_THAN_REAL)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_real(stack[oparg(2, 0xFF)]) >
+            dst_unwrap_real(stack[oparg(3, 0xFF)]));
+    pc++;
+    vm_next();
+
+    /* Candidate */
+    VM_OP(DOP_GREATER_THAN_EQUAL_REAL)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_real(stack[oparg(2, 0xFF)]) >=
+            dst_unwrap_real(stack[oparg(3, 0xFF)]));
+    pc++;
+    vm_next();
+
     VM_OP(DOP_EQUALS)
     stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_equals(
             stack[oparg(2, 0xFF)],
             stack[oparg(3, 0xFF)]
         ));
+    pc++;
+    vm_next();
+
+    /* Candidate */
+    VM_OP(DOP_EQUALS_INTEGER)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_integer(stack[oparg(2, 0xFF)]) ==
+            dst_unwrap_integer(stack[oparg(3, 0xFF)])
+        );
+    pc++;
+    vm_next();
+
+    /* Candidate */
+    VM_OP(DOP_EQUALS_REAL)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_real(stack[oparg(2, 0xFF)]) ==
+            dst_unwrap_real(stack[oparg(3, 0xFF)])
+        );
+    pc++;
+    vm_next();
+
+    /* Candidate */
+    VM_OP(DOP_EQUALS_IMMEDIATE)
+    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
+            dst_unwrap_integer(stack[oparg(2, 0xFF)]) == ((*(int32_t *)pc) >> 24)
+    );
     pc++;
     vm_next();
 

@@ -41,6 +41,20 @@
  (apply1 tuple (array-concat
   @['defmacro name :private] more)))
 
+(defmacro defdo
+ "Define a value inside of a do form."
+ [name & more]
+ (apply1 tuple (array-concat
+  @['def name]
+  (apply1 tuple (array-concat @['do] more)))))
+
+(defmacro defdo-
+ "Define a private value inside of a do form."
+ [name & more]
+ (apply1 tuple (array-concat
+  @['def name :private]
+  (apply1 tuple (array-concat @['do] more)))))
+
 (defmacro defn-
  "Define a private function that will not be exported."
  [name & more]
