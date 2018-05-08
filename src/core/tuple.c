@@ -152,8 +152,8 @@ static int cfun_append(DstArgs args) {
 /* Load the tuple module */
 int dst_lib_tuple(DstArgs args) {
     DstTable *env = dst_env_arg(args);
-    dst_env_def(env, "tuple-slice", dst_wrap_cfunction(cfun_slice));
-    dst_env_def(env, "tuple-append", dst_wrap_cfunction(cfun_append));
-    dst_env_def(env, "tuple-prepend", dst_wrap_cfunction(cfun_prepend));
+    dst_env_def(env, "tuple.slice", dst_wrap_cfunction(cfun_slice));
+    dst_env_def(env, "tuple.append", dst_wrap_cfunction(cfun_append));
+    dst_env_def(env, "tuple.prepend", dst_wrap_cfunction(cfun_prepend));
     return 0;
 }

@@ -60,7 +60,7 @@
  :childprop 456
 })
 
-(setproto childtab roottab)
+(table.setproto childtab roottab)
 
 (assert (= 123 (get roottab :parentprop)), "table get 1")
 (assert (= 123 (get childtab :parentprop)), "table get proto")

@@ -38,7 +38,7 @@ static int gcsqlite(void *p, size_t s) {
 }
 
 static const DstAbstractType sql_conn_type = {
-    ":sqlite3.conn",
+    ":sqlite3.connection",
     gcsqlite,
     NULL,
 };
@@ -77,15 +77,15 @@ static int sql_close(DstArgs args) {
 static int sql_execute_callback(void *rowsp, int n, char **vals, char **colnames) {
     int i;
     DstArray *rows = (DstArray *)rowsp;
-    DstTable *row = dst_table(n);
+    DstKV *row = dst_struct_begin(n);
     for (i = 0; i < n; i++) {
-        dst_table_put(row, dst_cstringv(colnames[i]), dst_cstringv(vals[i]));
+        dst_struct_put(row, dst_cstringv(colnames[i]), dst_cstringv(vals[i]));
     }
-    dst_array_push(rows, dst_wrap_table(row));
+    dst_array_push(rows, dst_wrap_struct(dst_struct_end(row)));
     return 0;
 }
 
-static int sql_execute(DstArgs args) {
+static int sql_sql(DstArgs args) {
     int status;
     char *errmsg = "connection closed";
     const uint8_t *str;
@@ -121,7 +121,7 @@ static int sql_rowid(DstArgs args) {}
 static const DstReg cfuns[] = {
     {"open", sql_open},
     {"close", sql_close},
-    {"execute", sql_execute},
+    {"sql", sql_sql},
     /*{"tables", sql_tables},*/
     /*{"changes", sql_changes},*/
     /*{"timeout", sql_timeout},*/

@@ -86,10 +86,10 @@ static int os_exit(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
-    {"os-execute", os_execute},
-    {"os-exit", os_exit},
-    {"os-getenv", os_getenv},
-    {"os-setenv", os_setenv},
+    {"os.execute", os_execute},
+    {"os.exit", os_exit},
+    {"os.getenv", os_getenv},
+    {"os.setenv", os_setenv},
     {NULL, NULL}
 };
 

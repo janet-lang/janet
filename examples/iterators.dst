@@ -46,7 +46,7 @@
 (defn iter2array [itr]
  (def {:more more :next next} (iter itr))
  (def a @[])
- (while (more) (array-push a (next)))
+ (while (more) (array.push a (next)))
  a)
 
 (defn map [f itr]

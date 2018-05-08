@@ -12,19 +12,19 @@
  _env)
 
 (def defn :macro
- "Define a function"
+ "Define a function. Equivalent to (def name (fn name [args] ...))."
   (fn [name & more]
    (def len (length more))
    (def fstart (fn recur [i]
-    (def ith (ast-unwrap1 (get more i)))
+    (def ith (ast.unwrap1 (get more i)))
     (def t (type ith))
     (def tuple? (= t :tuple))
     (def array? (= t :array))
     (if (if tuple? tuple? array?) i
      (if (< i len) (recur (+ i 1))))))
    (def start (fstart 0))
-   (def fnbody (tuple-prepend (tuple-prepend (tuple-slice more start) name) 'fn))
-   (def formargs (array-concat @['def name] (array-slice more 0 start) @[fnbody]))
+   (def fnbody (tuple.prepend (tuple.prepend (tuple.slice more start) name) 'fn))
+   (def formargs (array.concat @['def name] (array.slice more 0 start) @[fnbody]))
    (apply1 tuple formargs)))
 
 (def defmacro :macro
@@ -32,39 +32,39 @@
  (do
   (def defn* (get (get _env 'defn) :value))
   (fn [name & more]
-   (apply1 defn* (array-concat
+   (apply1 defn* (array.concat
     @[name :macro] more)))))
 
 (defmacro defmacro-
  "Define a private macro that will not be exported."
  [name & more]
- (apply1 tuple (array-concat
+ (apply1 tuple (array.concat
   @['defmacro name :private] more)))
 
 (defmacro defdo
  "Define a value inside of a do form."
  [name & more]
- (apply1 tuple (array-concat
+ (apply1 tuple (array.concat
   @['def name]
-  (apply1 tuple (array-concat @['do] more)))))
+  (apply1 tuple (array.concat @['do] more)))))
 
 (defmacro defdo-
  "Define a private value inside of a do form."
  [name & more]
- (apply1 tuple (array-concat
+ (apply1 tuple (array.concat
   @['def name :private]
-  (apply1 tuple (array-concat @['do] more)))))
+  (apply1 tuple (array.concat @['do] more)))))
 
 (defmacro defn-
  "Define a private function that will not be exported."
  [name & more]
- (apply1 tuple (array-concat
+ (apply1 tuple (array.concat
   @['defn name :private] more)))
 
 (defmacro def-
  "Define a private value that will not be exported."
  [name & more]
- (apply1 tuple (array-concat
+ (apply1 tuple (array.concat
   @['def name :private] more)))
 
 # Basic predicates
@@ -132,12 +132,12 @@ Expands to (def sym (if (= nil sym) val sym))"
 (defmacro when
  "Evaluates the body when the condition is true. Otherwise returns nil."
  [condition & body]
- (tuple 'if condition (tuple-prepend body 'do)))
+ (tuple 'if condition (tuple.prepend body 'do)))
 
 (defmacro when-not
  "Shorthand for (when (not ... "
   [condition & body]
-  (tuple 'if condition nil (tuple-prepend body 'do)))
+  (tuple 'if condition nil (tuple.prepend body 'do)))
 
 (defmacro cond
 "Evaluates conditions sequentially until the first true condition
@@ -174,14 +174,14 @@ tuple and will be spliced into the function call. For example, (apply + 1 2 @[3 
 evaluates to 10."
  [f & args]
   (def last (- (length args) 1))
-  (apply1 f (array-concat (array-slice args 0 -2) (get args last))))
+  (apply1 f (array.concat (array.slice args 0 -2) (get args last))))
 
 (defmacro switch
 "Select the body that equals the dispatch value. When pairs
 has an odd number of arguments, the last is the default expression.
 If no match is found, returns nil"
  [dispatch & pairs]
-  (def atm (atomic? (ast-unwrap1 dispatch)))
+  (def atm (atomic? (ast.unwrap1 dispatch)))
   (def sym (if atm dispatch (gensym)))
   (defn aux [i]
     (def restlen (- (length pairs) i))
@@ -201,30 +201,30 @@ If no match is found, returns nil"
 assigned as if with def, and the body of the let form returns the last
 value."
  [bindings & body]
-  (def head (ast-unwrap1 bindings))
+  (def head (ast.unwrap1 bindings))
   (if (odd? (length head)) (error "expected even number of bindings to let"))
   (def len (length head))
   (var i 0)
   (var accum @['do])
   (while (< i len)
-   (array-push accum (tuple 'def
+   (array.push accum (tuple 'def
                      (get head i)
                      (get head (+ 1 i))))
    (+= i 2))
-  (array-concat accum body)
+  (array.concat accum body)
   (apply1 tuple accum))
 
 (defmacro for
  "An imperative for loop over an integer range. Use with caution and discretion."
  [head & body]
-  (def [sym start end _inc] (ast-unwrap1 head))
+  (def [sym start end _inc] (ast.unwrap1 head))
   (def inc (if _inc _inc 1))
   (def endsym (gensym))
   (tuple 'do
     (tuple 'var sym start)
     (tuple 'def endsym end)
     (tuple 'while (tuple < sym endsym)
-     (tuple-prepend body 'do)
+     (tuple.prepend body 'do)
      (tuple ':= sym (tuple + sym inc)))))
 
 (defmacro and
@@ -247,7 +247,7 @@ evaluates to true."
   (if
    (>= (inc i) len) fi
    (do
-    (if (atomic? (ast-unwrap1 fi))
+    (if (atomic? (ast.unwrap1 fi))
      (tuple 'if fi fi (aux (inc i)))
      (do
       (def $fi (gensym))
@@ -264,7 +264,7 @@ evaluates to true."
  all the forms with let and evaluates the first expression else
  evaluates the second"
   [bindings tru fal]
-  (def bindings (ast-unwrap1 bindings))
+  (def bindings (ast.unwrap1 bindings))
   (def len (length bindings))
   (if (zero? len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
@@ -274,7 +274,7 @@ evaluates to true."
     (if (>= i len)
      tru
      (do
-      (def atm (atomic? (ast-unwrap1 bl)))
+      (def atm (atomic? (ast.unwrap1 bl)))
       (def sym (if atm bl (gensym)))
       (if atm
        # Simple binding
@@ -295,7 +295,7 @@ evaluates to true."
 "Takes the first one or two forms in vector and if true binds
  all the forms  with let and evaluates the body"
   [bindings & body]
-  (tuple 'if-let bindings (tuple-prepend body 'do)))
+  (tuple 'if-let bindings (tuple.prepend body 'do)))
 
 (defn comp
 "Takes multiple functions and returns a function that is the composition
@@ -309,7 +309,7 @@ evaluates to true."
   4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
     (let [[f g h i j] functions]
      (apply comp (fn [x] (f (g (h (i (j x))))))
-      (tuple-slice functions 5 -1)))))
+      (tuple.slice functions 5 -1)))))
 
 (defn identity
  "A function that returns its first argument."
@@ -404,14 +404,14 @@ the same type as the input sequence."
   (if (< l limit) (:= limit l)))
  (def [i1 i2 i3 i4] inds)
  (switch ninds
-  1 (for [i 0 limit] (array-push res (f (get i1 i))))
-  2 (for [i 0 limit] (array-push res (f (get i1 i) (get i2 i))))
-  3 (for [i 0 limit] (array-push res (f (get i1 i) (get i2 i) (get i3 i))))
-  4 (for [i 0 limit] (array-push res (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
+  1 (for [i 0 limit] (array.push res (f (get i1 i))))
+  2 (for [i 0 limit] (array.push res (f (get i1 i) (get i2 i))))
+  3 (for [i 0 limit] (array.push res (f (get i1 i) (get i2 i) (get i3 i))))
+  4 (for [i 0 limit] (array.push res (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
   (for [i 0 limit]
    (def args @[])
-   (for [j 0 ninds] (array-push args (get (get inds j) i)))
-   (array-push res (apply1 f args))))
+   (for [j 0 ninds] (array.push args (get (get inds j) i)))
+   (array.push res (apply1 f args))))
  res)
 
 (defn each
@@ -432,7 +432,7 @@ return a new indexed type."
   4 (for [i 0 limit] (f (get i1 i) (get i2 i) (get i3 i) (get i4 i)))
   (for [i 0 limit]
    (def args @[])
-   (for [j 0 ninds] (array-push args (get (get inds j) i)))
+   (for [j 0 ninds] (array.push args (get (get inds j) i)))
    (apply1 f args))))
 
 (defn mapcat
@@ -442,7 +442,7 @@ type as the input sequence."
  [f ind t]
  (def res @[])
  (for [i 0 (length ind)]
-  (array-concat res (f (get ind i))))
+  (array.concat res (f (get ind i))))
  (if (= :tuple (type (or t ind)))
   (apply1 tuple res)
   res))
@@ -455,7 +455,7 @@ which (pred element) is truthy. Returns the same type as the input sequence."
  (for [i 0 (length ind)]
   (def item (get ind i))
   (if (pred item)
-   (array-push res item)))
+   (array.push res item)))
  (if (= :tuple (type (or t ind)))
   (apply1 tuple res)
   res))
@@ -485,8 +485,8 @@ the same type as the input."
  [pred ind t]
  (def i (find-index pred ind))
  (if (= :tuple (type (or t ind)))
-  (tuple-slice ind 0 i)
-  (array-slice ind 0 i)))
+  (tuple.slice ind 0 i)
+  (array.slice ind 0 i)))
 
 (defn take-while
  "Same as (take-until (complement pred) ind t)."
@@ -499,8 +499,8 @@ the predicate, and abort on first failure."
  [pred ind t]
  (def i (find-index pred ind))
  (if (= :tuple (type (or t ind)))
-  (tuple-slice ind i -1)
-  (array-slice ind i -1)))
+  (tuple.slice ind i -1)
+  (array.slice ind i -1)))
 
 (defn drop-while
  "Same as (drop-until (complement pred) ind t)."
@@ -513,7 +513,7 @@ the predicate, and abort on first failure."
   (fn [& args]
    (def ret @[])
    (for [i 0 len]
-    (array-push ret (apply1 (get funs i) args)))
+    (array.push ret (apply1 (get funs i) args)))
    (apply1 tuple ret)))
 
 (defmacro juxt
@@ -521,7 +521,7 @@ the predicate, and abort on first failure."
  (def parts @['tuple])
  (def $args (gensym))
  (for [i 0 (length funs)]
-  (array-push parts (tuple apply1 (get funs i) $args)))
+  (array.push parts (tuple apply1 (get funs i) $args)))
  (tuple 'fn (tuple '& $args) (apply1 tuple parts)))
 
 (defmacro ->
@@ -530,11 +530,11 @@ in form, and inserts the modified firsts form into the second form
 in the same manner, and so on. Useful for expressing pipelines of data."
  [x & forms]
  (defn fop [last nextform]
-  (def n (ast-unwrap1 nextform))
+  (def n (ast.unwrap1 nextform))
   (def [h t] (if (= :tuple (type n))
-        [tuple (get n 0) (array-slice n 1)]
+        [tuple (get n 0) (array.slice n 1)]
         [tuple n @[]]))
-  (def parts (array-concat @[h last] t))
+  (def parts (array.concat @[h last] t))
   (apply1 tuple parts))
  (reduce fop x forms))
 
@@ -544,11 +544,11 @@ in form, and inserts the modified firsts form into the second form
 in the same manner, and so on. Useful for expressing pipelines of data."
  [x & forms]
  (defn fop [last nextform]
-  (def n (ast-unwrap1 nextform))
+  (def n (ast.unwrap1 nextform))
   (def [h t] (if (= :tuple (type n))
-        [tuple (get n 0) (array-slice n 1)]
+        [tuple (get n 0) (array.slice n 1)]
         [tuple n @[]]))
-  (def parts (array-concat @[h] t @[last]))
+  (def parts (array.concat @[h] t @[last]))
   (apply1 tuple parts))
  (reduce fop x forms))
 
@@ -556,7 +556,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
  "Partial function application."
  [f & more]
  (if (zero? (length more)) f
-  (fn [& r] (apply1 f (array-concat @[] more r)))))
+  (fn [& r] (apply1 f (array.concat @[] more r)))))
 
 (defn every? [pred seq]
  (var res true)
@@ -569,27 +569,27 @@ in the same manner, and so on. Useful for expressing pipelines of data."
    (do (:= res false) (:= i len))))
  res)
 
-(defn reverse-array
+(defn array.reverse
  "Reverses the order of the elements in a given array or tuple and returns a new array."
  [t]
  (var n (dec (length t)))
  (var reversed @[])
  (while (>= n 0)
-  (array-push reversed (get t n))
+  (array.push reversed (get t n))
   (-- n))
   reversed)
 
-(defn reverse-tuple
+(defn tuple.reverse
  "Reverses the order of the elements given an array or tuple and returns a tuple"
  [t]
- (apply1 tuple (reverse-array t)))
+ (apply1 tuple (array.reverse t)))
 
 (defn reverse
  "Reverses order of elements in a given array or tuple"
  [t]
- (switch (type t)
-  :tuple (reverse-tuple t)
-  :array (reverse-array t)))
+ ((switch (type t)
+  :tuple tuple.reverse
+  :array array.reverse) t))
 
 (defn zipcoll
 "Creates an table or tuple from two arrays/tuples. If a third argument of
@@ -602,7 +602,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
   (for [i 0 len]
    (put res (get keys i) (get vals i)))
   (if (= :struct t)
-    (table-to-struct res)
+    (table.to-struct res)
     res))
 
 (defn update
@@ -625,7 +625,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
    (while (not= nil key)
      (put container key (get c key))
      (:= key (next c key))))
-  (if (table? (get colls 0)) container (table-to-struct container)))
+  (if (table? (get colls 0)) container (table.to-struct container)))
 
 (defn keys
  "Get the keys of an associative data structure."
@@ -633,7 +633,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
  (def arr @[])
  (var k (next x nil))
  (while (not= nil k)
-  (array-push arr k)
+  (array.push arr k)
   (:= k (next x k)))
  arr)
 
@@ -643,7 +643,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
  (def arr @[])
  (var k (next x nil))
  (while (not= nil k)
-  (array-push arr (get x k))
+  (array.push arr (get x k))
   (:= k (next x k)))
  arr)
 
@@ -653,7 +653,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
  (def arr @[])
  (var k (next x nil))
  (while (not= nil k)
-  (array-push arr (tuple k (get x k)))
+  (array.push arr (tuple k (get x k)))
   (:= k (next x k)))
  arr)
 
@@ -681,49 +681,49 @@ to call on any table. Does not print table prototype information."
    (def id (get seen y))
    (if (and checkcycle id)
     (do
-     (buffer-push-string buf "<cycle ")
-     (buffer-push-string buf (string id))
-     (buffer-push-string buf ">"))
+     (buffer.push-string buf "<cycle ")
+     (buffer.push-string buf (string id))
+     (buffer.push-string buf ">"))
     (do
      (put seen y (++ nextid))
-     (buffer-push-string buf start)
+     (buffer.push-string buf start)
      (dispatch y)
-     (buffer-push-string buf end))))
+     (buffer.push-string buf end))))
 
   (defn pp-seq [y]
    (def len (length y))
    (if (< len 5)
     (do
      (for [i 0 len]
-      (when (not= i 0) (buffer-push-string buf " "))
+      (when (not= i 0) (buffer.push-string buf " "))
       (recur (get y i))))
     (do
-      (buffer-push-string indent "  ")
+      (buffer.push-string indent "  ")
       (for [i 0 len]
-       (when (not= i len) (buffer-push-string buf indent))
+       (when (not= i len) (buffer.push-string buf indent))
        (recur (get y i)))
-      (buffer-popn indent 2)
-      (buffer-push-string buf indent))))
+      (buffer.popn indent 2)
+      (buffer.push-string buf indent))))
 
   (defn pp-dict-nested [y]
-   (buffer-push-string indent "  ")
+   (buffer.push-string indent "  ")
    (def ps (sort (pairs y)))
    (for [i 0 (length ps)]
     (def [k v] (get ps i))
-    (buffer-push-string buf indent)
+    (buffer.push-string buf indent)
     (recur k)
-    (buffer-push-string buf " ")
+    (buffer.push-string buf " ")
     (recur v))
-   (buffer-popn indent 2)
-   (buffer-push-string buf indent))
+   (buffer.popn indent 2)
+   (buffer.push-string buf indent))
 
   (defn pp-dict-simple [y]
    (def ps (sort (pairs y)))
    (for [i 0 (length ps)]
     (def [k v] (get ps i))
-    (if (pos? i) (buffer-push-string buf " "))
+    (if (pos? i) (buffer.push-string buf " "))
     (recur k)
-    (buffer-push-string buf " ")
+    (buffer.push-string buf " ")
     (recur v)))
 
   (defn pp-dict [y]
@@ -741,12 +741,12 @@ to call on any table. Does not print table prototype information."
     (def p (get printers (type y)))
     (if p
      (p y)
-     (buffer-push-string buf (describe y)))))
+     (buffer.push-string buf (describe y)))))
 
   (recur x)
-  (buffer-push-string buf "\n")
+  (buffer.push-string buf "\n")
 
-  (file-write stdout buf))
+  (file.write stdout buf))
 
 ###
 ###
@@ -762,7 +762,7 @@ to call on any table. Does not print table prototype information."
   (def len (length a))
   (def newa @[])
   (for [i 0 len]
-   (array-push newa (macroexpand1 (get a i))))
+   (array.push newa (macroexpand1 (get a i))))
   newa)
 
  (defn dotable [t]
@@ -776,14 +776,14 @@ to call on any table. Does not print table prototype information."
  (defn expandlast [t]
   (def len (length t))
   (def last (get t (- len 1)))
-  (tuple-append (tuple-slice t 0 -2) (macroexpand1 last)))
+  (tuple.append (tuple.slice t 0 -2) (macroexpand1 last)))
 
  (defn expandall [t]
-  (def args (doarray (tuple-slice t 1)))
+  (def args (doarray (tuple.slice t 1)))
   (apply tuple (get t 0) args))
 
  (defn expandfn [t]
-  (def args (doarray (tuple-slice t 2)))
+  (def args (doarray (tuple.slice t 2)))
   (apply tuple 'fn (get t 1) args))
 
   (def specs {
@@ -806,7 +806,7 @@ to call on any table. Does not print table prototype information."
   (def m? (get entry :macro))
   (cond
    s (s t)
-   m? (apply1 m (tuple-slice t 1))
+   m? (apply1 m (tuple.slice t 1))
    (apply1 tuple (doarray t))))
 
  (defn doarray* [a]
@@ -815,13 +815,13 @@ to call on any table. Does not print table prototype information."
 
  (defn dotable* [t]
   (def res (dotable t))
-  (if (= (table-to-struct res) (table-to-struct t)) t res))
+  (if (= (table.to-struct res) (table.to-struct t)) t res))
 
- (def ux (ast-unwrap1 x))
+ (def ux (ast.unwrap1 x))
  (switch (type ux)
   :tuple (dotup ux)
   :array (doarray* ux)
-  :struct (table-to-struct (dotable ux))
+  :struct (table.to-struct (dotable ux))
   :table (dotable* ux)
   ux))
 
@@ -846,7 +846,7 @@ to call on any table. Does not print table prototype information."
 
 (defn make-env [parent]
  (def parent (if parent parent _env))
- (def newenv (setproto @{} parent))
+ (def newenv (table.setproto @{} parent))
  (put newenv '_env @{:value newenv :private true})
  newenv)
 
@@ -868,14 +868,14 @@ onvalue."
  (var going true)
 
  # The parser object
- (def p (parser 1))
+ (def p (parser.make 1))
 
  # Fiber stream of characters
  (def chars (coro
    (def buf @"")
    (var len 1)
    (while (< 0 len)
-      (buffer-clear buf)
+      (buffer.clear buf)
       (chunks buf p)
       (:= len (length buf))
       (for [i 0 len]
@@ -885,14 +885,14 @@ onvalue."
  # Fiber stream of values
  (def vals (coro
   (while going
-    (switch (parser-status p)
-     :full (yield (parser-produce p))
-     :error (onerr "parse" (parser-error p))
-     (switch (fiber-status chars)
-      :new (parser-byte p (resume chars))
-      :pending (parser-byte p (resume chars))
+    (switch (parser.status p)
+     :full (yield (parser.produce p))
+     :error (onerr "parse" (parser.error p))
+     (switch (fiber.status chars)
+      :new (parser.byte p (resume chars))
+      :pending (parser.byte p (resume chars))
       (:= going false))))
-  (when (not= :root (parser-status p))
+  (when (not= :root (parser.status p))
    (onerr "parse" "unexpected end of source"))))
 
  # Evaluate 1 source form
@@ -907,7 +907,7 @@ onvalue."
        (onerr "compile" (get res :error))))))
   (def res (resume f))
   (if good
-   (if (= (fiber-status f) :error)
+   (if (= (fiber.status f) :error)
     (onerr "runtime" res f)
     (if going (onvalue res)))))
 
@@ -921,10 +921,10 @@ onvalue."
 
 (defn default-error-handler
  [t x f]
- (file-write stdout (string t " error: "))
+ (file.write stdout (string t " error: "))
  (pp x)
  (when f
-  (def st (fiber-stack f))
+  (def st (fiber.stack f))
   (def len (length st))
   (for [i 0 len]
    (def {
@@ -934,13 +934,13 @@ onvalue."
     :c c
     :name name
     } (get st i))
-   (file-write stdout "  in")
-   (when c (file-write stdout " cfunction"))
-   (when name (file-write stdout (string " " name)))
-   (when func (file-write stdout (string " " func)))
-   (when pc (file-write stdout (string " (pc=" pc ")")))
-   (when tail (file-write stdout " (tailcall)"))
-   (file-write stdout "\n"))))
+   (file.write stdout "  in")
+   (when c (file.write stdout " cfunction"))
+   (when name (file.write stdout (string " " name)))
+   (when func (file.write stdout (string " " func)))
+   (when pc (file.write stdout (string " (pc=" pc ")")))
+   (when tail (file.write stdout " (tailcall)"))
+   (file.write stdout "\n"))))
 
 (defn eval 
  "Evaluates a string in the current environment. If more control over the
@@ -951,7 +951,7 @@ environment is needed, use run-context."
   (def ret state)
   (:= state nil)
   (if ret
-    (buffer-push-string buf ret)))
+    (buffer.push-string buf ret)))
  (var returnval nil)
  (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler)
  returnval)
@@ -965,17 +965,17 @@ environment is needed, use run-context."
    (def check (get cache path))
    (if check check (do
      (if (or
-          (= ".so" (string-slice path -3 -1))
-          (= ".dll" (string-slice path -4 -1)))
+          (= ".so" (string.slice path -3 -1))
+          (= ".dll" (string.slice path -4 -1)))
       ((native path))
       (do
        (def newenv (make-env))
        (put cache path newenv)
        (put loading path true)
-       (def f (file-open path))
-       (defn chunks [buf] (file-read f 1024 buf))
+       (def f (file.open path))
+       (defn chunks [buf] (file.read f 1024 buf))
        (run-context newenv chunks identity default-error-handler)
-       (file-close f)
+       (file.close f)
        (put loading path nil)
        newenv)))))))
 
@@ -1000,7 +1000,7 @@ environment is needed, use run-context."
 get a chunk of source code. Should return nil for end of file."
  (def newenv (make-env))
  (default getchunk (fn [buf]
-   (file-read stdin :line buf)))
+   (file.read stdin :line buf)))
  (default onvalue (fn [x]
    (put newenv '_ @{:value x})
    (pp x)))

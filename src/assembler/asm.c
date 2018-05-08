@@ -908,8 +908,8 @@ int dst_disasm_cfun(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
-    {"asm", dst_asm_cfun},
-    {"disasm", dst_disasm_cfun},
+    {"asm/asm", dst_asm_cfun},
+    {"asm/disasm", dst_disasm_cfun},
     {NULL, NULL}
 };
 

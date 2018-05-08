@@ -257,14 +257,6 @@ void dst_fiber_popframe(DstFiber *fiber) {
 
 /* CFuns */
 
-static int cfun_fiber(DstArgs args) {
-    DstFiber *fiber;
-    dst_fixarity(args, 1);
-    dst_check(args, 0, DST_FUNCTION);
-    fiber = dst_fiber(dst_unwrap_function(args.v[0]), 64);
-    return dst_return(args, dst_wrap_fiber(fiber));
-}
-
 static int cfun_status(DstArgs args) {
     const char *status = "";
     dst_fixarity(args, 1);
@@ -346,9 +338,8 @@ static int cfun_stack(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
-    {"fiber", cfun_fiber},
-    {"fiber-status", cfun_status},
-    {"fiber-stack", cfun_stack},
+    {"fiber.status", cfun_status},
+    {"fiber.stack", cfun_stack},
     {NULL, NULL}
 };
 

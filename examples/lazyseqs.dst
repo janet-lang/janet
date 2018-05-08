@@ -18,7 +18,7 @@ body once, and then memoizes the result."
     $state
     (tuple 'do
      (tuple ':= $loaded true)
-     (tuple ':= $state (tuple-prepend forms 'do)))))))
+     (tuple ':= $state (tuple.prepend forms 'do)))))))
 
 # Use tuples instead of structs to save memory
 (def HEAD :private 0)
@@ -129,14 +129,3 @@ body once, and then memoizes the result."
        (when-let [n (node)]
         (:= node (get n 1))
         (get n 0)))})
-
-# Now we can use the non-functional filter from boot.dst
-# to write a filter version that returns a lazy sequence
-# Be careful when creating lazy sequences from mutable
-# data structures as their values are references to this
-# data structures. Same is true for iterators
-
-(defn filter2 [pred coll] (iter2lazy (filter pred coll)))
-
-# be careful with the filter function. First element in (filter pos? arr) is nil
-# last element is false

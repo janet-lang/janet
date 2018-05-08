@@ -45,12 +45,10 @@ static const DstReg cfuns[] = {
     {"scan-real", dst_core_scanreal},
     {"tuple", dst_core_tuple},
     {"struct", dst_core_struct},
+    {"fiber", dst_core_fiber},
     {"buffer", dst_core_buffer},
     {"gensym", dst_core_gensym},
     {"get", dst_core_get},
-    {"rawget", dst_core_rawget},
-    {"getproto", dst_core_getproto},
-    {"setproto", dst_core_setproto},
     {"put", dst_core_put},
     {"length", dst_core_length},
     {"gccollect", dst_core_gccollect},
@@ -59,7 +57,7 @@ static const DstReg cfuns[] = {
     {"type", dst_core_type},
     {"next", dst_core_next},
     {"hash", dst_core_hash},
-    {"string-slice", dst_core_string_slice},
+    {"string.slice", dst_core_string_slice},
     {NULL, NULL}
 };
 

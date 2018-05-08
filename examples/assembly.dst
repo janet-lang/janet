@@ -1,12 +1,12 @@
 # Example of dst bytecode assembly
 
 # Fibonacci sequence, implemented with naive recursion.
-(def fibasm (asm '{
+(def fibasm (asm/asm '{
   arity 1
   bytecode [
     (ldi 1 0x2)         # $1 = 2
     (lt 1 0 1)          # $1 = $0 < $1
-    (jmpif 1 :done)      # if ($1) goto :done
+    (jmpif 1 :done)     # if ($1) goto :done
     (lds 1)             # $1 = self
     (addim 0 0 -0x1)    # $0 = $0 - 1
     (push 0)            # push($0), push argument for next function call

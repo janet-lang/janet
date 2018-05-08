@@ -298,12 +298,12 @@ static int dst_io_fseek(DstArgs args) {
 #endif
 
 static const DstReg cfuns[] = {
-    {"file-open", dst_io_fopen},
-    {"file-close", dst_io_fclose},
-    {"file-read", dst_io_fread},
-    {"file-write", dst_io_fwrite},
-    {"file-flush", dst_io_fflush},
-    {"file-seek", dst_io_fseek},
+    {"file.open", dst_io_fopen},
+    {"file.close", dst_io_fclose},
+    {"file.read", dst_io_fread},
+    {"file.write", dst_io_fwrite},
+    {"file.flush", dst_io_fflush},
+    {"file.seek", dst_io_fseek},
     {NULL, NULL}
 };
 

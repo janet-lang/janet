@@ -202,6 +202,14 @@ int dst_core_struct(DstArgs args) {
     return dst_return(args, dst_wrap_struct(dst_struct_end(st)));
 }
 
+int dst_core_fiber(DstArgs args) {
+    DstFiber *fiber;
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_FUNCTION);
+    fiber = dst_fiber(dst_unwrap_function(args.v[0]), 64);
+    return dst_return(args, dst_wrap_fiber(fiber));
+}
+
 int dst_core_gensym(DstArgs args) {
     dst_maxarity(args, 1);
     if (args.n == 0) {
@@ -228,32 +236,6 @@ int dst_core_get(DstArgs args) {
             break;
     }
     return dst_return(args, ds);
-}
-
-int dst_core_rawget(DstArgs args) {
-    dst_fixarity(args, 2);
-    dst_check(args, 0, DST_TABLE);
-    return dst_return(args, dst_table_rawget(dst_unwrap_table(args.v[0]), args.v[1]));
-}
-
-int dst_core_getproto(DstArgs args) {
-    DstTable *t;
-    dst_fixarity(args, 1);
-    dst_check(args, 0, DST_TABLE);
-    t = dst_unwrap_table(args.v[0]);
-    return dst_return(args, t->proto
-            ? dst_wrap_table(t->proto)
-            : dst_wrap_nil());
-}
-
-int dst_core_setproto(DstArgs args) {
-    dst_fixarity(args, 2);
-    dst_check(args, 0, DST_TABLE);
-    dst_checkmany(args, 1, DST_TFLAG_TABLE | DST_TFLAG_NIL);
-    dst_unwrap_table(args.v[0])->proto = dst_checktype(args.v[1], DST_TABLE)
-        ? dst_unwrap_table(args.v[1])
-        : NULL;
-    return dst_return(args, args.v[0]);
 }
 
 int dst_core_put(DstArgs args) {

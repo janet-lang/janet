@@ -1,51 +1,51 @@
 (do
 
-  (var *should-repl* :private false)
-  (var *no-file* :private true)
-  (var *raw-stdin* :private false)
+(var *should-repl* :private false)
+(var *no-file* :private true)
+(var *raw-stdin* :private false)
 
-  # Flag handlers
-  (def handlers :private {
-                          "h" (fn [] 
-                                  (print "usage: " (get args 0) " [options] scripts...")
-                                  (print "Options are:")
-                                  (print "  -h Show this help")
-                                  (print "  -v Print the version string")
-                                  (print "  -s Use raw stdin instead of getline like functionality")
-                                  (print "  -e Execute a string of dst")
-                                  (print "  -r Enter the repl after running all scripts")
-                                  (os-exit 0)
-                                  1)
-                          "v" (fn [] (print VERSION) (os-exit 0) 1)
-                          "s" (fn [] (:= *raw-stdin* true) (:= *should-repl* true) 1)
-                          "r" (fn [] (:= *should-repl* true) 1)
-                          "e" (fn [i] 
-                                  (:= *no-file* false)
-                                  (eval (get args (+ i 1)))
-                                  2)
-                          })
+# Flag handlers
+(def handlers :private {
+    "h" (fn [] 
+              (print "usage: " (get args 0) " [options] scripts...")
+              (print "Options are:")
+              (print "  -h Show this help")
+              (print "  -v Print the version string")
+              (print "  -s Use raw stdin instead of getline like functionality")
+              (print "  -e Execute a string of dst")
+              (print "  -r Enter the repl after running all scripts")
+              (os.exit 0)
+              1)
+      "v" (fn [] (print VERSION) (os.exit 0) 1)
+      "s" (fn [] (:= *raw-stdin* true) (:= *should-repl* true) 1)
+      "r" (fn [] (:= *should-repl* true) 1)
+      "e" (fn [i] 
+              (:= *no-file* false)
+              (eval (get args (+ i 1)))
+              2)
+      })
 
-  (defn- dohandler [n i]
-    (def h (get handlers n))
-    (if h (h i) (print "unknown flag -" n)))
+(defn- dohandler [n i]
+  (def h (get handlers n))
+  (if h (h i) (print "unknown flag -" n)))
 
-  # Process arguments
-  (var i 1)
-  (def lenargs (length args))
-  (while (< i lenargs)
-         (def arg (get args i))
-         (if (= "-" (string-slice arg 0 1))
-           (+= i (dohandler (string-slice arg 1 2) i))
-           (do
-             (:= *no-file* false)
-             (import arg)
-             (++ i))))
+# Process arguments
+(var i 1)
+(def lenargs (length args))
+(while (< i lenargs)
+       (def arg (get args i))
+       (if (= "-" (string.slice arg 0 1))
+         (+= i (dohandler (string.slice arg 1 2) i))
+         (do
+           (:= *no-file* false)
+           (import arg)
+           (++ i))))
 
-  (when (or *should-repl* *no-file*) 
-    (if *raw-stdin*
-      (repl nil identity)
-      (do
-        (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
-        (repl (fn [buf p]
-                  (def prompt (string (parser-state p) "> "))
-                  (getline prompt buf)))))))
+(when (or *should-repl* *no-file*) 
+  (if *raw-stdin*
+    (repl nil identity)
+    (do
+      (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
+      (repl (fn [buf p]
+                (def prompt (string (parser.state p) "> "))
+                (getline prompt buf)))))))

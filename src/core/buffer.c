@@ -258,12 +258,12 @@ static int cfun_slice(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
-    {"buffer-push-byte", cfun_u8},
-    {"buffer-push-integer", cfun_int},
-    {"buffer-push-string", cfun_chars},
-    {"buffer-popn", cfun_popn},
-    {"buffer-clear", cfun_clear},
-    {"buffer-slice", cfun_slice},
+    {"buffer.push-byte", cfun_u8},
+    {"buffer.push-integer", cfun_int},
+    {"buffer.push-string", cfun_chars},
+    {"buffer.popn", cfun_popn},
+    {"buffer.clear", cfun_clear},
+    {"buffer.slice", cfun_slice},
     {NULL, NULL}
 };
 

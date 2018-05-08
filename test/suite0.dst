@@ -151,7 +151,7 @@
 (def afiber-result (resume afiber "world!"))
 
 (assert (= afiber-result "hello, world!") "fiber error result")
-(assert (= (fiber-status afiber) :error) "fiber error status")
+(assert (= (fiber.status afiber) :error) "fiber error status")
 
 # yield tests
 
@@ -160,7 +160,7 @@
 (assert (= 1 (resume t)) "initial transfer to new fiber")
 (assert (= 2 (resume t)) "second transfer to fiber")
 (assert (= 3 (resume t)) "return from fiber")
-(assert (= (fiber-status t) :dead) "finished fiber is dead")
+(assert (= (fiber.status t) :dead) "finished fiber is dead")
 
 # Var arg tests
 
@@ -216,17 +216,17 @@
       (def xi (get xs i))
       (def yj (get ys j))
       (if (< xi yj)
-        (do (array-push ret xi) (:= i (+ i 1)))    
-        (do (array-push ret yj) (:= j (+ j 1)))))
+        (do (array.push ret xi) (:= i (+ i 1)))    
+        (do (array.push ret yj) (:= j (+ j 1)))))
     # Push rest of xs
     (while (< i xlen)
       (def xi (get xs i))
-      (array-push ret xi)
+      (array.push ret xi)
       (:= i (+ i 1)))    
     # Push rest of ys
     (while (< j ylen)
       (def yj (get ys j))
-      (array-push ret yj)
+      (array.push ret yj)
       (:= j (+ j 1)))    
     ret))
 

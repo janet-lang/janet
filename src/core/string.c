@@ -103,7 +103,7 @@ const uint8_t *dst_cstring(const char *str) {
 }
 
 /* Temporary buffer size */
-#define BUFSIZE 36
+#define BUFSIZE 64
 
 static int32_t real_to_string_impl(uint8_t *buf, double x) {
     /* Use 16 decimal places to ignore one ulp errors for now */
@@ -175,7 +175,8 @@ static int32_t string_description_impl(uint8_t *buf, const char *title, void *po
 
     pbuf.p = pointer;
     *c++ = '<';
-    for (i = 0; title[i] && i < 12; ++i)
+    /* Maximum of 32 bytes for abstract type name */
+    for (i = 0; title[i] && i < 32; ++i)
         *c++ = ((uint8_t *)title) [i];
     *c++ = ' ';
     *c++ = '0';

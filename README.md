@@ -65,7 +65,8 @@ $
 ## Docmentation
 
 API documentation and design documents will be added to the `doc` folder as they are written.
-As of March 2018, specifications are sparse because dst is evolving.
+As of March 2018, specifications are sparse because dst is evolving. Check the doc folder for
+an introduction of Dst as well as an overview of the bytecode format.
 
 ## Compiling and Running
 

@@ -235,6 +235,26 @@ void dst_table_merge_struct(DstTable *table, const DstKV *other) {
     dst_table_mergekv(table, other, dst_struct_capacity(other));
 }
 
+static int cfun_getproto(DstArgs args) {
+    DstTable *t;
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_TABLE);
+    t = dst_unwrap_table(args.v[0]);
+    return dst_return(args, t->proto
+            ? dst_wrap_table(t->proto)
+            : dst_wrap_nil());
+}
+
+static int cfun_setproto(DstArgs args) {
+    dst_fixarity(args, 2);
+    dst_check(args, 0, DST_TABLE);
+    dst_checkmany(args, 1, DST_TFLAG_TABLE | DST_TFLAG_NIL);
+    dst_unwrap_table(args.v[0])->proto = dst_checktype(args.v[1], DST_TABLE)
+        ? dst_unwrap_table(args.v[1])
+        : NULL;
+    return dst_return(args, args.v[0]);
+}
+
 static int cfun_tostruct(DstArgs args) {
     DstTable *t;
     dst_fixarity(args, 1);
@@ -242,8 +262,17 @@ static int cfun_tostruct(DstArgs args) {
     return dst_return(args, dst_wrap_struct(dst_table_to_struct(t)));
 }
 
+static int cfun_rawget(DstArgs args) {
+    dst_fixarity(args, 2);
+    dst_check(args, 0, DST_TABLE);
+    return dst_return(args, dst_table_rawget(dst_unwrap_table(args.v[0]), args.v[1]));
+}
+
 static const DstReg cfuns[] = {
-    {"table-to-struct", cfun_tostruct},
+    {"table.to-struct", cfun_tostruct},
+    {"table.getproto", cfun_getproto},
+    {"table.setproto", cfun_setproto},
+    {"table.rawget", cfun_rawget},
     {NULL, NULL}
 };
 

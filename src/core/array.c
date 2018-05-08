@@ -219,13 +219,13 @@ static int cfun_concat(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
-    {"array-pop", cfun_pop},
-    {"array-peek", cfun_peek},
-    {"array-push", cfun_push},
-    {"array-setcount", cfun_setcount},
-    {"array-ensure", cfun_ensure},
-    {"array-slice", cfun_slice},
-    {"array-concat", cfun_concat},
+    {"array.pop", cfun_pop},
+    {"array.peek", cfun_peek},
+    {"array.push", cfun_push},
+    {"array.setcount", cfun_setcount},
+    {"array.ensure", cfun_ensure},
+    {"array.slice", cfun_slice},
+    {"array.concat", cfun_concat},
     {NULL, NULL}
 };
 

@@ -769,18 +769,18 @@ static int cfun_node(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
-    {"parser", cfun_parser},
-    {"parser-produce", cfun_produce},
-    {"parser-consume", cfun_consume},
-    {"parser-byte", cfun_byte},
-    {"parser-error", cfun_error},
-    {"parser-status", cfun_status},
-    {"parser-flush", cfun_flush},
-    {"parser-state", cfun_state},
-    {"ast-unwrap", cfun_unwrap},
-    {"ast-unwrap1", cfun_unwrap1},
-    {"ast-wrap", cfun_wrap},
-    {"ast-node", cfun_node},
+    {"parser.make", cfun_parser},
+    {"parser.produce", cfun_produce},
+    {"parser.consume", cfun_consume},
+    {"parser.byte", cfun_byte},
+    {"parser.error", cfun_error},
+    {"parser.status", cfun_status},
+    {"parser.flush", cfun_flush},
+    {"parser.state", cfun_state},
+    {"ast.unwrap", cfun_unwrap},
+    {"ast.unwrap1", cfun_unwrap1},
+    {"ast.wrap", cfun_wrap},
+    {"ast.node", cfun_node},
     {NULL, NULL}
 };
 
