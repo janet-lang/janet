@@ -716,11 +716,9 @@ static int cfun_state(DstArgs args) {
             dst_v_push(buf, '"');
         } else if (s->flags & PFLAG_LONGSTRING) {
             int32_t i;
-            dst_v_push(buf, '\\');
             for (i = 0; i < s->argn; i++) {
-                dst_v_push(buf, '=');
+                dst_v_push(buf, '`');
             }
-            dst_v_push(buf, '\\');
         }
     }
     str = dst_string(buf, dst_v_count(buf));
