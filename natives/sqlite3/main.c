@@ -20,14 +20,11 @@
 * IN THE SOFTWARE.
 */
 
-#ifdef ONEFILE
 #include "sqlite3.c"
-#endif
 
 #include "sqlite3.h"
 
 #include <dst/dst.h>
-
 
 /* Called to garbage collect a sqlite3 connection */
 static int gcsqlite(void *p, size_t s) {
