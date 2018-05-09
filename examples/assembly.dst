@@ -1,7 +1,7 @@
 # Example of dst bytecode assembly
 
 # Fibonacci sequence, implemented with naive recursion.
-(def fibasm (asm/asm '{
+(def fibasm (asm.asm '{
   arity 1
   bytecode [
     (ldi 1 0x2)         # $1 = 2

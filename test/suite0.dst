@@ -36,7 +36,7 @@
 (assert (>= 6.0 5.0 4.0 4.0 3.0 2.0 1.0) "greater than or equal to reals")
 
 (assert (order< nil false true
-	(fiber (fn [x] x))
+	(fiber.new (fn [x] x))
     1 1.0 "hi"
 	(quote hello)
 	(array 1 2 3)
@@ -145,21 +145,21 @@
 
 # Fiber tests
 
-(def afiber (fiber (fn [x]
+(def afiber (fiber.new (fn [x]
 	(error (string "hello, " x)))))
 
-(def afiber-result (resume afiber "world!"))
+(def afiber-result (fiber.resume afiber "world!"))
 
 (assert (= afiber-result "hello, world!") "fiber error result")
 (assert (= (fiber.status afiber) :error) "fiber error status")
 
 # yield tests
 
-(def t (fiber (fn [] (yield 1) (yield 2) 3)))
+(def t (fiber.new (fn [] (fiber.yield 1) (fiber.yield 2) 3)))
 
-(assert (= 1 (resume t)) "initial transfer to new fiber")
-(assert (= 2 (resume t)) "second transfer to fiber")
-(assert (= 3 (resume t)) "return from fiber")
+(assert (= 1 (fiber.resume t)) "initial transfer to new fiber")
+(assert (= 2 (fiber.resume t)) "second transfer to fiber")
+(assert (= 3 (fiber.resume t)) "return from fiber")
 (assert (= (fiber.status t) :dead) "finished fiber is dead")
 
 # Var arg tests

@@ -750,7 +750,6 @@ static void *op_lookup[255] = {
                 break;
             default:
                 fiber->child = NULL;
-                if (nextfiber->flags & DST_FIBER_MASK_RETURN) goto vm_return_root;
                 break;
         }
         stack[oparg(1, 0xFF)] = retreg;
@@ -844,6 +843,7 @@ static void *op_lookup[255] = {
     vm_debug:
     {
         fiber->status = DST_FIBER_DEBUG;
+        retreg = dst_wrap_nil();
         goto vm_exit;
     }
 

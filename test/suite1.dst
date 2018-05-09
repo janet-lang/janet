@@ -62,15 +62,15 @@
 
 (table.setproto childtab roottab)
 
-(assert (= 123 (get roottab :parentprop)), "table get 1")
-(assert (= 123 (get childtab :parentprop)), "table get proto")
-(assert (= nil (get roottab :childprop)), "table get 2")
-(assert (= 456 (get childtab :childprop)), "proto no effect")
+(assert (= 123 (get roottab :parentprop)) "table get 1")
+(assert (= 123 (get childtab :parentprop)) "table get proto")
+(assert (= nil (get roottab :childprop)) "table get 2")
+(assert (= 456 (get childtab :childprop)) "proto no effect")
 
 # Long strings
 
-(assert (= "hello, world" \==\hello, world\==\), "simple long string")
-(assert (= "hello, \"world\"" \\hello, "world"\\), "long string with embedded quotes")
-(assert (= "hello, \\\\\\ \"world\"" \=\hello, \\\ "world"\=\), "long string with embedded quotes and backslashes")
+(assert (= "hello, world" `hello, world`) "simple long string")
+(assert (= "hello, \"world\"" `hello, "world"`) "long string with embedded quotes")
+(assert (= "hello, \\\\\\ \"world\"" `hello, \\\ "world"`), "long string with embedded quotes and backslashes")
 
 (end-suite)

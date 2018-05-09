@@ -45,7 +45,6 @@ static const DstReg cfuns[] = {
     {"scan-real", dst_core_scanreal},
     {"tuple", dst_core_tuple},
     {"struct", dst_core_struct},
-    {"fiber", dst_core_fiber},
     {"buffer", dst_core_buffer},
     {"gensym", dst_core_gensym},
     {"get", dst_core_get},
@@ -65,32 +64,23 @@ DstTable *dst_stl_env() {
     static uint32_t error_asm[] = {
         DOP_ERROR
     };
-
     static uint32_t apply_asm[] = {
        DOP_PUSH_ARRAY | (1 << 8),
        DOP_TAILCALL
     };
-
-    static uint32_t yield_asm[] = {
-        DOP_YIELD,
-        DOP_RETURN
+    static uint32_t debug_asm[] = {
+       DOP_DEBUG,
+       DOP_RETURN_NIL
     };
-
-    static uint32_t resume_asm[] = {
-        DOP_RESUME | (1 << 24),
-        DOP_RETURN
-    };
-
     DstTable *env = dst_table(0);
     Dst ret = dst_wrap_table(env);
 
     /* Load main functions */
     dst_env_cfuns(env, cfuns);
 
+    dst_env_def(env, "debug", dst_wrap_function(dst_quick_asm(0, 0, 0, debug_asm, sizeof(debug_asm))));
     dst_env_def(env, "error", dst_wrap_function(dst_quick_asm(1, 0, 1, error_asm, sizeof(error_asm))));
     dst_env_def(env, "apply1", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, sizeof(apply_asm))));
-    dst_env_def(env, "yield", dst_wrap_function(dst_quick_asm(1, 0, 2, yield_asm, sizeof(yield_asm))));
-    dst_env_def(env, "resume", dst_wrap_function(dst_quick_asm(2, 0, 2, resume_asm, sizeof(resume_asm))));
 
     dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
 

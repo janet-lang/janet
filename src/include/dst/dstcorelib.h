@@ -92,7 +92,6 @@ int dst_core_tuple(DstArgs args);
 int dst_core_array(DstArgs args);
 int dst_core_table(DstArgs args);
 int dst_core_struct(DstArgs args);
-int dst_core_fiber(DstArgs args);
 int dst_core_buffer(DstArgs args);
 int dst_core_gensym(DstArgs args);
 int dst_core_length(DstArgs args);

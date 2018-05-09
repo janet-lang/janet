@@ -105,6 +105,15 @@ Dst dst_array_peek(DstArray *array) {
 
 /* C Functions */
 
+static int cfun_new(DstArgs args) {
+    int32_t cap;
+    DstArray *array;
+    dst_fixarity(args, 1);
+    dst_arg_integer(cap, args, 0);
+    array = dst_array(cap);
+    return dst_return(args, dst_wrap_array(array));
+}
+
 static int cfun_pop(DstArgs args) {
     dst_fixarity(args, 1);
     dst_check(args, 0, DST_ARRAY);
@@ -219,6 +228,7 @@ static int cfun_concat(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
+    {"array.new", cfun_new},
     {"array.pop", cfun_pop},
     {"array.peek", cfun_peek},
     {"array.push", cfun_push},

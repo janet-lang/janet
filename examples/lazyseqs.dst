@@ -2,7 +2,7 @@
 # sequences, as in clojure. The lazy seq is essentially
 # A lazy linked list, where the next value is a function
 # that must be called (realizing it), and the memoized.
-# Use with (import "./path/to/this/file" :prefix "seq/")
+# Use with (import "./path/to/this/file" :prefix "seq.")
 
 (defmacro delay [& forms]
  "Lazily evaluate a series of expressions. Returns a function that

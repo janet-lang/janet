@@ -235,6 +235,17 @@ void dst_table_merge_struct(DstTable *table, const DstKV *other) {
     dst_table_mergekv(table, other, dst_struct_capacity(other));
 }
 
+/* C Functions */
+
+static int cfun_new(DstArgs args) {
+    DstTable *t;
+    int32_t cap;
+    dst_fixarity(args, 1);
+    dst_arg_integer(cap, args, 0);
+    t = dst_table(cap);
+    return dst_return(args, dst_wrap_table(t));
+}
+
 static int cfun_getproto(DstArgs args) {
     DstTable *t;
     dst_fixarity(args, 1);
@@ -269,6 +280,7 @@ static int cfun_rawget(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
+    {"table.new", cfun_new},
     {"table.to-struct", cfun_tostruct},
     {"table.getproto", cfun_getproto},
     {"table.setproto", cfun_setproto},

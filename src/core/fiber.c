@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include <dst/dstopcodes.h>
 #include "fiber.h"
 #include "gc.h"
 
@@ -257,6 +258,35 @@ void dst_fiber_popframe(DstFiber *fiber) {
 
 /* CFuns */
 
+static int cfun_new(DstArgs args) {
+    DstFiber *fiber;
+    dst_minarity(args, 1);
+    dst_maxarity(args, 2);
+    dst_check(args, 0, DST_FUNCTION);
+    fiber = dst_fiber(dst_unwrap_function(args.v[0]), 64);
+    if (args.n == 2) {
+        const uint8_t *flags;
+        int32_t len, i;
+        dst_arg_bytes(flags, len, args, 1);
+        fiber->flags |= DST_FIBER_MASK_ERROR;
+        for (i = 0; i < len; i++) {
+            switch (flags[i]) {
+                default:
+                    return dst_throw(args, "invalid flag, expected d or e");
+                case ':':
+                    break;
+                case 'd':
+                    fiber->flags &= ~DST_FIBER_MASK_DEBUG;
+                    break;
+                case 'e':
+                    fiber->flags &= ~DST_FIBER_MASK_ERROR;
+                    break;
+            }
+        }
+    }
+    return dst_return(args, dst_wrap_fiber(fiber));
+}
+
 static int cfun_status(DstArgs args) {
     const char *status = "";
     dst_fixarity(args, 1);
@@ -338,6 +368,7 @@ static int cfun_stack(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
+    {"fiber.new", cfun_new},
     {"fiber.status", cfun_status},
     {"fiber.stack", cfun_stack},
     {NULL, NULL}
@@ -345,7 +376,21 @@ static const DstReg cfuns[] = {
 
 /* Module entry point */
 int dst_lib_fiber(DstArgs args) {
+    static uint32_t yield_asm[] = {
+        DOP_YIELD,
+        DOP_RETURN
+    };
+    static uint32_t resume_asm[] = {
+        DOP_RESUME | (1 << 24),
+        DOP_RETURN
+    };
     DstTable *env = dst_env_arg(args);
     dst_env_cfuns(env, cfuns);
+    dst_env_def(env, "fiber.yield", 
+            dst_wrap_function(dst_quick_asm(1, 0, 2,
+                    yield_asm, sizeof(yield_asm))));
+    dst_env_def(env, "fiber.resume",
+            dst_wrap_function(dst_quick_asm(2, 0, 2,
+                    resume_asm, sizeof(resume_asm))));
     return 0;
 }

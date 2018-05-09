@@ -381,10 +381,10 @@ static int dotable(DstParser *p, DstParseState *state, uint8_t c) {
 static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
     if (state->flags & PFLAG_INSTRING) {
         /* We are inside the long string */
-        if (c == '\\') {
+        if (c == '`') {
             state->flags |= PFLAG_END_CANDIDATE;
             state->flags &= ~PFLAG_INSTRING;
-            state->qcount = 0; /* Use qcount to keep track of number of '=' seen */
+            state->qcount = 1; /* Use qcount to keep track of number of '=' seen */
             return 1;
         }
         dst_v_push(p->buf, c);
@@ -392,17 +392,17 @@ static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
     } else if (state->flags & PFLAG_END_CANDIDATE) {
         int i;
         /* We are checking a potential end of the string */
-        if (c == '\\' && state->qcount == state->argn) {
-            return stringend(p, state);
+        if (c != '`' && state->qcount == state->argn) {
+            stringend(p, state);
+            return 0;
         }
-        if (c == '=' && state->qcount < state->argn) {
+        if (c == '`' && state->qcount < state->argn) {
             state->qcount++;
             return 1;
         }
         /* Failed end candidate */
-        dst_v_push(p->buf, '\\');
         for (i = 0; i < state->qcount; i++) {
-            dst_v_push(p->buf, '=');
+            dst_v_push(p->buf, '`');
         }
         dst_v_push(p->buf, c);
         state->qcount = 0;
@@ -411,17 +411,12 @@ static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
         return 1;
     } else {
         /* We are at beginning of string */
-        switch (c) {
-            default:
-                p->error = "unexpected character in long string delimiter";
-                return 1;
-            case '\\':
-                state->flags |= PFLAG_INSTRING;
-                return 1;
-            case '=':
-                state->argn++;
-                return 1;
+        state->argn++;
+        if (c != '`') {
+            state->flags |= PFLAG_INSTRING;
+            dst_v_push(p->buf, c);
         }
+        return 1;
     }
 }
 
@@ -435,7 +430,7 @@ static int ampersand(DstParser *p, DstParseState *state, uint8_t c) {
     case '"':
         pushstate(p, stringchar, PFLAG_BUFFER | PFLAG_STRING);
         return 1;
-    case '\\':
+    case '`':
         pushstate(p, longstring, PFLAG_BUFFER | PFLAG_LONGSTRING);
         return 1;
     case '[':
@@ -474,7 +469,7 @@ static int root(DstParser *p, DstParseState *state, uint8_t c) {
         case '@':
             pushstate(p, ampersand, 0);
             return 1;
-        case '\\':
+        case '`':
             pushstate(p, longstring, PFLAG_LONGSTRING);
             return 1;
         case ')':
@@ -769,7 +764,7 @@ static int cfun_node(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
-    {"parser.make", cfun_parser},
+    {"parser.new", cfun_parser},
     {"parser.produce", cfun_produce},
     {"parser.consume", cfun_consume},
     {"parser.byte", cfun_byte},

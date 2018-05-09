@@ -148,19 +148,14 @@ Literal text can be entered inside quotes, as we have seen above.
 "Hello\nThis is on line two\n\tThis is indented\n"
 
 # For long strings where you don't want to type a lot of escape characters,
-# you can use two backslashes with 0 or more equal signs inside them.
-# To close this string, simply repeat the opening sequence (with a matching number of = characters).
-\====\
+# you can use 1 or more backticks (`\``) to delimit a string.
+# To close this string, simply repeat the opening sequence of backticks
+``
 This is a string.
 Line 2
     Indented
-"We can just type quotes here", no problem.
-\====\
-
-# You don't need any = charcters in the delimiters
-\\
-This works if two backslashes don't appear in your string.
-\\
+"We can just type quotes here", and backslashes \ no problem.
+``
 ```
 
 # Functions

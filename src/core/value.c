@@ -255,6 +255,7 @@ int32_t dst_length(Dst x) {
         default:
             return 0;
         case DST_STRING:
+        case DST_SYMBOL:
             return dst_string_length(dst_unwrap_string(x));
         case DST_ARRAY:
             return dst_unwrap_array(x)->count;
@@ -275,6 +276,7 @@ Dst dst_getindex(Dst ds, int32_t index) {
         default:
             return dst_wrap_nil();
         case DST_STRING:
+        case DST_SYMBOL:
             if (index >= dst_string_length(dst_unwrap_string(ds))) return dst_wrap_nil();
             return dst_wrap_integer(dst_unwrap_string(ds)[index]);
         case DST_ARRAY:

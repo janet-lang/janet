@@ -157,6 +157,16 @@ int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x) {
 }
 
 /* C functions */
+
+static int cfun_new(DstArgs args) {
+    int32_t cap;
+    DstBuffer *buffer;
+    dst_fixarity(args, 1);
+    dst_arg_integer(cap, args, 0);
+    buffer = dst_buffer(cap);
+    return dst_return(args, dst_wrap_buffer(buffer));
+}
+
 static int cfun_u8(DstArgs args) {
     int32_t i;
     DstBuffer *buffer;
@@ -258,6 +268,7 @@ static int cfun_slice(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
+    {"buffer.new", cfun_new},
     {"buffer.push-byte", cfun_u8},
     {"buffer.push-integer", cfun_int},
     {"buffer.push-string", cfun_chars},

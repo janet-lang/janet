@@ -257,7 +257,7 @@ evaluates to true."
 (defmacro coro
  "A wrapper for making fibers. Same as (fiber (fn [] ...body))."
  [& body]
- (tuple fiber (apply tuple 'fn [] body)))
+ (tuple fiber.new (apply tuple 'fn [] body)))
 
 (defmacro if-let
 "Takes the first one or two forms in a vector and if both are true binds
@@ -868,7 +868,7 @@ onvalue."
  (var going true)
 
  # The parser object
- (def p (parser.make 1))
+ (def p (parser.new 1))
 
  # Fiber stream of characters
  (def chars (coro
@@ -879,18 +879,18 @@ onvalue."
       (chunks buf p)
       (:= len (length buf))
       (for [i 0 len]
-        (yield (get buf i))))
+        (fiber.yield (get buf i))))
    0))
 
  # Fiber stream of values
  (def vals (coro
   (while going
     (switch (parser.status p)
-     :full (yield (parser.produce p))
+     :full (fiber.yield (parser.produce p))
      :error (onerr "parse" (parser.error p))
      (switch (fiber.status chars)
-      :new (parser.byte p (resume chars))
-      :pending (parser.byte p (resume chars))
+      :new (parser.byte p (fiber.resume chars))
+      :pending (parser.byte p (fiber.resume chars))
       (:= going false))))
   (when (not= :root (parser.status p))
    (onerr "parse" "unexpected end of source"))))
@@ -898,23 +898,24 @@ onvalue."
  # Evaluate 1 source form
  (defn eval1 [source]
   (var good true)
-  (def f (coro
+  (def f (fiber.new (fn []
     (def res (compile source env))
     (if (= (type res) :function)
       (res)
       (do
        (:= good false)
-       (onerr "compile" (get res :error))))))
-  (def res (resume f))
+       (onerr "compile" (get res :error))))) :de))
+  (def res (fiber.resume f))
   (if good
-   (if (= (fiber.status f) :error)
-    (onerr "runtime" res f)
-    (if going (onvalue res)))))
+   (cond
+    (= (fiber.status f) :error) (onerr "runtime" res f)
+    (= (fiber.status f) :debug) (onerr "debug" res f)
+    going (onvalue res))))
 
  # Run loop
  (def oldenv *env*)
  (:= *env* env)
- (while going (eval1 (resume vals)))
+ (while going (eval1 (fiber.resume vals)))
  (:= *env* oldenv)
 
  env)
