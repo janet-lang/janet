@@ -36,13 +36,11 @@ int main(int argc, char **argv) {
     env = dst_stl_env();
     dst_gcroot(dst_wrap_table(env));
 
-    /* Create process tuple */
+    /* Create args tuple */
     args = dst_array(argc);
     for (i = 0; i < argc; i++) {
         dst_array_push(args, dst_cstringv(argv[i]));
     }
-
-    /* Allow access to runtime argument */
     dst_env_def(env, "args", dst_wrap_array(args));
 
     /* Expose line getter */

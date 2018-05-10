@@ -29,7 +29,7 @@ BINDIR=$(PREFIX)/bin
 # TODO - when api is finalized, only export public symbols instead of using rdynamic
 # which exports all symbols.
 
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -rdynamic -s -O2
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -rdynamic -O2
 CLIBS=-lm -ldl
 PREFIX=/usr/local
 DST_TARGET=dst
@@ -81,17 +81,13 @@ DST_ALL_SOURCES=$(DST_ASM_SOURCES) \
 				$(DST_MAINCLIENT_SOURCES) \
 				$(DST_PARSER_SOURCES)
 
-$(DST_TARGET): $(DST_ALL_SOURCES) $(DST_ALL_HEADERS)
-	$(CC) $(CFLAGS) -o $(DST_TARGET) $(DST_ALL_SOURCES) $(CLIBS)
+DST_ALL_OBJECTS=$(patsubst %.c,%.o,$(DST_ALL_SOURCES))
 
-#######################
-##### C Libraries #####
-#######################
+%.o: %.c $(DST_ALL_HEADERS)
+	$(CC) $(CFLAGS) -o $@ -c $<
 
-# DST_C_LIBS=$(addprefix libs/,testlib.so)
-
-%.so: %.c $(DST_HEADERS)
-	$(CC) $(CFLAGS) -DDST_LIB -shared -undefined dynamic_lookup -o $@ $<
+$(DST_TARGET): $(DST_ALL_OBJECTS)
+	$(CC) $(CFLAGS) -o $(DST_TARGET) $(DST_ALL_OBJECTS) $(CLIBS)
 
 ###################
 ##### Testing #####
