@@ -245,7 +245,7 @@ int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
     Dst val = (A).v[(N)];\
     if (dst_checktype(val, DST_REAL)) { DEST = dst_unwrap_real(val); }\
     else if (dst_checktype(val, DST_INTEGER)) { DEST = (double) dst_unwrap_integer(val); }\
-    else dst_typemany_err(A, N, DST_TFLAG_NUMBER); } while (0)
+    else return dst_typemany_err(A, N, DST_TFLAG_NUMBER); } while (0)
 
 #define dst_arg_boolean(DEST, A, N) do { \
     dst_checkmany(A, N, DST_TFLAG_TRUE | DST_TFLAG_FALSE);\
@@ -257,8 +257,8 @@ int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
 
 #define dst_arg_bytes(DESTBYTES, DESTLEN, A, N) do {\
     if ((A).n <= (N)) return dst_typemany_err(A, N, DST_TFLAG_BYTES);\
-    if (dst_chararray_view((A).v[(N)], &(DESTBYTES), &(DESTLEN))) {\
-        dst_typemany_err(A, N, DST_TFLAG_BYTES);\
+    if (!dst_chararray_view((A).v[(N)], &(DESTBYTES), &(DESTLEN))) {\
+        return dst_typemany_err(A, N, DST_TFLAG_BYTES);\
     }\
 } while (0)
 

@@ -25,21 +25,23 @@
 
 /* Get a random number */
 int dst_rand(DstArgs args) {
+    dst_fixarity(args, 0);
     double r = (rand() % RAND_MAX) / ((double) RAND_MAX);
     return dst_return(args, dst_wrap_real(r));
 }
 
 /* Seed the random number generator */
 int dst_srand(DstArgs args) {
-  if (args.n != 1 || !dst_checktype(args.v[0], DST_INTEGER))
-      return dst_throw(args, "expected integer");
-  srand((unsigned) dst_unwrap_integer(args.v[0]));
-  return 0;
+    int32_t x = 0;
+    dst_fixarity(args, 0);
+    dst_arg_integer(x, args, 0);
+    srand((unsigned) x);
+    return 0;
 }
 
 /* Convert a number to an integer */
 int dst_int(DstArgs args) {
-    if (args.n != 1) return dst_throw(args, "expected one argument");
+    dst_fixarity(args, 1);
     switch (dst_type(args.v[0])) {
         default:
             return dst_throw(args, "could not convert to integer");
@@ -55,7 +57,7 @@ int dst_int(DstArgs args) {
 
 /* Convert a number to a real number */
 int dst_real(DstArgs args) {
-    if (args.n != 1) return dst_throw(args, "expected one argument");
+    dst_fixarity(args, 1);
     switch (dst_type(args.v[0])) {
         default:
             return dst_throw(args, "could not convert to real");
@@ -197,47 +199,35 @@ DST_DEFINE_BITOP(bor, |=, 0)
 DST_DEFINE_BITOP(bxor, ^=, 0)
 
 int dst_lshift(DstArgs args) {
-    if (args.n != 2 || !dst_checktype(args.v[0], DST_INTEGER) || !dst_checktype(args.v[1], DST_INTEGER)) {
-        *args.ret = dst_cstringv("expected 2 integers"); 
-        return 1;
-    }
-    *args.ret = dst_wrap_integer(dst_unwrap_integer(args.v[0]) >> dst_unwrap_integer(args.v[1]));
-    return 0;
+    int32_t lhs, rhs;
+    dst_fixarity(args, 2);
+    dst_arg_integer(lhs, args, 0);
+    dst_arg_integer(rhs, args, 1);
+    return dst_return(args, dst_wrap_integer(lhs >> rhs));
 }
 
 int dst_rshift(DstArgs args) {
-    if (args.n != 2 || !dst_checktype(args.v[0], DST_INTEGER) || !dst_checktype(args.v[1], DST_INTEGER)) {
-        *args.ret = dst_cstringv("expected 2 integers"); 
-        return 1;
-    }
-    *args.ret = dst_wrap_integer(dst_unwrap_integer(args.v[0]) << dst_unwrap_integer(args.v[1]));
-    return 0;
+    int32_t lhs, rhs;
+    dst_fixarity(args, 2);
+    dst_arg_integer(lhs, args, 0);
+    dst_arg_integer(rhs, args, 1);
+    return dst_return(args, dst_wrap_integer(lhs << rhs));
 }
 
 int dst_lshiftu(DstArgs args) {
-    if (args.n != 2 || !dst_checktype(args.v[0], DST_INTEGER) || !dst_checktype(args.v[1], DST_INTEGER)) {
-        *args.ret = dst_cstringv("expected 2 integers"); 
-        return 1;
-    }
-    *args.ret = dst_wrap_integer((int32_t)((uint32_t)dst_unwrap_integer(args.v[0]) >> dst_unwrap_integer(args.v[1])));
-    return 0;
+    int32_t lhs, rhs;
+    dst_fixarity(args, 2);
+    dst_arg_integer(lhs, args, 0);
+    dst_arg_integer(rhs, args, 1);
+    return dst_return(args, dst_wrap_integer((int32_t)((uint32_t)lhs << rhs)));
 }
 
 #define DST_DEFINE_MATHOP(name, fop)\
 int dst_##name(DstArgs args) {\
-    if (args.n != 1) {\
-        *args.ret = dst_cstringv("expected 1 argument");\
-        return 1;\
-    }\
-    if (dst_checktype(args.v[0], DST_INTEGER)) {\
-        args.v[0] = dst_wrap_real(dst_unwrap_integer(args.v[0]));\
-    }\
-    if (!dst_checktype(args.v[0], DST_REAL)) {\
-        *args.ret = dst_cstringv("expected number");\
-        return 1;\
-    }\
-    *args.ret = dst_wrap_real(fop(dst_unwrap_real(args.v[0])));\
-    return 0;\
+    double x;\
+    dst_fixarity(args, 1);\
+    dst_arg_number(x, args, 0);\
+    return dst_return(args, dst_wrap_real(fop(x)));\
 }
 
 DST_DEFINE_MATHOP(acos, acos)
@@ -259,21 +249,11 @@ DST_DEFINE_MATHOP(floor, floor)
 
 #define DST_DEFINE_MATH2OP(name, fop)\
 int dst_##name(DstArgs args) {\
-    if (args.n != 2) {\
-        *args.ret = dst_cstringv("expected 2 arguments");\
-        return 1;\
-    }\
-    if (dst_checktype(args.v[0], DST_INTEGER))\
-        args.v[0] = dst_wrap_real(dst_unwrap_integer(args.v[0]));\
-    if (dst_checktype(args.v[1], DST_INTEGER))\
-        args.v[1] = dst_wrap_real(dst_unwrap_integer(args.v[1]));\
-    if (!dst_checktype(args.v[0], DST_REAL) || !dst_checktype(args.v[1], DST_REAL)) {\
-        *args.ret = dst_cstringv("expected real");\
-        return 1;\
-    }\
-    *args.ret =\
-        dst_wrap_real(fop(dst_unwrap_real(args.v[0]), dst_unwrap_real(args.v[1])));\
-    return 0;\
+    double lhs, rhs;\
+    dst_fixarity(args, 2);\
+    dst_arg_number(lhs, args, 0);\
+    dst_arg_number(rhs, args, 1);\
+    return dst_return(args, dst_wrap_real(fop(lhs, rhs)));\
 }\
 
 DST_DEFINE_MATH2OP(atan2, atan2)
@@ -281,20 +261,12 @@ DST_DEFINE_MATH2OP(pow, pow)
 DST_DEFINE_MATH2OP(fmod, fmod)
 
 int dst_modf(DstArgs args) {
-    double intpart;
+    double x, intpart;
     Dst *tup;
-    if (args.n != 1) {
-        *args.ret = dst_cstringv("expected 1 argument");
-        return 1;
-    }
-    if (dst_checktype(args.v[0], DST_INTEGER))
-        args.v[0] = dst_wrap_real(dst_unwrap_integer(args.v[0]));
-    if (!dst_checktype(args.v[0], DST_REAL)) {
-        *args.ret = dst_cstringv("expected real");
-        return 1;
-    }
+    dst_fixarity(args, 1);
+    dst_arg_number(x, args, 0);
     tup = dst_tuple_begin(2);
-    tup[0] = dst_wrap_real(modf(dst_unwrap_real(args.v[0]), &intpart));
+    tup[0] = dst_wrap_real(modf(x, &intpart));
     tup[1] = dst_wrap_real(intpart);
     *args.ret = dst_wrap_tuple(dst_tuple_end(tup));
     return 0;
@@ -324,52 +296,34 @@ static int dst_strict_equal(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n - 1; i++) {
         if (!dst_equals(args.v[i], args.v[i+1])) {
-            *args.ret = dst_wrap_false();
-            return 0;
+            return dst_return(args, dst_wrap_false());
         }
     }
-    *args.ret = dst_wrap_true();
-    return 0;
+    return dst_return(args, dst_wrap_true());
 }
 
 static int dst_strict_notequal(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n - 1; i++) {
         if (dst_equals(args.v[i], args.v[i+1])) {
-            *args.ret = dst_wrap_false();
-            return 0;
+            return dst_return(args, dst_wrap_false());
         }
     }
-    *args.ret = dst_wrap_true();
-    return 0;
+    return dst_return(args, dst_wrap_true());
 }
 
 static int dst_not(DstArgs args) {
-    *args.ret = dst_wrap_boolean(args.n == 0 || !dst_truthy(args.v[0]));
-    return 0;
-}
-
-static int toreal(Dst x, double *out) {
-    if (dst_checktype(x, DST_REAL)) {
-        *out = dst_unwrap_real(x);
-        return 0;
-    } else if (dst_checktype(x, DST_INTEGER)) {
-        *out = (double)dst_unwrap_integer(x);
-        return 0;
-    } else {
-        return -1;
-    }
+    dst_fixarity(args, 1);
+    return dst_return(args, dst_wrap_boolean(!dst_truthy(args.v[0])));
 }
 
 #define DEF_NUMERIC_COMP(name, op) \
 int dst_numeric_##name(DstArgs args) { \
     int32_t i; \
     for (i = 1; i < args.n; i++) { \
-        int xbad, ybad; \
-        double x, y; \
-        xbad = toreal(args.v[0], &x); \
-        ybad = toreal(args.v[1], &y); \
-        if (xbad | ybad) return dst_throw(args, "expected number"); \
+        double x = 0, y = 0; \
+        dst_arg_number(x, args, i-1);\
+        dst_arg_number(y, args, i);\
         if (!(x op y)) { \
             return dst_return(args, dst_wrap_false()); \
         } \
