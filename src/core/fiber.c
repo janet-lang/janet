@@ -268,11 +268,11 @@ static int cfun_new(DstArgs args) {
         const uint8_t *flags;
         int32_t len, i;
         dst_arg_bytes(flags, len, args, 1);
-        fiber->flags |= DST_FIBER_MASK_ERROR;
+        fiber->flags |= DST_FIBER_MASK_ERROR | DST_FIBER_MASK_YIELD;
         for (i = 0; i < len; i++) {
             switch (flags[i]) {
                 default:
-                    return dst_throw(args, "invalid flag, expected d or e");
+                    return dst_throw(args, "invalid flag, expected d, e, or y");
                 case ':':
                     break;
                 case 'd':
@@ -280,6 +280,9 @@ static int cfun_new(DstArgs args) {
                     break;
                 case 'e':
                     fiber->flags &= ~DST_FIBER_MASK_ERROR;
+                    break;
+                case 'y':
+                    fiber->flags &= ~DST_FIBER_MASK_YIELD;
                     break;
             }
         }
@@ -367,10 +370,31 @@ static int cfun_stack(DstArgs args) {
     return dst_return(args, dst_wrap_array(array));
 }
 
+static int cfun_current(DstArgs args) {
+    dst_fixarity(args, 0);
+    return dst_return(args, dst_wrap_fiber(dst_vm_fiber));
+}
+
+static int cfun_lineage(DstArgs args) {
+    DstFiber *fiber;
+    DstArray *array;
+    dst_fixarity(args, 1);
+    dst_check(args, 0, DST_FIBER);
+    fiber = dst_unwrap_fiber(args.v[0]);
+    array = dst_array(0);
+    while (fiber) {
+        dst_array_push(array, dst_wrap_fiber(fiber));
+        fiber = fiber->child;
+    }
+    return dst_return(args, dst_wrap_array(array));
+}
+
 static const DstReg cfuns[] = {
     {"fiber.new", cfun_new},
     {"fiber.status", cfun_status},
     {"fiber.stack", cfun_stack},
+    {"fiber.current", cfun_current},
+    {"fiber.lineage", cfun_lineage},
     {NULL, NULL}
 };
 

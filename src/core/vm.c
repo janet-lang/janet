@@ -29,6 +29,7 @@
 
 /* VM state */
 DST_THREAD_LOCAL int dst_vm_stackn = 0;
+DST_THREAD_LOCAL DstFiber *dst_vm_fiber = NULL;
 
 /* Maybe collect garbage */
 #define dst_maybe_collect() do {\
@@ -36,6 +37,9 @@ DST_THREAD_LOCAL int dst_vm_stackn = 0;
 
 /* Start running the VM from where it left off. */
 Dst dst_run(DstFiber *fiber) {
+
+    /* Save old fiber to reset */
+    DstFiber *old_vm_fiber = dst_vm_fiber;
 
     /* VM state */
     register Dst *stack;
@@ -53,13 +57,14 @@ Dst dst_run(DstFiber *fiber) {
     }
     dst_vm_stackn++;
 
-    /* Reset fiber state */
+    /* Setup fiber state */
+    dst_vm_fiber = fiber;
+    dst_gcroot(dst_wrap_fiber(fiber));
     if (fiber->flags & DST_FIBER_FLAG_NEW) {
         dst_fiber_funcframe(fiber, fiber->root);
         fiber->flags &= ~DST_FIBER_FLAG_NEW;
     }
     fiber->status = DST_FIBER_ALIVE;
-    dst_gcroot(dst_wrap_fiber(fiber));
     stack = fiber->data + fiber->frame;
     pc = dst_stack_frame(stack)->pc;
     func = dst_stack_frame(stack)->func;
@@ -202,7 +207,7 @@ static void *op_lookup[255] = {
         vm_next();\
     }
 
-    /* Main interpreter loop. Sematically is a switch on
+    /* Main interpreter loop. Semantically is a switch on
      * (*pc & 0xFF) inside of an infinte loop. */
     VM_START();
 
@@ -739,6 +744,7 @@ static void *op_lookup[255] = {
         }
         fiber->child = nextfiber;
         retreg = dst_run(nextfiber);
+        dst_vm_fiber = fiber;
         switch (nextfiber->status) {
             case DST_FIBER_DEBUG:
                 if (nextfiber->flags & DST_FIBER_MASK_DEBUG) goto vm_debug;
@@ -746,6 +752,13 @@ static void *op_lookup[255] = {
                 break;
             case DST_FIBER_ERROR:
                 if (nextfiber->flags & DST_FIBER_MASK_ERROR) goto vm_error;
+                fiber->child = NULL;
+                break;
+            case DST_FIBER_PENDING:
+                if (nextfiber->flags & DST_FIBER_MASK_YIELD) {
+                    fiber->status = DST_FIBER_PENDING;
+                    goto vm_exit;
+                }
                 fiber->child = NULL;
                 break;
             default:
@@ -853,6 +866,7 @@ static void *op_lookup[255] = {
         dst_stack_frame(stack)->pc = pc;
         dst_vm_stackn--;
         dst_gcunroot(dst_wrap_fiber(fiber));
+        dst_vm_fiber = old_vm_fiber;
         return retreg;
     }
 

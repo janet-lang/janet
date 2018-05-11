@@ -25,6 +25,8 @@
 
 #include <dst/dst.h>
 
+extern DST_THREAD_LOCAL DstFiber *dst_vm_fiber;
+
 #define dst_stack_frame(s) ((DstStackFrame *)((s) - DST_FRAME_SIZE))
 #define dst_fiber_frame(f) dst_stack_frame((f)->data + (f)->frame)
 DstFiber *dst_fiber_reset(DstFiber *fiber, DstFunction *callee);

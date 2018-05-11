@@ -904,7 +904,7 @@ onvalue."
       (res)
       (do
        (:= good false)
-       (onerr "compile" (get res :error))))) :de))
+       (onerr "compile" (get res :error))))) :dey))
   (def res (fiber.resume f))
   (if good
    (cond

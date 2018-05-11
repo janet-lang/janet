@@ -344,6 +344,7 @@ struct DstArgs {
 /* Fiber signal masks. Should not overlap any fiber flags. */
 #define DST_FIBER_MASK_ERROR 1
 #define DST_FIBER_MASK_DEBUG 2
+#define DST_FIBER_MASK_YIELD 4
 
 /* A lightweight green thread in dst. Does not correspond to
  * operating system threads. */
