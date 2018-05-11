@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include <errno.h>
 
 #define IO_WRITE 1
 #define IO_READ 2
@@ -30,6 +31,7 @@
 #define IO_CLOSED 32
 #define IO_BINARY 64
 #define IO_SERIALIZABLE 128
+#define IO_PIPED 256
 
 typedef struct IOFile IOFile;
 struct IOFile {
@@ -135,6 +137,48 @@ static Dst makef(FILE *f, int flags) {
     return dst_wrap_abstract(iof);
 }
 
+/* Open a process */
+static int dst_io_popen(DstArgs args) {
+    const uint8_t *fname, *fmode;
+    int32_t modelen;
+    FILE *f;
+    int flags;
+    dst_minarity(args, 1);
+    dst_maxarity(args, 2);
+    dst_check(args, 0, DST_STRING);
+    fname = dst_unwrap_string(args.v[0]);
+    if (args.n == 2) {
+        if (!dst_checktype(args.v[1], DST_STRING) &&
+            !dst_checktype(args.v[1], DST_SYMBOL))
+            return dst_throw(args, "expected string mode");
+        fmode = dst_unwrap_string(args.v[1]);
+        modelen = dst_string_length(fmode);
+    } else {
+        fmode = (const uint8_t *)"r";
+        modelen = 1;
+    }
+    if (fmode[0] == ':') {
+        fmode++;
+        modelen--;
+    }
+    if (modelen != 1 || !(fmode[0] == 'r' || fmode[0] == 'w')) {
+        return dst_throw(args, "invalid file mode");
+    }
+    flags = (fmode[0] == 'r') ? IO_PIPED | IO_READ : IO_PIPED | IO_WRITE;
+#ifdef DST_WINDOWS
+    f = _popen((const char *)fname, (const char *)fmode);
+#else
+    f = popen((const char *)fname, (const char *)fmode);
+#endif
+    if (!f) {
+        if (errno == EMFILE) {
+            return dst_throw(args, "too many streams are open");
+        }
+        return dst_throw(args, "could not open file");
+    }
+    return dst_return(args, makef(f, flags));
+}
+
 /* Open a a file and return a userdata wrapper around the C file API. */
 static int dst_io_fopen(DstArgs args) {
     const uint8_t *fname, *fmode;
@@ -172,6 +216,8 @@ static int dst_io_fread(DstArgs args) {
     size_t ntoread, nread;
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
+    if (iof->flags & IO_CLOSED)
+        return dst_throw(args, "file is closed");
     b = checkbuffer(args, 2, 1);
     if (!b) return 1;
     if (dst_checktype(args.v[1], DST_SYMBOL)) {
@@ -217,6 +263,8 @@ static int dst_io_fwrite(DstArgs args) {
     const uint8_t *str;
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
+    if (iof->flags & IO_CLOSED)
+        return dst_throw(args, "file is closed");
     if (!(iof->flags & (IO_WRITE | IO_APPEND | IO_UPDATE)))
         return dst_throw(args, "file is not writeable");
     for (i = 1; i < args.n; i++) {
@@ -232,6 +280,8 @@ static int dst_io_fwrite(DstArgs args) {
 static int dst_io_fflush(DstArgs args) {
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
+    if (iof->flags & IO_CLOSED)
+        return dst_throw(args, "file is closed");
     if (!(iof->flags & (IO_WRITE | IO_APPEND | IO_UPDATE)))
         return dst_throw(args, "file is not flushable");
     if (fflush(iof->file)) return dst_throw(args, "could not flush file");
@@ -256,7 +306,15 @@ static int dst_io_fclose(DstArgs args) {
         return dst_throw(args, "file already closed");
     if (iof->flags & (IO_NOT_CLOSEABLE))
         return dst_throw(args, "file not closable");
-    if (fclose(iof->file)) return dst_throw(args, "could not close file");
+    if (iof->flags & IO_PIPED) {
+#ifdef DST_WINDOWS
+        if (_pclose(iof->file)) return dst_throw(args, "could not close file");
+#else
+        if (pclose(iof->file)) return dst_throw(args, "could not close file");
+#endif
+    } else {
+        if (fclose(iof->file)) return dst_throw(args, "could not close file");
+    }
     iof->flags |= IO_CLOSED;
     return dst_return(args, dst_wrap_abstract(iof));
 }
@@ -267,6 +325,8 @@ static int dst_io_fseek(DstArgs args) {
     int whence = SEEK_CUR;
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
+    if (iof->flags & IO_CLOSED)
+        return dst_throw(args, "file is closed");
     if (args.n >= 2) {
         const uint8_t *whence_sym;
         if (!dst_checktype(args.v[1], DST_SYMBOL))
@@ -292,11 +352,6 @@ static int dst_io_fseek(DstArgs args) {
     return dst_return(args, args.v[0]);
 }
 
-/* Define the entry point of the library */
-#ifdef DST_LIB
-#define dst_lib_io _dst_init
-#endif
-
 static const DstReg cfuns[] = {
     {"file.open", dst_io_fopen},
     {"file.close", dst_io_fclose},
@@ -304,6 +359,7 @@ static const DstReg cfuns[] = {
     {"file.write", dst_io_fwrite},
     {"file.flush", dst_io_fflush},
     {"file.seek", dst_io_fseek},
+    {"file.popen", dst_io_popen},
     {NULL, NULL}
 };
 
