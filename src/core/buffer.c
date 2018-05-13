@@ -161,91 +161,89 @@ int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x) {
 static int cfun_new(DstArgs args) {
     int32_t cap;
     DstBuffer *buffer;
-    dst_fixarity(args, 1);
-    dst_arg_integer(cap, args, 0);
+    DST_FIXARITY(args, 1);
+    DST_ARG_INTEGER(cap, args, 0);
     buffer = dst_buffer(cap);
-    return dst_return(args, dst_wrap_buffer(buffer));
+    DST_RETURN_BUFFER(args, buffer);
 }
 
 static int cfun_u8(DstArgs args) {
     int32_t i;
     DstBuffer *buffer;
-    dst_minarity(args, 1);
-    dst_arg_buffer(buffer, args, 0);
+    DST_MINARITY(args, 1);
+    DST_ARG_BUFFER(buffer, args, 0);
     for (i = 1; i < args.n; i++) {
         int32_t integer;
-        dst_arg_integer(integer, args, i);
+        DST_ARG_INTEGER(integer, args, i);
         if (dst_buffer_push_u8(buffer, (uint8_t) (integer & 0xFF)))
-            return dst_throw(args, "buffer overflow");
+            DST_THROW(args, "buffer overflow");
     }
-    return dst_return(args, args.v[0]);
+    DST_RETURN(args, args.v[0]);
 }
 
 static int cfun_int(DstArgs args) {
     int32_t i;
     DstBuffer *buffer;
-    dst_minarity(args, 1);
-    dst_arg_buffer(buffer, args, 0);
+    DST_MINARITY(args, 1);
+    DST_ARG_BUFFER(buffer, args, 0);
     for (i = 1; i < args.n; i++) {
         int32_t integer;
-        dst_arg_integer(integer, args, i);
+        DST_ARG_INTEGER(integer, args, i);
         if (dst_buffer_push_u32(buffer, (uint32_t) integer)) 
-            return dst_throw(args, "buffer overflow");
+            DST_THROW(args, "buffer overflow");
     }
-    return dst_return(args, args.v[0]);
+    DST_RETURN(args, args.v[0]);
 }
 
 static int cfun_chars(DstArgs args) {
     int32_t i;
     DstBuffer *buffer;
-    dst_minarity(args, 1);
-    dst_arg_buffer(buffer, args, 0);
+    DST_MINARITY(args, 1);
+    DST_ARG_BUFFER(buffer, args, 0);
     for (i = 1; i < args.n; i++) {
         int32_t len;
         const uint8_t *str;
-        if (!dst_chararray_view(args.v[i], &str, &len)) 
-            return dst_throw(args, "expected string|symbol|buffer");
+        DST_ARG_BYTES(str, len, args, i);
         if (dst_buffer_push_bytes(buffer, str, len)) 
-            return dst_throw(args, "buffer overflow");
+            DST_THROW(args, "buffer overflow");
     }
-    return dst_return(args, args.v[0]);
+    DST_RETURN(args, args.v[0]);
 }
 
 static int cfun_clear(DstArgs args) {
     DstBuffer *buffer;
-    dst_fixarity(args, 1);
-    dst_arg_buffer(buffer, args, 0);
+    DST_FIXARITY(args, 1);
+    DST_ARG_BUFFER(buffer, args, 0);
     buffer->count = 0;
-    return dst_return(args, args.v[0]);
+    DST_RETURN(args, args.v[0]);
 }
 
 static int cfun_popn(DstArgs args) {
     DstBuffer *buffer;
     int32_t n;
-    dst_fixarity(args, 2);
-    dst_arg_buffer(buffer, args, 0);
-    dst_arg_integer(n, args, 1);
+    DST_FIXARITY(args, 2);
+    DST_ARG_BUFFER(buffer, args, 0);
+    DST_ARG_INTEGER(n, args, 1);
     if (buffer->count < n) {
         buffer->count = 0;
     } else {
         buffer->count -= n;
     }
-    return dst_return(args, args.v[0]);
+    DST_RETURN(args, args.v[0]);
 }
 
 static int cfun_slice(DstArgs args) {
     const uint8_t *data;
     int32_t len, start, end;
     DstBuffer *ret;
-    if (args.n < 1 || !dst_chararray_view(args.v[0], &data, &len))
-        return dst_throw(args, "expected buffer/string");
+    DST_ARG_BYTES(data, len, args, 0);
     /* Get start */
     if (args.n < 2) {
         start = 0;
     } else if (dst_checktype(args.v[1], DST_INTEGER)) {
         start = dst_unwrap_integer(args.v[1]);
     } else {
-        return dst_throw(args, "expected integer");
+        DST_THROW(args, "expected integer");
     }
     /* Get end */
     if (args.n < 3) {
@@ -253,7 +251,7 @@ static int cfun_slice(DstArgs args) {
     } else if (dst_checktype(args.v[2], DST_INTEGER)) {
         end = dst_unwrap_integer(args.v[2]);
     } else {
-        return dst_throw(args, "expected integer");
+        DST_THROW(args, "expected integer");
     }
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
@@ -264,7 +262,7 @@ static int cfun_slice(DstArgs args) {
     } else {
         ret = dst_buffer(0);
     }
-    return dst_return(args, dst_wrap_buffer(ret));
+    DST_RETURN_BUFFER(args, ret);
 }
 
 static const DstReg cfuns[] = {

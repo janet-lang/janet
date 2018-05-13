@@ -468,7 +468,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     }
                     case 't':
                     {
-                        dst_buffer_push_cstring(bufp, dst_type_names[va_arg(args, DstType)]);
+                        dst_buffer_push_cstring(bufp, dst_type_names[va_arg(args, DstType)] + 1);
                         break;
                     }
                     case 'V': 

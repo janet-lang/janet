@@ -23,6 +23,13 @@
 #include <dst/dst.h>
 
 #include <stdlib.h>
+#include <time.h>
+
+#ifdef DST_WINDOWS
+#include <Windows.h>
+#else
+#include <unistd.h>
+#endif
 
 static int os_execute(DstArgs args) {
     int nofirstarg = (args.n < 1 || !dst_checktype(args.v[0], DST_STRING));
@@ -30,28 +37,28 @@ static int os_execute(DstArgs args) {
         ? NULL
         : (const char *) dst_unwrap_string(args.v[0]);
     int stat = system(cmd);
-    return dst_return(args, cmd
+    DST_RETURN(args, cmd
             ? dst_wrap_integer(stat)
             : dst_wrap_boolean(stat));
 }
 
 static int os_getenv(DstArgs args) {
     if (args.n != 1 || !dst_checktype(args.v[0], DST_STRING))
-        return dst_throw(args, "expected string");
+        DST_THROW(args, "expected string");
     const char *cstr = (const char *) dst_unwrap_string(args.v[0]);
     const char *res = getenv(cstr);
-    return dst_return(args, cstr
+    DST_RETURN(args, cstr
             ? dst_cstringv(res)
             : dst_wrap_nil());
 }
 
 static int os_setenv(DstArgs args) {
     int t2;
-    if (args.n < 2) return dst_throw(args, "expected 2 arguments");
+    if (args.n < 2) DST_THROW(args, "expected 2 arguments");
     t2 = dst_type(args.v[1]);
     if (!dst_checktype(args.v[0], DST_STRING)
         || (t2 != DST_STRING && t2 != DST_NIL))
-        return dst_throw(args, "expected string");
+        DST_THROW(args, "expected string");
     const char *k = (const char *) dst_unwrap_string(args.v[0]);
 #ifdef DST_WINDOWS
     if (t2 == DST_NIL) {
@@ -73,16 +80,39 @@ static int os_setenv(DstArgs args) {
 }
 
 static int os_exit(DstArgs args) {
-  if (args.n == 0) {
-      exit(EXIT_SUCCESS);
-  } else if (dst_checktype(args.v[0], DST_TRUE)
-          || dst_checktype(args.v[0], DST_FALSE)) {
-      exit(dst_unwrap_boolean(args.v[0]) ? EXIT_SUCCESS : EXIT_FAILURE);
-      return 0;
-  } else {
-      exit(dst_hash(args.v[0]));
-  }
-  return 0;
+    DST_MAXARITY(args, 1);
+    if (args.n == 0) {
+        exit(EXIT_SUCCESS);
+    } else if (dst_checktype(args.v[0], DST_TRUE)
+            || dst_checktype(args.v[0], DST_FALSE)) {
+        exit(dst_unwrap_boolean(args.v[0]) ? EXIT_SUCCESS : EXIT_FAILURE);
+        return 0;
+    } else {
+        exit(dst_hash(args.v[0]));
+    }
+    return 0;
+}
+
+static int os_clock(DstArgs args) {
+    DST_FIXARITY(args, 0);
+    clock_t time = clock();
+    double dtime = time / (double) (CLOCKS_PER_SEC);
+    DST_RETURN_REAL(args, dtime);
+}
+
+static int os_sleep(DstArgs args) {
+    int32_t delay;
+    DST_FIXARITY(args, 1);
+    DST_ARG_INTEGER(delay, args, 0);
+    if (delay < 0) {
+        DST_THROW(args, "invalid argument to sleep");
+    }
+#ifdef DST_WINDOWS
+    Sleep(delay);
+#else
+    sleep((unsigned int) delay);
+#endif
+    return 0;
 }
 
 static const DstReg cfuns[] = {
@@ -90,6 +120,8 @@ static const DstReg cfuns[] = {
     {"os.exit", os_exit},
     {"os.getenv", os_getenv},
     {"os.setenv", os_setenv},
+    {"os.clock", os_clock},
+    {"os.sleep", os_sleep},
     {NULL, NULL}
 };
 

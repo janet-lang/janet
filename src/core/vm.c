@@ -224,7 +224,13 @@ static void *op_lookup[255] = {
     goto vm_error;
 
     VM_OP(DOP_TYPECHECK)
-    vm_assert((1 << dst_type(stack[oparg(1, 0xFF)])) & oparg(2, 0xFFFF), "typecheck failed");
+    if (!((1 << dst_type(stack[oparg(1, 0xFF)])) & oparg(2, 0xFFFF))) {
+        DstArgs tempargs;
+        tempargs.n = oparg(1, 0xFF) + 1;
+        tempargs.v = stack;
+        dst_typemany_err(tempargs, oparg(1, 0xFF), oparg(2, 0xFFFF));
+        goto vm_error;
+    }
     pc++;
     vm_next();
 
@@ -922,7 +928,7 @@ Dst dst_resume(DstFiber *fiber, int32_t argn, const Dst *argv) {
     return dst_run(fiber);
 }
 
-/* Setup functions */
+/* Setup VM */
 int dst_init() {
     /* Garbage collection */
     dst_vm_blocks = NULL;

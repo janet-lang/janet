@@ -202,34 +202,36 @@ int dst_arity_err(DstArgs args, int32_t n, const char *prefix);
 int dst_type_err(DstArgs args, int32_t n, DstType expected);
 int dst_typemany_err(DstArgs args, int32_t n, int expected);
 int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
-#define dst_throw(a, e) (*((a).ret) = dst_cstringv(e), 1)
-#define dst_throwv(a, v) (*((a).ret) = (v), 1)
-#define dst_return(a, v) (*((a).ret) = (v), 0)
+
+/* Macros */
+#define DST_THROW(a, e) return (*((a).ret) = dst_cstringv(e), 1)
+#define DST_THROWV(a, v) return (*((a).ret) = (v), 1)
+#define DST_RETURN(a, v) return (*((a).ret) = (v), 0)
 
 /* Early exit macros */
-#define dst_maxarity(A, N) do { if ((A).n > (N))\
+#define DST_MAXARITY(A, N) do { if ((A).n > (N))\
     return dst_arity_err(A, N, "at most "); } while (0)
-#define dst_minarity(A, N) do { if ((A).n < (N))\
+#define DST_MINARITY(A, N) do { if ((A).n < (N))\
     return dst_arity_err(A, N, "at least "); } while (0)
-#define dst_fixarity(A, N) do { if ((A).n != (N))\
+#define DST_FIXARITY(A, N) do { if ((A).n != (N))\
     return dst_arity_err(A, N, ""); } while (0)
-#define dst_check(A, N, T) do {\
+#define DST_CHECK(A, N, T) do {\
     if ((A).n > (N)) {\
        if (!dst_checktype((A).v[(N)], (T))) return dst_type_err(A, N, T);\
     } else {\
        if ((T) != DST_NIL) return dst_type_err(A, N, T);\
     }\
 } while (0)
-#define dst_checkmany(A, N, TS) do {\
+#define DST_CHECKMANY(A, N, TS) do {\
     if ((A).n > (N)) {\
         DstType t = dst_type((A).v[(N)]);\
         if (!((1 << t) & (TS))) return dst_typemany_err(A, N, TS);\
     } else {\
-       if (!((TS) & DST_NIL)) return dst_type_err(A, N, TS);\
+       if (!((TS) & DST_NIL)) return dst_typemany_err(A, N, TS);\
     }\
 } while (0)
 
-#define dst_checkabstract(A, N, AT) do {\
+#define DST_CHECKABSTRACT(A, N, AT) do {\
     if ((A).n > (N)) {\
         Dst x = (A).v[(N)];\
         if (!dst_checktype(x, DST_ABSTRACT) ||\
@@ -240,42 +242,69 @@ int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
     }\
 } while (0)
 
-#define dst_arg_number(DEST, A, N) do { \
-    if ((A).n <= (N)) return dst_typemany_err(A, N, DST_TFLAG_NUMBER);\
+#define DST_ARG_NUMBER(DEST, A, N) do { \
+    if ((A).n <= (N)) \
+        return dst_typemany_err(A, N, DST_TFLAG_NUMBER);\
     Dst val = (A).v[(N)];\
-    if (dst_checktype(val, DST_REAL)) { DEST = dst_unwrap_real(val); }\
-    else if (dst_checktype(val, DST_INTEGER)) { DEST = (double) dst_unwrap_integer(val); }\
-    else return dst_typemany_err(A, N, DST_TFLAG_NUMBER); } while (0)
+    if (dst_checktype(val, DST_REAL)) { \
+        DEST = dst_unwrap_real(val); \
+    } else if (dst_checktype(val, DST_INTEGER)) {\
+        DEST = (double) dst_unwrap_integer(val);\
+    }\
+    else return dst_typemany_err(A, N, DST_TFLAG_NUMBER); \
+} while (0)
 
-#define dst_arg_boolean(DEST, A, N) do { \
-    dst_checkmany(A, N, DST_TFLAG_TRUE | DST_TFLAG_FALSE);\
-    DEST = dst_unwrap_boolean((A).v[(N)]); } while (0)
+#define DST_ARG_BOOLEAN(DEST, A, N) do { \
+    DST_CHECKMANY(A, N, DST_TFLAG_TRUE | DST_TFLAG_FALSE);\
+    DEST = dst_unwrap_boolean((A).v[(N)]); \
+} while (0)
 
-#define _dst_arg(TYPE, NAME, DEST, A, N) do { \
-    dst_check(A, N, TYPE);\
-    DEST = dst_unwrap_##NAME((A).v[(N)]); } while (0)
-
-#define dst_arg_bytes(DESTBYTES, DESTLEN, A, N) do {\
+#define DST_ARG_BYTES(DESTBYTES, DESTLEN, A, N) do {\
     if ((A).n <= (N)) return dst_typemany_err(A, N, DST_TFLAG_BYTES);\
     if (!dst_chararray_view((A).v[(N)], &(DESTBYTES), &(DESTLEN))) {\
         return dst_typemany_err(A, N, DST_TFLAG_BYTES);\
     }\
 } while (0)
 
-#define dst_arg_fiber(DEST, A, N) _dst_arg(DST_FIBER, fiber, DEST, A, N)
-#define dst_arg_integer(DEST, A, N) _dst_arg(DST_INTEGER, integer, DEST, A, N)
-#define dst_arg_real(DEST, A, N) _dst_arg(DST_REAL, real, DEST, A, N)
-#define dst_arg_string(DEST, A, N) _dst_arg(DST_STRING, string, DEST, A, N)
-#define dst_arg_symbol(DEST, A, N) _dst_arg(DST_SYMBOL, symbol, DEST, A, N)
-#define dst_arg_array(DEST, A, N) _dst_arg(DST_ARRAY, array, DEST, A, N)
-#define dst_arg_tuple(DEST, A, N) _dst_arg(DST_TUPLE, tuple, DEST, A, N)
-#define dst_arg_table(DEST, A, N) _dst_arg(DST_TABLE, table, DEST, A, N)
-#define dst_arg_struct(DEST, A, N) _dst_arg(DST_STRUCT, st, DEST, A, N)
-#define dst_arg_buffer(DEST, A, N) _dst_arg(DST_BUFFER, buffer, DEST, A, N)
-#define dst_arg_function(DEST, A, N) _dst_arg(DST_FUNCTION, function, DEST, A, N)
-#define dst_arg_cfunction(DEST, A, N) _dst_arg(DST_CFUNCTION, cfunction, DEST, A, N)
+#define _DST_ARG(TYPE, NAME, DEST, A, N) do { \
+    DST_CHECK(A, N, TYPE);\
+    DEST = dst_unwrap_##NAME((A).v[(N)]); \
+} while (0)
 
-#define dst_arg_abstract(DEST, A, N) _dst_arg(DST_ABSTRACT, abstract, DEST, A, N)
+#define DST_ARG_FIBER(DEST, A, N) _DST_ARG(DST_FIBER, fiber, DEST, A, N)
+#define DST_ARG_INTEGER(DEST, A, N) _DST_ARG(DST_INTEGER, integer, DEST, A, N)
+#define DST_ARG_REAL(DEST, A, N) _DST_ARG(DST_REAL, real, DEST, A, N)
+#define DST_ARG_STRING(DEST, A, N) _DST_ARG(DST_STRING, string, DEST, A, N)
+#define DST_ARG_SYMBOL(DEST, A, N) _DST_ARG(DST_SYMBOL, symbol, DEST, A, N)
+#define DST_ARG_ARRAY(DEST, A, N) _DST_ARG(DST_ARRAY, array, DEST, A, N)
+#define DST_ARG_TUPLE(DEST, A, N) _DST_ARG(DST_TUPLE, tuple, DEST, A, N)
+#define DST_ARG_TABLE(DEST, A, N) _DST_ARG(DST_TABLE, table, DEST, A, N)
+#define DST_ARG_STRUCT(DEST, A, N) _DST_ARG(DST_STRUCT, st, DEST, A, N)
+#define DST_ARG_BUFFER(DEST, A, N) _DST_ARG(DST_BUFFER, buffer, DEST, A, N)
+#define DST_ARG_FUNCTION(DEST, A, N) _DST_ARG(DST_FUNCTION, function, DEST, A, N)
+#define DST_ARG_CFUNCTION(DEST, A, N) _DST_ARG(DST_CFUNCTION, cfunction, DEST, A, N)
+#define DST_ARG_ABSTRACT(DEST, A, N) _DST_ARG(DST_ABSTRACT, abstract, DEST, A, N)
+
+#define DST_RETURN_NIL(A) return 0
+#define DST_RETURN_FALSE(A) DST_RETURN(A, dst_wrap_false())
+#define DST_RETURN_TRUE(A) DST_RETURN(A, dst_wrap_true())
+#define DST_RETURN_BOOLEAN(A, X) DST_RETURN(A, dst_wrap_boolean(X))
+#define DST_RETURN_FIBER(A, X) DST_RETURN(A, dst_wrap_fiber(X))
+#define DST_RETURN_INTEGER(A, X) DST_RETURN(A, dst_wrap_integer(X))
+#define DST_RETURN_REAL(A, X) DST_RETURN(A, dst_wrap_real(X))
+#define DST_RETURN_STRING(A, X) DST_RETURN(A, dst_wrap_string(X))
+#define DST_RETURN_SYMBOL(A, X) DST_RETURN(A, dst_wrap_symbol(X))
+#define DST_RETURN_ARRAY(A, X) DST_RETURN(A, dst_wrap_array(X))
+#define DST_RETURN_TUPLE(A, X) DST_RETURN(A, dst_wrap_tuple(X))
+#define DST_RETURN_TABLE(A, X) DST_RETURN(A, dst_wrap_table(X))
+#define DST_RETURN_STRUCT(A, X) DST_RETURN(A, dst_wrap_struct(X))
+#define DST_RETURN_BUFFER(A, X) DST_RETURN(A, dst_wrap_buffer(X))
+#define DST_RETURN_FUNCTION(A, X) DST_RETURN(A, dst_wrap_function(X))
+#define DST_RETURN_CFUNCTION(A, X) DST_RETURN(A, dst_wrap_cfunction(X))
+#define DST_RETURN_ABSTRACT(A, X) DST_RETURN(A, dst_wrap_abstract(X))
+
+#define DST_RETURN_CSTRING(A, X) DST_RETURN(A, dst_cstringv(X))
+#define DST_RETURN_CSYMBOL(A, X) DST_RETURN(A, dst_csymbolv(X))
 
 #ifdef __cplusplus
 }

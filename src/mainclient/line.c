@@ -24,13 +24,13 @@
 
 /* Common */
 int dst_line_getter(DstArgs args) {
-    dst_fixarity(args, 2);
-    dst_check(args, 0, DST_STRING);
-    dst_check(args, 1, DST_BUFFER);
+    DST_FIXARITY(args, 2);
+    DST_CHECK(args, 0, DST_STRING);
+    DST_CHECK(args, 1, DST_BUFFER);
     dst_line_get(
             dst_unwrap_string(args.v[0]),
             dst_unwrap_buffer(args.v[1]));
-    return dst_return(args, args.v[0]);
+    DST_RETURN(args, args.v[0]);
 }
 
 static void simpleline(DstBuffer *buffer) {

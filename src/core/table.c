@@ -240,43 +240,46 @@ void dst_table_merge_struct(DstTable *table, const DstKV *other) {
 static int cfun_new(DstArgs args) {
     DstTable *t;
     int32_t cap;
-    dst_fixarity(args, 1);
-    dst_arg_integer(cap, args, 0);
+    DST_FIXARITY(args, 1);
+    DST_ARG_INTEGER(cap, args, 0);
     t = dst_table(cap);
-    return dst_return(args, dst_wrap_table(t));
+    DST_RETURN_TABLE(args, t);
 }
 
 static int cfun_getproto(DstArgs args) {
     DstTable *t;
-    dst_fixarity(args, 1);
-    dst_check(args, 0, DST_TABLE);
-    t = dst_unwrap_table(args.v[0]);
-    return dst_return(args, t->proto
+    DST_FIXARITY(args, 1);
+    DST_ARG_TABLE(t, args, 0);
+    DST_RETURN(args, t->proto
             ? dst_wrap_table(t->proto)
             : dst_wrap_nil());
 }
 
 static int cfun_setproto(DstArgs args) {
-    dst_fixarity(args, 2);
-    dst_check(args, 0, DST_TABLE);
-    dst_checkmany(args, 1, DST_TFLAG_TABLE | DST_TFLAG_NIL);
-    dst_unwrap_table(args.v[0])->proto = dst_checktype(args.v[1], DST_TABLE)
-        ? dst_unwrap_table(args.v[1])
-        : NULL;
-    return dst_return(args, args.v[0]);
+    DstTable *table, *proto;
+    DST_FIXARITY(args, 2);
+    DST_ARG_TABLE(table, args, 0);
+    if (dst_checktype(args.v[1], DST_NIL)) {
+        proto = NULL;
+    } else {
+        DST_ARG_TABLE(proto, args, 1);
+    }
+    table->proto = proto;
+    DST_RETURN_TABLE(args, table);
 }
 
 static int cfun_tostruct(DstArgs args) {
     DstTable *t;
-    dst_fixarity(args, 1);
-    dst_arg_table(t, args, 0);
-    return dst_return(args, dst_wrap_struct(dst_table_to_struct(t)));
+    DST_FIXARITY(args, 1);
+    DST_ARG_TABLE(t, args, 0);
+    DST_RETURN_STRUCT(args, dst_table_to_struct(t));
 }
 
 static int cfun_rawget(DstArgs args) {
-    dst_fixarity(args, 2);
-    dst_check(args, 0, DST_TABLE);
-    return dst_return(args, dst_table_rawget(dst_unwrap_table(args.v[0]), args.v[1]));
+    DstTable *table;
+    DST_FIXARITY(args, 2);
+    DST_ARG_TABLE(table, args, 0);
+    DST_RETURN(args, dst_table_rawget(table, args.v[1]));
 }
 
 static const DstReg cfuns[] = {

@@ -148,26 +148,35 @@ static const DstInstructionDef dst_ops[] = {
     {"yield", DOP_YIELD}
 };
 
-/* Check a dst string against a bunch of test_strings. Return the 
- * index of the matching test_string, or -1 if not found. */
-static int32_t strsearch(const uint8_t *str, const char *const *test_strings) {
-    int32_t len = dst_string_length(str);
-    int index;
-    for (index = 0; ; index++) {
-        int32_t i;
-        const char *testword = test_strings[index];
-        if (NULL == testword)
-            break;
-        for (i = 0; i < len; i++) {
-            if (testword[i] != str[i])
-                goto nextword;
-        }
-        return index;
-        nextword:
-            continue;
-    }
-    return -1;
-}
+/* Typename aliases for tchck instruction */
+typedef struct TypeAlias {
+    const char *name;
+    int32_t mask;
+} TypeAlias;
+
+static const TypeAlias type_aliases[] = {
+    {":abstract", DST_TFLAG_ABSTRACT},
+    {":array", DST_TFLAG_ARRAY},
+    {":boolean", DST_TFLAG_BOOLEAN},
+    {":buffer", DST_TFLAG_BUFFER},
+    {":callable", DST_TFLAG_CALLABLE},
+    {":cfunction", DST_TFLAG_CFUNCTION},
+    {":dictionary", DST_TFLAG_DICTIONARY},
+    {":false", DST_TFLAG_FALSE},
+    {":fiber", DST_TFLAG_FIBER},
+    {":function", DST_TFLAG_FUNCTION},
+    {":indexed", DST_TFLAG_INDEXED},
+    {":integer", DST_TFLAG_INTEGER},
+    {":nil", DST_TFLAG_NIL},
+    {":number", DST_TFLAG_NUMBER},
+    {":real", DST_TFLAG_REAL},
+    {":string", DST_TFLAG_STRING},
+    {":struct", DST_TFLAG_STRUCT},
+    {":symbol", DST_TFLAG_SYMBOL},
+    {":table", DST_TFLAG_BOOLEAN},
+    {":true", DST_TFLAG_TRUE},
+    {":tuple", DST_TFLAG_BOOLEAN}
+};
 
 /* Deinitialize an Assembler. Does not deinitialize the parents. */
 static void dst_asm_deinit(DstAssembler *a) {
@@ -295,9 +304,13 @@ static int32_t doarg_1(
                     dst_asm_errorv(a, dst_formatc("unknown name %q", x));
                 }
             } else if (argtype == DST_OAT_TYPE || argtype == DST_OAT_SIMPLETYPE) {
-                int32_t index = strsearch(dst_unwrap_symbol(x), dst_type_names);
-                if (index != -1) {
-                    ret = index;
+                const TypeAlias *alias = dst_strbinsearch(
+                            &type_aliases,
+                            sizeof(type_aliases)/sizeof(TypeAlias),
+                            sizeof(TypeAlias),
+                            dst_unwrap_symbol(x));
+                if (alias) {
+                    ret = alias->mask;
                 } else {
                     dst_asm_errorv(a, dst_formatc("unknown type %q", x));
                 }
@@ -890,21 +903,20 @@ Dst dst_disasm(DstFuncDef *def) {
 /* C Function for assembly */
 int dst_asm_cfun(DstArgs args) {
     DstAssembleResult res;
-    if (args.n < 1) return dst_throw(args, "expected assembly source");
+    DST_FIXARITY(args, 1);
     res = dst_asm(args.v[0], 0);
     if (res.status == DST_ASSEMBLE_OK) {
-        return dst_return(args, dst_wrap_function(dst_thunk(res.funcdef)));
+        DST_RETURN_FUNCTION(args, dst_thunk(res.funcdef));
     } else {
-        return dst_throwv(args, dst_wrap_string(res.error));
+        DST_THROWV(args, dst_wrap_string(res.error));
     }
 }
 
 int dst_disasm_cfun(DstArgs args) {
     DstFunction *f;
-    if (args.n < 1 || !dst_checktype(args.v[0], DST_FUNCTION))
-        return dst_throw(args, "expected function");
-    f = dst_unwrap_function(args.v[0]);
-    return dst_return(args, dst_disasm(f->def));
+    DST_FIXARITY(args, 1);
+    DST_ARG_FUNCTION(f, args, 0);
+    DST_RETURN(args, dst_disasm(f->def));
 }
 
 static const DstReg cfuns[] = {

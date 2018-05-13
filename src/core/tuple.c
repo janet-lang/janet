@@ -94,14 +94,15 @@ static int cfun_slice(DstArgs args) {
     int32_t len;
     Dst *ret;
     int32_t start, end;
-    if (args.n < 1 || !dst_seq_view(args.v[0], &vals, &len)) return dst_throw(args, "expected array/tuple");
+    DST_MINARITY(args, 1);
+    if (!dst_seq_view(args.v[0], &vals, &len)) DST_THROW(args, "expected array/tuple");
     /* Get start */
     if (args.n < 2) {
         start = 0;
     } else if (dst_checktype(args.v[1], DST_INTEGER)) {
         start = dst_unwrap_integer(args.v[1]);
     } else {
-        return dst_throw(args, "expected integer");
+        DST_THROW(args, "expected integer");
     }
     /* Get end */
     if (args.n < 3) {
@@ -109,7 +110,7 @@ static int cfun_slice(DstArgs args) {
     } else if (dst_checktype(args.v[2], DST_INTEGER)) {
         end = dst_unwrap_integer(args.v[2]);
     } else {
-        return dst_throw(args, "expected integer");
+        DST_THROW(args, "expected integer");
     }
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
@@ -122,31 +123,31 @@ static int cfun_slice(DstArgs args) {
     } else {
         ret = dst_tuple_begin(0);
     }
-    return dst_return(args, dst_wrap_tuple(dst_tuple_end(ret)));
+    DST_RETURN_TUPLE(args, dst_tuple_end(ret));
 }
 
 static int cfun_prepend(DstArgs args) {
     const Dst *t;
     int32_t len;
     Dst *n;
-    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
-    if (!dst_seq_view(args.v[0], &t, &len)) return dst_throw(args, "expected tuple/array");
+    DST_FIXARITY(args, 2);
+    if (!dst_seq_view(args.v[0], &t, &len)) DST_THROW(args, "expected tuple/array");
     n = dst_tuple_begin(len + 1);
     memcpy(n + 1, t, sizeof(Dst) * len);
     n[0] = args.v[1];
-    return dst_return(args, dst_wrap_tuple(dst_tuple_end(n)));
+    DST_RETURN_TUPLE(args, dst_tuple_end(n));
 }
 
 static int cfun_append(DstArgs args) {
     const Dst *t;
     int32_t len;
     Dst *n;
-    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
-    if (!dst_seq_view(args.v[0], &t, &len)) return dst_throw(args, "expected tuple/array");
+    DST_FIXARITY(args, 2);
+    if (!dst_seq_view(args.v[0], &t, &len)) DST_THROW(args, "expected tuple/array");
     n = dst_tuple_begin(len + 1);
     memcpy(n, t, sizeof(Dst) * len);
     n[len] = args.v[1];
-    return dst_return(args, dst_wrap_tuple(dst_tuple_end(n)));
+    DST_RETURN_TUPLE(args, dst_tuple_end(n));
 }
 
 /* Load the tuple module */

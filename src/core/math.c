@@ -25,26 +25,26 @@
 
 /* Get a random number */
 int dst_rand(DstArgs args) {
-    dst_fixarity(args, 0);
+    DST_FIXARITY(args, 0);
     double r = (rand() % RAND_MAX) / ((double) RAND_MAX);
-    return dst_return(args, dst_wrap_real(r));
+    DST_RETURN_REAL(args, r);
 }
 
 /* Seed the random number generator */
 int dst_srand(DstArgs args) {
     int32_t x = 0;
-    dst_fixarity(args, 0);
-    dst_arg_integer(x, args, 0);
+    DST_FIXARITY(args, 1);
+    DST_ARG_INTEGER(x, args, 0);
     srand((unsigned) x);
     return 0;
 }
 
 /* Convert a number to an integer */
 int dst_int(DstArgs args) {
-    dst_fixarity(args, 1);
+    DST_FIXARITY(args, 1);
     switch (dst_type(args.v[0])) {
         default:
-            return dst_throw(args, "could not convert to integer");
+            DST_THROW(args, "could not convert to integer");
         case DST_REAL:
             *args.ret = dst_wrap_integer((int32_t) dst_unwrap_real(args.v[0]));
             break;
@@ -57,10 +57,10 @@ int dst_int(DstArgs args) {
 
 /* Convert a number to a real number */
 int dst_real(DstArgs args) {
-    dst_fixarity(args, 1);
+    DST_FIXARITY(args, 1);
     switch (dst_type(args.v[0])) {
         default:
-            return dst_throw(args, "could not convert to real");
+            DST_THROW(args, "could not convert to real");
         case DST_REAL:
             *args.ret = args.v[0];
             break;
@@ -200,34 +200,34 @@ DST_DEFINE_BITOP(bxor, ^=, 0)
 
 int dst_lshift(DstArgs args) {
     int32_t lhs, rhs;
-    dst_fixarity(args, 2);
-    dst_arg_integer(lhs, args, 0);
-    dst_arg_integer(rhs, args, 1);
-    return dst_return(args, dst_wrap_integer(lhs >> rhs));
+    DST_FIXARITY(args, 2);
+    DST_ARG_INTEGER(lhs, args, 0);
+    DST_ARG_INTEGER(rhs, args, 1);
+    DST_RETURN_INTEGER(args, lhs >> rhs);
 }
 
 int dst_rshift(DstArgs args) {
     int32_t lhs, rhs;
-    dst_fixarity(args, 2);
-    dst_arg_integer(lhs, args, 0);
-    dst_arg_integer(rhs, args, 1);
-    return dst_return(args, dst_wrap_integer(lhs << rhs));
+    DST_FIXARITY(args, 2);
+    DST_ARG_INTEGER(lhs, args, 0);
+    DST_ARG_INTEGER(rhs, args, 1);
+    DST_RETURN_INTEGER(args, lhs << rhs);
 }
 
 int dst_lshiftu(DstArgs args) {
     int32_t lhs, rhs;
-    dst_fixarity(args, 2);
-    dst_arg_integer(lhs, args, 0);
-    dst_arg_integer(rhs, args, 1);
-    return dst_return(args, dst_wrap_integer((int32_t)((uint32_t)lhs << rhs)));
+    DST_FIXARITY(args, 2);
+    DST_ARG_INTEGER(lhs, args, 0);
+    DST_ARG_INTEGER(rhs, args, 1);
+    DST_RETURN_INTEGER(args, (int32_t)((uint32_t)lhs << rhs));
 }
 
 #define DST_DEFINE_MATHOP(name, fop)\
 int dst_##name(DstArgs args) {\
     double x;\
-    dst_fixarity(args, 1);\
-    dst_arg_number(x, args, 0);\
-    return dst_return(args, dst_wrap_real(fop(x)));\
+    DST_FIXARITY(args, 1);\
+    DST_ARG_NUMBER(x, args, 0);\
+    DST_RETURN_REAL(args, fop(x));\
 }
 
 DST_DEFINE_MATHOP(acos, acos)
@@ -250,10 +250,10 @@ DST_DEFINE_MATHOP(floor, floor)
 #define DST_DEFINE_MATH2OP(name, fop)\
 int dst_##name(DstArgs args) {\
     double lhs, rhs;\
-    dst_fixarity(args, 2);\
-    dst_arg_number(lhs, args, 0);\
-    dst_arg_number(rhs, args, 1);\
-    return dst_return(args, dst_wrap_real(fop(lhs, rhs)));\
+    DST_FIXARITY(args, 2);\
+    DST_ARG_NUMBER(lhs, args, 0);\
+    DST_ARG_NUMBER(rhs, args, 1);\
+    DST_RETURN_REAL(args, fop(lhs, rhs));\
 }\
 
 DST_DEFINE_MATH2OP(atan2, atan2)
@@ -263,13 +263,12 @@ DST_DEFINE_MATH2OP(fmod, fmod)
 int dst_modf(DstArgs args) {
     double x, intpart;
     Dst *tup;
-    dst_fixarity(args, 1);
-    dst_arg_number(x, args, 0);
+    DST_FIXARITY(args, 2);
+    DST_ARG_NUMBER(x, args, 0);
     tup = dst_tuple_begin(2);
     tup[0] = dst_wrap_real(modf(x, &intpart));
     tup[1] = dst_wrap_real(intpart);
-    *args.ret = dst_wrap_tuple(dst_tuple_end(tup));
-    return 0;
+    DST_RETURN_TUPLE(args, dst_tuple_end(tup));
 }
 
 /* Comparison */
@@ -278,12 +277,10 @@ static int dst_##name(DstArgs args) {\
     int32_t i;\
     for (i = 0; i < args.n - 1; i++) {\
         if (dst_compare(args.v[i], args.v[i+1]) pred) {\
-            *args.ret = dst_wrap_false();\
-            return 0;\
+            DST_RETURN_FALSE(args);\
         }\
     }\
-    *args.ret = dst_wrap_true();\
-    return 0;\
+    DST_RETURN_TRUE(args);\
 }
 
 DST_DEFINE_COMPARATOR(ascending, >= 0)
@@ -296,25 +293,25 @@ static int dst_strict_equal(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n - 1; i++) {
         if (!dst_equals(args.v[i], args.v[i+1])) {
-            return dst_return(args, dst_wrap_false());
+            DST_RETURN(args, dst_wrap_false());
         }
     }
-    return dst_return(args, dst_wrap_true());
+    DST_RETURN(args, dst_wrap_true());
 }
 
 static int dst_strict_notequal(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n - 1; i++) {
         if (dst_equals(args.v[i], args.v[i+1])) {
-            return dst_return(args, dst_wrap_false());
+            DST_RETURN(args, dst_wrap_false());
         }
     }
-    return dst_return(args, dst_wrap_true());
+    DST_RETURN(args, dst_wrap_true());
 }
 
 static int dst_not(DstArgs args) {
-    dst_fixarity(args, 1);
-    return dst_return(args, dst_wrap_boolean(!dst_truthy(args.v[0])));
+    DST_FIXARITY(args, 1);
+    DST_RETURN_BOOLEAN(args, !dst_truthy(args.v[0]));
 }
 
 #define DEF_NUMERIC_COMP(name, op) \
@@ -322,13 +319,13 @@ int dst_numeric_##name(DstArgs args) { \
     int32_t i; \
     for (i = 1; i < args.n; i++) { \
         double x = 0, y = 0; \
-        dst_arg_number(x, args, i-1);\
-        dst_arg_number(y, args, i);\
+        DST_ARG_NUMBER(x, args, i-1);\
+        DST_ARG_NUMBER(y, args, i);\
         if (!(x op y)) { \
-            return dst_return(args, dst_wrap_false()); \
+            DST_RETURN(args, dst_wrap_false()); \
         } \
     } \
-    return dst_return(args, dst_wrap_true()); \
+    DST_RETURN(args, dst_wrap_true()); \
 }
 
 DEF_NUMERIC_COMP(gt, >)

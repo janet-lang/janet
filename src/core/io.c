@@ -117,19 +117,6 @@ static DstBuffer *checkbuffer(DstArgs args, int32_t n, int optional) {
     return dst_unwrap_abstract(args.v[n]);
 }
 
-/* Check char array argument */
-static int checkchars(DstArgs args, int32_t n, const uint8_t **str, int32_t *len) {
-    if (n >= args.n) {
-        *args.ret = dst_cstringv("expected string/buffer");
-        return 0;
-    }
-    if (!dst_chararray_view(args.v[n], str, len)) {
-        *args.ret = dst_cstringv("expected string/buffer");
-        return 0;
-    }
-    return 1;
-}
-
 static Dst makef(FILE *f, int flags) {
     IOFile *iof = (IOFile *) dst_abstract(&dst_io_filetype, sizeof(IOFile));
     iof->file = f;
@@ -143,14 +130,13 @@ static int dst_io_popen(DstArgs args) {
     int32_t modelen;
     FILE *f;
     int flags;
-    dst_minarity(args, 1);
-    dst_maxarity(args, 2);
-    dst_check(args, 0, DST_STRING);
-    fname = dst_unwrap_string(args.v[0]);
+    DST_MINARITY(args, 1);
+    DST_MAXARITY(args, 2);
+    DST_ARG_STRING(fname, args, 0);
     if (args.n == 2) {
         if (!dst_checktype(args.v[1], DST_STRING) &&
             !dst_checktype(args.v[1], DST_SYMBOL))
-            return dst_throw(args, "expected string mode");
+            DST_THROW(args, "expected string mode");
         fmode = dst_unwrap_string(args.v[1]);
         modelen = dst_string_length(fmode);
     } else {
@@ -162,7 +148,7 @@ static int dst_io_popen(DstArgs args) {
         modelen--;
     }
     if (modelen != 1 || !(fmode[0] == 'r' || fmode[0] == 'w')) {
-        return dst_throw(args, "invalid file mode");
+        DST_THROW(args, "invalid file mode");
     }
     flags = (fmode[0] == 'r') ? IO_PIPED | IO_READ : IO_PIPED | IO_WRITE;
 #ifdef DST_WINDOWS
@@ -172,11 +158,11 @@ static int dst_io_popen(DstArgs args) {
 #endif
     if (!f) {
         if (errno == EMFILE) {
-            return dst_throw(args, "too many streams are open");
+            DST_THROW(args, "too many streams are open");
         }
-        return dst_throw(args, "could not open file");
+        DST_THROW(args, "could not open file");
     }
-    return dst_return(args, makef(f, flags));
+    DST_RETURN(args, makef(f, flags));
 }
 
 /* Open a a file and return a userdata wrapper around the C file API. */
@@ -185,14 +171,13 @@ static int dst_io_fopen(DstArgs args) {
     int32_t modelen;
     FILE *f;
     int flags;
-    dst_minarity(args, 1);
-    dst_maxarity(args, 2);
-    dst_check(args, 0, DST_STRING);
-    fname = dst_unwrap_string(args.v[0]);
+    DST_MINARITY(args, 1);
+    DST_MAXARITY(args, 2);
+    DST_ARG_STRING(fname, args, 0);
     if (args.n == 2) {
         if (!dst_checktype(args.v[1], DST_STRING) &&
             !dst_checktype(args.v[1], DST_SYMBOL))
-            return dst_throw(args, "expected string mode");
+            DST_THROW(args, "expected string mode");
         fmode = dst_unwrap_string(args.v[1]);
         modelen = dst_string_length(fmode);
     } else {
@@ -203,10 +188,12 @@ static int dst_io_fopen(DstArgs args) {
         fmode++;
         modelen--;
     }
-    if ((flags = checkflags(fmode, modelen)) < 0) return dst_throw(args, "invalid file mode");
+    if ((flags = checkflags(fmode, modelen)) < 0) {
+        DST_THROW(args, "invalid file mode");
+    }
     f = fopen((const char *)fname, (const char *)fmode);
-    if (!f) return dst_throw(args, "could not open file");
-    return dst_return(args, makef(f, flags));
+    if (!f) DST_THROW(args, "could not open file");
+    DST_RETURN(args, makef(f, flags));
 }
 
 /* Read a certain number of bytes into memory */
@@ -217,7 +204,7 @@ static int dst_io_fread(DstArgs args) {
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
     if (iof->flags & IO_CLOSED)
-        return dst_throw(args, "file is closed");
+        DST_THROW(args, "file is closed");
     b = checkbuffer(args, 2, 1);
     if (!b) return 1;
     if (dst_checktype(args.v[1], DST_SYMBOL)) {
@@ -228,33 +215,34 @@ static int dst_io_fread(DstArgs args) {
             fseek(iof->file, 0, SEEK_END);
             fsize = ftell(iof->file);
             fseek(iof->file, 0, SEEK_SET);
-            if (fsize > INT32_MAX) return dst_throw(args, "buffer overflow");
+            if (fsize > INT32_MAX) DST_THROW(args, "buffer overflow");
             len = fsize;
             /* Fall through to normal code */
         } else if (!dst_cstrcmp(sym, ":line")) {
             for (;;) {
                 int x = fgetc(iof->file);
-                if (x != EOF && dst_buffer_push_u8(b, (uint8_t)x)) return dst_throw(args, "buffer overflow");
+                if (x != EOF && dst_buffer_push_u8(b, (uint8_t)x))
+                    DST_THROW(args, "buffer overflow");
                 if (x == EOF || x == '\n') break;
             }
-            return dst_return(args, dst_wrap_buffer(b));
+            DST_RETURN(args, dst_wrap_buffer(b));
         } else {
-            return dst_throw(args, "expected one of :all, :line");
+            DST_THROW(args, "expected one of :all, :line");
         } 
     } else if (!dst_checktype(args.v[1], DST_INTEGER)) {
-        return dst_throw(args, "expected positive integer");
+        DST_THROW(args, "expected positive integer");
     } else {
         len = dst_unwrap_integer(args.v[1]);
-        if (len < 0) return dst_throw(args, "expected positive integer");
+        if (len < 0) DST_THROW(args, "expected positive integer");
     }
-    if (!(iof->flags & (IO_READ | IO_UPDATE))) return dst_throw(args, "file is not readable");
+    if (!(iof->flags & (IO_READ | IO_UPDATE))) DST_THROW(args, "file is not readable");
     /* Ensure buffer size */
-    if (dst_buffer_extra(b, len)) return dst_throw(args, "buffer overflow");
+    if (dst_buffer_extra(b, len)) DST_THROW(args, "buffer overflow");
     ntoread = len;
     nread = fread((char *)(b->data + b->count), 1, ntoread, iof->file);
-    if (nread != ntoread && ferror(iof->file)) return dst_throw(args, "could not read file");
+    if (nread != ntoread && ferror(iof->file)) DST_THROW(args, "could not read file");
     b->count += nread;
-    return dst_return(args, dst_wrap_buffer(b));
+    DST_RETURN(args, dst_wrap_buffer(b));
 }
 
 /* Write bytes to a file */
@@ -264,16 +252,19 @@ static int dst_io_fwrite(DstArgs args) {
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
     if (iof->flags & IO_CLOSED)
-        return dst_throw(args, "file is closed");
+        DST_THROW(args, "file is closed");
     if (!(iof->flags & (IO_WRITE | IO_APPEND | IO_UPDATE)))
-        return dst_throw(args, "file is not writeable");
+        DST_THROW(args, "file is not writeable");
     for (i = 1; i < args.n; i++) {
-        if (!checkchars(args, i, &str, &len)) return 1;
+        DST_CHECKMANY(args, i, DST_TFLAG_BYTES);
+    }
+    for (i = 1; i < args.n; i++) {
+        DST_ARG_BYTES(str, len, args, i);
         if (len) {
-            if (!fwrite(str, len, 1, iof->file)) return dst_throw(args, "error writing to file");
+            if (!fwrite(str, len, 1, iof->file)) DST_THROW(args, "error writing to file");
         }
     }
-    return dst_return(args, dst_wrap_abstract(iof));
+    DST_RETURN(args, dst_wrap_abstract(iof));
 }
 
 /* Flush the bytes in the file */
@@ -281,11 +272,11 @@ static int dst_io_fflush(DstArgs args) {
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
     if (iof->flags & IO_CLOSED)
-        return dst_throw(args, "file is closed");
+        DST_THROW(args, "file is closed");
     if (!(iof->flags & (IO_WRITE | IO_APPEND | IO_UPDATE)))
-        return dst_throw(args, "file is not flushable");
-    if (fflush(iof->file)) return dst_throw(args, "could not flush file");
-    return dst_return(args, dst_wrap_abstract(iof));
+        DST_THROW(args, "file is not flushable");
+    if (fflush(iof->file)) DST_THROW(args, "could not flush file");
+    DST_RETURN(args, dst_wrap_abstract(iof));
 }
 
 /* Cleanup a file */
@@ -303,20 +294,20 @@ static int dst_io_fclose(DstArgs args) {
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
     if (iof->flags & (IO_CLOSED))
-        return dst_throw(args, "file already closed");
+        DST_THROW(args, "file already closed");
     if (iof->flags & (IO_NOT_CLOSEABLE))
-        return dst_throw(args, "file not closable");
+        DST_THROW(args, "file not closable");
     if (iof->flags & IO_PIPED) {
 #ifdef DST_WINDOWS
-        if (_pclose(iof->file)) return dst_throw(args, "could not close file");
+        if (_pclose(iof->file)) DST_THROW(args, "could not close file");
 #else
-        if (pclose(iof->file)) return dst_throw(args, "could not close file");
+        if (pclose(iof->file)) DST_THROW(args, "could not close file");
 #endif
     } else {
-        if (fclose(iof->file)) return dst_throw(args, "could not close file");
+        if (fclose(iof->file)) DST_THROW(args, "could not close file");
     }
     iof->flags |= IO_CLOSED;
-    return dst_return(args, dst_wrap_abstract(iof));
+    DST_RETURN(args, dst_wrap_abstract(iof));
 }
 
 /* Seek a file */
@@ -326,11 +317,11 @@ static int dst_io_fseek(DstArgs args) {
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
     if (iof->flags & IO_CLOSED)
-        return dst_throw(args, "file is closed");
+        DST_THROW(args, "file is closed");
     if (args.n >= 2) {
         const uint8_t *whence_sym;
         if (!dst_checktype(args.v[1], DST_SYMBOL))
-            return dst_throw(args, "expected symbol");
+            DST_THROW(args, "expected symbol");
         whence_sym = dst_unwrap_symbol(args.v[1]);
         if (!dst_cstrcmp(whence_sym, ":cur")) {
             whence = SEEK_CUR;
@@ -339,17 +330,17 @@ static int dst_io_fseek(DstArgs args) {
         } else if (!dst_cstrcmp(whence_sym, ":end")) {
             whence = SEEK_END;
         } else {
-            return dst_throw(args, "expected one of :cur, :set, :end");
+            DST_THROW(args, "expected one of :cur, :set, :end");
         }
         if (args.n >= 3) {
             if (!dst_checktype(args.v[2], DST_INTEGER))
-                return dst_throw(args, "expected integer");
+                DST_THROW(args, "expected integer");
             offset = dst_unwrap_integer(args.v[2]);
         }
     }
     if (fseek(iof->file, offset, whence))
-        return dst_throw(args, "error seeking file");
-    return dst_return(args, args.v[0]);
+        DST_THROW(args, "error seeking file");
+    DST_RETURN(args, args.v[0]);
 }
 
 static const DstReg cfuns[] = {

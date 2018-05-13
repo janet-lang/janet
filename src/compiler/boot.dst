@@ -74,19 +74,34 @@
 (defn pos? [x] (> x 0))
 (defn neg? [x] (< x 0))
 (defn one? [x] (== x 1))
+(defn integer? [x] (= (type x) :integer))
+(defn real? [x] (= (type x) :real))
+(defn number? [x] 
+  (def t (type x))
+  (if (= t :integer) true (= t :real)))
+(defn fiber? [x] (= (type x) :fiber))
+(defn function? [x] (= (type x) :function))
+(defn cfunction? [x] (= (type x) :cfunction))
+(defn abstract? [x] (= (type x) :abstract))
 (defn table? [x] (= (type x) :table ))
 (defn struct? [x] (= (type x) :struct))
 (defn array? [x] (= (type x) :array))
 (defn tuple? [x] (= (type x) :tuple))
 (defn boolean? [x] (= (type x) :boolean))
+(defn bytes? [x] 
+ (def t (type x))
+ (if (= t :string) true (if (= t :symbol) true (= t :buffer))))
+(defn dictionary? [x] 
+ (def t (type x))
+ (if (= t :table) true (= t :struct)))
 (defn indexed? [x]
  (def t (type x))
  (if (= t :array) true (= t :tuple)))
-(defn function? [x]
+(defn callable? [x]
  (def t (type x))
  (if (= t :function) true (= t :cfunction)))
-(defn true? [x] (= (type x) true))
-(defn false? [x] (= (type x) false))
+(defn true? [x] (= x true))
+(defn false? [x] (= x false))
 (defn nil? [x] (= x nil))
 (def atomic? (do
   (def non-atomic-types {
@@ -923,7 +938,10 @@ onvalue."
 (defn default-error-handler
  [t x f]
  (file.write stdout (string t " error: "))
- (pp x)
+ (if (bytes? x)
+   (do (file.write stdout x)
+       (file.write stdout "\n"))
+   (pp x))
  (when f
   (def st (fiber.stack f))
   (def len (length st))

@@ -64,19 +64,12 @@ DstCFunction dst_native(const char *name, const uint8_t **error) {
 int dst_core_native(DstArgs args) {
     DstCFunction init;
     const uint8_t *error = NULL;
-    if (args.n < 1) {
-        *args.ret = dst_cstringv("expected at least one argument");
-        return 1;
-    }
-    if (!dst_checktype(args.v[0], DST_STRING)) {
-        *args.ret = dst_cstringv("expected string");
-        return 1;
-    }
-    init = dst_native((const char *)dst_unwrap_string(args.v[0]), &error);
+    const uint8_t *path = NULL;
+    DST_FIXARITY(args, 1);
+    DST_ARG_STRING(path, args, 0);
+    init = dst_native((const char *)path, &error);
     if (!init) {
-        *args.ret = dst_wrap_string(error);
-        return 1;
+        DST_THROWV(args, dst_wrap_string(error));
     }
-    *args.ret = dst_wrap_cfunction(init);
-    return 0;
+    DST_RETURN_CFUNCTION(args, init);
 }

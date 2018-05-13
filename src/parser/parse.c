@@ -447,6 +447,7 @@ static int ampersand(DstParser *p, DstParseState *state, uint8_t c) {
     return 0;
 }
 
+/* The root state of the parser */
 static int root(DstParser *p, DstParseState *state, uint8_t c) {
     switch (c) {
         default:
@@ -575,43 +576,21 @@ static int parsergc(void *p, size_t size) {
 }
 
 DstAbstractType dst_parse_parsertype = {
-    ":parse.parser",
+    ":parser.parser",
     parsergc,
     parsermark
 };
 
 /* C Function parser */
 static int cfun_parser(DstArgs args) {
-    int flags;
-    if (args.n > 1) return dst_throw(args, "expected 1 argument");
-    if (args.n) {
-        if (!dst_checktype(args.v[0], DST_INTEGER)) return dst_throw(args, "expected integer");
-        flags = dst_unwrap_integer(args.v[0]);
-    } else {
-        flags = 0;
+    int flags = 0;
+    DST_MAXARITY(args, 1);
+    if (args.n == 1) {
+        DST_ARG_INTEGER(flags, args, 0);
     }
     DstParser *p = dst_abstract(&dst_parse_parsertype, sizeof(DstParser));
     dst_parser_init(p, flags);
-    return dst_return(args, dst_wrap_abstract(p));
-}
-
-/* Check file argument */
-static DstParser *checkparser(DstArgs args) {
-    DstParser *p;
-    if (args.n == 0) {
-    	*args.ret = dst_cstringv("expected parse.parser");
-        return NULL;
-    }
-    if (!dst_checktype(args.v[0], DST_ABSTRACT)) {
-    	*args.ret = dst_cstringv("expected parse.parser");
-        return NULL;
-    }
-    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
-    if (dst_abstract_type(p) != &dst_parse_parsertype) {
-    	*args.ret = dst_cstringv("expected parse.parser");
-        return NULL;
-    }
-    return p;
+    DST_RETURN_ABSTRACT(args, p);
 }
 
 static int cfun_consume(DstArgs args) {
@@ -619,10 +598,10 @@ static int cfun_consume(DstArgs args) {
     int32_t len;
     DstParser *p;
     int32_t i;
-    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
-    p = checkparser(args);
-    if (!p) return 1;
-    if (!dst_chararray_view(args.v[1], &bytes, &len)) return dst_throw(args, "expected string/buffer");
+    DST_FIXARITY(args, 2);
+    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
+    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
+    DST_ARG_BYTES(bytes, len, args, 1);
     for (i = 0; i < len; i++) {
         dst_parser_consume(p, bytes[i]);
         switch (dst_parser_status(p)) {
@@ -633,27 +612,30 @@ static int cfun_consume(DstArgs args) {
                 {
                     DstBuffer *b = dst_buffer(len - i);
                     dst_buffer_push_bytes(b, bytes + i + 1, len - i - 1);
-                    return dst_return(args, dst_wrap_buffer(b));
+                    DST_RETURN_BUFFER(args, b);
                 }
         }
     }
-    return dst_return(args, dst_wrap_nil());
+    DST_RETURN(args, dst_wrap_nil());
 }
 
 static int cfun_byte(DstArgs args) {
+    int32_t i;
     DstParser *p;
-    if (args.n != 2) return dst_throw(args, "expected 2 arguments");
-    p = checkparser(args);
-    if (!p) return 1;
-    if (!dst_checktype(args.v[1], DST_INTEGER)) return dst_throw(args, "expected integer");
-    dst_parser_consume(p, 0xFF & dst_unwrap_integer(args.v[1]));
-    return dst_return(args, args.v[0]);
+    DST_FIXARITY(args, 2);
+    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
+    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
+    DST_ARG_INTEGER(i, args, 1);
+    dst_parser_consume(p, 0xFF & i);
+    DST_RETURN(args, args.v[0]);
 }
 
 static int cfun_status(DstArgs args) {
     const char *stat = NULL;
-    DstParser *p = checkparser(args);
-    if (!p) return 1;
+    DstParser *p;
+    DST_FIXARITY(args, 1);
+    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
+    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
     switch (dst_parser_status(p)) {
         case DST_PARSE_FULL:
             stat = ":full";
@@ -668,42 +650,50 @@ static int cfun_status(DstArgs args) {
             stat = ":root";
             break;
     }
-    return dst_return(args, dst_csymbolv(stat));
+    DST_RETURN_CSYMBOL(args, stat);
 }
 
 static int cfun_error(DstArgs args) {
     const char *err;
-    DstParser *p = checkparser(args);
-    if (!p) return 1;
+    DstParser *p;
+    DST_FIXARITY(args, 1);
+    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
+    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
     err = dst_parser_error(p);
     if (err) {
-        return dst_return(args, dst_cstringv(err));
+        DST_RETURN_CSYMBOL(args, err);
     } else {
-        return dst_return(args, dst_wrap_nil());
+        DST_RETURN_NIL(args);
     }
 }
 
 static int cfun_produce(DstArgs args) {
     Dst val;
-    DstParser *p = checkparser(args);
-    if (!p) return 1;
+    DstParser *p;
+    DST_FIXARITY(args, 1);
+    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
+    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
     val = dst_parser_produce(p);
-    return dst_return(args, val);
+    DST_RETURN(args, val);
 }
 
 static int cfun_flush(DstArgs args) {
-    DstParser *p = checkparser(args);
-    if (!p) return 1;
+    DstParser *p;
+    DST_FIXARITY(args, 1);
+    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
+    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
     dst_parser_flush(p);
-    return dst_return(args, args.v[0]);
+    DST_RETURN(args, args.v[0]);
 }
 
 static int cfun_state(DstArgs args) {
     int32_t i;
     uint8_t *buf = NULL;
     const uint8_t *str;
-    DstParser *p = checkparser(args);
-    if (!p) return 1;
+    DstParser *p;
+    DST_FIXARITY(args, 1);
+    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
+    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
     for (i = 0; i < dst_v_count(p->states); i++) {
         DstParseState *s = p->states + i;
         if (s->flags & PFLAG_PARENS) {
@@ -723,30 +713,30 @@ static int cfun_state(DstArgs args) {
     }
     str = dst_string(buf, dst_v_count(buf));
     dst_v_free(buf);
-    return dst_return(args, dst_wrap_string(str));
+    DST_RETURN_STRING(args, str);
 }
 
 /* AST */
 static int cfun_unwrap1(DstArgs args) {
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
-    return dst_return(args, dst_ast_unwrap1(args.v[0]));
+    DST_FIXARITY(args, 1);
+    DST_RETURN(args, dst_ast_unwrap1(args.v[0]));
 }
 
 static int cfun_unwrap(DstArgs args) {
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
-    return dst_return(args, dst_ast_unwrap(args.v[0]));
+    DST_FIXARITY(args, 1);
+    DST_RETURN(args, dst_ast_unwrap(args.v[0]));
 }
 
 static int cfun_wrap(DstArgs args) {
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
-    return dst_return(args, dst_ast_wrap(args.v[0], -1, -1));
+    DST_FIXARITY(args, 1);
+    DST_RETURN(args, dst_ast_wrap(args.v[0], -1, -1));
 }
 
 static int cfun_node(DstArgs args) {
     DstAst *ast;
     Dst *tup;
     int32_t start, end;
-    if (args.n != 1) return dst_throw(args, "expected 1 argument");
+    DST_FIXARITY(args, 1);
     ast = dst_ast_node(args.v[0]);
     if (ast) {
         start = ast->source_start;
@@ -758,7 +748,7 @@ static int cfun_node(DstArgs args) {
     tup = dst_tuple_begin(2);
     tup[0] = dst_wrap_integer(start);
     tup[1] = dst_wrap_integer(end);
-    return dst_return(args, dst_wrap_tuple(dst_tuple_end(tup)));
+    DST_RETURN_TUPLE(args, dst_tuple_end(tup));
 }
 
 static const DstReg cfuns[] = {

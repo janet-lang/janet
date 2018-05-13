@@ -45,29 +45,29 @@ static int sql_open(DstArgs args) {
     sqlite3 **conn;
     const uint8_t *filename;
     int status;
-    dst_fixarity(args, 1);
-    dst_arg_string(filename, args, 0);
+    DST_FIXARITY(args, 1);
+    DST_ARG_STRING(filename, args, 0);
     conn = (sqlite3 **) dst_abstract(&sql_conn_type, sizeof(sqlite3 *));
     status = sqlite3_open((const char *)filename, conn);
     if (status == SQLITE_OK) {
-        return dst_return(args, dst_wrap_abstract(conn));
+        DST_RETURN_ABSTRACT(args, conn);
     } else {
         const char *err = sqlite3_errmsg(*conn);
-        return dst_throw(args, err);
+        DST_THROW(args, err);
     }
 }
 
 static int sql_close(DstArgs args) {
     sqlite3 **conn;
     int status;
-    dst_fixarity(args, 1);
-    dst_checkabstract(args, 0, &sql_conn_type);
+    DST_FIXARITY(args, 1);
+    DST_CHECKABSTRACT(args, 0, &sql_conn_type);
     conn = (sqlite3 **)dst_unwrap_abstract(args.v[0]);
     status = sqlite3_close_v2(*conn);
     if (status == SQLITE_OK) {
-        return dst_return(args, dst_wrap_nil());
+        DST_RETURN_NIL(args);
     } else {
-        return dst_throw(args, "unable to close the sqlite3 connection");
+        DST_THROW(args, "unable to close the sqlite3 connection");
     }
 }
 
@@ -100,9 +100,9 @@ static int sql_sql(DstArgs args) {
             rows,
             &errmsg);
     if (status == SQLITE_OK) {
-        return dst_return(args, dst_wrap_array(rows));
+        DST_RETURN_ARRAY(args, rows);
     } else {
-        return dst_throw(args, errmsg);
+        DST_THROW(args, errmsg);
     }
 }
 
