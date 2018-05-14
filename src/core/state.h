@@ -33,12 +33,17 @@ extern "C" {
 
 /* The VM state. Rather than a struct that is passed
  * around, the vm state is global for simplicity. If 
- * at some point a a global state object, or contenxt,
+ * at some point a a global state object, or context,
  * is required to be passed around, this is waht would
- * be in it. */
+ * be in it. However, thread local globals for interpreter
+ * state should allow easy multithreading. */
 
 /* How many VM stacks have been entered */
 extern DST_THREAD_LOCAL int dst_vm_stackn;
+
+/* The current running fiber on the current thread.
+ * Set and unset by dst_run. */
+extern DST_THREAD_LOCAL DstFiber *dst_vm_fiber;
 
 /* Immutable value cache */
 extern DST_THREAD_LOCAL const uint8_t **dst_vm_cache;
