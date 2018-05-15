@@ -195,7 +195,8 @@ Dst dst_env_resolve(DstTable *env, const char *name);
 DstTable *dst_env_arg(DstArgs args);
 
 /* STL */
-DstTable *dst_stl_env(void);
+#define DST_STL_NOGCROOT 1
+DstTable *dst_stl_env(int flags);
 
 /* C Function helpers */
 int dst_arity_err(DstArgs args, int32_t n, const char *prefix);

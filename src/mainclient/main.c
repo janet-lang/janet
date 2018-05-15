@@ -33,8 +33,7 @@ int main(int argc, char **argv) {
 
     /* Set up VM */
     dst_init();
-    env = dst_stl_env();
-    dst_gcroot(dst_wrap_table(env));
+    env = dst_stl_env(0);
 
     /* Create args tuple */
     args = dst_array(argc);

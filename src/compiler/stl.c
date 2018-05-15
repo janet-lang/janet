@@ -60,7 +60,7 @@ static const DstReg cfuns[] = {
     {NULL, NULL}
 };
 
-DstTable *dst_stl_env() {
+DstTable *dst_stl_env(int flags) {
     static uint32_t error_asm[] = {
         DOP_ERROR
     };
@@ -112,7 +112,8 @@ DstTable *dst_stl_env() {
     /* Run bootstrap source */
     dst_dobytes(env, dst_stl_bootstrap_gen, sizeof(dst_stl_bootstrap_gen));
 
-    dst_gcunroot(dst_wrap_table(env));
+    if (flags & DST_STL_NOGCROOT)
+        dst_gcunroot(dst_wrap_table(env));
 
     return env;
 }

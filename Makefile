@@ -22,17 +22,21 @@
 ##### Set global variables #####
 ################################
 
-PREFIX?=/usr/local
+PREFIX?=/usr
+
+INCLUDEDIR=$(PREFIX)/include/dst
+LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
 
 # CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Wl,--dynamic-list=src/exported.list -s -O3
 # TODO - when api is finalized, only export public symbols instead of using rdynamic
-# which exports all symbols.
+# which exports all symbols. Saves a few KB in binary.
 
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -rdynamic -O2
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -rdynamic -fpic -O2
 CLIBS=-lm -ldl
 PREFIX=/usr/local
 DST_TARGET=dst
+DST_LIBRARY=libdst.so
 DEBUGGER=gdb
 
 # Source headers
@@ -51,7 +55,7 @@ DST_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
 DST_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
 DST_PARSER_SOURCES=$(sort $(wildcard src/parser/*.c))
 
-all: $(DST_TARGET)
+all: $(DST_TARGET) $(DST_LIBRARY)
 
 ###################################
 ##### The code generator tool #####
@@ -70,24 +74,30 @@ src/mainclient/clientinit.gen.h: src/mainclient/init.dst xxd
 src/compiler/dststlbootstrap.gen.h: src/compiler/boot.dst xxd
 	./xxd $< $@ dst_stl_bootstrap_gen
 
-########################################
-##### The main interpreter program #####
-########################################
+##########################################################
+##### The main interpreter program and shared object #####
+##########################################################
 
-DST_ALL_SOURCES=$(DST_ASM_SOURCES) \
+DST_LIB_SOURCES=$(DST_ASM_SOURCES) \
 				$(DST_COMPILER_SOURCES) \
 				$(DST_CONTEXT_SOURCES) \
 				$(DST_CORE_SOURCES) \
-				$(DST_MAINCLIENT_SOURCES) \
 				$(DST_PARSER_SOURCES)
 
+DST_ALL_SOURCES=$(DST_LIB_SOURCES) \
+				$(DST_MAINCLIENT_SOURCES)
+
+DST_LIB_OBJECTS=$(patsubst %.c,%.o,$(DST_LIB_SOURCES))
 DST_ALL_OBJECTS=$(patsubst %.c,%.o,$(DST_ALL_SOURCES))
 
 %.o: %.c $(DST_ALL_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(DST_TARGET): $(DST_ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $(DST_TARGET) $(DST_ALL_OBJECTS) $(CLIBS)
+	$(CC) $(CFLAGS) -o $(DST_TARGET) $^ $(CLIBS)
+
+$(DST_LIBRARY): $(DST_LIB_OBJECTS)
+	$(CC) $(CFLAGS) -shared -o $(DST_LIBRARY) $^ $(CLIBS)
 
 ###################
 ##### Testing #####
@@ -108,6 +118,7 @@ test: $(DST_TARGET)
 
 valtest: $(DST_TARGET)
 	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite0.dst
+	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite1.dst
 
 #################
 ##### Other #####
@@ -120,9 +131,16 @@ clean:
 	rm $(DST_GENERATED_HEADERS) || true
 
 install: $(DST_TARGET)
-	cp $(DST_TARGET) $(BINDIR)/dst
+	cp $(DST_TARGET) $(BINDIR)/$(DST_TARGET)
+	mkdir -p $(INCLUDEDIR)
+	cp $(DST_HEADERS) $(INCLUDEDIR)
+	cp $(DST_LIBRARY) $(LIBDIR)/$(DST_LIBRARY)
+	ldconfig
 
 uninstall:
-	rm $(BINDIR)/dst
+	rm $(BINDIR)/$(DST_TARGET)
+	rm $(LIBDIR)/$(DST_LIBRARY)
+	rm -rf $(INCLUDEDIR)
+	ldconfig
 
 .PHONY: clean install repl debug valgrind test valtest install uninstall
