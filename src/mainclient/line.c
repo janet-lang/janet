@@ -265,6 +265,8 @@ static void addhistory() {
     if (len < DST_HISTORY_MAX) {
         dst_v_push(history, newline);
         len++;
+    } else {
+        free(history[DST_HISTORY_MAX - 1]);
     }
     for (i = len - 1; i > 0; i--) {
         history[i] = history[i - 1];
@@ -275,6 +277,7 @@ static void addhistory() {
 static void replacehistory() {
     char *newline = sdup(buf);
     if (!newline) return;
+    free(history[0]);
     history[0] = newline;
 }
 

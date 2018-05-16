@@ -22,7 +22,6 @@
 
 #include <dst/dst.h>
 #include <dst/dstparse.h>
-#include <headerlibs/vector.h>
 
 /* Quote a value */
 static Dst quote(Dst x) {
@@ -118,6 +117,31 @@ struct DstParseState {
     Consumer consumer;
 };
 
+/* Define a stack on the main parser struct */
+#define DEF_PARSER_STACK(NAME, T, STACK, STACKCOUNT, STACKCAP) \
+static void NAME(DstParser *p, T x) { \
+    size_t oldcount = p->STACKCOUNT; \
+    size_t newcount = oldcount + 1; \
+    if (newcount > p->STACKCAP) { \
+        T *next; \
+        size_t newcap = 2 * newcount; \
+        next = realloc(p->STACK, sizeof(T) * newcap); \
+        if (NULL == next) { \
+            DST_OUT_OF_MEMORY; \
+        } \
+        p->STACK = next; \
+        p->STACKCAP = newcap; \
+    } \
+    p->STACK[oldcount] = x; \
+    p->STACKCOUNT = newcount; \
+}
+
+DEF_PARSER_STACK(push_buf, uint8_t, buf, bufcount, bufcap)
+DEF_PARSER_STACK(push_arg, Dst, args, argcount, argcap)
+DEF_PARSER_STACK(_pushstate, DstParseState, states, statecount, statecap)
+
+#undef DEF_PARSER_STACK
+
 #define PFLAG_CONTAINER 1
 #define PFLAG_BUFFER 2
 #define PFLAG_PARENS 4
@@ -133,14 +157,12 @@ static void pushstate(DstParser *p, Consumer consumer, int flags) {
     s.flags = flags;
     s.consumer = consumer;
     s.start = p->index;
-    dst_v_push(p->states, s);
+    _pushstate(p, s);
 }
 
 static void popstate(DstParser *p, Dst val) {
-    DstParseState top = dst_v_last(p->states);
-    DstParseState *newtop;
-    dst_v_pop(p->states);
-    newtop = &dst_v_last(p->states);
+    DstParseState top = p->states[--p->statecount];
+    DstParseState *newtop = p->states + p->statecount - 1;
     if (newtop->flags & PFLAG_CONTAINER) {
         int32_t i, len;
         len = newtop->qcount;
@@ -157,7 +179,7 @@ static void popstate(DstParser *p, Dst val) {
             val = dst_ast_wrap(val, (int32_t) top.start, (int32_t) p->index);
 
         newtop->argn++;
-        dst_v_push(p->argstack, val);
+        push_arg(p, val);
     }
 }
 
@@ -189,7 +211,7 @@ static int escapeh(DstParser *p, DstParseState *state, uint8_t c) {
     state->argn = (state->argn << 4) + digit;;
     state->qcount--;
     if (!state->qcount) {
-        dst_v_push(p->buf, (state->argn & 0xFF));
+        push_buf(p, (state->argn & 0xFF));
         state->argn = 0;
         state->consumer = stringchar;
     }
@@ -207,7 +229,7 @@ static int escape1(DstParser *p, DstParseState *state, uint8_t c) {
         state->argn = 0;
         state->consumer = escapeh;
     } else {
-        dst_v_push(p->buf, e);
+        push_buf(p, e);
         state->consumer = stringchar;
     }
     return 1;
@@ -216,13 +238,13 @@ static int escape1(DstParser *p, DstParseState *state, uint8_t c) {
 static int stringend(DstParser *p, DstParseState *state) {
     Dst ret;
     if (state->flags & PFLAG_BUFFER) {
-        DstBuffer *b = dst_buffer(dst_v_count(p->buf));
-        dst_buffer_push_bytes(b, p->buf, dst_v_count(p->buf));
+        DstBuffer *b = dst_buffer(p->bufcount);
+        dst_buffer_push_bytes(b, p->buf, p->bufcount);
         ret = dst_wrap_buffer(b);
     } else {
-        ret = dst_wrap_string(dst_string(p->buf, dst_v_count(p->buf)));
+        ret = dst_wrap_string(dst_string(p->buf, p->bufcount));
     }
-    dst_v_empty(p->buf);
+    p->bufcount = 0;
     popstate(p, ret);
     return 1;
 }
@@ -238,7 +260,7 @@ static int stringchar(DstParser *p, DstParseState *state, uint8_t c) {
         return stringend(p, state);
     }
     /* normal char */
-    dst_v_push(p->buf, c);
+    push_buf(p, c);
     return 1;
 }
 
@@ -259,12 +281,12 @@ static int tokenchar(DstParser *p, DstParseState *state, uint8_t c) {
     Dst numcheck, ret;
     int32_t blen;
     if (is_symbol_char(c)) {
-        dst_v_push(p->buf, (uint8_t) c);
+        push_buf(p, (uint8_t) c);
         if (c > 127) state->argn = 1; /* Use to indicate non ascii */
         return 1;
     }
     /* Token finished */
-    blen = dst_v_count(p->buf);
+    blen = p->bufcount;
     numcheck = dst_scan_number(p->buf, blen);
     if (!dst_checktype(numcheck, DST_NIL)) {
         ret = numcheck;
@@ -291,14 +313,14 @@ static int tokenchar(DstParser *p, DstParseState *state, uint8_t c) {
         p->error = "empty symbol invalid";
         return 0;
     }
-    dst_v_empty(p->buf);
+    p->bufcount = 0;
     popstate(p, ret);
     return 0;
 }
 
 static int comment(DstParser *p, DstParseState *state, uint8_t c) {
     (void) state;
-    if (c == '\n') dst_v_pop(p->states);
+    if (c == '\n') p->statecount--;
     return 1;
 }
 
@@ -312,7 +334,7 @@ static int dotuple(DstParser *p, DstParseState *state, uint8_t c) {
         int32_t i;
         Dst *ret = dst_tuple_begin(state->argn);
         for (i = state->argn - 1; i >= 0; i--) {
-            ret[i] = dst_v_last(p->argstack); dst_v_pop(p->argstack);
+            ret[i] = p->args[--p->argcount];
         }
         popstate(p, dst_wrap_tuple(dst_tuple_end(ret)));
         return 1;
@@ -327,7 +349,7 @@ static int doarray(DstParser *p, DstParseState *state, uint8_t c) {
         int32_t i;
         DstArray *array = dst_array(state->argn);
         for (i = state->argn - 1; i >= 0; i--) {
-            array->data[i] = dst_v_last(p->argstack); dst_v_pop(p->argstack);
+            array->data[i] = p->args[--p->argcount];
         }
         array->count = state->argn;
         popstate(p, dst_wrap_array(array));
@@ -346,8 +368,8 @@ static int dostruct(DstParser *p, DstParseState *state, uint8_t c) {
         }
         st = dst_struct_begin(state->argn >> 1);
         for (i = state->argn; i > 0; i -= 2) {
-            Dst value = dst_v_last(p->argstack); dst_v_pop(p->argstack);
-            Dst key = dst_v_last(p->argstack); dst_v_pop(p->argstack);
+            Dst value = p->args[--p->argcount];
+            Dst key = p->args[--p->argcount];
             dst_struct_put(st, key, value);
         }
         popstate(p, dst_wrap_struct(dst_struct_end(st)));
@@ -366,8 +388,8 @@ static int dotable(DstParser *p, DstParseState *state, uint8_t c) {
         }
         table = dst_table(state->argn >> 1);
         for (i = state->argn; i > 0; i -= 2) {
-            Dst value = dst_v_last(p->argstack); dst_v_pop(p->argstack);
-            Dst key = dst_v_last(p->argstack); dst_v_pop(p->argstack);
+            Dst value = p->args[--p->argcount];
+            Dst key = p->args[--p->argcount];
             dst_table_put(table, key, value);
         }
         popstate(p, dst_wrap_table(table));
@@ -387,7 +409,7 @@ static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
             state->qcount = 1; /* Use qcount to keep track of number of '=' seen */
             return 1;
         }
-        dst_v_push(p->buf, c);
+        push_buf(p, c);
         return 1;
     } else if (state->flags & PFLAG_END_CANDIDATE) {
         int i;
@@ -402,9 +424,9 @@ static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
         }
         /* Failed end candidate */
         for (i = 0; i < state->qcount; i++) {
-            dst_v_push(p->buf, '`');
+            push_buf(p, '`');
         }
-        dst_v_push(p->buf, c);
+        push_buf(p, c);
         state->qcount = 0;
         state->flags &= ~PFLAG_END_CANDIDATE;
         state->flags |= PFLAG_INSTRING;
@@ -414,7 +436,7 @@ static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
         state->argn++;
         if (c != '`') {
             state->flags |= PFLAG_INSTRING;
-            dst_v_push(p->buf, c);
+            push_buf(p, c);
         }
         return 1;
     }
@@ -422,7 +444,7 @@ static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
 
 static int ampersand(DstParser *p, DstParseState *state, uint8_t c) {
     (void) state;
-    dst_v_pop(p->states);
+    p->statecount--;
     switch (c) {
     case '{':
         pushstate(p, dotable, PFLAG_CONTAINER | PFLAG_CURLYBRACKETS);
@@ -443,7 +465,7 @@ static int ampersand(DstParser *p, DstParseState *state, uint8_t c) {
         break;
     }
     pushstate(p, tokenchar, 0);
-    dst_v_push(p->buf, '@'); /* Push the leading ampersand that was dropped */
+    push_buf(p, '@'); /* Push the leading ampersand that was dropped */
     return 0;
 }
 
@@ -495,7 +517,7 @@ int dst_parser_consume(DstParser *parser, uint8_t c) {
     if (parser->error) return 0;
     parser->index++;
     while (!consumed && !parser->error) {
-        DstParseState *state = &dst_v_last(parser->states);
+        DstParseState *state = parser->states + parser->statecount - 1;
         consumed = state->consumer(parser, state, c);
     }
     parser->lookback = c;
@@ -504,15 +526,15 @@ int dst_parser_consume(DstParser *parser, uint8_t c) {
 
 enum DstParserStatus dst_parser_status(DstParser *parser) {
     if (parser->error) return DST_PARSE_ERROR;
-    if (dst_v_count(parser->states) > 1) return DST_PARSE_PENDING;
-    if (dst_v_count(parser->argstack)) return DST_PARSE_FULL;
+    if (parser->statecount > 1) return DST_PARSE_PENDING;
+    if (parser->argcount) return DST_PARSE_FULL;
     return DST_PARSE_ROOT;
 }
 
 void dst_parser_flush(DstParser *parser) {
-    dst_v_empty(parser->argstack);
-    dst_v__cnt(parser->states) = 1;
-    dst_v_empty(parser->buf);
+    parser->argcount = 0;
+    parser->statecount = 1;
+    parser->bufcount = 0;
 }
 
 const char *dst_parser_error(DstParser *parser) {
@@ -528,21 +550,27 @@ const char *dst_parser_error(DstParser *parser) {
 
 Dst dst_parser_produce(DstParser *parser) {
     Dst ret;
-    int32_t i;
+    size_t i;
     enum DstParserStatus status = dst_parser_status(parser);
     if (status != DST_PARSE_FULL) return dst_wrap_nil();
-    ret = parser->argstack[0];
-    for (i = 1; i < dst_v_count(parser->argstack); i++) {
-        parser->argstack[i - 1] = parser->argstack[i];
+    ret = parser->args[0];
+    for (i = 1; i < parser->argcount; i++) {
+        parser->args[i - 1] = parser->args[i];
     }
-    dst_v__cnt(parser->argstack)--;
+    parser->argcount--;
     return ret;
 }
 
 void dst_parser_init(DstParser *parser, int flags) {
-    parser->argstack = NULL;
+    parser->args = NULL;
     parser->states = NULL;
     parser->buf = NULL;
+    parser->argcount = 0;
+    parser->argcap = 0;
+    parser->bufcount = 0;
+    parser->bufcap = 0;
+    parser->statecount = 0;
+    parser->statecap = 0;
     parser->error = NULL;
     parser->index = 0;
     parser->lookback = -1;
@@ -551,19 +579,19 @@ void dst_parser_init(DstParser *parser, int flags) {
 }
 
 void dst_parser_deinit(DstParser *parser) {
-    dst_v_free(parser->argstack);
-    dst_v_free(parser->buf);
-    dst_v_free(parser->states);
+    free(parser->args);
+    free(parser->buf);
+    free(parser->states);
 }
 
 /* C functions */
 
 static int parsermark(void *p, size_t size) {
-    int32_t i;
+    size_t i;
     DstParser *parser = (DstParser *)p;
     (void) size;
-    for (i = 0; i < dst_v_count(parser->argstack); i++) {
-        dst_mark(parser->argstack[i]);
+    for (i = 0; i < parser->argcount; i++) {
+        dst_mark(parser->args[i]);
     }
     return 0;
 }
@@ -687,32 +715,33 @@ static int cfun_flush(DstArgs args) {
 }
 
 static int cfun_state(DstArgs args) {
-    int32_t i;
-    uint8_t *buf = NULL;
+    size_t i;
     const uint8_t *str;
+    size_t oldcount;
     DstParser *p;
     DST_FIXARITY(args, 1);
     DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
     p = (DstParser *) dst_unwrap_abstract(args.v[0]);
-    for (i = 0; i < dst_v_count(p->states); i++) {
+    oldcount = p->bufcount;
+    for (i = 0; i < p->statecount; i++) {
         DstParseState *s = p->states + i;
         if (s->flags & PFLAG_PARENS) {
-            dst_v_push(buf, '(');
+            push_buf(p, '(');
         } else if (s->flags & PFLAG_SQRBRACKETS) {
-            dst_v_push(buf, '[');
+            push_buf(p, '[');
         } else if (s->flags & PFLAG_CURLYBRACKETS) {
-            dst_v_push(buf, '{');
+            push_buf(p, '{');
         } else if (s->flags & PFLAG_STRING) {
-            dst_v_push(buf, '"');
+            push_buf(p, '"');
         } else if (s->flags & PFLAG_LONGSTRING) {
             int32_t i;
             for (i = 0; i < s->argn; i++) {
-                dst_v_push(buf, '`');
+                push_buf(p, '`');
             }
         }
     }
-    str = dst_string(buf, dst_v_count(buf));
-    dst_v_free(buf);
+    str = dst_string(p->buf + oldcount, p->bufcount - oldcount);
+    p->bufcount = oldcount;
     DST_RETURN_STRING(args, str);
 }
 

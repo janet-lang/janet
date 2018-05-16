@@ -31,9 +31,10 @@ int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len) {
     int errflags = 0;
     int32_t index = 0;
     int dudeol = 0;
+    int done = 0;
 
     dst_parser_init(&parser, DST_PARSEFLAG_SOURCEMAP);
-    for (;;) {
+    while (!errflags && !done) {
         switch (dst_parser_status(&parser)) {
             case DST_PARSE_FULL:
                 {
@@ -62,7 +63,6 @@ int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len) {
                     if (dudeol) {
                         errflags |= 0x04;
                         printf("internal parse error: unexpected end of source\n");
-                        return errflags;
                     } else {
                         dudeol = 1;
                         dst_parser_consume(&parser, '\n');
@@ -72,11 +72,16 @@ int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len) {
                 }
                 break;
             case DST_PARSE_ROOT:
-                if (index >= len) return errflags;
-                dst_parser_consume(&parser, bytes[index++]);
+                if (index >= len) {
+                    done = 1;
+                } else {
+                    dst_parser_consume(&parser, bytes[index++]);
+                }
                 break;
         }
     }
+    dst_parser_deinit(&parser);
+    return errflags;
 }
 
 int dst_dostring(DstTable *env, const char *str) {

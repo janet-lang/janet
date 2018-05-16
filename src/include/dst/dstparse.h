@@ -46,9 +46,15 @@ enum DstParserStatus {
 };
 
 struct DstParser {
-    Dst* argstack;
+    Dst* args;
+    size_t argcount;
+    size_t argcap;
     DstParseState *states;
+    size_t statecount;
+    size_t statecap;
     uint8_t *buf;
+    size_t bufcount;
+    size_t bufcap;
     const char *error;
     size_t index;
     int lookback;
