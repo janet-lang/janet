@@ -218,7 +218,7 @@ failure to return or error.
 | `pusha`     | `(pusha array)`             | Push values in $array as args     |
 | `put`       | `(put ds key val)`          | $ds[$key] = $val                  |
 | `puti`      | `(puti ds index val)`       | $ds[index] = $val                 |
-| `res`       | `(res fiber val)`           | Resume $fiber with value $val     |
+| `res`       | `(res dest fiber val)`      | $dest = resume $fiber with $val   |
 | `ret`       | `(ret val)`                 | Return $val                       |
 | `retn`      | `(retn)`                    | Return nil                        |
 | `setu`      | `(setu env index val)`      | envs[env][index] = $val           |
@@ -231,5 +231,5 @@ failure to return or error.
 | `sub`       | `(sub dest lhs rhs)`        | $dest = $lhs - $rhs               |
 | `tcall`     | `(tcall callee)`            | Return call($callee)              |
 | `tchck`     | `(tcheck slot types)`       | Assert $slot does matches types   |
-| `yield`     | `(yield value)`             | Yield $value to parent fiber      |
+| `yield`     | `(yield dest value)`        | $dest = yield $value to parent    |
 

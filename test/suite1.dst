@@ -71,6 +71,27 @@
 
 (assert (= "hello, world" `hello, world`) "simple long string")
 (assert (= "hello, \"world\"" `hello, "world"`) "long string with embedded quotes")
-(assert (= "hello, \\\\\\ \"world\"" `hello, \\\ "world"`), "long string with embedded quotes and backslashes")
+(assert (= "hello, \\\\\\ \"world\"" `hello, \\\ "world"`),
+        "long string with embedded quotes and backslashes")
+
+# More fiber semantics
+
+(var myvar 0)
+(defn fiberstuff []
+  (++ myvar)
+  (def f (fiber.new (fn [] (++ myvar) (debug) (++ myvar))))
+  (fiber.resume f)
+  (++ myvar))
+
+(def myfiber (fiber.new fiberstuff :dey))
+
+(assert (= myvar 0) "fiber creation does not call fiber function")
+(fiber.resume myfiber)
+(assert (= myvar 2) "fiber debug statement breaks at proper point")
+(assert (= (fiber.status myfiber) :debug) "fiber enters debug state")
+(fiber.resume myfiber)
+(assert (= myvar 4) "fiber resumes properly from debug state")
+(assert (= (fiber.status myfiber) :dead) "fiber properly dies from debug state")
+
 
 (end-suite)

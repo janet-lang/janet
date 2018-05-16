@@ -41,7 +41,7 @@ Dst dst_run(DstFiber *fiber) {
     /* Save old fiber to reset */
     DstFiber *old_vm_fiber = dst_vm_fiber;
 
-    /* VM state */
+    /* interpreter state */
     register Dst *stack;
     register uint32_t *pc;
     register DstFunction *func;
@@ -731,8 +731,6 @@ static void *op_lookup[255] = {
         switch (nextfiber->status) {
             default:
                 vm_throw("expected pending, new, or debug fiber");
-            case DST_FIBER_DEBUG:
-                break;
             case DST_FIBER_NEW:
                 {
                     dst_fiber_push(nextfiber, val);
@@ -740,11 +738,21 @@ static void *op_lookup[255] = {
                     nextfiber->flags &= ~DST_FIBER_FLAG_NEW;
                     break;
                 }
+            case DST_FIBER_DEBUG:
+                {
+                    if (!nextfiber->child) {
+                        DstStackFrame *nextframe = dst_fiber_frame(nextfiber);
+                        nextframe->pc++;
+                    }
+                    break;
+                }
             case DST_FIBER_PENDING:
                 {
-                    DstStackFrame *nextframe = dst_fiber_frame(nextfiber);
-                    nextfiber->data[nextfiber->frame + ((*nextframe->pc >> 8) & 0xFF)] = val;
-                    nextframe->pc++;
+                    if (!nextfiber->child) {
+                        DstStackFrame *nextframe = dst_fiber_frame(nextfiber);
+                        nextfiber->data[nextfiber->frame + ((*nextframe->pc >> 8) & 0xFF)] = val;
+                        nextframe->pc++;
+                    }
                     break;
                 }
         }
