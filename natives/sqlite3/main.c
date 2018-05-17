@@ -88,10 +88,10 @@ static int sql_sql(DstArgs args) {
     const uint8_t *str;
     DstArray *rows;
     sqlite3 **conn;
-    dst_fixarity(args, 2);
-    dst_checkabstract(args, 0, &sql_conn_type);
+    DST_FIXARITY(args, 2);
+    DST_CHECKABSTRACT(args, 0, &sql_conn_type);
     conn = (sqlite3 **)dst_unwrap_abstract(args.v[0]);
-    dst_arg_string(str, args, 1);
+    DST_ARG_STRING(str, args, 1);
     rows = dst_array(10);
     status = sqlite3_exec(
             *conn,

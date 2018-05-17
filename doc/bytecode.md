@@ -1,7 +1,5 @@
 # Dst Bytecode Reference
 
-### Dst alpha 0.0.0
-
 This document outlines the Dst bytecode format, and core ideas in the runtime
 that are closely related to the bytecode. It should enable the reader
 to write dst assembly code and hopefully understand the dst internals better.
@@ -62,8 +60,9 @@ Fibers also have an incomplete stack frame for the next function call on top
 of their stacks. Making a function call involves pushing arguments to this
 temporary stack, and then invoking either the CALL or TCALL instructions.
 Arguments for the next function call are pushed via the PUSH, PUSH2, PUSH3, and
-PUSHA instructions. The stack of a fiber will grow as large as needed, so
-recursive algorithms can be used without fear of stack overflow.
+PUSHA instructions. The stack of a fiber will grow as large as needed, although by
+default dst will limit the maximum size of a fiber's stack.
+The maximum stack size can be modified on a per fiber basis.
 
 The slots in the stack are exposed as virtual registers to instructions. They
 can hold any Dst value.
@@ -72,7 +71,7 @@ can hold any Dst value.
 
 All functions in dst are closures; they combine some bytecode instructions
 with 0 or more environments. In the C source, a closure (hereby the same as
-a function) is represented by the type `DstFunc *`. The bytecode instruction
+a function) is represented by the type `DstFunction *`. The bytecode instruction
 part of the function is represented by `DstFuncDef *`, and a function environment
 is represented with `DstFuncEnv *`.
 
@@ -95,10 +94,12 @@ have a destination register, and 1 or 2 source register. Registers are simply
 named with positive integers.
 
 Each instruction is a 32 bit integer, meaning that the instruction set is a constant
-width instruction set like MIPS. The opcode of each instruction is the least significant
+width RISC instruction set like MIPS. The opcode of each instruction is the least significant
 byte of the instruction. The highest bit of
 this leading byte is reserved for debugging purpose, so there are 128 possible opcodes encodable
-with this scheme. The current implementation uses about half of these possible opcodes.
+with this scheme. Not all of these possible opcode are defined, and will trap the interpreter
+and emit a debug signal. Note that this mean an unknown opcode is still valid bytecode, it will
+just put the interpreter into a debug state when executed.
 
 ```
 X - Payload bits
@@ -117,13 +118,13 @@ There are a few instruction variants that divide these payload bits.
   arguments. The payload is essentially ignored.
 * 1 arg - All payload bits correspond to a single value, usually a signed or unsigned integer.
   Used for instructions of 1 argument, like returning a value, yielding a value to the parent fiber,
-  or doing a jump.
+  or doing a (relative) jump.
 * 2 arg - Payload is split into byte 2 and bytes 3 and 4.
   The first argument is the 8 bit value from byte 2, and the second argument is the 16 bit value
   from bytes 3 and 4 (`instruction >> 16`). Used for instructions of two arguments, like move, normal
   function calls, conditionals, etc.
 * 3 arg - Bytes 2, 3, and 4 each correspond to an 8 bit argument.
-  Used for arithmetic operations.
+  Used for arithmetic operations, emitting a signal, etc.
 
 These instruction variants can be further refined based on the semantics of the arguments.
 Some instructions may treat an argument as a slot index, while other instructions
@@ -222,6 +223,7 @@ failure to return or error.
 | `ret`       | `(ret val)`                 | Return $val                       |
 | `retn`      | `(retn)`                    | Return nil                        |
 | `setu`      | `(setu env index val)`      | envs[env][index] = $val           |
+| `sig`       | `(sig dest value sigtype)`  | $dest = emit $value as sigtype    |
 | `sl`        | `(sl dest lhs rhs)`         | $dest = $lhs << $rhs              |
 | `slim`      | `(slim dest lhs shamt)`     | $dest = $lhs << shamt             |
 | `sr`        | `(sr dest lhs rhs)`         | $dest = $lhs >> $rhs              |
@@ -231,5 +233,4 @@ failure to return or error.
 | `sub`       | `(sub dest lhs rhs)`        | $dest = $lhs - $rhs               |
 | `tcall`     | `(tcall callee)`            | Return call($callee)              |
 | `tchck`     | `(tcheck slot types)`       | Assert $slot does matches types   |
-| `yield`     | `(yield dest value)`        | $dest = yield $value to parent    |
 

@@ -206,6 +206,7 @@ recur:
         i = frame->prevframe;
     }
 
+    /* Explicit tail recursion */
     if (fiber->child) {
         fiber = fiber->child;
         goto recur;

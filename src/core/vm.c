@@ -715,8 +715,8 @@ static void *op_lookup[255] = {
             retreg = dst_wrap_nil();
             args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
-            if (dst_unwrap_cfunction(callee)(args)) {
-                goto vm_error;
+            if ((signal = dst_unwrap_cfunction(callee)(args))) {
+                goto vm_exit;
             }
             goto vm_return_cfunc;
         }
@@ -739,8 +739,8 @@ static void *op_lookup[255] = {
             retreg = dst_wrap_nil();
             args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
-            if (dst_unwrap_cfunction(callee)(args)) {
-                goto vm_error;
+            if ((signal = dst_unwrap_cfunction(callee)(args))) {
+                goto vm_exit;
             }
             goto vm_return_cfunc_tail;
         }
