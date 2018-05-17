@@ -32,6 +32,44 @@ extern "C" {
 /* Names of all of the types */
 extern const char *const dst_type_names[16];
 
+/* Fiber signals */
+typedef enum {
+    DST_SIGNAL_OK,
+    DST_SIGNAL_ERROR,
+    DST_SIGNAL_DEBUG,
+    DST_SIGNAL_YIELD,
+    DST_SIGNAL_USER0,
+    DST_SIGNAL_USER1,
+    DST_SIGNAL_USER2,
+    DST_SIGNAL_USER3,
+    DST_SIGNAL_USER4,
+    DST_SIGNAL_USER5,
+    DST_SIGNAL_USER6,
+    DST_SIGNAL_USER7,
+    DST_SIGNAL_USER8,
+    DST_SIGNAL_USER9
+} DstSignal;
+
+/* Fiber statuses - mostly corresponds to signals. */
+typedef enum {
+    DST_STATUS_DEAD,
+    DST_STATUS_ERROR,
+    DST_STATUS_DEBUG,
+    DST_STATUS_PENDING,
+    DST_STATUS_USER0,
+    DST_STATUS_USER1,
+    DST_STATUS_USER2,
+    DST_STATUS_USER3,
+    DST_STATUS_USER4,
+    DST_STATUS_USER5,
+    DST_STATUS_USER6,
+    DST_STATUS_USER7,
+    DST_STATUS_USER8,
+    DST_STATUS_USER9,
+    DST_STATUS_NEW,
+    DST_STATUS_ALIVE
+} DstFiberStatus;
+
 #ifdef DST_NANBOX
 typedef union Dst Dst;
 #else
@@ -339,18 +377,35 @@ struct DstArgs {
 };
 
 /* Fiber flags */
-#define DST_FIBER_FLAG_NEW (1 << 31)
+#define DST_FIBER_FLAG_SIGNAL_WAITING (1 << 30)
 
-/* Fiber signal masks. Should not overlap any fiber flags. */
-#define DST_FIBER_MASK_ERROR 1
-#define DST_FIBER_MASK_DEBUG 2
-#define DST_FIBER_MASK_YIELD 4
+/* Fiber signal masks. */
+#define DST_FIBER_MASK_ERROR 2
+#define DST_FIBER_MASK_DEBUG 4
+#define DST_FIBER_MASK_YIELD 8
+
+#define DST_FIBER_MASK_USER0 (16 << 0)
+#define DST_FIBER_MASK_USER1 (16 << 1)
+#define DST_FIBER_MASK_USER2 (16 << 2)
+#define DST_FIBER_MASK_USER3 (16 << 3)
+#define DST_FIBER_MASK_USER4 (16 << 4)
+#define DST_FIBER_MASK_USER5 (16 << 5)
+#define DST_FIBER_MASK_USER6 (16 << 6)
+#define DST_FIBER_MASK_USER7 (16 << 7)
+#define DST_FIBER_MASK_USER8 (16 << 8)
+#define DST_FIBER_MASK_USER9 (16 << 9)
+
+#define DST_FIBER_MASK_USERN(N) (16 << (N))
+#define DST_FIBER_MASK_USER 0x3FF0
+
+#define DST_FIBER_STATUS_MASK 0xFF0000
+#define DST_FIBER_STATUS_OFFSET 16
 
 /* A lightweight green thread in dst. Does not correspond to
  * operating system threads. */
 struct DstFiber {
     Dst *data;
-    DstFiber *child; /* When a fiber enters the error or debug state, keep track of the original fiber that raised the error. */
+    DstFiber *child; /* Keep linked list of fibers for restarting pending fibers */
     DstFunction *root; /* First value */
     int32_t frame; /* Index of the stack frame */
     int32_t stackstart; /* Beginning of next args */
@@ -358,14 +413,6 @@ struct DstFiber {
     int32_t capacity;
     int32_t maxstack; /* Arbitrary defined limit for stack overflow */
     uint32_t flags; /* Various flags */
-    enum {
-        DST_FIBER_PENDING,
-        DST_FIBER_NEW,
-        DST_FIBER_ALIVE,
-        DST_FIBER_DEAD,
-        DST_FIBER_ERROR,
-        DST_FIBER_DEBUG
-    } status;
 };
 
 /* Mark if a stack frame is a tail call for debugging */

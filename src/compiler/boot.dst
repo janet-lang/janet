@@ -919,13 +919,14 @@ onvalue."
       (res)
       (do
        (:= good false)
-       (onerr "compile" (get res :error))))) :dey))
+       (onerr "compile" (get res :error))))) :a))
   (def res (fiber.resume f))
-  (if good
-   (cond
-    (= (fiber.status f) :error) (onerr "runtime" res f)
-    (= (fiber.status f) :debug) (onerr "debug" res f)
-    going (onvalue res))))
+  (when good
+   (def sig (fiber.status f))
+   (if going
+     (if (= sig :dead)
+       (onvalue res)
+       (onerr "runtime" res f)))))
 
  # Run loop
  (def oldenv *env*)

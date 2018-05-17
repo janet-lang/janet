@@ -87,7 +87,6 @@ static const DstInstructionDef dst_ops[] = {
     {"call", DOP_CALL},
     {"clo", DOP_CLOSURE},
     {"cmp", DOP_COMPARE},
-    {"debug", DOP_DEBUG},
     {"div", DOP_DIVIDE},
     {"divi", DOP_DIVIDE_INTEGER},
     {"divim", DOP_DIVIDE_IMMEDIATE},
@@ -136,6 +135,7 @@ static const DstInstructionDef dst_ops[] = {
     {"ret", DOP_RETURN},
     {"retn", DOP_RETURN_NIL},
     {"setu", DOP_SET_UPVALUE},
+    {"sig", DOP_SIGNAL},
     {"sl", DOP_SHIFT_LEFT},
     {"slim", DOP_SHIFT_LEFT_IMMEDIATE},
     {"sr", DOP_SHIFT_RIGHT},
@@ -144,8 +144,7 @@ static const DstInstructionDef dst_ops[] = {
     {"sruim", DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
     {"sub", DOP_SUBTRACT},
     {"tcall", DOP_TAILCALL},
-    {"tchck", DOP_TYPECHECK},
-    {"yield", DOP_YIELD}
+    {"tchck", DOP_TYPECHECK}
 };
 
 /* Typename aliases for tchck instruction */

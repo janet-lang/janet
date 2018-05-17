@@ -69,7 +69,7 @@ DstTable *dst_stl_env(int flags) {
        DOP_TAILCALL
     };
     static uint32_t debug_asm[] = {
-       DOP_DEBUG,
+       DOP_SIGNAL | (2 << 24),
        DOP_RETURN_NIL
     };
     DstTable *env = dst_table(0);
@@ -78,7 +78,7 @@ DstTable *dst_stl_env(int flags) {
     /* Load main functions */
     dst_env_cfuns(env, cfuns);
 
-    dst_env_def(env, "debug", dst_wrap_function(dst_quick_asm(0, 0, 0, debug_asm, sizeof(debug_asm))));
+    dst_env_def(env, "debug", dst_wrap_function(dst_quick_asm(0, 0, 1, debug_asm, sizeof(debug_asm))));
     dst_env_def(env, "error", dst_wrap_function(dst_quick_asm(1, 0, 1, error_asm, sizeof(error_asm))));
     dst_env_def(env, "apply1", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, sizeof(apply_asm))));
 

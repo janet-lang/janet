@@ -92,13 +92,12 @@ enum DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
     DIT_SS, /* DOP_CALL, */
     DIT_S, /* DOP_TAILCALL, */
     DIT_SSS, /* DOP_RESUME, */
-    DIT_SS, /* DOP_YIELD, */
+    DIT_SSU, /* DOP_SIGNAL, */
     DIT_SSS, /* DOP_GET, */
     DIT_SSS, /* DOP_PUT, */
     DIT_SSU, /* DOP_GET_INDEX, */
     DIT_SSU, /* DOP_PUT_INDEX, */
-    DIT_SS, /* DOP_LENGTH */
-    DIT_0 /* DOP_DEBUG */
+    DIT_SS /* DOP_LENGTH */
 };
 
 /* Verify some bytecode */

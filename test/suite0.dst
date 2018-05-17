@@ -146,7 +146,7 @@
 # Fiber tests
 
 (def afiber (fiber.new (fn [x]
-	(error (string "hello, " x)))))
+	(error (string "hello, " x))) :e))
 
 (def afiber-result (fiber.resume afiber "world!"))
 

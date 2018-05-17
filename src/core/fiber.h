@@ -27,6 +27,11 @@
 
 extern DST_THREAD_LOCAL DstFiber *dst_vm_fiber;
 
+#define dst_fiber_set_status(f, s) do {\
+    (f)->flags &= ~DST_FIBER_STATUS_MASK;\
+    (f)->flags |= (s) << DST_FIBER_STATUS_OFFSET;\
+} while (0)
+
 #define dst_stack_frame(s) ((DstStackFrame *)((s) - DST_FRAME_SIZE))
 #define dst_fiber_frame(f) dst_stack_frame((f)->data + (f)->frame)
 DstFiber *dst_fiber_reset(DstFiber *fiber, DstFunction *callee);

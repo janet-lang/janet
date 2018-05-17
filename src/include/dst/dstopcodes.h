@@ -124,13 +124,12 @@ enum DstOpCode {
     DOP_CALL,
     DOP_TAILCALL,
     DOP_RESUME,
-    DOP_YIELD,
+    DOP_SIGNAL,
     DOP_GET,
     DOP_PUT,
     DOP_GET_INDEX,
     DOP_PUT_INDEX,
     DOP_LENGTH,
-    DOP_DEBUG,
     DOP_INSTRUCTION_COUNT
 };
 

@@ -137,6 +137,7 @@ DstKV *dst_table_find(DstTable *t, Dst key);
 
 /* Fiber */
 DstFiber *dst_fiber(DstFunction *callee, int32_t capacity);
+#define dst_fiber_status(f) (((f)->flags & DST_FIBER_STATUS_MASK) >> DST_FIBER_STATUS_OFFSET)
 
 /* Treat similar types through uniform interfaces for iteration */
 int dst_seq_view(Dst seq, const Dst **data, int32_t *len);
@@ -167,7 +168,12 @@ void dst_gcunlock(int handle);
 DstFuncDef *dst_funcdef_alloc(void);
 DstFunction *dst_thunk(DstFuncDef *def);
 int dst_verify(DstFuncDef *def);
-DstFunction *dst_quick_asm(int32_t arity, int varargs, int32_t slots, const uint32_t *bytecode, size_t bytecode_size);
+DstFunction *dst_quick_asm(
+        int32_t arity,
+        int varargs,
+        int32_t slots,
+        const uint32_t *bytecode,
+        size_t bytecode_size);
 
 /* Misc */
 int dst_equals(Dst x, Dst y);
@@ -184,8 +190,9 @@ int dst_cstrcmp(const uint8_t *str, const char *other);
 /* VM functions */
 int dst_init(void);
 void dst_deinit(void);
-Dst dst_run(DstFiber *fiber);
-Dst dst_resume(DstFiber *fiber, int32_t argn, const Dst *argv);
+DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out);
+#define dst_run(F,O) dst_continue(F, dst_wrap_nil(), O)
+DstSignal dst_call(DstFunction *fun, int32_t argn, const Dst *argv, Dst *out);
 
 /* Env helpers */
 void dst_env_def(DstTable *env, const char *name, Dst val);
@@ -205,9 +212,9 @@ int dst_typemany_err(DstArgs args, int32_t n, int expected);
 int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
 
 /* Macros */
-#define DST_THROW(a, e) return (*((a).ret) = dst_cstringv(e), 1)
-#define DST_THROWV(a, v) return (*((a).ret) = (v), 1)
-#define DST_RETURN(a, v) return (*((a).ret) = (v), 0)
+#define DST_THROW(a, e) return (*((a).ret) = dst_cstringv(e), DST_SIGNAL_ERROR)
+#define DST_THROWV(a, v) return (*((a).ret) = (v), DST_SIGNAL_ERROR)
+#define DST_RETURN(a, v) return (*((a).ret) = (v), DST_SIGNAL_OK)
 
 /* Early exit macros */
 #define DST_MAXARITY(A, N) do { if ((A).n > (N))\
@@ -286,7 +293,7 @@ int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
 #define DST_ARG_CFUNCTION(DEST, A, N) _DST_ARG(DST_CFUNCTION, cfunction, DEST, A, N)
 #define DST_ARG_ABSTRACT(DEST, A, N) _DST_ARG(DST_ABSTRACT, abstract, DEST, A, N)
 
-#define DST_RETURN_NIL(A) return 0
+#define DST_RETURN_NIL(A) return DST_SIGNAL_OK
 #define DST_RETURN_FALSE(A) DST_RETURN(A, dst_wrap_false())
 #define DST_RETURN_TRUE(A) DST_RETURN(A, dst_wrap_true())
 #define DST_RETURN_BOOLEAN(A, X) DST_RETURN(A, dst_wrap_boolean(X))

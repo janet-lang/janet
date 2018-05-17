@@ -40,7 +40,6 @@ DstFiber *dst_fiber(DstFunction *callee, int32_t capacity) {
         fiber->data = data;
     }
     fiber->maxstack = DST_STACK_MAX;
-    fiber->flags = DST_FIBER_MASK_DEBUG;
     return dst_fiber_reset(fiber, callee);
 }
 
@@ -49,10 +48,10 @@ DstFiber *dst_fiber_reset(DstFiber *fiber, DstFunction *callee) {
     fiber->frame = 0;
     fiber->stackstart = DST_FRAME_SIZE;
     fiber->stacktop = DST_FRAME_SIZE;
-    fiber->status = DST_FIBER_NEW;
     fiber->root = callee;
     fiber->child = NULL;
-    fiber->flags |= DST_FIBER_FLAG_NEW;
+    fiber->flags = DST_FIBER_MASK_YIELD;
+    dst_fiber_set_status(fiber, DST_STATUS_NEW);
     return fiber;
 }
 
@@ -269,22 +268,37 @@ static int cfun_new(DstArgs args) {
         const uint8_t *flags;
         int32_t len, i;
         DST_ARG_BYTES(flags, len, args, 1);
-        fiber->flags |= DST_FIBER_MASK_ERROR | DST_FIBER_MASK_YIELD;
+        fiber->flags = 0;
+        dst_fiber_set_status(fiber, DST_STATUS_NEW);
         for (i = 0; i < len; i++) {
-            switch (flags[i]) {
-                default:
-                    DST_THROW(args, "invalid flag, expected d, e, or y");
-                case ':':
-                    break;
-                case 'd':
-                    fiber->flags &= ~DST_FIBER_MASK_DEBUG;
-                    break;
-                case 'e':
-                    fiber->flags &= ~DST_FIBER_MASK_ERROR;
-                    break;
-                case 'y':
-                    fiber->flags &= ~DST_FIBER_MASK_YIELD;
-                    break;
+            if (flags[i] >= '0' && flags[i] <= '9') {
+                fiber->flags |= DST_FIBER_MASK_USERN(flags[i] - '0');
+            } else {
+                switch (flags[i]) {
+                    default:
+                        DST_THROW(args, "invalid flag, expected a, d, e, u, or y");
+                    case ':':
+                        break;
+                    case 'a':
+                        fiber->flags |= 
+                            DST_FIBER_MASK_DEBUG |
+                            DST_FIBER_MASK_ERROR |
+                            DST_FIBER_MASK_USER |
+                            DST_FIBER_MASK_YIELD;
+                        break;
+                    case 'd':
+                        fiber->flags |= DST_FIBER_MASK_DEBUG;
+                        break;
+                    case 'e':
+                        fiber->flags |= DST_FIBER_MASK_ERROR;
+                        break;
+                    case 'u':
+                        fiber->flags |= DST_FIBER_MASK_USER;
+                        break;
+                    case 'y':
+                        fiber->flags |= DST_FIBER_MASK_YIELD;
+                        break;
+                }
             }
         }
     }
@@ -296,25 +310,26 @@ static int cfun_status(DstArgs args) {
     const char *status = "";
     DST_FIXARITY(args, 1);
     DST_ARG_FIBER(fiber, args, 0);
-    switch(fiber->status) {
-        case DST_FIBER_PENDING:
-            status = ":pending";
-            break;
-        case DST_FIBER_NEW:
-            status = ":new";
-            break;
-        case DST_FIBER_ALIVE:
-            status = ":alive";
-            break;
-        case DST_FIBER_DEAD:
-            status = ":dead";
-            break;
-        case DST_FIBER_ERROR:
-            status = ":error";
-            break;
-        case DST_FIBER_DEBUG:
-            status = ":debug";
-            break;
+    uint32_t s = (fiber->flags & DST_FIBER_STATUS_MASK) >>
+        DST_FIBER_STATUS_OFFSET;
+    switch (s) {
+        case DST_STATUS_DEAD: status = ":dead"; break;
+        case DST_STATUS_ERROR: status = ":error"; break;
+        case DST_STATUS_DEBUG: status = ":debug"; break;
+        case DST_STATUS_PENDING: status = ":pending"; break;
+        case DST_STATUS_USER0: status = ":user0"; break;
+        case DST_STATUS_USER1: status = ":user1"; break;
+        case DST_STATUS_USER2: status = ":user2"; break;
+        case DST_STATUS_USER3: status = ":user3"; break;
+        case DST_STATUS_USER4: status = ":user4"; break;
+        case DST_STATUS_USER5: status = ":user5"; break;
+        case DST_STATUS_USER6: status = ":user6"; break;
+        case DST_STATUS_USER7: status = ":user7"; break;
+        case DST_STATUS_USER8: status = ":user8"; break;
+        case DST_STATUS_USER9: status = ":user9"; break;
+        case DST_STATUS_NEW: status = ":new"; break;
+        default:
+        case DST_STATUS_ALIVE: status = ":alive"; break;
     }
     DST_RETURN_CSYMBOL(args, status);
 }
@@ -401,7 +416,7 @@ static const DstReg cfuns[] = {
 /* Module entry point */
 int dst_lib_fiber(DstArgs args) {
     static uint32_t yield_asm[] = {
-        DOP_YIELD,
+        DOP_SIGNAL | (3 << 24),
         DOP_RETURN
     };
     static uint32_t resume_asm[] = {

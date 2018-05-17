@@ -825,11 +825,12 @@ recur:
                                     dstc_cerror(c, ast, "macro expansion recursed too deeply");
                                     return dstc_cslot(dst_wrap_nil());
                                 } else {
-                                    DstFiber *f = dst_fiber(dst_unwrap_function(fn), 64);
+                                    DstFunction *f = dst_unwrap_function(fn);
                                     int lock = dst_gclock();
-                                    x = dst_resume(f, dst_tuple_length(tup) - 1, tup + 1);
+                                    DstSignal status = dst_call(f, dst_tuple_length(tup) - 1, tup + 1, &x);
                                     dst_gcunlock(lock);
-                                    if (f->status == DST_FIBER_ERROR || f->status == DST_FIBER_DEBUG) {
+                                    if (status != DST_SIGNAL_OK) {
+                                        printf("Status: %d\n", status);
                                         const uint8_t *es = dst_formatc("error in macro expansion: %V", x);
                                         dstc_error(c, ast, es);
                                     }

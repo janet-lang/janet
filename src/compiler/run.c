@@ -43,8 +43,9 @@ int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len) {
                     if (cres.status == DST_COMPILE_OK) {
                         DstFunction *f = dst_thunk(cres.funcdef);
                         DstFiber *fiber = dst_fiber(f, 64);
-                        Dst ret = dst_run(fiber);
-                        if (fiber->status != DST_FIBER_DEAD) {
+                        Dst ret = dst_wrap_nil();
+                        DstSignal status = dst_run(fiber, &ret);
+                        if (status != DST_SIGNAL_OK) {
                             printf("internal runtime error: %s\n", (const char *) dst_to_string(ret));
                             errflags |= 0x01;
                         }
