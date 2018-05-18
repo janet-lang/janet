@@ -711,14 +711,14 @@ static int cfun_reverse(DstArgs args) {
     DST_RETURN_STRING(args, dst_string_end(buf));
 }
 
-static int findsetup(DstArgs args, struct kmp_state *s) {
+static int findsetup(DstArgs args, struct kmp_state *s, int32_t extra) {
     const uint8_t *text, *pat;
     int32_t textlen, patlen, start;
     DST_MINARITY(args, 2);
-    DST_MAXARITY(args, 3);
+    DST_MAXARITY(args, 3 + extra);
     DST_ARG_BYTES(pat, patlen, args, 0);
     DST_ARG_BYTES(text, textlen, args, 1);
-    if (args.n == 3) {
+    if (args.n >= 3) {
         DST_ARG_INTEGER(start, args, 2);
         if (start < 0) {
             DST_THROW(args, "expected non-negative start index");
@@ -734,7 +734,7 @@ static int findsetup(DstArgs args, struct kmp_state *s) {
 static int cfun_find(DstArgs args) {
     int32_t result;
     struct kmp_state state;
-    int status = findsetup(args, &state);
+    int status = findsetup(args, &state, 0);
     if (status) return status;
     result = kmp_next(&state);
     kmp_deinit(&state);
@@ -747,7 +747,7 @@ static int cfun_findall(DstArgs args) {
     int32_t result;
     DstArray *array;
     struct kmp_state state;
-    int status = findsetup(args, &state);
+    int status = findsetup(args, &state, 0);
     if (status) return status;
     array = dst_array(0);
     while ((result = kmp_next(&state)) >= 0) {
@@ -759,11 +759,7 @@ static int cfun_findall(DstArgs args) {
 
 struct replace_state {
     struct kmp_state kmp;
-    const uint8_t *text;
-    const uint8_t *pat;
     const uint8_t *subst;
-    int32_t textlen;
-    int32_t patlen;
     int32_t substlen;
 };
 
@@ -785,11 +781,7 @@ static int replacesetup(DstArgs args, struct replace_state *s) {
     }
     kmp_init(&s->kmp, text, textlen, pat, patlen);
     s->kmp.i = start;
-    s->text = text;
-    s->pat = pat;
     s->subst = subst;
-    s->patlen = patlen;
-    s->textlen = textlen;
     s->substlen = substlen;
     return DST_SIGNAL_OK;
 }
@@ -803,14 +795,14 @@ static int cfun_replace(DstArgs args) {
     result = kmp_next(&s.kmp);
     if (result < 0) {
         kmp_deinit(&s.kmp);
-        DST_RETURN_STRING(args, dst_string(s.text, s.textlen));
+        DST_RETURN_STRING(args, dst_string(s.kmp.text, s.kmp.textlen));
     }
-    buf = dst_string_begin(s.textlen - s.patlen + s.substlen);
-    memcpy(buf, s.text, result);
+    buf = dst_string_begin(s.kmp.textlen - s.kmp.patlen + s.substlen);
+    memcpy(buf, s.kmp.text, result);
     memcpy(buf + result, s.subst, s.substlen);
     memcpy(buf + result + s.substlen,
-            s.text + result + s.patlen,
-            s.textlen - result - s.patlen);
+            s.kmp.text + result + s.kmp.patlen,
+            s.kmp.textlen - result - s.kmp.patlen);
     kmp_deinit(&s.kmp);
     DST_RETURN_STRING(args, dst_string_end(buf));
 }
@@ -823,17 +815,41 @@ static int cfun_replaceall(DstArgs args) {
     int32_t lastindex = 0;
     int status = replacesetup(args, &s);
     if (status) return status;
-    dst_buffer_init(&b, s.textlen);
+    dst_buffer_init(&b, s.kmp.textlen);
     while ((result = kmp_next(&s.kmp)) >= 0) {
-        dst_buffer_push_bytes(&b, s.text + lastindex, result - lastindex);
+        dst_buffer_push_bytes(&b, s.kmp.text + lastindex, result - lastindex);
         dst_buffer_push_bytes(&b, s.subst, s.substlen);
-        lastindex = result + s.patlen;
+        lastindex = result + s.kmp.patlen;
     }
-    dst_buffer_push_bytes(&b, s.text + lastindex, s.textlen - lastindex);
+    dst_buffer_push_bytes(&b, s.kmp.text + lastindex, s.kmp.textlen - lastindex);
     ret = dst_string(b.data, b.count);
     dst_buffer_deinit(&b);
     kmp_deinit(&s.kmp);
     DST_RETURN_STRING(args, ret);
+}
+
+static int cfun_split(DstArgs args) {
+    int32_t result;
+    DstArray *array;
+    struct kmp_state state;
+    int32_t limit = -1, lastindex = 0;
+    if (args.n == 4) {
+        DST_ARG_INTEGER(limit, args, 3);
+    }
+    int status = findsetup(args, &state, 1);
+    if (status) return status;
+    array = dst_array(0);
+    while ((result = kmp_next(&state)) >= 0 && limit--) {
+        const uint8_t *slice = dst_string(state.text + lastindex, result - lastindex);
+        dst_array_push(array, dst_wrap_string(slice));
+        lastindex = result + state.patlen;
+    }
+    {
+        const uint8_t *slice = dst_string(state.text + lastindex, state.textlen - lastindex);
+        dst_array_push(array, dst_wrap_string(slice));
+    }
+    kmp_deinit(&state);
+    DST_RETURN_ARRAY(args, array);
 }
 
 static const DstReg cfuns[] = {
@@ -848,6 +864,7 @@ static const DstReg cfuns[] = {
     {"string.find-all", cfun_findall},
     {"string.replace", cfun_replace},
     {"string.replace-all", cfun_replaceall},
+    {"string.split", cfun_split},
     {NULL, NULL}
 };
 

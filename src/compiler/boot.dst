@@ -396,7 +396,6 @@ an indexed type (array, tuple) with a function to produce a value."
  "Map a function over every element in an array or tuple and return
 the same type as the input sequence."
  [f & inds]
- (def res @[])
  (def ninds (length inds))
  (if (= 0 ninds) (error "expected at least 1 indexed collection."))
  (var limit (length (get inds 0)))
@@ -404,13 +403,14 @@ the same type as the input sequence."
   (def l (length (get inds i)))
   (if (< l limit) (:= limit l)))
  (def [i1 i2 i3 i4] inds)
+ (def res (array.new limit))
  (switch ninds
   1 (for [i 0 limit] (array.push res (f (get i1 i))))
   2 (for [i 0 limit] (array.push res (f (get i1 i) (get i2 i))))
   3 (for [i 0 limit] (array.push res (f (get i1 i) (get i2 i) (get i3 i))))
   4 (for [i 0 limit] (array.push res (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
   (for [i 0 limit]
-   (def args @[])
+   (def args (array.new ninds))
    (for [j 0 ninds] (array.push args (get (get inds j) i)))
    (array.push res (apply1 f args))))
  res)
@@ -432,7 +432,7 @@ return a new indexed type."
   3 (for [i 0 limit] (f (get i1 i) (get i2 i) (get i3 i)))
   4 (for [i 0 limit] (f (get i1 i) (get i2 i) (get i3 i) (get i4 i)))
   (for [i 0 limit]
-   (def args @[])
+   (def args (array.new ninds))
    (for [j 0 ninds] (array.push args (get (get inds j) i)))
    (apply1 f args))))
 
@@ -452,14 +452,22 @@ type as the input sequence."
  "Given a predicate, take only elements from an array or tuple for
 which (pred element) is truthy. Returns the same type as the input sequence."
  [pred ind t]
- (def res @[])
- (for [i 0 (length ind)]
+ (def len (length ind))
+ (def res (array.new len))
+ (for [i 0 len]
   (def item (get ind i))
   (if (pred item)
    (array.push res item)))
  (if (= :tuple (type (or t ind)))
   (apply1 tuple res)
   res))
+
+(defn range
+  "Create an array of values [0, n)."
+  [n]
+  (def arr (array.new n))
+  (for [i 0 n] (put arr i i))
+  arr)
 
 (defn find-index
  "Find the index of indexed type for which pred is true. Returns nil if not found."
