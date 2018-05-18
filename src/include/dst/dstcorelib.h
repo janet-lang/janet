@@ -71,7 +71,6 @@ int dst_core_describe(DstArgs args);
 int dst_core_string(DstArgs args);
 int dst_core_symbol(DstArgs args);
 int dst_core_buffer(DstArgs args);
-int dst_core_format(DstArgs args);
 int dst_core_scannumber(DstArgs args);
 int dst_core_scaninteger(DstArgs args);
 int dst_core_scanreal(DstArgs args);

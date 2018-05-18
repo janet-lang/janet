@@ -37,7 +37,6 @@ static const DstReg cfuns[] = {
     {"string", dst_core_string},
     {"symbol", dst_core_symbol},
     {"buffer", dst_core_buffer},
-    {"format", dst_core_format},
     {"table", dst_core_table},
     {"array", dst_core_array},
     {"scan-number", dst_core_scannumber},

@@ -503,6 +503,77 @@ void dst_puts(const uint8_t *str) {
     }
 }
 
+/* Knuth Morris Pratt Algorithm */
+
+struct kmp_state {
+    int32_t i;
+    int32_t j;
+    int32_t textlen;
+    int32_t patlen;
+    int32_t *lookup;
+    const uint8_t *text;
+    const uint8_t *pat;
+};
+
+static void kmp_init(
+        struct kmp_state *s,
+        const uint8_t *text, int32_t textlen,
+        const uint8_t *pat, int32_t patlen) {
+    int32_t *lookup = calloc(patlen, sizeof(int32_t));
+    if (!lookup) {
+        DST_OUT_OF_MEMORY;
+    }
+    s->lookup = lookup;
+    s->i = 0;
+    s->j = 0;
+    s->text = text;
+    s->pat = pat;
+    s->textlen = textlen;
+    s->patlen = patlen;
+    /* Init state machine */
+    {
+        int32_t i, j;
+        for (i = 1, j = 0; i < patlen; i++) {
+            while (j && pat[j] != pat[i]) j = lookup[j - 1];
+            if (pat[j] == pat[i]) j++;
+            lookup[i] = j;
+        }
+    }
+}
+
+static void kmp_deinit(struct kmp_state *state) {
+    free(state->lookup);
+}
+
+static int32_t kmp_next(struct kmp_state *state) {
+    int32_t i = state->i;
+    int32_t j = state->j;
+    int32_t textlen = state->textlen;
+    int32_t patlen = state->patlen;
+    const uint8_t *text = state->text;
+    const uint8_t *pat = state->pat;
+    int32_t *lookup = state->lookup;
+    while (i < textlen) {
+        if (text[i] == pat[j]) {
+            if (j == patlen - 1) {
+                state->i = i + 1;
+                state->j = lookup[j];
+                return i - j;
+            } else {
+                i++;
+                j++;
+            }
+        } else {
+            if (j > 0) {
+                j = lookup[j - 1];
+            } else {
+                i++;
+            }
+        }
+    }
+    return -1;
+}
+
 /* CFuns */
 
 static int cfun_slice(DstArgs args) {
@@ -640,6 +711,131 @@ static int cfun_reverse(DstArgs args) {
     DST_RETURN_STRING(args, dst_string_end(buf));
 }
 
+static int findsetup(DstArgs args, struct kmp_state *s) {
+    const uint8_t *text, *pat;
+    int32_t textlen, patlen, start;
+    DST_MINARITY(args, 2);
+    DST_MAXARITY(args, 3);
+    DST_ARG_BYTES(pat, patlen, args, 0);
+    DST_ARG_BYTES(text, textlen, args, 1);
+    if (args.n == 3) {
+        DST_ARG_INTEGER(start, args, 2);
+        if (start < 0) {
+            DST_THROW(args, "expected non-negative start index");
+        }
+    } else {
+        start = 0;
+    }
+    kmp_init(s, text, textlen, pat, patlen);
+    s->i = start;
+    return DST_SIGNAL_OK;
+}
+
+static int cfun_find(DstArgs args) {
+    int32_t result;
+    struct kmp_state state;
+    int status = findsetup(args, &state);
+    if (status) return status;
+    result = kmp_next(&state);
+    kmp_deinit(&state);
+    DST_RETURN(args, result < 0
+            ? dst_wrap_nil()
+            : dst_wrap_integer(result));
+}
+
+static int cfun_findall(DstArgs args) {
+    int32_t result;
+    DstArray *array;
+    struct kmp_state state;
+    int status = findsetup(args, &state);
+    if (status) return status;
+    array = dst_array(0);
+    while ((result = kmp_next(&state)) >= 0) {
+        dst_array_push(array, dst_wrap_integer(result));
+    }
+    kmp_deinit(&state);
+    DST_RETURN_ARRAY(args, array);
+}
+
+struct replace_state {
+    struct kmp_state kmp;
+    const uint8_t *text;
+    const uint8_t *pat;
+    const uint8_t *subst;
+    int32_t textlen;
+    int32_t patlen;
+    int32_t substlen;
+};
+
+static int replacesetup(DstArgs args, struct replace_state *s) {
+    const uint8_t *text, *pat, *subst;
+    int32_t textlen, patlen, substlen, start;
+    DST_MINARITY(args, 3);
+    DST_MAXARITY(args, 4);
+    DST_ARG_BYTES(pat, patlen, args, 0);
+    DST_ARG_BYTES(subst, substlen, args, 1);
+    DST_ARG_BYTES(text, textlen, args, 2);
+    if (args.n == 4) {
+        DST_ARG_INTEGER(start, args, 3);
+        if (start < 0) {
+            DST_THROW(args, "expected non-negative start index");
+        }
+    } else {
+        start = 0;
+    }
+    kmp_init(&s->kmp, text, textlen, pat, patlen);
+    s->kmp.i = start;
+    s->text = text;
+    s->pat = pat;
+    s->subst = subst;
+    s->patlen = patlen;
+    s->textlen = textlen;
+    s->substlen = substlen;
+    return DST_SIGNAL_OK;
+}
+
+static int cfun_replace(DstArgs args) {
+    int32_t result;
+    struct replace_state s;
+    uint8_t *buf;
+    int status = replacesetup(args, &s);
+    if (status) return status;
+    result = kmp_next(&s.kmp);
+    if (result < 0) {
+        kmp_deinit(&s.kmp);
+        DST_RETURN_STRING(args, dst_string(s.text, s.textlen));
+    }
+    buf = dst_string_begin(s.textlen - s.patlen + s.substlen);
+    memcpy(buf, s.text, result);
+    memcpy(buf + result, s.subst, s.substlen);
+    memcpy(buf + result + s.substlen,
+            s.text + result + s.patlen,
+            s.textlen - result - s.patlen);
+    kmp_deinit(&s.kmp);
+    DST_RETURN_STRING(args, dst_string_end(buf));
+}
+
+static int cfun_replaceall(DstArgs args) {
+    int32_t result;
+    struct replace_state s;
+    DstBuffer b;
+    const uint8_t *ret;
+    int32_t lastindex = 0;
+    int status = replacesetup(args, &s);
+    if (status) return status;
+    dst_buffer_init(&b, s.textlen);
+    while ((result = kmp_next(&s.kmp)) >= 0) {
+        dst_buffer_push_bytes(&b, s.text + lastindex, result - lastindex);
+        dst_buffer_push_bytes(&b, s.subst, s.substlen);
+        lastindex = result + s.patlen;
+    }
+    dst_buffer_push_bytes(&b, s.text + lastindex, s.textlen - lastindex);
+    ret = dst_string(b.data, b.count);
+    dst_buffer_deinit(&b);
+    kmp_deinit(&s.kmp);
+    DST_RETURN_STRING(args, ret);
+}
+
 static const DstReg cfuns[] = {
     {"string.slice", cfun_slice},
     {"string.repeat", cfun_repeat},
@@ -648,6 +844,10 @@ static const DstReg cfuns[] = {
     {"string.ascii-lower", cfun_asciilower},
     {"string.ascii-upper", cfun_asciiupper},
     {"string.reverse", cfun_reverse},
+    {"string.find", cfun_find},
+    {"string.find-all", cfun_findall},
+    {"string.replace", cfun_replace},
+    {"string.replace-all", cfun_replaceall},
     {NULL, NULL}
 };
 

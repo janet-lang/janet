@@ -95,42 +95,6 @@ int dst_core_buffer(DstArgs args) {
     DST_RETURN_BUFFER(args, b);
 }
 
-int dst_core_format(DstArgs args) {
-    const uint8_t *format;
-    int32_t i, len, n;
-    DstBuffer buf;
-    DST_MINARITY(args, 1);
-    DST_ARG_BYTES(format, len, args, 0);
-    n = 1;
-    dst_buffer_init(&buf, len);
-    for (i = 0; i < len; i++) {
-        uint8_t c = format[i];
-        if (c != '%') {
-            dst_buffer_push_u8(&buf, c);
-        } else {
-            if (++i == len) break;
-            c = format[i];
-            switch (c) {
-                default:
-                    dst_buffer_push_u8(&buf, c);
-                    break;
-                case 's':
-                {
-                    if (n >= args.n) goto noarg;
-                    dst_buffer_push_string(&buf, dst_to_string(args.v[n++]));
-                    break;
-                }
-            }
-        }
-    }
-    *args.ret = dst_wrap_string(dst_string(buf.data, buf.count));
-    dst_buffer_deinit(&buf);
-    return 0;
-noarg:
-    dst_buffer_deinit(&buf);
-    DST_THROW(args, "not enough arguments to format");
-}
-
 int dst_core_scannumber(DstArgs args) {
     const uint8_t *data;
     Dst x;
