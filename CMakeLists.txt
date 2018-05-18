@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Calvin Rose
+# Copyright (c) 2018 Calvin Rose
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -67,10 +67,10 @@ src/core/value.c
 src/core/vm.c
 src/core/wrap.c
 
-src/core/gc.h
 src/core/fiber.h
-src/core/symcache.h
+src/core/gc.h
 src/core/state.h
+src/core/symcache.h
 src/core/util.h
 )
 
@@ -104,9 +104,9 @@ src/include/dst/dst.h
 src/include/dst/dstasm.h
 src/include/dst/dstcompile.h
 src/include/dst/dstconfig.h
+src/include/dst/dstcorelib.h
 src/include/dst/dstopcodes.h
 src/include/dst/dstparse.h
-src/include/dst/dstcorelib.h
 src/include/dst/dsttypes.h
 )
 

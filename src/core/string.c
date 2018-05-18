@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017 Calvin Rose
+* Copyright (c) 2018 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include <dst/dstcorelib.h>
 #include "gc.h"
 #include "util.h"
 
@@ -500,4 +501,159 @@ void dst_puts(const uint8_t *str) {
     for (i = 0; i < len; i++) {
         putc(str[i], stdout);
     }
+}
+
+/* CFuns */
+
+static int cfun_slice(DstArgs args) {
+    const uint8_t *data;
+    int32_t len, start, end;
+    const uint8_t *ret;
+    DST_MINARITY(args, 1);
+    DST_MAXARITY(args, 3);
+    DST_ARG_BYTES(data, len, args, 0);
+    /* Get start */
+    if (args.n < 2) {
+        start = 0;
+    } else if (dst_checktype(args.v[1], DST_INTEGER)) {
+        start = dst_unwrap_integer(args.v[1]);
+    } else {
+        DST_THROW(args, "expected integer");
+    }
+    /* Get end */
+    if (args.n < 3) {
+        end = -1;
+    } else if (dst_checktype(args.v[2], DST_INTEGER)) {
+        end = dst_unwrap_integer(args.v[2]);
+    } else {
+        DST_THROW(args, "expected integer");
+    }
+    if (start < 0) start = len + start;
+    if (end < 0) end = len + end + 1;
+    if (end >= start) {
+        ret = dst_string(data + start, end - start);
+    } else {
+        ret = dst_cstring("");
+    }
+    DST_RETURN_STRING(args, ret);
+}
+
+static int cfun_repeat(DstArgs args) {
+    const uint8_t *data;
+    uint8_t *newbuf, *p, *end;
+    int32_t len, rep;
+    int64_t mulres;
+    DST_FIXARITY(args, 2);
+    DST_ARG_BYTES(data, len, args, 0);
+    DST_ARG_INTEGER(rep, args, 1);
+    if (rep < 0) {
+        DST_THROW(args, "expected non-negative number of repetitions");
+    } else if (rep == 0) {
+        DST_RETURN_CSTRING(args, "");
+    }
+    mulres = (int64_t) rep * len;
+    if (mulres > INT32_MAX) {
+        DST_THROW(args, "result string is too long");
+    }
+    newbuf = dst_string_begin((int32_t) mulres);
+    end = newbuf + mulres;
+    for (p = newbuf; p < end; p += len) {
+        memcpy(p, data, len);
+    }
+    DST_RETURN_STRING(args, dst_string_end(newbuf));
+}
+
+static int cfun_bytes(DstArgs args) {
+    const uint8_t *str;
+    int32_t strlen, i;
+    Dst *tup;
+    DST_FIXARITY(args, 1);
+    DST_ARG_BYTES(str, strlen, args, 0);
+    tup = dst_tuple_begin(strlen);
+    for (i = 0; i < strlen; i++) {
+        tup[i] = dst_wrap_integer((int32_t) str[i]);
+    }
+    DST_RETURN_TUPLE(args, dst_tuple_end(tup));
+}
+
+static int cfun_frombytes(DstArgs args) {
+    int32_t i;
+    uint8_t *buf;
+    for (i = 0; i < args.n; i++) {
+        DST_CHECK(args, i, DST_INTEGER);
+    }
+    buf = dst_string_begin(args.n);
+    for (i = 0; i < args.n; i++) {
+        int32_t c;
+        DST_ARG_INTEGER(c, args, i);
+        buf[i] = c & 0xFF;
+    }
+    DST_RETURN_STRING(args, dst_string_end(buf));
+}
+
+static int cfun_asciilower(DstArgs args) {
+    const uint8_t *str;
+    uint8_t *buf;
+    int32_t len, i;
+    DST_FIXARITY(args, 1);
+    DST_ARG_BYTES(str, len, args, 0);
+    buf = dst_string_begin(len);
+    for (i = 0; i < len; i++) {
+        uint8_t c = str[i];
+        if (c >= 65 && c <= 90) {
+            buf[i] = c + 32;
+        } else {
+            buf[i] = c;
+        }
+    }
+    DST_RETURN_STRING(args, dst_string_end(buf));
+}
+
+static int cfun_asciiupper(DstArgs args) {
+    const uint8_t *str;
+    uint8_t *buf;
+    int32_t len, i;
+    DST_FIXARITY(args, 1);
+    DST_ARG_BYTES(str, len, args, 0);
+    buf = dst_string_begin(len);
+    for (i = 0; i < len; i++) {
+        uint8_t c = str[i];
+        if (c >= 97 && c <= 122) {
+            buf[i] = c - 32;
+        } else {
+            buf[i] = c;
+        }
+    }
+    DST_RETURN_STRING(args, dst_string_end(buf));
+}
+
+static int cfun_reverse(DstArgs args) {
+    const uint8_t *str;
+    uint8_t *buf;
+    int32_t len, i, j;
+    DST_FIXARITY(args, 1);
+    DST_ARG_BYTES(str, len, args, 0);
+    buf = dst_string_begin(len);
+    for (i = 0, j = len - 1; i < len; i++, j--) {
+        buf[i] = str[j];
+    }
+    DST_RETURN_STRING(args, dst_string_end(buf));
+}
+
+static const DstReg cfuns[] = {
+    {"string.slice", cfun_slice},
+    {"string.repeat", cfun_repeat},
+    {"string.bytes", cfun_bytes},
+    {"string.from-bytes", cfun_frombytes},
+    {"string.ascii-lower", cfun_asciilower},
+    {"string.ascii-upper", cfun_asciiupper},
+    {"string.reverse", cfun_reverse},
+    {NULL, NULL}
+};
+
+/* Module entry point */
+int dst_lib_string(DstArgs args) {
+    DstTable *env = dst_env_arg(args);
+    dst_env_cfuns(env, cfuns);
+    return 0;
 }

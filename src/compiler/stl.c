@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017 Calvin Rose
+* Copyright (c) 2018 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -56,7 +56,6 @@ static const DstReg cfuns[] = {
     {"type", dst_core_type},
     {"next", dst_core_next},
     {"hash", dst_core_hash},
-    {"string.slice", dst_core_string_slice},
     {NULL, NULL}
 };
 
@@ -104,6 +103,7 @@ DstTable *dst_stl_env(int flags) {
         dst_lib_parse(args);
         dst_lib_compile(args);
         dst_lib_asm(args);
+        dst_lib_string(args);
     }
 
     /* Allow references to the environment */

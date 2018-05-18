@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017 Calvin Rose
+* Copyright (c) 2018 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -21,6 +21,7 @@
 */
 
 #include <dst/dst.h>
+#include <dst/dstcorelib.h>
 #include "symcache.h"
 #include "gc.h"
 #include "util.h"

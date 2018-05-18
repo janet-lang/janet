@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017 Calvin Rose
+* Copyright (c) 2018 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -42,18 +42,6 @@ int dst_divide(DstArgs args);
 int dst_modulo(DstArgs args);
 int dst_rand(DstArgs args);
 int dst_srand(DstArgs args);
-int dst_strict_equal(DstArgs args);
-int dst_strict_notequal(DstArgs args);
-int dst_ascending(DstArgs args);
-int dst_descending(DstArgs args);
-int dst_notdescending(DstArgs args);
-int dst_notascending(DstArgs args);
-int dst_numeric_eq(DstArgs args);
-int dst_numeric_neq(DstArgs args);
-int dst_numeric_gt(DstArgs args);
-int dst_numeric_lt(DstArgs args);
-int dst_numeric_gte(DstArgs args);
-int dst_numeric_lte(DstArgs args);
 int dst_bor(DstArgs args);
 int dst_band(DstArgs args);
 int dst_bxor(DstArgs args);
@@ -61,7 +49,6 @@ int dst_bnot(DstArgs args);
 int dst_lshift(DstArgs args);
 int dst_rshift(DstArgs args);
 int dst_lshiftu(DstArgs args);
-int dst_not(DstArgs args);
 
 /* Math */
 int dst_cos(DstArgs args);
@@ -100,7 +87,6 @@ int dst_core_put(DstArgs args);
 int dst_core_type(DstArgs args);
 int dst_core_next(DstArgs args);
 int dst_core_hash(DstArgs args);
-int dst_core_string_slice(DstArgs args);
 
 /* GC */
 int dst_core_gccollect(DstArgs args);
@@ -116,6 +102,7 @@ int dst_lib_buffer(DstArgs args);
 int dst_lib_table(DstArgs args);
 int dst_lib_fiber(DstArgs args);
 int dst_lib_os(DstArgs args);
+int dst_lib_string(DstArgs args);
 
 /* Useful for compiler */
 Dst dst_op_add(Dst lhs, Dst rhs);

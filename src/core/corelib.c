@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017 Calvin Rose
+* Copyright (c) 2018 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -304,37 +304,4 @@ int dst_core_next(DstArgs args) {
 int dst_core_hash(DstArgs args) {
     DST_FIXARITY(args, 1);
     DST_RETURN_INTEGER(args, dst_hash(args.v[0]));
-}
-
-int dst_core_string_slice(DstArgs args) {
-    const uint8_t *data;
-    int32_t len, start, end;
-    const uint8_t *ret;
-    DST_MINARITY(args, 1);
-    DST_MAXARITY(args, 3);
-    DST_ARG_BYTES(data, len, args, 0);
-    /* Get start */
-    if (args.n < 2) {
-        start = 0;
-    } else if (dst_checktype(args.v[1], DST_INTEGER)) {
-        start = dst_unwrap_integer(args.v[1]);
-    } else {
-        DST_THROW(args, "expected integer");
-    }
-    /* Get end */
-    if (args.n < 3) {
-        end = -1;
-    } else if (dst_checktype(args.v[2], DST_INTEGER)) {
-        end = dst_unwrap_integer(args.v[2]);
-    } else {
-        DST_THROW(args, "expected integer");
-    }
-    if (start < 0) start = len + start;
-    if (end < 0) end = len + end + 1;
-    if (end >= start) {
-        ret = dst_string(data + start, end - start);
-    } else {
-        ret = dst_cstring("");
-    }
-    DST_RETURN_STRING(args, ret);
 }
