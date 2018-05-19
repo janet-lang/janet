@@ -66,6 +66,9 @@
   (def t (type x))
   (if (= t :integer) true (= t :real)))
 (defn fiber? [x] (= (type x) :fiber))
+(defn string? [x] (= (type x) :string))
+(defn symbol? [x] (= (type x) :symbol))
+(defn buffer? [x] (= (type x) :buffer))
 (defn function? [x] (= (type x) :function))
 (defn cfunction? [x] (= (type x) :cfunction))
 (defn abstract? [x] (= (type x) :abstract))
@@ -970,7 +973,29 @@ environment is needed, use run-context."
  (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler)
  returnval)
 
-(def require (do
+(def module.paths @[
+  "./?.dst"
+  "./?/init.dst"
+  "./dst_modules/?.dst"
+  "./dst_modules/?/init.dst"
+ ])
+
+(defn module.find
+  "Open a file given a module name."
+  [name]
+  (def normname (string.replace-all "." "/" name))
+  (defn checkmodule
+    [f testpath]
+    (if f f (do
+      (def p (string.replace-all "?" normname testpath))
+      (file.open p))))
+  (reduce checkmodule nil module.paths))
+
+(def require 
+ "Require a module with the given name. Will search all of the paths in
+module.paths, then the path as a raw file path. Returns the new environment
+returned from compiling and running the file."  
+ (do
  (def cache @{})
  (def loading @{})
  (fn [path]
@@ -986,7 +1011,9 @@ environment is needed, use run-context."
        (def newenv (make-env))
        (put cache path newenv)
        (put loading path true)
-       (def f (file.open path))
+       (def f (or (module.find path) (file.open path)))
+       (if (not f)
+         (error (string "could not open file for module " path)))
        (defn chunks [buf] (file.read f 1024 buf))
        (run-context newenv chunks identity default-error-handler)
        (file.close f)
@@ -996,10 +1023,12 @@ environment is needed, use run-context."
 (defn import* [env path & args]
  (def newenv (require path))
  (def {
+  :as as
   :prefix prefix
   } (apply1 table args))
  (var k (next newenv nil))
- (def prefix (if prefix prefix ""))
+ (def {:meta meta} newenv)
+ (def prefix (or (and as (string as ".")) prefix (string path ".")))
  (while k
   (def v (get newenv k))
   (when (not (get v :private))
@@ -1007,7 +1036,17 @@ environment is needed, use run-context."
   (:= k (next newenv k))))
 
 (defmacro import [path & args]
-  (apply tuple import* '_env path args))
+  "Import a module. First requires the module, and then merges its
+symbols into the current environment, prepending a given prefix as needed.
+(use the :as or :prefix option to set a prefix). If no prefix is provided,
+use the name of the module as a prefix."
+  (def upath (string (ast.unwrap path)))
+  (def argm (map (fn [x] 
+                    (if (and (symbol? x) (= (get x 0) 58))
+                      x
+                      (string x)))
+                     (ast.unwrap args)))
+  (apply tuple import* '_env upath argm))
 
 (defn repl [getchunk onvalue onerr]
   "Run a repl. The first parameter is an optional function to call to

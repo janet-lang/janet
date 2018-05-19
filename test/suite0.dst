@@ -18,7 +18,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-(import "test/helper.dst")
+(import test.helper :prefix "")
 (start-suite 0)
 
 (assert (= 10 (+ 1 2 3 4)) "addition")

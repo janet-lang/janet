@@ -193,8 +193,7 @@ static int dst_io_fopen(DstArgs args) {
         DST_THROW(args, "invalid file mode");
     }
     f = fopen((const char *)fname, (const char *)fmode);
-    if (!f) DST_THROW(args, "could not open file");
-    DST_RETURN(args, makef(f, flags));
+    DST_RETURN(args, f ? makef(f, flags) : dst_wrap_nil());
 }
 
 /* Read a certain number of bytes into memory */

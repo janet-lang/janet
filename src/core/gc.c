@@ -188,9 +188,7 @@ recur:
         return;
     dst_gc_mark(fiber);
 
-    /* Check if new fiber - all status bits sets indicate :new status */
-    if ((fiber->flags & DST_FIBER_STATUS_MASK) == DST_FIBER_STATUS_MASK) 
-        dst_mark_function(fiber->root);
+    dst_mark_function(fiber->root);
     
     i = fiber->frame;
     j = fiber->stackstart - DST_FRAME_SIZE;

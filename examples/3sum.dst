@@ -1,5 +1,4 @@
-
-(import "examples/iterators.dst")
+(import examples.iterators :as "")
 
 (defn sum3
  "Solve the 3SUM problem in O(n^2) time."

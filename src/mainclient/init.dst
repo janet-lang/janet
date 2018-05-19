@@ -40,7 +40,7 @@
     (+= i (dohandler (string.slice arg 1 2) i))
     (do
       (:= *no-file* false)
-      (import arg)
+      (import* _env arg)
       (++ i))))
 
 (when (or *should-repl* *no-file*) 
