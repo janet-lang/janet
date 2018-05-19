@@ -3,12 +3,13 @@
 [![Build Status](https://travis-ci.org/bakpakin/dst.svg?branch=master)](https://travis-ci.org/bakpakin/dst)
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/bakpakin/dst)
 
-Dst is a functional and imperative programming language and bytecode interpreter. The syntax
-resembles lisp (and the language does inherit a lot from lisp), but lists are replaced
+Dst is a functional and imperative programming language and bytecode interpreter. It is a
+modern lisp, but lists are replaced
 by other data structures with better utility and performance (arrays, tables, structs, tuples).
-The language can also easily bridge to native code, and supports abstract datatypes
-for interfacing with C. Also support meta programming with macros. 
-The bytecode vm is a register based vm loosely inspired by the LuaJIT bytecode format. 
+The language can also easily bridge to native code written in C, and supports abstract datatypes
+for interfacing with C. Also support meta programming with macros, and bytecode assembly for the
+dst abstract machine. The bytecode vm is a register based vm loosely inspired by the LuaJIT
+bytecode format, but simpler and safer (bytecode can be verified by the assembler).
 
 There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
@@ -22,6 +23,9 @@ There is not much in the way of documentation yet because it is still a "persona
 I don't want to freeze features prematurely. You can look in the examples directory, the test directory,
 or the file `src/compiler/boot.dst` to get a sense of what dst code looks like.
 
+For syntax highlightinh, there is some preliminary vim syntax highlighting in [dst.vim](https://github.com/bakpakin/dst.vim).
+Generic lisp synatx highlighting should provide good results, however.
+
 ## Features
 
 * First class closures
@@ -30,7 +34,7 @@ or the file `src/compiler/boot.dst` to get a sense of what dst code looks like.
 * Mutable and immutable arrays (array/tuple)
 * Mutable and immutable hashtables (table/struct)
 * Mutable and immutable strings (buffer/string)
-* Lisp Macros
+* Lisp Macros (Code is Data, Data is Code)
 * Byte code interpreter with an assembly interface, as well as bytecode verification
 * Proper tail calls.
 * Direct interop with C via abstract types and C functions
@@ -38,11 +42,17 @@ or the file `src/compiler/boot.dst` to get a sense of what dst code looks like.
 * Lexical scoping
 * Imperative Programming as well as functional
 * REPL
+* Interactive Environment
+
+## Docmentation
+
+API documentation and design documents can be found in the
+[wiki](https://github.com/bakpakin/dst/wiki).
 
 ## Usage
 
 A repl is launched when the binary is invoked with no arguments. Pass the -h flag
-to display the usage information.
+to display the usage information. Individual scripts can be run with `./dst myscript.dst`
 
 ```
 $ ./dst
@@ -61,12 +71,6 @@ Options are:
 -r Enter the repl after running all scripts
 $
 ```
-
-## Docmentation
-
-API documentation and design documents will be added to the `doc` folder as they are written.
-As of March 2018, specifications are sparse because dst is evolving. Check the doc folder for
-an introduction of Dst as well as an overview of the bytecode format.
 
 ## Compiling and Running
 
@@ -104,8 +108,3 @@ make run
 ## Examples
 
 See the examples directory for some example dst code.
-
-## Editor
-
-There is some preliminary vim syntax highlighting in [dst.vim](https://github.com/bakpakin/dst.vim).
-Generic lisp synatx highlighting should provide good results, however.
