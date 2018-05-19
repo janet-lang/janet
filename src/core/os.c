@@ -28,6 +28,7 @@
 
 #ifdef DST_WINDOWS
 #include <Windows.h>
+#include <direct.h>
 #else
 #include <unistd.h>
 #endif
@@ -116,6 +117,21 @@ static int os_sleep(DstArgs args) {
     return 0;
 }
 
+static int os_cwd(DstArgs args) {
+    DST_FIXARITY(args, 0);
+    char buf[FILENAME_MAX];
+    char *ptr;
+#ifdef DST_WINDOWS
+    ptr = _getcwd(buf, FILENAME_MAX);
+#else
+    ptr = getcwd(buf, FILENAME_MAX);
+#endif
+    if (NULL == ptr) {
+        DST_THROW(args, "could not get current directory");
+    }
+    DST_RETURN_CSTRING(args, ptr);
+}
+
 static const DstReg cfuns[] = {
     {"os.execute", os_execute},
     {"os.exit", os_exit},
@@ -123,6 +139,7 @@ static const DstReg cfuns[] = {
     {"os.setenv", os_setenv},
     {"os.clock", os_clock},
     {"os.sleep", os_sleep},
+    {"os.cwd", os_cwd},
     {NULL, NULL}
 };
 
