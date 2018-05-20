@@ -32,7 +32,7 @@ extern "C" {
 #include <dst/dsttypes.h>
 
 /* The VM state. Rather than a struct that is passed
- * around, the vm state is global for simplicity. If 
+ * around, the vm state is global for simplicity. If
  * at some point a a global state object, or context,
  * is required to be passed around, this is waht would
  * be in it. However, thread local globals for interpreter

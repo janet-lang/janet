@@ -202,7 +202,7 @@ static void string_description_b(DstBuffer *buffer, const char *title, void *poi
     buffer->count += string_description_impl(buffer->data + buffer->count, title, pointer);
 }
 
-/* Describes a pointer with a title (string_description("bork",  myp) returns 
+/* Describes a pointer with a title (string_description("bork",  myp) returns
  * a string "<bork 0x12345678>") */
 static const uint8_t *string_description(const char *title, void *pointer) {
     uint8_t buf[BUFSIZE];
@@ -212,7 +212,7 @@ static const uint8_t *string_description(const char *title, void *pointer) {
 #undef HEX
 #undef BUFSIZE
 
-/* TODO - add more characters to escape. 
+/* TODO - add more characters to escape.
  *
  * When more escapes are added, they must correspond
  * to dst_escape_string_impl exactly or a buffer overrun could occur. */
@@ -282,7 +282,7 @@ const uint8_t *dst_escape_string(const uint8_t *str) {
     int32_t len = dst_string_length(str);
     int32_t elen = dst_escape_string_length(str, len);
     uint8_t *buf = dst_string_begin(elen);
-    dst_escape_string_impl(buf, str, len); 
+    dst_escape_string_impl(buf, str, len);
     return dst_string_end(buf);
 }
 
@@ -315,8 +315,8 @@ void dst_description_b(DstBuffer *buffer, Dst x) {
         integer_to_string_b(buffer, dst_unwrap_integer(x));
         return;
     case DST_SYMBOL:
-        dst_buffer_push_bytes(buffer, 
-                dst_unwrap_string(x), 
+        dst_buffer_push_bytes(buffer,
+                dst_unwrap_string(x),
                 dst_string_length(dst_unwrap_string(x)));
         return;
     case DST_STRING:
@@ -328,7 +328,7 @@ void dst_description_b(DstBuffer *buffer, Dst x) {
     case DST_ABSTRACT:
         {
             const char *n = dst_abstract_type(dst_unwrap_abstract(x))->name;
-            return string_description_b(buffer, 
+            return string_description_b(buffer,
                     n[0] == ':' ? n + 1 : n,
                     dst_unwrap_abstract(x));
         }
@@ -344,13 +344,13 @@ void dst_to_string_b(DstBuffer *buffer, Dst x) {
             dst_description_b(buffer, x);
             break;
         case DST_BUFFER:
-            dst_buffer_push_bytes(buffer, 
+            dst_buffer_push_bytes(buffer,
                     dst_unwrap_buffer(x)->data,
                     dst_unwrap_buffer(x)->count);
             break;
         case DST_STRING:
         case DST_SYMBOL:
-            dst_buffer_push_bytes(buffer, 
+            dst_buffer_push_bytes(buffer,
                     dst_unwrap_string(x),
                     dst_string_length(dst_unwrap_string(x)));
             break;
@@ -386,7 +386,7 @@ const uint8_t *dst_description(Dst x) {
     case DST_ABSTRACT:
         {
             const char *n = dst_abstract_type(dst_unwrap_abstract(x))->name;
-            return string_description( 
+            return string_description(
                     n[0] == ':' ? n + 1 : n,
                     dst_unwrap_abstract(x));
         }
@@ -418,7 +418,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
     const uint8_t *ret;
     DstBuffer buffer;
     DstBuffer *bufp = &buffer;
-    
+
     /* Calculate length */
     while (format[len]) len++;
 
@@ -440,13 +440,13 @@ const uint8_t *dst_formatc(const char *format, ...) {
                 if (i + 1 >= len)
                     break;
                 switch (format[++i]) {
-                    default: 
+                    default:
                         dst_buffer_push_u8(bufp, format[i]);
                         break;
-                    case 'f': 
+                    case 'f':
                         real_to_string_b(bufp, va_arg(args, double));
                         break;
-                    case 'd': 
+                    case 'd':
                         integer_to_string_b(bufp, va_arg(args, int32_t));
                         break;
                     case 'S':
@@ -472,12 +472,12 @@ const uint8_t *dst_formatc(const char *format, ...) {
                         dst_buffer_push_cstring(bufp, dst_type_names[va_arg(args, DstType)] + 1);
                         break;
                     }
-                    case 'V': 
+                    case 'V':
                     {
                         dst_to_string_b(bufp, va_arg(args, Dst));
                         break;
                     }
-                    case 'v': 
+                    case 'v':
                     {
                         dst_description_b(bufp, va_arg(args, Dst));
                         break;
@@ -852,6 +852,39 @@ static int cfun_split(DstArgs args) {
     DST_RETURN_ARRAY(args, array);
 }
 
+static int cfun_checkset(DstArgs args) {
+    const uint8_t *set, *str;
+    int32_t setlen, strlen, i;
+    uint32_t bitset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    DST_MINARITY(args, 2);
+    DST_MAXARITY(args, 3);
+    DST_ARG_BYTES(set, setlen, args, 0);
+    DST_ARG_BYTES(str, strlen, args, 1);
+    /* Populate set */
+    for (i = 0; i < setlen; i++) {
+        int index = set[i] >> 5;
+        uint32_t mask = 1 << (set[i] & 7);
+        bitset[index] |= mask;
+    }
+    if (args.n == 3) {
+        int invert;
+        DST_ARG_BOOLEAN(invert, args, 2);
+        if (invert) {
+            for (i = 0; i < 8; i++)
+                bitset[i] = ~bitset[i];
+        }
+    }
+    /* Check set */
+    for (i = 0; i < strlen; i++) {
+        int index = str[i] >> 5;
+        uint32_t mask = 1 << (str[i] & 7);
+        if (!(bitset[index] & mask)) {
+            DST_RETURN_FALSE(args);
+        }
+    }
+    DST_RETURN_TRUE(args);
+}
+
 static const DstReg cfuns[] = {
     {"string.slice", cfun_slice},
     {"string.repeat", cfun_repeat},
@@ -865,6 +898,7 @@ static const DstReg cfuns[] = {
     {"string.replace", cfun_replace},
     {"string.replace-all", cfun_replaceall},
     {"string.split", cfun_split},
+    {"string.check-set", cfun_checkset},
     {NULL, NULL}
 };
 

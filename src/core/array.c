@@ -216,7 +216,7 @@ static int cfun_concat(DstArgs args) {
             case DST_ARRAY:
             case DST_TUPLE:
                 {
-                    int32_t j, len;       
+                    int32_t j, len;
                     const Dst *vals;
                     dst_seq_view(args.v[i], &vals, &len);
                     for (j = 0; j < len; j++)

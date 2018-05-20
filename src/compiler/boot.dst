@@ -950,7 +950,7 @@ onvalue."
     :pc pc
     :c c
     :name name
-    } (get st i))
+   } (get st i))
    (file.write stdout "  in")
    (when c (file.write stdout " cfunction"))
    (when name (file.write stdout (string " " name)))
@@ -978,48 +978,73 @@ environment is needed, use run-context."
   "./?/init.dst"
   "./dst_modules/?.dst"
   "./dst_modules/?/init.dst"
+  "/usr/local/dst/0.0.0/?.dst"
+  "/usr/local/dst/0.0.0/?/init.dst"
  ])
 
-(defn module.find
-  "Open a file given a module name."
-  [name]
-  (def normname (string.replace-all "." "/" name))
-  (defn checkmodule
-    [f testpath]
-    (if f f (do
-      (def p (string.replace-all "?" normname testpath))
-      (def p (string.replace-all "?" normname testpath))
-      (file.open p))))
-  (reduce checkmodule nil module.paths))
+(def module.native-paths @[
+  "./?.so"
+  "./dst_modules/?.so"
+  "/usr/local/dst/0.0.0/?.so"
+ ])
 
 (def require
  "Require a module with the given name. Will search all of the paths in
 module.paths, then the path as a raw file path. Returns the new environment
 returned from compiling and running the file."
  (do
- (def cache @{})
- (def loading @{})
- (fn [path]
+
+   (defn transform
+    [path paths]
+    (def normname (string.replace-all "." "/" path))
+    (array.push
+      (map (fn [x] (string.replace "?" normname x)) paths)
+      path))
+
+  (defn check-mod
+    [f testpath]
+    (if f f (file.open testpath)))
+
+  (defn find-mod [path]
+    (def paths (transform path module.paths))
+    (reduce check-mod nil paths))
+
+  (defn check-native
+    [p testpath]
+    (if p p (do
+      (def f (file.open testpath))
+      (if f (do (file.close f) testpath)))))
+
+  (defn find-native [path]
+    (def paths (transform path module.native-paths))
+    (reduce check-native nil paths))
+
+  (def cache @{})
+  (def loading @{})
+  (fn [path]
    (when (get loading path)
     (error (string "circular dependency: module " path " is loading")))
    (def check (get cache path))
    (if check check (do
-     (if (or
-          (= ".so" (string.slice path -3 -1))
-          (= ".dll" (string.slice path -4 -1)))
-      ((native path))
-      (do
-       (def newenv (make-env))
-       (put cache path newenv)
-       (put loading path true)
-       (def f (or (module.find path) (file.open path)))
-       (if (not f)
-         (error (string "could not open file for module " path)))
-       (defn chunks [buf] (file.read f 1024 buf))
-       (run-context newenv chunks identity default-error-handler)
-       (file.close f)
-       (put loading path nil)
-       newenv)))))))
+     (def newenv (make-env))
+     (put cache path newenv)
+     (put loading path true)
+
+     (def f (find-mod path))
+     (if f 
+       (do
+         # Normal dst module
+         (defn chunks [buf] (file.read f 1024 buf))
+         (run-context newenv chunks identity default-error-handler)
+         (file.close f)
+         (put loading path nil)
+         newenv)
+       (do 
+         # Try native module
+         (def n (find-native path))
+         (if (not n)
+           (error (string "could not open file for module " path)))
+         ((native n)))))))))
 
 (defn import* [env path & args]
  (def newenv (require path))

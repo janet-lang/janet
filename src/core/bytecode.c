@@ -191,7 +191,7 @@ int32_t dst_verify(DstFuncDef *def) {
         }
     }
 
-    /* Verify last instruction is either a jump, return, return-nil, or tailcall. Eventually, 
+    /* Verify last instruction is either a jump, return, return-nil, or tailcall. Eventually,
      * some real flow analysis would be ideal, but this should be very effective. Will completely
      * prevent running over the end of bytecode. However, valid functions with dead code will
      * be rejected. */

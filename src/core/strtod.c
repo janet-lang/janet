@@ -29,7 +29,7 @@
  *
  * This version has been modified for much greater flexibility in parsing, such
  * as choosing the radix, supporting integer output, and returning Dsts
- * directly. 
+ * directly.
  *
  * Numbers are of the form [-+]R[rR]I.F[eE&][-+]X where R is the radix, I is
  * the integer part, F is the fractional part, and X is the exponent. All
@@ -117,7 +117,7 @@ static double convert(
             }
         }
     }
-    
+
     return negative
         ? -ldexp(mantissa, exponent2)
         : ldexp(mantissa, exponent2);
@@ -137,11 +137,11 @@ struct DstScanRes {
 
 /* Get the mantissa and exponent of decimal number. The
  * mantissa will be stored in a 64 bit unsigned integer (always positive).
- * The exponent will be in a signed 32 bit integer. Will also check if 
+ * The exponent will be in a signed 32 bit integer. Will also check if
  * the decimal point has been seen. Returns -1 if there is an invalid
  * number. */
 static struct DstScanRes dst_scan_impl(
-        const uint8_t *str, 
+        const uint8_t *str,
         int32_t len) {
 
     struct DstScanRes res;
@@ -257,11 +257,11 @@ static struct DstScanRes dst_scan_impl(
             seenadigit = 1;
         }
         if (eneg) res.ex -= ee; else res.ex += ee;
-    } 
+    }
 
     if (!seenadigit)
         goto error;
-    
+
     return res;
 
     error:
@@ -277,7 +277,7 @@ int32_t dst_scan_integer(
         int *err) {
     struct DstScanRes res = dst_scan_impl(str, len);
     int64_t i64;
-    if (res.error) goto error; 
+    if (res.error) goto error;
     if (res.seenpoint) goto error;
     if (res.ex < 0) goto error;
     i64 = res.neg ? -res.mant : res.mant;

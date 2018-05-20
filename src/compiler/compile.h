@@ -104,7 +104,7 @@ struct DstScope {
 struct DstCompiler {
     int recursion_guard;
     DstScope *scopes;
-    
+
     uint32_t *buffer;
     DstAst **mapbuffer;
 

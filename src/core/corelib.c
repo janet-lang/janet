@@ -149,7 +149,7 @@ int dst_core_array(DstArgs args) {
 int dst_core_table(DstArgs args) {
     int32_t i;
     DstTable *table = dst_table(args.n >> 1);
-    if (args.n & 1) 
+    if (args.n & 1)
         DST_THROW(args, "expected even number of arguments");
     for (i = 0; i < args.n; i += 2) {
         dst_table_put(table, args.v[i], args.v[i + 1]);

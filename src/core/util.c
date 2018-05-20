@@ -253,13 +253,13 @@ int dst_typemany_err(DstArgs args, int32_t n, int expected) {
 int dst_arity_err(DstArgs args, int32_t n, const char *prefix) {
     DST_THROWV(args,
             dst_wrap_string(dst_formatc(
-                    "expected %s%d argument%s, got %d", 
+                    "expected %s%d argument%s, got %d",
                     prefix, n, n == 1 ? "" : "s", args.n)));
 }
 
 int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at) {
     DST_THROWV(args,
             dst_wrap_string(dst_formatc(
-                    "bad slot #%d, expected %s, got %s", 
-                    n, at->name, typestr(args, n)))); 
+                    "bad slot #%d, expected %s, got %s",
+                    n, at->name, typestr(args, n))));
 }

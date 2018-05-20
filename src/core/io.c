@@ -228,7 +228,7 @@ static int dst_io_fread(DstArgs args) {
             DST_RETURN(args, dst_wrap_buffer(b));
         } else {
             DST_THROW(args, "expected one of :all, :line");
-        } 
+        }
     } else if (!dst_checktype(args.v[1], DST_INTEGER)) {
         DST_THROW(args, "expected positive integer");
     } else {

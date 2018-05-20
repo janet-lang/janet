@@ -30,7 +30,7 @@
 /* Convert a slot to to an integer for bytecode */
 
 /* Types of instructions (some of them) */
-/* _0arg - op.---.--.-- (return-nil, noop, vararg arguments) 
+/* _0arg - op.---.--.-- (return-nil, noop, vararg arguments)
  * _s - op.src.--.-- (push1)
  * _l - op.XX.XX.XX (jump)
  * _ss - op.dest.XX.XX (move, swap)
@@ -200,7 +200,7 @@ static void dst_asm_errorv(DstAssembler *a, const uint8_t *m) {
 }
 
 /* Add a closure environment to the assembler. Sub funcdefs may need
- * to reference outer function environments, and may change the outer environment. 
+ * to reference outer function environments, and may change the outer environment.
  * Returns the index of the environment in the assembler's environments, or -1
  * if not found.  */
 static int32_t dst_asm_addenv(DstAssembler *a, Dst envname) {
@@ -360,7 +360,7 @@ static uint32_t doarg(
 
 /* Provide parsing methods for the different kinds of arguments */
 static uint32_t read_instruction(
-        DstAssembler *a, 
+        DstAssembler *a,
         const DstInstructionDef *idef,
         const Dst *argt) {
     uint32_t instr = idef->opcode;
@@ -516,7 +516,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
         return result;
     }
 
-    dst_asm_assert(&a, 
+    dst_asm_assert(&a,
             dst_checktype(s, DST_STRUCT) ||
             dst_checktype(s, DST_TABLE),
             "expected struct or table for assembly source");
@@ -547,7 +547,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
             Dst v = arr[i];
             if (dst_checktype(v, DST_TUPLE)) {
                 const Dst *t = dst_unwrap_tuple(v);
-                int32_t j; 
+                int32_t j;
                 for (j = 0; j < dst_tuple_length(t); j++) {
                     if (!dst_checktype(t[j], DST_SYMBOL))
                         dst_asm_error(&a, "slot names must be symbols");
@@ -681,7 +681,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
         dst_asm_error(&a, "bytecode expected");
     }
     a.errindex = -1;
-    
+
     /* Check for source mapping */
     x = dst_get(s, dst_csymbolv("sourcemap"));
     if (dst_seq_view(x, &arr, &count)) {
@@ -737,7 +737,7 @@ static const DstInstructionDef *dst_asm_reverse_lookup(uint32_t instr) {
     uint32_t opcode = instr & 0x7F;
     for (i = 0; i < sizeof(dst_ops)/sizeof(DstInstructionDef); i++) {
         const DstInstructionDef *def = dst_ops + i;
-        if (def->opcode == opcode) 
+        if (def->opcode == opcode)
             return def;
     }
     return NULL;
@@ -792,23 +792,23 @@ Dst dst_asm_decode_instruction(uint32_t instr) {
         case DIT_SC:
         case DIT_SU:
         case DIT_SD:
-            return tup3(name, 
+            return tup3(name,
                     dst_wrap_integer(oparg(1, 0xFF)),
                     dst_wrap_integer(oparg(2, 0xFFFF)));
         case DIT_SI:
         case DIT_SL:
-            return tup3(name, 
+            return tup3(name,
                     dst_wrap_integer(oparg(1, 0xFF)),
                     dst_wrap_integer((int32_t)instr >> 16));
         case DIT_SSS:
         case DIT_SES:
         case DIT_SSU:
-            return tup4(name, 
+            return tup4(name,
                     dst_wrap_integer(oparg(1, 0xFF)),
                     dst_wrap_integer(oparg(2, 0xFF)),
                     dst_wrap_integer(oparg(3, 0xFF)));
         case DIT_SSI:
-            return tup4(name, 
+            return tup4(name,
                     dst_wrap_integer(oparg(1, 0xFF)),
                     dst_wrap_integer(oparg(2, 0xFF)),
                     dst_wrap_integer((int32_t)instr >> 24));
@@ -825,7 +825,7 @@ Dst dst_disasm(DstFuncDef *def) {
     dst_table_put(ret, dst_csymbolv("arity"), dst_wrap_integer(def->arity));
     dst_table_put(ret, dst_csymbolv("bytecode"), dst_wrap_array(bcode));
     if (NULL != def->sourcepath) {
-        dst_table_put(ret, dst_csymbolv("sourcepath"), 
+        dst_table_put(ret, dst_csymbolv("sourcepath"),
                 dst_wrap_string(def->sourcepath));
     }
     if (NULL != def->source) {

@@ -60,7 +60,7 @@ const DstKV *dst_struct_find(const DstKV *st, Dst key) {
 
 /* Put a kv pair into a struct that has not yet been fully constructed.
  * Nil keys and values are ignored, extra keys are ignore, and duplicate keys are
- * ignored. 
+ * ignored.
  *
  * Runs will be in sorted order, as the collisions resolver essentially
  * preforms an in-place insertion sort. This ensures the internal structure of the

@@ -288,7 +288,7 @@ static void *op_lookup[255] = {
 
     VM_OP(DOP_SUBTRACT)
     vm_binop(-);
-        
+
     VM_OP(DOP_MULTIPLY_INTEGER)
     vm_binop_integer(*);
 
@@ -303,17 +303,17 @@ static void *op_lookup[255] = {
 
     VM_OP(DOP_DIVIDE_INTEGER)
     vm_assert(dst_unwrap_integer(stack[oparg(3, 0xFF)]) != 0, "integer divide error");
-    vm_assert(!(dst_unwrap_integer(stack[oparg(3, 0xFF)]) == -1 && 
+    vm_assert(!(dst_unwrap_integer(stack[oparg(3, 0xFF)]) == -1 &&
                 dst_unwrap_integer(stack[oparg(2, 0xFF)]) == INT32_MIN),
             "integer divide error");
     vm_binop_integer(/);
-    
+
     VM_OP(DOP_DIVIDE_IMMEDIATE)
     {
         int32_t op1 = dst_unwrap_integer(stack[oparg(2, 0xFF)]);
         int32_t op2 = *((int32_t *)pc) >> 24;
         /* Check for degenerate integer division (divide by zero, and dividing
-         * min value by -1). These checks could be omitted if the arg is not 
+         * min value by -1). These checks could be omitted if the arg is not
          * 0 or -1. */
         if (op2 == 0)
             vm_throw("integer divide error");
@@ -362,7 +362,7 @@ static void *op_lookup[255] = {
     VM_OP(DOP_BNOT)
     stack[oparg(1, 0xFF)] = dst_wrap_integer(~dst_unwrap_integer(stack[oparg(2, 0xFFFF)]));
     vm_next();
-        
+
     VM_OP(DOP_SHIFT_RIGHT_UNSIGNED)
     stack[oparg(1, 0xFF)] = dst_wrap_integer(
         (int32_t)(((uint32_t)dst_unwrap_integer(stack[oparg(2, 0xFF)]))
@@ -655,7 +655,7 @@ static void *op_lookup[255] = {
         stack[oparg(1, 0xFF)] = dst_wrap_function(fn);
         pc++;
         vm_checkgc_next();
-    } 
+    }
 
     VM_OP(DOP_PUSH)
         dst_fiber_push(fiber, stack[oparg(1, 0xFFFFFF)]);
@@ -664,7 +664,7 @@ static void *op_lookup[255] = {
         vm_checkgc_next();
 
     VM_OP(DOP_PUSH_2)
-        dst_fiber_push2(fiber, 
+        dst_fiber_push2(fiber,
                 stack[oparg(1, 0xFF)],
                 stack[oparg(2, 0xFFFF)]);
     pc++;
@@ -672,7 +672,7 @@ static void *op_lookup[255] = {
     vm_checkgc_next();
 
     VM_OP(DOP_PUSH_3)
-        dst_fiber_push3(fiber, 
+        dst_fiber_push3(fiber,
                 stack[oparg(1, 0xFF)],
                 stack[oparg(2, 0xFF)],
                 stack[oparg(3, 0xFF)]);
@@ -685,7 +685,7 @@ static void *op_lookup[255] = {
         const Dst *vals;
         int32_t len;
         if (dst_seq_view(stack[oparg(1, 0xFFFFFF)], &vals, &len)) {
-            dst_fiber_pushn(fiber, vals, len);        
+            dst_fiber_pushn(fiber, vals, len);
         } else {
             vm_throw("expected array/tuple");
         }
@@ -871,7 +871,7 @@ static void *op_lookup[255] = {
         dst_gcunroot(dst_wrap_fiber(fiber));
         dst_vm_fiber = old_vm_fiber;
         *out = retreg;
-        /* All statuses correspond to signals except new and alive, 
+        /* All statuses correspond to signals except new and alive,
          * which cannot be entered when exiting the vm loop.
          * DST_SIGNAL_OK -> DST_STATUS_DEAD
          * DST_SIGNAL_YIELD -> DST_STATUS_PENDING */
@@ -888,7 +888,7 @@ static void *op_lookup[255] = {
         stack[oparg(1, 0xFF)] = retreg;
         pc++;
         vm_checkgc_next();
-    }   
+    }
 
     VM_END()
 

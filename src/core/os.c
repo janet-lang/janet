@@ -35,7 +35,7 @@
 
 static int os_execute(DstArgs args) {
     int nofirstarg = (args.n < 1 || !dst_checktype(args.v[0], DST_STRING));
-    const char *cmd = nofirstarg 
+    const char *cmd = nofirstarg
         ? NULL
         : (const char *) dst_unwrap_string(args.v[0]);
     int stat = system(cmd);

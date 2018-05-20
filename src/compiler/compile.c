@@ -112,7 +112,7 @@ static void slotalloci(DstCompiler *c, int32_t index) {
 void dstc_sfreei(DstCompiler *c, int32_t index) {
     DstScope *scope = &dst_v_last(c->scopes);
     /* Don't free the pre allocated slots */
-    if (index >= 0 && (index < 0xF0 || index > 0xFF) && 
+    if (index >= 0 && (index < 0xF0 || index > 0xFF) &&
             index < (dst_v_count(scope->slots) << 5))
         scope->slots[index >> 5] &= ~(1 << (index & 0x1F));
 }
@@ -182,7 +182,7 @@ void dstc_popscope(DstCompiler *c) {
     if (!(scope.flags & (DST_SCOPE_FUNCTION | DST_SCOPE_UNUSED)) && oldcount > 1) {
         int32_t i;
         DstScope *newscope = &dst_v_last(c->scopes);
-        if (newscope->smax < scope.smax) 
+        if (newscope->smax < scope.smax)
             newscope->smax = scope.smax;
 
         /* Keep upvalue slots */
@@ -320,7 +320,7 @@ DstSlot dstc_resolve(
         }
         scope++;
     }
-    
+
     ret.envindex = envindex;
     return ret;
 }
@@ -372,7 +372,7 @@ static void dstc_loadconst(DstCompiler *c, DstAst *ast, Dst k, int32_t dest) {
             {
                 int32_t i = dst_unwrap_integer(k);
                 if (i <= INT16_MAX && i >= INT16_MIN) {
-                    dstc_emit(c, ast, 
+                    dstc_emit(c, ast,
                             (i << 16) |
                             (dest << 8) |
                             DOP_LOAD_INTEGER);
@@ -384,7 +384,7 @@ static void dstc_loadconst(DstCompiler *c, DstAst *ast, Dst k, int32_t dest) {
         do_constant:
             {
                 int32_t cindex = dstc_const(c, ast, k);
-                dstc_emit(c, ast, 
+                dstc_emit(c, ast,
                         (cindex << 16) |
                         (dest << 8) |
                         DOP_LOAD_CONSTANT);
@@ -412,26 +412,26 @@ int32_t dstc_preread(
         dstc_loadconst(c, ast, s.constant, ret);
         /* If we also are a reference, deref the one element array */
         if (s.flags & DST_SLOT_REF) {
-            dstc_emit(c, ast, 
+            dstc_emit(c, ast,
                     (ret << 16) |
                     (ret << 8) |
                     DOP_GET_INDEX);
         }
     } else if (s.envindex >= 0 || s.index > max) {
         ret = dstc_lslotn(c, max, nth);
-        dstc_emit(c, ast, 
+        dstc_emit(c, ast,
                 ((uint32_t)(s.index) << 24) |
                 ((uint32_t)(s.envindex) << 16) |
                 ((uint32_t)(ret) << 8) |
                 DOP_LOAD_UPVALUE);
     } else if (s.index > max) {
         ret = dstc_lslotn(c, max, nth);
-        dstc_emit(c, ast, 
+        dstc_emit(c, ast,
                 ((uint32_t)(s.index) << 16) |
                 ((uint32_t)(ret) << 8) |
                     DOP_MOVE_NEAR);
     } else {
-        /* We have a normal slot that fits in the required bit width */            
+        /* We have a normal slot that fits in the required bit width */
         ret = s.index;
     }
     return ret;
@@ -517,7 +517,7 @@ void dstc_copy(
         }
         return;
     }
-    
+
     /* Process: src -> srclocal -> destlocal -> dest */
 
     /* src -> srclocal */
@@ -550,14 +550,14 @@ void dstc_copy(
                 DOP_MOVE_NEAR);
     }
 
-    /* destlocal -> dest */ 
+    /* destlocal -> dest */
     if (writeback == 1) {
         dstc_emit(c, ast,
                 (destlocal << 16) |
                 (reflocal << 8) |
                 DOP_PUT_INDEX);
     } else if (writeback == 2) {
-        dstc_emit(c, ast, 
+        dstc_emit(c, ast,
                 ((uint32_t)(dest.index) << 24) |
                 ((uint32_t)(dest.envindex) << 16) |
                 ((uint32_t)(destlocal) << 8) |
@@ -646,7 +646,7 @@ void dstc_pushslots(DstCompiler *c, DstAst *ast, DstSM *sms) {
         int32_t ls1 = dstc_preread(c, sms[i].map, 0xFF, 1, sms[i].slot);
         int32_t ls2 = dstc_preread(c, sms[i + 1].map, 0xFF, 2, sms[i + 1].slot);
         int32_t ls3 = dstc_preread(c, sms[i + 2].map, 0xFF, 3, sms[i + 2].slot);
-        dstc_emit(c, ast, 
+        dstc_emit(c, ast,
                 (ls3 << 24) |
                 (ls2 << 16) |
                 (ls1 << 8) |
@@ -658,7 +658,7 @@ void dstc_pushslots(DstCompiler *c, DstAst *ast, DstSM *sms) {
     if (i == dst_v_count(sms) - 2) {
         int32_t ls1 = dstc_preread(c, sms[i].map, 0xFF, 1, sms[i].slot);
         int32_t ls2 = dstc_preread(c, sms[i + 1].map, 0xFFFF, 2, sms[i + 1].slot);
-        dstc_emit(c, ast, 
+        dstc_emit(c, ast,
                 (ls2 << 16) |
                 (ls1 << 8) |
                 DOP_PUSH_2);
@@ -666,7 +666,7 @@ void dstc_pushslots(DstCompiler *c, DstAst *ast, DstSM *sms) {
         dstc_postread(c, sms[i + 1].slot, ls2);
     } else if (i == dst_v_count(sms) - 1) {
         int32_t ls1 = dstc_preread(c, sms[i].map, 0xFFFFFF, 1, sms[i].slot);
-        dstc_emit(c, ast, 
+        dstc_emit(c, ast,
                 (ls1 << 8) |
                 DOP_PUSH);
         dstc_postread(c, sms[i].slot, ls1);
@@ -694,7 +694,7 @@ void dstc_throwaway(DstFopts opts, Dst x) {
     dstc_popscope(c);
     if (NULL != c->buffer) {
         dst_v__cnt(c->buffer) = bufstart;
-        if (NULL != c->mapbuffer) 
+        if (NULL != c->mapbuffer)
             dst_v__cnt(c->mapbuffer) = mapbufstart;
     }
 }
@@ -762,7 +762,7 @@ DstSlot dstc_symbol(DstFopts opts, DstAst *ast, const uint8_t *sym) {
     } else {
         /* Keyword */
         return dstc_cslot(dst_wrap_symbol(sym));
-    } 
+    }
 }
 
 /* Compile a single value */
@@ -850,10 +850,10 @@ recur:
             }
             break;
         case DST_ARRAY:
-            ret = dstc_array(opts, ast, x); 
+            ret = dstc_array(opts, ast, x);
             break;
         case DST_STRUCT:
-            ret = dstc_tablector(opts, ast, x, dst_core_struct); 
+            ret = dstc_tablector(opts, ast, x, dst_core_struct);
             break;
         case DST_TABLE:
             ret = dstc_tablector(opts, ast, x, dst_core_table);

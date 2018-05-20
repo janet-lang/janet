@@ -134,7 +134,7 @@ static const DstCFunOptimizer optimizers[] = {
 const DstCFunOptimizer *dstc_cfunopt(DstCFunction cfun) {
     size_t i;
     size_t n = sizeof(optimizers)/sizeof(DstCFunOptimizer);
-    for (i = 0; i < n; i++) 
+    for (i = 0; i < n; i++)
         if (optimizers[i].cfun == cfun)
             return optimizers + i;
     return NULL;

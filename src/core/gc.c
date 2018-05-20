@@ -189,7 +189,7 @@ recur:
     dst_gc_mark(fiber);
 
     dst_mark_function(fiber->root);
-    
+
     i = fiber->frame;
     j = fiber->stackstart - DST_FRAME_SIZE;
     while (i > 0) {
@@ -218,7 +218,7 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
     switch (block->flags & DST_MEM_TYPEBITS) {
         default:
         case DST_MEMORY_FUNCTION:
-            break; /* Do nothing for non gc types */ 
+            break; /* Do nothing for non gc types */
         case DST_MEMORY_SYMBOL:
             dst_symbol_deinit((const uint8_t *)mem + 2 * sizeof(int32_t));
             break;
@@ -233,7 +233,7 @@ static void dst_deinit_block(DstGCMemoryHeader *block) {
             break;
         case DST_MEMORY_BUFFER:
             dst_buffer_deinit((DstBuffer *) mem);
-            break; 
+            break;
         case DST_MEMORY_ABSTRACT:
             if (h->type->gc) {
                 if (h->type->gc((void *)(h + 1), h->size)) {

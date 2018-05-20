@@ -190,7 +190,7 @@ static int cfun_int(DstArgs args) {
     for (i = 1; i < args.n; i++) {
         int32_t integer;
         DST_ARG_INTEGER(integer, args, i);
-        if (dst_buffer_push_u32(buffer, (uint32_t) integer)) 
+        if (dst_buffer_push_u32(buffer, (uint32_t) integer))
             DST_THROW(args, "buffer overflow");
     }
     DST_RETURN(args, args.v[0]);
@@ -205,7 +205,7 @@ static int cfun_chars(DstArgs args) {
         int32_t len;
         const uint8_t *str;
         DST_ARG_BYTES(str, len, args, i);
-        if (dst_buffer_push_bytes(buffer, str, len)) 
+        if (dst_buffer_push_bytes(buffer, str, len))
             DST_THROW(args, "buffer overflow");
     }
     DST_RETURN(args, args.v[0]);

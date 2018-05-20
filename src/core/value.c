@@ -151,7 +151,7 @@ int dst_compare(Dst x, Dst y) {
                     return dst_unwrap_string(x) > dst_unwrap_string(y) ? 1 : -1;
                 }
         }
-    } 
+    }
     return (dst_type(x) < dst_type(y)) ? -1 : 1;
 }
 
@@ -198,7 +198,7 @@ Dst dst_get(Dst ds, Dst key) {
  * error message, and NULL if no error. */
 void dst_put(Dst ds, Dst key, Dst value) {
     switch (dst_type(ds)) {
-    case DST_ARRAY: 
+    case DST_ARRAY:
     {
         int32_t index;
         DstArray *array = dst_unwrap_array(ds);
