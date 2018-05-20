@@ -984,9 +984,24 @@ environment is needed, use run-context."
 
 (def module.native-paths @[
   "./?.so"
+  "./?/??.so"
   "./dst_modules/?.so"
+  "./dst_modules/?/??.so"
   "/usr/local/dst/0.0.0/?.so"
+  "/usr/local/dst/0.0.0/?/??.so"
  ])
+
+(defn module.find
+  [path paths]
+  (def parts (string.split "." path))
+  (def last (get parts (- (length parts) 1)))
+  (def normname (string.replace-all "." "/" path))
+  (array.push
+    (map (fn [x] 
+             (def y (string.replace "??" last x))
+             (string.replace "?" normname y))
+         paths)
+    path))
 
 (def require
  "Require a module with the given name. Will search all of the paths in
@@ -994,19 +1009,12 @@ module.paths, then the path as a raw file path. Returns the new environment
 returned from compiling and running the file."
  (do
 
-   (defn transform
-    [path paths]
-    (def normname (string.replace-all "." "/" path))
-    (array.push
-      (map (fn [x] (string.replace "?" normname x)) paths)
-      path))
-
   (defn check-mod
     [f testpath]
     (if f f (file.open testpath)))
 
   (defn find-mod [path]
-    (def paths (transform path module.paths))
+    (def paths (module.find path module.paths))
     (reduce check-mod nil paths))
 
   (defn check-native
@@ -1016,7 +1024,7 @@ returned from compiling and running the file."
       (if f (do (file.close f) testpath)))))
 
   (defn find-native [path]
-    (def paths (transform path module.native-paths))
+    (def paths (module.find path module.native-paths))
     (reduce check-native nil paths))
 
   (def cache @{})

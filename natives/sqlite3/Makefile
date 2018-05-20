@@ -19,7 +19,7 @@
 # IN THE SOFTWARE.
 
 CFLAGS=-std=c99 -Wall -Wextra -I../../src/include -O2 -DSQLITE_THREADSAFE=0 -DSQLITE_OMIT_LOAD_EXTENSION -shared -fpic
-TARGET=libdstsqlite3.so
+TARGET=sqlite3.so
 
 sqlite-autoconf-3230100/sqlite3.%:
 	curl https://www.sqlite.org/2018/sqlite-autoconf-3230100.tar.gz | tar -xvz
