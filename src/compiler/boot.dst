@@ -758,7 +758,8 @@ to call on any table. Does not print table prototype information."
   (recur x)
   (buffer.push-string buf "\n")
 
-  (file.write stdout buf))
+  (file.write stdout buf)
+  nil)
 
 ###
 ###
@@ -766,7 +767,7 @@ to call on any table. Does not print table prototype information."
 ###
 ###
 
-(defn macroexpand1
+(defn macroexpand-1
  "Expand macros in a form, but do not recursively expand macros."
  [x]
 
@@ -774,21 +775,21 @@ to call on any table. Does not print table prototype information."
   (def len (length a))
   (def newa @[])
   (for [i 0 len]
-   (array.push newa (macroexpand1 (get a i))))
+   (array.push newa (macroexpand-1 (get a i))))
   newa)
 
  (defn dotable [t]
   (def newt @{})
   (var key (next t nil))
   (while (not= nil key)
-   (put newt (macroexpand1 key) (macroexpand1 (get t key)))
+   (put newt (macroexpand-1 key) (macroexpand-1 (get t key)))
    (:= key (next t key)))
   newt)
 
  (defn expandlast [t]
   (def len (length t))
   (def last (get t (- len 1)))
-  (tuple.append (tuple.slice t 0 -2) (macroexpand1 last)))
+  (tuple.append (tuple.slice t 0 -2) (macroexpand-1 last)))
 
  (defn expandall [t]
   (def args (doarray (tuple.slice t 1)))
@@ -841,13 +842,13 @@ to call on any table. Does not print table prototype information."
  "Expand macros completely."
  [x]
  (var previous x)
- (var current (macroexpand1 x))
+ (var current (macroexpand-1 x))
  (var counter 0)
  (while (not= current previous)
   (if (> (++ counter) 200)
    (error "macro expansion too nested"))
   (:= previous current)
-  (:= current (macroexpand1 current)))
+  (:= current (macroexpand-1 current)))
  current)
 
 ###
@@ -1093,3 +1094,18 @@ get a chunk of source code. Should return nil for end of file."
    (pp x)))
  (default onerr default-error-handler)
  (run-context newenv getchunk onvalue onerr))
+
+(defn all-symbols
+  "Get all symbols available in the current environment."
+  [env]
+  (default env *env*)
+  (def envs @[])
+  (do (var e env) (while e (array.push envs e) (:= e (table.getproto e))))
+  (array.reverse envs)
+  (def symbol-set @{})
+  (defn onenv [envi]
+    (defn onk [k]
+      (put symbol-set k true))
+    (each onk (keys envi)))
+  (each onenv envs)
+  (sort (keys symbol-set)))
