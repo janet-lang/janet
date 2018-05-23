@@ -21,6 +21,11 @@
 CFLAGS=-std=c99 -Wall -Wextra -I../../src/include -s -O3
 TARGET=hello.so
 
+UNAME:=$(shell uname -s)
+ifeq ($(UNAME), Darwin)
+	CFLAGS:=$(CFLAGS) -undefined dynamic_lookup
+endif
+
 SOURCES=main.c
 
 $(TARGET): $(SOURCES)
