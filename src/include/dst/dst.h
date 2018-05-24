@@ -274,6 +274,13 @@ int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
     }\
 } while (0)
 
+#define DST_ARG_INDEXED(DESTVALS, DESTLEN, A, N) do {\
+    if ((A).n <= (N)) return dst_typemany_err(A, N, DST_TFLAG_INDEXED);\
+    if (!dst_seq_view((A).v[(N)], &(DESTVALS), &(DESTLEN))) {\
+        return dst_typemany_err(A, N, DST_TFLAG_INDEXED);\
+    }\
+} while (0)
+
 #define _DST_ARG(TYPE, NAME, DEST, A, N) do { \
     DST_CHECK(A, N, TYPE);\
     DEST = dst_unwrap_##NAME((A).v[(N)]); \

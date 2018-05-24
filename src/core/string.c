@@ -885,6 +885,47 @@ static int cfun_checkset(DstArgs args) {
     DST_RETURN_TRUE(args);
 }
 
+static int cfun_join(DstArgs args) {
+    const Dst *parts;
+    const uint8_t *joiner;
+    uint8_t *buf, *out;
+    int32_t joinerlen, partslen, finallen, i;
+    DST_MINARITY(args, 1);
+    DST_MAXARITY(args, 2);
+    DST_ARG_INDEXED(parts, partslen, args, 0);
+    if (args.n == 2) {
+        DST_ARG_BYTES(joiner, joinerlen, args, 1);
+    } else {
+        joiner = NULL;
+        joinerlen = 0;
+    }
+    /* Check args */
+    finallen = 0;
+    for (i = 0; i < partslen; i++) {
+        const uint8_t *chunk;
+        int32_t chunklen = 0;
+        if (!dst_chararray_view(parts[i], &chunk, &chunklen)) {
+            DST_THROW(args, "expected string|symbol|buffer");
+        }
+        if (i) finallen += joinerlen;
+        finallen += chunklen;
+    }
+    out = buf = dst_string_begin(finallen);
+    for (i = 0; i < partslen; i++) {
+        const uint8_t *chunk = NULL;
+        int32_t chunklen = 0;
+        if (i) {
+            memcpy(out, joiner, joinerlen);
+            out += joinerlen;
+        }
+        dst_chararray_view(parts[i], &chunk, &chunklen);
+        memcpy(out, chunk, chunklen);
+        out += chunklen;
+    }
+    DST_RETURN_STRING(args, dst_string_end(buf));
+
+}
+
 static const DstReg cfuns[] = {
     {"string.slice", cfun_slice},
     {"string.repeat", cfun_repeat},
@@ -899,6 +940,7 @@ static const DstReg cfuns[] = {
     {"string.replace-all", cfun_replaceall},
     {"string.split", cfun_split},
     {"string.check-set", cfun_checkset},
+    {"string.join", cfun_join},
     {NULL, NULL}
 };
 

@@ -830,7 +830,6 @@ recur:
                                     DstSignal status = dst_call(f, dst_tuple_length(tup) - 1, tup + 1, &x);
                                     dst_gcunlock(lock);
                                     if (status != DST_SIGNAL_OK) {
-                                        printf("Status: %d\n", status);
                                         const uint8_t *es = dst_formatc("error in macro expansion: %V", x);
                                         dstc_error(c, ast, es);
                                     }
