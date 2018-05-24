@@ -231,38 +231,41 @@ value."
         (def bindings (get head1 i))
         (def verb (ast.unwrap1 (get head1 (+ i 1))))
         (def object (ast.unwrap1 (get head1 (+ i 2))))
-        (switch verb
-          :range (do
-                 (def [start end _inc] (ast.unwrap1 object))
-                 (def inc (if _inc _inc 1))
-                 (def endsym (gensym))
-                 (tuple 'do
-                        (tuple 'var bindings start)
-                        (tuple 'def endsym end)
-                        (tuple 'while (tuple < bindings endsym)
-                               (doone (+ i 3))
-                               (tuple ':= bindings (tuple + bindings inc)))))
-          :keys (do
-                  (def $dict (gensym "dict"))
+        (if (= (ast.unwrap1 bindings) :where)
+          (tuple 'if verb (doone (+ i 2)))
+          (switch 
+            verb
+            :range (do
+                     (def [start end _inc] (ast.unwrap1 object))
+                     (def inc (if _inc _inc 1))
+                     (def endsym (gensym))
+                     (tuple 'do
+                            (tuple 'var bindings start)
+                            (tuple 'def endsym end)
+                            (tuple 'while (tuple < bindings endsym)
+                                   (doone (+ i 3))
+                                   (tuple ':= bindings (tuple + bindings inc)))))
+            :keys (do
+                    (def $dict (gensym "dict"))
+                    (tuple 'do
+                           (tuple 'def $dict object)
+                           (tuple 'var bindings (tuple next $dict nil))
+                           (tuple 'while (tuple not= nil bindings)
+                                  (doone (+ i 3))
+                                  (tuple ':= bindings (tuple next $dict bindings)))))
+            :in (do
+                  (def $len (gensym "len"))
+                  (def $i (gensym "i"))
+                  (def $indexed (gensym "indexed"))
                   (tuple 'do
-                         (tuple 'def $dict object)
-                         (tuple 'var bindings (tuple next $dict nil))
-                         (tuple 'while (tuple not= nil bindings)
+                         (tuple 'def $indexed object)
+                         (tuple 'def $len (tuple length $indexed))
+                         (tuple 'var $i 0)
+                         (tuple 'while (tuple < $i $len)
+                                (tuple 'def bindings (tuple get $indexed $i))
                                 (doone (+ i 3))
-                                (tuple ':= bindings (tuple next $dict bindings)))))
-          :in (do
-                (def $len (gensym "len"))
-                (def $i (gensym "i"))
-                (def $indexed (gensym "indexed"))
-                (tuple 'do
-                       (tuple 'def $indexed object)
-                       (tuple 'def $len (tuple length $indexed))
-                       (tuple 'var $i 0)
-                       (tuple 'while (tuple < $i $len)
-                              (tuple 'def bindings (tuple get $indexed $i))
-                              (doone (+ i 3))
-                              (tuple ':= $i (tuple + 1 $i)))))
-          (error ("unexpected loop verb: " verb))))))
+                                (tuple ':= $i (tuple + 1 $i)))))
+            (error ("unexpected loop verb: " verb)))))))
   (doone 0))
 
 (defmacro for

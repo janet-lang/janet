@@ -42,7 +42,7 @@
 
 (defn assert-many [f n e]
  (var good true)
- (for [i 0 n]
+ (loop [i :range [0 n]]
   (if (not (f i))
    (:= good false)))
  (assert good e))
