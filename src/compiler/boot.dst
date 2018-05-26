@@ -68,6 +68,7 @@
 (defn fiber? [x] (= (type x) :fiber))
 (defn string? [x] (= (type x) :string))
 (defn symbol? [x] (= (type x) :symbol))
+(defn keyword? [x] (if (not= (type x) :symbol) nil (= 58 (get x 0))))
 (defn buffer? [x] (= (type x) :buffer))
 (defn function? [x] (= (type x) :function))
 (defn cfunction? [x] (= (type x) :cfunction))
@@ -224,46 +225,61 @@ value."
   (def head1 (ast.unwrap1 head))
   (def len (length head1))
   (defn doone
-    [i]
+    [i preds]
+    (default preds @['and])
     (if (>= i len)
       (tuple.prepend body 'do)
       (do
         (def bindings (get head1 i))
+        (def ubindings (ast.unwrap1 bindings))
         (def verb (ast.unwrap1 (get head1 (+ i 1))))
         (def object (ast.unwrap1 (get head1 (+ i 2))))
-        (if (= (ast.unwrap1 bindings) :where)
-          (tuple 'if verb (doone (+ i 2)))
+        (if (keyword? ubindings)
+          (switch
+            ubindings
+            :while (do
+                     (array.push preds verb)
+                     (doone (+ i 2) preds))
+            :let (tuple 'let verb (doone (+ i 2)))
+            :when (tuple 'if verb (doone (+ i 2)))
+            (error ("unexpected loop predicate: " verb)))
           (switch 
             verb
             :range (do
                      (def [start end _inc] (ast.unwrap1 object))
                      (def inc (if _inc _inc 1))
                      (def endsym (gensym))
+                     (def preds @['and (tuple < bindings endsym)])
+                     (def subloop (doone (+ i 3) preds))
                      (tuple 'do
                             (tuple 'var bindings start)
                             (tuple 'def endsym end)
-                            (tuple 'while (tuple < bindings endsym)
-                                   (doone (+ i 3))
+                            (tuple 'while (apply1 tuple preds)
+                                   subloop
                                    (tuple ':= bindings (tuple + bindings inc)))))
             :keys (do
                     (def $dict (gensym "dict"))
+                    (def preds @['and (tuple not= nil bindings)])
+                    (def subloop (doone (+ i 3) preds))
                     (tuple 'do
                            (tuple 'def $dict object)
                            (tuple 'var bindings (tuple next $dict nil))
-                           (tuple 'while (tuple not= nil bindings)
-                                  (doone (+ i 3))
+                           (tuple 'while (apply1 tuple preds)
+                                  subloop
                                   (tuple ':= bindings (tuple next $dict bindings)))))
             :in (do
                   (def $len (gensym "len"))
                   (def $i (gensym "i"))
                   (def $indexed (gensym "indexed"))
+                  (def preds @['and (tuple < $i $len)])
+                  (def subloop (doone (+ i 3) preds))
                   (tuple 'do
                          (tuple 'def $indexed object)
                          (tuple 'def $len (tuple length $indexed))
                          (tuple 'var $i 0)
-                         (tuple 'while (tuple < $i $len)
+                         (tuple 'while (apply1 tuple preds)
                                 (tuple 'def bindings (tuple get $indexed $i))
-                                (doone (+ i 3))
+                                subloop
                                 (tuple ':= $i (tuple + 1 $i)))))
             (error ("unexpected loop verb: " verb)))))))
   (doone 0))

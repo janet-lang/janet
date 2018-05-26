@@ -9,6 +9,7 @@ dst
 
 # Generated files
 *.gen.h
+*.gen.c
 
 # Generate test files
 *.out
