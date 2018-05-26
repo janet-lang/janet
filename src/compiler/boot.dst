@@ -102,6 +102,9 @@
   })
   (fn [x] (not (get non-atomic-types (type x))))))
 
+(defn sum [xs] (apply1 + xs))
+(defn product [xs] (apply1 * xs))
+
 # C style macros and functions for imperative sugar
 (defn inc [x] (+ x 1))
 (defn dec [x] (- x 1))
