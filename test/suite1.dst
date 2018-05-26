@@ -119,4 +119,11 @@
 
 (assert (= (maxpath triangle) 25) `max triangle`)
 
+(assert (= (string.join @["one" "two" "three"]) "onetwothree") "string.join 1 argument")
+(assert (= (string.join @["one" "two" "three"] ", ") "one, two, three") "string.join 2 arguments")
+(assert (= (string.join @[] ", ") "") "string.join empty array")
+
+(assert (= (string.find "123" "abc123def") 3) "string.find positive")
+(assert (= (string.find "1234" "abc123def") nil) "string.find negative")
+
 (end-suite)
