@@ -385,5 +385,5 @@ void dst_clear_memory(void) {
 }
 
 /* Primitives for suspending GC. */
-int dst_gclock() { return dst_vm_gc_suspend++; }
+int dst_gclock(void) { return dst_vm_gc_suspend++; }
 void dst_gcunlock(int handle) { dst_vm_gc_suspend = handle; }

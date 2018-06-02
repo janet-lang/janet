@@ -348,11 +348,11 @@ struct Dst {
 #define dst_unwrap_integer(x) ((x).as.integer)
 #define dst_unwrap_real(x) ((x).as.real)
 
-Dst dst_wrap_nil();
+Dst dst_wrap_nil(void);
 Dst dst_wrap_real(double x);
 Dst dst_wrap_integer(int32_t x);
-Dst dst_wrap_true();
-Dst dst_wrap_false();
+Dst dst_wrap_true(void);
+Dst dst_wrap_false(void);
 Dst dst_wrap_boolean(int x);
 Dst dst_wrap_string(const uint8_t *x);
 Dst dst_wrap_symbol(const uint8_t *x);

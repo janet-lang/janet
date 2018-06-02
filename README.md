@@ -39,6 +39,7 @@ Generic lisp synatx highlighting should provide good results, however.
 * Proper tail calls.
 * Direct interop with C via abstract types and C functions
 * Dynamically load C libraries
+* Functional and imperative standard library
 * Lexical scoping
 * Imperative Programming as well as functional
 * REPL
@@ -88,7 +89,7 @@ make test
 
 ### CMake
 
-On a posix system using make as the backend, compiling and running is as follows (this is the same as 
+On a posix system using make as the backend, compiling and running is as follows (this is the same as
 most CMake based projects).
 
 ```sh

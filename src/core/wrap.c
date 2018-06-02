@@ -111,14 +111,14 @@ Dst dst_wrap_nil() {
     return y;
 }
 
-Dst dst_wrap_true() {
+Dst dst_wrap_true(void) {
     Dst y;
     y.type = DST_TRUE;
     y.as.u64 = 0;
     return y;
 }
 
-Dst dst_wrap_false() {
+Dst dst_wrap_false(void) {
     Dst y;
     y.type = DST_FALSE;
     y.as.u64 = 0;

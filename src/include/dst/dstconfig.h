@@ -91,13 +91,17 @@ extern "C" {
 #define DST_LITTLE_ENDIAN 1
 #endif
 
-/* Check compiler */
+/* Define how global dst state is declared */
+#ifdef DST_SINGLE_THREADED
+#define DST_THREAD_LOCAL
+#else
 #if defined(__GNUC__)
 #define DST_THREAD_LOCAL __thread
 #elif defined(_MSC_BUILD)
 #define DST_THREAD_LOCAL __declspec(thread)
 #else
 #define DST_THREAD_LOCAL
+#endif
 #endif
 
 /* Include default headers */
@@ -112,7 +116,7 @@ extern "C" {
         __LINE__,\
         __FILE__,\
         (m));\
-    exit(-1);\
+    exit(1);\
 } while (0)
 #endif
 

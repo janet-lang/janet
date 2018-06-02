@@ -161,7 +161,7 @@ void dst_clear_memory(void);
 void dst_gcroot(Dst root);
 int dst_gcunroot(Dst root);
 int dst_gcunrootall(Dst root);
-int dst_gclock();
+int dst_gclock(void);
 void dst_gcunlock(int handle);
 
 /* Functions */
