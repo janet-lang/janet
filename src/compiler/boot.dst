@@ -730,6 +730,16 @@ in the same manner, and so on. Useful for expressing pipelines of data."
   (:= k (next x k)))
  arr)
 
+(defn frequencies
+ "Get the number of occurences of each value in a indexed structure."
+ [ind]
+ (def freqs @{})
+ (loop 
+   [x :in ind]
+   (def n (get freqs x))
+   (put freqs x (if n (+ 1 n) 1)))
+ freqs)
+
 ###
 ###
 ### Pretty Printer
