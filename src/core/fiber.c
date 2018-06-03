@@ -405,12 +405,34 @@ static int cfun_lineage(DstArgs args) {
     DST_RETURN_ARRAY(args, array);
 }
 
+static int cfun_maxstack(DstArgs args) {
+    DstFiber *fiber;
+    DST_FIXARITY(args, 1);
+    DST_ARG_FIBER(fiber, args, 0);
+    DST_RETURN_INTEGER(args, fiber->maxstack);
+}
+
+static int cfun_setmaxstack(DstArgs args) {
+    DstFiber *fiber;
+    int32_t maxs;
+    DST_FIXARITY(args, 2);
+    DST_ARG_FIBER(fiber, args, 0);
+    DST_ARG_INTEGER(maxs, args, 1);
+    if (maxs < 0) {
+        DST_THROW(args, "expected positive integer");
+    }
+    fiber->maxstack = maxs;
+    DST_RETURN_FIBER(args, fiber);
+}
+
 static const DstReg cfuns[] = {
     {"fiber.new", cfun_new},
     {"fiber.status", cfun_status},
     {"fiber.stack", cfun_stack},
     {"fiber.current", cfun_current},
     {"fiber.lineage", cfun_lineage},
+    {"fiber.maxstack", cfun_maxstack},
+    {"fiber.setmaxstack", cfun_setmaxstack},
     {NULL, NULL}
 };
 
