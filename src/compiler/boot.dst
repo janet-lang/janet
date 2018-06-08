@@ -1092,21 +1092,26 @@ returned from compiling and running the file."
 
   (def cache @{})
   (def loading @{})
-  (fn [path]
+  (fn [path args]
    (when (get loading path)
     (error (string "circular dependency: module " path " is loading")))
+   (def {
+    :exit exit-on-error
+   } args)
    (def check (get cache path))
    (if check check (do
      (def newenv (make-env))
      (put cache path newenv)
      (put loading path true)
-
      (def f (find-mod path))
      (if f 
        (do
          # Normal dst module
          (defn chunks [buf] (file.read f 1024 buf))
-         (run-context newenv chunks identity default-error-handler)
+         (run-context newenv chunks identity
+          (if exit-on-error
+           (fn [a b c] (default-error-handler a b c) (os.exit 1))
+           default-error-handler))
          (file.close f)
          (put loading path nil)
          newenv)
@@ -1118,11 +1123,12 @@ returned from compiling and running the file."
          ((native n)))))))))
 
 (defn import* [env path & args]
- (def newenv (require path))
+ (def targs (apply1 table args))
  (def {
   :as as
   :prefix prefix
-  } (apply1 table args))
+  } targs)
+ (def newenv (require path targs))
  (var k (next newenv nil))
  (def {:meta meta} newenv)
  (def prefix (or (and as (string as ".")) prefix (string path ".")))

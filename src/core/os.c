@@ -45,9 +45,10 @@ static int os_execute(DstArgs args) {
 }
 
 static int os_getenv(DstArgs args) {
-    if (args.n != 1 || !dst_checktype(args.v[0], DST_STRING))
-        DST_THROW(args, "expected string");
-    const char *cstr = (const char *) dst_unwrap_string(args.v[0]);
+    const uint8_t *k;
+    DST_FIXARITY(args, 1);
+    DST_ARG_STRING(k, args, 0);
+    const char *cstr = (const char *) k;
     const char *res = getenv(cstr);
     DST_RETURN(args, cstr
             ? dst_cstringv(res)
@@ -55,29 +56,27 @@ static int os_getenv(DstArgs args) {
 }
 
 static int os_setenv(DstArgs args) {
-    int t2;
-    if (args.n < 2) DST_THROW(args, "expected 2 arguments");
-    t2 = dst_type(args.v[1]);
-    if (!dst_checktype(args.v[0], DST_STRING)
-        || (t2 != DST_STRING && t2 != DST_NIL))
-        DST_THROW(args, "expected string");
-    const char *k = (const char *) dst_unwrap_string(args.v[0]);
 #ifdef DST_WINDOWS
-    if (t2 == DST_NIL) {
-        // Investigate best way to delete env vars on windows. Use winapi?
-        _putenv_s(k, "");
-    } else {
-        const char *v = (const char *) dst_unwrap_string(args.v[1]);
-        _putenv_s(k, v);
-    }
+#define SETENV(K,V) _putenv_s(K, V)
+#define UNSETENV(K) _putenv_s(K, "")
 #else
-    if (t2 == DST_NIL) {
-        unsetenv(k);
-    } else {
-        const char *v = (const char *) dst_unwrap_string(args.v[1]);
-        setenv(k, v, 1);
-    }
+#define SETENV(K,V) setenv(K, V, 1)
+#define UNSETENV(K) unsetenv(K)
 #endif
+    const uint8_t *k;
+    const char *ks;
+    DST_MAXARITY(args, 2);
+    DST_MINARITY(args, 1);
+    DST_ARG_STRING(k, args, 0);
+    ks = (const char *) k;
+    if (args.n == 1 || dst_checktype(args.v[1], DST_NIL)) {
+        UNSETENV(ks);
+    } else {
+        const uint8_t *v;
+        DST_ARG_STRING(v, args, 1);
+        const char *vc = (const char *) v;
+        SETENV(ks, vc);
+    }
     return 0;
 }
 
@@ -89,8 +88,10 @@ static int os_exit(DstArgs args) {
             || dst_checktype(args.v[0], DST_FALSE)) {
         exit(dst_unwrap_boolean(args.v[0]) ? EXIT_SUCCESS : EXIT_FAILURE);
         return 0;
+    } else if (dst_checktype(args.v[0], DST_INTEGER)) {
+        exit(dst_unwrap_integer(args.v[0]));
     } else {
-        exit(dst_hash(args.v[0]));
+        exit(EXIT_FAILURE);
     }
     return 0;
 }
