@@ -26,6 +26,11 @@ set(TARGET_NAME ${PROJECT_NAME})
 set (CMAKE_C_STANDARD 99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
+# Set configurations
+SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
+SET(CMAKE_C_FLAGS_RELEASE "-O2")
+SET(CMAKE_C_FLAGS_DEBUG  "-O0 -g")
+
 include_directories(src/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -112,10 +117,12 @@ src/include/dst/dsttypes.h
 
 # Build the executable
 add_executable(${TARGET_NAME} ${REPL_SOURCES})
-if (UNIX AND NOT EMSCRIPTEN)
+if (APPLE)
+    # macOS flags here
+elseif (UNIX AND NOT EMSCRIPTEN)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -rdynamic")
 	target_link_libraries(${TARGET_NAME} m dl)
-endif (UNIX AND NOT EMSCRIPTEN)
+endif (APPLE)
 set_target_properties(${TARGET_NAME} PROPERTIES PUBLIC_HEADER "${DST_PUBLIC_HEADERS}")
 
 # Generate header containing standard library
@@ -152,8 +159,10 @@ endif (DEFINED EMSCRIPTEN)
 
 # Add some test scripts
 enable_testing()
-add_test(suite0 ${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/test/suite0.dst)
-add_test(suite1 ${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/test/suite1.dst)
+add_test(NAME suite0 COMMAND ${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/test/suite0.dst
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+add_test(NAME suite1 COMMAND ${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/test/suite1.dst
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # Add convenience script to run repl
 add_custom_target(run
