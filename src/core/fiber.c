@@ -438,21 +438,7 @@ static const DstReg cfuns[] = {
 
 /* Module entry point */
 int dst_lib_fiber(DstArgs args) {
-    static uint32_t yield_asm[] = {
-        DOP_SIGNAL | (3 << 24),
-        DOP_RETURN
-    };
-    static uint32_t resume_asm[] = {
-        DOP_RESUME | (1 << 24),
-        DOP_RETURN
-    };
     DstTable *env = dst_env_arg(args);
     dst_env_cfuns(env, cfuns);
-    dst_env_def(env, "fiber.yield", 
-            dst_wrap_function(dst_quick_asm(1, 0, 2,
-                    yield_asm, sizeof(yield_asm))));
-    dst_env_def(env, "fiber.resume",
-            dst_wrap_function(dst_quick_asm(2, 0, 2,
-                    resume_asm, sizeof(resume_asm))));
     return 0;
 }

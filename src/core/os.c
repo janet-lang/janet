@@ -84,10 +84,6 @@ static int os_exit(DstArgs args) {
     DST_MAXARITY(args, 1);
     if (args.n == 0) {
         exit(EXIT_SUCCESS);
-    } else if (dst_checktype(args.v[0], DST_TRUE)
-            || dst_checktype(args.v[0], DST_FALSE)) {
-        exit(dst_unwrap_boolean(args.v[0]) ? EXIT_SUCCESS : EXIT_FAILURE);
-        return 0;
     } else if (dst_checktype(args.v[0], DST_INTEGER)) {
         exit(dst_unwrap_integer(args.v[0]));
     } else {

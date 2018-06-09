@@ -241,18 +241,3 @@ DstFunction *dst_thunk(DstFuncDef *def) {
     dst_assert(def->environments_length == 0, "tried to create thunk that needs upvalues");
     return func;
 }
-
-/* Utility for inline assembly */
-DstFunction *dst_quick_asm(int32_t arity, int varargs, int32_t slots, const uint32_t *bytecode, size_t bytecode_size) {
-    DstFuncDef *def = dst_funcdef_alloc();
-    def->arity = arity;
-    def->flags = varargs ? DST_FUNCDEF_FLAG_VARARG : 0;
-    def->slotcount = slots;
-    def->bytecode = malloc(bytecode_size);
-    def->bytecode_length = bytecode_size / sizeof(uint32_t);
-    if (!def->bytecode) {
-        DST_OUT_OF_MEMORY;
-    }
-    memcpy(def->bytecode, bytecode, bytecode_size);
-    return dst_thunk(def);
-}

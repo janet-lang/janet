@@ -80,16 +80,16 @@
 (defn fiberstuff []
   (++ myvar)
   (def f (fiber.new (fn [] (++ myvar) (debug) (++ myvar))))
-  (fiber.resume f)
+  (resume f)
   (++ myvar))
 
 (def myfiber (fiber.new fiberstuff :dey))
 
 (assert (= myvar 0) "fiber creation does not call fiber function")
-(fiber.resume myfiber)
+(resume myfiber)
 (assert (= myvar 2) "fiber debug statement breaks at proper point")
 (assert (= (fiber.status myfiber) :debug) "fiber enters debug state")
-(fiber.resume myfiber)
+(resume myfiber)
 (assert (= myvar 4) "fiber resumes properly from debug state")
 (assert (= (fiber.status myfiber) :dead) "fiber properly dies from debug state")
 

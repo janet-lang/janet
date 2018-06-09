@@ -168,12 +168,6 @@ void dst_gcunlock(int handle);
 DstFuncDef *dst_funcdef_alloc(void);
 DstFunction *dst_thunk(DstFuncDef *def);
 int dst_verify(DstFuncDef *def);
-DstFunction *dst_quick_asm(
-        int32_t arity,
-        int varargs,
-        int32_t slots,
-        const uint32_t *bytecode,
-        size_t bytecode_size);
 
 /* Misc */
 int dst_equals(Dst x, Dst y);

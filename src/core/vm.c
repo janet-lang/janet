@@ -922,8 +922,8 @@ int dst_init() {
     dst_vm_next_collection = 0;
     /* Setting memoryInterval to zero forces
      * a collection pretty much every cycle, which is
-     * horrible for performance, but helps ensure
-     * there are no memory bugs during dev */
+     * incredibly horrible for performance, but can help ensure
+     * there are no memory bugs during development */
     dst_vm_gc_interval = 0x10000;
     dst_symcache_init();
     /* Initialize gc roots */

@@ -956,18 +956,18 @@ onvalue."
       (chunks buf p)
       (:= len (length buf))
       (loop [i :range [0 len]]
-        (fiber.yield (get buf i))))
+        (yield (get buf i))))
    0))
 
  # Fiber stream of values
  (def vals (coro
   (while going
     (switch (parser.status p)
-     :full (fiber.yield (parser.produce p))
+     :full (yield (parser.produce p))
      :error (onerr "parse" (parser.error p))
      (switch (fiber.status chars)
-      :new (parser.byte p (fiber.resume chars))
-      :pending (parser.byte p (fiber.resume chars))
+      :new (parser.byte p (resume chars))
+      :pending (parser.byte p (resume chars))
       (:= going false))))
   (when (not= :root (parser.status p))
    (onerr "parse" "unexpected end of source"))))
@@ -982,7 +982,7 @@ onvalue."
       (do
        (:= good false)
        (onerr "compile" (get res :error))))) :a))
-  (def res (fiber.resume f))
+  (def res (resume f))
   (when good
    (def sig (fiber.status f))
    (if going
@@ -993,7 +993,7 @@ onvalue."
  # Run loop
  (def oldenv *env*)
  (:= *env* env)
- (while going (eval1 (fiber.resume vals)))
+ (while going (eval1 (resume vals)))
  (:= *env* oldenv)
 
  env)

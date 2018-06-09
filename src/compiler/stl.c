@@ -58,6 +58,26 @@ static const DstReg cfuns[] = {
     {NULL, NULL}
 };
 
+/* Utility for inline assembly */
+static DstFunction *dst_quick_asm(
+        int32_t arity,
+        int varargs,
+        int32_t slots,
+        const uint32_t *bytecode,
+        size_t bytecode_size) {
+    DstFuncDef *def = dst_funcdef_alloc();
+    def->arity = arity;
+    def->flags = varargs ? DST_FUNCDEF_FLAG_VARARG : 0;
+    def->slotcount = slots;
+    def->bytecode = malloc(bytecode_size);
+    def->bytecode_length = bytecode_size / sizeof(uint32_t);
+    if (!def->bytecode) {
+        DST_OUT_OF_MEMORY;
+    }
+    memcpy(def->bytecode, bytecode, bytecode_size);
+    return dst_thunk(def);
+}
+
 DstTable *dst_stl_env(int flags) {
     static uint32_t error_asm[] = {
         DOP_ERROR
@@ -70,6 +90,15 @@ DstTable *dst_stl_env(int flags) {
        DOP_SIGNAL | (2 << 24),
        DOP_RETURN_NIL
     };
+    static uint32_t yield_asm[] = {
+        DOP_SIGNAL | (3 << 24),
+        DOP_RETURN
+    };
+    static uint32_t resume_asm[] = {
+        DOP_RESUME | (1 << 24),
+        DOP_RETURN
+    };
+
     DstTable *env = dst_table(0);
     Dst ret = dst_wrap_table(env);
 
@@ -79,6 +108,8 @@ DstTable *dst_stl_env(int flags) {
     dst_env_def(env, "debug", dst_wrap_function(dst_quick_asm(0, 0, 1, debug_asm, sizeof(debug_asm))));
     dst_env_def(env, "error", dst_wrap_function(dst_quick_asm(1, 0, 1, error_asm, sizeof(error_asm))));
     dst_env_def(env, "apply1", dst_wrap_function(dst_quick_asm(2, 0, 2, apply_asm, sizeof(apply_asm))));
+    dst_env_def(env, "yield", dst_wrap_function(dst_quick_asm(1, 0, 2, yield_asm, sizeof(yield_asm))));
+    dst_env_def(env, "resume", dst_wrap_function(dst_quick_asm(2, 0, 2, resume_asm, sizeof(resume_asm))));
 
     dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
 

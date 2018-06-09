@@ -149,18 +149,18 @@
 (def afiber (fiber.new (fn [x]
 	(error (string "hello, " x))) :e))
 
-(def afiber-result (fiber.resume afiber "world!"))
+(def afiber-result (resume afiber "world!"))
 
 (assert (= afiber-result "hello, world!") "fiber error result")
 (assert (= (fiber.status afiber) :error) "fiber error status")
 
 # yield tests
 
-(def t (fiber.new (fn [] (fiber.yield 1) (fiber.yield 2) 3)))
+(def t (fiber.new (fn [] (yield 1) (yield 2) 3)))
 
-(assert (= 1 (fiber.resume t)) "initial transfer to new fiber")
-(assert (= 2 (fiber.resume t)) "second transfer to fiber")
-(assert (= 3 (fiber.resume t)) "return from fiber")
+(assert (= 1 (resume t)) "initial transfer to new fiber")
+(assert (= 2 (resume t)) "second transfer to fiber")
+(assert (= 3 (resume t)) "return from fiber")
 (assert (= (fiber.status t) :dead) "finished fiber is dead")
 
 # Var arg tests
@@ -192,7 +192,7 @@
 (def 🦊 :fox)
 (def 🐮 :cow)
 (assert (= (string "🐼" 🦊 🐮) "🐼:fox:cow") "emojis 🙉 :)")
-(assert (not= 🦊 :🦊) "utf8 strings are not symbols and vice versa")
+(assert (not= 🦊 "🦊") "utf8 strings are not symbols and vice versa")
 
 # Symbols with @ character
 
