@@ -983,6 +983,7 @@ DstCompileResult dst_compile(Dst source, DstTable *env, int flags) {
 
     if (c.result.status == DST_COMPILE_OK) {
         DstFuncDef *def = dstc_pop_funcdef(&c);
+        def->name = dst_cstring("[thunk]");
         c.result.funcdef = def;
     }
 

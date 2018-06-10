@@ -246,7 +246,7 @@ value."
             :let (tuple 'let verb (doone (+ i 2)))
             :when (tuple 'if verb (doone (+ i 2)))
             (error ("unexpected loop predicate: " verb)))
-          (switch 
+          (switch
             verb
             :range (do
                      (def [start end _inc] (ast.unwrap1 object))
@@ -293,7 +293,7 @@ value."
   (def $accum (gensym "accum"))
   (tuple 'do
          (tuple 'def $accum @[])
-         (tuple 'loop head 
+         (tuple 'loop head
            (tuple array.push $accum
                 (tuple.prepend body 'do)))
          $accum))
@@ -734,7 +734,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
  "Get the number of occurences of each value in a indexed structure."
  [ind]
  (def freqs @{})
- (loop 
+ (loop
    [x :in ind]
    (def n (get freqs x))
    (put freqs x (if n (+ 1 n) 1)))
@@ -1016,8 +1016,9 @@ onvalue."
    } :in st]
    (file.write stdout "  in")
    (when c (file.write stdout " cfunction"))
-   (when name (file.write stdout (string " " name)))
-   (when func (file.write stdout (string " " func)))
+   (if name
+     (file.write stdout (string " " name))
+     (when func (file.write stdout (string " " func))))
    (when pc (file.write stdout (string " (pc=" pc ")")))
    (when tail (file.write stdout " (tailcall)"))
    (file.write stdout "\n"))))
@@ -1060,7 +1061,7 @@ environment is needed, use run-context."
   (def last (get parts (- (length parts) 1)))
   (def normname (string.replace-all "." "/" path))
   (array.push
-    (map (fn [x] 
+    (map (fn [x]
              (def y (string.replace "??" last x))
              (string.replace "?" normname y))
          paths)
@@ -1104,7 +1105,7 @@ returned from compiling and running the file."
      (put cache path newenv)
      (put loading path true)
      (def f (find-mod path))
-     (if f 
+     (if f
        (do
          # Normal dst module
          (defn chunks [buf] (file.read f 1024 buf))
@@ -1115,7 +1116,7 @@ returned from compiling and running the file."
          (file.close f)
          (put loading path nil)
          newenv)
-       (do 
+       (do
          # Try native module
          (def n (find-native path))
          (if (not n)
