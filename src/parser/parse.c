@@ -183,9 +183,9 @@ static void popstate(DstParser *p, Dst val) {
     }
 }
 
-static uint8_t checkescape(uint8_t c) {
+static int checkescape(uint8_t c) {
     switch (c) {
-        default: return 0;
+        default: return -1;
         case 'h': return 1;
         case 'n': return '\n'; 
         case 't': return '\t'; 
@@ -219,8 +219,8 @@ static int escapeh(DstParser *p, DstParseState *state, uint8_t c) {
 }
 
 static int escape1(DstParser *p, DstParseState *state, uint8_t c) {
-    uint8_t e = checkescape(c);
-    if (!e) {
+    int e = checkescape(c);
+    if (e < 0) {
         p->error = "invalid string escape sequence";
         return 1;
     }
@@ -229,7 +229,7 @@ static int escape1(DstParser *p, DstParseState *state, uint8_t c) {
         state->argn = 0;
         state->consumer = escapeh;
     } else {
-        push_buf(p, e);
+        push_buf(p, (uint8_t) e);
         state->consumer = stringchar;
     }
     return 1;

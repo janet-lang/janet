@@ -24,6 +24,7 @@
 #include <dst/dstcorelib.h>
 #include "gc.h"
 #include "util.h"
+#include "state.h"
 
 /* Begin building a string */
 uint8_t *dst_string_begin(int32_t length) {
@@ -229,7 +230,10 @@ static int32_t dst_escape_string_length(const uint8_t *str, int32_t slen) {
                 len += 2;
                 break;
             default:
-                len += 1;
+                if (str[i] < 32 || str[i] > 127)
+                    len += 4;
+                else
+                    len += 1;
                 break;
         }
     }
@@ -263,7 +267,14 @@ static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str, int32_t len
                 buf[j++] = '\\';
                 break;
             default:
-                buf[j++] = c;
+                if (c < 32 || c > 127) {
+                    buf[j++] = '\\';
+                    buf[j++] = 'h';
+                    buf[j++] = dst_base64[(c >> 4) & 0xF];
+                    buf[j++] = dst_base64[c & 0xF];
+                } else {
+                    buf[j++] = c;
+                }
                 break;
         }
     }
@@ -332,6 +343,20 @@ void dst_description_b(DstBuffer *buffer, Dst x) {
                     n[0] == ':' ? n + 1 : n,
                     dst_unwrap_abstract(x));
         }
+    case DST_CFUNCTION:
+        {
+            Dst check = dst_table_get(dst_vm_registry, x);
+            if (dst_checktype(x, DST_SYMBOL)) {
+                dst_buffer_push_cstring(buffer, "<cfunction ");
+                dst_buffer_push_bytes(buffer,
+                        dst_unwrap_symbol(check),
+                        dst_string_length(dst_unwrap_symbol(check)));
+                dst_buffer_push_u8(buffer, '>');
+                break;
+            }
+            goto fallthrough;
+        }
+    fallthrough:
     default:
         string_description_b(buffer, dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
         break;
@@ -390,6 +415,15 @@ const uint8_t *dst_description(Dst x) {
                     n[0] == ':' ? n + 1 : n,
                     dst_unwrap_abstract(x));
         }
+    case DST_CFUNCTION:
+        {
+            Dst check = dst_table_get(dst_vm_registry, x);
+            if (!dst_checktype(x, DST_NIL)) {
+                return dst_formatc("<cfunction %V>", check);
+            }
+            goto fallthrough;
+        }
+    fallthrough:
     default:
         return string_description(dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
     }

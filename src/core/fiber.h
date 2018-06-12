@@ -42,7 +42,7 @@ void dst_fiber_push3(DstFiber *fiber, Dst x, Dst y, Dst z);
 void dst_fiber_pushn(DstFiber *fiber, const Dst *arr, int32_t n);
 void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func);
 void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func);
-void dst_fiber_cframe(DstFiber *fiber);
+void dst_fiber_cframe(DstFiber *fiber, DstCFunction cfun);
 void dst_fiber_popframe(DstFiber *fiber);
 
 #endif

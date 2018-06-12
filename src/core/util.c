@@ -22,6 +22,7 @@
 
 #include <dst/dst.h>
 #include "util.h"
+#include "state.h"
 #include "gc.h"
 
 /* Base 64 lookup table for digits */
@@ -128,7 +129,11 @@ void dst_env_var(DstTable *env, const char *name, Dst val) {
 /* Load many cfunctions at once */
 void dst_env_cfuns(DstTable *env, const DstReg *cfuns) {
     while (cfuns->name) {
-        dst_env_def(env, cfuns->name, dst_wrap_cfunction(cfuns->cfun));
+        Dst name = dst_csymbolv(cfuns->name);
+        Dst fun = dst_wrap_cfunction(cfuns->cfun);
+        dst_env_def(env, cfuns->name, fun);
+        dst_table_put(dst_vm_registry, name, fun);
+        dst_table_put(dst_vm_registry, fun, name);
         cfuns++;
     }
 }

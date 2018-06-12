@@ -136,6 +136,7 @@ DstTable *dst_stl_env(int flags) {
         dst_lib_compile(args);
         dst_lib_asm(args);
         dst_lib_string(args);
+        dst_lib_marsh(args);
     }
 
     /* Allow references to the environment */

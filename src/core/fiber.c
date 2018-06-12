@@ -24,6 +24,7 @@
 #include <dst/dstopcodes.h>
 #include <dst/dstcorelib.h>
 #include "fiber.h"
+#include "state.h"
 #include "gc.h"
 
 /* Initialize a new fiber */
@@ -217,7 +218,7 @@ void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
 }
 
 /* Push a stack frame to a fiber for a c function */
-void dst_fiber_cframe(DstFiber *fiber) {
+void dst_fiber_cframe(DstFiber *fiber, DstCFunction cfun) {
     DstStackFrame *newframe;
 
     int32_t oldframe = fiber->frame;
@@ -235,7 +236,7 @@ void dst_fiber_cframe(DstFiber *fiber) {
 
     /* Set up the new frame */
     newframe->prevframe = oldframe;
-    newframe->pc = NULL;
+    newframe->pc = (uint32_t *) cfun;
     newframe->func = NULL;
     newframe->env = NULL;
     newframe->flags = 0;
@@ -347,12 +348,19 @@ static Dst doframe(DstStackFrame *frame) {
             dst_table_put(t, dst_csymbolv(":name"), dst_wrap_string(def->name));
         }
     } else {
+        DstCFunction cfun = (DstCFunction)(frame->pc);
+        if (cfun) {
+            Dst name = dst_table_get(dst_vm_registry, dst_wrap_cfunction(cfun));
+            if (!dst_checktype(name, DST_NIL)) {
+                dst_table_put(t, dst_csymbolv(":name"), name);
+            }
+        }
         dst_table_put(t, dst_csymbolv(":c"), dst_wrap_true());
     }
     if (frame->flags & DST_STACKFRAME_TAILCALL) {
         dst_table_put(t, dst_csymbolv(":tail"), dst_wrap_true());
     }
-    if (frame->pc) {
+    if (frame->func && frame->pc) {
         off = frame->pc - def->bytecode;
         dst_table_put(t, dst_csymbolv(":pc"), dst_wrap_integer(off));
         if (def->sourcemap) {

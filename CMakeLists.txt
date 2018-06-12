@@ -58,6 +58,7 @@ src/core/corelib.c
 src/core/fiber.c
 src/core/gc.c
 src/core/io.c
+src/core/marsh.c
 src/core/math.c
 src/core/native.c
 src/core/os.c

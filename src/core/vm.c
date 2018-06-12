@@ -28,6 +28,7 @@
 #include "symcache.h"
 
 /* VM state */
+DST_THREAD_LOCAL DstTable *dst_vm_registry;
 DST_THREAD_LOCAL int dst_vm_stackn = 0;
 DST_THREAD_LOCAL DstFiber *dst_vm_fiber = NULL;
 
@@ -711,7 +712,7 @@ static void *op_lookup[255] = {
         } else if (dst_checktype(callee, DST_CFUNCTION)) {
             DstArgs args;
             args.n = fiber->stacktop - fiber->stackstart;
-            dst_fiber_cframe(fiber);
+            dst_fiber_cframe(fiber, dst_unwrap_cfunction(callee));
             retreg = dst_wrap_nil();
             args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
@@ -735,7 +736,7 @@ static void *op_lookup[255] = {
         } else if (dst_checktype(callee, DST_CFUNCTION)) {
             DstArgs args;
             args.n = fiber->stacktop - fiber->stackstart;
-            dst_fiber_cframe(fiber);
+            dst_fiber_cframe(fiber, dst_unwrap_cfunction(callee));
             retreg = dst_wrap_nil();
             args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
@@ -930,6 +931,9 @@ int dst_init() {
     dst_vm_roots = NULL;
     dst_vm_root_count = 0;
     dst_vm_root_capacity = 0;
+    /* Initialize registry */
+    dst_vm_registry = dst_table(0);
+    dst_gcroot(dst_wrap_table(dst_vm_registry));
     return 0;
 }
 
@@ -941,4 +945,5 @@ void dst_deinit() {
     dst_vm_roots = NULL;
     dst_vm_root_count = 0;
     dst_vm_root_capacity = 0;
+    dst_vm_registry = NULL;
 }

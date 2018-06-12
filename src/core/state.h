@@ -45,6 +45,10 @@ extern DST_THREAD_LOCAL int dst_vm_stackn;
  * Set and unset by dst_run. */
 extern DST_THREAD_LOCAL DstFiber *dst_vm_fiber;
 
+/* The global registry for c functions. Used to store metadata
+ * along with otherwise bare c function pointers. */
+extern DST_THREAD_LOCAL DstTable *dst_vm_registry;
+
 /* Immutable value cache */
 extern DST_THREAD_LOCAL const uint8_t **dst_vm_cache;
 extern DST_THREAD_LOCAL uint32_t dst_vm_cache_capacity;
