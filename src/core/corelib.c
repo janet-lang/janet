@@ -180,37 +180,6 @@ int dst_core_gensym(DstArgs args) {
     }
 }
 
-int dst_core_length(DstArgs args) {
-    DST_FIXARITY(args, 1);
-    DST_RETURN_INTEGER(args, dst_length(args.v[0]));
-}
-
-int dst_core_get(DstArgs args) {
-    int32_t i;
-    Dst ds;
-    DST_MINARITY(args, 1);
-    ds = args.v[0];
-    for (i = 1; i < args.n; i++) {
-        ds = dst_get(ds, args.v[i]);
-        if (dst_checktype(ds, DST_NIL))
-            break;
-    }
-    DST_RETURN(args, ds);
-}
-
-int dst_core_put(DstArgs args) {
-    Dst ds, key, value;
-    DstArgs subargs = args;
-    DST_MINARITY(args, 3);
-    subargs.n -= 2;
-    if (dst_core_get(subargs)) return 1;
-    ds = *args.ret;
-    key = args.v[args.n - 2];
-    value = args.v[args.n - 1];
-    dst_put(ds, key, value);
-    return 0;
-}
-
 int dst_core_gccollect(DstArgs args) {
     (void) args;
     dst_collect();
@@ -252,13 +221,14 @@ int dst_core_next(DstArgs args) {
         kv = dst_checktype(args.v[1], DST_NIL)
             ? NULL
             : dst_table_find(t, args.v[1]);
+        kv = dst_table_next(t, kv);
     } else {
         const DstKV *st = dst_unwrap_struct(ds);
         kv = dst_checktype(args.v[1], DST_NIL)
             ? NULL
             : dst_struct_find(st, args.v[1]);
+        kv = dst_struct_next(st, kv);
     }
-    kv = dst_next(ds, kv);
     if (kv) {
         DST_RETURN(args, kv->key);
     }

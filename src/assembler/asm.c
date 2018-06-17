@@ -475,6 +475,18 @@ static uint32_t read_instruction(
     return instr;
 }
 
+/* Helper to get from a structure */
+static Dst dst_get(Dst ds, Dst key) {
+    switch (dst_type(ds)) {
+        default:
+            return dst_wrap_nil();
+        case DST_TABLE:
+            return dst_table_get(dst_unwrap_table(ds), key);
+        case DST_STRUCT:
+            return dst_struct_get(dst_unwrap_struct(ds), key);
+    }
+}
+
 /* Helper to assembly. Return the assembly result */
 static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     DstAssembleResult result;

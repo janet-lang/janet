@@ -154,6 +154,9 @@ const DstSpecial *dstc_special(const uint8_t *name);
 /* Check error */
 int dstc_iserr(DstFopts *opts);
 
+/* Helper for iterating tables and structs */
+const DstKV *dstc_next(Dst ds, const DstKV *kv);
+
 /* Allocate a slot index */
 int32_t dstc_lsloti(DstCompiler *c);
 

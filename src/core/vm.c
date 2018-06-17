@@ -769,37 +769,241 @@ static void *op_lookup[255] = {
     }
 
     VM_OP(DOP_PUT)
-    dst_put(stack[oparg(1, 0xFF)],
-            stack[oparg(2, 0xFF)],
-            stack[oparg(3, 0xFF)]);
-    ++pc;
-    vm_checkgc_next();
+    {
+        Dst ds = stack[oparg(1, 0xFF)];
+        Dst key = stack[oparg(2, 0xFF)];
+        Dst value = stack[oparg(3, 0xFF)];
+        switch (dst_type(ds)) {
+            default:
+                vm_throw("expected mutable data structure");
+            case DST_ARRAY:
+            {
+                int32_t index;
+                DstArray *array = dst_unwrap_array(ds);
+                if (!dst_checktype(key, DST_INTEGER) || dst_unwrap_integer(key) < 0)
+                    vm_throw("expected non-negative integer key");
+                index = dst_unwrap_integer(key);
+                if (index == INT32_MAX)
+                    vm_throw("key too large");
+                if (index >= array->count) {
+                    dst_array_setcount(array, index + 1);
+                }
+                array->data[index] = value;
+                break;
+            }
+            case DST_BUFFER:
+            {
+                int32_t index;
+                DstBuffer *buffer = dst_unwrap_buffer(ds);
+                if (!dst_checktype(key, DST_INTEGER) || dst_unwrap_integer(key) < 0)
+                    vm_throw("expected non-negative integer key");
+                index = dst_unwrap_integer(key);
+                if (index == INT32_MAX)
+                    vm_throw("key too large");
+                if (!dst_checktype(value, DST_INTEGER))
+                    vm_throw("expected integer value");
+                if (index >= buffer->count) {
+                    dst_buffer_setcount(buffer, index + 1);
+                }
+                buffer->data[index] = (uint8_t) (dst_unwrap_integer(value) & 0xFF);
+                break;
+            }
+            case DST_TABLE:
+                dst_table_put(dst_unwrap_table(ds), key, value);
+                break;
+        }
+        ++pc;
+        vm_checkgc_next();
+    }
 
     VM_OP(DOP_PUT_INDEX)
-    dst_setindex(stack[oparg(1, 0xFF)],
-            stack[oparg(2, 0xFF)],
-            oparg(3, 0xFF));
-    ++pc;
-    vm_checkgc_next();
+    {
+        Dst ds = stack[oparg(1, 0xFF)];
+        Dst value = stack[oparg(2, 0xFF)];
+        int32_t index = oparg(3, 0xFF);
+        switch (dst_type(ds)) {
+            default:
+                vm_throw("expected mutable indexed data structure");
+            case DST_ARRAY:
+                if (index >= dst_unwrap_array(ds)->count) {
+                    dst_array_ensure(dst_unwrap_array(ds), 2 * index);
+                    dst_unwrap_array(ds)->count = index + 1;
+                }
+                dst_unwrap_array(ds)->data[index] = value;
+                break;
+            case DST_BUFFER:
+                if (!dst_checktype(value, DST_INTEGER))\
+                    vm_throw("expected integer to set in buffer");
+                if (index >= dst_unwrap_buffer(ds)->count) {
+                    dst_buffer_ensure(dst_unwrap_buffer(ds), 2 * index);
+                    dst_unwrap_buffer(ds)->count = index + 1;
+                }
+                dst_unwrap_buffer(ds)->data[index] = dst_unwrap_integer(value);
+                break;
+        }
+        ++pc;
+        vm_checkgc_next();
+    }
 
     VM_OP(DOP_GET)
-    stack[oparg(1, 0xFF)] = dst_get(
-            stack[oparg(2, 0xFF)],
-            stack[oparg(3, 0xFF)]);
-    ++pc;
-    vm_next();
+    {
+        Dst ds = stack[oparg(2, 0xFF)];
+        Dst key = stack[oparg(3, 0xFF)];
+        Dst value;
+        switch (dst_type(ds)) {
+            default:
+                vm_throw("expected data structure");
+            case DST_STRUCT:
+                value = dst_struct_get(dst_unwrap_struct(ds), key);
+                break;
+            case DST_TABLE:
+                value = dst_table_get(dst_unwrap_table(ds), key);
+                break;
+            case DST_ARRAY:
+                {
+                    DstArray *array = dst_unwrap_array(ds);
+                    int32_t index;
+                    if (!dst_checktype(key, DST_INTEGER))
+                        vm_throw("expected integer key");
+                    index = dst_unwrap_integer(key);
+                    if (index < 0 || index >= array->count) {
+                        /*vm_throw("index out of bounds");*/
+                        value = dst_wrap_nil();
+                    } else {
+                        value = array->data[index];
+                    }
+                    break;
+                }
+            case DST_TUPLE:
+                {
+                    const Dst *tuple = dst_unwrap_tuple(ds);
+                    int32_t index;
+                    if (!dst_checktype(key, DST_INTEGER))
+                        vm_throw("expected integer key");
+                    index = dst_unwrap_integer(key);
+                    if (index < 0 || index >= dst_tuple_length(tuple)) {
+                        /*vm_throw("index out of bounds");*/
+                        value = dst_wrap_nil();
+                    } else {
+                        value = tuple[index];
+                    }
+                    break;
+                }
+            case DST_BUFFER:
+                {
+                    DstBuffer *buffer = dst_unwrap_buffer(ds);
+                    int32_t index;
+                    if (!dst_checktype(key, DST_INTEGER))
+                        vm_throw("expected integer key");
+                    index = dst_unwrap_integer(key);
+                    if (index < 0 || index >= buffer->count) {
+                        /*vm_throw("index out of bounds");*/
+                        value = dst_wrap_nil();
+                    } else {
+                        value = dst_wrap_integer(buffer->data[index]);
+                    }
+                    break;
+                }
+            case DST_STRING:
+            case DST_SYMBOL:
+                {
+                    const uint8_t *str = dst_unwrap_string(ds);
+                    int32_t index;
+                    if (!dst_checktype(key, DST_INTEGER))
+                        vm_throw("expected integer key");
+                    index = dst_unwrap_integer(key);
+                    if (index < 0 || index >= dst_string_length(str)) {
+                        /*vm_throw("index out of bounds");*/
+                        value = dst_wrap_nil();
+                    } else {
+                        value = dst_wrap_integer(str[index]);
+                    }
+                    break;
+                }
+        }
+        stack[oparg(1, 0xFF)] = value;
+        ++pc;
+        vm_next();
+    }
 
     VM_OP(DOP_GET_INDEX)
-    stack[oparg(1, 0xFF)] = dst_getindex(
-            stack[oparg(2, 0xFF)],
-            oparg(3, 0xFF));
-    ++pc;
-    vm_next();
+    {
+        Dst ds = stack[oparg(2, 0xFF)];
+        int32_t index = oparg(3, 0xFF);
+        Dst value;
+        switch (dst_type(ds)) {
+            default:
+                vm_throw("expected indexed data structure");
+            case DST_STRING:
+            case DST_SYMBOL:
+                if (index >= dst_string_length(dst_unwrap_string(ds))) {
+                    /*vm_throw("index out of bounds");*/
+                    value = dst_wrap_nil();
+                } else {
+                    value = dst_wrap_integer(dst_unwrap_string(ds)[index]);
+                }
+                break;
+            case DST_ARRAY:
+                if (index >= dst_unwrap_array(ds)->count) {
+                    /*vm_throw("index out of bounds");*/
+                    value = dst_wrap_nil();
+                } else {
+                    value = dst_unwrap_array(ds)->data[index];
+                }
+                break;
+            case DST_BUFFER:
+                if (index >= dst_unwrap_buffer(ds)->count) {
+                    /*vm_throw("index out of bounds");*/
+                    value = dst_wrap_nil();
+                } else {
+                    value = dst_wrap_integer(dst_unwrap_buffer(ds)->data[index]);
+                }
+                break;
+            case DST_TUPLE:
+                if (index >= dst_tuple_length(dst_unwrap_tuple(ds))) {
+                    /*vm_throw("index out of bounds");*/
+                    value = dst_wrap_nil();
+                } else {
+                    value = dst_unwrap_tuple(ds)[index];
+                }
+                break;
+        }
+        stack[oparg(1, 0xFF)] = value;
+        ++pc;
+        vm_next();
+    }
 
     VM_OP(DOP_LENGTH)
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(dst_length(stack[oparg(2, 0xFFFF)]));
-    ++pc;
-    vm_next();
+    {
+        Dst x = stack[oparg(2, 0xFFFF)];
+        int32_t len;
+        switch (dst_type(x)) {
+            default:
+                vm_throw("expected data structure");
+            case DST_STRING:
+            case DST_SYMBOL:
+                len = dst_string_length(dst_unwrap_string(x));
+                break;
+            case DST_ARRAY:
+                len = dst_unwrap_array(x)->count;
+                break;
+            case DST_BUFFER:
+                len = dst_unwrap_buffer(x)->count;
+                break;
+            case DST_TUPLE:
+                len = dst_tuple_length(dst_unwrap_tuple(x));
+                break;
+            case DST_STRUCT:
+                len = dst_struct_length(dst_unwrap_struct(x));
+                break;
+            case DST_TABLE:
+                len = dst_unwrap_table(x)->count;
+                break;
+        }
+        stack[oparg(1, 0xFF)] = dst_wrap_integer(len);
+        ++pc;
+        vm_next();
+    }
 
     /* Return from c function. Simpler than returning from dst function */
     vm_return_cfunc:
@@ -808,7 +1012,7 @@ static void *op_lookup[255] = {
         if (fiber->frame == 0) goto vm_exit;
         stack = fiber->data + fiber->frame;
         stack[oparg(1, 0xFF)] = retreg;
-        pc++;
+        ++pc;
         vm_checkgc_next();
     }
 

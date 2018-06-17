@@ -138,17 +138,27 @@ void dst_env_cfuns(DstTable *env, const DstReg *cfuns) {
     }
 }
 
-/* Resolve a symbol in the environment. Undefined symbols will
- * resolve to nil */
-Dst dst_env_resolve(DstTable *env, const char *name) {
+/* Resolve a symbol in the environment */
+DstBindingType dst_env_resolve(DstTable *env, const uint8_t *sym, Dst *out) {
     Dst ref;
-    Dst entry = dst_table_get(env, dst_csymbolv(name));
-    if (dst_checktype(entry, DST_NIL)) return dst_wrap_nil();
-    ref = dst_get(entry, dst_csymbolv(":ref"));
-    if (dst_checktype(ref, DST_ARRAY)) {
-        return dst_getindex(ref, 0);
+    DstTable *entry_table;
+    Dst entry = dst_table_get(env, dst_wrap_symbol(sym));
+    if (!dst_checktype(entry, DST_TABLE))
+        return DST_BINDING_NONE;
+    entry_table = dst_unwrap_table(entry);
+    if (!dst_checktype(
+        dst_table_get(entry_table, dst_csymbolv(":macro")),
+        DST_NIL)) {
+        *out = dst_table_get(entry_table, dst_csymbolv(":value"));
+        return DST_BINDING_MACRO;
     }
-    return dst_get(entry, dst_csymbolv(":value"));
+    ref = dst_table_get(entry_table, dst_csymbolv(":ref"));
+    if (dst_checktype(ref, DST_ARRAY)) {
+        *out = ref;
+        return DST_BINDING_VAR;
+    }
+    *out = dst_table_get(entry_table, dst_csymbolv(":value"));
+    return DST_BINDING_DEF;
 }
 
 /* Get module from the arguments passed to library */

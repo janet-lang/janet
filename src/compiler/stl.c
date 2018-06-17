@@ -46,9 +46,6 @@ static const DstReg cfuns[] = {
     {"struct", dst_core_struct},
     {"buffer", dst_core_buffer},
     {"gensym", dst_core_gensym},
-    {"get", dst_core_get},
-    {"put", dst_core_put},
-    {"length", dst_core_length},
     {"gccollect", dst_core_gccollect},
     {"gcsetinterval", dst_core_gcsetinterval},
     {"gcinterval", dst_core_gcinterval},
@@ -100,6 +97,18 @@ DstTable *dst_stl_env(int flags) {
         DOP_RESUME | (1 << 24),
         DOP_RETURN
     };
+    static uint32_t get_asm[] = {
+        DOP_GET | (1 << 24),
+        DOP_RETURN
+    };
+    static uint32_t put_asm[] = {
+        DOP_PUT | (1 << 16) | (2 << 24),
+        DOP_RETURN
+    };
+    static uint32_t length_asm[] = {
+        DOP_LENGTH,
+        DOP_RETURN
+    };
 
     DstTable *env = dst_table(0);
     Dst ret = dst_wrap_table(env);
@@ -112,6 +121,9 @@ DstTable *dst_stl_env(int flags) {
     dst_env_def(env, "apply1", dst_wrap_function(dst_quick_asm("apply1", 2, 0, 2, apply_asm, sizeof(apply_asm))));
     dst_env_def(env, "yield", dst_wrap_function(dst_quick_asm("yield", 1, 0, 2, yield_asm, sizeof(yield_asm))));
     dst_env_def(env, "resume", dst_wrap_function(dst_quick_asm("resume", 2, 0, 2, resume_asm, sizeof(resume_asm))));
+    dst_env_def(env, "get", dst_wrap_function(dst_quick_asm("get", 2, 0, 2, get_asm, sizeof(get_asm))));
+    dst_env_def(env, "put", dst_wrap_function(dst_quick_asm("put", 3, 0, 3, put_asm, sizeof(put_asm))));
+    dst_env_def(env, "length", dst_wrap_function(dst_quick_asm("length", 1, 0, 1, length_asm, sizeof(length_asm))));
 
     dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
 

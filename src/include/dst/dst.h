@@ -173,12 +173,6 @@ int dst_verify(DstFuncDef *def);
 int dst_equals(Dst x, Dst y);
 int32_t dst_hash(Dst x);
 int dst_compare(Dst x, Dst y);
-Dst dst_get(Dst ds, Dst key);
-void dst_put(Dst ds, Dst key, Dst value);
-const DstKV *dst_next(Dst ds, const DstKV *kv);
-int32_t dst_length(Dst x);
-Dst dst_getindex(Dst ds, int32_t index);
-void dst_setindex(Dst ds, Dst value, int32_t index);
 int dst_cstrcmp(const uint8_t *str, const char *other);
 
 /* VM functions */
@@ -189,10 +183,16 @@ DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out);
 DstSignal dst_call(DstFunction *fun, int32_t argn, const Dst *argv, Dst *out);
 
 /* Env helpers */
+typedef enum {
+    DST_BINDING_NONE,
+    DST_BINDING_DEF,
+    DST_BINDING_VAR,
+    DST_BINDING_MACRO
+} DstBindingType;
 void dst_env_def(DstTable *env, const char *name, Dst val);
 void dst_env_var(DstTable *env, const char *name, Dst val);
 void dst_env_cfuns(DstTable *env, const DstReg *cfuns);
-Dst dst_env_resolve(DstTable *env, const char *name);
+DstBindingType dst_env_resolve(DstTable *env, const uint8_t *sym, Dst *out);
 DstTable *dst_env_arg(DstArgs args);
 
 /* STL */

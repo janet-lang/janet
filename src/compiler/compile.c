@@ -66,6 +66,19 @@ int dstc_iserr(DstFopts *opts) {
     return (opts->compiler->result.status == DST_COMPILE_ERROR);
 }
 
+/* Get the next key in an associative data structure. Used for iterating through an
+ * associative data structure. */
+const DstKV *dstc_next(Dst ds, const DstKV *kv) {
+    switch(dst_type(ds)) {
+        default:
+            return NULL;
+        case DST_TABLE:
+            return (const DstKV *) dst_table_next(dst_unwrap_table(ds), kv);
+        case DST_STRUCT:
+            return dst_struct_next(dst_unwrap_struct(ds), kv);
+    }
+}
+
 /* Allocate a slot index */
 int32_t dstc_lsloti(DstCompiler *c) {
     DstScope *scope = &dst_v_last(c->scopes);
@@ -257,22 +270,24 @@ DstSlot dstc_resolve(
 
     /* Symbol not found - check for global */
     {
-        Dst check = dst_table_get(c->env, dst_wrap_symbol(sym));
-        Dst ref;
-        if (!(dst_checktype(check, DST_STRUCT) || dst_checktype(check, DST_TABLE))) {
-            dstc_error(c, ast, dst_formatc("unknown symbol %q", sym));
-            return dstc_cslot(dst_wrap_nil());
-        }
-        ref = dst_get(check, dst_csymbolv(":ref"));
-        if (dst_checktype(ref, DST_ARRAY)) {
-            DstSlot ret = dstc_cslot(ref);
-            /* TODO save type info */
-            ret.flags |= DST_SLOT_REF | DST_SLOT_NAMED | DST_SLOT_MUTABLE | DST_SLOTTYPE_ANY;
-            ret.flags &= ~DST_SLOT_CONSTANT;
-            return ret;
-        } else {
-            Dst value = dst_get(check, dst_csymbolv(":value"));
-            return dstc_cslot(value);
+        Dst check;
+        DstBindingType btype = dst_env_resolve(c->env, sym, &check);
+        switch (btype) {
+            default:
+            case DST_BINDING_NONE:
+                dstc_error(c, ast, dst_formatc("unknown symbol %q", sym));
+                return dstc_cslot(dst_wrap_nil());
+            case DST_BINDING_DEF:
+            case DST_BINDING_MACRO: /* Macro should function like defs when not in calling pos */
+                return dstc_cslot(check);
+            case DST_BINDING_VAR:
+            {
+                DstSlot ret = dstc_cslot(check);
+                /* TODO save type info */
+                ret.flags |= DST_SLOT_REF | DST_SLOT_NAMED | DST_SLOT_MUTABLE | DST_SLOTTYPE_ANY;
+                ret.flags &= ~DST_SLOT_CONSTANT;
+                return ret;
+            }
         }
     }
 
@@ -627,7 +642,7 @@ DstSM *dstc_toslotskv(DstCompiler *c, Dst ds) {
     DstSM *ret = NULL;
     const DstKV *kv = NULL;
     DstFopts subopts = dstc_fopts_default(c);
-    while ((kv = dst_next(ds, kv))) {
+    while ((kv = dstc_next(ds, kv))) {
         DstSM km, vm;
         km.slot = dstc_value(subopts, kv->key);
         km.map = dst_ast_node(kv->key);
@@ -807,25 +822,22 @@ recur:
                     /* Symbols could be specials */
                     headval = dst_ast_unwrap1(tup[0]);
                     if (dst_checktype(headval, DST_SYMBOL)) {
-                        const DstSpecial *s = dstc_special(dst_unwrap_symbol(headval));
+                        const uint8_t *headsym = dst_unwrap_symbol(headval);
+                        const DstSpecial *s = dstc_special(headsym);
                         if (NULL != s) {
                             ret = s->compile(opts, ast, dst_tuple_length(tup) - 1, tup + 1);
                             compiled = 1;
                         } else {
                             /* Check macro */
-                            DstTable *env = c->env;
-                            Dst fn;
-                            Dst entry = dst_table_get(env, headval);
-                            for (;;) {
-                                if (dst_checktype(entry, DST_NIL)) break;
-                                if (dst_checktype(dst_get(entry, dst_csymbolv(":macro")), DST_NIL)) break;
-                                fn = dst_get(entry, dst_csymbolv(":value"));
-                                if (!dst_checktype(fn, DST_FUNCTION)) break;
+                            Dst macVal;
+                            DstBindingType btype = dst_env_resolve(c->env, headsym, &macVal);
+                            if (btype == DST_BINDING_MACRO &&
+                                    dst_checktype(macVal, DST_FUNCTION)) {
                                 if (macrorecur++ > DST_RECURSION_GUARD) {
                                     dstc_cerror(c, ast, "macro expansion recursed too deeply");
                                     return dstc_cslot(dst_wrap_nil());
                                 } else {
-                                    DstFunction *f = dst_unwrap_function(fn);
+                                    DstFunction *f = dst_unwrap_function(macVal);
                                     int lock = dst_gclock();
                                     DstSignal status = dst_call(f, dst_tuple_length(tup) - 1, tup + 1, &x);
                                     dst_gcunlock(lock);
@@ -843,6 +855,7 @@ recur:
                         /* Compile the head of the tuple */
                         subopts.flags = DST_FUNCTION | DST_CFUNCTION;
                         head = dstc_value(subopts, tup[0]);
+                        /* Add compile function call */
                         ret = dstc_call(opts, ast, dstc_toslots(c, tup + 1, dst_tuple_length(tup) - 1), head);
                     }
                 }

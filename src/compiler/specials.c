@@ -65,10 +65,11 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
         case DST_ARRAY:
             {
                 int32_t i, len, localright, localsub;
-                len = dst_length(left);
+                const Dst *values;
+                dst_seq_view(left, &values, &len);
                 for (i = 0; i < len; i++) {
                     DstSlot newright;
-                    Dst subval = dst_getindex(left, i);
+                    Dst subval = values[i];
                     localright = dstc_preread(c, ast, 0xFF, 1, right);
                     localsub = dstc_lslotn(c, 0xFF, 3);
                     if (i < 0x100) {
@@ -104,7 +105,7 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
             {
                 int32_t localright, localsub;
                 const DstKV *kv = NULL;
-                while ((kv = dst_next(left, kv))) {
+                while ((kv = dstc_next(left, kv))) {
                     DstSlot newright;
                     DstSlot kslot = dstc_cslot(dst_ast_unwrap(kv->key));
                     Dst subval = kv->value;
