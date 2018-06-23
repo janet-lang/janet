@@ -127,7 +127,7 @@ extern "C" {
 /* What to do when out of memory */
 #ifndef DST_OUT_OF_MEMORY
 #include <stdio.h>
-#define DST_OUT_OF_MEMORY do { printf("out of memory\n"); exit(1); } while (0)
+#define DST_OUT_OF_MEMORY do { printf("dst out of memory\n"); exit(1); } while (0)
 #endif
 
 /* Helper for debugging */

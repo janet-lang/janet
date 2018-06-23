@@ -18,7 +18,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-CFLAGS=-std=c99 -Wall -Wextra -I../../src/include -O2 -DSQLITE_THREADSAFE=0 -DSQLITE_OMIT_LOAD_EXTENSION -shared -fpic
+CFLAGS=-std=c99 -Wall -Wextra -I../../src/include -O2 -shared -fpic \
+	   -DSQLITE_THREADSAFE=0 \
+	   -DSQLITE_OMIT_LOAD_EXTENSION
 TARGET=sqlite3.so
 
 # MacOS specifics
@@ -27,19 +29,29 @@ ifeq ($(UNAME), Darwin)
 	CFLAGS:=$(CFLAGS) -undefined dynamic_lookup
 endif
 
+# Default target
+all: $(TARGET)
+
+OBJECTS:=main.o sqlite3.o
+$(TARGET): $(OBJECTS)
+	$(CC) $(CFLAGS) -o $@ $^
+
 sqlite-autoconf-3230100/sqlite3.%:
 	curl https://www.sqlite.org/2018/sqlite-autoconf-3230100.tar.gz | tar -xvz
 
-sqlite3.%: sqlite-autoconf-3230100/sqlite3.%
+sqlite3.c: sqlite-autoconf-3230100/sqlite3.c
+	cp $< $@
+sqlite3.h: sqlite-autoconf-3230100/sqlite3.h
 	cp $< $@
 
-$(TARGET): main.c sqlite3.c sqlite3.h
-	$(CC) $(CFLAGS) -o $@ main.c
+%.o: %.c
+	$(CC) $(CFLAGS) -c $<
 
 clean:
 	rm -rf sqlite-autoconf-3230100
+	rm *.o
 	rm sqlite3.c
 	rm sqlite3.h
 	rm $(TARGET)
 
-.PHONY: clean
+.PHONY: clean all

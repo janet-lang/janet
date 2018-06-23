@@ -1093,7 +1093,7 @@ returned from compiling and running the file."
 
   (def cache @{})
   (def loading @{})
-  (fn [path args]
+  (fn require [path args]
    (when (get loading path)
     (error (string "circular dependency: module " path " is loading")))
    (def {

@@ -127,6 +127,14 @@ valtest: $(DST_TARGET)
 	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite0.dst
 	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite1.dst
 
+###################
+##### Natives #####
+###################
+
+natives: $(DST_TARGET)
+	$(MAKE) -C natives/hello
+	$(MAKE) -j 8 -C natives/sqlite3
+
 #################
 ##### Other #####
 #################
