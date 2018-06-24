@@ -229,7 +229,7 @@ static const char *bindmany(sqlite3_stmt *stmt, Dst params) {
                     {
                         const uint8_t *s = dst_unwrap_string(kvs[i].key);
                         index = sqlite3_bind_parameter_index(
-                                stmt, 
+                                stmt,
                                 (const char *)s);
                     }
                     break;
@@ -339,7 +339,7 @@ static int sql_exec(DstArgs args) {
         }
     }
     DstArray *rows = dst_array(10);
-    const char *err = execute(stmt->handle, rows); 
+    const char *err = execute(stmt->handle, rows);
     /* Reset the statement */
     sqlite3_reset(stmt->handle);
     sqlite3_clear_bindings(stmt->handle);
@@ -425,7 +425,7 @@ static const uint8_t *coerce_int64(int64_t x) {
         bytes[i++] = x % 10;
         x = x / 10;
     }
-    bytes[i++] = '\0';
+    bytes[i] = '\0';
     return dst_string(bytes, i);
 }
 
