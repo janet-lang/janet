@@ -354,6 +354,7 @@ static int line() {
             norawmode();
             kill(getpid(), SIGSTOP);
             rawmode();
+            refresh();
             break;
         case 12:
             clear();
