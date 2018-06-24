@@ -81,6 +81,7 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 
 #include <headerlibs/vector.h>
 
@@ -348,6 +349,11 @@ static int line() {
             buf[0] = '\0';
             pos = len = 0;
             refresh();
+            break;
+        case 26: /* ctrl-z */
+            norawmode();
+            kill(getpid(), SIGSTOP);
+            rawmode();
             break;
         case 12:
             clear();

@@ -18,7 +18,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-CFLAGS=-std=c99 -Wall -Wextra -I../../src/include -s -O3
+CFLAGS=-std=c99 -Wall -Wextra -I../../src/include -O2
 TARGET=hello.so
 
 UNAME:=$(shell uname -s)
