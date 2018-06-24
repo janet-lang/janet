@@ -25,29 +25,18 @@
 
 #define FLAG_CLOSED 1
 
+#define MSG_DB_CLOSED "database already closed"
+
 typedef struct {
     sqlite3* handle;
     int flags;
 } Db;
-
-typedef struct {
-    sqlite3_stmt* handle;
-    int flags;
-} Stmt;
 
 /* Close a db, noop if already closed */
 static void closedb(Db *db) {
     if (!(db->flags & FLAG_CLOSED)) {
         db->flags |= FLAG_CLOSED;
         sqlite3_close_v2(db->handle);
-    }
-}
-
-/* Close prepared statement, noop if already closed */
-static void closestmt(Stmt *stmt) {
-    if (!(stmt->flags & FLAG_CLOSED)) {
-        stmt->flags |= FLAG_CLOSED;
-        sqlite3_finalize(stmt->handle);
     }
 }
 
@@ -59,25 +48,10 @@ static int gcsqlite(void *p, size_t s) {
     return 0;
 }
 
-/* Called to collect a sqlite3 prepared statement */
-static int gcstmt(void *p, size_t s) {
-    (void) s;
-    Stmt *stmt = (Stmt *)p;
-    closestmt(stmt);
-    return 0;
-}
-
 static const DstAbstractType sql_conn_type = {
     ":sqlite3.connection",
     gcsqlite,
     NULL,
-};
-
-
-static const DstAbstractType sql_stmt_type = {
-    ":sqlite3.statement",
-    gcstmt,
-    NULL
 };
 
 /* Open a new database connection */
@@ -116,35 +90,6 @@ static int has_null(const uint8_t *str, int32_t len) {
             return 1;
     }
     return 0;
-}
-
-/* Create a prepared statement */
-static int sql_prepare(DstArgs args) {
-    Db *db;
-    sqlite3_stmt *stmt;
-    const uint8_t *zSql;
-    int status;
-    DST_FIXARITY(args, 2);
-    DST_CHECKABSTRACT(args, 0, &sql_conn_type);
-    db = (Db *)dst_unwrap_abstract(args.v[0]);
-    DST_ARG_STRING(zSql, args, 1);
-    status = sqlite3_prepare_v2(db->handle, (const char *)zSql, -1, &stmt, NULL);
-    if (status == SQLITE_OK) {
-        Stmt *sp = (Stmt *)dst_abstract(&sql_stmt_type, sizeof(Stmt));
-        sp->handle = stmt;
-        sp->flags = 0;
-        DST_RETURN_ABSTRACT(args, sp);
-    }
-    DST_THROW(args, sqlite3_errmsg(db->handle));
-}
-
-/* Finalize a prepared statement */
-static int sql_finalize(DstArgs args) {
-    DST_FIXARITY(args, 1);
-    DST_CHECKABSTRACT(args, 0, &sql_stmt_type);
-    Stmt *stmt = (Stmt *) dst_unwrap_abstract(args.v[0]);
-    closestmt(stmt);
-    DST_RETURN_NIL(args);
 }
 
 /* Bind a single parameter */
@@ -249,7 +194,7 @@ static const char *bindmany(sqlite3_stmt *stmt, Dst params) {
 }
 
 /* Execute a statement but don't collect results */
-static const char *execute_drop(sqlite3_stmt *stmt) {
+static const char *execute(sqlite3_stmt *stmt) {
     int status;
     const char *ret = NULL;
     do {
@@ -264,7 +209,7 @@ static const char *execute_drop(sqlite3_stmt *stmt) {
 }
 
 /* Execute and return values from prepared statement */
-static const char *execute(sqlite3_stmt *stmt, DstArray *rows) {
+static const char *execute_collect(sqlite3_stmt *stmt, DstArray *rows) {
     /* Count number of columns in result */
     int ncol = sqlite3_column_count(stmt);
     int status;
@@ -326,29 +271,6 @@ static const char *execute(sqlite3_stmt *stmt, DstArray *rows) {
     return ret;
 }
 
-/* Run a prepared statement */
-static int sql_exec(DstArgs args) {
-    DST_MINARITY(args, 1);
-    DST_MAXARITY(args, 2);
-    DST_CHECKABSTRACT(args, 0, &sql_stmt_type);
-    Stmt *stmt = (Stmt *)dst_unwrap_abstract(args.v[0]);
-    if (args.n == 2) {
-        const char *err = bindmany(stmt->handle, args.v[1]);
-        if (err) {
-            DST_THROW(args, err);
-        }
-    }
-    DstArray *rows = dst_array(10);
-    const char *err = execute(stmt->handle, rows);
-    /* Reset the statement */
-    sqlite3_reset(stmt->handle);
-    sqlite3_clear_bindings(stmt->handle);
-    if (err) {
-        DST_THROW(args, err);
-    }
-    DST_RETURN_ARRAY(args, rows);
-}
-
 /* Evaluate a string of sql */
 static int sql_eval(DstArgs args) {
     const char *err;
@@ -359,6 +281,9 @@ static int sql_eval(DstArgs args) {
     DST_MAXARITY(args, 3);
     DST_CHECKABSTRACT(args, 0, &sql_conn_type);
     Db *db = (Db *)dst_unwrap_abstract(args.v[0]);
+    if (db->flags & FLAG_CLOSED) {
+        DST_THROW(args, MSG_DB_CLOSED);
+    }
     DST_ARG_STRING(query, args, 1);
     if (has_null(query, dst_string_length(query))) {
         err = "cannot have embedded NULL in sql statememts";
@@ -378,13 +303,13 @@ static int sql_eval(DstArgs args) {
         if (NULL == stmt_next) {
             /* Execute current statement and collect results */
             if (stmt) {
-                err = execute(stmt, rows);
+                err = execute_collect(stmt, rows);
                 if (err) goto error;
             }
         } else {
-            /* Execute and finalize current statement */
+            /* Execute current statement but don't collect results. */
             if (stmt) {
-                err = execute_drop(stmt);
+                err = execute(stmt);
                 if (err) goto error;
             }
             /* Bind params to next statement*/
@@ -434,6 +359,9 @@ static int sql_last_insert_rowid(DstArgs args) {
     DST_FIXARITY(args, 1);
     DST_CHECKABSTRACT(args, 0, &sql_conn_type);
     Db *db = (Db *)dst_unwrap_abstract(args.v[0]);
+    if (db->flags & FLAG_CLOSED) {
+        DST_THROW(args, MSG_DB_CLOSED);
+    }
     sqlite3_int64 id = sqlite3_last_insert_rowid(db->handle);
     if (id >= INT32_MIN && id <= INT32_MAX) {
         DST_RETURN_INTEGER(args, (int32_t) id);
@@ -442,10 +370,17 @@ static int sql_last_insert_rowid(DstArgs args) {
     DST_RETURN_STRING(args, coerce_int64(id));
 }
 
-/*
-static int sql_changes(DstArgs args) {}
-static int sql_timeout(DstArgs args) {}
-*/
+/* Get the sqlite3 errcode */
+static int sql_error_code(DstArgs args) {
+    DST_FIXARITY(args, 1);
+    DST_CHECKABSTRACT(args, 0, &sql_conn_type);
+    Db *db = (Db *)dst_unwrap_abstract(args.v[0]);
+    if (db->flags & FLAG_CLOSED) {
+        DST_THROW(args, MSG_DB_CLOSED);
+    }
+    int errcode = sqlite3_errcode(db->handle);
+    DST_RETURN_INTEGER(args, errcode);
+}
 
 /*****************************************************************************/
 
@@ -453,13 +388,8 @@ static const DstReg cfuns[] = {
     {"open", sql_open},
     {"close", sql_close},
     {"eval", sql_eval},
-    {"prepare", sql_prepare},
-    {"exec", sql_exec},
-    {"finalize", sql_finalize},
     {"last-insert-rowid", sql_last_insert_rowid},
-    /*{"changes", sql_changes},*/
-    /*{"timeout", sql_timeout},*/
-    /*{"rowid", sql_rowid},*/
+    {"error-code", sql_error_code},
     {NULL, NULL}
 };
 
