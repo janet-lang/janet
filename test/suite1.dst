@@ -127,6 +127,19 @@
 (assert (= (string.find "123" "abc123def") 3) "string.find positive")
 (assert (= (string.find "1234" "abc123def") nil) "string.find negative")
 
+# Test destructuring
+(do
+  (def test-tab @{:a 1 :b 2})
+  (def {:a a :b b} test-tab)
+  (assert (= a 1) "dictionary destructuring 1")
+  (assert (= b 2) "dictionary destructuring 2"))
+(do
+  (def test-tab @{'a 1 'b 2 3 4})
+  (def {'a a 'b b (+ 1 2) c} test-tab)
+  (assert (= a 1) "dictionary destructuring 3")
+  (assert (= b 2) "dictionary destructuring 4")
+  (assert (= c 4) "dictionary destructuring 5 - expression as key"))
+
 # Marshal
 
 (defn testmarsh [x msg]

@@ -107,7 +107,7 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
                 const DstKV *kv = NULL;
                 while ((kv = dstc_next(left, kv))) {
                     DstSlot newright;
-                    DstSlot kslot = dstc_cslot(dst_ast_unwrap(kv->key));
+                    DstSlot kslot = dstc_value(dstc_fopts_default(c), kv->key);
                     Dst subval = kv->value;
                     localright = dstc_preread(c, ast, 0xFF, 1, right);
                     localsub = dstc_lslotn(c, 0xFF, 3);
