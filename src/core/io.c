@@ -196,11 +196,24 @@ static int dst_io_fopen(DstArgs args) {
     DST_RETURN(args, f ? makef(f, flags) : dst_wrap_nil());
 }
 
+/* Read up to n bytes into buffer. Return error string if error. */
+static const char *read_chunk(IOFile *iof, DstBuffer *buffer, int32_t nBytesMax) {
+    if (!(iof->flags & (IO_READ | IO_UPDATE)))
+        return "file is not readable";
+    /* Ensure buffer size */
+    if (dst_buffer_extra(buffer, nBytesMax)) 
+        return "buffer overflow";
+    size_t ntoread = nBytesMax;
+    size_t nread = fread((char *)(buffer->data + buffer->count), 1, ntoread, iof->file);
+    if (nread != ntoread && ferror(iof->file)) 
+        return "could not read file";
+    buffer->count += nread;
+    return NULL;
+}
+
 /* Read a certain number of bytes into memory */
 static int dst_io_fread(DstArgs args) {
     DstBuffer *b;
-    int32_t len;
-    size_t ntoread, nread;
     IOFile *iof = checkfile(args, 0);
     if (!iof) return 1;
     if (iof->flags & IO_CLOSED)
@@ -211,13 +224,23 @@ static int dst_io_fread(DstArgs args) {
         const uint8_t *sym = dst_unwrap_symbol(args.v[1]);
         if (!dst_cstrcmp(sym, ":all")) {
             /* Read whole file */
-            long fsize;
-            fseek(iof->file, 0, SEEK_END);
-            fsize = ftell(iof->file);
-            fseek(iof->file, 0, SEEK_SET);
-            if (fsize > INT32_MAX) DST_THROW(args, "buffer overflow");
-            len = fsize;
-            /* Fall through to normal code */
+            int status = fseek(iof->file, 0, SEEK_SET);
+            if (status) {
+                /* backwards fseek did not work (stream like popen) */
+                int32_t sizeBefore;
+                do {
+                    sizeBefore = b->count;
+                    const char *maybeErr = read_chunk(iof, b, 1024);
+                    if (maybeErr) DST_THROW(args, maybeErr);
+                } while (sizeBefore < b->count);
+            } else {
+                fseek(iof->file, 0, SEEK_END);
+                long fsize = ftell(iof->file);
+                fseek(iof->file, 0, SEEK_SET);
+                if (fsize > INT32_MAX) DST_THROW(args, "buffer overflow");
+                const char *maybeErr = read_chunk(iof, b, (int32_t) fsize);;
+                if (maybeErr) DST_THROW(args, maybeErr);
+            }
         } else if (!dst_cstrcmp(sym, ":line")) {
             for (;;) {
                 int x = fgetc(iof->file);
@@ -225,23 +248,17 @@ static int dst_io_fread(DstArgs args) {
                     DST_THROW(args, "buffer overflow");
                 if (x == EOF || x == '\n') break;
             }
-            DST_RETURN(args, dst_wrap_buffer(b));
         } else {
             DST_THROW(args, "expected one of :all, :line");
         }
     } else if (!dst_checktype(args.v[1], DST_INTEGER)) {
         DST_THROW(args, "expected positive integer");
     } else {
-        len = dst_unwrap_integer(args.v[1]);
+        int32_t len = dst_unwrap_integer(args.v[1]);
         if (len < 0) DST_THROW(args, "expected positive integer");
+        const char *maybeErr = read_chunk(iof, b, len);
+        if (maybeErr) DST_THROW(args, maybeErr);
     }
-    if (!(iof->flags & (IO_READ | IO_UPDATE))) DST_THROW(args, "file is not readable");
-    /* Ensure buffer size */
-    if (dst_buffer_extra(b, len)) DST_THROW(args, "buffer overflow");
-    ntoread = len;
-    nread = fread((char *)(b->data + b->count), 1, ntoread, iof->file);
-    if (nread != ntoread && ferror(iof->file)) DST_THROW(args, "could not read file");
-    b->count += nread;
     DST_RETURN(args, dst_wrap_buffer(b));
 }
 
