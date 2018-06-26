@@ -418,7 +418,7 @@ const uint8_t *dst_description(Dst x) {
     case DST_CFUNCTION:
         {
             Dst check = dst_table_get(dst_vm_registry, x);
-            if (!dst_checktype(x, DST_NIL)) {
+            if (dst_checktype(check, DST_SYMBOL)) {
                 return dst_formatc("<cfunction %V>", check);
             }
             goto fallthrough;
