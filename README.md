@@ -23,8 +23,8 @@ There is not much in the way of documentation yet because it is still a "persona
 I don't want to freeze features prematurely. You can look in the examples directory, the test directory,
 or the file `src/compiler/boot.dst` to get a sense of what dst code looks like.
 
-For syntax highlightinh, there is some preliminary vim syntax highlighting in [dst.vim](https://github.com/bakpakin/dst.vim).
-Generic lisp synatx highlighting should provide good results, however.
+For syntax highlighting, there is some preliminary vim syntax highlighting in [dst.vim](https://github.com/bakpakin/dst.vim).
+Generic lisp syntax highlighting should provide good results, however.
 
 ## Features
 
@@ -45,7 +45,7 @@ Generic lisp synatx highlighting should provide good results, however.
 * REPL
 * Interactive Environment
 
-## Docmentation
+## Documentation
 
 API documentation and design documents can be found in the
 [wiki](https://github.com/bakpakin/dst/wiki).
