@@ -40,8 +40,10 @@ DST_LIBRARY=libdst.so
 DEBUGGER=gdb
 
 UNAME:=$(shell uname -s)
+LDCONFIG:=ldconfig
 ifeq ($(UNAME), Darwin) 
 	# Add other macos/clang flags
+	LDCONFIG:=
 else
 	CFLAGS:=$(CFLAGS) -rdynamic
 endif
@@ -150,12 +152,12 @@ install: $(DST_TARGET)
 	mkdir -p $(INCLUDEDIR)
 	cp $(DST_HEADERS) $(INCLUDEDIR)
 	cp $(DST_LIBRARY) $(LIBDIR)/$(DST_LIBRARY)
-	ldconfig
+	$(LDCONFIG)
 
 uninstall:
 	rm $(BINDIR)/$(DST_TARGET)
 	rm $(LIBDIR)/$(DST_LIBRARY)
 	rm -rf $(INCLUDEDIR)
-	ldconfig
+	$(LDCONFIG)
 
 .PHONY: clean install repl debug valgrind test valtest install uninstall
