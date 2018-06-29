@@ -940,7 +940,6 @@ onvalue."
  (def p (parser.new))
 
  # Fiber stream of characters
- (var byteindex 0)
  (def chars (coro
    (def buf @"")
    (var len 1)
@@ -949,7 +948,6 @@ onvalue."
       (chunks buf p)
       (:= len (length buf))
       (loop [i :range [0 len]]
-        (++ byteindex)
         (yield (get buf i))))
    0))
 
