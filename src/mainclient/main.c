@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
     dst_line_init();
 
     /* Run startup script */
-    status = dst_dobytes(env, dst_mainclient_init, sizeof(dst_mainclient_init));
+    status = dst_dobytes(env, dst_mainclient_init, sizeof(dst_mainclient_init), "init.dst");
 
     /* Deinitialize vm */
     dst_deinit();

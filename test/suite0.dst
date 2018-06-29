@@ -18,7 +18,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-(print "Current working directory is: " (os.cwd))
 (import test.helper :prefix "" :exit true)
 (start-suite 0)
 

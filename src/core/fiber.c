@@ -370,8 +370,6 @@ static Dst doframe(DstStackFrame *frame) {
         }
         if (def->source) {
             dst_table_put(t, dst_csymbolv(":source"), dst_wrap_string(def->source));
-        } else if (def->sourcepath) {
-            dst_table_put(t, dst_csymbolv(":sourcepath"), dst_wrap_string(def->sourcepath));
         }
     }
     return dst_wrap_table(t);

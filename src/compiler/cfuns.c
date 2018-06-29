@@ -29,13 +29,12 @@
 /* This logic needs to be expanded for more types */
 
 /* Check if a function received only numbers */
-static int numbers(DstFopts opts, DstAst *ast, DstSM *args) {
+static int numbers(DstFopts opts, DstSlot *args) {
    int32_t i;
    int32_t len = dst_v_count(args);
    (void) opts;
-   (void) ast;
    for (i = 0; i < len; i++) {
-       DstSlot s = args[i].slot;
+       DstSlot s = args[i];
        if (s.flags & DST_SLOT_CONSTANT) {
            Dst c = s.constant;
            if (!dst_checktype(c, DST_INTEGER) &&
@@ -48,34 +47,33 @@ static int numbers(DstFopts opts, DstAst *ast, DstSM *args) {
    return 1;
 }
 
-/* Fold constants in a DstSM */
-static DstSM *foldc(DstSM *sms, DstAst *ast, Dst (*fn)(Dst lhs, Dst rhs)) {
+/* Fold constants in a DstSlot [] */
+static DstSlot *foldc(DstSlot *slots, Dst (*fn)(Dst lhs, Dst rhs)) {
     int32_t ccount;
     int32_t i;
-    DstSM *ret = NULL;
-    DstSM sm;
+    DstSlot *ret = NULL;
+    DstSlot s;
     Dst current;
-    for (ccount = 0; ccount < dst_v_count(sms); ccount++) {
-        if (sms[ccount].slot.flags & DST_SLOT_CONSTANT) continue;
+    for (ccount = 0; ccount < dst_v_count(slots); ccount++) {
+        if (slots[ccount].flags & DST_SLOT_CONSTANT) continue;
         break;
     }
-    if (ccount < 2) return sms;
-    current = fn(sms[0].slot.constant, sms[1].slot.constant);
+    if (ccount < 2) return slots;
+    current = fn(slots[0].constant, slots[1].constant);
     for (i = 2; i < ccount; i++) {
-        Dst nextarg = sms[i].slot.constant;
+        Dst nextarg = slots[i].constant;
         current = fn(current, nextarg);
     }
-    sm.slot = dstc_cslot(current);
-    sm.map = ast;
-    dst_v_push(ret, sm);
-    for (; i < dst_v_count(sms); i++) {
-        dst_v_push(ret, sms[i]);
+    s = dstc_cslot(current);
+    dst_v_push(ret, s);
+    for (; i < dst_v_count(slots); i++) {
+        dst_v_push(ret, slots[i]);
     }
     return ret;
 }
 
 /* Emit a series of instructions instead of a function call to a math op */
-static DstSlot opreduce(DstFopts opts, DstAst *ast, DstSM *args, int op) {
+static DstSlot opreduce(DstFopts opts, DstSlot *args, int op) {
     DstCompiler *c = opts.compiler;
     int32_t i, len;
     int32_t op1, op2;
@@ -84,42 +82,41 @@ static DstSlot opreduce(DstFopts opts, DstAst *ast, DstSM *args, int op) {
     if (len == 0) {
         return dstc_cslot(dst_wrap_integer(0));
     } else if (len == 1) {
-        return args[0].slot;
+        return args[0];
     }
     t = dstc_gettarget(opts);
     /* Compile initial two arguments */
-    op1 = dstc_preread(c, args[0].map, 0xFF, 1, args[0].slot);
-    op2 = dstc_preread(c, args[1].map, 0xFF, 2, args[1].slot);
-    dstc_emit(c, ast, (t.index << 8) | (op1 << 16) | (op2 << 24) | op);
-    dstc_postread(c, args[0].slot, op1);
-    dstc_postread(c, args[1].slot, op2);
+    op1 = dstc_preread(c, 0xFF, 1, args[0]);
+    op2 = dstc_preread(c, 0xFF, 2, args[1]);
+    dstc_emit(c, (t.index << 8) | (op1 << 16) | (op2 << 24) | op);
+    dstc_postread(c, args[0], op1);
+    dstc_postread(c, args[1], op2);
     for (i = 2; i < len; i++) {
-        op1 = dstc_preread(c, args[i].map, 0xFF, 1, args[i].slot);
-        dstc_emit(c, ast, (t.index << 8) | (t.index << 16) | (op1 << 24) | op);
-        dstc_postread(c, args[i].slot, op1);
+        op1 = dstc_preread(c, 0xFF, 1, args[i]);
+        dstc_emit(c, (t.index << 8) | (t.index << 16) | (op1 << 24) | op);
+        dstc_postread(c, args[i], op1);
     }
     return t;
 }
 
-static DstSlot add(DstFopts opts, DstAst *ast, DstSM *args) {
-    DstSM *newargs = foldc(args, ast, dst_op_add);
-    DstSlot ret = opreduce(opts, ast, newargs, DOP_ADD);
+static DstSlot add(DstFopts opts, DstSlot *args) {
+    DstSlot *newargs = foldc(args, dst_op_add);
+    DstSlot ret = opreduce(opts, newargs, DOP_ADD);
     if (newargs != args) dstc_freeslots(opts.compiler, newargs);
     return ret;
 }
 
-static DstSlot sub(DstFopts opts, DstAst *ast, DstSM *args) {
-    DstSM *newargs;
+static DstSlot sub(DstFopts opts, DstSlot *args) {
+    DstSlot *newargs;
     if (dst_v_count(args) == 1) {
         newargs = NULL;
         dst_v_push(newargs, args[0]);
         dst_v_push(newargs, args[0]);
-        newargs[0].slot = dstc_cslot(dst_wrap_integer(0));
-        newargs[0].map = ast;
+        newargs[0] = dstc_cslot(dst_wrap_integer(0));
     } else {
-        newargs = foldc(args, ast, dst_op_subtract);
+        newargs = foldc(args, dst_op_subtract);
     }
-    DstSlot ret = opreduce(opts, ast, newargs, DOP_SUBTRACT);
+    DstSlot ret = opreduce(opts, newargs, DOP_SUBTRACT);
     if (newargs != args) dstc_freeslots(opts.compiler, newargs);
     return ret;
 }

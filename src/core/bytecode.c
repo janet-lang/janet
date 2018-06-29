@@ -223,7 +223,6 @@ DstFuncDef *dst_funcdef_alloc() {
     def->slotcount = 0;
     def->arity = 0;
     def->source = NULL;
-    def->sourcepath = NULL;
     def->sourcemap = NULL;
     def->name = NULL;
     def->defs = NULL;

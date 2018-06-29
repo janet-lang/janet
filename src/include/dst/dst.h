@@ -36,6 +36,17 @@ extern "C" {
 
 #include "dsttypes.h"
 
+/* Parsing */
+void dst_parser_init(DstParser *parser, int flags);
+void dst_parser_deinit(DstParser *parser);
+int dst_parser_consume(DstParser *parser, uint8_t c);
+enum DstParserStatus dst_parser_status(DstParser *parser);
+Dst dst_parser_produce(DstParser *parser);
+const char *dst_parser_error(DstParser *parser);
+void dst_parser_flush(DstParser *parser);
+int dst_parser_lookup(DstParser *parser, Dst key, DstSourceMapping *out);
+DstParser *dst_check_parser(Dst x);
+
 /* Number scanning */
 Dst dst_scan_number(const uint8_t *src, int32_t len);
 int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);

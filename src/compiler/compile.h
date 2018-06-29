@@ -54,12 +54,6 @@ struct DstSlot {
     Dst constant; /* If the slot has a constant value */
 };
 
-/* Slot and map pairing */
-typedef struct DstSM {
-    DstSlot slot;
-    DstAst *map;
-} DstSM;
-
 #define DST_SCOPE_FUNCTION 1
 #define DST_SCOPE_ENV 2
 #define DST_SCOPE_TOP 4
@@ -106,10 +100,16 @@ struct DstCompiler {
     DstScope *scopes;
 
     uint32_t *buffer;
-    DstAst **mapbuffer;
+    DstSourceMapping *mapbuffer;
+
+    /* Keep track of where we are in the source */
+    DstSourceMapping *ast_stack;
 
     /* Hold the environment */
     DstTable *env;
+
+    /* Hold a reference to a parser if we need it */
+    DstParser *parser;
 
     DstCompileResult result;
 };
@@ -133,17 +133,22 @@ DstFopts dstc_fopts_default(DstCompiler *c);
  * optimizations should be tried before compiling a normal function call. */
 struct DstCFunOptimizer {
     DstCFunction cfun;
-    int (*can_optimize)(DstFopts opts, DstAst *ast, DstSM *args);
-    DstSlot (*optimize)(DstFopts opts, DstAst *ast, DstSM *args);
+    int (*can_optimize)(DstFopts opts, DstSlot *args);
+    DstSlot (*optimize)(DstFopts opts, DstSlot *args);
 };
 
 /* A grouping of a named special and the corresponding compiler fragment */
 struct DstSpecial {
     const char *name;
-    DstSlot (*compile)(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv);
+    DstSlot (*compile)(DstFopts opts, int32_t argn, const Dst *argv);
 };
 
 /****************************************************/
+
+/* Manipulate the ast stack for source mapping reasons. */
+void dstc_ast_push(DstCompiler *c, Dst x);
+void dstc_ast_pop(DstCompiler *c);
+DstSourceMapping dstc_ast(DstCompiler *c);
 
 /* Get a cfunction optimizer. Return NULL if none exists.  */
 const DstCFunOptimizer *dstc_cfunopt(DstCFunction cfun);
@@ -178,7 +183,6 @@ void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s);
  * that can be used in an instruction. */
 int32_t dstc_preread(
         DstCompiler *c,
-        DstAst *ast,
         int32_t max,
         int nth,
         DstSlot s);
@@ -189,7 +193,6 @@ void dstc_postread(DstCompiler *c, DstSlot s, int32_t index);
 /* Move value from one slot to another. Cannot copy to constant slots. */
 void dstc_copy(
         DstCompiler *c,
-        DstAst *ast,
         DstSlot dest,
         DstSlot src);
 
@@ -197,27 +200,27 @@ void dstc_copy(
 void dstc_throwaway(DstFopts opts, Dst x);
 
 /* Generate the return instruction for a slot. */
-DstSlot dstc_return(DstCompiler *c, DstAst *ast, DstSlot s);
+DstSlot dstc_return(DstCompiler *c, DstSlot s);
 
 /* Get a target slot for emitting an instruction. Will always return
  * a local slot. */
 DstSlot dstc_gettarget(DstFopts opts);
 
 /* Get a bunch of slots for function arguments */
-DstSM *dstc_toslots(DstCompiler *c, const Dst *vals, int32_t len);
+DstSlot *dstc_toslots(DstCompiler *c, const Dst *vals, int32_t len);
 
 /* Get a bunch of slots for function arguments */
-DstSM *dstc_toslotskv(DstCompiler *c, Dst ds);
+DstSlot *dstc_toslotskv(DstCompiler *c, Dst ds);
 
 /* Push slots load via dstc_toslots. */
-void dstc_pushslots(DstCompiler *c, DstAst *ast, DstSM *sms);
+void dstc_pushslots(DstCompiler *c, DstSlot *slots);
 
 /* Free slots loaded via dstc_toslots */
-void dstc_freeslots(DstCompiler *c, DstSM *sms);
+void dstc_freeslots(DstCompiler *c, DstSlot *slots);
 
 /* Store an error */
-void dstc_error(DstCompiler *c, DstAst *ast, const uint8_t *m);
-void dstc_cerror(DstCompiler *c, DstAst *ast, const char *m);
+void dstc_error(DstCompiler *c, const uint8_t *m);
+void dstc_cerror(DstCompiler *c, const char *m);
 
 /* Dispatch to correct form compiler */
 DstSlot dstc_value(DstFopts opts, Dst x);
@@ -234,13 +237,10 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c);
 /* Create a destory slots */
 DstSlot dstc_cslot(Dst x);
 
-/* Free a slot */
-void dstc_freeslot(DstCompiler *c, DstSlot slot);
-
 /* Search for a symbol */
-DstSlot dstc_resolve(DstCompiler *c, DstAst *ast, const uint8_t *sym);
+DstSlot dstc_resolve(DstCompiler *c, const uint8_t *sym);
 
 /* Emit instructions. */
-void dstc_emit(DstCompiler *c, DstAst *ast, uint32_t instr);
+void dstc_emit(DstCompiler *c, uint32_t instr);
 
 #endif

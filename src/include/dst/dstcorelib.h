@@ -100,6 +100,8 @@ int dst_lib_fiber(DstArgs args);
 int dst_lib_os(DstArgs args);
 int dst_lib_string(DstArgs args);
 int dst_lib_marsh(DstArgs args);
+int dst_lib_parse(DstArgs args);
+
 
 /* Useful for compiler */
 Dst dst_op_add(Dst lhs, Dst rhs);

@@ -32,7 +32,7 @@ BINDIR=$(PREFIX)/bin
 # TODO - when api is finalized, only export public symbols instead of using rdynamic
 # which exports all symbols. Saves a few KB in binary.
 
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -s -O2
 CLIBS=-lm -ldl
 PREFIX=/usr/local
 DST_TARGET=dst
@@ -60,7 +60,6 @@ DST_ASM_SOURCES=$(sort $(wildcard src/assembler/*.c))
 DST_COMPILER_SOURCES=$(sort $(wildcard src/compiler/*.c))
 DST_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
 DST_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
-DST_PARSER_SOURCES=$(sort $(wildcard src/parser/*.c))
 
 all: $(DST_TARGET) $(DST_LIBRARY)
 
@@ -88,8 +87,7 @@ src/compiler/dststlbootstrap.gen.h: src/compiler/boot.dst xxd
 DST_LIB_SOURCES=$(DST_ASM_SOURCES) \
 				$(DST_COMPILER_SOURCES) \
 				$(DST_CONTEXT_SOURCES) \
-				$(DST_CORE_SOURCES) \
-				$(DST_PARSER_SOURCES)
+				$(DST_CORE_SOURCES)
 
 DST_ALL_SOURCES=$(DST_LIB_SOURCES) \
 				$(DST_MAINCLIENT_SOURCES)
@@ -140,22 +138,22 @@ natives: $(DST_TARGET)
 #################
 
 clean:
-	rm $(DST_TARGET) || true
-	rm src/**/*.o || true
-	rm vgcore.* || true
-	rm $(DST_GENERATED_HEADERS) || true
+	-rm $(DST_TARGET)
+	-rm src/**/*.o
+	-rm vgcore.*
+	-rm $(DST_GENERATED_HEADERS)
 
 install: $(DST_TARGET)
 	cp $(DST_TARGET) $(BINDIR)/$(DST_TARGET)
 	mkdir -p $(INCLUDEDIR)
 	cp $(DST_HEADERS) $(INCLUDEDIR)
 	cp $(DST_LIBRARY) $(LIBDIR)/$(DST_LIBRARY)
-	ldconfig
+	-ldconfig
 
 uninstall:
-	rm $(BINDIR)/$(DST_TARGET)
-	rm $(LIBDIR)/$(DST_LIBRARY)
-	rm -rf $(INCLUDEDIR)
-	ldconfig
+	-rm $(BINDIR)/$(DST_TARGET)
+	-rm $(LIBDIR)/$(DST_LIBRARY)
+	-rm -rf $(INCLUDEDIR)
+	-ldconfig
 
 .PHONY: clean install repl debug valgrind test valtest install uninstall

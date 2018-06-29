@@ -42,15 +42,15 @@ struct DstCompileResult {
     int32_t error_start;
     int32_t error_end;
 };
-DstCompileResult dst_compile(Dst source, DstTable *env, int flags);
+DstCompileResult dst_compile(Dst source, DstTable *env, int flags, DstParser *parser);
 int dst_compile_cfun(DstArgs args);
 int dst_lib_compile(DstArgs args);
 
 /* Get the default environment for dst */
 DstTable *dst_stl_env();
 
-int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len);
-int dst_dostring(DstTable *env, const char *str);
+int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath);
+int dst_dostring(DstTable *env, const char *str, const char *sourcePath);
 
 #ifdef __cplusplus
 }

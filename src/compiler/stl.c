@@ -24,7 +24,6 @@
 #include <dst/dstopcodes.h>
 #include <dst/dstcorelib.h>
 #include <dst/dstasm.h>
-#include <dst/dstparse.h>
 #include <dst/dstcompile.h>
 
 /* Generated header */
@@ -155,7 +154,7 @@ DstTable *dst_stl_env(int flags) {
     dst_env_def(env, "_env", ret);
 
     /* Run bootstrap source */
-    dst_dobytes(env, dst_stl_bootstrap_gen, sizeof(dst_stl_bootstrap_gen));
+    dst_dobytes(env, dst_stl_bootstrap_gen, sizeof(dst_stl_bootstrap_gen), "boot.dst");
 
     if (flags & DST_STL_NOGCROOT)
         dst_gcunroot(dst_wrap_table(env));

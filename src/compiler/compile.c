@@ -21,7 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstparse.h>
 #include <dst/dstcorelib.h>
 #include "compile.h"
 
@@ -30,6 +29,34 @@
 #include <headerlibs/vector.h>
 #undef DST_V_DEF_COPYMEM
 #undef DST_V_DEF_FLATTENMEM
+
+void dstc_ast_push(DstCompiler *c, Dst x) {
+    DstSourceMapping mapping;
+    if (c->parser) {
+        int found = dst_parser_lookup(c->parser, x, &mapping);
+        if (!found) {
+            /* Duplicate last value */
+            if (dst_v_count(c->ast_stack)) {
+                mapping = dst_v_last(c->ast_stack);
+            } else {
+                mapping.start = -1;
+                mapping.end = -1;
+            }
+        }
+    } else {
+        mapping.start = -1;
+        mapping.end = -1;
+    }
+    dst_v_push(c->ast_stack, mapping);
+}
+
+void dstc_ast_pop(DstCompiler *c) {
+    dst_v_pop(c->ast_stack);
+}
+
+DstSourceMapping dstc_ast(DstCompiler *c) {
+    return dst_v_last(c->ast_stack);
+}
 
 DstFopts dstc_fopts_default(DstCompiler *c) {
     DstFopts ret;
@@ -40,25 +67,18 @@ DstFopts dstc_fopts_default(DstCompiler *c) {
 }
 
 /* Throw an error with a dst string. */
-void dstc_error(DstCompiler *c, DstAst *ast, const uint8_t *m) {
+void dstc_error(DstCompiler *c, const uint8_t *m) {
     /* Don't override first error */
     if (c->result.status == DST_COMPILE_ERROR) {
         return;
-    }
-    if (NULL != ast) {
-        c->result.error_start = ast->source_start;
-        c->result.error_end = ast->source_end;
-    } else {
-        c->result.error_start = -1;
-        c->result.error_end = -1;
     }
     c->result.status = DST_COMPILE_ERROR;
     c->result.error = m;
 }
 
 /* Throw an error with a message in a cstring */
-void dstc_cerror(DstCompiler *c, DstAst *ast, const char *m) {
-    dstc_error(c, ast, dst_cstring(m));
+void dstc_cerror(DstCompiler *c, const char *m) {
+    dstc_error(c, dst_cstring(m));
 }
 
 /* Check error */
@@ -239,7 +259,6 @@ DstSlot dstc_cslot(Dst x) {
 /* Allow searching for symbols. Return information about the symbol */
 DstSlot dstc_resolve(
         DstCompiler *c,
-        DstAst *ast,
         const uint8_t *sym) {
 
     DstSlot ret = dstc_cslot(dst_wrap_nil());
@@ -275,7 +294,7 @@ DstSlot dstc_resolve(
         switch (btype) {
             default:
             case DST_BINDING_NONE:
-                dstc_error(c, ast, dst_formatc("unknown symbol %q", sym));
+                dstc_error(c, dst_formatc("unknown symbol %q", sym));
                 return dstc_cslot(dst_wrap_nil());
             case DST_BINDING_DEF:
             case DST_BINDING_MACRO: /* Macro should function like defs when not in calling pos */
@@ -341,13 +360,13 @@ DstSlot dstc_resolve(
 }
 
 /* Emit a raw instruction with source mapping. */
-void dstc_emit(DstCompiler *c, DstAst *ast, uint32_t instr) {
+void dstc_emit(DstCompiler *c, uint32_t instr) {
     dst_v_push(c->buffer, instr);
-    dst_v_push(c->mapbuffer, ast);
+    dst_v_push(c->mapbuffer, dstc_ast(c));
 }
 
 /* Add a constant to the current scope. Return the index of the constant. */
-static int32_t dstc_const(DstCompiler *c, DstAst *ast, Dst x) {
+static int32_t dstc_const(DstCompiler *c, Dst x) {
     DstScope *scope = &dst_v_last(c->scopes);
     int32_t i, len;
     /* Get the topmost function scope */
@@ -364,7 +383,7 @@ static int32_t dstc_const(DstCompiler *c, DstAst *ast, Dst x) {
     }
     /* Ensure not too many constsants. */
     if (len >= 0xFFFF) {
-        dstc_cerror(c, ast, "too many constants");
+        dstc_cerror(c, "too many constants");
         return 0;
     }
     dst_v_push(scope->consts, x);
@@ -372,22 +391,22 @@ static int32_t dstc_const(DstCompiler *c, DstAst *ast, Dst x) {
 }
 
 /* Load a constant into a local slot */
-static void dstc_loadconst(DstCompiler *c, DstAst *ast, Dst k, int32_t dest) {
+static void dstc_loadconst(DstCompiler *c, Dst k, int32_t dest) {
     switch (dst_type(k)) {
         case DST_NIL:
-            dstc_emit(c, ast, (dest << 8) | DOP_LOAD_NIL);
+            dstc_emit(c, (dest << 8) | DOP_LOAD_NIL);
             break;
         case DST_TRUE:
-            dstc_emit(c, ast, (dest << 8) | DOP_LOAD_TRUE);
+            dstc_emit(c, (dest << 8) | DOP_LOAD_TRUE);
             break;
         case DST_FALSE:
-            dstc_emit(c, ast, (dest << 8) | DOP_LOAD_FALSE);
+            dstc_emit(c, (dest << 8) | DOP_LOAD_FALSE);
             break;
         case DST_INTEGER:
             {
                 int32_t i = dst_unwrap_integer(k);
                 if (i <= INT16_MAX && i >= INT16_MIN) {
-                    dstc_emit(c, ast,
+                    dstc_emit(c,
                             (i << 16) |
                             (dest << 8) |
                             DOP_LOAD_INTEGER);
@@ -398,8 +417,8 @@ static void dstc_loadconst(DstCompiler *c, DstAst *ast, Dst k, int32_t dest) {
         default:
         do_constant:
             {
-                int32_t cindex = dstc_const(c, ast, k);
-                dstc_emit(c, ast,
+                int32_t cindex = dstc_const(c, k);
+                dstc_emit(c,
                         (cindex << 16) |
                         (dest << 8) |
                         DOP_LOAD_CONSTANT);
@@ -412,7 +431,6 @@ static void dstc_loadconst(DstCompiler *c, DstAst *ast, Dst k, int32_t dest) {
  * that can be used in an instruction. */
 int32_t dstc_preread(
         DstCompiler *c,
-        DstAst *ast,
         int32_t max,
         int nth,
         DstSlot s) {
@@ -424,24 +442,24 @@ int32_t dstc_preread(
 
     if (s.flags & (DST_SLOT_CONSTANT | DST_SLOT_REF)) {
         ret = dstc_lslotn(c, 0xFF, nth);
-        dstc_loadconst(c, ast, s.constant, ret);
+        dstc_loadconst(c, s.constant, ret);
         /* If we also are a reference, deref the one element array */
         if (s.flags & DST_SLOT_REF) {
-            dstc_emit(c, ast,
+            dstc_emit(c,
                     (ret << 16) |
                     (ret << 8) |
                     DOP_GET_INDEX);
         }
     } else if (s.envindex >= 0 || s.index > max) {
         ret = dstc_lslotn(c, max, nth);
-        dstc_emit(c, ast,
+        dstc_emit(c,
                 ((uint32_t)(s.index) << 24) |
                 ((uint32_t)(s.envindex) << 16) |
                 ((uint32_t)(ret) << 8) |
                 DOP_LOAD_UPVALUE);
     } else if (s.index > max) {
         ret = dstc_lslotn(c, max, nth);
-        dstc_emit(c, ast,
+        dstc_emit(c,
                 ((uint32_t)(s.index) << 16) |
                 ((uint32_t)(ret) << 8) |
                     DOP_MOVE_NEAR);
@@ -478,7 +496,6 @@ int dstc_sequal(DstSlot lhs, DstSlot rhs) {
  * be writeable (not a literal). */
 void dstc_copy(
         DstCompiler *c,
-        DstAst *ast,
         DstSlot dest,
         DstSlot src) {
     int writeback = 0;
@@ -488,7 +505,7 @@ void dstc_copy(
 
     /* Can't write to constants */
     if (dest.flags & DST_SLOT_CONSTANT) {
-        dstc_cerror(c, ast, "cannot write to constant");
+        dstc_cerror(c, "cannot write to constant");
         return;
     }
 
@@ -511,21 +528,21 @@ void dstc_copy(
     /* If dest is a near index, do some optimization */
     if (dest.envindex < 0 && dest.index >= 0 && dest.index <= 0xFF) {
         if (src.flags & DST_SLOT_CONSTANT) {
-            dstc_loadconst(c, ast, src.constant, dest.index);
+            dstc_loadconst(c, src.constant, dest.index);
         } else if (src.flags & DST_SLOT_REF) {
-            dstc_loadconst(c, ast, src.constant, dest.index);
-            dstc_emit(c, ast,
+            dstc_loadconst(c, src.constant, dest.index);
+            dstc_emit(c,
                     (dest.index << 16) |
                     (dest.index << 8) |
                     DOP_GET_INDEX);
         } else if (src.envindex >= 0) {
-            dstc_emit(c, ast,
+            dstc_emit(c,
                     (src.index << 24) |
                     (src.envindex << 16) |
                     (dest.index << 8) |
                     DOP_LOAD_UPVALUE);
         } else {
-            dstc_emit(c, ast,
+            dstc_emit(c,
                     (src.index << 16) |
                     (dest.index << 8) |
                     DOP_MOVE_NEAR);
@@ -536,15 +553,15 @@ void dstc_copy(
     /* Process: src -> srclocal -> destlocal -> dest */
 
     /* src -> srclocal */
-    srclocal = dstc_preread(c, ast, 0xFF, 1, src);
+    srclocal = dstc_preread(c, 0xFF, 1, src);
 
     /* Pull down dest (find destlocal) */
     if (dest.flags & DST_SLOT_REF) {
         writeback = 1;
         destlocal = srclocal;
         reflocal = dstc_lslotn(c, 0xFF, 2);
-        dstc_emit(c, ast,
-                (dstc_const(c, ast, dest.constant) << 16) |
+        dstc_emit(c,
+                (dstc_const(c, dest.constant) << 16) |
                 (reflocal << 8) |
                 DOP_LOAD_CONSTANT);
     } else if (dest.envindex >= 0) {
@@ -559,7 +576,7 @@ void dstc_copy(
 
     /* srclocal -> destlocal */
     if (srclocal != destlocal) {
-        dstc_emit(c, ast,
+        dstc_emit(c,
                 ((uint32_t)(srclocal) << 16) |
                 ((uint32_t)(destlocal) << 8) |
                 DOP_MOVE_NEAR);
@@ -567,18 +584,18 @@ void dstc_copy(
 
     /* destlocal -> dest */
     if (writeback == 1) {
-        dstc_emit(c, ast,
+        dstc_emit(c,
                 (destlocal << 16) |
                 (reflocal << 8) |
                 DOP_PUT_INDEX);
     } else if (writeback == 2) {
-        dstc_emit(c, ast,
+        dstc_emit(c,
                 ((uint32_t)(dest.index) << 24) |
                 ((uint32_t)(dest.envindex) << 16) |
                 ((uint32_t)(destlocal) << 8) |
                 DOP_SET_UPVALUE);
     } else if (writeback == 3) {
-        dstc_emit(c, ast,
+        dstc_emit(c,
                 ((uint32_t)(dest.index) << 16) |
                 ((uint32_t)(destlocal) << 8) |
                 DOP_MOVE_FAR);
@@ -592,13 +609,13 @@ void dstc_copy(
 }
 
 /* Generate the return instruction for a slot. */
-DstSlot dstc_return(DstCompiler *c, DstAst *ast, DstSlot s) {
+DstSlot dstc_return(DstCompiler *c, DstSlot s) {
     if (!(s.flags & DST_SLOT_RETURNED)) {
         if (s.flags & DST_SLOT_CONSTANT && dst_checktype(s.constant, DST_NIL)) {
-            dstc_emit(c, ast, DOP_RETURN_NIL);
+            dstc_emit(c, DOP_RETURN_NIL);
         } else {
-            int32_t ls = dstc_preread(c, ast, 0xFFFF, 1, s);
-            dstc_emit(c, ast, DOP_RETURN | (ls << 8));
+            int32_t ls = dstc_preread(c, 0xFFFF, 1, s);
+            dstc_emit(c, DOP_RETURN | (ls << 8));
             dstc_postread(c, s, ls);
         }
         s.flags |= DST_SLOT_RETURNED;
@@ -624,77 +641,69 @@ DstSlot dstc_gettarget(DstFopts opts) {
 }
 
 /* Get a bunch of slots for function arguments */
-DstSM *dstc_toslots(DstCompiler *c, const Dst *vals, int32_t len) {
+DstSlot *dstc_toslots(DstCompiler *c, const Dst *vals, int32_t len) {
     int32_t i;
-    DstSM *ret = NULL;
+    DstSlot *ret = NULL;
     DstFopts subopts = dstc_fopts_default(c);
     for (i = 0; i < len; i++) {
-        DstSM sm;
-        sm.slot = dstc_value(subopts, vals[i]);
-        sm.map = dst_ast_node(vals[i]);
-        dst_v_push(ret, sm);
+        dst_v_push(ret, dstc_value(subopts, vals[i]));
     }
     return ret;
 }
 
 /* Get a bunch of slots for function arguments */
-DstSM *dstc_toslotskv(DstCompiler *c, Dst ds) {
-    DstSM *ret = NULL;
+DstSlot *dstc_toslotskv(DstCompiler *c, Dst ds) {
+    DstSlot *ret = NULL;
     const DstKV *kv = NULL;
     DstFopts subopts = dstc_fopts_default(c);
     while ((kv = dstc_next(ds, kv))) {
-        DstSM km, vm;
-        km.slot = dstc_value(subopts, kv->key);
-        km.map = dst_ast_node(kv->key);
-        vm.slot = dstc_value(subopts, kv->value);
-        vm.map = dst_ast_node(kv->value);
-        dst_v_push(ret, km);
-        dst_v_push(ret, vm);
+        dst_v_push(ret, dstc_value(subopts, kv->key));
+        dst_v_push(ret, dstc_value(subopts, kv->value));
     }
     return ret;
 }
 
 /* Push slots load via dstc_toslots. */
-void dstc_pushslots(DstCompiler *c, DstAst *ast, DstSM *sms) {
+void dstc_pushslots(DstCompiler *c, DstSlot *slots) {
     int32_t i;
-    for (i = 0; i < dst_v_count(sms) - 2; i += 3) {
-        int32_t ls1 = dstc_preread(c, sms[i].map, 0xFF, 1, sms[i].slot);
-        int32_t ls2 = dstc_preread(c, sms[i + 1].map, 0xFF, 2, sms[i + 1].slot);
-        int32_t ls3 = dstc_preread(c, sms[i + 2].map, 0xFF, 3, sms[i + 2].slot);
-        dstc_emit(c, ast,
+    for (i = 0; i < dst_v_count(slots) - 2; i += 3) {
+        int32_t ls1 = dstc_preread(c, 0xFF, 1, slots[i]);
+        int32_t ls2 = dstc_preread(c, 0xFF, 2, slots[i + 1]);
+        int32_t ls3 = dstc_preread(c, 0xFF, 3, slots[i + 2]);
+        dstc_emit(c,
                 (ls3 << 24) |
                 (ls2 << 16) |
                 (ls1 << 8) |
                 DOP_PUSH_3);
-        dstc_postread(c, sms[i].slot, ls1);
-        dstc_postread(c, sms[i + 1].slot, ls2);
-        dstc_postread(c, sms[i + 2].slot, ls3);
+        dstc_postread(c, slots[i], ls1);
+        dstc_postread(c, slots[i + 1], ls2);
+        dstc_postread(c, slots[i + 2], ls3);
     }
-    if (i == dst_v_count(sms) - 2) {
-        int32_t ls1 = dstc_preread(c, sms[i].map, 0xFF, 1, sms[i].slot);
-        int32_t ls2 = dstc_preread(c, sms[i + 1].map, 0xFFFF, 2, sms[i + 1].slot);
-        dstc_emit(c, ast,
+    if (i == dst_v_count(slots) - 2) {
+        int32_t ls1 = dstc_preread(c, 0xFF, 1, slots[i]);
+        int32_t ls2 = dstc_preread(c, 0xFFFF, 2, slots[i + 1]);
+        dstc_emit(c,
                 (ls2 << 16) |
                 (ls1 << 8) |
                 DOP_PUSH_2);
-        dstc_postread(c, sms[i].slot, ls1);
-        dstc_postread(c, sms[i + 1].slot, ls2);
-    } else if (i == dst_v_count(sms) - 1) {
-        int32_t ls1 = dstc_preread(c, sms[i].map, 0xFFFFFF, 1, sms[i].slot);
-        dstc_emit(c, ast,
+        dstc_postread(c, slots[i], ls1);
+        dstc_postread(c, slots[i + 1], ls2);
+    } else if (i == dst_v_count(slots) - 1) {
+        int32_t ls1 = dstc_preread(c, 0xFFFFFF, 1, slots[i]);
+        dstc_emit(c,
                 (ls1 << 8) |
                 DOP_PUSH);
-        dstc_postread(c, sms[i].slot, ls1);
+        dstc_postread(c, slots[i], ls1);
     }
 }
 
 /* Free slots loaded via dstc_toslots */
-void dstc_freeslots(DstCompiler *c, DstSM *sms) {
+void dstc_freeslots(DstCompiler *c, DstSlot *slots) {
     int32_t i;
-    for (i = 0; i < dst_v_count(sms); i++) {
-        dstc_freeslot(c, sms[i].slot);
+    for (i = 0; i < dst_v_count(slots); i++) {
+        dstc_freeslot(c, slots[i]);
     }
-    dst_v_free(sms);
+    dst_v_free(slots);
 }
 
 /* Compile some code that will be thrown away. Used to ensure
@@ -715,7 +724,7 @@ void dstc_throwaway(DstFopts opts, Dst x) {
 }
 
 /* Compile a call or tailcall instruction */
-static DstSlot dstc_call(DstFopts opts, DstAst *ast, DstSM *sms, DstSlot fun) {
+static DstSlot dstc_call(DstFopts opts, DstSlot *slots, DstSlot fun) {
     DstSlot retslot;
     int32_t localindex;
     DstCompiler *c = opts.compiler;
@@ -723,57 +732,57 @@ static DstSlot dstc_call(DstFopts opts, DstAst *ast, DstSM *sms, DstSlot fun) {
     if (fun.flags & DST_SLOT_CONSTANT) {
         if (dst_checktype(fun.constant, DST_CFUNCTION)) {
             const DstCFunOptimizer *o = dstc_cfunopt(dst_unwrap_cfunction(fun.constant));
-            if (o && o->can_optimize(opts, ast, sms)) {
+            if (o && o->can_optimize(opts, slots)) {
                 specialized = 1;
-                retslot = o->optimize(opts, ast, sms);
+                retslot = o->optimize(opts, slots);
             }
         }
         /* TODO dst function inlining (no c functions)*/
     }
     if (!specialized) {
-        dstc_pushslots(c, ast, sms);
-        localindex = dstc_preread(c, ast, 0xFF, 1, fun);
+        dstc_pushslots(c, slots);
+        localindex = dstc_preread(c, 0xFF, 1, fun);
         if (opts.flags & DST_FOPTS_TAIL) {
-            dstc_emit(c, ast, (localindex << 8) | DOP_TAILCALL);
+            dstc_emit(c, (localindex << 8) | DOP_TAILCALL);
             retslot = dstc_cslot(dst_wrap_nil());
             retslot.flags = DST_SLOT_RETURNED;
         } else {
             retslot = dstc_gettarget(opts);
-            dstc_emit(c, ast, (localindex << 16) | (retslot.index << 8) | DOP_CALL);
+            dstc_emit(c, (localindex << 16) | (retslot.index << 8) | DOP_CALL);
         }
         dstc_postread(c, fun, localindex);
     }
-    dstc_freeslots(c, sms);
+    dstc_freeslots(c, slots);
     return retslot;
 }
 
-static DstSlot dstc_array(DstFopts opts, DstAst *ast, Dst x) {
+static DstSlot dstc_array(DstFopts opts, Dst x) {
     DstCompiler *c = opts.compiler;
     DstArray *a = dst_unwrap_array(x);
-    return dstc_call(opts, ast,
+    return dstc_call(opts,
             dstc_toslots(c, a->data, a->count),
             dstc_cslot(dst_wrap_cfunction(dst_core_array)));
 }
 
-static DstSlot dstc_tablector(DstFopts opts, DstAst *ast, Dst x, DstCFunction cfun) {
+static DstSlot dstc_tablector(DstFopts opts, Dst x, DstCFunction cfun) {
     DstCompiler *c = opts.compiler;
-    return dstc_call(opts, ast, dstc_toslotskv(c, x), dstc_cslot(dst_wrap_cfunction(cfun)));
+    return dstc_call(opts, dstc_toslotskv(c, x), dstc_cslot(dst_wrap_cfunction(cfun)));
 }
 
-static DstSlot dstc_bufferctor(DstFopts opts, DstAst *ast, Dst x) {
+static DstSlot dstc_bufferctor(DstFopts opts, Dst x) {
     DstCompiler *c = opts.compiler;
     DstBuffer *b = dst_unwrap_buffer(x);
     Dst onearg = dst_stringv(b->data, b->count);
-    return dstc_call(opts, ast,
+    return dstc_call(opts,
             dstc_toslots(c, &onearg, 1),
             dstc_cslot(dst_wrap_cfunction(dst_core_buffer)));
 }
 
 /* Compile a symbol */
-DstSlot dstc_symbol(DstFopts opts, DstAst *ast, const uint8_t *sym) {
+DstSlot dstc_symbol(DstFopts opts, const uint8_t *sym) {
     if (dst_string_length(sym) && sym[0] != ':') {
         /* Non keyword */
-        return dstc_resolve(opts.compiler, ast, sym);
+        return dstc_resolve(opts.compiler, sym);
     } else {
         /* Keyword */
         return dstc_cslot(dst_wrap_symbol(sym));
@@ -783,18 +792,16 @@ DstSlot dstc_symbol(DstFopts opts, DstAst *ast, const uint8_t *sym) {
 /* Compile a single value */
 DstSlot dstc_value(DstFopts opts, Dst x) {
     DstSlot ret;
-    DstAst *ast;
     DstCompiler *c = opts.compiler;
     int macrorecur = 0;
     opts.compiler->recursion_guard--;
-    ast = dst_ast_node(x);
-    x = dst_ast_unwrap1(x);
+    dstc_ast_push(c, x);
 recur:
     if (dstc_iserr(&opts)) {
         return dstc_cslot(dst_wrap_nil());
     }
     if (opts.compiler->recursion_guard <= 0) {
-        dstc_cerror(opts.compiler, ast, "recursed too deeply");
+        dstc_cerror(opts.compiler, "recursed too deeply");
         return dstc_cslot(dst_wrap_nil());
     }
     switch (dst_type(x)) {
@@ -804,7 +811,7 @@ recur:
         case DST_SYMBOL:
             {
                 const uint8_t *sym = dst_unwrap_symbol(x);
-                ret = dstc_symbol(opts, ast, sym);
+                ret = dstc_symbol(opts, sym);
                 break;
             }
         case DST_TUPLE:
@@ -820,12 +827,12 @@ recur:
                     ret = dstc_cslot(x);
                 } else {
                     /* Symbols could be specials */
-                    headval = dst_ast_unwrap1(tup[0]);
+                    headval = tup[0];
                     if (dst_checktype(headval, DST_SYMBOL)) {
                         const uint8_t *headsym = dst_unwrap_symbol(headval);
                         const DstSpecial *s = dstc_special(headsym);
                         if (NULL != s) {
-                            ret = s->compile(opts, ast, dst_tuple_length(tup) - 1, tup + 1);
+                            ret = s->compile(opts, dst_tuple_length(tup) - 1, tup + 1);
                             compiled = 1;
                         } else {
                             /* Check macro */
@@ -834,7 +841,7 @@ recur:
                             if (btype == DST_BINDING_MACRO &&
                                     dst_checktype(macVal, DST_FUNCTION)) {
                                 if (macrorecur++ > DST_RECURSION_GUARD) {
-                                    dstc_cerror(c, ast, "macro expansion recursed too deeply");
+                                    dstc_cerror(c, "macro expansion recursed too deeply");
                                     return dstc_cslot(dst_wrap_nil());
                                 } else {
                                     DstFunction *f = dst_unwrap_function(macVal);
@@ -843,7 +850,7 @@ recur:
                                     dst_gcunlock(lock);
                                     if (status != DST_SIGNAL_OK) {
                                         const uint8_t *es = dst_formatc("error in macro expansion: %V", x);
-                                        dstc_error(c, ast, es);
+                                        dstc_error(c, es);
                                     }
                                     /* Tail recur on the value */
                                     goto recur;
@@ -856,35 +863,37 @@ recur:
                         subopts.flags = DST_FUNCTION | DST_CFUNCTION;
                         head = dstc_value(subopts, tup[0]);
                         /* Add compile function call */
-                        ret = dstc_call(opts, ast, dstc_toslots(c, tup + 1, dst_tuple_length(tup) - 1), head);
+                        ret = dstc_call(opts, dstc_toslots(c, tup + 1, dst_tuple_length(tup) - 1), head);
                     }
                 }
             }
             break;
         case DST_ARRAY:
-            ret = dstc_array(opts, ast, x);
+            ret = dstc_array(opts, x);
             break;
         case DST_STRUCT:
-            ret = dstc_tablector(opts, ast, x, dst_core_struct);
+            ret = dstc_tablector(opts, x, dst_core_struct);
             break;
         case DST_TABLE:
-            ret = dstc_tablector(opts, ast, x, dst_core_table);
+            ret = dstc_tablector(opts, x, dst_core_table);
             break;
         case DST_BUFFER:
-            ret = dstc_bufferctor(opts, ast, x);
+            ret = dstc_bufferctor(opts, x);
             break;
     }
     if (dstc_iserr(&opts)) {
         return dstc_cslot(dst_wrap_nil());
     }
     if (opts.flags & DST_FOPTS_TAIL) {
-        ret = dstc_return(opts.compiler, ast, ret);
+        ret = dstc_return(opts.compiler, ret);
     }
     if (opts.flags & DST_FOPTS_HINT && !dstc_sequal(opts.hint, ret)) {
-        dstc_copy(opts.compiler, ast, opts.hint, ret);
+        dstc_copy(opts.compiler, opts.hint, ret);
         ret = opts.hint;
     }
     opts.compiler->recursion_guard++;
+    /* Only pop on good path in case of error. */
+    dstc_ast_pop(c);
     return ret;
 }
 
@@ -906,7 +915,7 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
     def->defs_length = dst_v_count(scope.defs);
     def->defs = dst_v_flatten(scope.defs);
 
-    /* Copy bytecode */
+    /* Copy bytecode (only last chunk) */
     def->bytecode_length = dst_v_count(c->buffer) - scope.bytecode_start;
     if (def->bytecode_length) {
         size_t s = sizeof(int32_t) * def->bytecode_length;
@@ -924,19 +933,15 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
                 DST_OUT_OF_MEMORY;
             }
             for (i = 0; i < dst_v_count(c->mapbuffer); i++) {
-                DstAst *a = c->mapbuffer[i];
-                DstSourceMapping mapping;
-                if (a) {
-                    mapping.start = a->source_start;
-                    mapping.end = a->source_end;
-                } else {
-                    mapping.start = -1;
-                    mapping.end = -1;
-                }
-                def->sourcemap[i] = mapping;
+                def->sourcemap[i] = c->mapbuffer[i];
             }
             dst_v__cnt(c->mapbuffer) = scope.bytecode_start;
         }
+    }
+
+    /* Get source from parser */
+    if (c->parser && (c->parser->flags & DST_PARSEFLAG_SOURCEMAP)) {
+        def->source = dst_to_string(c->parser->source);
     }
 
     def->arity = 0;
@@ -952,12 +957,14 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
 }
 
 /* Initialize a compiler */
-static void dstc_init(DstCompiler *c, DstTable *env) {
+static void dstc_init(DstCompiler *c, DstTable *env, DstParser *p) {
     c->scopes = NULL;
     c->buffer = NULL;
     c->mapbuffer = NULL;
     c->recursion_guard = DST_RECURSION_GUARD;
     c->env = env;
+    c->parser = p;
+    c->ast_stack = NULL;
     /* Init result */
     c->result.error = NULL;
     c->result.status = DST_COMPILE_OK;
@@ -972,16 +979,17 @@ static void dstc_deinit(DstCompiler *c) {
     dst_v_free(c->scopes);
     dst_v_free(c->buffer);
     dst_v_free(c->mapbuffer);
+    dst_v_free(c->ast_stack);
     c->env = NULL;
 }
 
 /* Compile a form. */
-DstCompileResult dst_compile(Dst source, DstTable *env, int flags) {
+DstCompileResult dst_compile(Dst source, DstTable *env, int flags, DstParser *p) {
     DstCompiler c;
     DstFopts fopts;
     (void) flags;
 
-    dstc_init(&c, env);
+    dstc_init(&c, env, p);
 
     /* Push a function scope */
     dstc_scope(&c, DST_SCOPE_FUNCTION | DST_SCOPE_TOP);
@@ -1010,9 +1018,15 @@ int dst_compile_cfun(DstArgs args) {
     DstCompileResult res;
     DstTable *t;
     DstTable *env;
-    DST_FIXARITY(args, 2);
+    DST_MINARITY(args, 2);
+    DST_MAXARITY(args, 3);
     DST_ARG_TABLE(env, args, 1);
-    res = dst_compile(args.v[0], env, 0);
+    DstParser *p = NULL;
+    if (args.n == 3) {
+        p = dst_check_parser(args.v[2]);
+        if (!p) DST_THROW(args, "expected parser for second argument");
+    }
+    res = dst_compile(args.v[0], env, 0, p);
     if (res.status == DST_COMPILE_OK) {
         DST_RETURN_FUNCTION(args, dst_thunk(res.funcdef));
     } else {

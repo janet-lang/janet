@@ -1,5 +1,4 @@
 # Copyright 2017-2018 (C) Calvin Rose
-
 (do
 
 (var *should-repl* :private false)

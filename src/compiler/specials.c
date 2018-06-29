@@ -23,22 +23,13 @@
 #include <dst/dst.h>
 #include <dst/dstcorelib.h>
 #include <dst/dstcompile.h>
-#include <dst/dstparse.h>
 #include "compile.h"
 #include <headerlibs/strbinsearch.h>
 #include <headerlibs/vector.h>
 
-DstSlot dstc_quote(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+DstSlot dstc_quote(DstFopts opts, int32_t argn, const Dst *argv) {
     if (argn != 1) {
-        dstc_cerror(opts.compiler, ast, "expected 1 argument");
-        return dstc_cslot(dst_wrap_nil());
-    }
-    return dstc_cslot(dst_ast_unwrap(argv[0]));
-}
-
-DstSlot dstc_astquote(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
-    if (argn != 1) {
-        dstc_cerror(opts.compiler, ast, "expected 1 argument");
+        dstc_cerror(opts.compiler, "expected 1 argument");
         return dstc_cslot(dst_wrap_nil());
     }
     return dstc_cslot(argv[0]);
@@ -46,20 +37,17 @@ DstSlot dstc_astquote(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv)
 
 static void destructure(DstCompiler *c, Dst left, DstSlot right,
         void (*leaf)(DstCompiler *c,
-            DstAst *ast,
             const uint8_t *sym,
             DstSlot s,
             DstTable *attr),
         DstTable *attr) {
-    DstAst *ast = dst_ast_node(left);
-    left = dst_ast_unwrap1(left);
     switch (dst_type(left)) {
         default:
-            dstc_cerror(c, ast, "unexpected type in destructuring");
+            dstc_cerror(c, "unexpected type in destructuring");
             break;
         case DST_SYMBOL:
             /* Leaf, assign right to left */
-            leaf(c, ast, dst_unwrap_symbol(left), right, attr);
+            leaf(c, dst_unwrap_symbol(left), right, attr);
             break;
         case DST_TUPLE:
         case DST_ARRAY:
@@ -70,18 +58,18 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
                 for (i = 0; i < len; i++) {
                     DstSlot newright;
                     Dst subval = values[i];
-                    localright = dstc_preread(c, ast, 0xFF, 1, right);
+                    localright = dstc_preread(c, 0xFF, 1, right);
                     localsub = dstc_lslotn(c, 0xFF, 3);
                     if (i < 0x100) {
-                        dstc_emit(c, ast,
+                        dstc_emit(c,
                                 (i << 24) |
                                 (localright << 16) |
                                 (localsub << 8) |
                                 DOP_GET_INDEX);
                     } else {
                         DstSlot islot = dstc_cslot(dst_wrap_integer(i));
-                        int32_t locali = dstc_preread(c, ast, 0xFF, 2, islot);
-                        dstc_emit(c, ast,
+                        int32_t locali = dstc_preread(c, 0xFF, 2, islot);
+                        dstc_emit(c,
                                 (locali << 24) |
                                 (localright << 16) |
                                 (localsub << 8) |
@@ -109,10 +97,10 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
                     DstSlot newright;
                     DstSlot kslot = dstc_value(dstc_fopts_default(c), kv->key);
                     Dst subval = kv->value;
-                    localright = dstc_preread(c, ast, 0xFF, 1, right);
+                    localright = dstc_preread(c, 0xFF, 1, right);
                     localsub = dstc_lslotn(c, 0xFF, 3);
-                    int32_t localk = dstc_preread(c, ast, 0xFF, 2, kslot);
-                    dstc_emit(c, ast,
+                    int32_t localk = dstc_preread(c, 0xFF, 2, kslot);
+                    dstc_emit(c,
                             (localk << 24) |
                             (localright << 16) |
                             (localsub << 8) |
@@ -134,28 +122,28 @@ static void destructure(DstCompiler *c, Dst left, DstSlot right,
 
 }
 
-DstSlot dstc_varset(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+DstSlot dstc_varset(DstFopts opts, int32_t argn, const Dst *argv) {
     DstFopts subopts = dstc_fopts_default(opts.compiler);
     DstSlot ret, dest;
     Dst head;
     if (argn != 2) {
-        dstc_cerror(opts.compiler, ast, "expected 2 arguments");
+        dstc_cerror(opts.compiler, "expected 2 arguments");
         return dstc_cslot(dst_wrap_nil());
     }
-    head = dst_ast_unwrap(argv[0]);
+    head = argv[0];
     if (!dst_checktype(head, DST_SYMBOL)) {
-        dstc_cerror(opts.compiler, ast, "expected symbol");
+        dstc_cerror(opts.compiler, "expected symbol");
         return dstc_cslot(dst_wrap_nil());
     }
-    dest = dstc_resolve(opts.compiler, ast, dst_unwrap_symbol(head));
+    dest = dstc_resolve(opts.compiler, dst_unwrap_symbol(head));
     if (!(dest.flags & DST_SLOT_MUTABLE)) {
-        dstc_cerror(opts.compiler, ast, "cannot set constant");
+        dstc_cerror(opts.compiler, "cannot set constant");
         return dstc_cslot(dst_wrap_nil());
     }
     subopts.flags = DST_FOPTS_HINT;
     subopts.hint = dest;
     ret = dstc_value(subopts, argv[1]);
-    dstc_copy(opts.compiler, ast, dest, ret);
+    dstc_copy(opts.compiler, dest, ret);
     return ret;
 }
 
@@ -164,10 +152,10 @@ static DstTable *handleattr(DstCompiler *c, int32_t argn, const Dst *argv) {
     int32_t i;
     DstTable *tab = dst_table(2);
     for (i = 1; i < argn - 1; i++) {
-        Dst attr = dst_ast_unwrap1(argv[i]);
+        Dst attr = argv[i];
         switch (dst_type(attr)) {
             default:
-                dstc_cerror(c, dst_ast_node(argv[i]), "could not add metadata to binding");
+                dstc_cerror(c, "could not add metadata to binding");
                 break;
             case DST_SYMBOL:
                 dst_table_put(tab, attr, dst_wrap_true());
@@ -180,14 +168,14 @@ static DstTable *handleattr(DstCompiler *c, int32_t argn, const Dst *argv) {
     return tab;
 }
 
-static DstSlot dohead(DstCompiler *c, DstFopts opts, DstAst *ast, Dst *head, int32_t argn, const Dst *argv) {
+static DstSlot dohead(DstCompiler *c, DstFopts opts, Dst *head, int32_t argn, const Dst *argv) {
     DstFopts subopts = dstc_fopts_default(c);
     DstSlot ret;
     if (argn < 2) {
-        dstc_cerror(c, ast, "expected at least 2 arguments");
+        dstc_cerror(c, "expected at least 2 arguments");
         return dstc_cslot(dst_wrap_nil());
     }
-    *head = dst_ast_unwrap1(argv[0]);
+    *head = argv[0];
     subopts.flags = opts.flags & ~(DST_FOPTS_TAIL | DST_FOPTS_DROP);
     subopts.hint = opts.hint;
     ret = dstc_value(subopts, argv[argn - 1]);
@@ -195,7 +183,7 @@ static DstSlot dohead(DstCompiler *c, DstFopts opts, DstAst *ast, Dst *head, int
 }
 
 /* Def or var a symbol in a local scope */
-static DstSlot namelocal(DstCompiler *c, DstAst *ast, Dst head, int32_t flags, DstSlot ret) {
+static DstSlot namelocal(DstCompiler *c, Dst head, int32_t flags, DstSlot ret) {
     /* Non root scope, bring to local slot */
     if (ret.flags & DST_SLOT_NAMED ||
             ret.envindex >= 0 ||
@@ -208,7 +196,7 @@ static DstSlot namelocal(DstCompiler *c, DstAst *ast, Dst head, int32_t flags, D
         localslot.flags = flags;
         localslot.envindex = -1;
         localslot.constant = dst_wrap_nil();
-        dstc_copy(c, ast, localslot, ret);
+        dstc_copy(c, localslot, ret);
         ret = localslot;
     }
     ret.flags |= flags;
@@ -218,7 +206,6 @@ static DstSlot namelocal(DstCompiler *c, DstAst *ast, Dst head, int32_t flags, D
 
 static void varleaf(
         DstCompiler *c,
-        DstAst *ast,
         const uint8_t *sym,
         DstSlot s,
         DstTable *attr) {
@@ -235,23 +222,23 @@ static void varleaf(
         refarrayslot = refslot;
         refslot.flags |= DST_SLOT_REF | DST_SLOT_NAMED | DST_SLOT_MUTABLE;
         /* Generate code to set ref */
-        int32_t refarrayindex = dstc_preread(c, ast, 0xFF, 1, refarrayslot);
-        int32_t retindex = dstc_preread(c, ast, 0xFF, 2, s);
-        dstc_emit(c, ast,
+        int32_t refarrayindex = dstc_preread(c, 0xFF, 1, refarrayslot);
+        int32_t retindex = dstc_preread(c, 0xFF, 2, s);
+        dstc_emit(c,
                 (retindex << 16) |
                 (refarrayindex << 8) |
                 DOP_PUT_INDEX);
         dstc_postread(c, refarrayslot, refarrayindex);
         dstc_postread(c, s, retindex);
     } else {
-        namelocal(c, ast, dst_wrap_symbol(sym), DST_SLOT_NAMED | DST_SLOT_MUTABLE, s) ;
+        namelocal(c, dst_wrap_symbol(sym), DST_SLOT_NAMED | DST_SLOT_MUTABLE, s) ;
     }
 }
 
-DstSlot dstc_var(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+DstSlot dstc_var(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     Dst head;
-    DstSlot ret = dohead(c, opts, ast, &head, argn, argv);
+    DstSlot ret = dohead(c, opts, &head, argn, argv);
     if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
     destructure(c, argv[0], ret, varleaf, handleattr(c, argn, argv));
     return dstc_cslot(dst_wrap_nil());
@@ -259,7 +246,6 @@ DstSlot dstc_var(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
 
 static void defleaf(
         DstCompiler *c,
-        DstAst *ast,
         const uint8_t *sym,
         DstSlot s,
         DstTable *attr) {
@@ -274,10 +260,10 @@ static void defleaf(
         dst_table_put(c->env, dst_wrap_symbol(sym), dst_wrap_table(tab));
 
         /* Put value in table when evaulated */
-        tableindex = dstc_preread(c, ast, 0xFF, 1, tabslot);
-        valsymindex = dstc_preread(c, ast, 0xFF, 2, valsym);
-        valueindex = dstc_preread(c, ast, 0xFF, 3, s);
-        dstc_emit(c, ast,
+        tableindex = dstc_preread(c, 0xFF, 1, tabslot);
+        valsymindex = dstc_preread(c, 0xFF, 2, valsym);
+        valueindex = dstc_preread(c, 0xFF, 3, s);
+        dstc_emit(c,
                 (valueindex << 24) |
                 (valsymindex << 16) |
                 (tableindex << 8) |
@@ -286,15 +272,15 @@ static void defleaf(
         dstc_postread(c, valsym, valsymindex);
         dstc_postread(c, s, valueindex);
     } else {
-        namelocal(c, ast, dst_wrap_symbol(sym), DST_SLOT_NAMED, s);
+        namelocal(c, dst_wrap_symbol(sym), DST_SLOT_NAMED, s);
     }
 }
 
-DstSlot dstc_def(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     Dst head;
     opts.flags &= ~DST_FOPTS_HINT;
-    DstSlot ret = dohead(c, opts, ast, &head, argn, argv);
+    DstSlot ret = dohead(c, opts, &head, argn, argv);
     if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
     destructure(c, argv[0], ret, defleaf, handleattr(c, argn, argv));
     return dstc_cslot(dst_wrap_nil());
@@ -311,7 +297,7 @@ DstSlot dstc_def(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
  * ...
  * :done
  */
-DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     int32_t labelr, labeljr, labeld, labeljd, condlocal;
     DstFopts condopts, bodyopts;
@@ -321,7 +307,7 @@ DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     const int drop = opts.flags & DST_FOPTS_DROP;
 
     if (argn < 2 || argn > 3) {
-        dstc_cerror(c, ast, "expected 2 or 3 arguments to if");
+        dstc_cerror(c, "expected 2 or 3 arguments to if");
         return dstc_cslot(dst_wrap_nil());
     }
 
@@ -358,27 +344,27 @@ DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
         : dstc_gettarget(opts);
 
     /* Compile jump to right */
-    condlocal = dstc_preread(c, ast, 0xFF, 1, cond);
+    condlocal = dstc_preread(c, 0xFF, 1, cond);
     labeljr = dst_v_count(c->buffer);
-    dstc_emit(c, ast, DOP_JUMP_IF_NOT | (condlocal << 8));
+    dstc_emit(c, DOP_JUMP_IF_NOT | (condlocal << 8));
     dstc_postread(c, cond, condlocal);
     dstc_freeslot(c, cond);
 
     /* Condition left body */
     dstc_scope(c, 0);
     left = dstc_value(bodyopts, truebody);
-    if (!drop && !tail) dstc_copy(c, ast, target, left);
+    if (!drop && !tail) dstc_copy(c, target, left);
     dstc_popscope(c);
 
     /* Compile jump to done */
     labeljd = dst_v_count(c->buffer);
-    if (!tail) dstc_emit(c, ast, DOP_JUMP);
+    if (!tail) dstc_emit(c, DOP_JUMP);
 
     /* Compile right body */
     labelr = dst_v_count(c->buffer);
     dstc_scope(c, 0);
     right = dstc_value(bodyopts, falsebody);
-    if (!drop && !tail) dstc_copy(c, ast, target, right);
+    if (!drop && !tail) dstc_copy(c, target, right);
     dstc_popscope(c);
 
     /* Write jumps - only add jump lengths if jump actually emitted */
@@ -392,12 +378,11 @@ DstSlot dstc_if(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
 
 /* Compile a do form. Do forms execute their body sequentially and
  * evaluate to the last expression in the body. */
-DstSlot dstc_do(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+DstSlot dstc_do(DstFopts opts, int32_t argn, const Dst *argv) {
     int32_t i;
     DstSlot ret = dstc_cslot(dst_wrap_nil());
     DstCompiler *c = opts.compiler;
     DstFopts subopts = dstc_fopts_default(c);
-    (void) ast;
     dstc_scope(c, 0);
     for (i = 0; i < argn; i++) {
         if (i != argn - 1) {
@@ -423,7 +408,7 @@ DstSlot dstc_do(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
  * jump :whiletop
  * :done
  */
-DstSlot dstc_while(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     DstSlot cond;
     DstFopts subopts = dstc_fopts_default(c);
@@ -431,7 +416,7 @@ DstSlot dstc_while(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     int infinite = 0;
 
     if (argn < 2) {
-        dstc_cerror(c, ast, "expected at least 2 arguments");
+        dstc_cerror(c, "expected at least 2 arguments");
         return dstc_cslot(dst_wrap_nil());
     }
 
@@ -454,9 +439,9 @@ DstSlot dstc_while(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
 
     /* Infinite loop does not need to check condition */
     if (!infinite) {
-        condlocal = dstc_preread(c, ast, 0xFF, 1, cond);
+        condlocal = dstc_preread(c, 0xFF, 1, cond);
         labelc = dst_v_count(c->buffer);
-        dstc_emit(c, ast, DOP_JUMP_IF_NOT | (condlocal << 8));
+        dstc_emit(c, DOP_JUMP_IF_NOT | (condlocal << 8));
         dstc_postread(c, cond, condlocal);
     } else {
         labelc = 0;
@@ -470,7 +455,7 @@ DstSlot dstc_while(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
 
     /* Compile jump to whiletop */
     labeljt = dst_v_count(c->buffer);
-    dstc_emit(c, ast, DOP_JUMP);
+    dstc_emit(c, DOP_JUMP);
 
     /* Calculate jumps */
     labeld = dst_v_count(c->buffer);
@@ -496,7 +481,7 @@ static int32_t dstc_addfuncdef(DstCompiler *c, DstFuncDef *def) {
     return dst_v_count(scope->defs) - 1;
 }
 
-DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
+DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     DstFuncDef *def;
     DstSlot ret;
@@ -508,7 +493,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     int selfref = 0;
 
     if (argn < 2) {
-        dstc_cerror(c, ast, "expected at least 2 arguments to function literal");
+        dstc_cerror(c, "expected at least 2 arguments to function literal");
         return dstc_cslot(dst_wrap_nil());
     }
 
@@ -518,26 +503,26 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     /* Read function parameters */
     parami = 0;
     arity = 0;
-    head = dst_ast_unwrap1(argv[0]);
+    head = argv[0];
     if (dst_checktype(head, DST_SYMBOL)) {
         selfref = 1;
         parami = 1;
     }
     if (parami >= argn) {
-        dstc_cerror(c, dst_ast_node(argv[0]), "expected function parameters");
+        dstc_cerror(c, "expected function parameters");
         return dstc_cslot(dst_wrap_nil());
     }
-    paramv = dst_ast_unwrap(argv[parami]);
+    paramv = argv[parami];
     if (dst_seq_view(paramv, &params, &paramcount)) {
         int32_t i;
         for (i = 0; i < paramcount; i++) {
-            Dst param = dst_ast_unwrap1(params[i]);
+            Dst param = params[i];
             if (dst_checktype(param, DST_SYMBOL)) {
                 DstSlot slot;
                 /* Check for varargs */
                 if (0 == dst_cstrcmp(dst_unwrap_symbol(param), "&")) {
                     if (i != paramcount - 2) {
-                        dstc_cerror(c, dst_ast_node(params[i]), "variable argument symbol in unexpected location");
+                        dstc_cerror(c, "variable argument symbol in unexpected location");
                         return dstc_cslot(dst_wrap_nil());
                     }
                     varargs = 1;
@@ -560,7 +545,7 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
             arity++;
         }
     } else {
-        dstc_cerror(c, ast, "expected function parameters");
+        dstc_cerror(c, "expected function parameters");
         return dstc_cslot(dst_wrap_nil());
     }
 
@@ -571,13 +556,13 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
         slot.flags = DST_SLOT_NAMED | DST_FUNCTION;
         slot.constant = dst_wrap_nil();
         slot.index = dstc_lsloti(c);
-        dstc_emit(c, ast, (slot.index << 8) | DOP_LOAD_SELF);
+        dstc_emit(c, (slot.index << 8) | DOP_LOAD_SELF);
         dstc_nameslot(c, dst_unwrap_symbol(head), slot);
     }
 
     /* Compile function body */
     if (parami + 1 == argn) {
-        dstc_emit(c, ast, DOP_RETURN_NIL);
+        dstc_emit(c, DOP_RETURN_NIL);
     } else for (argi = parami + 1; argi < argn; argi++) {
         DstSlot s;
         subopts.flags = argi == (argn - 1) ? DST_FOPTS_TAIL : DST_FOPTS_DROP;
@@ -600,13 +585,13 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
     ret = dstc_gettarget(opts);
 
     localslot = ret.index > 0xF0 ? 0xF1 : ret.index;
-    dstc_emit(c, ast,
+    dstc_emit(c,
             (defindex << 16) |
             (localslot << 8) |
             DOP_CLOSURE);
 
     if (ret.index != localslot) {
-        dstc_emit(c, ast,
+        dstc_emit(c,
                 (ret.index << 16) |
                 (localslot << 8) |
                 DOP_MOVE_FAR);
@@ -618,7 +603,6 @@ DstSlot dstc_fn(DstFopts opts, DstAst *ast, int32_t argn, const Dst *argv) {
 /* Keep in lexicographic order */
 static const DstSpecial dstc_specials[] = {
     {":=", dstc_varset},
-    {"ast-quote", dstc_astquote},
     {"def", dstc_def},
     {"do", dstc_do},
     {"fn", dstc_fn},

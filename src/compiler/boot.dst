@@ -16,7 +16,7 @@
   (fn [name & more]
    (def len (length more))
    (def fstart (fn recur [i]
-    (def ith (ast.unwrap1 (get more i)))
+    (def {i ith} more)
     (def t (type ith))
     (def tuple? (= t :tuple))
     (def array? (= t :array))
@@ -189,7 +189,7 @@ evaluates to 10."
 has an odd number of arguments, the last is the default expression.
 If no match is found, returns nil"
  [dispatch & pairs]
-  (def atm (atomic? (ast.unwrap1 dispatch)))
+  (def atm (atomic? dispatch))
   (def sym (if atm dispatch (gensym)))
   (defn aux [i]
     (def restlen (- (length pairs) i))
@@ -209,15 +209,14 @@ If no match is found, returns nil"
 assigned as if with def, and the body of the let form returns the last
 value."
  [bindings & body]
-  (def head (ast.unwrap1 bindings))
-  (if (odd? (length head)) (error "expected even number of bindings to let"))
-  (def len (length head))
+  (if (odd? (length bindings)) (error "expected even number of bindings to let"))
+  (def len (length bindings))
   (var i 0)
   (var accum @['do])
   (while (< i len)
    (array.push accum (tuple 'def
-                     (get head i)
-                     (get head (+ 1 i))))
+                     (get bindings i)
+                     (get bindings (+ 1 i))))
    (+= i 2))
   (array.concat accum body)
   (apply1 tuple accum))
@@ -225,21 +224,19 @@ value."
 (defmacro loop
   "A general purpose loop macro."
   [head & body]
-  (def head1 (ast.unwrap1 head))
-  (def len (length head1))
+  (def len (length head))
   (defn doone
     [i preds]
     (default preds @['and])
     (if (>= i len)
       (tuple.prepend body 'do)
       (do
-        (def bindings (get head1 i))
-        (def ubindings (ast.unwrap1 bindings))
-        (def verb (ast.unwrap1 (get head1 (+ i 1))))
-        (def object (ast.unwrap1 (get head1 (+ i 2))))
-        (if (keyword? ubindings)
+        (def bindings (get head i))
+        (def verb (get head (+ i 1)))
+        (def object (get head (+ i 2)))
+        (if (keyword? bindings)
           (switch
-            ubindings
+            bindings
             :while (do
                      (array.push preds verb)
                      (doone (+ i 2) preds))
@@ -249,7 +246,7 @@ value."
           (switch
             verb
             :range (do
-                     (def [start end _inc] (ast.unwrap1 object))
+                     (def [start end _inc] object)
                      (def inc (if _inc _inc 1))
                      (def endsym (gensym))
                      (def preds @['and (tuple < bindings endsym)])
@@ -318,7 +315,7 @@ evaluates to true."
   (if
    (>= (inc i) len) fi
    (do
-    (if (atomic? (ast.unwrap1 fi))
+    (if (atomic? fi)
      (tuple 'if fi fi (aux (inc i)))
      (do
       (def $fi (gensym))
@@ -335,7 +332,6 @@ evaluates to true."
  all the forms with let and evaluates the first expression else
  evaluates the second"
   [bindings tru fal]
-  (def bindings (ast.unwrap1 bindings))
   (def len (length bindings))
   (if (zero? len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
@@ -345,7 +341,7 @@ evaluates to true."
     (if (>= i len)
      tru
      (do
-      (def atm (atomic? (ast.unwrap1 bl)))
+      (def atm (atomic? bl))
       (def sym (if atm bl (gensym)))
       (if atm
        # Simple binding
@@ -605,8 +601,7 @@ the predicate, and abort on first failure."
 in form, and inserts the modified firsts form into the second form
 in the same manner, and so on. Useful for expressing pipelines of data."
  [x & forms]
- (defn fop [last nextform]
-  (def n (ast.unwrap1 nextform))
+ (defn fop [last n]
   (def [h t] (if (= :tuple (type n))
         [tuple (get n 0) (array.slice n 1)]
         [tuple n @[]]))
@@ -619,8 +614,7 @@ in the same manner, and so on. Useful for expressing pipelines of data."
 in form, and inserts the modified firsts form into the second form
 in the same manner, and so on. Useful for expressing pipelines of data."
  [x & forms]
- (defn fop [last nextform]
-  (def n (ast.unwrap1 nextform))
+ (defn fop [last n]
   (def [h t] (if (= :tuple (type n))
         [tuple (get n 0) (array.slice n 1)]
         [tuple n @[]]))
@@ -865,7 +859,6 @@ to call on any table. Does not print table prototype information."
 
   (def specs {
       ':= expandlast
-      'ast-quote identity
       'def expandlast
       'do expandall
       'fn expandfn
@@ -894,13 +887,12 @@ to call on any table. Does not print table prototype information."
   (def res (dotable t))
   (if (= (table.to-struct res) (table.to-struct t)) t res))
 
- (def ux (ast.unwrap1 x))
- (switch (type ux)
-  :tuple (dotup ux)
-  :array (doarray* ux)
-  :struct (table.to-struct (dotable ux))
-  :table (dotable* ux)
-  ux))
+ (switch (type x)
+  :tuple (dotup x)
+  :array (doarray* x)
+  :struct (table.to-struct (dotable x))
+  :table (dotable* x)
+  x))
 
 (defn macroexpand
  "Expand macros completely."
@@ -1013,13 +1005,20 @@ onvalue."
     :pc pc
     :c c
     :name name
+    :source source
+    :source-start source-start
+    :source-end source-end
    } :in st]
    (file.write stdout "  in")
    (when c (file.write stdout " cfunction"))
    (if name
-     (file.write stdout (string " " name))
-     (when func (file.write stdout (string " " func))))
-   (when pc (file.write stdout (string " (pc=" pc ")")))
+     (file.write stdout " " name)
+     (when func (file.write stdout " " func)))
+   (if source (file.write stdout " [" source "]"))
+   (cond
+     source-start (file.write stdout " at byte range ("
+      (string source-start) ":" (string source-end) ")")
+     pc (file.write stdout " at (pc=" (string pc) ")"))
    (when tail (file.write stdout " (tailcall)"))
    (file.write stdout "\n"))))
 
@@ -1145,13 +1144,12 @@ returned from compiling and running the file."
 symbols into the current environment, prepending a given prefix as needed.
 (use the :as or :prefix option to set a prefix). If no prefix is provided,
 use the name of the module as a prefix."
-  (def upath (string (ast.unwrap path)))
   (def argm (map (fn [x]
                     (if (and (symbol? x) (= (get x 0) 58))
                       x
                       (string x)))
-                     (ast.unwrap args)))
-  (apply tuple import* '_env upath argm))
+                     args))
+  (apply tuple import* '_env (string path) argm))
 
 (defn repl [getchunk onvalue onerr]
   "Run a repl. The first parameter is an optional function to call to

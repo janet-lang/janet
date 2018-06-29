@@ -548,10 +548,6 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     x = dst_get(s, dst_csymbolv("source"));
     if (dst_checktype(x, DST_STRING)) def->source = dst_unwrap_string(x);
 
-    /* Check source path */
-    x = dst_get(s, dst_csymbolv("sourcepath"));
-    if (dst_checktype(x, DST_STRING)) def->sourcepath = dst_unwrap_string(x);
-
     /* Create slot aliases */
     x = dst_get(s, dst_csymbolv("slots"));
     if (dst_seq_view(x, &arr, &count)) {
@@ -836,10 +832,6 @@ Dst dst_disasm(DstFuncDef *def) {
     DstTable *ret = dst_table(10);
     dst_table_put(ret, dst_csymbolv("arity"), dst_wrap_integer(def->arity));
     dst_table_put(ret, dst_csymbolv("bytecode"), dst_wrap_array(bcode));
-    if (NULL != def->sourcepath) {
-        dst_table_put(ret, dst_csymbolv("sourcepath"),
-                dst_wrap_string(def->sourcepath));
-    }
     if (NULL != def->source) {
         dst_table_put(ret, dst_csymbolv("source"), dst_wrap_string(def->source));
     }

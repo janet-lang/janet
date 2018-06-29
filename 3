@@ -477,6 +477,7 @@ struct DstFuncDef {
     /* Various debug information */
     DstSourceMapping *sourcemap;
     const uint8_t *source;
+    const uint8_t *sourcepath;
     const uint8_t *name;
 
     uint32_t flags;
@@ -487,8 +488,6 @@ struct DstFuncDef {
     int32_t environments_length; 
     int32_t defs_length; 
 };
-
-#define DST_PARSEFLAG_SOURCEMAP 1
 
 /* A fuction environment */
 struct DstFuncEnv {
@@ -514,6 +513,12 @@ typedef struct {
     int32_t end;
 } DstParseKV; 
 
+typedef struct {
+    DstParseKV *kvs;
+    int32_t capacity;
+    int32_t count;
+} DstParseMap;
+
 typedef struct DstParseState DstParseState;
 typedef struct DstParser DstParser;
 
@@ -528,12 +533,11 @@ enum DstParserStatus {
 struct DstParser {
     Dst* args;
     const char *error;
+    const uint8_t *sourcelink;
     DstParseState *states;
     uint8_t *buf;
-    DstParseKV *pm_kvs;
-    int32_t pm_capacity;
-    int32_t pm_count;
-    Dst source; /* optional source path/string */
+
+    DstParseMap map; /* optional map */
     size_t argcount;
     size_t argcap;
     size_t statecount;

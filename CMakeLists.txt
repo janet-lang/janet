@@ -62,6 +62,7 @@ src/core/marsh.c
 src/core/math.c
 src/core/native.c
 src/core/os.c
+src/core/parse.c
 src/core/string.c
 src/core/strtod.c
 src/core/struct.c
@@ -87,11 +88,6 @@ src/mainclient/line.c
 src/mainclient/line.h
 )
 
-set(PARSER_SOURCES
-src/parser/ast.c
-src/parser/parse.c
-)
-
 set(TESTLIB_SOURCES
 src/testlib/testlib.c
 )
@@ -101,7 +97,6 @@ ${ASSEMBLER_SOURCES}
 ${COMPILER_SOURCES}
 ${CORE_SOURCES}
 ${MAINCLIENT_SOURCES}
-${PARSER_SOURCES}
 )
 
 # Set Public headers
@@ -112,7 +107,6 @@ src/include/dst/dstcompile.h
 src/include/dst/dstconfig.h
 src/include/dst/dstcorelib.h
 src/include/dst/dstopcodes.h
-src/include/dst/dstparse.h
 src/include/dst/dsttypes.h
 )
 
