@@ -231,9 +231,11 @@ value."
     (if (>= i len)
       (tuple.prepend body 'do)
       (do
-        (def bindings (get head i))
-        (def verb (get head (+ i 1)))
-        (def object (get head (+ i 2)))
+        (def {
+          i bindings
+          (+ i 1) verb
+          (+ i 2) object
+        } head)
         (if (keyword? bindings)
           (switch
             bindings
@@ -245,6 +247,13 @@ value."
             (error ("unexpected loop predicate: " verb)))
           (switch
             verb
+            :in-while (do
+                     (def preds @['and (tuple := bindings object)])
+                     (def subloop (doone (+ i 3) preds))
+                     (tuple 'do
+                       (tuple 'var bindings)
+                       (tuple 'while (apply1 tuple preds)
+                          subloop)))
             :range (do
                      (def [start end _inc] object)
                      (def inc (if _inc _inc 1))
@@ -463,7 +472,7 @@ an indexed type (array, tuple) with a function to produce a value."
 the same type as the input sequence."
  [f & inds]
  (def ninds (length inds))
- (if (= 0 ninds) (error "expected at least 1 indexed collection."))
+ (if (= 0 ninds) (error "expected at least 1 indexed collection"))
  (var limit (length (get inds 0)))
  (loop [i :range [0 ninds]]
   (def l (length (get inds i)))
@@ -486,7 +495,7 @@ the same type as the input sequence."
 return a new indexed type."
  [f & inds]
  (def ninds (length inds))
- (if (= 0 ninds) (error "expected at least 1 indexed collection."))
+ (if (= 0 ninds) (error "expected at least 1 indexed collection"))
  (var limit (length (get inds 0)))
  (loop [i :range [0 ninds]]
   (def l (length (get inds i)))
@@ -833,74 +842,93 @@ to call on any table. Does not print table prototype information."
  "Expand macros in a form, but do not recursively expand macros."
  [x]
 
- (defn doarray [a]
-   (map macroexpand-1 a))
-
- (defn dotable [t]
+ (defn dotable [t recur-value]
   (def newt @{})
   (var key (next t nil))
   (while (not= nil key)
-   (put newt (macroexpand-1 key) (macroexpand-1 (get t key)))
+   (put newt (macroexpand-1 key) (recur-value (get t key)))
    (:= key (next t key)))
   newt)
 
- (defn expandlast [t]
+ (defn expand-bindings [x]
+   (switch (type x)
+     :array (map expand-bindings x)
+     :tuple (apply1 tuple (map expand-bindings x))
+     :table (dotable x expand-bindings)
+     :struct (table.to-struct (dotable x expand-bindings))
+     (macroexpand-1 x)))
+
+ (defn expanddef [t]
   (def len (length t))
   (def last (get t (- len 1)))
-  (tuple.append (tuple.slice t 0 -2) (macroexpand-1 last)))
+  (def last2 (get t (- len 2)))
+  (apply1 tuple (array.concat (array.slice t 0 -3)
+    @[(expand-bindings last2) (macroexpand-1 last)])))
 
  (defn expandall [t]
-  (def args (doarray (tuple.slice t 1)))
+  (def args (map macroexpand-1 (tuple.slice t 1)))
   (apply tuple (get t 0) args))
 
  (defn expandfn [t]
-  (def args (doarray (tuple.slice t 2)))
+  (def args (map macroexpand-1 (tuple.slice t 2)))
   (apply tuple 'fn (get t 1) args))
 
-  (def specs {
-      ':= expandlast
-      'def expandlast
-      'do expandall
-      'fn expandfn
-      'if expandall
-      'quote identity
-      'var expandlast
-      'while expandall
-   })
+ (def specs {
+   ':= expanddef
+   'def expanddef
+   'do expandall
+   'fn expandfn
+   'if expandall
+   'quote identity
+   'var expanddef
+   'while expandall
+  })
 
  (defn dotup [t]
   (def h (get t 0))
   (def s (get specs h))
-  (def entry (get *env* h))
+  (def entry (or (get *env* h) {}))
   (def m (get entry :value))
   (def m? (get entry :macro))
   (cond
    s (s t)
    m? (apply1 m (tuple.slice t 1))
-   (apply1 tuple (doarray t))))
-
- (defn doarray* [a]
-  (def res (doarray a))
-  (if (= (apply tuple res) (apply tuple a)) a res))
-
- (defn dotable* [t]
-  (def res (dotable t))
-  (if (= (table.to-struct res) (table.to-struct t)) t res))
+   (apply1 tuple (map macroexpand-1 t))))
 
  (switch (type x)
   :tuple (dotup x)
-  :array (doarray* x)
-  :struct (table.to-struct (dotable x))
-  :table (dotable* x)
+  :array (map macroexpand-1 x)
+  :struct (table.to-struct (dotable x macroexpand-1))
+  :table (dotable x macroexpand-1)
   x))
+
+(defn all? [& xs]
+  (var good true)
+  (loop [x :in xs :while good] (if x nil (:= good false)))
+  good)
+
+(defn some? [& xs]
+  (var bad true)
+  (loop [x :in xs :while bad] (if x (:= bad false)))
+  (not bad))
 
 (defn macroexpand
  "Expand macros completely."
  [x]
+ (defn deep= [x y]
+  (def tx (type x))
+  (and
+    (= tx (type y))
+    (switch tx
+       :tuple (all? (map deep= x y))
+       :array (all? (map deep= x y))
+       :struct (deep= (pairs x) (pairs y))
+       :table (deep= (table.to-struct x) (table.to-struct y))
+       (= x y))))
  (var previous x)
  (var current (macroexpand-1 x))
  (var counter 0)
- (while (not= current previous)
+ (while (not (deep= current previous))
   (if (> (++ counter) 200)
    (error "macro expansion too nested"))
   (:= previous current)

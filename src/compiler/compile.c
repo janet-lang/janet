@@ -820,8 +820,7 @@ recur:
                 DstSlot head;
                 DstFopts subopts = dstc_fopts_default(c);
                 const Dst *tup = dst_unwrap_tuple(x);
-                if (!macrorecur)
-                    dstc_ast_push(c, tup);
+                dstc_ast_push(c, tup);
                 /* Empty tuple is tuple literal */
                 if (dst_tuple_length(tup) == 0) {
                     compiled = 1;
@@ -867,8 +866,9 @@ recur:
                         ret = dstc_call(opts, dstc_toslots(c, tup + 1, dst_tuple_length(tup) - 1), head);
                     }
                 }
-                /* Pop source mapping for tuple */
-                dstc_ast_pop(c);
+                /* Pop source mapping for tuple - macrorecur+1 times */
+                for (int i = 0; i <= macrorecur; i++)
+                    dstc_ast_pop(c);
             }
             break;
         case DST_ARRAY:
