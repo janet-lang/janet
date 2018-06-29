@@ -112,7 +112,8 @@ struct DstParseState {
     int32_t qcount;
     int32_t argn;
     int flags;
-    size_t start;
+    size_t start_line;
+    size_t start_col;
     Consumer consumer;
 };
 
@@ -155,7 +156,8 @@ static void pushstate(DstParser *p, Consumer consumer, int flags) {
     s.argn = 0;
     s.flags = flags;
     s.consumer = consumer;
-    s.start = p->index;
+    s.start_line = p->line;
+    s.start_col = p->col;
     _pushstate(p, s);
 }
 
@@ -168,8 +170,8 @@ static void popstate(DstParser *p, Dst val) {
         /* Quote the returned value qcount times */
         for (i = 0; i < len; i++) {
             if (dst_checktype(val, DST_TUPLE)) {
-                dst_tuple_sm_start(dst_unwrap_tuple(val)) = (int32_t) top.start;
-                dst_tuple_sm_end(dst_unwrap_tuple(val)) = (int32_t) p->index;
+                dst_tuple_sm_line(dst_unwrap_tuple(val)) = (int32_t) top.start_line;
+                dst_tuple_sm_col(dst_unwrap_tuple(val)) = (int32_t) top.start_col;
             }
             val = quote(val);
         }
@@ -177,8 +179,8 @@ static void popstate(DstParser *p, Dst val) {
 
         /* Ast wrap */
         if (dst_checktype(val, DST_TUPLE)) {
-            dst_tuple_sm_start(dst_unwrap_tuple(val)) = (int32_t) top.start;
-            dst_tuple_sm_end(dst_unwrap_tuple(val)) = (int32_t) p->index;
+            dst_tuple_sm_line(dst_unwrap_tuple(val)) = (int32_t) top.start_line;
+            dst_tuple_sm_col(dst_unwrap_tuple(val)) = (int32_t) top.start_col;
         }
 
         newtop->argn++;
@@ -518,7 +520,12 @@ static int root(DstParser *p, DstParseState *state, uint8_t c) {
 int dst_parser_consume(DstParser *parser, uint8_t c) {
     int consumed = 0;
     if (parser->error) return 0;
-    parser->index++;
+    if (c == '\n') {
+        parser->line++;
+        parser->col = 0;
+    } else if (c != '\r') {
+        parser->col++;
+    }
     while (!consumed && !parser->error) {
         DstParseState *state = parser->states + parser->statecount - 1;
         consumed = state->consumer(parser, state, c);
@@ -575,7 +582,8 @@ void dst_parser_init(DstParser *parser) {
     parser->statecount = 0;
     parser->statecap = 0;
     parser->error = NULL;
-    parser->index = 0;
+    parser->line = 1;
+    parser->col = 0;
     parser->lookback = -1;
 
     pushstate(parser, root, PFLAG_CONTAINER);
@@ -722,6 +730,17 @@ static int cfun_flush(DstArgs args) {
     DST_RETURN(args, args.v[0]);
 }
 
+static int cfun_where(DstArgs args) {
+    DstParser *p;
+    DST_FIXARITY(args, 1);
+    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
+    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
+    Dst *tup = dst_tuple_begin(2);
+    tup[0] = dst_wrap_integer((int32_t)p->line);
+    tup[1] = dst_wrap_integer((int32_t)p->col);
+    DST_RETURN_TUPLE(args, dst_tuple_end(tup));
+}
+
 static int cfun_state(DstArgs args) {
     size_t i;
     const uint8_t *str;
@@ -762,6 +781,7 @@ static const DstReg cfuns[] = {
     {"parser.status", cfun_status},
     {"parser.flush", cfun_flush},
     {"parser.state", cfun_state},
+    {"parser.where", cfun_where},
     {NULL, NULL}
 };
 

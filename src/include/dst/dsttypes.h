@@ -462,9 +462,10 @@ struct DstKV {
 #define DST_FUNCDEF_FLAG_VARARG 1
 #define DST_FUNCDEF_FLAG_NEEDSENV 4
 
+/* Source mapping structure for a bytecode instruction */
 struct DstSourceMapping {
-    int32_t start;
-    int32_t end;
+    int32_t line;
+    int32_t column;
 };
 
 /* A function definition. Contains information needed to instantiate closures. */
@@ -529,7 +530,8 @@ struct DstParser {
     size_t statecap;
     size_t bufcount;
     size_t bufcap;
-    size_t index;
+    size_t line;
+    size_t col;
     int lookback;
 };
 

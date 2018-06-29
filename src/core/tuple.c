@@ -33,8 +33,8 @@ Dst *dst_tuple_begin(int32_t length) {
     char *data = dst_gcalloc(DST_MEMORY_TUPLE, 4 * sizeof(int32_t) + length * sizeof(Dst));
     Dst *tuple = (Dst *)(data + (4 * sizeof(int32_t)));
     dst_tuple_length(tuple) = length;
-    dst_tuple_sm_start(tuple) = -1;
-    dst_tuple_sm_end(tuple) = -1;
+    dst_tuple_sm_line(tuple) = 0;
+    dst_tuple_sm_col(tuple) = 0;
     return tuple;
 }
 

@@ -958,7 +958,9 @@ onvalue."
   (while going
     (switch (parser.status p)
      :full (yield (parser.produce p))
-     :error (onerr where "parse" (string (parser.error p) " at byte index " byteindex))
+     :error (do
+       (def (line col) (parser.where p))
+       (onerr where "parse" (string (parser.error p) " on line " line ", column " col)))
      (switch (fiber.status chars)
       :new (parser.byte p (resume chars))
       :pending (parser.byte p (resume chars))
@@ -975,10 +977,10 @@ onvalue."
       (res)
       (do
        (:= good false)
-       (def {:error err :error-start errs :error-end erre} res)
+       (def {:error err :error-line errl :error-column errc} res)
        (onerr where "compile"
-              (if (<= 0 errs)
-                (string err " at (" errs ":" erre ")")
+              (if (< 0 errl)
+                (string err " on line " errl ", column " errc)
                 err)))))
    :a))
   (def res (resume f))
@@ -1013,8 +1015,8 @@ onvalue."
     :c c
     :name name
     :source source
-    :source-start source-start
-    :source-end source-end
+    :source-line source-line
+    :source-column source-col
    } :in st]
    (file.write stdout "  in")
    (when c (file.write stdout " cfunction"))
@@ -1024,8 +1026,8 @@ onvalue."
    (if source 
      (do
        (file.write stdout " [" source "]")
-       (if source-start (file.write stdout " at byte range ("
-         (string source-start) ":" (string source-end) ")")))
+       (if source-line (file.write stdout " on line "
+         (string source-line) ", column " (string source-col))))
      (if pc (file.write stdout " at (pc=" (string pc) ")")))
    (when tail (file.write stdout " (tailcall)"))
    (file.write stdout "\n"))))

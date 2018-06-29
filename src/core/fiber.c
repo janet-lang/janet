@@ -365,8 +365,8 @@ static Dst doframe(DstStackFrame *frame) {
         dst_table_put(t, dst_csymbolv(":pc"), dst_wrap_integer(off));
         if (def->sourcemap) {
             DstSourceMapping mapping = def->sourcemap[off];
-            dst_table_put(t, dst_csymbolv(":source-start"), dst_wrap_integer(mapping.start));
-            dst_table_put(t, dst_csymbolv(":source-end"), dst_wrap_integer(mapping.end));
+            dst_table_put(t, dst_csymbolv(":source-line"), dst_wrap_integer(mapping.line));
+            dst_table_put(t, dst_csymbolv(":source-column"), dst_wrap_integer(mapping.column));
         }
         if (def->source) {
             dst_table_put(t, dst_csymbolv(":source"), dst_wrap_string(def->source));

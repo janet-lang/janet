@@ -35,11 +35,11 @@ static void dstc_ast_push(DstCompiler *c, const Dst *tup) {
     if (c->result.status == DST_COMPILE_ERROR) {
         return;
     }
-    mapping.start = dst_tuple_sm_start(tup);
-    mapping.end = dst_tuple_sm_end(tup);
-    if (mapping.start < 0 || mapping.end < 0) {
+    mapping.line = dst_tuple_sm_line(tup);
+    mapping.column = dst_tuple_sm_col(tup);
+    if (!mapping.line) {
         /* Reuse previous mapping */
-        mapping = dst_v_last(c->ast_stack);
+        mapping = c->current_mapping;
     }
     dst_v_push(c->ast_stack, mapping);
     c->current_mapping = mapping;
@@ -53,8 +53,8 @@ static void dstc_ast_pop(DstCompiler *c) {
     if (dst_v_count(c->ast_stack)) {
         c->current_mapping = dst_v_last(c->ast_stack);
     } else {
-        c->current_mapping.start = -1;
-        c->current_mapping.end = -1;
+        c->current_mapping.line = 0;
+        c->current_mapping.column = 0;
     }
 }
 
@@ -964,14 +964,14 @@ static void dstc_init(DstCompiler *c, DstTable *env, const uint8_t *where) {
     c->env = env;
     c->source = where;
     c->ast_stack = NULL;
-    c->current_mapping.start = -1;
-    c->current_mapping.end = -1;
+    c->current_mapping.line = 0;
+    c->current_mapping.column = 0;
     /* Init result */
     c->result.error = NULL;
     c->result.status = DST_COMPILE_OK;
     c->result.funcdef = NULL;
-    c->result.error_mapping.start = -1;
-    c->result.error_mapping.end = -1;
+    c->result.error_mapping.line = 0;
+    c->result.error_mapping.column = 0;
 }
 
 /* Deinitialize a compiler struct */
@@ -1033,8 +1033,8 @@ int dst_compile_cfun(DstArgs args) {
     } else {
         t = dst_table(2);
         dst_table_put(t, dst_csymbolv(":error"), dst_wrap_string(res.error));
-        dst_table_put(t, dst_csymbolv(":error-start"), dst_wrap_integer(res.error_mapping.start));
-        dst_table_put(t, dst_csymbolv(":error-end"), dst_wrap_integer(res.error_mapping.end));
+        dst_table_put(t, dst_csymbolv(":error-line"), dst_wrap_integer(res.error_mapping.line));
+        dst_table_put(t, dst_csymbolv(":error-column"), dst_wrap_integer(res.error_mapping.column));
         DST_RETURN_TABLE(args, t);
     }
 }

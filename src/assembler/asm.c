@@ -709,8 +709,8 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
             if (!dst_checktype(tup[1], DST_INTEGER)) {
                 dst_asm_error(&a, "expected integer");
             }
-            mapping.start = dst_unwrap_integer(tup[0]);
-            mapping.end = dst_unwrap_integer(tup[1]);
+            mapping.line = dst_unwrap_integer(tup[0]);
+            mapping.column = dst_unwrap_integer(tup[1]);
             def->sourcemap[i] = mapping;
         }
     }
@@ -868,8 +868,8 @@ Dst dst_disasm(DstFuncDef *def) {
         for (i = 0; i < def->bytecode_length; i++) {
             Dst *t = dst_tuple_begin(2);
             DstSourceMapping mapping = def->sourcemap[i];
-            t[0] = dst_wrap_integer(mapping.start);
-            t[1] = dst_wrap_integer(mapping.end);
+            t[0] = dst_wrap_integer(mapping.line);
+            t[1] = dst_wrap_integer(mapping.column);
             sourcemap->data[i] = dst_wrap_tuple(dst_tuple_end(t));
         }
         sourcemap->count = def->bytecode_length;
