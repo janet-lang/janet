@@ -114,7 +114,7 @@ src/include/dst/dsttypes.h
 add_executable(${TARGET_NAME} ${REPL_SOURCES})
 if (APPLE)
     # macOS flags here
-elseif (UNIX AND NOT EMSCRIPTEN)
+elseif (UNIX)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -rdynamic")
 	target_link_libraries(${TARGET_NAME} m dl)
 endif (APPLE)
@@ -142,15 +142,6 @@ install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION "bin"
         PUBLIC_HEADER DESTINATION "include/dst"
 )
-
-# Emscripten specifics
-if (DEFINED EMSCRIPTEN)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s ABORTING_MALLOC=0") 
-    # set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".html")
-    # Copy index.html to build folder.
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/web/index.html
-        ${CMAKE_CURRENT_BINARY_DIR}/index.html COPYONLY)
-endif (DEFINED EMSCRIPTEN)
 
 # Add some test scripts
 enable_testing()
