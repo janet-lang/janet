@@ -931,15 +931,17 @@ respectively.
 This function can be used to implement a repl very easily, simply
 pass a function that reads line from stdin to chunks, and print to
 onvalue."
- [env chunks onvalue onerr]
+ [env chunks onvalue onerr where]
 
  # Are we done yet?
  (var going true)
 
  # The parser object
  (def p (parser.new 1))
+ (if where (parser.set-source p where))
 
  # Fiber stream of characters
+ (var byteindex 0)
  (def chars (coro
    (def buf @"")
    (var len 1)
@@ -948,6 +950,7 @@ onvalue."
       (chunks buf p)
       (:= len (length buf))
       (loop [i :range [0 len]]
+        (++ byteindex)
         (yield (get buf i))))
    0))
 
@@ -956,31 +959,36 @@ onvalue."
   (while going
     (switch (parser.status p)
      :full (yield (parser.produce p))
-     :error (onerr "parse" (parser.error p))
+     :error (onerr where "parse" (string (parser.error p) " at byte index " byteindex))
      (switch (fiber.status chars)
       :new (parser.byte p (resume chars))
       :pending (parser.byte p (resume chars))
       (:= going false))))
   (when (not= :root (parser.status p))
-   (onerr "parse" "unexpected end of source"))))
+   (onerr where "parse" "unexpected end of source"))))
 
  # Evaluate 1 source form
  (defn eval1 [source]
   (var good true)
   (def f (fiber.new (fn []
-    (def res (compile source env))
+    (def res (compile source env p))
     (if (= (type res) :function)
       (res)
       (do
        (:= good false)
-       (onerr "compile" (get res :error))))) :a))
+       (def {:error err :error-start errs :error-end erre} res)
+       (onerr where "compile"
+              (if (<= 0 errs)
+                (string err " at (" errs ":" erre ")")
+                err)))))
+   :a))
   (def res (resume f))
   (when good
    (def sig (fiber.status f))
    (if going
      (if (= sig :dead)
        (onvalue res)
-       (onerr "runtime" res f)))))
+       (onerr where "runtime" res f)))))
 
  # Run loop
  (def oldenv *env*)
@@ -991,8 +999,8 @@ onvalue."
  env)
 
 (defn default-error-handler
- [t x f]
- (file.write stdout (string t " error: "))
+ [source t x f]
+ (file.write stdout (string t " error in " source ": "))
  (if (bytes? x)
    (do (file.write stdout x)
        (file.write stdout "\n"))
@@ -1014,11 +1022,12 @@ onvalue."
    (if name
      (file.write stdout " " name)
      (when func (file.write stdout " " func)))
-   (if source (file.write stdout " [" source "]"))
-   (cond
-     source-start (file.write stdout " at byte range ("
-      (string source-start) ":" (string source-end) ")")
-     pc (file.write stdout " at (pc=" (string pc) ")"))
+   (if source 
+     (do
+       (file.write stdout " [" source "]")
+       (if source-start (file.write stdout " at byte range ("
+         (string source-start) ":" (string source-end) ")")))
+     (if pc (file.write stdout " at (pc=" (string pc) ")")))
    (when tail (file.write stdout " (tailcall)"))
    (file.write stdout "\n"))))
 
@@ -1033,7 +1042,7 @@ environment is needed, use run-context."
   (if ret
     (buffer.push-string buf ret)))
  (var returnval nil)
- (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler)
+ (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler "eval")
  returnval)
 
 (def module.paths @[
@@ -1097,7 +1106,7 @@ returned from compiling and running the file."
     (error (string "circular dependency: module " path " is loading")))
    (def {
     :exit exit-on-error
-   } args)
+   } (or args {}))
    (def check (get cache path))
    (if check check (do
      (def newenv (make-env))
@@ -1110,8 +1119,9 @@ returned from compiling and running the file."
          (defn chunks [buf] (file.read f 1024 buf))
          (run-context newenv chunks identity
           (if exit-on-error
-           (fn [a b c] (default-error-handler a b c) (os.exit 1))
-           default-error-handler))
+           (fn [a b c d] (default-error-handler a b c d) (os.exit 1))
+           default-error-handler)
+          path)
          (file.close f)
          (put loading path nil)
          newenv)
@@ -1161,7 +1171,7 @@ get a chunk of source code. Should return nil for end of file."
    (put newenv '_ @{:value x})
    (pp x)))
  (default onerr default-error-handler)
- (run-context newenv getchunk onvalue onerr))
+ (run-context newenv getchunk onvalue onerr "repl"))
 
 (defn all-symbols
   "Get all symbols available in the current environment."

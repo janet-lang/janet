@@ -40,7 +40,6 @@ DstKV *dst_struct_begin(int32_t count) {
     dst_struct_length(st) = count;
     dst_struct_capacity(st) = capacity;
     dst_struct_hash(st) = 0;
-    (dst_struct_raw(st)[3]) = 0;
     return st;
 }
 

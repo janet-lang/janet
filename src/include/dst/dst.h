@@ -78,9 +78,10 @@ int dst_buffer_push_u32(DstBuffer *buffer, uint32_t x);
 int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x);
 
 /* Tuple */
-#define dst_tuple_raw(t) ((int32_t *)(t) - 2)
+#define dst_tuple_raw(t) ((int32_t *)(t) - 4)
 #define dst_tuple_length(t) (dst_tuple_raw(t)[0])
 #define dst_tuple_hash(t) ((dst_tuple_raw(t)[1]))
+#define dst_tuple_id(t) ((dst_tuple_raw(t)[2]))
 Dst *dst_tuple_begin(int32_t length);
 const Dst *dst_tuple_end(Dst *tuple);
 const Dst *dst_tuple_n(Dst *values, int32_t n);

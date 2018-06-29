@@ -32,6 +32,9 @@
 
 void dstc_ast_push(DstCompiler *c, Dst x) {
     DstSourceMapping mapping;
+    if (c->result.status == DST_COMPILE_ERROR) {
+        return;
+    }
     if (c->parser) {
         int found = dst_parser_lookup(c->parser, x, &mapping);
         if (!found) {
@@ -51,6 +54,9 @@ void dstc_ast_push(DstCompiler *c, Dst x) {
 }
 
 void dstc_ast_pop(DstCompiler *c) {
+    if (c->result.status == DST_COMPILE_ERROR) {
+        return;
+    }
     dst_v_pop(c->ast_stack);
 }
 
@@ -941,7 +947,7 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
 
     /* Get source from parser */
     if (c->parser && (c->parser->flags & DST_PARSEFLAG_SOURCEMAP)) {
-        def->source = dst_to_string(c->parser->source);
+        def->source = c->parser->source;
     }
 
     def->arity = 0;
@@ -968,9 +974,9 @@ static void dstc_init(DstCompiler *c, DstTable *env, DstParser *p) {
     /* Init result */
     c->result.error = NULL;
     c->result.status = DST_COMPILE_OK;
+    c->result.funcdef = NULL;
     c->result.error_start = -1;
     c->result.error_end = -1;
-    c->result.funcdef = NULL;
 }
 
 /* Deinitialize a compiler struct */
@@ -1004,8 +1010,12 @@ DstCompileResult dst_compile(Dst source, DstTable *env, int flags, DstParser *p)
 
     if (c.result.status == DST_COMPILE_OK) {
         DstFuncDef *def = dstc_pop_funcdef(&c);
-        def->name = dst_cstring("[thunk]");
+        def->name = dst_cstring("_thunk");
         c.result.funcdef = def;
+    } else {
+        DstSourceMapping m = dstc_ast(&c);
+        c.result.error_start = m.start;
+        c.result.error_end = m.end;
     }
 
     dstc_deinit(&c);

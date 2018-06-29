@@ -31,7 +31,7 @@ int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *so
     int32_t index = 0;
     int dudeol = 0;
     int done = 0;
-    Dst source = sourcePath ? dst_cstringv(sourcePath) : dst_wrap_nil();
+    const uint8_t *source = sourcePath ? dst_cstring(sourcePath) : NULL;
 
     dst_parser_init(&parser, sourcePath ? DST_PARSEFLAG_SOURCEMAP : 0);
     parser.source = source;

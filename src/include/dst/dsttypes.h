@@ -507,13 +507,6 @@ struct DstFunction {
     DstFuncEnv *envs[];
 };
 
-/* Parser types */
-typedef struct {
-    Dst key;
-    int32_t start;
-    int32_t end;
-} DstParseKV; 
-
 typedef struct DstParseState DstParseState;
 typedef struct DstParser DstParser;
 
@@ -530,10 +523,10 @@ struct DstParser {
     const char *error;
     DstParseState *states;
     uint8_t *buf;
-    DstParseKV *pm_kvs;
+    const uint8_t *source; /* optional source path/string */
+    DstSourceMapping *pms;
     int32_t pm_capacity;
     int32_t pm_count;
-    Dst source; /* optional source path/string */
     size_t argcount;
     size_t argcap;
     size_t statecount;
