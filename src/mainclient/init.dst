@@ -54,7 +54,8 @@
     (do
       (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
       (repl (fn [buf p]
-        (def prompt (string (parser.state p) "> "))
+        (def [line] (parser.where p))
+        (def prompt (string "dst:" line ":" (parser.state p) "> "))
         (getline prompt buf))))))
 
 )
