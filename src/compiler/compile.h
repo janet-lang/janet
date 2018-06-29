@@ -104,12 +104,13 @@ struct DstCompiler {
 
     /* Keep track of where we are in the source */
     DstSourceMapping *ast_stack;
+    DstSourceMapping current_mapping;
 
     /* Hold the environment */
     DstTable *env;
 
-    /* Hold a reference to a parser if we need it */
-    DstParser *parser;
+    /* Name of source to attach to generated functions */
+    const uint8_t *source;
 
     DstCompileResult result;
 };
@@ -144,11 +145,6 @@ struct DstSpecial {
 };
 
 /****************************************************/
-
-/* Manipulate the ast stack for source mapping reasons. */
-void dstc_ast_push(DstCompiler *c, Dst x);
-void dstc_ast_pop(DstCompiler *c);
-DstSourceMapping dstc_ast(DstCompiler *c);
 
 /* Get a cfunction optimizer. Return NULL if none exists.  */
 const DstCFunOptimizer *dstc_cfunopt(DstCFunction cfun);

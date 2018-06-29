@@ -30,38 +30,32 @@
 #undef DST_V_DEF_COPYMEM
 #undef DST_V_DEF_FLATTENMEM
 
-void dstc_ast_push(DstCompiler *c, Dst x) {
+static void dstc_ast_push(DstCompiler *c, const Dst *tup) {
     DstSourceMapping mapping;
     if (c->result.status == DST_COMPILE_ERROR) {
         return;
     }
-    if (c->parser) {
-        int found = dst_parser_lookup(c->parser, x, &mapping);
-        if (!found) {
-            /* Duplicate last value */
-            if (dst_v_count(c->ast_stack)) {
-                mapping = dst_v_last(c->ast_stack);
-            } else {
-                mapping.start = -1;
-                mapping.end = -1;
-            }
-        }
-    } else {
-        mapping.start = -1;
-        mapping.end = -1;
+    mapping.start = dst_tuple_sm_start(tup);
+    mapping.end = dst_tuple_sm_end(tup);
+    if (mapping.start < 0 || mapping.end < 0) {
+        /* Reuse previous mapping */
+        mapping = dst_v_last(c->ast_stack);
     }
     dst_v_push(c->ast_stack, mapping);
+    c->current_mapping = mapping;
 }
 
-void dstc_ast_pop(DstCompiler *c) {
+static void dstc_ast_pop(DstCompiler *c) {
     if (c->result.status == DST_COMPILE_ERROR) {
         return;
     }
     dst_v_pop(c->ast_stack);
-}
-
-DstSourceMapping dstc_ast(DstCompiler *c) {
-    return dst_v_last(c->ast_stack);
+    if (dst_v_count(c->ast_stack)) {
+        c->current_mapping = dst_v_last(c->ast_stack);
+    } else {
+        c->current_mapping.start = -1;
+        c->current_mapping.end = -1;
+    }
 }
 
 DstFopts dstc_fopts_default(DstCompiler *c) {
@@ -368,7 +362,7 @@ DstSlot dstc_resolve(
 /* Emit a raw instruction with source mapping. */
 void dstc_emit(DstCompiler *c, uint32_t instr) {
     dst_v_push(c->buffer, instr);
-    dst_v_push(c->mapbuffer, dstc_ast(c));
+    dst_v_push(c->mapbuffer, c->current_mapping);
 }
 
 /* Add a constant to the current scope. Return the index of the constant. */
@@ -801,7 +795,6 @@ DstSlot dstc_value(DstFopts opts, Dst x) {
     DstCompiler *c = opts.compiler;
     int macrorecur = 0;
     opts.compiler->recursion_guard--;
-    dstc_ast_push(c, x);
 recur:
     if (dstc_iserr(&opts)) {
         return dstc_cslot(dst_wrap_nil());
@@ -827,6 +820,8 @@ recur:
                 DstSlot head;
                 DstFopts subopts = dstc_fopts_default(c);
                 const Dst *tup = dst_unwrap_tuple(x);
+                if (!macrorecur)
+                    dstc_ast_push(c, tup);
                 /* Empty tuple is tuple literal */
                 if (dst_tuple_length(tup) == 0) {
                     compiled = 1;
@@ -872,6 +867,8 @@ recur:
                         ret = dstc_call(opts, dstc_toslots(c, tup + 1, dst_tuple_length(tup) - 1), head);
                     }
                 }
+                /* Pop source mapping for tuple */
+                dstc_ast_pop(c);
             }
             break;
         case DST_ARRAY:
@@ -898,8 +895,6 @@ recur:
         ret = opts.hint;
     }
     opts.compiler->recursion_guard++;
-    /* Only pop on good path in case of error. */
-    dstc_ast_pop(c);
     return ret;
 }
 
@@ -946,9 +941,7 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
     }
 
     /* Get source from parser */
-    if (c->parser && (c->parser->flags & DST_PARSEFLAG_SOURCEMAP)) {
-        def->source = c->parser->source;
-    }
+    def->source = c->source;
 
     def->arity = 0;
     def->flags = 0;
@@ -963,20 +956,22 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
 }
 
 /* Initialize a compiler */
-static void dstc_init(DstCompiler *c, DstTable *env, DstParser *p) {
+static void dstc_init(DstCompiler *c, DstTable *env, const uint8_t *where) {
     c->scopes = NULL;
     c->buffer = NULL;
     c->mapbuffer = NULL;
     c->recursion_guard = DST_RECURSION_GUARD;
     c->env = env;
-    c->parser = p;
+    c->source = where;
     c->ast_stack = NULL;
+    c->current_mapping.start = -1;
+    c->current_mapping.end = -1;
     /* Init result */
     c->result.error = NULL;
     c->result.status = DST_COMPILE_OK;
     c->result.funcdef = NULL;
-    c->result.error_start = -1;
-    c->result.error_end = -1;
+    c->result.error_mapping.start = -1;
+    c->result.error_mapping.end = -1;
 }
 
 /* Deinitialize a compiler struct */
@@ -990,12 +985,11 @@ static void dstc_deinit(DstCompiler *c) {
 }
 
 /* Compile a form. */
-DstCompileResult dst_compile(Dst source, DstTable *env, int flags, DstParser *p) {
+DstCompileResult dst_compile(Dst source, DstTable *env, const uint8_t *where) {
     DstCompiler c;
     DstFopts fopts;
-    (void) flags;
 
-    dstc_init(&c, env, p);
+    dstc_init(&c, env, where);
 
     /* Push a function scope */
     dstc_scope(&c, DST_SCOPE_FUNCTION | DST_SCOPE_TOP);
@@ -1013,9 +1007,7 @@ DstCompileResult dst_compile(Dst source, DstTable *env, int flags, DstParser *p)
         def->name = dst_cstring("_thunk");
         c.result.funcdef = def;
     } else {
-        DstSourceMapping m = dstc_ast(&c);
-        c.result.error_start = m.start;
-        c.result.error_end = m.end;
+        c.result.error_mapping = c.current_mapping;
     }
 
     dstc_deinit(&c);
@@ -1031,19 +1023,18 @@ int dst_compile_cfun(DstArgs args) {
     DST_MINARITY(args, 2);
     DST_MAXARITY(args, 3);
     DST_ARG_TABLE(env, args, 1);
-    DstParser *p = NULL;
+    const uint8_t *source = NULL;
     if (args.n == 3) {
-        p = dst_check_parser(args.v[2]);
-        if (!p) DST_THROW(args, "expected parser for second argument");
+        DST_ARG_STRING(source, args, 2);
     }
-    res = dst_compile(args.v[0], env, 0, p);
+    res = dst_compile(args.v[0], env, source);
     if (res.status == DST_COMPILE_OK) {
         DST_RETURN_FUNCTION(args, dst_thunk(res.funcdef));
     } else {
         t = dst_table(2);
         dst_table_put(t, dst_csymbolv(":error"), dst_wrap_string(res.error));
-        dst_table_put(t, dst_csymbolv(":error-start"), dst_wrap_integer(res.error_start));
-        dst_table_put(t, dst_csymbolv(":error-end"), dst_wrap_integer(res.error_end));
+        dst_table_put(t, dst_csymbolv(":error-start"), dst_wrap_integer(res.error_mapping.start));
+        dst_table_put(t, dst_csymbolv(":error-end"), dst_wrap_integer(res.error_mapping.end));
         DST_RETURN_TABLE(args, t);
     }
 }

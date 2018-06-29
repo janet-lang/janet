@@ -39,10 +39,9 @@ struct DstCompileResult {
     enum DstCompileStatus status;
     DstFuncDef *funcdef;
     const uint8_t *error;
-    int32_t error_start;
-    int32_t error_end;
+    DstSourceMapping error_mapping;
 };
-DstCompileResult dst_compile(Dst source, DstTable *env, int flags, DstParser *parser);
+DstCompileResult dst_compile(Dst source, DstTable *env, const uint8_t *where);
 int dst_compile_cfun(DstArgs args);
 int dst_lib_compile(DstArgs args);
 

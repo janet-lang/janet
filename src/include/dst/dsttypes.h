@@ -523,10 +523,6 @@ struct DstParser {
     const char *error;
     DstParseState *states;
     uint8_t *buf;
-    const uint8_t *source; /* optional source path/string */
-    DstSourceMapping *pms;
-    int32_t pm_capacity;
-    int32_t pm_count;
     size_t argcount;
     size_t argcap;
     size_t statecount;
@@ -535,7 +531,6 @@ struct DstParser {
     size_t bufcap;
     size_t index;
     int lookback;
-    int flags;
 };
 
 /* Defines an abstract type */

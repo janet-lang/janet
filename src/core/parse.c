@@ -22,36 +22,6 @@
 
 #include <dst/dst.h>
 
-/* Add a value to the parsemap */
-static void pm_put(DstParser *p, Dst key, int32_t start, int32_t end) {
-    int32_t nextid = p->pm_count;
-    if (!dst_checktype(key, DST_TUPLE))
-        return;
-    dst_tuple_id(dst_unwrap_tuple(key)) = nextid;
-    p->pm_count++;
-    if (nextid >= p->pm_capacity) {
-        int32_t newCapacity = 2 * nextid + 2;
-        DstSourceMapping *newPms = realloc(p->pms, sizeof(DstSourceMapping) * newCapacity);
-        if (!newPms) {
-            DST_OUT_OF_MEMORY;
-        }
-        p->pms = newPms;
-    }
-    p->pms[nextid].start = start;
-    p->pms[nextid].end = end;
-}
-
-/* Get a value from the parse map. The returned pointer
- * should be read and discarded immediately. */
-static DstSourceMapping *pm_get(DstParser *p, Dst ast) {
-    if (!dst_checktype(ast, DST_TUPLE))
-        return NULL;
-    int32_t id = dst_tuple_id(dst_unwrap_tuple(ast));
-    if (id < 0 || id >= p->pm_count)
-        return NULL;
-    return p->pms + id;
-}
-
 /* Quote a value */
 static Dst quote(Dst x) {
     Dst *t = dst_tuple_begin(2);
@@ -197,15 +167,19 @@ static void popstate(DstParser *p, Dst val) {
         len = newtop->qcount;
         /* Quote the returned value qcount times */
         for (i = 0; i < len; i++) {
-            if (p->flags & DST_PARSEFLAG_SOURCEMAP)
-                pm_put(p, val, (int32_t) top.start, (int32_t) p->index);
+            if (dst_checktype(val, DST_TUPLE)) {
+                dst_tuple_sm_start(dst_unwrap_tuple(val)) = (int32_t) top.start;
+                dst_tuple_sm_end(dst_unwrap_tuple(val)) = (int32_t) p->index;
+            }
             val = quote(val);
         }
         newtop->qcount = 0;
 
         /* Ast wrap */
-        if (p->flags & DST_PARSEFLAG_SOURCEMAP)
-            pm_put(p, val, (int32_t) top.start, (int32_t) p->index);
+        if (dst_checktype(val, DST_TUPLE)) {
+            dst_tuple_sm_start(dst_unwrap_tuple(val)) = (int32_t) top.start;
+            dst_tuple_sm_end(dst_unwrap_tuple(val)) = (int32_t) p->index;
+        }
 
         newtop->argn++;
         push_arg(p, val);
@@ -590,16 +564,7 @@ Dst dst_parser_produce(DstParser *parser) {
     return ret;
 }
 
-int dst_parser_lookup(DstParser *parser, Dst key, DstSourceMapping *out) {
-    DstSourceMapping *results = pm_get(parser, key);
-    if (results) {
-        *out = *results;
-        return 1;
-    }
-    return 0;
-}
-
-void dst_parser_init(DstParser *parser, int flags) {
+void dst_parser_init(DstParser *parser) {
     parser->args = NULL;
     parser->states = NULL;
     parser->buf = NULL;
@@ -612,12 +577,6 @@ void dst_parser_init(DstParser *parser, int flags) {
     parser->error = NULL;
     parser->index = 0;
     parser->lookback = -1;
-    parser->flags = flags;
-    parser->source = NULL;
-
-    parser->pms = NULL;
-    parser->pm_count = 0;
-    parser->pm_capacity = 0;
 
     pushstate(parser, root, PFLAG_CONTAINER);
 }
@@ -626,7 +585,6 @@ void dst_parser_deinit(DstParser *parser) {
     free(parser->args);
     free(parser->buf);
     free(parser->states);
-    free(parser->pms);
 }
 
 /* C functions */
@@ -635,9 +593,6 @@ static int parsermark(void *p, size_t size) {
     size_t i;
     DstParser *parser = (DstParser *)p;
     (void) size;
-    if (parser->source) {
-        dst_mark(dst_wrap_string(parser->source));
-    }
     for (i = 0; i < parser->argcount; i++) {
         dst_mark(parser->args[i]);
     }
@@ -668,13 +623,9 @@ DstParser *dst_check_parser(Dst x) {
 
 /* C Function parser */
 static int cfun_parser(DstArgs args) {
-    int flags = 0;
-    DST_MAXARITY(args, 1);
-    if (args.n == 1) {
-        DST_ARG_INTEGER(flags, args, 0);
-    }
+    DST_FIXARITY(args, 0);
     DstParser *p = dst_abstract(&dst_parse_parsertype, sizeof(DstParser));
-    dst_parser_init(p, flags);
+    dst_parser_init(p);
     DST_RETURN_ABSTRACT(args, p);
 }
 
@@ -802,32 +753,6 @@ static int cfun_state(DstArgs args) {
     DST_RETURN_STRING(args, str);
 }
 
-static int cfun_lookup(DstArgs args) {
-    DstParser *p;
-    DST_FIXARITY(args, 2);
-    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
-    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
-    DstSourceMapping *results = pm_get(p, args.v[1]);
-    if (results) {
-        Dst t[2];
-        t[0] = dst_wrap_integer(results->start);
-        t[1] = dst_wrap_integer(results->end);
-        DST_RETURN_TUPLE(args, dst_tuple_n(t, 2));
-    }
-    DST_RETURN_NIL(args);
-}
-
-static int cfun_setsource(DstArgs args) {
-    DstParser *p;
-    const uint8_t *source;
-    DST_FIXARITY(args, 2);
-    DST_CHECKABSTRACT(args, 0, &dst_parse_parsertype);
-    p = (DstParser *) dst_unwrap_abstract(args.v[0]);
-    DST_ARG_STRING(source, args, 1);
-    p->source = source;
-    DST_RETURN(args, args.v[0]);
-}
-
 static const DstReg cfuns[] = {
     {"parser.new", cfun_parser},
     {"parser.produce", cfun_produce},
@@ -837,8 +762,6 @@ static const DstReg cfuns[] = {
     {"parser.status", cfun_status},
     {"parser.flush", cfun_flush},
     {"parser.state", cfun_state},
-    {"parser.lookup", cfun_lookup},
-    {"parser.set-source", cfun_setsource},
     {NULL, NULL}
 };
 

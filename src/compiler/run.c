@@ -31,16 +31,16 @@ int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *so
     int32_t index = 0;
     int dudeol = 0;
     int done = 0;
-    const uint8_t *source = sourcePath ? dst_cstring(sourcePath) : NULL;
+    const uint8_t *where = sourcePath ? dst_cstring(sourcePath) : NULL;
+    if (where) dst_gcroot(dst_wrap_string(where));
+    dst_parser_init(&parser);
 
-    dst_parser_init(&parser, sourcePath ? DST_PARSEFLAG_SOURCEMAP : 0);
-    parser.source = source;
     while (!errflags && !done) {
         switch (dst_parser_status(&parser)) {
             case DST_PARSE_FULL:
                 {
                     Dst form = dst_parser_produce(&parser);
-                    DstCompileResult cres = dst_compile(form, env, 0, &parser);
+                    DstCompileResult cres = dst_compile(form, env, where);
                     if (cres.status == DST_COMPILE_OK) {
                         DstFunction *f = dst_thunk(cres.funcdef);
                         DstFiber *fiber = dst_fiber(f, 64);
@@ -83,6 +83,7 @@ int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *so
         }
     }
     dst_parser_deinit(&parser);
+    if (where) dst_gcunroot(dst_wrap_string(where));
     return errflags;
 }
 

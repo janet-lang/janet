@@ -937,8 +937,7 @@ onvalue."
  (var going true)
 
  # The parser object
- (def p (parser.new 1))
- (if where (parser.set-source p where))
+ (def p (parser.new))
 
  # Fiber stream of characters
  (var byteindex 0)
@@ -971,7 +970,7 @@ onvalue."
  (defn eval1 [source]
   (var good true)
   (def f (fiber.new (fn []
-    (def res (compile source env p))
+    (def res (compile source env where))
     (if (= (type res) :function)
       (res)
       (do

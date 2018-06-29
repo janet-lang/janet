@@ -37,14 +37,13 @@ extern "C" {
 #include "dsttypes.h"
 
 /* Parsing */
-void dst_parser_init(DstParser *parser, int flags);
+void dst_parser_init(DstParser *parser);
 void dst_parser_deinit(DstParser *parser);
 int dst_parser_consume(DstParser *parser, uint8_t c);
 enum DstParserStatus dst_parser_status(DstParser *parser);
 Dst dst_parser_produce(DstParser *parser);
 const char *dst_parser_error(DstParser *parser);
 void dst_parser_flush(DstParser *parser);
-int dst_parser_lookup(DstParser *parser, Dst key, DstSourceMapping *out);
 DstParser *dst_check_parser(Dst x);
 
 /* Number scanning */
@@ -81,7 +80,8 @@ int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x);
 #define dst_tuple_raw(t) ((int32_t *)(t) - 4)
 #define dst_tuple_length(t) (dst_tuple_raw(t)[0])
 #define dst_tuple_hash(t) ((dst_tuple_raw(t)[1]))
-#define dst_tuple_id(t) ((dst_tuple_raw(t)[2]))
+#define dst_tuple_sm_start(t) ((dst_tuple_raw(t)[2]))
+#define dst_tuple_sm_end(t) ((dst_tuple_raw(t)[3]))
 Dst *dst_tuple_begin(int32_t length);
 const Dst *dst_tuple_end(Dst *tuple);
 const Dst *dst_tuple_n(Dst *values, int32_t n);
