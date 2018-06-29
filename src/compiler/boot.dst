@@ -980,7 +980,7 @@ onvalue."
        (def {:error err :error-line errl :error-column errc} res)
        (onerr where "compile"
               (if (< 0 errl)
-                (string err " on line " errl ", column " errc)
+                (string err " in form at line " errl ", column " errc)
                 err)))))
    :a))
   (def res (resume f))
