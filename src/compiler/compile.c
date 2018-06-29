@@ -40,9 +40,10 @@ static void dstc_ast_push(DstCompiler *c, const Dst *tup) {
     if (!mapping.line) {
         /* Reuse previous mapping */
         mapping = c->current_mapping;
+    } else {
+        c->current_mapping = mapping;
     }
     dst_v_push(c->ast_stack, mapping);
-    c->current_mapping = mapping;
 }
 
 static void dstc_ast_pop(DstCompiler *c) {
@@ -927,15 +928,12 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
         memcpy(def->bytecode, c->buffer + scope.bytecode_start, s);
         dst_v__cnt(c->buffer) = scope.bytecode_start;
         if (NULL != c->mapbuffer) {
-            int32_t i;
-            size_t s = sizeof(DstSourceMapping) * dst_v_count(c->mapbuffer);
+            size_t s = sizeof(DstSourceMapping) * def->bytecode_length;
             def->sourcemap = malloc(s);
             if (NULL == def->sourcemap) {
                 DST_OUT_OF_MEMORY;
             }
-            for (i = 0; i < dst_v_count(c->mapbuffer); i++) {
-                def->sourcemap[i] = c->mapbuffer[i];
-            }
+            memcpy(def->sourcemap, c->mapbuffer + scope.bytecode_start, s);
             dst_v__cnt(c->mapbuffer) = scope.bytecode_start;
         }
     }

@@ -1,13 +1,14 @@
 # An example file that errors out. Run with ./dst examples/error.dst
 # to see stack trace for runtime errors.
 
-(defn bark [x]
-  (print "Woof!")
-  (print x)
-  (error x)
-  (print "Woof!"))
-
 (defn bork [x]
+
+  (defn bark [x]
+    (print "Woof!")
+    (print x)
+    (error x)
+    (print "Woof!"))
+
   (bark (* 2 x))
   (bark (* 3 x)))
 

@@ -248,10 +248,10 @@ value."
           (switch
             verb
             :in-while (do
-                     (def preds @['and (tuple := bindings object)])
+                     (def preds @['and (tuple ':= bindings object)])
                      (def subloop (doone (+ i 3) preds))
                      (tuple 'do
-                       (tuple 'var bindings)
+                       (tuple 'var bindings nil)
                        (tuple 'while (apply1 tuple preds)
                           subloop)))
             :range (do
@@ -895,40 +895,50 @@ to call on any table. Does not print table prototype information."
    m? (apply1 m (tuple.slice t 1))
    (apply1 tuple (map macroexpand-1 t))))
 
- (switch (type x)
+ (def ret (switch (type x)
   :tuple (dotup x)
   :array (map macroexpand-1 x)
   :struct (table.to-struct (dotable x macroexpand-1))
   :table (dotable x macroexpand-1)
   x))
+ ret)
 
-(defn all? [& xs]
+(defn all? [xs]
   (var good true)
   (loop [x :in xs :while good] (if x nil (:= good false)))
   good)
 
-(defn some? [& xs]
+(defn some? [xs]
   (var bad true)
   (loop [x :in xs :while bad] (if x (:= bad false)))
   (not bad))
 
+(defn deep-not= [x y]
+ "Like not=, but mutable types (arrays, tables, buffers) are considered
+equal if they have identical structure. Much slower than not=."
+ (def tx (type x))
+ (or
+   (not= tx (type y))
+   (switch tx
+      :tuple (or (not= (length x) (length y)) (some? (map deep-not= x y)))
+      :array (or (not= (length x) (length y)) (some? (map deep-not= x y)))
+      :struct (deep-not= (pairs x) (pairs y))
+      :table (deep-not= (table.to-struct x) (table.to-struct y))
+      :buffer (not= (string x) (string y))
+      (not= x y))))
+
+(defn deep= [x y]
+ "Like =, but mutable types (arrays, tables, buffers) are considered
+equal if they have identical structure. Much slower than =."
+ (not (deep-not= x y)))
+
 (defn macroexpand
  "Expand macros completely."
  [x]
- (defn deep= [x y]
-  (def tx (type x))
-  (and
-    (= tx (type y))
-    (switch tx
-       :tuple (all? (map deep= x y))
-       :array (all? (map deep= x y))
-       :struct (deep= (pairs x) (pairs y))
-       :table (deep= (table.to-struct x) (table.to-struct y))
-       (= x y))))
  (var previous x)
  (var current (macroexpand-1 x))
  (var counter 0)
- (while (not (deep= current previous))
+ (while (deep-not= current previous)
   (if (> (++ counter) 200)
    (error "macro expansion too nested"))
   (:= previous current)
