@@ -16,4 +16,4 @@
   (bork 3)
   1)
 
-(pupper)
+(do (pupper) 1)

@@ -23,7 +23,6 @@
 #include <dst/dst.h>
 #include <dst/dstopcodes.h>
 #include <dst/dstcorelib.h>
-#include <dst/dstasm.h>
 #include <dst/dstcompile.h>
 
 /* Generated header */

@@ -34,10 +34,6 @@ SET(CMAKE_C_FLAGS_DEBUG  "-O0 -g")
 include_directories(src/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-set(ASSEMBLER_SOURCES
-src/assembler/asm.c
-)
-
 set(COMPILER_SOURCES
 src/compiler/compile.c
 src/compiler/cfuns.c
@@ -52,6 +48,7 @@ src/compiler/compile.h
 set(CORE_SOURCES
 src/core/abstract.c
 src/core/array.c
+src/core/asm.c
 src/core/buffer.c
 src/core/bytecode.c
 src/core/corelib.c
@@ -88,12 +85,7 @@ src/mainclient/line.c
 src/mainclient/line.h
 )
 
-set(TESTLIB_SOURCES
-src/testlib/testlib.c
-)
-
 set(REPL_SOURCES
-${ASSEMBLER_SOURCES}
 ${COMPILER_SOURCES}
 ${CORE_SOURCES}
 ${MAINCLIENT_SOURCES}
@@ -102,7 +94,6 @@ ${MAINCLIENT_SOURCES}
 # Set Public headers
 set(DST_PUBLIC_HEADERS
 src/include/dst/dst.h
-src/include/dst/dstasm.h
 src/include/dst/dstcompile.h
 src/include/dst/dstconfig.h
 src/include/dst/dstcorelib.h

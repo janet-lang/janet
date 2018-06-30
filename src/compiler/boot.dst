@@ -247,7 +247,7 @@ value."
             (error ("unexpected loop predicate: " verb)))
           (switch
             verb
-            :in-while (do
+            :iterate (do
                      (def preds @['and (tuple ':= bindings object)])
                      (def subloop (doone (+ i 3) preds))
                      (tuple 'do

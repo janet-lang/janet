@@ -58,7 +58,6 @@ DST_ALL_HEADERS=$(DST_HEADERS) \
 				$(DST_GENERATED_HEADERS)
 
 # Source files
-DST_ASM_SOURCES=$(sort $(wildcard src/assembler/*.c))
 DST_COMPILER_SOURCES=$(sort $(wildcard src/compiler/*.c))
 DST_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
 DST_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
@@ -86,8 +85,7 @@ src/compiler/dststlbootstrap.gen.h: src/compiler/boot.dst xxd
 ##### The main interpreter program and shared object #####
 ##########################################################
 
-DST_LIB_SOURCES=$(DST_ASM_SOURCES) \
-				$(DST_COMPILER_SOURCES) \
+DST_LIB_SOURCES=$(DST_COMPILER_SOURCES) \
 				$(DST_CONTEXT_SOURCES) \
 				$(DST_CORE_SOURCES)
 

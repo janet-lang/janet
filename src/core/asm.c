@@ -23,7 +23,6 @@
 #include <setjmp.h>
 
 #include <dst/dst.h>
-#include <dst/dstasm.h>
 #include <dst/dstopcodes.h>
 #include <headerlibs/strbinsearch.h>
 
@@ -904,7 +903,7 @@ Dst dst_disasm(DstFuncDef *def) {
 }
 
 /* C Function for assembly */
-int dst_asm_cfun(DstArgs args) {
+static int cfun_asm(DstArgs args) {
     DstAssembleResult res;
     DST_FIXARITY(args, 1);
     res = dst_asm(args.v[0], 0);
@@ -915,7 +914,7 @@ int dst_asm_cfun(DstArgs args) {
     }
 }
 
-int dst_disasm_cfun(DstArgs args) {
+int cfun_disasm(DstArgs args) {
     DstFunction *f;
     DST_FIXARITY(args, 1);
     DST_ARG_FUNCTION(f, args, 0);
@@ -923,8 +922,8 @@ int dst_disasm_cfun(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
-    {"asm.asm", dst_asm_cfun},
-    {"asm.disasm", dst_disasm_cfun},
+    {"asm", cfun_asm},
+    {"disasm", cfun_disasm},
     {NULL, NULL}
 };
 

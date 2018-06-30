@@ -46,6 +46,22 @@ const char *dst_parser_error(DstParser *parser);
 void dst_parser_flush(DstParser *parser);
 DstParser *dst_check_parser(Dst x);
 
+/* Assembly */
+typedef struct DstAssembleResult DstAssembleResult;
+typedef struct DstAssembleOptions DstAssembleOptions;
+enum DstAssembleStatus {
+    DST_ASSEMBLE_OK,
+    DST_ASSEMBLE_ERROR
+};
+struct DstAssembleResult {
+    DstFuncDef *funcdef;
+    const uint8_t *error;
+    enum DstAssembleStatus status;
+};
+DstAssembleResult dst_asm(Dst source, int flags);
+Dst dst_disasm(DstFuncDef *def);
+Dst dst_asm_decode_instruction(uint32_t instr);
+
 /* Number scanning */
 Dst dst_scan_number(const uint8_t *src, int32_t len);
 int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);
