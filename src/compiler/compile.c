@@ -314,7 +314,7 @@ DstSlot dstc_gettarget(DstFopts opts) {
         slot.envindex = -1;
         slot.constant = dst_wrap_nil();
         slot.flags = 0;
-        slot.index = dstc_allocnear(opts.compiler, DSTC_REGTEMP_3);
+        slot.index = dstc_allocnear(opts.compiler, DSTC_REGTEMP_TARGET);
     }
     return slot;
 }
@@ -388,7 +388,14 @@ static DstSlot dstc_call(DstFopts opts, DstSlot *slots, DstSlot fun) {
     if (fun.flags & DST_SLOT_CONSTANT) {
         if (dst_checktype(fun.constant, DST_CFUNCTION)) {
             const DstCFunOptimizer *o = dstc_cfunopt(dst_unwrap_cfunction(fun.constant));
-            if (o && o->can_optimize(opts, slots)) {
+            if (o && (!o->can_optimize || o->can_optimize(opts, slots))) {
+                specialized = 1;
+                retslot = o->optimize(opts, slots);
+            }
+        } else if (dst_checktype(fun.constant, DST_FUNCTION)) {
+            DstFunction *f = dst_unwrap_function(fun.constant);
+            const DstFunOptimizer *o = dstc_funopt(f->def->flags);
+            if (o && (!o->can_optimize || o->can_optimize(opts, slots))) {
                 specialized = 1;
                 retslot = o->optimize(opts, slots);
             }

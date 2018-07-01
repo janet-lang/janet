@@ -24,6 +24,7 @@
 #include <dst/dstopcodes.h>
 #include <dst/dstcorelib.h>
 #include <dst/dstcompile.h>
+#include "compile.h"
 
 /* Generated header */
 #include "dststlbootstrap.gen.h"
@@ -54,16 +55,17 @@ static const DstReg cfuns[] = {
 };
 
 /* Utility for inline assembly */
-static DstFunction *dst_quick_asm(
+static void dst_quick_asm(
+        DstTable *env,
+        int32_t flags,
         const char *name,
         int32_t arity,
-        int varargs,
         int32_t slots,
         const uint32_t *bytecode,
         size_t bytecode_size) {
     DstFuncDef *def = dst_funcdef_alloc();
     def->arity = arity;
-    def->flags = varargs ? DST_FUNCDEF_FLAG_VARARG : 0;
+    def->flags = flags;
     def->slotcount = slots;
     def->bytecode = malloc(bytecode_size);
     def->bytecode_length = bytecode_size / sizeof(uint32_t);
@@ -72,7 +74,7 @@ static DstFunction *dst_quick_asm(
         DST_OUT_OF_MEMORY;
     }
     memcpy(def->bytecode, bytecode, bytecode_size);
-    return dst_thunk(def);
+    dst_env_def(env, name, dst_wrap_function(dst_thunk(def)));
 }
 
 DstTable *dst_stl_env(int flags) {
@@ -114,14 +116,14 @@ DstTable *dst_stl_env(int flags) {
     /* Load main functions */
     dst_env_cfuns(env, cfuns);
 
-    dst_env_def(env, "debug", dst_wrap_function(dst_quick_asm("debug", 0, 0, 1, debug_asm, sizeof(debug_asm))));
-    dst_env_def(env, "error", dst_wrap_function(dst_quick_asm("error", 1, 0, 1, error_asm, sizeof(error_asm))));
-    dst_env_def(env, "apply1", dst_wrap_function(dst_quick_asm("apply1", 2, 0, 2, apply_asm, sizeof(apply_asm))));
-    dst_env_def(env, "yield", dst_wrap_function(dst_quick_asm("yield", 1, 0, 2, yield_asm, sizeof(yield_asm))));
-    dst_env_def(env, "resume", dst_wrap_function(dst_quick_asm("resume", 2, 0, 2, resume_asm, sizeof(resume_asm))));
-    dst_env_def(env, "get", dst_wrap_function(dst_quick_asm("get", 2, 0, 2, get_asm, sizeof(get_asm))));
-    dst_env_def(env, "put", dst_wrap_function(dst_quick_asm("put", 3, 0, 3, put_asm, sizeof(put_asm))));
-    dst_env_def(env, "length", dst_wrap_function(dst_quick_asm("length", 1, 0, 1, length_asm, sizeof(length_asm))));
+    dst_quick_asm(env, DST_FUN_YIELD, "debug", 0, 1, debug_asm, sizeof(debug_asm));
+    dst_quick_asm(env, DST_FUN_ERROR, "error", 1, 1, error_asm, sizeof(error_asm));
+    dst_quick_asm(env, DST_FUN_APPLY1, "apply1", 2, 2, apply_asm, sizeof(apply_asm));
+    dst_quick_asm(env, DST_FUN_YIELD, "yield", 1, 2, yield_asm, sizeof(yield_asm));
+    dst_quick_asm(env, DST_FUN_RESUME, "resume", 2, 2, resume_asm, sizeof(resume_asm));
+    dst_quick_asm(env, DST_FUN_GET, "get", 2, 2, get_asm, sizeof(get_asm));
+    dst_quick_asm(env, DST_FUN_PUT, "put", 3, 3, put_asm, sizeof(put_asm));
+    dst_quick_asm(env, DST_FUN_LENGTH, "length", 1, 1, length_asm, sizeof(length_asm));
 
     dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
 

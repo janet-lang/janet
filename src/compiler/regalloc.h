@@ -36,7 +36,7 @@ typedef enum {
     DSTC_REGTEMP_4,
     DSTC_REGTEMP_5,
     DSTC_REGTEMP_6,
-    DSTC_REGTEMP_7
+    DSTC_REGTEMP_TARGET
 } DstcRegisterTemp;
 
 typedef struct {

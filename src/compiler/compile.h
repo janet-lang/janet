@@ -28,6 +28,16 @@
 #include <dst/dstopcodes.h>
 #include "regalloc.h"
 
+/* Tags for some functions for the prepared inliner */
+#define DST_FUN_DEBUG 1
+#define DST_FUN_ERROR 2
+#define DST_FUN_APPLY1 3
+#define DST_FUN_YIELD 4
+#define DST_FUN_RESUME 5
+#define DST_FUN_GET 6
+#define DST_FUN_PUT 7
+#define DST_FUN_LENGTH 8
+
 /* Compiler typedefs */
 typedef struct DstCompiler DstCompiler;
 typedef struct FormOptions FormOptions;
@@ -36,6 +46,7 @@ typedef struct DstScope DstScope;
 typedef struct DstSlot DstSlot;
 typedef struct DstFopts DstFopts;
 typedef struct DstCFunOptimizer DstCFunOptimizer;
+typedef struct DstFunOptimizer DstFunOptimizer;
 typedef struct DstSpecial DstSpecial;
 
 #define DST_SLOT_CONSTANT 0x10000
@@ -146,6 +157,12 @@ struct DstCFunOptimizer {
     DstSlot (*optimize)(DstFopts opts, DstSlot *args);
 };
 
+/* For optimizing builtin normal functions. */
+struct DstFunOptimizer {
+    int (*can_optimize)(DstFopts opts, DstSlot *args);
+    DstSlot (*optimize)(DstFopts opts, DstSlot *args);
+};
+
 /* A grouping of a named special and the corresponding compiler fragment */
 struct DstSpecial {
     const char *name;
@@ -154,8 +171,9 @@ struct DstSpecial {
 
 /****************************************************/
 
-/* Get a cfunction optimizer. Return NULL if none exists.  */
+/* Get an optimizer if it exists, otherwise NULL */
 const DstCFunOptimizer *dstc_cfunopt(DstCFunction cfun);
+const DstFunOptimizer *dstc_funopt(uint32_t flags);
 
 /* Get a special. Return NULL if none exists */
 const DstSpecial *dstc_special(const uint8_t *name);

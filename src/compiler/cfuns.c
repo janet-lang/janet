@@ -23,110 +23,201 @@
 #include <dst/dst.h>
 #include <dst/dstcorelib.h>
 #include "compile.h"
+#define DST_V_NODEF_GROW
 #include <headerlibs/vector.h>
+#undef DST_V_NODEF_GROW
 #include "emit.h"
 
-/* This logic needs to be expanded for more types */
-
-/* Check if a function received only numbers */
-static int numbers(DstFopts opts, DstSlot *args) {
-   int32_t i;
-   int32_t len = dst_v_count(args);
-   (void) opts;
-   for (i = 0; i < len; i++) {
-       DstSlot s = args[i];
-       if (s.flags & DST_SLOT_CONSTANT) {
-           Dst c = s.constant;
-           if (!dst_checktype(c, DST_INTEGER) &&
-                !dst_checktype(c, DST_REAL)) {
-               /*dstc_cerror(opts.compiler, args[i].map, "expected number");*/
-               return 0;
-           }
-       }
-   }
-   return 1;
+static int fixarity0(DstFopts opts, DstSlot *args) {
+    (void) opts;
+    return dst_v_count(args) == 0;
 }
-
-/* Fold constants in a DstSlot [] */
-static DstSlot *foldc(DstSlot *slots, Dst (*fn)(Dst lhs, Dst rhs)) {
-    int32_t ccount;
-    int32_t i;
-    DstSlot *ret = NULL;
-    DstSlot s;
-    Dst current;
-    for (ccount = 0; ccount < dst_v_count(slots); ccount++) {
-        if (slots[ccount].flags & DST_SLOT_CONSTANT) continue;
-        break;
-    }
-    if (ccount < 2) return slots;
-    current = fn(slots[0].constant, slots[1].constant);
-    for (i = 2; i < ccount; i++) {
-        Dst nextarg = slots[i].constant;
-        current = fn(current, nextarg);
-    }
-    s = dstc_cslot(current);
-    dst_v_push(ret, s);
-    for (; i < dst_v_count(slots); i++) {
-        dst_v_push(ret, slots[i]);
-    }
-    return ret;
+static int fixarity1(DstFopts opts, DstSlot *args) {
+    (void) opts;
+    return dst_v_count(args) == 1;
+}
+static int fixarity2(DstFopts opts, DstSlot *args) {
+    (void) opts;
+    return dst_v_count(args) == 2;
 }
 
 /* Emit a series of instructions instead of a function call to a math op */
-static DstSlot opreduce(DstFopts opts, DstSlot *args, int op) {
+static DstSlot opreduce(
+        DstFopts opts,
+        DstSlot *args,
+        int op,
+        Dst zeroArity,
+        DstSlot (*unary)(DstFopts opts, DstSlot s)) {
     DstCompiler *c = opts.compiler;
     int32_t i, len;
     len = dst_v_count(args);
     DstSlot t;
     if (len == 0) {
-        return dstc_cslot(dst_wrap_integer(0));
+        return dstc_cslot(zeroArity);
     } else if (len == 1) {
+        if (unary)
+            return unary(opts, args[0]);
         return args[0];
     }
     t = dstc_gettarget(opts);
     /* Compile initial two arguments */
-    dstc_emit_sss(c, op, t, args[0], args[1]);
+    int32_t lhs = dstc_regnear(c, args[0], DSTC_REGTEMP_0);
+    int32_t rhs = dstc_regnear(c, args[1], DSTC_REGTEMP_1);
+    dstc_emit(c, op | (t.index << 8) | (lhs << 16) | (rhs << 24));
+    dstc_free_reg(c, args[0], lhs);
+    dstc_free_reg(c, args[1], rhs);
+    /* Don't release t */
+    /* Compile the rest of the arguments */
     for (i = 2; i < len; i++) {
-        dstc_emit_sss(c, op, t, t, args[i]);
+        rhs = dstc_regnear(c, args[i], DSTC_REGTEMP_0);
+        dstc_emit(c, op | (t.index << 8) | (t.index << 16) | (rhs << 24));
+        dstc_free_reg(c, args[i], rhs);
     }
     return t;
 }
 
+/* Generic hanldling for $A = B op $C */
+static DstSlot genericSSS(DstFopts opts, int op, Dst leftval, DstSlot s) {
+    DstSlot target = dstc_gettarget(opts);
+    DstSlot zero = dstc_cslot(leftval);
+    int32_t lhs = dstc_regnear(opts.compiler, zero, DSTC_REGTEMP_0);
+    int32_t rhs = dstc_regnear(opts.compiler, s, DSTC_REGTEMP_1);
+    dstc_emit(opts.compiler, op |
+            (target.index << 8) | 
+            (lhs << 16) |
+            (rhs << 24));
+    dstc_free_reg(opts.compiler, zero, lhs);
+    dstc_free_reg(opts.compiler, s, rhs);
+    return target;
+}
+
+/* Generic hanldling for $A = op $B */
+static DstSlot genericSS(DstFopts opts, int op, DstSlot s) {
+    DstSlot target = dstc_gettarget(opts);
+    int32_t rhs = dstc_regfar(opts.compiler, s, DSTC_REGTEMP_0);
+    dstc_emit(opts.compiler, op |
+            (target.index << 8) | 
+            (rhs << 16));
+    dstc_free_reg(opts.compiler, s, rhs);
+    return target;
+}
+
+/* Generic hanldling for $A = $B op I */
+static DstSlot genericSSI(DstFopts opts, int op, DstSlot s, int32_t imm) {
+    DstSlot target = dstc_gettarget(opts);
+    int32_t rhs = dstc_regnear(opts.compiler, s, DSTC_REGTEMP_0);
+    dstc_emit(opts.compiler, op |
+            (target.index << 8) | 
+            (rhs << 16) |
+            (imm << 24));
+    dstc_free_reg(opts.compiler, s, rhs);
+    return target;
+}
+
 static DstSlot add(DstFopts opts, DstSlot *args) {
-    DstSlot *newargs = foldc(args, dst_op_add);
-    DstSlot ret = opreduce(opts, newargs, DOP_ADD);
-    if (newargs != args) dstc_freeslots(opts.compiler, newargs);
-    return ret;
+    return opreduce(opts, args, DOP_ADD, dst_wrap_integer(0), NULL);
 }
 
+static DstSlot mul(DstFopts opts, DstSlot *args) {
+    return opreduce(opts, args, DOP_MULTIPLY, dst_wrap_integer(1), NULL);
+}
+
+static DstSlot subUnary(DstFopts opts, DstSlot onearg) {
+    return genericSSS(opts, DOP_SUBTRACT, dst_wrap_integer(0), onearg);
+}
 static DstSlot sub(DstFopts opts, DstSlot *args) {
-    DstSlot *newargs;
-    if (dst_v_count(args) == 1) {
-        newargs = NULL;
-        dst_v_push(newargs, args[0]);
-        dst_v_push(newargs, args[0]);
-        newargs[0] = dstc_cslot(dst_wrap_integer(0));
-    } else {
-        newargs = foldc(args, dst_op_subtract);
-    }
-    DstSlot ret = opreduce(opts, newargs, DOP_SUBTRACT);
-    if (newargs != args) dstc_freeslots(opts.compiler, newargs);
-    return ret;
+    return opreduce(opts, args, DOP_SUBTRACT, dst_wrap_integer(0), subUnary);
 }
 
-/* Keep in lexographic order */
-static const DstCFunOptimizer optimizers[] = {
-    {dst_add, numbers, add},
-    {dst_subtract, numbers, sub}
+static DstSlot divUnary(DstFopts opts, DstSlot onearg) {
+    return genericSSS(opts, DOP_DIVIDE, dst_wrap_integer(1), onearg);
+}
+static DstSlot divide(DstFopts opts, DstSlot *args) {
+    return opreduce(opts, args, DOP_DIVIDE, dst_wrap_integer(1), divUnary);
+}
+
+static const DstCFunOptimizer coptimizers[] = {
+    {dst_add, NULL, add},
+    {dst_subtract, NULL, sub},
+    {dst_multiply, NULL, mul},
+    {dst_divide, NULL, divide},
 };
 
 /* Get a cfunction optimizer. Return NULL if none exists.  */
 const DstCFunOptimizer *dstc_cfunopt(DstCFunction cfun) {
     size_t i;
-    size_t n = sizeof(optimizers)/sizeof(DstCFunOptimizer);
+    size_t n = sizeof(coptimizers)/sizeof(DstCFunOptimizer);
     for (i = 0; i < n; i++)
-        if (optimizers[i].cfun == cfun)
-            return optimizers + i;
+        if (coptimizers[i].cfun == cfun)
+            return coptimizers + i;
     return NULL;
+}
+
+/* Normal function optimizers */
+
+/* Get, put, etc. */
+static DstSlot do_error(DstFopts opts, DstSlot *args) {
+    dstc_emit_s(opts.compiler, DOP_ERROR, args[0]);
+    return dstc_cslot(dst_wrap_nil());
+}
+static DstSlot do_debug(DstFopts opts, DstSlot *args) {
+    (void)args;
+    dstc_emit(opts.compiler, DOP_SIGNAL | (2 << 24));
+    return dstc_cslot(dst_wrap_nil());
+}
+static DstSlot do_get(DstFopts opts, DstSlot *args) {
+    return opreduce(opts, args, DOP_GET, dst_wrap_nil(), NULL);
+}
+static DstSlot do_put(DstFopts opts, DstSlot *args) {
+    return opreduce(opts, args, DOP_PUT, dst_wrap_nil(), NULL);
+}
+static DstSlot do_length(DstFopts opts, DstSlot *args) {
+    return genericSS(opts, DOP_LENGTH, args[0]);
+}
+static DstSlot do_yield(DstFopts opts, DstSlot *args) {
+    return genericSSI(opts, DOP_SIGNAL, args[0], 3);
+}
+static DstSlot do_resume(DstFopts opts, DstSlot *args) {
+    return opreduce(opts, args, DOP_RESUME, dst_wrap_nil(), NULL);
+}
+static DstSlot do_apply1(DstFopts opts, DstSlot *args) {
+    /* Push phase */
+    int32_t array_reg = dstc_regfar(opts.compiler, args[1], DSTC_REGTEMP_1);
+    dstc_emit(opts.compiler, DOP_PUSH_ARRAY | (array_reg << 8));
+    dstc_free_reg(opts.compiler, args[1], array_reg);
+    /* Call phase */
+    int32_t fun_reg = dstc_regnear(opts.compiler, args[0], DSTC_REGTEMP_0);
+    DstSlot target;
+    if (opts.flags & DST_FOPTS_TAIL) {
+        dstc_emit(opts.compiler, DOP_TAILCALL | (fun_reg << 8));
+        target = dstc_cslot(dst_wrap_nil());
+        target.flags |= DST_SLOT_RETURNED;
+    } else {
+        target = dstc_gettarget(opts);
+        dstc_emit(opts.compiler, DOP_CALL |
+                (target.index << 8) | 
+                (fun_reg << 16));
+    }
+    dstc_free_reg(opts.compiler, args[0], fun_reg);
+    return target;
+}
+
+/* Arranged by tag */
+static const DstFunOptimizer optimizers[] = {
+    {NULL, NULL},
+    {fixarity0, do_debug},
+    {fixarity1, do_error},
+    {fixarity2, do_apply1},
+    {fixarity1, do_yield},
+    {fixarity2, do_resume},
+    {fixarity2, do_get},
+    {fixarity2, do_put},
+    {fixarity1, do_length}
+};
+
+const DstFunOptimizer *dstc_funopt(uint32_t flags) {
+    uint32_t tag = flags & DST_FUNCDEF_FLAG_TAG;
+    if (tag == 0 || tag > 8) return NULL;
+    return optimizers + tag;
 }
 

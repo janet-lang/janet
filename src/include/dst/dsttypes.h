@@ -459,8 +459,10 @@ struct DstKV {
 };
 
 /* Some function defintion flags */
-#define DST_FUNCDEF_FLAG_VARARG 1
-#define DST_FUNCDEF_FLAG_NEEDSENV 4
+#define DST_FUNCDEF_FLAG_VARARG 0x10000
+#define DST_FUNCDEF_FLAG_NEEDSENV 0x20000
+#define DST_FUNCDEF_FLAG_FIXARITY 0x40000
+#define DST_FUNCDEF_FLAG_TAG 0xFFFF
 
 /* Source mapping structure for a bytecode instruction */
 struct DstSourceMapping {
