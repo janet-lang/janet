@@ -211,10 +211,8 @@ static struct DstScanRes dst_scan_impl(
             res.mant = 0;
             seenadigit = 0;
             gotradix = 1;
-        } else if (*str == '_')  {
-            ;
+        } else if (*str != '_') {
             /* underscores are ignored - can be used for separator */
-        } else {
             int digit = digit_lookup[*str & 0x7F];
             if (*str > 127 || digit >= res.base) goto error;
             if (res.seenpoint) res.ex--;

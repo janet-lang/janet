@@ -561,32 +561,29 @@ which (pred element) is truthy. Returns the same type as the input sequence."
 
 (defn take-until
  "Given a predicate, take only elements from an indexed type that satisfy
-the predicate, and abort on first failure. Returns a new indexed type that is
-the same type as the input."
- [pred ind t]
+the predicate, and abort on first failure. Returns a new tuple."
+ [pred ind]
  (def i (find-index pred ind))
- (if (= :tuple (type (or t ind)))
-  (tuple.slice ind 0 i)
-  (array.slice ind 0 i)))
+ (if i
+   (tuple.slice ind 0 i)
+   ind))
 
 (defn take-while
- "Same as (take-until (complement pred) ind t)."
- [pred ind t]
- (take-until (complement pred) ind t))
+ "Same as (take-until (complement pred) ind)."
+ [pred ind]
+ (take-until (complement pred) ind))
 
 (defn drop-until
  "Given a predicate, remove elements from an indexed type that satisfy
-the predicate, and abort on first failure."
- [pred ind t]
+the predicate, and abort on first failure. Returns a new tuple."
+ [pred ind]
  (def i (find-index pred ind))
- (if (= :tuple (type (or t ind)))
-  (tuple.slice ind i -1)
-  (array.slice ind i -1)))
+ (tuple.slice ind i -1))
 
 (defn drop-while
- "Same as (drop-until (complement pred) ind t)."
- [pred ind t]
- (drop-until (complement pred) ind t))
+ "Same as (drop-until (complement pred) ind)."
+ [pred ind]
+ (drop-until (complement pred) ind))
 
 (defn juxt*
   [& funs]

@@ -397,21 +397,19 @@ static DstSlot dstc_call(DstFopts opts, DstSlot *slots, DstSlot fun) {
     }
     if (!specialized) {
         dstc_pushslots(c, slots);
-        int32_t fun_register;
         if (opts.flags & DST_FOPTS_TAIL) {
-            fun_register = dstc_to_reg(c, fun);
-            dstc_emit(c, DOP_TAILCALL | (fun_register << 8));
+            dstc_emit_s(c, DOP_TAILCALL, fun);
             retslot = dstc_cslot(dst_wrap_nil());
             retslot.flags = DST_SLOT_RETURNED;
         } else {
             retslot = dstc_gettarget(opts);
-            fun_register = dstc_to_tempreg(c, fun, DSTC_REGTEMP_0);
+            int32_t fun_register = dstc_to_tempreg(c, fun, DSTC_REGTEMP_0);
             dstc_emit(c, DOP_CALL |
                     (retslot.index << 8) |
                     (fun_register << 16));
             /* Don't free ret register */
+            dstc_free_reg(c, fun, fun_register);
         }
-        dstc_free_reg(c, fun, fun_register);
     }
     dstc_freeslots(c, slots);
     return retslot;
@@ -677,7 +675,7 @@ DstCompileResult dst_compile(Dst source, DstTable *env, const uint8_t *where) {
 }
 
 /* C Function for compiling */
-int dst_compile_cfun(DstArgs args) {
+static int cfun(DstArgs args) {
     DstCompileResult res;
     DstTable *t;
     DstTable *env;
@@ -700,8 +698,13 @@ int dst_compile_cfun(DstArgs args) {
     }
 }
 
+static const DstReg cfuns[] = {
+    {"compile", cfun},
+    {NULL, NULL}
+};
+
 int dst_lib_compile(DstArgs args) {
     DstTable *env = dst_env_arg(args);
-    dst_env_def(env, "compile", dst_wrap_cfunction(dst_compile_cfun));
+    dst_env_cfuns(env, cfuns); 
     return 0;
 }
