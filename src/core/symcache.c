@@ -201,48 +201,52 @@ const uint8_t *dst_symbol_from_string(const uint8_t *str) {
     return str;
 }
 
-/* Helper for creating a unique string. Increment an integer
- * represented as an array of integer digits. */
-static void inc_counter(uint8_t *digits, int base, int len) {
-    int i;
-    uint8_t carry = 1;
-    for (i = len - 1; i >= 0; --i) {
-        digits[i] += carry;
-        carry = 0;
-        if (digits[i] == base) {
-            digits[i] = 0;
-            carry = 1;
+/* Store counter for genysm to avoid quadratic behavior */
+DST_THREAD_LOCAL uint8_t gensym_counter[8] = {'_', '0', '0', '0', '0', '0', '0', 0};
+
+/* Increment the gensym buffer */
+static void inc_gensym(void) {
+    for (int i = sizeof(gensym_counter) - 2; i; i--) {
+        if (gensym_counter[i] == '9') {
+            gensym_counter[i] = 'a';
+        } else if (gensym_counter[i] == 'z') {
+            gensym_counter[i] = 'A';
+        } else if (gensym_counter[i] == 'Z') {
+            gensym_counter[i] = '0';
+        } else {
+            gensym_counter[i]++;
+            break;
         }
     }
 }
 
 /* Generate a unique symbol. This is used in the library function gensym. The
- * symbol will be of the format prefix_XXXXXX, where X is a base64 digit, and
- * prefix is the argument passed.  */
-const uint8_t *dst_symbol_gen(const uint8_t *buf, int32_t len) {
+ * symbol will be of the format _XXXXXX, where X is a base64 digit, and
+ * prefix is the argument passed. No prefix for speed. */
+const uint8_t *dst_symbol_gen(void) {
     const uint8_t **bucket = NULL;
+    uint8_t *sym;
     int32_t hash = 0;
-    uint8_t counter[6] = {63, 63, 63, 63, 63, 63};
+    int status;
     /* Leave spaces for 6 base 64 digits and two dashes. That means 64^6 possible suffixes, which
      * is enough for resolving collisions. */
-    int32_t newlen = len + 7;
-    int32_t newbufsize = newlen + 2 * sizeof(int32_t) + 1;
-    uint8_t *str = (uint8_t *)dst_gcalloc(DST_MEMORY_SYMBOL, newbufsize) + 2 * sizeof(int32_t);
-    dst_string_length(str) = newlen;
-    memcpy(str, buf, len);
-    str[len] = '_';
-    str[newlen] = 0;
-    uint8_t *saltbuf = str + len + 1;
-    int status = 1;
-    while (status) {
-        int i;
-        inc_counter(counter, 64, 6);
-        for (i = 0; i < 6; ++i)
-            saltbuf[i] = dst_base64[counter[i]];
-        hash = dst_string_calchash(str, newlen);
-        bucket = dst_symcache_findmem(str, newlen, hash, &status);
-    }
-    dst_string_hash(str) = hash;
-    dst_symcache_put((const uint8_t *)str, bucket);
-    return (const uint8_t *)str;
+    do {
+        hash = dst_string_calchash(
+                gensym_counter, 
+                sizeof(gensym_counter) - 1);
+        bucket = dst_symcache_findmem(
+                gensym_counter, 
+                sizeof(gensym_counter) - 1,
+                hash,
+                &status);
+    } while (status && (inc_gensym(), 1));
+    sym = (uint8_t *) dst_gcalloc(
+            DST_MEMORY_SYMBOL, 
+            2 * sizeof(int32_t) + sizeof(gensym_counter)) +
+        (2 * sizeof(int32_t));
+    memcpy(sym, gensym_counter, sizeof(gensym_counter));
+    dst_string_length(sym) = sizeof(gensym_counter) - 1;
+    dst_string_hash(sym) = hash;
+    dst_symcache_put((const uint8_t *)sym, bucket);
+    return (const uint8_t *)sym;
 }

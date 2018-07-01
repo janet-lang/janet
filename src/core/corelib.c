@@ -169,15 +169,8 @@ int dst_core_struct(DstArgs args) {
 }
 
 int dst_core_gensym(DstArgs args) {
-    DST_MAXARITY(args, 1);
-    if (args.n == 0) {
-        DST_RETURN_SYMBOL(args, dst_symbol_gen(NULL, 0));
-    } else {
-        const uint8_t *s;
-        int32_t len;
-        DST_ARG_BYTES(s, len, args, 0);
-        DST_RETURN_SYMBOL(args, dst_symbol_gen(s, len));
-    }
+    DST_FIXARITY(args, 0);
+    DST_RETURN_SYMBOL(args, dst_symbol_gen());
 }
 
 int dst_core_gccollect(DstArgs args) {

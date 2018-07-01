@@ -238,12 +238,11 @@
 # Gensym tests
 
 (assert (not= (gensym) (gensym)) "two gensyms not equal")
-(assert (not= (gensym 'abc) (gensym 'abc)) "two gensyms with arg not equal")
 ((fn []
 	(def syms (table))
 	(var count 0)
 	(while (< count 128)
-		(put syms (gensym 'beep) true)
+		(put syms (gensym) true)
 		(:= count (+ 1 count)))
 	(assert (= (length syms) 128) "many symbols")))
 

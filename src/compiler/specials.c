@@ -63,8 +63,8 @@ static void destructure(DstCompiler *c,
                 for (i = 0; i < len; i++) {
                     DstSlot nextright;
                     Dst subval = values[i];
-                    right_register = dstc_to_tempreg(c, right, DSTC_REGTEMP_0);
-                    subval_register = dstc_getreg_temp(c, DSTC_REGTEMP_1);
+                    right_register = dstc_regnear(c, right, DSTC_REGTEMP_0);
+                    subval_register = dstc_allocnear(c, DSTC_REGTEMP_1);
                     if (i < 0x100) {
                         dstc_emit(c, DOP_GET_INDEX |
                                 (subval_register << 8) |
@@ -72,7 +72,7 @@ static void destructure(DstCompiler *c,
                                 (i << 24));
                     } else {
                         DstSlot islot = dstc_cslot(dst_wrap_integer(i));
-                        int32_t i_register = dstc_to_tempreg(c, islot, DSTC_REGTEMP_2);
+                        int32_t i_register = dstc_regnear(c, islot, DSTC_REGTEMP_2);
                         dstc_emit(c, DOP_GET_INDEX |
                                 (subval_register << 8) |
                                 (right_register << 16) |
@@ -88,8 +88,6 @@ static void destructure(DstCompiler *c,
                     dstc_free_reg(c, right, right_register);
                 }
             }
-            /* Free right */
-            dstc_freeslot(c, right);
             break;
         case DST_TABLE:
         case DST_STRUCT:
@@ -100,9 +98,9 @@ static void destructure(DstCompiler *c,
                     DstSlot nextright;
                     DstSlot kslot = dstc_value(dstc_fopts_default(c), kv->key);
 
-                    right_register = dstc_to_tempreg(c, right, DSTC_REGTEMP_0);
-                    subval_register = dstc_getreg_temp(c, DSTC_REGTEMP_1);
-                    k_register = dstc_to_tempreg(c, kslot, DSTC_REGTEMP_2);
+                    right_register = dstc_regnear(c, right, DSTC_REGTEMP_0);
+                    subval_register = dstc_allocnear(c, DSTC_REGTEMP_1);
+                    k_register = dstc_regnear(c, kslot, DSTC_REGTEMP_2);
                     dstc_emit(c, DOP_GET |
                             (subval_register << 8) |
                             (right_register << 16) |
@@ -117,11 +115,8 @@ static void destructure(DstCompiler *c,
                     dstc_free_reg(c, right, right_register);
                 }
             }
-            /* Free right */
-            dstc_freeslot(c, right);
             break;
     }
-
 }
 
 DstSlot dstc_varset(DstFopts opts, int32_t argn, const Dst *argv) {
@@ -193,7 +188,7 @@ static DstSlot namelocal(DstCompiler *c, Dst head, int32_t flags, DstSlot ret) {
             ret.index > 0xFF) {
         /* Slot is not able to be named */
         DstSlot localslot;
-        localslot.index = dstc_getreg(c);
+        localslot.index = dstc_allocfar(c);
         /* infer type? */
         localslot.flags = flags;
         localslot.envindex = -1;
