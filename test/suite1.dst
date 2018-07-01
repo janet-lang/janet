@@ -161,4 +161,10 @@
 (testmarsh @{1 2 3 4}  "marshal table")
 (testmarsh {1 2 3 4}  "marshal struct")
 
+# Large functions
+(def manydefs (for [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
+(array.push manydefs (tuple * 10000 3 5 7 9))
+(def f (compile (tuple.prepend manydefs 'do) *env*))
+(assert (= (f) (* 10000 3 5 7 9)) "long function compilation")
+
 (end-suite)

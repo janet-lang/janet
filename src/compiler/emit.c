@@ -25,7 +25,7 @@
 #include "emit.h"
 
 /* Get a register */
-int32_t dstc_getreg(DstCompiler *c) {
+int32_t dstc_allocfar(DstCompiler *c) {
     int32_t reg = dstc_regalloc_1(&c->scope->ra);
     if (reg > 0xFFFF) {
         dstc_cerror(c, "ran out of internal registers");
@@ -34,7 +34,7 @@ int32_t dstc_getreg(DstCompiler *c) {
 }
 
 /* Get a register less than 256 */
-int32_t dstc_getreg_temp(DstCompiler *c, DstcRegisterTemp tag) {
+int32_t dstc_allocnear(DstCompiler *c, DstcRegisterTemp tag) {
     return dstc_regalloc_temp(&c->scope->ra, tag);
 }
 
@@ -107,10 +107,10 @@ static void dstc_loadconst(DstCompiler *c, Dst k, int32_t reg) {
 }
 
 /* Convert a slot to a two byte register */
-int32_t dstc_to_reg(DstCompiler *c, DstSlot s) {
+int32_t dstc_regfar(DstCompiler *c, DstSlot s, DstcRegisterTemp tag) {
     int32_t reg;
     if (s.flags & (DST_SLOT_CONSTANT | DST_SLOT_REF)) {
-        reg = dstc_getreg(c);
+        reg = dstc_allocnear(c, tag);
         dstc_loadconst(c, s.constant, reg);
         /* If we also are a reference, deref the one element array */
         if (s.flags & DST_SLOT_REF) {
@@ -119,8 +119,8 @@ int32_t dstc_to_reg(DstCompiler *c, DstSlot s) {
                     (reg << 8) |
                     DOP_GET_INDEX);
         }
-    } else if (s.envindex >= 0 || s.index > 0xFF) {
-        reg = dstc_getreg(c);
+    } else if (s.envindex >= 0) {
+        reg = dstc_allocnear(c, tag);
         dstc_emit(c,
                 ((uint32_t)(s.index) << 24) |
                 ((uint32_t)(s.envindex) << 16) |
@@ -134,10 +134,10 @@ int32_t dstc_to_reg(DstCompiler *c, DstSlot s) {
 }
 
 /* Convert a slot to a temporary 1 byte register */
-int32_t dstc_to_tempreg(DstCompiler *c, DstSlot s, DstcRegisterTemp tag) {
+int32_t dstc_regnear(DstCompiler *c, DstSlot s, DstcRegisterTemp tag) {
     int32_t reg;
     if (s.flags & (DST_SLOT_CONSTANT | DST_SLOT_REF)) {
-        reg = dstc_getreg_temp(c, tag);
+        reg = dstc_allocnear(c, tag);
         dstc_loadconst(c, s.constant, reg);
         /* If we also are a reference, deref the one element array */
         if (s.flags & DST_SLOT_REF) {
@@ -146,15 +146,15 @@ int32_t dstc_to_tempreg(DstCompiler *c, DstSlot s, DstcRegisterTemp tag) {
                     (reg << 8) |
                     DOP_GET_INDEX);
         }
-    } else if (s.envindex >= 0 || s.index > 0xFF) {
-        reg = dstc_getreg_temp(c, tag);
+    } else if (s.envindex >= 0) {
+        reg = dstc_allocnear(c, tag);
         dstc_emit(c,
                 ((uint32_t)(s.index) << 24) |
                 ((uint32_t)(s.envindex) << 16) |
                 ((uint32_t)(reg) << 8) |
                 DOP_LOAD_UPVALUE);
     } else if (s.index > 0xFF) {
-        reg = dstc_getreg_temp(c, tag);
+        reg = dstc_allocnear(c, tag);
         dstc_emit(c,
                 ((uint32_t)(s.index) << 16) |
                 ((uint32_t)(reg) << 8) |
@@ -175,7 +175,7 @@ void dstc_free_reg(DstCompiler *c, DstSlot s, int32_t reg) {
 }
 
 /* Check if two slots are equal */
-int dstc_sequal(DstSlot lhs, DstSlot rhs) {
+static int dstc_sequal(DstSlot lhs, DstSlot rhs) {
     if (lhs.flags == rhs.flags &&
             lhs.index == rhs.index &&
             lhs.envindex == rhs.envindex) {
@@ -190,7 +190,7 @@ int dstc_sequal(DstSlot lhs, DstSlot rhs) {
 
 /* Move values from one slot to another. The destination must
  * be writeable (not a literal). */
-int dstc_copy(
+void dstc_copy(
         DstCompiler *c,
         DstSlot dest,
         DstSlot src) {
@@ -202,11 +202,11 @@ int dstc_copy(
     /* Can't write to constants */
     if (dest.flags & DST_SLOT_CONSTANT) {
         dstc_cerror(c, "cannot write to constant");
-        return 0;
+        return;
     }
 
     /* Short circuit if dest and source are equal */
-    if (dstc_sequal(dest, src)) return 0;
+    if (dstc_sequal(dest, src)) return;
 
     /* Types of slots - src */
     /* constants */
@@ -243,19 +243,19 @@ int dstc_copy(
                     (dest.index << 8) |
                     DOP_MOVE_NEAR);
         }
-        return 1;
+        return;
     }
 
     /* Process: src -> srclocal -> destlocal -> dest */
 
     /* src -> srclocal */
-    srclocal = dstc_to_tempreg(c, src, DSTC_REGTEMP_0);
+    srclocal = dstc_regnear(c, src, DSTC_REGTEMP_0);
 
     /* Pull down dest (find destlocal) */
     if (dest.flags & DST_SLOT_REF) {
         writeback = 1;
         destlocal = srclocal;
-        reflocal = dstc_getreg_temp(c, DSTC_REGTEMP_1);
+        reflocal = dstc_allocnear(c, DSTC_REGTEMP_1);
         dstc_emit(c,
                 (dstc_const(c, dest.constant) << 16) |
                 (reflocal << 8) |
@@ -302,13 +302,12 @@ int dstc_copy(
         dstc_regalloc_free(&c->scope->ra, reflocal);
     }
     dstc_free_reg(c, src, srclocal);
-    return 1;
 }
 
 /* Instruction templated emitters */
 
 static int32_t emit1s(DstCompiler *c, uint8_t op, DstSlot s, int32_t rest) {
-    int32_t reg = dstc_to_tempreg(c, s, DSTC_REGTEMP_0);
+    int32_t reg = dstc_regnear(c, s, DSTC_REGTEMP_0);
     int32_t label = dst_v_count(c->buffer);
     dstc_emit(c, op | (reg << 8) | (rest << 16));
     dstc_free_reg(c, s, reg);
@@ -316,7 +315,7 @@ static int32_t emit1s(DstCompiler *c, uint8_t op, DstSlot s, int32_t rest) {
 }
 
 int32_t dstc_emit_s(DstCompiler *c, uint8_t op, DstSlot s) {
-    int32_t reg = dstc_to_reg(c, s);
+    int32_t reg = dstc_regfar(c, s, DSTC_REGTEMP_0);
     int32_t label = dst_v_count(c->buffer);
     dstc_emit(c, op | (reg << 8));
     dstc_free_reg(c, s, reg);
@@ -345,8 +344,8 @@ int32_t dstc_emit_su(DstCompiler *c, uint8_t op, DstSlot s, uint16_t immediate) 
 }
 
 static int32_t emit2s(DstCompiler *c, uint8_t op, DstSlot s1, DstSlot s2, int32_t rest) {
-    int32_t reg1 = dstc_to_tempreg(c, s1, DSTC_REGTEMP_0);
-    int32_t reg2 = dstc_to_tempreg(c, s2, DSTC_REGTEMP_1);
+    int32_t reg1 = dstc_regnear(c, s1, DSTC_REGTEMP_0);
+    int32_t reg2 = dstc_regnear(c, s2, DSTC_REGTEMP_1);
     int32_t label = dst_v_count(c->buffer);
     dstc_emit(c, op | (reg1 << 8) | (reg2 << 16) | (rest << 24));
     dstc_free_reg(c, s1, reg1);
@@ -355,8 +354,8 @@ static int32_t emit2s(DstCompiler *c, uint8_t op, DstSlot s1, DstSlot s2, int32_
 }
 
 int32_t dstc_emit_ss(DstCompiler *c, uint8_t op, DstSlot s1, DstSlot s2) {
-    int32_t reg1 = dstc_to_tempreg(c, s1, DSTC_REGTEMP_0);
-    int32_t reg2 = dstc_to_reg(c, s2);
+    int32_t reg1 = dstc_regnear(c, s1, DSTC_REGTEMP_0);
+    int32_t reg2 = dstc_regfar(c, s2, DSTC_REGTEMP_1);
     int32_t label = dst_v_count(c->buffer);
     dstc_emit(c, op | (reg1 << 8) | (reg2 << 16));
     dstc_free_reg(c, s1, reg1);
@@ -373,9 +372,9 @@ int32_t dstc_emit_ssu(DstCompiler *c, uint8_t op, DstSlot s1, DstSlot s2, uint8_
 }
 
 int32_t dstc_emit_sss(DstCompiler *c, uint8_t op, DstSlot s1, DstSlot s2, DstSlot s3) {
-    int32_t reg1 = dstc_to_tempreg(c, s1, DSTC_REGTEMP_0);
-    int32_t reg2 = dstc_to_tempreg(c, s2, DSTC_REGTEMP_1);
-    int32_t reg3 = dstc_to_tempreg(c, s3, DSTC_REGTEMP_2);
+    int32_t reg1 = dstc_regnear(c, s1, DSTC_REGTEMP_0);
+    int32_t reg2 = dstc_regnear(c, s2, DSTC_REGTEMP_1);
+    int32_t reg3 = dstc_regnear(c, s3, DSTC_REGTEMP_2);
     int32_t label = dst_v_count(c->buffer);
     dstc_emit(c, op | (reg1 << 8) | (reg2 << 16) | (reg3 << 24));
     dstc_free_reg(c, s1, reg1);

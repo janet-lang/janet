@@ -27,11 +27,11 @@
 
 void dstc_emit(DstCompiler *c, uint32_t instr);
 
-int32_t dstc_getreg(DstCompiler *c);
-int32_t dstc_getreg_temp(DstCompiler *c, DstcRegisterTemp);
+int32_t dstc_allocfar(DstCompiler *c);
+int32_t dstc_allocnear(DstCompiler *c, DstcRegisterTemp);
 
-int32_t dstc_to_reg(DstCompiler *c, DstSlot s);
-int32_t dstc_to_tempreg(DstCompiler *c, DstSlot s, DstcRegisterTemp tag);
+int32_t dstc_regfar(DstCompiler *c, DstSlot s, DstcRegisterTemp tag);
+int32_t dstc_regnear(DstCompiler *c, DstSlot s, DstcRegisterTemp tag);
 void dstc_free_reg(DstCompiler *c, DstSlot s, int32_t reg);
 
 int32_t dstc_emit_s(DstCompiler *c, uint8_t op, DstSlot s);
@@ -45,6 +45,6 @@ int32_t dstc_emit_ssu(DstCompiler *c, uint8_t op, DstSlot s1, DstSlot s2, uint8_
 int32_t dstc_emit_sss(DstCompiler *c, uint8_t op, DstSlot s1, DstSlot s2, DstSlot s3);
 
 /* Move value from one slot to another. Cannot copy to constant slots. */
-int dstc_copy(DstCompiler *c, DstSlot dest, DstSlot src);
+void dstc_copy(DstCompiler *c, DstSlot dest, DstSlot src);
 
 #endif

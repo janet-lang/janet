@@ -266,7 +266,7 @@ value."
                                    subloop
                                    (tuple ':= bindings (tuple + bindings inc)))))
             :keys (do
-                    (def $dict (gensym "dict"))
+                    (def $dict (gensym))
                     (def preds @['and (tuple not= nil bindings)])
                     (def subloop (doone (+ i 3) preds))
                     (tuple 'do
@@ -276,9 +276,9 @@ value."
                                   subloop
                                   (tuple ':= bindings (tuple next $dict bindings)))))
             :in (do
-                  (def $len (gensym "len"))
-                  (def $i (gensym "i"))
-                  (def $indexed (gensym "indexed"))
+                  (def $len (gensym))
+                  (def $i (gensym))
+                  (def $indexed (gensym))
                   (def preds @['and (tuple < $i $len)])
                   (def subloop (doone (+ i 3) preds))
                   (tuple 'do
@@ -295,7 +295,7 @@ value."
 (defmacro for
   "Similar to loop, but accumulates the loop body into an array and returns that."
   [head & body]
-  (def $accum (gensym "accum"))
+  (def $accum (gensym))
   (tuple 'do
          (tuple 'def $accum @[])
          (tuple 'loop head
@@ -1062,8 +1062,8 @@ onvalue."
      (do
        (file.write stdout " [" source "]")
        (if source-line (file.write stdout " on line "
-         (string source-line) ", column " (string source-col))))
-     (if pc (file.write stdout " at (pc=" (string pc) ")")))
+         (string source-line) ", column " (string source-col)))))
+   (if pc (file.write stdout " (pc=" (string pc) ")"))
    (when tail (file.write stdout " (tailcall)"))
    (file.write stdout "\n"))))
 

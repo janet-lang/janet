@@ -29,6 +29,7 @@ void dstc_regalloc_init(DstcRegisterAllocator *ra) {
     ra->count = 0;
     ra->capacity = 0;
     ra->max = 0;
+    ra->regtemps = 0;
 }
 
 void dstc_regalloc_deinit(DstcRegisterAllocator *ra) {
@@ -126,9 +127,16 @@ int32_t dstc_regalloc_1(DstcRegisterAllocator *ra) {
  * without being freed. */
 void dstc_regalloc_free(DstcRegisterAllocator *ra, int32_t reg) {
     /* We cannot free reserved slots */
-    if (reg < 0 || (reg >= 240 && reg <= 255))
+    if (reg < 0)
         return;
+    if (reg >= 0xF0 && reg <= 0xFF) {
+        ra->regtemps &= ~(1 << (reg - 0xF0));
+        return;
+    }
     int32_t chunk = reg >> 5;
+    /* Outside normal chunk range */
+    if (chunk >= ra->count)
+        return;
     int32_t bit = reg & 0x1F;
     ra->chunks[chunk] &= ~ithbit(bit);
 }
@@ -139,6 +147,8 @@ void dstc_regalloc_free(DstcRegisterAllocator *ra, int32_t reg) {
 int32_t dstc_regalloc_temp(DstcRegisterAllocator *ra, DstcRegisterTemp nth) {
     int32_t oldmax = ra->max;
     int32_t reg = dstc_regalloc_1(ra);
+    dst_assert(~(ra->regtemps & (1 << nth)), "regtemp already allocated");
+    ra->regtemps |= 1 << nth;
     if (reg > 0xFF) {
         reg = 0xF0 + nth;
         ra->max = (reg > oldmax) ? reg : oldmax;
@@ -146,8 +156,9 @@ int32_t dstc_regalloc_temp(DstcRegisterAllocator *ra, DstcRegisterTemp nth) {
     return reg;
 }
 
-/* Check if a range is free. Returns the next index to check if not free,
- * -1 if free. */
+/* Disable multi-slot allocation for now. */
+
+/*
 static int32_t checkrange(DstcRegisterAllocator *ra, int32_t start, int32_t end) {
     int32_t startchunk = start / 32;
     int32_t endchunk = end / 32;
@@ -161,7 +172,6 @@ static int32_t checkrange(DstcRegisterAllocator *ra, int32_t start, int32_t end)
         uint32_t block = ra->chunks[chunk];
         uint32_t masking = mask & block;
         if (masking) {
-            /* If block is full, skip it completely. */
             int32_t nextbit = (block == 0xFFFFFFFF)
                 ? 32
                 : count_trailing_zeros(masking) + 1;
@@ -171,7 +181,6 @@ static int32_t checkrange(DstcRegisterAllocator *ra, int32_t start, int32_t end)
     return -1;
 }
 
-/* Mark a range */
 static void markrange(DstcRegisterAllocator *ra, int32_t start, int32_t end) {
     int32_t startchunk = start / 32;
     int32_t endchunk = end / 32;
@@ -185,7 +194,6 @@ static void markrange(DstcRegisterAllocator *ra, int32_t start, int32_t end) {
     }
 }
 
-/* Free a range of registers. */
 void dstc_regalloc_freerange(DstcRegisterAllocator *ra, int32_t start, int32_t n) {
     int32_t end = start + n - 1;
     int32_t startchunk = start / 32;
@@ -200,8 +208,6 @@ void dstc_regalloc_freerange(DstcRegisterAllocator *ra, int32_t start, int32_t n
     }
 }
 
-/* Allocate n contiguous registers. Returns the first register
- * in the range allocated. */
 int32_t dstc_regalloc_n(DstcRegisterAllocator *ra, int32_t n) {
     int32_t start = 0, end = 0, next = 0;
     while (next >= 0) {
@@ -210,15 +216,11 @@ int32_t dstc_regalloc_n(DstcRegisterAllocator *ra, int32_t n) {
         next = checkrange(ra, start, end);
     }
     markrange(ra, start, end);
-    /* Set max */
     if (end > ra->max)
         ra->max = end;
     return start;
 }
 
-/* Allocates registers for a function call. Tries to not move the callee,
- * but will find nargs + 1 other contiguous registers if there is not enough
- * space after the callee. */
 int32_t dstc_regalloc_call(DstcRegisterAllocator *ra, int32_t callee, int32_t nargs) {
     if (checkrange(ra, callee, callee + nargs) < 0) {
         markrange(ra, callee + 1, callee + nargs);
@@ -227,3 +229,4 @@ int32_t dstc_regalloc_call(DstcRegisterAllocator *ra, int32_t callee, int32_t na
     return dstc_regalloc_n(ra, nargs + 1);
 }
 
+*/

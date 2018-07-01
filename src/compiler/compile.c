@@ -101,7 +101,7 @@ DstSlot dstc_cslot(Dst x) {
 DstSlot dstc_nearslot(DstCompiler *c, DstcRegisterTemp tag) {
     DstSlot ret;
     ret.flags = DST_SLOTTYPE_ANY;
-    ret.index = dstc_getreg_temp(c, tag);
+    ret.index = dstc_allocnear(c, tag);
     ret.constant = dst_wrap_nil();
     ret.envindex = -1;
     return ret;
@@ -111,7 +111,7 @@ DstSlot dstc_nearslot(DstCompiler *c, DstcRegisterTemp tag) {
 DstSlot dstc_farslot(DstCompiler *c) {
     DstSlot ret;
     ret.flags = DST_SLOTTYPE_ANY;
-    ret.index = dstc_getreg(c);
+    ret.index = dstc_allocfar(c);
     ret.constant = dst_wrap_nil();
     ret.envindex = -1;
     return ret;
@@ -314,7 +314,7 @@ DstSlot dstc_gettarget(DstFopts opts) {
         slot.envindex = -1;
         slot.constant = dst_wrap_nil();
         slot.flags = 0;
-        slot.index = dstc_getreg_temp(opts.compiler, DSTC_REGTEMP_3);
+        slot.index = dstc_allocnear(opts.compiler, DSTC_REGTEMP_3);
     }
     return slot;
 }
@@ -399,13 +399,13 @@ static DstSlot dstc_call(DstFopts opts, DstSlot *slots, DstSlot fun) {
         dstc_pushslots(c, slots);
         int32_t fun_register;
         if (opts.flags & DST_FOPTS_TAIL) {
-            fun_register = dstc_to_reg(c, fun);
+            fun_register = dstc_regfar(c, fun, DSTC_REGTEMP_0);
             dstc_emit(c, DOP_TAILCALL | (fun_register << 8));
             retslot = dstc_cslot(dst_wrap_nil());
             retslot.flags = DST_SLOT_RETURNED;
         } else {
             retslot = dstc_gettarget(opts);
-            fun_register = dstc_to_tempreg(c, fun, DSTC_REGTEMP_0);
+            fun_register = dstc_regnear(c, fun, DSTC_REGTEMP_0);
             dstc_emit(c, DOP_CALL |
                     (retslot.index << 8) |
                     (fun_register << 16));

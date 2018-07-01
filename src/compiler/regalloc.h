@@ -44,6 +44,7 @@ typedef struct {
     int32_t count; /* number of chunks in chunks */
     int32_t capacity; /* amount allocated for chunks */
     int32_t max; /* The maximum allocated register so far */
+    int32_t regtemps; /* Hold which tempregistered are alloced. */
 } DstcRegisterAllocator;
 
 void dstc_regalloc_init(DstcRegisterAllocator *ra);
@@ -51,56 +52,15 @@ void dstc_regalloc_deinit(DstcRegisterAllocator *ra);
 
 int32_t dstc_regalloc_1(DstcRegisterAllocator *ra);
 void dstc_regalloc_free(DstcRegisterAllocator *ra, int32_t reg);
-void dstc_regalloc_freerange(DstcRegisterAllocator *ra, int32_t regstart, int32_t n);
 int32_t dstc_regalloc_temp(DstcRegisterAllocator *ra, DstcRegisterTemp nth);
-int32_t dstc_regalloc_n(DstcRegisterAllocator *ra, int32_t n);
-int32_t dstc_regalloc_call(DstcRegisterAllocator *ra, int32_t callee, int32_t nargs);
 void dstc_regalloc_clone(DstcRegisterAllocator *dest, DstcRegisterAllocator *src);
 void dstc_regalloc_touch(DstcRegisterAllocator *ra, int32_t reg);
 
-/* Test code */
+/* Mutli-slot allocation disabled */
 /*
-#include <stdio.h>
-static void printreg(DstcRegisterAllocator *ra) {
-    printf("count=%d, cap=%d, max=%d\n", ra->count, ra->capacity, ra->max);
-    for (int row = 0; row < ra->count; row++) {
-        uint32_t chunk = ra->chunks[row];
-        putc('[', stdout);
-        for (int i = 0; i < 32; i++) {
-            putc(
-                (chunk & (1 << i))
-                    ? '*'
-                    : '.', stdout);
-        }
-        putc(']', stdout);
-        putc('\n', stdout);
-    }
-    putc('\n', stdout);
-}
-
-static void runtest(void) {
-    DstcRegisterAllocator ra, rb;
-    dstc_regalloc_init(&ra);
-    int32_t a = dstc_regalloc_1(&ra);
-    int32_t b = dstc_regalloc_1(&ra);
-    int32_t c = dstc_regalloc_1(&ra);
-    int32_t d = dstc_regalloc_1(&ra);
-    int32_t e = dstc_regalloc_1(&ra);
-    printreg(&ra);
-    dstc_regalloc_free(&ra, b);
-    dstc_regalloc_free(&ra, d);
-    printreg(&ra);
-    int32_t x = dstc_regalloc_n(&ra, 32);
-    printreg(&ra);
-    dstc_regalloc_1(&ra);
-    printreg(&ra);
-    int32_t y = dstc_regalloc_n(&ra, 101);
-    printreg(&ra);
-    dstc_regalloc_clone(&rb, &ra);
-    printreg(&rb);
-    dstc_regalloc_deinit(&ra);
-    dstc_regalloc_deinit(&rb);
-}
+int32_t dstc_regalloc_n(DstcRegisterAllocator *ra, int32_t n);
+int32_t dstc_regalloc_call(DstcRegisterAllocator *ra, int32_t callee, int32_t nargs);
+void dstc_regalloc_freerange(DstcRegisterAllocator *ra, int32_t regstart, int32_t n);
 */
 
 #endif

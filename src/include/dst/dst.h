@@ -129,7 +129,7 @@ void dst_puts(const uint8_t *str);
 const uint8_t *dst_symbol(const uint8_t *str, int32_t len);
 const uint8_t *dst_symbol_from_string(const uint8_t *str);
 const uint8_t *dst_csymbol(const char *str);
-const uint8_t *dst_symbol_gen(const uint8_t *buf, int32_t len);
+const uint8_t *dst_symbol_gen();
 #define dst_symbolv(str, len) dst_wrap_symbol(dst_symbol((str), (len)))
 #define dst_csymbolv(cstr) dst_wrap_symbol(dst_csymbol(cstr))
 
