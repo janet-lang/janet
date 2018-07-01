@@ -26,6 +26,7 @@
 #include <dst/dst.h>
 #include <dst/dstcompile.h>
 #include <dst/dstopcodes.h>
+#include "regalloc.h"
 
 /* Compiler typedefs */
 typedef struct DstCompiler DstCompiler;
@@ -69,15 +70,21 @@ typedef struct SymPair {
 /* A lexical scope during compilation */
 struct DstScope {
 
+    /* For debugging */
+    const char *name;
+
+    /* Scopes are doubly linked list */
+    DstScope *parent;
+    DstScope *child;
+
     /* Constants for this funcdef */
     Dst *consts;
 
     /* Map of symbols to slots. Use a simple linear scan for symbols. */
     SymPair *syms;
 
-    /* Bit vector with allocated slot indices. Used to allocate new slots */
-    uint32_t *slots;
-    int32_t smax;
+    /* Regsiter allocator */
+    DstcRegisterAllocator ra;
 
     /* FuncDefs */
     DstFuncDef **defs;
@@ -97,13 +104,14 @@ struct DstScope {
 /* Compilation state */
 struct DstCompiler {
     int recursion_guard;
-    DstScope *scopes;
+    
+    /* Pointer to current scope */
+    DstScope *scope;
 
     uint32_t *buffer;
     DstSourceMapping *mapbuffer;
 
     /* Keep track of where we are in the source */
-    DstSourceMapping *ast_stack;
     DstSourceMapping current_mapping;
 
     /* Hold the environment */
@@ -158,45 +166,13 @@ int dstc_iserr(DstFopts *opts);
 /* Helper for iterating tables and structs */
 const DstKV *dstc_next(Dst ds, const DstKV *kv);
 
-/* Allocate a slot index */
-int32_t dstc_lsloti(DstCompiler *c);
-
-/* Free a slot index */
-void dstc_sfreei(DstCompiler *c, int32_t index);
-
-/* Allocate a local near (n) slot and return its index. Slot
- * has maximum index max. Common value for max would be 0xFF,
- * the highest slot index representable with one byte. */
-int32_t dstc_lslotn(DstCompiler *c, int32_t max, int32_t nth);
-
-/* Free a slot */
 void dstc_freeslot(DstCompiler *c, DstSlot s);
-
-/* Add a slot to a scope with a symbol associated with it (def or var). */
 void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s);
-
-/* Realize any slot to a local slot. Call this to get a slot index
- * that can be used in an instruction. */
-int32_t dstc_preread(
-        DstCompiler *c,
-        int32_t max,
-        int nth,
-        DstSlot s);
-
-/* Call this to release a read handle after emitting the instruction. */
-void dstc_postread(DstCompiler *c, DstSlot s, int32_t index);
-
-/* Move value from one slot to another. Cannot copy to constant slots. */
-void dstc_copy(
-        DstCompiler *c,
-        DstSlot dest,
-        DstSlot src);
+DstSlot dstc_nearslot(DstCompiler *c, DstcRegisterTemp tag);
+DstSlot dstc_farslot(DstCompiler *c);
 
 /* Throw away some code after checking that it is well formed. */
 void dstc_throwaway(DstFopts opts, Dst x);
-
-/* Generate the return instruction for a slot. */
-DstSlot dstc_return(DstCompiler *c, DstSlot s);
 
 /* Get a target slot for emitting an instruction. Will always return
  * a local slot. */
@@ -214,6 +190,9 @@ void dstc_pushslots(DstCompiler *c, DstSlot *slots);
 /* Free slots loaded via dstc_toslots */
 void dstc_freeslots(DstCompiler *c, DstSlot *slots);
 
+/* Generate the return instruction for a slot. */
+DstSlot dstc_return(DstCompiler *c, DstSlot s);
+
 /* Store an error */
 void dstc_error(DstCompiler *c, const uint8_t *m);
 void dstc_cerror(DstCompiler *c, const char *m);
@@ -221,11 +200,8 @@ void dstc_cerror(DstCompiler *c, const char *m);
 /* Dispatch to correct form compiler */
 DstSlot dstc_value(DstFopts opts, Dst x);
 
-/* Check if two slots are equal */
-int dstc_sequal(DstSlot lhs, DstSlot rhs);
-
 /* Push and pop from the scope stack */
-void dstc_scope(DstCompiler *c, int newfn);
+void dstc_scope(DstScope *s, DstCompiler *c, int flags, const char *name);
 void dstc_popscope(DstCompiler *c);
 void dstc_popscope_keepslot(DstCompiler *c, DstSlot retslot);
 DstFuncDef *dstc_pop_funcdef(DstCompiler *c);
@@ -235,8 +211,5 @@ DstSlot dstc_cslot(Dst x);
 
 /* Search for a symbol */
 DstSlot dstc_resolve(DstCompiler *c, const uint8_t *sym);
-
-/* Emit instructions. */
-void dstc_emit(DstCompiler *c, uint32_t instr);
 
 #endif

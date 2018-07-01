@@ -13,7 +13,7 @@
 
 (def defn :macro
  "Define a function. Equivalent to (def name (fn name [args] ...))."
-  (fn [name & more]
+  (fn defn [name & more]
    (def len (length more))
    (def fstart (fn recur [i]
     (def {i ith} more)
@@ -30,9 +30,8 @@
 (def defmacro :macro
  "Define a macro."
  (do
-  (def defn* (get (get _env 'defn) :value))
-  (fn [name & more]
-   (apply1 defn* (array.concat
+  (fn defmacro [name & more]
+   (apply1 defn (array.concat
     @[name :macro] more)))))
 
 (defmacro defmacro-

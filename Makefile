@@ -50,10 +50,12 @@ endif
 
 # Source headers
 DST_HEADERS=$(sort $(wildcard src/include/dst/*.h))
+DST_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
 DST_LIBHEADERS=$(sort $(wildcard src/include/headerlibs/*.h))
 DST_GENERATED_HEADERS=src/mainclient/clientinit.gen.h \
 					  src/compiler/dststlbootstrap.gen.h
-DST_ALL_HEADERS=$(DST_HEADERS) \
+DST_ALL_HEADERS=$(DST_LOCAL_HEADERS) \
+				$(DST_HEADERS) \
 				$(DST_LIB_HEADERS) \
 				$(DST_GENERATED_HEADERS)
 

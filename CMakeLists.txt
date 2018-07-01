@@ -37,12 +37,16 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set(COMPILER_SOURCES
 src/compiler/compile.c
 src/compiler/cfuns.c
+src/compiler/emit.c
+src/compiler/regalloc.c
 src/compiler/run.c
 src/compiler/specials.c
 src/compiler/stl.c
 
 dststlbootstrap.h
 src/compiler/compile.h
+src/compiler/emit.h
+src/compiler/regalloc.h
 )
 
 set(CORE_SOURCES

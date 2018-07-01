@@ -24,7 +24,7 @@
 #include <dst/dstcorelib.h>
 #include "compile.h"
 #include <headerlibs/vector.h>
-#undef DST_V_NODEF_GROW
+#include "emit.h"
 
 /* This logic needs to be expanded for more types */
 
@@ -76,7 +76,6 @@ static DstSlot *foldc(DstSlot *slots, Dst (*fn)(Dst lhs, Dst rhs)) {
 static DstSlot opreduce(DstFopts opts, DstSlot *args, int op) {
     DstCompiler *c = opts.compiler;
     int32_t i, len;
-    int32_t op1, op2;
     len = dst_v_count(args);
     DstSlot t;
     if (len == 0) {
@@ -86,15 +85,9 @@ static DstSlot opreduce(DstFopts opts, DstSlot *args, int op) {
     }
     t = dstc_gettarget(opts);
     /* Compile initial two arguments */
-    op1 = dstc_preread(c, 0xFF, 1, args[0]);
-    op2 = dstc_preread(c, 0xFF, 2, args[1]);
-    dstc_emit(c, (t.index << 8) | (op1 << 16) | (op2 << 24) | op);
-    dstc_postread(c, args[0], op1);
-    dstc_postread(c, args[1], op2);
+    dstc_emit_sss(c, op, t, args[0], args[1]);
     for (i = 2; i < len; i++) {
-        op1 = dstc_preread(c, 0xFF, 1, args[i]);
-        dstc_emit(c, (t.index << 8) | (t.index << 16) | (op1 << 24) | op);
-        dstc_postread(c, args[i], op1);
+        dstc_emit_sss(c, op, t, t, args[i]);
     }
     return t;
 }
