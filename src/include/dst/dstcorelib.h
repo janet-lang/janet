@@ -39,21 +39,6 @@ int dst_rand(DstArgs args);
 int dst_srand(DstArgs args);
 int dst_remainder(DstArgs args);
 
-/* Math */
-int dst_cos(DstArgs args);
-int dst_sin(DstArgs args);
-int dst_tan(DstArgs args);
-int dst_acos(DstArgs args);
-int dst_asin(DstArgs args);
-int dst_atan(DstArgs args);
-int dst_exp(DstArgs args);
-int dst_log(DstArgs args);
-int dst_log10(DstArgs args);
-int dst_sqrt(DstArgs args);
-int dst_floor(DstArgs args);
-int dst_ceil(DstArgs args);
-int dst_pow(DstArgs args);
-
 /* Misc core functions */
 int dst_core_print(DstArgs args);
 int dst_core_describe(DstArgs args);

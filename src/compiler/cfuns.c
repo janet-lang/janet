@@ -41,41 +41,6 @@ static int fixarity2(DstFopts opts, DstSlot *args) {
     return dst_v_count(args) == 2;
 }
 
-/* Emit a series of instructions instead of a function call to a math op */
-static DstSlot opreduce(
-        DstFopts opts,
-        DstSlot *args,
-        int op,
-        Dst zeroArity,
-        DstSlot (*unary)(DstFopts opts, DstSlot s)) {
-    DstCompiler *c = opts.compiler;
-    int32_t i, len;
-    len = dst_v_count(args);
-    DstSlot t;
-    if (len == 0) {
-        return dstc_cslot(zeroArity);
-    } else if (len == 1) {
-        if (unary)
-            return unary(opts, args[0]);
-        return args[0];
-    }
-    t = dstc_gettarget(opts);
-    /* Compile initial two arguments */
-    int32_t lhs = dstc_regnear(c, args[0], DSTC_REGTEMP_0);
-    int32_t rhs = dstc_regnear(c, args[1], DSTC_REGTEMP_1);
-    dstc_emit(c, op | (t.index << 8) | (lhs << 16) | (rhs << 24));
-    dstc_free_reg(c, args[0], lhs);
-    dstc_free_reg(c, args[1], rhs);
-    /* Don't release t */
-    /* Compile the rest of the arguments */
-    for (i = 2; i < len; i++) {
-        rhs = dstc_regnear(c, args[i], DSTC_REGTEMP_0);
-        dstc_emit(c, op | (t.index << 8) | (t.index << 16) | (rhs << 24));
-        dstc_free_reg(c, args[i], rhs);
-    }
-    return t;
-}
-
 /* Generic hanldling for $A = B op $C */
 static DstSlot genericSSS(DstFopts opts, int op, Dst leftval, DstSlot s) {
     DstSlot target = dstc_gettarget(opts);
@@ -114,6 +79,38 @@ static DstSlot genericSSI(DstFopts opts, int op, DstSlot s, int32_t imm) {
     return target;
 }
 
+/* Emit a series of instructions instead of a function call to a math op */
+static DstSlot opreduce(
+        DstFopts opts,
+        DstSlot *args,
+        int op,
+        Dst nullary) {
+    DstCompiler *c = opts.compiler;
+    int32_t i, len;
+    len = dst_v_count(args);
+    DstSlot t;
+    if (len == 0) {
+        return dstc_cslot(nullary);
+    } else if (len == 1) {
+        return genericSSS(opts, op, nullary, args[0]);
+    }
+    t = dstc_gettarget(opts);
+    /* Compile initial two arguments */
+    int32_t lhs = dstc_regnear(c, args[0], DSTC_REGTEMP_0);
+    int32_t rhs = dstc_regnear(c, args[1], DSTC_REGTEMP_1);
+    dstc_emit(c, op | (t.index << 8) | (lhs << 16) | (rhs << 24));
+    dstc_free_reg(c, args[0], lhs);
+    dstc_free_reg(c, args[1], rhs);
+    /* Don't release t */
+    /* Compile the rest of the arguments */
+    for (i = 2; i < len; i++) {
+        rhs = dstc_regnear(c, args[i], DSTC_REGTEMP_0);
+        dstc_emit(c, op | (t.index << 8) | (t.index << 16) | (rhs << 24));
+        dstc_free_reg(c, args[i], rhs);
+    }
+    return t;
+}
+
 /* Function optimizers */
 
 static DstSlot do_error(DstFopts opts, DstSlot *args) {
@@ -126,10 +123,10 @@ static DstSlot do_debug(DstFopts opts, DstSlot *args) {
     return dstc_cslot(dst_wrap_nil());
 }
 static DstSlot do_get(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_GET, dst_wrap_nil(), NULL);
+    return opreduce(opts, args, DOP_GET, dst_wrap_nil());
 }
 static DstSlot do_put(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_PUT, dst_wrap_nil(), NULL);
+    return opreduce(opts, args, DOP_PUT, dst_wrap_nil());
 }
 static DstSlot do_length(DstFopts opts, DstSlot *args) {
     return genericSS(opts, DOP_LENGTH, args[0]);
@@ -138,7 +135,7 @@ static DstSlot do_yield(DstFopts opts, DstSlot *args) {
     return genericSSI(opts, DOP_SIGNAL, args[0], 3);
 }
 static DstSlot do_resume(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_RESUME, dst_wrap_nil(), NULL);
+    return opreduce(opts, args, DOP_RESUME, dst_wrap_nil());
 }
 static DstSlot do_apply1(DstFopts opts, DstSlot *args) {
     /* Push phase */
@@ -161,58 +158,42 @@ static DstSlot do_apply1(DstFopts opts, DstSlot *args) {
     dstc_free_reg(opts.compiler, args[0], fun_reg);
     return target;
 }
+
+/* Varidadic operatros specialization */
+
 static DstSlot do_add(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_ADD, dst_wrap_integer(0), NULL);
-}
-static DstSlot do_sub_unary(DstFopts opts, DstSlot slot) {
-    return genericSSS(opts, DOP_SUBTRACT, dst_wrap_integer(0), slot);
+    return opreduce(opts, args, DOP_ADD, dst_wrap_integer(0));
 }
 static DstSlot do_sub(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_SUBTRACT, dst_wrap_integer(0), do_sub_unary);
+    return opreduce(opts, args, DOP_SUBTRACT, dst_wrap_integer(0));
 }
 static DstSlot do_mul(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_MULTIPLY, dst_wrap_integer(1), NULL);
-}
-static DstSlot do_div_unary(DstFopts opts, DstSlot slot) {
-    return genericSSS(opts, DOP_DIVIDE, dst_wrap_integer(1), slot);
+    return opreduce(opts, args, DOP_MULTIPLY, dst_wrap_integer(1));
 }
 static DstSlot do_div(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_DIVIDE, dst_wrap_integer(1), do_div_unary);
+    return opreduce(opts, args, DOP_DIVIDE, dst_wrap_integer(1));
 }
 static DstSlot do_band(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_BAND, dst_wrap_integer(-1), NULL);
+    return opreduce(opts, args, DOP_BAND, dst_wrap_integer(-1));
 }
 static DstSlot do_bor(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_BOR, dst_wrap_integer(0), NULL);
+    return opreduce(opts, args, DOP_BOR, dst_wrap_integer(0));
 }
 static DstSlot do_bxor(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_BXOR, dst_wrap_integer(0), NULL);
-}
-static DstSlot do_lshift_unary(DstFopts opts, DstSlot s) {
-    return genericSSS(opts, DOP_SHIFT_LEFT, dst_wrap_integer(1), s);
+    return opreduce(opts, args, DOP_BXOR, dst_wrap_integer(0));
 }
 static DstSlot do_lshift(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_SHIFT_LEFT,
-            dst_wrap_integer(1), do_lshift_unary);
-}
-static DstSlot do_rshift_unary(DstFopts opts, DstSlot s) {
-    return genericSSS(opts, DOP_SHIFT_RIGHT, dst_wrap_integer(1), s);
+    return opreduce(opts, args, DOP_SHIFT_LEFT, dst_wrap_integer(1));
 }
 static DstSlot do_rshift(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_SHIFT_RIGHT,
-            dst_wrap_integer(1), do_rshift_unary);
-}
-static DstSlot do_rshiftu_unary(DstFopts opts, DstSlot s) {
-    return genericSSS(opts, DOP_SHIFT_RIGHT_UNSIGNED, dst_wrap_integer(1), s);
+    return opreduce(opts, args, DOP_SHIFT_RIGHT, dst_wrap_integer(1));
 }
 static DstSlot do_rshiftu(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_SHIFT_RIGHT,
-            dst_wrap_integer(1), do_rshiftu_unary);
+    return opreduce(opts, args, DOP_SHIFT_RIGHT, dst_wrap_integer(1));
 }
 
 /* Arranged by tag */
 static const DstFunOptimizer optimizers[] = {
-    {NULL, NULL},
     {fixarity0, do_debug},
     {fixarity1, do_error},
     {fixarity2, do_apply1},
@@ -230,7 +211,7 @@ static const DstFunOptimizer optimizers[] = {
     {NULL, do_bxor},
     {NULL, do_lshift},
     {NULL, do_rshift},
-    {NULL, do_rshiftu},
+    {NULL, do_rshiftu}
 };
 
 const DstFunOptimizer *dstc_funopt(uint32_t flags) {
@@ -238,6 +219,6 @@ const DstFunOptimizer *dstc_funopt(uint32_t flags) {
     if (tag == 0 || tag >=
             ((sizeof(optimizers)/sizeof(uint32_t) - 1)))
         return NULL;
-    return optimizers + tag;
+    return optimizers + tag - 1;
 }
 

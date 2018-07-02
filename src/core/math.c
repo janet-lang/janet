@@ -137,18 +137,6 @@ int dst_##name(DstArgs args) {\
 
 DST_DEFINE_MATH2OP(atan2, atan2)
 DST_DEFINE_MATH2OP(pow, pow)
-DST_DEFINE_MATH2OP(fmod, fmod)
-
-int dst_modf(DstArgs args) {
-    double x, intpart;
-    Dst *tup;
-    DST_FIXARITY(args, 2);
-    DST_ARG_NUMBER(x, args, 0);
-    tup = dst_tuple_begin(2);
-    tup[0] = dst_wrap_real(modf(x, &intpart));
-    tup[1] = dst_wrap_real(intpart);
-    DST_RETURN_TUPLE(args, dst_tuple_end(tup));
-}
 
 /* Comparison */
 #define DST_DEFINE_COMPARATOR(name, pred)\
