@@ -1058,7 +1058,7 @@
       (when c (file.write stdout " cfunction"))
       (if name
         (file.write stdout " " name)
-        (when func (file.write stdout " " func)))
+        (when func (file.write stdout " " (string func))))
       (if source 
         (do
           (file.write stdout " [" source "]")

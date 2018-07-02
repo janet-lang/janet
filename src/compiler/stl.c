@@ -77,6 +77,76 @@ static void dst_quick_asm(
     dst_env_def(env, name, dst_wrap_function(dst_thunk(def)));
 }
 
+#define SSS(op, a, b, c) (op | (a << 8) | (b << 16) | (c << 24))
+#define SS(op, a, b) SSS(op, a, b, 0)
+#define S(op, a) SSS(op, a, 0, 0)
+/* Variadic operator assembly. Must be templatized for each different opcode. */
+/* Reg 0: Argument tuple (args) */
+/* Reg 1: Argument count (argn) */
+/* Reg 2: Jump flag (jump?) */
+/* Reg 3: Accumulator (accum) */
+/* Reg 4: Next operand (operand) */
+/* Reg 5: Loop iterator (i) */
+static DST_THREAD_LOCAL uint32_t varop_asm[] = {
+    DOP_LENGTH | (1 << 8), /* Put number of arguments in register 1 -> argn = count(args) */
+
+    /* Cheack nullary */
+    DOP_EQUALS_IMMEDIATE | (2 << 8) | (1 << 16) | (0 << 24), /* Check if numargs equal to 0 */
+    DOP_JUMP_IF_NOT | (2 << 8) | (3 << 16), /* If not 0, jump to next check */
+    /* Nullary */
+    DOP_LOAD_INTEGER | (3 << 8),  /* accum = nullary value */
+    DOP_RETURN | (3 << 8), /* return accum */
+
+    /* Check unary */
+    DOP_EQUALS_IMMEDIATE | (2 << 8) | (1 << 16) | (1 << 24), /* Check if numargs equal to 1 */
+    DOP_JUMP_IF_NOT | (2 << 8) | (5 << 16), /* If not 1, jump to next check */
+    /* Unary */
+    DOP_LOAD_INTEGER | (3 << 8), /* accum = unary value */
+    DOP_GET_INDEX | (4 << 8) | (0 << 16) | (0 << 24), /* operand = args[0] */
+    DOP_NOOP | (3 << 8) | (3 << 16) | (4 << 24), /* accum = accum op operand */
+    DOP_RETURN | (3 << 8), /* return accum */
+
+    /* Mutli (2 or more) arity */
+    /* Prime loop */
+    DOP_GET_INDEX | (3 << 8) | (0 << 16) | (0 << 24), /* accum = args[0] */
+    DOP_LOAD_INTEGER | (5 << 8) | (1 << 16), /* i = 1 */
+    /* Main loop */
+    DOP_GET | (4 << 8) | (0 << 16) | (5 << 24), /* operand = args[i] */
+    DOP_NOOP | (3 << 8) | (3 << 16) | (4 << 24), /* accum = accum op operand */
+    DOP_ADD_IMMEDIATE | (5 << 8) | (5 << 16) | (1 << 24), /* i++ */
+    DOP_EQUALS_INTEGER | (2 << 8) | (5 << 16) | (1 << 24), /* jump? = (i == argn) */
+    DOP_JUMP_IF_NOT | (2 << 8) | ((uint32_t)(-4) << 16), /* if not jump? go back 4 */
+    /* Done, do last and return accumulator */
+    DOP_RETURN | (3 << 8) /* return accum */
+};
+
+#define VAROP_NULLARY_LOC 3
+#define VAROP_UNARY_LOC 7
+#define VAROP_OP_LOC1 9
+#define VAROP_OP_LOC2 14
+
+/* Templatize a varop */
+static void templatize_varop(
+        DstTable *env,
+        int32_t flags,
+        const char *name,
+        int32_t nullary,
+        int32_t unary,
+        uint32_t op) {
+    varop_asm[VAROP_NULLARY_LOC] = SS(DOP_LOAD_INTEGER, 3, nullary);
+    varop_asm[VAROP_UNARY_LOC] = SS(DOP_LOAD_INTEGER, 3, unary);
+    varop_asm[VAROP_OP_LOC1] = SSS(op, 3, 3, 4);
+    varop_asm[VAROP_OP_LOC2] = SSS(op, 3, 3, 4);
+    dst_quick_asm(
+            env,
+            flags | DST_FUNCDEF_FLAG_VARARG,
+            name,
+            0,
+            6,
+            varop_asm,
+            sizeof(varop_asm));
+}
+
 DstTable *dst_stl_env(int flags) {
     static uint32_t error_asm[] = {
         DOP_ERROR
@@ -124,6 +194,18 @@ DstTable *dst_stl_env(int flags) {
     dst_quick_asm(env, DST_FUN_GET, "get", 2, 2, get_asm, sizeof(get_asm));
     dst_quick_asm(env, DST_FUN_PUT, "put", 3, 3, put_asm, sizeof(put_asm));
     dst_quick_asm(env, DST_FUN_LENGTH, "length", 1, 1, length_asm, sizeof(length_asm));
+
+    /* Variadic ops */
+    templatize_varop(env, DST_FUN_ADD, "+", 0, 0, DOP_ADD);
+    templatize_varop(env, DST_FUN_SUBTRACT, "-", 0, 0, DOP_SUBTRACT);
+    templatize_varop(env, DST_FUN_MULTIPLY, "*", 1, 1, DOP_MULTIPLY);
+    templatize_varop(env, DST_FUN_DIVIDE, "/", 1, 1, DOP_DIVIDE);
+    templatize_varop(env, DST_FUN_BAND, "&", -1, -1, DOP_BAND);
+    templatize_varop(env, DST_FUN_BOR, "|", 0, 0, DOP_BOR);
+    templatize_varop(env, DST_FUN_BXOR, "^", 0, 0, DOP_BXOR);
+    templatize_varop(env, DST_FUN_LSHIFT, "<<", 1, 1, DOP_SHIFT_LEFT);
+    templatize_varop(env, DST_FUN_RSHIFT, ">>", 1, 1, DOP_SHIFT_RIGHT);
+    templatize_varop(env, DST_FUN_RSHIFTU, ">>>", 1, 1, DOP_SHIFT_RIGHT_UNSIGNED);
 
     dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
 

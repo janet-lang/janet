@@ -386,13 +386,7 @@ static DstSlot dstc_call(DstFopts opts, DstSlot *slots, DstSlot fun) {
     DstCompiler *c = opts.compiler;
     int specialized = 0;
     if (fun.flags & DST_SLOT_CONSTANT) {
-        if (dst_checktype(fun.constant, DST_CFUNCTION)) {
-            const DstCFunOptimizer *o = dstc_cfunopt(dst_unwrap_cfunction(fun.constant));
-            if (o && (!o->can_optimize || o->can_optimize(opts, slots))) {
-                specialized = 1;
-                retslot = o->optimize(opts, slots);
-            }
-        } else if (dst_checktype(fun.constant, DST_FUNCTION)) {
+        if (dst_checktype(fun.constant, DST_FUNCTION)) {
             DstFunction *f = dst_unwrap_function(fun.constant);
             const DstFunOptimizer *o = dstc_funopt(f->def->flags);
             if (o && (!o->can_optimize || o->can_optimize(opts, slots))) {

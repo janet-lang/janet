@@ -112,6 +112,7 @@ static const DstInstructionDef dst_ops[] = {
     {"lds", DOP_LOAD_SELF},
     {"ldt", DOP_LOAD_TRUE},
     {"ldu", DOP_LOAD_UPVALUE},
+    {"length", DOP_LENGTH},
     {"lt", DOP_LESS_THAN},
     {"lti", DOP_LESS_THAN_INTEGER},
     {"ltim", DOP_LESS_THAN_IMMEDIATE},

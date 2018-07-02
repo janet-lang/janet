@@ -72,100 +72,6 @@ int dst_real(DstArgs args) {
     return 0;
 }
 
-#define ADD(x, y) ((x) + (y))
-#define SUB(x, y) ((x) - (y))
-#define MUL(x, y) ((x) * (y))
-#define MOD(x, y) ((x) % (y))
-#define DIV(x, y) ((x) / (y))
-
-#define DST_DEFINE_BINOP(name, op, rop, onerr)\
-Dst dst_op_##name(Dst lhs, Dst rhs) {\
-    if (!(dst_checktype(lhs, DST_INTEGER) || dst_checktype(lhs, DST_REAL))) onerr;\
-    if (!(dst_checktype(rhs, DST_INTEGER) || dst_checktype(rhs, DST_REAL))) onerr;\
-    return dst_checktype(lhs, DST_INTEGER)\
-        ? (dst_checktype(rhs, DST_INTEGER)\
-            ? dst_wrap_integer(op(dst_unwrap_integer(lhs), dst_unwrap_integer(rhs)))\
-            : dst_wrap_real(rop((double)dst_unwrap_integer(lhs), dst_unwrap_real(rhs))))\
-        : (dst_checktype(rhs, DST_INTEGER)\
-            ? dst_wrap_real(rop(dst_unwrap_real(lhs), (double)dst_unwrap_integer(rhs)))\
-            : dst_wrap_real(rop(dst_unwrap_real(lhs), dst_unwrap_real(rhs))));\
-}
-
-DST_DEFINE_BINOP(add, ADD, ADD, return dst_wrap_nil())
-DST_DEFINE_BINOP(subtract, SUB, SUB, return dst_wrap_nil())
-DST_DEFINE_BINOP(multiply, MUL, MUL, return dst_wrap_nil())
-
-#define DST_DEFINE_DIVIDER_OP(name, op, rop)\
-Dst dst_op_##name(Dst lhs, Dst rhs) {\
-    if (!(dst_checktype(lhs, DST_INTEGER) || dst_checktype(lhs, DST_REAL))) return dst_wrap_nil();\
-    if (!(dst_checktype(rhs, DST_INTEGER) || dst_checktype(rhs, DST_REAL))) return dst_wrap_nil();\
-    return dst_checktype(lhs, DST_INTEGER)\
-        ? (dst_checktype(rhs, DST_INTEGER)\
-            ? (dst_unwrap_integer(rhs) == 0 || ((dst_unwrap_integer(lhs) == INT32_MIN) && (dst_unwrap_integer(rhs) == -1)))\
-                ? dst_wrap_nil()\
-                : dst_wrap_integer(op(dst_unwrap_integer(lhs), dst_unwrap_integer(rhs)))\
-            : dst_wrap_real(rop((double)dst_unwrap_integer(lhs), dst_unwrap_real(rhs))))\
-        : (dst_checktype(rhs, DST_INTEGER)\
-            ? dst_wrap_real(rop(dst_unwrap_real(lhs), (double)dst_unwrap_integer(rhs)))\
-            : dst_wrap_real(rop(dst_unwrap_real(lhs), dst_unwrap_real(rhs))));\
-}
-
-DST_DEFINE_DIVIDER_OP(divide, DIV, DIV)
-DST_DEFINE_DIVIDER_OP(modulo, MOD, fmod)
-
-#define DST_DEFINE_REDUCER(name, fop, start)\
-int dst_##name(DstArgs args) {\
-    int32_t i;\
-    Dst accum = dst_wrap_integer(start);\
-    for (i = 0; i < args.n; i++) {\
-        accum = fop(accum, args.v[i]);\
-    }\
-    if (dst_checktype(accum, DST_NIL)) {\
-        *args.ret = dst_cstringv("expected number");\
-        return 1;\
-    }\
-    *args.ret = accum;\
-    return 0;\
-}
-
-DST_DEFINE_REDUCER(add, dst_op_add, 0)
-DST_DEFINE_REDUCER(multiply, dst_op_multiply, 1)
-
-#define DST_DEFINE_DIVIDER(name, unarystart)\
-int dst_##name(DstArgs args) {\
-    int32_t i;\
-    Dst accum;\
-    if (args.n < 1) {\
-        *args.ret = dst_cstringv("expected at least one argument");\
-        return 1;\
-    } else if (args.n == 1) {\
-        accum = unarystart;\
-        i = 0;\
-    } else {\
-        accum = args.v[0];\
-        i = 1;\
-    }\
-    for (; i < args.n; i++) {\
-        accum = dst_op_##name(accum, args.v[i]);\
-    }\
-    if (dst_checktype(accum, DST_NIL)) {\
-        *args.ret = dst_cstringv("expected number or division error");\
-        return 1;\
-    }\
-    *args.ret = accum;\
-    return 0;\
-}
-
-DST_DEFINE_DIVIDER(divide, dst_wrap_real(1))
-DST_DEFINE_DIVIDER(modulo, dst_wrap_real(1))
-DST_DEFINE_DIVIDER(subtract, dst_wrap_integer(0))
-
-#undef ADD
-#undef SUB
-#undef MUL
-#undef MOD
-#undef DST_DEFINE_BINOP
-
 int dst_bnot(DstArgs args) {
     if (args.n != 1) {
         *args.ret = dst_cstringv("expected 1 argument");
@@ -179,48 +85,20 @@ int dst_bnot(DstArgs args) {
     return 0;
 }
 
-#define DST_DEFINE_BITOP(name, op, start)\
-int dst_##name(DstArgs args) {\
-    int32_t i;\
-    int32_t accum = start;\
-    for (i = 0; i < args.n; i++) {\
-        Dst arg = args.v[i];\
-        if (!dst_checktype(arg, DST_INTEGER)) {\
-            *args.ret = dst_cstringv("expected integer");\
-            return -1;\
-        }\
-        accum op dst_unwrap_integer(arg);\
-    }\
-    *args.ret = dst_wrap_integer(accum);\
-    return 0;\
-}
-
-DST_DEFINE_BITOP(band, &=, -1)
-DST_DEFINE_BITOP(bor, |=, 0)
-DST_DEFINE_BITOP(bxor, ^=, 0)
-
-int dst_lshift(DstArgs args) {
-    int32_t lhs, rhs;
+int dst_remainder(DstArgs args) {
     DST_FIXARITY(args, 2);
-    DST_ARG_INTEGER(lhs, args, 0);
-    DST_ARG_INTEGER(rhs, args, 1);
-    DST_RETURN_INTEGER(args, lhs >> rhs);
-}
-
-int dst_rshift(DstArgs args) {
-    int32_t lhs, rhs;
-    DST_FIXARITY(args, 2);
-    DST_ARG_INTEGER(lhs, args, 0);
-    DST_ARG_INTEGER(rhs, args, 1);
-    DST_RETURN_INTEGER(args, lhs << rhs);
-}
-
-int dst_lshiftu(DstArgs args) {
-    int32_t lhs, rhs;
-    DST_FIXARITY(args, 2);
-    DST_ARG_INTEGER(lhs, args, 0);
-    DST_ARG_INTEGER(rhs, args, 1);
-    DST_RETURN_INTEGER(args, (int32_t)((uint32_t)lhs << rhs));
+    if (dst_checktype(args.v[0], DST_INTEGER) &&
+            dst_checktype(args.v[1], DST_INTEGER)) {
+        int32_t x, y;
+        x = dst_unwrap_integer(args.v[0]);
+        y = dst_unwrap_integer(args.v[1]);
+        DST_RETURN_INTEGER(args, x % y);
+    } else {
+        double x, y;
+        DST_ARG_NUMBER(x, args, 0);
+        DST_ARG_NUMBER(y, args, 1);
+        DST_RETURN_REAL(args, fmod(x, y));
+    }
 }
 
 #define DST_DEFINE_MATHOP(name, fop)\
@@ -337,15 +215,7 @@ DEF_NUMERIC_COMP(eq, ==)
 DEF_NUMERIC_COMP(neq, !=)
 
 static const DstReg cfuns[] = {
-    {"random", dst_rand},
-    {"seedrandom", dst_srand},
-    {"int", dst_int},
-    {"real", dst_real},
-    {"+", dst_add},
-    {"-", dst_subtract},
-    {"*", dst_multiply},
-    {"/", dst_divide},
-    {"%", dst_modulo},
+    {"%", dst_remainder},
     {"=", dst_strict_equal},
     {"not=", dst_strict_notequal},
     {"order<", dst_ascending},
@@ -358,27 +228,25 @@ static const DstReg cfuns[] = {
     {">", dst_numeric_gt},
     {"<=", dst_numeric_lte},
     {">=", dst_numeric_gte},
-    {"|", dst_bor},
-    {"&", dst_band},
-    {"^", dst_bxor},
     {"~", dst_bnot},
-    {">>", dst_lshift},
-    {"<<", dst_rshift},
-    {">>>", dst_lshiftu},
     {"not", dst_not},
-    {"cos", dst_cos},
-    {"sin", dst_sin},
-    {"tan", dst_tan},
-    {"acos", dst_acos},
-    {"asin", dst_asin},
-    {"atan", dst_atan},
-    {"exp", dst_exp},
-    {"log", dst_log},
-    {"log10", dst_log10},
-    {"sqrt", dst_sqrt},
-    {"floor", dst_floor},
-    {"ceil", dst_ceil},
-    {"pow", dst_pow},
+    {"int", dst_int},
+    {"real", dst_real},
+    {"math.random", dst_rand},
+    {"math.seedrandom", dst_srand},
+    {"math.cos", dst_cos},
+    {"math.sin", dst_sin},
+    {"math.tan", dst_tan},
+    {"math.acos", dst_acos},
+    {"math.asin", dst_asin},
+    {"math.atan", dst_atan},
+    {"math.exp", dst_exp},
+    {"math.log", dst_log},
+    {"math.log10", dst_log10},
+    {"math.sqrt", dst_sqrt},
+    {"math.floor", dst_floor},
+    {"math.ceil", dst_ceil},
+    {"math.pow", dst_pow},
     {NULL, NULL}
 };
 
@@ -387,8 +255,8 @@ int dst_lib_math(DstArgs args) {
     DstTable *env = dst_env_arg(args);
     dst_env_cfuns(env, cfuns);
 
-    dst_env_def(env, "pi", dst_wrap_real(3.1415926535897931));
-    dst_env_def(env, "e", dst_wrap_real(2.7182818284590451));
-    dst_env_def(env, "inf", dst_wrap_real(INFINITY));
+    dst_env_def(env, "math.pi", dst_wrap_real(3.1415926535897931));
+    dst_env_def(env, "math.e", dst_wrap_real(2.7182818284590451));
+    dst_env_def(env, "math.inf", dst_wrap_real(INFINITY));
     return 0;
 }

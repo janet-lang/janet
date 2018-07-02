@@ -45,7 +45,7 @@
     (struct 1 2 3 4)
 	(buffer "hi")
 	(fn [x] (+ x x))
-	+) "type ordering")
+	print) "type ordering")
 
 (assert (= (string (buffer "123" "456")) (string @"123456")) "buffer literal")
 (assert (= (get {} 1) nil) "get nil from empty struct")

@@ -37,6 +37,16 @@
 #define DST_FUN_GET 6
 #define DST_FUN_PUT 7
 #define DST_FUN_LENGTH 8
+#define DST_FUN_ADD 9
+#define DST_FUN_SUBTRACT 10
+#define DST_FUN_MULTIPLY 11
+#define DST_FUN_DIVIDE 12
+#define DST_FUN_BAND 13
+#define DST_FUN_BOR 14
+#define DST_FUN_BXOR 15
+#define DST_FUN_LSHIFT 16
+#define DST_FUN_RSHIFT 17
+#define DST_FUN_RSHIFTU 18
 
 /* Compiler typedefs */
 typedef struct DstCompiler DstCompiler;
@@ -45,7 +55,6 @@ typedef struct SlotTracker SlotTracker;
 typedef struct DstScope DstScope;
 typedef struct DstSlot DstSlot;
 typedef struct DstFopts DstFopts;
-typedef struct DstCFunOptimizer DstCFunOptimizer;
 typedef struct DstFunOptimizer DstFunOptimizer;
 typedef struct DstSpecial DstSpecial;
 
@@ -148,15 +157,6 @@ struct DstFopts {
 /* Get the default form options */
 DstFopts dstc_fopts_default(DstCompiler *c);
 
-/* A grouping of optimizations on a cfunction given certain conditions
- * on the arguments (such as all constants, or some known types). The appropriate
- * optimizations should be tried before compiling a normal function call. */
-struct DstCFunOptimizer {
-    DstCFunction cfun;
-    int (*can_optimize)(DstFopts opts, DstSlot *args);
-    DstSlot (*optimize)(DstFopts opts, DstSlot *args);
-};
-
 /* For optimizing builtin normal functions. */
 struct DstFunOptimizer {
     int (*can_optimize)(DstFopts opts, DstSlot *args);
@@ -172,7 +172,6 @@ struct DstSpecial {
 /****************************************************/
 
 /* Get an optimizer if it exists, otherwise NULL */
-const DstCFunOptimizer *dstc_cfunopt(DstCFunction cfun);
 const DstFunOptimizer *dstc_funopt(uint32_t flags);
 
 /* Get a special. Return NULL if none exists */

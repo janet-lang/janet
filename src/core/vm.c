@@ -336,10 +336,10 @@ static void *op_lookup[255] = {
         vm_assert(dst_checktype(op1, DST_INTEGER) || dst_checktype(op1, DST_REAL), "expected number");
         vm_assert(dst_checktype(op2, DST_INTEGER) || dst_checktype(op2, DST_REAL), "expected number");
         if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == 0)
-            vm_throw("integer divide error");
+            vm_throw("integer divide by zero");
         if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == -1 &&
             dst_checktype(op1, DST_INTEGER) && dst_unwrap_integer(op1) == INT32_MIN)
-            vm_throw("integer divide error");
+            vm_throw("integer divide out of range");
         stack[oparg(1, 0xFF)] = dst_checktype(op1, DST_INTEGER)
             ? (dst_checktype(op2, DST_INTEGER)
                 ? dst_wrap_integer(dst_unwrap_integer(op1) / dst_unwrap_integer(op2))

@@ -35,20 +35,9 @@ int dst_core_native(DstArgs args);
 /* Arithmetic */
 int dst_int(DstArgs args);
 int dst_real(DstArgs args);
-int dst_add(DstArgs args);
-int dst_subtract(DstArgs args);
-int dst_multiply(DstArgs args);
-int dst_divide(DstArgs args);
-int dst_modulo(DstArgs args);
 int dst_rand(DstArgs args);
 int dst_srand(DstArgs args);
-int dst_bor(DstArgs args);
-int dst_band(DstArgs args);
-int dst_bxor(DstArgs args);
-int dst_bnot(DstArgs args);
-int dst_lshift(DstArgs args);
-int dst_rshift(DstArgs args);
-int dst_lshiftu(DstArgs args);
+int dst_remainder(DstArgs args);
 
 /* Math */
 int dst_cos(DstArgs args);
