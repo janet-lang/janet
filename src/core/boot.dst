@@ -15,7 +15,7 @@
   "Define a function. Equivalent to (def name (fn name [args] ...))."
   (fn defn [name & more]
     (def len (length more))
-    (def fstart 
+    (def fstart
       (fn recur [i]
         (def {i ith} more)
         (def t (type ith))
@@ -88,9 +88,9 @@
 (defn true? [x] (= x true))
 (defn false? [x] (= x false))
 (defn nil? [x] (= x nil))
-(def atomic? 
+(def atomic?
   (do
-    (def non-atomic-types 
+    (def non-atomic-types
       {:array true
        :tuple true
        :table true
@@ -301,8 +301,8 @@
   evaluates to false."
   [& forms]
   (def len (length forms))
-  (if (= len 0) 
-    true 
+  (if (= len 0)
+    true
     ((fn aux [i]
        (cond
          (>= (inc i) len) (get forms i)
@@ -313,8 +313,8 @@
   evaluates to true."
   [& forms]
   (def len (length forms))
-  (if (= len 0) 
-    false 
+  (if (= len 0)
+    false
     ((fn aux [i]
        (def fi (get forms i))
        (if
@@ -971,7 +971,7 @@
   (def p (parser.new))
 
   # Fiber stream of characters
-  (def chars 
+  (def chars
     (coro
       (def buf @"")
       (var len 1)
@@ -984,7 +984,7 @@
       0))
 
   # Fiber stream of values
-  (def vals 
+  (def vals
     (coro
       (while going
         (switch (parser.status p)
@@ -1002,21 +1002,22 @@
   # Evaluate 1 source form
   (defn eval1 [source]
     (var good true)
-    (def f 
-      (fiber.new 
+    (def f
+      (fiber.new
         (fn []
           (def res (compile source env where))
           (if (= (type res) :function)
             (res)
             (do
               (:= good false)
-              (def {:error err :error-line errl :error-column errc} res)
-              (onerr 
-                where 
+              (def {:error err :line errl :column errc :fiber errf} res)
+              (onerr
+                where
                 "compile"
                 (if (< 0 errl)
-                  (string err " in form at line " errl ", column " errc)
-                  err)))))
+                  (string err "\n  in a form at line " errl ", column " errc)
+                  err)
+                errf))))
         :a))
     (def res (resume f))
     (when good
@@ -1043,7 +1044,7 @@
     (pp x))
   (when f
     (def st (fiber.stack f))
-    (loop 
+    (loop
       [{
         :function func
         :tail tail
@@ -1051,20 +1052,26 @@
         :c c
         :name name
         :source source
-        :source-line source-line
-        :source-column source-col
+        :line source-line
+        :column source-col
         } :in st]
       (file.write stdout "  in")
       (when c (file.write stdout " cfunction"))
       (if name
         (file.write stdout " " name)
         (when func (file.write stdout " " (string func))))
-      (if source 
+      (if source
         (do
           (file.write stdout " [" source "]")
-          (if source-line (file.write stdout " on line "
-                                      (string source-line) ", column " (string source-col)))))
-      (if pc (file.write stdout " (pc=" (string pc) ")"))
+          (if source-line 
+            (file.write 
+              stdout
+              " on line "
+              (string source-line) 
+              ", column "
+              (string source-col)))))
+      (if (and (not source-line) pc)
+        (file.write stdout " (pc=" (string pc) ")"))
       (when tail (file.write stdout " (tailcall)"))
       (file.write stdout "\n"))))
 
@@ -1082,7 +1089,7 @@
   (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler "eval")
   returnval)
 
-(def module.paths 
+(def module.paths
   @["./?.dst"
     "./?/init.dst"
     "./dst_modules/?.dst"
@@ -1090,7 +1097,7 @@
     "/usr/local/dst/0.0.0/?.dst"
     "/usr/local/dst/0.0.0/?/init.dst"])
 
-(def module.native-paths 
+(def module.native-paths
   @["./?.so"
     "./?/??.so"
     "./dst_modules/?.so"
@@ -1143,8 +1150,8 @@
         (error (string "circular dependency: module " path " is loading")))
       (def {:exit exit-on-error} (or args {}))
       (def check (get cache path))
-      (if check 
-        check 
+      (if check
+        check
         (do
           (def newenv (make-env))
           (put cache path newenv)

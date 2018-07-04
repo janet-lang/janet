@@ -21,8 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstopcodes.h>
-#include <dst/dstcorelib.h>
 #include "fiber.h"
 #include "state.h"
 #include "gc.h"
@@ -365,8 +363,8 @@ static Dst doframe(DstStackFrame *frame) {
         dst_table_put(t, dst_csymbolv(":pc"), dst_wrap_integer(off));
         if (def->sourcemap) {
             DstSourceMapping mapping = def->sourcemap[off];
-            dst_table_put(t, dst_csymbolv(":source-line"), dst_wrap_integer(mapping.line));
-            dst_table_put(t, dst_csymbolv(":source-column"), dst_wrap_integer(mapping.column));
+            dst_table_put(t, dst_csymbolv(":line"), dst_wrap_integer(mapping.line));
+            dst_table_put(t, dst_csymbolv(":column"), dst_wrap_integer(mapping.column));
         }
         if (def->source) {
             dst_table_put(t, dst_csymbolv(":source"), dst_wrap_string(def->source));

@@ -21,9 +21,8 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstcompile.h>
 
-#include "clientinit.gen.h"
+#include <generated/init.h>
 #include "line.h"
 
 int main(int argc, char **argv) {

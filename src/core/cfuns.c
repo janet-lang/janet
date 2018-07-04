@@ -21,12 +21,9 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstcorelib.h>
 #include "compile.h"
-#define DST_V_NODEF_GROW
-#include <headerlibs/vector.h>
-#undef DST_V_NODEF_GROW
 #include "emit.h"
+#include "vector.h"
 
 static int fixarity0(DstFopts opts, DstSlot *args) {
     (void) opts;
@@ -41,41 +38,17 @@ static int fixarity2(DstFopts opts, DstSlot *args) {
     return dst_v_count(args) == 2;
 }
 
-/* Generic hanldling for $A = B op $C */
-static DstSlot genericSSS(DstFopts opts, int op, Dst leftval, DstSlot s) {
-    DstSlot target = dstc_gettarget(opts);
-    DstSlot zero = dstc_cslot(leftval);
-    int32_t lhs = dstc_regnear(opts.compiler, zero, DSTC_REGTEMP_0);
-    int32_t rhs = dstc_regnear(opts.compiler, s, DSTC_REGTEMP_1);
-    dstc_emit(opts.compiler, op |
-            (target.index << 8) | 
-            (lhs << 16) |
-            (rhs << 24));
-    dstc_free_reg(opts.compiler, zero, lhs);
-    dstc_free_reg(opts.compiler, s, rhs);
-    return target;
-}
-
 /* Generic hanldling for $A = op $B */
 static DstSlot genericSS(DstFopts opts, int op, DstSlot s) {
     DstSlot target = dstc_gettarget(opts);
-    int32_t rhs = dstc_regfar(opts.compiler, s, DSTC_REGTEMP_0);
-    dstc_emit(opts.compiler, op |
-            (target.index << 8) | 
-            (rhs << 16));
-    dstc_free_reg(opts.compiler, s, rhs);
+    dstc_emit_ss(opts.compiler, op, target, s, 1);
     return target;
 }
 
 /* Generic hanldling for $A = $B op I */
 static DstSlot genericSSI(DstFopts opts, int op, DstSlot s, int32_t imm) {
     DstSlot target = dstc_gettarget(opts);
-    int32_t rhs = dstc_regnear(opts.compiler, s, DSTC_REGTEMP_0);
-    dstc_emit(opts.compiler, op |
-            (target.index << 8) | 
-            (rhs << 16) |
-            (imm << 24));
-    dstc_free_reg(opts.compiler, s, rhs);
+    dstc_emit_ssi(opts.compiler, op, target, s, imm, 1);
     return target;
 }
 
@@ -92,29 +65,21 @@ static DstSlot opreduce(
     if (len == 0) {
         return dstc_cslot(nullary);
     } else if (len == 1) {
-        return genericSSS(opts, op, nullary, args[0]);
+        t = dstc_gettarget(opts);
+        dstc_emit_sss(c, op, t, dstc_cslot(nullary), args[0], 1);
+        return t;
     }
     t = dstc_gettarget(opts);
-    /* Compile initial two arguments */
-    int32_t lhs = dstc_regnear(c, args[0], DSTC_REGTEMP_0);
-    int32_t rhs = dstc_regnear(c, args[1], DSTC_REGTEMP_1);
-    dstc_emit(c, op | (t.index << 8) | (lhs << 16) | (rhs << 24));
-    dstc_free_reg(c, args[0], lhs);
-    dstc_free_reg(c, args[1], rhs);
-    /* Don't release t */
-    /* Compile the rest of the arguments */
-    for (i = 2; i < len; i++) {
-        rhs = dstc_regnear(c, args[i], DSTC_REGTEMP_0);
-        dstc_emit(c, op | (t.index << 8) | (t.index << 16) | (rhs << 24));
-        dstc_free_reg(c, args[i], rhs);
-    }
+    dstc_emit_sss(c, op, t, args[0], args[1], 1);
+    for (i = 2; i < len; i++)
+        dstc_emit_sss(c, op, t, t, args[i], 1);
     return t;
 }
 
 /* Function optimizers */
 
 static DstSlot do_error(DstFopts opts, DstSlot *args) {
-    dstc_emit_s(opts.compiler, DOP_ERROR, args[0]);
+    dstc_emit_s(opts.compiler, DOP_ERROR, args[0], 0);
     return dstc_cslot(dst_wrap_nil());
 }
 static DstSlot do_debug(DstFopts opts, DstSlot *args) {
@@ -139,23 +104,17 @@ static DstSlot do_resume(DstFopts opts, DstSlot *args) {
 }
 static DstSlot do_apply1(DstFopts opts, DstSlot *args) {
     /* Push phase */
-    int32_t array_reg = dstc_regfar(opts.compiler, args[1], DSTC_REGTEMP_1);
-    dstc_emit(opts.compiler, DOP_PUSH_ARRAY | (array_reg << 8));
-    dstc_free_reg(opts.compiler, args[1], array_reg);
+    dstc_emit_s(opts.compiler, DOP_PUSH_ARRAY, args[1], 0);
     /* Call phase */
-    int32_t fun_reg = dstc_regnear(opts.compiler, args[0], DSTC_REGTEMP_0);
     DstSlot target;
     if (opts.flags & DST_FOPTS_TAIL) {
-        dstc_emit(opts.compiler, DOP_TAILCALL | (fun_reg << 8));
+        dstc_emit_s(opts.compiler, DOP_TAILCALL, args[0], 0);
         target = dstc_cslot(dst_wrap_nil());
         target.flags |= DST_SLOT_RETURNED;
     } else {
         target = dstc_gettarget(opts);
-        dstc_emit(opts.compiler, DOP_CALL |
-                (target.index << 8) | 
-                (fun_reg << 16));
+        dstc_emit_ss(opts.compiler, DOP_CALL, target, args[0], 1);
     }
-    dstc_free_reg(opts.compiler, args[0], fun_reg);
     return target;
 }
 

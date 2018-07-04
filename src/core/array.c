@@ -21,8 +21,8 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstcorelib.h>
 #include "gc.h"
+#include <string.h>
 
 /* Initializes an array */
 DstArray *dst_array_init(DstArray *array, int32_t capacity) {
@@ -47,6 +47,19 @@ void dst_array_deinit(DstArray *array) {
 DstArray *dst_array(int32_t capacity) {
     DstArray *array = dst_gcalloc(DST_MEMORY_ARRAY, sizeof(DstArray));
     return dst_array_init(array, capacity);
+}
+
+/* Creates a new array from n elements. */
+DstArray *dst_array_n(const Dst *elements, int32_t n) {
+    DstArray *array = dst_gcalloc(DST_MEMORY_ARRAY, sizeof(DstArray));
+    array->capacity = n;
+    array->count = n;
+    array->data = malloc(sizeof(Dst) * n);
+    if (!array->data) {
+        DST_OUT_OF_MEMORY;
+    }
+    memcpy(array->data, elements, sizeof(Dst) * n);
+    return array;
 }
 
 /* Ensure the array has enough capacity for elements */

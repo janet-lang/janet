@@ -20,9 +20,8 @@
 * IN THE SOFTWARE.
 */
 
-#include "regalloc.h"
-#include <stdlib.h>
 #include <dst/dst.h>
+#include "regalloc.h"
 
 void dstc_regalloc_init(DstcRegisterAllocator *ra) {
     ra->chunks = NULL;
@@ -66,6 +65,7 @@ void dstc_regalloc_clone(DstcRegisterAllocator *dest, DstcRegisterAllocator *src
     dest->max = src->max;
     size = sizeof(uint32_t) * dest->capacity;
     dest->chunks = malloc(size);
+    dest->regtemps = 0;
     if (!dest->chunks) {
         DST_OUT_OF_MEMORY;
     }
@@ -126,17 +126,7 @@ int32_t dstc_regalloc_1(DstcRegisterAllocator *ra) {
 /* Free a register. The register must have been previously allocated
  * without being freed. */
 void dstc_regalloc_free(DstcRegisterAllocator *ra, int32_t reg) {
-    /* We cannot free reserved slots */
-    if (reg < 0)
-        return;
-    if (reg >= 0xF0 && reg <= 0xFF) {
-        ra->regtemps &= ~(1 << (reg - 0xF0));
-        return;
-    }
     int32_t chunk = reg >> 5;
-    /* Outside normal chunk range */
-    if (chunk >= ra->count)
-        return;
     int32_t bit = reg & 0x1F;
     ra->chunks[chunk] &= ~ithbit(bit);
 }
@@ -146,14 +136,22 @@ void dstc_regalloc_free(DstcRegisterAllocator *ra, int32_t reg) {
  * on the returned register before. */
 int32_t dstc_regalloc_temp(DstcRegisterAllocator *ra, DstcRegisterTemp nth) {
     int32_t oldmax = ra->max;
-    int32_t reg = dstc_regalloc_1(ra);
-    dst_assert(~(ra->regtemps & (1 << nth)), "regtemp already allocated");
+    if (ra->regtemps & (1 << nth)) {
+        dst_exit("regtemp already allocated");
+    }
     ra->regtemps |= 1 << nth;
+    int32_t reg = dstc_regalloc_1(ra);
     if (reg > 0xFF) {
         reg = 0xF0 + nth;
         ra->max = (reg > oldmax) ? reg : oldmax;
     }
     return reg;
+}
+
+void dstc_regalloc_freetemp(DstcRegisterAllocator *ra, int32_t reg, DstcRegisterTemp nth) {
+    ra->regtemps &= ~(1 << nth);
+    if (reg < 0xF0)
+        dstc_regalloc_free(ra, reg);
 }
 
 /* Disable multi-slot allocation for now. */

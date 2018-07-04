@@ -20,8 +20,9 @@
 * IN THE SOFTWARE.
 */
 
+#define _DEFAULT_SOURCE
+#include <stdio.h>
 #include <dst/dst.h>
-#include <dst/dstcorelib.h>
 #include <errno.h>
 
 #define IO_WRITE 1

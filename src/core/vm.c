@@ -21,11 +21,11 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstopcodes.h>
 #include "state.h"
 #include "fiber.h"
 #include "gc.h"
 #include "symcache.h"
+#include "util.h"
 
 /* VM state */
 DST_THREAD_LOCAL DstTable *dst_vm_registry;
@@ -50,6 +50,9 @@ DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out) {
     /* Keep in mind the garbage collector cannot see this value.
      * Values stored here should be used immediately */
     Dst retreg;
+
+    /* Expected types on type error */
+    uint16_t expected_types;
 
     /* Signal to return when done */
     DstSignal signal = DST_SIGNAL_OK;
@@ -181,6 +184,12 @@ static void *op_lookup[255] = {
     &&label_DOP_GET_INDEX,
     &&label_DOP_PUT_INDEX,
     &&label_DOP_LENGTH,
+    &&label_DOP_MAKE_ARRAY,
+    &&label_DOP_MAKE_BUFFER,
+    &&label_DOP_MAKE_STRING,
+    &&label_DOP_MAKE_STRUCT,
+    &&label_DOP_MAKE_TABLE,
+    &&label_DOP_MAKE_TUPLE,
     &&label_unknown_op
 };
 #else
@@ -195,6 +204,20 @@ static void *op_lookup[255] = {
 
 #define vm_throw(e) do { retreg = dst_cstringv(e); goto vm_error; } while (0)
 #define vm_assert(cond, e) do {if (!(cond)) vm_throw((e)); } while (0)
+#define vm_assert_type(X, T) do { \
+    if (!(dst_checktype((X), (T)))) { \
+        expected_types = 1 << (T); \
+        retreg = (X); \
+        goto vm_type_error; \
+    } \
+} while (0)
+#define vm_assert_types(X, TS) do { \
+    if (!((1 << dst_type(X)) & (TS))) { \
+        expected_types = (TS); \
+        retreg = (X); \
+        goto vm_type_error; \
+    } \
+} while (0)
 
 #define vm_binop_integer(op) \
     stack[oparg(1, 0xFF)] = dst_wrap_integer(\
@@ -221,8 +244,8 @@ static void *op_lookup[255] = {
     {\
         Dst op1 = stack[oparg(2, 0xFF)];\
         Dst op2 = stack[oparg(3, 0xFF)];\
-        vm_assert(dst_checktype(op1, DST_INTEGER) || dst_checktype(op1, DST_REAL), "expected number");\
-        vm_assert(dst_checktype(op2, DST_INTEGER) || dst_checktype(op2, DST_REAL), "expected number");\
+        vm_assert_types(op1, DST_TFLAG_NUMBER);\
+        vm_assert_types(op2, DST_TFLAG_NUMBER);\
         stack[oparg(1, 0xFF)] = dst_checktype(op1, DST_INTEGER)\
             ? (dst_checktype(op2, DST_INTEGER)\
                 ? dst_wrap_integer(dst_unwrap_integer(op1) op dst_unwrap_integer(op2))\
@@ -333,8 +356,8 @@ static void *op_lookup[255] = {
     {
         Dst op1 = stack[oparg(2, 0xFF)];
         Dst op2 = stack[oparg(3, 0xFF)];
-        vm_assert(dst_checktype(op1, DST_INTEGER) || dst_checktype(op1, DST_REAL), "expected number");
-        vm_assert(dst_checktype(op2, DST_INTEGER) || dst_checktype(op2, DST_REAL), "expected number");
+        vm_assert_types(op1, DST_TFLAG_NUMBER);
+        vm_assert_types(op2, DST_TFLAG_NUMBER);
         if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == 0)
             vm_throw("integer divide by zero");
         if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == -1 &&
@@ -688,7 +711,9 @@ static void *op_lookup[255] = {
         if (dst_seq_view(stack[oparg(1, 0xFFFFFF)], &vals, &len)) {
             dst_fiber_pushn(fiber, vals, len);
         } else {
-            vm_throw("expected array/tuple");
+            retreg = stack[oparg(1, 0xFFFFFF)];
+            expected_types = DST_TFLAG_INDEXED;
+            goto vm_type_error;
         }
     }
     pc++;
@@ -721,7 +746,9 @@ static void *op_lookup[255] = {
             }
             goto vm_return_cfunc;
         }
-        vm_throw("expected function");
+        expected_types = DST_TFLAG_CALLABLE;
+        retreg = callee;
+        goto vm_type_error;
     }
 
     VM_OP(DOP_TAILCALL)
@@ -745,13 +772,15 @@ static void *op_lookup[255] = {
             }
             goto vm_return_cfunc_tail;
         }
-        vm_throw("expected function");
+        expected_types = DST_TFLAG_CALLABLE;
+        retreg = callee;
+        goto vm_type_error;
     }
 
     VM_OP(DOP_RESUME)
     {
         Dst fiberval = stack[oparg(2, 0xFF)];
-        vm_assert(dst_checktype(fiberval, DST_FIBER), "expected fiber");
+        vm_assert_type(fiberval, DST_FIBER);
         retreg = stack[oparg(3, 0xFF)];
         fiber->child = dst_unwrap_fiber(fiberval);
         goto vm_resume_child;
@@ -775,12 +804,15 @@ static void *op_lookup[255] = {
         Dst value = stack[oparg(3, 0xFF)];
         switch (dst_type(ds)) {
             default:
-                vm_throw("expected mutable data structure");
+                expected_types = DST_TFLAG_ARRAY | DST_TFLAG_BUFFER | DST_TFLAG_TABLE;
+                retreg = ds;
+                goto vm_type_error;
             case DST_ARRAY:
             {
                 int32_t index;
                 DstArray *array = dst_unwrap_array(ds);
-                if (!dst_checktype(key, DST_INTEGER) || dst_unwrap_integer(key) < 0)
+                vm_assert_type(key, DST_INTEGER);
+                if (dst_unwrap_integer(key) < 0)
                     vm_throw("expected non-negative integer key");
                 index = dst_unwrap_integer(key);
                 if (index == INT32_MAX)
@@ -795,13 +827,13 @@ static void *op_lookup[255] = {
             {
                 int32_t index;
                 DstBuffer *buffer = dst_unwrap_buffer(ds);
-                if (!dst_checktype(key, DST_INTEGER) || dst_unwrap_integer(key) < 0)
+                vm_assert_type(key, DST_INTEGER);
+                if (dst_unwrap_integer(key) < 0)
                     vm_throw("expected non-negative integer key");
                 index = dst_unwrap_integer(key);
                 if (index == INT32_MAX)
                     vm_throw("key too large");
-                if (!dst_checktype(value, DST_INTEGER))
-                    vm_throw("expected integer value");
+                vm_assert_type(value, DST_INTEGER);
                 if (index >= buffer->count) {
                     dst_buffer_setcount(buffer, index + 1);
                 }
@@ -823,7 +855,9 @@ static void *op_lookup[255] = {
         int32_t index = oparg(3, 0xFF);
         switch (dst_type(ds)) {
             default:
-                vm_throw("expected mutable indexed data structure");
+                expected_types = DST_TFLAG_ARRAY | DST_TFLAG_BUFFER;
+                retreg = ds;
+                goto vm_type_error;
             case DST_ARRAY:
                 if (index >= dst_unwrap_array(ds)->count) {
                     dst_array_ensure(dst_unwrap_array(ds), 2 * index);
@@ -832,8 +866,7 @@ static void *op_lookup[255] = {
                 dst_unwrap_array(ds)->data[index] = value;
                 break;
             case DST_BUFFER:
-                if (!dst_checktype(value, DST_INTEGER))\
-                    vm_throw("expected integer to set in buffer");
+                vm_assert_type(value, DST_INTEGER);
                 if (index >= dst_unwrap_buffer(ds)->count) {
                     dst_buffer_ensure(dst_unwrap_buffer(ds), 2 * index);
                     dst_unwrap_buffer(ds)->count = index + 1;
@@ -852,7 +885,9 @@ static void *op_lookup[255] = {
         Dst value;
         switch (dst_type(ds)) {
             default:
-                vm_throw("expected data structure");
+                expected_types = DST_TFLAG_LENGTHABLE;
+                retreg = ds;
+                goto vm_type_error;
             case DST_STRUCT:
                 value = dst_struct_get(dst_unwrap_struct(ds), key);
                 break;
@@ -863,8 +898,7 @@ static void *op_lookup[255] = {
                 {
                     DstArray *array = dst_unwrap_array(ds);
                     int32_t index;
-                    if (!dst_checktype(key, DST_INTEGER))
-                        vm_throw("expected integer key");
+                    vm_assert_type(key, DST_INTEGER);
                     index = dst_unwrap_integer(key);
                     if (index < 0 || index >= array->count) {
                         /*vm_throw("index out of bounds");*/
@@ -878,8 +912,7 @@ static void *op_lookup[255] = {
                 {
                     const Dst *tuple = dst_unwrap_tuple(ds);
                     int32_t index;
-                    if (!dst_checktype(key, DST_INTEGER))
-                        vm_throw("expected integer key");
+                    vm_assert_type(key, DST_INTEGER);
                     index = dst_unwrap_integer(key);
                     if (index < 0 || index >= dst_tuple_length(tuple)) {
                         /*vm_throw("index out of bounds");*/
@@ -893,8 +926,7 @@ static void *op_lookup[255] = {
                 {
                     DstBuffer *buffer = dst_unwrap_buffer(ds);
                     int32_t index;
-                    if (!dst_checktype(key, DST_INTEGER))
-                        vm_throw("expected integer key");
+                    vm_assert_type(key, DST_INTEGER);
                     index = dst_unwrap_integer(key);
                     if (index < 0 || index >= buffer->count) {
                         /*vm_throw("index out of bounds");*/
@@ -909,8 +941,7 @@ static void *op_lookup[255] = {
                 {
                     const uint8_t *str = dst_unwrap_string(ds);
                     int32_t index;
-                    if (!dst_checktype(key, DST_INTEGER))
-                        vm_throw("expected integer key");
+                    vm_assert_type(key, DST_INTEGER);
                     index = dst_unwrap_integer(key);
                     if (index < 0 || index >= dst_string_length(str)) {
                         /*vm_throw("index out of bounds");*/
@@ -933,7 +964,9 @@ static void *op_lookup[255] = {
         Dst value;
         switch (dst_type(ds)) {
             default:
-                vm_throw("expected indexed data structure");
+                expected_types = DST_TFLAG_LENGTHABLE;
+                retreg = ds;
+                goto vm_type_error;
             case DST_STRING:
             case DST_SYMBOL:
                 if (index >= dst_string_length(dst_unwrap_string(ds))) {
@@ -967,6 +1000,12 @@ static void *op_lookup[255] = {
                     value = dst_unwrap_tuple(ds)[index];
                 }
                 break;
+            case DST_TABLE:
+                value = dst_table_get(dst_unwrap_table(ds), dst_wrap_integer(index));
+                break;
+            case DST_STRUCT:
+                value = dst_struct_get(dst_unwrap_struct(ds), dst_wrap_integer(index));
+                break;
         }
         stack[oparg(1, 0xFF)] = value;
         ++pc;
@@ -979,7 +1018,9 @@ static void *op_lookup[255] = {
         int32_t len;
         switch (dst_type(x)) {
             default:
-                vm_throw("expected data structure");
+                expected_types = DST_TFLAG_LENGTHABLE;
+                retreg = x;
+                goto vm_type_error;
             case DST_STRING:
             case DST_SYMBOL:
                 len = dst_string_length(dst_unwrap_string(x));
@@ -1003,6 +1044,84 @@ static void *op_lookup[255] = {
         stack[oparg(1, 0xFF)] = dst_wrap_integer(len);
         ++pc;
         vm_next();
+    }
+
+    VM_OP(DOP_MAKE_ARRAY)
+    {
+        int32_t count = fiber->stacktop - fiber->stackstart;
+        Dst *mem = fiber->data + fiber->stackstart;
+        stack[oparg(1, 0xFFFFFF)] = dst_wrap_array(dst_array_n(mem, count));
+        fiber->stacktop = fiber->stackstart;
+        ++pc;
+        vm_checkgc_next();
+    }
+
+    VM_OP(DOP_MAKE_TUPLE)
+    {
+        int32_t count = fiber->stacktop - fiber->stackstart;
+        Dst *mem = fiber->data + fiber->stackstart;
+        stack[oparg(1, 0xFFFFFF)] = dst_wrap_tuple(dst_tuple_n(mem, count));
+        fiber->stacktop = fiber->stackstart;
+        ++pc;
+        vm_checkgc_next();
+    }
+
+    VM_OP(DOP_MAKE_TABLE)
+    {
+        int32_t count = fiber->stacktop - fiber->stackstart;
+        Dst *mem = fiber->data + fiber->stackstart;
+        if (count & 1)
+            vm_throw("expected even number of arguments to table constructor");
+        DstTable *table = dst_table(count / 2);
+        for (int32_t i = 0; i < count; i += 2)
+            dst_table_put(table, mem[i], mem[i + 1]);
+        stack[oparg(1, 0xFFFFFF)] = dst_wrap_table(table);
+        fiber->stacktop = fiber->stackstart;
+        ++pc;
+        vm_checkgc_next();
+    }
+
+    VM_OP(DOP_MAKE_STRUCT)
+    {
+        int32_t count = fiber->stacktop - fiber->stackstart;
+        Dst *mem = fiber->data + fiber->stackstart;
+        if (count & 1)
+            vm_throw("expected even number of arguments to struct constructor");
+        DstKV *st = dst_struct_begin(count / 2);
+        for (int32_t i = 0; i < count; i += 2)
+            dst_struct_put(st, mem[i], mem[i + 1]);
+        stack[oparg(1, 0xFFFFFF)] = dst_wrap_struct(dst_struct_end(st));
+        fiber->stacktop = fiber->stackstart;
+        ++pc;
+        vm_checkgc_next();
+    }
+
+    VM_OP(DOP_MAKE_STRING)
+    {
+        int32_t count = fiber->stacktop - fiber->stackstart;
+        Dst *mem = fiber->data + fiber->stackstart;
+        DstBuffer buffer;
+        dst_buffer_init(&buffer, 10 * count);
+        for (int32_t i = 0; i < count; i++)
+            dst_to_string_b(&buffer, mem[i]);
+        stack[oparg(1, 0xFFFFFF)] = dst_stringv(buffer.data, buffer.count);
+        dst_buffer_deinit(&buffer);
+        fiber->stacktop = fiber->stackstart;
+        ++pc;
+        vm_checkgc_next();
+    }
+
+    VM_OP(DOP_MAKE_BUFFER)
+    {
+        int32_t count = fiber->stacktop - fiber->stackstart;
+        Dst *mem = fiber->data + fiber->stackstart;
+        DstBuffer *buffer = dst_buffer(10 * count);
+        for (int32_t i = 0; i < count; i++)
+            dst_to_string_b(buffer, mem[i]);
+        stack[oparg(1, 0xFFFFFF)] = dst_wrap_buffer(buffer);
+        fiber->stacktop = fiber->stackstart;
+        ++pc;
+        vm_checkgc_next();
     }
 
     /* Return from c function. Simpler than returning from dst function */
@@ -1059,6 +1178,22 @@ static void *op_lookup[255] = {
         vm_checkgc_next();
     }
 
+    /* Handle type errors. The found type is the type of retreg,
+     * the expected types are in the expected_types field. */
+    vm_type_error:
+    {
+        DstBuffer errbuf;
+        dst_buffer_init(&errbuf, 10);
+        dst_buffer_push_cstring(&errbuf, "expected ");
+        dst_buffer_push_types(&errbuf, expected_types);
+        dst_buffer_push_cstring(&errbuf, ", got ");
+        dst_buffer_push_cstring(&errbuf, dst_type_names[dst_type(retreg)] + 1);
+        retreg = dst_stringv(errbuf.data, errbuf.count);
+        dst_buffer_deinit(&errbuf);
+        signal = DST_SIGNAL_ERROR;
+        goto vm_exit;
+    }
+
     /* Handle errors from c functions and vm opcodes */
     vm_error:
     {
@@ -1108,12 +1243,18 @@ static void *op_lookup[255] = {
 
 }
 
-DstSignal dst_call(DstFunction *fun, int32_t argn, const Dst *argv, Dst *out) {
+DstSignal dst_call(
+        DstFunction *fun,
+        int32_t argn,
+        const Dst *argv,
+        Dst *out,
+        DstFiber **f) {
     int32_t i;
     DstFiber *fiber = dst_fiber(fun, 64);
-    for (i = 0; i < argn; i++) {
+    if (f)
+        *f = fiber;
+    for (i = 0; i < argn; i++)
         dst_fiber_push(fiber, argv[i]);
-    }
     dst_fiber_funcframe(fiber, fiber->root);
     /* Prevent push an extra value on the stack */
     dst_fiber_set_status(fiber, DST_STATUS_PENDING);

@@ -21,13 +21,9 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstcorelib.h>
 #include "compile.h"
 #include "emit.h"
-
-#define DST_V_DEF_FLATTENMEM
-#include <headerlibs/vector.h>
-#undef DST_V_DEF_FLATTENMEM
+#include "vector.h"
 
 DstFopts dstc_fopts_default(DstCompiler *c) {
     DstFopts ret;
@@ -97,17 +93,7 @@ DstSlot dstc_cslot(Dst x) {
     return ret;
 }
 
-/* Get a temp near slot */
-DstSlot dstc_nearslot(DstCompiler *c, DstcRegisterTemp tag) {
-    DstSlot ret;
-    ret.flags = DST_SLOTTYPE_ANY;
-    ret.index = dstc_allocnear(c, tag);
-    ret.constant = dst_wrap_nil();
-    ret.envindex = -1;
-    return ret;
-}
-
-/* Get a temp near slot */
+/* Get a local slot */
 DstSlot dstc_farslot(DstCompiler *c) {
     DstSlot ret;
     ret.flags = DST_SLOTTYPE_ANY;
@@ -296,14 +282,13 @@ DstSlot dstc_return(DstCompiler *c, DstSlot s) {
         if (s.flags & DST_SLOT_CONSTANT && dst_checktype(s.constant, DST_NIL))
             dstc_emit(c, DOP_RETURN_NIL);
         else
-            dstc_emit_s(c, DOP_RETURN, s);
+            dstc_emit_s(c, DOP_RETURN, s, 0);
         s.flags |= DST_SLOT_RETURNED;
     }
     return s;
 }
 
-/* Get a target slot for emitting an instruction. Will always return
- * a local slot. */
+/* Get a target slot for emitting an instruction. */
 DstSlot dstc_gettarget(DstFopts opts) {
     DstSlot slot;
     if ((opts.flags & DST_FOPTS_HINT) &&
@@ -314,7 +299,7 @@ DstSlot dstc_gettarget(DstFopts opts) {
         slot.envindex = -1;
         slot.constant = dst_wrap_nil();
         slot.flags = 0;
-        slot.index = dstc_allocnear(opts.compiler, DSTC_REGTEMP_TARGET);
+        slot.index = dstc_allocfar(opts.compiler);
     }
     return slot;
 }
@@ -346,11 +331,11 @@ DstSlot *dstc_toslotskv(DstCompiler *c, Dst ds) {
 void dstc_pushslots(DstCompiler *c, DstSlot *slots) {
     int32_t i;
     for (i = 0; i < dst_v_count(slots) - 2; i += 3)
-        dstc_emit_sss(c, DOP_PUSH_3, slots[i], slots[i+1], slots[i+2]);
+        dstc_emit_sss(c, DOP_PUSH_3, slots[i], slots[i+1], slots[i+2], 0);
     if (i == dst_v_count(slots) - 2)
-        dstc_emit_ss(c, DOP_PUSH_2, slots[i], slots[i+1]);
+        dstc_emit_ss(c, DOP_PUSH_2, slots[i], slots[i+1], 0);
     else if (i == dst_v_count(slots) - 1)
-        dstc_emit_s(c, DOP_PUSH, slots[i]);
+        dstc_emit_s(c, DOP_PUSH, slots[i], 0);
 }
 
 /* Free slots loaded via dstc_toslots */
@@ -399,159 +384,185 @@ static DstSlot dstc_call(DstFopts opts, DstSlot *slots, DstSlot fun) {
     if (!specialized) {
         dstc_pushslots(c, slots);
         if (opts.flags & DST_FOPTS_TAIL) {
-            dstc_emit_s(c, DOP_TAILCALL, fun);
+            dstc_emit_s(c, DOP_TAILCALL, fun, 0);
             retslot = dstc_cslot(dst_wrap_nil());
             retslot.flags = DST_SLOT_RETURNED;
         } else {
             retslot = dstc_gettarget(opts);
-            int32_t fun_register = dstc_regnear(c, fun, DSTC_REGTEMP_0);
-            dstc_emit(c, DOP_CALL |
-                    (retslot.index << 8) |
-                    (fun_register << 16));
-            /* Don't free ret register */
-            dstc_free_reg(c, fun, fun_register);
+            dstc_emit_ss(c, DOP_CALL, retslot, fun, 1);
         }
     }
     dstc_freeslots(c, slots);
     return retslot;
 }
 
+static DstSlot dstc_maker(DstFopts opts, DstSlot *slots, int op) {
+    DstCompiler *c = opts.compiler;
+    DstSlot retslot;
+    dstc_pushslots(c, slots);
+    dstc_freeslots(c, slots);
+    retslot = dstc_gettarget(opts);
+    dstc_emit_s(c, op, retslot, 1);
+    return retslot;
+}
+
 static DstSlot dstc_array(DstFopts opts, Dst x) {
     DstCompiler *c = opts.compiler;
     DstArray *a = dst_unwrap_array(x);
-    return dstc_call(opts,
+    return dstc_maker(opts,
             dstc_toslots(c, a->data, a->count),
-            dstc_cslot(dst_wrap_cfunction(dst_core_array)));
+            DOP_MAKE_ARRAY);
 }
 
-static DstSlot dstc_tablector(DstFopts opts, Dst x, DstCFunction cfun) {
+static DstSlot dstc_tablector(DstFopts opts, Dst x, int op) {
     DstCompiler *c = opts.compiler;
-    return dstc_call(opts, dstc_toslotskv(c, x), dstc_cslot(dst_wrap_cfunction(cfun)));
+    return dstc_maker(opts, 
+            dstc_toslotskv(c, x),
+            op);
 }
 
 static DstSlot dstc_bufferctor(DstFopts opts, Dst x) {
     DstCompiler *c = opts.compiler;
     DstBuffer *b = dst_unwrap_buffer(x);
     Dst onearg = dst_stringv(b->data, b->count);
-    return dstc_call(opts,
+    return dstc_maker(opts,
             dstc_toslots(c, &onearg, 1),
-            dstc_cslot(dst_wrap_cfunction(dst_core_buffer)));
+            DOP_MAKE_BUFFER);
 }
 
-/* Compile a symbol */
-DstSlot dstc_symbol(DstFopts opts, const uint8_t *sym) {
+static DstSlot dstc_symbol(DstFopts opts, const uint8_t *sym) {
     if (dst_string_length(sym) && sym[0] != ':') {
-        /* Non keyword */
         return dstc_resolve(opts.compiler, sym);
     } else {
-        /* Keyword */
         return dstc_cslot(dst_wrap_symbol(sym));
     }
+}
+
+/* Expand a macro one time. Also get the special form compiler if we
+ * find that instead. */
+static int macroexpand1(
+        DstCompiler *c, 
+        Dst x, 
+        Dst *out, 
+        const DstSpecial **spec) {
+    if (!dst_checktype(x, DST_TUPLE))
+        return 0;
+    const Dst *form = dst_unwrap_tuple(x);
+    if (dst_tuple_length(form) == 0)
+        return 0;
+    /* Source map - only set when we get a tuple */
+    if (dst_tuple_sm_line(form) > 0) {
+        c->current_mapping.line = dst_tuple_sm_line(form);
+        c->current_mapping.column = dst_tuple_sm_col(form);
+    }
+    if (!dst_checktype(form[0], DST_SYMBOL))
+        return 0;
+    const uint8_t *name = dst_unwrap_symbol(form[0]);
+    const DstSpecial *s = dstc_special(name);
+    if (s) {
+        *spec = s;
+        return 0;
+    }
+    Dst macroval;
+    DstBindingType btype = dst_env_resolve(c->env, name, &macroval);
+    if (btype != DST_BINDING_MACRO ||
+            !dst_checktype(macroval, DST_FUNCTION))
+        return 0;
+
+
+    /* Evaluate macro */
+    DstFiber *fiberp;
+    DstFunction *macro = dst_unwrap_function(macroval);
+    int lock = dst_gclock();
+    DstSignal status = dst_call(
+            macro, 
+            dst_tuple_length(form) - 1,
+            form + 1, 
+            &x,
+            &fiberp);
+    dst_gcunlock(lock);
+    if (status != DST_SIGNAL_OK) {
+        const uint8_t *es = dst_formatc("(macro) %V", x);
+        c->result.macrofiber = fiberp;
+        dstc_error(c, es);
+    } else {
+        *out = x;
+    }
+
+    return 1;
 }
 
 /* Compile a single value */
 DstSlot dstc_value(DstFopts opts, Dst x) {
     DstSlot ret;
     DstCompiler *c = opts.compiler;
-    int macrorecur = 0;
     DstSourceMapping last_mapping = c->current_mapping;
-    opts.compiler->recursion_guard--;
-recur:
-    if (dstc_iserr(&opts)) {
+    c->recursion_guard--;
+
+    /* Guard against previous errors and unbounded recursion */
+    if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
+    if (c->recursion_guard <= 0) {
+        dstc_cerror(c, "recursed too deeply");
         return dstc_cslot(dst_wrap_nil());
     }
-    if (opts.compiler->recursion_guard <= 0) {
-        dstc_cerror(opts.compiler, "recursed too deeply");
+
+    /* Macro expand. Also gets possible special form and
+     * refines source mapping cursor if possible. */
+    const DstSpecial *spec = NULL;
+    int macroi = DST_RECURSION_GUARD;
+    while (macroi && !dstc_iserr(&opts) && macroexpand1(c, x, &x, &spec))
+        macroi--;
+    if (macroi == 0) {
+        dstc_cerror(c, "recursed too deeply in macro expansion");
         return dstc_cslot(dst_wrap_nil());
     }
-    switch (dst_type(x)) {
-        default:
-            ret = dstc_cslot(x);
-            break;
-        case DST_SYMBOL:
-            {
-                const uint8_t *sym = dst_unwrap_symbol(x);
-                ret = dstc_symbol(opts, sym);
-                break;
-            }
-        case DST_TUPLE:
-            {
-                int compiled = 0;
-                Dst headval;
-                DstSlot head;
-                DstFopts subopts = dstc_fopts_default(c);
-                const Dst *tup = dst_unwrap_tuple(x);
-                /* Get ast mapping */
-                if (dst_tuple_sm_line(tup) > 0) {
-                    c->current_mapping.line = dst_tuple_sm_line(tup);
-                    c->current_mapping.column = dst_tuple_sm_col(tup);
-                }
-                /* Empty tuple is tuple literal */
-                if (dst_tuple_length(tup) == 0) {
-                    compiled = 1;
-                    ret = dstc_cslot(x);
-                } else {
-                    /* Symbols could be specials */
-                    headval = tup[0];
-                    if (dst_checktype(headval, DST_SYMBOL)) {
-                        const uint8_t *headsym = dst_unwrap_symbol(headval);
-                        const DstSpecial *s = dstc_special(headsym);
-                        if (NULL != s) {
-                            ret = s->compile(opts, dst_tuple_length(tup) - 1, tup + 1);
-                            compiled = 1;
-                        } else {
-                            /* Check macro */
-                            Dst macVal;
-                            DstBindingType btype = dst_env_resolve(c->env, headsym, &macVal);
-                            if (btype == DST_BINDING_MACRO &&
-                                    dst_checktype(macVal, DST_FUNCTION)) {
-                                if (macrorecur++ > DST_RECURSION_GUARD) {
-                                    dstc_cerror(c, "macro expansion recursed too deeply");
-                                    return dstc_cslot(dst_wrap_nil());
-                                } else {
-                                    DstFunction *f = dst_unwrap_function(macVal);
-                                    int lock = dst_gclock();
-                                    DstSignal status = dst_call(f, dst_tuple_length(tup) - 1, tup + 1, &x);
-                                    dst_gcunlock(lock);
-                                    if (status != DST_SIGNAL_OK) {
-                                        const uint8_t *es = dst_formatc("error in macro expansion: %V", x);
-                                        dstc_error(c, es);
-                                    }
-                                    /* Tail recur on the value */
-                                    goto recur;
-                                }
-                            }
-                        }
-                    }
-                    if (!compiled) {
-                        /* Compile the head of the tuple */
+
+    /* Special forms */
+    if (spec) {
+        const Dst *tup = dst_unwrap_tuple(x);
+        ret = spec->compile(opts, dst_tuple_length(tup) - 1, tup + 1);
+    } else {
+        switch (dst_type(x)) {
+            case DST_TUPLE:
+                {
+                    DstFopts subopts = dstc_fopts_default(c);
+                    const Dst *tup = dst_unwrap_tuple(x);
+                    /* Empty tuple is tuple literal */
+                    if (dst_tuple_length(tup) == 0) {
+                        ret = dstc_cslot(x);
+                    } else {
+                        DstSlot head = dstc_value(subopts, tup[0]);
                         subopts.flags = DST_FUNCTION | DST_CFUNCTION;
-                        head = dstc_value(subopts, tup[0]);
-                        /* Add compile function call */
                         ret = dstc_call(opts, dstc_toslots(c, tup + 1, dst_tuple_length(tup) - 1), head);
+                        dstc_freeslot(c, head);
                     }
                 }
-                /* Pop source mapping */
-                if (c->result.status != DST_COMPILE_ERROR)
-                    c->current_mapping = last_mapping;
-            }
-            break;
-        case DST_ARRAY:
-            ret = dstc_array(opts, x);
-            break;
-        case DST_STRUCT:
-            ret = dstc_tablector(opts, x, dst_core_struct);
-            break;
-        case DST_TABLE:
-            ret = dstc_tablector(opts, x, dst_core_table);
-            break;
-        case DST_BUFFER:
-            ret = dstc_bufferctor(opts, x);
-            break;
+                break;
+            case DST_SYMBOL:
+                ret = dstc_symbol(opts, dst_unwrap_symbol(x));
+                break;
+            case DST_ARRAY:
+                ret = dstc_array(opts, x);
+                break;
+            case DST_STRUCT:
+                ret = dstc_tablector(opts, x, DOP_MAKE_STRUCT);
+                break;
+            case DST_TABLE:
+                ret = dstc_tablector(opts, x, DOP_MAKE_TABLE);
+                break;
+            case DST_BUFFER:
+                ret = dstc_bufferctor(opts, x);
+                break;
+            default:
+                ret = dstc_cslot(x);
+                break;
+        }
     }
+
     if (dstc_iserr(&opts)) {
         return dstc_cslot(dst_wrap_nil());
     }
+    c->current_mapping = last_mapping;
     if (opts.flags & DST_FOPTS_TAIL) {
         ret = dstc_return(opts.compiler, ret);
     }
@@ -631,6 +642,7 @@ static void dstc_init(DstCompiler *c, DstTable *env, const uint8_t *where) {
     c->result.error = NULL;
     c->result.status = DST_COMPILE_OK;
     c->result.funcdef = NULL;
+    c->result.macrofiber = NULL;
     c->result.error_mapping.line = 0;
     c->result.error_mapping.column = 0;
 }
@@ -691,10 +703,13 @@ static int cfun(DstArgs args) {
     if (res.status == DST_COMPILE_OK) {
         DST_RETURN_FUNCTION(args, dst_thunk(res.funcdef));
     } else {
-        t = dst_table(2);
+        t = dst_table(4);
         dst_table_put(t, dst_csymbolv(":error"), dst_wrap_string(res.error));
-        dst_table_put(t, dst_csymbolv(":error-line"), dst_wrap_integer(res.error_mapping.line));
-        dst_table_put(t, dst_csymbolv(":error-column"), dst_wrap_integer(res.error_mapping.column));
+        dst_table_put(t, dst_csymbolv(":line"), dst_wrap_integer(res.error_mapping.line));
+        dst_table_put(t, dst_csymbolv(":column"), dst_wrap_integer(res.error_mapping.column));
+        if (res.macrofiber) {
+            dst_table_put(t, dst_csymbolv(":fiber"), dst_wrap_fiber(res.macrofiber));
+        }
         DST_RETURN_TABLE(args, t);
     }
 }

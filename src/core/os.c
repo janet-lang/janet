@@ -21,8 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstcorelib.h>
-
 #include <stdlib.h>
 #include <time.h>
 

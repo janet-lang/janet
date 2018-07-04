@@ -36,7 +36,7 @@ typedef enum {
     DSTC_REGTEMP_4,
     DSTC_REGTEMP_5,
     DSTC_REGTEMP_6,
-    DSTC_REGTEMP_TARGET
+    DSTC_REGTEMP_7
 } DstcRegisterTemp;
 
 typedef struct {
@@ -53,6 +53,7 @@ void dstc_regalloc_deinit(DstcRegisterAllocator *ra);
 int32_t dstc_regalloc_1(DstcRegisterAllocator *ra);
 void dstc_regalloc_free(DstcRegisterAllocator *ra, int32_t reg);
 int32_t dstc_regalloc_temp(DstcRegisterAllocator *ra, DstcRegisterTemp nth);
+void dstc_regalloc_freetemp(DstcRegisterAllocator *ra, int32_t reg, DstcRegisterTemp nth);
 void dstc_regalloc_clone(DstcRegisterAllocator *dest, DstcRegisterAllocator *src);
 void dstc_regalloc_touch(DstcRegisterAllocator *ra, int32_t reg);
 

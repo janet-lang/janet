@@ -20,39 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_COMPILE_H_defined
-#define DST_COMPILE_H_defined
+#ifndef DST_CORELIB_H
+#define DST_CORELIB_H
 
-#ifdef __cplusplus
-extern "C" {
 #endif
-
-#include "dsttypes.h"
-
-typedef struct DstCompileOptions DstCompileOptions;
-typedef struct DstCompileResult DstCompileResult;
-enum DstCompileStatus {
-    DST_COMPILE_OK,
-    DST_COMPILE_ERROR
-};
-struct DstCompileResult {
-    enum DstCompileStatus status;
-    DstFuncDef *funcdef;
-    const uint8_t *error;
-    DstSourceMapping error_mapping;
-};
-DstCompileResult dst_compile(Dst source, DstTable *env, const uint8_t *where);
-int dst_compile_cfun(DstArgs args);
-int dst_lib_compile(DstArgs args);
-
-/* Get the default environment for dst */
-DstTable *dst_stl_env();
-
-int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath);
-int dst_dostring(DstTable *env, const char *str, const char *sourcePath);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif 

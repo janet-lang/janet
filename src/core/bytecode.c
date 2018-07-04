@@ -20,8 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dsttypes.h>
-#include <dst/dstopcodes.h>
+#include <dst/dst.h>
 #include "gc.h"
 
 /* Look up table for instructions */
@@ -97,7 +96,13 @@ enum DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
     DIT_SSS, /* DOP_PUT, */
     DIT_SSU, /* DOP_GET_INDEX, */
     DIT_SSU, /* DOP_PUT_INDEX, */
-    DIT_SS /* DOP_LENGTH */
+    DIT_SS, /* DOP_LENGTH */
+    DIT_S, /* DOP_MAKE_ARRAY */
+    DIT_S, /* DOP_MAKE_BUFFER */
+    DIT_S, /* DOP_MAKE_TUPLE */
+    DIT_S, /* DOP_MAKE_STRUCT */
+    DIT_S, /* DOP_MAKE_TABLE */
+    DIT_S /* DOP_MAKE_STRING */
 };
 
 /* Verify some bytecode */

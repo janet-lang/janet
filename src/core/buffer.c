@@ -21,7 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstcorelib.h>
 #include "gc.h"
 
 /* Initialize a buffer */

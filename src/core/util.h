@@ -31,5 +31,11 @@ int32_t dst_array_calchash(const Dst *array, int32_t len);
 int32_t dst_kv_calchash(const DstKV *kvs, int32_t len);
 int32_t dst_string_calchash(const uint8_t *str, int32_t len);
 int32_t dst_tablen(int32_t n);
+void dst_buffer_push_types(DstBuffer *buffer, int types);
+const void *dst_strbinsearch(
+        const void *tab,
+        size_t tabcount,
+        size_t itemsize,
+        const uint8_t *key);
 
 #endif

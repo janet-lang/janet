@@ -21,7 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstcorelib.h>
 #include "symcache.h"
 #include "gc.h"
 #include "util.h"

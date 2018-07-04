@@ -23,13 +23,7 @@
 #ifndef DST_STATE_H_defined
 #define DST_STATE_H_defined
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
-#include <dst/dstconfig.h>
-#include <dst/dsttypes.h>
 
 /* The VM state. Rather than a struct that is passed
  * around, the vm state is global for simplicity. If
@@ -65,9 +59,5 @@ extern DST_THREAD_LOCAL int dst_vm_gc_suspend;
 extern DST_THREAD_LOCAL Dst *dst_vm_roots;
 extern DST_THREAD_LOCAL uint32_t dst_vm_root_count;
 extern DST_THREAD_LOCAL uint32_t dst_vm_root_capacity;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* DST_STATE_H_defined */

@@ -83,8 +83,6 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 #include <string.h>
 #include <signal.h>
 
-#include <headerlibs/vector.h>
-
 /* static state */
 #define DST_LINE_MAX 1024
 #define DST_HISTORY_MAX 100
@@ -95,7 +93,8 @@ static char buf[DST_LINE_MAX];
 static int len = 0;
 static int pos = 0;
 static int cols = 80;
-static char **history = NULL;
+static char *history[DST_HISTORY_MAX];
+static int history_count = 0;
 static int historyi = 0;
 static struct termios termios_start;
 
@@ -238,7 +237,7 @@ static int insert(char c) {
 }
 
 static void historymove(int delta) {
-    if (dst_v_count(history) > 1) {
+    if (history_count > 1) {
         free(history[historyi]);
         history[historyi] = sdup(buf);
 
@@ -246,8 +245,8 @@ static void historymove(int delta) {
         if (historyi < 0) {
             historyi = 0;
             return;
-        } else if (historyi >= dst_v_count(history)) {
-            historyi = dst_v_count(history) - 1;
+        } else if (historyi >= history_count) {
+            historyi = history_count - 1;
             return;
         }
         strncpy(buf, history[historyi], DST_LINE_MAX);
@@ -262,9 +261,9 @@ static void addhistory() {
     int i, len;
     char *newline = sdup(buf);
     if (!newline) return;
-    len = dst_v_count(history);
+    len = history_count;
     if (len < DST_HISTORY_MAX) {
-        dst_v_push(history, newline);
+        history[history_count++] = newline;
         len++;
     } else {
         free(history[DST_HISTORY_MAX - 1]);
@@ -429,9 +428,8 @@ void dst_line_init() {
 void dst_line_deinit() {
     int i;
     norawmode();
-    for (i = 0; i < dst_v_count(history); i++)
+    for (i = 0; i < history_count; i++)
         free(history[i]);
-    dst_v_free(history);
     historyi = 0;
 }
 

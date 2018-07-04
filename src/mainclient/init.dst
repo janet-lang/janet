@@ -1,4 +1,5 @@
 # Copyright 2017-2018 (C) Calvin Rose
+(table.setproto @{ 1 2} @{})
 (do
 
   (var *should-repl* :private false)

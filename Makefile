@@ -32,7 +32,7 @@ BINDIR=$(PREFIX)/bin
 # TODO - when api is finalized, only export public symbols instead of using rdynamic
 # which exports all symbols. Saves a few KB in binary.
 
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -Os -s
 CLIBS=-lm -ldl
 PREFIX=/usr/local
 DST_TARGET=dst
@@ -49,18 +49,11 @@ else
 endif
 
 # Source headers
+DST_GENERATED_HEADERS=$(sort $(wildcard src/include/generated/*.h))
 DST_HEADERS=$(sort $(wildcard src/include/dst/*.h))
 DST_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
-DST_LIBHEADERS=$(sort $(wildcard src/include/headerlibs/*.h))
-DST_GENERATED_HEADERS=src/mainclient/clientinit.gen.h \
-					  src/compiler/dststlbootstrap.gen.h
-DST_ALL_HEADERS=$(DST_LOCAL_HEADERS) \
-				$(DST_HEADERS) \
-				$(DST_LIB_HEADERS) \
-				$(DST_GENERATED_HEADERS)
 
 # Source files
-DST_COMPILER_SOURCES=$(sort $(wildcard src/compiler/*.c))
 DST_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
 DST_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
 
@@ -77,33 +70,33 @@ xxd: src/tools/xxd.c
 ##### Generated Headers #####
 #############################
 
-src/mainclient/clientinit.gen.h: src/mainclient/init.dst xxd
+src/include/generated/init.h: src/mainclient/init.dst xxd
 	./xxd $< $@ dst_mainclient_init 
 
-src/compiler/dststlbootstrap.gen.h: src/compiler/boot.dst xxd
+src/include/generated/boot.h: src/core/boot.dst xxd
 	./xxd $< $@ dst_stl_bootstrap_gen
+
+# Only a few files depend on the generated headers
+src/core/corelib.o: src/include/generated/boot.h
+src/mainclient/main.o: src/include/generated/init.h
 
 ##########################################################
 ##### The main interpreter program and shared object #####
 ##########################################################
 
-DST_LIB_SOURCES=$(DST_COMPILER_SOURCES) \
-				$(DST_CONTEXT_SOURCES) \
-				$(DST_CORE_SOURCES)
-
-DST_ALL_SOURCES=$(DST_LIB_SOURCES) \
+DST_ALL_SOURCES=$(DST_CORE_SOURCES) \
 				$(DST_MAINCLIENT_SOURCES)
 
-DST_LIB_OBJECTS=$(patsubst %.c,%.o,$(DST_LIB_SOURCES))
+DST_CORE_OBJECTS=$(patsubst %.c,%.o,$(DST_CORE_SOURCES))
 DST_ALL_OBJECTS=$(patsubst %.c,%.o,$(DST_ALL_SOURCES))
 
-%.o: %.c $(DST_ALL_HEADERS)
+%.o: %.c $(DST_HEADERS) $(DST_LOCAL_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(DST_TARGET): $(DST_ALL_OBJECTS)
 	$(CC) $(CFLAGS) -o $(DST_TARGET) $^ $(CLIBS)
 
-$(DST_LIBRARY): $(DST_LIB_OBJECTS)
+$(DST_LIBRARY): $(DST_CORE_OBJECTS)
 	$(CC) $(CFLAGS) -shared -o $(DST_LIBRARY) $^ $(CLIBS)
 
 ###################

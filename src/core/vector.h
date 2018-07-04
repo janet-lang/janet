@@ -23,6 +23,8 @@
 #ifndef DST_VECTOR_H_defined
 #define DST_VECTOR_H_defined
 
+#include <dst/dst.h>
+
 /*
  * vector code modified from
  * https://github.com/nothings/stb/blob/master/stretchy_buffer.h
@@ -50,65 +52,9 @@
 #define dst_v__maybegrow(v, n) (dst_v__needgrow((v), (n)) ? dst_v__grow((v), (n)) : 0)
 #define dst_v__grow(v, n)      ((v) = dst_v_grow((v), (n), sizeof(*(v))))
 
-
-/* Vector code */
-
-/* Grow the buffer dynamically. Used for push operations. */
-#ifndef DST_V_NODEF_GROW
-static void *dst_v_grow(void *v, int32_t increment, int32_t itemsize) {
-    int32_t dbl_cur = (NULL != v) ? 2 * dst_v__cap(v) : 0;
-    int32_t min_needed = dst_v_count(v) + increment;
-    int32_t m = dbl_cur > min_needed ? dbl_cur : min_needed;
-    int32_t *p = (int32_t *) realloc(v ? dst_v__raw(v) : 0, itemsize * m + sizeof(int32_t)*2);
-    if (NULL != p) {
-        if (!v) p[1] = 0;
-        p[0] = m;
-        return p + 2;
-   } else {
-       {
-           DST_OUT_OF_MEMORY;
-       }
-       return (void *) (2 * sizeof(int32_t)); // try to force a NULL pointer exception later
-   }
-}
-#endif
-
-/* Clone a buffer. */
-#ifdef DST_V_DEF_COPYMEM
-static void *dst_v_copymem(void *v, int32_t itemsize) {
-    int32_t *p;
-    if (NULL == v) return NULL;
-    p = malloc(2 * sizeof(int32_t) + itemsize * dst_v__cap(v));
-    if (NULL != p) {
-        memcpy(p, dst_v__raw(v), 2 * sizeof(int32_t) + itemsize * dst_v__cnt(v));
-        return p + 2;
-    } else {
-       {
-           DST_OUT_OF_MEMORY;
-       }
-       return (void *) (2 * sizeof(int32_t)); // try to force a NULL pointer exception later
-    }
-}
-#endif
-
-/* Convert a buffer to normal allocated memory (forget capacity) */
-#ifdef DST_V_DEF_FLATTENMEM
-static void *dst_v_flattenmem(void *v, int32_t itemsize) {
-    int32_t *p;
-    int32_t sizen;
-    if (NULL == v) return NULL;
-    sizen = itemsize * dst_v__cnt(v);
-    p = malloc(sizen);
-    if (NULL != p) {
-        memcpy(p, v, sizen);
-        return p;
-    } else {
-       {
-           DST_OUT_OF_MEMORY;
-       }
-       return NULL;
-    }
-}
-#endif
+/* Actual functions defined in vector.c */
+void *dst_v_grow(void *v, int32_t increment, int32_t itemsize);
+void *dst_v_copymem(void *v, int32_t itemsize);
+void *dst_v_flattenmem(void *v, int32_t itemsize);
 
 #endif

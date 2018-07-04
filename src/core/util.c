@@ -110,6 +110,33 @@ int dst_cstrcmp(const uint8_t *str, const char *other) {
     return (other[index] == '\0') ? 0 : -1;
 }
 
+/* Do a binary search on a static array of structs. Each struct must
+ * have a string as its first element, and the struct must be sorted
+ * lexogrpahically by that element. */
+const void *dst_strbinsearch(
+        const void *tab,
+        size_t tabcount,
+        size_t itemsize,
+        const uint8_t *key) {
+    size_t low = 0;
+    size_t hi = tabcount;
+    const char *t = (const char *)tab;
+    while (low < hi) {
+        size_t mid = low + ((hi - low) / 2);
+        const char **item = (const char **)(t + mid * itemsize);
+        const char *name = *item;
+        int comp = dst_cstrcmp(key, name);
+        if (comp < 0) {
+            hi = mid;
+        } else if (comp > 0) {
+            low = mid + 1;
+        } else {
+            return (const void *)item;
+        }
+    }
+    return NULL;
+}
+
 /* Add a module definition */
 void dst_env_def(DstTable *env, const char *name, Dst val) {
     DstTable *subt = dst_table(1);
@@ -238,26 +265,29 @@ int dst_type_err(DstArgs args, int32_t n, DstType expected) {
     DST_THROWV(args, dst_wrap_string(message));
 }
 
-int dst_typemany_err(DstArgs args, int32_t n, int expected) {
-    int i;
+void dst_buffer_push_types(DstBuffer *buffer, int types) {
     int first = 1;
+    int i = 0;
+    while (types) {
+        if (1 & types) {
+            if (first) {
+                first = 0;
+            } else {
+                dst_buffer_push_u8(buffer, '|');
+            }
+            dst_buffer_push_cstring(buffer, dst_type_names[i] + 1);
+        }
+        i++;
+        types >>= 1;
+    }
+}
+
+int dst_typemany_err(DstArgs args, int32_t n, int expected) {
     const uint8_t *message;
     DstBuffer buf;
     dst_buffer_init(&buf, 20);
     dst_buffer_push_string(&buf, dst_formatc("bad slot #%d, expected ", n));
-    i = 0;
-    while (expected) {
-        if (1 & expected) {
-            if (first) {
-                first = 0;
-            } else {
-                dst_buffer_push_u8(&buf, '|');
-            }
-            dst_buffer_push_cstring(&buf, dst_type_names[i] + 1);
-        }
-        i++;
-        expected >>= 1;
-    }
+    dst_buffer_push_types(&buf, expected);
     dst_buffer_push_cstring(&buf, ", got ");
     dst_buffer_push_cstring(&buf, typestr(args, n));
     message = dst_string(buf.data, buf.count);

@@ -21,8 +21,49 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstcorelib.h>
-#include <dst/dstcompile.h>
+#include "state.h"
+
+/* Error reporting */
+static void print_error_report(DstFiber *fiber, const char *errtype, Dst err) {
+    const char *errstr = (const char *)dst_to_string(err);
+    printf("%s error: %s\n", errtype, errstr);
+    if (!fiber) return;
+    int32_t i = fiber->frame;
+    while (i > 0) {
+        DstStackFrame *frame = (DstStackFrame *)(fiber->data + i - DST_FRAME_SIZE);
+        DstFuncDef *def = NULL;
+        i = frame->prevframe;
+        
+        printf("  at");
+
+        if (frame->func) {
+            def = frame->func->def;
+            printf(" %s", def->name ? (const char *)def->name : "<anonymous>");
+            if (def->source) {
+                printf(" %s", (const char *)def->source);
+            }
+        } else {
+            DstCFunction cfun = (DstCFunction)(frame->pc);
+            if (cfun) {
+                Dst name = dst_table_get(dst_vm_registry, dst_wrap_cfunction(cfun));
+                if (!dst_checktype(name, DST_NIL))
+                    printf(" [%s]", (const char *)dst_to_string(name));
+            }
+        }
+        if (frame->flags & DST_STACKFRAME_TAILCALL)
+            printf(" (tailcall)");
+        if (frame->func && frame->pc) {
+            int32_t off = (int32_t) (frame->pc - def->bytecode);
+            if (def->sourcemap) {
+                DstSourceMapping mapping = def->sourcemap[off];
+                printf(" on line %d, column %d", mapping.line, mapping.column);
+            } else {
+                printf(" pc=%d", off);
+            }
+        }
+        printf("\n");
+    }
+}
 
 /* Run a string */
 int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath) {
@@ -47,18 +88,19 @@ int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *so
                         Dst ret = dst_wrap_nil();
                         DstSignal status = dst_run(fiber, &ret);
                         if (status != DST_SIGNAL_OK) {
-                            printf("internal runtime error: %s\n", (const char *) dst_to_string(ret));
+                            print_error_report(fiber, "runtime", ret);
                             errflags |= 0x01;
                         }
                     } else {
-                        printf("internal compile error: %s\n", (const char *) cres.error);
+                        print_error_report(cres.macrofiber, "compile",
+                                dst_wrap_string(cres.error));
                         errflags |= 0x02;
                     }
                 }
                 break;
             case DST_PARSE_ERROR:
                 errflags |= 0x04;
-                printf("internal parse error: %s\n", dst_parser_error(&parser));
+                printf("parse error: %s\n", dst_parser_error(&parser));
                 break;
             case DST_PARSE_PENDING:
                 if (index >= len) {

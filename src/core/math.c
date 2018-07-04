@@ -21,7 +21,6 @@
 */
 
 #include <dst/dst.h>
-#include <dst/dstcorelib.h>
 #include <math.h>
 
 /* Get a random number */

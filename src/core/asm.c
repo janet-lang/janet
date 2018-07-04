@@ -21,10 +21,8 @@
 */
 
 #include <setjmp.h>
-
 #include <dst/dst.h>
-#include <dst/dstopcodes.h>
-#include <headerlibs/strbinsearch.h>
+#include "util.h"
 
 /* Convert a slot to to an integer for bytecode */
 
@@ -118,6 +116,12 @@ static const DstInstructionDef dst_ops[] = {
     {"ltim", DOP_LESS_THAN_IMMEDIATE},
     {"ltr", DOP_LESS_THAN_REAL},
     {"lter", DOP_LESS_THAN_EQUAL_REAL},
+    {"mkarr", DOP_MAKE_ARRAY},
+    {"mkbuf", DOP_MAKE_BUFFER},
+    {"mktab", DOP_MAKE_TABLE},
+    {"mktup", DOP_MAKE_TUPLE},
+    {"mkstr", DOP_MAKE_STRING},
+    {"mkstu", DOP_MAKE_STRUCT},
     {"movf", DOP_MOVE_FAR},
     {"movn", DOP_MOVE_NEAR},
     {"mul", DOP_MULTIPLY},
@@ -376,7 +380,7 @@ static uint32_t read_instruction(
         {
             if (dst_tuple_length(argt) != 2)
                 dst_asm_error(a, "expected 1 argument: (op, slot)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 3, 0, argt[1]);
+            instr |= doarg(a, DST_OAT_SLOT, 1, 2, 0, argt[1]);
             break;
         }
         case DIT_L:

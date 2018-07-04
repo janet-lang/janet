@@ -24,8 +24,6 @@
 #define DST_COMPILE_H
 
 #include <dst/dst.h>
-#include <dst/dstcompile.h>
-#include <dst/dstopcodes.h>
 #include "regalloc.h"
 
 /* Tags for some functions for the prepared inliner */
@@ -185,7 +183,6 @@ const DstKV *dstc_next(Dst ds, const DstKV *kv);
 
 void dstc_freeslot(DstCompiler *c, DstSlot s);
 void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s);
-DstSlot dstc_nearslot(DstCompiler *c, DstcRegisterTemp tag);
 DstSlot dstc_farslot(DstCompiler *c);
 
 /* Throw away some code after checking that it is well formed. */
