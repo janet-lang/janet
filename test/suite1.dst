@@ -179,4 +179,19 @@
 (def myfun (juxt + - * /))
 (assert (= '[2 -2 2 0] (myfun 2)) "juxt")
 
+# Case statements
+(assert 
+  (= :six (case (+ 1 2 3)
+            1 :one
+            2 :two
+            3 :three
+            4 :four
+            5 :five
+            6 :six
+            7 :seven
+            8 :eight
+            9 :nine)), "case macro")
+
+(assert (= 7 (case :a :b 5 :c 6 :u 10 7)), "case with default")
+
 (end-suite)
