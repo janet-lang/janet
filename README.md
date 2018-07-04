@@ -131,7 +131,7 @@ make natives
 Next, enter the repl and create a database and a table.
 
 ```
-dst:1:> (import natives.sqlite :as sql)
+dst:1:> (import natives.sqlite3 :as sql)
 nil
 dst:2:> (def db (sql.open "test.db"))
 <sqlite3.connection 0x5561A138C470>
