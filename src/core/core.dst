@@ -178,7 +178,7 @@
   (def last (- (length args) 1))
   (apply1 f (array.concat (array.slice args 0 -2) (get args last))))
 
-(defmacro switch
+(defmacro case
   "Select the body that equals the dispatch value. When pairs
   has an odd number of arguments, the last is the default expression.
   If no match is found, returns nil"
@@ -230,7 +230,7 @@
               (+ i 2) object
               } head)
         (if (keyword? bindings)
-          (switch
+          (case
             bindings
             :while (do
                      (array.push preds verb)
@@ -238,7 +238,7 @@
             :let (tuple 'let verb (doone (+ i 2)))
             :when (tuple 'if verb (doone (+ i 2)))
             (error ("unexpected loop predicate: " verb)))
-          (switch verb
+          (case verb
             :iterate (do
                        (def preds @['and (tuple ':= bindings object)])
                        (def subloop (doone (+ i 3) preds))
@@ -373,7 +373,7 @@
   "Takes multiple functions and returns a function that is the composition
   of those functions."
   [& functions]
-  (switch (length functions)
+  (case (length functions)
     0 nil
     1 (get functions 0)
     2 (let [[f g]       functions] (fn [x] (f (g x))))
@@ -475,7 +475,7 @@
         (if (< l limit) (:= limit l)))
   (def [i1 i2 i3 i4] inds)
   (def res (array.new limit))
-  (switch ninds
+  (case ninds
     1 (loop [i :range [0 limit]] (array.push res (f (get i1 i))))
     2 (loop [i :range [0 limit]] (array.push res (f (get i1 i) (get i2 i))))
     3 (loop [i :range [0 limit]] (array.push res (f (get i1 i) (get i2 i) (get i3 i))))
@@ -497,7 +497,7 @@
         (def l (length (get inds i)))
         (if (< l limit) (:= limit l)))
   (def [i1 i2 i3 i4] inds)
-  (switch ninds
+  (case ninds
     1 (loop [i :range [0 limit]] (f (get i1 i)))
     2 (loop [i :range [0 limit]] (f (get i1 i) (get i2 i)))
     3 (loop [i :range [0 limit]] (f (get i1 i) (get i2 i) (get i3 i)))
@@ -659,7 +659,7 @@
 (defn reverse
   "Reverses order of elements in a given array or tuple"
   [t]
-  ((switch (type t)
+  ((case (type t)
      :tuple tuple.reverse
      :array array.reverse) t))
 
@@ -844,7 +844,7 @@
     newt)
 
   (defn expand-bindings [x]
-    (switch (type x)
+    (case (type x)
       :array (map expand-bindings x)
       :tuple (apply1 tuple (map expand-bindings x))
       :table (dotable x expand-bindings)
@@ -888,7 +888,7 @@
       m? (apply1 m (tuple.slice t 1))
       (apply1 tuple (map macroexpand-1 t))))
 
-  (def ret (switch (type x)
+  (def ret (case (type x)
              :tuple (dotup x)
              :array (map macroexpand-1 x)
              :struct (table.to-struct (dotable x macroexpand-1))
@@ -912,7 +912,7 @@
   (def tx (type x))
   (or
     (not= tx (type y))
-    (switch tx
+    (case tx
       :tuple (or (not= (length x) (length y)) (some? (map deep-not= x y)))
       :array (or (not= (length x) (length y)) (some? (map deep-not= x y)))
       :struct (deep-not= (pairs x) (pairs y))
@@ -987,12 +987,12 @@
   (def vals
     (coro
       (while going
-        (switch (parser.status p)
+        (case (parser.status p)
           :full (yield (parser.produce p))
           :error (do
                    (def (line col) (parser.where p))
                    (onerr where "parse" (string (parser.error p) " on line " line ", column " col)))
-          (switch (fiber.status chars)
+          (case (fiber.status chars)
             :new (parser.byte p (resume chars))
             :pending (parser.byte p (resume chars))
             (:= going false))))
