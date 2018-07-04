@@ -34,36 +34,26 @@ SET(CMAKE_C_FLAGS_DEBUG  "-O0 -g")
 include_directories(src/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-set(COMPILER_SOURCES
-src/compiler/compile.c
-src/compiler/cfuns.c
-src/compiler/emit.c
-src/compiler/regalloc.c
-src/compiler/run.c
-src/compiler/specials.c
-src/compiler/stl.c
-
-dststlbootstrap.h
-src/compiler/compile.h
-src/compiler/emit.h
-src/compiler/regalloc.h
-)
-
 set(CORE_SOURCES
 src/core/abstract.c
 src/core/array.c
 src/core/asm.c
 src/core/buffer.c
 src/core/bytecode.c
+src/core/cfuns.c
+src/core/compile.c
 src/core/corelib.c
+src/core/emit.c
 src/core/fiber.c
 src/core/gc.c
 src/core/io.c
 src/core/marsh.c
 src/core/math.c
-src/core/native.c
 src/core/os.c
 src/core/parse.c
+src/core/regalloc.c
+src/core/run.c
+src/core/specials.c
 src/core/string.c
 src/core/strtod.c
 src/core/struct.c
@@ -72,25 +62,31 @@ src/core/table.c
 src/core/tuple.c
 src/core/util.c
 src/core/value.c
+src/core/vector.c
 src/core/vm.c
 src/core/wrap.c
 
+src/core/compile.h
+src/core/emit.h
 src/core/fiber.h
 src/core/gc.h
+src/core/regalloc.h
 src/core/state.h
 src/core/symcache.h
 src/core/util.h
+
+src/include/generated/boot.h
 )
 
 set(MAINCLIENT_SOURCES
-clientinit.h
 src/mainclient/main.c
 src/mainclient/line.c
 src/mainclient/line.h
+
+src/include/generated/init.h
 )
 
 set(REPL_SOURCES
-${COMPILER_SOURCES}
 ${CORE_SOURCES}
 ${MAINCLIENT_SOURCES}
 )
@@ -98,11 +94,6 @@ ${MAINCLIENT_SOURCES}
 # Set Public headers
 set(DST_PUBLIC_HEADERS
 src/include/dst/dst.h
-src/include/dst/dstcompile.h
-src/include/dst/dstconfig.h
-src/include/dst/dstcorelib.h
-src/include/dst/dstopcodes.h
-src/include/dst/dsttypes.h
 )
 
 # Build the executable
@@ -117,16 +108,16 @@ set_target_properties(${TARGET_NAME} PROPERTIES PUBLIC_HEADER "${DST_PUBLIC_HEAD
 
 # Generate header containing standard library
 add_custom_command(
-    OUTPUT dststlbootstrap.h
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dststlbootstrap.cmake
-    DEPENDS src/compiler/boot.dst
+    OUTPUT generated/boot.h
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/genboot.cmake
+    DEPENDS src/core/boot.dst
     COMMENT "Generating stl bootstrap C header for embedding"
 )
 
 # Generate header containing main client script
 add_custom_command(
-    OUTPUT clientinit.h
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dstmainclientinit.cmake
+    OUTPUT generated/init.h
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/geninit.cmake
     DEPENDS src/mainclient/init.dst
     COMMENT "Generating mainclient init C header for embedding"
 )
