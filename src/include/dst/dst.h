@@ -104,6 +104,11 @@ extern "C" {
 #define DST_THREAD_LOCAL
 #endif
 
+/* Enable or disbale dynamic module loading. Enabled by default. */
+#ifndef DST_NO_DYNAMIC_MODULES
+#define DST_DYNAMIC_MODULES
+#endif
+
 /* Handle runtime errors */
 #ifndef dst_exit
 #include <stdio.h>

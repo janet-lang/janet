@@ -21,12 +21,14 @@
 */
 
 #include <dst/dst.h>
-#include "corelib.h"
 #include "compile.h"
 #include "state.h"
 
 /* Generated header */
 #include <generated/core.h>
+
+/* Only include dynamic modules if enabled */
+#ifdef DST_DYNAMIC_MODULES
 
 /* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
  * with native code. */
@@ -66,7 +68,7 @@ DstCFunction dst_native(const char *name, const uint8_t **error) {
     return init;
 }
 
-int dst_core_native(DstArgs args) {
+static int dst_core_native(DstArgs args) {
     DstCFunction init;
     const uint8_t *error = NULL;
     const uint8_t *path = NULL;
@@ -79,7 +81,10 @@ int dst_core_native(DstArgs args) {
     DST_RETURN_CFUNCTION(args, init);
 }
 
-int dst_core_print(DstArgs args) {
+#endif
+/* end DST_DYNAMIC_MODULES */
+
+static int dst_core_print(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n; ++i) {
         int32_t j, len;
@@ -93,7 +98,7 @@ int dst_core_print(DstArgs args) {
     DST_RETURN_NIL();
 }
 
-int dst_core_describe(DstArgs args) {
+static int dst_core_describe(DstArgs args) {
     int32_t i;
     DstBuffer b;
     dst_buffer_init(&b, 0);
@@ -108,7 +113,7 @@ int dst_core_describe(DstArgs args) {
     return 0;
 }
 
-int dst_core_string(DstArgs args) {
+static int dst_core_string(DstArgs args) {
     int32_t i;
     DstBuffer b;
     dst_buffer_init(&b, 0);
@@ -123,7 +128,7 @@ int dst_core_string(DstArgs args) {
     return 0;
 }
 
-int dst_core_symbol(DstArgs args) {
+static int dst_core_symbol(DstArgs args) {
     int32_t i;
     DstBuffer b;
     dst_buffer_init(&b, 0);
@@ -138,7 +143,7 @@ int dst_core_symbol(DstArgs args) {
     return 0;
 }
 
-int dst_core_buffer(DstArgs args) {
+static int dst_core_buffer(DstArgs args) {
     int32_t i;
     DstBuffer *b = dst_buffer(0);
     for (i = 0; i < args.n; ++i) {
@@ -150,7 +155,7 @@ int dst_core_buffer(DstArgs args) {
     DST_RETURN_BUFFER(args, b);
 }
 
-int dst_core_scannumber(DstArgs args) {
+static int dst_core_scannumber(DstArgs args) {
     const uint8_t *data;
     Dst x;
     int32_t len;
@@ -163,7 +168,7 @@ int dst_core_scannumber(DstArgs args) {
     DST_RETURN(args, x);
 }
 
-int dst_core_scaninteger(DstArgs args) {
+static int dst_core_scaninteger(DstArgs args) {
     const uint8_t *data;
     int32_t len, ret;
     int err = 0;
@@ -176,7 +181,7 @@ int dst_core_scaninteger(DstArgs args) {
     DST_RETURN_INTEGER(args, ret);
 }
 
-int dst_core_scanreal(DstArgs args) {
+static int dst_core_scanreal(DstArgs args) {
     const uint8_t *data;
     int32_t len;
     double ret;
@@ -190,18 +195,18 @@ int dst_core_scanreal(DstArgs args) {
     DST_RETURN_REAL(args, ret);
 }
 
-int dst_core_tuple(DstArgs args) {
+static int dst_core_tuple(DstArgs args) {
     DST_RETURN_TUPLE(args, dst_tuple_n(args.v, args.n));
 }
 
-int dst_core_array(DstArgs args) {
+static int dst_core_array(DstArgs args) {
     DstArray *array = dst_array(args.n);
     array->count = args.n;
     memcpy(array->data, args.v, args.n * sizeof(Dst));
     DST_RETURN_ARRAY(args, array);
 }
 
-int dst_core_table(DstArgs args) {
+static int dst_core_table(DstArgs args) {
     int32_t i;
     DstTable *table = dst_table(args.n >> 1);
     if (args.n & 1)
@@ -212,7 +217,7 @@ int dst_core_table(DstArgs args) {
     DST_RETURN_TABLE(args, table);
 }
 
-int dst_core_struct(DstArgs args) {
+static int dst_core_struct(DstArgs args) {
     int32_t i;
     DstKV *st = dst_struct_begin(args.n >> 1);
     if (args.n & 1)
@@ -223,18 +228,18 @@ int dst_core_struct(DstArgs args) {
     DST_RETURN_STRUCT(args, dst_struct_end(st));
 }
 
-int dst_core_gensym(DstArgs args) {
+static int dst_core_gensym(DstArgs args) {
     DST_FIXARITY(args, 0);
     DST_RETURN_SYMBOL(args, dst_symbol_gen());
 }
 
-int dst_core_gccollect(DstArgs args) {
+static int dst_core_gccollect(DstArgs args) {
     (void) args;
     dst_collect();
     return 0;
 }
 
-int dst_core_gcsetinterval(DstArgs args) {
+static int dst_core_gcsetinterval(DstArgs args) {
     int32_t val;
     DST_FIXARITY(args, 1);
     DST_ARG_INTEGER(val, args, 0);
@@ -244,12 +249,12 @@ int dst_core_gcsetinterval(DstArgs args) {
     DST_RETURN_NIL(args);
 }
 
-int dst_core_gcinterval(DstArgs args) {
+static int dst_core_gcinterval(DstArgs args) {
     DST_FIXARITY(args, 0);
     DST_RETURN_INTEGER(args, dst_vm_gc_interval);
 }
 
-int dst_core_type(DstArgs args) {
+static int dst_core_type(DstArgs args) {
     DST_FIXARITY(args, 1);
     if (dst_checktype(args.v[0], DST_ABSTRACT)) {
         DST_RETURN(args, dst_csymbolv(dst_abstract_type(dst_unwrap_abstract(args.v[0]))->name));
@@ -258,7 +263,7 @@ int dst_core_type(DstArgs args) {
     }
 }
 
-int dst_core_next(DstArgs args) {
+static int dst_core_next(DstArgs args) {
     Dst ds;
     const DstKV *kv;
     DST_FIXARITY(args, 2);
@@ -283,13 +288,15 @@ int dst_core_next(DstArgs args) {
     DST_RETURN_NIL(args);
 }
 
-int dst_core_hash(DstArgs args) {
+static int dst_core_hash(DstArgs args) {
     DST_FIXARITY(args, 1);
     DST_RETURN_INTEGER(args, dst_hash(args.v[0]));
 }
 
 static const DstReg cfuns[] = {
+#ifdef DST_DYNAMIC_MODULES
     {"native", dst_core_native},
+#endif
     {"print", dst_core_print},
     {"describe", dst_core_describe},
     {"string", dst_core_string},
