@@ -75,7 +75,7 @@ src/core/state.h
 src/core/symcache.h
 src/core/util.h
 
-src/include/generated/boot.h
+generated/core.h
 )
 
 set(MAINCLIENT_SOURCES
@@ -83,7 +83,7 @@ src/mainclient/main.c
 src/mainclient/line.c
 src/mainclient/line.h
 
-src/include/generated/init.h
+generated/init.h
 )
 
 set(REPL_SOURCES
@@ -108,9 +108,9 @@ set_target_properties(${TARGET_NAME} PROPERTIES PUBLIC_HEADER "${DST_PUBLIC_HEAD
 
 # Generate header containing standard library
 add_custom_command(
-    OUTPUT generated/boot.h
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/genboot.cmake
-    DEPENDS src/core/boot.dst
+    OUTPUT generated/core.h
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gencore.cmake
+    DEPENDS src/core/core.dst
     COMMENT "Generating stl bootstrap C header for embedding"
 )
 
