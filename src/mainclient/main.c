@@ -36,9 +36,8 @@ int main(int argc, char **argv) {
 
     /* Create args tuple */
     args = dst_array(argc);
-    for (i = 0; i < argc; i++) {
+    for (i = 0; i < argc; i++)
         dst_array_push(args, dst_cstringv(argv[i]));
-    }
     dst_env_def(env, "args", dst_wrap_array(args));
 
     /* Expose line getter */
@@ -46,7 +45,7 @@ int main(int argc, char **argv) {
     dst_line_init();
 
     /* Run startup script */
-    status = dst_dobytes(env, dst_mainclient_init, sizeof(dst_mainclient_init), "init.dst");
+    status = dst_dobytes(env, dst_gen_init, sizeof(dst_gen_init), "init.dst");
 
     /* Deinitialize vm */
     dst_deinit();

@@ -6,6 +6,7 @@ dst
 /Release
 /Debug
 /Emscripten
+/src/include/generated/*.h
 
 # Generated files
 *.gen.h
@@ -28,7 +29,6 @@ tags
 
 # Valgrind files
 vgcore.*
-core.*
 
 # Created by https://www.gitignore.io/api/c
 

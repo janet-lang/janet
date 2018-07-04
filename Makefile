@@ -49,7 +49,9 @@ else
 endif
 
 # Source headers
-DST_GENERATED_HEADERS=$(sort $(wildcard src/include/generated/*.h))
+DST_GENERATED_HEADERS= \
+	src/include/generated/core.h \
+ 	src/include/generated/init.h
 DST_HEADERS=$(sort $(wildcard src/include/dst/*.h))
 DST_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
 
@@ -71,13 +73,13 @@ xxd: src/tools/xxd.c
 #############################
 
 src/include/generated/init.h: src/mainclient/init.dst xxd
-	./xxd $< $@ dst_mainclient_init 
+	./xxd $< $@ dst_gen_init 
 
-src/include/generated/boot.h: src/core/boot.dst xxd
-	./xxd $< $@ dst_stl_bootstrap_gen
+src/include/generated/core.h: src/core/core.dst xxd
+	./xxd $< $@ dst_gen_core
 
 # Only a few files depend on the generated headers
-src/core/corelib.o: src/include/generated/boot.h
+src/core/corelib.o: src/include/generated/core.h
 src/mainclient/main.o: src/include/generated/init.h
 
 ##########################################################

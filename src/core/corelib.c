@@ -26,7 +26,7 @@
 #include "state.h"
 
 /* Generated header */
-#include <generated/boot.h>
+#include <generated/core.h>
 
 /* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
  * with native code. */
@@ -496,7 +496,7 @@ DstTable *dst_stl_env(int flags) {
     dst_env_def(env, "_env", ret);
 
     /* Run bootstrap source */
-    dst_dobytes(env, dst_stl_bootstrap_gen, sizeof(dst_stl_bootstrap_gen), "boot.dst");
+    dst_dobytes(env, dst_gen_core, sizeof(dst_gen_core), "core.dst");
 
     if (flags & DST_STL_NOGCROOT)
         dst_gcunroot(dst_wrap_table(env));
