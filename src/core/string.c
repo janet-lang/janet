@@ -937,7 +937,7 @@ static int cfun_join(DstArgs args) {
     for (i = 0; i < partslen; i++) {
         const uint8_t *chunk;
         int32_t chunklen = 0;
-        if (!dst_chararray_view(parts[i], &chunk, &chunklen)) {
+        if (!dst_bytes_view(parts[i], &chunk, &chunklen)) {
             DST_THROW(args, "expected string|symbol|buffer");
         }
         if (i) finallen += joinerlen;
@@ -951,7 +951,7 @@ static int cfun_join(DstArgs args) {
             memcpy(out, joiner, joinerlen);
             out += joinerlen;
         }
-        dst_chararray_view(parts[i], &chunk, &chunklen);
+        dst_bytes_view(parts[i], &chunk, &chunklen);
         memcpy(out, chunk, chunklen);
         out += chunklen;
     }

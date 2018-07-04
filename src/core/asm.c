@@ -554,7 +554,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
 
     /* Create slot aliases */
     x = dst_get(s, dst_csymbolv("slots"));
-    if (dst_seq_view(x, &arr, &count)) {
+    if (dst_indexed_view(x, &arr, &count)) {
         for (i = 0; i < count; i++) {
             Dst v = arr[i];
             if (dst_checktype(v, DST_TUPLE)) {
@@ -575,7 +575,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
 
     /* Parse constants */
     x = dst_get(s, dst_csymbolv("constants"));
-    if (dst_seq_view(x, &arr, &count)) {
+    if (dst_indexed_view(x, &arr, &count)) {
         def->constants_length = count;
         def->constants = malloc(sizeof(Dst) * count);
         if (NULL == def->constants) {
@@ -610,7 +610,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
 
     /* Parse sub funcdefs */
     x = dst_get(s, dst_csymbolv("closures"));
-    if (dst_seq_view(x, &arr, &count)) {
+    if (dst_indexed_view(x, &arr, &count)) {
         int32_t i;
         for (i = 0; i < count; i++) {
             DstAssembleResult subres;
@@ -640,7 +640,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
 
     /* Parse bytecode and labels */
     x = dst_get(s, dst_csymbolv("bytecode"));
-    if (dst_seq_view(x, &arr, &count)) {
+    if (dst_indexed_view(x, &arr, &count)) {
         /* Do labels and find length */
         int32_t blength = 0;
         for (i = 0; i < count; ++i) {
@@ -696,7 +696,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
 
     /* Check for source mapping */
     x = dst_get(s, dst_csymbolv("sourcemap"));
-    if (dst_seq_view(x, &arr, &count)) {
+    if (dst_indexed_view(x, &arr, &count)) {
         dst_asm_assert(&a, count == def->bytecode_length, "sourcemap must have the same length as the bytecode");
         def->sourcemap = malloc(sizeof(DstSourceMapping) * count);
         for (i = 0; i < count; i++) {

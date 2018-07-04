@@ -136,13 +136,21 @@ extern "C" {
 /* Maximum depth to follow table prototypes before giving up and returning nil. */
 #define DST_MAX_PROTO_DEPTH 200
 
+/* Maximum depth to follow table prototypes before giving up and returning nil. */
+#define DST_MAX_MACRO_EXPAND 200
+
 /* Define max stack size for stacks before raising a stack overflow error.
  * If this is not defined, fiber stacks can grow without limit (until memory
  * runs out) */
 #define DST_STACK_MAX 8192
 
-/* Use nanboxed values - uses 8 bytes per value instead of 12 or 16. */
+/* Use nanboxed values - uses 8 bytes per value instead of 12 or 16.
+ * To turn of nanboxing, for debugging purposes or for certain
+ * architectures (Nanboxing only tested on x86 and x64), comment out
+ * the DST_NANBOX define.*/
 #define DST_NANBOX
+
+/* Further refines the type of nanboxing to use. */
 #define DST_NANBOX_47
 
 /* Alignment for pointers */
@@ -895,7 +903,7 @@ int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x);
 #define dst_tuple_sm_col(t) ((dst_tuple_raw(t)[3]))
 Dst *dst_tuple_begin(int32_t length);
 const Dst *dst_tuple_end(Dst *tuple);
-const Dst *dst_tuple_n(Dst *values, int32_t n);
+const Dst *dst_tuple_n(const Dst *values, int32_t n);
 int dst_tuple_equal(const Dst *lhs, const Dst *rhs);
 int dst_tuple_compare(const Dst *lhs, const Dst *rhs);
 
@@ -965,9 +973,9 @@ DstFiber *dst_fiber(DstFunction *callee, int32_t capacity);
 #define dst_fiber_status(f) (((f)->flags & DST_FIBER_STATUS_MASK) >> DST_FIBER_STATUS_OFFSET)
 
 /* Treat similar types through uniform interfaces for iteration */
-int dst_seq_view(Dst seq, const Dst **data, int32_t *len);
-int dst_chararray_view(Dst str, const uint8_t **data, int32_t *len);
-int dst_hashtable_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap);
+int dst_indexed_view(Dst seq, const Dst **data, int32_t *len);
+int dst_bytes_view(Dst str, const uint8_t **data, int32_t *len);
+int dst_dictionary_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap);
 
 /* Abstract */
 #define dst_abstract_header(u) ((DstAbstractHeader *)(u) - 1)
@@ -1107,14 +1115,14 @@ int dst_lib_compile(DstArgs args);
 
 #define DST_ARG_BYTES(DESTBYTES, DESTLEN, A, N) do {\
     if ((A).n <= (N)) return dst_typemany_err(A, N, DST_TFLAG_BYTES);\
-    if (!dst_chararray_view((A).v[(N)], &(DESTBYTES), &(DESTLEN))) {\
+    if (!dst_bytes_view((A).v[(N)], &(DESTBYTES), &(DESTLEN))) {\
         return dst_typemany_err(A, N, DST_TFLAG_BYTES);\
     }\
 } while (0)
 
 #define DST_ARG_INDEXED(DESTVALS, DESTLEN, A, N) do {\
     if ((A).n <= (N)) return dst_typemany_err(A, N, DST_TFLAG_INDEXED);\
-    if (!dst_seq_view((A).v[(N)], &(DESTVALS), &(DESTLEN))) {\
+    if (!dst_indexed_view((A).v[(N)], &(DESTVALS), &(DESTLEN))) {\
         return dst_typemany_err(A, N, DST_TFLAG_INDEXED);\
     }\
 } while (0)

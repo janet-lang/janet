@@ -202,7 +202,7 @@ DstTable *dst_env_arg(DstArgs args) {
 
 /* Read both tuples and arrays as c pointers + int32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */
-int dst_seq_view(Dst seq, const Dst **data, int32_t *len) {
+int dst_indexed_view(Dst seq, const Dst **data, int32_t *len) {
     if (dst_checktype(seq, DST_ARRAY)) {
         *data = dst_unwrap_array(seq)->data;
         *len = dst_unwrap_array(seq)->count;
@@ -217,7 +217,7 @@ int dst_seq_view(Dst seq, const Dst **data, int32_t *len) {
 
 /* Read both strings and buffer as unsigned character array + int32_t len.
  * Returns 1 if the view can be constructed and 0 if the type is invalid. */
-int dst_chararray_view(Dst str, const uint8_t **data, int32_t *len) {
+int dst_bytes_view(Dst str, const uint8_t **data, int32_t *len) {
     if (dst_checktype(str, DST_STRING) || dst_checktype(str, DST_SYMBOL)) {
         *data = dst_unwrap_string(str);
         *len = dst_string_length(dst_unwrap_string(str));
@@ -233,7 +233,7 @@ int dst_chararray_view(Dst str, const uint8_t **data, int32_t *len) {
 /* Read both structs and tables as the entries of a hashtable with
  * identical structure. Returns 1 if the view can be constructed and
  * 0 if the type is invalid. */
-int dst_hashtable_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap) {
+int dst_dictionary_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap) {
     if (dst_checktype(tab, DST_TABLE)) {
         *data = dst_unwrap_table(tab)->data;
         *cap = dst_unwrap_table(tab)->capacity;

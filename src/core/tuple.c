@@ -44,7 +44,7 @@ const Dst *dst_tuple_end(Dst *tuple) {
 }
 
 /* Build a tuple with n values */
-const Dst *dst_tuple_n(Dst *values, int32_t n) {
+const Dst *dst_tuple_n(const Dst *values, int32_t n) {
     Dst *t = dst_tuple_begin(n);
     memcpy(t, values, sizeof(Dst) * n);
     return dst_tuple_end(t);
@@ -97,7 +97,7 @@ static int cfun_slice(DstArgs args) {
     Dst *ret;
     int32_t start, end;
     DST_MINARITY(args, 1);
-    if (!dst_seq_view(args.v[0], &vals, &len)) DST_THROW(args, "expected array/tuple");
+    if (!dst_indexed_view(args.v[0], &vals, &len)) DST_THROW(args, "expected array/tuple");
     /* Get start */
     if (args.n < 2) {
         start = 0;
@@ -133,7 +133,7 @@ static int cfun_prepend(DstArgs args) {
     int32_t len;
     Dst *n;
     DST_FIXARITY(args, 2);
-    if (!dst_seq_view(args.v[0], &t, &len)) DST_THROW(args, "expected tuple/array");
+    if (!dst_indexed_view(args.v[0], &t, &len)) DST_THROW(args, "expected tuple/array");
     n = dst_tuple_begin(len + 1);
     memcpy(n + 1, t, sizeof(Dst) * len);
     n[0] = args.v[1];
@@ -145,7 +145,7 @@ static int cfun_append(DstArgs args) {
     int32_t len;
     Dst *n;
     DST_FIXARITY(args, 2);
-    if (!dst_seq_view(args.v[0], &t, &len)) DST_THROW(args, "expected tuple/array");
+    if (!dst_indexed_view(args.v[0], &t, &len)) DST_THROW(args, "expected tuple/array");
     n = dst_tuple_begin(len + 1);
     memcpy(n, t, sizeof(Dst) * len);
     n[len] = args.v[1];

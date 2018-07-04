@@ -183,7 +183,7 @@ static int cfun_slice(DstArgs args) {
     int32_t start, end;
     DST_MINARITY(args, 1);
     DST_MAXARITY(args, 3);
-    if (!dst_seq_view(args.v[0], &vals, &len))
+    if (!dst_indexed_view(args.v[0], &vals, &len))
         DST_THROW(args, "expected array|tuple");
     /* Get start */
     if (args.n < 2) {
@@ -231,7 +231,7 @@ static int cfun_concat(DstArgs args) {
                 {
                     int32_t j, len;
                     const Dst *vals;
-                    dst_seq_view(args.v[i], &vals, &len);
+                    dst_indexed_view(args.v[i], &vals, &len);
                     for (j = 0; j < len; j++)
                         dst_array_push(array, vals[j]);
                 }

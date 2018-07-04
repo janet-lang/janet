@@ -194,4 +194,8 @@
 
 (assert (= 7 (case :a :b 5 :c 6 :u 10 7)), "case with default")
 
+# Testing the loop and for macros
+(def xs (apply1 tuple (for [x :range [0 10] :when (even? x)] (tuple (/ x 2) x))))
+(assert (= xs '((0 0) (1 2) (2 4) (3 6) (4 8))) "for macro 1")
+
 (end-suite)

@@ -708,7 +708,7 @@ static void *op_lookup[255] = {
     {
         const Dst *vals;
         int32_t len;
-        if (dst_seq_view(stack[oparg(1, 0xFFFFFF)], &vals, &len)) {
+        if (dst_indexed_view(stack[oparg(1, 0xFFFFFF)], &vals, &len)) {
             dst_fiber_pushn(fiber, vals, len);
         } else {
             retreg = stack[oparg(1, 0xFFFFFF)];

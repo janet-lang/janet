@@ -175,12 +175,6 @@ const DstFunOptimizer *dstc_funopt(uint32_t flags);
 /* Get a special. Return NULL if none exists */
 const DstSpecial *dstc_special(const uint8_t *name);
 
-/* Check error */
-int dstc_iserr(DstFopts *opts);
-
-/* Helper for iterating tables and structs */
-const DstKV *dstc_next(Dst ds, const DstKV *kv);
-
 void dstc_freeslot(DstCompiler *c, DstSlot s);
 void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s);
 DstSlot dstc_farslot(DstCompiler *c);

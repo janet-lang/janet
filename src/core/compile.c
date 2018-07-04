@@ -48,24 +48,6 @@ void dstc_cerror(DstCompiler *c, const char *m) {
     dstc_error(c, dst_cstring(m));
 }
 
-/* Check error */
-int dstc_iserr(DstFopts *opts) {
-    return (opts->compiler->result.status == DST_COMPILE_ERROR);
-}
-
-/* Get the next key in an associative data structure. Used for iterating through an
- * associative data structure. */
-const DstKV *dstc_next(Dst ds, const DstKV *kv) {
-    switch(dst_type(ds)) {
-        default:
-            return NULL;
-        case DST_TABLE:
-            return (const DstKV *) dst_table_next(dst_unwrap_table(ds), kv);
-        case DST_STRUCT:
-            return dst_struct_next(dst_unwrap_struct(ds), kv);
-    }
-}
-
 /* Free a slot */
 void dstc_freeslot(DstCompiler *c, DstSlot s) {
     if (s.flags & (DST_SLOT_CONSTANT | DST_SLOT_REF | DST_SLOT_NAMED)) return;
@@ -318,11 +300,14 @@ DstSlot *dstc_toslots(DstCompiler *c, const Dst *vals, int32_t len) {
 /* Get a bunch of slots for function arguments */
 DstSlot *dstc_toslotskv(DstCompiler *c, Dst ds) {
     DstSlot *ret = NULL;
-    const DstKV *kv = NULL;
     DstFopts subopts = dstc_fopts_default(c);
-    while ((kv = dstc_next(ds, kv))) {
-        dst_v_push(ret, dstc_value(subopts, kv->key));
-        dst_v_push(ret, dstc_value(subopts, kv->value));
+    const DstKV *kvs = NULL;
+    int32_t cap, i, len;
+    dst_dictionary_view(ds, &kvs, &len, &cap);
+    for (i = 0; i < cap; i++) {
+        if (dst_checktype(kvs[i].key, DST_NIL)) continue;
+        dst_v_push(ret, dstc_value(subopts, kvs[i].key));
+        dst_v_push(ret, dstc_value(subopts, kvs[i].value));
     }
     return ret;
 }
@@ -500,7 +485,7 @@ DstSlot dstc_value(DstFopts opts, Dst x) {
     c->recursion_guard--;
 
     /* Guard against previous errors and unbounded recursion */
-    if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
+    if (c->result.status == DST_COMPILE_ERROR) return dstc_cslot(dst_wrap_nil());
     if (c->recursion_guard <= 0) {
         dstc_cerror(c, "recursed too deeply");
         return dstc_cslot(dst_wrap_nil());
@@ -509,8 +494,10 @@ DstSlot dstc_value(DstFopts opts, Dst x) {
     /* Macro expand. Also gets possible special form and
      * refines source mapping cursor if possible. */
     const DstSpecial *spec = NULL;
-    int macroi = DST_RECURSION_GUARD;
-    while (macroi && !dstc_iserr(&opts) && macroexpand1(c, x, &x, &spec))
+    int macroi = DST_MAX_MACRO_EXPAND;
+    while (macroi &&
+            c->result.status != DST_COMPILE_ERROR &&
+            macroexpand1(c, x, &x, &spec))
         macroi--;
     if (macroi == 0) {
         dstc_cerror(c, "recursed too deeply in macro expansion");
@@ -559,13 +546,11 @@ DstSlot dstc_value(DstFopts opts, Dst x) {
         }
     }
 
-    if (dstc_iserr(&opts)) {
+    if (c->result.status == DST_COMPILE_ERROR)
         return dstc_cslot(dst_wrap_nil());
-    }
     c->current_mapping = last_mapping;
-    if (opts.flags & DST_FOPTS_TAIL) {
+    if (opts.flags & DST_FOPTS_TAIL)
         ret = dstc_return(opts.compiler, ret);
-    }
     if (opts.flags & DST_FOPTS_HINT) {
         dstc_copy(opts.compiler, opts.hint, ret);
         ret = opts.hint;

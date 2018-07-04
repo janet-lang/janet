@@ -57,7 +57,7 @@ static int destructure(DstCompiler *c,
             {
                 int32_t i, len;
                 const Dst *values;
-                dst_seq_view(left, &values, &len);
+                dst_indexed_view(left, &values, &len);
                 for (i = 0; i < len; i++) {
                     DstSlot nextright = dstc_farslot(c);
                     Dst subval = values[i];
@@ -75,12 +75,15 @@ static int destructure(DstCompiler *c,
         case DST_TABLE:
         case DST_STRUCT:
             {
-                const DstKV *kv = NULL;
-                while ((kv = dstc_next(left, kv))) {
+                const DstKV *kvs = NULL;
+                int32_t i, cap, len;
+                dst_dictionary_view(left, &kvs, &len, &cap);
+                for (i = 0; i < cap; i++) {
+                    if (dst_checktype(kvs[i].key, DST_NIL)) continue;
                     DstSlot nextright = dstc_farslot(c);
-                    DstSlot k = dstc_value(dstc_fopts_default(c), kv->key);
+                    DstSlot k = dstc_value(dstc_fopts_default(c), kvs[i].key);
                     dstc_emit_sss(c, DOP_GET, nextright, right, k, 1);
-                    if (destructure(c, kv->value, nextright, leaf, attr))
+                    if (destructure(c, kvs[i].value, nextright, leaf, attr))
                         dstc_freeslot(c, nextright);
                 }
             }
@@ -190,7 +193,8 @@ DstSlot dstc_var(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     Dst head;
     DstSlot ret = dohead(c, opts, &head, argn, argv);
-    if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
+    if (c->result.status == DST_COMPILE_ERROR)
+        return dstc_cslot(dst_wrap_nil());
     if (destructure(c, argv[0], ret, varleaf, handleattr(c, argn, argv)))
         dstc_freeslot(c, ret);
     return dstc_cslot(dst_wrap_nil());
@@ -223,7 +227,8 @@ DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
     Dst head;
     opts.flags &= ~DST_FOPTS_HINT;
     DstSlot ret = dohead(c, opts, &head, argn, argv);
-    if (dstc_iserr(&opts)) return dstc_cslot(dst_wrap_nil());
+    if (c->result.status == DST_COMPILE_ERROR)
+        return dstc_cslot(dst_wrap_nil());
     if (destructure(c, argv[0], ret, defleaf, handleattr(c, argn, argv)))
         dstc_freeslot(c, ret);
     return dstc_cslot(dst_wrap_nil());
@@ -454,7 +459,7 @@ DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
         goto error;
     }
     paramv = argv[parami];
-    if (dst_seq_view(paramv, &params, &paramcount)) {
+    if (dst_indexed_view(paramv, &params, &paramcount)) {
         int32_t i;
         for (i = 0; i < paramcount; i++) {
             Dst param = params[i];
@@ -494,7 +499,7 @@ DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     } else for (argi = parami + 1; argi < argn; argi++) {
         subopts.flags = (argi == (argn - 1)) ? DST_FOPTS_TAIL : DST_FOPTS_DROP;
         dstc_value(subopts, argv[argi]);
-        if (dstc_iserr(&opts))
+        if (c->result.status == DST_COMPILE_ERROR)
             goto error2;
     }
 
