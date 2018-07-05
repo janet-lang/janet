@@ -146,7 +146,7 @@ static const char *bindmany(sqlite3_stmt *stmt, Dst params) {
     const DstKV *kvs;
     int32_t len, cap;
     int limitindex = sqlite3_bind_parameter_count(stmt);
-    if (dst_seq_view(params, &seq, &len)) {
+    if (dst_indexed_view(params, &seq, &len)) {
         if (len > limitindex + 1) {
             return "invalid index in sql parameters";
         }
@@ -156,7 +156,7 @@ static const char *bindmany(sqlite3_stmt *stmt, Dst params) {
                 return err;
             }
         }
-    } else if (dst_hashtable_view(params, &kvs, &len, &cap)) {
+    } else if (dst_dictionary_view(params, &kvs, &len, &cap)) {
         for (int i = 0; i < cap; i++) {
             int index = 0;
             switch (dst_type(kvs[i].key)) {
