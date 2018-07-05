@@ -98,16 +98,16 @@ static int os_clock(DstArgs args) {
 }
 
 static int os_sleep(DstArgs args) {
-    int32_t delay;
+    double delay;
     DST_FIXARITY(args, 1);
-    DST_ARG_INTEGER(delay, args, 0);
+    DST_ARG_NUMBER(delay, args, 0);
     if (delay < 0) {
         DST_THROW(args, "invalid argument to sleep");
     }
 #ifdef DST_WINDOWS
-    Sleep(delay);
+    Sleep((DWORD) (delay * 1000));
 #else
-    sleep((unsigned int) delay);
+    usleep((useconds_t)(delay * 1000000));
 #endif
     return 0;
 }
