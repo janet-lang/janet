@@ -29,9 +29,112 @@
 #include <direct.h>
 #else
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdio.h>
 #endif
 
+#ifdef DST_WINDOWS
 static int os_execute(DstArgs args) {
+    DST_MINARITY(args, 1);
+    DstBuffer *buffer = dst_buffer(10);
+    for (int32_t i = 0; i < args.n; i++) {
+        const uint8_t *argstring;
+        DST_ARG_STRING(argstring, args, i);
+        dst_buffer_push_bytes(buffer, argstring, dst_string_length(argstring));
+        if (i != args.n - 1) {
+            dst_buffer_push_u8(buffer, ' ');
+        }
+    }
+    dst_buffer_push_u8(buffer, 0);
+
+    /* Convert to wide chars */
+    wchar_t *sys_str = malloc(buffer->count * sizeof(wchar_t));
+    if (NULL == sys_str) {
+        DST_OUT_OF_MEMORY;
+    }
+    int nwritten = MultiByteToWideChar(
+        CP_UTF8,
+        MB_PRECOMPOSED,
+        buffer->data,
+        buffer->count,
+        sys_str,
+        buffer->count);
+    if (nwritten == 0) {
+        free(sys_str);
+        DST_THROW(args, "could not create process");
+    }
+
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    // Start the child process. 
+    if(!CreateProcess(NULL,
+                sys_str,
+                NULL,
+                NULL,
+                FALSE,
+                0,
+                NULL,
+                NULL,
+                &si,
+                &pi)) {
+        free(sys_str);
+        DST_THROW(args, "could not create process");
+    }
+    free(sys_str);
+
+    // Wait until child process exits.
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    // Close process and thread handles. 
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    DST_RETURN_INTEGER(args, 0);
+}
+#else
+static int os_execute(DstArgs args) {
+    DST_MINARITY(args, 1);
+    const uint8_t **argv = malloc(sizeof(uint8_t *) * (args.n + 1));
+    if (NULL == argv) {
+        DST_OUT_OF_MEMORY;
+    }
+    for (int32_t i = 0; i < args.n; i++) {
+        DST_ARG_STRING(argv[i], args, i);
+    }
+    argv[args.n] = NULL;
+
+    /* Fork child process */
+    pid_t pid;
+    if (0 == (pid = fork())) {
+        if (-1 == execve((const char *)argv[0], (char **)argv, NULL)) {
+            exit(1);
+        }
+    }
+
+    /* Wait for child process */
+    int status;
+    struct timespec waiter;
+    waiter.tv_sec = 0;
+    waiter.tv_nsec = 200;
+    while (0 == waitpid(pid, &status, WNOHANG)) {
+        waiter.tv_nsec = (waiter.tv_nsec * 3) / 2;
+        /* Keep increasing sleep time by a factor of 3/2
+         * until a maximum */
+        if (waiter.tv_nsec > 4999999)
+            waiter.tv_nsec = 5000000;
+        nanosleep(&waiter, NULL);
+    }
+
+    DST_RETURN_INTEGER(args, status);
+}
+#endif
+
+static int os_shell(DstArgs args) {
     int nofirstarg = (args.n < 1 || !dst_checktype(args.v[0], DST_STRING));
     const char *cmd = nofirstarg
         ? NULL
@@ -107,7 +210,12 @@ static int os_sleep(DstArgs args) {
 #ifdef DST_WINDOWS
     Sleep((DWORD) (delay * 1000));
 #else
-    usleep((useconds_t)(delay * 1000000));
+    struct timespec ts;
+    ts.tv_sec = (time_t) delay;
+    ts.tv_nsec = (delay <= UINT32_MAX)
+        ? (long)((delay - ((uint32_t)delay)) * 1000000000)
+        : 0;
+    nanosleep(&ts, NULL);
 #endif
     return 0;
 }
@@ -129,6 +237,7 @@ static int os_cwd(DstArgs args) {
 
 static const DstReg cfuns[] = {
     {"os.execute", os_execute},
+    {"os.shell", os_shell},
     {"os.exit", os_exit},
     {"os.getenv", os_getenv},
     {"os.setenv", os_setenv},

@@ -343,9 +343,13 @@ static void dst_quick_asm(
     dst_env_def(env, name, dst_wrap_function(dst_thunk(def)));
 }
 
+/* Macros for easier inline dst assembly */
 #define SSS(op, a, b, c) (op | (a << 8) | (b << 16) | (c << 24))
-#define SS(op, a, b) SSS(op, a, b, 0)
-#define S(op, a) SSS(op, a, 0, 0)
+#define SS(op, a, b) (op | (a << 8) | (b << 16))
+#define SSI(op, a, b, I) (op | (a << 8) | (b << 16) | ((uint32_t)(I) << 24))
+#define S(op, a) (op | (a << 8))
+#define SI(op, a, I) (op | (a << 8) | ((uint32_t)(I) << 16))
+
 /* Variadic operator assembly. Must be templatized for each different opcode. */
 /* Reg 0: Argument tuple (args) */
 /* Reg 1: Argument count (argn) */
@@ -354,36 +358,37 @@ static void dst_quick_asm(
 /* Reg 4: Next operand (operand) */
 /* Reg 5: Loop iterator (i) */
 static DST_THREAD_LOCAL uint32_t varop_asm[] = {
-    DOP_LENGTH | (1 << 8), /* Put number of arguments in register 1 -> argn = count(args) */
+    SS(DOP_LENGTH, 1, 0), /* Put number of arguments in register 1 -> argn = count(args) */
 
-    /* Cheack nullary */
-    DOP_EQUALS_IMMEDIATE | (2 << 8) | (1 << 16) | (0 << 24), /* Check if numargs equal to 0 */
-    DOP_JUMP_IF_NOT | (2 << 8) | (3 << 16), /* If not 0, jump to next check */
+    /* Check nullary */
+    SSS(DOP_EQUALS_IMMEDIATE, 2, 1, 0), /* Check if numargs equal to 0 */
+    SI(DOP_JUMP_IF_NOT, 2, 3), /* If not 0, jump to next check */
     /* Nullary */
-    DOP_LOAD_INTEGER | (3 << 8),  /* accum = nullary value */
-    DOP_RETURN | (3 << 8), /* return accum */
+    SI(DOP_LOAD_INTEGER, 3, 0),  /* accum = nullary value */
+    S(DOP_RETURN, 3), /* return accum */
 
     /* Check unary */
-    DOP_EQUALS_IMMEDIATE | (2 << 8) | (1 << 16) | (1 << 24), /* Check if numargs equal to 1 */
-    DOP_JUMP_IF_NOT | (2 << 8) | (5 << 16), /* If not 1, jump to next check */
+    SSI(DOP_EQUALS_IMMEDIATE, 2, 1, 1), /* Check if numargs equal to 1 */
+    SI(DOP_JUMP_IF_NOT, 2, 5), /* If not 1, jump to next check */
     /* Unary */
-    DOP_LOAD_INTEGER | (3 << 8), /* accum = unary value */
-    DOP_GET_INDEX | (4 << 8) | (0 << 16) | (0 << 24), /* operand = args[0] */
-    DOP_NOOP | (3 << 8) | (3 << 16) | (4 << 24), /* accum = accum op operand */
-    DOP_RETURN | (3 << 8), /* return accum */
+    S(DOP_LOAD_INTEGER, 3), /* accum = unary value */
+    SSI(DOP_GET_INDEX, 4, 0, 0), /* operand = args[0] */
+    SSS(DOP_NOOP, 3, 3, 4), /* accum = accum op operand */
+    S(DOP_RETURN, 3), /* return accum */
 
     /* Mutli (2 or more) arity */
     /* Prime loop */
-    DOP_GET_INDEX | (3 << 8) | (0 << 16) | (0 << 24), /* accum = args[0] */
-    DOP_LOAD_INTEGER | (5 << 8) | (1 << 16), /* i = 1 */
+    SSI(DOP_GET_INDEX, 3, 0, 0), /* accum = args[0] */
+    SI(DOP_LOAD_INTEGER, 5, 1), /* i = 1 */
     /* Main loop */
-    DOP_GET | (4 << 8) | (0 << 16) | (5 << 24), /* operand = args[i] */
-    DOP_NOOP | (3 << 8) | (3 << 16) | (4 << 24), /* accum = accum op operand */
-    DOP_ADD_IMMEDIATE | (5 << 8) | (5 << 16) | (1 << 24), /* i++ */
-    DOP_EQUALS_INTEGER | (2 << 8) | (5 << 16) | (1 << 24), /* jump? = (i == argn) */
-    DOP_JUMP_IF_NOT | (2 << 8) | ((uint32_t)(-4) << 16), /* if not jump? go back 4 */
+    SSS(DOP_GET, 4, 0, 5), /* operand = args[i] */
+    SSS(DOP_NOOP, 3, 3, 4), /* accum = accum op operand */
+    SSI(DOP_ADD_IMMEDIATE, 5, 5, 1), /* i++ */
+    SSI(DOP_EQUALS_INTEGER, 2, 5, 1), /* jump? = (i == argn) */
+    SI(DOP_JUMP_IF_NOT, 2, -4), /* if not jump? go back 4 */
+
     /* Done, do last and return accumulator */
-    DOP_RETURN | (3 << 8) /* return accum */
+    S(DOP_RETURN, 3) /* return accum */
 };
 
 #define VAROP_NULLARY_LOC 3
