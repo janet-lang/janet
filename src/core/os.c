@@ -91,10 +91,12 @@ static int os_execute(DstArgs args) {
     // Wait until child process exits.
     WaitForSingleObject(pi.hProcess, INFINITE);
 
-    // Close process and thread handles. 
+    // Close process and thread handles.
+    WORD status;
+    GetExitCodeProcess(pi.hProcess, &status);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    DST_RETURN_INTEGER(args, 0);
+    DST_RETURN_INTEGER(args, (int32_t)status);
 }
 #else
 static int os_execute(DstArgs args) {
