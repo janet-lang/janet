@@ -92,9 +92,11 @@ static int os_execute(DstArgs args) {
     WaitForSingleObject(pi.hProcess, INFINITE);
 
     // Close process and thread handles. 
+    WORD status = 0;
+    GetExitCodeProcess(pi.hProcess, &status);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    DST_RETURN_INTEGER(args, 0);
+    DST_RETURN_INTEGER(args, (int32_t)status);
 }
 #else
 static int os_execute(DstArgs args) {
@@ -193,10 +195,29 @@ static int os_exit(DstArgs args) {
     return 0;
 }
 
+/* Shim for windows */
+#ifdef DST_WINDOWS
+struct timespec {
+    long tv_sec;
+    long tv_nsec;
+};
+static int clock_gettime(int, struct timespec *spec) {
+    int64 wintime;
+    GetSystemTimeAsFileTime((FILETIME*)&wintime);
+    wintime -= 116444736000000000LL;  /* Windows epic is 1601, jan 1 */
+    spec->tv_sec  = wintime / 10000000LL;
+    /* Resolution is 100 nanoseconds. */
+    spec->tv_nsec = wintime % 10000000LL * 100;
+    return 0;
+}
+#endif
+
 static int os_clock(DstArgs args) {
     DST_FIXARITY(args, 0);
-    clock_t time = clock();
-    double dtime = time / (double) (CLOCKS_PER_SEC);
+    struct timespec tv;
+    if (clock_gettime(CLOCK_REALTIME, &tv))
+        DST_THROW(args, "could not get time");
+    double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
     DST_RETURN_REAL(args, dtime);
 }
 
