@@ -198,4 +198,8 @@
 (def xs (apply1 tuple (for [x :range [0 10] :when (even? x)] (tuple (/ x 2) x))))
 (assert (= xs '((0 0) (1 2) (2 4) (3 6) (4 8))) "for macro 1")
 
+# Some testing for not=
+(assert (not= 1 1 0) "not= 1")
+(assert (not= 0 1 1) "not= 2")
+
 (end-suite)

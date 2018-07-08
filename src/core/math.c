@@ -159,20 +159,20 @@ static int dst_strict_equal(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n - 1; i++) {
         if (!dst_equals(args.v[i], args.v[i+1])) {
-            DST_RETURN(args, dst_wrap_false());
+            DST_RETURN_FALSE(args);
         }
     }
-    DST_RETURN(args, dst_wrap_true());
+    DST_RETURN_TRUE(args);
 }
 
 static int dst_strict_notequal(DstArgs args) {
     int32_t i;
     for (i = 0; i < args.n - 1; i++) {
-        if (dst_equals(args.v[i], args.v[i+1])) {
-            DST_RETURN(args, dst_wrap_false());
+        if (!dst_equals(args.v[i], args.v[i+1])) {
+            DST_RETURN_TRUE(args);
         }
     }
-    DST_RETURN(args, dst_wrap_true());
+    DST_RETURN_FALSE(args);
 }
 
 static int dst_not(DstArgs args) {

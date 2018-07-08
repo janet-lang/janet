@@ -50,7 +50,7 @@
 
 # Basic predicates
 (defn even? [x] (== 0 (% x 2)))
-(defn odd? [x] (== 1 (% x 2)))
+(defn odd? [x] (not= 0 (% x 2)))
 (defn zero? [x] (== x 0))
 (defn pos? [x] (> x 0))
 (defn neg? [x] (< x 0))
