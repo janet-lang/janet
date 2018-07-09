@@ -209,8 +209,10 @@ static void inc_gensym(void) {
     for (int i = sizeof(gensym_counter) - 2; i; i--) {
         if (gensym_counter[i] == '9') {
             gensym_counter[i] = 'a';
+            break;
         } else if (gensym_counter[i] == 'z') {
             gensym_counter[i] = 'A';
+            break;
         } else if (gensym_counter[i] == 'Z') {
             gensym_counter[i] = '0';
         } else {

@@ -195,14 +195,14 @@ static int os_exit(DstArgs args) {
     return 0;
 }
 
-/* Shim for windows */
+/* Clock shim for windows */
 #ifdef DST_WINDOWS
 struct timespec {
     long tv_sec;
     long tv_nsec;
 };
 static int clock_gettime(int, struct timespec *spec) {
-    int64 wintime;
+    int64_t wintime;
     GetSystemTimeAsFileTime((FILETIME*)&wintime);
     wintime -= 116444736000000000LL;  /* Windows epic is 1601, jan 1 */
     spec->tv_sec  = wintime / 10000000LL;
@@ -210,6 +210,7 @@ static int clock_gettime(int, struct timespec *spec) {
     spec->tv_nsec = wintime % 10000000LL * 100;
     return 0;
 }
+#define CLOCK_REALTIME 0
 #endif
 
 static int os_clock(DstArgs args) {

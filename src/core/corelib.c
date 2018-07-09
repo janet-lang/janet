@@ -256,10 +256,11 @@ static int dst_core_gcinterval(DstArgs args) {
 
 static int dst_core_type(DstArgs args) {
     DST_FIXARITY(args, 1);
-    if (dst_checktype(args.v[0], DST_ABSTRACT)) {
+    DstType t = dst_type(args.v[0]);
+    if (t == DST_ABSTRACT) {
         DST_RETURN(args, dst_csymbolv(dst_abstract_type(dst_unwrap_abstract(args.v[0]))->name));
     } else {
-        DST_RETURN(args, dst_csymbolv(dst_type_names[dst_type(args.v[0])]));
+        DST_RETURN(args, dst_csymbolv(dst_type_names[t]));
     }
 }
 
@@ -282,9 +283,8 @@ static int dst_core_next(DstArgs args) {
             : dst_struct_find(st, args.v[1]);
         kv = dst_struct_next(st, kv);
     }
-    if (kv) {
+    if (kv)
         DST_RETURN(args, kv->key);
-    }
     DST_RETURN_NIL(args);
 }
 
@@ -418,7 +418,7 @@ static void templatize_varop(
             sizeof(varop_asm));
 }
 
-DstTable *dst_stl_env(int flags) {
+DstTable *dst_core_env(void) {
     static uint32_t error_asm[] = {
         DOP_ERROR
     };
@@ -509,9 +509,6 @@ DstTable *dst_stl_env(int flags) {
 
     /* Run bootstrap source */
     dst_dobytes(env, dst_gen_core, sizeof(dst_gen_core), "core.dst");
-
-    if (flags & DST_STL_NOGCROOT)
-        dst_gcunroot(dst_wrap_table(env));
 
     return env;
 }

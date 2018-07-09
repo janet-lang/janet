@@ -1262,7 +1262,7 @@ DstSignal dst_call(
 }
 
 /* Setup VM */
-int dst_init() {
+int dst_init(void) {
     /* Garbage collection */
     dst_vm_blocks = NULL;
     dst_vm_next_collection = 0;
@@ -1283,7 +1283,7 @@ int dst_init() {
 }
 
 /* Clear all memory associated with the VM */
-void dst_deinit() {
+void dst_deinit(void) {
     dst_clear_memory();
     dst_symcache_deinit();
     free(dst_vm_roots);

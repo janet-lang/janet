@@ -67,10 +67,10 @@ typedef struct DstSpecial DstSpecial;
 
 /* A stack slot */
 struct DstSlot {
+    Dst constant; /* If the slot has a constant value */
     int32_t index;
     int32_t envindex; /* 0 is local, positive number is an upvalue */
     uint32_t flags;
-    Dst constant; /* If the slot has a constant value */
 };
 
 #define DST_SCOPE_FUNCTION 1
@@ -80,9 +80,9 @@ struct DstSlot {
 
 /* A symbol and slot pair */
 typedef struct SymPair {
+    DstSlot slot;
     const uint8_t *sym;
     int keep;
-    DstSlot slot;
 } SymPair;
 
 /* A lexical scope during compilation */
@@ -101,11 +101,11 @@ struct DstScope {
     /* Map of symbols to slots. Use a simple linear scan for symbols. */
     SymPair *syms;
 
-    /* Regsiter allocator */
-    DstcRegisterAllocator ra;
-
     /* FuncDefs */
     DstFuncDef **defs;
+
+    /* Regsiter allocator */
+    DstcRegisterAllocator ra;
 
     /* Referenced closure environents. The values at each index correspond
      * to which index to get the environment from in the parent. The environment
@@ -121,7 +121,6 @@ struct DstScope {
 
 /* Compilation state */
 struct DstCompiler {
-    int recursion_guard;
     
     /* Pointer to current scope */
     DstScope *scope;
@@ -129,16 +128,20 @@ struct DstCompiler {
     uint32_t *buffer;
     DstSourceMapping *mapbuffer;
 
-    /* Keep track of where we are in the source */
-    DstSourceMapping current_mapping;
-
     /* Hold the environment */
     DstTable *env;
 
     /* Name of source to attach to generated functions */
     const uint8_t *source;
 
+    /* The result of compilation */
     DstCompileResult result;
+
+    /* Keep track of where we are in the source */
+    DstSourceMapping current_mapping;
+
+    /* Prevent unbounded recursion */
+    int recursion_guard;
 };
 
 #define DST_FOPTS_TAIL 0x10000
@@ -148,8 +151,8 @@ struct DstCompiler {
 /* Options for compiling a single form */
 struct DstFopts {
     DstCompiler *compiler;
-    uint32_t flags; /* bit set of accepted primitive types */
     DstSlot hint;
+    uint32_t flags; /* bit set of accepted primitive types */
 };
 
 /* Get the default form options */

@@ -24,21 +24,6 @@
 #include <dst/dst.h>
 #include "util.h"
 
-/* Convert a slot to to an integer for bytecode */
-
-/* Types of instructions (some of them) */
-/* _0arg - op.---.--.-- (return-nil, noop, vararg arguments)
- * _s - op.src.--.-- (push1)
- * _l - op.XX.XX.XX (jump)
- * _ss - op.dest.XX.XX (move, swap)
- * _sl - op.check.XX.XX (jump-if)
- * _st - op.check.TT.TT (typecheck)
- * _si - op.dest.XX.XX (load-integer)
- * _sss - op.dest.op1.op2 (add, subtract, arithmetic, comparison)
- * _ses - op.dest.up.which (load-upvalue, save-upvalue)
- * _sc - op.dest.CC.CC (load-constant, closure)
- */
-
 /* Definition for an instruction in the assembler */
 typedef struct DstInstructionDef DstInstructionDef;
 struct DstInstructionDef {
@@ -919,7 +904,7 @@ static int cfun_asm(DstArgs args) {
     }
 }
 
-int cfun_disasm(DstArgs args) {
+static int cfun_disasm(DstArgs args) {
     DstFunction *f;
     DST_FIXARITY(args, 1);
     DST_ARG_FUNCTION(f, args, 0);
