@@ -197,26 +197,23 @@ static int os_exit(DstArgs args) {
 
 /* Clock shim for windows */
 #ifdef DST_WINDOWS
-struct timespec {
-    long tv_sec;
-    long tv_nsec;
-};
 static int clock_gettime(int, struct timespec *spec) {
-    int64_t wintime;
+    int64_t wintime = 0LL;
     GetSystemTimeAsFileTime((FILETIME*)&wintime);
-    wintime -= 116444736000000000LL;  /* Windows epic is 1601, jan 1 */
+    /* Windows epoch is January 1, 1601 apparently*/
+    wintime -= 116444736000000000LL;
     spec->tv_sec  = wintime / 10000000LL;
     /* Resolution is 100 nanoseconds. */
     spec->tv_nsec = wintime % 10000000LL * 100;
     return 0;
 }
-#define CLOCK_REALTIME 0
+#define CLOCK_MONOTONIC 0
 #endif
 
 static int os_clock(DstArgs args) {
     DST_FIXARITY(args, 0);
     struct timespec tv;
-    if (clock_gettime(CLOCK_REALTIME, &tv))
+    if (clock_gettime(CLOCK_MONOTONIC, &tv))
         DST_THROW(args, "could not get time");
     double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
     DST_RETURN_REAL(args, dtime);
