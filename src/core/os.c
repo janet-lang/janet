@@ -197,7 +197,8 @@ static int os_exit(DstArgs args) {
 
 /* Clock shim for windows */
 #ifdef DST_WINDOWS
-static int clock_gettime(int, struct timespec *spec) {
+static int clock_gettime(int x, struct timespec *spec) {
+    (void) x;
     int64_t wintime = 0LL;
     GetSystemTimeAsFileTime((FILETIME*)&wintime);
     /* Windows epoch is January 1, 1601 apparently*/
