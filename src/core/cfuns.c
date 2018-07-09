@@ -150,6 +150,9 @@ static DstSlot do_rshift(DstFopts opts, DstSlot *args) {
 static DstSlot do_rshiftu(DstFopts opts, DstSlot *args) {
     return opreduce(opts, args, DOP_SHIFT_RIGHT, dst_wrap_integer(1));
 }
+static DstSlot do_bnot(DstFopts opts, DstSlot *args) {
+    return genericSS(opts, DOP_BNOT, args[0]);
+}
 
 /* Arranged by tag */
 static const DstFunOptimizer optimizers[] = {
@@ -170,7 +173,8 @@ static const DstFunOptimizer optimizers[] = {
     {NULL, do_bxor},
     {NULL, do_lshift},
     {NULL, do_rshift},
-    {NULL, do_rshiftu}
+    {NULL, do_rshiftu},
+    {fixarity1, do_bnot}
 };
 
 const DstFunOptimizer *dstc_funopt(uint32_t flags) {

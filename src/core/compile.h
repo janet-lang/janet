@@ -45,6 +45,7 @@
 #define DST_FUN_LSHIFT 16
 #define DST_FUN_RSHIFT 17
 #define DST_FUN_RSHIFTU 18
+#define DST_FUN_BNOT 19
 
 /* Compiler typedefs */
 typedef struct DstCompiler DstCompiler;

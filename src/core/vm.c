@@ -385,6 +385,7 @@ static void *op_lookup[255] = {
 
     VM_OP(DOP_BNOT)
     stack[oparg(1, 0xFF)] = dst_wrap_integer(~dst_unwrap_integer(stack[oparg(2, 0xFFFF)]));
+    ++pc;
     vm_next();
 
     VM_OP(DOP_SHIFT_RIGHT_UNSIGNED)
