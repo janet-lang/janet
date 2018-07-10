@@ -326,12 +326,12 @@
          $accum))
 
 (defn sum [xs]
-  (var accum 0.0)
+  (var accum 0)
   (loop [x :in xs] (+= accum x))
   accum)
 
 (defn product [xs]
-  (var accum 0.0)
+  (var accum 1)
   (loop [x :in xs] (*= accum x))
   accum)
 
