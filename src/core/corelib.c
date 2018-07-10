@@ -527,12 +527,18 @@ DstTable *dst_core_env(void) {
     templatize_varop(env, DST_FUN_RSHIFTU, ">>>", 1, 1, DOP_SHIFT_RIGHT_UNSIGNED);
 
     /* Variadic comparators */
-    templatize_comparator(env, 0, "order>", 0, DOP_GREATER_THAN);
-    templatize_comparator(env, 0, "order<", 0, DOP_LESS_THAN);
-    templatize_comparator(env, 0, "order>=", 1, DOP_LESS_THAN);
-    templatize_comparator(env, 0, "order<=", 1, DOP_GREATER_THAN);
-    templatize_comparator(env, 0, "=", 0, DOP_EQUALS);
-    templatize_comparator(env, 0, "not=", 1, DOP_EQUALS);
+    templatize_comparator(env, DST_FUN_ORDER_GT, "order>", 0, DOP_GREATER_THAN);
+    templatize_comparator(env, DST_FUN_ORDER_LT, "order<", 0, DOP_LESS_THAN);
+    templatize_comparator(env, DST_FUN_ORDER_GTE, "order>=", 1, DOP_LESS_THAN);
+    templatize_comparator(env, DST_FUN_ORDER_LTE, "order<=", 1, DOP_GREATER_THAN);
+    templatize_comparator(env, DST_FUN_ORDER_EQ, "=", 0, DOP_EQUALS);
+    templatize_comparator(env, DST_FUN_ORDER_NEQ, "not=", 1, DOP_EQUALS);
+    templatize_comparator(env, DST_FUN_GT, ">", 0, DOP_NUMERIC_GREATER_THAN);
+    templatize_comparator(env, DST_FUN_LT, "<", 0, DOP_NUMERIC_LESS_THAN);
+    templatize_comparator(env, DST_FUN_GTE, ">=", 0, DOP_NUMERIC_GREATER_THAN_EQUAL);
+    templatize_comparator(env, DST_FUN_LTE, "<=", 0, DOP_NUMERIC_LESS_THAN_EQUAL);
+    templatize_comparator(env, DST_FUN_EQ, "==", 0, DOP_NUMERIC_EQUAL);
+    templatize_comparator(env, DST_FUN_NEQ, "not==", 1, DOP_NUMERIC_EQUAL);
 
     dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
 

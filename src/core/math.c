@@ -129,35 +129,8 @@ static int dst_not(DstArgs args) {
     DST_RETURN_BOOLEAN(args, !dst_truthy(args.v[0]));
 }
 
-#define DEF_NUMERIC_COMP(name, op) \
-int dst_numeric_##name(DstArgs args) { \
-    int32_t i; \
-    for (i = 1; i < args.n; i++) { \
-        double x = 0, y = 0; \
-        DST_ARG_NUMBER(x, args, i-1);\
-        DST_ARG_NUMBER(y, args, i);\
-        if (!(x op y)) { \
-            DST_RETURN(args, dst_wrap_false()); \
-        } \
-    } \
-    DST_RETURN(args, dst_wrap_true()); \
-}
-
-DEF_NUMERIC_COMP(gt, >)
-DEF_NUMERIC_COMP(lt, <)
-DEF_NUMERIC_COMP(lte, <=)
-DEF_NUMERIC_COMP(gte, >=)
-DEF_NUMERIC_COMP(eq, ==)
-DEF_NUMERIC_COMP(neq, !=)
-
 static const DstReg cfuns[] = {
     {"%", dst_remainder},
-    {"==", dst_numeric_eq},
-    {"not==", dst_numeric_neq},
-    {"<", dst_numeric_lt},
-    {">", dst_numeric_gt},
-    {"<=", dst_numeric_lte},
-    {">=", dst_numeric_gte},
     {"not", dst_not},
     {"int", dst_int},
     {"real", dst_real},

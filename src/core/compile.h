@@ -46,6 +46,18 @@
 #define DST_FUN_RSHIFT 17
 #define DST_FUN_RSHIFTU 18
 #define DST_FUN_BNOT 19
+#define DST_FUN_ORDER_GT 20
+#define DST_FUN_ORDER_LT 21
+#define DST_FUN_ORDER_GTE 22
+#define DST_FUN_ORDER_LTE 23 
+#define DST_FUN_ORDER_EQ 24 
+#define DST_FUN_ORDER_NEQ 25
+#define DST_FUN_GT 26  
+#define DST_FUN_LT 27   
+#define DST_FUN_GTE 28 
+#define DST_FUN_LTE 29  
+#define DST_FUN_EQ 30   
+#define DST_FUN_NEQ 31
 
 /* Compiler typedefs */
 typedef struct DstCompiler DstCompiler;

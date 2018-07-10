@@ -190,6 +190,11 @@ static void *op_lookup[255] = {
     &&label_DOP_MAKE_STRUCT,
     &&label_DOP_MAKE_TABLE,
     &&label_DOP_MAKE_TUPLE,
+    &&label_DOP_NUMERIC_LESS_THAN,
+    &&label_DOP_NUMERIC_LESS_THAN_EQUAL,
+    &&label_DOP_NUMERIC_GREATER_THAN,
+    &&label_DOP_NUMERIC_GREATER_THAN_EQUAL,
+    &&label_DOP_NUMERIC_EQUAL,
     &&label_unknown_op
 };
 #else
@@ -253,6 +258,23 @@ static void *op_lookup[255] = {
             : (dst_checktype(op2, DST_INTEGER)\
                 ? dst_wrap_real(dst_unwrap_real(op1) op (double)dst_unwrap_integer(op2))\
                 : dst_wrap_real(dst_unwrap_real(op1) op dst_unwrap_real(op2)));\
+        pc++;\
+        vm_next();\
+    }
+
+#define vm_numcomp(op)\
+    {\
+        Dst op1 = stack[oparg(2, 0xFF)];\
+        Dst op2 = stack[oparg(3, 0xFF)];\
+        vm_assert_types(op1, DST_TFLAG_NUMBER);\
+        vm_assert_types(op2, DST_TFLAG_NUMBER);\
+        stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_checktype(op1, DST_INTEGER)\
+            ? (dst_checktype(op2, DST_INTEGER)\
+                ? dst_unwrap_integer(op1) op dst_unwrap_integer(op2)\
+                : (double)dst_unwrap_integer(op1) op dst_unwrap_real(op2))\
+            : (dst_checktype(op2, DST_INTEGER)\
+                ? dst_unwrap_real(op1) op (double)dst_unwrap_integer(op2)\
+                : dst_unwrap_real(op1) op dst_unwrap_real(op2)));\
         pc++;\
         vm_next();\
     }
@@ -324,6 +346,21 @@ static void *op_lookup[255] = {
 
     VM_OP(DOP_MULTIPLY)
     vm_binop(*);
+
+    VM_OP(DOP_NUMERIC_LESS_THAN)
+    vm_numcomp(<);
+
+    VM_OP(DOP_NUMERIC_LESS_THAN_EQUAL)
+    vm_numcomp(<=);
+
+    VM_OP(DOP_NUMERIC_GREATER_THAN)
+    vm_numcomp(>);
+
+    VM_OP(DOP_NUMERIC_GREATER_THAN_EQUAL)
+    vm_numcomp(>=);
+
+    VM_OP(DOP_NUMERIC_EQUAL)
+    vm_numcomp(==);
 
     VM_OP(DOP_DIVIDE_INTEGER)
     vm_assert(dst_unwrap_integer(stack[oparg(3, 0xFF)]) != 0, "integer divide error");
