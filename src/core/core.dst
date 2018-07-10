@@ -96,8 +96,6 @@
        :table true
        :struct true})
     (fn [x] (not (get non-atomic-types (type x))))))
-(defn sum [xs] (apply1 + xs))
-(defn product [xs] (apply1 * xs))
 
 # C style macros and functions for imperative sugar
 (defn inc [x] (+ x 1))
@@ -214,6 +212,37 @@
   (array.concat accum body)
   (apply1 tuple accum))
 
+(defmacro and
+  "Evaluates to the last argument if all preceding elements are true, otherwise
+  evaluates to false."
+  [& forms]
+  (def len (length forms))
+  (if (= len 0)
+    true
+    ((fn aux [i]
+       (cond
+         (>= (inc i) len) (get forms i)
+         (tuple 'if (get forms i) (aux (inc i)) false))) 0)))
+
+(defmacro or
+  "Evaluates to the last argument if all preceding elements are false, otherwise
+  evaluates to true."
+  [& forms]
+  (def len (length forms))
+  (if (= len 0)
+    false
+    ((fn aux [i]
+       (def fi (get forms i))
+       (if
+         (>= (inc i) len) fi
+         (do
+           (if (atomic? fi)
+             (tuple 'if fi fi (aux (inc i)))
+             (do
+               (def $fi (gensym))
+               (tuple 'do (tuple 'def $fi fi)
+                      (tuple 'if $fi $fi (aux (inc i))))))))) 0)))
+
 (defmacro loop
   "A general purpose loop macro."
   [head & body]
@@ -296,36 +325,15 @@
                        (tuple.prepend body 'do)))
          $accum))
 
-(defmacro and
-  "Evaluates to the last argument if all preceding elements are true, otherwise
-  evaluates to false."
-  [& forms]
-  (def len (length forms))
-  (if (= len 0)
-    true
-    ((fn aux [i]
-       (cond
-         (>= (inc i) len) (get forms i)
-         (tuple 'if (get forms i) (aux (inc i)) false))) 0)))
+(defn sum [xs]
+  (var accum 0.0)
+  (loop [x :in xs] (+= accum x))
+  accum)
 
-(defmacro or
-  "Evaluates to the last argument if all preceding elements are false, otherwise
-  evaluates to true."
-  [& forms]
-  (def len (length forms))
-  (if (= len 0)
-    false
-    ((fn aux [i]
-       (def fi (get forms i))
-       (if
-         (>= (inc i) len) fi
-         (do
-           (if (atomic? fi)
-             (tuple 'if fi fi (aux (inc i)))
-             (do
-               (def $fi (gensym))
-               (tuple 'do (tuple 'def $fi fi)
-                      (tuple 'if $fi $fi (aux (inc i))))))))) 0)))
+(defn product [xs]
+  (var accum 0.0)
+  (loop [x :in xs] (*= accum x))
+  accum)
 
 (defmacro coro
   "A wrapper for making fibers. Same as (fiber (fn [] ...body))."
