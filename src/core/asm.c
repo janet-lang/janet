@@ -294,7 +294,7 @@ static int32_t doarg_1(
                         ret = dst_unwrap_integer(result);
                     }
                 } else {
-                    dst_asm_errorv(a, dst_formatc("unknown name %q", x));
+                    dst_asm_errorv(a, dst_formatc("unknown name %v", x));
                 }
             } else if (argtype == DST_OAT_TYPE || argtype == DST_OAT_SIMPLETYPE) {
                 const TypeAlias *alias = dst_strbinsearch(
@@ -305,7 +305,7 @@ static int32_t doarg_1(
                 if (alias) {
                     ret = alias->mask;
                 } else {
-                    dst_asm_errorv(a, dst_formatc("unknown type %q", x));
+                    dst_asm_errorv(a, dst_formatc("unknown type %v", x));
                 }
             } else {
                 goto error;
@@ -314,7 +314,7 @@ static int32_t doarg_1(
                 /* Add a new env */
                 ret = dst_asm_addenv(a, x);
                 if (ret < -1) {
-                    dst_asm_errorv(a, dst_formatc("unknown environment %q", x));
+                    dst_asm_errorv(a, dst_formatc("unknown environment %v", x));
                 }
             }
             break;

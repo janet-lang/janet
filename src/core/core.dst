@@ -48,6 +48,12 @@
   [name & more]
   (apply1 tuple (array.concat @['def name :private] more)))
 
+(defmacro defasm
+  "Define a function using assembly"
+  [name & body]
+  (def tab (apply1 table body))
+  (tuple 'def name (tuple asm (tuple 'quote tab))))
+
 # Basic predicates
 (defn even? [x] (== 0 (% x 2)))
 (defn odd? [x] (not= 0 (% x 2)))
