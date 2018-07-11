@@ -547,10 +547,19 @@
 
 (defn range
   "Create an array of values [0, n)."
-  [n]
-  (def arr (array.new n))
-  (loop [i :range [0 n]] (put arr i i))
-  arr)
+  [& args]
+  (case (length args)
+    1 (do
+        (def [n] args)
+        (def arr (array.new n))
+        (loop [i :range [0 n]] (put arr i i))
+        arr)
+    2 (do
+        (def [n m] args)
+        (def arr (array.new n))
+        (loop [i :range [n m]] (put arr (- i n) i))
+        arr)
+    (error "expected 1 to 2 arguments to range")))
 
 (defn find-index
   "Find the index of indexed type for which pred is true. Returns nil if not found."
