@@ -54,6 +54,20 @@
   (def tab (apply1 table body))
   (tuple 'def name (tuple asm (tuple 'quote tab))))
 
+(defn defglobal
+  "Dynamically create a global def."
+  [name value]
+  (def name* (string name))
+  (put *env* name* @{:value value})
+  nil)
+
+(defn varglobal
+  "Dynamically create a global var."
+  [name init]
+  (def name* (string name))
+  (put *env* name* @{:ref @[init]})
+  nil)
+
 # Basic predicates
 (defn even? [x] (== 0 (% x 2)))
 (defn odd? [x] (not= 0 (% x 2)))
@@ -1112,21 +1126,28 @@
   (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler "eval")
   returnval)
 
+(def module.syslibpath 
+  (or (os.getenv "DST_PATH") "/usr/local/lib/dst/"))
+
 (def module.paths
   @["./?.dst"
     "./?/init.dst"
     "./dst_modules/?.dst"
     "./dst_modules/?/init.dst"
-    "/usr/local/dst/0.0.0/?.dst"
-    "/usr/local/dst/0.0.0/?/init.dst"])
+    (string module.syslibpath VERSION "/?.dst")
+    (string module.syslibpath VERSION "/?/init.dst")
+    (string module.syslibpath "/?.dst")
+    (string module.syslibpath "/?/init.dst")])
 
 (def module.native-paths
   @["./?.so"
     "./?/??.so"
     "./dst_modules/?.so"
     "./dst_modules/?/??.so"
-    "/usr/local/dst/0.0.0/?.so"
-    "/usr/local/dst/0.0.0/?/??.so"])
+    (string module.syslibpath VERSION "/?.so")
+    (string module.syslibpath VERSION "/?/??.so")
+    (string module.syslibpath "/?.so")
+    (string module.syslibpath "/?/??.so")])
 
 (defn module.find
   [path paths]
