@@ -133,6 +133,12 @@ void dstc_popscope(DstCompiler *c) {
         }
 
     }
+    /* Parent scopes inherit child's closure flag. Needed
+     * for while loops. (if a while loop creates a closure, it
+     * is compiled to a tail recursive iife) */
+    if (oldscope->flags & DST_SCOPE_CLOSURE) {
+        newscope->flags |= DST_SCOPE_CLOSURE;
+    }
     /* Free the old scope */
     dst_v_free(oldscope->consts);
     dst_v_free(oldscope->syms);

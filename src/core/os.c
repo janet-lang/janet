@@ -153,6 +153,9 @@ static int os_getenv(DstArgs args) {
     DST_ARG_STRING(k, args, 0);
     const char *cstr = (const char *) k;
     const char *res = getenv(cstr);
+    if (!res) {
+        DST_RETURN_NIL(args);
+    }
     DST_RETURN(args, cstr
             ? dst_cstringv(res)
             : dst_wrap_nil());

@@ -1152,7 +1152,7 @@ int dst_lib_compile(DstArgs args);
 #define DST_ARG_CFUNCTION(DEST, A, N) _DST_ARG(DST_CFUNCTION, cfunction, DEST, A, N)
 #define DST_ARG_ABSTRACT(DEST, A, N) _DST_ARG(DST_ABSTRACT, abstract, DEST, A, N)
 
-#define DST_RETURN_NIL(A) return DST_SIGNAL_OK
+#define DST_RETURN_NIL(A) do { return DST_SIGNAL_OK; } while (0)
 #define DST_RETURN_FALSE(A) DST_RETURN(A, dst_wrap_false())
 #define DST_RETURN_TRUE(A) DST_RETURN(A, dst_wrap_true())
 #define DST_RETURN_BOOLEAN(A, X) DST_RETURN(A, dst_wrap_boolean(X))

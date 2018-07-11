@@ -90,6 +90,7 @@ struct DstSlot {
 #define DST_SCOPE_ENV 2
 #define DST_SCOPE_TOP 4
 #define DST_SCOPE_UNUSED 8
+#define DST_SCOPE_CLOSURE 16
 
 /* A symbol and slot pair */
 typedef struct SymPair {
