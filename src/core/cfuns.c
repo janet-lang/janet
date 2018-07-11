@@ -36,6 +36,9 @@ static int fixarity1(DstFopts opts, DstSlot *args) {
 static int fixarity2(DstFopts opts, DstSlot *args) {
     (void) opts;
     return dst_v_count(args) == 2;
+}static int fixarity3(DstFopts opts, DstSlot *args) {
+    (void) opts;
+    return dst_v_count(args) == 3;
 }
 
 /* Generic hanldling for $A = op $B */
@@ -91,7 +94,8 @@ static DstSlot do_get(DstFopts opts, DstSlot *args) {
     return opreduce(opts, args, DOP_GET, dst_wrap_nil());
 }
 static DstSlot do_put(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_PUT, dst_wrap_nil());
+    dstc_emit_sss(opts.compiler, DOP_PUT, args[0], args[1], args[2], 0);
+    return args[0];
 }
 static DstSlot do_length(DstFopts opts, DstSlot *args) {
     return genericSS(opts, DOP_LENGTH, args[0]);
@@ -238,7 +242,7 @@ static const DstFunOptimizer optimizers[] = {
     {fixarity1, do_yield},
     {fixarity2, do_resume},
     {fixarity2, do_get},
-    {fixarity2, do_put},
+    {fixarity3, do_put},
     {fixarity1, do_length},
     {NULL, do_add},
     {NULL, do_sub},

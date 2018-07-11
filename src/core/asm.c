@@ -529,6 +529,9 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
 
     /* Check for function name */
     a.name = dst_get(s, dst_csymbolv("name"));
+    if (!dst_checktype(a.name, DST_NIL)) {
+        def->name = dst_to_string(a.name);
+    }
 
     /* Set function arity */
     x = dst_get(s, dst_csymbolv("arity"));
@@ -831,6 +834,9 @@ Dst dst_disasm(DstFuncDef *def) {
     }
     if (def->flags & DST_FUNCDEF_FLAG_VARARG) {
         dst_table_put(ret, dst_csymbolv("vararg"), dst_wrap_true());
+    }
+    if (NULL != def->name) {
+        dst_table_put(ret, dst_csymbolv("name"), dst_wrap_string(def->name));
     }
 
     /* Add constants */

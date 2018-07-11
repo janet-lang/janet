@@ -490,14 +490,14 @@
   (def [i1 i2 i3 i4] inds)
   (def res (array.new limit))
   (case ninds
-    1 (loop [i :range [0 limit]] (array.push res (f (get i1 i))))
-    2 (loop [i :range [0 limit]] (array.push res (f (get i1 i) (get i2 i))))
-    3 (loop [i :range [0 limit]] (array.push res (f (get i1 i) (get i2 i) (get i3 i))))
-    4 (loop [i :range [0 limit]] (array.push res (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
+    1 (loop [i :range [0 limit]] (put res i (f (get i1 i))))
+    2 (loop [i :range [0 limit]] (put res i (f (get i1 i) (get i2 i))))
+    3 (loop [i :range [0 limit]] (put res i (f (get i1 i) (get i2 i) (get i3 i))))
+    4 (loop [i :range [0 limit]] (put res i (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
     (loop [i :range [0 limit]]
           (def args (array.new ninds))
-          (loop [j :range [0 ninds]] (array.push args (get (get inds j) i)))
-          (array.push res (apply1 f args))))
+          (loop [j :range [0 ninds]] (put args j (get (get inds j) i)))
+          (put res i (apply1 f args))))
   res)
 
 (defn each

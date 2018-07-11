@@ -355,6 +355,19 @@ void dst_description_b(DstBuffer *buffer, Dst x) {
             }
             goto fallthrough;
         }
+    case DST_FUNCTION:
+        {
+            DstFunction *fun = dst_unwrap_function(x);
+            DstFuncDef *def = fun->def;
+            if (def->name) {
+                const uint8_t *n = def->name;
+                dst_buffer_push_cstring(buffer, "<function ");
+                dst_buffer_push_bytes(buffer, n, dst_string_length(n));
+                dst_buffer_push_u8(buffer, '>');
+                break;
+            }
+            goto fallthrough;
+        }
     fallthrough:
     default:
         string_description_b(buffer, dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
@@ -419,6 +432,15 @@ const uint8_t *dst_description(Dst x) {
             Dst check = dst_table_get(dst_vm_registry, x);
             if (dst_checktype(check, DST_SYMBOL)) {
                 return dst_formatc("<cfunction %V>", check);
+            }
+            goto fallthrough;
+        }
+    case DST_FUNCTION:
+        {
+            DstFunction *fun = dst_unwrap_function(x);
+            DstFuncDef *def = fun->def;
+            if (def->name) {
+                return dst_formatc("<function %S>", def->name);
             }
             goto fallthrough;
         }
