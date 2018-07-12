@@ -289,34 +289,40 @@
             (error ("unexpected loop predicate: " verb)))
           (case verb
             :iterate (do
-                       (def preds @['and (tuple ':= bindings object)])
+                       (def $iter (gensym))
+                       (def preds @['and (tuple ':= $iter object)])
                        (def subloop (doone (+ i 3) preds))
                        (tuple 'do
-                              (tuple 'var bindings nil)
+                              (tuple 'var $iter nil)
                               (tuple 'while (apply1 tuple preds)
+                                     (tuple 'def bindings $iter)
                                      subloop)))
             :range (do
                      (def [start end _inc] object)
                      (def inc (if _inc _inc 1))
                      (def endsym (gensym))
-                     (def preds @['and (tuple < bindings endsym)])
+                     (def $iter (gensym))
+                     (def preds @['and (tuple < $iter endsym)])
                      (def subloop (doone (+ i 3) preds))
                      (tuple 'do
-                            (tuple 'var bindings start)
+                            (tuple 'var $iter start)
                             (tuple 'def endsym end)
                             (tuple 'while (apply1 tuple preds)
+                                   (tuple 'def bindings $iter)
                                    subloop
-                                   (tuple ':= bindings (tuple + bindings inc)))))
+                                   (tuple ':= $iter (tuple + $iter inc)))))
             :keys (do
                     (def $dict (gensym))
-                    (def preds @['and (tuple not= nil bindings)])
+                    (def $iter (gensym))
+                    (def preds @['and (tuple not= nil $iter)])
                     (def subloop (doone (+ i 3) preds))
                     (tuple 'do
                            (tuple 'def $dict object)
-                           (tuple 'var bindings (tuple next $dict nil))
+                           (tuple 'var $iter (tuple next $dict nil))
                            (tuple 'while (apply1 tuple preds)
+                                  (tuple 'def bindings $iter)
                                   subloop
-                                  (tuple ':= bindings (tuple next $dict bindings)))))
+                                  (tuple ':= $iter (tuple next $dict $iter)))))
             :in (do
                   (def $len (gensym))
                   (def $i (gensym))

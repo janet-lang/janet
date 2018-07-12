@@ -441,13 +441,14 @@ static DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
         dstc_emit(c, DOP_TAILCALL | (tempself << 8));
         /* Compile function */
         DstFuncDef *def = dstc_pop_funcdef(c);
-        def->name = dst_cstring("_while-iife");
+        def->name = dst_cstring("_while");
         int32_t defindex = dstc_addfuncdef(c, def);
         /* And then load the closure and call it. */
         int32_t cloreg = dstc_regalloc_temp(&c->scope->ra, DSTC_REGTEMP_0);
         dstc_emit(c, DOP_CLOSURE | (cloreg << 8) | (defindex << 16));
         dstc_emit(c, DOP_CALL | (cloreg << 8) | (cloreg << 16));
         dstc_regalloc_free(&c->scope->ra, cloreg);
+        c->scope->flags |= DST_SCOPE_CLOSURE;
         return dstc_cslot(dst_wrap_nil());
     }
 
@@ -480,6 +481,7 @@ static DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     int selfref = 0;
 
     /* Begin function */
+    c->scope->flags |= DST_SCOPE_CLOSURE;
     dstc_scope(&fnscope, c, DST_SCOPE_FUNCTION, "function");
 
     if (argn < 2) {
