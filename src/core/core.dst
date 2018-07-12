@@ -331,7 +331,7 @@
                                 (tuple 'def bindings (tuple get $indexed $i))
                                 subloop
                                 (tuple ':= $i (tuple + 1 $i)))))
-            (error ("unexpected loop verb: " verb)))))))
+            (error (string "unexpected loop verb: " verb)))))))
   (doone 0))
 
 (defmacro for

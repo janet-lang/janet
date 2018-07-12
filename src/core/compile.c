@@ -118,6 +118,12 @@ void dstc_popscope(DstCompiler *c) {
     /* Move free slots to parent scope if not a new function.
      * We need to know the total number of slots used when compiling the function. */
     if (!(oldscope->flags & (DST_SCOPE_FUNCTION | DST_SCOPE_UNUSED)) && newscope) {
+        /* Parent scopes inherit child's closure flag. Needed
+         * for while loops. (if a while loop creates a closure, it
+         * is compiled to a tail recursive iife) */
+        if (oldscope->flags & DST_SCOPE_CLOSURE) {
+            newscope->flags |= DST_SCOPE_CLOSURE;
+        }
         if (newscope->ra.max < oldscope->ra.max)
             newscope->ra.max = oldscope->ra.max;
 
@@ -132,12 +138,6 @@ void dstc_popscope(DstCompiler *c) {
             }
         }
 
-    }
-    /* Parent scopes inherit child's closure flag. Needed
-     * for while loops. (if a while loop creates a closure, it
-     * is compiled to a tail recursive iife) */
-    if (oldscope->flags & DST_SCOPE_CLOSURE) {
-        newscope->flags |= DST_SCOPE_CLOSURE;
     }
     /* Free the old scope */
     dst_v_free(oldscope->consts);
