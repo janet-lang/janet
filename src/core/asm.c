@@ -676,7 +676,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
                             sizeof(DstInstructionDef),
                             dst_unwrap_symbol(t[0]));
                     if (NULL == idef)
-                        dst_asm_errorv(&a, dst_formatc("unknown instruction %v", instr));
+                        dst_asm_errorv(&a, dst_formatc("unknown instruction %v", t[0]));
                     op = read_instruction(&a, idef, t);
                 }
                 def->bytecode[a.bytecode_count++] = op;

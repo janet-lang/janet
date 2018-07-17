@@ -57,14 +57,14 @@
 (defn defglobal
   "Dynamically create a global def."
   [name value]
-  (def name* (string name))
+  (def name* (symbol name))
   (put *env* name* @{:value value})
   nil)
 
 (defn varglobal
   "Dynamically create a global var."
   [name init]
-  (def name* (string name))
+  (def name* (symbol name))
   (put *env* name* @{:ref @[init]})
   nil)
 
@@ -435,8 +435,8 @@
   (when (pos? len)
     (var ret (get args 0))
     (loop [i :range [0 len]]
-          (def v (get args i))
-          (if (order v ret) (:= ret v)))
+      (def v (get args i))
+      (if (order v ret) (:= ret v)))
     ret))
 
 (defn max [& args] (extreme > args))
@@ -459,12 +459,12 @@
       (def pivot (get a hi))
       (var i lo)
       (loop [j :range [lo hi]]
-            (def aj (get a j))
-            (when (by aj pivot)
-              (def ai (get a i))
-              (put a i aj)
-              (put a j ai)
-              (++ i)))
+        (def aj (get a j))
+        (when (by aj pivot)
+          (def ai (get a i))
+          (put a i aj)
+          (put a j ai)
+          (++ i)))
       (put a hi (get a i))
       (put a i pivot)
       i)
@@ -494,7 +494,7 @@
   [f init ind]
   (var res init)
   (loop [x :in ind]
-        (:= res (f res x)))
+    (:= res (f res x)))
   res)
 
 (defn map
@@ -505,8 +505,8 @@
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
   (var limit (length (get inds 0)))
   (loop [i :range [0 ninds]]
-        (def l (length (get inds i)))
-        (if (< l limit) (:= limit l)))
+    (def l (length (get inds i)))
+    (if (< l limit) (:= limit l)))
   (def [i1 i2 i3 i4] inds)
   (def res (array.new limit))
   (case ninds
@@ -515,9 +515,9 @@
     3 (loop [i :range [0 limit]] (put res i (f (get i1 i) (get i2 i) (get i3 i))))
     4 (loop [i :range [0 limit]] (put res i (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
     (loop [i :range [0 limit]]
-          (def args (array.new ninds))
-          (loop [j :range [0 ninds]] (put args j (get (get inds j) i)))
-          (put res i (apply1 f args))))
+      (def args (array.new ninds))
+      (loop [j :range [0 ninds]] (put args j (get (get inds j) i)))
+      (put res i (apply1 f args))))
   res)
 
 (defn each
@@ -528,8 +528,8 @@
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
   (var limit (length (get inds 0)))
   (loop [i :range [0 ninds]]
-        (def l (length (get inds i)))
-        (if (< l limit) (:= limit l)))
+    (def l (length (get inds i)))
+    (if (< l limit) (:= limit l)))
   (def [i1 i2 i3 i4] inds)
   (case ninds
     1 (loop [i :range [0 limit]] (f (get i1 i)))
@@ -537,9 +537,9 @@
     3 (loop [i :range [0 limit]] (f (get i1 i) (get i2 i) (get i3 i)))
     4 (loop [i :range [0 limit]] (f (get i1 i) (get i2 i) (get i3 i) (get i4 i)))
     (loop [i :range [0 limit]]
-          (def args (array.new ninds))
-          (loop [j :range [0 ninds]] (array.push args (get (get inds j) i)))
-          (apply1 f args))))
+      (def args (array.new ninds))
+      (loop [j :range [0 ninds]] (array.push args (get (get inds j) i)))
+      (apply1 f args))))
 
 (defn mapcat
   "Map a function over every element in an array or tuple and
@@ -548,7 +548,7 @@
   [f ind t]
   (def res @[])
   (loop [x :in ind]
-        (array.concat res (f x)))
+    (array.concat res (f x)))
   (if (= :tuple (type (or t ind)))
     (apply1 tuple res)
     res))
@@ -559,8 +559,8 @@
   [pred ind t]
   (def res @[])
   (loop [item :in ind]
-        (if (pred item)
-          (array.push res item)))
+    (if (pred item)
+      (array.push res item)))
   (if (= :tuple (type (or t ind)))
     (apply1 tuple res)
     res))
@@ -630,7 +630,7 @@
   (fn [& args]
     (def ret @[])
     (loop [f :in funs]
-          (array.push ret (apply1 f args)))
+      (array.push ret (apply1 f args)))
     (apply1 tuple ret)))
 
 (defmacro juxt
@@ -638,7 +638,7 @@
   (def parts @['tuple])
   (def $args (gensym))
   (loop [f :in funs]
-        (array.push parts (tuple apply1 f $args)))
+    (array.push parts (tuple apply1 f $args)))
   (tuple 'fn (tuple '& $args) (apply1 tuple parts)))
 
 (defmacro ->
@@ -715,7 +715,7 @@
   (def lv (length vals))
   (def len (if (< lk lv) lk lv))
   (loop [i :range [0 len]]
-        (put res (get keys i) (get vals i)))
+    (put res (get keys i) (get vals i)))
   (if (= :struct t)
     (table.to-struct res)
     res))
@@ -736,7 +736,7 @@
   (def container @{})
   (loop [c :in colls
          key :keys c]
-        (put container key (get c key)))
+    (put container key (get c key)))
   (if (table? (get colls 0)) container (table.to-struct container)))
 
 (defn keys
@@ -817,33 +817,33 @@
     (if (< len 5)
       (do
         (loop [i :range [0 len]]
-              (when (not= i 0) (buffer.push-string buf " "))
-              (recur (get y i))))
+          (when (not= i 0) (buffer.push-string buf " "))
+          (recur (get y i))))
       (do
         (buffer.push-string indent "  ")
         (loop [i :range [0 len]]
-              (when (not= i len) (buffer.push-string buf indent))
-              (recur (get y i)))
+          (when (not= i len) (buffer.push-string buf indent))
+          (recur (get y i)))
         (buffer.popn indent 2)
         (buffer.push-string buf indent))))
 
   (defn pp-dict-nested [y]
     (buffer.push-string indent "  ")
     (loop [[k v] :in (sort (pairs y))]
-          (buffer.push-string buf indent)
-          (recur k)
-          (buffer.push-string buf " ")
-          (recur v))
+      (buffer.push-string buf indent)
+      (recur k)
+      (buffer.push-string buf " ")
+      (recur v))
     (buffer.popn indent 2)
     (buffer.push-string buf indent))
 
   (defn pp-dict-simple [y]
     (var i -1)
     (loop [[k v] :in (sort (pairs y))]
-          (if (pos? (++ i)) (buffer.push-string buf " "))
-          (recur k)
-          (buffer.push-string buf " ")
-          (recur v)))
+      (if (pos? (++ i)) (buffer.push-string buf " "))
+      (recur k)
+      (buffer.push-string buf " ")
+      (recur v)))
 
   (defn pp-dict [y]
     (def complex? (> (length y) 4))
@@ -909,16 +909,15 @@
     (def args (map macroexpand-1 (tuple.slice t 2)))
     (apply tuple 'fn (get t 1) args))
 
-  (def specs {
-              ':= expanddef
-              'def expanddef
-              'do expandall
-              'fn expandfn
-              'if expandall
-              'quote identity
-              'var expanddef
-              'while expandall
-              })
+  (def specs
+    {':= expanddef
+     'def expanddef
+     'do expandall
+     'fn expandfn
+     'if expandall
+     'quote identity
+     'var expanddef
+     'while expandall})
 
   (defn dotup [t]
     (def h (get t 0))
@@ -931,12 +930,13 @@
       m? (apply1 m (tuple.slice t 1))
       (apply1 tuple (map macroexpand-1 t))))
 
-  (def ret (case (type x)
-             :tuple (dotup x)
-             :array (map macroexpand-1 x)
-             :struct (table.to-struct (dotable x macroexpand-1))
-             :table (dotable x macroexpand-1)
-             x))
+  (def ret
+    (case (type x)
+      :tuple (dotup x)
+      :array (map macroexpand-1 x)
+      :struct (table.to-struct (dotable x macroexpand-1))
+      :table (dotable x macroexpand-1)
+      x))
   ret)
 
 (defn all? [xs]
@@ -1023,7 +1023,7 @@
         (chunks buf p)
         (:= len (length buf))
         (loop [i :range [0 len]]
-              (yield (get buf i))))
+          (yield (get buf i))))
       0))
 
   # Fiber stream of values
@@ -1088,16 +1088,14 @@
   (when f
     (def st (fiber.stack f))
     (loop
-      [{
-        :function func
+      [{:function func
         :tail tail
         :pc pc
         :c c
         :name name
         :source source
         :line source-line
-        :column source-col
-        } :in st]
+        :column source-col} :in st]
       (file.write stdout "  in")
       (when c (file.write stdout " cfunction"))
       (if name
@@ -1106,11 +1104,11 @@
       (if source
         (do
           (file.write stdout " [" source "]")
-          (if source-line 
-            (file.write 
+          (if source-line
+            (file.write
               stdout
               " on line "
-              (string source-line) 
+              (string source-line)
               ", column "
               (string source-col)))))
       (if (and (not source-line) pc)
@@ -1132,28 +1130,26 @@
   (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler "eval")
   returnval)
 
-(def module.syslibpath 
-  (or (os.getenv "DST_PATH") "/usr/local/lib/dst/"))
-
-(def module.paths
-  @["./?.dst"
-    "./?/init.dst"
-    "./dst_modules/?.dst"
-    "./dst_modules/?/init.dst"
-    (string module.syslibpath VERSION "/?.dst")
-    (string module.syslibpath VERSION "/?/init.dst")
-    (string module.syslibpath "/?.dst")
-    (string module.syslibpath "/?/init.dst")])
-
-(def module.native-paths
-  @["./?.so"
-    "./?/??.so"
-    "./dst_modules/?.so"
-    "./dst_modules/?/??.so"
-    (string module.syslibpath VERSION "/?.so")
-    (string module.syslibpath VERSION "/?/??.so")
-    (string module.syslibpath "/?.so")
-    (string module.syslibpath "/?/??.so")])
+(do
+  (def syspath (or (os.getenv "DST_PATH") "/usr/local/lib/dst/"))
+  (defglobal 'module.paths
+    @["./?.dst"
+      "./?/init.dst"
+      "./dst_modules/?.dst"
+      "./dst_modules/?/init.dst"
+      (string syspath VERSION "/?.dst")
+      (string syspath VERSION "/?/init.dst")
+      (string syspath "/?.dst")
+      (string syspath "/?/init.dst")])
+  (defglobal 'module.native-paths
+    @["./?.so"
+      "./?/??.so"
+      "./dst_modules/?.so"
+      "./dst_modules/?/??.so"
+      (string syspath VERSION "/?.so")
+      (string syspath VERSION "/?/??.so")
+      (string syspath "/?.so")
+      (string syspath "/?/??.so")]))
 
 (defn module.find
   [path paths]
@@ -1216,15 +1212,15 @@
                              (fn [a b c d] (default-error-handler a b c d) (os.exit 1))
                              default-error-handler)
                            path)
-              (file.close f)
-              (put loading path nil)
-              newenv)
+              (file.close f))
             (do
               # Try native module
               (def n (find-native path))
               (if (not n)
                 (error (string "could not open file for module " path)))
-              ((native n)))))))))
+              ((native n) newenv)))
+          (put loading path false)
+          newenv)))))
 
 (defn import* [env path & args]
   (def targs (apply1 table args))

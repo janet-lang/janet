@@ -23,7 +23,7 @@ project(dst)
 
 # Set Some Variables
 set(TARGET_NAME ${PROJECT_NAME})
-set (CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
 # Set configurations

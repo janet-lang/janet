@@ -1059,6 +1059,9 @@ int dst_lib_parse(DstArgs args);
 int dst_lib_asm(DstArgs args);
 int dst_lib_compile(DstArgs args);
 
+/* Helpers for writing modules */
+#define DST_MODULE_ENTRY int _dst_init
+
 /***** END SECTION MAIN *****/
 
 /***** START SECTION MACROS *****/
