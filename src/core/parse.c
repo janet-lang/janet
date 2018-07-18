@@ -419,7 +419,7 @@ static int longstring(DstParser *p, DstParseState *state, uint8_t c) {
     } else if (state->flags & PFLAG_END_CANDIDATE) {
         int i;
         /* We are checking a potential end of the string */
-        if (c != '`' && state->qcount == state->argn) {
+        if (state->qcount == state->argn) {
             stringend(p, state);
             return 0;
         }

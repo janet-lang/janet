@@ -54,4 +54,7 @@ clean:
 	rm sqlite3.h
 	rm $(TARGET)
 
+install:
+	cp $(TARGET) $(DST_PATH)
+
 .PHONY: clean all
