@@ -549,7 +549,14 @@ static DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     /* Build function */
     def = dstc_pop_funcdef(c);
     def->arity = arity;
-    if (varargs) def->flags |= DST_FUNCDEF_FLAG_VARARG;
+
+    /* Tuples indicated fixed arity, arrays indicate flexible arity */
+    /* TODO - revisit this */
+    if (varargs) 
+        def->flags |= DST_FUNCDEF_FLAG_VARARG;
+    else if (dst_checktype(paramv, DST_TUPLE))
+        def->flags |= DST_FUNCDEF_FLAG_FIXARITY;
+
     if (selfref) def->name = dst_unwrap_symbol(head);
     defindex = dstc_addfuncdef(c, def);
 

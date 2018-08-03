@@ -268,7 +268,7 @@
   [head & body]
   (def len (length head))
   (defn doone
-    [i preds]
+    @[i preds]
     (default preds @['and])
     (if (>= i len)
       (tuple.prepend body 'do)
@@ -338,7 +338,7 @@
                                 subloop
                                 (tuple ':= $i (tuple + 1 $i)))))
             (error (string "unexpected loop verb: " verb)))))))
-  (doone 0))
+  (doone 0 nil))
 
 (defmacro for
   "Similar to loop, but accumulates the loop body into an array and returns that."
@@ -364,13 +364,13 @@
 (defmacro coro
   "A wrapper for making fibers. Same as (fiber (fn [] ...body))."
   [& body]
-  (tuple fiber.new (apply tuple 'fn [] body)))
+  (tuple fiber.new (apply tuple 'fn @[] body)))
 
 (defmacro if-let
   "Takes the first one or two forms in a vector and if both are true binds
   all the forms with let and evaluates the first expression else
   evaluates the second"
-  [bindings tru fal]
+  @[bindings tru fal]
   (def len (length bindings))
   (if (zero? len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
@@ -477,12 +477,12 @@
         (sort-help a (+ piv 1) hi by))
       a)
 
-    (fn [a by]
+    (fn @[a by]
       (sort-help a 0 (- (length a) 1) (or by order<)))))
 
 (defn sorted
   "Returns the sorted version of an indexed data structure."
-  [ind by]
+  @[ind by]
   (def sa (sort (apply1 array ind) by))
   (if (= :tuple (type ind))
     (apply1 tuple sa)
@@ -491,7 +491,7 @@
 (defn reduce
   "Reduce, also know as fold-left in many languages, transforms
   an indexed type (array, tuple) with a function to produce a value."
-  [f init ind]
+  @[f init ind]
   (var res init)
   (loop [x :in ind]
     (:= res (f res x)))
@@ -545,7 +545,7 @@
   "Map a function over every element in an array or tuple and
   use array to concatenate the results. Returns the same
   type as the input sequence."
-  [f ind t]
+  @[f ind t]
   (def res @[])
   (loop [x :in ind]
     (array.concat res (f x)))
@@ -556,7 +556,7 @@
 (defn filter
   "Given a predicate, take only elements from an array or tuple for
   which (pred element) is truthy. Returns the same type as the input sequence."
-  [pred ind t]
+  @[pred ind t]
   (def res @[])
   (loop [item :in ind]
     (if (pred item)
@@ -673,12 +673,12 @@
   (if (zero? (length more)) f
     (fn [& r] (apply1 f (array.concat @[] more r)))))
 
-(defn every? [pred seq]
+(defn every? [pred ind]
   (var res true)
   (var i 0)
-  (def len (length seq))
+  (def len (length ind))
   (while (< i len)
-    (def item (get seq i))
+    (def item (get ind i))
     (if (pred item)
       (++ i)
       (do (:= res false) (:= i len))))
@@ -709,7 +709,7 @@
 (defn zipcoll
   "Creates an table or tuple from two arrays/tuples. If a third argument of
   :struct is given result is struct else is table."
-  [keys vals t]
+  @[keys vals t]
   (def res @{})
   (def lk (length keys))
   (def lv (length vals))
@@ -987,7 +987,8 @@
 ###
 ###
 
-(defn make-env [parent]
+(defn make-env 
+  @[parent]
   (def parent (if parent parent _env))
   (def newenv (table.setproto @{} parent))
   (put newenv '_env @{:value newenv :private true})
@@ -1005,7 +1006,7 @@
   This function can be used to implement a repl very easily, simply
   pass a function that reads line from stdin to chunks, and print to
   onvalue."
-  [env chunks onvalue onerr where]
+  @[env chunks onvalue onerr where]
 
   # Are we done yet?
   (var going true)
@@ -1047,7 +1048,7 @@
     (var good true)
     (def f
       (fiber.new
-        (fn []
+        (fn @[]
           (def res (compile source env where))
           (if (= (type res) :function)
             (res)
@@ -1121,7 +1122,7 @@
   environment is needed, use run-context."
   [str]
   (var state (string str))
-  (defn chunks [buf]
+  (defn chunks [buf _]
     (def ret state)
     (:= state nil)
     (if ret
@@ -1191,7 +1192,7 @@
 
     (def cache @{})
     (def loading @{})
-    (fn require [path args]
+    (fn require @[path args]
       (when (get loading path)
         (error (string "circular dependency: module " path " is loading")))
       (def {:exit exit-on-error} (or args {}))
@@ -1206,10 +1207,10 @@
           (if f
             (do
               # Normal dst module
-              (defn chunks [buf] (file.read f 1024 buf))
+              (defn chunks [buf _] (file.read f 1024 buf))
               (run-context newenv chunks identity
                            (if exit-on-error
-                             (fn [a b c d] (default-error-handler a b c d) (os.exit 1))
+                             (fn @[a b c d] (default-error-handler a b c d) (os.exit 1))
                              default-error-handler)
                            path)
               (file.close f))
@@ -1239,11 +1240,12 @@
       (put env (symbol prefix k) newv))
     (:= k (next newenv k))))
 
-(defmacro import [path & args]
+(defmacro import
   "Import a module. First requires the module, and then merges its
   symbols into the current environment, prepending a given prefix as needed.
   (use the :as or :prefix option to set a prefix). If no prefix is provided,
   use the name of the module as a prefix."
+  [path & args]
   (def argm (map (fn [x]
                    (if (and (symbol? x) (= (get x 0) 58))
                      x
@@ -1251,9 +1253,10 @@
                  args))
   (apply tuple import* '_env (string path) argm))
 
-(defn repl [getchunk onvalue onerr]
+(defn repl
   "Run a repl. The first parameter is an optional function to call to
   get a chunk of source code. Should return nil for end of file."
+  @[getchunk onvalue onerr]
   (def newenv (make-env))
   (default getchunk (fn [buf]
                       (file.read stdin :line buf)))
@@ -1265,7 +1268,7 @@
 
 (defn all-symbols
   "Get all symbols available in the current environment."
-  [env]
+  @[env]
   (default env *env*)
   (def envs @[])
   (do (var e env) (while e (array.push envs e) (:= e (table.getproto e))))

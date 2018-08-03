@@ -43,7 +43,7 @@
 (defn assert-many [f n e]
  (var good true)
  (loop [i :range [0 n]]
-  (if (not (f i))
+  (if (not (f))
    (:= good false)))
  (assert good e))
 
@@ -76,9 +76,9 @@
 # More fiber semantics
 
 (var myvar 0)
-(defn fiberstuff []
+(defn fiberstuff @[]
   (++ myvar)
-  (def f (fiber.new (fn [] (++ myvar) (debug) (++ myvar))))
+  (def f (fiber.new (fn @[] (++ myvar) (debug) (++ myvar))))
   (resume f)
   (++ myvar))
 

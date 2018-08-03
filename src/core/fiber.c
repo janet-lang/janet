@@ -107,7 +107,7 @@ void dst_fiber_pushn(DstFiber *fiber, const Dst *arr, int32_t n) {
 }
 
 /* Push a stack frame to a fiber */
-void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
+int dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
     DstStackFrame *newframe;
 
     int32_t i;
@@ -115,6 +115,13 @@ void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
     int32_t oldframe = fiber->frame;
     int32_t nextframe = fiber->stackstart;
     int32_t nextstacktop = nextframe + func->def->slotcount + DST_FRAME_SIZE;
+
+    /* Check strict arity */
+    if (func->def->flags & DST_FUNCDEF_FLAG_FIXARITY) {
+        if (func->def->arity != (fiber->stacktop - fiber->stackstart)) {
+            return 1;
+        }
+    }
 
     if (fiber->capacity < nextstacktop) {
         dst_fiber_setcapacity(fiber, 2 * nextstacktop);
@@ -146,6 +153,9 @@ void dst_fiber_funcframe(DstFiber *fiber, DstFunction *func) {
                 oldtop - tuplehead));
         }
     }
+
+    /* Good return */
+    return 0;
 }
 
 /* If a frame has a closure environment, detach it from
@@ -165,11 +175,18 @@ static void dst_env_detach(DstFuncEnv *env) {
 }
 
 /* Create a tail frame for a function */
-void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
+int dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
     int32_t i;
     int32_t nextframetop = fiber->frame + func->def->slotcount;
     int32_t nextstacktop = nextframetop + DST_FRAME_SIZE;
     int32_t stacksize;
+
+    /* Check strict arity */
+    if (func->def->flags & DST_FUNCDEF_FLAG_FIXARITY) {
+        if (func->def->arity != (fiber->stacktop - fiber->stackstart)) {
+            return 1;
+        }
+    }
 
     if (fiber->capacity < nextstacktop) {
         dst_fiber_setcapacity(fiber, 2 * nextstacktop);
@@ -213,6 +230,9 @@ void dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func) {
     dst_fiber_frame(fiber)->func = func;
     dst_fiber_frame(fiber)->pc = func->def->bytecode;
     dst_fiber_frame(fiber)->flags |= DST_STACKFRAME_TAILCALL;
+
+    /* Good return */
+    return 0;
 }
 
 /* Push a stack frame to a fiber for a c function */
@@ -263,6 +283,11 @@ static int cfun_new(DstArgs args) {
     DST_MINARITY(args, 1);
     DST_MAXARITY(args, 2);
     DST_ARG_FUNCTION(func, args, 0);
+    if (func->def->flags & DST_FUNCDEF_FLAG_FIXARITY) {
+        if (func->def->arity != 1) {
+            DST_THROW(args, "expected unit arity function in fiber constructor");
+        }
+    }
     fiber = dst_fiber(func, 64);
     if (args.n == 2) {
         const uint8_t *flags;

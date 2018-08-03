@@ -768,7 +768,8 @@ static void *op_lookup[255] = {
         if (dst_checktype(callee, DST_FUNCTION)) {
             func = dst_unwrap_function(callee);
             dst_stack_frame(stack)->pc = pc;
-            dst_fiber_funcframe(fiber, func);
+            if (dst_fiber_funcframe(fiber, func))
+                goto vm_arity_error;
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
             vm_checkgc_next();
@@ -794,7 +795,8 @@ static void *op_lookup[255] = {
         Dst callee = stack[oparg(1, 0xFFFFFF)];
         if (dst_checktype(callee, DST_FUNCTION)) {
             func = dst_unwrap_function(callee);
-            dst_fiber_funcframe_tail(fiber, func);
+            if (dst_fiber_funcframe_tail(fiber, func))
+                goto vm_arity_error;
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
             vm_checkgc_next();
@@ -1190,6 +1192,17 @@ static void *op_lookup[255] = {
         goto vm_reset;
     }
 
+    /* Handle function calls with bad arity */
+    vm_arity_error:
+    {
+        retreg = dst_wrap_string(dst_formatc("calling %V got %d arguments, expected %d",
+                    dst_wrap_function(func),
+                    fiber->stacktop - fiber->stackstart,
+                    func->def->arity));
+        signal = DST_SIGNAL_ERROR;
+        goto vm_exit;
+    }
+
     /* Resume a child fiber */
     vm_resume_child:
     {
@@ -1293,7 +1306,10 @@ DstSignal dst_call(
         *f = fiber;
     for (i = 0; i < argn; i++)
         dst_fiber_push(fiber, argv[i]);
-    dst_fiber_funcframe(fiber, fiber->root);
+    if (dst_fiber_funcframe(fiber, fiber->root)) {
+        *out = dst_cstringv("arity mismatch");
+        return DST_SIGNAL_ERROR;
+    }
     /* Prevent push an extra value on the stack */
     dst_fiber_set_status(fiber, DST_STATUS_PENDING);
     return dst_continue(fiber, dst_wrap_nil(), out);
