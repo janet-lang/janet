@@ -1195,9 +1195,11 @@ static void *op_lookup[255] = {
     /* Handle function calls with bad arity */
     vm_arity_error:
     {
-        retreg = dst_wrap_string(dst_formatc("calling %V got %d arguments, expected %d",
+        int32_t nargs = fiber->stacktop - fiber->stackstart;
+        retreg = dst_wrap_string(dst_formatc("%V called with %d argument%s, expected %d",
                     dst_wrap_function(func),
-                    fiber->stacktop - fiber->stackstart,
+                    nargs,
+                    nargs == 1 ? "" : "s",
                     func->def->arity));
         signal = DST_SIGNAL_ERROR;
         goto vm_exit;
