@@ -338,9 +338,10 @@ void dst_description_b(DstBuffer *buffer, Dst x) {
     case DST_ABSTRACT:
         {
             const char *n = dst_abstract_type(dst_unwrap_abstract(x))->name;
-            return string_description_b(buffer,
-                    n[0] == ':' ? n + 1 : n,
-                    dst_unwrap_abstract(x));
+            string_description_b(buffer,
+                n[0] == ':' ? n + 1 : n,
+                dst_unwrap_abstract(x));
+			return;
         }
     case DST_CFUNCTION:
         {
@@ -492,7 +493,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
                         dst_buffer_push_cstring(bufp, va_arg(args, const char *));
                         break;
                     case 'c':
-                        dst_buffer_push_u8(bufp, va_arg(args, long));
+                        dst_buffer_push_u8(bufp, (uint8_t) va_arg(args, long));
                         break;
                     case 'q':
                     {

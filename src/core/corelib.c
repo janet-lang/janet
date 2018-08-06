@@ -95,7 +95,7 @@ static int dst_core_print(DstArgs args) {
         }
     }
     putc('\n', stdout);
-    DST_RETURN_NIL();
+    DST_RETURN_NIL(args);
 }
 
 static int dst_core_describe(DstArgs args) {

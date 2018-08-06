@@ -119,8 +119,8 @@ static double convert(
     }
 
     return negative
-        ? -ldexp(mantissa, exponent2)
-        : ldexp(mantissa, exponent2);
+        ? -ldexp((double) mantissa, exponent2)
+        : ldexp((double) mantissa, exponent2);
 }
 
 /* Result of scanning a number source string. Will be further processed
@@ -207,7 +207,7 @@ static struct DstScanRes dst_scan_impl(
         } else if (!gotradix && (*str == 'r' || *str == 'R'))  {
             if (res.seenpoint) goto error;
             if (res.mant < 2 || res.mant > 36) goto error;
-            res.base = res.mant;
+            res.base = (int) res.mant;
             res.mant = 0;
             seenadigit = 0;
             gotradix = 1;
@@ -278,7 +278,7 @@ int32_t dst_scan_integer(
     if (res.error) goto error;
     if (res.seenpoint) goto error;
     if (res.ex < 0) goto error;
-    i64 = res.neg ? -res.mant : res.mant;
+    i64 = res.neg ? -(int64_t)res.mant : (int64_t)res.mant;
     while (res.ex > 0) {
         i64 *= res.base;
         if (i64 > INT32_MAX || i64 < INT32_MIN) goto error;
@@ -322,7 +322,7 @@ Dst dst_scan_number(
     if (res.error)
         return dst_wrap_nil();
     if (!res.foundexp && !res.seenpoint) {
-        int64_t i64 = res.neg ? -res.mant : res.mant;
+        int64_t i64 = res.neg ? -(int64_t)res.mant : (int64_t)res.mant;
         if (i64 <= INT32_MAX && i64 >= INT32_MIN) {
             return dst_wrap_integer((int32_t) i64);
         }

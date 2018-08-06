@@ -17,6 +17,7 @@ dst
 
 # Tools
 xxd
+xxd.exe
 
 # VSCode
 .vs

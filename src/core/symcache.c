@@ -49,7 +49,7 @@ void dst_symcache_init() {
 
 /* Deinitialize the cache (free the cache memory) */
 void dst_symcache_deinit() {
-    free(dst_vm_cache);
+    free((void *)dst_vm_cache);
     dst_vm_cache = NULL;
     dst_vm_cache_capacity = 0;
     dst_vm_cache_count = 0;
@@ -139,7 +139,7 @@ static void dst_cache_resize(uint32_t newCapacity) {
         }
     }
     /* Free the old cache */
-    free(oldCache);
+    free((void *)oldCache);
 }
 
 /* Add an item to the cache */

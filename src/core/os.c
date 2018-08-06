@@ -74,7 +74,7 @@ static int os_execute(DstArgs args) {
 
     // Start the child process. 
     if(!CreateProcess(NULL,
-                sys_str,
+                (LPSTR) sys_str,
                 NULL,
                 NULL,
                 FALSE,
@@ -93,7 +93,7 @@ static int os_execute(DstArgs args) {
 
     // Close process and thread handles.
     WORD status;
-    GetExitCodeProcess(pi.hProcess, &status);
+    GetExitCodeProcess(pi.hProcess, (LPDWORD)&status);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     DST_RETURN_INTEGER(args, (int32_t)status);

@@ -19,28 +19,15 @@ matrix:
 
 # skip unsupported combinations
 init:
-- set arch=
-- if "%arch%"=="Win64" ( set arch= Win64)
-- echo %arch%
-- echo %APPVEYOR_BUILD_WORKER_IMAGE%
-- if "%APPVEYOR_BUILD_WORKER_IMAGE%"=="Visual Studio 2017" ( set generator="Visual Studio 15 2017%arch%" )
-- if "%APPVEYOR_BUILD_WORKER_IMAGE%"=="Visual Studio 2015" ( set generator="Visual Studio 14 2015%arch%" )
-- if "%APPVEYOR_BUILD_WORKER_IMAGE%"=="Visual Studio 2013" ( set generator="Visual Studio 12 2013%arch%" )
-- echo %generator%
+- call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
 
 before_build:
 - cmd: |-
-    mkdir build
-    cd build
-    cmake --version
-    cmake .. -G %generator%
-    ls
+    build
 build:
-  project: c:\projects\dst\build\dst.sln
-  verbosity: minimal
-  parallel: true
+- cmd: |-
+    build test
 only_commits:
   files:
-    - CMakeLists.txt
     - appveyor.yml
     - src/

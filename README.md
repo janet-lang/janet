@@ -83,11 +83,13 @@ $
 
 ## Compiling and Running
 
-Dst can be built with Make or CMake.
-Use Make if you are on a posix system and don't like CMake.
-Use CMake if you are on Windows or like CMake.
+Dst only uses Make and batch files to compile on Posix and windows
+respectively. To configure dst, edit the header file src/include/dst/dst.h
+before compilation.
 
-### Make
+### Posix
+
+On most platforms, use Make to build dst. To 
 
 ```sh
 cd somewhere/my/projects/dst
@@ -95,11 +97,13 @@ make
 make test
 ```
 
-### CMake
+### Windows
 
-On a posix system using make as the target build system, 
-compiling and running is as follows (this is the same as
-most CMake based projects).
+1. Install [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=15#)
+or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15#)
+2. Run a Visual Studio Command Prompt (cl.exe and link.exe need to be on the PATH) and cd to the directory with dst.
+3. Run `build` to compile dst.
+4. Run `build test` to make sure everything is working.
 
 ```sh
 cd somewhere/my/projects/dst
