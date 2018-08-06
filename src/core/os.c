@@ -153,6 +153,9 @@ static int os_getenv(DstArgs args) {
     DST_ARG_STRING(k, args, 0);
     const char *cstr = (const char *) k;
     const char *res = getenv(cstr);
+    if (!res) {
+        DST_RETURN_NIL(args);
+    }
     DST_RETURN(args, cstr
             ? dst_cstringv(res)
             : dst_wrap_nil());
@@ -195,10 +198,28 @@ static int os_exit(DstArgs args) {
     return 0;
 }
 
+/* Clock shim for windows */
+#ifdef DST_WINDOWS
+static int clock_gettime(int x, struct timespec *spec) {
+    (void) x;
+    int64_t wintime = 0LL;
+    GetSystemTimeAsFileTime((FILETIME*)&wintime);
+    /* Windows epoch is January 1, 1601 apparently*/
+    wintime -= 116444736000000000LL;
+    spec->tv_sec  = wintime / 10000000LL;
+    /* Resolution is 100 nanoseconds. */
+    spec->tv_nsec = wintime % 10000000LL * 100;
+    return 0;
+}
+#define CLOCK_MONOTONIC 0
+#endif
+
 static int os_clock(DstArgs args) {
     DST_FIXARITY(args, 0);
-    clock_t time = clock();
-    double dtime = time / (double) (CLOCKS_PER_SEC);
+    struct timespec tv;
+    if (clock_gettime(CLOCK_MONOTONIC, &tv))
+        DST_THROW(args, "could not get time");
+    double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
     DST_RETURN_REAL(args, dtime);
 }
 

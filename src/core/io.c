@@ -154,10 +154,9 @@ static int dst_io_popen(DstArgs args) {
     }
     flags = (fmode[0] == 'r') ? IO_PIPED | IO_READ : IO_PIPED | IO_WRITE;
 #ifdef DST_WINDOWS
-    f = _popen((const char *)fname, (const char *)fmode);
-#else
-    f = popen((const char *)fname, (const char *)fmode);
+#define popen _popen
 #endif
+    f = popen((const char *)fname, (const char *)fmode);
     if (!f) {
         if (errno == EMFILE) {
             DST_THROW(args, "too many streams are open");
@@ -317,10 +316,9 @@ static int dst_io_fclose(DstArgs args) {
         DST_THROW(args, "file not closable");
     if (iof->flags & IO_PIPED) {
 #ifdef DST_WINDOWS
-        if (_pclose(iof->file)) DST_THROW(args, "could not close file");
-#else
-        if (pclose(iof->file)) DST_THROW(args, "could not close file");
+#define pclose _pclose
 #endif
+        if (pclose(iof->file)) DST_THROW(args, "could not close file");
     } else {
         if (fclose(iof->file)) DST_THROW(args, "could not close file");
     }

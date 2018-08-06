@@ -256,10 +256,11 @@ static int dst_core_gcinterval(DstArgs args) {
 
 static int dst_core_type(DstArgs args) {
     DST_FIXARITY(args, 1);
-    if (dst_checktype(args.v[0], DST_ABSTRACT)) {
+    DstType t = dst_type(args.v[0]);
+    if (t == DST_ABSTRACT) {
         DST_RETURN(args, dst_csymbolv(dst_abstract_type(dst_unwrap_abstract(args.v[0]))->name));
     } else {
-        DST_RETURN(args, dst_csymbolv(dst_type_names[dst_type(args.v[0])]));
+        DST_RETURN(args, dst_csymbolv(dst_type_names[t]));
     }
 }
 
@@ -282,9 +283,8 @@ static int dst_core_next(DstArgs args) {
             : dst_struct_find(st, args.v[1]);
         kv = dst_struct_next(st, kv);
     }
-    if (kv) {
+    if (kv)
         DST_RETURN(args, kv->key);
-    }
     DST_RETURN_NIL(args);
 }
 
@@ -344,57 +344,11 @@ static void dst_quick_asm(
 }
 
 /* Macros for easier inline dst assembly */
-#define SSS(op, a, b, c) (op | (a << 8) | (b << 16) | (c << 24))
-#define SS(op, a, b) (op | (a << 8) | (b << 16))
-#define SSI(op, a, b, I) (op | (a << 8) | (b << 16) | ((uint32_t)(I) << 24))
-#define S(op, a) (op | (a << 8))
-#define SI(op, a, I) (op | (a << 8) | ((uint32_t)(I) << 16))
-
-/* Variadic operator assembly. Must be templatized for each different opcode. */
-/* Reg 0: Argument tuple (args) */
-/* Reg 1: Argument count (argn) */
-/* Reg 2: Jump flag (jump?) */
-/* Reg 3: Accumulator (accum) */
-/* Reg 4: Next operand (operand) */
-/* Reg 5: Loop iterator (i) */
-static DST_THREAD_LOCAL uint32_t varop_asm[] = {
-    SS(DOP_LENGTH, 1, 0), /* Put number of arguments in register 1 -> argn = count(args) */
-
-    /* Check nullary */
-    SSS(DOP_EQUALS_IMMEDIATE, 2, 1, 0), /* Check if numargs equal to 0 */
-    SI(DOP_JUMP_IF_NOT, 2, 3), /* If not 0, jump to next check */
-    /* Nullary */
-    SI(DOP_LOAD_INTEGER, 3, 0),  /* accum = nullary value */
-    S(DOP_RETURN, 3), /* return accum */
-
-    /* Check unary */
-    SSI(DOP_EQUALS_IMMEDIATE, 2, 1, 1), /* Check if numargs equal to 1 */
-    SI(DOP_JUMP_IF_NOT, 2, 5), /* If not 1, jump to next check */
-    /* Unary */
-    S(DOP_LOAD_INTEGER, 3), /* accum = unary value */
-    SSI(DOP_GET_INDEX, 4, 0, 0), /* operand = args[0] */
-    SSS(DOP_NOOP, 3, 3, 4), /* accum = accum op operand */
-    S(DOP_RETURN, 3), /* return accum */
-
-    /* Mutli (2 or more) arity */
-    /* Prime loop */
-    SSI(DOP_GET_INDEX, 3, 0, 0), /* accum = args[0] */
-    SI(DOP_LOAD_INTEGER, 5, 1), /* i = 1 */
-    /* Main loop */
-    SSS(DOP_GET, 4, 0, 5), /* operand = args[i] */
-    SSS(DOP_NOOP, 3, 3, 4), /* accum = accum op operand */
-    SSI(DOP_ADD_IMMEDIATE, 5, 5, 1), /* i++ */
-    SSI(DOP_EQUALS_INTEGER, 2, 5, 1), /* jump? = (i == argn) */
-    SI(DOP_JUMP_IF_NOT, 2, -4), /* if not jump? go back 4 */
-
-    /* Done, do last and return accumulator */
-    S(DOP_RETURN, 3) /* return accum */
-};
-
-#define VAROP_NULLARY_LOC 3
-#define VAROP_UNARY_LOC 7
-#define VAROP_OP_LOC1 9
-#define VAROP_OP_LOC2 14
+#define SSS(op, a, b, c) ((op) | ((a) << 8) | ((b) << 16) | ((c) << 24))
+#define SS(op, a, b) ((op) | ((a) << 8) | ((b) << 16))
+#define SSI(op, a, b, I) ((op) | ((a) << 8) | ((b) << 16) | ((uint32_t)(I) << 24))
+#define S(op, a) ((op) | ((a) << 8))
+#define SI(op, a, I) ((op) | ((a) << 8) | ((uint32_t)(I) << 16))
 
 /* Templatize a varop */
 static void templatize_varop(
@@ -404,10 +358,48 @@ static void templatize_varop(
         int32_t nullary,
         int32_t unary,
         uint32_t op) {
-    varop_asm[VAROP_NULLARY_LOC] = SS(DOP_LOAD_INTEGER, 3, nullary);
-    varop_asm[VAROP_UNARY_LOC] = SS(DOP_LOAD_INTEGER, 3, unary);
-    varop_asm[VAROP_OP_LOC1] = SSS(op, 3, 3, 4);
-    varop_asm[VAROP_OP_LOC2] = SSS(op, 3, 3, 4);
+
+    /* Variadic operator assembly. Must be templatized for each different opcode. */
+    /* Reg 0: Argument tuple (args) */
+    /* Reg 1: Argument count (argn) */
+    /* Reg 2: Jump flag (jump?) */
+    /* Reg 3: Accumulator (accum) */
+    /* Reg 4: Next operand (operand) */
+    /* Reg 5: Loop iterator (i) */
+    uint32_t varop_asm[] = {
+        SS(DOP_LENGTH, 1, 0), /* Put number of arguments in register 1 -> argn = count(args) */
+
+        /* Check nullary */
+        SSS(DOP_EQUALS_IMMEDIATE, 2, 1, 0), /* Check if numargs equal to 0 */
+        SI(DOP_JUMP_IF_NOT, 2, 3), /* If not 0, jump to next check */
+        /* Nullary */
+        SI(DOP_LOAD_INTEGER, 3, nullary),  /* accum = nullary value */
+        S(DOP_RETURN, 3), /* return accum */
+
+        /* Check unary */
+        SSI(DOP_EQUALS_IMMEDIATE, 2, 1, 1), /* Check if numargs equal to 1 */
+        SI(DOP_JUMP_IF_NOT, 2, 5), /* If not 1, jump to next check */
+        /* Unary */
+        SI(DOP_LOAD_INTEGER, 3, unary), /* accum = unary value */
+        SSI(DOP_GET_INDEX, 4, 0, 0), /* operand = args[0] */
+        SSS(op, 3, 3, 4), /* accum = accum op operand */
+        S(DOP_RETURN, 3), /* return accum */
+
+        /* Mutli (2 or more) arity */
+        /* Prime loop */
+        SSI(DOP_GET_INDEX, 3, 0, 0), /* accum = args[0] */
+        SI(DOP_LOAD_INTEGER, 5, 1), /* i = 1 */
+        /* Main loop */
+        SSS(DOP_GET, 4, 0, 5), /* operand = args[i] */
+        SSS(op, 3, 3, 4), /* accum = accum op operand */
+        SSI(DOP_ADD_IMMEDIATE, 5, 5, 1), /* i++ */
+        SSI(DOP_EQUALS_INTEGER, 2, 5, 1), /* jump? = (i == argn) */
+        SI(DOP_JUMP_IF_NOT, 2, -4), /* if not jump? go back 4 */
+
+        /* Done, do last and return accumulator */
+        S(DOP_RETURN, 3) /* return accum */
+    };
+
     dst_quick_asm(
             env,
             flags | DST_FUNCDEF_FLAG_VARARG,
@@ -418,36 +410,91 @@ static void templatize_varop(
             sizeof(varop_asm));
 }
 
-DstTable *dst_stl_env(int flags) {
-    static uint32_t error_asm[] = {
+/* Templatize variadic comparators */
+static void templatize_comparator(
+        DstTable *env,
+        int32_t flags,
+        const char *name,
+        int invert,
+        uint32_t op) {
+
+    /* Reg 0: Argument tuple (args) */
+    /* Reg 1: Argument count (argn) */
+    /* Reg 2: Jump flag (jump?) */
+    /* Reg 3: Last value (last) */
+    /* Reg 4: Next operand (next) */
+    /* Reg 5: Loop iterator (i) */
+    uint32_t comparator_asm[] = {
+        SS(DOP_LENGTH, 1, 0), /* Put number of arguments in register 1 -> argn = count(args) */
+        SSS(DOP_LESS_THAN_IMMEDIATE, 2, 1, 2), /* Check if numargs less than 2 */
+        SI(DOP_JUMP_IF, 2, 10), /* If numargs < 2, jump to done */
+
+        /* Prime loop */
+        SSI(DOP_GET_INDEX, 3, 0, 0), /* last = args[0] */
+        SI(DOP_LOAD_INTEGER, 5, 1), /* i = 1 */
+
+        /* Main loop */
+        SSS(DOP_GET, 4, 0, 5), /* next = args[i] */
+        SSS(op, 2, 3, 4), /* jump? = last compare next */
+        SI(DOP_JUMP_IF_NOT, 2, 7), /* if not jump? goto fail (return false) */
+        SSI(DOP_ADD_IMMEDIATE, 5, 5, 1), /* i++ */
+        SS(DOP_MOVE_NEAR, 3, 4), /* last = next */
+        SSI(DOP_EQUALS_INTEGER, 2, 5, 1), /* jump? = (i == argn) */
+        SI(DOP_JUMP_IF_NOT, 2, -6), /* if not jump? go back 6 */
+
+        /* Done, return true */
+        S(invert ? DOP_LOAD_FALSE : DOP_LOAD_TRUE, 3),
+        S(DOP_RETURN, 3),
+
+        /* Failed, return false */
+        S(invert ? DOP_LOAD_TRUE : DOP_LOAD_FALSE, 3),
+        S(DOP_RETURN, 3)
+    };
+
+    dst_quick_asm(
+            env,
+            flags | DST_FUNCDEF_FLAG_VARARG,
+            name,
+            0,
+            6,
+            comparator_asm,
+            sizeof(comparator_asm));
+}
+
+DstTable *dst_core_env(void) {
+    static const uint32_t error_asm[] = {
         DOP_ERROR
     };
-    static uint32_t apply_asm[] = {
+    static const uint32_t apply_asm[] = {
        DOP_PUSH_ARRAY | (1 << 8),
        DOP_TAILCALL
     };
-    static uint32_t debug_asm[] = {
+    static const uint32_t debug_asm[] = {
        DOP_SIGNAL | (2 << 24),
        DOP_RETURN_NIL
     };
-    static uint32_t yield_asm[] = {
+    static const uint32_t yield_asm[] = {
         DOP_SIGNAL | (3 << 24),
         DOP_RETURN
     };
-    static uint32_t resume_asm[] = {
+    static const uint32_t resume_asm[] = {
         DOP_RESUME | (1 << 24),
         DOP_RETURN
     };
-    static uint32_t get_asm[] = {
+    static const uint32_t get_asm[] = {
         DOP_GET | (1 << 24),
         DOP_RETURN
     };
-    static uint32_t put_asm[] = {
+    static const uint32_t put_asm[] = {
         DOP_PUT | (1 << 16) | (2 << 24),
         DOP_RETURN
     };
-    static uint32_t length_asm[] = {
+    static const uint32_t length_asm[] = {
         DOP_LENGTH,
+        DOP_RETURN
+    };
+    static const uint32_t bnot_asm[] = {
+        DOP_BNOT,
         DOP_RETURN
     };
 
@@ -465,6 +512,7 @@ DstTable *dst_stl_env(int flags) {
     dst_quick_asm(env, DST_FUN_GET, "get", 2, 2, get_asm, sizeof(get_asm));
     dst_quick_asm(env, DST_FUN_PUT, "put", 3, 3, put_asm, sizeof(put_asm));
     dst_quick_asm(env, DST_FUN_LENGTH, "length", 1, 1, length_asm, sizeof(length_asm));
+    dst_quick_asm(env, DST_FUN_BNOT, "~", 1, 1, bnot_asm, sizeof(bnot_asm));
 
     /* Variadic ops */
     templatize_varop(env, DST_FUN_ADD, "+", 0, 0, DOP_ADD);
@@ -477,6 +525,20 @@ DstTable *dst_stl_env(int flags) {
     templatize_varop(env, DST_FUN_LSHIFT, "<<", 1, 1, DOP_SHIFT_LEFT);
     templatize_varop(env, DST_FUN_RSHIFT, ">>", 1, 1, DOP_SHIFT_RIGHT);
     templatize_varop(env, DST_FUN_RSHIFTU, ">>>", 1, 1, DOP_SHIFT_RIGHT_UNSIGNED);
+
+    /* Variadic comparators */
+    templatize_comparator(env, DST_FUN_ORDER_GT, "order>", 0, DOP_GREATER_THAN);
+    templatize_comparator(env, DST_FUN_ORDER_LT, "order<", 0, DOP_LESS_THAN);
+    templatize_comparator(env, DST_FUN_ORDER_GTE, "order>=", 1, DOP_LESS_THAN);
+    templatize_comparator(env, DST_FUN_ORDER_LTE, "order<=", 1, DOP_GREATER_THAN);
+    templatize_comparator(env, DST_FUN_ORDER_EQ, "=", 0, DOP_EQUALS);
+    templatize_comparator(env, DST_FUN_ORDER_NEQ, "not=", 1, DOP_EQUALS);
+    templatize_comparator(env, DST_FUN_GT, ">", 0, DOP_NUMERIC_GREATER_THAN);
+    templatize_comparator(env, DST_FUN_LT, "<", 0, DOP_NUMERIC_LESS_THAN);
+    templatize_comparator(env, DST_FUN_GTE, ">=", 0, DOP_NUMERIC_GREATER_THAN_EQUAL);
+    templatize_comparator(env, DST_FUN_LTE, "<=", 0, DOP_NUMERIC_LESS_THAN_EQUAL);
+    templatize_comparator(env, DST_FUN_EQ, "==", 0, DOP_NUMERIC_EQUAL);
+    templatize_comparator(env, DST_FUN_NEQ, "not==", 1, DOP_NUMERIC_EQUAL);
 
     dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
 
@@ -509,9 +571,6 @@ DstTable *dst_stl_env(int flags) {
 
     /* Run bootstrap source */
     dst_dobytes(env, dst_gen_core, sizeof(dst_gen_core), "core.dst");
-
-    if (flags & DST_STL_NOGCROOT)
-        dst_gcunroot(dst_wrap_table(env));
 
     return env;
 }

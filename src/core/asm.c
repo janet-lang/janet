@@ -24,21 +24,6 @@
 #include <dst/dst.h>
 #include "util.h"
 
-/* Convert a slot to to an integer for bytecode */
-
-/* Types of instructions (some of them) */
-/* _0arg - op.---.--.-- (return-nil, noop, vararg arguments)
- * _s - op.src.--.-- (push1)
- * _l - op.XX.XX.XX (jump)
- * _ss - op.dest.XX.XX (move, swap)
- * _sl - op.check.XX.XX (jump-if)
- * _st - op.check.TT.TT (typecheck)
- * _si - op.dest.XX.XX (load-integer)
- * _sss - op.dest.op1.op2 (add, subtract, arithmetic, comparison)
- * _ses - op.dest.up.which (load-upvalue, save-upvalue)
- * _sc - op.dest.CC.CC (load-constant, closure)
- */
-
 /* Definition for an instruction in the assembler */
 typedef struct DstInstructionDef DstInstructionDef;
 struct DstInstructionDef {
@@ -91,6 +76,7 @@ static const DstInstructionDef dst_ops[] = {
     {"eq", DOP_EQUALS},
     {"eqi", DOP_EQUALS_INTEGER},
     {"eqim", DOP_EQUALS_IMMEDIATE},
+    {"eqn", DOP_NUMERIC_EQUAL},
     {"eqr", DOP_EQUALS_REAL},
     {"err", DOP_ERROR},
     {"get", DOP_GET},
@@ -98,7 +84,9 @@ static const DstInstructionDef dst_ops[] = {
     {"gt", DOP_GREATER_THAN},
     {"gti", DOP_GREATER_THAN_INTEGER},
     {"gtim", DOP_GREATER_THAN_IMMEDIATE},
+    {"gtn", DOP_NUMERIC_GREATER_THAN},
     {"gtr", DOP_GREATER_THAN_REAL},
+    {"gten", DOP_NUMERIC_GREATER_THAN_EQUAL},
     {"gter", DOP_GREATER_THAN_EQUAL_REAL},
     {"jmp", DOP_JUMP},
     {"jmpif", DOP_JUMP_IF},
@@ -114,7 +102,9 @@ static const DstInstructionDef dst_ops[] = {
     {"lt", DOP_LESS_THAN},
     {"lti", DOP_LESS_THAN_INTEGER},
     {"ltim", DOP_LESS_THAN_IMMEDIATE},
+    {"ltn", DOP_NUMERIC_LESS_THAN},
     {"ltr", DOP_LESS_THAN_REAL},
+    {"lten", DOP_NUMERIC_LESS_THAN_EQUAL},
     {"lter", DOP_LESS_THAN_EQUAL_REAL},
     {"mkarr", DOP_MAKE_ARRAY},
     {"mkbuf", DOP_MAKE_BUFFER},
@@ -304,7 +294,7 @@ static int32_t doarg_1(
                         ret = dst_unwrap_integer(result);
                     }
                 } else {
-                    dst_asm_errorv(a, dst_formatc("unknown name %q", x));
+                    dst_asm_errorv(a, dst_formatc("unknown name %v", x));
                 }
             } else if (argtype == DST_OAT_TYPE || argtype == DST_OAT_SIMPLETYPE) {
                 const TypeAlias *alias = dst_strbinsearch(
@@ -315,7 +305,7 @@ static int32_t doarg_1(
                 if (alias) {
                     ret = alias->mask;
                 } else {
-                    dst_asm_errorv(a, dst_formatc("unknown type %q", x));
+                    dst_asm_errorv(a, dst_formatc("unknown type %v", x));
                 }
             } else {
                 goto error;
@@ -324,7 +314,7 @@ static int32_t doarg_1(
                 /* Add a new env */
                 ret = dst_asm_addenv(a, x);
                 if (ret < -1) {
-                    dst_asm_errorv(a, dst_formatc("unknown environment %q", x));
+                    dst_asm_errorv(a, dst_formatc("unknown environment %v", x));
                 }
             }
             break;
@@ -539,6 +529,9 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
 
     /* Check for function name */
     a.name = dst_get(s, dst_csymbolv("name"));
+    if (!dst_checktype(a.name, DST_NIL)) {
+        def->name = dst_to_string(a.name);
+    }
 
     /* Set function arity */
     x = dst_get(s, dst_csymbolv("arity"));
@@ -683,7 +676,7 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
                             sizeof(DstInstructionDef),
                             dst_unwrap_symbol(t[0]));
                     if (NULL == idef)
-                        dst_asm_errorv(&a, dst_formatc("unknown instruction %v", instr));
+                        dst_asm_errorv(&a, dst_formatc("unknown instruction %v", t[0]));
                     op = read_instruction(&a, idef, t);
                 }
                 def->bytecode[a.bytecode_count++] = op;
@@ -842,6 +835,9 @@ Dst dst_disasm(DstFuncDef *def) {
     if (def->flags & DST_FUNCDEF_FLAG_VARARG) {
         dst_table_put(ret, dst_csymbolv("vararg"), dst_wrap_true());
     }
+    if (NULL != def->name) {
+        dst_table_put(ret, dst_csymbolv("name"), dst_wrap_string(def->name));
+    }
 
     /* Add constants */
     if (def->constants_length > 0) {
@@ -919,7 +915,7 @@ static int cfun_asm(DstArgs args) {
     }
 }
 
-int cfun_disasm(DstArgs args) {
+static int cfun_disasm(DstArgs args) {
     DstFunction *f;
     DST_FIXARITY(args, 1);
     DST_ARG_FUNCTION(f, args, 0);

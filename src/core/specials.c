@@ -26,7 +26,7 @@
 #include "vector.h"
 #include "emit.h"
 
-DstSlot dstc_quote(DstFopts opts, int32_t argn, const Dst *argv) {
+static DstSlot dstc_quote(DstFopts opts, int32_t argn, const Dst *argv) {
     if (argn != 1) {
         dstc_cerror(opts.compiler, "expected 1 argument");
         return dstc_cslot(dst_wrap_nil());
@@ -91,7 +91,7 @@ static int destructure(DstCompiler *c,
     }
 }
 
-DstSlot dstc_varset(DstFopts opts, int32_t argn, const Dst *argv) {
+static DstSlot dstc_varset(DstFopts opts, int32_t argn, const Dst *argv) {
     DstFopts subopts = dstc_fopts_default(opts.compiler);
     DstSlot ret, dest;
     Dst head;
@@ -189,7 +189,7 @@ static int varleaf(
     }
 }
 
-DstSlot dstc_var(DstFopts opts, int32_t argn, const Dst *argv) {
+static DstSlot dstc_var(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     Dst head;
     DstSlot ret = dohead(c, opts, &head, argn, argv);
@@ -222,7 +222,7 @@ static int defleaf(
     }
 }
 
-DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
+static DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     Dst head;
     opts.flags &= ~DST_FOPTS_HINT;
@@ -245,13 +245,13 @@ DstSlot dstc_def(DstFopts opts, int32_t argn, const Dst *argv) {
  * ...
  * :done
  */
-DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
+static DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     int32_t labelr, labeljr, labeld, labeljd;
     DstFopts condopts, bodyopts;
     DstSlot cond, left, right, target;
     Dst truebody, falsebody;
-    DstScope tempscope;
+    DstScope condscope, tempscope;
     const int tail = opts.flags & DST_FOPTS_TAIL;
     const int drop = opts.flags & DST_FOPTS_DROP;
 
@@ -268,7 +268,13 @@ DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
     condopts = dstc_fopts_default(c);
     bodyopts = opts;
 
+    /* Set target for compilation */
+    target = (drop || tail)
+        ? dstc_cslot(dst_wrap_nil())
+        : dstc_gettarget(opts);
+
     /* Compile condition */
+    dstc_scope(&condscope, c, 0, "if");
     cond = dstc_value(condopts, argv[0]);
 
     /* Check constant condition. */
@@ -283,14 +289,10 @@ DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
         dstc_scope(&tempscope, c, 0, "if-body");
         target = dstc_value(bodyopts, truebody);
         dstc_popscope(c);
+        dstc_popscope(c);
         dstc_throwaway(bodyopts, falsebody);
         return target;
     }
-
-    /* Set target for compilation */
-    target = (drop || tail)
-        ? dstc_cslot(dst_wrap_nil())
-        : dstc_gettarget(opts);
 
     /* Compile jump to right */
     labeljr = dstc_emit_si(c, DOP_JUMP_IF_NOT, cond, 0, 0);
@@ -312,6 +314,9 @@ DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
     if (!drop && !tail) dstc_copy(c, target, right);
     dstc_popscope(c);
 
+    /* Pop main scope */
+    dstc_popscope(c);
+
     /* Write jumps - only add jump lengths if jump actually emitted */
     labeld = dst_v_count(c->buffer);
     c->buffer[labeljr] |= (labelr - labeljr) << 16;
@@ -323,7 +328,7 @@ DstSlot dstc_if(DstFopts opts, int32_t argn, const Dst *argv) {
 
 /* Compile a do form. Do forms execute their body sequentially and
  * evaluate to the last expression in the body. */
-DstSlot dstc_do(DstFopts opts, int32_t argn, const Dst *argv) {
+static DstSlot dstc_do(DstFopts opts, int32_t argn, const Dst *argv) {
     int32_t i;
     DstSlot ret = dstc_cslot(dst_wrap_nil());
     DstCompiler *c = opts.compiler;
@@ -345,6 +350,19 @@ DstSlot dstc_do(DstFopts opts, int32_t argn, const Dst *argv) {
     return ret;
 }
 
+/* Add a funcdef to the top most function scope */
+static int32_t dstc_addfuncdef(DstCompiler *c, DstFuncDef *def) {
+    DstScope *scope = c->scope;
+    while (scope) {
+        if (scope->flags & DST_SCOPE_FUNCTION)
+            break;
+        scope = scope->parent;
+    }
+    dst_assert(scope, "could not add funcdef");
+    dst_v_push(scope->defs, def);
+    return dst_v_count(scope->defs) - 1;
+}
+
 /*
  * :whiletop
  * ...
@@ -354,7 +372,7 @@ DstSlot dstc_do(DstFopts opts, int32_t argn, const Dst *argv) {
  * jump :whiletop
  * :done
  */
-DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
+static DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     DstSlot cond;
     DstFopts subopts = dstc_fopts_default(c);
@@ -369,6 +387,8 @@ DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
 
     labelwt = dst_v_count(c->buffer);
 
+    dstc_scope(&tempscope, c, 0, "while");
+
     /* Compile condition */
     cond = dstc_value(subopts, argv[0]);
 
@@ -376,25 +396,60 @@ DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
     if (cond.flags & DST_SLOT_CONSTANT) {
         /* Loop never executes */
         if (!dst_truthy(cond.constant)) {
+            dstc_popscope(c);
             return dstc_cslot(dst_wrap_nil());
         }
         /* Infinite loop */
         infinite = 1;
     }
 
-    dstc_scope(&tempscope, c, 0, "while");
-
     /* Infinite loop does not need to check condition */
-    if (!infinite) {
-        labelc = dstc_emit_si(c, DOP_JUMP_IF_NOT, cond, 0, 0);
-    } else {
-        labelc = 0;
-    }
+    labelc = infinite
+        ? 0
+        : dstc_emit_si(c, DOP_JUMP_IF_NOT, cond, 0, 0);
 
     /* Compile body */
     for (i = 1; i < argn; i++) {
         subopts.flags = DST_FOPTS_DROP;
         dstc_freeslot(c, dstc_value(subopts, argv[i]));
+    }
+
+    /* Check if closure created in while scope. If so,
+     * recompile in a function scope. */
+    if (tempscope.flags & DST_SCOPE_CLOSURE) {
+        tempscope.flags |= DST_SCOPE_UNUSED;
+        dstc_popscope(c);
+        dst_v__cnt(c->buffer) = labelwt;
+        dst_v__cnt(c->mapbuffer) = labelwt;
+
+        dstc_scope(&tempscope, c, DST_SCOPE_FUNCTION, "while-iife");
+
+        /* Recompile in the function scope */
+        cond = dstc_value(subopts, argv[0]);
+        if (!(cond.flags & DST_SLOT_CONSTANT)) {
+            /* If not an infinte loop, return nil when condition false */
+            dstc_emit_si(c, DOP_JUMP_IF, cond, 2, 0);
+            dstc_emit(c, DOP_RETURN_NIL);
+        }
+        for (i = 1; i < argn; i++) {
+            subopts.flags = DST_FOPTS_DROP;
+            dstc_freeslot(c, dstc_value(subopts, argv[i]));
+        }
+        /* But now add tail recursion */
+        int32_t tempself = dstc_regalloc_temp(&tempscope.ra, DSTC_REGTEMP_0);
+        dstc_emit(c, DOP_LOAD_SELF | (tempself << 8));
+        dstc_emit(c, DOP_TAILCALL | (tempself << 8));
+        /* Compile function */
+        DstFuncDef *def = dstc_pop_funcdef(c);
+        def->name = dst_cstring("_while");
+        int32_t defindex = dstc_addfuncdef(c, def);
+        /* And then load the closure and call it. */
+        int32_t cloreg = dstc_regalloc_temp(&c->scope->ra, DSTC_REGTEMP_0);
+        dstc_emit(c, DOP_CLOSURE | (cloreg << 8) | (defindex << 16));
+        dstc_emit(c, DOP_CALL | (cloreg << 8) | (cloreg << 16));
+        dstc_regalloc_free(&c->scope->ra, cloreg);
+        c->scope->flags |= DST_SCOPE_CLOSURE;
+        return dstc_cslot(dst_wrap_nil());
     }
 
     /* Compile jump to whiletop */
@@ -412,20 +467,7 @@ DstSlot dstc_while(DstFopts opts, int32_t argn, const Dst *argv) {
     return dstc_cslot(dst_wrap_nil());
 }
 
-/* Add a funcdef to the top most function scope */
-static int32_t dstc_addfuncdef(DstCompiler *c, DstFuncDef *def) {
-    DstScope *scope = c->scope;
-    while (scope) {
-        if (scope->flags & DST_SCOPE_FUNCTION)
-            break;
-        scope = scope->parent;
-    }
-    dst_assert(scope, "could not add funcdef");
-    dst_v_push(scope->defs, def);
-    return dst_v_count(scope->defs) - 1;
-}
-
-DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
+static DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     DstCompiler *c = opts.compiler;
     DstFuncDef *def;
     DstSlot ret;
@@ -439,6 +481,7 @@ DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     int selfref = 0;
 
     /* Begin function */
+    c->scope->flags |= DST_SCOPE_CLOSURE;
     dstc_scope(&fnscope, c, DST_SCOPE_FUNCTION, "function");
 
     if (argn < 2) {
@@ -506,7 +549,14 @@ DstSlot dstc_fn(DstFopts opts, int32_t argn, const Dst *argv) {
     /* Build function */
     def = dstc_pop_funcdef(c);
     def->arity = arity;
-    if (varargs) def->flags |= DST_FUNCDEF_FLAG_VARARG;
+
+    /* Tuples indicated fixed arity, arrays indicate flexible arity */
+    /* TODO - revisit this */
+    if (varargs) 
+        def->flags |= DST_FUNCDEF_FLAG_VARARG;
+    else if (dst_checktype(paramv, DST_TUPLE))
+        def->flags |= DST_FUNCDEF_FLAG_FIXARITY;
+
     if (selfref) def->name = dst_unwrap_symbol(head);
     defindex = dstc_addfuncdef(c, def);
 

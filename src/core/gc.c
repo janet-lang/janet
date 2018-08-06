@@ -339,6 +339,24 @@ void dst_gcroot(Dst root) {
     dst_vm_root_count = newcount;
 }
 
+/* Identity equality for GC purposes */
+static int dst_gc_idequals(Dst lhs, Dst rhs) {
+    if (dst_type(lhs) != dst_type(rhs))
+        return 0;
+    switch (dst_type(lhs)) {
+        case DST_TRUE:
+        case DST_FALSE:
+        case DST_NIL:
+            return 1;
+        case DST_INTEGER:
+            return dst_unwrap_integer(lhs) == dst_unwrap_integer(rhs);
+        case DST_REAL:
+            return dst_unwrap_real(lhs) == dst_unwrap_real(rhs);
+        default:
+            return dst_unwrap_pointer(lhs) == dst_unwrap_pointer(rhs);
+    }
+}
+
 /* Remove a root value from the GC. This allows the gc to potentially reclaim
  * a value and all its children. */
 int dst_gcunroot(Dst root) {
@@ -346,7 +364,7 @@ int dst_gcunroot(Dst root) {
     Dst *v = dst_vm_roots;
     /* Search from top to bottom as access is most likely LIFO */
     for (v = dst_vm_roots; v < vtop; v++) {
-        if (dst_equals(root, *v)) {
+        if (dst_gc_idequals(root, *v)) {
             *v = dst_vm_roots[--dst_vm_root_count];
             return 1;
         }
@@ -361,7 +379,7 @@ int dst_gcunrootall(Dst root) {
     int ret = 0;
     /* Search from top to bottom as access is most likely LIFO */
     for (v = dst_vm_roots; v < vtop; v++) {
-        if (dst_equals(root, *v)) {
+        if (dst_gc_idequals(root, *v)) {
             *v = dst_vm_roots[--dst_vm_root_count];
             vtop--;
             ret = 1;

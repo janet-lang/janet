@@ -71,19 +71,6 @@ int dst_real(DstArgs args) {
     return 0;
 }
 
-int dst_bnot(DstArgs args) {
-    if (args.n != 1) {
-        *args.ret = dst_cstringv("expected 1 argument");
-        return 1;
-    }
-    if (!dst_checktype(args.v[0], DST_INTEGER)) {
-        *args.ret = dst_cstringv("expected integer");
-        return 1;
-    }
-    *args.ret = dst_wrap_integer(~dst_unwrap_integer(args.v[0]));
-    return 0;
-}
-
 int dst_remainder(DstArgs args) {
     DST_FIXARITY(args, 2);
     if (dst_checktype(args.v[0], DST_INTEGER) &&
@@ -137,85 +124,13 @@ int dst_##name(DstArgs args) {\
 DST_DEFINE_MATH2OP(atan2, atan2)
 DST_DEFINE_MATH2OP(pow, pow)
 
-/* Comparison */
-#define DST_DEFINE_COMPARATOR(name, pred)\
-static int dst_##name(DstArgs args) {\
-    int32_t i;\
-    for (i = 0; i < args.n - 1; i++) {\
-        if (dst_compare(args.v[i], args.v[i+1]) pred) {\
-            DST_RETURN_FALSE(args);\
-        }\
-    }\
-    DST_RETURN_TRUE(args);\
-}
-
-DST_DEFINE_COMPARATOR(ascending, >= 0)
-DST_DEFINE_COMPARATOR(descending, <= 0)
-DST_DEFINE_COMPARATOR(notdescending, > 0)
-DST_DEFINE_COMPARATOR(notascending, < 0)
-
-/* Boolean logic */
-static int dst_strict_equal(DstArgs args) {
-    int32_t i;
-    for (i = 0; i < args.n - 1; i++) {
-        if (!dst_equals(args.v[i], args.v[i+1])) {
-            DST_RETURN(args, dst_wrap_false());
-        }
-    }
-    DST_RETURN(args, dst_wrap_true());
-}
-
-static int dst_strict_notequal(DstArgs args) {
-    int32_t i;
-    for (i = 0; i < args.n - 1; i++) {
-        if (dst_equals(args.v[i], args.v[i+1])) {
-            DST_RETURN(args, dst_wrap_false());
-        }
-    }
-    DST_RETURN(args, dst_wrap_true());
-}
-
 static int dst_not(DstArgs args) {
     DST_FIXARITY(args, 1);
     DST_RETURN_BOOLEAN(args, !dst_truthy(args.v[0]));
 }
 
-#define DEF_NUMERIC_COMP(name, op) \
-int dst_numeric_##name(DstArgs args) { \
-    int32_t i; \
-    for (i = 1; i < args.n; i++) { \
-        double x = 0, y = 0; \
-        DST_ARG_NUMBER(x, args, i-1);\
-        DST_ARG_NUMBER(y, args, i);\
-        if (!(x op y)) { \
-            DST_RETURN(args, dst_wrap_false()); \
-        } \
-    } \
-    DST_RETURN(args, dst_wrap_true()); \
-}
-
-DEF_NUMERIC_COMP(gt, >)
-DEF_NUMERIC_COMP(lt, <)
-DEF_NUMERIC_COMP(lte, <=)
-DEF_NUMERIC_COMP(gte, >=)
-DEF_NUMERIC_COMP(eq, ==)
-DEF_NUMERIC_COMP(neq, !=)
-
 static const DstReg cfuns[] = {
     {"%", dst_remainder},
-    {"=", dst_strict_equal},
-    {"not=", dst_strict_notequal},
-    {"order<", dst_ascending},
-    {"order>", dst_descending},
-    {"order<=", dst_notdescending},
-    {"order>=", dst_notascending},
-    {"==", dst_numeric_eq},
-    {"not==", dst_numeric_neq},
-    {"<", dst_numeric_lt},
-    {">", dst_numeric_gt},
-    {"<=", dst_numeric_lte},
-    {">=", dst_numeric_gte},
-    {"~", dst_bnot},
     {"not", dst_not},
     {"int", dst_int},
     {"real", dst_real},

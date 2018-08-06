@@ -36,6 +36,9 @@ static int fixarity1(DstFopts opts, DstSlot *args) {
 static int fixarity2(DstFopts opts, DstSlot *args) {
     (void) opts;
     return dst_v_count(args) == 2;
+}static int fixarity3(DstFopts opts, DstSlot *args) {
+    (void) opts;
+    return dst_v_count(args) == 3;
 }
 
 /* Generic hanldling for $A = op $B */
@@ -91,7 +94,8 @@ static DstSlot do_get(DstFopts opts, DstSlot *args) {
     return opreduce(opts, args, DOP_GET, dst_wrap_nil());
 }
 static DstSlot do_put(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_PUT, dst_wrap_nil());
+    dstc_emit_sss(opts.compiler, DOP_PUT, args[0], args[1], args[2], 0);
+    return args[0];
 }
 static DstSlot do_length(DstFopts opts, DstSlot *args) {
     return genericSS(opts, DOP_LENGTH, args[0]);
@@ -118,7 +122,7 @@ static DstSlot do_apply1(DstFopts opts, DstSlot *args) {
     return target;
 }
 
-/* Varidadic operatros specialization */
+/* Varidadic operators specialization */
 
 static DstSlot do_add(DstFopts opts, DstSlot *args) {
     return opreduce(opts, args, DOP_ADD, dst_wrap_integer(0));
@@ -150,6 +154,85 @@ static DstSlot do_rshift(DstFopts opts, DstSlot *args) {
 static DstSlot do_rshiftu(DstFopts opts, DstSlot *args) {
     return opreduce(opts, args, DOP_SHIFT_RIGHT, dst_wrap_integer(1));
 }
+static DstSlot do_bnot(DstFopts opts, DstSlot *args) {
+    return genericSS(opts, DOP_BNOT, args[0]);
+}
+
+/* Specialization for comparators */
+static DstSlot compreduce(
+        DstFopts opts,
+        DstSlot *args,
+        int op,
+        int invert) {
+    DstCompiler *c = opts.compiler;
+    int32_t i, len;
+    len = dst_v_count(args);
+    int32_t *labels = NULL;
+    DstSlot t;
+    if (len < 2) {
+        return invert
+            ? dstc_cslot(dst_wrap_false())
+            : dstc_cslot(dst_wrap_true());
+    }
+    t = dstc_gettarget(opts);
+    for (i = 1; i < len; i++) {
+        dstc_emit_sss(c, op, t, args[i - 1], args[i], 1);
+        if (i != (len - 1)) {
+            int32_t label = dstc_emit_si(c, DOP_JUMP_IF_NOT, t, 0, 1);
+            dst_v_push(labels, label);
+        }
+    }
+    int32_t end = dst_v_count(c->buffer);
+    if (invert) {
+        dstc_emit_si(c, DOP_JUMP_IF, t, 3, 0);
+        dstc_emit_s(c, DOP_LOAD_TRUE, t, 1);
+        dstc_emit(c, DOP_JUMP | (2 << 8));
+        dstc_emit_s(c, DOP_LOAD_FALSE, t, 1);
+    }
+    for (i = 0; i < dst_v_count(labels); i++) {
+        int32_t label = labels[i];
+        c->buffer[label] |= ((end - label) << 16);
+    }
+    dst_v_free(labels);
+    return t;
+}
+
+static DstSlot do_order_gt(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_GREATER_THAN, 0);
+}
+static DstSlot do_order_lt(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_LESS_THAN, 0);
+}
+static DstSlot do_order_gte(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_LESS_THAN, 1);
+}
+static DstSlot do_order_lte(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_GREATER_THAN, 1);
+}
+static DstSlot do_order_eq(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_EQUALS, 0);
+}
+static DstSlot do_order_neq(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_EQUALS, 1);
+}
+static DstSlot do_gt(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_NUMERIC_GREATER_THAN, 0);
+}
+static DstSlot do_lt(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_NUMERIC_LESS_THAN, 0);
+}
+static DstSlot do_gte(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_NUMERIC_GREATER_THAN_EQUAL, 0);
+}
+static DstSlot do_lte(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_NUMERIC_LESS_THAN_EQUAL, 0);
+}
+static DstSlot do_eq(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_NUMERIC_EQUAL, 0);
+}
+static DstSlot do_neq(DstFopts opts, DstSlot *args) {
+    return compreduce(opts, args, DOP_NUMERIC_EQUAL, 1);
+}
 
 /* Arranged by tag */
 static const DstFunOptimizer optimizers[] = {
@@ -159,7 +242,7 @@ static const DstFunOptimizer optimizers[] = {
     {fixarity1, do_yield},
     {fixarity2, do_resume},
     {fixarity2, do_get},
-    {fixarity2, do_put},
+    {fixarity3, do_put},
     {fixarity1, do_length},
     {NULL, do_add},
     {NULL, do_sub},
@@ -170,14 +253,29 @@ static const DstFunOptimizer optimizers[] = {
     {NULL, do_bxor},
     {NULL, do_lshift},
     {NULL, do_rshift},
-    {NULL, do_rshiftu}
+    {NULL, do_rshiftu},
+    {fixarity1, do_bnot},
+    {NULL, do_order_gt},
+    {NULL, do_order_lt},
+    {NULL, do_order_gte},
+    {NULL, do_order_lte},
+    {NULL, do_order_eq},
+    {NULL, do_order_neq},
+    {NULL, do_gt},
+    {NULL, do_lt},
+    {NULL, do_gte},
+    {NULL, do_lte},
+    {NULL, do_eq},
+    {NULL, do_neq}
 };
 
 const DstFunOptimizer *dstc_funopt(uint32_t flags) {
     uint32_t tag = flags & DST_FUNCDEF_FLAG_TAG;
-    if (tag == 0 || tag >=
-            ((sizeof(optimizers)/sizeof(uint32_t) - 1)))
+    if (tag == 0)
         return NULL;
-    return optimizers + tag - 1;
+    uint32_t index = tag - 1;
+    if (index >= (sizeof(optimizers)/sizeof(optimizers[0])))
+        return NULL;
+    return optimizers + index;
 }
 

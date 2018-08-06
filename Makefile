@@ -130,6 +130,10 @@ natives: $(DST_TARGET)
 	$(MAKE) -C natives/hello
 	$(MAKE) -j 8 -C natives/sqlite3
 
+clean-natives:
+	$(MAKE) -C natives/hello clean
+	$(MAKE) -C natives/sqlite3 clean
+
 #################
 ##### Other #####
 #################

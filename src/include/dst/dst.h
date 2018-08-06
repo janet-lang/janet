@@ -515,9 +515,9 @@ Dst dst_wrap_abstract(void *x);
 
 /* Hold components of arguments passed to DstCFunction. */
 struct DstArgs {
-    int32_t n;
     Dst *v;
     Dst *ret;
+    int32_t n;
 };
 
 /* Fiber flags */
@@ -811,6 +811,11 @@ enum DstOpCode {
     DOP_MAKE_STRUCT,
     DOP_MAKE_TABLE,
     DOP_MAKE_TUPLE,
+    DOP_NUMERIC_LESS_THAN,
+    DOP_NUMERIC_LESS_THAN_EQUAL,
+    DOP_NUMERIC_GREATER_THAN,
+    DOP_NUMERIC_GREATER_THAN_EQUAL,
+    DOP_NUMERIC_EQUAL,
     DOP_INSTRUCTION_COUNT
 };
 
@@ -855,16 +860,16 @@ enum DstCompileStatus {
     DST_COMPILE_ERROR
 };
 struct DstCompileResult {
-    enum DstCompileStatus status;
     DstFuncDef *funcdef;
     const uint8_t *error;
     DstFiber *macrofiber;
     DstSourceMapping error_mapping;
+    enum DstCompileStatus status;
 };
 DstCompileResult dst_compile(Dst source, DstTable *env, const uint8_t *where);
 
 /* Get the default environment for dst */
-DstTable *dst_stl_env();
+DstTable *dst_core_env(void);
 
 int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath);
 int dst_dostring(DstTable *env, const char *str, const char *sourcePath);
@@ -939,7 +944,7 @@ void dst_puts(const uint8_t *str);
 const uint8_t *dst_symbol(const uint8_t *str, int32_t len);
 const uint8_t *dst_symbol_from_string(const uint8_t *str);
 const uint8_t *dst_csymbol(const char *str);
-const uint8_t *dst_symbol_gen();
+const uint8_t *dst_symbol_gen(void);
 #define dst_symbolv(str, len) dst_wrap_symbol(dst_symbol((str), (len)))
 #define dst_csymbolv(cstr) dst_wrap_symbol(dst_csymbol(cstr))
 
@@ -1033,10 +1038,6 @@ void dst_env_cfuns(DstTable *env, const DstReg *cfuns);
 DstBindingType dst_env_resolve(DstTable *env, const uint8_t *sym, Dst *out);
 DstTable *dst_env_arg(DstArgs args);
 
-/* STL */
-#define DST_STL_NOGCROOT 1
-DstTable *dst_stl_env(int flags);
-
 /* C Function helpers */
 int dst_arity_err(DstArgs args, int32_t n, const char *prefix);
 int dst_type_err(DstArgs args, int32_t n, DstType expected);
@@ -1057,6 +1058,9 @@ int dst_lib_marsh(DstArgs args);
 int dst_lib_parse(DstArgs args);
 int dst_lib_asm(DstArgs args);
 int dst_lib_compile(DstArgs args);
+
+/* Helpers for writing modules */
+#define DST_MODULE_ENTRY int _dst_init
 
 /***** END SECTION MAIN *****/
 
@@ -1151,7 +1155,7 @@ int dst_lib_compile(DstArgs args);
 #define DST_ARG_CFUNCTION(DEST, A, N) _DST_ARG(DST_CFUNCTION, cfunction, DEST, A, N)
 #define DST_ARG_ABSTRACT(DEST, A, N) _DST_ARG(DST_ABSTRACT, abstract, DEST, A, N)
 
-#define DST_RETURN_NIL(A) return DST_SIGNAL_OK
+#define DST_RETURN_NIL(A) do { return DST_SIGNAL_OK; } while (0)
 #define DST_RETURN_FALSE(A) DST_RETURN(A, dst_wrap_false())
 #define DST_RETURN_TRUE(A) DST_RETURN(A, dst_wrap_true())
 #define DST_RETURN_BOOLEAN(A, X) DST_RETURN(A, dst_wrap_boolean(X))

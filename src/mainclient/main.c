@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
 
     /* Set up VM */
     dst_init();
-    env = dst_stl_env(0);
+    env = dst_core_env();
 
     /* Create args tuple */
     args = dst_array(argc);

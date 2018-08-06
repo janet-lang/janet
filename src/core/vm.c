@@ -190,6 +190,11 @@ static void *op_lookup[255] = {
     &&label_DOP_MAKE_STRUCT,
     &&label_DOP_MAKE_TABLE,
     &&label_DOP_MAKE_TUPLE,
+    &&label_DOP_NUMERIC_LESS_THAN,
+    &&label_DOP_NUMERIC_LESS_THAN_EQUAL,
+    &&label_DOP_NUMERIC_GREATER_THAN,
+    &&label_DOP_NUMERIC_GREATER_THAN_EQUAL,
+    &&label_DOP_NUMERIC_EQUAL,
     &&label_unknown_op
 };
 #else
@@ -253,6 +258,23 @@ static void *op_lookup[255] = {
             : (dst_checktype(op2, DST_INTEGER)\
                 ? dst_wrap_real(dst_unwrap_real(op1) op (double)dst_unwrap_integer(op2))\
                 : dst_wrap_real(dst_unwrap_real(op1) op dst_unwrap_real(op2)));\
+        pc++;\
+        vm_next();\
+    }
+
+#define vm_numcomp(op)\
+    {\
+        Dst op1 = stack[oparg(2, 0xFF)];\
+        Dst op2 = stack[oparg(3, 0xFF)];\
+        vm_assert_types(op1, DST_TFLAG_NUMBER);\
+        vm_assert_types(op2, DST_TFLAG_NUMBER);\
+        stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_checktype(op1, DST_INTEGER)\
+            ? (dst_checktype(op2, DST_INTEGER)\
+                ? dst_unwrap_integer(op1) op dst_unwrap_integer(op2)\
+                : (double)dst_unwrap_integer(op1) op dst_unwrap_real(op2))\
+            : (dst_checktype(op2, DST_INTEGER)\
+                ? dst_unwrap_real(op1) op (double)dst_unwrap_integer(op2)\
+                : dst_unwrap_real(op1) op dst_unwrap_real(op2)));\
         pc++;\
         vm_next();\
     }
@@ -325,6 +347,21 @@ static void *op_lookup[255] = {
     VM_OP(DOP_MULTIPLY)
     vm_binop(*);
 
+    VM_OP(DOP_NUMERIC_LESS_THAN)
+    vm_numcomp(<);
+
+    VM_OP(DOP_NUMERIC_LESS_THAN_EQUAL)
+    vm_numcomp(<=);
+
+    VM_OP(DOP_NUMERIC_GREATER_THAN)
+    vm_numcomp(>);
+
+    VM_OP(DOP_NUMERIC_GREATER_THAN_EQUAL)
+    vm_numcomp(>=);
+
+    VM_OP(DOP_NUMERIC_EQUAL)
+    vm_numcomp(==);
+
     VM_OP(DOP_DIVIDE_INTEGER)
     vm_assert(dst_unwrap_integer(stack[oparg(3, 0xFF)]) != 0, "integer divide error");
     vm_assert(!(dst_unwrap_integer(stack[oparg(3, 0xFF)]) == -1 &&
@@ -385,6 +422,7 @@ static void *op_lookup[255] = {
 
     VM_OP(DOP_BNOT)
     stack[oparg(1, 0xFF)] = dst_wrap_integer(~dst_unwrap_integer(stack[oparg(2, 0xFFFF)]));
+    ++pc;
     vm_next();
 
     VM_OP(DOP_SHIFT_RIGHT_UNSIGNED)
@@ -730,7 +768,8 @@ static void *op_lookup[255] = {
         if (dst_checktype(callee, DST_FUNCTION)) {
             func = dst_unwrap_function(callee);
             dst_stack_frame(stack)->pc = pc;
-            dst_fiber_funcframe(fiber, func);
+            if (dst_fiber_funcframe(fiber, func))
+                goto vm_arity_error;
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
             vm_checkgc_next();
@@ -756,7 +795,8 @@ static void *op_lookup[255] = {
         Dst callee = stack[oparg(1, 0xFFFFFF)];
         if (dst_checktype(callee, DST_FUNCTION)) {
             func = dst_unwrap_function(callee);
-            dst_fiber_funcframe_tail(fiber, func);
+            if (dst_fiber_funcframe_tail(fiber, func))
+                goto vm_arity_error;
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
             vm_checkgc_next();
@@ -1152,6 +1192,19 @@ static void *op_lookup[255] = {
         goto vm_reset;
     }
 
+    /* Handle function calls with bad arity */
+    vm_arity_error:
+    {
+        int32_t nargs = fiber->stacktop - fiber->stackstart;
+        retreg = dst_wrap_string(dst_formatc("%V called with %d argument%s, expected %d",
+                    dst_wrap_function(func),
+                    nargs,
+                    nargs == 1 ? "" : "s",
+                    func->def->arity));
+        signal = DST_SIGNAL_ERROR;
+        goto vm_exit;
+    }
+
     /* Resume a child fiber */
     vm_resume_child:
     {
@@ -1255,14 +1308,17 @@ DstSignal dst_call(
         *f = fiber;
     for (i = 0; i < argn; i++)
         dst_fiber_push(fiber, argv[i]);
-    dst_fiber_funcframe(fiber, fiber->root);
+    if (dst_fiber_funcframe(fiber, fiber->root)) {
+        *out = dst_cstringv("arity mismatch");
+        return DST_SIGNAL_ERROR;
+    }
     /* Prevent push an extra value on the stack */
     dst_fiber_set_status(fiber, DST_STATUS_PENDING);
     return dst_continue(fiber, dst_wrap_nil(), out);
 }
 
 /* Setup VM */
-int dst_init() {
+int dst_init(void) {
     /* Garbage collection */
     dst_vm_blocks = NULL;
     dst_vm_next_collection = 0;
@@ -1283,7 +1339,7 @@ int dst_init() {
 }
 
 /* Clear all memory associated with the VM */
-void dst_deinit() {
+void dst_deinit(void) {
     dst_clear_memory();
     dst_symcache_deinit();
     free(dst_vm_roots);

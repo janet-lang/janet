@@ -102,7 +102,12 @@ enum DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
     DIT_S, /* DOP_MAKE_TUPLE */
     DIT_S, /* DOP_MAKE_STRUCT */
     DIT_S, /* DOP_MAKE_TABLE */
-    DIT_S /* DOP_MAKE_STRING */
+    DIT_S, /* DOP_MAKE_STRING */
+    DIT_SSS, /* DOP_NUMERIC_LESS_THAN */
+    DIT_SSS, /* DOP_NUMERIC_LESS_THAN_EQUAL */
+    DIT_SSS, /* DOP_NUMERIC_GREATER_THAN */
+    DIT_SSS, /* DOP_NUMERIC_GREATER_THAN_EQUAL */
+    DIT_SSS /* DOP_NUMERIC_EQUAL */
 };
 
 /* Verify some bytecode */

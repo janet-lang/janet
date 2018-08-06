@@ -1,5 +1,5 @@
 # Copyright 2017-2018 (C) Calvin Rose
-(table.setproto @{ 1 2} @{})
+
 (do
 
   (var *should-repl* :private false)
@@ -23,17 +23,17 @@
   -- Stop handling options`)
            (os.exit 0)
            1)
-     "v" (fn [] (print VERSION) (os.exit 0) 1)
-     "s" (fn [] (:= *raw-stdin* true) (:= *should-repl* true) 1)
-     "r" (fn [] (:= *should-repl* true) 1)
-     "p" (fn [] (:= *exit-on-error* false) 1)
-     "-" (fn [] (:= *handleopts* false) 1)
-     "e" (fn [i] 
+     "v" (fn @[] (print VERSION) (os.exit 0) 1)
+     "s" (fn @[] (:= *raw-stdin* true) (:= *should-repl* true) 1)
+     "r" (fn @[] (:= *should-repl* true) 1)
+     "p" (fn @[] (:= *exit-on-error* false) 1)
+     "-" (fn @[] (:= *handleopts* false) 1)
+     "e" (fn @[i] 
            (:= *no-file* false)
            (eval (get args (+ i 1)))
            2)})
 
-  (defn- dohandler [n i]
+  (defn- dohandler @[n i]
     (def h (get handlers n))
     (if h (h i) (print "unknown flag -" n)))
 
