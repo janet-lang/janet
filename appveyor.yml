@@ -22,10 +22,12 @@ matrix:
 init:
 - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
 
-before_build:
-- cmd: |-
-    build
-    build test
+install:
+    - build
+    - build test
+    
+build: off
+
 only_commits:
   files:
     - appveyor.yml
