@@ -243,11 +243,11 @@ static int escape1(DstParser *p, DstParseState *state, uint8_t c) {
 static int stringend(DstParser *p, DstParseState *state) {
     Dst ret;
     if (state->flags & PFLAG_BUFFER) {
-        DstBuffer *b = dst_buffer(p->bufcount);
-        dst_buffer_push_bytes(b, p->buf, p->bufcount);
+        DstBuffer *b = dst_buffer((int32_t)p->bufcount);
+        dst_buffer_push_bytes(b, p->buf, (int32_t)p->bufcount);
         ret = dst_wrap_buffer(b);
     } else {
-        ret = dst_wrap_string(dst_string(p->buf, p->bufcount));
+        ret = dst_wrap_string(dst_string(p->buf, (int32_t)p->bufcount));
     }
     p->bufcount = 0;
     popstate(p, ret);
@@ -291,7 +291,7 @@ static int tokenchar(DstParser *p, DstParseState *state, uint8_t c) {
         return 1;
     }
     /* Token finished */
-    blen = p->bufcount;
+    blen = (int32_t) p->bufcount;
     numcheck = dst_scan_number(p->buf, blen);
     if (!dst_checktype(numcheck, DST_NIL)) {
         ret = numcheck;
@@ -767,7 +767,7 @@ static int cfun_state(DstArgs args) {
             }
         }
     }
-    str = dst_string(p->buf + oldcount, p->bufcount - oldcount);
+    str = dst_string(p->buf + oldcount, (int32_t)(p->bufcount - oldcount));
     p->bufcount = oldcount;
     DST_RETURN_STRING(args, str);
 }
