@@ -334,7 +334,7 @@ static void dst_quick_asm(
     def->flags = flags;
     def->slotcount = slots;
     def->bytecode = malloc(bytecode_size);
-    def->bytecode_length = bytecode_size / sizeof(uint32_t);
+    def->bytecode_length = (int32_t)(bytecode_size / sizeof(uint32_t));
     def->name = dst_cstring(name);
     if (!def->bytecode) {
         DST_OUT_OF_MEMORY;

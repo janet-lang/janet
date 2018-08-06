@@ -207,7 +207,7 @@ static const char *read_chunk(IOFile *iof, DstBuffer *buffer, int32_t nBytesMax)
     size_t nread = fread((char *)(buffer->data + buffer->count), 1, ntoread, iof->file);
     if (nread != ntoread && ferror(iof->file)) 
         return "could not read file";
-    buffer->count += nread;
+    buffer->count += (int32_t) nread;
     return NULL;
 }
 

@@ -384,7 +384,7 @@ static Dst doframe(DstStackFrame *frame) {
         dst_table_put(t, dst_csymbolv(":tail"), dst_wrap_true());
     }
     if (frame->func && frame->pc) {
-        off = frame->pc - def->bytecode;
+        off = (int32_t) (frame->pc - def->bytecode);
         dst_table_put(t, dst_csymbolv(":pc"), dst_wrap_integer(off));
         if (def->sourcemap) {
             DstSourceMapping mapping = def->sourcemap[off];

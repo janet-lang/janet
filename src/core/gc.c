@@ -305,7 +305,7 @@ void *dst_gcalloc(enum DstMemoryType type, size_t size) {
     mdata->flags = type;
 
     /* Prepend block to heap list */
-    dst_vm_next_collection += size;
+    dst_vm_next_collection += (int32_t) size;
     mdata->next = dst_vm_blocks;
     dst_vm_blocks = mdata;
 
