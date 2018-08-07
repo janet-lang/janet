@@ -46,6 +46,7 @@
   (emit-rule out "%.o" @["%.c" "${HEADERS}"] "${CC} ${CFLAGS} -o $@ $< ${LDFLAGS}")
   (emit-rule out "${TARGET}" "${OBJECTS}" "${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS}")
   (emit-rule out "clean" "" "rm ${OBJECTS}")
+  (emit-rule out "clean" "" @["rm ${OBJECTS}" "rm @{TARGET}"])
   # Phony targets
   (emit-rule out ".PHONY" @["all" "clean"])
   nil)
