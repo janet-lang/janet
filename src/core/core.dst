@@ -1131,26 +1131,27 @@
   (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler "eval")
   returnval)
 
-(do
-  (def syspath (or (os.getenv "DST_PATH") "/usr/local/lib/dst/"))
-  (defglobal 'module.paths
-    @["./?.dst"
-      "./?/init.dst"
-      "./dst_modules/?.dst"
-      "./dst_modules/?/init.dst"
-      (string syspath VERSION "/?.dst")
-      (string syspath VERSION "/?/init.dst")
-      (string syspath "/?.dst")
-      (string syspath "/?/init.dst")])
-  (defglobal 'module.native-paths
-    @["./?.so"
-      "./?/??.so"
-      "./dst_modules/?.so"
-      "./dst_modules/?/??.so"
-      (string syspath VERSION "/?.so")
-      (string syspath VERSION "/?/??.so")
-      (string syspath "/?.so")
-      (string syspath "/?/??.so")]))
+(def module.syspath (or (os.getenv "DST_PATH") "/usr/local/lib/dst/"))
+
+(def module.paths
+  @["./?.dst"
+    "./?/init.dst"
+    "./dst_modules/?.dst"
+    "./dst_modules/?/init.dst"
+    (string module.syspath VERSION "/?.dst")
+    (string module.syspath VERSION "/?/init.dst")
+    (string module.syspath "/?.dst")
+    (string module.syspath "/?/init.dst")])
+
+(def module.native-paths
+  @["./?.so"
+    "./?/??.so"
+    "./dst_modules/?.so"
+    "./dst_modules/?/??.so"
+    (string module.syspath VERSION "/?.so")
+    (string module.syspath VERSION "/?/??.so")
+    (string module.syspath "/?.so")
+    (string module.syspath "/?/??.so")])
 
 (defn module.find
   [path paths]
