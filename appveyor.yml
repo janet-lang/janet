@@ -23,8 +23,8 @@ init:
 - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
 
 install:
-    - build
-    - build test
+    - build_win
+    - build_win test
     
 build: off
 

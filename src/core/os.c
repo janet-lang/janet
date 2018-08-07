@@ -34,6 +34,16 @@
 #include <stdio.h>
 #endif
 
+static int os_which(DstArgs args) {
+    #ifdef DST_WINDOWS
+        DST_RETURN_CSYMBOL(args, ":windows");
+    #elif __APPLE__
+        DST_RETURN_CSYMBOL(args, ":macos");
+    #else
+        DST_RETURN_CSYMBOL(args, ":posix");
+    #endif
+}
+
 #ifdef DST_WINDOWS
 static int os_execute(DstArgs args) {
     DST_MINARITY(args, 1);
@@ -259,6 +269,7 @@ static int os_cwd(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
+    {"os.which", os_which},
     {"os.execute", os_execute},
     {"os.shell", os_shell},
     {"os.exit", os_exit},

@@ -35,7 +35,7 @@ static const DstReg cfuns[] = {
     {NULL, NULL}
 };
 
-int _dst_init(DstArgs args) {
+DST_MODULE_ENTRY (DstArgs args) {
     DstTable *env = dst_env_arg(args);
     dst_env_cfuns(env, cfuns);
     return 0;

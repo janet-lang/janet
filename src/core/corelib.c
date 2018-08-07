@@ -540,7 +540,8 @@ DstTable *dst_core_env(void) {
     templatize_comparator(env, DST_FUN_EQ, "==", 0, DOP_NUMERIC_EQUAL);
     templatize_comparator(env, DST_FUN_NEQ, "not==", 1, DOP_NUMERIC_EQUAL);
 
-    dst_env_def(env, "VERSION", dst_cstringv(DST_VERSION));
+    /* Platform detection */
+    dst_env_def(env, "dst.version", dst_cstringv(DST_VERSION));
 
     /* Set as gc root */
     dst_gcroot(dst_wrap_table(env));

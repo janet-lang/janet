@@ -109,6 +109,15 @@ extern "C" {
 #define DST_DYNAMIC_MODULES
 #endif
 
+/* How to export symbols */
+#ifndef DST_API
+#ifdef DST_WINDOWS
+#define DST_API __declspec(dllexport)
+#else
+#define DST_API __attribute__((visibility ("default")))
+#endif
+#endif
+
 /* Handle runtime errors */
 #ifndef dst_exit
 #include <stdio.h>
@@ -387,13 +396,13 @@ union Dst {
         ? dst_nanbox_isreal(x) \
         : dst_nanbox_checkauxtype((x), (t)))
 
-void *dst_nanbox_to_pointer(Dst x);
-void dst_nanbox_memempty(DstKV *mem, int32_t count);
-void *dst_nanbox_memalloc_empty(int32_t count);
-Dst dst_nanbox_from_pointer(void *p, uint64_t tagmask);
-Dst dst_nanbox_from_cpointer(const void *p, uint64_t tagmask);
-Dst dst_nanbox_from_double(double d);
-Dst dst_nanbox_from_bits(uint64_t bits);
+DST_API void *dst_nanbox_to_pointer(Dst x);
+DST_API void dst_nanbox_memempty(DstKV *mem, int32_t count);
+DST_API void *dst_nanbox_memalloc_empty(int32_t count);
+DST_API Dst dst_nanbox_from_pointer(void *p, uint64_t tagmask);
+DST_API Dst dst_nanbox_from_cpointer(const void *p, uint64_t tagmask);
+DST_API Dst dst_nanbox_from_double(double d);
+DST_API Dst dst_nanbox_from_bits(uint64_t bits);
 
 #define dst_memempty(mem, len) dst_nanbox_memempty((mem), (len))
 #define dst_memalloc_empty(count) dst_nanbox_memalloc_empty(count)
@@ -492,23 +501,23 @@ struct Dst {
 #define dst_unwrap_integer(x) ((x).as.integer)
 #define dst_unwrap_real(x) ((x).as.real)
 
-Dst dst_wrap_nil(void);
-Dst dst_wrap_real(double x);
-Dst dst_wrap_integer(int32_t x);
-Dst dst_wrap_true(void);
-Dst dst_wrap_false(void);
-Dst dst_wrap_boolean(int x);
-Dst dst_wrap_string(const uint8_t *x);
-Dst dst_wrap_symbol(const uint8_t *x);
-Dst dst_wrap_array(DstArray *x);
-Dst dst_wrap_tuple(const Dst *x);
-Dst dst_wrap_struct(const DstKV *x);
-Dst dst_wrap_fiber(DstFiber *x);
-Dst dst_wrap_buffer(DstBuffer *x);
-Dst dst_wrap_function(DstFunction *x);
-Dst dst_wrap_cfunction(DstCFunction x);
-Dst dst_wrap_table(DstTable *x);
-Dst dst_wrap_abstract(void *x);
+DST_API Dst dst_wrap_nil(void);
+DST_API Dst dst_wrap_real(double x);
+DST_API Dst dst_wrap_integer(int32_t x);
+DST_API Dst dst_wrap_true(void);
+DST_API Dst dst_wrap_false(void);
+DST_API Dst dst_wrap_boolean(int x);
+DST_API Dst dst_wrap_string(const uint8_t *x);
+DST_API Dst dst_wrap_symbol(const uint8_t *x);
+DST_API Dst dst_wrap_array(DstArray *x);
+DST_API Dst dst_wrap_tuple(const Dst *x);
+DST_API Dst dst_wrap_struct(const DstKV *x);
+DST_API Dst dst_wrap_fiber(DstFiber *x);
+DST_API Dst dst_wrap_buffer(DstBuffer *x);
+DST_API Dst dst_wrap_function(DstFunction *x);
+DST_API Dst dst_wrap_cfunction(DstCFunction x);
+DST_API Dst dst_wrap_table(DstTable *x);
+DST_API Dst dst_wrap_abstract(void *x);
 
 /* End of tagged union implementation */
 #endif
@@ -827,14 +836,14 @@ extern enum DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT];
 /***** START SECTION MAIN *****/
 
 /* Parsing */
-void dst_parser_init(DstParser *parser);
-void dst_parser_deinit(DstParser *parser);
-int dst_parser_consume(DstParser *parser, uint8_t c);
-enum DstParserStatus dst_parser_status(DstParser *parser);
-Dst dst_parser_produce(DstParser *parser);
-const char *dst_parser_error(DstParser *parser);
-void dst_parser_flush(DstParser *parser);
-DstParser *dst_check_parser(Dst x);
+DST_API void dst_parser_init(DstParser *parser);
+DST_API void dst_parser_deinit(DstParser *parser);
+DST_API int dst_parser_consume(DstParser *parser, uint8_t c);
+DST_API enum DstParserStatus dst_parser_status(DstParser *parser);
+DST_API Dst dst_parser_produce(DstParser *parser);
+DST_API const char *dst_parser_error(DstParser *parser);
+DST_API void dst_parser_flush(DstParser *parser);
+DST_API DstParser *dst_check_parser(Dst x);
 
 /* Assembly */
 typedef struct DstAssembleResult DstAssembleResult;
@@ -848,9 +857,9 @@ struct DstAssembleResult {
     const uint8_t *error;
     enum DstAssembleStatus status;
 };
-DstAssembleResult dst_asm(Dst source, int flags);
-Dst dst_disasm(DstFuncDef *def);
-Dst dst_asm_decode_instruction(uint32_t instr);
+DST_API DstAssembleResult dst_asm(Dst source, int flags);
+DST_API Dst dst_disasm(DstFuncDef *def);
+DST_API Dst dst_asm_decode_instruction(uint32_t instr);
 
 /* Compilation */
 typedef struct DstCompileOptions DstCompileOptions;
@@ -866,44 +875,44 @@ struct DstCompileResult {
     DstSourceMapping error_mapping;
     enum DstCompileStatus status;
 };
-DstCompileResult dst_compile(Dst source, DstTable *env, const uint8_t *where);
+DST_API DstCompileResult dst_compile(Dst source, DstTable *env, const uint8_t *where);
 
 /* Get the default environment for dst */
-DstTable *dst_core_env(void);
+DST_API DstTable *dst_core_env(void);
 
-int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath);
-int dst_dostring(DstTable *env, const char *str, const char *sourcePath);
+DST_API int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath);
+DST_API int dst_dostring(DstTable *env, const char *str, const char *sourcePath);
 
 /* Number scanning */
-Dst dst_scan_number(const uint8_t *src, int32_t len);
-int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);
-double dst_scan_real(const uint8_t *str, int32_t len, int *err);
+DST_API Dst dst_scan_number(const uint8_t *src, int32_t len);
+DST_API int32_t dst_scan_integer(const uint8_t *str, int32_t len, int *err);
+DST_API double dst_scan_real(const uint8_t *str, int32_t len, int *err);
 
 /* Array functions */
-DstArray *dst_array(int32_t capacity);
-DstArray *dst_array_n(const Dst *elements, int32_t n);
-DstArray *dst_array_init(DstArray *array, int32_t capacity);
-void dst_array_deinit(DstArray *array);
-void dst_array_ensure(DstArray *array, int32_t capacity);
-void dst_array_setcount(DstArray *array, int32_t count);
-void dst_array_push(DstArray *array, Dst x);
-Dst dst_array_pop(DstArray *array);
-Dst dst_array_peek(DstArray *array);
+DST_API DstArray *dst_array(int32_t capacity);
+DST_API DstArray *dst_array_n(const Dst *elements, int32_t n);
+DST_API DstArray *dst_array_init(DstArray *array, int32_t capacity);
+DST_API void dst_array_deinit(DstArray *array);
+DST_API void dst_array_ensure(DstArray *array, int32_t capacity);
+DST_API void dst_array_setcount(DstArray *array, int32_t count);
+DST_API void dst_array_push(DstArray *array, Dst x);
+DST_API Dst dst_array_pop(DstArray *array);
+DST_API Dst dst_array_peek(DstArray *array);
 
 /* Buffer functions */
-DstBuffer *dst_buffer(int32_t capacity);
-DstBuffer *dst_buffer_init(DstBuffer *buffer, int32_t capacity);
-void dst_buffer_deinit(DstBuffer *buffer);
-void dst_buffer_ensure(DstBuffer *buffer, int32_t capacity);
-void dst_buffer_setcount(DstBuffer *buffer, int32_t count);
-int dst_buffer_extra(DstBuffer *buffer, int32_t n);
-int dst_buffer_push_bytes(DstBuffer *buffer, const uint8_t *string, int32_t len);
-int dst_buffer_push_string(DstBuffer *buffer, const uint8_t *string);
-int dst_buffer_push_cstring(DstBuffer *buffer, const char *cstring);
-int dst_buffer_push_u8(DstBuffer *buffer, uint8_t x);
-int dst_buffer_push_u16(DstBuffer *buffer, uint16_t x);
-int dst_buffer_push_u32(DstBuffer *buffer, uint32_t x);
-int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x);
+DST_API DstBuffer *dst_buffer(int32_t capacity);
+DST_API DstBuffer *dst_buffer_init(DstBuffer *buffer, int32_t capacity);
+DST_API void dst_buffer_deinit(DstBuffer *buffer);
+DST_API void dst_buffer_ensure(DstBuffer *buffer, int32_t capacity);
+DST_API void dst_buffer_setcount(DstBuffer *buffer, int32_t count);
+DST_API int dst_buffer_extra(DstBuffer *buffer, int32_t n);
+DST_API int dst_buffer_push_bytes(DstBuffer *buffer, const uint8_t *string, int32_t len);
+DST_API int dst_buffer_push_string(DstBuffer *buffer, const uint8_t *string);
+DST_API int dst_buffer_push_cstring(DstBuffer *buffer, const char *cstring);
+DST_API int dst_buffer_push_u8(DstBuffer *buffer, uint8_t x);
+DST_API int dst_buffer_push_u16(DstBuffer *buffer, uint16_t x);
+DST_API int dst_buffer_push_u32(DstBuffer *buffer, uint32_t x);
+DST_API int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x);
 
 /* Tuple */
 #define dst_tuple_raw(t) ((int32_t *)(t) - 4)
@@ -911,40 +920,40 @@ int dst_buffer_push_u64(DstBuffer *buffer, uint64_t x);
 #define dst_tuple_hash(t) ((dst_tuple_raw(t)[1]))
 #define dst_tuple_sm_line(t) ((dst_tuple_raw(t)[2]))
 #define dst_tuple_sm_col(t) ((dst_tuple_raw(t)[3]))
-Dst *dst_tuple_begin(int32_t length);
-const Dst *dst_tuple_end(Dst *tuple);
-const Dst *dst_tuple_n(const Dst *values, int32_t n);
-int dst_tuple_equal(const Dst *lhs, const Dst *rhs);
-int dst_tuple_compare(const Dst *lhs, const Dst *rhs);
+DST_API Dst *dst_tuple_begin(int32_t length);
+DST_API const Dst *dst_tuple_end(Dst *tuple);
+DST_API const Dst *dst_tuple_n(const Dst *values, int32_t n);
+DST_API int dst_tuple_equal(const Dst *lhs, const Dst *rhs);
+DST_API int dst_tuple_compare(const Dst *lhs, const Dst *rhs);
 
 /* String/Symbol functions */
 #define dst_string_raw(s) ((int32_t *)(s) - 2)
 #define dst_string_length(s) (dst_string_raw(s)[0])
 #define dst_string_hash(s) ((dst_string_raw(s)[1]))
-uint8_t *dst_string_begin(int32_t length);
-const uint8_t *dst_string_end(uint8_t *str);
-const uint8_t *dst_string(const uint8_t *buf, int32_t len);
-const uint8_t *dst_cstring(const char *cstring);
-int dst_string_compare(const uint8_t *lhs, const uint8_t *rhs);
-int dst_string_equal(const uint8_t *lhs, const uint8_t *rhs);
-int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash);
-const uint8_t *dst_string_unique(const uint8_t *buf, int32_t len);
-const uint8_t *dst_cstring_unique(const char *s);
-const uint8_t *dst_description(Dst x);
-const uint8_t *dst_to_string(Dst x);
-void dst_to_string_b(DstBuffer *buffer, Dst x);
-void dst_to_description_b(DstBuffer *buffer, Dst x);
-const char *dst_to_zerostring(Dst x);
+DST_API uint8_t *dst_string_begin(int32_t length);
+DST_API const uint8_t *dst_string_end(uint8_t *str);
+DST_API const uint8_t *dst_string(const uint8_t *buf, int32_t len);
+DST_API const uint8_t *dst_cstring(const char *cstring);
+DST_API int dst_string_compare(const uint8_t *lhs, const uint8_t *rhs);
+DST_API int dst_string_equal(const uint8_t *lhs, const uint8_t *rhs);
+DST_API int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash);
+DST_API const uint8_t *dst_string_unique(const uint8_t *buf, int32_t len);
+DST_API const uint8_t *dst_cstring_unique(const char *s);
+DST_API const uint8_t *dst_description(Dst x);
+DST_API const uint8_t *dst_to_string(Dst x);
+DST_API void dst_to_string_b(DstBuffer *buffer, Dst x);
+DST_API void dst_to_description_b(DstBuffer *buffer, Dst x);
+DST_API const char *dst_to_zerostring(Dst x);
 #define dst_cstringv(cstr) dst_wrap_string(dst_cstring(cstr))
 #define dst_stringv(str, len) dst_wrap_string(dst_string((str), (len)))
-const uint8_t *dst_formatc(const char *format, ...);
-void dst_puts(const uint8_t *str);
+DST_API const uint8_t *dst_formatc(const char *format, ...);
+DST_API void dst_puts(const uint8_t *str);
 
 /* Symbol functions */
-const uint8_t *dst_symbol(const uint8_t *str, int32_t len);
-const uint8_t *dst_symbol_from_string(const uint8_t *str);
-const uint8_t *dst_csymbol(const char *str);
-const uint8_t *dst_symbol_gen(void);
+DST_API const uint8_t *dst_symbol(const uint8_t *str, int32_t len);
+DST_API const uint8_t *dst_symbol_from_string(const uint8_t *str);
+DST_API const uint8_t *dst_csymbol(const char *str);
+DST_API const uint8_t *dst_symbol_gen(void);
 #define dst_symbolv(str, len) dst_wrap_symbol(dst_symbol((str), (len)))
 #define dst_csymbolv(cstr) dst_wrap_symbol(dst_csymbol(cstr))
 
@@ -954,76 +963,76 @@ const uint8_t *dst_symbol_gen(void);
 #define dst_struct_capacity(t) (dst_struct_raw(t)[1])
 #define dst_struct_hash(t) (dst_struct_raw(t)[2])
 /* Do something with the 4th header slot - flags? */
-DstKV *dst_struct_begin(int32_t count);
-void dst_struct_put(DstKV *st, Dst key, Dst value);
-const DstKV *dst_struct_end(DstKV *st);
-Dst dst_struct_get(const DstKV *st, Dst key);
-const DstKV *dst_struct_next(const DstKV *st, const DstKV *kv);
-DstTable *dst_struct_to_table(const DstKV *st);
-int dst_struct_equal(const DstKV *lhs, const DstKV *rhs);
-int dst_struct_compare(const DstKV *lhs, const DstKV *rhs);
-const DstKV *dst_struct_find(const DstKV *st, Dst key);
+DST_API DstKV *dst_struct_begin(int32_t count);
+DST_API void dst_struct_put(DstKV *st, Dst key, Dst value);
+DST_API const DstKV *dst_struct_end(DstKV *st);
+DST_API Dst dst_struct_get(const DstKV *st, Dst key);
+DST_API const DstKV *dst_struct_next(const DstKV *st, const DstKV *kv);
+DST_API DstTable *dst_struct_to_table(const DstKV *st);
+DST_API int dst_struct_equal(const DstKV *lhs, const DstKV *rhs);
+DST_API int dst_struct_compare(const DstKV *lhs, const DstKV *rhs);
+DST_API const DstKV *dst_struct_find(const DstKV *st, Dst key);
 
 /* Table functions */
-DstTable *dst_table(int32_t capacity);
-DstTable *dst_table_init(DstTable *table, int32_t capacity);
-void dst_table_deinit(DstTable *table);
-Dst dst_table_get(DstTable *t, Dst key);
-Dst dst_table_rawget(DstTable *t, Dst key);
-Dst dst_table_remove(DstTable *t, Dst key);
-void dst_table_put(DstTable *t, Dst key, Dst value);
-const DstKV *dst_table_next(DstTable *t, const DstKV *kv);
-const DstKV *dst_table_to_struct(DstTable *t);
-void dst_table_merge_table(DstTable *table, DstTable *other);
-void dst_table_merge_struct(DstTable *table, const DstKV *other);
-DstKV *dst_table_find(DstTable *t, Dst key);
+DST_API DstTable *dst_table(int32_t capacity);
+DST_API DstTable *dst_table_init(DstTable *table, int32_t capacity);
+DST_API void dst_table_deinit(DstTable *table);
+DST_API Dst dst_table_get(DstTable *t, Dst key);
+DST_API Dst dst_table_rawget(DstTable *t, Dst key);
+DST_API Dst dst_table_remove(DstTable *t, Dst key);
+DST_API void dst_table_put(DstTable *t, Dst key, Dst value);
+DST_API const DstKV *dst_table_next(DstTable *t, const DstKV *kv);
+DST_API const DstKV *dst_table_to_struct(DstTable *t);
+DST_API void dst_table_merge_table(DstTable *table, DstTable *other);
+DST_API void dst_table_merge_struct(DstTable *table, const DstKV *other);
+DST_API DstKV *dst_table_find(DstTable *t, Dst key);
 
 /* Fiber */
-DstFiber *dst_fiber(DstFunction *callee, int32_t capacity);
+DST_API DstFiber *dst_fiber(DstFunction *callee, int32_t capacity);
 #define dst_fiber_status(f) (((f)->flags & DST_FIBER_STATUS_MASK) >> DST_FIBER_STATUS_OFFSET)
 
 /* Treat similar types through uniform interfaces for iteration */
-int dst_indexed_view(Dst seq, const Dst **data, int32_t *len);
-int dst_bytes_view(Dst str, const uint8_t **data, int32_t *len);
-int dst_dictionary_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap);
+DST_API int dst_indexed_view(Dst seq, const Dst **data, int32_t *len);
+DST_API int dst_bytes_view(Dst str, const uint8_t **data, int32_t *len);
+DST_API int dst_dictionary_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap);
 
 /* Abstract */
 #define dst_abstract_header(u) ((DstAbstractHeader *)(u) - 1)
 #define dst_abstract_type(u) (dst_abstract_header(u)->type)
 #define dst_abstract_size(u) (dst_abstract_header(u)->size)
-void *dst_abstract(const DstAbstractType *type, size_t size);
+DST_API void *dst_abstract(const DstAbstractType *type, size_t size);
 
 /* Native */
-DstCFunction dst_native(const char *name, const uint8_t **error);
+DST_API DstCFunction dst_native(const char *name, const uint8_t **error);
 
 /* GC */
-void dst_mark(Dst x);
-void dst_sweep(void);
-void dst_collect(void);
-void dst_clear_memory(void);
-void dst_gcroot(Dst root);
-int dst_gcunroot(Dst root);
-int dst_gcunrootall(Dst root);
-int dst_gclock(void);
-void dst_gcunlock(int handle);
+DST_API void dst_mark(Dst x);
+DST_API void dst_sweep(void);
+DST_API void dst_collect(void);
+DST_API void dst_clear_memory(void);
+DST_API void dst_gcroot(Dst root);
+DST_API int dst_gcunroot(Dst root);
+DST_API int dst_gcunrootall(Dst root);
+DST_API int dst_gclock(void);
+DST_API void dst_gcunlock(int handle);
 
 /* Functions */
-DstFuncDef *dst_funcdef_alloc(void);
-DstFunction *dst_thunk(DstFuncDef *def);
-int dst_verify(DstFuncDef *def);
+DST_API DstFuncDef *dst_funcdef_alloc(void);
+DST_API DstFunction *dst_thunk(DstFuncDef *def);
+DST_API int dst_verify(DstFuncDef *def);
 
 /* Misc */
-int dst_equals(Dst x, Dst y);
-int32_t dst_hash(Dst x);
-int dst_compare(Dst x, Dst y);
-int dst_cstrcmp(const uint8_t *str, const char *other);
+DST_API int dst_equals(Dst x, Dst y);
+DST_API int32_t dst_hash(Dst x);
+DST_API int dst_compare(Dst x, Dst y);
+DST_API int dst_cstrcmp(const uint8_t *str, const char *other);
 
 /* VM functions */
-int dst_init(void);
-void dst_deinit(void);
-DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out);
+DST_API int dst_init(void);
+DST_API void dst_deinit(void);
+DST_API DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out);
 #define dst_run(F,O) dst_continue(F, dst_wrap_nil(), O)
-DstSignal dst_call(DstFunction *fun, int32_t argn, const Dst *argv, Dst *out, DstFiber **f);
+DST_API DstSignal dst_call(DstFunction *fun, int32_t argn, const Dst *argv, Dst *out, DstFiber **f);
 
 /* Env helpers */
 typedef enum {
@@ -1032,35 +1041,35 @@ typedef enum {
     DST_BINDING_VAR,
     DST_BINDING_MACRO
 } DstBindingType;
-void dst_env_def(DstTable *env, const char *name, Dst val);
-void dst_env_var(DstTable *env, const char *name, Dst val);
-void dst_env_cfuns(DstTable *env, const DstReg *cfuns);
-DstBindingType dst_env_resolve(DstTable *env, const uint8_t *sym, Dst *out);
-DstTable *dst_env_arg(DstArgs args);
+DST_API void dst_env_def(DstTable *env, const char *name, Dst val);
+DST_API void dst_env_var(DstTable *env, const char *name, Dst val);
+DST_API void dst_env_cfuns(DstTable *env, const DstReg *cfuns);
+DST_API DstBindingType dst_env_resolve(DstTable *env, const uint8_t *sym, Dst *out);
+DST_API DstTable *dst_env_arg(DstArgs args);
 
 /* C Function helpers */
-int dst_arity_err(DstArgs args, int32_t n, const char *prefix);
-int dst_type_err(DstArgs args, int32_t n, DstType expected);
-int dst_typemany_err(DstArgs args, int32_t n, int expected);
-int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
+DST_API int dst_arity_err(DstArgs args, int32_t n, const char *prefix);
+DST_API int dst_type_err(DstArgs args, int32_t n, DstType expected);
+DST_API int dst_typemany_err(DstArgs args, int32_t n, int expected);
+DST_API int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
 
 /* Initialize builtin libraries */
-int dst_lib_io(DstArgs args);
-int dst_lib_math(DstArgs args);
-int dst_lib_array(DstArgs args);
-int dst_lib_tuple(DstArgs args);
-int dst_lib_buffer(DstArgs args);
-int dst_lib_table(DstArgs args);
-int dst_lib_fiber(DstArgs args);
-int dst_lib_os(DstArgs args);
-int dst_lib_string(DstArgs args);
-int dst_lib_marsh(DstArgs args);
-int dst_lib_parse(DstArgs args);
-int dst_lib_asm(DstArgs args);
-int dst_lib_compile(DstArgs args);
+DST_API int dst_lib_io(DstArgs args);
+DST_API int dst_lib_math(DstArgs args);
+DST_API int dst_lib_array(DstArgs args);
+DST_API int dst_lib_tuple(DstArgs args);
+DST_API int dst_lib_buffer(DstArgs args);
+DST_API int dst_lib_table(DstArgs args);
+DST_API int dst_lib_fiber(DstArgs args);
+DST_API int dst_lib_os(DstArgs args);
+DST_API int dst_lib_string(DstArgs args);
+DST_API int dst_lib_marsh(DstArgs args);
+DST_API int dst_lib_parse(DstArgs args);
+DST_API int dst_lib_asm(DstArgs args);
+DST_API int dst_lib_compile(DstArgs args);
 
 /* Helpers for writing modules */
-#define DST_MODULE_ENTRY int _dst_init
+#define DST_MODULE_ENTRY DST_API int _dst_init
 
 /***** END SECTION MAIN *****/
 

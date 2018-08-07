@@ -1138,8 +1138,8 @@
       "./?/init.dst"
       "./dst_modules/?.dst"
       "./dst_modules/?/init.dst"
-      (string syspath VERSION "/?.dst")
-      (string syspath VERSION "/?/init.dst")
+      (string syspath dst.version "/?.dst")
+      (string syspath dst.version "/?/init.dst")
       (string syspath "/?.dst")
       (string syspath "/?/init.dst")])
   (defglobal 'module.native-paths
@@ -1147,10 +1147,18 @@
       "./?/??.so"
       "./dst_modules/?.so"
       "./dst_modules/?/??.so"
-      (string syspath VERSION "/?.so")
-      (string syspath VERSION "/?/??.so")
+      (string syspath dst.version "/?.so")
+      (string syspath dst.version "/?/??.so")
       (string syspath "/?.so")
       (string syspath "/?/??.so")]))
+      
+(if (= :windows (os.which))
+   (loop [i :range [0 (length module.native-paths)]]
+     (def x (get module.native-paths i))
+     (put
+       module.native-paths
+       i
+       (string.replace ".so" ".dll" x))))
 
 (defn module.find
   [path paths]

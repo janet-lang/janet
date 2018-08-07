@@ -23,7 +23,7 @@
   -- Stop handling options`)
            (os.exit 0)
            1)
-     "v" (fn @[] (print VERSION) (os.exit 0) 1)
+     "v" (fn @[] (print dst.version) (os.exit 0) 1)
      "s" (fn @[] (:= *raw-stdin* true) (:= *should-repl* true) 1)
      "r" (fn @[] (:= *should-repl* true) 1)
      "p" (fn @[] (:= *exit-on-error* false) 1)
@@ -53,7 +53,7 @@
     (if *raw-stdin*
       (repl nil identity)
       (do
-        (print (string "Dst " VERSION "  Copyright (C) 2017-2018 Calvin Rose"))
+        (print (string "Dst " dst.version "  Copyright (C) 2017-2018 Calvin Rose"))
         (repl (fn [buf p]
                 (def [line] (parser.where p))
                 (def prompt (string "dst:" line ":" (parser.state p) "> "))
