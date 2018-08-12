@@ -210,4 +210,28 @@
 (assert (= 3 ((get closures 3))) "closure in loop 3")
 (assert (= 4 ((get closures 4))) "closure in loop 4")
 
+# More numerical tests
+(assert (== 1 1.0) "numerical equal 1")
+(assert (== 0 0.0) "numerical equal 2")
+(assert (== 0 -0.0) "numerical equal 3")
+(assert (== 2_147_483_647 2_147_483_647.0) "numerical equal 4")
+(assert (== -2_147_483_648 -2_147_483_648.0) "numerical equal 5")
+
+# Array tests
+
+(defn array=
+  "Check if two arrays are equal in an element by element comparison"
+  [a b]
+  (if (and (array? a) (array? b))
+    (= (apply1 tuple a) (apply1 tuple b))))
+(assert (= (apply1 tuple @[1 2 3 4 5]) (tuple 1 2 3 4 5)) "array to tuple")
+(def arr (array))
+(array.push arr :hello)
+(array.push arr :world)
+(assert (array= arr @[:hello :world]) "array comparision")
+(assert (array= @[1 2 3 4 5] @[1 2 3 4 5]) "array comparison 2")
+(assert (array= @[:one :two :three :four :five] @[:one :two :three :four :five]) "array comparison 3")
+(assert (array= (array.slice @[1 2 3] 0 2) @[1 2]) "array.slice 1")
+(assert (array= (array.slice @[0 7 3 9 1 4] 2 -2) @[3 9 1]) "array.slice 2")
+
 (end-suite)
