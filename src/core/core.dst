@@ -1080,7 +1080,7 @@
   env)
 
 (defn default-error-handler
-  [source t x f]
+  @[source t x f]
   (file.write stdout (string t " error in " source ": "))
   (if (bytes? x)
     (do (file.write stdout x)
