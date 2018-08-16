@@ -102,22 +102,8 @@ make test
 1. Install [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=15#)
 or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15#)
 2. Run a Visual Studio Command Prompt (cl.exe and link.exe need to be on the PATH) and cd to the directory with dst.
-3. Run `build` to compile dst.
-4. Run `build test` to make sure everything is working.
-
-```sh
-cd somewhere/my/projects/dst
-mkdir -p build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
-make test
-```
-
-The repl can also be run with the CMake run target.
-```sh
-make run
-```
+3. Run `build_win` to compile dst.
+4. Run `build_win test` to make sure everything is working.
 
 ## Examples
 
