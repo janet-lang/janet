@@ -92,7 +92,8 @@ void dst_struct_put(DstKV *st, Dst key, Dst value) {
          * is closer to their source than current. We use robinhood
          * hashing to ensure that equivalent structs that are contsructed
          * with different order have the same internal layout, and therefor
-         * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}. */
+         * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}. 
+         * Collisions are resolved via an insertion sort insertion. */
         otherhash = dst_hash(kv->key);
         otherindex = dst_struct_maphash(cap, otherhash);
         otherdist = (i + cap - otherindex) & (cap - 1);
@@ -155,11 +156,7 @@ const DstKV *dst_struct_end(DstKV *st) {
 /* Get an item from a struct */
 Dst dst_struct_get(const DstKV *st, Dst key) {
     const DstKV *kv = dst_struct_find(st, key);
-    if (NULL == kv) {
-        return dst_wrap_nil();
-    } else {
-        return kv->value;
-    }
+    return kv ? kv->value : dst_wrap_nil();
 }
 
 /* Get the next key in a struct */
