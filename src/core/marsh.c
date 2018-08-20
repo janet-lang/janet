@@ -203,7 +203,7 @@ static void marshal_one(MarshalState *st, Dst x, int flags) {
     /* Check reference */
     {
         Dst check = dst_table_get(&st->seen, x);
-        if (!dst_checktype(check, DST_NIL)) {
+        if (dst_checktype(check, DST_INTEGER)) {
             pushbyte(st, LB_REFERENCE);
             pushint(st, dst_unwrap_integer(check));
             return;
@@ -548,14 +548,14 @@ static const uint8_t *unmarshal_one_def(
         for (int32_t i = 0; i < def->bytecode_length; i++) {
             if (data + 4 > st->end) longjmp(st->err, UMR_EOS);
             def->bytecode[i] = 
-                data[0] |
-                (data[1] << 8) |
-                (data[2] << 16) |
-                (data[3] << 24);
+                (uint32_t)(data[0]) |
+                ((uint32_t)(data[1]) << 8) |
+                ((uint32_t)(data[2]) << 16) |
+                ((uint32_t)(data[3]) << 24);
         }
         
         /* Unmarshal environments */
-        if (def->environments_length) {
+        if (def->flags & DST_FUNCDEF_FLAG_HASENVS) {
             def->environments = malloc(sizeof(int32_t) * def->environments_length);
             if (!def->environments) {
                 DST_OUT_OF_MEMORY;
@@ -568,7 +568,7 @@ static const uint8_t *unmarshal_one_def(
         }
         
         /* Unmarshal sub funcdefs */
-        if (def->defs_length) {
+        if (def->flags & DST_FUNCDEF_FLAG_HASDEFS) {
             def->defs = malloc(sizeof(DstFuncDef *) * def->defs_length);
             if (!def->defs) {
                 DST_OUT_OF_MEMORY;
@@ -665,6 +665,7 @@ static const uint8_t *unmarshal_one(
         case LB_BUFFER:
         case LB_REGISTRY:
             {
+                data++;
                 int32_t len = readint(st, &data);
                 EXTRA(len);
                 if (lead == LB_STRING) {
@@ -707,6 +708,7 @@ static const uint8_t *unmarshal_one(
         case LB_TABLE_PROTO:
             /* Things that open with integers */
             {
+                data++;
                 int32_t len = readint(st, &data);
                 if (lead == LB_ARRAY) {
                     /* Array */
