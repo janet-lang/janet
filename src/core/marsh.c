@@ -23,10 +23,16 @@
 #include <dst/dst.h>
 #include <setjmp.h>
 
+#include "state.h"
+#include "vector.h"
+#include "gc.h"
+
 typedef struct {
     jmp_buf err;
     DstBuffer *buf;
     DstTable seen;
+    DstFuncEnv **seen_envs;
+    DstFuncDef **seen_defs;
     int32_t nextid;
 } MarshalState;
 
@@ -34,6 +40,7 @@ enum {
     MR_OK,
     MR_STACKOVERFLOW,
     MR_NYI,
+    MR_NRV,
     MR_OVERFLOW
 } MarshalResult;
 
@@ -41,6 +48,7 @@ const char *mr_strings[] = {
     "",
     "stack overflow",
     "type NYI",
+    "no registry value",
     "buffer overflow"
 };
 
@@ -61,15 +69,17 @@ enum {
     LB_STRUCT,
     LB_BUFFER,
     LB_FUNCTION,
-    LB_CFUNCTION,
+    LB_REGISTRY,
     LB_ABSTRACT,
-    LB_REFERENCE
+    LB_REFERENCE,
+    LB_FUNCENV_REF,
+    LB_FUNCDEF_REF
 } LeadBytes;
 
 /* Marshal an integer onto the buffer */
-static int pushint(DstBuffer *b, int32_t x) {
+static void pushint(MarshalState *st, int32_t x) {
     if (x >= 0 && x < 200) {
-        return dst_buffer_push_u8(b, x);
+        if (dst_buffer_push_u8(st->buf, x)) longjmp(st->err, MR_OVERFLOW);
     } else {
         uint8_t intbuf[5];
         intbuf[0] = LB_INTEGER;
@@ -77,27 +87,100 @@ static int pushint(DstBuffer *b, int32_t x) {
         intbuf[2] = (x >> 8) & 0xFF;
         intbuf[3] = (x >> 16) & 0xFF;
         intbuf[4] = (x >> 24) & 0xFF;
-        return dst_buffer_push_bytes(b, intbuf, 5);
+        if (dst_buffer_push_bytes(st->buf, intbuf, 5)) longjmp(st->err, MR_OVERFLOW);
     }
 }
 
+static void pushbyte(MarshalState *st, uint8_t b) {
+    if (dst_buffer_push_u8(st->buf, b)) longjmp(st->err, MR_OVERFLOW);
+}
+
+static void pushbytes(MarshalState *st, const uint8_t *bytes, int32_t len) {
+    if (dst_buffer_push_bytes(st->buf, bytes, len)) longjmp(st->err, MR_OVERFLOW);
+}
+
 /* Forward declaration to enable mutual recursion. */
-static void marshal1(MarshalState *st, Dst x, int flags);
+static void marshal_one(MarshalState *st, Dst x, int flags);
 
-/* Marshal a function environment */
-/*static void marshal1_env(MarshalState *st, DstFuncEnv *env, int flags) {*/
+/* Marshal a function env */
+static void marshal_one_env(MarshalState *st, DstFuncEnv *env, int flags) {
+    for (int32_t i = 0; i < dst_v_count(st->seen_envs); i++) {
+        if (st->seen_envs[i] == env) {
+            pushbyte(st, LB_FUNCENV_REF);
+            pushint(st, i);
+            return;
+        }
+    }
+    dst_v_push(st->seen_envs, env);
+    pushint(st, env->offset);
+    pushint(st, env->length);
+    if (env->offset >= 0) {
+        /* On stack variant */
+        marshal_one(st, dst_wrap_fiber(env->as.fiber), flags);
+    } else {
+        /* Off stack variant */
+        for (int32_t i = 0; i < env->length; i++)
+            marshal_one(st, env->as.values[i], flags);
+    }
+}
 
-/*}*/
+/* Marshal a function def */
+static void marshal_one_def(MarshalState *st, DstFuncDef *def, int flags) {
+    for (int32_t i = 0; i < dst_v_count(st->seen_defs); i++) {
+        if (st->seen_defs[i] == def) {
+            pushbyte(st, LB_FUNCDEF_REF);
+            pushint(st, i);
+            return;
+        }
+    }
+    dst_v_push(st->seen_defs, def);
+    pushint(st, def->flags);
+    pushint(st, def->slotcount);
+    pushint(st, def->arity);
+    pushint(st, def->constants_length);
+    pushint(st, def->bytecode_length);
+    if (def->flags & DST_FUNCDEF_FLAG_HASENVS)
+        pushint(st, def->environments_length);
+    if (def->flags & DST_FUNCDEF_FLAG_HASDEFS)
+        pushint(st, def->defs_length);
+    if (def->flags & DST_FUNCDEF_FLAG_HASNAME)
+        marshal_one(st, dst_wrap_string(def->name), flags);
+    if (def->flags & DST_FUNCDEF_FLAG_HASSOURCE)
+        marshal_one(st, dst_wrap_string(def->source), flags);
+        
+    /* marshal constants */
+    for (int32_t i = 0; i < def->constants_length; i++)
+        marshal_one(st, def->constants[i], flags);
+        
+    /* marshal the bytecode */
+    for (int32_t i = 0; i < def->bytecode_length; i++) {
+        pushbyte(st, def->bytecode[i] & 0xFF);
+        pushbyte(st, (def->bytecode[i] >> 8) & 0xFF);
+        pushbyte(st, (def->bytecode[i] >> 16) & 0xFF);
+        pushbyte(st, (def->bytecode[i] >> 24) & 0xFF);
+    }
+    
+    /* marshal the environments if needed */
+    for (int32_t i = 0; i < def->environments_length; i++)
+       pushint(st, def->environments[i]);
+       
+    /* marshal the sub funcdefs if needed */
+    for (int32_t i = 0; i < def->defs_length; i++)
+        marshal_one_def(st, def->defs[i], flags);
 
-/* Marshal a function definition. */
-/*static void marshal1_def(MarshalState *st, DstFuncDef *def, int flags) {*/
-
-/*}*/
+    /* marshal source maps if needed */
+    if (def->flags & DST_FUNCDEF_FLAG_HASSOURCEMAP) {
+        for (int32_t i = 0; i < def->bytecode_length; i++) {
+            DstSourceMapping map = def->sourcemap[i];
+            pushint(st, map.line);
+            pushint(st, map.column);
+        }
+    }
+}
 
 /* The main body of the marshaling function. Is the main
  * entry point for the mutually recursive functions. */
-static void marshal1(MarshalState *st, Dst x, int flags) {
-    DstBuffer *b = st->buf;
+static void marshal_one(MarshalState *st, Dst x, int flags) {
     DstType type = dst_type(x);
     if ((flags & 0xFFFF) > DST_RECURSION_GUARD) {
         longjmp(st->err, MR_STACKOVERFLOW);
@@ -110,14 +193,10 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
         case DST_NIL:
         case DST_FALSE:
         case DST_TRUE:
-            {
-                if (dst_buffer_push_u8(b, 200 + type)) goto overflow;
-            }
+            pushbyte(st, 200 + type);
             return;
         case DST_INTEGER:
-            {
-                if (pushint(b, dst_unwrap_integer(x))) goto overflow;
-            }
+            pushint(st, dst_unwrap_integer(x));
             return;
     }
 
@@ -125,8 +204,8 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
     {
         Dst check = dst_table_get(&st->seen, x);
         if (!dst_checktype(check, DST_NIL)) {
-            if (dst_buffer_push_u8(b, LB_REFERENCE)) goto overflow;
-            if (pushint(b, dst_unwrap_integer(check))) goto overflow;
+            pushbyte(st, LB_REFERENCE);
+            pushint(st, dst_unwrap_integer(check));
             return;
         }
     }
@@ -151,8 +230,8 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
                 temp = u.bytes[5]; u.bytes[5] = u.bytes[2]; u.bytes[2] = temp;
                 temp = u.bytes[4]; u.bytes[4] = u.bytes[3]; u.bytes[3] = temp;
 #endif
-                if (dst_buffer_push_u8(b, LB_REAL)) goto overflow;
-                if (dst_buffer_push_bytes(b, u.bytes, 8)) goto overflow;
+                pushbyte(st, LB_REAL);
+                pushbytes(st, u.bytes, 8);
                 MARK_SEEN();
             }
             return;
@@ -164,9 +243,9 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
                 /* Record reference */
                 MARK_SEEN();
                 uint8_t lb = (type == DST_STRING) ? LB_STRING : LB_SYMBOL;
-                if (dst_buffer_push_u8(b, lb)) goto overflow;
-                if (pushint(b, length)) goto overflow;
-                if (dst_buffer_push_bytes(b, str, length)) goto overflow;
+                pushbyte(st, lb);
+                pushint(st, length);
+                pushbytes(st, str, length);
             }
             return;
         case DST_BUFFER:
@@ -174,9 +253,9 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
                 DstBuffer *buffer = dst_unwrap_buffer(x);
                 /* Record reference */
                 MARK_SEEN();
-                if (dst_buffer_push_u8(b, LB_BUFFER)) goto overflow;
-                if (pushint(b, buffer->count)) goto overflow;
-                if (dst_buffer_push_bytes(b, buffer->data, buffer->count)) goto overflow;
+                pushbyte(st, LB_BUFFER);
+                pushint(st, buffer->count);
+                pushbytes(st, buffer->data, buffer->count);
             }
             return;
         case DST_ARRAY:
@@ -184,11 +263,10 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
                 int32_t i;
                 DstArray *a = dst_unwrap_array(x);
                 MARK_SEEN();
-                if (dst_buffer_push_u8(b, LB_ARRAY)) goto overflow;
-                if (pushint(b, a->count)) goto overflow;
-                for (i = 0; i < a->count; i++) {
-                    marshal1(st, a->data[i], flags + 1);
-                }
+                pushbyte(st, LB_ARRAY);
+                pushint(st, a->count);
+                for (i = 0; i < a->count; i++)
+                    marshal_one(st, a->data[i], flags + 1);
             }
             return;
         case DST_TUPLE:
@@ -196,11 +274,10 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
                 int32_t i, count;
                 const Dst *tup = dst_unwrap_tuple(x);
                 count = dst_tuple_length(tup);
-                if (dst_buffer_push_u8(b, LB_TUPLE)) goto overflow;
-                if (pushint(b, count)) goto overflow;
-                for (i = 0; i < count; i++) {
-                    marshal1(st, tup[i], flags + 1);
-                }
+                pushbyte(st, LB_TUPLE);
+                pushint(st, count);
+                for (i = 0; i < count; i++)
+                    marshal_one(st, tup[i], flags + 1);
                 /* Mark as seen AFTER marshaling */
                 MARK_SEEN();
             }
@@ -210,15 +287,13 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
                 const DstKV *kv = NULL;
                 DstTable *t = dst_unwrap_table(x);
                 MARK_SEEN();
-                if (dst_buffer_push_u8(b, t->proto ? LB_TABLE_PROTO : LB_TABLE)) 
-                    goto overflow;
-                if (pushint(b, t->count)) goto overflow;
-                if (t->proto) {
-                    marshal1(st, dst_wrap_table(t->proto), flags + 1);
-                }
+                pushbyte(st, t->proto ? LB_TABLE_PROTO : LB_TABLE);
+                pushint(st, t->count);
+                if (t->proto)
+                    marshal_one(st, dst_wrap_table(t->proto), flags + 1);
                 while ((kv = dst_table_next(t, kv))) {
-                    marshal1(st, kv->key, flags + 1);
-                    marshal1(st, kv->value, flags + 1);
+                    marshal_one(st, kv->key, flags + 1);
+                    marshal_one(st, kv->value, flags + 1);
                 }
             }
             return;
@@ -228,20 +303,42 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
                 const DstKV *kv = NULL;
                 const DstKV *struct_ = dst_unwrap_struct(x);
                 count = dst_struct_length(struct_);
-                if (dst_buffer_push_u8(b, LB_STRUCT)) goto overflow;
-                if (pushint(b, count)) goto overflow;
+                pushbyte(st, LB_STRUCT);
+                pushint(st, count);
                 while ((kv = dst_struct_next(struct_, kv))) {
-                    marshal1(st, kv->key, flags + 1);
-                    marshal1(st, kv->value, flags + 1);
+                    marshal_one(st, kv->key, flags + 1);
+                    marshal_one(st, kv->value, flags + 1);
                 }
                 /* Mark as seen AFTER marshaling */
                 MARK_SEEN();
             }
             return;
-        case DST_FIBER:
         case DST_ABSTRACT:
-        case DST_FUNCTION:
         case DST_CFUNCTION:
+            {
+                MARK_SEEN();
+                Dst regval = dst_table_get(dst_vm_registry, x);
+                if (dst_checktype(regval, DST_NIL)) {
+                    goto noregval;
+                }
+                const uint8_t *regname = dst_to_string(regval);
+                pushbyte(st, LB_REGISTRY);
+                pushint(st, dst_string_length(regname));
+                pushbytes(st, regname, dst_string_length(regname));
+            }
+            return;
+        case DST_FUNCTION:
+            {
+                pushbyte(st, LB_FUNCTION);
+                DstFunction *func = dst_unwrap_function(x);
+                marshal_one_def(st, func->def, flags);
+                /* Mark seen after reading def, but before envs */
+                MARK_SEEN();
+                for (int32_t i = 0; i < func->def->environments_length; i++)
+                    marshal_one_env(st, func->envs[i], flags);
+            }
+            return;
+        case DST_FIBER:
         default:
             goto nyi;
     }
@@ -252,9 +349,9 @@ static void marshal1(MarshalState *st, Dst x, int flags) {
 
 nyi:
     longjmp(st->err, MR_NYI);
-
-overflow:
-    longjmp(st->err, MR_OVERFLOW);
+    
+noregval:
+    longjmp(st->err, MR_NRV);
 }
 
 int dst_marshal(DstBuffer *buf, Dst x, int flags) {
@@ -262,9 +359,11 @@ int dst_marshal(DstBuffer *buf, Dst x, int flags) {
     MarshalState st; 
     st.buf = buf;
     st.nextid = 0;
+    st.seen_defs = NULL;
+    st.seen_envs = NULL;
     dst_table_init(&st.seen, 0);
     if (!(status = setjmp(st.err)))
-        marshal1(&st, x, flags);
+        marshal_one(&st, x, flags);
     dst_table_deinit(&st.seen);
     return status;
 }
@@ -272,6 +371,8 @@ int dst_marshal(DstBuffer *buf, Dst x, int flags) {
 typedef struct {
     jmp_buf err;
     DstArray lookup;
+    DstFuncEnv **lookup_envs;
+    DstFuncDef **lookup_defs;
     const uint8_t *end;
 } UnmarshalState;
 
@@ -282,7 +383,10 @@ enum {
     UMR_UNKNOWN,
     UMR_EXPECTED_INTEGER,
     UMR_EXPECTED_TABLE,
-    UMR_INVALID_REFERENCE
+    UMR_EXPECTED_FIBER,
+    UMR_EXPECTED_STRING,
+    UMR_INVALID_REFERENCE,
+    UMR_INVALID_BYTECODE
 } UnmarshalResult;
 
 const char *umr_strings[] = {
@@ -292,10 +396,211 @@ const char *umr_strings[] = {
     "unknown byte",
     "expected integer",
     "expected table",
-    "invalid reference"
+    "expected fiber",
+    "expected string",
+    "invalid reference",
+    "invalid bytecode"
 };
 
-static const uint8_t *unmarshal1(
+/* Helper to read a 32 bit integer from an unmarshal state */
+static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
+    const uint8_t *data = *atdata;
+    int32_t ret;
+    if (data >= st->end) longjmp(st->err, UMR_EOS);
+    if (*data < 200) {
+        ret = *data++;
+    } else if (*data == LB_INTEGER) {
+        if (data + 5 > st->end) longjmp(st->err, UMR_EOS);
+        ret = (data[1]) |
+            (data[2] << 8) |
+            (data[3] << 16) |
+            (data[4] << 24);
+        data += 5;
+    } else {
+        longjmp(st->err, UMR_EXPECTED_INTEGER);
+    }
+    *atdata = data;
+    return ret;
+}
+
+static uint8_t readbyte(UnmarshalState *st, const uint8_t **atdata) {
+    const uint8_t *data = *atdata;
+    if (data >= st->end) longjmp(st->err, UMR_EOS);
+    uint8_t ret = *data++;
+    *atdata = data;
+    return ret;
+}
+
+static void readbytes(UnmarshalState *st, const uint8_t **atdata, uint8_t *into, int32_t n) {
+    const uint8_t *data = *atdata;
+    if (data + n>= st->end) longjmp(st->err, UMR_EOS);
+    memcpy(into, data, n);
+    *atdata = data + n;
+}
+
+/* Forward declaration */
+static const uint8_t *unmarshal_one(
+        UnmarshalState *st,
+        const uint8_t *data,
+        Dst *out,
+        int flags);
+
+/* Unmarshal a funcenv */
+static const uint8_t *unmarshal_one_env(
+        UnmarshalState *st,
+        const uint8_t *data,
+        DstFuncEnv **out,
+        int flags) {
+    const uint8_t *end = st->end;
+    if (data >= end) longjmp(st->err, UMR_EOS);
+    if (*data == LB_FUNCENV_REF) {
+        int32_t index = readint(st, &data);
+        if (index < 0 || index >= dst_v_count(st->lookup_envs))
+            longjmp(st->err, UMR_INVALID_REFERENCE);
+        *out = st->lookup_envs[index];
+    } else {
+        DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
+        dst_v_push(st->lookup_envs, env);
+        env->offset = readint(st, &data);
+        env->length = readint(st, &data);
+        if (env->offset >= 0) {
+            /* On stack variant */
+            Dst fiberv;
+            data = unmarshal_one(st, data, &fiberv, flags);
+            if (!dst_checktype(fiberv, DST_FIBER)) longjmp(st->err, UMR_EXPECTED_FIBER);
+            env->as.fiber = dst_unwrap_fiber(fiberv);
+        } else {
+            /* Off stack variant */
+            env->as.values = malloc(sizeof(Dst) * env->length);
+            if (!env->as.values) {
+                DST_OUT_OF_MEMORY;
+            }
+            for (int32_t i = 0; i < env->length; i++) {
+                data = unmarshal_one(st, data, env->as.values + i, flags);
+            }
+        }
+    }
+    return data;
+}
+
+/* Unmarshal a funcdef */
+static const uint8_t *unmarshal_one_def(
+        UnmarshalState *st,
+        const uint8_t *data,
+        DstFuncDef **out,
+        int flags) {
+    const uint8_t *end = st->end;
+    if (data >= end) longjmp(st->err, UMR_EOS);
+    if (*data == LB_FUNCDEF_REF) {
+        int32_t index = readint(st, &data);
+        if (index < 0 || index >= dst_v_count(st->lookup_defs))
+            longjmp(st->err, UMR_INVALID_REFERENCE);
+        *out = st->lookup_defs[index];
+    } else {
+        DstFuncDef *def = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
+        dst_v_push(st->lookup_defs, def);
+        
+        /* Read flags and other fixed values */
+        def->flags = readint(st, &data);
+        def->slotcount = readint(st, &data);
+        def->arity = readint(st, &data);
+        def->constants_length = readint(st, &data);
+        def->bytecode_length = readint(st, &data);
+        
+        def->environments_length = 0;
+        def->defs_length = 0;
+        def->name = NULL;
+        def->source = NULL;
+        if (def->flags & DST_FUNCDEF_FLAG_HASENVS)
+            def->environments_length = readint(st, &data);
+        if (def->flags & DST_FUNCDEF_FLAG_HASDEFS)
+            def->defs_length = readint(st, &data);
+        if (def->flags & DST_FUNCDEF_FLAG_HASNAME) {
+            Dst x;
+            data = unmarshal_one(st, data, &x, flags + 1);
+            if (!dst_checktype(x, DST_STRING)) longjmp(st->err, UMR_EXPECTED_STRING);
+            def->name = dst_unwrap_string(x);
+        }
+        if (def->flags & DST_FUNCDEF_FLAG_HASSOURCE) {
+            Dst x;
+            data = unmarshal_one(st, data, &x, flags + 1);
+            if (!dst_checktype(x, DST_STRING)) longjmp(st->err, UMR_EXPECTED_STRING);
+            def->source = dst_unwrap_string(x);
+        }
+        
+        /* Unmarshal constants */
+        if (def->constants_length) {
+            def->constants = malloc(sizeof(Dst) * def->constants_length);
+            if (!def->constants) {
+                DST_OUT_OF_MEMORY;
+            }
+            for (int32_t i = 0; i < def->constants_length; i++)
+                data = unmarshal_one(st, data, def->constants + i, flags + 1);
+        } else {
+            def->constants = NULL;
+        }
+        
+        /* Unmarshal bytecode */
+        def->bytecode = malloc(sizeof(uint32_t) * def->bytecode_length);
+        if (!def->bytecode) {
+            DST_OUT_OF_MEMORY;
+        }
+        for (int32_t i = 0; i < def->bytecode_length; i++) {
+            if (data + 4 > st->end) longjmp(st->err, UMR_EOS);
+            def->bytecode[i] = 
+                data[0] |
+                (data[1] << 8) |
+                (data[2] << 16) |
+                (data[3] << 24);
+        }
+        
+        /* Unmarshal environments */
+        if (def->environments_length) {
+            def->environments = malloc(sizeof(int32_t) * def->environments_length);
+            if (!def->environments) {
+                DST_OUT_OF_MEMORY;
+            }
+            for (int32_t i = 0; i < def->environments_length; i++) {
+                def->environments[i] = readint(st, &data);
+            }
+        } else {
+            def->environments = NULL;
+        }
+        
+        /* Unmarshal sub funcdefs */
+        if (def->defs_length) {
+            def->defs = malloc(sizeof(DstFuncDef *) * def->defs_length);
+            if (!def->defs) {
+                DST_OUT_OF_MEMORY;
+            }
+            for (int32_t i = 0; i < def->defs_length; i++) {
+                data = unmarshal_one_def(st, data, def->defs + i, flags + 1); 
+            }
+        } else {
+            def->defs = NULL;
+        }
+        
+        /* Unmarshal source maps if needed */
+        if (def->flags & DST_FUNCDEF_FLAG_HASSOURCEMAP) {
+            def->sourcemap = malloc(sizeof(DstSourceMapping) * def->bytecode_length);
+            if (!def->sourcemap) {
+                DST_OUT_OF_MEMORY;
+            }
+            for (int32_t i = 0; i < def->bytecode_length; i++) {
+                def->sourcemap[i].line = readint(st, &data);
+                def->sourcemap[i].column = readint(st, &data);
+            }
+        } else {
+            def->sourcemap = NULL;
+        } 
+        
+        /* Validate */
+        if (dst_verify(def)) longjmp(st->err, UMR_INVALID_BYTECODE);
+    }
+    return data;
+}
+
+static const uint8_t *unmarshal_one(
         UnmarshalState *st,
         const uint8_t *data,
         Dst *out,
@@ -358,12 +663,9 @@ static const uint8_t *unmarshal1(
         case LB_STRING:
         case LB_SYMBOL:
         case LB_BUFFER:
+        case LB_REGISTRY:
             {
-                Dst lenv;
-                int32_t len;
-                data = unmarshal1(st, data + 1, &lenv, flags + 1);
-                if (!dst_checktype(lenv, DST_INTEGER)) longjmp(st->err, UMR_EXPECTED_INTEGER);
-                len = dst_unwrap_integer(lenv);
+                int32_t len = readint(st, &data);
                 EXTRA(len);
                 if (lead == LB_STRING) {
                     const uint8_t *str = dst_string(data, len);
@@ -371,6 +673,9 @@ static const uint8_t *unmarshal1(
                 } else if (lead == LB_SYMBOL) {
                     const uint8_t *str = dst_symbol(data, len);
                     *out = dst_wrap_symbol(str);
+                } else if (lead == LB_REGISTRY) {
+                    Dst regkey = dst_symbolv(data, len);
+                    *out = dst_table_get(dst_vm_registry, regkey);
                 } else { /* (lead == LB_BUFFER) */
                     DstBuffer *buffer = dst_buffer(len);
                     buffer->count = len;
@@ -380,6 +685,20 @@ static const uint8_t *unmarshal1(
                 dst_array_push(&st->lookup, *out);
                 return data + len;
             }
+        case LB_FUNCTION:
+            {
+                DstFunction *func;
+                DstFuncDef *def;
+                data = unmarshal_one_def(st, data + 1, &def, flags + 1);
+                func = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction) +
+                    def->environments_length * sizeof(DstFuncEnv));
+                *out = dst_wrap_function(func);
+                dst_array_push(&st->lookup, *out);
+                for (int32_t i = 0; i < def->environments_length; i++) {
+                    data = unmarshal_one_env(st, data, func->envs + i, flags + 1);
+                }
+                return data;
+            }
         case LB_REFERENCE:
         case LB_ARRAY:
         case LB_TUPLE:
@@ -388,35 +707,31 @@ static const uint8_t *unmarshal1(
         case LB_TABLE_PROTO:
             /* Things that open with integers */
             {
-                Dst lenv;
-                int32_t len, i;
-                data = unmarshal1(st, data + 1, &lenv, flags + 1);
-                if (!dst_checktype(lenv, DST_INTEGER)) longjmp(st->err, UMR_EXPECTED_INTEGER);
-                len = dst_unwrap_integer(lenv);
+                int32_t len = readint(st, &data);
                 if (lead == LB_ARRAY) {
                     /* Array */
                     DstArray *array = dst_array(len);
                     array->count = len;
                     *out = dst_wrap_array(array);
                     dst_array_push(&st->lookup, *out);
-                    for (i = 0; i < len; i++) {
-                        data = unmarshal1(st, data, array->data + i, flags + 1);
+                    for (int32_t i = 0; i < len; i++) {
+                        data = unmarshal_one(st, data, array->data + i, flags + 1);
                     }
                 } else if (lead == LB_TUPLE) {
                     /* Tuple */
                     Dst *tup = dst_tuple_begin(len);
-                    for (i = 0; i < len; i++) {
-                        data = unmarshal1(st, data, tup + i, flags + 1);
+                    for (int32_t i = 0; i < len; i++) {
+                        data = unmarshal_one(st, data, tup + i, flags + 1);
                     }
                     *out = dst_wrap_tuple(dst_tuple_end(tup));
                     dst_array_push(&st->lookup, *out);
                 } else if (lead == LB_STRUCT) {
                     /* Struct */
                     DstKV *struct_ = dst_struct_begin(len);
-                    for (i = 0; i < len; i++) {
+                    for (int32_t i = 0; i < len; i++) {
                         Dst key, value;
-                        data = unmarshal1(st, data, &key, flags + 1);
-                        data = unmarshal1(st, data, &value, flags + 1);
+                        data = unmarshal_one(st, data, &key, flags + 1);
+                        data = unmarshal_one(st, data, &value, flags + 1);
                         dst_struct_put(struct_, key, value);
                     }
                     *out = dst_wrap_struct(dst_struct_end(struct_));
@@ -432,14 +747,14 @@ static const uint8_t *unmarshal1(
                     dst_array_push(&st->lookup, *out);
                     if (lead == LB_TABLE_PROTO) {
                         Dst proto;
-                        data = unmarshal1(st, data, &proto, flags + 1);
+                        data = unmarshal_one(st, data, &proto, flags + 1);
                         if (!dst_checktype(proto, DST_TABLE)) longjmp(st->err, UMR_EXPECTED_TABLE);
                         t->proto = dst_unwrap_table(proto);
                     }
-                    for (i = 0; i < len; i++) {
+                    for (int32_t i = 0; i < len; i++) {
                         Dst key, value;
-                        data = unmarshal1(st, data, &key, flags + 1);
-                        data = unmarshal1(st, data, &value, flags + 1);
+                        data = unmarshal_one(st, data, &key, flags + 1);
+                        data = unmarshal_one(st, data, &value, flags + 1);
                         dst_table_put(t, key, value);
                     }
                 }
@@ -462,9 +777,11 @@ int dst_unmarshal(
     /* Avoid longjmp clobber warning in GCC */
     UnmarshalState st; 
     st.end = bytes + len;
+    st.lookup_defs = NULL;
+    st.lookup_envs = NULL;
     dst_array_init(&st.lookup, 0);
     if (!(status = setjmp(st.err))) {
-        const uint8_t *nextbytes = unmarshal1(&st, bytes, out, flags);
+        const uint8_t *nextbytes = unmarshal_one(&st, bytes, out, flags);
         if (next) *next = nextbytes;
     }
     dst_array_deinit(&st.lookup);

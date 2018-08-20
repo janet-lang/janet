@@ -23,6 +23,7 @@
 #include <dst/dst.h>
 #include "compile.h"
 #include "state.h"
+#include "util.h"
 
 /* Generated header */
 #include <generated/core.h>
@@ -340,6 +341,7 @@ static void dst_quick_asm(
         DST_OUT_OF_MEMORY;
     }
     memcpy(def->bytecode, bytecode, bytecode_size);
+    dst_func_addflags(def);
     dst_env_def(env, name, dst_wrap_function(dst_thunk(def)));
 }
 

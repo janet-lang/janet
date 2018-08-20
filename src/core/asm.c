@@ -715,7 +715,10 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     /* Set environments */
     def->environments =
         realloc(def->environments, def->environments_length * sizeof(int32_t));
-
+        
+    /* Add extra flags */
+    dst_func_addflags(def);
+        
     /* Verify the func def */
     if (dst_verify(def)) {
         dst_asm_error(&a, "invalid assembly");

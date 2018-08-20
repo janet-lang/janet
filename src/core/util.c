@@ -95,6 +95,15 @@ int32_t dst_tablen(int32_t n) {
     return n + 1;
 }
 
+/* Add function flags to dst functions */
+void dst_func_addflags(DstFuncDef *def) {
+    if (def->name) def->flags |= DST_FUNCDEF_FLAG_HASNAME;
+    if (def->source) def->flags |= DST_FUNCDEF_FLAG_HASSOURCE;
+    if (def->defs) def->flags |= DST_FUNCDEF_FLAG_HASDEFS;
+    if (def->environments) def->flags |= DST_FUNCDEF_FLAG_HASENVS;
+    if (def->sourcemap) def->flags |= DST_FUNCDEF_FLAG_HASSOURCEMAP;
+}
+
 /* Compare a dst string with a cstring. more efficient than loading
  * c string as a dst string. */
 int dst_cstrcmp(const uint8_t *str, const char *other) {

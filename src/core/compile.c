@@ -24,6 +24,7 @@
 #include "compile.h"
 #include "emit.h"
 #include "vector.h"
+#include "util.h"
 
 DstFopts dstc_fopts_default(DstCompiler *c) {
     DstFopts ret;
@@ -612,6 +613,9 @@ DstFuncDef *dstc_pop_funcdef(DstCompiler *c) {
     if (scope->flags & DST_SCOPE_ENV) {
         def->flags |= DST_FUNCDEF_FLAG_NEEDSENV;
     }
+    
+    /* Add extra flags */
+    dst_func_addflags(def);
 
     /* Pop the scope */
     dstc_popscope(c);

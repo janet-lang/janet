@@ -616,6 +616,11 @@ struct DstKV {
 #define DST_FUNCDEF_FLAG_VARARG 0x10000
 #define DST_FUNCDEF_FLAG_NEEDSENV 0x20000
 #define DST_FUNCDEF_FLAG_FIXARITY 0x40000
+#define DST_FUNCDEF_FLAG_HASNAME 0x80000
+#define DST_FUNCDEF_FLAG_HASSOURCE 0x100000
+#define DST_FUNCDEF_FLAG_HASDEFS 0x200000
+#define DST_FUNCDEF_FLAG_HASENVS 0x400000
+#define DST_FUNCDEF_FLAG_HASSOURCEMAP 0x800000
 #define DST_FUNCDEF_FLAG_TAG 0xFFFF
 
 /* Source mapping structure for a bytecode instruction */
@@ -636,7 +641,7 @@ struct DstFuncDef {
     const uint8_t *source;
     const uint8_t *name;
 
-    uint32_t flags;
+    int32_t flags;
     int32_t slotcount; /* The amount of stack space required for the function */
     int32_t arity; /* Not including varargs */
     int32_t constants_length;
