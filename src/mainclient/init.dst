@@ -9,10 +9,10 @@
   (var *exit-on-error* :private true)
 
   # Flag handlers
-  (def handlers :private 
-    {"h" (fn [] 
-           (print "usage: " (get args 0) " [options] scripts...")
-           (print 
+  (def handlers :private
+    {"h" (fn @[]
+           (print "usage: " (get process.args 0) " [options] scripts...")
+           (print
              `Options are:
   -h Show this help
   -v Print the version string
@@ -28,20 +28,20 @@
      "r" (fn @[] (:= *should-repl* true) 1)
      "p" (fn @[] (:= *exit-on-error* false) 1)
      "-" (fn @[] (:= *handleopts* false) 1)
-     "e" (fn @[i] 
+     "e" (fn @[i]
            (:= *no-file* false)
-           (eval (get args (+ i 1)))
+           (eval (get process.args (+ i 1)))
            2)})
 
   (defn- dohandler @[n i]
     (def h (get handlers n))
-    (if h (h i) (print "unknown flag -" n)))
+    (if h (h i) (do (print "unknown flag -" n) ((get handlers "h")))))
 
   # Process arguments
   (var i 1)
-  (def lenargs (length args))
+  (def lenargs (length process.args))
   (while (< i lenargs)
-    (def arg (get args i))
+    (def arg (get process.args i))
     (if (and *handleopts* (= "-" (string.slice arg 0 1)))
       (+= i (dohandler (string.slice arg 1 2) i))
       (do
@@ -49,7 +49,7 @@
         (import* _env arg :exit *exit-on-error*)
         (++ i))))
 
-  (when (or *should-repl* *no-file*) 
+  (when (or *should-repl* *no-file*)
     (if *raw-stdin*
       (repl nil identity)
       (do
