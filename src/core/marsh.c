@@ -454,6 +454,7 @@ static const uint8_t *unmarshal_one_env(
     const uint8_t *end = st->end;
     if (data >= end) longjmp(st->err, UMR_EOS);
     if (*data == LB_FUNCENV_REF) {
+        data++;
         int32_t index = readint(st, &data);
         if (index < 0 || index >= dst_v_count(st->lookup_envs))
             longjmp(st->err, UMR_INVALID_REFERENCE);
@@ -479,6 +480,8 @@ static const uint8_t *unmarshal_one_env(
                 data = unmarshal_one(st, data, env->as.values + i, flags);
             }
         }
+        /* Set out */
+        *out = env;
     }
     return data;
 }
@@ -492,6 +495,7 @@ static const uint8_t *unmarshal_one_def(
     const uint8_t *end = st->end;
     if (data >= end) longjmp(st->err, UMR_EOS);
     if (*data == LB_FUNCDEF_REF) {
+        data++;
         int32_t index = readint(st, &data);
         if (index < 0 || index >= dst_v_count(st->lookup_defs))
             longjmp(st->err, UMR_INVALID_REFERENCE);
@@ -552,6 +556,7 @@ static const uint8_t *unmarshal_one_def(
                 ((uint32_t)(data[1]) << 8) |
                 ((uint32_t)(data[2]) << 16) |
                 ((uint32_t)(data[3]) << 24);
+            data += 4;
         }
         
         /* Unmarshal environments */
@@ -596,6 +601,9 @@ static const uint8_t *unmarshal_one_def(
         
         /* Validate */
         if (dst_verify(def)) longjmp(st->err, UMR_INVALID_BYTECODE);
+        
+        /* Set def */
+        *out = def;
     }
     return data;
 }
@@ -696,7 +704,7 @@ static const uint8_t *unmarshal_one(
                 *out = dst_wrap_function(func);
                 dst_array_push(&st->lookup, *out);
                 for (int32_t i = 0; i < def->environments_length; i++) {
-                    data = unmarshal_one_env(st, data, func->envs + i, flags + 1);
+                    data = unmarshal_one_env(st, data, &(func->envs[i]), flags + 1);
                 }
                 return data;
             }

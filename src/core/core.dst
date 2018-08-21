@@ -362,7 +362,7 @@
   accum)
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber (fn [] ...body))."
+  "A wrapper for making fibers. Same as (fiber.new (fn @[] ...body))."
   [& body]
   (tuple fiber.new (apply tuple 'fn @[] body)))
 
@@ -1266,7 +1266,7 @@
   get a chunk of source code. Should return nil for end of file."
   @[getchunk onvalue onerr]
   (def newenv (make-env))
-  (default getchunk (fn [buf]
+  (default getchunk (fn @[buf]
                       (file.read stdin :line buf)))
   (default onvalue (fn [x]
                      (put newenv '_ @{:value x})

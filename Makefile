@@ -32,6 +32,7 @@ BINDIR=$(PREFIX)/bin
 # TODO - when api is finalized, only export public symbols instead of using rdynamic
 # which exports all symbols. Saves a few KB in binary.
 
+#CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden
 CLIBS=-lm -ldl
 PREFIX=/usr/local
@@ -117,10 +118,12 @@ valgrind: $(DST_TARGET)
 test: $(DST_TARGET)
 	./$(DST_TARGET) test/suite0.dst
 	./$(DST_TARGET) test/suite1.dst
+	./$(DST_TARGET) test/suite2.dst
 
 valtest: $(DST_TARGET)
 	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite0.dst
 	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite1.dst
+	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite2.dst
 
 ###################
 ##### Natives #####
