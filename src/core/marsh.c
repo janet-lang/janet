@@ -133,6 +133,8 @@ static void marshal_one_def(MarshalState *st, DstFuncDef *def, int flags) {
             return;
         }
     }
+    /* Add to lookup */
+    dst_v_push(st->seen_defs, def);
     pushint(st, def->flags);
     pushint(st, def->slotcount);
     pushint(st, def->arity);
@@ -175,9 +177,6 @@ static void marshal_one_def(MarshalState *st, DstFuncDef *def, int flags) {
             pushint(st, map.column);
         }
     }
-
-    /* Add to lookup */
-    dst_v_push(st->seen_defs, def);
 }
 
 /* The main body of the marshaling function. Is the main
@@ -425,21 +424,6 @@ static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
     return ret;
 }
 
-static uint8_t readbyte(UnmarshalState *st, const uint8_t **atdata) {
-    const uint8_t *data = *atdata;
-    if (data >= st->end) longjmp(st->err, UMR_EOS);
-    uint8_t ret = *data++;
-    *atdata = data;
-    return ret;
-}
-
-static void readbytes(UnmarshalState *st, const uint8_t **atdata, uint8_t *into, int32_t n) {
-    const uint8_t *data = *atdata;
-    if (data + n>= st->end) longjmp(st->err, UMR_EOS);
-    memcpy(into, data, n);
-    *atdata = data + n;
-}
-
 /* Forward declaration */
 static const uint8_t *unmarshal_one(
         UnmarshalState *st,
@@ -503,56 +487,59 @@ static const uint8_t *unmarshal_one_def(
             longjmp(st->err, UMR_INVALID_REFERENCE);
         *out = st->lookup_defs[index];
     } else {
-        DstFuncDef def;
+        DstFuncDef *def = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
+        def->environments_length = 0;
+        def->defs_length = 0;
+        def->name = NULL;
+        def->source = NULL;
+        dst_v_push(st->lookup_defs, def);
         
         /* Read flags and other fixed values */
-        def.flags = readint(st, &data);
-        def.slotcount = readint(st, &data);
-        def.arity = readint(st, &data);
-        def.constants_length = readint(st, &data);
-        def.bytecode_length = readint(st, &data);
+        def->flags = readint(st, &data);
+        def->slotcount = readint(st, &data);
+        def->arity = readint(st, &data);
+        def->constants_length = readint(st, &data);
+        def->bytecode_length = readint(st, &data);
         
-        def.environments_length = 0;
-        def.defs_length = 0;
-        def.name = NULL;
-        def.source = NULL;
-        if (def.flags & DST_FUNCDEF_FLAG_HASENVS)
-            def.environments_length = readint(st, &data);
-        if (def.flags & DST_FUNCDEF_FLAG_HASDEFS)
-            def.defs_length = readint(st, &data);
-        if (def.flags & DST_FUNCDEF_FLAG_HASNAME) {
+        if (def->flags & DST_FUNCDEF_FLAG_HASENVS)
+            def->environments_length = readint(st, &data);
+        if (def->flags & DST_FUNCDEF_FLAG_HASDEFS)
+            def->defs_length = readint(st, &data);
+        if (def->flags & DST_FUNCDEF_FLAG_HASNAME) {
             Dst x;
             data = unmarshal_one(st, data, &x, flags + 1);
             if (!dst_checktype(x, DST_STRING)) longjmp(st->err, UMR_EXPECTED_STRING);
-            def.name = dst_unwrap_string(x);
+            def->name = dst_unwrap_string(x);
         }
-        if (def.flags & DST_FUNCDEF_FLAG_HASSOURCE) {
+        if (def->flags & DST_FUNCDEF_FLAG_HASSOURCE) {
             Dst x;
             data = unmarshal_one(st, data, &x, flags + 1);
             if (!dst_checktype(x, DST_STRING)) longjmp(st->err, UMR_EXPECTED_STRING);
-            def.source = dst_unwrap_string(x);
+            def->source = dst_unwrap_string(x);
         }
         
         /* Unmarshal constants */
-        if (def.constants_length) {
-            def.constants = malloc(sizeof(Dst) * def.constants_length);
-            if (!def.constants) {
+        if (def->constants_length) {
+            def->constants = malloc(sizeof(Dst) * def->constants_length);
+            if (!def->constants) {
                 DST_OUT_OF_MEMORY;
             }
-            for (int32_t i = 0; i < def.constants_length; i++)
-                data = unmarshal_one(st, data, def.constants + i, flags + 1);
+            for (int32_t i = 0; i < def->constants_length; i++)
+                def->constants[i] = dst_wrap_nil();
+            for (int32_t i = 0; i < def->constants_length; i++)
+                data = unmarshal_one(st, data, def->constants + i, flags + 1);
         } else {
-            def.constants = NULL;
+            def->constants = NULL;
         }
         
         /* Unmarshal bytecode */
-        def.bytecode = malloc(sizeof(uint32_t) * def.bytecode_length);
-        if (!def.bytecode) {
+        def->bytecode = malloc(sizeof(uint32_t) * def->bytecode_length);
+        if (!def->bytecode) {
             DST_OUT_OF_MEMORY;
         }
-        for (int32_t i = 0; i < def.bytecode_length; i++) {
+        for (int32_t i = 0; i < def->bytecode_length; i++) {
             if (data + 4 > st->end) longjmp(st->err, UMR_EOS);
-            def.bytecode[i] = 
+            def->bytecode[i] = 
                 (uint32_t)(data[0]) |
                 ((uint32_t)(data[1]) << 8) |
                 ((uint32_t)(data[2]) << 16) |
@@ -561,52 +548,50 @@ static const uint8_t *unmarshal_one_def(
         }
         
         /* Unmarshal environments */
-        if (def.flags & DST_FUNCDEF_FLAG_HASENVS) {
-            def.environments = malloc(sizeof(int32_t) * def.environments_length);
-            if (!def.environments) {
+        if (def->flags & DST_FUNCDEF_FLAG_HASENVS) {
+            def->environments = calloc(1, sizeof(int32_t) * def->environments_length);
+            if (!def->environments) {
                 DST_OUT_OF_MEMORY;
             }
-            for (int32_t i = 0; i < def.environments_length; i++) {
-                def.environments[i] = readint(st, &data);
+            for (int32_t i = 0; i < def->environments_length; i++) {
+                def->environments[i] = readint(st, &data);
             }
         } else {
-            def.environments = NULL;
+            def->environments = NULL;
         }
         
         /* Unmarshal sub funcdefs */
-        if (def.flags & DST_FUNCDEF_FLAG_HASDEFS) {
-            def.defs = malloc(sizeof(DstFuncDef *) * def.defs_length);
-            if (!def.defs) {
+        if (def->flags & DST_FUNCDEF_FLAG_HASDEFS) {
+            def->defs = calloc(1, sizeof(DstFuncDef *) * def->defs_length);
+            if (!def->defs) {
                 DST_OUT_OF_MEMORY;
             }
-            for (int32_t i = 0; i < def.defs_length; i++) {
-                data = unmarshal_one_def(st, data, def.defs + i, flags + 1); 
+            for (int32_t i = 0; i < def->defs_length; i++) {
+                data = unmarshal_one_def(st, data, def->defs + i, flags + 1); 
             }
         } else {
-            def.defs = NULL;
+            def->defs = NULL;
         }
         
         /* Unmarshal source maps if needed */
-        if (def.flags & DST_FUNCDEF_FLAG_HASSOURCEMAP) {
-            def.sourcemap = malloc(sizeof(DstSourceMapping) * def.bytecode_length);
-            if (!def.sourcemap) {
+        if (def->flags & DST_FUNCDEF_FLAG_HASSOURCEMAP) {
+            def->sourcemap = malloc(sizeof(DstSourceMapping) * def->bytecode_length);
+            if (!def->sourcemap) {
                 DST_OUT_OF_MEMORY;
             }
-            for (int32_t i = 0; i < def.bytecode_length; i++) {
-                def.sourcemap[i].line = readint(st, &data);
-                def.sourcemap[i].column = readint(st, &data);
+            for (int32_t i = 0; i < def->bytecode_length; i++) {
+                def->sourcemap[i].line = readint(st, &data);
+                def->sourcemap[i].column = readint(st, &data);
             }
         } else {
-            def.sourcemap = NULL;
+            def->sourcemap = NULL;
         } 
         
         /* Validate */
-        if (dst_verify(&def)) longjmp(st->err, UMR_INVALID_BYTECODE);
+        if (dst_verify(def)) longjmp(st->err, UMR_INVALID_BYTECODE);
         
         /* Set def */
-        *out = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
-        dst_v_push(st->lookup_defs, *out);
-        memcpy(*out, &def, sizeof(def));
+        *out = def;
     }
     return data;
 }

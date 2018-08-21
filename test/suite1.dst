@@ -160,6 +160,10 @@
 (testmarsh [tuple 1 2 3 4 5] "marshal tuple")
 (testmarsh @{1 2 3 4}  "marshal table")
 (testmarsh {1 2 3 4}  "marshal struct")
+(testmarsh (fn [x] x) "marshal function 0")
+(testmarsh (fn name [x] x) "marshal function 1")
+(testmarsh (fn [x] (+ 10 x 2)) "marshal function 2")
+(testmarsh (fn thing [x] (+ 11 x x 30)) "marshal function 3")
 
 # Large functions
 (def manydefs (for [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
