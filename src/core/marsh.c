@@ -346,10 +346,60 @@ static void marshal_one(MarshalState *st, Dst x, int flags) {
                 /* Mark seen after reading def, but before envs */
                 MARK_SEEN();
                 for (int32_t i = 0; i < func->def->environments_length; i++)
-                    marshal_one_env(st, func->envs[i], flags);
+                    marshal_one_env(st, func->envs[i], flags + 1);
             }
             return;
         case DST_FIBER:
+            {
+                /*
+                struct DstFiber {
+                    Dst *data;
+                    DstFiber *child;
+                    DstFunction *root;
+                    int32_t frame;
+                    int32_t stackstart;
+                    int32_t stacktop;
+                    int32_t capacity;
+                    int32_t maxstack;
+                    int32_t flags;
+                };
+                */
+                pushbyte(st, LB_FIBER);
+                DstFiber *fiber = dst_unwrap_fiber(x);
+                if (fiber->child) fiber->flags |= DST_FIBER_FLAG_HASCHILD;
+                MARK_SEEN();
+                pushint(st, fiber->flags);
+                pushint(st, fiber->frame);
+                pushint(st, fiber->stackstart);
+                pushint(st, fiber->stacktop);
+                pushint(st, fiber->maxstack);
+                marshal_one(st, dst_wrap_function(fiber->root), flags + 1);
+                /* Do frames */
+                int32_t i = fiber->frame;
+                int32_t j = fiber->stackstart - DST_FRAME_SIZE;
+                while (i > 0) {
+                    pushint(st, j - i); /* Push number of stack values */
+                    DstStackFrame *frame = (DstStackFrame *)(fiber->data + i - DST_FRAME_SIZE);
+                    if (NULL != frame->func)
+                        marshal_one(st, dst_wrap_function(frame->func), flags + 1);
+                    else
+                        pushbyte(st, LB_NIL);
+                    if (NULL != frame->env)
+                        marshal_one_env(st, frame->env, flags + 1);
+                    else
+                        pushbyte(st, LB_NIL);
+                    /* Marshal all values in the stack frame */
+                    for (int32_t k = i; k < j; k++)
+                        marshal_one(st, fiber->data[k], flags + 1);
+                    j = i - DST_FRAME_SIZE;
+                    i = frame->prevframe;
+                }
+                if (fiber->child)
+                    marshal_one(st, dst_wrap_fiber(fiber), flags + 1);
+                else
+                    pushbyte(st, LB_NIL);
+            }
+            return;
         default:
             goto nyi;
     }

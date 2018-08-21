@@ -531,6 +531,7 @@ struct DstArgs {
 
 /* Fiber flags */
 #define DST_FIBER_FLAG_SIGNAL_WAITING (1 << 30)
+#define DST_FIBER_FLAG_HASCHILD (1 << 29)
 
 /* Fiber signal masks. */
 #define DST_FIBER_MASK_ERROR 2
@@ -565,7 +566,7 @@ struct DstFiber {
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
     int32_t capacity;
     int32_t maxstack; /* Arbitrary defined limit for stack overflow */
-    uint32_t flags; /* Various flags */
+    int32_t flags; /* Various flags */
 };
 
 /* Mark if a stack frame is a tail call for debugging */
