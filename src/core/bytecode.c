@@ -112,7 +112,7 @@ enum DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
 
 /* Verify some bytecode */
 int32_t dst_verify(DstFuncDef *def) {
-    int vargs = def->flags & DST_FUNCDEF_FLAG_VARARG;
+    int vargs = !!(def->flags & DST_FUNCDEF_FLAG_VARARG);
     int32_t i;
     int32_t maxslot = def->arity + vargs;
     int32_t sc = def->slotcount;

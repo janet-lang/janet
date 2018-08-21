@@ -100,12 +100,12 @@ static const DstInstructionDef dst_ops[] = {
     {"ldu", DOP_LOAD_UPVALUE},
     {"len", DOP_LENGTH},
     {"lt", DOP_LESS_THAN},
+    {"lten", DOP_NUMERIC_LESS_THAN_EQUAL},
+    {"lter", DOP_LESS_THAN_EQUAL_REAL},
     {"lti", DOP_LESS_THAN_INTEGER},
     {"ltim", DOP_LESS_THAN_IMMEDIATE},
     {"ltn", DOP_NUMERIC_LESS_THAN},
     {"ltr", DOP_LESS_THAN_REAL},
-    {"lten", DOP_NUMERIC_LESS_THAN_EQUAL},
-    {"lter", DOP_LESS_THAN_EQUAL_REAL},
     {"mkarr", DOP_MAKE_ARRAY},
     {"mkbuf", DOP_MAKE_BUFFER},
     {"mkstr", DOP_MAKE_STRING},
@@ -715,9 +715,6 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     /* Set environments */
     def->environments =
         realloc(def->environments, def->environments_length * sizeof(int32_t));
-        
-    /* Add extra flags */
-    dst_func_addflags(def);
         
     /* Verify the func def */
     if (dst_verify(def)) {

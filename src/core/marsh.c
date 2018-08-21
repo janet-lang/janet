@@ -124,6 +124,15 @@ static void marshal_one_env(MarshalState *st, DstFuncEnv *env, int flags) {
     }
 }
 
+/* Add function flags to dst functions */
+static void dst_func_addflags(DstFuncDef *def) {
+    if (def->name) def->flags |= DST_FUNCDEF_FLAG_HASNAME;
+    if (def->source) def->flags |= DST_FUNCDEF_FLAG_HASSOURCE;
+    if (def->defs) def->flags |= DST_FUNCDEF_FLAG_HASDEFS;
+    if (def->environments) def->flags |= DST_FUNCDEF_FLAG_HASENVS;
+    if (def->sourcemap) def->flags |= DST_FUNCDEF_FLAG_HASSOURCEMAP;
+}
+
 /* Marshal a function def */
 static void marshal_one_def(MarshalState *st, DstFuncDef *def, int flags) {
     for (int32_t i = 0; i < dst_v_count(st->seen_defs); i++) {
@@ -133,6 +142,7 @@ static void marshal_one_def(MarshalState *st, DstFuncDef *def, int flags) {
             return;
         }
     }
+    dst_func_addflags(def);
     /* Add to lookup */
     dst_v_push(st->seen_defs, def);
     pushint(st, def->flags);
@@ -821,8 +831,8 @@ static int cfun_unmarshal(DstArgs args) {
 }
 
 static const DstReg cfuns[] = {
-    {"marsh.marshal", cfun_marshal},
-    {"marsh.unmarshal", cfun_unmarshal},
+    {"marshal", cfun_marshal},
+    {"unmarshal", cfun_unmarshal},
     {NULL, NULL}
 };
 

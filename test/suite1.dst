@@ -142,8 +142,8 @@
 # Marshal
 
 (defn testmarsh [x msg]
-  (def marshx (marsh.marshal x))
-  (def out (-> marshx marsh.unmarshal marsh.marshal))
+  (def marshx (marshal x))
+  (def out (-> marshx unmarshal marshal))
   (assert (= (string marshx) (string out)) msg))
 
 (testmarsh nil "marshal nil")
@@ -164,6 +164,8 @@
 (testmarsh (fn name [x] x) "marshal function 1")
 (testmarsh (fn [x] (+ 10 x 2)) "marshal function 2")
 (testmarsh (fn thing [x] (+ 11 x x 30)) "marshal function 3")
+(testmarsh map "marshal function 4")
+(testmarsh reduce "marshal function 4")
 
 # Large functions
 (def manydefs (for [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
