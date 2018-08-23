@@ -69,6 +69,11 @@
 (var plus +)
 (assert (= 22 (plus one (plus 1 2 two) (plus 8 (plus zero 1) 4 three))) "nested function calls")
 
+# String literals
+(assert (= "abcd" "\x61\x62\x63\x64") "hex escapes")
+(assert (= "\e" "\x1B") "escape character")
+(assert (= "\x09" "\t") "tab character")
+
 # Mcarthy's 91 function
 (var f91 nil)
 (:= f91 (fn [n] (if (> n 100) (- n 10) (f91 (f91 (+ n 11))))))

@@ -39,5 +39,12 @@
 
 (assert (= (length @"abcdef") 6) "buffer length")
 
+# Looping idea
+(def xs 
+  (for [x :in '[-1 0 1], y :in '[-1 0 1] :when (not= x y 0)] (tuple x y)))
+(def txs (apply1 tuple xs))
+
+(assert (= txs '[[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]) "nested for")
+
 (end-suite)
 
