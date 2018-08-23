@@ -191,7 +191,7 @@ static void popstate(DstParser *p, Dst val) {
 static int checkescape(uint8_t c) {
     switch (c) {
         default: return -1;
-        case 'h': return 1;
+        case 'x': return 1;
         case 'n': return '\n'; 
         case 't': return '\t'; 
         case 'r': return '\r'; 
