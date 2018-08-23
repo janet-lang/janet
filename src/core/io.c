@@ -370,21 +370,26 @@ static const DstReg cfuns[] = {
     {NULL, NULL}
 };
 
+static void addf(DstTable *env, const char *name, Dst val) {
+    dst_env_def(env, name, val);
+    dst_register(name, val);
+}
+
 /* Module entry point */
 int dst_lib_io(DstArgs args) {
     DstTable *env = dst_env_arg(args);
     dst_env_cfuns(env, cfuns);
 
     /* stdout */
-    dst_env_def(env, "stdout",
+    addf(env, "stdout",
             makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
 
     /* stderr */
-    dst_env_def(env, "stderr",
+    addf(env, "stderr",
             makef(stderr, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
 
     /* stdin */
-    dst_env_def(env, "stdin",
+    addf(env, "stdin",
             makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
 
     return 0;

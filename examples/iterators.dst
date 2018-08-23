@@ -5,105 +5,103 @@
 ###
 
 (def iter (do
-  (defn array-iter [x]
-    (def len (length x))
-    (var i 0)
-    {
-      :more (fn [] (< i len))
-      :next (fn []
-        (def ret (get x i))
-        (:= i (+ i 1))
-        ret)
-    })
-  (def iters {
-    :array array-iter
-    :tuple array-iter
-    :struct identity})
-  (fn [x]
-   (def makei (get iters (type x)))
-   (if makei (makei x) (error "expected sequence")))))
+            (defn array-iter [x]
+              (def len (length x))
+              (var i 0)
+              {:more (fn [] (< i len))
+               :next (fn []
+                       (def ret (get x i))
+                       (:= i (+ i 1))
+                       ret)})
+            (def iters {
+                        :array array-iter
+                        :tuple array-iter
+                        :struct identity})
+            (fn [x]
+              (def makei (get iters (type x)))
+              (if makei (makei x) (error "expected sequence")))))
 
 (defn range2 [bottom top]
   (var i bottom)
   {
-    :more (fn [] (< i top))
-    :next (fn []
-      (def ret i)
-      (:= i (+ i 1))
-      ret)
-  })
+   :more (fn [] (< i top))
+   :next (fn []
+           (def ret i)
+           (:= i (+ i 1))
+           ret)
+   })
 
 (defn range [top] (range2 0 top))
 
 (defn doiter [itr]
- (def {:more more :next next} (iter itr))
- (while (more) (next)))
+  (def {:more more :next next} (iter itr))
+  (while (more) (next)))
 
 (defn foreach [itr f]
- (def {:more more :next next} (iter itr))
- (while (more) (f (next))))
+  (def {:more more :next next} (iter itr))
+  (while (more) (f (next))))
 
 (defn iter2array [itr]
- (def {:more more :next next} (iter itr))
- (def a @[])
- (while (more) (array.push a (next)))
- a)
+  (def {:more more :next next} (iter itr))
+  (def a @[])
+  (while (more) (array.push a (next)))
+  a)
 
 (defn map [f itr]
- (def {:more more :next next} (iter itr))
- {:more more :next (fn [] (f (next)))})
+  (def {:more more :next next} (iter itr))
+  {:more more :next (fn [] (f (next)))})
 
 (defn reduce [f start itr]
   (def itr (iter itr))
   (def {:more more :next next} itr)
   (if (more)
-   (reduce f (f start (next)) itr)
-   start))
+    (reduce f (f start (next)) itr)
+    start))
 
 (defn filter [pred itr]
- (def itr (iter itr))
- (def {:more more :next next} itr)
- (var alive true)
- (var temp nil)
- (var isnew true)
- (defn nextgood []
-   (if alive
-    (if (more)
-     (do
-      (def n (next))
-      (if (pred n) n (nextgood)))
-     (:= alive false))))
- (defn nnext [] (def ret temp) (:= temp (nextgood)) ret)
- (defn nmore [] (when isnew (:= isnew false) (nnext)) alive)
- {:more nmore :next nnext})
+  (def itr (iter itr))
+  (def {:more more :next next} itr)
+  (var alive true)
+  (var temp nil)
+  (var isnew true)
+  (defn nextgood []
+    (if alive
+      (if (more)
+        (do
+          (def n (next))
+          (if (pred n) n (nextgood)))
+        (:= alive false))))
+  (defn nnext [] (def ret temp) (:= temp (nextgood)) ret)
+  (defn nmore [] (when isnew (:= isnew false) (nnext)) alive)
+  {:more nmore :next nnext})
 
 (defn pairs [x]
- (var lastkey (next x nil))
- {
-    :more (fn [] lastkey)
-    :next (fn []
-        (def ret (tuple lastkey (get x lastkey)))
-        (:= lastkey (next x lastkey))
-        ret)
- })
+  (var lastkey (next x nil))
+  {
+   :more (fn [] lastkey)
+   :next (fn []
+           (def ret (tuple lastkey (get x lastkey)))
+           (:= lastkey (next x lastkey))
+           ret)
+   })
 
 (defn keys [x]
- (var lastkey (next x nil))
- {
-    :more (fn [] lastkey)
-    :next (fn []
-        (def ret lastkey)
-        (:= lastkey (next x lastkey))
-        ret)
- })
+  (var lastkey (next x nil))
+  {
+   :more (fn [] lastkey)
+   :next (fn []
+           (def ret lastkey)
+           (:= lastkey (next x lastkey))
+           ret)
+   })
 
 (defn values [x]
- (var lastkey (next x nil))
- {
-    :more (fn [] lastkey)
-    :next (fn []
-        (def ret (get x lastkey))
-        (:= lastkey (next x lastkey))
-        ret)
- })
+  (var lastkey (next x nil))
+  {
+   :more (fn [] lastkey)
+   :next (fn []
+           (def ret (get x lastkey))
+           (:= lastkey (next x lastkey))
+           ret)
+   })
 

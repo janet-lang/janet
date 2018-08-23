@@ -229,7 +229,7 @@ static int escape1(DstParser *p, DstParseState *state, uint8_t c) {
         p->error = "invalid string escape sequence";
         return 1;
     }
-    if (c == 'h') {
+    if (c == 'x') {
         state->qcount = 2;
         state->argn = 0;
         state->consumer = escapeh;

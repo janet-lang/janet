@@ -41,6 +41,7 @@ enum {
     MR_STACKOVERFLOW,
     MR_NYI,
     MR_NRV,
+    MR_C_STACKFRAME,
     MR_OVERFLOW
 } MarshalResult;
 
@@ -49,6 +50,7 @@ const char *mr_strings[] = {
     "stack overflow",
     "type NYI",
     "no registry value",
+    "fiber has c stack frame",
     "buffer overflow"
 };
 
@@ -104,6 +106,8 @@ static void marshal_one(MarshalState *st, Dst x, int flags);
 
 /* Marshal a function env */
 static void marshal_one_env(MarshalState *st, DstFuncEnv *env, int flags) {
+    if ((flags & 0xFFFF) > DST_RECURSION_GUARD)
+        longjmp(st->err, MR_STACKOVERFLOW);
     for (int32_t i = 0; i < dst_v_count(st->seen_envs); i++) {
         if (st->seen_envs[i] == env) {
             pushbyte(st, LB_FUNCENV_REF);
@@ -114,7 +118,7 @@ static void marshal_one_env(MarshalState *st, DstFuncEnv *env, int flags) {
     dst_v_push(st->seen_envs, env);
     pushint(st, env->offset);
     pushint(st, env->length);
-    if (env->offset >= 0) {
+    if (env->offset) {
         /* On stack variant */
         marshal_one(st, dst_wrap_fiber(env->as.fiber), flags);
     } else {
@@ -135,6 +139,8 @@ static void dst_func_addflags(DstFuncDef *def) {
 
 /* Marshal a function def */
 static void marshal_one_def(MarshalState *st, DstFuncDef *def, int flags) {
+    if ((flags & 0xFFFF) > DST_RECURSION_GUARD)
+        longjmp(st->err, MR_STACKOVERFLOW);
     for (int32_t i = 0; i < dst_v_count(st->seen_defs); i++) {
         if (st->seen_defs[i] == def) {
             pushbyte(st, LB_FUNCDEF_REF);
@@ -189,13 +195,51 @@ static void marshal_one_def(MarshalState *st, DstFuncDef *def, int flags) {
     }
 }
 
+#define DST_FIBER_FLAG_HASCHILD (1 << 29)
+#define DST_STACKFRAME_HASENV 2
+
+/* Marshal a fiber */
+static void marshal_one_fiber(MarshalState *st, DstFiber *fiber, int flags) {
+    if ((flags & 0xFFFF) > DST_RECURSION_GUARD)
+        longjmp(st->err, MR_STACKOVERFLOW);
+    if (fiber->child) fiber->flags |= DST_FIBER_FLAG_HASCHILD;
+    dst_table_put(&st->seen, dst_wrap_fiber(fiber), dst_wrap_integer(st->nextid++));
+    pushint(st, fiber->flags);
+    pushint(st, fiber->frame);
+    pushint(st, fiber->stackstart);
+    pushint(st, fiber->stacktop);
+    pushint(st, fiber->maxstack);
+    marshal_one(st, dst_wrap_function(fiber->root), flags + 1);
+    /* Do frames */
+    int32_t i = fiber->frame;
+    int32_t j = fiber->stackstart - DST_FRAME_SIZE;
+    while (i > 0) {
+        DstStackFrame *frame = (DstStackFrame *)(fiber->data + i - DST_FRAME_SIZE);
+        if (frame->env) frame->flags |= DST_STACKFRAME_HASENV;
+        pushint(st, frame->flags);
+        pushint(st, frame->prevframe);
+        if (!frame->func) longjmp(st->err, MR_C_STACKFRAME);
+        int32_t pcdiff = frame->pc - frame->func->def->bytecode;
+        pushint(st, pcdiff);
+        marshal_one(st, dst_wrap_function(frame->func), flags + 1);
+        if (frame->env) marshal_one_env(st, frame->env, flags + 1);
+        /* Marshal all values in the stack frame */
+        for (int32_t k = i; k < j; k++)
+            marshal_one(st, fiber->data[k], flags + 1);
+        j = i - DST_FRAME_SIZE;
+        i = frame->prevframe;
+    }
+    if (fiber->child)
+        marshal_one_fiber(st, fiber->child, flags + 1);
+    fiber->flags &= ~DST_FIBER_FLAG_HASCHILD;
+}
+
 /* The main body of the marshaling function. Is the main
  * entry point for the mutually recursive functions. */
 static void marshal_one(MarshalState *st, Dst x, int flags) {
     DstType type = dst_type(x);
-    if ((flags & 0xFFFF) > DST_RECURSION_GUARD) {
+    if ((flags & 0xFFFF) > DST_RECURSION_GUARD)
         longjmp(st->err, MR_STACKOVERFLOW);
-    }
 
     /* Check simple primitvies (non reference types, no benefit from memoization) */
     switch (type) {
@@ -351,53 +395,8 @@ static void marshal_one(MarshalState *st, Dst x, int flags) {
             return;
         case DST_FIBER:
             {
-                /*
-                struct DstFiber {
-                    Dst *data;
-                    DstFiber *child;
-                    DstFunction *root;
-                    int32_t frame;
-                    int32_t stackstart;
-                    int32_t stacktop;
-                    int32_t capacity;
-                    int32_t maxstack;
-                    int32_t flags;
-                };
-                */
                 pushbyte(st, LB_FIBER);
-                DstFiber *fiber = dst_unwrap_fiber(x);
-                if (fiber->child) fiber->flags |= DST_FIBER_FLAG_HASCHILD;
-                MARK_SEEN();
-                pushint(st, fiber->flags);
-                pushint(st, fiber->frame);
-                pushint(st, fiber->stackstart);
-                pushint(st, fiber->stacktop);
-                pushint(st, fiber->maxstack);
-                marshal_one(st, dst_wrap_function(fiber->root), flags + 1);
-                /* Do frames */
-                int32_t i = fiber->frame;
-                int32_t j = fiber->stackstart - DST_FRAME_SIZE;
-                while (i > 0) {
-                    pushint(st, j - i); /* Push number of stack values */
-                    DstStackFrame *frame = (DstStackFrame *)(fiber->data + i - DST_FRAME_SIZE);
-                    if (NULL != frame->func)
-                        marshal_one(st, dst_wrap_function(frame->func), flags + 1);
-                    else
-                        pushbyte(st, LB_NIL);
-                    if (NULL != frame->env)
-                        marshal_one_env(st, frame->env, flags + 1);
-                    else
-                        pushbyte(st, LB_NIL);
-                    /* Marshal all values in the stack frame */
-                    for (int32_t k = i; k < j; k++)
-                        marshal_one(st, fiber->data[k], flags + 1);
-                    j = i - DST_FRAME_SIZE;
-                    i = frame->prevframe;
-                }
-                if (fiber->child)
-                    marshal_one(st, dst_wrap_fiber(fiber), flags + 1);
-                else
-                    pushbyte(st, LB_NIL);
+                marshal_one_fiber(st, dst_unwrap_fiber(x), flags + 1);
             }
             return;
         default:
@@ -510,7 +509,7 @@ static const uint8_t *unmarshal_one_env(
         dst_v_push(st->lookup_envs, env);
         env->offset = readint(st, &data);
         env->length = readint(st, &data);
-        if (env->offset >= 0) {
+        if (env->offset) {
             /* On stack variant */
             Dst fiberv;
             data = unmarshal_one(st, data, &fiberv, flags);
@@ -547,24 +546,37 @@ static const uint8_t *unmarshal_one_def(
             longjmp(st->err, UMR_INVALID_REFERENCE);
         *out = st->lookup_defs[index];
     } else {
+        /* Initialize with values that will not break garbage collection
+         * if unmarshaling fails. */
         DstFuncDef *def = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
         def->environments_length = 0;
         def->defs_length = 0;
+        def->constants_length = 0;
+        def->bytecode_length = 0;
         def->name = NULL;
         def->source = NULL;
         dst_v_push(st->lookup_defs, def);
+
+        /* Set default lengths to zero */
+        int32_t bytecode_length = 0;
+        int32_t constants_length = 0;
+        int32_t environments_length = 0;
+        int32_t defs_length = 0;
         
         /* Read flags and other fixed values */
         def->flags = readint(st, &data);
         def->slotcount = readint(st, &data);
         def->arity = readint(st, &data);
-        def->constants_length = readint(st, &data);
-        def->bytecode_length = readint(st, &data);
-        
+
+        /* Read some lengths */
+        constants_length = readint(st, &data);
+        bytecode_length = readint(st, &data);
         if (def->flags & DST_FUNCDEF_FLAG_HASENVS)
-            def->environments_length = readint(st, &data);
+            environments_length = readint(st, &data);
         if (def->flags & DST_FUNCDEF_FLAG_HASDEFS)
-            def->defs_length = readint(st, &data);
+            defs_length = readint(st, &data);
+
+        /* Check name and source (optional) */
         if (def->flags & DST_FUNCDEF_FLAG_HASNAME) {
             Dst x;
             data = unmarshal_one(st, data, &x, flags + 1);
@@ -579,26 +591,25 @@ static const uint8_t *unmarshal_one_def(
         }
         
         /* Unmarshal constants */
-        if (def->constants_length) {
-            def->constants = malloc(sizeof(Dst) * def->constants_length);
+        if (constants_length) {
+            def->constants = malloc(sizeof(Dst) * constants_length);
             if (!def->constants) {
                 DST_OUT_OF_MEMORY;
             }
-            for (int32_t i = 0; i < def->constants_length; i++)
-                def->constants[i] = dst_wrap_nil();
-            for (int32_t i = 0; i < def->constants_length; i++)
+            for (int32_t i = 0; i < constants_length; i++)
                 data = unmarshal_one(st, data, def->constants + i, flags + 1);
         } else {
             def->constants = NULL;
         }
+        def->constants_length = constants_length;
         
         /* Unmarshal bytecode */
-        def->bytecode = malloc(sizeof(uint32_t) * def->bytecode_length);
+        def->bytecode = malloc(sizeof(uint32_t) * bytecode_length);
         if (!def->bytecode) {
             DST_OUT_OF_MEMORY;
         }
-        for (int32_t i = 0; i < def->bytecode_length; i++) {
-            if (data + 4 > st->end) longjmp(st->err, UMR_EOS);
+        for (int32_t i = 0; i < bytecode_length; i++) {
+            if (data + 4 > end) longjmp(st->err, UMR_EOS);
             def->bytecode[i] = 
                 (uint32_t)(data[0]) |
                 ((uint32_t)(data[1]) << 8) |
@@ -606,40 +617,43 @@ static const uint8_t *unmarshal_one_def(
                 ((uint32_t)(data[3]) << 24);
             data += 4;
         }
+        def->bytecode_length = bytecode_length;
         
         /* Unmarshal environments */
         if (def->flags & DST_FUNCDEF_FLAG_HASENVS) {
-            def->environments = calloc(1, sizeof(int32_t) * def->environments_length);
+            def->environments = calloc(1, sizeof(int32_t) * environments_length);
             if (!def->environments) {
                 DST_OUT_OF_MEMORY;
             }
-            for (int32_t i = 0; i < def->environments_length; i++) {
+            for (int32_t i = 0; i < environments_length; i++) {
                 def->environments[i] = readint(st, &data);
             }
         } else {
             def->environments = NULL;
         }
+        def->environments_length = environments_length;
         
         /* Unmarshal sub funcdefs */
         if (def->flags & DST_FUNCDEF_FLAG_HASDEFS) {
-            def->defs = calloc(1, sizeof(DstFuncDef *) * def->defs_length);
+            def->defs = calloc(1, sizeof(DstFuncDef *) * defs_length);
             if (!def->defs) {
                 DST_OUT_OF_MEMORY;
             }
-            for (int32_t i = 0; i < def->defs_length; i++) {
+            for (int32_t i = 0; i < defs_length; i++) {
                 data = unmarshal_one_def(st, data, def->defs + i, flags + 1); 
             }
         } else {
             def->defs = NULL;
         }
+        def->defs_length = defs_length;
         
         /* Unmarshal source maps if needed */
         if (def->flags & DST_FUNCDEF_FLAG_HASSOURCEMAP) {
-            def->sourcemap = malloc(sizeof(DstSourceMapping) * def->bytecode_length);
+            def->sourcemap = malloc(sizeof(DstSourceMapping) * bytecode_length);
             if (!def->sourcemap) {
                 DST_OUT_OF_MEMORY;
             }
-            for (int32_t i = 0; i < def->bytecode_length; i++) {
+            for (int32_t i = 0; i < bytecode_length; i++) {
                 def->sourcemap[i].line = readint(st, &data);
                 def->sourcemap[i].column = readint(st, &data);
             }
@@ -654,6 +668,17 @@ static const uint8_t *unmarshal_one_def(
         *out = def;
     }
     return data;
+}
+
+static const uint8_t *unmarshal_one_fiber(
+        UnmarshalState *st,
+        const uint8_t *data,
+        DstFiber **out,
+        int flags) {
+    longjmp(st->err, UMR_UNKNOWN);
+    (void) out;
+    (void) flags;
+    return data + 1;
 }
 
 static const uint8_t *unmarshal_one(
@@ -741,6 +766,13 @@ static const uint8_t *unmarshal_one(
                 }
                 dst_array_push(&st->lookup, *out);
                 return data + len;
+            }
+        case LB_FIBER:
+            {
+                DstFiber *fiber;
+                data = unmarshal_one_fiber(st, data + 1, &fiber, flags);
+                *out = dst_wrap_fiber(fiber);
+                return data;
             }
         case LB_FUNCTION:
             {

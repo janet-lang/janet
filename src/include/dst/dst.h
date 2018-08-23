@@ -531,7 +531,6 @@ struct DstArgs {
 
 /* Fiber flags */
 #define DST_FIBER_FLAG_SIGNAL_WAITING (1 << 30)
-#define DST_FIBER_FLAG_HASCHILD (1 << 29)
 
 /* Fiber signal masks. */
 #define DST_FIBER_MASK_ERROR 2
@@ -1032,6 +1031,7 @@ DST_API int dst_equals(Dst x, Dst y);
 DST_API int32_t dst_hash(Dst x);
 DST_API int dst_compare(Dst x, Dst y);
 DST_API int dst_cstrcmp(const uint8_t *str, const char *other);
+DST_API void dst_register(const char *name, Dst value);
 
 /* VM functions */
 DST_API int dst_init(void);

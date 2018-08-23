@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
 
     /* Expose line getter */
     dst_env_def(env, "getline", dst_wrap_cfunction(dst_line_getter));
+    dst_register("getline", dst_wrap_cfunction(dst_line_getter));
     dst_line_init();
 
     /* Run startup script */

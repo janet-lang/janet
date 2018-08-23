@@ -137,6 +137,12 @@ const void *dst_strbinsearch(
     return NULL;
 }
 
+void dst_register(const char *name, Dst value) {
+    Dst regkey = dst_cstringv(name);
+    dst_table_put(dst_vm_registry, regkey, value);
+    dst_table_put(dst_vm_registry, value, regkey);
+}
+
 /* Add a module definition */
 void dst_env_def(DstTable *env, const char *name, Dst val) {
     DstTable *subt = dst_table(1);

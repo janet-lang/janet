@@ -268,7 +268,7 @@ static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str, int32_t len
             default:
                 if (c < 32 || c > 127) {
                     buf[j++] = '\\';
-                    buf[j++] = 'h';
+                    buf[j++] = 'x';
                     buf[j++] = dst_base64[(c >> 4) & 0xF];
                     buf[j++] = dst_base64[c & 0xF];
                 } else {
