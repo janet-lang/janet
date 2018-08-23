@@ -138,7 +138,7 @@ const void *dst_strbinsearch(
 }
 
 void dst_register(const char *name, Dst value) {
-    Dst regkey = dst_cstringv(name);
+    Dst regkey = dst_csymbolv(name);
     dst_table_put(dst_vm_registry, regkey, value);
     dst_table_put(dst_vm_registry, value, regkey);
 }
