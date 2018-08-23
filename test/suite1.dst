@@ -164,11 +164,11 @@
 (testmarsh (fn name [x] x) "marshal function 1")
 (testmarsh (fn [x] (+ 10 x 2)) "marshal function 2")
 (testmarsh (fn thing [x] (+ 11 x x 30)) "marshal function 3")
-(testmarsh map "marshal function 4")
-(testmarsh reduce "marshal function 4")
+(testmarsh mapa "marshal function 4")
+(testmarsh reduce "marshal function 5")
 
 # Large functions
-(def manydefs (for [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
+(def manydefs (fora [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
 (array.push manydefs (tuple * 10000 3 5 7 9))
 (def f (compile (tuple.prepend manydefs 'do) *env*))
 (assert (= (f) (* 10000 3 5 7 9)) "long function compilation")

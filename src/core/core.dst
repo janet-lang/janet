@@ -26,7 +26,7 @@
     (def start (fstart 0))
     (def fnbody (tuple.prepend (tuple.prepend (tuple.slice more start) name) 'fn))
     (def formargs (array.concat @['def name] (array.slice more 0 start) @[fnbody]))
-    (apply1 tuple formargs)))
+    (tuple.slice formargs 0)))
 
 (def defmacro :macro
   "Define a macro."
@@ -36,17 +36,17 @@
 (defmacro defmacro-
   "Define a private macro that will not be exported."
   [name & more]
-  (apply1 tuple (array.concat @['defmacro name :private] more)))
+  (tuple.slice (array.concat @['defmacro name :private] more) 0))
 
 (defmacro defn-
   "Define a private function that will not be exported."
   [name & more]
-  (apply1 tuple (array.concat @['defn name :private] more)))
+  (tuple.slice (array.concat @['defn name :private] more) 0))
 
 (defmacro def-
   "Define a private value that will not be exported."
   [name & more]
-  (apply1 tuple (array.concat @['def name :private] more)))
+  (tuple.slice (array.concat @['def name :private] more) 0))
 
 (defmacro defasm
   "Define a function using assembly"
@@ -230,7 +230,7 @@
     (array.push accum (tuple 'def k v))
     (+= i 2))
   (array.concat accum body)
-  (apply1 tuple accum))
+  (tuple.slice accum 0))
 
 (defmacro and
   "Evaluates to the last argument if all preceding elements are true, otherwise
@@ -294,7 +294,7 @@
                        (def subloop (doone (+ i 3) preds))
                        (tuple 'do
                               (tuple 'var $iter nil)
-                              (tuple 'while (apply1 tuple preds)
+                              (tuple 'while (tuple.slice preds 0)
                                      (tuple 'def bindings $iter)
                                      subloop)))
             :range (do
@@ -307,7 +307,7 @@
                      (tuple 'do
                             (tuple 'var $iter start)
                             (tuple 'def endsym end)
-                            (tuple 'while (apply1 tuple preds)
+                            (tuple 'while (tuple.slice preds 0)
                                    (tuple 'def bindings $iter)
                                    subloop
                                    (tuple ':= $iter (tuple + $iter inc)))))
@@ -319,7 +319,7 @@
                     (tuple 'do
                            (tuple 'def $dict object)
                            (tuple 'var $iter (tuple next $dict nil))
-                           (tuple 'while (apply1 tuple preds)
+                           (tuple 'while (tuple.slice preds 0)
                                   (tuple 'def bindings $iter)
                                   subloop
                                   (tuple ':= $iter (tuple next $dict $iter)))))
@@ -333,14 +333,14 @@
                          (tuple 'def $indexed object)
                          (tuple 'def $len (tuple length $indexed))
                          (tuple 'var $i 0)
-                         (tuple 'while (apply1 tuple preds)
+                         (tuple 'while (tuple.slice preds 0)
                                 (tuple 'def bindings (tuple get $indexed $i))
                                 subloop
                                 (tuple ':= $i (tuple + 1 $i)))))
             (error (string "unexpected loop verb: " verb)))))))
   (doone 0 nil))
 
-(defmacro for
+(defmacro fora
   "Similar to loop, but accumulates the loop body into an array and returns that."
   [head & body]
   (def $accum (gensym))
@@ -350,6 +350,17 @@
                 (tuple array.push $accum
                        (tuple.prepend body 'do)))
          $accum))
+
+(defmacro for
+  "Similar to loop, but accumulates the loop body into a tuple and returns that."
+  [head & body]
+  (def $accum (gensym))
+  (tuple 'do
+         (tuple 'def $accum @[])
+         (tuple 'loop head
+                (tuple array.push $accum
+                       (tuple.prepend body 'do)))
+         (tuple tuple.slice $accum 0)))
 
 (defn sum [xs]
   (var accum 0)
@@ -482,10 +493,10 @@
 
 (defn sorted
   "Returns the sorted version of an indexed data structure."
-  @[ind by]
-  (def sa (sort (apply1 array ind) by))
-  (if (= :tuple (type ind))
-    (apply1 tuple sa)
+  @[ind by t]
+  (def sa (sort (array.slice ind 0) by))
+  (if (= :tuple (or t (type ind)))
+    (tuple.slice sa 0)
     sa))
 
 (defn reduce
@@ -497,9 +508,9 @@
     (:= res (f res x)))
   res)
 
-(defn map
-  "Map a function over every element in an array or tuple and return
-  the same type as the input sequence."
+(defn mapa
+  "Map a function over every element in an indexed data structure and
+  return an array of the results."
   [f & inds]
   (def ninds (length inds))
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
@@ -519,6 +530,12 @@
       (loop [j :range [0 ninds]] (put args j (get (get inds j) i)))
       (put res i (apply1 f args))))
   res)
+
+(defn map
+  "Map a function over every element in an indexed data structure and
+  return a tuple of the results."
+  [f & inds]
+  (tuple.slice (apply mapa f inds) 0))
 
 (defn each
   "Map a function over every element in an array or tuple but do not
@@ -543,26 +560,27 @@
 
 (defn mapcat
   "Map a function over every element in an array or tuple and
-  use array to concatenate the results. Returns the same
-  type as the input sequence."
+  use array to concatenate the results. Returns the type given
+  as the third argument, or same type as the input indexed structure."
   @[f ind t]
   (def res @[])
   (loop [x :in ind]
     (array.concat res (f x)))
-  (if (= :tuple (type (or t ind)))
-    (apply1 tuple res)
+  (if (= :tuple (or t (type ind)))
+    (tuple.slice res 0)
     res))
 
 (defn filter
   "Given a predicate, take only elements from an array or tuple for
-  which (pred element) is truthy. Returns the same type as the input sequence."
+  which (pred element) is truthy. Returns the type given as the
+  third argument, or the same type as the input indexed structure."
   @[pred ind t]
   (def res @[])
   (loop [item :in ind]
     (if (pred item)
       (array.push res item)))
-  (if (= :tuple (type (or t ind)))
-    (apply1 tuple res)
+  (if (= :tuple (or t (type ind)))
+    (tuple.slice res 0)
     res))
 
 (defn range
@@ -618,7 +636,7 @@
   the predicate, and abort on first failure. Returns a new tuple."
   [pred ind]
   (def i (find-index pred ind))
-  (tuple.slice ind i -1))
+  (tuple.slice ind i))
 
 (defn drop-while
   "Same as (drop-until (complement pred) ind)."
@@ -631,7 +649,7 @@
     (def ret @[])
     (loop [f :in funs]
       (array.push ret (apply1 f args)))
-    (apply1 tuple ret)))
+    (tuple.slice ret 0)))
 
 (defmacro juxt
   [& funs]
@@ -639,7 +657,7 @@
   (def $args (gensym))
   (loop [f :in funs]
     (array.push parts (tuple apply1 f $args)))
-  (tuple 'fn (tuple '& $args) (apply1 tuple parts)))
+  (tuple 'fn (tuple '& $args) (tuple.slice parts 0)))
 
 (defmacro ->
   "Threading macro. Inserts x as the second value in the first form
@@ -651,7 +669,7 @@
                  [tuple (get n 0) (array.slice n 1)]
                  [tuple n @[]]))
     (def parts (array.concat @[h last] t))
-    (apply1 tuple parts))
+    (tuple.slice parts 0))
   (reduce fop x forms))
 
 (defmacro ->>
@@ -664,7 +682,7 @@
                  [tuple (get n 0) (array.slice n 1)]
                  [tuple n @[]]))
     (def parts (array.concat @[h] t @[last]))
-    (apply1 tuple parts))
+    (tuple.slice parts 0))
   (reduce fop x forms))
 
 (defn partial
@@ -697,7 +715,7 @@
 (defn tuple.reverse
   "Reverses the order of the elements given an array or tuple and returns a tuple"
   [t]
-  (apply1 tuple (array.reverse t)))
+  (tuple.slice (array.reverse t) 0))
 
 (defn reverse
   "Reverses order of elements in a given array or tuple"
@@ -889,7 +907,7 @@
   (defn expand-bindings [x]
     (case (type x)
       :array (map expand-bindings x)
-      :tuple (apply1 tuple (map expand-bindings x))
+      :tuple (tuple.slice (map expand-bindings x) 0)
       :table (dotable x expand-bindings)
       :struct (table.to-struct (dotable x expand-bindings))
       (macroexpand-1 x)))
@@ -898,8 +916,8 @@
     (def len (length t))
     (def last (get t (- len 1)))
     (def last2 (get t (- len 2)))
-    (apply1 tuple (array.concat (array.slice t 0 -3)
-                                @[(expand-bindings last2) (macroexpand-1 last)])))
+    (tuple.slice (array.concat (array.slice t 0 -3)
+                                @[(expand-bindings last2) (macroexpand-1 last)]) 0))
 
   (defn expandall [t]
     (def args (map macroexpand-1 (tuple.slice t 1)))
@@ -928,7 +946,7 @@
     (cond
       s (s t)
       m? (apply1 m (tuple.slice t 1))
-      (apply1 tuple (map macroexpand-1 t))))
+      (tuple.slice (map macroexpand-1 t) 0)))
 
   (def ret
     (case (type x)
@@ -1166,7 +1184,7 @@
   (def last (get parts (- (length parts) 1)))
   (def normname (string.replace-all "." "/" path))
   (array.push
-    (map (fn [x]
+    (mapa (fn [x]
            (def y (string.replace "??" last x))
            (string.replace "?" normname y))
          paths)
