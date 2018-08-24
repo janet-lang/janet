@@ -186,7 +186,8 @@ recur:
         return;
     dst_gc_mark(fiber);
 
-    dst_mark_function(fiber->root);
+    if (fiber->root)
+        dst_mark_function(fiber->root);
 
     i = fiber->frame;
     j = fiber->stackstart - DST_FRAME_SIZE;
