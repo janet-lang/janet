@@ -103,6 +103,9 @@ static void pushbytes(MarshalState *st, const uint8_t *bytes, int32_t len) {
 
 /* Forward declaration to enable mutual recursion. */
 static void marshal_one(MarshalState *st, Dst x, int flags);
+static void marshal_one_fiber(MarshalState *st, DstFiber *fiber, int flags);
+static void marshal_one_def(MarshalState *st, DstFuncDef *def, int flags);
+static void marshal_one_env(MarshalState *st, DstFuncEnv *env, int flags);
 
 /* Marshal a function env */
 static void marshal_one_env(MarshalState *st, DstFuncEnv *env, int flags) {
@@ -120,11 +123,11 @@ static void marshal_one_env(MarshalState *st, DstFuncEnv *env, int flags) {
     pushint(st, env->length);
     if (env->offset) {
         /* On stack variant */
-        marshal_one(st, dst_wrap_fiber(env->as.fiber), flags);
+        marshal_one_fiber(st, env->as.fiber, flags + 1);
     } else {
         /* Off stack variant */
         for (int32_t i = 0; i < env->length; i++)
-            marshal_one(st, env->as.values[i], flags);
+            marshal_one(st, env->as.values[i], flags + 1);
     }
 }
 
@@ -485,11 +488,26 @@ static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
     return ret;
 }
 
-/* Forward declaration */
+/* Forward declarations for mutual recursion */
 static const uint8_t *unmarshal_one(
         UnmarshalState *st,
         const uint8_t *data,
         Dst *out,
+        int flags);
+static const uint8_t *unmarshal_one_env(
+        UnmarshalState *st,
+        const uint8_t *data,
+        DstFuncEnv **out,
+        int flags);
+static const uint8_t *unmarshal_one_def(
+        UnmarshalState *st,
+        const uint8_t *data,
+        DstFuncDef **out,
+        int flags);
+static const uint8_t *unmarshal_one_fiber(
+        UnmarshalState *st,
+        const uint8_t *data,
+        DstFiber **out,
         int flags);
 
 /* Unmarshal a funcenv */
@@ -515,10 +533,7 @@ static const uint8_t *unmarshal_one_env(
         int32_t length = readint(st, &data);
         if (offset) {
             /* On stack variant */
-            Dst fiberv;
-            data = unmarshal_one(st, data, &fiberv, flags);
-            if (!dst_checktype(fiberv, DST_FIBER)) longjmp(st->err, UMR_EXPECTED_FIBER);
-            env->as.fiber = dst_unwrap_fiber(fiberv);
+            data = unmarshal_one_fiber(st, data, &(env->as.fiber), flags);
             /* Unmarshaling fiber may set values */
             if (env->offset != 0 && env->offset != offset) longjmp(st->err, UMR_UNKNOWN);
             if (env->length != 0 && env->length != length) longjmp(st->err, UMR_UNKNOWN);
@@ -528,7 +543,7 @@ static const uint8_t *unmarshal_one_env(
             if (!env->as.values) {
                 DST_OUT_OF_MEMORY;
             }
-            for (int32_t i = 0; i < env->length; i++)
+            for (int32_t i = 0; i < length; i++)
                 data = unmarshal_one(st, data, env->as.values + i, flags);
         }
         env->offset = offset;
@@ -707,17 +722,20 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->maxstack = readint(st, &data);
 
     /* Check for bad flags and ints */
-    if (frame + DST_FRAME_SIZE > fiber->stackstart ||
+    if ((int32_t)(frame + DST_FRAME_SIZE) > fiber->stackstart ||
             fiber->stackstart > fiber->stacktop ||
-            fiber->stacktop > fiber->capacity ||
             fiber->stacktop > fiber->maxstack) {
+        printf("bad flags and ints.\n");
         goto error;
     }
 
     /* Get root fuction */
     Dst funcv;
-    data = dst_unmarshal_one(st, data, &funcv, flags + 1);
-    if (!dst_checktype(funcv, DST_FUNCTION)) goto error;
+    data = unmarshal_one(st, data, &funcv, flags + 1);
+    if (!dst_checktype(funcv, DST_FUNCTION)) {
+        printf("bad root func.\n");
+        goto error;
+    }
     fiber->root = dst_unwrap_function(funcv);
 
     /* Allocate stack memory */
@@ -745,8 +763,10 @@ static const uint8_t *unmarshal_one_fiber(
         /* Get function */
         Dst funcv;
         data = unmarshal_one(st, data, &funcv, flags + 1);
-        if (!dst_checktype(framefunc, DST_FUNCTION))
+        if (!dst_checktype(funcv, DST_FUNCTION)) {
+            printf("bad root func.\n");
             goto error;
+        }
         func = dst_unwrap_function(funcv);
         def = func->def;
 
@@ -763,15 +783,14 @@ static const uint8_t *unmarshal_one_fiber(
         }
 
         /* Error checking */
-        int32_t expected_framesize = def->arity + !!(def->flags & DST_FUNCDEF_FLAG_VARARG);
+        int32_t expected_framesize = def->slotcount;
         if (expected_framesize != stacktop - stack) goto error;
         if (pcdiff < 0 || pcdiff >= def->bytecode_length) goto error;
-        if (prevframe + DST_FRAME_SIZE > stack) goto error;
+        if ((int32_t)(prevframe + DST_FRAME_SIZE) > stack) goto error;
 
         /* Get stack items */
-        for (int32_t i = stack; i < stacktop; i++) {
-            data = dst_unmarshal_one(st, data, fiber->data + i, flags + 1);
-        }
+        for (int32_t i = stack; i < stacktop; i++)
+            data = unmarshal_one(st, data, fiber->data + i, flags + 1);
 
         /* Set frame */
         framep->env = env;
@@ -787,14 +806,14 @@ static const uint8_t *unmarshal_one_fiber(
     if (stack < 0) goto error;
 
     /* Check for child fiber */
-    if (fiber->flags & DST_FIBER_HAS_CHILD) {
+    if (fiber->flags & DST_FIBER_FLAG_HASCHILD) {
         fiber->flags &= ~DST_FIBER_FLAG_HASCHILD;
         data = unmarshal_one_fiber(st, data, &(fiber->child), flags + 1);
     }
 
     /* Return data */
     fiber->frame = frame;
-    *out = dst_wrap_fiber(fiber);
+    *out = fiber;
     return data;
 
 error:
