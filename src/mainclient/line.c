@@ -327,6 +327,10 @@ static int line() {
         default:
             if (insert(c)) return -1;
             break;
+        case 9:     /* tab */
+            if (insert(' ')) return -1;
+            if (insert(' ')) return -1;
+            break;
         case 13:    /* enter */
             return 0;
         case 3:     /* ctrl-c */
