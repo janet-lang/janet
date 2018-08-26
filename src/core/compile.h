@@ -29,7 +29,7 @@
 /* Tags for some functions for the prepared inliner */
 #define DST_FUN_DEBUG 1
 #define DST_FUN_ERROR 2
-#define DST_FUN_APPLY1 3
+#define DST_FUN_APPLY 3
 #define DST_FUN_YIELD 4
 #define DST_FUN_RESUME 5
 #define DST_FUN_GET 6

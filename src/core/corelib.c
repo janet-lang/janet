@@ -462,13 +462,43 @@ static void templatize_comparator(
             sizeof(comparator_asm));
 }
 
+/* Make the apply function */
+static void make_apply(DstTable *env) {
+    /* Reg 0: Function (fun) */
+    /* Reg 1: Argument tuple (args) */
+    /* Reg 2: Argument count (argn) */
+    /* Reg 3: Jump flag (jump?) */
+    /* Reg 4: Loop iterator (i) */
+    /* Reg 5: Loop values (x) */
+    uint32_t apply_asm[] = {
+        SS(DOP_LENGTH, 2, 1),
+        SSS(DOP_EQUALS_IMMEDIATE, 3, 2, 0), /* Immediate tail call if no args */
+        SI(DOP_JUMP_IF, 3, 9),
+
+        /* Prime loop */
+        SI(DOP_LOAD_INTEGER, 4, 0), /* i = 0 */
+
+        /* Main loop */
+        SSS(DOP_GET, 5, 1, 4), /* x = args[i] */
+        SSI(DOP_ADD_IMMEDIATE, 4, 4, 1), /* i++ */
+        SSI(DOP_EQUALS_INTEGER, 3, 4, 2), /* jump? = (i == argn) */
+        SI(DOP_JUMP_IF, 3, 3), /* if jump? go forward 3 */
+        S(DOP_PUSH, 5),
+        (DOP_JUMP | ((uint32_t)(-5) << 8)),
+
+        /* Push the array */
+        S(DOP_PUSH_ARRAY, 5),
+
+        /* Call the funciton */
+        S(DOP_TAILCALL, 0)
+    };
+    dst_quick_asm(env, DST_FUN_APPLY | DST_FUNCDEF_FLAG_VARARG,
+            "apply", 1, 6, apply_asm, sizeof(apply_asm));
+}
+
 DstTable *dst_core_env(void) {
     static const uint32_t error_asm[] = {
         DOP_ERROR
-    };
-    static const uint32_t apply_asm[] = {
-       DOP_PUSH_ARRAY | (1 << 8),
-       DOP_TAILCALL
     };
     static const uint32_t debug_asm[] = {
        DOP_SIGNAL | (2 << 24),
@@ -507,13 +537,13 @@ DstTable *dst_core_env(void) {
 
     dst_quick_asm(env, DST_FUN_YIELD, "debug", 0, 1, debug_asm, sizeof(debug_asm));
     dst_quick_asm(env, DST_FUN_ERROR, "error", 1, 1, error_asm, sizeof(error_asm));
-    dst_quick_asm(env, DST_FUN_APPLY1, "apply1", 2, 2, apply_asm, sizeof(apply_asm));
     dst_quick_asm(env, DST_FUN_YIELD, "yield", 1, 2, yield_asm, sizeof(yield_asm));
     dst_quick_asm(env, DST_FUN_RESUME, "resume", 2, 2, resume_asm, sizeof(resume_asm));
     dst_quick_asm(env, DST_FUN_GET, "get", 2, 2, get_asm, sizeof(get_asm));
     dst_quick_asm(env, DST_FUN_PUT, "put", 3, 3, put_asm, sizeof(put_asm));
     dst_quick_asm(env, DST_FUN_LENGTH, "length", 1, 1, length_asm, sizeof(length_asm));
     dst_quick_asm(env, DST_FUN_BNOT, "~", 1, 1, bnot_asm, sizeof(bnot_asm));
+    make_apply(env);
 
     /* Variadic ops */
     templatize_varop(env, DST_FUN_ADD, "+", 0, 0, DOP_ADD);

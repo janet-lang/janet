@@ -33,6 +33,10 @@ static int fixarity1(DstFopts opts, DstSlot *args) {
     (void) opts;
     return dst_v_count(args) == 1;
 }
+static int minarity2(DstFopts opts, DstSlot *args) {
+    (void) opts;
+    return dst_v_count(args) >= 2;
+}
 static int fixarity2(DstFopts opts, DstSlot *args) {
     (void) opts;
     return dst_v_count(args) == 2;
@@ -106,18 +110,27 @@ static DstSlot do_yield(DstFopts opts, DstSlot *args) {
 static DstSlot do_resume(DstFopts opts, DstSlot *args) {
     return opreduce(opts, args, DOP_RESUME, dst_wrap_nil());
 }
-static DstSlot do_apply1(DstFopts opts, DstSlot *args) {
+static DstSlot do_apply(DstFopts opts, DstSlot *args) {
     /* Push phase */
-    dstc_emit_s(opts.compiler, DOP_PUSH_ARRAY, args[1], 0);
+    DstCompiler *c = opts.compiler;
+    int32_t i;
+    for (i = 1; i < dst_v_count(args) - 3; i += 3)
+        dstc_emit_sss(c, DOP_PUSH_3, args[i], args[i+1], args[i+2], 0);
+    if (i == dst_v_count(args) - 3)
+        dstc_emit_ss(c, DOP_PUSH_2, args[i], args[i+1], 0);
+    else if (i == dst_v_count(args) - 2)
+        dstc_emit_s(c, DOP_PUSH, args[i], 0);
+    /* Push array phase */
+    dstc_emit_s(c, DOP_PUSH_ARRAY, dst_v_last(args), 0);
     /* Call phase */
     DstSlot target;
     if (opts.flags & DST_FOPTS_TAIL) {
-        dstc_emit_s(opts.compiler, DOP_TAILCALL, args[0], 0);
+        dstc_emit_s(c, DOP_TAILCALL, args[0], 0);
         target = dstc_cslot(dst_wrap_nil());
         target.flags |= DST_SLOT_RETURNED;
     } else {
         target = dstc_gettarget(opts);
-        dstc_emit_ss(opts.compiler, DOP_CALL, target, args[0], 1);
+        dstc_emit_ss(c, DOP_CALL, target, args[0], 1);
     }
     return target;
 }
@@ -238,7 +251,7 @@ static DstSlot do_neq(DstFopts opts, DstSlot *args) {
 static const DstFunOptimizer optimizers[] = {
     {fixarity0, do_debug},
     {fixarity1, do_error},
-    {fixarity2, do_apply1},
+    {minarity2, do_apply},
     {fixarity1, do_yield},
     {fixarity2, do_resume},
     {fixarity2, do_get},

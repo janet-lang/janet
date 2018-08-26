@@ -31,7 +31,7 @@
 (def defmacro :macro
   "Define a macro."
   (fn defmacro [name & more]
-    (apply1 defn (array.concat @[name :macro] more))))
+    (apply defn (array.concat @[name :macro] more))))
 
 (defmacro defmacro-
   "Define a private macro that will not be exported."
@@ -51,7 +51,7 @@
 (defmacro defasm
   "Define a function using assembly"
   [name & body]
-  (def tab (apply1 table body))
+  (def tab (apply table body))
   (tuple 'def name (tuple asm (tuple 'quote tab))))
 
 (defn defglobal
@@ -187,14 +187,6 @@
   "Shows documentation for the given symbol."
   [sym]
   (tuple doc* '_env (tuple 'quote sym)))
-
-(defn apply
-  "Evaluate to (f ...args), where the final value of args must be an array or
-  tuple and will be spliced into the function call. For example, (apply + 1 2 @[3 4])
-  evaluates to 10."
-  [f & args]
-  (def last (- (length args) 1))
-  (apply1 f (array.concat (array.slice args 0 -2) (get args last))))
 
 (defmacro case
   "Select the body that equals the dispatch value. When pairs
@@ -528,7 +520,7 @@
     (loop [i :range [0 limit]]
       (def args (array.new ninds))
       (loop [j :range [0 ninds]] (put args j (get (get inds j) i)))
-      (put res i (apply1 f args))))
+      (put res i (apply f args))))
   res)
 
 (defn map
@@ -556,7 +548,7 @@
     (loop [i :range [0 limit]]
       (def args (array.new ninds))
       (loop [j :range [0 ninds]] (array.push args (get (get inds j) i)))
-      (apply1 f args))))
+      (apply f args))))
 
 (defn mapcat
   "Map a function over every element in an array or tuple and
@@ -648,7 +640,7 @@
   (fn [& args]
     (def ret @[])
     (loop [f :in funs]
-      (array.push ret (apply1 f args)))
+      (array.push ret (apply f args)))
     (tuple.slice ret 0)))
 
 (defmacro juxt
@@ -656,7 +648,7 @@
   (def parts @['tuple])
   (def $args (gensym))
   (loop [f :in funs]
-    (array.push parts (tuple apply1 f $args)))
+    (array.push parts (tuple apply f $args)))
   (tuple 'fn (tuple '& $args) (tuple.slice parts 0)))
 
 (defmacro ->
@@ -689,7 +681,7 @@
   "Partial function application."
   [f & more]
   (if (zero? (length more)) f
-    (fn [& r] (apply1 f (array.concat @[] more r)))))
+    (fn [& r] (apply f (array.concat @[] more r)))))
 
 (defn every? [pred ind]
   (var res true)
@@ -945,7 +937,7 @@
     (def m? (get entry :macro))
     (cond
       s (s t)
-      m? (apply1 m (tuple.slice t 1))
+      m? (apply m (tuple.slice t 1))
       (tuple.slice (map macroexpand-1 t) 0)))
 
   (def ret
@@ -1250,7 +1242,7 @@
           newenv)))))
 
 (defn import* [env path & args]
-  (def targs (apply1 table args))
+  (def targs (apply table args))
   (def {
         :as as
         :prefix prefix

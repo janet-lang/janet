@@ -202,7 +202,7 @@
 (assert (= 7 (case :a :b 5 :c 6 :u 10 7)), "case with default")
 
 # Testing the loop and for macros
-(def xs (apply1 tuple (for [x :range [0 10] :when (even? x)] (tuple (/ x 2) x))))
+(def xs (apply tuple (for [x :range [0 10] :when (even? x)] (tuple (/ x 2) x))))
 (assert (= xs '((0 0) (1 2) (2 4) (3 6) (4 8))) "for macro 1")
 
 # Some testing for not=
@@ -230,8 +230,8 @@
   "Check if two arrays are equal in an element by element comparison"
   [a b]
   (if (and (array? a) (array? b))
-    (= (apply1 tuple a) (apply1 tuple b))))
-(assert (= (apply1 tuple @[1 2 3 4 5]) (tuple 1 2 3 4 5)) "array to tuple")
+    (= (apply tuple a) (apply tuple b))))
+(assert (= (apply tuple @[1 2 3 4 5]) (tuple 1 2 3 4 5)) "array to tuple")
 (def arr (array))
 (array.push arr :hello)
 (array.push arr :world)
