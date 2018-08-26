@@ -1,5 +1,0 @@
-#!/usr/bin/env dst
-
-(import metabuild :as mb)
-
-(mb.generate "hello" @["main.c"])

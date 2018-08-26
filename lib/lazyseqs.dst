@@ -105,27 +105,3 @@
     (when x
       (def thehead (get HEAD x))
       (if thehead (tuple thehead (take-while pred (get TAIL x)))))))
-
-# Iterators are a concept that looks a lot like lazy seq
-# The following functions turn iterators to lazy seq and vice versa
-
-(defn- iter-self
-  [next more]
-  (delay 
-    (if (more) (tuple (next) (iter-self next more)))))
-
-(defn iter2lazy
-  "Create a lazy sequence from an iterator"
-  [iter]
-  (def {:more more :next next} iter)
-  (iter-self next more))
-
-(defn lazy2iter
-  "turn a lazy-seq to an iterator"
-  [lazy-seq]
-  (var node lazy-seq)
-  {:more (fn [] (node))
-   :next (fn []
-           (when-let [n (node)]
-                     (:= node (get n 1))
-                     (get n 0)))})

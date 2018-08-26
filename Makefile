@@ -130,11 +130,11 @@ valtest: $(DST_TARGET)
 ###################
 
 natives: $(DST_TARGET)
-	$(MAKE) -C natives/hello
+	$(MAKE) -C natives/json
 	$(MAKE) -j 8 -C natives/sqlite3
 
 clean-natives:
-	$(MAKE) -C natives/hello clean
+	$(MAKE) -C natives/json clean
 	$(MAKE) -C natives/sqlite3 clean
 
 #################
@@ -153,6 +153,10 @@ install: $(DST_TARGET)
 	cp $(DST_HEADERS) $(INCLUDEDIR)
 	cp $(DST_LIBRARY) $(LIBDIR)/$(DST_LIBRARY)
 	$(LDCONFIG)
+
+install-libs: natives
+	cp lib/* $(DST_PATH)
+	cp natives/*/*.so $(DST_PATH)
 
 uninstall:
 	-rm $(BINDIR)/$(DST_TARGET)

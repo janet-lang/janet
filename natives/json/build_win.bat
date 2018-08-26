@@ -4,10 +4,10 @@
 
 @echo off
 
-cl /nologo /I..\..\src\include /c /O2 /W3 hello.c
+cl /nologo /I..\..\src\include /c /O2 /W3 json.c
 @if errorlevel 1 goto :BUILDFAIL
 
-link /nologo /dll ..\..\dst.lib /out:hello.dll *.obj
+link /nologo /dll ..\..\dst.lib /out:json.dll *.obj
 if errorlevel 1 goto :BUILDFAIL
 
 @echo .
