@@ -293,8 +293,8 @@ static const DstReg cfuns[] = {
 
 /* Load the table module */
 int dst_lib_table(DstArgs args) {
-    DstTable *env = dst_env_arg(args);
-    dst_env_cfuns(env, cfuns);
+    DstTable *env = dst_env(args);
+    dst_cfuns(env, NULL, cfuns);
     return 0;
 }
 

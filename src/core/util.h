@@ -38,4 +38,19 @@ const void *dst_strbinsearch(
         size_t itemsize,
         const uint8_t *key);
 
+/* Initialize builtin libraries */
+int dst_lib_io(DstArgs args);
+int dst_lib_math(DstArgs args);
+int dst_lib_array(DstArgs args);
+int dst_lib_tuple(DstArgs args);
+int dst_lib_buffer(DstArgs args);
+int dst_lib_table(DstArgs args);
+int dst_lib_fiber(DstArgs args);
+int dst_lib_os(DstArgs args);
+int dst_lib_string(DstArgs args);
+int dst_lib_marsh(DstArgs args);
+int dst_lib_parse(DstArgs args);
+int dst_lib_asm(DstArgs args);
+int dst_lib_compile(DstArgs args);
+
 #endif

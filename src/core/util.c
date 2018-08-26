@@ -137,21 +137,22 @@ const void *dst_strbinsearch(
     return NULL;
 }
 
+/* Register a value in the global registry */
 void dst_register(const char *name, Dst value) {
     Dst regkey = dst_csymbolv(name);
     dst_table_put(dst_vm_registry, regkey, value);
     dst_table_put(dst_vm_registry, value, regkey);
 }
 
-/* Add a module definition */
-void dst_env_def(DstTable *env, const char *name, Dst val) {
+/* Add a def to an environment */
+void dst_def(DstTable *env, const char *name, Dst val) {
     DstTable *subt = dst_table(1);
     dst_table_put(subt, dst_csymbolv(":value"), val);
     dst_table_put(env, dst_csymbolv(name), dst_wrap_table(subt));
 }
 
 /* Add a var to the environment */
-void dst_env_var(DstTable *env, const char *name, Dst val) {
+void dst_var(DstTable *env, const char *name, Dst val) {
     DstArray *array = dst_array(1);
     DstTable *subt = dst_table(1);
     dst_array_push(array, val);
@@ -160,19 +161,32 @@ void dst_env_var(DstTable *env, const char *name, Dst val) {
 }
 
 /* Load many cfunctions at once */
-void dst_env_cfuns(DstTable *env, const DstReg *cfuns) {
+void dst_cfuns(DstTable *env, const char *regprefix, const DstReg *cfuns) {
     while (cfuns->name) {
         Dst name = dst_csymbolv(cfuns->name);
+        Dst longname = name;
+        if (regprefix) {
+            int32_t reglen = 0;
+            int32_t nmlen = 0;
+            while (regprefix[reglen]) reglen++;
+            while (cfuns->name[nmlen]) nmlen++;
+            uint8_t *longname_buffer =
+                dst_string_begin(reglen + 1 + nmlen);
+            memcpy(longname_buffer, regprefix, reglen);
+            longname_buffer[reglen] = '.';
+            memcpy(longname_buffer + reglen + 1, cfuns->name, nmlen);
+            longname = dst_wrap_symbol(dst_string_end(longname_buffer));
+        }
         Dst fun = dst_wrap_cfunction(cfuns->cfun);
-        dst_env_def(env, cfuns->name, fun);
-        dst_table_put(dst_vm_registry, name, fun);
-        dst_table_put(dst_vm_registry, fun, name);
+        dst_def(env, cfuns->name, fun);
+        dst_table_put(dst_vm_registry, longname, fun);
+        dst_table_put(dst_vm_registry, fun, longname);
         cfuns++;
     }
 }
 
 /* Resolve a symbol in the environment */
-DstBindingType dst_env_resolve(DstTable *env, const uint8_t *sym, Dst *out) {
+DstBindingType dst_resolve(DstTable *env, const uint8_t *sym, Dst *out) {
     Dst ref;
     DstTable *entry_table;
     Dst entry = dst_table_get(env, dst_wrap_symbol(sym));
@@ -195,7 +209,7 @@ DstBindingType dst_env_resolve(DstTable *env, const uint8_t *sym, Dst *out) {
 }
 
 /* Get module from the arguments passed to library */
-DstTable *dst_env_arg(DstArgs args) {
+DstTable *dst_env(DstArgs args) {
     DstTable *module;
     if (args.n >= 1 && dst_checktype(args.v[0], DST_TABLE)) {
         module = dst_unwrap_table(args.v[0]);

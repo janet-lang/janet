@@ -1031,7 +1031,6 @@ DST_API int dst_equals(Dst x, Dst y);
 DST_API int32_t dst_hash(Dst x);
 DST_API int dst_compare(Dst x, Dst y);
 DST_API int dst_cstrcmp(const uint8_t *str, const char *other);
-DST_API void dst_register(const char *name, Dst value);
 
 /* VM functions */
 DST_API int dst_init(void);
@@ -1040,39 +1039,25 @@ DST_API DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out);
 #define dst_run(F,O) dst_continue(F, dst_wrap_nil(), O)
 DST_API DstSignal dst_call(DstFunction *fun, int32_t argn, const Dst *argv, Dst *out, DstFiber **f);
 
-/* Env helpers */
+/* C Library helpers */
 typedef enum {
     DST_BINDING_NONE,
     DST_BINDING_DEF,
     DST_BINDING_VAR,
     DST_BINDING_MACRO
 } DstBindingType;
-DST_API void dst_env_def(DstTable *env, const char *name, Dst val);
-DST_API void dst_env_var(DstTable *env, const char *name, Dst val);
-DST_API void dst_env_cfuns(DstTable *env, const DstReg *cfuns);
-DST_API DstBindingType dst_env_resolve(DstTable *env, const uint8_t *sym, Dst *out);
-DST_API DstTable *dst_env_arg(DstArgs args);
+DST_API void dst_def(DstTable *env, const char *name, Dst val);
+DST_API void dst_var(DstTable *env, const char *name, Dst val);
+DST_API void dst_cfuns(DstTable *env, const char *regprefix, const DstReg *cfuns);
+DST_API DstBindingType dst_resolve(DstTable *env, const uint8_t *sym, Dst *out);
+DST_API DstTable *dst_env(DstArgs args);
+DST_API void dst_register(const char *name, Dst value);
 
 /* C Function helpers */
 DST_API int dst_arity_err(DstArgs args, int32_t n, const char *prefix);
 DST_API int dst_type_err(DstArgs args, int32_t n, DstType expected);
 DST_API int dst_typemany_err(DstArgs args, int32_t n, int expected);
 DST_API int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at);
-
-/* Initialize builtin libraries */
-DST_API int dst_lib_io(DstArgs args);
-DST_API int dst_lib_math(DstArgs args);
-DST_API int dst_lib_array(DstArgs args);
-DST_API int dst_lib_tuple(DstArgs args);
-DST_API int dst_lib_buffer(DstArgs args);
-DST_API int dst_lib_table(DstArgs args);
-DST_API int dst_lib_fiber(DstArgs args);
-DST_API int dst_lib_os(DstArgs args);
-DST_API int dst_lib_string(DstArgs args);
-DST_API int dst_lib_marsh(DstArgs args);
-DST_API int dst_lib_parse(DstArgs args);
-DST_API int dst_lib_asm(DstArgs args);
-DST_API int dst_lib_compile(DstArgs args);
 
 /* Helpers for writing modules */
 #define DST_MODULE_ENTRY DST_API int _dst_init

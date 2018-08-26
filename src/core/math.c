@@ -154,11 +154,11 @@ static const DstReg cfuns[] = {
 
 /* Module entry point */
 int dst_lib_math(DstArgs args) {
-    DstTable *env = dst_env_arg(args);
-    dst_env_cfuns(env, cfuns);
+    DstTable *env = dst_env(args);
+    dst_cfuns(env, NULL, cfuns);
 
-    dst_env_def(env, "math.pi", dst_wrap_real(3.1415926535897931));
-    dst_env_def(env, "math.e", dst_wrap_real(2.7182818284590451));
-    dst_env_def(env, "math.inf", dst_wrap_real(INFINITY));
+    dst_def(env, "math.pi", dst_wrap_real(3.1415926535897931));
+    dst_def(env, "math.e", dst_wrap_real(2.7182818284590451));
+    dst_def(env, "math.inf", dst_wrap_real(INFINITY));
     return 0;
 }

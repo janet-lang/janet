@@ -394,7 +394,7 @@ static const DstReg cfuns[] = {
 };
 
 DST_MODULE_ENTRY(DstArgs args) {
-    DstTable *env = dst_env_arg(args);
-    dst_env_cfuns(env, cfuns);
+    DstTable *env = dst_env(args);
+    dst_cfuns(env, "sqlite3", cfuns);
     return 0;
 }

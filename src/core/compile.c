@@ -194,7 +194,7 @@ DstSlot dstc_resolve(
     /* Symbol not found - check for global */
     {
         Dst check;
-        DstBindingType btype = dst_env_resolve(c->env, sym, &check);
+        DstBindingType btype = dst_resolve(c->env, sym, &check);
         switch (btype) {
             default:
             case DST_BINDING_NONE:
@@ -455,7 +455,7 @@ static int macroexpand1(
         return 0;
     }
     Dst macroval;
-    DstBindingType btype = dst_env_resolve(c->env, name, &macroval);
+    DstBindingType btype = dst_resolve(c->env, name, &macroval);
     if (btype != DST_BINDING_MACRO ||
             !dst_checktype(macroval, DST_FUNCTION))
         return 0;
@@ -711,7 +711,7 @@ static const DstReg cfuns[] = {
 };
 
 int dst_lib_compile(DstArgs args) {
-    DstTable *env = dst_env_arg(args);
-    dst_env_cfuns(env, cfuns); 
+    DstTable *env = dst_env(args);
+    dst_cfuns(env, NULL, cfuns); 
     return 0;
 }

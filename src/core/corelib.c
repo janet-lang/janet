@@ -341,7 +341,8 @@ static void dst_quick_asm(
         DST_OUT_OF_MEMORY;
     }
     memcpy(def->bytecode, bytecode, bytecode_size);
-    dst_env_def(env, name, dst_wrap_function(dst_thunk(def)));
+    dst_def(env, name, dst_wrap_function(dst_thunk(def)));
+    dst_register(name, dst_wrap_function(dst_thunk(def)));
 }
 
 /* Macros for easier inline dst assembly */
@@ -533,7 +534,7 @@ DstTable *dst_core_env(void) {
     Dst ret = dst_wrap_table(env);
 
     /* Load main functions */
-    dst_env_cfuns(env, cfuns);
+    dst_cfuns(env, NULL, cfuns);
 
     dst_quick_asm(env, DST_FUN_YIELD, "debug", 0, 1, debug_asm, sizeof(debug_asm));
     dst_quick_asm(env, DST_FUN_ERROR, "error", 1, 1, error_asm, sizeof(error_asm));
@@ -572,7 +573,7 @@ DstTable *dst_core_env(void) {
     templatize_comparator(env, DST_FUN_NEQ, "not==", 1, DOP_NUMERIC_EQUAL);
 
     /* Platform detection */
-    dst_env_def(env, "dst.version", dst_cstringv(DST_VERSION));
+    dst_def(env, "dst.version", dst_cstringv(DST_VERSION));
 
     /* Set as gc root */
     dst_gcroot(dst_wrap_table(env));
@@ -599,7 +600,7 @@ DstTable *dst_core_env(void) {
     }
 
     /* Allow references to the environment */
-    dst_env_def(env, "_env", ret);
+    dst_def(env, "_env", ret);
 
     /* Run bootstrap source */
     dst_dobytes(env, dst_gen_core, sizeof(dst_gen_core), "core.dst");

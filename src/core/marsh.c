@@ -376,10 +376,9 @@ static void marshal_one(MarshalState *st, Dst x, int flags) {
             {
                 MARK_SEEN();
                 Dst regval = dst_table_get(dst_vm_registry, x);
-                if (dst_checktype(regval, DST_NIL)) {
+                if (!dst_checktype(regval, DST_SYMBOL))
                     goto noregval;
-                }
-                const uint8_t *regname = dst_to_string(regval);
+                const uint8_t *regname = dst_unwrap_symbol(regval);
                 pushbyte(st, LB_REGISTRY);
                 pushint(st, dst_string_length(regname));
                 pushbytes(st, regname, dst_string_length(regname));
@@ -1060,7 +1059,7 @@ static const DstReg cfuns[] = {
 
 /* Module entry point */
 int dst_lib_marsh(DstArgs args) {
-    DstTable *env = dst_env_arg(args);
-    dst_env_cfuns(env, cfuns);
+    DstTable *env = dst_env(args);
+    dst_cfuns(env, NULL, cfuns);
     return 0;
 }

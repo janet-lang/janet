@@ -1002,7 +1002,7 @@ static const DstReg cfuns[] = {
 
 /* Module entry point */
 int dst_lib_string(DstArgs args) {
-    DstTable *env = dst_env_arg(args);
-    dst_env_cfuns(env, cfuns);
+    DstTable *env = dst_env(args);
+    dst_cfuns(env, NULL, cfuns);
     return 0;
 }

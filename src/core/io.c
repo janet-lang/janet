@@ -371,14 +371,14 @@ static const DstReg cfuns[] = {
 };
 
 static void addf(DstTable *env, const char *name, Dst val) {
-    dst_env_def(env, name, val);
+    dst_def(env, name, val);
     dst_register(name, val);
 }
 
 /* Module entry point */
 int dst_lib_io(DstArgs args) {
-    DstTable *env = dst_env_arg(args);
-    dst_env_cfuns(env, cfuns);
+    DstTable *env = dst_env(args);
+    dst_cfuns(env, NULL, cfuns);
 
     /* stdout */
     addf(env, "stdout",

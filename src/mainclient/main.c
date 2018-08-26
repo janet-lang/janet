@@ -38,10 +38,10 @@ int main(int argc, char **argv) {
     args = dst_array(argc);
     for (i = 0; i < argc; i++)
         dst_array_push(args, dst_cstringv(argv[i]));
-    dst_env_def(env, "process.args", dst_wrap_array(args));
+    dst_def(env, "process.args", dst_wrap_array(args));
 
     /* Expose line getter */
-    dst_env_def(env, "getline", dst_wrap_cfunction(dst_line_getter));
+    dst_def(env, "getline", dst_wrap_cfunction(dst_line_getter));
     dst_register("getline", dst_wrap_cfunction(dst_line_getter));
     dst_line_init();
 
