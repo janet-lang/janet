@@ -570,7 +570,7 @@ static int json_encode(DstArgs args) {
         if (args.n >= 3) {
             DST_ARG_BYTES(e.newline, e.newlinelen, args, 2);
         } else {
-            e.newline = (const uint8_t *)"\n";
+            e.newline = (const uint8_t *)"\r\n";
             e.newlinelen = 1;
         }
     }

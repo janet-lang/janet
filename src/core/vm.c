@@ -80,7 +80,14 @@ DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out) {
     dst_gcroot(in);
     if (startstatus == DST_STATUS_NEW) {
         dst_fiber_push(fiber, in);
-        dst_fiber_funcframe(fiber, fiber->root);
+        if (dst_fiber_funcframe(fiber, fiber->root)) {
+            dst_gcunroot(dst_wrap_fiber(fiber));
+            dst_gcunroot(in);
+            *out = dst_wrap_string(dst_formatc(
+                        "Could not start fiber with function of arity %d",
+                        fiber->root->def->arity));
+            return DST_SIGNAL_ERROR;
+        }
     }
     dst_fiber_set_status(fiber, DST_STATUS_ALIVE);
     stack = fiber->data + fiber->frame;
