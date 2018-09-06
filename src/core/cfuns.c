@@ -20,235 +20,235 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "compile.h"
 #include "emit.h"
 #include "vector.h"
 
-static int fixarity0(DstFopts opts, DstSlot *args) {
+static int fixarity0(JanetFopts opts, JanetSlot *args) {
     (void) opts;
-    return dst_v_count(args) == 0;
+    return janet_v_count(args) == 0;
 }
-static int fixarity1(DstFopts opts, DstSlot *args) {
+static int fixarity1(JanetFopts opts, JanetSlot *args) {
     (void) opts;
-    return dst_v_count(args) == 1;
+    return janet_v_count(args) == 1;
 }
-static int minarity2(DstFopts opts, DstSlot *args) {
+static int minarity2(JanetFopts opts, JanetSlot *args) {
     (void) opts;
-    return dst_v_count(args) >= 2;
+    return janet_v_count(args) >= 2;
 }
-static int fixarity2(DstFopts opts, DstSlot *args) {
+static int fixarity2(JanetFopts opts, JanetSlot *args) {
     (void) opts;
-    return dst_v_count(args) == 2;
-}static int fixarity3(DstFopts opts, DstSlot *args) {
+    return janet_v_count(args) == 2;
+}static int fixarity3(JanetFopts opts, JanetSlot *args) {
     (void) opts;
-    return dst_v_count(args) == 3;
+    return janet_v_count(args) == 3;
 }
 
 /* Generic hanldling for $A = op $B */
-static DstSlot genericSS(DstFopts opts, int op, DstSlot s) {
-    DstSlot target = dstc_gettarget(opts);
-    dstc_emit_ss(opts.compiler, op, target, s, 1);
+static JanetSlot genericSS(JanetFopts opts, int op, JanetSlot s) {
+    JanetSlot target = janetc_gettarget(opts);
+    janetc_emit_ss(opts.compiler, op, target, s, 1);
     return target;
 }
 
 /* Generic hanldling for $A = $B op I */
-static DstSlot genericSSI(DstFopts opts, int op, DstSlot s, int32_t imm) {
-    DstSlot target = dstc_gettarget(opts);
-    dstc_emit_ssi(opts.compiler, op, target, s, imm, 1);
+static JanetSlot genericSSI(JanetFopts opts, int op, JanetSlot s, int32_t imm) {
+    JanetSlot target = janetc_gettarget(opts);
+    janetc_emit_ssi(opts.compiler, op, target, s, imm, 1);
     return target;
 }
 
 /* Emit a series of instructions instead of a function call to a math op */
-static DstSlot opreduce(
-        DstFopts opts,
-        DstSlot *args,
+static JanetSlot opreduce(
+        JanetFopts opts,
+        JanetSlot *args,
         int op,
-        Dst nullary) {
-    DstCompiler *c = opts.compiler;
+        Janet nullary) {
+    JanetCompiler *c = opts.compiler;
     int32_t i, len;
-    len = dst_v_count(args);
-    DstSlot t;
+    len = janet_v_count(args);
+    JanetSlot t;
     if (len == 0) {
-        return dstc_cslot(nullary);
+        return janetc_cslot(nullary);
     } else if (len == 1) {
-        t = dstc_gettarget(opts);
-        dstc_emit_sss(c, op, t, dstc_cslot(nullary), args[0], 1);
+        t = janetc_gettarget(opts);
+        janetc_emit_sss(c, op, t, janetc_cslot(nullary), args[0], 1);
         return t;
     }
-    t = dstc_gettarget(opts);
-    dstc_emit_sss(c, op, t, args[0], args[1], 1);
+    t = janetc_gettarget(opts);
+    janetc_emit_sss(c, op, t, args[0], args[1], 1);
     for (i = 2; i < len; i++)
-        dstc_emit_sss(c, op, t, t, args[i], 1);
+        janetc_emit_sss(c, op, t, t, args[i], 1);
     return t;
 }
 
 /* Function optimizers */
 
-static DstSlot do_error(DstFopts opts, DstSlot *args) {
-    dstc_emit_s(opts.compiler, DOP_ERROR, args[0], 0);
-    return dstc_cslot(dst_wrap_nil());
+static JanetSlot do_error(JanetFopts opts, JanetSlot *args) {
+    janetc_emit_s(opts.compiler, JOP_ERROR, args[0], 0);
+    return janetc_cslot(janet_wrap_nil());
 }
-static DstSlot do_debug(DstFopts opts, DstSlot *args) {
+static JanetSlot do_debug(JanetFopts opts, JanetSlot *args) {
     (void)args;
-    dstc_emit(opts.compiler, DOP_SIGNAL | (2 << 24));
-    return dstc_cslot(dst_wrap_nil());
+    janetc_emit(opts.compiler, JOP_SIGNAL | (2 << 24));
+    return janetc_cslot(janet_wrap_nil());
 }
-static DstSlot do_get(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_GET, dst_wrap_nil());
+static JanetSlot do_get(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_GET, janet_wrap_nil());
 }
-static DstSlot do_put(DstFopts opts, DstSlot *args) {
-    dstc_emit_sss(opts.compiler, DOP_PUT, args[0], args[1], args[2], 0);
+static JanetSlot do_put(JanetFopts opts, JanetSlot *args) {
+    janetc_emit_sss(opts.compiler, JOP_PUT, args[0], args[1], args[2], 0);
     return args[0];
 }
-static DstSlot do_length(DstFopts opts, DstSlot *args) {
-    return genericSS(opts, DOP_LENGTH, args[0]);
+static JanetSlot do_length(JanetFopts opts, JanetSlot *args) {
+    return genericSS(opts, JOP_LENGTH, args[0]);
 }
-static DstSlot do_yield(DstFopts opts, DstSlot *args) {
-    return genericSSI(opts, DOP_SIGNAL, args[0], 3);
+static JanetSlot do_yield(JanetFopts opts, JanetSlot *args) {
+    return genericSSI(opts, JOP_SIGNAL, args[0], 3);
 }
-static DstSlot do_resume(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_RESUME, dst_wrap_nil());
+static JanetSlot do_resume(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_RESUME, janet_wrap_nil());
 }
-static DstSlot do_apply(DstFopts opts, DstSlot *args) {
+static JanetSlot do_apply(JanetFopts opts, JanetSlot *args) {
     /* Push phase */
-    DstCompiler *c = opts.compiler;
+    JanetCompiler *c = opts.compiler;
     int32_t i;
-    for (i = 1; i < dst_v_count(args) - 3; i += 3)
-        dstc_emit_sss(c, DOP_PUSH_3, args[i], args[i+1], args[i+2], 0);
-    if (i == dst_v_count(args) - 3)
-        dstc_emit_ss(c, DOP_PUSH_2, args[i], args[i+1], 0);
-    else if (i == dst_v_count(args) - 2)
-        dstc_emit_s(c, DOP_PUSH, args[i], 0);
+    for (i = 1; i < janet_v_count(args) - 3; i += 3)
+        janetc_emit_sss(c, JOP_PUSH_3, args[i], args[i+1], args[i+2], 0);
+    if (i == janet_v_count(args) - 3)
+        janetc_emit_ss(c, JOP_PUSH_2, args[i], args[i+1], 0);
+    else if (i == janet_v_count(args) - 2)
+        janetc_emit_s(c, JOP_PUSH, args[i], 0);
     /* Push array phase */
-    dstc_emit_s(c, DOP_PUSH_ARRAY, dst_v_last(args), 0);
+    janetc_emit_s(c, JOP_PUSH_ARRAY, janet_v_last(args), 0);
     /* Call phase */
-    DstSlot target;
-    if (opts.flags & DST_FOPTS_TAIL) {
-        dstc_emit_s(c, DOP_TAILCALL, args[0], 0);
-        target = dstc_cslot(dst_wrap_nil());
-        target.flags |= DST_SLOT_RETURNED;
+    JanetSlot target;
+    if (opts.flags & JANET_FOPTS_TAIL) {
+        janetc_emit_s(c, JOP_TAILCALL, args[0], 0);
+        target = janetc_cslot(janet_wrap_nil());
+        target.flags |= JANET_SLOT_RETURNED;
     } else {
-        target = dstc_gettarget(opts);
-        dstc_emit_ss(c, DOP_CALL, target, args[0], 1);
+        target = janetc_gettarget(opts);
+        janetc_emit_ss(c, JOP_CALL, target, args[0], 1);
     }
     return target;
 }
 
 /* Varidadic operators specialization */
 
-static DstSlot do_add(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_ADD, dst_wrap_integer(0));
+static JanetSlot do_add(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_ADD, janet_wrap_integer(0));
 }
-static DstSlot do_sub(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_SUBTRACT, dst_wrap_integer(0));
+static JanetSlot do_sub(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_SUBTRACT, janet_wrap_integer(0));
 }
-static DstSlot do_mul(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_MULTIPLY, dst_wrap_integer(1));
+static JanetSlot do_mul(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_MULTIPLY, janet_wrap_integer(1));
 }
-static DstSlot do_div(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_DIVIDE, dst_wrap_integer(1));
+static JanetSlot do_div(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_DIVIDE, janet_wrap_integer(1));
 }
-static DstSlot do_band(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_BAND, dst_wrap_integer(-1));
+static JanetSlot do_band(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_BAND, janet_wrap_integer(-1));
 }
-static DstSlot do_bor(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_BOR, dst_wrap_integer(0));
+static JanetSlot do_bor(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_BOR, janet_wrap_integer(0));
 }
-static DstSlot do_bxor(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_BXOR, dst_wrap_integer(0));
+static JanetSlot do_bxor(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_BXOR, janet_wrap_integer(0));
 }
-static DstSlot do_lshift(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_SHIFT_LEFT, dst_wrap_integer(1));
+static JanetSlot do_lshift(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_SHIFT_LEFT, janet_wrap_integer(1));
 }
-static DstSlot do_rshift(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_SHIFT_RIGHT, dst_wrap_integer(1));
+static JanetSlot do_rshift(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_SHIFT_RIGHT, janet_wrap_integer(1));
 }
-static DstSlot do_rshiftu(DstFopts opts, DstSlot *args) {
-    return opreduce(opts, args, DOP_SHIFT_RIGHT, dst_wrap_integer(1));
+static JanetSlot do_rshiftu(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_SHIFT_RIGHT, janet_wrap_integer(1));
 }
-static DstSlot do_bnot(DstFopts opts, DstSlot *args) {
-    return genericSS(opts, DOP_BNOT, args[0]);
+static JanetSlot do_bnot(JanetFopts opts, JanetSlot *args) {
+    return genericSS(opts, JOP_BNOT, args[0]);
 }
 
 /* Specialization for comparators */
-static DstSlot compreduce(
-        DstFopts opts,
-        DstSlot *args,
+static JanetSlot compreduce(
+        JanetFopts opts,
+        JanetSlot *args,
         int op,
         int invert) {
-    DstCompiler *c = opts.compiler;
+    JanetCompiler *c = opts.compiler;
     int32_t i, len;
-    len = dst_v_count(args);
+    len = janet_v_count(args);
     int32_t *labels = NULL;
-    DstSlot t;
+    JanetSlot t;
     if (len < 2) {
         return invert
-            ? dstc_cslot(dst_wrap_false())
-            : dstc_cslot(dst_wrap_true());
+            ? janetc_cslot(janet_wrap_false())
+            : janetc_cslot(janet_wrap_true());
     }
-    t = dstc_gettarget(opts);
+    t = janetc_gettarget(opts);
     for (i = 1; i < len; i++) {
-        dstc_emit_sss(c, op, t, args[i - 1], args[i], 1);
+        janetc_emit_sss(c, op, t, args[i - 1], args[i], 1);
         if (i != (len - 1)) {
-            int32_t label = dstc_emit_si(c, DOP_JUMP_IF_NOT, t, 0, 1);
-            dst_v_push(labels, label);
+            int32_t label = janetc_emit_si(c, JOP_JUMP_IF_NOT, t, 0, 1);
+            janet_v_push(labels, label);
         }
     }
-    int32_t end = dst_v_count(c->buffer);
+    int32_t end = janet_v_count(c->buffer);
     if (invert) {
-        dstc_emit_si(c, DOP_JUMP_IF, t, 3, 0);
-        dstc_emit_s(c, DOP_LOAD_TRUE, t, 1);
-        dstc_emit(c, DOP_JUMP | (2 << 8));
-        dstc_emit_s(c, DOP_LOAD_FALSE, t, 1);
+        janetc_emit_si(c, JOP_JUMP_IF, t, 3, 0);
+        janetc_emit_s(c, JOP_LOAD_TRUE, t, 1);
+        janetc_emit(c, JOP_JUMP | (2 << 8));
+        janetc_emit_s(c, JOP_LOAD_FALSE, t, 1);
     }
-    for (i = 0; i < dst_v_count(labels); i++) {
+    for (i = 0; i < janet_v_count(labels); i++) {
         int32_t label = labels[i];
         c->buffer[label] |= ((end - label) << 16);
     }
-    dst_v_free(labels);
+    janet_v_free(labels);
     return t;
 }
 
-static DstSlot do_order_gt(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_GREATER_THAN, 0);
+static JanetSlot do_order_gt(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_GREATER_THAN, 0);
 }
-static DstSlot do_order_lt(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_LESS_THAN, 0);
+static JanetSlot do_order_lt(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_LESS_THAN, 0);
 }
-static DstSlot do_order_gte(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_LESS_THAN, 1);
+static JanetSlot do_order_gte(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_LESS_THAN, 1);
 }
-static DstSlot do_order_lte(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_GREATER_THAN, 1);
+static JanetSlot do_order_lte(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_GREATER_THAN, 1);
 }
-static DstSlot do_order_eq(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_EQUALS, 0);
+static JanetSlot do_order_eq(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_EQUALS, 0);
 }
-static DstSlot do_order_neq(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_EQUALS, 1);
+static JanetSlot do_order_neq(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_EQUALS, 1);
 }
-static DstSlot do_gt(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_NUMERIC_GREATER_THAN, 0);
+static JanetSlot do_gt(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_NUMERIC_GREATER_THAN, 0);
 }
-static DstSlot do_lt(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_NUMERIC_LESS_THAN, 0);
+static JanetSlot do_lt(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_NUMERIC_LESS_THAN, 0);
 }
-static DstSlot do_gte(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_NUMERIC_GREATER_THAN_EQUAL, 0);
+static JanetSlot do_gte(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_NUMERIC_GREATER_THAN_EQUAL, 0);
 }
-static DstSlot do_lte(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_NUMERIC_LESS_THAN_EQUAL, 0);
+static JanetSlot do_lte(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_NUMERIC_LESS_THAN_EQUAL, 0);
 }
-static DstSlot do_eq(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_NUMERIC_EQUAL, 0);
+static JanetSlot do_eq(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_NUMERIC_EQUAL, 0);
 }
-static DstSlot do_neq(DstFopts opts, DstSlot *args) {
-    return compreduce(opts, args, DOP_NUMERIC_EQUAL, 1);
+static JanetSlot do_neq(JanetFopts opts, JanetSlot *args) {
+    return compreduce(opts, args, JOP_NUMERIC_EQUAL, 1);
 }
 
 /* Arranged by tag */
-static const DstFunOptimizer optimizers[] = {
+static const JanetFunOptimizer optimizers[] = {
     {fixarity0, do_debug},
     {fixarity1, do_error},
     {minarity2, do_apply},
@@ -282,8 +282,8 @@ static const DstFunOptimizer optimizers[] = {
     {NULL, do_neq}
 };
 
-const DstFunOptimizer *dstc_funopt(uint32_t flags) {
-    uint32_t tag = flags & DST_FUNCDEF_FLAG_TAG;
+const JanetFunOptimizer *janetc_funopt(uint32_t flags) {
+    uint32_t tag = flags & JANET_FUNCDEF_FLAG_TAG;
     if (tag == 0)
         return NULL;
     uint32_t index = tag - 1;

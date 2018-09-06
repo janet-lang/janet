@@ -23,52 +23,52 @@
 #include "vector.h"
 
 /* Grow the buffer dynamically. Used for push operations. */
-void *dst_v_grow(void *v, int32_t increment, int32_t itemsize) {
-    int32_t dbl_cur = (NULL != v) ? 2 * dst_v__cap(v) : 0;
-    int32_t min_needed = dst_v_count(v) + increment;
+void *janet_v_grow(void *v, int32_t increment, int32_t itemsize) {
+    int32_t dbl_cur = (NULL != v) ? 2 * janet_v__cap(v) : 0;
+    int32_t min_needed = janet_v_count(v) + increment;
     int32_t m = dbl_cur > min_needed ? dbl_cur : min_needed;
-    int32_t *p = (int32_t *) realloc(v ? dst_v__raw(v) : 0, itemsize * m + sizeof(int32_t)*2);
+    int32_t *p = (int32_t *) realloc(v ? janet_v__raw(v) : 0, itemsize * m + sizeof(int32_t)*2);
     if (NULL != p) {
         if (!v) p[1] = 0;
         p[0] = m;
         return p + 2;
    } else {
        {
-           DST_OUT_OF_MEMORY;
+           JANET_OUT_OF_MEMORY;
        }
        return (void *) (2 * sizeof(int32_t));
    }
 }
 
 /* Clone a buffer. */
-void *dst_v_copymem(void *v, int32_t itemsize) {
+void *janet_v_copymem(void *v, int32_t itemsize) {
     int32_t *p;
     if (NULL == v) return NULL;
-    p = malloc(2 * sizeof(int32_t) + itemsize * dst_v__cap(v));
+    p = malloc(2 * sizeof(int32_t) + itemsize * janet_v__cap(v));
     if (NULL != p) {
-        memcpy(p, dst_v__raw(v), 2 * sizeof(int32_t) + itemsize * dst_v__cnt(v));
+        memcpy(p, janet_v__raw(v), 2 * sizeof(int32_t) + itemsize * janet_v__cnt(v));
         return p + 2;
     } else {
        {
-           DST_OUT_OF_MEMORY;
+           JANET_OUT_OF_MEMORY;
        }
        return (void *) (2 * sizeof(int32_t));
     }
 }
 
 /* Convert a buffer to normal allocated memory (forget capacity) */
-void *dst_v_flattenmem(void *v, int32_t itemsize) {
+void *janet_v_flattenmem(void *v, int32_t itemsize) {
     int32_t *p;
     int32_t sizen;
     if (NULL == v) return NULL;
-    sizen = itemsize * dst_v__cnt(v);
+    sizen = itemsize * janet_v__cnt(v);
     p = malloc(sizen);
     if (NULL != p) {
         memcpy(p, v, sizen);
         return p;
     } else {
        {
-           DST_OUT_OF_MEMORY;
+           JANET_OUT_OF_MEMORY;
        }
        return NULL;
     }

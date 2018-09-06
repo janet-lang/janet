@@ -21,21 +21,21 @@
 */
 
 #include <setjmp.h>
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "util.h"
 
 /* Definition for an instruction in the assembler */
-typedef struct DstInstructionDef DstInstructionDef;
-struct DstInstructionDef {
+typedef struct JanetInstructionDef JanetInstructionDef;
+struct JanetInstructionDef {
     const char *name;
-    enum DstOpCode opcode;
+    enum JanetOpCode opcode;
 };
 
 /* Hold all state needed during assembly */
-typedef struct DstAssembler DstAssembler;
-struct DstAssembler {
-    DstAssembler *parent;
-    DstFuncDef *def;
+typedef struct JanetAssembler JanetAssembler;
+struct JanetAssembler {
+    JanetAssembler *parent;
+    JanetFuncDef *def;
     jmp_buf on_error;
     const uint8_t *errmessage;
     int32_t errindex;
@@ -44,101 +44,101 @@ struct DstAssembler {
     int32_t defs_capacity;
     int32_t bytecode_count; /* Used for calculating labels */
 
-    Dst name;
-    DstTable labels; /* symbol -> bytecode index */
-    DstTable constants; /* symbol -> constant index */
-    DstTable slots; /* symbol -> slot index */
-    DstTable envs; /* symbol -> environment index */
-    DstTable defs; /* symbol -> funcdefs index */
+    Janet name;
+    JanetTable labels; /* symbol -> bytecode index */
+    JanetTable constants; /* symbol -> constant index */
+    JanetTable slots; /* symbol -> slot index */
+    JanetTable envs; /* symbol -> environment index */
+    JanetTable defs; /* symbol -> funcdefs index */
 };
 
-/* Dst opcode descriptions in lexographic order. This
+/* Janet opcode descriptions in lexographic order. This
  * allows a binary search over the elements to find the
  * correct opcode given a name. This works in reasonable
  * time and is easier to setup statically than a hash table or
  * prefix tree. */
-static const DstInstructionDef dst_ops[] = {
-    {"add", DOP_ADD},
-    {"addi", DOP_ADD_INTEGER},
-    {"addim", DOP_ADD_IMMEDIATE},
-    {"addr", DOP_ADD_REAL},
-    {"band", DOP_BAND},
-    {"bnot", DOP_BNOT},
-    {"bor", DOP_BOR},
-    {"bxor", DOP_BXOR},
-    {"call", DOP_CALL},
-    {"clo", DOP_CLOSURE},
-    {"cmp", DOP_COMPARE},
-    {"div", DOP_DIVIDE},
-    {"divi", DOP_DIVIDE_INTEGER},
-    {"divim", DOP_DIVIDE_IMMEDIATE},
-    {"divr", DOP_DIVIDE_REAL},
-    {"eq", DOP_EQUALS},
-    {"eqi", DOP_EQUALS_INTEGER},
-    {"eqim", DOP_EQUALS_IMMEDIATE},
-    {"eqn", DOP_NUMERIC_EQUAL},
-    {"eqr", DOP_EQUALS_REAL},
-    {"err", DOP_ERROR},
-    {"get", DOP_GET},
-    {"geti", DOP_GET_INDEX},
-    {"gt", DOP_GREATER_THAN},
-    {"gti", DOP_GREATER_THAN_INTEGER},
-    {"gtim", DOP_GREATER_THAN_IMMEDIATE},
-    {"gtn", DOP_NUMERIC_GREATER_THAN},
-    {"gtr", DOP_GREATER_THAN_REAL},
-    {"gten", DOP_NUMERIC_GREATER_THAN_EQUAL},
-    {"gter", DOP_GREATER_THAN_EQUAL_REAL},
-    {"jmp", DOP_JUMP},
-    {"jmpif", DOP_JUMP_IF},
-    {"jmpno", DOP_JUMP_IF_NOT},
-    {"ldc", DOP_LOAD_CONSTANT},
-    {"ldf", DOP_LOAD_FALSE},
-    {"ldi", DOP_LOAD_INTEGER},
-    {"ldn", DOP_LOAD_NIL},
-    {"lds", DOP_LOAD_SELF},
-    {"ldt", DOP_LOAD_TRUE},
-    {"ldu", DOP_LOAD_UPVALUE},
-    {"len", DOP_LENGTH},
-    {"lt", DOP_LESS_THAN},
-    {"lten", DOP_NUMERIC_LESS_THAN_EQUAL},
-    {"lter", DOP_LESS_THAN_EQUAL_REAL},
-    {"lti", DOP_LESS_THAN_INTEGER},
-    {"ltim", DOP_LESS_THAN_IMMEDIATE},
-    {"ltn", DOP_NUMERIC_LESS_THAN},
-    {"ltr", DOP_LESS_THAN_REAL},
-    {"mkarr", DOP_MAKE_ARRAY},
-    {"mkbuf", DOP_MAKE_BUFFER},
-    {"mkstr", DOP_MAKE_STRING},
-    {"mkstu", DOP_MAKE_STRUCT},
-    {"mktab", DOP_MAKE_TABLE},
-    {"mktup", DOP_MAKE_TUPLE},
-    {"movf", DOP_MOVE_FAR},
-    {"movn", DOP_MOVE_NEAR},
-    {"mul", DOP_MULTIPLY},
-    {"muli", DOP_MULTIPLY_INTEGER},
-    {"mulim", DOP_MULTIPLY_IMMEDIATE},
-    {"mulr", DOP_MULTIPLY_REAL},
-    {"noop", DOP_NOOP},
-    {"push", DOP_PUSH},
-    {"push2", DOP_PUSH_2},
-    {"push3", DOP_PUSH_3},
-    {"pusha", DOP_PUSH_ARRAY},
-    {"put", DOP_PUT},
-    {"puti", DOP_PUT_INDEX},
-    {"res", DOP_RESUME},
-    {"ret", DOP_RETURN},
-    {"retn", DOP_RETURN_NIL},
-    {"setu", DOP_SET_UPVALUE},
-    {"sig", DOP_SIGNAL},
-    {"sl", DOP_SHIFT_LEFT},
-    {"slim", DOP_SHIFT_LEFT_IMMEDIATE},
-    {"sr", DOP_SHIFT_RIGHT},
-    {"srim", DOP_SHIFT_RIGHT_IMMEDIATE},
-    {"sru", DOP_SHIFT_RIGHT_UNSIGNED},
-    {"sruim", DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
-    {"sub", DOP_SUBTRACT},
-    {"tcall", DOP_TAILCALL},
-    {"tchck", DOP_TYPECHECK}
+static const JanetInstructionDef janet_ops[] = {
+    {"add", JOP_ADD},
+    {"addi", JOP_ADD_INTEGER},
+    {"addim", JOP_ADD_IMMEDIATE},
+    {"addr", JOP_ADD_REAL},
+    {"band", JOP_BAND},
+    {"bnot", JOP_BNOT},
+    {"bor", JOP_BOR},
+    {"bxor", JOP_BXOR},
+    {"call", JOP_CALL},
+    {"clo", JOP_CLOSURE},
+    {"cmp", JOP_COMPARE},
+    {"div", JOP_DIVIDE},
+    {"divi", JOP_DIVIDE_INTEGER},
+    {"divim", JOP_DIVIDE_IMMEDIATE},
+    {"divr", JOP_DIVIDE_REAL},
+    {"eq", JOP_EQUALS},
+    {"eqi", JOP_EQUALS_INTEGER},
+    {"eqim", JOP_EQUALS_IMMEDIATE},
+    {"eqn", JOP_NUMERIC_EQUAL},
+    {"eqr", JOP_EQUALS_REAL},
+    {"err", JOP_ERROR},
+    {"get", JOP_GET},
+    {"geti", JOP_GET_INDEX},
+    {"gt", JOP_GREATER_THAN},
+    {"gti", JOP_GREATER_THAN_INTEGER},
+    {"gtim", JOP_GREATER_THAN_IMMEDIATE},
+    {"gtn", JOP_NUMERIC_GREATER_THAN},
+    {"gtr", JOP_GREATER_THAN_REAL},
+    {"gten", JOP_NUMERIC_GREATER_THAN_EQUAL},
+    {"gter", JOP_GREATER_THAN_EQUAL_REAL},
+    {"jmp", JOP_JUMP},
+    {"jmpif", JOP_JUMP_IF},
+    {"jmpno", JOP_JUMP_IF_NOT},
+    {"ldc", JOP_LOAD_CONSTANT},
+    {"ldf", JOP_LOAD_FALSE},
+    {"ldi", JOP_LOAD_INTEGER},
+    {"ldn", JOP_LOAD_NIL},
+    {"lds", JOP_LOAD_SELF},
+    {"ldt", JOP_LOAD_TRUE},
+    {"ldu", JOP_LOAD_UPVALUE},
+    {"len", JOP_LENGTH},
+    {"lt", JOP_LESS_THAN},
+    {"lten", JOP_NUMERIC_LESS_THAN_EQUAL},
+    {"lter", JOP_LESS_THAN_EQUAL_REAL},
+    {"lti", JOP_LESS_THAN_INTEGER},
+    {"ltim", JOP_LESS_THAN_IMMEDIATE},
+    {"ltn", JOP_NUMERIC_LESS_THAN},
+    {"ltr", JOP_LESS_THAN_REAL},
+    {"mkarr", JOP_MAKE_ARRAY},
+    {"mkbuf", JOP_MAKE_BUFFER},
+    {"mkstr", JOP_MAKE_STRING},
+    {"mkstu", JOP_MAKE_STRUCT},
+    {"mktab", JOP_MAKE_TABLE},
+    {"mktup", JOP_MAKE_TUPLE},
+    {"movf", JOP_MOVE_FAR},
+    {"movn", JOP_MOVE_NEAR},
+    {"mul", JOP_MULTIPLY},
+    {"muli", JOP_MULTIPLY_INTEGER},
+    {"mulim", JOP_MULTIPLY_IMMEDIATE},
+    {"mulr", JOP_MULTIPLY_REAL},
+    {"noop", JOP_NOOP},
+    {"push", JOP_PUSH},
+    {"push2", JOP_PUSH_2},
+    {"push3", JOP_PUSH_3},
+    {"pusha", JOP_PUSH_ARRAY},
+    {"put", JOP_PUT},
+    {"puti", JOP_PUT_INDEX},
+    {"res", JOP_RESUME},
+    {"ret", JOP_RETURN},
+    {"retn", JOP_RETURN_NIL},
+    {"setu", JOP_SET_UPVALUE},
+    {"sig", JOP_SIGNAL},
+    {"sl", JOP_SHIFT_LEFT},
+    {"slim", JOP_SHIFT_LEFT_IMMEDIATE},
+    {"sr", JOP_SHIFT_RIGHT},
+    {"srim", JOP_SHIFT_RIGHT_IMMEDIATE},
+    {"sru", JOP_SHIFT_RIGHT_UNSIGNED},
+    {"sruim", JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
+    {"sub", JOP_SUBTRACT},
+    {"tcall", JOP_TAILCALL},
+    {"tchck", JOP_TYPECHECK}
 };
 
 /* Typename aliases for tchck instruction */
@@ -148,47 +148,47 @@ typedef struct TypeAlias {
 } TypeAlias;
 
 static const TypeAlias type_aliases[] = {
-    {":abstract", DST_TFLAG_ABSTRACT},
-    {":array", DST_TFLAG_ARRAY},
-    {":boolean", DST_TFLAG_BOOLEAN},
-    {":buffer", DST_TFLAG_BUFFER},
-    {":callable", DST_TFLAG_CALLABLE},
-    {":cfunction", DST_TFLAG_CFUNCTION},
-    {":dictionary", DST_TFLAG_DICTIONARY},
-    {":false", DST_TFLAG_FALSE},
-    {":fiber", DST_TFLAG_FIBER},
-    {":function", DST_TFLAG_FUNCTION},
-    {":indexed", DST_TFLAG_INDEXED},
-    {":integer", DST_TFLAG_INTEGER},
-    {":nil", DST_TFLAG_NIL},
-    {":number", DST_TFLAG_NUMBER},
-    {":real", DST_TFLAG_REAL},
-    {":string", DST_TFLAG_STRING},
-    {":struct", DST_TFLAG_STRUCT},
-    {":symbol", DST_TFLAG_SYMBOL},
-    {":table", DST_TFLAG_BOOLEAN},
-    {":true", DST_TFLAG_TRUE},
-    {":tuple", DST_TFLAG_BOOLEAN}
+    {":abstract", JANET_TFLAG_ABSTRACT},
+    {":array", JANET_TFLAG_ARRAY},
+    {":boolean", JANET_TFLAG_BOOLEAN},
+    {":buffer", JANET_TFLAG_BUFFER},
+    {":callable", JANET_TFLAG_CALLABLE},
+    {":cfunction", JANET_TFLAG_CFUNCTION},
+    {":dictionary", JANET_TFLAG_DICTIONARY},
+    {":false", JANET_TFLAG_FALSE},
+    {":fiber", JANET_TFLAG_FIBER},
+    {":function", JANET_TFLAG_FUNCTION},
+    {":indexed", JANET_TFLAG_INDEXED},
+    {":integer", JANET_TFLAG_INTEGER},
+    {":nil", JANET_TFLAG_NIL},
+    {":number", JANET_TFLAG_NUMBER},
+    {":real", JANET_TFLAG_REAL},
+    {":string", JANET_TFLAG_STRING},
+    {":struct", JANET_TFLAG_STRUCT},
+    {":symbol", JANET_TFLAG_SYMBOL},
+    {":table", JANET_TFLAG_BOOLEAN},
+    {":true", JANET_TFLAG_TRUE},
+    {":tuple", JANET_TFLAG_BOOLEAN}
 };
 
 /* Deinitialize an Assembler. Does not deinitialize the parents. */
-static void dst_asm_deinit(DstAssembler *a) {
-    dst_table_deinit(&a->slots);
-    dst_table_deinit(&a->labels);
-    dst_table_deinit(&a->envs);
-    dst_table_deinit(&a->constants);
-    dst_table_deinit(&a->defs);
+static void janet_asm_deinit(JanetAssembler *a) {
+    janet_table_deinit(&a->slots);
+    janet_table_deinit(&a->labels);
+    janet_table_deinit(&a->envs);
+    janet_table_deinit(&a->constants);
+    janet_table_deinit(&a->defs);
 }
 
 /* Throw some kind of assembly error */
-static void dst_asm_error(DstAssembler *a, const char *message) {
-    a->errmessage = dst_formatc("%s, instruction %d", message, a->errindex);
+static void janet_asm_error(JanetAssembler *a, const char *message) {
+    a->errmessage = janet_formatc("%s, instruction %d", message, a->errindex);
     longjmp(a->on_error, 1);
 }
-#define dst_asm_assert(a, c, m) do { if (!(c)) dst_asm_error((a), (m)); } while (0)
+#define janet_asm_assert(a, c, m) do { if (!(c)) janet_asm_error((a), (m)); } while (0)
 
 /* Throw some kind of assembly error */
-static void dst_asm_errorv(DstAssembler *a, const uint8_t *m) {
+static void janet_asm_errorv(JanetAssembler *a, const uint8_t *m) {
     a->errmessage = m;
     longjmp(a->on_error, 1);
 }
@@ -197,31 +197,31 @@ static void dst_asm_errorv(DstAssembler *a, const uint8_t *m) {
  * to reference outer function environments, and may change the outer environment.
  * Returns the index of the environment in the assembler's environments, or -1
  * if not found.  */
-static int32_t dst_asm_addenv(DstAssembler *a, Dst envname) {
-    Dst check;
-    DstFuncDef *def = a->def;
+static int32_t janet_asm_addenv(JanetAssembler *a, Janet envname) {
+    Janet check;
+    JanetFuncDef *def = a->def;
     int32_t envindex;
     int32_t res;
-    if (dst_equals(a->name, envname)) {
+    if (janet_equals(a->name, envname)) {
         return -1;
     }
     /* Check for memoized value */
-    check = dst_table_get(&a->envs, envname);
-    if (dst_checktype(check, DST_INTEGER)) {
-        return dst_unwrap_integer(check);
+    check = janet_table_get(&a->envs, envname);
+    if (janet_checktype(check, JANET_INTEGER)) {
+        return janet_unwrap_integer(check);
     }
     if (NULL == a->parent) return -2;
-    res = dst_asm_addenv(a->parent, envname);
+    res = janet_asm_addenv(a->parent, envname);
     if (res < -1) {
         return res;
     }
     envindex = def->environments_length;
-    dst_table_put(&a->envs, envname, dst_wrap_integer(envindex));
+    janet_table_put(&a->envs, envname, janet_wrap_integer(envindex));
     if (envindex >= a->environments_capacity) {
         int32_t newcap = 2 * envindex;
         def->environments = realloc(def->environments, newcap * sizeof(int32_t));
         if (NULL == def->environments) {
-            DST_OUT_OF_MEMORY;
+            JANET_OUT_OF_MEMORY;
         }
         a->environments_capacity = newcap;
     }
@@ -233,236 +233,236 @@ static int32_t dst_asm_addenv(DstAssembler *a, Dst envname) {
 /* Parse an argument to an assembly instruction, and return the result as an
  * integer. This integer will need to be bounds checked. */
 static int32_t doarg_1(
-        DstAssembler *a,
-        enum DstOpArgType argtype,
-        Dst x) {
+        JanetAssembler *a,
+        enum JanetOpArgType argtype,
+        Janet x) {
     int32_t ret = -1;
-    DstTable *c;
+    JanetTable *c;
     switch (argtype) {
-        case DST_OAT_SLOT:
+        case JANET_OAT_SLOT:
             c = &a->slots;
             break;
-        case DST_OAT_ENVIRONMENT:
+        case JANET_OAT_ENVIRONMENT:
             c = &a->envs;
             break;
-        case DST_OAT_CONSTANT:
+        case JANET_OAT_CONSTANT:
             c = &a->constants;
             break;
-        case DST_OAT_INTEGER:
+        case JANET_OAT_INTEGER:
             c = NULL;
             break;
-        case DST_OAT_TYPE:
-        case DST_OAT_SIMPLETYPE:
+        case JANET_OAT_TYPE:
+        case JANET_OAT_SIMPLETYPE:
             c = NULL;
             break;
-        case DST_OAT_LABEL:
+        case JANET_OAT_LABEL:
             c = &a->labels;
             break;
-        case DST_OAT_FUNCDEF:
+        case JANET_OAT_FUNCDEF:
             c = &a->defs;
             break;
     }
-    switch (dst_type(x)) {
+    switch (janet_type(x)) {
         default:
             goto error;
             break;
-        case DST_INTEGER:
-            ret = dst_unwrap_integer(x);
+        case JANET_INTEGER:
+            ret = janet_unwrap_integer(x);
             break;
-        case DST_TUPLE:
+        case JANET_TUPLE:
         {
-            const Dst *t = dst_unwrap_tuple(x);
-            if (argtype == DST_OAT_TYPE) {
+            const Janet *t = janet_unwrap_tuple(x);
+            if (argtype == JANET_OAT_TYPE) {
                 int32_t i = 0;
                 ret = 0;
-                for (i = 0; i < dst_tuple_length(t); i++) {
-                    ret |= doarg_1(a, DST_OAT_SIMPLETYPE, t[i]);
+                for (i = 0; i < janet_tuple_length(t); i++) {
+                    ret |= doarg_1(a, JANET_OAT_SIMPLETYPE, t[i]);
                 }
             } else {
                 goto error;
             }
             break;
         }
-        case DST_SYMBOL:
+        case JANET_SYMBOL:
         {
             if (NULL != c) {
-                Dst result = dst_table_get(c, x);
-                if (dst_checktype(result, DST_INTEGER)) {
-                    if (argtype == DST_OAT_LABEL) {
-                        ret = dst_unwrap_integer(result) - a->bytecode_count;
+                Janet result = janet_table_get(c, x);
+                if (janet_checktype(result, JANET_INTEGER)) {
+                    if (argtype == JANET_OAT_LABEL) {
+                        ret = janet_unwrap_integer(result) - a->bytecode_count;
                     } else {
-                        ret = dst_unwrap_integer(result);
+                        ret = janet_unwrap_integer(result);
                     }
                 } else {
-                    dst_asm_errorv(a, dst_formatc("unknown name %v", x));
+                    janet_asm_errorv(a, janet_formatc("unknown name %v", x));
                 }
-            } else if (argtype == DST_OAT_TYPE || argtype == DST_OAT_SIMPLETYPE) {
-                const TypeAlias *alias = dst_strbinsearch(
+            } else if (argtype == JANET_OAT_TYPE || argtype == JANET_OAT_SIMPLETYPE) {
+                const TypeAlias *alias = janet_strbinsearch(
                             &type_aliases,
                             sizeof(type_aliases)/sizeof(TypeAlias),
                             sizeof(TypeAlias),
-                            dst_unwrap_symbol(x));
+                            janet_unwrap_symbol(x));
                 if (alias) {
                     ret = alias->mask;
                 } else {
-                    dst_asm_errorv(a, dst_formatc("unknown type %v", x));
+                    janet_asm_errorv(a, janet_formatc("unknown type %v", x));
                 }
             } else {
                 goto error;
             }
-            if (argtype == DST_OAT_ENVIRONMENT && ret == -1) {
+            if (argtype == JANET_OAT_ENVIRONMENT && ret == -1) {
                 /* Add a new env */
-                ret = dst_asm_addenv(a, x);
+                ret = janet_asm_addenv(a, x);
                 if (ret < -1) {
-                    dst_asm_errorv(a, dst_formatc("unknown environment %v", x));
+                    janet_asm_errorv(a, janet_formatc("unknown environment %v", x));
                 }
             }
             break;
         }
     }
-    if (argtype == DST_OAT_SLOT && ret >= a->def->slotcount)
+    if (argtype == JANET_OAT_SLOT && ret >= a->def->slotcount)
         a->def->slotcount = (int32_t) ret + 1;
     return ret;
 
     error:
-    dst_asm_errorv(a, dst_formatc("error parsing instruction argument %v", x));
+    janet_asm_errorv(a, janet_formatc("error parsing instruction argument %v", x));
     return 0;
 }
 
 /* Parse a single argument to an instruction. Trims it as well as
  * try to convert arguments to bit patterns */
 static uint32_t doarg(
-        DstAssembler *a,
-        enum DstOpArgType argtype,
+        JanetAssembler *a,
+        enum JanetOpArgType argtype,
         int nth,
         int nbytes,
         int hassign,
-        Dst x) {
+        Janet x) {
     int32_t arg = doarg_1(a, argtype, x);
     /* Calculate the min and max values that can be stored given
      * nbytes, and whether or not the storage is signed */
     int32_t max = (1 << ((nbytes << 3) - hassign)) - 1;
     int32_t min = hassign ? -max - 1 : 0;
     if (arg < min)
-        dst_asm_errorv(a, dst_formatc("instruction argument %v is too small, must be %d byte%s",
+        janet_asm_errorv(a, janet_formatc("instruction argument %v is too small, must be %d byte%s",
                     x, nbytes, nbytes > 1 ? "s" : ""));
     if (arg > max)
-        dst_asm_errorv(a, dst_formatc("instruction argument %v is too large, must be %d byte%s",
+        janet_asm_errorv(a, janet_formatc("instruction argument %v is too large, must be %d byte%s",
                     x, nbytes, nbytes > 1 ? "s" : ""));
     return ((uint32_t) arg) << (nth << 3);
 }
 
 /* Provide parsing methods for the different kinds of arguments */
 static uint32_t read_instruction(
-        DstAssembler *a,
-        const DstInstructionDef *idef,
-        const Dst *argt) {
+        JanetAssembler *a,
+        const JanetInstructionDef *idef,
+        const Janet *argt) {
     uint32_t instr = idef->opcode;
-    enum DstInstructionType type = dst_instructions[idef->opcode];
+    enum JanetInstructionType type = janet_instructions[idef->opcode];
     switch (type) {
-        case DIT_0:
+        case JINT_0:
         {
-            if (dst_tuple_length(argt) != 1)
-                dst_asm_error(a, "expected 0 arguments: (op)");
+            if (janet_tuple_length(argt) != 1)
+                janet_asm_error(a, "expected 0 arguments: (op)");
             break;
         }
-        case DIT_S:
+        case JINT_S:
         {
-            if (dst_tuple_length(argt) != 2)
-                dst_asm_error(a, "expected 1 argument: (op, slot)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 2, 0, argt[1]);
+            if (janet_tuple_length(argt) != 2)
+                janet_asm_error(a, "expected 1 argument: (op, slot)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 2, 0, argt[1]);
             break;
         }
-        case DIT_L:
+        case JINT_L:
         {
-            if (dst_tuple_length(argt) != 2)
-                dst_asm_error(a, "expected 1 argument: (op, label)");
-            instr |= doarg(a, DST_OAT_LABEL, 1, 3, 1, argt[1]);
+            if (janet_tuple_length(argt) != 2)
+                janet_asm_error(a, "expected 1 argument: (op, label)");
+            instr |= doarg(a, JANET_OAT_LABEL, 1, 3, 1, argt[1]);
             break;
         }
-        case DIT_SS:
+        case JINT_SS:
         {
-            if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, slot)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_SLOT, 2, 2, 0, argt[2]);
+            if (janet_tuple_length(argt) != 3)
+                janet_asm_error(a, "expected 2 arguments: (op, slot, slot)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, JANET_OAT_SLOT, 2, 2, 0, argt[2]);
             break;
         }
-        case DIT_SL:
+        case JINT_SL:
         {
-            if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, label)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_LABEL, 2, 2, 1, argt[2]);
+            if (janet_tuple_length(argt) != 3)
+                janet_asm_error(a, "expected 2 arguments: (op, slot, label)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, JANET_OAT_LABEL, 2, 2, 1, argt[2]);
             break;
         }
-        case DIT_ST:
+        case JINT_ST:
         {
-            if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, type)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_TYPE, 2, 2, 0, argt[2]);
+            if (janet_tuple_length(argt) != 3)
+                janet_asm_error(a, "expected 2 arguments: (op, slot, type)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, JANET_OAT_TYPE, 2, 2, 0, argt[2]);
             break;
         }
-        case DIT_SI:
-        case DIT_SU:
+        case JINT_SI:
+        case JINT_SU:
         {
-            if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, integer)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_INTEGER, 2, 2, type == DIT_SI, argt[2]);
+            if (janet_tuple_length(argt) != 3)
+                janet_asm_error(a, "expected 2 arguments: (op, slot, integer)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, JANET_OAT_INTEGER, 2, 2, type == JINT_SI, argt[2]);
             break;
         }
-        case DIT_SD:
+        case JINT_SD:
         {
-            if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, funcdef)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_FUNCDEF, 2, 2, 0, argt[2]);
+            if (janet_tuple_length(argt) != 3)
+                janet_asm_error(a, "expected 2 arguments: (op, slot, funcdef)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, JANET_OAT_FUNCDEF, 2, 2, 0, argt[2]);
             break;
         }
-        case DIT_SSS:
+        case JINT_SSS:
         {
-            if (dst_tuple_length(argt) != 4)
-                dst_asm_error(a, "expected 3 arguments: (op, slot, slot, slot)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_SLOT, 2, 1, 0, argt[2]);
-            instr |= doarg(a, DST_OAT_SLOT, 3, 1, 0, argt[3]);
+            if (janet_tuple_length(argt) != 4)
+                janet_asm_error(a, "expected 3 arguments: (op, slot, slot, slot)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, JANET_OAT_SLOT, 2, 1, 0, argt[2]);
+            instr |= doarg(a, JANET_OAT_SLOT, 3, 1, 0, argt[3]);
             break;
         }
-        case DIT_SSI:
-        case DIT_SSU:
+        case JINT_SSI:
+        case JINT_SSU:
         {
-            if (dst_tuple_length(argt) != 4)
-                dst_asm_error(a, "expected 3 arguments: (op, slot, slot, integer)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_SLOT, 2, 1, 0, argt[2]);
-            instr |= doarg(a, DST_OAT_INTEGER, 3, 1, type == DIT_SSI, argt[3]);
+            if (janet_tuple_length(argt) != 4)
+                janet_asm_error(a, "expected 3 arguments: (op, slot, slot, integer)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, JANET_OAT_SLOT, 2, 1, 0, argt[2]);
+            instr |= doarg(a, JANET_OAT_INTEGER, 3, 1, type == JINT_SSI, argt[3]);
             break;
         }
-        case DIT_SES:
+        case JINT_SES:
         {
-            DstAssembler *b = a;
+            JanetAssembler *b = a;
             uint32_t env;
-            if (dst_tuple_length(argt) != 4)
-                dst_asm_error(a, "expected 3 arguments: (op, slot, environment, envslot)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            env = doarg(a, DST_OAT_ENVIRONMENT, 0, 1, 0, argt[2]);
+            if (janet_tuple_length(argt) != 4)
+                janet_asm_error(a, "expected 3 arguments: (op, slot, environment, envslot)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
+            env = doarg(a, JANET_OAT_ENVIRONMENT, 0, 1, 0, argt[2]);
             instr |= env << 16;
             for (env += 1; env > 0; env--) {
                 b = b->parent;
                 if (NULL == b)
-                    dst_asm_error(a, "invalid environment index");
+                    janet_asm_error(a, "invalid environment index");
             }
-            instr |= doarg(b, DST_OAT_SLOT, 3, 1, 0, argt[3]);
+            instr |= doarg(b, JANET_OAT_SLOT, 3, 1, 0, argt[3]);
             break;
         }
-        case DIT_SC:
+        case JINT_SC:
         {
-            if (dst_tuple_length(argt) != 3)
-                dst_asm_error(a, "expected 2 arguments: (op, slot, constant)");
-            instr |= doarg(a, DST_OAT_SLOT, 1, 1, 0, argt[1]);
-            instr |= doarg(a, DST_OAT_CONSTANT, 2, 2, 0, argt[2]);
+            if (janet_tuple_length(argt) != 3)
+                janet_asm_error(a, "expected 2 arguments: (op, slot, constant)");
+            instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
+            instr |= doarg(a, JANET_OAT_CONSTANT, 2, 2, 0, argt[2]);
             break;
         }
     }
@@ -470,30 +470,30 @@ static uint32_t read_instruction(
 }
 
 /* Helper to get from a structure */
-static Dst dst_get(Dst ds, Dst key) {
-    switch (dst_type(ds)) {
+static Janet janet_get(Janet ds, Janet key) {
+    switch (janet_type(ds)) {
         default:
-            return dst_wrap_nil();
-        case DST_TABLE:
-            return dst_table_get(dst_unwrap_table(ds), key);
-        case DST_STRUCT:
-            return dst_struct_get(dst_unwrap_struct(ds), key);
+            return janet_wrap_nil();
+        case JANET_TABLE:
+            return janet_table_get(janet_unwrap_table(ds), key);
+        case JANET_STRUCT:
+            return janet_struct_get(janet_unwrap_struct(ds), key);
     }
 }
 
 /* Helper to assembly. Return the assembly result */
-static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
-    DstAssembleResult result;
-    DstAssembler a;
-    Dst s = source;
-    DstFuncDef *def;
+static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int flags) {
+    JanetAssembleResult result;
+    JanetAssembler a;
+    Janet s = source;
+    JanetFuncDef *def;
     int32_t count, i;
-    const Dst *arr;
-    Dst x;
+    const Janet *arr;
+    Janet x;
     (void) flags;
 
     /* Initialize funcdef */
-    def = dst_funcdef_alloc();
+    def = janet_funcdef_alloc();
 
     /* Initialize Assembler */
     a.def = def;
@@ -503,94 +503,94 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     a.environments_capacity = 0;
     a.bytecode_count = 0;
     a.defs_capacity = 0;
-    a.name = dst_wrap_nil();
-    dst_table_init(&a.labels, 0);
-    dst_table_init(&a.constants, 0);
-    dst_table_init(&a.slots, 0);
-    dst_table_init(&a.envs, 0);
-    dst_table_init(&a.defs, 0);
+    a.name = janet_wrap_nil();
+    janet_table_init(&a.labels, 0);
+    janet_table_init(&a.constants, 0);
+    janet_table_init(&a.slots, 0);
+    janet_table_init(&a.envs, 0);
+    janet_table_init(&a.defs, 0);
 
     /* Set error jump */
     if (setjmp(a.on_error)) {
         if (NULL != a.parent) {
-            dst_asm_deinit(&a);
+            janet_asm_deinit(&a);
             longjmp(a.parent->on_error, 1);
         }
         result.error = a.errmessage;
-        result.status = DST_ASSEMBLE_ERROR;
-        dst_asm_deinit(&a);
+        result.status = JANET_ASSEMBLE_ERROR;
+        janet_asm_deinit(&a);
         return result;
     }
 
-    dst_asm_assert(&a,
-            dst_checktype(s, DST_STRUCT) ||
-            dst_checktype(s, DST_TABLE),
+    janet_asm_assert(&a,
+            janet_checktype(s, JANET_STRUCT) ||
+            janet_checktype(s, JANET_TABLE),
             "expected struct or table for assembly source");
 
     /* Check for function name */
-    a.name = dst_get(s, dst_csymbolv("name"));
-    if (!dst_checktype(a.name, DST_NIL)) {
-        def->name = dst_to_string(a.name);
+    a.name = janet_get(s, janet_csymbolv("name"));
+    if (!janet_checktype(a.name, JANET_NIL)) {
+        def->name = janet_to_string(a.name);
     }
 
     /* Set function arity */
-    x = dst_get(s, dst_csymbolv("arity"));
-    def->arity = dst_checktype(x, DST_INTEGER) ? dst_unwrap_integer(x) : 0;
+    x = janet_get(s, janet_csymbolv("arity"));
+    def->arity = janet_checktype(x, JANET_INTEGER) ? janet_unwrap_integer(x) : 0;
 
     /* Check vararg */
-    x = dst_get(s, dst_csymbolv("vararg"));
-    if (dst_truthy(x)) def->flags |= DST_FUNCDEF_FLAG_VARARG;
+    x = janet_get(s, janet_csymbolv("vararg"));
+    if (janet_truthy(x)) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
 
     /* Check source */
-    x = dst_get(s, dst_csymbolv("source"));
-    if (dst_checktype(x, DST_STRING)) def->source = dst_unwrap_string(x);
+    x = janet_get(s, janet_csymbolv("source"));
+    if (janet_checktype(x, JANET_STRING)) def->source = janet_unwrap_string(x);
 
     /* Create slot aliases */
-    x = dst_get(s, dst_csymbolv("slots"));
-    if (dst_indexed_view(x, &arr, &count)) {
+    x = janet_get(s, janet_csymbolv("slots"));
+    if (janet_indexed_view(x, &arr, &count)) {
         for (i = 0; i < count; i++) {
-            Dst v = arr[i];
-            if (dst_checktype(v, DST_TUPLE)) {
-                const Dst *t = dst_unwrap_tuple(v);
+            Janet v = arr[i];
+            if (janet_checktype(v, JANET_TUPLE)) {
+                const Janet *t = janet_unwrap_tuple(v);
                 int32_t j;
-                for (j = 0; j < dst_tuple_length(t); j++) {
-                    if (!dst_checktype(t[j], DST_SYMBOL))
-                        dst_asm_error(&a, "slot names must be symbols");
-                    dst_table_put(&a.slots, t[j], dst_wrap_integer(i));
+                for (j = 0; j < janet_tuple_length(t); j++) {
+                    if (!janet_checktype(t[j], JANET_SYMBOL))
+                        janet_asm_error(&a, "slot names must be symbols");
+                    janet_table_put(&a.slots, t[j], janet_wrap_integer(i));
                 }
-            } else if (dst_checktype(v, DST_SYMBOL)) {
-                dst_table_put(&a.slots, v, dst_wrap_integer(i));
+            } else if (janet_checktype(v, JANET_SYMBOL)) {
+                janet_table_put(&a.slots, v, janet_wrap_integer(i));
             } else {
-                dst_asm_error(&a, "slot names must be symbols or tuple of symbols");
+                janet_asm_error(&a, "slot names must be symbols or tuple of symbols");
             }
         }
     }
 
     /* Parse constants */
-    x = dst_get(s, dst_csymbolv("constants"));
-    if (dst_indexed_view(x, &arr, &count)) {
+    x = janet_get(s, janet_csymbolv("constants"));
+    if (janet_indexed_view(x, &arr, &count)) {
         def->constants_length = count;
-        def->constants = malloc(sizeof(Dst) * count);
+        def->constants = malloc(sizeof(Janet) * count);
         if (NULL == def->constants) {
-            DST_OUT_OF_MEMORY;
+            JANET_OUT_OF_MEMORY;
         }
         for (i = 0; i < count; i++) {
-            Dst ct = arr[i];
-            if (dst_checktype(ct, DST_TUPLE) &&
-                dst_tuple_length(dst_unwrap_tuple(ct)) > 1 &&
-                dst_checktype(dst_unwrap_tuple(ct)[0], DST_SYMBOL)) {
-                const Dst *t = dst_unwrap_tuple(ct);
-                int32_t tcount = dst_tuple_length(t);
-                const uint8_t *macro = dst_unwrap_symbol(t[0]);
-                if (0 == dst_cstrcmp(macro, "quote")) {
+            Janet ct = arr[i];
+            if (janet_checktype(ct, JANET_TUPLE) &&
+                janet_tuple_length(janet_unwrap_tuple(ct)) > 1 &&
+                janet_checktype(janet_unwrap_tuple(ct)[0], JANET_SYMBOL)) {
+                const Janet *t = janet_unwrap_tuple(ct);
+                int32_t tcount = janet_tuple_length(t);
+                const uint8_t *macro = janet_unwrap_symbol(t[0]);
+                if (0 == janet_cstrcmp(macro, "quote")) {
                     def->constants[i] = t[1];
                 } else if (tcount == 3 &&
-                        dst_checktype(t[1], DST_SYMBOL) &&
-                        0 == dst_cstrcmp(macro, "def")) {
+                        janet_checktype(t[1], JANET_SYMBOL) &&
+                        0 == janet_cstrcmp(macro, "def")) {
                     def->constants[i] = t[2];
-                    dst_table_put(&a.constants, t[1], dst_wrap_integer(i));
+                    janet_table_put(&a.constants, t[1], janet_wrap_integer(i));
                 } else {
-                    dst_asm_errorv(&a, dst_formatc("could not parse constant \"%v\"", ct));
+                    janet_asm_errorv(&a, janet_formatc("could not parse constant \"%v\"", ct));
                 }
             } else {
                 def->constants[i] = ct;
@@ -602,27 +602,27 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     }
 
     /* Parse sub funcdefs */
-    x = dst_get(s, dst_csymbolv("closures"));
-    if (dst_indexed_view(x, &arr, &count)) {
+    x = janet_get(s, janet_csymbolv("closures"));
+    if (janet_indexed_view(x, &arr, &count)) {
         int32_t i;
         for (i = 0; i < count; i++) {
-            DstAssembleResult subres;
-            Dst subname;
+            JanetAssembleResult subres;
+            Janet subname;
             int32_t newlen;
-            subres = dst_asm1(&a, arr[i], flags);
-            if (subres.status != DST_ASSEMBLE_OK) {
-                dst_asm_errorv(&a, subres.error);
+            subres = janet_asm1(&a, arr[i], flags);
+            if (subres.status != JANET_ASSEMBLE_OK) {
+                janet_asm_errorv(&a, subres.error);
             }
-            subname = dst_get(arr[i], dst_csymbolv("name"));
-            if (!dst_checktype(subname, DST_NIL)) {
-                dst_table_put(&a.defs, subname, dst_wrap_integer(def->defs_length));
+            subname = janet_get(arr[i], janet_csymbolv("name"));
+            if (!janet_checktype(subname, JANET_NIL)) {
+                janet_table_put(&a.defs, subname, janet_wrap_integer(def->defs_length));
             }
             newlen = def->defs_length + 1;
             if (a.defs_capacity < newlen) {
                 int32_t newcap = newlen;
-                def->defs = realloc(def->defs, newcap * sizeof(DstFuncDef *));
+                def->defs = realloc(def->defs, newcap * sizeof(JanetFuncDef *));
                 if (NULL == def->defs) {
-                    DST_OUT_OF_MEMORY;
+                    JANET_OUT_OF_MEMORY;
                 }
                 a.defs_capacity = newcap;
             }
@@ -632,82 +632,82 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
     }
 
     /* Parse bytecode and labels */
-    x = dst_get(s, dst_csymbolv("bytecode"));
-    if (dst_indexed_view(x, &arr, &count)) {
+    x = janet_get(s, janet_csymbolv("bytecode"));
+    if (janet_indexed_view(x, &arr, &count)) {
         /* Do labels and find length */
         int32_t blength = 0;
         for (i = 0; i < count; ++i) {
-            Dst instr = arr[i];
-            if (dst_checktype(instr, DST_SYMBOL)) {
-                dst_table_put(&a.labels, instr, dst_wrap_integer(blength));
-            } else if (dst_checktype(instr, DST_TUPLE)) {
+            Janet instr = arr[i];
+            if (janet_checktype(instr, JANET_SYMBOL)) {
+                janet_table_put(&a.labels, instr, janet_wrap_integer(blength));
+            } else if (janet_checktype(instr, JANET_TUPLE)) {
                 blength++;
             } else {
                 a.errindex = i;
-                dst_asm_error(&a, "expected assembly instruction");
+                janet_asm_error(&a, "expected assembly instruction");
             }
         }
         /* Allocate bytecode array */
         def->bytecode_length = blength;
         def->bytecode = malloc(sizeof(int32_t) * blength);
         if (NULL == def->bytecode) {
-            DST_OUT_OF_MEMORY;
+            JANET_OUT_OF_MEMORY;
         }
         /* Do bytecode */
         for (i = 0; i < count; ++i) {
-            Dst instr = arr[i];
-            if (dst_checktype(instr, DST_SYMBOL)) {
+            Janet instr = arr[i];
+            if (janet_checktype(instr, JANET_SYMBOL)) {
                 continue;
             } else {
                 uint32_t op;
-                const DstInstructionDef *idef;
-                const Dst *t;
+                const JanetInstructionDef *idef;
+                const Janet *t;
                 a.errindex = i;
-                dst_asm_assert(&a, dst_checktype(instr, DST_TUPLE), "expected tuple");
-                t = dst_unwrap_tuple(instr);
-                if (dst_tuple_length(t) == 0) {
+                janet_asm_assert(&a, janet_checktype(instr, JANET_TUPLE), "expected tuple");
+                t = janet_unwrap_tuple(instr);
+                if (janet_tuple_length(t) == 0) {
                     op = 0;
                 } else {
-                    dst_asm_assert(&a, dst_checktype(t[0], DST_SYMBOL),
+                    janet_asm_assert(&a, janet_checktype(t[0], JANET_SYMBOL),
                             "expected symbol in assembly instruction");
-                    idef = dst_strbinsearch(
-                            &dst_ops,
-                            sizeof(dst_ops)/sizeof(DstInstructionDef),
-                            sizeof(DstInstructionDef),
-                            dst_unwrap_symbol(t[0]));
+                    idef = janet_strbinsearch(
+                            &janet_ops,
+                            sizeof(janet_ops)/sizeof(JanetInstructionDef),
+                            sizeof(JanetInstructionDef),
+                            janet_unwrap_symbol(t[0]));
                     if (NULL == idef)
-                        dst_asm_errorv(&a, dst_formatc("unknown instruction %v", t[0]));
+                        janet_asm_errorv(&a, janet_formatc("unknown instruction %v", t[0]));
                     op = read_instruction(&a, idef, t);
                 }
                 def->bytecode[a.bytecode_count++] = op;
             }
         }
     } else {
-        dst_asm_error(&a, "bytecode expected");
+        janet_asm_error(&a, "bytecode expected");
     }
     a.errindex = -1;
 
     /* Check for source mapping */
-    x = dst_get(s, dst_csymbolv("sourcemap"));
-    if (dst_indexed_view(x, &arr, &count)) {
-        dst_asm_assert(&a, count == def->bytecode_length, "sourcemap must have the same length as the bytecode");
-        def->sourcemap = malloc(sizeof(DstSourceMapping) * count);
+    x = janet_get(s, janet_csymbolv("sourcemap"));
+    if (janet_indexed_view(x, &arr, &count)) {
+        janet_asm_assert(&a, count == def->bytecode_length, "sourcemap must have the same length as the bytecode");
+        def->sourcemap = malloc(sizeof(JanetSourceMapping) * count);
         for (i = 0; i < count; i++) {
-            const Dst *tup;
-            Dst entry = arr[i];
-            DstSourceMapping mapping;
-            if (!dst_checktype(entry, DST_TUPLE)) {
-                dst_asm_error(&a, "expected tuple");
+            const Janet *tup;
+            Janet entry = arr[i];
+            JanetSourceMapping mapping;
+            if (!janet_checktype(entry, JANET_TUPLE)) {
+                janet_asm_error(&a, "expected tuple");
             }
-            tup = dst_unwrap_tuple(entry);
-            if (!dst_checktype(tup[0], DST_INTEGER)) {
-                dst_asm_error(&a, "expected integer");
+            tup = janet_unwrap_tuple(entry);
+            if (!janet_checktype(tup[0], JANET_INTEGER)) {
+                janet_asm_error(&a, "expected integer");
             }
-            if (!dst_checktype(tup[1], DST_INTEGER)) {
-                dst_asm_error(&a, "expected integer");
+            if (!janet_checktype(tup[1], JANET_INTEGER)) {
+                janet_asm_error(&a, "expected integer");
             }
-            mapping.line = dst_unwrap_integer(tup[0]);
-            mapping.column = dst_unwrap_integer(tup[1]);
+            mapping.line = janet_unwrap_integer(tup[0]);
+            mapping.column = janet_unwrap_integer(tup[1]);
             def->sourcemap[i] = mapping;
         }
     }
@@ -717,31 +717,31 @@ static DstAssembleResult dst_asm1(DstAssembler *parent, Dst source, int flags) {
         realloc(def->environments, def->environments_length * sizeof(int32_t));
         
     /* Verify the func def */
-    if (dst_verify(def)) {
-        dst_asm_error(&a, "invalid assembly");
+    if (janet_verify(def)) {
+        janet_asm_error(&a, "invalid assembly");
     }
 
     /* Finish everything and return funcdef */
-    dst_asm_deinit(&a);
+    janet_asm_deinit(&a);
     result.funcdef = def;
-    result.status = DST_ASSEMBLE_OK;
+    result.status = JANET_ASSEMBLE_OK;
     return result;
 }
 
 /* Assemble a function */
-DstAssembleResult dst_asm(Dst source, int flags) {
-    return dst_asm1(NULL, source, flags);
+JanetAssembleResult janet_asm(Janet source, int flags) {
+    return janet_asm1(NULL, source, flags);
 }
 
 /* Disassembly */
 
 /* Find the deinfintion of an instruction given the instruction word. Return
  * NULL if not found. */
-static const DstInstructionDef *dst_asm_reverse_lookup(uint32_t instr) {
+static const JanetInstructionDef *janet_asm_reverse_lookup(uint32_t instr) {
     size_t i;
     uint32_t opcode = instr & 0x7F;
-    for (i = 0; i < sizeof(dst_ops)/sizeof(DstInstructionDef); i++) {
-        const DstInstructionDef *def = dst_ops + i;
+    for (i = 0; i < sizeof(janet_ops)/sizeof(JanetInstructionDef); i++) {
+        const JanetInstructionDef *def = janet_ops + i;
         if (def->opcode == opcode)
             return def;
     }
@@ -749,105 +749,105 @@ static const DstInstructionDef *dst_asm_reverse_lookup(uint32_t instr) {
 }
 
 /* Create some constant sized tuples */
-static Dst tup1(Dst x) {
-    Dst *tup = dst_tuple_begin(1);
+static Janet tup1(Janet x) {
+    Janet *tup = janet_tuple_begin(1);
     tup[0] = x;
-    return dst_wrap_tuple(dst_tuple_end(tup));
+    return janet_wrap_tuple(janet_tuple_end(tup));
 }
-static Dst tup2(Dst x, Dst y) {
-    Dst *tup = dst_tuple_begin(2);
+static Janet tup2(Janet x, Janet y) {
+    Janet *tup = janet_tuple_begin(2);
     tup[0] = x;
     tup[1] = y;
-    return dst_wrap_tuple(dst_tuple_end(tup));
+    return janet_wrap_tuple(janet_tuple_end(tup));
 }
-static Dst tup3(Dst x, Dst y, Dst z) {
-    Dst *tup = dst_tuple_begin(3);
+static Janet tup3(Janet x, Janet y, Janet z) {
+    Janet *tup = janet_tuple_begin(3);
     tup[0] = x;
     tup[1] = y;
     tup[2] = z;
-    return dst_wrap_tuple(dst_tuple_end(tup));
+    return janet_wrap_tuple(janet_tuple_end(tup));
 }
-static Dst tup4(Dst w, Dst x, Dst y, Dst z) {
-    Dst *tup = dst_tuple_begin(4);
+static Janet tup4(Janet w, Janet x, Janet y, Janet z) {
+    Janet *tup = janet_tuple_begin(4);
     tup[0] = w;
     tup[1] = x;
     tup[2] = y;
     tup[3] = z;
-    return dst_wrap_tuple(dst_tuple_end(tup));
+    return janet_wrap_tuple(janet_tuple_end(tup));
 }
 
 /* Given an argument, convert it to the appriate integer or symbol */
-Dst dst_asm_decode_instruction(uint32_t instr) {
-    const DstInstructionDef *def = dst_asm_reverse_lookup(instr);
-    Dst name;
+Janet janet_asm_decode_instruction(uint32_t instr) {
+    const JanetInstructionDef *def = janet_asm_reverse_lookup(instr);
+    Janet name;
     if (NULL == def) {
-        return dst_wrap_integer((int32_t)instr);
+        return janet_wrap_integer((int32_t)instr);
     }
-    name = dst_csymbolv(def->name);
+    name = janet_csymbolv(def->name);
 #define oparg(shift, mask) ((instr >> ((shift) << 3)) & (mask))
-    switch (dst_instructions[def->opcode]) {
-        case DIT_0:
+    switch (janet_instructions[def->opcode]) {
+        case JINT_0:
             return tup1(name);
-        case DIT_S:
-            return tup2(name, dst_wrap_integer(oparg(1, 0xFFFFFF)));
-        case DIT_L:
-            return tup2(name, dst_wrap_integer((int32_t)instr >> 8));
-        case DIT_SS:
-        case DIT_ST:
-        case DIT_SC:
-        case DIT_SU:
-        case DIT_SD:
+        case JINT_S:
+            return tup2(name, janet_wrap_integer(oparg(1, 0xFFFFFF)));
+        case JINT_L:
+            return tup2(name, janet_wrap_integer((int32_t)instr >> 8));
+        case JINT_SS:
+        case JINT_ST:
+        case JINT_SC:
+        case JINT_SU:
+        case JINT_SD:
             return tup3(name,
-                    dst_wrap_integer(oparg(1, 0xFF)),
-                    dst_wrap_integer(oparg(2, 0xFFFF)));
-        case DIT_SI:
-        case DIT_SL:
+                    janet_wrap_integer(oparg(1, 0xFF)),
+                    janet_wrap_integer(oparg(2, 0xFFFF)));
+        case JINT_SI:
+        case JINT_SL:
             return tup3(name,
-                    dst_wrap_integer(oparg(1, 0xFF)),
-                    dst_wrap_integer((int32_t)instr >> 16));
-        case DIT_SSS:
-        case DIT_SES:
-        case DIT_SSU:
+                    janet_wrap_integer(oparg(1, 0xFF)),
+                    janet_wrap_integer((int32_t)instr >> 16));
+        case JINT_SSS:
+        case JINT_SES:
+        case JINT_SSU:
             return tup4(name,
-                    dst_wrap_integer(oparg(1, 0xFF)),
-                    dst_wrap_integer(oparg(2, 0xFF)),
-                    dst_wrap_integer(oparg(3, 0xFF)));
-        case DIT_SSI:
+                    janet_wrap_integer(oparg(1, 0xFF)),
+                    janet_wrap_integer(oparg(2, 0xFF)),
+                    janet_wrap_integer(oparg(3, 0xFF)));
+        case JINT_SSI:
             return tup4(name,
-                    dst_wrap_integer(oparg(1, 0xFF)),
-                    dst_wrap_integer(oparg(2, 0xFF)),
-                    dst_wrap_integer((int32_t)instr >> 24));
+                    janet_wrap_integer(oparg(1, 0xFF)),
+                    janet_wrap_integer(oparg(2, 0xFF)),
+                    janet_wrap_integer((int32_t)instr >> 24));
     }
 #undef oparg
-    return dst_wrap_nil();
+    return janet_wrap_nil();
 }
 
-Dst dst_disasm(DstFuncDef *def) {
+Janet janet_disasm(JanetFuncDef *def) {
     int32_t i;
-    DstArray *bcode = dst_array(def->bytecode_length);
-    DstArray *constants;
-    DstTable *ret = dst_table(10);
-    dst_table_put(ret, dst_csymbolv("arity"), dst_wrap_integer(def->arity));
-    dst_table_put(ret, dst_csymbolv("bytecode"), dst_wrap_array(bcode));
+    JanetArray *bcode = janet_array(def->bytecode_length);
+    JanetArray *constants;
+    JanetTable *ret = janet_table(10);
+    janet_table_put(ret, janet_csymbolv("arity"), janet_wrap_integer(def->arity));
+    janet_table_put(ret, janet_csymbolv("bytecode"), janet_wrap_array(bcode));
     if (NULL != def->source) {
-        dst_table_put(ret, dst_csymbolv("source"), dst_wrap_string(def->source));
+        janet_table_put(ret, janet_csymbolv("source"), janet_wrap_string(def->source));
     }
-    if (def->flags & DST_FUNCDEF_FLAG_VARARG) {
-        dst_table_put(ret, dst_csymbolv("vararg"), dst_wrap_true());
+    if (def->flags & JANET_FUNCDEF_FLAG_VARARG) {
+        janet_table_put(ret, janet_csymbolv("vararg"), janet_wrap_true());
     }
     if (NULL != def->name) {
-        dst_table_put(ret, dst_csymbolv("name"), dst_wrap_string(def->name));
+        janet_table_put(ret, janet_csymbolv("name"), janet_wrap_string(def->name));
     }
 
     /* Add constants */
     if (def->constants_length > 0) {
-        constants = dst_array(def->constants_length);
-        dst_table_put(ret, dst_csymbolv("constants"), dst_wrap_array(constants));
+        constants = janet_array(def->constants_length);
+        janet_table_put(ret, janet_csymbolv("constants"), janet_wrap_array(constants));
         for (i = 0; i < def->constants_length; i++) {
-            Dst src = def->constants[i];
-            Dst dest;
-            if (dst_checktype(src, DST_TUPLE)) {
-                dest = tup2(dst_csymbolv("quote"), src);
+            Janet src = def->constants[i];
+            Janet dest;
+            if (janet_checktype(src, JANET_TUPLE)) {
+                dest = tup2(janet_csymbolv("quote"), src);
             } else {
                 dest = src;
             }
@@ -858,79 +858,79 @@ Dst dst_disasm(DstFuncDef *def) {
 
     /* Add bytecode */
     for (i = 0; i < def->bytecode_length; i++) {
-        bcode->data[i] = dst_asm_decode_instruction(def->bytecode[i]);
+        bcode->data[i] = janet_asm_decode_instruction(def->bytecode[i]);
     }
     bcode->count = def->bytecode_length;
 
     /* Add source map */
     if (NULL != def->sourcemap) {
-        DstArray *sourcemap = dst_array(def->bytecode_length);
+        JanetArray *sourcemap = janet_array(def->bytecode_length);
         for (i = 0; i < def->bytecode_length; i++) {
-            Dst *t = dst_tuple_begin(2);
-            DstSourceMapping mapping = def->sourcemap[i];
-            t[0] = dst_wrap_integer(mapping.line);
-            t[1] = dst_wrap_integer(mapping.column);
-            sourcemap->data[i] = dst_wrap_tuple(dst_tuple_end(t));
+            Janet *t = janet_tuple_begin(2);
+            JanetSourceMapping mapping = def->sourcemap[i];
+            t[0] = janet_wrap_integer(mapping.line);
+            t[1] = janet_wrap_integer(mapping.column);
+            sourcemap->data[i] = janet_wrap_tuple(janet_tuple_end(t));
         }
         sourcemap->count = def->bytecode_length;
-        dst_table_put(ret, dst_csymbolv("sourcemap"), dst_wrap_array(sourcemap));
+        janet_table_put(ret, janet_csymbolv("sourcemap"), janet_wrap_array(sourcemap));
     }
 
     /* Add environments */
     if (NULL != def->environments) {
-        DstArray *envs = dst_array(def->environments_length);
+        JanetArray *envs = janet_array(def->environments_length);
         for (i = 0; i < def->environments_length; i++) {
-            envs->data[i] = dst_wrap_integer(def->environments[i]);
+            envs->data[i] = janet_wrap_integer(def->environments[i]);
         }
         envs->count = def->environments_length;
-        dst_table_put(ret, dst_csymbolv("environments"), dst_wrap_array(envs));
+        janet_table_put(ret, janet_csymbolv("environments"), janet_wrap_array(envs));
     }
 
     /* Add closures */
     /* Funcdefs cannot be recursive */
     if (NULL != def->defs) {
-        DstArray *defs = dst_array(def->defs_length);
+        JanetArray *defs = janet_array(def->defs_length);
         for (i = 0; i < def->defs_length; i++) {
-            defs->data[i] = dst_disasm(def->defs[i]);
+            defs->data[i] = janet_disasm(def->defs[i]);
         }
         defs->count = def->defs_length;
-        dst_table_put(ret, dst_csymbolv("defs"), dst_wrap_array(defs));
+        janet_table_put(ret, janet_csymbolv("defs"), janet_wrap_array(defs));
     }
 
     /* Add slotcount */
-    dst_table_put(ret, dst_csymbolv("slotcount"), dst_wrap_integer(def->slotcount));
+    janet_table_put(ret, janet_csymbolv("slotcount"), janet_wrap_integer(def->slotcount));
 
-    return dst_wrap_struct(dst_table_to_struct(ret));
+    return janet_wrap_struct(janet_table_to_struct(ret));
 }
 
 /* C Function for assembly */
-static int cfun_asm(DstArgs args) {
-    DstAssembleResult res;
-    DST_FIXARITY(args, 1);
-    res = dst_asm(args.v[0], 0);
-    if (res.status == DST_ASSEMBLE_OK) {
-        DST_RETURN_FUNCTION(args, dst_thunk(res.funcdef));
+static int cfun_asm(JanetArgs args) {
+    JanetAssembleResult res;
+    JANET_FIXARITY(args, 1);
+    res = janet_asm(args.v[0], 0);
+    if (res.status == JANET_ASSEMBLE_OK) {
+        JANET_RETURN_FUNCTION(args, janet_thunk(res.funcdef));
     } else {
-        DST_THROWV(args, dst_wrap_string(res.error));
+        JANET_THROWV(args, janet_wrap_string(res.error));
     }
 }
 
-static int cfun_disasm(DstArgs args) {
-    DstFunction *f;
-    DST_FIXARITY(args, 1);
-    DST_ARG_FUNCTION(f, args, 0);
-    DST_RETURN(args, dst_disasm(f->def));
+static int cfun_disasm(JanetArgs args) {
+    JanetFunction *f;
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_FUNCTION(f, args, 0);
+    JANET_RETURN(args, janet_disasm(f->def));
 }
 
-static const DstReg cfuns[] = {
+static const JanetReg cfuns[] = {
     {"asm", cfun_asm},
     {"disasm", cfun_disasm},
     {NULL, NULL}
 };
 
 /* Load the library */
-int dst_lib_asm(DstArgs args) {
-    DstTable *env = dst_env(args);
-    dst_cfuns(env, NULL, cfuns);
+int janet_lib_asm(JanetArgs args) {
+    JanetTable *env = janet_env(args);
+    janet_cfuns(env, NULL, cfuns);
     return 0;
 }

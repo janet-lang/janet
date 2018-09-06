@@ -20,11 +20,11 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include <stdlib.h>
 #include <time.h>
 
-#ifdef DST_WINDOWS
+#ifdef JANET_WINDOWS
 #include <Windows.h>
 #include <direct.h>
 #else
@@ -34,34 +34,34 @@
 #include <stdio.h>
 #endif
 
-static int os_which(DstArgs args) {
-    #ifdef DST_WINDOWS
-        DST_RETURN_CSYMBOL(args, ":windows");
+static int os_which(JanetArgs args) {
+    #ifdef JANET_WINDOWS
+        JANET_RETURN_CSYMBOL(args, ":windows");
     #elif __APPLE__
-        DST_RETURN_CSYMBOL(args, ":macos");
+        JANET_RETURN_CSYMBOL(args, ":macos");
     #else
-        DST_RETURN_CSYMBOL(args, ":posix");
+        JANET_RETURN_CSYMBOL(args, ":posix");
     #endif
 }
 
-#ifdef DST_WINDOWS
-static int os_execute(DstArgs args) {
-    DST_MINARITY(args, 1);
-    DstBuffer *buffer = dst_buffer(10);
+#ifdef JANET_WINDOWS
+static int os_execute(JanetArgs args) {
+    JANET_MINARITY(args, 1);
+    JanetBuffer *buffer = janet_buffer(10);
     for (int32_t i = 0; i < args.n; i++) {
         const uint8_t *argstring;
-        DST_ARG_STRING(argstring, args, i);
-        dst_buffer_push_bytes(buffer, argstring, dst_string_length(argstring));
+        JANET_ARG_STRING(argstring, args, i);
+        janet_buffer_push_bytes(buffer, argstring, janet_string_length(argstring));
         if (i != args.n - 1) {
-            dst_buffer_push_u8(buffer, ' ');
+            janet_buffer_push_u8(buffer, ' ');
         }
     }
-    dst_buffer_push_u8(buffer, 0);
+    janet_buffer_push_u8(buffer, 0);
 
     /* Convert to wide chars */
     wchar_t *sys_str = malloc(buffer->count * sizeof(wchar_t));
     if (NULL == sys_str) {
-        DST_OUT_OF_MEMORY;
+        JANET_OUT_OF_MEMORY;
     }
     int nwritten = MultiByteToWideChar(
         CP_UTF8,
@@ -72,7 +72,7 @@ static int os_execute(DstArgs args) {
         buffer->count);
     if (nwritten == 0) {
         free(sys_str);
-        DST_THROW(args, "could not create process");
+        JANET_THROW(args, "could not create process");
     }
 
     STARTUPINFO si;
@@ -94,7 +94,7 @@ static int os_execute(DstArgs args) {
                 &si,
                 &pi)) {
         free(sys_str);
-        DST_THROW(args, "could not create process");
+        JANET_THROW(args, "could not create process");
     }
     free(sys_str);
 
@@ -106,17 +106,17 @@ static int os_execute(DstArgs args) {
     GetExitCodeProcess(pi.hProcess, (LPDWORD)&status);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    DST_RETURN_INTEGER(args, (int32_t)status);
+    JANET_RETURN_INTEGER(args, (int32_t)status);
 }
 #else
-static int os_execute(DstArgs args) {
-    DST_MINARITY(args, 1);
+static int os_execute(JanetArgs args) {
+    JANET_MINARITY(args, 1);
     const uint8_t **argv = malloc(sizeof(uint8_t *) * (args.n + 1));
     if (NULL == argv) {
-        DST_OUT_OF_MEMORY;
+        JANET_OUT_OF_MEMORY;
     }
     for (int32_t i = 0; i < args.n; i++) {
-        DST_ARG_STRING(argv[i], args, i);
+        JANET_ARG_STRING(argv[i], args, i);
     }
     argv[args.n] = NULL;
 
@@ -142,37 +142,37 @@ static int os_execute(DstArgs args) {
         nanosleep(&waiter, NULL);
     }
 
-    DST_RETURN_INTEGER(args, status);
+    JANET_RETURN_INTEGER(args, status);
 }
 #endif
 
-static int os_shell(DstArgs args) {
-    int nofirstarg = (args.n < 1 || !dst_checktype(args.v[0], DST_STRING));
+static int os_shell(JanetArgs args) {
+    int nofirstarg = (args.n < 1 || !janet_checktype(args.v[0], JANET_STRING));
     const char *cmd = nofirstarg
         ? NULL
-        : (const char *) dst_unwrap_string(args.v[0]);
+        : (const char *) janet_unwrap_string(args.v[0]);
     int stat = system(cmd);
-    DST_RETURN(args, cmd
-            ? dst_wrap_integer(stat)
-            : dst_wrap_boolean(stat));
+    JANET_RETURN(args, cmd
+            ? janet_wrap_integer(stat)
+            : janet_wrap_boolean(stat));
 }
 
-static int os_getenv(DstArgs args) {
+static int os_getenv(JanetArgs args) {
     const uint8_t *k;
-    DST_FIXARITY(args, 1);
-    DST_ARG_STRING(k, args, 0);
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_STRING(k, args, 0);
     const char *cstr = (const char *) k;
     const char *res = getenv(cstr);
     if (!res) {
-        DST_RETURN_NIL(args);
+        JANET_RETURN_NIL(args);
     }
-    DST_RETURN(args, cstr
-            ? dst_cstringv(res)
-            : dst_wrap_nil());
+    JANET_RETURN(args, cstr
+            ? janet_cstringv(res)
+            : janet_wrap_nil());
 }
 
-static int os_setenv(DstArgs args) {
-#ifdef DST_WINDOWS
+static int os_setenv(JanetArgs args) {
+#ifdef JANET_WINDOWS
 #define SETENV(K,V) _putenv_s(K, V)
 #define UNSETENV(K) _putenv_s(K, "")
 #else
@@ -181,27 +181,27 @@ static int os_setenv(DstArgs args) {
 #endif
     const uint8_t *k;
     const char *ks;
-    DST_MAXARITY(args, 2);
-    DST_MINARITY(args, 1);
-    DST_ARG_STRING(k, args, 0);
+    JANET_MAXARITY(args, 2);
+    JANET_MINARITY(args, 1);
+    JANET_ARG_STRING(k, args, 0);
     ks = (const char *) k;
-    if (args.n == 1 || dst_checktype(args.v[1], DST_NIL)) {
+    if (args.n == 1 || janet_checktype(args.v[1], JANET_NIL)) {
         UNSETENV(ks);
     } else {
         const uint8_t *v;
-        DST_ARG_STRING(v, args, 1);
+        JANET_ARG_STRING(v, args, 1);
         const char *vc = (const char *) v;
         SETENV(ks, vc);
     }
     return 0;
 }
 
-static int os_exit(DstArgs args) {
-    DST_MAXARITY(args, 1);
+static int os_exit(JanetArgs args) {
+    JANET_MAXARITY(args, 1);
     if (args.n == 0) {
         exit(EXIT_SUCCESS);
-    } else if (dst_checktype(args.v[0], DST_INTEGER)) {
-        exit(dst_unwrap_integer(args.v[0]));
+    } else if (janet_checktype(args.v[0], JANET_INTEGER)) {
+        exit(janet_unwrap_integer(args.v[0]));
     } else {
         exit(EXIT_FAILURE);
     }
@@ -209,7 +209,7 @@ static int os_exit(DstArgs args) {
 }
 
 /* Clock shim for windows */
-#ifdef DST_WINDOWS
+#ifdef JANET_WINDOWS
 static int clock_gettime(int x, struct timespec *spec) {
     (void) x;
     int64_t wintime = 0LL;
@@ -224,23 +224,23 @@ static int clock_gettime(int x, struct timespec *spec) {
 #define CLOCK_MONOTONIC 0
 #endif
 
-static int os_clock(DstArgs args) {
-    DST_FIXARITY(args, 0);
+static int os_clock(JanetArgs args) {
+    JANET_FIXARITY(args, 0);
     struct timespec tv;
     if (clock_gettime(CLOCK_MONOTONIC, &tv))
-        DST_THROW(args, "could not get time");
+        JANET_THROW(args, "could not get time");
     double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
-    DST_RETURN_REAL(args, dtime);
+    JANET_RETURN_REAL(args, dtime);
 }
 
-static int os_sleep(DstArgs args) {
+static int os_sleep(JanetArgs args) {
     double delay;
-    DST_FIXARITY(args, 1);
-    DST_ARG_NUMBER(delay, args, 0);
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_NUMBER(delay, args, 0);
     if (delay < 0) {
-        DST_THROW(args, "invalid argument to sleep");
+        JANET_THROW(args, "invalid argument to sleep");
     }
-#ifdef DST_WINDOWS
+#ifdef JANET_WINDOWS
     Sleep((DWORD) (delay * 1000));
 #else
     struct timespec ts;
@@ -253,22 +253,22 @@ static int os_sleep(DstArgs args) {
     return 0;
 }
 
-static int os_cwd(DstArgs args) {
-    DST_FIXARITY(args, 0);
+static int os_cwd(JanetArgs args) {
+    JANET_FIXARITY(args, 0);
     char buf[FILENAME_MAX];
     char *ptr;
-#ifdef DST_WINDOWS
+#ifdef JANET_WINDOWS
     ptr = _getcwd(buf, FILENAME_MAX);
 #else
     ptr = getcwd(buf, FILENAME_MAX);
 #endif
     if (NULL == ptr) {
-        DST_THROW(args, "could not get current directory");
+        JANET_THROW(args, "could not get current directory");
     }
-    DST_RETURN_CSTRING(args, ptr);
+    JANET_RETURN_CSTRING(args, ptr);
 }
 
-static const DstReg cfuns[] = {
+static const JanetReg cfuns[] = {
     {"os.which", os_which},
     {"os.execute", os_execute},
     {"os.shell", os_shell},
@@ -282,8 +282,8 @@ static const DstReg cfuns[] = {
 };
 
 /* Module entry point */
-int dst_lib_os(DstArgs args) {
-    DstTable *env = dst_env(args);
-    dst_cfuns(env, NULL, cfuns);
+int janet_lib_os(JanetArgs args) {
+    JanetTable *env = janet_env(args);
+    janet_cfuns(env, NULL, cfuns);
     return 0;
 }

@@ -20,18 +20,18 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "state.h"
 
 /* Error reporting */
-static void print_error_report(DstFiber *fiber, const char *errtype, Dst err) {
-    const char *errstr = (const char *)dst_to_string(err);
+static void print_error_report(JanetFiber *fiber, const char *errtype, Janet err) {
+    const char *errstr = (const char *)janet_to_string(err);
     printf("%s error: %s\n", errtype, errstr);
     if (!fiber) return;
     int32_t i = fiber->frame;
     while (i > 0) {
-        DstStackFrame *frame = (DstStackFrame *)(fiber->data + i - DST_FRAME_SIZE);
-        DstFuncDef *def = NULL;
+        JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
+        JanetFuncDef *def = NULL;
         i = frame->prevframe;
         
         printf("  at");
@@ -43,19 +43,19 @@ static void print_error_report(DstFiber *fiber, const char *errtype, Dst err) {
                 printf(" %s", (const char *)def->source);
             }
         } else {
-            DstCFunction cfun = (DstCFunction)(frame->pc);
+            JanetCFunction cfun = (JanetCFunction)(frame->pc);
             if (cfun) {
-                Dst name = dst_table_get(dst_vm_registry, dst_wrap_cfunction(cfun));
-                if (!dst_checktype(name, DST_NIL))
-                    printf(" [%s]", (const char *)dst_to_string(name));
+                Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
+                if (!janet_checktype(name, JANET_NIL))
+                    printf(" [%s]", (const char *)janet_to_string(name));
             }
         }
-        if (frame->flags & DST_STACKFRAME_TAILCALL)
+        if (frame->flags & JANET_STACKFRAME_TAILCALL)
             printf(" (tailcall)");
         if (frame->func && frame->pc) {
             int32_t off = (int32_t) (frame->pc - def->bytecode);
             if (def->sourcemap) {
-                DstSourceMapping mapping = def->sourcemap[off];
+                JanetSourceMapping mapping = def->sourcemap[off];
                 printf(" on line %d, column %d", mapping.line, mapping.column);
             } else {
                 printf(" pc=%d", off);
@@ -66,72 +66,72 @@ static void print_error_report(DstFiber *fiber, const char *errtype, Dst err) {
 }
 
 /* Run a string */
-int dst_dobytes(DstTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath) {
-    DstParser parser;
+int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath) {
+    JanetParser parser;
     int errflags = 0;
     int32_t index = 0;
     int dudeol = 0;
     int done = 0;
-    const uint8_t *where = sourcePath ? dst_cstring(sourcePath) : NULL;
-    if (where) dst_gcroot(dst_wrap_string(where));
-    dst_parser_init(&parser);
+    const uint8_t *where = sourcePath ? janet_cstring(sourcePath) : NULL;
+    if (where) janet_gcroot(janet_wrap_string(where));
+    janet_parser_init(&parser);
 
     while (!errflags && !done) {
-        switch (dst_parser_status(&parser)) {
-            case DST_PARSE_FULL:
+        switch (janet_parser_status(&parser)) {
+            case JANET_PARSE_FULL:
                 {
-                    Dst form = dst_parser_produce(&parser);
-                    DstCompileResult cres = dst_compile(form, env, where);
-                    if (cres.status == DST_COMPILE_OK) {
-                        DstFunction *f = dst_thunk(cres.funcdef);
-                        DstFiber *fiber = dst_fiber(f, 64);
-                        Dst ret = dst_wrap_nil();
-                        DstSignal status = dst_run(fiber, &ret);
-                        if (status != DST_SIGNAL_OK) {
+                    Janet form = janet_parser_produce(&parser);
+                    JanetCompileResult cres = janet_compile(form, env, where);
+                    if (cres.status == JANET_COMPILE_OK) {
+                        JanetFunction *f = janet_thunk(cres.funcdef);
+                        JanetFiber *fiber = janet_fiber(f, 64);
+                        Janet ret = janet_wrap_nil();
+                        JanetSignal status = janet_run(fiber, &ret);
+                        if (status != JANET_SIGNAL_OK) {
                             print_error_report(fiber, "runtime", ret);
                             errflags |= 0x01;
                         }
                     } else {
                         print_error_report(cres.macrofiber, "compile",
-                                dst_wrap_string(cres.error));
+                                janet_wrap_string(cres.error));
                         errflags |= 0x02;
                     }
                 }
                 break;
-            case DST_PARSE_ERROR:
+            case JANET_PARSE_ERROR:
                 errflags |= 0x04;
-                printf("parse error: %s\n", dst_parser_error(&parser));
+                printf("parse error: %s\n", janet_parser_error(&parser));
                 break;
-            case DST_PARSE_PENDING:
+            case JANET_PARSE_PENDING:
                 if (index >= len) {
                     if (dudeol) {
                         errflags |= 0x04;
                         printf("internal parse error: unexpected end of source\n");
                     } else {
                         dudeol = 1;
-                        dst_parser_consume(&parser, '\n');
+                        janet_parser_consume(&parser, '\n');
                     }
                 } else {
-                    dst_parser_consume(&parser, bytes[index++]);
+                    janet_parser_consume(&parser, bytes[index++]);
                 }
                 break;
-            case DST_PARSE_ROOT:
+            case JANET_PARSE_ROOT:
                 if (index >= len) {
                     done = 1;
                 } else {
-                    dst_parser_consume(&parser, bytes[index++]);
+                    janet_parser_consume(&parser, bytes[index++]);
                 }
                 break;
         }
     }
-    dst_parser_deinit(&parser);
-    if (where) dst_gcunroot(dst_wrap_string(where));
+    janet_parser_deinit(&parser);
+    if (where) janet_gcunroot(janet_wrap_string(where));
     return errflags;
 }
 
-int dst_dostring(DstTable *env, const char *str, const char *sourcePath) {
+int janet_dostring(JanetTable *env, const char *str, const char *sourcePath) {
     int32_t len = 0;
     while (str[len]) ++len;
-    return dst_dobytes(env, (const uint8_t *)str, len, sourcePath);
+    return janet_dobytes(env, (const uint8_t *)str, len, sourcePath);
 }
 

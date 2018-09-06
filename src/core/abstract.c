@@ -20,14 +20,14 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "gc.h"
 
 /* Create new userdata */
-void *dst_abstract(const DstAbstractType *atype, size_t size) {
-    char *data = dst_gcalloc(DST_MEMORY_ABSTRACT, sizeof(DstAbstractHeader) + size);
-    DstAbstractHeader *header = (DstAbstractHeader *)data;
-    void *a = data + sizeof(DstAbstractHeader);
+void *janet_abstract(const JanetAbstractType *atype, size_t size) {
+    char *data = janet_gcalloc(JANET_MEMORY_ABSTRACT, sizeof(JanetAbstractHeader) + size);
+    JanetAbstractHeader *header = (JanetAbstractHeader *)data;
+    void *a = data + sizeof(JanetAbstractHeader);
     header->size = size;
     header->type = atype;
     return a;

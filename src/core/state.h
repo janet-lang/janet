@@ -20,8 +20,8 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_STATE_H_defined
-#define DST_STATE_H_defined
+#ifndef JANET_STATE_H_defined
+#define JANET_STATE_H_defined
 
 #include <stdint.h>
 
@@ -33,31 +33,31 @@
  * state should allow easy multithreading. */
 
 /* How many VM stacks have been entered */
-extern DST_THREAD_LOCAL int dst_vm_stackn;
+extern JANET_THREAD_LOCAL int janet_vm_stackn;
 
 /* The current running fiber on the current thread.
- * Set and unset by dst_run. */
-extern DST_THREAD_LOCAL DstFiber *dst_vm_fiber;
+ * Set and unset by janet_run. */
+extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
 
 /* The global registry for c functions. Used to store metadata
  * along with otherwise bare c function pointers. */
-extern DST_THREAD_LOCAL DstTable *dst_vm_registry;
+extern JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
 
 /* Immutable value cache */
-extern DST_THREAD_LOCAL const uint8_t **dst_vm_cache;
-extern DST_THREAD_LOCAL uint32_t dst_vm_cache_capacity;
-extern DST_THREAD_LOCAL uint32_t dst_vm_cache_count;
-extern DST_THREAD_LOCAL uint32_t dst_vm_cache_deleted;
+extern JANET_THREAD_LOCAL const uint8_t **janet_vm_cache;
+extern JANET_THREAD_LOCAL uint32_t janet_vm_cache_capacity;
+extern JANET_THREAD_LOCAL uint32_t janet_vm_cache_count;
+extern JANET_THREAD_LOCAL uint32_t janet_vm_cache_deleted;
 
 /* Garbage collection */
-extern DST_THREAD_LOCAL void *dst_vm_blocks;
-extern DST_THREAD_LOCAL uint32_t dst_vm_gc_interval;
-extern DST_THREAD_LOCAL uint32_t dst_vm_next_collection;
-extern DST_THREAD_LOCAL int dst_vm_gc_suspend;
+extern JANET_THREAD_LOCAL void *janet_vm_blocks;
+extern JANET_THREAD_LOCAL uint32_t janet_vm_gc_interval;
+extern JANET_THREAD_LOCAL uint32_t janet_vm_next_collection;
+extern JANET_THREAD_LOCAL int janet_vm_gc_suspend;
 
 /* GC roots */
-extern DST_THREAD_LOCAL Dst *dst_vm_roots;
-extern DST_THREAD_LOCAL uint32_t dst_vm_root_count;
-extern DST_THREAD_LOCAL uint32_t dst_vm_root_capacity;
+extern JANET_THREAD_LOCAL Janet *janet_vm_roots;
+extern JANET_THREAD_LOCAL uint32_t janet_vm_root_count;
+extern JANET_THREAD_LOCAL uint32_t janet_vm_root_capacity;
 
-#endif /* DST_STATE_H_defined */
+#endif /* JANET_STATE_H_defined */

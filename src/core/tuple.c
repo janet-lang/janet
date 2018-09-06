@@ -20,66 +20,66 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "symcache.h"
 #include "gc.h"
 #include "util.h"
 
 /* Create a new empty tuple of the given size. This will return memory
- * which should be filled with Dsts. The memory will not be collected until
- * dst_tuple_end is called. */
-Dst *dst_tuple_begin(int32_t length) {
-    char *data = dst_gcalloc(DST_MEMORY_TUPLE, 4 * sizeof(int32_t) + length * sizeof(Dst));
-    Dst *tuple = (Dst *)(data + (4 * sizeof(int32_t)));
-    dst_tuple_length(tuple) = length;
-    dst_tuple_sm_line(tuple) = 0;
-    dst_tuple_sm_col(tuple) = 0;
+ * which should be filled with Janets. The memory will not be collected until
+ * janet_tuple_end is called. */
+Janet *janet_tuple_begin(int32_t length) {
+    char *data = janet_gcalloc(JANET_MEMORY_TUPLE, 4 * sizeof(int32_t) + length * sizeof(Janet));
+    Janet *tuple = (Janet *)(data + (4 * sizeof(int32_t)));
+    janet_tuple_length(tuple) = length;
+    janet_tuple_sm_line(tuple) = 0;
+    janet_tuple_sm_col(tuple) = 0;
     return tuple;
 }
 
 /* Finish building a tuple */
-const Dst *dst_tuple_end(Dst *tuple) {
-    dst_tuple_hash(tuple) = dst_array_calchash(tuple, dst_tuple_length(tuple));
-    return (const Dst *)tuple;
+const Janet *janet_tuple_end(Janet *tuple) {
+    janet_tuple_hash(tuple) = janet_array_calchash(tuple, janet_tuple_length(tuple));
+    return (const Janet *)tuple;
 }
 
 /* Build a tuple with n values */
-const Dst *dst_tuple_n(const Dst *values, int32_t n) {
-    Dst *t = dst_tuple_begin(n);
-    memcpy(t, values, sizeof(Dst) * n);
-    return dst_tuple_end(t);
+const Janet *janet_tuple_n(const Janet *values, int32_t n) {
+    Janet *t = janet_tuple_begin(n);
+    memcpy(t, values, sizeof(Janet) * n);
+    return janet_tuple_end(t);
 }
 
 /* Check if two tuples are equal */
-int dst_tuple_equal(const Dst *lhs, const Dst *rhs) {
+int janet_tuple_equal(const Janet *lhs, const Janet *rhs) {
     int32_t index;
-    int32_t llen = dst_tuple_length(lhs);
-    int32_t rlen = dst_tuple_length(rhs);
-    int32_t lhash = dst_tuple_hash(lhs);
-    int32_t rhash = dst_tuple_hash(rhs);
+    int32_t llen = janet_tuple_length(lhs);
+    int32_t rlen = janet_tuple_length(rhs);
+    int32_t lhash = janet_tuple_hash(lhs);
+    int32_t rhash = janet_tuple_hash(rhs);
     if (lhash == 0)
-        lhash = dst_tuple_hash(lhs) = dst_array_calchash(lhs, llen);
+        lhash = janet_tuple_hash(lhs) = janet_array_calchash(lhs, llen);
     if (rhash == 0)
-        rhash = dst_tuple_hash(rhs) = dst_array_calchash(rhs, rlen);
+        rhash = janet_tuple_hash(rhs) = janet_array_calchash(rhs, rlen);
     if (lhash != rhash)
         return 0;
     if (llen != rlen)
         return 0;
     for (index = 0; index < llen; index++) {
-        if (!dst_equals(lhs[index], rhs[index]))
+        if (!janet_equals(lhs[index], rhs[index]))
             return 0;
     }
     return 1;
 }
 
 /* Compare tuples */
-int dst_tuple_compare(const Dst *lhs, const Dst *rhs) {
+int janet_tuple_compare(const Janet *lhs, const Janet *rhs) {
     int32_t i;
-    int32_t llen = dst_tuple_length(lhs);
-    int32_t rlen = dst_tuple_length(rhs);
+    int32_t llen = janet_tuple_length(lhs);
+    int32_t rlen = janet_tuple_length(rhs);
     int32_t count = llen < rlen ? llen : rlen;
     for (i = 0; i < count; ++i) {
-        int comp = dst_compare(lhs[i], rhs[i]);
+        int comp = janet_compare(lhs[i], rhs[i]);
         if (comp != 0) return comp;
     }
     if (llen < rlen)
@@ -91,68 +91,68 @@ int dst_tuple_compare(const Dst *lhs, const Dst *rhs) {
 
 /* C Functions */
 
-static int cfun_slice(DstArgs args) {
-    const Dst *vals;
+static int cfun_slice(JanetArgs args) {
+    const Janet *vals;
     int32_t len;
-    Dst *ret;
+    Janet *ret;
     int32_t start, end;
-    DST_MINARITY(args, 1);
-    if (!dst_indexed_view(args.v[0], &vals, &len)) DST_THROW(args, "expected array/tuple");
+    JANET_MINARITY(args, 1);
+    if (!janet_indexed_view(args.v[0], &vals, &len)) JANET_THROW(args, "expected array/tuple");
     /* Get start */
     if (args.n < 2) {
         start = 0;
-    } else if (dst_checktype(args.v[1], DST_INTEGER)) {
-        start = dst_unwrap_integer(args.v[1]);
+    } else if (janet_checktype(args.v[1], JANET_INTEGER)) {
+        start = janet_unwrap_integer(args.v[1]);
     } else {
-        DST_THROW(args, "expected integer");
+        JANET_THROW(args, "expected integer");
     }
     /* Get end */
     if (args.n < 3) {
         end = -1;
-    } else if (dst_checktype(args.v[2], DST_INTEGER)) {
-        end = dst_unwrap_integer(args.v[2]);
+    } else if (janet_checktype(args.v[2], JANET_INTEGER)) {
+        end = janet_unwrap_integer(args.v[2]);
     } else {
-        DST_THROW(args, "expected integer");
+        JANET_THROW(args, "expected integer");
     }
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
     if (end >= start) {
         int32_t i, j;
-        ret = dst_tuple_begin(end - start);
+        ret = janet_tuple_begin(end - start);
         for (j = 0, i = start; i < end; j++, i++) {
             ret[j] = vals[i];
         }
     } else {
-        ret = dst_tuple_begin(0);
+        ret = janet_tuple_begin(0);
     }
-    DST_RETURN_TUPLE(args, dst_tuple_end(ret));
+    JANET_RETURN_TUPLE(args, janet_tuple_end(ret));
 }
 
-static int cfun_prepend(DstArgs args) {
-    const Dst *t;
+static int cfun_prepend(JanetArgs args) {
+    const Janet *t;
     int32_t len;
-    Dst *n;
-    DST_FIXARITY(args, 2);
-    if (!dst_indexed_view(args.v[0], &t, &len)) DST_THROW(args, "expected tuple/array");
-    n = dst_tuple_begin(len + 1);
-    memcpy(n + 1, t, sizeof(Dst) * len);
+    Janet *n;
+    JANET_FIXARITY(args, 2);
+    if (!janet_indexed_view(args.v[0], &t, &len)) JANET_THROW(args, "expected tuple/array");
+    n = janet_tuple_begin(len + 1);
+    memcpy(n + 1, t, sizeof(Janet) * len);
     n[0] = args.v[1];
-    DST_RETURN_TUPLE(args, dst_tuple_end(n));
+    JANET_RETURN_TUPLE(args, janet_tuple_end(n));
 }
 
-static int cfun_append(DstArgs args) {
-    const Dst *t;
+static int cfun_append(JanetArgs args) {
+    const Janet *t;
     int32_t len;
-    Dst *n;
-    DST_FIXARITY(args, 2);
-    if (!dst_indexed_view(args.v[0], &t, &len)) DST_THROW(args, "expected tuple/array");
-    n = dst_tuple_begin(len + 1);
-    memcpy(n, t, sizeof(Dst) * len);
+    Janet *n;
+    JANET_FIXARITY(args, 2);
+    if (!janet_indexed_view(args.v[0], &t, &len)) JANET_THROW(args, "expected tuple/array");
+    n = janet_tuple_begin(len + 1);
+    memcpy(n, t, sizeof(Janet) * len);
     n[len] = args.v[1];
-    DST_RETURN_TUPLE(args, dst_tuple_end(n));
+    JANET_RETURN_TUPLE(args, janet_tuple_end(n));
 }
 
-static const DstReg cfuns[] = {
+static const JanetReg cfuns[] = {
     {"tuple.slice", cfun_slice},
     {"tuple.append", cfun_append},
     {"tuple.prepend", cfun_prepend},
@@ -160,8 +160,8 @@ static const DstReg cfuns[] = {
 };
 
 /* Load the tuple module */
-int dst_lib_tuple(DstArgs args) {
-    DstTable *env = dst_env(args);
-    dst_cfuns(env, NULL, cfuns);
+int janet_lib_tuple(JanetArgs args) {
+    JanetTable *env = janet_env(args);
+    janet_cfuns(env, NULL, cfuns);
     return 0;
 }

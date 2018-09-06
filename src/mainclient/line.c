@@ -23,17 +23,17 @@
 #include "line.h"
 
 /* Common */
-int dst_line_getter(DstArgs args) {
-    DST_FIXARITY(args, 2);
-    DST_CHECK(args, 0, DST_STRING);
-    DST_CHECK(args, 1, DST_BUFFER);
-    dst_line_get(
-            dst_unwrap_string(args.v[0]),
-            dst_unwrap_buffer(args.v[1]));
-    DST_RETURN(args, args.v[0]);
+int janet_line_getter(JanetArgs args) {
+    JANET_FIXARITY(args, 2);
+    JANET_CHECK(args, 0, JANET_STRING);
+    JANET_CHECK(args, 1, JANET_BUFFER);
+    janet_line_get(
+            janet_unwrap_string(args.v[0]),
+            janet_unwrap_buffer(args.v[1]));
+    JANET_RETURN(args, args.v[0]);
 }
 
-static void simpleline(DstBuffer *buffer) {
+static void simpleline(JanetBuffer *buffer) {
     buffer->count = 0;
     char c;
     for (;;) {
@@ -41,23 +41,23 @@ static void simpleline(DstBuffer *buffer) {
         if (feof(stdin) || c < 0) {
             break;
         }
-        dst_buffer_push_u8(buffer, (uint8_t) c);
+        janet_buffer_push_u8(buffer, (uint8_t) c);
         if (c == '\n') break;
     }
 }
 
 /* Windows */
-#ifdef DST_WINDOWS
+#ifdef JANET_WINDOWS
 
-void dst_line_init() {
+void janet_line_init() {
     ;
 }
 
-void dst_line_deinit() {
+void janet_line_deinit() {
     ;
 }
 
-void dst_line_get(const uint8_t *p, DstBuffer *buffer) {
+void janet_line_get(const uint8_t *p, JanetBuffer *buffer) {
     fputs((const char *)p, stdout);
     simpleline(buffer);
 }
@@ -84,16 +84,16 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 #include <signal.h>
 
 /* static state */
-#define DST_LINE_MAX 1024
-#define DST_HISTORY_MAX 100
+#define JANET_LINE_MAX 1024
+#define JANET_HISTORY_MAX 100
 static int israwmode = 0;
 static const char *prompt = "> ";
 static int plen = 2;
-static char buf[DST_LINE_MAX];
+static char buf[JANET_LINE_MAX];
 static int len = 0;
 static int pos = 0;
 static int cols = 80;
-static char *history[DST_HISTORY_MAX];
+static char *history[JANET_HISTORY_MAX];
 static int history_count = 0;
 static int historyi = 0;
 static struct termios termios_start;
@@ -185,7 +185,7 @@ static void clear() {
 
 static void refresh() {
     char seq[64];
-    DstBuffer b;
+    JanetBuffer b;
  
     /* Keep cursor position on screen */
     char *_buf = buf;
@@ -200,22 +200,22 @@ static void refresh() {
         _len--;
     }
 
-    dst_buffer_init(&b, 0);
+    janet_buffer_init(&b, 0);
     /* Cursor to left edge, prompt and buffer */
-    dst_buffer_push_u8(&b, '\r');
-    dst_buffer_push_cstring(&b, prompt);
-    dst_buffer_push_bytes(&b, (uint8_t *) _buf, _len);
+    janet_buffer_push_u8(&b, '\r');
+    janet_buffer_push_cstring(&b, prompt);
+    janet_buffer_push_bytes(&b, (uint8_t *) _buf, _len);
     /* Erase to right */
-    dst_buffer_push_cstring(&b, "\x1b[0K");
+    janet_buffer_push_cstring(&b, "\x1b[0K");
     /* Move cursor to original position. */
     snprintf(seq, 64,"\r\x1b[%dC", (int)(_pos + plen));
-    dst_buffer_push_cstring(&b, seq);
+    janet_buffer_push_cstring(&b, seq);
     if (write(STDOUT_FILENO, b.data, b.count) == -1) {}
-    dst_buffer_deinit(&b);
+    janet_buffer_deinit(&b);
 }
 
 static int insert(char c) {
-    if (len < DST_LINE_MAX - 1) {
+    if (len < JANET_LINE_MAX - 1) {
         if (len == pos) {
             buf[pos++] = c;
             buf[++len] = '\0';
@@ -249,7 +249,7 @@ static void historymove(int delta) {
             historyi = history_count - 1;
             return;
         }
-        strncpy(buf, history[historyi], DST_LINE_MAX);
+        strncpy(buf, history[historyi], JANET_LINE_MAX);
         pos = len = strlen(buf);
         buf[len] = '\0';
 
@@ -262,11 +262,11 @@ static void addhistory() {
     char *newline = sdup(buf);
     if (!newline) return;
     len = history_count;
-    if (len < DST_HISTORY_MAX) {
+    if (len < JANET_HISTORY_MAX) {
         history[history_count++] = newline;
         len++;
     } else {
-        free(history[DST_HISTORY_MAX - 1]);
+        free(history[JANET_HISTORY_MAX - 1]);
     }
     for (i = len - 1; i > 0; i--) {
         history[i] = history[i - 1];
@@ -425,11 +425,11 @@ static int line() {
     return 0;
 }
 
-void dst_line_init() {
+void janet_line_init() {
     ;
 }
 
-void dst_line_deinit() {
+void janet_line_deinit() {
     int i;
     norawmode();
     for (i = 0; i < history_count; i++)
@@ -446,7 +446,7 @@ static int checktermsupport() {
     return 1;
 }
 
-void dst_line_get(const uint8_t *p, DstBuffer *buffer) {
+void janet_line_get(const uint8_t *p, JanetBuffer *buffer) {
     prompt = (const char *)p; 
     buffer->count = 0;
     historyi = 0;
@@ -465,7 +465,7 @@ void dst_line_get(const uint8_t *p, DstBuffer *buffer) {
     }
     norawmode();
     fputc('\n', stdout);
-    dst_buffer_ensure(buffer, len + 1);
+    janet_buffer_ensure(buffer, len + 1);
     memcpy(buffer->data, buf, len);
     buffer->data[len] = '\n';
     buffer->count = len + 1;

@@ -20,15 +20,15 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_LINE_H_defined
-#define DST_LINE_H_defined
+#ifndef JANET_LINE_H_defined
+#define JANET_LINE_H_defined
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 
-void dst_line_init();
-void dst_line_deinit();
+void janet_line_init();
+void janet_line_deinit();
 
-void dst_line_get(const uint8_t *p, DstBuffer *buffer);
-int dst_line_getter(DstArgs args);
+void janet_line_get(const uint8_t *p, JanetBuffer *buffer);
+int janet_line_getter(JanetArgs args);
 
 #endif

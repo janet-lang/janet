@@ -20,42 +20,42 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "gc.h"
 #include "util.h"
 #include "state.h"
 
 /* Begin building a string */
-uint8_t *dst_string_begin(int32_t length) {
-    char *data = dst_gcalloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + length + 1);
+uint8_t *janet_string_begin(int32_t length) {
+    char *data = janet_gcalloc(JANET_MEMORY_STRING, 2 * sizeof(int32_t) + length + 1);
     uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
-    dst_string_length(str) = length;
+    janet_string_length(str) = length;
     str[length] = 0;
     return str;
 }
 
 /* Finish building a string */
-const uint8_t *dst_string_end(uint8_t *str) {
-    dst_string_hash(str) = dst_string_calchash(str, dst_string_length(str));
+const uint8_t *janet_string_end(uint8_t *str) {
+    janet_string_hash(str) = janet_string_calchash(str, janet_string_length(str));
     return str;
 }
 
 /* Load a buffer as a string */
-const uint8_t *dst_string(const uint8_t *buf, int32_t len) {
-    int32_t hash = dst_string_calchash(buf, len);
-    char *data = dst_gcalloc(DST_MEMORY_STRING, 2 * sizeof(int32_t) + len + 1);
+const uint8_t *janet_string(const uint8_t *buf, int32_t len) {
+    int32_t hash = janet_string_calchash(buf, len);
+    char *data = janet_gcalloc(JANET_MEMORY_STRING, 2 * sizeof(int32_t) + len + 1);
     uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
     memcpy(str, buf, len);
     str[len] = 0;
-    dst_string_length(str) = len;
-    dst_string_hash(str) = hash;
+    janet_string_length(str) = len;
+    janet_string_hash(str) = hash;
     return str;
 }
 
 /* Compare two strings */
-int dst_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
-    int32_t xlen = dst_string_length(lhs);
-    int32_t ylen = dst_string_length(rhs);
+int janet_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
+    int32_t xlen = janet_string_length(lhs);
+    int32_t ylen = janet_string_length(rhs);
     int32_t len = xlen > ylen ? ylen : xlen;
     int32_t i;
     for (i = 0; i < len; ++i) {
@@ -74,11 +74,11 @@ int dst_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
     }
 }
 
-/* Compare a dst string with a piece of memory */
-int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash) {
+/* Compare a janet string with a piece of memory */
+int janet_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash) {
     int32_t index;
-    int32_t lhash = dst_string_hash(lhs);
-    int32_t llen = dst_string_length(lhs);
+    int32_t lhash = janet_string_hash(lhs);
+    int32_t llen = janet_string_length(lhs);
     if (lhs == rhs)
         return 1;
     if (lhash != rhash || llen != rlen)
@@ -91,16 +91,16 @@ int dst_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, 
 }
 
 /* Check if two strings are equal */
-int dst_string_equal(const uint8_t *lhs, const uint8_t *rhs) {
-    return dst_string_equalconst(lhs, rhs,
-            dst_string_length(rhs), dst_string_hash(rhs));
+int janet_string_equal(const uint8_t *lhs, const uint8_t *rhs) {
+    return janet_string_equalconst(lhs, rhs,
+            janet_string_length(rhs), janet_string_hash(rhs));
 }
 
 /* Load a c string */
-const uint8_t *dst_cstring(const char *str) {
+const uint8_t *janet_cstring(const char *str) {
     int32_t len = 0;
     while (str[len]) ++len;
-    return dst_string((const uint8_t *)str, len);
+    return janet_string((const uint8_t *)str, len);
 }
 
 /* Temporary buffer size */
@@ -112,14 +112,14 @@ static int32_t real_to_string_impl(uint8_t *buf, double x) {
     return (int32_t) count;
 }
 
-static void real_to_string_b(DstBuffer *buffer, double x) {
-    dst_buffer_ensure(buffer, buffer->count + BUFSIZE);
+static void real_to_string_b(JanetBuffer *buffer, double x) {
+    janet_buffer_ensure(buffer, buffer->count + BUFSIZE);
     buffer->count += real_to_string_impl(buffer->data + buffer->count, x);
 }
 
 static const uint8_t *real_to_string(double x) {
     uint8_t buf[BUFSIZE];
-    return dst_string(buf, real_to_string_impl(buf, x));
+    return janet_string(buf, real_to_string_impl(buf, x));
 }
 
 static int32_t integer_to_string_impl(uint8_t *buf, int32_t x) {
@@ -152,17 +152,17 @@ static int32_t integer_to_string_impl(uint8_t *buf, int32_t x) {
     return count;
 }
 
-static void integer_to_string_b(DstBuffer *buffer, int32_t x) {
-    dst_buffer_extra(buffer, BUFSIZE);
+static void integer_to_string_b(JanetBuffer *buffer, int32_t x) {
+    janet_buffer_extra(buffer, BUFSIZE);
     buffer->count += integer_to_string_impl(buffer->data + buffer->count, x);
 }
 
 static const uint8_t *integer_to_string(int32_t x) {
     uint8_t buf[BUFSIZE];
-    return dst_string(buf, integer_to_string_impl(buf, x));
+    return janet_string(buf, integer_to_string_impl(buf, x));
 }
 
-#define HEX(i) (((uint8_t *) dst_base64)[(i)])
+#define HEX(i) (((uint8_t *) janet_base64)[(i)])
 
 /* Returns a string description for a pointer. Truncates
  * title to 12 characters */
@@ -182,7 +182,7 @@ static int32_t string_description_impl(uint8_t *buf, const char *title, void *po
     *c++ = ' ';
     *c++ = '0';
     *c++ = 'x';
-#if defined(DST_64)
+#if defined(JANET_64)
 #define POINTSIZE 6
 #else
 #define POINTSIZE (sizeof(void *))
@@ -197,8 +197,8 @@ static int32_t string_description_impl(uint8_t *buf, const char *title, void *po
 #undef POINTSIZE
 }
 
-static void string_description_b(DstBuffer *buffer, const char *title, void *pointer) {
-    dst_buffer_ensure(buffer, buffer->count + BUFSIZE);
+static void string_description_b(JanetBuffer *buffer, const char *title, void *pointer) {
+    janet_buffer_ensure(buffer, buffer->count + BUFSIZE);
     buffer->count += string_description_impl(buffer->data + buffer->count, title, pointer);
 }
 
@@ -206,7 +206,7 @@ static void string_description_b(DstBuffer *buffer, const char *title, void *poi
  * a string "<bork 0x12345678>") */
 static const uint8_t *string_description(const char *title, void *pointer) {
     uint8_t buf[BUFSIZE];
-    return dst_string(buf, string_description_impl(buf, title, pointer));
+    return janet_string(buf, string_description_impl(buf, title, pointer));
 }
 
 #undef HEX
@@ -215,8 +215,8 @@ static const uint8_t *string_description(const char *title, void *pointer) {
 /* TODO - add more characters to escape.
  *
  * When more escapes are added, they must correspond
- * to dst_escape_string_impl exactly or a buffer overrun could occur. */
-static int32_t dst_escape_string_length(const uint8_t *str, int32_t slen) {
+ * to janet_escape_string_impl exactly or a buffer overrun could occur. */
+static int32_t janet_escape_string_length(const uint8_t *str, int32_t slen) {
     int32_t len = 2;
     int32_t i;
     for (i = 0; i < slen; ++i) {
@@ -239,7 +239,7 @@ static int32_t dst_escape_string_length(const uint8_t *str, int32_t slen) {
     return len;
 }
 
-static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str, int32_t len) {
+static void janet_escape_string_impl(uint8_t *buf, const uint8_t *str, int32_t len) {
     int32_t i, j;
     buf[0] = '"';
     for (i = 0, j = 1; i < len; ++i) {
@@ -269,8 +269,8 @@ static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str, int32_t len
                 if (c < 32 || c > 127) {
                     buf[j++] = '\\';
                     buf[j++] = 'x';
-                    buf[j++] = dst_base64[(c >> 4) & 0xF];
-                    buf[j++] = dst_base64[c & 0xF];
+                    buf[j++] = janet_base64[(c >> 4) & 0xF];
+                    buf[j++] = janet_base64[c & 0xF];
                 } else {
                     buf[j++] = c;
                 }
@@ -280,206 +280,206 @@ static void dst_escape_string_impl(uint8_t *buf, const uint8_t *str, int32_t len
     buf[j++] = '"';
 }
 
-void dst_escape_string_b(DstBuffer *buffer, const uint8_t *str) {
-    int32_t len = dst_string_length(str);
-    int32_t elen = dst_escape_string_length(str, len);
-    dst_buffer_extra(buffer, elen);
-    dst_escape_string_impl(buffer->data + buffer->count, str, len);
+void janet_escape_string_b(JanetBuffer *buffer, const uint8_t *str) {
+    int32_t len = janet_string_length(str);
+    int32_t elen = janet_escape_string_length(str, len);
+    janet_buffer_extra(buffer, elen);
+    janet_escape_string_impl(buffer->data + buffer->count, str, len);
     buffer->count += elen;
 }
 
-const uint8_t *dst_escape_string(const uint8_t *str) {
-    int32_t len = dst_string_length(str);
-    int32_t elen = dst_escape_string_length(str, len);
-    uint8_t *buf = dst_string_begin(elen);
-    dst_escape_string_impl(buf, str, len);
-    return dst_string_end(buf);
+const uint8_t *janet_escape_string(const uint8_t *str) {
+    int32_t len = janet_string_length(str);
+    int32_t elen = janet_escape_string_length(str, len);
+    uint8_t *buf = janet_string_begin(elen);
+    janet_escape_string_impl(buf, str, len);
+    return janet_string_end(buf);
 }
 
-static void dst_escape_buffer_b(DstBuffer *buffer, DstBuffer *bx) {
-    int32_t elen = dst_escape_string_length(bx->data, bx->count);
-    dst_buffer_push_u8(buffer, '@');
-    dst_buffer_extra(buffer, elen);
-    dst_escape_string_impl(
+static void janet_escape_buffer_b(JanetBuffer *buffer, JanetBuffer *bx) {
+    int32_t elen = janet_escape_string_length(bx->data, bx->count);
+    janet_buffer_push_u8(buffer, '@');
+    janet_buffer_extra(buffer, elen);
+    janet_escape_string_impl(
             buffer->data + buffer->count,
             bx->data,
             bx->count);
     buffer->count += elen;
 }
 
-void dst_description_b(DstBuffer *buffer, Dst x) {
-    switch (dst_type(x)) {
-    case DST_NIL:
-        dst_buffer_push_cstring(buffer, "nil");
+void janet_description_b(JanetBuffer *buffer, Janet x) {
+    switch (janet_type(x)) {
+    case JANET_NIL:
+        janet_buffer_push_cstring(buffer, "nil");
         return;
-    case DST_TRUE:
-        dst_buffer_push_cstring(buffer, "true");
+    case JANET_TRUE:
+        janet_buffer_push_cstring(buffer, "true");
         return;
-    case DST_FALSE:
-        dst_buffer_push_cstring(buffer, "false");
+    case JANET_FALSE:
+        janet_buffer_push_cstring(buffer, "false");
         return;
-    case DST_REAL:
-        real_to_string_b(buffer, dst_unwrap_real(x));
+    case JANET_REAL:
+        real_to_string_b(buffer, janet_unwrap_real(x));
         return;
-    case DST_INTEGER:
-        integer_to_string_b(buffer, dst_unwrap_integer(x));
+    case JANET_INTEGER:
+        integer_to_string_b(buffer, janet_unwrap_integer(x));
         return;
-    case DST_SYMBOL:
-        dst_buffer_push_bytes(buffer,
-                dst_unwrap_string(x),
-                dst_string_length(dst_unwrap_string(x)));
+    case JANET_SYMBOL:
+        janet_buffer_push_bytes(buffer,
+                janet_unwrap_string(x),
+                janet_string_length(janet_unwrap_string(x)));
         return;
-    case DST_STRING:
-        dst_escape_string_b(buffer, dst_unwrap_string(x));
+    case JANET_STRING:
+        janet_escape_string_b(buffer, janet_unwrap_string(x));
         return;
-    case DST_BUFFER:
-        dst_escape_buffer_b(buffer, dst_unwrap_buffer(x));
+    case JANET_BUFFER:
+        janet_escape_buffer_b(buffer, janet_unwrap_buffer(x));
         return;
-    case DST_ABSTRACT:
+    case JANET_ABSTRACT:
         {
-            const char *n = dst_abstract_type(dst_unwrap_abstract(x))->name;
+            const char *n = janet_abstract_type(janet_unwrap_abstract(x))->name;
             string_description_b(buffer,
                 n[0] == ':' ? n + 1 : n,
-                dst_unwrap_abstract(x));
+                janet_unwrap_abstract(x));
 			return;
         }
-    case DST_CFUNCTION:
+    case JANET_CFUNCTION:
         {
-            Dst check = dst_table_get(dst_vm_registry, x);
-            if (dst_checktype(x, DST_SYMBOL)) {
-                dst_buffer_push_cstring(buffer, "<cfunction ");
-                dst_buffer_push_bytes(buffer,
-                        dst_unwrap_symbol(check),
-                        dst_string_length(dst_unwrap_symbol(check)));
-                dst_buffer_push_u8(buffer, '>');
+            Janet check = janet_table_get(janet_vm_registry, x);
+            if (janet_checktype(x, JANET_SYMBOL)) {
+                janet_buffer_push_cstring(buffer, "<cfunction ");
+                janet_buffer_push_bytes(buffer,
+                        janet_unwrap_symbol(check),
+                        janet_string_length(janet_unwrap_symbol(check)));
+                janet_buffer_push_u8(buffer, '>');
                 break;
             }
             goto fallthrough;
         }
-    case DST_FUNCTION:
+    case JANET_FUNCTION:
         {
-            DstFunction *fun = dst_unwrap_function(x);
-            DstFuncDef *def = fun->def;
+            JanetFunction *fun = janet_unwrap_function(x);
+            JanetFuncDef *def = fun->def;
             if (def->name) {
                 const uint8_t *n = def->name;
-                dst_buffer_push_cstring(buffer, "<function ");
-                dst_buffer_push_bytes(buffer, n, dst_string_length(n));
-                dst_buffer_push_u8(buffer, '>');
+                janet_buffer_push_cstring(buffer, "<function ");
+                janet_buffer_push_bytes(buffer, n, janet_string_length(n));
+                janet_buffer_push_u8(buffer, '>');
                 break;
             }
             goto fallthrough;
         }
     fallthrough:
     default:
-        string_description_b(buffer, dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
+        string_description_b(buffer, janet_type_names[janet_type(x)] + 1, janet_unwrap_pointer(x));
         break;
     }
 }
 
-void dst_to_string_b(DstBuffer *buffer, Dst x) {
-    switch (dst_type(x)) {
+void janet_to_string_b(JanetBuffer *buffer, Janet x) {
+    switch (janet_type(x)) {
         default:
-            dst_description_b(buffer, x);
+            janet_description_b(buffer, x);
             break;
-        case DST_BUFFER:
-            dst_buffer_push_bytes(buffer,
-                    dst_unwrap_buffer(x)->data,
-                    dst_unwrap_buffer(x)->count);
+        case JANET_BUFFER:
+            janet_buffer_push_bytes(buffer,
+                    janet_unwrap_buffer(x)->data,
+                    janet_unwrap_buffer(x)->count);
             break;
-        case DST_STRING:
-        case DST_SYMBOL:
-            dst_buffer_push_bytes(buffer,
-                    dst_unwrap_string(x),
-                    dst_string_length(dst_unwrap_string(x)));
+        case JANET_STRING:
+        case JANET_SYMBOL:
+            janet_buffer_push_bytes(buffer,
+                    janet_unwrap_string(x),
+                    janet_string_length(janet_unwrap_string(x)));
             break;
     }
 }
 
-const uint8_t *dst_description(Dst x) {
-    switch (dst_type(x)) {
-    case DST_NIL:
-        return dst_cstring("nil");
-    case DST_TRUE:
-        return dst_cstring("true");
-    case DST_FALSE:
-        return dst_cstring("false");
-    case DST_REAL:
-        return real_to_string(dst_unwrap_real(x));
-    case DST_INTEGER:
-        return integer_to_string(dst_unwrap_integer(x));
-    case DST_SYMBOL:
-        return dst_unwrap_symbol(x);
-    case DST_STRING:
-        return dst_escape_string(dst_unwrap_string(x));
-    case DST_BUFFER:
+const uint8_t *janet_description(Janet x) {
+    switch (janet_type(x)) {
+    case JANET_NIL:
+        return janet_cstring("nil");
+    case JANET_TRUE:
+        return janet_cstring("true");
+    case JANET_FALSE:
+        return janet_cstring("false");
+    case JANET_REAL:
+        return real_to_string(janet_unwrap_real(x));
+    case JANET_INTEGER:
+        return integer_to_string(janet_unwrap_integer(x));
+    case JANET_SYMBOL:
+        return janet_unwrap_symbol(x);
+    case JANET_STRING:
+        return janet_escape_string(janet_unwrap_string(x));
+    case JANET_BUFFER:
         {
-            DstBuffer b;
+            JanetBuffer b;
             const uint8_t *ret;
-            dst_buffer_init(&b, 3);
-            dst_escape_buffer_b(&b, dst_unwrap_buffer(x));
-            ret = dst_string(b.data, b.count);
-            dst_buffer_deinit(&b);
+            janet_buffer_init(&b, 3);
+            janet_escape_buffer_b(&b, janet_unwrap_buffer(x));
+            ret = janet_string(b.data, b.count);
+            janet_buffer_deinit(&b);
             return ret;
         }
-    case DST_ABSTRACT:
+    case JANET_ABSTRACT:
         {
-            const char *n = dst_abstract_type(dst_unwrap_abstract(x))->name;
+            const char *n = janet_abstract_type(janet_unwrap_abstract(x))->name;
             return string_description(
                     n[0] == ':' ? n + 1 : n,
-                    dst_unwrap_abstract(x));
+                    janet_unwrap_abstract(x));
         }
-    case DST_CFUNCTION:
+    case JANET_CFUNCTION:
         {
-            Dst check = dst_table_get(dst_vm_registry, x);
-            if (dst_checktype(check, DST_SYMBOL)) {
-                return dst_formatc("<cfunction %V>", check);
+            Janet check = janet_table_get(janet_vm_registry, x);
+            if (janet_checktype(check, JANET_SYMBOL)) {
+                return janet_formatc("<cfunction %V>", check);
             }
             goto fallthrough;
         }
-    case DST_FUNCTION:
+    case JANET_FUNCTION:
         {
-            DstFunction *fun = dst_unwrap_function(x);
-            DstFuncDef *def = fun->def;
+            JanetFunction *fun = janet_unwrap_function(x);
+            JanetFuncDef *def = fun->def;
             if (def->name) {
-                return dst_formatc("<function %S>", def->name);
+                return janet_formatc("<function %S>", def->name);
             }
             goto fallthrough;
         }
     fallthrough:
     default:
-        return string_description(dst_type_names[dst_type(x)] + 1, dst_unwrap_pointer(x));
+        return string_description(janet_type_names[janet_type(x)] + 1, janet_unwrap_pointer(x));
     }
 }
 
-/* Convert any value to a dst string. Similar to description, but
+/* Convert any value to a janet string. Similar to description, but
  * strings, symbols, and buffers will return their content. */
-const uint8_t *dst_to_string(Dst x) {
-    switch (dst_type(x)) {
+const uint8_t *janet_to_string(Janet x) {
+    switch (janet_type(x)) {
         default:
-            return dst_description(x);
-        case DST_BUFFER:
-            return dst_string(dst_unwrap_buffer(x)->data, dst_unwrap_buffer(x)->count);
-        case DST_STRING:
-        case DST_SYMBOL:
-            return dst_unwrap_string(x);
+            return janet_description(x);
+        case JANET_BUFFER:
+            return janet_string(janet_unwrap_buffer(x)->data, janet_unwrap_buffer(x)->count);
+        case JANET_STRING:
+        case JANET_SYMBOL:
+            return janet_unwrap_string(x);
     }
 }
 
 /* Helper function for formatting strings. Useful for generating error messages and the like.
- * Similiar to printf, but specialized for operating with dst. */
-const uint8_t *dst_formatc(const char *format, ...) {
+ * Similiar to printf, but specialized for operating with janet. */
+const uint8_t *janet_formatc(const char *format, ...) {
     va_list args;
     int32_t len = 0;
     int32_t i;
     const uint8_t *ret;
-    DstBuffer buffer;
-    DstBuffer *bufp = &buffer;
+    JanetBuffer buffer;
+    JanetBuffer *bufp = &buffer;
 
     /* Calculate length */
     while (format[len]) len++;
 
     /* Initialize buffer */
-    dst_buffer_init(bufp, len);
+    janet_buffer_init(bufp, len);
 
     /* Start args */
     va_start(args, format);
@@ -489,7 +489,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
         uint8_t c = format[i];
         switch (c) {
             default:
-                dst_buffer_push_u8(bufp, c);
+                janet_buffer_push_u8(bufp, c);
                 break;
             case '%':
             {
@@ -497,7 +497,7 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     break;
                 switch (format[++i]) {
                     default:
-                        dst_buffer_push_u8(bufp, format[i]);
+                        janet_buffer_push_u8(bufp, format[i]);
                         break;
                     case 'f':
                         real_to_string_b(bufp, va_arg(args, double));
@@ -508,34 +508,34 @@ const uint8_t *dst_formatc(const char *format, ...) {
                     case 'S':
                     {
                         const uint8_t *str = va_arg(args, const uint8_t *);
-                        dst_buffer_push_bytes(bufp, str, dst_string_length(str));
+                        janet_buffer_push_bytes(bufp, str, janet_string_length(str));
                         break;
                     }
                     case 's':
-                        dst_buffer_push_cstring(bufp, va_arg(args, const char *));
+                        janet_buffer_push_cstring(bufp, va_arg(args, const char *));
                         break;
                     case 'c':
-                        dst_buffer_push_u8(bufp, (uint8_t) va_arg(args, long));
+                        janet_buffer_push_u8(bufp, (uint8_t) va_arg(args, long));
                         break;
                     case 'q':
                     {
                         const uint8_t *str = va_arg(args, const uint8_t *);
-                        dst_escape_string_b(bufp, str);
+                        janet_escape_string_b(bufp, str);
                         break;
                     }
                     case 't':
                     {
-                        dst_buffer_push_cstring(bufp, dst_type_names[va_arg(args, DstType)] + 1);
+                        janet_buffer_push_cstring(bufp, janet_type_names[va_arg(args, JanetType)] + 1);
                         break;
                     }
                     case 'V':
                     {
-                        dst_to_string_b(bufp, va_arg(args, Dst));
+                        janet_to_string_b(bufp, va_arg(args, Janet));
                         break;
                     }
                     case 'v':
                     {
-                        dst_description_b(bufp, va_arg(args, Dst));
+                        janet_description_b(bufp, va_arg(args, Janet));
                         break;
                     }
                 }
@@ -545,15 +545,15 @@ const uint8_t *dst_formatc(const char *format, ...) {
 
     va_end(args);
 
-    ret = dst_string(buffer.data, buffer.count);
-    dst_buffer_deinit(&buffer);
+    ret = janet_string(buffer.data, buffer.count);
+    janet_buffer_deinit(&buffer);
     return ret;
 }
 
 /* Print string to stdout */
-void dst_puts(const uint8_t *str) {
+void janet_puts(const uint8_t *str) {
     int32_t i;
-    int32_t len = dst_string_length(str);
+    int32_t len = janet_string_length(str);
     for (i = 0; i < len; i++) {
         putc(str[i], stdout);
     }
@@ -577,7 +577,7 @@ static void kmp_init(
         const uint8_t *pat, int32_t patlen) {
     int32_t *lookup = calloc(patlen, sizeof(int32_t));
     if (!lookup) {
-        DST_OUT_OF_MEMORY;
+        JANET_OUT_OF_MEMORY;
     }
     s->lookup = lookup;
     s->i = 0;
@@ -632,99 +632,99 @@ static int32_t kmp_next(struct kmp_state *state) {
 
 /* CFuns */
 
-static int cfun_slice(DstArgs args) {
+static int cfun_slice(JanetArgs args) {
     const uint8_t *data;
     int32_t len, start, end;
     const uint8_t *ret;
-    DST_MINARITY(args, 1);
-    DST_MAXARITY(args, 3);
-    DST_ARG_BYTES(data, len, args, 0);
+    JANET_MINARITY(args, 1);
+    JANET_MAXARITY(args, 3);
+    JANET_ARG_BYTES(data, len, args, 0);
     /* Get start */
     if (args.n < 2) {
         start = 0;
-    } else if (dst_checktype(args.v[1], DST_INTEGER)) {
-        start = dst_unwrap_integer(args.v[1]);
+    } else if (janet_checktype(args.v[1], JANET_INTEGER)) {
+        start = janet_unwrap_integer(args.v[1]);
     } else {
-        DST_THROW(args, "expected integer");
+        JANET_THROW(args, "expected integer");
     }
     /* Get end */
     if (args.n < 3) {
         end = -1;
-    } else if (dst_checktype(args.v[2], DST_INTEGER)) {
-        end = dst_unwrap_integer(args.v[2]);
+    } else if (janet_checktype(args.v[2], JANET_INTEGER)) {
+        end = janet_unwrap_integer(args.v[2]);
     } else {
-        DST_THROW(args, "expected integer");
+        JANET_THROW(args, "expected integer");
     }
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
     if (end >= start) {
-        ret = dst_string(data + start, end - start);
+        ret = janet_string(data + start, end - start);
     } else {
-        ret = dst_cstring("");
+        ret = janet_cstring("");
     }
-    DST_RETURN_STRING(args, ret);
+    JANET_RETURN_STRING(args, ret);
 }
 
-static int cfun_repeat(DstArgs args) {
+static int cfun_repeat(JanetArgs args) {
     const uint8_t *data;
     uint8_t *newbuf, *p, *end;
     int32_t len, rep;
     int64_t mulres;
-    DST_FIXARITY(args, 2);
-    DST_ARG_BYTES(data, len, args, 0);
-    DST_ARG_INTEGER(rep, args, 1);
+    JANET_FIXARITY(args, 2);
+    JANET_ARG_BYTES(data, len, args, 0);
+    JANET_ARG_INTEGER(rep, args, 1);
     if (rep < 0) {
-        DST_THROW(args, "expected non-negative number of repetitions");
+        JANET_THROW(args, "expected non-negative number of repetitions");
     } else if (rep == 0) {
-        DST_RETURN_CSTRING(args, "");
+        JANET_RETURN_CSTRING(args, "");
     }
     mulres = (int64_t) rep * len;
     if (mulres > INT32_MAX) {
-        DST_THROW(args, "result string is too long");
+        JANET_THROW(args, "result string is too long");
     }
-    newbuf = dst_string_begin((int32_t) mulres);
+    newbuf = janet_string_begin((int32_t) mulres);
     end = newbuf + mulres;
     for (p = newbuf; p < end; p += len) {
         memcpy(p, data, len);
     }
-    DST_RETURN_STRING(args, dst_string_end(newbuf));
+    JANET_RETURN_STRING(args, janet_string_end(newbuf));
 }
 
-static int cfun_bytes(DstArgs args) {
+static int cfun_bytes(JanetArgs args) {
     const uint8_t *str;
     int32_t strlen, i;
-    Dst *tup;
-    DST_FIXARITY(args, 1);
-    DST_ARG_BYTES(str, strlen, args, 0);
-    tup = dst_tuple_begin(strlen);
+    Janet *tup;
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_BYTES(str, strlen, args, 0);
+    tup = janet_tuple_begin(strlen);
     for (i = 0; i < strlen; i++) {
-        tup[i] = dst_wrap_integer((int32_t) str[i]);
+        tup[i] = janet_wrap_integer((int32_t) str[i]);
     }
-    DST_RETURN_TUPLE(args, dst_tuple_end(tup));
+    JANET_RETURN_TUPLE(args, janet_tuple_end(tup));
 }
 
-static int cfun_frombytes(DstArgs args) {
+static int cfun_frombytes(JanetArgs args) {
     int32_t i;
     uint8_t *buf;
     for (i = 0; i < args.n; i++) {
-        DST_CHECK(args, i, DST_INTEGER);
+        JANET_CHECK(args, i, JANET_INTEGER);
     }
-    buf = dst_string_begin(args.n);
+    buf = janet_string_begin(args.n);
     for (i = 0; i < args.n; i++) {
         int32_t c;
-        DST_ARG_INTEGER(c, args, i);
+        JANET_ARG_INTEGER(c, args, i);
         buf[i] = c & 0xFF;
     }
-    DST_RETURN_STRING(args, dst_string_end(buf));
+    JANET_RETURN_STRING(args, janet_string_end(buf));
 }
 
-static int cfun_asciilower(DstArgs args) {
+static int cfun_asciilower(JanetArgs args) {
     const uint8_t *str;
     uint8_t *buf;
     int32_t len, i;
-    DST_FIXARITY(args, 1);
-    DST_ARG_BYTES(str, len, args, 0);
-    buf = dst_string_begin(len);
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_BYTES(str, len, args, 0);
+    buf = janet_string_begin(len);
     for (i = 0; i < len; i++) {
         uint8_t c = str[i];
         if (c >= 65 && c <= 90) {
@@ -733,16 +733,16 @@ static int cfun_asciilower(DstArgs args) {
             buf[i] = c;
         }
     }
-    DST_RETURN_STRING(args, dst_string_end(buf));
+    JANET_RETURN_STRING(args, janet_string_end(buf));
 }
 
-static int cfun_asciiupper(DstArgs args) {
+static int cfun_asciiupper(JanetArgs args) {
     const uint8_t *str;
     uint8_t *buf;
     int32_t len, i;
-    DST_FIXARITY(args, 1);
-    DST_ARG_BYTES(str, len, args, 0);
-    buf = dst_string_begin(len);
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_BYTES(str, len, args, 0);
+    buf = janet_string_begin(len);
     for (i = 0; i < len; i++) {
         uint8_t c = str[i];
         if (c >= 97 && c <= 122) {
@@ -751,66 +751,66 @@ static int cfun_asciiupper(DstArgs args) {
             buf[i] = c;
         }
     }
-    DST_RETURN_STRING(args, dst_string_end(buf));
+    JANET_RETURN_STRING(args, janet_string_end(buf));
 }
 
-static int cfun_reverse(DstArgs args) {
+static int cfun_reverse(JanetArgs args) {
     const uint8_t *str;
     uint8_t *buf;
     int32_t len, i, j;
-    DST_FIXARITY(args, 1);
-    DST_ARG_BYTES(str, len, args, 0);
-    buf = dst_string_begin(len);
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_BYTES(str, len, args, 0);
+    buf = janet_string_begin(len);
     for (i = 0, j = len - 1; i < len; i++, j--) {
         buf[i] = str[j];
     }
-    DST_RETURN_STRING(args, dst_string_end(buf));
+    JANET_RETURN_STRING(args, janet_string_end(buf));
 }
 
-static int findsetup(DstArgs args, struct kmp_state *s, int32_t extra) {
+static int findsetup(JanetArgs args, struct kmp_state *s, int32_t extra) {
     const uint8_t *text, *pat;
     int32_t textlen, patlen, start;
-    DST_MINARITY(args, 2);
-    DST_MAXARITY(args, 3 + extra);
-    DST_ARG_BYTES(pat, patlen, args, 0);
-    DST_ARG_BYTES(text, textlen, args, 1);
+    JANET_MINARITY(args, 2);
+    JANET_MAXARITY(args, 3 + extra);
+    JANET_ARG_BYTES(pat, patlen, args, 0);
+    JANET_ARG_BYTES(text, textlen, args, 1);
     if (args.n >= 3) {
-        DST_ARG_INTEGER(start, args, 2);
+        JANET_ARG_INTEGER(start, args, 2);
         if (start < 0) {
-            DST_THROW(args, "expected non-negative start index");
+            JANET_THROW(args, "expected non-negative start index");
         }
     } else {
         start = 0;
     }
     kmp_init(s, text, textlen, pat, patlen);
     s->i = start;
-    return DST_SIGNAL_OK;
+    return JANET_SIGNAL_OK;
 }
 
-static int cfun_find(DstArgs args) {
+static int cfun_find(JanetArgs args) {
     int32_t result;
     struct kmp_state state;
     int status = findsetup(args, &state, 0);
     if (status) return status;
     result = kmp_next(&state);
     kmp_deinit(&state);
-    DST_RETURN(args, result < 0
-            ? dst_wrap_nil()
-            : dst_wrap_integer(result));
+    JANET_RETURN(args, result < 0
+            ? janet_wrap_nil()
+            : janet_wrap_integer(result));
 }
 
-static int cfun_findall(DstArgs args) {
+static int cfun_findall(JanetArgs args) {
     int32_t result;
-    DstArray *array;
+    JanetArray *array;
     struct kmp_state state;
     int status = findsetup(args, &state, 0);
     if (status) return status;
-    array = dst_array(0);
+    array = janet_array(0);
     while ((result = kmp_next(&state)) >= 0) {
-        dst_array_push(array, dst_wrap_integer(result));
+        janet_array_push(array, janet_wrap_integer(result));
     }
     kmp_deinit(&state);
-    DST_RETURN_ARRAY(args, array);
+    JANET_RETURN_ARRAY(args, array);
 }
 
 struct replace_state {
@@ -819,18 +819,18 @@ struct replace_state {
     int32_t substlen;
 };
 
-static int replacesetup(DstArgs args, struct replace_state *s) {
+static int replacesetup(JanetArgs args, struct replace_state *s) {
     const uint8_t *text, *pat, *subst;
     int32_t textlen, patlen, substlen, start;
-    DST_MINARITY(args, 3);
-    DST_MAXARITY(args, 4);
-    DST_ARG_BYTES(pat, patlen, args, 0);
-    DST_ARG_BYTES(subst, substlen, args, 1);
-    DST_ARG_BYTES(text, textlen, args, 2);
+    JANET_MINARITY(args, 3);
+    JANET_MAXARITY(args, 4);
+    JANET_ARG_BYTES(pat, patlen, args, 0);
+    JANET_ARG_BYTES(subst, substlen, args, 1);
+    JANET_ARG_BYTES(text, textlen, args, 2);
     if (args.n == 4) {
-        DST_ARG_INTEGER(start, args, 3);
+        JANET_ARG_INTEGER(start, args, 3);
         if (start < 0) {
-            DST_THROW(args, "expected non-negative start index");
+            JANET_THROW(args, "expected non-negative start index");
         }
     } else {
         start = 0;
@@ -839,10 +839,10 @@ static int replacesetup(DstArgs args, struct replace_state *s) {
     s->kmp.i = start;
     s->subst = subst;
     s->substlen = substlen;
-    return DST_SIGNAL_OK;
+    return JANET_SIGNAL_OK;
 }
 
-static int cfun_replace(DstArgs args) {
+static int cfun_replace(JanetArgs args) {
     int32_t result;
     struct replace_state s;
     uint8_t *buf;
@@ -851,71 +851,71 @@ static int cfun_replace(DstArgs args) {
     result = kmp_next(&s.kmp);
     if (result < 0) {
         kmp_deinit(&s.kmp);
-        DST_RETURN_STRING(args, dst_string(s.kmp.text, s.kmp.textlen));
+        JANET_RETURN_STRING(args, janet_string(s.kmp.text, s.kmp.textlen));
     }
-    buf = dst_string_begin(s.kmp.textlen - s.kmp.patlen + s.substlen);
+    buf = janet_string_begin(s.kmp.textlen - s.kmp.patlen + s.substlen);
     memcpy(buf, s.kmp.text, result);
     memcpy(buf + result, s.subst, s.substlen);
     memcpy(buf + result + s.substlen,
             s.kmp.text + result + s.kmp.patlen,
             s.kmp.textlen - result - s.kmp.patlen);
     kmp_deinit(&s.kmp);
-    DST_RETURN_STRING(args, dst_string_end(buf));
+    JANET_RETURN_STRING(args, janet_string_end(buf));
 }
 
-static int cfun_replaceall(DstArgs args) {
+static int cfun_replaceall(JanetArgs args) {
     int32_t result;
     struct replace_state s;
-    DstBuffer b;
+    JanetBuffer b;
     const uint8_t *ret;
     int32_t lastindex = 0;
     int status = replacesetup(args, &s);
     if (status) return status;
-    dst_buffer_init(&b, s.kmp.textlen);
+    janet_buffer_init(&b, s.kmp.textlen);
     while ((result = kmp_next(&s.kmp)) >= 0) {
-        dst_buffer_push_bytes(&b, s.kmp.text + lastindex, result - lastindex);
-        dst_buffer_push_bytes(&b, s.subst, s.substlen);
+        janet_buffer_push_bytes(&b, s.kmp.text + lastindex, result - lastindex);
+        janet_buffer_push_bytes(&b, s.subst, s.substlen);
         lastindex = result + s.kmp.patlen;
     }
-    dst_buffer_push_bytes(&b, s.kmp.text + lastindex, s.kmp.textlen - lastindex);
-    ret = dst_string(b.data, b.count);
-    dst_buffer_deinit(&b);
+    janet_buffer_push_bytes(&b, s.kmp.text + lastindex, s.kmp.textlen - lastindex);
+    ret = janet_string(b.data, b.count);
+    janet_buffer_deinit(&b);
     kmp_deinit(&s.kmp);
-    DST_RETURN_STRING(args, ret);
+    JANET_RETURN_STRING(args, ret);
 }
 
-static int cfun_split(DstArgs args) {
+static int cfun_split(JanetArgs args) {
     int32_t result;
-    DstArray *array;
+    JanetArray *array;
     struct kmp_state state;
     int32_t limit = -1, lastindex = 0;
     if (args.n == 4) {
-        DST_ARG_INTEGER(limit, args, 3);
+        JANET_ARG_INTEGER(limit, args, 3);
     }
     int status = findsetup(args, &state, 1);
     if (status) return status;
-    array = dst_array(0);
+    array = janet_array(0);
     while ((result = kmp_next(&state)) >= 0 && limit--) {
-        const uint8_t *slice = dst_string(state.text + lastindex, result - lastindex);
-        dst_array_push(array, dst_wrap_string(slice));
+        const uint8_t *slice = janet_string(state.text + lastindex, result - lastindex);
+        janet_array_push(array, janet_wrap_string(slice));
         lastindex = result + state.patlen;
     }
     {
-        const uint8_t *slice = dst_string(state.text + lastindex, state.textlen - lastindex);
-        dst_array_push(array, dst_wrap_string(slice));
+        const uint8_t *slice = janet_string(state.text + lastindex, state.textlen - lastindex);
+        janet_array_push(array, janet_wrap_string(slice));
     }
     kmp_deinit(&state);
-    DST_RETURN_ARRAY(args, array);
+    JANET_RETURN_ARRAY(args, array);
 }
 
-static int cfun_checkset(DstArgs args) {
+static int cfun_checkset(JanetArgs args) {
     const uint8_t *set, *str;
     int32_t setlen, strlen, i;
     uint32_t bitset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    DST_MINARITY(args, 2);
-    DST_MAXARITY(args, 3);
-    DST_ARG_BYTES(set, setlen, args, 0);
-    DST_ARG_BYTES(str, strlen, args, 1);
+    JANET_MINARITY(args, 2);
+    JANET_MAXARITY(args, 3);
+    JANET_ARG_BYTES(set, setlen, args, 0);
+    JANET_ARG_BYTES(str, strlen, args, 1);
     /* Populate set */
     for (i = 0; i < setlen; i++) {
         int index = set[i] >> 5;
@@ -924,7 +924,7 @@ static int cfun_checkset(DstArgs args) {
     }
     if (args.n == 3) {
         int invert;
-        DST_ARG_BOOLEAN(invert, args, 2);
+        JANET_ARG_BOOLEAN(invert, args, 2);
         if (invert) {
             for (i = 0; i < 8; i++)
                 bitset[i] = ~bitset[i];
@@ -935,22 +935,22 @@ static int cfun_checkset(DstArgs args) {
         int index = str[i] >> 5;
         uint32_t mask = 1 << (str[i] & 7);
         if (!(bitset[index] & mask)) {
-            DST_RETURN_FALSE(args);
+            JANET_RETURN_FALSE(args);
         }
     }
-    DST_RETURN_TRUE(args);
+    JANET_RETURN_TRUE(args);
 }
 
-static int cfun_join(DstArgs args) {
-    const Dst *parts;
+static int cfun_join(JanetArgs args) {
+    const Janet *parts;
     const uint8_t *joiner;
     uint8_t *buf, *out;
     int32_t joinerlen, partslen, finallen, i;
-    DST_MINARITY(args, 1);
-    DST_MAXARITY(args, 2);
-    DST_ARG_INDEXED(parts, partslen, args, 0);
+    JANET_MINARITY(args, 1);
+    JANET_MAXARITY(args, 2);
+    JANET_ARG_INDEXED(parts, partslen, args, 0);
     if (args.n == 2) {
-        DST_ARG_BYTES(joiner, joinerlen, args, 1);
+        JANET_ARG_BYTES(joiner, joinerlen, args, 1);
     } else {
         joiner = NULL;
         joinerlen = 0;
@@ -960,13 +960,13 @@ static int cfun_join(DstArgs args) {
     for (i = 0; i < partslen; i++) {
         const uint8_t *chunk;
         int32_t chunklen = 0;
-        if (!dst_bytes_view(parts[i], &chunk, &chunklen)) {
-            DST_THROW(args, "expected string|symbol|buffer");
+        if (!janet_bytes_view(parts[i], &chunk, &chunklen)) {
+            JANET_THROW(args, "expected string|symbol|buffer");
         }
         if (i) finallen += joinerlen;
         finallen += chunklen;
     }
-    out = buf = dst_string_begin(finallen);
+    out = buf = janet_string_begin(finallen);
     for (i = 0; i < partslen; i++) {
         const uint8_t *chunk = NULL;
         int32_t chunklen = 0;
@@ -974,15 +974,15 @@ static int cfun_join(DstArgs args) {
             memcpy(out, joiner, joinerlen);
             out += joinerlen;
         }
-        dst_bytes_view(parts[i], &chunk, &chunklen);
+        janet_bytes_view(parts[i], &chunk, &chunklen);
         memcpy(out, chunk, chunklen);
         out += chunklen;
     }
-    DST_RETURN_STRING(args, dst_string_end(buf));
+    JANET_RETURN_STRING(args, janet_string_end(buf));
 
 }
 
-static const DstReg cfuns[] = {
+static const JanetReg cfuns[] = {
     {"string.slice", cfun_slice},
     {"string.repeat", cfun_repeat},
     {"string.bytes", cfun_bytes},
@@ -1001,8 +1001,8 @@ static const DstReg cfuns[] = {
 };
 
 /* Module entry point */
-int dst_lib_string(DstArgs args) {
-    DstTable *env = dst_env(args);
-    dst_cfuns(env, NULL, cfuns);
+int janet_lib_string(JanetArgs args) {
+    JanetTable *env = janet_env(args);
+    janet_cfuns(env, NULL, cfuns);
     return 0;
 }

@@ -20,35 +20,35 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include <math.h>
 
 /* Get a random number */
-int dst_rand(DstArgs args) {
-    DST_FIXARITY(args, 0);
+int janet_rand(JanetArgs args) {
+    JANET_FIXARITY(args, 0);
     double r = (rand() % RAND_MAX) / ((double) RAND_MAX);
-    DST_RETURN_REAL(args, r);
+    JANET_RETURN_REAL(args, r);
 }
 
 /* Seed the random number generator */
-int dst_srand(DstArgs args) {
+int janet_srand(JanetArgs args) {
     int32_t x = 0;
-    DST_FIXARITY(args, 1);
-    DST_ARG_INTEGER(x, args, 0);
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_INTEGER(x, args, 0);
     srand((unsigned) x);
     return 0;
 }
 
 /* Convert a number to an integer */
-int dst_int(DstArgs args) {
-    DST_FIXARITY(args, 1);
-    switch (dst_type(args.v[0])) {
+int janet_int(JanetArgs args) {
+    JANET_FIXARITY(args, 1);
+    switch (janet_type(args.v[0])) {
         default:
-            DST_THROW(args, "could not convert to integer");
-        case DST_REAL:
-            *args.ret = dst_wrap_integer((int32_t) dst_unwrap_real(args.v[0]));
+            JANET_THROW(args, "could not convert to integer");
+        case JANET_REAL:
+            *args.ret = janet_wrap_integer((int32_t) janet_unwrap_real(args.v[0]));
             break;
-        case DST_INTEGER:
+        case JANET_INTEGER:
             *args.ret = args.v[0];
             break;
     }
@@ -56,109 +56,109 @@ int dst_int(DstArgs args) {
 }
 
 /* Convert a number to a real number */
-int dst_real(DstArgs args) {
-    DST_FIXARITY(args, 1);
-    switch (dst_type(args.v[0])) {
+int janet_real(JanetArgs args) {
+    JANET_FIXARITY(args, 1);
+    switch (janet_type(args.v[0])) {
         default:
-            DST_THROW(args, "could not convert to real");
-        case DST_REAL:
+            JANET_THROW(args, "could not convert to real");
+        case JANET_REAL:
             *args.ret = args.v[0];
             break;
-        case DST_INTEGER:
-            *args.ret = dst_wrap_real((double) dst_unwrap_integer(args.v[0]));
+        case JANET_INTEGER:
+            *args.ret = janet_wrap_real((double) janet_unwrap_integer(args.v[0]));
             break;
     }
     return 0;
 }
 
-int dst_remainder(DstArgs args) {
-    DST_FIXARITY(args, 2);
-    if (dst_checktype(args.v[0], DST_INTEGER) &&
-            dst_checktype(args.v[1], DST_INTEGER)) {
+int janet_remainder(JanetArgs args) {
+    JANET_FIXARITY(args, 2);
+    if (janet_checktype(args.v[0], JANET_INTEGER) &&
+            janet_checktype(args.v[1], JANET_INTEGER)) {
         int32_t x, y;
-        x = dst_unwrap_integer(args.v[0]);
-        y = dst_unwrap_integer(args.v[1]);
-        DST_RETURN_INTEGER(args, x % y);
+        x = janet_unwrap_integer(args.v[0]);
+        y = janet_unwrap_integer(args.v[1]);
+        JANET_RETURN_INTEGER(args, x % y);
     } else {
         double x, y;
-        DST_ARG_NUMBER(x, args, 0);
-        DST_ARG_NUMBER(y, args, 1);
-        DST_RETURN_REAL(args, fmod(x, y));
+        JANET_ARG_NUMBER(x, args, 0);
+        JANET_ARG_NUMBER(y, args, 1);
+        JANET_RETURN_REAL(args, fmod(x, y));
     }
 }
 
-#define DST_DEFINE_MATHOP(name, fop)\
-int dst_##name(DstArgs args) {\
+#define JANET_DEFINE_MATHOP(name, fop)\
+int janet_##name(JanetArgs args) {\
     double x;\
-    DST_FIXARITY(args, 1);\
-    DST_ARG_NUMBER(x, args, 0);\
-    DST_RETURN_REAL(args, fop(x));\
+    JANET_FIXARITY(args, 1);\
+    JANET_ARG_NUMBER(x, args, 0);\
+    JANET_RETURN_REAL(args, fop(x));\
 }
 
-DST_DEFINE_MATHOP(acos, acos)
-DST_DEFINE_MATHOP(asin, asin)
-DST_DEFINE_MATHOP(atan, atan)
-DST_DEFINE_MATHOP(cos, cos)
-DST_DEFINE_MATHOP(cosh, cosh)
-DST_DEFINE_MATHOP(sin, sin)
-DST_DEFINE_MATHOP(sinh, sinh)
-DST_DEFINE_MATHOP(tan, tan)
-DST_DEFINE_MATHOP(tanh, tanh)
-DST_DEFINE_MATHOP(exp, exp)
-DST_DEFINE_MATHOP(log, log)
-DST_DEFINE_MATHOP(log10, log10)
-DST_DEFINE_MATHOP(sqrt, sqrt)
-DST_DEFINE_MATHOP(ceil, ceil)
-DST_DEFINE_MATHOP(fabs, fabs)
-DST_DEFINE_MATHOP(floor, floor)
+JANET_DEFINE_MATHOP(acos, acos)
+JANET_DEFINE_MATHOP(asin, asin)
+JANET_DEFINE_MATHOP(atan, atan)
+JANET_DEFINE_MATHOP(cos, cos)
+JANET_DEFINE_MATHOP(cosh, cosh)
+JANET_DEFINE_MATHOP(sin, sin)
+JANET_DEFINE_MATHOP(sinh, sinh)
+JANET_DEFINE_MATHOP(tan, tan)
+JANET_DEFINE_MATHOP(tanh, tanh)
+JANET_DEFINE_MATHOP(exp, exp)
+JANET_DEFINE_MATHOP(log, log)
+JANET_DEFINE_MATHOP(log10, log10)
+JANET_DEFINE_MATHOP(sqrt, sqrt)
+JANET_DEFINE_MATHOP(ceil, ceil)
+JANET_DEFINE_MATHOP(fabs, fabs)
+JANET_DEFINE_MATHOP(floor, floor)
 
-#define DST_DEFINE_MATH2OP(name, fop)\
-int dst_##name(DstArgs args) {\
+#define JANET_DEFINE_MATH2OP(name, fop)\
+int janet_##name(JanetArgs args) {\
     double lhs, rhs;\
-    DST_FIXARITY(args, 2);\
-    DST_ARG_NUMBER(lhs, args, 0);\
-    DST_ARG_NUMBER(rhs, args, 1);\
-    DST_RETURN_REAL(args, fop(lhs, rhs));\
+    JANET_FIXARITY(args, 2);\
+    JANET_ARG_NUMBER(lhs, args, 0);\
+    JANET_ARG_NUMBER(rhs, args, 1);\
+    JANET_RETURN_REAL(args, fop(lhs, rhs));\
 }\
 
-DST_DEFINE_MATH2OP(atan2, atan2)
-DST_DEFINE_MATH2OP(pow, pow)
+JANET_DEFINE_MATH2OP(atan2, atan2)
+JANET_DEFINE_MATH2OP(pow, pow)
 
-static int dst_not(DstArgs args) {
-    DST_FIXARITY(args, 1);
-    DST_RETURN_BOOLEAN(args, !dst_truthy(args.v[0]));
+static int janet_not(JanetArgs args) {
+    JANET_FIXARITY(args, 1);
+    JANET_RETURN_BOOLEAN(args, !janet_truthy(args.v[0]));
 }
 
-static const DstReg cfuns[] = {
-    {"%", dst_remainder},
-    {"not", dst_not},
-    {"int", dst_int},
-    {"real", dst_real},
-    {"math.random", dst_rand},
-    {"math.seedrandom", dst_srand},
-    {"math.cos", dst_cos},
-    {"math.sin", dst_sin},
-    {"math.tan", dst_tan},
-    {"math.acos", dst_acos},
-    {"math.asin", dst_asin},
-    {"math.atan", dst_atan},
-    {"math.exp", dst_exp},
-    {"math.log", dst_log},
-    {"math.log10", dst_log10},
-    {"math.sqrt", dst_sqrt},
-    {"math.floor", dst_floor},
-    {"math.ceil", dst_ceil},
-    {"math.pow", dst_pow},
+static const JanetReg cfuns[] = {
+    {"%", janet_remainder},
+    {"not", janet_not},
+    {"int", janet_int},
+    {"real", janet_real},
+    {"math.random", janet_rand},
+    {"math.seedrandom", janet_srand},
+    {"math.cos", janet_cos},
+    {"math.sin", janet_sin},
+    {"math.tan", janet_tan},
+    {"math.acos", janet_acos},
+    {"math.asin", janet_asin},
+    {"math.atan", janet_atan},
+    {"math.exp", janet_exp},
+    {"math.log", janet_log},
+    {"math.log10", janet_log10},
+    {"math.sqrt", janet_sqrt},
+    {"math.floor", janet_floor},
+    {"math.ceil", janet_ceil},
+    {"math.pow", janet_pow},
     {NULL, NULL}
 };
 
 /* Module entry point */
-int dst_lib_math(DstArgs args) {
-    DstTable *env = dst_env(args);
-    dst_cfuns(env, NULL, cfuns);
+int janet_lib_math(JanetArgs args) {
+    JanetTable *env = janet_env(args);
+    janet_cfuns(env, NULL, cfuns);
 
-    dst_def(env, "math.pi", dst_wrap_real(3.1415926535897931));
-    dst_def(env, "math.e", dst_wrap_real(2.7182818284590451));
-    dst_def(env, "math.inf", dst_wrap_real(INFINITY));
+    janet_def(env, "math.pi", janet_wrap_real(3.1415926535897931));
+    janet_def(env, "math.e", janet_wrap_real(2.7182818284590451));
+    janet_def(env, "math.inf", janet_wrap_real(INFINITY));
     return 0;
 }

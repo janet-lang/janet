@@ -20,51 +20,51 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_GC_H
-#define DST_GC_H
+#ifndef JANET_GC_H
+#define JANET_GC_H
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 
 /* The metadata header associated with an allocated block of memory */
-#define dst_gc_header(mem) ((DstGCMemoryHeader *)(mem) - 1)
+#define janet_gc_header(mem) ((JanetGCMemoryHeader *)(mem) - 1)
 
-#define DST_MEM_TYPEBITS 0xFF
-#define DST_MEM_REACHABLE 0x100
-#define DST_MEM_DISABLED 0x200
+#define JANET_MEM_TYPEBITS 0xFF
+#define JANET_MEM_REACHABLE 0x100
+#define JANET_MEM_DISABLED 0x200
 
-#define dst_gc_settype(m, t) ((dst_gc_header(m)->flags |= (0xFF & (t))))
-#define dst_gc_type(m) (dst_gc_header(m)->flags & 0xFF)
+#define janet_gc_settype(m, t) ((janet_gc_header(m)->flags |= (0xFF & (t))))
+#define janet_gc_type(m) (janet_gc_header(m)->flags & 0xFF)
 
-#define dst_gc_mark(m) (dst_gc_header(m)->flags |= DST_MEM_REACHABLE)
-#define dst_gc_unmark(m) (dst_gc_header(m)->flags &= ~DST_MEM_COLOR)
-#define dst_gc_reachable(m) (dst_gc_header(m)->flags & DST_MEM_REACHABLE)
+#define janet_gc_mark(m) (janet_gc_header(m)->flags |= JANET_MEM_REACHABLE)
+#define janet_gc_unmark(m) (janet_gc_header(m)->flags &= ~JANET_MEM_COLOR)
+#define janet_gc_reachable(m) (janet_gc_header(m)->flags & JANET_MEM_REACHABLE)
 
 /* Memory header struct. Node of a linked list of memory blocks. */
-typedef struct DstGCMemoryHeader DstGCMemoryHeader;
-struct DstGCMemoryHeader {
-    DstGCMemoryHeader *next;
+typedef struct JanetGCMemoryHeader JanetGCMemoryHeader;
+struct JanetGCMemoryHeader {
+    JanetGCMemoryHeader *next;
     uint32_t flags;
 };
 
-/* Memory types for the GC. Different from DstType to include funcenv and funcdef. */
-enum DstMemoryType {
-    DST_MEMORY_NONE,
-    DST_MEMORY_STRING,
-    DST_MEMORY_SYMBOL,
-    DST_MEMORY_ARRAY,
-    DST_MEMORY_TUPLE,
-    DST_MEMORY_TABLE,
-    DST_MEMORY_STRUCT,
-    DST_MEMORY_FIBER,
-    DST_MEMORY_BUFFER,
-    DST_MEMORY_FUNCTION,
-    DST_MEMORY_ABSTRACT,
-    DST_MEMORY_FUNCENV,
-    DST_MEMORY_FUNCDEF
+/* Memory types for the GC. Different from JanetType to include funcenv and funcdef. */
+enum JanetMemoryType {
+    JANET_MEMORY_NONE,
+    JANET_MEMORY_STRING,
+    JANET_MEMORY_SYMBOL,
+    JANET_MEMORY_ARRAY,
+    JANET_MEMORY_TUPLE,
+    JANET_MEMORY_TABLE,
+    JANET_MEMORY_STRUCT,
+    JANET_MEMORY_FIBER,
+    JANET_MEMORY_BUFFER,
+    JANET_MEMORY_FUNCTION,
+    JANET_MEMORY_ABSTRACT,
+    JANET_MEMORY_FUNCENV,
+    JANET_MEMORY_FUNCDEF
 };
 
-/* To allocate collectable memory, one must calk dst_alloc, initialize the memory,
- * and then call when dst_enablegc when it is initailize and reachable by the gc (on the DST stack) */
-void *dst_gcalloc(enum DstMemoryType type, size_t size);
+/* To allocate collectable memory, one must calk janet_alloc, initialize the memory,
+ * and then call when janet_enablegc when it is initailize and reachable by the gc (on the JANET stack) */
+void *janet_gcalloc(enum JanetMemoryType type, size_t size);
 
 #endif

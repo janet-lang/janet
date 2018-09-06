@@ -20,10 +20,10 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "regalloc.h"
 
-void dstc_regalloc_init(DstcRegisterAllocator *ra) {
+void janetc_regalloc_init(JanetcRegisterAllocator *ra) {
     ra->chunks = NULL;
     ra->count = 0;
     ra->capacity = 0;
@@ -31,7 +31,7 @@ void dstc_regalloc_init(DstcRegisterAllocator *ra) {
     ra->regtemps = 0;
 }
 
-void dstc_regalloc_deinit(DstcRegisterAllocator *ra) {
+void janetc_regalloc_deinit(JanetcRegisterAllocator *ra) {
     free(ra->chunks);
 }
 
@@ -58,7 +58,7 @@ static int32_t count_trailing_ones(uint32_t x) {
 #define nbits(N) (ithbit(N) - 1)
 
 /* Copy a regsiter allocator */
-void dstc_regalloc_clone(DstcRegisterAllocator *dest, DstcRegisterAllocator *src) {
+void janetc_regalloc_clone(JanetcRegisterAllocator *dest, JanetcRegisterAllocator *src) {
     size_t size;
     dest->count = src->count;
     dest->capacity = src->capacity;
@@ -67,13 +67,13 @@ void dstc_regalloc_clone(DstcRegisterAllocator *dest, DstcRegisterAllocator *src
     dest->chunks = malloc(size);
     dest->regtemps = 0;
     if (!dest->chunks) {
-        DST_OUT_OF_MEMORY;
+        JANET_OUT_OF_MEMORY;
     }
     memcpy(dest->chunks, src->chunks, size);
 }
 
 /* Allocate one more chunk in chunks */
-static void pushchunk(DstcRegisterAllocator *ra) {
+static void pushchunk(JanetcRegisterAllocator *ra) {
     /* Registers 240-255 are always allocated (reserved) */
     uint32_t chunk = ra->count == 7 ? 0xFFFF0000 : 0;
     int32_t newcount = ra->count + 1;
@@ -81,7 +81,7 @@ static void pushchunk(DstcRegisterAllocator *ra) {
         int32_t newcapacity = newcount * 2;
         ra->chunks = realloc(ra->chunks, newcapacity * sizeof(uint32_t));
         if (!ra->chunks) {
-            DST_OUT_OF_MEMORY;
+            JANET_OUT_OF_MEMORY;
         }
         ra->capacity = newcapacity;
     }
@@ -90,7 +90,7 @@ static void pushchunk(DstcRegisterAllocator *ra) {
 }
 
 /* Reallocate a given register */
-void dstc_regalloc_touch(DstcRegisterAllocator *ra, int32_t reg) {
+void janetc_regalloc_touch(JanetcRegisterAllocator *ra, int32_t reg) {
     int32_t chunk = reg >> 5;
     int32_t bit = reg & 0x1F;
     while (chunk >= ra->count) pushchunk(ra);
@@ -98,7 +98,7 @@ void dstc_regalloc_touch(DstcRegisterAllocator *ra, int32_t reg) {
 }
 
 /* Allocate one register. */
-int32_t dstc_regalloc_1(DstcRegisterAllocator *ra) {
+int32_t janetc_regalloc_1(JanetcRegisterAllocator *ra) {
     /* Get the nth bit in the array */
     int32_t bit, chunk, nchunks, reg;
     bit = -1;
@@ -125,22 +125,22 @@ int32_t dstc_regalloc_1(DstcRegisterAllocator *ra) {
 
 /* Free a register. The register must have been previously allocated
  * without being freed. */
-void dstc_regalloc_free(DstcRegisterAllocator *ra, int32_t reg) {
+void janetc_regalloc_free(JanetcRegisterAllocator *ra, int32_t reg) {
     int32_t chunk = reg >> 5;
     int32_t bit = reg & 0x1F;
     ra->chunks[chunk] &= ~ithbit(bit);
 }
 
 /* Get a register that will fit in 8 bits (< 256). Do not call this
- * twice with the same value of nth without calling dstc_regalloc_free
+ * twice with the same value of nth without calling janetc_regalloc_free
  * on the returned register before. */
-int32_t dstc_regalloc_temp(DstcRegisterAllocator *ra, DstcRegisterTemp nth) {
+int32_t janetc_regalloc_temp(JanetcRegisterAllocator *ra, JanetcRegisterTemp nth) {
     int32_t oldmax = ra->max;
     if (ra->regtemps & (1 << nth)) {
-        dst_exit("regtemp already allocated");
+        janet_exit("regtemp already allocated");
     }
     ra->regtemps |= 1 << nth;
-    int32_t reg = dstc_regalloc_1(ra);
+    int32_t reg = janetc_regalloc_1(ra);
     if (reg > 0xFF) {
         reg = 0xF0 + nth;
         ra->max = (reg > oldmax) ? reg : oldmax;
@@ -148,16 +148,16 @@ int32_t dstc_regalloc_temp(DstcRegisterAllocator *ra, DstcRegisterTemp nth) {
     return reg;
 }
 
-void dstc_regalloc_freetemp(DstcRegisterAllocator *ra, int32_t reg, DstcRegisterTemp nth) {
+void janetc_regalloc_freetemp(JanetcRegisterAllocator *ra, int32_t reg, JanetcRegisterTemp nth) {
     ra->regtemps &= ~(1 << nth);
     if (reg < 0xF0)
-        dstc_regalloc_free(ra, reg);
+        janetc_regalloc_free(ra, reg);
 }
 
 /* Disable multi-slot allocation for now. */
 
 /*
-static int32_t checkrange(DstcRegisterAllocator *ra, int32_t start, int32_t end) {
+static int32_t checkrange(JanetcRegisterAllocator *ra, int32_t start, int32_t end) {
     int32_t startchunk = start / 32;
     int32_t endchunk = end / 32;
     for (int32_t chunk = startchunk; chunk <= endchunk; chunk++) {
@@ -179,7 +179,7 @@ static int32_t checkrange(DstcRegisterAllocator *ra, int32_t start, int32_t end)
     return -1;
 }
 
-static void markrange(DstcRegisterAllocator *ra, int32_t start, int32_t end) {
+static void markrange(JanetcRegisterAllocator *ra, int32_t start, int32_t end) {
     int32_t startchunk = start / 32;
     int32_t endchunk = end / 32;
     for (int32_t chunk = startchunk; chunk <= endchunk; chunk++) {
@@ -192,7 +192,7 @@ static void markrange(DstcRegisterAllocator *ra, int32_t start, int32_t end) {
     }
 }
 
-void dstc_regalloc_freerange(DstcRegisterAllocator *ra, int32_t start, int32_t n) {
+void janetc_regalloc_freerange(JanetcRegisterAllocator *ra, int32_t start, int32_t n) {
     int32_t end = start + n - 1;
     int32_t startchunk = start / 32;
     int32_t endchunk = end / 32;
@@ -206,7 +206,7 @@ void dstc_regalloc_freerange(DstcRegisterAllocator *ra, int32_t start, int32_t n
     }
 }
 
-int32_t dstc_regalloc_n(DstcRegisterAllocator *ra, int32_t n) {
+int32_t janetc_regalloc_n(JanetcRegisterAllocator *ra, int32_t n) {
     int32_t start = 0, end = 0, next = 0;
     while (next >= 0) {
         start = next;
@@ -219,12 +219,12 @@ int32_t dstc_regalloc_n(DstcRegisterAllocator *ra, int32_t n) {
     return start;
 }
 
-int32_t dstc_regalloc_call(DstcRegisterAllocator *ra, int32_t callee, int32_t nargs) {
+int32_t janetc_regalloc_call(JanetcRegisterAllocator *ra, int32_t callee, int32_t nargs) {
     if (checkrange(ra, callee, callee + nargs) < 0) {
         markrange(ra, callee + 1, callee + nargs);
         return callee;
     }
-    return dstc_regalloc_n(ra, nargs + 1);
+    return janetc_regalloc_n(ra, nargs + 1);
 }
 
 */

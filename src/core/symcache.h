@@ -20,14 +20,14 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_SYMCACHE_H_defined
-#define DST_SYMCACHE_H_defined
+#ifndef JANET_SYMCACHE_H_defined
+#define JANET_SYMCACHE_H_defined
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 
 /* Initialize the cache (allocate cache memory) */
-void dst_symcache_init(void);
-void dst_symcache_deinit(void);
-void dst_symbol_deinit(const uint8_t *sym);
+void janet_symcache_init(void);
+void janet_symcache_deinit(void);
+void janet_symbol_deinit(const uint8_t *sym);
 
 #endif

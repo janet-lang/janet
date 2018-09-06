@@ -24,7 +24,7 @@
 
 PREFIX?=/usr
 
-INCLUDEDIR=$(PREFIX)/include/dst
+INCLUDEDIR=$(PREFIX)/include/janet
 LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
 
@@ -36,8 +36,8 @@ BINDIR=$(PREFIX)/bin
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden
 CLIBS=-lm -ldl
 PREFIX=/usr/local
-DST_TARGET=dst
-DST_LIBRARY=libdst.so
+JANET_TARGET=janet
+JANET_LIBRARY=libjanet.so
 DEBUGGER=gdb
 
 UNAME:=$(shell uname -s)
@@ -50,17 +50,17 @@ else
 endif
 
 # Source headers
-DST_GENERATED_HEADERS= \
+JANET_GENERATED_HEADERS= \
 	src/include/generated/core.h \
  	src/include/generated/init.h
-DST_HEADERS=$(sort $(wildcard src/include/dst/*.h))
-DST_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
+JANET_HEADERS=$(sort $(wildcard src/include/janet/*.h))
+JANET_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
 
 # Source files
-DST_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
-DST_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
+JANET_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
+JANET_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
 
-all: $(DST_TARGET) $(DST_LIBRARY)
+all: $(JANET_TARGET) $(JANET_LIBRARY)
 
 ###################################
 ##### The code generator tool #####
@@ -73,11 +73,11 @@ xxd: src/tools/xxd.c
 ##### Generated Headers #####
 #############################
 
-src/include/generated/init.h: src/mainclient/init.dst xxd
-	./xxd $< $@ dst_gen_init 
+src/include/generated/init.h: src/mainclient/init.janet xxd
+	./xxd $< $@ janet_gen_init 
 
-src/include/generated/core.h: src/core/core.dst xxd
-	./xxd $< $@ dst_gen_core
+src/include/generated/core.h: src/core/core.janet xxd
+	./xxd $< $@ janet_gen_core
 
 # Only a few files depend on the generated headers
 src/core/corelib.o: src/include/generated/core.h
@@ -87,49 +87,49 @@ src/mainclient/main.o: src/include/generated/init.h
 ##### The main interpreter program and shared object #####
 ##########################################################
 
-DST_ALL_SOURCES=$(DST_CORE_SOURCES) \
-				$(DST_MAINCLIENT_SOURCES)
+JANET_ALL_SOURCES=$(JANET_CORE_SOURCES) \
+				$(JANET_MAINCLIENT_SOURCES)
 
-DST_CORE_OBJECTS=$(patsubst %.c,%.o,$(DST_CORE_SOURCES))
-DST_ALL_OBJECTS=$(patsubst %.c,%.o,$(DST_ALL_SOURCES))
+JANET_CORE_OBJECTS=$(patsubst %.c,%.o,$(JANET_CORE_SOURCES))
+JANET_ALL_OBJECTS=$(patsubst %.c,%.o,$(JANET_ALL_SOURCES))
 
-%.o: %.c $(DST_HEADERS) $(DST_LOCAL_HEADERS)
+%.o: %.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-$(DST_TARGET): $(DST_ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $(DST_TARGET) $^ $(CLIBS)
+$(JANET_TARGET): $(JANET_ALL_OBJECTS)
+	$(CC) $(CFLAGS) -o $(JANET_TARGET) $^ $(CLIBS)
 
-$(DST_LIBRARY): $(DST_CORE_OBJECTS)
-	$(CC) $(CFLAGS) -shared -o $(DST_LIBRARY) $^ $(CLIBS)
+$(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
+	$(CC) $(CFLAGS) -shared -o $(JANET_LIBRARY) $^ $(CLIBS)
 
 ###################
 ##### Testing #####
 ###################
 
-repl: $(DST_TARGET)
-	./$(DST_TARGET)
+repl: $(JANET_TARGET)
+	./$(JANET_TARGET)
 
-debug: $(DST_TARGET)
-	$(DEBUGGER) ./$(DST_TARGET)
+debug: $(JANET_TARGET)
+	$(DEBUGGER) ./$(JANET_TARGET)
 
-valgrind: $(DST_TARGET)
-	valgrind --leak-check=full -v ./$(DST_TARGET)
+valgrind: $(JANET_TARGET)
+	valgrind --leak-check=full -v ./$(JANET_TARGET)
 
-test: $(DST_TARGET)
-	./$(DST_TARGET) test/suite0.dst
-	./$(DST_TARGET) test/suite1.dst
-	./$(DST_TARGET) test/suite2.dst
+test: $(JANET_TARGET)
+	./$(JANET_TARGET) test/suite0.janet
+	./$(JANET_TARGET) test/suite1.janet
+	./$(JANET_TARGET) test/suite2.janet
 
-valtest: $(DST_TARGET)
-	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite0.dst
-	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite1.dst
-	valgrind --leak-check=full -v ./$(DST_TARGET) test/suite2.dst
+valtest: $(JANET_TARGET)
+	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite0.janet
+	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite1.janet
+	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite2.janet
 
 ###################
 ##### Natives #####
 ###################
 
-natives: $(DST_TARGET)
+natives: $(JANET_TARGET)
 	$(MAKE) -C natives/json
 	$(MAKE) -j 8 -C natives/sqlite3
 
@@ -142,25 +142,25 @@ clean-natives:
 #################
 
 clean:
-	-rm $(DST_TARGET)
+	-rm $(JANET_TARGET)
 	-rm src/**/*.o
 	-rm vgcore.*
-	-rm $(DST_GENERATED_HEADERS)
+	-rm $(JANET_GENERATED_HEADERS)
 
-install: $(DST_TARGET)
-	cp $(DST_TARGET) $(BINDIR)/$(DST_TARGET)
+install: $(JANET_TARGET)
+	cp $(JANET_TARGET) $(BINDIR)/$(JANET_TARGET)
 	mkdir -p $(INCLUDEDIR)
-	cp $(DST_HEADERS) $(INCLUDEDIR)
-	cp $(DST_LIBRARY) $(LIBDIR)/$(DST_LIBRARY)
+	cp $(JANET_HEADERS) $(INCLUDEDIR)
+	cp $(JANET_LIBRARY) $(LIBDIR)/$(JANET_LIBRARY)
 	$(LDCONFIG)
 
 install-libs: natives
-	cp lib/* $(DST_PATH)
-	cp natives/*/*.so $(DST_PATH)
+	cp lib/* $(JANET_PATH)
+	cp natives/*/*.so $(JANET_PATH)
 
 uninstall:
-	-rm $(BINDIR)/$(DST_TARGET)
-	-rm $(LIBDIR)/$(DST_LIBRARY)
+	-rm $(BINDIR)/$(JANET_TARGET)
+	-rm $(LIBDIR)/$(JANET_LIBRARY)
 	-rm -rf $(INCLUDEDIR)
 	$(LDCONFIG)
 

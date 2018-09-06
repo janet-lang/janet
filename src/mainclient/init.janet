@@ -17,13 +17,13 @@
   -h Show this help
   -v Print the version string
   -s Use raw stdin instead of getline like functionality
-  -e Execute a string of dst
+  -e Execute a string of janet
   -r Enter the repl after running all scripts
   -p Keep on executing if there is a top level error (persistent)
   -- Stop handling options`)
            (os.exit 0)
            1)
-     "v" (fn @[] (print dst.version) (os.exit 0) 1)
+     "v" (fn @[] (print janet.version) (os.exit 0) 1)
      "s" (fn @[] (:= *raw-stdin* true) (:= *should-repl* true) 1)
      "r" (fn @[] (:= *should-repl* true) 1)
      "p" (fn @[] (:= *exit-on-error* false) 1)
@@ -53,8 +53,8 @@
     (if *raw-stdin*
       (repl nil identity)
       (do
-        (print (string "Dst " dst.version "  Copyright (C) 2017-2018 Calvin Rose"))
+        (print (string "Janet " janet.version "  Copyright (C) 2017-2018 Calvin Rose"))
         (repl (fn [buf p]
                 (def [line] (parser.where p))
-                (def prompt (string "dst:" line ":" (parser.state p) "> "))
+                (def prompt (string "janet:" line ":" (parser.state p) "> "))
                 (getline prompt buf)))))))

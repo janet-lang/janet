@@ -1,6 +1,6 @@
-@rem Build dst on windows
+@rem Build janet on windows
 @rem
-@rem Open a "Windows SDK Command Shell" and cd to the dst directory
+@rem Open a "Windows SDK Command Shell" and cd to the janet directory
 @rem Then run this script with no arguments to build the executable
 
 @echo off
@@ -15,8 +15,8 @@
 
 @rem Set compile and link options here
 @setlocal
-@set DST_COMPILE=cl /nologo /Isrc\include /c /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS
-@set DST_LINK=link /nologo
+@set JANET_COMPILE=cl /nologo /Isrc\include /c /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS
+@set JANET_LINK=link /nologo
 
 mkdir build
 mkdir build\core
@@ -29,28 +29,28 @@ mkdir build\mainclient
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Generate the headers
-@build\xxd.exe src\core\core.dst src\include\generated\core.h dst_gen_core
+@build\xxd.exe src\core\core.janet src\include\generated\core.h janet_gen_core
 @if errorlevel 1 goto :BUILDFAIL
-@build\xxd.exe src\mainclient\init.dst src\include\generated\init.h dst_gen_init
+@build\xxd.exe src\mainclient\init.janet src\include\generated\init.h janet_gen_init
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Build the sources
 for %%f in (src\core\*.c) do (
-	@%DST_COMPILE% /Fobuild\core\%%~nf.obj %%f
+	@%JANET_COMPILE% /Fobuild\core\%%~nf.obj %%f
     @if errorlevel 1 goto :BUILDFAIL
 )
 
 @rem Build the main client
 for %%f in (src\mainclient\*.c) do (
-	@%DST_COMPILE% /Fobuild\mainclient\%%~nf.obj %%f
+	@%JANET_COMPILE% /Fobuild\mainclient\%%~nf.obj %%f
     @if errorlevel 1 goto :BUILDFAIL
 )
 
 @rem Link everything to main client
-%DST_LINK% /out:dst.exe build\core\*.obj build\mainclient\*.obj
+%JANET_LINK% /out:janet.exe build\core\*.obj build\mainclient\*.obj
 @if errorlevel 1 goto :BUILDFAIL
 
-echo === Successfully built dst.exe for Windows ===
+echo === Successfully built janet.exe for Windows ===
 echo === Run 'build_win test' to run tests. ==
 echo === Run 'build_win clean' to delete build artifacts. ===
 exit /b 0
@@ -65,20 +65,20 @@ exit /b 1
 @echo.
 @echo Usage: build_windows [subcommand=clean,help,test]
 @echo.
-@echo Script to build dst on windows. Must be run from the Visual Studio
+@echo Script to build janet on windows. Must be run from the Visual Studio
 @echo command prompt.
 exit /b 0
 
 @rem Clean build artifacts 
 :CLEAN
-del dst.exe dst.exp dst.lib
+del janet.exe janet.exp janet.lib
 rd /s /q build
 exit /b 0
 
 @rem Run tests
 :TEST
-for %%f in (test/suite*.dst) do (
-	dst.exe test\%%f
+for %%f in (test/suite*.janet) do (
+	janet.exe test\%%f
 	@if errorlevel 1 goto :TESTFAIL
 )
 exit /b 0

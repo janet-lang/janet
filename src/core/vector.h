@@ -20,10 +20,10 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_VECTOR_H_defined
-#define DST_VECTOR_H_defined
+#ifndef JANET_VECTOR_H_defined
+#define JANET_VECTOR_H_defined
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 
 /*
  * vector code modified from
@@ -34,27 +34,27 @@
  * need vector like data structures that are not garbage collected
  * and used only from C */
 
-#define dst_v_free(v)         (((v) != NULL) ? (free(dst_v__raw(v)), 0) : 0)
-#define dst_v_push(v, x)      (dst_v__maybegrow(v, 1), (v)[dst_v__cnt(v)++] = (x))
-#define dst_v_pop(v)          (dst_v_count(v) ? dst_v__cnt(v)-- : 0)
-#define dst_v_count(v)        (((v) != NULL) ? dst_v__cnt(v) : 0)
-#define dst_v_add(v, n)       (dst_v__maybegrow(v, n), dst_v_cnt(v) += (n), &(v)[dst_v__cnt(v) - (n)])
-#define dst_v_last(v)         ((v)[dst_v__cnt(v) - 1])
-#define dst_v_empty(v)        (((v) != NULL) ? (dst_v__cnt(v) = 0) : 0)
-#define dst_v_copy(v)         (dst_v_copymem((v), sizeof(*(v))))
-#define dst_v_flatten(v)      (dst_v_flattenmem((v), sizeof(*(v))))
+#define janet_v_free(v)         (((v) != NULL) ? (free(janet_v__raw(v)), 0) : 0)
+#define janet_v_push(v, x)      (janet_v__maybegrow(v, 1), (v)[janet_v__cnt(v)++] = (x))
+#define janet_v_pop(v)          (janet_v_count(v) ? janet_v__cnt(v)-- : 0)
+#define janet_v_count(v)        (((v) != NULL) ? janet_v__cnt(v) : 0)
+#define janet_v_add(v, n)       (janet_v__maybegrow(v, n), janet_v_cnt(v) += (n), &(v)[janet_v__cnt(v) - (n)])
+#define janet_v_last(v)         ((v)[janet_v__cnt(v) - 1])
+#define janet_v_empty(v)        (((v) != NULL) ? (janet_v__cnt(v) = 0) : 0)
+#define janet_v_copy(v)         (janet_v_copymem((v), sizeof(*(v))))
+#define janet_v_flatten(v)      (janet_v_flattenmem((v), sizeof(*(v))))
 
-#define dst_v__raw(v) ((int32_t *)(v) - 2)
-#define dst_v__cap(v) dst_v__raw(v)[0]
-#define dst_v__cnt(v) dst_v__raw(v)[1]
+#define janet_v__raw(v) ((int32_t *)(v) - 2)
+#define janet_v__cap(v) janet_v__raw(v)[0]
+#define janet_v__cnt(v) janet_v__raw(v)[1]
 
-#define dst_v__needgrow(v, n)  ((v) == NULL || dst_v__cnt(v) + (n) >= dst_v__cap(v))
-#define dst_v__maybegrow(v, n) (dst_v__needgrow((v), (n)) ? dst_v__grow((v), (n)) : 0)
-#define dst_v__grow(v, n)      ((v) = dst_v_grow((v), (n), sizeof(*(v))))
+#define janet_v__needgrow(v, n)  ((v) == NULL || janet_v__cnt(v) + (n) >= janet_v__cap(v))
+#define janet_v__maybegrow(v, n) (janet_v__needgrow((v), (n)) ? janet_v__grow((v), (n)) : 0)
+#define janet_v__grow(v, n)      ((v) = janet_v_grow((v), (n), sizeof(*(v))))
 
 /* Actual functions defined in vector.c */
-void *dst_v_grow(void *v, int32_t increment, int32_t itemsize);
-void *dst_v_copymem(void *v, int32_t itemsize);
-void *dst_v_flattenmem(void *v, int32_t itemsize);
+void *janet_v_grow(void *v, int32_t increment, int32_t itemsize);
+void *janet_v_copymem(void *v, int32_t itemsize);
+void *janet_v_flattenmem(void *v, int32_t itemsize);
 
 #endif

@@ -20,106 +20,106 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_COMPILE_H
-#define DST_COMPILE_H
+#ifndef JANET_COMPILE_H
+#define JANET_COMPILE_H
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "regalloc.h"
 
 /* Tags for some functions for the prepared inliner */
-#define DST_FUN_DEBUG 1
-#define DST_FUN_ERROR 2
-#define DST_FUN_APPLY 3
-#define DST_FUN_YIELD 4
-#define DST_FUN_RESUME 5
-#define DST_FUN_GET 6
-#define DST_FUN_PUT 7
-#define DST_FUN_LENGTH 8
-#define DST_FUN_ADD 9
-#define DST_FUN_SUBTRACT 10
-#define DST_FUN_MULTIPLY 11
-#define DST_FUN_DIVIDE 12
-#define DST_FUN_BAND 13
-#define DST_FUN_BOR 14
-#define DST_FUN_BXOR 15
-#define DST_FUN_LSHIFT 16
-#define DST_FUN_RSHIFT 17
-#define DST_FUN_RSHIFTU 18
-#define DST_FUN_BNOT 19
-#define DST_FUN_ORDER_GT 20
-#define DST_FUN_ORDER_LT 21
-#define DST_FUN_ORDER_GTE 22
-#define DST_FUN_ORDER_LTE 23 
-#define DST_FUN_ORDER_EQ 24 
-#define DST_FUN_ORDER_NEQ 25
-#define DST_FUN_GT 26  
-#define DST_FUN_LT 27   
-#define DST_FUN_GTE 28 
-#define DST_FUN_LTE 29  
-#define DST_FUN_EQ 30   
-#define DST_FUN_NEQ 31
+#define JANET_FUN_DEBUG 1
+#define JANET_FUN_ERROR 2
+#define JANET_FUN_APPLY 3
+#define JANET_FUN_YIELD 4
+#define JANET_FUN_RESUME 5
+#define JANET_FUN_GET 6
+#define JANET_FUN_PUT 7
+#define JANET_FUN_LENGTH 8
+#define JANET_FUN_ADD 9
+#define JANET_FUN_SUBTRACT 10
+#define JANET_FUN_MULTIPLY 11
+#define JANET_FUN_DIVIDE 12
+#define JANET_FUN_BAND 13
+#define JANET_FUN_BOR 14
+#define JANET_FUN_BXOR 15
+#define JANET_FUN_LSHIFT 16
+#define JANET_FUN_RSHIFT 17
+#define JANET_FUN_RSHIFTU 18
+#define JANET_FUN_BNOT 19
+#define JANET_FUN_ORDER_GT 20
+#define JANET_FUN_ORDER_LT 21
+#define JANET_FUN_ORDER_GTE 22
+#define JANET_FUN_ORDER_LTE 23 
+#define JANET_FUN_ORDER_EQ 24 
+#define JANET_FUN_ORDER_NEQ 25
+#define JANET_FUN_GT 26  
+#define JANET_FUN_LT 27   
+#define JANET_FUN_GTE 28 
+#define JANET_FUN_LTE 29  
+#define JANET_FUN_EQ 30   
+#define JANET_FUN_NEQ 31
 
 /* Compiler typedefs */
-typedef struct DstCompiler DstCompiler;
+typedef struct JanetCompiler JanetCompiler;
 typedef struct FormOptions FormOptions;
 typedef struct SlotTracker SlotTracker;
-typedef struct DstScope DstScope;
-typedef struct DstSlot DstSlot;
-typedef struct DstFopts DstFopts;
-typedef struct DstFunOptimizer DstFunOptimizer;
-typedef struct DstSpecial DstSpecial;
+typedef struct JanetScope JanetScope;
+typedef struct JanetSlot JanetSlot;
+typedef struct JanetFopts JanetFopts;
+typedef struct JanetFunOptimizer JanetFunOptimizer;
+typedef struct JanetSpecial JanetSpecial;
 
-#define DST_SLOT_CONSTANT 0x10000
-#define DST_SLOT_NAMED 0x20000
-#define DST_SLOT_MUTABLE 0x40000
-#define DST_SLOT_REF 0x80000
-#define DST_SLOT_RETURNED 0x100000
+#define JANET_SLOT_CONSTANT 0x10000
+#define JANET_SLOT_NAMED 0x20000
+#define JANET_SLOT_MUTABLE 0x40000
+#define JANET_SLOT_REF 0x80000
+#define JANET_SLOT_RETURNED 0x100000
 /* Needed for handling single element arrays as global vars. */
 
-#define DST_SLOTTYPE_ANY 0xFFFF
+#define JANET_SLOTTYPE_ANY 0xFFFF
 
 /* A stack slot */
-struct DstSlot {
-    Dst constant; /* If the slot has a constant value */
+struct JanetSlot {
+    Janet constant; /* If the slot has a constant value */
     int32_t index;
     int32_t envindex; /* 0 is local, positive number is an upvalue */
     uint32_t flags;
 };
 
-#define DST_SCOPE_FUNCTION 1
-#define DST_SCOPE_ENV 2
-#define DST_SCOPE_TOP 4
-#define DST_SCOPE_UNUSED 8
-#define DST_SCOPE_CLOSURE 16
+#define JANET_SCOPE_FUNCTION 1
+#define JANET_SCOPE_ENV 2
+#define JANET_SCOPE_TOP 4
+#define JANET_SCOPE_UNUSED 8
+#define JANET_SCOPE_CLOSURE 16
 
 /* A symbol and slot pair */
 typedef struct SymPair {
-    DstSlot slot;
+    JanetSlot slot;
     const uint8_t *sym;
     int keep;
 } SymPair;
 
 /* A lexical scope during compilation */
-struct DstScope {
+struct JanetScope {
 
     /* For debugging */
     const char *name;
 
     /* Scopes are doubly linked list */
-    DstScope *parent;
-    DstScope *child;
+    JanetScope *parent;
+    JanetScope *child;
 
     /* Constants for this funcdef */
-    Dst *consts;
+    Janet *consts;
 
     /* Map of symbols to slots. Use a simple linear scan for symbols. */
     SymPair *syms;
 
     /* FuncDefs */
-    DstFuncDef **defs;
+    JanetFuncDef **defs;
 
     /* Regsiter allocator */
-    DstcRegisterAllocator ra;
+    JanetcRegisterAllocator ra;
 
     /* Referenced closure environents. The values at each index correspond
      * to which index to get the environment from in the parent. The environment
@@ -134,107 +134,107 @@ struct DstScope {
 };
 
 /* Compilation state */
-struct DstCompiler {
+struct JanetCompiler {
     
     /* Pointer to current scope */
-    DstScope *scope;
+    JanetScope *scope;
 
     uint32_t *buffer;
-    DstSourceMapping *mapbuffer;
+    JanetSourceMapping *mapbuffer;
 
     /* Hold the environment */
-    DstTable *env;
+    JanetTable *env;
 
     /* Name of source to attach to generated functions */
     const uint8_t *source;
 
     /* The result of compilation */
-    DstCompileResult result;
+    JanetCompileResult result;
 
     /* Keep track of where we are in the source */
-    DstSourceMapping current_mapping;
+    JanetSourceMapping current_mapping;
 
     /* Prevent unbounded recursion */
     int recursion_guard;
 };
 
-#define DST_FOPTS_TAIL 0x10000
-#define DST_FOPTS_HINT 0x20000
-#define DST_FOPTS_DROP 0x40000
+#define JANET_FOPTS_TAIL 0x10000
+#define JANET_FOPTS_HINT 0x20000
+#define JANET_FOPTS_DROP 0x40000
 
 /* Options for compiling a single form */
-struct DstFopts {
-    DstCompiler *compiler;
-    DstSlot hint;
+struct JanetFopts {
+    JanetCompiler *compiler;
+    JanetSlot hint;
     uint32_t flags; /* bit set of accepted primitive types */
 };
 
 /* Get the default form options */
-DstFopts dstc_fopts_default(DstCompiler *c);
+JanetFopts janetc_fopts_default(JanetCompiler *c);
 
 /* For optimizing builtin normal functions. */
-struct DstFunOptimizer {
-    int (*can_optimize)(DstFopts opts, DstSlot *args);
-    DstSlot (*optimize)(DstFopts opts, DstSlot *args);
+struct JanetFunOptimizer {
+    int (*can_optimize)(JanetFopts opts, JanetSlot *args);
+    JanetSlot (*optimize)(JanetFopts opts, JanetSlot *args);
 };
 
 /* A grouping of a named special and the corresponding compiler fragment */
-struct DstSpecial {
+struct JanetSpecial {
     const char *name;
-    DstSlot (*compile)(DstFopts opts, int32_t argn, const Dst *argv);
+    JanetSlot (*compile)(JanetFopts opts, int32_t argn, const Janet *argv);
 };
 
 /****************************************************/
 
 /* Get an optimizer if it exists, otherwise NULL */
-const DstFunOptimizer *dstc_funopt(uint32_t flags);
+const JanetFunOptimizer *janetc_funopt(uint32_t flags);
 
 /* Get a special. Return NULL if none exists */
-const DstSpecial *dstc_special(const uint8_t *name);
+const JanetSpecial *janetc_special(const uint8_t *name);
 
-void dstc_freeslot(DstCompiler *c, DstSlot s);
-void dstc_nameslot(DstCompiler *c, const uint8_t *sym, DstSlot s);
-DstSlot dstc_farslot(DstCompiler *c);
+void janetc_freeslot(JanetCompiler *c, JanetSlot s);
+void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s);
+JanetSlot janetc_farslot(JanetCompiler *c);
 
 /* Throw away some code after checking that it is well formed. */
-void dstc_throwaway(DstFopts opts, Dst x);
+void janetc_throwaway(JanetFopts opts, Janet x);
 
 /* Get a target slot for emitting an instruction. Will always return
  * a local slot. */
-DstSlot dstc_gettarget(DstFopts opts);
+JanetSlot janetc_gettarget(JanetFopts opts);
 
 /* Get a bunch of slots for function arguments */
-DstSlot *dstc_toslots(DstCompiler *c, const Dst *vals, int32_t len);
+JanetSlot *janetc_toslots(JanetCompiler *c, const Janet *vals, int32_t len);
 
 /* Get a bunch of slots for function arguments */
-DstSlot *dstc_toslotskv(DstCompiler *c, Dst ds);
+JanetSlot *janetc_toslotskv(JanetCompiler *c, Janet ds);
 
-/* Push slots load via dstc_toslots. */
-void dstc_pushslots(DstCompiler *c, DstSlot *slots);
+/* Push slots load via janetc_toslots. */
+void janetc_pushslots(JanetCompiler *c, JanetSlot *slots);
 
-/* Free slots loaded via dstc_toslots */
-void dstc_freeslots(DstCompiler *c, DstSlot *slots);
+/* Free slots loaded via janetc_toslots */
+void janetc_freeslots(JanetCompiler *c, JanetSlot *slots);
 
 /* Generate the return instruction for a slot. */
-DstSlot dstc_return(DstCompiler *c, DstSlot s);
+JanetSlot janetc_return(JanetCompiler *c, JanetSlot s);
 
 /* Store an error */
-void dstc_error(DstCompiler *c, const uint8_t *m);
-void dstc_cerror(DstCompiler *c, const char *m);
+void janetc_error(JanetCompiler *c, const uint8_t *m);
+void janetc_cerror(JanetCompiler *c, const char *m);
 
 /* Dispatch to correct form compiler */
-DstSlot dstc_value(DstFopts opts, Dst x);
+JanetSlot janetc_value(JanetFopts opts, Janet x);
 
 /* Push and pop from the scope stack */
-void dstc_scope(DstScope *s, DstCompiler *c, int flags, const char *name);
-void dstc_popscope(DstCompiler *c);
-void dstc_popscope_keepslot(DstCompiler *c, DstSlot retslot);
-DstFuncDef *dstc_pop_funcdef(DstCompiler *c);
+void janetc_scope(JanetScope *s, JanetCompiler *c, int flags, const char *name);
+void janetc_popscope(JanetCompiler *c);
+void janetc_popscope_keepslot(JanetCompiler *c, JanetSlot retslot);
+JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c);
 
 /* Create a destory slots */
-DstSlot dstc_cslot(Dst x);
+JanetSlot janetc_cslot(Janet x);
 
 /* Search for a symbol */
-DstSlot dstc_resolve(DstCompiler *c, const uint8_t *sym);
+JanetSlot janetc_resolve(JanetCompiler *c, const uint8_t *sym);
 
 #endif

@@ -20,17 +20,17 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "gc.h"
 #include <string.h>
 
 /* Initializes an array */
-DstArray *dst_array_init(DstArray *array, int32_t capacity) {
-    Dst *data = NULL;
+JanetArray *janet_array_init(JanetArray *array, int32_t capacity) {
+    Janet *data = NULL;
     if (capacity > 0) {
-        data = (Dst *) malloc(sizeof(Dst) * capacity);
+        data = (Janet *) malloc(sizeof(Janet) * capacity);
         if (NULL == data) {
-            DST_OUT_OF_MEMORY;
+            JANET_OUT_OF_MEMORY;
         }
     }
     array->count = 0;
@@ -39,209 +39,209 @@ DstArray *dst_array_init(DstArray *array, int32_t capacity) {
     return array;
 }
 
-void dst_array_deinit(DstArray *array) {
+void janet_array_deinit(JanetArray *array) {
     free(array->data);
 }
 
 /* Creates a new array */
-DstArray *dst_array(int32_t capacity) {
-    DstArray *array = dst_gcalloc(DST_MEMORY_ARRAY, sizeof(DstArray));
-    return dst_array_init(array, capacity);
+JanetArray *janet_array(int32_t capacity) {
+    JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
+    return janet_array_init(array, capacity);
 }
 
 /* Creates a new array from n elements. */
-DstArray *dst_array_n(const Dst *elements, int32_t n) {
-    DstArray *array = dst_gcalloc(DST_MEMORY_ARRAY, sizeof(DstArray));
+JanetArray *janet_array_n(const Janet *elements, int32_t n) {
+    JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
     array->capacity = n;
     array->count = n;
-    array->data = malloc(sizeof(Dst) * n);
+    array->data = malloc(sizeof(Janet) * n);
     if (!array->data) {
-        DST_OUT_OF_MEMORY;
+        JANET_OUT_OF_MEMORY;
     }
-    memcpy(array->data, elements, sizeof(Dst) * n);
+    memcpy(array->data, elements, sizeof(Janet) * n);
     return array;
 }
 
 /* Ensure the array has enough capacity for elements */
-void dst_array_ensure(DstArray *array, int32_t capacity) {
-    Dst *newData;
-    Dst *old = array->data;
+void janet_array_ensure(JanetArray *array, int32_t capacity) {
+    Janet *newData;
+    Janet *old = array->data;
     if (capacity <= array->capacity) return;
-    newData = realloc(old, capacity * sizeof(Dst));
+    newData = realloc(old, capacity * sizeof(Janet));
     if (NULL == newData) {
-        DST_OUT_OF_MEMORY;
+        JANET_OUT_OF_MEMORY;
     }
     array->data = newData;
     array->capacity = capacity;
 }
 
 /* Set the count of an array. Extend with nil if needed. */
-void dst_array_setcount(DstArray *array, int32_t count) {
+void janet_array_setcount(JanetArray *array, int32_t count) {
     if (count < 0)
         return;
     if (count > array->count) {
         int32_t i;
-        dst_array_ensure(array, count);
+        janet_array_ensure(array, count);
         for (i = array->count; i < count; i++) {
-            array->data[i] = dst_wrap_nil();
+            array->data[i] = janet_wrap_nil();
         }
     }
     array->count = count;
 }
 
 /* Push a value to the top of the array */
-void dst_array_push(DstArray *array, Dst x) {
+void janet_array_push(JanetArray *array, Janet x) {
     int32_t newcount = array->count + 1;
     if (newcount >= array->capacity) {
-        dst_array_ensure(array, newcount * 2);
+        janet_array_ensure(array, newcount * 2);
     }
     array->data[array->count] = x;
     array->count = newcount;
 }
 
 /* Pop a value from the top of the array */
-Dst dst_array_pop(DstArray *array) {
+Janet janet_array_pop(JanetArray *array) {
     if (array->count) {
         return array->data[--array->count];
     } else {
-        return dst_wrap_nil();
+        return janet_wrap_nil();
     }
 }
 
 /* Look at the last value in the array */
-Dst dst_array_peek(DstArray *array) {
+Janet janet_array_peek(JanetArray *array) {
     if (array->count) {
         return array->data[array->count - 1];
     } else {
-        return dst_wrap_nil();
+        return janet_wrap_nil();
     }
 }
 
 /* C Functions */
 
-static int cfun_new(DstArgs args) {
+static int cfun_new(JanetArgs args) {
     int32_t cap;
-    DstArray *array;
-    DST_FIXARITY(args, 1);
-    DST_ARG_INTEGER(cap, args, 0);
-    array = dst_array(cap);
-    DST_RETURN_ARRAY(args, array);
+    JanetArray *array;
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_INTEGER(cap, args, 0);
+    array = janet_array(cap);
+    JANET_RETURN_ARRAY(args, array);
 }
 
-static int cfun_pop(DstArgs args) {
-    DstArray *array;
-    DST_FIXARITY(args, 1);
-    DST_ARG_ARRAY(array, args, 0);
-    DST_RETURN(args, dst_array_pop(array));
+static int cfun_pop(JanetArgs args) {
+    JanetArray *array;
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_ARRAY(array, args, 0);
+    JANET_RETURN(args, janet_array_pop(array));
 }
 
-static int cfun_peek(DstArgs args) {
-    DstArray *array;
-    DST_FIXARITY(args, 1);
-    DST_ARG_ARRAY(array, args, 0);
-    DST_RETURN(args, dst_array_peek(array));
+static int cfun_peek(JanetArgs args) {
+    JanetArray *array;
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_ARRAY(array, args, 0);
+    JANET_RETURN(args, janet_array_peek(array));
 }
 
-static int cfun_push(DstArgs args) {
-    DstArray *array;
+static int cfun_push(JanetArgs args) {
+    JanetArray *array;
     int32_t newcount;
-    DST_MINARITY(args, 1);
-    DST_ARG_ARRAY(array, args, 0);
+    JANET_MINARITY(args, 1);
+    JANET_ARG_ARRAY(array, args, 0);
     newcount = array->count - 1 + args.n;
-    dst_array_ensure(array, newcount);
-    if (args.n > 1) memcpy(array->data + array->count, args.v + 1, (args.n - 1) * sizeof(Dst));
+    janet_array_ensure(array, newcount);
+    if (args.n > 1) memcpy(array->data + array->count, args.v + 1, (args.n - 1) * sizeof(Janet));
     array->count = newcount;
-    DST_RETURN(args, args.v[0]);
+    JANET_RETURN(args, args.v[0]);
 }
 
-static int cfun_setcount(DstArgs args) {
-    DstArray *array;
+static int cfun_setcount(JanetArgs args) {
+    JanetArray *array;
     int32_t newcount;
-    DST_FIXARITY(args, 2);
-    DST_ARG_ARRAY(array, args, 0);
-    DST_ARG_INTEGER(newcount, args, 1);
-    if (newcount < 0) DST_THROW(args, "expected positive integer");
-    dst_array_setcount(array, newcount);
-    DST_RETURN(args, args.v[0]);
+    JANET_FIXARITY(args, 2);
+    JANET_ARG_ARRAY(array, args, 0);
+    JANET_ARG_INTEGER(newcount, args, 1);
+    if (newcount < 0) JANET_THROW(args, "expected positive integer");
+    janet_array_setcount(array, newcount);
+    JANET_RETURN(args, args.v[0]);
 }
 
-static int cfun_ensure(DstArgs args) {
-    DstArray *array;
+static int cfun_ensure(JanetArgs args) {
+    JanetArray *array;
     int32_t newcount;
-    DST_FIXARITY(args, 2);
-    DST_ARG_ARRAY(array, args, 0);
-    DST_ARG_INTEGER(newcount, args, 1);
-    if (newcount < 0) DST_THROW(args, "expected positive integer");
-    dst_array_ensure(array, newcount);
-    DST_RETURN(args, args.v[0]);
+    JANET_FIXARITY(args, 2);
+    JANET_ARG_ARRAY(array, args, 0);
+    JANET_ARG_INTEGER(newcount, args, 1);
+    if (newcount < 0) JANET_THROW(args, "expected positive integer");
+    janet_array_ensure(array, newcount);
+    JANET_RETURN(args, args.v[0]);
 }
 
-static int cfun_slice(DstArgs args) {
-    const Dst *vals;
+static int cfun_slice(JanetArgs args) {
+    const Janet *vals;
     int32_t len;
-    DstArray *ret;
+    JanetArray *ret;
     int32_t start, end;
-    DST_MINARITY(args, 1);
-    DST_MAXARITY(args, 3);
-    if (!dst_indexed_view(args.v[0], &vals, &len))
-        DST_THROW(args, "expected array|tuple");
+    JANET_MINARITY(args, 1);
+    JANET_MAXARITY(args, 3);
+    if (!janet_indexed_view(args.v[0], &vals, &len))
+        JANET_THROW(args, "expected array|tuple");
     /* Get start */
     if (args.n < 2) {
         start = 0;
-    } else if (dst_checktype(args.v[1], DST_INTEGER)) {
-        start = dst_unwrap_integer(args.v[1]);
+    } else if (janet_checktype(args.v[1], JANET_INTEGER)) {
+        start = janet_unwrap_integer(args.v[1]);
     } else {
-        DST_THROW(args, "expected integer");
+        JANET_THROW(args, "expected integer");
     }
     /* Get end */
     if (args.n < 3) {
         end = -1;
-    } else if (dst_checktype(args.v[2], DST_INTEGER)) {
-        end = dst_unwrap_integer(args.v[2]);
+    } else if (janet_checktype(args.v[2], JANET_INTEGER)) {
+        end = janet_unwrap_integer(args.v[2]);
     } else {
-        DST_THROW(args, "expected integer");
+        JANET_THROW(args, "expected integer");
     }
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
     if (end >= start) {
         int32_t i, j;
-        ret = dst_array(end - start);
+        ret = janet_array(end - start);
         for (j = 0, i = start; i < end; j++, i++) {
             ret->data[j] = vals[i];
         }
         ret->count = j;
     } else {
-        ret = dst_array(0);
+        ret = janet_array(0);
     }
-    DST_RETURN_ARRAY(args, ret);
+    JANET_RETURN_ARRAY(args, ret);
 }
 
-static int cfun_concat(DstArgs args) {
+static int cfun_concat(JanetArgs args) {
     int32_t i;
-    DstArray *array;
-    DST_MINARITY(args, 1);
-    DST_ARG_ARRAY(array, args, 0);
+    JanetArray *array;
+    JANET_MINARITY(args, 1);
+    JANET_ARG_ARRAY(array, args, 0);
     for (i = 1; i < args.n; i++) {
-        switch (dst_type(args.v[i])) {
+        switch (janet_type(args.v[i])) {
             default:
-                dst_array_push(array, args.v[i]);
+                janet_array_push(array, args.v[i]);
                 break;
-            case DST_ARRAY:
-            case DST_TUPLE:
+            case JANET_ARRAY:
+            case JANET_TUPLE:
                 {
                     int32_t j, len;
-                    const Dst *vals;
-                    dst_indexed_view(args.v[i], &vals, &len);
+                    const Janet *vals;
+                    janet_indexed_view(args.v[i], &vals, &len);
                     for (j = 0; j < len; j++)
-                        dst_array_push(array, vals[j]);
+                        janet_array_push(array, vals[j]);
                 }
                 break;
         }
     }
-    DST_RETURN_ARRAY(args, array);
+    JANET_RETURN_ARRAY(args, array);
 }
 
-static const DstReg cfuns[] = {
+static const JanetReg cfuns[] = {
     {"array.new", cfun_new},
     {"array.pop", cfun_pop},
     {"array.peek", cfun_peek},
@@ -254,8 +254,8 @@ static const DstReg cfuns[] = {
 };
 
 /* Load the array module */
-int dst_lib_array(DstArgs args) {
-    DstTable *env = dst_env(args);
-    dst_cfuns(env, NULL, cfuns);
+int janet_lib_array(JanetArgs args) {
+    JanetTable *env = janet_env(args);
+    janet_cfuns(env, NULL, cfuns);
     return 0;
 }

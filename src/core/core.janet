@@ -1,4 +1,4 @@
-# The core dst library
+# The core janet library
 # Copyright 2018 (C) Calvin Rose
 
 ###
@@ -1005,8 +1005,8 @@
   newenv)
 
 (defn run-context
-  "Run a context. This evaluates expressions of dst in an environment,
-  and is encapsulates the parsing, compilation, and evaluation of dst.
+  "Run a context. This evaluates expressions of janet in an environment,
+  and is encapsulates the parsing, compilation, and evaluation of janet.
   env is the environment to evaluate the code in, chunks is a function
   that returns strings or buffers of source code (from a repl, file,
   network connection, etc. onvalue and onerr are callbacks that are
@@ -1142,23 +1142,23 @@
   returnval)
 
 (do
-  (def syspath (or (os.getenv "DST_PATH") "/usr/local/lib/dst/"))
+  (def syspath (or (os.getenv "JANET_PATH") "/usr/local/lib/janet/"))
   (defglobal 'module.paths
-    @["./?.dst"
-      "./?/init.dst"
-      "./dst_modules/?.dst"
-      "./dst_modules/?/init.dst"
-      (string syspath dst.version "/?.dst")
-      (string syspath dst.version "/?/init.dst")
-      (string syspath "/?.dst")
-      (string syspath "/?/init.dst")])
+    @["./?.janet"
+      "./?/init.janet"
+      "./janet_modules/?.janet"
+      "./janet_modules/?/init.janet"
+      (string syspath janet.version "/?.janet")
+      (string syspath janet.version "/?/init.janet")
+      (string syspath "/?.janet")
+      (string syspath "/?/init.janet")])
   (defglobal 'module.native-paths
     @["./?.so"
       "./?/??.so"
-      "./dst_modules/?.so"
-      "./dst_modules/?/??.so"
-      (string syspath dst.version "/?.so")
-      (string syspath dst.version "/?/??.so")
+      "./janet_modules/?.so"
+      "./janet_modules/?/??.so"
+      (string syspath janet.version "/?.so")
+      (string syspath janet.version "/?/??.so")
       (string syspath "/?.so")
       (string syspath "/?/??.so")]))
       
@@ -1224,7 +1224,7 @@
           (def f (find-mod path))
           (if f
             (do
-              # Normal dst module
+              # Normal janet module
               (defn chunks [buf _] (file.read f 1024 buf))
               (run-context newenv chunks identity
                            (if exit-on-error

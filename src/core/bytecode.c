@@ -20,99 +20,99 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "gc.h"
 
 /* Look up table for instructions */
-enum DstInstructionType dst_instructions[DOP_INSTRUCTION_COUNT] = {
-    DIT_0, /* DOP_NOOP, */
-    DIT_S, /* DOP_ERROR, */
-    DIT_ST, /* DOP_TYPECHECK, */
-    DIT_S, /* DOP_RETURN, */
-    DIT_0, /* DOP_RETURN_NIL, */
-    DIT_SSS, /* DOP_ADD_INTEGER, */
-    DIT_SSI, /* DOP_ADD_IMMEDIATE, */
-    DIT_SSS, /* DOP_ADD_REAL, */
-    DIT_SSS, /* DOP_ADD, */
-    DIT_SSS, /* DOP_SUBTRACT_INTEGER, */
-    DIT_SSS, /* DOP_SUBTRACT_REAL, */
-    DIT_SSS, /* DOP_SUBTRACT, */
-    DIT_SSS, /* DOP_MULTIPLY_INTEGER, */
-    DIT_SSI, /* DOP_MULTIPLY_IMMEDIATE, */
-    DIT_SSS, /* DOP_MULTIPLY_REAL, */
-    DIT_SSS, /* DOP_MULTIPLY, */
-    DIT_SSS, /* DOP_DIVIDE_INTEGER, */
-    DIT_SSI, /* DOP_DIVIDE_IMMEDIATE, */
-    DIT_SSS, /* DOP_DIVIDE_REAL, */
-    DIT_SSS, /* DOP_DIVIDE, */
-    DIT_SSS, /* DOP_BAND, */
-    DIT_SSS, /* DOP_BOR, */
-    DIT_SSS, /* DOP_BXOR, */
-    DIT_SS, /* DOP_BNOT, */
-    DIT_SSS, /* DOP_SHIFT_LEFT, */
-    DIT_SSI, /* DOP_SHIFT_LEFT_IMMEDIATE, */
-    DIT_SSS, /* DOP_SHIFT_RIGHT, */
-    DIT_SSI, /* DOP_SHIFT_RIGHT_IMMEDIATE, */
-    DIT_SSS, /* DOP_SHIFT_RIGHT_UNSIGNED, */
-    DIT_SSU, /* DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE, */
-    DIT_SS, /* DOP_MOVE_FAR, */
-    DIT_SS, /* DOP_MOVE_NEAR, */
-    DIT_L, /* DOP_JUMP, */
-    DIT_SL, /* DOP_JUMP_IF, */
-    DIT_SL, /* DOP_JUMP_IF_NOT, */
-    DIT_SSS, /* DOP_GREATER_THAN, */
-    DIT_SSS, /* DOP_GREATER_THAN_INTEGER, */
-    DIT_SSI, /* DOP_GREATER_THAN_IMMEDIATE, */
-    DIT_SSS, /* DOP_GREATER_THAN_REAL, */
-    DIT_SSS, /* DOP_GREATER_THAN_EQUAL_REAL, */
-    DIT_SSS, /* DOP_LESS_THAN, */
-    DIT_SSS, /* DOP_LESS_THAN_INTEGER, */
-    DIT_SSI, /* DOP_LESS_THAN_IMMEDIATE, */
-    DIT_SSS, /* DOP_LESS_THAN_REAL, */
-    DIT_SSS, /* DOP_LESS_THAN_EQUAL_REAL, */
-    DIT_SSS, /* DOP_EQUALS, */
-    DIT_SSS, /* DOP_EQUALS_INTEGER, */
-    DIT_SSI, /* DOP_EQUALS_IMMEDIATE, */
-    DIT_SSS, /* DOP_EQUALS_REAL, */
-    DIT_SSS, /* DOP_COMPARE, */
-    DIT_S, /* DOP_LOAD_NIL, */
-    DIT_S, /* DOP_LOAD_TRUE, */
-    DIT_S, /* DOP_LOAD_FALSE, */
-    DIT_SI, /* DOP_LOAD_INTEGER, */
-    DIT_SC, /* DOP_LOAD_CONSTANT, */
-    DIT_SES, /* DOP_LOAD_UPVALUE, */
-    DIT_S, /* DOP_LOAD_SELF, */
-    DIT_SES, /* DOP_SET_UPVALUE, */
-    DIT_SD, /* DOP_CLOSURE, */
-    DIT_S, /* DOP_PUSH, */
-    DIT_SS, /* DOP_PUSH_2, */
-    DIT_SSS, /* DOP_PUSH_3, */
-    DIT_S, /* DOP_PUSH_ARRAY, */
-    DIT_SS, /* DOP_CALL, */
-    DIT_S, /* DOP_TAILCALL, */
-    DIT_SSS, /* DOP_RESUME, */
-    DIT_SSU, /* DOP_SIGNAL, */
-    DIT_SSS, /* DOP_GET, */
-    DIT_SSS, /* DOP_PUT, */
-    DIT_SSU, /* DOP_GET_INDEX, */
-    DIT_SSU, /* DOP_PUT_INDEX, */
-    DIT_SS, /* DOP_LENGTH */
-    DIT_S, /* DOP_MAKE_ARRAY */
-    DIT_S, /* DOP_MAKE_BUFFER */
-    DIT_S, /* DOP_MAKE_TUPLE */
-    DIT_S, /* DOP_MAKE_STRUCT */
-    DIT_S, /* DOP_MAKE_TABLE */
-    DIT_S, /* DOP_MAKE_STRING */
-    DIT_SSS, /* DOP_NUMERIC_LESS_THAN */
-    DIT_SSS, /* DOP_NUMERIC_LESS_THAN_EQUAL */
-    DIT_SSS, /* DOP_NUMERIC_GREATER_THAN */
-    DIT_SSS, /* DOP_NUMERIC_GREATER_THAN_EQUAL */
-    DIT_SSS /* DOP_NUMERIC_EQUAL */
+enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
+    JINT_0, /* JOP_NOOP, */
+    JINT_S, /* JOP_ERROR, */
+    JINT_ST, /* JOP_TYPECHECK, */
+    JINT_S, /* JOP_RETURN, */
+    JINT_0, /* JOP_RETURN_NIL, */
+    JINT_SSS, /* JOP_ADD_INTEGER, */
+    JINT_SSI, /* JOP_ADD_IMMEDIATE, */
+    JINT_SSS, /* JOP_ADD_REAL, */
+    JINT_SSS, /* JOP_ADD, */
+    JINT_SSS, /* JOP_SUBTRACT_INTEGER, */
+    JINT_SSS, /* JOP_SUBTRACT_REAL, */
+    JINT_SSS, /* JOP_SUBTRACT, */
+    JINT_SSS, /* JOP_MULTIPLY_INTEGER, */
+    JINT_SSI, /* JOP_MULTIPLY_IMMEDIATE, */
+    JINT_SSS, /* JOP_MULTIPLY_REAL, */
+    JINT_SSS, /* JOP_MULTIPLY, */
+    JINT_SSS, /* JOP_DIVIDE_INTEGER, */
+    JINT_SSI, /* JOP_DIVIDE_IMMEDIATE, */
+    JINT_SSS, /* JOP_DIVIDE_REAL, */
+    JINT_SSS, /* JOP_DIVIDE, */
+    JINT_SSS, /* JOP_BAND, */
+    JINT_SSS, /* JOP_BOR, */
+    JINT_SSS, /* JOP_BXOR, */
+    JINT_SS, /* JOP_BNOT, */
+    JINT_SSS, /* JOP_SHIFT_LEFT, */
+    JINT_SSI, /* JOP_SHIFT_LEFT_IMMEDIATE, */
+    JINT_SSS, /* JOP_SHIFT_RIGHT, */
+    JINT_SSI, /* JOP_SHIFT_RIGHT_IMMEDIATE, */
+    JINT_SSS, /* JOP_SHIFT_RIGHT_UNSIGNED, */
+    JINT_SSU, /* JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE, */
+    JINT_SS, /* JOP_MOVE_FAR, */
+    JINT_SS, /* JOP_MOVE_NEAR, */
+    JINT_L, /* JOP_JUMP, */
+    JINT_SL, /* JOP_JUMP_IF, */
+    JINT_SL, /* JOP_JUMP_IF_NOT, */
+    JINT_SSS, /* JOP_GREATER_THAN, */
+    JINT_SSS, /* JOP_GREATER_THAN_INTEGER, */
+    JINT_SSI, /* JOP_GREATER_THAN_IMMEDIATE, */
+    JINT_SSS, /* JOP_GREATER_THAN_REAL, */
+    JINT_SSS, /* JOP_GREATER_THAN_EQUAL_REAL, */
+    JINT_SSS, /* JOP_LESS_THAN, */
+    JINT_SSS, /* JOP_LESS_THAN_INTEGER, */
+    JINT_SSI, /* JOP_LESS_THAN_IMMEDIATE, */
+    JINT_SSS, /* JOP_LESS_THAN_REAL, */
+    JINT_SSS, /* JOP_LESS_THAN_EQUAL_REAL, */
+    JINT_SSS, /* JOP_EQUALS, */
+    JINT_SSS, /* JOP_EQUALS_INTEGER, */
+    JINT_SSI, /* JOP_EQUALS_IMMEDIATE, */
+    JINT_SSS, /* JOP_EQUALS_REAL, */
+    JINT_SSS, /* JOP_COMPARE, */
+    JINT_S, /* JOP_LOAD_NIL, */
+    JINT_S, /* JOP_LOAD_TRUE, */
+    JINT_S, /* JOP_LOAD_FALSE, */
+    JINT_SI, /* JOP_LOAD_INTEGER, */
+    JINT_SC, /* JOP_LOAD_CONSTANT, */
+    JINT_SES, /* JOP_LOAD_UPVALUE, */
+    JINT_S, /* JOP_LOAD_SELF, */
+    JINT_SES, /* JOP_SET_UPVALUE, */
+    JINT_SD, /* JOP_CLOSURE, */
+    JINT_S, /* JOP_PUSH, */
+    JINT_SS, /* JOP_PUSH_2, */
+    JINT_SSS, /* JOP_PUSH_3, */
+    JINT_S, /* JOP_PUSH_ARRAY, */
+    JINT_SS, /* JOP_CALL, */
+    JINT_S, /* JOP_TAILCALL, */
+    JINT_SSS, /* JOP_RESUME, */
+    JINT_SSU, /* JOP_SIGNAL, */
+    JINT_SSS, /* JOP_GET, */
+    JINT_SSS, /* JOP_PUT, */
+    JINT_SSU, /* JOP_GET_INDEX, */
+    JINT_SSU, /* JOP_PUT_INDEX, */
+    JINT_SS, /* JOP_LENGTH */
+    JINT_S, /* JOP_MAKE_ARRAY */
+    JINT_S, /* JOP_MAKE_BUFFER */
+    JINT_S, /* JOP_MAKE_TUPLE */
+    JINT_S, /* JOP_MAKE_STRUCT */
+    JINT_S, /* JOP_MAKE_TABLE */
+    JINT_S, /* JOP_MAKE_STRING */
+    JINT_SSS, /* JOP_NUMERIC_LESS_THAN */
+    JINT_SSS, /* JOP_NUMERIC_LESS_THAN_EQUAL */
+    JINT_SSS, /* JOP_NUMERIC_GREATER_THAN */
+    JINT_SSS, /* JOP_NUMERIC_GREATER_THAN_EQUAL */
+    JINT_SSS /* JOP_NUMERIC_EQUAL */
 };
 
 /* Verify some bytecode */
-int32_t dst_verify(DstFuncDef *def) {
-    int vargs = !!(def->flags & DST_FUNCDEF_FLAG_VARARG);
+int32_t janet_verify(JanetFuncDef *def) {
+    int vargs = !!(def->flags & JANET_FUNCDEF_FLAG_VARARG);
     int32_t i;
     int32_t maxslot = def->arity + vargs;
     int32_t sc = def->slotcount;
@@ -125,71 +125,71 @@ int32_t dst_verify(DstFuncDef *def) {
     for (i = 0; i < def->bytecode_length; i++) {
         uint32_t instr = def->bytecode[i];
         /* Check for invalid instructions */
-        if ((instr & 0xFF) >= DOP_INSTRUCTION_COUNT) {
+        if ((instr & 0xFF) >= JOP_INSTRUCTION_COUNT) {
             return 3;
         }
-        enum DstInstructionType type = dst_instructions[instr & 0xFF];
+        enum JanetInstructionType type = janet_instructions[instr & 0xFF];
         switch (type) {
-            case DIT_0:
+            case JINT_0:
                 continue;
-            case DIT_S:
+            case JINT_S:
                 {
                     if ((int32_t)(instr >> 8) >= sc) return 4;
                     continue;
                 }
-            case DIT_SI:
-            case DIT_SU:
-            case DIT_ST:
+            case JINT_SI:
+            case JINT_SU:
+            case JINT_ST:
                 {
                     if ((int32_t)((instr >> 8) & 0xFF) >= sc) return 4;
                     continue;
                 }
-            case DIT_L:
+            case JINT_L:
                 {
                     int32_t jumpdest = i + (((int32_t)instr) >> 8);
                     if (jumpdest < 0 || jumpdest >= def->bytecode_length) return 5;
                     continue;
                 }
-            case DIT_SS:
+            case JINT_SS:
                 {
                     if ((int32_t)((instr >> 8) & 0xFF) >= sc ||
                         (int32_t)(instr >> 16) >= sc) return 4;
                     continue;
                 }
-            case DIT_SSI:
-            case DIT_SSU:
+            case JINT_SSI:
+            case JINT_SSU:
                 {
                     if ((int32_t)((instr >> 8) & 0xFF) >= sc ||
                         (int32_t)((instr >> 16) & 0xFF) >= sc) return 4;
                     continue;
                 }
-            case DIT_SL:
+            case JINT_SL:
                 {
                     int32_t jumpdest = i + (((int32_t)instr) >> 16);
                     if ((int32_t)((instr >> 8) & 0xFF) >= sc) return 4;
                     if (jumpdest < 0 || jumpdest >= def->bytecode_length) return 5;
                     continue;
                 }
-            case DIT_SSS:
+            case JINT_SSS:
                 {
                     if (((int32_t)(instr >> 8) & 0xFF) >= sc ||
                         ((int32_t)(instr >> 16) & 0xFF) >= sc ||
                         ((int32_t)(instr >> 24) & 0xFF) >= sc) return 4;
                     continue;
                 }
-            case DIT_SD:
+            case JINT_SD:
                 {
                     if ((int32_t)((instr >> 8) & 0xFF) >= sc) return 4;
                     if ((int32_t)(instr >> 16) >= def->defs_length) return 6;
                     continue;
                 }
-            case DIT_SC:
+            case JINT_SC:
                 {
                     if ((int32_t)((instr >> 8) & 0xFF) >= sc) return 4;
                     if ((int32_t)(instr >> 16) >= def->constants_length) return 7;
                     continue;
                 }
-            case DIT_SES:
+            case JINT_SES:
                 {
                     /* How can we check the last slot index? We need info parent funcdefs. Resort
                      * to runtime checks for now. Maybe invalid upvalue references could be defaulted
@@ -210,11 +210,11 @@ int32_t dst_verify(DstFuncDef *def) {
         switch (lastop) {
             default:
                 return 9;
-            case DOP_RETURN:
-            case DOP_RETURN_NIL:
-            case DOP_JUMP:
-            case DOP_ERROR:
-            case DOP_TAILCALL:
+            case JOP_RETURN:
+            case JOP_RETURN_NIL:
+            case JOP_JUMP:
+            case JOP_ERROR:
+            case JOP_TAILCALL:
                 break;
         }
     }
@@ -224,8 +224,8 @@ int32_t dst_verify(DstFuncDef *def) {
 
 /* Allocate an empty funcdef. This function may have added functionality
  * as commonalities between asm and compile arise. */
-DstFuncDef *dst_funcdef_alloc() {
-    DstFuncDef *def = dst_gcalloc(DST_MEMORY_FUNCDEF, sizeof(DstFuncDef));
+JanetFuncDef *janet_funcdef_alloc() {
+    JanetFuncDef *def = janet_gcalloc(JANET_MEMORY_FUNCDEF, sizeof(JanetFuncDef));
     def->environments = NULL;
     def->constants = NULL;
     def->bytecode = NULL;
@@ -244,9 +244,9 @@ DstFuncDef *dst_funcdef_alloc() {
 }
 
 /* Create a simple closure from a funcdef */
-DstFunction *dst_thunk(DstFuncDef *def) {
-    DstFunction *func = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction));
+JanetFunction *janet_thunk(JanetFuncDef *def) {
+    JanetFunction *func = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction));
     func->def = def;
-    dst_assert(def->environments_length == 0, "tried to create thunk that needs upvalues");
+    janet_assert(def->environments_length == 0, "tried to create thunk that needs upvalues");
     return func;
 }

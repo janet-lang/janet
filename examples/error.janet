@@ -1,4 +1,4 @@
-# An example file that errors out. Run with ./dst examples/error.dst
+# An example file that errors out. Run with ./janet examples/error.janet
 # to see stack trace for runtime errors.
 
 (defn bork [x]

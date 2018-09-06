@@ -1,6 +1,8 @@
 # Target
 dst
 !*/**/dst
+janet
+!*/**/janet
 /build
 /Build
 /Release

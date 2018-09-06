@@ -22,22 +22,22 @@
 
 /* Implements a simple first fit register allocator for the compiler. */
 
-#ifndef DST_REGALLOC_H
-#define DST_REGALLOC_H
+#ifndef JANET_REGALLOC_H
+#define JANET_REGALLOC_H
 
 #include <stdint.h>
 
 /* Placeholder for allocating temporary registers */
 typedef enum {
-    DSTC_REGTEMP_0,
-    DSTC_REGTEMP_1,
-    DSTC_REGTEMP_2,
-    DSTC_REGTEMP_3,
-    DSTC_REGTEMP_4,
-    DSTC_REGTEMP_5,
-    DSTC_REGTEMP_6,
-    DSTC_REGTEMP_7
-} DstcRegisterTemp;
+    JANETC_REGTEMP_0,
+    JANETC_REGTEMP_1,
+    JANETC_REGTEMP_2,
+    JANETC_REGTEMP_3,
+    JANETC_REGTEMP_4,
+    JANETC_REGTEMP_5,
+    JANETC_REGTEMP_6,
+    JANETC_REGTEMP_7
+} JanetcRegisterTemp;
 
 typedef struct {
     uint32_t *chunks;
@@ -45,23 +45,23 @@ typedef struct {
     int32_t capacity; /* amount allocated for chunks */
     int32_t max; /* The maximum allocated register so far */
     int32_t regtemps; /* Hold which tempregistered are alloced. */
-} DstcRegisterAllocator;
+} JanetcRegisterAllocator;
 
-void dstc_regalloc_init(DstcRegisterAllocator *ra);
-void dstc_regalloc_deinit(DstcRegisterAllocator *ra);
+void janetc_regalloc_init(JanetcRegisterAllocator *ra);
+void janetc_regalloc_deinit(JanetcRegisterAllocator *ra);
 
-int32_t dstc_regalloc_1(DstcRegisterAllocator *ra);
-void dstc_regalloc_free(DstcRegisterAllocator *ra, int32_t reg);
-int32_t dstc_regalloc_temp(DstcRegisterAllocator *ra, DstcRegisterTemp nth);
-void dstc_regalloc_freetemp(DstcRegisterAllocator *ra, int32_t reg, DstcRegisterTemp nth);
-void dstc_regalloc_clone(DstcRegisterAllocator *dest, DstcRegisterAllocator *src);
-void dstc_regalloc_touch(DstcRegisterAllocator *ra, int32_t reg);
+int32_t janetc_regalloc_1(JanetcRegisterAllocator *ra);
+void janetc_regalloc_free(JanetcRegisterAllocator *ra, int32_t reg);
+int32_t janetc_regalloc_temp(JanetcRegisterAllocator *ra, JanetcRegisterTemp nth);
+void janetc_regalloc_freetemp(JanetcRegisterAllocator *ra, int32_t reg, JanetcRegisterTemp nth);
+void janetc_regalloc_clone(JanetcRegisterAllocator *dest, JanetcRegisterAllocator *src);
+void janetc_regalloc_touch(JanetcRegisterAllocator *ra, int32_t reg);
 
 /* Mutli-slot allocation disabled */
 /*
-int32_t dstc_regalloc_n(DstcRegisterAllocator *ra, int32_t n);
-int32_t dstc_regalloc_call(DstcRegisterAllocator *ra, int32_t callee, int32_t nargs);
-void dstc_regalloc_freerange(DstcRegisterAllocator *ra, int32_t regstart, int32_t n);
+int32_t janetc_regalloc_n(JanetcRegisterAllocator *ra, int32_t n);
+int32_t janetc_regalloc_call(JanetcRegisterAllocator *ra, int32_t callee, int32_t nargs);
+void janetc_regalloc_freerange(JanetcRegisterAllocator *ra, int32_t regstart, int32_t n);
 */
 
 #endif

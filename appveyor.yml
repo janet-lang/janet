@@ -3,7 +3,7 @@ branches:
   only:
   - master
   - alpha
-clone_folder: c:\projects\dst
+clone_folder: c:\projects\janet
 image:
 - Visual Studio 2017
 configuration:

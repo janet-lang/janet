@@ -21,7 +21,7 @@
 */
 
 #include "sqlite3.h"
-#include <dst/dst.h>
+#include <janet/janet.h>
 
 #define FLAG_CLOSED 1
 
@@ -48,39 +48,39 @@ static int gcsqlite(void *p, size_t s) {
     return 0;
 }
 
-static const DstAbstractType sql_conn_type = {
+static const JanetAbstractType sql_conn_type = {
     ":sqlite3.connection",
     gcsqlite,
     NULL,
 };
 
 /* Open a new database connection */
-static int sql_open(DstArgs args) {
+static int sql_open(JanetArgs args) {
     sqlite3 *conn;
     const uint8_t *filename;
     int status;
-    DST_FIXARITY(args, 1);
-    DST_ARG_STRING(filename, args, 0);
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_STRING(filename, args, 0);
     status = sqlite3_open((const char *)filename, &conn);
     if (status == SQLITE_OK) {
-        Db *db = (Db *) dst_abstract(&sql_conn_type, sizeof(Db));
+        Db *db = (Db *) janet_abstract(&sql_conn_type, sizeof(Db));
         db->handle = conn;
         db->flags = 0;
-        DST_RETURN_ABSTRACT(args, db);
+        JANET_RETURN_ABSTRACT(args, db);
     } else {
         const char *err = sqlite3_errmsg(conn);
-        DST_THROW(args, err);
+        JANET_THROW(args, err);
     }
 }
 
 /* Close a database connection */
-static int sql_close(DstArgs args) {
+static int sql_close(JanetArgs args) {
     Db *db;
-    DST_FIXARITY(args, 1);
-    DST_CHECKABSTRACT(args, 0, &sql_conn_type);
-    db = (Db *)dst_unwrap_abstract(args.v[0]);
+    JANET_FIXARITY(args, 1);
+    JANET_CHECKABSTRACT(args, 0, &sql_conn_type);
+    db = (Db *)janet_unwrap_abstract(args.v[0]);
     closedb(db);
-    DST_RETURN_NIL(args);
+    JANET_RETURN_NIL(args);
 }
 
 /* Check for embedded NULL bytes */
@@ -93,31 +93,31 @@ static int has_null(const uint8_t *str, int32_t len) {
 }
 
 /* Bind a single parameter */
-static const char *bind1(sqlite3_stmt *stmt, int index, Dst value) {
+static const char *bind1(sqlite3_stmt *stmt, int index, Janet value) {
     int res;
-    switch (dst_type(value)) {
+    switch (janet_type(value)) {
         default:
             return "invalid sql value";
-        case DST_NIL:
+        case JANET_NIL:
             res = sqlite3_bind_null(stmt, index);
             break;
-        case DST_FALSE:
+        case JANET_FALSE:
             res = sqlite3_bind_int(stmt, index, 0);
             break;
-        case DST_TRUE:
+        case JANET_TRUE:
             res = sqlite3_bind_int(stmt, index, 1);
             break;
-        case DST_REAL:
-            res = sqlite3_bind_double(stmt, index, dst_unwrap_real(value));
+        case JANET_REAL:
+            res = sqlite3_bind_double(stmt, index, janet_unwrap_real(value));
             break;
-        case DST_INTEGER:
-            res = sqlite3_bind_int64(stmt, index, dst_unwrap_integer(value));
+        case JANET_INTEGER:
+            res = sqlite3_bind_int64(stmt, index, janet_unwrap_integer(value));
             break;
-        case DST_STRING:
-        case DST_SYMBOL:
+        case JANET_STRING:
+        case JANET_SYMBOL:
             {
-                const uint8_t *str = dst_unwrap_string(value);
-                int32_t len = dst_string_length(str);
+                const uint8_t *str = janet_unwrap_string(value);
+                int32_t len = janet_string_length(str);
                 if (has_null(str, len)) {
                     return "cannot have embedded nulls in text values";
                 } else {
@@ -125,9 +125,9 @@ static const char *bind1(sqlite3_stmt *stmt, int index, Dst value) {
                 }
             }
             break;
-        case DST_BUFFER:
+        case JANET_BUFFER:
             {
-                DstBuffer *buffer = dst_unwrap_buffer(value);
+                JanetBuffer *buffer = janet_unwrap_buffer(value);
                 res = sqlite3_bind_blob(stmt, index, buffer->data, buffer->count, SQLITE_STATIC);
             }
             break;
@@ -140,13 +140,13 @@ static const char *bind1(sqlite3_stmt *stmt, int index, Dst value) {
 }
 
 /* Bind many parameters */
-static const char *bindmany(sqlite3_stmt *stmt, Dst params) {
+static const char *bindmany(sqlite3_stmt *stmt, Janet params) {
     /* parameters */
-    const Dst *seq;
-    const DstKV *kvs;
+    const Janet *seq;
+    const JanetKV *kvs;
     int32_t len, cap;
     int limitindex = sqlite3_bind_parameter_count(stmt);
-    if (dst_indexed_view(params, &seq, &len)) {
+    if (janet_indexed_view(params, &seq, &len)) {
         if (len > limitindex + 1) {
             return "invalid index in sql parameters";
         }
@@ -156,23 +156,23 @@ static const char *bindmany(sqlite3_stmt *stmt, Dst params) {
                 return err;
             }
         }
-    } else if (dst_dictionary_view(params, &kvs, &len, &cap)) {
+    } else if (janet_dictionary_view(params, &kvs, &len, &cap)) {
         for (int i = 0; i < cap; i++) {
             int index = 0;
-            switch (dst_type(kvs[i].key)) {
+            switch (janet_type(kvs[i].key)) {
                 default:
                     /* Will fail */
                     break;
-                case DST_NIL:
+                case JANET_NIL:
                     /* Will skip as nil keys indicate empty hash table slot */
                     continue;
-                case DST_INTEGER:
-                    index = dst_unwrap_integer(kvs[i].key);
+                case JANET_INTEGER:
+                    index = janet_unwrap_integer(kvs[i].key);
                     break;
-                case DST_STRING:
-                case DST_SYMBOL:
+                case JANET_STRING:
+                case JANET_SYMBOL:
                     {
-                        const uint8_t *s = dst_unwrap_string(kvs[i].key);
+                        const uint8_t *s = janet_unwrap_string(kvs[i].key);
                         index = sqlite3_bind_parameter_index(
                                 stmt,
                                 (const char *)s);
@@ -209,57 +209,57 @@ static const char *execute(sqlite3_stmt *stmt) {
 }
 
 /* Execute and return values from prepared statement */
-static const char *execute_collect(sqlite3_stmt *stmt, DstArray *rows) {
+static const char *execute_collect(sqlite3_stmt *stmt, JanetArray *rows) {
     /* Count number of columns in result */
     int ncol = sqlite3_column_count(stmt);
     int status;
     const char *ret = NULL;
 
     /* Get column names */
-    Dst *tupstart = dst_tuple_begin(ncol);
+    Janet *tupstart = janet_tuple_begin(ncol);
     for (int i = 0; i < ncol; i++) {
-        tupstart[i] = dst_cstringv(sqlite3_column_name(stmt, i));
+        tupstart[i] = janet_cstringv(sqlite3_column_name(stmt, i));
     }
-    const Dst *colnames = dst_tuple_end(tupstart);
+    const Janet *colnames = janet_tuple_end(tupstart);
 
     do {
         status = sqlite3_step(stmt);
         if (status == SQLITE_ROW) {
-            DstKV *row = dst_struct_begin(ncol);
+            JanetKV *row = janet_struct_begin(ncol);
             for (int i = 0; i < ncol; i++) {
                 int t = sqlite3_column_type(stmt, i);
-                Dst value;
+                Janet value;
                 switch (t) {
                     case SQLITE_NULL:
-                        value = dst_wrap_nil();
+                        value = janet_wrap_nil();
                         break;
                     case SQLITE_INTEGER:
-                        value = dst_wrap_integer(sqlite3_column_int(stmt, i));
+                        value = janet_wrap_integer(sqlite3_column_int(stmt, i));
                         break;
                     case SQLITE_FLOAT:
-                        value = dst_wrap_real(sqlite3_column_double(stmt, i));
+                        value = janet_wrap_real(sqlite3_column_double(stmt, i));
                         break;
                     case SQLITE_TEXT:
                         {
                             int nbytes = sqlite3_column_bytes(stmt, i) - 1;
-                            uint8_t *str = dst_string_begin(nbytes);
+                            uint8_t *str = janet_string_begin(nbytes);
                             memcpy(str, sqlite3_column_text(stmt, i), nbytes);
-                            value = dst_wrap_string(dst_string_end(str));
+                            value = janet_wrap_string(janet_string_end(str));
                         }
                         break;
                     case SQLITE_BLOB:
                         {
                             int nbytes = sqlite3_column_bytes(stmt, i);
-                            DstBuffer *b = dst_buffer(nbytes);
+                            JanetBuffer *b = janet_buffer(nbytes);
                             memcpy(b->data, sqlite3_column_blob(stmt, i), nbytes);
                             b->count = nbytes;
-                            value = dst_wrap_buffer(b);
+                            value = janet_wrap_buffer(b);
                         }
                         break;
                 }
-                dst_struct_put(row, colnames[i], value);
+                janet_struct_put(row, colnames[i], value);
             }
-            dst_array_push(rows, dst_wrap_struct(dst_struct_end(row)));
+            janet_array_push(rows, janet_wrap_struct(janet_struct_end(row)));
         }
     } while (status == SQLITE_ROW);
 
@@ -272,24 +272,24 @@ static const char *execute_collect(sqlite3_stmt *stmt, DstArray *rows) {
 }
 
 /* Evaluate a string of sql */
-static int sql_eval(DstArgs args) {
+static int sql_eval(JanetArgs args) {
     const char *err;
     sqlite3_stmt *stmt = NULL, *stmt_next = NULL;
     const uint8_t *query;
 
-    DST_MINARITY(args, 2);
-    DST_MAXARITY(args, 3);
-    DST_CHECKABSTRACT(args, 0, &sql_conn_type);
-    Db *db = (Db *)dst_unwrap_abstract(args.v[0]);
+    JANET_MINARITY(args, 2);
+    JANET_MAXARITY(args, 3);
+    JANET_CHECKABSTRACT(args, 0, &sql_conn_type);
+    Db *db = (Db *)janet_unwrap_abstract(args.v[0]);
     if (db->flags & FLAG_CLOSED) {
-        DST_THROW(args, MSG_DB_CLOSED);
+        JANET_THROW(args, MSG_DB_CLOSED);
     }
-    DST_ARG_STRING(query, args, 1);
-    if (has_null(query, dst_string_length(query))) {
+    JANET_ARG_STRING(query, args, 1);
+    if (has_null(query, janet_string_length(query))) {
         err = "cannot have embedded NULL in sql statememts";
         goto error;
     }
-    DstArray *rows = dst_array(10);
+    JanetArray *rows = janet_array(10);
     const char *c = (const char *)query;
 
     /* Evaluate all statements in a loop */
@@ -326,12 +326,12 @@ static int sql_eval(DstArgs args) {
     } while (NULL != stmt);
 
     /* Good return path */
-    DST_RETURN_ARRAY(args, rows);
+    JANET_RETURN_ARRAY(args, rows);
 
 error:
     if (stmt) sqlite3_finalize(stmt);
     if (stmt_next) sqlite3_finalize(stmt_next);
-    DST_THROW(args, err);
+    JANET_THROW(args, err);
 }
 
 /* Convert int64_t to a string */
@@ -339,8 +339,8 @@ static const uint8_t *coerce_int64(int64_t x) {
     uint8_t bytes[40];
     int i = 0;
     /* Edge cases */
-    if (x == 0) return dst_cstring("0");
-    if (x == INT64_MIN) return dst_cstring("-9,223,372,036,854,775,808");
+    if (x == 0) return janet_cstring("0");
+    if (x == INT64_MIN) return janet_cstring("-9,223,372,036,854,775,808");
     /* Negative becomes pos */
     if (x < 0) {
         bytes[i++] = '-';
@@ -351,40 +351,40 @@ static const uint8_t *coerce_int64(int64_t x) {
         x = x / 10;
     }
     bytes[i] = '\0';
-    return dst_string(bytes, i);
+    return janet_string(bytes, i);
 }
 
 /* Gets the last inserted row id */
-static int sql_last_insert_rowid(DstArgs args) {
-    DST_FIXARITY(args, 1);
-    DST_CHECKABSTRACT(args, 0, &sql_conn_type);
-    Db *db = (Db *)dst_unwrap_abstract(args.v[0]);
+static int sql_last_insert_rowid(JanetArgs args) {
+    JANET_FIXARITY(args, 1);
+    JANET_CHECKABSTRACT(args, 0, &sql_conn_type);
+    Db *db = (Db *)janet_unwrap_abstract(args.v[0]);
     if (db->flags & FLAG_CLOSED) {
-        DST_THROW(args, MSG_DB_CLOSED);
+        JANET_THROW(args, MSG_DB_CLOSED);
     }
     sqlite3_int64 id = sqlite3_last_insert_rowid(db->handle);
     if (id >= INT32_MIN && id <= INT32_MAX) {
-        DST_RETURN_INTEGER(args, (int32_t) id);
+        JANET_RETURN_INTEGER(args, (int32_t) id);
     }
     /* Convert to string */
-    DST_RETURN_STRING(args, coerce_int64(id));
+    JANET_RETURN_STRING(args, coerce_int64(id));
 }
 
 /* Get the sqlite3 errcode */
-static int sql_error_code(DstArgs args) {
-    DST_FIXARITY(args, 1);
-    DST_CHECKABSTRACT(args, 0, &sql_conn_type);
-    Db *db = (Db *)dst_unwrap_abstract(args.v[0]);
+static int sql_error_code(JanetArgs args) {
+    JANET_FIXARITY(args, 1);
+    JANET_CHECKABSTRACT(args, 0, &sql_conn_type);
+    Db *db = (Db *)janet_unwrap_abstract(args.v[0]);
     if (db->flags & FLAG_CLOSED) {
-        DST_THROW(args, MSG_DB_CLOSED);
+        JANET_THROW(args, MSG_DB_CLOSED);
     }
     int errcode = sqlite3_errcode(db->handle);
-    DST_RETURN_INTEGER(args, errcode);
+    JANET_RETURN_INTEGER(args, errcode);
 }
 
 /*****************************************************************************/
 
-static const DstReg cfuns[] = {
+static const JanetReg cfuns[] = {
     {"open", sql_open},
     {"close", sql_close},
     {"eval", sql_eval},
@@ -393,8 +393,8 @@ static const DstReg cfuns[] = {
     {NULL, NULL}
 };
 
-DST_MODULE_ENTRY(DstArgs args) {
-    DstTable *env = dst_env(args);
-    dst_cfuns(env, "sqlite3", cfuns);
+JANET_MODULE_ENTRY(JanetArgs args) {
+    JanetTable *env = janet_env(args);
+    janet_cfuns(env, "sqlite3", cfuns);
     return 0;
 }

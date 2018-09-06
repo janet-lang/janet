@@ -28,7 +28,7 @@
  * reasonable).
  *
  * This version has been modified for much greater flexibility in parsing, such
- * as choosing the radix, supporting integer output, and returning Dsts
+ * as choosing the radix, supporting integer output, and returning Janets
  * directly.
  *
  * Numbers are of the form [-+]R[rR]I.F[eE&][-+]X where R is the radix, I is
@@ -36,14 +36,14 @@
  * signs, radix, decimal point, fractional part, and exponent can be ommited.
  * The number will be considered and integer if the there is no decimal point
  * and no exponent. Any number greater the 2^32-1 or less than -(2^32) will be
- * coerced to a double. If there is an error, the function dst_scan_number will
- * return a dst nil. The radix is assumed to be 10 if omitted, and the E
+ * coerced to a double. If there is an error, the function janet_scan_number will
+ * return a janet nil. The radix is assumed to be 10 if omitted, and the E
  * separator for the exponent can only be used when the radix is 10. This is
  * because E is a vaid digit in bases 15 or greater. For bases greater than 10,
  * the letters are used as digitis. A through Z correspond to the digits 10
  * through 35, and the lowercase letters have the same values. The radix number
  * is always in base 10. For example, a hexidecimal number could be written
- * '16rdeadbeef'. dst_scan_number also supports some c style syntax for
+ * '16rdeadbeef'. janet_scan_number also supports some c style syntax for
  * hexidecimal literals. The previous number could also be written
  * '0xdeadbeef'. Note that in this case, the number will actually be a double
  * as it will not fit in the range for a signed 32 bit integer. The string
@@ -51,7 +51,7 @@
 
 /* TODO take down missle defence */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include <math.h>
 
 /* Lookup table for getting values of characters when parsing numbers. Handles
@@ -125,7 +125,7 @@ static double convert(
 
 /* Result of scanning a number source string. Will be further processed
  * depending on the desired resultant type. */
-struct DstScanRes {
+struct JanetScanRes {
     uint64_t mant;
     int32_t ex;
     int error;
@@ -140,11 +140,11 @@ struct DstScanRes {
  * The exponent will be in a signed 32 bit integer. Will also check if
  * the decimal point has been seen. Returns -1 if there is an invalid
  * number. */
-static struct DstScanRes dst_scan_impl(
+static struct JanetScanRes janet_scan_impl(
         const uint8_t *str,
         int32_t len) {
 
-    struct DstScanRes res;
+    struct JanetScanRes res;
     const uint8_t *end = str + len;
 
     /* Initialize flags */
@@ -269,11 +269,11 @@ static struct DstScanRes dst_scan_impl(
 
 /* Scan an integer from a string. If the string cannot be converted into
  * and integer, set *err to 1 and return 0. */
-int32_t dst_scan_integer(
+int32_t janet_scan_integer(
         const uint8_t *str,
         int32_t len,
         int *err) {
-    struct DstScanRes res = dst_scan_impl(str, len);
+    struct JanetScanRes res = janet_scan_impl(str, len);
     int64_t i64;
     if (res.error) goto error;
     if (res.seenpoint) goto error;
@@ -296,11 +296,11 @@ int32_t dst_scan_integer(
 
 /* Scan a real (double) from a string. If the string cannot be converted into
  * and integer, set *err to 1 and return 0. */
-double dst_scan_real(
+double janet_scan_real(
         const uint8_t *str,
         int32_t len,
         int *err) {
-    struct DstScanRes res = dst_scan_impl(str, len);
+    struct JanetScanRes res = janet_scan_impl(str, len);
     if (res.error) {
         if (NULL != err)
             *err = 1;
@@ -315,17 +315,17 @@ double dst_scan_real(
 /* Scans a number from a string. Can return either an integer or a real if
  * the number cannot be represented as an integer. Will return nil in case of
  * an error. */
-Dst dst_scan_number(
+Janet janet_scan_number(
         const uint8_t *str,
         int32_t len) {
-    struct DstScanRes res = dst_scan_impl(str, len);
+    struct JanetScanRes res = janet_scan_impl(str, len);
     if (res.error)
-        return dst_wrap_nil();
+        return janet_wrap_nil();
     if (!res.foundexp && !res.seenpoint) {
         int64_t i64 = res.neg ? -(int64_t)res.mant : (int64_t)res.mant;
         if (i64 <= INT32_MAX && i64 >= INT32_MIN) {
-            return dst_wrap_integer((int32_t) i64);
+            return janet_wrap_integer((int32_t) i64);
         }
     }
-    return dst_wrap_real(convert(res.neg, res.mant, res.base, res.ex));
+    return janet_wrap_real(convert(res.neg, res.mant, res.base, res.ex));
 }

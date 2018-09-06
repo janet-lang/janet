@@ -20,42 +20,42 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 
 /*
- * Define a number of functions that can be used internally on ANY Dst.
+ * Define a number of functions that can be used internally on ANY Janet.
  */
 
 /* Check if two values are equal. This is strict equality with no conversion. */
-int dst_equals(Dst x, Dst y) {
+int janet_equals(Janet x, Janet y) {
     int result = 0;
-    if (dst_type(x) != dst_type(y)) {
+    if (janet_type(x) != janet_type(y)) {
         result = 0;
     } else {
-        switch (dst_type(x)) {
-        case DST_NIL:
-        case DST_TRUE:
-        case DST_FALSE:
+        switch (janet_type(x)) {
+        case JANET_NIL:
+        case JANET_TRUE:
+        case JANET_FALSE:
             result = 1;
             break;
-        case DST_REAL:
-            result = (dst_unwrap_real(x) == dst_unwrap_real(y));
+        case JANET_REAL:
+            result = (janet_unwrap_real(x) == janet_unwrap_real(y));
             break;
-        case DST_INTEGER:
-            result = (dst_unwrap_integer(x) == dst_unwrap_integer(y));
+        case JANET_INTEGER:
+            result = (janet_unwrap_integer(x) == janet_unwrap_integer(y));
             break;
-        case DST_STRING:
-            result = dst_string_equal(dst_unwrap_string(x), dst_unwrap_string(y));
+        case JANET_STRING:
+            result = janet_string_equal(janet_unwrap_string(x), janet_unwrap_string(y));
             break;
-        case DST_TUPLE:
-            result = dst_tuple_equal(dst_unwrap_tuple(x), dst_unwrap_tuple(y));
+        case JANET_TUPLE:
+            result = janet_tuple_equal(janet_unwrap_tuple(x), janet_unwrap_tuple(y));
             break;
-        case DST_STRUCT:
-            result = dst_struct_equal(dst_unwrap_struct(x), dst_unwrap_struct(y));
+        case JANET_STRUCT:
+            result = janet_struct_equal(janet_unwrap_struct(x), janet_unwrap_struct(y));
             break;
         default:
             /* compare pointers */
-            result = (dst_unwrap_pointer(x) == dst_unwrap_pointer(y));
+            result = (janet_unwrap_pointer(x) == janet_unwrap_pointer(y));
             break;
         }
     }
@@ -63,43 +63,43 @@ int dst_equals(Dst x, Dst y) {
 }
 
 /* Computes a hash value for a function */
-int32_t dst_hash(Dst x) {
+int32_t janet_hash(Janet x) {
     int32_t hash = 0;
-    switch (dst_type(x)) {
-    case DST_NIL:
+    switch (janet_type(x)) {
+    case JANET_NIL:
         hash = 0;
         break;
-    case DST_FALSE:
+    case JANET_FALSE:
         hash = 1;
         break;
-    case DST_TRUE:
+    case JANET_TRUE:
         hash = 2;
         break;
-    case DST_STRING:
-    case DST_SYMBOL:
-        hash = dst_string_hash(dst_unwrap_string(x));
+    case JANET_STRING:
+    case JANET_SYMBOL:
+        hash = janet_string_hash(janet_unwrap_string(x));
         break;
-    case DST_TUPLE:
-        hash = dst_tuple_hash(dst_unwrap_tuple(x));
+    case JANET_TUPLE:
+        hash = janet_tuple_hash(janet_unwrap_tuple(x));
         break;
-    case DST_STRUCT:
-        hash = dst_struct_hash(dst_unwrap_struct(x));
+    case JANET_STRUCT:
+        hash = janet_struct_hash(janet_unwrap_struct(x));
         break;
-    case DST_INTEGER:
-        hash = dst_unwrap_integer(x);
+    case JANET_INTEGER:
+        hash = janet_unwrap_integer(x);
         break;
     default:
         /* TODO - test performance with different hash functions */
         if (sizeof(double) == sizeof(void *)) {
             /* Assuming 8 byte pointer */
-            uint64_t i = dst_u64(x);
+            uint64_t i = janet_u64(x);
             hash = (int32_t)(i & 0xFFFFFFFF);
             /* Get a bit more entropy by shifting the low bits out */
             hash >>= 3;
             hash ^= (int32_t) (i >> 32);
         } else {
             /* Assuming 4 byte pointer (or smaller) */
-            hash = (int32_t) ((char *)dst_unwrap_pointer(x) - (char *)0);
+            hash = (int32_t) ((char *)janet_unwrap_pointer(x) - (char *)0);
             hash >>= 2;
         }
         break;
@@ -110,47 +110,47 @@ int32_t dst_hash(Dst x) {
 /* Compares x to y. If they are equal retuns 0. If x is less, returns -1.
  * If y is less, returns 1. All types are comparable
  * and should have strict ordering. */
-int dst_compare(Dst x, Dst y) {
-    if (dst_type(x) == dst_type(y)) {
-        switch (dst_type(x)) {
-            case DST_NIL:
-            case DST_FALSE:
-            case DST_TRUE:
+int janet_compare(Janet x, Janet y) {
+    if (janet_type(x) == janet_type(y)) {
+        switch (janet_type(x)) {
+            case JANET_NIL:
+            case JANET_FALSE:
+            case JANET_TRUE:
                 return 0;
-            case DST_REAL:
+            case JANET_REAL:
                 /* Check for nans to ensure total order */
-                if (dst_unwrap_real(x) != dst_unwrap_real(x))
-                    return dst_unwrap_real(y) != dst_unwrap_real(y)
+                if (janet_unwrap_real(x) != janet_unwrap_real(x))
+                    return janet_unwrap_real(y) != janet_unwrap_real(y)
                         ? 0
                         : -1;
-                if (dst_unwrap_real(y) != dst_unwrap_real(y))
+                if (janet_unwrap_real(y) != janet_unwrap_real(y))
                     return 1;
 
-                if (dst_unwrap_real(x) == dst_unwrap_real(y)) {
+                if (janet_unwrap_real(x) == janet_unwrap_real(y)) {
                     return 0;
                 } else {
-                    return dst_unwrap_real(x) > dst_unwrap_real(y) ? 1 : -1;
+                    return janet_unwrap_real(x) > janet_unwrap_real(y) ? 1 : -1;
                 }
-            case DST_INTEGER:
-                if (dst_unwrap_integer(x) == dst_unwrap_integer(y)) {
+            case JANET_INTEGER:
+                if (janet_unwrap_integer(x) == janet_unwrap_integer(y)) {
                     return 0;
                 } else {
-                    return dst_unwrap_integer(x) > dst_unwrap_integer(y) ? 1 : -1;
+                    return janet_unwrap_integer(x) > janet_unwrap_integer(y) ? 1 : -1;
                 }
-            case DST_STRING:
-            case DST_SYMBOL:
-                return dst_string_compare(dst_unwrap_string(x), dst_unwrap_string(y));
-            case DST_TUPLE:
-                return dst_tuple_compare(dst_unwrap_tuple(x), dst_unwrap_tuple(y));
-            case DST_STRUCT:
-                return dst_struct_compare(dst_unwrap_struct(x), dst_unwrap_struct(y));
+            case JANET_STRING:
+            case JANET_SYMBOL:
+                return janet_string_compare(janet_unwrap_string(x), janet_unwrap_string(y));
+            case JANET_TUPLE:
+                return janet_tuple_compare(janet_unwrap_tuple(x), janet_unwrap_tuple(y));
+            case JANET_STRUCT:
+                return janet_struct_compare(janet_unwrap_struct(x), janet_unwrap_struct(y));
             default:
-                if (dst_unwrap_string(x) == dst_unwrap_string(y)) {
+                if (janet_unwrap_string(x) == janet_unwrap_string(y)) {
                     return 0;
                 } else {
-                    return dst_unwrap_string(x) > dst_unwrap_string(y) ? 1 : -1;
+                    return janet_unwrap_string(x) > janet_unwrap_string(y) ? 1 : -1;
                 }
         }
     }
-    return (dst_type(x) < dst_type(y)) ? -1 : 1;
+    return (janet_type(x) < janet_type(y)) ? -1 : 1;
 }

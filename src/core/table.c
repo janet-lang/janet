@@ -20,20 +20,20 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "gc.h"
 #include "util.h"
 
-#define dst_table_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
+#define janet_table_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
 
 /* Initialize a table */
-DstTable *dst_table_init(DstTable *table, int32_t capacity) {
-    DstKV *data;
-    capacity = dst_tablen(capacity);
+JanetTable *janet_table_init(JanetTable *table, int32_t capacity) {
+    JanetKV *data;
+    capacity = janet_tablen(capacity);
     if (capacity) {
-        data = (DstKV *) dst_memalloc_empty(capacity);
+        data = (JanetKV *) janet_memalloc_empty(capacity);
         if (NULL == data) {
-            DST_OUT_OF_MEMORY;
+            JANET_OUT_OF_MEMORY;
         }
         table->data = data;
         table->capacity = capacity;
@@ -48,45 +48,45 @@ DstTable *dst_table_init(DstTable *table, int32_t capacity) {
 }
 
 /* Deinitialize a table */
-void dst_table_deinit(DstTable *table) {
+void janet_table_deinit(JanetTable *table) {
     free(table->data);
 }
 
 /* Create a new table */
-DstTable *dst_table(int32_t capacity) {
-    DstTable *table = dst_gcalloc(DST_MEMORY_TABLE, sizeof(DstTable));
-    return dst_table_init(table, capacity);
+JanetTable *janet_table(int32_t capacity) {
+    JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE, sizeof(JanetTable));
+    return janet_table_init(table, capacity);
 }
 
 /* Find the bucket that contains the given key. Will also return
  * bucket where key should go if not in the table. */
-DstKV *dst_table_find(DstTable *t, Dst key) {
-    int32_t index = dst_table_maphash(t->capacity, dst_hash(key));
+JanetKV *janet_table_find(JanetTable *t, Janet key) {
+    int32_t index = janet_table_maphash(t->capacity, janet_hash(key));
     int32_t i;
-    DstKV *first_bucket = NULL;
+    JanetKV *first_bucket = NULL;
     /* Higher half */
     for (i = index; i < t->capacity; i++) {
-        DstKV *kv = t->data + i;
-        if (dst_checktype(kv->key, DST_NIL)) {
-            if (dst_checktype(kv->value, DST_NIL)) {
+        JanetKV *kv = t->data + i;
+        if (janet_checktype(kv->key, JANET_NIL)) {
+            if (janet_checktype(kv->value, JANET_NIL)) {
                 return kv;
             } else if (NULL == first_bucket) {
                 first_bucket = kv;
             }
-        } else if (dst_equals(kv->key, key)) {
+        } else if (janet_equals(kv->key, key)) {
             return t->data + i;
         }
     }
     /* Lower half */
     for (i = 0; i < index; i++) {
-        DstKV *kv = t->data + i;
-        if (dst_checktype(kv->key, DST_NIL)) {
-            if (dst_checktype(kv->value, DST_NIL)) {
+        JanetKV *kv = t->data + i;
+        if (janet_checktype(kv->key, JANET_NIL)) {
+            if (janet_checktype(kv->value, JANET_NIL)) {
                 return kv;
             } else if (NULL == first_bucket) {
                 first_bucket = kv;
             }
-        } else if (dst_equals(kv->key, key)) {
+        } else if (janet_equals(kv->key, key)) {
             return t->data + i;
         }
     }
@@ -94,11 +94,11 @@ DstKV *dst_table_find(DstTable *t, Dst key) {
 }
 
 /* Resize the dictionary table. */
-static void dst_table_rehash(DstTable *t, int32_t size) {
-    DstKV *olddata = t->data;
-    DstKV *newdata = (DstKV *) dst_memalloc_empty(size);
+static void janet_table_rehash(JanetTable *t, int32_t size) {
+    JanetKV *olddata = t->data;
+    JanetKV *newdata = (JanetKV *) janet_memalloc_empty(size);
     if (NULL == newdata) {
-        DST_OUT_OF_MEMORY;
+        JANET_OUT_OF_MEMORY;
     }
     int32_t i, oldcapacity;
     oldcapacity = t->capacity;
@@ -106,9 +106,9 @@ static void dst_table_rehash(DstTable *t, int32_t size) {
     t->capacity = size;
     t->deleted = 0;
     for (i = 0; i < oldcapacity; i++) {
-        DstKV *kv = olddata + i;
-        if (!dst_checktype(kv->key, DST_NIL)) {
-            DstKV *newkv = dst_table_find(t, kv->key);
+        JanetKV *kv = olddata + i;
+        if (!janet_checktype(kv->key, JANET_NIL)) {
+            JanetKV *newkv = janet_table_find(t, kv->key);
             *newkv = *kv;
         }
     }
@@ -116,62 +116,62 @@ static void dst_table_rehash(DstTable *t, int32_t size) {
 }
 
 /* Get a value out of the table */
-Dst dst_table_get(DstTable *t, Dst key) {
-    DstKV *bucket = dst_table_find(t, key);
-    if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL))
+Janet janet_table_get(JanetTable *t, Janet key) {
+    JanetKV *bucket = janet_table_find(t, key);
+    if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL))
         return bucket->value;
     /* Check prototypes */
     {
         int i;
-        for (i = DST_MAX_PROTO_DEPTH, t = t->proto; t && i; t = t->proto, --i) {
-            bucket = dst_table_find(t, key);
-            if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL))
+        for (i = JANET_MAX_PROTO_DEPTH, t = t->proto; t && i; t = t->proto, --i) {
+            bucket = janet_table_find(t, key);
+            if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL))
                 return bucket->value;
         }
     }
-    return dst_wrap_nil();
+    return janet_wrap_nil();
 }
 
 /* Get a value out of the table. Don't check prototype tables. */
-Dst dst_table_rawget(DstTable *t, Dst key) {
-    DstKV *bucket = dst_table_find(t, key);
-    if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL))
+Janet janet_table_rawget(JanetTable *t, Janet key) {
+    JanetKV *bucket = janet_table_find(t, key);
+    if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL))
         return bucket->value;
     else
-        return dst_wrap_nil();
+        return janet_wrap_nil();
 }
 
 /* Remove an entry from the dictionary. Return the value that
  * was removed. */
-Dst dst_table_remove(DstTable *t, Dst key) {
-    DstKV *bucket = dst_table_find(t, key);
-    if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL)) {
-        Dst ret = bucket->key;
+Janet janet_table_remove(JanetTable *t, Janet key) {
+    JanetKV *bucket = janet_table_find(t, key);
+    if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL)) {
+        Janet ret = bucket->key;
         t->count--;
         t->deleted++;
-        bucket->key = dst_wrap_nil();
-        bucket->value = dst_wrap_false();
+        bucket->key = janet_wrap_nil();
+        bucket->value = janet_wrap_false();
         return ret;
     } else {
-        return dst_wrap_nil();
+        return janet_wrap_nil();
     }
 }
 
 /* Put a value into the object */
-void dst_table_put(DstTable *t, Dst key, Dst value) {
-    if (dst_checktype(key, DST_NIL)) return;
-    if (dst_checktype(value, DST_NIL)) {
-        dst_table_remove(t, key);
+void janet_table_put(JanetTable *t, Janet key, Janet value) {
+    if (janet_checktype(key, JANET_NIL)) return;
+    if (janet_checktype(value, JANET_NIL)) {
+        janet_table_remove(t, key);
     } else {
-        DstKV *bucket = dst_table_find(t, key);
-        if (NULL != bucket && !dst_checktype(bucket->key, DST_NIL)) {
+        JanetKV *bucket = janet_table_find(t, key);
+        if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL)) {
             bucket->value = value;
         } else {
             if (NULL == bucket || 2 * (t->count + t->deleted + 1) > t->capacity) {
-                dst_table_rehash(t, dst_tablen(2 * t->count + 2));
+                janet_table_rehash(t, janet_tablen(2 * t->count + 2));
             }
-            bucket = dst_table_find(t, key);
-            if (dst_checktype(bucket->value, DST_FALSE))
+            bucket = janet_table_find(t, key);
+            if (janet_checktype(bucket->value, JANET_FALSE))
                 --t->deleted;
             bucket->key = key;
             bucket->value = value;
@@ -181,20 +181,20 @@ void dst_table_put(DstTable *t, Dst key, Dst value) {
 }
 
 /* Clear a table */
-void dst_table_clear(DstTable *t) {
+void janet_table_clear(JanetTable *t) {
     int32_t capacity = t->capacity;
-    DstKV *data = t->data;
-    dst_memempty(data, capacity);
+    JanetKV *data = t->data;
+    janet_memempty(data, capacity);
     t->count = 0;
     t->deleted = 0;
 }
 
 /* Find next key in an object. Returns NULL if no next key. */
-const DstKV *dst_table_next(DstTable *t, const DstKV *kv) {
-    DstKV *end = t->data + t->capacity;
+const JanetKV *janet_table_next(JanetTable *t, const JanetKV *kv) {
+    JanetKV *end = t->data + t->capacity;
     kv = (kv == NULL) ? t->data : kv + 1;
     while (kv < end) {
-        if (!dst_checktype(kv->key, DST_NIL))
+        if (!janet_checktype(kv->key, JANET_NIL))
             return kv;
         kv++;
     }
@@ -202,87 +202,87 @@ const DstKV *dst_table_next(DstTable *t, const DstKV *kv) {
 }
 
 /* Convert table to struct */
-const DstKV *dst_table_to_struct(DstTable *t) {
-    DstKV *st = dst_struct_begin(t->count);
-    DstKV *kv = t->data;
-    DstKV *end = t->data + t->capacity;
+const JanetKV *janet_table_to_struct(JanetTable *t) {
+    JanetKV *st = janet_struct_begin(t->count);
+    JanetKV *kv = t->data;
+    JanetKV *end = t->data + t->capacity;
     while (kv < end) {
-        if (!dst_checktype(kv->key, DST_NIL))
-            dst_struct_put(st, kv->key, kv->value);
+        if (!janet_checktype(kv->key, JANET_NIL))
+            janet_struct_put(st, kv->key, kv->value);
         kv++;
     }
-    return dst_struct_end(st);
+    return janet_struct_end(st);
 }
 
 /* Merge a table or struct into a table */
-static void dst_table_mergekv(DstTable *table, const DstKV *kvs, int32_t cap) {
+static void janet_table_mergekv(JanetTable *table, const JanetKV *kvs, int32_t cap) {
     int32_t i;
     for (i = 0; i < cap; i++) {
-        const DstKV *kv = kvs + i;
-        if (!dst_checktype(kv->key, DST_NIL)) {
-            dst_table_put(table, kv->key, kv->value);
+        const JanetKV *kv = kvs + i;
+        if (!janet_checktype(kv->key, JANET_NIL)) {
+            janet_table_put(table, kv->key, kv->value);
         }
     }
 }
 
 /* Merge a table other into another table */
-void dst_table_merge_table(DstTable *table, DstTable *other) {
-    dst_table_mergekv(table, other->data, other->capacity);
+void janet_table_merge_table(JanetTable *table, JanetTable *other) {
+    janet_table_mergekv(table, other->data, other->capacity);
 }
 
 /* Merge a struct into a table */
-void dst_table_merge_struct(DstTable *table, const DstKV *other) {
-    dst_table_mergekv(table, other, dst_struct_capacity(other));
+void janet_table_merge_struct(JanetTable *table, const JanetKV *other) {
+    janet_table_mergekv(table, other, janet_struct_capacity(other));
 }
 
 /* C Functions */
 
-static int cfun_new(DstArgs args) {
-    DstTable *t;
+static int cfun_new(JanetArgs args) {
+    JanetTable *t;
     int32_t cap;
-    DST_FIXARITY(args, 1);
-    DST_ARG_INTEGER(cap, args, 0);
-    t = dst_table(cap);
-    DST_RETURN_TABLE(args, t);
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_INTEGER(cap, args, 0);
+    t = janet_table(cap);
+    JANET_RETURN_TABLE(args, t);
 }
 
-static int cfun_getproto(DstArgs args) {
-    DstTable *t;
-    DST_FIXARITY(args, 1);
-    DST_ARG_TABLE(t, args, 0);
-    DST_RETURN(args, t->proto
-            ? dst_wrap_table(t->proto)
-            : dst_wrap_nil());
+static int cfun_getproto(JanetArgs args) {
+    JanetTable *t;
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_TABLE(t, args, 0);
+    JANET_RETURN(args, t->proto
+            ? janet_wrap_table(t->proto)
+            : janet_wrap_nil());
 }
 
-static int cfun_setproto(DstArgs args) {
-    DstTable *table, *proto;
-    DST_FIXARITY(args, 2);
-    DST_ARG_TABLE(table, args, 0);
-    if (dst_checktype(args.v[1], DST_NIL)) {
+static int cfun_setproto(JanetArgs args) {
+    JanetTable *table, *proto;
+    JANET_FIXARITY(args, 2);
+    JANET_ARG_TABLE(table, args, 0);
+    if (janet_checktype(args.v[1], JANET_NIL)) {
         proto = NULL;
     } else {
-        DST_ARG_TABLE(proto, args, 1);
+        JANET_ARG_TABLE(proto, args, 1);
     }
     table->proto = proto;
-    DST_RETURN_TABLE(args, table);
+    JANET_RETURN_TABLE(args, table);
 }
 
-static int cfun_tostruct(DstArgs args) {
-    DstTable *t;
-    DST_FIXARITY(args, 1);
-    DST_ARG_TABLE(t, args, 0);
-    DST_RETURN_STRUCT(args, dst_table_to_struct(t));
+static int cfun_tostruct(JanetArgs args) {
+    JanetTable *t;
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_TABLE(t, args, 0);
+    JANET_RETURN_STRUCT(args, janet_table_to_struct(t));
 }
 
-static int cfun_rawget(DstArgs args) {
-    DstTable *table;
-    DST_FIXARITY(args, 2);
-    DST_ARG_TABLE(table, args, 0);
-    DST_RETURN(args, dst_table_rawget(table, args.v[1]));
+static int cfun_rawget(JanetArgs args) {
+    JanetTable *table;
+    JANET_FIXARITY(args, 2);
+    JANET_ARG_TABLE(table, args, 0);
+    JANET_RETURN(args, janet_table_rawget(table, args.v[1]));
 }
 
-static const DstReg cfuns[] = {
+static const JanetReg cfuns[] = {
     {"table.new", cfun_new},
     {"table.to-struct", cfun_tostruct},
     {"table.getproto", cfun_getproto},
@@ -292,10 +292,10 @@ static const DstReg cfuns[] = {
 };
 
 /* Load the table module */
-int dst_lib_table(DstArgs args) {
-    DstTable *env = dst_env(args);
-    dst_cfuns(env, NULL, cfuns);
+int janet_lib_table(JanetArgs args) {
+    JanetTable *env = janet_env(args);
+    janet_cfuns(env, NULL, cfuns);
     return 0;
 }
 
-#undef dst_table_maphash
+#undef janet_table_maphash

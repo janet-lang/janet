@@ -20,29 +20,29 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef DST_FIBER_H_defined
-#define DST_FIBER_H_defined
+#ifndef JANET_FIBER_H_defined
+#define JANET_FIBER_H_defined
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 
-extern DST_THREAD_LOCAL DstFiber *dst_vm_fiber;
+extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
 
-#define dst_fiber_set_status(f, s) do {\
-    (f)->flags &= ~DST_FIBER_STATUS_MASK;\
-    (f)->flags |= (s) << DST_FIBER_STATUS_OFFSET;\
+#define janet_fiber_set_status(f, s) do {\
+    (f)->flags &= ~JANET_FIBER_STATUS_MASK;\
+    (f)->flags |= (s) << JANET_FIBER_STATUS_OFFSET;\
 } while (0)
 
-#define dst_stack_frame(s) ((DstStackFrame *)((s) - DST_FRAME_SIZE))
-#define dst_fiber_frame(f) dst_stack_frame((f)->data + (f)->frame)
-DstFiber *dst_fiber_reset(DstFiber *fiber, DstFunction *callee);
-void dst_fiber_setcapacity(DstFiber *fiber, int32_t n);
-void dst_fiber_push(DstFiber *fiber, Dst x);
-void dst_fiber_push2(DstFiber *fiber, Dst x, Dst y);
-void dst_fiber_push3(DstFiber *fiber, Dst x, Dst y, Dst z);
-void dst_fiber_pushn(DstFiber *fiber, const Dst *arr, int32_t n);
-int dst_fiber_funcframe(DstFiber *fiber, DstFunction *func);
-int dst_fiber_funcframe_tail(DstFiber *fiber, DstFunction *func);
-void dst_fiber_cframe(DstFiber *fiber, DstCFunction cfun);
-void dst_fiber_popframe(DstFiber *fiber);
+#define janet_stack_frame(s) ((JanetStackFrame *)((s) - JANET_FRAME_SIZE))
+#define janet_fiber_frame(f) janet_stack_frame((f)->data + (f)->frame)
+JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee);
+void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n);
+void janet_fiber_push(JanetFiber *fiber, Janet x);
+void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y);
+void janet_fiber_push3(JanetFiber *fiber, Janet x, Janet y, Janet z);
+void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n);
+int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func);
+int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func);
+void janet_fiber_cframe(JanetFiber *fiber, JanetCFunction cfun);
+void janet_fiber_popframe(JanetFiber *fiber);
 
 #endif

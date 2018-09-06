@@ -20,21 +20,21 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "util.h"
 #include "state.h"
 #include "gc.h"
 
 /* Base 64 lookup table for digits */
-const char dst_base64[65] =
+const char janet_base64[65] =
     "0123456789"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "abcdefghijklmnopqrstuvwxyz"
     "_=";
 
-/* The DST value types in order. These types can be used as
+/* The JANET value types in order. These types can be used as
  * mnemonics instead of a bit pattern for type checking */
-const char *const dst_type_names[16] = {
+const char *const janet_type_names[16] = {
     ":nil",
     ":boolean",
     ":boolean",
@@ -55,7 +55,7 @@ const char *const dst_type_names[16] = {
 
 /* Calculate hash for string */
 
-int32_t dst_string_calchash(const uint8_t *str, int32_t len) {
+int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
     const uint8_t *end = str + len;
     uint32_t hash = 5381;
     while (str < end)
@@ -64,21 +64,21 @@ int32_t dst_string_calchash(const uint8_t *str, int32_t len) {
 }
 
 /* Computes hash of an array of values */
-int32_t dst_array_calchash(const Dst *array, int32_t len) {
-    const Dst *end = array + len;
+int32_t janet_array_calchash(const Janet *array, int32_t len) {
+    const Janet *end = array + len;
     uint32_t hash = 5381;
     while (array < end)
-        hash = (hash << 5) + hash + dst_hash(*array++);
+        hash = (hash << 5) + hash + janet_hash(*array++);
     return (int32_t) hash;
 }
 
 /* Computes hash of an array of values */
-int32_t dst_kv_calchash(const DstKV *kvs, int32_t len) {
-    const DstKV *end = kvs + len;
+int32_t janet_kv_calchash(const JanetKV *kvs, int32_t len) {
+    const JanetKV *end = kvs + len;
     uint32_t hash = 5381;
     while (kvs < end) {
-        hash = (hash << 5) + hash + dst_hash(kvs->key);
-        hash = (hash << 5) + hash + dst_hash(kvs->value);
+        hash = (hash << 5) + hash + janet_hash(kvs->key);
+        hash = (hash << 5) + hash + janet_hash(kvs->value);
         kvs++;
     }
     return (int32_t) hash;
@@ -86,7 +86,7 @@ int32_t dst_kv_calchash(const DstKV *kvs, int32_t len) {
 
 /* Calculate next power of 2. May overflow. If n is 0,
  * will return 0. */
-int32_t dst_tablen(int32_t n) {
+int32_t janet_tablen(int32_t n) {
     n |= n >> 1;
     n |= n >> 2;
     n |= n >> 4;
@@ -95,10 +95,10 @@ int32_t dst_tablen(int32_t n) {
     return n + 1;
 }
 
-/* Compare a dst string with a cstring. more efficient than loading
- * c string as a dst string. */
-int dst_cstrcmp(const uint8_t *str, const char *other) {
-    int32_t len = dst_string_length(str);
+/* Compare a janet string with a cstring. more efficient than loading
+ * c string as a janet string. */
+int janet_cstrcmp(const uint8_t *str, const char *other) {
+    int32_t len = janet_string_length(str);
     int32_t index;
     for (index = 0; index < len; index++) {
         uint8_t c = str[index];
@@ -113,7 +113,7 @@ int dst_cstrcmp(const uint8_t *str, const char *other) {
 /* Do a binary search on a static array of structs. Each struct must
  * have a string as its first element, and the struct must be sorted
  * lexogrpahically by that element. */
-const void *dst_strbinsearch(
+const void *janet_strbinsearch(
         const void *tab,
         size_t tabcount,
         size_t itemsize,
@@ -125,7 +125,7 @@ const void *dst_strbinsearch(
         size_t mid = low + ((hi - low) / 2);
         const char **item = (const char **)(t + mid * itemsize);
         const char *name = *item;
-        int comp = dst_cstrcmp(key, name);
+        int comp = janet_cstrcmp(key, name);
         if (comp < 0) {
             hi = mid;
         } else if (comp > 0) {
@@ -138,98 +138,98 @@ const void *dst_strbinsearch(
 }
 
 /* Register a value in the global registry */
-void dst_register(const char *name, Dst value) {
-    Dst regkey = dst_csymbolv(name);
-    dst_table_put(dst_vm_registry, regkey, value);
-    dst_table_put(dst_vm_registry, value, regkey);
+void janet_register(const char *name, Janet value) {
+    Janet regkey = janet_csymbolv(name);
+    janet_table_put(janet_vm_registry, regkey, value);
+    janet_table_put(janet_vm_registry, value, regkey);
 }
 
 /* Add a def to an environment */
-void dst_def(DstTable *env, const char *name, Dst val) {
-    DstTable *subt = dst_table(1);
-    dst_table_put(subt, dst_csymbolv(":value"), val);
-    dst_table_put(env, dst_csymbolv(name), dst_wrap_table(subt));
+void janet_def(JanetTable *env, const char *name, Janet val) {
+    JanetTable *subt = janet_table(1);
+    janet_table_put(subt, janet_csymbolv(":value"), val);
+    janet_table_put(env, janet_csymbolv(name), janet_wrap_table(subt));
 }
 
 /* Add a var to the environment */
-void dst_var(DstTable *env, const char *name, Dst val) {
-    DstArray *array = dst_array(1);
-    DstTable *subt = dst_table(1);
-    dst_array_push(array, val);
-    dst_table_put(subt, dst_csymbolv(":ref"), dst_wrap_array(array));
-    dst_table_put(env, dst_csymbolv(name), dst_wrap_table(subt));
+void janet_var(JanetTable *env, const char *name, Janet val) {
+    JanetArray *array = janet_array(1);
+    JanetTable *subt = janet_table(1);
+    janet_array_push(array, val);
+    janet_table_put(subt, janet_csymbolv(":ref"), janet_wrap_array(array));
+    janet_table_put(env, janet_csymbolv(name), janet_wrap_table(subt));
 }
 
 /* Load many cfunctions at once */
-void dst_cfuns(DstTable *env, const char *regprefix, const DstReg *cfuns) {
+void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
     while (cfuns->name) {
-        Dst name = dst_csymbolv(cfuns->name);
-        Dst longname = name;
+        Janet name = janet_csymbolv(cfuns->name);
+        Janet longname = name;
         if (regprefix) {
             int32_t reglen = 0;
             int32_t nmlen = 0;
             while (regprefix[reglen]) reglen++;
             while (cfuns->name[nmlen]) nmlen++;
             uint8_t *longname_buffer =
-                dst_string_begin(reglen + 1 + nmlen);
+                janet_string_begin(reglen + 1 + nmlen);
             memcpy(longname_buffer, regprefix, reglen);
             longname_buffer[reglen] = '.';
             memcpy(longname_buffer + reglen + 1, cfuns->name, nmlen);
-            longname = dst_wrap_symbol(dst_string_end(longname_buffer));
+            longname = janet_wrap_symbol(janet_string_end(longname_buffer));
         }
-        Dst fun = dst_wrap_cfunction(cfuns->cfun);
-        dst_def(env, cfuns->name, fun);
-        dst_table_put(dst_vm_registry, longname, fun);
-        dst_table_put(dst_vm_registry, fun, longname);
+        Janet fun = janet_wrap_cfunction(cfuns->cfun);
+        janet_def(env, cfuns->name, fun);
+        janet_table_put(janet_vm_registry, longname, fun);
+        janet_table_put(janet_vm_registry, fun, longname);
         cfuns++;
     }
 }
 
 /* Resolve a symbol in the environment */
-DstBindingType dst_resolve(DstTable *env, const uint8_t *sym, Dst *out) {
-    Dst ref;
-    DstTable *entry_table;
-    Dst entry = dst_table_get(env, dst_wrap_symbol(sym));
-    if (!dst_checktype(entry, DST_TABLE))
-        return DST_BINDING_NONE;
-    entry_table = dst_unwrap_table(entry);
-    if (!dst_checktype(
-        dst_table_get(entry_table, dst_csymbolv(":macro")),
-        DST_NIL)) {
-        *out = dst_table_get(entry_table, dst_csymbolv(":value"));
-        return DST_BINDING_MACRO;
+JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) {
+    Janet ref;
+    JanetTable *entry_table;
+    Janet entry = janet_table_get(env, janet_wrap_symbol(sym));
+    if (!janet_checktype(entry, JANET_TABLE))
+        return JANET_BINDING_NONE;
+    entry_table = janet_unwrap_table(entry);
+    if (!janet_checktype(
+        janet_table_get(entry_table, janet_csymbolv(":macro")),
+        JANET_NIL)) {
+        *out = janet_table_get(entry_table, janet_csymbolv(":value"));
+        return JANET_BINDING_MACRO;
     }
-    ref = dst_table_get(entry_table, dst_csymbolv(":ref"));
-    if (dst_checktype(ref, DST_ARRAY)) {
+    ref = janet_table_get(entry_table, janet_csymbolv(":ref"));
+    if (janet_checktype(ref, JANET_ARRAY)) {
         *out = ref;
-        return DST_BINDING_VAR;
+        return JANET_BINDING_VAR;
     }
-    *out = dst_table_get(entry_table, dst_csymbolv(":value"));
-    return DST_BINDING_DEF;
+    *out = janet_table_get(entry_table, janet_csymbolv(":value"));
+    return JANET_BINDING_DEF;
 }
 
 /* Get module from the arguments passed to library */
-DstTable *dst_env(DstArgs args) {
-    DstTable *module;
-    if (args.n >= 1 && dst_checktype(args.v[0], DST_TABLE)) {
-        module = dst_unwrap_table(args.v[0]);
+JanetTable *janet_env(JanetArgs args) {
+    JanetTable *module;
+    if (args.n >= 1 && janet_checktype(args.v[0], JANET_TABLE)) {
+        module = janet_unwrap_table(args.v[0]);
     } else {
-        module = dst_table(0);
+        module = janet_table(0);
     }
-    *args.ret = dst_wrap_table(module);
+    *args.ret = janet_wrap_table(module);
     return module;
 }
 
 /* Read both tuples and arrays as c pointers + int32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */
-int dst_indexed_view(Dst seq, const Dst **data, int32_t *len) {
-    if (dst_checktype(seq, DST_ARRAY)) {
-        *data = dst_unwrap_array(seq)->data;
-        *len = dst_unwrap_array(seq)->count;
+int janet_indexed_view(Janet seq, const Janet **data, int32_t *len) {
+    if (janet_checktype(seq, JANET_ARRAY)) {
+        *data = janet_unwrap_array(seq)->data;
+        *len = janet_unwrap_array(seq)->count;
         return 1;
-    } else if (dst_checktype(seq, DST_TUPLE)) {
-        *data = dst_unwrap_tuple(seq);
-        *len = dst_tuple_length(dst_unwrap_struct(seq));
+    } else if (janet_checktype(seq, JANET_TUPLE)) {
+        *data = janet_unwrap_tuple(seq);
+        *len = janet_tuple_length(janet_unwrap_struct(seq));
         return 1;
     }
     return 0;
@@ -237,14 +237,14 @@ int dst_indexed_view(Dst seq, const Dst **data, int32_t *len) {
 
 /* Read both strings and buffer as unsigned character array + int32_t len.
  * Returns 1 if the view can be constructed and 0 if the type is invalid. */
-int dst_bytes_view(Dst str, const uint8_t **data, int32_t *len) {
-    if (dst_checktype(str, DST_STRING) || dst_checktype(str, DST_SYMBOL)) {
-        *data = dst_unwrap_string(str);
-        *len = dst_string_length(dst_unwrap_string(str));
+int janet_bytes_view(Janet str, const uint8_t **data, int32_t *len) {
+    if (janet_checktype(str, JANET_STRING) || janet_checktype(str, JANET_SYMBOL)) {
+        *data = janet_unwrap_string(str);
+        *len = janet_string_length(janet_unwrap_string(str));
         return 1;
-    } else if (dst_checktype(str, DST_BUFFER)) {
-        *data = dst_unwrap_buffer(str)->data;
-        *len = dst_unwrap_buffer(str)->count;
+    } else if (janet_checktype(str, JANET_BUFFER)) {
+        *data = janet_unwrap_buffer(str)->data;
+        *len = janet_unwrap_buffer(str)->count;
         return 1;
     }
     return 0;
@@ -253,39 +253,39 @@ int dst_bytes_view(Dst str, const uint8_t **data, int32_t *len) {
 /* Read both structs and tables as the entries of a hashtable with
  * identical structure. Returns 1 if the view can be constructed and
  * 0 if the type is invalid. */
-int dst_dictionary_view(Dst tab, const DstKV **data, int32_t *len, int32_t *cap) {
-    if (dst_checktype(tab, DST_TABLE)) {
-        *data = dst_unwrap_table(tab)->data;
-        *cap = dst_unwrap_table(tab)->capacity;
-        *len = dst_unwrap_table(tab)->count;
+int janet_dictionary_view(Janet tab, const JanetKV **data, int32_t *len, int32_t *cap) {
+    if (janet_checktype(tab, JANET_TABLE)) {
+        *data = janet_unwrap_table(tab)->data;
+        *cap = janet_unwrap_table(tab)->capacity;
+        *len = janet_unwrap_table(tab)->count;
         return 1;
-    } else if (dst_checktype(tab, DST_STRUCT)) {
-        *data = dst_unwrap_struct(tab);
-        *cap = dst_struct_capacity(dst_unwrap_struct(tab));
-        *len = dst_struct_length(dst_unwrap_struct(tab));
+    } else if (janet_checktype(tab, JANET_STRUCT)) {
+        *data = janet_unwrap_struct(tab);
+        *cap = janet_struct_capacity(janet_unwrap_struct(tab));
+        *len = janet_struct_length(janet_unwrap_struct(tab));
         return 1;
     }
     return 0;
 }
 
 /* Get actual type name of a value for debugging purposes */
-static const char *typestr(DstArgs args, int32_t n) {
-    DstType actual = n < args.n ? dst_type(args.v[n]) : DST_NIL;
-    return ((actual == DST_ABSTRACT)
-        ? dst_abstract_type(dst_unwrap_abstract(args.v[n]))->name
-        : dst_type_names[actual]) + 1;
+static const char *typestr(JanetArgs args, int32_t n) {
+    JanetType actual = n < args.n ? janet_type(args.v[n]) : JANET_NIL;
+    return ((actual == JANET_ABSTRACT)
+        ? janet_abstract_type(janet_unwrap_abstract(args.v[n]))->name
+        : janet_type_names[actual]) + 1;
 }
 
-int dst_type_err(DstArgs args, int32_t n, DstType expected) {
-    const uint8_t *message = dst_formatc(
+int janet_type_err(JanetArgs args, int32_t n, JanetType expected) {
+    const uint8_t *message = janet_formatc(
             "bad slot #%d, expected %t, got %s",
             n,
             expected,
             typestr(args, n));
-    DST_THROWV(args, dst_wrap_string(message));
+    JANET_THROWV(args, janet_wrap_string(message));
 }
 
-void dst_buffer_push_types(DstBuffer *buffer, int types) {
+void janet_buffer_push_types(JanetBuffer *buffer, int types) {
     int first = 1;
     int i = 0;
     while (types) {
@@ -293,38 +293,38 @@ void dst_buffer_push_types(DstBuffer *buffer, int types) {
             if (first) {
                 first = 0;
             } else {
-                dst_buffer_push_u8(buffer, '|');
+                janet_buffer_push_u8(buffer, '|');
             }
-            dst_buffer_push_cstring(buffer, dst_type_names[i] + 1);
+            janet_buffer_push_cstring(buffer, janet_type_names[i] + 1);
         }
         i++;
         types >>= 1;
     }
 }
 
-int dst_typemany_err(DstArgs args, int32_t n, int expected) {
+int janet_typemany_err(JanetArgs args, int32_t n, int expected) {
     const uint8_t *message;
-    DstBuffer buf;
-    dst_buffer_init(&buf, 20);
-    dst_buffer_push_string(&buf, dst_formatc("bad slot #%d, expected ", n));
-    dst_buffer_push_types(&buf, expected);
-    dst_buffer_push_cstring(&buf, ", got ");
-    dst_buffer_push_cstring(&buf, typestr(args, n));
-    message = dst_string(buf.data, buf.count);
-    dst_buffer_deinit(&buf);
-    DST_THROWV(args, dst_wrap_string(message));
+    JanetBuffer buf;
+    janet_buffer_init(&buf, 20);
+    janet_buffer_push_string(&buf, janet_formatc("bad slot #%d, expected ", n));
+    janet_buffer_push_types(&buf, expected);
+    janet_buffer_push_cstring(&buf, ", got ");
+    janet_buffer_push_cstring(&buf, typestr(args, n));
+    message = janet_string(buf.data, buf.count);
+    janet_buffer_deinit(&buf);
+    JANET_THROWV(args, janet_wrap_string(message));
 }
 
-int dst_arity_err(DstArgs args, int32_t n, const char *prefix) {
-    DST_THROWV(args,
-            dst_wrap_string(dst_formatc(
+int janet_arity_err(JanetArgs args, int32_t n, const char *prefix) {
+    JANET_THROWV(args,
+            janet_wrap_string(janet_formatc(
                     "expected %s%d argument%s, got %d",
                     prefix, n, n == 1 ? "" : "s", args.n)));
 }
 
-int dst_typeabstract_err(DstArgs args, int32_t n, const DstAbstractType *at) {
-    DST_THROWV(args,
-            dst_wrap_string(dst_formatc(
+int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstractType *at) {
+    JANET_THROWV(args,
+            janet_wrap_string(janet_formatc(
                     "bad slot #%d, expected %s, got %s",
                     n, at->name, typestr(args, n))));
 }

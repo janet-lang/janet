@@ -20,39 +20,39 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "gc.h"
 #include "util.h"
 
-#define dst_struct_maphash(cap, hash) ((uint32_t)(hash & (cap - 1)));
+#define janet_struct_maphash(cap, hash) ((uint32_t)(hash & (cap - 1)));
 
 /* Begin creation of a struct */
-DstKV *dst_struct_begin(int32_t count) {
+JanetKV *janet_struct_begin(int32_t count) {
 
     /* Calculate capacity as power of 2 after 2 * count. */
-    int32_t capacity = dst_tablen(2 * count);
-    if (capacity < 0) capacity = dst_tablen(count + 1);
+    int32_t capacity = janet_tablen(2 * count);
+    if (capacity < 0) capacity = janet_tablen(count + 1);
 
-    size_t s = sizeof(int32_t) * 4 + (capacity * sizeof(DstKV));
-    char *data = dst_gcalloc(DST_MEMORY_STRUCT, s);
-    DstKV *st = (DstKV *) (data + 4 * sizeof(int32_t));
-    dst_memempty(st, capacity);
-    dst_struct_length(st) = count;
-    dst_struct_capacity(st) = capacity;
-    dst_struct_hash(st) = 0;
+    size_t s = sizeof(int32_t) * 4 + (capacity * sizeof(JanetKV));
+    char *data = janet_gcalloc(JANET_MEMORY_STRUCT, s);
+    JanetKV *st = (JanetKV *) (data + 4 * sizeof(int32_t));
+    janet_memempty(st, capacity);
+    janet_struct_length(st) = count;
+    janet_struct_capacity(st) = capacity;
+    janet_struct_hash(st) = 0;
     return st;
 }
 
 /* Find an item in a struct */
-const DstKV *dst_struct_find(const DstKV *st, Dst key) {
-    int32_t cap = dst_struct_capacity(st);
-    int32_t index = dst_struct_maphash(cap, dst_hash(key));
+const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
+    int32_t cap = janet_struct_capacity(st);
+    int32_t index = janet_struct_maphash(cap, janet_hash(key));
     int32_t i;
     for (i = index; i < cap; i++)
-        if (dst_checktype(st[i].key, DST_NIL) || dst_equals(st[i].key, key))
+        if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
             return st + i;
     for (i = 0; i < index; i++)
-        if (dst_checktype(st[i].key, DST_NIL) || dst_equals(st[i].key, key))
+        if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
             return st + i;
     return NULL;
 }
@@ -65,27 +65,27 @@ const DstKV *dst_struct_find(const DstKV *st, Dst key) {
  * preforms an in-place insertion sort. This ensures the internal structure of the
  * hash map is independant of insertion order.
  */
-void dst_struct_put(DstKV *st, Dst key, Dst value) {
-    int32_t cap = dst_struct_capacity(st);
-    int32_t hash = dst_hash(key);
-    int32_t index = dst_struct_maphash(cap, hash);
+void janet_struct_put(JanetKV *st, Janet key, Janet value) {
+    int32_t cap = janet_struct_capacity(st);
+    int32_t hash = janet_hash(key);
+    int32_t index = janet_struct_maphash(cap, hash);
     int32_t i, j, dist;
     int32_t bounds[4] = {index, cap, 0, index};
-    if (dst_checktype(key, DST_NIL) || dst_checktype(value, DST_NIL)) return;
+    if (janet_checktype(key, JANET_NIL) || janet_checktype(value, JANET_NIL)) return;
     /* Avoid extra items */
-    if (dst_struct_hash(st) == dst_struct_length(st)) return;
+    if (janet_struct_hash(st) == janet_struct_length(st)) return;
     for (dist = 0, j = 0; j < 4; j += 2)
     for (i = bounds[j]; i < bounds[j + 1]; i++, dist++) {
         int status;
         int32_t otherhash;
         int32_t otherindex, otherdist;
-        DstKV *kv = st + i;
+        JanetKV *kv = st + i;
         /* We found an empty slot, so just add key and value */
-        if (dst_checktype(kv->key, DST_NIL)) {
+        if (janet_checktype(kv->key, JANET_NIL)) {
             kv->key = key;
             kv->value = value;
             /* Update the temporary count */
-            dst_struct_hash(st)++;
+            janet_struct_hash(st)++;
             return;
         }
         /* Robinhood hashing - check if colliding kv pair
@@ -94,8 +94,8 @@ void dst_struct_put(DstKV *st, Dst key, Dst value) {
          * with different order have the same internal layout, and therefor
          * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}. 
          * Collisions are resolved via an insertion sort insertion. */
-        otherhash = dst_hash(kv->key);
-        otherindex = dst_struct_maphash(cap, otherhash);
+        otherhash = janet_hash(kv->key);
+        otherindex = janet_struct_maphash(cap, otherhash);
         otherdist = (i + cap - otherindex) & (cap - 1);
         if (dist < otherdist)
             status = -1;
@@ -106,11 +106,11 @@ void dst_struct_put(DstKV *st, Dst key, Dst value) {
         else if (otherhash < hash)
             status = 1;
         else
-            status = dst_compare(key, kv->key);
+            status = janet_compare(key, kv->key);
         /* If other is closer to their ideal slot */
         if (status == 1) {
             /* Swap current kv pair with pair in slot */
-            DstKV temp = *kv;
+            JanetKV temp = *kv;
             kv->key = key;
             kv->value = value;
             key = temp.key;
@@ -121,97 +121,97 @@ void dst_struct_put(DstKV *st, Dst key, Dst value) {
         } else if (status == 0) {
             /* This should not happen - it means
              * than a key was added to the struct more than once */
-            dst_exit("struct double put fail");
+            janet_exit("struct double put fail");
             return;
         }
     }
 }
 
 /* Finish building a struct */
-const DstKV *dst_struct_end(DstKV *st) {
-    if (dst_struct_hash(st) != dst_struct_length(st)) {
+const JanetKV *janet_struct_end(JanetKV *st) {
+    if (janet_struct_hash(st) != janet_struct_length(st)) {
         /* Error building struct, probably duplicate values. We need to rebuild
          * the struct using only the values that went in. The second creation should always
          * succeed. */
         int32_t i, realCount;
-        DstKV *newst;
+        JanetKV *newst;
         realCount = 0;
-        for (i = 0; i < dst_struct_capacity(st); i++) {
-            DstKV *kv = st + i;
-            realCount += dst_checktype(kv->key, DST_NIL) ? 1 : 0;
+        for (i = 0; i < janet_struct_capacity(st); i++) {
+            JanetKV *kv = st + i;
+            realCount += janet_checktype(kv->key, JANET_NIL) ? 1 : 0;
         }
-        newst = dst_struct_begin(realCount);
-        for (i = 0; i < dst_struct_capacity(st); i++) {
-            DstKV *kv = st + i;
-            if (!dst_checktype(kv->key, DST_NIL)) {
-                dst_struct_put(newst, kv->key, kv->value);
+        newst = janet_struct_begin(realCount);
+        for (i = 0; i < janet_struct_capacity(st); i++) {
+            JanetKV *kv = st + i;
+            if (!janet_checktype(kv->key, JANET_NIL)) {
+                janet_struct_put(newst, kv->key, kv->value);
             }
         }
         st = newst;
     }
-    dst_struct_hash(st) = dst_kv_calchash(st, dst_struct_capacity(st));
-    return (const DstKV *)st;
+    janet_struct_hash(st) = janet_kv_calchash(st, janet_struct_capacity(st));
+    return (const JanetKV *)st;
 }
 
 /* Get an item from a struct */
-Dst dst_struct_get(const DstKV *st, Dst key) {
-    const DstKV *kv = dst_struct_find(st, key);
-    return kv ? kv->value : dst_wrap_nil();
+Janet janet_struct_get(const JanetKV *st, Janet key) {
+    const JanetKV *kv = janet_struct_find(st, key);
+    return kv ? kv->value : janet_wrap_nil();
 }
 
 /* Get the next key in a struct */
-const DstKV *dst_struct_next(const DstKV *st, const DstKV *kv) {
-    const DstKV *end = st + dst_struct_capacity(st);
+const JanetKV *janet_struct_next(const JanetKV *st, const JanetKV *kv) {
+    const JanetKV *end = st + janet_struct_capacity(st);
     kv = (kv == NULL) ? st : kv + 1;
     while (kv < end) {
-        if (!dst_checktype(kv->key, DST_NIL)) return kv;
+        if (!janet_checktype(kv->key, JANET_NIL)) return kv;
         kv++;
     }
     return NULL;
 }
 
 /* Convert struct to table */
-DstTable *dst_struct_to_table(const DstKV *st) {
-    DstTable *table = dst_table(dst_struct_capacity(st));
+JanetTable *janet_struct_to_table(const JanetKV *st) {
+    JanetTable *table = janet_table(janet_struct_capacity(st));
     int32_t i;
-    for (i = 0; i < dst_struct_capacity(st); i++) {
-        const DstKV *kv = st + i;
-        if (!dst_checktype(kv->key, DST_NIL)) {
-            dst_table_put(table, kv->key, kv->value);
+    for (i = 0; i < janet_struct_capacity(st); i++) {
+        const JanetKV *kv = st + i;
+        if (!janet_checktype(kv->key, JANET_NIL)) {
+            janet_table_put(table, kv->key, kv->value);
         }
     }
     return table;
 }
 
 /* Check if two structs are equal */
-int dst_struct_equal(const DstKV *lhs, const DstKV *rhs) {
+int janet_struct_equal(const JanetKV *lhs, const JanetKV *rhs) {
     int32_t index;
-    int32_t llen = dst_struct_capacity(lhs);
-    int32_t rlen = dst_struct_capacity(rhs);
-    int32_t lhash = dst_struct_hash(lhs);
-    int32_t rhash = dst_struct_hash(rhs);
+    int32_t llen = janet_struct_capacity(lhs);
+    int32_t rlen = janet_struct_capacity(rhs);
+    int32_t lhash = janet_struct_hash(lhs);
+    int32_t rhash = janet_struct_hash(rhs);
     if (llen != rlen)
         return 0;
     if (lhash != rhash)
         return 0;
     for (index = 0; index < llen; index++) {
-        const DstKV *l = lhs + index;
-        const DstKV *r = rhs + index;
-        if (!dst_equals(l->key, r->key))
+        const JanetKV *l = lhs + index;
+        const JanetKV *r = rhs + index;
+        if (!janet_equals(l->key, r->key))
             return 0;
-        if (!dst_equals(l->value, r->value))
+        if (!janet_equals(l->value, r->value))
             return 0;
     }
     return 1;
 }
 
 /* Compare structs */
-int dst_struct_compare(const DstKV *lhs, const DstKV *rhs) {
+int janet_struct_compare(const JanetKV *lhs, const JanetKV *rhs) {
     int32_t i;
-    int32_t lhash = dst_struct_hash(lhs);
-    int32_t rhash = dst_struct_hash(rhs);
-    int32_t llen = dst_struct_capacity(lhs);
-    int32_t rlen = dst_struct_capacity(rhs);
+    int32_t lhash = janet_struct_hash(lhs);
+    int32_t rhash = janet_struct_hash(rhs);
+    int32_t llen = janet_struct_capacity(lhs);
+    int32_t rlen = janet_struct_capacity(rhs);
     if (llen < rlen)
         return -1;
     if (llen > rlen)
@@ -221,14 +221,14 @@ int dst_struct_compare(const DstKV *lhs, const DstKV *rhs) {
     if (lhash > rhash)
         return 1;
     for (i = 0; i < llen; ++i) {
-        const DstKV *l = lhs + i;
-        const DstKV *r = rhs + i;
-        int comp = dst_compare(l->key, r->key);
+        const JanetKV *l = lhs + i;
+        const JanetKV *r = rhs + i;
+        int comp = janet_compare(l->key, r->key);
         if (comp != 0) return comp;
-        comp = dst_compare(l->value, r->value);
+        comp = janet_compare(l->value, r->value);
         if (comp != 0) return comp;
     }
     return 0;
 }
 
-#undef dst_struct_maphash
+#undef janet_struct_maphash

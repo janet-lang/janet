@@ -20,37 +20,37 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 
 #include <generated/init.h>
 #include "line.h"
 
 int main(int argc, char **argv) {
     int i, status;
-    DstArray *args;
-    DstTable *env;
+    JanetArray *args;
+    JanetTable *env;
 
     /* Set up VM */
-    dst_init();
-    env = dst_core_env();
+    janet_init();
+    env = janet_core_env();
 
     /* Create args tuple */
-    args = dst_array(argc);
+    args = janet_array(argc);
     for (i = 0; i < argc; i++)
-        dst_array_push(args, dst_cstringv(argv[i]));
-    dst_def(env, "process.args", dst_wrap_array(args));
+        janet_array_push(args, janet_cstringv(argv[i]));
+    janet_def(env, "process.args", janet_wrap_array(args));
 
     /* Expose line getter */
-    dst_def(env, "getline", dst_wrap_cfunction(dst_line_getter));
-    dst_register("getline", dst_wrap_cfunction(dst_line_getter));
-    dst_line_init();
+    janet_def(env, "getline", janet_wrap_cfunction(janet_line_getter));
+    janet_register("getline", janet_wrap_cfunction(janet_line_getter));
+    janet_line_init();
 
     /* Run startup script */
-    status = dst_dobytes(env, dst_gen_init, sizeof(dst_gen_init), "init.dst");
+    status = janet_dobytes(env, janet_gen_init, sizeof(janet_gen_init), "init.janet");
 
     /* Deinitialize vm */
-    dst_deinit();
-    dst_line_deinit();
+    janet_deinit();
+    janet_line_deinit();
 
     return status;
 }

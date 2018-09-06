@@ -20,7 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include <dst/dst.h>
+#include <janet/janet.h>
 #include "state.h"
 #include "fiber.h"
 #include "gc.h"
@@ -28,71 +28,71 @@
 #include "util.h"
 
 /* VM state */
-DST_THREAD_LOCAL DstTable *dst_vm_registry;
-DST_THREAD_LOCAL int dst_vm_stackn = 0;
-DST_THREAD_LOCAL DstFiber *dst_vm_fiber = NULL;
+JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
+JANET_THREAD_LOCAL int janet_vm_stackn = 0;
+JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber = NULL;
 
 /* Maybe collect garbage */
-#define dst_maybe_collect() do {\
-    if (dst_vm_next_collection >= dst_vm_gc_interval) dst_collect(); } while (0)
+#define janet_maybe_collect() do {\
+    if (janet_vm_next_collection >= janet_vm_gc_interval) janet_collect(); } while (0)
 
 /* Start running the VM from where it left off. */
-DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out) {
+JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
 
     /* Save old fiber to reset */
-    DstFiber *old_vm_fiber = dst_vm_fiber;
+    JanetFiber *old_vm_fiber = janet_vm_fiber;
 
     /* interpreter state */
-    register Dst *stack;
+    register Janet *stack;
     register uint32_t *pc;
-    register DstFunction *func;
+    register JanetFunction *func;
 
     /* Keep in mind the garbage collector cannot see this value.
      * Values stored here should be used immediately */
-    Dst retreg;
+    Janet retreg;
 
     /* Expected types on type error */
     uint16_t expected_types;
 
     /* Signal to return when done */
-    DstSignal signal = DST_SIGNAL_OK;
+    JanetSignal signal = JANET_SIGNAL_OK;
 
     /* Ensure fiber is not alive, dead, or error */
-    DstFiberStatus startstatus = dst_fiber_status(fiber);
-    if (startstatus == DST_STATUS_ALIVE ||
-            startstatus == DST_STATUS_DEAD ||
-            startstatus == DST_STATUS_ERROR) {
-        *out = dst_cstringv("cannot resume alive, dead, or errored fiber");
-        return DST_SIGNAL_ERROR;
+    JanetFiberStatus startstatus = janet_fiber_status(fiber);
+    if (startstatus == JANET_STATUS_ALIVE ||
+            startstatus == JANET_STATUS_DEAD ||
+            startstatus == JANET_STATUS_ERROR) {
+        *out = janet_cstringv("cannot resume alive, dead, or errored fiber");
+        return JANET_SIGNAL_ERROR;
     }
 
     /* Increment the stackn */
-    if (dst_vm_stackn >= DST_RECURSION_GUARD) {
-        dst_fiber_set_status(fiber, DST_STATUS_ERROR);
-        *out = dst_cstringv("C stack recursed too deeply");
-        return DST_SIGNAL_ERROR;
+    if (janet_vm_stackn >= JANET_RECURSION_GUARD) {
+        janet_fiber_set_status(fiber, JANET_STATUS_ERROR);
+        *out = janet_cstringv("C stack recursed too deeply");
+        return JANET_SIGNAL_ERROR;
     }
-    dst_vm_stackn++;
+    janet_vm_stackn++;
 
     /* Setup fiber state */
-    dst_vm_fiber = fiber;
-    dst_gcroot(dst_wrap_fiber(fiber));
-    dst_gcroot(in);
-    if (startstatus == DST_STATUS_NEW) {
-        dst_fiber_push(fiber, in);
-        if (dst_fiber_funcframe(fiber, fiber->root)) {
-            dst_gcunroot(dst_wrap_fiber(fiber));
-            dst_gcunroot(in);
-            *out = dst_wrap_string(dst_formatc(
+    janet_vm_fiber = fiber;
+    janet_gcroot(janet_wrap_fiber(fiber));
+    janet_gcroot(in);
+    if (startstatus == JANET_STATUS_NEW) {
+        janet_fiber_push(fiber, in);
+        if (janet_fiber_funcframe(fiber, fiber->root)) {
+            janet_gcunroot(janet_wrap_fiber(fiber));
+            janet_gcunroot(in);
+            *out = janet_wrap_string(janet_formatc(
                         "Could not start fiber with function of arity %d",
                         fiber->root->def->arity));
-            return DST_SIGNAL_ERROR;
+            return JANET_SIGNAL_ERROR;
         }
     }
-    dst_fiber_set_status(fiber, DST_STATUS_ALIVE);
+    janet_fiber_set_status(fiber, JANET_STATUS_ALIVE);
     stack = fiber->data + fiber->frame;
-    pc = dst_stack_frame(stack)->pc;
-    func = dst_stack_frame(stack)->func;
+    pc = janet_stack_frame(stack)->pc;
+    func = janet_stack_frame(stack)->func;
 
     /* Used to extract bits from the opcode that correspond to arguments.
      * Pulls out unsigned integers */
@@ -104,11 +104,11 @@ DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out) {
     if (fiber->child) {
         retreg = in;
         goto vm_resume_child;
-    } else if (fiber->flags & DST_FIBER_FLAG_SIGNAL_WAITING) {
+    } else if (fiber->flags & JANET_FIBER_FLAG_SIGNAL_WAITING) {
         /* If waiting for response to signal, use input and increment pc */
         stack[oparg(1, 0xFF)] = in;
         pc++;
-        fiber->flags &= ~DST_FIBER_FLAG_SIGNAL_WAITING;
+        fiber->flags &= ~JANET_FIBER_FLAG_SIGNAL_WAITING;
     }
 
 /* Use computed gotos for GCC and clang, otherwise use switch */
@@ -119,89 +119,89 @@ DstSignal dst_continue(DstFiber *fiber, Dst in, Dst *out) {
 #define VM_DEFAULT() label_unknown_op:
 #define vm_next() goto *op_lookup[*pc & 0xFF];
 static void *op_lookup[255] = {
-    &&label_DOP_NOOP,
-    &&label_DOP_ERROR,
-    &&label_DOP_TYPECHECK,
-    &&label_DOP_RETURN,
-    &&label_DOP_RETURN_NIL,
-    &&label_DOP_ADD_INTEGER,
-    &&label_DOP_ADD_IMMEDIATE,
-    &&label_DOP_ADD_REAL,
-    &&label_DOP_ADD,
-    &&label_DOP_SUBTRACT_INTEGER,
-    &&label_DOP_SUBTRACT_REAL,
-    &&label_DOP_SUBTRACT,
-    &&label_DOP_MULTIPLY_INTEGER,
-    &&label_DOP_MULTIPLY_IMMEDIATE,
-    &&label_DOP_MULTIPLY_REAL,
-    &&label_DOP_MULTIPLY,
-    &&label_DOP_DIVIDE_INTEGER,
-    &&label_DOP_DIVIDE_IMMEDIATE,
-    &&label_DOP_DIVIDE_REAL,
-    &&label_DOP_DIVIDE,
-    &&label_DOP_BAND,
-    &&label_DOP_BOR,
-    &&label_DOP_BXOR,
-    &&label_DOP_BNOT,
-    &&label_DOP_SHIFT_LEFT,
-    &&label_DOP_SHIFT_LEFT_IMMEDIATE,
-    &&label_DOP_SHIFT_RIGHT,
-    &&label_DOP_SHIFT_RIGHT_IMMEDIATE,
-    &&label_DOP_SHIFT_RIGHT_UNSIGNED,
-    &&label_DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE,
-    &&label_DOP_MOVE_FAR,
-    &&label_DOP_MOVE_NEAR,
-    &&label_DOP_JUMP,
-    &&label_DOP_JUMP_IF,
-    &&label_DOP_JUMP_IF_NOT,
-    &&label_DOP_GREATER_THAN,
-    &&label_DOP_GREATER_THAN_INTEGER,
-    &&label_DOP_GREATER_THAN_IMMEDIATE,
-    &&label_DOP_GREATER_THAN_REAL,
-    &&label_DOP_GREATER_THAN_EQUAL_REAL,
-    &&label_DOP_LESS_THAN,
-    &&label_DOP_LESS_THAN_INTEGER,
-    &&label_DOP_LESS_THAN_IMMEDIATE,
-    &&label_DOP_LESS_THAN_REAL,
-    &&label_DOP_LESS_THAN_EQUAL_REAL,
-    &&label_DOP_EQUALS,
-    &&label_DOP_EQUALS_INTEGER,
-    &&label_DOP_EQUALS_IMMEDIATE,
-    &&label_DOP_EQUALS_REAL,
-    &&label_DOP_COMPARE,
-    &&label_DOP_LOAD_NIL,
-    &&label_DOP_LOAD_TRUE,
-    &&label_DOP_LOAD_FALSE,
-    &&label_DOP_LOAD_INTEGER,
-    &&label_DOP_LOAD_CONSTANT,
-    &&label_DOP_LOAD_UPVALUE,
-    &&label_DOP_LOAD_SELF,
-    &&label_DOP_SET_UPVALUE,
-    &&label_DOP_CLOSURE,
-    &&label_DOP_PUSH,
-    &&label_DOP_PUSH_2,
-    &&label_DOP_PUSH_3,
-    &&label_DOP_PUSH_ARRAY,
-    &&label_DOP_CALL,
-    &&label_DOP_TAILCALL,
-    &&label_DOP_RESUME,
-    &&label_DOP_SIGNAL,
-    &&label_DOP_GET,
-    &&label_DOP_PUT,
-    &&label_DOP_GET_INDEX,
-    &&label_DOP_PUT_INDEX,
-    &&label_DOP_LENGTH,
-    &&label_DOP_MAKE_ARRAY,
-    &&label_DOP_MAKE_BUFFER,
-    &&label_DOP_MAKE_STRING,
-    &&label_DOP_MAKE_STRUCT,
-    &&label_DOP_MAKE_TABLE,
-    &&label_DOP_MAKE_TUPLE,
-    &&label_DOP_NUMERIC_LESS_THAN,
-    &&label_DOP_NUMERIC_LESS_THAN_EQUAL,
-    &&label_DOP_NUMERIC_GREATER_THAN,
-    &&label_DOP_NUMERIC_GREATER_THAN_EQUAL,
-    &&label_DOP_NUMERIC_EQUAL,
+    &&label_JOP_NOOP,
+    &&label_JOP_ERROR,
+    &&label_JOP_TYPECHECK,
+    &&label_JOP_RETURN,
+    &&label_JOP_RETURN_NIL,
+    &&label_JOP_ADD_INTEGER,
+    &&label_JOP_ADD_IMMEDIATE,
+    &&label_JOP_ADD_REAL,
+    &&label_JOP_ADD,
+    &&label_JOP_SUBTRACT_INTEGER,
+    &&label_JOP_SUBTRACT_REAL,
+    &&label_JOP_SUBTRACT,
+    &&label_JOP_MULTIPLY_INTEGER,
+    &&label_JOP_MULTIPLY_IMMEDIATE,
+    &&label_JOP_MULTIPLY_REAL,
+    &&label_JOP_MULTIPLY,
+    &&label_JOP_DIVIDE_INTEGER,
+    &&label_JOP_DIVIDE_IMMEDIATE,
+    &&label_JOP_DIVIDE_REAL,
+    &&label_JOP_DIVIDE,
+    &&label_JOP_BAND,
+    &&label_JOP_BOR,
+    &&label_JOP_BXOR,
+    &&label_JOP_BNOT,
+    &&label_JOP_SHIFT_LEFT,
+    &&label_JOP_SHIFT_LEFT_IMMEDIATE,
+    &&label_JOP_SHIFT_RIGHT,
+    &&label_JOP_SHIFT_RIGHT_IMMEDIATE,
+    &&label_JOP_SHIFT_RIGHT_UNSIGNED,
+    &&label_JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE,
+    &&label_JOP_MOVE_FAR,
+    &&label_JOP_MOVE_NEAR,
+    &&label_JOP_JUMP,
+    &&label_JOP_JUMP_IF,
+    &&label_JOP_JUMP_IF_NOT,
+    &&label_JOP_GREATER_THAN,
+    &&label_JOP_GREATER_THAN_INTEGER,
+    &&label_JOP_GREATER_THAN_IMMEDIATE,
+    &&label_JOP_GREATER_THAN_REAL,
+    &&label_JOP_GREATER_THAN_EQUAL_REAL,
+    &&label_JOP_LESS_THAN,
+    &&label_JOP_LESS_THAN_INTEGER,
+    &&label_JOP_LESS_THAN_IMMEDIATE,
+    &&label_JOP_LESS_THAN_REAL,
+    &&label_JOP_LESS_THAN_EQUAL_REAL,
+    &&label_JOP_EQUALS,
+    &&label_JOP_EQUALS_INTEGER,
+    &&label_JOP_EQUALS_IMMEDIATE,
+    &&label_JOP_EQUALS_REAL,
+    &&label_JOP_COMPARE,
+    &&label_JOP_LOAD_NIL,
+    &&label_JOP_LOAD_TRUE,
+    &&label_JOP_LOAD_FALSE,
+    &&label_JOP_LOAD_INTEGER,
+    &&label_JOP_LOAD_CONSTANT,
+    &&label_JOP_LOAD_UPVALUE,
+    &&label_JOP_LOAD_SELF,
+    &&label_JOP_SET_UPVALUE,
+    &&label_JOP_CLOSURE,
+    &&label_JOP_PUSH,
+    &&label_JOP_PUSH_2,
+    &&label_JOP_PUSH_3,
+    &&label_JOP_PUSH_ARRAY,
+    &&label_JOP_CALL,
+    &&label_JOP_TAILCALL,
+    &&label_JOP_RESUME,
+    &&label_JOP_SIGNAL,
+    &&label_JOP_GET,
+    &&label_JOP_PUT,
+    &&label_JOP_GET_INDEX,
+    &&label_JOP_PUT_INDEX,
+    &&label_JOP_LENGTH,
+    &&label_JOP_MAKE_ARRAY,
+    &&label_JOP_MAKE_BUFFER,
+    &&label_JOP_MAKE_STRING,
+    &&label_JOP_MAKE_STRUCT,
+    &&label_JOP_MAKE_TABLE,
+    &&label_JOP_MAKE_TUPLE,
+    &&label_JOP_NUMERIC_LESS_THAN,
+    &&label_JOP_NUMERIC_LESS_THAN_EQUAL,
+    &&label_JOP_NUMERIC_GREATER_THAN,
+    &&label_JOP_NUMERIC_GREATER_THAN_EQUAL,
+    &&label_JOP_NUMERIC_EQUAL,
     &&label_unknown_op
 };
 #else
@@ -212,19 +212,19 @@ static void *op_lookup[255] = {
 #define vm_next() continue
 #endif
 
-#define vm_checkgc_next() dst_maybe_collect(); vm_next()
+#define vm_checkgc_next() janet_maybe_collect(); vm_next()
 
-#define vm_throw(e) do { retreg = dst_cstringv(e); goto vm_error; } while (0)
+#define vm_throw(e) do { retreg = janet_cstringv(e); goto vm_error; } while (0)
 #define vm_assert(cond, e) do {if (!(cond)) vm_throw((e)); } while (0)
 #define vm_assert_type(X, T) do { \
-    if (!(dst_checktype((X), (T)))) { \
+    if (!(janet_checktype((X), (T)))) { \
         expected_types = 1 << (T); \
         retreg = (X); \
         goto vm_type_error; \
     } \
 } while (0)
 #define vm_assert_types(X, TS) do { \
-    if (!((1 << dst_type(X)) & (TS))) { \
+    if (!((1 << janet_type(X)) & (TS))) { \
         expected_types = (TS); \
         retreg = (X); \
         goto vm_type_error; \
@@ -232,56 +232,56 @@ static void *op_lookup[255] = {
 } while (0)
 
 #define vm_binop_integer(op) \
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(\
-        dst_unwrap_integer(stack[oparg(2, 0xFF)]) op dst_unwrap_integer(stack[oparg(3, 0xFF)])\
+    stack[oparg(1, 0xFF)] = janet_wrap_integer(\
+        janet_unwrap_integer(stack[oparg(2, 0xFF)]) op janet_unwrap_integer(stack[oparg(3, 0xFF)])\
     );\
     pc++;\
     vm_next();
 
 #define vm_binop_real(op)\
-    stack[oparg(1, 0xFF)] = dst_wrap_real(\
-        dst_unwrap_real(stack[oparg(2, 0xFF)]) op dst_unwrap_real(stack[oparg(3, 0xFF)])\
+    stack[oparg(1, 0xFF)] = janet_wrap_real(\
+        janet_unwrap_real(stack[oparg(2, 0xFF)]) op janet_unwrap_real(stack[oparg(3, 0xFF)])\
     );\
     pc++;\
     vm_next();
 
 #define vm_binop_immediate(op)\
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(\
-        dst_unwrap_integer(stack[oparg(2, 0xFF)]) op (*((int32_t *)pc) >> 24)\
+    stack[oparg(1, 0xFF)] = janet_wrap_integer(\
+        janet_unwrap_integer(stack[oparg(2, 0xFF)]) op (*((int32_t *)pc) >> 24)\
     );\
     pc++;\
     vm_next();
 
 #define vm_binop(op)\
     {\
-        Dst op1 = stack[oparg(2, 0xFF)];\
-        Dst op2 = stack[oparg(3, 0xFF)];\
-        vm_assert_types(op1, DST_TFLAG_NUMBER);\
-        vm_assert_types(op2, DST_TFLAG_NUMBER);\
-        stack[oparg(1, 0xFF)] = dst_checktype(op1, DST_INTEGER)\
-            ? (dst_checktype(op2, DST_INTEGER)\
-                ? dst_wrap_integer(dst_unwrap_integer(op1) op dst_unwrap_integer(op2))\
-                : dst_wrap_real((double)dst_unwrap_integer(op1) op dst_unwrap_real(op2)))\
-            : (dst_checktype(op2, DST_INTEGER)\
-                ? dst_wrap_real(dst_unwrap_real(op1) op (double)dst_unwrap_integer(op2))\
-                : dst_wrap_real(dst_unwrap_real(op1) op dst_unwrap_real(op2)));\
+        Janet op1 = stack[oparg(2, 0xFF)];\
+        Janet op2 = stack[oparg(3, 0xFF)];\
+        vm_assert_types(op1, JANET_TFLAG_NUMBER);\
+        vm_assert_types(op2, JANET_TFLAG_NUMBER);\
+        stack[oparg(1, 0xFF)] = janet_checktype(op1, JANET_INTEGER)\
+            ? (janet_checktype(op2, JANET_INTEGER)\
+                ? janet_wrap_integer(janet_unwrap_integer(op1) op janet_unwrap_integer(op2))\
+                : janet_wrap_real((double)janet_unwrap_integer(op1) op janet_unwrap_real(op2)))\
+            : (janet_checktype(op2, JANET_INTEGER)\
+                ? janet_wrap_real(janet_unwrap_real(op1) op (double)janet_unwrap_integer(op2))\
+                : janet_wrap_real(janet_unwrap_real(op1) op janet_unwrap_real(op2)));\
         pc++;\
         vm_next();\
     }
 
 #define vm_numcomp(op)\
     {\
-        Dst op1 = stack[oparg(2, 0xFF)];\
-        Dst op2 = stack[oparg(3, 0xFF)];\
-        vm_assert_types(op1, DST_TFLAG_NUMBER);\
-        vm_assert_types(op2, DST_TFLAG_NUMBER);\
-        stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_checktype(op1, DST_INTEGER)\
-            ? (dst_checktype(op2, DST_INTEGER)\
-                ? dst_unwrap_integer(op1) op dst_unwrap_integer(op2)\
-                : (double)dst_unwrap_integer(op1) op dst_unwrap_real(op2))\
-            : (dst_checktype(op2, DST_INTEGER)\
-                ? dst_unwrap_real(op1) op (double)dst_unwrap_integer(op2)\
-                : dst_unwrap_real(op1) op dst_unwrap_real(op2)));\
+        Janet op1 = stack[oparg(2, 0xFF)];\
+        Janet op2 = stack[oparg(3, 0xFF)];\
+        vm_assert_types(op1, JANET_TFLAG_NUMBER);\
+        vm_assert_types(op2, JANET_TFLAG_NUMBER);\
+        stack[oparg(1, 0xFF)] = janet_wrap_boolean(janet_checktype(op1, JANET_INTEGER)\
+            ? (janet_checktype(op2, JANET_INTEGER)\
+                ? janet_unwrap_integer(op1) op janet_unwrap_integer(op2)\
+                : (double)janet_unwrap_integer(op1) op janet_unwrap_real(op2))\
+            : (janet_checktype(op2, JANET_INTEGER)\
+                ? janet_unwrap_real(op1) op (double)janet_unwrap_integer(op2)\
+                : janet_unwrap_real(op1) op janet_unwrap_real(op2)));\
         pc++;\
         vm_next();\
     }
@@ -291,94 +291,94 @@ static void *op_lookup[255] = {
     VM_START();
 
     VM_DEFAULT();
-    retreg = dst_wrap_nil();
+    retreg = janet_wrap_nil();
     goto vm_exit;
 
-    VM_OP(DOP_NOOP)
+    VM_OP(JOP_NOOP)
     pc++;
     vm_next();
 
-    VM_OP(DOP_ERROR)
+    VM_OP(JOP_ERROR)
     retreg = stack[oparg(1, 0xFF)];
     goto vm_error;
 
-    VM_OP(DOP_TYPECHECK)
-    if (!((1 << dst_type(stack[oparg(1, 0xFF)])) & oparg(2, 0xFFFF))) {
-        DstArgs tempargs;
+    VM_OP(JOP_TYPECHECK)
+    if (!((1 << janet_type(stack[oparg(1, 0xFF)])) & oparg(2, 0xFFFF))) {
+        JanetArgs tempargs;
         tempargs.n = oparg(1, 0xFF) + 1;
         tempargs.v = stack;
-        dst_typemany_err(tempargs, oparg(1, 0xFF), oparg(2, 0xFFFF));
+        janet_typemany_err(tempargs, oparg(1, 0xFF), oparg(2, 0xFFFF));
         goto vm_error;
     }
     pc++;
     vm_next();
 
-    VM_OP(DOP_RETURN)
+    VM_OP(JOP_RETURN)
     retreg = stack[oparg(1, 0xFFFFFF)];
     goto vm_return;
 
-    VM_OP(DOP_RETURN_NIL)
-    retreg = dst_wrap_nil();
+    VM_OP(JOP_RETURN_NIL)
+    retreg = janet_wrap_nil();
     goto vm_return;
 
-    VM_OP(DOP_ADD_INTEGER)
+    VM_OP(JOP_ADD_INTEGER)
     vm_binop_integer(+);
 
-    VM_OP(DOP_ADD_IMMEDIATE)
+    VM_OP(JOP_ADD_IMMEDIATE)
     vm_binop_immediate(+);
 
-    VM_OP(DOP_ADD_REAL)
+    VM_OP(JOP_ADD_REAL)
     vm_binop_real(+);
 
-    VM_OP(DOP_ADD)
+    VM_OP(JOP_ADD)
     vm_binop(+);
 
-    VM_OP(DOP_SUBTRACT_INTEGER)
+    VM_OP(JOP_SUBTRACT_INTEGER)
     vm_binop_integer(-);
 
-    VM_OP(DOP_SUBTRACT_REAL)
+    VM_OP(JOP_SUBTRACT_REAL)
     vm_binop_real(-);
 
-    VM_OP(DOP_SUBTRACT)
+    VM_OP(JOP_SUBTRACT)
     vm_binop(-);
 
-    VM_OP(DOP_MULTIPLY_INTEGER)
+    VM_OP(JOP_MULTIPLY_INTEGER)
     vm_binop_integer(*);
 
-    VM_OP(DOP_MULTIPLY_IMMEDIATE)
+    VM_OP(JOP_MULTIPLY_IMMEDIATE)
     vm_binop_immediate(*);
 
-    VM_OP(DOP_MULTIPLY_REAL)
+    VM_OP(JOP_MULTIPLY_REAL)
     vm_binop_real(*);
 
-    VM_OP(DOP_MULTIPLY)
+    VM_OP(JOP_MULTIPLY)
     vm_binop(*);
 
-    VM_OP(DOP_NUMERIC_LESS_THAN)
+    VM_OP(JOP_NUMERIC_LESS_THAN)
     vm_numcomp(<);
 
-    VM_OP(DOP_NUMERIC_LESS_THAN_EQUAL)
+    VM_OP(JOP_NUMERIC_LESS_THAN_EQUAL)
     vm_numcomp(<=);
 
-    VM_OP(DOP_NUMERIC_GREATER_THAN)
+    VM_OP(JOP_NUMERIC_GREATER_THAN)
     vm_numcomp(>);
 
-    VM_OP(DOP_NUMERIC_GREATER_THAN_EQUAL)
+    VM_OP(JOP_NUMERIC_GREATER_THAN_EQUAL)
     vm_numcomp(>=);
 
-    VM_OP(DOP_NUMERIC_EQUAL)
+    VM_OP(JOP_NUMERIC_EQUAL)
     vm_numcomp(==);
 
-    VM_OP(DOP_DIVIDE_INTEGER)
-    vm_assert(dst_unwrap_integer(stack[oparg(3, 0xFF)]) != 0, "integer divide error");
-    vm_assert(!(dst_unwrap_integer(stack[oparg(3, 0xFF)]) == -1 &&
-                dst_unwrap_integer(stack[oparg(2, 0xFF)]) == INT32_MIN),
+    VM_OP(JOP_DIVIDE_INTEGER)
+    vm_assert(janet_unwrap_integer(stack[oparg(3, 0xFF)]) != 0, "integer divide error");
+    vm_assert(!(janet_unwrap_integer(stack[oparg(3, 0xFF)]) == -1 &&
+                janet_unwrap_integer(stack[oparg(2, 0xFF)]) == INT32_MIN),
             "integer divide error");
     vm_binop_integer(/);
 
-    VM_OP(DOP_DIVIDE_IMMEDIATE)
+    VM_OP(JOP_DIVIDE_IMMEDIATE)
     {
-        int32_t op1 = dst_unwrap_integer(stack[oparg(2, 0xFF)]);
+        int32_t op1 = janet_unwrap_integer(stack[oparg(2, 0xFF)]);
         int32_t op2 = *((int32_t *)pc) >> 24;
         /* Check for degenerate integer division (divide by zero, and dividing
          * min value by -1). These checks could be omitted if the arg is not
@@ -388,118 +388,118 @@ static void *op_lookup[255] = {
         if (op2 == -1 && op1 == INT32_MIN)
             vm_throw("integer divide error");
         else
-            stack[oparg(1, 0xFF)] = dst_wrap_integer(op1 / op2);
+            stack[oparg(1, 0xFF)] = janet_wrap_integer(op1 / op2);
         pc++;
         vm_next();
     }
 
-    VM_OP(DOP_DIVIDE_REAL)
+    VM_OP(JOP_DIVIDE_REAL)
     vm_binop_real(/);
 
-    VM_OP(DOP_DIVIDE)
+    VM_OP(JOP_DIVIDE)
     {
-        Dst op1 = stack[oparg(2, 0xFF)];
-        Dst op2 = stack[oparg(3, 0xFF)];
-        vm_assert_types(op1, DST_TFLAG_NUMBER);
-        vm_assert_types(op2, DST_TFLAG_NUMBER);
-        if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == 0)
+        Janet op1 = stack[oparg(2, 0xFF)];
+        Janet op2 = stack[oparg(3, 0xFF)];
+        vm_assert_types(op1, JANET_TFLAG_NUMBER);
+        vm_assert_types(op2, JANET_TFLAG_NUMBER);
+        if (janet_checktype(op2, JANET_INTEGER) && janet_unwrap_integer(op2) == 0)
             vm_throw("integer divide by zero");
-        if (dst_checktype(op2, DST_INTEGER) && dst_unwrap_integer(op2) == -1 &&
-            dst_checktype(op1, DST_INTEGER) && dst_unwrap_integer(op1) == INT32_MIN)
+        if (janet_checktype(op2, JANET_INTEGER) && janet_unwrap_integer(op2) == -1 &&
+            janet_checktype(op1, JANET_INTEGER) && janet_unwrap_integer(op1) == INT32_MIN)
             vm_throw("integer divide out of range");
-        stack[oparg(1, 0xFF)] = dst_checktype(op1, DST_INTEGER)
-            ? (dst_checktype(op2, DST_INTEGER)
-                ? dst_wrap_integer(dst_unwrap_integer(op1) / dst_unwrap_integer(op2))
-                : dst_wrap_real((double)dst_unwrap_integer(op1) / dst_unwrap_real(op2)))
-            : (dst_checktype(op2, DST_INTEGER)
-                ? dst_wrap_real(dst_unwrap_real(op1) / (double)dst_unwrap_integer(op2))
-                : dst_wrap_real(dst_unwrap_real(op1) / dst_unwrap_real(op2)));
+        stack[oparg(1, 0xFF)] = janet_checktype(op1, JANET_INTEGER)
+            ? (janet_checktype(op2, JANET_INTEGER)
+                ? janet_wrap_integer(janet_unwrap_integer(op1) / janet_unwrap_integer(op2))
+                : janet_wrap_real((double)janet_unwrap_integer(op1) / janet_unwrap_real(op2)))
+            : (janet_checktype(op2, JANET_INTEGER)
+                ? janet_wrap_real(janet_unwrap_real(op1) / (double)janet_unwrap_integer(op2))
+                : janet_wrap_real(janet_unwrap_real(op1) / janet_unwrap_real(op2)));
         pc++;
         vm_next();
     }
 
-    VM_OP(DOP_BAND)
+    VM_OP(JOP_BAND)
     vm_binop_integer(&);
 
-    VM_OP(DOP_BOR)
+    VM_OP(JOP_BOR)
     vm_binop_integer(|);
 
-    VM_OP(DOP_BXOR)
+    VM_OP(JOP_BXOR)
     vm_binop_integer(^);
 
-    VM_OP(DOP_BNOT)
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(~dst_unwrap_integer(stack[oparg(2, 0xFFFF)]));
+    VM_OP(JOP_BNOT)
+    stack[oparg(1, 0xFF)] = janet_wrap_integer(~janet_unwrap_integer(stack[oparg(2, 0xFFFF)]));
     ++pc;
     vm_next();
 
-    VM_OP(DOP_SHIFT_RIGHT_UNSIGNED)
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(
-        (int32_t)(((uint32_t)dst_unwrap_integer(stack[oparg(2, 0xFF)]))
+    VM_OP(JOP_SHIFT_RIGHT_UNSIGNED)
+    stack[oparg(1, 0xFF)] = janet_wrap_integer(
+        (int32_t)(((uint32_t)janet_unwrap_integer(stack[oparg(2, 0xFF)]))
         >>
-        dst_unwrap_integer(stack[oparg(3, 0xFF)]))
+        janet_unwrap_integer(stack[oparg(3, 0xFF)]))
     );
     pc++;
     vm_next();
 
-    VM_OP(DOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE)
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(
-        (int32_t) (((uint32_t)dst_unwrap_integer(stack[oparg(2, 0xFF)])) >> oparg(3, 0xFF))
+    VM_OP(JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE)
+    stack[oparg(1, 0xFF)] = janet_wrap_integer(
+        (int32_t) (((uint32_t)janet_unwrap_integer(stack[oparg(2, 0xFF)])) >> oparg(3, 0xFF))
     );
     pc++;
     vm_next();
 
-    VM_OP(DOP_SHIFT_RIGHT)
+    VM_OP(JOP_SHIFT_RIGHT)
     vm_binop_integer(>>);
 
-    VM_OP(DOP_SHIFT_RIGHT_IMMEDIATE)
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(
-        (int32_t)(dst_unwrap_integer(stack[oparg(2, 0xFF)]) >> oparg(3, 0xFF))
+    VM_OP(JOP_SHIFT_RIGHT_IMMEDIATE)
+    stack[oparg(1, 0xFF)] = janet_wrap_integer(
+        (int32_t)(janet_unwrap_integer(stack[oparg(2, 0xFF)]) >> oparg(3, 0xFF))
     );
     pc++;
     vm_next();
 
-    VM_OP(DOP_SHIFT_LEFT)
+    VM_OP(JOP_SHIFT_LEFT)
     vm_binop_integer(<<);
 
-    VM_OP(DOP_SHIFT_LEFT_IMMEDIATE)
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(
-        dst_unwrap_integer(stack[oparg(2, 0xFF)]) << oparg(3, 0xFF)
+    VM_OP(JOP_SHIFT_LEFT_IMMEDIATE)
+    stack[oparg(1, 0xFF)] = janet_wrap_integer(
+        janet_unwrap_integer(stack[oparg(2, 0xFF)]) << oparg(3, 0xFF)
     );
     pc++;
     vm_next();
 
-    VM_OP(DOP_MOVE_NEAR)
+    VM_OP(JOP_MOVE_NEAR)
     stack[oparg(1, 0xFF)] = stack[oparg(2, 0xFFFF)];
     pc++;
     vm_next();
 
-    VM_OP(DOP_MOVE_FAR)
+    VM_OP(JOP_MOVE_FAR)
     stack[oparg(2, 0xFFFF)] = stack[oparg(1, 0xFF)];
     pc++;
     vm_next();
 
-    VM_OP(DOP_JUMP)
+    VM_OP(JOP_JUMP)
     pc += (*(int32_t *)pc) >> 8;
     vm_next();
 
-    VM_OP(DOP_JUMP_IF)
-    if (dst_truthy(stack[oparg(1, 0xFF)])) {
+    VM_OP(JOP_JUMP_IF)
+    if (janet_truthy(stack[oparg(1, 0xFF)])) {
         pc += (*(int32_t *)pc) >> 16;
     } else {
         pc++;
     }
     vm_next();
 
-    VM_OP(DOP_JUMP_IF_NOT)
-    if (dst_truthy(stack[oparg(1, 0xFF)])) {
+    VM_OP(JOP_JUMP_IF_NOT)
+    if (janet_truthy(stack[oparg(1, 0xFF)])) {
         pc++;
     } else {
         pc += (*(int32_t *)pc) >> 16;
     }
     vm_next();
 
-    VM_OP(DOP_LESS_THAN)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_compare(
+    VM_OP(JOP_LESS_THAN)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(janet_compare(
             stack[oparg(2, 0xFF)],
             stack[oparg(3, 0xFF)]
         ) < 0);
@@ -507,40 +507,40 @@ static void *op_lookup[255] = {
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_LESS_THAN_INTEGER)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_integer(stack[oparg(2, 0xFF)]) <
-            dst_unwrap_integer(stack[oparg(3, 0xFF)]));
+    VM_OP(JOP_LESS_THAN_INTEGER)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_integer(stack[oparg(2, 0xFF)]) <
+            janet_unwrap_integer(stack[oparg(3, 0xFF)]));
     pc++;
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_LESS_THAN_IMMEDIATE)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_integer(stack[oparg(2, 0xFF)]) < ((*(int32_t *)pc) >> 24)
+    VM_OP(JOP_LESS_THAN_IMMEDIATE)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_integer(stack[oparg(2, 0xFF)]) < ((*(int32_t *)pc) >> 24)
     );
     pc++;
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_LESS_THAN_REAL)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_real(stack[oparg(2, 0xFF)]) <
-            dst_unwrap_real(stack[oparg(3, 0xFF)]));
+    VM_OP(JOP_LESS_THAN_REAL)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_real(stack[oparg(2, 0xFF)]) <
+            janet_unwrap_real(stack[oparg(3, 0xFF)]));
     pc++;
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_LESS_THAN_EQUAL_REAL)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_real(stack[oparg(2, 0xFF)]) <=
-            dst_unwrap_real(stack[oparg(3, 0xFF)]));
+    VM_OP(JOP_LESS_THAN_EQUAL_REAL)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_real(stack[oparg(2, 0xFF)]) <=
+            janet_unwrap_real(stack[oparg(3, 0xFF)]));
     pc++;
     vm_next();
 
 
-    VM_OP(DOP_GREATER_THAN)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_compare(
+    VM_OP(JOP_GREATER_THAN)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(janet_compare(
             stack[oparg(2, 0xFF)],
             stack[oparg(3, 0xFF)]
         ) > 0);
@@ -548,39 +548,39 @@ static void *op_lookup[255] = {
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_GREATER_THAN_INTEGER)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_integer(stack[oparg(2, 0xFF)]) >
-            dst_unwrap_integer(stack[oparg(3, 0xFF)]));
+    VM_OP(JOP_GREATER_THAN_INTEGER)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_integer(stack[oparg(2, 0xFF)]) >
+            janet_unwrap_integer(stack[oparg(3, 0xFF)]));
     pc++;
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_GREATER_THAN_IMMEDIATE)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_integer(stack[oparg(2, 0xFF)]) > ((*(int32_t *)pc) >> 24)
+    VM_OP(JOP_GREATER_THAN_IMMEDIATE)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_integer(stack[oparg(2, 0xFF)]) > ((*(int32_t *)pc) >> 24)
     );
     pc++;
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_GREATER_THAN_REAL)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_real(stack[oparg(2, 0xFF)]) >
-            dst_unwrap_real(stack[oparg(3, 0xFF)]));
+    VM_OP(JOP_GREATER_THAN_REAL)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_real(stack[oparg(2, 0xFF)]) >
+            janet_unwrap_real(stack[oparg(3, 0xFF)]));
     pc++;
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_GREATER_THAN_EQUAL_REAL)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_real(stack[oparg(2, 0xFF)]) >=
-            dst_unwrap_real(stack[oparg(3, 0xFF)]));
+    VM_OP(JOP_GREATER_THAN_EQUAL_REAL)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_real(stack[oparg(2, 0xFF)]) >=
+            janet_unwrap_real(stack[oparg(3, 0xFF)]));
     pc++;
     vm_next();
 
-    VM_OP(DOP_EQUALS)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(dst_equals(
+    VM_OP(JOP_EQUALS)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(janet_equals(
             stack[oparg(2, 0xFF)],
             stack[oparg(3, 0xFF)]
         ));
@@ -588,60 +588,60 @@ static void *op_lookup[255] = {
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_EQUALS_INTEGER)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_integer(stack[oparg(2, 0xFF)]) ==
-            dst_unwrap_integer(stack[oparg(3, 0xFF)])
+    VM_OP(JOP_EQUALS_INTEGER)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_integer(stack[oparg(2, 0xFF)]) ==
+            janet_unwrap_integer(stack[oparg(3, 0xFF)])
         );
     pc++;
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_EQUALS_REAL)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_real(stack[oparg(2, 0xFF)]) ==
-            dst_unwrap_real(stack[oparg(3, 0xFF)])
+    VM_OP(JOP_EQUALS_REAL)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_real(stack[oparg(2, 0xFF)]) ==
+            janet_unwrap_real(stack[oparg(3, 0xFF)])
         );
     pc++;
     vm_next();
 
     /* Candidate */
-    VM_OP(DOP_EQUALS_IMMEDIATE)
-    stack[oparg(1, 0xFF)] = dst_wrap_boolean(
-            dst_unwrap_integer(stack[oparg(2, 0xFF)]) == ((*(int32_t *)pc) >> 24)
+    VM_OP(JOP_EQUALS_IMMEDIATE)
+    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
+            janet_unwrap_integer(stack[oparg(2, 0xFF)]) == ((*(int32_t *)pc) >> 24)
     );
     pc++;
     vm_next();
 
-    VM_OP(DOP_COMPARE)
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(dst_compare(
+    VM_OP(JOP_COMPARE)
+    stack[oparg(1, 0xFF)] = janet_wrap_integer(janet_compare(
         stack[oparg(2, 0xFF)],
         stack[oparg(3, 0xFF)]
     ));
     pc++;
     vm_next();
 
-    VM_OP(DOP_LOAD_NIL)
-    stack[oparg(1, 0xFFFFFF)] = dst_wrap_nil();
+    VM_OP(JOP_LOAD_NIL)
+    stack[oparg(1, 0xFFFFFF)] = janet_wrap_nil();
     pc++;
     vm_next();
 
-    VM_OP(DOP_LOAD_TRUE)
-    stack[oparg(1, 0xFFFFFF)] = dst_wrap_boolean(1);
+    VM_OP(JOP_LOAD_TRUE)
+    stack[oparg(1, 0xFFFFFF)] = janet_wrap_boolean(1);
     pc++;
     vm_next();
 
-    VM_OP(DOP_LOAD_FALSE)
-    stack[oparg(1, 0xFFFFFF)] = dst_wrap_boolean(0);
+    VM_OP(JOP_LOAD_FALSE)
+    stack[oparg(1, 0xFFFFFF)] = janet_wrap_boolean(0);
     pc++;
     vm_next();
 
-    VM_OP(DOP_LOAD_INTEGER)
-    stack[oparg(1, 0xFF)] = dst_wrap_integer(*((int32_t *)pc) >> 16);
+    VM_OP(JOP_LOAD_INTEGER)
+    stack[oparg(1, 0xFF)] = janet_wrap_integer(*((int32_t *)pc) >> 16);
     pc++;
     vm_next();
 
-    VM_OP(DOP_LOAD_CONSTANT)
+    VM_OP(JOP_LOAD_CONSTANT)
     {
         int32_t index = oparg(2, 0xFFFF);
         vm_assert(index < func->def->constants_length, "invalid constant");
@@ -650,16 +650,16 @@ static void *op_lookup[255] = {
         vm_next();
     }
 
-    VM_OP(DOP_LOAD_SELF)
-    stack[oparg(1, 0xFFFFFF)] = dst_wrap_function(func);
+    VM_OP(JOP_LOAD_SELF)
+    stack[oparg(1, 0xFFFFFF)] = janet_wrap_function(func);
     pc++;
     vm_next();
 
-    VM_OP(DOP_LOAD_UPVALUE)
+    VM_OP(JOP_LOAD_UPVALUE)
     {
         int32_t eindex = oparg(2, 0xFF);
         int32_t vindex = oparg(3, 0xFF);
-        DstFuncEnv *env;
+        JanetFuncEnv *env;
         vm_assert(func->def->environments_length > eindex, "invalid upvalue environment");
         env = func->envs[eindex];
         vm_assert(env->length > vindex, "invalid upvalue index");
@@ -674,11 +674,11 @@ static void *op_lookup[255] = {
         vm_next();
     }
 
-    VM_OP(DOP_SET_UPVALUE)
+    VM_OP(JOP_SET_UPVALUE)
     {
         int32_t eindex = oparg(2, 0xFF);
         int32_t vindex = oparg(3, 0xFF);
-        DstFuncEnv *env;
+        JanetFuncEnv *env;
         vm_assert(func->def->environments_length > eindex, "invalid upvalue environment");
         env = func->envs[eindex];
         vm_assert(env->length > vindex, "invalid upvalue index");
@@ -691,25 +691,25 @@ static void *op_lookup[255] = {
         vm_next();
     }
 
-    VM_OP(DOP_CLOSURE)
+    VM_OP(JOP_CLOSURE)
     {
-        DstFuncDef *fd;
-        DstFunction *fn;
+        JanetFuncDef *fd;
+        JanetFunction *fn;
         int32_t elen;
         vm_assert((int32_t)oparg(2, 0xFFFF) < func->def->defs_length, "invalid funcdef");
         fd = func->def->defs[(int32_t)oparg(2, 0xFFFF)];
         elen = fd->environments_length;
-        fn = dst_gcalloc(DST_MEMORY_FUNCTION, sizeof(DstFunction) + (elen * sizeof(DstFuncEnv *)));
+        fn = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) + (elen * sizeof(JanetFuncEnv *)));
         fn->def = fd;
         {
             int32_t i;
             for (i = 0; i < elen; ++i) {
                 int32_t inherit = fd->environments[i];
                 if (inherit == -1) {
-                    DstStackFrame *frame = dst_stack_frame(stack);
+                    JanetStackFrame *frame = janet_stack_frame(stack);
                     if (!frame->env) {
                         /* Lazy capture of current stack frame */
-                        DstFuncEnv *env = dst_gcalloc(DST_MEMORY_FUNCENV, sizeof(DstFuncEnv));
+                        JanetFuncEnv *env = janet_gcalloc(JANET_MEMORY_FUNCENV, sizeof(JanetFuncEnv));
                         env->offset = fiber->frame;
                         env->as.fiber = fiber;
                         env->length = func->def->slotcount;
@@ -721,27 +721,27 @@ static void *op_lookup[255] = {
                 }
             }
         }
-        stack[oparg(1, 0xFF)] = dst_wrap_function(fn);
+        stack[oparg(1, 0xFF)] = janet_wrap_function(fn);
         pc++;
         vm_checkgc_next();
     }
 
-    VM_OP(DOP_PUSH)
-        dst_fiber_push(fiber, stack[oparg(1, 0xFFFFFF)]);
+    VM_OP(JOP_PUSH)
+        janet_fiber_push(fiber, stack[oparg(1, 0xFFFFFF)]);
         pc++;
         stack = fiber->data + fiber->frame;
         vm_checkgc_next();
 
-    VM_OP(DOP_PUSH_2)
-        dst_fiber_push2(fiber,
+    VM_OP(JOP_PUSH_2)
+        janet_fiber_push2(fiber,
                 stack[oparg(1, 0xFF)],
                 stack[oparg(2, 0xFFFF)]);
     pc++;
     stack = fiber->data + fiber->frame;
     vm_checkgc_next();
 
-    VM_OP(DOP_PUSH_3)
-        dst_fiber_push3(fiber,
+    VM_OP(JOP_PUSH_3)
+        janet_fiber_push3(fiber,
                 stack[oparg(1, 0xFF)],
                 stack[oparg(2, 0xFF)],
                 stack[oparg(3, 0xFF)]);
@@ -749,15 +749,15 @@ static void *op_lookup[255] = {
     stack = fiber->data + fiber->frame;
     vm_checkgc_next();
 
-    VM_OP(DOP_PUSH_ARRAY)
+    VM_OP(JOP_PUSH_ARRAY)
     {
-        const Dst *vals;
+        const Janet *vals;
         int32_t len;
-        if (dst_indexed_view(stack[oparg(1, 0xFFFFFF)], &vals, &len)) {
-            dst_fiber_pushn(fiber, vals, len);
+        if (janet_indexed_view(stack[oparg(1, 0xFFFFFF)], &vals, &len)) {
+            janet_fiber_pushn(fiber, vals, len);
         } else {
             retreg = stack[oparg(1, 0xFFFFFF)];
-            expected_types = DST_TFLAG_INDEXED;
+            expected_types = JANET_TFLAG_INDEXED;
             goto vm_type_error;
         }
     }
@@ -765,236 +765,236 @@ static void *op_lookup[255] = {
     stack = fiber->data + fiber->frame;
     vm_checkgc_next();
 
-    VM_OP(DOP_CALL)
+    VM_OP(JOP_CALL)
     {
-        Dst callee = stack[oparg(2, 0xFFFF)];
+        Janet callee = stack[oparg(2, 0xFFFF)];
         if (fiber->maxstack &&
                 fiber->stacktop > fiber->maxstack) {
             vm_throw("stack overflow");
         }
-        if (dst_checktype(callee, DST_FUNCTION)) {
-            func = dst_unwrap_function(callee);
-            dst_stack_frame(stack)->pc = pc;
-            if (dst_fiber_funcframe(fiber, func))
+        if (janet_checktype(callee, JANET_FUNCTION)) {
+            func = janet_unwrap_function(callee);
+            janet_stack_frame(stack)->pc = pc;
+            if (janet_fiber_funcframe(fiber, func))
                 goto vm_arity_error;
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
             vm_checkgc_next();
-        } else if (dst_checktype(callee, DST_CFUNCTION)) {
-            DstArgs args;
+        } else if (janet_checktype(callee, JANET_CFUNCTION)) {
+            JanetArgs args;
             args.n = fiber->stacktop - fiber->stackstart;
-            dst_fiber_cframe(fiber, dst_unwrap_cfunction(callee));
-            retreg = dst_wrap_nil();
+            janet_fiber_cframe(fiber, janet_unwrap_cfunction(callee));
+            retreg = janet_wrap_nil();
             args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
-            if ((signal = dst_unwrap_cfunction(callee)(args))) {
+            if ((signal = janet_unwrap_cfunction(callee)(args))) {
                 goto vm_exit;
             }
             goto vm_return_cfunc;
         }
-        expected_types = DST_TFLAG_CALLABLE;
+        expected_types = JANET_TFLAG_CALLABLE;
         retreg = callee;
         goto vm_type_error;
     }
 
-    VM_OP(DOP_TAILCALL)
+    VM_OP(JOP_TAILCALL)
     {
-        Dst callee = stack[oparg(1, 0xFFFFFF)];
-        if (dst_checktype(callee, DST_FUNCTION)) {
-            func = dst_unwrap_function(callee);
-            if (dst_fiber_funcframe_tail(fiber, func))
+        Janet callee = stack[oparg(1, 0xFFFFFF)];
+        if (janet_checktype(callee, JANET_FUNCTION)) {
+            func = janet_unwrap_function(callee);
+            if (janet_fiber_funcframe_tail(fiber, func))
                 goto vm_arity_error;
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
             vm_checkgc_next();
-        } else if (dst_checktype(callee, DST_CFUNCTION)) {
-            DstArgs args;
+        } else if (janet_checktype(callee, JANET_CFUNCTION)) {
+            JanetArgs args;
             args.n = fiber->stacktop - fiber->stackstart;
-            dst_fiber_cframe(fiber, dst_unwrap_cfunction(callee));
-            retreg = dst_wrap_nil();
+            janet_fiber_cframe(fiber, janet_unwrap_cfunction(callee));
+            retreg = janet_wrap_nil();
             args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
-            if ((signal = dst_unwrap_cfunction(callee)(args))) {
+            if ((signal = janet_unwrap_cfunction(callee)(args))) {
                 goto vm_exit;
             }
             goto vm_return_cfunc_tail;
         }
-        expected_types = DST_TFLAG_CALLABLE;
+        expected_types = JANET_TFLAG_CALLABLE;
         retreg = callee;
         goto vm_type_error;
     }
 
-    VM_OP(DOP_RESUME)
+    VM_OP(JOP_RESUME)
     {
-        Dst fiberval = stack[oparg(2, 0xFF)];
-        vm_assert_type(fiberval, DST_FIBER);
+        Janet fiberval = stack[oparg(2, 0xFF)];
+        vm_assert_type(fiberval, JANET_FIBER);
         retreg = stack[oparg(3, 0xFF)];
-        fiber->child = dst_unwrap_fiber(fiberval);
+        fiber->child = janet_unwrap_fiber(fiberval);
         goto vm_resume_child;
     }
 
-    VM_OP(DOP_SIGNAL)
+    VM_OP(JOP_SIGNAL)
     {
         int32_t s = oparg(3, 0xFF);
-        if (s > DST_SIGNAL_USER9) s = DST_SIGNAL_USER9;
+        if (s > JANET_SIGNAL_USER9) s = JANET_SIGNAL_USER9;
         if (s < 0) s = 0;
         signal = s;
         retreg = stack[oparg(2, 0xFF)];
-        fiber->flags |= DST_FIBER_FLAG_SIGNAL_WAITING;
+        fiber->flags |= JANET_FIBER_FLAG_SIGNAL_WAITING;
         goto vm_exit;
     }
 
-    VM_OP(DOP_PUT)
+    VM_OP(JOP_PUT)
     {
-        Dst ds = stack[oparg(1, 0xFF)];
-        Dst key = stack[oparg(2, 0xFF)];
-        Dst value = stack[oparg(3, 0xFF)];
-        switch (dst_type(ds)) {
+        Janet ds = stack[oparg(1, 0xFF)];
+        Janet key = stack[oparg(2, 0xFF)];
+        Janet value = stack[oparg(3, 0xFF)];
+        switch (janet_type(ds)) {
             default:
-                expected_types = DST_TFLAG_ARRAY | DST_TFLAG_BUFFER | DST_TFLAG_TABLE;
+                expected_types = JANET_TFLAG_ARRAY | JANET_TFLAG_BUFFER | JANET_TFLAG_TABLE;
                 retreg = ds;
                 goto vm_type_error;
-            case DST_ARRAY:
+            case JANET_ARRAY:
             {
                 int32_t index;
-                DstArray *array = dst_unwrap_array(ds);
-                vm_assert_type(key, DST_INTEGER);
-                if (dst_unwrap_integer(key) < 0)
+                JanetArray *array = janet_unwrap_array(ds);
+                vm_assert_type(key, JANET_INTEGER);
+                if (janet_unwrap_integer(key) < 0)
                     vm_throw("expected non-negative integer key");
-                index = dst_unwrap_integer(key);
+                index = janet_unwrap_integer(key);
                 if (index == INT32_MAX)
                     vm_throw("key too large");
                 if (index >= array->count) {
-                    dst_array_setcount(array, index + 1);
+                    janet_array_setcount(array, index + 1);
                 }
                 array->data[index] = value;
                 break;
             }
-            case DST_BUFFER:
+            case JANET_BUFFER:
             {
                 int32_t index;
-                DstBuffer *buffer = dst_unwrap_buffer(ds);
-                vm_assert_type(key, DST_INTEGER);
-                if (dst_unwrap_integer(key) < 0)
+                JanetBuffer *buffer = janet_unwrap_buffer(ds);
+                vm_assert_type(key, JANET_INTEGER);
+                if (janet_unwrap_integer(key) < 0)
                     vm_throw("expected non-negative integer key");
-                index = dst_unwrap_integer(key);
+                index = janet_unwrap_integer(key);
                 if (index == INT32_MAX)
                     vm_throw("key too large");
-                vm_assert_type(value, DST_INTEGER);
+                vm_assert_type(value, JANET_INTEGER);
                 if (index >= buffer->count) {
-                    dst_buffer_setcount(buffer, index + 1);
+                    janet_buffer_setcount(buffer, index + 1);
                 }
-                buffer->data[index] = (uint8_t) (dst_unwrap_integer(value) & 0xFF);
+                buffer->data[index] = (uint8_t) (janet_unwrap_integer(value) & 0xFF);
                 break;
             }
-            case DST_TABLE:
-                dst_table_put(dst_unwrap_table(ds), key, value);
+            case JANET_TABLE:
+                janet_table_put(janet_unwrap_table(ds), key, value);
                 break;
         }
         ++pc;
         vm_checkgc_next();
     }
 
-    VM_OP(DOP_PUT_INDEX)
+    VM_OP(JOP_PUT_INDEX)
     {
-        Dst ds = stack[oparg(1, 0xFF)];
-        Dst value = stack[oparg(2, 0xFF)];
+        Janet ds = stack[oparg(1, 0xFF)];
+        Janet value = stack[oparg(2, 0xFF)];
         int32_t index = oparg(3, 0xFF);
-        switch (dst_type(ds)) {
+        switch (janet_type(ds)) {
             default:
-                expected_types = DST_TFLAG_ARRAY | DST_TFLAG_BUFFER;
+                expected_types = JANET_TFLAG_ARRAY | JANET_TFLAG_BUFFER;
                 retreg = ds;
                 goto vm_type_error;
-            case DST_ARRAY:
-                if (index >= dst_unwrap_array(ds)->count) {
-                    dst_array_ensure(dst_unwrap_array(ds), 2 * index);
-                    dst_unwrap_array(ds)->count = index + 1;
+            case JANET_ARRAY:
+                if (index >= janet_unwrap_array(ds)->count) {
+                    janet_array_ensure(janet_unwrap_array(ds), 2 * index);
+                    janet_unwrap_array(ds)->count = index + 1;
                 }
-                dst_unwrap_array(ds)->data[index] = value;
+                janet_unwrap_array(ds)->data[index] = value;
                 break;
-            case DST_BUFFER:
-                vm_assert_type(value, DST_INTEGER);
-                if (index >= dst_unwrap_buffer(ds)->count) {
-                    dst_buffer_ensure(dst_unwrap_buffer(ds), 2 * index);
-                    dst_unwrap_buffer(ds)->count = index + 1;
+            case JANET_BUFFER:
+                vm_assert_type(value, JANET_INTEGER);
+                if (index >= janet_unwrap_buffer(ds)->count) {
+                    janet_buffer_ensure(janet_unwrap_buffer(ds), 2 * index);
+                    janet_unwrap_buffer(ds)->count = index + 1;
                 }
-                dst_unwrap_buffer(ds)->data[index] = dst_unwrap_integer(value);
+                janet_unwrap_buffer(ds)->data[index] = janet_unwrap_integer(value);
                 break;
         }
         ++pc;
         vm_checkgc_next();
     }
 
-    VM_OP(DOP_GET)
+    VM_OP(JOP_GET)
     {
-        Dst ds = stack[oparg(2, 0xFF)];
-        Dst key = stack[oparg(3, 0xFF)];
-        Dst value;
-        switch (dst_type(ds)) {
+        Janet ds = stack[oparg(2, 0xFF)];
+        Janet key = stack[oparg(3, 0xFF)];
+        Janet value;
+        switch (janet_type(ds)) {
             default:
-                expected_types = DST_TFLAG_LENGTHABLE;
+                expected_types = JANET_TFLAG_LENGTHABLE;
                 retreg = ds;
                 goto vm_type_error;
-            case DST_STRUCT:
-                value = dst_struct_get(dst_unwrap_struct(ds), key);
+            case JANET_STRUCT:
+                value = janet_struct_get(janet_unwrap_struct(ds), key);
                 break;
-            case DST_TABLE:
-                value = dst_table_get(dst_unwrap_table(ds), key);
+            case JANET_TABLE:
+                value = janet_table_get(janet_unwrap_table(ds), key);
                 break;
-            case DST_ARRAY:
+            case JANET_ARRAY:
                 {
-                    DstArray *array = dst_unwrap_array(ds);
+                    JanetArray *array = janet_unwrap_array(ds);
                     int32_t index;
-                    vm_assert_type(key, DST_INTEGER);
-                    index = dst_unwrap_integer(key);
+                    vm_assert_type(key, JANET_INTEGER);
+                    index = janet_unwrap_integer(key);
                     if (index < 0 || index >= array->count) {
                         /*vm_throw("index out of bounds");*/
-                        value = dst_wrap_nil();
+                        value = janet_wrap_nil();
                     } else {
                         value = array->data[index];
                     }
                     break;
                 }
-            case DST_TUPLE:
+            case JANET_TUPLE:
                 {
-                    const Dst *tuple = dst_unwrap_tuple(ds);
+                    const Janet *tuple = janet_unwrap_tuple(ds);
                     int32_t index;
-                    vm_assert_type(key, DST_INTEGER);
-                    index = dst_unwrap_integer(key);
-                    if (index < 0 || index >= dst_tuple_length(tuple)) {
+                    vm_assert_type(key, JANET_INTEGER);
+                    index = janet_unwrap_integer(key);
+                    if (index < 0 || index >= janet_tuple_length(tuple)) {
                         /*vm_throw("index out of bounds");*/
-                        value = dst_wrap_nil();
+                        value = janet_wrap_nil();
                     } else {
                         value = tuple[index];
                     }
                     break;
                 }
-            case DST_BUFFER:
+            case JANET_BUFFER:
                 {
-                    DstBuffer *buffer = dst_unwrap_buffer(ds);
+                    JanetBuffer *buffer = janet_unwrap_buffer(ds);
                     int32_t index;
-                    vm_assert_type(key, DST_INTEGER);
-                    index = dst_unwrap_integer(key);
+                    vm_assert_type(key, JANET_INTEGER);
+                    index = janet_unwrap_integer(key);
                     if (index < 0 || index >= buffer->count) {
                         /*vm_throw("index out of bounds");*/
-                        value = dst_wrap_nil();
+                        value = janet_wrap_nil();
                     } else {
-                        value = dst_wrap_integer(buffer->data[index]);
+                        value = janet_wrap_integer(buffer->data[index]);
                     }
                     break;
                 }
-            case DST_STRING:
-            case DST_SYMBOL:
+            case JANET_STRING:
+            case JANET_SYMBOL:
                 {
-                    const uint8_t *str = dst_unwrap_string(ds);
+                    const uint8_t *str = janet_unwrap_string(ds);
                     int32_t index;
-                    vm_assert_type(key, DST_INTEGER);
-                    index = dst_unwrap_integer(key);
-                    if (index < 0 || index >= dst_string_length(str)) {
+                    vm_assert_type(key, JANET_INTEGER);
+                    index = janet_unwrap_integer(key);
+                    if (index < 0 || index >= janet_string_length(str)) {
                         /*vm_throw("index out of bounds");*/
-                        value = dst_wrap_nil();
+                        value = janet_wrap_nil();
                     } else {
-                        value = dst_wrap_integer(str[index]);
+                        value = janet_wrap_integer(str[index]);
                     }
                     break;
                 }
@@ -1004,54 +1004,54 @@ static void *op_lookup[255] = {
         vm_next();
     }
 
-    VM_OP(DOP_GET_INDEX)
+    VM_OP(JOP_GET_INDEX)
     {
-        Dst ds = stack[oparg(2, 0xFF)];
+        Janet ds = stack[oparg(2, 0xFF)];
         int32_t index = oparg(3, 0xFF);
-        Dst value;
-        switch (dst_type(ds)) {
+        Janet value;
+        switch (janet_type(ds)) {
             default:
-                expected_types = DST_TFLAG_LENGTHABLE;
+                expected_types = JANET_TFLAG_LENGTHABLE;
                 retreg = ds;
                 goto vm_type_error;
-            case DST_STRING:
-            case DST_SYMBOL:
-                if (index >= dst_string_length(dst_unwrap_string(ds))) {
+            case JANET_STRING:
+            case JANET_SYMBOL:
+                if (index >= janet_string_length(janet_unwrap_string(ds))) {
                     /*vm_throw("index out of bounds");*/
-                    value = dst_wrap_nil();
+                    value = janet_wrap_nil();
                 } else {
-                    value = dst_wrap_integer(dst_unwrap_string(ds)[index]);
+                    value = janet_wrap_integer(janet_unwrap_string(ds)[index]);
                 }
                 break;
-            case DST_ARRAY:
-                if (index >= dst_unwrap_array(ds)->count) {
+            case JANET_ARRAY:
+                if (index >= janet_unwrap_array(ds)->count) {
                     /*vm_throw("index out of bounds");*/
-                    value = dst_wrap_nil();
+                    value = janet_wrap_nil();
                 } else {
-                    value = dst_unwrap_array(ds)->data[index];
+                    value = janet_unwrap_array(ds)->data[index];
                 }
                 break;
-            case DST_BUFFER:
-                if (index >= dst_unwrap_buffer(ds)->count) {
+            case JANET_BUFFER:
+                if (index >= janet_unwrap_buffer(ds)->count) {
                     /*vm_throw("index out of bounds");*/
-                    value = dst_wrap_nil();
+                    value = janet_wrap_nil();
                 } else {
-                    value = dst_wrap_integer(dst_unwrap_buffer(ds)->data[index]);
+                    value = janet_wrap_integer(janet_unwrap_buffer(ds)->data[index]);
                 }
                 break;
-            case DST_TUPLE:
-                if (index >= dst_tuple_length(dst_unwrap_tuple(ds))) {
+            case JANET_TUPLE:
+                if (index >= janet_tuple_length(janet_unwrap_tuple(ds))) {
                     /*vm_throw("index out of bounds");*/
-                    value = dst_wrap_nil();
+                    value = janet_wrap_nil();
                 } else {
-                    value = dst_unwrap_tuple(ds)[index];
+                    value = janet_unwrap_tuple(ds)[index];
                 }
                 break;
-            case DST_TABLE:
-                value = dst_table_get(dst_unwrap_table(ds), dst_wrap_integer(index));
+            case JANET_TABLE:
+                value = janet_table_get(janet_unwrap_table(ds), janet_wrap_integer(index));
                 break;
-            case DST_STRUCT:
-                value = dst_struct_get(dst_unwrap_struct(ds), dst_wrap_integer(index));
+            case JANET_STRUCT:
+                value = janet_struct_get(janet_unwrap_struct(ds), janet_wrap_integer(index));
                 break;
         }
         stack[oparg(1, 0xFF)] = value;
@@ -1059,122 +1059,122 @@ static void *op_lookup[255] = {
         vm_next();
     }
 
-    VM_OP(DOP_LENGTH)
+    VM_OP(JOP_LENGTH)
     {
-        Dst x = stack[oparg(2, 0xFFFF)];
+        Janet x = stack[oparg(2, 0xFFFF)];
         int32_t len;
-        switch (dst_type(x)) {
+        switch (janet_type(x)) {
             default:
-                expected_types = DST_TFLAG_LENGTHABLE;
+                expected_types = JANET_TFLAG_LENGTHABLE;
                 retreg = x;
                 goto vm_type_error;
-            case DST_STRING:
-            case DST_SYMBOL:
-                len = dst_string_length(dst_unwrap_string(x));
+            case JANET_STRING:
+            case JANET_SYMBOL:
+                len = janet_string_length(janet_unwrap_string(x));
                 break;
-            case DST_ARRAY:
-                len = dst_unwrap_array(x)->count;
+            case JANET_ARRAY:
+                len = janet_unwrap_array(x)->count;
                 break;
-            case DST_BUFFER:
-                len = dst_unwrap_buffer(x)->count;
+            case JANET_BUFFER:
+                len = janet_unwrap_buffer(x)->count;
                 break;
-            case DST_TUPLE:
-                len = dst_tuple_length(dst_unwrap_tuple(x));
+            case JANET_TUPLE:
+                len = janet_tuple_length(janet_unwrap_tuple(x));
                 break;
-            case DST_STRUCT:
-                len = dst_struct_length(dst_unwrap_struct(x));
+            case JANET_STRUCT:
+                len = janet_struct_length(janet_unwrap_struct(x));
                 break;
-            case DST_TABLE:
-                len = dst_unwrap_table(x)->count;
+            case JANET_TABLE:
+                len = janet_unwrap_table(x)->count;
                 break;
         }
-        stack[oparg(1, 0xFF)] = dst_wrap_integer(len);
+        stack[oparg(1, 0xFF)] = janet_wrap_integer(len);
         ++pc;
         vm_next();
     }
 
-    VM_OP(DOP_MAKE_ARRAY)
+    VM_OP(JOP_MAKE_ARRAY)
     {
         int32_t count = fiber->stacktop - fiber->stackstart;
-        Dst *mem = fiber->data + fiber->stackstart;
-        stack[oparg(1, 0xFFFFFF)] = dst_wrap_array(dst_array_n(mem, count));
+        Janet *mem = fiber->data + fiber->stackstart;
+        stack[oparg(1, 0xFFFFFF)] = janet_wrap_array(janet_array_n(mem, count));
         fiber->stacktop = fiber->stackstart;
         ++pc;
         vm_checkgc_next();
     }
 
-    VM_OP(DOP_MAKE_TUPLE)
+    VM_OP(JOP_MAKE_TUPLE)
     {
         int32_t count = fiber->stacktop - fiber->stackstart;
-        Dst *mem = fiber->data + fiber->stackstart;
-        stack[oparg(1, 0xFFFFFF)] = dst_wrap_tuple(dst_tuple_n(mem, count));
+        Janet *mem = fiber->data + fiber->stackstart;
+        stack[oparg(1, 0xFFFFFF)] = janet_wrap_tuple(janet_tuple_n(mem, count));
         fiber->stacktop = fiber->stackstart;
         ++pc;
         vm_checkgc_next();
     }
 
-    VM_OP(DOP_MAKE_TABLE)
+    VM_OP(JOP_MAKE_TABLE)
     {
         int32_t count = fiber->stacktop - fiber->stackstart;
-        Dst *mem = fiber->data + fiber->stackstart;
+        Janet *mem = fiber->data + fiber->stackstart;
         if (count & 1)
             vm_throw("expected even number of arguments to table constructor");
-        DstTable *table = dst_table(count / 2);
+        JanetTable *table = janet_table(count / 2);
         for (int32_t i = 0; i < count; i += 2)
-            dst_table_put(table, mem[i], mem[i + 1]);
-        stack[oparg(1, 0xFFFFFF)] = dst_wrap_table(table);
+            janet_table_put(table, mem[i], mem[i + 1]);
+        stack[oparg(1, 0xFFFFFF)] = janet_wrap_table(table);
         fiber->stacktop = fiber->stackstart;
         ++pc;
         vm_checkgc_next();
     }
 
-    VM_OP(DOP_MAKE_STRUCT)
+    VM_OP(JOP_MAKE_STRUCT)
     {
         int32_t count = fiber->stacktop - fiber->stackstart;
-        Dst *mem = fiber->data + fiber->stackstart;
+        Janet *mem = fiber->data + fiber->stackstart;
         if (count & 1)
             vm_throw("expected even number of arguments to struct constructor");
-        DstKV *st = dst_struct_begin(count / 2);
+        JanetKV *st = janet_struct_begin(count / 2);
         for (int32_t i = 0; i < count; i += 2)
-            dst_struct_put(st, mem[i], mem[i + 1]);
-        stack[oparg(1, 0xFFFFFF)] = dst_wrap_struct(dst_struct_end(st));
+            janet_struct_put(st, mem[i], mem[i + 1]);
+        stack[oparg(1, 0xFFFFFF)] = janet_wrap_struct(janet_struct_end(st));
         fiber->stacktop = fiber->stackstart;
         ++pc;
         vm_checkgc_next();
     }
 
-    VM_OP(DOP_MAKE_STRING)
+    VM_OP(JOP_MAKE_STRING)
     {
         int32_t count = fiber->stacktop - fiber->stackstart;
-        Dst *mem = fiber->data + fiber->stackstart;
-        DstBuffer buffer;
-        dst_buffer_init(&buffer, 10 * count);
+        Janet *mem = fiber->data + fiber->stackstart;
+        JanetBuffer buffer;
+        janet_buffer_init(&buffer, 10 * count);
         for (int32_t i = 0; i < count; i++)
-            dst_to_string_b(&buffer, mem[i]);
-        stack[oparg(1, 0xFFFFFF)] = dst_stringv(buffer.data, buffer.count);
-        dst_buffer_deinit(&buffer);
+            janet_to_string_b(&buffer, mem[i]);
+        stack[oparg(1, 0xFFFFFF)] = janet_stringv(buffer.data, buffer.count);
+        janet_buffer_deinit(&buffer);
         fiber->stacktop = fiber->stackstart;
         ++pc;
         vm_checkgc_next();
     }
 
-    VM_OP(DOP_MAKE_BUFFER)
+    VM_OP(JOP_MAKE_BUFFER)
     {
         int32_t count = fiber->stacktop - fiber->stackstart;
-        Dst *mem = fiber->data + fiber->stackstart;
-        DstBuffer *buffer = dst_buffer(10 * count);
+        Janet *mem = fiber->data + fiber->stackstart;
+        JanetBuffer *buffer = janet_buffer(10 * count);
         for (int32_t i = 0; i < count; i++)
-            dst_to_string_b(buffer, mem[i]);
-        stack[oparg(1, 0xFFFFFF)] = dst_wrap_buffer(buffer);
+            janet_to_string_b(buffer, mem[i]);
+        stack[oparg(1, 0xFFFFFF)] = janet_wrap_buffer(buffer);
         fiber->stacktop = fiber->stackstart;
         ++pc;
         vm_checkgc_next();
     }
 
-    /* Return from c function. Simpler than returning from dst function */
+    /* Return from c function. Simpler than returning from janet function */
     vm_return_cfunc:
     {
-        dst_fiber_popframe(fiber);
+        janet_fiber_popframe(fiber);
         if (fiber->frame == 0) goto vm_exit;
         stack = fiber->data + fiber->frame;
         stack[oparg(1, 0xFF)] = retreg;
@@ -1185,8 +1185,8 @@ static void *op_lookup[255] = {
     /* Return from a cfunction that is in tail position (pop 2 stack frames) */
     vm_return_cfunc_tail:
     {
-        dst_fiber_popframe(fiber);
-        dst_fiber_popframe(fiber);
+        janet_fiber_popframe(fiber);
+        janet_fiber_popframe(fiber);
         if (fiber->frame == 0) goto vm_exit;
         goto vm_reset;
     }
@@ -1194,7 +1194,7 @@ static void *op_lookup[255] = {
     /* Handle returning from stack frame. Expect return value in retreg */
     vm_return:
     {
-        dst_fiber_popframe(fiber);
+        janet_fiber_popframe(fiber);
         if (fiber->frame == 0) goto vm_exit;
         goto vm_reset;
     }
@@ -1203,30 +1203,30 @@ static void *op_lookup[255] = {
     vm_arity_error:
     {
         int32_t nargs = fiber->stacktop - fiber->stackstart;
-        retreg = dst_wrap_string(dst_formatc("%V called with %d argument%s, expected %d",
-                    dst_wrap_function(func),
+        retreg = janet_wrap_string(janet_formatc("%V called with %d argument%s, expected %d",
+                    janet_wrap_function(func),
                     nargs,
                     nargs == 1 ? "" : "s",
                     func->def->arity));
-        signal = DST_SIGNAL_ERROR;
+        signal = JANET_SIGNAL_ERROR;
         goto vm_exit;
     }
 
     /* Resume a child fiber */
     vm_resume_child:
     {
-        DstFiber *child = fiber->child;
-        DstFiberStatus status = dst_fiber_status(child);
-        if (status == DST_STATUS_ALIVE ||
-                status == DST_STATUS_DEAD ||
-                status == DST_STATUS_ERROR) {
+        JanetFiber *child = fiber->child;
+        JanetFiberStatus status = janet_fiber_status(child);
+        if (status == JANET_STATUS_ALIVE ||
+                status == JANET_STATUS_DEAD ||
+                status == JANET_STATUS_ERROR) {
             vm_throw("cannot resume alive, dead, or errored fiber");
         }
-        signal = dst_continue(child, retreg, &retreg);
-        if (signal != DST_SIGNAL_OK) {
+        signal = janet_continue(child, retreg, &retreg);
+        if (signal != JANET_SIGNAL_OK) {
             if (child->flags & (1 << signal)) {
                 /* Intercept signal */
-                signal = DST_SIGNAL_OK;
+                signal = JANET_SIGNAL_OK;
                 fiber->child = NULL;
             } else {
                 /* Propogate signal */
@@ -1242,40 +1242,40 @@ static void *op_lookup[255] = {
      * the expected types are in the expected_types field. */
     vm_type_error:
     {
-        DstBuffer errbuf;
-        dst_buffer_init(&errbuf, 10);
-        dst_buffer_push_cstring(&errbuf, "expected ");
-        dst_buffer_push_types(&errbuf, expected_types);
-        dst_buffer_push_cstring(&errbuf, ", got ");
-        dst_buffer_push_cstring(&errbuf, dst_type_names[dst_type(retreg)] + 1);
-        retreg = dst_stringv(errbuf.data, errbuf.count);
-        dst_buffer_deinit(&errbuf);
-        signal = DST_SIGNAL_ERROR;
+        JanetBuffer errbuf;
+        janet_buffer_init(&errbuf, 10);
+        janet_buffer_push_cstring(&errbuf, "expected ");
+        janet_buffer_push_types(&errbuf, expected_types);
+        janet_buffer_push_cstring(&errbuf, ", got ");
+        janet_buffer_push_cstring(&errbuf, janet_type_names[janet_type(retreg)] + 1);
+        retreg = janet_stringv(errbuf.data, errbuf.count);
+        janet_buffer_deinit(&errbuf);
+        signal = JANET_SIGNAL_ERROR;
         goto vm_exit;
     }
 
     /* Handle errors from c functions and vm opcodes */
     vm_error:
     {
-        signal = DST_SIGNAL_ERROR;
+        signal = JANET_SIGNAL_ERROR;
         goto vm_exit;
     }
 
     /* Exit from vm loop. If signal is not set explicitely, does
-     * a successful return (DST_SIGNAL_OK). */
+     * a successful return (JANET_SIGNAL_OK). */
     vm_exit:
     {
-        dst_stack_frame(stack)->pc = pc;
-        dst_vm_stackn--;
-        dst_gcunroot(in);
-        dst_gcunroot(dst_wrap_fiber(fiber));
-        dst_vm_fiber = old_vm_fiber;
+        janet_stack_frame(stack)->pc = pc;
+        janet_vm_stackn--;
+        janet_gcunroot(in);
+        janet_gcunroot(janet_wrap_fiber(fiber));
+        janet_vm_fiber = old_vm_fiber;
         *out = retreg;
         /* All statuses correspond to signals except new and alive,
          * which cannot be entered when exiting the vm loop.
-         * DST_SIGNAL_OK -> DST_STATUS_DEAD
-         * DST_SIGNAL_YIELD -> DST_STATUS_PENDING */
-        dst_fiber_set_status(fiber, signal);
+         * JANET_SIGNAL_OK -> JANET_STATUS_DEAD
+         * JANET_SIGNAL_YIELD -> JANET_STATUS_PENDING */
+        janet_fiber_set_status(fiber, signal);
         return signal;
     }
 
@@ -1283,8 +1283,8 @@ static void *op_lookup[255] = {
     vm_reset:
     {
         stack = fiber->data + fiber->frame;
-        func = dst_stack_frame(stack)->func;
-        pc = dst_stack_frame(stack)->pc;
+        func = janet_stack_frame(stack)->func;
+        pc = janet_stack_frame(stack)->pc;
         stack[oparg(1, 0xFF)] = retreg;
         pc++;
         vm_checkgc_next();
@@ -1303,55 +1303,55 @@ static void *op_lookup[255] = {
 
 }
 
-DstSignal dst_call(
-        DstFunction *fun,
+JanetSignal janet_call(
+        JanetFunction *fun,
         int32_t argn,
-        const Dst *argv,
-        Dst *out,
-        DstFiber **f) {
+        const Janet *argv,
+        Janet *out,
+        JanetFiber **f) {
     int32_t i;
-    DstFiber *fiber = dst_fiber(fun, 64);
+    JanetFiber *fiber = janet_fiber(fun, 64);
     if (f)
         *f = fiber;
     for (i = 0; i < argn; i++)
-        dst_fiber_push(fiber, argv[i]);
-    if (dst_fiber_funcframe(fiber, fiber->root)) {
-        *out = dst_cstringv("arity mismatch");
-        return DST_SIGNAL_ERROR;
+        janet_fiber_push(fiber, argv[i]);
+    if (janet_fiber_funcframe(fiber, fiber->root)) {
+        *out = janet_cstringv("arity mismatch");
+        return JANET_SIGNAL_ERROR;
     }
     /* Prevent push an extra value on the stack */
-    dst_fiber_set_status(fiber, DST_STATUS_PENDING);
-    return dst_continue(fiber, dst_wrap_nil(), out);
+    janet_fiber_set_status(fiber, JANET_STATUS_PENDING);
+    return janet_continue(fiber, janet_wrap_nil(), out);
 }
 
 /* Setup VM */
-int dst_init(void) {
+int janet_init(void) {
     /* Garbage collection */
-    dst_vm_blocks = NULL;
-    dst_vm_next_collection = 0;
+    janet_vm_blocks = NULL;
+    janet_vm_next_collection = 0;
     /* Setting memoryInterval to zero forces
      * a collection pretty much every cycle, which is
      * incredibly horrible for performance, but can help ensure
      * there are no memory bugs during development */
-    dst_vm_gc_interval = 0x10000;
-    dst_symcache_init();
+    janet_vm_gc_interval = 0x10000;
+    janet_symcache_init();
     /* Initialize gc roots */
-    dst_vm_roots = NULL;
-    dst_vm_root_count = 0;
-    dst_vm_root_capacity = 0;
+    janet_vm_roots = NULL;
+    janet_vm_root_count = 0;
+    janet_vm_root_capacity = 0;
     /* Initialize registry */
-    dst_vm_registry = dst_table(0);
-    dst_gcroot(dst_wrap_table(dst_vm_registry));
+    janet_vm_registry = janet_table(0);
+    janet_gcroot(janet_wrap_table(janet_vm_registry));
     return 0;
 }
 
 /* Clear all memory associated with the VM */
-void dst_deinit(void) {
-    dst_clear_memory();
-    dst_symcache_deinit();
-    free(dst_vm_roots);
-    dst_vm_roots = NULL;
-    dst_vm_root_count = 0;
-    dst_vm_root_capacity = 0;
-    dst_vm_registry = NULL;
+void janet_deinit(void) {
+    janet_clear_memory();
+    janet_symcache_deinit();
+    free(janet_vm_roots);
+    janet_vm_roots = NULL;
+    janet_vm_root_count = 0;
+    janet_vm_root_capacity = 0;
+    janet_vm_registry = NULL;
 }
