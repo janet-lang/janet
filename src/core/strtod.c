@@ -199,6 +199,7 @@ static struct JanetScanRes janet_scan_impl(
             res.foundexp = 1;
             break;
         } else if (!gotradix && (*str == 'x' || *str == 'X')) {
+            if (!seenadigit) goto error;
             if (res.seenpoint || res.mant > 0) goto error;
             res.base = 16;
             res.mant = 0;

@@ -1333,7 +1333,7 @@ int janet_init(void) {
      * a collection pretty much every cycle, which is
      * incredibly horrible for performance, but can help ensure
      * there are no memory bugs during development */
-    janet_vm_gc_interval = 0x10000;
+    janet_vm_gc_interval = 0x1000000;
     janet_symcache_init();
     /* Initialize gc roots */
     janet_vm_roots = NULL;
