@@ -46,5 +46,11 @@
 
 (assert (= txs '[[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]) "nested for")
 
+# Check x:digits: works as symbol and not a hex number
+(def x1 100)
+(assert (= x1 100) "x1 as symbol")
+(def X1 100)
+(assert (= X1 100) "X1 as symbol")
+
 (end-suite)
 
