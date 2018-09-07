@@ -117,11 +117,8 @@ static int cfun_slice(JanetArgs args) {
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
     if (end >= start) {
-        int32_t i, j;
         ret = janet_tuple_begin(end - start);
-        for (j = 0, i = start; i < end; j++, i++) {
-            ret[j] = vals[i];
-        }
+        memcpy(ret, vals + start, sizeof(Janet) * (end - start));
     } else {
         ret = janet_tuple_begin(0);
     }

@@ -204,12 +204,9 @@ static int cfun_slice(JanetArgs args) {
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
     if (end >= start) {
-        int32_t i, j;
         ret = janet_array(end - start);
-        for (j = 0, i = start; i < end; j++, i++) {
-            ret->data[j] = vals[i];
-        }
-        ret->count = j;
+        memcpy(ret->data, vals + start, sizeof(Janet) * (end - start));
+        ret->count = end - start;
     } else {
         ret = janet_array(0);
     }
