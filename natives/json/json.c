@@ -70,7 +70,8 @@ static char *decode_utf16_escape(const char *p, uint32_t *outpoint) {
     return NULL;
 }
 
-/* Parse a string */
+/* Parse a string. Also handles the conversion of utf-16 to
+ * utf-8. */
 const char *decode_string(const char **p, Janet *out) {
     JanetBuffer *buffer = janet_buffer(0);
     const char *cp = *p;
@@ -571,7 +572,7 @@ static int json_encode(JanetArgs args) {
             JANET_ARG_BYTES(e.newline, e.newlinelen, args, 2);
         } else {
             e.newline = (const uint8_t *)"\r\n";
-            e.newlinelen = 1;
+            e.newlinelen = 2;
         }
     }
     const char *err = encode_one(&e, args.v[0], 0);

@@ -95,6 +95,50 @@ int32_t janet_tablen(int32_t n) {
     return n + 1;
 }
 
+/* Helper to find a value in a Janet struct or table. Returns the bucket
+ * containg the key, or the first empty bucket if there is no such key. */
+const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
+    int32_t index = janet_maphash(cap, janet_hash(key));
+    int32_t i;
+    const JanetKV *first_bucket = NULL;
+    /* Higher half */
+    for (i = index; i < cap; i++) {
+        const JanetKV *kv = buckets + i;
+        if (janet_checktype(kv->key, JANET_NIL)) {
+            if (janet_checktype(kv->value, JANET_NIL)) {
+                return kv;
+            } else if (NULL == first_bucket) {
+                first_bucket = kv;
+            }
+        } else if (janet_equals(kv->key, key)) {
+            return buckets + i;
+        }
+    }
+    /* Lower half */
+    for (i = 0; i < index; i++) {
+        const JanetKV *kv = buckets + i;
+        if (janet_checktype(kv->key, JANET_NIL)) {
+            if (janet_checktype(kv->value, JANET_NIL)) {
+                return kv;
+            } else if (NULL == first_bucket) {
+                first_bucket = kv;
+            }
+        } else if (janet_equals(kv->key, key)) {
+            return buckets + i;
+        }
+    }
+    return first_bucket;
+}
+
+/* Get a value from a janet struct or table. */
+Janet janet_dictionary_get(const JanetKV *data, int32_t cap, Janet key) {
+    const JanetKV *kv = janet_dict_find(data, cap, key);
+    if (kv && !janet_checktype(kv->key, JANET_NIL)) {
+        return kv->value;
+    }
+    return janet_wrap_nil();
+}
+
 /* Compare a janet string with a cstring. more efficient than loading
  * c string as a janet string. */
 int janet_cstrcmp(const uint8_t *str, const char *other) {

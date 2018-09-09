@@ -24,8 +24,6 @@
 #include "gc.h"
 #include "util.h"
 
-#define janet_struct_maphash(cap, hash) ((uint32_t)(hash & (cap - 1)));
-
 /* Begin creation of a struct */
 JanetKV *janet_struct_begin(int32_t count) {
 
@@ -43,10 +41,11 @@ JanetKV *janet_struct_begin(int32_t count) {
     return st;
 }
 
-/* Find an item in a struct */
+/* Find an item in a struct. Should be similar to janet_dict_find, but
+ * specialized to structs (slightly more compact). */
 const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
     int32_t cap = janet_struct_capacity(st);
-    int32_t index = janet_struct_maphash(cap, janet_hash(key));
+    int32_t index = janet_maphash(cap, janet_hash(key));
     int32_t i;
     for (i = index; i < cap; i++)
         if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
@@ -68,7 +67,7 @@ const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
 void janet_struct_put(JanetKV *st, Janet key, Janet value) {
     int32_t cap = janet_struct_capacity(st);
     int32_t hash = janet_hash(key);
-    int32_t index = janet_struct_maphash(cap, hash);
+    int32_t index = janet_maphash(cap, hash);
     int32_t i, j, dist;
     int32_t bounds[4] = {index, cap, 0, index};
     if (janet_checktype(key, JANET_NIL) || janet_checktype(value, JANET_NIL)) return;
@@ -95,7 +94,7 @@ void janet_struct_put(JanetKV *st, Janet key, Janet value) {
          * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}. 
          * Collisions are resolved via an insertion sort insertion. */
         otherhash = janet_hash(kv->key);
-        otherindex = janet_struct_maphash(cap, otherhash);
+        otherindex = janet_maphash(cap, otherhash);
         otherdist = (i + cap - otherindex) & (cap - 1);
         if (dist < otherdist)
             status = -1;
@@ -231,4 +230,4 @@ int janet_struct_compare(const JanetKV *lhs, const JanetKV *rhs) {
     return 0;
 }
 
-#undef janet_struct_maphash
+#undef janet_maphash

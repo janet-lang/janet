@@ -24,8 +24,6 @@
 #include "gc.h"
 #include "util.h"
 
-#define janet_table_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
-
 /* Initialize a table */
 JanetTable *janet_table_init(JanetTable *table, int32_t capacity) {
     JanetKV *data;
@@ -61,36 +59,7 @@ JanetTable *janet_table(int32_t capacity) {
 /* Find the bucket that contains the given key. Will also return
  * bucket where key should go if not in the table. */
 JanetKV *janet_table_find(JanetTable *t, Janet key) {
-    int32_t index = janet_table_maphash(t->capacity, janet_hash(key));
-    int32_t i;
-    JanetKV *first_bucket = NULL;
-    /* Higher half */
-    for (i = index; i < t->capacity; i++) {
-        JanetKV *kv = t->data + i;
-        if (janet_checktype(kv->key, JANET_NIL)) {
-            if (janet_checktype(kv->value, JANET_NIL)) {
-                return kv;
-            } else if (NULL == first_bucket) {
-                first_bucket = kv;
-            }
-        } else if (janet_equals(kv->key, key)) {
-            return t->data + i;
-        }
-    }
-    /* Lower half */
-    for (i = 0; i < index; i++) {
-        JanetKV *kv = t->data + i;
-        if (janet_checktype(kv->key, JANET_NIL)) {
-            if (janet_checktype(kv->value, JANET_NIL)) {
-                return kv;
-            } else if (NULL == first_bucket) {
-                first_bucket = kv;
-            }
-        } else if (janet_equals(kv->key, key)) {
-            return t->data + i;
-        }
-    }
-    return first_bucket;
+    return (JanetKV *) janet_dict_find(t->data, t->capacity, key);
 }
 
 /* Resize the dictionary table. */
@@ -298,4 +267,4 @@ int janet_lib_table(JanetArgs args) {
     return 0;
 }
 
-#undef janet_table_maphash
+#undef janet_maphash

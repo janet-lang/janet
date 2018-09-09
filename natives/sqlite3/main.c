@@ -77,8 +77,7 @@ static int sql_open(JanetArgs args) {
 static int sql_close(JanetArgs args) {
     Db *db;
     JANET_FIXARITY(args, 1);
-    JANET_CHECKABSTRACT(args, 0, &sql_conn_type);
-    db = (Db *)janet_unwrap_abstract(args.v[0]);
+    JANET_ARG_ABSTRACT(db, args, 0, &sql_conn_type);
     closedb(db);
     JANET_RETURN_NIL(args);
 }

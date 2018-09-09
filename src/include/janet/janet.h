@@ -1001,6 +1001,7 @@ JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity);
 JANET_API int janet_indexed_view(Janet seq, const Janet **data, int32_t *len);
 JANET_API int janet_bytes_view(Janet str, const uint8_t **data, int32_t *len);
 JANET_API int janet_dictionary_view(Janet tab, const JanetKV **data, int32_t *len, int32_t *cap);
+JANET_API Janet janet_dictionary_get(const JanetKV *data, int32_t cap, Janet key);
 
 /* Abstract */
 #define janet_abstract_header(u) ((JanetAbstractHeader *)(u) - 1)
@@ -1100,7 +1101,7 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
         Janet x = (A).v[(N)];\
         if (!janet_checktype(x, JANET_ABSTRACT) ||\
                 janet_abstract_type(janet_unwrap_abstract(x)) != (AT))\
-        return janet_typeabstract_err(A, N, AT);\
+            return janet_typeabstract_err(A, N, AT);\
     } else {\
         return janet_typeabstract_err(A, N, AT);\
     }\
@@ -1154,7 +1155,11 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 #define JANET_ARG_BUFFER(DEST, A, N) _JANET_ARG(JANET_BUFFER, buffer, DEST, A, N)
 #define JANET_ARG_FUNCTION(DEST, A, N) _JANET_ARG(JANET_FUNCTION, function, DEST, A, N)
 #define JANET_ARG_CFUNCTION(DEST, A, N) _JANET_ARG(JANET_CFUNCTION, cfunction, DEST, A, N)
-#define JANET_ARG_ABSTRACT(DEST, A, N) _JANET_ARG(JANET_ABSTRACT, abstract, DEST, A, N)
+
+#define JANET_ARG_ABSTRACT(DEST, A, N, AT) do { \
+    JANET_CHECKABSTRACT(A, N, AT); \
+    DEST = janet_unwrap_abstract((A).v[(N)]); \
+} while (0)
 
 #define JANET_RETURN_NIL(A) do { return JANET_SIGNAL_OK; } while (0)
 #define JANET_RETURN_FALSE(A) JANET_RETURN(A, janet_wrap_false())

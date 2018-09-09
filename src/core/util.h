@@ -26,12 +26,15 @@
 #include <janet/janet.h>
 
 /* Utils */
+#define janet_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
 extern const char janet_base64[65];
 int32_t janet_array_calchash(const Janet *array, int32_t len);
 int32_t janet_kv_calchash(const JanetKV *kvs, int32_t len);
 int32_t janet_string_calchash(const uint8_t *str, int32_t len);
 int32_t janet_tablen(int32_t n);
 void janet_buffer_push_types(JanetBuffer *buffer, int types);
+const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key);
+Janet janet_dict_get(const JanetKV *buckets, int32_t cap, Janet key);
 const void *janet_strbinsearch(
         const void *tab,
         size_t tabcount,
