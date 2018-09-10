@@ -100,6 +100,12 @@ make
 make test
 ```
 
+After building, run `make install` to install the janet binary and libs.
+Will install in `/usr/local` by default, see the Makefile to customize.
+
+It's also recommended to set the `JANET_PATH` variable in your profile.
+This is where janet will look for imported libraries after the current directory.
+
 ### Windows
 
 1. Install [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=15#)
