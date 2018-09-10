@@ -24,7 +24,7 @@
 #include "state.h"
 
 /* Error reporting */
-static void print_error_report(JanetFiber *fiber, const char *errtype, Janet err) {
+void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err) {
     const char *errstr = (const char *)janet_to_string(err);
     printf("%s error: %s\n", errtype, errstr);
     if (!fiber) return;
@@ -34,20 +34,20 @@ static void print_error_report(JanetFiber *fiber, const char *errtype, Janet err
         JanetFuncDef *def = NULL;
         i = frame->prevframe;
         
-        printf("  at");
+        printf("  in");
 
         if (frame->func) {
             def = frame->func->def;
             printf(" %s", def->name ? (const char *)def->name : "<anonymous>");
             if (def->source) {
-                printf(" %s", (const char *)def->source);
+                printf(" [%s]", (const char *)def->source);
             }
         } else {
             JanetCFunction cfun = (JanetCFunction)(frame->pc);
             if (cfun) {
                 Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
                 if (!janet_checktype(name, JANET_NIL))
-                    printf(" [%s]", (const char *)janet_to_string(name));
+                    printf(" %s", (const char *)janet_to_string(name));
             }
         }
         if (frame->flags & JANET_STACKFRAME_TAILCALL)
@@ -88,11 +88,11 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                         Janet ret = janet_wrap_nil();
                         JanetSignal status = janet_run(fiber, &ret);
                         if (status != JANET_SIGNAL_OK) {
-                            print_error_report(fiber, "runtime", ret);
+                            janet_stacktrace(fiber, "runtime", ret);
                             errflags |= 0x01;
                         }
                     } else {
-                        print_error_report(cres.macrofiber, "compile",
+                        janet_stacktrace(cres.macrofiber, "compile",
                                 janet_wrap_string(cres.error));
                         errflags |= 0x02;
                     }

@@ -1002,6 +1002,7 @@ JANET_API int janet_indexed_view(Janet seq, const Janet **data, int32_t *len);
 JANET_API int janet_bytes_view(Janet str, const uint8_t **data, int32_t *len);
 JANET_API int janet_dictionary_view(Janet tab, const JanetKV **data, int32_t *len, int32_t *cap);
 JANET_API Janet janet_dictionary_get(const JanetKV *data, int32_t cap, Janet key);
+JANET_API const JanetKV *janet_dictionary_next(const JanetKV *kvs, int32_t cap, const JanetKV *kv);
 
 /* Abstract */
 #define janet_abstract_header(u) ((JanetAbstractHeader *)(u) - 1)
@@ -1011,6 +1012,15 @@ JANET_API void *janet_abstract(const JanetAbstractType *type, size_t size);
 
 /* Native */
 JANET_API JanetCFunction janet_native(const char *name, const uint8_t **error);
+
+/* Marshaling */
+JANET_API int janet_marshal(JanetBuffer *buf, Janet x, int flags);
+JANET_API int janet_unmarshal(
+        const uint8_t *bytes,
+        size_t len, 
+        int flags, 
+        Janet *out, 
+        const uint8_t **next);
 
 /* GC */
 JANET_API void janet_mark(Janet x);
@@ -1040,6 +1050,7 @@ JANET_API void janet_deinit(void);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
 #define janet_run(F,O) janet_continue(F, janet_wrap_nil(), O)
 JANET_API JanetSignal janet_call(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
+JANET_API void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err);
 
 /* C Library helpers */
 typedef enum {

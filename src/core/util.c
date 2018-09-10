@@ -139,6 +139,18 @@ Janet janet_dictionary_get(const JanetKV *data, int32_t cap, Janet key) {
     return janet_wrap_nil();
 }
 
+/* Iterate through a struct or dictionary generically */
+const JanetKV *janet_dictionary_next(const JanetKV *kvs, int32_t cap, const JanetKV *kv) {
+    const JanetKV *end = kvs + cap;
+    kv = (kv == NULL) ? kvs : kv + 1;
+    while (kv < end) {
+        if (!janet_checktype(kv->key, JANET_NIL))
+            return kv;
+        kv++;
+    }
+    return NULL;
+}
+
 /* Compare a janet string with a cstring. more efficient than loading
  * c string as a janet string. */
 int janet_cstrcmp(const uint8_t *str, const char *other) {
