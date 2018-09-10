@@ -34,7 +34,7 @@ BINDIR=$(PREFIX)/bin
 
 #CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden
-CLIBS=-lm -ldl -lrt
+CLIBS=-lm -ldl
 JANET_TARGET=janet
 JANET_LIBRARY=libjanet.so
 DEBUGGER=gdb
@@ -46,6 +46,7 @@ ifeq ($(UNAME), Darwin)
 	LDCONFIG:=
 else
 	CFLAGS:=$(CFLAGS) -rdynamic
+	CLIBS:=$(CLIBS) -lrt
 endif
 
 # Source headers
