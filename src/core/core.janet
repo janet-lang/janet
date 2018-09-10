@@ -233,8 +233,8 @@
     true
     ((fn aux [i]
        (cond
-         (>= (inc i) len) (get forms i)
-         (tuple 'if (get forms i) (aux (inc i)) false))) 0)))
+         (>= (+ 1 i) len) (get forms i)
+         (tuple 'if (get forms i) (aux (+ 1 i)) false))) 0)))
 
 (defmacro or
   "Evaluates to the last argument if all preceding elements are false, otherwise
@@ -246,14 +246,14 @@
     ((fn aux [i]
        (def fi (get forms i))
        (if
-         (>= (inc i) len) fi
+         (>= (+ 1 i) len) fi
          (do
            (if (atomic? fi)
-             (tuple 'if fi fi (aux (inc i)))
+             (tuple 'if fi fi (aux (+ 1 i)))
              (do
                (def $fi (gensym))
                (tuple 'do (tuple 'def $fi fi)
-                      (tuple 'if $fi $fi (aux (inc i))))))))) 0)))
+                      (tuple 'if $fi $fi (aux (+ 1 i))))))))) 0)))
 
 (defmacro loop
   "A general purpose loop macro."

@@ -22,7 +22,7 @@
 ##### Set global variables #####
 ################################
 
-PREFIX?=/usr
+PREFIX?=/usr/local
 
 INCLUDEDIR=$(PREFIX)/include/janet
 LIBDIR=$(PREFIX)/lib
@@ -34,8 +34,7 @@ BINDIR=$(PREFIX)/bin
 
 #CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden
-CLIBS=-lm -ldl
-PREFIX=/usr/local
+CLIBS=-lm -ldl -lrt
 JANET_TARGET=janet
 JANET_LIBRARY=libjanet.so
 DEBUGGER=gdb
@@ -148,9 +147,11 @@ clean:
 	-rm $(JANET_GENERATED_HEADERS)
 
 install: $(JANET_TARGET)
+	mkdir -p $(BINDIR)
 	cp $(JANET_TARGET) $(BINDIR)/$(JANET_TARGET)
 	mkdir -p $(INCLUDEDIR)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
+	mkdir -p $(LIBDIR)
 	cp $(JANET_LIBRARY) $(LIBDIR)/$(JANET_LIBRARY)
 	$(LDCONFIG)
 
