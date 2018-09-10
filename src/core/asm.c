@@ -239,6 +239,9 @@ static int32_t doarg_1(
     int32_t ret = -1;
     JanetTable *c;
     switch (argtype) {
+        default:
+            c = NULL;
+            break;
         case JANET_OAT_SLOT:
             c = &a->slots;
             break;
@@ -247,13 +250,6 @@ static int32_t doarg_1(
             break;
         case JANET_OAT_CONSTANT:
             c = &a->constants;
-            break;
-        case JANET_OAT_INTEGER:
-            c = NULL;
-            break;
-        case JANET_OAT_TYPE:
-        case JANET_OAT_SIMPLETYPE:
-            c = NULL;
             break;
         case JANET_OAT_LABEL:
             c = &a->labels;
@@ -516,6 +512,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             janet_asm_deinit(&a);
             longjmp(a.parent->on_error, 1);
         }
+        result.funcdef = NULL;
         result.error = a.errmessage;
         result.status = JANET_ASSEMBLE_ERROR;
         janet_asm_deinit(&a);
@@ -723,6 +720,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
 
     /* Finish everything and return funcdef */
     janet_asm_deinit(&a);
+    result.error = NULL;
     result.funcdef = def;
     result.status = JANET_ASSEMBLE_OK;
     return result;

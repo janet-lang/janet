@@ -20,7 +20,10 @@
 * IN THE SOFTWARE.
 */
 
+/* Compiler feature test macros for things */
 #define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+
 #include <stdio.h>
 #include <janet/janet.h>
 #include <errno.h>

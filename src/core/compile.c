@@ -97,18 +97,18 @@ void janetc_scope(JanetScope *s, JanetCompiler *c, int flags, const char *name) 
     scope.selfconst = -1;
     scope.bytecode_start = janet_v_count(c->buffer);
     scope.flags = flags;
-    *s = scope;
+    scope.parent = c->scope;
     /* Inherit slots */
     if ((!(flags & JANET_SCOPE_FUNCTION)) && c->scope) {
-        janetc_regalloc_clone(&s->ra, &(c->scope->ra));
+        janetc_regalloc_clone(&scope.ra, &(c->scope->ra));
     } else {
-        janetc_regalloc_init(&s->ra);
+        janetc_regalloc_init(&scope.ra);
     }
     /* Link parent and child and update pointer */
-    s->parent = c->scope;
     if (c->scope)
         c->scope->child = s;
     c->scope = s;
+    *s = scope;
 }
 
 /* Leave a scope. */
