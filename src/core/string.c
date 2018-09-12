@@ -107,8 +107,7 @@ const uint8_t *janet_cstring(const char *str) {
 #define BUFSIZE 64
 
 static int32_t real_to_string_impl(uint8_t *buf, double x) {
-    /* Use 16 decimal places to ignore one ulp errors for now */
-    int count = snprintf((char *) buf, BUFSIZE, "%.16gR", x);
+    int count = snprintf((char *) buf, BUFSIZE, "%.17gr", x);
     return (int32_t) count;
 }
 
@@ -979,7 +978,54 @@ static int cfun_join(JanetArgs args) {
         out += chunklen;
     }
     JANET_RETURN_STRING(args, janet_string_end(buf));
+}
 
+struct formatter {
+    const char *lead;
+    const char *f1;
+    const char *f2;
+} formatters[] = {
+    {":g", "%g", "%.*g"},
+    {":G", "%G", "%.*G"},
+    {":e", "%e", "%.*e"},
+    {":E", "%E", "%.*E"},
+    {":f", "%f", "%.*f"},
+    {":F", "%F", "%.*F"}
+};
+
+static int cfun_number(JanetArgs args) {
+    struct formatter fmter = formatters[0];
+    char buf[100];
+    double x;
+    int formatNargs = 1;
+    int32_t precision = 0;
+    JANET_MINARITY(args, 1);
+    JANET_MAXARITY(args, 4);
+    JANET_ARG_NUMBER(x, args, 0);
+    if (args.n >= 2) {
+        const uint8_t *flag;
+        JANET_ARG_SYMBOL(flag, args, 1);
+        for (int i = 0; i < 6; i++) {
+            struct formatter fmttest = formatters[i];
+            if (!janet_cstrcmp(flag, fmttest.lead)) {
+                fmter = fmttest;
+                break;
+            }
+        }
+    }
+
+    if (args.n >= 3) {
+        JANET_ARG_INTEGER(precision, args, 2);
+        formatNargs++;
+    }
+
+    if (formatNargs == 1) {
+        snprintf(buf, sizeof(buf), fmter.f1, x);
+    } else if (formatNargs == 2) {
+        snprintf(buf, sizeof(buf), fmter.f2, precision, x);
+    }
+
+    JANET_RETURN_CSTRING(args, buf);
 }
 
 static const JanetReg cfuns[] = {
@@ -997,6 +1043,7 @@ static const JanetReg cfuns[] = {
     {"string.split", cfun_split},
     {"string.check-set", cfun_checkset},
     {"string.join", cfun_join},
+    {"string.number", cfun_number},
     {NULL, NULL}
 };
 
