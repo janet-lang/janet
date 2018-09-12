@@ -224,6 +224,12 @@ static int clock_gettime(int x, struct timespec *spec) {
 #define CLOCK_MONOTONIC 0
 #endif
 
+static int os_time(JanetArgs args) {
+    JANET_FIXARITY(args, 0);
+    double dtime = (double)(time(NULL));
+    JANET_RETURN_REAL(args, dtime);
+}
+
 static int os_clock(JanetArgs args) {
     JANET_FIXARITY(args, 0);
     struct timespec tv;
@@ -275,6 +281,7 @@ static const JanetReg cfuns[] = {
     {"os.exit", os_exit},
     {"os.getenv", os_getenv},
     {"os.setenv", os_setenv},
+    {"os.time", os_time},
     {"os.clock", os_clock},
     {"os.sleep", os_sleep},
     {"os.cwd", os_cwd},
