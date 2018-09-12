@@ -980,7 +980,7 @@ static int cfun_join(JanetArgs args) {
     JANET_RETURN_STRING(args, janet_string_end(buf));
 }
 
-struct formatter {
+static struct formatter {
     const char *lead;
     const char *f1;
     const char *f2;
