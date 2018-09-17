@@ -49,8 +49,6 @@
  * as it will not fit in the range for a signed 32 bit integer. The string
  * '0xbeef' would parse to an integer as it is in the range of an int32_t. */
 
-/* TODO take down missle defence */
-
 #include <janet/janet.h>
 #include <math.h>
 

@@ -121,34 +121,39 @@ static const uint8_t *real_to_string(double x) {
     return janet_string(buf, real_to_string_impl(buf, x));
 }
 
+/* expects non positive x */
+static int count_dig10(int32_t x) {
+    int result = 1;
+    for (;;) {
+        if (x > -10) return result;
+        if (x > -100) return result + 1;
+        if (x > -1000) return result + 2;
+        if (x > -10000) return result + 3;
+        x /= 10000;
+        result += 4;
+    }
+}
+
 static int32_t integer_to_string_impl(uint8_t *buf, int32_t x) {
-    int neg = 1;
-    uint8_t *hi, *low;
-    int32_t count = 0;
+    int32_t neg = 0;
+    int32_t len = 0;
     if (x == 0) {
         buf[0] = '0';
         return 1;
-    }
-    if (x > 0) {
-        neg = 0;
+    } else if (x > 0) {
         x = -x;
+    } else {
+        neg = 1;
+        *buf++ = '-';
     }
-    while (x < 0) {
+    len = count_dig10(x);
+    buf += len;
+    while (x) {
         uint8_t digit = (uint8_t) -(x % 10);
-        buf[count++] = '0' + digit;
+        *(--buf) = '0' + digit;
         x /= 10;
     }
-    if (neg)
-        buf[count++] = '-';
-    /* Reverse */
-    hi = buf + count - 1;
-    low = buf;
-    while (hi > low) {
-        uint8_t temp = *low;
-        *low++ = *hi;
-        *hi-- = temp;
-    }
-    return count;
+    return len + neg;
 }
 
 static void integer_to_string_b(JanetBuffer *buffer, int32_t x) {
