@@ -195,9 +195,8 @@ static JanetSlot janetc_var(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetSlot ret = dohead(c, opts, &head, argn, argv);
     if (c->result.status == JANET_COMPILE_ERROR)
         return janetc_cslot(janet_wrap_nil());
-    if (destructure(c, argv[0], ret, varleaf, handleattr(c, argn, argv)))
-        janetc_freeslot(c, ret);
-    return janetc_cslot(janet_wrap_nil());
+    destructure(c, argv[0], ret, varleaf, handleattr(c, argn, argv));
+    return ret;
 }
 
 static int defleaf(
@@ -229,9 +228,8 @@ static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetSlot ret = dohead(c, opts, &head, argn, argv);
     if (c->result.status == JANET_COMPILE_ERROR)
         return janetc_cslot(janet_wrap_nil());
-    if (destructure(c, argv[0], ret, defleaf, handleattr(c, argn, argv)))
-        janetc_freeslot(c, ret);
-    return janetc_cslot(janet_wrap_nil());
+    destructure(c, argv[0], ret, defleaf, handleattr(c, argn, argv));
+    return ret;
 }
 
 /*
