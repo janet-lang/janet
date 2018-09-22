@@ -49,19 +49,16 @@
   [s]
   (get (s) TAIL))
 
-(defn range2
+(defn lazy-range
   "Return a sequence of integers [start, end)."
-  [start end]
-  (if (< start end)
-    (delay (tuple start (range2 (+ 1 start) end)))
-    empty-seq))
+  @[start end]
+  (if end
+    (if (< start end)
+      (delay (tuple start (lazy-range (+ 1 start) end)))
+      empty-seq)
+    (lazy-range 0 start)))
 
-(defn range
-  "Return a sequence of integers [0, end)."
-  [end]
-  (range2 0 end))
-
-(defn map
+(defn lazy-map
   "Return a sequence that is the result of applying f to each value in s."
   [f s]
   (delay
@@ -95,7 +92,7 @@
 (defn randseq
   "Return a sequence of random numbers."
   []
-  (delay (tuple (random) (randseq))))
+  (delay (tuple (math.random) (randseq))))
 
 (defn take-while
   "Returns a sequence of values until the predicate is false."
