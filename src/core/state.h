@@ -55,9 +55,9 @@ extern JANET_THREAD_LOCAL uint32_t janet_vm_gc_interval;
 extern JANET_THREAD_LOCAL uint32_t janet_vm_next_collection;
 extern JANET_THREAD_LOCAL int janet_vm_gc_suspend;
 
-/* GC roots */
-extern JANET_THREAD_LOCAL Janet *janet_vm_roots;
-extern JANET_THREAD_LOCAL uint32_t janet_vm_root_count;
-extern JANET_THREAD_LOCAL uint32_t janet_vm_root_capacity;
+extern JANET_THREAD_LOCAL Janet *janet_vm_gc_marklist;
+extern JANET_THREAD_LOCAL size_t janet_vm_gc_marklist_count;
+extern JANET_THREAD_LOCAL size_t janet_vm_gc_marklist_capacity;
+extern JANET_THREAD_LOCAL size_t janet_vm_gc_marklist_rootcount;
 
 #endif /* JANET_STATE_H_defined */
