@@ -50,10 +50,12 @@ static void janet_mark_string(const uint8_t *str);
 static void janet_mark_fiber(JanetFiber *fiber);
 static void janet_mark_abstract(void *adata);
 
-/* Mark a value (Pushes it to the black list).*/
-void janet_mark(Janet x) {
+static JANET_THREAD_LOCAL int recursion_depth;
+
+/* Add a janet to the list for later processing */
+static void janet_addtolist(Janet x) {
     if (janet_vm_gc_marklist_count >= janet_vm_gc_marklist_capacity) {
-        janet_vm_gc_marklist_capacity = (3 * janet_vm_gc_marklist_count) / 2 + 1;
+        janet_vm_gc_marklist_capacity = (2 * janet_vm_gc_marklist_count) + 1;
         janet_vm_gc_marklist = realloc(janet_vm_gc_marklist,
                 janet_vm_gc_marklist_capacity * sizeof(Janet));
         if (NULL == janet_vm_gc_marklist) {
@@ -61,6 +63,30 @@ void janet_mark(Janet x) {
         }
     }
     janet_vm_gc_marklist[janet_vm_gc_marklist_count++] = x;
+}
+
+/* Mark a value Recurses on x, or pushes it to the black list
+ * if recursed too deeply (ran out of C stack).*/
+void janet_mark(Janet x) {
+    if (recursion_depth) {
+        recursion_depth--;
+        switch (janet_type(x)) {
+            default: break;
+            case JANET_STRING:
+            case JANET_SYMBOL: janet_mark_string(janet_unwrap_string(x)); break;
+            case JANET_FUNCTION: janet_mark_function(janet_unwrap_function(x)); break;
+            case JANET_ARRAY: janet_mark_array(janet_unwrap_array(x)); break;
+            case JANET_TABLE: janet_mark_table(janet_unwrap_table(x)); break;
+            case JANET_STRUCT: janet_mark_struct(janet_unwrap_struct(x)); break;
+            case JANET_TUPLE: janet_mark_tuple(janet_unwrap_tuple(x)); break;
+            case JANET_BUFFER: janet_mark_buffer(janet_unwrap_buffer(x)); break;
+            case JANET_FIBER: janet_mark_fiber(janet_unwrap_fiber(x)); break;
+            case JANET_ABSTRACT: janet_mark_abstract(janet_unwrap_abstract(x)); break;
+        }
+        recursion_depth++;
+    } else {
+        janet_addtolist(x);
+    }
 }
 
 static void janet_mark_string(const uint8_t *str) {
@@ -312,25 +338,14 @@ void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
 void janet_collect(void) {
     size_t i;
     if (janet_vm_gc_suspend) return;
+    recursion_depth = JANET_RECURSION_GUARD;
     /* Mark the roots */
     for (i = 0; i < janet_vm_gc_marklist_rootcount; i++)
         janet_mark(janet_vm_gc_marklist[i]);
     /* While list not empty */
     while (janet_vm_gc_marklist_count > janet_vm_gc_marklist_rootcount) {
         Janet x = janet_vm_gc_marklist[--janet_vm_gc_marklist_count];
-        switch (janet_type(x)) {
-            default: break;
-            case JANET_STRING:
-            case JANET_SYMBOL: janet_mark_string(janet_unwrap_string(x)); break;
-            case JANET_FUNCTION: janet_mark_function(janet_unwrap_function(x)); break;
-            case JANET_ARRAY: janet_mark_array(janet_unwrap_array(x)); break;
-            case JANET_TABLE: janet_mark_table(janet_unwrap_table(x)); break;
-            case JANET_STRUCT: janet_mark_struct(janet_unwrap_struct(x)); break;
-            case JANET_TUPLE: janet_mark_tuple(janet_unwrap_tuple(x)); break;
-            case JANET_BUFFER: janet_mark_buffer(janet_unwrap_buffer(x)); break;
-            case JANET_FIBER: janet_mark_fiber(janet_unwrap_fiber(x)); break;
-            case JANET_ABSTRACT: janet_mark_abstract(janet_unwrap_abstract(x)); break;
-        }
+        janet_mark(x);
     }
     janet_sweep();
     janet_vm_next_collection = 0;
@@ -340,7 +355,7 @@ void janet_collect(void) {
  * and all of its children. If gcroot is called on a value n times, unroot
  * must also be called n times to remove it as a gc root. */
 void janet_gcroot(Janet root) {
-    janet_mark(root);
+    janet_addtolist(root);
     janet_vm_gc_marklist_rootcount++;
 }
 
