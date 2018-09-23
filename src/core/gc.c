@@ -31,11 +31,10 @@ JANET_THREAD_LOCAL uint32_t janet_vm_gc_interval;
 JANET_THREAD_LOCAL uint32_t janet_vm_next_collection;
 JANET_THREAD_LOCAL int janet_vm_gc_suspend = 0;
 
-/* GC mark state */
-JANET_THREAD_LOCAL Janet *janet_vm_gc_marklist = NULL;
-JANET_THREAD_LOCAL size_t janet_vm_gc_marklist_count = 0;
-JANET_THREAD_LOCAL size_t janet_vm_gc_marklist_capacity = 0;
-JANET_THREAD_LOCAL size_t janet_vm_gc_marklist_rootcount = 0;
+/* Roots */
+JANET_THREAD_LOCAL Janet *janet_vm_roots;
+JANET_THREAD_LOCAL uint32_t janet_vm_root_count;
+JANET_THREAD_LOCAL uint32_t janet_vm_root_capacity;
 
 /* Helpers for marking the various gc types */
 static void janet_mark_funcenv(JanetFuncEnv *env);
@@ -97,8 +96,10 @@ static void janet_mark_abstract(void *adata) {
 /* Mark a bunch of items in memory */
 static void janet_mark_many(const Janet *values, int32_t n) {
     const Janet *end = values + n;
-    while (values < end)
-        janet_mark(*values++);
+    while (values < end) {
+        janet_mark(*values);
+        values += 1;
+    }
 }
 
 /* Mark a bunch of key values items in memory */
@@ -324,7 +325,7 @@ void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
 
 /* Run garbage collection */
 void janet_collect(void) {
-    size_t i;
+    uint32_t i;
     if (janet_vm_gc_suspend) return;
     depth = JANET_RECURSION_GUARD;
     orig_rootcount = janet_vm_root_count;
@@ -342,8 +343,17 @@ void janet_collect(void) {
  * and all of its children. If gcroot is called on a value n times, unroot
  * must also be called n times to remove it as a gc root. */
 void janet_gcroot(Janet root) {
-    janet_addtolist(root);
-    janet_vm_gc_marklist_rootcount++;
+    uint32_t newcount = janet_vm_root_count + 1;
+    if (newcount > janet_vm_root_capacity) {
+        uint32_t newcap = 2 * newcount;
+        janet_vm_roots = realloc(janet_vm_roots, sizeof(Janet) * newcap);
+        if (NULL == janet_vm_roots) {
+            JANET_OUT_OF_MEMORY;
+        }
+        janet_vm_root_capacity = newcap;
+    }
+    janet_vm_roots[janet_vm_root_count] = root;
+    janet_vm_root_count = newcount;
 }
 
 /* Identity equality for GC purposes */
@@ -367,12 +377,12 @@ static int janet_gc_idequals(Janet lhs, Janet rhs) {
 /* Remove a root value from the GC. This allows the gc to potentially reclaim
  * a value and all its children. */
 int janet_gcunroot(Janet root) {
-    Janet *vtop = janet_vm_gc_marklist + janet_vm_gc_marklist_rootcount;
-    Janet *v = janet_vm_gc_marklist;
+    Janet *vtop = janet_vm_roots + janet_vm_root_count;
+    Janet *v = janet_vm_roots;
     /* Search from top to bottom as access is most likely LIFO */
-    for (v = janet_vm_gc_marklist; v < vtop; v++) {
+    for (v = janet_vm_roots; v < vtop; v++) {
         if (janet_gc_idequals(root, *v)) {
-            *v = janet_vm_gc_marklist[--janet_vm_gc_marklist_rootcount];
+            *v = janet_vm_roots[--janet_vm_root_count];
             return 1;
         }
     }
@@ -381,13 +391,13 @@ int janet_gcunroot(Janet root) {
 
 /* Remove a root value from the GC. This sets the effective reference count to 0. */
 int janet_gcunrootall(Janet root) {
-    Janet *vtop = janet_vm_gc_marklist + janet_vm_gc_marklist_rootcount;
-    Janet *v = janet_vm_gc_marklist;
+    Janet *vtop = janet_vm_roots + janet_vm_root_count;
+    Janet *v = janet_vm_roots;
     int ret = 0;
     /* Search from top to bottom as access is most likely LIFO */
-    for (v = janet_vm_gc_marklist; v < vtop; v++) {
+    for (v = janet_vm_roots; v < vtop; v++) {
         if (janet_gc_idequals(root, *v)) {
-            *v = janet_vm_gc_marklist[--janet_vm_gc_marklist_rootcount];
+            *v = janet_vm_roots[--janet_vm_root_count];
             vtop--;
             ret = 1;
         }

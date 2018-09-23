@@ -1335,11 +1335,10 @@ int janet_init(void) {
      * there are no memory bugs during development */
     janet_vm_gc_interval = 0x10000;
     janet_symcache_init();
-    /* Initialize gc list */
-    janet_vm_gc_marklist = NULL;
-    janet_vm_gc_marklist_count = 0;
-    janet_vm_gc_marklist_capacity = 0;
-    janet_vm_gc_marklist_rootcount = 0;
+    /* Initialize gc roots */
+    janet_vm_roots = NULL;
+    janet_vm_root_count = 0;
+    janet_vm_root_capacity = 0;
     /* Initialize registry */
     janet_vm_registry = janet_table(0);
     janet_gcroot(janet_wrap_table(janet_vm_registry));
@@ -1350,7 +1349,9 @@ int janet_init(void) {
 void janet_deinit(void) {
     janet_clear_memory();
     janet_symcache_deinit();
-    free(janet_vm_gc_marklist);
-    janet_vm_gc_marklist = NULL;
+    free(janet_vm_roots);
+    janet_vm_roots = NULL;
+    janet_vm_root_count = 0;
+    janet_vm_root_capacity = 0;
     janet_vm_registry = NULL;
 }
