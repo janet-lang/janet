@@ -49,20 +49,30 @@ static void janet_mark_string(const uint8_t *str);
 static void janet_mark_fiber(JanetFiber *fiber);
 static void janet_mark_abstract(void *adata);
 
+/* Local state that is only temporary */
+static JANET_THREAD_LOCAL uint32_t depth = JANET_RECURSION_GUARD;
+static JANET_THREAD_LOCAL uint32_t orig_rootcount;
+
 /* Mark a value */
 void janet_mark(Janet x) {
-    switch (janet_type(x)) {
-        default: break;
-        case JANET_STRING:
-        case JANET_SYMBOL: janet_mark_string(janet_unwrap_string(x)); break;
-        case JANET_FUNCTION: janet_mark_function(janet_unwrap_function(x)); break;
-        case JANET_ARRAY: janet_mark_array(janet_unwrap_array(x)); break;
-        case JANET_TABLE: janet_mark_table(janet_unwrap_table(x)); break;
-        case JANET_STRUCT: janet_mark_struct(janet_unwrap_struct(x)); break;
-        case JANET_TUPLE: janet_mark_tuple(janet_unwrap_tuple(x)); break;
-        case JANET_BUFFER: janet_mark_buffer(janet_unwrap_buffer(x)); break;
-        case JANET_FIBER: janet_mark_fiber(janet_unwrap_fiber(x)); break;
-        case JANET_ABSTRACT: janet_mark_abstract(janet_unwrap_abstract(x)); break;
+    if (depth) {
+        depth--;
+        switch (janet_type(x)) {
+            default: break;
+            case JANET_STRING:
+            case JANET_SYMBOL: janet_mark_string(janet_unwrap_string(x)); break;
+            case JANET_FUNCTION: janet_mark_function(janet_unwrap_function(x)); break;
+            case JANET_ARRAY: janet_mark_array(janet_unwrap_array(x)); break;
+            case JANET_TABLE: janet_mark_table(janet_unwrap_table(x)); break;
+            case JANET_STRUCT: janet_mark_struct(janet_unwrap_struct(x)); break;
+            case JANET_TUPLE: janet_mark_tuple(janet_unwrap_tuple(x)); break;
+            case JANET_BUFFER: janet_mark_buffer(janet_unwrap_buffer(x)); break;
+            case JANET_FIBER: janet_mark_fiber(janet_unwrap_fiber(x)); break;
+            case JANET_ABSTRACT: janet_mark_abstract(janet_unwrap_abstract(x)); break;
+        }
+        depth++;
+    } else {
+        janet_gcroot(x);
     }
 }
 
@@ -317,8 +327,14 @@ void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
 void janet_collect(void) {
     uint32_t i;
     if (janet_vm_gc_suspend) return;
-    for (i = 0; i < janet_vm_root_count; i++)
+    depth = JANET_RECURSION_GUARD;
+    orig_rootcount = janet_vm_root_count;
+    for (i = 0; i < orig_rootcount; i++)
         janet_mark(janet_vm_roots[i]);
+    while (orig_rootcount < janet_vm_root_count) {
+        Janet x = janet_vm_roots[--janet_vm_root_count];
+        janet_mark(x);
+    }
     janet_sweep();
     janet_vm_next_collection = 0;
 }
