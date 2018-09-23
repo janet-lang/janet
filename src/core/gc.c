@@ -50,26 +50,14 @@ static void janet_mark_string(const uint8_t *str);
 static void janet_mark_fiber(JanetFiber *fiber);
 static void janet_mark_abstract(void *adata);
 
-static JANET_THREAD_LOCAL int recursion_depth;
+/* Local state that is only temporary */
+static JANET_THREAD_LOCAL uint32_t depth = JANET_RECURSION_GUARD;
+static JANET_THREAD_LOCAL uint32_t orig_rootcount;
 
-/* Add a janet to the list for later processing */
-static void janet_addtolist(Janet x) {
-    if (janet_vm_gc_marklist_count >= janet_vm_gc_marklist_capacity) {
-        janet_vm_gc_marklist_capacity = (2 * janet_vm_gc_marklist_count) + 1;
-        janet_vm_gc_marklist = realloc(janet_vm_gc_marklist,
-                janet_vm_gc_marklist_capacity * sizeof(Janet));
-        if (NULL == janet_vm_gc_marklist) {
-            JANET_OUT_OF_MEMORY;
-        }
-    }
-    janet_vm_gc_marklist[janet_vm_gc_marklist_count++] = x;
-}
-
-/* Mark a value Recurses on x, or pushes it to the black list
- * if recursed too deeply (ran out of C stack).*/
+/* Mark a value */
 void janet_mark(Janet x) {
-    if (recursion_depth) {
-        recursion_depth--;
+    if (depth) {
+        depth--;
         switch (janet_type(x)) {
             default: break;
             case JANET_STRING:
@@ -83,9 +71,9 @@ void janet_mark(Janet x) {
             case JANET_FIBER: janet_mark_fiber(janet_unwrap_fiber(x)); break;
             case JANET_ABSTRACT: janet_mark_abstract(janet_unwrap_abstract(x)); break;
         }
-        recursion_depth++;
+        depth++;
     } else {
-        janet_addtolist(x);
+        janet_gcroot(x);
     }
 }
 
@@ -338,13 +326,12 @@ void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
 void janet_collect(void) {
     size_t i;
     if (janet_vm_gc_suspend) return;
-    recursion_depth = JANET_RECURSION_GUARD;
-    /* Mark the roots */
-    for (i = 0; i < janet_vm_gc_marklist_rootcount; i++)
-        janet_mark(janet_vm_gc_marklist[i]);
-    /* While list not empty */
-    while (janet_vm_gc_marklist_count > janet_vm_gc_marklist_rootcount) {
-        Janet x = janet_vm_gc_marklist[--janet_vm_gc_marklist_count];
+    depth = JANET_RECURSION_GUARD;
+    orig_rootcount = janet_vm_root_count;
+    for (i = 0; i < orig_rootcount; i++)
+        janet_mark(janet_vm_roots[i]);
+    while (orig_rootcount < janet_vm_root_count) {
+        Janet x = janet_vm_roots[--janet_vm_root_count];
         janet_mark(x);
     }
     janet_sweep();
