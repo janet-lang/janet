@@ -34,6 +34,12 @@
 #include <stdio.h>
 #endif
 
+/* For macos */
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 static int os_which(JanetArgs args) {
     #ifdef JANET_WINDOWS
         JANET_RETURN_CSYMBOL(args, ":windows");
@@ -208,10 +214,15 @@ static int os_exit(JanetArgs args) {
     return 0;
 }
 
-/* Clock shim for windows */
+static int os_time(JanetArgs args) {
+    JANET_FIXARITY(args, 0);
+    double dtime = (double)(time(NULL));
+    JANET_RETURN_REAL(args, dtime);
+}
+
+/* Clock shims */
 #ifdef JANET_WINDOWS
-static int clock_gettime(int x, struct timespec *spec) {
-    (void) x;
+static int gettime(struct timespec *spec) {
     int64_t wintime = 0LL;
     GetSystemTimeAsFileTime((FILETIME*)&wintime);
     /* Windows epoch is January 1, 1601 apparently*/
@@ -221,14 +232,20 @@ static int clock_gettime(int x, struct timespec *spec) {
     spec->tv_nsec = wintime % 10000000LL * 100;
     return 0;
 }
-#define CLOCK_MONOTONIC 0
-#endif
-
-static int os_time(JanetArgs args) {
-    JANET_FIXARITY(args, 0);
-    double dtime = (double)(time(NULL));
-    JANET_RETURN_REAL(args, dtime);
+#elif defined(__MACH__)
+static int gettime(struct timespec *spec) {
+    clock_serv_t cclock;
+    mach_timespec_t mts;
+    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+    clock_get_time(cclock, &mts);
+    mach_port_deallocate(mach_task_self(), cclock);
+    spec->tv_sec = mts.tv_sec;
+    spec->tv_nsec = mts.tv_nsec;
+    return 0;
 }
+#else 
+#define gettime(TV) clock_gettime(CLOCK_MONOTONIC, (TV))
+#endif
 
 static int os_clock(JanetArgs args) {
     JANET_FIXARITY(args, 0);
