@@ -250,7 +250,7 @@ static int gettime(struct timespec *spec) {
 static int os_clock(JanetArgs args) {
     JANET_FIXARITY(args, 0);
     struct timespec tv;
-    if (clock_gettime(CLOCK_MONOTONIC, &tv))
+    if (gettime(&tv))
         JANET_THROW(args, "could not get time");
     double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
     JANET_RETURN_REAL(args, dtime);
