@@ -949,7 +949,6 @@ JANET_API const uint8_t *janet_description(Janet x);
 JANET_API const uint8_t *janet_to_string(Janet x);
 JANET_API void janet_to_string_b(JanetBuffer *buffer, Janet x);
 JANET_API void janet_to_description_b(JanetBuffer *buffer, Janet x);
-JANET_API const char *janet_to_zerostring(Janet x);
 #define janet_cstringv(cstr) janet_wrap_string(janet_cstring(cstr))
 #define janet_stringv(str, len) janet_wrap_string(janet_string((str), (len)))
 JANET_API const uint8_t *janet_formatc(const char *format, ...);
