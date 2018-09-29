@@ -48,12 +48,6 @@
   [name & more]
   (tuple.slice (array.concat @['def name :private] more) 0))
 
-(defmacro defasm
-  "Define a function using assembly"
-  [name & body]
-  (def tab (apply table body))
-  (tuple 'def name (tuple asm (tuple 'quote tab))))
-
 (defn defglobal
   "Dynamically create a global def."
   [name value]

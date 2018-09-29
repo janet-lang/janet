@@ -24,6 +24,9 @@
 #include <janet/janet.h>
 #include "util.h"
 
+/* Conditionally compile this file */
+#ifdef JANET_ASSEMBLER
+
 /* Definition for an instruction in the assembler */
 typedef struct JanetInstructionDef JanetInstructionDef;
 struct JanetInstructionDef {
@@ -932,3 +935,5 @@ int janet_lib_asm(JanetArgs args) {
     janet_cfuns(env, NULL, cfuns);
     return 0;
 }
+
+#endif

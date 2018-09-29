@@ -109,6 +109,11 @@ extern "C" {
 #define JANET_DYNAMIC_MODULES
 #endif
 
+/* Enable or disable the assembler. Enabled by default. */
+#ifndef JANET_NO_ASSEMBLER
+#define JANET_ASSEMBLER
+#endif
+
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS
@@ -852,8 +857,8 @@ JANET_API void janet_parser_flush(JanetParser *parser);
 JANET_API JanetParser *janet_check_parser(Janet x);
 
 /* Assembly */
+#ifdef JANET_ASSEMBLER
 typedef struct JanetAssembleResult JanetAssembleResult;
-typedef struct JanetAssembleOptions JanetAssembleOptions;
 enum JanetAssembleStatus {
     JANET_ASSEMBLE_OK,
     JANET_ASSEMBLE_ERROR
@@ -866,9 +871,9 @@ struct JanetAssembleResult {
 JANET_API JanetAssembleResult janet_asm(Janet source, int flags);
 JANET_API Janet janet_disasm(JanetFuncDef *def);
 JANET_API Janet janet_asm_decode_instruction(uint32_t instr);
+#endif
 
 /* Compilation */
-typedef struct JanetCompileOptions JanetCompileOptions;
 typedef struct JanetCompileResult JanetCompileResult;
 enum JanetCompileStatus {
     JANET_COMPILE_OK,

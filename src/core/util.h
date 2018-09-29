@@ -53,7 +53,9 @@ int janet_lib_os(JanetArgs args);
 int janet_lib_string(JanetArgs args);
 int janet_lib_marsh(JanetArgs args);
 int janet_lib_parse(JanetArgs args);
+#ifdef JANET_ASSEMBLER
 int janet_lib_asm(JanetArgs args);
+#endif
 int janet_lib_compile(JanetArgs args);
 
 #endif
