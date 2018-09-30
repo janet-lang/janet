@@ -167,10 +167,12 @@ extern "C" {
  * To turn of nanboxing, for debugging purposes or for certain
  * architectures (Nanboxing only tested on x86 and x64), comment out
  * the JANET_NANBOX define.*/
+#ifndef JANET_NO_NANBOX
 #define JANET_NANBOX
 
 /* Further refines the type of nanboxing to use. */
 #define JANET_NANBOX_47
+#endif
 
 /* Alignment for pointers */
 #ifdef JANET_32

@@ -34,6 +34,8 @@
 (assert (<= 1.0 2.0 3.0 3.0 4.0 5.0 6.0) "less than or equal to reals")
 (assert (>= 6 5 4 4 3 2 1) "greater than or equal to integers")
 (assert (>= 6.0 5.0 4.0 4.0 3.0 2.0 1.0) "greater than or equal to reals")
+(assert (= 7 (% 20 13)) "modulo 1")
+(assert (= -7 (% -20 13)) "modulo 2")
 
 (assert (order< nil false true
 	(fiber.new (fn [x] x))
@@ -60,6 +62,8 @@
 (assert (not nil) "nil literal")
 (assert (= 7 (| 3 4)) "bit or")
 (assert (= 0 (& 3 4)) "bit and")
+(assert (= 0xFF (^ 0x0F 0xF0)) "bit xor")
+(assert (= 0xF0 (^ 0xFF 0x0F)) "bit xor 2")
 
 # Set global variables to prevent some possible compiler optimizations that defeat point of the test
 (var zero 0)

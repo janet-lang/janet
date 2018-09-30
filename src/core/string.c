@@ -605,6 +605,11 @@ static void kmp_deinit(struct kmp_state *state) {
     free(state->lookup);
 }
 
+static void kmp_seti(struct kmp_state *state, int32_t i) {
+    state->i = i;
+    state->j = 0;
+}
+
 static int32_t kmp_next(struct kmp_state *state) {
     int32_t i = state->i;
     int32_t j = state->j;
@@ -880,6 +885,7 @@ static int cfun_replaceall(JanetArgs args) {
         janet_buffer_push_bytes(&b, s.kmp.text + lastindex, result - lastindex);
         janet_buffer_push_bytes(&b, s.subst, s.substlen);
         lastindex = result + s.kmp.patlen;
+        kmp_seti(&s.kmp, lastindex);
     }
     janet_buffer_push_bytes(&b, s.kmp.text + lastindex, s.kmp.textlen - lastindex);
     ret = janet_string(b.data, b.count);

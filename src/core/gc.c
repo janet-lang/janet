@@ -245,10 +245,7 @@ static void janet_deinit_block(JanetGCMemoryHeader *block) {
             break;
         case JANET_MEMORY_ABSTRACT:
             if (h->type->gc) {
-                if (h->type->gc((void *)(h + 1), h->size)) {
-                    /* finalizer failed. try again later? Panic? For now do nothing. */
-                    ;
-                }
+                janet_assert(!h->type->gc((void *)(h + 1), h->size), "finalizer failed");
             }
             break;
         case JANET_MEMORY_FUNCENV:

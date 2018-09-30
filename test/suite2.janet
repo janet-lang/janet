@@ -52,5 +52,25 @@
 (def X1 100)
 (assert (= X1 100) "X1 as symbol")
 
+# String functions
+(assert (= 3 (string.find "abc" "   abcdefghijklmnop")) "string.find 1")
+(assert (= nil (string.find "" "")) "string.find 2")
+(assert (= 0 (string.find "A" "A")) "string.find 3")
+(assert (= (string.replace "X" "." "XXX...XXX...XXX")  ".XX...XXX...XXX") "string.replace 1")
+(assert (= (string.replace-all "X" "." "XXX...XXX...XXX") "...............") "string.replace-all 1")
+(assert (= (string.replace-all "XX" "." "XXX...XXX...XXX") ".X....X....X") "string.replace-all 2")
+(assert (= (string.ascii-lower "ABCabc&^%!@:;.") "abcabc&^%!@:;.") "string.ascii-lower")
+(assert (= (string.ascii-upper "ABCabc&^%!@:;.") "ABCABC&^%!@:;.") "string.ascii-lower")
+(assert (= (string.reverse "") "") "string.reverse 1")
+(assert (= (string.reverse "a") "a") "string.reverse 2")
+(assert (= (string.reverse "abc") "cba") "string.reverse 3")
+(assert (= (string.reverse "abcd") "dcba") "string.reverse 4")
+(assert (= (string.join @["one" "two" "three"] ",") "one,two,three") "string.join 1")
+(assert (= (string.join @["one" "two" "three"] ", ") "one, two, three") "string.join 2")
+(assert (= (string.join @["one" "two" "three"]) "onetwothree") "string.join 3")
+(assert (= (string.join @[] "hi") "") "string.join 4")
+(assert (deep= (string.split "," "one,two,three") @["one" "two" "three"]) "string.split 1")
+(assert (deep= (string.split "," "onetwothree") @["onetwothree"]) "string.split 2")
+
 (end-suite)
 
