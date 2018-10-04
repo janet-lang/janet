@@ -57,7 +57,7 @@ static int hexdig(char dig) {
 }
 
 /* Read the hex value for a unicode escape */
-static char *decode_utf16_escape(const char *p, uint32_t *outpoint) {
+static const char *decode_utf16_escape(const char *p, uint32_t *outpoint) {
     if (!p[0] || !p[1] || !p[2] || !p[3])
         return "unexpected end of source";
     int d1 = hexdig(p[0]);
@@ -72,7 +72,7 @@ static char *decode_utf16_escape(const char *p, uint32_t *outpoint) {
 
 /* Parse a string. Also handles the conversion of utf-16 to
  * utf-8. */
-const char *decode_string(const char **p, Janet *out) {
+static const char *decode_string(const char **p, Janet *out) {
     JanetBuffer *buffer = janet_buffer(0);
     const char *cp = *p;
     while (*cp != '"') {
@@ -353,9 +353,12 @@ typedef struct {
 static const char *encode_newline(Encoder *e) {
     if (janet_buffer_push_bytes(e->buffer, e->newline, e->newlinelen))
         return "buffer overflow";
-    for (int32_t i = 0; i < e->indent; i++)
-        if (janet_buffer_push_bytes(e->buffer, e->tab, e->tablen))
-            return "buffer overflow";
+    /* Skip loop if no tab string */
+    if (e->tablen) {
+        for (int32_t i = 0; i < e->indent; i++)
+            if (janet_buffer_push_bytes(e->buffer, e->tab, e->tablen))
+                return "buffer overflow";
+    }
     return NULL;
 }
 

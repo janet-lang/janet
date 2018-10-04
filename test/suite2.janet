@@ -71,6 +71,8 @@
 (assert (= (string.join @[] "hi") "") "string.join 4")
 (assert (deep= (string.split "," "one,two,three") @["one" "two" "three"]) "string.split 1")
 (assert (deep= (string.split "," "onetwothree") @["onetwothree"]) "string.split 2")
+(assert (deep= (string.find-all "e" "onetwothree") @[2 9 10]) "string.find-all 1")
+(assert (deep= (string.find-all "," "onetwothree") @[]) "string.find-all 2")
 
 (end-suite)
 
