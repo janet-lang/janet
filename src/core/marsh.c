@@ -427,6 +427,8 @@ int janet_marshal(JanetBuffer *buf, Janet x, int flags) {
     if (!(status = setjmp(st.err)))
         marshal_one(&st, x, flags);
     janet_table_deinit(&st.seen);
+    janet_v_free(st.seen_envs);
+    janet_v_free(st.seen_defs);
     return status;
 }
 
@@ -1015,6 +1017,8 @@ int janet_unmarshal(
         if (next) *next = nextbytes;
     }
     janet_array_deinit(&st.lookup);
+    janet_v_free(st.lookup_defs);
+    janet_v_free(st.lookup_envs);
     return status;
 }
 
