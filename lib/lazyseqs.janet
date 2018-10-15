@@ -4,10 +4,11 @@
 # that must be called (realizing it), and the memoized.
 # Use with (import "./path/to/this/file" :prefix "seq.")
 
-(defmacro delay [& forms]
+(defmacro delay
   "Lazily evaluate a series of expressions. Returns a function that
   returns the result of the last expression. Will only evaluate the
   body once, and then memoizes the result."
+  [& forms]
   (def $state (gensym))
   (def $loaded (gensym))
   (tuple 'do
@@ -70,8 +71,9 @@
   [s]
   (when (s) (realize (tail s))))
 
-(defn realize-map [f s]
+(defn realize-map
   "Evaluate f on each member of the sequence. Forces evaluation."
+  [f s]
   (when (s) (f (head s)) (realize-map f (tail s))))
 
 (defn drop
