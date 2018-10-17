@@ -51,6 +51,17 @@ static int enter_loop(void) {
     return 0;
 }
 
+/* Allow JS interop from within janet */
+static int cfun_js(JanetArgs args) {
+    const uint8_t *bytes;
+    int32_t len;
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_BYTES(bytes, len, args, 0);
+    (void) len;
+    emscripten_run_script((const char *)bytes);
+    JANET_RETURN_NIL(args);
+}
+
 /* Intialize the repl */
 EMSCRIPTEN_KEEPALIVE
 void repl_init(void) {
@@ -64,6 +75,10 @@ void repl_init(void) {
     /* Janet line getter */
     janet_def(env, "repl-yield", janet_wrap_cfunction(repl_yield));
     janet_register("repl-yield", janet_wrap_cfunction(repl_yield));
+
+    /* Janet line getter */
+    janet_def(env, "js", janet_wrap_cfunction(cfun_js));
+    janet_register("js", janet_wrap_cfunction(cfun_js));
 
     /* Run startup script */
     Janet ret;
