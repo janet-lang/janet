@@ -792,8 +792,9 @@
 (defn pp
   "Pretty print a value. Displays values inside collections, and is safe
   to call on any table. Does not print table prototype information."
-  [x]
+  @[x file]
 
+  (default file stdout)
   (def buf @"")
   (def indent @"\n")
   (def seen @{})
@@ -853,12 +854,11 @@
     (def complex? (> (length y) 4))
     ((if complex? pp-dict-nested pp-dict-simple) y))
 
-  (def printers {
-                 :array  (fn [y] (do-ds y "@[" "]" true pp-seq))
-                 :tuple  (fn [y] (do-ds y "(" ")" false pp-seq))
-                 :table  (fn [y] (do-ds y "@{" "}" true pp-dict))
-                 :struct  (fn [y] (do-ds y "{" "}" false pp-dict))
-                 })
+  (def printers 
+    {:array  (fn [y] (do-ds y "@[" "]" true pp-seq))
+     :tuple  (fn [y] (do-ds y "(" ")" false pp-seq))
+     :table  (fn [y] (do-ds y "@{" "}" true pp-dict))
+     :struct  (fn [y] (do-ds y "{" "}" false pp-dict))})
 
   (:= recur (fn [y]
               (def p (get printers (type y)))
@@ -869,7 +869,7 @@
   (recur x)
   (buffer.push-string buf "\n")
 
-  (file.write stdout buf)
+  (file.write file buf)
   nil)
 
 ###
@@ -1041,8 +1041,8 @@
                    (def (line col) (parser.where p))
                    (onerr where "parse" (string (parser.error p) " on line " line ", column " col)))
           (case (fiber.status chars)
-            :new (parser.byte p (resume chars))
-            :pending (parser.byte p (resume chars))
+            :new (parser.byte p (resume chars nil))
+            :pending (parser.byte p (resume chars nil))
             (:= going false))))
       (when (not= :root (parser.status p))
         (onerr where "parse" "unexpected end of source"))))
@@ -1067,7 +1067,7 @@
                   err)
                 errf))))
         :a))
-    (def res (resume f))
+    (def res (resume f nil))
     (when good
       (def sig (fiber.status f))
       (if going
@@ -1078,18 +1078,18 @@
   # Run loop
   (def oldenv *env*)
   (:= *env* env)
-  (while going (eval1 (resume vals)))
+  (while going (eval1 (resume vals nil)))
   (:= *env* oldenv)
 
   env)
 
 (defn default-error-handler
   @[source t x f]
-  (file.write stdout (string t " error in " source ": "))
+  (file.write stderr (string t " error in " source ": "))
   (if (bytes? x)
-    (do (file.write stdout x)
-      (file.write stdout "\n"))
-    (pp x))
+    (do (file.write stderr x)
+      (file.write stderr "\n"))
+    (pp x stderr))
   (when f
     (def st (fiber.stack f))
     (loop
@@ -1101,25 +1101,25 @@
         :source source
         :line source-line
         :column source-col} :in st]
-      (file.write stdout "  in")
-      (when c (file.write stdout " cfunction"))
+      (file.write stderr "  in")
+      (when c (file.write stderr " cfunction"))
       (if name
-        (file.write stdout " " name)
-        (when func (file.write stdout " " (string func))))
+        (file.write stderr " " name)
+        (when func (file.write stderr " " (string func))))
       (if source
         (do
-          (file.write stdout " [" source "]")
+          (file.write stderr " [" source "]")
           (if source-line
             (file.write
-              stdout
+              stderr
               " on line "
               (string source-line)
               ", column "
               (string source-col)))))
       (if (and (not source-line) pc)
-        (file.write stdout " (pc=" (string pc) ")"))
-      (when tail (file.write stdout " (tailcall)"))
-      (file.write stdout "\n"))))
+        (file.write stderr " (pc=" (string pc) ")"))
+      (when tail (file.write stderr " (tailcall)"))
+      (file.write stderr "\n"))))
 
 (defn eval
   "Evaluates a string in the current environment. If more control over the
@@ -1237,10 +1237,8 @@
 
 (defn import* [env path & args]
   (def targs (apply table args))
-  (def {
-        :as as
-        :prefix prefix
-        } targs)
+  (def {:as as
+        :prefix prefix} targs)
   (def newenv (require path targs))
   (var k (next newenv nil))
   (def {:meta meta} newenv)

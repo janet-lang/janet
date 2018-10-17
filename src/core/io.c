@@ -159,6 +159,9 @@ static int janet_io_popen(JanetArgs args) {
 #ifdef JANET_WINDOWS
 #define popen _popen
 #endif
+#ifdef __EMSCRIPTEN__
+#define popen(A, B) (errno = 0, NULL)
+#endif
     f = popen((const char *)fname, (const char *)fmode);
     if (!f) {
         if (errno == EMFILE) {

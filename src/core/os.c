@@ -45,6 +45,8 @@ static int os_which(JanetArgs args) {
         JANET_RETURN_CSYMBOL(args, ":windows");
     #elif __APPLE__
         JANET_RETURN_CSYMBOL(args, ":macos");
+    #elif defined(__EMSCRIPTEN__)
+        JANET_RETURN_CSYMBOL(args, ":web");
     #else
         JANET_RETURN_CSYMBOL(args, ":posix");
     #endif

@@ -57,7 +57,7 @@ void janet_symcache_deinit() {
 }
 
 /* Mark an entry in the table as deleted. */
-#define JANET_SYMCACHE_DELETED ((const uint8_t *)0 + 1)
+static const uint8_t JANET_SYMCACHE_DELETED[1] = {0};
 
 /* Find an item in the cache and return its location.
  * If the item is not found, return the location

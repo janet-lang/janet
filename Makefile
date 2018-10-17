@@ -55,6 +55,7 @@ JANET_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
 # Source files
 JANET_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
 JANET_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
+JANET_WEBCLIENT_SOURCES=$(sort $(wildcard src/webclient/*.c))
 
 all: $(JANET_TARGET) $(JANET_LIBRARY)
 
@@ -71,6 +72,9 @@ xxd: src/tools/xxd.c
 
 src/include/generated/init.h: src/mainclient/init.janet xxd
 	./xxd $< $@ janet_gen_init 
+
+src/include/generated/webinit.h: src/webclient/webinit.janet xxd
+	./xxd $< $@ janet_gen_webinit 
 
 src/include/generated/core.h: src/core/core.janet xxd
 	./xxd $< $@ janet_gen_core
@@ -93,10 +97,30 @@ JANET_ALL_OBJECTS=$(patsubst %.c,%.o,$(JANET_ALL_SOURCES))
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(JANET_TARGET): $(JANET_ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $(JANET_TARGET) $^ $(CLIBS)
+	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 $(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
-	$(CC) $(CFLAGS) -shared -o $(JANET_LIBRARY) $^ $(CLIBS)
+	$(CC) $(CFLAGS) -shared -o $@ $^ $(CLIBS)
+
+######################
+##### Emscripten #####
+######################
+
+EMCC=emcc
+EMCCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]'
+JANET_EMTARGET=janet.js
+JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)
+JANET_EMOBJECTS=$(patsubst %.c,%.bc,$(JANET_WEB_SOURCES))
+
+# Only a few files depend on generated headers
+src/core/corelib.bc: src/include/generated/core.h
+src/webclient/main.bc: src/include/generated/webinit.h
+
+%.bc: %.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
+	$(EMCC) $(EMCCFLAGS) -o $@ -c $<
+
+$(JANET_EMTARGET): $(JANET_EMOBJECTS)
+	$(EMCC) $(EMCCFLAGS) -shared -o $@ $^
 
 ###################
 ##### Testing #####
@@ -139,8 +163,8 @@ clean-natives:
 
 clean:
 	-rm $(JANET_TARGET)
-	-rm src/**/*.o
-	-rm vgcore.*
+	-rm $(JANET_LIBRARY)
+	-rm src/**/*.o src/**/*.bc vgcore.* *.js *.wasm *.html
 	-rm $(JANET_GENERATED_HEADERS)
 
 install: $(JANET_TARGET)

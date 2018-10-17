@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
     janet_line_init();
 
     /* Run startup script */
-    status = janet_dobytes(env, janet_gen_init, sizeof(janet_gen_init), "init.janet");
+    status = janet_dobytes(env, janet_gen_init, sizeof(janet_gen_init), "init.janet", NULL);
 
     /* Deinitialize vm */
     janet_deinit();

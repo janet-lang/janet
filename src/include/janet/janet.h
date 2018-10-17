@@ -93,6 +93,11 @@ extern "C" {
 #define JANET_LITTLE_ENDIAN 1
 #endif
 
+/* Check emscripten */
+#ifdef __EMSCRIPTEN__
+#define JANET_NO_DYNAMIC_MODULES
+#endif
+
 /* Define how global janet state is declared */
 #ifdef JANET_SINGLE_THREADED
 #define JANET_THREAD_LOCAL
@@ -339,7 +344,7 @@ union Janet {
 
 /* This representation uses 48 bit pointers. The trade off vs. the LuaJIT style
  * 47 bit payload representaion is that the type bits are no long contiguous. Type
- * checking can still be fast, but typewise polymorphism takes a bit longer. However, 
+ * checking can still be fast, but typewise polymorphism takes a bit longer. However,
  * hopefully we can avoid some annoying problems that occur when trying to use 47 bit pointers
  * in a 48 bit address space (Linux on ARM). If JANET_NANBOX_47 is set, use 47 bit tagged pointers. */
 
@@ -653,8 +658,8 @@ struct JanetFuncDef {
     int32_t arity; /* Not including varargs */
     int32_t constants_length;
     int32_t bytecode_length;
-    int32_t environments_length; 
-    int32_t defs_length; 
+    int32_t environments_length;
+    int32_t defs_length;
 };
 
 /* A fuction environment */
@@ -893,8 +898,8 @@ JANET_API JanetCompileResult janet_compile(Janet source, JanetTable *env, const 
 /* Get the default environment for janet */
 JANET_API JanetTable *janet_core_env(void);
 
-JANET_API int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath);
-JANET_API int janet_dostring(JanetTable *env, const char *str, const char *sourcePath);
+JANET_API int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out);
+JANET_API int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Janet *out);
 
 /* Number scanning */
 JANET_API Janet janet_scan_number(const uint8_t *src, int32_t len);
@@ -1023,9 +1028,9 @@ JANET_API JanetCFunction janet_native(const char *name, const uint8_t **error);
 JANET_API int janet_marshal(JanetBuffer *buf, Janet x, int flags);
 JANET_API int janet_unmarshal(
         const uint8_t *bytes,
-        size_t len, 
-        int flags, 
-        Janet *out, 
+        size_t len,
+        int flags,
+        Janet *out,
         const uint8_t **next);
 
 /* GC */

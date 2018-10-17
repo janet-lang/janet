@@ -28,24 +28,19 @@
 /* Generated header */
 #include <generated/core.h>
 
-/* Only include dynamic modules if enabled */
-#ifdef JANET_DYNAMIC_MODULES
-
 /* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
  * with native code. */
-#ifdef JANET_WINDOWS
+#if defined(JANET_NO_DYNAMIC_MODULES)
+typedef int Clib;
+#define load_clib(name) ((void) name, 0)
+#define symbol_clib(lib, sym) ((void) lib, (void) sym, 0)
+#define error_clib() "dynamic libraries not supported"
+#elif defined(JANET_WINDOWS)
 #include <windows.h>
 typedef HINSTANCE Clib;
 #define load_clib(name) LoadLibrary((name))
 #define symbol_clib(lib, sym) GetProcAddress((lib), (sym))
 #define error_clib() "could not load dynamic library"
-#elif defined(JANET_WEB)
-#include <emscripten.h>
-/* TODO - figure out how loading modules will work in JS */
-typedef int Clib;
-#define load_clib(name) 0
-#define symbol_clib(lib, sym) 0
-#define error_clib() "dynamic libraries not supported"
 #else
 #include <dlfcn.h>
 typedef void *Clib;
@@ -81,9 +76,6 @@ static int janet_core_native(JanetArgs args) {
     }
     JANET_RETURN_CFUNCTION(args, init);
 }
-
-#endif
-/* end JANET_DYNAMIC_MODULES */
 
 static int janet_core_print(JanetArgs args) {
     int32_t i;
@@ -295,9 +287,7 @@ static int janet_core_hash(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-#ifdef JANET_DYNAMIC_MODULES
     {"native", janet_core_native},
-#endif
     {"print", janet_core_print},
     {"describe", janet_core_describe},
     {"string", janet_core_string},
@@ -605,7 +595,7 @@ JanetTable *janet_core_env(void) {
     janet_def(env, "_env", ret);
 
     /* Run bootstrap source */
-    janet_dobytes(env, janet_gen_core, sizeof(janet_gen_core), "core.janet");
+    janet_dobytes(env, janet_gen_core, sizeof(janet_gen_core), "core.janet", NULL);
 
     return env;
 }

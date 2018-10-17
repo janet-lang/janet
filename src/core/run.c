@@ -66,12 +66,13 @@ void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err) {
 }
 
 /* Run a string */
-int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath) {
+int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out) {
     JanetParser parser;
     int errflags = 0;
     int32_t index = 0;
     int dudeol = 0;
     int done = 0;
+    Janet ret = janet_wrap_nil();
     const uint8_t *where = sourcePath ? janet_cstring(sourcePath) : NULL;
     if (where) janet_gcroot(janet_wrap_string(where));
     janet_parser_init(&parser);
@@ -85,7 +86,6 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                     if (cres.status == JANET_COMPILE_OK) {
                         JanetFunction *f = janet_thunk(cres.funcdef);
                         JanetFiber *fiber = janet_fiber(f, 64);
-                        Janet ret = janet_wrap_nil();
                         JanetSignal status = janet_run(fiber, &ret);
                         if (status != JANET_SIGNAL_OK) {
                             janet_stacktrace(fiber, "runtime", ret);
@@ -126,12 +126,13 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
     }
     janet_parser_deinit(&parser);
     if (where) janet_gcunroot(janet_wrap_string(where));
+    if (out) *out = ret;
     return errflags;
 }
 
-int janet_dostring(JanetTable *env, const char *str, const char *sourcePath) {
+int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Janet *out) {
     int32_t len = 0;
     while (str[len]) ++len;
-    return janet_dobytes(env, (const uint8_t *)str, len, sourcePath);
+    return janet_dobytes(env, (const uint8_t *)str, len, sourcePath, out);
 }
 
