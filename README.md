@@ -114,6 +114,15 @@ or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-down
 3. Run `build_win` to compile janet.
 4. Run `build_win test` to make sure everything is working.
 
+### Emscripten
+
+To build janet for the web via [Emscripten](https://kripken.github.io/emscripten-site/), make sure you
+have `emcc` installed and on your path. On a linux or macOS system, use `make janet.js` to build
+`janet.js` and `janet.wasm` - both are needed to run janet in a browser or in node.
+The JavaScript build is what runs the repl on the main website,
+but really serves mainly as a proof of concept. Janet will run much slower in a browser.
+Building with emscripten on windows is currently unsupported.
+
 ## Examples
 
 See the examples directory for some example janet code.
