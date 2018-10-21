@@ -1037,8 +1037,7 @@ JANET_API int janet_unmarshal(
         Janet *out,
         JanetTable *reg,
         const uint8_t **next);
-JANET_API JanetTable *janet_env_rreg(JanetTable *env);
-JANET_API JanetTable *janet_env_reg(JanetTable *env);
+JANET_API JanetTable *janet_env_lookup(JanetTable *env);
 
 /* GC */
 JANET_API void janet_mark(Janet x);

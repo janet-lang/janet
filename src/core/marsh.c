@@ -100,24 +100,8 @@ static Janet entry_getval(Janet env_entry) {
     }
 }
 
-/* Make a reverse lookup table for an environment (for marshaling) */
-JanetTable *janet_env_rreg(JanetTable *env) {
-    JanetTable *renv = janet_table(env->count);
-    while (env) {
-        for (int32_t i = 0; i < env->capacity; i++) {
-            if (janet_checktype(env->data[i].key, JANET_SYMBOL)) {
-                janet_table_put(renv,
-                        entry_getval(env->data[i].value),
-                        env->data[i].key);
-            }
-        }
-        env = env->proto;
-    }
-    return renv;
-}
-
 /* Make a forward lookup table from an environment (for unmarshaling) */
-JanetTable *janet_env_reg(JanetTable *env) {
+JanetTable *janet_env_lookup(JanetTable *env) {
     JanetTable *renv = janet_table(env->count);
     while (env) {
         for (int32_t i = 0; i < env->capacity; i++) {
@@ -1087,14 +1071,11 @@ int janet_unmarshal(
 
 /* C functions */
 
-static int cfun_env_lookups(JanetArgs args) {
+static int cfun_env_lookup(JanetArgs args) {
     JanetTable *env;
-    Janet tup[2];
     JANET_FIXARITY(args, 1);
     JANET_ARG_TABLE(env, args, 0);
-    tup[0] = janet_wrap_table(janet_env_rreg(env));
-    tup[1] = janet_wrap_table(janet_env_reg(env));
-    JANET_RETURN_TUPLE(args, janet_tuple_n(tup, 2));
+    JANET_RETURN_TABLE(args, janet_env_lookup(env));
 }
 
 static int cfun_marshal(JanetArgs args) {
@@ -1145,7 +1126,7 @@ static int cfun_unmarshal(JanetArgs args) {
 static const JanetReg cfuns[] = {
     {"marshal", cfun_marshal},
     {"unmarshal", cfun_unmarshal},
-    {"env-lookups", cfun_env_lookups},
+    {"env-lookup", cfun_env_lookup},
     {NULL, NULL}
 };
 

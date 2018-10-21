@@ -141,7 +141,8 @@
 
 # Marshal
 
-(def [m-lookup um-lookup] (env-lookups _env))
+(def um-lookup (env-lookup _env))
+(def m-lookup (invert um-lookup))
 
 (defn testmarsh [x msg]
   (def marshx (marshal x m-lookup))

@@ -710,6 +710,16 @@
      :tuple tuple.reverse
      :array array.reverse) t))
 
+(defn invert
+  "Returns a table of where the keys of an associative data structure
+are the values, and the values of the keys. If multiple keys have the same
+value, one key will be ignored."
+  [ds]
+  (def ret @{})
+  (loop [k :keys ds]
+    (put ret (get ds k) k))
+  ret)
+
 (defn zipcoll
   "Creates an table or tuple from two arrays/tuples. If a third argument of
   :struct is given result is struct else is table."
