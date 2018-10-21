@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
 
     /* Expose line getter */
     janet_def(env, "getline", janet_wrap_cfunction(janet_line_getter));
-    janet_register("getline", janet_wrap_cfunction(janet_line_getter));
+    janet_register("getline", janet_line_getter);
     janet_line_init();
 
     /* Run startup script */

@@ -194,7 +194,8 @@ const void *janet_strbinsearch(
 }
 
 /* Register a value in the global registry */
-void janet_register(const char *name, Janet value) {
+void janet_register(const char *name, JanetCFunction cfun) {
+    Janet value = janet_wrap_cfunction(cfun);
     Janet regkey = janet_csymbolv(name);
     janet_table_put(janet_vm_registry, regkey, value);
     janet_table_put(janet_vm_registry, value, regkey);

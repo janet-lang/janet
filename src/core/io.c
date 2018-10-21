@@ -376,26 +376,21 @@ static const JanetReg cfuns[] = {
     {NULL, NULL}
 };
 
-static void addf(JanetTable *env, const char *name, Janet val) {
-    janet_def(env, name, val);
-    janet_register(name, val);
-}
-
 /* Module entry point */
 int janet_lib_io(JanetArgs args) {
     JanetTable *env = janet_env(args);
     janet_cfuns(env, NULL, cfuns);
 
     /* stdout */
-    addf(env, "stdout",
+    janet_def(env, "stdout",
             makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
 
     /* stderr */
-    addf(env, "stderr",
+    janet_def(env, "stderr",
             makef(stderr, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
 
     /* stdin */
-    addf(env, "stdin",
+    janet_def(env, "stdin",
             makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
 
     return 0;

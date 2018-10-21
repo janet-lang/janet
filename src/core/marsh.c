@@ -31,6 +31,7 @@ typedef struct {
     jmp_buf err;
     JanetBuffer *buf;
     JanetTable seen;
+    JanetTable *rreg;
     JanetFuncEnv **seen_envs;
     JanetFuncDef **seen_defs;
     int32_t nextid;
@@ -77,6 +78,59 @@ enum {
     LB_FUNCENV_REF,
     LB_FUNCDEF_REF
 } LeadBytes;
+
+/* Helper to look inside an entry in an environment */
+static Janet entry_getval(Janet env_entry) {
+    if (janet_checktype(env_entry, JANET_TABLE)) {
+        JanetTable *entry = janet_unwrap_table(env_entry);
+        Janet checkval = janet_table_get(entry, janet_csymbolv(":value"));
+        if (janet_checktype(checkval, JANET_NIL)) {
+            checkval = janet_table_get(entry, janet_csymbolv(":ref"));
+        }
+        return checkval;
+    } else if (janet_checktype(env_entry, JANET_STRUCT)) {
+        const JanetKV *entry = janet_unwrap_struct(env_entry);
+        Janet checkval = janet_struct_get(entry, janet_csymbolv(":value"));
+        if (janet_checktype(checkval, JANET_NIL)) {
+            checkval = janet_struct_get(entry, janet_csymbolv(":ref"));
+        }
+        return checkval;
+    } else {
+        return janet_wrap_nil();
+    }
+}
+
+/* Make a reverse lookup table for an environment (for marshaling) */
+JanetTable *janet_env_rreg(JanetTable *env) {
+    JanetTable *renv = janet_table(env->count);
+    while (env) {
+        for (int32_t i = 0; i < env->capacity; i++) {
+            if (janet_checktype(env->data[i].key, JANET_SYMBOL)) {
+                janet_table_put(renv,
+                        entry_getval(env->data[i].value),
+                        env->data[i].key);
+            }
+        }
+        env = env->proto;
+    }
+    return renv;
+}
+
+/* Make a forward lookup table from an environment (for unmarshaling) */
+JanetTable *janet_env_reg(JanetTable *env) {
+    JanetTable *renv = janet_table(env->count);
+    while (env) {
+        for (int32_t i = 0; i < env->capacity; i++) {
+            if (janet_checktype(env->data[i].key, JANET_SYMBOL)) {
+                janet_table_put(renv,
+                        env->data[i].key,
+                        entry_getval(env->data[i].value));
+            }
+        }
+        env = env->proto;
+    }
+    return renv;
+}
 
 /* Marshal an integer onto the buffer */
 static void pushint(MarshalState *st, int32_t x) {
@@ -258,7 +312,10 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             return;
     }
 
-    /* Check reference */
+#define MARK_SEEN() \
+    janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
+
+    /* Check reference and registry value */
     {
         Janet check = janet_table_get(&st->seen, x);
         if (janet_checktype(check, JANET_INTEGER)) {
@@ -266,10 +323,18 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             pushint(st, janet_unwrap_integer(check));
             return;
         }
+        if (st->rreg) {
+            check = janet_table_get(st->rreg, x);
+            if (janet_checktype(check, JANET_SYMBOL)) {
+                MARK_SEEN();
+                const uint8_t *regname = janet_unwrap_symbol(check);
+                pushbyte(st, LB_REGISTRY);
+                pushint(st, janet_string_length(regname));
+                pushbytes(st, regname, janet_string_length(regname));
+                return;
+            }
+        }
     }
-
-#define MARK_SEEN() \
-    janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
 
     /* Reference types */
     switch (type) {
@@ -373,17 +438,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             return;
         case JANET_ABSTRACT:
         case JANET_CFUNCTION:
-            {
-                MARK_SEEN();
-                Janet regval = janet_table_get(janet_vm_registry, x);
-                if (!janet_checktype(regval, JANET_SYMBOL))
-                    goto noregval;
-                const uint8_t *regname = janet_unwrap_symbol(regval);
-                pushbyte(st, LB_REGISTRY);
-                pushint(st, janet_string_length(regname));
-                pushbytes(st, regname, janet_string_length(regname));
-            }
-            return;
+            goto noregval;
         case JANET_FUNCTION:
             {
                 pushbyte(st, LB_FUNCTION);
@@ -416,13 +471,14 @@ noregval:
     longjmp(st->err, MR_NRV);
 }
 
-int janet_marshal(JanetBuffer *buf, Janet x, int flags) {
+int janet_marshal(JanetBuffer *buf, Janet x, JanetTable *rreg, int flags) {
     int status;
     MarshalState st; 
     st.buf = buf;
     st.nextid = 0;
     st.seen_defs = NULL;
     st.seen_envs = NULL;
+    st.rreg = rreg;
     janet_table_init(&st.seen, 0);
     if (!(status = setjmp(st.err)))
         marshal_one(&st, x, flags);
@@ -435,6 +491,7 @@ int janet_marshal(JanetBuffer *buf, Janet x, int flags) {
 typedef struct {
     jmp_buf err;
     JanetArray lookup;
+    JanetTable *reg;
     JanetFuncEnv **lookup_envs;
     JanetFuncDef **lookup_defs;
     const uint8_t *end;
@@ -897,8 +954,12 @@ static const uint8_t *unmarshal_one(
                     const uint8_t *str = janet_symbol(data, len);
                     *out = janet_wrap_symbol(str);
                 } else if (lead == LB_REGISTRY) {
-                    Janet regkey = janet_symbolv(data, len);
-                    *out = janet_table_get(janet_vm_registry, regkey);
+                    if (st->reg) {
+                        Janet regkey = janet_symbolv(data, len);
+                        *out = janet_table_get(st->reg, regkey);
+                    } else {
+                        *out = janet_wrap_nil();
+                    }
                 } else { /* (lead == LB_BUFFER) */
                     JanetBuffer *buffer = janet_buffer(len);
                     buffer->count = len;
@@ -1004,6 +1065,7 @@ int janet_unmarshal(
         size_t len, 
         int flags, 
         Janet *out, 
+        JanetTable *reg,
         const uint8_t **next) {
     int status;
     /* Avoid longjmp clobber warning in GCC */
@@ -1011,6 +1073,7 @@ int janet_unmarshal(
     st.end = bytes + len;
     st.lookup_defs = NULL;
     st.lookup_envs = NULL;
+    st.reg = reg;
     janet_array_init(&st.lookup, 0);
     if (!(status = setjmp(st.err))) {
         const uint8_t *nextbytes = unmarshal_one(&st, bytes, out, flags);
@@ -1024,18 +1087,35 @@ int janet_unmarshal(
 
 /* C functions */
 
+static int cfun_env_lookups(JanetArgs args) {
+    JanetTable *env;
+    Janet tup[2];
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_TABLE(env, args, 0);
+    tup[0] = janet_wrap_table(janet_env_rreg(env));
+    tup[1] = janet_wrap_table(janet_env_reg(env));
+    JANET_RETURN_TUPLE(args, janet_tuple_n(tup, 2));
+}
+
 static int cfun_marshal(JanetArgs args) {
     JanetBuffer *buffer;
+    JanetTable *rreg;
     int status;
     JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 2);
-    if (args.n == 2) {
+    JANET_MAXARITY(args, 3);
+    if (args.n > 1) {
+        /* Reverse Registry provided */
+        JANET_ARG_TABLE(rreg, args, 1);
+    } else {
+        rreg = NULL;
+    }
+    if (args.n > 2) {
         /* Buffer provided */
-        JANET_ARG_BUFFER(buffer, args, 1);
+        JANET_ARG_BUFFER(buffer, args, 2);
     } else {
         buffer = janet_buffer(10);
     }
-    status = janet_marshal(buffer, args.v[0], 0);
+    status = janet_marshal(buffer, args.v[0], rreg, 0);
     if (status) {
         JANET_THROW(args, mr_strings[status]);
     }
@@ -1044,11 +1124,18 @@ static int cfun_marshal(JanetArgs args) {
 
 static int cfun_unmarshal(JanetArgs args) {
     const uint8_t *bytes;
+    JanetTable *reg;
     int32_t len;
     int status;
-    JANET_FIXARITY(args, 1);
+    JANET_MINARITY(args, 1);
+    JANET_MAXARITY(args, 2);
     JANET_ARG_BYTES(bytes, len, args, 0);
-    status = janet_unmarshal(bytes, (size_t) len, 0, args.ret, NULL);
+    if (args.n > 1) {
+        JANET_ARG_TABLE(reg, args, 1);
+    } else {
+        reg = NULL;
+    }
+    status = janet_unmarshal(bytes, (size_t) len, 0, args.ret, reg, NULL);
     if (status) {
         JANET_THROW(args, umr_strings[status]);
     }
@@ -1058,6 +1145,7 @@ static int cfun_unmarshal(JanetArgs args) {
 static const JanetReg cfuns[] = {
     {"marshal", cfun_marshal},
     {"unmarshal", cfun_unmarshal},
+    {"env-lookups", cfun_env_lookups},
     {NULL, NULL}
 };
 

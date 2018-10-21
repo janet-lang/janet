@@ -141,9 +141,11 @@
 
 # Marshal
 
+(def [m-lookup um-lookup] (env-lookups _env))
+
 (defn testmarsh [x msg]
-  (def marshx (marshal x))
-  (def out (-> marshx unmarshal marshal))
+  (def marshx (marshal x m-lookup))
+  (def out (marshal (unmarshal marshx um-lookup) m-lookup))
   (assert (= (string marshx) (string out)) msg))
 
 (testmarsh nil "marshal nil")

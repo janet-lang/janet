@@ -332,7 +332,6 @@ static void janet_quick_asm(
     }
     memcpy(def->bytecode, bytecode, bytecode_size);
     janet_def(env, name, janet_wrap_function(janet_thunk(def)));
-    janet_register(name, janet_wrap_function(janet_thunk(def)));
 }
 
 /* Macros for easier inline janet assembly */

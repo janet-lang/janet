@@ -74,11 +74,11 @@ void repl_init(void) {
 
     /* Janet line getter */
     janet_def(env, "repl-yield", janet_wrap_cfunction(repl_yield));
-    janet_register("repl-yield", janet_wrap_cfunction(repl_yield));
+    janet_register("repl-yield", repl_yield);
 
     /* Janet line getter */
     janet_def(env, "js", janet_wrap_cfunction(cfun_js));
-    janet_register("js", janet_wrap_cfunction(cfun_js));
+    janet_register("js", cfun_js);
 
     /* Run startup script */
     Janet ret;

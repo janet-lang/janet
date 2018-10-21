@@ -1025,13 +1025,20 @@ JANET_API void *janet_abstract(const JanetAbstractType *type, size_t size);
 JANET_API JanetCFunction janet_native(const char *name, const uint8_t **error);
 
 /* Marshaling */
-JANET_API int janet_marshal(JanetBuffer *buf, Janet x, int flags);
+JANET_API int janet_marshal(
+        JanetBuffer *buf,
+        Janet x,
+        JanetTable *rreg,
+        int flags);
 JANET_API int janet_unmarshal(
         const uint8_t *bytes,
         size_t len,
         int flags,
         Janet *out,
+        JanetTable *reg,
         const uint8_t **next);
+JANET_API JanetTable *janet_env_rreg(JanetTable *env);
+JANET_API JanetTable *janet_env_reg(JanetTable *env);
 
 /* GC */
 JANET_API void janet_mark(Janet x);
@@ -1075,7 +1082,7 @@ JANET_API void janet_var(JanetTable *env, const char *name, Janet val);
 JANET_API void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 JANET_API JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out);
 JANET_API JanetTable *janet_env(JanetArgs args);
-JANET_API void janet_register(const char *name, Janet value);
+JANET_API void janet_register(const char *name, JanetCFunction cfun);
 
 /* C Function helpers */
 JANET_API int janet_arity_err(JanetArgs args, int32_t n, const char *prefix);
