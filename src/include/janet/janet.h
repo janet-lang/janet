@@ -96,6 +96,8 @@ extern "C" {
 /* Check emscripten */
 #ifdef __EMSCRIPTEN__
 #define JANET_NO_DYNAMIC_MODULES
+#define JANET_NO_NANBOX
+#define JANET_WALIGN 8
 #endif
 
 /* Define how global janet state is declared */
@@ -180,10 +182,12 @@ extern "C" {
 #endif
 
 /* Alignment for pointers */
+#ifndef JANET_WALIGN
 #ifdef JANET_32
 #define JANET_WALIGN 4
 #else
 #define JANET_WALIGN 8
+#endif
 #endif
 
 /***** END SECTION CONFIG *****/

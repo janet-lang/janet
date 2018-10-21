@@ -107,7 +107,8 @@ $(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
 ######################
 
 EMCC=emcc
-EMCCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]'
+EMCCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]' \
+		  -s ALLOW_MEMORY_GROWTH=1 -s WASM=1
 JANET_EMTARGET=janet.js
 JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)
 JANET_EMOBJECTS=$(patsubst %.c,%.bc,$(JANET_WEB_SOURCES))
