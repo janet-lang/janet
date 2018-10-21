@@ -97,7 +97,6 @@ extern "C" {
 #ifdef __EMSCRIPTEN__
 #define JANET_NO_DYNAMIC_MODULES
 #define JANET_NO_NANBOX
-#define JANET_WALIGN 8
 #endif
 
 /* Define how global janet state is declared */
