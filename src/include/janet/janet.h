@@ -1031,6 +1031,7 @@ JANET_API JanetCFunction janet_native(const char *name, const uint8_t **error);
 JANET_API int janet_marshal(
         JanetBuffer *buf,
         Janet x,
+        Janet *errval,
         JanetTable *rreg,
         int flags);
 JANET_API int janet_unmarshal(

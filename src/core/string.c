@@ -350,7 +350,7 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
     case JANET_CFUNCTION:
         {
             Janet check = janet_table_get(janet_vm_registry, x);
-            if (janet_checktype(x, JANET_SYMBOL)) {
+            if (janet_checktype(check, JANET_SYMBOL)) {
                 janet_buffer_push_cstring(buffer, "<cfunction ");
                 janet_buffer_push_bytes(buffer,
                         janet_unwrap_symbol(check),

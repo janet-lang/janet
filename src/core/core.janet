@@ -1139,8 +1139,9 @@ value, one key will be ignored."
   (defn chunks [buf _]
     (def ret state)
     (:= state nil)
-    (if ret
-      (buffer.push-string buf ret)))
+    (when ret
+      (buffer.push-string buf ret)
+      (buffer.push-string buf "\n")))
   (var returnval nil)
   (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler "eval")
   returnval)

@@ -29,6 +29,7 @@
 
 typedef struct {
     jmp_buf err;
+    Janet current;
     JanetBuffer *buf;
     JanetTable seen;
     JanetTable *rreg;
@@ -278,11 +279,13 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
 /* The main body of the marshaling function. Is the main
  * entry point for the mutually recursive functions. */
 static void marshal_one(MarshalState *st, Janet x, int flags) {
+    Janet parent = st->current;
     JanetType type = janet_type(x);
+    st->current = x;
     if ((flags & 0xFFFF) > JANET_RECURSION_GUARD)
         longjmp(st->err, MR_STACKOVERFLOW);
 
-    /* Check simple primitvies (non reference types, no benefit from memoization) */
+    /* Check simple primitives (non reference types, no benefit from memoization) */
     switch (type) {
         default:
             break;
@@ -290,10 +293,10 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         case JANET_FALSE:
         case JANET_TRUE:
             pushbyte(st, 200 + type);
-            return;
+            goto done;
         case JANET_INTEGER:
             pushint(st, janet_unwrap_integer(x));
-            return;
+            goto done;
     }
 
 #define MARK_SEEN() \
@@ -305,7 +308,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         if (janet_checktype(check, JANET_INTEGER)) {
             pushbyte(st, LB_REFERENCE);
             pushint(st, janet_unwrap_integer(check));
-            return;
+            goto done;
         }
         if (st->rreg) {
             check = janet_table_get(st->rreg, x);
@@ -315,7 +318,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 pushbyte(st, LB_REGISTRY);
                 pushint(st, janet_string_length(regname));
                 pushbytes(st, regname, janet_string_length(regname));
-                return;
+                goto done;
             }
         }
     }
@@ -341,7 +344,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 pushbytes(st, u.bytes, 8);
                 MARK_SEEN();
             }
-            return;
+            goto done;
         case JANET_STRING:
         case JANET_SYMBOL:
             {
@@ -354,7 +357,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 pushint(st, length);
                 pushbytes(st, str, length);
             }
-            return;
+            goto done;
         case JANET_BUFFER:
             {
                 JanetBuffer *buffer = janet_unwrap_buffer(x);
@@ -364,7 +367,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 pushint(st, buffer->count);
                 pushbytes(st, buffer->data, buffer->count);
             }
-            return;
+            goto done;
         case JANET_ARRAY:
             {
                 int32_t i;
@@ -375,7 +378,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 for (i = 0; i < a->count; i++)
                     marshal_one(st, a->data[i], flags + 1);
             }
-            return;
+            goto done;
         case JANET_TUPLE:
             {
                 int32_t i, count;
@@ -388,7 +391,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 /* Mark as seen AFTER marshaling */
                 MARK_SEEN();
             }
-            return;
+            goto done;
         case JANET_TABLE:
             {
                 const JanetKV *kv = NULL;
@@ -403,7 +406,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                     marshal_one(st, kv->value, flags + 1);
                 }
             }
-            return;
+            goto done;
         case JANET_STRUCT:
             {
                 int32_t count;
@@ -419,7 +422,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 /* Mark as seen AFTER marshaling */
                 MARK_SEEN();
             }
-            return;
+            goto done;
         case JANET_ABSTRACT:
         case JANET_CFUNCTION:
             goto noregval;
@@ -433,18 +436,22 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 for (int32_t i = 0; i < func->def->environments_length; i++)
                     marshal_one_env(st, func->envs[i], flags + 1);
             }
-            return;
+            goto done;
         case JANET_FIBER:
             {
                 pushbyte(st, LB_FIBER);
                 marshal_one_fiber(st, janet_unwrap_fiber(x), flags + 1);
             }
-            return;
+            goto done;
         default:
             goto nyi;
     }
 
 #undef MARK_SEEN
+
+done:
+    st->current = parent;
+    return;
 
     /* Errors */
 
@@ -455,7 +462,12 @@ noregval:
     longjmp(st->err, MR_NRV);
 }
 
-int janet_marshal(JanetBuffer *buf, Janet x, JanetTable *rreg, int flags) {
+int janet_marshal(
+        JanetBuffer *buf,
+        Janet x,
+        Janet *errval,
+        JanetTable *rreg,
+        int flags) {
     int status;
     MarshalState st; 
     st.buf = buf;
@@ -463,9 +475,12 @@ int janet_marshal(JanetBuffer *buf, Janet x, JanetTable *rreg, int flags) {
     st.seen_defs = NULL;
     st.seen_envs = NULL;
     st.rreg = rreg;
+    st.current = x;
     janet_table_init(&st.seen, 0);
     if (!(status = setjmp(st.err)))
         marshal_one(&st, x, flags);
+    if (status && errval)
+        *errval = st.current;
     janet_table_deinit(&st.seen);
     janet_v_free(st.seen_envs);
     janet_v_free(st.seen_defs);
@@ -1081,6 +1096,7 @@ static int cfun_env_lookup(JanetArgs args) {
 static int cfun_marshal(JanetArgs args) {
     JanetBuffer *buffer;
     JanetTable *rreg;
+    Janet err_param = janet_wrap_nil();
     int status;
     JANET_MINARITY(args, 1);
     JANET_MAXARITY(args, 3);
@@ -1096,9 +1112,13 @@ static int cfun_marshal(JanetArgs args) {
     } else {
         buffer = janet_buffer(10);
     }
-    status = janet_marshal(buffer, args.v[0], rreg, 0);
+    status = janet_marshal(buffer, args.v[0], &err_param, rreg, 0);
     if (status) {
-        JANET_THROW(args, mr_strings[status]);
+        const uint8_t *errstr = janet_formatc(
+                "%s for %V",
+                mr_strings[status],
+                err_param);
+        JANET_THROWV(args, janet_wrap_string(errstr));
     }
     JANET_RETURN_BUFFER(args, buffer);
 }
