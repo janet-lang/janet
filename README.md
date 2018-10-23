@@ -6,22 +6,16 @@
 Janet is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
 by other data structures with better utility and performance (arrays, tables, structs, tuples).
-The language can also easily bridge to native code written in C, and supports abstract datatypes
-for interfacing with C. Also support meta programming with macros, and bytecode assembly for the
-janet abstract machine. The bytecode vm is a register based vm loosely inspired by the LuaJIT
-bytecode format, but simpler and safer (bytecode can be verified by the assembler).
+The language also bridging bridging to native code written in C, meta-programming with macros, and bytecode assembly.
 
 There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
-janet could be embedded into other programs.
+janet could be embedded into other programs. Try janet in your browser at 
+[https://janet-lang.org](https://janet-lang.org).
 
 Implemented in mostly standard C99, janet runs on Windows, Linux and macOS.
 The few features that are not standard C (dynamic library loading, compiler specific optimizations),
 are fairly straight forward. Janet can be easily ported to new platforms.
-
-There is not much in the way of documentation yet because it is still a "personal project" and
-I don't want to freeze features prematurely. You can look in the examples directory, the test directory,
-or the file `src/core/core.janet` to get a sense of what janet code looks like.
 
 For syntax highlighting, there is some preliminary vim syntax highlighting in [janet.vim](https://github.com/bakpakin/janet.vim).
 Generic lisp syntax highlighting should, however, provide good results.
@@ -32,6 +26,7 @@ Janet makes a good system scripting language, or a language to embed in other pr
 
 ## Features
 
+* Minimal setup - one binary and you are good to go!
 * First class closures
 * Garbage collection
 * First class green threads (continuations)
@@ -40,7 +35,7 @@ Janet makes a good system scripting language, or a language to embed in other pr
 * Mutable and immutable strings (buffer/string)
 * Lisp Macros
 * Byte code interpreter with an assembly interface, as well as bytecode verification
-* Proper tail calls.
+* Tailcall Optimization
 * Direct interop with C via abstract types and C functions
 * Dynamically load C libraries
 * Functional and imperative standard library
@@ -52,7 +47,8 @@ Janet makes a good system scripting language, or a language to embed in other pr
 ## Documentation
 
 API documentation and design documents can be found in the
-[wiki](https://github.com/bakpakin/janet/wiki). Not at all complete.
+[wiki](https://github.com/bakpakin/janet/wiki). There is an introduction
+section in the wiki that contains a good overview of the language.
 
 ## Usage
 
@@ -92,7 +88,7 @@ before compilation.
 
 ### Posix
 
-On most platforms, use Make to build janet. To 
+On most platforms, use Make to build janet.
 
 ```sh
 cd somewhere/my/projects/janet
