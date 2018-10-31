@@ -29,7 +29,9 @@ extern "C" {
 
 /***** START SECTION CONFIG *****/
 
+#ifndef JANET_VERSION
 #define JANET_VERSION "0.0.0 alpha"
+#endif
 
 /*
  * Detect OS and endianess.

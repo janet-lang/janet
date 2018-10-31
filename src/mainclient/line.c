@@ -249,7 +249,7 @@ static void historymove(int delta) {
             historyi = history_count - 1;
             return;
         }
-        strncpy(buf, history[historyi], JANET_LINE_MAX);
+        strncpy(buf, history[historyi], JANET_LINE_MAX - 1);
         pos = len = strlen(buf);
         buf[len] = '\0';
 

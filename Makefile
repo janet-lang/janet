@@ -27,9 +27,11 @@ PREFIX?=/usr/local
 INCLUDEDIR=$(PREFIX)/include/janet
 LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
+JANET_VERSION?="\"commit-$(shell git log --pretty=format:'%h' -n 1)\""
 
 #CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
+	   -DJANET_VERSION=$(JANET_VERSION)
 CLIBS=-lm -ldl
 JANET_TARGET=janet
 JANET_LIBRARY=libjanet.so
