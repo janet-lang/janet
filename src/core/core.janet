@@ -798,10 +798,12 @@ value, one key will be ignored."
   then the second, etc."
   [& cols]
   (def res @[])
-  (def len (apply min 0 (mapa length cols)))
-  (loop [i :range [0 len]]
-    (loop [c :in col]
-      (array.push res (get c i))))
+  (def ncol (length cols))
+  (when (> ncol 0)
+    (def len (apply min (mapa length cols)))
+    (loop [i :range [0 len]]
+      (loop [ci :range [0 ncol]]
+        (array.push res (get (get cols ci) i)))))
   res)
 
 ###
