@@ -864,7 +864,7 @@ value, one key will be ignored."
     (def complex? (> (length y) 4))
     ((if complex? pp-dict-nested pp-dict-simple) y))
 
-  (def printers 
+  (def printers
     {:array  (fn [y] (do-ds y "@[" "]" true pp-seq))
      :tuple  (fn [y] (do-ds y "(" ")" false pp-seq))
      :table  (fn [y] (do-ds y "@{" "}" true pp-dict))
@@ -902,8 +902,8 @@ value, one key will be ignored."
 
   (defn expand-bindings [x]
     (case (type x)
-      :array (map expand-bindings x)
-      :tuple (tuple.slice (map expand-bindings x) 0)
+      :array (mapa expand-bindings x)
+      :tuple (map expand-bindings x)
       :table (dotable x expand-bindings)
       :struct (table.to-struct (dotable x expand-bindings))
       (macroexpand-1 x)))
@@ -916,11 +916,11 @@ value, one key will be ignored."
                                 @[(expand-bindings last2) (macroexpand-1 last)]) 0))
 
   (defn expandall [t]
-    (def args (map macroexpand-1 (tuple.slice t 1)))
+    (def args (mapa macroexpand-1 (tuple.slice t 1)))
     (apply tuple (get t 0) args))
 
   (defn expandfn [t]
-    (def args (map macroexpand-1 (tuple.slice t 2)))
+    (def args (mapa macroexpand-1 (tuple.slice t 2)))
     (apply tuple 'fn (get t 1) args))
 
   (def specs
@@ -942,12 +942,12 @@ value, one key will be ignored."
     (cond
       s (s t)
       m? (apply m (tuple.slice t 1))
-      (tuple.slice (map macroexpand-1 t) 0)))
+      (map macroexpand-1 t) 0))
 
   (def ret
     (case (type x)
       :tuple (dotup x)
-      :array (map macroexpand-1 x)
+      :array (mapa macroexpand-1 x)
       :struct (table.to-struct (dotable x macroexpand-1))
       :table (dotable x macroexpand-1)
       x))
@@ -1001,7 +1001,7 @@ value, one key will be ignored."
 ###
 ###
 
-(defn make-env 
+(defn make-env
   @[parent]
   (def parent (if parent parent _env))
   (def newenv (table.setproto @{} parent))
@@ -1166,7 +1166,7 @@ value, one key will be ignored."
       (string syspath janet.version "/?/??.so")
       (string syspath "/?.so")
       (string syspath "/?/??.so")]))
-      
+
 (if (= :windows (os.which))
    (loop [i :range [0 (length module.native-paths)]]
      (def x (get module.native-paths i))

@@ -63,10 +63,11 @@ JanetArray *janet_array_n(const Janet *elements, int32_t n) {
 }
 
 /* Ensure the array has enough capacity for elements */
-void janet_array_ensure(JanetArray *array, int32_t capacity) {
+void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth) {
     Janet *newData;
     Janet *old = array->data;
     if (capacity <= array->capacity) return;
+    capacity *= growth;
     newData = realloc(old, capacity * sizeof(Janet));
     if (NULL == newData) {
         JANET_OUT_OF_MEMORY;
@@ -81,7 +82,7 @@ void janet_array_setcount(JanetArray *array, int32_t count) {
         return;
     if (count > array->count) {
         int32_t i;
-        janet_array_ensure(array, count);
+        janet_array_ensure(array, count, 1);
         for (i = array->count; i < count; i++) {
             array->data[i] = janet_wrap_nil();
         }
@@ -92,9 +93,7 @@ void janet_array_setcount(JanetArray *array, int32_t count) {
 /* Push a value to the top of the array */
 void janet_array_push(JanetArray *array, Janet x) {
     int32_t newcount = array->count + 1;
-    if (newcount >= array->capacity) {
-        janet_array_ensure(array, newcount * 2);
-    }
+    janet_array_ensure(array, newcount, 2);
     array->data[array->count] = x;
     array->count = newcount;
 }
@@ -148,7 +147,7 @@ static int cfun_push(JanetArgs args) {
     JANET_MINARITY(args, 1);
     JANET_ARG_ARRAY(array, args, 0);
     newcount = array->count - 1 + args.n;
-    janet_array_ensure(array, newcount);
+    janet_array_ensure(array, newcount, 2);
     if (args.n > 1) memcpy(array->data + array->count, args.v + 1, (args.n - 1) * sizeof(Janet));
     array->count = newcount;
     JANET_RETURN(args, args.v[0]);
@@ -168,11 +167,13 @@ static int cfun_setcount(JanetArgs args) {
 static int cfun_ensure(JanetArgs args) {
     JanetArray *array;
     int32_t newcount;
-    JANET_FIXARITY(args, 2);
+    int32_t growth;
+    JANET_FIXARITY(args, 3);
     JANET_ARG_ARRAY(array, args, 0);
     JANET_ARG_INTEGER(newcount, args, 1);
+    JANET_ARG_INTEGER(growth, args, 2);
     if (newcount < 0) JANET_THROW(args, "expected positive integer");
-    janet_array_ensure(array, newcount);
+    janet_array_ensure(array, newcount, growth);
     JANET_RETURN(args, args.v[0]);
 }
 

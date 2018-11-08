@@ -906,20 +906,26 @@ static void *op_lookup[255] = {
                 retreg = ds;
                 goto vm_type_error;
             case JANET_ARRAY:
-                if (index >= janet_unwrap_array(ds)->count) {
-                    janet_array_ensure(janet_unwrap_array(ds), 2 * index);
-                    janet_unwrap_array(ds)->count = index + 1;
+                {
+                    JanetArray *array = janet_unwrap_array(ds);
+                    if (index >= array->count) {
+                        janet_array_ensure(array, index + 1, 2);
+                        array->count = index + 1;
+                    }
+                    array->data[index] = value;
+                    break;
                 }
-                janet_unwrap_array(ds)->data[index] = value;
-                break;
             case JANET_BUFFER:
-                vm_assert_type(value, JANET_INTEGER);
-                if (index >= janet_unwrap_buffer(ds)->count) {
-                    janet_buffer_ensure(janet_unwrap_buffer(ds), 2 * index);
-                    janet_unwrap_buffer(ds)->count = index + 1;
+                {
+                    JanetBuffer *buffer = janet_unwrap_buffer(ds);
+                    vm_assert_type(value, JANET_INTEGER);
+                    if (index >= buffer->count) {
+                        janet_buffer_ensure(buffer, index + 1, 2);
+                        buffer->count = index + 1;
+                    }
+                    buffer->data[index] = janet_unwrap_integer(value);
+                    break;
                 }
-                janet_unwrap_buffer(ds)->data[index] = janet_unwrap_integer(value);
-                break;
         }
         ++pc;
         vm_checkgc_next();

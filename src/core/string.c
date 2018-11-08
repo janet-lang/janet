@@ -112,7 +112,7 @@ static int32_t real_to_string_impl(uint8_t *buf, double x) {
 }
 
 static void real_to_string_b(JanetBuffer *buffer, double x) {
-    janet_buffer_ensure(buffer, buffer->count + BUFSIZE);
+    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
     buffer->count += real_to_string_impl(buffer->data + buffer->count, x);
 }
 
@@ -202,7 +202,7 @@ static int32_t string_description_impl(uint8_t *buf, const char *title, void *po
 }
 
 static void string_description_b(JanetBuffer *buffer, const char *title, void *pointer) {
-    janet_buffer_ensure(buffer, buffer->count + BUFSIZE);
+    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
     buffer->count += string_description_impl(buffer->data + buffer->count, title, pointer);
 }
 

@@ -465,7 +465,7 @@ void janet_line_get(const uint8_t *p, JanetBuffer *buffer) {
     }
     norawmode();
     fputc('\n', stdout);
-    janet_buffer_ensure(buffer, len + 1);
+    janet_buffer_ensure(buffer, len + 1, 2);
     memcpy(buffer->data, buf, len);
     buffer->data[len] = '\n';
     buffer->count = len + 1;

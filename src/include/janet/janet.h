@@ -916,7 +916,7 @@ JANET_API JanetArray *janet_array(int32_t capacity);
 JANET_API JanetArray *janet_array_n(const Janet *elements, int32_t n);
 JANET_API JanetArray *janet_array_init(JanetArray *array, int32_t capacity);
 JANET_API void janet_array_deinit(JanetArray *array);
-JANET_API void janet_array_ensure(JanetArray *array, int32_t capacity);
+JANET_API void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth);
 JANET_API void janet_array_setcount(JanetArray *array, int32_t count);
 JANET_API void janet_array_push(JanetArray *array, Janet x);
 JANET_API Janet janet_array_pop(JanetArray *array);
@@ -926,7 +926,7 @@ JANET_API Janet janet_array_peek(JanetArray *array);
 JANET_API JanetBuffer *janet_buffer(int32_t capacity);
 JANET_API JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity);
 JANET_API void janet_buffer_deinit(JanetBuffer *buffer);
-JANET_API void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity);
+JANET_API void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth);
 JANET_API void janet_buffer_setcount(JanetBuffer *buffer, int32_t count);
 JANET_API int janet_buffer_extra(JanetBuffer *buffer, int32_t n);
 JANET_API int janet_buffer_push_bytes(JanetBuffer *buffer, const uint8_t *string, int32_t len);
@@ -1185,7 +1185,7 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 #define JANET_ARG_ARRAY(DEST, A, N) _JANET_ARG(JANET_ARRAY, array, DEST, A, N)
 #define JANET_ARG_TUPLE(DEST, A, N) _JANET_ARG(JANET_TUPLE, tuple, DEST, A, N)
 #define JANET_ARG_TABLE(DEST, A, N) _JANET_ARG(JANET_TABLE, table, DEST, A, N)
-#define JANET_ARG_STRUCT(DEST, A, N) _JANET_ARG(JANET_STRUCT, st, DEST, A, N)
+#define JANET_ARG_STRUCT(DEST, A, N) _JANET_ARG(JANET_STRUCT, struct, DEST, A, N)
 #define JANET_ARG_BUFFER(DEST, A, N) _JANET_ARG(JANET_BUFFER, buffer, DEST, A, N)
 #define JANET_ARG_FUNCTION(DEST, A, N) _JANET_ARG(JANET_FUNCTION, function, DEST, A, N)
 #define JANET_ARG_CFUNCTION(DEST, A, N) _JANET_ARG(JANET_CFUNCTION, cfunction, DEST, A, N)

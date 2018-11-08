@@ -50,10 +50,11 @@ JanetBuffer *janet_buffer(int32_t capacity) {
 }
 
 /* Ensure that the buffer has enough internal capacity */
-void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity) {
+void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) {
     uint8_t *new_data;
     uint8_t *old = buffer->data;
     if (capacity <= buffer->capacity) return;
+    capacity *= growth;
     new_data = realloc(old, capacity * sizeof(uint8_t));
     if (NULL == new_data) {
         JANET_OUT_OF_MEMORY;
@@ -68,7 +69,7 @@ void janet_buffer_setcount(JanetBuffer *buffer, int32_t count) {
         return;
     if (count > buffer->count) {
         int32_t oldcount = buffer->count;
-        janet_buffer_ensure(buffer, count);
+        janet_buffer_ensure(buffer, count, 1);
         memset(buffer->data + oldcount, 0, count - oldcount);
     }
     buffer->count = count;
