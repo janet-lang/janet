@@ -793,6 +793,17 @@ value, one key will be ignored."
     (put freqs x (if n (+ 1 n) 1)))
   freqs)
 
+(defn interleave
+  "Returns an array of the first elements of each col,
+  then the second, etc."
+  [& cols]
+  (def res @[])
+  (def len (apply min 0 (mapa length cols)))
+  (loop [i :range [0 len]]
+    (loop [c :in col]
+      (array.push res (get c i))))
+  res)
+
 ###
 ###
 ### Pretty Printer
