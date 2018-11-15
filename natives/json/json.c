@@ -588,8 +588,14 @@ static int json_encode(JanetArgs args) {
 /****************/
 
 static const JanetReg cfuns[] = {
-    {"encode", json_encode},
-    {"decode", json_decode},
+    {"encode", json_encode,
+        "(json.encode x)\n\n"
+        "Encodes a janet value in JSON (utf-8)."
+    },
+    {"decode", json_decode,
+        "(json.decode json-source)\n\n"
+        "Returns a janet object after parsing JSON."
+    },
     {NULL, NULL}
 };
 

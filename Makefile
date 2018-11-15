@@ -35,6 +35,7 @@ CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
 CLIBS=-lm -ldl
 JANET_TARGET=janet
 JANET_LIBRARY=libjanet.so
+JANET_PATH?=/usr/local/lib/janet
 DEBUGGER=gdb
 
 UNAME:=$(shell uname -s)
@@ -180,7 +181,8 @@ install: $(JANET_TARGET)
 	$(LDCONFIG)
 
 install-libs: natives
-	cp lib/* $(JANET_PATH)
+	mkdir -p $(JANET_PATH)
+	cp -r lib $(JANET_PATH)
 	cp natives/*/*.so $(JANET_PATH)
 
 uninstall:
