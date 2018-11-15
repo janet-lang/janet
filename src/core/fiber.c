@@ -455,14 +455,14 @@ static int cfun_setmaxstack(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"fiber.new", cfun_new},
-    {"fiber.status", cfun_status},
-    {"fiber.stack", cfun_stack},
-    {"fiber.current", cfun_current},
-    {"fiber.lineage", cfun_lineage},
-    {"fiber.maxstack", cfun_maxstack},
-    {"fiber.setmaxstack", cfun_setmaxstack},
-    {NULL, NULL}
+    {"fiber.new", cfun_new, NULL},
+    {"fiber.status", cfun_status, NULL},
+    {"fiber.stack", cfun_stack, NULL},
+    {"fiber.current", cfun_current, NULL},
+    {"fiber.lineage", cfun_lineage, NULL},
+    {"fiber.maxstack", cfun_maxstack, NULL},
+    {"fiber.setmaxstack", cfun_setmaxstack, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Module entry point */

@@ -706,8 +706,8 @@ static int cfun(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"compile", cfun},
-    {NULL, NULL}
+    {"compile", cfun, NULL},
+    {NULL, NULL, NULL}
 };
 
 int janet_lib_compile(JanetArgs args) {

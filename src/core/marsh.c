@@ -1144,10 +1144,10 @@ static int cfun_unmarshal(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"marshal", cfun_marshal},
-    {"unmarshal", cfun_unmarshal},
-    {"env-lookup", cfun_env_lookup},
-    {NULL, NULL}
+    {"marshal", cfun_marshal, NULL},
+    {"unmarshal", cfun_unmarshal, NULL},
+    {"env-lookup", cfun_env_lookup, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Module entry point */

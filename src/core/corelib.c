@@ -287,28 +287,28 @@ static int janet_core_hash(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"native", janet_core_native},
-    {"print", janet_core_print},
-    {"describe", janet_core_describe},
-    {"string", janet_core_string},
-    {"symbol", janet_core_symbol},
-    {"buffer", janet_core_buffer},
-    {"table", janet_core_table},
-    {"array", janet_core_array},
-    {"scan-number", janet_core_scannumber},
-    {"scan-integer", janet_core_scaninteger},
-    {"scan-real", janet_core_scanreal},
-    {"tuple", janet_core_tuple},
-    {"struct", janet_core_struct},
-    {"buffer", janet_core_buffer},
-    {"gensym", janet_core_gensym},
-    {"gccollect", janet_core_gccollect},
-    {"gcsetinterval", janet_core_gcsetinterval},
-    {"gcinterval", janet_core_gcinterval},
-    {"type", janet_core_type},
-    {"next", janet_core_next},
-    {"hash", janet_core_hash},
-    {NULL, NULL}
+    {"native", janet_core_native, NULL},
+    {"print", janet_core_print, NULL},
+    {"describe", janet_core_describe, NULL},
+    {"string", janet_core_string, NULL},
+    {"symbol", janet_core_symbol, NULL},
+    {"buffer", janet_core_buffer, NULL},
+    {"table", janet_core_table, NULL},
+    {"array", janet_core_array, NULL},
+    {"scan-number", janet_core_scannumber, NULL},
+    {"scan-integer", janet_core_scaninteger, NULL},
+    {"scan-real", janet_core_scanreal, NULL},
+    {"tuple", janet_core_tuple, NULL},
+    {"struct", janet_core_struct, NULL},
+    {"buffer", janet_core_buffer, NULL},
+    {"gensym", janet_core_gensym, NULL},
+    {"gccollect", janet_core_gccollect, NULL},
+    {"gcsetinterval", janet_core_gcsetinterval, NULL},
+    {"gcinterval", janet_core_gcinterval, NULL},
+    {"type", janet_core_type, NULL},
+    {"next", janet_core_next, NULL},
+    {"hash", janet_core_hash, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Utility for inline assembly */
@@ -331,7 +331,7 @@ static void janet_quick_asm(
         JANET_OUT_OF_MEMORY;
     }
     memcpy(def->bytecode, bytecode, bytecode_size);
-    janet_def(env, name, janet_wrap_function(janet_thunk(def)));
+    janet_def(env, name, janet_wrap_function(janet_thunk(def)), NULL);
 }
 
 /* Macros for easier inline janet assembly */
@@ -562,7 +562,7 @@ JanetTable *janet_core_env(void) {
     templatize_comparator(env, JANET_FUN_NEQ, "not==", 1, JOP_NUMERIC_EQUAL);
 
     /* Platform detection */
-    janet_def(env, "janet.version", janet_cstringv(JANET_VERSION));
+    janet_def(env, "janet.version", janet_cstringv(JANET_VERSION), NULL);
 
     /* Set as gc root */
     janet_gcroot(janet_wrap_table(env));
@@ -591,7 +591,7 @@ JanetTable *janet_core_env(void) {
     }
 
     /* Allow references to the environment */
-    janet_def(env, "_env", ret);
+    janet_def(env, "_env", ret, NULL);
 
     /* Run bootstrap source */
     janet_dobytes(env, janet_gen_core, sizeof(janet_gen_core), "core.janet", NULL);

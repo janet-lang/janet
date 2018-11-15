@@ -153,17 +153,6 @@ static int cfun_push(JanetArgs args) {
     JANET_RETURN(args, args.v[0]);
 }
 
-static int cfun_setcount(JanetArgs args) {
-    JanetArray *array;
-    int32_t newcount;
-    JANET_FIXARITY(args, 2);
-    JANET_ARG_ARRAY(array, args, 0);
-    JANET_ARG_INTEGER(newcount, args, 1);
-    if (newcount < 0) JANET_THROW(args, "expected positive integer");
-    janet_array_setcount(array, newcount);
-    JANET_RETURN(args, args.v[0]);
-}
-
 static int cfun_ensure(JanetArgs args) {
     JanetArray *array;
     int32_t newcount;
@@ -240,15 +229,51 @@ static int cfun_concat(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"array.new", cfun_new},
-    {"array.pop", cfun_pop},
-    {"array.peek", cfun_peek},
-    {"array.push", cfun_push},
-    {"array.setcount", cfun_setcount},
-    {"array.ensure", cfun_ensure},
-    {"array.slice", cfun_slice},
-    {"array.concat", cfun_concat},
-    {NULL, NULL}
+    {"array.new", cfun_new,
+        "(array.new capacity)\n\n"
+        "Creates a new empty array with a preallocated capacity. The same as\n"
+        "(array) but can be more efficient if the maximum size of an array is known."
+    },
+    {"array.pop", cfun_pop,
+        "(array.pop arr)\n\n"
+        "Remove the last element of the array and return it. If the array is empty, will return nil. Modifies\n"
+        "the input array."
+    },
+    {"array.peek", cfun_peek,
+        "(array.peel arr)\n\n"
+        "Returns the last element of the array. Does not modify the array."
+    },
+    {"array.push", cfun_push,
+        "(array.push arr x)\n\n"
+        "Insert an element in the end of an array. Modifies the input array and returns it."
+    },
+    {"array.ensure", cfun_ensure,
+        "(array.ensure arr capacity)\n\n"
+        "Ensures that the memory backing the array has enough memory for capacity\n"
+        "items. Capacity must be an integer. If the backing capacity is already enough,\n"
+        "then this function does nothing. Otherwise, the backing memory will be reallocated\n"
+        "so that there is enough space."
+    },
+    {"array.slice", cfun_slice,
+        "(array.slice arrtup)\n\n"
+        "Returns a copy of an array or tuple.\n\n"
+        "(array.slice arrtup start)\n\n"
+        "Takes a slice of an array or tuple from the index start to the last element. Indexes\n"
+        "are from 0, or can be negative to index from the end of the array, Where -1 is the last\n"
+        "element of the array. Returns a new array.\n\n"
+        "(array.slice arrtup start end)\n\n"
+        "Takes a slice of array or tuple from start to end. The range is half open,\n"
+        "[start, end). Indexes can also be negative, indicating indexing from the end of the\n"
+        "end of the array. Returns a new array."
+    },
+    {"array.concat", cfun_concat,
+        "(array.concat arr & parts)\n\n"
+        "Concatenates a variadic number of arrays (and tuples) into the first argument\n"
+        "which must an array. If any of the parts are arrays or tuples, their elements will\n"
+        "be inserted into the array. Otherwise, each part in parts will be appended to arr in order.\n"
+        "Return the modified array arr."
+    },
+    {NULL, NULL, NULL}
 };
 
 /* Load the array module */

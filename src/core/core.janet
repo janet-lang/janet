@@ -12,26 +12,43 @@
   _env)
 
 (def defn :macro
-  "Define a function. Equivalent to (def name (fn name [args] ...))."
+  "(def name & more)\n\nDefine a function. Equivalent to (def name (fn name [args] ...))."
   (fn defn [name & more]
     (def len (length more))
+    (def modifiers @[])
+    (var docstr "")
     (def fstart
       (fn recur [i]
         (def {i ith} more)
         (def t (type ith))
         (def tuple? (= t :tuple))
         (def array? (= t :array))
-        (if (if tuple? tuple? array?) i
-          (if (< i len) (recur (+ i 1))))))
+        (if (if tuple? tuple? array?)
+          i
+          (do 
+            (if (= (type ith) :string)
+              (:= docstr ith)
+              (array.push modifiers ith))
+            (if (< i len) (recur (+ i 1)))))))
     (def start (fstart 0))
+    (def args (get more start))
+    # Add arguments to definition
+    (var index 0)
+    (def arglen (length args))
+    (def buf (buffer "(" name))
+    (while (< index arglen)
+      (buffer.push-string buf " " (get args index))
+      (:= index (+ index 1)))
+    (array.push modifiers (string buf ")\n\n" docstr))
+    # Build return value
     (def fnbody (tuple.prepend (tuple.prepend (tuple.slice more start) name) 'fn))
-    (def formargs (array.concat @['def name] (array.slice more 0 start) @[fnbody]))
+    (def formargs (array.concat @['def name] modifiers @[fnbody]))
     (tuple.slice formargs 0)))
 
-(def defmacro :macro
+(defn defmacro :macro
   "Define a macro."
-  (fn defmacro [name & more]
-    (apply defn (array.concat @[name :macro] more))))
+  [name & more]
+    (apply defn (array.concat @[name :macro] more)))
 
 (defmacro defmacro-
   "Define a private macro that will not be exported."
@@ -63,70 +80,75 @@
   nil)
 
 # Basic predicates
-(defn even? [x] (== 0 (% x 2)))
-(defn odd? [x] (not= 0 (% x 2)))
-(defn zero? [x] (== x 0))
-(defn pos? [x] (> x 0))
-(defn neg? [x] (< x 0))
-(defn one? [x] (== x 1))
-(defn integer? [x] (= (type x) :integer))
-(defn real? [x] (= (type x) :real))
-(defn number? [x]
+(defn even? "Check if x is even." [x] (== 0 (% x 2)))
+(defn odd? "Check if x is odd." [x] (not= 0 (% x 2)))
+(defn zero? "Check if x is zero." [x] (== x 0))
+(defn pos? "Check if x is greater than 0." [x] (> x 0))
+(defn neg? "Check if x is less than 0." [x] (< x 0))
+(defn one? "Check if x is equal to 1." [x] (== x 1))
+(defn integer? "Check if x is an integer." [x] (= (type x) :integer))
+(defn real? [x] "Check if x is a real number." (= (type x) :real))
+(defn number? "Check if x is a number." [x]
   (def t (type x))
   (if (= t :integer) true (= t :real)))
-(defn fiber? [x] (= (type x) :fiber))
-(defn string? [x] (= (type x) :string))
-(defn symbol? [x] (= (type x) :symbol))
-(defn keyword? [x] (if (not= (type x) :symbol) nil (= 58 (get x 0))))
-(defn buffer? [x] (= (type x) :buffer))
-(defn function? [x] (= (type x) :function))
-(defn cfunction? [x] (= (type x) :cfunction))
-(defn abstract? [x] (= (type x) :abstract))
-(defn table? [x] (= (type x) :table ))
-(defn struct? [x] (= (type x) :struct))
-(defn array? [x] (= (type x) :array))
-(defn tuple? [x] (= (type x) :tuple))
-(defn boolean? [x] (= (type x) :boolean))
-(defn bytes? [x]
+(defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
+(defn string? "Check if x is a string." [x] (= (type x) :string))
+(defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
+(defn keyword? "Check if x is a keyword style symbol." 
+  [x]
+  (if (not= (type x) :symbol) nil (= 58 (get x 0))))
+(defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
+(defn function? "Check if x is a function (not a cfunction)."
+  [x] (= (type x) :function))
+(defn cfunction? "Check if x a cfunction." [x] (= (type x) :cfunction))
+(defn abstract? "Check if x an abstract type." [x] (= (type x) :abstract))
+(defn table? [x] "Check if x a table." (= (type x) :table ))
+(defn struct? [x] "Check if x a struct." (= (type x) :struct))
+(defn array? [x] "Check if x is an array." (= (type x) :array))
+(defn tuple? [x] "Check if x is a tuple." (= (type x) :tuple))
+(defn boolean? [x] "Check if x is a boolean." (= (type x) :boolean))
+(defn bytes? "Check if x is a string, symbol, or buffer." [x]
   (def t (type x))
   (if (= t :string) true (if (= t :symbol) true (= t :buffer))))
-(defn dictionary? [x]
+(defn dictionary? "Check if x a table or struct." [x]
   (def t (type x))
   (if (= t :table) true (= t :struct)))
-(defn indexed? [x]
+(defn indexed? "Check if x is an array or tuple." [x]
   (def t (type x))
   (if (= t :array) true (= t :tuple)))
-(defn callable? [x]
+(defn callable? "Check if x is a function or cfunction." [x]
   (def t (type x))
   (if (= t :function) true (= t :cfunction)))
-(defn true? [x] (= x true))
-(defn false? [x] (= x false))
-(defn nil? [x] (= x nil))
+(defn true? "Check if x is true." [x] (= x true))
+(defn false? "Check if x is false." [x] (= x false))
+(defn nil? "Check if x is nil." [x] (= x nil))
 (def atomic?
+  "(atomic? x)\n\nCheck if x is a value that evaluates to itself when compiled."
   (do
     (def non-atomic-types
       {:array true
        :tuple true
        :table true
+       :buffer true
        :struct true})
-    (fn [x] (not (get non-atomic-types (type x))))))
+    (fn atomic? [x] (not (get non-atomic-types (type x))))))
 
 # C style macros and functions for imperative sugar
-(defn inc [x] (+ x 1))
-(defn dec [x] (- x 1))
-(defmacro ++ [x] (tuple ':= x (tuple + x 1)))
-(defmacro -- [x] (tuple ':= x (tuple - x 1)))
-(defmacro += [x n] (tuple ':= x (tuple + x n)))
-(defmacro -= [x n] (tuple ':= x (tuple - x n)))
-(defmacro *= [x n] (tuple ':= x (tuple * x n)))
-(defmacro /= [x n] (tuple ':= x (tuple / x n)))
-(defmacro %= [x n] (tuple ':= x (tuple % x n)))
-(defmacro &= [x n] (tuple ':= x (tuple & x n)))
-(defmacro |= [x n] (tuple ':= x (tuple | x n)))
-(defmacro ^= [x n] (tuple ':= x (tuple ^ x n)))
-(defmacro >>= [x n] (tuple ':= x (tuple >> x n)))
-(defmacro <<= [x n] (tuple ':= x (tuple << x n)))
-(defmacro >>>= [x n] (tuple ':= x (tuple >>> x n)))
+(defn inc "Returns x + 1." [x] (+ x 1))
+(defn dec "Returns x - 1." [x] (- x 1))
+(defmacro ++ "Increments the var x by 1." [x] (tuple ':= x (tuple + x 1)))
+(defmacro -- "Decrements the var x by 1." [x] (tuple ':= x (tuple - x 1)))
+(defmacro += "Increments the var x by n." [x n] (tuple ':= x (tuple + x n)))
+(defmacro -= "Decrements the vat x by n." [x n] (tuple ':= x (tuple - x n)))
+(defmacro *= "Shorthand for (:= x (* x n))." [x n] (tuple ':= x (tuple * x n)))
+(defmacro /= "Shorthand for (:= x (/ x n))." [x n] (tuple ':= x (tuple / x n)))
+(defmacro %= "Shorthand for (:= x (% x n))." [x n] (tuple ':= x (tuple % x n)))
+(defmacro &= "Shorthand for (:= x (& x n))." [x n] (tuple ':= x (tuple & x n)))
+(defmacro |= "Shorthand for (:= x (| x n))." [x n] (tuple ':= x (tuple | x n)))
+(defmacro ^= "Shorthand for (:= x (^ x n))." [x n] (tuple ':= x (tuple ^ x n)))
+(defmacro >>= "Shorthand for (:= x (>> x n))." [x n] (tuple ':= x (tuple >> x n)))
+(defmacro <<= "Shorthand for (:= x (<< x n))." [x n] (tuple ':= x (tuple << x n)))
+(defmacro >>>= "Shorthand for (:= x (>>> x n))." [x n] (tuple ':= x (tuple >>> x n)))
 
 (defmacro default
   "Define a default value for an optional argument.
@@ -169,12 +191,13 @@
   (aux 0))
 
 (defn doc*
+  "Get the documentation for a symbol in a given environment."
   [env sym]
   (def x (get env sym))
   (if (not x)
-    (print "symbol " x " not found.")
+    (print "symbol " sym " not found.")
     (do
-      (def d (get x 'doc))
+      (def d (get x :doc))
       (print "\n" (if d d "no documentation found.") "\n"))))
 
 (defmacro doc

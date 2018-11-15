@@ -252,12 +252,12 @@ static int cfun_rawget(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"table.new", cfun_new},
-    {"table.to-struct", cfun_tostruct},
-    {"table.getproto", cfun_getproto},
-    {"table.setproto", cfun_setproto},
-    {"table.rawget", cfun_rawget},
-    {NULL, NULL}
+    {"table.new", cfun_new, NULL},
+    {"table.to-struct", cfun_tostruct, NULL},
+    {"table.getproto", cfun_getproto, NULL},
+    {"table.setproto", cfun_setproto, NULL},
+    {"table.rawget", cfun_rawget, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Load the table module */

@@ -150,10 +150,10 @@ static int cfun_append(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"tuple.slice", cfun_slice},
-    {"tuple.append", cfun_append},
-    {"tuple.prepend", cfun_prepend},
-    {NULL, NULL}
+    {"tuple.slice", cfun_slice, NULL},
+    {"tuple.append", cfun_append, NULL},
+    {"tuple.prepend", cfun_prepend, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Load the tuple module */

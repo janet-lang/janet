@@ -773,16 +773,16 @@ static int cfun_state(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"parser.new", cfun_parser},
-    {"parser.produce", cfun_produce},
-    {"parser.consume", cfun_consume},
-    {"parser.byte", cfun_byte},
-    {"parser.error", cfun_error},
-    {"parser.status", cfun_status},
-    {"parser.flush", cfun_flush},
-    {"parser.state", cfun_state},
-    {"parser.where", cfun_where},
-    {NULL, NULL}
+    {"parser.new", cfun_parser, NULL},
+    {"parser.produce", cfun_produce, NULL},
+    {"parser.consume", cfun_consume, NULL},
+    {"parser.byte", cfun_byte, NULL},
+    {"parser.error", cfun_error, NULL},
+    {"parser.status", cfun_status, NULL},
+    {"parser.flush", cfun_flush, NULL},
+    {"parser.state", cfun_state, NULL},
+    {"parser.where", cfun_where, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Load the library */

@@ -366,14 +366,14 @@ static int janet_io_fseek(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"file.open", janet_io_fopen},
-    {"file.close", janet_io_fclose},
-    {"file.read", janet_io_fread},
-    {"file.write", janet_io_fwrite},
-    {"file.flush", janet_io_fflush},
-    {"file.seek", janet_io_fseek},
-    {"file.popen", janet_io_popen},
-    {NULL, NULL}
+    {"file.open", janet_io_fopen, NULL},
+    {"file.close", janet_io_fclose, NULL},
+    {"file.read", janet_io_fread, NULL},
+    {"file.write", janet_io_fwrite, NULL},
+    {"file.flush", janet_io_fflush, NULL},
+    {"file.seek", janet_io_fseek, NULL},
+    {"file.popen", janet_io_popen, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Module entry point */
@@ -383,15 +383,15 @@ int janet_lib_io(JanetArgs args) {
 
     /* stdout */
     janet_def(env, "stdout",
-            makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
+            makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE), NULL);
 
     /* stderr */
     janet_def(env, "stderr",
-            makef(stderr, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
+            makef(stderr, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE), NULL);
 
     /* stdin */
     janet_def(env, "stdin",
-            makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE));
+            makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE), NULL);
 
     return 0;
 }

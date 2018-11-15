@@ -130,26 +130,26 @@ static int janet_not(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"%", janet_remainder},
-    {"not", janet_not},
-    {"int", janet_int},
-    {"real", janet_real},
-    {"math.random", janet_rand},
-    {"math.seedrandom", janet_srand},
-    {"math.cos", janet_cos},
-    {"math.sin", janet_sin},
-    {"math.tan", janet_tan},
-    {"math.acos", janet_acos},
-    {"math.asin", janet_asin},
-    {"math.atan", janet_atan},
-    {"math.exp", janet_exp},
-    {"math.log", janet_log},
-    {"math.log10", janet_log10},
-    {"math.sqrt", janet_sqrt},
-    {"math.floor", janet_floor},
-    {"math.ceil", janet_ceil},
-    {"math.pow", janet_pow},
-    {NULL, NULL}
+    {"%", janet_remainder, NULL},
+    {"not", janet_not, NULL},
+    {"int", janet_int, NULL},
+    {"real", janet_real, NULL},
+    {"math.random", janet_rand, NULL},
+    {"math.seedrandom", janet_srand, NULL},
+    {"math.cos", janet_cos, NULL},
+    {"math.sin", janet_sin, NULL},
+    {"math.tan", janet_tan, NULL},
+    {"math.acos", janet_acos, NULL},
+    {"math.asin", janet_asin, NULL},
+    {"math.atan", janet_atan, NULL},
+    {"math.exp", janet_exp, NULL},
+    {"math.log", janet_log, NULL},
+    {"math.log10", janet_log10, NULL},
+    {"math.sqrt", janet_sqrt, NULL},
+    {"math.floor", janet_floor, NULL},
+    {"math.ceil", janet_ceil, NULL},
+    {"math.pow", janet_pow, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Module entry point */
@@ -157,8 +157,8 @@ int janet_lib_math(JanetArgs args) {
     JanetTable *env = janet_env(args);
     janet_cfuns(env, NULL, cfuns);
 
-    janet_def(env, "math.pi", janet_wrap_real(3.1415926535897931));
-    janet_def(env, "math.e", janet_wrap_real(2.7182818284590451));
-    janet_def(env, "math.inf", janet_wrap_real(INFINITY));
+    janet_def(env, "math.pi", janet_wrap_real(3.1415926535897931), NULL);
+    janet_def(env, "math.e", janet_wrap_real(2.7182818284590451), NULL);
+    janet_def(env, "math.inf", janet_wrap_real(INFINITY), NULL);
     return 0;
 }

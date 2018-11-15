@@ -267,14 +267,14 @@ static int cfun_slice(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"buffer.new", cfun_new},
-    {"buffer.push-byte", cfun_u8},
-    {"buffer.push-integer", cfun_int},
-    {"buffer.push-string", cfun_chars},
-    {"buffer.popn", cfun_popn},
-    {"buffer.clear", cfun_clear},
-    {"buffer.slice", cfun_slice},
-    {NULL, NULL}
+    {"buffer.new", cfun_new, NULL},
+    {"buffer.push-byte", cfun_u8, NULL},
+    {"buffer.push-integer", cfun_int, NULL},
+    {"buffer.push-string", cfun_chars, NULL},
+    {"buffer.popn", cfun_popn, NULL},
+    {"buffer.clear", cfun_clear, NULL},
+    {"buffer.slice", cfun_slice, NULL},
+    {NULL, NULL, NULL}
 };
 
 int janet_lib_buffer(JanetArgs args) {

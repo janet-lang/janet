@@ -130,7 +130,7 @@ static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv)
                 janet_table_put(tab, attr, janet_wrap_true());
                 break;
             case JANET_STRING:
-                janet_table_put(tab, janet_csymbolv("doc"), attr);
+                janet_table_put(tab, janet_csymbolv(":doc"), attr);
                 break;
         }
     }

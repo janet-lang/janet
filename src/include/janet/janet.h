@@ -727,6 +727,7 @@ struct JanetAbstractHeader {
 struct JanetReg {
     const char *name;
     JanetCFunction cfun;
+    const char *documentation;
 };
 
 /***** END SECTION TYPES *****/
@@ -1082,8 +1083,8 @@ typedef enum {
     JANET_BINDING_VAR,
     JANET_BINDING_MACRO
 } JanetBindingType;
-JANET_API void janet_def(JanetTable *env, const char *name, Janet val);
-JANET_API void janet_var(JanetTable *env, const char *name, Janet val);
+JANET_API void janet_def(JanetTable *env, const char *name, Janet val, const char *documentation);
+JANET_API void janet_var(JanetTable *env, const char *name, Janet val, const char *documentation);
 JANET_API void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 JANET_API JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out);
 JANET_API JanetTable *janet_env(JanetArgs args);

@@ -294,17 +294,17 @@ static int os_cwd(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"os.which", os_which},
-    {"os.execute", os_execute},
-    {"os.shell", os_shell},
-    {"os.exit", os_exit},
-    {"os.getenv", os_getenv},
-    {"os.setenv", os_setenv},
-    {"os.time", os_time},
-    {"os.clock", os_clock},
-    {"os.sleep", os_sleep},
-    {"os.cwd", os_cwd},
-    {NULL, NULL}
+    {"os.which", os_which, NULL},
+    {"os.execute", os_execute, NULL},
+    {"os.shell", os_shell, NULL},
+    {"os.exit", os_exit, NULL},
+    {"os.getenv", os_getenv, NULL},
+    {"os.setenv", os_setenv, NULL},
+    {"os.time", os_time, NULL},
+    {"os.clock", os_clock, NULL},
+    {"os.sleep", os_sleep, NULL},
+    {"os.cwd", os_cwd, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Module entry point */

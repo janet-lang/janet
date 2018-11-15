@@ -1040,22 +1040,22 @@ static int cfun_number(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"string.slice", cfun_slice},
-    {"string.repeat", cfun_repeat},
-    {"string.bytes", cfun_bytes},
-    {"string.from-bytes", cfun_frombytes},
-    {"string.ascii-lower", cfun_asciilower},
-    {"string.ascii-upper", cfun_asciiupper},
-    {"string.reverse", cfun_reverse},
-    {"string.find", cfun_find},
-    {"string.find-all", cfun_findall},
-    {"string.replace", cfun_replace},
-    {"string.replace-all", cfun_replaceall},
-    {"string.split", cfun_split},
-    {"string.check-set", cfun_checkset},
-    {"string.join", cfun_join},
-    {"string.number", cfun_number},
-    {NULL, NULL}
+    {"string.slice", cfun_slice, NULL},
+    {"string.repeat", cfun_repeat, NULL},
+    {"string.bytes", cfun_bytes, NULL},
+    {"string.from-bytes", cfun_frombytes, NULL},
+    {"string.ascii-lower", cfun_asciilower, NULL},
+    {"string.ascii-upper", cfun_asciiupper, NULL},
+    {"string.reverse", cfun_reverse, NULL},
+    {"string.find", cfun_find, NULL},
+    {"string.find-all", cfun_findall, NULL},
+    {"string.replace", cfun_replace, NULL},
+    {"string.replace-all", cfun_replaceall, NULL},
+    {"string.split", cfun_split, NULL},
+    {"string.check-set", cfun_checkset, NULL},
+    {"string.join", cfun_join, NULL},
+    {"string.number", cfun_number, NULL},
+    {NULL, NULL, NULL}
 };
 
 /* Module entry point */

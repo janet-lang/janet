@@ -195,25 +195,28 @@ const void *janet_strbinsearch(
 
 /* Register a value in the global registry */
 void janet_register(const char *name, JanetCFunction cfun) {
-    Janet value = janet_wrap_cfunction(cfun);
-    Janet regkey = janet_csymbolv(name);
-    janet_table_put(janet_vm_registry, regkey, value);
-    janet_table_put(janet_vm_registry, value, regkey);
+    Janet key = janet_wrap_cfunction(cfun);
+    Janet value = janet_csymbolv(name);
+    janet_table_put(janet_vm_registry, key, value);
 }
 
 /* Add a def to an environment */
-void janet_def(JanetTable *env, const char *name, Janet val) {
-    JanetTable *subt = janet_table(1);
+void janet_def(JanetTable *env, const char *name, Janet val, const char *doc) {
+    JanetTable *subt = janet_table(2);
     janet_table_put(subt, janet_csymbolv(":value"), val);
+    if (doc)
+        janet_table_put(subt, janet_csymbolv(":doc"), janet_cstringv(doc));
     janet_table_put(env, janet_csymbolv(name), janet_wrap_table(subt));
 }
 
 /* Add a var to the environment */
-void janet_var(JanetTable *env, const char *name, Janet val) {
+void janet_var(JanetTable *env, const char *name, Janet val, const char *doc) {
     JanetArray *array = janet_array(1);
-    JanetTable *subt = janet_table(1);
+    JanetTable *subt = janet_table(2);
     janet_array_push(array, val);
     janet_table_put(subt, janet_csymbolv(":ref"), janet_wrap_array(array));
+    if (doc)
+        janet_table_put(subt, janet_csymbolv(":doc"), janet_cstringv(doc));
     janet_table_put(env, janet_csymbolv(name), janet_wrap_table(subt));
 }
 
@@ -235,8 +238,7 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
             longname = janet_wrap_symbol(janet_string_end(longname_buffer));
         }
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
-        janet_def(env, cfuns->name, fun);
-        janet_table_put(janet_vm_registry, longname, fun);
+        janet_def(env, cfuns->name, fun, cfuns->documentation);
         janet_table_put(janet_vm_registry, fun, longname);
         cfuns++;
     }
