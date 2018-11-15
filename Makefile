@@ -31,7 +31,8 @@ JANET_VERSION?="\"commit-$(shell git log --pretty=format:'%h' -n 1)\""
 
 #CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
-	   -DJANET_VERSION=$(JANET_VERSION)
+	   -DJANET_VERSION=$(JANET_VERSION) \
+	   -DJANET_NONANBOX
 CLIBS=-lm -ldl
 JANET_TARGET=janet
 JANET_LIBRARY=libjanet.so
@@ -110,8 +111,10 @@ $(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
 ######################
 
 EMCC=emcc
-EMCCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]' \
-		  -s ALLOW_MEMORY_GROWTH=1 -s WASM=1
+EMCCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -O2 \
+		  -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]' \
+		  -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 \
+		  -DJANET_VERSION=$(JANET_VERSION)
 JANET_EMTARGET=janet.js
 JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)
 JANET_EMOBJECTS=$(patsubst %.c,%.bc,$(JANET_WEB_SOURCES))
