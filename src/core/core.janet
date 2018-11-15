@@ -288,8 +288,7 @@
               (+ i 2) object
               } head)
         (if (keyword? bindings)
-          (case
-            bindings
+          (case bindings
             :while (do
                      (array.push preds verb)
                      (doone (+ i 2) preds))
@@ -928,11 +927,11 @@ value, one key will be ignored."
   "Expand macros in a form, but do not recursively expand macros."
   [x]
 
-  (defn dotable [t recur-value]
+  (defn dotable [t on-value]
     (def newt @{})
     (var key (next t nil))
     (while (not= nil key)
-      (put newt (macroexpand-1 key) (recur-value (get t key)))
+      (put newt (macroexpand-1 key) (on-value (get t key)))
       (:= key (next t key)))
     newt)
 
@@ -945,19 +944,27 @@ value, one key will be ignored."
       (macroexpand-1 x)))
 
   (defn expanddef [t]
-    (def len (length t))
-    (def last (get t (- len 1)))
-    (def last2 (get t (- len 2)))
-    (tuple.slice (array.concat (array.slice t 0 -3)
-                                @[(expand-bindings last2) (macroexpand-1 last)]) 0))
+    (def last (get t (- (length t) 1)))
+    (def bound (get t 1))
+    (tuple.slice 
+      (array.concat 
+        @[(get t 0) (expand-bindings bound)]
+        (tuple.slice t 2 -2)
+        @[(macroexpand-1 last)])
+      0))
 
   (defn expandall [t]
     (def args (mapa macroexpand-1 (tuple.slice t 1)))
     (apply tuple (get t 0) args))
 
   (defn expandfn [t]
-    (def args (mapa macroexpand-1 (tuple.slice t 2)))
-    (apply tuple 'fn (get t 1) args))
+    (if (symbol? (get t 1))
+      (do
+        (def args (mapa macroexpand-1 (tuple.slice t 3)))
+        (apply tuple 'fn (get t 1) (get t 2) args))
+      (do
+        (def args (mapa macroexpand-1 (tuple.slice t 2)))
+        (apply tuple 'fn (get t 1) args))))
 
   (def specs
     {':= expanddef
@@ -978,7 +985,7 @@ value, one key will be ignored."
     (cond
       s (s t)
       m? (apply m (tuple.slice t 1))
-      (map macroexpand-1 t) 0))
+      (map macroexpand-1 t)))
 
   (def ret
     (case (type x)
