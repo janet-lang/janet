@@ -498,7 +498,6 @@ static const char *encode_one(Encoder *e, Janet x, int depth) {
                 janet_indexed_view(x, &items, &len);
                 if (janet_buffer_push_u8(e->buffer, '[')) goto overflow;
                 e->indent++;
-                if ((err = encode_newline(e))) return err;
                 for (int32_t i = 0; i < len; i++) {
                     if ((err = encode_newline(e))) return err;
                     if ((err = encode_one(e, items[i], depth + 1)))
@@ -596,7 +595,7 @@ static const JanetReg cfuns[] = {
         "(json.decode json-source)\n\n"
         "Returns a janet object after parsing JSON."
     },
-    {NULL, NULL}
+    {NULL, NULL, NULL}
 };
 
 JANET_MODULE_ENTRY(JanetArgs args) {
