@@ -407,7 +407,7 @@ static JanetSlot janetc_array(JanetFopts opts, Janet x) {
 
 static JanetSlot janetc_tablector(JanetFopts opts, Janet x, int op) {
     JanetCompiler *c = opts.compiler;
-    return janetc_maker(opts, 
+    return janetc_maker(opts,
             janetc_toslotskv(c, x),
             op);
 }
@@ -432,9 +432,9 @@ static JanetSlot janetc_symbol(JanetFopts opts, const uint8_t *sym) {
 /* Expand a macro one time. Also get the special form compiler if we
  * find that instead. */
 static int macroexpand1(
-        JanetCompiler *c, 
-        Janet x, 
-        Janet *out, 
+        JanetCompiler *c,
+        Janet x,
+        Janet *out,
         const JanetSpecial **spec) {
     if (!janet_checktype(x, JANET_TUPLE))
         return 0;
@@ -466,9 +466,9 @@ static int macroexpand1(
     JanetFunction *macro = janet_unwrap_function(macroval);
     int lock = janet_gclock();
     JanetSignal status = janet_call(
-            macro, 
+            macro,
             janet_tuple_length(form) - 1,
-            form + 1, 
+            form + 1,
             &x,
             &fiberp);
     janet_gcunlock(lock);
@@ -612,7 +612,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     if (scope->flags & JANET_SCOPE_ENV) {
         def->flags |= JANET_FUNCDEF_FLAG_NEEDSENV;
     }
-    
+
     /* Pop the scope */
     janetc_popscope(c);
 
@@ -706,7 +706,7 @@ static int cfun(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"compile", cfun, 
+    {"compile", cfun,
         "(compile ast)\n\n"
         "Compiles an Abstract Sytnax Tree (ast) into a janet function. "
         "Pair the compile function with parsing functionality to implement "
@@ -718,6 +718,6 @@ static const JanetReg cfuns[] = {
 
 int janet_lib_compile(JanetArgs args) {
     JanetTable *env = janet_env(args);
-    janet_cfuns(env, NULL, cfuns); 
+    janet_cfuns(env, NULL, cfuns);
     return 0;
 }

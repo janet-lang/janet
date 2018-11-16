@@ -127,13 +127,16 @@ static int cfun_slice(JanetArgs args) {
 
 static int cfun_prepend(JanetArgs args) {
     const Janet *t;
-    int32_t len;
+    int32_t len, i;
     Janet *n;
-    JANET_FIXARITY(args, 2);
-    if (!janet_indexed_view(args.v[0], &t, &len)) JANET_THROW(args, "expected tuple/array");
-    n = janet_tuple_begin(len + 1);
-    memcpy(n + 1, t, sizeof(Janet) * len);
-    n[0] = args.v[1];
+    JANET_MINARITY(args, 1);
+    if (!janet_indexed_view(args.v[0], &t, &len))
+        JANET_THROW(args, "expected tuple/array");
+    n = janet_tuple_begin(len - 1 + args.n);
+    memcpy(n - 1 + args.n, t, sizeof(Janet) * len);
+    for (i = 1; i < args.n; i++) {
+        n[args.n - i - 1] = args.v[i];
+    }
     JANET_RETURN_TUPLE(args, janet_tuple_end(n));
 }
 
@@ -141,18 +144,34 @@ static int cfun_append(JanetArgs args) {
     const Janet *t;
     int32_t len;
     Janet *n;
-    JANET_FIXARITY(args, 2);
-    if (!janet_indexed_view(args.v[0], &t, &len)) JANET_THROW(args, "expected tuple/array");
-    n = janet_tuple_begin(len + 1);
+    JANET_MINARITY(args, 1);
+    if (!janet_indexed_view(args.v[0], &t, &len))
+        JANET_THROW(args, "expected tuple/array");
+    n = janet_tuple_begin(len - 1 + args.n);
     memcpy(n, t, sizeof(Janet) * len);
-    n[len] = args.v[1];
+    memcpy(n + len, args.v + 1, sizeof(Janet) * (args.n - 1));
     JANET_RETURN_TUPLE(args, janet_tuple_end(n));
 }
 
 static const JanetReg cfuns[] = {
-    {"tuple.slice", cfun_slice, NULL},
-    {"tuple.append", cfun_append, NULL},
-    {"tuple.prepend", cfun_prepend, NULL},
+    {"tuple.slice", cfun_slice,
+        "(tuple.slice arrtup [,start=0 [,end=(length arrtup)]])\n\n"
+        "Take a sub sequence of an array or tuple from index start "
+        "inclusive to index end exclusive. If start or end are not provided, "
+        "they default to 0 and the length of arrtup respectively."
+        "Returns the new tuple."
+    },
+    {"tuple.append", cfun_append,
+        "(tuple.append tup & items)\n\n"
+        "Returns a new tuple that is the result of appending "
+        "each element in items to tup."
+    },
+    {"tuple.prepend", cfun_prepend,
+        "(tuple.prepend tup & items)\n\n"
+        "Prepends each element in items to tuple and "
+        "returns a new tuple. Items are prepended such that the "
+        "last element in items is the first element in the new tuple."
+    },
     {NULL, NULL, NULL}
 };
 

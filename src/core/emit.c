@@ -162,8 +162,8 @@ static void janetc_moveback(JanetCompiler *c,
 
 /* Call this to release a register after emitting the instruction. */
 static void janetc_free_regnear(JanetCompiler *c, JanetSlot s, int32_t reg, JanetcRegisterTemp tag) {
-    if (reg != s.index || 
-            s.envindex >= 0 || 
+    if (reg != s.index ||
+            s.envindex >= 0 ||
             s.flags & (JANET_SLOT_CONSTANT | JANET_SLOT_REF)) {
         /* We need to free the temporary slot */
         janetc_regalloc_freetemp(&c->scope->ra, reg, tag);

@@ -206,11 +206,11 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
         marshal_one(st, janet_wrap_string(def->name), flags);
     if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCE)
         marshal_one(st, janet_wrap_string(def->source), flags);
-        
+
     /* marshal constants */
     for (int32_t i = 0; i < def->constants_length; i++)
         marshal_one(st, def->constants[i], flags);
-        
+
     /* marshal the bytecode */
     for (int32_t i = 0; i < def->bytecode_length; i++) {
         pushbyte(st, def->bytecode[i] & 0xFF);
@@ -218,11 +218,11 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
         pushbyte(st, (def->bytecode[i] >> 16) & 0xFF);
         pushbyte(st, (def->bytecode[i] >> 24) & 0xFF);
     }
-    
+
     /* marshal the environments if needed */
     for (int32_t i = 0; i < def->environments_length; i++)
        pushint(st, def->environments[i]);
-       
+
     /* marshal the sub funcdefs if needed */
     for (int32_t i = 0; i < def->defs_length; i++)
         marshal_one_def(st, def->defs[i], flags);
@@ -457,7 +457,7 @@ done:
 
 nyi:
     longjmp(st->err, MR_NYI);
-    
+
 noregval:
     longjmp(st->err, MR_NRV);
 }
@@ -469,7 +469,7 @@ int janet_marshal(
         JanetTable *rreg,
         int flags) {
     int status;
-    MarshalState st; 
+    MarshalState st;
     st.buf = buf;
     st.nextid = 0;
     st.seen_defs = NULL;
@@ -641,7 +641,7 @@ static const uint8_t *unmarshal_one_def(
         int32_t constants_length = 0;
         int32_t environments_length = 0;
         int32_t defs_length = 0;
-        
+
         /* Read flags and other fixed values */
         def->flags = readint(st, &data);
         def->slotcount = readint(st, &data);
@@ -668,7 +668,7 @@ static const uint8_t *unmarshal_one_def(
             if (!janet_checktype(x, JANET_STRING)) longjmp(st->err, UMR_EXPECTED_STRING);
             def->source = janet_unwrap_string(x);
         }
-        
+
         /* Unmarshal constants */
         if (constants_length) {
             def->constants = malloc(sizeof(Janet) * constants_length);
@@ -681,7 +681,7 @@ static const uint8_t *unmarshal_one_def(
             def->constants = NULL;
         }
         def->constants_length = constants_length;
-        
+
         /* Unmarshal bytecode */
         def->bytecode = malloc(sizeof(uint32_t) * bytecode_length);
         if (!def->bytecode) {
@@ -689,7 +689,7 @@ static const uint8_t *unmarshal_one_def(
         }
         for (int32_t i = 0; i < bytecode_length; i++) {
             if (data + 4 > end) longjmp(st->err, UMR_EOS);
-            def->bytecode[i] = 
+            def->bytecode[i] =
                 (uint32_t)(data[0]) |
                 ((uint32_t)(data[1]) << 8) |
                 ((uint32_t)(data[2]) << 16) |
@@ -697,7 +697,7 @@ static const uint8_t *unmarshal_one_def(
             data += 4;
         }
         def->bytecode_length = bytecode_length;
-        
+
         /* Unmarshal environments */
         if (def->flags & JANET_FUNCDEF_FLAG_HASENVS) {
             def->environments = calloc(1, sizeof(int32_t) * environments_length);
@@ -711,7 +711,7 @@ static const uint8_t *unmarshal_one_def(
             def->environments = NULL;
         }
         def->environments_length = environments_length;
-        
+
         /* Unmarshal sub funcdefs */
         if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS) {
             def->defs = calloc(1, sizeof(JanetFuncDef *) * defs_length);
@@ -719,13 +719,13 @@ static const uint8_t *unmarshal_one_def(
                 JANET_OUT_OF_MEMORY;
             }
             for (int32_t i = 0; i < defs_length; i++) {
-                data = unmarshal_one_def(st, data, def->defs + i, flags + 1); 
+                data = unmarshal_one_def(st, data, def->defs + i, flags + 1);
             }
         } else {
             def->defs = NULL;
         }
         def->defs_length = defs_length;
-        
+
         /* Unmarshal source maps if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCEMAP) {
             def->sourcemap = malloc(sizeof(JanetSourceMapping) * bytecode_length);
@@ -738,11 +738,11 @@ static const uint8_t *unmarshal_one_def(
             }
         } else {
             def->sourcemap = NULL;
-        } 
-        
+        }
+
         /* Validate */
         if (janet_verify(def)) longjmp(st->err, UMR_INVALID_BYTECODE);
-        
+
         /* Set def */
         *out = def;
     }
@@ -1061,14 +1061,14 @@ static const uint8_t *unmarshal_one(
 
 int janet_unmarshal(
         const uint8_t *bytes,
-        size_t len, 
-        int flags, 
-        Janet *out, 
+        size_t len,
+        int flags,
+        Janet *out,
         JanetTable *reg,
         const uint8_t **next) {
     int status;
     /* Avoid longjmp clobber warning in GCC */
-    UnmarshalState st; 
+    UnmarshalState st;
     st.end = bytes + len;
     st.lookup_defs = NULL;
     st.lookup_envs = NULL;
@@ -1144,7 +1144,7 @@ static int cfun_unmarshal(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"marshal", cfun_marshal, 
+    {"marshal", cfun_marshal,
         "(marshal x [,reverse-lookup [,buffer]])\n\n"
         "Marshal a janet value into a buffer and return the buffer. The buffer "
         "can the later be unmarshalled to reconstruct the initial value. "
@@ -1153,13 +1153,13 @@ static const JanetReg cfuns[] = {
         "lookup table can be used to recover the origrinal janet value when "
         "unmarshaling."
     },
-    {"unmarshal", cfun_unmarshal, 
+    {"unmarshal", cfun_unmarshal,
         "(unmarshal buffer [,lookup])\n\n"
         "Unmarshal a janet value from a buffer. An optional lookup table "
         "can be provided to allow for aliases to be resolved. Returns the value "
         "unmarshaled from the buffer."
     },
-    {"env-lookup", cfun_env_lookup, 
+    {"env-lookup", cfun_env_lookup,
         "(env-lookup env)\n\n"
         "Creates a forward lookup table for unmarshaling from an environment. "
         "To create a reverse lookup table, use the invert function to swap keys "

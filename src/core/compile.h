@@ -49,14 +49,14 @@
 #define JANET_FUN_ORDER_GT 20
 #define JANET_FUN_ORDER_LT 21
 #define JANET_FUN_ORDER_GTE 22
-#define JANET_FUN_ORDER_LTE 23 
-#define JANET_FUN_ORDER_EQ 24 
+#define JANET_FUN_ORDER_LTE 23
+#define JANET_FUN_ORDER_EQ 24
 #define JANET_FUN_ORDER_NEQ 25
-#define JANET_FUN_GT 26  
-#define JANET_FUN_LT 27   
-#define JANET_FUN_GTE 28 
-#define JANET_FUN_LTE 29  
-#define JANET_FUN_EQ 30   
+#define JANET_FUN_GT 26
+#define JANET_FUN_LT 27
+#define JANET_FUN_GTE 28
+#define JANET_FUN_LTE 29
+#define JANET_FUN_EQ 30
 #define JANET_FUN_NEQ 31
 
 /* Compiler typedefs */
@@ -135,7 +135,7 @@ struct JanetScope {
 
 /* Compilation state */
 struct JanetCompiler {
-    
+
     /* Pointer to current scope */
     JanetScope *scope;
 

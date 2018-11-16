@@ -715,7 +715,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     /* Set environments */
     def->environments =
         realloc(def->environments, def->environments_length * sizeof(int32_t));
-        
+
     /* Verify the func def */
     if (janet_verify(def)) {
         janet_asm_error(&a, "invalid assembly");
@@ -924,7 +924,7 @@ static int cfun_disasm(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"asm", cfun_asm, 
+    {"asm", cfun_asm,
         "(asm assembly)\n\n"
         "Returns a new function that is the compiled result of the assembly.\n"
         "The syntax for the assembly can be found on the janet wiki. Will throw an\n"

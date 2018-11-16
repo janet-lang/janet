@@ -268,12 +268,12 @@ static int cfun_slice(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"buffer.new", cfun_new, 
+    {"buffer.new", cfun_new,
         "(buffer.new capacity)\n\n"
         "Creates a new, empty buffer with enough memory for capacity bytes. "
         "Returns a new buffer."
     },
-    {"buffer.push-byte", cfun_u8, 
+    {"buffer.push-byte", cfun_u8,
         "(buffer.push-byte buffer x)\n\n"
         "Append a byte to a buffer. Will expand the buffer as necessary. "
         "Returns the modified buffer. Will throw an error if the buffer overflows."
@@ -290,11 +290,11 @@ static const JanetReg cfuns[] = {
         "to strings before being pushed. Returns the modified buffer. "
         "Will throw an error if the buffer overflows."
     },
-    {"buffer.popn", cfun_popn, 
+    {"buffer.popn", cfun_popn,
         "(buffer.popn buffer n)\n\n"
         "Removes the last n bytes from the buffer. Returns the modified buffer."
     },
-    {"buffer.clear", cfun_clear, 
+    {"buffer.clear", cfun_clear,
         "(buffer.clear buffer)\n\n"
         "Sets the size of a buffer to 0 and empties it. The buffer retains "
         "its memory so it can be efficiently refilled. Returns the modified buffer."

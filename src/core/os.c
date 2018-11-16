@@ -90,7 +90,7 @@ static int os_execute(JanetArgs args) {
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
-    // Start the child process. 
+    // Start the child process.
     if(!CreateProcess(NULL,
                 (LPSTR) sys_str,
                 NULL,
@@ -234,7 +234,7 @@ static int gettime(struct timespec *spec) {
     spec->tv_nsec = mts.tv_nsec;
     return 0;
 }
-#else 
+#else
 #define gettime(TV) clock_gettime(CLOCK_MONOTONIC, (TV))
 #endif
 
@@ -283,52 +283,52 @@ static int os_cwd(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"os.which", os_which, 
+    {"os.which", os_which,
         "(os.which)\n\n"
         "Check the current operating system. Returns one of:\n\n"
         "\t:windows - Microsoft Windows\n"
         "\t:macos - Apple macos\n"
         "\t:posix - A POSIX compatible system (default)"
     },
-    {"os.execute", os_execute, 
+    {"os.execute", os_execute,
         "(os.execute program & args)\n\n"
         "Execute a program on the system and pass it string arguments. Returns "
         "the exit status of the program."
     },
-    {"os.shell", os_shell, 
+    {"os.shell", os_shell,
         "(os.shell str)\n\n"
         "Pass a command string str directly to the system shell."
     },
-    {"os.exit", os_exit, 
+    {"os.exit", os_exit,
         "(os.exit x)\n\n"
         "Exit from janet with an exit code equal to x. If x is not an integer, "
         "the exit with status equal the hash of x."
     },
-    {"os.getenv", os_getenv, 
+    {"os.getenv", os_getenv,
         "(os.getenv variable)\n\n"
         "Get the string value of an environment variable."
     },
-    {"os.setenv", os_setenv, 
+    {"os.setenv", os_setenv,
         "(os.setenv variable value)\n\n"
         "Set an environment variable."
     },
-    {"os.time", os_time, 
+    {"os.time", os_time,
         "(os.time)\n\n"
         "Get the current time expressed as the number of seconds since "
         "January 1, 1970, the Unix epoch. Returns a real number."
     },
-    {"os.clock", os_clock, 
+    {"os.clock", os_clock,
         "(os.clock)\n\n"
         "Return the number of seconds since some fixed point in time. The clock "
         "is guaranteed to be non decreased in real time."
     },
-    {"os.sleep", os_sleep, 
+    {"os.sleep", os_sleep,
         "(os.sleep nsec)\n\n"
         "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
         "nil."
-        
+
     },
-    {"os.cwd", os_cwd, 
+    {"os.cwd", os_cwd,
         "(os.cwd)\n\n"
         "Returns the current working directory."
     },

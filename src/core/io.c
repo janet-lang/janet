@@ -207,11 +207,11 @@ static const char *read_chunk(IOFile *iof, JanetBuffer *buffer, int32_t nBytesMa
     if (!(iof->flags & (IO_READ | IO_UPDATE)))
         return "file is not readable";
     /* Ensure buffer size */
-    if (janet_buffer_extra(buffer, nBytesMax)) 
+    if (janet_buffer_extra(buffer, nBytesMax))
         return "buffer overflow";
     size_t ntoread = nBytesMax;
     size_t nread = fread((char *)(buffer->data + buffer->count), 1, ntoread, iof->file);
-    if (nread != ntoread && ferror(iof->file)) 
+    if (nread != ntoread && ferror(iof->file))
         return "could not read file";
     buffer->count += (int32_t) nread;
     return NULL;
@@ -366,7 +366,7 @@ static int janet_io_fseek(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"file.open", janet_io_fopen, 
+    {"file.open", janet_io_fopen,
         "(file.open path [,mode])\n\n"
         "Open a file. path is files absolute or relative path, and "
         "mode is a set of flags indicating the mode to open the file in. "
@@ -379,13 +379,13 @@ static const JanetReg cfuns[] = {
         "\tb - open the file in binary mode (rather than text mode)\n"
         "\t+ - append to the file instead of overwriting it"
     },
-    {"file.close", janet_io_fclose, 
+    {"file.close", janet_io_fclose,
         "(file.close f)\n\n"
         "Close a file and release all related resources. When you are "
         "done reading a file, close it to prevent a resource leak and let "
         "other processes read the file."
     },
-    {"file.read", janet_io_fread, 
+    {"file.read", janet_io_fread,
         "(file.read f what [,buf])\n\n"
         "Read a number of bytes from a file into a buffer. A buffer can "
         "be provided as an optional fourth argument. otherwise a new buffer "
@@ -396,17 +396,17 @@ static const JanetReg cfuns[] = {
         "\t:line - read up to and including the next newline character\n"
         "\tn (integer) - read up to n bytes from the file"
     },
-    {"file.write", janet_io_fwrite, 
+    {"file.write", janet_io_fwrite,
         "(file.write f bytes)\n\n"
         "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
         "file"
     },
-    {"file.flush", janet_io_fflush, 
+    {"file.flush", janet_io_fflush,
         "(file.flush f)\n\n"
         "Flush any buffered bytes to the filesystem. In most files, writes are "
         "buffered for efficiency reasons. Returns the file handle."
     },
-    {"file.seek", janet_io_fseek, 
+    {"file.seek", janet_io_fseek,
         "(file.seek f [,whence [,n]])\n\n"
         "Jump to a relative location in the file. 'whence' must be one of\n\n"
         "\t:cur - jump relative to the current file location\n"
@@ -416,7 +416,7 @@ static const JanetReg cfuns[] = {
         "for the relative number of bytes to seek in the file. n may be a real "
         "number to handle large files of more the 4GB. Returns the file handle."
     },
-    {"file.popen", janet_io_popen, 
+    {"file.popen", janet_io_popen,
         "(file.popen path [,mode])\n\n"
         "Open a file that is backed by a process. The file must be opened in either "
         "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
@@ -433,7 +433,7 @@ int janet_lib_io(JanetArgs args) {
 
     /* stdout */
     janet_def(env, "stdout",
-            makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE), 
+            makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
             "The standard output file.");
 
 

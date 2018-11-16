@@ -1096,7 +1096,8 @@ value, one key will be ignored."
   @[parent]
   (def parent (if parent parent _env))
   (def newenv (table.setproto @{} parent))
-  (put newenv '_env @{:value newenv :private true})
+  (put newenv '_env @{:value newenv :private true
+                      :doc "The environment table for the current scope."})
   newenv)
 
 (defn run-context
