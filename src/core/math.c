@@ -130,25 +130,80 @@ static int janet_not(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"%", janet_remainder, NULL},
-    {"not", janet_not, NULL},
-    {"int", janet_int, NULL},
-    {"real", janet_real, NULL},
-    {"math.random", janet_rand, NULL},
-    {"math.seedrandom", janet_srand, NULL},
-    {"math.cos", janet_cos, NULL},
-    {"math.sin", janet_sin, NULL},
-    {"math.tan", janet_tan, NULL},
-    {"math.acos", janet_acos, NULL},
-    {"math.asin", janet_asin, NULL},
-    {"math.atan", janet_atan, NULL},
-    {"math.exp", janet_exp, NULL},
-    {"math.log", janet_log, NULL},
-    {"math.log10", janet_log10, NULL},
-    {"math.sqrt", janet_sqrt, NULL},
-    {"math.floor", janet_floor, NULL},
-    {"math.ceil", janet_ceil, NULL},
-    {"math.pow", janet_pow, NULL},
+    {"%", janet_remainder,
+        "(% dividend divisor)\n\n"
+        "Returns the remainder of dividend / divisor."
+    },
+    {"not", janet_not,
+        "(not x)\n\nReturns the boolen inverse of x."
+    },
+    {"int", janet_int,
+        "(int x)\n\nCast a number x to an integer."
+    },
+    {"real", janet_real,
+        "(real x)\n\nCast a number x to a real number."
+    },
+    {"math.random", janet_rand,
+        "(math.random)\n\n"
+        "Returns a uniformly distrbuted random real number between 0 and 1."
+    },
+    {"math.seedrandom", janet_srand,
+        "(math.seedrandom seed)\n\n"
+        "Set the seed for the random number generator. 'seed' should be an "
+        "an integer."
+    },
+    {"math.cos", janet_cos,
+        "(math.cos x)\n\n"
+        "Returns the cosine of x."
+    },
+    {"math.sin", janet_sin,
+        "(math.sin x)\n\n"
+        "Returns the sine of x."
+    },
+    {"math.tan", janet_tan,
+        "(math.tan x)\n\n"
+        "Returns the tangent of x."
+    },
+    {"math.acos", janet_acos,
+        "(math.acos x)\n\n"
+        "Returns the arccosine of x."
+    },
+    {"math.asin", janet_asin,
+        "(math.asin x)\n\n"
+        "Returns the arcsine of x."
+    },
+    {"math.atan", janet_atan,
+        "(math.atan x)\n\n"
+        "Returns the arctangent of x."
+    },
+    {"math.exp", janet_exp,
+        "(math.exp x)\n\n"
+        "Returns e to the power of x."
+    },
+    {"math.log", janet_log,
+        "(math.log x)\n\n"
+        "Returns log base 2 of x."
+    },
+    {"math.log10", janet_log10,
+        "(math.log10 x)\n\n"
+        "Returns log base 10 of x."
+    },
+    {"math.sqrt", janet_sqrt,
+        "(math.sqrt x)\n\n"
+        "Returns the square root of x."
+    },
+    {"math.floor", janet_floor,
+        "(math.floor x)\n\n"
+        "Returns the largest integer value real number that is not greater than x."
+    },
+    {"math.ceil", janet_ceil,
+        "(math.ceil x)\n\n"
+        "Returns the smallest integer value real number that is not less than x."
+    },
+    {"math.pow", janet_pow,
+        "(math.pow a x)\n\n"
+        "Return a to the power of x."
+    },
     {NULL, NULL, NULL}
 };
 
@@ -157,8 +212,11 @@ int janet_lib_math(JanetArgs args) {
     JanetTable *env = janet_env(args);
     janet_cfuns(env, NULL, cfuns);
 
-    janet_def(env, "math.pi", janet_wrap_real(3.1415926535897931), NULL);
-    janet_def(env, "math.e", janet_wrap_real(2.7182818284590451), NULL);
-    janet_def(env, "math.inf", janet_wrap_real(INFINITY), NULL);
+    janet_def(env, "math.pi", janet_wrap_real(3.1415926535897931),
+            "The value pi.");
+    janet_def(env, "math.e", janet_wrap_real(2.7182818284590451),
+            "The base of the natural log.");
+    janet_def(env, "math.inf", janet_wrap_real(INFINITY),
+            "The real number representing positive infinity");
     return 0;
 }

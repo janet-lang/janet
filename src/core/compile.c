@@ -706,7 +706,13 @@ static int cfun(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"compile", cfun, NULL},
+    {"compile", cfun, 
+        "(compile ast)\n\n"
+        "Compiles an Abstract Sytnax Tree (ast) into a janet function. "
+        "Pair the compile function with parsing functionality to implement "
+        "eval. Returns a janet function and does not modify ast. Throws an "
+        "error if the ast cannot be compiled."
+    },
     {NULL, NULL, NULL}
 };
 

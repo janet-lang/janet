@@ -225,6 +225,7 @@ static int cfun_popn(JanetArgs args) {
     JANET_FIXARITY(args, 2);
     JANET_ARG_BUFFER(buffer, args, 0);
     JANET_ARG_INTEGER(n, args, 1);
+    if (n < 0) JANET_THROW(args, "n must be non-negative");
     if (buffer->count < n) {
         buffer->count = 0;
     } else {
@@ -267,13 +268,49 @@ static int cfun_slice(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"buffer.new", cfun_new, NULL},
-    {"buffer.push-byte", cfun_u8, NULL},
-    {"buffer.push-integer", cfun_int, NULL},
-    {"buffer.push-string", cfun_chars, NULL},
-    {"buffer.popn", cfun_popn, NULL},
-    {"buffer.clear", cfun_clear, NULL},
-    {"buffer.slice", cfun_slice, NULL},
+    {"buffer.new", cfun_new, 
+        "(buffer.new capacity)\n\n"
+        "Creates a new, empty buffer with enough memory for capacity bytes. "
+        "Returns a new buffer."
+    },
+    {"buffer.push-byte", cfun_u8, 
+        "(buffer.push-byte buffer x)\n\n"
+        "Append a byte to a buffer. Will expand the buffer as necessary. "
+        "Returns the modified buffer. Will throw an error if the buffer overflows."
+    },
+    {"buffer.push-integer", cfun_int,
+        "(buffer.push-integer buffer x)\n\n"
+        "Append an integer to a buffer. The 4 bytes of the integer are appended "
+        "in twos complement, big endian order. Returns the modified buffer. Will "
+        "throw an error if the buffer overflows."
+    },
+    {"buffer.push-string", cfun_chars,
+        "(buffer.push-string buffer str)\n\n"
+        "Push a string onto the end of a buffer. Non string values will be converted "
+        "to strings before being pushed. Returns the modified buffer. "
+        "Will throw an error if the buffer overflows."
+    },
+    {"buffer.popn", cfun_popn, 
+        "(buffer.popn buffer n)\n\n"
+        "Removes the last n bytes from the buffer. Returns the modified buffer."
+    },
+    {"buffer.clear", cfun_clear, 
+        "(buffer.clear buffer)\n\n"
+        "Sets the size of a buffer to 0 and empties it. The buffer retains "
+        "its memory so it can be efficiently refilled. Returns the modified buffer."
+    },
+    {"buffer.slice", cfun_slice,
+        "(buffer.slice bytes)\n\n"
+        "Returns a copy of a buffer, string or symbol.\n\n"
+        "(buffer.slice bytes start)\n\n"
+        "Takes a slice of a byte sequence from the index start to the last element. Indexes "
+        "are from 0, or can be negative to index from the end of the array, Where -1 is the last "
+        "element of the array. Returns a new buffer.\n\n"
+        "(buffer.slice bytes start end)\n\n"
+        "Takes a slice of a byte sequence from start to end. The range is half open, "
+        "[start, end). Indexes can also be negative, indicating indexing from the end of the "
+        "end of the array. Returns a new buffer."
+    },
     {NULL, NULL, NULL}
 };
 

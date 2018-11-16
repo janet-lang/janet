@@ -265,7 +265,8 @@ static int stringchar(JanetParser *p, JanetParseState *state, uint8_t c) {
         return stringend(p, state);
     }
     /* normal char */
-    push_buf(p, c);
+    if (c != '\n')
+        push_buf(p, c);
     return 1;
 }
 

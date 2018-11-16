@@ -155,9 +155,6 @@ static int janet_core_scannumber(JanetArgs args) {
     JANET_FIXARITY(args, 1);
     JANET_ARG_BYTES(data, len, args, 0);
     x = janet_scan_number(data, len);
-    if (janet_checktype(x, JANET_NIL)) {
-        JANET_THROW(args, "error parsing number");
-    }
     JANET_RETURN(args, x);
 }
 
@@ -169,7 +166,7 @@ static int janet_core_scaninteger(JanetArgs args) {
     JANET_ARG_BYTES(data, len, args, 0);
     ret = janet_scan_integer(data, len, &err);
     if (err) {
-        JANET_THROW(args, "error parsing integer");
+        JANET_RETURN_NIL(args);
     }
     JANET_RETURN_INTEGER(args, ret);
 }
@@ -183,7 +180,7 @@ static int janet_core_scanreal(JanetArgs args) {
     JANET_ARG_BYTES(data, len, args, 0);
     ret = janet_scan_real(data, len, &err);
     if (err) {
-        JANET_THROW(args, "error parsing real");
+        JANET_RETURN_NIL(args);
     }
     JANET_RETURN_REAL(args, ret);
 }
@@ -287,27 +284,136 @@ static int janet_core_hash(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"native", janet_core_native, NULL},
-    {"print", janet_core_print, NULL},
-    {"describe", janet_core_describe, NULL},
-    {"string", janet_core_string, NULL},
-    {"symbol", janet_core_symbol, NULL},
-    {"buffer", janet_core_buffer, NULL},
-    {"table", janet_core_table, NULL},
-    {"array", janet_core_array, NULL},
-    {"scan-number", janet_core_scannumber, NULL},
-    {"scan-integer", janet_core_scaninteger, NULL},
-    {"scan-real", janet_core_scanreal, NULL},
-    {"tuple", janet_core_tuple, NULL},
-    {"struct", janet_core_struct, NULL},
-    {"buffer", janet_core_buffer, NULL},
-    {"gensym", janet_core_gensym, NULL},
-    {"gccollect", janet_core_gccollect, NULL},
-    {"gcsetinterval", janet_core_gcsetinterval, NULL},
-    {"gcinterval", janet_core_gcinterval, NULL},
-    {"type", janet_core_type, NULL},
-    {"next", janet_core_next, NULL},
-    {"hash", janet_core_hash, NULL},
+    {"native", janet_core_native, 
+        "(native path)\n\n"
+        "Load a native module from the given path. The path "
+        "must be an absolute or relative path on the filesystem, and is "
+        "usually a .so file on unix systems, and a .dll file on Windows. "
+        "Returns an environment table that contains functions and other values "
+        "from the native module."
+    },
+    {"print", janet_core_print, 
+        "(print & xs)\n\n"
+        "Print values to the console (standard out). Value are converted "
+        "to strings if they are not already. After printing all values, a "
+        "newline character is printed. Returns nil."
+    },
+    {"describe", janet_core_describe, 
+        "(describe x)\n\n"
+        "Returns a string that is a human readable description of a value x."
+    },
+    {"string", janet_core_string, 
+        "(string & parts)\n\n"
+        "Creates a string by concatenating values together. Values are "
+        "converted to bytes via describe if they are not byte sequences. "
+        "Returns the new string."
+    },
+    {"symbol", janet_core_symbol, 
+        "(symbol & xs)\n\n"
+        "Creates a symbol by concatenating values together. Values are "
+        "converted to bytes via describe if they are not byte sequences. Returns "
+        "the new symbol."
+    },
+    {"buffer", janet_core_buffer, 
+        "(buffer & xs)\n\n"
+        "Creates a new buffer by concatenating values together. Values are "
+        "converted to bytes via describe if they are not byte sequences. Returns "
+        "the new symbol."
+    },
+    {"table", janet_core_table, 
+        "(table & kvs)\n\n"
+        "Creates a new table from a variadic number of keys and values. "
+        "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
+        "an odd number of elements, an error will be thrown. Returns the "
+        "new table."
+    },
+    {"array", janet_core_array, 
+        "(array & items)\n\n"
+        "Create a new array that contains items. Returns the new array."
+    },
+    {"scan-number", janet_core_scannumber, 
+        "(scan-number str)\n\n"
+        "Parse a number from a byte sequence an return that number, either and integer "
+        "or a real. The number "
+        "must be in the same format as numbers in janet source code. Will return nil "
+        "on an invalid number."
+    },
+    {"scan-integer", janet_core_scaninteger, 
+        "(scan-integer str)\n\n"
+        "Parse an integer from a byte sequence an return that number. The integer "
+        "must be in the same format as integers in janet source code. Will return nil "
+        "on an invalid integer."
+    },
+    {"scan-real", janet_core_scanreal, 
+        "(scan-real str)\n\n"
+        "Parse a real number from a byte sequence an return that number. The number "
+        "must be in the same format as numbers in janet source code. Will return nil "
+        "on an invalid number."
+    },
+    {"tuple", janet_core_tuple, 
+        "(tuple & items)\n\n"
+        "Creates a new tuple that contains items. Returns the new tuple."
+    },
+    {"struct", janet_core_struct, 
+        "(struct & kvs)\n\n"
+        "Create a new struct from a sequence of key value pairs. "
+        "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
+        "an odd number of elements, an error will be thrown. Returns the "
+        "new struct."
+    },
+    {"gensym", janet_core_gensym, 
+        "(gensym)\n\n"
+        "Returns a new symbol that is unique across the runtime. This means it "
+        "will not collide with any already created symbols during compilation, so "
+        "it can be used in macros to generate automatic bindings."
+    },
+    {"gccollect", janet_core_gccollect, 
+        "(gccollect)\n\n"
+        "Run garbage collection. You should probably not call this manually."
+    },
+    {"gcsetinterval", janet_core_gcsetinterval, 
+        "(gcsetinterval interval)\n\n"
+        "Set an integer number of bytes to allocate before running garbage collection. "
+        "Low values interval will be slower but use less memory. "
+        "High values will be faster but use more memory."
+    },
+    {"gcinterval", janet_core_gcinterval, 
+        "(gcinterval)\n\n"
+        "Returns the integer number of bytes to allocate before running an iteration "
+        "of garbage collection."
+    },
+    {"type", janet_core_type, 
+        "(type x)\n\n"
+        "Returns the type of x as a keyword symbol. x is one of\n"
+        "\t:nil\n"
+        "\t:boolean\n"
+        "\t:integer\n"
+        "\t:real\n"
+        "\t:array\n"
+        "\t:tuple\n"
+        "\t:table\n"
+        "\t:struct\n"
+        "\t:string\n"
+        "\t:buffer\n"
+        "\t:symbol\n"
+        "\t:abstract\n"
+        "\t:function\n"
+        "\t:cfunction"
+    },
+    {"next", janet_core_next, 
+        "(next dict key)\n\n"
+        "Gets the next key in a struct or table. Can be used to iterate through "
+        "the keys of a data structure in an unspecified order. Keys are guaranteed "
+        "to be seen only once per iteration if they data structure is not mutated "
+        "during iteration. If key is nil, next returns the first key. If next "
+        "returns nil, there are no more keys to iterate through. "
+    },
+    {"hash", janet_core_hash, 
+        "(hash value)\n\n"
+        "Gets a hash value for any janet value. The hash is an integer can be used "
+        "as a cheap hash function for all janet objects. If two values are strictly equal, "
+        "then they will have the same hash value."
+    },
     {NULL, NULL, NULL}
 };
 

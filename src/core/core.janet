@@ -25,7 +25,7 @@
         (def array? (= t :array))
         (if (if tuple? tuple? array?)
           i
-          (do 
+          (do
             (if (= (type ith) :string)
               (:= docstr ith)
               (array.push modifiers ith))
@@ -94,7 +94,7 @@
 (defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
 (defn string? "Check if x is a string." [x] (= (type x) :string))
 (defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
-(defn keyword? "Check if x is a keyword style symbol." 
+(defn keyword? "Check if x is a keyword style symbol."
   [x]
   (if (not= (type x) :symbol) nil (= 58 (get x 0))))
 (defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
@@ -189,21 +189,6 @@
                (get pairs (+ i 1))
                (aux (+ i 2))))))
   (aux 0))
-
-(defn doc*
-  "Get the documentation for a symbol in a given environment."
-  [env sym]
-  (def x (get env sym))
-  (if (not x)
-    (print "symbol " sym " not found.")
-    (do
-      (def d (get x :doc))
-      (print "\n" (if d d "no documentation found.") "\n"))))
-
-(defmacro doc
-  "Shows documentation for the given symbol."
-  [sym]
-  (tuple doc* '_env (tuple 'quote sym)))
 
 (defmacro case
   "Select the body that equals the dispatch value. When pairs
@@ -919,6 +904,69 @@ value, one key will be ignored."
 
 ###
 ###
+### Documentation
+###
+###
+
+(var *doc-width*
+  "Width in columns to print documentation."
+  80)
+
+(defn doc-format
+  "Reformat text to wrap at a given line."
+  [text]
+
+  (def maxcol (- *doc-width* 8))
+  (var buf @"    ")
+  (var word @"")
+  (var current 0)
+
+  (defn pushword
+    []
+    (def oldcur current)
+    (def spacer
+      (if (<= maxcol (+ current (length word) 1))
+        (do (:= current 0) "\n    ")
+        (do (++ current) " ")))
+    (+= current (length word))
+    (if (> oldcur 0)
+      (buffer.push-string buf spacer))
+    (buffer.push-string buf word)
+    (buffer.clear word))
+
+  (loop [b :in text]
+    (if (and (not= b 10) (not= b 32))
+        (if (= b 9)
+          (buffer.push-string word "  ")
+          (buffer.push-byte word b))
+        (do
+          (if (> (length word) 0) (pushword))
+          (when (= b 10)
+            (buffer.push-string buf "\n    ")
+            (:= current 0)))))
+
+  # Last word
+  (pushword)
+
+  buf)
+
+(defn doc*
+  "Get the documentation for a symbol in a given environment."
+  [env sym]
+  (def x (get env sym))
+  (if (not x)
+    (print "symbol " sym " not found.")
+    (do
+      (def d (get x :doc))
+      (print "\n\n" (if d (doc-format d) "no documentation found.") "\n\n"))))
+
+(defmacro doc
+  "Shows documentation for the given symbol."
+  [sym]
+  (tuple doc* '_env (tuple 'quote sym)))
+
+###
+###
 ### Macro Expansion
 ###
 ###
@@ -946,8 +994,8 @@ value, one key will be ignored."
   (defn expanddef [t]
     (def last (get t (- (length t) 1)))
     (def bound (get t 1))
-    (tuple.slice 
-      (array.concat 
+    (tuple.slice
+      (array.concat
         @[(get t 0) (expand-bindings bound)]
         (tuple.slice t 2 -2)
         @[(macroexpand-1 last)])
