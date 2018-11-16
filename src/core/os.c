@@ -129,27 +129,16 @@ static int os_execute(JanetArgs args) {
     argv[args.n] = NULL;
 
     /* Fork child process */
-    pid_t pid;
-    if (0 == (pid = fork())) {
+    pid_t pid = fork();
+    if (pid < 0) {
+        JANET_THROW(args, "failed to execute");
+    } else if (pid == 0) {
         if (-1 == execve((const char *)argv[0], (char **)argv, NULL)) {
             exit(1);
         }
     }
-
-    /* Wait for child process */
     int status;
-    struct timespec waiter;
-    waiter.tv_sec = 0;
-    waiter.tv_nsec = 200;
-    while (0 == waitpid(pid, &status, WNOHANG)) {
-        waiter.tv_nsec = (waiter.tv_nsec * 3) / 2;
-        /* Keep increasing sleep time by a factor of 3/2
-         * until a maximum */
-        if (waiter.tv_nsec > 4999999)
-            waiter.tv_nsec = 5000000;
-        nanosleep(&waiter, NULL);
-    }
-
+    waitpid(pid, &status, 0);
     JANET_RETURN_INTEGER(args, status);
 }
 #endif
@@ -294,16 +283,55 @@ static int os_cwd(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"os.which", os_which, NULL},
-    {"os.execute", os_execute, NULL},
-    {"os.shell", os_shell, NULL},
-    {"os.exit", os_exit, NULL},
-    {"os.getenv", os_getenv, NULL},
-    {"os.setenv", os_setenv, NULL},
-    {"os.time", os_time, NULL},
-    {"os.clock", os_clock, NULL},
-    {"os.sleep", os_sleep, NULL},
-    {"os.cwd", os_cwd, NULL},
+    {"os.which", os_which, 
+        "(os.which)\n\n"
+        "Check the current operating system. Returns one of:\n\n"
+        "\t:windows - Microsoft Windows\n"
+        "\t:macos - Apple macos\n"
+        "\t:posix - A POSIX compatible system (default)"
+    },
+    {"os.execute", os_execute, 
+        "(os.execute program & args)\n\n"
+        "Execute a program on the system and pass it string arguments. Returns "
+        "the exit status of the program."
+    },
+    {"os.shell", os_shell, 
+        "(os.shell str)\n\n"
+        "Pass a command string str directly to the system shell."
+    },
+    {"os.exit", os_exit, 
+        "(os.exit x)\n\n"
+        "Exit from janet with an exit code equal to x. If x is not an integer, "
+        "the exit with status equal the hash of x."
+    },
+    {"os.getenv", os_getenv, 
+        "(os.getenv variable)\n\n"
+        "Get the string value of an environment variable."
+    },
+    {"os.setenv", os_setenv, 
+        "(os.setenv variable value)\n\n"
+        "Set an environment variable."
+    },
+    {"os.time", os_time, 
+        "(os.time)\n\n"
+        "Get the current time expressed as the number of seconds since "
+        "January 1, 1970, the Unix epoch. Returns a real number."
+    },
+    {"os.clock", os_clock, 
+        "(os.clock)\n\n"
+        "Return the number of seconds since some fixed point in time. The clock "
+        "is guaranteed to be non decreased in real time."
+    },
+    {"os.sleep", os_sleep, 
+        "(os.sleep nsec)\n\n"
+        "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
+        "nil."
+        
+    },
+    {"os.cwd", os_cwd, 
+        "(os.cwd)\n\n"
+        "Returns the current working directory."
+    },
     {NULL, NULL, NULL}
 };
 

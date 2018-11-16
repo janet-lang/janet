@@ -481,7 +481,7 @@ static const JanetReg cfuns[] = {
         "\t:pending - the fiber has been yielded\n"
         "\t:user(0-9) - the fiber is suspended by a user signal\n"
         "\t:alive - the fiber is currently running and cannot be resumed\n"
-        "\t:new - the fiber has just been created and not yet run\n"
+        "\t:new - the fiber has just been created and not yet run"
     },
     {"fiber.stack", cfun_stack, 
         "(fiber.stack fib)\n\n"
@@ -496,7 +496,7 @@ static const JanetReg cfuns[] = {
         "\t:name - the human friendly name of the function\n"
         "\t:pc - integer indicating the location of the program counter\n"
         "\t:source - string with filename or other identifier for the source code\n"
-        "\t:tail - boolean indicating a tail call\n"
+        "\t:tail - boolean indicating a tail call"
     },
     {"fiber.current", cfun_current, 
         "(fiber.current)\n\n"
