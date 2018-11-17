@@ -50,6 +50,16 @@ API documentation and design documents can be found in the
 [wiki](https://github.com/bakpakin/janet/wiki). There is an introduction
 section in the wiki that contains a good overview of the language.
 
+For individual bindings, use the `(doc symbol-name)` macro to get API
+documentation for the core library. For example,
+```
+(doc doc)
+```
+Shows documentation for the doc macro.
+              
+To get a list of all bindings in the default
+environment, use the `(all-symbols)` function.
+
 ## Usage
 
 A repl is launched when the binary is invoked with no arguments. Pass the -h flag
