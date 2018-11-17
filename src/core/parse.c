@@ -788,7 +788,8 @@ static const JanetReg cfuns[] = {
     {"parser.consume", cfun_consume,
         "(parser.consume parser bytes)\n\n"
         "Input bytes into the parser and parse them. Will not throw errors "
-        "if there is a parse error. Returns the parser."
+        "if there is a parse error. Returns the bytes not consumed if the parser is "
+        "full or errors, or nil if the parser is still pending."
     },
     {"parser.byte", cfun_byte,
         "(parser.byte parser b)\n\n"
