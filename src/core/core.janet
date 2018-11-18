@@ -258,7 +258,27 @@
                       (tuple 'if $fi $fi (aux (+ 1 i))))))))) 0)))
 
 (defmacro loop
-  "A general purpose loop macro."
+  "A general purpose loop macro.
+  The head of the loop shoud be a tuple that contains a sequence of 
+  either bindings or conditionals. A binding is a sequence of three values
+  that define someting to loop over. They are formatted like:\n\n
+  \tbinding :verb object/expression\n\n
+  Where binding is a binding as passed to def, :verb is one of a set of keywords,
+  and object is any janet expression. The available verbs are:\n\n
+  \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
+  \t:range - loop over a range. The object should be two element tuple with a start
+  and end value. The range is half open, [start, end).\n
+  \t:keys - Iterate over the keys in a data structure.\n
+  \t:in - Iterate over the values in an indexed data structure or byte sequence.\n\n
+  loop also accepts conditionals to refine the looping further. Conditionals are of
+  the form:\n\n
+  \t:modifier argument\n\n
+  where :modifier is one of a set of keywords, and argument is keyword dependent.
+  :modifier can be one of:\n\n
+  \t:while expression - breaks from the loop if expression is falsey.\n
+  \t:let bindings - defines bindings inside the loop as passed to the let macro.\n
+  \t:when condition - only evaluates the loop body when condition is true.\n\n
+  The loop macro always evaluates to nil."
   [head & body]
   (def len (length head))
   (defn doone
@@ -334,7 +354,8 @@
   (doone 0 nil))
 
 (defmacro fora
-  "Similar to loop, but accumulates the loop body into an array and returns that."
+  "Similar to loop, but accumulates the loop body into an array and returns that.
+  See loop for details."
   [head & body]
   (def $accum (gensym))
   (tuple 'do
@@ -345,7 +366,8 @@
          $accum))
 
 (defmacro for
-  "Similar to loop, but accumulates the loop body into a tuple and returns that."
+  "Similar to loop, but accumulates the loop body into a tuple and returns that.
+  See loop for details."
   [head & body]
   (def $accum (gensym))
   (tuple 'do
