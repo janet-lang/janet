@@ -180,6 +180,8 @@ install: $(JANET_TARGET)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
 	mkdir -p $(LIBDIR)
 	cp $(JANET_LIBRARY) $(LIBDIR)/$(JANET_LIBRARY)
+	cp janet.1 /usr/local/share/man/man1/
+	mandb
 	$(LDCONFIG)
 
 install-libs: natives

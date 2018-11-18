@@ -1,0 +1,74 @@
+.TH JANET 1
+.SH NAME
+janet \- run the janet language abstract machine
+.SH SYNOPSIS
+.B janet
+[\fB\-hvsrp\fR]
+[\fB\-e\fR \fIJANET SOURCE\fR]
+[\fB\-\-\fR]
+.IR files ...
+.SH DESCRIPTION
+Janet is a functional and imperative programming language and bytecode interpreter. 
+It is a modern lisp, but lists are replaced by other data structures with better utility
+and performance (arrays, tables, structs, tuples). The language also bridging bridging
+to native code written in C, meta-programming with macros, and bytecode assembly.
+
+There is a repl for trying out the language, as well as the ability to run script files.
+This client program is separate from the core runtime, so janet could be embedded
+into other programs. Try janet in your browser at https://janet-lang.org.
+
+Implemented in mostly standard C99, janet runs on Windows, Linux and macOS.
+The few features that are not standard C99 (dynamic library loading, compiler
+specific optimizations), are fairly straight forward. Janet can be easily ported to 
+most new platforms.
+.SH DOCUMENTATION
+
+For more complete API documentation, run a REPL (Read Eval Print Loop), and use the doc macro to
+see documentation on individual bindings.
+
+.SH OPTIONS
+.TP
+.BR \-h
+Shows the usage text and exits immediately.
+
+.TP
+.BR \-v
+Shows the version text and exits immediately.
+
+.TP
+.BR \-s
+Read raw input from stdin, such as from a pipe without printing a prompt.
+
+.TP
+.BR \-r
+Open a REPL (Read Eval Print Loop) after executing all sources. By default, if janet is called with no
+arguments, a REPL is opened.
+
+.TP
+.BR \-p
+Turn on the persistent flag. By default, when janet is executing commands from a file and encounters an error,
+it will immediately exit after printing the error message. In persistent mode, janet will keep executing commands
+after an error. Persistent mode can be good for debugging and testing.
+
+.TP
+.BR \-e
+Execute a string of janet source. Source code is executed in the order it is encountered, so earlier
+arguments are executed before later ones.
+
+.TP
+.BR \-\-
+Stop parsing command line arguments. All arguments after this one will be considered file names.
+
+.SH ENVIRONMENT
+
+.B JANET_PATH
+.RS
+The location to look for janet libraries. This is the only environment variable janet needs to
+find native and source code modules. If no JANET_PATH is set, janet will look in
+/usr/local/lib/janet for modules.
+To make janet search multiple locations, modify the module.paths
+array in janet.
+.RE
+
+.SH AUTHOR
+Written by Calvin Rose <calsrose@gmail.com>
