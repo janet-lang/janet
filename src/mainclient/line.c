@@ -35,7 +35,7 @@ int janet_line_getter(JanetArgs args) {
 
 static void simpleline(JanetBuffer *buffer) {
     buffer->count = 0;
-    char c;
+    int c;
     for (;;) {
         c = fgetc(stdin);
         if (feof(stdin) || c < 0) {

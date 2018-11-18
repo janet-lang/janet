@@ -36,7 +36,8 @@ void *janet_nanbox_to_pointer(Janet x) {
 #else
     x.i64 = (x.i64 << 16) >> 16;
 #endif
-    return (void *)x.i64;
+
+    return x.pointer;
 }
 
 Janet janet_nanbox_from_pointer(void *p, uint64_t tagmask) {

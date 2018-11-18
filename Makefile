@@ -152,6 +152,7 @@ valgrind: $(JANET_TARGET)
 	valgrind --leak-check=full -v ./$(JANET_TARGET)
 
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
+	ctest/system_test.out
 	ctest/array_test.out
 	ctest/buffer_test.out
 	./$(JANET_TARGET) test/suite0.janet
@@ -159,6 +160,7 @@ test: $(JANET_TARGET) $(TEST_PROGRAMS)
 	./$(JANET_TARGET) test/suite2.janet
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
+	valgrind --leak-check=full -b ctest/system_test.out
 	valgrind --leak-check=full -v ctest/array_test.out
 	valgrind --leak-check=full -v ctest/buffer_test.out
 	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite0.janet

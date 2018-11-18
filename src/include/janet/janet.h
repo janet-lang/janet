@@ -342,6 +342,7 @@ union Janet {
     uint64_t u64;
     int64_t i64;
     double real;
+    void *pointer;
 };
 
 #define janet_u64(x) ((x).u64)
