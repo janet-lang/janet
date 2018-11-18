@@ -175,10 +175,11 @@ extern "C" {
  * architectures (Nanboxing only tested on x86 and x64), comment out
  * the JANET_NANBOX define.*/
 #ifndef JANET_NO_NANBOX
-#define JANET_NANBOX
-
-/* Further refines the type of nanboxing to use. */
-#define JANET_NANBOX_47
+#ifdef JANET_32
+#define JANET_NANBOX_32
+#else
+#define JANET_NANBOX_64
+#endif
 #endif
 
 /* Alignment for pointers */
@@ -240,7 +241,9 @@ typedef enum {
     JANET_STATUS_ALIVE
 } JanetFiberStatus;
 
-#ifdef JANET_NANBOX
+#ifdef JANET_NANBOX_64
+typedef union Janet Janet;
+#elif defined(JANET_NANBOX_32)
 typedef union Janet Janet;
 #else
 typedef struct Janet Janet;
@@ -314,8 +317,8 @@ typedef enum JanetType {
 #define JANET_TFLAG_DICTIONARY (JANET_TFLAG_TABLE | JANET_TFLAG_STRUCT)
 #define JANET_TFLAG_LENGTHABLE (JANET_TFLAG_BYTES | JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY)
 
-/* We provide two possible implemenations of Janets. The preferred
- * nanboxing approach, and the standard C version. Code in the rest of the
+/* We provide three possible implemenations of Janets. The preferred
+ * nanboxing approach, for 32 or 64 bits, and the standard C version. Code in the rest of the
  * application must interact through exposed interface. */
 
 /* Required interface for Janet */
@@ -334,73 +337,27 @@ typedef enum JanetType {
  * janet_u64(x) - get 64 bits of payload for hashing
  */
 
-#ifdef JANET_NANBOX
+#ifdef JANET_NANBOX_64
 
 #include <math.h>
 
+/* 64 Nanboxed Janet value */
 union Janet {
     uint64_t u64;
     int64_t i64;
     double real;
     void *pointer;
 };
-
 #define janet_u64(x) ((x).u64)
-
-/* This representation uses 48 bit pointers. The trade off vs. the LuaJIT style
- * 47 bit payload representaion is that the type bits are no long contiguous. Type
- * checking can still be fast, but typewise polymorphism takes a bit longer. However,
- * hopefully we can avoid some annoying problems that occur when trying to use 47 bit pointers
- * in a 48 bit address space (Linux on ARM). If JANET_NANBOX_47 is set, use 47 bit tagged pointers. */
-
-/*                    |.......Tag.......|.......................Payload..................| */
-/* Non-double:        t|11111111111|1ttt|xxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */
-/* Types of NIL, TRUE, and FALSE must have payload set to all 1s. */
-
-/* Double (no NaNs):   x xxxxxxxxxxx xxxx xxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */
-
-#if defined (JANET_NANBOX_47) || defined (JANET_32)
 
 #define JANET_NANBOX_TAGBITS     0xFFFF800000000000llu
 #define JANET_NANBOX_PAYLOADBITS 0x00007FFFFFFFFFFFllu
-
-
-#define janet_nanbox_lowtag(type) \
-    ((uint64_t)(type) | 0x1FFF0)
-
-#define janet_nanbox_tag(type) \
-    (janet_nanbox_lowtag(type) << 47)
-
+#define janet_nanbox_lowtag(type) ((uint64_t)(type) | 0x1FFF0)
+#define janet_nanbox_tag(type) (janet_nanbox_lowtag(type) << 47)
 #define janet_type(x) \
     (isnan((x).real) \
         ? (((x).u64 >> 47) & 0xF) \
         : JANET_REAL)
-
-#else /* defined (JANET_NANBOX_47) || defined (JANET_32) */
-
-#define JANET_NANBOX_TAGBITS     0xFFFF000000000000llu
-#define JANET_NANBOX_PAYLOADBITS 0x0000FFFFFFFFFFFFllu
-
-#define janet_nanbox_lowtag(type) \
-    ((((uint64_t)(type) & 0x1) << 15) | 0x7FF8 | ((type) >> 1))
-
-#define janet_nanbox_tag(type) \
-    (janet_nanbox_lowtag(type) << 48)
-
-#define janet_type(x) \
-    (isnan((x).real) \
-        ? (((x).u64 >> 47) & 0xE) | ((x).u64 >> 63) \
-        : JANET_REAL)
-
-#endif /* defined (JANET_NANBOX_47) || defined (JANET_32) */
-
-/* 32 bit mode will not use the full payload for pointers. */
-#ifdef JANET_32
-
-#define JANET_NANBOX_POINTERBITS 0xFFFFFFFFllu
-#else
-#define JANET_NANBOX_POINTERBITS JANET_NANBOX_PAYLOADBITS
-#endif
 
 #define janet_nanbox_checkauxtype(x, type) \
     (((x).u64 & JANET_NANBOX_TAGBITS) == janet_nanbox_tag((type)))
@@ -479,10 +436,80 @@ JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
 #define janet_unwrap_function(x) ((JanetFunction *)janet_nanbox_to_pointer(x))
 #define janet_unwrap_cfunction(x) ((JanetCFunction)janet_nanbox_to_pointer(x))
 
-/* End of [#ifdef JANET_NANBOX] */
+#elif defined(JANET_NANBOX_32)
+
+/* 32 bit nanboxed janet */
+union Janet {
+    struct {
+#ifdef JANET_BIG_ENDIAN
+        uint32_t type;
+        union {
+            int32_t integer;
+            void *pointer;
+        } payload;
+#else
+        union {
+            int32_t integer;
+            void *pointer;
+        } payload;
+        uint32_t type;
+#endif
+    } tagged;
+    double real;
+    uint64_t u64;
+};
+
+#define JANET_DOUBLE_OFFSET 0xFFFF
+
+#define janet_u64(x) ((x).u64)
+#define janet_type(x) (((x).tagged.type < JANET_DOUBLE_OFFSET) ? (x).tagged.type : JANET_REAL)
+#define janet_checktype(x, t) ((x).tagged.type == (t))
+#define janet_memempty(mem, count) memset((mem), 0, sizeof(JanetKV) * (count))
+#define janet_memalloc_empty(count) calloc((count), sizeof(JanetKV))
+#define janet_truthy(x) ((x).tagged.type != JANET_NIL && (x).tagged.type != JANET_FALSE)
+
+JANET_API Janet janet_wrap_real(double x);
+JANET_API Janet janet_nanbox32_from_tagi(uint32_t tag, int32_t integer);
+JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
+
+#define janet_wrap_nil() janet_nanbox32_from_tagi(JANET_NIL, 0)
+#define janet_wrap_true() janet_nanbox32_from_tagi(JANET_TRUE, 0)
+#define janet_wrap_false() janet_nanbox32_from_tagi(JANET_FALSE, 0)
+#define janet_wrap_boolean(b) janet_nanbox32_from_tagi((b) ? JANET_TRUE : JANET_FALSE, 0)
+#define janet_wrap_integer(i) janet_nanbox32_from_tagi(JANET_INTEGER, (i))
+
+/* Wrap the pointer types */
+#define janet_wrap_struct(s) janet_nanbox32_from_tagp(JANET_STRUCT, (void *)(s))
+#define janet_wrap_tuple(s) janet_nanbox32_from_tagp(JANET_TUPLE, (void *)(s))
+#define janet_wrap_fiber(s) janet_nanbox32_from_tagp(JANET_FIBER, (void *)(s))
+#define janet_wrap_array(s) janet_nanbox32_from_tagp(JANET_ARRAY, (void *)(s))
+#define janet_wrap_table(s) janet_nanbox32_from_tagp(JANET_TABLE, (void *)(s))
+#define janet_wrap_buffer(s) janet_nanbox32_from_tagp(JANET_BUFFER, (void *)(s))
+#define janet_wrap_string(s) janet_nanbox32_from_tagp(JANET_STRING, (void *)(s))
+#define janet_wrap_symbol(s) janet_nanbox32_from_tagp(JANET_SYMBOL, (void *)(s))
+#define janet_wrap_abstract(s) janet_nanbox32_from_tagp(JANET_ABSTRACT, (void *)(s))
+#define janet_wrap_function(s) janet_nanbox32_from_tagp(JANET_FUNCTION, (void *)(s))
+#define janet_wrap_cfunction(s) janet_nanbox32_from_tagp(JANET_CFUNCTION, (void *)(s))
+
+#define janet_unwrap_struct(x) ((const JanetKV *)(x).tagged.payload.pointer)
+#define janet_unwrap_tuple(x) ((const Janet *)(x).tagged.payload.pointer)
+#define janet_unwrap_fiber(x) ((JanetFiber *)(x).tagged.payload.pointer)
+#define janet_unwrap_array(x) ((JanetArray *)(x).tagged.payload.pointer)
+#define janet_unwrap_table(x) ((JanetTable *)(x).tagged.payload.pointer)
+#define janet_unwrap_buffer(x) ((JanetBuffer *)(x).tagged.payload.pointer)
+#define janet_unwrap_string(x) ((const uint8_t *)(x).tagged.payload.pointer)
+#define janet_unwrap_symbol(x) ((const uint8_t *)(x).tagged.payload.pointer)
+#define janet_unwrap_abstract(x) ((x).tagged.payload.pointer)
+#define janet_unwrap_pointer(x) ((x).tagged.payload.pointer)
+#define janet_unwrap_function(x) ((JanetFunction *)(x).tagged.payload.pointer)
+#define janet_unwrap_cfunction(x) ((JanetCFunction)(x).tagged.payload.pointer)
+#define janet_unwrap_boolean(x) ((x).tagged.type == JANET_TRUE)
+#define janet_unwrap_integer(x) ((x).tagged.payload.integer)
+JANET_API double janet_unwrap_real(Janet x);
+
 #else
 
-/* A general janet value type */
+/* A general janet value type for more standard C */
 struct Janet {
     union {
         uint64_t u64;

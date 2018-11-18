@@ -33,5 +33,23 @@ int main() {
     assert(sizeof(void *) == 8);
 #endif
 
+    janet_init();
+
+    /* Reflexive testing and nanbox testing */
+    assert(janet_equals(janet_wrap_nil(), janet_wrap_nil()));
+    assert(janet_equals(janet_wrap_false(), janet_wrap_false()));
+    assert(janet_equals(janet_wrap_true(), janet_wrap_true()));
+    assert(janet_equals(janet_wrap_integer(1), janet_wrap_integer(1)));
+    assert(janet_equals(janet_wrap_integer(INT32_MAX), janet_wrap_integer(INT32_MAX)));
+    assert(janet_equals(janet_wrap_integer(-2), janet_wrap_integer(-2)));
+    assert(janet_equals(janet_wrap_integer(INT32_MIN), janet_wrap_integer(INT32_MIN)));
+    assert(janet_equals(janet_wrap_real(1.4), janet_wrap_real(1.4)));
+    assert(janet_equals(janet_wrap_real(3.14159265), janet_wrap_real(3.14159265)));
+
+    assert(janet_equals(janet_cstringv("a string."), janet_cstringv("a string.")));
+    assert(janet_equals(janet_csymbolv("sym"), janet_csymbolv("sym")));
+
+    janet_deinit();
+
     return 0;
 }

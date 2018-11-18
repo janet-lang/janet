@@ -22,31 +22,16 @@
 
 #include <janet/janet.h>
 
-#ifdef JANET_NANBOX
+#ifdef JANET_NANBOX_64
 
 void *janet_nanbox_to_pointer(Janet x) {
-    /* We need to do this shift to keep the higher bits of the pointer
-     * the same as bit 47 as required by the x86 architecture. We may save
-     * an instruction if we do x.u64 & JANET_NANBOX_POINTERBITS, but this 0s
-     * the high bits, and may make the pointer non-canocial on x86. If we switch
-     * to 47 bit pointers (which is what userspace uses on Windows, we can use
-     * the single mask rather than two shifts. */
-#if defined (JANET_NANBOX_47) || defined (JANET_32)
-    x.i64 &= JANET_NANBOX_POINTERBITS;
-#else
-    x.i64 = (x.i64 << 16) >> 16;
-#endif
-
+    x.i64 &= JANET_NANBOX_PAYLOADBITS;
     return x.pointer;
 }
 
 Janet janet_nanbox_from_pointer(void *p, uint64_t tagmask) {
     Janet ret;
     ret.pointer = p;
-#if defined (JANET_NANBOX_47) || defined (JANET_32)
-#else
-    ret.u64 &= JANET_NANBOX_POINTERBITS;
-#endif
     ret.u64 |= tagmask;
     return ret;
 }
@@ -54,10 +39,6 @@ Janet janet_nanbox_from_pointer(void *p, uint64_t tagmask) {
 Janet janet_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
     Janet ret;
     ret.pointer = (void *)p;
-#if defined (JANET_NANBOX_47) || defined (JANET_32)
-#else
-    ret.u64 &= JANET_NANBOX_POINTERBITS;
-#endif
     ret.u64 |= tagmask;
     return ret;
 }
@@ -95,6 +76,34 @@ void janet_nanbox_memempty(JanetKV *mem, int32_t count) {
         mem[i].key = janet_wrap_nil();
         mem[i].value = janet_wrap_nil();
     }
+}
+
+#elif defined(JANET_NANBOX_32)
+
+Janet janet_wrap_real(double x) {
+    Janet ret;
+    ret.real = x;
+    ret.tagged.type += JANET_DOUBLE_OFFSET;
+    return ret;
+}
+
+Janet janet_nanbox32_from_tagi(uint32_t tag, int32_t integer) {
+    Janet ret;
+    ret.tagged.type = tag;
+    ret.tagged.payload.integer = integer;
+    return ret;
+}
+
+Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer) {
+    Janet ret;
+    ret.tagged.type = tag;
+    ret.tagged.payload.pointer = pointer;
+    return ret;
+}
+
+double janet_unwrap_real(Janet x) {
+    x.tagged.type -= JANET_DOUBLE_OFFSET;
+    return x.real;
 }
 
 #else
