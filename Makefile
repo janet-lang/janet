@@ -132,6 +132,16 @@ $(JANET_EMTARGET): $(JANET_EMOBJECTS)
 ##### Testing #####
 ###################
 
+TEST_SOURCES=$(wildcard ctest/*.c)
+TEST_OBJECTS=$(patsubst %.c,%.o,$(TEST_SOURCES))
+TEST_PROGRAMS=$(patsubst %.c,%.out,$(TEST_SOURCES))
+
+ctest/%.o: ctest/%.c $(JANET_HEADERS)
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+ctest/%.out: ctest/%.o $(JANET_CORE_OBJECTS)
+	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS)
+
 repl: $(JANET_TARGET)
 	./$(JANET_TARGET)
 
@@ -141,12 +151,16 @@ debug: $(JANET_TARGET)
 valgrind: $(JANET_TARGET)
 	valgrind --leak-check=full -v ./$(JANET_TARGET)
 
-test: $(JANET_TARGET)
+test: $(JANET_TARGET) $(TEST_PROGRAMS)
+	ctest/array_test.out
+	ctest/buffer_test.out
 	./$(JANET_TARGET) test/suite0.janet
 	./$(JANET_TARGET) test/suite1.janet
 	./$(JANET_TARGET) test/suite2.janet
 
-valtest: $(JANET_TARGET)
+valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
+	valgrind --leak-check=full -v ctest/array_test.out
+	valgrind --leak-check=full -v ctest/buffer_test.out
 	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite0.janet
 	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite1.janet
 	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite2.janet
@@ -170,6 +184,7 @@ clean-natives:
 clean:
 	-rm $(JANET_TARGET)
 	-rm $(JANET_LIBRARY)
+	-rm ctest/*.o ctest/*.out
 	-rm src/**/*.o src/**/*.bc vgcore.* *.js *.wasm *.html
 	-rm $(JANET_GENERATED_HEADERS)
 
@@ -195,4 +210,5 @@ uninstall:
 	-rm -rf $(INCLUDEDIR)
 	$(LDCONFIG)
 
-.PHONY: clean install repl debug valgrind test valtest install uninstall
+.PHONY: clean install repl debug valgrind test valtest install uninstall \
+	$(TEST_PROGRAM_PHONIES) $(TEST_PROGRAM_VALPHONIES)
