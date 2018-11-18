@@ -42,7 +42,7 @@ void *janet_nanbox_to_pointer(Janet x) {
 
 Janet janet_nanbox_from_pointer(void *p, uint64_t tagmask) {
     Janet ret;
-    ret.u64 = (int64_t)p;
+    ret.pointer = p;
 #if defined (JANET_NANBOX_47) || defined (JANET_32)
 #else
     ret.u64 &= JANET_NANBOX_POINTERBITS;
@@ -53,7 +53,7 @@ Janet janet_nanbox_from_pointer(void *p, uint64_t tagmask) {
 
 Janet janet_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
     Janet ret;
-    ret.u64 = (int64_t)p;
+    ret.pointer = (void *)p;
 #if defined (JANET_NANBOX_47) || defined (JANET_32)
 #else
     ret.u64 &= JANET_NANBOX_POINTERBITS;
