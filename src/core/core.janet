@@ -37,7 +37,8 @@
     (def arglen (length args))
     (def buf (buffer "(" name))
     (while (< index arglen)
-      (buffer.push-string buf " " (get args index))
+      (buffer.push-string buf " ")
+      (string.pretty (get args index) 4 buf)
       (:= index (+ index 1)))
     (array.push modifiers (string buf ")\n\n" docstr))
     # Build return value
@@ -259,7 +260,7 @@
 
 (defmacro loop
   "A general purpose loop macro.
-  The head of the loop shoud be a tuple that contains a sequence of 
+  The head of the loop shoud be a tuple that contains a sequence of
   either bindings or conditionals. A binding is a sequence of three values
   that define someting to loop over. They are formatted like:\n\n
   \tbinding :verb object/expression\n\n
@@ -277,10 +278,14 @@
   :modifier can be one of:\n\n
   \t:while expression - breaks from the loop if expression is falsey.\n
   \t:let bindings - defines bindings inside the loop as passed to the let macro.\n
+  \t:before form - evaluates a form for a side effect before of the next inner loop.\n
+  \t:after form - same as :befor, but the side effect happens after the next inner loop.\n
   \t:when condition - only evaluates the loop body when condition is true.\n\n
   The loop macro always evaluates to nil."
   [head & body]
   (def len (length head))
+  (if (not= :tuple (type head))
+    (error "expected tuple for loop head"))
   (defn doone
     @[i preds]
     (default preds @['and])
@@ -299,6 +304,8 @@
                      (doone (+ i 2) preds))
             :let (tuple 'let verb (doone (+ i 2)))
             :when (tuple 'if verb (doone (+ i 2)))
+            :before (tuple 'do verb (doone (+ i 2)))
+            :after (tuple 'do (doone (+ i 2)) verb)
             (error ("unexpected loop predicate: " verb)))
           (case verb
             :iterate (do
@@ -837,95 +844,6 @@ value, one key will be ignored."
 
 ###
 ###
-### Pretty Printer
-###
-###
-
-(defn pp
-  "Pretty print a value. Displays values inside collections, and is safe
-  to call on any table. Does not print table prototype information."
-  @[x file]
-
-  (default file stdout)
-  (def buf @"")
-  (def indent @"\n")
-  (def seen @{})
-  (var nextid 0)
-
-  # Forward declaration
-  (var recur nil)
-
-  (defn do-ds
-    [y start end checkcycle dispatch]
-    (def id (get seen y))
-    (if (and checkcycle id)
-      (do
-        (buffer.push-string buf "<cycle ")
-        (buffer.push-string buf (string id))
-        (buffer.push-string buf ">"))
-      (do
-        (put seen y (++ nextid))
-        (buffer.push-string buf start)
-        (dispatch y)
-        (buffer.push-string buf end))))
-
-  (defn pp-seq [y]
-    (def len (length y))
-    (if (< len 5)
-      (do
-        (loop [i :range [0 len]]
-          (when (not= i 0) (buffer.push-string buf " "))
-          (recur (get y i))))
-      (do
-        (buffer.push-string indent "  ")
-        (loop [i :range [0 len]]
-          (when (not= i len) (buffer.push-string buf indent))
-          (recur (get y i)))
-        (buffer.popn indent 2)
-        (buffer.push-string buf indent))))
-
-  (defn pp-dict-nested [y]
-    (buffer.push-string indent "  ")
-    (loop [[k v] :in (sort (pairs y))]
-      (buffer.push-string buf indent)
-      (recur k)
-      (buffer.push-string buf " ")
-      (recur v))
-    (buffer.popn indent 2)
-    (buffer.push-string buf indent))
-
-  (defn pp-dict-simple [y]
-    (var i -1)
-    (loop [[k v] :in (sort (pairs y))]
-      (if (pos? (++ i)) (buffer.push-string buf " "))
-      (recur k)
-      (buffer.push-string buf " ")
-      (recur v)))
-
-  (defn pp-dict [y]
-    (def complex? (> (length y) 4))
-    ((if complex? pp-dict-nested pp-dict-simple) y))
-
-  (def printers
-    {:array  (fn [y] (do-ds y "@[" "]" true pp-seq))
-     :tuple  (fn [y] (do-ds y "(" ")" false pp-seq))
-     :table  (fn [y] (do-ds y "@{" "}" true pp-dict))
-     :struct  (fn [y] (do-ds y "{" "}" false pp-dict))})
-
-  (:= recur (fn [y]
-              (def p (get printers (type y)))
-              (if p
-                (p y)
-                (buffer.push-string buf (describe y)))))
-
-  (recur x)
-  (buffer.push-string buf "\n")
-
-  (file.write file buf)
-  nil)
-
-###
-###
 ### Documentation
 ###
 ###
@@ -1209,11 +1127,10 @@ value, one key will be ignored."
 
 (defn default-error-handler
   @[source t x f]
-  (file.write stderr (string t " error in " source ": "))
-  (if (bytes? x)
-    (do (file.write stderr x)
-      (file.write stderr "\n"))
-    (pp x stderr))
+  (file.write stderr
+              (string t " error in " source ": ")
+              (if (bytes? x) x (string.pretty x))
+              "\n")
   (when f
     (def st (fiber.stack f))
     (loop
@@ -1395,9 +1312,11 @@ value, one key will be ignored."
   (def newenv (make-env))
   (default getchunk (fn @[buf]
                       (file.read stdin :line buf)))
+  (def buf @"")
   (default onvalue (fn [x]
                      (put newenv '_ @{:value x})
-                     (pp x)))
+                     (print (string.pretty x 4 buf))
+                     (buffer.clear buf)))
   (default onerr default-error-handler)
   (run-context newenv getchunk onvalue onerr "repl"))
 

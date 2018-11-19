@@ -469,6 +469,113 @@ const uint8_t *janet_to_string(Janet x) {
     }
 }
 
+/* Hold state for pretty printer. */
+struct pretty {
+    JanetBuffer *buffer;
+    int depth;
+    JanetTable seen;
+};
+
+/* Helper for pretty printing */
+static void janet_pretty_one(struct pretty *S, Janet x) {
+    /* Add to seen */
+    switch (janet_type(x)) {
+        case JANET_NIL:
+        case JANET_INTEGER:
+        case JANET_REAL:
+        case JANET_SYMBOL:
+        case JANET_TRUE:
+        case JANET_FALSE:
+            break;
+        default:
+            {
+                Janet seenid = janet_table_get(&S->seen, x);
+                if (janet_checktype(seenid, JANET_INTEGER)) {
+                    janet_buffer_push_cstring(S->buffer, "<cycle ");
+                    integer_to_string_b(S->buffer, janet_unwrap_integer(x));
+                    janet_buffer_push_u8(S->buffer, '>');
+                    return;
+                } else {
+                    janet_table_put(&S->seen, x, janet_wrap_integer(S->seen.count));
+                    break;
+                }
+            }
+    }
+
+    switch (janet_type(x)) {
+        default:
+            janet_description_b(S->buffer, x);
+            return;
+        case JANET_ARRAY:
+        case JANET_TUPLE:
+            {
+                int isarray = janet_checktype(x, JANET_ARRAY);
+                janet_buffer_push_cstring(S->buffer, isarray ? "@[" : "(");
+                S->depth--;
+                if (S->depth == 0) {
+                    janet_buffer_push_cstring(S->buffer, "...");
+                } else {
+                    int32_t i, len;
+                    const Janet *arr;
+                    janet_indexed_view(x, &arr, &len);
+                    for (i = 0; i < len; i++) {
+                        if (i) janet_buffer_push_u8(S->buffer, ' ');
+                        janet_pretty_one(S, arr[i]);
+                    }
+                }
+                S->depth++;
+                janet_buffer_push_u8(S->buffer, isarray ? ']' : ')');
+                break;
+            }
+        case JANET_STRUCT:
+        case JANET_TABLE:
+            {
+                int istable = janet_checktype(x, JANET_TABLE);
+                janet_buffer_push_cstring(S->buffer, istable ? "@{" : "}");
+                S->depth--;
+                if (S->depth == 0) {
+                    janet_buffer_push_cstring(S->buffer, "...");
+                } else {
+                    int32_t i, len, cap;
+                    int first_kv_pair = 1;
+                    const JanetKV *kvs;
+                    janet_dictionary_view(x, &kvs, &len, &cap);
+                    for (i = 0; i < cap; i++) {
+                        if (!janet_checktype(kvs[i].key, JANET_NIL)) {
+                            if (first_kv_pair) {
+                                first_kv_pair = 0;
+                            } else {
+                                janet_buffer_push_cstring(S->buffer, ", ");
+                            }
+                            janet_pretty_one(S, kvs[i].key);
+                            janet_buffer_push_u8(S->buffer, ' ');
+                            janet_pretty_one(S, kvs[i].value);
+                        }
+                    }
+                }
+                S->depth++;
+                janet_buffer_push_u8(S->buffer, '}');
+                break;
+            }
+    }
+    return;
+}
+
+/* Helper for printing a janet value in a pretty form. Not meant to be used
+ * for serialization or anything like that. */
+JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x) {
+    struct pretty S;
+    if (NULL == buffer) {
+        buffer = janet_buffer(0);
+    }
+    S.buffer = buffer;
+    S.depth = depth;
+    janet_table_init(&S.seen, 10);
+    janet_pretty_one(&S, x);
+    janet_table_deinit(&S.seen);
+    return S.buffer;
+}
+
 /* Helper function for formatting strings. Useful for generating error messages and the like.
  * Similiar to printf, but specialized for operating with janet. */
 const uint8_t *janet_formatc(const char *format, ...) {
@@ -541,6 +648,10 @@ const uint8_t *janet_formatc(const char *format, ...) {
                     {
                         janet_description_b(bufp, va_arg(args, Janet));
                         break;
+                    }
+                    case 'p':
+                    {
+                        janet_pretty(bufp, 4, va_arg(args, Janet));
                     }
                 }
             }
@@ -1039,6 +1150,19 @@ static int cfun_number(JanetArgs args) {
     JANET_RETURN_CSTRING(args, buf);
 }
 
+static int cfun_pretty(JanetArgs args) {
+    JanetBuffer *buffer = NULL;
+    int32_t depth = 4;
+    JANET_MINARITY(args, 1);
+    JANET_MAXARITY(args, 3);
+    if (args.n > 1)
+        JANET_ARG_INTEGER(depth, args, 1);
+    if (args.n > 2)
+        JANET_ARG_BUFFER(buffer, args, 2);
+    buffer = janet_pretty(buffer, depth, args.v[0]);
+    JANET_RETURN_BUFFER(args, buffer);
+}
+
 static const JanetReg cfuns[] = {
     {"string.slice", cfun_slice,
         "(string.slice bytes [,start=0 [,end=(length str)]])\n\n"
@@ -1130,6 +1254,11 @@ static const JanetReg cfuns[] = {
         "The programmer can also specify the max length of the output string "
         "and the precision (number of places after decimal) in the output number. "
         "Returns a string representation of x."
+    },
+    {"string.pretty", cfun_pretty,
+        "(string.pretty x [,depth=4 [,buffer=@\"\"]])\n\n"
+        "Pretty prints a value to a buffer. Optionally allwos setting max "
+        "recursion depth, as well as writing to a buffer. Returns the buffer."
     },
     {NULL, NULL, NULL}
 };
