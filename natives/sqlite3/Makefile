@@ -44,7 +44,7 @@ sqlite3.c: sqlite-autoconf-3230100/sqlite3.c
 sqlite3.h: sqlite-autoconf-3230100/sqlite3.h
 	cp $< $@
 
-%.o: %.c
+%.o: %.c sqlite3.h
 	$(CC) $(CFLAGS) -c $<
 
 clean:

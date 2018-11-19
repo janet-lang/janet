@@ -259,7 +259,8 @@
                       (tuple 'if $fi $fi (aux (+ 1 i))))))))) 0)))
 
 (defmacro loop
-  "A general purpose loop macro.
+  "A general purpose loop macro. This macro is similar to the Common Lisp
+  loop macro, although intentonally much smaller in scope.
   The head of the loop shoud be a tuple that contains a sequence of
   either bindings or conditionals. A binding is a sequence of three values
   that define someting to loop over. They are formatted like:\n\n
@@ -1328,7 +1329,7 @@ value, one key will be ignored."
   (def buf @"")
   (default onvalue (fn [x]
                      (put newenv '_ @{:value x})
-                     (print (string.pretty x 4 buf))
+                     (print (string.pretty x 8 buf))
                      (buffer.clear buf)))
   (default onerr default-error-handler)
   (run-context newenv getchunk onvalue onerr "repl"))
