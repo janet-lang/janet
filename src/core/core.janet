@@ -279,7 +279,8 @@
   \t:while expression - breaks from the loop if expression is falsey.\n
   \t:let bindings - defines bindings inside the loop as passed to the let macro.\n
   \t:before form - evaluates a form for a side effect before of the next inner loop.\n
-  \t:after form - same as :befor, but the side effect happens after the next inner loop.\n
+  \t:after form - same as :before, but the side effect happens after the next inner loop.\n
+  \t:repeat n - repeats the next inner loop n times.\n
   \t:when condition - only evaluates the loop body when condition is true.\n\n
   The loop macro always evaluates to nil."
   [head & body]
@@ -306,7 +307,19 @@
             :when (tuple 'if verb (doone (+ i 2)))
             :before (tuple 'do verb (doone (+ i 2)))
             :after (tuple 'do (doone (+ i 2)) verb)
-            (error ("unexpected loop predicate: " verb)))
+            :repeat (do
+                      (def $iter (gensym))
+                      (def $n (gensym))
+                      (def spreds @['and (tuple < $iter $n)])
+                      (def sub (doone (+ i 2) spreds))
+                      (tuple 'do
+                             (tuple 'def $n verb)
+                             (tuple 'var $iter 0)
+                             (tuple 'while
+                                    (tuple.slice spreds)
+                                    (tuple := $iter (tuple + 1 $iter))
+                                    sub)))
+            (error (string "unexpected loop predicate: " bindings)))
           (case verb
             :iterate (do
                        (def $iter (gensym))
