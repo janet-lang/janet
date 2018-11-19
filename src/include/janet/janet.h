@@ -1094,6 +1094,7 @@ JANET_API int janet_equals(Janet x, Janet y);
 JANET_API int32_t janet_hash(Janet x);
 JANET_API int janet_compare(Janet x, Janet y);
 JANET_API int janet_cstrcmp(const uint8_t *str, const char *other);
+JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x);
 
 /* VM functions */
 JANET_API int janet_init(void);

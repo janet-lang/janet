@@ -518,7 +518,7 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
     switch (janet_type(x)) {
         default:
             janet_description_b(S->buffer, x);
-            return;
+            break;
         case JANET_ARRAY:
         case JANET_TUPLE:
             {
@@ -579,6 +579,8 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
                 break;
             }
     }
+    /* Remove from seen */
+    janet_table_remove(&S->seen, x);
     return;
 }
 

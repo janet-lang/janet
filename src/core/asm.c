@@ -541,6 +541,10 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     x = janet_get(s, janet_csymbolv("vararg"));
     if (janet_truthy(x)) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
 
+    /* Check strict arity */
+    x = janet_get(s, janet_csymbolv("fix-arity"));
+    if (janet_truthy(x)) def->flags |= JANET_FUNCDEF_FLAG_FIXARITY;
+
     /* Check source */
     x = janet_get(s, janet_csymbolv("source"));
     if (janet_checktype(x, JANET_STRING)) def->source = janet_unwrap_string(x);
@@ -835,6 +839,9 @@ Janet janet_disasm(JanetFuncDef *def) {
     }
     if (def->flags & JANET_FUNCDEF_FLAG_VARARG) {
         janet_table_put(ret, janet_csymbolv("vararg"), janet_wrap_true());
+    }
+    if (def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
+        janet_table_put(ret, janet_csymbolv("fix-arity"), janet_wrap_true());
     }
     if (NULL != def->name) {
         janet_table_put(ret, janet_csymbolv("name"), janet_wrap_string(def->name));
