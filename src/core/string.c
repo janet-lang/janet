@@ -473,8 +473,21 @@ const uint8_t *janet_to_string(Janet x) {
 struct pretty {
     JanetBuffer *buffer;
     int depth;
+    int indent;
     JanetTable seen;
 };
+
+static void print_newline(struct pretty *S, int just_a_space) {
+    int i;
+    if (just_a_space) {
+        janet_buffer_push_u8(S->buffer, ' ');
+        return;
+    }
+    janet_buffer_push_u8(S->buffer, '\n');
+    for (i = 0; i < S->indent; i++) {
+        janet_buffer_push_u8(S->buffer, ' ');
+    }
+}
 
 /* Helper for pretty printing */
 static void janet_pretty_one(struct pretty *S, Janet x) {
@@ -512,17 +525,21 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
                 int isarray = janet_checktype(x, JANET_ARRAY);
                 janet_buffer_push_cstring(S->buffer, isarray ? "@[" : "(");
                 S->depth--;
+                S->indent += 2;
                 if (S->depth == 0) {
                     janet_buffer_push_cstring(S->buffer, "...");
                 } else {
                     int32_t i, len;
                     const Janet *arr;
                     janet_indexed_view(x, &arr, &len);
+                    if (!isarray && len >= 5)
+                        janet_buffer_push_u8(S->buffer, ' ');
                     for (i = 0; i < len; i++) {
-                        if (i) janet_buffer_push_u8(S->buffer, ' ');
+                        if (i) print_newline(S, len < 5);
                         janet_pretty_one(S, arr[i]);
                     }
                 }
+                S->indent -= 2;
                 S->depth++;
                 janet_buffer_push_u8(S->buffer, isarray ? ']' : ')');
                 break;
@@ -531,8 +548,9 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
         case JANET_TABLE:
             {
                 int istable = janet_checktype(x, JANET_TABLE);
-                janet_buffer_push_cstring(S->buffer, istable ? "@{" : "}");
+                janet_buffer_push_cstring(S->buffer, istable ? "@{" : "{");
                 S->depth--;
+                S->indent += 2;
                 if (S->depth == 0) {
                     janet_buffer_push_cstring(S->buffer, "...");
                 } else {
@@ -540,12 +558,14 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
                     int first_kv_pair = 1;
                     const JanetKV *kvs;
                     janet_dictionary_view(x, &kvs, &len, &cap);
+                    if (!istable && len >= 4)
+                        janet_buffer_push_u8(S->buffer, ' ');
                     for (i = 0; i < cap; i++) {
                         if (!janet_checktype(kvs[i].key, JANET_NIL)) {
                             if (first_kv_pair) {
                                 first_kv_pair = 0;
                             } else {
-                                janet_buffer_push_cstring(S->buffer, ", ");
+                                print_newline(S, len < 4);
                             }
                             janet_pretty_one(S, kvs[i].key);
                             janet_buffer_push_u8(S->buffer, ' ');
@@ -553,6 +573,7 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
                         }
                     }
                 }
+                S->indent -= 2;
                 S->depth++;
                 janet_buffer_push_u8(S->buffer, '}');
                 break;
@@ -570,6 +591,7 @@ JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x) {
     }
     S.buffer = buffer;
     S.depth = depth;
+    S.indent = 0;
     janet_table_init(&S.seen, 10);
     janet_pretty_one(&S, x);
     janet_table_deinit(&S.seen);
