@@ -30,6 +30,7 @@ Janet makes a good system scripting language, or a language to embed in other pr
 * First class closures
 * Garbage collection
 * First class green threads (continuations)
+* Python style generators
 * Mutable and immutable arrays (array/tuple)
 * Mutable and immutable hashtables (table/struct)
 * Mutable and immutable strings (buffer/string)
