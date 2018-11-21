@@ -25,11 +25,12 @@
 
 int main() {
     
-    JanetTable *t1;
+    JanetTable *t1, *t2;
 
     janet_init();
 
     t1 = janet_table(10);
+    t2 = janet_table(0);
 
     janet_table_put(t1, janet_cstringv("hello"), janet_wrap_integer(2));
     janet_table_put(t1, janet_cstringv("akey"), janet_wrap_integer(5));
@@ -51,6 +52,14 @@ int main() {
 
     assert(janet_equals(janet_table_get(t1, janet_cstringv("hello")), janet_wrap_nil()));
     assert(janet_equals(janet_table_get(t1, janet_cstringv("box")), janet_wrap_nil()));
+
+    janet_table_put(t2, janet_csymbolv("t2key1"), janet_wrap_integer(10));
+    janet_table_put(t2, janet_csymbolv("t2key2"), janet_wrap_integer(100));
+    janet_table_put(t2, janet_csymbolv("some key "), janet_wrap_integer(-2));
+    janet_table_put(t2, janet_csymbolv("a thing"), janet_wrap_integer(10));
+
+    assert(janet_equals(janet_table_get(t2, janet_csymbolv("t2key1")), janet_wrap_integer(10)));
+    assert(janet_equals(janet_table_get(t2, janet_csymbolv("t2key2")), janet_wrap_integer(100)));
 
     janet_deinit();
 

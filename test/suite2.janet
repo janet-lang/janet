@@ -46,6 +46,14 @@
 
 (assert (= txs '[[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]) "nested for")
 
+# Generators
+(def gen (generate [x :range [0 100] :when (pos? (% x 4))] x))
+(var gencount 0)
+(loop [x :generate gen]
+  (++ gencount)
+  (assert (pos? (% x 4)) "generate in loop"))
+(assert (= gencount 75) "generate loop count")
+
 # Check x:digits: works as symbol and not a hex number
 (def x1 100)
 (assert (= x1 100) "x1 as symbol")

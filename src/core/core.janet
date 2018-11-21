@@ -271,7 +271,9 @@
   \t:range - loop over a range. The object should be two element tuple with a start
   and end value. The range is half open, [start, end).\n
   \t:keys - Iterate over the keys in a data structure.\n
-  \t:in - Iterate over the values in an indexed data structure or byte sequence.\n\n
+  \t:in - Iterate over the values in an indexed data structure or byte sequence.\n
+  \t:generate - Iterate over values yielded from a fiber. Can be paired with the generator
+  function for the producer/consumer pattern.\n\n
   loop also accepts conditionals to refine the looping further. Conditionals are of
   the form:\n\n
   \t:modifier argument\n\n
@@ -294,11 +296,9 @@
     (if (>= i len)
       (tuple.prepend body 'do)
       (do
-        (def {
-              i bindings
+        (def {i bindings
               (+ i 1) verb
-              (+ i 2) object
-              } head)
+              (+ i 2) object} head)
         (if (keyword? bindings)
           (case bindings
             :while (do
@@ -371,8 +371,25 @@
                                 (tuple 'def bindings (tuple get $indexed $i))
                                 subloop
                                 (tuple ':= $i (tuple + 1 $i)))))
+            :generate (do
+                     (def $fiber (gensym))
+                     (def $yieldval (gensym))
+                     (def preds @['and 
+                                  (do
+                                    (def s (gensym))
+                                    (tuple 'do
+                                           (tuple 'def s (tuple fiber.status $fiber))
+                                           (tuple 'or (tuple = s :pending) (tuple = s :new))))])
+                     (def subloop (doone (+ i 3) preds))
+                     (tuple 'do
+                            (tuple 'def $fiber object)
+                            (tuple 'var $yieldval (tuple resume $fiber))
+                            (tuple 'while (tuple.slice preds 0)
+                                   (tuple 'def bindings $yieldval)
+                                   subloop
+                                   (tuple := $yieldval (tuple resume $fiber)))))
             (error (string "unexpected loop verb: " verb)))))))
-  (doone 0 nil))
+  (tuple 'do (doone 0 nil) nil))
 
 (defmacro fora
   "Similar to loop, but accumulates the loop body into an array and returns that.
@@ -397,6 +414,13 @@
                 (tuple array.push $accum
                        (tuple.prepend body 'do)))
          (tuple tuple.slice $accum 0)))
+
+(defmacro generate
+  "Create a generator expression using the loop syntax. Returns a fiber
+  that yields all values inside the loop in order. See loop for details."
+  [head & body]
+  (tuple fiber.new
+         (tuple 'fn @[] (tuple 'loop head (tuple yield (tuple.prepend body 'do))))))
 
 (defn sum [xs]
   (var accum 0)
@@ -1146,7 +1170,6 @@ value, one key will be ignored."
               (if (bytes? x) x (string.pretty x))
               "\n")
   (when f
-    (def st (fiber.stack f))
     (loop
       [{:function func
         :tail tail
@@ -1155,7 +1178,7 @@ value, one key will be ignored."
         :name name
         :source source
         :line source-line
-        :column source-col} :in st]
+        :column source-col} :in (fiber.stack f)]
       (file.write stderr "  in")
       (when c (file.write stderr " cfunction"))
       (if name
@@ -1329,7 +1352,7 @@ value, one key will be ignored."
   (def buf @"")
   (default onvalue (fn [x]
                      (put newenv '_ @{:value x})
-                     (print (string.pretty x 8 buf))
+                     (print (string.pretty x 20 buf))
                      (buffer.clear buf)))
   (default onerr default-error-handler)
   (run-context newenv getchunk onvalue onerr "repl"))
