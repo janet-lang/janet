@@ -148,6 +148,11 @@ static int janet_core_buffer(JanetArgs args) {
     JANET_RETURN_BUFFER(args, b);
 }
 
+static int janet_core_is_abstract(JanetArgs args) {
+    JANET_FIXARITY(args, 1);
+    JANET_RETURN_BOOLEAN(args, janet_checktype(args.v[0], JANET_ABSTRACT));
+}
+
 static int janet_core_scannumber(JanetArgs args) {
     const uint8_t *data;
     Janet x;
@@ -319,6 +324,10 @@ static const JanetReg cfuns[] = {
         "Creates a new buffer by concatenating values together. Values are "
         "converted to bytes via describe if they are not byte sequences. Returns "
         "the new symbol."
+    },
+    {"abstract?", janet_core_is_abstract,
+        "(abstract? x)\n\n"
+        "Check if x is an abstract type."
     },
     {"table", janet_core_table,
         "(table & kvs)\n\n"

@@ -82,5 +82,14 @@
 (assert (deep= (string.find-all "e" "onetwothree") @[2 9 10]) "string.find-all 1")
 (assert (deep= (string.find-all "," "onetwothree") @[]) "string.find-all 2")
 
+# Check if abstract test works
+(assert (abstract? stdout) "abstract? stdout")
+(assert (abstract? stdin) "abstract? stdin")
+(assert (abstract? stderr) "abstract? stderr")
+(assert (not (abstract? nil)) "not abstract? nil")
+(assert (not (abstract? 1)) "not abstract? 1")
+(assert (not (abstract? 3)) "not abstract? 3")
+(assert (not (abstract? 5)) "not abstract? 5")
+
 (end-suite)
 
