@@ -303,10 +303,10 @@
             :while (do
                      (array.push preds verb)
                      (doone (+ i 2) preds))
-            :let (tuple 'let verb (doone (+ i 2)))
-            :when (tuple 'if verb (doone (+ i 2)))
-            :before (tuple 'do verb (doone (+ i 2)))
-            :after (tuple 'do (doone (+ i 2)) verb)
+            :let (tuple 'let verb (doone (+ i 2) preds))
+            :when (tuple 'if verb (doone (+ i 2) preds))
+            :before (tuple 'do verb (doone (+ i 2) preds))
+            :after (tuple 'do (doone (+ i 2) preds) verb)
             :repeat (do
                       (def $iter (gensym))
                       (def $n (gensym))
