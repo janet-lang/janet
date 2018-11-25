@@ -116,6 +116,8 @@ static int cfun_slice(JanetArgs args) {
     }
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
+    if (end < 0 || start < 0 || end > len || start > len)
+        JANET_THROW(args, "slice range out of bounds");
     if (end >= start) {
         ret = janet_tuple_begin(end - start);
         memcpy(ret, vals + start, sizeof(Janet) * (end - start));

@@ -193,6 +193,8 @@ static int cfun_slice(JanetArgs args) {
     }
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
+    if (end < 0 || start < 0 || end > len || start > len)
+        JANET_THROW(args, "slice range out of bounds");
     if (end >= start) {
         ret = janet_array(end - start);
         memcpy(ret->data, vals + start, sizeof(Janet) * (end - start));
@@ -225,6 +227,29 @@ static int cfun_concat(JanetArgs args) {
                 break;
         }
     }
+    JANET_RETURN_ARRAY(args, array);
+}
+
+static int cfun_insert(JanetArgs args) {
+    int32_t at;
+    size_t chunksize, restsize;
+    JanetArray *array;
+    JANET_MINARITY(args, 2);
+    JANET_ARG_ARRAY(array, args, 0);
+    JANET_ARG_INTEGER(at, args, 1);
+    if (at < 0) {
+        at = array->count + at + 1; 
+    }
+    if (at < 0 || at > array->count)
+        JANET_THROW(args, "insertion index out of bounds");
+    chunksize = (args.n - 2) * sizeof(Janet);
+    restsize = (array->count - at) * sizeof(Janet);
+    janet_array_ensure(array, array->count + args.n - 2, 2);
+    memmove(array->data + at + args.n - 2,
+            array->data + at,
+            restsize);
+    memcpy(array->data + at, args.v + 2, chunksize);
+    array->count += (args.n - 2);
     JANET_RETURN_ARRAY(args, array);
 }
 
@@ -272,6 +297,13 @@ static const JanetReg cfuns[] = {
         "which must an array. If any of the parts are arrays or tuples, their elements will "
         "be inserted into the array. Otherwise, each part in parts will be appended to arr in order. "
         "Return the modified array arr."
+    },
+    {"array.insert", cfun_insert,
+        "(array.insert arr at & xs)\n\n"
+        "Insert all of xs into array arr at index at. at should be an integer "
+        "0 and the length of the array. A negative value for at will index from "
+        "the end of the array, such that inserting at -1 appends to the array. "
+        "Returns the array."
     },
     {NULL, NULL, NULL}
 };

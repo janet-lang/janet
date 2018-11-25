@@ -1062,6 +1062,79 @@ value, one key will be ignored."
     (:= current (macroexpand-1 current)))
   current)
 
+
+###
+###
+### Classes
+###
+###
+
+(defn- parse-signature
+  "Turn a signature into a (method, object) pair."
+  [signature]
+  (when (not (symbol? signature)) (error "expected method signature"))
+  (def parts (string.split ":" signature))
+  (def self (symbol (get parts 0)))
+  (def method (apply symbol (tuple.slice parts 1)))
+  (tuple (tuple 'quote method) self))
+
+(def class 
+  "(class obj)\n\nGets the class of an object."
+  table.getproto)
+
+(defn instance-of?
+  "Checks if an object is an instance of a class."
+  [class obj]
+  (if obj (or 
+            (= class obj) 
+            (instance-of? class (table.getproto obj)))))
+
+(defmacro call
+  "Call a method."
+  [signature & args]
+  (def [method self] (parse-signature signature))
+  (apply tuple (tuple get self method) self args))
+
+(def $ :macro call)
+
+(defmacro wrap-call
+  "Wrap a method call in a function."
+  [signature & args]
+  (def [method self] (parse-signature signature))
+  (def $m (gensym))
+  (def $args (gensym))
+  (tuple 'do
+         (tuple 'def $m (tuple get self method))
+         (tuple 'fn (symbol "wrapped-" signature) [tuple '& $args]
+                (tuple apply $m self $args))))
+
+(defmacro defm
+  "Defines a method for a class."
+  [signature & args]
+  (def [method self] (parse-signature signature))
+  (def i (find-index tuple? args))
+  (def newargs (array.slice args))
+  (put newargs i (tuple.prepend (get newargs i) 'self))
+  (tuple put self method (apply defn signature newargs)))
+
+(defmacro defnew
+  "Defines the constructor for a class."
+  [class & args]
+  (def newargs (array.slice args))
+  (def i (find-index tuple? args))
+  (array.insert newargs (+ i 1) (tuple 'def 'self (tuple table.setproto @{} class)))
+  (array.push newargs 'self)
+  (tuple put class ''new (apply defn (symbol class :new)  newargs)))
+
+(defmacro defclass
+  "Defines a new prototype class."
+  [name & args]
+  (if (not name) (error "expected a name"))
+  (tuple 'def name
+         (apply tuple table :name (tuple 'quote name) args)))
+
+(put _env 'parse-signature nil)
+
 ###
 ###
 ### Evaluation and Compilation
