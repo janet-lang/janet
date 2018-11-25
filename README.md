@@ -43,6 +43,7 @@ Janet makes a good system scripting language, or a language to embed in other pr
 * Lexical scoping
 * Imperative programming as well as functional
 * REPL
+* 300+ functions in the core library
 * Interactive environment with detailed stack traces
 
 ## Documentation
