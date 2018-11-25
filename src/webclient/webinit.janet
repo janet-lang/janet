@@ -2,7 +2,7 @@
 (print (string "Janet " janet.version "  Copyright (C) 2017-2018 Calvin Rose"))
 
 (fiber.new 
-  (fn @[]
+  (fn [&]
     (repl (fn [buf p]
             (def [line] (parser.where p))
             (def prompt (string "janet:" line ":" (parser.state p) "> "))

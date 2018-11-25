@@ -21,18 +21,16 @@
       (fn recur [i]
         (def {i ith} more)
         (def t (type ith))
-        (def tuple? (= t :tuple))
-        (def array? (= t :array))
-        (if (if tuple? tuple? array?)
+        (if (= t :tuple)
           i
           (do
-            (if (= (type ith) :string)
+            (if (= t :string)
               (:= docstr ith)
               (array.push modifiers ith))
             (if (< i len) (recur (+ i 1)))))))
     (def start (fstart 0))
     (def args (get more start))
-    # Add arguments to definition
+    # Add function signature to docstring
     (var index 0)
     (def arglen (length args))
     (def buf (buffer "(" name))
@@ -49,22 +47,22 @@
 (defn defmacro :macro
   "Define a macro."
   [name & more]
-    (apply defn (array.concat @[name :macro] more)))
+  (apply defn name :macro more))
 
 (defmacro defmacro-
   "Define a private macro that will not be exported."
   [name & more]
-  (tuple.slice (array.concat @['defmacro name :private] more) 0))
+  (apply defn name :macro :private more))
 
 (defmacro defn-
   "Define a private function that will not be exported."
   [name & more]
-  (tuple.slice (array.concat @['defn name :private] more) 0))
+  (apply defn name :private more))
 
 (defmacro def-
   "Define a private value that will not be exported."
   [name & more]
-  (tuple.slice (array.concat @['def name :private] more) 0))
+  (tuple.slice (array.concat @['def name :private] more)))
 
 (defn defglobal
   "Dynamically create a global def."
@@ -290,7 +288,7 @@
   (if (not= :tuple (type head))
     (error "expected tuple for loop head"))
   (defn doone
-    @[i preds]
+    [i preds &]
     (default preds @['and])
     (if (>= i len)
       (tuple.prepend body 'do)
@@ -419,7 +417,8 @@
   that yields all values inside the loop in order. See loop for details."
   [head & body]
   (tuple fiber.new
-         (tuple 'fn @[] (tuple 'loop head (tuple yield (tuple.prepend body 'do))))))
+         (tuple 'fn [tuple '&] 
+                (tuple 'loop head (tuple yield (tuple.prepend body 'do))))))
 
 (defn sum [xs]
   (var accum 0)
@@ -432,15 +431,15 @@
   accum)
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber.new (fn @[] ...body))."
+  "A wrapper for making fibers. Same as (fiber.new (fn [&] ...body))."
   [& body]
-  (tuple fiber.new (apply tuple 'fn @[] body)))
+  (tuple fiber.new (apply tuple 'fn [tuple '&] body)))
 
 (defmacro if-let
   "Takes the first one or two forms in a vector and if both are true binds
   all the forms with let and evaluates the first expression else
   evaluates the second"
-  @[bindings tru fal]
+  [bindings tru fal &]
   (def len (length bindings))
   (if (zero? len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
@@ -547,12 +546,12 @@
         (sort-help a (+ piv 1) hi by))
       a)
 
-    (fn @[a by]
+    (fn [a by &]
       (sort-help a 0 (- (length a) 1) (or by order<)))))
 
 (defn sorted
   "Returns the sorted version of an indexed data structure."
-  @[ind by t]
+  [ind by t &]
   (def sa (sort (array.slice ind 0) by))
   (if (= :tuple (or t (type ind)))
     (tuple.slice sa 0)
@@ -561,7 +560,7 @@
 (defn reduce
   "Reduce, also know as fold-left in many languages, transforms
   an indexed type (array, tuple) with a function to produce a value."
-  @[f init ind]
+  [f init ind &]
   (var res init)
   (loop [x :in ind]
     (:= res (f res x)))
@@ -621,7 +620,7 @@
   "Map a function over every element in an array or tuple and
   use array to concatenate the results. Returns the type given
   as the third argument, or same type as the input indexed structure."
-  @[f ind t]
+  [f ind t &]
   (def res @[])
   (loop [x :in ind]
     (array.concat res (f x)))
@@ -633,7 +632,7 @@
   "Given a predicate, take only elements from an array or tuple for
   which (pred element) is truthy. Returns the type given as the
   third argument, or the same type as the input indexed structure."
-  @[pred ind t]
+  [pred ind t &]
   (def res @[])
   (loop [item :in ind]
     (if (pred item)
@@ -796,7 +795,7 @@ value, one key will be ignored."
 (defn zipcoll
   "Creates an table or tuple from two arrays/tuples. If a third argument of
   :struct is given result is struct else is table."
-  @[keys vals t]
+  [keys vals t &]
   (def res @{})
   (def lk (length keys))
   (def lv (length vals))
@@ -1070,7 +1069,7 @@ value, one key will be ignored."
 ###
 
 (defn make-env
-  @[parent]
+  [parent &]
   (def parent (if parent parent _env))
   (def newenv (table.setproto @{} parent))
   (put newenv '_env @{:value newenv :private true
@@ -1089,7 +1088,7 @@ value, one key will be ignored."
   This function can be used to implement a repl very easily, simply
   pass a function that reads line from stdin to chunks, and print to
   onvalue."
-  @[env chunks onvalue onerr where]
+  [env chunks onvalue onerr where &]
 
   # Are we done yet?
   (var going true)
@@ -1131,7 +1130,7 @@ value, one key will be ignored."
     (var good true)
     (def f
       (fiber.new
-        (fn @[]
+        (fn [&]
           (def res (compile source env where))
           (if (= (type res) :function)
             (res)
@@ -1163,7 +1162,7 @@ value, one key will be ignored."
   env)
 
 (defn default-error-handler
-  @[source t x f]
+  [source t x f &]
   (file.write stderr
               (string t " error in " source ": ")
               (if (bytes? x) x (string.pretty x))
@@ -1282,7 +1281,7 @@ value, one key will be ignored."
 
     (def cache @{})
     (def loading @{})
-    (fn require @[path args]
+    (fn require [path args &]
       (when (get loading path)
         (error (string "circular dependency: module " path " is loading")))
       (def {:exit exit-on-error} (or args {}))
@@ -1300,7 +1299,7 @@ value, one key will be ignored."
               (defn chunks [buf _] (file.read f 1024 buf))
               (run-context newenv chunks identity
                            (if exit-on-error
-                             (fn @[a b c d] (default-error-handler a b c d) (os.exit 1))
+                             (fn [a b c d &] (default-error-handler a b c d) (os.exit 1))
                              default-error-handler)
                            path)
               (file.close f))
@@ -1344,9 +1343,9 @@ value, one key will be ignored."
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
   get a chunk of source code. Should return nil for end of file."
-  @[getchunk onvalue onerr]
+  [getchunk onvalue onerr &]
   (def newenv (make-env))
-  (default getchunk (fn @[buf]
+  (default getchunk (fn [buf &]
                       (file.read stdin :line buf)))
   (def buf @"")
   (default onvalue (fn [x]
@@ -1358,7 +1357,7 @@ value, one key will be ignored."
 
 (defn all-symbols
   "Get all symbols available in the current environment."
-  @[env]
+  [env &]
   (default env *env*)
   (def envs @[])
   (do (var e env) (while e (array.push envs e) (:= e (table.getproto e))))

@@ -76,9 +76,9 @@
 # More fiber semantics
 
 (var myvar 0)
-(defn fiberstuff @[]
+(defn fiberstuff [&]
   (++ myvar)
-  (def f (fiber.new (fn @[] (++ myvar) (debug) (++ myvar))))
+  (def f (fiber.new (fn [&] (++ myvar) (debug) (++ myvar))))
   (resume f)
   (++ myvar))
 
@@ -169,7 +169,7 @@
 (testmarsh (fn thing [x] (+ 11 x x 30)) "marshal function 3")
 (testmarsh mapa "marshal function 4")
 (testmarsh reduce "marshal function 5")
-(testmarsh (fiber.new (fn @[] (yield 1) 2)) "marshal simple fiber")
+(testmarsh (fiber.new (fn [&] (yield 1) 2)) "marshal simple fiber")
 
 # Large functions
 (def manydefs (fora [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))

@@ -469,14 +469,18 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetCompiler *c = opts.compiler;
     JanetFuncDef *def;
     JanetSlot ret;
-    Janet head, paramv;
+    Janet head;
     JanetScope fnscope;
-    int32_t paramcount, argi, parami, arity, defindex;
+    int32_t paramcount, argi, parami, arity, defindex, i;
     JanetFopts subopts = janetc_fopts_default(c);
     const Janet *params;
     const char *errmsg = NULL;
-    int varargs = 0;
+
+    /* Function flags */
+    int vararg = 0;
+    int fixarity = 1;
     int selfref = 0;
+    int seenamp = 0;
 
     /* Begin function */
     c->scope->flags |= JANET_SCOPE_CLOSURE;
@@ -489,41 +493,43 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     /* Read function parameters */
     parami = 0;
-    arity = 0;
     head = argv[0];
     if (janet_checktype(head, JANET_SYMBOL)) {
         selfref = 1;
         parami = 1;
     }
-    if (parami >= argn) {
+    if (parami >= argn || !janet_checktype(argv[parami], JANET_TUPLE)) {
         errmsg = "expected function parameters";
         goto error;
     }
-    paramv = argv[parami];
-    if (janet_indexed_view(paramv, &params, &paramcount)) {
-        int32_t i;
-        for (i = 0; i < paramcount; i++) {
-            Janet param = params[i];
-            if (janet_checktype(param, JANET_SYMBOL)) {
-                /* Check for varargs */
-                if (0 == janet_cstrcmp(janet_unwrap_symbol(param), "&")) {
-                    if (i != paramcount - 2) {
-                        errmsg = "variable argument symbol in unexpected location";
-                        goto error;
-                    }
-                    varargs = 1;
+
+    /* Compile function parameters */
+    params = janet_unwrap_tuple(argv[parami]);
+    paramcount = janet_tuple_length(params);
+    arity = paramcount;
+    for (i = 0; i < paramcount; i++) {
+        Janet param = params[i];
+        if (janet_checktype(param, JANET_SYMBOL)) {
+            /* Check for varargs and unfixed arity */
+            if ((!seenamp) && 
+                    (0 == janet_cstrcmp(janet_unwrap_symbol(param), "&"))) {
+                seenamp = 1;
+                fixarity = 0;
+                if (i == paramcount - 1) {
                     arity--;
-                    continue;
+                } else if (i == paramcount - 2) {
+                    vararg = 1;
+                    arity -= 2;
+                } else {
+                    errmsg = "variable argument symbol in unexpected location";
+                    goto error;
                 }
-                janetc_nameslot(c, janet_unwrap_symbol(param), janetc_farslot(c));
             } else {
-                destructure(c, param, janetc_farslot(c), defleaf, NULL);
+                janetc_nameslot(c, janet_unwrap_symbol(param), janetc_farslot(c));
             }
-            arity++;
+        } else {
+            destructure(c, param, janetc_farslot(c), defleaf, NULL);
         }
-    } else {
-        errmsg = "expected function parameters";
-        goto error;
     }
 
     /* Check for self ref */
@@ -547,19 +553,14 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     /* Build function */
     def = janetc_pop_funcdef(c);
     def->arity = arity;
-
-    /* Tuples indicated fixed arity, arrays indicate flexible arity */
-    /* TODO - revisit this */
-    if (varargs) 
-        def->flags |= JANET_FUNCDEF_FLAG_VARARG;
-    else if (janet_checktype(paramv, JANET_TUPLE))
-        def->flags |= JANET_FUNCDEF_FLAG_FIXARITY;
+    if (fixarity) def->flags |= JANET_FUNCDEF_FLAG_FIXARITY;
+    if (vararg) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
 
     if (selfref) def->name = janet_unwrap_symbol(head);
     defindex = janetc_addfuncdef(c, def);
 
     /* Ensure enough slots for vararg function. */
-    if (arity + varargs > def->slotcount) def->slotcount = arity + varargs;
+    if (arity + vararg > def->slotcount) def->slotcount = arity + vararg;
 
     /* Instantiate closure */
     ret = janetc_gettarget(opts);

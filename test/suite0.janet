@@ -164,7 +164,7 @@
 
 # yield tests
 
-(def t (fiber.new (fn @[] (yield 1) (yield 2) 3)))
+(def t (fiber.new (fn [&] (yield 1) (yield 2) 3)))
 
 (assert (= 1 (resume t)) "initial transfer to new fiber")
 (assert (= 2 (resume t)) "second transfer to fiber")

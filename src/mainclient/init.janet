@@ -10,7 +10,7 @@
 
   # Flag handlers
   (def handlers :private
-    {"h" (fn @[]
+    {"h" (fn [&]
            (print "usage: " (get process.args 0) " [options] scripts...")
            (print
              `Options are:
@@ -23,17 +23,17 @@
   -- Stop handling options`)
            (os.exit 0)
            1)
-     "v" (fn @[] (print janet.version) (os.exit 0) 1)
-     "s" (fn @[] (:= *raw-stdin* true) (:= *should-repl* true) 1)
-     "r" (fn @[] (:= *should-repl* true) 1)
-     "p" (fn @[] (:= *exit-on-error* false) 1)
-     "-" (fn @[] (:= *handleopts* false) 1)
-     "e" (fn @[i]
+     "v" (fn [&] (print janet.version) (os.exit 0) 1)
+     "s" (fn [&] (:= *raw-stdin* true) (:= *should-repl* true) 1)
+     "r" (fn [&] (:= *should-repl* true) 1)
+     "p" (fn [&] (:= *exit-on-error* false) 1)
+     "-" (fn [&] (:= *handleopts* false) 1)
+     "e" (fn [i &]
            (:= *no-file* false)
            (eval (get process.args (+ i 1)))
            2)})
 
-  (defn- dohandler @[n i]
+  (defn- dohandler [n i &]
     (def h (get handlers n))
     (if h (h i) (do (print "unknown flag -" n) ((get handlers "h")))))
 
