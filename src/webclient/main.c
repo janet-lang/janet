@@ -34,8 +34,7 @@ static int repl_yield(JanetArgs args) {
     JANET_FIXARITY(args, 2);
     JANET_ARG_STRING(line_prompt, args, 0);
     JANET_ARG_BUFFER(line_buffer, args, 1);
-    /* Suspend janet repl by throwing a user defined signal */
-    return JANET_SIGNAL_USER9;
+    JANET_RETURN_NIL(args);
 }
 
 /* Re-enter the loop */
@@ -70,15 +69,12 @@ void repl_init(void) {
 
     /* Set up VM */
     janet_init();
+    janet_register("repl-yield", repl_yield);
+    janet_register("js", cfun_js);
     env = janet_core_env();
 
-    /* Janet line getter */
     janet_def(env, "repl-yield", janet_wrap_cfunction(repl_yield), NULL);
-    janet_register("repl-yield", repl_yield);
-
-    /* Janet line getter */
     janet_def(env, "js", janet_wrap_cfunction(cfun_js), NULL);
-    janet_register("js", cfun_js);
 
     /* Run startup script */
     Janet ret;

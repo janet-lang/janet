@@ -169,7 +169,8 @@
 (testmarsh (fn thing [x] (+ 11 x x 30)) "marshal function 3")
 (testmarsh mapa "marshal function 4")
 (testmarsh reduce "marshal function 5")
-(testmarsh (fiber.new (fn [&] (yield 1) 2)) "marshal simple fiber")
+(testmarsh (fiber.new (fn [] (yield 1) 2)) "marshal simple fiber 1")
+(testmarsh (fiber.new (fn [&] (yield 1) 2)) "marshal simple fiber 2")
 
 # Large functions
 (def manydefs (fora [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))

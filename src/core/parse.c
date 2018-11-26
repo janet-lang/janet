@@ -643,10 +643,19 @@ static int cfun_consume(JanetArgs args) {
     int32_t len;
     JanetParser *p;
     int32_t i;
-    JANET_FIXARITY(args, 2);
+    JANET_MINARITY(args, 2);
+    JANET_MAXARITY(args, 3);
     JANET_CHECKABSTRACT(args, 0, &janet_parse_parsertype);
     p = (JanetParser *) janet_unwrap_abstract(args.v[0]);
     JANET_ARG_BYTES(bytes, len, args, 1);
+    if (args.n == 3) {
+        int32_t offset;
+        JANET_ARG_INTEGER(offset, args, 2);
+        if (offset < 0 || offset > len)
+            JANET_THROW(args, "invalid offset");
+        len -= offset;
+        bytes += offset;
+    }
     for (i = 0; i < len; i++) {
         janet_parser_consume(p, bytes[i]);
         switch (janet_parser_status(p)) {
@@ -654,14 +663,10 @@ static int cfun_consume(JanetArgs args) {
             case JANET_PARSE_PENDING:
                 break;
             default:
-                {
-                    JanetBuffer *b = janet_buffer(len - i);
-                    janet_buffer_push_bytes(b, bytes + i + 1, len - i - 1);
-                    JANET_RETURN_BUFFER(args, b);
-                }
+                JANET_RETURN_INTEGER(args, i + 1);
         }
     }
-    JANET_RETURN(args, janet_wrap_nil());
+    JANET_RETURN_INTEGER(args, i);
 }
 
 static int cfun_byte(JanetArgs args) {
@@ -786,10 +791,10 @@ static const JanetReg cfuns[] = {
         "next value."
     },
     {"parser.consume", cfun_consume,
-        "(parser.consume parser bytes)\n\n"
+        "(parser.consume parser bytes [, index])\n\n"
         "Input bytes into the parser and parse them. Will not throw errors "
-        "if there is a parse error. Returns the bytes not consumed if the parser is "
-        "full or errors, or nil if the parser is still pending."
+        "if there is a parse error. Starts at the byte index given by index. Returns "
+        "the number of bytes read."
     },
     {"parser.byte", cfun_byte,
         "(parser.byte parser b)\n\n"

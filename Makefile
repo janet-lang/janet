@@ -29,7 +29,7 @@ LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
 JANET_VERSION?="\"commit-$(shell git log --pretty=format:'%h' -n 1)\""
 
-#CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g
+#CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g -DJANET_VERSION=$(JANET_VERSION)
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
 	   -DJANET_VERSION=$(JANET_VERSION)
 CLIBS=-lm -ldl
@@ -112,7 +112,8 @@ $(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
 EMCC=emcc
 EMCCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -O2 \
 		  -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]' \
-		  -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 \
+		  -s ALLOW_MEMORY_GROWTH=1 \
+		  -s AGGRESSIVE_VARIABLE_ELIMINATION=1 \
 		  -DJANET_VERSION=$(JANET_VERSION)
 JANET_EMTARGET=janet.js
 JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)

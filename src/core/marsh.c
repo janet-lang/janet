@@ -44,7 +44,8 @@ enum {
     MR_NYI,
     MR_NRV,
     MR_C_STACKFRAME,
-    MR_OVERFLOW
+    MR_OVERFLOW,
+    MR_LIVEFIBER
 } MarshalResult;
 
 const char *mr_strings[] = {
@@ -53,7 +54,8 @@ const char *mr_strings[] = {
     "type NYI",
     "no registry value",
     "fiber has c stack frame",
-    "buffer overflow"
+    "buffer overflow",
+    "alive fiber"
 };
 
 /* Lead bytes in marshaling protocol */
@@ -162,7 +164,7 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
     pushint(st, env->length);
     if (env->offset) {
         /* On stack variant */
-        marshal_one_fiber(st, env->as.fiber, flags + 1);
+        marshal_one(st, janet_wrap_fiber(env->as.fiber), flags + 1);
     } else {
         /* Off stack variant */
         for (int32_t i = 0; i < env->length; i++)
@@ -238,20 +240,21 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 }
 
 #define JANET_FIBER_FLAG_HASCHILD (1 << 29)
-#define JANET_STACKFRAME_HASENV 2
+#define JANET_STACKFRAME_HASENV (1 << 30)
 
 /* Marshal a fiber */
 static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
+    int32_t fflags = fiber->flags;
     if ((flags & 0xFFFF) > JANET_RECURSION_GUARD)
         longjmp(st->err, MR_STACKOVERFLOW);
-    if (fiber->child) fiber->flags |= JANET_FIBER_FLAG_HASCHILD;
-    janet_table_put(&st->seen, janet_wrap_fiber(fiber), janet_wrap_integer(st->nextid++));
-    pushint(st, fiber->flags);
+    if (fiber->child) fflags |= JANET_FIBER_FLAG_HASCHILD;
+    if (janet_fiber_status(fiber) == JANET_STATUS_ALIVE)
+        longjmp(st->err, MR_LIVEFIBER);
+    pushint(st, fflags);
     pushint(st, fiber->frame);
     pushint(st, fiber->stackstart);
     pushint(st, fiber->stacktop);
     pushint(st, fiber->maxstack);
-    marshal_one(st, janet_wrap_function(fiber->root), flags + 1);
     /* Do frames */
     int32_t i = fiber->frame;
     int32_t j = fiber->stackstart - JANET_FRAME_SIZE;
@@ -272,8 +275,7 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
         i = frame->prevframe;
     }
     if (fiber->child)
-        marshal_one_fiber(st, fiber->child, flags + 1);
-    fiber->flags &= ~JANET_FIBER_FLAG_HASCHILD;
+        marshal_one(st, janet_wrap_fiber(fiber->child), flags + 1);
 }
 
 /* The main body of the marshaling function. Is the main
@@ -439,6 +441,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             goto done;
         case JANET_FIBER:
             {
+                MARK_SEEN();
                 pushbyte(st, LB_FIBER);
                 marshal_one_fiber(st, janet_unwrap_fiber(x), flags + 1);
             }
@@ -589,8 +592,11 @@ static const uint8_t *unmarshal_one_env(
         int32_t offset = readint(st, &data);
         int32_t length = readint(st, &data);
         if (offset) {
+            Janet fiberv;
             /* On stack variant */
-            data = unmarshal_one_fiber(st, data, &(env->as.fiber), flags);
+            data = unmarshal_one(st, data, &fiberv, flags);
+            if (!janet_checktype(fiberv, JANET_FIBER)) longjmp(st->err, UMR_EXPECTED_FIBER);
+            env->as.fiber = janet_unwrap_fiber(fiberv);
             /* Unmarshaling fiber may set values */
             if (env->offset != 0 && env->offset != offset) longjmp(st->err, UMR_UNKNOWN);
             if (env->length != 0 && env->length != length) longjmp(st->err, UMR_UNKNOWN);
@@ -763,7 +769,6 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->stackstart = 0;
     fiber->stacktop = 0;
     fiber->capacity = 0;
-    fiber->root = NULL;
     fiber->child = NULL;
 
     /* Set frame later so fiber can be GCed at anytime if unmarshaling fails */
@@ -782,18 +787,9 @@ static const uint8_t *unmarshal_one_fiber(
     if ((int32_t)(frame + JANET_FRAME_SIZE) > fiber->stackstart ||
             fiber->stackstart > fiber->stacktop ||
             fiber->stacktop > fiber->maxstack) {
-        printf("bad flags and ints.\n");
+        /* printf("bad flags and ints.\n"); */
         goto error;
     }
-
-    /* Get root fuction */
-    Janet funcv;
-    data = unmarshal_one(st, data, &funcv, flags + 1);
-    if (!janet_checktype(funcv, JANET_FUNCTION)) {
-        printf("bad root func.\n");
-        goto error;
-    }
-    fiber->root = janet_unwrap_function(funcv);
 
     /* Allocate stack memory */
     fiber->capacity = fiber->stacktop + 10;
@@ -808,7 +804,7 @@ static const uint8_t *unmarshal_one_fiber(
     while (stack > 0) {
         JanetFunction *func;
         JanetFuncDef *def;
-        JanetFuncEnv *env;
+        JanetFuncEnv *env = NULL;
         int32_t frameflags = readint(st, &data);
         int32_t prevframe = readint(st, &data);
         int32_t pcdiff = readint(st, &data);
@@ -821,7 +817,7 @@ static const uint8_t *unmarshal_one_fiber(
         Janet funcv;
         data = unmarshal_one(st, data, &funcv, flags + 1);
         if (!janet_checktype(funcv, JANET_FUNCTION)) {
-            printf("bad root func.\n");
+            /* printf("bad root func.\n"); */
             goto error;
         }
         func = janet_unwrap_function(funcv);
@@ -864,8 +860,11 @@ static const uint8_t *unmarshal_one_fiber(
 
     /* Check for child fiber */
     if (fiber->flags & JANET_FIBER_FLAG_HASCHILD) {
+        Janet fiberv;
         fiber->flags &= ~JANET_FIBER_FLAG_HASCHILD;
-        data = unmarshal_one_fiber(st, data, &(fiber->child), flags + 1);
+        data = unmarshal_one(st, data, &fiberv, flags + 1);
+        if (!janet_checktype(fiberv, JANET_FIBER)) longjmp(st->err, UMR_EXPECTED_FIBER);
+        fiber->child = janet_unwrap_fiber(fiberv);
     }
 
     /* Return data */

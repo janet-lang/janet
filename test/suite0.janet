@@ -38,16 +38,16 @@
 (assert (= -7 (% -20 13)) "modulo 2")
 
 (assert (order< nil false true
-	(fiber.new (fn [x] x))
-    1 1.0 "hi"
-	(quote hello)
-	(array 1 2 3)
-	(tuple 1 2 3)
-    (table "a" "b" "c" "d")
-    (struct 1 2 3 4)
-	(buffer "hi")
-	(fn [x] (+ x x))
-	print) "type ordering")
+                (fiber.new (fn [] 1))
+                1 1.0 "hi"
+                (quote hello)
+                (array 1 2 3)
+                (tuple 1 2 3)
+                (table "a" "b" "c" "d")
+                (struct 1 2 3 4)
+                (buffer "hi")
+                (fn [x] (+ x x))
+                print) "type ordering")
 
 (assert (= (string (buffer "123" "456")) (string @"123456")) "buffer literal")
 (assert (= (get {} 1) nil) "get nil from empty struct")
@@ -109,13 +109,13 @@
 
 # Closure in non function scope
 (def outerfun (fn [x y]
-    (def c (do
-      (def someval (+ 10 y))
-      (def ctemp (if x (fn [] someval) (fn [] y)))
-      ctemp
-    ))
-    (+ 1 2 3 4 5 6 7)
-    c))
+                (def c (do
+                         (def someval (+ 10 y))
+                         (def ctemp (if x (fn [] someval) (fn [] y)))
+                         ctemp
+                         ))
+                (+ 1 2 3 4 5 6 7)
+                c))
 
 (assert (= ((outerfun 1 2)) 12) "inner closure 1")
 (assert (= ((outerfun nil 2)) 2) "inner closure 2")
@@ -124,29 +124,29 @@
 (assert (= '(1 2 3) (quote (1 2 3)) (tuple 1 2 3)) "quote shorthand")
 
 ((fn []
-	(var accum 1)
-	(var count 0)
-	(while (< count 16)
-		(:= accum (<< accum 1))
-		(:= count (+ 1 count)))
-	(assert (= accum 65536) "loop in closure")))
+   (var accum 1)
+   (var count 0)
+   (while (< count 16)
+     (:= accum (<< accum 1))
+     (:= count (+ 1 count)))
+   (assert (= accum 65536) "loop in closure")))
 
 (var accum 1)
 (var count 0)
 (while (< count 16)
-	(:= accum (<< accum 1))
-	(:= count (+ 1 count)))
+  (:= accum (<< accum 1))
+  (:= count (+ 1 count)))
 (assert (= accum 65536) "loop globally")
 
 (assert (= (struct 1 2 3 4 5 6 7 8) (struct 7 8 5 6 3 4 1 2)) "struct order does not matter 1")
-(assert (= (struct 
-            :apple 1 
-            6 :bork
-            '(1 2 3) 5)
-         (struct 
-            6 :bork
-            '(1 2 3) 5
-            :apple 1)) "struct order does not matter 2")
+(assert (= (struct
+             :apple 1
+             6 :bork
+             '(1 2 3) 5)
+           (struct
+             6 :bork
+             '(1 2 3) 5
+             :apple 1)) "struct order does not matter 2")
 
 # Symbol function
 
@@ -154,9 +154,11 @@
 
 # Fiber tests
 
-(def afiber (fiber.new (fn [x]
-	(error (string "hello, " x))) :e))
+(def afiber (fiber.new (fn []
+                         (def x (yield))
+                         (error (string "hello, " x))) :ye))
 
+(resume afiber) # first resume to prime
 (def afiber-result (resume afiber "world!"))
 
 (assert (= afiber-result "hello, world!") "fiber error result")
@@ -214,30 +216,31 @@
 # Merge sort
 
 # Imperative merge sort merge
-(def merge (fn [xs ys] 
-    (def ret @[])
-    (def xlen (length xs))
-    (def ylen (length ys))
-    (var i 0)
-    (var j 0)
-    # Main merge
-    (while (if (< i xlen) (< j ylen))
-      (def xi (get xs i))
-      (def yj (get ys j))
-      (if (< xi yj)
-        (do (array.push ret xi) (:= i (+ i 1)))    
-        (do (array.push ret yj) (:= j (+ j 1)))))
-    # Push rest of xs
-    (while (< i xlen)
-      (def xi (get xs i))
-      (array.push ret xi)
-      (:= i (+ i 1)))    
-    # Push rest of ys
-    (while (< j ylen)
-      (def yj (get ys j))
-      (array.push ret yj)
-      (:= j (+ j 1)))    
-    ret))
+(defn merge 
+  [xs ys]
+  (def ret @[])
+  (def xlen (length xs))
+  (def ylen (length ys))
+  (var i 0)
+  (var j 0)
+  # Main merge
+  (while (if (< i xlen) (< j ylen))
+    (def xi (get xs i))
+    (def yj (get ys j))
+    (if (< xi yj)
+      (do (array.push ret xi) (:= i (+ i 1)))
+      (do (array.push ret yj) (:= j (+ j 1)))))
+  # Push rest of xs
+  (while (< i xlen)
+    (def xi (get xs i))
+    (array.push ret xi)
+    (:= i (+ i 1)))
+  # Push rest of ys
+  (while (< j ylen)
+    (def yj (get ys j))
+    (array.push ret yj)
+    (:= j (+ j 1)))
+  ret)
 
 (assert (apply <= (merge @[1 3 5] @[2 4 6])) "merge sort merge 1")
 (assert (apply <= (merge @[1 2 3] @[4 5 6])) "merge sort merge 2")
@@ -248,12 +251,12 @@
 
 (assert (not= (gensym) (gensym)) "two gensyms not equal")
 ((fn []
-	(def syms (table))
-	(var count 0)
-	(while (< count 128)
-		(put syms (gensym) true)
-		(:= count (+ 1 count)))
-	(assert (= (length syms) 128) "many symbols")))
+   (def syms (table))
+   (var count 0)
+   (while (< count 128)
+     (put syms (gensym) true)
+     (:= count (+ 1 count)))
+   (assert (= (length syms) 128) "many symbols")))
 
 # Let
 
@@ -265,19 +268,19 @@
 
 (defn dub [x] (+ x x))
 (assert (= 2 (dub 1)) "defn macro")
-(do 
- (defn trip [x] (+ x x x))
- (assert (= 3 (trip 1)) "defn macro triple"))
 (do
- (var i 0)
- (when true
-  (++ i)
-  (++ i)
-  (++ i)
-  (++ i)
-  (++ i)
-  (++ i))
- (assert (= i 6) "when macro"))
+  (defn trip [x] (+ x x x))
+  (assert (= 3 (trip 1)) "defn macro triple"))
+(do
+  (var i 0)
+  (when true
+    (++ i)
+    (++ i)
+    (++ i)
+    (++ i)
+    (++ i)
+    (++ i))
+  (assert (= i 6) "when macro"))
 
 (end-suite)
 

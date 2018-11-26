@@ -573,9 +573,6 @@ struct JanetArgs {
     int32_t n;
 };
 
-/* Fiber flags */
-#define JANET_FIBER_FLAG_SIGNAL_WAITING (1 << 30)
-
 /* Fiber signal masks. */
 #define JANET_FIBER_MASK_ERROR 2
 #define JANET_FIBER_MASK_DEBUG 4
@@ -603,7 +600,6 @@ struct JanetArgs {
 struct JanetFiber {
     Janet *data;
     JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
-    JanetFunction *root; /* First value */
     int32_t frame; /* Index of the stack frame */
     int32_t stackstart; /* Beginning of next args */
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
@@ -1039,6 +1035,7 @@ JANET_API JanetKV *janet_table_find(JanetTable *t, Janet key);
 
 /* Fiber */
 JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity);
+JANET_API JanetFiber *janet_fiber_n(JanetFunction *callee, int32_t capacity, const Janet *argv, int32_t argn);
 #define janet_fiber_status(f) (((f)->flags & JANET_FIBER_STATUS_MASK) >> JANET_FIBER_STATUS_OFFSET)
 
 /* Treat similar types through uniform interfaces for iteration */
@@ -1100,7 +1097,6 @@ JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x);
 JANET_API int janet_init(void);
 JANET_API void janet_deinit(void);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
-#define janet_run(F,O) janet_continue(F, janet_wrap_nil(), O)
 JANET_API JanetSignal janet_call(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
 JANET_API void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err);
 
@@ -1132,9 +1128,9 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 /***** START SECTION MACROS *****/
 
 /* Macros */
-#define JANET_THROW(a, e) return (*((a).ret) = janet_cstringv(e), JANET_SIGNAL_ERROR)
-#define JANET_THROWV(a, v) return (*((a).ret) = (v), JANET_SIGNAL_ERROR)
-#define JANET_RETURN(a, v) return (*((a).ret) = (v), JANET_SIGNAL_OK)
+#define JANET_THROW(a, e) return (*((a).ret) = janet_cstringv(e), 1)
+#define JANET_THROWV(a, v) return (*((a).ret) = (v), 1)
+#define JANET_RETURN(a, v) return (*((a).ret) = (v), 0)
 
 /* Early exit macros */
 #define JANET_MAXARITY(A, N) do { if ((A).n > (N))\

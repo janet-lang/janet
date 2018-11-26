@@ -195,10 +195,6 @@ recur:
     if (janet_gc_reachable(fiber))
         return;
     janet_gc_mark(fiber);
-
-    if (fiber->root)
-        janet_mark_function(fiber->root);
-
     i = fiber->frame;
     j = fiber->stackstart - JANET_FRAME_SIZE;
     while (i > 0) {

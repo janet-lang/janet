@@ -371,7 +371,7 @@
             :generate (do
                      (def $fiber (gensym))
                      (def $yieldval (gensym))
-                     (def preds @['and 
+                     (def preds @['and
                                   (do
                                     (def s (gensym))
                                     (tuple 'do
@@ -417,7 +417,7 @@
   that yields all values inside the loop in order. See loop for details."
   [head & body]
   (tuple fiber.new
-         (tuple 'fn [tuple '&] 
+         (tuple 'fn '[&]
                 (tuple 'loop head (tuple yield (tuple.prepend body 'do))))))
 
 (defn sum [xs]
@@ -433,7 +433,7 @@
 (defmacro coro
   "A wrapper for making fibers. Same as (fiber.new (fn [&] ...body))."
   [& body]
-  (tuple fiber.new (apply tuple 'fn [tuple '&] body)))
+  (tuple fiber.new (apply tuple 'fn '[&] body)))
 
 (defmacro if-let
   "Takes the first one or two forms in a vector and if both are true binds
@@ -1078,15 +1078,15 @@ value, one key will be ignored."
   (def method (apply symbol (tuple.slice parts 1)))
   (tuple (tuple 'quote method) self))
 
-(def class 
+(def class
   "(class obj)\n\nGets the class of an object."
   table.getproto)
 
 (defn instance-of?
   "Checks if an object is an instance of a class."
   [class obj]
-  (if obj (or 
-            (= class obj) 
+  (if obj (or
+            (= class obj)
             (instance-of? class (table.getproto obj)))))
 
 (defmacro call
@@ -1169,41 +1169,12 @@ value, one key will be ignored."
   # The parser object
   (def p (parser.new))
 
-  # Fiber stream of characters
-  (def chars
-    (coro
-      (def buf @"")
-      (var len 1)
-      (while (< 0 len)
-        (buffer.clear buf)
-        (chunks buf p)
-        (:= len (length buf))
-        (loop [i :range [0 len]]
-          (yield (get buf i))))
-      0))
-
-  # Fiber stream of values
-  (def vals
-    (coro
-      (while going
-        (case (parser.status p)
-          :full (yield (parser.produce p))
-          :error (do
-                   (def (line col) (parser.where p))
-                   (onerr where "parse" (string (parser.error p) " on line " line ", column " col)))
-          (case (fiber.status chars)
-            :new (parser.byte p (resume chars nil))
-            :pending (parser.byte p (resume chars nil))
-            (:= going false))))
-      (when (not= :root (parser.status p))
-        (onerr where "parse" "unexpected end of source"))))
-
   # Evaluate 1 source form
   (defn eval1 [source]
     (var good true)
     (def f
       (fiber.new
-        (fn [&]
+        (fn _thunk [&]
           (def res (compile source env where))
           (if (= (type res) :function)
             (res)
@@ -1226,10 +1197,28 @@ value, one key will be ignored."
           (onvalue res)
           (onerr where "runtime" res f)))))
 
-  # Run loop
   (def oldenv *env*)
   (:= *env* env)
-  (while going (eval1 (resume vals nil)))
+
+  # Run loop
+  (def buf @"")
+  (while going
+    (buffer.clear buf)
+    (chunks buf p)
+    (var pindex 0)
+    (def len (length buf))
+    (if (= len 0) (:= going false))
+    (while (> len pindex)
+      (+= pindex (parser.consume p buf pindex))
+      (case (parser.status p)
+        :full (eval1 (parser.produce p))
+        :error (do
+                 (def (line col) (parser.where p))
+                 (onerr where "parse"
+                        (string (parser.error p)
+                                " on line " line
+                                ", column " col))))))
+
   (:= *env* oldenv)
 
   env)
@@ -1242,19 +1231,21 @@ value, one key will be ignored."
               "\n")
   (when f
     (loop
-      [{:function func
+      [nf :in (array.reverse (fiber.lineage f))
+       :before (file.write stderr "  (fiber)\n")
+       {:function func
         :tail tail
         :pc pc
         :c c
         :name name
         :source source
         :line source-line
-        :column source-col} :in (fiber.stack f)]
-      (file.write stderr "  in")
+        :column source-col} :in (fiber.stack nf)]
+      (file.write stderr "    in")
       (when c (file.write stderr " cfunction"))
       (if name
         (file.write stderr " " name)
-        (when func (file.write stderr " " (string func))))
+        (when func (file.write stderr " <anonymous>")))
       (if source
         (do
           (file.write stderr " [" source "]")
@@ -1279,7 +1270,7 @@ value, one key will be ignored."
     (def ret state)
     (:= state nil)
     (when ret
-      (buffer.push-string buf ret)
+      (buffer.push-string buf str)
       (buffer.push-string buf "\n")))
   (var returnval nil)
   (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler "eval")
@@ -1416,17 +1407,14 @@ value, one key will be ignored."
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
   get a chunk of source code. Should return nil for end of file."
-  [getchunk onvalue onerr &]
+  [chunks onvalue onerr &]
   (def newenv (make-env))
-  (default getchunk (fn [buf &]
-                      (file.read stdin :line buf)))
-  (def buf @"")
+  (default chunks (fn [&] (file.read stdin :line)))
   (default onvalue (fn [x]
                      (put newenv '_ @{:value x})
-                     (print (string.pretty x 20 buf))
-                     (buffer.clear buf)))
+                     (print (string.pretty x 20))))
   (default onerr default-error-handler)
-  (run-context newenv getchunk onvalue onerr "repl"))
+  (run-context newenv chunks onvalue onerr "repl"))
 
 (defn all-symbols
   "Get all symbols available in the current environment."

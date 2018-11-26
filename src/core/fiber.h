@@ -34,7 +34,6 @@ extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
 
 #define janet_stack_frame(s) ((JanetStackFrame *)((s) - JANET_FRAME_SIZE))
 #define janet_fiber_frame(f) janet_stack_frame((f)->data + (f)->frame)
-JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee);
 void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n);
 void janet_fiber_push(JanetFiber *fiber, Janet x);
 void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y);

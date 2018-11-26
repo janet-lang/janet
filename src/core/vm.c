@@ -77,18 +77,6 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     /* Setup fiber state */
     janet_vm_fiber = fiber;
     janet_gcroot(janet_wrap_fiber(fiber));
-    janet_gcroot(in);
-    if (startstatus == JANET_STATUS_NEW) {
-        janet_fiber_push(fiber, in);
-        if (janet_fiber_funcframe(fiber, fiber->root)) {
-            janet_gcunroot(janet_wrap_fiber(fiber));
-            janet_gcunroot(in);
-            *out = janet_wrap_string(janet_formatc(
-                        "Could not start fiber with function of arity %d",
-                        fiber->root->def->arity));
-            return JANET_SIGNAL_ERROR;
-        }
-    }
     janet_fiber_set_status(fiber, JANET_STATUS_ALIVE);
     stack = fiber->data + fiber->frame;
     pc = janet_stack_frame(stack)->pc;
@@ -98,17 +86,17 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
      * Pulls out unsigned integers */
 #define oparg(shift, mask) (((*pc) >> ((shift) << 3)) & (mask))
 
-    /* Check for child fiber. If there is a child, run child before self.
-     * This should only be hit when the current fiber is pending on a RESUME
-     * instruction. */
     if (fiber->child) {
+        /* Check for child fiber. If there is a child, run child before self.
+         * This should only be hit when the current fiber is pending on a RESUME
+         * instruction. */
         retreg = in;
         goto vm_resume_child;
-    } else if (fiber->flags & JANET_FIBER_FLAG_SIGNAL_WAITING) {
+    } else if (startstatus != JANET_STATUS_NEW) {
+        /* Only should be hit if child is waiting on a SIGNAL instruction */
         /* If waiting for response to signal, use input and increment pc */
         stack[oparg(1, 0xFF)] = in;
         pc++;
-        fiber->flags &= ~JANET_FIBER_FLAG_SIGNAL_WAITING;
     }
 
 /* Use computed gotos for GCC and clang, otherwise use switch */
@@ -787,7 +775,8 @@ static void *op_lookup[255] = {
             retreg = janet_wrap_nil();
             args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
-            if ((signal = janet_unwrap_cfunction(callee)(args))) {
+            if (janet_unwrap_cfunction(callee)(args)) {
+                signal = JANET_SIGNAL_ERROR;
                 goto vm_exit;
             }
             goto vm_return_cfunc;
@@ -814,7 +803,8 @@ static void *op_lookup[255] = {
             retreg = janet_wrap_nil();
             args.v = fiber->data + fiber->frame;
             args.ret = &retreg;
-            if ((signal = janet_unwrap_cfunction(callee)(args))) {
+            if (janet_unwrap_cfunction(callee)(args)) {
+                signal = JANET_SIGNAL_ERROR;
                 goto vm_exit;
             }
             goto vm_return_cfunc_tail;
@@ -840,7 +830,6 @@ static void *op_lookup[255] = {
         if (s < 0) s = 0;
         signal = s;
         retreg = stack[oparg(2, 0xFF)];
-        fiber->flags |= JANET_FIBER_FLAG_SIGNAL_WAITING;
         goto vm_exit;
     }
 
@@ -1223,11 +1212,9 @@ static void *op_lookup[255] = {
     {
         JanetFiber *child = fiber->child;
         JanetFiberStatus status = janet_fiber_status(child);
-        if (status == JANET_STATUS_ALIVE ||
-                status == JANET_STATUS_DEAD ||
-                status == JANET_STATUS_ERROR) {
-            vm_throw("cannot resume alive, dead, or errored fiber");
-        }
+        if (status == JANET_STATUS_ALIVE) vm_throw("cannot resume live fiber");
+        if (status == JANET_STATUS_DEAD) vm_throw("cannot resume dead fiber");
+        if (status == JANET_STATUS_ERROR) vm_throw("cannot resume errored fiber");
         signal = janet_continue(child, retreg, &retreg);
         if (signal != JANET_SIGNAL_OK) {
             if (child->flags & (1 << signal)) {
@@ -1238,6 +1225,8 @@ static void *op_lookup[255] = {
                 /* Propogate signal */
                 goto vm_exit;
             }
+        } else {
+            fiber->child = NULL;
         }
         stack[oparg(1, 0xFF)] = retreg;
         pc++;
@@ -1273,7 +1262,6 @@ static void *op_lookup[255] = {
     {
         janet_stack_frame(stack)->pc = pc;
         janet_vm_stackn--;
-        janet_gcunroot(in);
         janet_gcunroot(janet_wrap_fiber(fiber));
         janet_vm_fiber = old_vm_fiber;
         *out = retreg;
@@ -1315,18 +1303,8 @@ JanetSignal janet_call(
         const Janet *argv,
         Janet *out,
         JanetFiber **f) {
-    int32_t i;
-    JanetFiber *fiber = janet_fiber(fun, 64);
-    if (f)
-        *f = fiber;
-    for (i = 0; i < argn; i++)
-        janet_fiber_push(fiber, argv[i]);
-    if (janet_fiber_funcframe(fiber, fiber->root)) {
-        *out = janet_cstringv("arity mismatch");
-        return JANET_SIGNAL_ERROR;
-    }
-    /* Prevent push an extra value on the stack */
-    janet_fiber_set_status(fiber, JANET_STATUS_PENDING);
+    JanetFiber *fiber = janet_fiber_n(fun, 64, argv, argn);
+    if (f) *f = fiber;
     return janet_continue(fiber, janet_wrap_nil(), out);
 }
 

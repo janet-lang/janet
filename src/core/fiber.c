@@ -25,33 +25,46 @@
 #include "state.h"
 #include "gc.h"
 
-/* Initialize a new fiber */
-JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity) {
+static JanetFiber *make_fiber(int32_t capacity) {
+    Janet *data;
     JanetFiber *fiber = janet_gcalloc(JANET_MEMORY_FIBER, sizeof(JanetFiber));
     if (capacity < 16) {
         capacity = 16;
     }
     fiber->capacity = capacity;
-    if (capacity) {
-        Janet *data = malloc(sizeof(Janet) * capacity);
-        if (NULL == data) {
-            JANET_OUT_OF_MEMORY;
-        }
-        fiber->data = data;
+    data = malloc(sizeof(Janet) * capacity);
+    if (NULL == data) {
+        JANET_OUT_OF_MEMORY;
     }
+    fiber->data = data;
     fiber->maxstack = JANET_STACK_MAX;
-    return janet_fiber_reset(fiber, callee);
-}
-
-/* Clear a fiber (reset it) */
-JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee) {
     fiber->frame = 0;
     fiber->stackstart = JANET_FRAME_SIZE;
     fiber->stacktop = JANET_FRAME_SIZE;
-    fiber->root = callee;
     fiber->child = NULL;
     fiber->flags = JANET_FIBER_MASK_YIELD;
     janet_fiber_set_status(fiber, JANET_STATUS_NEW);
+    return fiber;
+}
+
+/* Initialize a new fiber */
+JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity) {
+    JanetFiber *fiber = make_fiber(capacity);
+    janet_fiber_funcframe(fiber, callee);
+    return fiber;
+}
+
+/* Clear a fiber (reset it) with argn values on the stack. */
+JanetFiber *janet_fiber_n(JanetFunction *callee, int32_t capacity, const Janet *argv, int32_t argn) {
+    int32_t newstacktop;
+    JanetFiber *fiber = make_fiber(capacity);
+    newstacktop = fiber->stacktop + argn;
+    if (newstacktop >= fiber->capacity) {
+        janet_fiber_setcapacity(fiber, 2 * newstacktop);
+    }
+    memcpy(fiber->data + fiber->stacktop, argv, argn * sizeof(Janet));
+    fiber->stacktop = newstacktop;
+    janet_fiber_funcframe(fiber, callee);
     return fiber;
 }
 
@@ -284,8 +297,8 @@ static int cfun_new(JanetArgs args) {
     JANET_MAXARITY(args, 2);
     JANET_ARG_FUNCTION(func, args, 0);
     if (func->def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
-        if (func->def->arity != 1) {
-            JANET_THROW(args, "expected unit arity function in fiber constructor");
+        if (func->def->arity != 0) {
+            JANET_THROW(args, "expected nullary function in fiber constructor");
         }
     }
     fiber = janet_fiber(func, 64);
@@ -460,7 +473,7 @@ static const JanetReg cfuns[] = {
         "Create a new fiber with function body func. Can optionally "
         "take a set of signals to block from the current parent fiber "
         "when called. The mask is specified as symbol where each character "
-        "is used to indicate a signal to block. "
+        "is used to indicate a signal to block. The default sigmask is :y. "
         "For example, \n\n"
         "\t(fiber.new myfun :e123)\n\n"
         "blocks error signals and user signals 1, 2 and 3. The signals are "
