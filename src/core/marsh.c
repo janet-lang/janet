@@ -26,6 +26,7 @@
 #include "state.h"
 #include "vector.h"
 #include "gc.h"
+#include "fiber.h"
 
 typedef struct {
     jmp_buf err;
@@ -261,9 +262,9 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
     while (i > 0) {
         JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
         if (frame->env) frame->flags |= JANET_STACKFRAME_HASENV;
+        if (!frame->func) longjmp(st->err, MR_C_STACKFRAME);
         pushint(st, frame->flags);
         pushint(st, frame->prevframe);
-        if (!frame->func) longjmp(st->err, MR_C_STACKFRAME);
         int32_t pcdiff = frame->pc - frame->func->def->bytecode;
         pushint(st, pcdiff);
         marshal_one(st, janet_wrap_function(frame->func), flags + 1);
@@ -769,6 +770,8 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->stackstart = 0;
     fiber->stacktop = 0;
     fiber->capacity = 0;
+    fiber->maxstack = 0;
+    fiber->data = NULL;
     fiber->child = NULL;
 
     /* Set frame later so fiber can be GCed at anytime if unmarshaling fails */
@@ -802,8 +805,8 @@ static const uint8_t *unmarshal_one_fiber(
     stack = frame;
     stacktop = fiber->stackstart - JANET_FRAME_SIZE;
     while (stack > 0) {
-        JanetFunction *func;
-        JanetFuncDef *def;
+        JanetFunction *func = NULL;
+        JanetFuncDef *def = NULL;
         JanetFuncEnv *env = NULL;
         int32_t frameflags = readint(st, &data);
         int32_t prevframe = readint(st, &data);
@@ -811,7 +814,7 @@ static const uint8_t *unmarshal_one_fiber(
 
         /* Get frame items */
         Janet *framestack = fiber->data + stack;
-        JanetStackFrame *framep = (JanetStackFrame *)framestack - 1;
+        JanetStackFrame *framep = janet_stack_frame(framestack);
 
         /* Get function */
         Janet funcv;
