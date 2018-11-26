@@ -548,7 +548,22 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
         case JANET_TABLE:
             {
                 int istable = janet_checktype(x, JANET_TABLE);
-                janet_buffer_push_cstring(S->buffer, istable ? "@{" : "{");
+                janet_buffer_push_cstring(S->buffer, istable ? "@" : "{");
+
+                /* For object-like tables, print class name */
+                if (istable) {
+                    JanetTable *t = janet_unwrap_table(x);
+                    JanetTable *proto = t->proto;
+                    if (NULL != proto) {
+                        Janet name = janet_table_get(proto, janet_csymbolv(":name"));
+                        if (janet_checktype(name, JANET_SYMBOL)) {
+                            const uint8_t *sym = janet_unwrap_symbol(name);
+                            janet_buffer_push_bytes(S->buffer, sym, janet_string_length(sym));
+                        }
+                    }
+                    janet_buffer_push_cstring(S->buffer, "{");
+                }
+
                 S->depth--;
                 S->indent += 2;
                 if (S->depth == 0) {
