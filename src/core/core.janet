@@ -596,27 +596,6 @@
   [f & inds]
   (tuple.slice (apply mapa f inds) 0))
 
-(defn each
-  "Map a function over every element in an array or tuple but do not
-  return a new indexed type."
-  [f & inds]
-  (def ninds (length inds))
-  (if (= 0 ninds) (error "expected at least 1 indexed collection"))
-  (var limit (length (get inds 0)))
-  (loop [i :range [0 ninds]]
-    (def l (length (get inds i)))
-    (if (< l limit) (:= limit l)))
-  (def [i1 i2 i3 i4] inds)
-  (case ninds
-    1 (loop [i :range [0 limit]] (f (get i1 i)))
-    2 (loop [i :range [0 limit]] (f (get i1 i) (get i2 i)))
-    3 (loop [i :range [0 limit]] (f (get i1 i) (get i2 i) (get i3 i)))
-    4 (loop [i :range [0 limit]] (f (get i1 i) (get i2 i) (get i3 i) (get i4 i)))
-    (loop [i :range [0 limit]]
-      (def args (array.new ninds))
-      (loop [j :range [0 ninds]] (array.push args (get (get inds j) i)))
-      (apply f args))))
-
 (defn mapcat
   "Map a function over every element in an array or tuple and
   use array to concatenate the results. Returns the type given
@@ -1423,11 +1402,8 @@ value, one key will be ignored."
   (default env *env*)
   (def envs @[])
   (do (var e env) (while e (array.push envs e) (:= e (table.getproto e))))
-  (array.reverse envs)
   (def symbol-set @{})
-  (defn onenv [envi]
-    (defn onk [k]
-      (put symbol-set k true))
-    (each onk (keys envi)))
-  (each onenv envs)
+  (loop [envi :in envs
+         k :keys envi]
+    (put symbol-set k true))
   (sort (keys symbol-set)))
