@@ -25,11 +25,8 @@
   [state x1 y1 x2 y2]
   (def cellset @{})
   (loop [cell :in state] (put cellset cell true))
-  (loop [:before (print "+" (string.repeat "--" (inc (- y2 y1))) "+")
-         :after (print "+" (string.repeat "--" (inc (- y2 y1))) "+")
-         x :range [x1 (+ 1 x2)]
-         :before (file.write stdout "|")
-         :after (file.write stdout "|\n")
+  (loop [x :range [x1 (+ 1 x2)]
+         :after (print)
          y :range [y1 (+ 1 y2)]]
     (file.write stdout (if (get cellset (tuple x y)) "X " ". ")))
   (print))

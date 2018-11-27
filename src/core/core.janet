@@ -416,6 +416,7 @@
   "Create a generator expression using the loop syntax. Returns a fiber
   that yields all values inside the loop in order. See loop for details."
   [head & body]
+  # `(fiber.new (fn [&] (loop ,head (yield (do ,@body)))))
   (tuple fiber.new
          (tuple 'fn '[&]
                 (tuple 'loop head (tuple yield (tuple.prepend body 'do))))))
