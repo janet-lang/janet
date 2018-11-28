@@ -17,6 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
+.POSIX:
 
 ################################
 ##### Set global variables #####
@@ -29,7 +30,6 @@ LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
 JANET_VERSION?="\"commit-$(shell git log --pretty=format:'%h' -n 1)\""
 
-#CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g -DJANET_VERSION=$(JANET_VERSION)
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
 	   -DJANET_VERSION=$(JANET_VERSION)
 CLIBS=-lm -ldl
@@ -38,15 +38,10 @@ JANET_LIBRARY=libjanet.so
 JANET_PATH?=/usr/local/lib/janet
 DEBUGGER=gdb
 
+# Some system specifics (for macOS)
 UNAME:=$(shell uname -s)
-LDCONFIG:=ldconfig
-ifeq ($(UNAME), Darwin) 
-	# Add other macos/clang flags
-	LDCONFIG:=
-else
-	CFLAGS:=$(CFLAGS) -rdynamic
-	CLIBS:=$(CLIBS) -lrt
-endif
+LDCONFIG:=$(shell [ $(UNAME) != Darwin ] && echo "ldconfig")
+CLIBS:="$(CLIBS) $(shell [ $(UNAME) != Darwin ] && echo "-lrt -rdynamic")"
 
 # Source headers
 JANET_GENERATED_HEADERS= \
