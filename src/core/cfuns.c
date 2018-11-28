@@ -40,7 +40,8 @@ static int minarity2(JanetFopts opts, JanetSlot *args) {
 static int fixarity2(JanetFopts opts, JanetSlot *args) {
     (void) opts;
     return janet_v_count(args) == 2;
-}static int fixarity3(JanetFopts opts, JanetSlot *args) {
+}
+static int fixarity3(JanetFopts opts, JanetSlot *args) {
     (void) opts;
     return janet_v_count(args) == 3;
 }
