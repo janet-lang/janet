@@ -41,7 +41,7 @@ DEBUGGER=gdb
 # Some system specifics (for macOS)
 UNAME:=$(shell uname -s)
 LDCONFIG:=$(shell [ $(UNAME) != Darwin ] && echo "ldconfig")
-CLIBS:="$(CLIBS) $(shell [ $(UNAME) != Darwin ] && echo "-lrt -rdynamic")"
+CLIBS:=$(CLIBS) $(shell [ $(UNAME) != Darwin ] && echo "-lrt -rdynamic")
 
 # Source headers
 JANET_GENERATED_HEADERS= \
