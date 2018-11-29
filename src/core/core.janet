@@ -120,6 +120,7 @@
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
+(defn empty? "Check if xs is empty." [xs] (= 0 (length xs)))
 (def atomic?
   "(atomic? x)\n\nCheck if x is a value that evaluates to itself when compiled."
   (do
@@ -257,10 +258,10 @@
 
 (defmacro loop
   "A general purpose loop macro. This macro is similar to the Common Lisp
-  loop macro, although intentonally much smaller in scope.
-  The head of the loop shoud be a tuple that contains a sequence of
+  loop macro, although intentionally much smaller in scope.
+  The head of the loop should be a tuple that contains a sequence of
   either bindings or conditionals. A binding is a sequence of three values
-  that define someting to loop over. They are formatted like:\n\n
+  that define something to loop over. They are formatted like:\n\n
   \tbinding :verb object/expression\n\n
   Where binding is a binding as passed to def, :verb is one of a set of keywords,
   and object is any janet expression. The available verbs are:\n\n
@@ -388,7 +389,7 @@
             (error (string "unexpected loop verb: " verb)))))))
   (tuple 'do (doone 0 nil) nil))
 
-(defmacro fora
+(defmacro seq
   "Similar to loop, but accumulates the loop body into an array and returns that.
   See loop for details."
   [head & body]
@@ -400,18 +401,6 @@
                        (tuple.prepend body 'do)))
          $accum))
 
-(defmacro for
-  "Similar to loop, but accumulates the loop body into a tuple and returns that.
-  See loop for details."
-  [head & body]
-  (def $accum (gensym))
-  (tuple 'do
-         (tuple 'def $accum @[])
-         (tuple 'loop head
-                (tuple array.push $accum
-                       (tuple.prepend body 'do)))
-         (tuple tuple.slice $accum 0)))
-
 (defmacro generate
   "Create a generator expression using the loop syntax. Returns a fiber
   that yields all values inside the loop in order. See loop for details."
@@ -420,6 +409,16 @@
   (tuple fiber.new
          (tuple 'fn '[&]
                 (tuple 'loop head (tuple yield (tuple.prepend body 'do))))))
+
+(defmacro for
+  "Do a c style for loop for side effects. Returns nil."
+  [binding start end & body]
+  (apply loop [tuple binding :range [tuple start end]] body))
+
+(defmacro each
+  "Loop over each value in ind. Returns nil."
+  [binding ind & body]
+  (apply loop [tuple binding :in ind] body))
 
 (defn sum [xs]
   (var accum 0)
@@ -498,7 +497,8 @@
   (fn [x] (not (f x))))
 
 (defn extreme
-  "Returns the most extreme value in args based on the orderer order.
+  "Returns the most extreme value in args based on the function order.
+  order should take two values and return true or false (a comparison).
   Returns nil if args is empty."
   [order args]
   (def len (length args))
@@ -513,6 +513,16 @@
 (defn min [& args] (extreme < args))
 (defn max-order [& args] (extreme order> args))
 (defn min-order [& args] (extreme order< args))
+
+(defn first
+  "Get the first element from an indexed data structure."
+  [xs]
+  (get xs 0))
+
+(defn last
+  "Get the last element from an indexed data structure."
+  [xs]
+  (get xs (- (length xs) 1)))
 
 ###
 ###
@@ -551,23 +561,20 @@
       (sort-help a 0 (- (length a) 1) (or by order<)))))
 
 (defn sorted
-  "Returns the sorted version of an indexed data structure."
-  [ind by t &]
-  (def sa (sort (array.slice ind 0) by))
-  (if (= :tuple (or t (type ind)))
-    (tuple.slice sa 0)
-    sa))
+  "Returns a new sorted array without modifying the old one."
+  [ind by]
+  (sort (array.slice ind) by))
 
 (defn reduce
   "Reduce, also know as fold-left in many languages, transforms
   an indexed type (array, tuple) with a function to produce a value."
-  [f init ind &]
+  [f init ind]
   (var res init)
   (loop [x :in ind]
     (:= res (f res x)))
   res)
 
-(defn mapa
+(defn map
   "Map a function over every element in an indexed data structure and
   return an array of the results."
   [f & inds]
@@ -590,39 +597,29 @@
       (put res i (apply f args))))
   res)
 
-(defn map
-  "Map a function over every element in an indexed data structure and
-  return a tuple of the results."
-  [f & inds]
-  (tuple.slice (apply mapa f inds) 0))
-
 (defn mapcat
   "Map a function over every element in an array or tuple and
-  use array to concatenate the results. Returns the type given
-  as the third argument, or same type as the input indexed structure."
-  [f ind t &]
+  use array to concatenate the results."
+  [f ind]
   (def res @[])
   (loop [x :in ind]
     (array.concat res (f x)))
-  (if (= :tuple (or t (type ind)))
-    (tuple.slice res 0)
-    res))
+  res)
 
 (defn filter
   "Given a predicate, take only elements from an array or tuple for
-  which (pred element) is truthy. Returns the type given as the
-  third argument, or the same type as the input indexed structure."
+  which (pred element) is truthy. Returns a new array."
   [pred ind t &]
   (def res @[])
   (loop [item :in ind]
     (if (pred item)
       (array.push res item)))
-  (if (= :tuple (or t (type ind)))
-    (tuple.slice res 0)
-    res))
+  res)
 
 (defn range
-  "Create an array of values [0, n)."
+  "Create an array of values [start, end) with a given step.
+  With one argument returns a range [0, end). With two arguments, returns
+  a range [start, end). With three, returns a range with optional step size."
   [& args]
   (case (length args)
     1 (do
@@ -635,7 +632,12 @@
         (def arr (array.new n))
         (loop [i :range [n m]] (put arr (- i n) i))
         arr)
-    (error "expected 1 to 2 arguments to range")))
+    3 (do
+        (def [n m s] args)
+        (def arr (array.new n))
+        (loop [i :range [n m s]] (put arr (- i n) i))
+        arr)
+    (error "expected 1 to 3 arguments to range")))
 
 (defn find-index
   "Find the index of indexed type for which pred is true. Returns nil if not found."
@@ -657,11 +659,11 @@
 
 (defn take-until
   "Given a predicate, take only elements from an indexed type that satisfy
-  the predicate, and abort on first failure. Returns a new tuple."
+  the predicate, and abort on first failure. Returns a new array."
   [pred ind]
   (def i (find-index pred ind))
   (if i
-    (tuple.slice ind 0 i)
+    (array.slice ind 0 i)
     ind))
 
 (defn take-while
@@ -674,7 +676,7 @@
   the predicate, and abort on first failure. Returns a new tuple."
   [pred ind]
   (def i (find-index pred ind))
-  (tuple.slice ind i))
+  (array.slice ind i))
 
 (defn drop-while
   "Same as (drop-until (complement pred) ind)."
@@ -682,6 +684,8 @@
   (drop-until (complement pred) ind))
 
 (defn juxt*
+  "Returns the juxtaposition of functions. In other words,
+  ((juxt* a b c) x) evaluates to ((a x) (b x) (c x))."
   [& funs]
   (fn [& args]
     (def ret @[])
@@ -690,6 +694,7 @@
     (tuple.slice ret 0)))
 
 (defmacro juxt
+  "Macro form of juxt*. Same behavior but more efficient."
   [& funs]
   (def parts @['tuple])
   (def $args (gensym))
@@ -729,38 +734,25 @@
   (if (zero? (length more)) f
     (fn [& r] (apply f (array.concat @[] more r)))))
 
-(defn every? [pred ind]
+(defn every? 
+  "Returns true if the predicate pred is true for every
+  value in ind, otherwise false."
+  [pred ind]
   (var res true)
-  (var i 0)
-  (def len (length ind))
-  (while (< i len)
-    (def item (get ind i))
-    (if (pred item)
-      (++ i)
-      (do (:= res false) (:= i len))))
+  (loop [x :in ind :while res]
+    (if (pred x) (:= res false)))
   res)
 
-(defn array.reverse
+(defn reverse
   "Reverses the order of the elements in a given array or tuple and returns a new array."
   [t]
-  (var n (dec (length t)))
-  (var reversed @[])
+  (def len (length t))
+  (var n (dec len))
+  (def reversed (array.new len))
   (while (>= n 0)
     (array.push reversed (get t n))
     (-- n))
   reversed)
-
-(defn tuple.reverse
-  "Reverses the order of the elements given an array or tuple and returns a tuple"
-  [t]
-  (tuple.slice (array.reverse t) 0))
-
-(defn reverse
-  "Reverses order of elements in a given array or tuple"
-  [t]
-  ((case (type t)
-     :tuple tuple.reverse
-     :array array.reverse) t))
 
 (defn invert
   "Returns a table of where the keys of an associative data structure
@@ -774,17 +766,16 @@ value, one key will be ignored."
 
 (defn zipcoll
   "Creates an table or tuple from two arrays/tuples. If a third argument of
-  :struct is given result is struct else is table."
-  [keys vals t &]
+  :struct is given result is struct else is table. Returns a new table."
+  [keys vals]
   (def res @{})
   (def lk (length keys))
   (def lv (length vals))
   (def len (if (< lk lv) lk lv))
   (loop [i :range [0 len]]
     (put res (get keys i) (get vals i)))
-  (if (= :struct t)
-    (table.to-struct res)
-    res))
+  res)
+
 
 (defn update
   "Accepts a key argument and passes its' associated value to a function.
@@ -793,17 +784,26 @@ value, one key will be ignored."
   (def old-value (get coll a-key))
   (put coll a-key (apply a-function old-value args)))
 
+(defn merge-into
+  "Merges multiple tables/structs into a table. If a key appears in more than one
+  collection, then later values replace any previous ones.
+  Returns the original table."
+  [tab & colls]
+  (loop [c :in colls
+         key :keys c]
+    (put tab key (get c key)))
+  tab)
+
 (defn merge
   "Merges multiple tables/structs to one. If a key appears in more than one
   collection, then later values replace any previous ones.
-  The type of the first collection determines the type of the resulting
-  collection"
+  Returns a new table."
   [& colls]
   (def container @{})
   (loop [c :in colls
          key :keys c]
     (put container key (get c key)))
-  (if (table? (get colls 0)) container (table.to-struct container)))
+  container)
 
 (defn keys
   "Get the keys of an associative data structure."
@@ -836,7 +836,7 @@ value, one key will be ignored."
   arr)
 
 (defn frequencies
-  "Get the number of occurences of each value in a indexed structure."
+  "Get the number of occurrences of each value in a indexed structure."
   [ind]
   (def freqs @{})
   (loop
@@ -852,10 +852,10 @@ value, one key will be ignored."
   (def res @[])
   (def ncol (length cols))
   (when (> ncol 0)
-    (def len (apply min (mapa length cols)))
-    (loop [i :range [0 len]]
-      (loop [ci :range [0 ncol]]
-        (array.push res (get (get cols ci) i)))))
+    (def len (apply min (map length cols)))
+    (loop [i :range [0 len]
+           ci :range [0 ncol]]
+        (array.push res (get (get cols ci) i))))
   res)
 
 ###
@@ -941,8 +941,8 @@ value, one key will be ignored."
 
   (defn expand-bindings [x]
     (case (type x)
-      :array (mapa expand-bindings x)
-      :tuple (map expand-bindings x)
+      :array (map expand-bindings x)
+      :tuple (tuple.slice (map expand-bindings x))
       :table (dotable x expand-bindings)
       :struct (table.to-struct (dotable x expand-bindings))
       (macroexpand-1 x)))
@@ -958,16 +958,16 @@ value, one key will be ignored."
       0))
 
   (defn expandall [t]
-    (def args (mapa macroexpand-1 (tuple.slice t 1)))
+    (def args (map macroexpand-1 (tuple.slice t 1)))
     (apply tuple (get t 0) args))
 
   (defn expandfn [t]
     (if (symbol? (get t 1))
       (do
-        (def args (mapa macroexpand-1 (tuple.slice t 3)))
+        (def args (map macroexpand-1 (tuple.slice t 3)))
         (apply tuple 'fn (get t 1) (get t 2) args))
       (do
-        (def args (mapa macroexpand-1 (tuple.slice t 2)))
+        (def args (map macroexpand-1 (tuple.slice t 2)))
         (apply tuple 'fn (get t 1) args))))
 
   (def specs
@@ -989,12 +989,12 @@ value, one key will be ignored."
     (cond
       s (s t)
       m? (apply m (tuple.slice t 1))
-      (map macroexpand-1 t)))
+      (tuple.slice (map macroexpand-1 t))))
 
   (def ret
     (case (type x)
       :tuple (dotup x)
-      :array (mapa macroexpand-1 x)
+      :array (map macroexpand-1 x)
       :struct (table.to-struct (dotable x macroexpand-1))
       :table (dotable x macroexpand-1)
       x))
@@ -1154,7 +1154,7 @@ value, one key will be ignored."
     (var good true)
     (def f
       (fiber.new
-        (fn _thunk [&]
+        (fn []
           (def res (compile source env where))
           (if (= (type res) :function)
             (res)
@@ -1211,7 +1211,7 @@ value, one key will be ignored."
               "\n")
   (when f
     (loop
-      [nf :in (array.reverse (fiber.lineage f))
+      [nf :in (reverse (fiber.lineage f))
        :before (file.write stderr "  (fiber)\n")
        {:function func
         :tail tail
@@ -1291,7 +1291,7 @@ value, one key will be ignored."
   (def last (get parts (- (length parts) 1)))
   (def normname (string.replace-all "." "/" path))
   (array.push
-    (mapa (fn [x]
+    (map (fn [x]
            (def y (string.replace "??" last x))
            (string.replace "?" normname y))
          paths)

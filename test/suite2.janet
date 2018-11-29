@@ -41,10 +41,10 @@
 
 # Looping idea
 (def xs 
-  (for [x :in '[-1 0 1], y :in '[-1 0 1] :when (not= x y 0)] (tuple x y)))
+  (seq [x :in '[-1 0 1], y :in '[-1 0 1] :when (not= x y 0)] (tuple x y)))
 (def txs (apply tuple xs))
 
-(assert (= txs '[[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]) "nested for")
+(assert (= txs '[[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]) "nested seq")
 
 # Generators
 (def gen (generate [x :range [0 100] :when (pos? (% x 4))] x))

@@ -421,14 +421,6 @@ static JanetSlot janetc_bufferctor(JanetFopts opts, Janet x) {
             JOP_MAKE_BUFFER);
 }
 
-static JanetSlot janetc_symbol(JanetFopts opts, const uint8_t *sym) {
-    if (janet_string_length(sym) && sym[0] != ':') {
-        return janetc_resolve(opts.compiler, sym);
-    } else {
-        return janetc_cslot(janet_wrap_symbol(sym));
-    }
-}
-
 /* Expand a macro one time. Also get the special form compiler if we
  * find that instead. */
 static int macroexpand1(
@@ -532,7 +524,7 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                 }
                 break;
             case JANET_SYMBOL:
-                ret = janetc_symbol(opts, janet_unwrap_symbol(x));
+                ret = janetc_sym_rvalue(opts, janet_unwrap_symbol(x));
                 break;
             case JANET_ARRAY:
                 ret = janetc_array(opts, x);

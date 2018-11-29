@@ -167,13 +167,13 @@
 (testmarsh (fn name [x] x) "marshal function 1")
 (testmarsh (fn [x] (+ 10 x 2)) "marshal function 2")
 (testmarsh (fn thing [x] (+ 11 x x 30)) "marshal function 3")
-(testmarsh mapa "marshal function 4")
+(testmarsh map "marshal function 4")
 (testmarsh reduce "marshal function 5")
 (testmarsh (fiber.new (fn [] (yield 1) 2)) "marshal simple fiber 1")
 (testmarsh (fiber.new (fn [&] (yield 1) 2)) "marshal simple fiber 2")
 
 # Large functions
-(def manydefs (fora [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
+(def manydefs (seq [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
 (array.push manydefs (tuple * 10000 3 5 7 9))
 (def f (compile (tuple.prepend manydefs 'do) *env*))
 (assert (= (f) (* 10000 3 5 7 9)) "long function compilation")
@@ -206,15 +206,15 @@
 (assert (= 7 (case :a :b 5 :c 6 :u 10 7)), "case with default")
 
 # Testing the loop and for macros
-(def xs (apply tuple (for [x :range [0 10] :when (even? x)] (tuple (/ x 2) x))))
-(assert (= xs '((0 0) (1 2) (2 4) (3 6) (4 8))) "for macro 1")
+(def xs (apply tuple (seq [x :range [0 10] :when (even? x)] (tuple (/ x 2) x))))
+(assert (= xs '((0 0) (1 2) (2 4) (3 6) (4 8))) "seq macro 1")
 
 # Some testing for not=
 (assert (not= 1 1 0) "not= 1")
 (assert (not= 0 1 1) "not= 2")
 
 # Closure in while loop
-(def closures (for [i :range [0 5]] (fn [] i)))
+(def closures (seq [i :range [0 5]] (fn [] i)))
 (assert (= 0 ((get closures 0))) "closure in loop 0")
 (assert (= 1 ((get closures 1))) "closure in loop 1")
 (assert (= 2 ((get closures 2))) "closure in loop 2")
