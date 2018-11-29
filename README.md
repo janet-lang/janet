@@ -98,7 +98,7 @@ Janet only uses Make and batch files to compile on Posix and windows
 respectively. To configure janet, edit the header file src/include/janet/janet.h
 before compilation.
 
-### Posix
+### Unix-like
 
 On most platforms, use Make to build janet.
 
@@ -113,6 +113,17 @@ Will install in `/usr/local` by default, see the Makefile to customize.
 
 It's also recommended to set the `JANET_PATH` variable in your profile.
 This is where janet will look for imported libraries after the current directory.
+
+### FreeBSD
+
+FreeBSD build instructions are the same as the unix-like build instuctions,
+but you need `gmake` and `gcc` to compile.
+
+```
+cd somewhere/my/projects/janet
+gmake CC=gcc
+gmake test CC=gcc
+```
 
 ### Windows
 
