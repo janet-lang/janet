@@ -39,21 +39,20 @@ JANET_PATH?=/usr/local/lib/janet
 DEBUGGER=gdb
 
 # Some system specifics (for macOS)
-UNAME:=$(shell uname -s)
-LDCONFIG:=$(shell [ $(UNAME) != Darwin ] && echo "ldconfig")
-CLIBS:=$(CLIBS) $(shell [ $(UNAME) != Darwin ] && echo "-lrt -rdynamic")
+LDCONFIG!=[ $$(uname -s) != Darwin ] && echo "ldconfig"
+CLIBS:=$(CLIBS) $(shell [ $$(uname -s) != Darwin ] && echo "-lrt -rdynamic")
 
 # Source headers
 JANET_GENERATED_HEADERS= \
 	src/include/generated/core.h \
  	src/include/generated/init.h
-JANET_HEADERS=$(sort $(wildcard src/include/janet/*.h))
-JANET_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
+JANET_HEADERS!=find src/include/janet -type f -name *.h
+JANET_CORE_HEADERS!=find src/core -type f -name *.h
 
 # Source files
-JANET_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
-JANET_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
-JANET_WEBCLIENT_SOURCES=$(sort $(wildcard src/webclient/*.c))
+JANET_CORE_SOURCES!=find src/core/ -type f -name *.c
+JANET_MAINCLIENT_SOURCES!=find src/mainclient -type f -name *.c
+JANET_WEBCLIENT_SOURCES!=find src/webclient -type f -name *.c
 
 all: $(JANET_TARGET) $(JANET_LIBRARY)
 
@@ -88,8 +87,8 @@ src/mainclient/main.o: src/include/generated/init.h
 JANET_ALL_SOURCES=$(JANET_CORE_SOURCES) \
 				$(JANET_MAINCLIENT_SOURCES)
 
-JANET_CORE_OBJECTS=$(patsubst %.c,%.o,$(JANET_CORE_SOURCES))
-JANET_ALL_OBJECTS=$(patsubst %.c,%.o,$(JANET_ALL_SOURCES))
+JANET_CORE_OBJECTS=${JANET_CORE_SOURCES:.c=.o}
+JANET_ALL_OBJECTS=${JANET_ALL_SOURCES:.c=.o}
 
 %.o: %.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
@@ -112,7 +111,7 @@ EMCCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -O2 \
 		  -DJANET_VERSION=$(JANET_VERSION)
 JANET_EMTARGET=janet.js
 JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)
-JANET_EMOBJECTS=$(patsubst %.c,%.bc,$(JANET_WEB_SOURCES))
+JANET_EMOBJECTS=${JANET_WEB_SOURCES:.c=.bc}
 
 # Only a few files depend on generated headers
 src/core/corelib.bc: src/include/generated/core.h
@@ -128,9 +127,9 @@ $(JANET_EMTARGET): $(JANET_EMOBJECTS)
 ##### Testing #####
 ###################
 
-TEST_SOURCES=$(wildcard ctest/*.c)
-TEST_OBJECTS=$(patsubst %.c,%.o,$(TEST_SOURCES))
-TEST_PROGRAMS=$(patsubst %.c,%.out,$(TEST_SOURCES))
+TEST_SOURCES!=find ctest -type f -name *.c
+TEST_OBJECTS=${TEST_SOURCES:.c=.o}
+TEST_PROGRAMS=${TEST_SOURCES:.c=.out}
 
 ctest/%.o: ctest/%.c $(JANET_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
