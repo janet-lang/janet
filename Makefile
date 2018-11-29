@@ -28,7 +28,7 @@ PREFIX?=/usr/local
 INCLUDEDIR=$(PREFIX)/include/janet
 LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
-JANET_VERSION?="\"commit-$(shell git log --pretty=format:'%h' -n 1)\""
+JANET_VERSION?="\"0.0.0-alpha\""
 
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
 	   -DJANET_VERSION=$(JANET_VERSION)
