@@ -29,14 +29,14 @@
               (array.push modifiers ith))
             (if (< i len) (recur (+ i 1)))))))
     (def start (fstart 0))
-    (def args (get more start))
+    (def args more@start)
     # Add function signature to docstring
     (var index 0)
     (def arglen (length args))
     (def buf (buffer "(" name))
     (while (< index arglen)
       (buffer.push-string buf " ")
-      (string.pretty (get args index) 4 buf)
+      (string.pretty args@index 4 buf)
       (:= index (+ index 1)))
     (array.push modifiers (string buf ")\n\n" docstr))
     # Build return value
@@ -95,7 +95,7 @@
 (defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
 (defn keyword? "Check if x is a keyword style symbol."
   [x]
-  (if (not= (type x) :symbol) nil (= 58 (get x 0))))
+  (if (not= (type x) :symbol) nil (= 58 x@0)))
 (defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
 (defn function? "Check if x is a function (not a cfunction)."
   [x] (= (type x) :function))
@@ -183,8 +183,8 @@
   (defn aux [i]
     (def restlen (- (length pairs) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) (get pairs i)
-        (tuple 'if (get pairs i)
+      (if (= restlen 1) pairs@i
+        (tuple 'if pairs@i
                (get pairs (+ i 1))
                (aux (+ i 2))))))
   (aux 0))
@@ -199,8 +199,8 @@
   (defn aux [i]
     (def restlen (- (length pairs) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) (get pairs i)
-        (tuple 'if (tuple = sym (get pairs i))
+      (if (= restlen 1) pairs@i
+        (tuple 'if (tuple = sym pairs@i)
                (get pairs (+ i 1))
                (aux (+ i 2))))))
   (if atm
@@ -234,8 +234,8 @@
     true
     ((fn aux [i]
        (cond
-         (>= (+ 1 i) len) (get forms i)
-         (tuple 'if (get forms i) (aux (+ 1 i)) false))) 0)))
+         (>= (+ 1 i) len) forms@i
+         (tuple 'if forms@i (aux (+ 1 i)) false))) 0)))
 
 (defmacro or
   "Evaluates to the last argument if all preceding elements are false, otherwise
@@ -245,7 +245,7 @@
   (if (= len 0)
     false
     ((fn aux [i]
-       (def fi (get forms i))
+       (def fi forms@i)
        (if
          (>= (+ 1 i) len) fi
          (do
@@ -444,7 +444,7 @@
   (if (zero? len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
   (defn aux [i]
-    (def bl (get bindings i))
+    (def bl bindings@i)
     (def br (get bindings (+ 1 i)))
     (if (>= i len)
       tru
@@ -478,7 +478,7 @@
   [& functions]
   (case (length functions)
     0 nil
-    1 (get functions 0)
+    1 functions@0
     2 (let [[f g]       functions] (fn [x] (f (g x))))
     3 (let [[f g h]     functions] (fn [x] (f (g (h x)))))
     4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
@@ -503,9 +503,9 @@
   [order args]
   (def len (length args))
   (when (pos? len)
-    (var ret (get args 0))
+    (var ret args@0)
     (loop [i :range [0 len]]
-      (def v (get args i))
+      (def v args@i)
       (if (order v ret) (:= ret v)))
     ret))
 
@@ -517,7 +517,7 @@
 (defn first
   "Get the first element from an indexed data structure."
   [xs]
-  (get xs 0))
+  xs@0)
 
 (defn last
   "Get the last element from an indexed data structure."
@@ -536,17 +536,17 @@
 
     (defn partition
       [a lo hi by]
-      (def pivot (get a hi))
+      (def pivot a@hi)
       (var i lo)
       (loop [j :range [lo hi]]
-        (def aj (get a j))
+        (def aj a@j)
         (when (by aj pivot)
-          (def ai (get a i))
-          (put a i aj)
-          (put a j ai)
+          (def ai a@i)
+          (:= a@i aj)
+          (:= a@j ai)
           (++ i)))
-      (put a hi (get a i))
-      (put a i pivot)
+      (:= a@hi a@i)
+      (:= a@i pivot)
       i)
 
     (defn sort-help
@@ -580,21 +580,21 @@
   [f & inds]
   (def ninds (length inds))
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
-  (var limit (length (get inds 0)))
+  (var limit (length inds@0))
   (loop [i :range [0 ninds]]
-    (def l (length (get inds i)))
+    (def l (length inds@i))
     (if (< l limit) (:= limit l)))
   (def [i1 i2 i3 i4] inds)
   (def res (array.new limit))
   (case ninds
-    1 (loop [i :range [0 limit]] (put res i (f (get i1 i))))
-    2 (loop [i :range [0 limit]] (put res i (f (get i1 i) (get i2 i))))
-    3 (loop [i :range [0 limit]] (put res i (f (get i1 i) (get i2 i) (get i3 i))))
-    4 (loop [i :range [0 limit]] (put res i (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
+    1 (loop [i :range [0 limit]] (:= res@i (f i1@i)))
+    2 (loop [i :range [0 limit]] (:= res@i (f i1@i i2@i)))
+    3 (loop [i :range [0 limit]] (:= res@i (f i1@i i2@i i3@i)))
+    4 (loop [i :range [0 limit]] (:= res@i (f i1@i i2@i i3@i i4@i)))
     (loop [i :range [0 limit]]
       (def args (array.new ninds))
-      (loop [j :range [0 ninds]] (put args j (get (get inds j) i)))
-      (put res i (apply f args))))
+      (loop [j :range [0 ninds]] (:= args@j inds@j@i))
+      (:= res@i (apply f args))))
   res)
 
 (defn mapcat
@@ -646,7 +646,7 @@
   (var i 0)
   (var going true)
   (while (if (< i len) going)
-    (def item (get ind i))
+    (def item ind@i)
     (if (pred item) (:= going false) (++ i)))
   (if going nil i))
 
@@ -709,7 +709,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple (get n 0) (array.slice n 1)]
+                 [tuple n@0 (array.slice n 1)]
                  [tuple n @[]]))
     (def parts (array.concat @[h last] t))
     (tuple.slice parts 0))
@@ -722,7 +722,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple (get n 0) (array.slice n 1)]
+                 [tuple n@0 (array.slice n 1)]
                  [tuple n @[]]))
     (def parts (array.concat @[h] t @[last]))
     (tuple.slice parts 0))
@@ -750,7 +750,7 @@
   (var n (dec len))
   (def reversed (array.new len))
   (while (>= n 0)
-    (array.push reversed (get t n))
+    (array.push reversed t@n)
     (-- n))
   reversed)
 
@@ -761,7 +761,7 @@ value, one key will be ignored."
   [ds]
   (def ret @{})
   (loop [k :keys ds]
-    (put ret (get ds k) k))
+    (put ret ds@k k))
   ret)
 
 (defn zipcoll
@@ -773,7 +773,7 @@ value, one key will be ignored."
   (def lv (length vals))
   (def len (if (< lk lv) lk lv))
   (loop [i :range [0 len]]
-    (put res (get keys i) (get vals i)))
+    (put res keys@i vals@i))
   res)
 
 
@@ -781,8 +781,8 @@ value, one key will be ignored."
   "Accepts a key argument and passes its' associated value to a function.
   The key then, is associated to the function's return value"
   [coll a-key a-function & args]
-  (def old-value (get coll a-key))
-  (put coll a-key (apply a-function old-value args)))
+  (def old-value coll@a-key)
+  (:= coll@a-key (apply a-function old-value args)))
 
 (defn merge-into
   "Merges multiple tables/structs into a table. If a key appears in more than one
@@ -791,7 +791,7 @@ value, one key will be ignored."
   [tab & colls]
   (loop [c :in colls
          key :keys c]
-    (put tab key (get c key)))
+    (:= tab@key c@key))
   tab)
 
 (defn merge
@@ -802,7 +802,7 @@ value, one key will be ignored."
   (def container @{})
   (loop [c :in colls
          key :keys c]
-    (put container key (get c key)))
+    (:= container@key c@key))
   container)
 
 (defn keys
@@ -821,7 +821,7 @@ value, one key will be ignored."
   (def arr (array.new (length x)))
   (var k (next x nil))
   (while (not= nil k)
-    (array.push arr (get x k))
+    (array.push arr x@k)
     (:= k (next x k)))
   arr)
 
@@ -831,7 +831,7 @@ value, one key will be ignored."
   (def arr (array.new (length x)))
   (var k (next x nil))
   (while (not= nil k)
-    (array.push arr (tuple k (get x k)))
+    (array.push arr (tuple k x@k))
     (:= k (next x k)))
   arr)
 
@@ -841,8 +841,8 @@ value, one key will be ignored."
   (def freqs @{})
   (loop
     [x :in ind]
-    (def n (get freqs x))
-    (put freqs x (if n (+ 1 n) 1)))
+    (def n freqs@x)
+    (:= freqs@x (if n (+ 1 n) 1)))
   freqs)
 
 (defn interleave
@@ -855,7 +855,7 @@ value, one key will be ignored."
     (def len (apply min (map length cols)))
     (loop [i :range [0 len]
            ci :range [0 ncol]]
-        (array.push res (get (get cols ci) i))))
+        (array.push res cols@ci@i)))
   res)
 
 ###
@@ -909,11 +909,11 @@ value, one key will be ignored."
 (defn doc*
   "Get the documentation for a symbol in a given environment."
   [env sym]
-  (def x (get env sym))
+  (def x env@sym)
   (if (not x)
     (print "symbol " sym " not found.")
     (do
-      (def d (get x :doc))
+      (def d x:doc)
       (print "\n\n" (if d (doc-format d) "no documentation found.") "\n\n"))))
 
 (defmacro doc
@@ -935,7 +935,7 @@ value, one key will be ignored."
     (def newt @{})
     (var key (next t nil))
     (while (not= nil key)
-      (put newt (macroexpand-1 key) (on-value (get t key)))
+      (put newt (macroexpand-1 key) (on-value t@key))
       (:= key (next t key)))
     newt)
 
@@ -949,26 +949,25 @@ value, one key will be ignored."
 
   (defn expanddef [t]
     (def last (get t (- (length t) 1)))
-    (def bound (get t 1))
+    (def bound t@1)
     (tuple.slice
       (array.concat
-        @[(get t 0) (expand-bindings bound)]
+        @[t@0 (expand-bindings bound)]
         (tuple.slice t 2 -2)
-        @[(macroexpand-1 last)])
-      0))
+        @[(macroexpand-1 last)])))
 
   (defn expandall [t]
     (def args (map macroexpand-1 (tuple.slice t 1)))
-    (apply tuple (get t 0) args))
+    (apply tuple t@0 args))
 
   (defn expandfn [t]
-    (if (symbol? (get t 1))
+    (if (symbol? t@1)
       (do
         (def args (map macroexpand-1 (tuple.slice t 3)))
-        (apply tuple 'fn (get t 1) (get t 2) args))
+        (apply tuple 'fn t@1 t@2 args))
       (do
         (def args (map macroexpand-1 (tuple.slice t 2)))
-        (apply tuple 'fn (get t 1) args))))
+        (apply tuple 'fn t@1 args))))
 
   (def specs
     {':= expanddef
@@ -981,11 +980,11 @@ value, one key will be ignored."
      'while expandall})
 
   (defn dotup [t]
-    (def h (get t 0))
-    (def s (get specs h))
-    (def entry (or (get *env* h) {}))
-    (def m (get entry :value))
-    (def m? (get entry :macro))
+    (def h t@0)
+    (def s specs@h)
+    (def entry (or *env*@h {}))
+    (def m entry:value)
+    (def m? entry:macro)
     (cond
       s (s t)
       m? (apply m (tuple.slice t 1))
@@ -1041,79 +1040,6 @@ value, one key will be ignored."
     (:= previous current)
     (:= current (macroexpand-1 current)))
   current)
-
-
-###
-###
-### Classes
-###
-###
-
-(defn- parse-signature
-  "Turn a signature into a (method, object) pair."
-  [signature]
-  (when (not (symbol? signature)) (error "expected method signature"))
-  (def parts (string.split ":" signature))
-  (def self (symbol (get parts 0)))
-  (def method (apply symbol (tuple.slice parts 1)))
-  (tuple (tuple 'quote method) self))
-
-(def class
-  "(class obj)\n\nGets the class of an object."
-  table.getproto)
-
-(defn instance-of?
-  "Checks if an object is an instance of a class."
-  [class obj]
-  (if obj (or
-            (= class obj)
-            (instance-of? class (table.getproto obj)))))
-
-(defmacro call
-  "Call a method."
-  [signature & args]
-  (def [method self] (parse-signature signature))
-  (apply tuple (tuple get self method) self args))
-
-(def $ :macro call)
-
-(defmacro wrap-call
-  "Wrap a method call in a function."
-  [signature & args]
-  (def [method self] (parse-signature signature))
-  (def $m (gensym))
-  (def $args (gensym))
-  (tuple 'do
-         (tuple 'def $m (tuple get self method))
-         (tuple 'fn (symbol "wrapped-" signature) [tuple '& $args]
-                (tuple apply $m self $args))))
-
-(defmacro defm
-  "Defines a method for a class."
-  [signature & args]
-  (def [method self] (parse-signature signature))
-  (def i (find-index tuple? args))
-  (def newargs (array.slice args))
-  (put newargs i (tuple.prepend (get newargs i) 'self))
-  (tuple put self method (apply defn signature newargs)))
-
-(defmacro defnew
-  "Defines the constructor for a class."
-  [class & args]
-  (def newargs (array.slice args))
-  (def i (find-index tuple? args))
-  (array.insert newargs (+ i 1) (tuple 'def 'self (tuple table.setproto @{} class)))
-  (array.push newargs 'self)
-  (tuple put class ''new (apply defn (symbol class :new)  newargs)))
-
-(defmacro defclass
-  "Defines a new prototype class."
-  [name & args]
-  (if (not name) (error "expected a name"))
-  (tuple 'def name
-         (apply tuple table :name (tuple 'quote name) args)))
-
-(put _env 'parse-signature nil)
 
 ###
 ###
@@ -1326,16 +1252,16 @@ value, one key will be ignored."
     (def cache @{})
     (def loading @{})
     (fn require [path args &]
-      (when (get loading path)
+      (when loading@path
         (error (string "circular dependency: module " path " is loading")))
       (def {:exit exit-on-error} (or args {}))
-      (def check (get cache path))
+      (def check cache@path)
       (if check
         check
         (do
           (def newenv (make-env))
-          (put cache path newenv)
-          (put loading path true)
+          (:= cache@path newenv)
+          (:= loading@path true)
           (def f (find-mod path))
           (if f
             (do
@@ -1353,7 +1279,7 @@ value, one key will be ignored."
               (if (not n)
                 (error (string "could not open file for module " path)))
               ((native n) newenv)))
-          (put loading path false)
+          (:= loading@path false)
           newenv)))))
 
 (defn import* [env path & args]
@@ -1365,8 +1291,8 @@ value, one key will be ignored."
   (def {:meta meta} newenv)
   (def prefix (or (and as (string as ".")) prefix (string path ".")))
   (while k
-    (def v (get newenv k))
-    (when (not (get v :private))
+    (def v newenv@k)
+    (when (not v:private)
       (def newv (table.setproto @{:private true} v))
       (put env (symbol prefix k) newv))
     (:= k (next newenv k))))
@@ -1378,7 +1304,7 @@ value, one key will be ignored."
   use the name of the module as a prefix."
   [path & args]
   (def argm (map (fn [x]
-                   (if (and (symbol? x) (= (get x 0) 58))
+                   (if (keyword? x)
                      x
                      (string x)))
                  args))
@@ -1405,5 +1331,5 @@ value, one key will be ignored."
   (def symbol-set @{})
   (loop [envi :in envs
          k :keys envi]
-    (put symbol-set k true))
+    (:= symbol-set@k true))
   (sort (keys symbol-set)))

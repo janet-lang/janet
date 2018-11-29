@@ -208,8 +208,8 @@
 
 (def @ 1)
 (assert (= @ 1) "@ symbol")
-(def @@ 2)
-(assert (= @@ 2) "@@ symbol")
+(def @-- 2)
+(assert (= @-- 2) "@-- symbol")
 (def @hey 3)
 (assert (= @hey 3) "@hey symbol")
 
