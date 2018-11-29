@@ -1,0 +1,11 @@
+image: freebsd
+packages:
+  - gmake
+  - gcc
+sources:
+  - https://github.com/bakpakin/janet.git
+tasks:
+  - build: |
+      cd janet
+      gmake CC=gcc
+      gmake test CC=gcc
