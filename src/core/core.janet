@@ -776,7 +776,6 @@ value, one key will be ignored."
     (put res keys@i vals@i))
   res)
 
-
 (defn update
   "Accepts a key argument and passes its' associated value to a function.
   The key then, is associated to the function's return value"
@@ -999,14 +998,14 @@ value, one key will be ignored."
       x))
   ret)
 
-(defn all? [xs]
+(defn all? [pred xs]
   (var good true)
-  (loop [x :in xs :while good] (if x nil (:= good false)))
+  (loop [x :in xs :while good] (if (pred x) nil (:= good false)))
   good)
 
-(defn some? [xs]
+(defn some? [pred xs]
   (var bad true)
-  (loop [x :in xs :while bad] (if x (:= bad false)))
+  (loop [x :in xs :while bad] (if (pred x) (:= bad false)))
   (not bad))
 
 (defn deep-not= [x y]
@@ -1016,8 +1015,8 @@ value, one key will be ignored."
   (or
     (not= tx (type y))
     (case tx
-      :tuple (or (not= (length x) (length y)) (some? (map deep-not= x y)))
-      :array (or (not= (length x) (length y)) (some? (map deep-not= x y)))
+      :tuple (or (not= (length x) (length y)) (some? identity (map deep-not= x y)))
+      :array (or (not= (length x) (length y)) (some? identity (map deep-not= x y)))
       :struct (deep-not= (pairs x) (pairs y))
       :table (deep-not= (table.to-struct x) (table.to-struct y))
       :buffer (not= (string x) (string y))
@@ -1333,3 +1332,23 @@ value, one key will be ignored."
          k :keys envi]
     (:= symbol-set@k true))
   (sort (keys symbol-set)))
+
+(defmacro qq
+  "Quasiquote."
+  [x]
+  (defn- uqs? [x]
+    (and (tuple? x) (= x@0 'uqs)))
+  (defn- uqs [x]
+    (if (uqs? x)
+      (tuple apply array x@1)
+      @[(qq x)]))
+  (case (type x)
+    :symbol (tuple 'quote x)
+    :tuple (cond 
+             (= x@0 'uq) x@1
+             (some? uqs? x) (tuple  tuple.slice (tuple.prepend (map uqs x) array.concat))
+             (apply tuple tuple (map qq x)))
+    :array (apply array (map qq x))
+    :struct (apply struct (interleave (map qq (keys x)) (map qq (values x))))
+    :table (apply table (interleave (map qq (keys x)) (map qq (values x))))
+    x))
