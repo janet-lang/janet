@@ -1115,14 +1115,12 @@ value, one key will be ignored."
   and is encapsulates the parsing, compilation, and evaluation of janet.
   env is the environment to evaluate the code in, chunks is a function
   that returns strings or buffers of source code (from a repl, file,
-  network connection, etc. onvalue and onerr are callbacks that are
-  invoked when a result is returned and when an error is produced,
-  respectively.
+  network connection, etc. onstatus is a callback that is
+  invoked when a result is returned or any other signal is raised.
 
   This function can be used to implement a repl very easily, simply
-  pass a function that reads line from stdin to chunks, and print to
-  onvalue."
-  [env chunks onvalue onerr where &]
+  pass a function that reads line from stdin to chunks, status-pp to onstatus"
+  [env chunks onstatus where &]
 
   # Are we done yet?
   (var going true)
@@ -1142,21 +1140,17 @@ value, one key will be ignored."
             (do
               (:= good false)
               (def {:error err :line errl :column errc :fiber errf} res)
-              (onerr
-                where
-                "compile"
+              (onstatus
+                :compile
                 (if (< 0 errl)
                   (string err "\n  in a form at line " errl ", column " errc)
                   err)
-                errf))))
+                errf
+                where))))
         :a))
     (def res (resume f nil))
     (when good
-      (def sig (fiber.status f))
-      (if going
-        (if (= sig :dead)
-          (onvalue res)
-          (onerr where "runtime" res f)))))
+      (if going (onstatus (fiber.status f) res f where))))
 
   (def oldenv *env*)
   (:= *env* env)
@@ -1175,19 +1169,29 @@ value, one key will be ignored."
         :full (eval1 (parser.produce p))
         :error (do
                  (def (line col) (parser.where p))
-                 (onerr where "parse"
+                 (onstatus :parse
                         (string (parser.error p)
                                 " on line " line
-                                ", column " col))))))
+                                ", column " col)
+                        nil
+                        where)))))
 
   (:= *env* oldenv)
 
   env)
 
-(defn default-error-handler
-  [source t x f &]
+(defn status-pp
+  "Pretty print a signal and asscoaited state. Can be used as the
+  onsignal argument to run-context."
+  [sig x f source]
+  (def title
+    (case sig
+      :parse "parse error"
+      :compile "compile error"
+      :error "error"
+      (string "status " sig)))
   (file.write stderr
-              (string t " error in " source ": ")
+              (string title " in " source ": ")
               (if (bytes? x) x (string.pretty x))
               "\n")
   (when f
@@ -1234,7 +1238,12 @@ value, one key will be ignored."
       (buffer.push-string buf str)
       (buffer.push-string buf "\n")))
   (var returnval nil)
-  (run-context *env* chunks (fn [x] (:= returnval x)) default-error-handler "eval")
+  (run-context *env* chunks 
+               (fn [sig x f source]
+                 (if (= sig :dead)
+                   (:= returnval x)
+                   (status-pp sig x f source)))
+               "eval")
   returnval)
 
 (do
@@ -1322,10 +1331,11 @@ value, one key will be ignored."
             (do
               # Normal janet module
               (defn chunks [buf _] (file.read f 1024 buf))
-              (run-context newenv chunks identity
-                           (if exit-on-error
-                             (fn [a b c d &] (default-error-handler a b c d) (os.exit 1))
-                             default-error-handler)
+              (run-context newenv chunks
+                           (fn [sig x f source]
+                             (when (not= sig :dead)
+                               (status-pp sig x f source)
+                               (if exit-on-error (os.exit 1))))
                            path)
               (file.close f))
             (do
@@ -1367,15 +1377,19 @@ value, one key will be ignored."
 
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
-  get a chunk of source code. Should return nil for end of file."
-  [chunks onvalue onerr &]
+  get a chunk of source code that should return nil for end of file.
+  The second parameter is a function that is called when a signal is 
+  caught."
+  [chunks onsignal &]
   (def newenv (make-env))
-  (default chunks (fn [&] (file.read stdin :line)))
-  (default onvalue (fn [x]
-                     (put newenv '_ @{:value x})
-                     (print (string.pretty x 20))))
-  (default onerr default-error-handler)
-  (run-context newenv chunks onvalue onerr "repl"))
+  (default chunks (fn [buf _] (file.read stdin :line buf)))
+  (default onsignal (fn [sig x f source]
+                      (case sig
+                        :dead (do
+                                (put newenv '_ @{:value x})
+                                (print (string.pretty x 20)))
+                        (status-pp sig x f source))))
+  (run-context newenv chunks onsignal "repl"))
 
 (defn all-symbols
   "Get all symbols available in the current environment."
