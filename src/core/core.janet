@@ -229,32 +229,33 @@
   "Evaluates to the last argument if all preceding elements are true, otherwise
   evaluates to false."
   [& forms]
+  (var ret true)
   (def len (length forms))
-  (if (= len 0)
-    true
-    ((fn aux [i]
-       (cond
-         (>= (+ 1 i) len) forms@i
-         (tuple 'if forms@i (aux (+ 1 i)) false))) 0)))
+  (var i len)
+  (while (> i 0)
+    (-- i)
+    (:= ret (if (= ret true)
+              forms@i
+              (tuple 'if forms@i ret))))
+  ret)
 
 (defmacro or
   "Evaluates to the last argument if all preceding elements are false, otherwise
   evaluates to true."
   [& forms]
+  (var ret nil)
   (def len (length forms))
-  (if (= len 0)
-    false
-    ((fn aux [i]
-       (def fi forms@i)
-       (if
-         (>= (+ 1 i) len) fi
-         (do
-           (if (atomic? fi)
-             (tuple 'if fi fi (aux (+ 1 i)))
-             (do
-               (def $fi (gensym))
-               (tuple 'do (tuple 'def $fi fi)
-                      (tuple 'if $fi $fi (aux (+ 1 i))))))))) 0)))
+  (var i len)
+  (while (> i 0)
+    (-- i)
+    (def fi forms@i)
+    (:= ret (if (atomic? fi)
+      (tuple 'if fi fi ret)
+      (do
+        (def $fi (gensym))
+        (tuple 'do (tuple 'def $fi fi)
+               (tuple 'if $fi $fi ret))))))
+  ret)
 
 (defmacro loop
   "A general purpose loop macro. This macro is similar to the Common Lisp
@@ -981,7 +982,7 @@ value, one key will be ignored."
 ###
 ###
 
-(defn macroexpand-1
+(defn macex1
   "Expand macros in a form, but do not recursively expand macros."
   [x]
 
@@ -989,7 +990,7 @@ value, one key will be ignored."
     (def newt @{})
     (var key (next t nil))
     (while (not= nil key)
-      (put newt (macroexpand-1 key) (on-value t@key))
+      (put newt (macex1 key) (on-value t@key))
       (:= key (next t key)))
     newt)
 
@@ -999,7 +1000,7 @@ value, one key will be ignored."
       :tuple (tuple.slice (map expand-bindings x))
       :table (dotable x expand-bindings)
       :struct (table.to-struct (dotable x expand-bindings))
-      (macroexpand-1 x)))
+      (macex1 x)))
 
   (defn expanddef [t]
     (def last (get t (- (length t) 1)))
@@ -1008,19 +1009,19 @@ value, one key will be ignored."
       (array.concat
         @[t@0 (expand-bindings bound)]
         (tuple.slice t 2 -2)
-        @[(macroexpand-1 last)])))
+        @[(macex1 last)])))
 
   (defn expandall [t]
-    (def args (map macroexpand-1 (tuple.slice t 1)))
+    (def args (map macex1 (tuple.slice t 1)))
     (apply tuple t@0 args))
 
   (defn expandfn [t]
     (if (symbol? t@1)
       (do
-        (def args (map macroexpand-1 (tuple.slice t 3)))
+        (def args (map macex1 (tuple.slice t 3)))
         (apply tuple 'fn t@1 t@2 args))
       (do
-        (def args (map macroexpand-1 (tuple.slice t 2)))
+        (def args (map macex1 (tuple.slice t 2)))
         (apply tuple 'fn t@1 args))))
 
   (def specs
@@ -1042,14 +1043,14 @@ value, one key will be ignored."
     (cond
       s (s t)
       m? (apply m (tuple.slice t 1))
-      (tuple.slice (map macroexpand-1 t))))
+      (tuple.slice (map macex1 t))))
 
   (def ret
     (case (type x)
       :tuple (dotup x)
-      :array (map macroexpand-1 x)
-      :struct (table.to-struct (dotable x macroexpand-1))
-      :table (dotable x macroexpand-1)
+      :array (map macex1 x)
+      :struct (table.to-struct (dotable x macex1))
+      :table (dotable x macex1)
       x))
   ret)
 
@@ -1082,17 +1083,17 @@ value, one key will be ignored."
   equal if they have identical structure. Much slower than =."
   (not (deep-not= x y)))
 
-(defn macroexpand
+(defn macex
   "Expand macros completely."
   [x]
   (var previous x)
-  (var current (macroexpand-1 x))
+  (var current (macex1 x))
   (var counter 0)
   (while (deep-not= current previous)
     (if (> (++ counter) 200)
       (error "macro expansion too nested"))
     (:= previous current)
-    (:= current (macroexpand-1 current)))
+    (:= current (macex1 current)))
   current)
 
 ###
