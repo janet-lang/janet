@@ -1334,7 +1334,11 @@ value, one key will be ignored."
   (sort (keys symbol-set)))
 
 (defmacro qq
-  "Quasiquote."
+  "Quasiquote. Similar to quote, but allows unquoting
+  from within a nested form. Use the (uq x) form to unquote
+  a form x, or use (uqs x) to do unquote splicing. In a splicing
+  unquote, x should be an array or tuple which will be inserted into
+  the form the is the parent of the (uqs x) form."
   [x]
   (defn- uqs? [x]
     (and (tuple? x) (= x@0 'uqs)))
