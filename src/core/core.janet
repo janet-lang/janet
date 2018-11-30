@@ -891,7 +891,7 @@ value, one key will be ignored."
   [xs]
   (flatten-into @[] xs))
 
-(defn dict-seq
+(defn kvs 
   "Takes a table or struct and returns and array of key value pairs
   like @[k v k v ...]. Returns a new array."
   [dict]
@@ -1408,6 +1408,6 @@ value, one key will be ignored."
              (some uqs? x) (tuple tuple.slice (tuple.prepend (map uqs x) array.concat))
              (apply tuple tuple (map qq x)))
     :array (apply array (map qq x))
-    :struct (apply struct (map qq (dict-seq x)))
-    :table (apply table (map qq (dict-seq x)))
+    :struct (apply struct (map qq (kvs x)))
+    :table (apply table (map qq (kvs x)))
     x))

@@ -505,7 +505,7 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
                 Janet seenid = janet_table_get(&S->seen, x);
                 if (janet_checktype(seenid, JANET_INTEGER)) {
                     janet_buffer_push_cstring(S->buffer, "<cycle ");
-                    integer_to_string_b(S->buffer, janet_unwrap_integer(x));
+                    integer_to_string_b(S->buffer, janet_unwrap_integer(seenid));
                     janet_buffer_push_u8(S->buffer, '>');
                     return;
                 } else {
