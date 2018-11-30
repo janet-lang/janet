@@ -609,11 +609,21 @@
 (defn filter
   "Given a predicate, take only elements from an array or tuple for
   which (pred element) is truthy. Returns a new array."
-  [pred ind t &]
+  [pred ind]
   (def res @[])
   (loop [item :in ind]
     (if (pred item)
       (array.push res item)))
+  res)
+
+(defn keep
+  "Given a predicate, take only elements from an array or tuple for
+  which (pred element) is truthy. Returns a new array of truthy predicate results."
+  [pred ind]
+  (def res @[])
+  (loop [item :in ind]
+    (if-let [y (pred item)]
+      (array.push res y)))
   res)
 
 (defn range
@@ -857,6 +867,51 @@ value, one key will be ignored."
         (array.push res cols@ci@i)))
   res)
 
+(defn distinct
+  "Returns an array of the the deduplicated values in xs."
+  [xs]
+  (def ret @[])
+  (def seen @{})
+  (loop [x :in xs] (if seen@x nil (do (:= seen@x true) (array.push ret x))))
+  ret)
+
+(defn flatten-into
+  "Takes a nested array (tree), and appends the depth first traversal of
+  that array to an array 'into'. Returns array into."
+  [into xs]
+  (loop [x :in xs]
+    (if (indexed? x)
+      (flatten-into into x)
+      (array.push into x)))
+  into)
+
+(defn flatten
+  "Takes a nested array (tree), and returns the depth first traversal of
+  that array. Returns a new array."
+  [xs]
+  (flatten-into @[] xs))
+
+(defn dict-seq
+  "Takes a table or struct and returns and array of key value pairs
+  like @[k v k v ...]. Returns a new array."
+  [dict]
+  (def ret (array.new (* 2 (length dict))))
+  (loop [k :keys dict] (array.push ret k dict@k))
+  ret)
+
+(defn interpose
+  "Returns a sequence of the elements of ind separated by
+  sep. Returns a new array."
+  [sep ind]
+  (def len (length ind))
+  (def ret (array.new (- (* 2 len) 1)))
+  (if (> len 0) (:= ret@0 ind@0))
+  (var i 1)
+  (while (< i len)
+    (array.push ret sep ind@i)
+    (++ i))
+  ret)
+
 ###
 ###
 ### Documentation
@@ -998,15 +1053,15 @@ value, one key will be ignored."
       x))
   ret)
 
-(defn all? [pred xs]
-  (var good true)
-  (loop [x :in xs :while good] (if (pred x) nil (:= good false)))
-  good)
+(defn all [pred xs]
+  (var ret true)
+  (loop [x :in xs :while ret] (:= ret (pred x)))
+  ret)
 
-(defn some? [pred xs]
-  (var bad true)
-  (loop [x :in xs :while bad] (if (pred x) (:= bad false)))
-  (not bad))
+(defn some [pred xs]
+  (var ret nil)
+  (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (:= ret y)))
+  ret)
 
 (defn deep-not= [x y]
   "Like not=, but mutable types (arrays, tables, buffers) are considered
@@ -1015,8 +1070,8 @@ value, one key will be ignored."
   (or
     (not= tx (type y))
     (case tx
-      :tuple (or (not= (length x) (length y)) (some? identity (map deep-not= x y)))
-      :array (or (not= (length x) (length y)) (some? identity (map deep-not= x y)))
+      :tuple (or (not= (length x) (length y)) (some identity (map deep-not= x y)))
+      :array (or (not= (length x) (length y)) (some identity (map deep-not= x y)))
       :struct (deep-not= (pairs x) (pairs y))
       :table (deep-not= (table.to-struct x) (table.to-struct y))
       :buffer (not= (string x) (string y))
@@ -1350,9 +1405,9 @@ value, one key will be ignored."
     :symbol (tuple 'quote x)
     :tuple (cond 
              (= x@0 'uq) x@1
-             (some? uqs? x) (tuple  tuple.slice (tuple.prepend (map uqs x) array.concat))
+             (some uqs? x) (tuple tuple.slice (tuple.prepend (map uqs x) array.concat))
              (apply tuple tuple (map qq x)))
     :array (apply array (map qq x))
-    :struct (apply struct (interleave (map qq (keys x)) (map qq (values x))))
-    :table (apply table (interleave (map qq (keys x)) (map qq (values x))))
+    :struct (apply struct (map qq (dict-seq x)))
+    :table (apply table (map qq (dict-seq x)))
     x))
