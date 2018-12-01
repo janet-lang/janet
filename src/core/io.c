@@ -366,8 +366,8 @@ static int janet_io_fseek(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"file.open", janet_io_fopen,
-        "(file.open path [,mode])\n\n"
+    {"file/open", janet_io_fopen,
+        "(file/open path [,mode])\n\n"
         "Open a file. path is files absolute or relative path, and "
         "mode is a set of flags indicating the mode to open the file in. "
         "mode is a keyword where each character represents a flag. If the file "
@@ -379,14 +379,14 @@ static const JanetReg cfuns[] = {
         "\tb - open the file in binary mode (rather than text mode)\n"
         "\t+ - append to the file instead of overwriting it"
     },
-    {"file.close", janet_io_fclose,
-        "(file.close f)\n\n"
+    {"file/close", janet_io_fclose,
+        "(file/close f)\n\n"
         "Close a file and release all related resources. When you are "
         "done reading a file, close it to prevent a resource leak and let "
         "other processes read the file."
     },
-    {"file.read", janet_io_fread,
-        "(file.read f what [,buf])\n\n"
+    {"file/read", janet_io_fread,
+        "(file/read f what [,buf])\n\n"
         "Read a number of bytes from a file into a buffer. A buffer can "
         "be provided as an optional fourth argument. otherwise a new buffer "
         "is created. 'what' can either be an integer or a keyword. Returns the "
@@ -396,18 +396,18 @@ static const JanetReg cfuns[] = {
         "\t:line - read up to and including the next newline character\n"
         "\tn (integer) - read up to n bytes from the file"
     },
-    {"file.write", janet_io_fwrite,
-        "(file.write f bytes)\n\n"
+    {"file/write", janet_io_fwrite,
+        "(file/write f bytes)\n\n"
         "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
         "file"
     },
-    {"file.flush", janet_io_fflush,
-        "(file.flush f)\n\n"
+    {"file/flush", janet_io_fflush,
+        "(file/flush f)\n\n"
         "Flush any buffered bytes to the filesystem. In most files, writes are "
         "buffered for efficiency reasons. Returns the file handle."
     },
-    {"file.seek", janet_io_fseek,
-        "(file.seek f [,whence [,n]])\n\n"
+    {"file/seek", janet_io_fseek,
+        "(file/seek f [,whence [,n]])\n\n"
         "Jump to a relative location in the file. 'whence' must be one of\n\n"
         "\t:cur - jump relative to the current file location\n"
         "\t:set - jump relative to the beginning of the file\n"
@@ -416,8 +416,8 @@ static const JanetReg cfuns[] = {
         "for the relative number of bytes to seek in the file. n may be a real "
         "number to handle large files of more the 4GB. Returns the file handle."
     },
-    {"file.popen", janet_io_popen,
-        "(file.popen path [,mode])\n\n"
+    {"file/popen", janet_io_popen,
+        "(file/popen path [,mode])\n\n"
         "Open a file that is backed by a process. The file must be opened in either "
         "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
         "process can be read from the file. In :w mode, the stdin of the process "

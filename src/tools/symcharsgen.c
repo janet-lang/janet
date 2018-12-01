@@ -45,7 +45,6 @@ static int is_symbol_char_gen(uint8_t c) {
         c == '@' ||
         c == '^' ||
         c == '_' ||
-        c == '~' ||
         c == '|');
 }
 

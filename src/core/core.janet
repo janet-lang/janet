@@ -26,23 +26,21 @@
           (do
             (if (= t :string)
               (:= docstr ith)
-              (array.push modifiers ith))
+              (array/push modifiers ith))
             (if (< i len) (recur (+ i 1)))))))
     (def start (fstart 0))
-    (def args more@start)
+    (def args more.start)
     # Add function signature to docstring
     (var index 0)
     (def arglen (length args))
     (def buf (buffer "(" name))
     (while (< index arglen)
-      (buffer.push-string buf " ")
-      (string.pretty args@index 4 buf)
+      (buffer/push-string buf " ")
+      (string/pretty args.index 4 buf)
       (:= index (+ index 1)))
-    (array.push modifiers (string buf ")\n\n" docstr))
+    (array/push modifiers (string buf ")\n\n" docstr))
     # Build return value
-    (def fnbody (tuple.prepend (tuple.prepend (tuple.slice more start) name) 'fn))
-    (def formargs (array.concat @['def name] modifiers @[fnbody]))
-    (tuple.slice formargs 0)))
+    ~(def ,name ;modifiers (fn ,name ;(tuple/slice more start)))))
 
 (defn defmacro :macro
   "Define a macro."
@@ -62,7 +60,7 @@
 (defmacro def-
   "Define a private value that will not be exported."
   [name & more]
-  (tuple.slice (array.concat @['def name :private] more)))
+  ~(def name :private ;more))
 
 (defn defglobal
   "Dynamically create a global def."
@@ -95,7 +93,7 @@
 (defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
 (defn keyword? "Check if x is a keyword style symbol."
   [x]
-  (if (not= (type x) :symbol) nil (= 58 x@0)))
+  (if (not= (type x) :symbol) nil (= 58 x.0)))
 (defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
 (defn function? "Check if x is a function (not a cfunction)."
   [x] (= (type x) :function))
@@ -135,25 +133,25 @@
 # C style macros and functions for imperative sugar
 (defn inc "Returns x + 1." [x] (+ x 1))
 (defn dec "Returns x - 1." [x] (- x 1))
-(defmacro ++ "Increments the var x by 1." [x] (tuple ':= x (tuple + x 1)))
-(defmacro -- "Decrements the var x by 1." [x] (tuple ':= x (tuple - x 1)))
-(defmacro += "Increments the var x by n." [x n] (tuple ':= x (tuple + x n)))
-(defmacro -= "Decrements the vat x by n." [x n] (tuple ':= x (tuple - x n)))
-(defmacro *= "Shorthand for (:= x (* x n))." [x n] (tuple ':= x (tuple * x n)))
-(defmacro /= "Shorthand for (:= x (/ x n))." [x n] (tuple ':= x (tuple / x n)))
-(defmacro %= "Shorthand for (:= x (% x n))." [x n] (tuple ':= x (tuple % x n)))
-(defmacro &= "Shorthand for (:= x (& x n))." [x n] (tuple ':= x (tuple & x n)))
-(defmacro |= "Shorthand for (:= x (| x n))." [x n] (tuple ':= x (tuple | x n)))
-(defmacro ^= "Shorthand for (:= x (^ x n))." [x n] (tuple ':= x (tuple ^ x n)))
-(defmacro >>= "Shorthand for (:= x (>> x n))." [x n] (tuple ':= x (tuple >> x n)))
-(defmacro <<= "Shorthand for (:= x (<< x n))." [x n] (tuple ':= x (tuple << x n)))
-(defmacro >>>= "Shorthand for (:= x (>>> x n))." [x n] (tuple ':= x (tuple >>> x n)))
+(defmacro ++ "Increments the var x by 1." [x] ~(:= ,x (,+ ,x ,1)))
+(defmacro -- "Decrements the var x by 1." [x] ~(:= ,x (,- ,x ,1)))
+(defmacro += "Increments the var x by n." [x n] ~(:= ,x (,+ ,x ,n)))
+(defmacro -= "Decrements the vat x by n." [x n] ~(:= ,x (,- ,x ,n)))
+(defmacro *= "Shorthand for (:= x (* x n))." [x n] ~(:= ,x (,* ,x ,n)))
+(defmacro /= "Shorthand for (:= x (/ x n))." [x n] ~(:= ,x (,/ ,x ,n)))
+(defmacro %= "Shorthand for (:= x (% x n))." [x n] ~(:= ,x (,% ,x ,n)))
+(defmacro &= "Shorthand for (:= x (& x n))." [x n] ~(:= ,x (,& ,x ,n)))
+(defmacro |= "Shorthand for (:= x (| x n))." [x n] ~(:= ,x (,| ,x ,n)))
+(defmacro ^= "Shorthand for (:= x (^ x n))." [x n] ~(:= ,x (,^ ,x ,n)))
+(defmacro >>= "Shorthand for (:= x (>> x n))." [x n] ~(:= ,x (,>> ,x ,n)))
+(defmacro <<= "Shorthand for (:= x (<< x n))." [x n] ~(:= ,x (,<< ,x ,n)))
+(defmacro >>>= "Shorthand for (:= x (>>> x n))." [x n] ~(:= ,x (,>>> ,x ,n)))
 
 (defmacro default
   "Define a default value for an optional argument.
   Expands to (def sym (if (= nil sym) val sym))"
   [sym val]
-  (tuple 'def sym (tuple 'if (tuple = nil sym) val sym)))
+  ~(def ,sym (if (= nil ,sym) ,val ,sym)))
 
 (defmacro comment
   "Ignores the body of the comment."
@@ -162,17 +160,17 @@
 (defmacro if-not
   "Shorthand for (if (not ... "
   [condition exp-1 exp-2]
-  (tuple 'if condition exp-2 exp-1))
+  ~(if ,condition ,exp-2 ,exp-1))
 
 (defmacro when
   "Evaluates the body when the condition is true. Otherwise returns nil."
   [condition & body]
-  (tuple 'if condition (tuple.prepend body 'do)))
+  ~(if ,condition (do ;body)))
 
 (defmacro unless
   "Shorthand for (when (not ... "
   [condition & body]
-  (tuple 'if condition nil (tuple.prepend body 'do)))
+  ~(if ,condition nil (do ;body)))
 
 (defmacro cond
   "Evaluates conditions sequentially until the first true condition
@@ -183,8 +181,8 @@
   (defn aux [i]
     (def restlen (- (length pairs) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) pairs@i
-        (tuple 'if pairs@i
+      (if (= restlen 1) pairs.i
+        (tuple 'if pairs.i
                (get pairs (+ i 1))
                (aux (+ i 2))))))
   (aux 0))
@@ -199,8 +197,8 @@
   (defn aux [i]
     (def restlen (- (length pairs) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) pairs@i
-        (tuple 'if (tuple = sym pairs@i)
+      (if (= restlen 1) pairs.i
+        (tuple 'if (tuple = sym pairs.i)
                (get pairs (+ i 1))
                (aux (+ i 2))))))
   (if atm
@@ -220,10 +218,10 @@
   (var accum @['do])
   (while (< i len)
     (def {i k (+ i 1) v} bindings)
-    (array.push accum (tuple 'def k v))
+    (array/push accum (tuple 'def k v))
     (+= i 2))
-  (array.concat accum body)
-  (tuple.slice accum 0))
+  (array/concat accum body)
+  (tuple/slice accum 0))
 
 (defmacro and
   "Evaluates to the last argument if all preceding elements are true, otherwise
@@ -235,8 +233,8 @@
   (while (> i 0)
     (-- i)
     (:= ret (if (= ret true)
-              forms@i
-              (tuple 'if forms@i ret))))
+              forms.i
+              (tuple 'if forms.i ret))))
   ret)
 
 (defmacro or
@@ -248,7 +246,7 @@
   (var i len)
   (while (> i 0)
     (-- i)
-    (def fi forms@i)
+    (def fi forms.i)
     (:= ret (if (atomic? fi)
       (tuple 'if fi fi ret)
       (do
@@ -293,7 +291,7 @@
     [i preds &]
     (default preds @['and])
     (if (>= i len)
-      (tuple.prepend body 'do)
+      (tuple/prepend body 'do)
       (do
         (def {i bindings
               (+ i 1) verb
@@ -301,7 +299,7 @@
         (if (keyword? bindings)
           (case bindings
             :while (do
-                     (array.push preds verb)
+                     (array/push preds verb)
                      (doone (+ i 2) preds))
             :let (tuple 'let verb (doone (+ i 2) preds))
             :when (tuple 'if verb (doone (+ i 2) preds))
@@ -316,7 +314,7 @@
                              (tuple 'def $n verb)
                              (tuple 'var $iter 0)
                              (tuple 'while
-                                    (tuple.slice spreds)
+                                    (tuple/slice spreds)
                                     (tuple := $iter (tuple + 1 $iter))
                                     sub)))
             (error (string "unexpected loop predicate: " bindings)))
@@ -327,7 +325,7 @@
                        (def subloop (doone (+ i 3) preds))
                        (tuple 'do
                               (tuple 'var $iter nil)
-                              (tuple 'while (tuple.slice preds 0)
+                              (tuple 'while (tuple/slice preds)
                                      (tuple 'def bindings $iter)
                                      subloop)))
             :range (do
@@ -340,7 +338,7 @@
                      (tuple 'do
                             (tuple 'var $iter start)
                             (tuple 'def endsym end)
-                            (tuple 'while (tuple.slice preds 0)
+                            (tuple 'while (tuple/slice preds)
                                    (tuple 'def bindings $iter)
                                    subloop
                                    (tuple ':= $iter (tuple + $iter inc)))))
@@ -352,7 +350,7 @@
                     (tuple 'do
                            (tuple 'def $dict object)
                            (tuple 'var $iter (tuple next $dict nil))
-                           (tuple 'while (tuple.slice preds 0)
+                           (tuple 'while (tuple/slice preds)
                                   (tuple 'def bindings $iter)
                                   subloop
                                   (tuple ':= $iter (tuple next $dict $iter)))))
@@ -366,7 +364,7 @@
                          (tuple 'def $indexed object)
                          (tuple 'def $len (tuple length $indexed))
                          (tuple 'var $i 0)
-                         (tuple 'while (tuple.slice preds 0)
+                         (tuple 'while (tuple/slice preds 0)
                                 (tuple 'def bindings (tuple get $indexed $i))
                                 subloop
                                 (tuple ':= $i (tuple + 1 $i)))))
@@ -377,13 +375,13 @@
                                   (do
                                     (def s (gensym))
                                     (tuple 'do
-                                           (tuple 'def s (tuple fiber.status $fiber))
+                                           (tuple 'def s (tuple fiber/status $fiber))
                                            (tuple 'or (tuple = s :pending) (tuple = s :new))))])
                      (def subloop (doone (+ i 3) preds))
                      (tuple 'do
                             (tuple 'def $fiber object)
                             (tuple 'var $yieldval (tuple resume $fiber))
-                            (tuple 'while (tuple.slice preds 0)
+                            (tuple 'while (tuple/slice preds 0)
                                    (tuple 'def bindings $yieldval)
                                    subloop
                                    (tuple := $yieldval (tuple resume $fiber)))))
@@ -398,18 +396,15 @@
   (tuple 'do
          (tuple 'def $accum @[])
          (tuple 'loop head
-                (tuple array.push $accum
-                       (tuple.prepend body 'do)))
+                (tuple array/push $accum
+                       (tuple/prepend body 'do)))
          $accum))
 
 (defmacro generate
   "Create a generator expression using the loop syntax. Returns a fiber
   that yields all values inside the loop in order. See loop for details."
   [head & body]
-  # `(fiber.new (fn [&] (loop ,head (yield (do ,@body)))))
-  (tuple fiber.new
-         (tuple 'fn '[&]
-                (tuple 'loop head (tuple yield (tuple.prepend body 'do))))))
+  ~(fiber/new (fn [&] (loop ,head (yield (do ;body))))))
 
 (defmacro for
   "Do a c style for loop for side effects. Returns nil."
@@ -432,9 +427,9 @@
   accum)
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber.new (fn [&] ...body))."
+  "A wrapper for making fibers. Same as (fiber/new (fn [&] ...body))."
   [& body]
-  (tuple fiber.new (apply tuple 'fn '[&] body)))
+  (tuple fiber/new (apply tuple 'fn '[&] body)))
 
 (defmacro if-let
   "Takes the first one or two forms in a vector and if both are true binds
@@ -445,7 +440,7 @@
   (if (zero? len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
   (defn aux [i]
-    (def bl bindings@i)
+    (def bl bindings.i)
     (def br (get bindings (+ 1 i)))
     (if (>= i len)
       tru
@@ -471,7 +466,7 @@
   "Takes the first one or two forms in vector and if true binds
   all the forms  with let and evaluates the body"
   [bindings & body]
-  (tuple 'if-let bindings (tuple.prepend body 'do)))
+  ~(if-let ,bindings (do ;body)))
 
 (defn comp
   "Takes multiple functions and returns a function that is the composition
@@ -479,13 +474,13 @@
   [& functions]
   (case (length functions)
     0 nil
-    1 functions@0
+    1 functions.0
     2 (let [[f g]       functions] (fn [x] (f (g x))))
     3 (let [[f g h]     functions] (fn [x] (f (g (h x)))))
     4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
     (let [[f g h i j] functions]
       (apply comp (fn [x] (f (g (h (i (j x))))))
-             (tuple.slice functions 5 -1)))))
+             (tuple/slice functions 5 -1)))))
 
 (defn identity
   "A function that returns its first argument."
@@ -504,9 +499,9 @@
   [order args]
   (def len (length args))
   (when (pos? len)
-    (var ret args@0)
+    (var ret args.0)
     (loop [i :range [0 len]]
-      (def v args@i)
+      (def v args.i)
       (if (order v ret) (:= ret v)))
     ret))
 
@@ -518,7 +513,7 @@
 (defn first
   "Get the first element from an indexed data structure."
   [xs]
-  xs@0)
+  xs.0)
 
 (defn last
   "Get the last element from an indexed data structure."
@@ -537,17 +532,17 @@
 
     (defn partition
       [a lo hi by]
-      (def pivot a@hi)
+      (def pivot a.hi)
       (var i lo)
       (loop [j :range [lo hi]]
-        (def aj a@j)
+        (def aj a.j)
         (when (by aj pivot)
-          (def ai a@i)
-          (:= a@i aj)
-          (:= a@j ai)
+          (def ai a.i)
+          (:= a.i aj)
+          (:= a.j ai)
           (++ i)))
-      (:= a@hi a@i)
-      (:= a@i pivot)
+      (:= a.hi a.i)
+      (:= a.i pivot)
       i)
 
     (defn sort-help
@@ -564,7 +559,7 @@
 (defn sorted
   "Returns a new sorted array without modifying the old one."
   [ind by]
-  (sort (array.slice ind) by))
+  (sort (array/slice ind) by))
 
 (defn reduce
   "Reduce, also know as fold-left in many languages, transforms
@@ -581,21 +576,21 @@
   [f & inds]
   (def ninds (length inds))
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
-  (var limit (length inds@0))
+  (var limit (length inds.0))
   (loop [i :range [0 ninds]]
-    (def l (length inds@i))
+    (def l (length inds.i))
     (if (< l limit) (:= limit l)))
   (def [i1 i2 i3 i4] inds)
-  (def res (array.new limit))
+  (def res (array/new limit))
   (case ninds
-    1 (loop [i :range [0 limit]] (:= res@i (f i1@i)))
-    2 (loop [i :range [0 limit]] (:= res@i (f i1@i i2@i)))
-    3 (loop [i :range [0 limit]] (:= res@i (f i1@i i2@i i3@i)))
-    4 (loop [i :range [0 limit]] (:= res@i (f i1@i i2@i i3@i i4@i)))
+    1 (loop [i :range [0 limit]] (:= res.i (f i1.i)))
+    2 (loop [i :range [0 limit]] (:= res.i (f i1.i i2.i)))
+    3 (loop [i :range [0 limit]] (:= res.i (f i1.i i2.i i3.i)))
+    4 (loop [i :range [0 limit]] (:= res.i (f i1.i i2.i i3.i i4.i)))
     (loop [i :range [0 limit]]
-      (def args (array.new ninds))
-      (loop [j :range [0 ninds]] (:= args@j inds@j@i))
-      (:= res@i (apply f args))))
+      (def args (array/new ninds))
+      (loop [j :range [0 ninds]] (:= args.j inds.j.i))
+      (:= res.i (apply f args))))
   res)
 
 (defn mapcat
@@ -604,7 +599,7 @@
   [f ind]
   (def res @[])
   (loop [x :in ind]
-    (array.concat res (f x)))
+    (array/concat res (f x)))
   res)
 
 (defn filter
@@ -614,7 +609,7 @@
   (def res @[])
   (loop [item :in ind]
     (if (pred item)
-      (array.push res item)))
+      (array/push res item)))
   res)
 
 (defn keep
@@ -624,7 +619,7 @@
   (def res @[])
   (loop [item :in ind]
     (if-let [y (pred item)]
-      (array.push res y)))
+      (array/push res y)))
   res)
 
 (defn range
@@ -635,17 +630,17 @@
   (case (length args)
     1 (do
         (def [n] args)
-        (def arr (array.new n))
+        (def arr (array/new n))
         (loop [i :range [0 n]] (put arr i i))
         arr)
     2 (do
         (def [n m] args)
-        (def arr (array.new n))
+        (def arr (array/new n))
         (loop [i :range [n m]] (put arr (- i n) i))
         arr)
     3 (do
         (def [n m s] args)
-        (def arr (array.new n))
+        (def arr (array/new n))
         (loop [i :range [n m s]] (put arr (- i n) i))
         arr)
     (error "expected 1 to 3 arguments to range")))
@@ -657,7 +652,7 @@
   (var i 0)
   (var going true)
   (while (if (< i len) going)
-    (def item ind@i)
+    (def item ind.i)
     (if (pred item) (:= going false) (++ i)))
   (if going nil i))
 
@@ -674,7 +669,7 @@
   [pred ind]
   (def i (find-index pred ind))
   (if i
-    (array.slice ind 0 i)
+    (array/slice ind 0 i)
     ind))
 
 (defn take-while
@@ -687,7 +682,7 @@
   the predicate, and abort on first failure. Returns a new tuple."
   [pred ind]
   (def i (find-index pred ind))
-  (array.slice ind i))
+  (array/slice ind i))
 
 (defn drop-while
   "Same as (drop-until (complement pred) ind)."
@@ -701,8 +696,8 @@
   (fn [& args]
     (def ret @[])
     (loop [f :in funs]
-      (array.push ret (apply f args)))
-    (tuple.slice ret 0)))
+      (array/push ret (apply f args)))
+    (tuple/slice ret 0)))
 
 (defmacro juxt
   "Macro form of juxt*. Same behavior but more efficient."
@@ -710,8 +705,8 @@
   (def parts @['tuple])
   (def $args (gensym))
   (loop [f :in funs]
-    (array.push parts (tuple apply f $args)))
-  (tuple 'fn (tuple '& $args) (tuple.slice parts 0)))
+    (array/push parts (tuple apply f $args)))
+  (tuple 'fn (tuple '& $args) (tuple/slice parts 0)))
 
 (defmacro ->
   "Threading macro. Inserts x as the second value in the first form
@@ -720,10 +715,10 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple n@0 (array.slice n 1)]
+                 [tuple n.0 (array/slice n 1)]
                  [tuple n @[]]))
-    (def parts (array.concat @[h last] t))
-    (tuple.slice parts 0))
+    (def parts (array/concat @[h last] t))
+    (tuple/slice parts 0))
   (reduce fop x forms))
 
 (defmacro ->>
@@ -733,25 +728,25 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple n@0 (array.slice n 1)]
+                 [tuple n.0 (array/slice n 1)]
                  [tuple n @[]]))
-    (def parts (array.concat @[h] t @[last]))
-    (tuple.slice parts 0))
+    (def parts (array/concat @[h] t @[last]))
+    (tuple/slice parts 0))
   (reduce fop x forms))
 
 (defn partial
   "Partial function application."
   [f & more]
   (if (zero? (length more)) f
-    (fn [& r] (apply f (array.concat @[] more r)))))
+    (fn [& r] (apply f (array/concat @[] more r)))))
 
 (defn every? 
-  "Returns true if the predicate pred is true for every
-  value in ind, otherwise false."
-  [pred ind]
+  "Returns true if each value in is truthy, otherwise the first
+  falsey value."
+  [ind]
   (var res true)
   (loop [x :in ind :while res]
-    (if (pred x) (:= res false)))
+    (if x nil (:= res x)))
   res)
 
 (defn reverse
@@ -759,9 +754,9 @@
   [t]
   (def len (length t))
   (var n (dec len))
-  (def reversed (array.new len))
+  (def reversed (array/new len))
   (while (>= n 0)
-    (array.push reversed t@n)
+    (array/push reversed t.n)
     (-- n))
   reversed)
 
@@ -772,7 +767,7 @@ value, one key will be ignored."
   [ds]
   (def ret @{})
   (loop [k :keys ds]
-    (put ret ds@k k))
+    (put ret ds.k k))
   ret)
 
 (defn zipcoll
@@ -784,15 +779,15 @@ value, one key will be ignored."
   (def lv (length vals))
   (def len (if (< lk lv) lk lv))
   (loop [i :range [0 len]]
-    (put res keys@i vals@i))
+    (put res keys.i vals.i))
   res)
 
 (defn update
   "Accepts a key argument and passes its' associated value to a function.
   The key then, is associated to the function's return value"
   [coll a-key a-function & args]
-  (def old-value coll@a-key)
-  (:= coll@a-key (apply a-function old-value args)))
+  (def old-value coll.a-key)
+  (:= coll.a-key (apply a-function old-value args)))
 
 (defn merge-into
   "Merges multiple tables/structs into a table. If a key appears in more than one
@@ -801,7 +796,7 @@ value, one key will be ignored."
   [tab & colls]
   (loop [c :in colls
          key :keys c]
-    (:= tab@key c@key))
+    (:= tab.key c.key))
   tab)
 
 (defn merge
@@ -812,36 +807,36 @@ value, one key will be ignored."
   (def container @{})
   (loop [c :in colls
          key :keys c]
-    (:= container@key c@key))
+    (:= container.key c.key))
   container)
 
 (defn keys
   "Get the keys of an associative data structure."
   [x]
-  (def arr (array.new (length x)))
+  (def arr (array/new (length x)))
   (var k (next x nil))
   (while (not= nil k)
-    (array.push arr k)
+    (array/push arr k)
     (:= k (next x k)))
   arr)
 
 (defn values
   "Get the values of an associative data structure."
   [x]
-  (def arr (array.new (length x)))
+  (def arr (array/new (length x)))
   (var k (next x nil))
   (while (not= nil k)
-    (array.push arr x@k)
+    (array/push arr x.k)
     (:= k (next x k)))
   arr)
 
 (defn pairs
   "Get the values of an associative data structure."
   [x]
-  (def arr (array.new (length x)))
+  (def arr (array/new (length x)))
   (var k (next x nil))
   (while (not= nil k)
-    (array.push arr (tuple k x@k))
+    (array/push arr (tuple k x.k))
     (:= k (next x k)))
   arr)
 
@@ -851,8 +846,8 @@ value, one key will be ignored."
   (def freqs @{})
   (loop
     [x :in ind]
-    (def n freqs@x)
-    (:= freqs@x (if n (+ 1 n) 1)))
+    (def n freqs.x)
+    (:= freqs.x (if n (+ 1 n) 1)))
   freqs)
 
 (defn interleave
@@ -865,7 +860,7 @@ value, one key will be ignored."
     (def len (apply min (map length cols)))
     (loop [i :range [0 len]
            ci :range [0 ncol]]
-        (array.push res cols@ci@i)))
+        (array/push res cols.ci.i)))
   res)
 
 (defn distinct
@@ -873,7 +868,7 @@ value, one key will be ignored."
   [xs]
   (def ret @[])
   (def seen @{})
-  (loop [x :in xs] (if seen@x nil (do (:= seen@x true) (array.push ret x))))
+  (loop [x :in xs] (if seen.x nil (do (:= seen.x true) (array/push ret x))))
   ret)
 
 (defn flatten-into
@@ -883,7 +878,7 @@ value, one key will be ignored."
   (loop [x :in xs]
     (if (indexed? x)
       (flatten-into into x)
-      (array.push into x)))
+      (array/push into x)))
   into)
 
 (defn flatten
@@ -896,8 +891,8 @@ value, one key will be ignored."
   "Takes a table or struct and returns and array of key value pairs
   like @[k v k v ...]. Returns a new array."
   [dict]
-  (def ret (array.new (* 2 (length dict))))
-  (loop [k :keys dict] (array.push ret k dict@k))
+  (def ret (array/new (* 2 (length dict))))
+  (loop [k :keys dict] (array/push ret k dict.k))
   ret)
 
 (defn interpose
@@ -905,11 +900,11 @@ value, one key will be ignored."
   sep. Returns a new array."
   [sep ind]
   (def len (length ind))
-  (def ret (array.new (- (* 2 len) 1)))
-  (if (> len 0) (:= ret@0 ind@0))
+  (def ret (array/new (- (* 2 len) 1)))
+  (if (> len 0) (:= ret.0 ind.0))
   (var i 1)
   (while (< i len)
-    (array.push ret sep ind@i)
+    (array/push ret sep ind.i)
     (++ i))
   ret)
 
@@ -941,19 +936,19 @@ value, one key will be ignored."
         (do (++ current) " ")))
     (+= current (length word))
     (if (> oldcur 0)
-      (buffer.push-string buf spacer))
-    (buffer.push-string buf word)
-    (buffer.clear word))
+      (buffer/push-string buf spacer))
+    (buffer/push-string buf word)
+    (buffer/clear word))
 
   (loop [b :in text]
     (if (and (not= b 10) (not= b 32))
         (if (= b 9)
-          (buffer.push-string word "  ")
-          (buffer.push-byte word b))
+          (buffer/push-string word "  ")
+          (buffer/push-byte word b))
         (do
           (if (> (length word) 0) (pushword))
           (when (= b 10)
-            (buffer.push-string buf "\n    ")
+            (buffer/push-string buf "\n    ")
             (:= current 0)))))
 
   # Last word
@@ -964,7 +959,7 @@ value, one key will be ignored."
 (defn doc*
   "Get the documentation for a symbol in a given environment."
   [env sym]
-  (def x env@sym)
+  (def x env.sym)
   (if (not x)
     (print "symbol " sym " not found.")
     (do
@@ -990,39 +985,53 @@ value, one key will be ignored."
     (def newt @{})
     (var key (next t nil))
     (while (not= nil key)
-      (put newt (macex1 key) (on-value t@key))
+      (put newt (macex1 key) (on-value t.key))
       (:= key (next t key)))
     newt)
 
   (defn expand-bindings [x]
     (case (type x)
       :array (map expand-bindings x)
-      :tuple (tuple.slice (map expand-bindings x))
+      :tuple (tuple/slice (map expand-bindings x))
       :table (dotable x expand-bindings)
-      :struct (table.to-struct (dotable x expand-bindings))
+      :struct (table/to-struct (dotable x expand-bindings))
       (macex1 x)))
 
   (defn expanddef [t]
     (def last (get t (- (length t) 1)))
-    (def bound t@1)
-    (tuple.slice
-      (array.concat
-        @[t@0 (expand-bindings bound)]
-        (tuple.slice t 2 -2)
+    (def bound t.1)
+    (tuple/slice
+      (array/concat
+        @[t.0 (expand-bindings bound)]
+        (tuple/slice t 2 -2)
         @[(macex1 last)])))
 
   (defn expandall [t]
-    (def args (map macex1 (tuple.slice t 1)))
-    (apply tuple t@0 args))
+    (def args (map macex1 (tuple/slice t 1)))
+    (apply tuple t.0 args))
 
   (defn expandfn [t]
-    (if (symbol? t@1)
+    (if (symbol? t.1)
       (do
-        (def args (map macex1 (tuple.slice t 3)))
-        (apply tuple 'fn t@1 t@2 args))
+        (def args (map macex1 (tuple/slice t 3)))
+        (apply tuple 'fn t.1 t.2 args))
       (do
-        (def args (map macex1 (tuple.slice t 2)))
-        (apply tuple 'fn t@1 args))))
+        (def args (map macex1 (tuple/slice t 2)))
+        (apply tuple 'fn t.1 args))))
+
+  (defn expandqq [t]
+    (defn qq [x]
+      (case (type x)
+        :tuple (do
+                 (def x0 x.0)
+                 (if (or (= 'unquote x0) (= 'unquote-splicing x0))
+                   (tuple x0 (macex1 x.1))
+                   (tuple/slice (map qq x))))
+        :array (map qq x)
+        :table (table (map qq (kvs x)))
+        :struct (struct (map qq (kvs x)))
+        x))
+    (tuple t.0 (qq t.1)))
 
   (def specs
     {':= expanddef
@@ -1031,25 +1040,26 @@ value, one key will be ignored."
      'fn expandfn
      'if expandall
      'quote identity
+     'quasiquote expandqq
      'var expanddef
      'while expandall})
 
   (defn dotup [t]
-    (def h t@0)
-    (def s specs@h)
-    (def entry (or *env*@h {}))
+    (def h t.0)
+    (def s specs.h)
+    (def entry (or *env*.h {}))
     (def m entry:value)
     (def m? entry:macro)
     (cond
       s (s t)
-      m? (apply m (tuple.slice t 1))
-      (tuple.slice (map macex1 t))))
+      m? (apply m (tuple/slice t 1))
+      (tuple/slice (map macex1 t))))
 
   (def ret
     (case (type x)
       :tuple (dotup x)
       :array (map macex1 x)
-      :struct (table.to-struct (dotable x macex1))
+      :struct (table/to-struct (dotable x macex1))
       :table (dotable x macex1)
       x))
   ret)
@@ -1074,7 +1084,7 @@ value, one key will be ignored."
       :tuple (or (not= (length x) (length y)) (some identity (map deep-not= x y)))
       :array (or (not= (length x) (length y)) (some identity (map deep-not= x y)))
       :struct (deep-not= (pairs x) (pairs y))
-      :table (deep-not= (table.to-struct x) (table.to-struct y))
+      :table (deep-not= (table/to-struct x) (table/to-struct y))
       :buffer (not= (string x) (string y))
       (not= x y))))
 
@@ -1105,7 +1115,7 @@ value, one key will be ignored."
 (defn make-env
   [parent &]
   (def parent (if parent parent _env))
-  (def newenv (table.setproto @{} parent))
+  (def newenv (table/setproto @{} parent))
   (put newenv '_env @{:value newenv :private true
                       :doc "The environment table for the current scope."})
   newenv)
@@ -1126,13 +1136,13 @@ value, one key will be ignored."
   (var going true)
 
   # The parser object
-  (def p (parser.new))
+  (def p (parser/new))
 
   # Evaluate 1 source form
   (defn eval1 [source]
     (var good true)
     (def f
-      (fiber.new
+      (fiber/new
         (fn []
           (def res (compile source env where))
           (if (= (type res) :function)
@@ -1150,7 +1160,7 @@ value, one key will be ignored."
         :a))
     (def res (resume f nil))
     (when good
-      (if going (onstatus (fiber.status f) res f where))))
+      (if going (onstatus (fiber/status f) res f where))))
 
   (def oldenv *env*)
   (:= *env* env)
@@ -1158,19 +1168,19 @@ value, one key will be ignored."
   # Run loop
   (def buf @"")
   (while going
-    (buffer.clear buf)
+    (buffer/clear buf)
     (chunks buf p)
     (var pindex 0)
     (def len (length buf))
     (if (= len 0) (:= going false))
     (while (> len pindex)
-      (+= pindex (parser.consume p buf pindex))
-      (case (parser.status p)
-        :full (eval1 (parser.produce p))
+      (+= pindex (parser/consume p buf pindex))
+      (case (parser/status p)
+        :full (eval1 (parser/produce p))
         :error (do
-                 (def (line col) (parser.where p))
+                 (def (line col) (parser/where p))
                  (onstatus :parse
-                        (string (parser.error p)
+                        (string (parser/error p)
                                 " on line " line
                                 ", column " col)
                         nil
@@ -1190,14 +1200,14 @@ value, one key will be ignored."
       :compile "compile error"
       :error "error"
       (string "status " sig)))
-  (file.write stderr
+  (file/write stderr
               (string title " in " source ": ")
-              (if (bytes? x) x (string.pretty x))
+              (if (bytes? x) x (string/pretty x))
               "\n")
   (when f
     (loop
-      [nf :in (reverse (fiber.lineage f))
-       :before (file.write stderr "  (fiber)\n")
+      [nf :in (reverse (fiber/lineage f))
+       :before (file/write stderr "  (fiber)\n")
        {:function func
         :tail tail
         :pc pc
@@ -1205,26 +1215,26 @@ value, one key will be ignored."
         :name name
         :source source
         :line source-line
-        :column source-col} :in (fiber.stack nf)]
-      (file.write stderr "    in")
-      (when c (file.write stderr " cfunction"))
+        :column source-col} :in (fiber/stack nf)]
+      (file/write stderr "    in")
+      (when c (file/write stderr " cfunction"))
       (if name
-        (file.write stderr " " name)
-        (when func (file.write stderr " <anonymous>")))
+        (file/write stderr " " name)
+        (when func (file/write stderr " <anonymous>")))
       (if source
         (do
-          (file.write stderr " [" source "]")
+          (file/write stderr " [" source "]")
           (if source-line
-            (file.write
+            (file/write
               stderr
               " on line "
               (string source-line)
               ", column "
               (string source-col)))))
       (if (and (not source-line) pc)
-        (file.write stderr " (pc=" (string pc) ")"))
-      (when tail (file.write stderr " (tailcall)"))
-      (file.write stderr "\n"))))
+        (file/write stderr " (pc=" (string pc) ")"))
+      (when tail (file/write stderr " (tailcall)"))
+      (file/write stderr "\n"))))
 
 (defn eval
   "Evaluates a string in the current environment. If more control over the
@@ -1235,8 +1245,8 @@ value, one key will be ignored."
     (def ret state)
     (:= state nil)
     (when ret
-      (buffer.push-string buf str)
-      (buffer.push-string buf "\n")))
+      (buffer/push-string buf str)
+      (buffer/push-string buf "\n")))
   (var returnval nil)
   (run-context *env* chunks 
                (fn [sig x f source]
@@ -1247,58 +1257,57 @@ value, one key will be ignored."
   returnval)
 
 (do
-  (def syspath (or (os.getenv "JANET_PATH") "/usr/local/lib/janet/"))
-  (defglobal 'module.paths
+  (def syspath (or (os/getenv "JANET_PATH") "/usr/local/lib/janet/"))
+  (defglobal 'module/paths
     @["./?.janet"
       "./?/init.janet"
       "./janet_modules/?.janet"
       "./janet_modules/?/init.janet"
-      (string syspath janet.version "/?.janet")
-      (string syspath janet.version "/?/init.janet")
+      (string syspath janet/version "/?.janet")
+      (string syspath janet/version "/?/init.janet")
       (string syspath "/?.janet")
       (string syspath "/?/init.janet")])
-  (defglobal 'module.native-paths
+  (defglobal 'module/native-paths
     @["./?.so"
       "./?/??.so"
       "./janet_modules/?.so"
       "./janet_modules/?/??.so"
-      (string syspath janet.version "/?.so")
-      (string syspath janet.version "/?/??.so")
+      (string syspath janet/version "/?.so")
+      (string syspath janet/version "/?/??.so")
       (string syspath "/?.so")
       (string syspath "/?/??.so")]))
 
-(if (= :windows (os.which))
-   (loop [i :range [0 (length module.native-paths)]]
-     (def x (get module.native-paths i))
+(if (= :windows (os/which))
+   (loop [i :range [0 (length module/native-paths)]]
+     (def x (get module/native-paths i))
      (put
-       module.native-paths
+       module/native-paths
        i
-       (string.replace ".so" ".dll" x))))
+       (string/replace ".so" ".dll" x))))
 
-(defn module.find
+(defn module/find
   [path paths]
-  (def parts (string.split "." path))
-  (def last (get parts (- (length parts) 1)))
-  (def normname (string.replace-all "." "/" path))
-  (array.push
+  (def parts (string/split "/" path))
+  (def lastpart (get parts (- (length parts) 1)))
+  (array/push
     (map (fn [x]
-           (def y (string.replace "??" last x))
-           (string.replace "?" normname y))
+           (def y (string/replace "??" lastpart x))
+           (string/replace "?" path y))
          paths)
     path))
 
 (def require
   "Require a module with the given name. Will search all of the paths in
-  module.paths, then the path as a raw file path. Returns the new environment
+  module/paths, then the path as a raw file path. Returns the new environment
   returned from compiling and running the file."
   (do
 
     (defn check-mod
       [f testpath]
-      (if f f (file.open testpath)))
+      (if f f (file/open testpath)))
 
     (defn find-mod [path]
-      (def paths (module.find path module.paths))
+      (def paths (module/find path module/paths))
       (reduce check-mod nil paths))
 
     (defn check-native
@@ -1306,59 +1315,60 @@ value, one key will be ignored."
       (if p
         p
         (do
-          (def f (file.open testpath))
-          (if f (do (file.close f) testpath)))))
+          (def f (file/open testpath))
+          (if f (do (file/close f) testpath)))))
 
     (defn find-native [path]
-      (def paths (module.find path module.native-paths))
+      (def paths (module/find path module/native-paths))
       (reduce check-native nil paths))
 
     (def cache @{})
     (def loading @{})
     (fn require [path args &]
-      (when loading@path
+      (when loading.path
         (error (string "circular dependency: module " path " is loading")))
       (def {:exit exit-on-error} (or args {}))
-      (def check cache@path)
+      (def check cache.path)
       (if check
         check
         (do
           (def newenv (make-env))
-          (:= cache@path newenv)
-          (:= loading@path true)
+          (:= cache.path newenv)
+          (:= loading.path true)
           (def f (find-mod path))
           (if f
             (do
               # Normal janet module
-              (defn chunks [buf _] (file.read f 1024 buf))
+              (defn chunks [buf _] (file/read f 1024 buf))
               (run-context newenv chunks
                            (fn [sig x f source]
                              (when (not= sig :dead)
                                (status-pp sig x f source)
-                               (if exit-on-error (os.exit 1))))
+                               (if exit-on-error (os/exit 1))))
                            path)
-              (file.close f))
+              (file/close f))
             (do
               # Try native module
               (def n (find-native path))
               (if (not n)
                 (error (string "could not open file for module " path)))
               ((native n) newenv)))
-          (:= loading@path false)
+          (:= loading.path false)
           newenv)))))
 
-(defn import* [env path & args]
+(defn import* 
+  [env path & args]
   (def targs (apply table args))
   (def {:as as
         :prefix prefix} targs)
   (def newenv (require path targs))
   (var k (next newenv nil))
   (def {:meta meta} newenv)
-  (def prefix (or (and as (string as ".")) prefix (string path ".")))
+  (def prefix (or (and as (string as "/")) prefix (string path "/")))
   (while k
-    (def v newenv@k)
+    (def v newenv.k)
     (when (not v:private)
-      (def newv (table.setproto @{:private true} v))
+      (def newv (table/setproto @{:private true} v))
       (put env (symbol prefix k) newv))
     (:= k (next newenv k))))
 
@@ -1382,12 +1392,12 @@ value, one key will be ignored."
   caught."
   [chunks onsignal &]
   (def newenv (make-env))
-  (default chunks (fn [buf _] (file.read stdin :line buf)))
+  (default chunks (fn [buf _] (file/read stdin :line buf)))
   (default onsignal (fn [sig x f source]
                       (case sig
                         :dead (do
                                 (put newenv '_ @{:value x})
-                                (print (string.pretty x 20)))
+                                (print (string/pretty x 20)))
                         (status-pp sig x f source))))
   (run-context newenv chunks onsignal "repl"))
 
@@ -1396,33 +1406,9 @@ value, one key will be ignored."
   [env &]
   (default env *env*)
   (def envs @[])
-  (do (var e env) (while e (array.push envs e) (:= e (table.getproto e))))
+  (do (var e env) (while e (array/push envs e) (:= e (table/getproto e))))
   (def symbol-set @{})
   (loop [envi :in envs
          k :keys envi]
-    (:= symbol-set@k true))
+    (:= symbol-set.k true))
   (sort (keys symbol-set)))
-
-(defmacro qq
-  "Quasiquote. Similar to quote, but allows unquoting
-  from within a nested form. Use the (uq x) form to unquote
-  a form x, or use (uqs x) to do unquote splicing. In a splicing
-  unquote, x should be an array or tuple which will be inserted into
-  the form the is the parent of the (uqs x) form."
-  [x]
-  (defn- uqs? [x]
-    (and (tuple? x) (= x@0 'uqs)))
-  (defn- uqs [x]
-    (if (uqs? x)
-      (tuple apply array x@1)
-      @[(qq x)]))
-  (case (type x)
-    :symbol (tuple 'quote x)
-    :tuple (cond 
-             (= x@0 'uq) x@1
-             (some uqs? x) (tuple tuple.slice (tuple.prepend (map uqs x) array.concat))
-             (apply tuple tuple (map qq x)))
-    :array (apply array (map qq x))
-    :struct (apply struct (map qq (kvs x)))
-    :table (apply table (map qq (kvs x)))
-    x))

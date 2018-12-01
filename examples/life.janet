@@ -28,7 +28,7 @@
   (loop [x :range [x1 (+ 1 x2)]
          :after (print)
          y :range [y1 (+ 1 y2)]]
-    (file.write stdout (if (get cellset (tuple x y)) "X " ". ")))
+    (file/write stdout (if (get cellset (tuple x y)) "X " ". ")))
   (print))
 
 #

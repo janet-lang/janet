@@ -689,8 +689,8 @@ JanetTable *janet_core_env(void) {
             "(length ds)\n\n"
             "Returns the length or count of a data structure in constant time as an integer. For "
             "structs and tables, returns the number of key-value pairs in the data structure.");
-    janet_quick_asm(env, JANET_FUN_BNOT, "~", 1, 1, bnot_asm, sizeof(bnot_asm),
-            "(~ x)\n\nReturns the bitwise inverse of integer x.");
+    janet_quick_asm(env, JANET_FUN_BNOT, "bnot", 1, 1, bnot_asm, sizeof(bnot_asm),
+            "(bnot x)\n\nReturns the bitwise inverse of integer x.");
     make_apply(env);
 
     /* Variadic ops */
@@ -776,7 +776,7 @@ JanetTable *janet_core_env(void) {
             "Check if any values in xs are not numerically equal (3.0 not== 4). Returns a boolean.");
 
     /* Platform detection */
-    janet_def(env, "janet.version", janet_cstringv(JANET_VERSION),
+    janet_def(env, "janet/version", janet_cstringv(JANET_VERSION),
             "The version number of the running janet program.");
 
     /* Set as gc root */

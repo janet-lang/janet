@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     args = janet_array(argc);
     for (i = 0; i < argc; i++)
         janet_array_push(args, janet_cstringv(argv[i]));
-    janet_def(env, "process.args", janet_wrap_array(args), "Command line arguments.");
+    janet_def(env, "process/args", janet_wrap_array(args), "Command line arguments.");
 
     /* Expose line getter */
     janet_def(env, "getline", janet_wrap_cfunction(janet_line_getter), NULL);

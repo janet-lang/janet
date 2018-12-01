@@ -156,20 +156,20 @@ static int cfun_append(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"tuple.slice", cfun_slice,
-        "(tuple.slice arrtup [,start=0 [,end=(length arrtup)]])\n\n"
+    {"tuple/slice", cfun_slice,
+        "(tuple/slice arrtup [,start=0 [,end=(length arrtup)]])\n\n"
         "Take a sub sequence of an array or tuple from index start "
         "inclusive to index end exclusive. If start or end are not provided, "
         "they default to 0 and the length of arrtup respectively."
         "Returns the new tuple."
     },
-    {"tuple.append", cfun_append,
-        "(tuple.append tup & items)\n\n"
+    {"tuple/append", cfun_append,
+        "(tuple/append tup & items)\n\n"
         "Returns a new tuple that is the result of appending "
         "each element in items to tup."
     },
-    {"tuple.prepend", cfun_prepend,
-        "(tuple.prepend tup & items)\n\n"
+    {"tuple/prepend", cfun_prepend,
+        "(tuple/prepend tup & items)\n\n"
         "Prepends each element in items to tuple and "
         "returns a new tuple. Items are prepended such that the "
         "last element in items is the first element in the new tuple."

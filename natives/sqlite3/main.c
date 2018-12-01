@@ -385,36 +385,36 @@ static int sql_error_code(JanetArgs args) {
 
 static const JanetReg cfuns[] = {
     {"open", sql_open, 
-        "(sqlite3.open path)\n\n"
+        "(sqlite3/open path)\n\n"
         "Opens a sqlite3 database on disk. Returns the database handle if the database was opened "
         "successfully, and otheriwse throws an error."
     },
     {"close", sql_close, 
-        "(sqlite3.close db)\n\n"
+        "(sqlite3/close db)\n\n"
         "Closes a database. Use this to free a database after use. Returns nil."
     },
     {"eval", sql_eval, 
-        "(sqlite3.eval db sql [,params])\n\n"
+        "(sqlite3/eval db sql [,params])\n\n"
         "Evaluate sql in the context of database db. Multiple sql statements "
         "can be changed together, and optionally parameters maybe passed in. "
         "The optional parameters maybe either an indexed data type (tuple or array), or a dictionary "
         "data type (struct or table). If params is a tuple or array, then sqlite "
         "parameters are substituted using indices. For example:\n\n"
-        "\t(sqlite3.eval db `SELECT * FROM tab WHERE id = ?;` [123])\n\n"
+        "\t(sqlite3/eval db `SELECT * FROM tab WHERE id = ?;` [123])\n\n"
         "Will select rows from tab where id is equal to 123. Alternatively, "
         "the programmer can use named parameters with tables or structs, like so:\n\n"
-        "\t(sqlite3.eval db `SELECT * FROM tab WHERE id = :id;` {:id 123})\n\n"
+        "\t(sqlite3/eval db `SELECT * FROM tab WHERE id = :id;` {:id 123})\n\n"
         "Will return an array of rows, where each row contains a table where columns names "
         "are keys for column values."
     },
     {"last-insert-rowid", sql_last_insert_rowid, 
-        "(sqlite3.last-insert-rowid db)\n\n"
+        "(sqlite3/last-insert-rowid db)\n\n"
         "Returns the id of the last inserted row. If the id will fit into a 32-bit"
         "signed integer, will returned an integer, otherwise will return a string representation "
         "of the id (an 8 bytes string containing a long integer)."
     },
     {"error-code", sql_error_code,
-        "(sqlite3.error-code db)\n\n"
+        "(sqlite3/error-code db)\n\n"
         "Returns the error number of the last sqlite3 command that threw an error. Cross "
         "check these numbers with the SQLite documentation for more information."
     },

@@ -1205,84 +1205,84 @@ static int cfun_pretty(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"string.slice", cfun_slice,
-        "(string.slice bytes [,start=0 [,end=(length str)]])\n\n"
+    {"string/slice", cfun_slice,
+        "(string/slice bytes [,start=0 [,end=(length str)]])\n\n"
         "Returns a substring from a byte sequence. The substring is from "
         "index start inclusive to index end exclusive. All indexing "
         "is from 0. 'start' and 'end' can also be negative to indicate indexing "
         "from the end of the string."
     },
-    {"string.repeat", cfun_repeat,
-        "(string.repeat bytes n)\n\n"
+    {"string/repeat", cfun_repeat,
+        "(string/repeat bytes n)\n\n"
         "Returns a string that is n copies of bytes concatenated."
     },
-    {"string.bytes", cfun_bytes,
-        "(string.bytes str)\n\n"
+    {"string/bytes", cfun_bytes,
+        "(string/bytes str)\n\n"
         "Returns an array of integers that are the byte values of the string."
     },
-    {"string.from-bytes", cfun_frombytes,
-        "(string.from-bytes byte-array)\n\n"
+    {"string/from-bytes", cfun_frombytes,
+        "(string/from-bytes byte-array)\n\n"
         "Creates a string from an array of integers with byte values. All integers "
         "will be coerced to the range of 1 byte 0-255."
     },
-    {"string.ascii-lower", cfun_asciilower,
-        "(string.ascii-lower str)\n\n"
+    {"string/ascii-lower", cfun_asciilower,
+        "(string/ascii-lower str)\n\n"
         "Returns a new string where all bytes are replaced with the "
         "lowercase version of themselves in ascii. Does only a very simple "
         "case check, meaning no unicode support."
     },
-    {"string.ascii-upper", cfun_asciiupper,
-        "(string.ascii-upper str)\n\n"
+    {"string/ascii-upper", cfun_asciiupper,
+        "(string/ascii-upper str)\n\n"
         "Returns a new string where all bytes are replaced with the "
         "uppercase version of themselves in ascii. Does only a very simple "
         "case check, meaning no unicode support."
     },
-    {"string.reverse", cfun_reverse,
-        "(string.reverse str)\n\n"
+    {"string/reverse", cfun_reverse,
+        "(string/reverse str)\n\n"
         "Returns a string that is the reversed version of str."
     },
-    {"string.find", cfun_find,
-        "(string.find patt str)\n\n"
+    {"string/find", cfun_find,
+        "(string/find patt str)\n\n"
         "Searches for the first instance of pattern patt in string "
         "str. Returns the index of the first character in patt if found, "
         "otherwise returns nil."
     },
-    {"string.find-all", cfun_findall,
-        "(string.find patt str)\n\n"
+    {"string/find-all", cfun_findall,
+        "(string/find patt str)\n\n"
         "Searches for all instances of pattern patt in string "
         "str. Returns an array of all indices of found patterns. Overlapping "
         "instances of the pattern are not counted, meaning a byte in string "
         "will only contribute to finding at most on occurrence of pattern. If no "
         "occurrences are found, will return an empty array."
     },
-    {"string.replace", cfun_replace,
-        "(string.replace patt subst str)\n\n"
+    {"string/replace", cfun_replace,
+        "(string/replace patt subst str)\n\n"
         "Replace the first occurrence of patt with subst in the the string str. "
         "Will return the new string if patt is found, otherwise returns str."
     },
-    {"string.replace-all", cfun_replaceall,
-        "(string.replace-all patt subst str)\n\n"
+    {"string/replace-all", cfun_replaceall,
+        "(string/replace-all patt subst str)\n\n"
         "Replace all instances of patt with subst in the string str. "
         "Will return the new string if patt is found, otherwise returns str."
     },
-    {"string.split", cfun_split,
-        "(string.split delim str)\n\n"
+    {"string/split", cfun_split,
+        "(string/split delim str)\n\n"
         "Splits a string str with delimiter delim and returns an array of "
         "substrings. The substrings will not contain the delimiter delim. If delim "
         "is not found, the returned array will have one element."
     },
-    {"string.check-set", cfun_checkset,
-        "(string.check-set set str)\n\n"
+    {"string/check-set", cfun_checkset,
+        "(string/check-set set str)\n\n"
         "Checks if any of the bytes in the string set appear in the string str. "
         "Returns true if some bytes in set do appear in str, false if no bytes do."
     },
-    {"string.join", cfun_join,
-        "(string.join parts [,sep])\n\n"
+    {"string/join", cfun_join,
+        "(string/join parts [,sep])\n\n"
         "Joins an array of strings into one string, optionally separated by "
         "a separator string sep."
     },
-    {"string.number", cfun_number,
-        "(string.number x [,format [,maxlen [,precision]]])\n\n"
+    {"string/number", cfun_number,
+        "(string/number x [,format [,maxlen [,precision]]])\n\n"
         "Formats a number as string. The format parameter indicates how "
         "to display the number, either as floating point, scientific, or "
         "whichever representation is shorter. format can be:\n\n"
@@ -1296,8 +1296,8 @@ static const JanetReg cfuns[] = {
         "and the precision (number of places after decimal) in the output number. "
         "Returns a string representation of x."
     },
-    {"string.pretty", cfun_pretty,
-        "(string.pretty x [,depth=4 [,buffer=@\"\"]])\n\n"
+    {"string/pretty", cfun_pretty,
+        "(string/pretty x [,depth=4 [,buffer=@\"\"]])\n\n"
         "Pretty prints a value to a buffer. Optionally allwos setting max "
         "recursion depth, as well as writing to a buffer. Returns the buffer."
     },

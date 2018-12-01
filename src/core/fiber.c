@@ -468,14 +468,14 @@ static int cfun_setmaxstack(JanetArgs args) {
 }
 
 static const JanetReg cfuns[] = {
-    {"fiber.new", cfun_new,
-        "(fiber.new func [,sigmask])\n\n"
+    {"fiber/new", cfun_new,
+        "(fiber/new func [,sigmask])\n\n"
         "Create a new fiber with function body func. Can optionally "
         "take a set of signals to block from the current parent fiber "
         "when called. The mask is specified as symbol where each character "
         "is used to indicate a signal to block. The default sigmask is :y. "
         "For example, \n\n"
-        "\t(fiber.new myfun :e123)\n\n"
+        "\t(fiber/new myfun :e123)\n\n"
         "blocks error signals and user signals 1, 2 and 3. The signals are "
         "as follows: \n\n"
         "\ta - block all signals\n"
@@ -485,8 +485,8 @@ static const JanetReg cfuns[] = {
         "\ty - block yield signals\n"
         "\t0-9 - block a specific user signal"
     },
-    {"fiber.status", cfun_status,
-        "(fiber.status fib)\n\n"
+    {"fiber/status", cfun_status,
+        "(fiber/status fib)\n\n"
         "Get the status of a fiber. The status will be one of:\n\n"
         "\t:dead - the fiber has finished\n"
         "\t:error - the fiber has errored out\n"
@@ -496,8 +496,8 @@ static const JanetReg cfuns[] = {
         "\t:alive - the fiber is currently running and cannot be resumed\n"
         "\t:new - the fiber has just been created and not yet run"
     },
-    {"fiber.stack", cfun_stack,
-        "(fiber.stack fib)\n\n"
+    {"fiber/stack", cfun_stack,
+        "(fiber/stack fib)\n\n"
         "Gets information about the stack as an array of tables. Each table "
         "in the array contains information about a stack frame. The top most, current "
         "stack frame is the first table in the array, and the bottom most stack frame "
@@ -511,25 +511,25 @@ static const JanetReg cfuns[] = {
         "\t:source - string with filename or other identifier for the source code\n"
         "\t:tail - boolean indicating a tail call"
     },
-    {"fiber.current", cfun_current,
-        "(fiber.current)\n\n"
+    {"fiber/current", cfun_current,
+        "(fiber/current)\n\n"
         "Returns the currently running fiber."
     },
-    {"fiber.lineage", cfun_lineage,
-        "(fiber.lineage fib)\n\n"
+    {"fiber/lineage", cfun_lineage,
+        "(fiber/lineage fib)\n\n"
         "Returns an array of all child fibers from a root fiber. This function "
         "is useful when a fiber signals or errors to an ancestor fiber. Using this function, "
         "the fiber handling the error can see which fiber raised the signal. This function should "
         "be used mostly for debugging purposes."
     },
-    {"fiber.maxstack", cfun_maxstack,
-        "(fiber.maxstack fib)\n\n"
+    {"fiber/maxstack", cfun_maxstack,
+        "(fiber/maxstack fib)\n\n"
         "Gets the maximum stack size in janet values allowed for a fiber. While memory for "
         "the fiber's stack is not allocated up front, the fiber will not allocated more "
         "than this amount and will throw a stackoverflow error if more memory is needed. "
     },
-    {"fiber.setmaxstack", cfun_setmaxstack,
-        "(fiber.setmaxstack fib maxstack)\n\n"
+    {"fiber/setmaxstack", cfun_setmaxstack,
+        "(fiber/setmaxstack fib maxstack)\n\n"
         "Sets the maximum stack size in janet values for a fiber. By default, the "
         "maximum stacksize is usually 8192."
     },

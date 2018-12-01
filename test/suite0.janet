@@ -18,7 +18,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-(import test.helper :prefix "" :exit true)
+(import test/helper :prefix "" :exit true)
 (start-suite 0)
 
 (assert (= 10 (+ 1 2 3 4)) "addition")
@@ -38,7 +38,7 @@
 (assert (= -7 (% -20 13)) "modulo 2")
 
 (assert (order< nil false true
-                (fiber.new (fn [] 1))
+                (fiber/new (fn [] 1))
                 1 1.0 "hi"
                 (quote hello)
                 (array 1 2 3)
@@ -81,15 +81,15 @@
 # Mcarthy's 91 function
 (var f91 nil)
 (:= f91 (fn [n] (if (> n 100) (- n 10) (f91 (f91 (+ n 11))))))
-(assert (= 91 (f91 10)), "f91(10) = 91")
-(assert (= 91 (f91 11)), "f91(11) = 91")
-(assert (= 91 (f91 20)), "f91(20) = 91")
-(assert (= 91 (f91 31)), "f91(31) = 91")
-(assert (= 91 (f91 100)), "f91(100) = 91")
-(assert (= 91 (f91 101)), "f91(101) = 91")
-(assert (= 92 (f91 102)), "f91(102) = 92")
-(assert (= 93 (f91 103)), "f91(103) = 93")
-(assert (= 94 (f91 104)), "f91(104) = 94")
+(assert (= 91 (f91 10)) "f91(10) = 91")
+(assert (= 91 (f91 11)) "f91(11) = 91")
+(assert (= 91 (f91 20)) "f91(20) = 91")
+(assert (= 91 (f91 31)) "f91(31) = 91")
+(assert (= 91 (f91 100)) "f91(100) = 91")
+(assert (= 91 (f91 101)) "f91(101) = 91")
+(assert (= 92 (f91 102)) "f91(102) = 92")
+(assert (= 93 (f91 103)) "f91(103) = 93")
+(assert (= 94 (f91 104)) "f91(104) = 94")
 
 # Fibonacci
 (def fib (do (var fib nil) (:= fib (fn [n] (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))))
@@ -154,7 +154,7 @@
 
 # Fiber tests
 
-(def afiber (fiber.new (fn []
+(def afiber (fiber/new (fn []
                          (def x (yield))
                          (error (string "hello, " x))) :ye))
 
@@ -162,16 +162,16 @@
 (def afiber-result (resume afiber "world!"))
 
 (assert (= afiber-result "hello, world!") "fiber error result")
-(assert (= (fiber.status afiber) :error) "fiber error status")
+(assert (= (fiber/status afiber) :error) "fiber error status")
 
 # yield tests
 
-(def t (fiber.new (fn [&] (yield 1) (yield 2) 3)))
+(def t (fiber/new (fn [&] (yield 1) (yield 2) 3)))
 
 (assert (= 1 (resume t)) "initial transfer to new fiber")
 (assert (= 2 (resume t)) "second transfer to fiber")
 (assert (= 3 (resume t)) "return from fiber")
-(assert (= (fiber.status t) :dead) "finished fiber is dead")
+(assert (= (fiber/status t) :dead) "finished fiber is dead")
 
 # Var arg tests
 
@@ -215,7 +215,7 @@
 
 # Merge sort
 
-# Imperative merge sort merge
+# Imperative (and verbose) merge sort merge
 (defn merge 
   [xs ys]
   (def ret @[])
@@ -228,17 +228,17 @@
     (def xi (get xs i))
     (def yj (get ys j))
     (if (< xi yj)
-      (do (array.push ret xi) (:= i (+ i 1)))
-      (do (array.push ret yj) (:= j (+ j 1)))))
+      (do (array/push ret xi) (:= i (+ i 1)))
+      (do (array/push ret yj) (:= j (+ j 1)))))
   # Push rest of xs
   (while (< i xlen)
     (def xi (get xs i))
-    (array.push ret xi)
+    (array/push ret xi)
     (:= i (+ i 1)))
   # Push rest of ys
   (while (< j ylen)
     (def yj (get ys j))
-    (array.push ret yj)
+    (array/push ret yj)
     (:= j (+ j 1)))
   ret)
 
@@ -260,9 +260,9 @@
 
 # Let
 
-(assert (= (let [a 1 b 2] (+ a b)) 3), "simple let")
-(assert (= (let [[a b] @[1 2]] (+ a b)) 3), "destructured let")
-(assert (= (let [[a [c d] b] @[1 (tuple 4 3) 2]] (+ a b c d)) 10), "double destructured let")
+(assert (= (let [a 1 b 2] (+ a b)) 3) "simple let")
+(assert (= (let [[a b] @[1 2]] (+ a b)) 3) "destructured let")
+(assert (= (let [[a [c d] b] @[1 (tuple 4 3) 2]] (+ a b c d)) 10) "double destructured let")
 
 # Macros
 

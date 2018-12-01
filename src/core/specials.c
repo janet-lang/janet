@@ -34,6 +34,93 @@ static JanetSlot janetc_quote(JanetFopts opts, int32_t argn, const Janet *argv) 
     return janetc_cslot(argv[0]);
 }
 
+static JanetSlot qq_slots(JanetFopts opts, JanetSlot *slots, int makeop) {
+    JanetSlot target = janetc_gettarget(opts);
+    int32_t i;
+    for (i = 0; i < janet_v_count(slots); i++) {
+        JanetSlot s = slots[i];
+        int op = (s.flags & JANET_SLOT_SPLICED) ? JOP_PUSH_ARRAY : JOP_PUSH;
+        janetc_emit_s(opts.compiler, op, s, 0);
+    }
+    janetc_freeslots(opts.compiler, slots);
+    janetc_emit_s(opts.compiler, makeop, target, 1);
+    return target;
+}
+
+static JanetSlot quasiquote(JanetFopts opts, Janet x, int can_splice) {
+    JanetSlot *slots = NULL;
+    switch (janet_type(x)) {
+        default:
+            return janetc_cslot(x);
+        case JANET_TUPLE:
+            {
+                int32_t i, len;
+                const Janet *tup = janet_unwrap_tuple(x);
+                len = janet_tuple_length(tup);
+                if (len > 1 && janet_checktype(tup[0], JANET_SYMBOL)) {
+                    const uint8_t *head = janet_unwrap_symbol(tup[0]);
+                    if (!janet_cstrcmp(head, "unquote")) {
+                        return janetc_value(janetc_fopts_default(opts.compiler), tup[1]);
+                    } else if (!janet_cstrcmp(head, "unquote-splicing")) {
+                        JanetSlot s;
+                        if (!can_splice) {
+                            janetc_cerror(opts.compiler, "cannot use unquote-splicing here");
+                        }
+                        s = janetc_value(janetc_fopts_default(opts.compiler), tup[1]);
+                        s.flags |= JANET_SLOT_SPLICED;
+                        return s;
+                    }
+                }
+                for (i = 0; i < len; i++)
+                    janet_v_push(slots, quasiquote(opts, tup[i], 1));
+                return qq_slots(opts, slots, JOP_MAKE_TUPLE);
+            }
+        case JANET_ARRAY:
+            {
+                int32_t i;
+                JanetArray *array = janet_unwrap_array(x);
+                for (i = 0; i < array->count; i++)
+                    janet_v_push(slots, quasiquote(opts, array->data[i], 1));
+                return qq_slots(opts, slots, JOP_MAKE_ARRAY);
+            }
+        case JANET_TABLE:
+        case JANET_STRUCT:
+            {
+                const JanetKV *kv = NULL, *kvs = NULL;
+                int32_t len, cap;
+                janet_dictionary_view(x, &kvs, &len, &cap);
+                while ((kv = janet_dictionary_next(kvs, cap, kv))) {
+                    janet_v_push(slots, quasiquote(opts, kv->key, 0));
+                    janet_v_push(slots, quasiquote(opts, kv->value, 0));
+                }
+                return qq_slots(opts, slots, 
+                        janet_checktype(x, JANET_TABLE) ? JOP_MAKE_TABLE : JOP_MAKE_STRUCT);
+            }
+    }
+}
+
+static JanetSlot janetc_quasiquote(JanetFopts opts, int32_t argn, const Janet *argv) {
+    if (argn != 1) {
+        janetc_cerror(opts.compiler, "expected 1 argument");
+        return janetc_cslot(janet_wrap_nil());
+    }
+    return quasiquote(opts, argv[0], 0);
+}
+
+static JanetSlot janetc_unquote(JanetFopts opts, int32_t argn, const Janet *argv) {
+    (void) argn;
+    (void) argv;
+    janetc_cerror(opts.compiler, "cannot use unquote here");
+    return janetc_cslot(janet_wrap_nil());
+}
+
+static JanetSlot janetc_unquote_splicing(JanetFopts opts, int32_t argn, const Janet *argv) {
+    (void) argn;
+    (void) argv;
+    janetc_cerror(opts.compiler, "cannot use unquote-splicing here");
+    return janetc_cslot(janet_wrap_nil());
+}
+
 /* Preform destructuring. Be careful to
  * keep the order registers are freed. 
  * Returns if the slot 'right' can be freed. */
@@ -582,7 +669,10 @@ static const JanetSpecial janetc_specials[] = {
     {"do", janetc_do},
     {"fn", janetc_fn},
     {"if", janetc_if},
+    {"quasiquote", janetc_quasiquote},
     {"quote", janetc_quote},
+    {"unquote", janetc_unquote},
+    {"unquote-splicing", janetc_unquote_splicing},
     {"var", janetc_var},
     {"while", janetc_while}
 };

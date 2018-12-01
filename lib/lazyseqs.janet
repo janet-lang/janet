@@ -9,17 +9,17 @@
   returns the result of the last expression. Will only evaluate the
   body once, and then memoizes the result."
   [& forms]
-  (def $state (gensym))
-  (def $loaded (gensym))
-  (tuple 'do
-         (tuple 'var $state nil)
-         (tuple 'var $loaded nil)
-         (tuple 'fn (array)
-                (tuple 'if $loaded
-                       $state
-                       (tuple 'do
-                              (tuple ':= $loaded true)
-                              (tuple ':= $state (tuple.prepend forms 'do)))))))
+  (def state (gensym))
+  (def loaded (gensym))
+  ~(do 
+     (var ,state nil)
+     (var ,loaded nil)
+     (fn []
+       (if ,loaded 
+         ,state 
+         (do
+           (:= ,loaded true)
+           (:= ,state (do ;forms)))))))
 
 # Use tuples instead of structs to save memory
 (def HEAD :private 0)

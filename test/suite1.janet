@@ -18,11 +18,11 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-(import test.helper :prefix "" :exit true)
+(import test/helper :prefix "" :exit true)
 (start-suite 1)
 
-(assert (= 400.0 (math.sqrt 160000)) "sqrt(160000)=400")
-(assert (= (real 400) (math.sqrt 160000)) "sqrt(160000)=400")
+(assert (= 400.0 (math/sqrt 160000)) "sqrt(160000)=400")
+(assert (= (real 400) (math/sqrt 160000)) "sqrt(160000)=400")
 
 (def test-struct {'def 1 'bork 2 'sam 3 'a 'b 'het @[1 2 3 4 5]})
 (assert (= (get test-struct 'def) 1) "struct get")
@@ -47,7 +47,7 @@
    (:= good false)))
  (assert good e))
 
-(assert-many (fn [] (>= 1 (math.random) 0)) 200 "(random) between 0 and 1")
+(assert-many (fn [] (>= 1 (math/random) 0)) 200 "(random) between 0 and 1")
 
 ## Table prototypes
 
@@ -59,7 +59,7 @@
  :childprop 456
 })
 
-(table.setproto childtab roottab)
+(table/setproto childtab roottab)
 
 (assert (= 123 (get roottab :parentprop)) "table get 1")
 (assert (= 123 (get childtab :parentprop)) "table get proto")
@@ -70,7 +70,7 @@
 
 (assert (= "hello, world" `hello, world`) "simple long string")
 (assert (= "hello, \"world\"" `hello, "world"`) "long string with embedded quotes")
-(assert (= "hello, \\\\\\ \"world\"" `hello, \\\ "world"`),
+(assert (= "hello, \\\\\\ \"world\"" `hello, \\\ "world"`)
         "long string with embedded quotes and backslashes")
 
 # More fiber semantics
@@ -78,19 +78,19 @@
 (var myvar 0)
 (defn fiberstuff [&]
   (++ myvar)
-  (def f (fiber.new (fn [&] (++ myvar) (debug) (++ myvar))))
+  (def f (fiber/new (fn [&] (++ myvar) (debug) (++ myvar))))
   (resume f)
   (++ myvar))
 
-(def myfiber (fiber.new fiberstuff :dey))
+(def myfiber (fiber/new fiberstuff :dey))
 
 (assert (= myvar 0) "fiber creation does not call fiber function")
 (resume myfiber)
 (assert (= myvar 2) "fiber debug statement breaks at proper point")
-(assert (= (fiber.status myfiber) :debug) "fiber enters debug state")
+(assert (= (fiber/status myfiber) :debug) "fiber enters debug state")
 (resume myfiber)
 (assert (= myvar 4) "fiber resumes properly from debug state")
-(assert (= (fiber.status myfiber) :dead) "fiber properly dies from debug state")
+(assert (= (fiber/status myfiber) :dead) "fiber properly dies from debug state")
 
 # Test max triangle program
 
@@ -98,8 +98,8 @@
 # of the triangle to the leaves of the triangle.
   
 (defn myfold [xs ys]
-  (let [xs1 (tuple.prepend xs 0)
-        xs2 (tuple.append xs 0)
+  (let [xs1 (tuple/prepend xs 0)
+        xs2 (tuple/append xs 0)
         m1 (map + xs1 ys)
         m2 (map + xs2 ys)]
     (map max m1 m2)))
@@ -119,12 +119,12 @@
 
 (assert (= (maxpath triangle) 25) `max triangle`)
 
-(assert (= (string.join @["one" "two" "three"]) "onetwothree") "string.join 1 argument")
-(assert (= (string.join @["one" "two" "three"] ", ") "one, two, three") "string.join 2 arguments")
-(assert (= (string.join @[] ", ") "") "string.join empty array")
+(assert (= (string/join @["one" "two" "three"]) "onetwothree") "string/join 1 argument")
+(assert (= (string/join @["one" "two" "three"] ", ") "one, two, three") "string/join 2 arguments")
+(assert (= (string/join @[] ", ") "") "string/join empty array")
 
-(assert (= (string.find "123" "abc123def") 3) "string.find positive")
-(assert (= (string.find "1234" "abc123def") nil) "string.find negative")
+(assert (= (string/find "123" "abc123def") 3) "string/find positive")
+(assert (= (string/find "1234" "abc123def") nil) "string/find negative")
 
 # Test destructuring
 (do
@@ -169,13 +169,13 @@
 (testmarsh (fn thing [x] (+ 11 x x 30)) "marshal function 3")
 (testmarsh map "marshal function 4")
 (testmarsh reduce "marshal function 5")
-(testmarsh (fiber.new (fn [] (yield 1) 2)) "marshal simple fiber 1")
-(testmarsh (fiber.new (fn [&] (yield 1) 2)) "marshal simple fiber 2")
+(testmarsh (fiber/new (fn [] (yield 1) 2)) "marshal simple fiber 1")
+(testmarsh (fiber/new (fn [&] (yield 1) 2)) "marshal simple fiber 2")
 
 # Large functions
 (def manydefs (seq [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
-(array.push manydefs (tuple * 10000 3 5 7 9))
-(def f (compile (tuple.prepend manydefs 'do) *env*))
+(array/push manydefs (tuple * 10000 3 5 7 9))
+(def f (compile (tuple/prepend manydefs 'do) *env*))
 (assert (= (f) (* 10000 3 5 7 9)) "long function compilation")
 
 # Some higher order functions and macros
@@ -201,9 +201,9 @@
             6 :six
             7 :seven
             8 :eight
-            9 :nine)), "case macro")
+            9 :nine)) "case macro")
 
-(assert (= 7 (case :a :b 5 :c 6 :u 10 7)), "case with default")
+(assert (= 7 (case :a :b 5 :c 6 :u 10 7)) "case with default")
 
 # Testing the loop and for macros
 (def xs (apply tuple (seq [x :range [0 10] :when (even? x)] (tuple (/ x 2) x))))
@@ -215,11 +215,11 @@
 
 # Closure in while loop
 (def closures (seq [i :range [0 5]] (fn [] i)))
-(assert (= 0 ((get closures 0))) "closure in loop 0")
-(assert (= 1 ((get closures 1))) "closure in loop 1")
-(assert (= 2 ((get closures 2))) "closure in loop 2")
-(assert (= 3 ((get closures 3))) "closure in loop 3")
-(assert (= 4 ((get closures 4))) "closure in loop 4")
+(assert (= 0 (closures.0)) "closure in loop 0")
+(assert (= 1 (closures.1)) "closure in loop 1")
+(assert (= 2 (closures.2)) "closure in loop 2")
+(assert (= 3 (closures.3)) "closure in loop 3")
+(assert (= 4 (closures.4)) "closure in loop 4")
 
 # More numerical tests
 (assert (== 1 1.0) "numerical equal 1")
@@ -237,12 +237,12 @@
     (= (apply tuple a) (apply tuple b))))
 (assert (= (apply tuple @[1 2 3 4 5]) (tuple 1 2 3 4 5)) "array to tuple")
 (def arr (array))
-(array.push arr :hello)
-(array.push arr :world)
+(array/push arr :hello)
+(array/push arr :world)
 (assert (array= arr @[:hello :world]) "array comparision")
 (assert (array= @[1 2 3 4 5] @[1 2 3 4 5]) "array comparison 2")
 (assert (array= @[:one :two :three :four :five] @[:one :two :three :four :five]) "array comparison 3")
-(assert (array= (array.slice @[1 2 3] 0 2) @[1 2]) "array.slice 1")
-(assert (array= (array.slice @[0 7 3 9 1 4] 2 -2) @[3 9 1]) "array.slice 2")
+(assert (array= (array/slice @[1 2 3] 0 2) @[1 2]) "array/slice 1")
+(assert (array= (array/slice @[0 7 3 9 1 4] 2 -2) @[3 9 1]) "array/slice 2")
 
 (end-suite)

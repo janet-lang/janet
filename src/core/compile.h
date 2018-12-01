@@ -76,6 +76,9 @@ typedef struct JanetSpecial JanetSpecial;
 #define JANET_SLOT_RETURNED 0x100000
 /* Needed for handling single element arrays as global vars. */
 
+/* Used for unquote-splicing */
+#define JANET_SLOT_SPLICED 0x200000
+
 #define JANET_SLOTTYPE_ANY 0xFFFF
 
 /* A stack slot */

@@ -45,7 +45,7 @@ static JanetSlot multisym_do_parts(JanetFopts opts, int put, const uint8_t *sym,
     JanetFopts subopts = janetc_fopts_default(opts.compiler);
     int i, j;
     for (i = 1, j = 0; sym[i]; i++) {
-        if (sym[i] == ':' || sym[i] == '@') {
+        if (sym[i] == ':' || sym[i] == '.') {
             if (j) {
                 JanetSlot target = janetc_gettarget(subopts);
                 JanetSlot value = multisym_parse_part(opts.compiler, sym + j, i - j);
