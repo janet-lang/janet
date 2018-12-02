@@ -136,6 +136,7 @@ $(JANET_EMTARGET): $(JANET_EMOBJECTS)
 TEST_SOURCES=$(wildcard ctest/*.c)
 TEST_OBJECTS=$(patsubst %.c,%.o,$(TEST_SOURCES))
 TEST_PROGRAMS=$(patsubst %.c,%.out,$(TEST_SOURCES))
+TEST_SCRIPTS=$(wildcard test/suite*.janet)
 
 ctest/%.o: ctest/%.c $(JANET_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
@@ -153,22 +154,14 @@ valgrind: $(JANET_TARGET)
 	valgrind --leak-check=full -v ./$(JANET_TARGET)
 
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
-	ctest/system_test.out
-	ctest/array_test.out
-	ctest/buffer_test.out
-	ctest/table_test.out
-	./$(JANET_TARGET) test/suite0.janet
-	./$(JANET_TARGET) test/suite1.janet
-	./$(JANET_TARGET) test/suite2.janet
+	for f in ctest/*.out; do "$$f" || exit; done
+	for f in test/*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
+
+VALGRIND_COMMAND=valgrind --leak-check=full -v 
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
-	valgrind --leak-check=full -v ctest/system_test.out
-	valgrind --leak-check=full -v ctest/array_test.out
-	valgrind --leak-check=full -v ctest/buffer_test.out
-	valgrind --leak-check=full -v ctest/table_test.out
-	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite0.janet
-	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite1.janet
-	valgrind --leak-check=full -v ./$(JANET_TARGET) test/suite2.janet
+	for f in ctest/*.out; do $(VALGRIND_COMMAND) "$$f" || exit; done
+	for f in test/*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
 
 ###################
 ##### Natives #####

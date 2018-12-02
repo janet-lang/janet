@@ -40,7 +40,7 @@
 (assert (= (length @"abcdef") 6) "buffer length")
 
 # Looping idea
-(def xs 
+(def xs
   (seq [x :in '[-1 0 1] y :in '[-1 0 1] :when (not= x y 0)] (tuple x y)))
 (def txs (apply tuple xs))
 
