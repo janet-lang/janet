@@ -192,16 +192,6 @@ static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv)
         return janetc_cslot(janet_wrap_nil());
     }
     return janetc_sym_lvalue(opts, janet_unwrap_symbol(head), argv[1]);
-    /*dest = janetc_resolve(opts.compiler, janet_unwrap_symbol(head));*/
-    /*if (!(dest.flags & JANET_SLOT_MUTABLE)) {*/
-        /*janetc_cerror(opts.compiler, "cannot set constant");*/
-        /*return janetc_cslot(janet_wrap_nil());*/
-    /*}*/
-    /*subopts.flags = JANET_FOPTS_HINT;*/
-    /*subopts.hint = dest;*/
-    /*ret = janetc_value(subopts, argv[1]);*/
-    /*janetc_copy(opts.compiler, dest, ret);*/
-    /*return ret;*/
 }
 
 /* Add attributes to a global def or var table */
