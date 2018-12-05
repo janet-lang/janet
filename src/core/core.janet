@@ -386,7 +386,7 @@
                                    subloop
                                    (tuple := $yieldval (tuple resume $fiber)))))
             (error (string "unexpected loop verb: " verb)))))))
-  (tuple 'do (doone 0 nil) nil))
+  (doone 0 nil))
 
 (defmacro seq
   "Similar to loop, but accumulates the loop body into an array and returns that.
