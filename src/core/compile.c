@@ -321,12 +321,40 @@ JanetSlot *janetc_toslotskv(JanetCompiler *c, Janet ds) {
 /* Push slots load via janetc_toslots. */
 void janetc_pushslots(JanetCompiler *c, JanetSlot *slots) {
     int32_t i;
-    for (i = 0; i < janet_v_count(slots) - 2; i += 3)
-        janetc_emit_sss(c, JOP_PUSH_3, slots[i], slots[i+1], slots[i+2], 0);
-    if (i == janet_v_count(slots) - 2)
-        janetc_emit_ss(c, JOP_PUSH_2, slots[i], slots[i+1], 0);
-    else if (i == janet_v_count(slots) - 1)
-        janetc_emit_s(c, JOP_PUSH, slots[i], 0);
+    int32_t count = janet_v_count(slots);
+    for (i = 0; i < count;) {
+        if (slots[i].flags & JANET_SLOT_SPLICED) {
+            janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i], 0);
+            i++;
+        } else if (i + 1 == count) {
+            janetc_emit_s(c, JOP_PUSH, slots[i], 0);
+            i++;
+        } else if (slots[i + 1].flags & JANET_SLOT_SPLICED) {
+            janetc_emit_s(c, JOP_PUSH, slots[i], 0);
+            janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i+1], 0);
+            i += 2;
+        } else if (i + 2 == count) {
+            janetc_emit_ss(c, JOP_PUSH_2, slots[i], slots[i+1], 0);
+            i += 2;
+        } else if (slots[i + 2].flags & JANET_SLOT_SPLICED) {
+            janetc_emit_ss(c, JOP_PUSH_2, slots[i], slots[i+1], 0);
+            janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i+2], 0);
+            i += 3;
+        } else {
+            janetc_emit_sss(c, JOP_PUSH_3, slots[i], slots[i+1], slots[i+2], 0);
+            i += 3;
+        }
+    }
+}
+
+/* Check if a list of slots has any spliced slots */
+static int has_spliced(JanetSlot *slots) {
+    int32_t i;
+    for (i = 0; i < janet_v_count(slots); i++) {
+        if (slots[i].flags & JANET_SLOT_SPLICED)
+            return 1;
+    }
+    return 0;
 }
 
 /* Free slots loaded via janetc_toslots */
@@ -361,7 +389,7 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun) {
     JanetSlot retslot;
     JanetCompiler *c = opts.compiler;
     int specialized = 0;
-    if (fun.flags & JANET_SLOT_CONSTANT) {
+    if (fun.flags & JANET_SLOT_CONSTANT && !has_spliced(slots)) {
         if (janet_checktype(fun.constant, JANET_FUNCTION)) {
             JanetFunction *f = janet_unwrap_function(fun.constant);
             const JanetFunOptimizer *o = janetc_funopt(f->def->flags);
@@ -521,6 +549,7 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                         ret = janetc_call(opts, janetc_toslots(c, tup + 1, janet_tuple_length(tup) - 1), head);
                         janetc_freeslot(c, head);
                     }
+                    ret.flags &= ~JANET_SLOT_SPLICED;
                 }
                 break;
             case JANET_SYMBOL:

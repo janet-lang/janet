@@ -171,7 +171,7 @@ static void popstate(JanetParser *p, Janet val) {
             const char *which = 
                 (c == '\'') ? "quote" :
                 (c == ',') ? "unquote" :
-                (c == ';') ? "unquote-splicing" :
+                (c == ';') ? "splice" :
                 (c == '~') ? "quasiquote" : "<unknown>";
             t[0] = janet_csymbolv(which);
             t[1] = val;

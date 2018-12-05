@@ -40,7 +40,7 @@
       (:= index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
     # Build return value
-    ~(def ,name ;modifiers (fn ,name ;(tuple/slice more start)))))
+    ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
 
 (defn defmacro :macro
   "Define a macro."
@@ -60,7 +60,7 @@
 (defmacro def-
   "Define a private value that will not be exported."
   [name & more]
-  ~(def name :private ;more))
+  ~(def name :private ,;more))
 
 (defn defglobal
   "Dynamically create a global def."
@@ -165,12 +165,12 @@
 (defmacro when
   "Evaluates the body when the condition is true. Otherwise returns nil."
   [condition & body]
-  ~(if ,condition (do ;body)))
+  ~(if ,condition (do ,;body)))
 
 (defmacro unless
   "Shorthand for (when (not ... "
   [condition & body]
-  ~(if ,condition nil (do ;body)))
+  ~(if ,condition nil (do ,;body)))
 
 (defmacro cond
   "Evaluates conditions sequentially until the first true condition
@@ -404,7 +404,7 @@
   "Create a generator expression using the loop syntax. Returns a fiber
   that yields all values inside the loop in order. See loop for details."
   [head & body]
-  ~(fiber/new (fn [&] (loop ,head (yield (do ;body))))))
+  ~(fiber/new (fn [&] (loop ,head (yield (do ,;body))))))
 
 (defmacro for
   "Do a c style for loop for side effects. Returns nil."
@@ -416,20 +416,22 @@
   [binding ind & body]
   (apply loop [tuple binding :in ind] body))
 
-(defn sum [xs]
+(defmacro coro
+  "A wrapper for making fibers. Same as (fiber/new (fn [&] ...body))."
+  [& body]
+  (tuple fiber/new (tuple 'fn '[&] ;body)))
+
+(defn sum
+  [xs]
   (var accum 0)
   (loop [x :in xs] (+= accum x))
   accum)
 
-(defn product [xs]
+(defn product
+  [xs]
   (var accum 1)
   (loop [x :in xs] (*= accum x))
   accum)
-
-(defmacro coro
-  "A wrapper for making fibers. Same as (fiber/new (fn [&] ...body))."
-  [& body]
-  (tuple fiber/new (apply tuple 'fn '[&] body)))
 
 (defmacro if-let
   "Takes the first one or two forms in a vector and if both are true binds
@@ -466,7 +468,7 @@
   "Takes the first one or two forms in vector and if true binds
   all the forms  with let and evaluates the body"
   [bindings & body]
-  ~(if-let ,bindings (do ;body)))
+  ~(if-let ,bindings (do ,;body)))
 
 (defn comp
   "Takes multiple functions and returns a function that is the composition
@@ -479,8 +481,8 @@
     3 (let [[f g h]     functions] (fn [x] (f (g (h x)))))
     4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
     (let [[f g h i j] functions]
-      (apply comp (fn [x] (f (g (h (i (j x))))))
-             (tuple/slice functions 5 -1)))))
+      (comp (fn [x] (f (g (h (i (j x))))))
+             ;(tuple/slice functions 5 -1)))))
 
 (defn identity
   "A function that returns its first argument."
@@ -590,7 +592,7 @@
     (loop [i :range [0 limit]]
       (def args (array/new ninds))
       (loop [j :range [0 ninds]] (:= args.j inds.j.i))
-      (:= res.i (apply f args))))
+      (:= res.i (f ;args))))
   res)
 
 (defn mapcat
@@ -696,7 +698,7 @@
   (fn [& args]
     (def ret @[])
     (loop [f :in funs]
-      (array/push ret (apply f args)))
+      (array/push ret (f ;args)))
     (tuple/slice ret 0)))
 
 (defmacro juxt
@@ -738,7 +740,7 @@
   "Partial function application."
   [f & more]
   (if (zero? (length more)) f
-    (fn [& r] (apply f (array/concat @[] more r)))))
+    (fn [& r] (f ;more ;r))))
 
 (defn every? 
   "Returns true if each value in is truthy, otherwise the first
@@ -787,7 +789,7 @@ value, one key will be ignored."
   The key then, is associated to the function's return value"
   [coll a-key a-function & args]
   (def old-value coll.a-key)
-  (:= coll.a-key (apply a-function old-value args)))
+  (:= coll.a-key (a-function old-value ;args)))
 
 (defn merge-into
   "Merges multiple tables/structs into a table. If a key appears in more than one
@@ -857,7 +859,7 @@ value, one key will be ignored."
   (def res @[])
   (def ncol (length cols))
   (when (> ncol 0)
-    (def len (apply min (map length cols)))
+    (def len (min ;(map length cols)))
     (loop [i :range [0 len]
            ci :range [0 ncol]]
         (array/push res cols.ci.i)))
@@ -1008,16 +1010,16 @@ value, one key will be ignored."
 
   (defn expandall [t]
     (def args (map macex1 (tuple/slice t 1)))
-    (apply tuple t.0 args))
+    (tuple t.0 ;args))
 
   (defn expandfn [t]
     (if (symbol? t.1)
       (do
         (def args (map macex1 (tuple/slice t 3)))
-        (apply tuple 'fn t.1 t.2 args))
+        (tuple 'fn t.1 t.2 ;args))
       (do
         (def args (map macex1 (tuple/slice t 2)))
-        (apply tuple 'fn t.1 args))))
+        (tuple 'fn t.1 ;args))))
 
   (defn expandqq [t]
     (defn qq [x]
@@ -1052,7 +1054,7 @@ value, one key will be ignored."
     (def m? entry:macro)
     (cond
       s (s t)
-      m? (apply m (tuple/slice t 1))
+      m? (m ;(tuple/slice t 1))
       (tuple/slice (map macex1 t))))
 
   (def ret
@@ -1358,7 +1360,7 @@ value, one key will be ignored."
 
 (defn import* 
   [env path & args]
-  (def targs (apply table args))
+  (def targs (table ;args))
   (def {:as as
         :prefix prefix} targs)
   (def newenv (require path targs))
@@ -1383,7 +1385,7 @@ value, one key will be ignored."
                      x
                      (string x)))
                  args))
-  (apply tuple import* '_env (string path) argm))
+  (tuple import* '_env (string path) ;argm))
 
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
