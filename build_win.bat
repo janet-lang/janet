@@ -28,10 +28,16 @@ mkdir build\mainclient
 @link /nologo /out:build\xxd.exe build\xxd.obj
 @if errorlevel 1 goto :BUILDFAIL
 
-@rem Generate the headers
-@build\xxd.exe src\core\core.janet src\include\generated\core.h janet_gen_core
+@rem Generate the embedded sources
+@build\xxd.exe src\core\core.janet build\core\core.gen.c janet_gen_core
 @if errorlevel 1 goto :BUILDFAIL
-@build\xxd.exe src\mainclient\init.janet src\include\generated\init.h janet_gen_init
+@build\xxd.exe src\mainclient\init.janet build\mainclient\init.gen.c janet_gen_init
+@if errorlevel 1 goto :BUILDFAIL
+
+@rem Build the generated sources
+@%JANET_COMPILE% /Fobuild\core\core.gen.obj build\core\core.gen.c
+@if errorlevel 1 goto :BUILDFAIL
+@%JANET_COMPILE% /Fobuild\mainclient\init.gen.obj build\mainclient\init.gen.c
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Build the sources

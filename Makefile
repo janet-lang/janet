@@ -49,42 +49,15 @@ else
 endif
 
 # Source headers
-JANET_GENERATED_HEADERS= \
-	src/include/generated/core.h \
- 	src/include/generated/init.h
 JANET_HEADERS=$(sort $(wildcard src/include/janet/*.h))
 JANET_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
 
 # Source files
-JANET_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
-JANET_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
-JANET_WEBCLIENT_SOURCES=$(sort $(wildcard src/webclient/*.c))
+JANET_CORE_SOURCES=$(sort $(wildcard src/core/*.c)) src/core/core.gen.c
+JANET_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c)) src/mainclient/init.gen.c
+JANET_WEBCLIENT_SOURCES=$(sort $(wildcard src/webclient/*.c)) src/webclient/webinit.gen.c
 
 all: $(JANET_TARGET) $(JANET_LIBRARY)
-
-###################################
-##### The code generator tool #####
-###################################
-
-xxd: src/tools/xxd.c
-	$(CC) $< -o $@
-
-#############################
-##### Generated Headers #####
-#############################
-
-src/include/generated/init.h: src/mainclient/init.janet xxd
-	./xxd $< $@ janet_gen_init 
-
-src/include/generated/webinit.h: src/webclient/webinit.janet xxd
-	./xxd $< $@ janet_gen_webinit 
-
-src/include/generated/core.h: src/core/core.janet xxd
-	./xxd $< $@ janet_gen_core
-
-# Only a few files depend on the generated headers
-src/core/corelib.o: src/include/generated/core.h
-src/mainclient/main.o: src/include/generated/init.h
 
 ##########################################################
 ##### The main interpreter program and shared object #####
@@ -119,15 +92,21 @@ JANET_EMTARGET=janet.js
 JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)
 JANET_EMOBJECTS=$(patsubst %.c,%.bc,$(JANET_WEB_SOURCES))
 
-# Only a few files depend on generated headers
-src/core/corelib.bc: src/include/generated/core.h
-src/webclient/main.bc: src/include/generated/webinit.h
-
 %.bc: %.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
 	$(EMCC) $(EMCCFLAGS) -o $@ -c $<
 
 $(JANET_EMTARGET): $(JANET_EMOBJECTS)
 	$(EMCC) $(EMCCFLAGS) -shared -o $@ $^
+
+#############################
+##### Generated C files #####
+#############################
+
+xxd: src/tools/xxd.c
+	$(CC) $< -o $@
+
+%.gen.c: %.janet xxd
+	./xxd $< $@ janet_gen_$(*F)
 
 ###################
 ##### Testing #####
@@ -184,7 +163,7 @@ clean:
 	-rm $(JANET_LIBRARY)
 	-rm ctest/*.o ctest/*.out
 	-rm src/**/*.o src/**/*.bc vgcore.* *.js *.wasm *.html
-	-rm $(JANET_GENERATED_HEADERS)
+	-rm src/**/*.gen.c
 
 install: $(JANET_TARGET)
 	mkdir -p $(BINDIR)

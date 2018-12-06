@@ -21,8 +21,10 @@
 */
 
 #include <janet/janet.h>
-#include <generated/webinit.h>
 #include <emscripten.h>
+
+extern const unsigned char *janet_gen_webinit;
+extern size_t janet_gen_webinit_size;
 
 static JanetFiber *repl_fiber = NULL;
 static JanetBuffer *line_buffer = NULL;
@@ -78,7 +80,7 @@ void repl_init(void) {
 
     /* Run startup script */
     Janet ret;
-    status = janet_dobytes(env, janet_gen_webinit, sizeof(janet_gen_webinit), "webinit.janet", &ret);
+    status = janet_dobytes(env, janet_gen_webinit, janet_gen_webinit_size, "webinit.janet", &ret);
     if (status == JANET_SIGNAL_ERROR) {
         printf("start up error.\n");
         janet_deinit();

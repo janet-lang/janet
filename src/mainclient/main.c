@@ -21,9 +21,10 @@
 */
 
 #include <janet/janet.h>
-
-#include <generated/init.h>
 #include "line.h"
+
+extern const unsigned char *janet_gen_init;
+extern size_t janet_gen_init_size;
 
 int main(int argc, char **argv) {
     int i, status;
@@ -46,7 +47,7 @@ int main(int argc, char **argv) {
     janet_line_init();
 
     /* Run startup script */
-    status = janet_dobytes(env, janet_gen_init, sizeof(janet_gen_init), "init.janet", NULL);
+    status = janet_dobytes(env, janet_gen_init, janet_gen_init_size, "init.janet", NULL);
 
     /* Deinitialize vm */
     janet_deinit();

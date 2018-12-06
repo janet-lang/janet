@@ -36,6 +36,7 @@ int main(int argc, const char **argv) {
 	static const char hex[] = "0123456789ABCDEF";
 	char buf[BUFSIZE];
 	size_t bytesRead = 0;
+	size_t totalRead = 0;
 	int lineIndex = 0;
 	int line = 0;
 
@@ -58,12 +59,13 @@ int main(int argc, const char **argv) {
 	}
 
 	/* Write the header */
-	fprintf(out, "/* Auto generated - DO NOT EDIT */\n\n");
-	fprintf(out, "static const unsigned char %s[] = {", argv[3]);
+	fprintf(out, "/* Auto generated - DO NOT EDIT */\n\n#include <stddef.h>\n\n");
+	fprintf(out, "static const unsigned char bytes[] = {");
 
 	/* Read in chunks from buffer */
 	while ((bytesRead = fread(buf, 1, sizeof(buf), in)) > 0) {
 		size_t i;
+		totalRead += bytesRead;
 		for (i = 0; i < bytesRead; ++i) {
 			int byte = ((uint8_t *)buf) [i];
 
@@ -88,6 +90,11 @@ int main(int argc, const char **argv) {
 
   	/* Write the tail */
 	fputs("\n};\n\n", out);
+
+	fprintf(out, "const unsigned char *%s = bytes;\n\n", argv[3]);
+
+    /* Write chunk size */
+	fprintf(out, "size_t %s_size = %ld;\n", argv[3], totalRead);
 
 	/* Close the file handles */
 	fclose(in);
