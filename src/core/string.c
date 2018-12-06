@@ -490,7 +490,7 @@ static void print_newline(struct pretty *S, int just_a_space) {
 }
 
 /* Helper for pretty printing */
-static void janet_pretty_one(struct pretty *S, Janet x) {
+static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
     /* Add to seen */
     switch (janet_type(x)) {
         case JANET_NIL:
@@ -534,9 +534,10 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
                     janet_indexed_view(x, &arr, &len);
                     if (!isarray && len >= 5)
                         janet_buffer_push_u8(S->buffer, ' ');
+                    if (is_dict_value && len >= 5) print_newline(S, 0);
                     for (i = 0; i < len; i++) {
                         if (i) print_newline(S, len < 5);
-                        janet_pretty_one(S, arr[i]);
+                        janet_pretty_one(S, arr[i], 0);
                     }
                 }
                 S->indent -= 2;
@@ -575,6 +576,7 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
                     janet_dictionary_view(x, &kvs, &len, &cap);
                     if (!istable && len >= 4)
                         janet_buffer_push_u8(S->buffer, ' ');
+                    if (is_dict_value && len >= 5) print_newline(S, 0);
                     for (i = 0; i < cap; i++) {
                         if (!janet_checktype(kvs[i].key, JANET_NIL)) {
                             if (first_kv_pair) {
@@ -582,9 +584,9 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
                             } else {
                                 print_newline(S, len < 4);
                             }
-                            janet_pretty_one(S, kvs[i].key);
+                            janet_pretty_one(S, kvs[i].key, 0);
                             janet_buffer_push_u8(S->buffer, ' ');
-                            janet_pretty_one(S, kvs[i].value);
+                            janet_pretty_one(S, kvs[i].value, 1);
                         }
                     }
                 }
@@ -610,7 +612,7 @@ JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x) {
     S.depth = depth;
     S.indent = 0;
     janet_table_init(&S.seen, 10);
-    janet_pretty_one(&S, x);
+    janet_pretty_one(&S, x, 0);
     janet_table_deinit(&S.seen);
     return S.buffer;
 }

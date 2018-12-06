@@ -742,7 +742,7 @@
   (if (zero? (length more)) f
     (fn [& r] (f ;more ;r))))
 
-(defn every? 
+(defn every?
   "Returns true if each value in is truthy, otherwise the first
   falsey value."
   [ind]
@@ -889,7 +889,7 @@ value, one key will be ignored."
   [xs]
   (flatten-into @[] xs))
 
-(defn kvs 
+(defn kvs
   "Takes a table or struct and returns and array of key value pairs
   like @[k v k v ...]. Returns a new array."
   [dict]
@@ -1250,7 +1250,7 @@ value, one key will be ignored."
       (buffer/push-string buf str)
       (buffer/push-string buf "\n")))
   (var returnval nil)
-  (run-context *env* chunks 
+  (run-context *env* chunks
                (fn [sig x f source]
                  (if (= sig :dead)
                    (:= returnval x)
@@ -1368,7 +1368,7 @@ value, one key will be ignored."
           (:= loading.path false)
           newenv)))))
 
-(defn import* 
+(defn import*
   [env path & args]
   (def targs (table ;args))
   (def {:as as
@@ -1400,7 +1400,7 @@ value, one key will be ignored."
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
   get a chunk of source code that should return nil for end of file.
-  The second parameter is a function that is called when a signal is 
+  The second parameter is a function that is called when a signal is
   caught."
   [chunks onsignal &]
   (def newenv (make-env))
