@@ -1238,7 +1238,7 @@ value, one key will be ignored."
       (when tail (file/write stderr " (tailcall)"))
       (file/write stderr "\n"))))
 
-(defn eval
+(defn eval-string
   "Evaluates a string in the current environment. If more control over the
   environment is needed, use run-context."
   [str]
@@ -1257,6 +1257,15 @@ value, one key will be ignored."
                    (status-pp sig x f source)))
                "eval")
   returnval)
+
+(defn eval
+  "Evaluates a form in the current environment. If more control over the
+  environment is needed, use run-context."
+  [form]
+  (def res (compile form *env* "eval"))
+  (if (= (type res) :function)
+    (res)
+    (error res:error)))
 
 (do
   (def syspath (or (os/getenv "JANET_PATH") "/usr/local/lib/janet/"))
@@ -1288,6 +1297,7 @@ value, one key will be ignored."
        (string/replace ".so" ".dll" x))))
 
 (defn module/find
+  "Try to match a module or path name from the patterns in paths."
   [path paths]
   (def parts (string/split "/" path))
   (def lastpart (get parts (- (length parts) 1)))
