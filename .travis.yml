@@ -20,3 +20,4 @@ deploy:
   on:
     tags: true
     repo: bakpakin/janet
+    condition: "$CC = clang"
