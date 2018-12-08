@@ -11,3 +11,6 @@ compiler:
 os:
   - linux
   - osx
+
+addons:
+  artifacts: true

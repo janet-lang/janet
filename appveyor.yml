@@ -42,3 +42,12 @@ artifacts:
     - path: janet.lib
       name: janet.lib
       type: File
+
+deploy:
+  provider: S3
+  access_key_id:
+    secure: lQSFzZA0+s1bAWb+CM5tX8L/yer6i6mM2HlIDDyfvIk=
+  secret_access_key:
+    secure: WsOLIEb6VDfK37ZhIpfftuMlyKLvbGYIbHfFRgaE9+58JN9E+tfoMteG3RqqmtRZ
+  bucket: janet-releases
+  folder: $(APPVEYOR_PROJECT_SLUG)/$(APPVEYOR_BUILD_VERSION)
