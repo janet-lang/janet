@@ -16,6 +16,7 @@ deploy:
     secure: JSqAOTH1jmfVlbOuPO3BbY1BhPq+ddiBNPCxuAyKHoVwfO4eNAmq9COI+UwCMWY3dg+YlspufRwkHj//B7QQ6hPbSsKu+Mapu6gr/CAE/jxbfO/E98LkIkUwbGjplwtzw2kiBkHN/Bu6J5X76cwo4D8nwQ1JIcV3nWtoG87t7H4W0R4AYQkbLGAPylgUFr11YMPx2cRBBqCdLAGIrny7kQ/0cRBfkN81R/gUJv/q3OjmUvY7sALXp7mFdZb75QPSilKIDuVUU5hLvPYTeRl6cWI/M+m5SmGZx1rjv5S9Qaw070XoNyt9JAADtbOUnADKvDguDZIP1FCuT1Gb+cnJPzrvk6+OBU9s8UjCTFtgV+LKlhmRZcwV5YQBE94PKRMJNC6VvIWM7UeQ8Zhm1jmQS6ONNWbuoUAlkZP57NtDQa2x0GT2wkubNSQKlaY+6/gwTD9KAJIzaZG7HYXH7b+4g7VbccCyhDAtDZtXgrOIS4WAkNc8rWezRO4H0qHMyON9aCEb0eTE8hWIufbx6ymG4gUxnYO+AkrEYMCwQvU6lS8BsevkaMTVtSShqlQtJ9FRlmJA3MA2ONyqzQXJENqRydyVbpFrKSv+0HbMyhEc5BoKbt0QcTh/slouNV4eASNar/GKN7aP8XKGUeMwIoCcRpP+3ehmwX9SUw7Ah5S42pA=
   file: janet-${TRAVIS_TAG}-${TRAVIS_OS_NAME}.tar.gz
   draft: true
+  skip_cleanup: true
   on:
     tags: true
     repo: bakpakin/janet
