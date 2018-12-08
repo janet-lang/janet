@@ -359,8 +359,8 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
         janetc_scope(&tempscope, c, 0, "if-body");
         target = janetc_value(bodyopts, truebody);
         janetc_popscope(c);
-        janetc_popscope(c);
         janetc_throwaway(bodyopts, falsebody);
+        janetc_popscope(c);
         return target;
     }
 

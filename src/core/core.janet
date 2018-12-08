@@ -60,7 +60,7 @@
 (defmacro def-
   "Define a private value that will not be exported."
   [name & more]
-  ~(def name :private ,;more))
+  ~(def ,name :private ,;more))
 
 (defn defglobal
   "Dynamically create a global def."
@@ -613,6 +613,16 @@
     (if (pred item)
       (array/push res item)))
   res)
+
+(defn count
+  "Count the number of items in ind for which (pred item)
+  is true."
+  [pred ind]
+  (var counter 0)
+  (loop [item :in ind]
+    (if (pred item)
+      (++ counter)))
+  counter)
 
 (defn keep
   "Given a predicate, take only elements from an array or tuple for
