@@ -32,14 +32,7 @@ only_commits:
     - appveyor.yml
     - src/
 
-deploy:
-  release: janet-v$(appveyor_build_version)
-  description: 'The janet programming language'
-  provider: GitHub
-  auth_token:
-    secure: Li9bQt2tklh/fT1J3G8okrn0dIwAxj7h4BGZWbsfTJtTEEhQNdBuUJcItLsG8JTv
-  artifact: janet.exe
-  draft: false
-  prerelease: false
-  on:
-    branch: stable
+artifacts:
+    - path: janet.exe
+      name: janet
+      type: File
