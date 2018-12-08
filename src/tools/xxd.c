@@ -36,7 +36,7 @@ int main(int argc, const char **argv) {
 	static const char hex[] = "0123456789ABCDEF";
 	char buf[BUFSIZE];
 	size_t bytesRead = 0;
-	size_t totalRead = 0;
+	int32_t totalRead = 0;
 	int lineIndex = 0;
 	int line = 0;
 
@@ -59,7 +59,7 @@ int main(int argc, const char **argv) {
 	}
 
 	/* Write the header */
-	fprintf(out, "/* Auto generated - DO NOT EDIT */\n\n#include <stddef.h>\n\n");
+	fprintf(out, "/* Auto generated - DO NOT EDIT */\n\n#include <stdint.h>\n\n");
 	fprintf(out, "static const unsigned char bytes[] = {");
 
 	/* Read in chunks from buffer */
@@ -94,7 +94,7 @@ int main(int argc, const char **argv) {
 	fprintf(out, "const unsigned char *%s = bytes;\n\n", argv[3]);
 
     /* Write chunk size */
-	fprintf(out, "size_t %s_size = %ld;\n", argv[3], totalRead);
+	fprintf(out, "int32_t %s_size = %d;\n", argv[3], totalRead);
 
 	/* Close the file handles */
 	fclose(in);

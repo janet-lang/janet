@@ -24,7 +24,7 @@
 #include "line.h"
 
 extern const unsigned char *janet_gen_init;
-extern size_t janet_gen_init_size;
+extern int32_t janet_gen_init_size;
 
 int main(int argc, char **argv) {
     int i, status;

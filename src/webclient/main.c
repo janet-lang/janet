@@ -24,7 +24,7 @@
 #include <emscripten.h>
 
 extern const unsigned char *janet_gen_webinit;
-extern size_t janet_gen_webinit_size;
+extern int32_t janet_gen_webinit_size;
 
 static JanetFiber *repl_fiber = NULL;
 static JanetBuffer *line_buffer = NULL;
