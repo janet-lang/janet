@@ -960,21 +960,28 @@ value, one key will be ignored."
     (do
       (def len (length pattern))
       (var i -1)
-      (with-idemp $arr expr
-        ((fn aux []
-          (++ i)
-          (if (= i len)
-            (onmatch)
-            (match-1 pattern.i ~(get ,$arr ,i) aux seen))))))
+      (with-idemp
+        $arr expr
+        ~(if (indexed? ,$arr)
+           ,((fn aux []
+               (++ i)
+               (if (= i len)
+                 (onmatch)
+                 (match-1 pattern.i (tuple get $arr i) aux seen))))
+           ,sentinel)))
 
     (dictionary? pattern)
     (do
       (var key nil)
-      (with-idemp $dict expr ((fn aux []
-        (:= key (next pattern key))
-        (if (= key nil)
-          (onmatch)
-          (match-1 (get pattern key) ~(get ,$dict ,key) aux seen))))))
+      (with-idemp
+        $dict expr
+        ~(if (dictionary? ,$dict) 
+           ,((fn aux []
+               (:= key (next pattern key))
+               (if (= key nil)
+                 (onmatch)
+                 (match-1 (get pattern key) (tuple get $dict key) aux seen))))
+           ,sentinel)))
 
     :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
 

@@ -25,4 +25,25 @@
 (assert (= (length (range 1 10)) 9) "(range 1 10)")
 (assert (deep= @{:a 1 :b 2 :c 3} (zipcoll '[:a :b :c] '[1 2 3])) "zipcoll")
 
+(def- a 100)
+(assert (= a 100) "def-")
+
+(assert (= :first
+          (match @[1 3 5]
+                 @[x y z] :first
+                 :second)) "match 1")
+
+(def val1 :avalue)
+(assert (= :second
+          (match val1
+                 @[x y z] :first
+                 :avalue :second
+                 :third)) "match 2")
+
+(assert (= 100
+           (match @[50 40]
+                  @[x x] (* x 3)
+                  @[x y] (+ x y 10)
+                  0)) "match 3")
+
 (end-suite)
