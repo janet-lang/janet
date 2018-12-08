@@ -31,7 +31,7 @@ only_commits:
 
 artifacts:
     - path: dist
-      name: janet-%APPVEYOR_TAG_NAME%-windows.zip
+      name: "janet-$(APPVEYOR_TAG_NAME)-windows.zip"
       type: Zip
 
 deploy:
@@ -39,7 +39,7 @@ deploy:
   provider: GitHub
   auth_token:
     secure: lwEXy09qhj2jSH9s1C/KvCkAUqJSma8phFR+0kbsfUc3rVxpNK5uD3z9Md0SjYRx
-  artifact: janet-%APPVEYOR_TAG_NAME%-windows.zip
+  artifact: "janet-$(APPVEYOR_TAG_NAME)-windows.zip"
   draft: true
   on:
     APPVEYOR_REPO_TAG: true
