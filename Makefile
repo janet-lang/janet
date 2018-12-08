@@ -157,12 +157,18 @@ clean-natives:
 ##### Other #####
 #################
 
+dist: janet-dist.tar.gz
+
+janet-%.tar.gz: $(JANET_TARGET) src/include/janet/janet.h janet.1 $(JANET_LIBRARY)
+	tar -czvf $@ $^
+
 clean:
 	-rm $(JANET_TARGET)
 	-rm $(JANET_LIBRARY)
 	-rm ctest/*.o ctest/*.out
 	-rm src/**/*.o src/**/*.bc vgcore.* *.js *.wasm *.html
 	-rm src/**/*.gen.c
+	-rm janet-*.tar.gz
 
 install: $(JANET_TARGET)
 	mkdir -p $(BINDIR)
@@ -186,5 +192,5 @@ uninstall:
 	-rm -rf $(INCLUDEDIR)
 	$(LDCONFIG)
 
-.PHONY: clean install repl debug valgrind test valtest install uninstall \
+.PHONY: clean install repl debug valgrind test valtest dist install uninstall \
 	$(TEST_PROGRAM_PHONIES) $(TEST_PROGRAM_VALPHONIES)

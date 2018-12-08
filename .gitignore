@@ -9,6 +9,7 @@ janet
 /Debug
 /Emscripten
 /src/include/generated/*.h
+janet-*.tar.gz
 
 # Emscripten
 *.bc

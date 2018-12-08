@@ -42,6 +42,9 @@ artifacts:
     - path: janet.lib
       name: janet.lib
       type: File
+    - path: src\include\janet\janet.h
+      name: janet.h
+      type: File
 
 deploy:
   provider: S3
@@ -52,4 +55,4 @@ deploy:
   bucket: janet-releases
   folder: $(APPVEYOR_PROJECT_SLUG)/$(APPVEYOR_BUILD_VERSION)
   on:
-      branch: stable
+      tags: true
