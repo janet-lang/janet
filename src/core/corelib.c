@@ -779,6 +779,8 @@ JanetTable *janet_core_env(void) {
     /* Platform detection */
     janet_def(env, "janet/version", janet_cstringv(JANET_VERSION),
             "The version number of the running janet program.");
+    janet_def(env, "janet/build", janet_cstringv(JANET_BUILD),
+            "The build identifier of the running janet program.");
 
     /* Set as gc root */
     janet_gcroot(janet_wrap_table(env));

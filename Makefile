@@ -1,15 +1,15 @@
 # Copyright (c) 2018 Calvin Rose
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
 # deal in the Software without restriction, including without limitation the
 # rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 # sell copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,11 +27,10 @@ PREFIX?=/usr/local
 INCLUDEDIR=$(PREFIX)/include/janet
 LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
-JANET_VERSION?="\"commit-$(shell git log --pretty=format:'%h' -n 1)\""
+JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
 
-#CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g -DJANET_VERSION=$(JANET_VERSION)
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
-	   -DJANET_VERSION=$(JANET_VERSION)
+	   -DJANET_BUILD=$(JANET_BUILD)
 CLIBS=-lm -ldl
 JANET_TARGET=janet
 JANET_LIBRARY=libjanet.so
@@ -40,7 +39,7 @@ DEBUGGER=gdb
 
 UNAME:=$(shell uname -s)
 LDCONFIG:=ldconfig
-ifeq ($(UNAME), Darwin) 
+ifeq ($(UNAME), Darwin)
 	# Add other macos/clang flags
 	LDCONFIG:=
 else
@@ -87,7 +86,7 @@ EMCCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -O2 \
 		  -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]' \
 		  -s ALLOW_MEMORY_GROWTH=1 \
 		  -s AGGRESSIVE_VARIABLE_ELIMINATION=1 \
-		  -DJANET_VERSION=$(JANET_VERSION)
+		  -DJANET_BUILD=$(JANET_BUILD)
 JANET_EMTARGET=janet.js
 JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)
 JANET_EMOBJECTS=$(patsubst %.c,%.bc,$(JANET_WEB_SOURCES))
@@ -136,7 +135,7 @@ test: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in ctest/*.out; do "$$f" || exit; done
 	for f in test/*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
 
-VALGRIND_COMMAND=valgrind --leak-check=full -v 
+VALGRIND_COMMAND=valgrind --leak-check=full -v
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in ctest/*.out; do $(VALGRIND_COMMAND) "$$f" || exit; done

@@ -23,7 +23,7 @@
   -- Stop handling options`)
            (os/exit 0)
            1)
-     "v" (fn [&] (print janet/version) (os/exit 0) 1)
+     "v" (fn [&] (print janet/version "-" janet/build) (os/exit 0) 1)
      "s" (fn [&] (:= *raw-stdin* true) (:= *should-repl* true) 1)
      "r" (fn [&] (:= *should-repl* true) 1)
      "p" (fn [&] (:= *exit-on-error* false) 1)
@@ -53,7 +53,7 @@
     (if *raw-stdin*
       (repl nil identity)
       (do
-        (print (string "Janet " janet/version "  Copyright (C) 2017-2018 Calvin Rose"))
+        (print (string "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2018 Calvin Rose"))
         (repl (fn [buf p]
                 (def [line] (parser/where p))
                 (def prompt (string "janet:" line ":" (parser/state p) "> "))

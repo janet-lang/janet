@@ -1,5 +1,5 @@
 # Copyright 2017-2018 (C) Calvin Rose
-(print (string "Janet " janet/version "  Copyright (C) 2017-2018 Calvin Rose"))
+(print (string "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2018 Calvin Rose"))
 
 (fiber/new (fn webrepl []
   (repl (fn get-line [buf p]

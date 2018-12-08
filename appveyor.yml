@@ -1,4 +1,4 @@
-version: 1.0.{build}
+version: build-{build}
 branches:
   only:
   - master
@@ -34,5 +34,11 @@ only_commits:
 
 artifacts:
     - path: janet.exe
-      name: janet
+      name: janet.exe
+      type: File
+    - path: janet.dll
+      name: janet.dll
+      type: File
+    - path: janet.lib
+      name: janet.lib
       type: File

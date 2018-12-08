@@ -29,8 +29,10 @@ extern "C" {
 
 /***** START SECTION CONFIG *****/
 
-#ifndef JANET_VERSION
-#define JANET_VERSION "0.0.0 alpha"
+#define JANET_VERSION "0.0.0"
+
+#ifndef JANET_BUILD
+#define JANET_BUILD "local"
 #endif
 
 /*
