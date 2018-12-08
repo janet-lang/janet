@@ -956,7 +956,7 @@ value, one key will be ignored."
     (match-1 pattern.0 expr (fn []
                               ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen)
 
-    (array? pattern) 
+    (array? pattern)
     (do
       (def len (length pattern))
       (var i -1)
@@ -975,7 +975,7 @@ value, one key will be ignored."
       (var key nil)
       (with-idemp
         $dict expr
-        ~(if (dictionary? ,$dict) 
+        ~(if (dictionary? ,$dict)
            ,((fn aux []
                (:= key (next pattern key))
                (if (= key nil)
