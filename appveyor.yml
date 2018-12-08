@@ -2,7 +2,7 @@ version: 1.0.{build}
 branches:
   only:
   - master
-  - alpha
+  - stable
 clone_folder: c:\projects\janet
 image:
 - Visual Studio 2017
@@ -14,7 +14,6 @@ platform:
 environment:
   matrix:
   - arch: Win64
-  # - arch: #does not work, Release|x64 not a valid target
 matrix:
   fast_finish: true
 
@@ -32,3 +31,16 @@ only_commits:
   files:
     - appveyor.yml
     - src/
+
+deploy:
+  release: janet-v$(appveyor_build_version)
+  description: 'The janet programming language'
+  provider: GitHub
+  auth_token:
+    secure: c286b67f8b74b835b75ed62d2f5a28528850a690
+  artifact: janet.exe
+  draft: false
+  prerelease: false
+  on:
+    branch: master
+    APPVEYOR_REPO_TAG: true
