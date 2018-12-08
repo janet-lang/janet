@@ -36,8 +36,8 @@ artifacts:
     - path: janet.exe
       name: janet.exe
       type: File
-    - path: janet.dll
-      name: janet.dll
+    - path: janet.def
+      name: janet.def
       type: File
     - path: janet.lib
       name: janet.lib
