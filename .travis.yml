@@ -1,16 +1,21 @@
 language: c
-
 script:
-  - make
-  - make test
-
+- make
+- make test
 compiler:
-  - clang
-  - gcc
-
+- clang
+- gcc
 os:
-  - linux
-  - osx
-
-addons:
-  artifacts: true
+- linux
+- osx
+deploy:
+  provider: s3
+  access_key_id:
+    secure: AxU/Mo2hacus7LLrO5BNIvf9QosN6mu1XPYIU+cgH6UsM/vwkZce3lrK7Fjht9Cm6/Euego1VODAA0Nh5Jp7m+qboH63Ytq/bd0P8C0XxwWdluOPxvTQ3QzPN8KmjjefykSP1CbdJu5lrFN4u81ti5s9rnRylTjAF3ixoofwd7FLl7Yj11/hjrBTKTbTrx0dfqSPNcmCiV4cUhy67AzmQTuh+zmzJnYOo4N9wlCrtSOmih/7qAddL1KdLpG1V9AziITgioaVFnvilPk0dRZeVe7mS4V+6ZuHlsZrp30iPxhN2vbU/eL1svd6nqWJzCSJlJNZX4bh+HMuYLRe3N7eFQsaJNodV6XVKQaAW2yO5qi61LNt20btyY96THmYFbPLHRaWN32sDqr/8+edPDecR6IDZl1iMYFyzJNgEaAATfS0GT4C0C4dkxCnJzMTK18kpzCYFb/DmpXG8Uh7RkJNr6smYQhRqyQS1TwYXKiVDU7leYZz9GKsnjCCWdeWOxSZPXea6Rg99QcBWpdEMo+w33wNUbD2lyqqgOALzg2IG0EqFA+Jm6h6GglIsPxil6dL2k9kTg7tIqxFEV5ZB9UbPG4ia1+j3Cwuky3u2pgOnqY+T75LXCFd+E9OZil8JD+45e+GuXR3CH5y3AxK0X6wh8swX2RcHzJB2ApYTgg3U7A=
+  secret_access_key:
+    secure: W4AybG9Hhe9nxRhzkHzWl4lT88hxPHHlgzGN+3v0nkweVSBsBwUn+pC2vXRb7z/ZPvJ4+0OOaGHuRV9YyguMJu/ENeV0dwxlvbxIDGZdmcim3iu60fLvh1d7C1FXWa1SA4y8w6dPEfp7b0hxXjhz8Pa3in23y4PSe5ZCBbg19gYpnImCdCwO21EO4tTGFWOEJqgQanIp1LMs/fKfwe6PM4NMueGrESRmhKvYcJZcDAk3j5Oi8VWv5jJPi/SiYpei06UZx23BIH6CquhnzMfAMoqoHgAFqs8qPe7l3aWL17wI8A2fJIRkJuHFKAQnEtG+Z971dGdGB6sJ4mgJHoMRLRvMuUIPzf7nBRXwtiDHqnDxO5ICiPrGuDMhW6mXsHNMyv8sI5XqCin/m88p3Toew0486oMVt+V/UIct/A73/YEYzlYPnEEhaS10RAKScM9JCVAl/+16LWaakQNPSVQ1O9QWk2BWrl7euy7z3u8KYhaC8mTYx9/dPH0MegoUiKd9eJ+fEp7H88Qh1Hp93qsGMmDaPAny3zMEzmwFmc1qNY1bt0f5kbb0bmkuiJF9lFkcSQAdDPM9/AnN/sN054ZnqwTz+3gXNWvPTN2cV3wWS448qu8EcQN3v0F/ibXmYgKakpMxrZtrMRk6SWEdh9RBEQl+5ozbrdVZNB4/CNC1EKc=
+  bucket: janet-releases
+  skip_cleanup: true
+  upload_dir: travis-builds
+  on:
+    branch: stable

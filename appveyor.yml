@@ -51,3 +51,5 @@ deploy:
     secure: WsOLIEb6VDfK37ZhIpfftuMlyKLvbGYIbHfFRgaE9+58JN9E+tfoMteG3RqqmtRZ
   bucket: janet-releases
   folder: $(APPVEYOR_PROJECT_SLUG)/$(APPVEYOR_BUILD_VERSION)
+  on:
+      branch: stable
