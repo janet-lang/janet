@@ -62,6 +62,12 @@ Shows documentation for the doc macro.
 To get a list of all bindings in the default
 environment, use the `(all-symbols)` function.
 
+## Installation
+
+Install a stable version of janet from the [releases page](https://github.com/bakpakin/janet/releases).
+Janet is prebuilt for a few systems, but if you want to develop janet, run janet on a non-x86 system, or
+get the latest, you must build janet from source.
+
 ## Usage
 
 A repl is launched when the binary is invoked with no arguments. Pass the -h flag
