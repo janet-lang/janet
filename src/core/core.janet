@@ -119,8 +119,8 @@
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
 (defn empty? "Check if xs is empty." [xs] (= 0 (length xs)))
-(def atomic?
-  "(atomic? x)\n\nCheck if x is a value that evaluates to itself when compiled."
+(def idempotent?
+  "(idempotent? x)\n\nCheck if x is a value that evaluates to itself when compiled."
   (do
     (def non-atomic-types
       {:array true
@@ -128,7 +128,24 @@
        :table true
        :buffer true
        :struct true})
-    (fn atomic? [x] (not (get non-atomic-types (type x))))))
+    (fn idempotent? [x] (not (get non-atomic-types (type x))))))
+
+(defmacro with-idemp
+  "Return janet code body that has been prepended
+  with a binding of form to atom. If form is a non-
+  idempotent form (a function call, etc.), make sure the resulting
+  code will only call evaluate once, even if body contains multiple
+  copies of binding. In body, use binding instead of form."
+  [binding form & body]
+  (def $result (gensym))
+  (def $form (gensym))
+  ~(do
+     (def ,$form ,form)
+     (def ,binding (if (idempotent? ,$form) ,$form (gensym)))
+     (def ,$result (do ,;body))
+     (if (= ,$form ,binding)
+       ,$result
+       (tuple 'do (tuple 'def ,binding ,$form) ,$result))))
 
 # C style macros and functions for imperative sugar
 (defn inc "Returns x + 1." [x] (+ x 1))
@@ -192,7 +209,7 @@
   has an odd number of arguments, the last is the default expression.
   If no match is found, returns nil"
   [dispatch & pairs]
-  (def atm (atomic? dispatch))
+  (def atm (idempotent? dispatch))
   (def sym (if atm dispatch (gensym)))
   (defn aux [i]
     (def restlen (- (length pairs) i))
@@ -247,7 +264,7 @@
   (while (> i 0)
     (-- i)
     (def fi forms.i)
-    (:= ret (if (atomic? fi)
+    (:= ret (if (idempotent? fi)
       (tuple 'if fi fi ret)
       (do
         (def $fi (gensym))
@@ -393,12 +410,7 @@
   See loop for details."
   [head & body]
   (def $accum (gensym))
-  (tuple 'do
-         (tuple 'def $accum @[])
-         (tuple 'loop head
-                (tuple array/push $accum
-                       (tuple/prepend body 'do)))
-         $accum))
+  ~(do (def ,$accum @[]) (loop ,head (array/push ,$accum (do ,;body))) ,$accum))
 
 (defmacro generate
   "Create a generator expression using the loop syntax. Returns a fiber
@@ -447,7 +459,7 @@
     (if (>= i len)
       tru
       (do
-        (def atm (atomic? bl))
+        (def atm (idempotent? bl))
         (def sym (if atm bl (gensym)))
         (if atm
           # Simple binding
@@ -919,6 +931,78 @@ value, one key will be ignored."
     (array/push ret sep ind.i)
     (++ i))
   ret)
+
+###
+###
+### Pattern Matching
+###
+###
+
+# Sentinel value for mismatches
+(def- sentinel ~',(gensym))
+
+(defn- match-1
+  [pattern expr onmatch seen]
+  (cond
+
+    (and (symbol? pattern) (not (keyword? pattern)))
+    (if (get seen pattern)
+      ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)
+      (do
+        (put seen pattern true)
+        ~(if (= nil (def ,pattern ,expr)) ,sentinel ,(onmatch))))
+
+    (tuple? pattern)
+    (match-1 pattern.0 expr (fn []
+                              ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen)
+
+    (array? pattern) 
+    (do
+      (def len (length pattern))
+      (var i -1)
+      (with-idemp $arr expr
+        ((fn aux []
+          (++ i)
+          (if (= i len)
+            (onmatch)
+            (match-1 pattern.i ~(get ,$arr ,i) aux seen))))))
+
+    (dictionary? pattern)
+    (do
+      (var key nil)
+      (with-idemp $dict expr ((fn aux []
+        (:= key (next pattern key))
+        (if (= key nil)
+          (onmatch)
+          (match-1 (get pattern key) ~(get ,$dict ,key) aux seen))))))
+
+    :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
+
+(defmacro match
+  "Pattern matching. Match an expression x against
+  any number of cases. Easy case is a pattern to match against, followed
+  by an expression to evaluate to if that case is matched. A pattern that is
+  a symbol will match anything, binding x's value to that symbol. An array
+  will match only if all of it's elements match the corresponding elements in
+  x. A table or struct will match if all values match with the corresponding
+  values in x. A tuple pattern will match if it's first element matches, and the following
+  elements are treated as predicates and are true. Any other value pattern will only
+  match if it is equal to x."
+  [x & cases]
+  (with-idemp $x x
+      (def len (length cases))
+      (def len-1 (dec len))
+      ((fn aux [i]
+        (cond
+          (= i len-1) (get cases i)
+          (< i len-1) (do
+                        (def $res (gensym))
+                        ~(if (= ,sentinel (def ,$res ,(match-1 cases.i $x (fn [] (get cases (inc i))) @{})))
+                           ,(aux (+ 2 i))
+                           ,$res)))) 0)))
+
+(put _env sentinel nil)
+(put _env match-1 nil)
 
 ###
 ###
