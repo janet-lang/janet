@@ -20,6 +20,7 @@ init:
 install:
     - build_win
     - build_win test
+    - build_win dist
     
 build: off
 
@@ -29,25 +30,16 @@ only_commits:
     - src/
 
 artifacts:
-    - path: janet.exe
-      name: janet.exe
-      type: File
-    - path: janet.def
-      name: janet.def
-      type: File
-    - path: janet.lib
-      name: janet.lib
-      type: File
-    - path: src\include\janet\janet.h
-      name: janet.h
-      type: File
+    - path: dist
+      name: janet-%APPVEYOR_TAG_NAME%-windows.zip
+      type: Zip
 
 deploy:
   description: 'The Janet Programming Language.'
   provider: GitHub
   auth_token:
     secure: lwEXy09qhj2jSH9s1C/KvCkAUqJSma8phFR+0kbsfUc3rVxpNK5uD3z9Md0SjYRx
-  artifact: janet.exe
+  artifact: janet-%APPVEYOR_TAG_NAME%-windows.zip
   draft: true
   on:
     APPVEYOR_REPO_TAG: true

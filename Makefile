@@ -159,7 +159,8 @@ clean-natives:
 
 dist: janet-dist.tar.gz
 
-janet-%.tar.gz: $(JANET_TARGET) src/include/janet/janet.h janet.1 $(JANET_LIBRARY)
+janet-%.tar.gz: $(JANET_TARGET) src/include/janet/janet.h \
+	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) README.md 
 	tar -czvf $@ $^
 
 clean:

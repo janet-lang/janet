@@ -12,6 +12,7 @@
 @if "%1"=="help" goto HELP
 @if "%1"=="clean" goto CLEAN
 @if "%1"=="test" goto TEST
+@if "%1"=="dist" goto DIST
 
 @rem Set compile and link options here
 @setlocal
@@ -88,6 +89,17 @@ for %%f in (test/suite*.janet) do (
 	@if errorlevel 1 goto :TESTFAIL
 )
 exit /b 0
+
+@rem Build a dist directory
+:DIST
+mkdir dist
+copy janet.exe dist\janet.exe
+copy LICESNE dist\LICENSE
+copy README.md dist\README.md
+copy janet.lib dist\janet.lib
+copy janet.exp dist\janet.exp
+copy src\include\janet\janet.h dist\janet.h
+
 :TESTFAIL
 @echo.
 @echo *******************************************************
