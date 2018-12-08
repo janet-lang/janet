@@ -17,4 +17,5 @@ deploy:
   file: janet-${TRAVIS_TAG}-${TRAVIS_OS_NAME}.tar.gz
   draft: true
   on:
+    tags: true
     repo: bakpakin/janet
