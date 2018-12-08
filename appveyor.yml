@@ -37,7 +37,7 @@ deploy:
   description: 'The janet programming language'
   provider: GitHub
   auth_token:
-    secure: c286b67f8b74b835b75ed62d2f5a28528850a690
+    secure: Li9bQt2tklh/fT1J3G8okrn0dIwAxj7h4BGZWbsfTJtTEEhQNdBuUJcItLsG8JTv
   artifact: janet.exe
   draft: false
   prerelease: false
