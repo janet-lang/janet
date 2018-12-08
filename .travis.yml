@@ -16,6 +16,6 @@ deploy:
     secure: W4AybG9Hhe9nxRhzkHzWl4lT88hxPHHlgzGN+3v0nkweVSBsBwUn+pC2vXRb7z/ZPvJ4+0OOaGHuRV9YyguMJu/ENeV0dwxlvbxIDGZdmcim3iu60fLvh1d7C1FXWa1SA4y8w6dPEfp7b0hxXjhz8Pa3in23y4PSe5ZCBbg19gYpnImCdCwO21EO4tTGFWOEJqgQanIp1LMs/fKfwe6PM4NMueGrESRmhKvYcJZcDAk3j5Oi8VWv5jJPi/SiYpei06UZx23BIH6CquhnzMfAMoqoHgAFqs8qPe7l3aWL17wI8A2fJIRkJuHFKAQnEtG+Z971dGdGB6sJ4mgJHoMRLRvMuUIPzf7nBRXwtiDHqnDxO5ICiPrGuDMhW6mXsHNMyv8sI5XqCin/m88p3Toew0486oMVt+V/UIct/A73/YEYzlYPnEEhaS10RAKScM9JCVAl/+16LWaakQNPSVQ1O9QWk2BWrl7euy7z3u8KYhaC8mTYx9/dPH0MegoUiKd9eJ+fEp7H88Qh1Hp93qsGMmDaPAny3zMEzmwFmc1qNY1bt0f5kbb0bmkuiJF9lFkcSQAdDPM9/AnN/sN054ZnqwTz+3gXNWvPTN2cV3wWS448qu8EcQN3v0F/ibXmYgKakpMxrZtrMRk6SWEdh9RBEQl+5ozbrdVZNB4/CNC1EKc=
   bucket: janet-releases
   skip_cleanup: true
-  upload_dir: travis-builds
+  upload_dir: travis-builds/$TRAVIS_COMMIT/$TRAVIS_BUILD_NUMBER
   on:
     branch: stable
