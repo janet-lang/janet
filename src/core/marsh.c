@@ -265,7 +265,7 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
         if (!frame->func) longjmp(st->err, MR_C_STACKFRAME);
         pushint(st, frame->flags);
         pushint(st, frame->prevframe);
-        int32_t pcdiff = frame->pc - frame->func->def->bytecode;
+        int32_t pcdiff = (int32_t)(frame->pc - frame->func->def->bytecode);
         pushint(st, pcdiff);
         marshal_one(st, janet_wrap_function(frame->func), flags + 1);
         if (frame->env) marshal_one_env(st, frame->env, flags + 1);
