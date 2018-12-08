@@ -1,8 +1,4 @@
 version: build-{build}
-branches:
-  only:
-  - master
-  - stable
 clone_folder: c:\projects\janet
 image:
 - Visual Studio 2017
