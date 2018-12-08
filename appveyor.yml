@@ -31,7 +31,7 @@ only_commits:
 
 artifacts:
     - path: dist
-      name: $("janet-"+$env:APPVEYOR_TAG_NAME+"-windows")
+      name: janet-windows
       type: Zip
 
 deploy:
