@@ -32,8 +32,8 @@ JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
 	   -DJANET_BUILD=$(JANET_BUILD)
 CLIBS=-lm -ldl
-JANET_TARGET=janet
-JANET_LIBRARY=libjanet.so
+JANET_TARGET=build/janet
+JANET_LIBRARY=build/libjanet.so
 JANET_PATH?=/usr/local/lib/janet
 DEBUGGER=gdb
 
@@ -47,14 +47,16 @@ else
 	CLIBS:=$(CLIBS) -lrt
 endif
 
+$(shell mkdir -p build/core build/mainclient build/webclient)
+
 # Source headers
 JANET_HEADERS=$(sort $(wildcard src/include/janet/*.h))
 JANET_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
 
 # Source files
-JANET_CORE_SOURCES=$(sort $(wildcard src/core/*.c)) src/core/core.gen.c
-JANET_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c)) src/mainclient/init.gen.c
-JANET_WEBCLIENT_SOURCES=$(sort $(wildcard src/webclient/*.c)) src/webclient/webinit.gen.c
+JANET_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
+JANET_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
+JANET_WEBCLIENT_SOURCES=$(sort $(wildcard src/webclient/*.c))
 
 all: $(JANET_TARGET) $(JANET_LIBRARY)
 
@@ -62,16 +64,16 @@ all: $(JANET_TARGET) $(JANET_LIBRARY)
 ##### The main interpreter program and shared object #####
 ##########################################################
 
-JANET_ALL_SOURCES=$(JANET_CORE_SOURCES) \
-				$(JANET_MAINCLIENT_SOURCES)
+JANET_CORE_OBJECTS=$(patsubst src/%.c,build/%.o,$(JANET_CORE_SOURCES)) build/core.gen.o
+JANET_MAINCLIENT_OBJECTS=$(patsubst src/%.c,build/%.o,$(JANET_MAINCLIENT_SOURCES)) build/init.gen.o
 
-JANET_CORE_OBJECTS=$(patsubst %.c,%.o,$(JANET_CORE_SOURCES))
-JANET_ALL_OBJECTS=$(patsubst %.c,%.o,$(JANET_ALL_SOURCES))
-
-%.o: %.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
+%.gen.o: %.gen.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-$(JANET_TARGET): $(JANET_ALL_OBJECTS)
+build/%.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+$(JANET_TARGET): $(JANET_CORE_OBJECTS) $(JANET_MAINCLIENT_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 $(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
@@ -82,44 +84,54 @@ $(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
 ######################
 
 EMCC=emcc
-EMCCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -O2 \
+EMCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -O2 \
 		  -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]' \
 		  -s ALLOW_MEMORY_GROWTH=1 \
 		  -s AGGRESSIVE_VARIABLE_ELIMINATION=1 \
 		  -DJANET_BUILD=$(JANET_BUILD)
-JANET_EMTARGET=janet.js
+JANET_EMTARGET=build/janet.js
 JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)
-JANET_EMOBJECTS=$(patsubst %.c,%.bc,$(JANET_WEB_SOURCES))
+JANET_EMOBJECTS=$(patsubst src/%.c,build/%.bc,$(JANET_WEB_SOURCES)) \
+				build/webinit.gen.bc build/core.gen.bc
 
-%.bc: %.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
-	$(EMCC) $(EMCCFLAGS) -o $@ -c $<
+%.gen.bc: %.gen.c
+	$(EMCC) $(EMCFLAGS) -o $@ -c $<
+
+build/%.bc: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
+	$(EMCC) $(EMCFLAGS) -o $@ -c $<
 
 $(JANET_EMTARGET): $(JANET_EMOBJECTS)
-	$(EMCC) $(EMCCFLAGS) -shared -o $@ $^
+	$(EMCC) $(EMCFLAGS) -shared -o $@ $^
+
+emscripten: $(JANET_EMTARGET)
 
 #############################
 ##### Generated C files #####
 #############################
 
-xxd: src/tools/xxd.c
+build/xxd: src/tools/xxd.c
 	$(CC) $< -o $@
 
-%.gen.c: %.janet xxd
-	./xxd $< $@ janet_gen_$(*F)
+build/core.gen.c: src/core/core.janet build/xxd
+	build/xxd $< $@ janet_gen_core
+build/init.gen.c: src/mainclient/init.janet build/xxd
+	build/xxd $< $@ janet_gen_init
+build/webinit.gen.c: src/webclient/webinit.janet build/xxd
+	build/xxd $< $@ janet_gen_webinit
 
 ###################
 ##### Testing #####
 ###################
 
 TEST_SOURCES=$(wildcard ctest/*.c)
-TEST_OBJECTS=$(patsubst %.c,%.o,$(TEST_SOURCES))
-TEST_PROGRAMS=$(patsubst %.c,%.out,$(TEST_SOURCES))
+TEST_OBJECTS=$(patsubst ctest/%.c,build/%.o,$(TEST_SOURCES))
+TEST_PROGRAMS=$(patsubst ctest/%.c,build/%.out,$(TEST_SOURCES))
 TEST_SCRIPTS=$(wildcard test/suite*.janet)
 
-ctest/%.o: ctest/%.c $(JANET_HEADERS)
+build/%.o: ctest/%.c $(JANET_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-ctest/%.out: ctest/%.o $(JANET_CORE_OBJECTS)
+build/%.out: build/%.o $(JANET_CORE_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 repl: $(JANET_TARGET)
@@ -132,13 +144,13 @@ valgrind: $(JANET_TARGET)
 	valgrind --leak-check=full -v ./$(JANET_TARGET)
 
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
-	for f in ctest/*.out; do "$$f" || exit; done
+	for f in build/*.out; do "$$f" || exit; done
 	for f in test/*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
 
 VALGRIND_COMMAND=valgrind --leak-check=full -v
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
-	for f in ctest/*.out; do $(VALGRIND_COMMAND) "$$f" || exit; done
+	for f in build/*.out; do $(VALGRIND_COMMAND) "$$f" || exit; done
 	for f in test/*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
 
 ###################
@@ -153,23 +165,22 @@ clean-natives:
 	$(MAKE) -C natives/json clean
 	$(MAKE) -C natives/sqlite3 clean
 
+########################
+##### Distribution #####
+########################
+
+dist: build/janet-dist.tar.gz
+
+build/janet-%.tar.gz: $(JANET_TARGET) src/include/janet/janet.h \
+	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) README.md 
+	tar -czvf $@ $^
+
 #################
 ##### Other #####
 #################
 
-dist: janet-dist.tar.gz
-
-janet-%.tar.gz: $(JANET_TARGET) src/include/janet/janet.h \
-	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) README.md 
-	tar -czvf $@ $^
-
 clean:
-	-rm $(JANET_TARGET)
-	-rm $(JANET_LIBRARY)
-	-rm ctest/*.o ctest/*.out
-	-rm src/**/*.o src/**/*.bc vgcore.* *.js *.wasm *.html
-	-rm src/**/*.gen.c
-	-rm janet-*.tar.gz
+	-rm -rf build
 
 install: $(JANET_TARGET)
 	mkdir -p $(BINDIR)
@@ -193,5 +204,5 @@ uninstall:
 	-rm -rf $(INCLUDEDIR)
 	$(LDCONFIG)
 
-.PHONY: clean install repl debug valgrind test valtest dist install uninstall \
+.PHONY: clean install repl debug valgrind test valtest emscripten dist install uninstall \
 	$(TEST_PROGRAM_PHONIES) $(TEST_PROGRAM_VALPHONIES)

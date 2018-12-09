@@ -106,7 +106,7 @@ before compilation.
 
 ### Unix-like
 
-On most platforms, use Make to build janet.
+On most platforms, use Make to build janet. The resulting binary will be in `build/janet`.
 
 ```sh
 cd somewhere/my/projects/janet
@@ -142,43 +142,12 @@ or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-down
 ### Emscripten
 
 To build janet for the web via [Emscripten](https://kripken.github.io/emscripten-site/), make sure you
-have `emcc` installed and on your path. On a linux or macOS system, use `make janet.js` to build
+have `emcc` installed and on your path. On a linux or macOS system, use `make emscripten` to build
 `janet.js` and `janet.wasm` - both are needed to run janet in a browser or in node.
 The JavaScript build is what runs the repl on the main website,
-but really serves mainly as a proof of concept. Janet will run much slower in a browser.
+but really serves mainly as a proof of concept. Janet will run slower in a browser.
 Building with emscripten on windows is currently unsupported.
 
 ## Examples
 
 See the examples directory for some example janet code.
-
-## SQLite bindings
-
-There are some sqlite3 bindings in the directory natives/sqlite3. They serve mostly as a
-proof of concept external c library. To use, first compile the module with Make.
-
-```sh
-make natives
-```
-
-Next, enter the repl and create a database and a table.
-
-```
-janet:1:> (import natives/sqlite3 :as sql)
-nil
-janet:2:> (def db (sql/open "test.db"))
-<sqlite3.connection 0x5561A138C470>
-janet:3:> (sql/eval db `CREATE TABLE customers(id INTEGER PRIMARY KEY, name TEXT);`)
-@[]
-janet:4:> (sql/eval db `INSERT INTO customers VALUES(:id, :name);` {:name "John" :id 12345})
-@[]
-janet:5:> (sql/eval db `SELECT * FROM customers;`)
-@[{"id" 12345 "name" "John"}]
-```
-
-Finally, close the database connection when done with it.
-
-```
-janet:6:> (sql/close db)
-nil
-```
