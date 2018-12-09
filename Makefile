@@ -109,7 +109,7 @@ emscripten: $(JANET_EMTARGET)
 ##### Generated C files #####
 #############################
 
-build/xxd: src/tools/xxd.c
+build/xxd: tools/xxd.c
 	$(CC) $< -o $@
 
 build/core.gen.c: src/core/core.janet build/xxd

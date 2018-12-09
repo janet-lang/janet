@@ -24,7 +24,7 @@ mkdir build\core
 mkdir build\mainclient
 
 @rem Build the xxd tool for generating sources
-@cl /nologo /c src/tools/xxd.c /Fobuild\xxd.obj
+@cl /nologo /c tools/xxd.c /Fobuild\xxd.obj
 @if errorlevel 1 goto :BUILDFAIL
 @link /nologo /out:build\xxd.exe build\xxd.obj
 @if errorlevel 1 goto :BUILDFAIL
