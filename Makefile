@@ -124,14 +124,10 @@ build/webinit.gen.c: src/webclient/webinit.janet build/xxd
 ###################
 
 TEST_SOURCES=$(wildcard ctest/*.c)
-TEST_OBJECTS=$(patsubst ctest/%.c,build/%.o,$(TEST_SOURCES))
 TEST_PROGRAMS=$(patsubst ctest/%.c,build/%.out,$(TEST_SOURCES))
 TEST_SCRIPTS=$(wildcard test/suite*.janet)
 
-build/%.o: ctest/%.c $(JANET_HEADERS)
-	$(CC) $(CFLAGS) -o $@ -c $<
-
-build/%.out: build/%.o $(JANET_CORE_OBJECTS)
+build/%.out: ctest/%.c $(JANET_CORE_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 repl: $(JANET_TARGET)
