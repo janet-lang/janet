@@ -180,11 +180,11 @@ clean:
 
 install: $(JANET_TARGET)
 	mkdir -p $(BINDIR)
-	cp $(JANET_TARGET) $(BINDIR)/$(JANET_TARGET)
+	cp $(JANET_TARGET) $(BINDIR)/janet
 	mkdir -p $(INCLUDEDIR)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
 	mkdir -p $(LIBDIR)
-	cp $(JANET_LIBRARY) $(LIBDIR)/$(JANET_LIBRARY)
+	cp $(JANET_LIBRARY) $(LIBDIR)/libjanet.so
 	cp janet.1 /usr/local/share/man/man1/
 	mandb
 	$(LDCONFIG)
@@ -195,8 +195,8 @@ install-libs: natives
 	cp natives/*/*.so $(JANET_PATH)
 
 uninstall:
-	-rm $(BINDIR)/$(JANET_TARGET)
-	-rm $(LIBDIR)/$(JANET_LIBRARY)
+	-rm $(BINDIR)/../$(JANET_TARGET)
+	-rm $(LIBDIR)/../$(JANET_LIBRARY)
 	-rm -rf $(INCLUDEDIR)
 	$(LDCONFIG)
 
