@@ -149,18 +149,6 @@ valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in build/*.out; do $(VALGRIND_COMMAND) "$$f" || exit; done
 	for f in test/*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
 
-###################
-##### Natives #####
-###################
-
-natives: $(JANET_TARGET)
-	$(MAKE) -C natives/json
-	$(MAKE) -j 8 -C natives/sqlite3
-
-clean-natives:
-	$(MAKE) -C natives/json clean
-	$(MAKE) -C natives/sqlite3 clean
-
 ########################
 ##### Distribution #####
 ########################
@@ -189,16 +177,11 @@ install: $(JANET_TARGET)
 	mandb
 	$(LDCONFIG)
 
-install-libs: natives
-	mkdir -p $(JANET_PATH)
-	cp -r lib $(JANET_PATH)
-	cp natives/*/*.so $(JANET_PATH)
-
 uninstall:
 	-rm $(BINDIR)/../$(JANET_TARGET)
 	-rm $(LIBDIR)/../$(JANET_LIBRARY)
 	-rm -rf $(INCLUDEDIR)
 	$(LDCONFIG)
 
-.PHONY: clean install repl debug valgrind test valtest emscripten dist install uninstall \
+.PHONY: clean install repl debug valgrind test valtest emscripten dist uninstall \
 	$(TEST_PROGRAM_PHONIES) $(TEST_PROGRAM_VALPHONIES)

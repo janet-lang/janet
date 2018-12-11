@@ -3,6 +3,8 @@
 [![Build Status](https://travis-ci.org/bakpakin/janet.svg?branch=master)](https://travis-ci.org/bakpakin/janet)
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/bakpakin/janet)
 
+![Janet Logo](https://raw.githubusercontent.com/bakpakin/janet/master/assets/janet-big.png)
+
 Janet is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
 by other data structures with better utility and performance (arrays, tables, structs, tuples).
