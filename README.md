@@ -4,7 +4,7 @@
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/bakpakin/janet)
 
 <p align="center">
-![Janet Logo](https://raw.githubusercontent.com/bakpakin/janet/master/assets/janet-big.png)
+    <img src="https://raw.githubusercontent.com/bakpakin/janet/master/assets/janet-big.png" alt="Janet logo">
 </p>
 Logo by [honix](https://github.com/honix)
 
