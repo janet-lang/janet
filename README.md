@@ -5,7 +5,7 @@
 
 <p align="center">
     <img src="https://raw.githubusercontent.com/bakpakin/janet/master/assets/janet-big.png" alt="Janet logo">
-    Logo by <a href="https://github.com/honix">honix</a>
+    <p>Logo by <a href="https://github.com/honix">honix</a></p>
 </p>
 
 Janet is a functional and imperative programming language and bytecode interpreter. It is a
