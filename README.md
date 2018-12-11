@@ -2,12 +2,11 @@
 
 [![Build Status](https://travis-ci.org/bakpakin/janet.svg?branch=master)](https://travis-ci.org/bakpakin/janet)
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/bakpakin/janet)
-bat
 
 <p align="center">
 ![Janet Logo](https://raw.githubusercontent.com/bakpakin/janet/master/assets/janet-big.png)
-<span>Logo by [honix](https://github.com/honix)</span>
 </p>
+Logo by [honix](https://github.com/honix)
 
 Janet is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
