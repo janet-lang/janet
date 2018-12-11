@@ -5,8 +5,8 @@
 
 <p align="center">
     <img src="https://raw.githubusercontent.com/bakpakin/janet/master/assets/janet-big.png" alt="Janet logo">
+    Logo by <a href="https://github.com/honix">honix</a>
 </p>
-Logo by [honix](https://github.com/honix)
 
 Janet is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
