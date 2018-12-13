@@ -1,14 +1,9 @@
-# janet
-
 [![Build Status](https://travis-ci.org/bakpakin/janet.svg?branch=master)](https://travis-ci.org/bakpakin/janet)
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/bakpakin/janet)
 
-<p align="center">
-    <img src="https://raw.githubusercontent.com/bakpakin/janet/master/assets/janet-big.png" alt="Janet logo">
-    <p>Logo by <a href="https://github.com/honix">honix</a></p>
-</p>
+<img src="https://raw.githubusercontent.com/honix/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
-Janet is a functional and imperative programming language and bytecode interpreter. It is a
+**Janet** is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
 by other data structures with better utility and performance (arrays, tables, structs, tuples).
 The language also bridging bridging to native code written in C, meta-programming with macros, and bytecode assembly.
@@ -17,6 +12,8 @@ There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
 janet could be embedded into other programs. Try janet in your browser at 
 [https://janet-lang.org](https://janet-lang.org).
+
+#
 
 Implemented in mostly standard C99, janet runs on Windows, Linux and macOS.
 The few features that are not standard C (dynamic library loading, compiler specific optimizations),
