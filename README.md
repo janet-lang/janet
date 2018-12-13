@@ -5,7 +5,7 @@
 
 <img src="https://raw.githubusercontent.com/honix/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
-Janet is a functional and imperative programming language and bytecode interpreter. It is a
+**Janet** is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
 by other data structures with better utility and performance (arrays, tables, structs, tuples).
 The language also bridging bridging to native code written in C, meta-programming with macros, and bytecode assembly.
