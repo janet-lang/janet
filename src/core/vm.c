@@ -54,6 +54,8 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     /* Expected types on type error */
     uint16_t expected_types;
 
+    uint8_t first_opcode;
+
     /* Signal to return when done */
     JanetSignal signal = JANET_SIGNAL_OK;
 
@@ -92,16 +94,24 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
          * instruction. */
         retreg = in;
         goto vm_resume_child;
-    } else if (startstatus != JANET_STATUS_NEW) {
+    } else if (startstatus != JANET_STATUS_NEW && 
+            ((*pc & 0xFF) == JOP_SIGNAL)) {
         /* Only should be hit if child is waiting on a SIGNAL instruction */
         /* If waiting for response to signal, use input and increment pc */
         stack[oparg(1, 0xFF)] = in;
         pc++;
     }
 
+    /* The first opcode to execute. If the first opcode has
+     * the breakpoint bit set and we were in the debug state, skip
+     * that first breakpoint. */
+    first_opcode = (startstatus == JANET_STATUS_DEBUG)
+        ? (*pc & 0x7F)
+        : (*pc & 0xFF);
+
 /* Use computed gotos for GCC and clang, otherwise use switch */
-#ifdef __GNUC__
-#define VM_START() {vm_next();
+#ifdef ____GNUC__
+#define VM_START() { goto *op_lookup[first_opcode];
 #define VM_END() }
 #define VM_OP(op) label_##op :
 #define VM_DEFAULT() label_unknown_op:
@@ -193,11 +203,11 @@ static void *op_lookup[255] = {
     &&label_unknown_op
 };
 #else
-#define VM_START() for(;;){switch(*pc & 0xFF){
+#define VM_START() uint8_t opcode = first_opcode; for (;;) {switch(opcode) {
 #define VM_END() }}
 #define VM_OP(op) case op :
 #define VM_DEFAULT() default:
-#define vm_next() continue
+#define vm_next() opcode = *pc & 0xFF; continue
 #endif
 
 #define vm_checkgc_next() janet_maybe_collect(); vm_next()
@@ -279,6 +289,7 @@ static void *op_lookup[255] = {
     VM_START();
 
     VM_DEFAULT();
+    signal = JANET_SIGNAL_DEBUG;
     retreg = janet_wrap_nil();
     goto vm_exit;
 
@@ -535,7 +546,6 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
-    /* Candidate */
     VM_OP(JOP_GREATER_THAN_INTEGER)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(
             janet_unwrap_integer(stack[oparg(2, 0xFF)]) >
@@ -543,7 +553,6 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
-    /* Candidate */
     VM_OP(JOP_GREATER_THAN_IMMEDIATE)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(
             janet_unwrap_integer(stack[oparg(2, 0xFF)]) > ((*(int32_t *)pc) >> 24)
@@ -551,7 +560,6 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
-    /* Candidate */
     VM_OP(JOP_GREATER_THAN_REAL)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(
             janet_unwrap_real(stack[oparg(2, 0xFF)]) >
@@ -559,7 +567,6 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
-    /* Candidate */
     VM_OP(JOP_GREATER_THAN_EQUAL_REAL)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(
             janet_unwrap_real(stack[oparg(2, 0xFF)]) >=
@@ -575,7 +582,6 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
-    /* Candidate */
     VM_OP(JOP_EQUALS_INTEGER)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(
             janet_unwrap_integer(stack[oparg(2, 0xFF)]) ==
@@ -584,7 +590,6 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
-    /* Candidate */
     VM_OP(JOP_EQUALS_REAL)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(
             janet_unwrap_real(stack[oparg(2, 0xFF)]) ==
@@ -593,7 +598,6 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
-    /* Candidate */
     VM_OP(JOP_EQUALS_IMMEDIATE)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(
             janet_unwrap_integer(stack[oparg(2, 0xFF)]) == ((*(int32_t *)pc) >> 24)

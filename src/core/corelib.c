@@ -801,6 +801,7 @@ JanetTable *janet_core_env(void) {
         janet_lib_os(args);
         janet_lib_parse(args);
         janet_lib_compile(args);
+        janet_lib_debug(args);
         janet_lib_string(args);
         janet_lib_marsh(args);
 #ifdef JANET_ASSEMBLER

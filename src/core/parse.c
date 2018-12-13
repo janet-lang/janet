@@ -102,8 +102,7 @@ struct JanetParseState {
     int32_t counter;
     int32_t argn;
     int flags;
-    size_t start_line;
-    size_t start_col;
+    size_t start;
     Consumer consumer;
 };
 
@@ -147,8 +146,7 @@ static void pushstate(JanetParser *p, Consumer consumer, int flags) {
     s.argn = 0;
     s.flags = flags;
     s.consumer = consumer;
-    s.start_line = p->line;
-    s.start_col = p->col;
+    s.start = p->offset;
     _pushstate(p, s);
 }
 
@@ -159,8 +157,8 @@ static void popstate(JanetParser *p, Janet val) {
         if (newtop->flags & PFLAG_CONTAINER) {
             /* Source mapping info */
             if (janet_checktype(val, JANET_TUPLE)) {
-                janet_tuple_sm_line(janet_unwrap_tuple(val)) = (int32_t) top.start_line;
-                janet_tuple_sm_col(janet_unwrap_tuple(val)) = (int32_t) top.start_col;
+                janet_tuple_sm_start(janet_unwrap_tuple(val)) = (int32_t) top.start;
+                janet_tuple_sm_end(janet_unwrap_tuple(val)) = (int32_t) p->offset;
             }
             newtop->argn++;
             push_arg(p, val);
@@ -176,8 +174,8 @@ static void popstate(JanetParser *p, Janet val) {
             t[0] = janet_csymbolv(which);
             t[1] = val;
             /* Quote source mapping info */
-            janet_tuple_sm_line(t) = (int32_t) newtop->start_line;
-            janet_tuple_sm_col(t) = (int32_t) newtop->start_col;
+            janet_tuple_sm_start(t) = (int32_t) newtop->start;
+            janet_tuple_sm_end(t) = (int32_t) p->offset;
             val = janet_wrap_tuple(janet_tuple_end(t));
         } else {
             return;
@@ -522,16 +520,11 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
 int janet_parser_consume(JanetParser *parser, uint8_t c) {
     int consumed = 0;
     if (parser->error) return 0;
-    if (c == '\n') {
-        parser->line++;
-        parser->col = 0;
-    } else if (c != '\r') {
-        parser->col++;
-    }
     while (!consumed && !parser->error) {
         JanetParseState *state = parser->states + parser->statecount - 1;
         consumed = state->consumer(parser, state, c);
     }
+    parser->offset++;
     parser->lookback = c;
     return 1;
 }
@@ -584,9 +577,8 @@ void janet_parser_init(JanetParser *parser) {
     parser->statecount = 0;
     parser->statecap = 0;
     parser->error = NULL;
-    parser->line = 1;
-    parser->col = 0;
     parser->lookback = -1;
+    parser->offset = 0;
 
     pushstate(parser, root, PFLAG_CONTAINER);
 }
@@ -742,10 +734,7 @@ static int cfun_where(JanetArgs args) {
     JANET_FIXARITY(args, 1);
     JANET_CHECKABSTRACT(args, 0, &janet_parse_parsertype);
     p = (JanetParser *) janet_unwrap_abstract(args.v[0]);
-    Janet *tup = janet_tuple_begin(2);
-    tup[0] = janet_wrap_integer((int32_t)p->line);
-    tup[1] = janet_wrap_integer((int32_t)p->col);
-    JANET_RETURN_TUPLE(args, janet_tuple_end(tup));
+    JANET_RETURN_INTEGER(args, p->offset);
 }
 
 static int cfun_state(JanetArgs args) {

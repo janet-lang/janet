@@ -57,5 +57,6 @@ int janet_lib_parse(JanetArgs args);
 int janet_lib_asm(JanetArgs args);
 #endif
 int janet_lib_compile(JanetArgs args);
+int janet_lib_debug(JanetArgs args);
 
 #endif

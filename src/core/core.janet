@@ -1252,11 +1252,11 @@ value, one key will be ignored."
             (res)
             (do
               (:= good false)
-              (def {:error err :line errl :column errc :fiber errf} res)
+              (def {:error err :start start :end end :fiber errf} res)
               (onstatus
                 :compile
-                (if (< 0 errl)
-                  (string err "\n  in a form at line " errl ", column " errc)
+                (if (<= 0 start)
+                  (string err "\n  at (" start ":" end ")")
                   err)
                 errf
                 where))))
@@ -1309,7 +1309,7 @@ value, one key will be ignored."
               "\n")
   (when f
     (loop
-      [nf :in (reverse (fiber/lineage f))
+      [nf :in (reverse (debug/lineage f))
        :before (file/write stderr "  (fiber)\n")
        {:function func
         :tail tail
@@ -1317,8 +1317,8 @@ value, one key will be ignored."
         :c c
         :name name
         :source source
-        :line source-line
-        :column source-col} :in (fiber/stack nf)]
+        :source-start start
+        :source-end end} :in (debug/stack nf)]
       (file/write stderr "    in")
       (when c (file/write stderr " cfunction"))
       (if name
@@ -1327,14 +1327,15 @@ value, one key will be ignored."
       (if source
         (do
           (file/write stderr " [" source "]")
-          (if source-line
+          (if start
             (file/write
               stderr
-              " on line "
-              (string source-line)
-              ", column "
-              (string source-col)))))
-      (if (and (not source-line) pc)
+              " at ("
+              (string start)
+              ":"
+              (string end)
+              ")"))))
+      (if (and (not start) pc)
         (file/write stderr " (pc=" (string pc) ")"))
       (when tail (file/write stderr " (tailcall)"))
       (file/write stderr "\n"))))
@@ -1507,6 +1508,7 @@ value, one key will be ignored."
   (def newenv (make-env))
   (default chunks (fn [buf _] (file/read stdin :line buf)))
   (default onsignal (fn [sig x f source]
+                      (put newenv '_fiber @{:value f})
                       (case sig
                         :dead (do
                                 (put newenv '_ @{:value x})

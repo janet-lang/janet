@@ -349,106 +349,16 @@ static int cfun_new(JanetArgs args) {
 
 static int cfun_status(JanetArgs args) {
     JanetFiber *fiber;
-    const char *status = "";
     JANET_FIXARITY(args, 1);
     JANET_ARG_FIBER(fiber, args, 0);
     uint32_t s = (fiber->flags & JANET_FIBER_STATUS_MASK) >>
         JANET_FIBER_STATUS_OFFSET;
-    switch (s) {
-        case JANET_STATUS_DEAD: status = ":dead"; break;
-        case JANET_STATUS_ERROR: status = ":error"; break;
-        case JANET_STATUS_DEBUG: status = ":debug"; break;
-        case JANET_STATUS_PENDING: status = ":pending"; break;
-        case JANET_STATUS_USER0: status = ":user0"; break;
-        case JANET_STATUS_USER1: status = ":user1"; break;
-        case JANET_STATUS_USER2: status = ":user2"; break;
-        case JANET_STATUS_USER3: status = ":user3"; break;
-        case JANET_STATUS_USER4: status = ":user4"; break;
-        case JANET_STATUS_USER5: status = ":user5"; break;
-        case JANET_STATUS_USER6: status = ":user6"; break;
-        case JANET_STATUS_USER7: status = ":user7"; break;
-        case JANET_STATUS_USER8: status = ":user8"; break;
-        case JANET_STATUS_USER9: status = ":user9"; break;
-        case JANET_STATUS_NEW: status = ":new"; break;
-        default:
-        case JANET_STATUS_ALIVE: status = ":alive"; break;
-    }
-    JANET_RETURN_CSYMBOL(args, status);
-}
-
-/* Extract info from one stack frame */
-static Janet doframe(JanetStackFrame *frame) {
-    int32_t off;
-    JanetTable *t = janet_table(3);
-    JanetFuncDef *def = NULL;
-    if (frame->func) {
-        janet_table_put(t, janet_csymbolv(":function"), janet_wrap_function(frame->func));
-        def = frame->func->def;
-        if (def->name) {
-            janet_table_put(t, janet_csymbolv(":name"), janet_wrap_string(def->name));
-        }
-    } else {
-        JanetCFunction cfun = (JanetCFunction)(frame->pc);
-        if (cfun) {
-            Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
-            if (!janet_checktype(name, JANET_NIL)) {
-                janet_table_put(t, janet_csymbolv(":name"), name);
-            }
-        }
-        janet_table_put(t, janet_csymbolv(":c"), janet_wrap_true());
-    }
-    if (frame->flags & JANET_STACKFRAME_TAILCALL) {
-        janet_table_put(t, janet_csymbolv(":tail"), janet_wrap_true());
-    }
-    if (frame->func && frame->pc) {
-        off = (int32_t) (frame->pc - def->bytecode);
-        janet_table_put(t, janet_csymbolv(":pc"), janet_wrap_integer(off));
-        if (def->sourcemap) {
-            JanetSourceMapping mapping = def->sourcemap[off];
-            janet_table_put(t, janet_csymbolv(":line"), janet_wrap_integer(mapping.line));
-            janet_table_put(t, janet_csymbolv(":column"), janet_wrap_integer(mapping.column));
-        }
-        if (def->source) {
-            janet_table_put(t, janet_csymbolv(":source"), janet_wrap_string(def->source));
-        }
-    }
-    return janet_wrap_table(t);
-}
-
-static int cfun_stack(JanetArgs args) {
-    JanetFiber *fiber;
-    JanetArray *array;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_FIBER(fiber, args, 0);
-    array = janet_array(0);
-    {
-        int32_t i = fiber->frame;
-        JanetStackFrame *frame;
-        while (i > 0) {
-            frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
-            janet_array_push(array, doframe(frame));
-            i = frame->prevframe;
-        }
-    }
-    JANET_RETURN_ARRAY(args, array);
+    JANET_RETURN_CSYMBOL(args, janet_status_names[s]);
 }
 
 static int cfun_current(JanetArgs args) {
     JANET_FIXARITY(args, 0);
     JANET_RETURN_FIBER(args, janet_vm_fiber);
-}
-
-static int cfun_lineage(JanetArgs args) {
-    JanetFiber *fiber;
-    JanetArray *array;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_FIBER(fiber, args, 0);
-    array = janet_array(0);
-    while (fiber) {
-        janet_array_push(array, janet_wrap_fiber(fiber));
-        fiber = fiber->child;
-    }
-    JANET_RETURN_ARRAY(args, array);
 }
 
 static int cfun_maxstack(JanetArgs args) {
@@ -500,31 +410,9 @@ static const JanetReg cfuns[] = {
         "\t:alive - the fiber is currently running and cannot be resumed\n"
         "\t:new - the fiber has just been created and not yet run"
     },
-    {"fiber/stack", cfun_stack,
-        "(fiber/stack fib)\n\n"
-        "Gets information about the stack as an array of tables. Each table "
-        "in the array contains information about a stack frame. The top most, current "
-        "stack frame is the first table in the array, and the bottom most stack frame "
-        "is the last value. Each stack frame contains some of the following attributes:\n\n"
-        "\t:c - true if the stack frame is a c function invokation\n"
-        "\t:column - the current source column of the stack frame\n"
-        "\t:function - the function that the stack frame represents\n"
-        "\t:line - the current source line of the stack frame\n"
-        "\t:name - the human friendly name of the function\n"
-        "\t:pc - integer indicating the location of the program counter\n"
-        "\t:source - string with filename or other identifier for the source code\n"
-        "\t:tail - boolean indicating a tail call"
-    },
     {"fiber/current", cfun_current,
         "(fiber/current)\n\n"
         "Returns the currently running fiber."
-    },
-    {"fiber/lineage", cfun_lineage,
-        "(fiber/lineage fib)\n\n"
-        "Returns an array of all child fibers from a root fiber. This function "
-        "is useful when a fiber signals or errors to an ancestor fiber. Using this function, "
-        "the fiber handling the error can see which fiber raised the signal. This function should "
-        "be used mostly for debugging purposes."
     },
     {"fiber/maxstack", cfun_maxstack,
         "(fiber/maxstack fib)\n\n"

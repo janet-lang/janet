@@ -53,6 +53,42 @@ const char *const janet_type_names[16] = {
     ":abstract"
 };
 
+const char *const janet_signal_names[14] = {
+    ":ok",
+    ":error",
+    ":debug",
+    ":yield",
+    ":user0",
+    ":user1",
+    ":user2",
+    ":user3",
+    ":user4",
+    ":user5",
+    ":user6",
+    ":user7",
+    ":user8",
+    ":user9"
+};
+
+const char *const janet_status_names[16] = {
+    ":dead",
+    ":error",
+    ":debug",
+    ":pending",
+    ":user0",
+    ":user1",
+    ":user2",
+    ":user3",
+    ":user4",
+    ":user5",
+    ":user6",
+    ":user7",
+    ":user8",
+    ":user9",
+    ":new",
+    ":alive"
+};
+
 /* Calculate hash for string */
 
 int32_t janet_string_calchash(const uint8_t *str, int32_t len) {

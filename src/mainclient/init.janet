@@ -55,6 +55,6 @@
       (do
         (print (string "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2018 Calvin Rose"))
         (repl (fn [buf p]
-                (def [line] (parser/where p))
-                (def prompt (string "janet:" line ":" (parser/state p) "> "))
+                (def offset (parser/where p))
+                (def prompt (string "janet:" offset ":" (parser/state p) "> "))
                 (getline prompt buf)))))))
