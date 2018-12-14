@@ -271,8 +271,8 @@ static const JanetReg cfuns[] = {
         "Set a breakpoint in a given function. pc is an optional offset, which "
         "is in bytecode instructions. fun is a function value. Will throw an error "
         "if the offset is too large or negative."},
-    {"debug/funbreak", cfun_unfbreak,
-        "(debug/fbreak fun [,pc=0])\n\n"
+    {"debug/unfbreak", cfun_unfbreak,
+        "(debug/unfbreak fun [,pc=0])\n\n"
         "Unset a breakpoint set with debug/fbreak."},
     {"debug/arg-stack", cfun_argstack,
         "(debug/arg-stack fiber)\n\n"
