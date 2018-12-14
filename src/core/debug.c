@@ -203,6 +203,8 @@ static Janet doframe(JanetStackFrame *frame) {
         janet_table_put(t, janet_csymbolv(":tail"), janet_wrap_true());
     }
     if (frame->func && frame->pc) {
+        Janet *stack = (Janet *)frame + JANET_FRAME_SIZE;
+        JanetArray *slots;
         off = (int32_t) (frame->pc - def->bytecode);
         janet_table_put(t, janet_csymbolv(":pc"), janet_wrap_integer(off));
         if (def->sourcemap) {
@@ -213,6 +215,11 @@ static Janet doframe(JanetStackFrame *frame) {
         if (def->source) {
             janet_table_put(t, janet_csymbolv(":source"), janet_wrap_string(def->source));
         }
+        /* Add stack arguments */
+        slots = janet_array(def->slotcount);
+        memcpy(slots->data, stack, sizeof(Janet) * def->slotcount);
+        slots->count = def->slotcount;
+        janet_table_put(t, janet_csymbolv(":slots"), janet_wrap_array(slots));
     }
     return janet_wrap_table(t);
 }
@@ -232,6 +239,17 @@ static int cfun_stack(JanetArgs args) {
             i = frame->prevframe;
         }
     }
+    JANET_RETURN_ARRAY(args, array);
+}
+
+static int cfun_argstack(JanetArgs args) {
+    JanetFiber *fiber;
+    JanetArray *array;
+    JANET_FIXARITY(args, 1);
+    JANET_ARG_FIBER(fiber, args, 0);
+    array = janet_array(fiber->stacktop - fiber->stackstart);
+    memcpy(array->data, fiber->data + fiber->stackstart, array->capacity * sizeof(Janet));
+    array->count = array->capacity;
     JANET_RETURN_ARRAY(args, array);
 }
 
@@ -256,6 +274,11 @@ static const JanetReg cfuns[] = {
     {"debug/funbreak", cfun_unfbreak,
         "(debug/fbreak fun [,pc=0])\n\n"
         "Unset a breakpoint set with debug/fbreak."},
+    {"debug/arg-stack", cfun_argstack,
+        "(debug/arg-stack fiber)\n\n"
+        "Gets all values currently on the fiber's argument stack. Normally, "
+        "this should be empty unless the fiber signals while pushing arguments "
+        "to make a function call. Returns a new array."},
     {"debug/stack", cfun_stack,
         "(debug/stack fib)\n\n"
         "Gets information about the stack as an array of tables. Each table "
@@ -269,6 +292,7 @@ static const JanetReg cfuns[] = {
         "\t:name - the human friendly name of the function\n"
         "\t:pc - integer indicating the location of the program counter\n"
         "\t:source - string with filename or other identifier for the source code\n"
+        "\t:slots - array of all values in each slot\n"
         "\t:tail - boolean indicating a tail call"
     },
     {"debug/lineage", cfun_lineage,
