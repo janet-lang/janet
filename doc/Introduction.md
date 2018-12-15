@@ -710,7 +710,7 @@ What happens in the following code?
 ```
 
 We want the max to be 14, but this will actually evaluate to 12! This can be understood
-if we expand the macro. You can expand macro once in janet using the '(macex1 x)` function.
+if we expand the macro. You can expand macro once in janet using the `(macex1 x)` function.
 (To expand macros until there are no macros left to expand, us `(macex x)`. Be careful,
  janet has many macros, so the full expansion may be almost unreadable).
 
