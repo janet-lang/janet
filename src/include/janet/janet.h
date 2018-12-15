@@ -29,7 +29,7 @@ extern "C" {
 
 /***** START SECTION CONFIG *****/
 
-#define JANET_VERSION "0.1.0"
+#define JANET_VERSION "0.2.0"
 
 #ifndef JANET_BUILD
 #define JANET_BUILD "local"
@@ -937,6 +937,13 @@ JANET_API int janet_dostring(JanetTable *env, const char *str, const char *sourc
 JANET_API Janet janet_scan_number(const uint8_t *src, int32_t len);
 JANET_API int32_t janet_scan_integer(const uint8_t *str, int32_t len, int *err);
 JANET_API double janet_scan_real(const uint8_t *str, int32_t len, int *err);
+
+/* Debugging */
+JANET_API int janet_debug_break(JanetFuncDef *def, int32_t pc);
+JANET_API int janet_debug_unbreak(JanetFuncDef *def, int32_t pc);
+JANET_API int janet_debug_find(
+        JanetFuncDef **def_out, int32_t *pc_out,
+        const uint8_t *source, int32_t offset);
 
 /* Array functions */
 JANET_API JanetArray *janet_array(int32_t capacity);

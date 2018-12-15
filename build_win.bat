@@ -43,13 +43,13 @@ mkdir build\mainclient
 
 @rem Build the sources
 for %%f in (src\core\*.c) do (
-	@%JANET_COMPILE% /Fobuild\core\%%~nf.obj %%f
+    @%JANET_COMPILE% /Fobuild\core\%%~nf.obj %%f
     @if errorlevel 1 goto :BUILDFAIL
 )
 
 @rem Build the main client
 for %%f in (src\mainclient\*.c) do (
-	@%JANET_COMPILE% /Fobuild\mainclient\%%~nf.obj %%f
+    @%JANET_COMPILE% /Fobuild\mainclient\%%~nf.obj %%f
     @if errorlevel 1 goto :BUILDFAIL
 )
 
@@ -85,8 +85,8 @@ exit /b 0
 @rem Run tests
 :TEST
 for %%f in (test/suite*.janet) do (
-	janet.exe test\%%f
-	@if errorlevel 1 goto :TESTFAIL
+    janet.exe test\%%f
+    @if errorlevel 1 goto :TESTFAIL
 )
 exit /b 0
 
