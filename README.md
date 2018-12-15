@@ -50,9 +50,9 @@ Janet makes a good system scripting language, or a language to embed in other pr
 
 ## Documentation
 
-API documentation and design documents can be found in the
-[wiki](https://github.com/bakpakin/janet/wiki). There is an introduction
-section in the wiki that contains a good overview of the language.
+Documentation can be found in the doc directory of 
+the repository. There is an introduction
+section contains a good overview of the language.
 
 For individual bindings, use the `(doc symbol-name)` macro to get API
 documentation for the core library. For example,
