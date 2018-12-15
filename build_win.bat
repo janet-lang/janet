@@ -70,7 +70,7 @@ exit /b 1
 @rem Show help
 :HELP
 @echo.
-@echo Usage: build_windows [subcommand=clean,help,test]
+@echo Usage: build_windows [subcommand=clean,help,test,dist]
 @echo.
 @echo Script to build janet on windows. Must be run from the Visual Studio
 @echo command prompt.
@@ -99,6 +99,7 @@ copy README.md dist\README.md
 copy janet.lib dist\janet.lib
 copy janet.exp dist\janet.exp
 copy src\include\janet\janet.h dist\janet.h
+xcopy /s doc dist\doc
 exit /b 0
 
 :TESTFAIL

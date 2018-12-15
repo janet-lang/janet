@@ -676,7 +676,8 @@ When combined with the unquote special, we get the desired output.
 
 ## Hygiene
 
-Sometime when we write macros, we must generate symbols for local bindings. Consider
+Sometime when we write macros, we must generate symbols for local bindings. Ignoring that
+it could be written as a function, consider
 the following macro
 
 ```lisp
@@ -711,7 +712,7 @@ What happens in the following code?
 
 We want the max to be 14, but this will actually evaluate to 12! This can be understood
 if we expand the macro. You can expand macro once in janet using the `(macex1 x)` function.
-(To expand macros until there are no macros left to expand, us `(macex x)`. Be careful,
+(To expand macros until there are no macros left to expand, use `(macex x)`. Be careful,
  janet has many macros, so the full expansion may be almost unreadable).
 
 ```lisp
@@ -721,7 +722,7 @@ if we expand the macro. You can expand macro once in janet using the `(macex1 x)
 
 After expansion, y wrongly refers to the x inside the macro (which is bound to 8) rather than the x defined
 to be 10. The problem is the reuse of the symbol x inside the macro, which overshadowed the original
-meaning of the macro.
+binding.
 
 Janet provides a general solution to this problem in terms of the `(gensym)` function, which returns
 a symbol which is guarenteed to be unique and not collide with any symbols defined previously. We can define
