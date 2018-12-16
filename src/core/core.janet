@@ -1236,6 +1236,9 @@ value, one key will be ignored."
 ###
 
 (defn make-env
+  "Create a new environment table. The new environment
+  will inherit bindings from the parent environment, but new
+  bindings will not pollute the parent environment."
   [parent &]
   (def parent (if parent parent _env))
   (def newenv (table/setproto @{} parent))
