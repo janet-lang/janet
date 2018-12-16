@@ -55,8 +55,9 @@
     (string "<h2>" (html-escape key) "</h2>\n"
             "<p>" (html-escape docstring) "</p>\n")))
 
-(def parts (seq [[k {:doc d :private p}] :in (sort (pairs (table/getproto _env)))
+# Generate parts and print them to stdout
+(def parts (seq [[k {:doc d :private p}]
+                 :in (sort (pairs (table/getproto _env)))
                  :when (and d (not p))]
                 (gen-one k d)))
-
 (print prelude ;parts postlude)

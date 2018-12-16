@@ -520,7 +520,7 @@
       (if (order v ret) (:= ret v)))
     ret))
 
-(defn max 
+(defn max
   "Returns the numeric maximum of the arguments."
   [& args] (extreme > args))
 
@@ -528,7 +528,7 @@
   "Returns the numeric minimum of the arguments."
   [& args] (extreme < args))
 
-(defn max-order 
+(defn max-order
   "Returns the maximum of the arguments according to a total
   order over all values."
   [& args] (extreme order> args))
@@ -1181,7 +1181,7 @@ value, one key will be ignored."
       x))
   ret)
 
-(defn all 
+(defn all
   [pred xs]
   "Returns true if all xs are truthy, otherwise the first false or nil value."
   (var ret true)
@@ -1297,20 +1297,19 @@ value, one key will be ignored."
     (buffer/clear buf)
     (chunks buf p)
     (var pindex 0)
+    (var pstatus nil)
     (def len (length buf))
     (if (= len 0) (:= going false))
     (while (> len pindex)
       (+= pindex (parser/consume p buf pindex))
-      (case (parser/status p)
-        :full (eval1 (parser/produce p))
-        :error (do
-                 (def (line col) (parser/where p))
-                 (onstatus :parse
-                        (string (parser/error p)
-                                " on line " line
-                                ", column " col)
-                        nil
-                        where)))))
+      (while (= (:= pstatus (parser/status p)) :full)
+        (eval1 (parser/produce p)))
+      (when (= pstatus :error)
+        (onstatus :parse
+                  (string (parser/error p)
+                          " around byte " (parser/where p))
+                  nil
+                  where))))
 
   (:= *env* oldenv)
 
@@ -1495,6 +1494,9 @@ value, one key will be ignored."
           newenv)))))
 
 (defn import*
+  "Import a module into a given environment table. This is the
+  functional form of (import ...) that expects and explicit environment
+  table."
   [env path & args]
   (def targs (table ;args))
   (def {:as as
