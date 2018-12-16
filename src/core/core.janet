@@ -84,25 +84,24 @@
 (defn neg? "Check if x is less than 0." [x] (< x 0))
 (defn one? "Check if x is equal to 1." [x] (== x 1))
 (defn integer? "Check if x is an integer." [x] (= (type x) :integer))
-(defn real? [x] "Check if x is a real number." (= (type x) :real))
+(defn real? "Check if x is a real number." [x] (= (type x) :real))
 (defn number? "Check if x is a number." [x]
   (def t (type x))
   (if (= t :integer) true (= t :real)))
 (defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
 (defn string? "Check if x is a string." [x] (= (type x) :string))
 (defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
-(defn keyword? "Check if x is a keyword style symbol."
-  [x]
+(defn keyword? "Check if x is a keyword style symbol." [x]
   (if (not= (type x) :symbol) nil (= 58 x.0)))
 (defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
-(defn function? "Check if x is a function (not a cfunction)."
-  [x] (= (type x) :function))
+(defn function? "Check if x is a function (not a cfunction)." [x]
+  (= (type x) :function))
 (defn cfunction? "Check if x a cfunction." [x] (= (type x) :cfunction))
-(defn table? [x] "Check if x a table." (= (type x) :table ))
-(defn struct? [x] "Check if x a struct." (= (type x) :struct))
-(defn array? [x] "Check if x is an array." (= (type x) :array))
-(defn tuple? [x] "Check if x is a tuple." (= (type x) :tuple))
-(defn boolean? [x] "Check if x is a boolean." (= (type x) :boolean))
+(defn table? "Check if x a table." [x] (= (type x) :table ))
+(defn struct? "Check if x a struct." [x] (= (type x) :struct))
+(defn array? "Check if x is an array." [x] (= (type x) :array))
+(defn tuple? "Check if x is a tuple." [x] (= (type x) :tuple))
+(defn boolean? "Check if x is a boolean." [x] (= (type x) :boolean))
 (defn bytes? "Check if x is a string, symbol, or buffer." [x]
   (def t (type x))
   (if (= t :string) true (if (= t :symbol) true (= t :buffer))))
@@ -434,12 +433,14 @@
   (tuple fiber/new (tuple 'fn '[&] ;body)))
 
 (defn sum
+  "Returns the sum of xs. If xs is empty, returns 0."
   [xs]
   (var accum 0)
   (loop [x :in xs] (+= accum x))
   accum)
 
 (defn product
+  "Returns the product of xs. If xs is empty, returns 1."
   [xs]
   (var accum 1)
   (loop [x :in xs] (*= accum x))
@@ -519,10 +520,23 @@
       (if (order v ret) (:= ret v)))
     ret))
 
-(defn max [& args] (extreme > args))
-(defn min [& args] (extreme < args))
-(defn max-order [& args] (extreme order> args))
-(defn min-order [& args] (extreme order< args))
+(defn max 
+  "Returns the numeric maximum of the arguments."
+  [& args] (extreme > args))
+
+(defn min
+  "Returns the numeric minimum of the arguments."
+  [& args] (extreme < args))
+
+(defn max-order 
+  "Returns the maximum of the arguments according to a total
+  order over all values."
+  [& args] (extreme order> args))
+
+(defn min-order
+  "Returns the minimum of the arguments according to a total
+  order over all values."
+  [& args] (extreme order< args))
 
 (defn first
   "Get the first element from an indexed data structure."
@@ -541,7 +555,7 @@
 ###
 
 (def sort
-  "Sort an array in-place. Uses quicksort and is not a stable sort."
+  "(sort xs [, by])\n\nSort an array in-place. Uses quicksort and is not a stable sort."
   (do
 
     (defn partition
@@ -567,7 +581,7 @@
         (sort-help a (+ piv 1) hi by))
       a)
 
-    (fn [a by &]
+    (fn sort [a by &]
       (sort-help a 0 (- (length a) 1) (or by order<)))))
 
 (defn sorted
@@ -1167,19 +1181,24 @@ value, one key will be ignored."
       x))
   ret)
 
-(defn all [pred xs]
+(defn all 
+  [pred xs]
+  "Returns true if all xs are truthy, otherwise the first false or nil value."
   (var ret true)
   (loop [x :in xs :while ret] (:= ret (pred x)))
   ret)
 
-(defn some [pred xs]
+(defn some
+  [pred xs]
+  "Returns false if all xs are false or nil, otherwise returns the first true value."
   (var ret nil)
   (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (:= ret y)))
   ret)
 
-(defn deep-not= [x y]
+(defn deep-not=
   "Like not=, but mutable types (arrays, tables, buffers) are considered
   equal if they have identical structure. Much slower than not=."
+  [x y]
   (def tx (type x))
   (or
     (not= tx (type y))
@@ -1191,9 +1210,10 @@ value, one key will be ignored."
       :buffer (not= (string x) (string y))
       (not= x y))))
 
-(defn deep= [x y]
+(defn deep=
   "Like =, but mutable types (arrays, tables, buffers) are considered
   equal if they have identical structure. Much slower than =."
+  [x y]
   (not (deep-not= x y)))
 
 (defn macex
@@ -1411,7 +1431,8 @@ value, one key will be ignored."
     path))
 
 (def require
-  "Require a module with the given name. Will search all of the paths in
+  "(require module)\n\n
+  Require a module with the given name. Will search all of the paths in
   module/paths, then the path as a raw file path. Returns the new environment
   returned from compiling and running the file."
   (do

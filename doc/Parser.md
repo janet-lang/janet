@@ -218,7 +218,7 @@ Shorthand for `(quote x)`
 
 Shorthand for `(splice x)`
 
-### \`x
+### ~x
 
 Shorthand for `(quasiquote x)`
 
