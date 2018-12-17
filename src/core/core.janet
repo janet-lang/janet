@@ -146,7 +146,7 @@
        ,$result
        (tuple 'do (tuple 'def ,binding ,$form) ,$result))))
 
-# C style macros and functions for imperative sugar
+# C style macros and functions for imperative sugar. No bitwise though.
 (defn inc "Returns x + 1." [x] (+ x 1))
 (defn dec "Returns x - 1." [x] (- x 1))
 (defmacro ++ "Increments the var x by 1." [x] ~(set ,x (,+ ,x ,1)))
@@ -156,12 +156,6 @@
 (defmacro *= "Shorthand for (set x (* x n))." [x n] ~(set ,x (,* ,x ,n)))
 (defmacro /= "Shorthand for (set x (/ x n))." [x n] ~(set ,x (,/ ,x ,n)))
 (defmacro %= "Shorthand for (set x (% x n))." [x n] ~(set ,x (,% ,x ,n)))
-(defmacro &= "Shorthand for (set x (& x n))." [x n] ~(set ,x (,& ,x ,n)))
-(defmacro |= "Shorthand for (set x (| x n))." [x n] ~(set ,x (,| ,x ,n)))
-(defmacro ^= "Shorthand for (set x (^ x n))." [x n] ~(set ,x (,^ ,x ,n)))
-(defmacro >>= "Shorthand for (set x (>> x n))." [x n] ~(set ,x (,>> ,x ,n)))
-(defmacro <<= "Shorthand for (set x (<< x n))." [x n] ~(set ,x (,<< ,x ,n)))
-(defmacro >>>= "Shorthand for (set x (>>> x n))." [x n] ~(set ,x (,>>> ,x ,n)))
 
 (defmacro default
   "Define a default value for an optional argument.

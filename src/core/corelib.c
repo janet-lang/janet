@@ -711,25 +711,25 @@ JanetTable *janet_core_env(void) {
             "Returns the quotient of xs. If xs is empty, returns 1. If xs has one value x, returns "
             "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
             "values. Division by two integers uses truncating division.");
-    templatize_varop(env, JANET_FUN_BAND, "&", -1, -1, JOP_BAND,
-            "(& & xs)\n\n"
+    templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
+            "(band & xs)\n\n"
             "Returns the bitwise and of all values in xs. Each x in xs must be an integer.");
-    templatize_varop(env, JANET_FUN_BOR, "|", 0, 0, JOP_BOR,
-            "(| & xs)\n\n"
+    templatize_varop(env, JANET_FUN_BOR, "bor", 0, 0, JOP_BOR,
+            "(bor & xs)\n\n"
             "Returns the bitwise or of all values in xs. Each x in xs must be an integer.");
-    templatize_varop(env, JANET_FUN_BXOR, "^", 0, 0, JOP_BXOR,
-            "(^ & xs)\n\n"
+    templatize_varop(env, JANET_FUN_BXOR, "bxor", 0, 0, JOP_BXOR,
+            "(bxor & xs)\n\n"
             "Returns the bitwise xor of all values in xs. Each in xs must be an integer.");
-    templatize_varop(env, JANET_FUN_LSHIFT, "<<", 1, 1, JOP_SHIFT_LEFT,
-            "(<< x & shifts)\n\n"
+    templatize_varop(env, JANET_FUN_LSHIFT, "blshift", 1, 1, JOP_SHIFT_LEFT,
+            "(blshift x & shifts)\n\n"
             "Returns the value of x bit shifted left by the sum of all values in shifts. x "
             "and each element in shift must be an integer.");
-    templatize_varop(env, JANET_FUN_RSHIFT, ">>", 1, 1, JOP_SHIFT_RIGHT,
-            "(>> x & shifts)\n\n"
+    templatize_varop(env, JANET_FUN_RSHIFT, "brshift", 1, 1, JOP_SHIFT_RIGHT,
+            "(brshift x & shifts)\n\n"
             "Returns the value of x bit shifted right by the sum of all values in shifts. x "
             "and each element in shift must be an integer.");
-    templatize_varop(env, JANET_FUN_RSHIFTU, ">>>", 1, 1, JOP_SHIFT_RIGHT_UNSIGNED,
-            "(>> x & shifts)\n\n"
+    templatize_varop(env, JANET_FUN_RSHIFTU, "brushift", 1, 1, JOP_SHIFT_RIGHT_UNSIGNED,
+            "(brushift x & shifts)\n\n"
             "Returns the value of x bit shifted right by the sum of all values in shifts. x "
             "and each element in shift must be an integer. The sign of x is not preserved, so "
             "for positive shifts the return value will always be positive.");
