@@ -55,7 +55,12 @@ Documentation can be found in the doc directory of
 the repository. There is an introduction
 section contains a good overview of the language.
 
-For individual bindings, use the `(doc symbol-name)` macro to get API
+API documentation for all bindings can also be generated
+with `make docs`, which will create `build/doc.html`, which
+can be viewed with any web browser. This
+includes all forms in the core library except special forms.
+
+For individual bindings from within the REPL, use the `(doc symbol-name)` macro to get API
 documentation for the core library. For example,
 ```
 (doc doc)

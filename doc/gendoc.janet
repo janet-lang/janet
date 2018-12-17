@@ -48,6 +48,16 @@ p {
       (buffer/push-byte buf byte)))
   buf)
 
+(defn- make-title
+  "Generate title"
+  []
+  (string "<h1>Janet Core API</h1>"
+          "<p>Version " janet/version  "-" janet/build "</p>"
+          "<p>Generated "
+          (string/number (os/time) :f 0 20)
+          " seconds after epoch</p>"
+          "<hr>"))
+
 (defn- emit-item
   "Generate documentation for one entry."
   [key env-entry]
@@ -68,4 +78,8 @@ p {
                  :in (sort (pairs (table/getproto _env)))
                  :when (and entry:doc (not entry:private))]
                 (emit-item k entry)))
-(print prelude ;(interpose "<hr>" parts) postlude)
+(print
+  prelude
+  (make-title)
+  ;(interpose "<hr>" parts)
+  postlude)
