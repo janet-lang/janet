@@ -18,7 +18,7 @@
    47 "&#47;"})
 
 (defn- escape
-  "Escape special characters for HTML encoding."
+  "Escape special characters for HTML and regex encoding."
   [str]
   (def buf @"")
   (loop [byte :in str]

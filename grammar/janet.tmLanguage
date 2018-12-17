@@ -57,6 +57,14 @@
 				</dict>
 				<dict>
 					<key>include</key>
+					<string>#string</string>
+				</dict>
+				<dict>
+					<key>include</key>
+					<string>#longstring</string>
+				</dict>
+				<dict>
+					<key>include</key>
 					<string>#literal</string>
 				</dict>
 				<dict>
@@ -82,14 +90,6 @@
 				<dict>
 					<key>include</key>
 					<string>#symbol</string>
-				</dict>
-				<dict>
-					<key>include</key>
-					<string>#string</string>
-				</dict>
-				<dict>
-					<key>include</key>
-					<string>#longstring</string>
 				</dict>
 			</array>
 		</dict>
@@ -261,7 +261,7 @@
 			<string>(@?")</string>
 			<key>beginCaptures</key>
 			<dict>
-				<key>0</key>
+				<key>1</key>
 				<dict>
 					<key>name</key>
 					<string>punctuation.definition.string.begin.janet</string>
@@ -271,7 +271,7 @@
 			<string>(")</string>
 			<key>endCaptures</key>
 			<dict>
-				<key>0</key>
+				<key>1</key>
 				<dict>
 					<key>name</key>
 					<string>punctuation.definition.string.end.janet</string>
@@ -292,20 +292,25 @@
 		<key>longstring</key>
 		<dict>
 			<key>begin</key>
-			<string>@?(`+)</string>
+			<string>(@?)(`+)</string>
 			<key>beginCaptures</key>
 			<dict>
-				<key>0</key>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>punctuation.definition.string.begin.janet</string>
+				</dict>
+				<key>2</key>
 				<dict>
 					<key>name</key>
 					<string>punctuation.definition.string.begin.janet</string>
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>\1</string>
+			<string>\2</string>
 			<key>endCaptures</key>
 			<dict>
-				<key>0</key>
+				<key>1</key>
 				<dict>
 					<key>name</key>
 					<string>punctuation.definition.string.end.janet</string>
