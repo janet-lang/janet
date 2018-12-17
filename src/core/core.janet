@@ -1074,8 +1074,18 @@ value, one key will be ignored."
   (if (not x)
     (print "symbol " sym " not found.")
     (do
+      (def bind-type
+        (string "    " 
+                (cond
+                  x:ref (string :var " (" (type (get x:ref 0)) ")")
+                  x:macro :macro
+                  (type x:value))
+                "\n"))
       (def d x:doc)
-      (print "\n\n" (if d (doc-format d) "no documentation found.") "\n\n"))))
+      (print "\n\n"
+             (if d bind-type "")
+             (if d (doc-format d) "no documentation found.")
+             "\n\n"))))
 
 (defmacro doc
   "Shows documentation for the given symbol."
@@ -1176,15 +1186,15 @@ value, one key will be ignored."
   ret)
 
 (defn all
-  [pred xs]
   "Returns true if all xs are truthy, otherwise the first false or nil value."
+  [pred xs]
   (var ret true)
   (loop [x :in xs :while ret] (set ret (pred x)))
   ret)
 
 (defn some
-  [pred xs]
   "Returns false if all xs are false or nil, otherwise returns the first true value."
+  [pred xs]
   (var ret nil)
   (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (set ret y)))
   ret)

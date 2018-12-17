@@ -159,6 +159,15 @@ build/janet-%.tar.gz: $(JANET_TARGET) src/include/janet/janet.h \
 	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) README.md $(wildcard doc/*)
 	tar -czvf $@ $^
 
+#########################
+##### Documentation #####
+#########################
+
+docs: build/doc.html
+
+build/doc.html: $(JANET_TARGET) doc/gendoc.janet
+	$(JANET_TARGET) doc/gendoc.janet > build/doc.html
+
 #################
 ##### Other #####
 #################
@@ -183,5 +192,6 @@ uninstall:
 	-rm -rf $(INCLUDEDIR)
 	$(LDCONFIG)
 
-.PHONY: clean install repl debug valgrind test valtest emscripten dist uninstall \
+.PHONY: clean install repl debug valgrind test \
+	valtest emscripten dist uninstall docs \
 	$(TEST_PROGRAM_PHONIES) $(TEST_PROGRAM_VALPHONIES)

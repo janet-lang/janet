@@ -1,20 +1,25 @@
 # Generate documentation
 
 (def- prelude
-  ```
-  <!doctype html>
-  <html lang="en">
-  <head>
-  <meta charset="utf-8">
-  <title>Janet Language Documentation</title>
-  <meta name="description" content="API Documentation for the janet programming language.">
-  </head>
-  ```)
+```
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Janet Language Documentation</title>
+<meta name="description" content="API Documentation for the janet programming language.">
+<style>
+p {
+  font-family: monospace;
+}
+</style>
+</head>
+```)
 
 (def- postlude
-  ```
-  </html>
-  ```)
+```
+</html>
+```)
 
 (def- escapes
   {10 "<br>"
@@ -43,21 +48,24 @@
       (buffer/push-byte buf byte)))
   buf)
 
-(defn- gen-one
-  "Generate documentation for a binding. Returns an
-  html fragment."
-  [key docstring]
-  (if-let [index (string/find "\n" docstring)]
-    (let [first-line (html-escape (string/slice docstring 0 index))
-          rest (html-escape (trim-lead (string/slice docstring (inc index))))]
-      (string "<h2>" first-line "</h2>\n"
-              "<p>" rest "</p>\n"))
-    (string "<h2>" (html-escape key) "</h2>\n"
-            "<p>" (html-escape docstring) "</p>\n")))
+(defn- emit-item
+  "Generate documentation for one entry."
+  [key env-entry]
+  (let [{:macro macro
+         :value val
+         :ref ref
+         :doc docstring} env-entry
+        binding-type (cond
+                       macro :macro
+                       ref (string :var " (" (type ref.0) ")")
+                       (type val))]
+    (string "<h2>" (html-escape key) "</h2>"
+            "<span style=\"color:blue;\">" binding-type "</span>"
+            "<p>" (trim-lead (html-escape docstring)) "</p>")))
 
 # Generate parts and print them to stdout
-(def parts (seq [[k {:doc d :private p}]
+(def parts (seq [[k entry]
                  :in (sort (pairs (table/getproto _env)))
-                 :when (and d (not p))]
-                (gen-one k d)))
-(print prelude ;parts postlude)
+                 :when (and entry:doc (not entry:private))]
+                (emit-item k entry)))
+(print prelude ;(interpose "<hr>" parts) postlude)
