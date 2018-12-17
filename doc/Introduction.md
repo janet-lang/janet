@@ -76,7 +76,9 @@ Besides the 5 main arithmetic functions, janet also supports a number of math fu
 taken from the C library `<math.h>`, as well as bitwise operators that behave like they
 do in C or Java. Functions like `math/sin`, `math/cos`, `math/log`, and `math/exp` will
 behave as expected to a C programmer. They all take either 1 or 2 numeric arguments and
-return a real number (never an integer!)
+return a real number (never an integer!) Bitwise functions are all prefixed with b.
+Thet are `bnot`, `bor`, `bxor`, `band`, `blshift`, `brshift`, and `brushift`. Bitwise
+functions only work on integers.
 
 # Strings, Keywords and Symbols
 

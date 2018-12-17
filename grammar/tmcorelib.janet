@@ -27,4 +27,4 @@
       (buffer/push-byte buf byte)))
   buf)
 
-(print (string/join (map escape allsyms)) "|"))
+(print (string/join (map escape allsyms) "|"))
