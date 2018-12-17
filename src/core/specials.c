@@ -648,15 +648,14 @@ error2:
 
 /* Keep in lexicographic order */
 static const JanetSpecial janetc_specials[] = {
-    {":=", janetc_varset},
     {"def", janetc_def},
     {"do", janetc_do},
     {"fn", janetc_fn},
     {"if", janetc_if},
     {"quasiquote", janetc_quasiquote},
     {"quote", janetc_quote},
+    {"set", janetc_varset},
     {"splice", janetc_splice},
-    {"unquote", janetc_unquote},
     {"unquote", janetc_unquote},
     {"var", janetc_var},
     {"while", janetc_while}

@@ -18,8 +18,8 @@
        (if ,loaded 
          ,state 
          (do
-           (:= ,loaded true)
-           (:= ,state (do ;forms)))))))
+           (set ,loaded true)
+           (set ,state (do ;forms)))))))
 
 # Use tuples instead of structs to save memory
 (def- HEAD 0)

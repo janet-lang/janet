@@ -24,12 +24,12 @@
            (os/exit 0)
            1)
      "v" (fn [&] (print janet/version "-" janet/build) (os/exit 0) 1)
-     "s" (fn [&] (:= *raw-stdin* true) (:= *should-repl* true) 1)
-     "r" (fn [&] (:= *should-repl* true) 1)
-     "p" (fn [&] (:= *exit-on-error* false) 1)
-     "-" (fn [&] (:= *handleopts* false) 1)
+     "s" (fn [&] (set *raw-stdin* true) (set *should-repl* true) 1)
+     "r" (fn [&] (set *should-repl* true) 1)
+     "p" (fn [&] (set *exit-on-error* false) 1)
+     "-" (fn [&] (set *handleopts* false) 1)
      "e" (fn [i &]
-           (:= *no-file* false)
+           (set *no-file* false)
            (eval (get process/args (+ i 1)))
            2)})
 
@@ -45,7 +45,7 @@
     (if (and *handleopts* (= "-" (string/slice arg 0 1)))
       (+= i (dohandler (string/slice arg 1 2) i))
       (do
-        (:= *no-file* false)
+        (set *no-file* false)
         (import* _env arg :prefix "" :exit *exit-on-error*)
         (++ i))))
 

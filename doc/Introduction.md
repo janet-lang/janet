@@ -83,7 +83,7 @@ return a real number (never an integer!)
 Janet supports several varieties of types that can be used as labels for things in
 your program. The most useful type for this purpose is the keyword type. A keyword
 begins with a semicolon, and then contains 0 or more alphanumeric or a few other common
-characters. For example, `:hello`, `:my-name`, `:=`, and `:ABC123_-*&^%$` are all keywords.
+characters. For example, `:hello`, `:my-name`, `::`, and `:ABC123_-*&^%$` are all keywords.
 Keywords are actually just special cases of symbols, which are similar but don't start with
 a semicolon. The difference between symbols and keywords is that keywords evaluate to themselves, while
 symbols evaluate to whatever they are bound to. To have a symbol evaluate to itself, it must be
@@ -247,13 +247,13 @@ symbols will raise an error.
 
 Bindings created with def have lexical scoping. Also, bindings created with def are immutable; they
 cannot be changed after definition. For mutable bindings, like variables in other programming
-languages, use the `var` keyword. The assignment special form `:=` can then be used to update
+languages, use the `var` keyword. The assignment special form `set` can then be used to update
 a var.
 
 ```
 (var myvar 1)
 (print myvar)
-(:= myvar 10)
+(set myvar 10)
 (print myvar)
 ```
 

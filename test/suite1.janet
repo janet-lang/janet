@@ -33,7 +33,7 @@
 
 (defn myfun [x]
   (var a 10)
-  (:= a (do
+  (set a (do
          (def y x)
          (if x 8 9))))
 
@@ -44,7 +44,7 @@
  (var good true)
  (loop [i :range [0 n]]
   (if (not (f))
-   (:= good false)))
+   (set good false)))
  (assert good e))
 
 (assert-many (fn [] (>= 1 (math/random) 0)) 200 "(random) between 0 and 1")

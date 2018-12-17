@@ -80,7 +80,7 @@
 
 # Mcarthy's 91 function
 (var f91 nil)
-(:= f91 (fn [n] (if (> n 100) (- n 10) (f91 (f91 (+ n 11))))))
+(set f91 (fn [n] (if (> n 100) (- n 10) (f91 (f91 (+ n 11))))))
 (assert (= 91 (f91 10)) "f91(10) = 91")
 (assert (= 91 (f91 11)) "f91(11) = 91")
 (assert (= 91 (f91 20)) "f91(20) = 91")
@@ -92,7 +92,7 @@
 (assert (= 94 (f91 104)) "f91(104) = 94")
 
 # Fibonacci
-(def fib (do (var fib nil) (:= fib (fn [n] (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))))
+(def fib (do (var fib nil) (set fib (fn [n] (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))))
 (def fib2 (fn fib2 [n] (if (< n 2) n (+ (fib2 (- n 1)) (fib2 (- n 2))))))
 
 (assert (= (fib 0) (fib2 0) 0) "fib(0)")
@@ -127,15 +127,15 @@
    (var accum 1)
    (var count 0)
    (while (< count 16)
-     (:= accum (<< accum 1))
-     (:= count (+ 1 count)))
+     (set accum (<< accum 1))
+     (set count (+ 1 count)))
    (assert (= accum 65536) "loop in closure")))
 
 (var accum 1)
 (var count 0)
 (while (< count 16)
-  (:= accum (<< accum 1))
-  (:= count (+ 1 count)))
+  (set accum (<< accum 1))
+  (set count (+ 1 count)))
 (assert (= accum 65536) "loop globally")
 
 (assert (= (struct 1 2 3 4 5 6 7 8) (struct 7 8 5 6 3 4 1 2)) "struct order does not matter 1")
@@ -228,18 +228,18 @@
     (def xi (get xs i))
     (def yj (get ys j))
     (if (< xi yj)
-      (do (array/push ret xi) (:= i (+ i 1)))
-      (do (array/push ret yj) (:= j (+ j 1)))))
+      (do (array/push ret xi) (set i (+ i 1)))
+      (do (array/push ret yj) (set j (+ j 1)))))
   # Push rest of xs
   (while (< i xlen)
     (def xi (get xs i))
     (array/push ret xi)
-    (:= i (+ i 1)))
+    (set i (+ i 1)))
   # Push rest of ys
   (while (< j ylen)
     (def yj (get ys j))
     (array/push ret yj)
-    (:= j (+ j 1)))
+    (set j (+ j 1)))
   ret)
 
 (assert (apply <= (merge @[1 3 5] @[2 4 6])) "merge sort merge 1")
@@ -255,7 +255,7 @@
    (var count 0)
    (while (< count 128)
      (put syms (gensym) true)
-     (:= count (+ 1 count)))
+     (set count (+ 1 count)))
    (assert (= (length syms) 128) "many symbols")))
 
 # Let

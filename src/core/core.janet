@@ -25,7 +25,7 @@
           i
           (do
             (if (= t :string)
-              (:= docstr ith)
+              (set docstr ith)
               (array/push modifiers ith))
             (if (< i len) (recur (+ i 1)))))))
     (def start (fstart 0))
@@ -37,7 +37,7 @@
     (while (< index arglen)
       (buffer/push-string buf " ")
       (string/pretty args.index 4 buf)
-      (:= index (+ index 1)))
+      (set index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
     # Build return value
     ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
@@ -149,19 +149,19 @@
 # C style macros and functions for imperative sugar
 (defn inc "Returns x + 1." [x] (+ x 1))
 (defn dec "Returns x - 1." [x] (- x 1))
-(defmacro ++ "Increments the var x by 1." [x] ~(:= ,x (,+ ,x ,1)))
-(defmacro -- "Decrements the var x by 1." [x] ~(:= ,x (,- ,x ,1)))
-(defmacro += "Increments the var x by n." [x n] ~(:= ,x (,+ ,x ,n)))
-(defmacro -= "Decrements the vat x by n." [x n] ~(:= ,x (,- ,x ,n)))
-(defmacro *= "Shorthand for (:= x (* x n))." [x n] ~(:= ,x (,* ,x ,n)))
-(defmacro /= "Shorthand for (:= x (/ x n))." [x n] ~(:= ,x (,/ ,x ,n)))
-(defmacro %= "Shorthand for (:= x (% x n))." [x n] ~(:= ,x (,% ,x ,n)))
-(defmacro &= "Shorthand for (:= x (& x n))." [x n] ~(:= ,x (,& ,x ,n)))
-(defmacro |= "Shorthand for (:= x (| x n))." [x n] ~(:= ,x (,| ,x ,n)))
-(defmacro ^= "Shorthand for (:= x (^ x n))." [x n] ~(:= ,x (,^ ,x ,n)))
-(defmacro >>= "Shorthand for (:= x (>> x n))." [x n] ~(:= ,x (,>> ,x ,n)))
-(defmacro <<= "Shorthand for (:= x (<< x n))." [x n] ~(:= ,x (,<< ,x ,n)))
-(defmacro >>>= "Shorthand for (:= x (>>> x n))." [x n] ~(:= ,x (,>>> ,x ,n)))
+(defmacro ++ "Increments the var x by 1." [x] ~(set ,x (,+ ,x ,1)))
+(defmacro -- "Decrements the var x by 1." [x] ~(set ,x (,- ,x ,1)))
+(defmacro += "Increments the var x by n." [x n] ~(set ,x (,+ ,x ,n)))
+(defmacro -= "Decrements the vat x by n." [x n] ~(set ,x (,- ,x ,n)))
+(defmacro *= "Shorthand for (set x (* x n))." [x n] ~(set ,x (,* ,x ,n)))
+(defmacro /= "Shorthand for (set x (/ x n))." [x n] ~(set ,x (,/ ,x ,n)))
+(defmacro %= "Shorthand for (set x (% x n))." [x n] ~(set ,x (,% ,x ,n)))
+(defmacro &= "Shorthand for (set x (& x n))." [x n] ~(set ,x (,& ,x ,n)))
+(defmacro |= "Shorthand for (set x (| x n))." [x n] ~(set ,x (,| ,x ,n)))
+(defmacro ^= "Shorthand for (set x (^ x n))." [x n] ~(set ,x (,^ ,x ,n)))
+(defmacro >>= "Shorthand for (set x (>> x n))." [x n] ~(set ,x (,>> ,x ,n)))
+(defmacro <<= "Shorthand for (set x (<< x n))." [x n] ~(set ,x (,<< ,x ,n)))
+(defmacro >>>= "Shorthand for (set x (>>> x n))." [x n] ~(set ,x (,>>> ,x ,n)))
 
 (defmacro default
   "Define a default value for an optional argument.
@@ -248,7 +248,7 @@
   (var i len)
   (while (> i 0)
     (-- i)
-    (:= ret (if (= ret true)
+    (set ret (if (= ret true)
               forms.i
               (tuple 'if forms.i ret))))
   ret)
@@ -263,7 +263,7 @@
   (while (> i 0)
     (-- i)
     (def fi forms.i)
-    (:= ret (if (idempotent? fi)
+    (set ret (if (idempotent? fi)
       (tuple 'if fi fi ret)
       (do
         (def $fi (gensym))
@@ -331,13 +331,13 @@
                              (tuple 'var $iter 0)
                              (tuple 'while
                                     (tuple/slice spreds)
-                                    (tuple := $iter (tuple + 1 $iter))
+                                    (tuple 'set $iter (tuple + 1 $iter))
                                     sub)))
             (error (string "unexpected loop predicate: " bindings)))
           (case verb
             :iterate (do
                        (def $iter (gensym))
-                       (def preds @['and (tuple ':= $iter object)])
+                       (def preds @['and (tuple 'set $iter object)])
                        (def subloop (doone (+ i 3) preds))
                        (tuple 'do
                               (tuple 'var $iter nil)
@@ -357,7 +357,7 @@
                             (tuple 'while (tuple/slice preds)
                                    (tuple 'def bindings $iter)
                                    subloop
-                                   (tuple ':= $iter (tuple + $iter inc)))))
+                                   (tuple 'set $iter (tuple + $iter inc)))))
             :keys (do
                     (def $dict (gensym))
                     (def $iter (gensym))
@@ -369,7 +369,7 @@
                            (tuple 'while (tuple/slice preds)
                                   (tuple 'def bindings $iter)
                                   subloop
-                                  (tuple ':= $iter (tuple next $dict $iter)))))
+                                  (tuple 'set $iter (tuple next $dict $iter)))))
             :in (do
                   (def $len (gensym))
                   (def $i (gensym))
@@ -383,7 +383,7 @@
                          (tuple 'while (tuple/slice preds 0)
                                 (tuple 'def bindings (tuple get $indexed $i))
                                 subloop
-                                (tuple ':= $i (tuple + 1 $i)))))
+                                (tuple 'set $i (tuple + 1 $i)))))
             :generate (do
                      (def $fiber (gensym))
                      (def $yieldval (gensym))
@@ -400,7 +400,7 @@
                             (tuple 'while (tuple/slice preds 0)
                                    (tuple 'def bindings $yieldval)
                                    subloop
-                                   (tuple := $yieldval (tuple resume $fiber)))))
+                                   (tuple 'set $yieldval (tuple resume $fiber)))))
             (error (string "unexpected loop verb: " verb)))))))
   (doone 0 nil))
 
@@ -517,7 +517,7 @@
     (var ret args.0)
     (loop [i :range [0 len]]
       (def v args.i)
-      (if (order v ret) (:= ret v)))
+      (if (order v ret) (set ret v)))
     ret))
 
 (defn max
@@ -566,11 +566,11 @@
         (def aj a.j)
         (when (by aj pivot)
           (def ai a.i)
-          (:= a.i aj)
-          (:= a.j ai)
+          (set a.i aj)
+          (set a.j ai)
           (++ i)))
-      (:= a.hi a.i)
-      (:= a.i pivot)
+      (set a.hi a.i)
+      (set a.i pivot)
       i)
 
     (defn sort-help
@@ -595,7 +595,7 @@
   [f init ind]
   (var res init)
   (loop [x :in ind]
-    (:= res (f res x)))
+    (set res (f res x)))
   res)
 
 (defn map
@@ -607,18 +607,18 @@
   (var limit (length inds.0))
   (loop [i :range [0 ninds]]
     (def l (length inds.i))
-    (if (< l limit) (:= limit l)))
+    (if (< l limit) (set limit l)))
   (def [i1 i2 i3 i4] inds)
   (def res (array/new limit))
   (case ninds
-    1 (loop [i :range [0 limit]] (:= res.i (f i1.i)))
-    2 (loop [i :range [0 limit]] (:= res.i (f i1.i i2.i)))
-    3 (loop [i :range [0 limit]] (:= res.i (f i1.i i2.i i3.i)))
-    4 (loop [i :range [0 limit]] (:= res.i (f i1.i i2.i i3.i i4.i)))
+    1 (loop [i :range [0 limit]] (set res.i (f i1.i)))
+    2 (loop [i :range [0 limit]] (set res.i (f i1.i i2.i)))
+    3 (loop [i :range [0 limit]] (set res.i (f i1.i i2.i i3.i)))
+    4 (loop [i :range [0 limit]] (set res.i (f i1.i i2.i i3.i i4.i)))
     (loop [i :range [0 limit]]
       (def args (array/new ninds))
-      (loop [j :range [0 ninds]] (:= args.j inds.j.i))
-      (:= res.i (f ;args))))
+      (loop [j :range [0 ninds]] (set args.j inds.j.i))
+      (set res.i (f ;args))))
   res)
 
 (defn mapcat
@@ -691,7 +691,7 @@
   (var going true)
   (while (if (< i len) going)
     (def item ind.i)
-    (if (pred item) (:= going false) (++ i)))
+    (if (pred item) (set going false) (++ i)))
   (if going nil i))
 
 (defn find
@@ -784,7 +784,7 @@
   [ind]
   (var res true)
   (loop [x :in ind :while res]
-    (if x nil (:= res x)))
+    (if x nil (set res x)))
   res)
 
 (defn reverse
@@ -825,7 +825,7 @@ value, one key will be ignored."
   The key then, is associated to the function's return value"
   [coll a-key a-function & args]
   (def old-value coll.a-key)
-  (:= coll.a-key (a-function old-value ;args)))
+  (set coll.a-key (a-function old-value ;args)))
 
 (defn merge-into
   "Merges multiple tables/structs into a table. If a key appears in more than one
@@ -834,7 +834,7 @@ value, one key will be ignored."
   [tab & colls]
   (loop [c :in colls
          key :keys c]
-    (:= tab.key c.key))
+    (set tab.key c.key))
   tab)
 
 (defn merge
@@ -845,7 +845,7 @@ value, one key will be ignored."
   (def container @{})
   (loop [c :in colls
          key :keys c]
-    (:= container.key c.key))
+    (set container.key c.key))
   container)
 
 (defn keys
@@ -855,7 +855,7 @@ value, one key will be ignored."
   (var k (next x nil))
   (while (not= nil k)
     (array/push arr k)
-    (:= k (next x k)))
+    (set k (next x k)))
   arr)
 
 (defn values
@@ -865,7 +865,7 @@ value, one key will be ignored."
   (var k (next x nil))
   (while (not= nil k)
     (array/push arr x.k)
-    (:= k (next x k)))
+    (set k (next x k)))
   arr)
 
 (defn pairs
@@ -875,7 +875,7 @@ value, one key will be ignored."
   (var k (next x nil))
   (while (not= nil k)
     (array/push arr (tuple k x.k))
-    (:= k (next x k)))
+    (set k (next x k)))
   arr)
 
 (defn frequencies
@@ -885,7 +885,7 @@ value, one key will be ignored."
   (loop
     [x :in ind]
     (def n freqs.x)
-    (:= freqs.x (if n (+ 1 n) 1)))
+    (set freqs.x (if n (+ 1 n) 1)))
   freqs)
 
 (defn interleave
@@ -906,7 +906,7 @@ value, one key will be ignored."
   [xs]
   (def ret @[])
   (def seen @{})
-  (loop [x :in xs] (if seen.x nil (do (:= seen.x true) (array/push ret x))))
+  (loop [x :in xs] (if seen.x nil (do (set seen.x true) (array/push ret x))))
   ret)
 
 (defn flatten-into
@@ -939,7 +939,7 @@ value, one key will be ignored."
   [sep ind]
   (def len (length ind))
   (def ret (array/new (- (* 2 len) 1)))
-  (if (> len 0) (:= ret.0 ind.0))
+  (if (> len 0) (set ret.0 ind.0))
   (var i 1)
   (while (< i len)
     (array/push ret sep ind.i)
@@ -991,7 +991,7 @@ value, one key will be ignored."
         $dict expr
         ~(if (dictionary? ,$dict)
            ,((fn aux []
-               (:= key (next pattern key))
+               (set key (next pattern key))
                (if (= key nil)
                  (onmatch)
                  (match-1 (get pattern key) (tuple get $dict key) aux seen))))
@@ -1049,7 +1049,7 @@ value, one key will be ignored."
     (def oldcur current)
     (def spacer
       (if (<= maxcol (+ current (length word) 1))
-        (do (:= current 0) "\n    ")
+        (do (set current 0) "\n    ")
         (do (++ current) " ")))
     (+= current (length word))
     (if (> oldcur 0)
@@ -1066,7 +1066,7 @@ value, one key will be ignored."
           (if (> (length word) 0) (pushword))
           (when (= b 10)
             (buffer/push-string buf "\n    ")
-            (:= current 0)))))
+            (set current 0)))))
 
   # Last word
   (pushword)
@@ -1103,7 +1103,7 @@ value, one key will be ignored."
     (var key (next t nil))
     (while (not= nil key)
       (put newt (macex1 key) (on-value t.key))
-      (:= key (next t key)))
+      (set key (next t key)))
     newt)
 
   (defn expand-bindings [x]
@@ -1151,7 +1151,7 @@ value, one key will be ignored."
     (tuple t.0 (qq t.1)))
 
   (def specs
-    {':= expanddef
+    {'set expanddef
      'def expanddef
      'do expandall
      'fn expandfn
@@ -1185,14 +1185,14 @@ value, one key will be ignored."
   [pred xs]
   "Returns true if all xs are truthy, otherwise the first false or nil value."
   (var ret true)
-  (loop [x :in xs :while ret] (:= ret (pred x)))
+  (loop [x :in xs :while ret] (set ret (pred x)))
   ret)
 
 (defn some
   [pred xs]
   "Returns false if all xs are false or nil, otherwise returns the first true value."
   (var ret nil)
-  (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (:= ret y)))
+  (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (set ret y)))
   ret)
 
 (defn deep-not=
@@ -1225,8 +1225,8 @@ value, one key will be ignored."
   (while (deep-not= current previous)
     (if (> (++ counter) 200)
       (error "macro expansion too nested"))
-    (:= previous current)
-    (:= current (macex1 current)))
+    (set previous current)
+    (set current (macex1 current)))
   current)
 
 ###
@@ -1274,7 +1274,7 @@ value, one key will be ignored."
           (if (= (type res) :function)
             (res)
             (do
-              (:= good false)
+              (set good false)
               (def {:error err :start start :end end :fiber errf} res)
               (onstatus
                 :compile
@@ -1289,7 +1289,7 @@ value, one key will be ignored."
       (if going (onstatus (fiber/status f) res f where))))
 
   (def oldenv *env*)
-  (:= *env* env)
+  (set *env* env)
 
   # Run loop
   (def buf @"")
@@ -1299,10 +1299,10 @@ value, one key will be ignored."
     (var pindex 0)
     (var pstatus nil)
     (def len (length buf))
-    (if (= len 0) (:= going false))
+    (if (= len 0) (set going false))
     (while (> len pindex)
       (+= pindex (parser/consume p buf pindex))
-      (while (= (:= pstatus (parser/status p)) :full)
+      (while (= (set pstatus (parser/status p)) :full)
         (eval1 (parser/produce p)))
       (when (= pstatus :error)
         (onstatus :parse
@@ -1311,7 +1311,7 @@ value, one key will be ignored."
                   nil
                   where))))
 
-  (:= *env* oldenv)
+  (set *env* oldenv)
 
   env)
 
@@ -1369,7 +1369,7 @@ value, one key will be ignored."
   (var state (string str))
   (defn chunks [buf _]
     (def ret state)
-    (:= state nil)
+    (set state nil)
     (when ret
       (buffer/push-string buf str)
       (buffer/push-string buf "\n")))
@@ -1377,7 +1377,7 @@ value, one key will be ignored."
   (run-context *env* chunks
                (fn [sig x f source]
                  (if (= sig :dead)
-                   (:= returnval x)
+                   (set returnval x)
                    (status-pp sig x f source)))
                "eval")
   returnval)
@@ -1470,8 +1470,8 @@ value, one key will be ignored."
         check
         (do
           (def newenv (make-env))
-          (:= cache.path newenv)
-          (:= loading.path true)
+          (set cache.path newenv)
+          (set loading.path true)
           (def f (find-mod path))
           (if f
             (do
@@ -1490,7 +1490,7 @@ value, one key will be ignored."
               (if (not n)
                 (error (string "could not open file for module " path)))
               ((native n) newenv)))
-          (:= loading.path false)
+          (set loading.path false)
           newenv)))))
 
 (defn import*
@@ -1510,7 +1510,7 @@ value, one key will be ignored."
     (when (not v:private)
       (def newv (table/setproto @{:private true} v))
       (put env (symbol prefix k) newv))
-    (:= k (next newenv k))))
+    (set k (next newenv k))))
 
 (defmacro import
   "Import a module. First requires the module, and then merges its
@@ -1547,9 +1547,9 @@ value, one key will be ignored."
   [env &]
   (default env *env*)
   (def envs @[])
-  (do (var e env) (while e (array/push envs e) (:= e (table/getproto e))))
+  (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
   (def symbol-set @{})
   (loop [envi :in envs
          k :keys envi]
-    (:= symbol-set.k true))
+    (set symbol-set.k true))
   (sort (keys symbol-set)))
