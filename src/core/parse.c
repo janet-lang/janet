@@ -520,11 +520,11 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
 int janet_parser_consume(JanetParser *parser, uint8_t c) {
     int consumed = 0;
     if (parser->error) return 0;
+    parser->offset++;
     while (!consumed && !parser->error) {
         JanetParseState *state = parser->states + parser->statecount - 1;
         consumed = state->consumer(parser, state, c);
     }
-    parser->offset++;
     parser->lookback = c;
     return 1;
 }

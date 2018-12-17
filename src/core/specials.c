@@ -172,6 +172,15 @@ static int destructure(JanetCompiler *c,
     }
 }
 
+/* Create a source map for definitions. */
+static const Janet *janetc_make_sourcemap(JanetCompiler *c) {
+    Janet *tup = janet_tuple_begin(3);
+    tup[0] = janet_wrap_string(c->source);
+    tup[1] = janet_wrap_integer(c->current_mapping.start);
+    tup[2] = janet_wrap_integer(c->current_mapping.end);
+    return janet_tuple_end(tup);
+}
+
 static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv) {
     /*JanetFopts subopts = janetc_fopts_default(opts.compiler);*/
     /*JanetSlot ret, dest;*/
@@ -252,6 +261,8 @@ static int varleaf(
         JanetArray *ref = janet_array(1);
         janet_array_push(ref, janet_wrap_nil());
         janet_table_put(reftab, janet_csymbolv(":ref"), janet_wrap_array(ref));
+        janet_table_put(reftab, janet_csymbolv(":source-map"),
+                janet_wrap_tuple(janetc_make_sourcemap(c)));
         janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(reftab));
         refslot = janetc_cslot(janet_wrap_array(ref));
         janetc_emit_ssu(c, JOP_PUT_INDEX, refslot, s, 0, 0);
@@ -278,6 +289,8 @@ static int defleaf(
         JanetTable *attr) {
     if (c->scope->flags & JANET_SCOPE_TOP) {
         JanetTable *tab = janet_table(2);
+        janet_table_put(tab, janet_csymbolv(":source-map"),
+                janet_wrap_tuple(janetc_make_sourcemap(c)));
         tab->proto = attr;
         JanetSlot valsym = janetc_cslot(janet_csymbolv(":value"));
         JanetSlot tabslot = janetc_cslot(janet_wrap_table(tab));

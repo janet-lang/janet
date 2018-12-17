@@ -131,9 +131,9 @@
 
 (defmacro with-idemp
   "Return janet code body that has been prepended
-  with a binding of form to atom. If form is a non-
-  idempotent form (a function call, etc.), make sure the resulting
-  code will only call evaluate once, even if body contains multiple
+  with a binding of form to atom. If form is a non-idempotent
+  form (a function call, etc.), make sure the resulting
+  code will only evaluate once, even if body contains multiple
   copies of binding. In body, use binding instead of form."
   [binding form & body]
   (def $result (gensym))
@@ -152,7 +152,7 @@
 (defmacro ++ "Increments the var x by 1." [x] ~(set ,x (,+ ,x ,1)))
 (defmacro -- "Decrements the var x by 1." [x] ~(set ,x (,- ,x ,1)))
 (defmacro += "Increments the var x by n." [x n] ~(set ,x (,+ ,x ,n)))
-(defmacro -= "Decrements the vat x by n." [x n] ~(set ,x (,- ,x ,n)))
+(defmacro -= "Decrements the var x by n." [x n] ~(set ,x (,- ,x ,n)))
 (defmacro *= "Shorthand for (set x (* x n))." [x n] ~(set ,x (,* ,x ,n)))
 (defmacro /= "Shorthand for (set x (/ x n))." [x n] ~(set ,x (,/ ,x ,n)))
 (defmacro %= "Shorthand for (set x (% x n))." [x n] ~(set ,x (,% ,x ,n)))
@@ -441,9 +441,9 @@
   accum)
 
 (defmacro if-let
-  "Takes the first one or two forms in a vector and if both are true binds
-  all the forms with let and evaluates the first expression else
-  evaluates the second"
+  "Make mutliple bindings, anf if all are truthy,
+  evaluate the tru form. If any are false or nil, evaluate
+  the fal form. Bindings have the same syntax as the let macro."
   [bindings tru fal &]
   (def len (length bindings))
   (if (zero? len) (error "expected at least 1 binding"))
@@ -472,8 +472,7 @@
   (aux 0))
 
 (defmacro when-let
-  "Takes the first one or two forms in vector and if true binds
-  all the forms  with let and evaluates the body"
+  "Same as (if-let bindings (do ;body))."
   [bindings & body]
   ~(if-let ,bindings (do ,;body)))
 
@@ -803,8 +802,8 @@ value, one key will be ignored."
   ret)
 
 (defn zipcoll
-  "Creates an table or tuple from two arrays/tuples. If a third argument of
-  :struct is given result is struct else is table. Returns a new table."
+  "Creates an table or tuple from two arrays/tuples.
+  Returns a new table."
   [keys vals]
   (def res @{})
   (def lk (length keys))
@@ -1075,7 +1074,7 @@ value, one key will be ignored."
     (print "symbol " sym " not found.")
     (do
       (def bind-type
-        (string "    " 
+        (string "    "
                 (cond
                   x:ref (string :var " (" (type (get x:ref 0)) ")")
                   x:macro :macro

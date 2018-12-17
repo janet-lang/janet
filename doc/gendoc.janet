@@ -9,8 +9,15 @@
 <title>Janet Language Documentation</title>
 <meta name="description" content="API Documentation for the janet programming language.">
 <style>
-p {
+.docstring {
   font-family: monospace;
+}
+.binding-type {
+  color: blue;
+}
+.source-map {
+  color: steelblue;
+  font-size: 0.8em;
 }
 </style>
 </head>
@@ -64,14 +71,19 @@ p {
   (let [{:macro macro
          :value val
          :ref ref
+         :source-map sm
          :doc docstring} env-entry
         binding-type (cond
                        macro :macro
                        ref (string :var " (" (type ref.0) ")")
-                       (type val))]
-    (string "<h2>" (html-escape key) "</h2>"
-            "<span style=\"color:blue;\">" binding-type "</span>"
-            "<p>" (trim-lead (html-escape docstring)) "</p>")))
+                       (type val))
+        source-ref (if-let [[path start end] sm]
+                     (string "<span class=\"source-map\">" path " (" start ":" end ")</span>")
+                     "")]
+    (string "<h2 class=\"binding\">" (html-escape key) "</h2>\n"
+            "<span class=\"binding-type\">" binding-type "</span>\n"
+            "<p class=\"docstring\">" (trim-lead (html-escape docstring)) "</p>\n"
+            source-ref)))
 
 # Generate parts and print them to stdout
 (def parts (seq [[k entry]
@@ -81,5 +93,5 @@ p {
 (print
   prelude
   (make-title)
-  ;(interpose "<hr>" parts)
+  ;(interpose "<hr>\n" parts)
   postlude)

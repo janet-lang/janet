@@ -575,13 +575,13 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
 
     if (c->result.status == JANET_COMPILE_ERROR)
         return janetc_cslot(janet_wrap_nil());
-    c->current_mapping = last_mapping;
     if (opts.flags & JANET_FOPTS_TAIL)
         ret = janetc_return(opts.compiler, ret);
     if (opts.flags & JANET_FOPTS_HINT) {
         janetc_copy(opts.compiler, opts.hint, ret);
         ret = opts.hint;
     }
+    c->current_mapping = last_mapping;
     opts.compiler->recursion_guard++;
     return ret;
 }

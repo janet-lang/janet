@@ -324,7 +324,7 @@ static const JanetReg cfuns[] = {
         "(buffer & xs)\n\n"
         "Creates a new buffer by concatenating values together. Values are "
         "converted to bytes via describe if they are not byte sequences. Returns "
-        "the new symbol."
+        "the new buffer."
     },
     {"abstract?", janet_core_is_abstract,
         "(abstract? x)\n\n"
@@ -384,7 +384,7 @@ static const JanetReg cfuns[] = {
     {"gcsetinterval", janet_core_gcsetinterval,
         "(gcsetinterval interval)\n\n"
         "Set an integer number of bytes to allocate before running garbage collection. "
-        "Low values interval will be slower but use less memory. "
+        "Low valuesi for interval will be slower but use less memory. "
         "High values will be faster but use more memory."
     },
     {"gcinterval", janet_core_gcinterval,
