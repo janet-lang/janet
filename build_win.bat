@@ -93,6 +93,7 @@ exit /b 0
 @rem Build a dist directory
 :DIST
 mkdir dist
+janet.exe doc\gendoc.janet > dist\doc.html
 copy janet.exe dist\janet.exe
 copy LICENSE dist\LICENSE
 copy README.md dist\README.md
