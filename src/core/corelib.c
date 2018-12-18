@@ -406,9 +406,9 @@ static const JanetReg cfuns[] = {
         "\t:string\n"
         "\t:buffer\n"
         "\t:symbol\n"
-        "\t:abstract\n"
         "\t:function\n"
-        "\t:cfunction"
+        "\t:cfunction\n\n"
+        "or another symbol for an abstract type."
     },
     {"next", janet_core_next,
         "(next dict key)\n\n"
