@@ -6,7 +6,7 @@
 !include "MUI2.nsh"
  
 Name "Janet"
-OutFile "janet.exe"
+OutFile "janet-install.exe"
  
 !define MUI_ABORTWARNING
  

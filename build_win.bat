@@ -100,7 +100,6 @@ copy README.md dist\README.md
 copy janet.lib dist\janet.lib
 copy janet.exp dist\janet.exp
 copy src\include\janet\janet.h dist\janet.h
-xcopy /s doc dist\doc
 exit /b 0
 
 :TESTFAIL
