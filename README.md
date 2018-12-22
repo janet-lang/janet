@@ -1,9 +1,9 @@
-# janet
-
 [![Build Status](https://travis-ci.org/bakpakin/janet.svg?branch=master)](https://travis-ci.org/bakpakin/janet)
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/bakpakin/janet)
 
-Janet is a functional and imperative programming language and bytecode interpreter. It is a
+<img src="https://raw.githubusercontent.com/honix/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
+
+**Janet** is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
 by other data structures with better utility and performance (arrays, tables, structs, tuples).
 The language also bridging bridging to native code written in C, meta-programming with macros, and bytecode assembly.
@@ -13,12 +13,15 @@ to run script files. This client program is separate from the core runtime, so
 janet could be embedded into other programs. Try janet in your browser at 
 [https://janet-lang.org](https://janet-lang.org).
 
+#
+
 Implemented in mostly standard C99, janet runs on Windows, Linux and macOS.
 The few features that are not standard C (dynamic library loading, compiler specific optimizations),
 are fairly straight forward. Janet can be easily ported to new platforms.
 
 For syntax highlighting, there is some preliminary vim syntax highlighting in [janet.vim](https://github.com/bakpakin/janet.vim).
-Generic lisp syntax highlighting should, however, provide good results.
+Generic lisp syntax highlighting should, however, provide good results. There is also a janet.tmLanguage file
+that should provide good syntax highlighting for many editors.
 
 ## Use Cases
 
@@ -48,11 +51,16 @@ Janet makes a good system scripting language, or a language to embed in other pr
 
 ## Documentation
 
-API documentation and design documents can be found in the
-[wiki](https://github.com/bakpakin/janet/wiki). There is an introduction
-section in the wiki that contains a good overview of the language.
+Documentation can be found in the doc directory of 
+the repository. There is an introduction
+section contains a good overview of the language.
 
-For individual bindings, use the `(doc symbol-name)` macro to get API
+API documentation for all bindings can also be generated
+with `make docs`, which will create `build/doc.html`, which
+can be viewed with any web browser. This
+includes all forms in the core library except special forms.
+
+For individual bindings from within the REPL, use the `(doc symbol-name)` macro to get API
 documentation for the core library. For example,
 ```
 (doc doc)

@@ -13,7 +13,7 @@
  x)
 
 (defn start-suite [x]
- (:= suite-num x)
+ (set suite-num x)
  (print "\nRunning test suite " x " tests...\n"))
 
 (defn end-suite []

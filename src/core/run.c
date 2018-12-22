@@ -67,7 +67,7 @@ void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err) {
                 int32_t off = (int32_t) (frame->pc - def->bytecode);
                 if (def->sourcemap) {
                     JanetSourceMapping mapping = def->sourcemap[off];
-                    fprintf(stderr, " on line %d, column %d", mapping.line, mapping.column);
+                    fprintf(stderr, " at (%d:%d)", mapping.start, mapping.end);
                 } else {
                     fprintf(stderr, " pc=%d", off);
                 }
@@ -75,6 +75,8 @@ void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err) {
             fprintf(stderr, "\n");
         }
     }
+
+    janet_v_free(fibers);
 }
 
 /* Run a string */

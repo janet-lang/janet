@@ -710,8 +710,8 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             if (!janet_checktype(tup[1], JANET_INTEGER)) {
                 janet_asm_error(&a, "expected integer");
             }
-            mapping.line = janet_unwrap_integer(tup[0]);
-            mapping.column = janet_unwrap_integer(tup[1]);
+            mapping.start = janet_unwrap_integer(tup[0]);
+            mapping.end = janet_unwrap_integer(tup[1]);
             def->sourcemap[i] = mapping;
         }
     }
@@ -876,8 +876,8 @@ Janet janet_disasm(JanetFuncDef *def) {
         for (i = 0; i < def->bytecode_length; i++) {
             Janet *t = janet_tuple_begin(2);
             JanetSourceMapping mapping = def->sourcemap[i];
-            t[0] = janet_wrap_integer(mapping.line);
-            t[1] = janet_wrap_integer(mapping.column);
+            t[0] = janet_wrap_integer(mapping.start);
+            t[1] = janet_wrap_integer(mapping.end);
             sourcemap->data[i] = janet_wrap_tuple(janet_tuple_end(t));
         }
         sourcemap->count = def->bytecode_length;

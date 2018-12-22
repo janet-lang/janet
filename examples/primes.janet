@@ -9,6 +9,6 @@
     (def len (length list))
     (for j 0 len
       (def trial (get list j))
-      (if (zero? (% i trial)) (:= isprime? false)))
+      (if (zero? (% i trial)) (set isprime? false)))
     (if isprime? (array/push list i)))
   list)

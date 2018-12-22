@@ -588,7 +588,7 @@ static int json_encode(JanetArgs args) {
 
 static const JanetReg cfuns[] = {
     {"encode", json_encode,
-        "(json/encode x)\n\n"
+        "(json/encode x [,tab [,newline]])\n\n"
         "Encodes a janet value in JSON (utf-8)."
     },
     {"decode", json_decode,

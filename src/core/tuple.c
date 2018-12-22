@@ -32,8 +32,8 @@ Janet *janet_tuple_begin(int32_t length) {
     char *data = janet_gcalloc(JANET_MEMORY_TUPLE, 4 * sizeof(int32_t) + length * sizeof(Janet));
     Janet *tuple = (Janet *)(data + (4 * sizeof(int32_t)));
     janet_tuple_length(tuple) = length;
-    janet_tuple_sm_line(tuple) = 0;
-    janet_tuple_sm_col(tuple) = 0;
+    janet_tuple_sm_start(tuple) = -1;
+    janet_tuple_sm_end(tuple) = -1;
     return tuple;
 }
 

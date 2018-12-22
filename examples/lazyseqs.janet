@@ -18,12 +18,12 @@
        (if ,loaded 
          ,state 
          (do
-           (:= ,loaded true)
-           (:= ,state (do ;forms)))))))
+           (set ,loaded true)
+           (set ,state (do ;forms)))))))
 
 # Use tuples instead of structs to save memory
-(def HEAD :private 0)
-(def TAIL :private 1)
+(def- HEAD 0)
+(def- TAIL 1)
 
 (defn empty-seq
   "The empty sequence."

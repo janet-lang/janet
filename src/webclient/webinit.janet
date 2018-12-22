@@ -3,8 +3,8 @@
 
 (fiber/new (fn webrepl []
   (repl (fn get-line [buf p]
-          (def [line] (parser/where p))
-          (def prompt (string "janet:" line ":" (parser/state p) "> "))
+          (def offset (parser/where p))
+          (def prompt (string "janet:" offset ":" (parser/state p) "> "))
           (repl-yield prompt buf)
           (yield)
           buf))))

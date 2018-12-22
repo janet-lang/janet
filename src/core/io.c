@@ -47,7 +47,7 @@ struct IOFile {
 static int janet_io_gc(void *p, size_t len);
 
 JanetAbstractType janet_io_filetype = {
-    ":core.file",
+    ":core/file",
     janet_io_gc,
     NULL
 };

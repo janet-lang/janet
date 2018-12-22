@@ -16,7 +16,7 @@
   (def cell-set (frequencies state))
   (def neighbor-set (frequencies (mapcat neighbors state)))
   (seq [coord :keys neighbor-set
-         :let [count neighbor-set@coord]
+         :let [count neighbor-set.coord]
          :when (or (= count 3) (and (get cell-set coord) (= count 2)))]
       coord))
 
@@ -24,7 +24,7 @@
   "Draw cells in the game of life from (x1, y1) to (x2, y2)"
   [state x1 y1 x2 y2]
   (def cellset @{})
-  (each cell state (:= cellset@cell true))
+  (each cell state (set cellset.cell true))
   (loop [x :range [x1 (+ 1 x2)]
          :after (print)
          y :range [y1 (+ 1 y2)]]
@@ -40,4 +40,4 @@
 (for i 0 20
   (print "generation " i)
   (draw *state* -7 -7 7 7)
-  (:= *state* (tick *state*)))
+  (set *state* (tick *state*)))

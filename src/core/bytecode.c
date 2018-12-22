@@ -125,10 +125,10 @@ int32_t janet_verify(JanetFuncDef *def) {
     for (i = 0; i < def->bytecode_length; i++) {
         uint32_t instr = def->bytecode[i];
         /* Check for invalid instructions */
-        if ((instr & 0xFF) >= JOP_INSTRUCTION_COUNT) {
+        if ((instr & 0x7F) >= JOP_INSTRUCTION_COUNT) {
             return 3;
         }
-        enum JanetInstructionType type = janet_instructions[instr & 0xFF];
+        enum JanetInstructionType type = janet_instructions[instr & 0x7F];
         switch (type) {
             case JINT_0:
                 continue;

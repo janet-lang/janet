@@ -29,7 +29,7 @@ extern "C" {
 
 /***** START SECTION CONFIG *****/
 
-#define JANET_VERSION "0.1.0"
+#define JANET_VERSION "0.2.0"
 
 #ifndef JANET_BUILD
 #define JANET_BUILD "local"
@@ -204,6 +204,8 @@ extern "C" {
 
 /* Names of all of the types */
 extern const char *const janet_type_names[16];
+extern const char *const janet_signal_names[14];
+extern const char *const janet_status_names[16];
 
 /* Fiber signals */
 typedef enum {
@@ -667,8 +669,8 @@ struct JanetKV {
 
 /* Source mapping structure for a bytecode instruction */
 struct JanetSourceMapping {
-    int32_t line;
-    int32_t column;
+    int32_t start;
+    int32_t end;
 };
 
 /* A function definition. Contains information needed to instantiate closures. */
@@ -731,8 +733,7 @@ struct JanetParser {
     size_t statecap;
     size_t bufcount;
     size_t bufcap;
-    size_t line;
-    size_t col;
+    size_t offset;
     int lookback;
 };
 
@@ -937,6 +938,13 @@ JANET_API Janet janet_scan_number(const uint8_t *src, int32_t len);
 JANET_API int32_t janet_scan_integer(const uint8_t *str, int32_t len, int *err);
 JANET_API double janet_scan_real(const uint8_t *str, int32_t len, int *err);
 
+/* Debugging */
+JANET_API int janet_debug_break(JanetFuncDef *def, int32_t pc);
+JANET_API int janet_debug_unbreak(JanetFuncDef *def, int32_t pc);
+JANET_API int janet_debug_find(
+        JanetFuncDef **def_out, int32_t *pc_out,
+        const uint8_t *source, int32_t offset);
+
 /* Array functions */
 JANET_API JanetArray *janet_array(int32_t capacity);
 JANET_API JanetArray *janet_array_n(const Janet *elements, int32_t n);
@@ -967,8 +975,8 @@ JANET_API int janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
 #define janet_tuple_raw(t) ((int32_t *)(t) - 4)
 #define janet_tuple_length(t) (janet_tuple_raw(t)[0])
 #define janet_tuple_hash(t) ((janet_tuple_raw(t)[1]))
-#define janet_tuple_sm_line(t) ((janet_tuple_raw(t)[2]))
-#define janet_tuple_sm_col(t) ((janet_tuple_raw(t)[3]))
+#define janet_tuple_sm_start(t) ((janet_tuple_raw(t)[2]))
+#define janet_tuple_sm_end(t) ((janet_tuple_raw(t)[3]))
 JANET_API Janet *janet_tuple_begin(int32_t length);
 JANET_API const Janet *janet_tuple_end(Janet *tuple);
 JANET_API const Janet *janet_tuple_n(const Janet *values, int32_t n);
