@@ -1158,8 +1158,8 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 } while (0)
 #define JANET_CHECKMANY(A, N, TS) do {\
     if ((A).n > (N)) {\
-        JanetType t = janet_type((A).v[(N)]);\
-        if (!((1 << t) & (TS))) return janet_typemany_err(A, N, TS);\
+        JanetType _t_ = janet_type((A).v[(N)]);\
+        if (!((1 << _t_) & (TS))) return janet_typemany_err(A, N, TS);\
     } else {\
        if (!((TS) & JANET_NIL)) return janet_typemany_err(A, N, TS);\
     }\
@@ -1167,9 +1167,9 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 
 #define JANET_CHECKABSTRACT(A, N, AT) do {\
     if ((A).n > (N)) {\
-        Janet x = (A).v[(N)];\
-        if (!janet_checktype(x, JANET_ABSTRACT) ||\
-                janet_abstract_type(janet_unwrap_abstract(x)) != (AT))\
+        Janet _x_ = (A).v[(N)];\
+        if (!janet_checktype(_x_, JANET_ABSTRACT) ||\
+                janet_abstract_type(janet_unwrap_abstract(_x_)) != (AT))\
             return janet_typeabstract_err(A, N, AT);\
     } else {\
         return janet_typeabstract_err(A, N, AT);\
@@ -1177,15 +1177,16 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 } while (0)
 
 #define JANET_ARG_NUMBER(DEST, A, N) do { \
-    if ((A).n <= (N)) \
-        return janet_typemany_err(A, N, JANET_TFLAG_NUMBER);\
-    Janet val = (A).v[(N)];\
-    if (janet_checktype(val, JANET_REAL)) { \
-        DEST = janet_unwrap_real(val); \
-    } else if (janet_checktype(val, JANET_INTEGER)) {\
-        DEST = (double) janet_unwrap_integer(val);\
-    }\
-    else return janet_typemany_err(A, N, JANET_TFLAG_NUMBER); \
+    if ((A).n <= (N)) return janet_typemany_err(A, N, JANET_TFLAG_NUMBER); \
+    Janet _val_ = (A).v[(N)];\
+    JanetType _type_ = janet_type(_val_); \
+    if (_type_ == JANET_REAL) { \
+        DEST = janet_unwrap_real(_val_); \
+    } else if (_type_ == JANET_INTEGER) {\
+        DEST = (double) janet_unwrap_integer(_val_);\
+    } else { \
+        return janet_typemany_err(A, N, JANET_TFLAG_NUMBER); \
+    } \
 } while (0)
 
 #define JANET_ARG_BOOLEAN(DEST, A, N) do { \
