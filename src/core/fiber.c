@@ -386,7 +386,7 @@ static const JanetReg cfuns[] = {
         "(fiber/new func [,sigmask])\n\n"
         "Create a new fiber with function body func. Can optionally "
         "take a set of signals to block from the current parent fiber "
-        "when called. The mask is specified as symbol where each character "
+        "when called. The mask is specified as a symbol where each character "
         "is used to indicate a signal to block. The default sigmask is :y. "
         "For example, \n\n"
         "\t(fiber/new myfun :e123)\n\n"

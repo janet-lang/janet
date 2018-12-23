@@ -741,7 +741,7 @@
 
 (defmacro ->
   "Threading macro. Inserts x as the second value in the first form
-  in form, and inserts the modified firsts form into the second form
+  in forms, and inserts the modified first form into the second form
   in the same manner, and so on. Useful for expressing pipelines of data."
   [x & forms]
   (defn fop [last n]
@@ -754,7 +754,7 @@
 
 (defmacro ->>
   "Threading macro. Inserts x as the last value in the first form
-  in form, and inserts the modified firsts form into the second form
+  in forms, and inserts the modified first form into the second form
   in the same manner, and so on. Useful for expressing pipelines of data."
   [x & forms]
   (defn fop [last n]
@@ -763,6 +763,38 @@
                  [tuple n @[]]))
     (def parts (array/concat @[h] t @[last]))
     (tuple/slice parts 0))
+  (reduce fop x forms))
+
+(defmacro -?>
+  "Short circuit threading macro. Inserts x as the last value in the first form
+  in forms, and inserts the modified first form into the second form
+  in the same manner, and so on. The pipeline will return nil
+  if an intermediate value is nil.
+  Useful for expressing pipelines of data."
+  [x & forms]
+  (defn fop [last n]
+    (def [h t] (if (= :tuple (type n))
+                 [tuple n.0 (array/slice n 1)]
+                 [tuple n @[]]))
+    (def sym (gensym))
+    (def parts (array/concat @[h sym] t))
+    ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
+  (reduce fop x forms))
+
+(defmacro -?>>
+  "Threading macro. Inserts x as the last value in the first form
+  in forms, and inserts the modified first form into the second form
+  in the same manner, and so on. The pipeline will return nil
+  if an intermediate value is nil.
+  Useful for expressing pipelines of data."
+  [x & forms]
+  (defn fop [last n]
+    (def [h t] (if (= :tuple (type n))
+                 [tuple n.0 (array/slice n 1)]
+                 [tuple n @[]]))
+    (def sym (gensym))
+    (def parts (array/concat @[h] t @[sym]))
+    ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
   (reduce fop x forms))
 
 (defn partial
