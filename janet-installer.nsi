@@ -29,6 +29,9 @@ Section "Janet" BfWSection
   SetOutPath $INSTDIR
   File "janet.exe"
   WriteUninstaller "$INSTDIR\janet-uninstall.exe"
+  
+  # Start Menu
+  CreateShortCut "$SMPROGRAMS\Janet.lnk" "$INSTDIR\janet.exe" "" ""
 SectionEnd
 
 Function .onInit
