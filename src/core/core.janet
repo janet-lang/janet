@@ -797,6 +797,64 @@
     ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
   (reduce fop x forms))
 
+(defn walk
+  "Iterate over the values in ast and apply f
+  to them. Collect the results in a data structure . If ast is not a
+  table, struct, array, or tuple,
+  behaves as the identity function."
+  [f form]
+  (defn walk-ind []
+    (def ret @[])
+    (each x form (array/push ret (f x)))
+    ret)
+  (defn walk-dict []
+    (def ret @[])
+    (loop [k :keys form]
+      (array/push ret (f k) (f form.k)))
+    ret)
+  (case (type form)
+    :table (table ;(walk-dict))
+    :struct (struct ;(walk-dict))
+    :array (walk-ind)
+    :tuple (tuple ;(walk-ind))
+    form))
+
+(defn post-walk
+  "Do a post-order traversal of a data sructure and call (f x)
+  on every visitation."
+  [f form]
+  (f (walk (fn [x] (post-walk f x)) form)))
+
+(defn pre-walk
+  "Similar to post-walk, but do pre-order traversal."
+  [f form]
+  (walk (fn [x] (pre-walk f x)) (f form)))
+
+(defmacro as->
+  "Thread forms together, replacing as in forms with the value
+  of the previous form. The first for is the value x. Returns the
+  last value."
+  [x as & forms]
+  (var prev x)
+  (loop [form :in forms]
+    (def sym (gensym))
+    (def next-prev (post-walk (fn [y] (if (= y as) sym y)) form))
+    (set prev ~(let [,sym ,prev] ,next-prev)))
+  prev)
+
+(defmacro as?->
+  "Thread forms together, replacing as in forms with the value
+  of the previous form. The first for is the value x. If any
+  intermediate values are falsey, return nil; otherwise, returns the
+  last value."
+  [x as & forms]
+  (var prev x)
+  (loop [form :in forms]
+    (def sym (gensym))
+    (def next-prev (post-walk (fn [y] (if (= y as) sym y)) form))
+    (set prev ~(if-let [,sym ,prev] ,next-prev)))
+  prev)
+
 (defn partial
   "Partial function application."
   [f & more]
