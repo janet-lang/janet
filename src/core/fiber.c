@@ -28,8 +28,8 @@
 static JanetFiber *make_fiber(int32_t capacity) {
     Janet *data;
     JanetFiber *fiber = janet_gcalloc(JANET_MEMORY_FIBER, sizeof(JanetFiber));
-    if (capacity < 16) {
-        capacity = 16;
+    if (capacity < 32) {
+        capacity = 32;
     }
     fiber->capacity = capacity;
     data = malloc(sizeof(Janet) * capacity);
