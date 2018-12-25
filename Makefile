@@ -166,8 +166,8 @@ build/janet-%.tar.gz: $(JANET_TARGET) src/include/janet/janet.h \
 
 docs: build/doc.html
 
-build/doc.html: $(JANET_TARGET) doc/gendoc.janet
-	$(JANET_TARGET) doc/gendoc.janet > build/doc.html
+build/doc.html: $(JANET_TARGET) tools/gendoc.janet
+	$(JANET_TARGET) tools/gendoc.janet > build/doc.html
 
 #################
 ##### Other #####

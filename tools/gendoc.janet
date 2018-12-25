@@ -1,5 +1,7 @@
 # Generate documentation
 
+# TODO - make tool reusable
+
 (def- prelude
 ```
 <!doctype html>
