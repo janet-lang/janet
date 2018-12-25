@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/bakpakin/janet.svg?branch=master)](https://travis-ci.org/bakpakin/janet)
-[![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/bakpakin/janet)
+[![Build Status](https://travis-ci.org/janet-lang/janet.svg?branch=master)](https://travis-ci.org/janet-lang/janet)
+[![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/janet-lang/janet)
 
 <img src="https://raw.githubusercontent.com/honix/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
@@ -19,7 +19,7 @@ Implemented in mostly standard C99, janet runs on Windows, Linux and macOS.
 The few features that are not standard C (dynamic library loading, compiler specific optimizations),
 are fairly straight forward. Janet can be easily ported to new platforms.
 
-For syntax highlighting, there is some preliminary vim syntax highlighting in [janet.vim](https://github.com/bakpakin/janet.vim).
+For syntax highlighting, there is some preliminary vim syntax highlighting in [janet.vim](https://github.com/janet-lang/janet.vim).
 Generic lisp syntax highlighting should, however, provide good results. There is also a janet.tmLanguage file
 that should provide good syntax highlighting for many editors.
 
@@ -72,7 +72,7 @@ environment, use the `(all-symbols)` function.
 
 ## Installation
 
-Install a stable version of janet from the [releases page](https://github.com/bakpakin/janet/releases).
+Install a stable version of janet from the [releases page](https://github.com/janet-lang/janet/releases).
 Janet is prebuilt for a few systems, but if you want to develop janet, run janet on a non-x86 system, or
 get the latest, you must build janet from source.
 
