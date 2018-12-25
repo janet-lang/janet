@@ -9,14 +9,14 @@
   [& args]
   (print ;args)
   (def res (os/shell (string ;args)))
-  (unless (zero? res) 
+  (unless (zero? res)
     (print "Error executing command: " ;args)
     (os/exit res)))
 
 (defn- mkdir
   "Make a directory. Not safe for user code."
   [path]
-  (if is-win 
+  (if is-win
     (shell "mkdir " path)
     (shell "mkdir -p " path)))
 

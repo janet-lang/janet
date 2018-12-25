@@ -236,7 +236,7 @@
 (defmacro try
   "Try something and catch errors. Body is any expression,
   and catch should be a form with the first element a tuple. This tuple
-  should contain a binding for errors and an optional binding for 
+  should contain a binding for errors and an optional binding for
   the fiber wrapping the body. Returns the result of body if no error,
   or the result of catch if an error."
   [body catch]
