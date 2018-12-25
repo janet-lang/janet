@@ -46,4 +46,11 @@
                   @[x y] (+ x y 10)
                   0)) "match 3")
 
+# Edge case should cause old compilers to fail due to
+# if statement optimization
+(var var-a 1)
+(var var-b (if false 2 (string "hello")))
+
+(assert (= var-b "hello") "regression 1")
+
 (end-suite)

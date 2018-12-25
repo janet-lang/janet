@@ -233,6 +233,22 @@
   (array/concat accum body)
   (tuple/slice accum 0))
 
+(defmacro try
+  "Try something and catch errors. Body is any expression,
+  and catch should be a form with the first element a tuple. This tuple
+  should contain a binding for errors and an optional binding for 
+  the fiber wrapping the body. Returns the result of body if no error,
+  or the result of catch if an error."
+  [body catch]
+  (let [[[err fib]] catch
+        f (gensym)
+        r (gensym)]
+    ~(let [,f (,fiber/new (fn [] ,body) :e)
+           ,r (resume ,f)]
+       (if (= (,fiber/status ,f) :error)
+         (do (def ,err ,r) ,(if fib ~(def ,fib ,f)) ,;(tuple/slice catch 1))
+         ,r))))
+
 (defmacro and
   "Evaluates to the last argument if all preceding elements are true, otherwise
   evaluates to false."

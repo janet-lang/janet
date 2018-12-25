@@ -196,7 +196,7 @@ static const char *decode_one(const char **p, Janet *out, int depth) {
 
                 if (cp[1] != 'u' || cp[2] != 'l' || cp[3] != 'l')
                     goto badident;
-                *out = janet_wrap_nil();
+                *out = janet_csymbolv(":null");
                 *p = cp + 4;
                 break;
             }
