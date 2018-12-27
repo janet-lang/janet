@@ -99,7 +99,7 @@ static const JanetReg cfuns[] = {
     },
     {"math/random", janet_rand,
         "(math/random)\n\n"
-        "Returns a uniformly distrbuted random number number between 0 and 1."
+        "Returns a uniformly distrbuted random number between 0 and 1."
     },
     {"math/seedrandom", janet_srand,
         "(math/seedrandom seed)\n\n"
@@ -148,11 +148,11 @@ static const JanetReg cfuns[] = {
     },
     {"math/floor", janet_floor,
         "(math/floor x)\n\n"
-        "Returns the largest integer value number number that is not greater than x."
+        "Returns the largest integer value number that is not greater than x."
     },
     {"math/ceil", janet_ceil,
         "(math/ceil x)\n\n"
-        "Returns the smallest integer value number number that is not less than x."
+        "Returns the smallest integer value number that is not less than x."
     },
     {"math/pow", janet_pow,
         "(math/pow a x)\n\n"

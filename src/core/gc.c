@@ -358,7 +358,7 @@ static int janet_gc_idequals(Janet lhs, Janet rhs) {
         case JANET_FALSE:
         case JANET_NIL:
         case JANET_NUMBER:
-            /* These values don't really matter to the gc so returning 1 al the time is fine. */
+            /* These values don't really matter to the gc so returning 1 all the time is fine. */
             return 1;
         default:
             return janet_unwrap_pointer(lhs) == janet_unwrap_pointer(rhs);
