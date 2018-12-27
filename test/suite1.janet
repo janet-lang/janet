@@ -21,8 +21,7 @@
 (import test/helper :prefix "" :exit true)
 (start-suite 1)
 
-(assert (= 400.0 (math/sqrt 160000)) "sqrt(160000)=400")
-(assert (= (real 400) (math/sqrt 160000)) "sqrt(160000)=400")
+(assert (= 400 (math/sqrt 160000)) "sqrt(160000)=400")
 
 (def test-struct {'def 1 'bork 2 'sam 3 'a 'b 'het @[1 2 3 4 5]})
 (assert (= (get test-struct 'def) 1) "struct get")
@@ -188,7 +187,7 @@
 
 (assert (= 14 (sum (map inc @[1 2 3 4]))) "sum map")
 (def myfun (juxt + - * /))
-(assert (= '[2 -2 2 0] (myfun 2)) "juxt")
+(assert (= '[2 -2 2 0.5] (myfun 2)) "juxt")
 
 # Case statements
 (assert 

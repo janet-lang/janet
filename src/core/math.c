@@ -27,7 +27,7 @@
 int janet_rand(JanetArgs args) {
     JANET_FIXARITY(args, 0);
     double r = (rand() % RAND_MAX) / ((double) RAND_MAX);
-    JANET_RETURN_REAL(args, r);
+    JANET_RETURN_NUMBER(args, r);
 }
 
 /* Seed the random number generator */
@@ -39,52 +39,12 @@ int janet_srand(JanetArgs args) {
     return 0;
 }
 
-/* Convert a number to an integer */
-int janet_int(JanetArgs args) {
-    JANET_FIXARITY(args, 1);
-    switch (janet_type(args.v[0])) {
-        default:
-            JANET_THROW(args, "could not convert to integer");
-        case JANET_REAL:
-            *args.ret = janet_wrap_integer((int32_t) janet_unwrap_real(args.v[0]));
-            break;
-        case JANET_INTEGER:
-            *args.ret = args.v[0];
-            break;
-    }
-    return 0;
-}
-
-/* Convert a number to a real number */
-int janet_real(JanetArgs args) {
-    JANET_FIXARITY(args, 1);
-    switch (janet_type(args.v[0])) {
-        default:
-            JANET_THROW(args, "could not convert to real");
-        case JANET_REAL:
-            *args.ret = args.v[0];
-            break;
-        case JANET_INTEGER:
-            *args.ret = janet_wrap_real((double) janet_unwrap_integer(args.v[0]));
-            break;
-    }
-    return 0;
-}
-
 int janet_remainder(JanetArgs args) {
     JANET_FIXARITY(args, 2);
-    if (janet_checktype(args.v[0], JANET_INTEGER) &&
-            janet_checktype(args.v[1], JANET_INTEGER)) {
-        int32_t x, y;
-        x = janet_unwrap_integer(args.v[0]);
-        y = janet_unwrap_integer(args.v[1]);
-        JANET_RETURN_INTEGER(args, x % y);
-    } else {
-        double x, y;
-        JANET_ARG_NUMBER(x, args, 0);
-        JANET_ARG_NUMBER(y, args, 1);
-        JANET_RETURN_REAL(args, fmod(x, y));
-    }
+    double x, y;
+    JANET_ARG_NUMBER(x, args, 0);
+    JANET_ARG_NUMBER(y, args, 1);
+    JANET_RETURN_NUMBER(args, fmod(x, y));
 }
 
 #define JANET_DEFINE_MATHOP(name, fop)\
@@ -92,7 +52,7 @@ int janet_##name(JanetArgs args) {\
     double x;\
     JANET_FIXARITY(args, 1);\
     JANET_ARG_NUMBER(x, args, 0);\
-    JANET_RETURN_REAL(args, fop(x));\
+    JANET_RETURN_NUMBER(args, fop(x));\
 }
 
 JANET_DEFINE_MATHOP(acos, acos)
@@ -118,7 +78,7 @@ int janet_##name(JanetArgs args) {\
     JANET_FIXARITY(args, 2);\
     JANET_ARG_NUMBER(lhs, args, 0);\
     JANET_ARG_NUMBER(rhs, args, 1);\
-    JANET_RETURN_REAL(args, fop(lhs, rhs));\
+    JANET_RETURN_NUMBER(args, fop(lhs, rhs));\
 }\
 
 JANET_DEFINE_MATH2OP(atan2, atan2)
@@ -137,15 +97,9 @@ static const JanetReg cfuns[] = {
     {"not", janet_not,
         "(not x)\n\nReturns the boolen inverse of x."
     },
-    {"int", janet_int,
-        "(int x)\n\nCast a number x to an integer."
-    },
-    {"real", janet_real,
-        "(real x)\n\nCast a number x to a real number."
-    },
     {"math/random", janet_rand,
         "(math/random)\n\n"
-        "Returns a uniformly distrbuted random real number between 0 and 1."
+        "Returns a uniformly distrbuted random number number between 0 and 1."
     },
     {"math/seedrandom", janet_srand,
         "(math/seedrandom seed)\n\n"
@@ -194,11 +148,11 @@ static const JanetReg cfuns[] = {
     },
     {"math/floor", janet_floor,
         "(math/floor x)\n\n"
-        "Returns the largest integer value real number that is not greater than x."
+        "Returns the largest integer value number number that is not greater than x."
     },
     {"math/ceil", janet_ceil,
         "(math/ceil x)\n\n"
-        "Returns the smallest integer value real number that is not less than x."
+        "Returns the smallest integer value number number that is not less than x."
     },
     {"math/pow", janet_pow,
         "(math/pow a x)\n\n"
@@ -212,11 +166,11 @@ int janet_lib_math(JanetArgs args) {
     JanetTable *env = janet_env(args);
     janet_cfuns(env, NULL, cfuns);
 
-    janet_def(env, "math/pi", janet_wrap_real(3.1415926535897931),
+    janet_def(env, "math/pi", janet_wrap_number(3.1415926535897931),
             "The value pi.");
-    janet_def(env, "math/e", janet_wrap_real(2.7182818284590451),
+    janet_def(env, "math/e", janet_wrap_number(2.7182818284590451),
             "The base of the natural log.");
-    janet_def(env, "math/inf", janet_wrap_real(INFINITY),
-            "The real number representing positive infinity");
+    janet_def(env, "math/inf", janet_wrap_number(INFINITY),
+            "The number representing positive infinity");
     return 0;
 }

@@ -39,7 +39,7 @@
 
 (assert (order< nil false true
                 (fiber/new (fn [] 1))
-                1 1.0 "hi"
+                1.0 "hi"
                 (quote hello)
                 (array 1 2 3)
                 (tuple 1 2 3)

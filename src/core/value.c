@@ -38,11 +38,8 @@ int janet_equals(Janet x, Janet y) {
         case JANET_FALSE:
             result = 1;
             break;
-        case JANET_REAL:
-            result = (janet_unwrap_real(x) == janet_unwrap_real(y));
-            break;
-        case JANET_INTEGER:
-            result = (janet_unwrap_integer(x) == janet_unwrap_integer(y));
+        case JANET_NUMBER:
+            result = (janet_unwrap_number(x) == janet_unwrap_number(y));
             break;
         case JANET_STRING:
             result = janet_string_equal(janet_unwrap_string(x), janet_unwrap_string(y));
@@ -85,9 +82,6 @@ int32_t janet_hash(Janet x) {
     case JANET_STRUCT:
         hash = janet_struct_hash(janet_unwrap_struct(x));
         break;
-    case JANET_INTEGER:
-        hash = janet_unwrap_integer(x);
-        break;
     default:
         /* TODO - test performance with different hash functions */
         if (sizeof(double) == sizeof(void *)) {
@@ -117,25 +111,19 @@ int janet_compare(Janet x, Janet y) {
             case JANET_FALSE:
             case JANET_TRUE:
                 return 0;
-            case JANET_REAL:
+            case JANET_NUMBER:
                 /* Check for nans to ensure total order */
-                if (janet_unwrap_real(x) != janet_unwrap_real(x))
-                    return janet_unwrap_real(y) != janet_unwrap_real(y)
+                if (janet_unwrap_number(x) != janet_unwrap_number(x))
+                    return janet_unwrap_number(y) != janet_unwrap_number(y)
                         ? 0
                         : -1;
-                if (janet_unwrap_real(y) != janet_unwrap_real(y))
+                if (janet_unwrap_number(y) != janet_unwrap_number(y))
                     return 1;
 
-                if (janet_unwrap_real(x) == janet_unwrap_real(y)) {
+                if (janet_unwrap_number(x) == janet_unwrap_number(y)) {
                     return 0;
                 } else {
-                    return janet_unwrap_real(x) > janet_unwrap_real(y) ? 1 : -1;
-                }
-            case JANET_INTEGER:
-                if (janet_unwrap_integer(x) == janet_unwrap_integer(y)) {
-                    return 0;
-                } else {
-                    return janet_unwrap_integer(x) > janet_unwrap_integer(y) ? 1 : -1;
+                    return janet_unwrap_number(x) > janet_unwrap_number(y) ? 1 : -1;
                 }
             case JANET_STRING:
             case JANET_SYMBOL:
@@ -153,4 +141,225 @@ int janet_compare(Janet x, Janet y) {
         }
     }
     return (janet_type(x) < janet_type(y)) ? -1 : 1;
+}
+
+/* Gets a value and returns.  If successful, return 0. If there is an error,
+ * returns -1 for bad ds, -2 for bad key */
+int janet_get(Janet ds, Janet key, Janet *out) {
+    Janet value;
+    switch (janet_type(ds)) {
+        default:
+            return -1;
+        case JANET_STRUCT:
+            value = janet_struct_get(janet_unwrap_struct(ds), key);
+            break;
+        case JANET_TABLE:
+            value = janet_table_get(janet_unwrap_table(ds), key);
+            break;
+        case JANET_ARRAY:
+            {
+                JanetArray *array = janet_unwrap_array(ds);
+                int32_t index;
+                if (!janet_checkint(key)) return -2;
+                index = janet_unwrap_integer(key);
+                if (index < 0 || index >= array->count) {
+                    value = janet_wrap_nil();
+                } else {
+                    value = array->data[index];
+                }
+                break;
+            }
+        case JANET_TUPLE:
+            {
+                const Janet *tuple = janet_unwrap_tuple(ds);
+                int32_t index;
+                if (!janet_checkint(key)) return -2;
+                index = janet_unwrap_integer(key);
+                if (index < 0 || index >= janet_tuple_length(tuple)) {
+                    /*vm_throw("index out of bounds");*/
+                    value = janet_wrap_nil();
+                } else {
+                    value = tuple[index];
+                }
+                break;
+            }
+        case JANET_BUFFER:
+            {
+                JanetBuffer *buffer = janet_unwrap_buffer(ds);
+                int32_t index;
+                if (!janet_checkint(key)) return -2;
+                index = janet_unwrap_integer(key);
+                if (index < 0 || index >= buffer->count) {
+                    value = janet_wrap_nil();
+                } else {
+                    value = janet_wrap_integer(buffer->data[index]);
+                }
+                break;
+            }
+        case JANET_STRING:
+        case JANET_SYMBOL:
+            {
+                const uint8_t *str = janet_unwrap_string(ds);
+                int32_t index;
+                if (!janet_checkint(key)) return -2;
+                index = janet_unwrap_integer(key);
+                if (index < 0 || index >= janet_string_length(str)) {
+                    value = janet_wrap_nil();
+                } else {
+                    value = janet_wrap_integer(str[index]);
+                }
+                break;
+            }
+    }
+    *out = value;
+    return 0;
+}
+
+int janet_getindex(Janet ds, int32_t index, Janet *out) {
+    Janet value;
+    if (index < 0)
+        return -2;
+    switch (janet_type(ds)) {
+        default:
+            return -1;
+        case JANET_STRING:
+        case JANET_SYMBOL:
+            if (index >= janet_string_length(janet_unwrap_string(ds))) {
+                value = janet_wrap_nil();
+            } else {
+                value = janet_wrap_integer(janet_unwrap_string(ds)[index]);
+            }
+            break;
+        case JANET_ARRAY:
+            if (index >= janet_unwrap_array(ds)->count) {
+                value = janet_wrap_nil();
+            } else {
+                value = janet_unwrap_array(ds)->data[index];
+            }
+            break;
+        case JANET_BUFFER:
+            if (index >= janet_unwrap_buffer(ds)->count) {
+                value = janet_wrap_nil();
+            } else {
+                value = janet_wrap_integer(janet_unwrap_buffer(ds)->data[index]);
+            }
+            break;
+        case JANET_TUPLE:
+            if (index >= janet_tuple_length(janet_unwrap_tuple(ds))) {
+                value = janet_wrap_nil();
+            } else {
+                value = janet_unwrap_tuple(ds)[index];
+            }
+            break;
+        case JANET_TABLE:
+            value = janet_table_get(janet_unwrap_table(ds), janet_wrap_integer(index));
+            break;
+        case JANET_STRUCT:
+            value = janet_struct_get(janet_unwrap_struct(ds), janet_wrap_integer(index));
+            break;
+    }
+    *out = value;
+    return 0;
+}
+
+int janet_length(Janet x, int32_t *out) {
+    int32_t len;
+    switch (janet_type(x)) {
+        default:
+            return -1;
+        case JANET_STRING:
+        case JANET_SYMBOL:
+            len = janet_string_length(janet_unwrap_string(x));
+            break;
+        case JANET_ARRAY:
+            len = janet_unwrap_array(x)->count;
+            break;
+        case JANET_BUFFER:
+            len = janet_unwrap_buffer(x)->count;
+            break;
+        case JANET_TUPLE:
+            len = janet_tuple_length(janet_unwrap_tuple(x));
+            break;
+        case JANET_STRUCT:
+            len = janet_struct_length(janet_unwrap_struct(x));
+            break;
+        case JANET_TABLE:
+            len = janet_unwrap_table(x)->count;
+            break;
+    }
+    *out = len;
+    return 0;
+}
+
+int janet_putindex(Janet ds, int32_t index, Janet value) {
+    switch (janet_type(ds)) {
+        default:
+            return -1;
+        case JANET_ARRAY:
+            {
+                JanetArray *array = janet_unwrap_array(ds);
+                if (index >= array->count) {
+                    janet_array_ensure(array, index + 1, 2);
+                    array->count = index + 1;
+                }
+                array->data[index] = value;
+                break;
+            }
+        case JANET_BUFFER:
+            {
+                JanetBuffer *buffer = janet_unwrap_buffer(ds);
+                if (!janet_checkint(value)) return -3;
+                if (index >= buffer->count) {
+                    janet_buffer_ensure(buffer, index + 1, 2);
+                    buffer->count = index + 1;
+                }
+                buffer->data[index] = janet_unwrap_integer(value);
+                break;
+            }
+        case JANET_TABLE:
+            {
+                JanetTable *table = janet_unwrap_table(ds);
+                janet_table_put(table, janet_wrap_integer(index), value);
+                break;
+            }
+    }
+    return 0;
+}
+
+int janet_put(Janet ds, Janet key, Janet value) {
+    switch (janet_type(ds)) {
+        default:
+            return -1;
+        case JANET_ARRAY:
+            {
+                int32_t index;
+                JanetArray *array = janet_unwrap_array(ds);
+                if (!janet_checkint(key)) return -2;
+                index = janet_unwrap_integer(key);
+                if (index < 0 || index == INT32_MAX) return -2;
+                if (index >= array->count) {
+                    janet_array_setcount(array, index + 1);
+                }
+                array->data[index] = value;
+                break;
+            }
+        case JANET_BUFFER:
+            {
+                int32_t index;
+                JanetBuffer *buffer = janet_unwrap_buffer(ds);
+                if (!janet_checkint(key)) return -2;
+                index = janet_unwrap_integer(key);
+                if (index < 0 || index == INT32_MAX) return -2;
+                if (!janet_checkint(value)) return -3;
+                if (index >= buffer->count) {
+                    janet_buffer_setcount(buffer, index + 1);
+                }
+                buffer->data[index] = (uint8_t) (janet_unwrap_integer(value) & 0xFF);
+                break;
+            }
+        case JANET_TABLE:
+            janet_table_put(janet_unwrap_table(ds), key, value);
+            break;
+    }
+    return 0;
 }

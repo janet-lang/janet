@@ -101,18 +101,14 @@ static int cfun_slice(JanetArgs args) {
     /* Get start */
     if (args.n < 2) {
         start = 0;
-    } else if (janet_checktype(args.v[1], JANET_INTEGER)) {
-        start = janet_unwrap_integer(args.v[1]);
     } else {
-        JANET_THROW(args, "expected integer");
+        JANET_ARG_INTEGER(start, args, 1);
     }
     /* Get end */
     if (args.n < 3) {
         end = -1;
-    } else if (janet_checktype(args.v[2], JANET_INTEGER)) {
-        end = janet_unwrap_integer(args.v[2]);
     } else {
-        JANET_THROW(args, "expected integer");
+        JANET_ARG_INTEGER(end, args, 2);
     }
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;

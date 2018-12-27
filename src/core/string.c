@@ -106,19 +106,19 @@ const uint8_t *janet_cstring(const char *str) {
 /* Temporary buffer size */
 #define BUFSIZE 64
 
-static int32_t real_to_string_impl(uint8_t *buf, double x) {
-    int count = snprintf((char *) buf, BUFSIZE, "%.17gr", x);
+static int32_t number_to_string_impl(uint8_t *buf, double x) {
+    int count = snprintf((char *) buf, BUFSIZE, "%.17g", x);
     return (int32_t) count;
 }
 
-static void real_to_string_b(JanetBuffer *buffer, double x) {
+static void number_to_string_b(JanetBuffer *buffer, double x) {
     janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
-    buffer->count += real_to_string_impl(buffer->data + buffer->count, x);
+    buffer->count += number_to_string_impl(buffer->data + buffer->count, x);
 }
 
-static const uint8_t *real_to_string(double x) {
+static const uint8_t *number_to_string(double x) {
     uint8_t buf[BUFSIZE];
-    return janet_string(buf, real_to_string_impl(buf, x));
+    return janet_string(buf, number_to_string_impl(buf, x));
 }
 
 /* expects non positive x */
@@ -159,11 +159,6 @@ static int32_t integer_to_string_impl(uint8_t *buf, int32_t x) {
 static void integer_to_string_b(JanetBuffer *buffer, int32_t x) {
     janet_buffer_extra(buffer, BUFSIZE);
     buffer->count += integer_to_string_impl(buffer->data + buffer->count, x);
-}
-
-static const uint8_t *integer_to_string(int32_t x) {
-    uint8_t buf[BUFSIZE];
-    return janet_string(buf, integer_to_string_impl(buf, x));
 }
 
 #define HEX(i) (((uint8_t *) janet_base64)[(i)])
@@ -322,11 +317,8 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
     case JANET_FALSE:
         janet_buffer_push_cstring(buffer, "false");
         return;
-    case JANET_REAL:
-        real_to_string_b(buffer, janet_unwrap_real(x));
-        return;
-    case JANET_INTEGER:
-        integer_to_string_b(buffer, janet_unwrap_integer(x));
+    case JANET_NUMBER:
+        number_to_string_b(buffer, janet_unwrap_number(x));
         return;
     case JANET_SYMBOL:
         janet_buffer_push_bytes(buffer,
@@ -407,10 +399,8 @@ const uint8_t *janet_description(Janet x) {
         return janet_cstring("true");
     case JANET_FALSE:
         return janet_cstring("false");
-    case JANET_REAL:
-        return real_to_string(janet_unwrap_real(x));
-    case JANET_INTEGER:
-        return integer_to_string(janet_unwrap_integer(x));
+    case JANET_NUMBER:
+        return number_to_string(janet_unwrap_number(x));
     case JANET_SYMBOL:
         return janet_unwrap_symbol(x);
     case JANET_STRING:
@@ -494,8 +484,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
     /* Add to seen */
     switch (janet_type(x)) {
         case JANET_NIL:
-        case JANET_INTEGER:
-        case JANET_REAL:
+        case JANET_NUMBER:
         case JANET_SYMBOL:
         case JANET_TRUE:
         case JANET_FALSE:
@@ -503,7 +492,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
         default:
             {
                 Janet seenid = janet_table_get(&S->seen, x);
-                if (janet_checktype(seenid, JANET_INTEGER)) {
+                if (janet_checktype(seenid, JANET_NUMBER)) {
                     janet_buffer_push_cstring(S->buffer, "<cycle ");
                     integer_to_string_b(S->buffer, janet_unwrap_integer(seenid));
                     janet_buffer_push_u8(S->buffer, '>');
@@ -652,7 +641,7 @@ const uint8_t *janet_formatc(const char *format, ...) {
                         janet_buffer_push_u8(bufp, format[i]);
                         break;
                     case 'f':
-                        real_to_string_b(bufp, va_arg(args, double));
+                        number_to_string_b(bufp, va_arg(args, double));
                         break;
                     case 'd':
                         integer_to_string_b(bufp, va_arg(args, int32_t));
@@ -803,18 +792,14 @@ static int cfun_slice(JanetArgs args) {
     /* Get start */
     if (args.n < 2) {
         start = 0;
-    } else if (janet_checktype(args.v[1], JANET_INTEGER)) {
-        start = janet_unwrap_integer(args.v[1]);
     } else {
-        JANET_THROW(args, "expected integer");
+        JANET_ARG_INTEGER(start, args, 1);
     }
     /* Get end */
     if (args.n < 3) {
         end = -1;
-    } else if (janet_checktype(args.v[2], JANET_INTEGER)) {
-        end = janet_unwrap_integer(args.v[2]);
     } else {
-        JANET_THROW(args, "expected integer");
+        JANET_ARG_INTEGER(end, args, 2);
     }
     if (start < 0) start = len + start;
     if (end < 0) end = len + end + 1;
@@ -870,7 +855,9 @@ static int cfun_frombytes(JanetArgs args) {
     int32_t i;
     uint8_t *buf;
     for (i = 0; i < args.n; i++) {
-        JANET_CHECK(args, i, JANET_INTEGER);
+        if (!janet_checkint(args.v[i])) {
+            JANET_THROW(args, "expected integer byte values");
+        }
     }
     buf = janet_string_begin(args.n);
     for (i = 0; i < args.n; i++) {

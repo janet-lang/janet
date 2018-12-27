@@ -13,7 +13,7 @@
     (addim 0 0 -0x1)    # $0 = $0 - 1
     (push 0)            # push($0)
     (call 0 1)          # $0 = call($1)
-    (addi 0 0 2)        # $0 = $0 + $2 (integers)
+    (add 0 0 2)        # $0 = $0 + $2 (integers)
     :done
     (ret 0)             # return $0
   ]

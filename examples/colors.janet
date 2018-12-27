@@ -36,6 +36,6 @@
    :bg-bright-white 107})
 
 (loop [[name color] :in (pairs colormap)]
-  (defglobal (string.slice name 1)
+  (defglobal (string/slice name 1)
     (fn color-wrapper [& pieces]
-      (string "\e[" color "m" (apply string pieces) "\e[0m"))))
+      (string "\e[" color "m" ;pieces "\e[0m"))))

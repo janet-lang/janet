@@ -295,7 +295,7 @@ int32_t janet_scan_integer(
 
 /* Scan a real (double) from a string. If the string cannot be converted into
  * and integer, set *err to 1 and return 0. */
-double janet_scan_real(
+double janet_scan_number(
         const uint8_t *str,
         int32_t len,
         int *err) {
@@ -309,22 +309,4 @@ double janet_scan_real(
             *err = 0;
     }
     return convert(res.neg, res.mant, res.base, res.ex);
-}
-
-/* Scans a number from a string. Can return either an integer or a real if
- * the number cannot be represented as an integer. Will return nil in case of
- * an error. */
-Janet janet_scan_number(
-        const uint8_t *str,
-        int32_t len) {
-    struct JanetScanRes res = janet_scan_impl(str, len);
-    if (res.error)
-        return janet_wrap_nil();
-    if (!res.foundexp && !res.seenpoint) {
-        int64_t i64 = res.neg ? -(int64_t)res.mant : (int64_t)res.mant;
-        if (i64 <= INT32_MAX && i64 >= INT32_MIN) {
-            return janet_wrap_integer((int32_t) i64);
-        }
-    }
-    return janet_wrap_real(convert(res.neg, res.mant, res.base, res.ex));
 }

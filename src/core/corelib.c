@@ -156,39 +156,15 @@ static int janet_core_is_abstract(JanetArgs args) {
 
 static int janet_core_scannumber(JanetArgs args) {
     const uint8_t *data;
-    Janet x;
+    double val;
+    int status = 0;
     int32_t len;
     JANET_FIXARITY(args, 1);
     JANET_ARG_BYTES(data, len, args, 0);
-    x = janet_scan_number(data, len);
-    JANET_RETURN(args, x);
-}
-
-static int janet_core_scaninteger(JanetArgs args) {
-    const uint8_t *data;
-    int32_t len, ret;
-    int err = 0;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_BYTES(data, len, args, 0);
-    ret = janet_scan_integer(data, len, &err);
-    if (err) {
-        JANET_RETURN_NIL(args);
-    }
-    JANET_RETURN_INTEGER(args, ret);
-}
-
-static int janet_core_scanreal(JanetArgs args) {
-    const uint8_t *data;
-    int32_t len;
-    double ret;
-    int err = 0;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_BYTES(data, len, args, 0);
-    ret = janet_scan_real(data, len, &err);
-    if (err) {
-        JANET_RETURN_NIL(args);
-    }
-    JANET_RETURN_REAL(args, ret);
+    val = janet_scan_number(data, len, &status);
+    if (status)
+        JANET_THROW(args, "failed to scan number");
+    JANET_RETURN_NUMBER(args, val);
 }
 
 static int janet_core_tuple(JanetArgs args) {
@@ -348,18 +324,6 @@ static const JanetReg cfuns[] = {
         "must be in the same format as numbers in janet source code. Will return nil "
         "on an invalid number."
     },
-    {"scan-integer", janet_core_scaninteger,
-        "(scan-integer str)\n\n"
-        "Parse an integer from a byte sequence an return that number. The integer "
-        "must be in the same format as integers in janet source code. Will return nil "
-        "on an invalid integer."
-    },
-    {"scan-real", janet_core_scanreal,
-        "(scan-real str)\n\n"
-        "Parse a real number from a byte sequence an return that number. The number "
-        "must be in the same format as numbers in janet source code. Will return nil "
-        "on an invalid number."
-    },
     {"tuple", janet_core_tuple,
         "(tuple & items)\n\n"
         "Creates a new tuple that contains items. Returns the new tuple."
@@ -502,7 +466,7 @@ static void templatize_varop(
         SSS(JOP_GET, 4, 0, 5), /* operand = args[i] */
         SSS(op, 3, 3, 4), /* accum = accum op operand */
         SSI(JOP_ADD_IMMEDIATE, 5, 5, 1), /* i++ */
-        SSI(JOP_EQUALS_INTEGER, 2, 5, 1), /* jump? = (i == argn) */
+        SSI(JOP_EQUALS, 2, 5, 1), /* jump? = (i == argn) */
         SI(JOP_JUMP_IF_NOT, 2, -4), /* if not jump? go back 4 */
 
         /* Done, do last and return accumulator */
@@ -550,7 +514,7 @@ static void templatize_comparator(
         SI(JOP_JUMP_IF_NOT, 2, 7), /* if not jump? goto fail (return false) */
         SSI(JOP_ADD_IMMEDIATE, 5, 5, 1), /* i++ */
         SS(JOP_MOVE_NEAR, 3, 4), /* last = next */
-        SSI(JOP_EQUALS_INTEGER, 2, 5, 1), /* jump? = (i == argn) */
+        SSI(JOP_EQUALS, 2, 5, 1), /* jump? = (i == argn) */
         SI(JOP_JUMP_IF_NOT, 2, -6), /* if not jump? go back 6 */
 
         /* Done, return true */
@@ -592,7 +556,7 @@ static void make_apply(JanetTable *env) {
         /* Main loop */
         SSS(JOP_GET, 5, 1, 4), /* x = args[i] */
         SSI(JOP_ADD_IMMEDIATE, 4, 4, 1), /* i++ */
-        SSI(JOP_EQUALS_INTEGER, 3, 4, 2), /* jump? = (i == argn) */
+        SSI(JOP_EQUALS, 3, 4, 2), /* jump? = (i == argn) */
         SI(JOP_JUMP_IF, 3, 3), /* if jump? go forward 3 */
         S(JOP_PUSH, 5),
         (JOP_JUMP | ((uint32_t)(-5) << 8)),

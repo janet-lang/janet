@@ -83,11 +83,7 @@
 (defn pos? "Check if x is greater than 0." [x] (> x 0))
 (defn neg? "Check if x is less than 0." [x] (< x 0))
 (defn one? "Check if x is equal to 1." [x] (== x 1))
-(defn integer? "Check if x is an integer." [x] (= (type x) :integer))
-(defn real? "Check if x is a real number." [x] (= (type x) :real))
-(defn number? "Check if x is a number." [x]
-  (def t (type x))
-  (if (= t :integer) true (= t :real)))
+(defn number? "Check if x is a number." [x] (= (type x) :number))
 (defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
 (defn string? "Check if x is a string." [x] (= (type x) :string))
 (defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))

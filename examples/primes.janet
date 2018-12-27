@@ -12,3 +12,5 @@
       (if (zero? (% i trial)) (set isprime? false)))
     (if isprime? (array/push list i)))
   list)
+
+(print (string/pretty (primes 100)))

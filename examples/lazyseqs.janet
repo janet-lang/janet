@@ -19,7 +19,7 @@
          ,state 
          (do
            (set ,loaded true)
-           (set ,state (do ;forms)))))))
+           (set ,state (do ,;forms)))))))
 
 # Use tuples instead of structs to save memory
 (def- HEAD 0)
@@ -52,7 +52,7 @@
 
 (defn lazy-range
   "Return a sequence of integers [start, end)."
-  @[start end]
+  [start end &]
   (if end
     (if (< start end)
       (delay (tuple start (lazy-range (+ 1 start) end)))
@@ -94,7 +94,7 @@
 (defn randseq
   "Return a sequence of random numbers."
   []
-  (delay (tuple (math.random) (randseq))))
+  (delay (tuple (math/random) (randseq))))
 
 (defn take-while
   "Returns a sequence of values until the predicate is false."

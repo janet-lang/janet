@@ -297,9 +297,15 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         case JANET_TRUE:
             pushbyte(st, 200 + type);
             goto done;
-        case JANET_INTEGER:
-            pushint(st, janet_unwrap_integer(x));
-            goto done;
+        case JANET_NUMBER:
+            {
+                double xval = janet_unwrap_number(x);
+                if (janet_checkintrange(xval)) {
+                    pushint(st, (int32_t) xval);
+                    goto done;
+                }
+                break;
+            }
     }
 
 #define MARK_SEEN() \
@@ -308,7 +314,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
     /* Check reference and registry value */
     {
         Janet check = janet_table_get(&st->seen, x);
-        if (janet_checktype(check, JANET_INTEGER)) {
+        if (janet_checkint(check)) {
             pushbyte(st, LB_REFERENCE);
             pushint(st, janet_unwrap_integer(check));
             goto done;
@@ -328,13 +334,13 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
 
     /* Reference types */
     switch (type) {
-        case JANET_REAL:
+        case JANET_NUMBER:
             {
                 union {
                     double d;
                     uint8_t bytes[8];
                 } u;
-                u.d = janet_unwrap_real(x);
+                u.d = janet_unwrap_number(x);
 #ifdef JANET_BIG_ENDIAN
                 /* Swap byte order */
                 uint8_t temp;
@@ -936,7 +942,7 @@ static const uint8_t *unmarshal_one(
 #else
                 memcpy(&u.bytes, data + 1, sizeof(double));
 #endif
-                *out = janet_wrap_real(u.d);
+                *out = janet_wrap_number(u.d);
                 janet_array_push(&st->lookup, *out);
                 return data + 9;
             }

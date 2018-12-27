@@ -203,7 +203,7 @@ extern "C" {
 #include <stdarg.h>
 
 /* Names of all of the types */
-extern const char *const janet_type_names[16];
+extern const char *const janet_type_names[15];
 extern const char *const janet_signal_names[14];
 extern const char *const janet_status_names[16];
 
@@ -278,8 +278,7 @@ typedef enum JanetType {
     JANET_FALSE,
     JANET_TRUE,
     JANET_FIBER,
-    JANET_INTEGER,
-    JANET_REAL,
+    JANET_NUMBER,
     JANET_STRING,
     JANET_SYMBOL,
     JANET_ARRAY,
@@ -299,8 +298,7 @@ typedef enum JanetType {
 #define JANET_TFLAG_FALSE (1 << JANET_FALSE)
 #define JANET_TFLAG_TRUE (1 << JANET_TRUE)
 #define JANET_TFLAG_FIBER (1 << JANET_FIBER)
-#define JANET_TFLAG_INTEGER (1 << JANET_INTEGER)
-#define JANET_TFLAG_REAL (1 << JANET_REAL)
+#define JANET_TFLAG_NUMBER (1 << JANET_NUMBER)
 #define JANET_TFLAG_STRING (1 << JANET_STRING)
 #define JANET_TFLAG_SYMBOL (1 << JANET_SYMBOL)
 #define JANET_TFLAG_ARRAY (1 << JANET_ARRAY)
@@ -314,7 +312,6 @@ typedef enum JanetType {
 
 /* Some abstractions */
 #define JANET_TFLAG_BOOLEAN (JANET_TFLAG_TRUE | JANET_TFLAG_FALSE)
-#define JANET_TFLAG_NUMBER (JANET_TFLAG_REAL | JANET_TFLAG_INTEGER)
 #define JANET_TFLAG_CALLABLE (JANET_TFLAG_FUNCTION | JANET_TFLAG_CFUNCTION)
 #define JANET_TFLAG_BYTES (JANET_TFLAG_STRING | JANET_TFLAG_SYMBOL | JANET_TFLAG_BUFFER)
 #define JANET_TFLAG_INDEXED (JANET_TFLAG_ARRAY | JANET_TFLAG_TUPLE)
@@ -349,7 +346,7 @@ typedef enum JanetType {
 union Janet {
     uint64_t u64;
     int64_t i64;
-    double real;
+    double number;
     void *pointer;
 };
 #define janet_u64(x) ((x).u64)
@@ -359,19 +356,19 @@ union Janet {
 #define janet_nanbox_lowtag(type) ((uint64_t)(type) | 0x1FFF0)
 #define janet_nanbox_tag(type) (janet_nanbox_lowtag(type) << 47)
 #define janet_type(x) \
-    (isnan((x).real) \
+    (isnan((x).number) \
         ? (((x).u64 >> 47) & 0xF) \
-        : JANET_REAL)
+        : JANET_NUMBER)
 
 #define janet_nanbox_checkauxtype(x, type) \
     (((x).u64 & JANET_NANBOX_TAGBITS) == janet_nanbox_tag((type)))
 
-#define janet_nanbox_isreal(x) \
-    (!isnan((x).real) || janet_nanbox_checkauxtype((x), JANET_REAL))
+#define janet_nanbox_isnumber(x) \
+    (!isnan((x).number) || janet_nanbox_checkauxtype((x), JANET_NUMBER))
 
 #define janet_checktype(x, t) \
-    (((t) == JANET_REAL) \
-        ? janet_nanbox_isreal(x) \
+    (((t) == JANET_NUMBER) \
+        ? janet_nanbox_isnumber(x) \
         : janet_nanbox_checkauxtype((x), (t)))
 
 JANET_API void *janet_nanbox_to_pointer(Janet x);
@@ -403,15 +400,12 @@ JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
 #define janet_wrap_true() janet_nanbox_from_payload(JANET_TRUE, 1)
 #define janet_wrap_false() janet_nanbox_from_payload(JANET_FALSE, 1)
 #define janet_wrap_boolean(b) janet_nanbox_from_payload((b) ? JANET_TRUE : JANET_FALSE, 1)
-#define janet_wrap_integer(i) janet_nanbox_from_payload(JANET_INTEGER, (uint32_t)(i))
-#define janet_wrap_real(r) janet_nanbox_from_double(r)
+#define janet_wrap_number(r) janet_nanbox_from_double(r)
 
 /* Unwrap the simple types */
 #define janet_unwrap_boolean(x) \
     (janet_checktype(x, JANET_TRUE))
-#define janet_unwrap_integer(x) \
-    ((int32_t)((x).u64 & 0xFFFFFFFFlu))
-#define janet_unwrap_real(x) ((x).real)
+#define janet_unwrap_number(x) ((x).number)
 
 /* Wrap the pointer types */
 #define janet_wrap_struct(s) janet_nanbox_wrap_c((s), JANET_STRUCT)
@@ -459,20 +453,20 @@ union Janet {
         uint32_t type;
 #endif
     } tagged;
-    double real;
+    double number;
     uint64_t u64;
 };
 
 #define JANET_DOUBLE_OFFSET 0xFFFF
 
 #define janet_u64(x) ((x).u64)
-#define janet_type(x) (((x).tagged.type < JANET_DOUBLE_OFFSET) ? (x).tagged.type : JANET_REAL)
+#define janet_type(x) (((x).tagged.type < JANET_DOUBLE_OFFSET) ? (x).tagged.type : JANET_NUMBER)
 #define janet_checktype(x, t) ((x).tagged.type == (t))
 #define janet_memempty(mem, count) memset((mem), 0, sizeof(JanetKV) * (count))
 #define janet_memalloc_empty(count) calloc((count), sizeof(JanetKV))
 #define janet_truthy(x) ((x).tagged.type != JANET_NIL && (x).tagged.type != JANET_FALSE)
 
-JANET_API Janet janet_wrap_real(double x);
+JANET_API Janet janet_wrap_number(double x);
 JANET_API Janet janet_nanbox32_from_tagi(uint32_t tag, int32_t integer);
 JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 
@@ -480,7 +474,6 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 #define janet_wrap_true() janet_nanbox32_from_tagi(JANET_TRUE, 0)
 #define janet_wrap_false() janet_nanbox32_from_tagi(JANET_FALSE, 0)
 #define janet_wrap_boolean(b) janet_nanbox32_from_tagi((b) ? JANET_TRUE : JANET_FALSE, 0)
-#define janet_wrap_integer(i) janet_nanbox32_from_tagi(JANET_INTEGER, (i))
 
 /* Wrap the pointer types */
 #define janet_wrap_struct(s) janet_nanbox32_from_tagp(JANET_STRUCT, (void *)(s))
@@ -508,8 +501,7 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 #define janet_unwrap_function(x) ((JanetFunction *)(x).tagged.payload.pointer)
 #define janet_unwrap_cfunction(x) ((JanetCFunction)(x).tagged.payload.pointer)
 #define janet_unwrap_boolean(x) ((x).tagged.type == JANET_TRUE)
-#define janet_unwrap_integer(x) ((x).tagged.payload.integer)
-JANET_API double janet_unwrap_real(Janet x);
+JANET_API double janet_unwrap_number(Janet x);
 
 #else
 
@@ -517,7 +509,7 @@ JANET_API double janet_unwrap_real(Janet x);
 struct Janet {
     union {
         uint64_t u64;
-        double real;
+        double number;
         int32_t integer;
         void *pointer;
         const void *cpointer;
@@ -546,12 +538,10 @@ struct Janet {
 #define janet_unwrap_function(x) ((JanetFunction *)(x).as.pointer)
 #define janet_unwrap_cfunction(x) ((JanetCFunction)(x).as.pointer)
 #define janet_unwrap_boolean(x) ((x).type == JANET_TRUE)
-#define janet_unwrap_integer(x) ((x).as.integer)
-#define janet_unwrap_real(x) ((x).as.real)
+#define janet_unwrap_number(x) ((x).as.number)
 
 JANET_API Janet janet_wrap_nil(void);
-JANET_API Janet janet_wrap_real(double x);
-JANET_API Janet janet_wrap_integer(int32_t x);
+JANET_API Janet janet_wrap_number(double x);
 JANET_API Janet janet_wrap_true(void);
 JANET_API Janet janet_wrap_false(void);
 JANET_API Janet janet_wrap_boolean(int x);
@@ -569,6 +559,13 @@ JANET_API Janet janet_wrap_abstract(void *x);
 
 /* End of tagged union implementation */
 #endif
+
+JANET_API int janet_checkint(Janet x);
+JANET_API int janet_checkint64(Janet x);
+#define janet_checkintrange(x) ((x) == (int32_t)(x) && (x) >= INT32_MIN && (x) <= INT32_MAX)
+#define janet_checkint64range(x) ((x) == (int64_t)(x))
+#define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
+#define janet_wrap_integer(x) janet_wrap_number((int32_t)(x))
 
 /* Hold components of arguments passed to JanetCFunction. */
 struct JanetArgs {
@@ -797,20 +794,12 @@ enum JanetOpCode {
     JOP_TYPECHECK,
     JOP_RETURN,
     JOP_RETURN_NIL,
-    JOP_ADD_INTEGER,
     JOP_ADD_IMMEDIATE,
-    JOP_ADD_REAL,
     JOP_ADD,
-    JOP_SUBTRACT_INTEGER,
-    JOP_SUBTRACT_REAL,
     JOP_SUBTRACT,
-    JOP_MULTIPLY_INTEGER,
     JOP_MULTIPLY_IMMEDIATE,
-    JOP_MULTIPLY_REAL,
     JOP_MULTIPLY,
-    JOP_DIVIDE_INTEGER,
     JOP_DIVIDE_IMMEDIATE,
-    JOP_DIVIDE_REAL,
     JOP_DIVIDE,
     JOP_BAND,
     JOP_BOR,
@@ -828,19 +817,11 @@ enum JanetOpCode {
     JOP_JUMP_IF,
     JOP_JUMP_IF_NOT,
     JOP_GREATER_THAN,
-    JOP_GREATER_THAN_INTEGER,
     JOP_GREATER_THAN_IMMEDIATE,
-    JOP_GREATER_THAN_REAL,
-    JOP_GREATER_THAN_EQUAL_REAL,
     JOP_LESS_THAN,
-    JOP_LESS_THAN_INTEGER,
     JOP_LESS_THAN_IMMEDIATE,
-    JOP_LESS_THAN_REAL,
-    JOP_LESS_THAN_EQUAL_REAL,
     JOP_EQUALS,
-    JOP_EQUALS_INTEGER,
     JOP_EQUALS_IMMEDIATE,
-    JOP_EQUALS_REAL,
     JOP_COMPARE,
     JOP_LOAD_NIL,
     JOP_LOAD_TRUE,
@@ -934,9 +915,8 @@ JANET_API int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, 
 JANET_API int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Janet *out);
 
 /* Number scanning */
-JANET_API Janet janet_scan_number(const uint8_t *src, int32_t len);
 JANET_API int32_t janet_scan_integer(const uint8_t *str, int32_t len, int *err);
-JANET_API double janet_scan_real(const uint8_t *str, int32_t len, int *err);
+JANET_API double janet_scan_number(const uint8_t *str, int32_t len, int *err);
 
 /* Debugging */
 JANET_API int janet_debug_break(JanetFuncDef *def, int32_t pc);
@@ -1102,6 +1082,11 @@ JANET_API int32_t janet_hash(Janet x);
 JANET_API int janet_compare(Janet x, Janet y);
 JANET_API int janet_cstrcmp(const uint8_t *str, const char *other);
 JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x);
+JANET_API int janet_get(Janet ds, Janet key, Janet *out);
+JANET_API int janet_getindex(Janet ds, int32_t index, Janet *out);
+JANET_API int janet_length(Janet x, int32_t *out);
+JANET_API int janet_put(Janet ds, Janet key, Janet value);
+JANET_API int janet_putindex(Janet ds, int32_t index, Janet value);
 
 /* VM functions */
 JANET_API int janet_init(void);
@@ -1176,19 +1161,6 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
     }\
 } while (0)
 
-#define JANET_ARG_NUMBER(DEST, A, N) do { \
-    if ((A).n <= (N)) return janet_typemany_err(A, N, JANET_TFLAG_NUMBER); \
-    Janet _val_ = (A).v[(N)];\
-    JanetType _type_ = janet_type(_val_); \
-    if (_type_ == JANET_REAL) { \
-        DEST = janet_unwrap_real(_val_); \
-    } else if (_type_ == JANET_INTEGER) {\
-        DEST = (double) janet_unwrap_integer(_val_);\
-    } else { \
-        return janet_typemany_err(A, N, JANET_TFLAG_NUMBER); \
-    } \
-} while (0)
-
 #define JANET_ARG_BOOLEAN(DEST, A, N) do { \
     JANET_CHECKMANY(A, N, JANET_TFLAG_TRUE | JANET_TFLAG_FALSE);\
     DEST = janet_unwrap_boolean((A).v[(N)]); \
@@ -1214,8 +1186,7 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 } while (0)
 
 #define JANET_ARG_FIBER(DEST, A, N) _JANET_ARG(JANET_FIBER, fiber, DEST, A, N)
-#define JANET_ARG_INTEGER(DEST, A, N) _JANET_ARG(JANET_INTEGER, integer, DEST, A, N)
-#define JANET_ARG_REAL(DEST, A, N) _JANET_ARG(JANET_REAL, real, DEST, A, N)
+#define JANET_ARG_NUMBER(DEST, A, N) _JANET_ARG(JANET_NUMBER, number, DEST, A, N)
 #define JANET_ARG_STRING(DEST, A, N) _JANET_ARG(JANET_STRING, string, DEST, A, N)
 #define JANET_ARG_SYMBOL(DEST, A, N) _JANET_ARG(JANET_SYMBOL, symbol, DEST, A, N)
 #define JANET_ARG_ARRAY(DEST, A, N) _JANET_ARG(JANET_ARRAY, array, DEST, A, N)
@@ -1225,6 +1196,30 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 #define JANET_ARG_BUFFER(DEST, A, N) _JANET_ARG(JANET_BUFFER, buffer, DEST, A, N)
 #define JANET_ARG_FUNCTION(DEST, A, N) _JANET_ARG(JANET_FUNCTION, function, DEST, A, N)
 #define JANET_ARG_CFUNCTION(DEST, A, N) _JANET_ARG(JANET_CFUNCTION, cfunction, DEST, A, N)
+
+#define JANET_ARG_INTEGER(DEST, A, N) do { \
+    if ((A).n <= (N) || !janet_checktype((A).v[(N)], JANET_NUMBER)) { \
+        JANET_THROW(A, "expected integer"); \
+    } \
+    double _x_ = janet_unwrap_number((A).v[(N)]); \
+    if (janet_checkintrange(_x_)) { \
+        DEST = (int32_t) _x_; \
+    } else { \
+        JANET_THROW(A, "expected integer representable by 32 bits"); \
+    } \
+} while (0)
+
+#define JANET_ARG_INTEGER64(DEST, A, N) do { \
+    if ((A).n <= (N) || !janet_checktype((A).v[(N)], JANET_NUMBER)) { \
+        JANET_THROW(A, "expected integer"); \
+    } \
+    double _x_ = janet_unwrap_number((A).v[(N)]); \
+    if (janet_checkintrange64(_x_)) { \
+        DEST = (int64_t) _x_; \
+    } else { \
+        JANET_THROW(A, "expected integer representable by 64 bits"); \
+    } \
+} while (0)
 
 #define JANET_ARG_ABSTRACT(DEST, A, N, AT) do { \
     JANET_CHECKABSTRACT(A, N, AT); \
@@ -1236,8 +1231,7 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 #define JANET_RETURN_TRUE(A) JANET_RETURN(A, janet_wrap_true())
 #define JANET_RETURN_BOOLEAN(A, X) JANET_RETURN(A, janet_wrap_boolean(X))
 #define JANET_RETURN_FIBER(A, X) JANET_RETURN(A, janet_wrap_fiber(X))
-#define JANET_RETURN_INTEGER(A, X) JANET_RETURN(A, janet_wrap_integer(X))
-#define JANET_RETURN_REAL(A, X) JANET_RETURN(A, janet_wrap_real(X))
+#define JANET_RETURN_NUMBER(A, X) JANET_RETURN(A, janet_wrap_number(X))
 #define JANET_RETURN_STRING(A, X) JANET_RETURN(A, janet_wrap_string(X))
 #define JANET_RETURN_SYMBOL(A, X) JANET_RETURN(A, janet_wrap_symbol(X))
 #define JANET_RETURN_ARRAY(A, X) JANET_RETURN(A, janet_wrap_array(X))
@@ -1251,6 +1245,8 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 
 #define JANET_RETURN_CSTRING(A, X) JANET_RETURN(A, janet_cstringv(X))
 #define JANET_RETURN_CSYMBOL(A, X) JANET_RETURN(A, janet_csymbolv(X))
+
+#define JANET_RETURN_INTEGER(A, X) JANET_RETURN(A, janet_wrap_number((double) (X)))
 
 /**** END SECTION MACROS *****/
 

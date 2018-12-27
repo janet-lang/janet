@@ -122,20 +122,12 @@ static void *op_lookup[255] = {
     &&label_JOP_TYPECHECK,
     &&label_JOP_RETURN,
     &&label_JOP_RETURN_NIL,
-    &&label_JOP_ADD_INTEGER,
     &&label_JOP_ADD_IMMEDIATE,
-    &&label_JOP_ADD_REAL,
     &&label_JOP_ADD,
-    &&label_JOP_SUBTRACT_INTEGER,
-    &&label_JOP_SUBTRACT_REAL,
     &&label_JOP_SUBTRACT,
-    &&label_JOP_MULTIPLY_INTEGER,
     &&label_JOP_MULTIPLY_IMMEDIATE,
-    &&label_JOP_MULTIPLY_REAL,
     &&label_JOP_MULTIPLY,
-    &&label_JOP_DIVIDE_INTEGER,
     &&label_JOP_DIVIDE_IMMEDIATE,
-    &&label_JOP_DIVIDE_REAL,
     &&label_JOP_DIVIDE,
     &&label_JOP_BAND,
     &&label_JOP_BOR,
@@ -153,19 +145,11 @@ static void *op_lookup[255] = {
     &&label_JOP_JUMP_IF,
     &&label_JOP_JUMP_IF_NOT,
     &&label_JOP_GREATER_THAN,
-    &&label_JOP_GREATER_THAN_INTEGER,
     &&label_JOP_GREATER_THAN_IMMEDIATE,
-    &&label_JOP_GREATER_THAN_REAL,
-    &&label_JOP_GREATER_THAN_EQUAL_REAL,
     &&label_JOP_LESS_THAN,
-    &&label_JOP_LESS_THAN_INTEGER,
     &&label_JOP_LESS_THAN_IMMEDIATE,
-    &&label_JOP_LESS_THAN_REAL,
-    &&label_JOP_LESS_THAN_EQUAL_REAL,
     &&label_JOP_EQUALS,
-    &&label_JOP_EQUALS_INTEGER,
     &&label_JOP_EQUALS_IMMEDIATE,
-    &&label_JOP_EQUALS_REAL,
     &&label_JOP_COMPARE,
     &&label_JOP_LOAD_NIL,
     &&label_JOP_LOAD_TRUE,
@@ -229,60 +213,62 @@ static void *op_lookup[255] = {
     } \
 } while (0)
 
-#define vm_binop_integer(op) \
-    stack[oparg(1, 0xFF)] = janet_wrap_integer(\
-        janet_unwrap_integer(stack[oparg(2, 0xFF)]) op janet_unwrap_integer(stack[oparg(3, 0xFF)])\
-    );\
-    pc++;\
-    vm_next();
-
-#define vm_binop_real(op)\
-    stack[oparg(1, 0xFF)] = janet_wrap_real(\
-        janet_unwrap_real(stack[oparg(2, 0xFF)]) op janet_unwrap_real(stack[oparg(3, 0xFF)])\
-    );\
-    pc++;\
-    vm_next();
-
 #define vm_binop_immediate(op)\
-    stack[oparg(1, 0xFF)] = janet_wrap_integer(\
-        janet_unwrap_integer(stack[oparg(2, 0xFF)]) op (*((int32_t *)pc) >> 24)\
-    );\
-    pc++;\
-    vm_next();
-
-#define vm_binop(op)\
     {\
         Janet op1 = stack[oparg(2, 0xFF)];\
-        Janet op2 = stack[oparg(3, 0xFF)];\
-        vm_assert_types(op1, JANET_TFLAG_NUMBER);\
-        vm_assert_types(op2, JANET_TFLAG_NUMBER);\
-        stack[oparg(1, 0xFF)] = janet_checktype(op1, JANET_INTEGER)\
-            ? (janet_checktype(op2, JANET_INTEGER)\
-                ? janet_wrap_integer(janet_unwrap_integer(op1) op janet_unwrap_integer(op2))\
-                : janet_wrap_real((double)janet_unwrap_integer(op1) op janet_unwrap_real(op2)))\
-            : (janet_checktype(op2, JANET_INTEGER)\
-                ? janet_wrap_real(janet_unwrap_real(op1) op (double)janet_unwrap_integer(op2))\
-                : janet_wrap_real(janet_unwrap_real(op1) op janet_unwrap_real(op2)));\
+        vm_assert_type(op1, JANET_NUMBER);\
+        double x1 = janet_unwrap_number(op1);\
+        int32_t x2 = (*((int32_t *)pc) >> 24);\
+        stack[oparg(1, 0xFF)] = janet_wrap_number(x1 op x2);\
         pc++;\
         vm_next();\
     }
 
-#define vm_numcomp(op)\
+#define _vm_bitop_immediate(op, type1)\
     {\
         Janet op1 = stack[oparg(2, 0xFF)];\
-        Janet op2 = stack[oparg(3, 0xFF)];\
-        vm_assert_types(op1, JANET_TFLAG_NUMBER);\
-        vm_assert_types(op2, JANET_TFLAG_NUMBER);\
-        stack[oparg(1, 0xFF)] = janet_wrap_boolean(janet_checktype(op1, JANET_INTEGER)\
-            ? (janet_checktype(op2, JANET_INTEGER)\
-                ? janet_unwrap_integer(op1) op janet_unwrap_integer(op2)\
-                : (double)janet_unwrap_integer(op1) op janet_unwrap_real(op2))\
-            : (janet_checktype(op2, JANET_INTEGER)\
-                ? janet_unwrap_real(op1) op (double)janet_unwrap_integer(op2)\
-                : janet_unwrap_real(op1) op janet_unwrap_real(op2)));\
+        vm_assert_type(op1, JANET_NUMBER);\
+        type1 x1 = (type1) janet_unwrap_integer(op1);\
+        int32_t x2 = (*((int32_t *)pc) >> 24);\
+        stack[oparg(1, 0xFF)] = janet_wrap_integer(x1 op x2);\
         pc++;\
         vm_next();\
     }
+
+#define vm_bitop_immediate(op) _vm_bitop_immediate(op, int32_t);
+#define vm_bitopu_immediate(op) _vm_bitop_immediate(op, uint32_t);
+
+#define _vm_binop(op, wrap)\
+    {\
+        Janet op1 = stack[oparg(2, 0xFF)];\
+        Janet op2 = stack[oparg(3, 0xFF)];\
+        vm_assert_type(op1, JANET_NUMBER);\
+        vm_assert_type(op2, JANET_NUMBER);\
+        double x1 = janet_unwrap_number(op1);\
+        double x2 = janet_unwrap_number(op2);\
+        stack[oparg(1, 0xFF)] = wrap(x1 op x2);\
+        pc++;\
+        vm_next();\
+    }
+
+#define vm_binop(op) _vm_binop(op, janet_wrap_number)
+#define vm_numcomp(op) _vm_binop(op, janet_wrap_boolean)
+
+#define _vm_bitop(op, type1)\
+    {\
+        Janet op1 = stack[oparg(2, 0xFF)];\
+        Janet op2 = stack[oparg(3, 0xFF)];\
+        vm_assert_type(op1, JANET_NUMBER);\
+        vm_assert_type(op2, JANET_NUMBER);\
+        type1 x1 = (type1) janet_unwrap_integer(op1);\
+        int32_t x2 = janet_unwrap_integer(op2);\
+        stack[oparg(1, 0xFF)] = janet_wrap_integer(x1 op x2);\
+        pc++;\
+        vm_next();\
+    }
+
+#define vm_bitop(op) _vm_bitop(op, int32_t)
+#define vm_bitopu(op) _vm_bitop(op, uint32_t)
 
     /* Main interpreter loop. Semantically is a switch on
      * (*pc & 0xFF) inside of an infinte loop. */
@@ -320,35 +306,17 @@ static void *op_lookup[255] = {
     retreg = janet_wrap_nil();
     goto vm_return;
 
-    VM_OP(JOP_ADD_INTEGER)
-    vm_binop_integer(+);
-
     VM_OP(JOP_ADD_IMMEDIATE)
     vm_binop_immediate(+);
-
-    VM_OP(JOP_ADD_REAL)
-    vm_binop_real(+);
 
     VM_OP(JOP_ADD)
     vm_binop(+);
 
-    VM_OP(JOP_SUBTRACT_INTEGER)
-    vm_binop_integer(-);
-
-    VM_OP(JOP_SUBTRACT_REAL)
-    vm_binop_real(-);
-
     VM_OP(JOP_SUBTRACT)
     vm_binop(-);
 
-    VM_OP(JOP_MULTIPLY_INTEGER)
-    vm_binop_integer(*);
-
     VM_OP(JOP_MULTIPLY_IMMEDIATE)
     vm_binop_immediate(*);
-
-    VM_OP(JOP_MULTIPLY_REAL)
-    vm_binop_real(*);
 
     VM_OP(JOP_MULTIPLY)
     vm_binop(*);
@@ -368,104 +336,47 @@ static void *op_lookup[255] = {
     VM_OP(JOP_NUMERIC_EQUAL)
     vm_numcomp(==);
 
-    VM_OP(JOP_DIVIDE_INTEGER)
-    vm_assert(janet_unwrap_integer(stack[oparg(3, 0xFF)]) != 0, "integer divide error");
-    vm_assert(!(janet_unwrap_integer(stack[oparg(3, 0xFF)]) == -1 &&
-                janet_unwrap_integer(stack[oparg(2, 0xFF)]) == INT32_MIN),
-            "integer divide error");
-    vm_binop_integer(/);
-
     VM_OP(JOP_DIVIDE_IMMEDIATE)
-    {
-        int32_t op1 = janet_unwrap_integer(stack[oparg(2, 0xFF)]);
-        int32_t op2 = *((int32_t *)pc) >> 24;
-        /* Check for degenerate integer division (divide by zero, and dividing
-         * min value by -1). These checks could be omitted if the arg is not
-         * 0 or -1. */
-        if (op2 == 0)
-            vm_throw("integer divide error");
-        if (op2 == -1 && op1 == INT32_MIN)
-            vm_throw("integer divide error");
-        else
-            stack[oparg(1, 0xFF)] = janet_wrap_integer(op1 / op2);
-        pc++;
-        vm_next();
-    }
-
-    VM_OP(JOP_DIVIDE_REAL)
-    vm_binop_real(/);
+    vm_binop_immediate(/);
 
     VM_OP(JOP_DIVIDE)
+    vm_binop(/);
+
+    VM_OP(JOP_BAND)
+    vm_bitop(&);
+
+    VM_OP(JOP_BOR)
+    vm_bitop(|);
+
+    VM_OP(JOP_BXOR)
+    vm_bitop(^);
+
+    VM_OP(JOP_BNOT)
     {
-        Janet op1 = stack[oparg(2, 0xFF)];
-        Janet op2 = stack[oparg(3, 0xFF)];
-        vm_assert_types(op1, JANET_TFLAG_NUMBER);
-        vm_assert_types(op2, JANET_TFLAG_NUMBER);
-        if (janet_checktype(op2, JANET_INTEGER) && janet_unwrap_integer(op2) == 0)
-            vm_throw("integer divide by zero");
-        if (janet_checktype(op2, JANET_INTEGER) && janet_unwrap_integer(op2) == -1 &&
-            janet_checktype(op1, JANET_INTEGER) && janet_unwrap_integer(op1) == INT32_MIN)
-            vm_throw("integer divide out of range");
-        stack[oparg(1, 0xFF)] = janet_checktype(op1, JANET_INTEGER)
-            ? (janet_checktype(op2, JANET_INTEGER)
-                ? janet_wrap_integer(janet_unwrap_integer(op1) / janet_unwrap_integer(op2))
-                : janet_wrap_real((double)janet_unwrap_integer(op1) / janet_unwrap_real(op2)))
-            : (janet_checktype(op2, JANET_INTEGER)
-                ? janet_wrap_real(janet_unwrap_real(op1) / (double)janet_unwrap_integer(op2))
-                : janet_wrap_real(janet_unwrap_real(op1) / janet_unwrap_real(op2)));
-        pc++;
+        Janet op = stack[oparg(2, 0xFFFF)];
+        vm_assert_type(op, JANET_NUMBER);
+        stack[oparg(1, 0xFF)] = janet_wrap_integer(~janet_unwrap_integer(op));
+        ++pc;
         vm_next();
     }
 
-    VM_OP(JOP_BAND)
-    vm_binop_integer(&);
-
-    VM_OP(JOP_BOR)
-    vm_binop_integer(|);
-
-    VM_OP(JOP_BXOR)
-    vm_binop_integer(^);
-
-    VM_OP(JOP_BNOT)
-    stack[oparg(1, 0xFF)] = janet_wrap_integer(~janet_unwrap_integer(stack[oparg(2, 0xFFFF)]));
-    ++pc;
-    vm_next();
-
     VM_OP(JOP_SHIFT_RIGHT_UNSIGNED)
-    stack[oparg(1, 0xFF)] = janet_wrap_integer(
-        (int32_t)(((uint32_t)janet_unwrap_integer(stack[oparg(2, 0xFF)]))
-        >>
-        janet_unwrap_integer(stack[oparg(3, 0xFF)]))
-    );
-    pc++;
-    vm_next();
+    vm_bitopu(>>);
 
     VM_OP(JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE)
-    stack[oparg(1, 0xFF)] = janet_wrap_integer(
-        (int32_t) (((uint32_t)janet_unwrap_integer(stack[oparg(2, 0xFF)])) >> oparg(3, 0xFF))
-    );
-    pc++;
-    vm_next();
+    vm_bitopu_immediate(>>);
 
     VM_OP(JOP_SHIFT_RIGHT)
-    vm_binop_integer(>>);
+    vm_bitop(>>);
 
     VM_OP(JOP_SHIFT_RIGHT_IMMEDIATE)
-    stack[oparg(1, 0xFF)] = janet_wrap_integer(
-        (int32_t)(janet_unwrap_integer(stack[oparg(2, 0xFF)]) >> oparg(3, 0xFF))
-    );
-    pc++;
-    vm_next();
+    vm_bitop_immediate(>>);
 
     VM_OP(JOP_SHIFT_LEFT)
-    vm_binop_integer(<<);
+    vm_bitop(<<);
 
     VM_OP(JOP_SHIFT_LEFT_IMMEDIATE)
-    stack[oparg(1, 0xFF)] = janet_wrap_integer(
-        janet_unwrap_integer(stack[oparg(2, 0xFF)]) << oparg(3, 0xFF)
-    );
-    pc++;
-    vm_next();
+    vm_bitop_immediate(<<);
 
     VM_OP(JOP_MOVE_NEAR)
     stack[oparg(1, 0xFF)] = stack[oparg(2, 0xFFFF)];
@@ -506,14 +417,6 @@ static void *op_lookup[255] = {
     vm_next();
 
     /* Candidate */
-    VM_OP(JOP_LESS_THAN_INTEGER)
-    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
-            janet_unwrap_integer(stack[oparg(2, 0xFF)]) <
-            janet_unwrap_integer(stack[oparg(3, 0xFF)]));
-    pc++;
-    vm_next();
-
-    /* Candidate */
     VM_OP(JOP_LESS_THAN_IMMEDIATE)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(
             janet_unwrap_integer(stack[oparg(2, 0xFF)]) < ((*(int32_t *)pc) >> 24)
@@ -521,35 +424,11 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
-    /* Candidate */
-    VM_OP(JOP_LESS_THAN_REAL)
-    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
-            janet_unwrap_real(stack[oparg(2, 0xFF)]) <
-            janet_unwrap_real(stack[oparg(3, 0xFF)]));
-    pc++;
-    vm_next();
-
-    /* Candidate */
-    VM_OP(JOP_LESS_THAN_EQUAL_REAL)
-    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
-            janet_unwrap_real(stack[oparg(2, 0xFF)]) <=
-            janet_unwrap_real(stack[oparg(3, 0xFF)]));
-    pc++;
-    vm_next();
-
-
     VM_OP(JOP_GREATER_THAN)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(janet_compare(
             stack[oparg(2, 0xFF)],
             stack[oparg(3, 0xFF)]
         ) > 0);
-    pc++;
-    vm_next();
-
-    VM_OP(JOP_GREATER_THAN_INTEGER)
-    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
-            janet_unwrap_integer(stack[oparg(2, 0xFF)]) >
-            janet_unwrap_integer(stack[oparg(3, 0xFF)]));
     pc++;
     vm_next();
 
@@ -560,41 +439,11 @@ static void *op_lookup[255] = {
     pc++;
     vm_next();
 
-    VM_OP(JOP_GREATER_THAN_REAL)
-    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
-            janet_unwrap_real(stack[oparg(2, 0xFF)]) >
-            janet_unwrap_real(stack[oparg(3, 0xFF)]));
-    pc++;
-    vm_next();
-
-    VM_OP(JOP_GREATER_THAN_EQUAL_REAL)
-    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
-            janet_unwrap_real(stack[oparg(2, 0xFF)]) >=
-            janet_unwrap_real(stack[oparg(3, 0xFF)]));
-    pc++;
-    vm_next();
-
     VM_OP(JOP_EQUALS)
     stack[oparg(1, 0xFF)] = janet_wrap_boolean(janet_equals(
             stack[oparg(2, 0xFF)],
             stack[oparg(3, 0xFF)]
         ));
-    pc++;
-    vm_next();
-
-    VM_OP(JOP_EQUALS_INTEGER)
-    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
-            janet_unwrap_integer(stack[oparg(2, 0xFF)]) ==
-            janet_unwrap_integer(stack[oparg(3, 0xFF)])
-        );
-    pc++;
-    vm_next();
-
-    VM_OP(JOP_EQUALS_REAL)
-    stack[oparg(1, 0xFF)] = janet_wrap_boolean(
-            janet_unwrap_real(stack[oparg(2, 0xFF)]) ==
-            janet_unwrap_real(stack[oparg(3, 0xFF)])
-        );
     pc++;
     vm_next();
 
@@ -792,7 +641,7 @@ static void *op_lookup[255] = {
 
     VM_OP(JOP_TAILCALL)
     {
-        Janet callee = stack[oparg(1, 0xFFFFFF)];
+        Janet callee = stack[oparg(1, 0xFFFF)];
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
             if (janet_fiber_funcframe_tail(fiber, func))
@@ -842,47 +691,17 @@ static void *op_lookup[255] = {
         Janet ds = stack[oparg(1, 0xFF)];
         Janet key = stack[oparg(2, 0xFF)];
         Janet value = stack[oparg(3, 0xFF)];
-        switch (janet_type(ds)) {
-            default:
+        int status;
+        if ((status = janet_put(ds, key, value))) {
+            if (status == -1) {
                 expected_types = JANET_TFLAG_ARRAY | JANET_TFLAG_BUFFER | JANET_TFLAG_TABLE;
                 retreg = ds;
                 goto vm_type_error;
-            case JANET_ARRAY:
-            {
-                int32_t index;
-                JanetArray *array = janet_unwrap_array(ds);
-                vm_assert_type(key, JANET_INTEGER);
-                if (janet_unwrap_integer(key) < 0)
-                    vm_throw("expected non-negative integer key");
-                index = janet_unwrap_integer(key);
-                if (index == INT32_MAX)
-                    vm_throw("key too large");
-                if (index >= array->count) {
-                    janet_array_setcount(array, index + 1);
-                }
-                array->data[index] = value;
-                break;
+            } else if (status == -2) {
+                vm_throw("expected integer key for data structure");
+            } else if (status == -3) {
+                vm_throw("expected integer value for data structure");
             }
-            case JANET_BUFFER:
-            {
-                int32_t index;
-                JanetBuffer *buffer = janet_unwrap_buffer(ds);
-                vm_assert_type(key, JANET_INTEGER);
-                if (janet_unwrap_integer(key) < 0)
-                    vm_throw("expected non-negative integer key");
-                index = janet_unwrap_integer(key);
-                if (index == INT32_MAX)
-                    vm_throw("key too large");
-                vm_assert_type(value, JANET_INTEGER);
-                if (index >= buffer->count) {
-                    janet_buffer_setcount(buffer, index + 1);
-                }
-                buffer->data[index] = (uint8_t) (janet_unwrap_integer(value) & 0xFF);
-                break;
-            }
-            case JANET_TABLE:
-                janet_table_put(janet_unwrap_table(ds), key, value);
-                break;
         }
         ++pc;
         vm_checkgc_next();
@@ -893,32 +712,15 @@ static void *op_lookup[255] = {
         Janet ds = stack[oparg(1, 0xFF)];
         Janet value = stack[oparg(2, 0xFF)];
         int32_t index = oparg(3, 0xFF);
-        switch (janet_type(ds)) {
-            default:
-                expected_types = JANET_TFLAG_ARRAY | JANET_TFLAG_BUFFER;
+        int status;
+        if ((status = janet_putindex(ds, index, value))) {
+            if (status == -1) {
+                expected_types = JANET_TFLAG_ARRAY | JANET_TFLAG_BUFFER | JANET_TFLAG_TABLE;
                 retreg = ds;
                 goto vm_type_error;
-            case JANET_ARRAY:
-                {
-                    JanetArray *array = janet_unwrap_array(ds);
-                    if (index >= array->count) {
-                        janet_array_ensure(array, index + 1, 2);
-                        array->count = index + 1;
-                    }
-                    array->data[index] = value;
-                    break;
-                }
-            case JANET_BUFFER:
-                {
-                    JanetBuffer *buffer = janet_unwrap_buffer(ds);
-                    vm_assert_type(value, JANET_INTEGER);
-                    if (index >= buffer->count) {
-                        janet_buffer_ensure(buffer, index + 1, 2);
-                        buffer->count = index + 1;
-                    }
-                    buffer->data[index] = janet_unwrap_integer(value);
-                    break;
-                }
+            } else if (status == -3) {
+                vm_throw("expected integer value for data structure");
+            }
         }
         ++pc;
         vm_checkgc_next();
@@ -928,77 +730,16 @@ static void *op_lookup[255] = {
     {
         Janet ds = stack[oparg(2, 0xFF)];
         Janet key = stack[oparg(3, 0xFF)];
-        Janet value;
-        switch (janet_type(ds)) {
-            default:
+        int status;
+        if ((status = janet_get(ds, key, stack + oparg(1, 0xFF)))) {
+            if (status == -1) {
                 expected_types = JANET_TFLAG_LENGTHABLE;
                 retreg = ds;
                 goto vm_type_error;
-            case JANET_STRUCT:
-                value = janet_struct_get(janet_unwrap_struct(ds), key);
-                break;
-            case JANET_TABLE:
-                value = janet_table_get(janet_unwrap_table(ds), key);
-                break;
-            case JANET_ARRAY:
-                {
-                    JanetArray *array = janet_unwrap_array(ds);
-                    int32_t index;
-                    vm_assert_type(key, JANET_INTEGER);
-                    index = janet_unwrap_integer(key);
-                    if (index < 0 || index >= array->count) {
-                        /*vm_throw("index out of bounds");*/
-                        value = janet_wrap_nil();
-                    } else {
-                        value = array->data[index];
-                    }
-                    break;
-                }
-            case JANET_TUPLE:
-                {
-                    const Janet *tuple = janet_unwrap_tuple(ds);
-                    int32_t index;
-                    vm_assert_type(key, JANET_INTEGER);
-                    index = janet_unwrap_integer(key);
-                    if (index < 0 || index >= janet_tuple_length(tuple)) {
-                        /*vm_throw("index out of bounds");*/
-                        value = janet_wrap_nil();
-                    } else {
-                        value = tuple[index];
-                    }
-                    break;
-                }
-            case JANET_BUFFER:
-                {
-                    JanetBuffer *buffer = janet_unwrap_buffer(ds);
-                    int32_t index;
-                    vm_assert_type(key, JANET_INTEGER);
-                    index = janet_unwrap_integer(key);
-                    if (index < 0 || index >= buffer->count) {
-                        /*vm_throw("index out of bounds");*/
-                        value = janet_wrap_nil();
-                    } else {
-                        value = janet_wrap_integer(buffer->data[index]);
-                    }
-                    break;
-                }
-            case JANET_STRING:
-            case JANET_SYMBOL:
-                {
-                    const uint8_t *str = janet_unwrap_string(ds);
-                    int32_t index;
-                    vm_assert_type(key, JANET_INTEGER);
-                    index = janet_unwrap_integer(key);
-                    if (index < 0 || index >= janet_string_length(str)) {
-                        /*vm_throw("index out of bounds");*/
-                        value = janet_wrap_nil();
-                    } else {
-                        value = janet_wrap_integer(str[index]);
-                    }
-                    break;
-                }
+            } else {
+                vm_throw("expected integer key for data structure");
+            }
         }
-        stack[oparg(1, 0xFF)] = value;
         ++pc;
         vm_next();
     }
@@ -1007,53 +748,11 @@ static void *op_lookup[255] = {
     {
         Janet ds = stack[oparg(2, 0xFF)];
         int32_t index = oparg(3, 0xFF);
-        Janet value;
-        switch (janet_type(ds)) {
-            default:
-                expected_types = JANET_TFLAG_LENGTHABLE;
-                retreg = ds;
-                goto vm_type_error;
-            case JANET_STRING:
-            case JANET_SYMBOL:
-                if (index >= janet_string_length(janet_unwrap_string(ds))) {
-                    /*vm_throw("index out of bounds");*/
-                    value = janet_wrap_nil();
-                } else {
-                    value = janet_wrap_integer(janet_unwrap_string(ds)[index]);
-                }
-                break;
-            case JANET_ARRAY:
-                if (index >= janet_unwrap_array(ds)->count) {
-                    /*vm_throw("index out of bounds");*/
-                    value = janet_wrap_nil();
-                } else {
-                    value = janet_unwrap_array(ds)->data[index];
-                }
-                break;
-            case JANET_BUFFER:
-                if (index >= janet_unwrap_buffer(ds)->count) {
-                    /*vm_throw("index out of bounds");*/
-                    value = janet_wrap_nil();
-                } else {
-                    value = janet_wrap_integer(janet_unwrap_buffer(ds)->data[index]);
-                }
-                break;
-            case JANET_TUPLE:
-                if (index >= janet_tuple_length(janet_unwrap_tuple(ds))) {
-                    /*vm_throw("index out of bounds");*/
-                    value = janet_wrap_nil();
-                } else {
-                    value = janet_unwrap_tuple(ds)[index];
-                }
-                break;
-            case JANET_TABLE:
-                value = janet_table_get(janet_unwrap_table(ds), janet_wrap_integer(index));
-                break;
-            case JANET_STRUCT:
-                value = janet_struct_get(janet_unwrap_struct(ds), janet_wrap_integer(index));
-                break;
+        if (janet_getindex(ds, index, stack + oparg(1, 0xFF))) {
+            expected_types = JANET_TFLAG_LENGTHABLE;
+            retreg = ds;
+            goto vm_type_error;
         }
-        stack[oparg(1, 0xFF)] = value;
         ++pc;
         vm_next();
     }
@@ -1062,30 +761,10 @@ static void *op_lookup[255] = {
     {
         Janet x = stack[oparg(2, 0xFFFF)];
         int32_t len;
-        switch (janet_type(x)) {
-            default:
-                expected_types = JANET_TFLAG_LENGTHABLE;
-                retreg = x;
-                goto vm_type_error;
-            case JANET_STRING:
-            case JANET_SYMBOL:
-                len = janet_string_length(janet_unwrap_string(x));
-                break;
-            case JANET_ARRAY:
-                len = janet_unwrap_array(x)->count;
-                break;
-            case JANET_BUFFER:
-                len = janet_unwrap_buffer(x)->count;
-                break;
-            case JANET_TUPLE:
-                len = janet_tuple_length(janet_unwrap_tuple(x));
-                break;
-            case JANET_STRUCT:
-                len = janet_struct_length(janet_unwrap_struct(x));
-                break;
-            case JANET_TABLE:
-                len = janet_unwrap_table(x)->count;
-                break;
+        if (janet_length(x, &len)) {
+            expected_types = JANET_TFLAG_LENGTHABLE;
+            retreg = x;
+            goto vm_type_error;
         }
         stack[oparg(1, 0xFF)] = janet_wrap_integer(len);
         ++pc;

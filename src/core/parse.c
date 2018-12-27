@@ -279,8 +279,10 @@ static int check_str_const(const char *cstr, const uint8_t *str, int32_t len) {
 }
 
 static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
-    Janet numcheck, ret;
+    Janet ret;
+    double numval;
     int32_t blen;
+    int scanerr;
     if (is_symbol_char(c)) {
         push_buf(p, (uint8_t) c);
         if (c > 127) state->argn = 1; /* Use to indicate non ascii */
@@ -288,9 +290,10 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     }
     /* Token finished */
     blen = (int32_t) p->bufcount;
-    numcheck = janet_scan_number(p->buf, blen);
-    if (!janet_checktype(numcheck, JANET_NIL)) {
-        ret = numcheck;
+    scanerr = 0;
+    numval = janet_scan_number(p->buf, blen, &scanerr);
+    if (!scanerr) {
+        ret = janet_wrap_number(numval);
     } else if (!check_str_const("nil", p->buf, blen)) {
         ret = janet_wrap_nil();
     } else if (!check_str_const("false", p->buf, blen)) {

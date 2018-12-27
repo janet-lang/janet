@@ -257,7 +257,7 @@ static int janet_io_fread(JanetArgs args) {
         } else {
             JANET_THROW(args, "expected one of :all, :line");
         }
-    } else if (!janet_checktype(args.v[1], JANET_INTEGER)) {
+    } else if (!janet_checkint(args.v[1])) {
         JANET_THROW(args, "expected positive integer");
     } else {
         int32_t len = janet_unwrap_integer(args.v[1]);

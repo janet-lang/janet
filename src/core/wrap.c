@@ -45,10 +45,10 @@ Janet janet_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
 
 Janet janet_nanbox_from_double(double d) {
     Janet ret;
-    ret.real = d;
+    ret.number = d;
     /* Normalize NaNs */
     if (d != d)
-        ret.u64 = janet_nanbox_tag(JANET_REAL);
+        ret.u64 = janet_nanbox_tag(JANET_NUMBER);
     return ret;
 }
 
@@ -80,9 +80,9 @@ void janet_nanbox_memempty(JanetKV *mem, int32_t count) {
 
 #elif defined(JANET_NANBOX_32)
 
-Janet janet_wrap_real(double x) {
+Janet janet_wrap_number(double x) {
     Janet ret;
-    ret.real = x;
+    ret.number = x;
     ret.tagged.type += JANET_DOUBLE_OFFSET;
     return ret;
 }
@@ -101,9 +101,9 @@ Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer) {
     return ret;
 }
 
-double janet_unwrap_real(Janet x) {
+double janet_unwrap_number(Janet x) {
     x.tagged.type -= JANET_DOUBLE_OFFSET;
-    return x.real;
+    return x.number;
 }
 
 #else
@@ -151,8 +151,7 @@ Janet janet_wrap_##NAME(TYPE x) {\
     return y;\
 }
 
-JANET_WRAP_DEFINE(real, double, JANET_REAL, real)
-JANET_WRAP_DEFINE(integer, int32_t, JANET_INTEGER, integer)
+JANET_WRAP_DEFINE(number, double, JANET_NUMBER, number)
 JANET_WRAP_DEFINE(string, const uint8_t *, JANET_STRING, cpointer)
 JANET_WRAP_DEFINE(symbol, const uint8_t *, JANET_SYMBOL, cpointer)
 JANET_WRAP_DEFINE(array, JanetArray *, JANET_ARRAY, pointer)

@@ -197,7 +197,7 @@ static int os_exit(JanetArgs args) {
     JANET_MAXARITY(args, 1);
     if (args.n == 0) {
         exit(EXIT_SUCCESS);
-    } else if (janet_checktype(args.v[0], JANET_INTEGER)) {
+    } else if (janet_checkint(args.v[0])) {
         exit(janet_unwrap_integer(args.v[0]));
     } else {
         exit(EXIT_FAILURE);
@@ -208,7 +208,7 @@ static int os_exit(JanetArgs args) {
 static int os_time(JanetArgs args) {
     JANET_FIXARITY(args, 0);
     double dtime = (double)(time(NULL));
-    JANET_RETURN_REAL(args, dtime);
+    JANET_RETURN_NUMBER(args, dtime);
 }
 
 /* Clock shims */
@@ -244,7 +244,7 @@ static int os_clock(JanetArgs args) {
     if (gettime(&tv))
         JANET_THROW(args, "could not get time");
     double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
-    JANET_RETURN_REAL(args, dtime);
+    JANET_RETURN_NUMBER(args, dtime);
 }
 
 static int os_sleep(JanetArgs args) {
@@ -326,7 +326,6 @@ static const JanetReg cfuns[] = {
         "(os/sleep nsec)\n\n"
         "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
         "nil."
-
     },
     {"os/cwd", os_cwd,
         "(os/cwd)\n\n"

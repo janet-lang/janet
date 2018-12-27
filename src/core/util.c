@@ -34,13 +34,12 @@ const char janet_base64[65] =
 
 /* The JANET value types in order. These types can be used as
  * mnemonics instead of a bit pattern for type checking */
-const char *const janet_type_names[16] = {
+const char *const janet_type_names[15] = {
     ":nil",
     ":boolean",
     ":boolean",
     ":fiber",
-    ":integer",
-    ":real",
+    ":number",
     ":string",
     ":symbol",
     ":array",
@@ -422,4 +421,18 @@ int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstractType *a
             janet_wrap_string(janet_formatc(
                     "bad slot #%d, expected %s, got %s",
                     n, at->name, typestr(args, n))));
+}
+
+int janet_checkint(Janet x) {
+    if (!janet_checktype(x, JANET_NUMBER))
+        return 0;
+    double dval = janet_unwrap_number(x);
+    return janet_checkintrange(dval);
+}
+
+int janet_checkint64(Janet x) {
+    if (!janet_checktype(x, JANET_NUMBER))
+        return 0;
+    double dval = janet_unwrap_number(x);
+    return janet_checkint64range(dval);
 }
