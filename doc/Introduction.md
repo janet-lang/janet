@@ -44,18 +44,8 @@ prefix notation. Janet also supports the remainder operator, or `%`, which retur
 the remainder of division. For example, `(% 10 3)` is 1, and `(% 10.5 3)` is
 1.5. The lines that begin with `#` are comments.
 
-Janet actually has two "flavors" of numbers; integers and real numbers. Integers are any
-integer value between -2,147,483,648 and 2,147,483,647 (32 bit signed integer).
-Reals are real numbers, and are represented by IEEE-754 double precision floating point
-numbers. That means that they can represent any number an integer can represent, as well
-fractions to very high precision.
-
-Although real numbers can represent any value an integer can, try to distinguish between
-real numbers and integers in your program. If you are using a number to index into a structure,
-you probably want integers. Otherwise, you may want to use reals (this is only a rule of thumb).
-
-Arithmetic operator will convert integers to real numbers if needed, but real numbers
-will not be converted to integers, as not all real numbers can be safely converted to integers.
+All janet numbers are IEEE 754 floating point numbers. They can be used to represent
+both integers and real numbers to a finite precision.
 
 ## Numeric literals
 

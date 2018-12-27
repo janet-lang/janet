@@ -153,40 +153,30 @@ failure to return or error.
 * The `>>>` indicates unsigned right shift, as in Java. Because all integers in janet are
   signed, we differentiate the two kinds of right bit shift.
 
-* The 'im' suffix in the instruction name is short for immediate. The 'i' suffix is short for integer,
-  and the 'r' suffix is short for real.
+* The 'im' suffix in the instruction name is short for immediate.
 
 ### Reference Table
 
 | Instruction | Signature                   | Description                       |
 | ----------- | --------------------------- | --------------------------------- |
 | `add`       | `(add dest lhs rhs)`        | $dest = $lhs + $rhs               | 
-| `addi`      | `(addi dest lhs rhs)`       | $dest = $lhs +i $rhs              |
-| `addim`     | `(addim dest lhs im)`       | $dest = $lhs +i im                |
-| `addr`      | `(addr dest lhs rhs)`       | $dest = $lhs +r $rhs              |
+| `addim`     | `(addim dest lhs im)`       | $dest = $lhs + im                 |
 | `band`      | `(band dest lhs rhs)`       | $dest = $lhs & $rhs               |
 | `bnot`      | `(bnot dest operand)`       | $dest = ~$operand                 |
 | `bor`       | `(bor dest lhs rhs)`        | $dest = $lhs | $rhs               |
 | `bxor`      | `(bxor dest lhs rhs)`       | $dest = $lhs ^ $rhs               |
 | `call`      | `(call dest callee)`        | $dest = call($callee, args)       |
 | `clo`       | `(clo dest index)`          | $dest = closure(defs[$index])     |
-| `cmp`       | `(cmp dest lhs rhs)`        | $dest = janet\_compare($lhs, $rhs)  |
+| `cmp`       | `(cmp dest lhs rhs)`        | $dest = janet\_compare($lhs, $rhs)|
 | `div`       | `(div dest lhs rhs)`        | $dest = $lhs / $rhs               |
-| `divi`      | `(divi dest lhs rhs)`       | $dest = $lhs /i $rhs              |
-| `divim`     | `(divim dest lhs im)`       | $dest = $lhs /i im                |
-| `divr`      | `(divr dest lhs rhs)`       | $dest = $lhs /r $rhs              |
+| `divim`     | `(divim dest lhs im)`       | $dest = $lhs / im                 |
 | `eq`        | `(eq dest lhs rhs)`         | $dest = $lhs == $rhs              |
-| `eqi`       | `(eqi dest lhs rhs)`        | $dest = $lhs ==i $rhs             |
-| `eqim`      | `(eqim dest lhs im)`        | $dest = $lhs ==i im               |
-| `eqr`       | `(eqr dest lhs rhs)`        | $dest = $lhs ==r $rhs             |
+| `eqim`      | `(eqim dest lhs im)`        | $dest = $lhs == im                |
 | `err`       | `(err message)`             | Throw error $message.             |
 | `get`       | `(get dest ds key)`         | $dest = $ds[$key]                 |
 | `geti`      | `(geti dest ds index)`      | $dest = $ds[index]                |
-| `gt`        | `(gt dest lhs rhs)`         | $dest = $lhs > $rhs               |
-| `gti`       | `(gti dest lhs rhs)`        | $dest = $lhs \>i $rhs             |
-| `gtim`      | `(gtim dest lhs im)`        | $dest = $lhs \>i im               |
-| `gtr`       | `(gtr dest lhs rhs)`        | $dest = $lhs \>r $rhs             |
-| `gter`      | `(gter dest lhs rhs)`       | $dest = $lhs >=r $rhs             |
+| `gt`        | `(gt dest lhs rhs)`         | $dest = $lhs \> $rhs              |
+| `gtim`      | `(gtim dest lhs im)`        | $dest = $lhs \> im                |
 | `jmp`       | `(jmp label)`               | pc = label, pc += offset          |
 | `jmpif`     | `(jmpif cond label)`        | if $cond pc = label else pc++     |
 | `jmpno`     | `(jmpno cond label)`        | if $cond pc++ else pc = label     |
@@ -198,10 +188,8 @@ failure to return or error.
 | `ldt`       | `(ldt dest)`                | $dest = true                      |
 | `ldu`       | `(ldu dest env index)`      | $dest = envs[env][index]          |
 | `len`       | `(len dest ds)`             | $dest = length(ds)                |
-| `lt`        | `(lt dest lhs rhs)`         | $dest = $lhs < $rhs               |
-| `lti`       | `(lti dest lhs rhs)`        | $dest = $lhs \<i $rhs             |
-| `ltim`      | `(ltim dest lhs im)`        | $dest = $lhs \<i im               |
-| `ltr`       | `(ltr dest lhs rhs)`        | $dest = $lhs \<r $rhs             |
+| `lt`        | `(lt dest lhs rhs)`         | $dest = $lhs \< $rhs              |
+| `ltim`      | `(ltim dest lhs im)`        | $dest = $lhs \< im                |
 | `mkarr`     | `(mkarr dest)`              | $dest = call(array, args)         |
 | `mkbuf`     | `(mkbuf dest)`              | $dest = call(buffer, args)        |
 | `mktab`     | `(mktab dest)`              | $dest = call(table, args)         |
@@ -210,10 +198,8 @@ failure to return or error.
 | `mktup`     | `(mktup dest)`              | $dest = call(tuple, args)         |
 | `movf`      | `(movf src dest)`           | $dest = $src                      |
 | `movn`      | `(movn dest src)`           | $dest = $src                      |
-| `mul`       | `(mul dest lhs rhs)`        | $dest = $lhs * $rhs               |
-| `muli`      | `(muli dest lhs rhs)`       | $dest = $lhs \*i $rhs             |
-| `mulim`     | `(mulim dest lhs im)`       | $dest = $lhs \*i im               |
-| `mulr`      | `(mulr dest lhs rhs)`       | $dest = $lhs \*r $rhs             |
+| `mul`       | `(mul dest lhs rhs)`        | $dest = $lhs \* $rhs              |
+| `mulim`     | `(mulim dest lhs im)`       | $dest = $lhs \* im                |
 | `noop`      | `(noop)`                    | Does nothing.                     |
 | `push`      | `(push val)`                | Push $val on arg                  |
 | `push2`     | `(push2 val1 val3)`         | Push $val1, $val2 on args         |

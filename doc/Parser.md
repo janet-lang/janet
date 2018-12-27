@@ -70,8 +70,8 @@ in macros.
 
 ## Numbers
 
-Janet numbers are represented by either 32 bit integers or
-IEEE-754 floating point numbers. The syntax is similar to that of many other languages
+Janet numbers are represented by IEEE-754 floating point numbers.
+The syntax is similar to that of many other languages
 as well. Numbers can be written in base 10, with
 underscores used to separate digits into groups. A decimal point can be used for floating
 point numbers. Numbers can also be written in other bases by prefixing the number with the desired
