@@ -30,6 +30,16 @@
     (shell "rmdir " path " /s")
     (shell "rm -rf " path)))
 
+(defn- older-than
+  [f1 f2]
+  "Check if f1 is newer than f2. Used for checking if a file should be updated."
+  (if is-win true
+    (zero? (os/shell (string "[ " f1 " -ot " f2 " ]")))))
+
+(defn- older-than-some
+  [f others]
+  (some (partial older-than f) others))
+
 (defn- embed-name
   "Rename a janet symbol for embedding."
   [path]
@@ -77,9 +87,10 @@
   [opts src dest]
   (def cc (or opts:compiler CC))
   (def cflags (or opts:cflags CFLAGS))
-  (if is-win
-    (shell cc " /nologo /c " cflags " /Fo" dest " " src)
-    (shell cc " " cflags " -o " dest " -c " src)))
+  (if (older-than dest src)
+    (if is-win
+      (shell cc " /nologo /c " cflags " /Fo" dest " " src)
+      (shell cc " " cflags " -o " dest " -c " src))))
 
 (defn- link-c
   "Link a number of object files together."
@@ -87,26 +98,28 @@
   (def ld (or opts:linker LD))
   (def cflags (or opts:cflags CFLAGS))
   (def olist (string/join objects " "))
-  (if is-win
-    (shell ld "/out:" target "  " olist)
-    (shell ld " " cflags " -o " target " " olist)))
+  (if (older-than-some target objects)
+    (if is-win
+      (shell ld "/out:" target "  " olist)
+      (shell ld " " cflags " -o " target " " olist))))
 
 (defn- create-buffer-c
   "Inline raw byte file as a c file."
   [source dest name]
-  (def f (file/open source :r))
-  (if (not f) (error (string "file " f " not found")))
-  (def out (file/open dest :w))
-  (def chunks (seq [b :in (file/read f :all)] (string b)))
-  (file/write out
-              "#include <janet/janet.h>\n"
-              "static const unsigned char bytes[] = {"
-              ;(interpose ", " chunks)
-              "};\n\n"
-              "const unsigned char *" name "_embed = bytes;\n"
-              "size_t " name "_embed_size = sizeof(bytes);\n")
-  (file/close out)
-  (file/close f))
+  (when (older-than dest source)
+    (def f (file/open source :r))
+    (if (not f) (error (string "file " f " not found")))
+    (def out (file/open dest :w))
+    (def chunks (seq [b :in (file/read f :all)] (string b)))
+    (file/write out
+                "#include <janet/janet.h>\n"
+                "static const unsigned char bytes[] = {"
+                ;(interpose ", " chunks)
+                "};\n\n"
+                "const unsigned char *" name "_embed = bytes;\n"
+                "size_t " name "_embed_size = sizeof(bytes);\n")
+    (file/close out)
+    (file/close f)))
 
 # Public
 
