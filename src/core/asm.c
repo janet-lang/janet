@@ -252,8 +252,8 @@ static int32_t doarg_1(
         case JANET_NUMBER:
         {
             double y = janet_unwrap_number(x);
-            if (y >= INT32_MIN && y <= INT32_MAX) {
-                ret = y;
+            if (janet_checkintrange(y)) {
+                ret = (int32_t) y;
             } else {
                 goto error;
             }
