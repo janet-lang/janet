@@ -3,6 +3,9 @@
 
 # Windows is the OS outlier
 (def- is-win (= (os/which) :windows))
+(def- sep (if is-win "\\" "/"))
+(def- objext (if is-win ".obj" ".o"))
+(def- modext (if is-win ".dll" ".so"))
 
 (defn- shell
   "Do a shell command"
@@ -27,25 +30,41 @@
     (shell "rmdir " path " /s")
     (shell "rm -rf " path)))
 
+(defn- embed-name
+  "Rename a janet symbol for embedding."
+  [path]
+  (->> path
+       (string/replace-all sep "___")
+       (string/replace-all ".janet" "")))
+
+(defn- embed-c-name
+  "Rename a janet file for embedding."
+  [path]
+  (->> path
+       (string/replace-all sep "___")
+       (string/replace-all ".janet" ".janet.c")
+       (string "build" sep)))
+
+(defn- embed-o-name
+  "Get object file for c file."
+  [path]
+  (->> path
+       (string/replace-all sep "___")
+       (string/replace-all ".janet" (string ".janet" objext))
+       (string "build" sep)))
+
 (defn- object-name
   "Rename a source file so it can be built in a flat source tree."
   [path]
-  (if is-win
-    (->> path
-         (string/replace-all "\\" "___")
-         (string/replace-all ".c" ".obj")
-         (string "build\\")))
-    (->> path
-         (string/replace-all "/" "___")
-         (string/replace-all ".c" ".o")
-         (string "build/")))
+  (->> path
+       (string/replace-all sep "___")
+       (string/replace-all ".c" (if is-win ".obj" ".o"))
+       (string "build" sep)))
 
 (defn- lib-name
   "Generate name for dynamic library."
   [name]
-  (if is-win
-    (string "build\\" name ".dll")
-    (string "build/" name ".so")))
+  (string "build" sep name modext))
 
 # Defaults
 (def OPTIMIZE 2)
@@ -72,6 +91,23 @@
     (shell ld "/out:" target "  " olist)
     (shell ld " " cflags " -o " target " " olist)))
 
+(defn- create-buffer-c
+  "Inline raw byte file as a c file."
+  [source dest name]
+  (def f (file/open source :r))
+  (if (not f) (error (string "file " f " not found")))
+  (def out (file/open dest :w))
+  (def chunks (seq [b :in (file/read f :all)] (string b)))
+  (file/write out
+              "#include <janet/janet.h>\n"
+              "static const unsigned char bytes[] = {"
+              ;(interpose ", " chunks)
+              "};\n\n"
+              "const unsigned char *" name "_embed = bytes;\n"
+              "size_t " name "_embed_size = sizeof(bytes);\n")
+  (file/close out)
+  (file/close f))
+
 # Public
 
 (defn make-native
@@ -82,7 +118,15 @@
   (mkdir "build")
   (loop [src :in opt-table:source]
     (compile-c opt-table src (object-name src)))
-  (link-c opt-table (lib-name opt-table:name) ;(map object-name opt-table:source)))
+  (def objects (map object-name opt-table:source))
+  (when opt-table:embedded
+    (loop [src :in opt-table:embedded]
+      (def c-src (embed-c-name src))
+      (def o-src (embed-o-name src))
+      (array/push objects o-src)
+      (create-buffer-c src c-src (embed-name src))
+      (compile-c opt-table c-src o-src)))
+  (link-c opt-table (lib-name opt-table:name) ;objects))
 
 (defn clean
   "Remove all built artifacts."
