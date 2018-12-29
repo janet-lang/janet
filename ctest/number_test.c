@@ -25,6 +25,11 @@
 #include <string.h>
 #include <assert.h>
 
+/* Check a subset of numbers against system implementation.
+ * Note that this depends on the system implementation being correct,
+ * which may not be the case for old or non complient systems. Also,
+ * we cannot check against bases other 10. */
+
 /* Compare valid c numbers to system implementation. */
 static void test_valid_str(const char *str) {
     int err = 0;
@@ -50,6 +55,12 @@ int main() {
     test_valid_str("1.123123e-10");
     test_valid_str("-1.23e2");
     test_valid_str("-4.5e15");
+    test_valid_str("-4.5e151");
+    test_valid_str("-4.5e200");
+    test_valid_str("-4.5e123");
+    test_valid_str("123123123123123123132123");
+    test_valid_str("0000000011111111111111111111111111");
+    test_valid_str(".112312333333323123123123123123123");
 
     janet_deinit();
 
