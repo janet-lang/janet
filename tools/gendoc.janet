@@ -77,7 +77,7 @@
          :doc docstring} env-entry
         binding-type (cond
                        macro :macro
-                       ref (string :var " (" (type ref.0) ")")
+                       ref (string :var " (" (type (get ref 0)) ")")
                        (type val))
         source-ref (if-let [[path start end] sm]
                      (string "<span class=\"source-map\">" path " (" start ":" end ")</span>")

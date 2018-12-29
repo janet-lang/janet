@@ -182,15 +182,18 @@ static int cfun_u8(JanetArgs args) {
     JANET_RETURN(args, args.v[0]);
 }
 
-static int cfun_int(JanetArgs args) {
+static int cfun_word(JanetArgs args) {
     int32_t i;
     JanetBuffer *buffer;
     JANET_MINARITY(args, 1);
     JANET_ARG_BUFFER(buffer, args, 0);
     for (i = 1; i < args.n; i++) {
-        int32_t integer;
-        JANET_ARG_INTEGER(integer, args, i);
-        if (janet_buffer_push_u32(buffer, (uint32_t) integer))
+        double number;
+        uint32_t word;
+        JANET_ARG_NUMBER(number, args, i);
+        word = (uint32_t) number;
+        if (number != word) JANET_THROW(args, "cannot convert number to machine word");
+        if (janet_buffer_push_u32(buffer, word))
             JANET_THROW(args, "buffer overflow");
     }
     JANET_RETURN(args, args.v[0]);
@@ -276,10 +279,10 @@ static const JanetReg cfuns[] = {
         "Append a byte to a buffer. Will expand the buffer as necessary. "
         "Returns the modified buffer. Will throw an error if the buffer overflows."
     },
-    {"buffer/push-integer", cfun_int,
-        "(buffer/push-integer buffer x)\n\n"
-        "Append an integer to a buffer. The 4 bytes of the integer are appended "
-        "in twos complement, big endian order. Returns the modified buffer. Will "
+    {"buffer/push-word", cfun_word,
+        "(buffer/push-word buffer x)\n\n"
+        "Append a machine word to a buffer. The 4 bytes of the integer are appended "
+        "in twos complement, big endian order, unsigned. Returns the modified buffer. Will "
         "throw an error if the buffer overflows."
     },
     {"buffer/push-string", cfun_chars,
