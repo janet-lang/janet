@@ -51,6 +51,7 @@
 
 #include <janet/janet.h>
 #include <math.h>
+#include <string.h>
 
 /* Lookup table for getting values of characters when parsing numbers. Handles
  * digits 0-9 and a-z (and A-Z). A-Z have values of 10 to 35. */
@@ -65,98 +66,217 @@ static uint8_t digit_lookup[128] = {
     25,26,27,28,29,30,31,32,33,34,35,0xff,0xff,0xff,0xff,0xff
 };
 
+#define MANT_NBIT 27
+#define MANT_BASE 0x8000000
+
+/* Allow for BigInt mantissa. Mant is a natural number. */
+struct Mant {
+    uint32_t first_digit; /* First digit so we don't need to allocate when not needed. */
+    int32_t n; /* n digits */
+    int32_t cap; /* allocated digit capacity */
+    uint32_t *digits; /* Each digit is base (2 ^ 31). Digits are least significant first. */
+};
+
+/* Print number */
+static void mant_debug(struct Mant *mant) {
+    printf("<bigint: 0x%x", mant->first_digit);
+    for (int i = 0; i < mant->n; i++) {
+        printf(" 0x%x", mant->digits[i]);
+    }
+    printf(">\n");
+}
+
+/* Allocate n more digits for mant. Return a pointer to these digits. */
+static uint32_t *mant_extra(struct Mant *mant, int32_t n) {
+    int32_t oldn = mant->n;
+    int32_t newn = oldn + n;
+    if (mant->cap < newn) {
+        int32_t newcap = 2 * newn;
+        uint32_t *mem = realloc(mant->digits, newcap * sizeof(uint32_t));
+        if (NULL == mem) {
+            JANET_OUT_OF_MEMORY;
+        }
+        mant->cap = newcap;
+        mant->digits = mem;
+    }
+    mant->n = newn;
+    return mant->digits + oldn;
+}
+
+/* Append a digit */
+static void mant_append(struct Mant *mant, uint32_t dig) {
+    mant_extra(mant, 1)[0] = dig;
+}
+
+/* Add term to mant */
+static void mant_add(struct Mant *mant, uint32_t dig) {
+    int32_t i;
+    int carry = 0;
+    uint32_t next = mant->first_digit + dig;
+    if (next >= MANT_BASE) {
+        next -= MANT_BASE;
+        carry = 1;
+    }
+    mant->first_digit = next;
+    for (i = 0; i < mant->n; i++) {
+        if (!carry) return;
+        uint32_t next = mant->digits[i] + 1;
+        if (next >= MANT_BASE) {
+            next = 0;
+        } else {
+            carry = 0;
+        }
+        mant->digits[i] = next;
+    }
+    if (carry) mant_append(mant, 1);
+}
+
+/* Multiply the mantissa mant by a factor */
+static void mant_mul(struct Mant *mant, uint32_t factor) {
+    int32_t i;
+    uint64_t carry = mant->first_digit * factor;
+    mant->first_digit = carry % MANT_BASE;
+    carry /= MANT_BASE;
+    for (i = 0; i < mant->n; i++) {
+        carry += mant->digits[i] * factor;
+        mant->digits[i] = carry % MANT_BASE;
+        carry /= MANT_BASE;
+    }
+    if (carry) mant_append(mant, carry);
+}
+
+/* Divide the mantissa mant by a factor. Returns the remainder */
+static int32_t mant_div(struct Mant *mant, uint32_t divisor) {
+    int32_t i;
+    uint32_t quotient, remainder;
+    uint64_t dividend;
+    remainder = 0;
+    for (i = mant->n - 1; i >= 0; i--) {
+        dividend = ((uint64_t)remainder * MANT_BASE) + mant->digits[i];
+        if (i < mant->n - 1) mant->digits[i + 1] = quotient;
+        quotient = dividend / divisor;
+        remainder = dividend % divisor;
+        mant->digits[i] = remainder;
+    }
+    dividend = ((uint64_t)remainder * MANT_BASE) + mant->first_digit;
+    if (mant->n) {
+        if (mant->digits[mant->n - 1] == 0) mant->n--;
+    }
+    quotient = dividend / divisor;
+    remainder = dividend % divisor;
+    mant->first_digit = quotient;
+    return remainder;
+}
+
+/* Shift left by a multiple of MANT_NBIT */
+static void mant_lshift_n(struct Mant *mant, int n) {
+    if (!n) return;
+    int32_t oldn = mant->n;
+    mant_extra(mant, n);
+    memmove(mant->digits + n, mant->digits, sizeof(uint32_t) * oldn);
+    memset(mant->digits, 0, sizeof(uint32_t) * (n - 1));
+    mant->digits[n - 1] = mant->first_digit;
+    mant->first_digit = 0;
+}
+
+#ifdef __GNUC__
+#define clz(x) __builtin_clz(x)
+#else
+static int clz(uint32_t x) {
+    int n = 0;
+    if (x <= 0x0000ffff) n += 16, x <<= 16;
+    if (x <= 0x00ffffff) n += 8, x <<= 8;
+    if (x <= 0x0fffffff) n += 4, x <<= 4;
+    if (x <= 0x3fffffff) n += 2, x <<= 2;
+    if (x <= 0x7fffffff) n ++;
+    return n;
+}
+#endif
+
+/* Extract double value from mantissa */
+static double mant_extract(struct Mant *mant, int32_t exponent2) {
+    uint64_t top53;
+    int32_t n = mant->n;
+    /* Get most significant 52 bits from mant. Bit52 (0 indexed) should
+     * always be 1. */
+    if (n) {
+        /* Two or more digits */
+        uint64_t d1 = mant->digits[n - 1]; /* MSD (non-zero) */
+        uint64_t d2 = (n == 1) ? mant->first_digit : mant->digits[n - 2];
+        uint64_t d3 = (n > 2) ? mant->digits[n - 3] : (n == 2) ? mant->first_digit : 0;
+        int lz = clz(d1);
+        int nbits = 32 - lz;
+        top53 = (d2 << (53 - MANT_NBIT)) + (d3 >> (2 * MANT_NBIT - 53));
+        top53 >>= nbits;
+        top53 |= (d1 << (53 - nbits));
+        exponent2 += (nbits - 53) + MANT_NBIT * n;
+    } else {
+        /* One digit */
+        top53 = mant->first_digit;
+    }
+    return ldexp((double) top53, exponent2);
+}
+
 /* Read in a mantissa and exponent of a certain base, and give
- * back the double value. Should properly handle 0s, Inifinties, and
+ * back the double value. Should properly handle 0s, Infinities, and
  * denormalized numbers. (When the exponent values are too large) */
 static double convert(
         int negative,
-        uint64_t mantissa,
+        struct Mant *mant,
         int32_t base,
         int32_t exponent) {
 
     int32_t exponent2 = 0;
 
     /* Short circuit zero and huge numbers */
-    if (mantissa == 0)
+    if (mant->n == 0 && mant->first_digit == 0)
         return 0.0;
     if (exponent > 1022)
         return negative ? -INFINITY : INFINITY;
 
-    /* TODO add fast paths */
+    /* Final value is X = mant * base ^ exponent * 2 ^ exponent2
+     * Get exponent to zero while holding X constant. */
 
-    /* Convert exponent on the base into exponent2, the power of
-     * 2 the will be used. Modify the mantissa as we convert. */
-    if (exponent > 0) {
-        /* Make the mantissa large enough so no precision is lost */
-        while (mantissa <= 0x03ffffffffffffffULL && exponent > 0) {
-            mantissa *= base;
-            exponent--;
+    /* Positive exponents are simple */
+    while (exponent > 0) {
+        mant_mul(mant, base);
+        exponent--;
+    }
+
+    /* Negative exponents are tricky - we don't want to loose bits
+     * from integer division, so we need to premultiply. */
+    if (exponent < 0) {
+        mant_lshift_n(mant, 10 - exponent);
+        exponent2 -= (10 - exponent) * MANT_NBIT;
+        while (exponent < -3) {
+            mant_div(mant, (base * base) * (base * base));
+            exponent += 4;
         }
-        while (exponent > 0) {
-            /* Allow 6 bits of room when multiplying. This is because
-             * the largest base is 36, which is 6 bits. The space of 6 should
-             * prevent overflow.*/
-            mantissa >>= 1;
-            exponent2++;
-            if (mantissa <= 0x03ffffffffffffffULL) {
-                mantissa *= base;
-                exponent--;
-            }
-        }
-    } else {
         while (exponent < 0) {
-            mantissa <<= 1;
-            exponent2--;
-            /* Ensure that the last bit is set for minimum error
-             * before dividing by the base */
-            if (mantissa > 0x7fffffffffffffffULL) {
-                mantissa /= base;
-                exponent++;
-            }
+            mant_div(mant, base);
+            exponent++;
         }
     }
 
     return negative
-        ? -ldexp((double) mantissa, exponent2)
-        : ldexp((double) mantissa, exponent2);
+        ? -mant_extract(mant, exponent2)
+        : mant_extract(mant, exponent2);
 }
 
-/* Result of scanning a number source string. Will be further processed
- * depending on the desired resultant type. */
-struct JanetScanRes {
-    uint64_t mant;
-    int32_t ex;
-    int error;
-    int base;
-    int seenpoint;
-    int foundexp;
-    int neg;
-};
-
-/* Get the mantissa and exponent of decimal number. The
- * mantissa will be stored in a 64 bit unsigned integer (always positive).
- * The exponent will be in a signed 32 bit integer. Will also check if
- * the decimal point has been seen. Returns -1 if there is an invalid
- * number. */
-static struct JanetScanRes janet_scan_impl(
+/* Scan a real (double) from a string. If the string cannot be converted into
+ * and integer, set *err to 1 and return 0. */
+double janet_scan_number(
         const uint8_t *str,
-        int32_t len) {
-
-    struct JanetScanRes res;
+        int32_t len,
+        int *err) {
     const uint8_t *end = str + len;
-
-    /* Initialize flags */
     int seenadigit = 0;
-    int gotradix = 0;
-
-    /* Initialize result */
-    res.mant = 0;
-    res.ex = 0;
-    res.error = 0;
-    res.base = 10;
-    res.seenpoint = 0;
-    res.foundexp = 0;
-    res.neg = 0;
+    struct Mant mant = {0};
+    int ex = 0;
+    int base = 10;
+    int seenpoint = 0;
+    int foundexp = 0;
+    int neg = 0;
 
     /* Prevent some kinds of overflow bugs relating to the exponent
      * overflowing.  For example, if a string was passed 2GB worth of 0s after
@@ -168,18 +288,31 @@ static struct JanetScanRes janet_scan_impl(
     /* Get sign */
     if (str >= end) goto error;
     if (*str == '-') {
-        res.neg = 1;
+        neg = 1;
         str++;
     } else if (*str == '+') {
         str++;
     }
 
+    /* Check for leading 0x or digit digit r */
+    if (str + 1 < end && str[0] == '0' && str[1] == 'x') {
+        base = 16;
+        str += 2;
+    } else if (str + 2 < end  &&
+            str[0] >= '0' && str[0] <= '9' &&
+            str[1] >= '0' && str[1] <= '9' &&
+            str[2] == 'r') {
+        base = 10 * (str[0] - '0') + (str[1] - '0');
+        if (base < 2 || base > 36) goto error;
+        str += 3;
+    }
+
     /* Skip leading zeros */
     while (str < end && (*str == '0' || *str == '.')) {
-        if (res.seenpoint) res.ex--;
+        if (seenpoint) ex--;
         if (*str == '.') {
-            if (res.seenpoint) goto error;
-            res.seenpoint = 1;
+            if (seenpoint) goto error;
+            seenpoint = 1;
         }
         seenadigit = 1;
         str++;
@@ -188,37 +321,21 @@ static struct JanetScanRes janet_scan_impl(
     /* Parse significant digits */
     while (str < end) {
         if (*str == '.') {
-            if (res.seenpoint) goto error;
-            res.seenpoint = 1;
+            if (seenpoint) goto error;
+            seenpoint = 1;
         } else if (*str == '&') {
-            res.foundexp = 1;
+            foundexp = 1;
             break;
-        } else if (res.base == 10 && (*str == 'E' || *str == 'e')) {
-            res.foundexp = 1;
+        } else if (base == 10 && (*str == 'E' || *str == 'e')) {
+            foundexp = 1;
             break;
-        } else if (!gotradix && (*str == 'x' || *str == 'X')) {
-            if (!seenadigit) goto error;
-            if (res.seenpoint || res.mant > 0) goto error;
-            res.base = 16;
-            res.mant = 0;
-            seenadigit = 0;
-            gotradix = 1;
-        } else if (!gotradix && (*str == 'r' || *str == 'R'))  {
-            if (res.seenpoint) goto error;
-            if (res.mant < 2 || res.mant > 36) goto error;
-            res.base = (int) res.mant;
-            res.mant = 0;
-            seenadigit = 0;
-            gotradix = 1;
         } else if (*str != '_') {
             /* underscores are ignored - can be used for separator */
             int digit = digit_lookup[*str & 0x7F];
-            if (*str > 127 || digit >= res.base) goto error;
-            if (res.seenpoint) res.ex--;
-            if (res.mant > 0x00ffffffffffffff)
-                res.ex++;
-            else
-                res.mant = res.base * res.mant + digit;
+            if (*str > 127 || digit >= base) goto error;
+            if (seenpoint) ex--;
+            mant_mul(&mant, base);
+            mant_add(&mant, digit);
             seenadigit = 1;
         }
         str++;
@@ -228,7 +345,7 @@ static struct JanetScanRes janet_scan_impl(
         goto error;
 
     /* Read exponent */
-    if (str < end && res.foundexp) {
+    if (str < end && foundexp) {
         int eneg = 0;
         int ee = 0;
         seenadigit = 0;
@@ -241,72 +358,33 @@ static struct JanetScanRes janet_scan_impl(
             str++;
         }
         /* Skip leading 0s in exponent */
-        while (str < end && *str == '0') str++;
+        while (str < end && *str == '0') {
+            str++;
+            seenadigit = 1;
+        }
         while (str < end && ee < (INT32_MAX / 40)) {
             int digit = digit_lookup[*str & 0x7F];
             if (*str == '_') {
                 str++;
                 continue;
             }
-            if (*str > 127 || digit >= res.base) goto error;
-            ee = res.base * ee + digit;
+            if (*str > 127 || digit >= base) goto error;
+            ee = base * ee + digit;
             str++;
             seenadigit = 1;
         }
-        if (eneg) res.ex -= ee; else res.ex += ee;
+        if (eneg) ex -= ee; else ex += ee;
     }
 
     if (!seenadigit)
         goto error;
 
-    return res;
+    double result = convert(neg, &mant, base, ex);
+    free(mant.digits);
+    return result;
 
     error:
-    res.error = 1;
-    return res;
-}
-
-/* Scan an integer from a string. If the string cannot be converted into
- * and integer, set *err to 1 and return 0. */
-int32_t janet_scan_integer(
-        const uint8_t *str,
-        int32_t len,
-        int *err) {
-    struct JanetScanRes res = janet_scan_impl(str, len);
-    int64_t i64;
-    if (res.error) goto error;
-    if (res.seenpoint) goto error;
-    if (res.ex < 0) goto error;
-    i64 = res.neg ? -(int64_t)res.mant : (int64_t)res.mant;
-    while (res.ex > 0) {
-        i64 *= res.base;
-        if (i64 > INT32_MAX || i64 < INT32_MIN) goto error;
-        res.ex--;
-    }
-    if (i64 > INT32_MAX || i64 < INT32_MIN) goto error;
-    if (NULL != err)
-        *err = 0;
-    return (int32_t) i64;
-    error:
-    if (NULL != err)
-        *err = 1;
-    return 0;
-}
-
-/* Scan a real (double) from a string. If the string cannot be converted into
- * and integer, set *err to 1 and return 0. */
-double janet_scan_number(
-        const uint8_t *str,
-        int32_t len,
-        int *err) {
-    struct JanetScanRes res = janet_scan_impl(str, len);
-    if (res.error) {
-        if (NULL != err)
-            *err = 1;
-        return 0.0;
-    } else {
-        if (NULL != err)
-            *err = 0;
-    }
-    return convert(res.neg, res.mant, res.base, res.ex);
+    *err = 1;
+    free(mant.digits);
+    return 0.0;
 }

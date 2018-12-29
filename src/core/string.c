@@ -107,7 +107,7 @@ const uint8_t *janet_cstring(const char *str) {
 #define BUFSIZE 64
 
 static int32_t number_to_string_impl(uint8_t *buf, double x) {
-    int count = snprintf((char *) buf, BUFSIZE, "%.17g", x);
+    int count = snprintf((char *) buf, BUFSIZE, "%g", x);
     return (int32_t) count;
 }
 

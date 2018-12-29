@@ -31,11 +31,11 @@ static JanetSlot multisym_parse_part(JanetCompiler *c, const uint8_t *sympart, i
         return janetc_cslot(janet_symbolv(sympart, len));
     } else {
         int err = 0;
-        int32_t num = janet_scan_integer(sympart + 1, len - 1, &err);
+        double num = janet_scan_number(sympart + 1, len - 1, &err);
         if (err) {
             return janetc_resolve(c, janet_symbol(sympart + 1, len - 1));
         } else {
-            return janetc_cslot(janet_wrap_integer(num));
+            return janetc_cslot(janet_wrap_number(num));
         }
     }
 }

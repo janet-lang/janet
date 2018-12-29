@@ -915,7 +915,6 @@ JANET_API int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, 
 JANET_API int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Janet *out);
 
 /* Number scanning */
-JANET_API int32_t janet_scan_integer(const uint8_t *str, int32_t len, int *err);
 JANET_API double janet_scan_number(const uint8_t *str, int32_t len, int *err);
 
 /* Debugging */
