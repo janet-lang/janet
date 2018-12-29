@@ -22,14 +22,11 @@
 
 /* Use a custom double parser instead of libc's strtod for better portability
  * and control. Also, uses a less strict rounding method than ieee to not incur
- * the cost of 4000 loc and dependence on arbitary precision arithmetic.  There
- * is no plan to use arbitrary precision arithmetic for parsing numbers, and a
- * formal rounding mode has yet to be chosen (round towards 0 seems
- * reasonable).
+ * the cost of 4000 loc and dependence on arbitary precision arithmetic. Includes
+ * subset of multiple precision functionality needed for correct rounding.
  *
  * This version has been modified for much greater flexibility in parsing, such
- * as choosing the radix, supporting integer output, and returning Janets
- * directly.
+ * as choosing the radix and supporting scientific notation with any radix.
  *
  * Numbers are of the form [-+]R[rR]I.F[eE&][-+]X where R is the radix, I is
  * the integer part, F is the fractional part, and X is the exponent. All
@@ -66,11 +63,11 @@ static uint8_t digit_lookup[128] = {
     25,26,27,28,29,30,31,32,33,34,35,0xff,0xff,0xff,0xff,0xff
 };
 
-#define MANT_NBIT 27
-#define MANT_BASE 0x8000000
+#define BIGNAT_NBIT 31
+#define BIGNAT_BASE 0x80000000U
 
-/* Allow for BigInt mantissa. Mant is a natural number. */
-struct Mant {
+/* Allow for large mantissa. BigNat is a natural number. */
+struct BigNat {
     uint32_t first_digit; /* First digit so we don't need to allocate when not needed. */
     int32_t n; /* n digits */
     int32_t cap; /* allocated digit capacity */
@@ -78,7 +75,7 @@ struct Mant {
 };
 
 /* Allocate n more digits for mant. Return a pointer to these digits. */
-static uint32_t *mant_extra(struct Mant *mant, int32_t n) {
+static uint32_t *bignat_extra(struct BigNat *mant, int32_t n) {
     int32_t oldn = mant->n;
     int32_t newn = oldn + n;
     if (mant->cap < newn) {
@@ -95,75 +92,70 @@ static uint32_t *mant_extra(struct Mant *mant, int32_t n) {
 }
 
 /* Append a digit */
-static void mant_append(struct Mant *mant, uint32_t dig) {
-    mant_extra(mant, 1)[0] = dig;
+static void bignat_append(struct BigNat *mant, uint32_t dig) {
+    bignat_extra(mant, 1)[0] = dig;
 }
 
 /* Add term to mant */
-static void mant_add(struct Mant *mant, uint32_t dig) {
+static void bignat_add(struct BigNat *mant, uint32_t dig) {
     int32_t i;
     int carry = 0;
     uint32_t next = mant->first_digit + dig;
-    if (next >= MANT_BASE) {
-        next -= MANT_BASE;
+    if (next >= BIGNAT_BASE) {
+        next -= BIGNAT_BASE;
         carry = 1;
     }
     mant->first_digit = next;
     for (i = 0; i < mant->n; i++) {
         if (!carry) return;
         uint32_t next = mant->digits[i] + 1;
-        if (next >= MANT_BASE) {
+        if (next >= BIGNAT_BASE) {
             next = 0;
         } else {
             carry = 0;
         }
         mant->digits[i] = next;
     }
-    if (carry) mant_append(mant, 1);
+    if (carry) bignat_append(mant, 1);
 }
 
 /* Multiply the mantissa mant by a factor */
-static void mant_mul(struct Mant *mant, uint32_t factor) {
+static void bignat_mul(struct BigNat *mant, uint32_t factor) {
     int32_t i;
-    uint64_t carry = mant->first_digit * factor;
-    mant->first_digit = carry % MANT_BASE;
-    carry /= MANT_BASE;
+    uint64_t carry = ((uint64_t) mant->first_digit) * factor;
+    mant->first_digit = carry % BIGNAT_BASE;
+    carry /= BIGNAT_BASE;
     for (i = 0; i < mant->n; i++) {
-        carry += mant->digits[i] * factor;
-        mant->digits[i] = carry % MANT_BASE;
-        carry /= MANT_BASE;
+        carry += ((uint64_t) mant->digits[i]) * factor;
+        mant->digits[i] = carry % BIGNAT_BASE;
+        carry /= BIGNAT_BASE;
     }
-    if (carry) mant_append(mant, carry);
+    if (carry) bignat_append(mant, carry);
 }
 
-/* Divide the mantissa mant by a factor. Returns the remainder */
-static int32_t mant_div(struct Mant *mant, uint32_t divisor) {
+/* Divide the mantissa mant by a factor. Drop the remainder. */
+static void bignat_div(struct BigNat *mant, uint32_t divisor) {
     int32_t i;
     uint32_t quotient, remainder;
     uint64_t dividend;
     remainder = 0;
     for (i = mant->n - 1; i >= 0; i--) {
-        dividend = ((uint64_t)remainder * MANT_BASE) + mant->digits[i];
+        dividend = ((uint64_t)remainder * BIGNAT_BASE) + mant->digits[i];
         if (i < mant->n - 1) mant->digits[i + 1] = quotient;
         quotient = dividend / divisor;
         remainder = dividend % divisor;
         mant->digits[i] = remainder;
     }
-    dividend = ((uint64_t)remainder * MANT_BASE) + mant->first_digit;
-    if (mant->n) {
-        if (mant->digits[mant->n - 1] == 0) mant->n--;
-    }
-    quotient = dividend / divisor;
-    remainder = dividend % divisor;
-    mant->first_digit = quotient;
-    return remainder;
+    dividend = ((uint64_t)remainder * BIGNAT_BASE) + mant->first_digit;
+    if (mant->n && mant->digits[mant->n - 1] == 0) mant->n--;
+    mant->first_digit = dividend / divisor;
 }
 
-/* Shift left by a multiple of MANT_NBIT */
-static void mant_lshift_n(struct Mant *mant, int n) {
+/* Shift left by a multiple of BIGNAT_NBIT */
+static void bignat_lshift_n(struct BigNat *mant, int n) {
     if (!n) return;
     int32_t oldn = mant->n;
-    mant_extra(mant, n);
+    bignat_extra(mant, n);
     memmove(mant->digits + n, mant->digits, sizeof(uint32_t) * oldn);
     memset(mant->digits, 0, sizeof(uint32_t) * (n - 1));
     mant->digits[n - 1] = mant->first_digit;
@@ -185,11 +177,11 @@ static int clz(uint32_t x) {
 #endif
 
 /* Extract double value from mantissa */
-static double mant_extract(struct Mant *mant, int32_t exponent2) {
+static double bignat_extract(struct BigNat *mant, int32_t exponent2) {
     uint64_t top53;
     int32_t n = mant->n;
-    /* Get most significant 52 bits from mant. Bit52 (0 indexed) should
-     * always be 1. */
+    /* Get most significant 53 bits from mant. Bit52 (0 indexed) should
+     * always be 1. This is essentially a large right shift on mant.*/
     if (n) {
         /* Two or more digits */
         uint64_t d1 = mant->digits[n - 1]; /* MSD (non-zero) */
@@ -197,16 +189,19 @@ static double mant_extract(struct Mant *mant, int32_t exponent2) {
         uint64_t d3 = (n > 2) ? mant->digits[n - 3] : (n == 2) ? mant->first_digit : 0;
         int lz = clz(d1);
         int nbits = 32 - lz;
-        top53 = (d2 << (54 - MANT_NBIT)) + (d3 >> (2 * MANT_NBIT - 54));
+        /* First get 54 bits */
+        top53 = (d2 << (54 - BIGNAT_NBIT)) + (d3 >> (2 * BIGNAT_NBIT - 54));
         top53 >>= nbits;
         top53 |= (d1 << (54 - nbits));
+        /* Rounding based on lowest bit of 54 */
         if (top53 & 1) top53++;
         top53 >>= 1;
         if (top53 > 0x1FffffFFFFffffUL) {
             top53 >>= 1;
             exponent2++;
         }
-        exponent2 += (nbits - 53) + MANT_NBIT * n;
+        /* Correct exponent - to correct for large right shift to mantissa. */
+        exponent2 += (nbits - 53) + BIGNAT_NBIT * n;
     } else {
         /* One digit */
         top53 = mant->first_digit;
@@ -219,7 +214,7 @@ static double mant_extract(struct Mant *mant, int32_t exponent2) {
  * denormalized numbers. (When the exponent values are too large) */
 static double convert(
         int negative,
-        struct Mant *mant,
+        struct BigNat *mant,
         int32_t base,
         int32_t exponent) {
 
@@ -236,24 +231,25 @@ static double convert(
 
     /* Positive exponents are simple */
     while (exponent > 0) {
-        mant_mul(mant, base);
+        bignat_mul(mant, base);
         exponent--;
     }
 
     /* Negative exponents are tricky - we don't want to loose bits
      * from integer division, so we need to premultiply. */
     if (exponent < 0) {
-        mant_lshift_n(mant, 20 - exponent);
-        exponent2 -= (20 - exponent) * MANT_NBIT;
+        int32_t shamt = 5 - exponent / 4;
+        bignat_lshift_n(mant, shamt);
+        exponent2 -= shamt * BIGNAT_NBIT;
         while (exponent < 0) {
-            mant_div(mant, base);
+            bignat_div(mant, base);
             exponent++;
         }
     }
 
     return negative
-        ? -mant_extract(mant, exponent2)
-        : mant_extract(mant, exponent2);
+        ? -bignat_extract(mant, exponent2)
+        : bignat_extract(mant, exponent2);
 }
 
 /* Scan a real (double) from a string. If the string cannot be converted into
@@ -264,7 +260,7 @@ double janet_scan_number(
         int *err) {
     const uint8_t *end = str + len;
     int seenadigit = 0;
-    struct Mant mant = {0};
+    struct BigNat mant = {0};
     int ex = 0;
     int base = 10;
     int seenpoint = 0;
@@ -327,8 +323,8 @@ double janet_scan_number(
             int digit = digit_lookup[*str & 0x7F];
             if (*str > 127 || digit >= base) goto error;
             if (seenpoint) ex--;
-            mant_mul(&mant, base);
-            mant_add(&mant, digit);
+            bignat_mul(&mant, base);
+            bignat_add(&mant, digit);
             seenadigit = 1;
         }
         str++;
