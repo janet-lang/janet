@@ -74,6 +74,13 @@ struct BigNat {
     uint32_t *digits; /* Each digit is base (2 ^ 31). Digits are least significant first. */
 };
 
+static void bignat_zero(struct BigNat *x) {
+    x->first_digit = 0;
+    x->n = 0;
+    x->cap = 0;
+    x->digits = NULL;
+}
+
 /* Allocate n more digits for mant. Return a pointer to these digits. */
 static uint32_t *bignat_extra(struct BigNat *mant, int32_t n) {
     int32_t oldn = mant->n;
@@ -260,12 +267,13 @@ double janet_scan_number(
         int *err) {
     const uint8_t *end = str + len;
     int seenadigit = 0;
-    struct BigNat mant = {0};
     int ex = 0;
     int base = 10;
     int seenpoint = 0;
     int foundexp = 0;
     int neg = 0;
+    struct BigNat mant;
+    bignat_zero(&mant);
 
     /* Prevent some kinds of overflow bugs relating to the exponent
      * overflowing.  For example, if a string was passed 2GB worth of 0s after
