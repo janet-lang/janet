@@ -88,7 +88,7 @@
 (defn string? "Check if x is a string." [x] (= (type x) :string))
 (defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
 (defn keyword? "Check if x is a keyword style symbol." [x]
-  (if (not= (type x) :symbol) nil (= 58 x.0)))
+  (if (not= (type x) :symbol) nil (= 58 (get x 0))))
 (defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
 (defn function? "Check if x is a function (not a cfunction)." [x]
   (= (type x) :function))
@@ -494,7 +494,7 @@
   [& functions]
   (case (length functions)
     0 nil
-    1 functions.0
+    1 (get functions 0)
     2 (let [[f g]       functions] (fn [x] (f (g x))))
     3 (let [[f g h]     functions] (fn [x] (f (g (h x)))))
     4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
@@ -519,7 +519,7 @@
   [order args]
   (def len (length args))
   (when (pos? len)
-    (var ret args.0)
+    (var [ret] args)
     (loop [i :range [0 len]]
       (def v args.i)
       (if (order v ret) (set ret v)))
@@ -546,7 +546,7 @@
 (defn first
   "Get the first element from an indexed data structure."
   [xs]
-  xs.0)
+  (get xs 0))
 
 (defn last
   "Get the last element from an indexed data structure."
@@ -609,7 +609,7 @@
   [f & inds]
   (def ninds (length inds))
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
-  (var limit (length inds.0))
+  (var limit (length (get inds 0)))
   (loop [i :range [0 ninds]]
     (def l (length inds.i))
     (if (< l limit) (set limit l)))
@@ -758,7 +758,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple n.0 (array/slice n 1)]
+                 [tuple (get n 0) (array/slice n 1)]
                  [tuple n @[]]))
     (def parts (array/concat @[h last] t))
     (tuple/slice parts 0))
@@ -771,7 +771,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple n.0 (array/slice n 1)]
+                 [tuple (get n 0) (array/slice n 1)]
                  [tuple n @[]]))
     (def parts (array/concat @[h] t @[last]))
     (tuple/slice parts 0))
@@ -786,7 +786,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple n.0 (array/slice n 1)]
+                 [tuple (get n 0) (array/slice n 1)]
                  [tuple n @[]]))
     (def sym (gensym))
     (def parts (array/concat @[h sym] t))
@@ -802,7 +802,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple n.0 (array/slice n 1)]
+                 [tuple (get n 0) (array/slice n 1)]
                  [tuple n @[]]))
     (def sym (gensym))
     (def parts (array/concat @[h] t @[sym]))
@@ -1034,7 +1034,7 @@ value, one key will be ignored."
   [sep ind]
   (def len (length ind))
   (def ret (array/new (- (* 2 len) 1)))
-  (if (> len 0) (set ret.0 ind.0))
+  (if (> len 0) (put ret 0 (get ind 0)))
   (var i 1)
   (while (< i len)
     (array/push ret sep ind.i)
@@ -1062,8 +1062,10 @@ value, one key will be ignored."
         ~(if (= nil (def ,pattern ,expr)) ,sentinel ,(onmatch))))
 
     (tuple? pattern)
-    (match-1 pattern.0 expr (fn []
-                              ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen)
+    (match-1
+      (get pattern 0) expr
+      (fn []
+        ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen)
 
     (array? pattern)
     (do
@@ -1221,39 +1223,40 @@ value, one key will be ignored."
 
   (defn expanddef [t]
     (def last (get t (- (length t) 1)))
-    (def bound t.1)
+    (def bound (get t 1))
     (tuple/slice
       (array/concat
-        @[t.0 (expand-bindings bound)]
+        @[(get t 0) (expand-bindings bound)]
         (tuple/slice t 2 -2)
         @[(macex1 last)])))
 
   (defn expandall [t]
     (def args (map macex1 (tuple/slice t 1)))
-    (tuple t.0 ;args))
+    (tuple (get t 0) ;args))
 
   (defn expandfn [t]
-    (if (symbol? t.1)
+    (def t1 (get t 1))
+    (if (symbol? t1)
       (do
         (def args (map macex1 (tuple/slice t 3)))
-        (tuple 'fn t.1 t.2 ;args))
+        (tuple 'fn t1 (get t 2) ;args))
       (do
         (def args (map macex1 (tuple/slice t 2)))
-        (tuple 'fn t.1 ;args))))
+        (tuple 'fn t1 ;args))))
 
   (defn expandqq [t]
     (defn qq [x]
       (case (type x)
         :tuple (do
-                 (def x0 x.0)
+                 (def x0 (get x 0))
                  (if (or (= 'unquote x0) (= 'unquote-splicing x0))
-                   (tuple x0 (macex1 x.1))
+                   (tuple x0 (macex1 (get x 1)))
                    (tuple/slice (map qq x))))
         :array (map qq x)
         :table (table (map qq (kvs x)))
         :struct (struct (map qq (kvs x)))
         x))
-    (tuple t.0 (qq t.1)))
+    (tuple (get t 0) (qq (get t 1))))
 
   (def specs
     {'set expanddef
@@ -1267,7 +1270,7 @@ value, one key will be ignored."
      'while expandall})
 
   (defn dotup [t]
-    (def h t.0)
+    (def h (get t 0))
     (def s specs.h)
     (def entry (or *env*.h {}))
     (def m entry:value)

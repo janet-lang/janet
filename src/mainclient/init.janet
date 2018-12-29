@@ -11,7 +11,7 @@
   # Flag handlers
   (def handlers :private
     {"h" (fn [&]
-           (print "usage: " process/args.0 " [options] scripts...")
+           (print "usage: " (get process/args 0) " [options] scripts...")
            (print
              `Options are:
   -h Show this help

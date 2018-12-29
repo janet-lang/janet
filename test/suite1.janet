@@ -214,11 +214,11 @@
 
 # Closure in while loop
 (def closures (seq [i :range [0 5]] (fn [] i)))
-(assert (= 0 (closures.0)) "closure in loop 0")
-(assert (= 1 (closures.1)) "closure in loop 1")
-(assert (= 2 (closures.2)) "closure in loop 2")
-(assert (= 3 (closures.3)) "closure in loop 3")
-(assert (= 4 (closures.4)) "closure in loop 4")
+(assert (= 0 ((get closures 0))) "closure in loop 0")
+(assert (= 1 ((get closures 1))) "closure in loop 1")
+(assert (= 2 ((get closures 2))) "closure in loop 2")
+(assert (= 3 ((get closures 3))) "closure in loop 3")
+(assert (= 4 ((get closures 4))) "closure in loop 4")
 
 # More numerical tests
 (assert (== 1 1.0) "numerical equal 1")
