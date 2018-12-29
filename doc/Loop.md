@@ -2,13 +2,13 @@
 
 A very common and essential operation in all programming is looping. Most
 languages support looping of some kind, either with explicit loops or recursion.
-Janet supports both recursion and a primitve `while` loop. While recursion is
+Janet supports both recursion and a primitive `while` loop. While recursion is
 useful in many cases, sometimes is more convenient to use a explicit loop to
 iterate over a collection like an array.
 
 ## An Example - Iterating a Range
 
-Supose you want to calculate the sum of the first 10 natural numbers
+Suppose you want to calculate the sum of the first 10 natural numbers
 0 through 9. There are many ways to carry out this explicit calculation
 even with taking shortcuts. A succinct way in janet is
 
@@ -16,7 +16,7 @@ even with taking shortcuts. A succinct way in janet is
 (+ ;(range 10))
 ```
 
-We will limit ourselves however to using explicit looping and no funcitions
+We will limit ourselves however to using explicit looping and no functions
 like `(range n)` which generate a list of natural numbers for us.
 
 For our first version, we will use only the while macro to iterate, similar
@@ -143,6 +143,32 @@ As before, we can evaluate this loop using only a while loop and the `next` func
   (set key (next alphabook key))
 ```
 
-For ou
+However, we can do better than this with the loop macro using the `:pairs` or `:keys` verbs.
 
+```
+(loop [[letter word] :pairs alphabook]
+  (print letter " is for " word))
+```
 
+Using the `:keys` verb and the dot syntax for indexing
+
+```
+(loop [letter :keys alphabook]
+  (print letter " is for " alphabook.letter))
+```
+
+The symbol `alphabook.letter` is shorthand for `(get alphabook letter)`.
+Note that the dot syntax of `alphabook.letter` is different than in many languages. In C or
+ALGOL like languages, it is more akin to the indexing operator, and would be written `alphabook[letter]`.
+The `.` character is part of the symbol and is recognized by the compiler.
+
+We can also use the core library functions `keys` and `pairs` to get arrays of the keys and
+pairs respectively of the alphabook.
+
+```
+(loop [[letter word] :in (pairs alphabook)]
+  (print letter " is for " word))
+
+(loop [letter :in (keys alphabook)]
+  (print letter " is for " alphabook.letter))
+```
