@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/janet-lang/janet.svg?branch=master)](https://travis-ci.org/janet-lang/janet)
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/32r7s2skrgm9ubva?svg=true)](https://ci.appveyor.com/project/janet-lang/janet)
 
-<img src="https://raw.githubusercontent.com/honix/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
+<img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
 **Janet** is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
@@ -159,3 +159,8 @@ Building with emscripten on windows is currently unsupported.
 ## Examples
 
 See the examples directory for some example janet code.
+
+## Why Janet
+
+Janet is named after the omniscient and friendly artificial being in [The Good Place](https://en.wikipedia.org/wiki/The_Good_Place).
+![Janet](https://https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-the-good-place.gif)
