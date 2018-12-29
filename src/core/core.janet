@@ -165,7 +165,7 @@
 
 (defmacro if-not
   "Shorthand for (if (not ... "
-  [condition exp-1 exp-2]
+  [condition exp-1 exp-2 &]
   ~(if ,condition ,exp-2 ,exp-1))
 
 (defmacro when
@@ -290,6 +290,7 @@
   \t:range - loop over a range. The object should be two element tuple with a start
   and end value. The range is half open, [start, end).\n
   \t:keys - Iterate over the keys in a data structure.\n
+  \t:pairs - Iterate over the keys value pairs in a data structure.\n
   \t:in - Iterate over the values in an indexed data structure or byte sequence.\n
   \t:generate - Iterate over values yielded from a fiber. Can be paired with the generator
   function for the producer/consumer pattern.\n\n
@@ -376,6 +377,22 @@
                                   (tuple 'def bindings $iter)
                                   subloop
                                   (tuple 'set $iter (tuple next $dict $iter)))))
+            :pairs (do
+                     (def sym? (symbol? bindings))
+                     (def $dict (gensym))
+                     (def $iter (gensym))
+                     (def preds @['and (tuple not= nil $iter)])
+                     (def subloop (doone (+ i 3) preds))
+                     (tuple 'do
+                            (tuple 'def $dict object)
+                            (tuple 'var $iter (tuple next $dict nil))
+                            (tuple 'while (tuple/slice preds)
+                                   (if sym?
+                                     (tuple 'def bindings (tuple tuple $iter (tuple get $dict $iter))))
+                                   (if-not sym? (tuple 'def (get bindings 0) $iter))
+                                   (if-not sym? (tuple 'def (get bindings 1) (tuple get $dict $iter)))
+                                   subloop
+                                   (tuple 'set $iter (tuple next $dict $iter)))))
             :in (do
                   (def $len (gensym))
                   (def $i (gensym))
@@ -809,27 +826,33 @@
     ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
   (reduce fop x forms))
 
+(defn walk-ind [f form]
+  (def len (length form))
+  (def ret (array/new len))
+  (each x form (array/push ret (f x)))
+  ret)
+
+(defn walk-dict [f form]
+  (def ret @{})
+  (loop [k :keys form]
+    (put ret (f k) (f form.k)))
+  ret)
+
 (defn walk
   "Iterate over the values in ast and apply f
   to them. Collect the results in a data structure . If ast is not a
   table, struct, array, or tuple,
-  behaves as the identity function."
+  returns form."
   [f form]
-  (defn walk-ind []
-    (def ret @[])
-    (each x form (array/push ret (f x)))
-    ret)
-  (defn walk-dict []
-    (def ret @[])
-    (loop [k :keys form]
-      (array/push ret (f k) (f form.k)))
-    ret)
   (case (type form)
-    :table (table ;(walk-dict))
-    :struct (struct ;(walk-dict))
-    :array (walk-ind)
-    :tuple (tuple ;(walk-ind))
+    :table (walk-dict f form)
+    :struct (table/to-struct (walk-dict f form))
+    :array (walk-ind f form)
+    :tuple (tuple/slice (walk-ind f form))
     form))
+
+(put _env 'walk-ind nil)
+(put _env 'walk-dict nil)
 
 (defn post-walk
   "Do a post-order traversal of a data sructure and call (f x)

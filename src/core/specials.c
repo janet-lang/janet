@@ -253,6 +253,8 @@ static int varleaf(
         const uint8_t *sym,
         JanetSlot s,
         JanetTable *attr) {
+    if (sym[0] == ':')
+        janetc_cerror(c, "cannot create binding to keyword symbol");
     if (c->scope->flags & JANET_SCOPE_TOP) {
         /* Global var, generate var */
         JanetSlot refslot;
@@ -287,6 +289,8 @@ static int defleaf(
         const uint8_t *sym,
         JanetSlot s,
         JanetTable *attr) {
+    if (sym[0] == ':')
+        janetc_cerror(c, "cannot create binding to keyword symbol");
     if (c->scope->flags & JANET_SCOPE_TOP) {
         JanetTable *tab = janet_table(2);
         janet_table_put(tab, janet_csymbolv(":source-map"),

@@ -53,4 +53,21 @@
 
 (assert (= var-b "hello") "regression 1")
 
+# Some macros
+
+(assert (= 2 (if-not 1 3 2)) "if-not 1")
+(assert (= 3 (if-not false 3)) "if-not 2")
+(assert (= 3 (if-not nil 3 2)) "if-not 3")
+(assert (= nil (if-not true 3)) "if-not 4")
+
+(assert (= 4 (unless false (+ 1 2 3) 4)) "unless")
+
+(def res @{})
+(loop [[k v] :pairs @{1 2 3 4 5 6}]
+  (put res k v))
+(assert (and
+          (= (get res 1) 2)
+          (= (get res 3) 4)
+          (= (get res 5) 6)) "loop :pairs")
+
 (end-suite)
