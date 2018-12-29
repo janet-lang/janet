@@ -77,15 +77,6 @@ struct Mant {
     uint32_t *digits; /* Each digit is base (2 ^ 31). Digits are least significant first. */
 };
 
-/* Print number */
-static void mant_debug(struct Mant *mant) {
-    printf("<bigint: 0x%x", mant->first_digit);
-    for (int i = 0; i < mant->n; i++) {
-        printf(" 0x%x", mant->digits[i]);
-    }
-    printf(">\n");
-}
-
 /* Allocate n more digits for mant. Return a pointer to these digits. */
 static uint32_t *mant_extra(struct Mant *mant, int32_t n) {
     int32_t oldn = mant->n;
@@ -206,15 +197,21 @@ static double mant_extract(struct Mant *mant, int32_t exponent2) {
         uint64_t d3 = (n > 2) ? mant->digits[n - 3] : (n == 2) ? mant->first_digit : 0;
         int lz = clz(d1);
         int nbits = 32 - lz;
-        top53 = (d2 << (53 - MANT_NBIT)) + (d3 >> (2 * MANT_NBIT - 53));
+        top53 = (d2 << (54 - MANT_NBIT)) + (d3 >> (2 * MANT_NBIT - 54));
         top53 >>= nbits;
-        top53 |= (d1 << (53 - nbits));
+        top53 |= (d1 << (54 - nbits));
+        if (top53 & 1) top53++;
+        top53 >>= 1;
+        if (top53 > 0x1FffffFFFFffffUL) {
+            top53 >>= 1;
+            exponent2++;
+        }
         exponent2 += (nbits - 53) + MANT_NBIT * n;
     } else {
         /* One digit */
         top53 = mant->first_digit;
     }
-    return ldexp((double) top53, exponent2);
+    return ldexp(top53, exponent2);
 }
 
 /* Read in a mantissa and exponent of a certain base, and give
@@ -231,7 +228,7 @@ static double convert(
     /* Short circuit zero and huge numbers */
     if (mant->n == 0 && mant->first_digit == 0)
         return 0.0;
-    if (exponent > 1022)
+    if (exponent > 1023)
         return negative ? -INFINITY : INFINITY;
 
     /* Final value is X = mant * base ^ exponent * 2 ^ exponent2
@@ -246,12 +243,8 @@ static double convert(
     /* Negative exponents are tricky - we don't want to loose bits
      * from integer division, so we need to premultiply. */
     if (exponent < 0) {
-        mant_lshift_n(mant, 10 - exponent);
-        exponent2 -= (10 - exponent) * MANT_NBIT;
-        while (exponent < -3) {
-            mant_div(mant, (base * base) * (base * base));
-            exponent += 4;
-        }
+        mant_lshift_n(mant, 20 - exponent);
+        exponent2 -= (20 - exponent) * MANT_NBIT;
         while (exponent < 0) {
             mant_div(mant, base);
             exponent++;
@@ -381,6 +374,7 @@ double janet_scan_number(
 
     double result = convert(neg, &mant, base, ex);
     free(mant.digits);
+    *err = 0;
     return result;
 
     error:
