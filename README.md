@@ -163,4 +163,5 @@ See the examples directory for some example janet code.
 ## Why Janet
 
 Janet is named after the omniscient and friendly artificial being in [The Good Place](https://en.wikipedia.org/wiki/The_Good_Place).
-![Janet](https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-the-good-place.gif)
+
+<img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-the-good-place.gif" alt="Janet logo" width=200 align="left">
