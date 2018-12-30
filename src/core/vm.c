@@ -988,6 +988,10 @@ JanetSignal janet_call(
         JanetFiber **f) {
     JanetFiber *fiber = janet_fiber_n(fun, 64, argv, argn);
     if (f) *f = fiber;
+    if (!fiber) {
+        *out = janet_cstringv("arity mismatch");
+        return JANET_SIGNAL_ERROR;
+    }
     return janet_continue(fiber, janet_wrap_nil(), out);
 }
 

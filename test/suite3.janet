@@ -70,4 +70,8 @@
           (= (get res 3) 4)
           (= (get res 5) 6)) "loop :pairs")
 
+# Another regression test - no segfaults
+(defn afn [x] x)
+(assert (= 1 (try (afn) ([err] 1))) "calling function with wrong arity does not segfault.")
+
 (end-suite)

@@ -50,8 +50,7 @@ static JanetFiber *make_fiber(int32_t capacity) {
 /* Initialize a new fiber */
 JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity) {
     JanetFiber *fiber = make_fiber(capacity);
-    if (janet_fiber_funcframe(fiber, callee))
-        janet_fiber_set_status(fiber, JANET_STATUS_ERROR);
+    if (janet_fiber_funcframe(fiber, callee)) return NULL;
     return fiber;
 }
 
@@ -65,8 +64,7 @@ JanetFiber *janet_fiber_n(JanetFunction *callee, int32_t capacity, const Janet *
     }
     memcpy(fiber->data + fiber->stacktop, argv, argn * sizeof(Janet));
     fiber->stacktop = newstacktop;
-    if (janet_fiber_funcframe(fiber, callee))
-        janet_fiber_set_status(fiber, JANET_STATUS_ERROR);
+    if (janet_fiber_funcframe(fiber, callee)) return NULL;
     return fiber;
 }
 
@@ -132,6 +130,13 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     int32_t nextstacktop = nextframe + func->def->slotcount + JANET_FRAME_SIZE;
     int32_t next_arity = fiber->stacktop - fiber->stackstart;
 
+    /* Check strict arity before messing with state */
+    if (func->def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
+        if (func->def->arity != next_arity) {
+            return 1;
+        }
+    }
+
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);
     }
@@ -163,13 +168,6 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
         }
     }
 
-    /* Check strict arity AFTER getting fiber to valid state. */
-    if (func->def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
-        if (func->def->arity != next_arity) {
-            return 1;
-        }
-    }
-
     /* Good return */
     return 0;
 }
@@ -197,6 +195,13 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
     int32_t nextstacktop = nextframetop + JANET_FRAME_SIZE;
     int32_t next_arity = fiber->stacktop - fiber->stackstart;
     int32_t stacksize;
+
+    /* Check strict arity before messing with state */
+    if (func->def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
+        if (func->def->arity != next_arity) {
+            return 1;
+        }
+    }
 
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);
@@ -240,13 +245,6 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
     janet_fiber_frame(fiber)->func = func;
     janet_fiber_frame(fiber)->pc = func->def->bytecode;
     janet_fiber_frame(fiber)->flags |= JANET_STACKFRAME_TAILCALL;
-
-    /* Check strict arity AFTER getting fiber to valid state. */
-    if (func->def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
-        if (func->def->arity != next_arity) {
-            return 1;
-        }
-    }
 
     /* Good return */
     return 0;
