@@ -51,7 +51,7 @@
 
   (when (or *should-repl* *no-file*)
     (if *raw-stdin*
-      (repl nil identity)
+      (repl nil (fn [x &] x))
       (do
         (print (string "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2018 Calvin Rose"))
         (repl (fn [buf p]

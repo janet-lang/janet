@@ -195,6 +195,11 @@ recur:
     if (janet_gc_reachable(fiber))
         return;
     janet_gc_mark(fiber);
+
+    /* Mark values on the argument stack */
+    janet_mark_many(fiber->data + fiber->stackstart,
+            fiber->stacktop - fiber->stackstart);
+
     i = fiber->frame;
     j = fiber->stackstart - JANET_FRAME_SIZE;
     while (i > 0) {
