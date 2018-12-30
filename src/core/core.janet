@@ -854,16 +854,16 @@
 (put _env 'walk-ind nil)
 (put _env 'walk-dict nil)
 
-(defn post-walk
-  "Do a post-order traversal of a data sructure and call (f x)
+(defn postwalk
+  "Do a postorder traversal of a data sructure and call (f x)
   on every visitation."
   [f form]
-  (f (walk (fn [x] (post-walk f x)) form)))
+  (f (walk (fn [x] (postwalk f x)) form)))
 
-(defn pre-walk
-  "Similar to post-walk, but do pre-order traversal."
+(defn prewalk
+  "Similar to postwalk, but do preorder traversal."
   [f form]
-  (walk (fn [x] (pre-walk f x)) (f form)))
+  (walk (fn [x] (prewalk f x)) (f form)))
 
 (defmacro as->
   "Thread forms together, replacing as in forms with the value
@@ -873,7 +873,7 @@
   (var prev x)
   (loop [form :in forms]
     (def sym (gensym))
-    (def next-prev (post-walk (fn [y] (if (= y as) sym y)) form))
+    (def next-prev (postwalk (fn [y] (if (= y as) sym y)) form))
     (set prev ~(let [,sym ,prev] ,next-prev)))
   prev)
 
@@ -886,7 +886,7 @@
   (var prev x)
   (loop [form :in forms]
     (def sym (gensym))
-    (def next-prev (post-walk (fn [y] (if (= y as) sym y)) form))
+    (def next-prev (postwalk (fn [y] (if (= y as) sym y)) form))
     (set prev ~(if-let [,sym ,prev] ,next-prev)))
   prev)
 
