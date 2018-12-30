@@ -72,6 +72,10 @@
 
 # Another regression test - no segfaults
 (defn afn [x] x)
-(assert (= 1 (try (afn) ([err] 1))) "calling function with wrong arity does not segfault.")
+(assert (= 1 (try (afn) ([err] 1))) "bad arity 1")
+(assert (= 4 (try ((fn [x y] (+ x y)) 1) ([_] 4))) "bad arity 2")
+(assert (= 1 (try (identity) ([err] 1))) "bad arity 3")
+(assert (= 1 (try (map) ([err] 1))) "bad arity 4")
+(assert (= 1 (try (not) ([err] 1))) "bad arity 5")
 
 (end-suite)
