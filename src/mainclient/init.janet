@@ -30,7 +30,7 @@
      "-" (fn [&] (set *handleopts* false) 1)
      "e" (fn [i &]
            (set *no-file* false)
-           (eval (get process/args (+ i 1)))
+           (eval-string (get process/args (+ i 1)))
            2)})
 
   (defn- dohandler [n i &]
