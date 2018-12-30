@@ -21,6 +21,7 @@
 */
 
 #include <janet/janet.h>
+#include <inttypes.h>
 #include "util.h"
 #include "state.h"
 #include "gc.h"
@@ -435,4 +436,44 @@ int janet_checkint64(Janet x) {
         return 0;
     double dval = janet_unwrap_number(x);
     return janet_checkint64range(dval);
+}
+
+/* Useful for inspecting values while debugging */
+void janet_inspect(Janet x) {
+    printf("<type=%s, ", janet_type_names[janet_type(x)]);
+
+#ifdef JANET_BIG_ENDIAN
+    printf("be ");
+#else
+    printf("le ");
+#endif
+
+#ifdef JANET_NANBOX_64
+    printf("nanbox64 raw=0x%.16" PRIx64 ", ", x.u64);
+#endif
+
+#ifdef JANET_NANBOX_32
+    printf("nanbox32 type=0x%.8" PRIx32 ", ", x.tagged.type);
+    printf("payload=%" PRId32 ", ", x.tagged.payload.integer);
+#endif
+
+    switch (janet_type(x)) {
+        case JANET_NIL:
+            printf("value=nil");
+            break;
+        case JANET_NUMBER:
+            printf("number=%.17g", janet_unwrap_number(x));
+            break;
+        case JANET_TRUE:
+            printf("value=true");
+            break;
+        case JANET_FALSE:
+            printf("value=false");
+            break;
+        default:
+            printf("pointer=%p", janet_unwrap_pointer(x));
+            break;
+    }
+
+    printf(">\n");
 }

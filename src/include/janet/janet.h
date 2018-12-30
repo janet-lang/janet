@@ -456,7 +456,9 @@ union Janet {
 
 #define janet_u64(x) ((x).u64)
 #define janet_type(x) (((x).tagged.type < JANET_DOUBLE_OFFSET) ? (x).tagged.type : JANET_NUMBER)
-#define janet_checktype(x, t) ((x).tagged.type == (t))
+#define janet_checktype(x, t) ((t) == JANET_NUMBER \
+        ? (x).tagged.type >= JANET_DOUBLE_OFFSET \
+        : (x).tagged.type == (t))
 #define janet_truthy(x) ((x).tagged.type != JANET_NIL && (x).tagged.type != JANET_FALSE)
 
 JANET_API Janet janet_wrap_number(double x);
@@ -1077,6 +1079,7 @@ JANET_API int janet_getindex(Janet ds, int32_t index, Janet *out);
 JANET_API int janet_length(Janet x, int32_t *out);
 JANET_API int janet_put(Janet ds, Janet key, Janet value);
 JANET_API int janet_putindex(Janet ds, int32_t index, Janet value);
+JANET_API void janet_inspect(Janet x);
 
 /* VM functions */
 JANET_API int janet_init(void);
