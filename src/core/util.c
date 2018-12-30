@@ -35,11 +35,11 @@ const char janet_base64[65] =
 /* The JANET value types in order. These types can be used as
  * mnemonics instead of a bit pattern for type checking */
 const char *const janet_type_names[15] = {
+    ":number",
     ":nil",
     ":boolean",
     ":boolean",
     ":fiber",
-    ":number",
     ":string",
     ":symbol",
     ":array",

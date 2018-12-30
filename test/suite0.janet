@@ -37,9 +37,9 @@
 (assert (= 7 (% 20 13)) "modulo 1")
 (assert (= -7 (% -20 13)) "modulo 2")
 
-(assert (order< nil false true
+(assert (order< 1.0 nil false true
                 (fiber/new (fn [] 1))
-                1.0 "hi"
+                "hi"
                 (quote hello)
                 (array 1 2 3)
                 (tuple 1 2 3)

@@ -61,12 +61,12 @@ const char *mr_strings[] = {
 
 /* Lead bytes in marshaling protocol */
 enum {
-    LB_NIL = 200,
+    LB_REAL = 200,
+    LB_NIL,
     LB_FALSE,
     LB_TRUE,
     LB_FIBER,
     LB_INTEGER,
-    LB_REAL,
     LB_STRING,
     LB_SYMBOL,
     LB_ARRAY,

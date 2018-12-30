@@ -229,7 +229,7 @@ static double convert(
 
     /* Short circuit zero and huge numbers */
     if (mant->n == 0 && mant->first_digit == 0)
-        return 0.0;
+        return negative ? -0.0 : 0.0;
     if (exponent > 1023)
         return negative ? -INFINITY : INFINITY;
 

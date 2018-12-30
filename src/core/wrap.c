@@ -22,6 +22,26 @@
 
 #include <janet/janet.h>
 
+void *janet_memalloc_empty(int32_t count) {
+    int32_t i;
+    void *mem = malloc(count * sizeof(JanetKV));
+    JanetKV *mmem = (JanetKV *)mem;
+    for (i = 0; i < count; i++) {
+        JanetKV *kv = mmem + i;
+        kv->key = janet_wrap_nil();
+        kv->value = janet_wrap_nil();
+    }
+    return mem;
+}
+
+void janet_memempty(JanetKV *mem, int32_t count) {
+    int32_t i;
+    for (i = 0; i < count; i++) {
+        mem[i].key = janet_wrap_nil();
+        mem[i].value = janet_wrap_nil();
+    }
+}
+
 #ifdef JANET_NANBOX_64
 
 void *janet_nanbox_to_pointer(Janet x) {
@@ -46,9 +66,6 @@ Janet janet_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
 Janet janet_nanbox_from_double(double d) {
     Janet ret;
     ret.number = d;
-    /* Normalize NaNs */
-    if (d != d)
-        ret.u64 = janet_nanbox_tag(JANET_NUMBER);
     return ret;
 }
 
@@ -56,26 +73,6 @@ Janet janet_nanbox_from_bits(uint64_t bits) {
     Janet ret;
     ret.u64 = bits;
     return ret;
-}
-
-void *janet_nanbox_memalloc_empty(int32_t count) {
-    int32_t i;
-    void *mem = malloc(count * sizeof(JanetKV));
-    JanetKV *mmem = (JanetKV *)mem;
-    for (i = 0; i < count; i++) {
-        JanetKV *kv = mmem + i;
-        kv->key = janet_wrap_nil();
-        kv->value = janet_wrap_nil();
-    }
-    return mem;
-}
-
-void janet_nanbox_memempty(JanetKV *mem, int32_t count) {
-    int32_t i;
-    for (i = 0; i < count; i++) {
-        mem[i].key = janet_wrap_nil();
-        mem[i].value = janet_wrap_nil();
-    }
 }
 
 #elif defined(JANET_NANBOX_32)

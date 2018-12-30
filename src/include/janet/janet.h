@@ -274,11 +274,11 @@ typedef int (*JanetCFunction)(JanetArgs args);
 
 /* Basic types for all Janet Values */
 typedef enum JanetType {
+    JANET_NUMBER,
     JANET_NIL,
     JANET_FALSE,
     JANET_TRUE,
     JANET_FIBER,
-    JANET_NUMBER,
     JANET_STRING,
     JANET_SYMBOL,
     JANET_ARRAY,
@@ -372,15 +372,10 @@ union Janet {
         : janet_nanbox_checkauxtype((x), (t)))
 
 JANET_API void *janet_nanbox_to_pointer(Janet x);
-JANET_API void janet_nanbox_memempty(JanetKV *mem, int32_t count);
-JANET_API void *janet_nanbox_memalloc_empty(int32_t count);
 JANET_API Janet janet_nanbox_from_pointer(void *p, uint64_t tagmask);
 JANET_API Janet janet_nanbox_from_cpointer(const void *p, uint64_t tagmask);
 JANET_API Janet janet_nanbox_from_double(double d);
 JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
-
-#define janet_memempty(mem, len) janet_nanbox_memempty((mem), (len))
-#define janet_memalloc_empty(count) janet_nanbox_memalloc_empty(count)
 
 /* Todo - check for single mask operation */
 #define janet_truthy(x) \
@@ -462,8 +457,6 @@ union Janet {
 #define janet_u64(x) ((x).u64)
 #define janet_type(x) (((x).tagged.type < JANET_DOUBLE_OFFSET) ? (x).tagged.type : JANET_NUMBER)
 #define janet_checktype(x, t) ((x).tagged.type == (t))
-#define janet_memempty(mem, count) memset((mem), 0, sizeof(JanetKV) * (count))
-#define janet_memalloc_empty(count) calloc((count), sizeof(JanetKV))
 #define janet_truthy(x) ((x).tagged.type != JANET_NIL && (x).tagged.type != JANET_FALSE)
 
 JANET_API Janet janet_wrap_number(double x);
@@ -518,8 +511,6 @@ struct Janet {
 };
 
 #define janet_u64(x) ((x).as.u64)
-#define janet_memempty(mem, count) memset((mem), 0, sizeof(JanetKV) * (count))
-#define janet_memalloc_empty(count) calloc((count), sizeof(JanetKV))
 #define janet_type(x) ((x).type)
 #define janet_checktype(x, t) ((x).type == (t))
 #define janet_truthy(x) \
