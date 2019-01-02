@@ -272,6 +272,11 @@ double janet_scan_number(
     if (str + 1 < end && str[0] == '0' && str[1] == 'x') {
         base = 16;
         str += 2;
+    } else if (str + 1 < end  &&
+            str[0] >= '0' && str[0] <= '9' &&
+            str[1] == 'r') {
+        base = str[0] - '0';
+        str += 2;
     } else if (str + 2 < end  &&
             str[0] >= '0' && str[0] <= '9' &&
             str[1] >= '0' && str[1] <= '9' &&

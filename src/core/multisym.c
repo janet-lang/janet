@@ -30,7 +30,16 @@ static JanetSlot multisym_parse_part(JanetCompiler *c, const uint8_t *sympart, i
     if (sympart[0] == ':') {
         return janetc_cslot(janet_symbolv(sympart, len));
     } else {
-        return janetc_resolve(c, janet_symbol(sympart + 1, len - 1));
+        double index;
+        int err;
+        index = janet_scan_number(sympart + 1, len - 1, &err);
+        if (err) {
+            /* not a number */
+            return janetc_resolve(c, janet_symbol(sympart + 1, len - 1));
+        } else {
+            /* is a number */
+            return janetc_cslot(janet_wrap_number(index));
+        }
     }
 }
 
