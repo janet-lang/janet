@@ -104,7 +104,8 @@ static void bignat_append(struct BigNat *mant, uint32_t dig) {
 }
 
 /* Multiply the mantissa mant by a factor and the add a term
- * in one operation. Both factor and term will be between 2 and 36. */
+ * in one operation. factor will be between 2 and 36^4, 
+ * term will be between 0 and 36. */
 static void bignat_muladd(struct BigNat *mant, uint32_t factor, uint32_t term) {
     int32_t i;
     uint64_t carry = ((uint64_t) mant->first_digit) * factor + term;
@@ -215,10 +216,9 @@ static double convert(
      * Get exponent to zero while holding X constant. */
 
     /* Positive exponents are simple */
-    while (exponent > 0) {
-        bignat_muladd(mant, base, 0);
-        exponent--;
-    }
+    for (;exponent > 3; exponent -= 4) bignat_muladd(mant, base * base * base * base, 0);
+    for (;exponent > 1; exponent -= 2) bignat_muladd(mant, base * base, 0);
+    for (;exponent > 0; exponent -= 1) bignat_muladd(mant, base, 0);
 
     /* Negative exponents are tricky - we don't want to loose bits
      * from integer division, so we need to premultiply. */
@@ -226,10 +226,9 @@ static double convert(
         int32_t shamt = 5 - exponent / 4;
         bignat_lshift_n(mant, shamt);
         exponent2 -= shamt * BIGNAT_NBIT;
-        while (exponent < 0) {
-            bignat_div(mant, base);
-            exponent++;
-        }
+        for (;exponent < -3; exponent += 4) bignat_div(mant, base * base * base * base);
+        for (;exponent < -2; exponent += 2) bignat_div(mant, base * base);
+        for (;exponent <  0; exponent += 1) bignat_div(mant, base);
     }
 
     return negative

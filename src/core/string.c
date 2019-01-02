@@ -164,7 +164,7 @@ static void integer_to_string_b(JanetBuffer *buffer, int32_t x) {
 #define HEX(i) (((uint8_t *) janet_base64)[(i)])
 
 /* Returns a string description for a pointer. Truncates
- * title to 12 characters */
+ * title to 32 characters */
 static int32_t string_description_impl(uint8_t *buf, const char *title, void *pointer) {
     uint8_t *c = buf;
     int32_t i;
@@ -607,7 +607,7 @@ JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x) {
 }
 
 /* Helper function for formatting strings. Useful for generating error messages and the like.
- * Similiar to printf, but specialized for operating with janet. */
+ * Similar to printf, but specialized for operating with janet. */
 const uint8_t *janet_formatc(const char *format, ...) {
     va_list args;
     int32_t len = 0;
@@ -1246,7 +1246,7 @@ static const JanetReg cfuns[] = {
     },
     {"string/replace", cfun_replace,
         "(string/replace patt subst str)\n\n"
-        "Replace the first occurrence of patt with subst in the the string str. "
+        "Replace the first occurrence of patt with subst in the string str. "
         "Will return the new string if patt is found, otherwise returns str."
     },
     {"string/replace-all", cfun_replaceall,
@@ -1287,7 +1287,7 @@ static const JanetReg cfuns[] = {
     },
     {"string/pretty", cfun_pretty,
         "(string/pretty x [,depth=4 [,buffer=@\"\"]])\n\n"
-        "Pretty prints a value to a buffer. Optionally allwos setting max "
+        "Pretty prints a value to a buffer. Optionally allows setting max "
         "recursion depth, as well as writing to a buffer. Returns the buffer."
     },
     {NULL, NULL, NULL}
