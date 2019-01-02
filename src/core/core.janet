@@ -652,6 +652,11 @@
     (array/concat res (f x)))
   res)
 
+(defmacro with-syms
+  "Evaluates body with each symbol in syms bound to a generated, unique symbol."
+  [syms & body]
+  ~(let ,(mapcat (fn [s] @[s (tuple gensym)]) syms) ,;body))
+
 (defn filter
   "Given a predicate, take only elements from an array or tuple for
   which (pred element) is truthy. Returns a new array."

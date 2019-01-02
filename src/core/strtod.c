@@ -103,33 +103,11 @@ static void bignat_append(struct BigNat *mant, uint32_t dig) {
     bignat_extra(mant, 1)[0] = dig;
 }
 
-/* Add term to mant */
-static void bignat_add(struct BigNat *mant, uint32_t dig) {
+/* Multiply the mantissa mant by a factor and the add a term
+ * in one operation. Both factor and term will be between 2 and 36. */
+static void bignat_muladd(struct BigNat *mant, uint32_t factor, uint32_t term) {
     int32_t i;
-    int carry = 0;
-    uint32_t next = mant->first_digit + dig;
-    if (next >= BIGNAT_BASE) {
-        next -= BIGNAT_BASE;
-        carry = 1;
-    }
-    mant->first_digit = next;
-    for (i = 0; i < mant->n; i++) {
-        if (!carry) return;
-        uint32_t next = mant->digits[i] + 1;
-        if (next >= BIGNAT_BASE) {
-            next = 0;
-        } else {
-            carry = 0;
-        }
-        mant->digits[i] = next;
-    }
-    if (carry) bignat_append(mant, 1);
-}
-
-/* Multiply the mantissa mant by a factor */
-static void bignat_mul(struct BigNat *mant, uint32_t factor) {
-    int32_t i;
-    uint64_t carry = ((uint64_t) mant->first_digit) * factor;
+    uint64_t carry = ((uint64_t) mant->first_digit) * factor + term;
     mant->first_digit = carry % BIGNAT_BASE;
     carry /= BIGNAT_BASE;
     for (i = 0; i < mant->n; i++) {
@@ -238,7 +216,7 @@ static double convert(
 
     /* Positive exponents are simple */
     while (exponent > 0) {
-        bignat_mul(mant, base);
+        bignat_muladd(mant, base, 0);
         exponent--;
     }
 
@@ -331,8 +309,7 @@ double janet_scan_number(
             int digit = digit_lookup[*str & 0x7F];
             if (*str > 127 || digit >= base) goto error;
             if (seenpoint) ex--;
-            bignat_mul(&mant, base);
-            bignat_add(&mant, digit);
+            bignat_muladd(&mant, base, digit);
             seenadigit = 1;
         }
         str++;
