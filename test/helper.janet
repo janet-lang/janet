@@ -3,20 +3,29 @@
 (var num-tests-passed 0)
 (var num-tests-run 0)
 (var suite-num 0)
+(var numchecks 0)
 
 (defn assert [x e]
  (++ num-tests-run)
  (when x (++ num-tests-passed))
- (print (if x 
-         "  \e[32m✔\e[0m "
-         "  \e[31m✘\e[0m ") e)
+ (if x
+   (do
+     (when (= numchecks 25)
+       (set numchecks 0)
+       (print))
+     (++ numchecks)
+     (file/write stdout "\e[32m✔\e[0m"))
+   (do
+     (file/write stdout "\n\e[31m✘\e[0m  ") 
+     (set numchecks 0)
+     (print e)))
  x)
 
 (defn start-suite [x]
  (set suite-num x)
- (print "\nRunning test suite " x " tests...\n"))
+ (print "\nRunning test suite " x " tests...\n  "))
 
 (defn end-suite []
- (print "\nTest suite " suite-num " finished.")
+ (print "\n\nTest suite " suite-num " finished.")
  (print num-tests-passed " of " num-tests-run " tests passed.\n")
  (if (not= num-tests-passed num-tests-run) (os/exit 1)))
