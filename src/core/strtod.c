@@ -308,8 +308,9 @@ int janet_scan_number(
         } else if (base == 10 && (*str == 'E' || *str == 'e')) {
             foundexp = 1;
             break;
-        } else if (*str != '_') {
-            /* underscores are ignored - can be used for separator */
+        } else if (*str == '_') {
+            if (!seenadigit) goto error;
+        } else {
             int digit = digit_lookup[*str & 0x7F];
             if (*str > 127 || digit >= base) goto error;
             if (seenpoint) ex--;
@@ -342,10 +343,6 @@ int janet_scan_number(
         }
         while (str < end && ee < (INT32_MAX / 40)) {
             int digit = digit_lookup[*str & 0x7F];
-            if (*str == '_') {
-                str++;
-                continue;
-            }
             if (*str > 127 || digit >= base) goto error;
             ee = base * ee + digit;
             str++;
