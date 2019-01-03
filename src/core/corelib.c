@@ -137,6 +137,21 @@ static int janet_core_symbol(JanetArgs args) {
     return 0;
 }
 
+static int janet_core_keyword(JanetArgs args) {
+    int32_t i;
+    JanetBuffer b;
+    janet_buffer_init(&b, 0);
+    for (i = 0; i < args.n; ++i) {
+        int32_t len;
+        const uint8_t *str = janet_to_string(args.v[i]);
+        len = janet_string_length(str);
+        janet_buffer_push_bytes(&b, str, len);
+    }
+    *args.ret = janet_keywordv(b.data, b.count);
+    janet_buffer_deinit(&b);
+    return 0;
+}
+
 static int janet_core_buffer(JanetArgs args) {
     int32_t i;
     JanetBuffer *b = janet_buffer(0);
@@ -157,12 +172,10 @@ static int janet_core_is_abstract(JanetArgs args) {
 static int janet_core_scannumber(JanetArgs args) {
     const uint8_t *data;
     double val;
-    int status = 0;
     int32_t len;
     JANET_FIXARITY(args, 1);
     JANET_ARG_BYTES(data, len, args, 0);
-    val = janet_scan_number(data, len, &status);
-    if (status)
+    if (janet_scan_number(data, len, &val))
         JANET_THROW(args, "failed to scan number");
     JANET_RETURN_NUMBER(args, val);
 }
@@ -230,9 +243,9 @@ static int janet_core_type(JanetArgs args) {
     JANET_FIXARITY(args, 1);
     JanetType t = janet_type(args.v[0]);
     if (t == JANET_ABSTRACT) {
-        JANET_RETURN(args, janet_csymbolv(janet_abstract_type(janet_unwrap_abstract(args.v[0]))->name));
+        JANET_RETURN(args, janet_ckeywordv(janet_abstract_type(janet_unwrap_abstract(args.v[0]))->name));
     } else {
-        JANET_RETURN(args, janet_csymbolv(janet_type_names[t]));
+        JANET_RETURN(args, janet_ckeywordv(janet_type_names[t]));
     }
 }
 
@@ -295,6 +308,12 @@ static const JanetReg cfuns[] = {
         "Creates a symbol by concatenating values together. Values are "
         "converted to bytes via describe if they are not byte sequences. Returns "
         "the new symbol."
+    },
+    {"keyword", janet_core_keyword,
+        "(keyword & xs)\n\n"
+        "Creates a keyword by concatenating values together. Values are "
+        "converted to bytes via describe if they are not byte sequences. Returns "
+        "the new keyword."
     },
     {"buffer", janet_core_buffer,
         "(buffer & xs)\n\n"

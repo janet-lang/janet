@@ -184,42 +184,42 @@ static Janet doframe(JanetStackFrame *frame) {
     JanetTable *t = janet_table(3);
     JanetFuncDef *def = NULL;
     if (frame->func) {
-        janet_table_put(t, janet_csymbolv(":function"), janet_wrap_function(frame->func));
+        janet_table_put(t, janet_ckeywordv("function"), janet_wrap_function(frame->func));
         def = frame->func->def;
         if (def->name) {
-            janet_table_put(t, janet_csymbolv(":name"), janet_wrap_string(def->name));
+            janet_table_put(t, janet_ckeywordv("name"), janet_wrap_string(def->name));
         }
     } else {
         JanetCFunction cfun = (JanetCFunction)(frame->pc);
         if (cfun) {
             Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
             if (!janet_checktype(name, JANET_NIL)) {
-                janet_table_put(t, janet_csymbolv(":name"), name);
+                janet_table_put(t, janet_ckeywordv("name"), name);
             }
         }
-        janet_table_put(t, janet_csymbolv(":c"), janet_wrap_true());
+        janet_table_put(t, janet_ckeywordv("c"), janet_wrap_true());
     }
     if (frame->flags & JANET_STACKFRAME_TAILCALL) {
-        janet_table_put(t, janet_csymbolv(":tail"), janet_wrap_true());
+        janet_table_put(t, janet_ckeywordv("tail"), janet_wrap_true());
     }
     if (frame->func && frame->pc) {
         Janet *stack = (Janet *)frame + JANET_FRAME_SIZE;
         JanetArray *slots;
         off = (int32_t) (frame->pc - def->bytecode);
-        janet_table_put(t, janet_csymbolv(":pc"), janet_wrap_integer(off));
+        janet_table_put(t, janet_ckeywordv("pc"), janet_wrap_integer(off));
         if (def->sourcemap) {
             JanetSourceMapping mapping = def->sourcemap[off];
-            janet_table_put(t, janet_csymbolv(":source-start"), janet_wrap_integer(mapping.start));
-            janet_table_put(t, janet_csymbolv(":source-end"), janet_wrap_integer(mapping.end));
+            janet_table_put(t, janet_ckeywordv("source-start"), janet_wrap_integer(mapping.start));
+            janet_table_put(t, janet_ckeywordv("source-end"), janet_wrap_integer(mapping.end));
         }
         if (def->source) {
-            janet_table_put(t, janet_csymbolv(":source"), janet_wrap_string(def->source));
+            janet_table_put(t, janet_ckeywordv("source"), janet_wrap_string(def->source));
         }
         /* Add stack arguments */
         slots = janet_array(def->slotcount);
         memcpy(slots->data, stack, sizeof(Janet) * def->slotcount);
         slots->count = def->slotcount;
-        janet_table_put(t, janet_csymbolv(":slots"), janet_wrap_array(slots));
+        janet_table_put(t, janet_ckeywordv("slots"), janet_wrap_array(slots));
     }
     return janet_wrap_table(t);
 }

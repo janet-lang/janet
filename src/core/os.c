@@ -42,13 +42,13 @@
 
 static int os_which(JanetArgs args) {
     #ifdef JANET_WINDOWS
-        JANET_RETURN_CSYMBOL(args, ":windows");
+        JANET_RETURN_CKEYWORD(args, "windows");
     #elif __APPLE__
-        JANET_RETURN_CSYMBOL(args, ":macos");
+        JANET_RETURN_CKEYWORD(args, "macos");
     #elif defined(__EMSCRIPTEN__)
-        JANET_RETURN_CSYMBOL(args, ":web");
+        JANET_RETURN_CKEYWORD(args, "web");
     #else
-        JANET_RETURN_CSYMBOL(args, ":posix");
+        JANET_RETURN_CKEYWORD(args, "posix");
     #endif
 }
 

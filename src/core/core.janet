@@ -87,8 +87,7 @@
 (defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
 (defn string? "Check if x is a string." [x] (= (type x) :string))
 (defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
-(defn keyword? "Check if x is a keyword style symbol." [x]
-  (if (not= (type x) :symbol) nil (= 58 (get x 0))))
+(defn keyword? "Check if x is a keyword." [x] (= (type x) :keyword))
 (defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
 (defn function? "Check if x is a function (not a cfunction)." [x]
   (= (type x) :function))
@@ -100,7 +99,7 @@
 (defn boolean? "Check if x is a boolean." [x] (= (type x) :boolean))
 (defn bytes? "Check if x is a string, symbol, or buffer." [x]
   (def t (type x))
-  (if (= t :string) true (if (= t :symbol) true (= t :buffer))))
+  (if (= t :string) true (if (= t :symbol) true (if (= t :keyword) true (= t :buffer)))))
 (defn dictionary? "Check if x a table or struct." [x]
   (def t (type x))
   (if (= t :table) true (= t :struct)))

@@ -35,58 +35,59 @@ const char janet_base64[65] =
 
 /* The JANET value types in order. These types can be used as
  * mnemonics instead of a bit pattern for type checking */
-const char *const janet_type_names[15] = {
-    ":number",
-    ":nil",
-    ":boolean",
-    ":boolean",
-    ":fiber",
-    ":string",
-    ":symbol",
-    ":array",
-    ":tuple",
-    ":table",
-    ":struct",
-    ":buffer",
-    ":function",
-    ":cfunction",
-    ":abstract"
+const char *const janet_type_names[16] = {
+    "number",
+    "nil",
+    "boolean",
+    "boolean",
+    "fiber",
+    "string",
+    "symbol",
+    "keyword",
+    "array",
+    "tuple",
+    "table",
+    "struct",
+    "buffer",
+    "function",
+    "cfunction",
+    "abstract"
 };
 
 const char *const janet_signal_names[14] = {
-    ":ok",
-    ":error",
-    ":debug",
-    ":yield",
-    ":user0",
-    ":user1",
-    ":user2",
-    ":user3",
-    ":user4",
-    ":user5",
-    ":user6",
-    ":user7",
-    ":user8",
-    ":user9"
+    "ok",
+    "error",
+    "debug",
+    "yield",
+    "user0",
+    "user1",
+    "user2",
+    "user3",
+    "user4",
+    "user5",
+    "user6",
+    "user7",
+    "user8",
+    "user9"
 };
 
 const char *const janet_status_names[16] = {
-    ":dead",
-    ":error",
-    ":debug",
-    ":pending",
-    ":user0",
-    ":user1",
-    ":user2",
-    ":user3",
-    ":user4",
-    ":user5",
-    ":user6",
-    ":user7",
-    ":user8",
-    ":user9",
-    ":new",
-    ":alive"
+    "dead",
+    "error",
+    "debug",
+    "pending",
+    "user0",
+    "user1",
+    "user2",
+    "user3",
+    "user4",
+    "user5",
+    "user6",
+    "user7",
+    "user8",
+    "user9",
+    "new",
+    "alive"
 };
 
 /* Calculate hash for string */
@@ -239,9 +240,9 @@ void janet_register(const char *name, JanetCFunction cfun) {
 /* Add a def to an environment */
 void janet_def(JanetTable *env, const char *name, Janet val, const char *doc) {
     JanetTable *subt = janet_table(2);
-    janet_table_put(subt, janet_csymbolv(":value"), val);
+    janet_table_put(subt, janet_ckeywordv("value"), val);
     if (doc)
-        janet_table_put(subt, janet_csymbolv(":doc"), janet_cstringv(doc));
+        janet_table_put(subt, janet_ckeywordv("doc"), janet_cstringv(doc));
     janet_table_put(env, janet_csymbolv(name), janet_wrap_table(subt));
 }
 
@@ -250,9 +251,9 @@ void janet_var(JanetTable *env, const char *name, Janet val, const char *doc) {
     JanetArray *array = janet_array(1);
     JanetTable *subt = janet_table(2);
     janet_array_push(array, val);
-    janet_table_put(subt, janet_csymbolv(":ref"), janet_wrap_array(array));
+    janet_table_put(subt, janet_ckeywordv("ref"), janet_wrap_array(array));
     if (doc)
-        janet_table_put(subt, janet_csymbolv(":doc"), janet_cstringv(doc));
+        janet_table_put(subt, janet_ckeywordv("doc"), janet_cstringv(doc));
     janet_table_put(env, janet_csymbolv(name), janet_wrap_table(subt));
 }
 
@@ -269,7 +270,7 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
             uint8_t *longname_buffer =
                 janet_string_begin(reglen + 1 + nmlen);
             memcpy(longname_buffer, regprefix, reglen);
-            longname_buffer[reglen] = '.';
+            longname_buffer[reglen] = '/';
             memcpy(longname_buffer + reglen + 1, cfuns->name, nmlen);
             longname = janet_wrap_symbol(janet_string_end(longname_buffer));
         }
@@ -289,17 +290,17 @@ JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) 
         return JANET_BINDING_NONE;
     entry_table = janet_unwrap_table(entry);
     if (!janet_checktype(
-        janet_table_get(entry_table, janet_csymbolv(":macro")),
+        janet_table_get(entry_table, janet_ckeywordv("macro")),
         JANET_NIL)) {
-        *out = janet_table_get(entry_table, janet_csymbolv(":value"));
+        *out = janet_table_get(entry_table, janet_ckeywordv("value"));
         return JANET_BINDING_MACRO;
     }
-    ref = janet_table_get(entry_table, janet_csymbolv(":ref"));
+    ref = janet_table_get(entry_table, janet_ckeywordv("ref"));
     if (janet_checktype(ref, JANET_ARRAY)) {
         *out = ref;
         return JANET_BINDING_VAR;
     }
-    *out = janet_table_get(entry_table, janet_csymbolv(":value"));
+    *out = janet_table_get(entry_table, janet_ckeywordv("value"));
     return JANET_BINDING_DEF;
 }
 
@@ -333,7 +334,8 @@ int janet_indexed_view(Janet seq, const Janet **data, int32_t *len) {
 /* Read both strings and buffer as unsigned character array + int32_t len.
  * Returns 1 if the view can be constructed and 0 if the type is invalid. */
 int janet_bytes_view(Janet str, const uint8_t **data, int32_t *len) {
-    if (janet_checktype(str, JANET_STRING) || janet_checktype(str, JANET_SYMBOL)) {
+    if (janet_checktype(str, JANET_STRING) || janet_checktype(str, JANET_SYMBOL) ||
+            janet_checktype(str, JANET_KEYWORD)) {
         *data = janet_unwrap_string(str);
         *len = janet_string_length(janet_unwrap_string(str));
         return 1;

@@ -74,6 +74,7 @@ int32_t janet_hash(Janet x) {
         break;
     case JANET_STRING:
     case JANET_SYMBOL:
+    case JANET_KEYWORD:
         hash = janet_string_hash(janet_unwrap_string(x));
         break;
     case JANET_TUPLE:
@@ -127,6 +128,7 @@ int janet_compare(Janet x, Janet y) {
                 }
             case JANET_STRING:
             case JANET_SYMBOL:
+            case JANET_KEYWORD:
                 return janet_string_compare(janet_unwrap_string(x), janet_unwrap_string(y));
             case JANET_TUPLE:
                 return janet_tuple_compare(janet_unwrap_tuple(x), janet_unwrap_tuple(y));
@@ -198,6 +200,7 @@ int janet_get(Janet ds, Janet key, Janet *out) {
             }
         case JANET_STRING:
         case JANET_SYMBOL:
+        case JANET_KEYWORD:
             {
                 const uint8_t *str = janet_unwrap_string(ds);
                 int32_t index;
@@ -224,6 +227,7 @@ int janet_getindex(Janet ds, int32_t index, Janet *out) {
             return -1;
         case JANET_STRING:
         case JANET_SYMBOL:
+        case JANET_KEYWORD:
             if (index >= janet_string_length(janet_unwrap_string(ds))) {
                 value = janet_wrap_nil();
             } else {
@@ -269,6 +273,7 @@ int janet_length(Janet x, int32_t *out) {
             return -1;
         case JANET_STRING:
         case JANET_SYMBOL:
+        case JANET_KEYWORD:
             len = janet_string_length(janet_unwrap_string(x));
             break;
         case JANET_ARRAY:

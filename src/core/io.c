@@ -47,7 +47,7 @@ struct IOFile {
 static int janet_io_gc(void *p, size_t len);
 
 JanetAbstractType janet_io_filetype = {
-    ":core/file",
+    "core/file",
     janet_io_gc,
     NULL
 };
@@ -148,10 +148,6 @@ static int janet_io_popen(JanetArgs args) {
         fmode = (const uint8_t *)"r";
         modelen = 1;
     }
-    if (fmode[0] == ':') {
-        fmode++;
-        modelen--;
-    }
     if (modelen != 1 || !(fmode[0] == 'r' || fmode[0] == 'w')) {
         JANET_THROW(args, "invalid file mode");
     }
@@ -191,10 +187,6 @@ static int janet_io_fopen(JanetArgs args) {
         fmode = (const uint8_t *)"r";
         modelen = 1;
     }
-    if (fmode[0] == ':') {
-        fmode++;
-        modelen--;
-    }
     if ((flags = checkflags(fmode, modelen)) < 0) {
         JANET_THROW(args, "invalid file mode");
     }
@@ -226,9 +218,10 @@ static int janet_io_fread(JanetArgs args) {
         JANET_THROW(args, "file is closed");
     b = checkbuffer(args, 2, 1);
     if (!b) return 1;
-    if (janet_checktype(args.v[1], JANET_SYMBOL)) {
+    JANET_MINARITY(args, 2);
+    if (janet_checktype(args.v[1], JANET_KEYWORD)) {
         const uint8_t *sym = janet_unwrap_symbol(args.v[1]);
-        if (!janet_cstrcmp(sym, ":all")) {
+        if (!janet_cstrcmp(sym, "all")) {
             /* Read whole file */
             int status = fseek(iof->file, 0, SEEK_SET);
             if (status) {
@@ -247,7 +240,7 @@ static int janet_io_fread(JanetArgs args) {
                 const char *maybeErr = read_chunk(iof, b, (int32_t) fsize);;
                 if (maybeErr) JANET_THROW(args, maybeErr);
             }
-        } else if (!janet_cstrcmp(sym, ":line")) {
+        } else if (!janet_cstrcmp(sym, "line")) {
             for (;;) {
                 int x = fgetc(iof->file);
                 if (x != EOF && janet_buffer_push_u8(b, (uint8_t)x))
@@ -342,14 +335,14 @@ static int janet_io_fseek(JanetArgs args) {
         JANET_THROW(args, "file is closed");
     if (args.n >= 2) {
         const uint8_t *whence_sym;
-        if (!janet_checktype(args.v[1], JANET_SYMBOL))
-            JANET_THROW(args, "expected symbol");
+        if (!janet_checktype(args.v[1], JANET_KEYWORD))
+            JANET_THROW(args, "expected keyword");
         whence_sym = janet_unwrap_symbol(args.v[1]);
-        if (!janet_cstrcmp(whence_sym, ":cur")) {
+        if (!janet_cstrcmp(whence_sym, "cur")) {
             whence = SEEK_CUR;
-        } else if (!janet_cstrcmp(whence_sym, ":set")) {
+        } else if (!janet_cstrcmp(whence_sym, "set")) {
             whence = SEEK_SET;
-        } else if (!janet_cstrcmp(whence_sym, ":end")) {
+        } else if (!janet_cstrcmp(whence_sym, "end")) {
             whence = SEEK_END;
         } else {
             JANET_THROW(args, "expected one of :cur, :set, :end");

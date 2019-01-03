@@ -69,6 +69,7 @@ enum {
     LB_INTEGER,
     LB_STRING,
     LB_SYMBOL,
+    LB_KEYWORD,
     LB_ARRAY,
     LB_TUPLE,
     LB_TABLE,
@@ -87,16 +88,16 @@ enum {
 static Janet entry_getval(Janet env_entry) {
     if (janet_checktype(env_entry, JANET_TABLE)) {
         JanetTable *entry = janet_unwrap_table(env_entry);
-        Janet checkval = janet_table_get(entry, janet_csymbolv(":value"));
+        Janet checkval = janet_table_get(entry, janet_ckeywordv("value"));
         if (janet_checktype(checkval, JANET_NIL)) {
-            checkval = janet_table_get(entry, janet_csymbolv(":ref"));
+            checkval = janet_table_get(entry, janet_ckeywordv("ref"));
         }
         return checkval;
     } else if (janet_checktype(env_entry, JANET_STRUCT)) {
         const JanetKV *entry = janet_unwrap_struct(env_entry);
-        Janet checkval = janet_struct_get(entry, janet_csymbolv(":value"));
+        Janet checkval = janet_struct_get(entry, janet_ckeywordv("value"));
         if (janet_checktype(checkval, JANET_NIL)) {
-            checkval = janet_struct_get(entry, janet_csymbolv(":ref"));
+            checkval = janet_struct_get(entry, janet_ckeywordv("ref"));
         }
         return checkval;
     } else {
@@ -356,12 +357,15 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             goto done;
         case JANET_STRING:
         case JANET_SYMBOL:
+        case JANET_KEYWORD:
             {
                 const uint8_t *str = janet_unwrap_string(x);
                 int32_t length = janet_string_length(str);
                 /* Record reference */
                 MARK_SEEN();
-                uint8_t lb = (type == JANET_STRING) ? LB_STRING : LB_SYMBOL;
+                uint8_t lb = (type == JANET_STRING) ? LB_STRING :
+                    (type == JANET_SYMBOL) ? LB_SYMBOL :
+                    LB_KEYWORD;
                 pushbyte(st, lb);
                 pushint(st, length);
                 pushbytes(st, str, length);
@@ -949,6 +953,7 @@ static const uint8_t *unmarshal_one(
         case LB_STRING:
         case LB_SYMBOL:
         case LB_BUFFER:
+        case LB_KEYWORD:
         case LB_REGISTRY:
             {
                 data++;
@@ -960,6 +965,9 @@ static const uint8_t *unmarshal_one(
                 } else if (lead == LB_SYMBOL) {
                     const uint8_t *str = janet_symbol(data, len);
                     *out = janet_wrap_symbol(str);
+                } else if (lead == LB_KEYWORD) {
+                    const uint8_t *str = janet_keyword(data, len);
+                    *out = janet_wrap_keyword(str);
                 } else if (lead == LB_REGISTRY) {
                     if (st->reg) {
                         Janet regkey = janet_symbolv(data, len);

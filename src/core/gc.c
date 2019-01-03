@@ -60,6 +60,7 @@ void janet_mark(Janet x) {
         switch (janet_type(x)) {
             default: break;
             case JANET_STRING:
+            case JANET_KEYWORD:
             case JANET_SYMBOL: janet_mark_string(janet_unwrap_string(x)); break;
             case JANET_FUNCTION: janet_mark_function(janet_unwrap_function(x)); break;
             case JANET_ARRAY: janet_mark_array(janet_unwrap_array(x)); break;

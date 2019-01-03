@@ -282,7 +282,6 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     Janet ret;
     double numval;
     int32_t blen;
-    int scanerr;
     if (is_symbol_char(c)) {
         push_buf(p, (uint8_t) c);
         if (c > 127) state->argn = 1; /* Use to indicate non ascii */
@@ -290,9 +289,9 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     }
     /* Token finished */
     blen = (int32_t) p->bufcount;
-    scanerr = 0;
-    numval = janet_scan_number(p->buf, blen, &scanerr);
-    if (!scanerr) {
+    if (p->buf[0] == ':') {
+        ret = janet_keywordv(p->buf + 1, blen - 1);
+    } else if (!janet_scan_number(p->buf, blen, &numval)) {
         ret = janet_wrap_number(numval);
     } else if (!check_str_const("nil", p->buf, blen)) {
         ret = janet_wrap_nil();
@@ -612,7 +611,7 @@ static int parsergc(void *p, size_t size) {
 }
 
 static JanetAbstractType janet_parse_parsertype = {
-    ":core/parser",
+    "core/parser",
     parsergc,
     parsermark
 };
@@ -684,19 +683,19 @@ static int cfun_status(JanetArgs args) {
     p = (JanetParser *) janet_unwrap_abstract(args.v[0]);
     switch (janet_parser_status(p)) {
         case JANET_PARSE_FULL:
-            stat = ":full";
+            stat = "full";
             break;
         case JANET_PARSE_PENDING:
-            stat = ":pending";
+            stat = "pending";
             break;
         case JANET_PARSE_ERROR:
-            stat = ":error";
+            stat = "error";
             break;
         case JANET_PARSE_ROOT:
-            stat = ":root";
+            stat = "root";
             break;
     }
-    JANET_RETURN_CSYMBOL(args, stat);
+    JANET_RETURN_CKEYWORD(args, stat);
 }
 
 static int cfun_error(JanetArgs args) {
@@ -707,7 +706,7 @@ static int cfun_error(JanetArgs args) {
     p = (JanetParser *) janet_unwrap_abstract(args.v[0]);
     err = janet_parser_error(p);
     if (err) {
-        JANET_RETURN_CSYMBOL(args, err);
+        JANET_RETURN_CSTRING(args, err);
     } else {
         JANET_RETURN_NIL(args);
     }

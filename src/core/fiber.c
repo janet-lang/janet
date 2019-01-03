@@ -317,8 +317,6 @@ static int cfun_new(JanetArgs args) {
                 switch (flags[i]) {
                     default:
                         JANET_THROW(args, "invalid flag, expected a, d, e, u, or y");
-                    case ':':
-                        break;
                     case 'a':
                         fiber->flags |=
                             JANET_FIBER_MASK_DEBUG |
@@ -351,7 +349,7 @@ static int cfun_status(JanetArgs args) {
     JANET_ARG_FIBER(fiber, args, 0);
     uint32_t s = (fiber->flags & JANET_FIBER_STATUS_MASK) >>
         JANET_FIBER_STATUS_OFFSET;
-    JANET_RETURN_CSYMBOL(args, janet_status_names[s]);
+    JANET_RETURN_CKEYWORD(args, janet_status_names[s]);
 }
 
 static int cfun_current(JanetArgs args) {
@@ -384,7 +382,7 @@ static const JanetReg cfuns[] = {
         "(fiber/new func [,sigmask])\n\n"
         "Create a new fiber with function body func. Can optionally "
         "take a set of signals to block from the current parent fiber "
-        "when called. The mask is specified as a symbol where each character "
+        "when called. The mask is specified as a keyword where each character "
         "is used to indicate a signal to block. The default sigmask is :y. "
         "For example, \n\n"
         "\t(fiber/new myfun :e123)\n\n"

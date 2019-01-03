@@ -32,10 +32,11 @@
 
 /* Compare valid c numbers to system implementation. */
 static void test_valid_str(const char *str) {
-    int err = 0;
+    int err;
     double cnum, jnum;
+    jnum = 0.0;
     cnum = atof(str);
-    jnum = janet_scan_number((const uint8_t *) str, strlen(str), &err);
+    err = janet_scan_number((const uint8_t *) str, strlen(str), &jnum);
     assert(!err);
     assert(cnum == jnum);
 }

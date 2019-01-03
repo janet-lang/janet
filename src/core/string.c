@@ -320,6 +320,9 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
     case JANET_NUMBER:
         number_to_string_b(buffer, janet_unwrap_number(x));
         return;
+    case JANET_KEYWORD:
+        janet_buffer_push_u8(buffer, ':');
+        /* fallthrough */
     case JANET_SYMBOL:
         janet_buffer_push_bytes(buffer,
                 janet_unwrap_string(x),
@@ -384,6 +387,7 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
             break;
         case JANET_STRING:
         case JANET_SYMBOL:
+        case JANET_KEYWORD:
             janet_buffer_push_bytes(buffer,
                     janet_unwrap_string(x),
                     janet_string_length(janet_unwrap_string(x)));
@@ -403,6 +407,14 @@ const uint8_t *janet_description(Janet x) {
         return number_to_string(janet_unwrap_number(x));
     case JANET_SYMBOL:
         return janet_unwrap_symbol(x);
+    case JANET_KEYWORD:
+        {
+            const uint8_t *kw = janet_unwrap_keyword(x);
+            uint8_t *str = janet_string_begin(janet_string_length(kw) + 1);
+            memcpy(str + 1, kw, janet_string_length(kw) + 1);
+            str[0] = ':';
+            return janet_string_end(str);
+        }
     case JANET_STRING:
         return janet_escape_string(janet_unwrap_string(x));
     case JANET_BUFFER:
@@ -455,6 +467,7 @@ const uint8_t *janet_to_string(Janet x) {
             return janet_string(janet_unwrap_buffer(x)->data, janet_unwrap_buffer(x)->count);
         case JANET_STRING:
         case JANET_SYMBOL:
+        case JANET_KEYWORD:
             return janet_unwrap_string(x);
     }
 }
@@ -1137,12 +1150,12 @@ static struct formatter {
     const char *f1;
     const char *f2;
 } formatters[] = {
-    {":g", "%g", "%.*g"},
-    {":G", "%G", "%.*G"},
-    {":e", "%e", "%.*e"},
-    {":E", "%E", "%.*E"},
-    {":f", "%f", "%.*f"},
-    {":F", "%F", "%.*F"}
+    {"g", "%g", "%.*g"},
+    {"G", "%G", "%.*G"},
+    {"e", "%e", "%.*e"},
+    {"E", "%E", "%.*E"},
+    {"f", "%f", "%.*f"},
+    {"F", "%F", "%.*F"}
 };
 
 static int cfun_number(JanetArgs args) {
@@ -1156,7 +1169,7 @@ static int cfun_number(JanetArgs args) {
     JANET_ARG_NUMBER(x, args, 0);
     if (args.n >= 2) {
         const uint8_t *flag;
-        JANET_ARG_SYMBOL(flag, args, 1);
+        JANET_ARG_KEYWORD(flag, args, 1);
         for (int i = 0; i < 6; i++) {
             struct formatter fmttest = formatters[i];
             if (!janet_cstrcmp(flag, fmttest.lead)) {

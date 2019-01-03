@@ -28,12 +28,10 @@
 /* Parse a part of a symbol that can be used for building up code. */
 static JanetSlot multisym_parse_part(JanetCompiler *c, const uint8_t *sympart, int32_t len) {
     if (sympart[0] == ':') {
-        return janetc_cslot(janet_symbolv(sympart, len));
+        return janetc_cslot(janet_keywordv(sympart + 1, len - 1));
     } else {
         double index;
-        int err;
-        index = janet_scan_number(sympart + 1, len - 1, &err);
-        if (err) {
+        if (janet_scan_number(sympart + 1, len - 1, &index)) {
             /* not a number */
             return janetc_resolve(c, janet_symbol(sympart + 1, len - 1));
         } else {
@@ -99,12 +97,7 @@ static JanetSlot multisym_do_parts(JanetFopts opts, int put, const uint8_t *sym,
  * it and emit the code for treating it as a bunch of nested
  * gets. */
 JanetSlot janetc_sym_rvalue(JanetFopts opts, const uint8_t *sym) {
-    if (janet_string_length(sym) && sym[0] != ':') {
-        return multisym_do_parts(opts, 0, sym, janet_wrap_nil());
-    } else {
-        /* keyword */
-        return janetc_cslot(janet_wrap_symbol(sym));
-    }
+    return multisym_do_parts(opts, 0, sym, janet_wrap_nil());
 }
 
 /* Check if a symbol is a multisym, and if so, transform 

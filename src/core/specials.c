@@ -207,11 +207,11 @@ static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv)
             default:
                 janetc_cerror(c, "could not add metadata to binding");
                 break;
-            case JANET_SYMBOL:
+            case JANET_KEYWORD:
                 janet_table_put(tab, attr, janet_wrap_true());
                 break;
             case JANET_STRING:
-                janet_table_put(tab, janet_csymbolv(":doc"), attr);
+                janet_table_put(tab, janet_ckeywordv("doc"), attr);
                 break;
         }
     }
@@ -262,8 +262,8 @@ static int varleaf(
         reftab->proto = attr;
         JanetArray *ref = janet_array(1);
         janet_array_push(ref, janet_wrap_nil());
-        janet_table_put(reftab, janet_csymbolv(":ref"), janet_wrap_array(ref));
-        janet_table_put(reftab, janet_csymbolv(":source-map"),
+        janet_table_put(reftab, janet_ckeywordv("ref"), janet_wrap_array(ref));
+        janet_table_put(reftab, janet_ckeywordv("source-map"),
                 janet_wrap_tuple(janetc_make_sourcemap(c)));
         janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(reftab));
         refslot = janetc_cslot(janet_wrap_array(ref));
@@ -293,10 +293,10 @@ static int defleaf(
         janetc_cerror(c, "cannot create binding to keyword symbol");
     if (c->scope->flags & JANET_SCOPE_TOP) {
         JanetTable *tab = janet_table(2);
-        janet_table_put(tab, janet_csymbolv(":source-map"),
+        janet_table_put(tab, janet_ckeywordv("source-map"),
                 janet_wrap_tuple(janetc_make_sourcemap(c)));
         tab->proto = attr;
-        JanetSlot valsym = janetc_cslot(janet_csymbolv(":value"));
+        JanetSlot valsym = janetc_cslot(janet_ckeywordv("value"));
         JanetSlot tabslot = janetc_cslot(janet_wrap_table(tab));
 
         /* Add env entry to env */

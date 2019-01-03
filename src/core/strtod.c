@@ -238,10 +238,10 @@ static double convert(
 
 /* Scan a real (double) from a string. If the string cannot be converted into
  * and integer, set *err to 1 and return 0. */
-double janet_scan_number(
+int janet_scan_number(
         const uint8_t *str,
         int32_t len,
-        int *err) {
+        double *out) {
     const uint8_t *end = str + len;
     int seenadigit = 0;
     int ex = 0;
@@ -357,13 +357,11 @@ double janet_scan_number(
     if (!seenadigit)
         goto error;
 
-    double result = convert(neg, &mant, base, ex);
+    *out = convert(neg, &mant, base, ex);
     free(mant.digits);
-    *err = 0;
-    return result;
+    return 0;
 
     error:
-    *err = 1;
     free(mant.digits);
-    return 0.0;
+    return 1;
 }

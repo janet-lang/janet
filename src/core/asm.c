@@ -137,25 +137,26 @@ typedef struct TypeAlias {
 } TypeAlias;
 
 static const TypeAlias type_aliases[] = {
-    {":abstract", JANET_TFLAG_ABSTRACT},
-    {":array", JANET_TFLAG_ARRAY},
-    {":boolean", JANET_TFLAG_BOOLEAN},
-    {":buffer", JANET_TFLAG_BUFFER},
-    {":callable", JANET_TFLAG_CALLABLE},
-    {":cfunction", JANET_TFLAG_CFUNCTION},
-    {":dictionary", JANET_TFLAG_DICTIONARY},
-    {":false", JANET_TFLAG_FALSE},
-    {":fiber", JANET_TFLAG_FIBER},
-    {":function", JANET_TFLAG_FUNCTION},
-    {":indexed", JANET_TFLAG_INDEXED},
-    {":nil", JANET_TFLAG_NIL},
-    {":number", JANET_TFLAG_NUMBER},
-    {":string", JANET_TFLAG_STRING},
-    {":struct", JANET_TFLAG_STRUCT},
-    {":symbol", JANET_TFLAG_SYMBOL},
-    {":table", JANET_TFLAG_BOOLEAN},
-    {":true", JANET_TFLAG_TRUE},
-    {":tuple", JANET_TFLAG_BOOLEAN}
+    {"abstract", JANET_TFLAG_ABSTRACT},
+    {"array", JANET_TFLAG_ARRAY},
+    {"boolean", JANET_TFLAG_BOOLEAN},
+    {"buffer", JANET_TFLAG_BUFFER},
+    {"callable", JANET_TFLAG_CALLABLE},
+    {"cfunction", JANET_TFLAG_CFUNCTION},
+    {"dictionary", JANET_TFLAG_DICTIONARY},
+    {"false", JANET_TFLAG_FALSE},
+    {"fiber", JANET_TFLAG_FIBER},
+    {"function", JANET_TFLAG_FUNCTION},
+    {"indexed", JANET_TFLAG_INDEXED},
+    {"nil", JANET_TFLAG_NIL},
+    {"number", JANET_TFLAG_NUMBER},
+    {"string", JANET_TFLAG_STRING},
+    {"struct", JANET_TFLAG_STRUCT},
+    {"symbol", JANET_TFLAG_SYMBOL},
+    {"keyword", JANET_TFLAG_KEYWORD},
+    {"table", JANET_TFLAG_BOOLEAN},
+    {"true", JANET_TFLAG_TRUE},
+    {"tuple", JANET_TFLAG_BOOLEAN}
 };
 
 /* Deinitialize an Assembler. Does not deinitialize the parents. */
@@ -273,6 +274,24 @@ static int32_t doarg_1(
             }
             break;
         }
+        case JANET_KEYWORD:
+        {
+            if (argtype == JANET_OAT_TYPE || argtype == JANET_OAT_SIMPLETYPE) {
+                const TypeAlias *alias = janet_strbinsearch(
+                            &type_aliases,
+                            sizeof(type_aliases)/sizeof(TypeAlias),
+                            sizeof(TypeAlias),
+                            janet_unwrap_keyword(x));
+                if (alias) {
+                    ret = alias->mask;
+                } else {
+                    janet_asm_errorv(a, janet_formatc("unknown type %v", x));
+                }
+            } else {
+                goto error;
+            }
+            break;
+        }
         case JANET_SYMBOL:
         {
             if (NULL != c) {
@@ -285,17 +304,6 @@ static int32_t doarg_1(
                     }
                 } else {
                     janet_asm_errorv(a, janet_formatc("unknown name %v", x));
-                }
-            } else if (argtype == JANET_OAT_TYPE || argtype == JANET_OAT_SIMPLETYPE) {
-                const TypeAlias *alias = janet_strbinsearch(
-                            &type_aliases,
-                            sizeof(type_aliases)/sizeof(TypeAlias),
-                            sizeof(TypeAlias),
-                            janet_unwrap_symbol(x));
-                if (alias) {
-                    ret = alias->mask;
-                } else {
-                    janet_asm_errorv(a, janet_formatc("unknown type %v", x));
                 }
             } else {
                 goto error;

@@ -480,7 +480,6 @@ static int macroexpand1(
             !janet_checktype(macroval, JANET_FUNCTION))
         return 0;
 
-
     /* Evaluate macro */
     JanetFiber *fiberp;
     JanetFunction *macro = janet_unwrap_function(macroval);
@@ -716,11 +715,11 @@ static int cfun(JanetArgs args) {
         JANET_RETURN_FUNCTION(args, janet_thunk(res.funcdef));
     } else {
         t = janet_table(4);
-        janet_table_put(t, janet_csymbolv(":error"), janet_wrap_string(res.error));
-        janet_table_put(t, janet_csymbolv(":start"), janet_wrap_integer(res.error_mapping.start));
-        janet_table_put(t, janet_csymbolv(":end"), janet_wrap_integer(res.error_mapping.end));
+        janet_table_put(t, janet_ckeywordv("error"), janet_wrap_string(res.error));
+        janet_table_put(t, janet_ckeywordv("start"), janet_wrap_integer(res.error_mapping.start));
+        janet_table_put(t, janet_ckeywordv("end"), janet_wrap_integer(res.error_mapping.end));
         if (res.macrofiber) {
-            janet_table_put(t, janet_csymbolv(":fiber"), janet_wrap_fiber(res.macrofiber));
+            janet_table_put(t, janet_ckeywordv("fiber"), janet_wrap_fiber(res.macrofiber));
         }
         JANET_RETURN_TABLE(args, t);
     }

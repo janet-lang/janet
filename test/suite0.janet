@@ -41,6 +41,7 @@
                 (fiber/new (fn [] 1))
                 "hi"
                 (quote hello)
+                :hello
                 (array 1 2 3)
                 (tuple 1 2 3)
                 (table "a" "b" "c" "d")
@@ -201,7 +202,7 @@
 
 (def 🦊 :fox)
 (def 🐮 :cow)
-(assert (= (string "🐼" 🦊 🐮) "🐼:fox:cow") "emojis 🙉 :)")
+(assert (= (string "🐼" 🦊 🐮) "🐼foxcow") "emojis 🙉 :)")
 (assert (not= 🦊 "🦊") "utf8 strings are not symbols and vice versa")
 
 # Symbols with @ character

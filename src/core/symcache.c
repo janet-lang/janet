@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -234,16 +234,16 @@ const uint8_t *janet_symbol_gen(void) {
      * is enough for resolving collisions. */
     do {
         hash = janet_string_calchash(
-                gensym_counter, 
+                gensym_counter,
                 sizeof(gensym_counter) - 1);
         bucket = janet_symcache_findmem(
-                gensym_counter, 
+                gensym_counter,
                 sizeof(gensym_counter) - 1,
                 hash,
                 &status);
     } while (status && (inc_gensym(), 1));
     sym = (uint8_t *) janet_gcalloc(
-            JANET_MEMORY_SYMBOL, 
+            JANET_MEMORY_SYMBOL,
             2 * sizeof(int32_t) + sizeof(gensym_counter)) +
         (2 * sizeof(int32_t));
     memcpy(sym, gensym_counter, sizeof(gensym_counter));
