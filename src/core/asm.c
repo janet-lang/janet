@@ -48,7 +48,7 @@ struct JanetAssembler {
     int32_t bytecode_count; /* Used for calculating labels */
 
     Janet name;
-    JanetTable labels; /* symbol -> bytecode index */
+    JanetTable labels; /* keyword -> bytecode index */
     JanetTable constants; /* symbol -> constant index */
     JanetTable slots; /* symbol -> slot index */
     JanetTable envs; /* symbol -> environment index */
@@ -276,7 +276,14 @@ static int32_t doarg_1(
         }
         case JANET_KEYWORD:
         {
-            if (argtype == JANET_OAT_TYPE || argtype == JANET_OAT_SIMPLETYPE) {
+            if (NULL != c && argtype == JANET_OAT_LABEL) {
+                Janet result = janet_table_get(c, x);
+                if (janet_checktype(result, JANET_NUMBER)) {
+                    ret = janet_unwrap_integer(result) - a->bytecode_count;
+                } else {
+                    goto error;
+                }
+            } else if (argtype == JANET_OAT_TYPE || argtype == JANET_OAT_SIMPLETYPE) {
                 const TypeAlias *alias = janet_strbinsearch(
                             &type_aliases,
                             sizeof(type_aliases)/sizeof(TypeAlias),
@@ -297,11 +304,7 @@ static int32_t doarg_1(
             if (NULL != c) {
                 Janet result = janet_table_get(c, x);
                 if (janet_checktype(result, JANET_NUMBER)) {
-                    if (argtype == JANET_OAT_LABEL) {
-                        ret = janet_unwrap_integer(result) - a->bytecode_count;
-                    } else {
-                        ret = (int32_t) janet_unwrap_number(result);
-                    }
+                    ret = (int32_t) janet_unwrap_number(result);
                 } else {
                     janet_asm_errorv(a, janet_formatc("unknown name %v", x));
                 }
@@ -641,7 +644,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         int32_t blength = 0;
         for (i = 0; i < count; ++i) {
             Janet instr = arr[i];
-            if (janet_checktype(instr, JANET_SYMBOL)) {
+            if (janet_checktype(instr, JANET_KEYWORD)) {
                 janet_table_put(&a.labels, instr, janet_wrap_integer(blength));
             } else if (janet_checktype(instr, JANET_TUPLE)) {
                 blength++;
@@ -659,7 +662,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         /* Do bytecode */
         for (i = 0; i < count; ++i) {
             Janet instr = arr[i];
-            if (janet_checktype(instr, JANET_SYMBOL)) {
+            if (janet_checktype(instr, JANET_KEYWORD)) {
                 continue;
             } else {
                 uint32_t op;
