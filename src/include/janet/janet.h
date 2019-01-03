@@ -568,6 +568,8 @@ JANET_API int janet_checkint64(Janet x);
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
 #define janet_wrap_integer(x) janet_wrap_number((int32_t)(x))
 
+#define janet_checktypes(x, tps) ((janet_type(x) << 1) & (tps))
+
 /* Hold components of arguments passed to JanetCFunction. */
 struct JanetArgs {
     Janet *v;
@@ -987,7 +989,6 @@ JANET_API void janet_puts(const uint8_t *str);
 
 /* Symbol functions */
 JANET_API const uint8_t *janet_symbol(const uint8_t *str, int32_t len);
-JANET_API const uint8_t *janet_symbol_from_string(const uint8_t *str);
 JANET_API const uint8_t *janet_csymbol(const char *str);
 JANET_API const uint8_t *janet_symbol_gen(void);
 #define janet_symbolv(str, len) janet_wrap_symbol(janet_symbol((str), (len)))
@@ -995,7 +996,6 @@ JANET_API const uint8_t *janet_symbol_gen(void);
 
 /* Keyword functions */
 #define janet_keyword janet_symbol
-#define janet_keyword_from_string janet_symbol_from_string
 #define janet_ckeyword janet_csymbol
 #define janet_keywordv(str, len) janet_wrap_keyword(janet_keyword((str), (len)))
 #define janet_ckeywordv(cstr) janet_wrap_keyword(janet_ckeyword(cstr))

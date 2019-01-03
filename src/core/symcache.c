@@ -190,17 +190,6 @@ const uint8_t *janet_csymbol(const char *cstr) {
     return janet_symbol((const uint8_t *)cstr, len);
 }
 
-/* Convert a string to a symbol */
-const uint8_t *janet_symbol_from_string(const uint8_t *str) {
-    int success = 0;
-    const uint8_t **bucket = janet_symcache_find(str, &success);
-    if (success)
-        return *bucket;
-    janet_symcache_put((const uint8_t *)str, bucket);
-    janet_gc_settype(janet_string_raw(str), JANET_MEMORY_SYMBOL);
-    return str;
-}
-
 /* Store counter for genysm to avoid quadratic behavior */
 JANET_THREAD_LOCAL uint8_t gensym_counter[8] = {'_', '0', '0', '0', '0', '0', '0', 0};
 
