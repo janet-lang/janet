@@ -389,6 +389,7 @@ static const JanetReg cfuns[] = {
         "\t:string\n"
         "\t:buffer\n"
         "\t:symbol\n"
+        "\t:keyword\n"
         "\t:function\n"
         "\t:cfunction\n\n"
         "or another symbol for an abstract type."

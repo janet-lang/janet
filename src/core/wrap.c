@@ -151,6 +151,7 @@ Janet janet_wrap_##NAME(TYPE x) {\
 JANET_WRAP_DEFINE(number, double, JANET_NUMBER, number)
 JANET_WRAP_DEFINE(string, const uint8_t *, JANET_STRING, cpointer)
 JANET_WRAP_DEFINE(symbol, const uint8_t *, JANET_SYMBOL, cpointer)
+JANET_WRAP_DEFINE(keyword, const uint8_t *, JANET_KEYWORD, cpointer)
 JANET_WRAP_DEFINE(array, JanetArray *, JANET_ARRAY, pointer)
 JANET_WRAP_DEFINE(tuple, const Janet *, JANET_TUPLE, cpointer)
 JANET_WRAP_DEFINE(struct, const JanetKV *, JANET_STRUCT, cpointer)

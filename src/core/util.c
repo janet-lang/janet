@@ -370,7 +370,7 @@ static const char *typestr(JanetArgs args, int32_t n) {
     JanetType actual = n < args.n ? janet_type(args.v[n]) : JANET_NIL;
     return ((actual == JANET_ABSTRACT)
         ? janet_abstract_type(janet_unwrap_abstract(args.v[n]))->name
-        : janet_type_names[actual]) + 1;
+        : janet_type_names[actual]);
 }
 
 int janet_type_err(JanetArgs args, int32_t n, JanetType expected) {
@@ -392,7 +392,7 @@ void janet_buffer_push_types(JanetBuffer *buffer, int types) {
             } else {
                 janet_buffer_push_u8(buffer, '|');
             }
-            janet_buffer_push_cstring(buffer, janet_type_names[i] + 1);
+            janet_buffer_push_cstring(buffer, janet_type_names[i]);
         }
         i++;
         types >>= 1;

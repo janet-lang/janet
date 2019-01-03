@@ -315,7 +315,7 @@ typedef enum JanetType {
 /* Some abstractions */
 #define JANET_TFLAG_BOOLEAN (JANET_TFLAG_TRUE | JANET_TFLAG_FALSE)
 #define JANET_TFLAG_CALLABLE (JANET_TFLAG_FUNCTION | JANET_TFLAG_CFUNCTION)
-#define JANET_TFLAG_BYTES (JANET_TFLAG_STRING | JANET_TFLAG_SYMBOL | JANET_TFLAG_BUFFER | JANET_KEYWORD)
+#define JANET_TFLAG_BYTES (JANET_TFLAG_STRING | JANET_TFLAG_SYMBOL | JANET_TFLAG_BUFFER | JANET_TFLAG_KEYWORD)
 #define JANET_TFLAG_INDEXED (JANET_TFLAG_ARRAY | JANET_TFLAG_TUPLE)
 #define JANET_TFLAG_DICTIONARY (JANET_TFLAG_TABLE | JANET_TFLAG_STRUCT)
 #define JANET_TFLAG_LENGTHABLE (JANET_TFLAG_BYTES | JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY)
@@ -483,7 +483,7 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 #define janet_wrap_buffer(s) janet_nanbox32_from_tagp(JANET_BUFFER, (void *)(s))
 #define janet_wrap_string(s) janet_nanbox32_from_tagp(JANET_STRING, (void *)(s))
 #define janet_wrap_symbol(s) janet_nanbox32_from_tagp(JANET_SYMBOL, (void *)(s))
-#define janet_wrap_keyword(s) janet_nanbox32_from_tagp(JANET_SYMBOL, (void *)(s))
+#define janet_wrap_keyword(s) janet_nanbox32_from_tagp(JANET_KEYWORD, (void *)(s))
 #define janet_wrap_abstract(s) janet_nanbox32_from_tagp(JANET_ABSTRACT, (void *)(s))
 #define janet_wrap_function(s) janet_nanbox32_from_tagp(JANET_FUNCTION, (void *)(s))
 #define janet_wrap_cfunction(s) janet_nanbox32_from_tagp(JANET_CFUNCTION, (void *)(s))
@@ -568,7 +568,7 @@ JANET_API int janet_checkint64(Janet x);
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
 #define janet_wrap_integer(x) janet_wrap_number((int32_t)(x))
 
-#define janet_checktypes(x, tps) ((janet_type(x) << 1) & (tps))
+#define janet_checktypes(x, tps) (!((janet_type(x) << 1) & (tps)))
 
 /* Hold components of arguments passed to JanetCFunction. */
 struct JanetArgs {

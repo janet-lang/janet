@@ -925,7 +925,7 @@ static void *op_lookup[255] = {
         janet_buffer_push_cstring(&errbuf, "expected ");
         janet_buffer_push_types(&errbuf, expected_types);
         janet_buffer_push_cstring(&errbuf, ", got ");
-        janet_buffer_push_cstring(&errbuf, janet_type_names[janet_type(retreg)] + 1);
+        janet_buffer_push_cstring(&errbuf, janet_type_names[janet_type(retreg)]);
         retreg = janet_stringv(errbuf.data, errbuf.count);
         janet_buffer_deinit(&errbuf);
         signal = JANET_SIGNAL_ERROR;
