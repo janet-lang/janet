@@ -76,8 +76,11 @@ Janet supports several varieties of types that can be used as labels for things 
 your program. The most useful type for this purpose is the keyword type. A keyword
 begins with a semicolon, and then contains 0 or more alphanumeric or a few other common
 characters. For example, `:hello`, `:my-name`, `::`, and `:ABC123_-*&^%$` are all keywords.
-Keywords are actually just special cases of symbols, which are similar but don't start with
-a semicolon. The difference between symbols and keywords is that keywords evaluate to themselves, while
+
+Keywords, symbols, and strings all behave similarly and can be used as keys for tables and structs.
+Symbols and keywords are optimized for fast equality checks, so are preferred for table keys.
+
+The difference between symbols and keywords is that keywords evaluate to themselves, while
 symbols evaluate to whatever they are bound to. To have a symbol evaluate to itself, it must be
 quoted.
 

@@ -31,7 +31,7 @@ false
 ## Symbols
 
 Janet symbols are represented a sequence of alphanumeric characters
-not starting with a digit. They can also contain the characters
+not starting with a digit or a colon. They can also contain the characters
 \!, @, $, \%, \^, \&, \*, -, \_, +, =, \|, \~, :, \<, \>, ., \?, \\, /, as
 well as any Unicode codepoint not in the ascii range.
 
@@ -54,7 +54,7 @@ my-module/my-fuction
 
 ## Keywords
 
-Janet keywords are really just symbols that begin with the character :. However, they
+Janet keywords are like symbols that begin with the character :. However, they
 are used differently and treated by the compiler as a constant rather than a name for
 something. Keywords are used mostly for keys in tables and structs, or pieces of syntax
 in macros.
