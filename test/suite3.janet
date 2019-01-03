@@ -78,4 +78,29 @@
 (assert (= 1 (try (map) ([err] 1))) "bad arity 4")
 (assert (= 1 (try (not) ([err] 1))) "bad arity 5")
 
+# Assembly test
+# Fibonacci sequence, implemented with naive recursion.
+(def fibasm (asm '{
+  arity 1
+  bytecode [
+    (ltim 1 0 0x2)      # $1 = $0 < 2
+    (jmpif 1 :done)     # if ($1) goto :done
+    (lds 1)             # $1 = self
+    (addim 0 0 -0x1)    # $0 = $0 - 1
+    (push 0)            # push($0), push argument for next function call
+    (call 2 1)          # $2 = call($1)
+    (addim 0 0 -0x1)    # $0 = $0 - 1
+    (push 0)            # push($0)
+    (call 0 1)          # $0 = call($1)
+    (add 0 0 2)        # $0 = $0 + $2 (integers)
+    :done
+    (ret 0)             # return $0
+  ]
+}))
+
+(assert (= 0 (fibasm 0)) "fibasm 1")
+(assert (= 1 (fibasm 1)) "fibasm 2")
+(assert (= 55 (fibasm 10)) "fibasm 3")
+(assert (= 6765 (fibasm 20)) "fibasm 4")
+
 (end-suite)
