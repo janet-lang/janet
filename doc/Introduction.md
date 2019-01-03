@@ -181,7 +181,7 @@ a function call are evaluated in order, from first argument to last argument).
 Because functions are first-class values like numbers or strings, they can be passed
 as arguments to other functions as well.
 
-```
+```lisp
 (print triangle-area)
 ```
 
@@ -190,7 +190,7 @@ This prints the location in memory of the function triangle area.
 Functions don't need to have names. The `fn` keyword can be used to introduce function
 literals without binding them to a symbol.
 
-```
+```lisp
 # Evaluates to 40
 ((fn [x y] (+ x x y)) 10 20)
 # Also evaluates to 40
@@ -233,7 +233,7 @@ and transform it into some other source code, usually automating some repetitive
 Values can be bound to symbols for later use using the keyword `def`. Using undefined
 symbols will raise an error.
 
-```
+```lisp
 (def a 100)
 (def b (+ 1 a))
 (def c (+ b b))
@@ -245,7 +245,7 @@ cannot be changed after definition. For mutable bindings, like variables in othe
 languages, use the `var` keyword. The assignment special form `set` can then be used to update
 a var.
 
-```
+```lisp
 (var myvar 1)
 (print myvar)
 (set myvar 10)
@@ -437,7 +437,7 @@ every iteration of the loop. If it is nil or false, the while loop ends and eval
 the rest of the parameters will be evaluated sequentially and then the program will return to the beginning
 of the loop.
 
-```
+```lisp
 # Loop from 100 down to 1 and print each time
 (var i 100)
 (while (pos? i)
@@ -635,7 +635,7 @@ using janet's builtin quasiquoting facilities.
 (defmacro defn3
  "Defines a new function."
  [name args & body]
- `(def ,name (fn ,name ,args ,;body)))
+ ~(def ,name (fn ,name ,args ,;body)))
 ```
 
 This is functionally identical to our previous version `defn2`, but written in such
@@ -654,7 +654,7 @@ See what happens if we use a normal unquote for body as well.
 (def args '[x y z])
 (defn body '[(print x) (print y) (print z)])
 
-`(def ,name (fn ,name ,args ,body))
+~(def ,name (fn ,name ,args ,body))
 # -> (def myfunction (fn myfunction (x y z) ((print x) (print y) (print z))))
 ```
 
@@ -665,7 +665,7 @@ and a shorthand for it, the ; character.
 When combined with the unquote special, we get the desired output.
 
 ```lisp
-`(def ,name (fn ,name ,args ,;body))
+~(def ,name (fn ,name ,args ,;body))
 # -> (def myfunction (fn myfunction (x y z) (print x) (print y) (print z)))
 ```
 
@@ -679,7 +679,7 @@ the following macro
 (defmacro max1
  "Get the max of two values."
  [x y]
- `(if (> ,x ,y) ,x ,y))
+ ~(if (> ,x ,y) ,x ,y))
 ```
 
 This almost works, but will evaluate both x and y twice. This is because both show up
@@ -692,7 +692,7 @@ We can do better:
 (defmacro max2
  "Get the max of two values."
  [x y]
- `(let [x ,x
+ ~(let [x ,x
         y ,y]
     (if (> x y) x y)))
 ```
@@ -729,7 +729,7 @@ our macro once more for a fully correct macro.
  [x y]
  (def $x (gensym))
  (def $y (gensym))
- `(let [,$x ,x
+ ~(let [,$x ,x
         ,$y ,y]
     (if (> ,$x ,$y) ,$x ,$y)))
 ```
