@@ -568,7 +568,7 @@ JANET_API int janet_checkint64(Janet x);
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
 #define janet_wrap_integer(x) janet_wrap_number((int32_t)(x))
 
-#define janet_checktypes(x, tps) (!((janet_type(x) << 1) & (tps)))
+#define janet_checktypes(x, tps) ((1 << janet_type(x)) & (tps))
 
 /* Hold components of arguments passed to JanetCFunction. */
 struct JanetArgs {

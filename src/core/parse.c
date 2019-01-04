@@ -139,6 +139,7 @@ DEF_PARSER_STACK(_pushstate, JanetParseState, states, statecount, statecap)
 #define PFLAG_STRING 0x2000
 #define PFLAG_LONGSTRING 0x4000
 #define PFLAG_READERMAC 0x8000
+#define PFLAG_PAIR 0x10000
 
 static void pushstate(JanetParser *p, Consumer consumer, int flags) {
     JanetParseState s;

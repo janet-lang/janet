@@ -633,10 +633,33 @@ static void *op_lookup[255] = {
                 goto vm_exit;
             }
             goto vm_return_cfunc;
+        } else {
+            int status;
+            int32_t argn = fiber->stacktop - fiber->stackstart;
+            Janet ds, key;
+            if (janet_checktypes(callee, JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY)) {
+                if (argn != 1) vm_throw("bad arity");
+                ds = callee;
+                key = fiber->data[fiber->stackstart];
+            } else if (janet_checktypes(callee, JANET_TFLAG_SYMBOL | JANET_TFLAG_KEYWORD)) {
+                if (argn != 1) vm_throw("bad arity");
+                ds = fiber->data[fiber->stackstart];
+                key = callee;
+            } else {
+                expected_types = JANET_TFLAG_CALLABLE;
+                retreg = callee;
+                goto vm_type_error;
+            }
+            fiber->stacktop = fiber->stackstart;
+            status = janet_get(ds, key, stack + oparg(1, 0xFF));
+            if (status == -2) {
+                vm_throw("expected integer key");
+            } else if (status == -1) {
+                vm_throw("cannot look up in data structure");
+            }
+            pc++;
+            vm_next();
         }
-        expected_types = JANET_TFLAG_CALLABLE;
-        retreg = callee;
-        goto vm_type_error;
     }
 
     VM_OP(JOP_TAILCALL)
@@ -661,10 +684,34 @@ static void *op_lookup[255] = {
                 goto vm_exit;
             }
             goto vm_return_cfunc_tail;
+        } else {
+            int status;
+            int32_t argn = fiber->stacktop - fiber->stackstart;
+            Janet ds, key;
+            if (janet_checktypes(callee, JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY)) {
+                if (argn != 1) vm_throw("bad arity");
+                ds = callee;
+                key = fiber->data[fiber->stackstart];
+            } else if (janet_checktypes(callee, JANET_TFLAG_SYMBOL | JANET_TFLAG_KEYWORD)) {
+                if (argn != 1) vm_throw("bad arity");
+                ds = fiber->data[fiber->stackstart];
+                key = callee;
+            } else {
+                expected_types = JANET_TFLAG_CALLABLE;
+                retreg = callee;
+                goto vm_type_error;
+            }
+            fiber->stacktop = fiber->stackstart;
+            status = janet_get(ds, key, &retreg);
+            if (status == -2) {
+                vm_throw("expected integer key");
+            } else if (status == -1) {
+                vm_throw("cannot look up in data structure");
+            }
+            janet_fiber_popframe(fiber);
+            if (fiber->frame == 0) goto vm_exit;
+            goto vm_reset;
         }
-        expected_types = JANET_TFLAG_CALLABLE;
-        retreg = callee;
-        goto vm_type_error;
     }
 
     VM_OP(JOP_RESUME)

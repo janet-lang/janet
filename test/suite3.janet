@@ -103,4 +103,12 @@
 (assert (= 55 (fibasm 10)) "fibasm 3")
 (assert (= 6765 (fibasm 20)) "fibasm 4")
 
+# Calling non functions
+
+(assert (= 1 ({:ok 1} :ok)) "calling struct")
+(assert (= 1 (:ok {:ok 1})) "calling keyword")
+(assert (= 2 (@{:ok 2} :ok)) "calling table")
+(assert (= :bad (try (@{:ok 2} :ok :no) ([err] :bad))) "calling table too many arguments")
+(assert (= :bad (try (:ok @{:ok 2} :no) ([err] :bad))) "calling keyword too many arguments")
+
 (end-suite)
