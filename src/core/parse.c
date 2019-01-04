@@ -161,6 +161,8 @@ static void popstate(JanetParser *p, Janet val) {
                 janet_tuple_sm_end(janet_unwrap_tuple(val)) = (int32_t) p->offset;
             }
             newtop->argn++;
+            /* Keep track of number of values in the root state */
+            if (p->statecount == 1) p->pending++;
             push_arg(p, val);
             return;
         } else if (newtop->flags & PFLAG_READERMAC) {
@@ -534,7 +536,6 @@ int janet_parser_consume(JanetParser *parser, uint8_t c) {
 enum JanetParserStatus janet_parser_status(JanetParser *parser) {
     if (parser->error) return JANET_PARSE_ERROR;
     if (parser->statecount > 1) return JANET_PARSE_PENDING;
-    if (parser->argcount) return JANET_PARSE_FULL;
     return JANET_PARSE_ROOT;
 }
 
@@ -542,6 +543,7 @@ void janet_parser_flush(JanetParser *parser) {
     parser->argcount = 0;
     parser->statecount = 1;
     parser->bufcount = 0;
+    parser->pending = 0;
 }
 
 const char *janet_parser_error(JanetParser *parser) {
@@ -558,12 +560,12 @@ const char *janet_parser_error(JanetParser *parser) {
 Janet janet_parser_produce(JanetParser *parser) {
     Janet ret;
     size_t i;
-    enum JanetParserStatus status = janet_parser_status(parser);
-    if (status != JANET_PARSE_FULL) return janet_wrap_nil();
+    if (parser->pending == 0) return janet_wrap_nil();
     ret = parser->args[0];
     for (i = 1; i < parser->argcount; i++) {
         parser->args[i - 1] = parser->args[i];
     }
+    parser->pending--;
     parser->argcount--;
     return ret;
 }
@@ -581,6 +583,7 @@ void janet_parser_init(JanetParser *parser) {
     parser->error = NULL;
     parser->lookback = -1;
     parser->offset = 0;
+    parser->pending = 0;
 
     pushstate(parser, root, PFLAG_CONTAINER);
 }
@@ -664,6 +667,14 @@ static int cfun_consume(JanetArgs args) {
     JANET_RETURN_INTEGER(args, i);
 }
 
+static int cfun_has_more(JanetArgs args) {
+    JanetParser *p;
+    JANET_FIXARITY(args, 1);
+    JANET_CHECKABSTRACT(args, 0, &janet_parse_parsertype);
+    p = (JanetParser *) janet_unwrap_abstract(args.v[0]);
+    JANET_RETURN_BOOLEAN(args, janet_parser_has_more(p));
+}
+
 static int cfun_byte(JanetArgs args) {
     int32_t i;
     JanetParser *p;
@@ -682,9 +693,6 @@ static int cfun_status(JanetArgs args) {
     JANET_CHECKABSTRACT(args, 0, &janet_parse_parsertype);
     p = (JanetParser *) janet_unwrap_abstract(args.v[0]);
     switch (janet_parser_status(p)) {
-        case JANET_PARSE_FULL:
-            stat = "full";
-            break;
         case JANET_PARSE_PENDING:
             stat = "pending";
             break;
@@ -776,6 +784,10 @@ static const JanetReg cfuns[] = {
         "Creates and returns a new parser object. Parsers are state machines "
         "that can receive bytes, and generate a stream of janet values. "
     },
+    {"parser/has-more", cfun_has_more,
+        "(parser/has-more parser)\n\n"
+        "Check if the parser has more values in the value queue."
+    },
     {"parser/produce", cfun_produce,
         "(parser/produce parser)\n\n"
         "Dequeue the next value in the parse queue. Will return nil if "
@@ -795,14 +807,15 @@ static const JanetReg cfuns[] = {
     {"parser/error", cfun_error,
         "(parser/error parser)\n\n"
         "If the parser is in the error state, returns the message asscoiated with "
-        "that error. Otherwise, returns nil."
+        "that error. Otherwise, returns nil. Also flushes the parser state and parser "
+        "queue, so be sure to handle everything in the queue before calling "
+        "parser/error."
     },
     {"parser/status", cfun_status,
         "(parser/status parser)\n\n"
         "Gets the current status of the parser state machine. The status will "
         "be one of:\n\n"
-        "\t:full - there are values in the parse queue to be consumed.\n"
-        "\t:pending - no values in the queue but a value is being parsed.\n"
+        "\t:pending - a value is being parsed.\n"
         "\t:error - a parsing error was encountered.\n"
         "\t:root - the parser can either read more values or safely terminate."
     },

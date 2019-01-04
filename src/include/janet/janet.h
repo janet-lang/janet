@@ -717,7 +717,6 @@ typedef struct JanetParser JanetParser;
 enum JanetParserStatus {
     JANET_PARSE_ROOT,
     JANET_PARSE_ERROR,
-    JANET_PARSE_FULL,
     JANET_PARSE_PENDING
 };
 
@@ -734,6 +733,7 @@ struct JanetParser {
     size_t bufcount;
     size_t bufcap;
     size_t offset;
+    size_t pending;
     int lookback;
 };
 
@@ -878,6 +878,7 @@ JANET_API Janet janet_parser_produce(JanetParser *parser);
 JANET_API const char *janet_parser_error(JanetParser *parser);
 JANET_API void janet_parser_flush(JanetParser *parser);
 JANET_API JanetParser *janet_check_parser(Janet x);
+#define janet_parser_has_more(P) ((P)->pending)
 
 /* Assembly */
 #ifdef JANET_ASSEMBLER

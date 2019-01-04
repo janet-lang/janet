@@ -1437,9 +1437,9 @@ value, one key will be ignored."
     (if (= len 0) (set going false))
     (while (> len pindex)
       (+= pindex (parser/consume p buf pindex))
-      (while (= (set pstatus (parser/status p)) :full)
+      (while (parser/has-more p)
         (eval1 (parser/produce p)))
-      (when (= pstatus :error)
+      (when (= (parser/status p) :error)
         (onstatus :parse
                   (string (parser/error p)
                           " around byte " (parser/where p))

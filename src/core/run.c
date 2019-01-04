@@ -92,26 +92,29 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
     janet_parser_init(&parser);
 
     while (!errflags && !done) {
-        switch (janet_parser_status(&parser)) {
-            case JANET_PARSE_FULL:
-                {
-                    Janet form = janet_parser_produce(&parser);
-                    JanetCompileResult cres = janet_compile(form, env, where);
-                    if (cres.status == JANET_COMPILE_OK) {
-                        JanetFunction *f = janet_thunk(cres.funcdef);
-                        JanetFiber *fiber = janet_fiber(f, 64);
-                        JanetSignal status = janet_continue(fiber, janet_wrap_nil(), &ret);
-                        if (status != JANET_SIGNAL_OK) {
-                            janet_stacktrace(fiber, "runtime", ret);
-                            errflags |= 0x01;
-                        }
-                    } else {
-                        janet_stacktrace(cres.macrofiber, "compile",
-                                janet_wrap_string(cres.error));
-                        errflags |= 0x02;
-                    }
+
+        /* Evaluate parsed values */
+        while (janet_parser_has_more(&parser)) {
+            Janet form = janet_parser_produce(&parser);
+            JanetCompileResult cres = janet_compile(form, env, where);
+            if (cres.status == JANET_COMPILE_OK) {
+                JanetFunction *f = janet_thunk(cres.funcdef);
+                JanetFiber *fiber = janet_fiber(f, 64);
+                JanetSignal status = janet_continue(fiber, janet_wrap_nil(), &ret);
+                if (status != JANET_SIGNAL_OK) {
+                    janet_stacktrace(fiber, "runtime", ret);
+                    errflags |= 0x01;
                 }
-                break;
+            } else {
+                fprintf(stderr, "source path: %s\n", sourcePath);
+                janet_stacktrace(cres.macrofiber, "compile",
+                        janet_wrap_string(cres.error));
+                errflags |= 0x02;
+            }
+        }
+
+        /* Dispatch based on parse state */
+        switch (janet_parser_status(&parser)) {
             case JANET_PARSE_ERROR:
                 errflags |= 0x04;
                 fprintf(stderr, "parse error: %s\n", janet_parser_error(&parser));
@@ -137,6 +140,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 }
                 break;
         }
+
     }
     janet_parser_deinit(&parser);
     if (where) janet_gcunroot(janet_wrap_string(where));
