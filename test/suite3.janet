@@ -110,5 +110,6 @@
 (assert (= 2 (@{:ok 2} :ok)) "calling table")
 (assert (= :bad (try (@{:ok 2} :ok :no) ([err] :bad))) "calling table too many arguments")
 (assert (= :bad (try (:ok @{:ok 2} :no) ([err] :bad))) "calling keyword too many arguments")
+(assert (= :oops (try (1 1) ([err] :oops))) "calling number fails")
 
 (end-suite)

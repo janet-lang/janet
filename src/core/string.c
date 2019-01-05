@@ -681,7 +681,7 @@ const uint8_t *janet_formatc(const char *format, ...) {
                         number_to_string_b(bufp, va_arg(args, double));
                         break;
                     case 'd':
-                        integer_to_string_b(bufp, va_arg(args, int32_t));
+                        integer_to_string_b(bufp, va_arg(args, long));
                         break;
                     case 'S':
                     {
@@ -708,7 +708,7 @@ const uint8_t *janet_formatc(const char *format, ...) {
                     }
                     case 'T':
                     {
-                        int types = va_arg(args, int32_t);
+                        int types = va_arg(args, long);
                         pushtypes(bufp, types);
                         break;
                     }

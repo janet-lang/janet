@@ -1094,11 +1094,11 @@ JANET_API int32_t janet_hash(Janet x);
 JANET_API int janet_compare(Janet x, Janet y);
 JANET_API int janet_cstrcmp(const uint8_t *str, const char *other);
 JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x);
-JANET_API int janet_get(Janet ds, Janet key, Janet *out);
-JANET_API int janet_getindex(Janet ds, int32_t index, Janet *out);
-JANET_API int janet_length(Janet x, int32_t *out);
-JANET_API int janet_put(Janet ds, Janet key, Janet value);
-JANET_API int janet_putindex(Janet ds, int32_t index, Janet value);
+JANET_API Janet janet_get(Janet ds, Janet key);
+JANET_API Janet janet_getindex(Janet ds, int32_t index);
+JANET_API int32_t janet_length(Janet x);
+JANET_API void janet_put(Janet ds, Janet key, Janet value);
+JANET_API void janet_putindex(Janet ds, int32_t index, Janet value);
 JANET_API void janet_inspect(Janet x);
 
 /* VM functions */
@@ -1132,7 +1132,7 @@ JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstr
 JANET_API void janet_panicv(Janet message);
 JANET_API void janet_panic(const char *message);
 JANET_API void janet_panics(const uint8_t *message);
-#define janet_panicf(message, ...) janet_panics(janet_formatc(message, __VA_ARGS__))
+#define janet_panicf(...) janet_panics(janet_formatc(__VA_ARGS__))
 JANET_API void janet_panic_type(Janet x, int32_t n, int expected);
 
 /* Helpers for writing modules */
