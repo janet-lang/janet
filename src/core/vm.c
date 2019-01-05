@@ -137,12 +137,20 @@ static void *op_lookup[255] = {
 #define vm_next() opcode = *pc & 0xFF; continue
 #endif
 
+/* Commit and restore VM state before possible longjmp */
+#define vm_commit() do { janet_stack_frame(stack)->pc = pc; } while (0)
+#define vm_restore() do { \
+    stack = fiber->data + fiber->frame; \
+    pc = janet_stack_frame(stack)->pc; \
+    func = janet_stack_frame(stack)->func; \
+} while (0)
+
 /* Next instruction variations */
-#define janet_maybe_collect() do {\
+#define maybe_collect() do {\
     if (janet_vm_next_collection >= janet_vm_gc_interval) janet_collect(); } while (0)
-#define vm_checkgc_next() janet_maybe_collect(); vm_next()
+#define vm_checkgc_next() maybe_collect(); vm_next()
 #define vm_pcnext() pc++; vm_next()
-#define vm_checkgc_pcnext() janet_maybe_collect(); vm_pcnext()
+#define vm_checkgc_pcnext() maybe_collect(); vm_pcnext()
 
 /* Handle certain errors in main vm loop */
 #define vm_throw(e) do { retreg = janet_cstringv(e); goto vm_error; } while (0)
@@ -211,10 +219,11 @@ static void *op_lookup[255] = {
 /* Interpreter main loop */
 static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
-    /* interpreter state */
+    /* Interpreter state */
     register Janet *stack;
     register uint32_t *pc;
     register JanetFunction *func;
+    vm_restore();
 
     /* Keep in mind the garbage collector cannot see this value.
      * Values stored here should be used immediately */
@@ -225,24 +234,13 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     /* Signal to return when done */
     JanetSignal signal = JANET_SIGNAL_OK;
-
-    /* Setup fiber state */
-    stack = fiber->data + fiber->frame;
-    pc = janet_stack_frame(stack)->pc;
-    func = janet_stack_frame(stack)->func;
-
-    if (fiber->child) {
-        /* Check for child fiber. If there is a child, run child before self.
-         * This should only be hit when the current fiber is pending on a RESUME
-         * instruction. */
-        retreg = in;
-        goto vm_resume_child;
-    }
     
+    /* Only should be hit if the fiber is either waiting for a child, or
+     * waiting to be resumed. In those cases, use input and increment pc. We
+     * DO NOT use input when resuming a fiber that has been interrupted at a 
+     * breakpoint. */
     if (janet_fiber_status(fiber) != JANET_STATUS_NEW && 
-            ((*pc & 0xFF) == JOP_SIGNAL)) {
-        /* Only should be hit if child is waiting on a SIGNAL instruction */
-        /* If waiting for response to signal, use input and increment pc */
+            ((*pc & 0xFF) == JOP_SIGNAL || (*pc & 0xFF) == JOP_RESUME)) {
         stack[A] = in;
         pc++;
     }
@@ -568,7 +566,11 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
                 signal = JANET_SIGNAL_ERROR;
                 goto vm_exit;
             }
-            goto vm_return_cfunc;
+            janet_fiber_popframe(fiber);
+            if (fiber->frame == 0) goto vm_exit;
+            stack = fiber->data + fiber->frame;
+            stack[A] = retreg;
+            vm_checkgc_pcnext();
         } else {
             int status;
             int32_t argn = fiber->stacktop - fiber->stackstart;
@@ -624,7 +626,10 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
                 signal = JANET_SIGNAL_ERROR;
                 goto vm_exit;
             }
-            goto vm_return_cfunc_tail;
+            janet_fiber_popframe(fiber);
+            janet_fiber_popframe(fiber);
+            if (fiber->frame == 0) goto vm_exit;
+            goto vm_reset;
         } else {
             int status;
             int32_t argn = fiber->stacktop - fiber->stackstart;
@@ -663,11 +668,17 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_RESUME)
     {
-        Janet fiberval = stack[B];
-        vm_assert_type(fiberval, JANET_FIBER);
-        retreg = stack[C];
-        fiber->child = janet_unwrap_fiber(fiberval);
-        goto vm_resume_child;
+        vm_assert_type(stack[B], JANET_FIBER);
+        JanetFiber *child = janet_unwrap_fiber(stack[B]);
+        fiber->child = child;
+        JanetSignal sig = janet_continue(child, stack[C], &retreg);
+        if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
+            signal = sig;
+            goto vm_exit;
+        }
+        fiber->child = NULL;
+        stack[A] = retreg;
+        vm_checkgc_pcnext();
     }
 
     VM_OP(JOP_SIGNAL)
@@ -826,25 +837,6 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         vm_checkgc_pcnext();
     }
 
-    /* Return from c function. Simpler than returning from janet function */
-    vm_return_cfunc:
-    {
-        janet_fiber_popframe(fiber);
-        if (fiber->frame == 0) goto vm_exit;
-        stack = fiber->data + fiber->frame;
-        stack[A] = retreg;
-        vm_checkgc_pcnext();
-    }
-
-    /* Return from a cfunction that is in tail position (pop 2 stack frames) */
-    vm_return_cfunc_tail:
-    {
-        janet_fiber_popframe(fiber);
-        janet_fiber_popframe(fiber);
-        if (fiber->frame == 0) goto vm_exit;
-        goto vm_reset;
-    }
-
     /* Handle returning from stack frame. Expect return value in retreg */
     vm_return:
     {
@@ -876,31 +868,6 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
                     nargs == 1 ? "" : "s"));
         signal = JANET_SIGNAL_ERROR;
         goto vm_exit;
-    }
-
-    /* Resume a child fiber */
-    vm_resume_child:
-    {
-        JanetFiber *child = fiber->child;
-        JanetFiberStatus status = janet_fiber_status(child);
-        if (status == JANET_STATUS_ALIVE) vm_throw("cannot resume live fiber");
-        if (status == JANET_STATUS_DEAD) vm_throw("cannot resume dead fiber");
-        if (status == JANET_STATUS_ERROR) vm_throw("cannot resume errored fiber");
-        signal = janet_continue(child, retreg, &retreg);
-        if (signal != JANET_SIGNAL_OK) {
-            if (child->flags & (1 << signal)) {
-                /* Intercept signal */
-                signal = JANET_SIGNAL_OK;
-                fiber->child = NULL;
-            } else {
-                /* Propogate signal */
-                goto vm_exit;
-            }
-        } else {
-            fiber->child = NULL;
-        }
-        stack[A] = retreg;
-        vm_checkgc_pcnext();
     }
 
     /* Handle type errors. The found type is the type of retreg,
@@ -938,9 +905,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     /* Reset state of machine */
     vm_reset:
     {
-        stack = fiber->data + fiber->frame;
-        func = janet_stack_frame(stack)->func;
-        pc = janet_stack_frame(stack)->pc;
+        vm_restore();
         stack[A] = retreg;
         vm_checkgc_pcnext();
     }
@@ -950,6 +915,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
 /* Enter the main vm loop */
 JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
+
     /* Check conditions */
     if (janet_vm_stackn >= JANET_RECURSION_GUARD) {
         janet_fiber_set_status(fiber, JANET_STATUS_ERROR);
@@ -962,6 +928,19 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
             startstatus == JANET_STATUS_ERROR) {
         *out = janet_cstringv("cannot resume alive, dead, or errored fiber");
         return JANET_SIGNAL_ERROR;
+    }
+
+    /* Continue child fiber if it exists */
+    if (fiber->child) {
+        JanetFiber *child = fiber->child;
+        janet_vm_stackn++;
+        JanetSignal sig = janet_continue(child, in, &in);
+        janet_vm_stackn--;
+        if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
+            *out = in;
+            return sig;
+        }
+        fiber->child = NULL;
     }
 
     /* Prepare state */
