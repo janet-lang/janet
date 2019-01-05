@@ -619,6 +619,30 @@ JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x) {
     return S.buffer;
 }
 
+static const char *typestr(Janet x) {
+    JanetType t = janet_type(x);
+    return (t = JANET_ABSTRACT)
+        ? janet_abstract_type(janet_unwrap_abstract(x))->name
+        : janet_type_names[t];
+}
+
+static void pushtypes(JanetBuffer *buffer, int types) {
+    int first = 1;
+    int i = 0;
+    while (types) {
+        if (1 & types) {
+            if (first) {
+                first = 0;
+            } else {
+                janet_buffer_push_u8(buffer, '|');
+            }
+            janet_buffer_push_cstring(buffer, janet_type_names[i]);
+        }
+        i++;
+        types >>= 1;
+    }
+}
+
 /* Helper function for formatting strings. Useful for generating error messages and the like.
  * Similar to printf, but specialized for operating with janet. */
 const uint8_t *janet_formatc(const char *format, ...) {
@@ -679,7 +703,13 @@ const uint8_t *janet_formatc(const char *format, ...) {
                     }
                     case 't':
                     {
-                        janet_buffer_push_cstring(bufp, janet_type_names[va_arg(args, JanetType)] + 1);
+                        janet_buffer_push_cstring(bufp, typestr(va_arg(args, Janet)));
+                        break;
+                    }
+                    case 'T':
+                    {
+                        int types = va_arg(args, int32_t);
+                        pushtypes(bufp, types);
                         break;
                     }
                     case 'V':

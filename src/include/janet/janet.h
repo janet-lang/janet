@@ -201,6 +201,7 @@ extern "C" {
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <setjmp.h>
 
 /* Names of all of the types */
 extern const char *const janet_type_names[16];
@@ -314,11 +315,13 @@ typedef enum JanetType {
 
 /* Some abstractions */
 #define JANET_TFLAG_BOOLEAN (JANET_TFLAG_TRUE | JANET_TFLAG_FALSE)
-#define JANET_TFLAG_CALLABLE (JANET_TFLAG_FUNCTION | JANET_TFLAG_CFUNCTION)
 #define JANET_TFLAG_BYTES (JANET_TFLAG_STRING | JANET_TFLAG_SYMBOL | JANET_TFLAG_BUFFER | JANET_TFLAG_KEYWORD)
 #define JANET_TFLAG_INDEXED (JANET_TFLAG_ARRAY | JANET_TFLAG_TUPLE)
 #define JANET_TFLAG_DICTIONARY (JANET_TFLAG_TABLE | JANET_TFLAG_STRUCT)
 #define JANET_TFLAG_LENGTHABLE (JANET_TFLAG_BYTES | JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY)
+#define JANET_TFLAG_CALLABLE (JANET_TFLAG_FUNCTION | JANET_TFLAG_CFUNCTION)
+#define JANET_TFLAG_FUNCLIKE (JANET_TFLAG_CALLABLE | JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY | \
+        JANET_TFLAG_KEYWORD | JANET_TFLAG_SYMBOL)
 
 /* We provide three possible implemenations of Janets. The preferred
  * nanboxing approach, for 32 or 64 bits, and the standard C version. Code in the rest of the
@@ -610,6 +613,7 @@ struct JanetFiber {
     int32_t capacity;
     int32_t maxstack; /* Arbitrary defined limit for stack overflow */
     int32_t flags; /* Various flags */
+    jmp_buf buf; /* Handle errors */
 };
 
 /* Mark if a stack frame is a tail call for debugging */
@@ -1123,6 +1127,13 @@ JANET_API int janet_arity_err(JanetArgs args, int32_t n, const char *prefix);
 JANET_API int janet_type_err(JanetArgs args, int32_t n, JanetType expected);
 JANET_API int janet_typemany_err(JanetArgs args, int32_t n, int expected);
 JANET_API int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstractType *at);
+
+/* New C API */
+JANET_API void janet_panicv(Janet message);
+JANET_API void janet_panic(const char *message);
+JANET_API void janet_panics(const uint8_t *message);
+#define janet_panicf(message, ...) janet_panics(janet_formatc(message, __VA_ARGS__))
+JANET_API void janet_panic_type(Janet x, int32_t n, int expected);
 
 /* Helpers for writing modules */
 #define JANET_MODULE_ENTRY JANET_API int _janet_init
