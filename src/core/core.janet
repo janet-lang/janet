@@ -1568,7 +1568,7 @@ value, one key will be ignored."
     path))
 
 (def require
-  "(require module)\n\n
+  "(require module & args)\n\n
   Require a module with the given name. Will search all of the paths in
   module/paths, then the path as a raw file path. Returns the new environment
   returned from compiling and running the file."
@@ -1596,56 +1596,47 @@ value, one key will be ignored."
 
     (def cache @{})
     (def loading @{})
-    (fn require [path args &]
+    (fn require [path & args]
       (when loading.path
         (error (string "circular dependency: module " path " is loading")))
-      (def {:exit exit-on-error} (or args {}))
-      (def check cache.path)
-      (if check
+      (def {:exit exit-on-error} (table ;args))
+      (if-let [check cache.path]
         check
-        (do
-          (def newenv (make-env))
-          (set cache.path newenv)
-          (set loading.path true)
-          (def f (find-mod path))
-          (if f
-            (do
-              # Normal janet module
-              (defn chunks [buf _] (file/read f 1024 buf))
-              (run-context newenv chunks
-                           (fn [sig x f source]
-                             (when (not= sig :dead)
-                               (status-pp sig x f source)
-                               (if exit-on-error (os/exit 1))))
-                           path)
-              (file/close f))
-            (do
-              # Try native module
-              (def n (find-native path))
-              (if (not n)
-                (error (string "could not open file for module " path)))
-              ((native n) newenv)))
-          (set loading.path false)
-          newenv)))))
+        (if-let [f (find-mod path)]
+          (do
+            # Normal janet module
+            (def newenv (make-env))
+            (set cache.path newenv)
+            (set loading.path true)
+            (defn chunks [buf _] (file/read f 1024 buf))
+            (run-context newenv chunks
+                         (fn [sig x f source]
+                           (when (not= sig :dead)
+                             (status-pp sig x f source)
+                             (if exit-on-error (os/exit 1))))
+                         path)
+            (file/close f)
+            (set loading.path false)
+            newenv)
+          (do
+            # Try native module
+            (def n (find-native path))
+            (if (not n)
+              (error (string "could not open file for module " path)))
+            (native n)))))))
 
 (defn import*
   "Import a module into a given environment table. This is the
   functional form of (import ...) that expects and explicit environment
   table."
   [env path & args]
-  (def targs (table ;args))
   (def {:as as
-        :prefix prefix} targs)
-  (def newenv (require path targs))
-  (var k (next newenv nil))
-  (def {:meta meta} newenv)
+        :prefix prefix} (table ;args))
+  (def newenv (require path ;args))
   (def prefix (or (and as (string as "/")) prefix (string path "/")))
-  (while k
-    (def v newenv.k)
-    (when (not v:private)
-      (def newv (table/setproto @{:private true} v))
-      (put env (symbol prefix k) newv))
-    (set k (next newenv k))))
+  (loop [[k v] :pairs newenv :when (not v:private)]
+    (def newv (table/setproto @{:private true} v))
+    (put env (symbol prefix k) newv)))
 
 (defmacro import
   "Import a module. First requires the module, and then merges its
