@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -27,10 +27,10 @@
 
 /* The VM state. Rather than a struct that is passed
  * around, the vm state is global for simplicity. If
- * at some point a a global state object, or context,
- * is required to be passed around, this is waht would
- * be in it. However, thread local globals for interpreter
- * state should allow easy multithreading. */
+ * at some point a global state object, or context,
+ * is required to be passed around, this is what would
+ * be in it. However, thread local global variables for interpreter
+ * state should allow easy multi-threading. */
 
 /* How many VM stacks have been entered */
 extern JANET_THREAD_LOCAL int janet_vm_stackn;
@@ -39,7 +39,7 @@ extern JANET_THREAD_LOCAL int janet_vm_stackn;
  * Set and unset by janet_run. */
 extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
 
-/* The global registry for c functions. Used to store metadata
+/* The global registry for c functions. Used to store meta-data
  * along with otherwise bare c function pointers. */
 extern JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
 

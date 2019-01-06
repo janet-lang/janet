@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -62,7 +62,7 @@ const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
  *
  * Runs will be in sorted order, as the collisions resolver essentially
  * preforms an in-place insertion sort. This ensures the internal structure of the
- * hash map is independant of insertion order.
+ * hash map is independent of insertion order.
  */
 void janet_struct_put(JanetKV *st, Janet key, Janet value) {
     int32_t cap = janet_struct_capacity(st);
@@ -89,9 +89,9 @@ void janet_struct_put(JanetKV *st, Janet key, Janet value) {
         }
         /* Robinhood hashing - check if colliding kv pair
          * is closer to their source than current. We use robinhood
-         * hashing to ensure that equivalent structs that are contsructed
+         * hashing to ensure that equivalent structs that are constructed
          * with different order have the same internal layout, and therefor
-         * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}. 
+         * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}.
          * Collisions are resolved via an insertion sort insertion. */
         otherhash = janet_hash(kv->key);
         otherindex = janet_maphash(cap, otherhash);

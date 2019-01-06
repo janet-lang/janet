@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -50,7 +50,7 @@ static int is_symbol_char(uint8_t c) {
 }
 
 /* Validate some utf8. Useful for identifiers. Only validates
- * the encoding, does not check for valid codepoints (they
+ * the encoding, does not check for valid code points (they
  * are less well defined than the encoding). */
 static int valid_utf8(const uint8_t *str, int32_t len) {
     int32_t i = 0;
@@ -75,7 +75,7 @@ static int valid_utf8(const uint8_t *str, int32_t len) {
             if ((str[j] >> 6) != 2) return 0;
         }
 
-        /* Check for overlong encodings */
+        /* Check for overlong encoding */
         if ((nexti == i + 2) && str[i] < 0xC2) return 0;
         if ((str[i] == 0xE0) && str[i + 1] < 0xA0) return 0;
         if ((str[i] == 0xF0) && str[i + 1] < 0x90) return 0;
@@ -170,7 +170,7 @@ static void popstate(JanetParser *p, Janet val) {
         } else if (newtop->flags & PFLAG_READERMAC) {
             Janet *t = janet_tuple_begin(2);
             int c = newtop->flags & 0xFF;
-            const char *which = 
+            const char *which =
                 (c == '\'') ? "quote" :
                 (c == ',') ? "unquote" :
                 (c == ';') ? "splice" :
@@ -308,7 +308,7 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
             p->error = "symbol literal cannot start with a digit";
             return 0;
         } else {
-            /* Don't do full utf8 check unless we have seen non ascii characters. */
+            /* Don't do full utf-8 check unless we have seen non ascii characters. */
             int valid = (!state->argn) || valid_utf8(p->buf, blen);
             if (!valid) {
                 p->error = "invalid utf-8 in symbol";
@@ -777,7 +777,7 @@ static const JanetReg cfuns[] = {
     {
         "parser/error", cfun_error,
         JDOC("(parser/error parser)\n\n"
-                "If the parser is in the error state, returns the message asscoiated with "
+                "If the parser is in the error state, returns the message associated with "
                 "that error. Otherwise, returns nil. Also flushes the parser state and parser "
                 "queue, so be sure to handle everything in the queue before calling "
                 "parser/error.")
@@ -804,14 +804,14 @@ static const JanetReg cfuns[] = {
                 "Returns a string representation of the internal state of the parser. "
                 "Each byte in the string represents a nested data structure. For example, "
                 "if the parser state is '([\"', then the parser is in the middle of parsing a "
-                "string inside of square brackets inside parens. Can be used to augment a repl prompt.")
+                "string inside of square brackets inside parentheses. Can be used to augment a REPL prompt.")
     },
     {
         "parser/where", cfun_where,
         JDOC("(parser/where parser)\n\n"
                 "Returns the current line number and column number of the parser's location "
                 "in the byte stream as a tuple (line, column). Lines and columns are counted from "
-                "1, (the first byte is line1, column 1) and a newline is considered ascii 0x0A.")
+                "1, (the first byte is line 1, column 1) and a newline is considered ASCII 0x0A.")
     },
     {NULL, NULL, NULL}
 };

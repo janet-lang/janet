@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -95,12 +95,12 @@ static const JanetReg cfuns[] = {
     },
     {
         "not", janet_not,
-        JDOC("(not x)\n\nReturns the boolen inverse of x.")
+        JDOC("(not x)\n\nReturns the boolean inverse of x.")
     },
     {
         "math/random", janet_rand,
         JDOC("(math/random)\n\n"
-                "Returns a uniformly distrbuted random number between 0 and 1.")
+                "Returns a uniformly distributed random number between 0 and 1.")
     },
     {
         "math/seedrandom", janet_srand,
@@ -179,10 +179,12 @@ static const JanetReg cfuns[] = {
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
+#ifndef JANET_NO_BOOTSTRAP
     janet_def(env, "math/pi", janet_wrap_number(3.1415926535897931),
             JDOC("The value pi."));
     janet_def(env, "math/e", janet_wrap_number(2.7182818284590451),
             JDOC("The base of the natural log."));
     janet_def(env, "math/inf", janet_wrap_number(INFINITY),
             JDOC("The number representing positive infinity"));
+#endif
 }

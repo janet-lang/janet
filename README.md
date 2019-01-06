@@ -10,7 +10,7 @@ The language also bridging bridging to native code written in C, meta-programmin
 
 There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
-janet could be embedded into other programs. Try janet in your browser at 
+janet could be embedded into other programs. Try janet in your browser at
 [https://janet-lang.org](https://janet-lang.org).
 
 #
@@ -51,7 +51,7 @@ Janet makes a good system scripting language, or a language to embed in other pr
 
 ## Documentation
 
-Documentation can be found in the doc directory of 
+Documentation can be found in the doc directory of
 the repository. There is an introduction
 section contains a good overview of the language.
 
@@ -66,7 +66,7 @@ documentation for the core library. For example,
 (doc doc)
 ```
 Shows documentation for the doc macro.
-              
+
 To get a list of all bindings in the default
 environment, use the `(all-symbols)` function.
 

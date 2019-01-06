@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -211,7 +211,7 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
     Janet *stack = fiber->data + fiber->frame;
     Janet *args = fiber->data + fiber->stackstart;
 
-    /* Detatch old function */
+    /* Detach old function */
     if (NULL != janet_fiber_frame(fiber)->func)
         janet_env_detach(janet_fiber_frame(fiber)->env);
     janet_fiber_frame(fiber)->env = NULL;
@@ -414,13 +414,13 @@ static const JanetReg cfuns[] = {
         JDOC("(fiber/maxstack fib)\n\n"
                 "Gets the maximum stack size in janet values allowed for a fiber. While memory for "
                 "the fiber's stack is not allocated up front, the fiber will not allocated more "
-                "than this amount and will throw a stackoverflow error if more memory is needed. ")
+                "than this amount and will throw a stack-overflow error if more memory is needed. ")
     },
     {
         "fiber/setmaxstack", cfun_setmaxstack,
         JDOC("(fiber/setmaxstack fib maxstack)\n\n"
                 "Sets the maximum stack size in janet values for a fiber. By default, the "
-                "maximum stacksize is usually 8192.")
+                "maximum stack size is usually 8192.")
     },
     {NULL, NULL, NULL}
 };

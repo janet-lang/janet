@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -24,7 +24,7 @@
 #include <assert.h>
 
 int main() {
-    
+
     int i;
     JanetBuffer *buffer1, *buffer2;
 

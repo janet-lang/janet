@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -100,7 +100,7 @@ JanetSlot janetc_sym_rvalue(JanetFopts opts, const uint8_t *sym) {
     return multisym_do_parts(opts, 0, sym, janet_wrap_nil());
 }
 
-/* Check if a symbol is a multisym, and if so, transform 
+/* Check if a symbol is a multisym, and if so, transform
  * it into the correct 'put' expression. */
 JanetSlot janetc_sym_lvalue(JanetFopts opts, const uint8_t *sym, Janet value) {
     return multisym_do_parts(opts, 1, sym, value);

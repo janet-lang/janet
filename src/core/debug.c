@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -274,7 +274,7 @@ static const JanetReg cfuns[] = {
                 "\t:line - the current source line of the stack frame\n"
                 "\t:name - the human friendly name of the function\n"
                 "\t:pc - integer indicating the location of the program counter\n"
-                "\t:source - string with filename or other identifier for the source code\n"
+                "\t:source - string with the file path or other identifier for the source code\n"
                 "\t:slots - array of all values in each slot\n"
                 "\t:tail - boolean indicating a tail call")
     },

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -102,7 +102,7 @@ int32_t janet_hash(Janet x) {
     return hash;
 }
 
-/* Compares x to y. If they are equal retuns 0. If x is less, returns -1.
+/* Compares x to y. If they are equal returns 0. If x is less, returns -1.
  * If y is less, returns 1. All types are comparable
  * and should have strict ordering. */
 int janet_compare(Janet x, Janet y) {
@@ -113,7 +113,7 @@ int janet_compare(Janet x, Janet y) {
             case JANET_TRUE:
                 return 0;
             case JANET_NUMBER:
-                /* Check for nans to ensure total order */
+                /* Check for NaNs to ensure total order */
                 if (janet_unwrap_number(x) != janet_unwrap_number(x))
                     return janet_unwrap_number(y) != janet_unwrap_number(y)
                         ? 0

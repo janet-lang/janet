@@ -33,7 +33,7 @@ false
 Janet symbols are represented a sequence of alphanumeric characters
 not starting with a digit or a colon. They can also contain the characters
 \!, @, $, \%, \^, \&, \*, -, \_, +, =, \|, \~, :, \<, \>, ., \?, \\, /, as
-well as any Unicode codepoint not in the ascii range.
+well as any Unicode codepoint not in the ASCII range.
 
 By convention, most symbols should be all lower case and use dashes to connect words
 (sometimes called kebab case).
@@ -120,7 +120,7 @@ delimited string. A string can also be define to start with a certain number of
 backquotes, and will end the same number of backquotes. Long strings
 do not contain escape sequences; all bytes will be parsed literally until
 ending delimiter is found. This is useful
-for definining multiline strings with literal newline characters, unprintable
+for defining multi-line strings with literal newline characters, unprintable
 characters, or strings that would otherwise require many escape sequences.
 
 ```
@@ -155,7 +155,7 @@ the buffer must be prefixed with the '@' character.
 
 Tuples are a sequence of white space separated values surrounded by either parentheses
 or brackets. The parser considers any of the characters ASCII 32, \\0, \\f, \\n, \\r or \\t
-to be whitespace.
+to be white-space.
 
 ```
 (do 1 2 3)
@@ -173,7 +173,7 @@ Arrays are the same as tuples, but have a leading @ to indicate mutability.
 
 ## Structs
 
-Structs are represented by a sequence of whitespace delimited key value pairs
+Structs are represented by a sequence of white-space delimited key value pairs
 surrounded by curly braces. The sequence is defined as key1, value1, key2, value2, etc.
 There must be an even number of items between curly braces or the parser will
 signal a parse error. Any value can be a key or value. Using nil as a key or
@@ -202,10 +202,9 @@ that they are mutable.
 ## Comments
 
 Comments begin with a \# character and continue until the end of the line.
-There are no multiline comments. For ricm multiline comments, use a
-string literal.
+There are no multi-line comments.
 
-## Shorthands
+## Shorthand
 
 Often called reader macros in other lisps, Janet provides several shorthand
 notations for some forms.

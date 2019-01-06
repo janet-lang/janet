@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -133,7 +133,7 @@ int32_t janet_tablen(int32_t n) {
 }
 
 /* Helper to find a value in a Janet struct or table. Returns the bucket
- * containg the key, or the first empty bucket if there is no such key. */
+ * containing the key, or the first empty bucket if there is no such key. */
 const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
     int32_t index = janet_maphash(cap, janet_hash(key));
     int32_t i;
@@ -188,7 +188,7 @@ const JanetKV *janet_dictionary_next(const JanetKV *kvs, int32_t cap, const Jane
     return NULL;
 }
 
-/* Compare a janet string with a cstring. more efficient than loading
+/* Compare a janet string with a cstring. More efficient than loading
  * c string as a janet string. */
 int janet_cstrcmp(const uint8_t *str, const char *other) {
     int32_t len = janet_string_length(str);
@@ -205,7 +205,7 @@ int janet_cstrcmp(const uint8_t *str, const char *other) {
 
 /* Do a binary search on a static array of structs. Each struct must
  * have a string as its first element, and the struct must be sorted
- * lexogrpahically by that element. */
+ * lexicographically by that element. */
 const void *janet_strbinsearch(
         const void *tab,
         size_t tabcount,

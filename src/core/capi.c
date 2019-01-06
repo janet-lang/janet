@@ -79,10 +79,10 @@ DEFINE_GETTER(struct, STRUCT, const JanetKV *)
 DEFINE_GETTER(string, STRING, const uint8_t *)
 DEFINE_GETTER(keyword, KEYWORD, const uint8_t *)
 DEFINE_GETTER(symbol, SYMBOL, const uint8_t *)
-DEFINE_GETTER(buffer, BUFFER, JanetBuffer *) 
-DEFINE_GETTER(fiber, FIBER, JanetFiber *) 
-DEFINE_GETTER(function, FUNCTION, JanetFunction *) 
-DEFINE_GETTER(cfunction, CFUNCTION, JanetCFunction) 
+DEFINE_GETTER(buffer, BUFFER, JanetBuffer *)
+DEFINE_GETTER(fiber, FIBER, JanetFiber *)
+DEFINE_GETTER(function, FUNCTION, JanetFunction *)
+DEFINE_GETTER(cfunction, CFUNCTION, JanetCFunction)
 
 int janet_getboolean(const Janet *argv, int32_t n) {
     Janet x = argv[n];

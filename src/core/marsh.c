@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -610,7 +610,7 @@ static const uint8_t *unmarshal_one_env(
             data = unmarshal_one(st, data, &fiberv, flags);
             if (!janet_checktype(fiberv, JANET_FIBER)) longjmp(st->err, UMR_EXPECTED_FIBER);
             env->as.fiber = janet_unwrap_fiber(fiberv);
-            /* Unmarshaling fiber may set values */
+            /* Unmarshalling fiber may set values */
             if (env->offset != 0 && env->offset != offset) longjmp(st->err, UMR_UNKNOWN);
             if (env->length != 0 && env->length != length) longjmp(st->err, UMR_UNKNOWN);
         } else {
@@ -645,7 +645,7 @@ static const uint8_t *unmarshal_one_def(
         *out = st->lookup_defs[index];
     } else {
         /* Initialize with values that will not break garbage collection
-         * if unmarshaling fails. */
+         * if unmarshalling fails. */
         JanetFuncDef *def = janet_gcalloc(JANET_MEMORY_FUNCDEF, sizeof(JanetFuncDef));
         def->environments_length = 0;
         def->defs_length = 0;
@@ -786,7 +786,7 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->data = NULL;
     fiber->child = NULL;
 
-    /* Set frame later so fiber can be GCed at anytime if unmarshaling fails */
+    /* Set frame later so fiber can be GCed at anytime if unmarshalling fails */
     int32_t frame = 0;
     int32_t stack = 0;
     int32_t stacktop = 0;
@@ -802,7 +802,6 @@ static const uint8_t *unmarshal_one_fiber(
     if ((int32_t)(frame + JANET_FRAME_SIZE) > fiber->stackstart ||
             fiber->stackstart > fiber->stacktop ||
             fiber->stacktop > fiber->maxstack) {
-        /* printf("bad flags and ints.\n"); */
         goto error;
     }
 
@@ -832,7 +831,6 @@ static const uint8_t *unmarshal_one_fiber(
         Janet funcv;
         data = unmarshal_one(st, data, &funcv, flags + 1);
         if (!janet_checktype(funcv, JANET_FUNCTION)) {
-            /* printf("bad root func.\n"); */
             goto error;
         }
         func = janet_unwrap_function(funcv);
@@ -1154,20 +1152,20 @@ static const JanetReg cfuns[] = {
                 "can the later be unmarshalled to reconstruct the initial value. "
                 "Optionally, one can pass in a reverse lookup table to not marshal "
                 "aliased values that are found in the table. Then a forward"
-                "lookup table can be used to recover the origrinal janet value when "
-                "unmarshaling.")
+                "lookup table can be used to recover the original janet value when "
+                "unmarshalling.")
     },
     {
         "unmarshal", cfun_unmarshal,
         JDOC("(unmarshal buffer [,lookup])\n\n"
                 "Unmarshal a janet value from a buffer. An optional lookup table "
                 "can be provided to allow for aliases to be resolved. Returns the value "
-                "unmarshaled from the buffer.")
+                "unmarshalled from the buffer.")
     },
     {
         "env-lookup", cfun_env_lookup,
         JDOC("(env-lookup env)\n\n"
-                "Creates a forward lookup table for unmarshaling from an environment. "
+                "Creates a forward lookup table for unmarshalling from an environment. "
                 "To create a reverse lookup table, use the invert function to swap keys "
                 "and values in the returned table.")
     },

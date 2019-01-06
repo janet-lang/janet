@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Calvin Rose
+# Copyright (c) 2019 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -79,7 +79,7 @@
 (assert (= "\e" "\x1B") "escape character")
 (assert (= "\x09" "\t") "tab character")
 
-# Mcarthy's 91 function
+# McCarthy's 91 function
 (var f91 nil)
 (set f91 (fn [n] (if (> n 100) (- n 10) (f91 (f91 (+ n 11))))))
 (assert (= 91 (f91 10)) "f91(10) = 91")
@@ -217,7 +217,7 @@
 # Merge sort
 
 # Imperative (and verbose) merge sort merge
-(defn merge 
+(defn merge
   [xs ys]
   (def ret @[])
   (def xlen (length xs))

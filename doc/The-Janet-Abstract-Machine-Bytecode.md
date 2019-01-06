@@ -9,7 +9,7 @@ features.
 A Janet Fiber is the type used to represent multiple concurrent processes
 in janet. It is basically a wrapper around the idea of a stack. The stack is
 divided into a number of stack frames (`JanetStackFrame *` in C), each of which
-contains information such as the function that created the stack frame, 
+contains information such as the function that created the stack frame,
 the program counter for the stack frame, a pointer to the previous frame,
 and the size of the frame. Each stack frame also is paired with a number
 registers.
@@ -49,7 +49,7 @@ Frame -2
 ...
 ...
 ...
------ 
+-----
 Bottom of stack
 ```
 
@@ -137,7 +137,7 @@ by their short names as presented to the assembler rather than their numerical v
 Each instruction is also listed with a signature, which are the arguments the instruction
 expects. There are a handful of instruction signatures, which combine the arity and type
 of the instruction. The assembler does not
-do any typechecking per closure, but does prevent jumping to invalid instructions and
+do any type-checking per closure, but does prevent jumping to invalid instructions and
 failure to return or error.
 
 ### Notation
@@ -148,7 +148,7 @@ failure to return or error.
 
 * Some operators in the description have the suffix 'i' or 'r'. These indicate
   that these operators correspond to integers or real numbers only, respectively. All
-  bitwise operators and bit shifts only work with integers. 
+  bit-wise operators and bit shifts only work with integers.
 
 * The `>>>` indicates unsigned right shift, as in Java. Because all integers in janet are
   signed, we differentiate the two kinds of right bit shift.
@@ -159,7 +159,7 @@ failure to return or error.
 
 | Instruction | Signature                   | Description                       |
 | ----------- | --------------------------- | --------------------------------- |
-| `add`       | `(add dest lhs rhs)`        | $dest = $lhs + $rhs               | 
+| `add`       | `(add dest lhs rhs)`        | $dest = $lhs + $rhs               |
 | `addim`     | `(addim dest lhs im)`       | $dest = $lhs + im                 |
 | `band`      | `(band dest lhs rhs)`       | $dest = $lhs & $rhs               |
 | `bnot`      | `(bnot dest operand)`       | $dest = ~$operand                 |

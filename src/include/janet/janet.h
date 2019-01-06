@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -113,7 +113,7 @@ extern "C" {
 #define JANET_THREAD_LOCAL
 #endif
 
-/* Enable or disbale dynamic module loading. Enabled by default. */
+/* Enable or disable dynamic module loading. Enabled by default. */
 #ifndef JANET_NO_DYNAMIC_MODULES
 #define JANET_DYNAMIC_MODULES
 #endif
@@ -326,7 +326,7 @@ typedef enum JanetType {
 #define JANET_TFLAG_FUNCLIKE (JANET_TFLAG_CALLABLE | JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY | \
         JANET_TFLAG_KEYWORD | JANET_TFLAG_SYMBOL)
 
-/* We provide three possible implemenations of Janets. The preferred
+/* We provide three possible implementations of Janets. The preferred
  * nanboxing approach, for 32 or 64 bits, and the standard C version. Code in the rest of the
  * application must interact through exposed interface. */
 
@@ -385,7 +385,6 @@ JANET_API Janet janet_nanbox_from_cpointer(const void *p, uint64_t tagmask);
 JANET_API Janet janet_nanbox_from_double(double d);
 JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
 
-/* Todo - check for single mask operation */
 #define janet_truthy(x) \
     (!(janet_checktype((x), JANET_NIL) || janet_checktype((x), JANET_FALSE)))
 
@@ -634,7 +633,7 @@ struct JanetArray {
     int32_t capacity;
 };
 
-/* A bytebuffer type. Used as a mutable string or string builder. */
+/* A byte buffer type. Used as a mutable string or string builder. */
 struct JanetBuffer {
     uint8_t *data;
     int32_t count;
@@ -656,7 +655,7 @@ struct JanetKV {
     Janet value;
 };
 
-/* Some function defintion flags */
+/* Some function definition flags */
 #define JANET_FUNCDEF_FLAG_VARARG 0x10000
 #define JANET_FUNCDEF_FLAG_NEEDSENV 0x20000
 #define JANET_FUNCDEF_FLAG_FIXARITY 0x40000
@@ -694,7 +693,7 @@ struct JanetFuncDef {
     int32_t defs_length;
 };
 
-/* A fuction environment */
+/* A function environment */
 struct JanetFuncEnv {
     union {
         JanetFiber *fiber;
@@ -744,7 +743,7 @@ struct JanetAbstractType {
     int (*gcmark)(void *data, size_t len);
 };
 
-/* Contains information about userdata */
+/* Contains information about abstract types */
 struct JanetAbstractHeader {
     const JanetAbstractType *type;
     size_t size;

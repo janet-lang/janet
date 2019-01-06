@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -55,7 +55,7 @@ struct JanetAssembler {
     JanetTable defs; /* symbol -> funcdefs index */
 };
 
-/* Janet opcode descriptions in lexographic order. This
+/* Janet opcode descriptions in lexicographic order. This
  * allows a binary search over the elements to find the
  * correct opcode given a name. This works in reasonable
  * time and is easier to setup statically than a hash table or
@@ -742,7 +742,7 @@ JanetAssembleResult janet_asm(Janet source, int flags) {
 
 /* Disassembly */
 
-/* Find the deinfintion of an instruction given the instruction word. Return
+/* Find the definition of an instruction given the instruction word. Return
  * NULL if not found. */
 static const JanetInstructionDef *janet_asm_reverse_lookup(uint32_t instr) {
     size_t i;
@@ -783,7 +783,7 @@ static Janet tup4(Janet w, Janet x, Janet y, Janet z) {
     return janet_wrap_tuple(janet_tuple_end(tup));
 }
 
-/* Given an argument, convert it to the appriate integer or symbol */
+/* Given an argument, convert it to the appropriate integer or symbol */
 Janet janet_asm_decode_instruction(uint32_t instr) {
     const JanetInstructionDef *def = janet_asm_reverse_lookup(instr);
     Janet name;

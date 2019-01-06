@@ -197,7 +197,7 @@ The r-value can be any expression, and the l-value should be a bound var.
 
 Similar to `(quote x)`, but allows for unquoting within x. This makes quasiquote useful for
 writing macros, as a macro definition often generates a lot of templated code with a
-few custom values. The shorthand for quasiquote is a leading tilda `~` before a form. With
+few custom values. The shorthand for quasiquote is a leading tilde `~` before a form. With
 that form, `(unquote x)` will evaluate and insert x into the unquote form. The shorthand for
 `(unquote x)` is `,x`.
 

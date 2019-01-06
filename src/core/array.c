@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -197,7 +197,7 @@ static Janet cfun_insert(int32_t argc, Janet *argv) {
     JanetArray *array = janet_getarray(argv, 0);
     int32_t at = janet_getinteger(argv, 1);
     if (at < 0) {
-        at = array->count + at + 1; 
+        at = array->count + at + 1;
     }
     if (at < 0 || at > array->count)
         janet_panicf("insertion index %d out of range [0,%d]", at, array->count);
@@ -215,7 +215,7 @@ static Janet cfun_insert(int32_t argc, Janet *argv) {
 static const JanetReg cfuns[] = {
     {"array/new", cfun_new,
         JDOC("(array/new capacity)\n\n"
-                "Creates a new empty array with a preallocated capacity. The same as "
+                "Creates a new empty array with a pre-allocated capacity. The same as "
                 "(array) but can be more efficient if the maximum size of an array is known.")
     },
     {"array/pop", cfun_pop,

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -53,7 +53,7 @@ JanetAbstractType janet_io_filetype = {
     NULL
 };
 
-/* Check argupments to fopen */
+/* Check arguments to fopen */
 static int checkflags(const uint8_t *str) {
     int flags = 0;
     int32_t i;
@@ -133,7 +133,6 @@ static Janet janet_io_popen(int32_t argc, Janet *argv) {
 }
 #endif
 
-/* Open a a file and return a userdata wrapper around the C file API. */
 static Janet janet_io_fopen(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
@@ -305,13 +304,13 @@ static const JanetReg cfuns[] = {
     {
         "file/open", janet_io_fopen,
         JDOC("(file/open path [,mode])\n\n"
-                "Open a file. path is files absolute or relative path, and "
+                "Open a file. path is an absolute or relative path, and "
                 "mode is a set of flags indicating the mode to open the file in. "
                 "mode is a keyword where each character represents a flag. If the file "
                 "cannot be opened, returns nil, otherwise returns the new file handle. "
                 "Mode flags:\n\n"
                 "\tr - allow reading from the file\n"
-                "\tw - allow witing to the file\n"
+                "\tw - allow writing to the file\n"
                 "\ta - append to the file\n"
                 "\tb - open the file in binary mode (rather than text mode)\n"
                 "\t+ - append to the file instead of overwriting it")
@@ -327,7 +326,7 @@ static const JanetReg cfuns[] = {
         "file/read", janet_io_fread,
         JDOC("(file/read f what [,buf])\n\n"
                 "Read a number of bytes from a file into a buffer. A buffer can "
-                "be provided as an optional fourth argument. otherwise a new buffer "
+                "be provided as an optional fourth argument, otherwise a new buffer "
                 "is created. 'what' can either be an integer or a keyword. Returns the "
                 "buffer with file contents. "
                 "Values for 'what':\n\n"
@@ -344,7 +343,7 @@ static const JanetReg cfuns[] = {
     {
         "file/flush", janet_io_fflush,
         JDOC("(file/flush f)\n\n"
-                "Flush any buffered bytes to the filesystem. In most files, writes are "
+                "Flush any buffered bytes to the file system. In most files, writes are "
                 "buffered for efficiency reasons. Returns the file handle.")
     },
     {

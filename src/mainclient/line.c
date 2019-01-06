@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -184,7 +184,7 @@ static void clear() {
 static void refresh() {
     char seq[64];
     JanetBuffer b;
- 
+
     /* Keep cursor position on screen */
     char *_buf = buf;
     int _len = len;
@@ -296,7 +296,7 @@ static void kright() {
 static void kbackspace() {
     if (pos > 0) {
         memmove(buf + pos - 1, buf + pos, len - pos);
-        pos--; 
+        pos--;
         buf[--len] = '\0';
         refresh();
     }
@@ -445,7 +445,7 @@ static int checktermsupport() {
 }
 
 void janet_line_get(const uint8_t *p, JanetBuffer *buffer) {
-    prompt = (const char *)p; 
+    prompt = (const char *)p;
     buffer->count = 0;
     historyi = 0;
     if (!isatty(STDIN_FILENO) || !checktermsupport()) {

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -21,23 +21,21 @@
 */
 
 /* Use a custom double parser instead of libc's strtod for better portability
- * and control. Also, uses a less strict rounding method than ieee to not incur
- * the cost of 4000 loc and dependence on arbitary precision arithmetic. Includes
- * subset of multiple precision functionality needed for correct rounding.
+ * and control.
  *
  * This version has been modified for much greater flexibility in parsing, such
  * as choosing the radix and supporting scientific notation with any radix.
  *
  * Numbers are of the form [-+]R[rR]I.F[eE&][-+]X where R is the radix, I is
  * the integer part, F is the fractional part, and X is the exponent. All
- * signs, radix, decimal point, fractional part, and exponent can be ommited.
+ * signs, radix, decimal point, fractional part, and exponent can be omitted.
  * The number will be considered and integer if the there is no decimal point
  * and no exponent. Any number greater the 2^32-1 or less than -(2^32) will be
  * coerced to a double. If there is an error, the function janet_scan_number will
  * return a janet nil. The radix is assumed to be 10 if omitted, and the E
  * separator for the exponent can only be used when the radix is 10. This is
- * because E is a vaid digit in bases 15 or greater. For bases greater than 10,
- * the letters are used as digitis. A through Z correspond to the digits 10
+ * because E is a valid digit in bases 15 or greater. For bases greater than 10,
+ * the letters are used as digits. A through Z correspond to the digits 10
  * through 35, and the lowercase letters have the same values. The radix number
  * is always in base 10. For example, a hexidecimal number could be written
  * '16rdeadbeef'. janet_scan_number also supports some c style syntax for
@@ -104,7 +102,7 @@ static void bignat_append(struct BigNat *mant, uint32_t dig) {
 }
 
 /* Multiply the mantissa mant by a factor and the add a term
- * in one operation. factor will be between 2 and 36^4, 
+ * in one operation. factor will be between 2 and 36^4,
  * term will be between 0 and 36. */
 static void bignat_muladd(struct BigNat *mant, uint32_t factor, uint32_t term) {
     int32_t i;
@@ -166,7 +164,7 @@ static int clz(uint32_t x) {
 static double bignat_extract(struct BigNat *mant, int32_t exponent2) {
     uint64_t top53;
     int32_t n = mant->n;
-    /* Get most significant 53 bits from mant. Bit52 (0 indexed) should
+    /* Get most significant 53 bits from mant. Bit 52 (0 indexed) should
      * always be 1. This is essentially a large right shift on mant.*/
     if (n) {
         /* Two or more digits */

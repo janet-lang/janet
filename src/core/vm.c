@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -32,8 +32,8 @@ JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
 JANET_THREAD_LOCAL int janet_vm_stackn = 0;
 JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber = NULL;
 
-/* Virtual regsiters
- * 
+/* Virtual registers
+ *
  * One instruction word
  * CC | BB | AA | OP
  * DD | DD | DD | OP
@@ -220,7 +220,7 @@ static void *op_lookup[255] = {
 #define vm_bitopu(op) _vm_bitop(op, uint32_t)
 
 /* Call a non function type */
-static Janet call_nonfn(JanetFiber *fiber, Janet callee) { 
+static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     int32_t argn = fiber->stacktop - fiber->stackstart;
     Janet ds, key;
     if (!janet_checktypes(callee, JANET_TFLAG_FUNCLIKE)) {
@@ -247,12 +247,12 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     register uint32_t *pc;
     register JanetFunction *func;
     vm_restore();
-    
+
     /* Only should be hit if the fiber is either waiting for a child, or
      * waiting to be resumed. In those cases, use input and increment pc. We
-     * DO NOT use input when resuming a fiber that has been interrupted at a 
+     * DO NOT use input when resuming a fiber that has been interrupted at a
      * breakpoint. */
-    if (janet_fiber_status(fiber) != JANET_STATUS_NEW && 
+    if (janet_fiber_status(fiber) != JANET_STATUS_NEW &&
             ((*pc & 0xFF) == JOP_SIGNAL || (*pc & 0xFF) == JOP_RESUME)) {
         stack[A] = in;
         pc++;
@@ -266,7 +266,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         : (*pc & 0xFF);
 
     /* Main interpreter loop. Semantically is a switch on
-     * (*pc & 0xFF) inside of an infinte loop. */
+     * (*pc & 0xFF) inside of an infinite loop. */
     VM_START();
 
     VM_DEFAULT();

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -381,6 +381,8 @@ static const JanetReg cfuns[] = {
     {NULL, NULL, NULL}
 };
 
+#ifndef JANET_NO_BOOTSTRAP
+
 /* Utility for inline assembly */
 static void janet_quick_asm(
         JanetTable *env,
@@ -599,6 +601,7 @@ static const uint32_t bnot_asm[] = {
     JOP_BNOT,
     JOP_RETURN
 };
+#endif /* ifndef JANET_NO_BOOTSTRAP */
 
 JanetTable *janet_core_env(void) {
     JanetTable *env = janet_table(0);
@@ -607,6 +610,7 @@ JanetTable *janet_core_env(void) {
     /* Load main functions */
     janet_cfuns(env, NULL, cfuns);
 
+#ifndef JANET_NO_BOOTSTRAP
     janet_quick_asm(env, JANET_FUN_YIELD, "debug", 0, 1, debug_asm, sizeof(debug_asm),
             JDOC("(debug)\n\n"
                 "Throws a debug signal that can be caught by a parent fiber and used to inspect "
@@ -645,7 +649,7 @@ JanetTable *janet_core_env(void) {
                 "Returns the length or count of a data structure in constant time as an integer. For "
                 "structs and tables, returns the number of key-value pairs in the data structure."));
     janet_quick_asm(env, JANET_FUN_BNOT, "bnot", 1, 1, bnot_asm, sizeof(bnot_asm),
-            JDOC("(bnot x)\n\nReturns the bitwise inverse of integer x."));
+            JDOC("(bnot x)\n\nReturns the bit-wise inverse of integer x."));
     make_apply(env);
 
     /* Variadic ops */
@@ -667,13 +671,13 @@ JanetTable *janet_core_env(void) {
             "values. Division by two integers uses truncating division."));
     templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
             JDOC("(band & xs)\n\n"
-            "Returns the bitwise and of all values in xs. Each x in xs must be an integer."));
+            "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));
     templatize_varop(env, JANET_FUN_BOR, "bor", 0, 0, JOP_BOR,
             JDOC("(bor & xs)\n\n"
-            "Returns the bitwise or of all values in xs. Each x in xs must be an integer."));
+            "Returns the bit-wise or of all values in xs. Each x in xs must be an integer."));
     templatize_varop(env, JANET_FUN_BXOR, "bxor", 0, 0, JOP_BXOR,
             JDOC("(bxor & xs)\n\n"
-            "Returns the bitwise xor of all values in xs. Each in xs must be an integer."));
+            "Returns the bit-wise xor of all values in xs. Each in xs must be an integer."));
     templatize_varop(env, JANET_FUN_LSHIFT, "blshift", 1, 1, JOP_SHIFT_LEFT,
             JDOC("(blshift x & shifts)\n\n"
             "Returns the value of x bit shifted left by the sum of all values in shifts. x "
@@ -732,12 +736,13 @@ JanetTable *janet_core_env(void) {
 
     /* Platform detection */
     janet_def(env, "janet/version", janet_cstringv(JANET_VERSION),
-            "The version number of the running janet program.");
+            JDOC("The version number of the running janet program."));
     janet_def(env, "janet/build", janet_cstringv(JANET_BUILD),
-            "The build identifier of the running janet program.");
+            JDOC("The build identifier of the running janet program."));
 
     /* Allow references to the environment */
-    janet_def(env, "_env", ret, "The environment table for the current scope.");
+    janet_def(env, "_env", ret, JDOC("The environment table for the current scope."));
+#endif
 
     /* Set as gc root */
     janet_gcroot(janet_wrap_table(env));
@@ -760,8 +765,10 @@ JanetTable *janet_core_env(void) {
     janet_lib_asm(env);
 #endif
 
+#ifndef JANET_NO_BOOTSTRAP
     /* Run bootstrap source */
     janet_dobytes(env, janet_gen_core, janet_gen_core_size, "core.janet", NULL);
+#endif
 
     return env;
 }

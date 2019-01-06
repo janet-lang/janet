@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -44,7 +44,7 @@ typedef struct {
     int32_t count; /* number of chunks in chunks */
     int32_t capacity; /* amount allocated for chunks */
     int32_t max; /* The maximum allocated register so far */
-    int32_t regtemps; /* Hold which tempregistered are alloced. */
+    int32_t regtemps; /* Hold which temp. registers are allocated. */
 } JanetcRegisterAllocator;
 
 void janetc_regalloc_init(JanetcRegisterAllocator *ra);
@@ -56,12 +56,5 @@ int32_t janetc_regalloc_temp(JanetcRegisterAllocator *ra, JanetcRegisterTemp nth
 void janetc_regalloc_freetemp(JanetcRegisterAllocator *ra, int32_t reg, JanetcRegisterTemp nth);
 void janetc_regalloc_clone(JanetcRegisterAllocator *dest, JanetcRegisterAllocator *src);
 void janetc_regalloc_touch(JanetcRegisterAllocator *ra, int32_t reg);
-
-/* Mutli-slot allocation disabled */
-/*
-int32_t janetc_regalloc_n(JanetcRegisterAllocator *ra, int32_t n);
-int32_t janetc_regalloc_call(JanetcRegisterAllocator *ra, int32_t callee, int32_t nargs);
-void janetc_regalloc_freerange(JanetcRegisterAllocator *ra, int32_t regstart, int32_t n);
-*/
 
 #endif

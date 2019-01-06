@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -27,7 +27,7 @@
 
 /* Check a subset of numbers against system implementation.
  * Note that this depends on the system implementation being correct,
- * which may not be the case for old or non complient systems. Also,
+ * which may not be the case for old or non compliant systems. Also,
  * we cannot check against bases other 10. */
 
 /* Compare valid c numbers to system implementation. */
@@ -42,7 +42,7 @@ static void test_valid_str(const char *str) {
 }
 
 int main() {
-    
+
     janet_init();
 
     test_valid_str("1.0");

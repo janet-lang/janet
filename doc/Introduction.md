@@ -63,11 +63,11 @@ notation with a radix besides 10, use the `&` symbol to indicate the exponent ra
 ## Arithmetic Functions
 
 Besides the 5 main arithmetic functions, janet also supports a number of math functions
-taken from the C library `<math.h>`, as well as bitwise operators that behave like they
+taken from the C library `<math.h>`, as well as bit-wise operators that behave like they
 do in C or Java. Functions like `math/sin`, `math/cos`, `math/log`, and `math/exp` will
 behave as expected to a C programmer. They all take either 1 or 2 numeric arguments and
-return a real number (never an integer!) Bitwise functions are all prefixed with b.
-Thet are `bnot`, `bor`, `bxor`, `band`, `blshift`, `brshift`, and `brushift`. Bitwise
+return a real number (never an integer!) Bit-wise functions are all prefixed with b.
+They are `bnot`, `bor`, `bxor`, `band`, `blshift`, `brshift`, and `brushift`. Bit-wise
 functions only work on integers.
 
 # Strings, Keywords and Symbols
@@ -321,16 +321,16 @@ there relationship to each other.
 | ---------- | ------- | --------------- |
 | Indexed    | Array   | Tuple           |
 | Dictionary | Table   | Struct          |
-| Byteseq    | Buffer  | String (Symbol) |
+| Bytes      | Buffer  | String          |
 
 Indexed types are linear lists of elements than can be accessed in constant time with an integer index.
 Indexed types are backed by a single chunk of memory for fast access, and are indexed from 0 as in C.
 Dictionary types associate keys with values. The difference between dictionaries and indexed types
 is that dictionaries are not limited to integer keys. They are backed by a hashtable and also offer
 constant time lookup (and insertion for the mutable case).
-Finally, the 'byteseq' abstraction is any type that contains a sequence of bytes. A byteseq associates
+Finally, the 'bytes' abstraction is any type that contains a sequence of bytes. A 'bytes' value or byteseq associates
 integer keys (the indices) with integer values between 0 and 255 (the byte values). In this way,
-they behave much like Arrays and Tuples. However, one cannot put non integer values into a byteseq.
+they behave much like Arrays and Tuples. However, one cannot put non integer values into a byteseq
 
 ```lisp
 (def mytuple (tuple 1 2 3))
@@ -544,7 +544,7 @@ control is returned to the calling fiber. The parent fiber must then check what 
 fiber is in to differentiate errors from return values from user defined signals.
 
 To create a fiber, user the `fiber/new` function. The fiber constructor take one or two arguments.
-the first, necessary argument is the function that the fiber will execute. This function must accept
+The first, necessary argument is the function that the fiber will execute. This function must accept
 an arity of zero. The next optional argument is a collection of flags checking what kinds of
 signals to trap and return via `resume`. This is useful so
 the programmer does not need to handle all different kinds of signals from a fiber. Any un-trapped signals
@@ -639,7 +639,7 @@ using janet's builtin quasiquoting facilities.
 ```
 
 This is functionally identical to our previous version `defn2`, but written in such
-a way that the macro output is more clear. The leading backtick is shorthand for the
+a way that the macro output is more clear. The leading tilde `~` is shorthand for the
 `(quasiquote x)` special form, which is like `(quote x)` except we can unquote
 expressions inside it. The comma in front of `name` and `args` is an unquote, which
 allows us to put a value in the quasiquote. Without the unquote, the symbol \'name\'
@@ -720,7 +720,7 @@ to be 10. The problem is the reuse of the symbol x inside the macro, which overs
 binding.
 
 Janet provides a general solution to this problem in terms of the `(gensym)` function, which returns
-a symbol which is guarenteed to be unique and not collide with any symbols defined previously. We can define
+a symbol which is guaranteed to be unique and not collide with any symbols defined previously. We can define
 our macro once more for a fully correct macro.
 
 ```lisp

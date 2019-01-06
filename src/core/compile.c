@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -236,7 +236,7 @@ JanetSlot janetc_resolve(
     scope->flags |= JANET_SCOPE_ENV;
     scope = scope->child;
 
-    /* Propogate env up to current scope */
+    /* Propagate env up to current scope */
     int32_t envindex = -1;
     while (scope) {
         if (scope->flags & JANET_SCOPE_FUNCTION) {
@@ -725,7 +725,7 @@ static Janet cfun(int32_t argc, Janet *argv) {
 static const JanetReg cfuns[] = {
     {"compile", cfun,
         JDOC("(compile ast env [, source])\n\n"
-                "Compiles an Abstract Sytnax Tree (ast) into a janet function. "
+                "Compiles an Abstract Syntax Tree (ast) into a janet function. "
                 "Pair the compile function with parsing functionality to implement "
                 "eval. Returns a janet function and does not modify ast. Throws an "
                 "error if the ast cannot be compiled.")

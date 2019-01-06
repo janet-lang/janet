@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -1070,14 +1070,14 @@ static const JanetReg cfuns[] = {
         "string/ascii-lower", cfun_asciilower,
         JDOC("(string/ascii-lower str)\n\n"
                 "Returns a new string where all bytes are replaced with the "
-                "lowercase version of themselves in ascii. Does only a very simple "
+                "lowercase version of themselves in ASCII. Does only a very simple "
                 "case check, meaning no unicode support.")
     },
     {
         "string/ascii-upper", cfun_asciiupper,
         JDOC("(string/ascii-upper str)\n\n"
                 "Returns a new string where all bytes are replaced with the "
-                "uppercase version of themselves in ascii. Does only a very simple "
+                "uppercase version of themselves in ASCII. Does only a very simple "
                 "case check, meaning no unicode support.")
     },
     {

@@ -1,5 +1,5 @@
-# Copyright (c) 2018 Calvin Rose
-
+# Copyright (c) 2019 Calvin Rose
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
 # deal in the Software without restriction, including without limitation the
@@ -95,7 +95,7 @@
 
 # Find the maximum path from the top (root)
 # of the triangle to the leaves of the triangle.
-  
+
 (defn myfold [xs ys]
   (let [xs1 (tuple/prepend xs 0)
         xs2 (tuple/append xs 0)
@@ -190,7 +190,7 @@
 (assert (= '[2 -2 2 0.5] (myfun 2)) "juxt")
 
 # Case statements
-(assert 
+(assert
   (= :six (case (+ 1 2 3)
             1 :one
             2 :two
@@ -238,7 +238,7 @@
 (def arr (array))
 (array/push arr :hello)
 (array/push arr :world)
-(assert (array= arr @[:hello :world]) "array comparision")
+(assert (array= arr @[:hello :world]) "array comparison")
 (assert (array= @[1 2 3 4 5] @[1 2 3 4 5]) "array comparison 2")
 (assert (array= @[:one :two :three :four :five] @[:one :two :three :four :five]) "array comparison 3")
 (assert (array= (array/slice @[1 2 3] 0 2) @[1 2]) "array/slice 1")

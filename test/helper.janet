@@ -16,7 +16,7 @@
      (++ numchecks)
      (file/write stdout "\e[32m✔\e[0m"))
    (do
-     (file/write stdout "\n\e[31m✘\e[0m  ") 
+     (file/write stdout "\n\e[31m✘\e[0m  ")
      (set numchecks 0)
      (print e)))
  x)

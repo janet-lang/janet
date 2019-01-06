@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -94,7 +94,7 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x) {
                     janet_v_push(slots, key);
                     janet_v_push(slots, value);
                 }
-                return qq_slots(opts, slots, 
+                return qq_slots(opts, slots,
                         janet_checktype(x, JANET_TABLE) ? JOP_MAKE_TABLE : JOP_MAKE_STRUCT);
             }
     }
@@ -116,7 +116,7 @@ static JanetSlot janetc_unquote(JanetFopts opts, int32_t argn, const Janet *argv
 }
 
 /* Preform destructuring. Be careful to
- * keep the order registers are freed. 
+ * keep the order registers are freed.
  * Returns if the slot 'right' can be freed. */
 static int destructure(JanetCompiler *c,
         Janet left,
@@ -511,7 +511,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         /* Recompile in the function scope */
         cond = janetc_value(subopts, argv[0]);
         if (!(cond.flags & JANET_SLOT_CONSTANT)) {
-            /* If not an infinte loop, return nil when condition false */
+            /* If not an infinite loop, return nil when condition false */
             janetc_emit_si(c, JOP_JUMP_IF, cond, 2, 0);
             janetc_emit(c, JOP_RETURN_NIL);
         }
@@ -536,7 +536,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         return janetc_cslot(janet_wrap_nil());
     }
 
-    /* Compile jump to whiletop */
+    /* Compile jump to :whiletop */
     labeljt = janet_v_count(c->buffer);
     janetc_emit(c, JOP_JUMP);
 
@@ -597,7 +597,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
         Janet param = params[i];
         if (janet_checktype(param, JANET_SYMBOL)) {
             /* Check for varargs and unfixed arity */
-            if ((!seenamp) && 
+            if ((!seenamp) &&
                     (0 == janet_cstrcmp(janet_unwrap_symbol(param), "&"))) {
                 seenamp = 1;
                 fixarity = 0;

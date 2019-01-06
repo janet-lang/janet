@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -52,7 +52,7 @@ static int enter_loop(void) {
     return 0;
 }
 
-/* Allow JS interop from within janet */
+/* Allow JS interoperation from within janet */
 static Janet cfun_js(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetByteView bytes = janet_getbytes(argv, 0);
@@ -60,7 +60,7 @@ static Janet cfun_js(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-/* Intialize the repl */
+/* Initialize the repl */
 EMSCRIPTEN_KEEPALIVE
 void repl_init(void) {
     int status;

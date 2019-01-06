@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -46,14 +46,14 @@ static int fixarity3(JanetFopts opts, JanetSlot *args) {
     return janet_v_count(args) == 3;
 }
 
-/* Generic hanldling for $A = op $B */
+/* Generic handling for $A = op $B */
 static JanetSlot genericSS(JanetFopts opts, int op, JanetSlot s) {
     JanetSlot target = janetc_gettarget(opts);
     janetc_emit_ss(opts.compiler, op, target, s, 1);
     return target;
 }
 
-/* Generic hanldling for $A = $B op I */
+/* Generic handling for $A = $B op I */
 static JanetSlot genericSSI(JanetFopts opts, int op, JanetSlot s, int32_t imm) {
     JanetSlot target = janetc_gettarget(opts);
     janetc_emit_ssi(opts.compiler, op, target, s, imm, 1);
@@ -136,7 +136,7 @@ static JanetSlot do_apply(JanetFopts opts, JanetSlot *args) {
     return target;
 }
 
-/* Varidadic operators specialization */
+/* Variadic operators specialization */
 
 static JanetSlot do_add(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_ADD, janet_wrap_integer(0));

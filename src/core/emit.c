@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -61,7 +61,7 @@ static int32_t janetc_const(JanetCompiler *c, Janet x) {
         if (janet_equals(x, scope->consts[i]))
             return i;
     }
-    /* Ensure not too many constsants. */
+    /* Ensure not too many constants. */
     if (len >= 0xFFFF) {
         janetc_cerror(c, "too many constants");
         return 0;

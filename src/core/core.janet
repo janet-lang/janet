@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2018 (C) Calvin Rose
+# Copyright 2019 (C) Calvin Rose
 
 ###
 ###
@@ -469,7 +469,7 @@
   accum)
 
 (defmacro if-let
-  "Make mutliple bindings, anf if all are truthy,
+  "Make multiple bindings, and if all are truthy,
   evaluate the tru form. If any are false or nil, evaluate
   the fal form. Bindings have the same syntax as the let macro."
   [bindings tru fal &]
@@ -576,7 +576,7 @@
 ###
 
 (def sort
-  "(sort xs [, by])\n\nSort an array in-place. Uses quicksort and is not a stable sort."
+  "(sort xs [, by])\n\nSort an array in-place. Uses quick-sort and is not a stable sort."
   (do
 
     (defn partition
@@ -859,13 +859,13 @@
 (put _env 'walk-dict nil)
 
 (defn postwalk
-  "Do a postorder traversal of a data sructure and call (f x)
+  "Do a post-order traversal of a data structure and call (f x)
   on every visitation."
   [f form]
   (f (walk (fn [x] (postwalk f x)) form)))
 
 (defn prewalk
-  "Similar to postwalk, but do preorder traversal."
+  "Similar to postwalk, but do pre-order traversal."
   [f form]
   (walk (fn [x] (prewalk f x)) (f form)))
 
@@ -1024,7 +1024,7 @@ value, one key will be ignored."
   res)
 
 (defn distinct
-  "Returns an array of the the deduplicated values in xs."
+  "Returns an array of the deduplicated values in xs."
   [xs]
   (def ret @[])
   (def seen @{})

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Calvin Rose
+* Copyright (c) 2019 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -24,7 +24,7 @@
 #include <assert.h>
 
 int main() {
-    
+
     JanetTable *t1, *t2;
 
     janet_init();
@@ -39,7 +39,7 @@ int main() {
 
     assert(t1->count == 4);
     assert(t1->capacity >= t1->count);
-    
+
     assert(janet_equals(janet_table_get(t1, janet_cstringv("hello")), janet_wrap_integer(2)));
     assert(janet_equals(janet_table_get(t1, janet_cstringv("akey")), janet_wrap_integer(5)));
     assert(janet_equals(janet_table_get(t1, janet_cstringv("box")), janet_wrap_boolean(0)));
