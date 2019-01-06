@@ -150,7 +150,7 @@ Janet janet_get(Janet ds, Janet key) {
     Janet value;
     switch (janet_type(ds)) {
         default:
-            janet_panicf("get: expected %T, got %v", JANET_TFLAG_LENGTHABLE, ds);
+            janet_panicf("expected %T, got %v", JANET_TFLAG_LENGTHABLE, ds);
             value = janet_wrap_nil();
             break;
         case JANET_STRUCT:
@@ -226,7 +226,7 @@ Janet janet_getindex(Janet ds, int32_t index) {
     if (index < 0) janet_panic("expected non-negative index");
     switch (janet_type(ds)) {
         default:
-            janet_panicf("get: expected %T, got %v", JANET_TFLAG_LENGTHABLE, ds);
+            janet_panicf("expected %T, got %v", JANET_TFLAG_LENGTHABLE, ds);
             value = janet_wrap_nil();
             break;
         case JANET_STRING:

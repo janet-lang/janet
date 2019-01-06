@@ -323,8 +323,6 @@ typedef enum JanetType {
 #define JANET_TFLAG_DICTIONARY (JANET_TFLAG_TABLE | JANET_TFLAG_STRUCT)
 #define JANET_TFLAG_LENGTHABLE (JANET_TFLAG_BYTES | JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY)
 #define JANET_TFLAG_CALLABLE (JANET_TFLAG_FUNCTION | JANET_TFLAG_CFUNCTION)
-#define JANET_TFLAG_FUNCLIKE (JANET_TFLAG_CALLABLE | JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY | \
-        JANET_TFLAG_KEYWORD | JANET_TFLAG_SYMBOL)
 
 /* We provide three possible implementations of Janets. The preferred
  * nanboxing approach, for 32 or 64 bits, and the standard C version. Code in the rest of the

@@ -223,10 +223,6 @@ static void *op_lookup[255] = {
 static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     int32_t argn = fiber->stacktop - fiber->stackstart;
     Janet ds, key;
-    if (!janet_checktypes(callee, JANET_TFLAG_FUNCLIKE)) {
-        janet_panicf("attempted to call %v, expected %T", callee,
-                JANET_TFLAG_CALLABLE);
-    }
     if (argn != 1) janet_panicf("%v called with arity %d, expected 1", callee, argn);
     if (janet_checktypes(callee, JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY)) {
         ds = callee;
@@ -566,7 +562,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             if (janet_fiber_funcframe(fiber, func)) {
                 int32_t n = fiber->stacktop - fiber->stackstart;
                 janet_panicf("%v called with %d argument%s, expected %d",
-                        callee, n, n > 1 ? "s" : "", func->def->arity);
+                        callee, n, n == 1 ? "s" : "", func->def->arity);
             }
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
@@ -594,9 +590,10 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
             if (janet_fiber_funcframe_tail(fiber, func)) {
+                janet_stack_frame(fiber->data + fiber->frame)->pc = pc;
                 int32_t n = fiber->stacktop - fiber->stackstart;
                 janet_panicf("%v called with %d argument%s, expected %d",
-                        callee, n, n > 1 ? "s" : "", func->def->arity);
+                        callee, n, n == 1 ? "s" : "", func->def->arity);
             }
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
