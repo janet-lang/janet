@@ -183,7 +183,7 @@ static void string_description_b(JanetBuffer *buffer, const char *title, void *p
         *c++ = HEX(byte & 0xF);
     }
     *c++ = '>';
-    buffer->count = c - buffer->data;
+    buffer->count = (int32_t)(c - buffer->data);
 #undef POINTSIZE
 }
 
@@ -966,7 +966,7 @@ static Janet cfun_join(int32_t argc, Janet *argv) {
             janet_panic("result string too long");
     }
     uint8_t *buf, *out;
-    out = buf = janet_string_begin(finallen);
+    out = buf = janet_string_begin((int32_t) finallen);
     for (i = 0; i < parts.len; i++) {
         const uint8_t *chunk = NULL;
         int32_t chunklen = 0;

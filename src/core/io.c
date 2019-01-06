@@ -293,7 +293,7 @@ static Janet janet_io_fseek(int32_t argc, Janet *argv) {
             janet_panicf("expected one of :cur, :set, :end, got %v", argv[1]);
         }
         if (argc == 3) {
-            offset = janet_getinteger64(argv, 2);
+            offset = (long) janet_getinteger64(argv, 2);
         }
     }
     if (fseek(iof->file, offset, whence)) janet_panic("error seeking file");

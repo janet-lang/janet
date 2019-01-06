@@ -116,7 +116,7 @@ static void bignat_muladd(struct BigNat *mant, uint32_t factor, uint32_t term) {
         mant->digits[i] = carry % BIGNAT_BASE;
         carry /= BIGNAT_BASE;
     }
-    if (carry) bignat_append(mant, carry);
+    if (carry) bignat_append(mant, (uint32_t) carry);
 }
 
 /* Divide the mantissa mant by a factor. Drop the remainder. */
@@ -128,13 +128,13 @@ static void bignat_div(struct BigNat *mant, uint32_t divisor) {
     for (i = mant->n - 1; i >= 0; i--) {
         dividend = ((uint64_t)remainder * BIGNAT_BASE) + mant->digits[i];
         if (i < mant->n - 1) mant->digits[i + 1] = quotient;
-        quotient = dividend / divisor;
-        remainder = dividend % divisor;
+        quotient = (uint32_t)(dividend / divisor);
+        remainder = (uint32_t)(dividend % divisor);
         mant->digits[i] = remainder;
     }
     dividend = ((uint64_t)remainder * BIGNAT_BASE) + mant->first_digit;
     if (mant->n && mant->digits[mant->n - 1] == 0) mant->n--;
-    mant->first_digit = dividend / divisor;
+    mant->first_digit = (uint32_t)(dividend / divisor);
 }
 
 /* Shift left by a multiple of BIGNAT_NBIT */
@@ -173,7 +173,7 @@ static double bignat_extract(struct BigNat *mant, int32_t exponent2) {
         uint64_t d1 = mant->digits[n - 1]; /* MSD (non-zero) */
         uint64_t d2 = (n == 1) ? mant->first_digit : mant->digits[n - 2];
         uint64_t d3 = (n > 2) ? mant->digits[n - 3] : (n == 2) ? mant->first_digit : 0;
-        int lz = clz(d1);
+        int lz = clz((uint32_t) d1);
         int nbits = 32 - lz;
         /* First get 54 bits */
         top53 = (d2 << (54 - BIGNAT_NBIT)) + (d3 >> (2 * BIGNAT_NBIT - 54));
@@ -192,7 +192,7 @@ static double bignat_extract(struct BigNat *mant, int32_t exponent2) {
         /* One digit */
         top53 = mant->first_digit;
     }
-    return ldexp(top53, exponent2);
+    return ldexp((double)top53, exponent2);
 }
 
 /* Read in a mantissa and exponent of a certain base, and give
