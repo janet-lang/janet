@@ -22,6 +22,7 @@
 
 #include <janet/janet.h>
 #include "gc.h"
+#include "util.h"
 #include <string.h>
 
 /* Initializes an array */
@@ -213,50 +214,50 @@ static Janet cfun_insert(int32_t argc, Janet *argv) {
 
 static const JanetReg cfuns[] = {
     {"array/new", cfun_new,
-        "(array/new capacity)\n\n"
-        "Creates a new empty array with a preallocated capacity. The same as "
-        "(array) but can be more efficient if the maximum size of an array is known."
+        JDOC("(array/new capacity)\n\n"
+                "Creates a new empty array with a preallocated capacity. The same as "
+                "(array) but can be more efficient if the maximum size of an array is known.")
     },
     {"array/pop", cfun_pop,
-        "(array/pop arr)\n\n"
-        "Remove the last element of the array and return it. If the array is empty, will return nil. Modifies "
-        "the input array."
+        JDOC("(array/pop arr)\n\n"
+                "Remove the last element of the array and return it. If the array is empty, will return nil. Modifies "
+                "the input array.")
     },
     {"array/peek", cfun_peek,
-        "(array/peek arr)\n\n"
-        "Returns the last element of the array. Does not modify the array."
+        JDOC("(array/peek arr)\n\n"
+                "Returns the last element of the array. Does not modify the array.")
     },
     {"array/push", cfun_push,
-        "(array/push arr x)\n\n"
-        "Insert an element in the end of an array. Modifies the input array and returns it."
+        JDOC("(array/push arr x)\n\n"
+                "Insert an element in the end of an array. Modifies the input array and returns it.")
     },
     {"array/ensure", cfun_ensure,
-        "(array/ensure arr capacity)\n\n"
-        "Ensures that the memory backing the array has enough memory for capacity "
-        "items. Capacity must be an integer. If the backing capacity is already enough, "
-        "then this function does nothing. Otherwise, the backing memory will be reallocated "
-        "so that there is enough space."
+        JDOC("(array/ensure arr capacity)\n\n"
+                "Ensures that the memory backing the array has enough memory for capacity "
+                "items. Capacity must be an integer. If the backing capacity is already enough, "
+                "then this function does nothing. Otherwise, the backing memory will be reallocated "
+                "so that there is enough space.")
     },
     {"array/slice", cfun_slice,
-        "(array/slice arrtup [, start=0 [, end=(length arrtup)]])\n\n"
-        "Takes a slice of array or tuple from start to end. The range is half open, "
-        "[start, end). Indexes can also be negative, indicating indexing from the end of the "
-        "end of the array. By default, start is 0 and end is the length of the array. "
-        "Returns a new array."
+        JDOC("(array/slice arrtup [, start=0 [, end=(length arrtup)]])\n\n"
+                "Takes a slice of array or tuple from start to end. The range is half open, "
+                "[start, end). Indexes can also be negative, indicating indexing from the end of the "
+                "end of the array. By default, start is 0 and end is the length of the array. "
+                "Returns a new array.")
     },
     {"array/concat", cfun_concat,
-        "(array/concat arr & parts)\n\n"
-        "Concatenates a variadic number of arrays (and tuples) into the first argument "
-        "which must an array. If any of the parts are arrays or tuples, their elements will "
-        "be inserted into the array. Otherwise, each part in parts will be appended to arr in order. "
-        "Return the modified array arr."
+        JDOC("(array/concat arr & parts)\n\n"
+                "Concatenates a variadic number of arrays (and tuples) into the first argument "
+                "which must an array. If any of the parts are arrays or tuples, their elements will "
+                "be inserted into the array. Otherwise, each part in parts will be appended to arr in order. "
+                "Return the modified array arr.")
     },
     {"array/insert", cfun_insert,
-        "(array/insert arr at & xs)\n\n"
-        "Insert all of xs into array arr at index at. at should be an integer "
-        "0 and the length of the array. A negative value for at will index from "
-        "the end of the array, such that inserting at -1 appends to the array. "
-        "Returns the array."
+        JDOC("(array/insert arr at & xs)\n\n"
+                "Insert all of xs into array arr at index at. at should be an integer "
+                "0 and the length of the array. A negative value for at will index from "
+                "the end of the array, such that inserting at -1 appends to the array. "
+                "Returns the array.")
     },
     {NULL, NULL, NULL}
 };

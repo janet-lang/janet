@@ -24,6 +24,7 @@
 #include "fiber.h"
 #include "state.h"
 #include "gc.h"
+#include "util.h"
 
 static JanetFiber *make_fiber(int32_t capacity) {
     Janet *data;
@@ -373,48 +374,53 @@ static Janet cfun_setmaxstack(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg cfuns[] = {
-    {"fiber/new", cfun_new,
-        "(fiber/new func [,sigmask])\n\n"
-        "Create a new fiber with function body func. Can optionally "
-        "take a set of signals to block from the current parent fiber "
-        "when called. The mask is specified as a keyword where each character "
-        "is used to indicate a signal to block. The default sigmask is :y. "
-        "For example, \n\n"
-        "\t(fiber/new myfun :e123)\n\n"
-        "blocks error signals and user signals 1, 2 and 3. The signals are "
-        "as follows: \n\n"
-        "\ta - block all signals\n"
-        "\td - block debug signals\n"
-        "\te - block error signals\n"
-        "\tu - block user signals\n"
-        "\ty - block yield signals\n"
-        "\t0-9 - block a specific user signal"
+    {
+        "fiber/new", cfun_new,
+        JDOC("(fiber/new func [,sigmask])\n\n"
+                "Create a new fiber with function body func. Can optionally "
+                "take a set of signals to block from the current parent fiber "
+                "when called. The mask is specified as a keyword where each character "
+                "is used to indicate a signal to block. The default sigmask is :y. "
+                "For example, \n\n"
+                "\t(fiber/new myfun :e123)\n\n"
+                "blocks error signals and user signals 1, 2 and 3. The signals are "
+                "as follows: \n\n"
+                "\ta - block all signals\n"
+                "\td - block debug signals\n"
+                "\te - block error signals\n"
+                "\tu - block user signals\n"
+                "\ty - block yield signals\n"
+                "\t0-9 - block a specific user signal")
     },
-    {"fiber/status", cfun_status,
-        "(fiber/status fib)\n\n"
-        "Get the status of a fiber. The status will be one of:\n\n"
-        "\t:dead - the fiber has finished\n"
-        "\t:error - the fiber has errored out\n"
-        "\t:debug - the fiber is suspended in debug mode\n"
-        "\t:pending - the fiber has been yielded\n"
-        "\t:user(0-9) - the fiber is suspended by a user signal\n"
-        "\t:alive - the fiber is currently running and cannot be resumed\n"
-        "\t:new - the fiber has just been created and not yet run"
+    {
+        "fiber/status", cfun_status,
+        JDOC("(fiber/status fib)\n\n"
+                "Get the status of a fiber. The status will be one of:\n\n"
+                "\t:dead - the fiber has finished\n"
+                "\t:error - the fiber has errored out\n"
+                "\t:debug - the fiber is suspended in debug mode\n"
+                "\t:pending - the fiber has been yielded\n"
+                "\t:user(0-9) - the fiber is suspended by a user signal\n"
+                "\t:alive - the fiber is currently running and cannot be resumed\n"
+                "\t:new - the fiber has just been created and not yet run")
     },
-    {"fiber/current", cfun_current,
-        "(fiber/current)\n\n"
-        "Returns the currently running fiber."
+    {
+        "fiber/current", cfun_current,
+        JDOC("(fiber/current)\n\n"
+                "Returns the currently running fiber.")
     },
-    {"fiber/maxstack", cfun_maxstack,
-        "(fiber/maxstack fib)\n\n"
-        "Gets the maximum stack size in janet values allowed for a fiber. While memory for "
-        "the fiber's stack is not allocated up front, the fiber will not allocated more "
-        "than this amount and will throw a stackoverflow error if more memory is needed. "
+    {
+        "fiber/maxstack", cfun_maxstack,
+        JDOC("(fiber/maxstack fib)\n\n"
+                "Gets the maximum stack size in janet values allowed for a fiber. While memory for "
+                "the fiber's stack is not allocated up front, the fiber will not allocated more "
+                "than this amount and will throw a stackoverflow error if more memory is needed. ")
     },
-    {"fiber/setmaxstack", cfun_setmaxstack,
-        "(fiber/setmaxstack fib maxstack)\n\n"
-        "Sets the maximum stack size in janet values for a fiber. By default, the "
-        "maximum stacksize is usually 8192."
+    {
+        "fiber/setmaxstack", cfun_setmaxstack,
+        JDOC("(fiber/setmaxstack fib maxstack)\n\n"
+                "Sets the maximum stack size in janet values for a fiber. By default, the "
+                "maximum stacksize is usually 8192.")
     },
     {NULL, NULL, NULL}
 };

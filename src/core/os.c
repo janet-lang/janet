@@ -23,6 +23,7 @@
 #include <janet/janet.h>
 #include <stdlib.h>
 #include <time.h>
+#include "util.h"
 
 #ifdef JANET_WINDOWS
 #include <Windows.h>
@@ -272,53 +273,63 @@ static Janet os_cwd(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg cfuns[] = {
-    {"os/which", os_which,
-        "(os/which)\n\n"
-        "Check the current operating system. Returns one of:\n\n"
-        "\t:windows - Microsoft Windows\n"
-        "\t:macos - Apple macos\n"
-        "\t:posix - A POSIX compatible system (default)"
+    {
+        "os/which", os_which,
+        JDOC("(os/which)\n\n"
+                "Check the current operating system. Returns one of:\n\n"
+                "\t:windows - Microsoft Windows\n"
+                "\t:macos - Apple macos\n"
+                "\t:posix - A POSIX compatible system (default)")
     },
-    {"os/execute", os_execute,
-        "(os/execute program & args)\n\n"
-        "Execute a program on the system and pass it string arguments. Returns "
-        "the exit status of the program."
+    {
+        "os/execute", os_execute,
+        JDOC("(os/execute program & args)\n\n"
+                "Execute a program on the system and pass it string arguments. Returns "
+                "the exit status of the program.")
     },
-    {"os/shell", os_shell,
-        "(os/shell str)\n\n"
-        "Pass a command string str directly to the system shell."
+    {
+        "os/shell", os_shell,
+        JDOC("(os/shell str)\n\n"
+                "Pass a command string str directly to the system shell.")
     },
-    {"os/exit", os_exit,
-        "(os/exit x)\n\n"
-        "Exit from janet with an exit code equal to x. If x is not an integer, "
-        "the exit with status equal the hash of x."
+    {
+        "os/exit", os_exit,
+        JDOC("(os/exit x)\n\n"
+                "Exit from janet with an exit code equal to x. If x is not an integer, "
+                "the exit with status equal the hash of x.")
     },
-    {"os/getenv", os_getenv,
-        "(os/getenv variable)\n\n"
-        "Get the string value of an environment variable."
+    {
+        "os/getenv", os_getenv,
+        JDOC("(os/getenv variable)\n\n"
+                "Get the string value of an environment variable.")
     },
-    {"os/setenv", os_setenv,
-        "(os/setenv variable value)\n\n"
-        "Set an environment variable."
+    {
+        "os/setenv", os_setenv,
+        JDOC("(os/setenv variable value)\n\n"
+            "Set an environment variable.")
     },
-    {"os/time", os_time,
-        "(os/time)\n\n"
-        "Get the current time expressed as the number of seconds since "
-        "January 1, 1970, the Unix epoch. Returns a real number."
+    {
+        "os/time", os_time,
+        JDOC("(os/time)\n\n"
+            "Get the current time expressed as the number of seconds since "
+            "January 1, 1970, the Unix epoch. Returns a real number.")
     },
-    {"os/clock", os_clock,
-        "(os/clock)\n\n"
-        "Return the number of seconds since some fixed point in time. The clock "
-        "is guaranteed to be non decreased in real time."
+    {
+        "os/clock", os_clock,
+        JDOC("(os/clock)\n\n"
+            "Return the number of seconds since some fixed point in time. The clock "
+            "is guaranteed to be non decreased in real time.")
     },
-    {"os/sleep", os_sleep,
-        "(os/sleep nsec)\n\n"
-        "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
-        "nil."
+    {
+        "os/sleep", os_sleep,
+        JDOC("(os/sleep nsec)\n\n"
+            "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
+            "nil.")
     },
-    {"os/cwd", os_cwd,
-        "(os/cwd)\n\n"
-        "Returns the current working directory."
+    {
+        "os/cwd", os_cwd,
+        JDOC("(os/cwd)\n\n"
+            "Returns the current working directory.")
     },
     {NULL, NULL, NULL}
 };

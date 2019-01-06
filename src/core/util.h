@@ -25,6 +25,13 @@
 
 #include <janet/janet.h>
 
+/* Omit docstrings in some builds */
+#ifdef JANET_NO_BOOTSTRAP
+#define JDOC(x) NULL
+#else
+#define JDOC(x) x
+#endif
+
 /* Utils */
 #define janet_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
 extern const char janet_base64[65];

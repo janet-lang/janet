@@ -26,6 +26,7 @@
 #include "vector.h"
 #include "gc.h"
 #include "fiber.h"
+#include "util.h"
 
 typedef struct {
     jmp_buf err;
@@ -1146,26 +1147,29 @@ static Janet cfun_unmarshal(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg cfuns[] = {
-    {"marshal", cfun_marshal,
-        "(marshal x [,reverse-lookup [,buffer]])\n\n"
-        "Marshal a janet value into a buffer and return the buffer. The buffer "
-        "can the later be unmarshalled to reconstruct the initial value. "
-        "Optionally, one can pass in a reverse lookup table to not marshal "
-        "aliased values that are found in the table. Then a forward"
-        "lookup table can be used to recover the origrinal janet value when "
-        "unmarshaling."
+    {
+        "marshal", cfun_marshal,
+        JDOC("(marshal x [,reverse-lookup [,buffer]])\n\n"
+                "Marshal a janet value into a buffer and return the buffer. The buffer "
+                "can the later be unmarshalled to reconstruct the initial value. "
+                "Optionally, one can pass in a reverse lookup table to not marshal "
+                "aliased values that are found in the table. Then a forward"
+                "lookup table can be used to recover the origrinal janet value when "
+                "unmarshaling.")
     },
-    {"unmarshal", cfun_unmarshal,
-        "(unmarshal buffer [,lookup])\n\n"
-        "Unmarshal a janet value from a buffer. An optional lookup table "
-        "can be provided to allow for aliases to be resolved. Returns the value "
-        "unmarshaled from the buffer."
+    {
+        "unmarshal", cfun_unmarshal,
+        JDOC("(unmarshal buffer [,lookup])\n\n"
+                "Unmarshal a janet value from a buffer. An optional lookup table "
+                "can be provided to allow for aliases to be resolved. Returns the value "
+                "unmarshaled from the buffer.")
     },
-    {"env-lookup", cfun_env_lookup,
-        "(env-lookup env)\n\n"
-        "Creates a forward lookup table for unmarshaling from an environment. "
-        "To create a reverse lookup table, use the invert function to swap keys "
-        "and values in the returned table."
+    {
+        "env-lookup", cfun_env_lookup,
+        JDOC("(env-lookup env)\n\n"
+                "Creates a forward lookup table for unmarshaling from an environment. "
+                "To create a reverse lookup table, use the invert function to swap keys "
+                "and values in the returned table.")
     },
     {NULL, NULL, NULL}
 };

@@ -24,6 +24,7 @@
 #include "compile.h"
 #include "emit.h"
 #include "vector.h"
+#include "util.h"
 
 JanetFopts janetc_fopts_default(JanetCompiler *c) {
     JanetFopts ret;
@@ -723,11 +724,11 @@ static Janet cfun(int32_t argc, Janet *argv) {
 
 static const JanetReg cfuns[] = {
     {"compile", cfun,
-        "(compile ast env [, source])\n\n"
-        "Compiles an Abstract Sytnax Tree (ast) into a janet function. "
-        "Pair the compile function with parsing functionality to implement "
-        "eval. Returns a janet function and does not modify ast. Throws an "
-        "error if the ast cannot be compiled."
+        JDOC("(compile ast env [, source])\n\n"
+                "Compiles an Abstract Sytnax Tree (ast) into a janet function. "
+                "Pair the compile function with parsing functionality to implement "
+                "eval. Returns a janet function and does not modify ast. Throws an "
+                "error if the ast cannot be compiled.")
     },
     {NULL, NULL, NULL}
 };

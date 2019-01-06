@@ -23,6 +23,7 @@
 #include <janet/janet.h>
 #include "gc.h"
 #include "state.h"
+#include "util.h"
 
 /* Implements functionality to build a debugger from within janet.
  * The repl should also be able to serve as pretty featured debugger
@@ -225,53 +226,65 @@ static Janet cfun_argstack(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg cfuns[] = {
-    {"debug/break", cfun_break,
-        "(debug/break source byte-offset)\n\n"
-        "Sets a breakpoint with source a key at a given byte offset. An offset "
-        "of 0 is the first byte in a file. Will throw an error if the breakpoint location "
-        "cannot be found. For example\n\n"
-        "\t(debug/break \"core.janet\" 1000)\n\n"
-        "wil set a breakpoint at the 1000th byte of the file core.janet."},
-    {"debug/unbreak", cfun_unbreak,
-        "(debug/unbreak source byte-offset)\n\n"
-        "Remove a breakpoint with a source key at a given byte offset. An offset "
-        "of 0 is the first byte in a file. Will throw an error if the breakpoint "
-        "cannot be found."},
-    {"debug/fbreak", cfun_fbreak,
-        "(debug/fbreak fun [,pc=0])\n\n"
-        "Set a breakpoint in a given function. pc is an optional offset, which "
-        "is in bytecode instructions. fun is a function value. Will throw an error "
-        "if the offset is too large or negative."},
-    {"debug/unfbreak", cfun_unfbreak,
-        "(debug/unfbreak fun [,pc=0])\n\n"
-        "Unset a breakpoint set with debug/fbreak."},
-    {"debug/arg-stack", cfun_argstack,
-        "(debug/arg-stack fiber)\n\n"
-        "Gets all values currently on the fiber's argument stack. Normally, "
-        "this should be empty unless the fiber signals while pushing arguments "
-        "to make a function call. Returns a new array."},
-    {"debug/stack", cfun_stack,
-        "(debug/stack fib)\n\n"
-        "Gets information about the stack as an array of tables. Each table "
-        "in the array contains information about a stack frame. The top most, current "
-        "stack frame is the first table in the array, and the bottom most stack frame "
-        "is the last value. Each stack frame contains some of the following attributes:\n\n"
-        "\t:c - true if the stack frame is a c function invocation\n"
-        "\t:column - the current source column of the stack frame\n"
-        "\t:function - the function that the stack frame represents\n"
-        "\t:line - the current source line of the stack frame\n"
-        "\t:name - the human friendly name of the function\n"
-        "\t:pc - integer indicating the location of the program counter\n"
-        "\t:source - string with filename or other identifier for the source code\n"
-        "\t:slots - array of all values in each slot\n"
-        "\t:tail - boolean indicating a tail call"
+    {
+        "debug/break", cfun_break,
+        JDOC("(debug/break source byte-offset)\n\n"
+                "Sets a breakpoint with source a key at a given byte offset. An offset "
+                "of 0 is the first byte in a file. Will throw an error if the breakpoint location "
+                "cannot be found. For example\n\n"
+                "\t(debug/break \"core.janet\" 1000)\n\n"
+                "wil set a breakpoint at the 1000th byte of the file core.janet.")
     },
-    {"debug/lineage", cfun_lineage,
-        "(debug/lineage fib)\n\n"
-        "Returns an array of all child fibers from a root fiber. This function "
-        "is useful when a fiber signals or errors to an ancestor fiber. Using this function, "
-        "the fiber handling the error can see which fiber raised the signal. This function should "
-        "be used mostly for debugging purposes."
+    {
+        "debug/unbreak", cfun_unbreak,
+        JDOC("(debug/unbreak source byte-offset)\n\n"
+                "Remove a breakpoint with a source key at a given byte offset. An offset "
+                "of 0 is the first byte in a file. Will throw an error if the breakpoint "
+                "cannot be found.")
+    },
+    {
+        "debug/fbreak", cfun_fbreak,
+        JDOC("(debug/fbreak fun [,pc=0])\n\n"
+                "Set a breakpoint in a given function. pc is an optional offset, which "
+                "is in bytecode instructions. fun is a function value. Will throw an error "
+                "if the offset is too large or negative.")
+    },
+    {
+        "debug/unfbreak", cfun_unfbreak,
+        JDOC("(debug/unfbreak fun [,pc=0])\n\n"
+                "Unset a breakpoint set with debug/fbreak.")
+    },
+    {
+        "debug/arg-stack", cfun_argstack,
+        JDOC("(debug/arg-stack fiber)\n\n"
+                "Gets all values currently on the fiber's argument stack. Normally, "
+                "this should be empty unless the fiber signals while pushing arguments "
+                "to make a function call. Returns a new array.")
+    },
+    {
+        "debug/stack", cfun_stack,
+        JDOC("(debug/stack fib)\n\n"
+                "Gets information about the stack as an array of tables. Each table "
+                "in the array contains information about a stack frame. The top most, current "
+                "stack frame is the first table in the array, and the bottom most stack frame "
+                "is the last value. Each stack frame contains some of the following attributes:\n\n"
+                "\t:c - true if the stack frame is a c function invocation\n"
+                "\t:column - the current source column of the stack frame\n"
+                "\t:function - the function that the stack frame represents\n"
+                "\t:line - the current source line of the stack frame\n"
+                "\t:name - the human friendly name of the function\n"
+                "\t:pc - integer indicating the location of the program counter\n"
+                "\t:source - string with filename or other identifier for the source code\n"
+                "\t:slots - array of all values in each slot\n"
+                "\t:tail - boolean indicating a tail call")
+    },
+    {
+        "debug/lineage", cfun_lineage,
+        JDOC("(debug/lineage fib)\n\n"
+                "Returns an array of all child fibers from a root fiber. This function "
+                "is useful when a fiber signals or errors to an ancestor fiber. Using this function, "
+                "the fiber handling the error can see which fiber raised the signal. This function should "
+                "be used mostly for debugging purposes.")
     },
     {NULL, NULL, NULL}
 };

@@ -21,6 +21,7 @@
 */
 
 #include <janet/janet.h>
+#include "util.h"
 
 /* Check if a character is whitespace */
 static int is_whitespace(uint8_t c) {
@@ -743,64 +744,74 @@ static Janet cfun_state(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg cfuns[] = {
-    {"parser/new", cfun_parser,
-        "(parser/new)\n\n"
-        "Creates and returns a new parser object. Parsers are state machines "
-        "that can receive bytes, and generate a stream of janet values. "
+    {
+        "parser/new", cfun_parser,
+        JDOC("(parser/new)\n\n"
+                "Creates and returns a new parser object. Parsers are state machines "
+                "that can receive bytes, and generate a stream of janet values. ")
     },
-    {"parser/has-more", cfun_has_more,
-        "(parser/has-more parser)\n\n"
-        "Check if the parser has more values in the value queue."
+    {
+        "parser/has-more", cfun_has_more,
+        JDOC("(parser/has-more parser)\n\n"
+                "Check if the parser has more values in the value queue.")
     },
-    {"parser/produce", cfun_produce,
-        "(parser/produce parser)\n\n"
-        "Dequeue the next value in the parse queue. Will return nil if "
-        "no parsed values are in the queue, otherwise will dequeue the "
-        "next value."
+    {
+        "parser/produce", cfun_produce,
+        JDOC("(parser/produce parser)\n\n"
+                "Dequeue the next value in the parse queue. Will return nil if "
+                "no parsed values are in the queue, otherwise will dequeue the "
+                "next value.")
     },
-    {"parser/consume", cfun_consume,
-        "(parser/consume parser bytes [, index])\n\n"
-        "Input bytes into the parser and parse them. Will not throw errors "
-        "if there is a parse error. Starts at the byte index given by index. Returns "
-        "the number of bytes read."
+    {
+        "parser/consume", cfun_consume,
+        JDOC("(parser/consume parser bytes [, index])\n\n"
+                "Input bytes into the parser and parse them. Will not throw errors "
+                "if there is a parse error. Starts at the byte index given by index. Returns "
+                "the number of bytes read.")
     },
-    {"parser/byte", cfun_byte,
-        "(parser/byte parser b)\n\n"
-        "Input a single byte into the parser byte stream. Returns the parser."
+    {
+        "parser/byte", cfun_byte,
+        JDOC("(parser/byte parser b)\n\n"
+                "Input a single byte into the parser byte stream. Returns the parser.")
     },
-    {"parser/error", cfun_error,
-        "(parser/error parser)\n\n"
-        "If the parser is in the error state, returns the message asscoiated with "
-        "that error. Otherwise, returns nil. Also flushes the parser state and parser "
-        "queue, so be sure to handle everything in the queue before calling "
-        "parser/error."
+    {
+        "parser/error", cfun_error,
+        JDOC("(parser/error parser)\n\n"
+                "If the parser is in the error state, returns the message asscoiated with "
+                "that error. Otherwise, returns nil. Also flushes the parser state and parser "
+                "queue, so be sure to handle everything in the queue before calling "
+                "parser/error.")
     },
-    {"parser/status", cfun_status,
-        "(parser/status parser)\n\n"
-        "Gets the current status of the parser state machine. The status will "
-        "be one of:\n\n"
-        "\t:pending - a value is being parsed.\n"
-        "\t:error - a parsing error was encountered.\n"
-        "\t:root - the parser can either read more values or safely terminate."
+    {
+        "parser/status", cfun_status,
+        JDOC("(parser/status parser)\n\n"
+                "Gets the current status of the parser state machine. The status will "
+                "be one of:\n\n"
+                "\t:pending - a value is being parsed.\n"
+                "\t:error - a parsing error was encountered.\n"
+                "\t:root - the parser can either read more values or safely terminate.")
     },
-    {"parser/flush", cfun_flush,
-        "(parser/flush parser)\n\n"
-        "Clears the parser state and parse queue. Can be used to reset the parser "
-        "if an error was encountered. Does not reset the line and column counter, so "
-        "to begin parsing in a new context, create a new parser."
+    {
+        "parser/flush", cfun_flush,
+        JDOC("(parser/flush parser)\n\n"
+                "Clears the parser state and parse queue. Can be used to reset the parser "
+                "if an error was encountered. Does not reset the line and column counter, so "
+                "to begin parsing in a new context, create a new parser.")
     },
-    {"parser/state", cfun_state,
-        "(parser/state parser)\n\n"
-        "Returns a string representation of the internal state of the parser. "
-        "Each byte in the string represents a nested data structure. For example, "
-        "if the parser state is '([\"', then the parser is in the middle of parsing a "
-        "string inside of square brackets inside parens. Can be used to augment a repl prompt."
+    {
+        "parser/state", cfun_state,
+        JDOC("(parser/state parser)\n\n"
+                "Returns a string representation of the internal state of the parser. "
+                "Each byte in the string represents a nested data structure. For example, "
+                "if the parser state is '([\"', then the parser is in the middle of parsing a "
+                "string inside of square brackets inside parens. Can be used to augment a repl prompt.")
     },
-    {"parser/where", cfun_where,
-        "(parser/where parser)\n\n"
-        "Returns the current line number and column number of the parser's location "
-        "in the byte stream as a tuple (line, column). Lines and columns are counted from "
-        "1, (the first byte is line1, column 1) and a newline is considered ascii 0x0A."
+    {
+        "parser/where", cfun_where,
+        JDOC("(parser/where parser)\n\n"
+                "Returns the current line number and column number of the parser's location "
+                "in the byte stream as a tuple (line, column). Lines and columns are counted from "
+                "1, (the first byte is line1, column 1) and a newline is considered ascii 0x0A.")
     },
     {NULL, NULL, NULL}
 };
