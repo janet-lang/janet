@@ -562,7 +562,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             if (janet_fiber_funcframe(fiber, func)) {
                 int32_t n = fiber->stacktop - fiber->stackstart;
                 janet_panicf("%v called with %d argument%s, expected %d",
-                        callee, n, n == 1 ? "s" : "", func->def->arity);
+                        callee, n, n == 1 ? "" : "s", func->def->arity);
             }
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
@@ -593,7 +593,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
                 janet_stack_frame(fiber->data + fiber->frame)->pc = pc;
                 int32_t n = fiber->stacktop - fiber->stackstart;
                 janet_panicf("%v called with %d argument%s, expected %d",
-                        callee, n, n == 1 ? "s" : "", func->def->arity);
+                        callee, n, n == 1 ? "" : "s", func->def->arity);
             }
             stack = fiber->data + fiber->frame;
             pc = func->def->bytecode;
