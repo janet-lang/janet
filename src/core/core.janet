@@ -1211,9 +1211,12 @@ value, one key will be ignored."
                   x:macro :macro
                   (type x:value))
                 "\n"))
+      (def sm x:source-map)
       (def d x:doc)
       (print "\n\n"
              (if d bind-type "")
+             (if-let [[path start end] sm] (string "    " path " (" start ":" end ")\n") "")
+             (if (or d sm) "\n" "")
              (if d (doc-format d) "no documentation found.")
              "\n\n"))))
 
