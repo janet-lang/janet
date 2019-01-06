@@ -106,19 +106,10 @@ const uint8_t *janet_cstring(const char *str) {
 /* Temporary buffer size */
 #define BUFSIZE 64
 
-static int32_t number_to_string_impl(uint8_t *buf, double x) {
-    int count = snprintf((char *) buf, BUFSIZE, "%g", x);
-    return (int32_t) count;
-}
-
 static void number_to_string_b(JanetBuffer *buffer, double x) {
     janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
-    buffer->count += number_to_string_impl(buffer->data + buffer->count, x);
-}
-
-static const uint8_t *number_to_string(double x) {
-    uint8_t buf[BUFSIZE];
-    return janet_string(buf, number_to_string_impl(buf, x));
+    int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, "%g", x);
+    buffer->count += count;
 }
 
 /* expects non positive x */
@@ -134,13 +125,17 @@ static int count_dig10(int32_t x) {
     }
 }
 
-static int32_t integer_to_string_impl(uint8_t *buf, int32_t x) {
+static void integer_to_string_b(JanetBuffer *buffer, int32_t x) {
+    janet_buffer_extra(buffer, BUFSIZE);
+    uint8_t *buf = buffer->data + buffer->count;
     int32_t neg = 0;
     int32_t len = 0;
     if (x == 0) {
         buf[0] = '0';
-        return 1;
-    } else if (x > 0) {
+        buffer->count++;
+        return;
+    }
+    if (x > 0) {
         x = -x;
     } else {
         neg = 1;
@@ -153,20 +148,16 @@ static int32_t integer_to_string_impl(uint8_t *buf, int32_t x) {
         *(--buf) = '0' + digit;
         x /= 10;
     }
-    return len + neg;
-}
-
-static void integer_to_string_b(JanetBuffer *buffer, int32_t x) {
-    janet_buffer_extra(buffer, BUFSIZE);
-    buffer->count += integer_to_string_impl(buffer->data + buffer->count, x);
+    buffer->count += len + neg;
 }
 
 #define HEX(i) (((uint8_t *) janet_base64)[(i)])
 
 /* Returns a string description for a pointer. Truncates
  * title to 32 characters */
-static int32_t string_description_impl(uint8_t *buf, const char *title, void *pointer) {
-    uint8_t *c = buf;
+static void string_description_b(JanetBuffer *buffer, const char *title, void *pointer) {
+    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
+    uint8_t *c = buffer->data + buffer->count;
     int32_t i;
     union {
         uint8_t bytes[sizeof(void *)];
@@ -192,118 +183,57 @@ static int32_t string_description_impl(uint8_t *buf, const char *title, void *po
         *c++ = HEX(byte & 0xF);
     }
     *c++ = '>';
-    return (int32_t) (c - buf);
+    buffer->count = c - buffer->data;
 #undef POINTSIZE
-}
-
-static void string_description_b(JanetBuffer *buffer, const char *title, void *pointer) {
-    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
-    buffer->count += string_description_impl(buffer->data + buffer->count, title, pointer);
-}
-
-/* Describes a pointer with a title (string_description("bork",  myp) returns
- * a string "<bork 0x12345678>") */
-static const uint8_t *string_description(const char *title, void *pointer) {
-    uint8_t buf[BUFSIZE];
-    return janet_string(buf, string_description_impl(buf, title, pointer));
 }
 
 #undef HEX
 #undef BUFSIZE
 
-/* TODO - add more characters to escape.
- *
- * When more escapes are added, they must correspond
- * to janet_escape_string_impl exactly or a buffer overrun could occur. */
-static int32_t janet_escape_string_length(const uint8_t *str, int32_t slen) {
-    int32_t len = 2;
-    int32_t i;
-    for (i = 0; i < slen; ++i) {
-        switch (str[i]) {
-            case '"':
-            case '\n':
-            case '\r':
-            case '\0':
-            case '\\':
-                len += 2;
-                break;
-            default:
-                if (str[i] < 32 || str[i] > 127)
-                    len += 4;
-                else
-                    len += 1;
-                break;
-        }
-    }
-    return len;
-}
-
-static void janet_escape_string_impl(uint8_t *buf, const uint8_t *str, int32_t len) {
-    int32_t i, j;
-    buf[0] = '"';
-    for (i = 0, j = 1; i < len; ++i) {
+static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, int32_t len) {
+    janet_buffer_push_u8(buffer, '"');
+    for (int32_t i = 0; i < len; ++i) {
         uint8_t c = str[i];
         switch (c) {
             case '"':
-                buf[j++] = '\\';
-                buf[j++] = '"';
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\\"", 2);
                 break;
             case '\n':
-                buf[j++] = '\\';
-                buf[j++] = 'n';
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\n", 2);
                 break;
             case '\r':
-                buf[j++] = '\\';
-                buf[j++] = 'r';
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\r", 2);
                 break;
             case '\0':
-                buf[j++] = '\\';
-                buf[j++] = '0';
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\0", 2);
                 break;
             case '\\':
-                buf[j++] = '\\';
-                buf[j++] = '\\';
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\\\", 2);
                 break;
             default:
                 if (c < 32 || c > 127) {
-                    buf[j++] = '\\';
-                    buf[j++] = 'x';
-                    buf[j++] = janet_base64[(c >> 4) & 0xF];
-                    buf[j++] = janet_base64[c & 0xF];
+                    uint8_t buf[4];
+                    buf[0] = '\\';
+                    buf[1] = 'x';
+                    buf[2] = janet_base64[(c >> 4) & 0xF];
+                    buf[3] = janet_base64[c & 0xF];
+                    janet_buffer_push_bytes(buffer, buf, 4);
                 } else {
-                    buf[j++] = c;
+                    janet_buffer_push_u8(buffer, c);
                 }
                 break;
         }
     }
-    buf[j++] = '"';
+    janet_buffer_push_u8(buffer, '"');
 }
 
-void janet_escape_string_b(JanetBuffer *buffer, const uint8_t *str) {
-    int32_t len = janet_string_length(str);
-    int32_t elen = janet_escape_string_length(str, len);
-    janet_buffer_extra(buffer, elen);
-    janet_escape_string_impl(buffer->data + buffer->count, str, len);
-    buffer->count += elen;
-}
-
-const uint8_t *janet_escape_string(const uint8_t *str) {
-    int32_t len = janet_string_length(str);
-    int32_t elen = janet_escape_string_length(str, len);
-    uint8_t *buf = janet_string_begin(elen);
-    janet_escape_string_impl(buf, str, len);
-    return janet_string_end(buf);
+static void janet_escape_string_b(JanetBuffer *buffer, const uint8_t *str) {
+    janet_escape_string_impl(buffer, str, janet_string_length(str));
 }
 
 static void janet_escape_buffer_b(JanetBuffer *buffer, JanetBuffer *bx) {
-    int32_t elen = janet_escape_string_length(bx->data, bx->count);
     janet_buffer_push_u8(buffer, '@');
-    janet_buffer_extra(buffer, elen);
-    janet_escape_string_impl(
-            buffer->data + buffer->count,
-            bx->data,
-            bx->count);
-    buffer->count += elen;
+    janet_escape_string_impl(buffer, bx->data, bx->count);
 }
 
 void janet_description_b(JanetBuffer *buffer, Janet x) {
@@ -337,9 +267,7 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
     case JANET_ABSTRACT:
         {
             const char *n = janet_abstract_type(janet_unwrap_abstract(x))->name;
-            string_description_b(buffer,
-                n[0] == ':' ? n + 1 : n,
-                janet_unwrap_abstract(x));
+            string_description_b(buffer, n, janet_unwrap_abstract(x));
 			return;
         }
     case JANET_CFUNCTION:
@@ -370,7 +298,7 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
         }
     fallthrough:
     default:
-        string_description_b(buffer, janet_type_names[janet_type(x)] + 1, janet_unwrap_pointer(x));
+        string_description_b(buffer, janet_type_names[janet_type(x)], janet_unwrap_pointer(x));
         break;
     }
 }
@@ -396,65 +324,12 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
 }
 
 const uint8_t *janet_description(Janet x) {
-    switch (janet_type(x)) {
-    case JANET_NIL:
-        return janet_cstring("nil");
-    case JANET_TRUE:
-        return janet_cstring("true");
-    case JANET_FALSE:
-        return janet_cstring("false");
-    case JANET_NUMBER:
-        return number_to_string(janet_unwrap_number(x));
-    case JANET_SYMBOL:
-        return janet_unwrap_symbol(x);
-    case JANET_KEYWORD:
-        {
-            const uint8_t *kw = janet_unwrap_keyword(x);
-            uint8_t *str = janet_string_begin(janet_string_length(kw) + 1);
-            memcpy(str + 1, kw, janet_string_length(kw) + 1);
-            str[0] = ':';
-            return janet_string_end(str);
-        }
-    case JANET_STRING:
-        return janet_escape_string(janet_unwrap_string(x));
-    case JANET_BUFFER:
-        {
-            JanetBuffer b;
-            const uint8_t *ret;
-            janet_buffer_init(&b, 3);
-            janet_escape_buffer_b(&b, janet_unwrap_buffer(x));
-            ret = janet_string(b.data, b.count);
-            janet_buffer_deinit(&b);
-            return ret;
-        }
-    case JANET_ABSTRACT:
-        {
-            const char *n = janet_abstract_type(janet_unwrap_abstract(x))->name;
-            return string_description(
-                    n[0] == ':' ? n + 1 : n,
-                    janet_unwrap_abstract(x));
-        }
-    case JANET_CFUNCTION:
-        {
-            Janet check = janet_table_get(janet_vm_registry, x);
-            if (janet_checktype(check, JANET_SYMBOL)) {
-                return janet_formatc("<cfunction %V>", check);
-            }
-            goto fallthrough;
-        }
-    case JANET_FUNCTION:
-        {
-            JanetFunction *fun = janet_unwrap_function(x);
-            JanetFuncDef *def = fun->def;
-            if (def->name) {
-                return janet_formatc("<function %S>", def->name);
-            }
-            goto fallthrough;
-        }
-    fallthrough:
-    default:
-        return string_description(janet_type_names[janet_type(x)] + 1, janet_unwrap_pointer(x));
-    }
+    JanetBuffer b;
+    janet_buffer_init(&b, 10);
+    janet_description_b(&b, x);
+    const uint8_t *ret = janet_string(b.data, b.count);
+    janet_buffer_deinit(&b);
+    return ret;
 }
 
 /* Convert any value to a janet string. Similar to description, but
@@ -462,7 +337,14 @@ const uint8_t *janet_description(Janet x) {
 const uint8_t *janet_to_string(Janet x) {
     switch (janet_type(x)) {
         default:
-            return janet_description(x);
+            {
+                JanetBuffer b;
+                janet_buffer_init(&b, 10);
+                janet_to_string_b(&b, x);
+                const uint8_t *ret = janet_string(b.data, b.count);
+                janet_buffer_deinit(&b);
+                return ret;
+            }
         case JANET_BUFFER:
             return janet_string(janet_unwrap_buffer(x)->data, janet_unwrap_buffer(x)->count);
         case JANET_STRING:

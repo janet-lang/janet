@@ -998,12 +998,10 @@ JANET_API const uint8_t *janet_cstring(const char *cstring);
 JANET_API int janet_string_compare(const uint8_t *lhs, const uint8_t *rhs);
 JANET_API int janet_string_equal(const uint8_t *lhs, const uint8_t *rhs);
 JANET_API int janet_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash);
-JANET_API const uint8_t *janet_string_unique(const uint8_t *buf, int32_t len);
-JANET_API const uint8_t *janet_cstring_unique(const char *s);
 JANET_API const uint8_t *janet_description(Janet x);
 JANET_API const uint8_t *janet_to_string(Janet x);
 JANET_API void janet_to_string_b(JanetBuffer *buffer, Janet x);
-JANET_API void janet_to_description_b(JanetBuffer *buffer, Janet x);
+JANET_API void janet_description_b(JanetBuffer *buffer, Janet x);
 #define janet_cstringv(cstr) janet_wrap_string(janet_cstring(cstr))
 #define janet_stringv(str, len) janet_wrap_string(janet_string((str), (len)))
 JANET_API const uint8_t *janet_formatc(const char *format, ...);
