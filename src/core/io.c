@@ -99,6 +99,14 @@ static Janet makef(FILE *f, int flags) {
 }
 
 /* Open a process */
+#ifdef __EMSCRIPTEN__
+static Janet janet_io_popen(int32_t argc, Janet *argv) {
+    (void) argc;
+    (void) argv;
+    janet_panic("not implemented on this platform");
+    return janet_wrap_nil();
+}
+#else
 static Janet janet_io_popen(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
@@ -116,15 +124,13 @@ static Janet janet_io_popen(int32_t argc, Janet *argv) {
 #ifdef JANET_WINDOWS
 #define popen _popen
 #endif
-#ifdef __EMSCRIPTEN__
-#define popen(A, B) (errno = 0, NULL)
-#endif
     FILE *f = popen((const char *)fname, (const char *)fmode);
     if (!f) {
         return janet_wrap_nil();
     }
     return makef(f, flags);
 }
+#endif
 
 /* Open a a file and return a userdata wrapper around the C file API. */
 static Janet janet_io_fopen(int32_t argc, Janet *argv) {

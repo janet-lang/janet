@@ -165,7 +165,7 @@ JanetRange janet_getslice(int32_t argc, const Janet *argv) {
         if (range.start < 0 || range.start > length) {
             janet_panicf("slice start: index %d out of range [0,%d]", range.start, length);
         }
-    } else if (argc == 3) {
+    } else {
         range.start = janet_getinteger(argv, 1);
         range.end = janet_getinteger(argv, 2);
         if (range.start < 0) {
