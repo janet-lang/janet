@@ -29,6 +29,6 @@ void janet_line_init();
 void janet_line_deinit();
 
 void janet_line_get(const uint8_t *p, JanetBuffer *buffer);
-int janet_line_getter(JanetArgs args);
+Janet janet_line_getter(int32_t argc, Janet *argv);
 
 #endif

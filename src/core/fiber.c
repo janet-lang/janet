@@ -292,31 +292,29 @@ void janet_fiber_popframe(JanetFiber *fiber) {
 
 /* CFuns */
 
-static int cfun_new(JanetArgs args) {
+static Janet cfun_new(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    JanetFunction *func = janet_getfunction(argv, 0);
     JanetFiber *fiber;
-    JanetFunction *func;
-    JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 2);
-    JANET_ARG_FUNCTION(func, args, 0);
     if (func->def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
         if (func->def->arity != 0) {
-            JANET_THROW(args, "expected nullary function in fiber constructor");
+            janet_panic("expected nullary function in fiber constructor");
         }
     }
     fiber = janet_fiber(func, 64);
-    if (args.n == 2) {
-        const uint8_t *flags;
-        int32_t len, i;
-        JANET_ARG_BYTES(flags, len, args, 1);
+    if (argc == 2) {
+        int32_t i;
+        JanetByteView view = janet_getbytes(argv, 1);
         fiber->flags = 0;
         janet_fiber_set_status(fiber, JANET_STATUS_NEW);
-        for (i = 0; i < len; i++) {
-            if (flags[i] >= '0' && flags[i] <= '9') {
-                fiber->flags |= JANET_FIBER_MASK_USERN(flags[i] - '0');
+        for (i = 0; i < view.len; i++) {
+            if (view.bytes[i] >= '0' && view.bytes[i] <= '9') {
+                fiber->flags |= JANET_FIBER_MASK_USERN(view.bytes[i] - '0');
             } else {
-                switch (flags[i]) {
+                switch (view.bytes[i]) {
                     default:
-                        JANET_THROW(args, "invalid flag, expected a, d, e, u, or y");
+                        janet_panicf("invalid flag %c, expected a, d, e, u, or y", view.bytes[i]);
+                        break;
                     case 'a':
                         fiber->flags |=
                             JANET_FIBER_MASK_DEBUG |
@@ -340,41 +338,38 @@ static int cfun_new(JanetArgs args) {
             }
         }
     }
-    JANET_RETURN_FIBER(args, fiber);
+    return janet_wrap_fiber(fiber);
 }
 
-static int cfun_status(JanetArgs args) {
-    JanetFiber *fiber;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_FIBER(fiber, args, 0);
+static Janet cfun_status(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
     uint32_t s = (fiber->flags & JANET_FIBER_STATUS_MASK) >>
         JANET_FIBER_STATUS_OFFSET;
-    JANET_RETURN_CKEYWORD(args, janet_status_names[s]);
+    return janet_ckeywordv(janet_status_names[s]);
 }
 
-static int cfun_current(JanetArgs args) {
-    JANET_FIXARITY(args, 0);
-    JANET_RETURN_FIBER(args, janet_vm_fiber);
+static Janet cfun_current(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_arity(argc, 0, 0);
+    return janet_wrap_fiber(janet_vm_fiber);
 }
 
-static int cfun_maxstack(JanetArgs args) {
-    JanetFiber *fiber;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_FIBER(fiber, args, 0);
-    JANET_RETURN_INTEGER(args, fiber->maxstack);
+static Janet cfun_maxstack(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    return janet_wrap_integer(fiber->maxstack);
 }
 
-static int cfun_setmaxstack(JanetArgs args) {
-    JanetFiber *fiber;
-    int32_t maxs;
-    JANET_FIXARITY(args, 2);
-    JANET_ARG_FIBER(fiber, args, 0);
-    JANET_ARG_INTEGER(maxs, args, 1);
+static Janet cfun_setmaxstack(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 2);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    int32_t maxs = janet_getinteger(argv, 1);
     if (maxs < 0) {
-        JANET_THROW(args, "expected positive integer");
+        janet_panic("expected positive integer");
     }
     fiber->maxstack = maxs;
-    JANET_RETURN_FIBER(args, fiber);
+    return argv[0];
 }
 
 static const JanetReg cfuns[] = {
@@ -425,8 +420,6 @@ static const JanetReg cfuns[] = {
 };
 
 /* Module entry point */
-int janet_lib_fiber(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_fiber(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }

@@ -44,21 +44,21 @@ const void *janet_strbinsearch(
         const uint8_t *key);
 
 /* Initialize builtin libraries */
-int janet_lib_io(JanetArgs args);
-int janet_lib_math(JanetArgs args);
-int janet_lib_array(JanetArgs args);
-int janet_lib_tuple(JanetArgs args);
-int janet_lib_buffer(JanetArgs args);
-int janet_lib_table(JanetArgs args);
-int janet_lib_fiber(JanetArgs args);
-int janet_lib_os(JanetArgs args);
-int janet_lib_string(JanetArgs args);
-int janet_lib_marsh(JanetArgs args);
-int janet_lib_parse(JanetArgs args);
+void janet_lib_io(JanetTable *env);
+void janet_lib_math(JanetTable *env);
+void janet_lib_array(JanetTable *env);
+void janet_lib_tuple(JanetTable *env);
+void janet_lib_buffer(JanetTable *env);
+void janet_lib_table(JanetTable *env);
+void janet_lib_fiber(JanetTable *env);
+void janet_lib_os(JanetTable *env);
+void janet_lib_string(JanetTable *env);
+void janet_lib_marsh(JanetTable *env);
+void janet_lib_parse(JanetTable *env);
 #ifdef JANET_ASSEMBLER
-int janet_lib_asm(JanetArgs args);
+void janet_lib_asm(JanetTable *env);
 #endif
-int janet_lib_compile(JanetArgs args);
-int janet_lib_debug(JanetArgs args);
+void janet_lib_compile(JanetTable *env);
+void janet_lib_debug(JanetTable *env);
 
 #endif

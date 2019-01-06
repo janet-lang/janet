@@ -29,26 +29,24 @@
  * out of the box. */
 
 /* Add a break point to a function */
-int janet_debug_break(JanetFuncDef *def, int32_t pc) {
+void janet_debug_break(JanetFuncDef *def, int32_t pc) {
     if (pc >= def->bytecode_length || pc < 0)
-        return 1;
+        janet_panic("invalid bytecode offset");
     def->bytecode[pc] |= 0x80;
-    return 0;
 }
 
 /* Remove a break point from a function */
-int janet_debug_unbreak(JanetFuncDef *def, int32_t pc) {
+void janet_debug_unbreak(JanetFuncDef *def, int32_t pc) {
     if (pc >= def->bytecode_length || pc < 0)
-        return 1;
+        janet_panic("invalid bytecode offset");
     def->bytecode[pc] &= ~((uint32_t)0x80);
-    return 0;
 }
 
 /*
  * Find a location for a breakpoint given a source file an
  * location.
  */
-int janet_debug_find(
+void janet_debug_find(
         JanetFuncDef **def_out, int32_t *pc_out,
         const uint8_t *source, int32_t offset) {
     /* Scan the heap for right func def */
@@ -84,9 +82,8 @@ int janet_debug_find(
     if (best_def) {
         *def_out = best_def;
         *pc_out = besti;
-        return 0;
     } else {
-        return 1;
+        janet_panic("could not find breakpoint");
     }
 }
 
@@ -96,86 +93,64 @@ int janet_debug_find(
 
 /* Helper to find funcdef and bytecode offset to insert or remove breakpoints.
  * Takes a source file name and byte offset. */
-static int helper_find(JanetArgs args, JanetFuncDef **def, int32_t *bytecode_offset) {
-    const uint8_t *source;
-    int32_t source_offset;
-    JANET_FIXARITY(args, 2);
-    JANET_ARG_STRING(source, args, 0);
-    JANET_ARG_INTEGER(source_offset, args, 1);
-    if (janet_debug_find(
-                def, bytecode_offset, source, source_offset)) {
-        JANET_THROW(args, "could not find breakpoint");
-    }
-    JANET_RETURN_NIL(args);
+static void helper_find(int32_t argc, Janet *argv, JanetFuncDef **def, int32_t *bytecode_offset) {
+    janet_arity(argc, 2, 2);
+    const uint8_t *source = janet_getstring(argv, 0);
+    int32_t source_offset = janet_getinteger(argv, 1);
+    janet_debug_find(def, bytecode_offset, source, source_offset);
 }
 
 /* Helper to find funcdef and bytecode offset to insert or remove breakpoints.
  * Takes a function and byte offset*/
-static int helper_find_fun(JanetArgs args, JanetFuncDef **def, int32_t *bytecode_offset) {
-    JanetFunction *func;
-    int32_t offset = 0;
-    JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 2);
-    JANET_ARG_FUNCTION(func, args, 0);
-    if (args.n == 2) {
-        JANET_ARG_INTEGER(offset, args, 1);
-    }
+static void helper_find_fun(int32_t argc, Janet *argv, JanetFuncDef **def, int32_t *bytecode_offset) {
+    janet_arity(argc, 1, 2);
+    JanetFunction *func = janet_getfunction(argv, 0);
+    int32_t offset = (argc == 2) ? janet_getinteger(argv, 1) : 0;
     *def = func->def;
     *bytecode_offset = offset;
-    JANET_RETURN_NIL(args);
 }
 
-static int cfun_break(JanetArgs args) {
+static Janet cfun_break(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
     int32_t offset;
-    int status = helper_find(args, &def, &offset);
-    if (status == 0) janet_debug_break(def, offset);
-    return status;
+    helper_find(argc, argv, &def, &offset);
+    janet_debug_break(def, offset);
+    return janet_wrap_nil();
 }
 
-static int cfun_unbreak(JanetArgs args) {
+static Janet cfun_unbreak(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
     int32_t offset;
-    int status = helper_find(args, &def, &offset);
-    if (status == 0) janet_debug_unbreak(def, offset);
-    return status;
+    helper_find(argc, argv, &def, &offset);
+    janet_debug_unbreak(def, offset);
+    return janet_wrap_nil();
 }
 
-static int cfun_fbreak(JanetArgs args) {
+static Janet cfun_fbreak(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
     int32_t offset;
-    int status = helper_find_fun(args, &def, &offset);
-    if (status == 0) {
-        if (janet_debug_break(def, offset)) {
-            JANET_THROW(args, "could not find breakpoint");
-        }
-    }
-    return status;
+    helper_find_fun(argc, argv, &def, &offset);
+    janet_debug_break(def, offset);
+    return janet_wrap_nil();
 }
 
-static int cfun_unfbreak(JanetArgs args) {
+static Janet cfun_unfbreak(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
     int32_t offset;
-    int status = helper_find_fun(args, &def, &offset);
-    if (status == 0) {
-        if (janet_debug_unbreak(def, offset)) {
-            JANET_THROW(args, "could not find breakpoint");
-        }
-    }
-    return status;
+    helper_find_fun(argc, argv, &def, &offset);
+    janet_debug_unbreak(def, offset);
+    return janet_wrap_nil();
 }
 
-static int cfun_lineage(JanetArgs args) {
-    JanetFiber *fiber;
-    JanetArray *array;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_FIBER(fiber, args, 0);
-    array = janet_array(0);
+static Janet cfun_lineage(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    JanetArray *array = janet_array(0);
     while (fiber) {
         janet_array_push(array, janet_wrap_fiber(fiber));
         fiber = fiber->child;
     }
-    JANET_RETURN_ARRAY(args, array);
+    return janet_wrap_array(array);
 }
 
 /* Extract info from one stack frame */
@@ -224,12 +199,10 @@ static Janet doframe(JanetStackFrame *frame) {
     return janet_wrap_table(t);
 }
 
-static int cfun_stack(JanetArgs args) {
-    JanetFiber *fiber;
-    JanetArray *array;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_FIBER(fiber, args, 0);
-    array = janet_array(0);
+static Janet cfun_stack(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    JanetArray *array = janet_array(0);
     {
         int32_t i = fiber->frame;
         JanetStackFrame *frame;
@@ -239,18 +212,16 @@ static int cfun_stack(JanetArgs args) {
             i = frame->prevframe;
         }
     }
-    JANET_RETURN_ARRAY(args, array);
+    return janet_wrap_array(array);
 }
 
-static int cfun_argstack(JanetArgs args) {
-    JanetFiber *fiber;
-    JanetArray *array;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_FIBER(fiber, args, 0);
-    array = janet_array(fiber->stacktop - fiber->stackstart);
+static Janet cfun_argstack(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    JanetArray *array = janet_array(fiber->stacktop - fiber->stackstart);
     memcpy(array->data, fiber->data + fiber->stackstart, array->capacity * sizeof(Janet));
     array->count = array->capacity;
-    JANET_RETURN_ARRAY(args, array);
+    return janet_wrap_array(array);
 }
 
 static const JanetReg cfuns[] = {
@@ -306,8 +277,6 @@ static const JanetReg cfuns[] = {
 };
 
 /* Module entry point */
-int janet_lib_debug(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_debug(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }

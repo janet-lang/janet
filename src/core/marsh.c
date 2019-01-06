@@ -21,7 +21,6 @@
 */
 
 #include <janet/janet.h>
-#include <setjmp.h>
 
 #include "state.h"
 #include "vector.h"
@@ -124,7 +123,7 @@ JanetTable *janet_env_lookup(JanetTable *env) {
 /* Marshal an integer onto the buffer */
 static void pushint(MarshalState *st, int32_t x) {
     if (x >= 0 && x < 200) {
-        if (janet_buffer_push_u8(st->buf, x)) longjmp(st->err, MR_OVERFLOW);
+        janet_buffer_push_u8(st->buf, x);
     } else {
         uint8_t intbuf[5];
         intbuf[0] = LB_INTEGER;
@@ -132,16 +131,16 @@ static void pushint(MarshalState *st, int32_t x) {
         intbuf[2] = (x >> 8) & 0xFF;
         intbuf[3] = (x >> 16) & 0xFF;
         intbuf[4] = (x >> 24) & 0xFF;
-        if (janet_buffer_push_bytes(st->buf, intbuf, 5)) longjmp(st->err, MR_OVERFLOW);
+        janet_buffer_push_bytes(st->buf, intbuf, 5);
     }
 }
 
 static void pushbyte(MarshalState *st, uint8_t b) {
-    if (janet_buffer_push_u8(st->buf, b)) longjmp(st->err, MR_OVERFLOW);
+    janet_buffer_push_u8(st->buf, b);
 }
 
 static void pushbytes(MarshalState *st, const uint8_t *bytes, int32_t len) {
-    if (janet_buffer_push_bytes(st->buf, bytes, len)) longjmp(st->err, MR_OVERFLOW);
+    janet_buffer_push_bytes(st->buf, bytes, len);
 }
 
 /* Forward declaration to enable mutual recursion. */
@@ -1102,61 +1101,46 @@ int janet_unmarshal(
 
 /* C functions */
 
-static int cfun_env_lookup(JanetArgs args) {
-    JanetTable *env;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_TABLE(env, args, 0);
-    JANET_RETURN_TABLE(args, janet_env_lookup(env));
+static Janet cfun_env_lookup(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetTable *env = janet_gettable(argv, 0);
+    return janet_wrap_table(janet_env_lookup(env));
 }
 
-static int cfun_marshal(JanetArgs args) {
+static Janet cfun_marshal(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
     JanetBuffer *buffer;
-    JanetTable *rreg;
+    JanetTable *rreg = NULL;
     Janet err_param = janet_wrap_nil();
     int status;
-    JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 3);
-    if (args.n > 1) {
-        /* Reverse Registry provided */
-        JANET_ARG_TABLE(rreg, args, 1);
-    } else {
-        rreg = NULL;
+    if (argc > 1) {
+        rreg = janet_gettable(argv, 1);
     }
-    if (args.n > 2) {
-        /* Buffer provided */
-        JANET_ARG_BUFFER(buffer, args, 2);
+    if (argc > 2) {
+        buffer = janet_getbuffer(argv, 2);
     } else {
         buffer = janet_buffer(10);
     }
-    status = janet_marshal(buffer, args.v[0], &err_param, rreg, 0);
-    if (status) {
-        const uint8_t *errstr = janet_formatc(
-                "%s for %V",
-                mr_strings[status],
-                err_param);
-        JANET_THROWV(args, janet_wrap_string(errstr));
-    }
-    JANET_RETURN_BUFFER(args, buffer);
+    status = janet_marshal(buffer, argv[0], &err_param, rreg, 0);
+    if (status)
+        janet_panicf("%s for %V", mr_strings[status], err_param);
+    return janet_wrap_buffer(buffer);
 }
 
-static int cfun_unmarshal(JanetArgs args) {
-    const uint8_t *bytes;
-    JanetTable *reg;
-    int32_t len;
+static Janet cfun_unmarshal(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    JanetByteView view = janet_getbytes(argv, 0);
+    JanetTable *reg = NULL;
+    Janet ret;
     int status;
-    JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 2);
-    JANET_ARG_BYTES(bytes, len, args, 0);
-    if (args.n > 1) {
-        JANET_ARG_TABLE(reg, args, 1);
-    } else {
-        reg = NULL;
+    if (argc > 1) {
+        reg = janet_gettable(argv, 1);
     }
-    status = janet_unmarshal(bytes, (size_t) len, 0, args.ret, reg, NULL);
+    status = janet_unmarshal(view.bytes, (size_t) view.len, 0, &ret, reg, NULL);
     if (status) {
-        JANET_THROW(args, umr_strings[status]);
+        janet_panic(umr_strings[status]);
     }
-    return JANET_SIGNAL_OK;
+    return ret;
 }
 
 static const JanetReg cfuns[] = {
@@ -1185,8 +1169,6 @@ static const JanetReg cfuns[] = {
 };
 
 /* Module entry point */
-int janet_lib_marsh(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_marsh(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }

@@ -118,135 +118,97 @@ Janet janet_array_peek(JanetArray *array) {
 
 /* C Functions */
 
-static int cfun_new(JanetArgs args) {
-    int32_t cap;
-    JanetArray *array;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_INTEGER(cap, args, 0);
-    array = janet_array(cap);
-    JANET_RETURN_ARRAY(args, array);
+static Janet cfun_new(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    int32_t cap = janet_getinteger(argv, 0);
+    JanetArray *array = janet_array(cap);
+    return janet_wrap_array(array);
 }
 
-static int cfun_pop(JanetArgs args) {
-    JanetArray *array;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_ARRAY(array, args, 0);
-    JANET_RETURN(args, janet_array_pop(array));
+static Janet cfun_pop(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetArray *array = janet_getarray(argv, 0);
+    return janet_array_pop(array);
 }
 
-static int cfun_peek(JanetArgs args) {
-    JanetArray *array;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_ARRAY(array, args, 0);
-    JANET_RETURN(args, janet_array_peek(array));
+static Janet cfun_peek(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetArray *array = janet_getarray(argv, 0);
+    return janet_array_peek(array);
 }
 
-static int cfun_push(JanetArgs args) {
-    JanetArray *array;
-    int32_t newcount;
-    JANET_MINARITY(args, 1);
-    JANET_ARG_ARRAY(array, args, 0);
-    newcount = array->count - 1 + args.n;
+static Janet cfun_push(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, -1);
+    JanetArray *array = janet_getarray(argv, 0);
+    int32_t newcount = array->count - 1 + argc;
     janet_array_ensure(array, newcount, 2);
-    if (args.n > 1) memcpy(array->data + array->count, args.v + 1, (args.n - 1) * sizeof(Janet));
+    if (argc > 1) memcpy(array->data + array->count, argv + 1, (argc - 1) * sizeof(Janet));
     array->count = newcount;
-    JANET_RETURN(args, args.v[0]);
+    return argv[0];
 }
 
-static int cfun_ensure(JanetArgs args) {
-    JanetArray *array;
-    int32_t newcount;
-    int32_t growth;
-    JANET_FIXARITY(args, 3);
-    JANET_ARG_ARRAY(array, args, 0);
-    JANET_ARG_INTEGER(newcount, args, 1);
-    JANET_ARG_INTEGER(growth, args, 2);
-    if (newcount < 0) JANET_THROW(args, "expected positive integer");
+static Janet cfun_ensure(int32_t argc, Janet *argv) {
+    janet_arity(argc, 3, 3);
+    JanetArray *array = janet_getarray(argv, 0);
+    int32_t newcount = janet_getinteger(argv, 1);
+    int32_t growth = janet_getinteger(argv, 2);
+    if (newcount < 1) janet_panic("expected positive integer");
     janet_array_ensure(array, newcount, growth);
-    JANET_RETURN(args, args.v[0]);
+    return argv[0];
 }
 
-static int cfun_slice(JanetArgs args) {
-    const Janet *vals;
-    int32_t len;
-    JanetArray *ret;
-    int32_t start, end;
-    JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 3);
-    if (!janet_indexed_view(args.v[0], &vals, &len))
-        JANET_THROW(args, "expected array|tuple");
-    /* Get start */
-    if (args.n < 2) {
-        start = 0;
-    } else {
-        JANET_ARG_INTEGER(start, args, 1);
-    }
-    /* Get end */
-    if (args.n < 3) {
-        end = -1;
-    } else {
-        JANET_ARG_INTEGER(end, args, 2);
-    }
-    if (start < 0) start = len + start;
-    if (end < 0) end = len + end + 1;
-    if (end < 0 || start < 0 || end > len || start > len)
-        JANET_THROW(args, "slice range out of bounds");
-    if (end >= start) {
-        ret = janet_array(end - start);
-        memcpy(ret->data, vals + start, sizeof(Janet) * (end - start));
-        ret->count = end - start;
-    } else {
-        ret = janet_array(0);
-    }
-    JANET_RETURN_ARRAY(args, ret);
+static Janet cfun_slice(int32_t argc, Janet *argv) {
+    JanetRange range = janet_getslice(argc, argv);
+    JanetView view = janet_getindexed(argv, 0);
+    JanetArray *array = janet_array(range.end - range.start);
+    memcpy(array->data, view.items + range.start, sizeof(Janet) * (range.end - range.start));
+    array->count = range.end - range.start;
+    return janet_wrap_array(array);
 }
 
-static int cfun_concat(JanetArgs args) {
+static Janet cfun_concat(int32_t argc, Janet *argv) {
     int32_t i;
-    JanetArray *array;
-    JANET_MINARITY(args, 1);
-    JANET_ARG_ARRAY(array, args, 0);
-    for (i = 1; i < args.n; i++) {
-        switch (janet_type(args.v[i])) {
+    janet_arity(argc, 1, -1);
+    JanetArray *array = janet_getarray(argv, 0);
+    for (i = 1; i < argc; i++) {
+        switch (janet_type(argv[i])) {
             default:
-                janet_array_push(array, args.v[i]);
+                janet_array_push(array, argv[i]);
                 break;
             case JANET_ARRAY:
             case JANET_TUPLE:
                 {
                     int32_t j, len;
                     const Janet *vals;
-                    janet_indexed_view(args.v[i], &vals, &len);
+                    janet_indexed_view(argv[i], &vals, &len);
                     for (j = 0; j < len; j++)
                         janet_array_push(array, vals[j]);
                 }
                 break;
         }
     }
-    JANET_RETURN_ARRAY(args, array);
+    return janet_wrap_array(array);
 }
 
-static int cfun_insert(JanetArgs args) {
-    int32_t at;
+static Janet cfun_insert(int32_t argc, Janet *argv) {
     size_t chunksize, restsize;
-    JanetArray *array;
-    JANET_MINARITY(args, 2);
-    JANET_ARG_ARRAY(array, args, 0);
-    JANET_ARG_INTEGER(at, args, 1);
+    janet_arity(argc, 2, -1);
+    JanetArray *array = janet_getarray(argv, 0);
+    int32_t at = janet_getinteger(argv, 1);
     if (at < 0) {
         at = array->count + at + 1; 
     }
     if (at < 0 || at > array->count)
-        JANET_THROW(args, "insertion index out of bounds");
-    chunksize = (args.n - 2) * sizeof(Janet);
+        janet_panicf("insertion index %d out of range [0,%d]", at, array->count);
+    chunksize = (argc - 2) * sizeof(Janet);
     restsize = (array->count - at) * sizeof(Janet);
-    janet_array_ensure(array, array->count + args.n - 2, 2);
-    memmove(array->data + at + args.n - 2,
+    janet_array_ensure(array, array->count + argc - 2, 2);
+    memmove(array->data + at + argc - 2,
             array->data + at,
             restsize);
-    memcpy(array->data + at, args.v + 2, chunksize);
-    array->count += (args.n - 2);
-    JANET_RETURN_ARRAY(args, array);
+    memcpy(array->data + at, argv + 2, chunksize);
+    array->count += (argc - 2);
+    return janet_wrap_array(array);
 }
 
 static const JanetReg cfuns[] = {
@@ -300,8 +262,6 @@ static const JanetReg cfuns[] = {
 };
 
 /* Load the array module */
-int janet_lib_array(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_array(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }

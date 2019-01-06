@@ -699,29 +699,25 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
 }
 
 /* C Function for compiling */
-static int cfun(JanetArgs args) {
-    JanetCompileResult res;
-    JanetTable *t;
-    JanetTable *env;
-    JANET_MINARITY(args, 2);
-    JANET_MAXARITY(args, 3);
-    JANET_ARG_TABLE(env, args, 1);
+static Janet cfun(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 3);
+    JanetTable *env = janet_gettable(argv, 1);
     const uint8_t *source = NULL;
-    if (args.n == 3) {
-        JANET_ARG_STRING(source, args, 2);
+    if (argc == 3) {
+        source = janet_getstring(argv, 2);
     }
-    res = janet_compile(args.v[0], env, source);
+    JanetCompileResult res = janet_compile(argv[0], env, source);
     if (res.status == JANET_COMPILE_OK) {
-        JANET_RETURN_FUNCTION(args, janet_thunk(res.funcdef));
+        return janet_wrap_function(janet_thunk(res.funcdef));
     } else {
-        t = janet_table(4);
+        JanetTable *t = janet_table(4);
         janet_table_put(t, janet_ckeywordv("error"), janet_wrap_string(res.error));
         janet_table_put(t, janet_ckeywordv("start"), janet_wrap_integer(res.error_mapping.start));
         janet_table_put(t, janet_ckeywordv("end"), janet_wrap_integer(res.error_mapping.end));
         if (res.macrofiber) {
             janet_table_put(t, janet_ckeywordv("fiber"), janet_wrap_fiber(res.macrofiber));
         }
-        JANET_RETURN_TABLE(args, t);
+        return janet_wrap_table(t);
     }
 }
 
@@ -736,8 +732,6 @@ static const JanetReg cfuns[] = {
     {NULL, NULL, NULL}
 };
 
-int janet_lib_compile(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_compile(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }

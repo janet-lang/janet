@@ -304,18 +304,6 @@ JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) 
     return JANET_BINDING_DEF;
 }
 
-/* Get module from the arguments passed to library */
-JanetTable *janet_env(JanetArgs args) {
-    JanetTable *module;
-    if (args.n >= 1 && janet_checktype(args.v[0], JANET_TABLE)) {
-        module = janet_unwrap_table(args.v[0]);
-    } else {
-        module = janet_table(0);
-    }
-    *args.ret = janet_wrap_table(module);
-    return module;
-}
-
 /* Read both tuples and arrays as c pointers + int32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */
 int janet_indexed_view(Janet seq, const Janet **data, int32_t *len) {
@@ -363,67 +351,6 @@ int janet_dictionary_view(Janet tab, const JanetKV **data, int32_t *len, int32_t
         return 1;
     }
     return 0;
-}
-
-/* Get actual type name of a value for debugging purposes */
-static const char *typestr(JanetArgs args, int32_t n) {
-    JanetType actual = n < args.n ? janet_type(args.v[n]) : JANET_NIL;
-    return ((actual == JANET_ABSTRACT)
-        ? janet_abstract_type(janet_unwrap_abstract(args.v[n]))->name
-        : janet_type_names[actual]);
-}
-
-int janet_type_err(JanetArgs args, int32_t n, JanetType expected) {
-    const uint8_t *message = janet_formatc(
-            "bad slot #%d, expected %t, got %s",
-            n,
-            expected,
-            typestr(args, n));
-    JANET_THROWV(args, janet_wrap_string(message));
-}
-
-void janet_buffer_push_types(JanetBuffer *buffer, int types) {
-    int first = 1;
-    int i = 0;
-    while (types) {
-        if (1 & types) {
-            if (first) {
-                first = 0;
-            } else {
-                janet_buffer_push_u8(buffer, '|');
-            }
-            janet_buffer_push_cstring(buffer, janet_type_names[i]);
-        }
-        i++;
-        types >>= 1;
-    }
-}
-
-int janet_typemany_err(JanetArgs args, int32_t n, int expected) {
-    const uint8_t *message;
-    JanetBuffer buf;
-    janet_buffer_init(&buf, 20);
-    janet_buffer_push_string(&buf, janet_formatc("bad slot #%d, expected ", n));
-    janet_buffer_push_types(&buf, expected);
-    janet_buffer_push_cstring(&buf, ", got ");
-    janet_buffer_push_cstring(&buf, typestr(args, n));
-    message = janet_string(buf.data, buf.count);
-    janet_buffer_deinit(&buf);
-    JANET_THROWV(args, janet_wrap_string(message));
-}
-
-int janet_arity_err(JanetArgs args, int32_t n, const char *prefix) {
-    JANET_THROWV(args,
-            janet_wrap_string(janet_formatc(
-                    "expected %s%d argument%s, got %d",
-                    prefix, n, n == 1 ? "" : "s", args.n)));
-}
-
-int janet_typeabstract_err(JanetArgs args, int32_t n, const JanetAbstractType *at) {
-    JANET_THROWV(args,
-            janet_wrap_string(janet_formatc(
-                    "bad slot #%d, expected %s, got %s",
-                    n, at->name, typestr(args, n))));
 }
 
 int janet_checkint(Janet x) {

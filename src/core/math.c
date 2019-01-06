@@ -24,35 +24,33 @@
 #include <math.h>
 
 /* Get a random number */
-int janet_rand(JanetArgs args) {
-    JANET_FIXARITY(args, 0);
+Janet janet_rand(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_arity(argc, 0, 0);
     double r = (rand() % RAND_MAX) / ((double) RAND_MAX);
-    JANET_RETURN_NUMBER(args, r);
+    return janet_wrap_number(r);
 }
 
 /* Seed the random number generator */
-int janet_srand(JanetArgs args) {
-    int32_t x = 0;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_INTEGER(x, args, 0);
+Janet janet_srand(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    int32_t x = janet_getinteger(argv, 0);
     srand((unsigned) x);
-    return 0;
+    return janet_wrap_nil();
 }
 
-int janet_remainder(JanetArgs args) {
-    JANET_FIXARITY(args, 2);
-    double x, y;
-    JANET_ARG_NUMBER(x, args, 0);
-    JANET_ARG_NUMBER(y, args, 1);
-    JANET_RETURN_NUMBER(args, fmod(x, y));
+Janet janet_remainder(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 2);
+    double x = janet_getnumber(argv, 0);
+    double y = janet_getnumber(argv, 1);
+    return janet_wrap_number(fmod(x, y));
 }
 
 #define JANET_DEFINE_MATHOP(name, fop)\
-int janet_##name(JanetArgs args) {\
-    double x;\
-    JANET_FIXARITY(args, 1);\
-    JANET_ARG_NUMBER(x, args, 0);\
-    JANET_RETURN_NUMBER(args, fop(x));\
+Janet janet_##name(int32_t argc, Janet *argv) {\
+    janet_arity(argc, 1, 1); \
+    double x = janet_getnumber(argv, 0); \
+    return janet_wrap_number(fop(x)); \
 }
 
 JANET_DEFINE_MATHOP(acos, acos)
@@ -73,20 +71,19 @@ JANET_DEFINE_MATHOP(fabs, fabs)
 JANET_DEFINE_MATHOP(floor, floor)
 
 #define JANET_DEFINE_MATH2OP(name, fop)\
-int janet_##name(JanetArgs args) {\
-    double lhs, rhs;\
-    JANET_FIXARITY(args, 2);\
-    JANET_ARG_NUMBER(lhs, args, 0);\
-    JANET_ARG_NUMBER(rhs, args, 1);\
-    JANET_RETURN_NUMBER(args, fop(lhs, rhs));\
+Janet janet_##name(int32_t argc, Janet *argv) {\
+    janet_arity(argc, 2, 2); \
+    double lhs = janet_getnumber(argv, 0); \
+    double rhs = janet_getnumber(argv, 1); \
+    return janet_wrap_number(fop(lhs, rhs)); \
 }\
 
 JANET_DEFINE_MATH2OP(atan2, atan2)
 JANET_DEFINE_MATH2OP(pow, pow)
 
-static int janet_not(JanetArgs args) {
-    JANET_FIXARITY(args, 1);
-    JANET_RETURN_BOOLEAN(args, !janet_truthy(args.v[0]));
+static Janet janet_not(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    return janet_wrap_boolean(!janet_truthy(argv[0]));
 }
 
 static const JanetReg cfuns[] = {
@@ -162,15 +159,12 @@ static const JanetReg cfuns[] = {
 };
 
 /* Module entry point */
-int janet_lib_math(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_math(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-
     janet_def(env, "math/pi", janet_wrap_number(3.1415926535897931),
             "The value pi.");
     janet_def(env, "math/e", janet_wrap_number(2.7182818284590451),
             "The base of the natural log.");
     janet_def(env, "math/inf", janet_wrap_number(INFINITY),
             "The number representing positive infinity");
-    return 0;
 }

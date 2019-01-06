@@ -50,14 +50,14 @@ typedef void *Clib;
 #define error_clib() dlerror()
 #endif
 
-JanetCFunction janet_native(const char *name, const uint8_t **error) {
+JanetModule janet_native(const char *name, const uint8_t **error) {
     Clib lib = load_clib(name);
-    JanetCFunction init;
+    JanetModule init;
     if (!lib) {
         *error = janet_cstring(error_clib());
         return NULL;
     }
-    init = (JanetCFunction) symbol_clib(lib, "_janet_init");
+    init = (JanetModule) symbol_clib(lib, "_janet_init");
     if (!init) {
         *error = janet_cstring("could not find _janet_init symbol");
         return NULL;
@@ -65,217 +65,205 @@ JanetCFunction janet_native(const char *name, const uint8_t **error) {
     return init;
 }
 
-static int janet_core_native(JanetArgs args) {
-    JanetCFunction init;
+static Janet janet_core_native(int32_t argc, Janet *argv) {
+    JanetModule init;
+    JanetTable *env = janet_table(0);
+    janet_arity(argc, 1, 1);
+    const uint8_t *path = janet_getstring(argv, 0);
     const uint8_t *error = NULL;
-    const uint8_t *path = NULL;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_STRING(path, args, 0);
     init = janet_native((const char *)path, &error);
     if (!init) {
-        JANET_THROWV(args, janet_wrap_string(error));
+        janet_panicf("could not load native %S: %S", path, error);
     }
-    JANET_RETURN_CFUNCTION(args, init);
+    init(env);
+    return janet_wrap_table(env);
 }
 
-static int janet_core_print(JanetArgs args) {
-    int32_t i;
-    for (i = 0; i < args.n; ++i) {
+static Janet janet_core_print(int32_t argc, Janet *argv) {
+    for (int32_t i = 0; i < argc; ++i) {
         int32_t j, len;
-        const uint8_t *vstr = janet_to_string(args.v[i]);
+        const uint8_t *vstr = janet_to_string(argv[i]);
         len = janet_string_length(vstr);
         for (j = 0; j < len; ++j) {
             putc(vstr[j], stdout);
         }
     }
     putc('\n', stdout);
-    JANET_RETURN_NIL(args);
+    return janet_wrap_nil();
 }
 
-static int janet_core_describe(JanetArgs args) {
-    int32_t i;
+static Janet janet_core_describe(int32_t argc, Janet *argv) {
     JanetBuffer b;
     janet_buffer_init(&b, 0);
-    for (i = 0; i < args.n; ++i) {
+    for (int32_t i = 0; i < argc; ++i) {
         int32_t len;
-        const uint8_t *str = janet_description(args.v[i]);
+        const uint8_t *str = janet_description(argv[i]);
         len = janet_string_length(str);
         janet_buffer_push_bytes(&b, str, len);
     }
-    *args.ret = janet_stringv(b.data, b.count);
+    Janet ret =  janet_stringv(b.data, b.count);
     janet_buffer_deinit(&b);
-    return 0;
+    return ret;
 }
 
-static int janet_core_string(JanetArgs args) {
-    int32_t i;
+static Janet janet_core_string(int32_t argc, Janet *argv) {
     JanetBuffer b;
     janet_buffer_init(&b, 0);
-    for (i = 0; i < args.n; ++i) {
+    for (int32_t i = 0; i < argc; ++i) {
         int32_t len;
-        const uint8_t *str = janet_to_string(args.v[i]);
+        const uint8_t *str = janet_to_string(argv[i]);
         len = janet_string_length(str);
         janet_buffer_push_bytes(&b, str, len);
     }
-    *args.ret = janet_stringv(b.data, b.count);
+    Janet ret = janet_stringv(b.data, b.count);
     janet_buffer_deinit(&b);
-    return 0;
+    return ret;
 }
 
-static int janet_core_symbol(JanetArgs args) {
+static Janet janet_core_symbol(int32_t argc, Janet *argv) {
     int32_t i;
     JanetBuffer b;
     janet_buffer_init(&b, 0);
-    for (i = 0; i < args.n; ++i) {
+    for (i = 0; i < argc; ++i) {
         int32_t len;
-        const uint8_t *str = janet_to_string(args.v[i]);
+        const uint8_t *str = janet_to_string(argv[i]);
         len = janet_string_length(str);
         janet_buffer_push_bytes(&b, str, len);
     }
-    *args.ret = janet_symbolv(b.data, b.count);
+    Janet ret = janet_symbolv(b.data, b.count);
     janet_buffer_deinit(&b);
-    return 0;
+    return ret;
 }
 
-static int janet_core_keyword(JanetArgs args) {
+static Janet janet_core_keyword(int32_t argc, Janet *argv) {
     int32_t i;
     JanetBuffer b;
     janet_buffer_init(&b, 0);
-    for (i = 0; i < args.n; ++i) {
+    for (i = 0; i < argc; ++i) {
         int32_t len;
-        const uint8_t *str = janet_to_string(args.v[i]);
+        const uint8_t *str = janet_to_string(argv[i]);
         len = janet_string_length(str);
         janet_buffer_push_bytes(&b, str, len);
     }
-    *args.ret = janet_keywordv(b.data, b.count);
+    Janet ret = janet_keywordv(b.data, b.count);
     janet_buffer_deinit(&b);
-    return 0;
+    return ret;
 }
 
-static int janet_core_buffer(JanetArgs args) {
+static Janet janet_core_buffer(int32_t argc, Janet *argv) {
     int32_t i;
     JanetBuffer *b = janet_buffer(0);
-    for (i = 0; i < args.n; ++i) {
+    for (i = 0; i < argc; ++i) {
         int32_t len;
-        const uint8_t *str = janet_to_string(args.v[i]);
+        const uint8_t *str = janet_to_string(argv[i]);
         len = janet_string_length(str);
         janet_buffer_push_bytes(b, str, len);
     }
-    JANET_RETURN_BUFFER(args, b);
+    return janet_wrap_buffer(b);
 }
 
-static int janet_core_is_abstract(JanetArgs args) {
-    JANET_FIXARITY(args, 1);
-    JANET_RETURN_BOOLEAN(args, janet_checktype(args.v[0], JANET_ABSTRACT));
+static Janet janet_core_is_abstract(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    return janet_wrap_boolean(janet_checktype(argv[0], JANET_ABSTRACT));
 }
 
-static int janet_core_scannumber(JanetArgs args) {
-    const uint8_t *data;
-    double val;
-    int32_t len;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_BYTES(data, len, args, 0);
-    if (janet_scan_number(data, len, &val))
-        JANET_THROW(args, "failed to scan number");
-    JANET_RETURN_NUMBER(args, val);
+static Janet janet_core_scannumber(int32_t argc, Janet *argv) {
+    double number;
+    janet_arity(argc, 1, 1);
+    JanetByteView view = janet_getbytes(argv, 1);
+    if (janet_scan_number(view.bytes, view.len, &number))
+        return janet_wrap_nil();
+    return janet_wrap_number(number);
 }
 
-static int janet_core_tuple(JanetArgs args) {
-    JANET_RETURN_TUPLE(args, janet_tuple_n(args.v, args.n));
+static Janet janet_core_tuple(int32_t argc, Janet *argv) {
+    return janet_wrap_tuple(janet_tuple_n(argv, argc));
 }
 
-static int janet_core_array(JanetArgs args) {
-    JanetArray *array = janet_array(args.n);
-    array->count = args.n;
-    memcpy(array->data, args.v, args.n * sizeof(Janet));
-    JANET_RETURN_ARRAY(args, array);
+static Janet janet_core_array(int32_t argc, Janet *argv) {
+    JanetArray *array = janet_array(argc);
+    array->count = argc;
+    memcpy(array->data, argv, argc * sizeof(Janet));
+    return janet_wrap_array(array);
 }
 
-static int janet_core_table(JanetArgs args) {
+static Janet janet_core_table(int32_t argc, Janet *argv) {
     int32_t i;
-    JanetTable *table = janet_table(args.n >> 1);
-    if (args.n & 1)
-        JANET_THROW(args, "expected even number of arguments");
-    for (i = 0; i < args.n; i += 2) {
-        janet_table_put(table, args.v[i], args.v[i + 1]);
+    if (argc & 1)
+        janet_panic("expected even number of arguments");
+    JanetTable *table = janet_table(argc >> 1);
+    for (i = 0; i < argc; i += 2) {
+        janet_table_put(table, argv[i], argv[i + 1]);
     }
-    JANET_RETURN_TABLE(args, table);
+    return janet_wrap_table(table);
 }
 
-static int janet_core_struct(JanetArgs args) {
+static Janet janet_core_struct(int32_t argc, Janet *argv) {
     int32_t i;
-    JanetKV *st = janet_struct_begin(args.n >> 1);
-    if (args.n & 1)
-        JANET_THROW(args, "expected even number of arguments");
-    for (i = 0; i < args.n; i += 2) {
-        janet_struct_put(st, args.v[i], args.v[i + 1]);
+    if (argc & 1)
+        janet_panic("expected even number of arguments");
+    JanetKV *st = janet_struct_begin(argc >> 1);
+    for (i = 0; i < argc; i += 2) {
+        janet_struct_put(st, argv[i], argv[i + 1]);
     }
-    JANET_RETURN_STRUCT(args, janet_struct_end(st));
+    return janet_wrap_struct(janet_struct_end(st));
 }
 
-static int janet_core_gensym(JanetArgs args) {
-    JANET_FIXARITY(args, 0);
-    JANET_RETURN_SYMBOL(args, janet_symbol_gen());
+static Janet janet_core_gensym(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_arity(argc, 0, 0);
+    return janet_wrap_symbol(janet_symbol_gen());
 }
 
-static int janet_core_gccollect(JanetArgs args) {
-    (void) args;
+static Janet janet_core_gccollect(int32_t argc, Janet *argv) {
+    (void) argv;
+    (void) argc;
     janet_collect();
-    return 0;
+    return janet_wrap_nil();
 }
 
-static int janet_core_gcsetinterval(JanetArgs args) {
-    int32_t val;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_INTEGER(val, args, 0);
+static Janet janet_core_gcsetinterval(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    int32_t val = janet_getinteger(argv, 0);
     if (val < 0)
-        JANET_THROW(args, "expected non-negative integer");
+        janet_panic("expected non-negative integer");
     janet_vm_gc_interval = val;
-    JANET_RETURN_NIL(args);
+    return janet_wrap_nil();
 }
 
-static int janet_core_gcinterval(JanetArgs args) {
-    JANET_FIXARITY(args, 0);
-    JANET_RETURN_INTEGER(args, janet_vm_gc_interval);
+static Janet janet_core_gcinterval(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_arity(argc, 0, 0);
+    return janet_wrap_number(janet_vm_gc_interval);
 }
 
-static int janet_core_type(JanetArgs args) {
-    JANET_FIXARITY(args, 1);
-    JanetType t = janet_type(args.v[0]);
+static Janet janet_core_type(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetType t = janet_type(argv[0]);
     if (t == JANET_ABSTRACT) {
-        JANET_RETURN(args, janet_ckeywordv(janet_abstract_type(janet_unwrap_abstract(args.v[0]))->name));
+        return janet_ckeywordv(janet_abstract_type(janet_unwrap_abstract(argv[0]))->name);
     } else {
-        JANET_RETURN(args, janet_ckeywordv(janet_type_names[t]));
+        return janet_ckeywordv(janet_type_names[t]);
     }
 }
 
-static int janet_core_next(JanetArgs args) {
-    Janet ds;
-    const JanetKV *kv;
-    JANET_FIXARITY(args, 2);
-    JANET_CHECKMANY(args, 0, JANET_TFLAG_DICTIONARY);
-    ds = args.v[0];
-    if (janet_checktype(ds, JANET_TABLE)) {
-        JanetTable *t = janet_unwrap_table(ds);
-        kv = janet_checktype(args.v[1], JANET_NIL)
-            ? NULL
-            : janet_table_find(t, args.v[1]);
-        kv = janet_table_next(t, kv);
-    } else {
-        const JanetKV *st = janet_unwrap_struct(ds);
-        kv = janet_checktype(args.v[1], JANET_NIL)
-            ? NULL
-            : janet_struct_find(st, args.v[1]);
-        kv = janet_struct_next(st, kv);
+static Janet janet_core_next(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 2);
+    JanetDictView view = janet_getdictionary(argv, 0);
+    const JanetKV *end = view.kvs + view.cap;
+    const JanetKV *kv = janet_checktype(argv[1], JANET_NIL)
+        ? view.kvs
+        : janet_dict_find(view.kvs, view.cap, argv[1]) + 1;
+    while (kv < end) {
+        if (!janet_checktype(kv->key, JANET_NIL)) return kv->key;
+        kv++;
     }
-    if (kv)
-        JANET_RETURN(args, kv->key);
-    JANET_RETURN_NIL(args);
+    return janet_wrap_nil();
 }
 
-static int janet_core_hash(JanetArgs args) {
-    JANET_FIXARITY(args, 1);
-    JANET_RETURN_INTEGER(args, janet_hash(args.v[0]));
+static Janet janet_core_hash(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    return janet_wrap_number(janet_hash(argv[0]));
 }
 
 static const JanetReg cfuns[] = {
@@ -770,28 +758,22 @@ JanetTable *janet_core_env(void) {
     janet_gcroot(janet_wrap_table(env));
 
     /* Load auxiliary envs */
-    {
-        JanetArgs args;
-        args.n = 1;
-        args.v = &ret;
-        args.ret = &ret;
-        janet_lib_io(args);
-        janet_lib_math(args);
-        janet_lib_array(args);
-        janet_lib_tuple(args);
-        janet_lib_buffer(args);
-        janet_lib_table(args);
-        janet_lib_fiber(args);
-        janet_lib_os(args);
-        janet_lib_parse(args);
-        janet_lib_compile(args);
-        janet_lib_debug(args);
-        janet_lib_string(args);
-        janet_lib_marsh(args);
+    janet_lib_io(env);
+    janet_lib_math(env);
+    janet_lib_array(env);
+    janet_lib_tuple(env);
+    janet_lib_buffer(env);
+    janet_lib_table(env);
+    janet_lib_fiber(env);
+    janet_lib_os(env);
+    janet_lib_parse(env);
+    janet_lib_compile(env);
+    janet_lib_debug(env);
+    janet_lib_string(env);
+    janet_lib_marsh(env);
 #ifdef JANET_ASSEMBLER
-        janet_lib_asm(args);
+    janet_lib_asm(env);
 #endif
-    }
 
     /* Allow references to the environment */
     janet_def(env, "_env", ret, "The environment table for the current scope.");

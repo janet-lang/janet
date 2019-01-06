@@ -40,27 +40,28 @@
 #include <mach/mach.h>
 #endif
 
-static int os_which(JanetArgs args) {
+static Janet os_which(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 0);
+    (void) argv;
     #ifdef JANET_WINDOWS
-        JANET_RETURN_CKEYWORD(args, "windows");
+        return janet_ckeywordv("windows");
     #elif __APPLE__
-        JANET_RETURN_CKEYWORD(args, "macos");
+        return janet_ckeywordv("macos");
     #elif defined(__EMSCRIPTEN__)
-        JANET_RETURN_CKEYWORD(args, "web");
+        return janet_ckeywordv("web");
     #else
-        JANET_RETURN_CKEYWORD(args, "posix");
+        return janet_ckeywordv("posix");
     #endif
 }
 
 #ifdef JANET_WINDOWS
-static int os_execute(JanetArgs args) {
-    JANET_MINARITY(args, 1);
+static Janet os_execute(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_buffer(10);
-    for (int32_t i = 0; i < args.n; i++) {
-        const uint8_t *argstring;
-        JANET_ARG_STRING(argstring, args, i);
+    for (int32_t i = 0; i < argc; i++) {
+        const uint8_t *argstring = janet_getstring(argv, i);
         janet_buffer_push_bytes(buffer, argstring, janet_string_length(argstring));
-        if (i != args.n - 1) {
+        if (i != argc - 1) {
             janet_buffer_push_u8(buffer, ' ');
         }
     }
@@ -80,7 +81,7 @@ static int os_execute(JanetArgs args) {
         buffer->count);
     if (nwritten == 0) {
         free(sys_str);
-        JANET_THROW(args, "could not create process");
+        janet_panic("could not create process");
     }
 
     STARTUPINFO si;
@@ -102,7 +103,7 @@ static int os_execute(JanetArgs args) {
                 &si,
                 &pi)) {
         free(sys_str);
-        JANET_THROW(args, "could not create process");
+        janet_panic("could not create process");
     }
     free(sys_str);
 
@@ -114,61 +115,57 @@ static int os_execute(JanetArgs args) {
     GetExitCodeProcess(pi.hProcess, (LPDWORD)&status);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    JANET_RETURN_INTEGER(args, (int32_t)status);
+    return janet_wrap_integer(status);
 }
 #else
-static int os_execute(JanetArgs args) {
-    JANET_MINARITY(args, 1);
-    const uint8_t **argv = malloc(sizeof(uint8_t *) * (args.n + 1));
-    if (NULL == argv) {
+static Janet os_execute(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, -1);
+    const uint8_t **child_argv = malloc(sizeof(uint8_t *) * (argc + 1));
+    if (NULL == child_argv) {
         JANET_OUT_OF_MEMORY;
     }
-    for (int32_t i = 0; i < args.n; i++) {
-        JANET_ARG_STRING(argv[i], args, i);
+    for (int32_t i = 0; i < argc; i++) {
+        child_argv[i] = janet_getstring(argv, i);
     }
-    argv[args.n] = NULL;
+    child_argv[argc] = NULL;
 
     /* Fork child process */
     pid_t pid = fork();
     if (pid < 0) {
-        JANET_THROW(args, "failed to execute");
+        janet_panic("failed to execute");
     } else if (pid == 0) {
-        if (-1 == execve((const char *)argv[0], (char **)argv, NULL)) {
+        if (-1 == execve((const char *)child_argv[0], (char **)child_argv, NULL)) {
             exit(1);
         }
     }
     int status;
     waitpid(pid, &status, 0);
-    JANET_RETURN_INTEGER(args, status);
+    return janet_wrap_integer(status);
 }
 #endif
 
-static int os_shell(JanetArgs args) {
-    int nofirstarg = (args.n < 1 || !janet_checktype(args.v[0], JANET_STRING));
-    const char *cmd = nofirstarg
-        ? NULL
-        : (const char *) janet_unwrap_string(args.v[0]);
+static Janet os_shell(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 1);
+    const char *cmd = argc
+        ? (const char *)janet_getstring(argv, 0)
+        : NULL;
     int stat = system(cmd);
-    JANET_RETURN(args, cmd
-            ? janet_wrap_integer(stat)
-            : janet_wrap_boolean(stat));
+    return argc
+        ? janet_wrap_integer(stat)
+        : janet_wrap_boolean(stat);
 }
 
-static int os_getenv(JanetArgs args) {
-    const uint8_t *k;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_STRING(k, args, 0);
+static Janet os_getenv(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    const uint8_t *k = janet_getstring(argv, 0);
     const char *cstr = (const char *) k;
     const char *res = getenv(cstr);
-    if (!res) {
-        JANET_RETURN_NIL(args);
-    }
-    JANET_RETURN(args, cstr
-            ? janet_cstringv(res)
-            : janet_wrap_nil());
+    return (res && cstr)
+        ? janet_cstringv(res)
+        : janet_wrap_nil();
 }
 
-static int os_setenv(JanetArgs args) {
+static Janet os_setenv(int32_t argc, Janet *argv) {
 #ifdef JANET_WINDOWS
 #define SETENV(K,V) _putenv_s(K, V)
 #define UNSETENV(K) _putenv_s(K, "")
@@ -176,39 +173,35 @@ static int os_setenv(JanetArgs args) {
 #define SETENV(K,V) setenv(K, V, 1)
 #define UNSETENV(K) unsetenv(K)
 #endif
-    const uint8_t *k;
-    const char *ks;
-    JANET_MAXARITY(args, 2);
-    JANET_MINARITY(args, 1);
-    JANET_ARG_STRING(k, args, 0);
-    ks = (const char *) k;
-    if (args.n == 1 || janet_checktype(args.v[1], JANET_NIL)) {
+    janet_arity(argc, 1, 2);
+    const uint8_t *k = janet_getstring(argv, 0);
+    const char *ks = (const char *) k;
+    if (argc == 1 || janet_checktype(argv[1], JANET_NIL)) {
         UNSETENV(ks);
     } else {
-        const uint8_t *v;
-        JANET_ARG_STRING(v, args, 1);
-        const char *vc = (const char *) v;
-        SETENV(ks, vc);
+        const uint8_t *v = janet_getstring(argv, 1);
+        SETENV(ks, (const char *)v);
     }
-    return 0;
+    return janet_wrap_nil();
 }
 
-static int os_exit(JanetArgs args) {
-    JANET_MAXARITY(args, 1);
-    if (args.n == 0) {
+static Janet os_exit(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 1);
+    if (argc == 0) {
         exit(EXIT_SUCCESS);
-    } else if (janet_checkint(args.v[0])) {
-        exit(janet_unwrap_integer(args.v[0]));
+    } else if (janet_checkint(argv[0])) {
+        exit(janet_unwrap_integer(argv[0]));
     } else {
         exit(EXIT_FAILURE);
     }
-    return 0;
+    return janet_wrap_nil();
 }
 
-static int os_time(JanetArgs args) {
-    JANET_FIXARITY(args, 0);
+static Janet os_time(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 0);
+    (void) argv;
     double dtime = (double)(time(NULL));
-    JANET_RETURN_NUMBER(args, dtime);
+    return janet_wrap_number(dtime);
 }
 
 /* Clock shims */
@@ -238,22 +231,19 @@ static int gettime(struct timespec *spec) {
 #define gettime(TV) clock_gettime(CLOCK_MONOTONIC, (TV))
 #endif
 
-static int os_clock(JanetArgs args) {
-    JANET_FIXARITY(args, 0);
+static Janet os_clock(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 0);
+    (void) argv;
     struct timespec tv;
-    if (gettime(&tv))
-        JANET_THROW(args, "could not get time");
+    if (gettime(&tv)) janet_panic("could not get time");
     double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
-    JANET_RETURN_NUMBER(args, dtime);
+    return janet_wrap_number(dtime);
 }
 
-static int os_sleep(JanetArgs args) {
-    double delay;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_NUMBER(delay, args, 0);
-    if (delay < 0) {
-        JANET_THROW(args, "invalid argument to sleep");
-    }
+static Janet os_sleep(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    double delay = janet_getnumber(argv, 0);
+    if (delay < 0) janet_panic("invalid argument to sleep");
 #ifdef JANET_WINDOWS
     Sleep((DWORD) (delay * 1000));
 #else
@@ -264,11 +254,12 @@ static int os_sleep(JanetArgs args) {
         : 0;
     nanosleep(&ts, NULL);
 #endif
-    return 0;
+    return janet_wrap_nil();
 }
 
-static int os_cwd(JanetArgs args) {
-    JANET_FIXARITY(args, 0);
+static Janet os_cwd(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 0);
+    (void) argv;
     char buf[FILENAME_MAX];
     char *ptr;
 #ifdef JANET_WINDOWS
@@ -276,10 +267,8 @@ static int os_cwd(JanetArgs args) {
 #else
     ptr = getcwd(buf, FILENAME_MAX);
 #endif
-    if (NULL == ptr) {
-        JANET_THROW(args, "could not get current directory");
-    }
-    JANET_RETURN_CSTRING(args, ptr);
+    if (NULL == ptr) janet_panic("could not get current directory");
+    return janet_cstringv(ptr);
 }
 
 static const JanetReg cfuns[] = {
@@ -335,8 +324,6 @@ static const JanetReg cfuns[] = {
 };
 
 /* Module entry point */
-int janet_lib_os(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_os(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }

@@ -1451,7 +1451,7 @@ value, one key will be ignored."
   env)
 
 (defn status-pp
-  "Pretty print a signal and asscoaited state. Can be used as the
+  "Pretty print a signal and associated state. Can be used as the
   onsignal argument to run-context."
   [sig x f source]
   (def title

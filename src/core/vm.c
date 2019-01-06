@@ -572,18 +572,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             pc = func->def->bytecode;
             vm_checkgc_next();
         } else if (janet_checktype(callee, JANET_CFUNCTION)) {
-            JanetArgs args;
-            Janet retreg = janet_wrap_nil();
             vm_commit();
-            args.n = fiber->stacktop - fiber->stackstart;
+            int32_t argc = fiber->stacktop - fiber->stackstart;
             janet_fiber_cframe(fiber, janet_unwrap_cfunction(callee));
-            args.v = fiber->data + fiber->frame;
-            args.ret = &retreg;
-            if (janet_unwrap_cfunction(callee)(args)) janet_panicv(retreg);
+            Janet ret = janet_unwrap_cfunction(callee)(argc, fiber->data + fiber->frame);
             janet_fiber_popframe(fiber);
-            if (fiber->frame == 0) vm_return(JANET_SIGNAL_OK, retreg);
+            if (fiber->frame == 0) vm_return(JANET_SIGNAL_OK, ret);
             stack = fiber->data + fiber->frame;
-            stack[A] = retreg;
+            stack[A] = ret;
             vm_checkgc_pcnext();
         } else {
             vm_commit();
@@ -606,19 +602,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             pc = func->def->bytecode;
             vm_checkgc_next();
         } else {
-            Janet retreg = janet_wrap_nil();
+            Janet retreg;
+            vm_commit();
             if (janet_checktype(callee, JANET_CFUNCTION)) {
-                JanetArgs args;
-                vm_commit();
-                args.n = fiber->stacktop - fiber->stackstart;
+                int32_t argc = fiber->stacktop - fiber->stackstart;
                 janet_fiber_cframe(fiber, janet_unwrap_cfunction(callee));
-                args.v = fiber->data + fiber->frame;
-                args.ret = &retreg;
-                if (janet_unwrap_cfunction(callee)(args))
-                    vm_return(JANET_SIGNAL_ERROR, retreg);
+                retreg = janet_unwrap_cfunction(callee)(argc, fiber->data + fiber->frame);
                 janet_fiber_popframe(fiber);
             } else {
-                vm_commit();
                 retreg = call_nonfn(fiber, callee);
             }
             janet_fiber_popframe(fiber);
@@ -653,22 +644,27 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     }
 
     VM_OP(JOP_PUT)
+    vm_commit();
     janet_put(stack[A], stack[B], stack[C]);
     vm_checkgc_pcnext();
 
     VM_OP(JOP_PUT_INDEX)
+    vm_commit();
     janet_putindex(stack[A], C, stack[B]);
     vm_checkgc_pcnext();
 
     VM_OP(JOP_GET)
+    vm_commit();
     stack[A] = janet_get(stack[B], stack[C]);
     vm_pcnext();
 
     VM_OP(JOP_GET_INDEX)
+    vm_commit();
     stack[A] = janet_getindex(stack[B], C);
     vm_pcnext();
 
     VM_OP(JOP_LENGTH)
+    vm_commit();
     stack[A] = janet_wrap_integer(janet_length(stack[E]));
     vm_pcnext();
 

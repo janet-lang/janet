@@ -91,64 +91,30 @@ int janet_tuple_compare(const Janet *lhs, const Janet *rhs) {
 
 /* C Functions */
 
-static int cfun_slice(JanetArgs args) {
-    const Janet *vals;
-    int32_t len;
-    Janet *ret;
-    int32_t start, end;
-    JANET_MINARITY(args, 1);
-    if (!janet_indexed_view(args.v[0], &vals, &len)) JANET_THROW(args, "expected array/tuple");
-    /* Get start */
-    if (args.n < 2) {
-        start = 0;
-    } else {
-        JANET_ARG_INTEGER(start, args, 1);
-    }
-    /* Get end */
-    if (args.n < 3) {
-        end = -1;
-    } else {
-        JANET_ARG_INTEGER(end, args, 2);
-    }
-    if (start < 0) start = len + start;
-    if (end < 0) end = len + end + 1;
-    if (end < 0 || start < 0 || end > len || start > len)
-        JANET_THROW(args, "slice range out of bounds");
-    if (end >= start) {
-        ret = janet_tuple_begin(end - start);
-        memcpy(ret, vals + start, sizeof(Janet) * (end - start));
-    } else {
-        ret = janet_tuple_begin(0);
-    }
-    JANET_RETURN_TUPLE(args, janet_tuple_end(ret));
+static Janet cfun_slice(int32_t argc, Janet *argv) {
+    JanetRange range = janet_getslice(argc, argv);
+    JanetView view = janet_getindexed(argv, 0);
+    return janet_wrap_tuple(janet_tuple_n(view.items + range.start, range.end - range.start));
 }
 
-static int cfun_prepend(JanetArgs args) {
-    const Janet *t;
-    int32_t len, i;
-    Janet *n;
-    JANET_MINARITY(args, 1);
-    if (!janet_indexed_view(args.v[0], &t, &len))
-        JANET_THROW(args, "expected tuple/array");
-    n = janet_tuple_begin(len - 1 + args.n);
-    memcpy(n - 1 + args.n, t, sizeof(Janet) * len);
-    for (i = 1; i < args.n; i++) {
-        n[args.n - i - 1] = args.v[i];
+static Janet cfun_prepend(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, -1);
+    JanetView view = janet_getindexed(argv, 0);
+    Janet *n = janet_tuple_begin(view.len - 1 + argc);
+    memcpy(n - 1 + argc, view.items, sizeof(Janet) * view.len);
+    for (int32_t i = 1; i < argc; i++) {
+        n[argc - i - 1] = argv[i];
     }
-    JANET_RETURN_TUPLE(args, janet_tuple_end(n));
+    return janet_wrap_tuple(janet_tuple_end(n));
 }
 
-static int cfun_append(JanetArgs args) {
-    const Janet *t;
-    int32_t len;
-    Janet *n;
-    JANET_MINARITY(args, 1);
-    if (!janet_indexed_view(args.v[0], &t, &len))
-        JANET_THROW(args, "expected tuple/array");
-    n = janet_tuple_begin(len - 1 + args.n);
-    memcpy(n, t, sizeof(Janet) * len);
-    memcpy(n + len, args.v + 1, sizeof(Janet) * (args.n - 1));
-    JANET_RETURN_TUPLE(args, janet_tuple_end(n));
+static Janet cfun_append(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, -1);
+    JanetView view = janet_getindexed(argv, 0);
+    Janet *n = janet_tuple_begin(view.len - 1 + argc);
+    memcpy(n, view.items, sizeof(Janet) * view.len);
+    memcpy(n + view.len, argv + 1, sizeof(Janet) * (argc - 1));
+    return janet_wrap_tuple(janet_tuple_end(n));
 }
 
 static const JanetReg cfuns[] = {
@@ -174,8 +140,6 @@ static const JanetReg cfuns[] = {
 };
 
 /* Load the tuple module */
-int janet_lib_tuple(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_tuple(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }

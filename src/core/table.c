@@ -163,8 +163,7 @@ const JanetKV *janet_table_next(JanetTable *t, const JanetKV *kv) {
     JanetKV *end = t->data + t->capacity;
     kv = (kv == NULL) ? t->data : kv + 1;
     while (kv < end) {
-        if (!janet_checktype(kv->key, JANET_NIL))
-            return kv;
+        if (!janet_checktype(kv->key, JANET_NIL)) return kv;
         kv++;
     }
     return NULL;
@@ -206,49 +205,41 @@ void janet_table_merge_struct(JanetTable *table, const JanetKV *other) {
 
 /* C Functions */
 
-static int cfun_new(JanetArgs args) {
-    JanetTable *t;
-    int32_t cap;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_INTEGER(cap, args, 0);
-    t = janet_table(cap);
-    JANET_RETURN_TABLE(args, t);
+static Janet cfun_new(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    int32_t cap = janet_getinteger(argv, 0);
+    return janet_wrap_table(janet_table(cap));
 }
 
-static int cfun_getproto(JanetArgs args) {
-    JanetTable *t;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_TABLE(t, args, 0);
-    JANET_RETURN(args, t->proto
-            ? janet_wrap_table(t->proto)
-            : janet_wrap_nil());
+static Janet cfun_getproto(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetTable *t = janet_gettable(argv, 0);
+    return t->proto
+        ? janet_wrap_table(t->proto)
+        : janet_wrap_nil();
 }
 
-static int cfun_setproto(JanetArgs args) {
-    JanetTable *table, *proto;
-    JANET_FIXARITY(args, 2);
-    JANET_ARG_TABLE(table, args, 0);
-    if (janet_checktype(args.v[1], JANET_NIL)) {
-        proto = NULL;
-    } else {
-        JANET_ARG_TABLE(proto, args, 1);
+static Janet cfun_setproto(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 2);
+    JanetTable *table = janet_gettable(argv, 0);
+    JanetTable *proto = NULL;
+    if (!janet_checktype(argv[1], JANET_NIL)) {
+        proto = janet_gettable(argv, 1);
     }
     table->proto = proto;
-    JANET_RETURN_TABLE(args, table);
+    return argv[0];
 }
 
-static int cfun_tostruct(JanetArgs args) {
-    JanetTable *t;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_TABLE(t, args, 0);
-    JANET_RETURN_STRUCT(args, janet_table_to_struct(t));
+static Janet cfun_tostruct(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetTable *t = janet_gettable(argv, 0);
+    return janet_wrap_struct(janet_table_to_struct(t));
 }
 
-static int cfun_rawget(JanetArgs args) {
-    JanetTable *table;
-    JANET_FIXARITY(args, 2);
-    JANET_ARG_TABLE(table, args, 0);
-    JANET_RETURN(args, janet_table_rawget(table, args.v[1]));
+static Janet cfun_rawget(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 2);
+    JanetTable *table = janet_gettable(argv, 0);
+    return janet_table_rawget(table, argv[1]);
 }
 
 static const JanetReg cfuns[] = {
@@ -283,10 +274,6 @@ static const JanetReg cfuns[] = {
 };
 
 /* Load the table module */
-int janet_lib_table(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_table(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }
-
-#undef janet_maphash

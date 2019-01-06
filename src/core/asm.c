@@ -914,22 +914,20 @@ Janet janet_disasm(JanetFuncDef *def) {
 }
 
 /* C Function for assembly */
-static int cfun_asm(JanetArgs args) {
+static Janet cfun_asm(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
     JanetAssembleResult res;
-    JANET_FIXARITY(args, 1);
-    res = janet_asm(args.v[0], 0);
-    if (res.status == JANET_ASSEMBLE_OK) {
-        JANET_RETURN_FUNCTION(args, janet_thunk(res.funcdef));
-    } else {
-        JANET_THROWV(args, janet_wrap_string(res.error));
+    res = janet_asm(argv[0], 0);
+    if (res.status != JANET_ASSEMBLE_OK) {
+        janet_panics(res.error);
     }
+    return janet_wrap_function(janet_thunk(res.funcdef));
 }
 
-static int cfun_disasm(JanetArgs args) {
-    JanetFunction *f;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_FUNCTION(f, args, 0);
-    JANET_RETURN(args, janet_disasm(f->def));
+static Janet cfun_disasm(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetFunction *f = janet_getfunction(argv, 0);
+    return janet_disasm(f->def);
 }
 
 static const JanetReg cfuns[] = {
@@ -949,10 +947,8 @@ static const JanetReg cfuns[] = {
 };
 
 /* Load the library */
-int janet_lib_asm(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_asm(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }
 
 #endif

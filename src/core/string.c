@@ -825,185 +825,125 @@ static int32_t kmp_next(struct kmp_state *state) {
 
 /* CFuns */
 
-static int cfun_slice(JanetArgs args) {
-    const uint8_t *data;
-    int32_t len, start, end;
-    const uint8_t *ret;
-    JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 3);
-    JANET_ARG_BYTES(data, len, args, 0);
-    /* Get start */
-    if (args.n < 2) {
-        start = 0;
-    } else {
-        JANET_ARG_INTEGER(start, args, 1);
-    }
-    /* Get end */
-    if (args.n < 3) {
-        end = -1;
-    } else {
-        JANET_ARG_INTEGER(end, args, 2);
-    }
-    if (start < 0) start = len + start;
-    if (end < 0) end = len + end + 1;
-    if (end < 0 || start < 0 || end > len || start > len)
-        JANET_THROW(args, "slice range out of bounds");
-    if (end >= start) {
-        ret = janet_string(data + start, end - start);
-    } else {
-        ret = janet_cstring("");
-    }
-    JANET_RETURN_STRING(args, ret);
+static Janet cfun_slice(int32_t argc, Janet *argv) {
+    JanetRange range = janet_getslice(argc, argv);
+    JanetByteView view = janet_getbytes(argv, 0);
+    return janet_stringv(view.bytes + range.start, range.end - range.start);
 }
 
-static int cfun_repeat(JanetArgs args) {
-    const uint8_t *data;
-    uint8_t *newbuf, *p, *end;
-    int32_t len, rep;
-    int64_t mulres;
-    JANET_FIXARITY(args, 2);
-    JANET_ARG_BYTES(data, len, args, 0);
-    JANET_ARG_INTEGER(rep, args, 1);
-    if (rep < 0) {
-        JANET_THROW(args, "expected non-negative number of repetitions");
-    } else if (rep == 0) {
-        JANET_RETURN_CSTRING(args, "");
+static Janet cfun_repeat(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 2);
+    JanetByteView view = janet_getbytes(argv, 0);
+    int32_t rep = janet_getinteger(argv, 1);
+    if (rep < 0) janet_panic("expected non-negative number of repetitions");
+    if (rep == 0) return janet_cstringv("");
+    int64_t mulres = (int64_t) rep * view.len;
+    if (mulres > INT32_MAX) janet_panic("result string is too long");
+    uint8_t *newbuf = janet_string_begin((int32_t) mulres);
+    uint8_t *end = newbuf + mulres;
+    uint8_t *p = newbuf;
+    for (p = newbuf; p < end; p += view.len) {
+        memcpy(p, view.bytes, view.len);
     }
-    mulres = (int64_t) rep * len;
-    if (mulres > INT32_MAX) {
-        JANET_THROW(args, "result string is too long");
-    }
-    newbuf = janet_string_begin((int32_t) mulres);
-    end = newbuf + mulres;
-    for (p = newbuf; p < end; p += len) {
-        memcpy(p, data, len);
-    }
-    JANET_RETURN_STRING(args, janet_string_end(newbuf));
+    return janet_wrap_string(janet_string_end(newbuf));
 }
 
-static int cfun_bytes(JanetArgs args) {
-    const uint8_t *str;
-    int32_t strlen, i;
-    Janet *tup;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_BYTES(str, strlen, args, 0);
-    tup = janet_tuple_begin(strlen);
-    for (i = 0; i < strlen; i++) {
-        tup[i] = janet_wrap_integer((int32_t) str[i]);
-    }
-    JANET_RETURN_TUPLE(args, janet_tuple_end(tup));
-}
-
-static int cfun_frombytes(JanetArgs args) {
+static Janet cfun_bytes(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetByteView view = janet_getbytes(argv, 0);
+    Janet *tup = janet_tuple_begin(view.len);
     int32_t i;
-    uint8_t *buf;
-    for (i = 0; i < args.n; i++) {
-        if (!janet_checkint(args.v[i])) {
-            JANET_THROW(args, "expected integer byte values");
-        }
+    for (i = 0; i < view.len; i++) {
+        tup[i] = janet_wrap_integer((int32_t) view.bytes[i]);
     }
-    buf = janet_string_begin(args.n);
-    for (i = 0; i < args.n; i++) {
-        int32_t c;
-        JANET_ARG_INTEGER(c, args, i);
+    return janet_wrap_tuple(janet_tuple_end(tup));
+}
+
+static Janet cfun_frombytes(int32_t argc, Janet *argv) {
+    int32_t i;
+    uint8_t *buf = janet_string_begin(argc);
+    for (i = 0; i < argc; i++) {
+        int32_t c = janet_getinteger(argv, i);
         buf[i] = c & 0xFF;
     }
-    JANET_RETURN_STRING(args, janet_string_end(buf));
+    return janet_wrap_string(janet_string_end(buf));
 }
 
-static int cfun_asciilower(JanetArgs args) {
-    const uint8_t *str;
-    uint8_t *buf;
-    int32_t len, i;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_BYTES(str, len, args, 0);
-    buf = janet_string_begin(len);
-    for (i = 0; i < len; i++) {
-        uint8_t c = str[i];
+static Janet cfun_asciilower(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetByteView view = janet_getbytes(argv, 0);
+    uint8_t *buf = janet_string_begin(view.len);
+    for (int32_t i = 0; i < view.len; i++) {
+        uint8_t c = view.bytes[i];
         if (c >= 65 && c <= 90) {
             buf[i] = c + 32;
         } else {
             buf[i] = c;
         }
     }
-    JANET_RETURN_STRING(args, janet_string_end(buf));
+    return janet_wrap_string(janet_string_end(buf));
 }
 
-static int cfun_asciiupper(JanetArgs args) {
-    const uint8_t *str;
-    uint8_t *buf;
-    int32_t len, i;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_BYTES(str, len, args, 0);
-    buf = janet_string_begin(len);
-    for (i = 0; i < len; i++) {
-        uint8_t c = str[i];
+static Janet cfun_asciiupper(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetByteView view = janet_getbytes(argv, 0);
+    uint8_t *buf = janet_string_begin(view.len);
+    for (int32_t i = 0; i < view.len; i++) {
+        uint8_t c = view.bytes[i];
         if (c >= 97 && c <= 122) {
             buf[i] = c - 32;
         } else {
             buf[i] = c;
         }
     }
-    JANET_RETURN_STRING(args, janet_string_end(buf));
+    return janet_wrap_string(janet_string_end(buf));
 }
 
-static int cfun_reverse(JanetArgs args) {
-    const uint8_t *str;
-    uint8_t *buf;
-    int32_t len, i, j;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_BYTES(str, len, args, 0);
-    buf = janet_string_begin(len);
-    for (i = 0, j = len - 1; i < len; i++, j--) {
-        buf[i] = str[j];
+static Janet cfun_reverse(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 1);
+    JanetByteView view = janet_getbytes(argv, 0);
+    uint8_t *buf = janet_string_begin(view.len);
+    int32_t i, j;
+    for (i = 0, j = view.len - 1; i < view.len; i++, j--) {
+        buf[i] = view.bytes[j];
     }
-    JANET_RETURN_STRING(args, janet_string_end(buf));
+    return janet_wrap_string(janet_string_end(buf));
 }
 
-static int findsetup(JanetArgs args, struct kmp_state *s, int32_t extra) {
-    const uint8_t *text, *pat;
-    int32_t textlen, patlen, start;
-    JANET_MINARITY(args, 2);
-    JANET_MAXARITY(args, 3 + extra);
-    JANET_ARG_BYTES(pat, patlen, args, 0);
-    JANET_ARG_BYTES(text, textlen, args, 1);
-    if (args.n >= 3) {
-        JANET_ARG_INTEGER(start, args, 2);
-        if (start < 0) {
-            JANET_THROW(args, "expected non-negative start index");
-        }
-    } else {
-        start = 0;
+static void findsetup(int32_t argc, Janet *argv, struct kmp_state *s, int32_t extra) {
+    janet_arity(argc, 2, 3 + extra);
+    JanetByteView pat = janet_getbytes(argv, 0);
+    JanetByteView text = janet_getbytes(argv, 1);
+    int32_t start = 0;
+    if (argc >= 3) {
+        start = janet_getinteger(argv, 2);
+        if (start < 0) janet_panic("expected non-negative start index");
     }
-    kmp_init(s, text, textlen, pat, patlen);
+    kmp_init(s, text.bytes, text.len, pat.bytes, pat.len);
     s->i = start;
-    return JANET_SIGNAL_OK;
 }
 
-static int cfun_find(JanetArgs args) {
+static Janet cfun_find(int32_t argc, Janet *argv) {
     int32_t result;
     struct kmp_state state;
-    int status = findsetup(args, &state, 0);
-    if (status) return status;
+    findsetup(argc, argv, &state, 0);
     result = kmp_next(&state);
     kmp_deinit(&state);
-    JANET_RETURN(args, result < 0
-            ? janet_wrap_nil()
-            : janet_wrap_integer(result));
+    return result < 0
+        ? janet_wrap_nil()
+        : janet_wrap_integer(result);
 }
 
-static int cfun_findall(JanetArgs args) {
+static Janet cfun_findall(int32_t argc, Janet *argv) {
     int32_t result;
-    JanetArray *array;
     struct kmp_state state;
-    int status = findsetup(args, &state, 0);
-    if (status) return status;
-    array = janet_array(0);
+    findsetup(argc, argv, &state, 0);
+    JanetArray *array = janet_array(0);
     while ((result = kmp_next(&state)) >= 0) {
         janet_array_push(array, janet_wrap_integer(result));
     }
     kmp_deinit(&state);
-    JANET_RETURN_ARRAY(args, array);
+    return janet_wrap_array(array);
 }
 
 struct replace_state {
@@ -1012,39 +952,31 @@ struct replace_state {
     int32_t substlen;
 };
 
-static int replacesetup(JanetArgs args, struct replace_state *s) {
-    const uint8_t *text, *pat, *subst;
-    int32_t textlen, patlen, substlen, start;
-    JANET_MINARITY(args, 3);
-    JANET_MAXARITY(args, 4);
-    JANET_ARG_BYTES(pat, patlen, args, 0);
-    JANET_ARG_BYTES(subst, substlen, args, 1);
-    JANET_ARG_BYTES(text, textlen, args, 2);
-    if (args.n == 4) {
-        JANET_ARG_INTEGER(start, args, 3);
-        if (start < 0) {
-            JANET_THROW(args, "expected non-negative start index");
-        }
-    } else {
-        start = 0;
+static void replacesetup(int32_t argc, Janet *argv, struct replace_state *s) {
+    janet_arity(argc, 3, 4);
+    JanetByteView pat = janet_getbytes(argv, 0);
+    JanetByteView subst = janet_getbytes(argv, 1);
+    JanetByteView text = janet_getbytes(argv, 2);
+    int32_t start = 0;
+    if (argc == 4) {
+        start = janet_getinteger(argv, 3);
+        if (start < 0) janet_panic("expected non-negative start index");
     }
-    kmp_init(&s->kmp, text, textlen, pat, patlen);
+    kmp_init(&s->kmp, text.bytes, text.len, pat.bytes, pat.len);
     s->kmp.i = start;
-    s->subst = subst;
-    s->substlen = substlen;
-    return JANET_SIGNAL_OK;
+    s->subst = subst.bytes;
+    s->substlen = subst.len;
 }
 
-static int cfun_replace(JanetArgs args) {
+static Janet cfun_replace(int32_t argc, Janet *argv) {
     int32_t result;
     struct replace_state s;
     uint8_t *buf;
-    int status = replacesetup(args, &s);
-    if (status) return status;
+    replacesetup(argc, argv, &s);
     result = kmp_next(&s.kmp);
     if (result < 0) {
         kmp_deinit(&s.kmp);
-        JANET_RETURN_STRING(args, janet_string(s.kmp.text, s.kmp.textlen));
+        return janet_stringv(s.kmp.text, s.kmp.textlen);
     }
     buf = janet_string_begin(s.kmp.textlen - s.kmp.patlen + s.substlen);
     memcpy(buf, s.kmp.text, result);
@@ -1053,17 +985,15 @@ static int cfun_replace(JanetArgs args) {
             s.kmp.text + result + s.kmp.patlen,
             s.kmp.textlen - result - s.kmp.patlen);
     kmp_deinit(&s.kmp);
-    JANET_RETURN_STRING(args, janet_string_end(buf));
+    return janet_wrap_string(janet_string_end(buf));
 }
 
-static int cfun_replaceall(JanetArgs args) {
+static Janet cfun_replaceall(int32_t argc, Janet *argv) {
     int32_t result;
     struct replace_state s;
     JanetBuffer b;
-    const uint8_t *ret;
     int32_t lastindex = 0;
-    int status = replacesetup(args, &s);
-    if (status) return status;
+    replacesetup(argc, argv, &s);
     janet_buffer_init(&b, s.kmp.textlen);
     while ((result = kmp_next(&s.kmp)) >= 0) {
         janet_buffer_push_bytes(&b, s.kmp.text + lastindex, result - lastindex);
@@ -1072,22 +1002,21 @@ static int cfun_replaceall(JanetArgs args) {
         kmp_seti(&s.kmp, lastindex);
     }
     janet_buffer_push_bytes(&b, s.kmp.text + lastindex, s.kmp.textlen - lastindex);
-    ret = janet_string(b.data, b.count);
+    const uint8_t *ret = janet_string(b.data, b.count);
     janet_buffer_deinit(&b);
     kmp_deinit(&s.kmp);
-    JANET_RETURN_STRING(args, ret);
+    return janet_wrap_string(ret);
 }
 
-static int cfun_split(JanetArgs args) {
+static Janet cfun_split(int32_t argc, Janet *argv) {
     int32_t result;
     JanetArray *array;
     struct kmp_state state;
     int32_t limit = -1, lastindex = 0;
-    if (args.n == 4) {
-        JANET_ARG_INTEGER(limit, args, 3);
+    if (argc == 4) {
+        limit = janet_getinteger(argv, 3);
     }
-    int status = findsetup(args, &state, 1);
-    if (status) return status;
+    findsetup(argc, argv, &state, 1);
     array = janet_array(0);
     while ((result = kmp_next(&state)) >= 0 && limit--) {
         const uint8_t *slice = janet_string(state.text + lastindex, result - lastindex);
@@ -1099,80 +1028,75 @@ static int cfun_split(JanetArgs args) {
         janet_array_push(array, janet_wrap_string(slice));
     }
     kmp_deinit(&state);
-    JANET_RETURN_ARRAY(args, array);
+    return janet_wrap_array(array);
 }
 
-static int cfun_checkset(JanetArgs args) {
-    const uint8_t *set, *str;
-    int32_t setlen, strlen, i;
+static Janet cfun_checkset(int32_t argc, Janet *argv) {
     uint32_t bitset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    JANET_MINARITY(args, 2);
-    JANET_MAXARITY(args, 3);
-    JANET_ARG_BYTES(set, setlen, args, 0);
-    JANET_ARG_BYTES(str, strlen, args, 1);
+    janet_arity(argc, 2, 3);
+    JanetByteView set = janet_getbytes(argv, 0);
+    JanetByteView str = janet_getbytes(argv, 1);
     /* Populate set */
-    for (i = 0; i < setlen; i++) {
-        int index = set[i] >> 5;
-        uint32_t mask = 1 << (set[i] & 7);
+    for (int32_t i = 0; i < set.len; i++) {
+        int index = set.bytes[i] >> 5;
+        uint32_t mask = 1 << (set.bytes[i] & 7);
         bitset[index] |= mask;
     }
-    if (args.n == 3) {
-        int invert;
-        JANET_ARG_BOOLEAN(invert, args, 2);
-        if (invert) {
-            for (i = 0; i < 8; i++)
+    if (argc == 3) {
+        if (janet_getboolean(argv, 2)) {
+            for (int i = 0; i < 8; i++)
                 bitset[i] = ~bitset[i];
         }
     }
     /* Check set */
-    for (i = 0; i < strlen; i++) {
-        int index = str[i] >> 5;
-        uint32_t mask = 1 << (str[i] & 7);
+    for (int32_t i = 0; i < str.len; i++) {
+        int index = str.bytes[i] >> 5;
+        uint32_t mask = 1 << (str.bytes[i] & 7);
         if (!(bitset[index] & mask)) {
-            JANET_RETURN_FALSE(args);
+            return janet_wrap_false();
         }
     }
-    JANET_RETURN_TRUE(args);
+    return janet_wrap_true();
 }
 
-static int cfun_join(JanetArgs args) {
-    const Janet *parts;
-    const uint8_t *joiner;
-    uint8_t *buf, *out;
-    int32_t joinerlen, partslen, finallen, i;
-    JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 2);
-    JANET_ARG_INDEXED(parts, partslen, args, 0);
-    if (args.n == 2) {
-        JANET_ARG_BYTES(joiner, joinerlen, args, 1);
+static Janet cfun_join(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    JanetView parts = janet_getindexed(argv, 0);
+    JanetByteView joiner;
+    if (argc == 2) {
+        joiner = janet_getbytes(argv, 1);
     } else {
-        joiner = NULL;
-        joinerlen = 0;
+        joiner.bytes = NULL;
+        joiner.len = 0;
     }
     /* Check args */
-    finallen = 0;
-    for (i = 0; i < partslen; i++) {
+    int32_t i;
+    int64_t finallen = 0;
+    for (i = 0; i < parts.len; i++) {
         const uint8_t *chunk;
         int32_t chunklen = 0;
-        if (!janet_bytes_view(parts[i], &chunk, &chunklen)) {
-            JANET_THROW(args, "expected string|symbol|buffer");
+        if (!janet_bytes_view(parts.items[i], &chunk, &chunklen)) {
+            janet_panicf("item %d of parts is not a byte sequence, got %v", i, parts.items[i]);
         }
-        if (i) finallen += joinerlen;
+        if (i) finallen += joiner.len;
         finallen += chunklen;
+        if (finallen > INT32_MAX)
+            janet_panic("result string too long");
     }
+    uint8_t *buf, *out;
     out = buf = janet_string_begin(finallen);
-    for (i = 0; i < partslen; i++) {
+    for (i = 0; i < parts.len; i++) {
         const uint8_t *chunk = NULL;
         int32_t chunklen = 0;
         if (i) {
-            memcpy(out, joiner, joinerlen);
-            out += joinerlen;
+            memcpy(out, joiner.bytes, joiner.len);
+            out += joiner.len;
         }
-        janet_bytes_view(parts[i], &chunk, &chunklen);
+        janet_bytes_view(parts.items[i], &chunk, &chunklen);
         memcpy(out, chunk, chunklen);
         out += chunklen;
     }
-    JANET_RETURN_STRING(args, janet_string_end(buf));
+    return janet_wrap_string(janet_string_end(buf));
 }
 
 static struct formatter {
@@ -1188,29 +1112,29 @@ static struct formatter {
     {"F", "%F", "%.*F"}
 };
 
-static int cfun_number(JanetArgs args) {
+static Janet cfun_number(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 4);
+    double x = janet_getnumber(argv, 0);
     struct formatter fmter = formatters[0];
     char buf[100];
-    double x;
     int formatNargs = 1;
     int32_t precision = 0;
-    JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 4);
-    JANET_ARG_NUMBER(x, args, 0);
-    if (args.n >= 2) {
-        const uint8_t *flag;
-        JANET_ARG_KEYWORD(flag, args, 1);
-        for (int i = 0; i < 6; i++) {
+    if (argc >= 2) {
+        const uint8_t *flag = janet_getkeyword(argv, 1);
+        int i;
+        for (i = 0; i < 6; i++) {
             struct formatter fmttest = formatters[i];
             if (!janet_cstrcmp(flag, fmttest.lead)) {
                 fmter = fmttest;
                 break;
             }
         }
+        if (i == 6)
+            janet_panicf("unsupported formatter %v", argv[1]);
     }
 
-    if (args.n >= 3) {
-        JANET_ARG_INTEGER(precision, args, 2);
+    if (argc >= 3) {
+        precision = janet_getinteger(argv, 2);
         formatNargs++;
     }
 
@@ -1220,20 +1144,19 @@ static int cfun_number(JanetArgs args) {
         snprintf(buf, sizeof(buf), fmter.f2, precision, x);
     }
 
-    JANET_RETURN_CSTRING(args, buf);
+    return janet_cstringv(buf);
 }
 
-static int cfun_pretty(JanetArgs args) {
+static Janet cfun_pretty(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 3);
     JanetBuffer *buffer = NULL;
     int32_t depth = 4;
-    JANET_MINARITY(args, 1);
-    JANET_MAXARITY(args, 3);
-    if (args.n > 1)
-        JANET_ARG_INTEGER(depth, args, 1);
-    if (args.n > 2)
-        JANET_ARG_BUFFER(buffer, args, 2);
-    buffer = janet_pretty(buffer, depth, args.v[0]);
-    JANET_RETURN_BUFFER(args, buffer);
+    if (argc > 1)
+        depth = janet_getinteger(argv, 1);
+    if (argc > 2)
+        buffer = janet_getbuffer(argv, 2);
+    buffer = janet_pretty(buffer, depth, argv[0]);
+    return janet_wrap_buffer(buffer);
 }
 
 static const JanetReg cfuns[] = {
@@ -1337,8 +1260,6 @@ static const JanetReg cfuns[] = {
 };
 
 /* Module entry point */
-int janet_lib_string(JanetArgs args) {
-    JanetTable *env = janet_env(args);
+void janet_lib_string(JanetTable *env) {
     janet_cfuns(env, NULL, cfuns);
-    return 0;
 }

@@ -23,14 +23,12 @@
 #include "line.h"
 
 /* Common */
-int janet_line_getter(JanetArgs args) {
-    JANET_FIXARITY(args, 2);
-    JANET_CHECK(args, 0, JANET_STRING);
-    JANET_CHECK(args, 1, JANET_BUFFER);
-    janet_line_get(
-            janet_unwrap_string(args.v[0]),
-            janet_unwrap_buffer(args.v[1]));
-    JANET_RETURN(args, args.v[0]);
+Janet janet_line_getter(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 2);
+    const uint8_t *str = janet_getstring(argv, 0);
+    JanetBuffer *buf = janet_getbuffer(argv, 1);
+    janet_line_get(str, buf);
+    return argv[0];
 }
 
 static void simpleline(JanetBuffer *buffer) {
