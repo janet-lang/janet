@@ -67,10 +67,15 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
 
 static Janet janet_core_native(int32_t argc, Janet *argv) {
     JanetModule init;
-    JanetTable *env = janet_table(0);
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 2);
     const uint8_t *path = janet_getstring(argv, 0);
     const uint8_t *error = NULL;
+    JanetTable *env;
+    if (argc == 2) {
+        env = janet_gettable(argv, 1);
+    } else {
+        env = janet_table(0);
+    }
     init = janet_native((const char *)path, &error);
     if (!init) {
         janet_panicf("could not load native %S: %S", path, error);
@@ -245,7 +250,7 @@ static Janet janet_core_hash(int32_t argc, Janet *argv) {
 
 static const JanetReg cfuns[] = {
     {"native", janet_core_native,
-        "(native path)\n\n"
+        "(native path [,env])\n\n"
         "Load a native module from the given path. The path "
         "must be an absolute or relative path on the file system, and is "
         "usually a .so file on Unix systems, and a .dll file on Windows. "

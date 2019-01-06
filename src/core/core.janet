@@ -1623,7 +1623,7 @@ value, one key will be ignored."
             (def n (find-native path))
             (if (not n)
               (error (string "could not open file for module " path)))
-            (native n)))))))
+            (native n (make-env))))))))
 
 (defn import*
   "Import a module into a given environment table. This is the
