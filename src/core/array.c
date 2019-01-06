@@ -119,20 +119,20 @@ Janet janet_array_peek(JanetArray *array) {
 /* C Functions */
 
 static Janet cfun_new(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
     JanetArray *array = janet_array(cap);
     return janet_wrap_array(array);
 }
 
 static Janet cfun_pop(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetArray *array = janet_getarray(argv, 0);
     return janet_array_pop(array);
 }
 
 static Janet cfun_peek(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetArray *array = janet_getarray(argv, 0);
     return janet_array_peek(array);
 }
@@ -148,7 +148,7 @@ static Janet cfun_push(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_ensure(int32_t argc, Janet *argv) {
-    janet_arity(argc, 3, 3);
+    janet_fixarity(argc, 3);
     JanetArray *array = janet_getarray(argv, 0);
     int32_t newcount = janet_getinteger(argv, 1);
     int32_t growth = janet_getinteger(argv, 2);

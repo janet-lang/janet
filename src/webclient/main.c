@@ -32,11 +32,11 @@ static const uint8_t *line_prompt = NULL;
 
 /* Yield to JS event loop from janet. Takes a repl prompt
  * and a buffer to fill with input data. */
-static int repl_yield(JanetArgs args) {
-    JANET_FIXARITY(args, 2);
-    JANET_ARG_STRING(line_prompt, args, 0);
-    JANET_ARG_BUFFER(line_buffer, args, 1);
-    JANET_RETURN_NIL(args);
+static Janet repl_yield(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    line_prompt = janet_getstring(argv, 0);
+    line_buffer = janet_getbuffer(argv, 1);
+    return janet_wrap_nil();
 }
 
 /* Re-enter the loop */
@@ -53,14 +53,11 @@ static int enter_loop(void) {
 }
 
 /* Allow JS interop from within janet */
-static int cfun_js(JanetArgs args) {
-    const uint8_t *bytes;
-    int32_t len;
-    JANET_FIXARITY(args, 1);
-    JANET_ARG_BYTES(bytes, len, args, 0);
-    (void) len;
-    emscripten_run_script((const char *)bytes);
-    JANET_RETURN_NIL(args);
+static Janet cfun_js(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetByteView bytes = janet_getbytes(argv, 0);
+    emscripten_run_script((const char *)bytes.bytes);
+    return janet_wrap_nil();
 }
 
 /* Intialize the repl */

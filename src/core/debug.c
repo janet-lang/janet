@@ -94,7 +94,7 @@ void janet_debug_find(
 /* Helper to find funcdef and bytecode offset to insert or remove breakpoints.
  * Takes a source file name and byte offset. */
 static void helper_find(int32_t argc, Janet *argv, JanetFuncDef **def, int32_t *bytecode_offset) {
-    janet_arity(argc, 2, 2);
+    janet_fixarity(argc, 2);
     const uint8_t *source = janet_getstring(argv, 0);
     int32_t source_offset = janet_getinteger(argv, 1);
     janet_debug_find(def, bytecode_offset, source, source_offset);
@@ -143,7 +143,7 @@ static Janet cfun_unfbreak(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_lineage(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     JanetArray *array = janet_array(0);
     while (fiber) {
@@ -200,7 +200,7 @@ static Janet doframe(JanetStackFrame *frame) {
 }
 
 static Janet cfun_stack(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     JanetArray *array = janet_array(0);
     {
@@ -216,7 +216,7 @@ static Janet cfun_stack(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_argstack(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     JanetArray *array = janet_array(fiber->stacktop - fiber->stackstart);
     memcpy(array->data, fiber->data + fiber->stackstart, array->capacity * sizeof(Janet));

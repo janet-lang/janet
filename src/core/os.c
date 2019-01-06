@@ -41,7 +41,7 @@
 #endif
 
 static Janet os_which(int32_t argc, Janet *argv) {
-    janet_arity(argc, 0, 0);
+    janet_fixarity(argc, 0);
     (void) argv;
     #ifdef JANET_WINDOWS
         return janet_ckeywordv("windows");
@@ -156,7 +156,7 @@ static Janet os_shell(int32_t argc, Janet *argv) {
 }
 
 static Janet os_getenv(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     const uint8_t *k = janet_getstring(argv, 0);
     const char *cstr = (const char *) k;
     const char *res = getenv(cstr);
@@ -198,7 +198,7 @@ static Janet os_exit(int32_t argc, Janet *argv) {
 }
 
 static Janet os_time(int32_t argc, Janet *argv) {
-    janet_arity(argc, 0, 0);
+    janet_fixarity(argc, 0);
     (void) argv;
     double dtime = (double)(time(NULL));
     return janet_wrap_number(dtime);
@@ -232,7 +232,7 @@ static int gettime(struct timespec *spec) {
 #endif
 
 static Janet os_clock(int32_t argc, Janet *argv) {
-    janet_arity(argc, 0, 0);
+    janet_fixarity(argc, 0);
     (void) argv;
     struct timespec tv;
     if (gettime(&tv)) janet_panic("could not get time");
@@ -241,7 +241,7 @@ static Janet os_clock(int32_t argc, Janet *argv) {
 }
 
 static Janet os_sleep(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     double delay = janet_getnumber(argv, 0);
     if (delay < 0) janet_panic("invalid argument to sleep");
 #ifdef JANET_WINDOWS
@@ -258,7 +258,7 @@ static Janet os_sleep(int32_t argc, Janet *argv) {
 }
 
 static Janet os_cwd(int32_t argc, Janet *argv) {
-    janet_arity(argc, 0, 0);
+    janet_fixarity(argc, 0);
     (void) argv;
     char buf[FILENAME_MAX];
     char *ptr;

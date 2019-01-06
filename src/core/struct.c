@@ -158,17 +158,6 @@ Janet janet_struct_get(const JanetKV *st, Janet key) {
     return kv ? kv->value : janet_wrap_nil();
 }
 
-/* Get the next key in a struct */
-const JanetKV *janet_struct_next(const JanetKV *st, const JanetKV *kv) {
-    const JanetKV *end = st + janet_struct_capacity(st);
-    kv = (kv == NULL) ? st : kv + 1;
-    while (kv < end) {
-        if (!janet_checktype(kv->key, JANET_NIL)) return kv;
-        kv++;
-    }
-    return NULL;
-}
-
 /* Convert struct to table */
 JanetTable *janet_struct_to_table(const JanetKV *st) {
     JanetTable *table = janet_table(janet_struct_capacity(st));

@@ -406,30 +406,32 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             goto done;
         case JANET_TABLE:
             {
-                const JanetKV *kv = NULL;
                 JanetTable *t = janet_unwrap_table(x);
                 MARK_SEEN();
                 pushbyte(st, t->proto ? LB_TABLE_PROTO : LB_TABLE);
                 pushint(st, t->count);
                 if (t->proto)
                     marshal_one(st, janet_wrap_table(t->proto), flags + 1);
-                while ((kv = janet_table_next(t, kv))) {
-                    marshal_one(st, kv->key, flags + 1);
-                    marshal_one(st, kv->value, flags + 1);
+                for (int32_t i = 0; i < t->capacity; i++) {
+                    if (janet_checktype(t->data[i].key, JANET_NIL))
+                        continue;
+                    marshal_one(st, t->data[i].key, flags + 1);
+                    marshal_one(st, t->data[i].value, flags + 1);
                 }
             }
             goto done;
         case JANET_STRUCT:
             {
                 int32_t count;
-                const JanetKV *kv = NULL;
                 const JanetKV *struct_ = janet_unwrap_struct(x);
                 count = janet_struct_length(struct_);
                 pushbyte(st, LB_STRUCT);
                 pushint(st, count);
-                while ((kv = janet_struct_next(struct_, kv))) {
-                    marshal_one(st, kv->key, flags + 1);
-                    marshal_one(st, kv->value, flags + 1);
+                for (int32_t i = 0; i < janet_struct_capacity(struct_); i++) {
+                    if (janet_checktype(struct_[i].key, JANET_NIL))
+                        continue;
+                    marshal_one(st, struct_[i].key, flags + 1);
+                    marshal_one(st, struct_[i].value, flags + 1);
                 }
                 /* Mark as seen AFTER marshaling */
                 MARK_SEEN();
@@ -1102,7 +1104,7 @@ int janet_unmarshal(
 /* C functions */
 
 static Janet cfun_env_lookup(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetTable *env = janet_gettable(argv, 0);
     return janet_wrap_table(janet_env_lookup(env));
 }

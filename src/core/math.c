@@ -26,21 +26,21 @@
 /* Get a random number */
 Janet janet_rand(int32_t argc, Janet *argv) {
     (void) argv;
-    janet_arity(argc, 0, 0);
+    janet_fixarity(argc, 0);
     double r = (rand() % RAND_MAX) / ((double) RAND_MAX);
     return janet_wrap_number(r);
 }
 
 /* Seed the random number generator */
 Janet janet_srand(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     int32_t x = janet_getinteger(argv, 0);
     srand((unsigned) x);
     return janet_wrap_nil();
 }
 
 Janet janet_remainder(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 2);
+    janet_fixarity(argc, 2);
     double x = janet_getnumber(argv, 0);
     double y = janet_getnumber(argv, 1);
     return janet_wrap_number(fmod(x, y));
@@ -48,7 +48,7 @@ Janet janet_remainder(int32_t argc, Janet *argv) {
 
 #define JANET_DEFINE_MATHOP(name, fop)\
 Janet janet_##name(int32_t argc, Janet *argv) {\
-    janet_arity(argc, 1, 1); \
+    janet_fixarity(argc, 1); \
     double x = janet_getnumber(argv, 0); \
     return janet_wrap_number(fop(x)); \
 }
@@ -72,7 +72,7 @@ JANET_DEFINE_MATHOP(floor, floor)
 
 #define JANET_DEFINE_MATH2OP(name, fop)\
 Janet janet_##name(int32_t argc, Janet *argv) {\
-    janet_arity(argc, 2, 2); \
+    janet_fixarity(argc, 2); \
     double lhs = janet_getnumber(argv, 0); \
     double rhs = janet_getnumber(argv, 1); \
     return janet_wrap_number(fop(lhs, rhs)); \
@@ -82,7 +82,7 @@ JANET_DEFINE_MATH2OP(atan2, atan2)
 JANET_DEFINE_MATH2OP(pow, pow)
 
 static Janet janet_not(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     return janet_wrap_boolean(!janet_truthy(argv[0]));
 }
 

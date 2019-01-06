@@ -50,6 +50,11 @@ void janet_panic_abstract(Janet x, int32_t n, const JanetAbstractType *at) {
     janet_panicf("bad slot #%d, expected %s, got %v", n, at->name, x);
 }
 
+void janet_fixarity(int32_t arity, int32_t fix) {
+    if (arity != fix)
+        janet_panicf("arity mismatch, expected %d, got %d", fix, arity);
+}
+
 void janet_arity(int32_t arity, int32_t min, int32_t max) {
     if (min >= 0 && arity < min)
         janet_panicf("arity mismatch, expected at least %d, got %d", min, arity);

@@ -158,17 +158,6 @@ void janet_table_clear(JanetTable *t) {
     t->deleted = 0;
 }
 
-/* Find next key in an object. Returns NULL if no next key. */
-const JanetKV *janet_table_next(JanetTable *t, const JanetKV *kv) {
-    JanetKV *end = t->data + t->capacity;
-    kv = (kv == NULL) ? t->data : kv + 1;
-    while (kv < end) {
-        if (!janet_checktype(kv->key, JANET_NIL)) return kv;
-        kv++;
-    }
-    return NULL;
-}
-
 /* Convert table to struct */
 const JanetKV *janet_table_to_struct(JanetTable *t) {
     JanetKV *st = janet_struct_begin(t->count);
@@ -206,13 +195,13 @@ void janet_table_merge_struct(JanetTable *table, const JanetKV *other) {
 /* C Functions */
 
 static Janet cfun_new(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
     return janet_wrap_table(janet_table(cap));
 }
 
 static Janet cfun_getproto(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetTable *t = janet_gettable(argv, 0);
     return t->proto
         ? janet_wrap_table(t->proto)
@@ -220,7 +209,7 @@ static Janet cfun_getproto(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_setproto(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 2);
+    janet_fixarity(argc, 2);
     JanetTable *table = janet_gettable(argv, 0);
     JanetTable *proto = NULL;
     if (!janet_checktype(argv[1], JANET_NIL)) {
@@ -231,13 +220,13 @@ static Janet cfun_setproto(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_tostruct(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetTable *t = janet_gettable(argv, 0);
     return janet_wrap_struct(janet_table_to_struct(t));
 }
 
 static Janet cfun_rawget(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 2);
+    janet_fixarity(argc, 2);
     JanetTable *table = janet_gettable(argv, 0);
     return janet_table_rawget(table, argv[1]);
 }

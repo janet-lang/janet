@@ -24,7 +24,7 @@
 
 /* Common */
 Janet janet_line_getter(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 2);
+    janet_fixarity(argc, 2);
     const uint8_t *str = janet_getstring(argv, 0);
     JanetBuffer *buf = janet_getbuffer(argv, 1);
     janet_line_get(str, buf);

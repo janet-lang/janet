@@ -68,7 +68,7 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
 static Janet janet_core_native(int32_t argc, Janet *argv) {
     JanetModule init;
     JanetTable *env = janet_table(0);
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     const uint8_t *path = janet_getstring(argv, 0);
     const uint8_t *error = NULL;
     init = janet_native((const char *)path, &error);
@@ -163,13 +163,13 @@ static Janet janet_core_buffer(int32_t argc, Janet *argv) {
 }
 
 static Janet janet_core_is_abstract(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     return janet_wrap_boolean(janet_checktype(argv[0], JANET_ABSTRACT));
 }
 
 static Janet janet_core_scannumber(int32_t argc, Janet *argv) {
     double number;
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 1);
     if (janet_scan_number(view.bytes, view.len, &number))
         return janet_wrap_nil();
@@ -211,7 +211,7 @@ static Janet janet_core_struct(int32_t argc, Janet *argv) {
 
 static Janet janet_core_gensym(int32_t argc, Janet *argv) {
     (void) argv;
-    janet_arity(argc, 0, 0);
+    janet_fixarity(argc, 0);
     return janet_wrap_symbol(janet_symbol_gen());
 }
 
@@ -223,7 +223,7 @@ static Janet janet_core_gccollect(int32_t argc, Janet *argv) {
 }
 
 static Janet janet_core_gcsetinterval(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     int32_t val = janet_getinteger(argv, 0);
     if (val < 0)
         janet_panic("expected non-negative integer");
@@ -233,12 +233,12 @@ static Janet janet_core_gcsetinterval(int32_t argc, Janet *argv) {
 
 static Janet janet_core_gcinterval(int32_t argc, Janet *argv) {
     (void) argv;
-    janet_arity(argc, 0, 0);
+    janet_fixarity(argc, 0);
     return janet_wrap_number(janet_vm_gc_interval);
 }
 
 static Janet janet_core_type(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetType t = janet_type(argv[0]);
     if (t == JANET_ABSTRACT) {
         return janet_ckeywordv(janet_abstract_type(janet_unwrap_abstract(argv[0]))->name);
@@ -248,7 +248,7 @@ static Janet janet_core_type(int32_t argc, Janet *argv) {
 }
 
 static Janet janet_core_next(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 2);
+    janet_fixarity(argc, 2);
     JanetDictView view = janet_getdictionary(argv, 0);
     const JanetKV *end = view.kvs + view.cap;
     const JanetKV *kv = janet_checktype(argv[1], JANET_NIL)
@@ -262,7 +262,7 @@ static Janet janet_core_next(int32_t argc, Janet *argv) {
 }
 
 static Janet janet_core_hash(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     return janet_wrap_number(janet_hash(argv[0]));
 }
 

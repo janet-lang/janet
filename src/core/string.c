@@ -832,7 +832,7 @@ static Janet cfun_slice(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_repeat(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 2);
+    janet_fixarity(argc, 2);
     JanetByteView view = janet_getbytes(argv, 0);
     int32_t rep = janet_getinteger(argv, 1);
     if (rep < 0) janet_panic("expected non-negative number of repetitions");
@@ -849,7 +849,7 @@ static Janet cfun_repeat(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_bytes(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     Janet *tup = janet_tuple_begin(view.len);
     int32_t i;
@@ -870,7 +870,7 @@ static Janet cfun_frombytes(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_asciilower(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
     for (int32_t i = 0; i < view.len; i++) {
@@ -885,7 +885,7 @@ static Janet cfun_asciilower(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_asciiupper(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
     for (int32_t i = 0; i < view.len; i++) {
@@ -900,7 +900,7 @@ static Janet cfun_asciiupper(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_reverse(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
     int32_t i, j;

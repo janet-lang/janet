@@ -342,7 +342,7 @@ static Janet cfun_new(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_status(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     uint32_t s = (fiber->flags & JANET_FIBER_STATUS_MASK) >>
         JANET_FIBER_STATUS_OFFSET;
@@ -351,18 +351,18 @@ static Janet cfun_status(int32_t argc, Janet *argv) {
 
 static Janet cfun_current(int32_t argc, Janet *argv) {
     (void) argv;
-    janet_arity(argc, 0, 0);
+    janet_fixarity(argc, 0);
     return janet_wrap_fiber(janet_vm_fiber);
 }
 
 static Janet cfun_maxstack(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     return janet_wrap_integer(fiber->maxstack);
 }
 
 static Janet cfun_setmaxstack(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 2);
+    janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     int32_t maxs = janet_getinteger(argv, 1);
     if (maxs < 0) {

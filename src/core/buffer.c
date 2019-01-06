@@ -154,7 +154,7 @@ void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x) {
 /* C functions */
 
 static Janet cfun_new(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
     JanetBuffer *buffer = janet_buffer(cap);
     return janet_wrap_buffer(buffer);
@@ -196,14 +196,14 @@ static Janet cfun_chars(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_clear(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     buffer->count = 0;
     return argv[0];
 }
 
 static Janet cfun_popn(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 2);
+    janet_fixarity(argc, 2);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     int32_t n = janet_getinteger(argv, 1);
     if (n < 0) janet_panic("n must be non-negative");

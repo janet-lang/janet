@@ -226,7 +226,7 @@ static Janet janet_io_fwrite(int32_t argc, Janet *argv) {
 
 /* Flush the bytes in the file */
 static Janet janet_io_fflush(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     IOFile *iof = janet_getabstract(argv, 0, &janet_io_filetype);
     if (iof->flags & IO_CLOSED)
         janet_panic("file is closed");
@@ -249,7 +249,7 @@ static int janet_io_gc(void *p, size_t len) {
 
 /* Close a file */
 static Janet janet_io_fclose(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     IOFile *iof = janet_getabstract(argv, 0, &janet_io_filetype);
     if (iof->flags & IO_CLOSED)
         janet_panic("file is closed");
