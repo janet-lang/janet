@@ -33,6 +33,29 @@ may require changes before being merged.
   For janet code, the use lisp indentation with 2 spaces. One can use janet.vim to
   do this indentation, or approximate as close as possible.
 
+## C style
+
+For changes to the VM and Core code, you will probably need to know C. Janet is programmed with
+a subset of C99 that works with Microsoft Visual C++. This means most of C99 but with the following
+omissions.
+
+* No Variable Length Arrays (yes these may work in newer MSVC compilers)
+* No `restrict` 
+* Certain functions in the standard library are not always available
+
+In practice, this means programming for both MSVC on one hand and everything else on the other.
+The code must also build with emscripten, even if some features are not available, although
+this is not a priority.
+
+Code should compile warning free and run valgrind clean. I find that these two criteria are some
+of the easiest ways to protect against a large number of bugs in an unsafe language like C. To check for
+valgrind errors, run `make valtest` and check the output for undefined or flagged behavior.
+
+## Janet style
+
+All janet code in the project should be formatted similar to the code in core.janet.
+The auto formatting from janet.vim will work well.
+
 ## Suggesting Changes
 
 To suggest changes, open an issue on GitHub. Check GitHub for other issues

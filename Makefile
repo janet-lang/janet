@@ -136,14 +136,14 @@ repl: $(JANET_TARGET)
 debug: $(JANET_TARGET)
 	$(DEBUGGER) ./$(JANET_TARGET)
 
+VALGRIND_COMMAND=valgrind --leak-check=full
+
 valgrind: $(JANET_TARGET)
-	valgrind --leak-check=full -v ./$(JANET_TARGET)
+	$(VALGRIND_COMMAND) ./$(JANET_TARGET)
 
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in build/*.out; do "$$f" || exit; done
 	for f in test/*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
-
-VALGRIND_COMMAND=valgrind --leak-check=full -v
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in build/*.out; do $(VALGRIND_COMMAND) "$$f" || exit; done
