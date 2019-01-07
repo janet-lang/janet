@@ -494,6 +494,9 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
                     } else {
                         ds = close_struct(p, state);
                     }
+                } else {
+                    p->error = "mismatched delimiter";
+                    return 1;
                 }
                 popstate(p, ds);
             }
