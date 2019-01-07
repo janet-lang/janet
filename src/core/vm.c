@@ -556,6 +556,12 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         if (fiber->stacktop > fiber->maxstack) {
             vm_throw("stack overflow");
         }
+        if (janet_checktype(callee, JANET_KEYWORD)) {
+            vm_commit();
+            int32_t argc = fiber->stacktop - fiber->stackstart;
+            if (argc < 1) janet_panicf("method call takes at least 1 argument, got %d", argc);
+            callee = janet_get(fiber->data[fiber->stackstart], callee);
+        }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
             janet_stack_frame(stack)->pc = pc;
@@ -587,6 +593,12 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     VM_OP(JOP_TAILCALL)
     {
         Janet callee = stack[D];
+        if (janet_checktype(callee, JANET_KEYWORD)) {
+            vm_commit();
+            int32_t argc = fiber->stacktop - fiber->stackstart;
+            if (argc < 1) janet_panicf("method call takes at least 1 argument, got %d", argc);
+            callee = janet_get(fiber->data[fiber->stackstart], callee);
+        }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
             if (janet_fiber_funcframe_tail(fiber, func)) {

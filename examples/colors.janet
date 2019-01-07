@@ -35,7 +35,13 @@
    :bright-white 97
    :bg-bright-white 107})
 
-(loop [[name color] :in (pairs colormap)]
-  (defglobal (string/slice name 1)
-    (fn color-wrapper [& pieces]
-      (string "\e[" color "m" ;pieces "\e[0m"))))
+(defn color
+  "Take a string made by concatenating xs and colorize it for an ANSI terminal."
+  [c & xs]
+  (def code (get colormap c))
+  (if (not code) (error (string "color " c " unknown")))
+  (string "\e[" code "m" ;xs "\e[0m"))
+
+# Print all colors
+
+(loop [c :keys colormap] (print (color c c)))

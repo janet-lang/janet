@@ -18,3 +18,11 @@
     (ret 0)             # return $0
   ]
 }))
+
+# Test it
+
+(defn testn
+  [n]
+  (print "fibasm(" n ") = " (fibasm n)))
+
+(for i 0 10 (testn i))
