@@ -149,6 +149,9 @@ valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in build/*.out; do $(VALGRIND_COMMAND) "$$f" || exit; done
 	for f in test/*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
 
+callgrind: $(JANET_TARGET)
+	for f in test/*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
+
 ########################
 ##### Distribution #####
 ########################
@@ -174,7 +177,7 @@ build/doc.html: $(JANET_TARGET) tools/gendoc.janet
 #################
 
 clean:
-	-rm -rf build
+	-rm -rf build vgcore.* callgrind.*
 
 install: $(JANET_TARGET)
 	mkdir -p $(BINDIR)

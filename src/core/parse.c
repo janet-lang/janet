@@ -140,7 +140,7 @@ DEF_PARSER_STACK(_pushstate, JanetParseState, states, statecount, statecap)
 #define PFLAG_STRING 0x2000
 #define PFLAG_LONGSTRING 0x4000
 #define PFLAG_READERMAC 0x8000
-#define PFLAG_PAIR 0x10000
+#define PFLAG_ATSYM 0x10000
 
 static void pushstate(JanetParser *p, Consumer consumer, int flags) {
     JanetParseState s;
@@ -331,78 +331,39 @@ static int comment(JanetParser *p, JanetParseState *state, uint8_t c) {
     return 1;
 }
 
-/* Forward declaration */
-static int root(JanetParser *p, JanetParseState *state, uint8_t c);
-
-static int dotuple(JanetParser *p, JanetParseState *state, uint8_t c) {
-    if (state->flags & PFLAG_SQRBRACKETS
-            ? c == ']'
-            : c == ')') {
-        int32_t i;
-        Janet *ret = janet_tuple_begin(state->argn);
-        for (i = state->argn - 1; i >= 0; i--) {
-            ret[i] = p->args[--p->argcount];
-        }
-        popstate(p, janet_wrap_tuple(janet_tuple_end(ret)));
-        return 1;
-    }
-    return root(p, state, c);
+static Janet close_tuple(JanetParser *p, JanetParseState *state) {
+    Janet *ret = janet_tuple_begin(state->argn);
+    for (int32_t i = state->argn - 1; i >= 0; i--)
+        ret[i] = p->args[--p->argcount];
+    return janet_wrap_tuple(janet_tuple_end(ret));
 }
 
-static int doarray(JanetParser *p, JanetParseState *state, uint8_t c) {
-    if (state->flags & PFLAG_SQRBRACKETS
-            ? c == ']'
-            : c == ')') {
-        int32_t i;
-        JanetArray *array = janet_array(state->argn);
-        for (i = state->argn - 1; i >= 0; i--) {
-            array->data[i] = p->args[--p->argcount];
-        }
-        array->count = state->argn;
-        popstate(p, janet_wrap_array(array));
-        return 1;
-    }
-    return root(p, state, c);
+static Janet close_array(JanetParser *p, JanetParseState *state) {
+    JanetArray *array = janet_array(state->argn);
+    for (int32_t i = state->argn - 1; i >= 0; i--)
+        array->data[i] = p->args[--p->argcount];
+    array->count = state->argn;
+    return janet_wrap_array(array);
 }
 
-static int dostruct(JanetParser *p, JanetParseState *state, uint8_t c) {
-    if (c == '}') {
-        int32_t i;
-        JanetKV *st;
-        if (state->argn & 1) {
-            p->error = "struct literal expects even number of arguments";
-            return 1;
-        }
-        st = janet_struct_begin(state->argn >> 1);
-        for (i = state->argn; i > 0; i -= 2) {
-            Janet value = p->args[--p->argcount];
-            Janet key = p->args[--p->argcount];
-            janet_struct_put(st, key, value);
-        }
-        popstate(p, janet_wrap_struct(janet_struct_end(st)));
-        return 1;
+static Janet close_struct(JanetParser *p, JanetParseState *state) {
+    JanetKV *st = janet_struct_begin(state->argn >> 1);
+    for (int32_t i = state->argn; i > 0; i -= 2) {
+        Janet value = p->args[--p->argcount];
+        Janet key = p->args[--p->argcount];
+        janet_struct_put(st, key, value);
     }
-    return root(p, state, c);
+    return janet_wrap_struct(janet_struct_end(st));
 }
 
-static int dotable(JanetParser *p, JanetParseState *state, uint8_t c) {
-    if (c == '}') {
-        int32_t i;
-        JanetTable *table;
-        if (state->argn & 1) {
-            p->error = "table literal expects even number of arguments";
-            return 1;
-        }
-        table = janet_table(state->argn >> 1);
-        for (i = state->argn; i > 0; i -= 2) {
-            Janet value = p->args[--p->argcount];
-            Janet key = p->args[--p->argcount];
-            janet_table_put(table, key, value);
-        }
-        popstate(p, janet_wrap_table(table));
-        return 1;
+static Janet close_table(JanetParser *p, JanetParseState *state) {
+    JanetTable *table = janet_table(state->argn >> 1);
+    for (int32_t i = state->argn; i > 0; i -= 2) {
+        Janet value = p->args[--p->argcount];
+        Janet key = p->args[--p->argcount];
+        janet_table_put(table, key, value);
     }
-    return root(p, state, c);
+    return janet_wrap_table(table);
 }
 
 #define PFLAG_INSTRING 0x100000
@@ -449,12 +410,14 @@ static int longstring(JanetParser *p, JanetParseState *state, uint8_t c) {
     }
 }
 
+static int root(JanetParser *p, JanetParseState *state, uint8_t c);
+
 static int ampersand(JanetParser *p, JanetParseState *state, uint8_t c) {
     (void) state;
     p->statecount--;
     switch (c) {
     case '{':
-        pushstate(p, dotable, PFLAG_CONTAINER | PFLAG_CURLYBRACKETS);
+        pushstate(p, root, PFLAG_CONTAINER | PFLAG_CURLYBRACKETS | PFLAG_ATSYM);
         return 1;
     case '"':
         pushstate(p, stringchar, PFLAG_BUFFER | PFLAG_STRING);
@@ -463,10 +426,10 @@ static int ampersand(JanetParser *p, JanetParseState *state, uint8_t c) {
         pushstate(p, longstring, PFLAG_BUFFER | PFLAG_LONGSTRING);
         return 1;
     case '[':
-        pushstate(p, doarray, PFLAG_CONTAINER | PFLAG_SQRBRACKETS);
+        pushstate(p, root, PFLAG_CONTAINER | PFLAG_SQRBRACKETS | PFLAG_ATSYM);
         return 1;
     case '(':
-        pushstate(p, doarray, PFLAG_CONTAINER | PFLAG_PARENS);
+        pushstate(p, root, PFLAG_CONTAINER | PFLAG_PARENS | PFLAG_ATSYM);
         return 1;
     default:
         break;
@@ -478,7 +441,6 @@ static int ampersand(JanetParser *p, JanetParseState *state, uint8_t c) {
 
 /* The root state of the parser */
 static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
-    (void) state;
     switch (c) {
         default:
             if (is_whitespace(c)) return 1;
@@ -509,16 +471,41 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
         case ')':
         case ']':
         case '}':
-            p->error = "mismatched delimiter";
+            {
+                Janet ds;
+                if (p->statecount == 1) {
+                    p->error = "mismatched delimiter";
+                    return 1;
+                }
+                if ((c == ')' && (state->flags & PFLAG_PARENS)) ||
+                        (c == ']' && (state->flags & PFLAG_SQRBRACKETS))) {
+                    if (state->flags & PFLAG_ATSYM) {
+                        ds = close_array(p, state);
+                    } else {
+                        ds = close_tuple(p, state);
+                    }
+                } else if (c == '}' && (state->flags & PFLAG_CURLYBRACKETS)) {
+                    if (state->argn & 1) {
+                        p->error = "struct and table literals expect even number of arguments";
+                        return 1;
+                    }
+                    if (state->flags & PFLAG_ATSYM) {
+                        ds = close_table(p, state);
+                    } else {
+                        ds = close_struct(p, state);
+                    }
+                }
+                popstate(p, ds);
+            }
             return 1;
         case '(':
-            pushstate(p, dotuple, PFLAG_CONTAINER | PFLAG_PARENS);
+            pushstate(p, root, PFLAG_CONTAINER | PFLAG_PARENS);
             return 1;
         case '[':
-            pushstate(p, dotuple, PFLAG_CONTAINER | PFLAG_SQRBRACKETS);
+            pushstate(p, root, PFLAG_CONTAINER | PFLAG_SQRBRACKETS);
             return 1;
         case '{':
-            pushstate(p, dostruct, PFLAG_CONTAINER | PFLAG_CURLYBRACKETS);
+            pushstate(p, root, PFLAG_CONTAINER | PFLAG_CURLYBRACKETS);
             return 1;
     }
 }
