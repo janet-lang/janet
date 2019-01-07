@@ -106,10 +106,20 @@
 # Calling non functions
 
 (assert (= 1 ({:ok 1} :ok)) "calling struct")
-(assert (= 1 (:ok {:ok 1})) "calling keyword")
 (assert (= 2 (@{:ok 2} :ok)) "calling table")
 (assert (= :bad (try (@{:ok 2} :ok :no) ([err] :bad))) "calling table too many arguments")
 (assert (= :bad (try (:ok @{:ok 2} :no) ([err] :bad))) "calling keyword too many arguments")
 (assert (= :oops (try (1 1) ([err] :oops))) "calling number fails")
+
+# Method test
+
+(def Dog @{:bark (fn bark [self what] (string (self :name) " says " what "!"))})
+(defn make-dog
+  [name]
+  (table/setproto @{:name name} Dog))
+
+(assert (= "fido" ((make-dog "fido") :name)) "oo 1")
+(def spot (make-dog "spot"))
+(assert (= "spot says hi!" (:bark spot "hi")) "oo 2")
 
 (end-suite)
