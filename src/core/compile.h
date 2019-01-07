@@ -240,10 +240,4 @@ JanetSlot janetc_cslot(Janet x);
 /* Search for a symbol */
 JanetSlot janetc_resolve(JanetCompiler *c, const uint8_t *sym);
 
-/* Compile a symbol (or mutltisym) when used as an rvalue. */
-JanetSlot janetc_sym_rvalue(JanetFopts opts, const uint8_t *sym);
-
-/* Compile an assignment to a symbol (or multisym) */
-JanetSlot janetc_sym_lvalue(JanetFopts opts, const uint8_t *sym, Janet value);
-
 #endif

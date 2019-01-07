@@ -1,12 +1,10 @@
-#
 # Tool to dump a marshalled version of the janet core to stdout. The
 # image should eventually allow janet to be started from a pre-compiled
 # image rather than recompiled every time from the embedded source. More
 # work will go into shrinking the image (it isn't currently that large but
 # could be smaller), creating the mechanism to load the image, and modifying
-# the build process to compile janet with a build int image rather than
+# the build process to compile janet with a built image rather than
 # embedded source.
-#
 
 # Get image. This image contains as much of the core library and documentation that
 # can be written to an image (no cfunctions, no abstracts (stdout, stdin, stderr)),

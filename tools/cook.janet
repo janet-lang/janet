@@ -76,6 +76,20 @@
   [name]
   (string "build" sep name modext))
 
+(defn- make-define
+  "Generate strings for adding custom defines to the compiler."
+  [define value]
+  (def prefix (if is-win "\\D" "-D"))
+  (if value
+    (string prefix define "=" value)
+    (string prefix define)))
+
+(defn- make-defines
+  "Generate many defines. Takes a dictionary of defines. If a value is
+  true, generates -DNAME (\\DNAME on windows), otherwise -DNAME=value."
+  [defines]
+  (seq [[d v] :pairs defines] (make-define d (if (not= v true) v))))
+
 # Defaults
 (def OPTIMIZE 2)
 (def CC (if is-win "cl" "cc"))
@@ -85,18 +99,19 @@
 (defn- compile-c
   "Compile a C file into an object file."
   [opts src dest]
-  (def cc (or opts:compiler CC))
-  (def cflags (or opts:cflags CFLAGS))
+  (def cc (or (opts :compiler) CC))
+  (def cflags (or (opts :cflags) CFLAGS))
+  (def defines (interpose " " (make-defines (or (opts :defines) {}))))
   (if (older-than dest src)
     (if is-win
-      (shell cc " /nologo /c " cflags " /Fo" dest " " src)
-      (shell cc " " cflags " -o " dest " -c " src))))
+      (shell cc " " ;defines " /nologo /c " cflags " /Fo" dest " " src)
+      (shell cc " " ;defines " " cflags " -o " dest " -c " src))))
 
 (defn- link-c
   "Link a number of object files together."
   [opts target & objects]
-  (def ld (or opts:linker LD))
-  (def cflags (or opts:cflags CFLAGS))
+  (def ld (or (opts :linker) LD))
+  (def cflags (or (opts :cflags) CFLAGS))
   (def olist (string/join objects " "))
   (if (older-than-some target objects)
     (if is-win
@@ -129,17 +144,19 @@
   [& opts]
   (def opt-table (table ;opts))
   (mkdir "build")
-  (loop [src :in opt-table:source]
+  (def sources (opt-table :source))
+  (def name (opt-table :name))
+  (loop [src :in sources]
     (compile-c opt-table src (object-name src)))
-  (def objects (map object-name opt-table:source))
-  (when opt-table:embedded
-    (loop [src :in opt-table:embedded]
+  (def objects (map object-name sources))
+  (when-let [embedded (opt-table :embedded)]
+    (loop [src :in embedded]
       (def c-src (embed-c-name src))
       (def o-src (embed-o-name src))
       (array/push objects o-src)
       (create-buffer-c src c-src (embed-name src))
       (compile-c opt-table c-src o-src)))
-  (link-c opt-table (lib-name opt-table:name) ;objects))
+  (link-c opt-table (lib-name name) ;objects))
 
 (defn clean
   "Remove all built artifacts."

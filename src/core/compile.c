@@ -553,7 +553,7 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                 }
                 break;
             case JANET_SYMBOL:
-                ret = janetc_sym_rvalue(opts, janet_unwrap_symbol(x));
+                ret = janetc_resolve(opts.compiler, janet_unwrap_symbol(x));
                 break;
             case JANET_ARRAY:
                 ret = janetc_array(opts, x);

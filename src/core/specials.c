@@ -182,19 +182,47 @@ static const Janet *janetc_make_sourcemap(JanetCompiler *c) {
 }
 
 static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv) {
-    /*JanetFopts subopts = janetc_fopts_default(opts.compiler);*/
-    /*JanetSlot ret, dest;*/
-    Janet head;
     if (argn != 2) {
         janetc_cerror(opts.compiler, "expected 2 arguments");
         return janetc_cslot(janet_wrap_nil());
     }
-    head = argv[0];
-    if (!janet_checktype(head, JANET_SYMBOL)) {
-        janetc_cerror(opts.compiler, "expected symbol");
+    JanetFopts subopts = janetc_fopts_default(opts.compiler);
+    if (janet_checktype(argv[0], JANET_SYMBOL)) {
+        /* Normal var - (set a 1) */
+        const uint8_t *sym = janet_unwrap_symbol(argv[0]);
+        JanetSlot dest = janetc_resolve(opts.compiler, sym);
+        if (!(dest.flags & JANET_SLOT_MUTABLE)) {
+            janetc_cerror(opts.compiler, "cannot set constant");
+            return janetc_cslot(janet_wrap_nil());
+        }
+        subopts.flags = JANET_FOPTS_HINT;
+        subopts.hint = dest;
+        JanetSlot ret = janetc_value(subopts, argv[1]);
+        janetc_copy(opts.compiler, dest, ret);
+        return ret;
+    } else if (janet_checktype(argv[0], JANET_TUPLE)) {
+        /* Set a field (setf behavior) - (set (tab :key) 2) */
+        const Janet *tup = janet_unwrap_tuple(argv[0]);
+        /* Tuple must have 2 elements */
+        if (janet_tuple_length(tup) != 2) {
+            janetc_cerror(opts.compiler, "expected 2 element tuple for l-value to set");
+            return janetc_cslot(janet_wrap_nil());
+        }
+        JanetSlot ds = janetc_value(subopts, tup[0]);
+        JanetSlot key = janetc_value(subopts, tup[1]);
+        /* Can't be tail position because we will emit a PUT instruction afterwards */
+        /* Also can't drop either */
+        opts.flags &= ~(JANET_FOPTS_TAIL | JANET_FOPTS_DROP);
+        JanetSlot rvalue = janetc_value(opts, argv[1]);
+        /* Emit the PUT instruction */
+        janetc_emit_sss(opts.compiler, JOP_PUT, ds, key, rvalue, 0);
+        return rvalue;
+    } else {
+        /* Error */
+        janet_inspect(argv[0]);
+        janetc_cerror(opts.compiler, "expected symbol or tuple for l-value to set");
         return janetc_cslot(janet_wrap_nil());
     }
-    return janetc_sym_lvalue(opts, janet_unwrap_symbol(head), argv[1]);
 }
 
 /* Add attributes to a global def or var table */

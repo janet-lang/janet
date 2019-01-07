@@ -1,4 +1,5 @@
 # Helper to generate core library mappings for janet
+# Used to help build the tmLanguage grammar.
 
 (def allsyms (all-symbols))
 
@@ -22,7 +23,7 @@
   [str]
   (def buf @"")
   (loop [byte :in str]
-    (if-let [rep escapes.byte]
+    (if-let [rep (get escapes byte)]
       (buffer/push-string buf rep)
       (buffer/push-byte buf byte)))
   buf)

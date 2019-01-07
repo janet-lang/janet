@@ -44,7 +44,7 @@
   "Trim leading newlines"
   [str]
   (var i 0)
-  (while (= 10 str.i) (++ i))
+  (while (= 10 (get str i)) (++ i))
   (string/slice str i))
 
 (defn- html-escape
@@ -52,7 +52,7 @@
   [str]
   (def buf @"")
   (loop [byte :in str]
-    (if-let [rep escapes.byte]
+    (if-let [rep (get escapes byte)]
       (buffer/push-string buf rep)
       (buffer/push-byte buf byte)))
   buf)
@@ -90,7 +90,7 @@
 # Generate parts and print them to stdout
 (def parts (seq [[k entry]
                  :in (sort (pairs (table/getproto _env)))
-                 :when (and entry:doc (not entry:private))]
+                 :when (and (get entry :doc) (not (get entry :private)))]
                 (emit-item k entry)))
 (print
   prelude
