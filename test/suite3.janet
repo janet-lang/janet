@@ -122,4 +122,11 @@
 (def spot (make-dog "spot"))
 (assert (= "spot says hi!" (:bark spot "hi")) "oo 2")
 
+# Negative tests
+
+(assert-error "+ check types" (+ 1 ()))
+(assert-error "- check types" (- 1 ()))
+(assert-error "* check types" (* 1 ()))
+(assert-error "/ check types" (/ 1 ()))
+
 (end-suite)

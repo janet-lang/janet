@@ -503,7 +503,7 @@ JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x) {
 
 static const char *typestr(Janet x) {
     JanetType t = janet_type(x);
-    return (t = JANET_ABSTRACT)
+    return (t == JANET_ABSTRACT)
         ? janet_abstract_type(janet_unwrap_abstract(x))->name
         : janet_type_names[t];
 }
