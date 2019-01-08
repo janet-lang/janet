@@ -58,7 +58,7 @@ JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber = NULL;
 #define VM_END() }
 #define VM_OP(op) label_##op :
 #define VM_DEFAULT() label_unknown_op:
-#define vm_next() goto *op_lookup[*pc & 0xFF];
+#define vm_next() goto *op_lookup[*pc & 0xFF]
 static void *op_lookup[255] = {
     &&label_JOP_NOOP,
     &&label_JOP_ERROR,
@@ -236,7 +236,7 @@ static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
 }
 
 /* Interpreter main loop */
-static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
+static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) {
 
     /* Interpreter state */
     register Janet *stack;
@@ -248,7 +248,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
      * waiting to be resumed. In those cases, use input and increment pc. We
      * DO NOT use input when resuming a fiber that has been interrupted at a
      * breakpoint. */
-    if (janet_fiber_status(fiber) != JANET_STATUS_NEW &&
+    if (status != JANET_STATUS_NEW &&
             ((*pc & 0xFF) == JOP_SIGNAL || (*pc & 0xFF) == JOP_RESUME)) {
         stack[A] = in;
         pc++;
@@ -257,7 +257,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     /* The first opcode to execute. If the first opcode has
      * the breakpoint bit set and we were in the debug state, skip
      * that first breakpoint. */
-    uint8_t first_opcode = (janet_fiber_status(fiber) == JANET_STATUS_DEBUG)
+    uint8_t first_opcode = (status == JANET_STATUS_DEBUG)
         ? (*pc & 0x7F)
         : (*pc & 0xFF);
 
@@ -756,15 +756,15 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
 
     /* Check conditions */
+    JanetFiberStatus old_status = janet_fiber_status(fiber);
     if (janet_vm_stackn >= JANET_RECURSION_GUARD) {
         janet_fiber_set_status(fiber, JANET_STATUS_ERROR);
         *out = janet_cstringv("C stack recursed too deeply");
         return JANET_SIGNAL_ERROR;
     }
-    JanetFiberStatus startstatus = janet_fiber_status(fiber);
-    if (startstatus == JANET_STATUS_ALIVE ||
-            startstatus == JANET_STATUS_DEAD ||
-            startstatus == JANET_STATUS_ERROR) {
+    if (old_status == JANET_STATUS_ALIVE ||
+            old_status == JANET_STATUS_DEAD ||
+            old_status == JANET_STATUS_ERROR) {
         *out = janet_cstringv("cannot resume alive, dead, or errored fiber");
         return JANET_SIGNAL_ERROR;
     }
@@ -794,7 +794,7 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     if (setjmp(fiber->buf)) {
         signal = JANET_SIGNAL_ERROR;
     } else {
-        signal = run_vm(fiber, in);
+        signal = run_vm(fiber, in, old_status);
     }
 
     /* Tear down */
