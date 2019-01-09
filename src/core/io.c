@@ -112,16 +112,18 @@ static Janet janet_io_popen(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode = NULL;
+    int flags;
     if (argc == 2) {
         fmode = janet_getkeyword(argv, 1);
         if (janet_string_length(fmode) != 1 ||
             !(fmode[0] == 'r' || fmode[0] == 'w')) {
             janet_panicf("invalid file mode :%S, expected :r or :w", fmode);
         }
+        flags = IO_PIPED | (fmode[0] == 'r' ? IO_READ : IO_WRITE);
+    } else {
+        fmode = (const uint8_t *)"r";
+        flags = IO_PIPED | IO_READ;
     }
-    int flags = (fmode && fmode[0] == '2')
-        ? IO_PIPED | IO_WRITE
-        : IO_PIPED | IO_READ;
 #ifdef JANET_WINDOWS
 #define popen _popen
 #endif
