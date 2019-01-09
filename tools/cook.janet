@@ -105,7 +105,7 @@
   (if (older-than dest src)
     (if is-win
       (shell cc " " ;defines " /nologo /c " cflags " /Fo" dest " " src)
-      (shell cc " " ;defines " " cflags " -o " dest " -c " src))))
+      (shell cc " -c " src " " ;defines " " cflags " -o " dest))))
 
 (defn- link-c
   "Link a number of object files together."

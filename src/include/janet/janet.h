@@ -154,9 +154,6 @@ extern "C" {
 #define JANET_OUT_OF_MEMORY do { printf("janet out of memory\n"); exit(1); } while (0)
 #endif
 
-/* Helper for debugging */
-#define janet_trace(x) janet_puts(janet_formatc("JANET TRACE %s, %d: %v\n", __FILE__, __LINE__, x))
-
 /* Prevent some recursive functions from recursing too deeply
  * ands crashing (the parser). Instead, error out. */
 #define JANET_RECURSION_GUARD 1024
@@ -1002,7 +999,6 @@ JANET_API void janet_description_b(JanetBuffer *buffer, Janet x);
 #define janet_cstringv(cstr) janet_wrap_string(janet_cstring(cstr))
 #define janet_stringv(str, len) janet_wrap_string(janet_string((str), (len)))
 JANET_API const uint8_t *janet_formatc(const char *format, ...);
-JANET_API void janet_puts(const uint8_t *str);
 
 /* Symbol functions */
 JANET_API const uint8_t *janet_symbol(const uint8_t *str, int32_t len);
