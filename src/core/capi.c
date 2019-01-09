@@ -110,6 +110,14 @@ int64_t janet_getinteger64(const Janet *argv, int32_t n) {
     return (int64_t) janet_unwrap_number(x);
 }
 
+int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which) {
+    int32_t raw = janet_getinteger(argv, n);
+    if (raw < 0) raw += length + 1;
+    if (raw < 0 || raw > length)
+        janet_panicf("%s index %d out of range [0,%d]", which, raw, length);
+    return raw;
+}
+
 JanetView janet_getindexed(const Janet *argv, int32_t n) {
     Janet x = argv[n];
     JanetView view;
@@ -157,32 +165,13 @@ JanetRange janet_getslice(int32_t argc, const Janet *argv) {
         range.start = 0;
         range.end = length;
     } else if (argc == 2) {
-        range.start = janet_getinteger(argv, 1);
+        range.start = janet_gethalfrange(argv, 1, length, "start");
         range.end = length;
-        if (range.start < 0) {
-            range.start += length + 1;
-        }
-        if (range.start < 0 || range.start > length) {
-            janet_panicf("slice start: index %d out of range [0,%d]", range.start, length);
-        }
     } else {
-        range.start = janet_getinteger(argv, 1);
-        range.end = janet_getinteger(argv, 2);
-        if (range.start < 0) {
-            range.start += length + 1;
-        }
-        if (range.end < 0) {
-            range.end += length + 1;
-        }
-        if (range.start < 0 || range.start > length) {
-            janet_panicf("slice start: index %d out of range [0,%d]", range.start, length);
-        }
-        if (range.end < 0 || range.end > length) {
-            janet_panicf("slice end: index %d out of range [0,%d]", range.end, length);
-        }
-        if (range.end < range.start) {
+        range.start = janet_gethalfrange(argv, 1, length, "start");
+        range.end = janet_gethalfrange(argv, 2, length, "end");
+        if (range.end < range.start)
             range.end = range.start;
-        }
     }
     return range;
 }

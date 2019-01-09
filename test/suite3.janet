@@ -133,4 +133,24 @@
 (assert-error "bxor check types" (bxor 1 ()))
 (assert-error "bnot check types" (bnot ()))
 
+# Buffer blitting
+
+(def b (buffer/new-filled 100))
+(buffer/bit-set b 100)
+(buffer/bit-clear b 100)
+(assert (zero? (sum b)) "buffer bit set and clear")
+(buffer/bit-toggle b 101)
+(assert (= 32 (sum b)) "buffer bit set and clear")
+
+(def b2 @"hello world")
+
+(buffer/blit b2 "joyto ")
+(assert (= (string b2) "joyto world") "buffer/blit 1")
+
+(buffer/blit b2 "joyto" 6)
+(assert (= (string b2) "joyto joyto") "buffer/blit 2")
+
+(buffer/blit b2 "abcdefg" 5 6)
+(assert (= (string b2) "joytogjoyto") "buffer/blit 3")
+
 (end-suite)

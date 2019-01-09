@@ -1162,6 +1162,7 @@ JANET_API JanetByteView janet_getbytes(const Janet *argv, int32_t n);
 JANET_API JanetDictView janet_getdictionary(const Janet *argv, int32_t n);
 JANET_API void *janet_getabstract(const Janet *argv, int32_t n, const JanetAbstractType *at);
 JANET_API JanetRange janet_getslice(int32_t argc, const Janet *argv);
+JANET_API int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which);
 
 /***** END SECTION MAIN *****/
 

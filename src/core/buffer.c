@@ -55,7 +55,8 @@ void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) 
     uint8_t *new_data;
     uint8_t *old = buffer->data;
     if (capacity <= buffer->capacity) return;
-    capacity *= growth;
+    int64_t big_capacity = capacity * growth;
+    capacity = big_capacity > INT32_MAX ? INT32_MAX : big_capacity;
     new_data = realloc(old, capacity * sizeof(uint8_t));
     if (NULL == new_data) {
         JANET_OUT_OF_MEMORY;
@@ -161,6 +162,19 @@ static Janet cfun_new(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(buffer);
 }
 
+static Janet cfun_new_filled(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    int32_t count = janet_getinteger(argv, 0);
+    int32_t byte = 0;
+    if (argc == 2) {
+        byte = janet_getinteger(argv, 1) & 0xFF;
+    }
+    JanetBuffer *buffer = janet_buffer(count);
+    memset(buffer->data, byte, count);
+    buffer->count = count;
+    return janet_wrap_buffer(buffer);
+}
+
 static Janet cfun_u8(int32_t argc, Janet *argv) {
     int32_t i;
     janet_arity(argc, 1, -1);
@@ -225,11 +239,92 @@ static Janet cfun_slice(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(buffer);
 }
 
+static void bitloc(int32_t argc, Janet *argv, JanetBuffer **b, int32_t *index, int *bit) {
+    janet_fixarity(argc, 2);
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    double x = janet_getnumber(argv, 1);
+    int64_t bitindex = (int64_t) x;
+    int64_t byteindex = bitindex >> 3;
+    int which_bit = bitindex & 7;
+    if (bitindex != x || bitindex < 0 || byteindex >= buffer->count)
+        janet_panicf("invalid bit index %v", argv[1]);
+    *b = buffer;
+    *index = byteindex;
+    *bit = which_bit;
+}
+
+static Janet cfun_bitset(int32_t argc, Janet *argv) {
+    int bit;
+    int32_t index;
+    JanetBuffer *buffer;
+    bitloc(argc, argv, &buffer, &index, &bit);
+    buffer->data[index] |= 1 << bit;
+    return argv[0];
+}
+
+static Janet cfun_bitclear(int32_t argc, Janet *argv) {
+    int bit;
+    int32_t index;
+    JanetBuffer *buffer;
+    bitloc(argc, argv, &buffer, &index, &bit);
+    buffer->data[index] &= ~(1 << bit);
+    return argv[0];
+}
+
+static Janet cfun_bitget(int32_t argc, Janet *argv) {
+    int bit;
+    int32_t index;
+    JanetBuffer *buffer;
+    bitloc(argc, argv, &buffer, &index, &bit);
+    return janet_wrap_boolean(buffer->data[index] & (1 << bit));
+}
+
+static Janet cfun_bittoggle(int32_t argc, Janet *argv) {
+    int bit;
+    int32_t index;
+    JanetBuffer *buffer;
+    bitloc(argc, argv, &buffer, &index, &bit);
+    buffer->data[index] ^= (1 << bit);
+    return argv[0];
+}
+
+static Janet cfun_blit(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 5);
+    JanetBuffer *dest = janet_getbuffer(argv, 0);
+    JanetByteView src = janet_getbytes(argv, 1);
+    int32_t offset_dest = 0;
+    int32_t offset_src = 0;
+    if (argc > 2)
+        offset_dest = janet_gethalfrange(argv, 2, dest->count, "dest-start");
+    if (argc > 3)
+        offset_src = janet_gethalfrange(argv, 3, src.len, "src-start");
+    int32_t length_src;
+    if (argc > 4) {
+        int32_t src_end = janet_gethalfrange(argv, 4, src.len, "src-end");
+        length_src = src_end - offset_src;
+        if (length_src < 0) length_src = 0;
+    } else {
+        length_src = src.len - offset_src;
+    }
+    int64_t last = ((int64_t) offset_dest - offset_src) + length_src;
+    if (last > INT32_MAX)
+        janet_panic("buffer blit out of range");
+    janet_buffer_ensure(dest, last, 2);
+    if (last > dest->count) dest->count = last;
+    memcpy(dest->data + offset_dest, src.bytes + offset_src, length_src);
+    return argv[0];
+}
+
 static const JanetReg cfuns[] = {
     {"buffer/new", cfun_new,
         JDOC("(buffer/new capacity)\n\n"
                 "Creates a new, empty buffer with enough memory for capacity bytes. "
                 "Returns a new buffer.")
+    },
+    {"buffer/new-filled", cfun_new_filled,
+        JDOC("(buffer/new-filled count [, byte=0])\n\n"
+                "Creates a new buffer of length count filled with byte. "
+                "Returns the new buffer.")
     },
     {"buffer/push-byte", cfun_u8,
         JDOC("(buffer/push-byte buffer x)\n\n"
@@ -263,6 +358,28 @@ static const JanetReg cfuns[] = {
                 "[start, end). Indexes can also be negative, indicating indexing from the end of the "
                 "end of the array. By default, start is 0 and end is the length of the buffer. "
                 "Returns a new buffer.")
+    },
+    {"buffer/bit-set", cfun_bitset,
+        JDOC("(buffer/bit-set buffer index)\n\n"
+                "Sets the bit at the given bit-index. Returns the buffer.")
+    },
+    {"buffer/bit-clear", cfun_bitclear,
+        JDOC("(buffer/bit-clear buffer index)\n\n"
+                "Clears the bit at the given bit-index. Returns the buffer.")
+    },
+    {"buffer/bit", cfun_bitget,
+        JDOC("(buffer/bit buffer index)\n\n"
+                "Gets the bit at the given bit-index. Returns true if the bit is set, false if not.")
+    },
+    {"buffer/bit-toggle", cfun_bittoggle,
+        JDOC("(buffer/bit-toggle buffer index)\n\n"
+                "Toggles the bit at the given bit index in buffer. Returns the buffer.")
+    },
+    {"buffer/blit", cfun_blit,
+        JDOC("(buffer/blit dest src [, dest-start=0 [, src-start=0 [, src-end=-1]]])\n\n"
+                "Insert the contents of src into dest. Can optionally take indices that "
+                "indicate which part of src to copy into which part of dest. Indices can be "
+                "negative to index from the end of src or dest. Returns dest.")
     },
     {NULL, NULL, NULL}
 };
