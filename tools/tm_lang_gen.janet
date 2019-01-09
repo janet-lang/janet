@@ -353,7 +353,8 @@
     "if"
     "quote"
     "quasiquote"
-    "unquote"])
+    "unquote"
+    "splice"])
 
 (def allsyms (array/concat @[] specials (all-bindings)))
 
