@@ -1671,6 +1671,13 @@ value, one key will be ignored."
                         (status-pp sig x f source))))
   (run-context newenv chunks onsignal "repl"))
 
+(defmacro meta
+  "Add metadata to the current environment."
+  [& args]
+  (def opts (table ;args))
+  (loop [[k v] :pairs opts]
+    (put *env* k v)))
+
 (defn all-bindings
   "Get all symbols available in the current environment."
   [env &]
@@ -1679,6 +1686,7 @@ value, one key will be ignored."
   (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
   (def symbol-set @{})
   (loop [envi :in envs
-         k :keys envi]
+         k :keys envi
+         :when (symbol? k)]
     (put symbol-set k true))
   (sort (keys symbol-set)))

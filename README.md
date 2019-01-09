@@ -74,7 +74,8 @@ environment, use the `(all-symbols)` function.
 
 Install a stable version of janet from the [releases page](https://github.com/janet-lang/janet/releases).
 Janet is prebuilt for a few systems, but if you want to develop janet, run janet on a non-x86 system, or
-get the latest, you must build janet from source.
+get the latest, you must build janet from source. Janet is in alpha and may change
+in backwards incompatible ways.
 
 ## Usage
 
