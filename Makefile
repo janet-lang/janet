@@ -176,6 +176,10 @@ build/doc.html: $(JANET_TARGET) tools/gendoc.janet
 ##### Other #####
 #################
 
+grammar: build/janet.tmLanguage
+build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
+	$(JANET_TARGET) $< > $@
+
 clean:
 	-rm -rf build vgcore.* callgrind.*
 
@@ -199,5 +203,5 @@ uninstall:
 	$(LDCONFIG)
 
 .PHONY: clean install repl debug valgrind test \
-	valtest emscripten dist uninstall docs \
+	valtest emscripten dist uninstall docs grammar \
 	$(TEST_PROGRAM_PHONIES) $(TEST_PROGRAM_VALPHONIES)

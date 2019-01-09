@@ -128,5 +128,9 @@
 (assert-error "- check types" (- 1 ()))
 (assert-error "* check types" (* 1 ()))
 (assert-error "/ check types" (/ 1 ()))
+(assert-error "band check types" (band 1 ()))
+(assert-error "bor check types" (bor 1 ()))
+(assert-error "bxor check types" (bxor 1 ()))
+(assert-error "bnot check types" (bnot ()))
 
 (end-suite)

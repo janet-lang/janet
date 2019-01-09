@@ -1671,7 +1671,7 @@ value, one key will be ignored."
                         (status-pp sig x f source))))
   (run-context newenv chunks onsignal "repl"))
 
-(defn all-symbols
+(defn all-bindings
   "Get all symbols available in the current environment."
   [env &]
   (default env *env*)
