@@ -20,8 +20,8 @@ The few features that are not standard C (dynamic library loading, compiler spec
 are fairly straight forward. Janet can be easily ported to new platforms.
 
 For syntax highlighting, there is some preliminary vim syntax highlighting in [janet.vim](https://github.com/janet-lang/janet.vim).
-Generic lisp syntax highlighting should, however, provide good results. There is also a janet.tmLanguage file
-that should provide good syntax highlighting for many editors.
+Generic lisp syntax highlighting should, however, provide good results. One can also generate a janet.tmLanguage
+file for other programs with `make grammar`.
 
 ## Use Cases
 
