@@ -155,16 +155,36 @@
 
 # Peg
 
+(defn check-match
+  [pat text should-match]
+  (def result (peg/match pat text))
+  (assert (= (not should-match) (not result)) text))
+
+# Just numbers
+
+(check-match '(* 4 -1) "abcd" true)
+(check-match '(* 4 -1) "abc" false)
+(check-match '(* 4 -1) "abcde" false)
+
+# Simple pattern
+
+(check-match '(* (at-least 1 (range "az" "AZ")) (not 1)) "hello" true)
+(check-match '(* (at-least 1 (range "az" "AZ")) (not 1)) "hello world" false)
+(check-match '(* (at-least 1 (range "az" "AZ")) (not 1)) "1he11o" false)
+
+# IP address
+
 (def ip-address
   '{:d (range "09")
     :0-4 (range "04")
     :0-5 (range "05")
     :block (+ (* "25" :0-5) (* "2" :0-4 :d) (* "1" :d :d) (between 1 2 :d))
-    :main (* :block (between 3 3 (* "." :block)))})
+    :main (* :block (between 3 3 (* "." :block)) -1)})
 
-(assert (peg/match ip-address "0.0.0.0") "peg/match 1")
-(assert (peg/match ip-address "1.2.3.4") "peg/match 2")
-(assert (not (peg/match ip-address "256.2.3.4")) "peg/match 3")
+(check-match ip-address "0.0.0.0" true)
+(check-match ip-address "1.2.3.4" true)
+(check-match ip-address "256.2.3.4" false)
+(check-match ip-address "256.2.3.2514" false)
 
 # Substitution test with peg
 

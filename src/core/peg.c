@@ -42,6 +42,8 @@ typedef struct {
     JanetTable *grammar;
     JanetArray *captures;
     JanetBuffer *scratch;
+    const Janet *extrav;
+    int32_t extrac;
     int flags;
 } State;
 
@@ -124,7 +126,6 @@ static int32_t match_choice(State *s, int32_t argc, const Janet *argv, const uin
 static int32_t match_sequence(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
     int32_t traversed = 0;
     for (int32_t i = 0; i < argc; i++) {
-        if (text + traversed >= s->text_end) return -1;
         int32_t result = match(s, argv[i], text + traversed);
         if (result < 0) return -1;
         traversed += result;
@@ -259,6 +260,14 @@ static int32_t match_capture_constant(State *s, int32_t argc, const Janet *argv,
     return 0;
 }
 
+/* Capture nth extra argument to peg/match */
+static int32_t match_capture_arg(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
+    janet_fixarity(argc, 1);
+    int32_t n = janet_gethalfrange(argv, 0, s->extrac, "n");
+    push_capture(s, s->extrav[n], text, 0);
+    return 0;
+}
+
 /* Capture replace */
 static int32_t match_replace(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
     janet_fixarity(argc, 2);
@@ -319,6 +328,7 @@ static const MatcherPair specials[] = {
     {"-", match_minus},
     {"/", match_replace},
     {"<-", match_capture},
+    {"<-arg", match_capture_arg},
     {"<-c", match_capture_constant},
     {"<-g", match_group},
     {"<-p", match_position},
@@ -346,7 +356,9 @@ static int32_t match(State *s, Janet peg, const uint8_t *text) {
                 if (!janet_checkint(peg))
                     janet_panicf("numbers in peg must be integers, got %v", peg);
                 int32_t n = janet_unwrap_integer(peg);
-                return (s->text_end >= text + n) ? n : -1;
+                if (n < 0) /* Invert pattern */
+                    return (text - n > s->text_end) ? 0 : -1;
+                return (text + n > s->text_end) ? -1 : n;
             }
         case JANET_STRING:
             /* Match a sequence of bytes */
@@ -371,7 +383,7 @@ static int32_t match(State *s, Janet peg, const uint8_t *text) {
                         sizeof(specials)/sizeof(MatcherPair),
                         sizeof(MatcherPair),
                         sym);
-                if (!mp) janet_panicf("unknown special form %v", peg);
+                if (!mp) janet_panicf("unknown special form %p", peg);
                 if (s->depth-- == 0)
                     janet_panic("recursed too deeply");
 
@@ -413,12 +425,19 @@ static int32_t match(State *s, Janet peg, const uint8_t *text) {
 /* C Functions */
 
 static Janet cfun_match(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 3);
+    janet_arity(argc, 2, -1);
     JanetByteView bytes = janet_getbytes(argv, 1);
-    int32_t start = (argc == 3) ?
-        start = janet_gethalfrange(argv, 2, bytes.len, "offset")
-        : 0;
+    int32_t start;
     State s;
+    if (argc > 2) {
+        start = janet_gethalfrange(argv, 2, bytes.len, "offset");
+        s.extrac = argc - 3;
+        s.extrav = argv + 3;
+    } else {
+        start = 0;
+        s.extrac = 0;
+        s.extrav = NULL;
+    }
     s.flags = 0;
     s.text_start = bytes.bytes;
     s.text_end = bytes.bytes + bytes.len;
