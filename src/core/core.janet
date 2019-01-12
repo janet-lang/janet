@@ -1367,6 +1367,11 @@ value, one key will be ignored."
     (set current (macex1 current)))
   current)
 
+(defn pp
+  "Pretty print to stdout."
+  [x]
+  (print (string/pretty x)))
+
 ###
 ###
 ### Evaluation and Compilation

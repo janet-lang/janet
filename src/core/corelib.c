@@ -152,7 +152,7 @@ static Janet janet_core_is_abstract(int32_t argc, Janet *argv) {
 static Janet janet_core_scannumber(int32_t argc, Janet *argv) {
     double number;
     janet_fixarity(argc, 1);
-    JanetByteView view = janet_getbytes(argv, 1);
+    JanetByteView view = janet_getbytes(argv, 0);
     if (janet_scan_number(view.bytes, view.len, &number))
         return janet_wrap_nil();
     return janet_wrap_number(number);

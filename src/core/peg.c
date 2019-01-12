@@ -35,7 +35,6 @@
 
 /* Hold captured patterns and match state */
 typedef struct {
-    int32_t depth;
     const uint8_t *text_start;
     const uint8_t *text_end;
     const uint8_t *subst_end;
@@ -44,11 +43,13 @@ typedef struct {
     JanetBuffer *scratch;
     const Janet *extrav;
     int32_t extrac;
-    int flags;
+    int32_t depth;
+    enum {
+        PEG_NORMAL,
+        PEG_SUBSTITUTE,
+        PEG_NOCAPTURE
+    } mode;
 } State;
-
-/* Check if we are inside a substitution capture */
-#define PEG_SUBSTITUTE 1
 
 /* Forward declaration */
 static int32_t match(State *s, Janet peg, const uint8_t *text);
@@ -202,13 +203,13 @@ static int32_t match_between(State *s, int32_t argc, const Janet *argv, const ui
  */
 
 static void push_capture(State *s, Janet capture, const uint8_t *text, int32_t nbytes) {
-    if (s->flags & PEG_SUBSTITUTE) {
+    if (s->mode == PEG_SUBSTITUTE) {
         /* Substitution mode, append as string to scratch buffer */
         /* But first append in-between text */
         janet_buffer_push_bytes(s->scratch, s->subst_end, text - s->subst_end);
         janet_to_string_b(s->scratch, capture);
         s->subst_end = text + nbytes;
-    } else {
+    } else if (s->mode == PEG_NORMAL) {
         /* Normal mode, append to captures */
         janet_array_push(s->captures, capture);
     }
@@ -217,7 +218,12 @@ static void push_capture(State *s, Janet capture, const uint8_t *text, int32_t n
 /* Capture a value */
 static int32_t match_capture(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
     janet_fixarity(argc, 1);
+    int oldmode = s->mode;
+    /* We can't have overlapping captures during substitution, so we can
+     * turn off the child captures if subsituting */
+    if (s->mode == PEG_SUBSTITUTE) s->mode = PEG_NOCAPTURE;
     int32_t result = match(s, argv[0], text);
+    s->mode = oldmode;
     if (result < 0) return -1;
     push_capture(s, janet_stringv(text, result), text, result);
     return result;
@@ -235,21 +241,24 @@ static int32_t match_position(State *s, int32_t argc, const Janet *argv, const u
 static int32_t match_group(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
     janet_fixarity(argc, 1);
     int32_t old_count = s->captures->count;
-    int32_t old_flags = s->flags;
-    s->flags &= ~PEG_SUBSTITUTE; /* Turn off substitution mode */
+
+    int oldmode = s->mode;
+    if (oldmode != PEG_NOCAPTURE) s->mode = PEG_NORMAL;
     int32_t result = match(s, argv[0], text);
-    s->flags = old_flags;
+    s->mode = oldmode;
     if (result < 0) return -1;
 
-    /* Collect sub-captures into an array by popping new values off of the capture stack,
-     * and then putting them in a new array. Then, push the new array back onto the capture stack. */
-    int32_t num_sub_captures = s->captures->count - old_count;
-    JanetArray *sub_captures = janet_array(num_sub_captures);
-    memcpy(sub_captures->data, s->captures->data + old_count, sizeof(Janet) * num_sub_captures);
-    sub_captures->count = num_sub_captures;
-    s->captures->count = old_count;
+    if (oldmode != PEG_NOCAPTURE) {
+        /* Collect sub-captures into an array by popping new values off of the capture stack,
+         * and then putting them in a new array. Then, push the new array back onto the capture stack. */
+        int32_t num_sub_captures = s->captures->count - old_count;
+        JanetArray *sub_captures = janet_array(num_sub_captures);
+        memcpy(sub_captures->data, s->captures->data + old_count, sizeof(Janet) * num_sub_captures);
+        sub_captures->count = num_sub_captures;
+        s->captures->count = old_count;
+        push_capture(s, janet_wrap_array(sub_captures), text, result);
+    }
 
-    push_capture(s, janet_wrap_array(sub_captures), text, result);
     return result;
 }
 
@@ -263,7 +272,7 @@ static int32_t match_capture_constant(State *s, int32_t argc, const Janet *argv,
 /* Capture nth extra argument to peg/match */
 static int32_t match_capture_arg(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
     janet_fixarity(argc, 1);
-    int32_t n = janet_gethalfrange(argv, 0, s->extrac, "n");
+    int32_t n = janet_getargindex(argv, 0, s->extrac, "n");
     push_capture(s, s->extrav[n], text, 0);
     return 0;
 }
@@ -271,8 +280,16 @@ static int32_t match_capture_arg(State *s, int32_t argc, const Janet *argv, cons
 /* Capture replace */
 static int32_t match_replace(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
     janet_fixarity(argc, 2);
+
+    int oldmode = s->mode;
+    int32_t old_count = s->captures->count;
+    if (oldmode == PEG_SUBSTITUTE) s->mode = PEG_NORMAL;
     int32_t result = match(s, argv[0], text);
+    s->mode = oldmode;
+
     if (result < 0) return -1;
+    if (oldmode == PEG_NOCAPTURE) return result;
+
     Janet capture;
     switch (janet_type(argv[1])) {
         default:
@@ -284,8 +301,28 @@ static int32_t match_replace(State *s, int32_t argc, const Janet *argv, const ui
         case JANET_TABLE:
             capture = janet_table_get(janet_unwrap_table(argv[1]), janet_stringv(text, result));
             break;
-        /* TODO - add functions, c functions, numbers */
+        case JANET_CFUNCTION:
+            {
+                janet_array_push(s->captures, janet_stringv(text, result));
+                JanetCFunction cfunc = janet_unwrap_cfunction(argv[1]);
+                capture = cfunc(s->captures->count - old_count, s->captures->data + old_count);
+                break;
+            }
+        case JANET_FUNCTION:
+            {
+                janet_array_push(s->captures, janet_stringv(text, result));
+                capture = janet_call(janet_unwrap_function(argv[1]),
+                        s->captures->count - old_count, s->captures->data + old_count);
+                break;
+            }
+        case JANET_NUMBER:
+            {
+                int32_t index = janet_getargindex(argv, 1, s->captures->count, "capture");
+                capture = s->captures->data[index];
+                break;
+            }
     }
+    s->captures->count = old_count;
     push_capture(s, capture, text, result);
     return result;
 }
@@ -294,26 +331,32 @@ static int32_t match_replace(State *s, int32_t argc, const Janet *argv, const ui
 static int32_t match_substitute(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
     janet_fixarity(argc, 1);
 
-    /* If we were originally in substitution mode, simply pass
-     * argv[0] right through */
-    if (s->flags & PEG_SUBSTITUTE)
-        return match(s, argv[0], text);
+    /* Save old scratch state */
+    int32_t old_count = s->scratch->count;
+    const uint8_t *old_subst_end = s->subst_end;
 
-    /* Set up scratch */
-    s->scratch->count = 0;
+    /* Prepare for collecting in scratch */
     s->subst_end = text;
 
-    s->flags |= PEG_SUBSTITUTE;
+    int oldmode = s->mode;
+    if (oldmode != PEG_NOCAPTURE) s->mode = PEG_SUBSTITUTE;
     int32_t result = match(s, argv[0], text);
-    s->flags &= ~PEG_SUBSTITUTE;
+    s->mode = oldmode;
 
     if (result < 0) return -1;
 
-    /* Pop scratch to captures */
-    janet_buffer_push_bytes(s->scratch, s->subst_end, text - s->subst_end + result);
-    janet_array_push(s->captures, janet_stringv(s->scratch->data, s->scratch->count));
-    s->scratch->count = 0;
-    
+    if (oldmode != PEG_NOCAPTURE) {
+        /* Push remaining text to scratch buffer */
+        janet_buffer_push_bytes(s->scratch, s->subst_end, text - s->subst_end + result);
+        /* Pop last section of scratch buffer and push a string capture */
+        janet_array_push(s->captures,
+                janet_stringv(s->scratch->data + old_count, s->scratch->count - old_count));
+    }
+
+    /* Reset scratch buffer and subst_end */
+    s->scratch->count = old_count;
+    s->subst_end = old_subst_end;
+
     return result;
 }
 
@@ -391,7 +434,6 @@ static int32_t match(State *s, Janet peg, const uint8_t *text) {
                 int32_t old_capture_count = s->captures->count;
                 int32_t old_scratch_count = s->scratch->count;
                 const uint8_t *old_subst_end = s->subst_end;
-
                 int32_t result =  mp->matcher(s, len - 1, items + 1, text);
 
                 /* Reset old state on failure */
@@ -438,7 +480,7 @@ static Janet cfun_match(int32_t argc, Janet *argv) {
         s.extrac = 0;
         s.extrav = NULL;
     }
-    s.flags = 0;
+    s.mode = PEG_NORMAL;
     s.text_start = bytes.bytes;
     s.text_end = bytes.bytes + bytes.len;
     s.depth = JANET_RECURSION_GUARD;

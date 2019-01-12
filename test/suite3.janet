@@ -53,6 +53,12 @@
 
 (assert (= var-b "hello") "regression 1")
 
+# Scan number 
+
+(assert (= 1 (scan-number "1")) "scan-number 1")
+(assert (= -1 (scan-number "-1")) "scan-number -1")
+(assert (= 1.3e4 (scan-number "1.3e4")) "scan-number 1.3e4")
+
 # Some macros
 
 (assert (= 2 (if-not 1 3 2)) "if-not 1")
@@ -160,6 +166,11 @@
   (def result (peg/match pat text))
   (assert (= (not should-match) (not result)) text))
 
+(defn check-deep
+  [pat text what]
+  (def result (peg/match pat text))
+  (assert (deep= result what) text))
+
 # Just numbers
 
 (check-match '(* 4 -1) "abcd" true)
@@ -193,11 +204,42 @@
   (assert (= (string/replace-all "dog" "purple panda" text) (0 (peg/match grammar text))) text))
 
 (try-grammar "i have a dog called doug the dog. he is good.")
-(try-grammar "i have a dog called doug the dog. he is good boy.")
+(try-grammar "i have a dog called doug the dog. he is a good boy.")
 (try-grammar "i have a dog called doug the do")
 (try-grammar "i have a dog called doug the dog")
 (try-grammar "i have a dog called doug the dogg")
 (try-grammar "i have a dog called doug the doggg")
 (try-grammar "i have a dog called doug the dogggg")
+
+# Peg CSV test
+(def csv
+  '{:field (+
+            (* `"` (<-s (at-least 0 (+ (- 1 `"`) (/ `""` `"`)))) `"`)
+            (<- (at-least 0 (- 1 (set ",\n")))))
+    :main (* :field (at-least 0 (* "," :field)) (+ "\n" -1))})
+
+(defn check-csv
+  [str res]
+  (check-deep csv str res))
+
+(check-csv "1,2,3" @["1" "2" "3"])
+(check-csv "1,\"2\",3" @["1" "2" "3"])
+(check-csv ``1,"1""",3`` @["1" "1\"" "3"])
+
+# Nested Captures
+
+(def grmr '(<- (* (<- "a") (<- 1) (<- "c"))))
+(check-deep grmr "abc" @["a" "b" "c" "abc"])
+(check-deep grmr "acc" @["a" "c" "c" "acc"])
+
+# Functions in grammar
+
+(def grmr-triple ~(<-s (at-least 0 (/ 1 ,(fn [x] (string x x x))))))
+(check-deep grmr-triple "abc" @["aaabbbccc"])
+(check-deep grmr-triple "" @[""])
+(check-deep grmr-triple " " @["   "])
+
+(def counter ~(/ (<-g (at-least 0 (<- 1))) ,length))
+(check-deep counter "abcdefg" @[7])
 
 (end-suite)

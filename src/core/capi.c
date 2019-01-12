@@ -118,6 +118,14 @@ int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const c
     return raw;
 }
 
+int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which) {
+    int32_t raw = janet_getinteger(argv, n);
+    if (raw < 0) raw += length;
+    if (raw < 0 || raw > length)
+        janet_panicf("%s index %d out of range [0,%d)", which, raw, length);
+    return raw;
+}
+
 JanetView janet_getindexed(const Janet *argv, int32_t n) {
     Janet x = argv[n];
     JanetView view;

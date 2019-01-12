@@ -26,7 +26,17 @@
 #include "gc.h"
 #include "util.h"
 
-static JanetFiber *make_fiber(int32_t capacity) {
+static void fiber_reset(JanetFiber *fiber) {
+    fiber->maxstack = JANET_STACK_MAX;
+    fiber->frame = 0;
+    fiber->stackstart = JANET_FRAME_SIZE;
+    fiber->stacktop = JANET_FRAME_SIZE;
+    fiber->child = NULL;
+    fiber->flags = JANET_FIBER_MASK_YIELD;
+    janet_fiber_set_status(fiber, JANET_STATUS_NEW);
+}
+
+static JanetFiber *fiber_alloc(int32_t capacity) {
     Janet *data;
     JanetFiber *fiber = janet_gcalloc(JANET_MEMORY_FIBER, sizeof(JanetFiber));
     if (capacity < 32) {
@@ -38,35 +48,28 @@ static JanetFiber *make_fiber(int32_t capacity) {
         JANET_OUT_OF_MEMORY;
     }
     fiber->data = data;
-    fiber->maxstack = JANET_STACK_MAX;
-    fiber->frame = 0;
-    fiber->stackstart = JANET_FRAME_SIZE;
-    fiber->stacktop = JANET_FRAME_SIZE;
-    fiber->child = NULL;
-    fiber->flags = JANET_FIBER_MASK_YIELD;
-    janet_fiber_set_status(fiber, JANET_STATUS_NEW);
     return fiber;
 }
 
-/* Initialize a new fiber */
-JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity) {
-    JanetFiber *fiber = make_fiber(capacity);
-    if (janet_fiber_funcframe(fiber, callee)) return NULL;
-    return fiber;
-}
-
-/* Clear a fiber (reset it) with argn values on the stack. */
-JanetFiber *janet_fiber_n(JanetFunction *callee, int32_t capacity, const Janet *argv, int32_t argn) {
+/* Create a new fiber with argn values on the stack by reusing a fiber. */
+JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t argc, const Janet *argv) {
     int32_t newstacktop;
-    JanetFiber *fiber = make_fiber(capacity);
-    newstacktop = fiber->stacktop + argn;
-    if (newstacktop >= fiber->capacity) {
-        janet_fiber_setcapacity(fiber, 2 * newstacktop);
+    fiber_reset(fiber);
+    if (argc) {
+        newstacktop = fiber->stacktop + argc;
+        if (newstacktop >= fiber->capacity) {
+            janet_fiber_setcapacity(fiber, 2 * newstacktop);
+        }
+        memcpy(fiber->data + fiber->stacktop, argv, argc * sizeof(Janet));
+        fiber->stacktop = newstacktop;
     }
-    memcpy(fiber->data + fiber->stacktop, argv, argn * sizeof(Janet));
-    fiber->stacktop = newstacktop;
     if (janet_fiber_funcframe(fiber, callee)) return NULL;
     return fiber;
+}
+
+/* Create a new fiber with argn values on the stack. */
+JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv) {
+    return janet_fiber_reset(fiber_alloc(capacity), callee, argc, argv);
 }
 
 /* Ensure that the fiber has enough extra capacity */
@@ -302,7 +305,7 @@ static Janet cfun_new(int32_t argc, Janet *argv) {
             janet_panic("expected nullary function in fiber constructor");
         }
     }
-    fiber = janet_fiber(func, 64);
+    fiber = janet_fiber(func, 64, 0, NULL);
     if (argc == 2) {
         int32_t i;
         JanetByteView view = janet_getbytes(argv, 1);

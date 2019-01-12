@@ -1042,8 +1042,8 @@ JANET_API void janet_table_merge_struct(JanetTable *table, const JanetKV *other)
 JANET_API JanetKV *janet_table_find(JanetTable *t, Janet key);
 
 /* Fiber */
-JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity);
-JANET_API JanetFiber *janet_fiber_n(JanetFunction *callee, int32_t capacity, const Janet *argv, int32_t argn);
+JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv);
+JANET_API JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t argc, const Janet *argv);
 #define janet_fiber_status(f) (((f)->flags & JANET_FIBER_STATUS_MASK) >> JANET_FIBER_STATUS_OFFSET)
 
 /* Treat similar types through uniform interfaces for iteration */
@@ -1112,7 +1112,8 @@ JANET_API void janet_inspect(Janet x);
 JANET_API int janet_init(void);
 JANET_API void janet_deinit(void);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
-JANET_API JanetSignal janet_call(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
+JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
+JANET_API Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv);
 JANET_API void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err);
 
 /* C Library helpers */
@@ -1163,6 +1164,7 @@ JANET_API JanetDictView janet_getdictionary(const Janet *argv, int32_t n);
 JANET_API void *janet_getabstract(const Janet *argv, int32_t n, const JanetAbstractType *at);
 JANET_API JanetRange janet_getslice(int32_t argc, const Janet *argv);
 JANET_API int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which);
+JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which);
 
 /***** END SECTION MAIN *****/
 
