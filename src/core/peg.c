@@ -43,6 +43,7 @@ typedef struct {
     const uint8_t *text_start;
     const uint8_t *text_end;
     JanetTable *grammar;
+    JanetArray *captures;
     int flags;
 } State;
 
@@ -55,6 +56,10 @@ typedef struct {
     const char *name;
     Matcher matcher;
 } MatcherPair;
+
+/*
+ * Primitive Pattern Types
+ */
 
 /* Match a character range */
 int32_t match_range(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
@@ -81,6 +86,10 @@ int32_t match_set(State *s, int32_t argc, const Janet *argv, const uint8_t *text
         if (set[i] == text[0]) return 1;
     return -1;
 }
+
+/*
+ * Combining Pattern Types
+ */
 
 /* Match the first of argv[0], argv[1], argv[2], ... */
 int32_t match_choice(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
@@ -173,11 +182,57 @@ int32_t match_between(State *s, int32_t argc, const Janet *argv, const uint8_t *
     return captured >= lo ? total_length : -1;
 }
 
+/* Capture a value */
+int32_t match_capture(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
+    janet_fixarity(argc, 1);
+    int32_t result = match(s, argv[0], text);
+    if (result < 0) return -1;
+    janet_array_push(s->captures, janet_stringv(text, result));
+    return result;
+}
+
+/* Capture position */
+int32_t match_position(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    janet_array_push(s->captures, janet_wrap_number(text - s->text_start));
+    return 0;
+}
+
+/* Capture group */
+int32_t match_group(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
+    janet_fixarity(argc, 1);
+    int32_t old_count = s->captures->count;
+    int32_t result = match(s, argv[0], text);
+    if (result < 0) return -1;
+    /* Collect sub-captures into an array by popping new values off of the capture stack,
+     * and then putting them in a new array. Then, push hte new array back onto the capture stack. */
+    int32_t num_sub_captures = s->captures->count - old_count;
+    JanetArray *sub_captures = janet_array(num_sub_captures);
+    memcpy(sub_captures->data, s->captures->data + old_count, sizeof(Janet) * num_sub_captures);
+    sub_captures->count = num_sub_captures;
+    s->captures->count = old_count;
+    janet_array_push(s->captures, janet_wrap_array(sub_captures));
+    return result;
+}
+
+/* Capture a constant */
+int32_t match_capture_constant(State *s, int32_t argc, const Janet *argv, const uint8_t *text) {
+    (void) text;
+    janet_fixarity(argc, 1);
+    janet_array_push(s->captures, argv[0]);
+    return 0;
+}
+
 /* Lookup for special forms */
 static const MatcherPair specials[] = {
     {"*", match_sequence},
     {"+", match_choice},
     {"-", match_minus},
+    {"<-", match_capture},
+    {"<-c", match_capture_constant},
+    {"<-p", match_position},
+    {"<-g", match_group},
     {">", match_lookahead},
     {"at-least", match_atleast},
     {"at-most", match_atmost},
@@ -228,8 +283,11 @@ static int32_t match(State *s, Janet peg, const uint8_t *text) {
                 if (!mp) janet_panicf("unknown special form %v", peg);
                 if (s->depth-- == 0)
                     janet_panic("recursed too deeply");
+                int32_t old_capture_count = s->captures->count;
                 int32_t result =  mp->matcher(s, len - 1, items + 1, text);
                 s->depth++;
+                if (result < 0)
+                    s->captures->count = old_capture_count;
                 return result;
             }
         case JANET_KEYWORD:
@@ -261,8 +319,9 @@ static Janet cfun_match(int32_t argc, Janet *argv) {
     s.text_end = bytes.bytes + bytes.len;
     s.depth = JANET_RECURSION_GUARD;
     s.grammar = NULL;
+    s.captures = janet_array(10);
     int32_t result = match(&s, argv[0], bytes.bytes);
-    return janet_wrap_boolean(result >= 0);
+    return result >= 0 ? janet_wrap_array(s.captures) : janet_wrap_nil();
 }
 
 static const JanetReg cfuns[] = {
