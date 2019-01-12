@@ -159,11 +159,25 @@
   '{:d (range "09")
     :0-4 (range "04")
     :0-5 (range "05")
-    :block (+ (* "25" :0-5) (* "2" :0-4 :d) (* "1" :d :d) (* :d (at-most 1 :d)))
+    :block (+ (* "25" :0-5) (* "2" :0-4 :d) (* "1" :d :d) (between 1 2 :d))
     :main (* :block (between 3 3 (* "." :block)))})
 
 (assert (peg/match ip-address "0.0.0.0") "peg/match 1")
 (assert (peg/match ip-address "1.2.3.4") "peg/match 2")
 (assert (not (peg/match ip-address "256.2.3.4")) "peg/match 3")
+
+# Substitution test with peg
+
+(def grammar '(<-s (at-least 0 (+ (/ "dog" "purple panda") 1))))
+(defn try-grammar [text]
+  (assert (= (string/replace-all "dog" "purple panda" text) (0 (peg/match grammar text))) text))
+
+(try-grammar "i have a dog called doug the dog. he is good.")
+(try-grammar "i have a dog called doug the dog. he is good boy.")
+(try-grammar "i have a dog called doug the do")
+(try-grammar "i have a dog called doug the dog")
+(try-grammar "i have a dog called doug the dogg")
+(try-grammar "i have a dog called doug the doggg")
+(try-grammar "i have a dog called doug the dogggg")
 
 (end-suite)
