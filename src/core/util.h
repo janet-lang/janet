@@ -67,5 +67,6 @@ void janet_lib_asm(JanetTable *env);
 #endif
 void janet_lib_compile(JanetTable *env);
 void janet_lib_debug(JanetTable *env);
+void janet_lib_peg(JanetTable *env);
 
 #endif

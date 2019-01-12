@@ -153,4 +153,17 @@
 (buffer/blit b2 "abcdefg" 5 6)
 (assert (= (string b2) "joytogjoyto") "buffer/blit 3")
 
+# Peg
+
+(def ip-address
+  '{:d (range "09")
+    :0-4 (range "04")
+    :0-5 (range "05")
+    :block (+ (* "25" :0-5) (* "2" :0-4 :d) (* "1" :d :d) (* :d (at-most 1 :d)))
+    :main (* :block (between 3 3 (* "." :block)))})
+
+(assert (peg/match ip-address "0.0.0.0") "peg/match 1")
+(assert (peg/match ip-address "1.2.3.4") "peg/match 2")
+(assert (not (peg/match ip-address "256.2.3.4")) "peg/match 3")
+
 (end-suite)
