@@ -24,9 +24,33 @@
 #include <string.h>
 #include "util.h"
 
+/* Potential opcodes for peg vm. 
+ * These are not yet implemented, but efficiently express the current semantics
+ * of the current implementation.
+typedef enum {
+    POP_LITERAL,      [len, bytes...]
+    POP_NCHAR,        [n]
+    POP_RANGE,        [lo | hi << 16 (1 word)]
+    POP_SET,          [bitmap (8 words)]
+    POP_LOOK,         [offset, rule]
+    POP_CHOICE,       [len, rules...]
+    POP_SEQUENCE,     [len, rules...]
+    POP_IFNOT,        [a, b (a if not b)]
+    POP_NOT,          [a] 
+    POP_ATLEAST,      [n, rule]
+    POP_BETWEEN,      [lo, hi, rule]
+    POP_CAPTURE,      [rule]
+    POP_POSITION,     []
+    POP_SUBSTITUTE,   [rule]
+    POP_GROUP,        [rule]
+    POP_CONSTANT,     [constant]
+    POP_REPLACE,      [constant]
+    POP_REPINDEX,     [capture index]
+    POP_ARGUMENT      [argument index]
+} Opcode;
+*/
+
 /* TODO
- * - Capture substitution - allow substitution in captures, perhaps with a buffer in state
- *   that can accumulate custom data.
  * - Compilation - compile peg to binary form - one grammar, patterns reference each other by index
  *   and bytecode "opcodes" identify primitive patterns and pattern "constructors". Main pattern is
  *   pattern index 0. The logic of patterns would not change much, but we could elide arity checking,

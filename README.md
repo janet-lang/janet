@@ -114,7 +114,7 @@ Janet only uses Make and batch files to compile on Posix and windows
 respectively. To configure janet, edit the header file src/include/janet/janet.h
 before compilation.
 
-### Unix-like
+### macos and Unix-like
 
 On most platforms, use Make to build janet. The resulting binary will be in `build/janet`.
 
