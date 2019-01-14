@@ -56,7 +56,7 @@ void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) 
     uint8_t *old = buffer->data;
     if (capacity <= buffer->capacity) return;
     int64_t big_capacity = capacity * growth;
-    capacity = big_capacity > INT32_MAX ? INT32_MAX : big_capacity;
+    capacity = big_capacity > INT32_MAX ? INT32_MAX : (int32_t) big_capacity;
     new_data = realloc(old, capacity * sizeof(uint8_t));
     if (NULL == new_data) {
         JANET_OUT_OF_MEMORY;
@@ -249,7 +249,7 @@ static void bitloc(int32_t argc, Janet *argv, JanetBuffer **b, int32_t *index, i
     if (bitindex != x || bitindex < 0 || byteindex >= buffer->count)
         janet_panicf("invalid bit index %v", argv[1]);
     *b = buffer;
-    *index = byteindex;
+    *index = (int32_t) byteindex;
     *bit = which_bit;
 }
 
@@ -309,8 +309,8 @@ static Janet cfun_blit(int32_t argc, Janet *argv) {
     int64_t last = ((int64_t) offset_dest - offset_src) + length_src;
     if (last > INT32_MAX)
         janet_panic("buffer blit out of range");
-    janet_buffer_ensure(dest, last, 2);
-    if (last > dest->count) dest->count = last;
+    janet_buffer_ensure(dest, (int32_t) last, 2);
+    if (last > dest->count) dest->count = (int32_t) last;
     memcpy(dest->data + offset_dest, src.bytes + offset_src, length_src);
     return argv[0];
 }
