@@ -103,7 +103,8 @@ static void pushcap(PegState *s,
         const uint8_t *text,
         const uint8_t *result) {
     if (s->mode == PEG_MODE_SUBSTITUTE) {
-        janet_buffer_push_bytes(s->scratch, s->subst_end, text - s->subst_end);
+        janet_buffer_push_bytes(s->scratch, s->subst_end,
+                (int32_t)(text - s->subst_end));
         janet_to_string_b(s->scratch, capture);
         s->subst_end = result;
     } else if (s->mode == PEG_MODE_NORMAL) {
@@ -252,7 +253,7 @@ tail:
             }
         case RULE_POSITION:
             {
-                pushcap(s, janet_wrap_number(text - s->text_start), text, text);
+                pushcap(s, janet_wrap_number((double)(text - s->text_start)), text, text);
                 return text;
             }
         case RULE_ARGUMENT:
@@ -298,7 +299,7 @@ tail:
                 up1(s);
                 s->mode = oldmode;
                 if (!result) return NULL;
-                pushcap(s, janet_stringv(text, result - text), text, result);
+                pushcap(s, janet_stringv(text, (int32_t)(result - text)), text, result);
                 return result;
             }
         case RULE_SUBSTITUTE:
@@ -346,35 +347,36 @@ tail:
                     cap = janet_wrap_array(sub_captures);
 
                 } else if (rule[0] == RULE_SUBSTITUTE) {
-                    janet_buffer_push_bytes(s->scratch, s->subst_end, result - s->subst_end);
+                    janet_buffer_push_bytes(s->scratch, s->subst_end,
+                            (int32_t)(result - s->subst_end));
                     cap = janet_stringv(s->scratch->data + cs.scratch,
                             s->scratch->count - cs.scratch);
 
                 } else { /* RULE_REPLACE */
                     Janet constant = s->constants[rule[2]];
+                    int32_t nbytes = (int32_t)(result - text);
                     switch (janet_type(constant)) {
                         default:
                             cap = constant;
                             break;
                         case JANET_STRUCT:
                             cap = janet_struct_get(janet_unwrap_struct(constant),
-                                    janet_stringv(text, result - text));
+                                    janet_stringv(text, nbytes));
                             break;
                         case JANET_TABLE:
                             cap = janet_table_get(janet_unwrap_table(constant),
-                                    janet_stringv(text, result - text));
+                                    janet_stringv(text, nbytes));
                             break;
                         case JANET_CFUNCTION:
                             janet_array_push(s->captures,
-                                    janet_stringv(text, result - text));
+                                    janet_stringv(text, nbytes));
                             JanetCFunction cfunc = janet_unwrap_cfunction(constant);
                             cap = cfunc(s->captures->count - cs.cap,
                                     s->captures->data + cs.cap);
                             break;
                         case JANET_FUNCTION:
-                            cap = janet_stringv(text, result - text);
                             janet_array_push(s->captures,
-                                    janet_stringv(text, result - text));
+                                    janet_stringv(text, nbytes));
                             cap = janet_call(janet_unwrap_function(constant),
                                     s->captures->count - cs.cap,
                                     s->captures->data + cs.cap);
@@ -734,7 +736,7 @@ static uint32_t compile1(Builder *b, Janet peg) {
     /* Check for alreay compiled rules */
     Janet check = janet_table_get(b->memoized, peg);
     if (!janet_checktype(check, JANET_NIL)) {
-        uint32_t rule = janet_unwrap_number(check);
+        uint32_t rule = (uint32_t) janet_unwrap_number(check);
         return rule;
     }
 

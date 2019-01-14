@@ -83,7 +83,7 @@ int janet_string_equal(const uint8_t *lhs, const uint8_t *rhs) {
 
 /* Load a c string */
 const uint8_t *janet_cstring(const char *str) {
-    return janet_string((const uint8_t *)str, strlen(str));
+    return janet_string((const uint8_t *)str, (int32_t)strlen(str));
 }
 
 /* Knuth Morris Pratt Algorithm */
