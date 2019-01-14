@@ -493,15 +493,15 @@ static void emit_bytes(Builder *b, uint32_t op, int32_t len, const uint8_t *byte
 
 /* For fixed arity rules of arities 1, 2, and 3 */
 static void emit_1(Reserve r, uint32_t op, uint32_t arg) {
-    return emit_rule(r, op, 1, &arg);
+    emit_rule(r, op, 1, &arg);
 }
 static void emit_2(Reserve r, uint32_t op, uint32_t arg1, uint32_t arg2) {
     uint32_t arr[2] = {arg1, arg2};
-    return emit_rule(r, op, 2, arr);
+    emit_rule(r, op, 2, arr);
 }
 static void emit_3(Reserve r, uint32_t op, uint32_t arg1, uint32_t arg2, uint32_t arg3) {
     uint32_t arr[3] = {arg1, arg2, arg3};
-    return emit_rule(r, op, 3, arr);
+    emit_rule(r, op, 3, arr);
 }
 
 /*
