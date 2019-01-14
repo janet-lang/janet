@@ -51,6 +51,7 @@ typedef enum {
     RULE_SUBSTITUTE,   /* [rule] */
     RULE_GROUP,        /* [rule] */
     RULE_REPLACE,      /* [rule, constant] */
+    RULE_MATCHTIME,    /* [rule, constant] */
 } Opcode;
 
 /* Hold captured patterns and match state */
@@ -299,7 +300,8 @@ tail:
                 up1(s);
                 s->mode = oldmode;
                 if (!result) return NULL;
-                pushcap(s, janet_stringv(text, (int32_t)(result - text)), text, result);
+                if (oldmode != PEG_MODE_SUBSTITUTE)
+                    pushcap(s, janet_stringv(text, (int32_t)(result - text)), text, result);
                 return result;
             }
         case RULE_SUBSTITUTE:
@@ -336,7 +338,7 @@ tail:
                 /* The replacement capture */
                 Janet cap;
 
-                /* Figure out what to push base on opcode */
+                /* Figure out what to push based on opcode */
                 if (rule[0] == RULE_GROUP) {
                     int32_t num_sub_captures = s->captures->count - cs.cap;
                     JanetArray *sub_captures = janet_array(num_sub_captures);
@@ -387,6 +389,41 @@ tail:
                 /* Reset old state and then push capture */
                 cap_load(s, cs);
                 pushcap(s, cap, text, result);
+                return result;
+            }
+        case RULE_MATCHTIME:
+            {
+                int oldmode = s->mode;
+                CapState cs = cap_save(s);
+                s->mode = PEG_MODE_NORMAL;
+                down1(s);
+                const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
+                up1(s);
+                s->mode = oldmode;
+                if (!result) return NULL;
+
+                /* Add matched text */
+                pushcap(s, janet_stringv(text, (int32_t)(result - text)), text, result);
+
+                /* Now check captures with provided function */
+                int32_t argc = s->captures->count - cs.cap;
+                Janet *argv = s->captures->data + cs.cap;
+                Janet fval = s->constants[rule[2]];
+                Janet cap;
+                if (janet_checktype(fval, JANET_FUNCTION)) {
+                    cap = janet_call(janet_unwrap_function(fval), argc, argv);
+                } else {
+                    JanetCFunction cfun = janet_unwrap_cfunction(fval);
+                    cap = cfun(argc, argv);
+                }
+
+                /* Capture failed */
+                if (janet_checktype(cap, JANET_NIL)) return NULL;
+
+                /* Capture worked, so use new capture */
+                cap_load(s, cs);
+                pushcap(s, cap, text, result);
+
                 return result;
             }
     }
@@ -518,9 +555,6 @@ static int32_t peg_getnat(Builder *b, Janet x) {
 /*
  * Specials
  */
-
-/* Special matcher form */
-typedef uint32_t (*Special)(Builder *b, int32_t argc, const Janet *argv);
 
 static void bitmap_set(uint32_t *bitmap, uint8_t c) {
     bitmap[c >> 5] |= ((uint32_t)1) << (c & 0x1F);
@@ -692,7 +726,19 @@ static uint32_t spec_atmost(Builder *b, int32_t argc, const Janet *argv) {
     return emit_3(b, RULE_BETWEEN, 0, n, subrule);
 }
 
-/* Special matcher form */
+static uint32_t spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
+    peg_fixarity(b, argc, 2);
+    uint32_t subrule = compile1(b, argv[0]);
+    Janet fun = argv[1];
+    if (!janet_checktype(fun, JANET_FUNCTION) &&
+            !janet_checktype(fun, JANET_CFUNCTION)) {
+        peg_panicf(b, "expected function|cfunction, got %v", fun);
+    }
+    uint32_t cindex = emit_constant(b, fun);
+    return emit_2(b, RULE_MATCHTIME, subrule, cindex);
+}
+
+/* Special compiler form */
 typedef uint32_t (*Special)(Builder *b, int32_t argc, const Janet *argv);
 typedef struct {
     const char *name;
@@ -715,6 +761,7 @@ static const SpecialPair specials[] = {
     {"between", spec_between},
     {"capture", spec_capture},
     {"choice", spec_choice},
+    {"cmt", spec_matchtime},
     {"constant", spec_constant},
     {"group", spec_group},
     {"if-not", spec_ifnot},
@@ -733,7 +780,7 @@ static const SpecialPair specials[] = {
 /* Compile a janet value into a rule and return the rule index. */
 static uint32_t compile1(Builder *b, Janet peg) {
 
-    /* Check for alreay compiled rules */
+    /* Check for already compiled rules */
     Janet check = janet_table_get(b->memoized, peg);
     if (!janet_checktype(check, JANET_NIL)) {
         uint32_t rule = (uint32_t) janet_unwrap_number(check);
@@ -758,9 +805,7 @@ static uint32_t compile1(Builder *b, Janet peg) {
             return 0;
         case JANET_NUMBER:
             {
-                if (!janet_checkint(peg))
-                    peg_panicf(b, "expected integer");
-                int32_t n = janet_unwrap_integer(peg);
+                int32_t n = peg_getinteger(b, peg);
                 if (n < 0) {
                     rule = emit_1(b, RULE_NOTNCHAR, -n);
                 } else {

@@ -53,7 +53,7 @@
 
 (assert (= var-b "hello") "regression 1")
 
-# Scan number 
+# Scan number
 
 (assert (= 1 (scan-number "1")) "scan-number 1")
 (assert (= -1 (scan-number "-1")) "scan-number -1")
@@ -189,13 +189,21 @@
 
 (peg/match pegleg "abc,abc")
 
+# Bad Grammars
+
+(assert-error "peg/compile error 1" (peg/compile nil))
+(assert-error "peg/compile error 2" (peg/compile @{}))
+(assert-error "peg/compile error 3" (peg/compile '{:a "abc" :b "def"}))
+(assert-error "peg/compile error 4" (peg/compile '(blarg "abc")))
+(assert-error "peg/compile error 5" (peg/compile '(1 2 3)))
+
 # IP address
 
 (def ip-address
   '{:d (range "09")
     :0-4 (range "04")
     :0-5 (range "05")
-    :byte (+ 
+    :byte (+
             (* "25" :0-5)
             (* "2" :0-4 :d)
             (* "1" :d :d)
@@ -260,5 +268,14 @@
 # Capture Backtracking
 
 (check-deep '(+ (* (capture "c") "d") "ce") "ce" @[])
+
+# Matchtime capture
+
+(def scanner (peg/compile ~(cmt (some 1) ,scan-number)))
+
+(check-deep scanner "123" @[123])
+(check-deep scanner "0x86" @[0x86])
+(check-deep scanner "-1.3e-7" @[-1.3e-7])
+(check-deep scanner "123A" nil)
 
 (end-suite)
