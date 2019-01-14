@@ -1475,7 +1475,6 @@ value, one key will be ignored."
   (when f
     (loop
       [nf :in (reverse (debug/lineage f))
-       :before (file/write stderr "  (fiber)\n")
        {:function func
         :tail tail
         :pc pc
@@ -1484,7 +1483,7 @@ value, one key will be ignored."
         :source source
         :source-start start
         :source-end end} :in (debug/stack nf)]
-      (file/write stderr "    in")
+      (file/write stderr "  in")
       (when c (file/write stderr " cfunction"))
       (if name
         (file/write stderr " " name)

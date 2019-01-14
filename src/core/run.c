@@ -39,12 +39,11 @@ void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err) {
     for (fi = janet_v_count(fibers) - 1; fi >= 0; fi--) {
         fiber = fibers[fi];
         int32_t i = fiber->frame;
-        if (i > 0) fprintf(stderr, "  (fiber)\n");
         while (i > 0) {
             JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
             JanetFuncDef *def = NULL;
             i = frame->prevframe;
-            fprintf(stderr, "    in");
+            fprintf(stderr, "  in");
             if (frame->func) {
                 def = frame->func->def;
                 fprintf(stderr, " %s", def->name ? (const char *)def->name : "<anonymous>");
