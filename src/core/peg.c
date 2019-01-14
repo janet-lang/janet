@@ -402,9 +402,6 @@ tail:
                 s->mode = oldmode;
                 if (!result) return NULL;
 
-                /* Add matched text */
-                pushcap(s, janet_stringv(text, (int32_t)(result - text)), text, result);
-
                 /* Now check captures with provided function */
                 int32_t argc = s->captures->count - cs.cap;
                 Janet *argv = s->captures->data + cs.cap;
@@ -417,11 +414,12 @@ tail:
                     cap = cfun(argc, argv);
                 }
 
+                cap_load(s, cs);
+
                 /* Capture failed */
-                if (janet_checktype(cap, JANET_NIL)) return NULL;
+                if (!janet_truthy(cap)) return NULL;
 
                 /* Capture worked, so use new capture */
-                cap_load(s, cs);
                 pushcap(s, cap, text, result);
 
                 return result;
@@ -698,9 +696,9 @@ static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
     Reserve r = reserve(b, 2);
     int32_t index = peg_getinteger(b, argv[0]);
     if (index < 0) {
-        emit_1(r, RULE_BACKINDEX, -index);
+        emit_1(r, RULE_REPINDEX, -index - 1);
     } else {
-        emit_1(r, RULE_REPINDEX, index);
+        emit_1(r, RULE_BACKINDEX, index);
     }
 }
 

@@ -182,6 +182,7 @@
 (check-match '(* (some (range "az" "AZ")) -1) "hello" true)
 (check-match '(* (some (range "az" "AZ")) -1) "hello world" false)
 (check-match '(* (some (range "az" "AZ")) -1) "1he11o" false)
+(check-match '(* (some (range "az" "AZ")) -1) "" false)
 
 # Pre compile
 
@@ -271,7 +272,7 @@
 
 # Matchtime capture
 
-(def scanner (peg/compile ~(cmt (some 1) ,scan-number)))
+(def scanner (peg/compile ~(cmt (capture (some 1)) ,scan-number)))
 
 (check-deep scanner "123" @[123])
 (check-deep scanner "0x86" @[0x86])
@@ -286,5 +287,36 @@
 (check-match g "acb" true)
 (check-match g "aacbb" true)
 (check-match g "aadbb" false)
+
+# Back reference
+
+(def wrapped-string
+  ~{:pad (any "=")
+    :open (* "[" (capture :pad) "[")
+    :close (* "]" (cmt (* (backref 0) (capture :pad)) ,=) "]")
+    :main (* :open (any (if-not 1 :close)) :close -1)})
+
+(check-match wrapped-string "[[]]" true)
+(check-match wrapped-string "[==[a]==]" true)
+(check-match wrapped-string "[==[]===]" false)
+(check-match wrapped-string "[[blark]]" true)
+(check-match wrapped-string "[[bl[ark]]" true)
+(check-match wrapped-string "[[bl]rk]]" true)
+(check-match wrapped-string "[[bl]rk]] " false)
+(check-match wrapped-string "[=[bl]]rk]=] " false)
+(check-match wrapped-string "[=[bl]==]rk]=] " false)
+
+(def janet-longstring
+  ~{:open (capture (some "`"))
+    :close (cmt (* (backref 0) :open) ,=)
+    :main (* :open (any (if-not 1 :close)) (not (> -1 "`")) :close -1)})
+
+(check-match janet-longstring "`john" false)
+(check-match janet-longstring "abc" false)
+(check-match janet-longstring "` `" true)
+(check-match janet-longstring "`  `" true)
+(check-match janet-longstring "``  ``" true)
+(check-match janet-longstring "``` `` ```" true)
+(check-match janet-longstring "``  ```" false)
 
 (end-suite)
