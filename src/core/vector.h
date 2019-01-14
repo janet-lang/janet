@@ -38,7 +38,6 @@
 #define janet_v_push(v, x)      (janet_v__maybegrow(v, 1), (v)[janet_v__cnt(v)++] = (x))
 #define janet_v_pop(v)          (janet_v_count(v) ? janet_v__cnt(v)-- : 0)
 #define janet_v_count(v)        (((v) != NULL) ? janet_v__cnt(v) : 0)
-#define janet_v_add(v, n)       (janet_v__maybegrow(v, n), janet_v_cnt(v) += (n), &(v)[janet_v__cnt(v) - (n)])
 #define janet_v_last(v)         ((v)[janet_v__cnt(v) - 1])
 #define janet_v_empty(v)        (((v) != NULL) ? (janet_v__cnt(v) = 0) : 0)
 #define janet_v_copy(v)         (janet_v_copymem((v), sizeof(*(v))))

@@ -179,9 +179,15 @@
 
 # Simple pattern
 
-(check-match '(* (at-least 1 (range "az" "AZ")) (not 1)) "hello" true)
-(check-match '(* (at-least 1 (range "az" "AZ")) (not 1)) "hello world" false)
-(check-match '(* (at-least 1 (range "az" "AZ")) (not 1)) "1he11o" false)
+(check-match '(* (some (range "az" "AZ")) -1) "hello" true)
+(check-match '(* (some (range "az" "AZ")) -1) "hello world" false)
+(check-match '(* (some (range "az" "AZ")) -1) "1he11o" false)
+
+# Pre compile
+
+(def pegleg (peg/compile '{:item "abc" :main (* :item "," :item -1)}))
+
+(peg/match pegleg "abc,abc")
 
 # IP address
 
@@ -189,9 +195,14 @@
   '{:d (range "09")
     :0-4 (range "04")
     :0-5 (range "05")
-    :block (+ (* "25" :0-5) (* "2" :0-4 :d) (* "1" :d :d) (between 1 2 :d))
-    :main (* :block (between 3 3 (* "." :block)) -1)})
+    :byte (+ 
+            (* "25" :0-5)
+            (* "2" :0-4 :d)
+            (* "1" :d :d)
+            (between 1 2 :d))
+    :main (* :byte "." :byte "." :byte "." :byte)})
 
+(check-match ip-address "10.240.250.250" true)
 (check-match ip-address "0.0.0.0" true)
 (check-match ip-address "1.2.3.4" true)
 (check-match ip-address "256.2.3.4" false)
@@ -199,7 +210,10 @@
 
 # Substitution test with peg
 
-(def grammar '(<-s (at-least 0 (+ (/ "dog" "purple panda") 1))))
+(file/flush stderr)
+(file/flush stdout)
+
+(def grammar '(| (any (+ (/ "dog" "purple panda") 1))))
 (defn try-grammar [text]
   (assert (= (string/replace-all "dog" "purple panda" text) (0 (peg/match grammar text))) text))
 
@@ -212,11 +226,12 @@
 (try-grammar "i have a dog called doug the dogggg")
 
 # Peg CSV test
+
 (def csv
   '{:field (+
-            (* `"` (<-s (at-least 0 (+ (- 1 `"`) (/ `""` `"`)))) `"`)
-            (<- (at-least 0 (- 1 (set ",\n")))))
-    :main (* :field (at-least 0 (* "," :field)) (+ "\n" -1))})
+            (* `"` (| (any (+ (- 1 `"`) (/ `""` `"`)))) `"`)
+            (| (any (- 1 (set ",\n")))))
+    :main (* :field (any (* "," :field)) (+ "\n" -1))})
 
 (defn check-csv
   [str res]
@@ -228,18 +243,22 @@
 
 # Nested Captures
 
-(def grmr '(<- (* (<- "a") (<- 1) (<- "c"))))
+(def grmr '(capture (* (capture "a") (capture 1) (capture "c"))))
 (check-deep grmr "abc" @["a" "b" "c" "abc"])
 (check-deep grmr "acc" @["a" "c" "c" "acc"])
 
 # Functions in grammar
 
-(def grmr-triple ~(<-s (at-least 0 (/ 1 ,(fn [x] (string x x x))))))
+(def grmr-triple ~(| (any (/ 1 ,(fn [x] (string x x x))))))
 (check-deep grmr-triple "abc" @["aaabbbccc"])
 (check-deep grmr-triple "" @[""])
 (check-deep grmr-triple " " @["   "])
 
-(def counter ~(/ (<-g (at-least 0 (<- 1))) ,length))
+(def counter ~(/ (group (^ (capture 1) 0)) ,length))
 (check-deep counter "abcdefg" @[7])
+
+# Capture Backtracking
+
+(check-deep '(+ (* (capture "c") "d") "ce") "ce" @[])
 
 (end-suite)
