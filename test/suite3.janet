@@ -278,4 +278,13 @@
 (check-deep scanner "-1.3e-7" @[-1.3e-7])
 (check-deep scanner "123A" nil)
 
+# Recursive grammars
+
+(def g '{:main (+ (* "a" :main "b") "c")})
+
+(check-match g "c" true)
+(check-match g "acb" true)
+(check-match g "aacbb" true)
+(check-match g "aadbb" false)
+
 (end-suite)
