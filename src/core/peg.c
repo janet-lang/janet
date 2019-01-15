@@ -766,6 +766,8 @@ typedef struct {
 
 static const SpecialPair specials[] = {
     {"!", spec_not},
+    {"$", spec_position},
+    {"%", spec_substitute},
     {"*", spec_sequence},
     {"+", spec_choice},
     {"/", spec_replace},
@@ -793,7 +795,6 @@ static const SpecialPair specials[] = {
     {"set", spec_set},
     {"some", spec_some},
     {"substitute", spec_substitute},
-    {"|", spec_substitute},
 };
 
 /* Compile a janet value into a rule and return the rule index. */
