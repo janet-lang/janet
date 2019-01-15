@@ -72,7 +72,7 @@ given to the 0 byte, or the string terminator in many languages.
 | `(range "az" "AZ")` | Matches characters in a range and advances 1 character. Multiple ranges can be combined together. |
 | `(set "abcd")`  | Match any character in the argument string. Advances 1 character. |
 
-Primitve patterns are not that useful by themselves, but can be passed to `peg/match` and `peg/compile` as any pattern.
+Primitive patterns are not that useful by themselves, but can be passed to `peg/match` and `peg/compile` like any other pattern.
 
 ```clojure
 (peg/match "hello" "hello") # -> @[]
@@ -87,17 +87,10 @@ Primitve patterns are not that useful by themselves, but can be passed to `peg/m
 
 ## Combining Patterns
 
-These primitive patterns are combined with a few specials to match a wide number of languages. These specials
+These primitive patterns can be combined with several combinators to match a wide number of
+languages. These combinators
 can be thought of as the looping and branching forms in a traditional language
 (that is how they are implemented when compiled to bytecode).
-
-PEGs try to match an input text with a pattern in a greedy manner.
-This means that if a rule fails to match, that rule will fail and not try again. The only
-backtracking provided in a peg is provided by the `(choice x y z ...)` special, which will
-try rules in order until one succeeds, and the whole pattern succeeds. If no sub pattern
-succeeds, then the whole pattern fails. Note that this means that the order of `x y z` in choice
-DOES matter. If y matches everything that z matches, z will never succeed.
-
 
 | Pattern&nbsp;Signature | What it matches |
 | ------- | --------------- |
@@ -116,6 +109,13 @@ DOES matter. If y matches everything that z matches, z will never succeed.
 | `(! patt)`   | Alias for `(not patt)` |
 | `(look offset patt)` | Matches only if patt matches at a fixed offset. offset can be any integer. patt will not produce captures and the peg will not advance any characters. |
 | `(> offset patt)` | Alias for `(look offset patt)` |
+
+PEGs try to match an input text with a pattern in a greedy manner.
+This means that if a rule fails to match, that rule will fail and not try again. The only
+backtracking provided in a peg is provided by the `(choice x y z ...)` special, which will
+try rules in order until one succeeds, and the whole pattern succeeds. If no sub pattern
+succeeds, then the whole pattern fails. Note that this means that the order of `x y z` in choice
+DOES matter. If y matches everything that z matches, z will never succeed.
 
 ## Captures
 
