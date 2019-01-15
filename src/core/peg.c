@@ -39,7 +39,8 @@ typedef enum {
     RULE_LOOK,         /* [offset, rule] */
     RULE_CHOICE,       /* [len, rules...] */
     RULE_SEQUENCE,     /* [len, rules...] */
-    RULE_IFNOT,        /* [rule_a, rule_b (a if not b)] */
+    RULE_IF,           /* [rule_a, rule_b (b if a)] */
+    RULE_IFNOT,        /* [rule_a, rule_b (b if not a)] */
     RULE_NOT,          /* [rule] */
     RULE_BETWEEN,      /* [lo, hi, rule] */
     RULE_CAPTURE,      /* [rule] */
@@ -207,6 +208,7 @@ tail:
                 rule = s->bytecode + args[len - 1];
                 goto tail;
             }
+        case RULE_IF:
         case RULE_IFNOT:
             {
                 const uint32_t *rule_a = s->bytecode + rule[1];
@@ -214,11 +216,11 @@ tail:
                 int oldmode = s->mode;
                 s->mode = PEG_MODE_NOCAPTURE;
                 down1(s);
-                const uint8_t *result = peg_rule(s, rule_b, text);
+                const uint8_t *result = peg_rule(s, rule_a, text);
                 up1(s);
                 s->mode = oldmode;
-                if (result) return NULL;
-                rule = rule_a;
+                if (rule[0] == RULE_IF ? !result : !!result) return NULL;
+                rule = rule_b;
                 goto tail;
             }
         case RULE_NOT:
@@ -356,29 +358,23 @@ tail:
 
                 } else { /* RULE_REPLACE */
                     Janet constant = s->constants[rule[2]];
-                    int32_t nbytes = (int32_t)(result - text);
                     switch (janet_type(constant)) {
                         default:
                             cap = constant;
                             break;
                         case JANET_STRUCT:
                             cap = janet_struct_get(janet_unwrap_struct(constant),
-                                    janet_stringv(text, nbytes));
+                                    s->captures->data[s->captures->count - 1]);
                             break;
                         case JANET_TABLE:
                             cap = janet_table_get(janet_unwrap_table(constant),
-                                    janet_stringv(text, nbytes));
+                                    s->captures->data[s->captures->count - 1]);
                             break;
                         case JANET_CFUNCTION:
-                            janet_array_push(s->captures,
-                                    janet_stringv(text, nbytes));
-                            JanetCFunction cfunc = janet_unwrap_cfunction(constant);
-                            cap = cfunc(s->captures->count - cs.cap,
+                            cap = janet_unwrap_cfunction(constant)(s->captures->count - cs.cap,
                                     s->captures->data + cs.cap);
                             break;
                         case JANET_FUNCTION:
-                            janet_array_push(s->captures,
-                                    janet_stringv(text, nbytes));
                             cap = janet_call(janet_unwrap_function(constant),
                                     s->captures->count - cs.cap,
                                     s->captures->data + cs.cap);
@@ -634,12 +630,20 @@ static void spec_sequence(Builder *b, int32_t argc, const Janet *argv) {
     spec_variadic(b, argc, argv, RULE_SEQUENCE);
 }
 
-static void spec_ifnot(Builder *b, int32_t argc, const Janet *argv) {
+/* For (if a b) and (if-not a b) */
+static void spec_branch(Builder *b, int32_t argc, const Janet *argv, uint32_t rule) {
     peg_fixarity(b, argc, 2);
     Reserve r = reserve(b, 3);
     uint32_t rule_a = compile1(b, argv[0]);
     uint32_t rule_b = compile1(b, argv[1]);
-    emit_2(r, RULE_IFNOT, rule_a, rule_b);
+    emit_2(r, rule, rule_a, rule_b);
+}
+
+static void spec_if(Builder *b, int32_t argc, const Janet *argv) {
+    spec_branch(b, argc, argv, RULE_IF);
+}
+static void spec_ifnot(Builder *b, int32_t argc, const Janet *argv) {
+    spec_branch(b, argc, argv, RULE_IFNOT);
 }
 
 /* Rule of the form [rule] */
@@ -661,18 +665,6 @@ static void spec_substitute(Builder *b, int32_t argc, const Janet *argv) {
 }
 static void spec_group(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_GROUP);
-}
-
-static void spec_exponent(Builder *b, int32_t argc, const Janet *argv) {
-    peg_fixarity(b, argc, 2);
-    Reserve r = reserve(b, 4);
-    int32_t n = peg_getinteger(b, argv[1]);
-    uint32_t subrule = compile1(b, argv[0]);
-    if (n < 0) {
-        emit_3(r, RULE_BETWEEN, 0, -n, subrule);
-    } else {
-        emit_3(r, RULE_BETWEEN, n, UINT32_MAX, subrule);
-    }
 }
 
 static void spec_between(Builder *b, int32_t argc, const Janet *argv) {
@@ -778,10 +770,9 @@ static const SpecialPair specials[] = {
     {"!", spec_not},
     {"*", spec_sequence},
     {"+", spec_choice},
-    {"-", spec_ifnot},
     {"/", spec_replace},
+    {"<-", spec_capture},
     {">", spec_look},
-    {"^", spec_exponent},
     {"any", spec_any},
     {"argument", spec_argument},
     {"at-least", spec_atleast},
@@ -793,6 +784,7 @@ static const SpecialPair specials[] = {
     {"cmt", spec_matchtime},
     {"constant", spec_constant},
     {"group", spec_group},
+    {"if", spec_if},
     {"if-not", spec_ifnot},
     {"look", spec_look},
     {"not", spec_not},

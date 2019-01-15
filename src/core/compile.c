@@ -403,7 +403,9 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun) {
     }
     if (!specialized) {
         janetc_pushslots(c, slots);
-        if (opts.flags & JANET_FOPTS_TAIL) {
+        if ((opts.flags & JANET_FOPTS_TAIL) &&
+                /* Prevent top level tail calls for better errors */
+                !(c->scope->flags & JANET_SCOPE_TOP)) {
             janetc_emit_s(c, JOP_TAILCALL, fun, 0);
             retslot = janetc_cslot(janet_wrap_nil());
             retslot.flags = JANET_SLOT_RETURNED;
@@ -553,7 +555,7 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                 }
                 break;
             case JANET_SYMBOL:
-                ret = janetc_resolve(opts.compiler, janet_unwrap_symbol(x));
+                ret = janetc_resolve(c, janet_unwrap_symbol(x));
                 break;
             case JANET_ARRAY:
                 ret = janetc_array(opts, x);
@@ -576,13 +578,13 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
     if (c->result.status == JANET_COMPILE_ERROR)
         return janetc_cslot(janet_wrap_nil());
     if (opts.flags & JANET_FOPTS_TAIL)
-        ret = janetc_return(opts.compiler, ret);
+        ret = janetc_return(c, ret);
     if (opts.flags & JANET_FOPTS_HINT) {
-        janetc_copy(opts.compiler, opts.hint, ret);
+        janetc_copy(c, opts.hint, ret);
         ret = opts.hint;
     }
     c->current_mapping = last_mapping;
-    opts.compiler->recursion_guard++;
+    c->recursion_guard++;
     return ret;
 }
 

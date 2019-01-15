@@ -238,8 +238,8 @@
 
 (def csv
   '{:field (+
-            (* `"` (| (any (+ (- 1 `"`) (/ `""` `"`)))) `"`)
-            (| (any (- 1 (set ",\n")))))
+            (* `"` (| (any (+ (if-not `"` 1) (/ `""` `"`)))) `"`)
+            (| (any (if-not (set ",\n") 1))))
     :main (* :field (any (* "," :field)) (+ "\n" -1))})
 
 (defn check-csv
@@ -258,12 +258,12 @@
 
 # Functions in grammar
 
-(def grmr-triple ~(| (any (/ 1 ,(fn [x] (string x x x))))))
+(def grmr-triple ~(| (any (/ (<- 1) ,(fn [x] (string x x x))))))
 (check-deep grmr-triple "abc" @["aaabbbccc"])
 (check-deep grmr-triple "" @[""])
 (check-deep grmr-triple " " @["   "])
 
-(def counter ~(/ (group (^ (capture 1) 0)) ,length))
+(def counter ~(/ (group (any (<- 1))) ,length))
 (check-deep counter "abcdefg" @[7])
 
 # Capture Backtracking
@@ -294,7 +294,7 @@
   ~{:pad (any "=")
     :open (* "[" (capture :pad) "[")
     :close (* "]" (cmt (* (backref 0) (capture :pad)) ,=) "]")
-    :main (* :open (any (if-not 1 :close)) :close -1)})
+    :main (* :open (any (if-not :close 1)) :close -1)})
 
 (check-match wrapped-string "[[]]" true)
 (check-match wrapped-string "[==[a]==]" true)
@@ -309,7 +309,7 @@
 (def janet-longstring
   ~{:open (capture (some "`"))
     :close (cmt (* (backref 0) :open) ,=)
-    :main (* :open (any (if-not 1 :close)) (not (> -1 "`")) :close -1)})
+    :main (* :open (any (if-not :close 1)) (not (> -1 "`")) :close -1)})
 
 (check-match janet-longstring "`john" false)
 (check-match janet-longstring "abc" false)
