@@ -19,7 +19,7 @@ Janet's `peg` module borrows syntax and ideas from both LPeg and REBOL/Red parse
 
 Below is a simple example for checking if a string is a valid IP address. Notice how
 the grammar is descriptive enough that you can read it even if you don't know the peg
-syntax (example is translated from a (RED language blog post)[https://www.red-lang.org/2013/11/041-introducing-parse.html]).
+syntax (example is translated from a [RED language blog post](https://www.red-lang.org/2013/11/041-introducing-parse.html).
 ```clojure
 (def ip-address
  '{:dig (range "09")
