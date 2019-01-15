@@ -144,7 +144,8 @@ Most captures specials will match the same text as their first argument pattern.
 | `(substitute patt)` | Replace the text matched by all captures in patt with the capture values. Pushes the substituted text matched by patt to the capture stack. |
 | `(% patt)` | Alias for `(substitute patt)`
 | `(cmt patt fun)` | Invokes fun with all of the captures of patt as arguments (if patt matches). If the result is truthy, then captures the result. The whole expression fails if fun returns false or nil. |
-| `(backref n)` | Duplicates the nth last capture and pushes it to the stack again (0 is the previous capture). If n is negative, pushes the nth capture value to the stack (-1 pushes the first captured value to the stack). If n is out of range for the stack, say if the stack is empty, then the match fails. |
+| `(backref n)` | Duplicates the nth capture and pushes it to the stack again (0 is the first capture). If n is negative, indexes from the top of the stack (-1 pushes the previously captured value to the stack). If n does not map to a valid stack index then the match fails. |
+| `(error patt)` | Throws a Janet error if patt matches. The error thrown will be the last capture ofpatt, or a generic error if patt produces no captures. |
 
 ## Grammars and Recursion
 

@@ -47,12 +47,12 @@ typedef enum {
     RULE_POSITION,     /* [] */
     RULE_ARGUMENT,     /* [argument-index] */
     RULE_REPINDEX,     /* [capture-index] */
-    RULE_BACKINDEX,    /* [capture-index] */
     RULE_CONSTANT,     /* [constant] */
     RULE_SUBSTITUTE,   /* [rule] */
     RULE_GROUP,        /* [rule] */
     RULE_REPLACE,      /* [rule, constant] */
     RULE_MATCHTIME,    /* [rule, constant] */
+    RULE_ERROR,        /* [rule] */
 } Opcode;
 
 /* Hold captured patterns and match state */
@@ -269,16 +269,9 @@ tail:
         case RULE_REPINDEX:
             {
                 int32_t index = ((int32_t *)rule)[1];
-                if (index >= s->captures->count) return NULL;
+                if (index < 0) index += s->captures->count;
+                if (index >= s->captures->count || index < 0) return NULL;
                 Janet capture = s->captures->data[index];
-                pushcap(s, capture, text, text);
-                return text;
-            }
-        case RULE_BACKINDEX:
-            {
-                int32_t index = ((int32_t *)rule)[1];
-                if (index >= s->captures->count) return NULL;
-                Janet capture = s->captures->data[s->captures->count - 1 - index];
                 pushcap(s, capture, text, text);
                 return text;
             }
@@ -417,6 +410,27 @@ tail:
                 pushcap(s, cap, text, result);
 
                 return result;
+            }
+        case RULE_ERROR:
+            {
+                int oldmode = s->mode;
+                s->mode = PEG_MODE_NORMAL;
+                int32_t old_cap = s->captures->count;
+                down1(s);
+                const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
+                up1(s);
+                s->mode = oldmode;
+                if (!result) return NULL;
+                if (s->captures->count > old_cap) {
+                    /* Throw last capture */
+                    janet_panicv(s->captures->data[s->captures->count - 1]);
+                } else {
+                    /* Throw generic error */
+                    int32_t start = (int32_t)(text - s->text_start);
+                    int32_t end = (int32_t)(result - s->text_start);
+                    janet_panicf("match error in range (%d:%d)", start, end);
+                }
+                return NULL;
             }
     }
 }
@@ -664,6 +678,9 @@ static void spec_substitute(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_group(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_GROUP);
 }
+static void spec_error(Builder *b, int32_t argc, const Janet *argv) {
+    spec_onerule(b, argc, argv, RULE_ERROR);
+}
 
 static void spec_between(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 3);
@@ -685,11 +702,7 @@ static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 1);
     Reserve r = reserve(b, 2);
     int32_t index = peg_getinteger(b, argv[0]);
-    if (index < 0) {
-        emit_1(r, RULE_REPINDEX, -index - 1);
-    } else {
-        emit_1(r, RULE_BACKINDEX, index);
-    }
+    emit_1(r, RULE_REPINDEX, index);
 }
 
 static void spec_argument(Builder *b, int32_t argc, const Janet *argv) {
@@ -770,6 +783,7 @@ typedef struct {
     Special special;
 } SpecialPair;
 
+/* Keep in lexical order (vim :sort works well) */
 static const SpecialPair specials[] = {
     {"!", spec_not},
     {"$", spec_position},
@@ -790,6 +804,7 @@ static const SpecialPair specials[] = {
     {"choice", spec_choice},
     {"cmt", spec_matchtime},
     {"constant", spec_constant},
+    {"error", spec_error},
     {"group", spec_group},
     {"if", spec_if},
     {"if-not", spec_ifnot},
