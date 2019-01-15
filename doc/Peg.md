@@ -1,6 +1,6 @@
 # Peg (Parsing Expression Grammars)
 
-A common task for developers is to recognize patterns in text, be it
+A common programming task is recognizing patterns in text, be it
 filtering emails from a list or extracting data from a CSV file. Programming
 languages and libraries usually offer a number of tools for this, including prebuilt
 parsers, simple operations on strings (splitting a string on commas), and regular expressions.
@@ -10,12 +10,13 @@ powerful enough for a large class of languages, and regular expressions can be h
 (which characters are escaped?) and under-powered (don't parse HTML with regex!).
 
 PEGs, or Parsing Expression Grammars, are another formalism for recognizing languages that
-are easier to write as a custom parser and more powerful than regular expressions. They also
+are easier to write than a custom parser and more powerful than regular expressions. They also
 can produce grammars that are easily understandable and fast. PEGs can also be compiled
 to a bytecode format that can be reused. Janet offers the `peg` module for writing and
 evaluating PEGs.
 
-Janet's `peg` module borrows syntax and ideas from both LPeg and REBOL/Red parse module.
+Janet's `peg` module borrows syntax and ideas from both LPeg and REBOL/Red parse module. Janet has
+no built in regex module because PEGs offer a superset of regex's functionality.
 
 Below is a simple example for checking if a string is a valid IP address. Notice how
 the grammar is descriptive enough that you can read it even if you don't know the peg
@@ -71,6 +72,18 @@ given to the 0 byte, or the string terminator in many languages.
 | `(range "az" "AZ")` | Matches characters in a range and advances 1 character. Multiple ranges can be combined together. |
 | `(set "abcd")`  | Match any character in the argument string. Advances 1 character. |
 
+Primitve patterns are not that useful by themselves, but can be passed to `peg/match` and `peg/compile` as any pattern.
+
+```clojure
+(peg/match "hello" "hello") # -> @[]
+(peg/match "hello" "hi") # -> nil
+(peg/match 1 "hi") # -> @[]
+(peg/match 1 "") # -> nil
+(peg/match '(range "AZ") "F") # -> @[]
+(peg/match '(range "AZ") "-") # -> nil
+(peg/match '(set "AZ") "F") # -> nil
+(peg/match '(set "ABCDEFGHIJKLMNOPQRSTUVWXYZ") "F") # -> @[]
+```
 
 ## Combining Patterns
 
@@ -94,7 +107,7 @@ DOES matter. If y matches everything that z matches, z will never succeed.
 | `(* a b c ...)` | Alias for `(sequence a b c ...)` |
 | `(any x)` | Matches 0 or more repetitions of x. |
 | `(some x)` | Matches 1 or more repetitions of x. |
-| `(between min max x)` | Matches between min and max (inclusive) or more repetitions of x. |
+| `(between min max x)` | Matches between min and max (inclusive) repetitions of x. |
 | `(at-least n x)` | Matches at least n repetitions of x. |
 | `(at-most n x)` |  Matches at most n repetitions of x. |
 | `(if cond patt)` | Tries to match patt only if cond matches as well. cond will not produce any captures. |
