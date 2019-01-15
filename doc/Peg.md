@@ -43,7 +43,7 @@ on matching, such as parsing or searching, can be implemented inside patterns.
 PEGs can also be compiled ahead of time with `peg/compile` if a PEG will be reused
 many times.
 
-### `(peg/match peg text [,start=0])
+### `(peg/match peg text [,start=0 ] & arguments)
 
 Match a peg against some text. Returns an array of captured data if the text
 matches, or nil if there is no match. The caller can provide an optional start
@@ -69,11 +69,20 @@ given to the 0 byte, or the string terminator in many languages.
 | `(range "az" "AZ")` | | Matches characters in a range and advances 1 character. Multiple ranges can be combined together. |
 | `(set "abcd")`   |       | Match any character in the argument string. Advances 1 character. |
 
+
 ## Combining Patterns
 
 These primitive patterns are combined with a few specials to match a wide number of languages. These specials
 can be thought of as the looping and branching forms in a traditional language
 (that is how they are implemented when compiled to bytecode).
+
+PEGs try to match an input text with a pattern in a greedy manner.
+This means that if a rule fails to match, that rule will fail and not try again. The only
+backtracking provided in a peg is provided by the `(choice x y z ...)` special, which will
+try rules in order until one succeeds, and the whole pattern succeeds. If no sub pattern
+succeeds, then the whole pattern fails. Note that this means that the order of `x y z` in choice
+DOES matter. If y matches everything that z matches, z will never succeed.
+
 
 | Pattern | Alias | What it matches |
 | ------- | ----- | --------------- |
@@ -102,17 +111,60 @@ Most captures specials will match the same text as their first argument pattern.
 
 | Pattern | Alias | What it captures |
 | ------- | ----- | --------------- |
-| `(capture patt)` | `(<- patt)`  | Captures all of the text in patt if patt matches, If patt contains any captures, then those
-captures will be pushed to the capture stack before the total text. |
-| `(group patt) ` |    | Pops all of the captures in patt off of the capture stack and pushes them in an array
-if patt matches.
+| `(capture patt)` | `(<- patt)`  | Captures all of the text in patt if patt matches, If patt contains any captures, then those captures will be pushed to the capture stack before the total text. |
+| `(group patt) ` |    | Pops all of the captures in patt off of the capture stack and pushes them in an array if patt matches.
 | `(replace patt subst)` | `(/ patt subst)`  | Replaces the captures produced by patt by applying subst to them. If subst is a table or struct, will push `(get subst last-capture)` to the capture stack after removing the old captures. If a subst is a function, will call subst with the captures of patt as arguments and push the result to the capture stack. Otherwise, will push subst literally to the capture stack. |
+| `(constant k)` |   | Captures a constant value and advances no characters. |
+| `(argument n)` |   | Captures the nth extra argument to the match function and does not advance. |
+| `(position)` |   | Captures the current index into the text and advances no input. |
+| `(substitute patt)` | `(| patt)`   | Replace the text matched by all captures in patt with the capture values. Pushes the substituted text matched by patt to the capture stack. |
+| `(cmt patt fun)` |   | Invokes fun with all of the captures of patt as arguments (if patt matches). If the result is truthy, then captures the result. The whole expression fails if fun returns false or nil. |
+| `(backref n)` |   | Duplicates the nth last capture and pushes it to the stack again (0 is the previous capture). If n is negative, pushes the nth capture value to the stack (-1 pushes the first captured value to the stack). If n is out of range for the stack, say if the stack is empty, then the match fails. |
 
 ## Grammars and Recursion
 
-Parsing Expression Grammars try to match an input text with a pattern in a greedy manner.
-This means that if a rule fails to match, that rule will fail and not try again. The only
-backtracking provided in a peg is provided by the `(choice x y z ...)` special, which will
-try rules in order until one succeeds, and the whole pattern succeeds. If no sub pattern
-succeeds, then the whole pattern fails. Note that this means that the order of `x y z` in choice
-DOES matter. If y matches everything that z matches, z will never succeed.
+The feature that makes PEGs so much more powerful than pattern matching solutions like (vanilla) regex is mutual recursion.
+To do recursion in a peg, you can wrap multiple patterns in a grammar, which is a Janet struct. The patterns must be named by
+keywords, which can then be used in all sub-patterns in the grammar.
+
+Each grammar, defined by a struct, must also have a main rule, called :main, that is the pattern that the entire grammar
+is defined by.
+
+An example grammar that uses mutual recursion:
+
+```
+(def my-grammar
+ '{:a (* "a" :b "a")
+   :b (* "b" (+ :a 0) "b")
+   :main (* "(" :b ")")})
+
+(peg/match my-grammar "(bb)") # -> @[]
+(peg/match my-grammar "(babbab)") # -> @[]
+(peg/match my-grammar "(baab)") # -> nil
+(peg/match my-grammar "(babaabab)") # -> nil
+```
+
+Keep in mind that recursion is implemented with a stack, meaning that very recursive grammars
+can overflow the stack. The compiler is able to turn some recursion into iteration via tail call optimization, but some patterns
+may fail on large inputs. It is also possible to construct (very poorly written) patterns that will result in long loops and be very
+slow in general.
+
+## String Searching and other Idioms
+
+Although all pattern matching is done in anchored in mode, operations like global substitution
+and searching can be implemented with the `peg/module`. A simple Janet function that produces PEGs
+that search for strings shows how captures and looping specials can composed, and how quasiquoting
+can be used to embed values in patterns.
+
+```
+(defn finder
+ "Creates a peg that finds all locations of str in the text."
+ [str]
+ (peg/compile ~(any (+ (* (position) ,str) 1))))
+
+(def where-are-the-dogs? (finder "dog"))
+
+(peg/match where-are-the-dogs? "dog dog cat dog") # -> @[0 4 12]
+```
+
+

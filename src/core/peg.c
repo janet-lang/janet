@@ -269,8 +269,7 @@ tail:
         case RULE_REPINDEX:
             {
                 int32_t index = ((int32_t *)rule)[1];
-                if (index >= s->captures->count)
-                    janet_panic("invalid capture index");
+                if (index >= s->captures->count) return NULL;
                 Janet capture = s->captures->data[index];
                 pushcap(s, capture, text, text);
                 return text;
@@ -278,8 +277,7 @@ tail:
         case RULE_BACKINDEX:
             {
                 int32_t index = ((int32_t *)rule)[1];
-                if (index >= s->captures->count)
-                    janet_panic("invalid capture index");
+                if (index >= s->captures->count) return NULL;
                 Janet capture = s->captures->data[s->captures->count - 1 - index];
                 pushcap(s, capture, text, text);
                 return text;

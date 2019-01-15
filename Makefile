@@ -29,7 +29,7 @@ LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
 JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
 
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -g -O2 -fvisibility=hidden \
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
 	   -DJANET_BUILD=$(JANET_BUILD)
 CLIBS=-lm -ldl
 JANET_TARGET=build/janet
