@@ -109,6 +109,8 @@ can be thought of as the looping and branching forms in a traditional language
 | `(! patt)`   | Alias for `(not patt)` |
 | `(look offset patt)` | Matches only if patt matches at a fixed offset. offset can be any integer. patt will not produce captures and the peg will not advance any characters. |
 | `(> offset patt)` | Alias for `(look offset patt)` |
+| `(opt patt)` | Alias for `(between 0 1 patt)` |
+| `(? patt)` | Alias for `(between 0 1 patt)` |
 
 PEGs try to match an input text with a pattern in a greedy manner.
 This means that if a rule fails to match, that rule will fail and not try again. The only

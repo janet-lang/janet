@@ -713,7 +713,6 @@ static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
     emit_2(r, RULE_REPLACE, subrule, constant);
 }
 
-/* For some and any, really just short-hand for (^ rule n) */
 static void spec_repeater(Builder *b, int32_t argc, const Janet *argv, int32_t min) {
     peg_fixarity(b, argc, 1);
     Reserve r = reserve(b, 4);
@@ -742,6 +741,13 @@ static void spec_atmost(Builder *b, int32_t argc, const Janet *argv) {
     int32_t n = peg_getnat(b, argv[0]);
     uint32_t subrule = compile1(b, argv[1]);
     emit_3(r, RULE_BETWEEN, 0, n, subrule);
+}
+
+static void spec_opt(Builder *b, int32_t argc, const Janet *argv) {
+    peg_fixarity(b, argc, 1);
+    Reserve r = reserve(b, 4);
+    uint32_t subrule = compile1(b, argv[0]);
+    emit_3(r, RULE_BETWEEN, 0, 1, subrule);
 }
 
 static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
@@ -773,6 +779,7 @@ static const SpecialPair specials[] = {
     {"/", spec_replace},
     {"<-", spec_capture},
     {">", spec_look},
+    {"?", spec_opt},
     {"any", spec_any},
     {"argument", spec_argument},
     {"at-least", spec_atleast},
@@ -788,6 +795,7 @@ static const SpecialPair specials[] = {
     {"if-not", spec_ifnot},
     {"look", spec_look},
     {"not", spec_not},
+    {"opt", spec_opt},
     {"position", spec_position},
     {"range", spec_range},
     {"replace", spec_replace},

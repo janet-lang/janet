@@ -319,4 +319,13 @@
 (check-match janet-longstring "``` `` ```" true)
 (check-match janet-longstring "``  ```" false)
 
+# Optional
+
+(check-match '(* (opt "hi") -1) "" true)
+(check-match '(* (opt "hi") -1) "hi" true)
+(check-match '(* (opt "hi") -1) "no" false)
+(check-match '(* (? "hi") -1) "" true)
+(check-match '(* (? "hi") -1) "hi" true)
+(check-match '(* (? "hi") -1) "no" false)
+
 (end-suite)
