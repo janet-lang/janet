@@ -115,8 +115,8 @@ text matches the main peg language, `(peg/match)` will return the final capture 
 Capture specials will only push captures to the capture stack if their child pattern matches the text.
 Most captures specials will match the same text as their first argument pattern.
 
-| Pattern | Alias | What it captures |
-| ------- | ----- | --------------- |
+| Pattern | What it captures |
+| ------- | ---------------- |
 | `(capture patt)` | Captures all of the text in patt if patt matches, If patt contains any captures, then those captures will be pushed to the capture stack before the total text. |
 | `(<- patt)` | Alias for `(capture patt)` |
 | `(group patt) ` | Pops all of the captures in patt off of the capture stack and pushes them in an array if patt matches.
@@ -127,7 +127,7 @@ Most captures specials will match the same text as their first argument pattern.
 | `(position)` | Captures the current index into the text and advances no input. |
 | `($)` | Alias for `(position)`. |
 | `(substitute patt)` | Replace the text matched by all captures in patt with the capture values. Pushes the substituted text matched by patt to the capture stack. |
-| `(% patt) | Alias for `(substitute patt)`
+| `(% patt)` | Alias for `(substitute patt)`
 | `(cmt patt fun)` | Invokes fun with all of the captures of patt as arguments (if patt matches). If the result is truthy, then captures the result. The whole expression fails if fun returns false or nil. |
 | `(backref n)` | Duplicates the nth last capture and pushes it to the stack again (0 is the previous capture). If n is negative, pushes the nth capture value to the stack (-1 pushes the first captured value to the stack). If n is out of range for the stack, say if the stack is empty, then the match fails. |
 
