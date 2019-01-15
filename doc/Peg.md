@@ -20,7 +20,7 @@ Janet's `peg` module borrows syntax and ideas from both LPeg and REBOL/Red parse
 Below is a simple example for checking if a string is a valid IP address. Notice how
 the grammar is descriptive enough that you can read it even if you don't know the peg
 syntax (example is translated from a (RED language blog post)[https://www.red-lang.org/2013/11/041-introducing-parse.html]).
-```
+```clojure
 (def ip-address
  '{:dig (range "09")
    :0-4 (range "04")
@@ -45,7 +45,7 @@ on matching, such as parsing or searching, can be implemented inside patterns.
 PEGs can also be compiled ahead of time with `peg/compile` if a PEG will be reused
 many times.
 
-### `(peg/match peg text [,start=0 ] & arguments)
+### `(peg/match peg text [,start=0] & arguments)`
 
 Match a peg against some text. Returns an array of captured data if the text
 matches, or nil if there is no match. The caller can provide an optional start
@@ -64,7 +64,7 @@ characters, string literals, or a given number of characters. A character in Jan
 is considered a byte, so PEGs will work on any string of bytes. No special meaning is
 given to the 0 byte, or the string terminator in many languages.
 
-| Pattern          | What it Matches |
+| Pattern&nbsp;Signature         | What it Matches |
 | ----------------- | ----------------|
 | string ("cat")   | The literal string. |
 | integer (3)      | Matches a number of characters, and advances that many characters. If negative, matches if not that many characters and does not advance. For example, -1 will match the end of a string |
@@ -86,7 +86,7 @@ succeeds, then the whole pattern fails. Note that this means that the order of `
 DOES matter. If y matches everything that z matches, z will never succeed.
 
 
-| Pattern | What it matches |
+| Pattern&nbsp;Signature | What it matches |
 | ------- | --------------- |
 | `(choice a b c ...)` | Tries to match a, then b, and so on. Will succeed on the first successful match, and fails if none of the arguments match the text. |
 | `(+ a b c ...)` | Alias for `(choice a b c ...)` |
@@ -115,7 +115,7 @@ text matches the main peg language, `(peg/match)` will return the final capture 
 Capture specials will only push captures to the capture stack if their child pattern matches the text.
 Most captures specials will match the same text as their first argument pattern.
 
-| Pattern | What it captures |
+| Pattern&nbsp;Signature | What it captures |
 | ------- | ---------------- |
 | `(capture patt)` | Captures all of the text in patt if patt matches, If patt contains any captures, then those captures will be pushed to the capture stack before the total text. |
 | `(<- patt)` | Alias for `(capture patt)` |
@@ -142,7 +142,7 @@ is defined by.
 
 An example grammar that uses mutual recursion:
 
-```
+```clojure
 (def my-grammar
  '{:a (* "a" :b "a")
    :b (* "b" (+ :a 0) "b")
@@ -166,7 +166,7 @@ and searching can be implemented with the `peg/module`. A simple Janet function 
 that search for strings shows how captures and looping specials can composed, and how quasiquoting
 can be used to embed values in patterns.
 
-```
+```clojure
 (defn finder
  "Creates a peg that finds all locations of str in the text."
  [str]
