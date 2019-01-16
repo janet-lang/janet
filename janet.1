@@ -37,7 +37,11 @@ Shows the version text and exits immediately.
 
 .TP
 .BR \-s
-Read raw input from stdin, such as from a pipe without printing a prompt.
+Read raw input from stdin and forgo prompt history and other readline-like features.
+
+.TP
+.BR \-q
+Quiet output. Don't prinpt a repl prompt or expression results to stdout.
 
 .TP
 .BR \-r

@@ -1024,7 +1024,7 @@ static const JanetReg cfuns[] = {
         "(peg/match peg text [,start=0])\n\n"
             "Match a Parsing Expression Grammar to a byte string and return an array of captured values. "
             "Returns nil if text does not match the language defined by peg. The syntax of PEGs are very "
-            "similar to those defined by LPeg, and have similar capabilities. Still WIP."
+            "similar to those defined by LPeg, and have similar capabilities."
     },
     {NULL, NULL, NULL}
 };

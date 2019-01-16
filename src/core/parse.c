@@ -293,9 +293,11 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     }
     /* Token finished */
     blen = (int32_t) p->bufcount;
+    int start_dig = p->buf[0] >= '0' && p->buf[0] <= '9';
+    int start_num = start_dig || p->buf[0] == '-' || p->buf[0] == '+';
     if (p->buf[0] == ':') {
         ret = janet_keywordv(p->buf + 1, blen - 1);
-    } else if (!janet_scan_number(p->buf, blen, &numval)) {
+    } else if (start_num && !janet_scan_number(p->buf, blen, &numval)) {
         ret = janet_wrap_number(numval);
     } else if (!check_str_const("nil", p->buf, blen)) {
         ret = janet_wrap_nil();
@@ -304,7 +306,7 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     } else if (!check_str_const("true", p->buf, blen)) {
         ret = janet_wrap_true();
     } else if (p->buf) {
-        if (p->buf[0] >= '0' && p->buf[0] <= '9') {
+        if (start_dig) {
             p->error = "symbol literal cannot start with a digit";
             return 0;
         } else {
