@@ -128,23 +128,28 @@ a piece of text, some forms may push Janet values onto the capture stack as a si
 text matches the main peg language, `(peg/match)` will return the final capture stack as an array.
 
 Capture specials will only push captures to the capture stack if their child pattern matches the text.
-Most captures specials will match the same text as their first argument pattern.
+Most captures specials will match the same text as their first argument pattern. Also most specials
+that produce captures can take an optional argument `tag` that applies a keyword tag to the capture.
+These tagged captures can then be recaptured via the `(backref tag)` special in subsequent matches.
+Tagged captures, when combined with the `(cmt)` special, provide a powerful form of look-behind
+that can make many grammars simpler.
 
 | Pattern&nbsp;Signature | What it captures |
 | ------- | ---------------- |
-| `(capture patt)` | Captures all of the text in patt if patt matches, If patt contains any captures, then those captures will be pushed to the capture stack before the total text. |
-| `(<- patt)` | Alias for `(capture patt)` |
-| `(group patt) ` | Captures an array of all of the captures in patt.
-| `(replace patt subst)` | Replaces the captures produced by patt by applying subst to them. If subst is a table or struct, will push `(get subst last-capture)` to the capture stack after removing the old captures. If a subst is a function, will call subst with the captures of patt as arguments and push the result to the capture stack. Otherwise, will push subst literally to the capture stack. |
-| `(/ patt subst)` | Alias for `(replace patt subst)` |
-| `(constant k)` | Captures a constant value and advances no characters. |
-| `(argument n)` | Captures the nth extra argument to the match function and does not advance. |
-| `(position)` | Captures the current index into the text and advances no input. |
-| `($)` | Alias for `(position)`. |
-| `(accumulate patt)` | Capture a string that is the concatenation of all captures in patt. This will try to be efficient and not create intermediate strings if possible. |
-| `(% patt)` | Alias for `(accumulate patt)`
-| `(cmt patt fun)` | Invokes fun with all of the captures of patt as arguments (if patt matches). If the result is truthy, then captures the result. The whole expression fails if fun returns false or nil. |
-| `(backref n)` | Duplicates the nth capture and pushes it to the stack again (0 is the first capture). If n is negative, indexes from the top of the stack (-1 pushes the previously captured value to the stack). If n does not map to a valid stack index then the match fails. |
+| `(capture patt ?tag)` | Captures all of the text in patt if patt matches, If patt contains any captures, then those captures will be pushed to the capture stack before the total text. |
+| `(<- patt ?tag)` | Alias for `(capture patt ?tag)` |
+| `(group patt ?tag) ` | Captures an array of all of the captures in patt.
+| `(replace patt subst ?tag)` | Replaces the captures produced by patt by applying subst to them. If subst is a table or struct, will push `(get subst last-capture)` to the capture stack after removing the old captures. If a subst is a function, will call subst with the captures of patt as arguments and push the result to the capture stack. Otherwise, will push subst literally to the capture stack. |
+| `(/ patt subst ?tag)` | Alias for `(replace patt subst ?tag)` |
+| `(constant k ?tag)` | Captures a constant value and advances no characters. |
+| `(argument n ?tag)` | Captures the nth extra argument to the match function and does not advance. |
+| `(position ?tag)` | Captures the current index into the text and advances no input. |
+| `($ ?tag)` | Alias for `(position ?tag)`. |
+| `(accumulate patt ?tag)` | Capture a string that is the concatenation of all captures in patt. This will try to be efficient and not create intermediate strings if possible. |
+| `(% patt ?tag)` | Alias for `(accumulate patt ?tag)`
+| `(cmt patt fun ?tag)` | Invokes fun with all of the captures of patt as arguments (if patt matches). If the result is truthy, then captures the result. The whole expression fails if fun returns false or nil. |
+| `(backref tag ?tag)` | Duplicates the last capture with the tag `tag`. If no such capture exists then the match fails. |
+| `(-> tag ?tag)` | Alias for `(backref tag)`. |
 | `(error patt)` | Throws a Janet error if patt matches. The error thrown will be the last capture ofpatt, or a generic error if patt produces no captures. |
 
 ## Grammars and Recursion

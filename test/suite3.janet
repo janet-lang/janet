@@ -294,7 +294,7 @@
   ~{:pad (any "=")
     :open (* "[" (<- :pad :n) "[")
     :close (* "]" (cmt (* (-> :n) (<- :pad)) ,=) "]")
-    :main (cmt (* :open (any (if-not :close 1)) :close -1) ,=)})
+    :main (* :open (any (if-not :close 1)) :close -1)})
 
 (check-match wrapped-string "[[]]" true)
 (check-match wrapped-string "[==[a]==]" true)
@@ -308,8 +308,10 @@
 (check-match wrapped-string "[===[]==]===]" true)
 
 (def janet-longstring
-  ~{:delim (capture (some "`"))
-    :main (cmt (* :delim (any (if-not (* (not (> -1 "`")) :delim) 1)) (not (> -1 "`")) :delim -1) ,=)})
+  ~{:delim (some "`")
+    :open (capture :delim :n)
+    :close (cmt (* (not (> -1 "`")) (-> :n) (<- :delim)) ,=)
+    :main (* :open (any (if-not :close 1)) :close -1)})
 
 (check-match janet-longstring "`john" false)
 (check-match janet-longstring "abc" false)

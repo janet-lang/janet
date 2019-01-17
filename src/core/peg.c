@@ -43,14 +43,15 @@ typedef enum {
     RULE_IFNOT,        /* [rule_a, rule_b (b if not a)] */
     RULE_NOT,          /* [rule] */
     RULE_BETWEEN,      /* [lo, hi, rule] */
-    RULE_CAPTURE,      /* [rule] */
+    RULE_GETTAG,       /* [searchtag, tag] */
+    RULE_CAPTURE,      /* [rule, tag] */
     RULE_POSITION,     /* [tag] */
-    RULE_ARGUMENT,     /* [argument-index] */
-    RULE_CONSTANT,     /* [constant] */
-    RULE_ACCUMULATE,   /* [rule] */
-    RULE_GROUP,        /* [rule] */
-    RULE_REPLACE,      /* [rule, constant] */
-    RULE_MATCHTIME,    /* [rule, constant] */
+    RULE_ARGUMENT,     /* [argument-index, tag] */
+    RULE_CONSTANT,     /* [constant, tag] */
+    RULE_ACCUMULATE,   /* [rule, tag] */
+    RULE_GROUP,        /* [rule, tag] */
+    RULE_REPLACE,      /* [rule, constant, tag] */
+    RULE_MATCHTIME,    /* [rule, constant, tag] */
     RULE_ERROR,        /* [rule] */
 } Opcode;
 
@@ -62,6 +63,7 @@ typedef struct {
     const Janet *constants;
     JanetArray *captures;
     JanetBuffer *scratch;
+    JanetBuffer *tags;
     const Janet *extrav;
     int32_t extrac;
     int32_t depth;
@@ -92,14 +94,18 @@ static CapState cap_save(PegState *s) {
 static void cap_load(PegState *s, CapState cs) {
     s->scratch->count = cs.scratch;
     s->captures->count = cs.cap;
+    s->tags->count = cs.cap;
 }
 
 /* Add a capture */
-static void pushcap(PegState *s, Janet capture) {
+static void pushcap(PegState *s, Janet capture, uint32_t tag) {
     if (s->mode == PEG_MODE_ACCUMULATE)
         janet_to_string_b(s->scratch, capture);
-    if (s->mode == PEG_MODE_NORMAL)
+    if (s->mode == PEG_MODE_NORMAL ||
+            (tag && s->mode == PEG_MODE_ACCUMULATE)) {
         janet_array_push(s->captures, capture);
+        janet_buffer_push_u8(s->tags, tag);
+    }
 }
 
 /* Prevent stack overflow */
@@ -267,9 +273,24 @@ tail:
                 return text;
             }
 
+        /* Capturing rules */
+
+        case RULE_GETTAG:
+            {
+                uint32_t search = rule[1];
+                uint32_t tag = rule[2];
+                for (int32_t i = s->tags->count - 1; i >= 0; i--) {
+                    if (s->tags->data[i] == search) {
+                        pushcap(s, s->captures->data[i], tag);
+                        return text;
+                    }
+                }
+                return NULL;
+            }
+
         case RULE_POSITION:
             {
-                pushcap(s, janet_wrap_number((double)(text - s->text_start)));
+                pushcap(s, janet_wrap_number((double)(text - s->text_start)), rule[1]);
                 return text;
             }
 
@@ -277,19 +298,20 @@ tail:
             {
                 int32_t index = ((int32_t *)rule)[1];
                 Janet capture = (index >= s->extrac) ? janet_wrap_nil() : s->extrav[index];
-                pushcap(s, capture);
+                pushcap(s, capture, rule[2]);
                 return text;
             }
 
         case RULE_CONSTANT:
             {
-                pushcap(s, s->constants[rule[1]]);
+                pushcap(s, s->constants[rule[1]], rule[2]);
                 return text;
             }
 
         case RULE_CAPTURE:
             {
-                if (s->mode == PEG_MODE_NOCAPTURE) {
+                uint32_t tag = rule[2];
+                if (!tag && s->mode == PEG_MODE_NOCAPTURE) {
                     rule = s->bytecode + rule[1];
                     goto tail;
                 }
@@ -298,19 +320,20 @@ tail:
                 up1(s);
                 if (!result) return NULL;
                 /* Specialized pushcap - avoid intermediate string creation */
-                if (s->mode == PEG_MODE_ACCUMULATE) {
+                if (!tag && s->mode == PEG_MODE_ACCUMULATE) {
                     janet_buffer_push_bytes(s->scratch, text, (int32_t)(result - text));
                 } else {
-                    janet_array_push(s->captures, janet_stringv(text, (int32_t)(result - text)));
+                    pushcap(s, janet_stringv(text, (int32_t)(result - text)), tag);
                 }
                 return result;
             }
 
         case RULE_ACCUMULATE:
             {
+                uint32_t tag = rule[2];
                 int oldmode = s->mode;
                 /* No capture mode, skip captures. Accumulate inside accumulate also does nothing. */
-                if (oldmode != PEG_MODE_NORMAL) {
+                if (!tag && oldmode != PEG_MODE_NORMAL) {
                     rule = s->bytecode + rule[1];
                     goto tail;
                 }
@@ -323,14 +346,15 @@ tail:
                 if (!result) return NULL;
                 Janet cap = janet_stringv(s->scratch->data + cs.scratch, s->scratch->count - cs.scratch);
                 cap_load(s, cs);
-                pushcap(s, cap);
+                pushcap(s, cap, tag);
                 return result;
             }
 
         case RULE_GROUP:
             {
+                uint32_t tag = rule[2];
                 int oldmode = s->mode;
-                if (oldmode == PEG_MODE_NOCAPTURE) {
+                if (!tag && oldmode == PEG_MODE_NOCAPTURE) {
                     rule = s->bytecode + rule[1];
                     goto tail;
                 }
@@ -348,15 +372,16 @@ tail:
                         sizeof(Janet) * num_sub_captures);
                 sub_captures->count = num_sub_captures;
                 cap_load(s, cs);
-                pushcap(s, janet_wrap_array(sub_captures));
+                pushcap(s, janet_wrap_array(sub_captures), tag);
                 return result;
             }
 
         case RULE_REPLACE:
         case RULE_MATCHTIME:
             {
+                uint32_t tag = rule[3];
                 int oldmode = s->mode;
-                if (rule[0] == RULE_REPLACE && oldmode == PEG_MODE_NOCAPTURE) {
+                if (!tag && rule[0] == RULE_REPLACE && oldmode == PEG_MODE_NOCAPTURE) {
                     rule = s->bytecode + rule[1];
                     goto tail;
                 }
@@ -394,7 +419,7 @@ tail:
                 }
                 cap_load(s, cs);
                 if (rule[0] == RULE_MATCHTIME && !janet_truthy(cap)) return NULL;
-                pushcap(s, cap);
+                pushcap(s, cap, tag);
                 return result;
             }
 
@@ -429,75 +454,16 @@ tail:
 typedef struct {
     JanetTable *grammar;
     JanetTable *memoized;
+    JanetTable *tags;
     Janet *constants;
     uint32_t *bytecode;
     Janet form;
     int depth;
+    uint32_t nexttag;
 } Builder;
 
 /* Forward declaration to allow recursion */
 static uint32_t compile1(Builder *b, Janet peg);
-
-/*
- * Emission
- */
-
-static uint32_t emit_constant(Builder *b, Janet c) {
-    uint32_t cindex = (uint32_t) janet_v_count(b->constants);
-    janet_v_push(b->constants, c);
-    return cindex;
-}
-
-/* Reserve space in bytecode for a rule. When a special emits a rule,
- * it must place that rule immediately on the bytecode stack. This lets
- * the compiler know where the rule is going to be before it is complete,
- * allowing recursive rules. */
-typedef struct {
-    Builder *builder;
-    uint32_t index;
-    int32_t size;
-} Reserve;
-
-static Reserve reserve(Builder *b, int32_t size) {
-    Reserve r;
-    r.index = janet_v_count(b->bytecode);
-    r.builder = b;
-    r.size = size;
-    for (int32_t i = 0; i < size; i++)
-        janet_v_push(b->bytecode, 0);
-    return r;
-}
-
-/* Emit a rule in the builder. Returns the index of the new rule */
-static void emit_rule(Reserve r, int32_t op, int32_t n, const uint32_t *body) {
-    janet_assert(r.size == n + 1, "bad reserve");
-    r.builder->bytecode[r.index] = op;
-    memcpy(r.builder->bytecode + r.index + 1, body, n * sizeof(uint32_t));
-}
-
-/* For RULE_LITERAL */
-static void emit_bytes(Builder *b, uint32_t op, int32_t len, const uint8_t *bytes) {
-    uint32_t next_rule = janet_v_count(b->bytecode);
-    janet_v_push(b->bytecode, op);
-    janet_v_push(b->bytecode, len);
-    int32_t words = ((len + 3) >> 2);
-    for (int32_t i = 0; i < words; i++)
-        janet_v_push(b->bytecode, 0);
-    memcpy(b->bytecode + next_rule + 2, bytes, len);
-}
-
-/* For fixed arity rules of arities 1, 2, and 3 */
-static void emit_1(Reserve r, uint32_t op, uint32_t arg) {
-    emit_rule(r, op, 1, &arg);
-}
-static void emit_2(Reserve r, uint32_t op, uint32_t arg1, uint32_t arg2) {
-    uint32_t arr[2] = {arg1, arg2};
-    emit_rule(r, op, 2, arr);
-}
-static void emit_3(Reserve r, uint32_t op, uint32_t arg1, uint32_t arg2, uint32_t arg3) {
-    uint32_t arr[3] = {arg1, arg2, arg3};
-    emit_rule(r, op, 3, arr);
-}
 
 /*
  * Errors
@@ -560,6 +526,84 @@ static int32_t peg_getnat(Builder *b, Janet x) {
     if (i < 0)
         peg_panicf(b, "expected non-negative integer, got %v", x);
     return i;
+}
+
+/*
+ * Emission
+ */
+
+static uint32_t emit_constant(Builder *b, Janet c) {
+    uint32_t cindex = (uint32_t) janet_v_count(b->constants);
+    janet_v_push(b->constants, c);
+    return cindex;
+}
+
+static uint32_t emit_tag(Builder *b, Janet t) {
+    if (!janet_checktype(t, JANET_KEYWORD))
+        peg_panicf(b, "expected keyword for capture tag, got %v", t);
+    Janet check = janet_table_get(b->tags, t);
+    if (janet_checktype(check, JANET_NIL)) {
+        uint32_t tag = b->nexttag++;
+        if (tag > 255) {
+            peg_panicf(b, "too many tags - up to 255 tags are supported per peg");
+        }
+        Janet val = janet_wrap_number(tag);
+        janet_table_put(b->tags, t, val);
+        return tag;
+    } else {
+        return (uint32_t) janet_unwrap_number(check);
+    }
+}
+
+/* Reserve space in bytecode for a rule. When a special emits a rule,
+ * it must place that rule immediately on the bytecode stack. This lets
+ * the compiler know where the rule is going to be before it is complete,
+ * allowing recursive rules. */
+typedef struct {
+    Builder *builder;
+    uint32_t index;
+    int32_t size;
+} Reserve;
+
+static Reserve reserve(Builder *b, int32_t size) {
+    Reserve r;
+    r.index = janet_v_count(b->bytecode);
+    r.builder = b;
+    r.size = size;
+    for (int32_t i = 0; i < size; i++)
+        janet_v_push(b->bytecode, 0);
+    return r;
+}
+
+/* Emit a rule in the builder. Returns the index of the new rule */
+static void emit_rule(Reserve r, int32_t op, int32_t n, const uint32_t *body) {
+    janet_assert(r.size == n + 1, "bad reserve");
+    r.builder->bytecode[r.index] = op;
+    memcpy(r.builder->bytecode + r.index + 1, body, n * sizeof(uint32_t));
+}
+
+/* For RULE_LITERAL */
+static void emit_bytes(Builder *b, uint32_t op, int32_t len, const uint8_t *bytes) {
+    uint32_t next_rule = janet_v_count(b->bytecode);
+    janet_v_push(b->bytecode, op);
+    janet_v_push(b->bytecode, len);
+    int32_t words = ((len + 3) >> 2);
+    for (int32_t i = 0; i < words; i++)
+        janet_v_push(b->bytecode, 0);
+    memcpy(b->bytecode + next_rule + 2, bytes, len);
+}
+
+/* For fixed arity rules of arities 1, 2, and 3 */
+static void emit_1(Reserve r, uint32_t op, uint32_t arg) {
+    emit_rule(r, op, 1, &arg);
+}
+static void emit_2(Reserve r, uint32_t op, uint32_t arg1, uint32_t arg2) {
+    uint32_t arr[2] = {arg1, arg2};
+    emit_rule(r, op, 2, arr);
+}
+static void emit_3(Reserve r, uint32_t op, uint32_t arg1, uint32_t arg2, uint32_t arg3) {
+    uint32_t arr[3] = {arg1, arg2, arg3};
+    emit_rule(r, op, 3, arr);
 }
 
 /*
@@ -645,30 +689,6 @@ static void spec_ifnot(Builder *b, int32_t argc, const Janet *argv) {
     spec_branch(b, argc, argv, RULE_IFNOT);
 }
 
-/* Rule of the form [rule] */
-static void spec_onerule(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
-    peg_fixarity(b, argc, 1);
-    Reserve r = reserve(b, 2);
-    uint32_t rule = compile1(b, argv[0]);
-    emit_1(r, op, rule);
-}
-
-static void spec_not(Builder *b, int32_t argc, const Janet *argv) {
-    spec_onerule(b, argc, argv, RULE_NOT);
-}
-static void spec_capture(Builder *b, int32_t argc, const Janet *argv) {
-    spec_onerule(b, argc, argv, RULE_CAPTURE);
-}
-static void spec_accumulate(Builder *b, int32_t argc, const Janet *argv) {
-    spec_onerule(b, argc, argv, RULE_ACCUMULATE);
-}
-static void spec_group(Builder *b, int32_t argc, const Janet *argv) {
-    spec_onerule(b, argc, argv, RULE_GROUP);
-}
-static void spec_error(Builder *b, int32_t argc, const Janet *argv) {
-    spec_onerule(b, argc, argv, RULE_ERROR);
-}
-
 static void spec_between(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 3);
     Reserve r = reserve(b, 4);
@@ -676,34 +696,6 @@ static void spec_between(Builder *b, int32_t argc, const Janet *argv) {
     int32_t hi = peg_getnat(b, argv[1]);
     uint32_t subrule = compile1(b, argv[2]);
     emit_3(r, RULE_BETWEEN, lo, hi, subrule);
-}
-
-static void spec_position(Builder *b, int32_t argc, const Janet *argv) {
-    peg_fixarity(b, argc, 0);
-    Reserve r = reserve(b, 1);
-    (void) argv;
-    emit_rule(r, RULE_POSITION, 0, NULL);
-}
-
-static void spec_argument(Builder *b, int32_t argc, const Janet *argv) {
-    peg_fixarity(b, argc, 1);
-    Reserve r = reserve(b, 2);
-    int32_t index = peg_getnat(b, argv[0]);
-    emit_1(r, RULE_ARGUMENT, index);
-}
-
-static void spec_constant(Builder *b, int32_t argc, const Janet *argv) {
-    janet_fixarity(argc, 1);
-    Reserve r = reserve(b, 2);
-    emit_1(r, RULE_CONSTANT, emit_constant(b, argv[0]));
-}
-
-static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
-    peg_fixarity(b, argc, 2);
-    Reserve r = reserve(b, 3);
-    uint32_t subrule = compile1(b, argv[0]);
-    uint32_t constant = emit_constant(b, argv[1]);
-    emit_2(r, RULE_REPLACE, subrule, constant);
 }
 
 static void spec_repeater(Builder *b, int32_t argc, const Janet *argv, int32_t min) {
@@ -743,17 +735,93 @@ static void spec_opt(Builder *b, int32_t argc, const Janet *argv) {
     emit_3(r, RULE_BETWEEN, 0, 1, subrule);
 }
 
-static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
-    peg_fixarity(b, argc, 2);
+
+/* Rule of the form [rule] */
+static void spec_onerule(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
+    peg_fixarity(b, argc, 1);
+    Reserve r = reserve(b, 2);
+    uint32_t rule = compile1(b, argv[0]);
+    emit_1(r, op, rule);
+}
+
+static void spec_not(Builder *b, int32_t argc, const Janet *argv) {
+    spec_onerule(b, argc, argv, RULE_NOT);
+}
+static void spec_error(Builder *b, int32_t argc, const Janet *argv) {
+    spec_onerule(b, argc, argv, RULE_ERROR);
+}
+
+/* Rule of the form [rule, tag] */
+static void spec_cap1(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
+    peg_arity(b, argc, 1, 2);
     Reserve r = reserve(b, 3);
+    uint32_t tag = (argc == 2) ? emit_tag(b, argv[1]) : 0;
+    uint32_t rule = compile1(b, argv[0]);
+    emit_2(r, op, rule, tag);
+}
+
+static void spec_capture(Builder *b, int32_t argc, const Janet *argv) {
+    spec_cap1(b, argc, argv, RULE_CAPTURE);
+}
+static void spec_accumulate(Builder *b, int32_t argc, const Janet *argv) {
+    spec_cap1(b, argc, argv, RULE_ACCUMULATE);
+}
+static void spec_group(Builder *b, int32_t argc, const Janet *argv) {
+    spec_cap1(b, argc, argv, RULE_GROUP);
+}
+
+static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
+    peg_arity(b, argc, 1, 2);
+    Reserve r = reserve(b, 3);
+    uint32_t search = emit_tag(b, argv[0]);
+    uint32_t tag = (argc == 2) ? emit_tag(b, argv[1]) : 0;
+    emit_2(r, RULE_GETTAG, search, tag);
+}
+
+static void spec_position(Builder *b, int32_t argc, const Janet *argv) {
+    peg_arity(b, argc, 0, 1);
+    Reserve r = reserve(b, 2);
+    uint32_t tag = (argc) ? emit_tag(b, argv[0]) : 0;
+    (void) argv;
+    emit_1(r, RULE_POSITION, tag);
+}
+
+static void spec_argument(Builder *b, int32_t argc, const Janet *argv) {
+    peg_arity(b, argc, 1, 2);
+    Reserve r = reserve(b, 3);
+    uint32_t tag = (argc == 2) ? emit_tag(b, argv[1]) : 0;
+    int32_t index = peg_getnat(b, argv[0]);
+    emit_2(r, RULE_ARGUMENT, index, tag);
+}
+
+static void spec_constant(Builder *b, int32_t argc, const Janet *argv) {
+    janet_arity(argc, 1, 2);
+    Reserve r = reserve(b, 3);
+    uint32_t tag = (argc == 2) ? emit_tag(b, argv[1]) : 0;
+    emit_2(r, RULE_CONSTANT, emit_constant(b, argv[0]), tag);
+}
+
+static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
+    peg_arity(b, argc, 2, 3);
+    Reserve r = reserve(b, 4);
+    uint32_t subrule = compile1(b, argv[0]);
+    uint32_t constant = emit_constant(b, argv[1]);
+    uint32_t tag = (argc == 3) ? emit_tag(b, argv[2]) : 0;
+    emit_3(r, RULE_REPLACE, subrule, constant, tag);
+}
+
+static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
+    peg_arity(b, argc, 2, 3);
+    Reserve r = reserve(b, 4);
     uint32_t subrule = compile1(b, argv[0]);
     Janet fun = argv[1];
     if (!janet_checktype(fun, JANET_FUNCTION) &&
             !janet_checktype(fun, JANET_CFUNCTION)) {
         peg_panicf(b, "expected function|cfunction, got %v", fun);
     }
+    uint32_t tag = (argc == 3) ? emit_tag(b, argv[2]) : 0;
     uint32_t cindex = emit_constant(b, fun);
-    emit_2(r, RULE_MATCHTIME, subrule, cindex);
+    emit_3(r, RULE_MATCHTIME, subrule, cindex, tag);
 }
 
 /* Special compiler form */
@@ -770,6 +838,7 @@ static const SpecialPair specials[] = {
     {"%", spec_accumulate},
     {"*", spec_sequence},
     {"+", spec_choice},
+    {"->", spec_reference},
     {"/", spec_replace},
     {"<-", spec_capture},
     {">", spec_look},
@@ -779,6 +848,7 @@ static const SpecialPair specials[] = {
     {"argument", spec_argument},
     {"at-least", spec_atleast},
     {"at-most", spec_atmost},
+    {"backref", spec_reference},
     {"between", spec_between},
     {"capture", spec_capture},
     {"choice", spec_choice},
@@ -939,8 +1009,10 @@ static Peg *compile_peg(Janet x) {
     Builder builder;
     builder.grammar = janet_table(0);
     builder.memoized = janet_table(0);
+    builder.tags = janet_table(0);
     builder.constants = NULL;
     builder.bytecode = NULL;
+    builder.nexttag = 1;
     builder.form = x;
     builder.depth = JANET_RECURSION_GUARD;
     uint32_t main_rule = compile1(&builder, x);
@@ -986,6 +1058,7 @@ static Janet cfun_match(int32_t argc, Janet *argv) {
     s.depth = JANET_RECURSION_GUARD;
     s.captures = janet_array(0);
     s.scratch = janet_buffer(10);
+    s.tags = janet_buffer(10);
 
     s.constants = peg->constants;
     s.bytecode = peg->bytecode;
