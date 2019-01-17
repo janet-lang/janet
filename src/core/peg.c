@@ -44,11 +44,10 @@ typedef enum {
     RULE_NOT,          /* [rule] */
     RULE_BETWEEN,      /* [lo, hi, rule] */
     RULE_CAPTURE,      /* [rule] */
-    RULE_POSITION,     /* [] */
+    RULE_POSITION,     /* [tag] */
     RULE_ARGUMENT,     /* [argument-index] */
-    RULE_REPINDEX,     /* [capture-index] */
     RULE_CONSTANT,     /* [constant] */
-    RULE_SUBSTITUTE,   /* [rule] */
+    RULE_ACCUMULATE,   /* [rule] */
     RULE_GROUP,        /* [rule] */
     RULE_REPLACE,      /* [rule, constant] */
     RULE_MATCHTIME,    /* [rule, constant] */
@@ -59,7 +58,6 @@ typedef enum {
 typedef struct {
     const uint8_t *text_start;
     const uint8_t *text_end;
-    const uint8_t *subst_end;
     const uint32_t *bytecode;
     const Janet *constants;
     JanetArray *captures;
@@ -69,7 +67,7 @@ typedef struct {
     int32_t depth;
     enum {
         PEG_MODE_NORMAL,
-        PEG_MODE_SUBSTITUTE,
+        PEG_MODE_ACCUMULATE,
         PEG_MODE_NOCAPTURE
     } mode;
 } PegState;
@@ -78,7 +76,6 @@ typedef struct {
  * to save state at branches, and then reload
  * if one branch fails and try a new branch. */
 typedef struct {
-    const uint8_t *subst_end;
     int32_t cap;
     int32_t scratch;
 } CapState;
@@ -86,7 +83,6 @@ typedef struct {
 /* Save the current capture state */
 static CapState cap_save(PegState *s) {
     CapState cs;
-    cs.subst_end = s->subst_end;
     cs.scratch = s->scratch->count;
     cs.cap = s->captures->count;
     return cs;
@@ -94,24 +90,16 @@ static CapState cap_save(PegState *s) {
 
 /* Load a saved capture state in the case of failure */
 static void cap_load(PegState *s, CapState cs) {
-    s->subst_end = cs.subst_end;
     s->scratch->count = cs.scratch;
     s->captures->count = cs.cap;
 }
 
 /* Add a capture */
-static void pushcap(PegState *s,
-        Janet capture,
-        const uint8_t *text,
-        const uint8_t *result) {
-    if (s->mode == PEG_MODE_SUBSTITUTE) {
-        janet_buffer_push_bytes(s->scratch, s->subst_end,
-                (int32_t)(text - s->subst_end));
+static void pushcap(PegState *s, Janet capture) {
+    if (s->mode == PEG_MODE_ACCUMULATE)
         janet_to_string_b(s->scratch, capture);
-        s->subst_end = result;
-    } else if (s->mode == PEG_MODE_NORMAL) {
+    if (s->mode == PEG_MODE_NORMAL)
         janet_array_push(s->captures, capture);
-    }
 }
 
 /* Prevent stack overflow */
@@ -120,7 +108,14 @@ static void pushcap(PegState *s,
 } while (0)
 #define up1(s) ((s)->depth++)
 
-/* Evaluate a peg rule */
+/* Evaluate a peg rule
+ * Pre-conditions: s is in a valid state
+ * Post-conditions: If there is a match, returns a pointer to the next text.
+ * All captures on the capture stack are valid. If there is no match,
+ * returns NULL. Extra captures from successful child expressions can be
+ * left on the capture stack. If s->mode was PEG_MODE_NOCAPTURE, captures MUST
+ * not be changed, though.
+ */
 static const uint8_t *peg_rule(
         PegState *s,
         const uint32_t *rule,
@@ -130,22 +125,26 @@ tail:
         default:
             janet_panic("unexpected opcode");
             return NULL;
+
         case RULE_LITERAL:
             {
                 uint32_t len = rule[1];
                 if (text + len > s->text_end) return NULL;
                 return memcmp(text, rule + 2, len) ? NULL : text + len;
             }
+
         case RULE_NCHAR:
             {
                 uint32_t n = rule[1];
                 return (text + n > s->text_end) ? NULL : text + n;
             }
+
         case RULE_NOTNCHAR:
             {
                 uint32_t n = rule[1];
                 return (text + n > s->text_end) ? text : NULL;
             }
+
         case RULE_RANGE:
             {
                 uint8_t lo = rule[1] & 0xFF;
@@ -156,6 +155,7 @@ tail:
                     ? text + 1
                     : NULL;
             }
+
         case RULE_SET:
             {
                 uint32_t word = rule[1 + (text[0] >> 5)];
@@ -164,6 +164,7 @@ tail:
                     ? text + 1
                     : NULL;
             }
+
         case RULE_LOOK:
             {
                 text += ((int32_t *)rule)[1];
@@ -176,6 +177,7 @@ tail:
                 s->mode = oldmode;
                 return result ? text : NULL;
             }
+
         case RULE_CHOICE:
             {
                 uint32_t len = rule[1];
@@ -195,6 +197,7 @@ tail:
                 rule = s->bytecode + args[len - 1];
                 goto tail;
             }
+
         case RULE_SEQUENCE:
             {
                 uint32_t len = rule[1];
@@ -208,6 +211,7 @@ tail:
                 rule = s->bytecode + args[len - 1];
                 goto tail;
             }
+
         case RULE_IF:
         case RULE_IFNOT:
             {
@@ -223,6 +227,7 @@ tail:
                 rule = rule_b;
                 goto tail;
             }
+
         case RULE_NOT:
             {
                 const uint32_t *rule_a = s->bytecode + rule[1];
@@ -234,6 +239,7 @@ tail:
                 s->mode = oldmode;
                 return (result) ? NULL : text;
             }
+
         case RULE_BETWEEN:
             {
                 uint32_t lo = rule[1];
@@ -243,7 +249,13 @@ tail:
                 const uint8_t *next_text;
                 CapState cs = cap_save(s);
                 down1(s);
-                while (captured < hi && (next_text = peg_rule(s, rule_a, text))) {
+                while (captured < hi) {
+                    CapState cs2 = cap_save(s);
+                    next_text = peg_rule(s, rule_a, text);
+                    if (!next_text || next_text == text) {
+                        cap_load(s, cs2);
+                        break;
+                    }
                     captured++;
                     text = next_text;
                 }
@@ -254,133 +266,100 @@ tail:
                 }
                 return text;
             }
+
         case RULE_POSITION:
             {
-                pushcap(s, janet_wrap_number((double)(text - s->text_start)), text, text);
+                pushcap(s, janet_wrap_number((double)(text - s->text_start)));
                 return text;
             }
+
         case RULE_ARGUMENT:
             {
                 int32_t index = ((int32_t *)rule)[1];
                 Janet capture = (index >= s->extrac) ? janet_wrap_nil() : s->extrav[index];
-                pushcap(s, capture, text, text);
+                pushcap(s, capture);
                 return text;
             }
-        case RULE_REPINDEX:
-            {
-                int32_t index = ((int32_t *)rule)[1];
-                if (index < 0) index += s->captures->count;
-                if (index >= s->captures->count || index < 0) return NULL;
-                Janet capture = s->captures->data[index];
-                pushcap(s, capture, text, text);
-                return text;
-            }
+
         case RULE_CONSTANT:
             {
-                pushcap(s, s->constants[rule[1]], text, text);
+                pushcap(s, s->constants[rule[1]]);
                 return text;
             }
+
         case RULE_CAPTURE:
             {
-                int oldmode = s->mode;
-                if (oldmode == PEG_MODE_NOCAPTURE) {
+                if (s->mode == PEG_MODE_NOCAPTURE) {
                     rule = s->bytecode + rule[1];
                     goto tail;
                 }
-                if (oldmode == PEG_MODE_SUBSTITUTE) s->mode = PEG_MODE_NOCAPTURE;
                 down1(s);
                 const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
                 up1(s);
-                s->mode = oldmode;
                 if (!result) return NULL;
-                if (oldmode != PEG_MODE_SUBSTITUTE)
-                    pushcap(s, janet_stringv(text, (int32_t)(result - text)), text, result);
+                /* Specialized pushcap - avoid intermediate string creation */
+                if (s->mode == PEG_MODE_ACCUMULATE) {
+                    janet_buffer_push_bytes(s->scratch, text, (int32_t)(result - text));
+                } else {
+                    janet_array_push(s->captures, janet_stringv(text, (int32_t)(result - text)));
+                }
                 return result;
             }
-        case RULE_SUBSTITUTE:
-        case RULE_GROUP:
-        case RULE_REPLACE:
+
+        case RULE_ACCUMULATE:
             {
-                /* In no-capture mode, all captures simply become their matching pattern */
                 int oldmode = s->mode;
-                if (oldmode == PEG_MODE_NOCAPTURE) {
+                /* No capture mode, skip captures. Accumulate inside accumulate also does nothing. */
+                if (oldmode != PEG_MODE_NORMAL) {
                     rule = s->bytecode + rule[1];
                     goto tail;
                 }
-
-                /* Save previous state. Will use this to reload state before
-                 * pushing grammar. Each of these rules pushes exactly 1 new
-                 * capture, regardless of the sub rule. */
                 CapState cs = cap_save(s);
-
-                /* Set sub mode as needed. Modes affect how captures are recorded (pushed to stack,
-                 * pushed to byte buffer, or ignored) */
-                if (rule[0] == RULE_GROUP) s->mode = PEG_MODE_NORMAL;
-                if (rule[0] == RULE_REPLACE) s->mode = PEG_MODE_NORMAL;
-                if (rule[0] == RULE_SUBSTITUTE) {
-                    s->mode = PEG_MODE_SUBSTITUTE;
-                    s->subst_end = text;
-                }
-
+                s->mode = PEG_MODE_ACCUMULATE;
                 down1(s);
                 const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
                 up1(s);
                 s->mode = oldmode;
                 if (!result) return NULL;
-
-                /* The replacement capture */
-                Janet cap;
-
-                /* Figure out what to push based on opcode */
-                if (rule[0] == RULE_GROUP) {
-                    int32_t num_sub_captures = s->captures->count - cs.cap;
-                    JanetArray *sub_captures = janet_array(num_sub_captures);
-                    memcpy(sub_captures->data,
-                            s->captures->data + cs.cap,
-                            sizeof(Janet) * num_sub_captures);
-                    sub_captures->count = num_sub_captures;
-                    cap = janet_wrap_array(sub_captures);
-
-                } else if (rule[0] == RULE_SUBSTITUTE) {
-                    janet_buffer_push_bytes(s->scratch, s->subst_end,
-                            (int32_t)(result - s->subst_end));
-                    cap = janet_stringv(s->scratch->data + cs.scratch,
-                            s->scratch->count - cs.scratch);
-
-                } else { /* RULE_REPLACE */
-                    Janet constant = s->constants[rule[2]];
-                    switch (janet_type(constant)) {
-                        default:
-                            cap = constant;
-                            break;
-                        case JANET_STRUCT:
-                            cap = janet_struct_get(janet_unwrap_struct(constant),
-                                    s->captures->data[s->captures->count - 1]);
-                            break;
-                        case JANET_TABLE:
-                            cap = janet_table_get(janet_unwrap_table(constant),
-                                    s->captures->data[s->captures->count - 1]);
-                            break;
-                        case JANET_CFUNCTION:
-                            cap = janet_unwrap_cfunction(constant)(s->captures->count - cs.cap,
-                                    s->captures->data + cs.cap);
-                            break;
-                        case JANET_FUNCTION:
-                            cap = janet_call(janet_unwrap_function(constant),
-                                    s->captures->count - cs.cap,
-                                    s->captures->data + cs.cap);
-                            break;
-                    }
-                }
-
-                /* Reset old state and then push capture */
+                Janet cap = janet_stringv(s->scratch->data + cs.scratch, s->scratch->count - cs.scratch);
                 cap_load(s, cs);
-                pushcap(s, cap, text, result);
+                pushcap(s, cap);
                 return result;
             }
+
+        case RULE_GROUP:
+            {
+                int oldmode = s->mode;
+                if (oldmode == PEG_MODE_NOCAPTURE) {
+                    rule = s->bytecode + rule[1];
+                    goto tail;
+                }
+                CapState cs = cap_save(s);
+                s->mode = PEG_MODE_NORMAL;
+                down1(s);
+                const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
+                up1(s);
+                s->mode = oldmode;
+                if (!result) return NULL;
+                int32_t num_sub_captures = s->captures->count - cs.cap;
+                JanetArray *sub_captures = janet_array(num_sub_captures);
+                memcpy(sub_captures->data,
+                        s->captures->data + cs.cap,
+                        sizeof(Janet) * num_sub_captures);
+                sub_captures->count = num_sub_captures;
+                cap_load(s, cs);
+                pushcap(s, janet_wrap_array(sub_captures));
+                return result;
+            }
+
+        case RULE_REPLACE:
         case RULE_MATCHTIME:
             {
                 int oldmode = s->mode;
+                if (rule[0] == RULE_REPLACE && oldmode == PEG_MODE_NOCAPTURE) {
+                    rule = s->bytecode + rule[1];
+                    goto tail;
+                }
                 CapState cs = cap_save(s);
                 s->mode = PEG_MODE_NORMAL;
                 down1(s);
@@ -389,28 +368,36 @@ tail:
                 s->mode = oldmode;
                 if (!result) return NULL;
 
-                /* Now check captures with provided function */
-                int32_t argc = s->captures->count - cs.cap;
-                Janet *argv = s->captures->data + cs.cap;
-                Janet fval = s->constants[rule[2]];
                 Janet cap;
-                if (janet_checktype(fval, JANET_FUNCTION)) {
-                    cap = janet_call(janet_unwrap_function(fval), argc, argv);
-                } else {
-                    JanetCFunction cfun = janet_unwrap_cfunction(fval);
-                    cap = cfun(argc, argv);
+                Janet constant = s->constants[rule[2]];
+                switch (janet_type(constant)) {
+                    default:
+                        cap = constant;
+                        break;
+                    case JANET_STRUCT:
+                        cap = janet_struct_get(janet_unwrap_struct(constant),
+                                s->captures->data[s->captures->count - 1]);
+                        break;
+                    case JANET_TABLE:
+                        cap = janet_table_get(janet_unwrap_table(constant),
+                                s->captures->data[s->captures->count - 1]);
+                        break;
+                    case JANET_CFUNCTION:
+                        cap = janet_unwrap_cfunction(constant)(s->captures->count - cs.cap,
+                                s->captures->data + cs.cap);
+                        break;
+                    case JANET_FUNCTION:
+                        cap = janet_call(janet_unwrap_function(constant),
+                                s->captures->count - cs.cap,
+                                s->captures->data + cs.cap);
+                        break;
                 }
-
                 cap_load(s, cs);
-
-                /* Capture failed */
-                if (!janet_truthy(cap)) return NULL;
-
-                /* Capture worked, so use new capture */
-                pushcap(s, cap, text, result);
-
+                if (rule[0] == RULE_MATCHTIME && !janet_truthy(cap)) return NULL;
+                pushcap(s, cap);
                 return result;
             }
+
         case RULE_ERROR:
             {
                 int oldmode = s->mode;
@@ -672,8 +659,8 @@ static void spec_not(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_capture(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_CAPTURE);
 }
-static void spec_substitute(Builder *b, int32_t argc, const Janet *argv) {
-    spec_onerule(b, argc, argv, RULE_SUBSTITUTE);
+static void spec_accumulate(Builder *b, int32_t argc, const Janet *argv) {
+    spec_onerule(b, argc, argv, RULE_ACCUMULATE);
 }
 static void spec_group(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_GROUP);
@@ -696,13 +683,6 @@ static void spec_position(Builder *b, int32_t argc, const Janet *argv) {
     Reserve r = reserve(b, 1);
     (void) argv;
     emit_rule(r, RULE_POSITION, 0, NULL);
-}
-
-static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
-    peg_fixarity(b, argc, 1);
-    Reserve r = reserve(b, 2);
-    int32_t index = peg_getinteger(b, argv[0]);
-    emit_1(r, RULE_REPINDEX, index);
 }
 
 static void spec_argument(Builder *b, int32_t argc, const Janet *argv) {
@@ -787,18 +767,18 @@ typedef struct {
 static const SpecialPair specials[] = {
     {"!", spec_not},
     {"$", spec_position},
-    {"%", spec_substitute},
+    {"%", spec_accumulate},
     {"*", spec_sequence},
     {"+", spec_choice},
     {"/", spec_replace},
     {"<-", spec_capture},
     {">", spec_look},
     {"?", spec_opt},
+    {"accumulate", spec_accumulate},
     {"any", spec_any},
     {"argument", spec_argument},
     {"at-least", spec_atleast},
     {"at-most", spec_atmost},
-    {"backref", spec_reference},
     {"between", spec_between},
     {"capture", spec_capture},
     {"choice", spec_choice},
@@ -817,7 +797,6 @@ static const SpecialPair specials[] = {
     {"sequence", spec_sequence},
     {"set", spec_set},
     {"some", spec_some},
-    {"substitute", spec_substitute},
 };
 
 /* Compile a janet value into a rule and return the rule index. */

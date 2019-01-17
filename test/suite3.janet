@@ -222,7 +222,7 @@
 (file/flush stderr)
 (file/flush stdout)
 
-(def grammar '(% (any (+ (/ "dog" "purple panda") 1))))
+(def grammar '(accumulate (any (+ (/ "dog" "purple panda") (<- 1)))))
 (defn try-grammar [text]
   (assert (= (string/replace-all "dog" "purple panda" text) (0 (peg/match grammar text))) text))
 
@@ -238,8 +238,8 @@
 
 (def csv
   '{:field (+
-            (* `"` (% (any (+ (if-not `"` 1) (/ `""` `"`)))) `"`)
-            (% (any (if-not (set ",\n") 1))))
+            (* `"` (% (any (+ (<- (if-not `"` 1)) (* (constant `"`) `""`)))) `"`)
+            (<- (any (if-not (set ",\n") 1))))
     :main (* :field (any (* "," :field)) (+ "\n" -1))})
 
 (defn check-csv
@@ -292,9 +292,9 @@
 
 (def wrapped-string
   ~{:pad (any "=")
-    :open (* "[" (capture :pad) "[")
-    :close (* "]" (cmt (* (backref 0) (capture :pad)) ,=) "]")
-    :main (* :open (any (if-not :close 1)) :close -1)})
+    :open (* "[" (<- :pad :n) "[")
+    :close (* "]" (cmt (* (-> :n) (<- :pad)) ,=) "]")
+    :main (cmt (* :open (any (if-not :close 1)) :close -1) ,=)})
 
 (check-match wrapped-string "[[]]" true)
 (check-match wrapped-string "[==[a]==]" true)
@@ -305,11 +305,11 @@
 (check-match wrapped-string "[[bl]rk]] " false)
 (check-match wrapped-string "[=[bl]]rk]=] " false)
 (check-match wrapped-string "[=[bl]==]rk]=] " false)
+(check-match wrapped-string "[===[]==]===]" true)
 
 (def janet-longstring
-  ~{:open (capture (some "`"))
-    :close (cmt (* (backref 0) :open) ,=)
-    :main (* :open (any (if-not :close 1)) (not (> -1 "`")) :close -1)})
+  ~{:delim (capture (some "`"))
+    :main (cmt (* :delim (any (if-not (* (not (> -1 "`")) :delim) 1)) (not (> -1 "`")) :delim -1) ,=)})
 
 (check-match janet-longstring "`john" false)
 (check-match janet-longstring "abc" false)

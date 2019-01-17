@@ -12,6 +12,9 @@ janet
 janet-*.tar.gz
 dist
 
+# Local directory for testing
+local
+
 # Emscripten
 *.bc
 janet.js

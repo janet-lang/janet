@@ -134,15 +134,15 @@ Most captures specials will match the same text as their first argument pattern.
 | ------- | ---------------- |
 | `(capture patt)` | Captures all of the text in patt if patt matches, If patt contains any captures, then those captures will be pushed to the capture stack before the total text. |
 | `(<- patt)` | Alias for `(capture patt)` |
-| `(group patt) ` | Pops all of the captures in patt off of the capture stack and pushes them in an array if patt matches.
+| `(group patt) ` | Captures an array of all of the captures in patt.
 | `(replace patt subst)` | Replaces the captures produced by patt by applying subst to them. If subst is a table or struct, will push `(get subst last-capture)` to the capture stack after removing the old captures. If a subst is a function, will call subst with the captures of patt as arguments and push the result to the capture stack. Otherwise, will push subst literally to the capture stack. |
 | `(/ patt subst)` | Alias for `(replace patt subst)` |
 | `(constant k)` | Captures a constant value and advances no characters. |
 | `(argument n)` | Captures the nth extra argument to the match function and does not advance. |
 | `(position)` | Captures the current index into the text and advances no input. |
 | `($)` | Alias for `(position)`. |
-| `(substitute patt)` | Replace the text matched by all captures in patt with the capture values. Pushes the substituted text matched by patt to the capture stack. |
-| `(% patt)` | Alias for `(substitute patt)`
+| `(accumulate patt)` | Capture a string that is the concatenation of all captures in patt. This will try to be efficient and not create intermediate strings if possible. |
+| `(% patt)` | Alias for `(accumulate patt)`
 | `(cmt patt fun)` | Invokes fun with all of the captures of patt as arguments (if patt matches). If the result is truthy, then captures the result. The whole expression fails if fun returns false or nil. |
 | `(backref n)` | Duplicates the nth capture and pushes it to the stack again (0 is the first capture). If n is negative, indexes from the top of the stack (-1 pushes the previously captured value to the stack). If n does not map to a valid stack index then the match fails. |
 | `(error patt)` | Throws a Janet error if patt matches. The error thrown will be the last capture ofpatt, or a generic error if patt produces no captures. |

@@ -761,9 +761,11 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     int handle = janet_gclock();
 
     JanetFiber *old_fiber = janet_vm_fiber;
+    old_fiber->child = fiber;
     janet_vm_fiber = fiber;
     memcpy(fiber->buf, janet_vm_fiber->buf,  sizeof(jmp_buf));
     run_vm(fiber, janet_wrap_nil(), JANET_STATUS_NEW);
+    old_fiber->child = NULL;
     janet_vm_fiber = old_fiber;
 
     janet_gcunlock(handle);
