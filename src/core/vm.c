@@ -758,18 +758,30 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     JanetFiber *fiber = janet_fiber(fun, 64, argc, argv);
     if (!fiber)
         janet_panic("arity mismatch");
+    JanetFiber *old_fiber = janet_vm_fiber;
+    janet_vm_fiber = fiber;
+    janet_gcroot(janet_wrap_fiber(fiber));
+    int32_t oldn = janet_vm_stackn++;
     int handle = janet_gclock();
 
-    JanetFiber *old_fiber = janet_vm_fiber;
-    old_fiber->child = fiber;
-    janet_vm_fiber = fiber;
-    memcpy(fiber->buf, janet_vm_fiber->buf,  sizeof(jmp_buf));
-    run_vm(fiber, janet_wrap_nil(), JANET_STATUS_NEW);
-    old_fiber->child = NULL;
-    janet_vm_fiber = old_fiber;
+    JanetSignal signal;
+    if (setjmp(fiber->buf)) {
+        signal = JANET_SIGNAL_ERROR;
+    } else {
+        signal = run_vm(fiber, janet_wrap_nil(), JANET_STATUS_NEW);
+    }
 
+    janet_vm_stackn = oldn;
+    janet_vm_fiber = old_fiber;
+    Janet ret = fiber->data[fiber->stacktop - 1];
+    janet_gcunroot(janet_wrap_fiber(fiber));
     janet_gcunlock(handle);
-    return fiber->data[fiber->stacktop - 1];
+    if (signal == JANET_SIGNAL_ERROR) {
+        old_fiber->child = fiber;
+        janet_fiber_set_status(fiber, signal);
+        janet_panicv(ret);
+    }
+    return ret;
 }
 
 /* Enter the main vm loop */

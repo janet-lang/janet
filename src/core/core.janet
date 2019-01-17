@@ -92,7 +92,7 @@
 (defn function? "Check if x is a function (not a cfunction)." [x]
   (= (type x) :function))
 (defn cfunction? "Check if x a cfunction." [x] (= (type x) :cfunction))
-(defn table? "Check if x a table." [x] (= (type x) :table ))
+(defn table? "Check if x a table." [x] (= (type x) :table))
 (defn struct? "Check if x a struct." [x] (= (type x) :struct))
 (defn array? "Check if x is an array." [x] (= (type x) :array))
 (defn tuple? "Check if x is a tuple." [x] (= (type x) :tuple))

@@ -53,6 +53,7 @@ typedef enum {
     RULE_REPLACE,      /* [rule, constant, tag] */
     RULE_MATCHTIME,    /* [rule, constant, tag] */
     RULE_ERROR,        /* [rule] */
+    RULE_DROP,         /* [rule] */
 } Opcode;
 
 /* Hold captured patterns and match state */
@@ -347,6 +348,17 @@ tail:
                 Janet cap = janet_stringv(s->scratch->data + cs.scratch, s->scratch->count - cs.scratch);
                 cap_load(s, cs);
                 pushcap(s, cap, tag);
+                return result;
+            }
+
+        case RULE_DROP:
+            {
+                CapState cs = cap_save(s);
+                down1(s);
+                const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
+                up1(s);
+                if (!result) return NULL;
+                cap_load(s, cs);
                 return result;
             }
 
@@ -750,6 +762,9 @@ static void spec_not(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_error(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_ERROR);
 }
+static void spec_drop(Builder *b, int32_t argc, const Janet *argv) {
+    spec_onerule(b, argc, argv, RULE_DROP);
+}
 
 /* Rule of the form [rule, tag] */
 static void spec_cap1(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
@@ -854,6 +869,7 @@ static const SpecialPair specials[] = {
     {"choice", spec_choice},
     {"cmt", spec_matchtime},
     {"constant", spec_constant},
+    {"drop", spec_drop},
     {"error", spec_error},
     {"group", spec_group},
     {"if", spec_if},

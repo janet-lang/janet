@@ -150,7 +150,8 @@ that can make many grammars simpler.
 | `(cmt patt fun ?tag)` | Invokes fun with all of the captures of patt as arguments (if patt matches). If the result is truthy, then captures the result. The whole expression fails if fun returns false or nil. |
 | `(backref tag ?tag)` | Duplicates the last capture with the tag `tag`. If no such capture exists then the match fails. |
 | `(-> tag ?tag)` | Alias for `(backref tag)`. |
-| `(error patt)` | Throws a Janet error if patt matches. The error thrown will be the last capture ofpatt, or a generic error if patt produces no captures. |
+| `(error patt)` | Throws a Janet error if patt matches. The error thrown will be the last capture of patt, or a generic error if patt produces no captures. |
+| `(drop patt)` | Ignores (drops) all captures from patt. |
 
 ## Grammars and Recursion
 
