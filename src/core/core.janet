@@ -1079,7 +1079,7 @@ value, one key will be ignored."
   [pattern expr onmatch seen]
   (cond
 
-    (and (symbol? pattern) (not (keyword? pattern)))
+    (symbol? pattern)
     (if (get seen pattern)
       ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)
       (do
@@ -1138,8 +1138,7 @@ value, one key will be ignored."
       ((fn aux [i]
         (cond
           (= i len-1) (get cases i)
-          (< i len-1) (do
-                        (def $res (gensym))
+          (< i len-1) (with-syms [$res]
                         ~(if (= ,sentinel (def ,$res ,(match-1 (get cases i) $x (fn [] (get cases (inc i))) @{})))
                            ,(aux (+ 2 i))
                            ,$res)))) 0)))
