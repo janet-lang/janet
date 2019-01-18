@@ -49,7 +49,7 @@
       (+= i (dohandler (string/slice arg 1 2) i))
       (do
         (set *no-file* false)
-        (import* _env arg :prefix "" :exit *exit-on-error*)
+        (import* *env* arg :prefix "" :exit *exit-on-error*)
         (++ i))))
 
   (when (or *should-repl* *no-file*)

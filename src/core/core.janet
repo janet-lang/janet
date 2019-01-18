@@ -7,9 +7,7 @@
 ###
 ###
 
-(var *env*
-  "The current environment."
-  _env)
+(var *env* "The current environment." _env)
 
 (def defn :macro
   "(def name & more)\n\nDefine a function. Equivalent to (def name (fn name [args] ...))."
@@ -931,7 +929,7 @@ value, one key will be ignored."
   ret)
 
 (defn zipcoll
-  "Creates an table or tuple from two arrays/tuples.
+  "Creates a table from two arrays/tuples.
   Returns a new table."
   [keys vals]
   (def res @{})
@@ -1146,8 +1144,8 @@ value, one key will be ignored."
                            ,(aux (+ 2 i))
                            ,$res)))) 0)))
 
-(put _env sentinel nil)
-(put _env match-1 nil)
+(put _env 'sentinel nil)
+(put _env 'match-1 nil)
 
 ###
 ###
@@ -1223,7 +1221,7 @@ value, one key will be ignored."
 (defmacro doc
   "Shows documentation for the given symbol."
   [sym]
-  (tuple doc* '_env (tuple 'quote sym)))
+  ~(,doc* *env* ',sym))
 
 ###
 ###
@@ -1385,8 +1383,6 @@ value, one key will be ignored."
   [parent &]
   (def parent (if parent parent _env))
   (def newenv (table/setproto @{} parent))
-  (put newenv '_env @{:value newenv :private true
-                      :doc "The environment table for the current scope."})
   newenv)
 
 (defn run-context
@@ -1539,104 +1535,114 @@ value, one key will be ignored."
     (res)
     (error (res :error))))
 
-(do
-  (def syspath (or (os/getenv "JANET_PATH") "/usr/local/lib/janet/"))
-  (defglobal 'module/paths
-    @["./?.janet"
-      "./?/init.janet"
-      "./janet_modules/?.janet"
-      "./janet_modules/?/init.janet"
-      (string syspath janet/version "/?.janet")
-      (string syspath janet/version "/?/init.janet")
-      (string syspath "/?.janet")
-      (string syspath "/?/init.janet")])
-  (defglobal 'module/native-paths
-    @["./?.so"
-      "./?/??.so"
-      "./janet_modules/?.so"
-      "./janet_modules/?/??.so"
-      (string syspath janet/version "/?.so")
-      (string syspath janet/version "/?/??.so")
-      (string syspath "/?.so")
-      (string syspath "/?/??.so")]))
+(def module/paths
+  "The list of paths to look for modules. The followig
+  substitutions are preformed on each path. :sys: becomes
+  module/*syspath*, :name: becomes the last part of the module
+  name after the last /, and :all: is the module name literally. 
+  :native: becomes the dynamic library file extension, usually dll
+  or so."
+  @["./:all:.janet"
+    "./:all:/init.janet"
+    ":sys:/:all:.janet"
+    ":sys:/:all:/init.janet"])
 
-(if (= :windows (os/which))
-   (loop [i :range [0 (length module/native-paths)]]
-     (def x (get module/native-paths i))
-     (put
-       module/native-paths
-       i
-       (string/replace ".so" ".dll" x))))
+(def module/native-paths
+  "See doc for module/paths"
+  @["./:all:.:native:"
+    "./:all:/:name:.:native:"
+    ":sys:/:all:.:native:"
+    ":sys:/:all:/:name:.:native:"])
+
+(var module/*syspath*
+  "The path where globally installed libraries are located.
+  The default value is the environment variable JANET_PATH,
+  and if that is not set /usr/local/lib/janet on linux/posix, and
+  on Windows the default is the empty string."
+  (or (os/getenv "JANET_PATH")
+      (if (= :windows (os/which)) "" "/usr/local/lib/janet")))
 
 (defn module/find
   "Try to match a module or path name from the patterns in paths."
   [path paths]
   (def parts (string/split "/" path))
-  (def lastpart (get parts (- (length parts) 1)))
-  (array/push
-    (map (fn [x]
-           (def y (string/replace "??" lastpart x))
-           (string/replace "?" path y))
-         paths)
-    path))
+  (def name (get parts (- (length parts) 1)))
+  (def nati (if (= :windows (os/which)) "dll" "so"))
+  (defn sub-path
+    [p]
+    (->> p
+         (string/replace ":name:" name)
+         (string/replace ":sys:" module/*syspath*)
+         (string/replace ":native:" nati)
+         (string/replace ":all:" path)))
+  (array/push (map sub-path paths) path))
 
-(def require
-  "(require module & args)\n\n
-  Require a module with the given name. Will search all of the paths in
+(def module/cache
+  "Table mapping loaded module identifiers to their environments."
+  @{})
+
+(def module/loading
+  "Table mapping currently loading modules to true. Used to prevent
+  circular dependencies."
+  @{})
+
+# Require helpers
+(defn- check-mod
+  [f testpath]
+  (or f (file/open testpath)))
+(defn- find-mod [path]
+  (def paths (module/find path module/paths))
+  (reduce check-mod nil paths))
+(defn- check-native
+  [p testpath]
+  (or p
+    (do
+      (def f (file/open testpath))
+      (if f (do (file/close f) testpath)))))
+(defn- find-native [path]
+  (def paths (module/find path module/native-paths))
+  (reduce check-native nil paths))
+
+(defn require
+  "Require a module with the given name. Will search all of the paths in
   module/paths, then the path as a raw file path. Returns the new environment
   returned from compiling and running the file."
-  (do
+  [path & args]
+  (when (get module/loading path)
+    (error (string "circular dependency: module " path " is loading")))
+  (def {:exit exit-on-error} (table ;args))
+  (if-let [check (get module/cache path)]
+    check
+    (if-let [f (find-mod path)]
+      (do
+        # Normal janet module
+        (def newenv (make-env))
+        (put module/loading path true)
+        (defn chunks [buf _] (file/read f 2048 buf))
+        (run-context newenv chunks
+                     (fn [sig x f source]
+                       (when (not= sig :dead)
+                         (status-pp sig x f source)
+                         (if exit-on-error (os/exit 1))))
+                     path)
+        (file/close f)
+        (put module/loading path false)
+        (put module/cache path newenv)
+        newenv)
+      (do
+        # Try native module
+        (def n (find-native path))
+        (if (not n)
+          (error (string "could not open file for module " path)))
+        (def e (make-env))
+        (native n e)
+        (put module/cache path e)
+        e))))
 
-    (defn check-mod
-      [f testpath]
-      (if f f (file/open testpath)))
-
-    (defn find-mod [path]
-      (def paths (module/find path module/paths))
-      (reduce check-mod nil paths))
-
-    (defn check-native
-      [p testpath]
-      (if p
-        p
-        (do
-          (def f (file/open testpath))
-          (if f (do (file/close f) testpath)))))
-
-    (defn find-native [path]
-      (def paths (module/find path module/native-paths))
-      (reduce check-native nil paths))
-
-    (def cache @{})
-    (def loading @{})
-    (fn require [path & args]
-      (when (get loading path)
-        (error (string "circular dependency: module " path " is loading")))
-      (def {:exit exit-on-error} (table ;args))
-      (if-let [check (get cache path)]
-        check
-        (if-let [f (find-mod path)]
-          (do
-            # Normal janet module
-            (def newenv (make-env))
-            (put cache path newenv)
-            (put loading path true)
-            (defn chunks [buf _] (file/read f 1024 buf))
-            (run-context newenv chunks
-                         (fn [sig x f source]
-                           (when (not= sig :dead)
-                             (status-pp sig x f source)
-                             (if exit-on-error (os/exit 1))))
-                         path)
-            (file/close f)
-            (put loading path false)
-            newenv)
-          (do
-            # Try native module
-            (def n (find-native path))
-            (if (not n)
-              (error (string "could not open file for module " path)))
-            (native n (make-env))))))))
+(put _env 'find-native nil)
+(put _env 'check-native nil)
+(put _env 'find-mod nil)
+(put _env 'check-mod nil)
 
 (defn import*
   "Import a module into a given environment table. This is the
@@ -1662,7 +1668,7 @@ value, one key will be ignored."
                      x
                      (string x)))
                  args))
-  (tuple import* '_env (string path) ;argm))
+  (tuple import* '*env* (string path) ;argm))
 
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
@@ -1673,7 +1679,6 @@ value, one key will be ignored."
   (def newenv (make-env))
   (default chunks (fn [buf _] (file/read stdin :line buf)))
   (default onsignal (fn [sig x f source]
-                      (put newenv '_fiber @{:value f})
                       (case sig
                         :dead (do
                                 (put newenv '_ @{:value x})
@@ -1700,3 +1705,6 @@ value, one key will be ignored."
          :when (symbol? k)]
     (put symbol-set k true))
   (sort (keys symbol-set)))
+
+# Use dynamic *env* from now on
+(put _env '_env nil)

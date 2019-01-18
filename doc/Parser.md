@@ -101,16 +101,16 @@ the double quote with a backslash. For unprintable characters, you can either us
 one of a few common escapes, use the `\xHH` escape to escape a single byte in
 hexidecimal. The supported escapes are:
 
-    - \\xHH Escape a single arbitrary byte in hexidecimal.
-    - \\n Newline (ASCII 10)
-    - \\t Tab character (ASCII 9)
-    - \\r Carriage Return (ASCII 13)
-    - \\0 Null (ASCII 0)
-    - \\z Null (ASCII 0)
-    - \\f Form Feed (ASCII 12)
-    - \\e Escape (ASCII 27)
-    - \\" Double Quote (ASCII 34)
-    - \\\\ Backslash (ASCII 92)
+- \\xHH Escape a single arbitrary byte in hexidecimal.
+- \\n Newline (ASCII 10)
+- \\t Tab character (ASCII 9)
+- \\r Carriage Return (ASCII 13)
+- \\0 Null (ASCII 0)
+- \\z Null (ASCII 0)
+- \\f Form Feed (ASCII 12)
+- \\e Escape (ASCII 27)
+- \\" Double Quote (ASCII 34)
+- \\\\ Backslash (ASCII 92)
 
 Strings can also contain literal newline characters that will be ignore.
 This lets one define a multiline string that does not contain newline characters.
