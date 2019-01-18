@@ -42,13 +42,13 @@
     :symchars (+ (range "09" "AZ" "az" "\x80\xFF") (set "$%&*+-./:<=>?@^_|"))
     :token (some :symchars)
     :hex (range "09" "af" "AF")
-    :escape (* "\\" (+ (set "ntr0\"\\e") 
-                       (* "h" :hex :hex) 
+    :escape (* "\\" (+ (set "ntrzf0\"\\e") 
+                       (* "x" :hex :hex) 
                        (error (constant "bad hex escape"))))
 
     :comment ,(<-c :comment ~(* "#" (any (if-not (+ "\n" -1) 1))))
 
-    :symbol (/ (<- :token) ,color-symbol)
+    :symbol (/ ':token ,color-symbol)
     :keyword ,(<-c :keyword ~(* ":" (any :symchars)))
     :constant ,(<-c :constant ~(+ "true" "false" "nil"))
     :bytes (* "\"" (any (+ :escape (if-not "\"" 1))) "\"")
@@ -56,25 +56,25 @@
     :buffer ,(<-c :string ~(* "@" :bytes))
     :long-bytes {:delim (some "`")
                  :open (capture :delim :n)
-                 :close (cmt (* (not (> -1 "`")) (-> :n) (<- :delim)) ,=)
+                 :close (cmt (* (not (> -1 "`")) (-> :n) ':delim) ,=)
                  :main (drop (* :open (any (if-not :close 1)) :close))}
     :long-string ,(<-c :string :long-bytes)
     :long-buffer ,(<-c :string ~(* "@" :long-bytes))
-    :number (/ (cmt (<- :token) ,check-number) ,(partial paint :number))
+    :number (/ (cmt ':token ,check-number) ,(partial paint :number))
 
     :raw-value (+ :comment :constant :number :keyword
                   :string :buffer :long-string :long-buffer
                   :parray :barray :ptuple :btuple :struct :dict :symbol)
 
-    :value (* (? (<- (some (+ :ws :readermac)))) :raw-value (<- (any :ws)))
+    :value (* (? '(some (+ :ws :readermac))) :raw-value '(any :ws))
     :root (any :value)
     :root2 (any (* :value :value))
-    :ptuple (* (<- "(") :root (+ (<- ")") (error "")))
-    :btuple (* (<- "[") :root (+ (<- "]") (error "")))
-    :struct (* (<- "{") :root2 (+ (<- "}") (error "")))
-    :parray (* (<- "@") :ptuple)
-    :barray (* (<- "@") :btuple)
-    :dict (* (<-"@") :struct)
+    :ptuple (* '"(" :root (+ '")" (error "")))
+    :btuple (* '"[" :root (+ '"]" (error "")))
+    :struct (* '"{" :root2 (+ '"}" (error "")))
+    :parray (* '"@" :ptuple)
+    :barray (* '"@" :btuple)
+    :dict (* '"@"  :struct)
 
     :main (+ (% :root) (error ""))})
 

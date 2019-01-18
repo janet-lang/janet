@@ -878,6 +878,7 @@ static const SpecialPair specials[] = {
     {"not", spec_not},
     {"opt", spec_opt},
     {"position", spec_position},
+    {"quote", spec_capture},
     {"range", spec_range},
     {"replace", spec_replace},
     {"sequence", spec_sequence},

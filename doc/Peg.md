@@ -138,6 +138,7 @@ that can make many grammars simpler.
 | ------- | ---------------- |
 | `(capture patt ?tag)` | Captures all of the text in patt if patt matches, If patt contains any captures, then those captures will be pushed to the capture stack before the total text. |
 | `(<- patt ?tag)` | Alias for `(capture patt ?tag)` |
+| `(quote patt ?tag)` | Another alias for `(capture patt ?tag)`. This allows code like `'patt` to capture pattern. |
 | `(group patt ?tag) ` | Captures an array of all of the captures in patt.
 | `(replace patt subst ?tag)` | Replaces the captures produced by patt by applying subst to them. If subst is a table or struct, will push `(get subst last-capture)` to the capture stack after removing the old captures. If a subst is a function, will call subst with the captures of patt as arguments and push the result to the capture stack. Otherwise, will push subst literally to the capture stack. |
 | `(/ patt subst ?tag)` | Alias for `(replace patt subst ?tag)` |
