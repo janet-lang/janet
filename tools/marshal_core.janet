@@ -10,11 +10,11 @@
 # can be written to an image (no cfunctions, no abstracts (stdout, stdin, stderr)),
 # everything else goes. Cfunctions and abstracts will be referenced from a register
 # table which will be generated on janet startup.
-(def image (let [env-pairs (pairs (env-lookup _env))
+(def image (let [env-pairs (pairs (env-lookup *env*))
                  essential-pairs (filter (fn [[k v]] (or (cfunction? v) (abstract? v))) env-pairs)
                  lookup (table ;(mapcat identity essential-pairs))
                  reverse-lookup (invert lookup)]
-             (marshal (table/getproto _env) reverse-lookup)))
+             (marshal (table/getproto *env*) reverse-lookup)))
 
 # Write image
 (file/write stdout image)

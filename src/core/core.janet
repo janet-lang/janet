@@ -1451,7 +1451,7 @@ value, one key will be ignored."
                   where))))
 
   (if (= (parser/status p) :pending)
-        (onstatus :parse 
+        (onstatus :parse
                   (string "unmatched delimiters " (parser/state p))
                   nil
                   where))
@@ -1539,7 +1539,7 @@ value, one key will be ignored."
   "The list of paths to look for modules. The followig
   substitutions are preformed on each path. :sys: becomes
   module/*syspath*, :name: becomes the last part of the module
-  name after the last /, and :all: is the module name literally. 
+  name after the last /, and :all: is the module name literally.
   :native: becomes the dynamic library file extension, usually dll
   or so."
   @["./:all:.janet"

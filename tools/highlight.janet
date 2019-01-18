@@ -5,7 +5,7 @@
 
 # Constants for checking if symbols should be
 # highlighted.
-(def- core-env (table/getproto _env))
+(def- core-env (table/getproto *env*))
 (def- specials {'fn true
                'var true
                'do true
