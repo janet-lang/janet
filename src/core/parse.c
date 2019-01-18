@@ -476,7 +476,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
             {
                 Janet ds;
                 if (p->statecount == 1) {
-                    p->error = "mismatched delimiter";
+                    p->error = "unexpected delimiter";
                     return 1;
                 }
                 if ((c == ')' && (state->flags & PFLAG_PARENS)) ||

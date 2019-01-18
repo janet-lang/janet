@@ -24,6 +24,7 @@
 #include <string.h>
 #include "util.h"
 #include "vector.h"
+#include "util.h"
 
 /*
  * Runtime
@@ -1085,15 +1086,15 @@ static Janet cfun_match(int32_t argc, Janet *argv) {
 
 static const JanetReg cfuns[] = {
     {"peg/compile", cfun_compile,
-        "(peg/compile peg)\n\n"
-            "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
-            "if the same peg will be used multiple times."
+        JDOC("(peg/compile peg)\n\n"
+                "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
+                "if the same peg will be used multiple times.")
     },
     {"peg/match", cfun_match,
-        "(peg/match peg text [,start=0])\n\n"
-            "Match a Parsing Expression Grammar to a byte string and return an array of captured values. "
-            "Returns nil if text does not match the language defined by peg. The syntax of PEGs are very "
-            "similar to those defined by LPeg, and have similar capabilities."
+        JDOC("(peg/match peg text [,start=0])\n\n"
+                "Match a Parsing Expression Grammar to a byte string and return an array of captured values. "
+                "Returns nil if text does not match the language defined by peg. The syntax of PEGs are very "
+                "similar to those defined by LPeg, and have similar capabilities.")
     },
     {NULL, NULL, NULL}
 };

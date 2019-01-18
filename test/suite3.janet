@@ -330,4 +330,9 @@
 (check-match '(* (? "hi") -1) "hi" true)
 (check-match '(* (? "hi") -1) "no" false)
 
+# Drop
+
+(check-deep '(drop '"hello") "hello" @[])
+(check-deep '(drop "hello") "hello" @[])
+
 (end-suite)

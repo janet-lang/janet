@@ -192,6 +192,7 @@ install: $(JANET_TARGET)
 	cp $(JANET_LIBRARY) $(LIBDIR)/libjanet.so
 	mkdir -p $(JANET_PATH)
 	cp tools/cook.janet $(JANET_PATH)
+	cp tools/highlight.janet $(JANET_PATH)
 	cp janet.1 /usr/local/share/man/man1/
 	mandb
 	$(LDCONFIG)

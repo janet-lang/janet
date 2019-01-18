@@ -21,8 +21,8 @@
 (defn check-number [text] (and (scan-number text) text))
 
 (defn- make-grammar
-  "Creates the grammar based on the paint function and some
-  wraping constants."
+  "Creates the grammar based on the paint function, which
+  colorizes fragments of text."
   [paint]
 
   (defn <-c
@@ -126,19 +126,6 @@
 .j-comment { color: darkgray; }
 .j-line { color: gray; }
 </style>
-```)
-
-(def- html-boiler-prefix
-```<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>title</title>
-  </head>
-  <body>
-  
-  </body>
-</html>
 ```)
 
 (defn- html-escape

@@ -1454,6 +1454,12 @@ value, one key will be ignored."
                   nil
                   where))))
 
+  (if (= (parser/status p) :pending)
+        (onstatus :parse 
+                  (string "unmatched delimiters " (parser/state p))
+                  nil
+                  where))
+
   (set *env* oldenv)
 
   env)
