@@ -34,7 +34,7 @@
   [f1 f2]
   "Check if f1 is newer than f2. Used for checking if a file should be updated."
   (if is-win true
-    (zero? (os/shell (string "[ " f1 " -ot " f2 " ]")))))
+    (not (zero? (os/shell (string "[ " f1 " -nt " f2 " ]"))))))
 
 (defn- older-than-some
   [f others]
