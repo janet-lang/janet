@@ -98,43 +98,31 @@ static Janet janet_core_print(int32_t argc, Janet *argv) {
 }
 
 static Janet janet_core_describe(int32_t argc, Janet *argv) {
-    JanetBuffer b;
-    janet_buffer_init(&b, 0);
+    JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
-        janet_description_b(&b, argv[i]);
-    Janet ret =  janet_stringv(b.data, b.count);
-    janet_buffer_deinit(&b);
-    return ret;
+        janet_description_b(b, argv[i]);
+    return janet_stringv(b->data, b->count);
 }
 
 static Janet janet_core_string(int32_t argc, Janet *argv) {
-    JanetBuffer b;
-    janet_buffer_init(&b, 0);
+    JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
-        janet_to_string_b(&b, argv[i]);
-    Janet ret = janet_stringv(b.data, b.count);
-    janet_buffer_deinit(&b);
-    return ret;
+        janet_to_string_b(b, argv[i]);
+    return janet_stringv(b->data, b->count);
 }
 
 static Janet janet_core_symbol(int32_t argc, Janet *argv) {
-    JanetBuffer b;
-    janet_buffer_init(&b, 0);
+    JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
-        janet_to_string_b(&b, argv[i]);
-    Janet ret = janet_symbolv(b.data, b.count);
-    janet_buffer_deinit(&b);
-    return ret;
+        janet_to_string_b(b, argv[i]);
+    return janet_symbolv(b->data, b->count);
 }
 
 static Janet janet_core_keyword(int32_t argc, Janet *argv) {
-    JanetBuffer b;
-    janet_buffer_init(&b, 0);
+    JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
-        janet_to_string_b(&b, argv[i]);
-    Janet ret = janet_keywordv(b.data, b.count);
-    janet_buffer_deinit(&b);
-    return ret;
+        janet_to_string_b(b, argv[i]);
+    return janet_keywordv(b->data, b->count);
 }
 
 static Janet janet_core_buffer(int32_t argc, Janet *argv) {
