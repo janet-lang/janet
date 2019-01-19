@@ -167,3 +167,7 @@ See the examples directory for some example janet code.
 Janet is named after the almost omniscient and friendly artificial being in [The Good Place](https://en.wikipedia.org/wiki/The_Good_Place).
 
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-the-good-place.gif" alt="Janet logo" width="115px" align="left">
+
+## IRC
+
+Feel free to ask questions and join discussion on [the #janet channel on Freenode](https://webchat.freenode.net/)
