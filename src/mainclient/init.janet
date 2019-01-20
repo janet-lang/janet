@@ -12,7 +12,7 @@
   # Flag handlers
   (def handlers :private
     {"h" (fn [&]
-           (print "usage: " (get process/args 0) " [options] scripts...")
+           (print "usage: " (get process/args 0) " [options] script args...")
            (print
              `Options are:
   -h Show this help
@@ -22,6 +22,7 @@
   -r Enter the repl after running all scripts
   -p Keep on executing if there is a top level error (persistent)
   -q Hide prompt, logo, and repl output (quiet)
+  -l Execute code in a file before running the main script
   -- Stop handling options`)
            (os/exit 0)
            1)
@@ -31,6 +32,10 @@
      "p" (fn [&] (set *exit-on-error* false) 1)
      "q" (fn [&] (set *quiet* true) 1)
      "-" (fn [&] (set *handleopts* false) 1)
+     "l" (fn [i &]
+           (import* *env* (get process/args (+ i 1))
+                    :prefix "" :exit *exit-on-error*)
+           2)
      "e" (fn [i &]
            (set *no-file* false)
            (eval-string (get process/args (+ i 1)))
@@ -50,11 +55,11 @@
       (do
         (set *no-file* false)
         (import* *env* arg :prefix "" :exit *exit-on-error*)
-        (++ i))))
+        (set i lenargs))))
 
   (when (or *should-repl* *no-file*)
     (if-not *quiet*
-      (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2018 Calvin Rose"))
+      (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2019 Calvin Rose"))
     (defn noprompt [_] "")
     (defn getprompt [p]
       (def offset (parser/where p))

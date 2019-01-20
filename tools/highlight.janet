@@ -162,9 +162,9 @@
 (defn html
   "Highlight janet source code and output HTML."
   [source]
-  (string "<pre class=\"j-main\">"
+  (string "<pre class=\"j-main\"><code>"
           (0 (peg/match html-grammar source))
-          "</pre>"))
+          "</code></pre>"))
 
 (defn html-file
   "Highlight a janet file and print out a highlighted HTML version
