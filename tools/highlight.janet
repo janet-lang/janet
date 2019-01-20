@@ -39,7 +39,7 @@
 
   ~{:ws (set " \t\r\f\n\0")
     :readermac (set "';~,")
-    :symchars (+ (range "09" "AZ" "az" "\x80\xFF") (set "$%&*+-./:<=>?@^_|"))
+    :symchars (+ (range "09" "AZ" "az" "\x80\xFF") (set "!$%&*+-./:<?=>@^_|"))
     :token (some :symchars)
     :hex (range "09" "af" "AF")
     :escape (* "\\" (+ (set "ntrzf0\"\\e") 
