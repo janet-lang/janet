@@ -128,7 +128,7 @@
 </style>
 ```)
 
-(defn- html-escape
+(defn html-escape
   "Escape special characters for HTML encoding."
   [str]
   (def buf @"")
