@@ -287,9 +287,9 @@ static Janet os_date(int32_t argc, Janet *argv) {
     janet_struct_put(st, janet_ckeywordv("seconds"), janet_wrap_number(t_info->tm_sec));
     janet_struct_put(st, janet_ckeywordv("minutes"), janet_wrap_number(t_info->tm_min));
     janet_struct_put(st, janet_ckeywordv("hours"), janet_wrap_number(t_info->tm_hour));
-    janet_struct_put(st, janet_ckeywordv("month-day"), janet_wrap_number(t_info->tm_mday));
+    janet_struct_put(st, janet_ckeywordv("month-day"), janet_wrap_number(t_info->tm_mday - 1));
     janet_struct_put(st, janet_ckeywordv("month"), janet_wrap_number(t_info->tm_mon));
-    janet_struct_put(st, janet_ckeywordv("year"), janet_wrap_number(t_info->tm_year));
+    janet_struct_put(st, janet_ckeywordv("year"), janet_wrap_number(t_info->tm_year + 1900));
     janet_struct_put(st, janet_ckeywordv("week-day"), janet_wrap_number(t_info->tm_wday));
     janet_struct_put(st, janet_ckeywordv("year-day"), janet_wrap_number(t_info->tm_yday));
     janet_struct_put(st, janet_ckeywordv("dst"), janet_wrap_boolean(t_info->tm_isdst));
@@ -359,13 +359,13 @@ static const JanetReg cfuns[] = {
         "os/date", os_date,
         JDOC("(os/date [,time])\n\n"
             "Returns the given time as a date struct, or the current time if no time is given. "
-            "Returns a struct with following key values.\n\n"
+            "Returns a struct with following key values. Note that all numbers are 0-indexed.\n\n"
             "\t:seconds - number of seconds [0-61]\n"
             "\t:minutes - number of minutes [0-59]\n"
             "\t:seconds - number of hours [0-23]\n"
-            "\t:month-day - day of month [1-31]\n"
+            "\t:month-day - day of month [0-30]\n"
             "\t:month - month of year [0, 11]\n"
-            "\t:year - years since 1900\n"
+            "\t:year - years since year 0 (e.g. 2019)\n"
             "\t:week-day - day of the week [0-6]\n"
             "\t:year-day - day of the year [0-365]\n"
             "\t:dst - If Day Light Savings is in effect")
