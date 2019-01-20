@@ -1705,5 +1705,24 @@ value, one key will be ignored."
     (put symbol-set k true))
   (sort (keys symbol-set)))
 
+(defn slurp
+  "Read all data from a file with name path
+  and then close the file."
+  [path]
+  (def f (file/open path :r))
+  (def contents (file/read f :all))
+  (file/close f)
+  contents)
+
+(defn spit
+  "Write contents to a file at path.
+  Can optionally append to the file."
+  [path contents mode &]
+  (default mode :w)
+  (def f (file/open path mode))
+  (file/write f contents)
+  (file/close f)
+  nil)
+
 # Use dynamic *env* from now on
 (put _env '_env nil)
