@@ -1508,7 +1508,8 @@ value, one key will be ignored."
 (defn eval-string
   "Evaluates a string in the current environment. If more control over the
   environment is needed, use run-context."
-  [str]
+  [str env &]
+  (default env *env*)
   (var state (string str))
   (defn chunks [buf _]
     (def ret state)
@@ -1517,7 +1518,7 @@ value, one key will be ignored."
       (buffer/push-string buf str)
       (buffer/push-string buf "\n")))
   (var returnval nil)
-  (run-context *env* chunks
+  (run-context env chunks
                (fn [sig x f source]
                  (if (= sig :dead)
                    (set returnval x)
@@ -1528,8 +1529,9 @@ value, one key will be ignored."
 (defn eval
   "Evaluates a form in the current environment. If more control over the
   environment is needed, use run-context."
-  [form]
-  (def res (compile form *env* "eval"))
+  [form env &]
+  (default env *env*)
+  (def res (compile form env "eval"))
   (if (= (type res) :function)
     (res)
     (error (res :error))))
