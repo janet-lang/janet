@@ -160,7 +160,7 @@ dist: build/janet-dist.tar.gz
 
 build/janet-%.tar.gz: $(JANET_TARGET) src/include/janet/janet.h \
 	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) \
-	build/doc.html README.md $(wildcard doc/*.md)
+	build/doc.html README.md
 	tar -czvf $@ $^
 
 #########################
