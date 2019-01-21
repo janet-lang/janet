@@ -1,12 +1,13 @@
 .TH JANET 1
 .SH NAME
-janet \- run the janet language abstract machine
+janet \- run the Janet language abstract machine
 .SH SYNOPSIS
 .B janet
 [\fB\-hvsrp\fR]
 [\fB\-e\fR \fIJANET SOURCE\fR]
 [\fB\-\-\fR]
-.IR files ...
+.IR script
+.IR args ...
 .SH DESCRIPTION
 Janet is a functional and imperative programming language and bytecode interpreter.
 It is a modern lisp, but lists are replaced by other data structures with better utility
@@ -14,10 +15,10 @@ and performance (arrays, tables, structs, tuples). The language also bridging br
 to native code written in C, meta-programming with macros, and bytecode assembly.
 
 There is a repl for trying out the language, as well as the ability to run script files.
-This client program is separate from the core runtime, so janet could be embedded
-into other programs. Try janet in your browser at https://janet-lang.org.
+This client program is separate from the core runtime, so Janet could be embedded
+into other programs. Try Janet in your browser at https://Janet-lang.org.
 
-Implemented in mostly standard C99, janet runs on Windows, Linux and macOS.
+Implemented in mostly standard C99, Janet runs on Windows, Linux and macOS.
 The few features that are not standard C99 (dynamic library loading, compiler
 specific optimizations), are fairly straight forward. Janet can be easily ported to
 most new platforms.
@@ -45,19 +46,25 @@ Quiet output. Don't print a repl prompt or expression results to stdout.
 
 .TP
 .BR \-r
-Open a REPL (Read Eval Print Loop) after executing all sources. By default, if janet is called with no
+Open a REPL (Read Eval Print Loop) after executing all sources. By default, if Janet is called with no
 arguments, a REPL is opened.
 
 .TP
 .BR \-p
-Turn on the persistent flag. By default, when janet is executing commands from a file and encounters an error,
-it will immediately exit after printing the error message. In persistent mode, janet will keep executing commands
+Turn on the persistent flag. By default, when Janet is executing commands from a file and encounters an error,
+it will immediately exit after printing the error message. In persistent mode, Janet will keep executing commands
 after an error. Persistent mode can be good for debugging and testing.
 
 .TP
 .BR \-e
-Execute a string of janet source. Source code is executed in the order it is encountered, so earlier
+Execute a string of Janet source. Source code is executed in the order it is encountered, so earlier
 arguments are executed before later ones.
+
+.TP
+.BR \-l
+Load a Janet file before running a script or repl. Multiple files can be loaded
+in this manner, and exports from each file will be made available to the script
+or repl.
 
 .TP
 .BR \-\-
@@ -67,11 +74,11 @@ Stop parsing command line arguments. All arguments after this one will be consid
 
 .B JANET_PATH
 .RS
-The location to look for janet libraries. This is the only environment variable janet needs to
-find native and source code modules. If no JANET_PATH is set, janet will look in
-/usr/local/lib/janet for modules.
-To make janet search multiple locations, modify the module.paths
-array in janet.
+The location to look for Janet libraries. This is the only environment variable Janet needs to
+find native and source code modules. If no JANET_PATH is set, Janet will look in
+/usr/local/lib/Janet for modules.
+To make Janet search multiple locations, modify the module.paths
+array in Janet.
 .RE
 
 .SH AUTHOR
