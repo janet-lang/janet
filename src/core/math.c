@@ -20,9 +20,12 @@
 * IN THE SOFTWARE.
 */
 
-#include <janet/janet.h>
 #include <math.h>
+
+#ifndef JANET_AMALG
+#include <janet/janet.h>
 #include "util.h"
+#endif
 
 /* Get a random number */
 Janet janet_rand(int32_t argc, Janet *argv) {
@@ -87,7 +90,7 @@ static Janet janet_not(int32_t argc, Janet *argv) {
     return janet_wrap_boolean(!janet_truthy(argv[0]));
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg math_cfuns[] = {
     {
         "%", janet_remainder,
         JDOC("(% dividend divisor)\n\n"
@@ -178,7 +181,7 @@ static const JanetReg cfuns[] = {
 
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, math_cfuns);
 #ifndef JANET_NO_BOOTSTRAP
     janet_def(env, "math/pi", janet_wrap_number(3.1415926535897931),
             JDOC("The value pi."));

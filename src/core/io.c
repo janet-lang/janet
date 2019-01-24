@@ -25,9 +25,12 @@
 #define _BSD_SOURCE
 
 #include <stdio.h>
-#include <janet/janet.h>
 #include <errno.h>
+
+#ifndef JANET_AMALG
+#include <janet/janet.h>
 #include "util.h"
+#endif
 
 #define IO_WRITE 1
 #define IO_READ 2
@@ -45,11 +48,11 @@ struct IOFile {
     int flags;
 };
 
-static int janet_io_gc(void *p, size_t len);
+static int cfun_io_gc(void *p, size_t len);
 
-JanetAbstractType janet_io_filetype = {
+JanetAbstractType cfun_io_filetype = {
     "core/file",
-    janet_io_gc,
+    cfun_io_gc,
     NULL
 };
 
@@ -93,7 +96,7 @@ static int checkflags(const uint8_t *str) {
 }
 
 static Janet makef(FILE *f, int flags) {
-    IOFile *iof = (IOFile *) janet_abstract(&janet_io_filetype, sizeof(IOFile));
+    IOFile *iof = (IOFile *) janet_abstract(&cfun_io_filetype, sizeof(IOFile));
     iof->file = f;
     iof->flags = flags;
     return janet_wrap_abstract(iof);
@@ -101,14 +104,14 @@ static Janet makef(FILE *f, int flags) {
 
 /* Open a process */
 #ifdef __EMSCRIPTEN__
-static Janet janet_io_popen(int32_t argc, Janet *argv) {
+static Janet cfun_io_popen(int32_t argc, Janet *argv) {
     (void) argc;
     (void) argv;
     janet_panic("not implemented on this platform");
     return janet_wrap_nil();
 }
 #else
-static Janet janet_io_popen(int32_t argc, Janet *argv) {
+static Janet cfun_io_popen(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode = NULL;
@@ -135,7 +138,7 @@ static Janet janet_io_popen(int32_t argc, Janet *argv) {
 }
 #endif
 
-static Janet janet_io_fopen(int32_t argc, Janet *argv) {
+static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode;
@@ -164,9 +167,9 @@ static void read_chunk(IOFile *iof, JanetBuffer *buffer, int32_t nBytesMax) {
 }
 
 /* Read a certain number of bytes into memory */
-static Janet janet_io_fread(int32_t argc, Janet *argv) {
+static Janet cfun_io_fread(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
-    IOFile *iof = janet_getabstract(argv, 0, &janet_io_filetype);
+    IOFile *iof = janet_getabstract(argv, 0, &cfun_io_filetype);
     if (iof->flags & IO_CLOSED) janet_panic("file is closed");
     JanetBuffer *buffer;
     if (argc == 2) {
@@ -210,9 +213,9 @@ static Janet janet_io_fread(int32_t argc, Janet *argv) {
 }
 
 /* Write bytes to a file */
-static Janet janet_io_fwrite(int32_t argc, Janet *argv) {
+static Janet cfun_io_fwrite(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
-    IOFile *iof = janet_getabstract(argv, 0, &janet_io_filetype);
+    IOFile *iof = janet_getabstract(argv, 0, &cfun_io_filetype);
     if (iof->flags & IO_CLOSED)
         janet_panic("file is closed");
     if (!(iof->flags & (IO_WRITE | IO_APPEND | IO_UPDATE)))
@@ -233,9 +236,9 @@ static Janet janet_io_fwrite(int32_t argc, Janet *argv) {
 }
 
 /* Flush the bytes in the file */
-static Janet janet_io_fflush(int32_t argc, Janet *argv) {
+static Janet cfun_io_fflush(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    IOFile *iof = janet_getabstract(argv, 0, &janet_io_filetype);
+    IOFile *iof = janet_getabstract(argv, 0, &cfun_io_filetype);
     if (iof->flags & IO_CLOSED)
         janet_panic("file is closed");
     if (!(iof->flags & (IO_WRITE | IO_APPEND | IO_UPDATE)))
@@ -246,7 +249,7 @@ static Janet janet_io_fflush(int32_t argc, Janet *argv) {
 }
 
 /* Cleanup a file */
-static int janet_io_gc(void *p, size_t len) {
+static int cfun_io_gc(void *p, size_t len) {
     (void) len;
     IOFile *iof = (IOFile *)p;
     if (!(iof->flags & (IO_NOT_CLOSEABLE | IO_CLOSED))) {
@@ -256,9 +259,9 @@ static int janet_io_gc(void *p, size_t len) {
 }
 
 /* Close a file */
-static Janet janet_io_fclose(int32_t argc, Janet *argv) {
+static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    IOFile *iof = janet_getabstract(argv, 0, &janet_io_filetype);
+    IOFile *iof = janet_getabstract(argv, 0, &cfun_io_filetype);
     if (iof->flags & IO_CLOSED)
         janet_panic("file is closed");
     if (iof->flags & (IO_NOT_CLOSEABLE))
@@ -276,9 +279,9 @@ static Janet janet_io_fclose(int32_t argc, Janet *argv) {
 }
 
 /* Seek a file */
-static Janet janet_io_fseek(int32_t argc, Janet *argv) {
+static Janet cfun_io_fseek(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
-    IOFile *iof = janet_getabstract(argv, 0, &janet_io_filetype);
+    IOFile *iof = janet_getabstract(argv, 0, &cfun_io_filetype);
     if (iof->flags & IO_CLOSED)
         janet_panic("file is closed");
     long int offset = 0;
@@ -302,9 +305,9 @@ static Janet janet_io_fseek(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg io_cfuns[] = {
     {
-        "file/open", janet_io_fopen,
+        "file/open", cfun_io_fopen,
         JDOC("(file/open path [,mode])\n\n"
                 "Open a file. path is an absolute or relative path, and "
                 "mode is a set of flags indicating the mode to open the file in. "
@@ -318,14 +321,14 @@ static const JanetReg cfuns[] = {
                 "\t+ - append to the file instead of overwriting it")
     },
     {
-        "file/close", janet_io_fclose,
+        "file/close", cfun_io_fclose,
         JDOC("(file/close f)\n\n"
                 "Close a file and release all related resources. When you are "
                 "done reading a file, close it to prevent a resource leak and let "
                 "other processes read the file.")
     },
     {
-        "file/read", janet_io_fread,
+        "file/read", cfun_io_fread,
         JDOC("(file/read f what [,buf])\n\n"
                 "Read a number of bytes from a file into a buffer. A buffer can "
                 "be provided as an optional fourth argument, otherwise a new buffer "
@@ -337,19 +340,19 @@ static const JanetReg cfuns[] = {
                 "\tn (integer) - read up to n bytes from the file")
     },
     {
-        "file/write", janet_io_fwrite,
+        "file/write", cfun_io_fwrite,
         JDOC("(file/write f bytes)\n\n"
                 "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
                 "file.")
     },
     {
-        "file/flush", janet_io_fflush,
+        "file/flush", cfun_io_fflush,
         JDOC("(file/flush f)\n\n"
                 "Flush any buffered bytes to the file system. In most files, writes are "
                 "buffered for efficiency reasons. Returns the file handle.")
     },
     {
-        "file/seek", janet_io_fseek,
+        "file/seek", cfun_io_fseek,
         JDOC("(file/seek f [,whence [,n]])\n\n"
                 "Jump to a relative location in the file. 'whence' must be one of\n\n"
                 "\t:cur - jump relative to the current file location\n"
@@ -360,7 +363,7 @@ static const JanetReg cfuns[] = {
                 "number to handle large files of more the 4GB. Returns the file handle.")
     },
     {
-        "file/popen", janet_io_popen,
+        "file/popen", cfun_io_popen,
         JDOC("(file/popen path [,mode])\n\n"
                 "Open a file that is backed by a process. The file must be opened in either "
                 "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
@@ -372,7 +375,8 @@ static const JanetReg cfuns[] = {
 
 /* Module entry point */
 void janet_lib_io(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, io_cfuns);
+
     /* stdout */
     janet_def(env, "stdout",
             makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),

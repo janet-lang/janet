@@ -20,11 +20,13 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "fiber.h"
 #include "state.h"
 #include "gc.h"
 #include "util.h"
+#endif
 
 static void fiber_reset(JanetFiber *fiber) {
     fiber->maxstack = JANET_STACK_MAX;
@@ -296,7 +298,7 @@ void janet_fiber_popframe(JanetFiber *fiber) {
 
 /* CFuns */
 
-static Janet cfun_new(int32_t argc, Janet *argv) {
+static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     JanetFunction *func = janet_getfunction(argv, 0);
     JanetFiber *fiber;
@@ -345,7 +347,7 @@ static Janet cfun_new(int32_t argc, Janet *argv) {
     return janet_wrap_fiber(fiber);
 }
 
-static Janet cfun_status(int32_t argc, Janet *argv) {
+static Janet cfun_fiber_status(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     uint32_t s = (fiber->flags & JANET_FIBER_STATUS_MASK) >>
@@ -353,19 +355,19 @@ static Janet cfun_status(int32_t argc, Janet *argv) {
     return janet_ckeywordv(janet_status_names[s]);
 }
 
-static Janet cfun_current(int32_t argc, Janet *argv) {
+static Janet cfun_fiber_current(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_fiber(janet_vm_fiber);
 }
 
-static Janet cfun_maxstack(int32_t argc, Janet *argv) {
+static Janet cfun_fiber_maxstack(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     return janet_wrap_integer(fiber->maxstack);
 }
 
-static Janet cfun_setmaxstack(int32_t argc, Janet *argv) {
+static Janet cfun_fiber_setmaxstack(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     int32_t maxs = janet_getinteger(argv, 1);
@@ -376,9 +378,9 @@ static Janet cfun_setmaxstack(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg fiber_cfuns[] = {
     {
-        "fiber/new", cfun_new,
+        "fiber/new", cfun_fiber_new,
         JDOC("(fiber/new func [,sigmask])\n\n"
                 "Create a new fiber with function body func. Can optionally "
                 "take a set of signals to block from the current parent fiber "
@@ -396,7 +398,7 @@ static const JanetReg cfuns[] = {
                 "\t0-9 - block a specific user signal")
     },
     {
-        "fiber/status", cfun_status,
+        "fiber/status", cfun_fiber_status,
         JDOC("(fiber/status fib)\n\n"
                 "Get the status of a fiber. The status will be one of:\n\n"
                 "\t:dead - the fiber has finished\n"
@@ -408,19 +410,19 @@ static const JanetReg cfuns[] = {
                 "\t:new - the fiber has just been created and not yet run")
     },
     {
-        "fiber/current", cfun_current,
+        "fiber/current", cfun_fiber_current,
         JDOC("(fiber/current)\n\n"
                 "Returns the currently running fiber.")
     },
     {
-        "fiber/maxstack", cfun_maxstack,
+        "fiber/maxstack", cfun_fiber_maxstack,
         JDOC("(fiber/maxstack fib)\n\n"
                 "Gets the maximum stack size in janet values allowed for a fiber. While memory for "
                 "the fiber's stack is not allocated up front, the fiber will not allocated more "
                 "than this amount and will throw a stack-overflow error if more memory is needed. ")
     },
     {
-        "fiber/setmaxstack", cfun_setmaxstack,
+        "fiber/setmaxstack", cfun_fiber_setmaxstack,
         JDOC("(fiber/setmaxstack fib maxstack)\n\n"
                 "Sets the maximum stack size in janet values for a fiber. By default, the "
                 "maximum stack size is usually 8192.")
@@ -430,5 +432,5 @@ static const JanetReg cfuns[] = {
 
 /* Module entry point */
 void janet_lib_fiber(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, fiber_cfuns);
 }

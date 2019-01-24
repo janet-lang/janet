@@ -20,10 +20,12 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "symcache.h"
 #include "gc.h"
 #include "util.h"
+#endif
 
 /* Create a new empty tuple of the given size. This will return memory
  * which should be filled with Janets. The memory will not be collected until
@@ -91,13 +93,13 @@ int janet_tuple_compare(const Janet *lhs, const Janet *rhs) {
 
 /* C Functions */
 
-static Janet cfun_slice(int32_t argc, Janet *argv) {
+static Janet cfun_tuple_slice(int32_t argc, Janet *argv) {
     JanetRange range = janet_getslice(argc, argv);
     JanetView view = janet_getindexed(argv, 0);
     return janet_wrap_tuple(janet_tuple_n(view.items + range.start, range.end - range.start));
 }
 
-static Janet cfun_prepend(int32_t argc, Janet *argv) {
+static Janet cfun_tuple_prepend(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
     JanetView view = janet_getindexed(argv, 0);
     Janet *n = janet_tuple_begin(view.len - 1 + argc);
@@ -108,7 +110,7 @@ static Janet cfun_prepend(int32_t argc, Janet *argv) {
     return janet_wrap_tuple(janet_tuple_end(n));
 }
 
-static Janet cfun_append(int32_t argc, Janet *argv) {
+static Janet cfun_tuple_append(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
     JanetView view = janet_getindexed(argv, 0);
     Janet *n = janet_tuple_begin(view.len - 1 + argc);
@@ -117,9 +119,9 @@ static Janet cfun_append(int32_t argc, Janet *argv) {
     return janet_wrap_tuple(janet_tuple_end(n));
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg tuple_cfuns[] = {
     {
-        "tuple/slice", cfun_slice,
+        "tuple/slice", cfun_tuple_slice,
         JDOC("(tuple/slice arrtup [,start=0 [,end=(length arrtup)]])\n\n"
                 "Take a sub sequence of an array or tuple from index start "
                 "inclusive to index end exclusive. If start or end are not provided, "
@@ -127,13 +129,13 @@ static const JanetReg cfuns[] = {
                 "Returns the new tuple.")
     },
     {
-        "tuple/append", cfun_append,
+        "tuple/append", cfun_tuple_append,
         JDOC("(tuple/append tup & items)\n\n"
                 "Returns a new tuple that is the result of appending "
                 "each element in items to tup.")
     },
     {
-        "tuple/prepend", cfun_prepend,
+        "tuple/prepend", cfun_tuple_prepend,
         JDOC("(tuple/prepend tup & items)\n\n"
                 "Prepends each element in items to tuple and "
                 "returns a new tuple. Items are prepended such that the "
@@ -144,5 +146,5 @@ static const JanetReg cfuns[] = {
 
 /* Load the tuple module */
 void janet_lib_tuple(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, tuple_cfuns);
 }

@@ -25,10 +25,12 @@
  * checks, all symbols are interned so that there is a single copy of it in the
  * whole program. Equality is then just a pointer check. */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "state.h"
 #include "gc.h"
 #include "util.h"
+#endif
 
 /* Cache state */
 JANET_THREAD_LOCAL const uint8_t **janet_vm_cache = NULL;

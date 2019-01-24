@@ -20,8 +20,10 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "gc.h"
+#endif
 
 /* Create new userdata */
 void *janet_abstract(const JanetAbstractType *atype, size_t size) {

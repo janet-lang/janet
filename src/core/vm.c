@@ -20,12 +20,14 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "state.h"
 #include "fiber.h"
 #include "gc.h"
 #include "symcache.h"
 #include "util.h"
+#endif
 
 /* VM state */
 JANET_THREAD_LOCAL JanetTable *janet_vm_registry;

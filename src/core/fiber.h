@@ -23,7 +23,9 @@
 #ifndef JANET_FIBER_H_defined
 #define JANET_FIBER_H_defined
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
+#endif
 
 extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
 

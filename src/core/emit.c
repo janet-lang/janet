@@ -20,10 +20,12 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "emit.h"
 #include "vector.h"
 #include "regalloc.h"
+#endif
 
 /* Get a register */
 int32_t janetc_allocfar(JanetCompiler *c) {

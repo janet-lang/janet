@@ -20,10 +20,12 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "compile.h"
 #include "emit.h"
 #include "vector.h"
+#endif
 
 static int fixarity0(JanetFopts opts, JanetSlot *args) {
     (void) opts;

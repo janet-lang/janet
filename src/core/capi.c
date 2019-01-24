@@ -20,9 +20,11 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "state.h"
 #include "fiber.h"
+#endif
 
 void janet_panicv(Janet message) {
     if (janet_vm_fiber != NULL) {

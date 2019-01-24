@@ -20,9 +20,11 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "gc.h"
 #include "util.h"
+#endif
 
 /* Initialize a table */
 JanetTable *janet_table_init(JanetTable *table, int32_t capacity) {
@@ -194,13 +196,13 @@ void janet_table_merge_struct(JanetTable *table, const JanetKV *other) {
 
 /* C Functions */
 
-static Janet cfun_new(int32_t argc, Janet *argv) {
+static Janet cfun_table_new(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
     return janet_wrap_table(janet_table(cap));
 }
 
-static Janet cfun_getproto(int32_t argc, Janet *argv) {
+static Janet cfun_table_getproto(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetTable *t = janet_gettable(argv, 0);
     return t->proto
@@ -208,7 +210,7 @@ static Janet cfun_getproto(int32_t argc, Janet *argv) {
         : janet_wrap_nil();
 }
 
-static Janet cfun_setproto(int32_t argc, Janet *argv) {
+static Janet cfun_table_setproto(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     JanetTable *table = janet_gettable(argv, 0);
     JanetTable *proto = NULL;
@@ -219,21 +221,21 @@ static Janet cfun_setproto(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static Janet cfun_tostruct(int32_t argc, Janet *argv) {
+static Janet cfun_table_tostruct(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetTable *t = janet_gettable(argv, 0);
     return janet_wrap_struct(janet_table_to_struct(t));
 }
 
-static Janet cfun_rawget(int32_t argc, Janet *argv) {
+static Janet cfun_table_rawget(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     JanetTable *table = janet_gettable(argv, 0);
     return janet_table_rawget(table, argv[1]);
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg table_cfuns[] = {
     {
-        "table/new", cfun_new,
+        "table/new", cfun_table_new,
         JDOC("(table/new capacity)\n\n"
                 "Creates a new empty table with pre-allocated memory "
                 "for capacity entries. This means that if one knows the number of "
@@ -241,24 +243,24 @@ static const JanetReg cfuns[] = {
                 "can be avoided. Returns the new table.")
     },
     {
-        "table/to-struct", cfun_tostruct,
+        "table/to-struct", cfun_table_tostruct,
         JDOC("(table/to-struct tab)\n\n"
                 "Convert a table to a struct. Returns a new struct. This function "
                 "does not take into account prototype tables.")
     },
     {
-        "table/getproto", cfun_getproto,
+        "table/getproto", cfun_table_getproto,
         JDOC("(table/getproto tab)\n\n"
                 "Get the prototype table of a table. Returns nil if a table "
                 "has no prototype, otherwise returns the prototype.")
     },
     {
-        "table/setproto", cfun_setproto,
+        "table/setproto", cfun_table_setproto,
         JDOC("(table/setproto tab proto)\n\n"
                 "Set the prototype of a table. Returns the original table tab.")
     },
     {
-        "table/rawget", cfun_rawget,
+        "table/rawget", cfun_table_rawget,
         JDOC("(table/rawget tab key)\n\n"
                 "Gets a value from a table without looking at the prototype table. "
                 "If a table tab does not contain t directly, the function will return "
@@ -269,5 +271,5 @@ static const JanetReg cfuns[] = {
 
 /* Load the table module */
 void janet_lib_table(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, table_cfuns);
 }

@@ -44,9 +44,12 @@
  * as it will not fit in the range for a signed 32 bit integer. The string
  * '0xbeef' would parse to an integer as it is in the range of an int32_t. */
 
-#include <janet/janet.h>
 #include <math.h>
 #include <string.h>
+
+#ifndef JANET_AMALG
+#include <janet/janet.h>
+#endif
 
 /* Lookup table for getting values of characters when parsing numbers. Handles
  * digits 0-9 and a-z (and A-Z). A-Z have values of 10 to 35. */

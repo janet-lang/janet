@@ -20,11 +20,13 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "compile.h"
 #include "emit.h"
 #include "vector.h"
 #include "util.h"
+#endif
 
 JanetFopts janetc_fopts_default(JanetCompiler *c) {
     JanetFopts ret;
@@ -724,7 +726,7 @@ static Janet cfun(int32_t argc, Janet *argv) {
     }
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg compile_cfuns[] = {
     {"compile", cfun,
         JDOC("(compile ast env [, source])\n\n"
                 "Compiles an Abstract Syntax Tree (ast) into a janet function. "
@@ -736,5 +738,5 @@ static const JanetReg cfuns[] = {
 };
 
 void janet_lib_compile(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, compile_cfuns);
 }

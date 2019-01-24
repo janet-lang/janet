@@ -119,16 +119,23 @@ build/init.gen.c: src/mainclient/init.janet build/xxd
 build/webinit.gen.c: src/webclient/webinit.janet build/xxd
 	build/xxd $< $@ janet_gen_webinit
 
+########################
+##### Amalgamation #####
+########################
+
+amalg: build/janet.c build/janet.h
+
+build/janet.c: $(JANET_LOCAL_HEADERS) $(JANET_CORE_SOURCES) tools/amalg.janet $(JANET_TARGET)
+	$(JANET_TARGET) tools/amalg.janet > $@
+
+build/janet.h: src/include/janet/janet.h
+	cp $< $@
+
 ###################
 ##### Testing #####
 ###################
 
-TEST_SOURCES=$(wildcard ctest/*.c)
-TEST_PROGRAMS=$(patsubst ctest/%.c,build/%.out,$(TEST_SOURCES))
 TEST_SCRIPTS=$(wildcard test/suite*.janet)
-
-build/%.out: ctest/%.c $(JANET_CORE_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 repl: $(JANET_TARGET)
 	./$(JANET_TARGET)
@@ -142,11 +149,9 @@ valgrind: $(JANET_TARGET)
 	$(VALGRIND_COMMAND) ./$(JANET_TARGET)
 
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
-	for f in build/*.out; do "$$f" || exit; done
 	for f in test/*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
-	for f in build/*.out; do $(VALGRIND_COMMAND) "$$f" || exit; done
 	for f in test/*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
 
 callgrind: $(JANET_TARGET)
@@ -203,6 +208,6 @@ uninstall:
 	-rm -rf $(INCLUDEDIR)
 	$(LDCONFIG)
 
-.PHONY: clean install repl debug valgrind test \
+.PHONY: clean install repl debug valgrind test amalg \
 	valtest emscripten dist uninstall docs grammar \
 	$(TEST_PROGRAM_PHONIES) $(TEST_PROGRAM_VALPHONIES)

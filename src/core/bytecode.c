@@ -20,8 +20,10 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "gc.h"
+#endif
 
 /* Look up table for instructions */
 enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {

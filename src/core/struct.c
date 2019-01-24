@@ -20,9 +20,11 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "gc.h"
 #include "util.h"
+#endif
 
 /* Begin creation of a struct */
 JanetKV *janet_struct_begin(int32_t count) {
@@ -218,5 +220,3 @@ int janet_struct_compare(const JanetKV *lhs, const JanetKV *rhs) {
     }
     return 0;
 }
-
-#undef janet_maphash

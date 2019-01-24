@@ -20,7 +20,9 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
+#endif
 
 /*
  * Define a number of functions that can be used internally on ANY Janet.

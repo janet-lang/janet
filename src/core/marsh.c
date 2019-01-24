@@ -20,13 +20,14 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
-
 #include "state.h"
 #include "vector.h"
 #include "gc.h"
 #include "fiber.h"
 #include "util.h"
+#endif
 
 typedef struct {
     jmp_buf err;
@@ -1144,7 +1145,7 @@ static Janet cfun_unmarshal(int32_t argc, Janet *argv) {
     return ret;
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg marsh_cfuns[] = {
     {
         "marshal", cfun_marshal,
         JDOC("(marshal x [,reverse-lookup [,buffer]])\n\n"
@@ -1174,5 +1175,5 @@ static const JanetReg cfuns[] = {
 
 /* Module entry point */
 void janet_lib_marsh(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, marsh_cfuns);
 }

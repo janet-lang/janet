@@ -20,9 +20,12 @@
 * IN THE SOFTWARE.
 */
 
-#include <setjmp.h>
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "util.h"
+#endif
+
+#include <setjmp.h>
 
 /* Conditionally compile this file */
 #ifdef JANET_ASSEMBLER
@@ -930,7 +933,7 @@ static Janet cfun_disasm(int32_t argc, Janet *argv) {
     return janet_disasm(f->def);
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg asm_cfuns[] = {
     {"asm", cfun_asm,
         JDOC("(asm assembly)\n\n"
                 "Returns a new function that is the compiled result of the assembly.\n"
@@ -948,7 +951,7 @@ static const JanetReg cfuns[] = {
 
 /* Load the library */
 void janet_lib_asm(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, asm_cfuns);
 }
 
 #endif

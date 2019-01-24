@@ -23,7 +23,9 @@
 #ifndef JANET_SYMCACHE_H_defined
 #define JANET_SYMCACHE_H_defined
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
+#endif
 
 /* Initialize the cache (allocate cache memory) */
 void janet_symcache_init(void);

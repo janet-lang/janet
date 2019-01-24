@@ -23,7 +23,9 @@
 #ifndef JANET_VECTOR_H_defined
 #define JANET_VECTOR_H_defined
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
+#endif
 
 /*
  * vector code modified from

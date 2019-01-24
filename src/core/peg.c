@@ -20,11 +20,13 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include <string.h>
 #include "util.h"
 #include "vector.h"
 #include "util.h"
+#endif
 
 /*
  * Runtime
@@ -1043,13 +1045,13 @@ static Peg *compile_peg(Janet x) {
  * C Functions
  */
 
-static Janet cfun_compile(int32_t argc, Janet *argv) {
+static Janet cfun_peg_compile(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     Peg *peg = compile_peg(argv[0]);
     return janet_wrap_abstract(peg);
 }
 
-static Janet cfun_match(int32_t argc, Janet *argv) {
+static Janet cfun_peg_match(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, -1);
     Peg *peg;
     if (janet_checktype(argv[0], JANET_ABSTRACT) &&
@@ -1084,13 +1086,13 @@ static Janet cfun_match(int32_t argc, Janet *argv) {
     return result ? janet_wrap_array(s.captures) : janet_wrap_nil();
 }
 
-static const JanetReg cfuns[] = {
-    {"peg/compile", cfun_compile,
+static const JanetReg peg_cfuns[] = {
+    {"peg/compile", cfun_peg_compile,
         JDOC("(peg/compile peg)\n\n"
                 "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
                 "if the same peg will be used multiple times.")
     },
-    {"peg/match", cfun_match,
+    {"peg/match", cfun_peg_match,
         JDOC("(peg/match peg text [,start=0])\n\n"
                 "Match a Parsing Expression Grammar to a byte string and return an array of captured values. "
                 "Returns nil if text does not match the language defined by peg. The syntax of PEGs are very "
@@ -1101,5 +1103,5 @@ static const JanetReg cfuns[] = {
 
 /* Load the peg module */
 void janet_lib_peg(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, peg_cfuns);
 }

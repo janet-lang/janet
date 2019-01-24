@@ -20,10 +20,12 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "gc.h"
 #include "state.h"
 #include "util.h"
+#endif
 
 /* Implements functionality to build a debugger from within janet.
  * The repl should also be able to serve as pretty featured debugger
@@ -111,7 +113,7 @@ static void helper_find_fun(int32_t argc, Janet *argv, JanetFuncDef **def, int32
     *bytecode_offset = offset;
 }
 
-static Janet cfun_break(int32_t argc, Janet *argv) {
+static Janet cfun_debug_break(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
     int32_t offset;
     helper_find(argc, argv, &def, &offset);
@@ -119,7 +121,7 @@ static Janet cfun_break(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet cfun_unbreak(int32_t argc, Janet *argv) {
+static Janet cfun_debug_unbreak(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
     int32_t offset;
     helper_find(argc, argv, &def, &offset);
@@ -127,7 +129,7 @@ static Janet cfun_unbreak(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet cfun_fbreak(int32_t argc, Janet *argv) {
+static Janet cfun_debug_fbreak(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
     int32_t offset;
     helper_find_fun(argc, argv, &def, &offset);
@@ -135,7 +137,7 @@ static Janet cfun_fbreak(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet cfun_unfbreak(int32_t argc, Janet *argv) {
+static Janet cfun_debug_unfbreak(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
     int32_t offset;
     helper_find_fun(argc, argv, &def, &offset);
@@ -143,7 +145,7 @@ static Janet cfun_unfbreak(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet cfun_lineage(int32_t argc, Janet *argv) {
+static Janet cfun_debug_lineage(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     JanetArray *array = janet_array(0);
@@ -200,7 +202,7 @@ static Janet doframe(JanetStackFrame *frame) {
     return janet_wrap_table(t);
 }
 
-static Janet cfun_stack(int32_t argc, Janet *argv) {
+static Janet cfun_debug_stack(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     JanetArray *array = janet_array(0);
@@ -216,7 +218,7 @@ static Janet cfun_stack(int32_t argc, Janet *argv) {
     return janet_wrap_array(array);
 }
 
-static Janet cfun_argstack(int32_t argc, Janet *argv) {
+static Janet cfun_debug_argstack(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     JanetArray *array = janet_array(fiber->stacktop - fiber->stackstart);
@@ -225,9 +227,9 @@ static Janet cfun_argstack(int32_t argc, Janet *argv) {
     return janet_wrap_array(array);
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg debug_cfuns[] = {
     {
-        "debug/break", cfun_break,
+        "debug/break", cfun_debug_break,
         JDOC("(debug/break source byte-offset)\n\n"
                 "Sets a breakpoint with source a key at a given byte offset. An offset "
                 "of 0 is the first byte in a file. Will throw an error if the breakpoint location "
@@ -236,33 +238,33 @@ static const JanetReg cfuns[] = {
                 "wil set a breakpoint at the 1000th byte of the file core.janet.")
     },
     {
-        "debug/unbreak", cfun_unbreak,
+        "debug/unbreak", cfun_debug_unbreak,
         JDOC("(debug/unbreak source byte-offset)\n\n"
                 "Remove a breakpoint with a source key at a given byte offset. An offset "
                 "of 0 is the first byte in a file. Will throw an error if the breakpoint "
                 "cannot be found.")
     },
     {
-        "debug/fbreak", cfun_fbreak,
+        "debug/fbreak", cfun_debug_fbreak,
         JDOC("(debug/fbreak fun [,pc=0])\n\n"
                 "Set a breakpoint in a given function. pc is an optional offset, which "
                 "is in bytecode instructions. fun is a function value. Will throw an error "
                 "if the offset is too large or negative.")
     },
     {
-        "debug/unfbreak", cfun_unfbreak,
+        "debug/unfbreak", cfun_debug_unfbreak,
         JDOC("(debug/unfbreak fun [,pc=0])\n\n"
                 "Unset a breakpoint set with debug/fbreak.")
     },
     {
-        "debug/arg-stack", cfun_argstack,
+        "debug/arg-stack", cfun_debug_argstack,
         JDOC("(debug/arg-stack fiber)\n\n"
                 "Gets all values currently on the fiber's argument stack. Normally, "
                 "this should be empty unless the fiber signals while pushing arguments "
                 "to make a function call. Returns a new array.")
     },
     {
-        "debug/stack", cfun_stack,
+        "debug/stack", cfun_debug_stack,
         JDOC("(debug/stack fib)\n\n"
                 "Gets information about the stack as an array of tables. Each table "
                 "in the array contains information about a stack frame. The top most, current "
@@ -279,7 +281,7 @@ static const JanetReg cfuns[] = {
                 "\t:tail - boolean indicating a tail call")
     },
     {
-        "debug/lineage", cfun_lineage,
+        "debug/lineage", cfun_debug_lineage,
         JDOC("(debug/lineage fib)\n\n"
                 "Returns an array of all child fibers from a root fiber. This function "
                 "is useful when a fiber signals or errors to an ancestor fiber. Using this function, "
@@ -291,5 +293,5 @@ static const JanetReg cfuns[] = {
 
 /* Module entry point */
 void janet_lib_debug(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, debug_cfuns);
 }

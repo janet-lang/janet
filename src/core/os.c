@@ -20,10 +20,13 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
+#include "util.h"
+#endif
+
 #include <stdlib.h>
 #include <time.h>
-#include "util.h"
 
 #ifdef JANET_WINDOWS
 #include <Windows.h>
@@ -296,7 +299,7 @@ static Janet os_date(int32_t argc, Janet *argv) {
     return janet_wrap_struct(janet_struct_end(st));
 }
 
-static const JanetReg cfuns[] = {
+static const JanetReg os_cfuns[] = {
     {
         "os/which", os_which,
         JDOC("(os/which)\n\n"
@@ -375,5 +378,5 @@ static const JanetReg cfuns[] = {
 
 /* Module entry point */
 void janet_lib_os(JanetTable *env) {
-    janet_cfuns(env, NULL, cfuns);
+    janet_cfuns(env, NULL, os_cfuns);
 }

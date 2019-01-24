@@ -20,10 +20,12 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "state.h"
 #include "symcache.h"
 #include "gc.h"
+#endif
 
 /* GC State */
 JANET_THREAD_LOCAL void *janet_vm_blocks;

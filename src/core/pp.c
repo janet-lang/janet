@@ -20,9 +20,11 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "util.h"
 #include "state.h"
+#endif
 
 /* Implements a pretty printer for Janet. The pretty printer
  * is farily simple and not that flexible, but fast. */

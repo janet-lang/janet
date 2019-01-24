@@ -60,7 +60,7 @@ int main(int argc, const char **argv) {
 
 	/* Write the header */
 	fprintf(out, "/* Auto generated - DO NOT EDIT */\n\n#include <stdint.h>\n\n");
-	fprintf(out, "static const unsigned char bytes[] = {");
+	fprintf(out, "static const unsigned char bytes_%s[] = {", argv[3]);
 
 	/* Read in chunks from buffer */
 	while ((bytesRead = fread(buf, 1, sizeof(buf), in)) > 0) {
@@ -91,7 +91,7 @@ int main(int argc, const char **argv) {
   	/* Write the tail */
 	fputs("\n};\n\n", out);
 
-	fprintf(out, "const unsigned char *%s = bytes;\n\n", argv[3]);
+	fprintf(out, "const unsigned char *%s = bytes_%s;\n\n", argv[3], argv[3]);
 
     /* Write chunk size */
 	fprintf(out, "int32_t %s_size = %d;\n", argv[3], totalRead);

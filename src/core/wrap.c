@@ -20,7 +20,9 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
+#endif
 
 void *janet_memalloc_empty(int32_t count) {
     int32_t i;

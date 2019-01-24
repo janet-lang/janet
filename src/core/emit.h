@@ -23,7 +23,9 @@
 #ifndef JANET_EMIT_H
 #define JANET_EMIT_H
 
+#ifndef JANET_AMALG
 #include "compile.h"
+#endif
 
 void janetc_emit(JanetCompiler *c, uint32_t instr);
 

@@ -23,8 +23,10 @@
 #ifndef JANET_COMPILE_H
 #define JANET_COMPILE_H
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "regalloc.h"
+#endif
 
 /* Tags for some functions for the prepared inliner */
 #define JANET_FUN_DEBUG 1

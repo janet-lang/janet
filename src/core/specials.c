@@ -20,11 +20,13 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "compile.h"
 #include "util.h"
 #include "vector.h"
 #include "emit.h"
+#endif
 
 static JanetSlot janetc_quote(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (argn != 1) {

@@ -20,9 +20,11 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "state.h"
 #include "vector.h"
+#endif
 
 /* Error reporting */
 void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err) {

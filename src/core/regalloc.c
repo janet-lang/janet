@@ -20,8 +20,10 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "regalloc.h"
+#endif
 
 void janetc_regalloc_init(JanetcRegisterAllocator *ra) {
     ra->chunks = NULL;

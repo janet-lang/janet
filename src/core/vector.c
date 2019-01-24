@@ -20,7 +20,9 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include "vector.h"
+#endif
 
 /* Grow the buffer dynamically. Used for push operations. */
 void *janet_v_grow(void *v, int32_t increment, int32_t itemsize) {

@@ -23,7 +23,9 @@
 #ifndef JANET_UTIL_H_defined
 #define JANET_UTIL_H_defined
 
+#ifndef JANET_AMALG
 #include <janet/janet.h>
+#endif
 
 /* Omit docstrings in some builds */
 #ifdef JANET_NO_BOOTSTRAP
