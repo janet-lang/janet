@@ -94,6 +94,7 @@ exit /b 0
 :DIST
 mkdir dist
 janet.exe tools\gendoc.janet > dist\doc.html
+janet.exe tools\amalg.janet > dist\janet.c
 copy janet.exe dist\janet.exe
 copy LICENSE dist\LICENSE
 copy README.md dist\README.md
