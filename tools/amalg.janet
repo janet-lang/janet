@@ -55,6 +55,11 @@
 (print "/* Amalgamated build - DO NOT EDIT */")
 (print "/* Generated " YY "-" (inc MM) "-" (inc DD)
        " with janet version " janet/version "-" janet/build " */")
+
+# Assume the version of janet used to run this script is the same
+# as the version being generated
+(print "#define JANET_BUILD \"" janet/build "\"")
+
 (print ```#define JANET_AMALG
 #include "janet.h"```)
 
