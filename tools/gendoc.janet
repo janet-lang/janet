@@ -75,6 +75,7 @@
          :ref ref
          :source-map sm
          :doc docstring} env-entry
+        html-key (html-escape key)
         binding-type (cond
                        macro :macro
                        ref (string :var " (" (type (get ref 0)) ")")
@@ -82,7 +83,7 @@
         source-ref (if-let [[path start end] sm]
                      (string "<span class=\"source-map\">" path " (" start ":" end ")</span>")
                      "")]
-    (string "<h2 class=\"binding\">" (html-escape key) "</h2>\n"
+    (string "<h2 class=\"binding\"><a id=\"" key "\">" html-key "</a></h2>\n"
             "<span class=\"binding-type\">" binding-type "</span>\n"
             "<p class=\"docstring\">" (trim-lead (html-escape docstring)) "</p>\n"
             source-ref)))
