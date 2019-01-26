@@ -1712,6 +1712,7 @@ value, one key will be ignored."
   and then close the file."
   [path]
   (def f (file/open path :r))
+  (if-not f (error (string "could not open file " path)))
   (def contents (file/read f :all))
   (file/close f)
   contents)
@@ -1722,6 +1723,7 @@ value, one key will be ignored."
   [path contents mode &]
   (default mode :w)
   (def f (file/open path mode))
+  (if-not f (error (string "could not open file " path " with mode " mode)))
   (file/write f contents)
   (file/close f)
   nil)
