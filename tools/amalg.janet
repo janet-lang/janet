@@ -3,6 +3,14 @@
 
 (def {:year YY :month MM :month-day DD} (os/date))
 
+(defn dofile
+  "Print one file to stdout"
+  [path]
+  (def path (if (= (os/which) :windows)
+              (string/replace "/" "\\" path)
+              path))
+  (print (slurp path)))
+
 # Order is important here, as some headers
 # depend on other headers.
 (def headers
@@ -63,8 +71,8 @@
 (print ```#define JANET_AMALG
 #include "janet.h"```)
 
-(each h headers (print (slurp h)))
-(each s sources (print (slurp s)))
+(each h headers (dofile h))
+(each s sources (dofile s))
 
 # Relies on this file being built
-(print (slurp "build/core.gen.c"))
+(dofile "build/core.gen.c")
