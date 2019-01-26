@@ -6,9 +6,6 @@
 (defn dofile
   "Print one file to stdout"
   [path]
-  (def path (if (= (os/which) :windows)
-              (string/replace "/" "\\" path)
-              path))
   (print (slurp path)))
 
 # Order is important here, as some headers
