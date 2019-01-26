@@ -159,6 +159,17 @@
 (buffer/blit b2 "abcdefg" 5 6)
 (assert (= (string b2) "joytogjoyto") "buffer/blit 3")
 
+# Buffer push word
+
+(def b3 @"")
+(buffer/push-word b3 0xFF 0x11)
+(assert (= 8 (length b3)) "buffer/push-word 1")
+(assert (= "\xFF\0\0\0\x11\0\0\0" (string b3)) "buffer/push-word 2")
+(buffer/clear b3)
+(buffer/push-word b3 0xFFFFFFFF 0x1100)
+(assert (= 8 (length b3)) "buffer/push-word 3")
+(assert (= "\xFF\xFF\xFF\xFF\0\x11\0\0" (string b3)) "buffer/push-word 4")
+
 # Peg
 
 (defn check-match

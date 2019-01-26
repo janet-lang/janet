@@ -192,10 +192,10 @@ static Janet cfun_buffer_word(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     for (i = 1; i < argc; i++) {
-        double number = janet_getnumber(argv, 0);
+        double number = janet_getnumber(argv, i);
         uint32_t word = (uint32_t) number;
         if (word != number)
-            janet_panicf("cannot convert %v to machine word", argv[0]);
+            janet_panicf("cannot convert %v to machine word", argv[i]);
         janet_buffer_push_u32(buffer, word);
     }
     return argv[0];
