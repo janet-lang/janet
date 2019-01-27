@@ -44,5 +44,3 @@ deploy:
     secure: lwEXy09qhj2jSH9s1C/KvCkAUqJSma8phFR+0kbsfUc3rVxpNK5uD3z9Md0SjYRx
   artifact: janet-windows
   draft: true
-  on:
-    APPVEYOR_REPO_TAG: true

@@ -9,6 +9,7 @@ compiler:
 os:
 - linux
 - osx
+- windows
 before_deploy: 
 deploy:
   provider: releases
