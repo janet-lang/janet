@@ -3,7 +3,7 @@ packages:
   - gmake
   - gcc
 sources:
-  - https://github.com/bakpakin/janet.git
+  - https://github.com/janet-lang/janet.git
 tasks:
   - build: |
       cd janet

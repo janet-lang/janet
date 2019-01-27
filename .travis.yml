@@ -19,5 +19,5 @@ deploy:
   skip_cleanup: true
   on:
     tags: true
-    repo: bakpakin/janet
+    repo: janet-lang/janet
     condition: "$CC = clang"
