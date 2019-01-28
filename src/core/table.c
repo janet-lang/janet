@@ -131,6 +131,7 @@ Janet janet_table_remove(JanetTable *t, Janet key) {
 /* Put a value into the object */
 void janet_table_put(JanetTable *t, Janet key, Janet value) {
     if (janet_checktype(key, JANET_NIL)) return;
+    if (janet_checktype(key, JANET_NUMBER) && isnan(janet_unwrap_number(key))) return;
     if (janet_checktype(value, JANET_NIL)) {
         janet_table_remove(t, key);
     } else {

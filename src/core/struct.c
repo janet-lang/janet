@@ -73,6 +73,7 @@ void janet_struct_put(JanetKV *st, Janet key, Janet value) {
     int32_t i, j, dist;
     int32_t bounds[4] = {index, cap, 0, index};
     if (janet_checktype(key, JANET_NIL) || janet_checktype(value, JANET_NIL)) return;
+    if (janet_checktype(key, JANET_NUMBER) && isnan(janet_unwrap_number(key))) return;
     /* Avoid extra items */
     if (janet_struct_hash(st) == janet_struct_length(st)) return;
     for (dist = 0, j = 0; j < 4; j += 2)
@@ -120,9 +121,7 @@ void janet_struct_put(JanetKV *st, Janet key, Janet value) {
             dist = otherdist;
             hash = otherhash;
         } else if (status == 0) {
-            /* This should not happen - it means
-             * than a key was added to the struct more than once */
-            janet_exit("struct double put fail");
+            /* A key was added to the struct more than once */
             return;
         }
     }
@@ -134,15 +133,8 @@ const JanetKV *janet_struct_end(JanetKV *st) {
         /* Error building struct, probably duplicate values. We need to rebuild
          * the struct using only the values that went in. The second creation should always
          * succeed. */
-        int32_t i, realCount;
-        JanetKV *newst;
-        realCount = 0;
-        for (i = 0; i < janet_struct_capacity(st); i++) {
-            JanetKV *kv = st + i;
-            realCount += janet_checktype(kv->key, JANET_NIL) ? 1 : 0;
-        }
-        newst = janet_struct_begin(realCount);
-        for (i = 0; i < janet_struct_capacity(st); i++) {
+        JanetKV *newst = janet_struct_begin(janet_struct_hash(st));
+        for (int32_t i = 0; i < janet_struct_capacity(st); i++) {
             JanetKV *kv = st + i;
             if (!janet_checktype(kv->key, JANET_NIL)) {
                 janet_struct_put(newst, kv->key, kv->value);
