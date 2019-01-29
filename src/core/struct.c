@@ -24,6 +24,7 @@
 #include <janet/janet.h>
 #include "gc.h"
 #include "util.h"
+#include <math.h>
 #endif
 
 /* Begin creation of a struct */
