@@ -723,7 +723,8 @@
   nil if not found. Note their is no way to differentiate a nil from the indexed collection
   and a not found. Consider find-index if this is an issue."
   [pred ind]
-  (get ind (find-index pred ind)))
+  (def i (find-index pred ind))
+  (if (= i nil) nil (get ind i)))
 
 (defn take-until
   "Given a predicate, take only elements from an indexed type that satisfy
