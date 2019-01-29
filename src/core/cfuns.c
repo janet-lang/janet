@@ -101,8 +101,15 @@ static JanetSlot do_get(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_GET, janet_wrap_nil());
 }
 static JanetSlot do_put(JanetFopts opts, JanetSlot *args) {
-    janetc_emit_sss(opts.compiler, JOP_PUT, args[0], args[1], args[2], 0);
-    return args[0];
+    if (opts.flags & JANET_FOPTS_DROP) {
+        janetc_emit_sss(opts.compiler, JOP_PUT, args[0], args[1], args[2], 0);
+        return janetc_cslot(janet_wrap_nil());
+    } else {
+        JanetSlot t = janetc_gettarget(opts);
+        janetc_copy(opts.compiler, t, args[0]);
+        janetc_emit_sss(opts.compiler, JOP_PUT, t, args[1], args[2], 0);
+        return t;
+    }
 }
 static JanetSlot do_length(JanetFopts opts, JanetSlot *args) {
     return genericSS(opts, JOP_LENGTH, args[0]);

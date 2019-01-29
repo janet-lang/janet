@@ -346,4 +346,9 @@
 (check-deep '(drop '"hello") "hello" @[])
 (check-deep '(drop "hello") "hello" @[])
 
+# Regression #24
+
+(def t (put @{} :hi 1))
+(assert (deep= t @{:hi 1}) "regression #24")
+
 (end-suite)
