@@ -1546,14 +1546,16 @@ value, one key will be ignored."
   @["./:all:.janet"
     "./:all:/init.janet"
     ":sys:/:all:.janet"
-    ":sys:/:all:/init.janet"])
+    ":sys:/:all:/init.janet"
+    ":all:"])
 
 (def module/native-paths
   "See doc for module/paths"
   @["./:all:.:native:"
     "./:all:/:name:.:native:"
     ":sys:/:all:.:native:"
-    ":sys:/:all:/:name:.:native:"])
+    ":sys:/:all:/:name:.:native:"
+    ":all:"])
 
 (var module/*syspath*
   "The path where globally installed libraries are located.
@@ -1576,7 +1578,7 @@ value, one key will be ignored."
          (string/replace ":sys:" module/*syspath*)
          (string/replace ":native:" nati)
          (string/replace ":all:" path)))
-  (array/push (map sub-path paths) path))
+  (map sub-path paths))
 
 (def module/cache
   "Table mapping loaded module identifiers to their environments."
@@ -1588,51 +1590,40 @@ value, one key will be ignored."
   @{})
 
 # Require helpers
-(defn- check-mod
-  [f testpath]
-  (or f (file/open testpath)))
-(defn- find-mod [path]
-  (def paths (module/find path module/paths))
-  (reduce check-mod nil paths))
-(defn- check-native
-  [p testpath]
-  (or p
-    (do
-      (def f (file/open testpath))
-      (if f (do (file/close f) testpath)))))
-(defn- find-native [path]
-  (def paths (module/find path module/native-paths))
-  (reduce check-native nil paths))
+(defn- fexists [path]
+  (def f (file/open path))
+  (if f (do (file/close f) path)))
 
 (defn require
   "Require a module with the given name. Will search all of the paths in
   module/paths, then the path as a raw file path. Returns the new environment
   returned from compiling and running the file."
   [path & args]
-  (when (get module/loading path)
-    (error (string "circular dependency: module " path " is loading")))
   (def {:exit exit-on-error} (table ;args))
   (if-let [check (get module/cache path)]
     check
-    (if-let [f (find-mod path)]
+    (if-let [modpath (find fexists (module/find path module/paths))]
       (do
+        (when (get module/loading modpath)
+          (error (string "circular dependency: file " modpath " is loading")))
         # Normal janet module
+        (def f (file/open modpath))
         (def newenv (make-env))
-        (put module/loading path true)
+        (put module/loading modpath true)
         (defn chunks [buf _] (file/read f 2048 buf))
         (run-context newenv chunks
                      (fn [sig x f source]
                        (when (not= sig :dead)
                          (status-pp sig x f source)
                          (if exit-on-error (os/exit 1))))
-                     path)
+                     modpath)
         (file/close f)
-        (put module/loading path false)
-        (put module/cache path newenv)
+        (put module/loading modpath false)
+        (put module/cache modpath newenv)
         newenv)
       (do
         # Try native module
-        (def n (find-native path))
+        (def n (find fexists (module/find path module/native-paths)))
         (if (not n)
           (error (string "could not open file for module " path)))
         (def e (make-env))
@@ -1640,10 +1631,7 @@ value, one key will be ignored."
         (put module/cache path e)
         e))))
 
-(put _env 'find-native nil)
-(put _env 'check-native nil)
-(put _env 'find-mod nil)
-(put _env 'check-mod nil)
+(put _env 'fexists nil)
 
 (defn import*
   "Import a module into a given environment table. This is the
