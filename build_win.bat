@@ -101,6 +101,8 @@ copy README.md dist\README.md
 copy janet.lib dist\janet.lib
 copy janet.exp dist\janet.exp
 copy src\include\janet\janet.h dist\janet.h
+copy tools\cook.janet dist\cook.janet
+copy tools\highlight.janet dist\highlight.janet
 exit /b 0
 
 :TESTFAIL
