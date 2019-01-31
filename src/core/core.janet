@@ -1403,8 +1403,11 @@ value, one key will be ignored."
 
 (defn getline
   "Read a line from stdin into a buffer."
-  [buf p]
-  (file/read stdin :line buf))
+  [buf p &]
+  (default buf @"")
+  (when p (file/write stdout p))
+  (file/read stdin :line buf)
+  buf)
 
 (defn run-context
   "Run a context. This evaluates expressions of janet in an environment,

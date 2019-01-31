@@ -24,11 +24,11 @@
 
 /* Common */
 Janet janet_line_getter(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 2);
-    const uint8_t *str = janet_getstring(argv, 0);
-    JanetBuffer *buf = janet_getbuffer(argv, 1);
+    janet_arity(argc, 0, 2);
+    const char *str = (argc >= 1) ? (const char *) janet_getstring(argv, 0) : "";
+    JanetBuffer *buf = (argc >= 2) ? janet_getbuffer(argv, 1) : janet_buffer(10);
     janet_line_get(str, buf);
-    return argv[0];
+    return janet_wrap_buffer(buf);
 }
 
 static void simpleline(JanetBuffer *buffer) {
@@ -55,8 +55,8 @@ void janet_line_deinit() {
     ;
 }
 
-void janet_line_get(const uint8_t *p, JanetBuffer *buffer) {
-    fputs((const char *)p, stdout);
+void janet_line_get(const char *p, JanetBuffer *buffer) {
+    fputs(p, stdout);
     simpleline(buffer);
 }
 
@@ -444,8 +444,8 @@ static int checktermsupport() {
     return 1;
 }
 
-void janet_line_get(const uint8_t *p, JanetBuffer *buffer) {
-    prompt = (const char *)p;
+void janet_line_get(const char *p, JanetBuffer *buffer) {
+    prompt = p;
     buffer->count = 0;
     historyi = 0;
     if (!isatty(STDIN_FILENO) || !checktermsupport()) {
