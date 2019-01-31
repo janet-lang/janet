@@ -1518,7 +1518,7 @@ value, one key will be ignored."
     (error (res :error))))
 
 (def module/paths
-  "The list of paths to look for modules. The followig
+  "The list of paths to look for modules. The following
   substitutions are preformed on each path. :sys: becomes
   module/*syspath*, :name: becomes the last part of the module
   name after the last /, and :all: is the module name literally.
