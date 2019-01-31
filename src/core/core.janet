@@ -1385,17 +1385,51 @@ value, one key will be ignored."
   (def newenv (table/setproto @{} parent))
   newenv)
 
+(defn bad-parse
+  "Default handler for a parse error."
+  [p where]
+  (file/write stderr
+              "parse error in "
+              where
+              " around byte "
+              (string (parser/where p))
+              (or (parser/error p) "unmatched delimiter")))
+
+(defn bad-compile
+  "Default handler for a compile error."
+  [msg macrof where]
+  (file/write stderr msg " while compiling " where "\n")
+  (when macrof (debug/stacktrace macrof)))
+
+(defn getline
+  "Read a line from stdin into a buffer."
+  [buf p]
+  (file/read stdin :line buf))
+
 (defn run-context
   "Run a context. This evaluates expressions of janet in an environment,
-  and is encapsulates the parsing, compilation, and evaluation of janet.
-  env is the environment to evaluate the code in, chunks is a function
-  that returns strings or buffers of source code (from a repl, file,
-  network connection, etc. onstatus is a callback that is
-  invoked when a result is returned or any other signal is raised.
+  and is encapsulates the parsing, compilation, and evaluation.
+  opts is a table or struct of options. The options are as follows:\n\n\t
+  :chunks - callback to read into a buffer - default is getline\n\t
+  :on-parse-error - callback when parsing fails - default is bad-parse\n\t
+  :env - the environment to compile against - default is *env*\n\t
+  :source - string path of source for better errors - default is \"<anonymous>\"\n\t
+  :on-compile-error - callback when compilation fails - default is bad-compile\n\t
+  :on-status - callback when a value is evaluated - default is debug/stacktrace"
+  [opts]
 
-  This function can be used to implement a repl very easily, simply
-  pass a function that reads line from stdin to chunks, status-pp to onstatus"
-  [env chunks onstatus where &]
+  (def {:env env
+        :chunks chunks
+        :on-status onstatus
+        :on-compile-error on-compile-error
+        :on-parse-error on-parse-error
+        :source where} opts)
+  (default env *env*)
+  (default chunks getline)
+  (default onstatus debug/stacktrace)
+  (default on-compile-error bad-compile)
+  (default on-parse-error bad-parse)
+  (default where "<anonymous>")
 
   # Are we done yet?
   (var going true)
@@ -1415,17 +1449,14 @@ value, one key will be ignored."
             (do
               (set good false)
               (def {:error err :start start :end end :fiber errf} res)
-              (onstatus
-                :compile
+              (def msg
                 (if (<= 0 start)
-                  (string err "\n  at (" start ":" end ")")
-                  err)
-                errf
-                where))))
+                  (string "compile error: " err " at (" start ":" end ")")
+                  err))
+              (on-compile-error msg errf where))))
         :a))
     (def res (resume f nil))
-    (when good
-      (if going (onstatus (fiber/status f) res f where))))
+    (when good (if going (onstatus f res))))
 
   (def oldenv *env*)
   (set *env* env)
@@ -1444,73 +1475,19 @@ value, one key will be ignored."
       (while (parser/has-more p)
         (eval1 (parser/produce p)))
       (when (= (parser/status p) :error)
-        (onstatus :parse
-                  (string (parser/error p)
-                          " around byte " (parser/where p))
-                  nil
-                  where))))
+        (on-parse-error p where))))
 
   (if (= (parser/status p) :pending)
-        (onstatus :parse
-                  (string "unmatched delimiters " (parser/state p))
-                  nil
-                  where))
+        (on-parse-error p where))
 
   (set *env* oldenv)
 
   env)
 
-(defn status-pp
-  "Pretty print a signal and associated state. Can be used as the
-  onsignal argument to run-context."
-  [sig x f source]
-  (def title
-    (case sig
-      :parse "parse error"
-      :compile "compile error"
-      :error "error"
-      (string "status " sig)))
-  (file/write stderr
-              (string title " in " source ": ")
-              (if (bytes? x) x (string/pretty x))
-              "\n")
-  (when f
-    (loop
-      [nf :in (reverse (debug/lineage f))
-       {:function func
-        :tail tail
-        :pc pc
-        :c c
-        :name name
-        :source source
-        :source-start start
-        :source-end end} :in (debug/stack nf)]
-      (file/write stderr "  in")
-      (when c (file/write stderr " cfunction"))
-      (if name
-        (file/write stderr " " name)
-        (when func (file/write stderr " <anonymous>")))
-      (if source
-        (do
-          (file/write stderr " [" source "]")
-          (if start
-            (file/write
-              stderr
-              " at ("
-              (string start)
-              ":"
-              (string end)
-              ")"))))
-      (if (and (not start) pc)
-        (file/write stderr " (pc=" (string pc) ")"))
-      (when tail (file/write stderr " (tailcall)"))
-      (file/write stderr "\n"))))
-
 (defn eval-string
   "Evaluates a string in the current environment. If more control over the
   environment is needed, use run-context."
   [str env &]
-  (default env *env*)
   (var state (string str))
   (defn chunks [buf _]
     (def ret state)
@@ -1519,12 +1496,15 @@ value, one key will be ignored."
       (buffer/push-string buf str)
       (buffer/push-string buf "\n")))
   (var returnval nil)
-  (run-context env chunks
-               (fn [sig x f source]
-                 (if (= sig :dead)
-                   (set returnval x)
-                   (status-pp sig x f source)))
-               "eval")
+  (run-context {:env env
+                :chunks chunks
+                :on-compile-error error
+                :on-parse-error error
+                :on-status (fn [f val]
+                             (set returnval val)
+                             (if-not (= (fiber/status f) :dead)
+                               (debug/stacktrace f val)))
+                :source "eval"})
   returnval)
 
 (defn eval
@@ -1612,15 +1592,17 @@ value, one key will be ignored."
         (def newenv (make-env))
         (put module/loading modpath true)
         (defn chunks [buf _] (file/read f 2048 buf))
-        (run-context newenv chunks
-                     (fn [sig x f source]
-                       (when (not= sig :dead)
-                         (status-pp sig x f source)
-                         (if exit-on-error (os/exit 1))))
-                     modpath)
+        (run-context {:env newenv
+                      :chunks chunks
+                      :on-status (fn [f x]
+                                   (when (not= (fiber/status f) :dead)
+                                     (debug/stacktrace f x)
+                                     (if exit-on-error (os/exit 1))))
+                      :source modpath})
         (file/close f)
         (put module/loading modpath false)
         (put module/cache modpath newenv)
+        (put module/cache path newenv)
         newenv)
       (do
         # Try native module
@@ -1629,6 +1611,7 @@ value, one key will be ignored."
           (error (string "could not open file for module " path)))
         (def e (make-env))
         (native n e)
+        (put module/cache n e)
         (put module/cache path e)
         e))))
 
@@ -1667,14 +1650,16 @@ value, one key will be ignored."
   caught."
   [chunks onsignal &]
   (def newenv (make-env))
-  (default chunks (fn [buf _] (file/read stdin :line buf)))
-  (default onsignal (fn [sig x f source]
-                      (case sig
+  (default onsignal (fn [f x]
+                      (case (fiber/status f)
                         :dead (do
                                 (put newenv '_ @{:value x})
                                 (print (string/pretty x 20)))
-                        (status-pp sig x f source))))
-  (run-context newenv chunks onsignal "repl"))
+                        (debug/stacktrace f x))))
+  (run-context {:env newenv
+                :chunks chunks
+                :on-status onsignal
+                :source "repl"}))
 
 (defmacro meta
   "Add metadata to the current environment."

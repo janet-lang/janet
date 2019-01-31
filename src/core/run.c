@@ -23,62 +23,7 @@
 #ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "state.h"
-#include "vector.h"
 #endif
-
-/* Error reporting */
-void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err) {
-    int32_t fi;
-    const char *errstr = (const char *)janet_to_string(err);
-    JanetFiber **fibers = NULL;
-    fprintf(stderr, "%s error: %s\n", errtype, errstr);
-
-    while (fiber) {
-        janet_v_push(fibers, fiber);
-        fiber = fiber->child;
-    }
-
-    for (fi = janet_v_count(fibers) - 1; fi >= 0; fi--) {
-        fiber = fibers[fi];
-        int32_t i = fiber->frame;
-        while (i > 0) {
-            JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
-            JanetFuncDef *def = NULL;
-            i = frame->prevframe;
-            fprintf(stderr, "  in");
-            if (frame->func) {
-                def = frame->func->def;
-                fprintf(stderr, " %s", def->name ? (const char *)def->name : "<anonymous>");
-                if (def->source) {
-                    fprintf(stderr, " [%s]", (const char *)def->source);
-                }
-            } else {
-                JanetCFunction cfun = (JanetCFunction)(frame->pc);
-                if (cfun) {
-                    Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
-                    if (!janet_checktype(name, JANET_NIL))
-                        fprintf(stderr, " %s", (const char *)janet_to_string(name));
-                    else
-                        fprintf(stderr, " <cfunction>");
-                }
-            }
-            if (frame->flags & JANET_STACKFRAME_TAILCALL)
-                fprintf(stderr, " (tailcall)");
-            if (frame->func && frame->pc) {
-                int32_t off = (int32_t) (frame->pc - def->bytecode);
-                if (def->sourcemap) {
-                    JanetSourceMapping mapping = def->sourcemap[off];
-                    fprintf(stderr, " at (%d:%d)", mapping.start, mapping.end);
-                } else {
-                    fprintf(stderr, " pc=%d", off);
-                }
-            }
-            fprintf(stderr, "\n");
-        }
-    }
-
-    janet_v_free(fibers);
-}
 
 /* Run a string */
 int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out) {
@@ -90,6 +35,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
     Janet ret = janet_wrap_nil();
     const uint8_t *where = sourcePath ? janet_cstring(sourcePath) : NULL;
     if (where) janet_gcroot(janet_wrap_string(where));
+    if (NULL == sourcePath) sourcePath = "<unknown>";
     janet_parser_init(&parser);
 
     while (!errflags && !done) {
@@ -103,13 +49,12 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 JanetFiber *fiber = janet_fiber(f, 64, 0, NULL);
                 JanetSignal status = janet_continue(fiber, janet_wrap_nil(), &ret);
                 if (status != JANET_SIGNAL_OK) {
-                    janet_stacktrace(fiber, "runtime", ret);
+                    janet_stacktrace(fiber, ret);
                     errflags |= 0x01;
                 }
             } else {
-                fprintf(stderr, "source path: %s\n", sourcePath);
-                janet_stacktrace(cres.macrofiber, "compile",
-                        janet_wrap_string(cres.error));
+                fprintf(stderr, "compile error in %s: %s\n", sourcePath,
+                        (const char *)cres.error);
                 errflags |= 0x02;
             }
         }
@@ -118,13 +63,15 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
         switch (janet_parser_status(&parser)) {
             case JANET_PARSE_ERROR:
                 errflags |= 0x04;
-                fprintf(stderr, "parse error: %s\n", janet_parser_error(&parser));
+                fprintf(stderr, "parse error in %s: %s\n",
+                        sourcePath, janet_parser_error(&parser));
                 break;
             case JANET_PARSE_PENDING:
                 if (index >= len) {
                     if (dudeol) {
                         errflags |= 0x04;
-                        fprintf(stderr, "internal parse error: unexpected end of source\n");
+                        fprintf(stderr, "internal parse error in %s: unexpected end of source\n",
+                                sourcePath);
                     } else {
                         dudeol = 1;
                         janet_parser_consume(&parser, '\n');

@@ -1114,7 +1114,7 @@ JANET_API void janet_deinit(void);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
 JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
 JANET_API Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv);
-JANET_API void janet_stacktrace(JanetFiber *fiber, const char *errtype, Janet err);
+JANET_API void janet_stacktrace(JanetFiber *fiber, Janet err);
 
 /* C Library helpers */
 typedef enum {

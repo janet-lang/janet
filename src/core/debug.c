@@ -25,6 +25,7 @@
 #include "gc.h"
 #include "state.h"
 #include "util.h"
+#include "vector.h"
 #endif
 
 /* Implements functionality to build a debugger from within janet.
@@ -88,6 +89,74 @@ void janet_debug_find(
     } else {
         janet_panic("could not find breakpoint");
     }
+}
+
+/* Error reporting. This can be emulated from within Janet, but for
+ * consitency with the top level code it is defined once. */
+void janet_stacktrace(JanetFiber *fiber, Janet err) {
+    int32_t fi;
+    const char *errstr = (const char *)janet_to_string(err);
+    JanetFiber **fibers = NULL;
+    int wrote_error = 0;
+
+    while (fiber) {
+        janet_v_push(fibers, fiber);
+        fiber = fiber->child;
+    }
+
+    for (fi = janet_v_count(fibers) - 1; fi >= 0; fi--) {
+        fiber = fibers[fi];
+        int32_t i = fiber->frame;
+        while (i > 0) {
+            JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
+            JanetFuncDef *def = NULL;
+            i = frame->prevframe;
+
+            /* Print prelude to stack frame */
+            if (!wrote_error) {
+                JanetFiberStatus status = janet_fiber_status(fiber);
+                const char *prefix = status == JANET_STATUS_ERROR ? "" : "status ";
+                fprintf(stderr, "%s%s: %s\n",
+                        prefix,
+                        janet_status_names[status],
+                        errstr);
+                wrote_error = 1;
+            }
+
+            fprintf(stderr, "  in");
+
+            if (frame->func) {
+                def = frame->func->def;
+                fprintf(stderr, " %s", def->name ? (const char *)def->name : "<anonymous>");
+                if (def->source) {
+                    fprintf(stderr, " [%s]", (const char *)def->source);
+                }
+            } else {
+                JanetCFunction cfun = (JanetCFunction)(frame->pc);
+                if (cfun) {
+                    Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
+                    if (!janet_checktype(name, JANET_NIL))
+                        fprintf(stderr, " %s", (const char *)janet_to_string(name));
+                    else
+                        fprintf(stderr, " <cfunction>");
+                }
+            }
+            if (frame->flags & JANET_STACKFRAME_TAILCALL)
+                fprintf(stderr, " (tailcall)");
+            if (frame->func && frame->pc) {
+                int32_t off = (int32_t) (frame->pc - def->bytecode);
+                if (def->sourcemap) {
+                    JanetSourceMapping mapping = def->sourcemap[off];
+                    fprintf(stderr, " at (%d:%d)", mapping.start, mapping.end);
+                } else {
+                    fprintf(stderr, " pc=%d", off);
+                }
+            }
+            fprintf(stderr, "\n");
+        }
+    }
+
+    janet_v_free(fibers);
 }
 
 /*
@@ -218,6 +287,13 @@ static Janet cfun_debug_stack(int32_t argc, Janet *argv) {
     return janet_wrap_array(array);
 }
 
+static Janet cfun_debug_stacktrace(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    janet_stacktrace(fiber, argv[1]);
+    return argv[0];
+}
+
 static Janet cfun_debug_argstack(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
@@ -279,6 +355,13 @@ static const JanetReg debug_cfuns[] = {
                 "\t:source - string with the file path or other identifier for the source code\n"
                 "\t:slots - array of all values in each slot\n"
                 "\t:tail - boolean indicating a tail call")
+    },
+    {
+        "debug/stacktrace", cfun_debug_stacktrace,
+        JDOC("(debug/stacktrace fiber err)\n\n"
+                "Prints a nice looking stacktrace for a fiber. The error message "
+                "err must be passed to the function as fiber's do not keep track of "
+                "the last error they have thrown. Returns the fiber.")
     },
     {
         "debug/lineage", cfun_debug_lineage,
