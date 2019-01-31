@@ -112,11 +112,12 @@
   [opts target & objects]
   (def ld (or (opts :linker) LD))
   (def cflags (or (opts :cflags) CFLAGS))
+  (def lflags (or (opts :lflags) ""))
   (def olist (string/join objects " "))
   (if (older-than-some target objects)
     (if is-win
       (shell ld " /DLL /OUT:" target " " olist " %JANET_PATH%\\janet.lib")
-      (shell ld " " cflags " -o " target " " olist))))
+      (shell ld " " cflags " -o " target " " olist " " lflags))))
 
 (defn- create-buffer-c
   "Inline raw byte file as a c file."
