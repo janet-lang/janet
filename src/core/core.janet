@@ -1393,12 +1393,14 @@ value, one key will be ignored."
               where
               " around byte "
               (string (parser/where p))
-              (or (parser/error p) "unmatched delimiter")))
+              ": "
+              (or (parser/error p) "unmatched delimiter")
+              "\n"))
 
 (defn bad-compile
   "Default handler for a compile error."
   [msg macrof where]
-  (file/write stderr msg " while compiling " where "\n")
+  (file/write stderr "compile error: " msg " while compiling " where "\n")
   (when macrof (debug/stacktrace macrof)))
 
 (defn getline
