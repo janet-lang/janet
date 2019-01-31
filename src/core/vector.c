@@ -42,22 +42,6 @@ void *janet_v_grow(void *v, int32_t increment, int32_t itemsize) {
    }
 }
 
-/* Clone a buffer. */
-void *janet_v_copymem(void *v, int32_t itemsize) {
-    int32_t *p;
-    if (NULL == v) return NULL;
-    p = malloc(2 * sizeof(int32_t) + itemsize * janet_v__cap(v));
-    if (NULL != p) {
-        memcpy(p, janet_v__raw(v), 2 * sizeof(int32_t) + itemsize * janet_v__cnt(v));
-        return p + 2;
-    } else {
-       {
-           JANET_OUT_OF_MEMORY;
-       }
-       return (void *) (2 * sizeof(int32_t));
-    }
-}
-
 /* Convert a buffer to normal allocated memory (forget capacity) */
 void *janet_v_flattenmem(void *v, int32_t itemsize) {
     int32_t *p;
