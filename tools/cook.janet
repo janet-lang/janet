@@ -79,14 +79,14 @@
 (defn- make-define
   "Generate strings for adding custom defines to the compiler."
   [define value]
-  (def prefix (if is-win "\\D" "-D"))
+  (def prefix (if is-win "/D" "-D"))
   (if value
     (string prefix define "=" value)
     (string prefix define)))
 
 (defn- make-defines
   "Generate many defines. Takes a dictionary of defines. If a value is
-  true, generates -DNAME (\\DNAME on windows), otherwise -DNAME=value."
+  true, generates -DNAME (/DNAME on windows), otherwise -DNAME=value."
   [defines]
   (seq [[d v] :pairs defines] (make-define d (if (not= v true) v))))
 
@@ -94,7 +94,7 @@
 (def OPTIMIZE 2)
 (def CC (if is-win "cl" "cc"))
 (def LD (if is-win "link" (string CC " -shared")))
-(def CFLAGS (string (if is-win "/0" "-std=c99 -Wall -Wextra -fpic -O") OPTIMIZE))
+(def CFLAGS (string (if is-win "/O" "-std=c99 -Wall -Wextra -fpic -O") OPTIMIZE))
 
 (defn- compile-c
   "Compile a C file into an object file."
@@ -115,7 +115,7 @@
   (def olist (string/join objects " "))
   (if (older-than-some target objects)
     (if is-win
-      (shell ld "/out:" target "  " olist)
+      (shell ld " /DLL /OUT:" target " " olist " %JANET_PATH%\\janet.lib")
       (shell ld " " cflags " -o " target " " olist))))
 
 (defn- create-buffer-c
