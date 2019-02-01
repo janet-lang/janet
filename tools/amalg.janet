@@ -65,8 +65,8 @@
 # as the version being generated
 (print "#define JANET_BUILD \"" janet/build "\"")
 
-(print ```#define JANET_AMALG
-#include "janet.h"```)
+(print ```#define JANET_AMALG```)
+(print ```#include "janet.h"```)
 
 (each h headers (dofile h))
 (each s sources (dofile s))

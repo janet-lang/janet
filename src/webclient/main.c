@@ -44,7 +44,7 @@ static int enter_loop(void) {
     Janet ret;
     JanetSignal status = janet_continue(repl_fiber, janet_wrap_nil(), &ret);
     if (status == JANET_SIGNAL_ERROR) {
-        janet_stacktrace(repl_fiber, "runtime", ret);
+        janet_stacktrace(repl_fiber, ret);
         janet_deinit();
         repl_fiber = NULL;
         return 1;

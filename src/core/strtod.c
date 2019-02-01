@@ -228,7 +228,7 @@ static double convert(
         bignat_lshift_n(mant, shamt);
         exponent2 -= shamt * BIGNAT_NBIT;
         for (;exponent < -3; exponent += 4) bignat_div(mant, base * base * base * base);
-        for (;exponent < -2; exponent += 2) bignat_div(mant, base * base);
+        for (;exponent < -1; exponent += 2) bignat_div(mant, base * base);
         for (;exponent <  0; exponent += 1) bignat_div(mant, base);
     }
 

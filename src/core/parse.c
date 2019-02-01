@@ -649,6 +649,39 @@ static Janet cfun_parse_consume(int32_t argc, Janet *argv) {
     return janet_wrap_integer(i);
 }
 
+static Janet cfun_parse_insert(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    JanetParser *p = janet_getabstract(argv, 0, &janet_parse_parsertype);
+    JanetParseState *s = p->states + p->statecount - 1;
+    if (s->consumer == tokenchar) {
+        janet_parser_consume(p, ' ');
+        p->offset--;
+        s = p->states + p->statecount - 1;
+    }
+    if (s->flags & PFLAG_CONTAINER) {
+        s->argn++;
+        if (p->statecount == 1) p->pending++;
+        push_arg(p, argv[1]);
+    } else if (s->flags & (PFLAG_STRING | PFLAG_LONGSTRING)) {
+        const uint8_t *str = janet_to_string(argv[1]);
+        int32_t slen = janet_string_length(str);
+        size_t newcount = p->bufcount + slen;
+        if (p->bufcap > p->bufcount + slen) {
+            size_t newcap = 2 * newcount;
+            p->buf = realloc(p->buf, newcap);
+            if (p->buf == NULL) {
+                JANET_OUT_OF_MEMORY;
+            }
+            p->bufcap = newcap;
+        }
+        memcpy(p->buf + p->bufcount, str, slen);
+        p->bufcount = newcount;
+    } else {
+        janet_panic("cannot insert value into parser");
+    }
+    return argv[0];
+}
+
 static Janet cfun_parse_has_more(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parse_parsertype);
@@ -806,6 +839,13 @@ static const JanetReg parse_cfuns[] = {
                 "Returns the current line number and column number of the parser's location "
                 "in the byte stream as a tuple (line, column). Lines and columns are counted from "
                 "1, (the first byte is line 1, column 1) and a newline is considered ASCII 0x0A.")
+    },
+    {
+        "parser/insert", cfun_parse_insert,
+        JDOC("(parser/insert parser value)\n\n"
+                "Insert a value into the parser. This means that the parser state can be manipulated "
+                "in between chunks of bytes. This would allow a user to add extra elements to arrays "
+                "and tuples, for example. Returns the parser.")
     },
     {NULL, NULL, NULL}
 };

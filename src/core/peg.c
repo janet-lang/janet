@@ -990,7 +990,6 @@ static uint32_t compile1(Builder *b, Janet peg) {
 typedef struct {
     uint32_t *bytecode;
     Janet *constants;
-    uint32_t main_rule;
     uint32_t num_constants;
 } Peg;
 
@@ -1009,7 +1008,7 @@ static JanetAbstractType peg_type = {
 };
 
 /* Convert Builder to Peg (Janet Abstract Value) */
-static Peg *make_peg(Builder *b, uint32_t main_rule) {
+static Peg *make_peg(Builder *b) {
     size_t bytecode_size = janet_v_count(b->bytecode) * sizeof(uint32_t);
     size_t constants_size = janet_v_count(b->constants) * sizeof(Janet);
     size_t total_size = bytecode_size + constants_size + sizeof(Peg);
@@ -1018,7 +1017,6 @@ static Peg *make_peg(Builder *b, uint32_t main_rule) {
     peg->bytecode = (uint32_t *)(mem + sizeof(Peg));
     peg->constants = (Janet *)(mem + sizeof(Peg) + bytecode_size);
     peg->num_constants = janet_v_count(b->constants);
-    peg->main_rule = main_rule;
     memcpy(peg->bytecode, b->bytecode, bytecode_size);
     memcpy(peg->constants, b->constants, constants_size);
     return peg;
@@ -1035,8 +1033,8 @@ static Peg *compile_peg(Janet x) {
     builder.nexttag = 1;
     builder.form = x;
     builder.depth = JANET_RECURSION_GUARD;
-    uint32_t main_rule = compile1(&builder, x);
-    Peg *peg = make_peg(&builder, main_rule);
+    compile1(&builder, x);
+    Peg *peg = make_peg(&builder);
     builder_cleanup(&builder);
     return peg;
 }
@@ -1082,7 +1080,7 @@ static Janet cfun_peg_match(int32_t argc, Janet *argv) {
 
     s.constants = peg->constants;
     s.bytecode = peg->bytecode;
-    const uint8_t *result = peg_rule(&s, s.bytecode + peg->main_rule, bytes.bytes + start);
+    const uint8_t *result = peg_rule(&s, s.bytecode, bytes.bytes + start);
     return result ? janet_wrap_array(s.captures) : janet_wrap_nil();
 }
 

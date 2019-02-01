@@ -1393,18 +1393,23 @@ value, one key will be ignored."
               where
               " around byte "
               (string (parser/where p))
-              (or (parser/error p) "unmatched delimiter")))
+              ": "
+              (or (parser/error p) "unmatched delimiter")
+              "\n"))
 
 (defn bad-compile
   "Default handler for a compile error."
   [msg macrof where]
-  (file/write stderr msg " while compiling " where "\n")
+  (file/write stderr "compile error: " msg " while compiling " where "\n")
   (when macrof (debug/stacktrace macrof)))
 
 (defn getline
   "Read a line from stdin into a buffer."
-  [buf p]
-  (file/read stdin :line buf))
+  [buf p &]
+  (default buf @"")
+  (when p (file/write stdout p))
+  (file/read stdin :line buf)
+  buf)
 
 (defn run-context
   "Run a context. This evaluates expressions of janet in an environment,
@@ -1518,7 +1523,7 @@ value, one key will be ignored."
     (error (res :error))))
 
 (def module/paths
-  "The list of paths to look for modules. The followig
+  "The list of paths to look for modules. The following
   substitutions are preformed on each path. :sys: becomes
   module/*syspath*, :name: becomes the last part of the module
   name after the last /, and :all: is the module name literally.
