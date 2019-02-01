@@ -603,11 +603,13 @@ struct JanetFiber {
     int32_t capacity;
     int32_t maxstack; /* Arbitrary defined limit for stack overflow */
     int32_t flags; /* Various flags */
-    jmp_buf buf; /* Handle errors */
 };
 
 /* Mark if a stack frame is a tail call for debugging */
 #define JANET_STACKFRAME_TAILCALL 1
+
+/* Mark if a stack frame is an entrance frame */
+#define JANET_STACKFRAME_ENTRANCE 2
 
 /* A stack frame on the fiber. Is stored along with the stack values. */
 struct JanetStackFrame {

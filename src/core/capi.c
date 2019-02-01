@@ -27,9 +27,9 @@
 #endif
 
 void janet_panicv(Janet message) {
-    if (janet_vm_fiber != NULL) {
-        janet_fiber_push(janet_vm_fiber, message);
-        longjmp(janet_vm_fiber->buf, 1);
+    if (janet_vm_return_reg != NULL) {
+        *janet_vm_return_reg = message;
+        longjmp(*janet_vm_jmp_buf, 1);
     } else {
         fputs((const char *)janet_formatc("janet top level panic - %v\n", message), stdout);
         exit(1);

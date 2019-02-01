@@ -39,6 +39,11 @@ extern JANET_THREAD_LOCAL int janet_vm_stackn;
  * Set and unset by janet_run. */
 extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
 
+/* The current pointer to the inner most jmp_buf. The current
+ * return point for panics. */
+extern JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf;
+extern JANET_THREAD_LOCAL Janet *janet_vm_return_reg;
+
 /* The global registry for c functions. Used to store meta-data
  * along with otherwise bare c function pointers. */
 extern JANET_THREAD_LOCAL JanetTable *janet_vm_registry;

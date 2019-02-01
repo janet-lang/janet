@@ -33,6 +33,8 @@
 JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
 JANET_THREAD_LOCAL int janet_vm_stackn = 0;
 JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber = NULL;
+JANET_THREAD_LOCAL Janet *janet_vm_return_reg = NULL;
+JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
 
 /* Virtual registers
  *
@@ -148,7 +150,7 @@ static void *op_lookup[255] = {
 } while (0)
 #define vm_return(sig, val) do { \
     vm_commit(); \
-    janet_fiber_push(fiber, (val)); \
+    janet_vm_return_reg[0] = (val); \
     return (sig); \
 } while (0)
 
@@ -283,8 +285,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
     VM_OP(JOP_RETURN)
     {
         Janet retval = stack[D];
+        int entrance_frame = janet_stack_frame(stack)->flags & JANET_STACKFRAME_ENTRANCE;
         janet_fiber_popframe(fiber);
-        if (fiber->frame == 0) vm_return(JANET_SIGNAL_OK, retval);
+        if (entrance_frame) vm_return(JANET_SIGNAL_OK, retval);
         vm_restore();
         stack[A] = retval;
         vm_checkgc_pcnext();
@@ -293,8 +296,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
     VM_OP(JOP_RETURN_NIL)
     {
         Janet retval = janet_wrap_nil();
+        int entrance_frame = janet_stack_frame(stack)->flags & JANET_STACKFRAME_ENTRANCE;
         janet_fiber_popframe(fiber);
-        if (fiber->frame == 0) vm_return(JANET_SIGNAL_OK, retval);
+        if (entrance_frame) vm_return(JANET_SIGNAL_OK, retval);
         vm_restore();
         stack[A] = retval;
         vm_checkgc_pcnext();
@@ -581,7 +585,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
             janet_fiber_cframe(fiber, janet_unwrap_cfunction(callee));
             Janet ret = janet_unwrap_cfunction(callee)(argc, fiber->data + fiber->frame);
             janet_fiber_popframe(fiber);
-            if (fiber->frame == 0) vm_return(JANET_SIGNAL_OK, ret);
+            /*if (fiber->frame == 0) vm_return(JANET_SIGNAL_OK, ret);*/
             stack = fiber->data + fiber->frame;
             stack[A] = ret;
             vm_checkgc_pcnext();
@@ -614,6 +618,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
             vm_checkgc_next();
         } else {
             Janet retreg;
+            int entrance_frame = janet_stack_frame(stack)->flags & JANET_STACKFRAME_ENTRANCE;
             vm_commit();
             if (janet_checktype(callee, JANET_CFUNCTION)) {
                 int32_t argc = fiber->stacktop - fiber->stackstart;
@@ -624,7 +629,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
                 retreg = call_nonfn(fiber, callee);
             }
             janet_fiber_popframe(fiber);
-            if (fiber->frame == 0)
+            if (entrance_frame)
                 vm_return(JANET_SIGNAL_OK, retreg);
             vm_restore();
             stack[A] = retreg;
@@ -755,39 +760,45 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
 }
 
 Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
+    Janet ret;
+    Janet *old_return_reg = janet_vm_return_reg;
+
+    /* Check entry conditions */
+    if (!janet_vm_fiber)
+        janet_panic("janet_call failed because there is no current fiber");
     if (janet_vm_stackn >= JANET_RECURSION_GUARD)
         janet_panic("C stack recursed too deeply");
-    JanetFiber *fiber = janet_fiber(fun, 64, argc, argv);
-    if (!fiber)
-        janet_panic("arity mismatch");
-    JanetFiber *old_fiber = janet_vm_fiber;
-    janet_vm_fiber = fiber;
-    janet_gcroot(janet_wrap_fiber(fiber));
+
+    /* Push frame */
+    janet_fiber_pushn(janet_vm_fiber, argv, argc);
+    if (janet_fiber_funcframe(janet_vm_fiber, fun)) {
+        janet_panicf("arity mismatch in %v", fun);
+    }
+    janet_fiber_frame(janet_vm_fiber)->flags |= JANET_STACKFRAME_ENTRANCE;
+
+    /* Set up */
     int32_t oldn = janet_vm_stackn++;
     int handle = janet_gclock();
+    janet_vm_return_reg = &ret;
 
-    JanetSignal signal;
-    if (setjmp(fiber->buf)) {
-        signal = JANET_SIGNAL_ERROR;
-    } else {
-        signal = run_vm(fiber, janet_wrap_nil(), JANET_STATUS_NEW);
-    }
+    /* Run vm */
+    JanetSignal signal = run_vm(janet_vm_fiber,
+            janet_wrap_nil(),
+            JANET_STATUS_ALIVE);
 
+    /* Teardown */
+    janet_vm_return_reg = old_return_reg;
     janet_vm_stackn = oldn;
-    janet_vm_fiber = old_fiber;
-    Janet ret = fiber->data[fiber->stacktop - 1];
-    janet_gcunroot(janet_wrap_fiber(fiber));
     janet_gcunlock(handle);
-    if (signal == JANET_SIGNAL_ERROR) {
-        old_fiber->child = fiber;
-        janet_fiber_set_status(fiber, signal);
-        janet_panicv(ret);
-    }
+
+    if (signal != JANET_SIGNAL_OK) janet_panicv(ret);
+
     return ret;
 }
 
 /* Enter the main vm loop */
 JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
+    jmp_buf buf;
 
     /* Check conditions */
     JanetFiberStatus old_status = janet_fiber_status(fiber);
@@ -820,15 +831,19 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     int32_t oldn = janet_vm_stackn++;
     int handle = janet_vm_gc_suspend;
     JanetFiber *old_vm_fiber = janet_vm_fiber;
+    jmp_buf *old_vm_jmp_buf = janet_vm_jmp_buf;
+    Janet *old_vm_return_reg = janet_vm_return_reg;
 
     /* Setup fiber */
     janet_vm_fiber = fiber;
     janet_gcroot(janet_wrap_fiber(fiber));
     janet_fiber_set_status(fiber, JANET_STATUS_ALIVE);
+    janet_vm_return_reg = out;
+    janet_vm_jmp_buf = &buf;
 
     /* Run loop */
     JanetSignal signal;
-    if (setjmp(fiber->buf)) {
+    if (setjmp(buf)) {
         signal = JANET_SIGNAL_ERROR;
     } else {
         signal = run_vm(fiber, in, old_status);
@@ -839,12 +854,13 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     janet_gcunroot(janet_wrap_fiber(fiber));
 
     /* Restore global state */
-    janet_vm_gc_suspend = handle; 
+    janet_vm_gc_suspend = handle;
     janet_vm_fiber = old_vm_fiber;
     janet_vm_stackn = oldn;
+    janet_vm_return_reg = old_vm_return_reg;
+    janet_vm_jmp_buf = old_vm_jmp_buf;
 
     /* Pop error or return value from fiber stack */
-    *out = fiber->data[--fiber->stacktop];
 
     return signal;
 }
