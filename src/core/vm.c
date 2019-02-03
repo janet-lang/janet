@@ -860,8 +860,6 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     janet_vm_return_reg = old_vm_return_reg;
     janet_vm_jmp_buf = old_vm_jmp_buf;
 
-    /* Pop error or return value from fiber stack */
-
     return signal;
 }
 
