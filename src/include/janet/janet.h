@@ -738,6 +738,8 @@ struct JanetAbstractType {
     const char *name;
     int (*gc)(void *data, size_t len);
     int (*gcmark)(void *data, size_t len);
+    Janet (*get)(void *data, Janet key);
+    void (*put)(void *data, Janet key, Janet value);
 };
 
 /* Contains information about abstract types */

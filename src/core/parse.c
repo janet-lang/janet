@@ -612,7 +612,9 @@ static int parsergc(void *p, size_t size) {
 static JanetAbstractType janet_parse_parsertype = {
     "core/parser",
     parsergc,
-    parsermark
+    parsermark,
+    NULL,
+    NULL
 };
 
 /* C Function parser */

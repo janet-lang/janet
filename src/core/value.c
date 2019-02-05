@@ -219,6 +219,17 @@ Janet janet_get(Janet ds, Janet key) {
                 }
                 break;
             }
+    case JANET_ABSTRACT:
+      {
+	JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(janet_unwrap_abstract(ds));
+	if (type->get) {
+	  value = (type->get)(janet_unwrap_abstract(ds),key);
+	} else {
+	  janet_panicf("no getter for %T ", JANET_TFLAG_LENGTHABLE, ds);
+	  value = janet_wrap_nil();
+	}
+	break;
+      }
     }
     return value;
 }
@@ -267,6 +278,17 @@ Janet janet_getindex(Janet ds, int32_t index) {
         case JANET_STRUCT:
             value = janet_struct_get(janet_unwrap_struct(ds), janet_wrap_integer(index));
             break;
+    case JANET_ABSTRACT:
+      {
+	JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(janet_unwrap_abstract(ds));
+	if (type->get) {
+	  value = (type->get)(janet_unwrap_abstract(ds),janet_wrap_integer(index));
+	} else {
+	  janet_panicf("no getter for %T ", JANET_TFLAG_LENGTHABLE, ds);
+	  value = janet_wrap_nil();
+	}
+	break;
+      }
     }
     return value;
 }
@@ -327,6 +349,16 @@ void janet_putindex(Janet ds, int32_t index, Janet value) {
                 janet_table_put(table, janet_wrap_integer(index), value);
                 break;
             }
+        case JANET_ABSTRACT:
+	  {
+	    JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(janet_unwrap_abstract(ds));
+	    if (type->put) {
+	      (type->put)(janet_unwrap_abstract(ds),janet_wrap_integer(index),value);
+	    } else {
+	      janet_panicf("no setter for %T ", JANET_TFLAG_LENGTHABLE, ds);
+	    }
+	    break;
+	  }
     }
 }
 
@@ -367,5 +399,16 @@ void janet_put(Janet ds, Janet key, Janet value) {
         case JANET_TABLE:
             janet_table_put(janet_unwrap_table(ds), key, value);
             break;
+        case JANET_ABSTRACT:
+	  {
+	    JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(janet_unwrap_abstract(ds));
+	    if (type->put) {
+	      (type->put)(janet_unwrap_abstract(ds),key,value);
+	    } else {
+	      janet_panicf("no setter for %T ", JANET_TFLAG_LENGTHABLE, ds);
+	    }
+	    break;
+	  }
+	  
     }
 }

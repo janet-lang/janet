@@ -53,6 +53,8 @@ static int cfun_io_gc(void *p, size_t len);
 JanetAbstractType cfun_io_filetype = {
     "core/file",
     cfun_io_gc,
+    NULL,
+    NULL,
     NULL
 };
 
