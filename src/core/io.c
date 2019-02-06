@@ -49,12 +49,13 @@ struct IOFile {
 };
 
 static int cfun_io_gc(void *p, size_t len);
+static Janet io_file_get(void *p, Janet);
 
 JanetAbstractType cfun_io_filetype = {
     "core/file",
     cfun_io_gc,
     NULL,
-    NULL,
+    io_file_get,
     NULL
 };
 
@@ -305,6 +306,22 @@ static Janet cfun_io_fseek(int32_t argc, Janet *argv) {
     }
     if (fseek(iof->file, offset, whence)) janet_panic("error seeking file");
     return argv[0];
+}
+
+static JanetMethod io_file_methods[] = {
+    {"close", cfun_io_fclose},
+    {"read", cfun_io_fread},
+    {"write", cfun_io_fwrite},
+    {"flush", cfun_io_fflush},
+    {"seek", cfun_io_fseek},
+    {NULL, NULL}
+};
+
+static Janet io_file_get(void *p, Janet key) {
+    (void) p;
+    if (!janet_checktype(key, JANET_KEYWORD))
+        janet_panicf("expected keyword, got %v", key);
+    return janet_getmethod(janet_unwrap_keyword(key), io_file_methods);
 }
 
 static const JanetReg io_cfuns[] = {
