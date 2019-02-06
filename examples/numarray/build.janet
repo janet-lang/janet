@@ -20,5 +20,4 @@
 (:scale a 5)
 (for i 0 10 (print (a i)))
 
-#
 (print "sum=" (:sum a))

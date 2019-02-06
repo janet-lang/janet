@@ -73,6 +73,16 @@ type janet_get##name(const Janet *argv, int32_t n) { \
     return janet_unwrap_##name(x); \
 }
 
+Janet janet_getmethod(const uint8_t *method, const JanetMethod *methods) {
+    while (methods->name) {
+        if (!janet_cstrcmp(method, methods->name))
+            return janet_wrap_cfunction(methods->cfun);
+        methods++;
+    }
+    janet_panicf("unknown method %S invoked", method);
+    return janet_wrap_nil();
+}
+
 DEFINE_GETTER(number, NUMBER, double)
 DEFINE_GETTER(array, ARRAY, JanetArray *)
 DEFINE_GETTER(tuple, TUPLE, const Janet *)

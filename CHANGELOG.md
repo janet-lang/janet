@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## 0.4.0 - ??
+- Add janet\_getmethod to CAPI for easier use of method like syntax.
+- Add get/set to abstract types to allow them to behave more
+  like objects with methods.
 - Add parser/insert to modify parser state programmatically
 - Add debug/stacktrace for easy, pretty stacktraces
 - Remove the status-pp function

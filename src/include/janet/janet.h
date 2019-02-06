@@ -266,6 +266,7 @@ typedef struct JanetKV JanetKV;
 typedef struct JanetStackFrame JanetStackFrame;
 typedef struct JanetAbstractType JanetAbstractType;
 typedef struct JanetReg JanetReg;
+typedef struct JanetMethod JanetMethod;
 typedef struct JanetSourceMapping JanetSourceMapping;
 typedef struct JanetView JanetView;
 typedef struct JanetByteView JanetByteView;
@@ -754,6 +755,11 @@ struct JanetReg {
     const char *documentation;
 };
 
+struct JanetMethod {
+    const char *name;
+    JanetCFunction cfun;
+};
+
 struct JanetView {
     const Janet *items;
     int32_t len;
@@ -1146,6 +1152,7 @@ JANET_API void janet_panic_abstract(Janet x, int32_t n, const JanetAbstractType 
 JANET_API void janet_arity(int32_t arity, int32_t min, int32_t max);
 JANET_API void janet_fixarity(int32_t arity, int32_t fix);
 
+JANET_API Janet janet_getmethod(const uint8_t *method, const JanetMethod *methods);
 JANET_API double janet_getnumber(const Janet *argv, int32_t n);
 JANET_API JanetArray *janet_getarray(const Janet *argv, int32_t n);
 JANET_API const Janet *janet_gettuple(const Janet *argv, int32_t n);

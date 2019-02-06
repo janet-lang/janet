@@ -609,11 +609,13 @@ static int parsergc(void *p, size_t size) {
     return 0;
 }
 
+static Janet parserget(void *p, Janet key);
+
 static JanetAbstractType janet_parse_parsertype = {
     "core/parser",
     parsergc,
     parsermark,
-    NULL,
+    parserget,
     NULL
 };
 
@@ -770,6 +772,26 @@ static Janet cfun_parse_state(int32_t argc, Janet *argv) {
     str = janet_string(p->buf + oldcount, (int32_t)(p->bufcount - oldcount));
     p->bufcount = oldcount;
     return janet_wrap_string(str);
+}
+
+static const JanetMethod parser_methods[] = {
+    {"byte", cfun_parse_byte},
+    {"consume", cfun_parse_consume},
+    {"error", cfun_parse_error},
+    {"flush", cfun_parse_flush},
+    {"has-more", cfun_parse_has_more},
+    {"insert", cfun_parse_insert},
+    {"produce", cfun_parse_produce},
+    {"state", cfun_parse_state},
+    {"status", cfun_parse_status},
+    {"where", cfun_parse_where},
+    {NULL, NULL}
+};
+
+static Janet parserget(void *p, Janet key) {
+    (void) p;
+    if (!janet_checktype(key, JANET_KEYWORD)) janet_panicf("expected keyword method");
+    return janet_getmethod(janet_unwrap_keyword(key), parser_methods);
 }
 
 static const JanetReg parse_cfuns[] = {
