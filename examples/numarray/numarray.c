@@ -75,26 +75,18 @@ void num_array_put(void *p, Janet key, Janet value) {
     }
 }
 
-static const JanetReg methods[] = {
-    {"scale", num_array_scale,"(:scale numarray factor)"},
-    {"sum", num_array_sum,"(:sum numarray)"}
+static const JanetMethod methods[] = {
+    {"scale", num_array_scale},
+    {"sum", num_array_sum},
+    {NULL, NULL}
 };
 
 Janet num_array_get(void *p, Janet key) {
     size_t index;
     Janet value;
     num_array * array=(num_array *)p;
-    if (janet_checktype(key,JANET_KEYWORD)) {
-        const uint8_t *keyw = janet_unwrap_keyword(key);
-        const size_t nm = sizeof(methods)/sizeof(JanetReg);
-        size_t i;
-        for ( i=0 ; i<nm ; i++ ) {
-            if (!janet_cstrcmp(keyw, methods[i].name)) {
-                return janet_wrap_cfunction(methods[i].cfun);
-            }
-        }
-        janet_panicf("undefined method %s",keyw);
-    }
+    if (janet_checktype(key, JANET_KEYWORD))
+        return janet_getmethod(janet_unwrap_keyword(key), methods);
     if (!janet_checkint(key))
         janet_panic("expected integer key");
     index = (size_t)janet_unwrap_integer(key);
