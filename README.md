@@ -87,7 +87,7 @@ A repl is launched when the binary is invoked with no arguments. Pass the -h fla
 to display the usage information. Individual scripts can be run with `./janet myscript.janet`
 
 If you are looking to explore, you can print a list of all available macros, functions, and constants
-by entering the command `(all-symbols)` into the repl.
+by entering the command `(all-bindings)` into the repl.
 
 ```
 $ ./janet

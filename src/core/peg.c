@@ -1004,7 +1004,9 @@ static int peg_mark(void *p, size_t size) {
 static JanetAbstractType peg_type = {
     "core/peg",
     NULL,
-    peg_mark
+    peg_mark,
+    NULL,
+    NULL
 };
 
 /* Convert Builder to Peg (Janet Abstract Value) */
