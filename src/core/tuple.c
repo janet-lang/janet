@@ -31,11 +31,12 @@
  * which should be filled with Janets. The memory will not be collected until
  * janet_tuple_end is called. */
 Janet *janet_tuple_begin(int32_t length) {
-    char *data = janet_gcalloc(JANET_MEMORY_TUPLE, 4 * sizeof(int32_t) + length * sizeof(Janet));
-    Janet *tuple = (Janet *)(data + (4 * sizeof(int32_t)));
+    char *data = janet_gcalloc(JANET_MEMORY_TUPLE, 5 * sizeof(int32_t) + length * sizeof(Janet));
+    Janet *tuple = (Janet *)(data + (5 * sizeof(int32_t)));
     janet_tuple_length(tuple) = length;
     janet_tuple_sm_start(tuple) = -1;
     janet_tuple_sm_end(tuple) = -1;
+    janet_tuple_flag(tuple) = 0;
     return tuple;
 }
 
