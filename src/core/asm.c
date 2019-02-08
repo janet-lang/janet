@@ -951,7 +951,7 @@ static const JanetReg asm_cfuns[] = {
 
 /* Load the library */
 void janet_lib_asm(JanetTable *env) {
-    janet_cfuns(env, NULL, asm_cfuns);
+    janet_core_cfuns(env, NULL, asm_cfuns);
 }
 
 #endif

@@ -71,5 +71,6 @@
 (each h headers (dofile h))
 (each s sources (dofile s))
 
-# Relies on this file being built
+# Relies on these files being built
 (dofile "build/core.gen.c")
+(dofile "build/core_image.c")

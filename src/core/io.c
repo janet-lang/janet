@@ -394,18 +394,18 @@ static const JanetReg io_cfuns[] = {
 
 /* Module entry point */
 void janet_lib_io(JanetTable *env) {
-    janet_cfuns(env, NULL, io_cfuns);
+    janet_core_cfuns(env, NULL, io_cfuns);
 
     /* stdout */
-    janet_def(env, "stdout",
+    janet_core_def(env, "stdout",
             makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
             JDOC("The standard output file."));
     /* stderr */
-    janet_def(env, "stderr",
+    janet_core_def(env, "stderr",
             makef(stderr, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
             JDOC("The standard error file."));
     /* stdin */
-    janet_def(env, "stdin",
+    janet_core_def(env, "stdin",
             makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
             JDOC("The standard input file."));
 }

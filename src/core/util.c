@@ -284,6 +284,24 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
     }
 }
 
+#ifndef JANET_BOOTSTRAP
+void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p) {
+    (void) p;
+    janet_table_put(env, janet_csymbolv(name), x);
+}
+
+void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
+    (void) regprefix;
+    while (cfuns->name) {
+        Janet name = janet_csymbolv(cfuns->name);
+        Janet fun = janet_wrap_cfunction(cfuns->cfun);
+        janet_core_def(env, cfuns->name, fun, cfuns->documentation);
+        janet_table_put(janet_vm_registry, fun, name);
+        cfuns++;
+    }
+}
+#endif
+
 /* Resolve a symbol in the environment */
 JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) {
     Janet ref;

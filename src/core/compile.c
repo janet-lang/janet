@@ -738,5 +738,5 @@ static const JanetReg compile_cfuns[] = {
 };
 
 void janet_lib_compile(JanetTable *env) {
-    janet_cfuns(env, NULL, compile_cfuns);
+    janet_core_cfuns(env, NULL, compile_cfuns);
 }

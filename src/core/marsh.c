@@ -234,10 +234,12 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 
     /* marshal source maps if needed */
     if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCEMAP) {
+        int32_t current = 0;
         for (int32_t i = 0; i < def->bytecode_length; i++) {
             JanetSourceMapping map = def->sourcemap[i];
-            pushint(st, map.start);
-            pushint(st, map.end);
+            pushint(st, map.start - current);
+            pushint(st, map.end - map.start);
+            current = map.end;
         }
     }
 }
@@ -748,13 +750,16 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal source maps if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCEMAP) {
+            int32_t current = 0;
             def->sourcemap = malloc(sizeof(JanetSourceMapping) * bytecode_length);
             if (!def->sourcemap) {
                 JANET_OUT_OF_MEMORY;
             }
             for (int32_t i = 0; i < bytecode_length; i++) {
-                def->sourcemap[i].start = readint(st, &data);
-                def->sourcemap[i].end = readint(st, &data);
+                current += readint(st, &data);
+                def->sourcemap[i].start = current;
+                current += readint(st, &data);
+                def->sourcemap[i].end = current;
             }
         } else {
             def->sourcemap = NULL;
@@ -1175,5 +1180,5 @@ static const JanetReg marsh_cfuns[] = {
 
 /* Module entry point */
 void janet_lib_marsh(JanetTable *env) {
-    janet_cfuns(env, NULL, marsh_cfuns);
+    janet_core_cfuns(env, NULL, marsh_cfuns);
 }
