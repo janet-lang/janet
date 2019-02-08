@@ -124,15 +124,20 @@ JanetTable *janet_env_lookup(JanetTable *env) {
 
 /* Marshal an integer onto the buffer */
 static void pushint(MarshalState *st, int32_t x) {
-    if (x >= 0 && x < 200) {
+    if (x >= 0 && x < 128) {
         janet_buffer_push_u8(st->buf, x);
+    } else if (x <= 8191 && x >= -8192) {
+        uint8_t intbuf[2];
+        intbuf[0] = ((x >> 8) & 0x3F) | 0x80;
+        intbuf[1] = x & 0xFF;
+        janet_buffer_push_bytes(st->buf, intbuf, 2);
     } else {
         uint8_t intbuf[5];
         intbuf[0] = LB_INTEGER;
-        intbuf[1] = x & 0xFF;
-        intbuf[2] = (x >> 8) & 0xFF;
-        intbuf[3] = (x >> 16) & 0xFF;
-        intbuf[4] = (x >> 24) & 0xFF;
+        intbuf[1] = (x >> 24) & 0xFF;
+        intbuf[2] = (x >> 16) & 0xFF;
+        intbuf[3] = (x >> 8) & 0xFF;
+        intbuf[4] = x & 0xFF;
         janet_buffer_push_bytes(st->buf, intbuf, 5);
     }
 }
@@ -548,14 +553,19 @@ static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
     const uint8_t *data = *atdata;
     int32_t ret;
     if (data >= st->end) longjmp(st->err, UMR_EOS);
-    if (*data < 200) {
+    if (*data < 128) {
         ret = *data++;
+    } else if (*data < 192) {
+        if (data + 2 > st->end) longjmp(st->err, UMR_EOS);
+        ret = ((data[0] & 0x3F) << 8) + data[1];
+        ret = ((ret << 18) >> 18);
+        data += 2;
     } else if (*data == LB_INTEGER) {
         if (data + 5 > st->end) longjmp(st->err, UMR_EOS);
-        ret = (data[1]) |
-            (data[2] << 8) |
-            (data[3] << 16) |
-            (data[4] << 24);
+        ret = (data[1] << 24) |
+            (data[2] << 16) |
+            (data[3] << 8) |
+            data[4];
         data += 5;
     } else {
         longjmp(st->err, UMR_EXPECTED_INTEGER);
@@ -910,8 +920,8 @@ static const uint8_t *unmarshal_one(
     EXTRA(1);
     lead = data[0];
     if (lead < 200) {
-        *out = janet_wrap_integer(lead);
-        return data + 1;
+        *out = janet_wrap_integer(readint(st, &data));
+        return data;
     }
     switch (lead) {
         case LB_NIL:
