@@ -376,5 +376,5 @@ static const JanetReg debug_cfuns[] = {
 
 /* Module entry point */
 void janet_lib_debug(JanetTable *env) {
-    janet_cfuns(env, NULL, debug_cfuns);
+    janet_core_cfuns(env, NULL, debug_cfuns);
 }

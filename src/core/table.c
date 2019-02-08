@@ -273,5 +273,5 @@ static const JanetReg table_cfuns[] = {
 
 /* Load the table module */
 void janet_lib_table(JanetTable *env) {
-    janet_cfuns(env, NULL, table_cfuns);
+    janet_core_cfuns(env, NULL, table_cfuns);
 }

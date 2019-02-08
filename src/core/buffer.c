@@ -387,5 +387,5 @@ static const JanetReg buffer_cfuns[] = {
 };
 
 void janet_lib_buffer(JanetTable *env) {
-    janet_cfuns(env, NULL, buffer_cfuns);
+    janet_core_cfuns(env, NULL, buffer_cfuns);
 }

@@ -267,5 +267,5 @@ static const JanetReg array_cfuns[] = {
 
 /* Load the array module */
 void janet_lib_array(JanetTable *env) {
-    janet_cfuns(env, NULL, array_cfuns);
+    janet_core_cfuns(env, NULL, array_cfuns);
 }

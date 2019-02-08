@@ -1067,6 +1067,20 @@ value, one key will be ignored."
     (++ i))
   ret)
 
+(defn partition
+  "Partition an indexed data structure into tuples
+  of size n. Returns a new array."
+  [n ind]
+  (var i 0) (var nextn n)
+  (def len (length ind))
+  (def ret (array/new (math/ceil (/ len n))))
+  (while (<= nextn len)
+    (array/push ret (tuple/slice ind i nextn))
+    (set i nextn)
+    (+= nextn n))
+  (if (not= i len) (array/push ret (tuple/slice ind i)))
+  ret)
+
 ###
 ###
 ### Pattern Matching

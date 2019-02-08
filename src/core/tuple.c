@@ -147,5 +147,5 @@ static const JanetReg tuple_cfuns[] = {
 
 /* Load the tuple module */
 void janet_lib_tuple(JanetTable *env) {
-    janet_cfuns(env, NULL, tuple_cfuns);
+    janet_core_cfuns(env, NULL, tuple_cfuns);
 }

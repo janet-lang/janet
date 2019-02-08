@@ -378,5 +378,5 @@ static const JanetReg os_cfuns[] = {
 
 /* Module entry point */
 void janet_lib_os(JanetTable *env) {
-    janet_cfuns(env, NULL, os_cfuns);
+    janet_core_cfuns(env, NULL, os_cfuns);
 }

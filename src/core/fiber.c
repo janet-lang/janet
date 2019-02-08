@@ -433,5 +433,5 @@ static const JanetReg fiber_cfuns[] = {
 
 /* Module entry point */
 void janet_lib_fiber(JanetTable *env) {
-    janet_cfuns(env, NULL, fiber_cfuns);
+    janet_core_cfuns(env, NULL, fiber_cfuns);
 }

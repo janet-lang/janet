@@ -889,5 +889,5 @@ static const JanetReg parse_cfuns[] = {
 
 /* Load the library */
 void janet_lib_parse(JanetTable *env) {
-    janet_cfuns(env, NULL, parse_cfuns);
+    janet_core_cfuns(env, NULL, parse_cfuns);
 }

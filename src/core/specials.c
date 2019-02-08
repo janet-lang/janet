@@ -221,7 +221,6 @@ static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv)
         return rvalue;
     } else {
         /* Error */
-        janet_inspect(argv[0]);
         janetc_cerror(opts.compiler, "expected symbol or tuple for l-value to set");
         return janetc_cslot(janet_wrap_nil());
     }

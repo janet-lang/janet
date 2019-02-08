@@ -28,8 +28,9 @@
 #endif
 
 /* Omit docstrings in some builds */
-#ifdef JANET_NO_BOOTSTRAP
+#ifndef JANET_BOOTSTRAP
 #define JDOC(x) NULL
+#define JANET_NO_BOOTSTRAP
 #else
 #define JDOC(x) x
 #endif
@@ -51,6 +52,16 @@ const void *janet_strbinsearch(
         size_t tabcount,
         size_t itemsize,
         const uint8_t *key);
+
+/* Inside the janet core, defining globals is different
+ * at bootstrap time and normal runtime */
+#ifdef JANET_BOOTSTRAP
+#define janet_core_def janet_def
+#define janet_core_cfuns janet_cfuns
+#else
+void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p);
+void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
+#endif
 
 /* Initialize builtin libraries */
 void janet_lib_io(JanetTable *env);

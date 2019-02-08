@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## 0.4.0 - ??
+- Add partition function to core library.
+- Pre-compile core library into an image for faster startup.
 - Add methods to parser values that mirror the api.
 - Add janet\_getmethod to CAPI for easier use of method like syntax.
 - Add get/set to abstract types to allow them to behave more

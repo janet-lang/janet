@@ -1117,7 +1117,6 @@ JANET_API Janet janet_getindex(Janet ds, int32_t index);
 JANET_API int32_t janet_length(Janet x);
 JANET_API void janet_put(Janet ds, Janet key, Janet value);
 JANET_API void janet_putindex(Janet ds, int32_t index, Janet value);
-JANET_API void janet_inspect(Janet x);
 
 /* VM functions */
 JANET_API int janet_init(void);

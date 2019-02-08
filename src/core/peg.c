@@ -1103,5 +1103,5 @@ static const JanetReg peg_cfuns[] = {
 
 /* Load the peg module */
 void janet_lib_peg(JanetTable *env) {
-    janet_cfuns(env, NULL, peg_cfuns);
+    janet_core_cfuns(env, NULL, peg_cfuns);
 }

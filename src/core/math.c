@@ -181,8 +181,8 @@ static const JanetReg math_cfuns[] = {
 
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
-    janet_cfuns(env, NULL, math_cfuns);
-#ifndef JANET_NO_BOOTSTRAP
+    janet_core_cfuns(env, NULL, math_cfuns);
+#ifdef JANET_BOOTSTRAP
     janet_def(env, "math/pi", janet_wrap_number(3.1415926535897931),
             JDOC("The value pi."));
     janet_def(env, "math/e", janet_wrap_number(2.7182818284590451),
