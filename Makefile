@@ -111,9 +111,12 @@ EMCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -O2 \
 JANET_EMTARGET=build/janet.js
 JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)
 JANET_EMOBJECTS=$(patsubst src/%.c,build/%.bc,$(JANET_WEB_SOURCES)) \
-				build/webinit.gen.bc build/core.gen.bc
+				build/webinit.gen.bc build/core_image.bc
 
 %.gen.bc: %.gen.c
+	$(EMCC) $(EMCFLAGS) -o $@ -c $<
+
+build/core_image.bc: build/core_image.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
 	$(EMCC) $(EMCFLAGS) -o $@ -c $<
 
 build/%.bc: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
