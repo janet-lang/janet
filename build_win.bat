@@ -39,7 +39,7 @@ mkdir build\boot
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Build the generated sources
-@%JANET_COMPILE% /Fobuild\core\core.gen.obj build\core.gen.c
+@%JANET_COMPILE% /Fobuild\boot\core.gen.obj build\core.gen.c
 @if errorlevel 1 goto :BUILDFAIL
 @%JANET_COMPILE% /Fobuild\mainclient\init.gen.obj build\init.gen.c
 @if errorlevel 1 goto :BUILDFAIL
