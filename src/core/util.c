@@ -316,7 +316,7 @@ int janet_indexed_view(Janet seq, const Janet **data, int32_t *len) {
         return 1;
     } else if (janet_checktype(seq, JANET_TUPLE)) {
         *data = janet_unwrap_tuple(seq);
-        *len = janet_tuple_length(janet_unwrap_struct(seq));
+        *len = janet_tuple_length(janet_unwrap_tuple(seq));
         return 1;
     }
     return 0;
