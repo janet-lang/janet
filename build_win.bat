@@ -22,6 +22,7 @@
 mkdir build
 mkdir build\core
 mkdir build\mainclient
+mkdir build\boot
 
 @rem Build the xxd tool for generating sources
 @cl /nologo /c tools/xxd.c /Fobuild\xxd.obj
@@ -34,11 +35,32 @@ mkdir build\mainclient
 @if errorlevel 1 goto :BUILDFAIL
 @build\xxd.exe src\mainclient\init.janet build\init.gen.c janet_gen_init
 @if errorlevel 1 goto :BUILDFAIL
+@build\xxd.exe src\boot\boot.janet build\boot.gen.c janet_gen_boot
+@if errorlevel 1 goto :BUILDFAIL
 
 @rem Build the generated sources
 @%JANET_COMPILE% /Fobuild\core\core.gen.obj build\core.gen.c
 @if errorlevel 1 goto :BUILDFAIL
 @%JANET_COMPILE% /Fobuild\mainclient\init.gen.obj build\init.gen.c
+@if errorlevel 1 goto :BUILDFAIL
+@%JANET_COMPILE% /Fobuild\boot\boot.gen.obj build\boot.gen.c
+@if errorlevel 1 goto :BUILDFAIL
+
+@rem Build the bootstrap interpretter
+for %%f in (src\core\*.c) do (
+    @%JANET_COMPILE% /DJANET_BOOTSTRAP /Fobuild\boot\%%~nf.obj %%f
+    @if errorlevel 1 goto :BUILDFAIL
+)
+for %%f in (src\boot\*.c) do (
+    @%JANET_COMPILE% /DJANET_BOOTSTRAP /Fobuild\boot\%%~nf.obj %%f
+    @if errorlevel 1 goto :BUILDFAIL
+)
+%JANET_LINK% /out:build\janet_boot.exe build\boot\*.obj
+@if errorlevel 1 goto :BUILDFAIL
+build\janet_boot
+
+@rem Build the core image
+@%JANET_COMPILE% /Fobuild\core_image.obj build\core_image.c
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Build the sources
@@ -54,7 +76,7 @@ for %%f in (src\mainclient\*.c) do (
 )
 
 @rem Link everything to main client
-%JANET_LINK% /out:janet.exe build\core\*.obj build\mainclient\*.obj
+%JANET_LINK% /out:janet.exe build\core\*.obj build\mainclient\*.obj build\core_image.obj
 @if errorlevel 1 goto :BUILDFAIL
 
 echo === Successfully built janet.exe for Windows ===
