@@ -440,12 +440,12 @@
 (defmacro for
   "Do a c style for loop for side effects. Returns nil."
   [binding start end & body]
-  (apply loop [tuple binding :range [tuple start end]] body))
+  (apply loop (tuple binding :range (tuple start end)) body))
 
 (defmacro each
   "Loop over each value in ind. Returns nil."
   [binding ind & body]
-  (apply loop [tuple binding :in ind] body))
+  (apply loop (tuple binding :in ind) body))
 
 (defmacro coro
   "A wrapper for making fibers. Same as (fiber/new (fn [&] ...body))."
@@ -778,8 +778,8 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple (get n 0) (array/slice n 1)]
-                 [tuple n @[]]))
+                 (tuple (get n 0) (array/slice n 1))
+                 (tuple n @[])))
     (def parts (array/concat @[h last] t))
     (tuple/slice parts 0))
   (reduce fop x forms))
@@ -791,8 +791,8 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple (get n 0) (array/slice n 1)]
-                 [tuple n @[]]))
+                 (tuple (get n 0) (array/slice n 1))
+                 (tuple n @[])))
     (def parts (array/concat @[h] t @[last]))
     (tuple/slice parts 0))
   (reduce fop x forms))
@@ -806,8 +806,8 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple (get n 0) (array/slice n 1)]
-                 [tuple n @[]]))
+                 (tuple (get n 0) (array/slice n 1))
+                 (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h sym] t))
     ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
@@ -822,8 +822,8 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 [tuple (get n 0) (array/slice n 1)]
-                 [tuple n @[]]))
+                 (tuple (get n 0) (array/slice n 1))
+                 (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h] t @[sym]))
     ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))

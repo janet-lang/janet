@@ -438,6 +438,15 @@ static JanetSlot janetc_array(JanetFopts opts, Janet x) {
             JOP_MAKE_ARRAY);
 }
 
+static JanetSlot janetc_tuple(JanetFopts opts, Janet x) {
+    JanetCompiler *c = opts.compiler;
+    const Janet *t = janet_unwrap_tuple(x);
+    return janetc_maker(opts,
+	    janetc_toslots(c, t, janet_tuple_length(t)),
+            JOP_MAKE_TUPLE);
+}
+
+
 static JanetSlot janetc_tablector(JanetFopts opts, Janet x, int op) {
     JanetCompiler *c = opts.compiler;
     return janetc_maker(opts,
@@ -547,6 +556,8 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                     /* Empty tuple is tuple literal */
                     if (janet_tuple_length(tup) == 0) {
                         ret = janetc_cslot(x);
+		    } else if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) { // [] tuples are not function call
+		        ret = janetc_tuple(opts, x);
                     } else {
                         JanetSlot head = janetc_value(subopts, tup[0]);
                         subopts.flags = JANET_FUNCTION | JANET_CFUNCTION;
