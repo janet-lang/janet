@@ -556,7 +556,7 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                     /* Empty tuple is tuple literal */
                     if (janet_tuple_length(tup) == 0) {
                         ret = janetc_cslot(x);
-		    } else if (janet_tuple_flag(tup) == 1) { // [] tuples are not function call
+		    } else if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) { // [] tuples are not function call
 		        ret = janetc_tuple(opts, x);
                     } else {
                         JanetSlot head = janetc_value(subopts, tup[0]);

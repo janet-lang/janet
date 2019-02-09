@@ -402,11 +402,13 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             goto done;
         case JANET_TUPLE:
             {
-                int32_t i, count;
+	      int32_t i, count,flag;
                 const Janet *tup = janet_unwrap_tuple(x);
                 count = janet_tuple_length(tup);
+		flag = janet_tuple_flag(tup);
                 pushbyte(st, LB_TUPLE);
                 pushint(st, count);
+                pushint(st, flag);
                 for (i = 0; i < count; i++)
                     marshal_one(st, tup[i], flags + 1);
                 /* Mark as seen AFTER marshaling */
@@ -1044,6 +1046,8 @@ static const uint8_t *unmarshal_one(
                 } else if (lead == LB_TUPLE) {
                     /* Tuple */
                     Janet *tup = janet_tuple_begin(len);
+		    int32_t flag = readint(st, &data);
+		    janet_tuple_flag(tup)=flag;
                     for (int32_t i = 0; i < len; i++) {
                         data = unmarshal_one(st, data, tup + i, flags + 1);
                     }

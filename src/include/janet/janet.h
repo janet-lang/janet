@@ -980,6 +980,9 @@ JANET_API void janet_buffer_push_u32(JanetBuffer *buffer, uint32_t x);
 JANET_API void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
 
 /* Tuple */
+
+#define JANET_TUPLE_FLAG_BRACKETCTOR 1
+
 #define janet_tuple_raw(t) ((int32_t *)(t) - 5)
 #define janet_tuple_length(t) (janet_tuple_raw(t)[0])
 #define janet_tuple_hash(t) ((janet_tuple_raw(t)[1]))
