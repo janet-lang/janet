@@ -120,6 +120,16 @@ static Janet cfun_tuple_append(int32_t argc, Janet *argv) {
     return janet_wrap_tuple(janet_tuple_end(n));
 }
 
+static Janet cfun_tuple_type(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    const Janet *tup = janet_gettuple(argv, 0);
+    if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) {
+        return janet_ckeywordv("brackets");
+    } else {
+        return janet_ckeywordv("parens");
+    }
+}
+
 static const JanetReg tuple_cfuns[] = {
     {
         "tuple/slice", cfun_tuple_slice,
@@ -141,6 +151,15 @@ static const JanetReg tuple_cfuns[] = {
                 "Prepends each element in items to tuple and "
                 "returns a new tuple. Items are prepended such that the "
                 "last element in items is the first element in the new tuple.")
+    },
+    {
+        "tuple/type", cfun_tuple_type,
+        JDOC("(tuple/type tup)\n\n"
+                "Checks how the tuple was constructed. Will return the keyword "
+                ":brackets if the tuple was parsed with brackets, and :parens "
+                "otherwise. The two types of tuples will behave the same most of "
+                "the time, but will print differently and be treated differently by "
+                "the compiler.")
     },
     {NULL, NULL, NULL}
 };

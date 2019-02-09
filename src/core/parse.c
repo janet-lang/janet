@@ -335,21 +335,13 @@ static int comment(JanetParser *p, JanetParseState *state, uint8_t c) {
     return 1;
 }
 
-static Janet close_tuple(JanetParser *p, JanetParseState *state) {
+static Janet close_tuple(JanetParser *p, JanetParseState *state, int32_t flag) {
     Janet *ret = janet_tuple_begin(state->argn);
+    janet_tuple_flag(ret) = flag;
     for (int32_t i = state->argn - 1; i >= 0; i--)
         ret[i] = p->args[--p->argcount];
     return janet_wrap_tuple(janet_tuple_end(ret));
 }
-
-static Janet close_ltuple(JanetParser *p, JanetParseState *state) {
-    Janet *ret = janet_tuple_begin(state->argn);
-    janet_tuple_flag(ret) |= JANET_TUPLE_FLAG_BRACKETCTOR;
-    for (int32_t i = state->argn - 1; i >= 0; i--)
-        ret[i] = p->args[--p->argcount];
-    return janet_wrap_tuple(janet_tuple_end(ret));
-}
-
 
 static Janet close_array(JanetParser *p, JanetParseState *state) {
     JanetArray *array = janet_array(state->argn);
@@ -495,11 +487,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
                     if (state->flags & PFLAG_ATSYM) {
                         ds = close_array(p, state);
                     } else {
-		      if (c == ']') {
-			ds = close_ltuple(p, state);
-		      } else {
-                        ds = close_tuple(p, state);
-		      }
+                        ds = close_tuple(p, state, c == ']' ? JANET_TUPLE_FLAG_BRACKETCTOR : 0);
                     }
                 } else if (c == '}' && (state->flags & PFLAG_CURLYBRACKETS)) {
                     if (state->argn & 1) {

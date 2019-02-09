@@ -332,16 +332,19 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
         case JANET_ARRAY:
         case JANET_TUPLE:
             {
+                int32_t i, len;
+                const Janet *arr;
                 int isarray = janet_checktype(x, JANET_ARRAY);
-                janet_buffer_push_cstring(S->buffer, isarray ? "@[" : "(");
+                janet_indexed_view(x, &arr, &len);
+                int hasbrackets = !isarray && (janet_tuple_flag(arr) & JANET_TUPLE_FLAG_BRACKETCTOR);
+                const char *startstr = isarray ? "@[" : hasbrackets ? "[" : "(";
+                const char endchar = isarray ? ']' : hasbrackets ? ']' : ')';
+                janet_buffer_push_cstring(S->buffer, startstr);
                 S->depth--;
                 S->indent += 2;
                 if (S->depth == 0) {
                     janet_buffer_push_cstring(S->buffer, "...");
                 } else {
-                    int32_t i, len;
-                    const Janet *arr;
-                    janet_indexed_view(x, &arr, &len);
                     if (!isarray && len >= 5)
                         janet_buffer_push_u8(S->buffer, ' ');
                     if (is_dict_value && len >= 5) print_newline(S, 0);
@@ -352,7 +355,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 }
                 S->indent -= 2;
                 S->depth++;
-                janet_buffer_push_u8(S->buffer, isarray ? ']' : ')');
+                janet_buffer_push_u8(S->buffer, endchar);
                 break;
             }
         case JANET_STRUCT:

@@ -231,7 +231,7 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 
     /* marshal the environments if needed */
     for (int32_t i = 0; i < def->environments_length; i++)
-       pushint(st, def->environments[i]);
+        pushint(st, def->environments[i]);
 
     /* marshal the sub funcdefs if needed */
     for (int32_t i = 0; i < def->defs_length; i++)
@@ -402,10 +402,10 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             goto done;
         case JANET_TUPLE:
             {
-	      int32_t i, count,flag;
+                int32_t i, count, flag;
                 const Janet *tup = janet_unwrap_tuple(x);
                 count = janet_tuple_length(tup);
-		flag = janet_tuple_flag(tup);
+                flag = janet_tuple_flag(tup);
                 pushbyte(st, LB_TUPLE);
                 pushint(st, count);
                 pushint(st, flag);
@@ -1015,7 +1015,7 @@ static const uint8_t *unmarshal_one(
                 JanetFuncDef *def;
                 data = unmarshal_one_def(st, data + 1, &def, flags + 1);
                 func = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) +
-                    def->environments_length * sizeof(JanetFuncEnv));
+                        def->environments_length * sizeof(JanetFuncEnv));
                 func->def = def;
                 *out = janet_wrap_function(func);
                 janet_array_push(&st->lookup, *out);
@@ -1046,8 +1046,8 @@ static const uint8_t *unmarshal_one(
                 } else if (lead == LB_TUPLE) {
                     /* Tuple */
                     Janet *tup = janet_tuple_begin(len);
-		    int32_t flag = readint(st, &data);
-		    janet_tuple_flag(tup)=flag;
+                    int32_t flag = readint(st, &data);
+                    janet_tuple_flag(tup) = flag;
                     for (int32_t i = 0; i < len; i++) {
                         data = unmarshal_one(st, data, tup + i, flags + 1);
                     }

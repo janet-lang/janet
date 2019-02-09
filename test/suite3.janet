@@ -351,4 +351,12 @@
 (def t (put @{} :hi 1))
 (assert (deep= t @{:hi 1}) "regression #24")
 
+# Tuple types
+
+(assert (= (tuple/type '(1 2 3)) :parens) "normal tuple")
+(assert (= (tuple/type [1 2 3]) :parens) "normal tuple 1")
+(assert (= (tuple/type '[1 2 3]) :brackets) "bracketed tuple 2")
+(assert (= (tuple/type (-> '(1 2 3) marshal unmarshal)) :parens) "normal tuple marshalled/unmarshalled")
+(assert (= (tuple/type (-> '[1 2 3] marshal unmarshal)) :brackets) "normal tuple marshalled/unmarshalled")
+
 (end-suite)
