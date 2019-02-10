@@ -176,6 +176,11 @@ static const JanetReg math_cfuns[] = {
         JDOC("(math/pow a x)\n\n"
                 "Return a to the power of x.")
     },
+    {
+        "math/abs", janet_fabs,
+        JDOC("(math/abs x)\n\n"
+                "Return the absolute value of x.")
+    },
     {NULL, NULL, NULL}
 };
 
