@@ -28,7 +28,7 @@
 #endif
 
 /* Get a random number */
-Janet janet_rand(int32_t argc, Janet *argv) {
+static Janet janet_rand(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
     double r = (rand() % RAND_MAX) / ((double) RAND_MAX);
@@ -36,14 +36,14 @@ Janet janet_rand(int32_t argc, Janet *argv) {
 }
 
 /* Seed the random number generator */
-Janet janet_srand(int32_t argc, Janet *argv) {
+static Janet janet_srand(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     int32_t x = janet_getinteger(argv, 0);
     srand((unsigned) x);
     return janet_wrap_nil();
 }
 
-Janet janet_remainder(int32_t argc, Janet *argv) {
+static Janet janet_remainder(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     double x = janet_getnumber(argv, 0);
     double y = janet_getnumber(argv, 1);
@@ -51,7 +51,7 @@ Janet janet_remainder(int32_t argc, Janet *argv) {
 }
 
 #define JANET_DEFINE_MATHOP(name, fop)\
-Janet janet_##name(int32_t argc, Janet *argv) {\
+static Janet janet_##name(int32_t argc, Janet *argv) {\
     janet_fixarity(argc, 1); \
     double x = janet_getnumber(argv, 0); \
     return janet_wrap_number(fop(x)); \
@@ -75,7 +75,7 @@ JANET_DEFINE_MATHOP(fabs, fabs)
 JANET_DEFINE_MATHOP(floor, floor)
 
 #define JANET_DEFINE_MATH2OP(name, fop)\
-Janet janet_##name(int32_t argc, Janet *argv) {\
+static Janet janet_##name(int32_t argc, Janet *argv) {\
     janet_fixarity(argc, 2); \
     double lhs = janet_getnumber(argv, 0); \
     double rhs = janet_getnumber(argv, 1); \
@@ -180,6 +180,26 @@ static const JanetReg math_cfuns[] = {
         "math/abs", janet_fabs,
         JDOC("(math/abs x)\n\n"
                 "Return the absolute value of x.")
+    },
+    {
+        "math/sinh", janet_sinh,
+        JDOC("(math/sinh x)\n\n"
+                "Return the hyperbolic sine of x.")
+    },
+    {
+        "math/cosh", janet_cosh,
+        JDOC("(math/cosh x)\n\n"
+                "Return the hyperbolic cosine of x.")
+    },
+    {
+        "math/tanh", janet_tanh,
+        JDOC("(math/tanh x)\n\n"
+                "Return the hyperbolic tangent of x.")
+    },
+    {
+        "math/atan2", janet_atan2,
+        JDOC("(math/atan2 y x)\n\n"
+                "Return the arctangent of y/x. Works even when x is 0.")
     },
     {NULL, NULL, NULL}
 };
