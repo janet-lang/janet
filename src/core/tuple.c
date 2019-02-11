@@ -94,6 +94,12 @@ int janet_tuple_compare(const Janet *lhs, const Janet *rhs) {
 
 /* C Functions */
 
+static Janet cfun_tuple_brackets(int32_t argc, Janet *argv) {
+    const Janet *tup = janet_tuple_n(argv, argc);
+    janet_tuple_flag(tup) |= JANET_TUPLE_FLAG_BRACKETCTOR;
+    return janet_wrap_tuple(tup);
+}
+
 static Janet cfun_tuple_slice(int32_t argc, Janet *argv) {
     JanetRange range = janet_getslice(argc, argv);
     JanetView view = janet_getindexed(argv, 0);
@@ -131,6 +137,11 @@ static Janet cfun_tuple_type(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg tuple_cfuns[] = {
+    {
+        "tuple/brackets", cfun_tuple_brackets,
+        JDOC("(tuple/brackets & xs)\n\n"
+                "Creates a new bracketed tuple containing the elements xs.")
+    },
     {
         "tuple/slice", cfun_tuple_slice,
         JDOC("(tuple/slice arrtup [,start=0 [,end=(length arrtup)]])\n\n"

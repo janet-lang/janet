@@ -1324,7 +1324,9 @@ value, one key will be ignored."
 
   (def ret
     (case (type x)
-      :tuple (dotup x)
+      :tuple (if (= (tuple/type x) :brackets)
+               (tuple/brackets ;(map macex1 x))
+               (dotup x))
       :array (map macex1 x)
       :struct (table/to-struct (dotable x macex1))
       :table (dotable x macex1)
