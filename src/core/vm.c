@@ -228,7 +228,8 @@ static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     int32_t argn = fiber->stacktop - fiber->stackstart;
     Janet ds, key;
     if (argn != 1) janet_panicf("%v called with arity %d, expected 1", callee, argn);
-    if (janet_checktypes(callee, JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY | JANET_TFLAG_ABSTRACT)) {
+    if (janet_checktypes(callee, JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY |
+			 JANET_TFLAG_STRING | JANET_TFLAG_BUFFER | JANET_TFLAG_ABSTRACT)) {
         ds = callee;
         key = fiber->data[fiber->stackstart];
     } else {
