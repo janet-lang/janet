@@ -1083,6 +1083,33 @@ value, one key will be ignored."
 
 ###
 ###
+### IO Helpers
+###
+###
+
+(defn slurp
+  "Read all data from a file with name path
+  and then close the file."
+  [path]
+  (def f (file/open path :r))
+  (if-not f (error (string "could not open file " path)))
+  (def contents (file/read f :all))
+  (file/close f)
+  contents)
+
+(defn spit
+  "Write contents to a file at path.
+  Can optionally append to the file."
+  [path contents mode &]
+  (default mode :w)
+  (def f (file/open path mode))
+  (if-not f (error (string "could not open file " path " with mode " mode)))
+  (file/write f contents)
+  (file/close f)
+  nil)
+
+###
+###
 ### Pattern Matching
 ###
 ###
@@ -1556,8 +1583,14 @@ value, one key will be ignored."
   @["./:all:.:native:"
     "./:all:/:name:.:native:"
     ":sys:/:all:.:native:"
-    ":sys:/:all:/:name:.:native:"
-    ":all:"])
+    ":sys:/:all:/:name:.:native:"])
+
+(def module/image-paths
+  "See doc for module/paths"
+  @["./:all:.jimage"
+    "./:all:.:name:.jimage"
+    ":sys:/:all:.jimage"
+    ":sys:/:all:/:name:.jimage"])
 
 (var module/*syspath*
   "The path where globally installed libraries are located.
@@ -1621,22 +1654,38 @@ value, one key will be ignored."
                                      (if exit-on-error (os/exit 1))))
                       :source modpath})
         (file/close f)
+        (table/setproto newenv nil)
         (put module/loading modpath false)
         (put module/cache modpath newenv)
         (put module/cache path newenv)
         newenv)
-      (do
-        # Try native module
-        (def n (find fexists (module/find path module/native-paths)))
-        (if (not n)
-          (error (string "could not open file for module " path)))
-        (def e (make-env))
-        (native n e)
-        (put module/cache n e)
-        (put module/cache path e)
-        e))))
+      (if-let [imgpath (find fexists (module/find path module/image-paths))]
+        (do
+          # Try image
+          (def imgsource (slurp imgpath))
+          (def img (unmarshal imgsource (env-lookup *env*)))
+          img)
+        (do
+          # Try native module
+          (def n (find fexists (module/find path module/native-paths)))
+          (if (not n)
+            (error (string "could not open file for module " path)))
+          (def e (make-env))
+          (native n e)
+          (put module/cache n e)
+          (put module/cache path e)
+          e)))))
 
 (put _env 'fexists nil)
+
+(defn write-image
+  "Create an image from the file at path. Writes the output
+  image to a file at out."
+  [path out]
+  (def env (require path))
+  (def img (marshal env (invert (env-lookup _env))))
+  (spit out img)
+  img)
 
 (defn import*
   "Import a module into a given environment table. This is the
@@ -1701,27 +1750,6 @@ value, one key will be ignored."
          :when (symbol? k)]
     (put symbol-set k true))
   (sort (keys symbol-set)))
-
-(defn slurp
-  "Read all data from a file with name path
-  and then close the file."
-  [path]
-  (def f (file/open path :r))
-  (if-not f (error (string "could not open file " path)))
-  (def contents (file/read f :all))
-  (file/close f)
-  contents)
-
-(defn spit
-  "Write contents to a file at path.
-  Can optionally append to the file."
-  [path contents mode &]
-  (default mode :w)
-  (def f (file/open path mode))
-  (if-not f (error (string "could not open file " path " with mode " mode)))
-  (file/write f contents)
-  (file/close f)
-  nil)
 
 # Use dynamic *env* from now on
 (put _env '_env nil)
