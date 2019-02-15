@@ -564,10 +564,10 @@ static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
         data += 2;
     } else if (*data == LB_INTEGER) {
         if (data + 5 > st->end) longjmp(st->err, UMR_EOS);
-        ret = (data[1] << 24) |
-            (data[2] << 16) |
-            (data[3] << 8) |
-            data[4];
+        ret = ((int32_t)(data[1]) << 24) |
+            ((int32_t)(data[2]) << 16) |
+            ((int32_t)(data[3]) << 8) |
+            (int32_t)(data[4]);
         data += 5;
     } else {
         longjmp(st->err, UMR_EXPECTED_INTEGER);
@@ -939,10 +939,10 @@ static const uint8_t *unmarshal_one(
             /* Long integer */
             EXTRA(5);
             *out = janet_wrap_integer(
-                    (data[1]) |
-                    (data[2] << 8) |
-                    (data[3] << 16) |
-                    (data[4] << 24));
+                    (data[4]) |
+                    (data[3] << 8) |
+                    (data[2] << 16) |
+                    (data[1] << 24));
             return data + 5;
         case LB_REAL:
             /* Real */
