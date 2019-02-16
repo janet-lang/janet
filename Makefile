@@ -31,7 +31,7 @@ JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
 
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
 	   -DJANET_BUILD=$(JANET_BUILD)
-CLIBS=-lm -ldl
+CLIBS=-lm
 JANET_TARGET=build/janet
 JANET_LIBRARY=build/libjanet.so
 JANET_PATH?=/usr/local/lib/janet
@@ -42,9 +42,12 @@ LDCONFIG:=ldconfig
 ifeq ($(UNAME), Darwin)
 	# Add other macos/clang flags
 	LDCONFIG:=
+	CLIBS:=$(CLIBS) -ldl
+else ifeq ($(UNAME), OpenBSD)
+	# pass ...
 else
 	CFLAGS:=$(CFLAGS) -rdynamic
-	CLIBS:=$(CLIBS) -lrt
+	CLIBS:=$(CLIBS) -lrt -ldl
 endif
 
 $(shell mkdir -p build/core build/mainclient build/webclient build/boot)
