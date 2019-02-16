@@ -441,66 +441,6 @@ static Janet cfun_string_join(int32_t argc, Janet *argv) {
     return janet_wrap_string(janet_string_end(buf));
 }
 
-static struct formatter {
-    const char *lead;
-    const char *f1;
-    const char *f2;
-} formatters[] = {
-    {"g", "%g", "%.*g"},
-    {"G", "%G", "%.*G"},
-    {"e", "%e", "%.*e"},
-    {"E", "%E", "%.*E"},
-    {"f", "%f", "%.*f"},
-    {"F", "%F", "%.*F"}
-};
-
-static Janet cfun_string_number(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 4);
-    double x = janet_getnumber(argv, 0);
-    struct formatter fmter = formatters[0];
-    char buf[100];
-    int formatNargs = 1;
-    int32_t precision = 0;
-    if (argc >= 2) {
-        const uint8_t *flag = janet_getkeyword(argv, 1);
-        int i;
-        for (i = 0; i < 6; i++) {
-            struct formatter fmttest = formatters[i];
-            if (!janet_cstrcmp(flag, fmttest.lead)) {
-                fmter = fmttest;
-                break;
-            }
-        }
-        if (i == 6)
-            janet_panicf("unsupported formatter %v", argv[1]);
-    }
-
-    if (argc >= 3) {
-        precision = janet_getinteger(argv, 2);
-        formatNargs++;
-    }
-
-    if (formatNargs == 1) {
-        snprintf(buf, sizeof(buf), fmter.f1, x);
-    } else if (formatNargs == 2) {
-        snprintf(buf, sizeof(buf), fmter.f2, precision, x);
-    }
-
-    return janet_cstringv(buf);
-}
-
-static Janet cfun_string_pretty(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 3);
-    JanetBuffer *buffer = NULL;
-    int32_t depth = 4;
-    if (argc > 1)
-        depth = janet_getinteger(argv, 1);
-    if (argc > 2)
-        buffer = janet_getbuffer(argv, 2);
-    buffer = janet_pretty(buffer, depth, argv[0]);
-    return janet_wrap_buffer(buffer);
-}
-
 static Janet cfun_string_format(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_buffer(0);
@@ -600,32 +540,10 @@ static const JanetReg string_cfuns[] = {
                 "Joins an array of strings into one string, optionally separated by "
                 "a separator string sep.")
     },
-    {
-        "string/number", cfun_string_number,
-        JDOC("(string/number x [,format [,maxlen [,precision]]])\n\n"
-                "Formats a number as string. The format parameter indicates how "
-                "to display the number, either as floating point, scientific, or "
-                "whichever representation is shorter. format can be:\n\n"
-                "\t:g - (default) shortest representation with lowercase e.\n"
-                "\t:G - shortest representation with uppercase E.\n"
-                "\t:e - scientific with lowercase e.\n"
-                "\t:E - scientific with uppercase E.\n"
-                "\t:f - floating point representation.\n"
-                "\t:F - same as :f\n\n"
-                "The programmer can also specify the max length of the output string "
-                "and the precision (number of places after decimal) in the output number. "
-                "Returns a string representation of x.")
-    },
-    {
-        "string/pretty", cfun_string_pretty,
-        JDOC("(string/pretty x [,depth=4 [,buffer=@\"\"]])\n\n"
-                "Pretty prints a value to a buffer. Optionally allows setting max "
-                "recursion depth, as well as writing to a buffer. Returns the buffer.")
-    },
     {   "string/format", cfun_string_format,
-        JDOC("(string/format buffer format & values)\n\n"
-                "Similar to snprintf, but specialized for operating with janet"
-             "...")
+        JDOC("(string/format format & values)\n\n"
+                "Similar to snprintf, but specialized for operating with janet. Returns "
+                "a new string.")
     },
     {NULL, NULL, NULL}
 };

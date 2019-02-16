@@ -34,7 +34,7 @@
     (def buf (buffer "(" name))
     (while (< index arglen)
       (buffer/push-string buf " ")
-      (string/pretty (get args index) 4 buf)
+      (buffer/format buf "%p" (get args index))
       (set index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
     # Build return value
@@ -1411,7 +1411,7 @@ value, one key will be ignored."
 (defn pp
   "Pretty print to stdout."
   [x]
-  (print (string/pretty x)))
+  (print (buffer/format @"" "%p" x)))
 
 ###
 ###
@@ -1718,7 +1718,7 @@ value, one key will be ignored."
                       (case (fiber/status f)
                         :dead (do
                                 (put newenv '_ @{:value x})
-                                (print (string/pretty x 20)))
+                                (print (buffer/format @"" "%.20p" x)))
                         (debug/stacktrace f x))))
   (run-context {:env newenv
                 :chunks chunks
