@@ -20,6 +20,9 @@
 * IN THE SOFTWARE.
 */
 
+#include <string.h>
+#include <ctype.h>
+
 #ifndef JANET_AMALG
 #include <janet/janet.h>
 #include "util.h"
@@ -547,5 +550,148 @@ const uint8_t *janet_formatc(const char *format, ...) {
     ret = janet_string(buffer.data, buffer.count);
     janet_buffer_deinit(&buffer);
     return ret;
+}
+
+/*
+ * code adapted from lua/lstrlib.c http://lua.org
+ */
+
+#define MAX_ITEM  256
+#define FMT_FLAGS "-+ #0"
+#define MAX_FORMAT 32
+
+static const char *scanformat(
+        const char *strfrmt,
+        char *form,
+        char width[3],
+        char precision[3]) {
+    const char *p = strfrmt;
+    memset(width, '\0', 3);
+    memset(precision, '\0', 3);
+    while (*p != '\0' && strchr(FMT_FLAGS, *p) != NULL)
+        p++; /* skip flags */
+    if ((size_t) (p - strfrmt) >= sizeof(FMT_FLAGS) / sizeof(char))
+        janet_panic("invalid format (repeated flags)");
+    if (isdigit((int) (*p)))
+        width[0] = *p++; /* skip width */
+    if (isdigit((int) (*p)))
+        width[1] = *p++; /* (2 digits at most) */
+    if (*p == '.') {
+        p++;
+        if (isdigit((int) (*p)))
+            precision[0] = *p++; /* skip precision */
+        if (isdigit((int) (*p)))
+            precision[1] = *p++; /* (2 digits at most) */
+    }
+    if (isdigit((int) (*p)))
+        janet_panic("invalid format (width or precision too long)");
+    *(form++) = '%';
+    memcpy(form, strfrmt, ((p - strfrmt) + 1) * sizeof(char));
+    form += (p - strfrmt) + 1;
+    *form = '\0';
+    return p;
+}
+
+/* Shared implementation between string/format and
+ * buffer/format */
+void janet_buffer_format(
+        JanetBuffer *b,
+        const char *strfrmt,
+        int32_t argstart,
+        int32_t argc,
+        Janet *argv) {
+    size_t sfl = strlen(strfrmt);
+    const char *strfrmt_end = strfrmt + sfl;
+    int32_t arg = argstart;
+    while (strfrmt < strfrmt_end) {
+        if (*strfrmt != '%')
+            janet_buffer_push_u8(b, (uint8_t) * strfrmt++);
+        else if (*++strfrmt == '%')
+            janet_buffer_push_u8(b, (uint8_t) * strfrmt++); /* %% */
+        else { /* format item */
+            char form[MAX_FORMAT], item[MAX_ITEM];
+            char width[3], precision[3];
+            int nb = 0; /* number of bytes in added item */
+            if (++arg >= argc)
+                janet_panic("not enough values for format");
+            strfrmt = scanformat(strfrmt, form, width, precision);
+            switch (*strfrmt++) {
+                case 'c':
+                    {
+                        nb = snprintf(item, MAX_ITEM, form, (int)
+                                janet_getinteger(argv, arg));
+                        break;
+                    }
+                case 'd':
+                case 'i':
+                case 'o':
+                case 'u':
+                case 'x':
+                case 'X':
+                    {
+                        int32_t n = janet_getinteger(argv, arg);
+                        nb = snprintf(item, MAX_ITEM, form, n);
+                        break;
+                    }
+                case 'a':
+                case 'A':
+                case 'e':
+                case 'E':
+                case 'f':
+                case 'g':
+                case 'G':
+                    {
+                        double d = janet_getnumber(argv, arg);
+                        nb = snprintf(item, MAX_ITEM, form, d);
+                        break;
+                    }
+                case 's':
+                    {
+                        const uint8_t *s = janet_getstring(argv, arg);
+                        size_t l = janet_string_length(s);
+                        if (form[2] == '\0')
+                            janet_buffer_push_bytes(b, s, l);
+                        else {
+                            if (l != strlen((const char *) s))
+                                janet_panic("string contains zeros");
+                            if (!strchr(form, '.') && l >= 100) {
+                                janet_panic
+                                    ("no precision and string is too long to be formatted");
+                            } else {
+                                nb = snprintf(item, MAX_ITEM, form, s);
+                            }
+                        }
+                        break;
+                    }
+                case 'V':
+                    {
+                        janet_to_string_b(b, argv[arg]);
+                        break;
+                    }
+                case 'v':
+                    {
+                        janet_description_b(b, argv[arg]);
+                        break;
+                    }
+                case 'p': /* janet pretty , precision = depth */
+                    {
+                        int depth = atoi(precision);
+                        if (depth < 1)
+                            depth = 4;
+                        janet_pretty(b, depth, argv[arg]);
+                        break;
+                    }
+                default:
+                    { /* also treat cases 'nLlh' */
+                        janet_panicf("invalid conversion '%s' to 'format'",
+                                form);
+                    }
+            }
+            if (nb >= MAX_ITEM)
+                janet_panicf("format buffer overflow", form);
+            if (nb > 0)
+                janet_buffer_push_bytes(b, (uint8_t *) item, nb);
+        }
+    }
 }
 

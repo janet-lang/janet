@@ -52,6 +52,12 @@ const void *janet_strbinsearch(
         size_t tabcount,
         size_t itemsize,
         const uint8_t *key);
+void janet_buffer_format(
+        JanetBuffer *b,
+        const char *strfrmt,
+        int32_t argstart,
+        int32_t argc,
+        Janet *argv);
 
 /* Inside the janet core, defining globals is different
  * at bootstrap time and normal runtime */

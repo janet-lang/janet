@@ -20,15 +20,23 @@
 
 (import test/helper :prefix "" :exit true)
 (start-suite 4)
-# some tests for string/format
+# some tests for string/format and buffer/format
 
-(assert (= (string (string/format @"" "pi = %6.3f" math/pi)) "pi =  3.142") "%6.3f")
-(assert (= (string (string/format @"" "pi = %+6.3f" math/pi)) "pi = +3.142") "%6.3f")
-(assert (= (string (string/format @"" "pi = %40.20g" math/pi)) "pi =                     3.141592653589793116") "%6.3f")
+(assert (= (string (buffer/format @"" "pi = %6.3f" math/pi)) "pi =  3.142") "%6.3f")
+(assert (= (string (buffer/format @"" "pi = %+6.3f" math/pi)) "pi = +3.142") "%6.3f")
+(assert (= (string (buffer/format @"" "pi = %40.20g" math/pi)) "pi =                     3.141592653589793116") "%6.3f")
 
-(assert (= (string (string/format @"" "🐼 = %6.3f" math/pi)) "🐼 =  3.142") "UTF-8")
-(assert (= (string (string/format @"" "π = %.8g" math/pi)) "π = 3.1415927") "π")
-(assert (= (string (string/format @"" "\xCF\x80 = %.8g" math/pi)) "\xCF\x80 = 3.1415927") "\xCF\x80")
+(assert (= (string (buffer/format @"" "🐼 = %6.3f" math/pi)) "🐼 =  3.142") "UTF-8")
+(assert (= (string (buffer/format @"" "π = %.8g" math/pi)) "π = 3.1415927") "π")
+(assert (= (string (buffer/format @"" "\xCF\x80 = %.8g" math/pi)) "\xCF\x80 = 3.1415927") "\xCF\x80")
+
+(assert (= (string/format "pi = %6.3f" math/pi) "pi =  3.142") "%6.3f")
+(assert (= (string/format "pi = %+6.3f" math/pi) "pi = +3.142") "%6.3f")
+(assert (= (string/format "pi = %40.20g" math/pi) "pi =                     3.141592653589793116") "%6.3f")
+
+(assert (= (string/format "🐼 = %6.3f" math/pi) "🐼 =  3.142") "UTF-8")
+(assert (= (string/format "π = %.8g" math/pi) "π = 3.1415927") "π")
+(assert (= (string/format "\xCF\x80 = %.8g" math/pi) "\xCF\x80 = 3.1415927") "\xCF\x80")
 
 (end-suite)
 
