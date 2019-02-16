@@ -75,7 +75,7 @@
   []
   (string "<h1>Janet Core API</h1>"
           "<p>Version " janet/version  "-" janet/build "</p>"
-          "<p>Generated at "
+          "<p>Generated "
           (nice-date)
           " seconds after epoch</p>"
           "<hr>"))
