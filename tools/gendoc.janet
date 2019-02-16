@@ -1,7 +1,5 @@
 # Generate documentation
 
-# TODO - make tool reusable
-
 (def- prelude
 ```
 <!doctype html>
@@ -57,13 +55,28 @@
       (buffer/push-byte buf byte)))
   buf)
 
+(def- months '("January" "February" "March" "April" "May" "June" "July" "August" "September"
+                        "October" "November" "December"))
+(defn nice-date
+  "Get the current date nicely formatted"
+  []
+  (let [date (os/date)
+        M (months (date :month))
+        D (+ (date :month-day) 1)
+        Y (date :year)
+        HH (date :hours)
+        MM (date :minutes)
+        SS (date :seconds)]
+    (string/format "%s %d, %d at %.2d:%.2d:%.2d"
+                   M D Y HH MM SS)))
+
 (defn- make-title
   "Generate title"
   []
   (string "<h1>Janet Core API</h1>"
           "<p>Version " janet/version  "-" janet/build "</p>"
-          "<p>Generated "
-          (string/number (os/time) :f 0 20)
+          "<p>Generated at "
+          (nice-date)
           " seconds after epoch</p>"
           "<hr>"))
 
