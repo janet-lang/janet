@@ -1565,32 +1565,39 @@ value, one key will be ignored."
     (res)
     (error (res :error))))
 
+(defn make-image
+  "Create an image from an environment returned by require.
+  Returns the image source as a string."
+  [env]
+  (marshal env (invert (env-lookup _env))))
+
+(defn load-image
+  "The inverse operation to make-image. Returns an environment."
+  [image]
+  (unmarshal image (env-lookup _env)))
+
 (def module/paths
   "The list of paths to look for modules. The following
   substitutions are preformed on each path. :sys: becomes
   module/*syspath*, :name: becomes the last part of the module
   name after the last /, and :all: is the module name literally.
   :native: becomes the dynamic library file extension, usually dll
-  or so."
-  @["./:all:.janet"
-    "./:all:/init.janet"
-    ":sys:/:all:.janet"
-    ":sys:/:all:/init.janet"
-    ":all:"])
-
-(def module/native-paths
-  "See doc for module/paths"
-  @["./:all:.:native:"
-    "./:all:/:name:.:native:"
-    ":sys:/:all:.:native:"
-    ":sys:/:all:/:name:.:native:"])
-
-(def module/image-paths
-  "See doc for module/paths"
-  @["./:all:.jimage"
-    "./:all:.:name:.jimage"
-    ":sys:/:all:.jimage"
-    ":sys:/:all:/:name:.jimage"])
+  or so. Each element is a two element tuple, containing the path
+  template and a keyword :source, :native, or :image indicating how
+  require should load files found at these paths."
+  @[["./:all:.janet" :source]
+    ["./:all:/init.janet" :source]
+    [":sys:/:all:.janet" :source]
+    [":sys:/:all:/init.janet" :source]
+    ["./:all:.:native:" :native]
+    ["./:all:/:name:.:native:" :native]
+    [":sys:/:all:.:native:" :native]
+    [":sys:/:all:/:name:.:native:" :native]
+    ["./:all:.jimage" :image]
+    ["./:all:.:name:.jimage" :image]
+    [":sys:/:all:.jimage" :image]
+    [":sys:/:all:/:name:.jimage" :image]
+    [":all:" :source]])
 
 (var module/*syspath*
   "The path where globally installed libraries are located.
@@ -1600,20 +1607,36 @@ value, one key will be ignored."
   (or (os/getenv "JANET_PATH")
       (if (= :windows (os/which)) "" "/usr/local/lib/janet")))
 
+(defn- fexists [path]
+  (def f (file/open path))
+  (if f (do (file/close f) path)))
+
 (defn module/find
-  "Try to match a module or path name from the patterns in paths."
-  [path paths]
+  "Try to match a module or path name from the patterns in module/paths.
+  Returns a tuple (fullpath kind) where the kind is one of :source, :native,
+  or image if the module is found, otherise a tuple with nil followed by
+  an error message."
+  [path]
   (def parts (string/split "/" path))
   (def name (get parts (- (length parts) 1)))
   (def nati (if (= :windows (os/which)) "dll" "so"))
-  (defn sub-path
-    [p]
-    (->> p
-         (string/replace ":name:" name)
-         (string/replace ":sys:" module/*syspath*)
-         (string/replace ":native:" nati)
-         (string/replace ":all:" path)))
-  (map sub-path paths))
+  (defn make-full
+    [[p mod-kind]]
+    (def fullpath (->> p
+                       (string/replace ":name:" name)
+                       (string/replace ":sys:" module/*syspath*)
+                       (string/replace ":native:" nati)
+                       (string/replace ":all:" path)))
+    [fullpath mod-kind])
+  (defn check-path [x] (if (fexists (x 0)) x))
+  (def paths (map make-full module/paths))
+  (def res (find check-path paths))
+  (if res res [nil (string "could not find module "
+                             path
+                             ":\n    "
+                             ;(interpose "\n    " (map 0 paths)))]))
+
+(put _env 'fexists nil)
 
 (def module/cache
   "Table mapping loaded module identifiers to their environments."
@@ -1624,11 +1647,6 @@ value, one key will be ignored."
   circular dependencies."
   @{})
 
-# Require helpers
-(defn- fexists [path]
-  (def f (file/open path))
-  (if f (do (file/close f) path)))
-
 (defn require
   "Require a module with the given name. Will search all of the paths in
   module/paths, then the path as a raw file path. Returns the new environment
@@ -1637,55 +1655,31 @@ value, one key will be ignored."
   (def {:exit exit-on-error} (table ;args))
   (if-let [check (get module/cache path)]
     check
-    (if-let [modpath (find fexists (module/find path module/paths))]
-      (do
-        (when (get module/loading modpath)
-          (error (string "circular dependency: file " modpath " is loading")))
-        # Normal janet module
-        (def f (file/open modpath))
-        (def newenv (make-env))
-        (put module/loading modpath true)
-        (defn chunks [buf _] (file/read f 2048 buf))
-        (run-context {:env newenv
-                      :chunks chunks
-                      :on-status (fn [f x]
-                                   (when (not= (fiber/status f) :dead)
-                                     (debug/stacktrace f x)
-                                     (if exit-on-error (os/exit 1))))
-                      :source modpath})
-        (file/close f)
-        (table/setproto newenv nil)
-        (put module/loading modpath false)
-        (put module/cache modpath newenv)
-        (put module/cache path newenv)
-        newenv)
-      (if-let [imgpath (find fexists (module/find path module/image-paths))]
-        (do
-          # Try image
-          (def imgsource (slurp imgpath))
-          (def img (unmarshal imgsource (env-lookup *env*)))
-          img)
-        (do
-          # Try native module
-          (def n (find fexists (module/find path module/native-paths)))
-          (if (not n)
-            (error (string "could not open file for module " path)))
-          (def e (make-env))
-          (native n e)
-          (put module/cache n e)
-          (put module/cache path e)
-          e)))))
-
-(put _env 'fexists nil)
-
-(defn write-image
-  "Create an image from the file at path. Writes the output
-  image to a file at out."
-  [path out]
-  (def env (require path))
-  (def img (marshal env (invert (env-lookup _env))))
-  (spit out img)
-  img)
+    (do
+      (def [fullpath mod-kind] (module/find path))
+      (unless fullpath (error mod-kind))
+      (def env (case mod-kind
+        :source (do
+                  # Normal janet module
+                  (def f (file/open fullpath))
+                  (def newenv (make-env))
+                  (put module/loading fullpath true)
+                  (defn chunks [buf _] (file/read f 2048 buf))
+                  (run-context {:env newenv
+                                :chunks chunks
+                                :on-status (fn [f x]
+                                             (when (not= (fiber/status f) :dead)
+                                               (debug/stacktrace f x)
+                                               (if exit-on-error (os/exit 1))))
+                                :source fullpath})
+                  (file/close f)
+                  (put module/loading fullpath nil)
+                  (table/setproto newenv nil))
+        :native (native fullpath (make-env))
+        :image (load-image (slurp fullpath))))
+      (put module/cache fullpath env)
+      (put module/cache path env)
+      env)))
 
 (defn import*
   "Import a module into a given environment table. This is the

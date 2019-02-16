@@ -2,8 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## 0.4.0 - ??
-- `write-image` function creates pre compiled images for janet. These images
-  link to the core library. They can be loaded via require.
+- `make-image` function creates pre compiled images for janet. These images
+  link to the core library. They can be loaded via require or manually via
+  `load-image`.
 - Add bracketed tuples as tuple constructor.
 - Add partition function to core library.
 - Pre-compile core library into an image for faster startup.
