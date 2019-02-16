@@ -125,7 +125,7 @@ static void bignat_div(struct BigNat *mant, uint32_t divisor) {
     int32_t i;
     uint32_t quotient, remainder;
     uint64_t dividend;
-    remainder = 0;
+    remainder = 0, quotient = 0;
     for (i = mant->n - 1; i >= 0; i--) {
         dividend = ((uint64_t)remainder * BIGNAT_BASE) + mant->digits[i];
         if (i < mant->n - 1) mant->digits[i + 1] = quotient;
