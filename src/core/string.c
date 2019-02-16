@@ -501,6 +501,14 @@ static Janet cfun_string_pretty(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(buffer);
 }
 
+static Janet cfun_string_format(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, -1);
+    JanetBuffer *buffer = janet_buffer(0);
+    const char *strfrmt = (const char *) janet_getstring(argv, 0);
+    janet_buffer_format(buffer, strfrmt, 0, argc, argv);
+    return janet_stringv(buffer->data, buffer->count);
+}
+
 static const JanetReg string_cfuns[] = {
     {
         "string/slice", cfun_string_slice,
@@ -613,6 +621,11 @@ static const JanetReg string_cfuns[] = {
         JDOC("(string/pretty x [,depth=4 [,buffer=@\"\"]])\n\n"
                 "Pretty prints a value to a buffer. Optionally allows setting max "
                 "recursion depth, as well as writing to a buffer. Returns the buffer.")
+    },
+    {   "string/format", cfun_string_format,
+        JDOC("(string/format buffer format & values)\n\n"
+                "Similar to snprintf, but specialized for operating with janet"
+             "...")
     },
     {NULL, NULL, NULL}
 };

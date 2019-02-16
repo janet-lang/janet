@@ -317,6 +317,14 @@ static Janet cfun_buffer_blit(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
+static Janet cfun_buffer_format(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, -1);
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    const char *strfrmt = (const char *) janet_getstring(argv, 1);
+    janet_buffer_format(buffer, strfrmt, 1, argc, argv);
+    return argv[0];
+}
+
 static const JanetReg buffer_cfuns[] = {
     {"buffer/new", cfun_buffer_new,
         JDOC("(buffer/new capacity)\n\n"
@@ -382,6 +390,11 @@ static const JanetReg buffer_cfuns[] = {
                 "Insert the contents of src into dest. Can optionally take indices that "
                 "indicate which part of src to copy into which part of dest. Indices can be "
                 "negative to index from the end of src or dest. Returns dest.")
+    },
+    {"buffer/format", cfun_buffer_format,
+        JDOC("(buffer/format buffer format & args)\n\n"
+                "Snprintf like functionality for printing values into a buffer. Returns "
+                " the modified buffer.")
     },
     {NULL, NULL, NULL}
 };
