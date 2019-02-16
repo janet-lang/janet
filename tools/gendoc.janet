@@ -77,7 +77,7 @@
           "<p>Version " janet/version  "-" janet/build "</p>"
           "<p>Generated "
           (nice-date)
-          " seconds after epoch</p>"
+          "</p>"
           "<hr>"))
 
 (defn- emit-item
