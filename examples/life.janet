@@ -4,11 +4,11 @@
   (seq [x :range [-1 2]
          y :range [-1 2]
          :when (not (and (zero? x) (zero? y)))]
-        (tuple x y)))
+       [x y]))
 
 (defn- neighbors
   [[x y]]
-  (map (fn [[x1 y1]] (tuple (+ x x1) (+ y y1))) window))
+  (map (fn [[x1 y1]] [(+ x x1) (+ y y1)]) window))
 
 (defn tick
   "Get the next state in the Game Of Life."
@@ -28,7 +28,7 @@
   (loop [x :range [x1 (+ 1 x2)]
          :after (print)
          y :range [y1 (+ 1 y2)]]
-    (file/write stdout (if (get cellset (tuple x y)) "X " ". ")))
+    (file/write stdout (if (get cellset [x y]) "X " ". ")))
   (print))
 
 #
