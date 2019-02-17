@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## 0.4.0 - ??
+- Add `-c` flag to main client to allow compiling Janet modules to images.
 - Add `string/format` and `buffer/format`.
 - Remove `string/pretty` and `string/number`.
 - `make-image` function creates pre compiled images for janet. These images
