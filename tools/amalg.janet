@@ -72,5 +72,4 @@
 (each s sources (dofile s))
 
 # Relies on these files being built
-(dofile "build/core.gen.c")
 (dofile "build/core_image.c")

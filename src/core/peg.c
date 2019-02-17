@@ -478,7 +478,7 @@ typedef struct {
 } Builder;
 
 /* Forward declaration to allow recursion */
-static uint32_t compile1(Builder *b, Janet peg);
+static uint32_t peg_compile1(Builder *b, Janet peg);
 
 /*
  * Errors
@@ -664,7 +664,7 @@ static void spec_look(Builder *b, int32_t argc, const Janet *argv) {
     Reserve r = reserve(b, 3);
     int32_t rulearg = argc == 2 ? 1 : 0;
     int32_t offset = argc == 2 ? peg_getinteger(b, argv[0]) : 0;
-    uint32_t subrule = compile1(b, argv[rulearg]);
+    uint32_t subrule = peg_compile1(b, argv[rulearg]);
     emit_2(r, RULE_LOOK, (uint32_t) offset, subrule);
 }
 
@@ -676,7 +676,7 @@ static void spec_variadic(Builder *b, int32_t argc, const Janet *argv, uint32_t 
     for (int32_t i = 0; i < argc; i++)
         janet_v_push(b->bytecode, 0);
     for (int32_t i = 0; i < argc; i++) {
-        uint32_t rulei = compile1(b, argv[i]);
+        uint32_t rulei = peg_compile1(b, argv[i]);
         b->bytecode[rule + 2 + i] = rulei;
     }
 }
@@ -692,8 +692,8 @@ static void spec_sequence(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_branch(Builder *b, int32_t argc, const Janet *argv, uint32_t rule) {
     peg_fixarity(b, argc, 2);
     Reserve r = reserve(b, 3);
-    uint32_t rule_a = compile1(b, argv[0]);
-    uint32_t rule_b = compile1(b, argv[1]);
+    uint32_t rule_a = peg_compile1(b, argv[0]);
+    uint32_t rule_b = peg_compile1(b, argv[1]);
     emit_2(r, rule, rule_a, rule_b);
 }
 
@@ -709,14 +709,14 @@ static void spec_between(Builder *b, int32_t argc, const Janet *argv) {
     Reserve r = reserve(b, 4);
     int32_t lo = peg_getnat(b, argv[0]);
     int32_t hi = peg_getnat(b, argv[1]);
-    uint32_t subrule = compile1(b, argv[2]);
+    uint32_t subrule = peg_compile1(b, argv[2]);
     emit_3(r, RULE_BETWEEN, lo, hi, subrule);
 }
 
 static void spec_repeater(Builder *b, int32_t argc, const Janet *argv, int32_t min) {
     peg_fixarity(b, argc, 1);
     Reserve r = reserve(b, 4);
-    uint32_t subrule = compile1(b, argv[0]);
+    uint32_t subrule = peg_compile1(b, argv[0]);
     emit_3(r, RULE_BETWEEN, min, UINT32_MAX, subrule);
 }
 
@@ -731,7 +731,7 @@ static void spec_atleast(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 2);
     Reserve r = reserve(b, 4);
     int32_t n = peg_getnat(b, argv[0]);
-    uint32_t subrule = compile1(b, argv[1]);
+    uint32_t subrule = peg_compile1(b, argv[1]);
     emit_3(r, RULE_BETWEEN, n, UINT32_MAX, subrule);
 }
 
@@ -739,14 +739,14 @@ static void spec_atmost(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 2);
     Reserve r = reserve(b, 4);
     int32_t n = peg_getnat(b, argv[0]);
-    uint32_t subrule = compile1(b, argv[1]);
+    uint32_t subrule = peg_compile1(b, argv[1]);
     emit_3(r, RULE_BETWEEN, 0, n, subrule);
 }
 
 static void spec_opt(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 1);
     Reserve r = reserve(b, 4);
-    uint32_t subrule = compile1(b, argv[0]);
+    uint32_t subrule = peg_compile1(b, argv[0]);
     emit_3(r, RULE_BETWEEN, 0, 1, subrule);
 }
 
@@ -755,7 +755,7 @@ static void spec_opt(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_onerule(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
     peg_fixarity(b, argc, 1);
     Reserve r = reserve(b, 2);
-    uint32_t rule = compile1(b, argv[0]);
+    uint32_t rule = peg_compile1(b, argv[0]);
     emit_1(r, op, rule);
 }
 
@@ -774,7 +774,7 @@ static void spec_cap1(Builder *b, int32_t argc, const Janet *argv, uint32_t op) 
     peg_arity(b, argc, 1, 2);
     Reserve r = reserve(b, 3);
     uint32_t tag = (argc == 2) ? emit_tag(b, argv[1]) : 0;
-    uint32_t rule = compile1(b, argv[0]);
+    uint32_t rule = peg_compile1(b, argv[0]);
     emit_2(r, op, rule, tag);
 }
 
@@ -822,7 +822,7 @@ static void spec_constant(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
     peg_arity(b, argc, 2, 3);
     Reserve r = reserve(b, 4);
-    uint32_t subrule = compile1(b, argv[0]);
+    uint32_t subrule = peg_compile1(b, argv[0]);
     uint32_t constant = emit_constant(b, argv[1]);
     uint32_t tag = (argc == 3) ? emit_tag(b, argv[2]) : 0;
     emit_3(r, RULE_REPLACE, subrule, constant, tag);
@@ -831,7 +831,7 @@ static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
     peg_arity(b, argc, 2, 3);
     Reserve r = reserve(b, 4);
-    uint32_t subrule = compile1(b, argv[0]);
+    uint32_t subrule = peg_compile1(b, argv[0]);
     Janet fun = argv[1];
     if (!janet_checktype(fun, JANET_FUNCTION) &&
             !janet_checktype(fun, JANET_CFUNCTION)) {
@@ -850,7 +850,7 @@ typedef struct {
 } SpecialPair;
 
 /* Keep in lexical order (vim :sort works well) */
-static const SpecialPair specials[] = {
+static const SpecialPair peg_specials[] = {
     {"!", spec_not},
     {"$", spec_position},
     {"%", spec_accumulate},
@@ -890,7 +890,7 @@ static const SpecialPair specials[] = {
 };
 
 /* Compile a janet value into a rule and return the rule index. */
-static uint32_t compile1(Builder *b, Janet peg) {
+static uint32_t peg_compile1(Builder *b, Janet peg) {
 
     /* Check for already compiled rules */
     Janet check = janet_table_get(b->memoized, peg);
@@ -942,7 +942,7 @@ static uint32_t compile1(Builder *b, Janet peg) {
                 Janet check = janet_table_get(b->grammar, peg);
                 if (janet_checktype(check, JANET_NIL))
                     peg_panicf(b, "unknown rule");
-                rule = compile1(b, check);
+                rule = peg_compile1(b, check);
                 break;
             }
         case JANET_STRUCT:
@@ -953,7 +953,7 @@ static uint32_t compile1(Builder *b, Janet peg) {
                 Janet main_rule = janet_table_get(grammar, janet_ckeywordv("main"));
                 if (janet_checktype(main_rule, JANET_NIL))
                     peg_panicf(b, "grammar requires :main rule");
-                rule = compile1(b, main_rule);
+                rule = peg_compile1(b, main_rule);
                 b->grammar = grammar->proto;
                 break;
             }
@@ -966,8 +966,8 @@ static uint32_t compile1(Builder *b, Janet peg) {
                     peg_panicf(b, "expected grammar command, found %v", tup[0]);
                 const uint8_t *sym = janet_unwrap_symbol(tup[0]);
                 const SpecialPair *sp = janet_strbinsearch(
-                        &specials,
-                        sizeof(specials)/sizeof(SpecialPair),
+                        &peg_specials,
+                        sizeof(peg_specials)/sizeof(SpecialPair),
                         sizeof(SpecialPair),
                         sym);
                 if (!sp)
@@ -1035,7 +1035,7 @@ static Peg *compile_peg(Janet x) {
     builder.nexttag = 1;
     builder.form = x;
     builder.depth = JANET_RECURSION_GUARD;
-    compile1(&builder, x);
+    peg_compile1(&builder, x);
     Peg *peg = make_peg(&builder);
     builder_cleanup(&builder);
     return peg;

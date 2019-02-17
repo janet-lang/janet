@@ -25,14 +25,16 @@
   # Create C source file that contains images a uint8_t buffer. This
   # can be compiled and linked statically into the main janet library
   # and example client.
-  (def chunks (seq [b :in image] (string b)))
+  (def chunks (string/bytes image))
   (def image-file (file/open "build/core_image.c" :w))
   (file/write image-file
+              "#ifndef JANET_AMALG\n"
               "#include <janet/janet.h>\n"
-              "static const unsigned char janet_core_image_bytes[] = {")
-  (loop [line :in (partition 16 chunks)]
-    (def str (string ;(interpose ", " line)))
-    (file/write image-file str ",\n"))
+              "#endif\n"
+              "static const unsigned char janet_core_image_bytes[] = {\n")
+  (loop [line :in (partition 10 chunks)]
+    (def str (string ;(interpose ", " (map (partial string/format "0x%.2X") line))))
+    (file/write image-file "    " str ",\n"))
   (file/write image-file
               "0};\n\n"
               "const unsigned char *janet_core_image = janet_core_image_bytes;\n"
