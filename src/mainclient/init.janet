@@ -15,15 +15,16 @@
            (print "usage: " (get process/args 0) " [options] script args...")
            (print
              `Options are:
-  -h Show this help
-  -v Print the version string
-  -s Use raw stdin instead of getline like functionality
-  -e Execute a string of janet
-  -r Enter the repl after running all scripts
-  -p Keep on executing if there is a top level error (persistent)
-  -q Hide prompt, logo, and repl output (quiet)
-  -l Execute code in a file before running the main script
-  -- Stop handling options`)
+  -h : Show this help
+  -v : Print the version string
+  -s : Use raw stdin instead of getline like functionality
+  -e code : Execute a string of janet
+  -r : Enter the repl after running all scripts
+  -p : Keep on executing if there is a top level error (persistent)
+  -q : Hide prompt, logo, and repl output (quiet)
+  -c source output : Compile janet source code into an image
+  -l path : Execute code in a file before running the main script
+  -- : Stop handling options`)
            (os/exit 0)
            1)
      "v" (fn [&] (print janet/version "-" janet/build) (os/exit 0) 1)
@@ -31,6 +32,11 @@
      "r" (fn [&] (set *should-repl* true) 1)
      "p" (fn [&] (set *exit-on-error* false) 1)
      "q" (fn [&] (set *quiet* true) 1)
+     "c" (fn [i &]
+           (def e (require (get process/args (+ i 1))))
+           (spit (get process/args (+ i 2)) (make-image e))
+           (set *no-file* false)
+           3)
      "-" (fn [&] (set *handleopts* false) 1)
      "l" (fn [i &]
            (import* *env* (get process/args (+ i 1))
