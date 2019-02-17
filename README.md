@@ -9,7 +9,7 @@
 **Janet** is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
 by other data structures with better utility and performance (arrays, tables, structs, tuples).
-The language also bridging bridging to native code written in C, meta-programming with macros, and bytecode assembly.
+The language also supports bridging to native code written in C, meta-programming with macros, and bytecode assembly.
 
 There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
