@@ -753,7 +753,9 @@ JanetTable *janet_core_env(void) {
     janet_lib_debug(env);
     janet_lib_string(env);
     janet_lib_marsh(env);
+#ifdef JANET_PEG
     janet_lib_peg(env);
+#endif
 #ifdef JANET_ASSEMBLER
     janet_lib_asm(env);
 #endif

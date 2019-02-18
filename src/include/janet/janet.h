@@ -123,6 +123,11 @@ extern "C" {
 #define JANET_ASSEMBLER
 #endif
 
+/* Enable or disable the peg module */
+#ifndef JANET_NO_PEG
+#define JANET_PEG
+#endif
+
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS

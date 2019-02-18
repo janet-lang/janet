@@ -20,6 +20,8 @@
 * IN THE SOFTWARE.
 */
 
+#ifdef JANET_PEG
+
 #ifndef JANET_AMALG
 #include <janet/janet.h>
 #include <string.h>
@@ -1105,3 +1107,5 @@ static const JanetReg peg_cfuns[] = {
 void janet_lib_peg(JanetTable *env) {
     janet_core_cfuns(env, NULL, peg_cfuns);
 }
+
+#endif /* ifdef JANET_PEG */
