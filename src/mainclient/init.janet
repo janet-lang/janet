@@ -22,6 +22,7 @@
   -r : Enter the repl after running all scripts
   -p : Keep on executing if there is a top level error (persistent)
   -q : Hide prompt, logo, and repl output (quiet)
+  -m syspath : Set system path for loading global modules
   -c source output : Compile janet source code into an image
   -l path : Execute code in a file before running the main script
   -- : Stop handling options`)
@@ -32,6 +33,7 @@
      "r" (fn [&] (set *should-repl* true) 1)
      "p" (fn [&] (set *exit-on-error* false) 1)
      "q" (fn [&] (set *quiet* true) 1)
+     "m" (fn [i &] (set module/*syspath* (get process/args (+ i 1))) 2)
      "c" (fn [i &]
            (def e (require (get process/args (+ i 1))))
            (spit (get process/args (+ i 2)) (make-image e))
