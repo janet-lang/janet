@@ -25,17 +25,17 @@
 PREFIX?=/usr/local
 
 INCLUDEDIR=$(PREFIX)/include/janet
-LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
 JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
-
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
-	   -DJANET_BUILD=$(JANET_BUILD)
 CLIBS=-lm
 JANET_TARGET=build/janet
 JANET_LIBRARY=build/libjanet.so
-JANET_PATH?=/usr/local/lib/janet
+JANET_PATH?=$(PREFIX)/lib/janet
+MANPATH?=$(PREFIX)/share/man/man1/
 DEBUGGER=gdb
+
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
+	   -DJANET_BUILD=$(JANET_BUILD)
 
 UNAME:=$(shell uname -s)
 LDCONFIG:=ldconfig
@@ -223,20 +223,16 @@ install: $(JANET_TARGET)
 	cp $(JANET_TARGET) $(BINDIR)/janet
 	mkdir -p $(INCLUDEDIR)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
-	mkdir -p $(LIBDIR)
-	cp $(JANET_LIBRARY) $(LIBDIR)/libjanet.so
 	mkdir -p $(JANET_PATH)
 	cp tools/cook.janet $(JANET_PATH)
 	cp tools/highlight.janet $(JANET_PATH)
-	cp janet.1 /usr/local/share/man/man1/
+	mkdir -p $(MANPATH)
+	cp janet.1 $(MANPATH)
 	mandb
-	$(LDCONFIG)
 
 uninstall:
 	-rm $(BINDIR)/../$(JANET_TARGET)
-	-rm $(LIBDIR)/../$(JANET_LIBRARY)
 	-rm -rf $(INCLUDEDIR)
-	$(LDCONFIG)
 
 .PHONY: clean install repl debug valgrind test amalg \
 	valtest emscripten dist uninstall docs grammar \
