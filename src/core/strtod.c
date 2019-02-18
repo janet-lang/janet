@@ -26,23 +26,19 @@
  * This version has been modified for much greater flexibility in parsing, such
  * as choosing the radix and supporting scientific notation with any radix.
  *
- * Numbers are of the form [-+]R[rR]I.F[eE&][-+]X where R is the radix, I is
- * the integer part, F is the fractional part, and X is the exponent. All
- * signs, radix, decimal point, fractional part, and exponent can be omitted.
- * The number will be considered and integer if the there is no decimal point
- * and no exponent. Any number greater the 2^32-1 or less than -(2^32) will be
- * coerced to a double. If there is an error, the function janet_scan_number will
- * return a janet nil. The radix is assumed to be 10 if omitted, and the E
+ * Numbers are of the form [-+]R[rR]I.F[eE&][-+]X in pseudo-regex form, where R
+ * is the radix, I is the integer part, F is the fractional part, and X is the
+ * exponent. All signs, radix, decimal point, fractional part, and exponent can
+ * be omitted.  The radix is assumed to be 10 if omitted, and the E or e
  * separator for the exponent can only be used when the radix is 10. This is
- * because E is a valid digit in bases 15 or greater. For bases greater than 10,
- * the letters are used as digits. A through Z correspond to the digits 10
+ * because E is a valid digit in bases 15 or greater. For bases greater than
+ * 10, the letters are used as digits. A through Z correspond to the digits 10
  * through 35, and the lowercase letters have the same values. The radix number
  * is always in base 10. For example, a hexidecimal number could be written
  * '16rdeadbeef'. janet_scan_number also supports some c style syntax for
  * hexidecimal literals. The previous number could also be written
- * '0xdeadbeef'. Note that in this case, the number will actually be a double
- * as it will not fit in the range for a signed 32 bit integer. The string
- * '0xbeef' would parse to an integer as it is in the range of an int32_t. */
+ * '0xdeadbeef'.
+ */
 
 #include <math.h>
 #include <string.h>
@@ -75,6 +71,7 @@ struct BigNat {
     uint32_t *digits; /* Each digit is base (2 ^ 31). Digits are least significant first. */
 };
 
+/* Initialize a bignat to 0 */
 static void bignat_zero(struct BigNat *x) {
     x->first_digit = 0;
     x->n = 0;
@@ -197,7 +194,7 @@ static double bignat_extract(struct BigNat *mant, int32_t exponent2) {
 }
 
 /* Read in a mantissa and exponent of a certain base, and give
- * back the double value. Should properly handle 0s, Infinities, and
+ * back the double value. Should properly handle 0s, infinities, and
  * denormalized numbers. (When the exponent values are too large) */
 static double convert(
         int negative,
