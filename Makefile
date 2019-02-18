@@ -35,7 +35,8 @@ MANPATH?=$(PREFIX)/share/man/man1/
 DEBUGGER=gdb
 
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
-	   -DJANET_BUILD=$(JANET_BUILD)
+	   -DJANET_BUILD=$(JANET_BUILD) \
+	   -DJANET_DEFAULT_PATH="\"$(JANET_PATH)\""
 
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
