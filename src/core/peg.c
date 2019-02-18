@@ -20,8 +20,6 @@
 * IN THE SOFTWARE.
 */
 
-#ifdef JANET_PEG
-
 #ifndef JANET_AMALG
 #include <janet/janet.h>
 #include <string.h>
@@ -29,6 +27,8 @@
 #include "vector.h"
 #include "util.h"
 #endif
+
+#ifdef JANET_PEG
 
 /*
  * Runtime
