@@ -67,7 +67,7 @@ Quiet output. Don't print a repl prompt or expression results to stdout.
 .BR \-m\ syspath
 Set the variable module/*syspath* to the string syspath so that Janet will load system modules
 from a directory different than the default. The default is set when Janet is built, and defaults to
-/usr/local/lib/janet on Linux/Posix, and C:/Janet/Library on Windows.
+/usr/local/lib/janet on Linux/Posix, and C:/Janet/Library on Windows. This option supersedes JANET_PATH.
 
 .TP
 .BR \-c\ source\ output
@@ -85,6 +85,15 @@ or repl.
 .BR \-\-
 Stop parsing command line arguments. All arguments after this one will be considered file names
 and then arguments to the script.
+
+.SH ENVIRONMENT
+
+.B JANET_PATH
+.RS
+The location to look for Janet libraries. This is the only environment variable Janet needs to
+find native and source code modules. If no JANET_PATH is set, Janet will look in
+the default location set at compile time.
+.RE
 
 .SH AUTHOR
 Written by Calvin Rose <calsrose@gmail.com>

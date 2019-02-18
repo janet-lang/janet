@@ -9,6 +9,8 @@
   (var *handleopts* true)
   (var *exit-on-error* true)
 
+  (if-let [jp (os/getenv "JANET_PATH")] (set module/*syspath* jp))
+
   # Flag handlers
   (def handlers :private
     {"h" (fn [&]
