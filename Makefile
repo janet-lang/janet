@@ -35,8 +35,7 @@ MANPATH?=$(PREFIX)/share/man/man1/
 DEBUGGER=gdb
 
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
-	   -DJANET_BUILD=$(JANET_BUILD) \
-	   -DJANET_DEFAULT_PATH="\"$(JANET_PATH)\""
+	   -DJANET_BUILD=$(JANET_BUILD)
 
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
@@ -78,7 +77,7 @@ build/janet_boot: $(JANET_BOOT_OBJECTS)
 
 # Now the reason we bootstrap in the first place
 build/core_image.c: build/janet_boot
-	build/janet_boot
+	JANET_PATH=$(JANET_PATH) build/janet_boot
 
 ##########################################################
 ##### The main interpreter program and shared object #####

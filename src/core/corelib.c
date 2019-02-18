@@ -761,8 +761,6 @@ JanetTable *janet_core_env(void) {
 #endif
 
 #ifdef JANET_BOOTSTRAP
-    /* Let the bootstrap program know where to set the default path */
-    janet_core_def(env, "JANET_DEFAULT_PATH", janet_cstringv(JANET_DEFAULT_PATH), NULL);
     /* Run bootstrap source */
     janet_dobytes(env, janet_gen_core, janet_gen_core_size, "core.janet", NULL);
 #else

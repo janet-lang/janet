@@ -1601,13 +1601,9 @@ value, one key will be ignored."
 
 (var module/*syspath*
   "The path where globally installed libraries are located.
-  The default value is the environment variable JANET_PATH,
-  and if that is not set /usr/local/lib/janet on linux/posix, and
-  on Windows the default is the empty string."
-  (or (os/getenv "JANET_PATH")
-      (if (= :windows (os/which)) "" JANET_DEFAULT_PATH)))
-
-(put _env 'JANET_DEFAULT_PATH nil)
+  The default is set at build time and is /usr/local/lib/janet on linux/posix, and
+  on Windows is C:/Janet/Library."
+  (or (os/getenv "JANET_PATH") ""))
 
 (defn- fexists [path]
   (def f (file/open path))
