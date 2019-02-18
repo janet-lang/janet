@@ -38,10 +38,8 @@ CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
 	   -DJANET_BUILD=$(JANET_BUILD)
 
 UNAME:=$(shell uname -s)
-LDCONFIG:=ldconfig
 ifeq ($(UNAME), Darwin)
 	# Add other macos/clang flags
-	LDCONFIG:=
 	CLIBS:=$(CLIBS) -ldl
 else ifeq ($(UNAME), OpenBSD)
 	# pass ...
