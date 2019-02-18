@@ -3,8 +3,11 @@
 janet \- run the Janet language abstract machine
 .SH SYNOPSIS
 .B janet
-[\fB\-hvsrp\fR]
-[\fB\-e\fR \fIJANET SOURCE\fR]
+[\fB\-hvsrpq\fR]
+[\fB\-e\fR \fISOURCE\fR]
+[\fB\-l\fR \fIMODULE\fR]
+[\fB\-m\fR \fIPATH\fR]
+[\fB\-c\fR \fIMODULE JIMAGE\fR]
 [\fB\-\-\fR]
 .IR script
 .IR args ...
@@ -16,7 +19,7 @@ to native code written in C, meta-programming with macros, and bytecode assembly
 
 There is a repl for trying out the language, as well as the ability to run script files.
 This client program is separate from the core runtime, so Janet could be embedded
-into other programs. Try Janet in your browser at https://Janet-lang.org.
+into other programs. Try Janet in your browser at https://janet-lang.org.
 
 Implemented in mostly standard C99, Janet runs on Windows, Linux and macOS.
 The few features that are not standard C99 (dynamic library loading, compiler
@@ -41,8 +44,9 @@ Shows the version text and exits immediately.
 Read raw input from stdin and forgo prompt history and other readline-like features.
 
 .TP
-.BR \-q
-Quiet output. Don't print a repl prompt or expression results to stdout.
+.BR \-e\ code
+Execute a string of Janet source. Source code is executed in the order it is encountered, so earlier
+arguments are executed before later ones.
 
 .TP
 .BR \-r
@@ -56,30 +60,31 @@ it will immediately exit after printing the error message. In persistent mode, J
 after an error. Persistent mode can be good for debugging and testing.
 
 .TP
-.BR \-e
-Execute a string of Janet source. Source code is executed in the order it is encountered, so earlier
-arguments are executed before later ones.
+.BR \-q
+Quiet output. Don't print a repl prompt or expression results to stdout.
 
 .TP
-.BR \-l
+.BR \-m\ syspath
+Set the variable module/*syspath* to the string syspath so that Janet will load system modules
+from a directory different than the default. The default is set when Janet is built, and defaults to
+/usr/local/lib/janet on Linux/Posix, and C:/Janet/Library on Windows.
+
+.TP
+.BR \-c\ source\ output
+Precompiles Janet source code into an image, a binary dump that can be efficiently loaded later.
+Source should be a path to the Janet module to compile, and output should be the file path of
+resulting image. Output should usually end with the .jimage extension.
+
+.TP
+.BR \-l\ path
 Load a Janet file before running a script or repl. Multiple files can be loaded
 in this manner, and exports from each file will be made available to the script
 or repl.
 
 .TP
 .BR \-\-
-Stop parsing command line arguments. All arguments after this one will be considered file names.
-
-.SH ENVIRONMENT
-
-.B JANET_PATH
-.RS
-The location to look for Janet libraries. This is the only environment variable Janet needs to
-find native and source code modules. If no JANET_PATH is set, Janet will look in
-/usr/local/lib/Janet for modules.
-To make Janet search multiple locations, modify the module.paths
-array in Janet.
-.RE
+Stop parsing command line arguments. All arguments after this one will be considered file names
+and then arguments to the script.
 
 .SH AUTHOR
 Written by Calvin Rose <calsrose@gmail.com>
