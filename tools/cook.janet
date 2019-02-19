@@ -96,7 +96,7 @@
 (def LD (if is-win "link" (string CC " -shared")))
 (def CFLAGS (string
               (if is-win "/I" "-I")
-              module/*headerpath*
+              module/*syspath*
               (if is-win " /O" " -std=c99 -Wall -Wextra -fpic -O")
               OPTIMIZE))
 

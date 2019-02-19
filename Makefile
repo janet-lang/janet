@@ -221,9 +221,9 @@ install: $(JANET_TARGET)
 	cp $(JANET_TARGET) $(BINDIR)/janet
 	mkdir -p $(INCLUDEDIR)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
-	# For compatibility
 	mkdir -p $(INCLUDEDIR)/janet
 	ln -sf $(INCLUDEDIR)/janet.h $(INCLUDEDIR)/janet/janet.h
+	ln -sf $(INCLUDEDIR)/janet.h $(JANET_PATH)/janet.h
 	mkdir -p $(JANET_PATH)
 	cp tools/cook.janet $(JANET_PATH)
 	cp tools/highlight.janet $(JANET_PATH)
