@@ -442,7 +442,7 @@ static JanetSlot janetc_tuple(JanetFopts opts, Janet x) {
     JanetCompiler *c = opts.compiler;
     const Janet *t = janet_unwrap_tuple(x);
     return janetc_maker(opts,
-	    janetc_toslots(c, t, janet_tuple_length(t)),
+            janetc_toslots(c, t, janet_tuple_length(t)),
             JOP_MAKE_TUPLE);
 }
 

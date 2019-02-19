@@ -33,72 +33,72 @@
 
 int main(int argc, const char **argv) {
 
-	static const char hex[] = "0123456789ABCDEF";
-	char buf[BUFSIZE];
-	size_t bytesRead = 0;
-	int32_t totalRead = 0;
-	int lineIndex = 0;
-	int line = 0;
+    static const char hex[] = "0123456789ABCDEF";
+    char buf[BUFSIZE];
+    size_t bytesRead = 0;
+    int32_t totalRead = 0;
+    int lineIndex = 0;
+    int line = 0;
 
-	if (argc != 4) {
-		fprintf(stderr, "Usage: %s infile outfile symbol\n", argv[0]);
-		return 1;
-	}
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s infile outfile symbol\n", argv[0]);
+        return 1;
+    }
 
-	/* Open the files */
-	FILE *in = fopen(argv[1], "rb");
-	FILE *out = fopen(argv[2], "wb");
+    /* Open the files */
+    FILE *in = fopen(argv[1], "rb");
+    FILE *out = fopen(argv[2], "wb");
 
-	/* Check if files open successfully */
-	if (in == NULL) {
-		fprintf(stderr, "Could not open input file %s\n", argv[1]);
-		return 1;
-	} else if (out == NULL) {
-		fprintf(stderr, "Could not open output file %s\n", argv[2]);
-		return 1;
-	}
+    /* Check if files open successfully */
+    if (in == NULL) {
+        fprintf(stderr, "Could not open input file %s\n", argv[1]);
+        return 1;
+    } else if (out == NULL) {
+        fprintf(stderr, "Could not open output file %s\n", argv[2]);
+        return 1;
+    }
 
-	/* Write the header */
-	fprintf(out, "/* Auto generated - DO NOT EDIT */\n\n#include <stdint.h>\n\n");
-	fprintf(out, "static const unsigned char bytes_%s[] = {", argv[3]);
+    /* Write the header */
+    fprintf(out, "/* Auto generated - DO NOT EDIT */\n\n#include <stdint.h>\n\n");
+    fprintf(out, "static const unsigned char bytes_%s[] = {", argv[3]);
 
-	/* Read in chunks from buffer */
-	while ((bytesRead = fread(buf, 1, sizeof(buf), in)) > 0) {
-		size_t i;
-		totalRead += bytesRead;
-		for (i = 0; i < bytesRead; ++i) {
-			int byte = ((uint8_t *)buf) [i];
+    /* Read in chunks from buffer */
+    while ((bytesRead = fread(buf, 1, sizeof(buf), in)) > 0) {
+        size_t i;
+        totalRead += bytesRead;
+        for (i = 0; i < bytesRead; ++i) {
+            int byte = ((uint8_t *)buf) [i];
 
-			/* Write the byte */
-			if (lineIndex++ == 0) {
-				if (line++)
-					fputc(',', out);
-				fputs("\n\t", out);
-			} else {
-				fputs(", ", out);
-			}
-			fputs("0x", out);
-			fputc(hex[byte >> 4], out);
-			fputc(hex[byte & 0xF], out);
+            /* Write the byte */
+            if (lineIndex++ == 0) {
+                if (line++)
+                    fputc(',', out);
+                fputs("\n\t", out);
+            } else {
+                fputs(", ", out);
+            }
+            fputs("0x", out);
+            fputc(hex[byte >> 4], out);
+            fputc(hex[byte & 0xF], out);
 
-			/* Make line index wrap */
-			if (lineIndex >= PERLINE)
-				lineIndex = 0;
+            /* Make line index wrap */
+            if (lineIndex >= PERLINE)
+                lineIndex = 0;
 
-		}
-  	}
+        }
+      }
 
-  	/* Write the tail */
-	fputs("\n};\n\n", out);
+      /* Write the tail */
+    fputs("\n};\n\n", out);
 
-	fprintf(out, "const unsigned char *%s = bytes_%s;\n\n", argv[3], argv[3]);
+    fprintf(out, "const unsigned char *%s = bytes_%s;\n\n", argv[3], argv[3]);
 
     /* Write chunk size */
-	fprintf(out, "int32_t %s_size = %d;\n", argv[3], totalRead);
+    fprintf(out, "int32_t %s_size = %d;\n", argv[3], totalRead);
 
-	/* Close the file handles */
-	fclose(in);
-	fclose(out);
+    /* Close the file handles */
+    fclose(in);
+    fclose(out);
 
-	return 0;
+    return 0;
 }

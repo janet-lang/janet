@@ -67,7 +67,7 @@ extern "C" {
 /* Check 64-bit vs 32-bit */
 #if ((defined(__x86_64__) || defined(_M_X64)) \
      && (defined(JANET_UNIX) || defined(JANET_WINDOWS))) \
-	|| (defined(_WIN64)) /* Windows 64 bit */ \
+    || (defined(_WIN64)) /* Windows 64 bit */ \
     || (defined(__ia64__) && defined(__LP64__)) /* Itanium in LP64 mode */ \
     || defined(__alpha__) /* DEC Alpha */ \
     || (defined(__sparc__) && defined(__arch64__) || defined (__sparcv9)) /* BE */ \
