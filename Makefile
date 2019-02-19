@@ -226,7 +226,6 @@ install: $(JANET_TARGET)
 	cp tools/highlight.janet $(JANET_PATH)
 	mkdir -p $(MANPATH)
 	cp janet.1 $(MANPATH)
-	mandb
 
 uninstall:
 	-rm $(BINDIR)/../$(JANET_TARGET)
