@@ -227,6 +227,7 @@ install: $(JANET_TARGET)
 	mkdir -p $(JANET_PATH)
 	cp tools/cook.janet $(JANET_PATH)
 	cp tools/highlight.janet $(JANET_PATH)
+	cp tools/bars.janet $(JANET_PATH)
 	mkdir -p $(MANPATH)
 	cp janet.1 $(MANPATH)
 

@@ -94,7 +94,11 @@
 (def OPTIMIZE 2)
 (def CC (if is-win "cl" "cc"))
 (def LD (if is-win "link" (string CC " -shared")))
-(def CFLAGS (string (if is-win "/O" "-std=c99 -Wall -Wextra -fpic -O") OPTIMIZE))
+(def CFLAGS (string
+              (if is-win "/I" "-I")
+              module/*headerpath*
+              (if is-win " /O" " -std=c99 -Wall -Wextra -fpic -O")
+              OPTIMIZE))
 
 (defn- compile-c
   "Compile a C file into an object file."
