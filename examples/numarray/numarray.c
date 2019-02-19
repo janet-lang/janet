@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <janet/janet.h>
+#include <janet.h>
 
 typedef struct {
     double * data;

@@ -24,7 +24,7 @@
 #define JANET_GC_H
 
 #ifndef JANET_AMALG
-#include <janet/janet.h>
+#include <janet.h>
 #endif
 
 /* The metadata header associated with an allocated block of memory */

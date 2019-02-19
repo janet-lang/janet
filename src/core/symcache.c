@@ -26,10 +26,11 @@
  * whole program. Equality is then just a pointer check. */
 
 #ifndef JANET_AMALG
-#include <janet/janet.h>
+#include <janet.h>
 #include "state.h"
 #include "gc.h"
 #include "util.h"
+#include "symcache.h"
 #endif
 
 /* Cache state */

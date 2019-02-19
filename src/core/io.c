@@ -28,7 +28,7 @@
 #include <errno.h>
 
 #ifndef JANET_AMALG
-#include <janet/janet.h>
+#include <janet.h>
 #include "util.h"
 #endif
 

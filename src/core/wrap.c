@@ -21,7 +21,7 @@
 */
 
 #ifndef JANET_AMALG
-#include <janet/janet.h>
+#include <janet.h>
 #endif
 
 void *janet_memalloc_empty(int32_t count) {

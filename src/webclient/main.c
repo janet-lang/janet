@@ -20,7 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include <janet/janet.h>
+#include <janet.h>
 #include <emscripten.h>
 
 extern const unsigned char *janet_gen_webinit;

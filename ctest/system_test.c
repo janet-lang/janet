@@ -20,7 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include <janet/janet.h>
+#include <janet.h>
 #include <assert.h>
 #include <stdio.h>
 

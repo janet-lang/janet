@@ -20,7 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include <janet/janet.h>
+#include <janet.h>
 
 extern const unsigned char *janet_gen_boot;
 extern int32_t janet_gen_boot_size;

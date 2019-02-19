@@ -23,7 +23,7 @@
 #include <inttypes.h>
 
 #ifndef JANET_AMALG
-#include <janet/janet.h>
+#include <janet.h>
 #include "util.h"
 #include "state.h"
 #include "gc.h"

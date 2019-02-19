@@ -29,7 +29,7 @@
   (def image-file (file/open "build/core_image.c" :w))
   (file/write image-file
               "#ifndef JANET_AMALG\n"
-              "#include <janet/janet.h>\n"
+              "#include <janet.h>\n"
               "#endif\n"
               "static const unsigned char janet_core_image_bytes[] = {\n")
   (loop [line :in (partition 10 chunks)]

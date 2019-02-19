@@ -44,7 +44,7 @@
 #include <string.h>
 
 #ifndef JANET_AMALG
-#include <janet/janet.h>
+#include <janet.h>
 #endif
 
 /* Lookup table for getting values of characters when parsing numbers. Handles

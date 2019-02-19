@@ -1605,6 +1605,10 @@ value, one key will be ignored."
   on Windows is C:/Janet/Library."
   (or (os/getenv "JANET_PATH") ""))
 
+(var module/*headerpath*
+  "The path where janet/janet.h is located."
+  (or (os/getenv "JANET_INCLUDEDIR") ""))
+
 (defn- fexists [path]
   (def f (file/open path))
   (if f (do (file/close f) path)))

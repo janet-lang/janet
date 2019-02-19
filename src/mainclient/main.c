@@ -20,7 +20,7 @@
 * IN THE SOFTWARE.
 */
 
-#include <janet/janet.h>
+#include <janet.h>
 #include "line.h"
 
 extern const unsigned char *janet_gen_init;

@@ -24,7 +24,7 @@
 
 PREFIX?=/usr/local
 
-INCLUDEDIR=$(PREFIX)/include/janet
+INCLUDEDIR=$(PREFIX)/include
 BINDIR=$(PREFIX)/bin
 JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
 CLIBS=-lm
@@ -51,7 +51,7 @@ endif
 $(shell mkdir -p build/core build/mainclient build/webclient build/boot)
 
 # Source headers
-JANET_HEADERS=$(sort $(wildcard src/include/janet/*.h))
+JANET_HEADERS=$(sort $(wildcard src/include/*.h))
 JANET_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
 
 # Source files
@@ -77,7 +77,7 @@ build/janet_boot: $(JANET_BOOT_OBJECTS)
 
 # Now the reason we bootstrap in the first place
 build/core_image.c: build/janet_boot
-	JANET_PATH=$(JANET_PATH) build/janet_boot
+	JANET_PATH=$(JANET_PATH) JANET_INCLUDEDIR=$(INCLUDEDIR) build/janet_boot
 
 ##########################################################
 ##### The main interpreter program and shared object #####
@@ -156,7 +156,7 @@ amalg: build/janet.c build/janet.h build/core_image.c
 build/janet.c: $(JANET_LOCAL_HEADERS) $(JANET_CORE_SOURCES) tools/amalg.janet $(JANET_TARGET)
 	$(JANET_TARGET) tools/amalg.janet > $@
 
-build/janet.h: src/include/janet/janet.h
+build/janet.h: src/include/janet.h
 	cp $< $@
 
 ###################
@@ -191,7 +191,7 @@ callgrind: $(JANET_TARGET)
 
 dist: build/janet-dist.tar.gz
 
-build/janet-%.tar.gz: $(JANET_TARGET) src/include/janet/janet.h \
+build/janet-%.tar.gz: $(JANET_TARGET) src/include/janet.h \
 	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) \
 	build/doc.html README.md build/janet.c
 	tar -czvf $@ $^
@@ -221,6 +221,9 @@ install: $(JANET_TARGET)
 	cp $(JANET_TARGET) $(BINDIR)/janet
 	mkdir -p $(INCLUDEDIR)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
+	# For compatibility
+	mkdir -p $(INCLUDEDIR)/janet
+	ln -sf $(INCLUDEDIR)/janet.h $(INCLUDEDIR)/janet/janet.h
 	mkdir -p $(JANET_PATH)
 	cp tools/cook.janet $(JANET_PATH)
 	cp tools/highlight.janet $(JANET_PATH)
