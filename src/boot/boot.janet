@@ -36,7 +36,7 @@
     (def str (string ;(interpose ", " (map (partial string/format "0x%.2X") line))))
     (file/write image-file "    " str ",\n"))
   (file/write image-file
-              "0};\n\n"
+              "    0\n};\n\n"
               "const unsigned char *janet_core_image = janet_core_image_bytes;\n"
               "size_t janet_core_image_size = sizeof(janet_core_image_bytes);\n")
   (file/close image-file))

@@ -73,7 +73,7 @@ int main(int argc, const char **argv) {
             if (lineIndex++ == 0) {
                 if (line++)
                     fputc(',', out);
-                fputs("\n\t", out);
+                fputs("\n    ", out);
             } else {
                 fputs(", ", out);
             }
