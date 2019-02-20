@@ -38,5 +38,10 @@
 (assert (= (string/format "π = %.8g" math/pi) "π = 3.1415927") "π")
 (assert (= (string/format "\xCF\x80 = %.8g" math/pi) "\xCF\x80 = 3.1415927") "\xCF\x80")
 
+# Range
+(assert (deep= (range 10) @[0 1 2 3 4 5 6 7 8 9]) "range 1 argument")
+(assert (deep= (range 5 10) @[5 6 7 8 9]) "range 2 arguments")
+(assert (deep= (range 5 10 2) @[5 7 9]) "range 3 arguments")
+
 (end-suite)
 

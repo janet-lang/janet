@@ -702,8 +702,8 @@
         arr)
     3 (do
         (def [n m s] args)
-        (def arr (array/new n))
-        (loop [i :range [n m s]] (put arr (- i n) i))
+        (def arr (array/new (math/ceil (/ n s))))
+        (loop [i :range [n m s]] (array/push arr i))
         arr)
     (error "expected 1 to 3 arguments to range")))
 
