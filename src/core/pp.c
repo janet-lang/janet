@@ -197,7 +197,7 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
         {
             const char *n = janet_abstract_type(janet_unwrap_abstract(x))->name;
             string_description_b(buffer, n, janet_unwrap_abstract(x));
-			return;
+            return;
         }
     case JANET_CFUNCTION:
         {
@@ -694,4 +694,3 @@ void janet_buffer_format(
         }
     }
 }
-
