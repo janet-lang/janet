@@ -209,6 +209,13 @@ build/doc.html: $(JANET_TARGET) tools/gendoc.janet
 ##### Other #####
 #################
 
+STYLEOPTS=--style=attach --indent-switches --convert-tabs \
+		  --align-pointer=name --pad-header --pad-oper --unpad-paren --indent-labels
+format:
+	astyle $(STYLEOPTS) */*.c
+	astyle $(STYLEOPTS) */*/*.c
+	astyle $(STYLEOPTS) */*/*.h
+
 grammar: build/janet.tmLanguage
 build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
 	$(JANET_TARGET) $< > $@
@@ -236,5 +243,5 @@ uninstall:
 	-rm -rf $(INCLUDEDIR)
 
 .PHONY: clean install repl debug valgrind test amalg \
-	valtest emscripten dist uninstall docs grammar \
+	valtest emscripten dist uninstall docs grammar format \
 	$(TEST_PROGRAM_PHONIES) $(TEST_PROGRAM_VALPHONIES)

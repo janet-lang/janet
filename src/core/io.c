@@ -122,7 +122,7 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
     if (argc == 2) {
         fmode = janet_getkeyword(argv, 1);
         if (janet_string_length(fmode) != 1 ||
-            !(fmode[0] == 'r' || fmode[0] == 'w')) {
+                !(fmode[0] == 'r' || fmode[0] == 'w')) {
             janet_panicf("invalid file mode :%S, expected :r or :w", fmode);
         }
         flags = IO_PIPED | (fmode[0] == 'r' ? IO_READ : IO_WRITE);
@@ -331,66 +331,66 @@ static const JanetReg io_cfuns[] = {
     {
         "file/open", cfun_io_fopen,
         JDOC("(file/open path [,mode])\n\n"
-                "Open a file. path is an absolute or relative path, and "
-                "mode is a set of flags indicating the mode to open the file in. "
-                "mode is a keyword where each character represents a flag. If the file "
-                "cannot be opened, returns nil, otherwise returns the new file handle. "
-                "Mode flags:\n\n"
-                "\tr - allow reading from the file\n"
-                "\tw - allow writing to the file\n"
-                "\ta - append to the file\n"
-                "\tb - open the file in binary mode (rather than text mode)\n"
-                "\t+ - append to the file instead of overwriting it")
+             "Open a file. path is an absolute or relative path, and "
+             "mode is a set of flags indicating the mode to open the file in. "
+             "mode is a keyword where each character represents a flag. If the file "
+             "cannot be opened, returns nil, otherwise returns the new file handle. "
+             "Mode flags:\n\n"
+             "\tr - allow reading from the file\n"
+             "\tw - allow writing to the file\n"
+             "\ta - append to the file\n"
+             "\tb - open the file in binary mode (rather than text mode)\n"
+             "\t+ - append to the file instead of overwriting it")
     },
     {
         "file/close", cfun_io_fclose,
         JDOC("(file/close f)\n\n"
-                "Close a file and release all related resources. When you are "
-                "done reading a file, close it to prevent a resource leak and let "
-                "other processes read the file.")
+             "Close a file and release all related resources. When you are "
+             "done reading a file, close it to prevent a resource leak and let "
+             "other processes read the file.")
     },
     {
         "file/read", cfun_io_fread,
         JDOC("(file/read f what [,buf])\n\n"
-                "Read a number of bytes from a file into a buffer. A buffer can "
-                "be provided as an optional fourth argument, otherwise a new buffer "
-                "is created. 'what' can either be an integer or a keyword. Returns the "
-                "buffer with file contents. "
-                "Values for 'what':\n\n"
-                "\t:all - read the whole file\n"
-                "\t:line - read up to and including the next newline character\n"
-                "\tn (integer) - read up to n bytes from the file")
+             "Read a number of bytes from a file into a buffer. A buffer can "
+             "be provided as an optional fourth argument, otherwise a new buffer "
+             "is created. 'what' can either be an integer or a keyword. Returns the "
+             "buffer with file contents. "
+             "Values for 'what':\n\n"
+             "\t:all - read the whole file\n"
+             "\t:line - read up to and including the next newline character\n"
+             "\tn (integer) - read up to n bytes from the file")
     },
     {
         "file/write", cfun_io_fwrite,
         JDOC("(file/write f bytes)\n\n"
-                "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
-                "file.")
+             "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
+             "file.")
     },
     {
         "file/flush", cfun_io_fflush,
         JDOC("(file/flush f)\n\n"
-                "Flush any buffered bytes to the file system. In most files, writes are "
-                "buffered for efficiency reasons. Returns the file handle.")
+             "Flush any buffered bytes to the file system. In most files, writes are "
+             "buffered for efficiency reasons. Returns the file handle.")
     },
     {
         "file/seek", cfun_io_fseek,
         JDOC("(file/seek f [,whence [,n]])\n\n"
-                "Jump to a relative location in the file. 'whence' must be one of\n\n"
-                "\t:cur - jump relative to the current file location\n"
-                "\t:set - jump relative to the beginning of the file\n"
-                "\t:end - jump relative to the end of the file\n\n"
-                "By default, 'whence' is :cur. Optionally a value n may be passed "
-                "for the relative number of bytes to seek in the file. n may be a real "
-                "number to handle large files of more the 4GB. Returns the file handle.")
+             "Jump to a relative location in the file. 'whence' must be one of\n\n"
+             "\t:cur - jump relative to the current file location\n"
+             "\t:set - jump relative to the beginning of the file\n"
+             "\t:end - jump relative to the end of the file\n\n"
+             "By default, 'whence' is :cur. Optionally a value n may be passed "
+             "for the relative number of bytes to seek in the file. n may be a real "
+             "number to handle large files of more the 4GB. Returns the file handle.")
     },
     {
         "file/popen", cfun_io_popen,
         JDOC("(file/popen path [,mode])\n\n"
-                "Open a file that is backed by a process. The file must be opened in either "
-                "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
-                "process can be read from the file. In :w mode, the stdin of the process "
-                "can be written to. Returns the new file.")
+             "Open a file that is backed by a process. The file must be opened in either "
+             "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
+             "process can be read from the file. In :w mode, the stdin of the process "
+             "can be written to. Returns the new file.")
     },
     {NULL, NULL, NULL}
 };
@@ -401,14 +401,14 @@ void janet_lib_io(JanetTable *env) {
 
     /* stdout */
     janet_core_def(env, "stdout",
-            makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
-            JDOC("The standard output file."));
+                   makef(stdout, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
+                   JDOC("The standard output file."));
     /* stderr */
     janet_core_def(env, "stderr",
-            makef(stderr, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
-            JDOC("The standard error file."));
+                   makef(stderr, IO_APPEND | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
+                   JDOC("The standard error file."));
     /* stdin */
     janet_core_def(env, "stdin",
-            makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
-            JDOC("The standard input file."));
+                   makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
+                   JDOC("The standard input file."));
 }

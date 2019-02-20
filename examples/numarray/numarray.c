@@ -2,23 +2,23 @@
 #include <janet.h>
 
 typedef struct {
-    double * data;
+    double *data;
     size_t size;
 } num_array;
 
-static num_array * num_array_init(num_array * array,size_t size) {
-    array->data=(double *)calloc(size,sizeof(double));
-    array->size=size;
+static num_array *num_array_init(num_array *array, size_t size) {
+    array->data = (double *)calloc(size, sizeof(double));
+    array->size = size;
     return array;
 }
 
-static void num_array_deinit(num_array * array) {
+static void num_array_deinit(num_array *array) {
     free(array->data);
 }
 
 static int num_array_gc(void *p, size_t s) {
     (void) s;
-    num_array * array=(num_array *)p;
+    num_array *array = (num_array *)p;
     num_array_deinit(array);
     return 0;
 }
@@ -36,42 +36,42 @@ static const JanetAbstractType num_array_type = {
 
 static Janet num_array_new(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    int32_t size=janet_getinteger(argv,0);
-    num_array * array = (num_array *)janet_abstract(&num_array_type,sizeof(num_array));
-    num_array_init(array,size);
+    int32_t size = janet_getinteger(argv, 0);
+    num_array *array = (num_array *)janet_abstract(&num_array_type, sizeof(num_array));
+    num_array_init(array, size);
     return janet_wrap_abstract(array);
 }
 
 static Janet num_array_scale(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
-    num_array * array = (num_array *)janet_getabstract(argv,0,&num_array_type);
-    double factor = janet_getnumber(argv,1);
+    num_array *array = (num_array *)janet_getabstract(argv, 0, &num_array_type);
+    double factor = janet_getnumber(argv, 1);
     size_t i;
-    for (i=0;i<array->size;i++) {
-        array->data[i]*=factor;
+    for (i = 0; i < array->size; i++) {
+        array->data[i] *= factor;
     }
     return argv[0];
 }
 
 static Janet num_array_sum(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    num_array * array = (num_array *)janet_getabstract(argv,0,&num_array_type);
+    num_array *array = (num_array *)janet_getabstract(argv, 0, &num_array_type);
     double sum = 0;
-    for (size_t i=0;i<array->size;i++) sum+=array->data[i];
+    for (size_t i = 0; i < array->size; i++) sum += array->data[i];
     return janet_wrap_number(sum);
 }
 
 void num_array_put(void *p, Janet key, Janet value) {
     size_t index;
-    num_array * array=(num_array *)p;
+    num_array *array = (num_array *)p;
     if (!janet_checkint(key))
         janet_panic("expected integer key");
-    if (!janet_checktype(value,JANET_NUMBER))
+    if (!janet_checktype(value, JANET_NUMBER))
         janet_panic("expected number value");
 
     index = (size_t)janet_unwrap_integer(key);
     if (index < array->size) {
-        array->data[index]=janet_unwrap_number(value);
+        array->data[index] = janet_unwrap_number(value);
     }
 }
 
@@ -84,7 +84,7 @@ static const JanetMethod methods[] = {
 Janet num_array_get(void *p, Janet key) {
     size_t index;
     Janet value;
-    num_array * array=(num_array *)p;
+    num_array *array = (num_array *)p;
     if (janet_checktype(key, JANET_KEYWORD))
         return janet_getmethod(janet_unwrap_keyword(key), methods);
     if (!janet_checkint(key))
@@ -99,15 +99,17 @@ Janet num_array_get(void *p, Janet key) {
 }
 
 static const JanetReg cfuns[] = {
-    {"numarray/new", num_array_new, 
+    {
+        "numarray/new", num_array_new,
         "(numarray/new size)\n\n"
-            "Create new numarray"
+        "Create new numarray"
     },
-    {"numarray/scale", num_array_scale, 
+    {
+        "numarray/scale", num_array_scale,
         "(numarray/scale numarray factor)\n\n"
-            "scale numarray by factor"
+        "scale numarray by factor"
     },
-    {NULL,NULL,NULL}
+    {NULL, NULL, NULL}
 };
 
 JANET_MODULE_ENTRY(JanetTable *env) {

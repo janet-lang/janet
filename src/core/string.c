@@ -32,7 +32,7 @@
 /* Begin building a string */
 uint8_t *janet_string_begin(int32_t length) {
     char *data = janet_gcalloc(JANET_MEMORY_STRING, 2 * sizeof(int32_t) + length + 1);
-    uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
+    uint8_t *str = (uint8_t *)(data + 2 * sizeof(int32_t));
     janet_string_length(str) = length;
     str[length] = 0;
     return str;
@@ -48,7 +48,7 @@ const uint8_t *janet_string_end(uint8_t *str) {
 const uint8_t *janet_string(const uint8_t *buf, int32_t len) {
     int32_t hash = janet_string_calchash(buf, len);
     char *data = janet_gcalloc(JANET_MEMORY_STRING, 2 * sizeof(int32_t) + len + 1);
-    uint8_t *str = (uint8_t *) (data + 2 * sizeof(int32_t));
+    uint8_t *str = (uint8_t *)(data + 2 * sizeof(int32_t));
     memcpy(str, buf, len);
     str[len] = 0;
     janet_string_length(str) = len;
@@ -81,7 +81,7 @@ int janet_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen
 /* Check if two strings are equal */
 int janet_string_equal(const uint8_t *lhs, const uint8_t *rhs) {
     return janet_string_equalconst(lhs, rhs,
-            janet_string_length(rhs), janet_string_hash(rhs));
+                                   janet_string_length(rhs), janet_string_hash(rhs));
 }
 
 /* Load a c string */
@@ -102,9 +102,9 @@ struct kmp_state {
 };
 
 static void kmp_init(
-        struct kmp_state *s,
-        const uint8_t *text, int32_t textlen,
-        const uint8_t *pat, int32_t patlen) {
+    struct kmp_state *s,
+    const uint8_t *text, int32_t textlen,
+    const uint8_t *pat, int32_t patlen) {
     int32_t *lookup = calloc(patlen, sizeof(int32_t));
     if (!lookup) {
         JANET_OUT_OF_MEMORY;
@@ -272,8 +272,8 @@ static Janet cfun_string_find(int32_t argc, Janet *argv) {
     result = kmp_next(&state);
     kmp_deinit(&state);
     return result < 0
-        ? janet_wrap_nil()
-        : janet_wrap_integer(result);
+           ? janet_wrap_nil()
+           : janet_wrap_integer(result);
 }
 
 static Janet cfun_string_findall(int32_t argc, Janet *argv) {
@@ -324,8 +324,8 @@ static Janet cfun_string_replace(int32_t argc, Janet *argv) {
     memcpy(buf, s.kmp.text, result);
     memcpy(buf + result, s.subst, s.substlen);
     memcpy(buf + result + s.substlen,
-            s.kmp.text + result + s.kmp.patlen,
-            s.kmp.textlen - result - s.kmp.patlen);
+           s.kmp.text + result + s.kmp.patlen,
+           s.kmp.textlen - result - s.kmp.patlen);
     kmp_deinit(&s.kmp);
     return janet_wrap_string(janet_string_end(buf));
 }
@@ -453,97 +453,98 @@ static const JanetReg string_cfuns[] = {
     {
         "string/slice", cfun_string_slice,
         JDOC("(string/slice bytes [,start=0 [,end=(length str)]])\n\n"
-                "Returns a substring from a byte sequence. The substring is from "
-                "index start inclusive to index end exclusive. All indexing "
-                "is from 0. 'start' and 'end' can also be negative to indicate indexing "
-                "from the end of the string.")
+             "Returns a substring from a byte sequence. The substring is from "
+             "index start inclusive to index end exclusive. All indexing "
+             "is from 0. 'start' and 'end' can also be negative to indicate indexing "
+             "from the end of the string.")
     },
     {
         "string/repeat", cfun_string_repeat,
         JDOC("(string/repeat bytes n)\n\n"
-                "Returns a string that is n copies of bytes concatenated.")
+             "Returns a string that is n copies of bytes concatenated.")
     },
     {
         "string/bytes", cfun_string_bytes,
         JDOC("(string/bytes str)\n\n"
-                "Returns an array of integers that are the byte values of the string.")
+             "Returns an array of integers that are the byte values of the string.")
     },
     {
         "string/from-bytes", cfun_string_frombytes,
         JDOC("(string/from-bytes byte-array)\n\n"
-                "Creates a string from an array of integers with byte values. All integers "
-                "will be coerced to the range of 1 byte 0-255.")
+             "Creates a string from an array of integers with byte values. All integers "
+             "will be coerced to the range of 1 byte 0-255.")
     },
     {
         "string/ascii-lower", cfun_string_asciilower,
         JDOC("(string/ascii-lower str)\n\n"
-                "Returns a new string where all bytes are replaced with the "
-                "lowercase version of themselves in ASCII. Does only a very simple "
-                "case check, meaning no unicode support.")
+             "Returns a new string where all bytes are replaced with the "
+             "lowercase version of themselves in ASCII. Does only a very simple "
+             "case check, meaning no unicode support.")
     },
     {
         "string/ascii-upper", cfun_string_asciiupper,
         JDOC("(string/ascii-upper str)\n\n"
-                "Returns a new string where all bytes are replaced with the "
-                "uppercase version of themselves in ASCII. Does only a very simple "
-                "case check, meaning no unicode support.")
+             "Returns a new string where all bytes are replaced with the "
+             "uppercase version of themselves in ASCII. Does only a very simple "
+             "case check, meaning no unicode support.")
     },
     {
         "string/reverse", cfun_string_reverse,
         JDOC("(string/reverse str)\n\n"
-                "Returns a string that is the reversed version of str.")
+             "Returns a string that is the reversed version of str.")
     },
     {
         "string/find", cfun_string_find,
         JDOC("(string/find patt str)\n\n"
-                "Searches for the first instance of pattern patt in string "
-                "str. Returns the index of the first character in patt if found, "
-                "otherwise returns nil.")
+             "Searches for the first instance of pattern patt in string "
+             "str. Returns the index of the first character in patt if found, "
+             "otherwise returns nil.")
     },
     {
         "string/find-all", cfun_string_findall,
         JDOC("(string/find patt str)\n\n"
-                "Searches for all instances of pattern patt in string "
-                "str. Returns an array of all indices of found patterns. Overlapping "
-                "instances of the pattern are not counted, meaning a byte in string "
-                "will only contribute to finding at most on occurrence of pattern. If no "
-                "occurrences are found, will return an empty array.")
+             "Searches for all instances of pattern patt in string "
+             "str. Returns an array of all indices of found patterns. Overlapping "
+             "instances of the pattern are not counted, meaning a byte in string "
+             "will only contribute to finding at most on occurrence of pattern. If no "
+             "occurrences are found, will return an empty array.")
     },
     {
         "string/replace", cfun_string_replace,
         JDOC("(string/replace patt subst str)\n\n"
-                "Replace the first occurrence of patt with subst in the string str. "
-                "Will return the new string if patt is found, otherwise returns str.")
+             "Replace the first occurrence of patt with subst in the string str. "
+             "Will return the new string if patt is found, otherwise returns str.")
     },
     {
         "string/replace-all", cfun_string_replaceall,
         JDOC("(string/replace-all patt subst str)\n\n"
-                "Replace all instances of patt with subst in the string str. "
-                "Will return the new string if patt is found, otherwise returns str.")
+             "Replace all instances of patt with subst in the string str. "
+             "Will return the new string if patt is found, otherwise returns str.")
     },
     {
         "string/split", cfun_string_split,
         JDOC("(string/split delim str)\n\n"
-                "Splits a string str with delimiter delim and returns an array of "
-                "substrings. The substrings will not contain the delimiter delim. If delim "
-                "is not found, the returned array will have one element.")
+             "Splits a string str with delimiter delim and returns an array of "
+             "substrings. The substrings will not contain the delimiter delim. If delim "
+             "is not found, the returned array will have one element.")
     },
     {
         "string/check-set", cfun_string_checkset,
         JDOC("(string/check-set set str)\n\n"
-                "Checks if any of the bytes in the string set appear in the string str. "
-                "Returns true if some bytes in set do appear in str, false if no bytes do.")
+             "Checks if any of the bytes in the string set appear in the string str. "
+             "Returns true if some bytes in set do appear in str, false if no bytes do.")
     },
     {
         "string/join", cfun_string_join,
         JDOC("(string/join parts [,sep])\n\n"
-                "Joins an array of strings into one string, optionally separated by "
-                "a separator string sep.")
+             "Joins an array of strings into one string, optionally separated by "
+             "a separator string sep.")
     },
-    {   "string/format", cfun_string_format,
+    {
+        "string/format", cfun_string_format,
         JDOC("(string/format format & values)\n\n"
-                "Similar to snprintf, but specialized for operating with janet. Returns "
-                "a new string.")
+             "Similar to snprintf, but specialized for operating with janet. Returns "
+             "a new string.")
     },
     {NULL, NULL, NULL}
 };

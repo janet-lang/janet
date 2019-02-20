@@ -277,7 +277,7 @@ typedef struct JanetView JanetView;
 typedef struct JanetByteView JanetByteView;
 typedef struct JanetDictView JanetDictView;
 typedef struct JanetRange JanetRange;
-typedef Janet (*JanetCFunction)(int32_t argc, Janet *argv);
+typedef Janet(*JanetCFunction)(int32_t argc, Janet *argv);
 
 /* Basic types for all Janet Values */
 typedef enum JanetType {
@@ -724,7 +724,7 @@ enum JanetParserStatus {
 
 /* A janet parser */
 struct JanetParser {
-    Janet* args;
+    Janet *args;
     const char *error;
     JanetParseState *states;
     uint8_t *buf;
@@ -744,7 +744,7 @@ struct JanetAbstractType {
     const char *name;
     int (*gc)(void *data, size_t len);
     int (*gcmark)(void *data, size_t len);
-    Janet (*get)(void *data, Janet key);
+    Janet(*get)(void *data, Janet key);
     void (*put)(void *data, Janet key, Janet value);
 };
 
@@ -955,8 +955,8 @@ JANET_API int janet_scan_number(const uint8_t *str, int32_t len, double *out);
 JANET_API void janet_debug_break(JanetFuncDef *def, int32_t pc);
 JANET_API void janet_debug_unbreak(JanetFuncDef *def, int32_t pc);
 JANET_API void janet_debug_find(
-        JanetFuncDef **def_out, int32_t *pc_out,
-        const uint8_t *source, int32_t offset);
+    JanetFuncDef **def_out, int32_t *pc_out,
+    const uint8_t *source, int32_t offset);
 
 /* Array functions */
 JANET_API JanetArray *janet_array(int32_t capacity);
@@ -1084,18 +1084,18 @@ JANET_API JanetModule janet_native(const char *name, const uint8_t **error);
 
 /* Marshaling */
 JANET_API int janet_marshal(
-        JanetBuffer *buf,
-        Janet x,
-        Janet *errval,
-        JanetTable *rreg,
-        int flags);
+    JanetBuffer *buf,
+    Janet x,
+    Janet *errval,
+    JanetTable *rreg,
+    int flags);
 JANET_API int janet_unmarshal(
-        const uint8_t *bytes,
-        size_t len,
-        int flags,
-        Janet *out,
-        JanetTable *reg,
-        const uint8_t **next);
+    const uint8_t *bytes,
+    size_t len,
+    int flags,
+    Janet *out,
+    JanetTable *reg,
+    const uint8_t **next);
 JANET_API JanetTable *janet_env_lookup(JanetTable *env);
 
 /* GC */

@@ -166,8 +166,8 @@ void janetc_popscope_keepslot(JanetCompiler *c, JanetSlot retslot) {
 
 /* Allow searching for symbols. Return information about the symbol */
 JanetSlot janetc_resolve(
-        JanetCompiler *c,
-        const uint8_t *sym) {
+    JanetCompiler *c,
+    const uint8_t *sym) {
 
     JanetSlot ret = janetc_cslot(janet_wrap_nil());
     JanetScope *scope = c->scope;
@@ -206,8 +206,7 @@ JanetSlot janetc_resolve(
             case JANET_BINDING_DEF:
             case JANET_BINDING_MACRO: /* Macro should function like defs when not in calling pos */
                 return janetc_cslot(check);
-            case JANET_BINDING_VAR:
-            {
+            case JANET_BINDING_VAR: {
                 JanetSlot ret = janetc_cslot(check);
                 /* TODO save type info */
                 ret.flags |= JANET_SLOT_REF | JANET_SLOT_NAMED | JANET_SLOT_MUTABLE | JANET_SLOTTYPE_ANY;
@@ -218,7 +217,7 @@ JanetSlot janetc_resolve(
     }
 
     /* Symbol was found */
-    found:
+found:
 
     /* Constants can be returned immediately (they are stateless) */
     if (ret.flags & (JANET_SLOT_CONSTANT | JANET_SLOT_REF))
@@ -283,8 +282,8 @@ JanetSlot janetc_return(JanetCompiler *c, JanetSlot s) {
 JanetSlot janetc_gettarget(JanetFopts opts) {
     JanetSlot slot;
     if ((opts.flags & JANET_FOPTS_HINT) &&
-        (opts.hint.envindex < 0) &&
-        (opts.hint.index >= 0 && opts.hint.index <= 0xFF)) {
+            (opts.hint.envindex < 0) &&
+            (opts.hint.index >= 0 && opts.hint.index <= 0xFF)) {
         slot = opts.hint;
     } else {
         slot.envindex = -1;
@@ -334,17 +333,17 @@ void janetc_pushslots(JanetCompiler *c, JanetSlot *slots) {
             i++;
         } else if (slots[i + 1].flags & JANET_SLOT_SPLICED) {
             janetc_emit_s(c, JOP_PUSH, slots[i], 0);
-            janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i+1], 0);
+            janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i + 1], 0);
             i += 2;
         } else if (i + 2 == count) {
-            janetc_emit_ss(c, JOP_PUSH_2, slots[i], slots[i+1], 0);
+            janetc_emit_ss(c, JOP_PUSH_2, slots[i], slots[i + 1], 0);
             i += 2;
         } else if (slots[i + 2].flags & JANET_SLOT_SPLICED) {
-            janetc_emit_ss(c, JOP_PUSH_2, slots[i], slots[i+1], 0);
-            janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i+2], 0);
+            janetc_emit_ss(c, JOP_PUSH_2, slots[i], slots[i + 1], 0);
+            janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i + 2], 0);
             i += 3;
         } else {
-            janetc_emit_sss(c, JOP_PUSH_3, slots[i], slots[i+1], slots[i+2], 0);
+            janetc_emit_sss(c, JOP_PUSH_3, slots[i], slots[i + 1], slots[i + 2], 0);
             i += 3;
         }
     }
@@ -434,23 +433,23 @@ static JanetSlot janetc_array(JanetFopts opts, Janet x) {
     JanetCompiler *c = opts.compiler;
     JanetArray *a = janet_unwrap_array(x);
     return janetc_maker(opts,
-            janetc_toslots(c, a->data, a->count),
-            JOP_MAKE_ARRAY);
+                        janetc_toslots(c, a->data, a->count),
+                        JOP_MAKE_ARRAY);
 }
 
 static JanetSlot janetc_tuple(JanetFopts opts, Janet x) {
     JanetCompiler *c = opts.compiler;
     const Janet *t = janet_unwrap_tuple(x);
     return janetc_maker(opts,
-            janetc_toslots(c, t, janet_tuple_length(t)),
-            JOP_MAKE_TUPLE);
+                        janetc_toslots(c, t, janet_tuple_length(t)),
+                        JOP_MAKE_TUPLE);
 }
 
 static JanetSlot janetc_tablector(JanetFopts opts, Janet x, int op) {
     JanetCompiler *c = opts.compiler;
     return janetc_maker(opts,
-            janetc_toslotskv(c, x),
-            op);
+                        janetc_toslotskv(c, x),
+                        op);
 }
 
 static JanetSlot janetc_bufferctor(JanetFopts opts, Janet x) {
@@ -458,17 +457,17 @@ static JanetSlot janetc_bufferctor(JanetFopts opts, Janet x) {
     JanetBuffer *b = janet_unwrap_buffer(x);
     Janet onearg = janet_stringv(b->data, b->count);
     return janetc_maker(opts,
-            janetc_toslots(c, &onearg, 1),
-            JOP_MAKE_BUFFER);
+                        janetc_toslots(c, &onearg, 1),
+                        JOP_MAKE_BUFFER);
 }
 
 /* Expand a macro one time. Also get the special form compiler if we
  * find that instead. */
 static int macroexpand1(
-        JanetCompiler *c,
-        Janet x,
-        Janet *out,
-        const JanetSpecial **spec) {
+    JanetCompiler *c,
+    Janet x,
+    Janet *out,
+    const JanetSpecial **spec) {
     if (!janet_checktype(x, JANET_TUPLE))
         return 0;
     const Janet *form = janet_unwrap_tuple(x);
@@ -498,11 +497,11 @@ static int macroexpand1(
     JanetFunction *macro = janet_unwrap_function(macroval);
     int lock = janet_gclock();
     JanetSignal status = janet_pcall(
-            macro,
-            janet_tuple_length(form) - 1,
-            form + 1,
-            &x,
-            &fiberp);
+                             macro,
+                             janet_tuple_length(form) - 1,
+                             form + 1,
+                             &x,
+                             &fiberp);
     janet_gcunlock(lock);
     if (status != JANET_SIGNAL_OK) {
         const uint8_t *es = janet_formatc("(macro) %V", x);
@@ -548,24 +547,23 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
         ret = spec->compile(opts, janet_tuple_length(tup) - 1, tup + 1);
     } else {
         switch (janet_type(x)) {
-            case JANET_TUPLE:
-                {
-                    JanetFopts subopts = janetc_fopts_default(c);
-                    const Janet *tup = janet_unwrap_tuple(x);
-                    /* Empty tuple is tuple literal */
-                    if (janet_tuple_length(tup) == 0) {
-                        ret = janetc_cslot(x);
-                    } else if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) { /* [] tuples are not function call */
-                        ret = janetc_tuple(opts, x);
-                    } else {
-                        JanetSlot head = janetc_value(subopts, tup[0]);
-                        subopts.flags = JANET_FUNCTION | JANET_CFUNCTION;
-                        ret = janetc_call(opts, janetc_toslots(c, tup + 1, janet_tuple_length(tup) - 1), head);
-                        janetc_freeslot(c, head);
-                    }
-                    ret.flags &= ~JANET_SLOT_SPLICED;
+            case JANET_TUPLE: {
+                JanetFopts subopts = janetc_fopts_default(c);
+                const Janet *tup = janet_unwrap_tuple(x);
+                /* Empty tuple is tuple literal */
+                if (janet_tuple_length(tup) == 0) {
+                    ret = janetc_cslot(x);
+                } else if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) { /* [] tuples are not function call */
+                    ret = janetc_tuple(opts, x);
+                } else {
+                    JanetSlot head = janetc_value(subopts, tup[0]);
+                    subopts.flags = JANET_FUNCTION | JANET_CFUNCTION;
+                    ret = janetc_call(opts, janetc_toslots(c, tup + 1, janet_tuple_length(tup) - 1), head);
+                    janetc_freeslot(c, head);
                 }
-                break;
+                ret.flags &= ~JANET_SLOT_SPLICED;
+            }
+            break;
             case JANET_SYMBOL:
                 ret = janetc_resolve(c, janet_unwrap_symbol(x));
                 break;
@@ -737,12 +735,13 @@ static Janet cfun(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg compile_cfuns[] = {
-    {"compile", cfun,
+    {
+        "compile", cfun,
         JDOC("(compile ast env [, source])\n\n"
-                "Compiles an Abstract Syntax Tree (ast) into a janet function. "
-                "Pair the compile function with parsing functionality to implement "
-                "eval. Returns a janet function and does not modify ast. Throws an "
-                "error if the ast cannot be compiled.")
+             "Compiles an Abstract Syntax Tree (ast) into a janet function. "
+             "Pair the compile function with parsing functionality to implement "
+             "eval. Returns a janet function and does not modify ast. Throws an "
+             "error if the ast cannot be compiled.")
     },
     {NULL, NULL, NULL}
 };

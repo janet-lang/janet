@@ -66,10 +66,10 @@ static const uint8_t JANET_SYMCACHE_DELETED[1] = {0};
  * If the item is not found, return the location
  * where one would put it. */
 static const uint8_t **janet_symcache_findmem(
-        const uint8_t *str,
-        int32_t len,
-        int32_t hash,
-        int *success) {
+    const uint8_t *str,
+    int32_t len,
+    int32_t hash,
+    int *success) {
     uint32_t bounds[4];
     uint32_t i, j, index;
     const uint8_t **firstEmpty = NULL;
@@ -82,7 +82,7 @@ static const uint8_t **janet_symcache_findmem(
     bounds[2] = 0;
     bounds[3] = index;
     for (j = 0; j < 4; j += 2)
-        for (i = bounds[j]; i < bounds[j+1]; ++i) {
+        for (i = bounds[j]; i < bounds[j + 1]; ++i) {
             const uint8_t *test = janet_vm_cache[i];
             /* Check empty spots */
             if (NULL == test) {
@@ -107,7 +107,7 @@ static const uint8_t **janet_symcache_findmem(
                 return janet_vm_cache + i;
             }
         }
-    notfound:
+notfound:
     *success = 0;
     return firstEmpty;
 }
@@ -177,7 +177,7 @@ const uint8_t *janet_symbol(const uint8_t *str, int32_t len) {
     if (success)
         return *bucket;
     newstr = (uint8_t *) janet_gcalloc(JANET_MEMORY_SYMBOL, 2 * sizeof(int32_t) + len + 1)
-        + (2 * sizeof(int32_t));
+             + (2 * sizeof(int32_t));
     janet_string_hash(newstr) = hash;
     janet_string_length(newstr) = len;
     memcpy(newstr, str, len);
@@ -226,18 +226,18 @@ const uint8_t *janet_symbol_gen(void) {
      * is enough for resolving collisions. */
     do {
         hash = janet_string_calchash(
-                gensym_counter,
-                sizeof(gensym_counter) - 1);
+                   gensym_counter,
+                   sizeof(gensym_counter) - 1);
         bucket = janet_symcache_findmem(
-                gensym_counter,
-                sizeof(gensym_counter) - 1,
-                hash,
-                &status);
+                     gensym_counter,
+                     sizeof(gensym_counter) - 1,
+                     hash,
+                     &status);
     } while (status && (inc_gensym(), 1));
     sym = (uint8_t *) janet_gcalloc(
-            JANET_MEMORY_SYMBOL,
-            2 * sizeof(int32_t) + sizeof(gensym_counter)) +
-        (2 * sizeof(int32_t));
+              JANET_MEMORY_SYMBOL,
+              2 * sizeof(int32_t) + sizeof(gensym_counter)) +
+          (2 * sizeof(int32_t));
     memcpy(sym, gensym_counter, sizeof(gensym_counter));
     janet_string_length(sym) = sizeof(gensym_counter) - 1;
     janet_string_hash(sym) = hash;

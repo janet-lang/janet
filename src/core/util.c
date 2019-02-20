@@ -210,10 +210,10 @@ int janet_cstrcmp(const uint8_t *str, const char *other) {
  * have a string as its first element, and the struct must be sorted
  * lexicographically by that element. */
 const void *janet_strbinsearch(
-        const void *tab,
-        size_t tabcount,
-        size_t itemsize,
-        const uint8_t *key) {
+    const void *tab,
+    size_t tabcount,
+    size_t itemsize,
+    const uint8_t *key) {
     size_t low = 0;
     size_t hi = tabcount;
     const char *t = (const char *)tab;
@@ -311,8 +311,8 @@ JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) 
         return JANET_BINDING_NONE;
     entry_table = janet_unwrap_table(entry);
     if (!janet_checktype(
-        janet_table_get(entry_table, janet_ckeywordv("macro")),
-        JANET_NIL)) {
+                janet_table_get(entry_table, janet_ckeywordv("macro")),
+                JANET_NIL)) {
         *out = janet_table_get(entry_table, janet_ckeywordv("value"));
         return JANET_BINDING_MACRO;
     }

@@ -144,8 +144,8 @@ static int curpos() {
     int cols, rows;
     unsigned int i = 0;
     if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
-    while (i < sizeof(buf)-1) {
-        if (read(STDIN_FILENO, buf+i, 1) != 1) break;
+    while (i < sizeof(buf) - 1) {
+        if (read(STDIN_FILENO, buf + i, 1) != 1) break;
         if (buf[i] == 'R') break;
         i++;
     }
@@ -166,7 +166,7 @@ static int getcols() {
         if (cols == -1) goto failed;
         if (cols > start) {
             char seq[32];
-            snprintf(seq, 32, "\x1b[%dD", cols-start);
+            snprintf(seq, 32, "\x1b[%dD", cols - start);
             if (write(STDOUT_FILENO, seq, strlen(seq)) == -1) {}
         }
         return cols;
@@ -178,7 +178,7 @@ failed:
 }
 
 static void clear() {
-    if (write(STDOUT_FILENO,"\x1b[H\x1b[2J",7) <= 0) {}
+    if (write(STDOUT_FILENO, "\x1b[H\x1b[2J", 7) <= 0) {}
 }
 
 static void refresh() {
@@ -206,7 +206,7 @@ static void refresh() {
     /* Erase to right */
     janet_buffer_push_cstring(&b, "\x1b[0K");
     /* Move cursor to original position. */
-    snprintf(seq, 64,"\r\x1b[%dC", (int)(_pos + plen));
+    snprintf(seq, 64, "\r\x1b[%dC", (int)(_pos + plen));
     janet_buffer_push_cstring(&b, seq);
     if (write(STDOUT_FILENO, b.data, b.count) == -1) {}
     janet_buffer_deinit(&b);
@@ -321,103 +321,103 @@ static int line() {
         nread = read(STDIN_FILENO, &c, 1);
         if (nread <= 0) return -1;
 
-        switch(c) {
-        default:
-            if (insert(c)) return -1;
-            break;
-        case 9:     /* tab */
-            if (insert(' ')) return -1;
-            if (insert(' ')) return -1;
-            break;
-        case 13:    /* enter */
-            return 0;
-        case 3:     /* ctrl-c */
-            errno = EAGAIN;
-            return -1;
-        case 127:   /* backspace */
-        case 8:     /* ctrl-h */
-            kbackspace();
-            break;
-        case 4:     /* ctrl-d, eof */
-            return -1;
-        case 2:     /* ctrl-b */
-            kleft();
-            break;
-        case 6:     /* ctrl-f */
-            kright();
-            break;
-        case 21:
-            buf[0] = '\0';
-            pos = len = 0;
-            refresh();
-            break;
-        case 26: /* ctrl-z */
-            norawmode();
-            kill(getpid(), SIGSTOP);
-            rawmode();
-            refresh();
-            break;
-        case 12:
-            clear();
-            refresh();
-            break;
-        case 27:    /* escape sequence */
-            /* Read the next two bytes representing the escape sequence.
-             * Use two calls to handle slow terminals returning the two
-             * chars at different times. */
-            if (read(STDIN_FILENO, seq, 1) == -1) break;
-            if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
-            if (seq[0] == '[') {
-                if (seq[1] >= '0' && seq[1] <= '9') {
-                    /* Extended escape, read additional byte. */
-                    if (read(STDIN_FILENO, seq + 2, 1) == -1) break;
-                    if (seq[2] == '~') {
-                        switch(seq[1]) {
-                        default:
-                            break;
+        switch (c) {
+            default:
+                if (insert(c)) return -1;
+                break;
+            case 9:     /* tab */
+                if (insert(' ')) return -1;
+                if (insert(' ')) return -1;
+                break;
+            case 13:    /* enter */
+                return 0;
+            case 3:     /* ctrl-c */
+                errno = EAGAIN;
+                return -1;
+            case 127:   /* backspace */
+            case 8:     /* ctrl-h */
+                kbackspace();
+                break;
+            case 4:     /* ctrl-d, eof */
+                return -1;
+            case 2:     /* ctrl-b */
+                kleft();
+                break;
+            case 6:     /* ctrl-f */
+                kright();
+                break;
+            case 21:
+                buf[0] = '\0';
+                pos = len = 0;
+                refresh();
+                break;
+            case 26: /* ctrl-z */
+                norawmode();
+                kill(getpid(), SIGSTOP);
+                rawmode();
+                refresh();
+                break;
+            case 12:
+                clear();
+                refresh();
+                break;
+            case 27:    /* escape sequence */
+                /* Read the next two bytes representing the escape sequence.
+                 * Use two calls to handle slow terminals returning the two
+                 * chars at different times. */
+                if (read(STDIN_FILENO, seq, 1) == -1) break;
+                if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
+                if (seq[0] == '[') {
+                    if (seq[1] >= '0' && seq[1] <= '9') {
+                        /* Extended escape, read additional byte. */
+                        if (read(STDIN_FILENO, seq + 2, 1) == -1) break;
+                        if (seq[2] == '~') {
+                            switch (seq[1]) {
+                                default:
+                                    break;
+                            }
+                        }
+                    } else {
+                        switch (seq[1]) {
+                            default:
+                                break;
+                            case 'A':
+                                historymove(1);
+                                break;
+                            case 'B':
+                                historymove(-1);
+                                break;
+                            case 'C': /* Right */
+                                kright();
+                                break;
+                            case 'D': /* Left */
+                                kleft();
+                                break;
+                            case 'H':
+                                pos = 0;
+                                refresh();
+                                break;
+                            case 'F':
+                                pos = len;
+                                refresh();
+                                break;
                         }
                     }
-                } else {
+                } else if (seq[0] == 'O') {
                     switch (seq[1]) {
-                    default:
-                        break;
-                    case 'A':
-                        historymove(1);
-                        break;
-                    case 'B':
-                        historymove(-1);
-                        break;
-                    case 'C': /* Right */
-                        kright();
-                        break;
-                    case 'D': /* Left */
-                        kleft();
-                        break;
-                    case 'H':
-                        pos = 0;
-                        refresh();
-                        break;
-                    case 'F':
-                        pos = len;
-                        refresh();
-                        break;
+                        default:
+                            break;
+                        case 'H':
+                            pos = 0;
+                            refresh();
+                            break;
+                        case 'F':
+                            pos = len;
+                            refresh();
+                            break;
                     }
                 }
-            } else if (seq[0] == 'O') {
-                switch (seq[1]) {
-                default:
-                    break;
-                case 'H':
-                    pos = 0;
-                    refresh();
-                    break;
-                case 'F':
-                    pos = len;
-                    refresh();
-                    break;
-                }
-            }
-            break;
+                break;
         }
     }
     return 0;

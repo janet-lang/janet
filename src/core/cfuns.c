@@ -64,10 +64,10 @@ static JanetSlot genericSSI(JanetFopts opts, int op, JanetSlot s, int32_t imm) {
 
 /* Emit a series of instructions instead of a function call to a math op */
 static JanetSlot opreduce(
-        JanetFopts opts,
-        JanetSlot *args,
-        int op,
-        Janet nullary) {
+    JanetFopts opts,
+    JanetSlot *args,
+    int op,
+    Janet nullary) {
     JanetCompiler *c = opts.compiler;
     int32_t i, len;
     len = janet_v_count(args);
@@ -125,9 +125,9 @@ static JanetSlot do_apply(JanetFopts opts, JanetSlot *args) {
     JanetCompiler *c = opts.compiler;
     int32_t i;
     for (i = 1; i < janet_v_count(args) - 3; i += 3)
-        janetc_emit_sss(c, JOP_PUSH_3, args[i], args[i+1], args[i+2], 0);
+        janetc_emit_sss(c, JOP_PUSH_3, args[i], args[i + 1], args[i + 2], 0);
     if (i == janet_v_count(args) - 3)
-        janetc_emit_ss(c, JOP_PUSH_2, args[i], args[i+1], 0);
+        janetc_emit_ss(c, JOP_PUSH_2, args[i], args[i + 1], 0);
     else if (i == janet_v_count(args) - 2)
         janetc_emit_s(c, JOP_PUSH, args[i], 0);
     /* Push array phase */
@@ -183,10 +183,10 @@ static JanetSlot do_bnot(JanetFopts opts, JanetSlot *args) {
 
 /* Specialization for comparators */
 static JanetSlot compreduce(
-        JanetFopts opts,
-        JanetSlot *args,
-        int op,
-        int invert) {
+    JanetFopts opts,
+    JanetSlot *args,
+    int op,
+    int invert) {
     JanetCompiler *c = opts.compiler;
     int32_t i, len;
     len = janet_v_count(args);
@@ -194,8 +194,8 @@ static JanetSlot compreduce(
     JanetSlot t;
     if (len < 2) {
         return invert
-            ? janetc_cslot(janet_wrap_false())
-            : janetc_cslot(janet_wrap_true());
+               ? janetc_cslot(janet_wrap_false())
+               : janetc_cslot(janet_wrap_true());
     }
     t = janetc_gettarget(opts);
     for (i = 1; i < len; i++) {
@@ -297,7 +297,7 @@ const JanetFunOptimizer *janetc_funopt(uint32_t flags) {
     if (tag == 0)
         return NULL;
     uint32_t index = tag - 1;
-    if (index >= (sizeof(optimizers)/sizeof(optimizers[0])))
+    if (index >= (sizeof(optimizers) / sizeof(optimizers[0])))
         return NULL;
     return optimizers + index;
 }

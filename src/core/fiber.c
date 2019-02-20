@@ -170,8 +170,8 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
             fiber->data[tuplehead] = janet_wrap_tuple(janet_tuple_n(NULL, 0));
         } else {
             fiber->data[tuplehead] = janet_wrap_tuple(janet_tuple_n(
-                fiber->data + tuplehead,
-                oldtop - tuplehead));
+                                         fiber->data + tuplehead,
+                                         oldtop - tuplehead));
         }
     }
 
@@ -231,8 +231,8 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
             fiber->data[tuplehead] = janet_wrap_tuple(janet_tuple_n(NULL, 0));
         } else {
             fiber->data[tuplehead] = janet_wrap_tuple(janet_tuple_n(
-                fiber->data + tuplehead,
-                fiber->stacktop - tuplehead));
+                                         fiber->data + tuplehead,
+                                         fiber->stacktop - tuplehead));
         }
         stacksize = tuplehead - fiber->stackstart + 1;
     } else {
@@ -352,7 +352,7 @@ static Janet cfun_fiber_status(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     uint32_t s = (fiber->flags & JANET_FIBER_STATUS_MASK) >>
-        JANET_FIBER_STATUS_OFFSET;
+                 JANET_FIBER_STATUS_OFFSET;
     return janet_ckeywordv(janet_status_names[s]);
 }
 
@@ -383,50 +383,50 @@ static const JanetReg fiber_cfuns[] = {
     {
         "fiber/new", cfun_fiber_new,
         JDOC("(fiber/new func [,sigmask])\n\n"
-                "Create a new fiber with function body func. Can optionally "
-                "take a set of signals to block from the current parent fiber "
-                "when called. The mask is specified as a keyword where each character "
-                "is used to indicate a signal to block. The default sigmask is :y. "
-                "For example, \n\n"
-                "\t(fiber/new myfun :e123)\n\n"
-                "blocks error signals and user signals 1, 2 and 3. The signals are "
-                "as follows: \n\n"
-                "\ta - block all signals\n"
-                "\td - block debug signals\n"
-                "\te - block error signals\n"
-                "\tu - block user signals\n"
-                "\ty - block yield signals\n"
-                "\t0-9 - block a specific user signal")
+             "Create a new fiber with function body func. Can optionally "
+             "take a set of signals to block from the current parent fiber "
+             "when called. The mask is specified as a keyword where each character "
+             "is used to indicate a signal to block. The default sigmask is :y. "
+             "For example, \n\n"
+             "\t(fiber/new myfun :e123)\n\n"
+             "blocks error signals and user signals 1, 2 and 3. The signals are "
+             "as follows: \n\n"
+             "\ta - block all signals\n"
+             "\td - block debug signals\n"
+             "\te - block error signals\n"
+             "\tu - block user signals\n"
+             "\ty - block yield signals\n"
+             "\t0-9 - block a specific user signal")
     },
     {
         "fiber/status", cfun_fiber_status,
         JDOC("(fiber/status fib)\n\n"
-                "Get the status of a fiber. The status will be one of:\n\n"
-                "\t:dead - the fiber has finished\n"
-                "\t:error - the fiber has errored out\n"
-                "\t:debug - the fiber is suspended in debug mode\n"
-                "\t:pending - the fiber has been yielded\n"
-                "\t:user(0-9) - the fiber is suspended by a user signal\n"
-                "\t:alive - the fiber is currently running and cannot be resumed\n"
-                "\t:new - the fiber has just been created and not yet run")
+             "Get the status of a fiber. The status will be one of:\n\n"
+             "\t:dead - the fiber has finished\n"
+             "\t:error - the fiber has errored out\n"
+             "\t:debug - the fiber is suspended in debug mode\n"
+             "\t:pending - the fiber has been yielded\n"
+             "\t:user(0-9) - the fiber is suspended by a user signal\n"
+             "\t:alive - the fiber is currently running and cannot be resumed\n"
+             "\t:new - the fiber has just been created and not yet run")
     },
     {
         "fiber/current", cfun_fiber_current,
         JDOC("(fiber/current)\n\n"
-                "Returns the currently running fiber.")
+             "Returns the currently running fiber.")
     },
     {
         "fiber/maxstack", cfun_fiber_maxstack,
         JDOC("(fiber/maxstack fib)\n\n"
-                "Gets the maximum stack size in janet values allowed for a fiber. While memory for "
-                "the fiber's stack is not allocated up front, the fiber will not allocated more "
-                "than this amount and will throw a stack-overflow error if more memory is needed. ")
+             "Gets the maximum stack size in janet values allowed for a fiber. While memory for "
+             "the fiber's stack is not allocated up front, the fiber will not allocated more "
+             "than this amount and will throw a stack-overflow error if more memory is needed. ")
     },
     {
         "fiber/setmaxstack", cfun_fiber_setmaxstack,
         JDOC("(fiber/setmaxstack fib maxstack)\n\n"
-                "Sets the maximum stack size in janet values for a fiber. By default, the "
-                "maximum stack size is usually 8192.")
+             "Sets the maximum stack size in janet values for a fiber. By default, the "
+             "maximum stack size is usually 8192.")
     },
     {NULL, NULL, NULL}
 };

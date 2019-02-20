@@ -180,13 +180,13 @@ JanetFopts janetc_fopts_default(JanetCompiler *c);
 /* For optimizing builtin normal functions. */
 struct JanetFunOptimizer {
     int (*can_optimize)(JanetFopts opts, JanetSlot *args);
-    JanetSlot (*optimize)(JanetFopts opts, JanetSlot *args);
+    JanetSlot(*optimize)(JanetFopts opts, JanetSlot *args);
 };
 
 /* A grouping of a named special and the corresponding compiler fragment */
 struct JanetSpecial {
     const char *name;
-    JanetSlot (*compile)(JanetFopts opts, int32_t argn, const Janet *argv);
+    JanetSlot(*compile)(JanetFopts opts, int32_t argn, const Janet *argv);
 };
 
 /****************************************************/

@@ -60,18 +60,37 @@ void janet_mark(Janet x) {
     if (depth) {
         depth--;
         switch (janet_type(x)) {
-            default: break;
+            default:
+                break;
             case JANET_STRING:
             case JANET_KEYWORD:
-            case JANET_SYMBOL: janet_mark_string(janet_unwrap_string(x)); break;
-            case JANET_FUNCTION: janet_mark_function(janet_unwrap_function(x)); break;
-            case JANET_ARRAY: janet_mark_array(janet_unwrap_array(x)); break;
-            case JANET_TABLE: janet_mark_table(janet_unwrap_table(x)); break;
-            case JANET_STRUCT: janet_mark_struct(janet_unwrap_struct(x)); break;
-            case JANET_TUPLE: janet_mark_tuple(janet_unwrap_tuple(x)); break;
-            case JANET_BUFFER: janet_mark_buffer(janet_unwrap_buffer(x)); break;
-            case JANET_FIBER: janet_mark_fiber(janet_unwrap_fiber(x)); break;
-            case JANET_ABSTRACT: janet_mark_abstract(janet_unwrap_abstract(x)); break;
+            case JANET_SYMBOL:
+                janet_mark_string(janet_unwrap_string(x));
+                break;
+            case JANET_FUNCTION:
+                janet_mark_function(janet_unwrap_function(x));
+                break;
+            case JANET_ARRAY:
+                janet_mark_array(janet_unwrap_array(x));
+                break;
+            case JANET_TABLE:
+                janet_mark_table(janet_unwrap_table(x));
+                break;
+            case JANET_STRUCT:
+                janet_mark_struct(janet_unwrap_struct(x));
+                break;
+            case JANET_TUPLE:
+                janet_mark_tuple(janet_unwrap_tuple(x));
+                break;
+            case JANET_BUFFER:
+                janet_mark_buffer(janet_unwrap_buffer(x));
+                break;
+            case JANET_FIBER:
+                janet_mark_fiber(janet_unwrap_fiber(x));
+                break;
+            case JANET_ABSTRACT:
+                janet_mark_abstract(janet_unwrap_abstract(x));
+                break;
         }
         depth++;
     } else {
@@ -123,7 +142,7 @@ static void janet_mark_array(JanetArray *array) {
 }
 
 static void janet_mark_table(JanetTable *table) {
-    recur: /* Manual tail recursion */
+recur: /* Manual tail recursion */
     if (janet_gc_reachable(table))
         return;
     janet_gc_mark(table);
@@ -201,7 +220,7 @@ recur:
 
     /* Mark values on the argument stack */
     janet_mark_many(fiber->data + fiber->stackstart,
-            fiber->stacktop - fiber->stackstart);
+                    fiber->stacktop - fiber->stackstart);
 
     i = fiber->frame;
     j = fiber->stackstart - JANET_FRAME_SIZE;
@@ -236,10 +255,10 @@ static void janet_deinit_block(JanetGCMemoryHeader *block) {
             janet_symbol_deinit((const uint8_t *)mem + 2 * sizeof(int32_t));
             break;
         case JANET_MEMORY_ARRAY:
-            janet_array_deinit((JanetArray*) mem);
+            janet_array_deinit((JanetArray *) mem);
             break;
         case JANET_MEMORY_TABLE:
-            janet_table_deinit((JanetTable*) mem);
+            janet_table_deinit((JanetTable *) mem);
             break;
         case JANET_MEMORY_FIBER:
             free(((JanetFiber *)mem)->data);
@@ -252,24 +271,22 @@ static void janet_deinit_block(JanetGCMemoryHeader *block) {
                 janet_assert(!h->type->gc((void *)(h + 1), h->size), "finalizer failed");
             }
             break;
-        case JANET_MEMORY_FUNCENV:
-            {
-                JanetFuncEnv *env = (JanetFuncEnv *)mem;
-                if (0 == env->offset)
-                    free(env->as.values);
-            }
-            break;
-        case JANET_MEMORY_FUNCDEF:
-            {
-                JanetFuncDef *def = (JanetFuncDef *)mem;
-                /* TODO - get this all with one alloc and one free */
-                free(def->defs);
-                free(def->environments);
-                free(def->constants);
-                free(def->bytecode);
-                free(def->sourcemap);
-            }
-            break;
+        case JANET_MEMORY_FUNCENV: {
+            JanetFuncEnv *env = (JanetFuncEnv *)mem;
+            if (0 == env->offset)
+                free(env->as.values);
+        }
+        break;
+        case JANET_MEMORY_FUNCDEF: {
+            JanetFuncDef *def = (JanetFuncDef *)mem;
+            /* TODO - get this all with one alloc and one free */
+            free(def->defs);
+            free(def->environments);
+            free(def->constants);
+            free(def->bytecode);
+            free(def->sourcemap);
+        }
+        break;
     }
 }
 
@@ -417,5 +434,9 @@ void janet_clear_memory(void) {
 }
 
 /* Primitives for suspending GC. */
-int janet_gclock(void) { return janet_vm_gc_suspend++; }
-void janet_gcunlock(int handle) { janet_vm_gc_suspend = handle; }
+int janet_gclock(void) {
+    return janet_vm_gc_suspend++;
+}
+void janet_gcunlock(int handle) {
+    janet_vm_gc_suspend = handle;
+}

@@ -29,17 +29,17 @@ void *janet_v_grow(void *v, int32_t increment, int32_t itemsize) {
     int32_t dbl_cur = (NULL != v) ? 2 * janet_v__cap(v) : 0;
     int32_t min_needed = janet_v_count(v) + increment;
     int32_t m = dbl_cur > min_needed ? dbl_cur : min_needed;
-    int32_t *p = (int32_t *) realloc(v ? janet_v__raw(v) : 0, itemsize * m + sizeof(int32_t)*2);
+    int32_t *p = (int32_t *) realloc(v ? janet_v__raw(v) : 0, itemsize * m + sizeof(int32_t) * 2);
     if (NULL != p) {
         if (!v) p[1] = 0;
         p[0] = m;
         return p + 2;
-   } else {
-       {
-           JANET_OUT_OF_MEMORY;
-       }
-       return (void *) (2 * sizeof(int32_t));
-   }
+    } else {
+        {
+            JANET_OUT_OF_MEMORY;
+        }
+        return (void *)(2 * sizeof(int32_t));
+    }
 }
 
 /* Convert a buffer to normal allocated memory (forget capacity) */
@@ -53,10 +53,10 @@ void *janet_v_flattenmem(void *v, int32_t itemsize) {
         memcpy(p, v, sizen);
         return p;
     } else {
-       {
-           JANET_OUT_OF_MEMORY;
-       }
-       return NULL;
+        {
+            JANET_OUT_OF_MEMORY;
+        }
+        return NULL;
     }
 }
 

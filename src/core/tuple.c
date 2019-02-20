@@ -140,37 +140,37 @@ static const JanetReg tuple_cfuns[] = {
     {
         "tuple/brackets", cfun_tuple_brackets,
         JDOC("(tuple/brackets & xs)\n\n"
-                "Creates a new bracketed tuple containing the elements xs.")
+             "Creates a new bracketed tuple containing the elements xs.")
     },
     {
         "tuple/slice", cfun_tuple_slice,
         JDOC("(tuple/slice arrtup [,start=0 [,end=(length arrtup)]])\n\n"
-                "Take a sub sequence of an array or tuple from index start "
-                "inclusive to index end exclusive. If start or end are not provided, "
-                "they default to 0 and the length of arrtup respectively."
-                "Returns the new tuple.")
+             "Take a sub sequence of an array or tuple from index start "
+             "inclusive to index end exclusive. If start or end are not provided, "
+             "they default to 0 and the length of arrtup respectively."
+             "Returns the new tuple.")
     },
     {
         "tuple/append", cfun_tuple_append,
         JDOC("(tuple/append tup & items)\n\n"
-                "Returns a new tuple that is the result of appending "
-                "each element in items to tup.")
+             "Returns a new tuple that is the result of appending "
+             "each element in items to tup.")
     },
     {
         "tuple/prepend", cfun_tuple_prepend,
         JDOC("(tuple/prepend tup & items)\n\n"
-                "Prepends each element in items to tuple and "
-                "returns a new tuple. Items are prepended such that the "
-                "last element in items is the first element in the new tuple.")
+             "Prepends each element in items to tuple and "
+             "returns a new tuple. Items are prepended such that the "
+             "last element in items is the first element in the new tuple.")
     },
     {
         "tuple/type", cfun_tuple_type,
         JDOC("(tuple/type tup)\n\n"
-                "Checks how the tuple was constructed. Will return the keyword "
-                ":brackets if the tuple was parsed with brackets, and :parens "
-                "otherwise. The two types of tuples will behave the same most of "
-                "the time, but will print differently and be treated differently by "
-                "the compiler.")
+             "Checks how the tuple was constructed. Will return the keyword "
+             ":brackets if the tuple was parsed with brackets, and :parens "
+             "otherwise. The two types of tuples will behave the same most of "
+             "the time, but will print differently and be treated differently by "
+             "the compiler.")
     },
     {NULL, NULL, NULL}
 };

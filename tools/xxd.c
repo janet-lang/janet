@@ -86,9 +86,9 @@ int main(int argc, const char **argv) {
                 lineIndex = 0;
 
         }
-      }
+    }
 
-      /* Write the tail */
+    /* Write the tail */
     fputs("\n};\n\n", out);
 
     fprintf(out, "const unsigned char *%s = bytes_%s;\n\n", argv[3], argv[3]);

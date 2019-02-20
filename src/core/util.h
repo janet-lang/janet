@@ -48,16 +48,16 @@ Janet janet_dict_get(const JanetKV *buckets, int32_t cap, Janet key);
 void janet_memempty(JanetKV *mem, int32_t count);
 void *janet_memalloc_empty(int32_t count);
 const void *janet_strbinsearch(
-        const void *tab,
-        size_t tabcount,
-        size_t itemsize,
-        const uint8_t *key);
+    const void *tab,
+    size_t tabcount,
+    size_t itemsize,
+    const uint8_t *key);
 void janet_buffer_format(
-        JanetBuffer *b,
-        const char *strfrmt,
-        int32_t argstart,
-        int32_t argc,
-        Janet *argv);
+    JanetBuffer *b,
+    const char *strfrmt,
+    int32_t argstart,
+    int32_t argc,
+    Janet *argv);
 
 /* Inside the janet core, defining globals is different
  * at bootstrap time and normal runtime */

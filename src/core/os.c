@@ -47,15 +47,15 @@
 static Janet os_which(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 0);
     (void) argv;
-    #ifdef JANET_WINDOWS
-        return janet_ckeywordv("windows");
-    #elif __APPLE__
-        return janet_ckeywordv("macos");
-    #elif defined(__EMSCRIPTEN__)
-        return janet_ckeywordv("web");
-    #else
-        return janet_ckeywordv("posix");
-    #endif
+#ifdef JANET_WINDOWS
+    return janet_ckeywordv("windows");
+#elif __APPLE__
+    return janet_ckeywordv("macos");
+#elif defined(__EMSCRIPTEN__)
+    return janet_ckeywordv("web");
+#else
+    return janet_ckeywordv("posix");
+#endif
 }
 
 #ifdef JANET_WINDOWS
@@ -77,12 +77,12 @@ static Janet os_execute(int32_t argc, Janet *argv) {
         JANET_OUT_OF_MEMORY;
     }
     int nwritten = MultiByteToWideChar(
-        CP_UTF8,
-        MB_PRECOMPOSED,
-        buffer->data,
-        buffer->count,
-        sys_str,
-        buffer->count);
+                       CP_UTF8,
+                       MB_PRECOMPOSED,
+                       buffer->data,
+                       buffer->count,
+                       sys_str,
+                       buffer->count);
     if (nwritten == 0) {
         free(sys_str);
         janet_panic("could not create process");
@@ -96,16 +96,16 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     ZeroMemory(&pi, sizeof(pi));
 
     // Start the child process.
-    if(!CreateProcess(NULL,
-                (LPSTR) sys_str,
-                NULL,
-                NULL,
-                FALSE,
-                0,
-                NULL,
-                NULL,
-                &si,
-                &pi)) {
+    if (!CreateProcess(NULL,
+                       (LPSTR) sys_str,
+                       NULL,
+                       NULL,
+                       FALSE,
+                       0,
+                       NULL,
+                       NULL,
+                       &si,
+                       &pi)) {
         free(sys_str);
         janet_panic("could not create process");
     }
@@ -151,12 +151,12 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 static Janet os_shell(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
     const char *cmd = argc
-        ? (const char *)janet_getstring(argv, 0)
-        : NULL;
+                      ? (const char *)janet_getstring(argv, 0)
+                      : NULL;
     int stat = system(cmd);
     return argc
-        ? janet_wrap_integer(stat)
-        : janet_wrap_boolean(stat);
+           ? janet_wrap_integer(stat)
+           : janet_wrap_boolean(stat);
 }
 
 static Janet os_getenv(int32_t argc, Janet *argv) {
@@ -165,8 +165,8 @@ static Janet os_getenv(int32_t argc, Janet *argv) {
     const char *cstr = (const char *) k;
     const char *res = getenv(cstr);
     return (res && cstr)
-        ? janet_cstringv(res)
-        : janet_wrap_nil();
+           ? janet_cstringv(res)
+           : janet_wrap_nil();
 }
 
 static Janet os_setenv(int32_t argc, Janet *argv) {
@@ -212,7 +212,7 @@ static Janet os_time(int32_t argc, Janet *argv) {
 #ifdef JANET_WINDOWS
 static int gettime(struct timespec *spec) {
     int64_t wintime = 0LL;
-    GetSystemTimeAsFileTime((FILETIME*)&wintime);
+    GetSystemTimeAsFileTime((FILETIME *)&wintime);
     /* Windows epoch is January 1, 1601 apparently*/
     wintime -= 116444736000000000LL;
     spec->tv_sec  = wintime / 10000000LL;
@@ -249,13 +249,13 @@ static Janet os_sleep(int32_t argc, Janet *argv) {
     double delay = janet_getnumber(argv, 0);
     if (delay < 0) janet_panic("invalid argument to sleep");
 #ifdef JANET_WINDOWS
-    Sleep((DWORD) (delay * 1000));
+    Sleep((DWORD)(delay * 1000));
 #else
     struct timespec ts;
     ts.tv_sec = (time_t) delay;
     ts.tv_nsec = (delay <= UINT32_MAX)
-        ? (long)((delay - ((uint32_t)delay)) * 1000000000)
-        : 0;
+                 ? (long)((delay - ((uint32_t)delay)) * 1000000000)
+                 : 0;
     nanosleep(&ts, NULL);
 #endif
     return janet_wrap_nil();
@@ -303,75 +303,75 @@ static const JanetReg os_cfuns[] = {
     {
         "os/which", os_which,
         JDOC("(os/which)\n\n"
-                "Check the current operating system. Returns one of:\n\n"
-                "\t:windows - Microsoft Windows\n"
-                "\t:macos - Apple macos\n"
-                "\t:posix - A POSIX compatible system (default)")
+             "Check the current operating system. Returns one of:\n\n"
+             "\t:windows - Microsoft Windows\n"
+             "\t:macos - Apple macos\n"
+             "\t:posix - A POSIX compatible system (default)")
     },
     {
         "os/execute", os_execute,
         JDOC("(os/execute program & args)\n\n"
-                "Execute a program on the system and pass it string arguments. Returns "
-                "the exit status of the program.")
+             "Execute a program on the system and pass it string arguments. Returns "
+             "the exit status of the program.")
     },
     {
         "os/shell", os_shell,
         JDOC("(os/shell str)\n\n"
-                "Pass a command string str directly to the system shell.")
+             "Pass a command string str directly to the system shell.")
     },
     {
         "os/exit", os_exit,
         JDOC("(os/exit x)\n\n"
-                "Exit from janet with an exit code equal to x. If x is not an integer, "
-                "the exit with status equal the hash of x.")
+             "Exit from janet with an exit code equal to x. If x is not an integer, "
+             "the exit with status equal the hash of x.")
     },
     {
         "os/getenv", os_getenv,
         JDOC("(os/getenv variable)\n\n"
-                "Get the string value of an environment variable.")
+             "Get the string value of an environment variable.")
     },
     {
         "os/setenv", os_setenv,
         JDOC("(os/setenv variable value)\n\n"
-            "Set an environment variable.")
+             "Set an environment variable.")
     },
     {
         "os/time", os_time,
         JDOC("(os/time)\n\n"
-            "Get the current time expressed as the number of seconds since "
-            "January 1, 1970, the Unix epoch. Returns a real number.")
+             "Get the current time expressed as the number of seconds since "
+             "January 1, 1970, the Unix epoch. Returns a real number.")
     },
     {
         "os/clock", os_clock,
         JDOC("(os/clock)\n\n"
-            "Return the number of seconds since some fixed point in time. The clock "
-            "is guaranteed to be non decreasing in real time.")
+             "Return the number of seconds since some fixed point in time. The clock "
+             "is guaranteed to be non decreasing in real time.")
     },
     {
         "os/sleep", os_sleep,
         JDOC("(os/sleep nsec)\n\n"
-            "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
-            "nil.")
+             "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
+             "nil.")
     },
     {
         "os/cwd", os_cwd,
         JDOC("(os/cwd)\n\n"
-            "Returns the current working directory.")
+             "Returns the current working directory.")
     },
     {
         "os/date", os_date,
         JDOC("(os/date [,time])\n\n"
-            "Returns the given time as a date struct, or the current time if no time is given. "
-            "Returns a struct with following key values. Note that all numbers are 0-indexed.\n\n"
-            "\t:seconds - number of seconds [0-61]\n"
-            "\t:minutes - number of minutes [0-59]\n"
-            "\t:seconds - number of hours [0-23]\n"
-            "\t:month-day - day of month [0-30]\n"
-            "\t:month - month of year [0, 11]\n"
-            "\t:year - years since year 0 (e.g. 2019)\n"
-            "\t:week-day - day of the week [0-6]\n"
-            "\t:year-day - day of the year [0-365]\n"
-            "\t:dst - If Day Light Savings is in effect")
+             "Returns the given time as a date struct, or the current time if no time is given. "
+             "Returns a struct with following key values. Note that all numbers are 0-indexed.\n\n"
+             "\t:seconds - number of seconds [0-61]\n"
+             "\t:minutes - number of minutes [0-59]\n"
+             "\t:seconds - number of hours [0-23]\n"
+             "\t:month-day - day of month [0-30]\n"
+             "\t:month - month of year [0, 11]\n"
+             "\t:year - years since year 0 (e.g. 2019)\n"
+             "\t:week-day - day of the week [0-6]\n"
+             "\t:year-day - day of the year [0-365]\n"
+             "\t:dst - If Day Light Savings is in effect")
     },
     {NULL, NULL, NULL}
 };

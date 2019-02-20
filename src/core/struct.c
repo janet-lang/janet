@@ -36,7 +36,7 @@ JanetKV *janet_struct_begin(int32_t count) {
 
     size_t s = sizeof(int32_t) * 4 + (capacity * sizeof(JanetKV));
     char *data = janet_gcalloc(JANET_MEMORY_STRUCT, s);
-    JanetKV *st = (JanetKV *) (data + 4 * sizeof(int32_t));
+    JanetKV *st = (JanetKV *)(data + 4 * sizeof(int32_t));
     janet_memempty(st, capacity);
     janet_struct_length(st) = count;
     janet_struct_capacity(st) = capacity;
@@ -78,54 +78,54 @@ void janet_struct_put(JanetKV *st, Janet key, Janet value) {
     /* Avoid extra items */
     if (janet_struct_hash(st) == janet_struct_length(st)) return;
     for (dist = 0, j = 0; j < 4; j += 2)
-    for (i = bounds[j]; i < bounds[j + 1]; i++, dist++) {
-        int status;
-        int32_t otherhash;
-        int32_t otherindex, otherdist;
-        JanetKV *kv = st + i;
-        /* We found an empty slot, so just add key and value */
-        if (janet_checktype(kv->key, JANET_NIL)) {
-            kv->key = key;
-            kv->value = value;
-            /* Update the temporary count */
-            janet_struct_hash(st)++;
-            return;
+        for (i = bounds[j]; i < bounds[j + 1]; i++, dist++) {
+            int status;
+            int32_t otherhash;
+            int32_t otherindex, otherdist;
+            JanetKV *kv = st + i;
+            /* We found an empty slot, so just add key and value */
+            if (janet_checktype(kv->key, JANET_NIL)) {
+                kv->key = key;
+                kv->value = value;
+                /* Update the temporary count */
+                janet_struct_hash(st)++;
+                return;
+            }
+            /* Robinhood hashing - check if colliding kv pair
+             * is closer to their source than current. We use robinhood
+             * hashing to ensure that equivalent structs that are constructed
+             * with different order have the same internal layout, and therefor
+             * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}.
+             * Collisions are resolved via an insertion sort insertion. */
+            otherhash = janet_hash(kv->key);
+            otherindex = janet_maphash(cap, otherhash);
+            otherdist = (i + cap - otherindex) & (cap - 1);
+            if (dist < otherdist)
+                status = -1;
+            else if (otherdist < dist)
+                status = 1;
+            else if (hash < otherhash)
+                status = -1;
+            else if (otherhash < hash)
+                status = 1;
+            else
+                status = janet_compare(key, kv->key);
+            /* If other is closer to their ideal slot */
+            if (status == 1) {
+                /* Swap current kv pair with pair in slot */
+                JanetKV temp = *kv;
+                kv->key = key;
+                kv->value = value;
+                key = temp.key;
+                value = temp.value;
+                /* Save dist and hash of new kv pair */
+                dist = otherdist;
+                hash = otherhash;
+            } else if (status == 0) {
+                /* A key was added to the struct more than once */
+                return;
+            }
         }
-        /* Robinhood hashing - check if colliding kv pair
-         * is closer to their source than current. We use robinhood
-         * hashing to ensure that equivalent structs that are constructed
-         * with different order have the same internal layout, and therefor
-         * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}.
-         * Collisions are resolved via an insertion sort insertion. */
-        otherhash = janet_hash(kv->key);
-        otherindex = janet_maphash(cap, otherhash);
-        otherdist = (i + cap - otherindex) & (cap - 1);
-        if (dist < otherdist)
-            status = -1;
-        else if (otherdist < dist)
-            status = 1;
-        else if (hash < otherhash)
-            status = -1;
-        else if (otherhash < hash)
-            status = 1;
-        else
-            status = janet_compare(key, kv->key);
-        /* If other is closer to their ideal slot */
-        if (status == 1) {
-            /* Swap current kv pair with pair in slot */
-            JanetKV temp = *kv;
-            kv->key = key;
-            kv->value = value;
-            key = temp.key;
-            value = temp.value;
-            /* Save dist and hash of new kv pair */
-            dist = otherdist;
-            hash = otherhash;
-        } else if (status == 0) {
-            /* A key was added to the struct more than once */
-            return;
-        }
-    }
 }
 
 /* Finish building a struct */

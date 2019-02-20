@@ -50,14 +50,14 @@
 /* Lookup table for getting values of characters when parsing numbers. Handles
  * digits 0-9 and a-z (and A-Z). A-Z have values of 10 to 35. */
 static uint8_t digit_lookup[128] = {
-    0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
-    0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
-    0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
-    0,1,2,3,4,5,6,7,8,9,0xff,0xff,0xff,0xff,0xff,0xff,
-    0xff,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,
-    25,26,27,28,29,30,31,32,33,34,35,0xff,0xff,0xff,0xff,0xff,
-    0xff,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,
-    25,26,27,28,29,30,31,32,33,34,35,0xff,0xff,0xff,0xff,0xff
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+    25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+    25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 0xff, 0xff, 0xff, 0xff, 0xff
 };
 
 #define BIGNAT_NBIT 31
@@ -197,10 +197,10 @@ static double bignat_extract(struct BigNat *mant, int32_t exponent2) {
  * back the double value. Should properly handle 0s, infinities, and
  * denormalized numbers. (When the exponent values are too large) */
 static double convert(
-        int negative,
-        struct BigNat *mant,
-        int32_t base,
-        int32_t exponent) {
+    int negative,
+    struct BigNat *mant,
+    int32_t base,
+    int32_t exponent) {
 
     int32_t exponent2 = 0;
 
@@ -214,9 +214,9 @@ static double convert(
      * Get exponent to zero while holding X constant. */
 
     /* Positive exponents are simple */
-    for (;exponent > 3; exponent -= 4) bignat_muladd(mant, base * base * base * base, 0);
-    for (;exponent > 1; exponent -= 2) bignat_muladd(mant, base * base, 0);
-    for (;exponent > 0; exponent -= 1) bignat_muladd(mant, base, 0);
+    for (; exponent > 3; exponent -= 4) bignat_muladd(mant, base * base * base * base, 0);
+    for (; exponent > 1; exponent -= 2) bignat_muladd(mant, base * base, 0);
+    for (; exponent > 0; exponent -= 1) bignat_muladd(mant, base, 0);
 
     /* Negative exponents are tricky - we don't want to loose bits
      * from integer division, so we need to premultiply. */
@@ -224,22 +224,22 @@ static double convert(
         int32_t shamt = 5 - exponent / 4;
         bignat_lshift_n(mant, shamt);
         exponent2 -= shamt * BIGNAT_NBIT;
-        for (;exponent < -3; exponent += 4) bignat_div(mant, base * base * base * base);
-        for (;exponent < -1; exponent += 2) bignat_div(mant, base * base);
-        for (;exponent <  0; exponent += 1) bignat_div(mant, base);
+        for (; exponent < -3; exponent += 4) bignat_div(mant, base * base * base * base);
+        for (; exponent < -1; exponent += 2) bignat_div(mant, base * base);
+        for (; exponent <  0; exponent += 1) bignat_div(mant, base);
     }
 
     return negative
-        ? -bignat_extract(mant, exponent2)
-        : bignat_extract(mant, exponent2);
+           ? -bignat_extract(mant, exponent2)
+           : bignat_extract(mant, exponent2);
 }
 
 /* Scan a real (double) from a string. If the string cannot be converted into
  * and integer, set *err to 1 and return 0. */
 int janet_scan_number(
-        const uint8_t *str,
-        int32_t len,
-        double *out) {
+    const uint8_t *str,
+    int32_t len,
+    double *out) {
     const uint8_t *end = str + len;
     int seenadigit = 0;
     int ex = 0;
@@ -271,14 +271,14 @@ int janet_scan_number(
         base = 16;
         str += 2;
     } else if (str + 1 < end  &&
-            str[0] >= '0' && str[0] <= '9' &&
-            str[1] == 'r') {
+               str[0] >= '0' && str[0] <= '9' &&
+               str[1] == 'r') {
         base = str[0] - '0';
         str += 2;
     } else if (str + 2 < end  &&
-            str[0] >= '0' && str[0] <= '9' &&
-            str[1] >= '0' && str[1] <= '9' &&
-            str[2] == 'r') {
+               str[0] >= '0' && str[0] <= '9' &&
+               str[1] >= '0' && str[1] <= '9' &&
+               str[2] == 'r') {
         base = 10 * (str[0] - '0') + (str[1] - '0');
         if (base < 2 || base > 36) goto error;
         str += 3;
@@ -346,7 +346,8 @@ int janet_scan_number(
             str++;
             seenadigit = 1;
         }
-        if (eneg) ex -= ee; else ex += ee;
+        if (eneg) ex -= ee;
+        else ex += ee;
     }
 
     if (!seenadigit)
@@ -356,7 +357,7 @@ int janet_scan_number(
     free(mant.digits);
     return 0;
 
-    error:
+error:
     free(mant.digits);
     return 1;
 }

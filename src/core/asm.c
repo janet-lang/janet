@@ -224,9 +224,9 @@ static int32_t janet_asm_addenv(JanetAssembler *a, Janet envname) {
 /* Parse an argument to an assembly instruction, and return the result as an
  * integer. This integer will need to be bounds checked. */
 static int32_t doarg_1(
-        JanetAssembler *a,
-        enum JanetOpArgType argtype,
-        Janet x) {
+    JanetAssembler *a,
+    enum JanetOpArgType argtype,
+    Janet x) {
     int32_t ret = -1;
     JanetTable *c;
     switch (argtype) {
@@ -253,8 +253,7 @@ static int32_t doarg_1(
         default:
             goto error;
             break;
-        case JANET_NUMBER:
-        {
+        case JANET_NUMBER: {
             double y = janet_unwrap_number(x);
             if (janet_checkintrange(y)) {
                 ret = (int32_t) y;
@@ -263,8 +262,7 @@ static int32_t doarg_1(
             }
             break;
         }
-        case JANET_TUPLE:
-        {
+        case JANET_TUPLE: {
             const Janet *t = janet_unwrap_tuple(x);
             if (argtype == JANET_OAT_TYPE) {
                 int32_t i = 0;
@@ -277,8 +275,7 @@ static int32_t doarg_1(
             }
             break;
         }
-        case JANET_KEYWORD:
-        {
+        case JANET_KEYWORD: {
             if (NULL != c && argtype == JANET_OAT_LABEL) {
                 Janet result = janet_table_get(c, x);
                 if (janet_checktype(result, JANET_NUMBER)) {
@@ -288,10 +285,10 @@ static int32_t doarg_1(
                 }
             } else if (argtype == JANET_OAT_TYPE || argtype == JANET_OAT_SIMPLETYPE) {
                 const TypeAlias *alias = janet_strbinsearch(
-                            &type_aliases,
-                            sizeof(type_aliases)/sizeof(TypeAlias),
-                            sizeof(TypeAlias),
-                            janet_unwrap_keyword(x));
+                                             &type_aliases,
+                                             sizeof(type_aliases) / sizeof(TypeAlias),
+                                             sizeof(TypeAlias),
+                                             janet_unwrap_keyword(x));
                 if (alias) {
                     ret = alias->mask;
                 } else {
@@ -302,8 +299,7 @@ static int32_t doarg_1(
             }
             break;
         }
-        case JANET_SYMBOL:
-        {
+        case JANET_SYMBOL: {
             if (NULL != c) {
                 Janet result = janet_table_get(c, x);
                 if (janet_checktype(result, JANET_NUMBER)) {
@@ -328,7 +324,7 @@ static int32_t doarg_1(
         a->def->slotcount = (int32_t) ret + 1;
     return ret;
 
-    error:
+error:
     janet_asm_errorv(a, janet_formatc("error parsing instruction argument %v", x));
     return 0;
 }
@@ -336,12 +332,12 @@ static int32_t doarg_1(
 /* Parse a single argument to an instruction. Trims it as well as
  * try to convert arguments to bit patterns */
 static uint32_t doarg(
-        JanetAssembler *a,
-        enum JanetOpArgType argtype,
-        int nth,
-        int nbytes,
-        int hassign,
-        Janet x) {
+    JanetAssembler *a,
+    enum JanetOpArgType argtype,
+    int nth,
+    int nbytes,
+    int hassign,
+    Janet x) {
     int32_t arg = doarg_1(a, argtype, x);
     /* Calculate the min and max values that can be stored given
      * nbytes, and whether or not the storage is signed */
@@ -349,59 +345,53 @@ static uint32_t doarg(
     int32_t min = hassign ? -max - 1 : 0;
     if (arg < min)
         janet_asm_errorv(a, janet_formatc("instruction argument %v is too small, must be %d byte%s",
-                    x, nbytes, nbytes > 1 ? "s" : ""));
+                                          x, nbytes, nbytes > 1 ? "s" : ""));
     if (arg > max)
         janet_asm_errorv(a, janet_formatc("instruction argument %v is too large, must be %d byte%s",
-                    x, nbytes, nbytes > 1 ? "s" : ""));
+                                          x, nbytes, nbytes > 1 ? "s" : ""));
     return ((uint32_t) arg) << (nth << 3);
 }
 
 /* Provide parsing methods for the different kinds of arguments */
 static uint32_t read_instruction(
-        JanetAssembler *a,
-        const JanetInstructionDef *idef,
-        const Janet *argt) {
+    JanetAssembler *a,
+    const JanetInstructionDef *idef,
+    const Janet *argt) {
     uint32_t instr = idef->opcode;
     enum JanetInstructionType type = janet_instructions[idef->opcode];
     switch (type) {
-        case JINT_0:
-        {
+        case JINT_0: {
             if (janet_tuple_length(argt) != 1)
                 janet_asm_error(a, "expected 0 arguments: (op)");
             break;
         }
-        case JINT_S:
-        {
+        case JINT_S: {
             if (janet_tuple_length(argt) != 2)
                 janet_asm_error(a, "expected 1 argument: (op, slot)");
             instr |= doarg(a, JANET_OAT_SLOT, 1, 2, 0, argt[1]);
             break;
         }
-        case JINT_L:
-        {
+        case JINT_L: {
             if (janet_tuple_length(argt) != 2)
                 janet_asm_error(a, "expected 1 argument: (op, label)");
             instr |= doarg(a, JANET_OAT_LABEL, 1, 3, 1, argt[1]);
             break;
         }
-        case JINT_SS:
-        {
+        case JINT_SS: {
             if (janet_tuple_length(argt) != 3)
                 janet_asm_error(a, "expected 2 arguments: (op, slot, slot)");
             instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
             instr |= doarg(a, JANET_OAT_SLOT, 2, 2, 0, argt[2]);
             break;
         }
-        case JINT_SL:
-        {
+        case JINT_SL: {
             if (janet_tuple_length(argt) != 3)
                 janet_asm_error(a, "expected 2 arguments: (op, slot, label)");
             instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
             instr |= doarg(a, JANET_OAT_LABEL, 2, 2, 1, argt[2]);
             break;
         }
-        case JINT_ST:
-        {
+        case JINT_ST: {
             if (janet_tuple_length(argt) != 3)
                 janet_asm_error(a, "expected 2 arguments: (op, slot, type)");
             instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
@@ -409,24 +399,21 @@ static uint32_t read_instruction(
             break;
         }
         case JINT_SI:
-        case JINT_SU:
-        {
+        case JINT_SU: {
             if (janet_tuple_length(argt) != 3)
                 janet_asm_error(a, "expected 2 arguments: (op, slot, integer)");
             instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
             instr |= doarg(a, JANET_OAT_INTEGER, 2, 2, type == JINT_SI, argt[2]);
             break;
         }
-        case JINT_SD:
-        {
+        case JINT_SD: {
             if (janet_tuple_length(argt) != 3)
                 janet_asm_error(a, "expected 2 arguments: (op, slot, funcdef)");
             instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
             instr |= doarg(a, JANET_OAT_FUNCDEF, 2, 2, 0, argt[2]);
             break;
         }
-        case JINT_SSS:
-        {
+        case JINT_SSS: {
             if (janet_tuple_length(argt) != 4)
                 janet_asm_error(a, "expected 3 arguments: (op, slot, slot, slot)");
             instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
@@ -435,8 +422,7 @@ static uint32_t read_instruction(
             break;
         }
         case JINT_SSI:
-        case JINT_SSU:
-        {
+        case JINT_SSU: {
             if (janet_tuple_length(argt) != 4)
                 janet_asm_error(a, "expected 3 arguments: (op, slot, slot, integer)");
             instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
@@ -444,8 +430,7 @@ static uint32_t read_instruction(
             instr |= doarg(a, JANET_OAT_INTEGER, 3, 1, type == JINT_SSI, argt[3]);
             break;
         }
-        case JINT_SES:
-        {
+        case JINT_SES: {
             JanetAssembler *b = a;
             uint32_t env;
             if (janet_tuple_length(argt) != 4)
@@ -461,8 +446,7 @@ static uint32_t read_instruction(
             instr |= doarg(b, JANET_OAT_SLOT, 3, 1, 0, argt[3]);
             break;
         }
-        case JINT_SC:
-        {
+        case JINT_SC: {
             if (janet_tuple_length(argt) != 3)
                 janet_asm_error(a, "expected 2 arguments: (op, slot, constant)");
             instr |= doarg(a, JANET_OAT_SLOT, 1, 1, 0, argt[1]);
@@ -528,9 +512,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     }
 
     janet_asm_assert(&a,
-            janet_checktype(s, JANET_STRUCT) ||
-            janet_checktype(s, JANET_TABLE),
-            "expected struct or table for assembly source");
+                     janet_checktype(s, JANET_STRUCT) ||
+                     janet_checktype(s, JANET_TABLE),
+                     "expected struct or table for assembly source");
 
     /* Check for function name */
     a.name = janet_get1(s, janet_csymbolv("name"));
@@ -586,16 +570,16 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         for (i = 0; i < count; i++) {
             Janet ct = arr[i];
             if (janet_checktype(ct, JANET_TUPLE) &&
-                janet_tuple_length(janet_unwrap_tuple(ct)) > 1 &&
-                janet_checktype(janet_unwrap_tuple(ct)[0], JANET_SYMBOL)) {
+                    janet_tuple_length(janet_unwrap_tuple(ct)) > 1 &&
+                    janet_checktype(janet_unwrap_tuple(ct)[0], JANET_SYMBOL)) {
                 const Janet *t = janet_unwrap_tuple(ct);
                 int32_t tcount = janet_tuple_length(t);
                 const uint8_t *macro = janet_unwrap_symbol(t[0]);
                 if (0 == janet_cstrcmp(macro, "quote")) {
                     def->constants[i] = t[1];
                 } else if (tcount == 3 &&
-                        janet_checktype(t[1], JANET_SYMBOL) &&
-                        0 == janet_cstrcmp(macro, "def")) {
+                           janet_checktype(t[1], JANET_SYMBOL) &&
+                           0 == janet_cstrcmp(macro, "def")) {
                     def->constants[i] = t[2];
                     janet_table_put(&a.constants, t[1], janet_wrap_integer(i));
                 } else {
@@ -678,12 +662,12 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
                     op = 0;
                 } else {
                     janet_asm_assert(&a, janet_checktype(t[0], JANET_SYMBOL),
-                            "expected symbol in assembly instruction");
+                                     "expected symbol in assembly instruction");
                     idef = janet_strbinsearch(
-                            &janet_ops,
-                            sizeof(janet_ops)/sizeof(JanetInstructionDef),
-                            sizeof(JanetInstructionDef),
-                            janet_unwrap_symbol(t[0]));
+                               &janet_ops,
+                               sizeof(janet_ops) / sizeof(JanetInstructionDef),
+                               sizeof(JanetInstructionDef),
+                               janet_unwrap_symbol(t[0]));
                     if (NULL == idef)
                         janet_asm_errorv(&a, janet_formatc("unknown instruction %v", t[0]));
                     op = read_instruction(&a, idef, t);
@@ -750,7 +734,7 @@ JanetAssembleResult janet_asm(Janet source, int flags) {
 static const JanetInstructionDef *janet_asm_reverse_lookup(uint32_t instr) {
     size_t i;
     uint32_t opcode = instr & 0x7F;
-    for (i = 0; i < sizeof(janet_ops)/sizeof(JanetInstructionDef); i++) {
+    for (i = 0; i < sizeof(janet_ops) / sizeof(JanetInstructionDef); i++) {
         const JanetInstructionDef *def = janet_ops + i;
         if (def->opcode == opcode)
             return def;
@@ -808,25 +792,25 @@ Janet janet_asm_decode_instruction(uint32_t instr) {
         case JINT_SU:
         case JINT_SD:
             return tup3(name,
-                    janet_wrap_integer(oparg(1, 0xFF)),
-                    janet_wrap_integer(oparg(2, 0xFFFF)));
+                        janet_wrap_integer(oparg(1, 0xFF)),
+                        janet_wrap_integer(oparg(2, 0xFFFF)));
         case JINT_SI:
         case JINT_SL:
             return tup3(name,
-                    janet_wrap_integer(oparg(1, 0xFF)),
-                    janet_wrap_integer((int32_t)instr >> 16));
+                        janet_wrap_integer(oparg(1, 0xFF)),
+                        janet_wrap_integer((int32_t)instr >> 16));
         case JINT_SSS:
         case JINT_SES:
         case JINT_SSU:
             return tup4(name,
-                    janet_wrap_integer(oparg(1, 0xFF)),
-                    janet_wrap_integer(oparg(2, 0xFF)),
-                    janet_wrap_integer(oparg(3, 0xFF)));
+                        janet_wrap_integer(oparg(1, 0xFF)),
+                        janet_wrap_integer(oparg(2, 0xFF)),
+                        janet_wrap_integer(oparg(3, 0xFF)));
         case JINT_SSI:
             return tup4(name,
-                    janet_wrap_integer(oparg(1, 0xFF)),
-                    janet_wrap_integer(oparg(2, 0xFF)),
-                    janet_wrap_integer((int32_t)instr >> 24));
+                        janet_wrap_integer(oparg(1, 0xFF)),
+                        janet_wrap_integer(oparg(2, 0xFF)),
+                        janet_wrap_integer((int32_t)instr >> 24));
     }
 #undef oparg
     return janet_wrap_nil();
@@ -934,17 +918,19 @@ static Janet cfun_disasm(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg asm_cfuns[] = {
-    {"asm", cfun_asm,
+    {
+        "asm", cfun_asm,
         JDOC("(asm assembly)\n\n"
-                "Returns a new function that is the compiled result of the assembly.\n"
-                "The syntax for the assembly can be found on the janet wiki. Will throw an\n"
-                "error on invalid assembly.")
+             "Returns a new function that is the compiled result of the assembly.\n"
+             "The syntax for the assembly can be found on the janet wiki. Will throw an\n"
+             "error on invalid assembly.")
     },
-    {"disasm", cfun_disasm,
+    {
+        "disasm", cfun_disasm,
         JDOC("(disasm func)\n\n"
-                "Returns assembly that could be used be compile the given function.\n"
-                "func must be a function, not a c function. Will throw on error on a badly\n"
-                "typed argument.")
+             "Returns assembly that could be used be compile the given function.\n"
+             "func must be a function, not a c function. Will throw on error on a badly\n"
+             "typed argument.")
     },
     {NULL, NULL, NULL}
 };
