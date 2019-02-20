@@ -128,6 +128,12 @@ extern "C" {
 #define JANET_PEG
 #endif
 
+/* Enable or disable the typedarray module */
+#ifndef JANET_NO_TYPED_ARRAY
+#define JANET_TYPED_ARRAY
+#endif
+
+
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS
