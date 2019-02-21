@@ -1191,6 +1191,27 @@ JANET_API JanetRange janet_getslice(int32_t argc, const Janet *argv);
 JANET_API int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which);
 JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which);
 
+
+typedef enum {
+  JANET_MO_TYPE_INTEGER,
+  JANET_MO_TYPE_BYTE,
+  JANET_MO_TYPE_BYTES,
+  JANET_MO_TYPE_JANET,
+} JanetMarshalObjectType;
+  
+typedef struct {
+  union {
+    int32_t integer;
+    uint8_t byte;
+    uint8_t * bytes;
+    Janet  janet;
+  } value;
+  int length; /* for bytes type */
+  MarshalObjectType type;
+} JanetMarshalObject;
+
+JanetMarshalObject * janet_marhal_objects_init(size_t count);
+  
 /***** END SECTION MAIN *****/
 
 #ifdef __cplusplus

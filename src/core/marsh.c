@@ -288,6 +288,67 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
         marshal_one(st, janet_wrap_fiber(fiber->child), flags + 1);
 }
 
+
+
+typedef struct {
+  JanetMarshalState *st;
+  int flags;
+} JanetMarshalContext;
+
+
+
+
+#define MARK_SEEN() \
+    janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
+
+
+void janet_marshal_int(JanetMarshalContext *ctx,int32_t value) {
+  pushint(ctx->st,value);
+};
+void janet_marshal_byte(JanetMarshalContext *ctx,uint8_t value) {
+  pushbyte(ctx->st,value);
+};
+void janet_marshal_bytes(JanetMarshalContext *ctx,const uint8_t *bytes, int32_t len) {
+  pushbytes(ctx->st,bytes,len);
+}
+void janet_marshal_janet(JanetMarshalContext *ctx,Janet x) {
+  marshal_one(ctx->st,x,ctx->st->flags + 1);
+}
+
+static int marshal_one_abstract(MarshalState *st, Janet x, int flags) {
+  const JanetAbstractType *at = janet_abstract_type(janet_unwrap_abstract(x));
+  if (at->marshal) {
+    MARK_SEEN();
+    JanetMarshalContext context={st,flags}; 
+    at->marshal(janet_unwrap_abstract(x),&context);
+    
+    /* objects has to be allocate by marshal function  and null/terminated*/
+    JanetMarshalObject * walk = objects;
+    while (walk) {
+      switch (walk->type) {
+      case JANET_MO_TYPE_INTEGER :
+	pushint(st,walk->value.integer);
+	break;
+      case JANET_MO_TYPE_BYTE :
+	pushbyte(st,walk->value.byte);
+	break;
+      case JANET_MO_TYPE_BYTES :
+	pushbyte(st,walk->value.bytes,walk->length);
+	break;
+      case JANET_MO_TYPE_JANET :
+	marshal_one(st,walk->value.janet, flags + 1);
+	break;
+      }
+      walk++;
+    }
+    if (objects) free(objects);
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+
 /* The main body of the marshaling function. Is the main
  * entry point for the mutually recursive functions. */
 static void marshal_one(MarshalState *st, Janet x, int flags) {
@@ -316,8 +377,6 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         }
     }
 
-#define MARK_SEEN() \
-    janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
 
     /* Check reference and registry value */
     {
@@ -448,7 +507,13 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             MARK_SEEN();
         }
         goto done;
-        case JANET_ABSTRACT:
+        case JANET_ABSTRACT: {
+	  if (marshal_one_abstract(st,x,flags)) {
+	    goto done;
+	  } else {
+	    goto noregval;
+	  }
+	}
         case JANET_CFUNCTION:
             goto noregval;
         case JANET_FUNCTION: {
