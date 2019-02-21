@@ -230,9 +230,9 @@ install: $(JANET_TARGET)
 	mkdir -p $(INCLUDEDIR)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
 	mkdir -p $(INCLUDEDIR)/janet
+	mkdir -p $(JANET_PATH)
 	ln -sf $(INCLUDEDIR)/janet.h $(INCLUDEDIR)/janet/janet.h
 	ln -sf $(INCLUDEDIR)/janet.h $(JANET_PATH)/janet.h
-	mkdir -p $(JANET_PATH)
 	cp tools/cook.janet $(JANET_PATH)
 	cp tools/highlight.janet $(JANET_PATH)
 	cp tools/bars.janet $(JANET_PATH)
