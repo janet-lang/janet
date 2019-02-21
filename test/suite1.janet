@@ -97,8 +97,8 @@
 # of the triangle to the leaves of the triangle.
 
 (defn myfold [xs ys]
-  (let [xs1 (tuple/prepend xs 0)
-        xs2 (tuple/append xs 0)
+  (let [xs1 [;xs 0]
+        xs2 [0 ;xs]
         m1 (map + xs1 ys)
         m2 (map + xs2 ys)]
     (map max m1 m2)))
@@ -178,7 +178,7 @@
 # Large functions
 (def manydefs (seq [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
 (array/push manydefs (tuple * 10000 3 5 7 9))
-(def f (compile (tuple/prepend manydefs 'do) *env*))
+(def f (compile ['do ;manydefs] *env*))
 (assert (= (f) (* 10000 3 5 7 9)) "long function compilation")
 
 # Some higher order functions and macros

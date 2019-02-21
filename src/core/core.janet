@@ -311,7 +311,7 @@
     [i preds &]
     (default preds @['and])
     (if (>= i len)
-      (tuple/prepend body 'do)
+      ['do ;body]
       (do
         (def {i bindings
               (+ i 1) verb

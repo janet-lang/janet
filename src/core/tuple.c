@@ -106,26 +106,6 @@ static Janet cfun_tuple_slice(int32_t argc, Janet *argv) {
     return janet_wrap_tuple(janet_tuple_n(view.items + range.start, range.end - range.start));
 }
 
-static Janet cfun_tuple_prepend(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, -1);
-    JanetView view = janet_getindexed(argv, 0);
-    Janet *n = janet_tuple_begin(view.len - 1 + argc);
-    memcpy(n - 1 + argc, view.items, sizeof(Janet) * view.len);
-    for (int32_t i = 1; i < argc; i++) {
-        n[argc - i - 1] = argv[i];
-    }
-    return janet_wrap_tuple(janet_tuple_end(n));
-}
-
-static Janet cfun_tuple_append(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, -1);
-    JanetView view = janet_getindexed(argv, 0);
-    Janet *n = janet_tuple_begin(view.len - 1 + argc);
-    memcpy(n, view.items, sizeof(Janet) * view.len);
-    memcpy(n + view.len, argv + 1, sizeof(Janet) * (argc - 1));
-    return janet_wrap_tuple(janet_tuple_end(n));
-}
-
 static Janet cfun_tuple_type(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     const Janet *tup = janet_gettuple(argv, 0);
@@ -149,19 +129,6 @@ static const JanetReg tuple_cfuns[] = {
              "inclusive to index end exclusive. If start or end are not provided, "
              "they default to 0 and the length of arrtup respectively."
              "Returns the new tuple.")
-    },
-    {
-        "tuple/append", cfun_tuple_append,
-        JDOC("(tuple/append tup & items)\n\n"
-             "Returns a new tuple that is the result of appending "
-             "each element in items to tup.")
-    },
-    {
-        "tuple/prepend", cfun_tuple_prepend,
-        JDOC("(tuple/prepend tup & items)\n\n"
-             "Prepends each element in items to tuple and "
-             "returns a new tuple. Items are prepended such that the "
-             "last element in items is the first element in the new tuple.")
     },
     {
         "tuple/type", cfun_tuple_type,
