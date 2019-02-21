@@ -38,7 +38,7 @@ static void test_valid_str(const char *str) {
     double cnum, jnum;
     jnum = 0.0;
     cnum = atof(str);
-    err = janet_scan_number((const uint8_t *) str, strlen(str), &jnum);
+    err = janet_scan_number((const uint8_t *) str, (int32_t) strlen(str), &jnum);
     assert(!err);
     assert(cnum == jnum);
 }

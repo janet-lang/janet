@@ -190,7 +190,7 @@ const uint8_t *janet_symbol(const uint8_t *str, int32_t len) {
 
 /* Get a symbol from a cstring */
 const uint8_t *janet_csymbol(const char *cstr) {
-    return janet_symbol((const uint8_t *)cstr, strlen(cstr));
+    return janet_symbol((const uint8_t *)cstr, (int32_t) strlen(cstr));
 }
 
 /* Store counter for genysm to avoid quadratic behavior */
