@@ -22,43 +22,31 @@
 
 #include <janet.h>
 #include <assert.h>
+#include <stdio.h>
 
-int main() {
+#include "tests.h"
 
-    int i;
-    JanetBuffer *buffer1, *buffer2;
+int system_test() {
 
-    janet_init();
+#ifdef JANET_32
+    assert(sizeof(void *) == 4);
+#else
+    assert(sizeof(void *) == 8);
+#endif
 
-    buffer1 = janet_buffer(100);
-    buffer2 = janet_buffer(0);
+    /* Reflexive testing and nanbox testing */
+    assert(janet_equals(janet_wrap_nil(), janet_wrap_nil()));
+    assert(janet_equals(janet_wrap_false(), janet_wrap_false()));
+    assert(janet_equals(janet_wrap_true(), janet_wrap_true()));
+    assert(janet_equals(janet_wrap_integer(1), janet_wrap_integer(1)));
+    assert(janet_equals(janet_wrap_integer(INT32_MAX), janet_wrap_integer(INT32_MAX)));
+    assert(janet_equals(janet_wrap_integer(-2), janet_wrap_integer(-2)));
+    assert(janet_equals(janet_wrap_integer(INT32_MIN), janet_wrap_integer(INT32_MIN)));
+    assert(janet_equals(janet_wrap_number(1.4), janet_wrap_number(1.4)));
+    assert(janet_equals(janet_wrap_number(3.14159265), janet_wrap_number(3.14159265)));
 
-    janet_buffer_push_cstring(buffer1, "hello, world!\n");
-
-    janet_buffer_push_u8(buffer2, 'h');
-    janet_buffer_push_u8(buffer2, 'e');
-    janet_buffer_push_u8(buffer2, 'l');
-    janet_buffer_push_u8(buffer2, 'l');
-    janet_buffer_push_u8(buffer2, 'o');
-    janet_buffer_push_u8(buffer2, ',');
-    janet_buffer_push_u8(buffer2, ' ');
-    janet_buffer_push_u8(buffer2, 'w');
-    janet_buffer_push_u8(buffer2, 'o');
-    janet_buffer_push_u8(buffer2, 'r');
-    janet_buffer_push_u8(buffer2, 'l');
-    janet_buffer_push_u8(buffer2, 'd');
-    janet_buffer_push_u8(buffer2, '!');
-    janet_buffer_push_u8(buffer2, '\n');
-
-    assert(buffer1->count == buffer2->count);
-    assert(buffer1->capacity >= buffer1->count);
-    assert(buffer2->capacity >= buffer2->count);
-
-    for (i = 0; i < buffer1->count; i++) {
-        assert(buffer1->data[i] == buffer2->data[i]);
-    }
-
-    janet_deinit();
+    assert(janet_equals(janet_cstringv("a string."), janet_cstringv("a string.")));
+    assert(janet_equals(janet_csymbolv("sym"), janet_csymbolv("sym")));
 
     return 0;
 }

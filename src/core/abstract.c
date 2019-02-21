@@ -27,10 +27,9 @@
 
 /* Create new userdata */
 void *janet_abstract(const JanetAbstractType *atype, size_t size) {
-    char *data = janet_gcalloc(JANET_MEMORY_ABSTRACT, sizeof(JanetAbstractHeader) + size);
-    JanetAbstractHeader *header = (JanetAbstractHeader *)data;
-    void *a = data + sizeof(JanetAbstractHeader);
+    JanetAbstractHead *header = janet_gcalloc(JANET_MEMORY_ABSTRACT,
+            sizeof(JanetAbstractHead) + size);
     header->size = size;
     header->type = atype;
-    return a;
+    return (void *) & (header->data);
 }

@@ -25,6 +25,8 @@
  * checks, all symbols are interned so that there is a single copy of it in the
  * whole program. Equality is then just a pointer check. */
 
+#include <string.h>
+
 #ifndef JANET_AMALG
 #include <janet.h>
 #include "state.h"
@@ -176,10 +178,10 @@ const uint8_t *janet_symbol(const uint8_t *str, int32_t len) {
     const uint8_t **bucket = janet_symcache_findmem(str, len, hash, &success);
     if (success)
         return *bucket;
-    newstr = (uint8_t *) janet_gcalloc(JANET_MEMORY_SYMBOL, 2 * sizeof(int32_t) + len + 1)
-             + (2 * sizeof(int32_t));
-    janet_string_hash(newstr) = hash;
-    janet_string_length(newstr) = len;
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_SYMBOL, sizeof(JanetStringHead) + len + 1);
+    head->hash = hash;
+    head->length = len;
+    newstr = (uint8_t *)(head->data);
     memcpy(newstr, str, len);
     newstr[len] = 0;
     janet_symcache_put((const uint8_t *)newstr, bucket);
@@ -188,9 +190,7 @@ const uint8_t *janet_symbol(const uint8_t *str, int32_t len) {
 
 /* Get a symbol from a cstring */
 const uint8_t *janet_csymbol(const char *cstr) {
-    int32_t len = 0;
-    while (cstr[len]) len++;
-    return janet_symbol((const uint8_t *)cstr, len);
+    return janet_symbol((const uint8_t *)cstr, strlen(cstr));
 }
 
 /* Store counter for genysm to avoid quadratic behavior */
@@ -234,13 +234,11 @@ const uint8_t *janet_symbol_gen(void) {
                      hash,
                      &status);
     } while (status && (inc_gensym(), 1));
-    sym = (uint8_t *) janet_gcalloc(
-              JANET_MEMORY_SYMBOL,
-              2 * sizeof(int32_t) + sizeof(gensym_counter)) +
-          (2 * sizeof(int32_t));
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_SYMBOL, sizeof(JanetStringHead) + sizeof(gensym_counter));
+    head->length = sizeof(gensym_counter) - 1;
+    head->hash = hash;
+    sym = (uint8_t *)(head->data);
     memcpy(sym, gensym_counter, sizeof(gensym_counter));
-    janet_string_length(sym) = sizeof(gensym_counter) - 1;
-    janet_string_hash(sym) = hash;
     janet_symcache_put((const uint8_t *)sym, bucket);
     return (const uint8_t *)sym;
 }

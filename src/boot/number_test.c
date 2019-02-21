@@ -25,6 +25,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "tests.h"
+
 /* Check a subset of numbers against system implementation.
  * Note that this depends on the system implementation being correct,
  * which may not be the case for old or non compliant systems. Also,
@@ -41,9 +43,7 @@ static void test_valid_str(const char *str) {
     assert(cnum == jnum);
 }
 
-int main() {
-
-    janet_init();
+int number_test() {
 
     test_valid_str("1.0");
     test_valid_str("1");
@@ -62,8 +62,6 @@ int main() {
     test_valid_str("123123123123123123132123");
     test_valid_str("0000000011111111111111111111111111");
     test_valid_str(".112312333333323123123123123123123");
-
-    janet_deinit();
 
     return 0;
 }

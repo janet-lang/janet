@@ -54,7 +54,7 @@ void janet_debug_find(
     JanetFuncDef **def_out, int32_t *pc_out,
     const uint8_t *source, int32_t offset) {
     /* Scan the heap for right func def */
-    JanetGCMemoryHeader *current = janet_vm_blocks;
+    JanetGCObject *current = janet_vm_blocks;
     /* Keep track of the best source mapping we have seen so far */
     int32_t besti = -1;
     int32_t best_range = INT32_MAX;

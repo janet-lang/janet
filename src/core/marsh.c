@@ -407,7 +407,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             int32_t i, count, flag;
             const Janet *tup = janet_unwrap_tuple(x);
             count = janet_tuple_length(tup);
-            flag = janet_tuple_flag(tup);
+            flag = janet_tuple_flag(tup) >> 16;
             pushbyte(st, LB_TUPLE);
             pushint(st, count);
             pushint(st, flag);
@@ -1042,7 +1042,7 @@ static const uint8_t *unmarshal_one(
                 /* Tuple */
                 Janet *tup = janet_tuple_begin(len);
                 int32_t flag = readint(st, &data);
-                janet_tuple_flag(tup) = flag;
+                janet_tuple_flag(tup) |= flag << 16;
                 for (int32_t i = 0; i < len; i++) {
                     data = unmarshal_one(st, data, tup + i, flags + 1);
                 }

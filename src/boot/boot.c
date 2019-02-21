@@ -21,16 +21,28 @@
 */
 
 #include <janet.h>
+#include "tests.h"
 
 extern const unsigned char *janet_gen_boot;
 extern int32_t janet_gen_boot_size;
 
 int main() {
-    int status;
-    JanetTable *env;
+
+    /* Init janet */
+    janet_init();
+
+    /* Run tests */
+    array_test();
+    buffer_test();
+    number_test();
+    system_test();
+    table_test();
+
+    /* C tests passed */
 
     /* Set up VM */
-    janet_init();
+    int status;
+    JanetTable *env;
     env = janet_core_env();
 
     /* Run bootstrap script to generate core image */

@@ -99,7 +99,7 @@ void janet_mark(Janet x) {
 }
 
 static void janet_mark_string(const uint8_t *str) {
-    janet_gc_mark(janet_string_raw(str));
+    janet_gc_mark(janet_string_head(str));
 }
 
 static void janet_mark_buffer(JanetBuffer *buffer) {
@@ -154,16 +154,16 @@ recur: /* Manual tail recursion */
 }
 
 static void janet_mark_struct(const JanetKV *st) {
-    if (janet_gc_reachable(janet_struct_raw(st)))
+    if (janet_gc_reachable(janet_struct_head(st)))
         return;
-    janet_gc_mark(janet_struct_raw(st));
+    janet_gc_mark(janet_struct_head(st));
     janet_mark_kvs(st, janet_struct_capacity(st));
 }
 
 static void janet_mark_tuple(const Janet *tuple) {
-    if (janet_gc_reachable(janet_tuple_raw(tuple)))
+    if (janet_gc_reachable(janet_tuple_head(tuple)))
         return;
-    janet_gc_mark(janet_tuple_raw(tuple));
+    janet_gc_mark(janet_tuple_head(tuple));
     janet_mark_many(tuple, janet_tuple_length(tuple));
 }
 
@@ -244,15 +244,13 @@ recur:
 }
 
 /* Deinitialize a block of memory */
-static void janet_deinit_block(JanetGCMemoryHeader *block) {
-    void *mem = ((char *)(block + 1));
-    JanetAbstractHeader *h = (JanetAbstractHeader *)mem;
-    switch (block->flags & JANET_MEM_TYPEBITS) {
+static void janet_deinit_block(JanetGCObject *mem) {
+    switch (mem->flags & JANET_MEM_TYPEBITS) {
         default:
         case JANET_MEMORY_FUNCTION:
             break; /* Do nothing for non gc types */
         case JANET_MEMORY_SYMBOL:
-            janet_symbol_deinit((const uint8_t *)mem + 2 * sizeof(int32_t));
+            janet_symbol_deinit(((JanetStringHead *) mem)->data);
             break;
         case JANET_MEMORY_ARRAY:
             janet_array_deinit((JanetArray *) mem);
@@ -266,11 +264,13 @@ static void janet_deinit_block(JanetGCMemoryHeader *block) {
         case JANET_MEMORY_BUFFER:
             janet_buffer_deinit((JanetBuffer *) mem);
             break;
-        case JANET_MEMORY_ABSTRACT:
-            if (h->type->gc) {
-                janet_assert(!h->type->gc((void *)(h + 1), h->size), "finalizer failed");
+        case JANET_MEMORY_ABSTRACT: {
+            JanetAbstractHead *head = (JanetAbstractHead *)mem;
+            if (head->type->gc) {
+                janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
             }
-            break;
+        }
+        break;
         case JANET_MEMORY_FUNCENV: {
             JanetFuncEnv *env = (JanetFuncEnv *)mem;
             if (0 == env->offset)
@@ -293,9 +293,9 @@ static void janet_deinit_block(JanetGCMemoryHeader *block) {
 /* Iterate over all allocated memory, and free memory that is not
  * marked as reachable. Flip the gc color flag for next sweep. */
 void janet_sweep() {
-    JanetGCMemoryHeader *previous = NULL;
-    JanetGCMemoryHeader *current = janet_vm_blocks;
-    JanetGCMemoryHeader *next;
+    JanetGCObject *previous = NULL;
+    JanetGCObject *current = janet_vm_blocks;
+    JanetGCObject *next;
     while (NULL != current) {
         next = current->next;
         if (current->flags & (JANET_MEM_REACHABLE | JANET_MEM_DISABLED)) {
@@ -316,29 +316,26 @@ void janet_sweep() {
 
 /* Allocate some memory that is tracked for garbage collection */
 void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
-    JanetGCMemoryHeader *mdata;
-    size_t total = size + sizeof(JanetGCMemoryHeader);
+    JanetGCObject *mem;
 
     /* Make sure everything is inited */
     janet_assert(NULL != janet_vm_cache, "please initialize janet before use");
-    void *mem = malloc(total);
+    mem = malloc(size);
 
     /* Check for bad malloc */
     if (NULL == mem) {
         JANET_OUT_OF_MEMORY;
     }
 
-    mdata = (JanetGCMemoryHeader *)mem;
-
     /* Configure block */
-    mdata->flags = type;
+    mem->flags = type;
 
     /* Prepend block to heap list */
     janet_vm_next_collection += (int32_t) size;
-    mdata->next = janet_vm_blocks;
-    janet_vm_blocks = mdata;
+    mem->next = janet_vm_blocks;
+    janet_vm_blocks = mem;
 
-    return (char *) mem + sizeof(JanetGCMemoryHeader);
+    return (void *)mem;
 }
 
 /* Run garbage collection */
@@ -423,10 +420,10 @@ int janet_gcunrootall(Janet root) {
 
 /* Free all allocated memory */
 void janet_clear_memory(void) {
-    JanetGCMemoryHeader *current = janet_vm_blocks;
+    JanetGCObject *current = janet_vm_blocks;
     while (NULL != current) {
         janet_deinit_block(current);
-        JanetGCMemoryHeader *next = current->next;
+        JanetGCObject *next = current->next;
         free(current);
         current = next;
     }
