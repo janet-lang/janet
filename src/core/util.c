@@ -284,6 +284,47 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
     }
 }
 
+static const JanetAbstractType type_info = {"core/type_info", NULL, NULL, NULL, NULL};
+
+void janet_register_abstract_type(const JanetAbstractType *atype,uint32_t tag) {
+  JanetAbstractTypeInfo * abstract =(JanetAbstractTypeInfo *)janet_abstract(&type_info,sizeof(JanetAbstractTypeInfo));
+  abstract->type=*atype;
+  abstract->tag=tag;
+  if (!(janet_checktype(janet_table_get(janet_vm_registry,janet_wrap_number(tag)),JANET_NIL)) ||
+      !(janet_checktype(janet_table_get(janet_vm_registry,janet_ckeywordv(atype->name)),JANET_NIL))) {
+    janet_panic("Register abstract type fail, a type with same name or tag exist");
+  }
+  janet_table_put(janet_vm_registry,janet_wrap_number(tag), janet_wrap_abstract(abstract));
+  janet_table_put(janet_vm_registry,janet_ckeywordv(atype->name), janet_wrap_abstract(abstract));
+}
+
+JanetAbstractTypeInfo * janet_get_abstract_type_info(uint32_t tag) {
+  Janet info=janet_table_get(janet_vm_registry,janet_wrap_number(tag));
+  if (janet_checktype(info, JANET_NIL)) {
+    return NULL;
+  }
+  if (!janet_checktype(info, JANET_ABSTRACT) || (janet_abstract_type(janet_unwrap_abstract(info)) != &type_info)) {
+    janet_panic("expected type_info");
+  }
+  JanetAbstractTypeInfo * type_info = (JanetAbstractTypeInfo *)janet_unwrap_abstract(info);
+  return type_info;
+}
+
+JanetAbstractTypeInfo * janet_get_abstract_type_info_byname(const char * name) {
+  Janet info=janet_table_get(janet_vm_registry,janet_ckeywordv(name));
+  if (janet_checktype(info, JANET_NIL)) {
+    return NULL;
+  }
+  if (!janet_checktype(info, JANET_ABSTRACT) || (janet_abstract_type(janet_unwrap_abstract(info)) != &type_info)) {
+    janet_panic("expected type_info");
+  }
+  JanetAbstractTypeInfo * type_info = (JanetAbstractTypeInfo *)janet_unwrap_abstract(info);
+  return type_info;
+}
+
+  
+
+
 #ifndef JANET_BOOTSTRAP
 void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p) {
     (void) p;

@@ -1191,6 +1191,17 @@ JANET_API JanetRange janet_getslice(int32_t argc, const Janet *argv);
 JANET_API int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which);
 JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which);
 
+
+typedef struct {
+  JanetAbstractType type;
+  uint32_t tag; 
+} JanetAbstractTypeInfo;
+
+JANET_API void janet_register_abstract_type(const JanetAbstractType *atype,uint32_t tag);
+JANET_API JanetAbstractTypeInfo * janet_get_abstract_type_info(uint32_t tag);
+  /*JANET_API uint32_t janet_get_abstract_type_tag(const JanetAbstractType *atype);*/
+JANET_API JanetAbstractTypeInfo * janet_get_abstract_type_info_byname(const char * name);
+
 /***** END SECTION MAIN *****/
 
 #ifdef __cplusplus

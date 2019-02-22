@@ -320,6 +320,25 @@ static Janet cfun_typed_array_properties(int32_t argc, Janet *argv) {
     return janet_wrap_struct(janet_struct_end(props));
 }
 
+static Janet cfun_abstract_properties(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetAbstractTypeInfo * info;
+    if (janet_checktype(argv[0],JANET_KEYWORD)) {
+      const uint8_t *keyw = janet_unwrap_keyword(argv[0]);
+      info=janet_get_abstract_type_info_byname((const char*)keyw);
+    } else {
+      uint32_t tag = (uint32_t)janet_getinteger(argv, 0);
+      info=janet_get_abstract_type_info(tag);
+    }
+    if (info==NULL) {
+      return janet_wrap_nil();
+    }
+    JanetKV *props = janet_struct_begin(2);
+    janet_struct_put(props, janet_ckeywordv("tag"), janet_wrap_number(info->tag));
+    janet_struct_put(props, janet_ckeywordv("name"), janet_ckeywordv(info->type.name));
+    return janet_wrap_struct(janet_struct_end(props));
+}
+
 
 
 static const JanetReg ta_cfuns[] = {
@@ -343,6 +362,11 @@ static const JanetReg ta_cfuns[] = {
         JDOC("(tarray/properties array )\n\n"
              "return typed array properties as a struct")
     },
+    {
+        "abstract/properties", cfun_abstract_properties,
+        JDOC("(abstract/properties tag)\n\n"
+             "return abstract type properties as a struct")
+    },
 
     {NULL, NULL, NULL}
 };
@@ -351,4 +375,5 @@ static const JanetReg ta_cfuns[] = {
 /* Module entry point */
 void janet_lib_typed_array(JanetTable *env) {
     janet_core_cfuns(env, NULL, ta_cfuns);
+    janet_register_abstract_type(&ta_buffer_type,1111);
 }
