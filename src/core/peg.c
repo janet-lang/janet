@@ -1057,7 +1057,6 @@ static Janet cfun_peg_match(int32_t argc, Janet *argv) {
     s.captures = janet_array(0);
     s.scratch = janet_buffer(10);
     s.tags = janet_buffer(10);
-
     s.constants = peg->constants;
     s.bytecode = peg->bytecode;
     const uint8_t *result = peg_rule(&s, s.bytecode, bytes.bytes + start);
