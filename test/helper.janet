@@ -26,6 +26,11 @@
   (def errsym (keyword (gensym)))
   ~(assert (= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
 
+(defmacro assert-no-error
+  [msg & forms]
+  (def errsym (keyword (gensym)))
+  ~(assert (not= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
+
 (defn start-suite [x]
  (set suite-num x)
  (print "\nRunning test suite " x " tests...\n  "))

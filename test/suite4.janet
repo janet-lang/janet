@@ -47,13 +47,19 @@
 
 (defn check-image
   "Run a marshaling test using the make-image and load-image functions."
-  [x]
-  (def src (make-image x))
-  (load-image src))
+  [x msg]
+  (assert-no-error msg (load-image (make-image x))))
 
-(check-image (fn [] (fn [] 1)))
-(check-image (fiber/new (fn [] (fn [] 1))))
-(check-image (fiber/new (fn [] (fiber/new (fn [] 1)))))
+(check-image (fn [] (fn [] 1)) "marshal nested functions")
+(check-image (fiber/new (fn [] (fn [] 1))) "marshal nested functions in fiber")
+(check-image (fiber/new (fn [] (fiber/new (fn [] 1)))) "marshal nested fibers")
+
+(def issue-53-x 
+  (fiber/new 
+    (fn [] 
+      (var y (fiber/new (fn [] (print "1") (yield) (print "2")))))))
+
+(check-image issue-53-x "issue 53 regression")
 
 (end-suite)
 
