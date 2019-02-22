@@ -304,11 +304,11 @@ void janet_register_abstract_type(const JanetAbstractTypeInfo * info) {
   JanetAbstractTypeInfo * abstract =(JanetAbstractTypeInfo *)janet_abstract(&type_info,sizeof(JanetAbstractTypeInfo));
   memcpy(abstract,info,sizeof(JanetAbstractTypeInfo)); 
   if (!(janet_checktype(janet_table_get(janet_vm_registry,janet_wrap_number(info->tag)),JANET_NIL)) ||
-      !(janet_checktype(janet_table_get(janet_vm_registry,janet_ckeywordv(info->at.name)),JANET_NIL))) {
+      !(janet_checktype(janet_table_get(janet_vm_registry,janet_ckeywordv(info->at->name)),JANET_NIL))) {
     janet_panic("Register abstract type fail, a type with same name or tag exist");
   }
   janet_table_put(janet_vm_registry,janet_wrap_number(info->tag), janet_wrap_abstract(abstract));
-  janet_table_put(janet_vm_registry,janet_ckeywordv(info->at.name), janet_wrap_abstract(abstract));
+  janet_table_put(janet_vm_registry,janet_ckeywordv(info->at->name), janet_wrap_abstract(abstract));
 }
 
 

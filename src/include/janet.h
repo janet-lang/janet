@@ -1258,7 +1258,7 @@ void janet_marshal_janet(JanetMarshalContext *ctx,Janet x);
 
 
 typedef struct {
-  const JanetAbstractType at;
+  const JanetAbstractType *at;
   const uint32_t tag;
   void (* marshal)(void *p,JanetMarshalContext *ctx);
 } JanetAbstractTypeInfo;
