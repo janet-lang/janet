@@ -804,7 +804,7 @@ static const uint8_t *unmarshal_one_fiber(
             data = unmarshal_one_env(st, data, &env, flags + 1);
             if (env->offset != 0 && env->offset != offset)
                 janet_panic("funcenv offset does not match fiber frame");
-            if (env->length != 0 && env->length != offset)
+            if (env->length != 0 && env->length != length)
                 janet_panic("funcenv length does not match fiber frame");
             env->offset = offset;
             env->length = length;
