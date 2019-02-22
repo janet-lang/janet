@@ -53,7 +53,6 @@ typedef enum TA_Type {
     TA_TYPE_float64,
 } TA_Type;
 
-#define TA_COUNT_TYPES (TA_TYPE_float64 + 1)
 
 static  char *ta_type_names[] = {
     "uint8",
@@ -80,7 +79,10 @@ static  size_t ta_type_sizes[] = {
     sizeof(ta_float32_t),
     sizeof(ta_float64_t),
 };
+#define TA_COUNT_TYPES (TA_TYPE_float64 + 1)
+#define TA_ATOM_MAXSIZE 8;
 
+#define TA_FLAG_BIG_ENDIAN 1
 
 static TA_Type get_ta_type_by_name(const uint8_t *name) {
     size_t nt = sizeof(ta_type_names) / sizeof(char *);
@@ -92,14 +94,22 @@ static TA_Type get_ta_type_by_name(const uint8_t *name) {
 }
 
 
+
+
 typedef struct {
-    size_t size;
     uint8_t *data;
+    size_t size;
+    int32_t flags;
 } TA_Buffer;
 
 static TA_Buffer *ta_buffer_init(TA_Buffer *buf, size_t size) {
     buf->data = (uint8_t *)calloc(size, sizeof(uint8_t));
     buf->size = size;
+#ifdef JANET_BIG_ENDIAN
+    buf->flags = TA_FLAG_BIG_ENDIAN;
+#else
+    buf->flags = 0;
+#endif
     return buf;
 }
 
@@ -109,6 +119,14 @@ static int ta_buffer_gc(void *p, size_t s) {
     free(buf->data);
     return 0;
 }
+
+static void ta_buffer_marshal(void *p, JanetMarshalContext *ctx) {
+  TA_Buffer *buf = (TA_Buffer *)p;
+  janet_marshal_int(ctx,buf->size);
+  janet_marshal_int(ctx,buf->flags);
+  janet_marshal_bytes(ctx,buf->data,buf->size);
+}
+
 
 static const JanetAbstractType ta_buffer_type = {"ta/buffer", ta_buffer_gc, NULL, NULL, NULL};
 
@@ -282,7 +300,6 @@ static Janet cfun_typed_array_new(int32_t argc, Janet *argv) {
 
 #undef CASE_TYPE_INITIALIZE
 
-
 static Janet cfun_typed_array_buffer(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     if (is_ta_type(argv[0])) {
@@ -339,6 +356,55 @@ static Janet cfun_abstract_properties(int32_t argc, Janet *argv) {
     return janet_wrap_struct(janet_struct_end(props));
 }
 
+/*
+static Janet cfun_typed_array_copy_bytes(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 4);
+    if (is_ta_type(argv[0]) && is_ta_type(argv[2])) {
+      TA_View *src = (TA_View *)janet_unwrap_abstract(argv[0]);
+      size_t index_src=(size_t)janet_getinteger(argv, 1);
+      TA_View *dst = (TA_View *)janet_unwrap_abstract(argv[2]);
+      size_t index_dst=(size_t)janet_getinteger(argv, 3);
+      size_t src_atom_size=ta_type_sizes[src->type];
+      size_t dst_atom_size=ta_type_sizes[dst->type];
+      size_t pos_src=((uint8_t *)(src->data) - src->buffer->data)+(index_src*src->stride*src_atom_size);
+      size_t pos_dst=((uint8_t *)(dst->data) - dst->buffer->data)+(index_dst*dst->stride*dst_atom_size);
+      if (pos_dst+src_atom_size <= dst->buffer->size)
+	memmove(dst->buffer->data+pos_dst,src->buffer->data+pos_src,src_atom_size);
+      else
+	janet_panic("typed array out of bound");
+    } else {
+      janet_panic("expected typed array");
+    }
+    return janet_wrap_nil();
+}
+
+static Janet cfun_typed_array_swap_bytes(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 4);
+    if (is_ta_type(argv[0]) && is_ta_type(argv[2])) {
+      TA_View *src = (TA_View *)janet_unwrap_abstract(argv[0]);
+      size_t index_src=(size_t)janet_getinteger(argv, 1);
+      TA_View *dst = (TA_View *)janet_unwrap_abstract(argv[2]);
+      size_t index_dst=(size_t)janet_getinteger(argv, 3);
+      size_t src_atom_size=ta_type_sizes[src->type];
+      size_t dst_atom_size=ta_type_sizes[dst->type];
+      size_t pos_src=((uint8_t *)(src->data) - src->buffer->data)+(index_src*src->stride*src_atom_size);
+      size_t pos_dst=((uint8_t *)(dst->data) - dst->buffer->data)+(index_dst*dst->stride*dst_atom_size);
+      uint8_t temp[TA_ATOM_MAXSIZE];
+      if (pos_dst+src_atom_size <= dst->buffer->size) {
+	uint8_t * src_ptr=src->buffer->data+pos_src;
+	uint8_t * dst_ptr=dst->buffer->data+pos_dst;
+	memcpy(temp,src_ptr,src_atom_size);
+	memcpy(src_ptr,dst_ptr,src_atom_size);
+	memcpy(dst_ptr,temp,src_atom_size);
+      }
+      else
+	janet_panic("typed array buffer out of bound");
+    } else {
+      janet_panic("expected typed array");
+    }
+    return janet_wrap_nil();
+}
+*/
 
 
 static const JanetReg ta_cfuns[] = {
