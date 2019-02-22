@@ -478,6 +478,9 @@ static int macroexpand1(
         c->current_mapping.start = janet_tuple_sm_start(form);
         c->current_mapping.end = janet_tuple_sm_end(form);
     }
+    /* Bracketed tuples are not specials or macros! */
+    if (janet_tuple_flag(form) & JANET_TUPLE_FLAG_BRACKETCTOR)
+        return 0;
     if (!janet_checktype(form[0], JANET_SYMBOL))
         return 0;
     const uint8_t *name = janet_unwrap_symbol(form[0]);

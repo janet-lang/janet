@@ -61,5 +61,12 @@
 
 (check-image issue-53-x "issue 53 regression")
 
+# Bracket tuple issue
+
+(def do 3)
+(assert (= [3 1 2 3] [do 1 2 3]) "bracket tuples are never special forms")
+(assert (= ~(,defn 1 2 3) [defn 1 2 3]) "bracket tuples are never macros")
+(assert (= ~(,+ 1 2 3) [+ 1 2 3]) "bracket tuples are never function calls")
+
 (end-suite)
 
