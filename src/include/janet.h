@@ -1191,17 +1191,35 @@ JANET_API JanetRange janet_getslice(int32_t argc, const Janet *argv);
 JANET_API int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which);
 JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which);
 
+
+
 typedef struct {
-  JanetAbstractType type;
-  uint32_t tag; 
+  void * m_state; /* void* to not expose MarshalState ?*/
+  void * u_state;
+  int flags;
+} JanetMarshalContext;
+
+void janet_marshal_int(JanetMarshalContext *ctx,int32_t value); 
+void janet_marshal_byte(JanetMarshalContext *ctx,uint8_t value); 
+void janet_marshal_bytes(JanetMarshalContext *ctx,const uint8_t *bytes, int32_t len); 
+void janet_marshal_janet(JanetMarshalContext *ctx,Janet x);
+
+
+typedef struct {
+  const JanetAbstractType at;
+  const uint32_t tag;
+  void (* marshal)(void *p,JanetMarshalContext *ctx);
 } JanetAbstractTypeInfo;
 
-JANET_API void janet_register_abstract_type(const JanetAbstractType *atype,uint32_t tag);
+JANET_API void janet_register_abstract_type(const JanetAbstractTypeInfo * info);
+
 JANET_API JanetAbstractTypeInfo * janet_get_abstract_type_info(uint32_t tag);
   /*JANET_API uint32_t janet_get_abstract_type_tag(const JanetAbstractType *atype);*/
 JANET_API JanetAbstractTypeInfo * janet_get_abstract_type_info_byname(const char * name);
 
 
+  
+  
 /***** END SECTION MAIN *****/
 
 #ifdef __cplusplus

@@ -289,63 +289,43 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
 }
 
 
+void janet_marshal_int(JanetMarshalContext *ctx,int32_t value) {
+  MarshalState *st =(MarshalState *)(ctx->m_state);
+  pushint(st,value);
+};
 
-typedef struct {
-  JanetMarshalState *st;
-  int flags;
-} JanetMarshalContext;
+void janet_marshal_byte(JanetMarshalContext *ctx,uint8_t value) {
+  MarshalState *st =(MarshalState *)(ctx->m_state);
+  pushbyte(st,value);
+};
 
+void janet_marshal_bytes(JanetMarshalContext *ctx,const uint8_t *bytes, int32_t len) {
+  MarshalState *st =(MarshalState *)(ctx->m_state);
+  pushbytes(st,bytes,len);
+}
 
-
+void janet_marshal_janet(JanetMarshalContext *ctx,Janet x) {
+  MarshalState *st =(MarshalState *)(ctx->m_state);
+  marshal_one(st,x,ctx->flags + 1);
+}
 
 #define MARK_SEEN() \
     janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
 
 
-void janet_marshal_int(JanetMarshalContext *ctx,int32_t value) {
-  pushint(ctx->st,value);
-};
-void janet_marshal_byte(JanetMarshalContext *ctx,uint8_t value) {
-  pushbyte(ctx->st,value);
-};
-void janet_marshal_bytes(JanetMarshalContext *ctx,const uint8_t *bytes, int32_t len) {
-  pushbytes(ctx->st,bytes,len);
-}
-void janet_marshal_janet(JanetMarshalContext *ctx,Janet x) {
-  marshal_one(ctx->st,x,ctx->st->flags + 1);
-}
-
 static int marshal_one_abstract(MarshalState *st, Janet x, int flags) {
   const JanetAbstractType *at = janet_abstract_type(janet_unwrap_abstract(x));
-  if (at->marshal) {
+  const JanetAbstractTypeInfo *info = janet_get_abstract_type_info_byname(at->name);
+  if (! info) return 1 ; /* unregistered type skip marshalling*/
+  if (info->marshal) {
     MARK_SEEN();
-    JanetMarshalContext context={st,flags}; 
-    at->marshal(janet_unwrap_abstract(x),&context);
-    
-    /* objects has to be allocate by marshal function  and null/terminated*/
-    JanetMarshalObject * walk = objects;
-    while (walk) {
-      switch (walk->type) {
-      case JANET_MO_TYPE_INTEGER :
-	pushint(st,walk->value.integer);
-	break;
-      case JANET_MO_TYPE_BYTE :
-	pushbyte(st,walk->value.byte);
-	break;
-      case JANET_MO_TYPE_BYTES :
-	pushbyte(st,walk->value.bytes,walk->length);
-	break;
-      case JANET_MO_TYPE_JANET :
-	marshal_one(st,walk->value.janet, flags + 1);
-	break;
-      }
-      walk++;
-    }
-    if (objects) free(objects);
+    JanetMarshalContext context={st,NULL,flags};
+    pushbyte(st, LB_ABSTRACT);
+    pushint(st,info->tag);
+    info->marshal(janet_unwrap_abstract(x),&context);
     return 1;
-  } else {
-    return 0;
   }
+  return 0;
 }
 
 
