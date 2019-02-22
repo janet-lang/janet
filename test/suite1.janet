@@ -175,6 +175,10 @@
 (testmarsh (fiber/new (fn [] (yield 1) 2)) "marshal simple fiber 1")
 (testmarsh (fiber/new (fn [&] (yield 1) 2)) "marshal simple fiber 2")
 
+(def strct {:a @[nil]})
+(put (strct :a) 0 strct)
+(testmarsh strct "cyclic struct")
+
 # Large functions
 (def manydefs (seq [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
 (array/push manydefs (tuple * 10000 3 5 7 9))

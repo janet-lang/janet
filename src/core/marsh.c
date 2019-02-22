@@ -802,6 +802,9 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->data = NULL;
     fiber->child = NULL;
 
+    /* Push fiber to seen stack */
+    janet_array_push(&st->lookup, janet_wrap_fiber(fiber));
+
     /* Set frame later so fiber can be GCed at anytime if unmarshalling fails */
     int32_t frame = 0;
     int32_t stack = 0;
