@@ -496,7 +496,7 @@ static int macroexpand1(
         return 0;
 
     /* Evaluate macro */
-    JanetFiber *fiberp;
+    JanetFiber *fiberp = NULL;
     JanetFunction *macro = janet_unwrap_function(macroval);
     int lock = janet_gclock();
     JanetSignal status = janet_pcall(
