@@ -104,9 +104,6 @@
 (defn indexed? "Check if x is an array or tuple." [x]
   (def t (type x))
   (if (= t :array) true (= t :tuple)))
-(defn callable? "Check if x is a function or cfunction." [x]
-  (def t (type x))
-  (if (= t :function) true (= t :cfunction)))
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
@@ -311,7 +308,7 @@
     [i preds &]
     (default preds @['and])
     (if (>= i len)
-      (tuple/prepend body 'do)
+      ['do ;body]
       (do
         (def {i bindings
               (+ i 1) verb

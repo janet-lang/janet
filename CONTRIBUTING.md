@@ -44,7 +44,6 @@ For changes to the VM and Core code, you will probably need to know C. Janet is 
 a subset of C99 that works with Microsoft Visual C++. This means most of C99 but with the following
 omissions.
 
-* No Variable Length Arrays (yes these may work in newer MSVC compilers)
 * No `restrict` 
 * Certain functions in the standard library are not always available
 

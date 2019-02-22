@@ -31,11 +31,11 @@
 
 /* Begin building a string */
 uint8_t *janet_string_begin(int32_t length) {
-    char *data = janet_gcalloc(JANET_MEMORY_STRING, 2 * sizeof(int32_t) + length + 1);
-    uint8_t *str = (uint8_t *)(data + 2 * sizeof(int32_t));
-    janet_string_length(str) = length;
-    str[length] = 0;
-    return str;
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + length + 1);
+    head->length = length;
+    uint8_t *data = (uint8_t *)head->data;
+    data[length] = 0;
+    return data;
 }
 
 /* Finish building a string */
@@ -46,14 +46,13 @@ const uint8_t *janet_string_end(uint8_t *str) {
 
 /* Load a buffer as a string */
 const uint8_t *janet_string(const uint8_t *buf, int32_t len) {
-    int32_t hash = janet_string_calchash(buf, len);
-    char *data = janet_gcalloc(JANET_MEMORY_STRING, 2 * sizeof(int32_t) + len + 1);
-    uint8_t *str = (uint8_t *)(data + 2 * sizeof(int32_t));
-    memcpy(str, buf, len);
-    str[len] = 0;
-    janet_string_length(str) = len;
-    janet_string_hash(str) = hash;
-    return str;
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + len + 1);
+    head->length = len;
+    head->hash = janet_string_calchash(buf, len);
+    uint8_t *data = (uint8_t *)head->data;
+    memcpy(data, buf, len);
+    data[len] = 0;
+    return data;
 }
 
 /* Compare two strings */

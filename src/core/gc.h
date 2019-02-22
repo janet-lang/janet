@@ -28,7 +28,7 @@
 #endif
 
 /* The metadata header associated with an allocated block of memory */
-#define janet_gc_header(mem) ((JanetGCMemoryHeader *)(mem) - 1)
+#define janet_gc_header(mem) ((JanetGCObject *)(mem))
 
 #define JANET_MEM_TYPEBITS 0xFF
 #define JANET_MEM_REACHABLE 0x100
@@ -39,13 +39,6 @@
 
 #define janet_gc_mark(m) (janet_gc_header(m)->flags |= JANET_MEM_REACHABLE)
 #define janet_gc_reachable(m) (janet_gc_header(m)->flags & JANET_MEM_REACHABLE)
-
-/* Memory header struct. Node of a linked list of memory blocks. */
-typedef struct JanetGCMemoryHeader JanetGCMemoryHeader;
-struct JanetGCMemoryHeader {
-    JanetGCMemoryHeader *next;
-    uint32_t flags;
-};
 
 /* Memory types for the GC. Different from JanetType to include funcenv and funcdef. */
 enum JanetMemoryType {

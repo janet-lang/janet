@@ -43,5 +43,23 @@
 (assert (deep= (range 5 10) @[5 6 7 8 9]) "range 2 arguments")
 (assert (deep= (range 5 10 2) @[5 7 9]) "range 3 arguments")
 
+# More marshalling code
+
+(defn check-image
+  "Run a marshaling test using the make-image and load-image functions."
+  [x msg]
+  (assert-no-error msg (load-image (make-image x))))
+
+(check-image (fn [] (fn [] 1)) "marshal nested functions")
+(check-image (fiber/new (fn [] (fn [] 1))) "marshal nested functions in fiber")
+(check-image (fiber/new (fn [] (fiber/new (fn [] 1)))) "marshal nested fibers")
+
+(def issue-53-x 
+  (fiber/new 
+    (fn [] 
+      (var y (fiber/new (fn [] (print "1") (yield) (print "2")))))))
+
+(check-image issue-53-x "issue 53 regression")
+
 (end-suite)
 

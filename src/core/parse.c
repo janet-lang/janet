@@ -348,7 +348,7 @@ static int comment(JanetParser *p, JanetParseState *state, uint8_t c) {
 
 static Janet close_tuple(JanetParser *p, JanetParseState *state, int32_t flag) {
     Janet *ret = janet_tuple_begin(state->argn);
-    janet_tuple_flag(ret) = flag;
+    janet_tuple_flag(ret) |= flag;
     for (int32_t i = state->argn - 1; i >= 0; i--)
         ret[i] = p->args[--p->argcount];
     return janet_wrap_tuple(janet_tuple_end(ret));

@@ -23,12 +23,12 @@
 #include <janet.h>
 #include <assert.h>
 
-int main() {
+#include "tests.h"
+
+int array_test() {
 
     int i;
     JanetArray *array1, *array2;
-
-    janet_init();
 
     array1 = janet_array(10);
     array2 = janet_array(0);
@@ -61,8 +61,6 @@ int main() {
     janet_array_pop(array1);
 
     assert(array1->count == 5);
-
-    janet_deinit();
 
     return 0;
 }

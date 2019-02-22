@@ -29,18 +29,18 @@
 
 /* Begin creation of a struct */
 JanetKV *janet_struct_begin(int32_t count) {
-
     /* Calculate capacity as power of 2 after 2 * count. */
     int32_t capacity = janet_tablen(2 * count);
     if (capacity < 0) capacity = janet_tablen(count + 1);
 
-    size_t s = sizeof(int32_t) * 4 + (capacity * sizeof(JanetKV));
-    char *data = janet_gcalloc(JANET_MEMORY_STRUCT, s);
-    JanetKV *st = (JanetKV *)(data + 4 * sizeof(int32_t));
+    size_t size = sizeof(JanetStructHead) + capacity * sizeof(JanetKV);
+    JanetStructHead *head = janet_gcalloc(JANET_MEMORY_STRUCT, size);
+    head->length = count;
+    head->capacity = capacity;
+    head->hash = 0;
+
+    JanetKV *st = (JanetKV *)(head->data);
     janet_memempty(st, capacity);
-    janet_struct_length(st) = count;
-    janet_struct_capacity(st) = capacity;
-    janet_struct_hash(st) = 0;
     return st;
 }
 

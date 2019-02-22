@@ -65,7 +65,8 @@ all: $(JANET_TARGET) $(JANET_LIBRARY)
 ##### The bootstrap interpreter that compiles the core image #####
 ##################################################################
 
-JANET_BOOT_OBJECTS=$(patsubst src/%.c,build/%.boot.o,$(JANET_CORE_SOURCES) src/boot/boot.c) \
+JANET_BOOT_SOURCES=$(sort $(wildcard src/boot/*.c))
+JANET_BOOT_OBJECTS=$(patsubst src/%.c,build/%.boot.o,$(JANET_CORE_SOURCES) $(JANET_BOOT_SOURCES)) \
 	build/core.gen.o \
 	build/boot.gen.o
 
@@ -77,7 +78,7 @@ build/janet_boot: $(JANET_BOOT_OBJECTS)
 
 # Now the reason we bootstrap in the first place
 build/core_image.c: build/janet_boot
-	JANET_PATH=$(JANET_PATH) JANET_INCLUDEDIR=$(INCLUDEDIR) build/janet_boot
+	JANET_PATH=$(JANET_PATH) build/janet_boot
 
 ##########################################################
 ##### The main interpreter program and shared object #####
@@ -229,9 +230,9 @@ install: $(JANET_TARGET)
 	mkdir -p $(INCLUDEDIR)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
 	mkdir -p $(INCLUDEDIR)/janet
+	mkdir -p $(JANET_PATH)
 	ln -sf $(INCLUDEDIR)/janet.h $(INCLUDEDIR)/janet/janet.h
 	ln -sf $(INCLUDEDIR)/janet.h $(JANET_PATH)/janet.h
-	mkdir -p $(JANET_PATH)
 	cp tools/cook.janet $(JANET_PATH)
 	cp tools/highlight.janet $(JANET_PATH)
 	cp tools/bars.janet $(JANET_PATH)

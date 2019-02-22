@@ -210,6 +210,7 @@ extern "C" {
 #include <stdlib.h>
 #include <stdarg.h>
 #include <setjmp.h>
+#include <stddef.h>
 
 /* Names of all of the types */
 extern const char *const janet_type_names[16];
@@ -262,15 +263,23 @@ typedef union Janet Janet;
 typedef struct Janet Janet;
 #endif
 
-/* All of the janet types */
+/* Use type punning for GC objects */
+typedef struct JanetGCObject JanetGCObject;
+
+/* All of the primary Janet GCed types */
 typedef struct JanetFunction JanetFunction;
 typedef struct JanetArray JanetArray;
 typedef struct JanetBuffer JanetBuffer;
 typedef struct JanetTable JanetTable;
 typedef struct JanetFiber JanetFiber;
 
+/* Prefixed Janet types */
+typedef struct JanetTupleHead JanetTupleHead;
+typedef struct JanetStructHead JanetStructHead;
+typedef struct JanetStringHead JanetStringHead;
+typedef struct JanetAbstractHead JanetAbstractHead;
+
 /* Other structs */
-typedef struct JanetAbstractHeader JanetAbstractHeader;
 typedef struct JanetFuncDef JanetFuncDef;
 typedef struct JanetFuncEnv JanetFuncEnv;
 typedef struct JanetKV JanetKV;
@@ -582,6 +591,14 @@ JANET_API int janet_checkint64(Janet x);
 
 #define janet_checktypes(x, tps) ((1 << janet_type(x)) & (tps))
 
+/* GC Object type pun. The lower 16 bits of flags are reserved for the garbage collector,
+ * but the upper 16 can be used per type for custom flags. The current collector is a linked
+ * list of blocks, which is naive but works. */
+struct JanetGCObject {
+    int32_t flags;
+    JanetGCObject *next;
+};
+
 /* Fiber signal masks. */
 #define JANET_FIBER_MASK_ERROR 2
 #define JANET_FIBER_MASK_DEBUG 4
@@ -607,14 +624,15 @@ JANET_API int janet_checkint64(Janet x);
 /* A lightweight green thread in janet. Does not correspond to
  * operating system threads. */
 struct JanetFiber {
-    Janet *data;
-    JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
+    JanetGCObject gc; /* GC Object stuff */
+    int32_t flags; /* More flags */
     int32_t frame; /* Index of the stack frame */
     int32_t stackstart; /* Beginning of next args */
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
     int32_t capacity;
     int32_t maxstack; /* Arbitrary defined limit for stack overflow */
-    int32_t flags; /* Various flags */
+    Janet *data;
+    JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
 };
 
 /* Mark if a stack frame is a tail call for debugging */
@@ -637,31 +655,69 @@ struct JanetStackFrame {
 
 /* A dynamic array type. */
 struct JanetArray {
-    Janet *data;
+    JanetGCObject gc;
     int32_t count;
     int32_t capacity;
+    Janet *data;
 };
 
 /* A byte buffer type. Used as a mutable string or string builder. */
 struct JanetBuffer {
-    uint8_t *data;
+    JanetGCObject gc;
     int32_t count;
     int32_t capacity;
+    uint8_t *data;
 };
 
 /* A mutable associative data type. Backed by a hashtable. */
 struct JanetTable {
-    JanetKV *data;
-    JanetTable *proto;
+    JanetGCObject gc;
     int32_t count;
     int32_t capacity;
     int32_t deleted;
+    JanetKV *data;
+    JanetTable *proto;
 };
 
 /* A key value pair in a struct or table */
 struct JanetKV {
     Janet key;
     Janet value;
+};
+
+/* Prefix for a tuple */
+struct JanetTupleHead {
+    JanetGCObject gc;
+    int32_t length;
+    int32_t hash;
+    int32_t sm_start;
+    int32_t sm_end;
+    const Janet data[];
+};
+
+/* Prefix for a struct */
+struct JanetStructHead {
+    JanetGCObject gc;
+    int32_t length;
+    int32_t hash;
+    int32_t capacity;
+    const JanetKV data[];
+};
+
+/* Prefix for a string */
+struct JanetStringHead {
+    JanetGCObject gc;
+    int32_t length;
+    int32_t hash;
+    const uint8_t data[];
+};
+
+/* Prefix for an abstract value */
+struct JanetAbstractHead {
+    JanetGCObject gc;
+    const JanetAbstractType *type;
+    size_t size;
+    char data[];
 };
 
 /* Some function definition flags */
@@ -683,6 +739,7 @@ struct JanetSourceMapping {
 
 /* A function definition. Contains information needed to instantiate closures. */
 struct JanetFuncDef {
+    JanetGCObject gc;
     int32_t *environments; /* Which environments to capture from parent. */
     Janet *constants;
     JanetFuncDef **defs;
@@ -704,6 +761,7 @@ struct JanetFuncDef {
 
 /* A function environment */
 struct JanetFuncEnv {
+    JanetGCObject gc;
     union {
         JanetFiber *fiber;
         Janet *values;
@@ -715,6 +773,7 @@ struct JanetFuncEnv {
 
 /* A function */
 struct JanetFunction {
+    JanetGCObject gc;
     JanetFuncDef *def;
     JanetFuncEnv *envs[];
 };
@@ -752,12 +811,6 @@ struct JanetAbstractType {
     int (*gcmark)(void *data, size_t len);
     Janet(*get)(void *data, Janet key);
     void (*put)(void *data, Janet key, Janet value);
-};
-
-/* Contains information about abstract types */
-struct JanetAbstractHeader {
-    const JanetAbstractType *type;
-    size_t size;
 };
 
 struct JanetReg {
@@ -992,14 +1045,14 @@ JANET_API void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
 
 /* Tuple */
 
-#define JANET_TUPLE_FLAG_BRACKETCTOR 1
+#define JANET_TUPLE_FLAG_BRACKETCTOR 0x10000
 
-#define janet_tuple_raw(t) ((int32_t *)(t) - 5)
-#define janet_tuple_length(t) (janet_tuple_raw(t)[0])
-#define janet_tuple_hash(t) ((janet_tuple_raw(t)[1]))
-#define janet_tuple_sm_start(t) ((janet_tuple_raw(t)[2]))
-#define janet_tuple_sm_end(t) ((janet_tuple_raw(t)[3]))
-#define janet_tuple_flag(t) ((janet_tuple_raw(t)[4]))
+#define janet_tuple_head(t) ((JanetTupleHead *)((char *)t - offsetof(JanetTupleHead, data)))
+#define janet_tuple_length(t) (janet_tuple_head(t)->length)
+#define janet_tuple_hash(t) (janet_tuple_head(t)->hash)
+#define janet_tuple_sm_start(t) (janet_tuple_head(t)->sm_start)
+#define janet_tuple_sm_end(t) (janet_tuple_head(t)->sm_end)
+#define janet_tuple_flag(t) (janet_tuple_head(t)->gc.flags)
 JANET_API Janet *janet_tuple_begin(int32_t length);
 JANET_API const Janet *janet_tuple_end(Janet *tuple);
 JANET_API const Janet *janet_tuple_n(const Janet *values, int32_t n);
@@ -1007,9 +1060,9 @@ JANET_API int janet_tuple_equal(const Janet *lhs, const Janet *rhs);
 JANET_API int janet_tuple_compare(const Janet *lhs, const Janet *rhs);
 
 /* String/Symbol functions */
-#define janet_string_raw(s) ((int32_t *)(s) - 2)
-#define janet_string_length(s) (janet_string_raw(s)[0])
-#define janet_string_hash(s) ((janet_string_raw(s)[1]))
+#define janet_string_head(s) ((JanetStringHead *)((char *)s - offsetof(JanetStringHead, data)))
+#define janet_string_length(s) (janet_string_head(s)->length)
+#define janet_string_hash(s) (janet_string_head(s)->hash)
 JANET_API uint8_t *janet_string_begin(int32_t length);
 JANET_API const uint8_t *janet_string_end(uint8_t *str);
 JANET_API const uint8_t *janet_string(const uint8_t *buf, int32_t len);
@@ -1039,11 +1092,10 @@ JANET_API const uint8_t *janet_symbol_gen(void);
 #define janet_ckeywordv(cstr) janet_wrap_keyword(janet_ckeyword(cstr))
 
 /* Structs */
-#define janet_struct_raw(t) ((int32_t *)(t) - 4)
-#define janet_struct_length(t) (janet_struct_raw(t)[0])
-#define janet_struct_capacity(t) (janet_struct_raw(t)[1])
-#define janet_struct_hash(t) (janet_struct_raw(t)[2])
-/* Do something with the 4th header slot - flags? */
+#define janet_struct_head(t) ((JanetStructHead *)((char *)t - offsetof(JanetStructHead, data)))
+#define janet_struct_length(t) (janet_struct_head(t)->length)
+#define janet_struct_capacity(t) (janet_struct_head(t)->capacity)
+#define janet_struct_hash(t) (janet_struct_head(t)->hash)
 JANET_API JanetKV *janet_struct_begin(int32_t count);
 JANET_API void janet_struct_put(JanetKV *st, Janet key, Janet value);
 JANET_API const JanetKV *janet_struct_end(JanetKV *st);
@@ -1079,7 +1131,7 @@ JANET_API Janet janet_dictionary_get(const JanetKV *data, int32_t cap, Janet key
 JANET_API const JanetKV *janet_dictionary_next(const JanetKV *kvs, int32_t cap, const JanetKV *kv);
 
 /* Abstract */
-#define janet_abstract_header(u) ((JanetAbstractHeader *)(u) - 1)
+#define janet_abstract_header(u) ((JanetAbstractHead *)((char *)u - offsetof(JanetAbstractHead, data)))
 #define janet_abstract_type(u) (janet_abstract_header(u)->type)
 #define janet_abstract_size(u) (janet_abstract_header(u)->size)
 JANET_API void *janet_abstract(const JanetAbstractType *type, size_t size);

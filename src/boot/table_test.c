@@ -23,11 +23,11 @@
 #include <janet.h>
 #include <assert.h>
 
-int main() {
+#include "tests.h"
+
+int table_test() {
 
     JanetTable *t1, *t2;
-
-    janet_init();
 
     t1 = janet_table(10);
     t2 = janet_table(0);
@@ -60,8 +60,6 @@ int main() {
 
     assert(janet_equals(janet_table_get(t2, janet_csymbolv("t2key1")), janet_wrap_integer(10)));
     assert(janet_equals(janet_table_get(t2, janet_csymbolv("t2key2")), janet_wrap_integer(100)));
-
-    janet_deinit();
 
     return 0;
 }

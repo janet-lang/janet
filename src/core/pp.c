@@ -629,11 +629,11 @@ void janet_buffer_format(
                 }
                 case 's': {
                     const uint8_t *s = janet_getstring(argv, arg);
-                    size_t l = janet_string_length(s);
+                    int32_t l = janet_string_length(s);
                     if (form[2] == '\0')
                         janet_buffer_push_bytes(b, s, l);
                     else {
-                        if (l != strlen((const char *) s))
+                        if (l != (int32_t) strlen((const char *) s))
                             janet_panic("string contains zeros");
                         if (!strchr(form, '.') && l >= 100) {
                             janet_panic
