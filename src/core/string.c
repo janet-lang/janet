@@ -182,8 +182,7 @@ static Janet cfun_string_repeat(int32_t argc, Janet *argv) {
     if (mulres > INT32_MAX) janet_panic("result string is too long");
     uint8_t *newbuf = janet_string_begin((int32_t) mulres);
     uint8_t *end = newbuf + mulres;
-    uint8_t *p = newbuf;
-    for (p = newbuf; p < end; p += view.len) {
+    for (uint8_t *p = newbuf; p < end; p += view.len) {
         memcpy(p, view.bytes, view.len);
     }
     return janet_wrap_string(janet_string_end(newbuf));

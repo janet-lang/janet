@@ -946,9 +946,11 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
                                         sizeof(peg_specials) / sizeof(SpecialPair),
                                         sizeof(SpecialPair),
                                         sym);
-            if (!sp)
+            if (sp) {
+                sp->special(b, len - 1, tup + 1);
+            } else {
                 peg_panicf(b, "unknown special %S", sym);
-            sp->special(b, len - 1, tup + 1);
+            }
             break;
         }
     }

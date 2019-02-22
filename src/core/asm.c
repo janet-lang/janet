@@ -642,7 +642,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         }
         /* Allocate bytecode array */
         def->bytecode_length = blength;
-        def->bytecode = malloc(sizeof(int32_t) * blength);
+        def->bytecode = malloc(sizeof(uint32_t) * blength);
         if (NULL == def->bytecode) {
             JANET_OUT_OF_MEMORY;
         }

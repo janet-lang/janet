@@ -172,7 +172,8 @@ static Janet cfun_buffer_new_filled(int32_t argc, Janet *argv) {
         byte = janet_getinteger(argv, 1) & 0xFF;
     }
     JanetBuffer *buffer = janet_buffer(count);
-    memset(buffer->data, byte, count);
+    if (buffer->data)
+        memset(buffer->data, byte, count);
     buffer->count = count;
     return janet_wrap_buffer(buffer);
 }
@@ -236,7 +237,8 @@ static Janet cfun_buffer_slice(int32_t argc, Janet *argv) {
     JanetRange range = janet_getslice(argc, argv);
     JanetByteView view = janet_getbytes(argv, 0);
     JanetBuffer *buffer = janet_buffer(range.end - range.start);
-    memcpy(buffer->data, view.bytes + range.start, range.end - range.start);
+    if (buffer->data)
+        memcpy(buffer->data, view.bytes + range.start, range.end - range.start);
     buffer->count = range.end - range.start;
     return janet_wrap_buffer(buffer);
 }

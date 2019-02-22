@@ -391,9 +391,8 @@ static int janet_gc_idequals(Janet lhs, Janet rhs) {
  * a value and all its children. */
 int janet_gcunroot(Janet root) {
     Janet *vtop = janet_vm_roots + janet_vm_root_count;
-    Janet *v = janet_vm_roots;
     /* Search from top to bottom as access is most likely LIFO */
-    for (v = janet_vm_roots; v < vtop; v++) {
+    for (Janet *v = janet_vm_roots; v < vtop; v++) {
         if (janet_gc_idequals(root, *v)) {
             *v = janet_vm_roots[--janet_vm_root_count];
             return 1;
@@ -405,10 +404,9 @@ int janet_gcunroot(Janet root) {
 /* Remove a root value from the GC. This sets the effective reference count to 0. */
 int janet_gcunrootall(Janet root) {
     Janet *vtop = janet_vm_roots + janet_vm_root_count;
-    Janet *v = janet_vm_roots;
     int ret = 0;
     /* Search from top to bottom as access is most likely LIFO */
-    for (v = janet_vm_roots; v < vtop; v++) {
+    for (Janet *v = janet_vm_roots; v < vtop; v++) {
         if (janet_gc_idequals(root, *v)) {
             *v = janet_vm_roots[--janet_vm_root_count];
             vtop--;

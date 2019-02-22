@@ -192,7 +192,7 @@ static Janet cfun_debug_break(int32_t argc, Janet *argv) {
 
 static Janet cfun_debug_unbreak(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
-    int32_t offset;
+    int32_t offset = 0;
     helper_find(argc, argv, &def, &offset);
     janet_debug_unbreak(def, offset);
     return janet_wrap_nil();
@@ -200,7 +200,7 @@ static Janet cfun_debug_unbreak(int32_t argc, Janet *argv) {
 
 static Janet cfun_debug_fbreak(int32_t argc, Janet *argv) {
     JanetFuncDef *def;
-    int32_t offset;
+    int32_t offset = 0;
     helper_find_fun(argc, argv, &def, &offset);
     janet_debug_break(def, offset);
     return janet_wrap_nil();
