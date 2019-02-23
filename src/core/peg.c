@@ -946,9 +946,11 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
                                         sizeof(peg_specials) / sizeof(SpecialPair),
                                         sizeof(SpecialPair),
                                         sym);
-            if (!sp)
+            if (sp) {
+                sp->special(b, len - 1, tup + 1);
+            } else {
                 peg_panicf(b, "unknown special %S", sym);
-            sp->special(b, len - 1, tup + 1);
+            }
             break;
         }
     }
@@ -1055,7 +1057,6 @@ static Janet cfun_peg_match(int32_t argc, Janet *argv) {
     s.captures = janet_array(0);
     s.scratch = janet_buffer(10);
     s.tags = janet_buffer(10);
-
     s.constants = peg->constants;
     s.bytecode = peg->bytecode;
     const uint8_t *result = peg_rule(&s, s.bytecode, bytes.bytes + start);

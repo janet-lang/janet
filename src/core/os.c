@@ -125,6 +125,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 static Janet os_execute(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
     const uint8_t **child_argv = malloc(sizeof(uint8_t *) * (argc + 1));
+    int status = 0;
     if (NULL == child_argv) {
         JANET_OUT_OF_MEMORY;
     }
@@ -141,9 +142,10 @@ static Janet os_execute(int32_t argc, Janet *argv) {
         if (-1 == execve((const char *)child_argv[0], (char **)child_argv, NULL)) {
             exit(1);
         }
+    } else {
+        waitpid(pid, &status, 0);
     }
-    int status;
-    waitpid(pid, &status, 0);
+    free(child_argv);
     return janet_wrap_integer(status);
 }
 #endif

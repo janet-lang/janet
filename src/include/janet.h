@@ -1141,17 +1141,15 @@ typedef void (*JanetModule)(JanetTable *);
 JANET_API JanetModule janet_native(const char *name, const uint8_t **error);
 
 /* Marshaling */
-JANET_API int janet_marshal(
+JANET_API void janet_marshal(
     JanetBuffer *buf,
     Janet x,
-    Janet *errval,
     JanetTable *rreg,
     int flags);
-JANET_API int janet_unmarshal(
+JANET_API Janet janet_unmarshal(
     const uint8_t *bytes,
     size_t len,
     int flags,
-    Janet *out,
     JanetTable *reg,
     const uint8_t **next);
 JANET_API JanetTable *janet_env_lookup(JanetTable *env);

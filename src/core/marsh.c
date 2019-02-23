@@ -30,8 +30,6 @@
 #endif
 
 typedef struct {
-    jmp_buf err;
-    Janet current;
     JanetBuffer *buf;
     JanetTable seen;
     JanetTable *rreg;
@@ -39,26 +37,6 @@ typedef struct {
     JanetFuncDef **seen_defs;
     int32_t nextid;
 } MarshalState;
-
-enum {
-    MR_OK,
-    MR_STACKOVERFLOW,
-    MR_NYI,
-    MR_NRV,
-    MR_C_STACKFRAME,
-    MR_OVERFLOW,
-    MR_LIVEFIBER
-} MarshalResult;
-
-const char *mr_strings[] = {
-    "",
-    "stack overflow",
-    "type NYI",
-    "no registry value",
-    "fiber has c stack frame",
-    "buffer overflow",
-    "alive fiber"
-};
 
 /* Lead bytes in marshaling protocol */
 enum {
@@ -156,10 +134,12 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags);
 static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags);
 static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags);
 
+/* Prevent stack overflows */
+#define MARSH_STACKCHECK if ((flags & 0xFFFF) > JANET_RECURSION_GUARD) janet_panic("stack overflow")
+
 /* Marshal a function env */
 static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
-    if ((flags & 0xFFFF) > JANET_RECURSION_GUARD)
-        longjmp(st->err, MR_STACKOVERFLOW);
+    MARSH_STACKCHECK;
     for (int32_t i = 0; i < janet_v_count(st->seen_envs); i++) {
         if (st->seen_envs[i] == env) {
             pushbyte(st, LB_FUNCENV_REF);
@@ -191,8 +171,7 @@ static void janet_func_addflags(JanetFuncDef *def) {
 
 /* Marshal a function def */
 static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
-    if ((flags & 0xFFFF) > JANET_RECURSION_GUARD)
-        longjmp(st->err, MR_STACKOVERFLOW);
+    MARSH_STACKCHECK;
     for (int32_t i = 0; i < janet_v_count(st->seen_defs); i++) {
         if (st->seen_defs[i] == def) {
             pushbyte(st, LB_FUNCDEF_REF);
@@ -254,12 +233,11 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 
 /* Marshal a fiber */
 static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
+    MARSH_STACKCHECK;
     int32_t fflags = fiber->flags;
-    if ((flags & 0xFFFF) > JANET_RECURSION_GUARD)
-        longjmp(st->err, MR_STACKOVERFLOW);
     if (fiber->child) fflags |= JANET_FIBER_FLAG_HASCHILD;
     if (janet_fiber_status(fiber) == JANET_STATUS_ALIVE)
-        longjmp(st->err, MR_LIVEFIBER);
+        janet_panic("cannot marshal alive fiber");
     pushint(st, fflags);
     pushint(st, fiber->frame);
     pushint(st, fiber->stackstart);
@@ -271,7 +249,7 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
     while (i > 0) {
         JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
         if (frame->env) frame->flags |= JANET_STACKFRAME_HASENV;
-        if (!frame->func) longjmp(st->err, MR_C_STACKFRAME);
+        if (!frame->func) janet_panic("cannot marshal fiber with c stackframe");
         pushint(st, frame->flags);
         pushint(st, frame->prevframe);
         int32_t pcdiff = (int32_t)(frame->pc - frame->func->def->bytecode);
@@ -332,11 +310,8 @@ static int marshal_one_abstract(MarshalState *st, Janet x, int flags) {
 /* The main body of the marshaling function. Is the main
  * entry point for the mutually recursive functions. */
 static void marshal_one(MarshalState *st, Janet x, int flags) {
-    Janet parent = st->current;
+    MARSH_STACKCHECK;
     JanetType type = janet_type(x);
-    st->current = x;
-    if ((flags & 0xFFFF) > JANET_RECURSION_GUARD)
-        longjmp(st->err, MR_STACKOVERFLOW);
 
     /* Check simple primitives (non reference types, no benefit from memoization) */
     switch (type) {
@@ -346,12 +321,12 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         case JANET_FALSE:
         case JANET_TRUE:
             pushbyte(st, 200 + type);
-            goto done;
+            return;
         case JANET_NUMBER: {
             double xval = janet_unwrap_number(x);
             if (janet_checkintrange(xval)) {
                 pushint(st, (int32_t) xval);
-                goto done;
+                return;
             }
             break;
         }
@@ -364,7 +339,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         if (janet_checkint(check)) {
             pushbyte(st, LB_REFERENCE);
             pushint(st, janet_unwrap_integer(check));
-            goto done;
+            return;
         }
         if (st->rreg) {
             check = janet_table_get(st->rreg, x);
@@ -374,7 +349,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 pushbyte(st, LB_REGISTRY);
                 pushint(st, janet_string_length(regname));
                 pushbytes(st, regname, janet_string_length(regname));
-                goto done;
+                return;
             }
         }
     }
@@ -406,8 +381,8 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             pushbyte(st, LB_REAL);
             pushbytes(st, u.bytes, 8);
             MARK_SEEN();
+            return;
         }
-        goto done;
         case JANET_STRING:
         case JANET_SYMBOL:
         case JANET_KEYWORD: {
@@ -421,8 +396,8 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             pushbyte(st, lb);
             pushint(st, length);
             pushbytes(st, str, length);
+            return;
         }
-        goto done;
         case JANET_BUFFER: {
             JanetBuffer *buffer = janet_unwrap_buffer(x);
             /* Record reference */
@@ -430,8 +405,8 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             pushbyte(st, LB_BUFFER);
             pushint(st, buffer->count);
             pushbytes(st, buffer->data, buffer->count);
+            return;
         }
-        goto done;
         case JANET_ARRAY: {
             int32_t i;
             JanetArray *a = janet_unwrap_array(x);
@@ -440,8 +415,8 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             pushint(st, a->count);
             for (i = 0; i < a->count; i++)
                 marshal_one(st, a->data[i], flags + 1);
+            return;
         }
-        goto done;
         case JANET_TUPLE: {
             int32_t i, count, flag;
             const Janet *tup = janet_unwrap_tuple(x);
@@ -454,8 +429,8 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 marshal_one(st, tup[i], flags + 1);
             /* Mark as seen AFTER marshaling */
             MARK_SEEN();
+            return;
         }
-        goto done;
         case JANET_TABLE: {
             JanetTable *t = janet_unwrap_table(x);
             MARK_SEEN();
@@ -469,8 +444,8 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
                 marshal_one(st, t->data[i].key, flags + 1);
                 marshal_one(st, t->data[i].value, flags + 1);
             }
+            return;
         }
-        goto done;
         case JANET_STRUCT: {
             int32_t count;
             const JanetKV *struct_ = janet_unwrap_struct(x);
@@ -485,17 +460,13 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             }
             /* Mark as seen AFTER marshaling */
             MARK_SEEN();
+            return;
         }
-        goto done;
         case JANET_ABSTRACT: {
             if (marshal_one_abstract(st, x, flags)) {
-                goto done;
-            } else {
-                goto noregval;
-            }
-        }
-        case JANET_CFUNCTION:
-            goto noregval;
+	      return;
+	    }
+	}
         case JANET_FUNCTION: {
             pushbyte(st, LB_FUNCTION);
             JanetFunction *func = janet_unwrap_function(x);
@@ -504,56 +475,39 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             MARK_SEEN();
             for (int32_t i = 0; i < func->def->environments_length; i++)
                 marshal_one_env(st, func->envs[i], flags + 1);
+            return;
         }
-        goto done;
         case JANET_FIBER: {
             MARK_SEEN();
             pushbyte(st, LB_FIBER);
             marshal_one_fiber(st, janet_unwrap_fiber(x), flags + 1);
+            return;
         }
-        goto done;
-        default:
-            goto nyi;
+        default: {
+            janet_panicf("no registry value and cannot marshal %p", x);
+            return;
+        }
     }
-
 #undef MARK_SEEN
-
-done:
-    st->current = parent;
-    return;
-
-    /* Errors */
-
-nyi:
-    longjmp(st->err, MR_NYI);
-
-noregval:
-    longjmp(st->err, MR_NRV);
 }
 
-int janet_marshal(
+void janet_marshal(
     JanetBuffer *buf,
     Janet x,
-    Janet *errval,
     JanetTable *rreg,
     int flags) {
-    int status;
     MarshalState st;
     st.buf = buf;
     st.nextid = 0;
     st.seen_defs = NULL;
     st.seen_envs = NULL;
     st.rreg = rreg;
-    st.current = x;
     janet_table_init(&st.seen, 0);
-    if (!(status = setjmp(st.err)))
-        marshal_one(&st, x, flags);
-    if (status && errval)
-        *errval = st.current;
+    marshal_one(&st, x, flags);
+    /* Clean up. See comment in janet_unmarshal about autoreleasing memory on panics.*/
     janet_table_deinit(&st.seen);
     janet_v_free(st.seen_envs);
     janet_v_free(st.seen_defs);
-    return status;
 }
 
 typedef struct {
@@ -562,9 +516,11 @@ typedef struct {
     JanetTable *reg;
     JanetFuncEnv **lookup_envs;
     JanetFuncDef **lookup_defs;
+    const uint8_t *start;
     const uint8_t *end;
 } UnmarshalState;
 
+<<<<<<< HEAD
 enum {
     UMR_OK,
     UMR_STACKOVERFLOW,
@@ -594,31 +550,46 @@ const char *umr_strings[] = {
     "invalid fiber",
     "invalid abstract",
 };
+=======
+#define MARSH_EOS(st, data) do { \
+    if ((data) >= (st)->end) janet_panic("unexpected end of source");\
+} while (0)
+>>>>>>> upstream/master
 
 /* Helper to read a 32 bit integer from an unmarshal state */
 static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
     const uint8_t *data = *atdata;
     int32_t ret;
-    if (data >= st->end) longjmp(st->err, UMR_EOS);
+    MARSH_EOS(st, data);
     if (*data < 128) {
         ret = *data++;
     } else if (*data < 192) {
-        if (data + 2 > st->end) longjmp(st->err, UMR_EOS);
+        MARSH_EOS(st, data + 1);
         ret = ((data[0] & 0x3F) << 8) + data[1];
         ret = ((ret << 18) >> 18);
         data += 2;
     } else if (*data == LB_INTEGER) {
-        if (data + 5 > st->end) longjmp(st->err, UMR_EOS);
+        MARSH_EOS(st, data + 4);
         ret = ((int32_t)(data[1]) << 24) |
               ((int32_t)(data[2]) << 16) |
               ((int32_t)(data[3]) << 8) |
               (int32_t)(data[4]);
         data += 5;
     } else {
-        longjmp(st->err, UMR_EXPECTED_INTEGER);
+        janet_panicf("expected integer, got byte %x at index %d",
+                     *data,
+                     data - st->start);
+        ret = 0;
     }
     *atdata = data;
     return ret;
+}
+
+/* Assert a janet type */
+static void janet_asserttype(Janet x, JanetType t) {
+    if (!janet_checktype(x, t)) {
+        janet_panicf("expected type %T, got %v", 1 << t, x);
+    }
 }
 
 /* Forward declarations for mutual recursion */
@@ -649,13 +620,12 @@ static const uint8_t *unmarshal_one_env(
     const uint8_t *data,
     JanetFuncEnv **out,
     int flags) {
-    const uint8_t *end = st->end;
-    if (data >= end) longjmp(st->err, UMR_EOS);
+    MARSH_EOS(st, data);
     if (*data == LB_FUNCENV_REF) {
         data++;
         int32_t index = readint(st, &data);
         if (index < 0 || index >= janet_v_count(st->lookup_envs))
-            longjmp(st->err, UMR_INVALID_REFERENCE);
+            janet_panicf("invalid funcenv reference %d", index);
         *out = st->lookup_envs[index];
     } else {
         JanetFuncEnv *env = janet_gcalloc(JANET_MEMORY_FUNCENV, sizeof(JanetFuncEnv));
@@ -668,11 +638,13 @@ static const uint8_t *unmarshal_one_env(
             Janet fiberv;
             /* On stack variant */
             data = unmarshal_one(st, data, &fiberv, flags);
-            if (!janet_checktype(fiberv, JANET_FIBER)) longjmp(st->err, UMR_EXPECTED_FIBER);
+            janet_asserttype(fiberv, JANET_FIBER);
             env->as.fiber = janet_unwrap_fiber(fiberv);
             /* Unmarshalling fiber may set values */
-            if (env->offset != 0 && env->offset != offset) longjmp(st->err, UMR_UNKNOWN);
-            if (env->length != 0 && env->length != length) longjmp(st->err, UMR_UNKNOWN);
+            if (env->offset != 0 && env->offset != offset)
+                janet_panic("invalid funcenv offset");
+            if (env->length != 0 && env->length != length)
+                janet_panic("invalid funcenv length");
         } else {
             /* Off stack variant */
             env->as.values = malloc(sizeof(Janet) * length);
@@ -695,13 +667,12 @@ static const uint8_t *unmarshal_one_def(
     const uint8_t *data,
     JanetFuncDef **out,
     int flags) {
-    const uint8_t *end = st->end;
-    if (data >= end) longjmp(st->err, UMR_EOS);
+    MARSH_EOS(st, data);
     if (*data == LB_FUNCDEF_REF) {
         data++;
         int32_t index = readint(st, &data);
         if (index < 0 || index >= janet_v_count(st->lookup_defs))
-            longjmp(st->err, UMR_INVALID_REFERENCE);
+            janet_panicf("invalid funcdef reference %d", index);
         *out = st->lookup_defs[index];
     } else {
         /* Initialize with values that will not break garbage collection
@@ -738,13 +709,13 @@ static const uint8_t *unmarshal_one_def(
         if (def->flags & JANET_FUNCDEF_FLAG_HASNAME) {
             Janet x;
             data = unmarshal_one(st, data, &x, flags + 1);
-            if (!janet_checktype(x, JANET_STRING)) longjmp(st->err, UMR_EXPECTED_STRING);
+            janet_asserttype(x, JANET_STRING);
             def->name = janet_unwrap_string(x);
         }
         if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCE) {
             Janet x;
             data = unmarshal_one(st, data, &x, flags + 1);
-            if (!janet_checktype(x, JANET_STRING)) longjmp(st->err, UMR_EXPECTED_STRING);
+            janet_asserttype(x, JANET_STRING);
             def->source = janet_unwrap_string(x);
         }
 
@@ -767,7 +738,7 @@ static const uint8_t *unmarshal_one_def(
             JANET_OUT_OF_MEMORY;
         }
         for (int32_t i = 0; i < bytecode_length; i++) {
-            if (data + 4 > end) longjmp(st->err, UMR_EOS);
+            MARSH_EOS(st, data + 3);
             def->bytecode[i] =
                 (uint32_t)(data[0]) |
                 ((uint32_t)(data[1]) << 8) |
@@ -823,7 +794,8 @@ static const uint8_t *unmarshal_one_def(
         }
 
         /* Validate */
-        if (janet_verify(def)) longjmp(st->err, UMR_INVALID_BYTECODE);
+        if (janet_verify(def))
+            janet_panic("funcdef has invalid bytecode");
 
         /* Set def */
         *out = def;
@@ -868,7 +840,7 @@ static const uint8_t *unmarshal_one_fiber(
     if ((int32_t)(frame + JANET_FRAME_SIZE) > fiber->stackstart ||
             fiber->stackstart > fiber->stacktop ||
             fiber->stacktop > fiber->maxstack) {
-        goto error;
+        janet_panic("fiber has incorrect stack setup");
     }
 
     /* Allocate stack memory */
@@ -896,9 +868,7 @@ static const uint8_t *unmarshal_one_fiber(
         /* Get function */
         Janet funcv;
         data = unmarshal_one(st, data, &funcv, flags + 1);
-        if (!janet_checktype(funcv, JANET_FUNCTION)) {
-            goto error;
-        }
+        janet_asserttype(funcv, JANET_FUNCTION);
         func = janet_unwrap_function(funcv);
         def = func->def;
 
@@ -908,17 +878,25 @@ static const uint8_t *unmarshal_one_fiber(
             int32_t offset = stack;
             int32_t length = stacktop - stack;
             data = unmarshal_one_env(st, data, &env, flags + 1);
-            if (env->offset != 0 && env->offset != offset) goto error;
-            if (env->length != 0 && env->length != offset) goto error;
+            if (env->offset != 0 && env->offset != offset)
+                janet_panic("funcenv offset does not match fiber frame");
+            if (env->length != 0 && env->length != length)
+                janet_panic("funcenv length does not match fiber frame");
             env->offset = offset;
             env->length = length;
         }
 
         /* Error checking */
         int32_t expected_framesize = def->slotcount;
-        if (expected_framesize != stacktop - stack) goto error;
-        if (pcdiff < 0 || pcdiff >= def->bytecode_length) goto error;
-        if ((int32_t)(prevframe + JANET_FRAME_SIZE) > stack) goto error;
+        if (expected_framesize != stacktop - stack) {
+            janet_panic("fiber stackframe size mismatch");
+        }
+        if (pcdiff < 0 || pcdiff >= def->bytecode_length) {
+            janet_panic("fiber stackframe has invalid pc");
+        }
+        if ((int32_t)(prevframe + JANET_FRAME_SIZE) > stack) {
+            janet_panic("fibre stackframe does not align with previous frame");
+        }
 
         /* Get stack items */
         for (int32_t i = stack; i < stacktop; i++)
@@ -935,14 +913,16 @@ static const uint8_t *unmarshal_one_fiber(
         stacktop = stack - JANET_FRAME_SIZE;
         stack = prevframe;
     }
-    if (stack < 0) goto error;
+    if (stack < 0) {
+        janet_panic("fiber has too many stackframes");
+    }
 
     /* Check for child fiber */
     if (fiber->flags & JANET_FIBER_FLAG_HASCHILD) {
         Janet fiberv;
         fiber->flags &= ~JANET_FIBER_FLAG_HASCHILD;
         data = unmarshal_one(st, data, &fiberv, flags + 1);
-        if (!janet_checktype(fiberv, JANET_FIBER)) longjmp(st->err, UMR_EXPECTED_FIBER);
+        janet_asserttype(fiberv, JANET_FIBER);
         fiber->child = janet_unwrap_fiber(fiberv);
     }
 
@@ -950,10 +930,6 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->frame = frame;
     *out = fiber;
     return data;
-
-error:
-    longjmp(st->err, UMR_INVALID_FIBER);
-    return NULL;
 }
 
 
@@ -991,7 +967,7 @@ void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out) {
 static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {
     uint32_t tag = readint(st, &data);
     const JanetAbstractTypeInfo *info = janet_get_abstract_type_info(tag);
-    if (info == NULL) goto error;
+    if (info == NULL) return NULL;
     if (info->unmarshal) {
         void *p = janet_abstract(info->at, info->size);
         JanetMarshalContext context = {NULL, st, flags, data};
@@ -999,9 +975,6 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
         *out = janet_wrap_abstract(p);
         return data;
     }
-    return 0;
-error:
-    longjmp(st->err, UMR_INVALID_ABSTRACT);
     return NULL;
 }
 
@@ -1014,13 +987,9 @@ static const uint8_t *unmarshal_one(
     const uint8_t *data,
     Janet *out,
     int flags) {
-    const uint8_t *end = st->end;
     uint8_t lead;
-    if ((flags & 0xFFFF) > JANET_RECURSION_GUARD) {
-        longjmp(st->err, UMR_STACKOVERFLOW);
-    }
-#define EXTRA(N) if (data + N > end) longjmp(st->err, UMR_EOS)
-    EXTRA(1);
+    MARSH_STACKCHECK;
+    MARSH_EOS(st, data);
     lead = data[0];
     if (lead < 200) {
         *out = janet_wrap_integer(readint(st, &data));
@@ -1038,7 +1007,7 @@ static const uint8_t *unmarshal_one(
             return data + 1;
         case LB_INTEGER:
             /* Long integer */
-            EXTRA(5);
+            MARSH_EOS(st, data + 4);
             *out = janet_wrap_integer(
                        (data[4]) |
                        (data[3] << 8) |
@@ -1052,7 +1021,7 @@ static const uint8_t *unmarshal_one(
                 double d;
                 uint8_t bytes[8];
             } u;
-            EXTRA(9);
+            MARSH_EOS(st, data + 8);
 #ifdef JANET_BIG_ENDIAN
             u.bytes[0] = data[8];
             u.bytes[1] = data[7];
@@ -1076,7 +1045,7 @@ static const uint8_t *unmarshal_one(
         case LB_REGISTRY: {
             data++;
             int32_t len = readint(st, &data);
-            EXTRA(len);
+            MARSH_EOS(st, data - 1 + len);
             if (lead == LB_STRING) {
                 const uint8_t *str = janet_string(data, len);
                 *out = janet_wrap_string(str);
@@ -1168,7 +1137,7 @@ static const uint8_t *unmarshal_one(
                 janet_array_push(&st->lookup, *out);
             } else if (lead == LB_REFERENCE) {
                 if (len < 0 || len >= st->lookup.count)
-                    longjmp(st->err, UMR_INVALID_REFERENCE);
+                    janet_panicf("invalid reference %d", len);
                 *out = st->lookup.data[len];
             } else {
                 /* Table */
@@ -1178,7 +1147,7 @@ static const uint8_t *unmarshal_one(
                 if (lead == LB_TABLE_PROTO) {
                     Janet proto;
                     data = unmarshal_one(st, data, &proto, flags + 1);
-                    if (!janet_checktype(proto, JANET_TABLE)) longjmp(st->err, UMR_EXPECTED_TABLE);
+                    janet_asserttype(proto, JANET_TABLE);
                     t->proto = janet_unwrap_table(proto);
                 }
                 for (int32_t i = 0; i < len; i++) {
@@ -1190,36 +1159,39 @@ static const uint8_t *unmarshal_one(
             }
             return data;
         }
-        default:
-            longjmp(st->err, UMR_UNKNOWN);
+        default: {
+            janet_panicf("unknown byte %x at index %d",
+                         *data,
+                         (int)(data - st->start));
             return NULL;
+        }
     }
 #undef EXTRA
 }
 
-int janet_unmarshal(
+Janet janet_unmarshal(
     const uint8_t *bytes,
     size_t len,
     int flags,
-    Janet *out,
     JanetTable *reg,
     const uint8_t **next) {
-    int status;
-    /* Avoid longjmp clobber warning in GCC */
     UnmarshalState st;
+    st.start = bytes;
     st.end = bytes + len;
     st.lookup_defs = NULL;
     st.lookup_envs = NULL;
     st.reg = reg;
     janet_array_init(&st.lookup, 0);
-    if (!(status = setjmp(st.err))) {
-        const uint8_t *nextbytes = unmarshal_one(&st, bytes, out, flags);
-        if (next) *next = nextbytes;
-    }
+    Janet out;
+    const uint8_t *nextbytes = unmarshal_one(&st, bytes, &out, flags);
+    if (next) *next = nextbytes;
+    /* Clean up - this should be auto released on panics, TODO. We should
+     * change the vector implementation to track allocations for auto release, and
+     * make st.lookup auto release as well, or move to heap. */
     janet_array_deinit(&st.lookup);
     janet_v_free(st.lookup_defs);
     janet_v_free(st.lookup_envs);
-    return status;
+    return out;
 }
 
 /* C functions */
@@ -1234,8 +1206,6 @@ static Janet cfun_marshal(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     JanetBuffer *buffer;
     JanetTable *rreg = NULL;
-    Janet err_param = janet_wrap_nil();
-    int status;
     if (argc > 1) {
         rreg = janet_gettable(argv, 1);
     }
@@ -1244,9 +1214,7 @@ static Janet cfun_marshal(int32_t argc, Janet *argv) {
     } else {
         buffer = janet_buffer(10);
     }
-    status = janet_marshal(buffer, argv[0], &err_param, rreg, 0);
-    if (status)
-        janet_panicf("%s for %V", mr_strings[status], err_param);
+    janet_marshal(buffer, argv[0], rreg, 0);
     return janet_wrap_buffer(buffer);
 }
 
@@ -1254,16 +1222,10 @@ static Janet cfun_unmarshal(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     JanetByteView view = janet_getbytes(argv, 0);
     JanetTable *reg = NULL;
-    Janet ret;
-    int status;
     if (argc > 1) {
         reg = janet_gettable(argv, 1);
     }
-    status = janet_unmarshal(view.bytes, (size_t) view.len, 0, &ret, reg, NULL);
-    if (status) {
-        janet_panic(umr_strings[status]);
-    }
-    return ret;
+    return janet_unmarshal(view.bytes, (size_t) view.len, 0, reg, NULL);
 }
 
 static const JanetReg marsh_cfuns[] = {

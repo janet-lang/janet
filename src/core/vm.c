@@ -852,7 +852,12 @@ JanetSignal janet_pcall(
     const Janet *argv,
     Janet *out,
     JanetFiber **f) {
-    JanetFiber *fiber = janet_fiber(fun, 64, argc, argv);
+    JanetFiber *fiber;
+    if (f && *f) {
+        fiber = janet_fiber_reset(*f, fun, argc, argv);
+    } else {
+        fiber = janet_fiber(fun, 64, argc, argv);
+    }
     if (f) *f = fiber;
     if (!fiber) {
         *out = janet_cstringv("arity mismatch");

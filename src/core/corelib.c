@@ -798,18 +798,12 @@ JanetTable *janet_core_env(void) {
 #else
 
     /* Unmarshal from core image */
-    Janet marsh_out;
-    int status = janet_unmarshal(
-                     janet_core_image,
-                     janet_core_image_size,
-                     0,
-                     &marsh_out,
-                     env,
-                     NULL);
-    if (status) {
-        printf("error unmarshaling core image\n");
-        exit(1);
-    }
+    Janet marsh_out = janet_unmarshal(
+                          janet_core_image,
+                          janet_core_image_size,
+                          0,
+                          env,
+                          NULL);
     janet_gcroot(marsh_out);
     env = janet_unwrap_table(marsh_out);
 #endif

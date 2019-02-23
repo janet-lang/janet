@@ -198,6 +198,9 @@ static Janet cfun_io_fread(int32_t argc, Janet *argv) {
                 if (fsize < 0) {
                     janet_panicf("could not get file size of %v", argv[0]);
                 }
+                if (fsize > (INT32_MAX)) {
+                    janet_panic("file to large to read into buffer");
+                }
                 fseek(iof->file, 0, SEEK_SET);
                 read_chunk(iof, buffer, (int32_t) fsize);
             }
