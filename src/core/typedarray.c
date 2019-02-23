@@ -80,8 +80,7 @@ static  size_t ta_type_sizes[] = {
     sizeof(ta_float64_t),
 };
 #define TA_COUNT_TYPES (TA_TYPE_float64 + 1)
-#define TA_ATOM_MAXSIZE 8;
-
+#define TA_ATOM_MAXSIZE 8
 #define TA_FLAG_BIG_ENDIAN 1
 
 static TA_Type get_ta_type_by_name(const uint8_t *name) {
@@ -99,7 +98,7 @@ static TA_Type get_ta_type_by_name(const uint8_t *name) {
 typedef struct {
     uint8_t *data;
     size_t size;
-    int32_t flags;
+    uint32_t flags;
 } TA_Buffer;
 
 static TA_Buffer *ta_buffer_init(TA_Buffer *buf, size_t size) {
@@ -127,12 +126,25 @@ static void ta_buffer_marshal(void *p, JanetMarshalContext *ctx) {
   janet_marshal_bytes(ctx,buf->data,buf->size);
 }
 
+static void ta_buffer_unmarshal(void *p, JanetMarshalContext *ctx) {
+  TA_Buffer *buf = (TA_Buffer *)p;
+  uint32_t size;
+  janet_unmarshal_uint(ctx,&size);
+  ta_buffer_init(buf,size); // warning if indianess <> platform ?? 
+  janet_unmarshal_uint(ctx,&(buf->flags));
+  janet_unmarshal_bytes(ctx,buf->data,buf->size);
+}
+
+
 static const JanetAbstractType ta_buffer_type={"ta/buffer", ta_buffer_gc, NULL, NULL, NULL};
 
 static const JanetAbstractTypeInfo ta_buffer_typeinfo={
   &ta_buffer_type,
+  sizeof(TA_Buffer),
   1000,
+  0,
   ta_buffer_marshal,
+  ta_buffer_unmarshal,
 };
 
 
@@ -154,11 +166,28 @@ static int ta_mark(void *p, size_t s) {
 
 static void ta_view_marshal(void *p, JanetMarshalContext *ctx) {
   TA_View *view = (TA_View *)p;
+  size_t offset = (view->buffer->data - (uint8_t *)(view->data));
   janet_marshal_int(ctx,view->size);
   janet_marshal_int(ctx,view->stride);
   janet_marshal_int(ctx,view->type);
+  janet_marshal_int(ctx,offset); 
   janet_marshal_janet(ctx,janet_wrap_abstract(view->buffer));
 }
+
+
+static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
+  TA_View *view = (TA_View *)p;
+  size_t offset;
+  Janet buffer;
+  janet_unmarshal_size(ctx,&(view->size));
+  janet_unmarshal_size(ctx,&(view->stride));
+  janet_unmarshal_uint(ctx,&(view->type));
+  janet_unmarshal_size(ctx,&offset);
+  janet_unmarshal_janet(ctx,&buffer);
+  view->buffer=(TA_Buffer *)janet_unwrap_abstract(buffer);
+  view->data=view->buffer->data+offset;
+}
+
 
 
 
@@ -250,11 +279,11 @@ BUILD_TYPE(float64)
 #undef DEFINE_VIEW_INITIALIZER
 #undef DEFINE_VIEW_ABSTRACT_TYPE
 
-#define VIEW_ABSTRACT_INFO_INIT(type,tag) {&ta_view_##type##_t,tag,ta_view_marshal}
+#define VIEW_ABSTRACT_INFO_INIT(type,salt) {&ta_view_##type##_t,sizeof(TA_View),salt,0,ta_view_marshal,ta_view_unmarshal}
 
 static const JanetAbstractTypeInfo ta_array_types[] = {
     VIEW_ABSTRACT_INFO_INIT(uint8,1001),
-    VIEW_ABSTRACT_INFO_INT(int8,1002),
+    VIEW_ABSTRACT_INFO_INIT(int8,1002),
     VIEW_ABSTRACT_INFO_INIT(uint16,1003),
     VIEW_ABSTRACT_INFO_INIT(int16,1004),
     VIEW_ABSTRACT_INFO_INIT(uint32,1005),
@@ -371,28 +400,41 @@ static Janet cfun_abstract_properties(int32_t argc, Janet *argv) {
     if (info==NULL) {
       return janet_wrap_nil();
     }
-    JanetKV *props = janet_struct_begin(2);
+    JanetKV *props = janet_struct_begin(5);
     janet_struct_put(props, janet_ckeywordv("tag"), janet_wrap_number(info->tag));
+    janet_struct_put(props, janet_ckeywordv("salt"), janet_wrap_number(info->salt));
     janet_struct_put(props, janet_ckeywordv("name"), janet_ckeywordv(info->at->name));
+    janet_struct_put(props, janet_ckeywordv("size"), janet_wrap_number(info->size));
+    janet_struct_put(props, janet_ckeywordv("marshal"), janet_wrap_boolean((info->marshal !=NULL) && (info->unmarshal!=NULL)));
     return janet_wrap_struct(janet_struct_end(props));
 }
 
-/*
+
 static Janet cfun_typed_array_copy_bytes(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 4);
+    janet_arity(argc, 4, 5);
     if (is_ta_type(argv[0]) && is_ta_type(argv[2])) {
       TA_View *src = (TA_View *)janet_unwrap_abstract(argv[0]);
       size_t index_src=(size_t)janet_getinteger(argv, 1);
       TA_View *dst = (TA_View *)janet_unwrap_abstract(argv[2]);
       size_t index_dst=(size_t)janet_getinteger(argv, 3);
+      size_t count=(argc == 5)? (size_t)janet_getinteger(argv, 4) : 1;
       size_t src_atom_size=ta_type_sizes[src->type];
       size_t dst_atom_size=ta_type_sizes[dst->type];
-      size_t pos_src=((uint8_t *)(src->data) - src->buffer->data)+(index_src*src->stride*src_atom_size);
-      size_t pos_dst=((uint8_t *)(dst->data) - dst->buffer->data)+(index_dst*dst->stride*dst_atom_size);
-      if (pos_dst+src_atom_size <= dst->buffer->size)
-	memmove(dst->buffer->data+pos_dst,src->buffer->data+pos_src,src_atom_size);
+      size_t step_src=src->stride*src_atom_size;
+      size_t step_dst=dst->stride*dst_atom_size;
+      size_t pos_src=((uint8_t *)(src->data) - src->buffer->data)+(index_src*step_src);
+      size_t pos_dst=((uint8_t *)(dst->data) - dst->buffer->data)+(index_dst*step_dst);
+      uint8_t * ps=src->buffer->data+pos_src,* pd=dst->buffer->data+pos_dst;
+      if ((pos_dst+(count-1)*step_dst+src_atom_size <= dst->buffer->size) &&
+	  (pos_src+(count-1)*step_src+src_atom_size <= src->buffer->size)) {
+	for (size_t i=0;i<count;i++) {
+	  memmove(pd,ps,src_atom_size);
+	  pd+=step_dst;
+	  ps+=step_src;
+	}
+      }
       else
-	janet_panic("typed array out of bound");
+	janet_panic("typed array copy out of bound");
     } else {
       janet_panic("expected typed array");
     }
@@ -400,32 +442,39 @@ static Janet cfun_typed_array_copy_bytes(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_typed_array_swap_bytes(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 4);
+    janet_arity(argc, 4, 5);
     if (is_ta_type(argv[0]) && is_ta_type(argv[2])) {
       TA_View *src = (TA_View *)janet_unwrap_abstract(argv[0]);
       size_t index_src=(size_t)janet_getinteger(argv, 1);
       TA_View *dst = (TA_View *)janet_unwrap_abstract(argv[2]);
       size_t index_dst=(size_t)janet_getinteger(argv, 3);
+      size_t count=(argc == 5)? (size_t)janet_getinteger(argv, 4) : 1;
       size_t src_atom_size=ta_type_sizes[src->type];
       size_t dst_atom_size=ta_type_sizes[dst->type];
-      size_t pos_src=((uint8_t *)(src->data) - src->buffer->data)+(index_src*src->stride*src_atom_size);
-      size_t pos_dst=((uint8_t *)(dst->data) - dst->buffer->data)+(index_dst*dst->stride*dst_atom_size);
+      size_t step_src=src->stride*src_atom_size;
+      size_t step_dst=dst->stride*dst_atom_size;
+      size_t pos_src=((uint8_t *)(src->data) - src->buffer->data)+(index_src*step_src);
+      size_t pos_dst=((uint8_t *)(dst->data) - dst->buffer->data)+(index_dst*step_dst);
+      uint8_t * ps=src->buffer->data+pos_src,* pd=dst->buffer->data+pos_dst;
       uint8_t temp[TA_ATOM_MAXSIZE];
-      if (pos_dst+src_atom_size <= dst->buffer->size) {
-	uint8_t * src_ptr=src->buffer->data+pos_src;
-	uint8_t * dst_ptr=dst->buffer->data+pos_dst;
-	memcpy(temp,src_ptr,src_atom_size);
-	memcpy(src_ptr,dst_ptr,src_atom_size);
-	memcpy(dst_ptr,temp,src_atom_size);
+      if ((pos_dst+(count-1)*step_dst+src_atom_size <= dst->buffer->size) &&
+	  (pos_src+(count-1)*step_src+src_atom_size <= src->buffer->size)) {
+	for (size_t i=0;i<count;i++) {
+	  memcpy(temp,ps,src_atom_size);
+	  memcpy(ps,pd,src_atom_size);
+	  memcpy(pd,temp,src_atom_size);
+	  pd+=step_dst;
+	  ps+=step_src;
+	}
       }
       else
-	janet_panic("typed array buffer out of bound");
+	janet_panic("typed array swap out of bound");
     } else {
       janet_panic("expected typed array");
     }
     return janet_wrap_nil();
 }
-*/
+
 
 
 static const JanetReg ta_cfuns[] = {
@@ -448,6 +497,22 @@ static const JanetReg ta_cfuns[] = {
         "tarray/properties", cfun_typed_array_properties,
         JDOC("(tarray/properties array )\n\n"
              "return typed array properties as a struct")
+    },
+    {
+        "tarray/copy-bytes", cfun_typed_array_copy_bytes,
+        JDOC("(tarray/copy-bytes src sindex dst dindex [count=1])\n\n"
+             "copy count elements of src array from index sindex \n"
+             "to dst array at position dindex \n"
+	     "memory can overlap"
+	     )
+    },
+    {
+        "tarray/swap-bytes", cfun_typed_array_swap_bytes,
+        JDOC("(tarray/swap-bytes src sindex dst dindex [count=1])\n\n"
+             "swap count elements between src array from index sindex \n"
+             "and dst array at position dindex \n"
+	     "memory can overlap"
+	     )
     },
     {
         "abstract/properties", cfun_abstract_properties,

@@ -319,7 +319,7 @@ static int marshal_one_abstract(MarshalState *st, Janet x, int flags) {
   if (! info) return 1 ; /* unregistered type skip marshalling*/
   if (info->marshal) {
     MARK_SEEN();
-    JanetMarshalContext context={st,NULL,flags};
+    JanetMarshalContext context={st,NULL,flags,NULL};
     pushbyte(st, LB_ABSTRACT);
     pushint(st,info->tag);
     info->marshal(janet_unwrap_abstract(x),&context);
@@ -576,7 +576,8 @@ enum {
     UMR_EXPECTED_STRING,
     UMR_INVALID_REFERENCE,
     UMR_INVALID_BYTECODE,
-    UMR_INVALID_FIBER
+    UMR_INVALID_FIBER,
+    UMR_INVALID_ABSTRACT
 } UnmarshalResult;
 
 const char *umr_strings[] = {
@@ -590,7 +591,8 @@ const char *umr_strings[] = {
     "expected string",
     "invalid reference",
     "invalid bytecode",
-    "invalid fiber"
+    "invalid fiber",
+    "invalid abstract",
 };
 
 /* Helper to read a 32 bit integer from an unmarshal state */
@@ -954,6 +956,59 @@ error:
     return NULL;
 }
 
+
+void janet_unmarshal_int(JanetMarshalContext *ctx,int32_t* i) {
+  UnmarshalState *st =(UnmarshalState *)(ctx->u_state);
+  *i=readint(st,&(ctx->data));
+};
+
+void janet_unmarshal_uint(JanetMarshalContext *ctx,uint32_t* i) {
+  UnmarshalState *st =(UnmarshalState *)(ctx->u_state);
+  *i=(uint32_t)readint(st,&(ctx->data));
+};
+
+void janet_unmarshal_size(JanetMarshalContext *ctx,size_t* i) {
+  UnmarshalState *st =(UnmarshalState *)(ctx->u_state);
+  *i=(size_t)readint(st,&(ctx->data));
+};
+
+
+
+void janet_unmarshal_byte(JanetMarshalContext *ctx,uint8_t* b) {
+  *b=*(ctx->data++);
+};
+
+void janet_unmarshal_bytes(JanetMarshalContext *ctx,uint8_t *dest, int32_t len) {
+  memcpy(dest,ctx->data,len);
+  ctx->data+=len;
+}
+
+void janet_unmarshal_janet(JanetMarshalContext *ctx,Janet *out) {
+  UnmarshalState *st =(UnmarshalState *)(ctx->u_state);
+  ctx->data=unmarshal_one(st,ctx->data,out,ctx->flags);
+}
+
+static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {
+  uint32_t tag=readint(st,&data);
+  const JanetAbstractTypeInfo *info = janet_get_abstract_type_info(tag);
+  if (info==NULL) goto error;
+  if (info->unmarshal) {
+    void *p = janet_abstract(info->at,info->size);
+    JanetMarshalContext context={NULL,st,flags,data};
+    info->unmarshal(p,&context);
+    *out=janet_wrap_abstract(p);
+    return data;
+  }
+  return 0;
+  error:
+    longjmp(st->err, UMR_INVALID_ABSTRACT);
+    return NULL;
+}
+
+
+
+
+
 static const uint8_t *unmarshal_one(
     UnmarshalState *st,
     const uint8_t *data,
@@ -1067,6 +1122,10 @@ static const uint8_t *unmarshal_one(
             }
             return data;
         }
+        case LB_ABSTRACT: {
+	  data++;
+          return unmarshal_one_abstract(st,data,out,flags);
+	}
         case LB_REFERENCE:
         case LB_ARRAY:
         case LB_TUPLE:
