@@ -291,19 +291,18 @@ void janet_marshal_janet(JanetMarshalContext *ctx, Janet x) {
     janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
 
 
-static int marshal_one_abstract(MarshalState *st, Janet x, int flags) {
+static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
     const JanetAbstractType *at = janet_abstract_type(janet_unwrap_abstract(x));
     const JanetAbstractTypeInfo *info = janet_get_abstract_type_info_byname(at->name);
-    if (! info) return 1 ; /* unregistered type skip marshalling*/
-    if (info->marshal) {
+    if (info && info->marshal) {
         MARK_SEEN();
         JanetMarshalContext context = {st, NULL, flags, NULL};
         pushbyte(st, LB_ABSTRACT);
         pushint(st, info->tag);
         info->marshal(janet_unwrap_abstract(x), &context);
-        return 1;
+    } else {
+      janet_panicf("try to marshal unregistered absttact type, cannot marshal %p", x);
     }
-    return 0;
 }
 
 
@@ -463,9 +462,8 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             return;
         }
         case JANET_ABSTRACT: {
-            if (marshal_one_abstract(st, x, flags)) {
-	      return;
-	    }
+	    marshal_one_abstract(st, x, flags);
+	    return;
 	}
         case JANET_FUNCTION: {
             pushbyte(st, LB_FUNCTION);
@@ -520,41 +518,10 @@ typedef struct {
     const uint8_t *end;
 } UnmarshalState;
 
-<<<<<<< HEAD
-enum {
-    UMR_OK,
-    UMR_STACKOVERFLOW,
-    UMR_EOS,
-    UMR_UNKNOWN,
-    UMR_EXPECTED_INTEGER,
-    UMR_EXPECTED_TABLE,
-    UMR_EXPECTED_FIBER,
-    UMR_EXPECTED_STRING,
-    UMR_INVALID_REFERENCE,
-    UMR_INVALID_BYTECODE,
-    UMR_INVALID_FIBER,
-    UMR_INVALID_ABSTRACT
-} UnmarshalResult;
 
-const char *umr_strings[] = {
-    "",
-    "stack overflow",
-    "unexpected end of source",
-    "unmarshal error",
-    "expected integer",
-    "expected table",
-    "expected fiber",
-    "expected string",
-    "invalid reference",
-    "invalid bytecode",
-    "invalid fiber",
-    "invalid abstract",
-};
-=======
 #define MARSH_EOS(st, data) do { \
     if ((data) >= (st)->end) janet_panic("unexpected end of source");\
 } while (0)
->>>>>>> upstream/master
 
 /* Helper to read a 32 bit integer from an unmarshal state */
 static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
