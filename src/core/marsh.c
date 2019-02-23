@@ -289,24 +289,24 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
 }
 
 
-void janet_marshal_int(JanetMarshalContext *ctx,int32_t value) {
-  MarshalState *st =(MarshalState *)(ctx->m_state);
-  pushint(st,value);
+void janet_marshal_int(JanetMarshalContext *ctx, int32_t value) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    pushint(st, value);
 };
 
-void janet_marshal_byte(JanetMarshalContext *ctx,uint8_t value) {
-  MarshalState *st =(MarshalState *)(ctx->m_state);
-  pushbyte(st,value);
+void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    pushbyte(st, value);
 };
 
-void janet_marshal_bytes(JanetMarshalContext *ctx,const uint8_t *bytes, int32_t len) {
-  MarshalState *st =(MarshalState *)(ctx->m_state);
-  pushbytes(st,bytes,len);
+void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, int32_t len) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    pushbytes(st, bytes, len);
 }
 
-void janet_marshal_janet(JanetMarshalContext *ctx,Janet x) {
-  MarshalState *st =(MarshalState *)(ctx->m_state);
-  marshal_one(st,x,ctx->flags + 1);
+void janet_marshal_janet(JanetMarshalContext *ctx, Janet x) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    marshal_one(st, x, ctx->flags + 1);
 }
 
 #define MARK_SEEN() \
@@ -314,18 +314,18 @@ void janet_marshal_janet(JanetMarshalContext *ctx,Janet x) {
 
 
 static int marshal_one_abstract(MarshalState *st, Janet x, int flags) {
-  const JanetAbstractType *at = janet_abstract_type(janet_unwrap_abstract(x));
-  const JanetAbstractTypeInfo *info = janet_get_abstract_type_info_byname(at->name);
-  if (! info) return 1 ; /* unregistered type skip marshalling*/
-  if (info->marshal) {
-    MARK_SEEN();
-    JanetMarshalContext context={st,NULL,flags,NULL};
-    pushbyte(st, LB_ABSTRACT);
-    pushint(st,info->tag);
-    info->marshal(janet_unwrap_abstract(x),&context);
-    return 1;
-  }
-  return 0;
+    const JanetAbstractType *at = janet_abstract_type(janet_unwrap_abstract(x));
+    const JanetAbstractTypeInfo *info = janet_get_abstract_type_info_byname(at->name);
+    if (! info) return 1 ; /* unregistered type skip marshalling*/
+    if (info->marshal) {
+        MARK_SEEN();
+        JanetMarshalContext context = {st, NULL, flags, NULL};
+        pushbyte(st, LB_ABSTRACT);
+        pushint(st, info->tag);
+        info->marshal(janet_unwrap_abstract(x), &context);
+        return 1;
+    }
+    return 0;
 }
 
 
@@ -488,12 +488,12 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         }
         goto done;
         case JANET_ABSTRACT: {
-	  if (marshal_one_abstract(st,x,flags)) {
-	    goto done;
-	  } else {
-	    goto noregval;
-	  }
-	}
+            if (marshal_one_abstract(st, x, flags)) {
+                goto done;
+            } else {
+                goto noregval;
+            }
+        }
         case JANET_CFUNCTION:
             goto noregval;
         case JANET_FUNCTION: {
@@ -957,50 +957,50 @@ error:
 }
 
 
-void janet_unmarshal_int(JanetMarshalContext *ctx,int32_t* i) {
-  UnmarshalState *st =(UnmarshalState *)(ctx->u_state);
-  *i=readint(st,&(ctx->data));
+void janet_unmarshal_int(JanetMarshalContext *ctx, int32_t *i) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    *i = readint(st, &(ctx->data));
 };
 
-void janet_unmarshal_uint(JanetMarshalContext *ctx,uint32_t* i) {
-  UnmarshalState *st =(UnmarshalState *)(ctx->u_state);
-  *i=(uint32_t)readint(st,&(ctx->data));
+void janet_unmarshal_uint(JanetMarshalContext *ctx, uint32_t *i) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    *i = (uint32_t)readint(st, &(ctx->data));
 };
 
-void janet_unmarshal_size(JanetMarshalContext *ctx,size_t* i) {
-  UnmarshalState *st =(UnmarshalState *)(ctx->u_state);
-  *i=(size_t)readint(st,&(ctx->data));
+void janet_unmarshal_size(JanetMarshalContext *ctx, size_t *i) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    *i = (size_t)readint(st, &(ctx->data));
 };
 
 
 
-void janet_unmarshal_byte(JanetMarshalContext *ctx,uint8_t* b) {
-  *b=*(ctx->data++);
+void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b) {
+    *b = *(ctx->data++);
 };
 
-void janet_unmarshal_bytes(JanetMarshalContext *ctx,uint8_t *dest, int32_t len) {
-  memcpy(dest,ctx->data,len);
-  ctx->data+=len;
+void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, int32_t len) {
+    memcpy(dest, ctx->data, len);
+    ctx->data += len;
 }
 
-void janet_unmarshal_janet(JanetMarshalContext *ctx,Janet *out) {
-  UnmarshalState *st =(UnmarshalState *)(ctx->u_state);
-  ctx->data=unmarshal_one(st,ctx->data,out,ctx->flags);
+void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    ctx->data = unmarshal_one(st, ctx->data, out, ctx->flags);
 }
 
 static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {
-  uint32_t tag=readint(st,&data);
-  const JanetAbstractTypeInfo *info = janet_get_abstract_type_info(tag);
-  if (info==NULL) goto error;
-  if (info->unmarshal) {
-    void *p = janet_abstract(info->at,info->size);
-    JanetMarshalContext context={NULL,st,flags,data};
-    info->unmarshal(p,&context);
-    *out=janet_wrap_abstract(p);
-    return data;
-  }
-  return 0;
-  error:
+    uint32_t tag = readint(st, &data);
+    const JanetAbstractTypeInfo *info = janet_get_abstract_type_info(tag);
+    if (info == NULL) goto error;
+    if (info->unmarshal) {
+        void *p = janet_abstract(info->at, info->size);
+        JanetMarshalContext context = {NULL, st, flags, data};
+        info->unmarshal(p, &context);
+        *out = janet_wrap_abstract(p);
+        return data;
+    }
+    return 0;
+error:
     longjmp(st->err, UMR_INVALID_ABSTRACT);
     return NULL;
 }
@@ -1123,9 +1123,9 @@ static const uint8_t *unmarshal_one(
             return data;
         }
         case LB_ABSTRACT: {
-	  data++;
-          return unmarshal_one_abstract(st,data,out,flags);
-	}
+            data++;
+            return unmarshal_one_abstract(st, data, out, flags);
+        }
         case LB_REFERENCE:
         case LB_ARRAY:
         case LB_TUPLE:

@@ -1244,41 +1244,41 @@ JANET_API int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t lengt
 JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which);
 
 typedef struct {
-  void * m_state; /* void* to not expose MarshalState ?*/
-  void * u_state;
-  int flags;
-  const uint8_t * data;
+    void *m_state;  /* void* to not expose MarshalState ?*/
+    void *u_state;
+    int flags;
+    const uint8_t *data;
 } JanetMarshalContext;
 
-JANET_API void janet_marshal_int(JanetMarshalContext *ctx,int32_t value); 
-JANET_API void janet_marshal_byte(JanetMarshalContext *ctx,uint8_t value); 
-JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx,const uint8_t *bytes, int32_t len); 
-JANET_API void janet_marshal_janet(JanetMarshalContext *ctx,Janet x);
+JANET_API void janet_marshal_int(JanetMarshalContext *ctx, int32_t value);
+JANET_API void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value);
+JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, int32_t len);
+JANET_API void janet_marshal_janet(JanetMarshalContext *ctx, Janet x);
 
-JANET_API void janet_unmarshal_int(JanetMarshalContext *ctx,int32_t* i);
-JANET_API void janet_unmarshal_uint(JanetMarshalContext *ctx,uint32_t* i);
-JANET_API void janet_unmarshal_size(JanetMarshalContext *ctx,size_t * i);
-JANET_API void janet_unmarshal_byte(JanetMarshalContext *ctx,uint8_t* b);
-JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx,uint8_t *dest, int32_t len);
-JANET_API void janet_unmarshal_janet(JanetMarshalContext *ctx,Janet *out);
+JANET_API void janet_unmarshal_int(JanetMarshalContext *ctx, int32_t *i);
+JANET_API void janet_unmarshal_uint(JanetMarshalContext *ctx, uint32_t *i);
+JANET_API void janet_unmarshal_size(JanetMarshalContext *ctx, size_t *i);
+JANET_API void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b);
+JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, int32_t len);
+JANET_API void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out);
 
 typedef struct {
-  const JanetAbstractType *at;
-  size_t size;         /* abstract type size */
-  const uint32_t salt; /*  salt */
-  uint32_t tag;  /* unique tag computed by janet (hash of name and salt) */ 
-  void (* marshal)(void *p,JanetMarshalContext *ctx);
-  void (* unmarshal)(void *p,JanetMarshalContext *ctx);
+    const JanetAbstractType *at;
+    size_t size;         /* abstract type size */
+    const uint32_t salt; /*  salt */
+    uint32_t tag;  /* unique tag computed by janet (hash of name and salt) */
+    void (* marshal)(void *p, JanetMarshalContext *ctx);
+    void (* unmarshal)(void *p, JanetMarshalContext *ctx);
 } JanetAbstractTypeInfo;
 
-JANET_API void janet_register_abstract_type(const JanetAbstractTypeInfo * info);
+JANET_API void janet_register_abstract_type(const JanetAbstractTypeInfo *info);
 
-JANET_API JanetAbstractTypeInfo * janet_get_abstract_type_info(uint32_t tag);
-JANET_API JanetAbstractTypeInfo * janet_get_abstract_type_info_byname(const char * name);
+JANET_API JanetAbstractTypeInfo *janet_get_abstract_type_info(uint32_t tag);
+JANET_API JanetAbstractTypeInfo *janet_get_abstract_type_info_byname(const char *name);
 
 
-  
-  
+
+
 /***** END SECTION MAIN *****/
 
 #ifdef __cplusplus

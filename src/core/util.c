@@ -288,54 +288,54 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
 
 static const JanetAbstractType type_info = {"core/type_info", NULL, NULL, NULL, NULL};
 
-static uint32_t janet_abstract_type_gentag(const char * name,uint32_t salt) {
-  /* something smarter should propably done here ? */
-  int32_t len = strlen(name);
-  const char *end = name + len;
-  uint32_t hash = 5381+salt;
-  while (name < end)
-    hash = (hash << 5) + hash + *name++;
-  return (int32_t) hash;
+static uint32_t janet_abstract_type_gentag(const char *name, uint32_t salt) {
+    /* something smarter should propably done here ? */
+    int32_t len = strlen(name);
+    const char *end = name + len;
+    uint32_t hash = 5381 + salt;
+    while (name < end)
+        hash = (hash << 5) + hash + *name++;
+    return (int32_t) hash;
 }
 
-void janet_register_abstract_type(const JanetAbstractTypeInfo * info) {
-  JanetAbstractTypeInfo * abstract =(JanetAbstractTypeInfo *)janet_abstract(&type_info,sizeof(JanetAbstractTypeInfo));
-  memcpy(abstract,info,sizeof(JanetAbstractTypeInfo));
-  abstract->tag=janet_abstract_type_gentag(info->at->name,info->salt);
-  if (!(janet_checktype(janet_table_get(janet_vm_registry,janet_wrap_number(abstract->tag)),JANET_NIL)) ||
-      !(janet_checktype(janet_table_get(janet_vm_registry,janet_ckeywordv(abstract->at->name)),JANET_NIL))) {
-    janet_panic("Register abstract type fail, a type with same name or tag exist");
-  }
-  janet_table_put(janet_vm_registry,janet_wrap_number(abstract->tag), janet_wrap_abstract(abstract));
-  janet_table_put(janet_vm_registry,janet_ckeywordv(abstract->at->name), janet_wrap_abstract(abstract));
+void janet_register_abstract_type(const JanetAbstractTypeInfo *info) {
+    JanetAbstractTypeInfo *abstract = (JanetAbstractTypeInfo *)janet_abstract(&type_info, sizeof(JanetAbstractTypeInfo));
+    memcpy(abstract, info, sizeof(JanetAbstractTypeInfo));
+    abstract->tag = janet_abstract_type_gentag(info->at->name, info->salt);
+    if (!(janet_checktype(janet_table_get(janet_vm_registry, janet_wrap_number(abstract->tag)), JANET_NIL)) ||
+            !(janet_checktype(janet_table_get(janet_vm_registry, janet_ckeywordv(abstract->at->name)), JANET_NIL))) {
+        janet_panic("Register abstract type fail, a type with same name or tag exist");
+    }
+    janet_table_put(janet_vm_registry, janet_wrap_number(abstract->tag), janet_wrap_abstract(abstract));
+    janet_table_put(janet_vm_registry, janet_ckeywordv(abstract->at->name), janet_wrap_abstract(abstract));
 }
 
 
-JanetAbstractTypeInfo * janet_get_abstract_type_info(uint32_t tag) {
-  Janet info=janet_table_get(janet_vm_registry,janet_wrap_number(tag));
-  if (janet_checktype(info, JANET_NIL)) {
-    return NULL;
-  }
-  if (!janet_checktype(info, JANET_ABSTRACT) || (janet_abstract_type(janet_unwrap_abstract(info)) != &type_info)) {
-    janet_panic("expected type_info");
-  }
-  JanetAbstractTypeInfo * type_info = (JanetAbstractTypeInfo *)janet_unwrap_abstract(info);
-  return type_info;
+JanetAbstractTypeInfo *janet_get_abstract_type_info(uint32_t tag) {
+    Janet info = janet_table_get(janet_vm_registry, janet_wrap_number(tag));
+    if (janet_checktype(info, JANET_NIL)) {
+        return NULL;
+    }
+    if (!janet_checktype(info, JANET_ABSTRACT) || (janet_abstract_type(janet_unwrap_abstract(info)) != &type_info)) {
+        janet_panic("expected type_info");
+    }
+    JanetAbstractTypeInfo *type_info = (JanetAbstractTypeInfo *)janet_unwrap_abstract(info);
+    return type_info;
 }
 
-JanetAbstractTypeInfo * janet_get_abstract_type_info_byname(const char * name) {
-  Janet info=janet_table_get(janet_vm_registry,janet_ckeywordv(name));
-  if (janet_checktype(info, JANET_NIL)) {
-    return NULL;
-  }
-  if (!janet_checktype(info, JANET_ABSTRACT) || (janet_abstract_type(janet_unwrap_abstract(info)) != &type_info)) {
-    janet_panic("expected type_info");
-  }
-  JanetAbstractTypeInfo * type_info = (JanetAbstractTypeInfo *)janet_unwrap_abstract(info);
-  return type_info;
+JanetAbstractTypeInfo *janet_get_abstract_type_info_byname(const char *name) {
+    Janet info = janet_table_get(janet_vm_registry, janet_ckeywordv(name));
+    if (janet_checktype(info, JANET_NIL)) {
+        return NULL;
+    }
+    if (!janet_checktype(info, JANET_ABSTRACT) || (janet_abstract_type(janet_unwrap_abstract(info)) != &type_info)) {
+        janet_panic("expected type_info");
+    }
+    JanetAbstractTypeInfo *type_info = (JanetAbstractTypeInfo *)janet_unwrap_abstract(info);
+    return type_info;
 }
 
-  
+
 
 
 #ifndef JANET_BOOTSTRAP
