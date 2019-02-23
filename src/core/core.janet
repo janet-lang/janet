@@ -1496,7 +1496,7 @@ value, one key will be ignored."
               (def {:error err :start start :end end :fiber errf} res)
               (def msg
                 (if (<= 0 start)
-                  (string "compile error: " err " at (" start ":" end ")")
+                  (string err " at (" start ":" end ")")
                   err))
               (on-compile-error msg errf where))))
         :a))
