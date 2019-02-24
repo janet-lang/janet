@@ -32,6 +32,7 @@ static int is_whitespace(uint8_t c) {
            || c == '\n'
            || c == '\r'
            || c == '\0'
+           || c == '\v'
            || c == '\f';
 }
 
@@ -207,6 +208,8 @@ static int checkescape(uint8_t c) {
             return '\0';
         case 'f':
             return '\f';
+        case 'v':
+            return '\v';
         case 'e':
             return 27;
         case '"':

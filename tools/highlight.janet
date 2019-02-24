@@ -37,13 +37,13 @@
     (def should-color (or (specials sym) (core-env sym)))
     (paint (if should-color :coresym :symbol) text))
 
-  ~{:ws (set " \t\r\f\n\0")
+  ~{:ws (set " \t\r\f\n\v\0")
     :readermac (set "';~,")
     :symchars (+ (range "09" "AZ" "az" "\x80\xFF") (set "!$%&*+-./:<?=>@^_|"))
     :token (some :symchars)
     :hex (range "09" "af" "AF")
-    :escape (* "\\" (+ (set "ntrzf0\"\\e") 
-                       (* "x" :hex :hex) 
+    :escape (* "\\" (+ (set "ntrvzf0\"\\e")
+                       (* "x" :hex :hex)
                        (error (constant "bad hex escape"))))
 
     :comment ,(<-c :comment ~(* "#" (any (if-not (+ "\n" -1) 1))))
