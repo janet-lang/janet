@@ -624,7 +624,6 @@ static Janet parserget(void *p, Janet key);
 
 static JanetAbstractType janet_parse_parsertype = {
     "core/parser",
-    0,
     parsergc,
     parsermark,
     parserget,

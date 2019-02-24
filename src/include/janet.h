@@ -814,7 +814,6 @@ typedef struct {
 /* Defines an abstract type */
 struct JanetAbstractType {
     const char *name;
-    uint32_t id;
     int (*gc)(void *data, size_t len);
     int (*gcmark)(void *data, size_t len);
     Janet(*get)(void *data, Janet key);
@@ -1271,8 +1270,7 @@ JANET_API void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out);
 
 JANET_API void janet_register_abstract_type(const JanetAbstractType *at);
 
-JANET_API const JanetAbstractType *janet_get_abstract_type(uint32_t id);
-JANET_API const JanetAbstractType *janet_get_abstract_type_byname(const char *name);
+JANET_API const JanetAbstractType *janet_get_abstract_type(Janet key);
 
 
 

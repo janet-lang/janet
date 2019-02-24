@@ -298,7 +298,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         MARK_SEEN();
         JanetMarshalContext context = {st, NULL, flags, NULL};
         pushbyte(st, LB_ABSTRACT);
-        pushint(st, at->id);
+        marshal_one(st, janet_ckeywordv(at->name), flags + 1);
         pushint(st, janet_abstract_size(abstract));
         at->marshal(abstract, &context);
     } else {
@@ -933,8 +933,9 @@ void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out) {
 }
 
 static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {
-    uint32_t id = readint(st, &data);
-    const JanetAbstractType *at = janet_get_abstract_type(id);
+    Janet key;
+    data = unmarshal_one(st, data, &key, flags + 1);
+    const JanetAbstractType *at = janet_get_abstract_type(key);
     if (at == NULL) return NULL;
     if (at->unmarshal) {
         void *p = janet_abstract(at, readint(st, &data));

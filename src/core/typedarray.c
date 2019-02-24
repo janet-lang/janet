@@ -138,7 +138,6 @@ static void ta_buffer_unmarshal(void *p, JanetMarshalContext *ctx) {
 
 static const JanetAbstractType ta_buffer_type = {
     "ta/buffer",
-    1000,
     ta_buffer_gc,
     NULL,
     NULL,
@@ -276,10 +275,9 @@ BUILD_TYPE(float64)
 #undef DEFINE_VIEW_INITIALIZER
 
 
-#define DEFINE_VIEW_ABSTRACT_TYPE(type,tag) \
+#define DEFINE_VIEW_ABSTRACT_TYPE(type) \
 { \
   "ta/"#type, \
-  tag, \
   NULL, \
   ta_mark, \
   ta_get_##type, \
@@ -289,16 +287,16 @@ BUILD_TYPE(float64)
 }
 
 static const JanetAbstractType ta_array_types[] = {
-    DEFINE_VIEW_ABSTRACT_TYPE(uint8, 1001),
-    DEFINE_VIEW_ABSTRACT_TYPE(int8, 1002),
-    DEFINE_VIEW_ABSTRACT_TYPE(uint16, 1003),
-    DEFINE_VIEW_ABSTRACT_TYPE(int16, 1004),
-    DEFINE_VIEW_ABSTRACT_TYPE(uint32, 1005),
-    DEFINE_VIEW_ABSTRACT_TYPE(int32, 1006),
-    DEFINE_VIEW_ABSTRACT_TYPE(uint64, 1007),
-    DEFINE_VIEW_ABSTRACT_TYPE(int64, 1008),
-    DEFINE_VIEW_ABSTRACT_TYPE(float32, 1009),
-    DEFINE_VIEW_ABSTRACT_TYPE(float64, 1010)
+    DEFINE_VIEW_ABSTRACT_TYPE(uint8),
+    DEFINE_VIEW_ABSTRACT_TYPE(int8),
+    DEFINE_VIEW_ABSTRACT_TYPE(uint16),
+    DEFINE_VIEW_ABSTRACT_TYPE(int16),
+    DEFINE_VIEW_ABSTRACT_TYPE(uint32),
+    DEFINE_VIEW_ABSTRACT_TYPE(int32),
+    DEFINE_VIEW_ABSTRACT_TYPE(uint64),
+    DEFINE_VIEW_ABSTRACT_TYPE(int64),
+    DEFINE_VIEW_ABSTRACT_TYPE(float32),
+    DEFINE_VIEW_ABSTRACT_TYPE(float64)
 };
 
 #undef DEFINE_VIEW_ABSTRACT_TYPE
@@ -400,19 +398,12 @@ static Janet cfun_typed_array_properties(int32_t argc, Janet *argv) {
 /* TODO for test it's not the good place for this function */
 static Janet cfun_abstract_properties(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    const JanetAbstractType *at;
-    if (janet_checktype(argv[0], JANET_KEYWORD)) {
-        const uint8_t *keyw = janet_unwrap_keyword(argv[0]);
-        at = janet_get_abstract_type_byname((const char *)keyw);
-    } else {
-        uint32_t id = (uint32_t)janet_getinteger(argv, 0);
-        at = janet_get_abstract_type(id);
-    }
+    const uint8_t *key = janet_getkeyword(argv, 0);
+    const JanetAbstractType *at = janet_get_abstract_type(janet_wrap_keyword(key));
     if (at == NULL) {
         return janet_wrap_nil();
     }
-    JanetKV *props = janet_struct_begin(3);
-    janet_struct_put(props, janet_ckeywordv("id"), janet_wrap_number(at->id));
+    JanetKV *props = janet_struct_begin(2);
     janet_struct_put(props, janet_ckeywordv("name"), janet_ckeywordv(at->name));
     janet_struct_put(props, janet_ckeywordv("marshal"), janet_wrap_boolean((at->marshal != NULL) && (at->unmarshal != NULL)));
     return janet_wrap_struct(janet_struct_end(props));
