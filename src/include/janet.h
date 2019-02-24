@@ -1296,14 +1296,14 @@ typedef struct {
     size_t stride;
     JanetTArrayType type;
 } JanetTArrayView;
-  
-JANET_API JanetTArrayBuffer * janet_tarray_buffer(size_t size);
-JANET_API JanetTArrayView * janet_tarray_view(JanetTArrayType type,size_t size,size_t stride,size_t offset,JanetTArrayBuffer *buffer);
-JANET_API int janet_is_tarray_view(Janet x,JanetTArrayType type);
+
+JANET_API JanetTArrayBuffer *janet_tarray_buffer(size_t size);
+JANET_API JanetTArrayView *janet_tarray_view(JanetTArrayType type, size_t size, size_t stride, size_t offset, JanetTArrayBuffer *buffer);
+JANET_API int janet_is_tarray_view(Janet x, JanetTArrayType type);
 JANET_API int janet_tarray_type_size(JanetTArrayType type);
-JANET_API JanetTArrayBuffer * janet_gettarray_buffer(const Janet *argv, int32_t n);
-JANET_API JanetTArrayView * janet_gettarray_view(const Janet *argv, int32_t n,JanetTArrayType type);
-  
+JANET_API JanetTArrayBuffer *janet_gettarray_buffer(const Janet *argv, int32_t n);
+JANET_API JanetTArrayView *janet_gettarray_view(const Janet *argv, int32_t n, JanetTArrayType type);
+
 #endif
 
 

@@ -926,7 +926,7 @@ void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b) {
 
 void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, int32_t len) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
-    MARSH_EOS(st, ctx->data+len-1);
+    MARSH_EOS(st, ctx->data + len - 1);
     memcpy(dest, ctx->data, len);
     ctx->data += len;
 }
