@@ -72,3 +72,15 @@
 (printf "properties:\n%p" (tarray/properties (A :array)))
 
 (printf "row properties:\n%p" (tarray/properties (matrix/row A 1)))
+
+
+# test marshalling
+
+(def a (tarray/new :float64 20))
+(set (a 0) math/pi)
+(set (a 1) 1234)
+
+(def b (unmarshal (marshal a)))
+(printf "%p" (tarray/properties b))
+(print (b 0))
+(print (b 1))

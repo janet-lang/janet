@@ -919,10 +919,14 @@ void janet_unmarshal_size(JanetMarshalContext *ctx, size_t *i) {
 
 
 void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    MARSH_EOS(st, ctx->data);
     *b = *(ctx->data++);
 };
 
 void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, int32_t len) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    MARSH_EOS(st, ctx->data+len-1);
     memcpy(dest, ctx->data, len);
     ctx->data += len;
 }
