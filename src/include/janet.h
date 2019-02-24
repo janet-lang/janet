@@ -1251,7 +1251,7 @@ JANET_API int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t lengt
 JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which);
 
 
-
+/* Marshal API */
 JANET_API void janet_marshal_int(JanetMarshalContext *ctx, int32_t value);
 JANET_API void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value);
 JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, int32_t len);
@@ -1264,15 +1264,47 @@ JANET_API void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b);
 JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, int32_t len);
 JANET_API void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out);
 
-
-
-
-
 JANET_API void janet_register_abstract_type(const JanetAbstractType *at);
-
 JANET_API const JanetAbstractType *janet_get_abstract_type(Janet key);
 
+#ifdef JANET_TYPED_ARRAY
 
+typedef enum {
+    JANET_TARRAY_TYPE_uint8,
+    JANET_TARRAY_TYPE_int8,
+    JANET_TARRAY_TYPE_uint16,
+    JANET_TARRAY_TYPE_int16,
+    JANET_TARRAY_TYPE_uint32,
+    JANET_TARRAY_TYPE_int32,
+    JANET_TARRAY_TYPE_uint64,
+    JANET_TARRAY_TYPE_int64,
+    JANET_TARRAY_TYPE_float32,
+    JANET_TARRAY_TYPE_float64,
+    JANET_TARRAY_TYPE_any,
+} JanetTArrayType;
+
+typedef struct {
+    uint8_t *data;
+    size_t size;
+    uint32_t flags;
+} JanetTArrayBuffer;
+
+typedef struct {
+    JanetTArrayBuffer *buffer;
+    void *data;   /* pointer inside buffer->data */
+    size_t size;
+    size_t stride;
+    JanetTArrayType type;
+} JanetTArrayView;
+  
+JANET_API JanetTArrayBuffer * janet_tarray_buffer(size_t size);
+JANET_API JanetTArrayView * janet_tarray_view(JanetTArrayType type,size_t size,size_t stride,size_t offset,JanetTArrayBuffer *buffer);
+JANET_API int janet_is_tarray_view(Janet x,JanetTArrayType type);
+JANET_API int janet_tarray_type_size(JanetTArrayType type);
+JANET_API JanetTArrayBuffer * janet_gettarray_buffer(const Janet *argv, int32_t n);
+JANET_API JanetTArrayView * janet_gettarray_view(const Janet *argv, int32_t n,JanetTArrayType type);
+  
+#endif
 
 
 /***** END SECTION MAIN *****/
