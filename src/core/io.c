@@ -53,9 +53,12 @@ static Janet io_file_get(void *p, Janet);
 
 JanetAbstractType cfun_io_filetype = {
     "core/file",
+    0,
     cfun_io_gc,
     NULL,
     io_file_get,
+    NULL,
+    NULL,
     NULL
 };
 

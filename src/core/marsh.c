@@ -292,16 +292,17 @@ void janet_marshal_janet(JanetMarshalContext *ctx, Janet x) {
 
 
 static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
-    const JanetAbstractType *at = janet_abstract_type(janet_unwrap_abstract(x));
-    const JanetAbstractTypeInfo *info = janet_get_abstract_type_info_byname(at->name);
-    if (info && info->marshal) {
+    void *abstract = janet_unwrap_abstract(x);
+    const JanetAbstractType *at = janet_abstract_type(abstract);
+    if (at->marshal) {
         MARK_SEEN();
         JanetMarshalContext context = {st, NULL, flags, NULL};
         pushbyte(st, LB_ABSTRACT);
-        pushint(st, info->tag);
-        info->marshal(janet_unwrap_abstract(x), &context);
+        pushint(st, at->id);
+        pushint(st, janet_abstract_size(abstract));
+        at->marshal(abstract, &context);
     } else {
-      janet_panicf("try to marshal unregistered absttact type, cannot marshal %p", x);
+        janet_panicf("try to marshal unregistered abstract type, cannot marshal %p", x);
     }
 }
 
@@ -462,9 +463,9 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             return;
         }
         case JANET_ABSTRACT: {
-	    marshal_one_abstract(st, x, flags);
-	    return;
-	}
+            marshal_one_abstract(st, x, flags);
+            return;
+        }
         case JANET_FUNCTION: {
             pushbyte(st, LB_FUNCTION);
             JanetFunction *func = janet_unwrap_function(x);
@@ -932,13 +933,13 @@ void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out) {
 }
 
 static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {
-    uint32_t tag = readint(st, &data);
-    const JanetAbstractTypeInfo *info = janet_get_abstract_type_info(tag);
-    if (info == NULL) return NULL;
-    if (info->unmarshal) {
-        void *p = janet_abstract(info->at, info->size);
+    uint32_t id = readint(st, &data);
+    const JanetAbstractType *at = janet_get_abstract_type(id);
+    if (at == NULL) return NULL;
+    if (at->unmarshal) {
+        void *p = janet_abstract(at, readint(st, &data));
         JanetMarshalContext context = {NULL, st, flags, data};
-        info->unmarshal(p, &context);
+        at->unmarshal(p, &context);
         *out = janet_wrap_abstract(p);
         return data;
     }

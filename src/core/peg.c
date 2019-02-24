@@ -981,8 +981,11 @@ static int peg_mark(void *p, size_t size) {
 
 static JanetAbstractType peg_type = {
     "core/peg",
+    0,
     NULL,
     peg_mark,
+    NULL,
+    NULL,
     NULL,
     NULL
 };
