@@ -244,5 +244,4 @@ uninstall:
 	-rm -rf $(INCLUDEDIR)
 
 .PHONY: clean install repl debug valgrind test amalg \
-	valtest emscripten dist uninstall docs grammar format \
-	$(TEST_PROGRAM_PHONIES) $(TEST_PROGRAM_VALPHONIES)
+	valtest emscripten dist uninstall docs grammar format
