@@ -987,15 +987,24 @@ static JanetAbstractType peg_type = {
     NULL
 };
 
+/* Used to ensure that if we place several arrays in one memory chunk, each
+ * array will be correctly aligned */
+static size_t size_padded(size_t offset, size_t size) {
+    size_t x = size + offset - 1;
+    return x - (x % size);
+}
+
 /* Convert Builder to Peg (Janet Abstract Value) */
 static Peg *make_peg(Builder *b) {
+    size_t bytecode_start = size_padded(sizeof(Peg), sizeof(uint32_t));
     size_t bytecode_size = janet_v_count(b->bytecode) * sizeof(uint32_t);
+    size_t constants_start = size_padded(bytecode_start + bytecode_size, sizeof(Janet));
     size_t constants_size = janet_v_count(b->constants) * sizeof(Janet);
-    size_t total_size = bytecode_size + constants_size + sizeof(Peg);
+    size_t total_size = constants_start + constants_size;
     char *mem = janet_abstract(&peg_type, total_size);
     Peg *peg = (Peg *)mem;
-    peg->bytecode = (uint32_t *)(mem + sizeof(Peg));
-    peg->constants = (Janet *)(mem + sizeof(Peg) + bytecode_size);
+    peg->bytecode = (uint32_t *)(mem + bytecode_start);
+    peg->constants = (Janet *)(mem + constants_start);
     peg->num_constants = janet_v_count(b->constants);
     memcpy(peg->bytecode, b->bytecode, bytecode_size);
     memcpy(peg->constants, b->constants, constants_size);

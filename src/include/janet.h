@@ -711,7 +711,7 @@ struct JanetAbstractHead {
     JanetGCObject gc;
     const JanetAbstractType *type;
     size_t size;
-    char data[];
+    long long data[]; /* Use long long to ensure most general alignment */
 };
 
 /* Some function definition flags */
