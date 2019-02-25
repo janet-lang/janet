@@ -59,11 +59,11 @@
 (matrix/print A)
 
 (loop (i :range (0 nr) j :range (0 nc)) 
-      (matrix/set* A i j i)))
+      (matrix/set* A i j i))
 (matrix/print A)
 
 (loop (i :range (0 nr) j :range (0 nc)) 
-      (matrix/set** A i j i)))
+      (matrix/set** A i j i))
 (matrix/print A)
 
 (print "tarray")
@@ -84,3 +84,6 @@
 (printf "%p" (tarray/properties b))
 (print (b 0))
 (print (b 1))
+
+
+

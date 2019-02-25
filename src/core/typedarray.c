@@ -66,6 +66,7 @@ static  size_t ta_type_sizes[] = {
     sizeof(ta_int64_t),
     sizeof(ta_float32_t),
     sizeof(ta_float64_t),
+    0,
 };
 #define TA_COUNT_TYPES (JANET_TARRAY_TYPE_float64 + 1)
 #define TA_ATOM_MAXSIZE 8
@@ -211,8 +212,11 @@ void ta_put_##type(void *p, Janet key,Janet value) { \
 
 #define DEFINE_VIEW_INITIALIZER(thetype) \
   static JanetTArrayView * ta_init_##thetype(JanetTArrayView * view,JanetTArrayBuffer * buf,size_t size,size_t offset,size_t stride) { \
+  if ((stride<1) || (size <1)) {                    \
+      janet_panic("stride and size should be > 0");     \
+  }; \
   TA_View_##thetype * tview=(TA_View_##thetype *) view; \
-  size_t buf_size=offset+(size-1)*(sizeof(ta_##thetype##_t))*stride+1; \
+  size_t buf_size=offset+(sizeof(ta_##thetype##_t))*((size-1)*stride+1);    \
   if (buf==NULL) {  \
     buf=(JanetTArrayBuffer *)janet_abstract(&ta_buffer_type,sizeof(JanetTArrayBuffer)); \
     ta_buffer_init(buf,buf_size); \
@@ -349,10 +353,6 @@ JanetTArrayView *janet_gettarray_view(const Janet *argv, int32_t n, JanetTArrayT
     }
 }
 
-
-
-
-
 static Janet cfun_typed_array_new(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 5);
     size_t offset = 0;
@@ -403,20 +403,27 @@ static Janet cfun_typed_array_size(int32_t argc, Janet *argv) {
 
 static Janet cfun_typed_array_properties(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    if (!is_ta_anytype(argv[0]))
-        janet_panic("expected typed array");
-    JanetTArrayView *view = (JanetTArrayView *)janet_unwrap_abstract(argv[0]);
-    JanetKV *props = janet_struct_begin(6);
-    janet_struct_put(props, janet_ckeywordv("size"), janet_wrap_number(view->size));
-    janet_struct_put(props, janet_ckeywordv("byte-offset"), janet_wrap_number((uint8_t *)(view->data) - view->buffer->data));
-    janet_struct_put(props, janet_ckeywordv("stride"), janet_wrap_number(view->stride));
-    janet_struct_put(props, janet_ckeywordv("type"), janet_ckeywordv(ta_type_names[view->type]));
-    janet_struct_put(props, janet_ckeywordv("type-size"), janet_wrap_number(ta_type_sizes[view->type]));
-    janet_struct_put(props, janet_ckeywordv("buffer"), janet_wrap_abstract(view->buffer));
-    return janet_wrap_struct(janet_struct_end(props));
+    if (is_ta_anytype(argv[0])) {
+        JanetTArrayView *view = (JanetTArrayView *)janet_unwrap_abstract(argv[0]);
+        JanetKV *props = janet_struct_begin(6);
+        janet_struct_put(props, janet_ckeywordv("size"), janet_wrap_number(view->size));
+        janet_struct_put(props, janet_ckeywordv("byte-offset"), janet_wrap_number((uint8_t *)(view->data) - view->buffer->data));
+        janet_struct_put(props, janet_ckeywordv("stride"), janet_wrap_number(view->stride));
+        janet_struct_put(props, janet_ckeywordv("type"), janet_ckeywordv(ta_type_names[view->type]));
+        janet_struct_put(props, janet_ckeywordv("type-size"), janet_wrap_number(ta_type_sizes[view->type]));
+        janet_struct_put(props, janet_ckeywordv("buffer"), janet_wrap_abstract(view->buffer));
+        return janet_wrap_struct(janet_struct_end(props));
+    } else {
+        JanetTArrayBuffer *buffer = janet_gettarray_buffer(argv, 0);
+        JanetKV *props = janet_struct_begin(3);
+        janet_struct_put(props, janet_ckeywordv("size"), janet_wrap_number(buffer->size));
+        janet_struct_put(props, janet_ckeywordv("big-endian"), janet_wrap_boolean(buffer->flags & TA_FLAG_BIG_ENDIAN));
+        return janet_wrap_struct(janet_struct_end(props));
+    }
+
 }
 
-/* TODO for test it's not the good place for this function */
+/* TODO move it ,  it's not the good place for this function */
 static Janet cfun_abstract_properties(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     const uint8_t *key = janet_getkeyword(argv, 0);
@@ -428,6 +435,34 @@ static Janet cfun_abstract_properties(int32_t argc, Janet *argv) {
     janet_struct_put(props, janet_ckeywordv("name"), janet_ckeywordv(at->name));
     janet_struct_put(props, janet_ckeywordv("marshal"), janet_wrap_boolean((at->marshal != NULL) && (at->unmarshal != NULL)));
     return janet_wrap_struct(janet_struct_end(props));
+}
+
+static Janet cfun_typed_array_slice(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 3);
+    JanetTArrayView *src = janet_gettarray_view(argv, 0, JANET_TARRAY_TYPE_any);
+    const JanetAbstractType *at = janet_abstract_type(janet_unwrap_abstract(argv[0]));
+    JanetRange range;
+    int32_t length = (int32_t)src->size;
+    if (argc == 1) {
+        range.start = 0;
+        range.end = length;
+    } else if (argc == 2) {
+        range.start = janet_gethalfrange(argv, 1, length, "start");
+        range.end = length;
+    } else {
+        range.start = janet_gethalfrange(argv, 1, length, "start");
+        range.end = janet_gethalfrange(argv, 2, length, "end");
+        if (range.end < range.start)
+            range.end = range.start;
+    }
+    JanetArray *array = janet_array(range.end - range.start);
+    if (array->data) {
+        for (int32_t i = range.start; i < range.end; i++) {
+            array->data[i - range.start] = at->get(src, janet_wrap_number(i));
+        }
+    }
+    array->count = range.end - range.start;
+    return janet_wrap_array(array);
 }
 
 
@@ -526,6 +561,14 @@ static const JanetReg ta_cfuns[] = {
              "and dst array at position dindex \n"
              "memory can overlap"
             )
+    },
+    {
+        "tarray/slice", cfun_typed_array_slice,
+        JDOC("(tarray/slice tarr [, start=0 [, end=(size tarr)]])\n\n"
+             "Takes a slice of typed array from start to end. The range is half"
+             "open, [start, end). Indexes can also be negative, indicating indexing"
+             "from the end of the end of the typed array. By default, start is 0 and end is"
+             "the size of the typed array. Returns a new janet array.")
     },
     {
         "abstract/properties", cfun_abstract_properties,
