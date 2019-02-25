@@ -83,11 +83,14 @@ static JanetTArrayType get_ta_type_by_name(const uint8_t *name) {
 
 
 
-
-
-
 static JanetTArrayBuffer *ta_buffer_init(JanetTArrayBuffer *buf, size_t size) {
-    buf->data = (uint8_t *)calloc(size, sizeof(uint8_t));
+    buf->data = NULL;
+    if (size > 0) {
+        buf->data = (uint8_t *)calloc(size, sizeof(uint8_t));
+        if (buf->data == NULL) {
+            JANET_OUT_OF_MEMORY;
+        }
+    }
     buf->size = size;
 #ifdef JANET_BIG_ENDIAN
     buf->flags = TA_FLAG_BIG_ENDIAN;
