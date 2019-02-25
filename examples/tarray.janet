@@ -1,3 +1,5 @@
+# naive matrix implementation for testing typed array
+
 (defmacro printf [& xs] ['print ['string/format (splice xs)]])
 
 (defn matrix [nrow ncol] {:nrow nrow :ncol ncol :array (tarray/new :float64 (* nrow ncol))})
@@ -66,24 +68,16 @@
       (matrix/set** A i j i))
 (matrix/print A)
 
-(print "tarray")
-(tarray/print (A :array))
 
 (printf "properties:\n%p" (tarray/properties (A :array)))
+(for i 0 nr  
+     (printf "row properties:[%i]\n%p" i (tarray/properties (matrix/row A i))))
+(for i 0 nc  
+     (printf "col properties:[%i]\n%p" i (tarray/properties (matrix/column A i))))
 
-(printf "row properties:\n%p" (tarray/properties (matrix/row A 1)))
 
 
-# test marshalling
 
-(def a (tarray/new :float64 20))
-(set (a 0) math/pi)
-(set (a 1) 1234)
-
-(def b (unmarshal (marshal a)))
-(printf "%p" (tarray/properties b))
-(print (b 0))
-(print (b 1))
 
 
 

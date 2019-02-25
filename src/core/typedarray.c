@@ -205,7 +205,7 @@ void ta_put_##type(void *p, Janet key,Janet value) { \
   index = (size_t)janet_unwrap_integer(key); \
   TA_View_##type * array=(TA_View_##type *)p; \
   if (index >= array->size) { \
-    janet_panic("typed array out of bound"); \
+    janet_panic("typed array out of bounds"); \
   } \
   array->data[index*array->stride]=(ta_##type##_t)janet_unwrap_number(value); \
 }
@@ -222,7 +222,7 @@ void ta_put_##type(void *p, Janet key,Janet value) { \
     ta_buffer_init(buf,buf_size); \
   } \
   if (buf->size<buf_size) { \
-    janet_panic("bad buffer size"); \
+    janet_panicf("bad buffer size : %i bytes allocated < %i required",buf->size,buf_size); \
   } \
   tview->buffer=buf; \
   tview->stride=stride; \
@@ -488,7 +488,7 @@ static Janet cfun_typed_array_copy_bytes(int32_t argc, Janet *argv) {
             ps += step_src;
         }
     } else {
-        janet_panic("typed array copy out of bound");
+        janet_panic("typed array copy out of bounds");
     }
     return janet_wrap_nil();
 }
@@ -518,7 +518,7 @@ static Janet cfun_typed_array_swap_bytes(int32_t argc, Janet *argv) {
             ps += step_src;
         }
     } else {
-        janet_panic("typed array swap out of bound");
+        janet_panic("typed array swap out of bounds");
     }
     return janet_wrap_nil();
 }
