@@ -165,6 +165,9 @@ static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
     janet_unmarshal_size(ctx, &offset);
     janet_unmarshal_janet(ctx, &buffer);
     view->buffer = (JanetTArrayBuffer *)janet_unwrap_abstract(buffer);
+    size_t buf_need_size = offset + (janet_tarray_type_size(view->type)) * ((view->size - 1) * view->stride + 1);
+    if (view->buffer->size < buf_need_size)
+        janet_panic("bad typed array offset in marshalled data");
     view->data = view->buffer->data + offset;
 }
 
