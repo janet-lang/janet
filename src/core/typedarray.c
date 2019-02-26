@@ -40,7 +40,6 @@ typedef int64_t   ta_int64_t;
 typedef float     ta_float32_t;
 typedef double    ta_float64_t;
 
-
 static  char *ta_type_names[] = {
     "uint8",
     "int8",
@@ -52,7 +51,7 @@ static  char *ta_type_names[] = {
     "int64",
     "float32",
     "float64",
-    "any",
+    "any"
 };
 
 static  size_t ta_type_sizes[] = {
@@ -68,6 +67,7 @@ static  size_t ta_type_sizes[] = {
     sizeof(ta_float64_t),
     0,
 };
+
 #define TA_COUNT_TYPES (JANET_TARRAY_TYPE_float64 + 1)
 #define TA_ATOM_MAXSIZE 8
 #define TA_FLAG_BIG_ENDIAN 1
@@ -80,8 +80,6 @@ static JanetTArrayType get_ta_type_by_name(const uint8_t *name) {
     }
     return 0;
 }
-
-
 
 static JanetTArrayBuffer *ta_buffer_init(JanetTArrayBuffer *buf, size_t size) {
     buf->data = NULL;
@@ -123,7 +121,6 @@ static void ta_buffer_unmarshal(void *p, JanetMarshalContext *ctx) {
     janet_unmarshal_bytes(ctx, buf->data, buf->size);
 }
 
-
 static const JanetAbstractType ta_buffer_type = {
     "ta/buffer",
     ta_buffer_gc,
@@ -133,9 +130,6 @@ static const JanetAbstractType ta_buffer_type = {
     ta_buffer_marshal,
     ta_buffer_unmarshal,
 };
-
-
-
 
 static int ta_mark(void *p, size_t s) {
     (void) s;
@@ -154,7 +148,6 @@ static void ta_view_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_janet(ctx, janet_wrap_abstract(view->buffer));
 }
 
-
 static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
     JanetTArrayView *view = (JanetTArrayView *)p;
     size_t offset;
@@ -171,17 +164,13 @@ static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
     view->data = view->buffer->data + offset;
 }
 
-
-
-
-
 #define DEFINE_VIEW_TYPE(thetype) \
-  typedef struct {         \
-    JanetTArrayBuffer * buffer;        \
-    ta_##thetype##_t * data;      \
-    size_t size;           \
-    size_t stride;         \
-    JanetTArrayType type;          \
+  typedef struct { \
+    JanetTArrayBuffer * buffer; \
+    ta_##thetype##_t * data; \
+    size_t size; \
+    size_t stride; \
+    JanetTArrayType type; \
   } TA_View_##thetype ;
 
 
@@ -471,7 +460,6 @@ static Janet cfun_typed_array_slice(int32_t argc, Janet *argv) {
     return janet_wrap_array(array);
 }
 
-
 static Janet cfun_typed_array_copy_bytes(int32_t argc, Janet *argv) {
     janet_arity(argc, 4, 5);
     JanetTArrayView *src = janet_gettarray_view(argv, 0, JANET_TARRAY_TYPE_any);
@@ -529,64 +517,56 @@ static Janet cfun_typed_array_swap_bytes(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-
-
 static const JanetReg ta_cfuns[] = {
     {
         "tarray/new", cfun_typed_array_new,
         JDOC("(tarray/new type size [stride = 1 [offset = 0 [tarray | buffer]]] )\n\n"
-             "Create new typed array")
+             "Create new typed array.")
     },
     {
         "tarray/buffer", cfun_typed_array_buffer,
         JDOC("(tarray/buffer (array | size) )\n\n"
-             "return typed array buffer or create a new buffer ")
+             "Return typed array buffer or create a new buffer.")
     },
     {
         "tarray/length", cfun_typed_array_size,
         JDOC("(tarray/length (array | buffer) )\n\n"
-             "return typed array or buffer size ")
+             "Return typed array or buffer size.")
     },
     {
         "tarray/properties", cfun_typed_array_properties,
         JDOC("(tarray/properties array )\n\n"
-             "return typed array properties as a struct")
+             "Return typed array properties as a struct.")
     },
     {
         "tarray/copy-bytes", cfun_typed_array_copy_bytes,
         JDOC("(tarray/copy-bytes src sindex dst dindex [count=1])\n\n"
-             "copy count elements of src array from index sindex \n"
-             "to dst array at position dindex \n"
-             "memory can overlap"
-            )
+             "Copy count elements of src array from index sindex "
+             "to dst array at position dindex "
+             "memory can overlap.")
     },
     {
         "tarray/swap-bytes", cfun_typed_array_swap_bytes,
         JDOC("(tarray/swap-bytes src sindex dst dindex [count=1])\n\n"
-             "swap count elements between src array from index sindex \n"
-             "and dst array at position dindex \n"
-             "memory can overlap"
-            )
+             "Swap count elements between src array from index sindex "
+             "and dst array at position dindex "
+             "memory can overlap.")
     },
     {
         "tarray/slice", cfun_typed_array_slice,
         JDOC("(tarray/slice tarr [, start=0 [, end=(size tarr)]])\n\n"
-             "Takes a slice of typed array from start to end. The range is half"
-             "open, [start, end). Indexes can also be negative, indicating indexing"
-             "from the end of the end of the typed array. By default, start is 0 and end is"
+             "Takes a slice of a typed array from start to end. The range is half "
+             "open, [start, end). Indexes can also be negative, indicating indexing "
+             "from the end of the end of the typed array. By default, start is 0 and end is "
              "the size of the typed array. Returns a new janet array.")
     },
     {
         "abstract/properties", cfun_abstract_properties,
         JDOC("(abstract/properties tag)\n\n"
-             "return abstract type properties as a struct")
+             "Returns abstract type properties as a struct.")
     },
-
     {NULL, NULL, NULL}
 };
-
-
-
 
 /* Module entry point */
 void janet_lib_typed_array(JanetTable *env) {

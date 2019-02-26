@@ -266,7 +266,6 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
         marshal_one(st, janet_wrap_fiber(fiber->child), flags + 1);
 }
 
-
 void janet_marshal_int(JanetMarshalContext *ctx, int32_t value) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
     pushint(st, value);
@@ -290,7 +289,6 @@ void janet_marshal_janet(JanetMarshalContext *ctx, Janet x) {
 #define MARK_SEEN() \
     janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
 
-
 static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
     void *abstract = janet_unwrap_abstract(x);
     const JanetAbstractType *at = janet_abstract_type(abstract);
@@ -305,7 +303,6 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         janet_panicf("try to marshal unregistered abstract type, cannot marshal %p", x);
     }
 }
-
 
 /* The main body of the marshaling function. Is the main
  * entry point for the mutually recursive functions. */
@@ -518,7 +515,6 @@ typedef struct {
     const uint8_t *start;
     const uint8_t *end;
 } UnmarshalState;
-
 
 #define MARSH_EOS(st, data) do { \
     if ((data) >= (st)->end) janet_panic("unexpected end of source");\
@@ -900,7 +896,6 @@ static const uint8_t *unmarshal_one_fiber(
     return data;
 }
 
-
 void janet_unmarshal_int(JanetMarshalContext *ctx, int32_t *i) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     *i = readint(st, &(ctx->data));
@@ -915,8 +910,6 @@ void janet_unmarshal_size(JanetMarshalContext *ctx, size_t *i) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     *i = (size_t)readint(st, &(ctx->data));
 };
-
-
 
 void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
@@ -950,10 +943,6 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
     }
     return NULL;
 }
-
-
-
-
 
 static const uint8_t *unmarshal_one(
     UnmarshalState *st,
