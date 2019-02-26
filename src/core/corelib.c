@@ -787,6 +787,10 @@ JanetTable *janet_core_env(void) {
 #ifdef JANET_ASSEMBLER
     janet_lib_asm(env);
 #endif
+#ifdef JANET_TYPED_ARRAY
+    janet_lib_typed_array(env);
+#endif
+
 
 #ifdef JANET_BOOTSTRAP
     /* Run bootstrap source */

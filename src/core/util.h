@@ -89,5 +89,10 @@ void janet_lib_debug(JanetTable *env);
 #ifdef JANET_PEG
 void janet_lib_peg(JanetTable *env);
 #endif
+#ifdef JANET_TYPED_ARRAY
+void janet_lib_typed_array(JanetTable *env);
+#endif
+
+
 
 #endif

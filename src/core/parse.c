@@ -630,6 +630,8 @@ static JanetAbstractType janet_parse_parsertype = {
     parsergc,
     parsermark,
     parserget,
+    NULL,
+    NULL,
     NULL
 };
 

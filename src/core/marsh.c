@@ -266,6 +266,47 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
         marshal_one(st, janet_wrap_fiber(fiber->child), flags + 1);
 }
 
+
+void janet_marshal_int(JanetMarshalContext *ctx, int32_t value) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    pushint(st, value);
+};
+
+void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    pushbyte(st, value);
+};
+
+void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, int32_t len) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    pushbytes(st, bytes, len);
+}
+
+void janet_marshal_janet(JanetMarshalContext *ctx, Janet x) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    marshal_one(st, x, ctx->flags + 1);
+}
+
+#define MARK_SEEN() \
+    janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
+
+
+static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
+    void *abstract = janet_unwrap_abstract(x);
+    const JanetAbstractType *at = janet_abstract_type(abstract);
+    if (at->marshal) {
+        MARK_SEEN();
+        JanetMarshalContext context = {st, NULL, flags, NULL};
+        pushbyte(st, LB_ABSTRACT);
+        marshal_one(st, janet_ckeywordv(at->name), flags + 1);
+        pushint(st, janet_abstract_size(abstract));
+        at->marshal(abstract, &context);
+    } else {
+        janet_panicf("try to marshal unregistered abstract type, cannot marshal %p", x);
+    }
+}
+
+
 /* The main body of the marshaling function. Is the main
  * entry point for the mutually recursive functions. */
 static void marshal_one(MarshalState *st, Janet x, int flags) {
@@ -291,8 +332,6 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         }
     }
 
-#define MARK_SEEN() \
-    janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
 
     /* Check reference and registry value */
     {
@@ -423,6 +462,10 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             MARK_SEEN();
             return;
         }
+        case JANET_ABSTRACT: {
+            marshal_one_abstract(st, x, flags);
+            return;
+        }
         case JANET_FUNCTION: {
             pushbyte(st, LB_FUNCTION);
             JanetFunction *func = janet_unwrap_function(x);
@@ -475,6 +518,7 @@ typedef struct {
     const uint8_t *start;
     const uint8_t *end;
 } UnmarshalState;
+
 
 #define MARSH_EOS(st, data) do { \
     if ((data) >= (st)->end) janet_panic("unexpected end of source");\
@@ -856,6 +900,61 @@ static const uint8_t *unmarshal_one_fiber(
     return data;
 }
 
+
+void janet_unmarshal_int(JanetMarshalContext *ctx, int32_t *i) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    *i = readint(st, &(ctx->data));
+};
+
+void janet_unmarshal_uint(JanetMarshalContext *ctx, uint32_t *i) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    *i = (uint32_t)readint(st, &(ctx->data));
+};
+
+void janet_unmarshal_size(JanetMarshalContext *ctx, size_t *i) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    *i = (size_t)readint(st, &(ctx->data));
+};
+
+
+
+void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    MARSH_EOS(st, ctx->data);
+    *b = *(ctx->data++);
+};
+
+void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, int32_t len) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    MARSH_EOS(st, ctx->data + len - 1);
+    memcpy(dest, ctx->data, len);
+    ctx->data += len;
+}
+
+void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    ctx->data = unmarshal_one(st, ctx->data, out, ctx->flags);
+}
+
+static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {
+    Janet key;
+    data = unmarshal_one(st, data, &key, flags + 1);
+    const JanetAbstractType *at = janet_get_abstract_type(key);
+    if (at == NULL) return NULL;
+    if (at->unmarshal) {
+        void *p = janet_abstract(at, readint(st, &data));
+        JanetMarshalContext context = {NULL, st, flags, data};
+        at->unmarshal(p, &context);
+        *out = janet_wrap_abstract(p);
+        return data;
+    }
+    return NULL;
+}
+
+
+
+
+
 static const uint8_t *unmarshal_one(
     UnmarshalState *st,
     const uint8_t *data,
@@ -964,6 +1063,10 @@ static const uint8_t *unmarshal_one(
                 data = unmarshal_one_env(st, data, &(func->envs[i]), flags + 1);
             }
             return data;
+        }
+        case LB_ABSTRACT: {
+            data++;
+            return unmarshal_one_abstract(st, data, out, flags);
         }
         case LB_REFERENCE:
         case LB_ARRAY:
