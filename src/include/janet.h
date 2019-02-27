@@ -178,7 +178,9 @@ extern "C" {
 /* Define max stack size for stacks before raising a stack overflow error.
  * If this is not defined, fiber stacks can grow without limit (until memory
  * runs out) */
-#define JANET_STACK_MAX 8192
+#ifndef JANET_STACK_MAX
+#define JANET_STACK_MAX 16384
+#endif
 
 /* Use nanboxed values - uses 8 bytes per value instead of 12 or 16.
  * To turn of nanboxing, for debugging purposes or for certain
