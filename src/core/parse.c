@@ -531,20 +531,34 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
     }
 }
 
-int janet_parser_consume(JanetParser *parser, uint8_t c) {
+static void janet_parser_checkdead(JanetParser *parser) {
+    if (parser->flag) janet_panic("parser is dead, cannot consume");
+    if (parser->error) janet_panic("parser has unchecked error, cannot consume");
+}
+
+/* Public API */
+
+void janet_parser_consume(JanetParser *parser, uint8_t c) {
     int consumed = 0;
-    if (parser->error) return 0;
+    janet_parser_checkdead(parser);
     parser->offset++;
     while (!consumed && !parser->error) {
         JanetParseState *state = parser->states + parser->statecount - 1;
         consumed = state->consumer(parser, state, c);
     }
     parser->lookback = c;
-    return 1;
+}
+
+void janet_parser_eof(JanetParser *parser) {
+    janet_parser_checkdead(parser);
+    janet_parser_consume(parser, '\n');
+    parser->offset--;
+    parser->flag = 1;
 }
 
 enum JanetParserStatus janet_parser_status(JanetParser *parser) {
     if (parser->error) return JANET_PARSE_ERROR;
+    if (parser->flag) return JANET_PARSE_DEAD;
     if (parser->statecount > 1) return JANET_PARSE_PENDING;
     return JANET_PARSE_ROOT;
 }
@@ -594,6 +608,7 @@ void janet_parser_init(JanetParser *parser) {
     parser->lookback = -1;
     parser->offset = 0;
     parser->pending = 0;
+    parser->flag = 0;
 
     pushstate(parser, root, PFLAG_CONTAINER);
 }
@@ -669,6 +684,13 @@ static Janet cfun_parse_consume(int32_t argc, Janet *argv) {
     return janet_wrap_integer(i);
 }
 
+static Janet cfun_parse_eof(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetParser *p = janet_getabstract(argv, 0, &janet_parse_parsertype);
+    janet_parser_eof(p);
+    return argv[0];
+}
+
 static Janet cfun_parse_insert(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parse_parsertype);
@@ -729,6 +751,9 @@ static Janet cfun_parse_status(int32_t argc, Janet *argv) {
             break;
         case JANET_PARSE_ROOT:
             stat = "root";
+            break;
+        case JANET_PARSE_DEAD:
+            stat = "dead";
             break;
     }
     return janet_ckeywordv(stat);
@@ -801,6 +826,7 @@ static const JanetMethod parser_methods[] = {
     {"state", cfun_parse_state},
     {"status", cfun_parse_status},
     {"where", cfun_parse_where},
+    {"eof", cfun_parse_eof},
     {NULL, NULL}
 };
 
@@ -879,6 +905,11 @@ static const JanetReg parse_cfuns[] = {
              "Returns the current line number and column number of the parser's location "
              "in the byte stream as a tuple (line, column). Lines and columns are counted from "
              "1, (the first byte is line 1, column 1) and a newline is considered ASCII 0x0A.")
+    },
+    {
+        "parser/eof", cfun_parse_eof,
+        JDOC("(parser/insert parser)\n\n"
+             "Indicate that the end of file was reached to the parser. This puts the parser in the :dead state.")
     },
     {
         "parser/insert", cfun_parse_insert,

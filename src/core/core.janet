@@ -1434,7 +1434,7 @@ value, one key will be ignored."
               " around byte "
               (string (parser/where p))
               ": "
-              (or (parser/error p) "unmatched delimiter")
+              (parser/error p)
               "\n"))
 
 (defn bad-compile
@@ -1514,7 +1514,9 @@ value, one key will be ignored."
     (var pindex 0)
     (var pstatus nil)
     (def len (length buf))
-    (if (= len 0) (set going false))
+    (when (= len 0) 
+      (parser/eof p)
+      (set going false))
     (while (> len pindex)
       (+= pindex (parser/consume p buf pindex))
       (while (parser/has-more p)
@@ -1522,8 +1524,11 @@ value, one key will be ignored."
       (when (= (parser/status p) :error)
         (on-parse-error p where))))
 
-  (if (= (parser/status p) :pending)
-        (on-parse-error p where))
+  # Check final parser state
+  (while (parser/has-more p)
+    (eval1 (parser/produce p)))
+  (when (= (parser/status p) :error)
+    (on-parse-error p where))
 
   (set *env* oldenv)
 
