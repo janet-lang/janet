@@ -416,4 +416,7 @@ void janet_lib_io(JanetTable *env) {
     janet_core_def(env, "stdin",
                    makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
                    JDOC("The standard input file."));
+
+    janet_register_abstract_type(&cfun_io_filetype);
+    
 }
