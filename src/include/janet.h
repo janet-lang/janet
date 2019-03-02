@@ -1250,6 +1250,8 @@ JANET_API JanetRange janet_getslice(int32_t argc, const Janet *argv);
 JANET_API int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which);
 JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which);
 
+JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int *flags);
+
 
 /* Marshal API */
 JANET_API void janet_marshal_int(JanetMarshalContext *ctx, int32_t value);
