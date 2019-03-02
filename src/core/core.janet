@@ -1687,18 +1687,20 @@ value, one key will be ignored."
   table."
   [env path & args]
   (def {:as as
-        :prefix prefix} (table ;args))
+        :prefix prefix
+        :export ep} (table ;args))
   (def newenv (require path ;args))
   (def prefix (or (and as (string as "/")) prefix (string path "/")))
   (loop [[k v] :pairs newenv :when (not (v :private))]
-    (def newv (table/setproto @{:private true} v))
+    (def newv (table/setproto @{:private (not ep)} v))
     (put env (symbol prefix k) newv)))
 
 (defmacro import
   "Import a module. First requires the module, and then merges its
   symbols into the current environment, prepending a given prefix as needed.
   (use the :as or :prefix option to set a prefix). If no prefix is provided,
-  use the name of the module as a prefix."
+  use the name of the module as a prefix. One can also use :export true
+  to re-export the imported symbols."
   [path & args]
   (def argm (map (fn [x]
                    (if (keyword? x)

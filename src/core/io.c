@@ -404,7 +404,7 @@ static const JanetReg io_cfuns[] = {
 
 FILE *janet_getfile(const Janet *argv, int32_t n, int *flags) {
     IOFile *iof = janet_getabstract(argv, n, &cfun_io_filetype);
-    *flags = iof->flags;
+    if (NULL != flags) *flags = iof->flags;
     return iof->file;
 }
 

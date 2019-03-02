@@ -1256,7 +1256,6 @@ JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length
 
 JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int *flags);
 
-
 /* Marshal API */
 JANET_API void janet_marshal_int(JanetMarshalContext *ctx, int32_t value);
 JANET_API void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value);
