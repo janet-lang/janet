@@ -98,7 +98,7 @@ janet:1:> (+ 1 2 3)
 janet:2:> (print "Hello, World!")
 Hello, World!
 nil
-janet:3:> (os.exit)
+janet:3:> (os/exit)
 $ ./janet -h
 usage: ./janet [options] scripts...
 Options are:
