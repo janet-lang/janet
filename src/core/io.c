@@ -400,6 +400,14 @@ static const JanetReg io_cfuns[] = {
     {NULL, NULL, NULL}
 };
 
+/* C API */
+
+FILE *janet_getfile(const Janet *argv, int32_t n, int *flags) {
+    IOFile *iof = janet_getabstract(argv, n, &cfun_io_filetype);
+    *flags = iof->flags;
+    return iof->file;
+}
+
 /* Module entry point */
 void janet_lib_io(JanetTable *env) {
     janet_core_cfuns(env, NULL, io_cfuns);
@@ -416,4 +424,5 @@ void janet_lib_io(JanetTable *env) {
     janet_core_def(env, "stdin",
                    makef(stdin, IO_READ | IO_NOT_CLOSEABLE | IO_SERIALIZABLE),
                    JDOC("The standard input file."));
+
 }
