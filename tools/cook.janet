@@ -3,6 +3,7 @@
 
 # Windows is the OS outlier
 (def- is-win (= (os/which) :windows))
+(def- is-mac (= (os/which) :macos))
 (def- sep (if is-win "\\" "/"))
 (def- objext (if is-win ".obj" ".o"))
 (def- modext (if is-win ".dll" ".so"))
@@ -93,7 +94,11 @@
 # Defaults
 (def OPTIMIZE 2)
 (def CC (if is-win "cl" "cc"))
-(def LD (if is-win "link" (string CC " -shared")))
+(def LD (if is-win 
+          "link" 
+          (string CC 
+                  " -shared" 
+                  (if is-mac " -undefined dynamic_lookup" ""))))
 (def CFLAGS (string
               (if is-win "/I" "-I")
               module/*syspath*
