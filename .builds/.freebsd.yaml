@@ -9,5 +9,5 @@ tasks:
       cd janet
       gmake CC=gcc
       gmake test CC=gcc
-      gmake install CC=gcc
+      sudo gmake install CC=gcc
       gmake test-install CC=gcc
