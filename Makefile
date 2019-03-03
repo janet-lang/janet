@@ -36,16 +36,18 @@ DEBUGGER=gdb
 
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
 	   -DJANET_BUILD=$(JANET_BUILD)
+LDFLAGS=-rdynamic
 
+# Check OS
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
-	# Add other macos/clang flags
+	CLIBS:=$(CLIBS) -ldl
+else ifeq ($(UNAME), Linux)
+	CLIBS:=$(CLIBS) -lrt -ldl
+else ifeq ($(UNAME), FreeBSD)
 	CLIBS:=$(CLIBS) -ldl
 else ifeq ($(UNAME), OpenBSD)
-	# pass ...
-else
-	CFLAGS:=$(CFLAGS) -rdynamic
-	CLIBS:=$(CLIBS) -lrt -ldl
+	CLIBS:=$(CLIBS) -ldl
 endif
 
 $(shell mkdir -p build/core build/mainclient build/webclient build/boot)
@@ -95,10 +97,10 @@ build/%.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(JANET_TARGET): $(JANET_CORE_OBJECTS) $(JANET_MAINCLIENT_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 $(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
-	$(CC) $(CFLAGS) -shared -o $@ $^ $(CLIBS)
+	$(CC) $(LDFLAGS) $(CFLAGS) -shared -o $@ $^ $(CLIBS)
 
 ######################
 ##### Emscripten #####
