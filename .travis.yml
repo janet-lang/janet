@@ -2,6 +2,8 @@ language: c
 script:
 - make
 - make test
+- make install
+- make test-install
 - make build/janet-${TRAVIS_TAG}-${TRAVIS_OS_NAME}.tar.gz
 compiler:
 - clang
