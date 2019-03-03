@@ -239,6 +239,9 @@ install: $(JANET_TARGET)
 	mkdir -p $(MANPATH)
 	cp janet.1 $(MANPATH)
 
+test-install:
+	cd test/install && janet test
+
 uninstall:
 	-rm $(BINDIR)/../$(JANET_TARGET)
 	-rm -rf $(INCLUDEDIR)
