@@ -119,23 +119,6 @@
        :struct true})
     (fn idempotent? [x] (not (get non-atomic-types (type x))))))
 
-(defmacro with-idemp
-  "Return janet code body that has been prepended
-  with a binding of form to atom. If form is a non-idempotent
-  form (a function call, etc.), make sure the resulting
-  code will only evaluate once, even if body contains multiple
-  copies of binding. In body, use binding instead of form."
-  [binding form & body]
-  (def $result (gensym))
-  (def $form (gensym))
-  ~(do
-     (def ,$form ,form)
-     (def ,binding (if (idempotent? ,$form) ,$form (gensym)))
-     (def ,$result (do ,;body))
-     (if (= ,$form ,binding)
-       ,$result
-       (tuple 'do (tuple 'def ,binding ,$form) ,$result))))
-
 # C style macros and functions for imperative sugar. No bitwise though.
 (defn inc "Returns x + 1." [x] (+ x 1))
 (defn dec "Returns x - 1." [x] (- x 1))
@@ -282,7 +265,8 @@
   and object is any janet expression. The available verbs are:\n\n
   \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
   \t:range - loop over a range. The object should be two element tuple with a start
-  and end value. The range is half open, [start, end).\n
+  and end value, and an optional postive step. The range is half open, [start, end).\n
+  \t:down - Same as range, but loops in reverse.\n
   \t:keys - Iterate over the keys in a data structure.\n
   \t:pairs - Iterate over the keys value pairs in a data structure.\n
   \t:in - Iterate over the values in an indexed data structure or byte sequence.\n
@@ -359,6 +343,20 @@
                                    (tuple 'def bindings $iter)
                                    subloop
                                    (tuple 'set $iter (tuple + $iter inc)))))
+            :down (do
+                     (def [start end _dec] object)
+                     (def dec (if _dec _dec 1))
+                     (def endsym (gensym))
+                     (def $iter (gensym))
+                     (def preds @['and (tuple > $iter endsym)])
+                     (def subloop (doone (+ i 3) preds))
+                     (tuple 'do
+                            (tuple 'var $iter start)
+                            (tuple 'def endsym end)
+                            (tuple 'while (tuple/slice preds)
+                                   (tuple 'def bindings $iter)
+                                   subloop
+                                   (tuple 'set $iter (tuple - $iter dec)))))
             :keys (do
                     (def $dict (gensym))
                     (def $iter (gensym))
@@ -1111,6 +1109,24 @@ value, one key will be ignored."
 ###
 ###
 
+(defmacro- with-idemp
+  "Return janet code body that has been prepended
+  with a binding of form to atom. If form is a non-idempotent
+  form (a function call, etc.), make sure the resulting
+  code will only evaluate once, even if body contains multiple
+  copies of binding. In body, use binding instead of form."
+  [binding form & body]
+  (def $result (gensym))
+  (def $form (gensym))
+  ~(do
+     (def ,$form ,form)
+     (def ,binding (if (idempotent? ,$form) ,$form (gensym)))
+     (def ,$result (do ,;body))
+     (if (= ,$form ,binding)
+       ,$result
+       (tuple 'do (tuple 'def ,binding ,$form) ,$result))))
+
+
 # Sentinel value for mismatches
 (def- sentinel ~',(gensym))
 
@@ -1184,6 +1200,7 @@ value, one key will be ignored."
 
 (put _env 'sentinel nil)
 (put _env 'match-1 nil)
+(put _env 'with-idemp nil)
 
 ###
 ###
