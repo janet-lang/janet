@@ -44,11 +44,8 @@ ifeq ($(UNAME), Darwin)
 	CLIBS:=$(CLIBS) -ldl
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
-else ifeq ($(UNAME), FreeBSD)
-	CLIBS:=$(CLIBS) -ldl
-else ifeq ($(UNAME), OpenBSD)
-	CLIBS:=$(CLIBS) -ldl
 endif
+# For other unix likes, add flags here!
 
 $(shell mkdir -p build/core build/mainclient build/webclient build/boot)
 

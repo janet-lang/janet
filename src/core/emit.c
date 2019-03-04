@@ -86,8 +86,10 @@ static void janetc_loadconst(JanetCompiler *c, Janet k, int32_t reg) {
             break;
         case JANET_NUMBER: {
             double dval = janet_unwrap_number(k);
+            if (dval < INT16_MIN || dval > INT16_MAX)
+                goto do_constant;
             int32_t i = (int32_t) dval;
-            if (dval != i || !(dval >= INT16_MIN && dval <= INT16_MAX))
+            if (dval != i)
                 goto do_constant;
             uint32_t iu = (uint32_t)i;
             janetc_emit(c,
@@ -251,7 +253,7 @@ void janetc_copy(
 static int32_t emit1s(JanetCompiler *c, uint8_t op, JanetSlot s, int32_t rest, int wr) {
     int32_t reg = janetc_regnear(c, s, JANETC_REGTEMP_0);
     int32_t label = janet_v_count(c->buffer);
-    janetc_emit(c, op | (reg << 8) | (rest << 16));
+    janetc_emit(c, op | (reg << 8) | ((uint32_t)rest << 16));
     if (wr)
         janetc_moveback(c, s, reg);
     janetc_free_regnear(c, s, reg, JANETC_REGTEMP_0);
@@ -293,7 +295,7 @@ static int32_t emit2s(JanetCompiler *c, uint8_t op, JanetSlot s1, JanetSlot s2, 
     int32_t reg1 = janetc_regnear(c, s1, JANETC_REGTEMP_0);
     int32_t reg2 = janetc_regnear(c, s2, JANETC_REGTEMP_1);
     int32_t label = janet_v_count(c->buffer);
-    janetc_emit(c, op | (reg1 << 8) | (reg2 << 16) | (rest << 24));
+    janetc_emit(c, op | (reg1 << 8) | (reg2 << 16) | ((uint32_t)rest << 24));
     janetc_free_regnear(c, s2, reg2, JANETC_REGTEMP_1);
     if (wr)
         janetc_moveback(c, s1, reg1);
@@ -326,7 +328,7 @@ int32_t janetc_emit_sss(JanetCompiler *c, uint8_t op, JanetSlot s1, JanetSlot s2
     int32_t reg2 = janetc_regnear(c, s2, JANETC_REGTEMP_1);
     int32_t reg3 = janetc_regnear(c, s3, JANETC_REGTEMP_2);
     int32_t label = janet_v_count(c->buffer);
-    janetc_emit(c, op | (reg1 << 8) | (reg2 << 16) | (reg3 << 24));
+    janetc_emit(c, op | (reg1 << 8) | (reg2 << 16) | ((uint32_t)reg3 << 24));
     janetc_free_regnear(c, s2, reg2, JANETC_REGTEMP_1);
     janetc_free_regnear(c, s3, reg3, JANETC_REGTEMP_2);
     if (wr)
