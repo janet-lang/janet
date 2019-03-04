@@ -216,6 +216,9 @@
 (def xs (apply tuple (seq [x :range [0 10] :when (even? x)] (tuple (/ x 2) x))))
 (assert (= xs '((0 0) (1 2) (2 4) (3 6) (4 8))) "seq macro 1")
 
+(def xs (apply tuple (seq [x :down [8 -2] :when (even? x)] (tuple (/ x 2) x))))
+(assert (= xs '((4 8) (3 6) (2 4) (1 2) (0 0))) "seq macro 2")
+
 # Some testing for not=
 (assert (not= 1 1 0) "not= 1")
 (assert (not= 0 1 1) "not= 2")
