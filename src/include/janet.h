@@ -133,7 +133,6 @@ extern "C" {
 #define JANET_TYPED_ARRAY
 #endif
 
-
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS

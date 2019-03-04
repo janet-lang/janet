@@ -49,7 +49,7 @@ static const uint32_t symchars[8] = {
 /* Check if a character is a valid symbol character
  * symbol chars are A-Z, a-z, 0-9, or one of !$&*+-./:<=>@\^_~| */
 static int is_symbol_char(uint8_t c) {
-    return symchars[c >> 5] & (1 << (c & 0x1F));
+    return symchars[c >> 5] & ((uint32_t)1 << (c & 0x1F));
 }
 
 /* Validate some utf8. Useful for identifiers. Only validates

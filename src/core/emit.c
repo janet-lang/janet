@@ -89,8 +89,9 @@ static void janetc_loadconst(JanetCompiler *c, Janet k, int32_t reg) {
             int32_t i = (int32_t) dval;
             if (dval != i || !(dval >= INT16_MIN && dval <= INT16_MAX))
                 goto do_constant;
+            uint32_t iu = (uint32_t)i;
             janetc_emit(c,
-                        (i << 16) |
+                        (iu << 16) |
                         (reg << 8) |
                         JOP_LOAD_INTEGER);
             break;

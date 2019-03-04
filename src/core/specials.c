@@ -566,8 +566,8 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
 
     /* Calculate jumps */
     labeld = janet_v_count(c->buffer);
-    if (!infinite) c->buffer[labelc] |= (labeld - labelc) << 16;
-    c->buffer[labeljt] |= (labelwt - labeljt) << 8;
+    if (!infinite) c->buffer[labelc] |= (uint32_t)(labeld - labelc) << 16;
+    c->buffer[labeljt] |= (uint32_t)(labelwt - labeljt) << 8;
 
     /* Pop scope and return nil slot */
     janetc_popscope(c);

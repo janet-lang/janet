@@ -66,12 +66,16 @@ void janetc_regalloc_clone(JanetcRegisterAllocator *dest, JanetcRegisterAllocato
     dest->capacity = src->capacity;
     dest->max = src->max;
     size = sizeof(uint32_t) * dest->capacity;
-    dest->chunks = malloc(size);
     dest->regtemps = 0;
-    if (!dest->chunks) {
-        JANET_OUT_OF_MEMORY;
+    if (size) {
+        dest->chunks = malloc(size);
+        if (!dest->chunks) {
+            JANET_OUT_OF_MEMORY;
+        }
+        memcpy(dest->chunks, src->chunks, size);
+    } else {
+        dest->chunks = NULL;
     }
-    memcpy(dest->chunks, src->chunks, size);
 }
 
 /* Allocate one more chunk in chunks */

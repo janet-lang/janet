@@ -529,15 +529,18 @@ static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
         ret = *data++;
     } else if (*data < 192) {
         MARSH_EOS(st, data + 1);
-        ret = ((data[0] & 0x3F) << 8) + data[1];
-        ret = ((ret << 18) >> 18);
+        uint32_t uret = ((data[0] & 0x3F) << 8) + data[1];
+        /* Sign extend 18 MSBs */
+        uret |= (uret >> 13) ? 0xFFFFC000 : 0;
+        ret = (int32_t)uret;
         data += 2;
     } else if (*data == LB_INTEGER) {
         MARSH_EOS(st, data + 4);
-        ret = ((int32_t)(data[1]) << 24) |
-              ((int32_t)(data[2]) << 16) |
-              ((int32_t)(data[3]) << 8) |
-              (int32_t)(data[4]);
+        uint32_t ui = ((uint32_t)(data[1]) << 24) |
+                      ((uint32_t)(data[2]) << 16) |
+                      ((uint32_t)(data[3]) << 8) |
+                      (uint32_t)(data[4]);
+        ret = (int32_t)ui;
         data += 5;
     } else {
         janet_panicf("expected integer, got byte %x at index %d",
@@ -970,11 +973,12 @@ static const uint8_t *unmarshal_one(
         case LB_INTEGER:
             /* Long integer */
             MARSH_EOS(st, data + 4);
-            *out = janet_wrap_integer(
-                       (data[4]) |
-                       (data[3] << 8) |
-                       (data[2] << 16) |
-                       (data[1] << 24));
+            uint32_t ui = ((uint32_t)(data[4])) |
+                          ((uint32_t)(data[3]) << 8) |
+                          ((uint32_t)(data[2]) << 16) |
+                          ((uint32_t)(data[1]) << 24);
+            int32_t si = (int32_t)ui;
+            *out = janet_wrap_integer(si);
             return data + 5;
         case LB_REAL:
             /* Real */
