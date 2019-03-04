@@ -697,9 +697,9 @@
         arr)
     3 (do
         (def [n m s] args)
-        (def arr (array/new (math/ceil (/ n s))))
-        (loop [i :range [n m s]] (array/push arr i))
-        arr)
+        (if (neg? s)
+          (seq [i :down [n m (- s)]] i)
+          (seq [i :range [n m s]] i)))
     (error "expected 1 to 3 arguments to range")))
 
 (defn find-index
@@ -1531,7 +1531,7 @@ value, one key will be ignored."
     (var pindex 0)
     (var pstatus nil)
     (def len (length buf))
-    (when (= len 0) 
+    (when (= len 0)
       (parser/eof p)
       (set going false))
     (while (> len pindex)
