@@ -1477,7 +1477,8 @@ value, one key will be ignored."
   :env - the environment to compile against - default is *env*\n\t
   :source - string path of source for better errors - default is \"<anonymous>\"\n\t
   :on-compile-error - callback when compilation fails - default is bad-compile\n\t
-  :on-status - callback when a value is evaluated - default is debug/stacktrace"
+  :on-status - callback when a value is evaluated - default is debug/stacktrace\n\t
+  :fiber-flags - what flags to wrap the compilation fiber with. Default is :a."
   [opts]
 
   (def {:env env
@@ -1485,6 +1486,7 @@ value, one key will be ignored."
         :on-status onstatus
         :on-compile-error on-compile-error
         :on-parse-error on-parse-error
+        :fiber-flags guard
         :source where} opts)
   (default env *env*)
   (default chunks getline)
@@ -1516,7 +1518,7 @@ value, one key will be ignored."
                   (string err " at (" start ":" end ")")
                   err))
               (on-compile-error msg errf where))))
-        :a))
+        (or guard :a)))
     (def res (resume f nil))
     (when good (if going (onstatus f res))))
 
@@ -1563,14 +1565,18 @@ value, one key will be ignored."
       (buffer/push-string buf str)
       (buffer/push-string buf "\n")))
   (var returnval nil)
+  (defn error1 [x &] (error x))
   (run-context {:env env
                 :chunks chunks
-                :on-compile-error error
-                :on-parse-error error
+                :on-compile-error (fn [msg errf &]
+                                    (error (string "compile error: " msg)))
+                :on-parse-error (fn [p x]
+                                  (error (string "parse error: " (parser/error p))))
+                :fiber-flags :
                 :on-status (fn [f val]
-                             (set returnval val)
                              (if-not (= (fiber/status f) :dead)
-                               (debug/stacktrace f val)))
+                               (error val))
+                             (set returnval val))
                 :source "eval"})
   returnval)
 
