@@ -552,6 +552,9 @@ void janet_parser_consume(JanetParser *parser, uint8_t c) {
 void janet_parser_eof(JanetParser *parser) {
     janet_parser_checkdead(parser);
     janet_parser_consume(parser, '\n');
+    if (parser->statecount > 1) {
+        parser->error = "unexpected end of source";
+    }
     parser->offset--;
     parser->flag = 1;
 }
