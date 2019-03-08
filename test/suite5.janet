@@ -56,6 +56,13 @@
 (assert (= ((tarray/slice b 1) 2) (b 3) (a 6) 6) "tarray slice")
 
 (assert (= ((unmarshal (marshal b)) 3) (b 3)) "marshal")
+
+# Array remove
+
+(assert (deep= (array/remove @[1 2 3 4 5] 2) @[1 2 4 5]) "array/remove 1")
+(assert (deep= (array/remove @[1 2 3 4 5] 2 2) @[1 2 5]) "array/remove 2")
+(assert (deep= (array/remove @[1 2 3 4 5] 2 200) @[1 2]) "array/remove 3")
+(assert (deep= (array/remove @[1 2 3 4 5] -3 200) @[1 2 3]) "array/remove 4")
         
 (end-suite)
 

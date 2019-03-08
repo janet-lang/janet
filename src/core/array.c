@@ -212,7 +212,32 @@ static Janet cfun_array_insert(int32_t argc, Janet *argv) {
             restsize);
     memcpy(array->data + at, argv + 2, chunksize);
     array->count += (argc - 2);
-    return janet_wrap_array(array);
+    return argv[0];
+}
+
+static Janet cfun_array_remove(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 3);
+    JanetArray *array = janet_getarray(argv, 0);
+    int32_t at = janet_getinteger(argv, 1);
+    int32_t n = 1;
+    if (at < 0) {
+        at = array->count + at + 1;
+    }
+    if (at < 0 || at > array->count)
+        janet_panicf("removal index %d out of range [0,%d]", at, array->count);
+    if (argc == 3) {
+        n = janet_getinteger(argv, 2);
+        if (n < 0)
+            janet_panicf("expected non-negative integer for argument n, got %v", argv[2]);
+    }
+    if (at + n > array->count) {
+        n = array->count - at;
+    }
+    memmove(array->data + at,
+            array->data + at + n,
+            (array->count - at - n) * sizeof(Janet));
+    array->count -= n;
+    return argv[0];
 }
 
 static const JanetReg array_cfuns[] = {
@@ -268,6 +293,13 @@ static const JanetReg array_cfuns[] = {
              "Insert all of xs into array arr at index at. at should be an integer "
              "0 and the length of the array. A negative value for at will index from "
              "the end of the array, such that inserting at -1 appends to the array. "
+             "Returns the array.")
+    },
+    {
+        "array/remove", cfun_array_remove,
+        JDOC("(array/remove arr at [, n=1])\n\n"
+             "Remove up to n elements starting at index at in array arr. at can index from "
+             "the end of the array with a negative index, and n must be a non-negative integer. "
              "Returns the array.")
     },
     {NULL, NULL, NULL}
