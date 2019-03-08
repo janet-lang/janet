@@ -51,6 +51,7 @@
     "src/core/symcache.c"
     "src/core/table.c"
     "src/core/tuple.c"
+    "src/core/typedarray.c"
     "src/core/util.c"
     "src/core/value.c"
     "src/core/vector.c"
