@@ -2,8 +2,11 @@
 All notable changes to this project will be documented in this file.
 
 ## 0.4.0 - ??
+- Fix a number of smaller bugs
+- Added :export option to import and require
+- Added typed arrays
 - Remove `callable?`.
-- Remove `tuple/append` and `tuple/prepend`, which may have seened like `O(1)`
+- Remove `tuple/append` and `tuple/prepend`, which may have seemed like `O(1)`
   operations. Instead, use the `splice` special to extend tuples.
 - Add `-m` flag to main client to allow specifying where to load
   system modules from.
