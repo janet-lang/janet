@@ -291,8 +291,9 @@ static int is_ta_anytype(Janet x) {
 }
 
 static int is_ta_type(Janet x, JanetTArrayType type) {
-    return (janet_checktype(x, JANET_ABSTRACT) && (type < TA_COUNT_TYPES) &&
-            (janet_abstract_type(janet_unwrap_abstract(x)) == &ta_array_types[type])) ? 1 : 0;
+    return janet_checktype(x, JANET_ABSTRACT) && 
+        (type < TA_COUNT_TYPES) &&
+        (janet_abstract_type(janet_unwrap_abstract(x)) == &ta_array_types[type]);
 }
 
 #define CASE_TYPE_INITIALIZE(type)  case  JANET_TARRAY_TYPE_##type :  ta_init_##type(view,buffer,size,offset,stride); break
@@ -407,7 +408,7 @@ static Janet cfun_typed_array_properties(int32_t argc, Janet *argv) {
         return janet_wrap_struct(janet_struct_end(props));
     } else {
         JanetTArrayBuffer *buffer = janet_gettarray_buffer(argv, 0);
-        JanetKV *props = janet_struct_begin(3);
+        JanetKV *props = janet_struct_begin(2);
         janet_struct_put(props, janet_ckeywordv("size"), janet_wrap_number(buffer->size));
         janet_struct_put(props, janet_ckeywordv("big-endian"), janet_wrap_boolean(buffer->flags & TA_FLAG_BIG_ENDIAN));
         return janet_wrap_struct(janet_struct_end(props));
