@@ -93,6 +93,4 @@ void janet_lib_peg(JanetTable *env);
 void janet_lib_typed_array(JanetTable *env);
 #endif
 
-
-
 #endif

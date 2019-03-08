@@ -128,6 +128,24 @@ static void pushbytes(MarshalState *st, const uint8_t *bytes, int32_t len) {
     janet_buffer_push_bytes(st->buf, bytes, len);
 }
 
+/* Marshal a size_t onto the buffer */
+static void pushsize(MarshalState *st, size_t x) {
+    if (x <= 0xF0) {
+        /* Single byte */
+        pushbyte(st, (uint8_t) x);
+    } else {
+        /* Multibyte */
+        uint8_t bytes[9];
+        int nbytes = 0;
+        while (x) {
+            bytes[++nbytes] = x & 0xFF;
+            x >>= 8;
+        }
+        bytes[0] = 0xF0 + nbytes;
+        pushbytes(st, bytes, nbytes + 1);
+    }
+}
+
 /* Forward declaration to enable mutual recursion. */
 static void marshal_one(MarshalState *st, Janet x, int flags);
 static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags);
@@ -266,6 +284,11 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
         marshal_one(st, janet_wrap_fiber(fiber->child), flags + 1);
 }
 
+void janet_marshal_size(JanetMarshalContext *ctx, size_t value) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    pushsize(st, value);
+};
+
 void janet_marshal_int(JanetMarshalContext *ctx, int32_t value) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
     pushint(st, value);
@@ -297,7 +320,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         JanetMarshalContext context = {st, NULL, flags, NULL};
         pushbyte(st, LB_ABSTRACT);
         marshal_one(st, janet_ckeywordv(at->name), flags + 1);
-        pushint(st, janet_abstract_size(abstract));
+        pushsize(st, janet_abstract_size(abstract));
         at->marshal(abstract, &context);
     } else {
         janet_panicf("try to marshal unregistered abstract type, cannot marshal %p", x);
@@ -328,7 +351,6 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             break;
         }
     }
-
 
     /* Check reference and registry value */
     {
@@ -550,6 +572,29 @@ static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
     }
     *atdata = data;
     return ret;
+}
+
+/* Helper to read a size_t (up to 8 bytes unsigned). */
+static size_t readsize(UnmarshalState *st, const uint8_t **atdata) {
+    const uint8_t *data = *atdata;
+    MARSH_EOS(st, data);
+    if (*data <= 0xF0) {
+        /* Single byte */
+        size_t ret = *data++;
+        *atdata = data;
+        return ret;
+    } else {
+        /* Multibyte */
+        int nbytes = *data++ - 0xF0;
+        size_t value = 0;
+        if (nbytes < 1 || nbytes > 8)
+            janet_panic("invalid size_t");
+        MARSH_EOS(st, data + nbytes - 1);
+        for (int i = 0; i < nbytes; i++)
+            value = (value << 8) + *data++;
+        *atdata = data;
+        return value;
+    }
 }
 
 /* Assert a janet type */
@@ -904,14 +949,9 @@ void janet_unmarshal_int(JanetMarshalContext *ctx, int32_t *i) {
     *i = readint(st, &(ctx->data));
 };
 
-void janet_unmarshal_uint(JanetMarshalContext *ctx, uint32_t *i) {
-    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
-    *i = (uint32_t)readint(st, &(ctx->data));
-};
-
 void janet_unmarshal_size(JanetMarshalContext *ctx, size_t *i) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
-    *i = (size_t)readint(st, &(ctx->data));
+    *i = readsize(st, &(ctx->data));
 };
 
 void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b) {
@@ -938,7 +978,7 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
     const JanetAbstractType *at = janet_get_abstract_type(key);
     if (at == NULL) return NULL;
     if (at->unmarshal) {
-        void *p = janet_abstract(at, readint(st, &data));
+        void *p = janet_abstract(at, readsize(st, &data));
         JanetMarshalContext context = {NULL, st, flags, data};
         at->unmarshal(p, &context);
         *out = janet_wrap_abstract(p);

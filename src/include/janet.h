@@ -1257,12 +1257,12 @@ JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int *flags);
 
 /* Marshal API */
 JANET_API void janet_marshal_int(JanetMarshalContext *ctx, int32_t value);
+JANET_API void janet_marshal_size(JanetMarshalContext *ctx, size_t value);
 JANET_API void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value);
 JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, int32_t len);
 JANET_API void janet_marshal_janet(JanetMarshalContext *ctx, Janet x);
 
 JANET_API void janet_unmarshal_int(JanetMarshalContext *ctx, int32_t *i);
-JANET_API void janet_unmarshal_uint(JanetMarshalContext *ctx, uint32_t *i);
 JANET_API void janet_unmarshal_size(JanetMarshalContext *ctx, size_t *i);
 JANET_API void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b);
 JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, int32_t len);
@@ -1290,12 +1290,12 @@ typedef enum {
 typedef struct {
     uint8_t *data;
     size_t size;
-    uint32_t flags;
+    int32_t flags;
 } JanetTArrayBuffer;
 
 typedef struct {
     JanetTArrayBuffer *buffer;
-    void *data;   /* pointer inside buffer->data */
+    void *data; /* pointer inside buffer->data */
     size_t size;
     size_t stride;
     JanetTArrayType type;
@@ -1309,7 +1309,6 @@ JANET_API JanetTArrayBuffer *janet_gettarray_buffer(const Janet *argv, int32_t n
 JANET_API JanetTArrayView *janet_gettarray_view(const Janet *argv, int32_t n, JanetTArrayType type);
 
 #endif
-
 
 /***** END SECTION MAIN *****/
 
