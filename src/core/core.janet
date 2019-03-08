@@ -1460,14 +1460,6 @@ value, one key will be ignored."
   (file/write stderr "compile error: " msg " while compiling " where "\n")
   (when macrof (debug/stacktrace macrof)))
 
-(defn getline
-  "Read a line from stdin into a buffer."
-  [buf p &]
-  (default buf @"")
-  (when p (file/write stdout p))
-  (file/read stdin :line buf)
-  buf)
-
 (defn run-context
   "Run a context. This evaluates expressions of janet in an environment,
   and is encapsulates the parsing, compilation, and evaluation.

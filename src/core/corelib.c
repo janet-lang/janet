@@ -243,6 +243,29 @@ static Janet janet_core_hash(int32_t argc, Janet *argv) {
     return janet_wrap_number(janet_hash(argv[0]));
 }
 
+static Janet janet_core_getline(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 2);
+    JanetBuffer *buf = (argc >= 2) ? janet_getbuffer(argv, 1) : janet_buffer(10);
+    if (argc >= 1) {
+        const char *prompt = (const char *) janet_getstring(argv, 0);
+        printf("%s", prompt);
+        fflush(stdout);
+    }
+    {
+        buf->count = 0;
+        int c;
+        for (;;) {
+            c = fgetc(stdin);
+            if (feof(stdin) || c < 0) {
+                break;
+            }
+            janet_buffer_push_u8(buf, (uint8_t) c);
+            if (c == '\n') break;
+        }
+    }
+    return janet_wrap_buffer(buf);
+}
+
 static const JanetReg corelib_cfuns[] = {
     {
         "native", janet_core_native,
@@ -392,6 +415,12 @@ static const JanetReg corelib_cfuns[] = {
              "Gets a hash value for any janet value. The hash is an integer can be used "
              "as a cheap hash function for all janet objects. If two values are strictly equal, "
              "then they will have the same hash value.")
+    },
+    {
+        "getline", janet_core_getline,
+        JDOC("(getline [, prompt=\"\" [, buffer=@\"\"]])\n\n"
+                "Reads a line of input into a buffer, including the newline character, using a prompt. Returns the modified buffer. "
+                "Use this function to implement a simple interface for a terminal program.")
     },
     {NULL, NULL, NULL}
 };
@@ -618,8 +647,8 @@ static const uint32_t bnot_asm[] = {
 };
 #endif /* ifndef JANET_NO_BOOTSTRAP */
 
-JanetTable *janet_core_env(void) {
-    JanetTable *env = janet_table(0);
+JanetTable *janet_core_env(JanetTable *replacements) {
+    JanetTable *env = (NULL != replacements) ? replacements : janet_table(0);
     janet_core_cfuns(env, NULL, corelib_cfuns);
 
 #ifdef JANET_BOOTSTRAP
@@ -790,7 +819,6 @@ JanetTable *janet_core_env(void) {
 #ifdef JANET_TYPED_ARRAY
     janet_lib_typed_array(env);
 #endif
-
 
 #ifdef JANET_BOOTSTRAP
     /* Run bootstrap source */

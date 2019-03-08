@@ -33,18 +33,20 @@ int main(int argc, char **argv) {
 
     /* Set up VM */
     janet_init();
-    env = janet_core_env();
+
+    /* Replace original getline with new line getter */
+    JanetTable *replacements = janet_table(0);
+    janet_table_put(replacements, janet_csymbolv("getline"), janet_wrap_cfunction(janet_line_getter));
+    janet_line_init();
+
+    /* Get core env */
+    env = janet_core_env(replacements);
 
     /* Create args tuple */
     args = janet_array(argc);
     for (i = 0; i < argc; i++)
         janet_array_push(args, janet_cstringv(argv[i]));
     janet_def(env, "process/args", janet_wrap_array(args), "Command line arguments.");
-
-    /* Expose line getter */
-    janet_def(env, "getline", janet_wrap_cfunction(janet_line_getter), NULL);
-    janet_register("getline", janet_line_getter);
-    janet_line_init();
 
     /* Run startup script */
     status = janet_dobytes(env, janet_gen_init, janet_gen_init_size, "init.janet", NULL);

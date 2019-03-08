@@ -43,7 +43,8 @@ int main() {
     /* Set up VM */
     int status;
     JanetTable *env;
-    env = janet_core_env();
+
+    env = janet_core_env(NULL);
 
     /* Run bootstrap script to generate core image */
     status = janet_dobytes(env, janet_gen_boot, janet_gen_boot_size, "boot.janet", NULL);

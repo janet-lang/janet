@@ -328,16 +328,27 @@ const JanetAbstractType *janet_get_abstract_type(Janet key) {
 #ifndef JANET_BOOTSTRAP
 void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p) {
     (void) p;
-    janet_table_put(env, janet_csymbolv(name), x);
+    Janet key = janet_csymbolv(name);
+    Janet value;
+    /* During boot, allow replacing core library cfunctions with values from
+     * the env. */
+    Janet check = janet_table_get(env, key);
+    if (janet_checktype(check, JANET_NIL)) {
+        value = x;
+    } else {
+        value = check;
+        if (janet_checktype(check, JANET_CFUNCTION)) {
+            janet_table_put(janet_vm_registry, value, key);
+        }
+    }
+    janet_table_put(env, key, value);
 }
 
 void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
     (void) regprefix;
     while (cfuns->name) {
-        Janet name = janet_csymbolv(cfuns->name);
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
         janet_core_def(env, cfuns->name, fun, cfuns->documentation);
-        janet_table_put(janet_vm_registry, fun, name);
         cfuns++;
     }
 }
