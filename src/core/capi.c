@@ -122,6 +122,14 @@ int64_t janet_getinteger64(const Janet *argv, int32_t n) {
     return (int64_t) janet_unwrap_number(x);
 }
 
+size_t janet_getsize(const Janet *argv, int32_t n) {
+    Janet x = argv[n];
+    if (!janet_checksize(x)) {
+        janet_panicf("bad slot #%d, expected size, got %v", n, x);
+    }
+    return (size_t) janet_unwrap_number(x);
+}
+
 int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which) {
     int32_t raw = janet_getinteger(argv, n);
     if (raw < 0) raw += length + 1;

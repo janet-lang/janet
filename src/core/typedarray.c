@@ -29,16 +29,14 @@
 #include "util.h"
 #endif
 
-typedef uint8_t   ta_uint8_t;
-typedef int8_t    ta_int8_t;
-typedef uint16_t  ta_uint16_t;
-typedef int16_t   ta_int16_t;
-typedef uint32_t  ta_uint32_t;
-typedef int32_t   ta_int32_t;
-typedef uint64_t  ta_uint64_t;
-typedef int64_t   ta_int64_t;
-typedef float     ta_float32_t;
-typedef double    ta_float64_t;
+typedef uint8_t ta_uint8_t;
+typedef int8_t ta_int8_t;
+typedef uint16_t ta_uint16_t;
+typedef int16_t ta_int16_t;
+typedef uint32_t ta_uint32_t;
+typedef int32_t ta_int32_t;
+typedef float ta_float32_t;
+typedef double ta_float64_t;
 
 static char *ta_type_names[] = {
     "uint8",
@@ -47,8 +45,6 @@ static char *ta_type_names[] = {
     "int16",
     "uint32",
     "int32",
-    "uint64",
-    "int64",
     "float32",
     "float64",
     "any"
@@ -61,11 +57,9 @@ static size_t ta_type_sizes[] = {
     sizeof(ta_int16_t),
     sizeof(ta_uint32_t),
     sizeof(ta_int32_t),
-    sizeof(ta_uint64_t),
-    sizeof(ta_int64_t),
     sizeof(ta_float32_t),
     sizeof(ta_float64_t),
-    0,
+    0
 };
 
 #define TA_COUNT_TYPES (JANET_TARRAY_TYPE_float64 + 1)
@@ -73,11 +67,11 @@ static size_t ta_type_sizes[] = {
 #define TA_FLAG_BIG_ENDIAN 1
 
 static JanetTArrayType get_ta_type_by_name(const uint8_t *name) {
-    size_t nt = sizeof(ta_type_names) / sizeof(char *);
-    for (size_t i = 0; i < nt; i++) {
+    for (int i = 0; i < TA_COUNT_TYPES; i++) {
         if (!janet_cstrcmp(name, ta_type_names[i]))
             return i;
     }
+    janet_panicf("invalid typed array type %S", name);
     return 0;
 }
 
@@ -118,7 +112,7 @@ static void ta_buffer_unmarshal(void *p, JanetMarshalContext *ctx) {
     janet_unmarshal_size(ctx, &size);
     ta_buffer_init(buf, size);
     janet_unmarshal_int(ctx, &(buf->flags));
-    janet_unmarshal_bytes(ctx, buf->data, buf->size);
+    janet_unmarshal_bytes(ctx, buf->data, size);
 }
 
 static const JanetAbstractType ta_buffer_type = {
@@ -161,6 +155,10 @@ static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
     view->type = atype;
     janet_unmarshal_size(ctx, &offset);
     janet_unmarshal_janet(ctx, &buffer);
+    if (!janet_checktype(buffer, JANET_ABSTRACT) ||
+            (janet_abstract_type(janet_unwrap_abstract(buffer)) != &ta_buffer_type)) {
+        janet_panicf("expected typed array buffer");
+    }
     view->buffer = (JanetTArrayBuffer *)janet_unwrap_abstract(buffer);
     size_t buf_need_size = offset + (janet_tarray_type_size(view->type)) * ((view->size - 1) * view->stride + 1);
     if (view->buffer->size < buf_need_size)
@@ -181,10 +179,10 @@ static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
 static Janet ta_get_##type(void *p, Janet key) { \
   Janet value;  \
   size_t index; \
-  if (!janet_checkint(key))      \
-    janet_panic("expected integer key");     \
-  index = (size_t)janet_unwrap_integer(key);\
-  TA_View_##type * array=(TA_View_##type *)p; \
+  if (!janet_checksize(key))      \
+    janet_panic("expected size as key");     \
+  index = (size_t)janet_unwrap_number(key);\
+  TA_View_##type *array=(TA_View_##type *)p; \
   if (index >= array->size) { \
     value = janet_wrap_nil(); \
   } else { \
@@ -196,14 +194,14 @@ static Janet ta_get_##type(void *p, Janet key) { \
 #define DEFINE_VIEW_SETTER(type) \
 void ta_put_##type(void *p, Janet key,Janet value) { \
   size_t index;\
-  if (!janet_checkint(key))\
-    janet_panic("expected integer key"); \
+  if (!janet_checksize(key))\
+    janet_panic("expected size as key"); \
   if (!janet_checktype(value,JANET_NUMBER)) \
     janet_panic("expected number value"); \
-  index = (size_t)janet_unwrap_integer(key); \
-  TA_View_##type * array=(TA_View_##type *)p; \
+  index = (size_t)janet_unwrap_number(key); \
+  TA_View_##type *array=(TA_View_##type *)p; \
   if (index >= array->size) { \
-    janet_panic("typed array out of bounds"); \
+    janet_panic("index out of bounds"); \
   } \
   array->data[index*array->stride]=(ta_##type##_t)janet_unwrap_number(value); \
 }
@@ -222,7 +220,7 @@ void ta_put_##type(void *p, Janet key,Janet value) { \
     ta_buffer_init(buf,buf_size); \
   } \
   if (buf->size<buf_size) { \
-    janet_panicf("bad buffer size : %i bytes allocated < %i required",buf->size,buf_size); \
+    janet_panicf("bad buffer size, %i bytes allocated < %i required",buf->size,buf_size); \
   } \
   tview->buffer=buf; \
   tview->stride=stride; \
@@ -244,8 +242,6 @@ BUILD_TYPE(uint16)
 BUILD_TYPE(int16)
 BUILD_TYPE(uint32)
 BUILD_TYPE(int32)
-BUILD_TYPE(uint64)
-BUILD_TYPE(int64)
 BUILD_TYPE(float32)
 BUILD_TYPE(float64)
 
@@ -272,8 +268,6 @@ static const JanetAbstractType ta_array_types[] = {
     DEFINE_VIEW_ABSTRACT_TYPE(int16),
     DEFINE_VIEW_ABSTRACT_TYPE(uint32),
     DEFINE_VIEW_ABSTRACT_TYPE(int32),
-    DEFINE_VIEW_ABSTRACT_TYPE(uint64),
-    DEFINE_VIEW_ABSTRACT_TYPE(int64),
     DEFINE_VIEW_ABSTRACT_TYPE(float32),
     DEFINE_VIEW_ABSTRACT_TYPE(float64)
 };
@@ -296,7 +290,8 @@ static int is_ta_type(Janet x, JanetTArrayType type) {
            (janet_abstract_type(janet_unwrap_abstract(x)) == &ta_array_types[type]);
 }
 
-#define CASE_TYPE_INITIALIZE(type)  case  JANET_TARRAY_TYPE_##type :  ta_init_##type(view,buffer,size,offset,stride); break
+#define CASE_TYPE_INITIALIZE(type) case JANET_TARRAY_TYPE_##type: \
+    ta_init_##type(view,buffer,size,offset,stride); break
 
 JanetTArrayBuffer *janet_tarray_buffer(size_t size) {
     JanetTArrayBuffer *buf = (JanetTArrayBuffer *)janet_abstract(&ta_buffer_type, sizeof(JanetTArrayBuffer));
@@ -313,8 +308,6 @@ JanetTArrayView *janet_tarray_view(JanetTArrayType type, size_t size, size_t str
             CASE_TYPE_INITIALIZE(int16);
             CASE_TYPE_INITIALIZE(uint32);
             CASE_TYPE_INITIALIZE(int32);
-            CASE_TYPE_INITIALIZE(uint64);
-            CASE_TYPE_INITIALIZE(int64);
             CASE_TYPE_INITIALIZE(float32);
             CASE_TYPE_INITIALIZE(float64);
         default :
@@ -333,8 +326,8 @@ int janet_is_tarray_view(Janet x, JanetTArrayType type) {
     return (type == JANET_TARRAY_TYPE_any) ? is_ta_anytype(x) : is_ta_type(x, type);
 }
 
-int janet_tarray_type_size(JanetTArrayType type) {
-    return (type < TA_COUNT_TYPES) ? ta_type_sizes[type] : 0 ;
+size_t janet_tarray_type_size(JanetTArrayType type) {
+    return (type < TA_COUNT_TYPES) ? ta_type_sizes[type] : 0;
 }
 
 JanetTArrayView *janet_gettarray_view(const Janet *argv, int32_t n, JanetTArrayType type) {
@@ -354,11 +347,11 @@ static Janet cfun_typed_array_new(int32_t argc, Janet *argv) {
     JanetTArrayBuffer *buffer = NULL;
     const uint8_t *keyw = janet_getkeyword(argv, 0);
     JanetTArrayType type = get_ta_type_by_name(keyw);
-    size_t size = (size_t)janet_getinteger(argv, 1);
+    size_t size = janet_getsize(argv, 1);
     if (argc > 2)
-        stride = (size_t)janet_getinteger(argv, 2);
+        stride = janet_getsize(argv, 2);
     if (argc > 3)
-        offset = (size_t)janet_getinteger(argv, 3);
+        offset = janet_getsize(argv, 3);
     if (argc > 4) {
         if (is_ta_anytype(argv[4])) {
             JanetTArrayView *view = (JanetTArrayView *)janet_unwrap_abstract(argv[4]);
@@ -379,7 +372,7 @@ static Janet cfun_typed_array_buffer(int32_t argc, Janet *argv) {
         JanetTArrayView *view = (JanetTArrayView *)janet_unwrap_abstract(argv[0]);
         return janet_wrap_abstract(view->buffer);
     }
-    size_t size = (size_t)janet_getinteger(argv, 0);
+    size_t size = janet_getsize(argv, 0);
     JanetTArrayBuffer *buf = janet_tarray_buffer(size);
     return janet_wrap_abstract(buf);
 }
@@ -399,44 +392,29 @@ static Janet cfun_typed_array_properties(int32_t argc, Janet *argv) {
     if (is_ta_anytype(argv[0])) {
         JanetTArrayView *view = (JanetTArrayView *)janet_unwrap_abstract(argv[0]);
         JanetKV *props = janet_struct_begin(6);
+        ptrdiff_t boffset = (uint8_t *)(view->data) - view->buffer->data;
         janet_struct_put(props, janet_ckeywordv("size"),
-                janet_wrap_number((double) view->size));
+                         janet_wrap_number((double) view->size));
         janet_struct_put(props, janet_ckeywordv("byte-offset"),
-                janet_wrap_number((uint8_t *)(view->data) - view->buffer->data));
+                         janet_wrap_number((double) boffset));
         janet_struct_put(props, janet_ckeywordv("stride"),
-                janet_wrap_number((double) view->stride));
+                         janet_wrap_number((double) view->stride));
         janet_struct_put(props, janet_ckeywordv("type"),
-                janet_ckeywordv(ta_type_names[view->type]));
+                         janet_ckeywordv(ta_type_names[view->type]));
         janet_struct_put(props, janet_ckeywordv("type-size"),
-                janet_wrap_number((double) ta_type_sizes[view->type]));
+                         janet_wrap_number((double) ta_type_sizes[view->type]));
         janet_struct_put(props, janet_ckeywordv("buffer"),
-                janet_wrap_abstract(view->buffer));
+                         janet_wrap_abstract(view->buffer));
         return janet_wrap_struct(janet_struct_end(props));
     } else {
         JanetTArrayBuffer *buffer = janet_gettarray_buffer(argv, 0);
         JanetKV *props = janet_struct_begin(2);
         janet_struct_put(props, janet_ckeywordv("size"),
-                janet_wrap_number((double) buffer->size));
+                         janet_wrap_number((double) buffer->size));
         janet_struct_put(props, janet_ckeywordv("big-endian"),
-                janet_wrap_boolean(buffer->flags & TA_FLAG_BIG_ENDIAN));
+                         janet_wrap_boolean(buffer->flags & TA_FLAG_BIG_ENDIAN));
         return janet_wrap_struct(janet_struct_end(props));
     }
-}
-
-/* TODO move it, it's not the good place for this function */
-static Janet cfun_abstract_properties(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
-    const uint8_t *key = janet_getkeyword(argv, 0);
-    const JanetAbstractType *at = janet_get_abstract_type(janet_wrap_keyword(key));
-    if (at == NULL) {
-        return janet_wrap_nil();
-    }
-    JanetKV *props = janet_struct_begin(2);
-    janet_struct_put(props, janet_ckeywordv("name"),
-            janet_ckeywordv(at->name));
-    janet_struct_put(props, janet_ckeywordv("marshal"),
-            janet_wrap_boolean((at->marshal != NULL) && (at->unmarshal != NULL)));
-    return janet_wrap_struct(janet_struct_end(props));
 }
 
 static Janet cfun_typed_array_slice(int32_t argc, Janet *argv) {
@@ -470,10 +448,10 @@ static Janet cfun_typed_array_slice(int32_t argc, Janet *argv) {
 static Janet cfun_typed_array_copy_bytes(int32_t argc, Janet *argv) {
     janet_arity(argc, 4, 5);
     JanetTArrayView *src = janet_gettarray_view(argv, 0, JANET_TARRAY_TYPE_any);
-    size_t index_src = (size_t)janet_getinteger(argv, 1);
+    size_t index_src = janet_getsize(argv, 1);
     JanetTArrayView *dst = janet_gettarray_view(argv, 2, JANET_TARRAY_TYPE_any);
-    size_t index_dst = (size_t)janet_getinteger(argv, 3);
-    size_t count = (argc == 5) ? (size_t)janet_getinteger(argv, 4) : 1;
+    size_t index_dst = janet_getsize(argv, 3);
+    size_t count = (argc == 5) ? janet_getsize(argv, 4) : 1;
     size_t src_atom_size = ta_type_sizes[src->type];
     size_t dst_atom_size = ta_type_sizes[dst->type];
     size_t step_src = src->stride * src_atom_size;
@@ -497,10 +475,10 @@ static Janet cfun_typed_array_copy_bytes(int32_t argc, Janet *argv) {
 static Janet cfun_typed_array_swap_bytes(int32_t argc, Janet *argv) {
     janet_arity(argc, 4, 5);
     JanetTArrayView *src = janet_gettarray_view(argv, 0, JANET_TARRAY_TYPE_any);
-    size_t index_src = (size_t)janet_getinteger(argv, 1);
+    size_t index_src = janet_getsize(argv, 1);
     JanetTArrayView *dst = janet_gettarray_view(argv, 2, JANET_TARRAY_TYPE_any);
-    size_t index_dst = (size_t)janet_getinteger(argv, 3);
-    size_t count = (argc == 5) ? (size_t)janet_getinteger(argv, 4) : 1;
+    size_t index_dst = janet_getsize(argv, 3);
+    size_t count = (argc == 5) ? janet_getsize(argv, 4) : 1;
     size_t src_atom_size = ta_type_sizes[src->type];
     size_t dst_atom_size = ta_type_sizes[dst->type];
     size_t step_src = src->stride * src_atom_size;
@@ -567,11 +545,6 @@ static const JanetReg ta_cfuns[] = {
              "from the end of the end of the typed array. By default, start is 0 and end is "
              "the size of the typed array. Returns a new janet array.")
     },
-    {
-        "abstract/properties", cfun_abstract_properties,
-        JDOC("(abstract/properties tag)\n\n"
-             "Returns abstract type properties as a struct.")
-    },
     {NULL, NULL, NULL}
 };
 
@@ -579,7 +552,7 @@ static const JanetReg ta_cfuns[] = {
 void janet_lib_typed_array(JanetTable *env) {
     janet_core_cfuns(env, NULL, ta_cfuns);
     janet_register_abstract_type(&ta_buffer_type);
-    for (size_t i = 0; i < TA_COUNT_TYPES; i++) {
+    for (int i = 0; i < TA_COUNT_TYPES; i++) {
         janet_register_abstract_type(ta_array_types + i);
     }
 }

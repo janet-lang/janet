@@ -585,6 +585,7 @@ JANET_API Janet janet_wrap_abstract(void *x);
 
 JANET_API int janet_checkint(Janet x);
 JANET_API int janet_checkint64(Janet x);
+JANET_API int janet_checksize(Janet x);
 #define janet_checkintrange(x) ((x) == (int32_t)(x))
 #define janet_checkint64range(x) ((x) == (int64_t)(x))
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
@@ -1245,6 +1246,7 @@ JANET_API int janet_getboolean(const Janet *argv, int32_t n);
 
 JANET_API int32_t janet_getinteger(const Janet *argv, int32_t n);
 JANET_API int64_t janet_getinteger64(const Janet *argv, int32_t n);
+JANET_API size_t janet_getsize(const Janet *argv, int32_t n);
 JANET_API JanetView janet_getindexed(const Janet *argv, int32_t n);
 JANET_API JanetByteView janet_getbytes(const Janet *argv, int32_t n);
 JANET_API JanetDictView janet_getdictionary(const Janet *argv, int32_t n);
@@ -1280,8 +1282,6 @@ typedef enum {
     JANET_TARRAY_TYPE_int16,
     JANET_TARRAY_TYPE_uint32,
     JANET_TARRAY_TYPE_int32,
-    JANET_TARRAY_TYPE_uint64,
-    JANET_TARRAY_TYPE_int64,
     JANET_TARRAY_TYPE_float32,
     JANET_TARRAY_TYPE_float64,
     JANET_TARRAY_TYPE_any,
@@ -1304,7 +1304,7 @@ typedef struct {
 JANET_API JanetTArrayBuffer *janet_tarray_buffer(size_t size);
 JANET_API JanetTArrayView *janet_tarray_view(JanetTArrayType type, size_t size, size_t stride, size_t offset, JanetTArrayBuffer *buffer);
 JANET_API int janet_is_tarray_view(Janet x, JanetTArrayType type);
-JANET_API int janet_tarray_type_size(JanetTArrayType type);
+JANET_API size_t janet_tarray_type_size(JanetTArrayType type);
 JANET_API JanetTArrayBuffer *janet_gettarray_buffer(const Janet *argv, int32_t n);
 JANET_API JanetTArrayView *janet_gettarray_view(const Janet *argv, int32_t n, JanetTArrayType type);
 

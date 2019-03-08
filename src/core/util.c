@@ -286,35 +286,44 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
 
 /* Abstract type introspection */
 
-static const JanetAbstractType type_wrap = {"core/type_info", NULL, NULL, NULL, NULL, NULL, NULL};
+static const JanetAbstractType type_wrap = {
+    "core/type-info",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
 
 typedef struct {
     const JanetAbstractType *at;
 } JanetAbstractTypeWrap;
 
-
 void janet_register_abstract_type(const JanetAbstractType *at) {
-    JanetAbstractTypeWrap *abstract = (JanetAbstractTypeWrap *)janet_abstract(&type_wrap, sizeof(JanetAbstractTypeWrap));
+    JanetAbstractTypeWrap *abstract = (JanetAbstractTypeWrap *)
+                                      janet_abstract(&type_wrap, sizeof(JanetAbstractTypeWrap));
     abstract->at = at;
-    if (!(janet_checktype(janet_table_get(janet_vm_registry, janet_ckeywordv(at->name)), JANET_NIL))) {
-        janet_panic("Register abstract type fail, a type with same name exists");
+    Janet sym = janet_csymbolv(at->name);
+    if (!(janet_checktype(janet_table_get(janet_vm_registry, sym), JANET_NIL))) {
+        janet_panicf("cannot register abstract type %s, "
+                     "a type with the same name exists", at->name);
     }
-    janet_table_put(janet_vm_registry, janet_ckeywordv(at->name), janet_wrap_abstract(abstract));
+    janet_table_put(janet_vm_registry, sym, janet_wrap_abstract(abstract));
 }
-
 
 const JanetAbstractType *janet_get_abstract_type(Janet key) {
     Janet twrap = janet_table_get(janet_vm_registry, key);
     if (janet_checktype(twrap, JANET_NIL)) {
         return NULL;
     }
-    if (!janet_checktype(twrap, JANET_ABSTRACT) || (janet_abstract_type(janet_unwrap_abstract(twrap)) != &type_wrap)) {
+    if (!janet_checktype(twrap, JANET_ABSTRACT) ||
+            (janet_abstract_type(janet_unwrap_abstract(twrap)) != &type_wrap)) {
         janet_panic("expected abstract type");
     }
     JanetAbstractTypeWrap *w = (JanetAbstractTypeWrap *)janet_unwrap_abstract(twrap);
     return w->at;
 }
-
 
 #ifndef JANET_BOOTSTRAP
 void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p) {
@@ -420,42 +429,10 @@ int janet_checkint64(Janet x) {
     return janet_checkint64range(dval);
 }
 
-/* Useful for inspecting values while debugging */
-void janet_inspect(Janet x) {
-    printf("<type=%s, ", janet_type_names[janet_type(x)]);
-
-#ifdef JANET_BIG_ENDIAN
-    printf("be ");
-#else
-    printf("le ");
-#endif
-
-#ifdef JANET_NANBOX_64
-    printf("nanbox64 raw=0x%.16" PRIx64 ", ", x.u64);
-#endif
-
-#ifdef JANET_NANBOX_32
-    printf("nanbox32 type=0x%.8" PRIx32 ", ", x.tagged.type);
-    printf("payload=%" PRId32 ", ", x.tagged.payload.integer);
-#endif
-
-    switch (janet_type(x)) {
-        case JANET_NIL:
-            printf("value=nil");
-            break;
-        case JANET_NUMBER:
-            printf("number=%.17g", janet_unwrap_number(x));
-            break;
-        case JANET_TRUE:
-            printf("value=true");
-            break;
-        case JANET_FALSE:
-            printf("value=false");
-            break;
-        default:
-            printf("pointer=%p", janet_unwrap_pointer(x));
-            break;
-    }
-
-    printf(">\n");
+int janet_checksize(Janet x) {
+    if (!janet_checktype(x, JANET_NUMBER))
+        return 0;
+    double dval = janet_unwrap_number(x);
+    return dval == (double)((size_t) dval) &&
+           dval <= SIZE_MAX;
 }

@@ -134,7 +134,7 @@ static void pushsize(MarshalState *st, size_t x) {
         /* Single byte */
         pushbyte(st, (uint8_t) x);
     } else {
-        /* Multibyte */
+        /* Multibyte, little endian */
         uint8_t bytes[9];
         int nbytes = 0;
         while (x) {
@@ -320,7 +320,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         MARK_SEEN();
         JanetMarshalContext context = {st, NULL, flags, NULL};
         pushbyte(st, LB_ABSTRACT);
-        marshal_one(st, janet_ckeywordv(at->name), flags + 1);
+        marshal_one(st, janet_csymbolv(at->name), flags + 1);
         pushsize(st, janet_abstract_size(abstract));
         at->marshal(abstract, &context);
     } else {
@@ -577,25 +577,24 @@ static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
 
 /* Helper to read a size_t (up to 8 bytes unsigned). */
 static size_t readsize(UnmarshalState *st, const uint8_t **atdata) {
+    size_t ret;
     const uint8_t *data = *atdata;
     MARSH_EOS(st, data);
     if (*data <= 0xF0) {
         /* Single byte */
-        size_t ret = *data++;
-        *atdata = data;
-        return ret;
+        ret = *data;
+        *atdata = data + 1;
     } else {
-        /* Multibyte */
-        int nbytes = *data++ - 0xF0;
-        size_t value = 0;
-        if (nbytes < 1 || nbytes > 8)
-            janet_panic("invalid size_t");
-        MARSH_EOS(st, data + nbytes - 1);
-        for (int i = 0; i < nbytes; i++)
-            value = (value << 8) + *data++;
-        *atdata = data;
-        return value;
+        /* Multibyte, little endian */
+        int nbytes = *data - 0xF0;
+        ret = 0;
+        if (nbytes > 8) janet_panic("invalid size_t");
+        MARSH_EOS(st, data + nbytes);
+        for (int i = nbytes; i > 0; i--)
+            ret = (ret << 8) + data[i];
+        *atdata = data + nbytes + 1;
     }
+    return ret;
 }
 
 /* Assert a janet type */

@@ -20,17 +20,24 @@
 
 (import test/helper :prefix "" :exit true)
 (start-suite 5)
+
 # some tests typed array
 
+(defn inspect-tarray
+  [x]
+  (def a @[])
+  (for i 0 (tarray/length x) (array/push a (x i)))
+  (pp a))
+
 (assert-no-error
- "create some typed array"
+ "create some typed arrays"
  (do
    (def a (tarray/new :float64 10))
    (def b (tarray/new :float64 5 2 0 a))
    (def c (tarray/new :uint32 20))))
 
 (assert-no-error
- "create some typed array from buffer"
+ "create some typed arrays from a buffer"
  (do
    (def buf (tarray/buffer (+ 64 (* (+ 1 (* (- 10 1) 2)) 8))))
    (def b (tarray/new :float64 10 2 64 buf))))
