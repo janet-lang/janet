@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 0.4.0 - ??
+## 0.4.0 - 2019-03-08
 - Fix a number of smaller bugs
 - Added :export option to import and require
 - Added typed arrays
