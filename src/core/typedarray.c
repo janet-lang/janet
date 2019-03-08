@@ -291,9 +291,9 @@ static int is_ta_anytype(Janet x) {
 }
 
 static int is_ta_type(Janet x, JanetTArrayType type) {
-    return janet_checktype(x, JANET_ABSTRACT) && 
-        (type < TA_COUNT_TYPES) &&
-        (janet_abstract_type(janet_unwrap_abstract(x)) == &ta_array_types[type]);
+    return janet_checktype(x, JANET_ABSTRACT) &&
+           (type < TA_COUNT_TYPES) &&
+           (janet_abstract_type(janet_unwrap_abstract(x)) == &ta_array_types[type]);
 }
 
 #define CASE_TYPE_INITIALIZE(type)  case  JANET_TARRAY_TYPE_##type :  ta_init_##type(view,buffer,size,offset,stride); break

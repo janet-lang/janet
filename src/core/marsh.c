@@ -299,9 +299,10 @@ void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value) {
     pushbyte(st, value);
 };
 
-void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, int32_t len) {
+void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, size_t len) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
-    pushbytes(st, bytes, len);
+    if (len > INT32_MAX) janet_panic("size_t too large to fit in buffer");
+    pushbytes(st, bytes, (int32_t) len);
 }
 
 void janet_marshal_janet(JanetMarshalContext *ctx, Janet x) {
@@ -960,7 +961,7 @@ void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b) {
     *b = *(ctx->data++);
 };
 
-void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, int32_t len) {
+void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, size_t len) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     MARSH_EOS(st, ctx->data + len - 1);
     memcpy(dest, ctx->data, len);

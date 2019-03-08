@@ -1259,13 +1259,13 @@ JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int *flags);
 JANET_API void janet_marshal_int(JanetMarshalContext *ctx, int32_t value);
 JANET_API void janet_marshal_size(JanetMarshalContext *ctx, size_t value);
 JANET_API void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value);
-JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, int32_t len);
+JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, size_t len);
 JANET_API void janet_marshal_janet(JanetMarshalContext *ctx, Janet x);
 
 JANET_API void janet_unmarshal_int(JanetMarshalContext *ctx, int32_t *i);
 JANET_API void janet_unmarshal_size(JanetMarshalContext *ctx, size_t *i);
 JANET_API void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b);
-JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, int32_t len);
+JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, size_t len);
 JANET_API void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out);
 
 JANET_API void janet_register_abstract_type(const JanetAbstractType *at);
