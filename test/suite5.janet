@@ -27,8 +27,7 @@
  (do
    (def a (tarray/new :float64 10))
    (def b (tarray/new :float64 5 2 0 a))
-   (def c (tarray/new :uint32 20))
-   ))
+   (def c (tarray/new :uint32 20))))
 
 (assert-no-error
  "create some typed array from buffer"

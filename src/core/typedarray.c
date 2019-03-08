@@ -141,10 +141,10 @@ static int ta_mark(void *p, size_t s) {
 static void ta_view_marshal(void *p, JanetMarshalContext *ctx) {
     JanetTArrayView *view = (JanetTArrayView *)p;
     size_t offset = (view->buffer->data - (uint8_t *)(view->data));
-    janet_marshal_int(ctx, view->size);
-    janet_marshal_int(ctx, view->stride);
+    janet_marshal_size(ctx, view->size);
+    janet_marshal_size(ctx, view->stride);
     janet_marshal_int(ctx, view->type);
-    janet_marshal_int(ctx, offset);
+    janet_marshal_size(ctx, offset);
     janet_marshal_janet(ctx, janet_wrap_abstract(view->buffer));
 }
 
@@ -388,10 +388,10 @@ static Janet cfun_typed_array_size(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     if (is_ta_anytype(argv[0])) {
         JanetTArrayView *view = (JanetTArrayView *)janet_unwrap_abstract(argv[0]);
-        return janet_wrap_number(view->size);
+        return janet_wrap_number((double) view->size);
     }
     JanetTArrayBuffer *buf = (JanetTArrayBuffer *)janet_getabstract(argv, 0, &ta_buffer_type);
-    return janet_wrap_number(buf->size);
+    return janet_wrap_number((double) buf->size);
 }
 
 static Janet cfun_typed_array_properties(int32_t argc, Janet *argv) {
@@ -399,18 +399,26 @@ static Janet cfun_typed_array_properties(int32_t argc, Janet *argv) {
     if (is_ta_anytype(argv[0])) {
         JanetTArrayView *view = (JanetTArrayView *)janet_unwrap_abstract(argv[0]);
         JanetKV *props = janet_struct_begin(6);
-        janet_struct_put(props, janet_ckeywordv("size"), janet_wrap_number(view->size));
-        janet_struct_put(props, janet_ckeywordv("byte-offset"), janet_wrap_number((uint8_t *)(view->data) - view->buffer->data));
-        janet_struct_put(props, janet_ckeywordv("stride"), janet_wrap_number(view->stride));
-        janet_struct_put(props, janet_ckeywordv("type"), janet_ckeywordv(ta_type_names[view->type]));
-        janet_struct_put(props, janet_ckeywordv("type-size"), janet_wrap_number(ta_type_sizes[view->type]));
-        janet_struct_put(props, janet_ckeywordv("buffer"), janet_wrap_abstract(view->buffer));
+        janet_struct_put(props, janet_ckeywordv("size"),
+                janet_wrap_number((double) view->size));
+        janet_struct_put(props, janet_ckeywordv("byte-offset"),
+                janet_wrap_number((uint8_t *)(view->data) - view->buffer->data));
+        janet_struct_put(props, janet_ckeywordv("stride"),
+                janet_wrap_number((double) view->stride));
+        janet_struct_put(props, janet_ckeywordv("type"),
+                janet_ckeywordv(ta_type_names[view->type]));
+        janet_struct_put(props, janet_ckeywordv("type-size"),
+                janet_wrap_number((double) ta_type_sizes[view->type]));
+        janet_struct_put(props, janet_ckeywordv("buffer"),
+                janet_wrap_abstract(view->buffer));
         return janet_wrap_struct(janet_struct_end(props));
     } else {
         JanetTArrayBuffer *buffer = janet_gettarray_buffer(argv, 0);
         JanetKV *props = janet_struct_begin(2);
-        janet_struct_put(props, janet_ckeywordv("size"), janet_wrap_number(buffer->size));
-        janet_struct_put(props, janet_ckeywordv("big-endian"), janet_wrap_boolean(buffer->flags & TA_FLAG_BIG_ENDIAN));
+        janet_struct_put(props, janet_ckeywordv("size"),
+                janet_wrap_number((double) buffer->size));
+        janet_struct_put(props, janet_ckeywordv("big-endian"),
+                janet_wrap_boolean(buffer->flags & TA_FLAG_BIG_ENDIAN));
         return janet_wrap_struct(janet_struct_end(props));
     }
 }
@@ -424,8 +432,10 @@ static Janet cfun_abstract_properties(int32_t argc, Janet *argv) {
         return janet_wrap_nil();
     }
     JanetKV *props = janet_struct_begin(2);
-    janet_struct_put(props, janet_ckeywordv("name"), janet_ckeywordv(at->name));
-    janet_struct_put(props, janet_ckeywordv("marshal"), janet_wrap_boolean((at->marshal != NULL) && (at->unmarshal != NULL)));
+    janet_struct_put(props, janet_ckeywordv("name"),
+            janet_ckeywordv(at->name));
+    janet_struct_put(props, janet_ckeywordv("marshal"),
+            janet_wrap_boolean((at->marshal != NULL) && (at->unmarshal != NULL)));
     return janet_wrap_struct(janet_struct_end(props));
 }
 
