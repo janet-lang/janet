@@ -472,6 +472,41 @@ static int32_t janetc_addfuncdef(JanetCompiler *c, JanetFuncDef *def) {
 }
 
 /*
+ * break
+ *
+ * jump :end or retn if in function
+ */
+static JanetSlot janetc_break(JanetFopts opts, int32_t argn, const Janet *argv) {
+    JanetCompiler *c = opts.compiler;
+    JanetScope *scope = c->scope;
+    (void) argv;
+    if (argn != 0) {
+        janetc_cerror(c, "expected no arguments");
+        return janetc_cslot(janet_wrap_nil());
+    }
+    while (scope) {
+        if (scope->flags & (JANET_SCOPE_FUNCTION | JANET_SCOPE_WHILE))
+            break;
+        scope = scope->parent;
+    }
+    if (NULL == scope) {
+        janetc_cerror(c, "break must occur in while loop or closure");
+        return janetc_cslot(janet_wrap_nil());
+    }
+    if (scope->flags | JANET_SCOPE_FUNCTION) {
+        /* Just return, either in IIFE or closure body */
+        janetc_emit(c, JOP_RETURN_NIL);
+        JanetSlot s = janetc_cslot(janet_wrap_nil());
+        s.flags |= JANET_SLOT_RETURNED;
+        return s;
+    } else {
+        /* Tag the instruction so the while special can turn it into a proper jump */
+        janetc_emit(c, 0x80 | JOP_JUMP);
+        return janetc_cslot(janet_wrap_nil());
+    }
+}
+
+/*
  * :whiletop
  * ...
  * :condition
@@ -495,7 +530,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
 
     labelwt = janet_v_count(c->buffer);
 
-    janetc_scope(&tempscope, c, 0, "while");
+    janetc_scope(&tempscope, c, JANET_SCOPE_WHILE, "while");
 
     /* Compile condition */
     cond = janetc_value(subopts, argv[0]);
@@ -568,6 +603,13 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
     labeld = janet_v_count(c->buffer);
     if (!infinite) c->buffer[labelc] |= (uint32_t)(labeld - labelc) << 16;
     c->buffer[labeljt] |= (uint32_t)(labelwt - labeljt) << 8;
+
+    /* Calculate breaks */
+    for (int32_t i = labelwt; i < labeld; i++) {
+        if (c->buffer[i] == (0x80 | JOP_JUMP)) {
+            c->buffer[i] = JOP_JUMP | ((labeld - i) << 8);
+        }
+    }
 
     /* Pop scope and return nil slot */
     janetc_popscope(c);
@@ -686,6 +728,7 @@ error2:
 
 /* Keep in lexicographic order */
 static const JanetSpecial janetc_specials[] = {
+    {"break", janetc_break},
     {"def", janetc_def},
     {"do", janetc_do},
     {"fn", janetc_fn},

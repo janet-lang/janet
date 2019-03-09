@@ -43,7 +43,7 @@
    (def b (tarray/new :float64 10 2 64 buf))))
 
 (def a (tarray/new :float64 10))
-(def b (tarray/new :float64 5 2 0 a)) 
+(def b (tarray/new :float64 5 2 0 a))
 
 (assert-no-error
  "fill tarray"
@@ -63,6 +63,15 @@
 (assert (deep= (array/remove @[1 2 3 4 5] 2 2) @[1 2 5]) "array/remove 2")
 (assert (deep= (array/remove @[1 2 3 4 5] 2 200) @[1 2]) "array/remove 3")
 (assert (deep= (array/remove @[1 2 3 4 5] -3 200) @[1 2 3]) "array/remove 4")
-        
-(end-suite)
 
+# Break
+
+(var summation 0)
+(for i 0 10
+  (+= summation i)
+  (if (= i 7) (break)))
+(assert (= summation 28) "break 1")
+
+(assert (= nil ((fn [] (break) 4))) "break 2")
+
+(end-suite)

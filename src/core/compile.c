@@ -97,7 +97,6 @@ void janetc_scope(JanetScope *s, JanetCompiler *c, int flags, const char *name) 
     scope.syms = NULL;
     scope.envs = NULL;
     scope.defs = NULL;
-    scope.selfconst = -1;
     scope.bytecode_start = janet_v_count(c->buffer);
     scope.flags = flags;
     scope.parent = c->scope;

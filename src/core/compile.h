@@ -96,6 +96,7 @@ struct JanetSlot {
 #define JANET_SCOPE_TOP 4
 #define JANET_SCOPE_UNUSED 8
 #define JANET_SCOPE_CLOSURE 16
+#define JANET_SCOPE_WHILE 32
 
 /* A symbol and slot pair */
 typedef struct SymPair {
@@ -130,9 +131,6 @@ struct JanetScope {
      * to which index to get the environment from in the parent. The environment
      * that corresponds to the direct parent's stack will always have value 0. */
     int32_t *envs;
-
-    /* Where to add reference to self in constants */
-    int32_t selfconst;
 
     int32_t bytecode_start;
     int flags;
