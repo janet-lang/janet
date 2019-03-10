@@ -700,7 +700,7 @@
 
 (defn drop-until
   "Given a predicate, remove elements from an indexed type that satisfy
-  the predicate, and abort on first failure. Returns a new tuple."
+  the predicate, and abort on first failure. Returns a new array."
   [pred ind]
   (def i (find-index pred ind))
   (array/slice ind i))
