@@ -703,7 +703,9 @@
   the predicate, and abort on first failure. Returns a new array."
   [pred ind]
   (def i (find-index pred ind))
-  (array/slice ind i))
+  (if i
+    (array/slice ind i)
+    @[]))
 
 (defn drop-while
   "Same as (drop-until (complement pred) ind)."
