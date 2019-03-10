@@ -74,4 +74,10 @@
 
 (assert (= nil ((fn [] (break) 4))) "break 2")
 
+# Break with value
+
+# Shouldn't error out
+(assert-no-error "break 3" (for i 0 10 (if (> i 8) (break i))))
+(assert-no-error "break 4" ((fn [i] (if (> i 8) (break i))) 100))
+
 (end-suite)

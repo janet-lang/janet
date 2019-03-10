@@ -479,11 +479,12 @@ static int32_t janetc_addfuncdef(JanetCompiler *c, JanetFuncDef *def) {
 static JanetSlot janetc_break(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetCompiler *c = opts.compiler;
     JanetScope *scope = c->scope;
-    (void) argv;
-    if (argn != 0) {
-        janetc_cerror(c, "expected no arguments");
+    if (argn > 1) {
+        janetc_cerror(c, "expected at most 1 argument");
         return janetc_cslot(janet_wrap_nil());
     }
+
+    /* Find scope to break from */
     while (scope) {
         if (scope->flags & (JANET_SCOPE_FUNCTION | JANET_SCOPE_WHILE))
             break;
@@ -493,13 +494,32 @@ static JanetSlot janetc_break(JanetFopts opts, int32_t argn, const Janet *argv) 
         janetc_cerror(c, "break must occur in while loop or closure");
         return janetc_cslot(janet_wrap_nil());
     }
-    if (scope->flags | JANET_SCOPE_FUNCTION) {
-        /* Just return, either in IIFE or closure body */
-        janetc_emit(c, JOP_RETURN_NIL);
-        JanetSlot s = janetc_cslot(janet_wrap_nil());
-        s.flags |= JANET_SLOT_RETURNED;
-        return s;
+
+    /* Emit code to break from that scope */
+    JanetFopts subopts = janetc_fopts_default(c);
+    if (scope->flags & JANET_SCOPE_FUNCTION) {
+        if (!(scope->flags & JANET_SCOPE_WHILE) && argn) {
+            /* Closure body with return argument */
+            subopts.flags |= JANET_FOPTS_TAIL;
+            JanetSlot ret = janetc_value(subopts, argv[0]);
+            ret.flags |= JANET_SLOT_RETURNED;
+            return ret;
+        } else {
+            /* while loop IIFE or no argument */
+            if (argn) {
+                subopts.flags |= JANET_FOPTS_DROP;
+                janetc_value(subopts, argv[0]);
+            }
+            janetc_emit(c, JOP_RETURN_NIL);
+            JanetSlot s = janetc_cslot(janet_wrap_nil());
+            s.flags |= JANET_SLOT_RETURNED;
+            return s;
+        }
     } else {
+        if (argn) {
+            subopts.flags |= JANET_FOPTS_DROP;
+            janetc_value(subopts, argv[0]);
+        }
         /* Tag the instruction so the while special can turn it into a proper jump */
         janetc_emit(c, 0x80 | JOP_JUMP);
         return janetc_cslot(janet_wrap_nil());
