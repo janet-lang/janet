@@ -254,6 +254,116 @@
                (tuple 'if $fi $fi ret))))))
   ret)
 
+(defmacro with-syms
+  "Evaluates body with each symbol in syms bound to a generated, unique symbol."
+  [syms & body]
+  (var i 0)
+  (def len (length syms))
+  (def accum @[])
+  (while (< i len)
+    (array/push accum (get syms i) [gensym])
+    (++ i))
+  ~(let (,;accum) ,;body))
+
+(defn- for-template
+  [binding start stop step comparison delta body]
+  (with-syms [i s]
+    ~(do
+       (var ,i ,start)
+       (def ,s ,stop)
+       (while (,comparison ,i ,s)
+         (def ,binding ,i)
+         ,;body
+         (set ,i (,delta ,i ,step))))))
+
+(defn- each-template
+  [binding in body]
+  (with-syms [i len]
+    (def ds (if (idempotent? in) in (gensym)))
+    ~(do
+       (var ,i 0)
+       ,(unless (= ds in) ~(def ,ds ,in))
+       (def ,len (,length ,ds))
+       (while (,< ,i ,len)
+         (def ,binding (get ,ds ,i))
+         ,;body
+         (++ ,i)))))
+
+(defn- keys-template
+  [binding in pair? body]
+  (with-syms [k]
+    (def ds (if (idempotent? in) in (gensym)))
+    ~(do
+       ,(unless (= ds in) ~(def ,ds ,in))
+       (var ,k (,next ,ds nil))
+       (while ,k
+         (def ,binding ,(if pair? ~(tuple ,k (get ,ds ,k)) k))
+         ,;body
+         (set ,k (,next ,ds ,k))))))
+
+(defn- iterate-template
+  [binding expr body]
+  (with-syms [i]
+    ~(do
+       (var ,i nil)
+       (while (set ,i ,expr)
+         ,body))))
+
+(defn- loop1
+  [body head i]
+
+  (def {i binding
+        (+ i 1) verb
+        (+ i 2) object} head)
+
+  (cond
+
+    # Terminate recursion
+    (<= (length head) i)
+    ~(do ,;body)
+
+    # 2 term expression
+    (keyword? binding)
+    (let [rest (loop1 body head (+ i 2))]
+      (case binding
+        :while ~(do (if ,verb nil (break)) ,rest)
+        :let ~(let ,verb (do ,rest))
+        :after ~(do ,rest ,verb nil)
+        :before ~(do ,verb ,rest nil)
+        :repeat (with-syms [iter]
+                  ~(do (var ,iter ,verb) (while (> ,iter 0) ,rest (-- ,iter))))
+        :when ~(when ,verb ,rest)
+        (error (string "unexpected loop modifier " binding))))
+
+    # 3 term expression
+    (let [rest (loop1 body head (+ i 3))]
+      (case verb
+        :range (let [[start stop step] object]
+                 (for-template binding start stop (or step 1) < + [rest]))
+        :keys (keys-template binding object false [rest])
+        :pairs (keys-template binding object true [rest])
+        :down (let [[start stop step] object]
+                (for-template binding start stop (or step 1) > - [rest]))
+        :in (each-template binding object [rest])
+        :iterate (iterate-template binding object rest)
+        :generate (with-syms [f s]
+                    ~(let [,f ,object]
+                       (while true
+                         (def ,binding (,resume ,f))
+                         (if (= :dead (,fiber/status ,f)) (break))
+                         ,rest)))
+        (error (string "unexpected loop verb " verb))))))
+
+(defmacro for
+  "Do a c style for loop for side effects. Returns nil."
+  [i start stop & body]
+  (for-template i start stop 1 < + body))
+
+(defmacro each
+  "Loop over each value in ind. Returns nil."
+  [x ind & body]
+  (each-template x ind body))
+
 (defmacro loop
   "A general purpose loop macro. This macro is similar to the Common Lisp
   loop macro, although intentionally much smaller in scope.
@@ -285,139 +395,12 @@
   \t:when condition - only evaluates the loop body when condition is true.\n\n
   The loop macro always evaluates to nil."
   [head & body]
-  (def len (length head))
-  (if (not= :tuple (type head))
-    (error "expected tuple for loop head"))
-  (defn doone
-    [i preds &]
-    (default preds @['and])
-    (if (>= i len)
-      ['do ;body]
-      (do
-        (def {i bindings
-              (+ i 1) verb
-              (+ i 2) object} head)
-        (if (keyword? bindings)
-          (case bindings
-            :while (do
-                     (array/push preds verb)
-                     (doone (+ i 2) preds))
-            :let (tuple 'let verb (doone (+ i 2) preds))
-            :when (tuple 'if verb (doone (+ i 2) preds))
-            :before (tuple 'do verb (doone (+ i 2) preds))
-            :after (tuple 'do (doone (+ i 2) preds) verb)
-            :repeat (do
-                      (def $iter (gensym))
-                      (def $n (gensym))
-                      (def spreds @['and (tuple < $iter $n)])
-                      (def sub (doone (+ i 2) spreds))
-                      (tuple 'do
-                             (tuple 'def $n verb)
-                             (tuple 'var $iter 0)
-                             (tuple 'while
-                                    (tuple/slice spreds)
-                                    (tuple 'set $iter (tuple + 1 $iter))
-                                    sub)))
-            (error (string "unexpected loop predicate: " bindings)))
-          (case verb
-            :iterate (do
-                       (def $iter (gensym))
-                       (def preds @['and (tuple 'set $iter object)])
-                       (def subloop (doone (+ i 3) preds))
-                       (tuple 'do
-                              (tuple 'var $iter nil)
-                              (tuple 'while (tuple/slice preds)
-                                     (tuple 'def bindings $iter)
-                                     subloop)))
-            :range (do
-                     (def [start end _inc] object)
-                     (def inc (if _inc _inc 1))
-                     (def endsym (gensym))
-                     (def $iter (gensym))
-                     (def preds @['and (tuple < $iter endsym)])
-                     (def subloop (doone (+ i 3) preds))
-                     (tuple 'do
-                            (tuple 'var $iter start)
-                            (tuple 'def endsym end)
-                            (tuple 'while (tuple/slice preds)
-                                   (tuple 'def bindings $iter)
-                                   subloop
-                                   (tuple 'set $iter (tuple + $iter inc)))))
-            :down (do
-                     (def [start end _dec] object)
-                     (def dec (if _dec _dec 1))
-                     (def endsym (gensym))
-                     (def $iter (gensym))
-                     (def preds @['and (tuple > $iter endsym)])
-                     (def subloop (doone (+ i 3) preds))
-                     (tuple 'do
-                            (tuple 'var $iter start)
-                            (tuple 'def endsym end)
-                            (tuple 'while (tuple/slice preds)
-                                   (tuple 'def bindings $iter)
-                                   subloop
-                                   (tuple 'set $iter (tuple - $iter dec)))))
-            :keys (do
-                    (def $dict (gensym))
-                    (def $iter (gensym))
-                    (def preds @['and (tuple not= nil $iter)])
-                    (def subloop (doone (+ i 3) preds))
-                    (tuple 'do
-                           (tuple 'def $dict object)
-                           (tuple 'var $iter (tuple next $dict nil))
-                           (tuple 'while (tuple/slice preds)
-                                  (tuple 'def bindings $iter)
-                                  subloop
-                                  (tuple 'set $iter (tuple next $dict $iter)))))
-            :pairs (do
-                     (def sym? (symbol? bindings))
-                     (def $dict (gensym))
-                     (def $iter (gensym))
-                     (def preds @['and (tuple not= nil $iter)])
-                     (def subloop (doone (+ i 3) preds))
-                     (tuple 'do
-                            (tuple 'def $dict object)
-                            (tuple 'var $iter (tuple next $dict nil))
-                            (tuple 'while (tuple/slice preds)
-                                   (if sym?
-                                     (tuple 'def bindings (tuple tuple $iter (tuple get $dict $iter))))
-                                   (if-not sym? (tuple 'def (get bindings 0) $iter))
-                                   (if-not sym? (tuple 'def (get bindings 1) (tuple get $dict $iter)))
-                                   subloop
-                                   (tuple 'set $iter (tuple next $dict $iter)))))
-            :in (do
-                  (def $len (gensym))
-                  (def $i (gensym))
-                  (def $indexed (gensym))
-                  (def preds @['and (tuple < $i $len)])
-                  (def subloop (doone (+ i 3) preds))
-                  (tuple 'do
-                         (tuple 'def $indexed object)
-                         (tuple 'def $len (tuple length $indexed))
-                         (tuple 'var $i 0)
-                         (tuple 'while (tuple/slice preds 0)
-                                (tuple 'def bindings (tuple get $indexed $i))
-                                subloop
-                                (tuple 'set $i (tuple + 1 $i)))))
-            :generate (do
-                     (def $fiber (gensym))
-                     (def $yieldval (gensym))
-                     (def preds @['and
-                                  (do
-                                    (def s (gensym))
-                                    (tuple 'do
-                                           (tuple 'def s (tuple fiber/status $fiber))
-                                           (tuple 'or (tuple = s :pending) (tuple = s :new))))])
-                     (def subloop (doone (+ i 3) preds))
-                     (tuple 'do
-                            (tuple 'def $fiber object)
-                            (tuple 'var $yieldval (tuple resume $fiber))
-                            (tuple 'while (tuple/slice preds 0)
-                                   (tuple 'def bindings $yieldval)
-                                   subloop
-                                   (tuple 'set $yieldval (tuple resume $fiber)))))
-            (error (string "unexpected loop verb: " verb)))))))
-  (doone 0 nil))
+  (loop1 body head 0))
+
+(put _env 'loop1 nil)
+(put _env 'for-template nil)
+(put _env 'iter-template nil)
+(put _env 'keys-template nil)
 
 (defmacro seq
   "Similar to loop, but accumulates the loop body into an array and returns that.
@@ -431,16 +414,6 @@
   that yields all values inside the loop in order. See loop for details."
   [head & body]
   ~(fiber/new (fn [&] (loop ,head (yield (do ,;body))))))
-
-(defmacro for
-  "Do a c style for loop for side effects. Returns nil."
-  [binding start end & body]
-  (apply loop (tuple binding :range (tuple start end)) body))
-
-(defmacro each
-  "Loop over each value in ind. Returns nil."
-  [binding ind & body]
-  (apply loop (tuple binding :in ind) body))
 
 (defmacro coro
   "A wrapper for making fibers. Same as (fiber/new (fn [&] ...body))."
@@ -644,11 +617,6 @@
     (array/concat res (f x)))
   res)
 
-(defmacro with-syms
-  "Evaluates body with each symbol in syms bound to a generated, unique symbol."
-  [syms & body]
-  ~(let ,(mapcat (fn [s] @[s (tuple gensym)]) syms) ,;body))
-
 (defn filter
   "Given a predicate, take only elements from an array or tuple for
   which (pred element) is truthy. Returns a new array."
@@ -692,7 +660,7 @@
         arr)
     2 (do
         (def [n m] args)
-        (def arr (array/new n))
+        (def arr (array/new (- m n)))
         (loop [i :range [n m]] (put arr (- i n) i))
         arr)
     3 (do
