@@ -80,4 +80,12 @@
 (assert-no-error "break 3" (for i 0 10 (if (> i 8) (break i))))
 (assert-no-error "break 4" ((fn [i] (if (> i 8) (break i))) 100))
 
+# drop-until
+
+(assert (deep= (drop-until pos? @[]) @[]) "drop-until 1")
+(assert (deep= (drop-until pos? @[1 2 3]) @[1 2 3]) "drop-until 2")
+(assert (deep= (drop-until pos? @[-1 -2 -3]) @[]) "drop-until 3")
+(assert (deep= (drop-until pos? @[-1 -2 3]) @[3]) "drop-until 4")
+(assert (deep= (drop-until pos? @[-1 1 -2]) @[1 -2]) "drop-until 5")
+
 (end-suite)
