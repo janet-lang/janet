@@ -424,14 +424,14 @@
   "Returns the sum of xs. If xs is empty, returns 0."
   [xs]
   (var accum 0)
-  (loop [x :in xs] (+= accum x))
+  (each x xs (+= accum x))
   accum)
 
 (defn product
   "Returns the product of xs. If xs is empty, returns 1."
   [xs]
   (var accum 1)
-  (loop [x :in xs] (*= accum x))
+  (each x xs (*= accum x))
   accum)
 
 (defmacro if-let
@@ -499,13 +499,9 @@
   order should take two values and return true or false (a comparison).
   Returns nil if args is empty."
   [order args]
-  (def len (length args))
-  (when (pos? len)
-    (var [ret] args)
-    (loop [i :range [0 len]]
-      (def v (get args i))
-      (if (order v ret) (set ret v)))
-    ret))
+  (var [ret] args)
+  (each x args (if (order x ret) (set ret x)))
+  ret)
 
 (defn max
   "Returns the numeric maximum of the arguments."
@@ -549,7 +545,7 @@
       [a lo hi by]
       (def pivot (get a hi))
       (var i lo)
-      (loop [j :range [lo hi]]
+      (for j lo hi
         (def aj (get a j))
         (when (by aj pivot)
           (def ai (get a i))
@@ -581,8 +577,7 @@
   an indexed type (array, tuple) with a function to produce a value."
   [f init ind]
   (var res init)
-  (loop [x :in ind]
-    (set res (f res x)))
+  (each x ind (set res (f res x)))
   res)
 
 (defn map
@@ -592,19 +587,19 @@
   (def ninds (length inds))
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
   (var limit (length (get inds 0)))
-  (loop [i :range [0 ninds]]
+  (for i 0 ninds
     (def l (length (get inds i)))
     (if (< l limit) (set limit l)))
   (def [i1 i2 i3 i4] inds)
   (def res (array/new limit))
   (case ninds
-    1 (loop [i :range [0 limit]] (set (res i) (f (get i1 i))))
-    2 (loop [i :range [0 limit]] (set (res i) (f (get i1 i) (get i2 i))))
-    3 (loop [i :range [0 limit]] (set (res i) (f (get i1 i) (get i2 i) (get i3 i))))
-    4 (loop [i :range [0 limit]] (set (res i) (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
-    (loop [i :range [0 limit]]
+    1 (for i 0 limit (set (res i) (f (get i1 i))))
+    2 (for i 0 limit (set (res i) (f (get i1 i) (get i2 i))))
+    3 (for i 0 limit (set (res i) (f (get i1 i) (get i2 i) (get i3 i))))
+    4 (for i 0 limit (set (res i) (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
+    (for i 0 limit
       (def args (array/new ninds))
-      (loop [j :range [0 ninds]] (set (args j) (get (get inds j) i)))
+      (for j 0 ninds (set (args j) (get (get inds j) i)))
       (set (res i) (f ;args))))
   res)
 
@@ -613,7 +608,7 @@
   use array to concatenate the results."
   [f ind]
   (def res @[])
-  (loop [x :in ind]
+  (each x ind
     (array/concat res (f x)))
   res)
 
@@ -622,7 +617,7 @@
   which (pred element) is truthy. Returns a new array."
   [pred ind]
   (def res @[])
-  (loop [item :in ind]
+  (each item ind
     (if (pred item)
       (array/push res item)))
   res)
@@ -632,7 +627,7 @@
   is true."
   [pred ind]
   (var counter 0)
-  (loop [item :in ind]
+  (each item ind
     (if (pred item)
       (++ counter)))
   counter)
@@ -642,7 +637,7 @@
   which (pred element) is truthy. Returns a new array of truthy predicate results."
   [pred ind]
   (def res @[])
-  (loop [item :in ind]
+  (each item ind
     (if-let [y (pred item)]
       (array/push res y)))
   res)
@@ -656,12 +651,12 @@
     1 (do
         (def [n] args)
         (def arr (array/new n))
-        (loop [i :range [0 n]] (put arr i i))
+        (for i 0 n (put arr i i))
         arr)
     2 (do
         (def [n m] args)
         (def arr (array/new (- m n)))
-        (loop [i :range [n m]] (put arr (- i n) i))
+        (for i n m (put arr (- i n) i))
         arr)
     3 (do
         (def [n m s] args)
@@ -721,7 +716,7 @@
   [& funs]
   (fn [& args]
     (def ret @[])
-    (loop [f :in funs]
+    (each f funs
       (array/push ret (f ;args)))
     (tuple/slice ret 0)))
 
@@ -730,7 +725,7 @@
   [& funs]
   (def parts @['tuple])
   (def $args (gensym))
-  (loop [f :in funs]
+  (each f funs
     (array/push parts (tuple apply f $args)))
   (tuple 'fn (tuple '& $args) (tuple/slice parts 0)))
 
@@ -837,7 +832,7 @@
   last value."
   [x as & forms]
   (var prev x)
-  (loop [form :in forms]
+  (each form forms
     (def sym (gensym))
     (def next-prev (postwalk (fn [y] (if (= y as) sym y)) form))
     (set prev ~(let [,sym ,prev] ,next-prev)))
@@ -850,7 +845,7 @@
   last value."
   [x as & forms]
   (var prev x)
-  (loop [form :in forms]
+  (each form forms
     (def sym (gensym))
     (def next-prev (postwalk (fn [y] (if (= y as) sym y)) form))
     (set prev ~(if-let [,sym ,prev] ,next-prev)))
@@ -900,7 +895,7 @@ value, one key will be ignored."
   (def lk (length keys))
   (def lv (length vals))
   (def len (if (< lk lv) lk lv))
-  (loop [i :range [0 len]]
+  (for i 0 len
     (put res (get keys i) (get vals i)))
   res)
 
@@ -966,8 +961,7 @@ value, one key will be ignored."
   "Get the number of occurrences of each value in a indexed structure."
   [ind]
   (def freqs @{})
-  (loop
-    [x :in ind]
+  (each x ind
     (def n (get freqs x))
     (set (freqs x) (if n (+ 1 n) 1)))
   freqs)
@@ -990,14 +984,14 @@ value, one key will be ignored."
   [xs]
   (def ret @[])
   (def seen @{})
-  (loop [x :in xs] (if (get seen x) nil (do (put seen x true) (array/push ret x))))
+  (each x xs (if (get seen x) nil (do (put seen x true) (array/push ret x))))
   ret)
 
 (defn flatten-into
   "Takes a nested array (tree), and appends the depth first traversal of
   that array to an array 'into'. Returns array into."
   [into xs]
-  (loop [x :in xs]
+  (each x xs
     (if (indexed? x)
       (flatten-into into x)
       (array/push into x)))
@@ -1202,7 +1196,7 @@ value, one key will be ignored."
     (buffer/push-string buf word)
     (buffer/clear word))
 
-  (loop [b :in text]
+  (each b text
     (if (and (not= b 10) (not= b 32))
         (if (= b 9)
           (buffer/push-string word "  ")
