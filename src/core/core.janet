@@ -399,7 +399,7 @@
 
 (put _env 'loop1 nil)
 (put _env 'for-template nil)
-(put _env 'iter-template nil)
+(put _env 'iterate-template nil)
 (put _env 'each-template nil)
 (put _env 'keys-template nil)
 
