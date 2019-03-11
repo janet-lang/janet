@@ -13,6 +13,7 @@
                'def true
                'splice true
                'set true
+               'break true
                'unquote true
                'quasiquote true
                'quote true
