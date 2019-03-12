@@ -47,7 +47,7 @@
     :error (error (parser/error p)))
 
   # Make ast from forms
-  (def ast ~(fn [params &] (default params @{}) (,buffer ,;forms)))
+  (def ast ~(fn [&opt params] (default params @{}) (,buffer ,;forms)))
 
   (def ctor (compile ast *env* source))
   (if-not (function? ctor)
