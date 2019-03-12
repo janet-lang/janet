@@ -133,6 +133,12 @@ extern "C" {
 #define JANET_TYPED_ARRAY
 #endif
 
+/* Enable or disable the bigint module */
+#ifndef JANET_NO_BIGINT
+#define JANET_BIGINT
+#endif
+
+
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS
