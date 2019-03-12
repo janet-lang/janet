@@ -827,7 +827,11 @@ JanetTable *janet_core_env(JanetTable *replacements) {
 #ifdef JANET_TYPED_ARRAY
     janet_lib_typed_array(env);
 #endif
+#ifdef JANET_BIGINT
+    janet_lib_bigint(env);
+#endif
 
+    
 #ifdef JANET_BOOTSTRAP
     /* Run bootstrap source */
     janet_dobytes(env, janet_gen_core, janet_gen_core_size, "core.janet", NULL);
