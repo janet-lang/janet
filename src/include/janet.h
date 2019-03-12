@@ -725,7 +725,6 @@ struct JanetAbstractHead {
 /* Some function definition flags */
 #define JANET_FUNCDEF_FLAG_VARARG 0x10000
 #define JANET_FUNCDEF_FLAG_NEEDSENV 0x20000
-#define JANET_FUNCDEF_FLAG_FIXARITY 0x40000
 #define JANET_FUNCDEF_FLAG_HASNAME 0x80000
 #define JANET_FUNCDEF_FLAG_HASSOURCE 0x100000
 #define JANET_FUNCDEF_FLAG_HASDEFS 0x200000
@@ -755,6 +754,8 @@ struct JanetFuncDef {
     int32_t flags;
     int32_t slotcount; /* The amount of stack space required for the function */
     int32_t arity; /* Not including varargs */
+    int32_t min_arity; /* Including varargs */
+    int32_t max_arity; /* Including varargs */
     int32_t constants_length;
     int32_t bytecode_length;
     int32_t environments_length;

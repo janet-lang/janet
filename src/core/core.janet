@@ -142,7 +142,7 @@
 
 (defmacro if-not
   "Shorthand for (if (not ... "
-  [condition exp-1 exp-2 &]
+  [condition exp-1 &opt exp-2]
   ~(if ,condition ,exp-2 ,exp-1))
 
 (defmacro when
@@ -414,12 +414,12 @@
   "Create a generator expression using the loop syntax. Returns a fiber
   that yields all values inside the loop in order. See loop for details."
   [head & body]
-  ~(fiber/new (fn [&] (loop ,head (yield (do ,;body))))))
+  ~(fiber/new (fn [] (loop ,head (yield (do ,;body))))))
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber/new (fn [&] ...body))."
+  "A wrapper for making fibers. Same as (fiber/new (fn [] ...body))."
   [& body]
-  (tuple fiber/new (tuple 'fn '[&] ;body)))
+  (tuple fiber/new (tuple 'fn '[] ;body)))
 
 (defn sum
   "Returns the sum of xs. If xs is empty, returns 0."
@@ -439,7 +439,7 @@
   "Make multiple bindings, and if all are truthy,
   evaluate the tru form. If any are false or nil, evaluate
   the fal form. Bindings have the same syntax as the let macro."
-  [bindings tru fal &]
+  [bindings tru &opt fal]
   (def len (length bindings))
   (if (zero? len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
@@ -565,7 +565,7 @@
         (sort-help a (+ piv 1) hi by))
       a)
 
-    (fn sort [a by &]
+    (fn sort [a &opt by]
       (sort-help a 0 (- (length a) 1) (or by order<)))))
 
 (defn sorted
@@ -1060,7 +1060,7 @@ value, one key will be ignored."
 (defn spit
   "Write contents to a file at path.
   Can optionally append to the file."
-  [path contents mode &]
+  [path contents &opt mode]
   (default mode :w)
   (def f (file/open path mode))
   (if-not f (error (string "could not open file " path " with mode " mode)))
@@ -1402,7 +1402,7 @@ value, one key will be ignored."
   "Create a new environment table. The new environment
   will inherit bindings from the parent environment, but new
   bindings will not pollute the parent environment."
-  [parent &]
+  [&opt parent]
   (def parent (if parent parent _env))
   (def newenv (table/setproto @{} parent))
   newenv)
@@ -1513,7 +1513,7 @@ value, one key will be ignored."
 (defn eval-string
   "Evaluates a string in the current environment. If more control over the
   environment is needed, use run-context."
-  [str env &]
+  [str &opt env]
   (var state (string str))
   (defn chunks [buf _]
     (def ret state)
@@ -1522,7 +1522,6 @@ value, one key will be ignored."
       (buffer/push-string buf str)
       (buffer/push-string buf "\n")))
   (var returnval nil)
-  (defn error1 [x &] (error x))
   (run-context {:env env
                 :chunks chunks
                 :on-compile-error (fn [msg errf &]
@@ -1540,7 +1539,7 @@ value, one key will be ignored."
 (defn eval
   "Evaluates a form in the current environment. If more control over the
   environment is needed, use run-context."
-  [form env &]
+  [form &opt env]
   (default env *env*)
   (def res (compile form env "eval"))
   (if (= (type res) :function)
@@ -1694,7 +1693,7 @@ value, one key will be ignored."
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
   caught."
-  [chunks onsignal &]
+  [&opt chunks onsignal]
   (def newenv (make-env))
   (default onsignal (fn [f x]
                       (case (fiber/status f)
@@ -1716,7 +1715,7 @@ value, one key will be ignored."
 
 (defn all-bindings
   "Get all symbols available in the current environment."
-  [env &]
+  [&opt env]
   (default env *env*)
   (def envs @[])
   (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))

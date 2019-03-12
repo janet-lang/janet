@@ -525,14 +525,19 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     /* Set function arity */
     x = janet_get1(s, janet_csymbolv("arity"));
     def->arity = janet_checkint(x) ? janet_unwrap_integer(x) : 0;
+    janet_asm_assert(&a, def->arity >= 0, "arity must be non-negative");
+
+    x = janet_get1(s, janet_csymbolv("max-arity"));
+    def->max_arity = janet_checkint(x) ? janet_unwrap_integer(x) : def->arity;
+    janet_asm_assert(&a, def->max_arity >= def->arity, "max-arity must be greater than or equal to arity");
+
+    x = janet_get1(s, janet_csymbolv("min-arity"));
+    def->min_arity = janet_checkint(x) ? janet_unwrap_integer(x) : def->arity;
+    janet_asm_assert(&a, def->min_arity <= def->arity, "min-arity must be less than or equal to arity");
 
     /* Check vararg */
     x = janet_get1(s, janet_csymbolv("vararg"));
     if (janet_truthy(x)) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
-
-    /* Check strict arity */
-    x = janet_get1(s, janet_csymbolv("fix-arity"));
-    if (janet_truthy(x)) def->flags |= JANET_FUNCDEF_FLAG_FIXARITY;
 
     /* Check source */
     x = janet_get1(s, janet_csymbolv("source"));
@@ -822,15 +827,14 @@ Janet janet_disasm(JanetFuncDef *def) {
     JanetArray *constants;
     JanetTable *ret = janet_table(10);
     janet_table_put(ret, janet_csymbolv("arity"), janet_wrap_integer(def->arity));
+    janet_table_put(ret, janet_csymbolv("min-arity"), janet_wrap_integer(def->min_arity));
+    janet_table_put(ret, janet_csymbolv("max-arity"), janet_wrap_integer(def->max_arity));
     janet_table_put(ret, janet_csymbolv("bytecode"), janet_wrap_array(bcode));
     if (NULL != def->source) {
         janet_table_put(ret, janet_csymbolv("source"), janet_wrap_string(def->source));
     }
     if (def->flags & JANET_FUNCDEF_FLAG_VARARG) {
         janet_table_put(ret, janet_csymbolv("vararg"), janet_wrap_true());
-    }
-    if (def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
-        janet_table_put(ret, janet_csymbolv("fix-arity"), janet_wrap_true());
     }
     if (NULL != def->name) {
         janet_table_put(ret, janet_csymbolv("name"), janet_wrap_string(def->name));

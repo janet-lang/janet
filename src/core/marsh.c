@@ -203,6 +203,8 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
     pushint(st, def->flags);
     pushint(st, def->slotcount);
     pushint(st, def->arity);
+    pushint(st, def->min_arity);
+    pushint(st, def->max_arity);
     pushint(st, def->constants_length);
     pushint(st, def->bytecode_length);
     if (def->flags & JANET_FUNCDEF_FLAG_HASENVS)
@@ -708,6 +710,8 @@ static const uint8_t *unmarshal_one_def(
         def->flags = readint(st, &data);
         def->slotcount = readint(st, &data);
         def->arity = readint(st, &data);
+        def->min_arity = readint(st, &data);
+        def->max_arity = readint(st, &data);
 
         /* Read some lengths */
         constants_length = readint(st, &data);

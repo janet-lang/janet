@@ -433,12 +433,16 @@ static void janet_quick_asm(
     int32_t flags,
     const char *name,
     int32_t arity,
+    int32_t min_arity,
+    int32_t max_arity,
     int32_t slots,
     const uint32_t *bytecode,
     size_t bytecode_size,
     const char *doc) {
     JanetFuncDef *def = janet_funcdef_alloc();
     def->arity = arity;
+    def->min_arity = min_arity;
+    def->max_arity = max_arity;
     def->flags = flags;
     def->slotcount = slots;
     def->bytecode = malloc(bytecode_size);
@@ -514,6 +518,8 @@ static void templatize_varop(
         flags | JANET_FUNCDEF_FLAG_VARARG,
         name,
         0,
+        0,
+        INT32_MAX,
         6,
         varop_asm,
         sizeof(varop_asm),
@@ -567,6 +573,8 @@ static void templatize_comparator(
         flags | JANET_FUNCDEF_FLAG_VARARG,
         name,
         0,
+        0,
+        INT32_MAX,
         6,
         comparator_asm,
         sizeof(comparator_asm),
@@ -604,7 +612,7 @@ static void make_apply(JanetTable *env) {
         S(JOP_TAILCALL, 0)
     };
     janet_quick_asm(env, JANET_FUN_APPLY | JANET_FUNCDEF_FLAG_VARARG,
-                    "apply", 1, 6, apply_asm, sizeof(apply_asm),
+                    "apply", 1, 1, INT32_MAX, 6, apply_asm, sizeof(apply_asm),
                     JDOC("(apply f & args)\n\n"
                          "Applies a function to a variable number of arguments. Each element in args "
                          "is used as an argument to f, except the last element in args, which is expected to "
@@ -652,38 +660,38 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_core_cfuns(env, NULL, corelib_cfuns);
 
 #ifdef JANET_BOOTSTRAP
-    janet_quick_asm(env, JANET_FUN_YIELD | JANET_FUNCDEF_FLAG_FIXARITY,
-                    "debug", 0, 1, debug_asm, sizeof(debug_asm),
+    janet_quick_asm(env, JANET_FUN_DEBUG,
+                    "debug", 0, 0, 0, 1, debug_asm, sizeof(debug_asm),
                     JDOC("(debug)\n\n"
                          "Throws a debug signal that can be caught by a parent fiber and used to inspect "
                          "the running state of the current fiber. Returns nil."));
-    janet_quick_asm(env, JANET_FUN_ERROR | JANET_FUNCDEF_FLAG_FIXARITY,
-                    "error", 1, 1, error_asm, sizeof(error_asm),
+    janet_quick_asm(env, JANET_FUN_ERROR,
+                    "error", 1, 1, 1, 1, error_asm, sizeof(error_asm),
                     JDOC("(error e)\n\n"
                          "Throws an error e that can be caught and handled by a parent fiber."));
     janet_quick_asm(env, JANET_FUN_YIELD,
-                    "yield", 1, 2, yield_asm, sizeof(yield_asm),
+                    "yield", 1, 0, 1, 2, yield_asm, sizeof(yield_asm),
                     JDOC("(yield x)\n\n"
                          "Yield a value to a parent fiber. When a fiber yields, its execution is paused until "
                          "another thread resumes it. The fiber will then resume, and the last yield call will "
                          "return the value that was passed to resume."));
     janet_quick_asm(env, JANET_FUN_RESUME,
-                    "resume", 2, 2, resume_asm, sizeof(resume_asm),
-                    JDOC("(resume fiber [,x])\n\n"
+                    "resume", 2, 1, 2, 2, resume_asm, sizeof(resume_asm),
+                    JDOC("(resume fiber &opt x)\n\n"
                          "Resume a new or suspended fiber and optionally pass in a value to the fiber that "
                          "will be returned to the last yield in the case of a pending fiber, or the argument to "
                          "the dispatch function in the case of a new fiber. Returns either the return result of "
                          "the fiber's dispatch function, or the value from the next yield call in fiber."));
-    janet_quick_asm(env, JANET_FUN_GET | JANET_FUNCDEF_FLAG_FIXARITY,
-                    "get", 2, 2, get_asm, sizeof(get_asm),
+    janet_quick_asm(env, JANET_FUN_GET,
+                    "get", 2, 2, 2, 2, get_asm, sizeof(get_asm),
                     JDOC("(get ds key)\n\n"
                          "Get a value from any associative data structure. Arrays, tuples, tables, structs, strings, "
                          "symbols, and buffers are all associative and can be used with get. Order structures, name "
                          "arrays, tuples, strings, buffers, and symbols must use integer keys. Structs and tables can "
                          "take any value as a key except nil and return a value except nil. Byte sequences will return "
                          "integer representations of bytes as result of a get call."));
-    janet_quick_asm(env, JANET_FUN_PUT | JANET_FUNCDEF_FLAG_FIXARITY,
-                    "put", 3, 3, put_asm, sizeof(put_asm),
+    janet_quick_asm(env, JANET_FUN_PUT,
+                    "put", 3, 3, 3, 3, put_asm, sizeof(put_asm),
                     JDOC("(put ds key value)\n\n"
                          "Associate a key with a value in any mutable associative data structure. Indexed data structures "
                          "(arrays and buffers) only accept non-negative integer keys, and will expand if an out of bounds "
@@ -691,13 +699,13 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "space will be filled with 0 bytes. In a table, putting a key that is contained in the table prototype "
                          "will hide the association defined by the prototype, but will not mutate the prototype table. Putting "
                          "a value nil into a table will remove the key from the table. Returns the data structure ds."));
-    janet_quick_asm(env, JANET_FUN_LENGTH | JANET_FUNCDEF_FLAG_FIXARITY,
-                    "length", 1, 1, length_asm, sizeof(length_asm),
+    janet_quick_asm(env, JANET_FUN_LENGTH,
+                    "length", 1, 1, 1, 1, length_asm, sizeof(length_asm),
                     JDOC("(length ds)\n\n"
                          "Returns the length or count of a data structure in constant time as an integer. For "
                          "structs and tables, returns the number of key-value pairs in the data structure."));
-    janet_quick_asm(env, JANET_FUN_BNOT | JANET_FUNCDEF_FLAG_FIXARITY,
-                    "bnot", 1, 1, bnot_asm, sizeof(bnot_asm),
+    janet_quick_asm(env, JANET_FUN_BNOT,
+                    "bnot", 1, 1, 1, 1, bnot_asm, sizeof(bnot_asm),
                     JDOC("(bnot x)\n\nReturns the bit-wise inverse of integer x."));
     make_apply(env);
 

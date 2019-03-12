@@ -643,16 +643,17 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetSlot ret;
     Janet head;
     JanetScope fnscope;
-    int32_t paramcount, argi, parami, arity, defindex, i;
+    int32_t paramcount, argi, parami, arity, min_arity, max_arity, defindex, i;
     JanetFopts subopts = janetc_fopts_default(c);
     const Janet *params;
     const char *errmsg = NULL;
 
     /* Function flags */
     int vararg = 0;
-    int fixarity = 1;
+    int allow_extra = 0;
     int selfref = 0;
     int seenamp = 0;
+    int seenopt = 0;
 
     /* Begin function */
     c->scope->flags |= JANET_SCOPE_CLOSURE;
@@ -683,19 +684,32 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
         Janet param = params[i];
         if (janet_checktype(param, JANET_SYMBOL)) {
             /* Check for varargs and unfixed arity */
-            if ((!seenamp) &&
-                    (0 == janet_cstrcmp(janet_unwrap_symbol(param), "&"))) {
-                seenamp = 1;
-                fixarity = 0;
-                if (i == paramcount - 1) {
+            if (!janet_cstrcmp(janet_unwrap_symbol(param), "&")) {
+                if (seenamp) {
+                    errmsg = "& in unexpected location";
+                    goto error;
+                } else if (i == paramcount - 1) {
+                    allow_extra = 1;
                     arity--;
                 } else if (i == paramcount - 2) {
                     vararg = 1;
                     arity -= 2;
                 } else {
-                    errmsg = "variable argument symbol in unexpected location";
+                    errmsg = "& in unexpected location";
                     goto error;
                 }
+                seenamp = 1;
+            } else if (!janet_cstrcmp(janet_unwrap_symbol(param), "&opt")) {
+                if (seenopt) {
+                    errmsg = "only one &opt allowed";
+                    goto error;
+                } else if (i == paramcount - 1) {
+                    errmsg = "&opt cannot be last item in parameter list";
+                    goto error;
+                }
+                min_arity = i;
+                arity--;
+                seenopt = 1;
             } else {
                 janetc_nameslot(c, janet_unwrap_symbol(param), janetc_farslot(c));
             }
@@ -703,6 +717,9 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
             destructure(c, param, janetc_farslot(c), defleaf, NULL);
         }
     }
+
+    max_arity = (vararg || allow_extra) ? INT32_MAX : arity;
+    if (!seenopt) min_arity = arity;
 
     /* Check for self ref */
     if (selfref) {
@@ -715,17 +732,20 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     /* Compile function body */
     if (parami + 1 == argn) {
         janetc_emit(c, JOP_RETURN_NIL);
-    } else for (argi = parami + 1; argi < argn; argi++) {
+    } else {
+        for (argi = parami + 1; argi < argn; argi++) {
             subopts.flags = (argi == (argn - 1)) ? JANET_FOPTS_TAIL : JANET_FOPTS_DROP;
             janetc_value(subopts, argv[argi]);
             if (c->result.status == JANET_COMPILE_ERROR)
                 goto error2;
         }
+    }
 
     /* Build function */
     def = janetc_pop_funcdef(c);
     def->arity = arity;
-    if (fixarity) def->flags |= JANET_FUNCDEF_FLAG_FIXARITY;
+    def->min_arity = min_arity;
+    def->max_arity = max_arity;
     if (vararg) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
 
     if (selfref) def->name = janet_unwrap_symbol(head);
