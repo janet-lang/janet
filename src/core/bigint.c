@@ -57,92 +57,99 @@ static const JanetAbstractType bn_uint64_type = {
     NULL
 };
 
-static int str_to_int64(const char * str, bn_int64 * box,int base) {
-  char *endptr;
-  errno = 0;    
-  *box =(bn_int64)strtoll(str, &endptr, base);
-  if ((errno == ERANGE && (*box == LLONG_MAX || *box == LLONG_MIN)) ||
-      (errno != 0 && *box == 0) ||
-      (endptr == str) ) return 0;
-  return 1;
+static int str_to_int64(const char *str, bn_int64 *box, int base) {
+    char *endptr;
+    errno = 0;
+    *box = (bn_int64)strtoll(str, &endptr, base);
+    if ((errno == ERANGE && (*box == LLONG_MAX || *box == LLONG_MIN)) ||
+            (errno != 0 && *box == 0) ||
+            (endptr == str)) return 0;
+    return 1;
 }
 
-static int str_to_uint64(const char * str, bn_uint64 * box,int base) {
-  char *endptr;
-  errno = 0;    
-  *box =(bn_int64)strtoull(str, &endptr, base);
-  if ((errno == ERANGE && (*box == ULLONG_MAX)) ||
-      (errno != 0 && *box == 0) ||
-      (endptr == str) ) return 0;
-  return 1;
+static int str_to_uint64(const char *str, bn_uint64 *box, int base) {
+    char *endptr;
+    errno = 0;
+    *box = (bn_int64)strtoull(str, &endptr, base);
+    if ((errno == ERANGE && (*box == ULLONG_MAX)) ||
+            (errno != 0 && *box == 0) ||
+            (endptr == str)) return 0;
+    return 1;
 }
 
 
 
 static Janet make_bn_int64(Janet x) {
-  bn_int64 * box = (bn_int64 *)janet_abstract(&bn_int64_type,sizeof(bn_int64));
-  switch (janet_type(x)) {
-  case JANET_NUMBER : {
-    double dbl = janet_unwrap_number(x);
-    if (dbl == (bn_int64)dbl) { 
-      *box = (bn_int64)dbl;
-      return janet_wrap_abstract(box);
+    bn_int64 *box = (bn_int64 *)janet_abstract(&bn_int64_type, sizeof(bn_int64));
+    switch (janet_type(x)) {
+        case JANET_NUMBER : {
+            double dbl = janet_unwrap_number(x);
+            if (dbl == (bn_int64)dbl) {
+                *box = (bn_int64)dbl;
+                return janet_wrap_abstract(box);
+            }
+            break;
+        }
+        case JANET_STRING:
+        case JANET_SYMBOL:
+        case JANET_KEYWORD: {
+            if (str_to_int64((const char *)janet_unwrap_string(x), box, 16))
+                return janet_wrap_abstract(box);
+            break;
+        }
+        case JANET_ABSTRACT: {
+            void *abst = janet_unwrap_abstract(x);
+            if ((janet_abstract_type(abst) == &bn_int64_type) || (janet_abstract_type(abst) == &bn_uint64_type)) {
+                *box = *(bn_int64 *)abst;
+                return janet_wrap_abstract(box);
+            }
+            break;
+        }
     }
-    break;
-  }
-  case JANET_STRING:
-  case JANET_SYMBOL:
-  case JANET_KEYWORD: {
-    if (str_to_int64((const char*)janet_unwrap_string(x),box,16))
-      return janet_wrap_abstract(box);
-    break;
-  } 
-  case JANET_ABSTRACT: {
-    void * abst = janet_unwrap_abstract(x);
-    if ((janet_abstract_type(abst) == &bn_int64_type) || (janet_abstract_type(abst) == &bn_uint64_type)) {
-      *box=*(bn_int64 *)abst;
-      return janet_wrap_abstract(box);
-    }
-    break;
-  }
-  }
-  janet_panic("bad int64 initializer");
-  return janet_wrap_nil();
+    janet_panic("bad int64 initializer");
+    return janet_wrap_nil();
 }
 
 static Janet make_bn_uint64(Janet x) {
-  bn_uint64 * box = (bn_uint64 *)janet_abstract(&bn_uint64_type,sizeof(bn_uint64));
-  switch (janet_type(x)) {
-  case JANET_NUMBER : {
-    double dbl = janet_unwrap_number(x);
-    if (dbl == (bn_uint64)dbl) { 
-      *box = (bn_uint64)dbl;
-      return janet_wrap_abstract(box);
+    bn_uint64 *box = (bn_uint64 *)janet_abstract(&bn_uint64_type, sizeof(bn_uint64));
+    switch (janet_type(x)) {
+        case JANET_NUMBER : {
+            double dbl = janet_unwrap_number(x);
+            if (dbl == (bn_uint64)dbl) {
+                *box = (bn_uint64)dbl;
+                return janet_wrap_abstract(box);
+            }
+            break;
+        }
+        case JANET_STRING:
+        case JANET_SYMBOL:
+        case JANET_KEYWORD: {
+            if (str_to_uint64((const char *)janet_unwrap_string(x), box, 16))
+                return janet_wrap_abstract(box);
+            break;
+        }
+        case JANET_ABSTRACT: {
+            void *abst = janet_unwrap_abstract(x);
+            if (janet_abstract_type(abst) == &bn_uint64_type) {
+                *box = *(bn_uint64 *)abst;
+                return janet_wrap_abstract(box);
+            }
+            break;
+        }
     }
-    break;
-  }
-  case JANET_STRING:
-  case JANET_SYMBOL:
-  case JANET_KEYWORD: {
-    if (str_to_uint64((const char*)janet_unwrap_string(x),box,16))
-      return janet_wrap_abstract(box);
-    break;
-  } 
-  case JANET_ABSTRACT: {
-    void * abst = janet_unwrap_abstract(x);
-    if (janet_abstract_type(abst) == &bn_uint64_type) {
-      *box=*(bn_uint64 *)abst;
-      return janet_wrap_abstract(box);
-    }
-    break;
-  }
-  }
-  janet_panic("bad uint64 initializer");
-  return janet_wrap_nil();
+    janet_panic("bad uint64 initializer");
+    return janet_wrap_nil();
 }
 
 
-  
+
+int janet_is_bigint(Janet x, JanetBigintType type) {
+    return janet_checktype(x, JANET_ABSTRACT) &&
+           (((type == JANET_BIGINT_TYPE_int64) && (janet_abstract_type(janet_unwrap_abstract(x)) == &bn_int64_type)) ||
+            ((type == JANET_BIGINT_TYPE_uint64) && (janet_abstract_type(janet_unwrap_abstract(x)) == &bn_uint64_type)));
+}
+
+
 
 
 static Janet cfun_bn_int64_new(int32_t argc, Janet *argv) {
@@ -159,16 +166,16 @@ static Janet cfun_bn_uint64_new(int32_t argc, Janet *argv) {
 static Janet cfun_bn_pretty(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     char buf[32];
-    if (janet_checktype(argv[0],JANET_ABSTRACT)) {
-      void * box = janet_unwrap_abstract(argv[0]);
-      if (janet_abstract_type(box) == &bn_int64_type) {
-	snprintf(buf, 32,"%li",*(bn_int64 *)box);
-	return janet_cstringv(buf);
-      }
-      if (janet_abstract_type(box) == &bn_uint64_type) {
-	snprintf(buf, 32,"%lu",*(bn_uint64 *)box);
-	return janet_cstringv(buf);
-      }
+    if (janet_checktype(argv[0], JANET_ABSTRACT)) {
+        void *box = janet_unwrap_abstract(argv[0]);
+        if (janet_abstract_type(box) == &bn_int64_type) {
+            snprintf(buf, 32, "%li", *(bn_int64 *)box);
+            return janet_cstringv(buf);
+        }
+        if (janet_abstract_type(box) == &bn_uint64_type) {
+            snprintf(buf, 32, "%lu", *(bn_uint64 *)box);
+            return janet_cstringv(buf);
+        }
     }
     janet_panicf("expected bigint");
     return janet_wrap_nil();
@@ -182,9 +189,9 @@ static const JanetReg bn_cfuns[] = {
              "Create new int64.")
     },
     {
-      "bigint/uint64", cfun_bn_uint64_new,
-      JDOC("(bigint/uint64 value )\n\n"
-	   "Create new uint64.")
+        "bigint/uint64", cfun_bn_uint64_new,
+        JDOC("(bigint/uint64 value )\n\n"
+             "Create new uint64.")
     },
     {
         "bigint/pretty", cfun_bn_pretty,
