@@ -42,7 +42,6 @@ const char *const janet_type_names[16] = {
     "number",
     "nil",
     "boolean",
-    "boolean",
     "fiber",
     "string",
     "symbol",
@@ -54,7 +53,8 @@ const char *const janet_type_names[16] = {
     "buffer",
     "function",
     "cfunction",
-    "abstract"
+    "abstract",
+    "pointer"
 };
 
 const char *const janet_signal_names[14] = {

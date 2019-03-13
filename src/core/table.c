@@ -144,7 +144,7 @@ void janet_table_put(JanetTable *t, Janet key, Janet value) {
                 janet_table_rehash(t, janet_tablen(2 * t->count + 2));
             }
             bucket = janet_table_find(t, key);
-            if (janet_checktype(bucket->value, JANET_FALSE))
+            if (janet_checktype(bucket->value, JANET_BOOLEAN))
                 --t->deleted;
             bucket->key = key;
             bucket->value = value;

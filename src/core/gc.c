@@ -376,8 +376,7 @@ static int janet_gc_idequals(Janet lhs, Janet rhs) {
     if (janet_type(lhs) != janet_type(rhs))
         return 0;
     switch (janet_type(lhs)) {
-        case JANET_TRUE:
-        case JANET_FALSE:
+        case JANET_BOOLEAN:
         case JANET_NIL:
         case JANET_NUMBER:
             /* These values don't really matter to the gc so returning 1 all the time is fine. */

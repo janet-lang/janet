@@ -125,22 +125,22 @@ Janet janet_wrap_nil() {
 
 Janet janet_wrap_true(void) {
     Janet y;
-    y.type = JANET_TRUE;
-    y.as.u64 = 0;
+    y.type = JANET_BOOLEAN;
+    y.as.u64 = 1;
     return y;
 }
 
 Janet janet_wrap_false(void) {
     Janet y;
-    y.type = JANET_FALSE;
+    y.type = JANET_BOOLEAN;
     y.as.u64 = 0;
     return y;
 }
 
 Janet janet_wrap_boolean(int x) {
     Janet y;
-    y.type = x ? JANET_TRUE : JANET_FALSE;
-    y.as.u64 = 0;
+    y.type = JANET_BOOLEAN;
+    y.as.u64 = !!x;
     return y;
 }
 
@@ -166,6 +166,7 @@ JANET_WRAP_DEFINE(function, JanetFunction *, JANET_FUNCTION, pointer)
 JANET_WRAP_DEFINE(cfunction, JanetCFunction, JANET_CFUNCTION, pointer)
 JANET_WRAP_DEFINE(table, JanetTable *, JANET_TABLE, pointer)
 JANET_WRAP_DEFINE(abstract, void *, JANET_ABSTRACT, pointer)
+JANET_WRAP_DEFINE(pointer, void *, JANET_POINTER, pointer)
 
 #undef JANET_WRAP_DEFINE
 

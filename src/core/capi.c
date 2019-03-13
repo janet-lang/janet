@@ -95,16 +95,7 @@ DEFINE_GETTER(buffer, BUFFER, JanetBuffer *)
 DEFINE_GETTER(fiber, FIBER, JanetFiber *)
 DEFINE_GETTER(function, FUNCTION, JanetFunction *)
 DEFINE_GETTER(cfunction, CFUNCTION, JanetCFunction)
-
-int janet_getboolean(const Janet *argv, int32_t n) {
-    Janet x = argv[n];
-    if (janet_checktype(x, JANET_TRUE)) {
-        return 1;
-    } else if (!janet_checktype(x, JANET_FALSE)) {
-        janet_panicf("bad slot #%d, expected boolean, got %v", n, x);
-    }
-    return 0;
-}
+DEFINE_GETTER(boolean, BOOLEAN, int)
 
 int32_t janet_getinteger(const Janet *argv, int32_t n) {
     Janet x = argv[n];

@@ -177,13 +177,13 @@ valgrind: $(JANET_TARGET)
 	$(VALGRIND_COMMAND) ./$(JANET_TARGET)
 
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
-	for f in test/*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
+	for f in test/suite*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
-	for f in test/*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
+	for f in test/suite*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
 
 callgrind: $(JANET_TARGET)
-	for f in test/*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
+	for f in test/suite*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
 
 ########################
 ##### Distribution #####

@@ -147,19 +147,18 @@ static const TypeAlias type_aliases[] = {
     {"callable", JANET_TFLAG_CALLABLE},
     {"cfunction", JANET_TFLAG_CFUNCTION},
     {"dictionary", JANET_TFLAG_DICTIONARY},
-    {"false", JANET_TFLAG_FALSE},
     {"fiber", JANET_TFLAG_FIBER},
     {"function", JANET_TFLAG_FUNCTION},
     {"indexed", JANET_TFLAG_INDEXED},
+    {"keyword", JANET_TFLAG_KEYWORD},
     {"nil", JANET_TFLAG_NIL},
     {"number", JANET_TFLAG_NUMBER},
+    {"pointer", JANET_TFLAG_POINTER},
     {"string", JANET_TFLAG_STRING},
     {"struct", JANET_TFLAG_STRUCT},
     {"symbol", JANET_TFLAG_SYMBOL},
-    {"keyword", JANET_TFLAG_KEYWORD},
-    {"table", JANET_TFLAG_BOOLEAN},
-    {"true", JANET_TFLAG_TRUE},
-    {"tuple", JANET_TFLAG_BOOLEAN}
+    {"table", JANET_TFLAG_TABLE},
+    {"tuple", JANET_TFLAG_TUPLE}
 };
 
 /* Deinitialize an Assembler. Does not deinitialize the parents. */

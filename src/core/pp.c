@@ -179,11 +179,9 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
         case JANET_NIL:
             janet_buffer_push_cstring(buffer, "nil");
             return;
-        case JANET_TRUE:
-            janet_buffer_push_cstring(buffer, "true");
-            return;
-        case JANET_FALSE:
-            janet_buffer_push_cstring(buffer, "false");
+        case JANET_BOOLEAN:
+            janet_buffer_push_cstring(buffer,
+                                      janet_unwrap_boolean(x) ? "true" : "false");
             return;
         case JANET_NUMBER:
             number_to_string_b(buffer, janet_unwrap_number(x));
@@ -315,8 +313,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
         case JANET_NIL:
         case JANET_NUMBER:
         case JANET_SYMBOL:
-        case JANET_TRUE:
-        case JANET_FALSE:
+        case JANET_BOOLEAN:
             break;
         default: {
             Janet seenid = janet_table_get(&S->seen, x);

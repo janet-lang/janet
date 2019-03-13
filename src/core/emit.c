@@ -78,11 +78,9 @@ static void janetc_loadconst(JanetCompiler *c, Janet k, int32_t reg) {
         case JANET_NIL:
             janetc_emit(c, (reg << 8) | JOP_LOAD_NIL);
             break;
-        case JANET_TRUE:
-            janetc_emit(c, (reg << 8) | JOP_LOAD_TRUE);
-            break;
-        case JANET_FALSE:
-            janetc_emit(c, (reg << 8) | JOP_LOAD_FALSE);
+        case JANET_BOOLEAN:
+            janetc_emit(c, (reg << 8) |
+                        (janet_unwrap_boolean(k) ? JOP_LOAD_TRUE : JOP_LOAD_FALSE));
             break;
         case JANET_NUMBER: {
             double dval = janet_unwrap_number(k);

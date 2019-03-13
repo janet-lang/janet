@@ -299,8 +299,7 @@ typedef Janet(*JanetCFunction)(int32_t argc, Janet *argv);
 typedef enum JanetType {
     JANET_NUMBER,
     JANET_NIL,
-    JANET_FALSE,
-    JANET_TRUE,
+    JANET_BOOLEAN,
     JANET_FIBER,
     JANET_STRING,
     JANET_SYMBOL,
@@ -312,15 +311,15 @@ typedef enum JanetType {
     JANET_BUFFER,
     JANET_FUNCTION,
     JANET_CFUNCTION,
-    JANET_ABSTRACT
+    JANET_ABSTRACT,
+    JANET_POINTER
 } JanetType;
 
-#define JANET_COUNT_TYPES (JANET_ABSTRACT + 1)
+#define JANET_COUNT_TYPES (JANET_POINTER + 1)
 
 /* Type flags */
 #define JANET_TFLAG_NIL (1 << JANET_NIL)
-#define JANET_TFLAG_FALSE (1 << JANET_FALSE)
-#define JANET_TFLAG_TRUE (1 << JANET_TRUE)
+#define JANET_TFLAG_BOOLEAN (1 << JANET_BOOLEAN)
 #define JANET_TFLAG_FIBER (1 << JANET_FIBER)
 #define JANET_TFLAG_NUMBER (1 << JANET_NUMBER)
 #define JANET_TFLAG_STRING (1 << JANET_STRING)
@@ -334,9 +333,9 @@ typedef enum JanetType {
 #define JANET_TFLAG_FUNCTION (1 << JANET_FUNCTION)
 #define JANET_TFLAG_CFUNCTION (1 << JANET_CFUNCTION)
 #define JANET_TFLAG_ABSTRACT (1 << JANET_ABSTRACT)
+#define JANET_TFLAG_POINTER (1 << JANET_POINTER)
 
 /* Some abstractions */
-#define JANET_TFLAG_BOOLEAN (JANET_TFLAG_TRUE | JANET_TFLAG_FALSE)
 #define JANET_TFLAG_BYTES (JANET_TFLAG_STRING | JANET_TFLAG_SYMBOL | JANET_TFLAG_BUFFER | JANET_TFLAG_KEYWORD)
 #define JANET_TFLAG_INDEXED (JANET_TFLAG_ARRAY | JANET_TFLAG_TUPLE)
 #define JANET_TFLAG_DICTIONARY (JANET_TFLAG_TABLE | JANET_TFLAG_STRUCT)
@@ -403,7 +402,8 @@ JANET_API Janet janet_nanbox_from_double(double d);
 JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
 
 #define janet_truthy(x) \
-    (!(janet_checktype((x), JANET_NIL) || janet_checktype((x), JANET_FALSE)))
+    (!janet_checktype((x), JANET_NIL) && \
+     (!janet_checktype((x), JANET_BOOLEAN) || ((x).u64 & 0x1)))
 
 #define janet_nanbox_from_payload(t, p) \
     janet_nanbox_from_bits(janet_nanbox_tag(t) | (p))
@@ -416,14 +416,13 @@ JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
 
 /* Wrap the simple types */
 #define janet_wrap_nil() janet_nanbox_from_payload(JANET_NIL, 1)
-#define janet_wrap_true() janet_nanbox_from_payload(JANET_TRUE, 1)
-#define janet_wrap_false() janet_nanbox_from_payload(JANET_FALSE, 1)
-#define janet_wrap_boolean(b) janet_nanbox_from_payload((b) ? JANET_TRUE : JANET_FALSE, 1)
+#define janet_wrap_true() janet_nanbox_from_payload(JANET_BOOLEAN, 1)
+#define janet_wrap_false() janet_nanbox_from_payload(JANET_BOOLEAN, 0)
+#define janet_wrap_boolean(b) janet_nanbox_from_payload(JANET_BOOLEAN, !!(b))
 #define janet_wrap_number(r) janet_nanbox_from_double(r)
 
 /* Unwrap the simple types */
-#define janet_unwrap_boolean(x) \
-    (janet_checktype(x, JANET_TRUE))
+#define janet_unwrap_boolean(x) ((x).u64 & 0x1)
 #define janet_unwrap_number(x) ((x).number)
 
 /* Wrap the pointer types */
@@ -439,6 +438,7 @@ JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
 #define janet_wrap_abstract(s) janet_nanbox_wrap_((s), JANET_ABSTRACT)
 #define janet_wrap_function(s) janet_nanbox_wrap_((s), JANET_FUNCTION)
 #define janet_wrap_cfunction(s) janet_nanbox_wrap_((s), JANET_CFUNCTION)
+#define janet_wrap_pointer(s) janet_nanbox_wrap_((s), JANET_POINTER)
 
 /* Unwrap the pointer types */
 #define janet_unwrap_struct(x) ((const JanetKV *)janet_nanbox_to_pointer(x))
@@ -485,16 +485,17 @@ union Janet {
 #define janet_checktype(x, t) ((t) == JANET_NUMBER \
         ? (x).tagged.type >= JANET_DOUBLE_OFFSET \
         : (x).tagged.type == (t))
-#define janet_truthy(x) ((x).tagged.type != JANET_NIL && (x).tagged.type != JANET_FALSE)
+#define janet_truthy(x) \
+    ((x).tagged.type != JANET_NIL && ((x).tagged.type != JANET_BOOLEAN || ((x).tagged.payload.integer & 0x1)))
 
 JANET_API Janet janet_wrap_number(double x);
 JANET_API Janet janet_nanbox32_from_tagi(uint32_t tag, int32_t integer);
 JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 
 #define janet_wrap_nil() janet_nanbox32_from_tagi(JANET_NIL, 0)
-#define janet_wrap_true() janet_nanbox32_from_tagi(JANET_TRUE, 0)
-#define janet_wrap_false() janet_nanbox32_from_tagi(JANET_FALSE, 0)
-#define janet_wrap_boolean(b) janet_nanbox32_from_tagi((b) ? JANET_TRUE : JANET_FALSE, 0)
+#define janet_wrap_true() janet_nanbox32_from_tagi(JANET_BOOLEAN, 1)
+#define janet_wrap_false() janet_nanbox32_from_tagi(JANET_BOOLEAN, 0)
+#define janet_wrap_boolean(b) janet_nanbox32_from_tagi(JANET_BOOLEAN, !!(b))
 
 /* Wrap the pointer types */
 #define janet_wrap_struct(s) janet_nanbox32_from_tagp(JANET_STRUCT, (void *)(s))
@@ -509,6 +510,7 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 #define janet_wrap_abstract(s) janet_nanbox32_from_tagp(JANET_ABSTRACT, (void *)(s))
 #define janet_wrap_function(s) janet_nanbox32_from_tagp(JANET_FUNCTION, (void *)(s))
 #define janet_wrap_cfunction(s) janet_nanbox32_from_tagp(JANET_CFUNCTION, (void *)(s))
+#define janet_wrap_pointer(s) janet_nanbox32_from_tagp(JANET_POINTER, (void *)(s))
 
 #define janet_unwrap_struct(x) ((const JanetKV *)(x).tagged.payload.pointer)
 #define janet_unwrap_tuple(x) ((const Janet *)(x).tagged.payload.pointer)
@@ -523,7 +525,7 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 #define janet_unwrap_pointer(x) ((x).tagged.payload.pointer)
 #define janet_unwrap_function(x) ((JanetFunction *)(x).tagged.payload.pointer)
 #define janet_unwrap_cfunction(x) ((JanetCFunction)(x).tagged.payload.pointer)
-#define janet_unwrap_boolean(x) ((x).tagged.type == JANET_TRUE)
+#define janet_unwrap_boolean(x) ((x).tagged.payload.integer)
 JANET_API double janet_unwrap_number(Janet x);
 
 #else
@@ -544,7 +546,7 @@ struct Janet {
 #define janet_type(x) ((x).type)
 #define janet_checktype(x, t) ((x).type == (t))
 #define janet_truthy(x) \
-    ((x).type != JANET_NIL && (x).type != JANET_FALSE)
+    ((x).type != JANET_NIL && ((x).type != JANET_BOOLEAN || ((x).as.integer & 0x1)))
 
 #define janet_unwrap_struct(x) ((const JanetKV *)(x).as.pointer)
 #define janet_unwrap_tuple(x) ((const Janet *)(x).as.pointer)
@@ -559,7 +561,7 @@ struct Janet {
 #define janet_unwrap_pointer(x) ((x).as.pointer)
 #define janet_unwrap_function(x) ((JanetFunction *)(x).as.pointer)
 #define janet_unwrap_cfunction(x) ((JanetCFunction)(x).as.pointer)
-#define janet_unwrap_boolean(x) ((x).type == JANET_TRUE)
+#define janet_unwrap_boolean(x) ((x).as.u64 & 0x1)
 #define janet_unwrap_number(x) ((x).as.number)
 
 JANET_API Janet janet_wrap_nil(void);
@@ -579,6 +581,7 @@ JANET_API Janet janet_wrap_function(JanetFunction *x);
 JANET_API Janet janet_wrap_cfunction(JanetCFunction x);
 JANET_API Janet janet_wrap_table(JanetTable *x);
 JANET_API Janet janet_wrap_abstract(void *x);
+JANET_API Janet janet_wrap_pointer(void *x);
 
 /* End of tagged union implementation */
 #endif

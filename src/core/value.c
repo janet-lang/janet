@@ -36,9 +36,10 @@ int janet_equals(Janet x, Janet y) {
     } else {
         switch (janet_type(x)) {
             case JANET_NIL:
-            case JANET_TRUE:
-            case JANET_FALSE:
                 result = 1;
+                break;
+            case JANET_BOOLEAN:
+                result = (janet_unwrap_boolean(x) == janet_unwrap_boolean(y));
                 break;
             case JANET_NUMBER:
                 result = (janet_unwrap_number(x) == janet_unwrap_number(y));
@@ -68,11 +69,8 @@ int32_t janet_hash(Janet x) {
         case JANET_NIL:
             hash = 0;
             break;
-        case JANET_FALSE:
-            hash = 1;
-            break;
-        case JANET_TRUE:
-            hash = 2;
+        case JANET_BOOLEAN:
+            hash = janet_unwrap_boolean(x);
             break;
         case JANET_STRING:
         case JANET_SYMBOL:
@@ -111,9 +109,9 @@ int janet_compare(Janet x, Janet y) {
     if (janet_type(x) == janet_type(y)) {
         switch (janet_type(x)) {
             case JANET_NIL:
-            case JANET_FALSE:
-            case JANET_TRUE:
                 return 0;
+            case JANET_BOOLEAN:
+                return janet_unwrap_boolean(x) - janet_unwrap_boolean(y);
             case JANET_NUMBER:
                 /* Check for NaNs to ensure total order */
                 if (janet_unwrap_number(x) != janet_unwrap_number(x))

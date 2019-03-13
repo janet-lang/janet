@@ -341,9 +341,10 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         default:
             break;
         case JANET_NIL:
-        case JANET_FALSE:
-        case JANET_TRUE:
-            pushbyte(st, 200 + type);
+            pushbyte(st, LB_NIL);
+            return;
+        case JANET_BOOLEAN:
+            pushbyte(st, janet_unwrap_boolean(x) ? LB_TRUE : LB_FALSE);
             return;
         case JANET_NUMBER: {
             double xval = janet_unwrap_number(x);
