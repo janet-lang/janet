@@ -82,15 +82,14 @@ static void integer_to_string_b(JanetBuffer *buffer, int32_t x) {
 
 #ifdef JANET_BIGINT
 
-static void uint64_to_string_b(JanetBuffer *buffer, uint64_t x) {
-    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
-    int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, "%lu", x);
-    buffer->count += count;
-}
-
 static void int64_to_string_b(JanetBuffer *buffer, int64_t x) {
     janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
     int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, "%li", x);
+    buffer->count += count;
+}
+static void uint64_to_string_b(JanetBuffer *buffer, uint64_t x) {
+    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
+    int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, "%lu", x);
     buffer->count += count;
 }
 
@@ -218,12 +217,13 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
             return;
         case JANET_ABSTRACT: {
 #ifdef JANET_BIGINT
-            if (janet_is_bigint(x, JANET_BIGINT_TYPE_int64)) {
-	      int64_to_string_b(buffer,*(int64_t *)janet_unwrap_abstract(x));
+            JanetBigintType bt = janet_is_bigint(x);
+            if (bt == JANET_BIGINT_TYPE_int64) {
+                int64_to_string_b(buffer, *(int64_t *)janet_unwrap_abstract(x));
                 return;
             }
-            if (janet_is_bigint(x, JANET_BIGINT_TYPE_uint64)) {
-	      uint64_to_string_b(buffer,*(uint64_t*)janet_unwrap_abstract(x));
+            if (bt == JANET_BIGINT_TYPE_uint64) {
+                uint64_to_string_b(buffer, *(uint64_t *)janet_unwrap_abstract(x));
                 return;
             }
 #endif

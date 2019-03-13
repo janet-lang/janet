@@ -1324,11 +1324,12 @@ JANET_API JanetTArrayView *janet_gettarray_view(const Janet *argv, int32_t n, Ja
 #ifdef JANET_BIGINT
 
 typedef enum {
+    JANET_BIGINT_TYPE_none,
     JANET_BIGINT_TYPE_int64,
     JANET_BIGINT_TYPE_uint64,
 } JanetBigintType;
 
-JANET_API int janet_is_bigint(Janet x, JanetBigintType type);
+JANET_API JanetBigintType janet_is_bigint(Janet x);
 
 #endif
 
