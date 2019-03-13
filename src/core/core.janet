@@ -1644,8 +1644,18 @@ value, one key will be ignored."
                   (def newenv (make-env))
                   (put module/loading fullpath true)
                   (defn chunks [buf _] (file/read f 2048 buf))
+                  (defn bp [&opt x y]
+                    (def ret (bad-parse x y))
+                    (if exit-on-error (os/exit))
+                    ret)
+                  (defn bc [&opt x y z]
+                    (def ret (bad-compile x y z))
+                    (if exit-on-error (os/exit))
+                    ret)
                   (run-context {:env newenv
                                 :chunks chunks
+                                :on-parse-error bp
+                                :on-compile-error bc
                                 :on-status (fn [f x]
                                              (when (not= (fiber/status f) :dead)
                                                (debug/stacktrace f x)
