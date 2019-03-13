@@ -138,11 +138,8 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     int32_t next_arity = fiber->stacktop - fiber->stackstart;
 
     /* Check strict arity before messing with state */
-    if (func->def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
-        if (func->def->arity != next_arity) {
-            return 1;
-        }
-    }
+    if (next_arity < func->def->min_arity) return 1;
+    if (next_arity > func->def->max_arity) return 1;
 
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);
@@ -204,11 +201,8 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
     int32_t stacksize;
 
     /* Check strict arity before messing with state */
-    if (func->def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
-        if (func->def->arity != next_arity) {
-            return 1;
-        }
-    }
+    if (next_arity < func->def->min_arity) return 1;
+    if (next_arity > func->def->max_arity) return 1;
 
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);
@@ -303,10 +297,8 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     JanetFunction *func = janet_getfunction(argv, 0);
     JanetFiber *fiber;
-    if (func->def->flags & JANET_FUNCDEF_FLAG_FIXARITY) {
-        if (func->def->arity != 0) {
-            janet_panic("expected nullary function in fiber constructor");
-        }
+    if (func->def->min_arity != 0) {
+        janet_panic("expected nullary function in fiber constructor");
     }
     fiber = janet_fiber(func, 64, 0, NULL);
     if (argc == 2) {

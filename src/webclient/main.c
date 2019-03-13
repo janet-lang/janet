@@ -70,7 +70,7 @@ void repl_init(void) {
     janet_init();
     janet_register("repl-yield", repl_yield);
     janet_register("js", cfun_js);
-    env = janet_core_env();
+    env = janet_core_env(NULL);
 
     janet_def(env, "repl-yield", janet_wrap_cfunction(repl_yield), NULL);
     janet_def(env, "js", janet_wrap_cfunction(cfun_js), NULL);

@@ -142,7 +142,7 @@
 
 (defmacro if-not
   "Shorthand for (if (not ... "
-  [condition exp-1 exp-2 &]
+  [condition exp-1 &opt exp-2]
   ~(if ,condition ,exp-2 ,exp-1))
 
 (defmacro when
@@ -232,8 +232,8 @@
   (while (> i 0)
     (-- i)
     (set ret (if (= ret true)
-              (get forms i)
-              (tuple 'if (get forms i) ret))))
+               (get forms i)
+               (tuple 'if (get forms i) ret))))
   ret)
 
 (defmacro or
@@ -247,11 +247,11 @@
     (-- i)
     (def fi (get forms i))
     (set ret (if (idempotent? fi)
-      (tuple 'if fi fi ret)
-      (do
-        (def $fi (gensym))
-        (tuple 'do (tuple 'def $fi fi)
-               (tuple 'if $fi $fi ret))))))
+               (tuple 'if fi fi ret)
+               (do
+                 (def $fi (gensym))
+                 (tuple 'do (tuple 'def $fi fi)
+                        (tuple 'if $fi $fi ret))))))
   ret)
 
 (defmacro with-syms
@@ -399,7 +399,7 @@
 
 (put _env 'loop1 nil)
 (put _env 'for-template nil)
-(put _env 'iter-template nil)
+(put _env 'iterate-template nil)
 (put _env 'each-template nil)
 (put _env 'keys-template nil)
 
@@ -414,12 +414,12 @@
   "Create a generator expression using the loop syntax. Returns a fiber
   that yields all values inside the loop in order. See loop for details."
   [head & body]
-  ~(fiber/new (fn [&] (loop ,head (yield (do ,;body))))))
+  ~(fiber/new (fn [] (loop ,head (yield (do ,;body))))))
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber/new (fn [&] ...body))."
+  "A wrapper for making fibers. Same as (fiber/new (fn [] ...body))."
   [& body]
-  (tuple fiber/new (tuple 'fn '[&] ;body)))
+  (tuple fiber/new (tuple 'fn '[] ;body)))
 
 (defn sum
   "Returns the sum of xs. If xs is empty, returns 0."
@@ -439,7 +439,7 @@
   "Make multiple bindings, and if all are truthy,
   evaluate the tru form. If any are false or nil, evaluate
   the fal form. Bindings have the same syntax as the let macro."
-  [bindings tru fal &]
+  [bindings tru &opt fal]
   (def len (length bindings))
   (if (zero? len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
@@ -483,7 +483,7 @@
     4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
     (let [[f g h i j] functions]
       (comp (fn [x] (f (g (h (i (j x))))))
-             ;(tuple/slice functions 5 -1)))))
+            ;(tuple/slice functions 5 -1)))))
 
 (defn identity
   "A function that returns its first argument."
@@ -565,7 +565,7 @@
         (sort-help a (+ piv 1) hi by))
       a)
 
-    (fn sort [a by &]
+    (fn sort [a &opt by]
       (sort-help a 0 (- (length a) 1) (or by order<)))))
 
 (defn sorted
@@ -882,8 +882,8 @@
 
 (defn invert
   "Returns a table of where the keys of an associative data structure
-are the values, and the values of the keys. If multiple keys have the same
-value, one key will be ignored."
+  are the values, and the values of the keys. If multiple keys have the same
+  value, one key will be ignored."
   [ds]
   (def ret @{})
   (loop [k :keys ds]
@@ -979,7 +979,7 @@ value, one key will be ignored."
     (def len (min ;(map length cols)))
     (loop [i :range [0 len]
            ci :range [0 ncol]]
-        (array/push res (get (get cols ci) i))))
+      (array/push res (get (get cols ci) i))))
   res)
 
 (defn distinct
@@ -1060,7 +1060,7 @@ value, one key will be ignored."
 (defn spit
   "Write contents to a file at path.
   Can optionally append to the file."
-  [path contents mode &]
+  [path contents &opt mode]
   (default mode :w)
   (def f (file/open path mode))
   (if-not f (error (string "could not open file " path " with mode " mode)))
@@ -1153,15 +1153,15 @@ value, one key will be ignored."
   match if it is equal to x."
   [x & cases]
   (with-idemp $x x
-      (def len (length cases))
-      (def len-1 (dec len))
-      ((fn aux [i]
-        (cond
-          (= i len-1) (get cases i)
-          (< i len-1) (with-syms [$res]
-                        ~(if (= ,sentinel (def ,$res ,(match-1 (get cases i) $x (fn [] (get cases (inc i))) @{})))
-                           ,(aux (+ 2 i))
-                           ,$res)))) 0)))
+    (def len (length cases))
+    (def len-1 (dec len))
+    ((fn aux [i]
+       (cond
+         (= i len-1) (get cases i)
+         (< i len-1) (with-syms [$res]
+                       ~(if (= ,sentinel (def ,$res ,(match-1 (get cases i) $x (fn [] (get cases (inc i))) @{})))
+                          ,(aux (+ 2 i))
+                          ,$res)))) 0)))
 
 (put _env 'sentinel nil)
 (put _env 'match-1 nil)
@@ -1201,14 +1201,14 @@ value, one key will be ignored."
 
   (each b text
     (if (and (not= b 10) (not= b 32))
-        (if (= b 9)
-          (buffer/push-string word "  ")
-          (buffer/push-byte word b))
-        (do
-          (if (> (length word) 0) (pushword))
-          (when (= b 10)
-            (buffer/push-string buf "\n    ")
-            (set current 0)))))
+      (if (= b 9)
+        (buffer/push-string word "  ")
+        (buffer/push-byte word b))
+      (do
+        (if (> (length word) 0) (pushword))
+        (when (= b 10)
+          (buffer/push-string buf "\n    ")
+          (set current 0)))))
 
   # Last word
   (pushword)
@@ -1402,7 +1402,7 @@ value, one key will be ignored."
   "Create a new environment table. The new environment
   will inherit bindings from the parent environment, but new
   bindings will not pollute the parent environment."
-  [parent &]
+  [&opt parent]
   (def parent (if parent parent _env))
   (def newenv (table/setproto @{} parent))
   newenv)
@@ -1513,7 +1513,7 @@ value, one key will be ignored."
 (defn eval-string
   "Evaluates a string in the current environment. If more control over the
   environment is needed, use run-context."
-  [str env &]
+  [str &opt env]
   (var state (string str))
   (defn chunks [buf _]
     (def ret state)
@@ -1522,7 +1522,6 @@ value, one key will be ignored."
       (buffer/push-string buf str)
       (buffer/push-string buf "\n")))
   (var returnval nil)
-  (defn error1 [x &] (error x))
   (run-context {:env env
                 :chunks chunks
                 :on-compile-error (fn [msg errf &]
@@ -1540,7 +1539,7 @@ value, one key will be ignored."
 (defn eval
   "Evaluates a form in the current environment. If more control over the
   environment is needed, use run-context."
-  [form env &]
+  [form &opt env]
   (default env *env*)
   (def res (compile form env "eval"))
   (if (= (type res) :function)
@@ -1612,9 +1611,9 @@ value, one key will be ignored."
   (def paths (map make-full module/paths))
   (def res (find check-path paths))
   (if res res [nil (string "could not find module "
-                             path
-                             ":\n    "
-                             ;(interpose "\n    " (map 0 paths)))]))
+                           path
+                           ":\n    "
+                           ;(interpose "\n    " (map 0 paths)))]))
 
 (put _env 'fexists nil)
 
@@ -1638,25 +1637,36 @@ value, one key will be ignored."
     (do
       (def [fullpath mod-kind] (module/find path))
       (unless fullpath (error mod-kind))
-      (def env (case mod-kind
-        :source (do
-                  # Normal janet module
-                  (def f (file/open fullpath))
-                  (def newenv (make-env))
-                  (put module/loading fullpath true)
-                  (defn chunks [buf _] (file/read f 2048 buf))
-                  (run-context {:env newenv
-                                :chunks chunks
-                                :on-status (fn [f x]
-                                             (when (not= (fiber/status f) :dead)
-                                               (debug/stacktrace f x)
-                                               (if exit-on-error (os/exit 1))))
-                                :source fullpath})
-                  (file/close f)
-                  (put module/loading fullpath nil)
-                  (table/setproto newenv nil))
-        :native (native fullpath (make-env))
-        :image (load-image (slurp fullpath))))
+      (def env
+        (case mod-kind
+          :source (do
+                    # Normal janet module
+                    (def f (file/open fullpath))
+                    (def newenv (make-env))
+                    (put module/loading fullpath true)
+                    (defn chunks [buf _] (file/read f 2048 buf))
+                    (defn bp [&opt x y]
+                      (def ret (bad-parse x y))
+                      (if exit-on-error (os/exit 1))
+                      ret)
+                    (defn bc [&opt x y z]
+                      (def ret (bad-compile x y z))
+                      (if exit-on-error (os/exit 1))
+                      ret)
+                    (run-context {:env newenv
+                                  :chunks chunks
+                                  :on-parse-error bp
+                                  :on-compile-error bc
+                                  :on-status (fn [f x]
+                                               (when (not= (fiber/status f) :dead)
+                                                 (debug/stacktrace f x)
+                                                 (if exit-on-error (os/exit 1))))
+                                  :source fullpath})
+                    (file/close f)
+                    (put module/loading fullpath nil)
+                    (table/setproto newenv nil))
+          :native (native fullpath (make-env))
+          :image (load-image (slurp fullpath))))
       (put module/cache fullpath env)
       (put module/cache path env)
       env)))
@@ -1694,7 +1704,7 @@ value, one key will be ignored."
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
   caught."
-  [chunks onsignal &]
+  [&opt chunks onsignal]
   (def newenv (make-env))
   (default onsignal (fn [f x]
                       (case (fiber/status f)
@@ -1716,7 +1726,7 @@ value, one key will be ignored."
 
 (defn all-bindings
   "Get all symbols available in the current environment."
-  [env &]
+  [&opt env]
   (default env *env*)
   (def envs @[])
   (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))

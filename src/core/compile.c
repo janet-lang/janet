@@ -643,6 +643,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     def->source = c->source;
 
     def->arity = 0;
+    def->min_arity = 0;
     def->flags = 0;
     if (scope->flags & JANET_SCOPE_ENV) {
         def->flags |= JANET_FUNCDEF_FLAG_NEEDSENV;

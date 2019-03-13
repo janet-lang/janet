@@ -344,7 +344,8 @@
 # Now we generate the bindings in the language.
 
 (def- specials
-  @["def"
+  @["break"
+    "def"
     "do"
     "var"
     "set"
