@@ -232,8 +232,8 @@
   (while (> i 0)
     (-- i)
     (set ret (if (= ret true)
-              (get forms i)
-              (tuple 'if (get forms i) ret))))
+               (get forms i)
+               (tuple 'if (get forms i) ret))))
   ret)
 
 (defmacro or
@@ -247,11 +247,11 @@
     (-- i)
     (def fi (get forms i))
     (set ret (if (idempotent? fi)
-      (tuple 'if fi fi ret)
-      (do
-        (def $fi (gensym))
-        (tuple 'do (tuple 'def $fi fi)
-               (tuple 'if $fi $fi ret))))))
+               (tuple 'if fi fi ret)
+               (do
+                 (def $fi (gensym))
+                 (tuple 'do (tuple 'def $fi fi)
+                        (tuple 'if $fi $fi ret))))))
   ret)
 
 (defmacro with-syms
@@ -483,7 +483,7 @@
     4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
     (let [[f g h i j] functions]
       (comp (fn [x] (f (g (h (i (j x))))))
-             ;(tuple/slice functions 5 -1)))))
+            ;(tuple/slice functions 5 -1)))))
 
 (defn identity
   "A function that returns its first argument."
@@ -882,8 +882,8 @@
 
 (defn invert
   "Returns a table of where the keys of an associative data structure
-are the values, and the values of the keys. If multiple keys have the same
-value, one key will be ignored."
+  are the values, and the values of the keys. If multiple keys have the same
+  value, one key will be ignored."
   [ds]
   (def ret @{})
   (loop [k :keys ds]
@@ -979,7 +979,7 @@ value, one key will be ignored."
     (def len (min ;(map length cols)))
     (loop [i :range [0 len]
            ci :range [0 ncol]]
-        (array/push res (get (get cols ci) i))))
+      (array/push res (get (get cols ci) i))))
   res)
 
 (defn distinct
@@ -1153,15 +1153,15 @@ value, one key will be ignored."
   match if it is equal to x."
   [x & cases]
   (with-idemp $x x
-      (def len (length cases))
-      (def len-1 (dec len))
-      ((fn aux [i]
-        (cond
-          (= i len-1) (get cases i)
-          (< i len-1) (with-syms [$res]
-                        ~(if (= ,sentinel (def ,$res ,(match-1 (get cases i) $x (fn [] (get cases (inc i))) @{})))
-                           ,(aux (+ 2 i))
-                           ,$res)))) 0)))
+    (def len (length cases))
+    (def len-1 (dec len))
+    ((fn aux [i]
+       (cond
+         (= i len-1) (get cases i)
+         (< i len-1) (with-syms [$res]
+                       ~(if (= ,sentinel (def ,$res ,(match-1 (get cases i) $x (fn [] (get cases (inc i))) @{})))
+                          ,(aux (+ 2 i))
+                          ,$res)))) 0)))
 
 (put _env 'sentinel nil)
 (put _env 'match-1 nil)
@@ -1201,14 +1201,14 @@ value, one key will be ignored."
 
   (each b text
     (if (and (not= b 10) (not= b 32))
-        (if (= b 9)
-          (buffer/push-string word "  ")
-          (buffer/push-byte word b))
-        (do
-          (if (> (length word) 0) (pushword))
-          (when (= b 10)
-            (buffer/push-string buf "\n    ")
-            (set current 0)))))
+      (if (= b 9)
+        (buffer/push-string word "  ")
+        (buffer/push-byte word b))
+      (do
+        (if (> (length word) 0) (pushword))
+        (when (= b 10)
+          (buffer/push-string buf "\n    ")
+          (set current 0)))))
 
   # Last word
   (pushword)
@@ -1611,9 +1611,9 @@ value, one key will be ignored."
   (def paths (map make-full module/paths))
   (def res (find check-path paths))
   (if res res [nil (string "could not find module "
-                             path
-                             ":\n    "
-                             ;(interpose "\n    " (map 0 paths)))]))
+                           path
+                           ":\n    "
+                           ;(interpose "\n    " (map 0 paths)))]))
 
 (put _env 'fexists nil)
 
@@ -1637,35 +1637,36 @@ value, one key will be ignored."
     (do
       (def [fullpath mod-kind] (module/find path))
       (unless fullpath (error mod-kind))
-      (def env (case mod-kind
-        :source (do
-                  # Normal janet module
-                  (def f (file/open fullpath))
-                  (def newenv (make-env))
-                  (put module/loading fullpath true)
-                  (defn chunks [buf _] (file/read f 2048 buf))
-                  (defn bp [&opt x y]
-                    (def ret (bad-parse x y))
-                    (if exit-on-error (os/exit))
-                    ret)
-                  (defn bc [&opt x y z]
-                    (def ret (bad-compile x y z))
-                    (if exit-on-error (os/exit))
-                    ret)
-                  (run-context {:env newenv
-                                :chunks chunks
-                                :on-parse-error bp
-                                :on-compile-error bc
-                                :on-status (fn [f x]
-                                             (when (not= (fiber/status f) :dead)
-                                               (debug/stacktrace f x)
-                                               (if exit-on-error (os/exit 1))))
-                                :source fullpath})
-                  (file/close f)
-                  (put module/loading fullpath nil)
-                  (table/setproto newenv nil))
-        :native (native fullpath (make-env))
-        :image (load-image (slurp fullpath))))
+      (def env
+        (case mod-kind
+          :source (do
+                    # Normal janet module
+                    (def f (file/open fullpath))
+                    (def newenv (make-env))
+                    (put module/loading fullpath true)
+                    (defn chunks [buf _] (file/read f 2048 buf))
+                    (defn bp [&opt x y]
+                      (def ret (bad-parse x y))
+                      (if exit-on-error (os/exit 1))
+                      ret)
+                    (defn bc [&opt x y z]
+                      (def ret (bad-compile x y z))
+                      (if exit-on-error (os/exit 1))
+                      ret)
+                    (run-context {:env newenv
+                                  :chunks chunks
+                                  :on-parse-error bp
+                                  :on-compile-error bc
+                                  :on-status (fn [f x]
+                                               (when (not= (fiber/status f) :dead)
+                                                 (debug/stacktrace f x)
+                                                 (if exit-on-error (os/exit 1))))
+                                  :source fullpath})
+                    (file/close f)
+                    (put module/loading fullpath nil)
+                    (table/setproto newenv nil))
+          :native (native fullpath (make-env))
+          :image (load-image (slurp fullpath))))
       (put module/cache fullpath env)
       (put module/cache path env)
       env)))

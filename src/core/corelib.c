@@ -419,8 +419,8 @@ static const JanetReg corelib_cfuns[] = {
     {
         "getline", janet_core_getline,
         JDOC("(getline [, prompt=\"\" [, buffer=@\"\"]])\n\n"
-                "Reads a line of input into a buffer, including the newline character, using a prompt. Returns the modified buffer. "
-                "Use this function to implement a simple interface for a terminal program.")
+             "Reads a line of input into a buffer, including the newline character, using a prompt. Returns the modified buffer. "
+             "Use this function to implement a simple interface for a terminal program.")
     },
     {NULL, NULL, NULL}
 };
