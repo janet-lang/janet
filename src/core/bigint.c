@@ -189,13 +189,22 @@ static Janet cfun_bi_uint64_new(int32_t argc, Janet *argv) {
 
 #define OPMETHOD(type,name,oper) \
 static Janet cfun_##type##_##name(int32_t argc, Janet *argv) { \
-    janet_arity(argc, 2, -1);                       \
+    janet_arity(argc, 2, -1); \
     bi_##type *box = (bi_##type *)janet_abstract(&bi_##type##_type, sizeof(bi_##type)); \
     *box = check_bi_##type(argv[0]); \
     for (int i=1;i<argc;i++) \
       *box oper##= check_bi_##type(argv[i]); \
     return janet_wrap_abstract(box); \
+} \
+ \
+static Janet cfun_##type##_##name##_mut(int32_t argc, Janet *argv) { \
+    janet_arity(argc, 2, -1); \
+    bi_##type *box = (bi_##type *)janet_getabstract(argv,0,&bi_##type##_type); \
+    for (int i=1;i<argc;i++) \
+      *box oper##= check_bi_##type(argv[i]); \
+    return janet_wrap_abstract(box); \
 }
+
 
 #define DIVMETHOD(type,name,oper) \
 static Janet cfun_##type##_##name(int32_t argc, Janet *argv) { \
@@ -208,7 +217,19 @@ static Janet cfun_##type##_##name(int32_t argc, Janet *argv) { \
       *box oper##= check_bi_##type(argv[i]); \
     } \
     return janet_wrap_abstract(box); \
+} \
+ \
+static Janet cfun_##type##_##name##_mut(int32_t argc, Janet *argv) { \
+    janet_arity(argc, 2, -1); \
+    bi_##type *box = (bi_##type *)janet_getabstract(argv,0,&bi_##type##_type); \
+    for (int i=1;i<argc;i++) { \
+      bi_##type value =  check_bi_##type(argv[i]); \
+      if (value == 0) janet_panic("division by zero"); \
+      *box oper##= check_bi_##type(argv[i]); \
+    } \
+    return janet_wrap_abstract(box); \
 }
+
 
 
 #define COMPMETHOD(type,name,oper) \
@@ -276,6 +297,18 @@ static JanetMethod int64_methods[] = {
     {"^", cfun_int64_xor},
     {"<<", cfun_int64_lshift},
     {">>", cfun_int64_rshift},
+
+    {"+!", cfun_int64_add_mut},
+    {"-!", cfun_int64_sub_mut},
+    {"*!", cfun_int64_mul_mut},
+    {"/!", cfun_int64_div_mut},
+    {"%!", cfun_int64_mod_mut},
+    {"&!", cfun_int64_and_mut},
+    {"|!", cfun_int64_or_mut},
+    {"^!", cfun_int64_xor_mut},
+    {"<<!", cfun_int64_lshift_mut},
+    {">>!", cfun_int64_rshift_mut},
+
     {NULL, NULL}
 };
 
@@ -296,6 +329,18 @@ static JanetMethod uint64_methods[] = {
     {"^", cfun_uint64_xor},
     {"<<", cfun_uint64_lshift},
     {">>", cfun_uint64_rshift},
+
+    {"+!", cfun_uint64_add_mut},
+    {"-!", cfun_uint64_sub_mut},
+    {"*!", cfun_uint64_mul_mut},
+    {"/!", cfun_uint64_div_mut},
+    {"%!", cfun_uint64_mod_mut},
+    {"&!", cfun_uint64_and_mut},
+    {"|!", cfun_uint64_or_mut},
+    {"^!", cfun_uint64_xor_mut},
+    {"<<!", cfun_uint64_lshift_mut},
+    {">>!", cfun_uint64_rshift_mut},
+
     {NULL, NULL}
 };
 
