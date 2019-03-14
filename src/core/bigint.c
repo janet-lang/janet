@@ -156,19 +156,7 @@ static bi_uint64 check_bi_uint64(Janet x) {
     return 0;
 }
 
-
-static Janet make_bi_int64(Janet x) {
-    bi_int64 *box = (bi_int64 *)janet_abstract(&bi_int64_type, sizeof(bi_int64));
-    *box = check_bi_int64(x);
-    return janet_wrap_abstract(box);
-}
-
-static Janet make_bi_uint64(Janet x) {
-    bi_uint64 *box = (bi_uint64 *)janet_abstract(&bi_uint64_type, sizeof(bi_uint64));
-    *box = check_bi_uint64(x);
-    return janet_wrap_abstract(box);
-}
-
+/* C API */
 
 JanetBigintType janet_is_bigint(Janet x) {
     if (!janet_checktype(x, JANET_ABSTRACT)) return JANET_BIGINT_TYPE_none;
@@ -176,16 +164,37 @@ JanetBigintType janet_is_bigint(Janet x) {
     return (at ==  &bi_int64_type) ? JANET_BIGINT_TYPE_int64 : ((at ==  &bi_uint64_type) ? JANET_BIGINT_TYPE_uint64 : JANET_BIGINT_TYPE_none);
 }
 
+Janet janet_bigint_int64(int64_t x) {
+    bi_int64 *box = (bi_int64 *)janet_abstract(&bi_int64_type, sizeof(bi_int64));
+    *box = (bi_int64)x;
+    return janet_wrap_abstract(box);
+}
+
+Janet janet_bigint_uint64(uint64_t x) {
+    bi_uint64 *box = (bi_uint64 *)janet_abstract(&bi_uint64_type, sizeof(bi_uint64));
+    *box = (bi_uint64)x;
+    return janet_wrap_abstract(box);
+}
+
+int64_t janet_checkbigint_int64(Janet x) {
+    return (int64_t)check_bi_int64(x);
+}
+
+uint64_t janet_checkbigint_uint64(Janet x) {
+    return (uint64_t)check_bi_uint64(x);
+}
+
 
 static Janet cfun_bi_int64_new(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    return make_bi_int64(argv[0]);
+    return janet_bigint_int64(check_bi_int64(argv[0]));
 }
 
 static Janet cfun_bi_uint64_new(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    return make_bi_uint64(argv[0]);
+    return janet_bigint_uint64(check_bi_uint64(argv[0]));
 }
+
 
 #define OPMETHOD(type,name,oper) \
 static Janet cfun_##type##_##name(int32_t argc, Janet *argv) { \

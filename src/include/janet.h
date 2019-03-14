@@ -1293,6 +1293,10 @@ typedef enum {
     JANET_TARRAY_TYPE_int16,
     JANET_TARRAY_TYPE_uint32,
     JANET_TARRAY_TYPE_int32,
+#ifdef JANET_BIGINT
+    JANET_TARRAY_TYPE_uint64,
+    JANET_TARRAY_TYPE_int64,
+#endif
     JANET_TARRAY_TYPE_float32,
     JANET_TARRAY_TYPE_float64,
     JANET_TARRAY_TYPE_any,
@@ -1330,7 +1334,10 @@ typedef enum {
 } JanetBigintType;
 
 JANET_API JanetBigintType janet_is_bigint(Janet x);
-
+JANET_API Janet janet_bigint_int64(int64_t x);
+JANET_API Janet janet_bigint_uint64(uint64_t x);
+JANET_API int64_t janet_checkbigint_int64(Janet x);
+JANET_API uint64_t janet_checkbigint_uint64(Janet x);
 #endif
 
 
