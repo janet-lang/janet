@@ -42,14 +42,38 @@ typedef uint64_t bi_uint64;
 static Janet int64_get(void *p, Janet key);
 static Janet uint64_get(void *p, Janet key);
 
+static void int64_marshal(void *p, JanetMarshalContext *ctx) {
+  bi_int64 *box=(bi_int64 *)p;
+  janet_marshal_size(ctx,(size_t)(*box));
+}
+
+static void uint64_marshal(void *p, JanetMarshalContext *ctx) {
+  bi_uint64 *box=(bi_uint64 *)p;
+  janet_marshal_size(ctx,(size_t)(*box));
+}
+
+static void int64_unmarshal(void *p, JanetMarshalContext *ctx) {
+    bi_int64 *box=(bi_int64 *)p;
+    janet_unmarshal_size(ctx,(size_t *)box);
+}
+
+static void uint64_unmarshal(void *p, JanetMarshalContext *ctx) {
+    bi_uint64 *box=(bi_uint64 *)p;
+    janet_unmarshal_size(ctx,(size_t *)box);
+}
+
+
+
+
+
 static const JanetAbstractType bi_int64_type = {
     "core/int64",
     NULL,
     NULL,
     int64_get,
     NULL,
-    NULL,
-    NULL
+    int64_marshal,
+    int64_unmarshal
 };
 
 static const JanetAbstractType bi_uint64_type = {
@@ -58,8 +82,8 @@ static const JanetAbstractType bi_uint64_type = {
     NULL,
     uint64_get,
     NULL,
-    NULL,
-    NULL
+    uint64_marshal,
+    uint64_unmarshal
 };
 
 static int parse_int64(const char *str, bi_int64 *box) {
