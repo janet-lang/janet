@@ -96,6 +96,7 @@ DEFINE_GETTER(fiber, FIBER, JanetFiber *)
 DEFINE_GETTER(function, FUNCTION, JanetFunction *)
 DEFINE_GETTER(cfunction, CFUNCTION, JanetCFunction)
 DEFINE_GETTER(boolean, BOOLEAN, int)
+DEFINE_GETTER(pointer, POINTER, void *)
 
 int32_t janet_getinteger(const Janet *argv, int32_t n) {
     Janet x = argv[n];
