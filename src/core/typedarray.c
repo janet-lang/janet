@@ -37,6 +37,10 @@ typedef uint32_t ta_uint32_t;
 typedef int32_t ta_int32_t;
 typedef float ta_float32_t;
 typedef double ta_float64_t;
+#ifdef JANET_BIGINT
+typedef uint64_t ta_uint64_t;
+typedef int64_t ta_int64_t;
+#endif
 
 static char *ta_type_names[] = {
     "uint8",
@@ -45,6 +49,10 @@ static char *ta_type_names[] = {
     "int16",
     "uint32",
     "int32",
+#ifdef JANET_BIGINT
+    "uint64",
+    "int64",
+#endif
     "float32",
     "float64",
     "any"
@@ -57,6 +65,10 @@ static size_t ta_type_sizes[] = {
     sizeof(ta_int16_t),
     sizeof(ta_uint32_t),
     sizeof(ta_int32_t),
+#ifdef JANET_BIGINT
+    sizeof(ta_uint64_t),
+    sizeof(ta_int64_t),
+#endif
     sizeof(ta_float32_t),
     sizeof(ta_float64_t),
     0
@@ -191,6 +203,23 @@ static Janet ta_get_##type(void *p, Janet key) { \
   return value; \
 }
 
+#define DEFINE_VIEW_GETTER_BIGINT(type) \
+static Janet ta_get_##type(void *p, Janet key) { \
+  Janet value;  \
+  size_t index; \
+  if (!janet_checksize(key))      \
+    janet_panic("expected size as key");     \
+  index = (size_t)janet_unwrap_number(key);\
+  TA_View_##type *array=(TA_View_##type *)p; \
+  if (index >= array->size) { \
+    value = janet_wrap_nil(); \
+  } else { \
+    value = janet_bigint_##type(array->data[index*array->stride]); \
+  } \
+  return value; \
+}
+
+
 #define DEFINE_VIEW_SETTER(type) \
 void ta_put_##type(void *p, Janet key,Janet value) { \
   size_t index;\
@@ -205,6 +234,20 @@ void ta_put_##type(void *p, Janet key,Janet value) { \
   } \
   array->data[index*array->stride]=(ta_##type##_t)janet_unwrap_number(value); \
 }
+
+#define DEFINE_VIEW_SETTER_BIGINT(type) \
+void ta_put_##type(void *p, Janet key,Janet value) { \
+  size_t index;\
+  if (!janet_checksize(key))\
+    janet_panic("expected size as key"); \
+  index = (size_t)janet_unwrap_number(key); \
+  TA_View_##type *array=(TA_View_##type *)p; \
+  if (index >= array->size) { \
+    janet_panic("index out of bounds"); \
+  } \
+  array->data[index*array->stride]=(ta_##type##_t)janet_checkbigint_##type(value); \
+}
+
 
 #define DEFINE_VIEW_INITIALIZER(thetype) \
   static JanetTArrayView *ta_init_##thetype(JanetTArrayView *view, \
@@ -236,18 +279,30 @@ DEFINE_VIEW_GETTER(type)  \
 DEFINE_VIEW_SETTER(type) \
 DEFINE_VIEW_INITIALIZER(type)
 
+#define BUILD_TYPE_BIGINT(type) \
+DEFINE_VIEW_TYPE(type)   \
+DEFINE_VIEW_GETTER_BIGINT(type)  \
+DEFINE_VIEW_SETTER_BIGINT(type) \
+DEFINE_VIEW_INITIALIZER(type)
+
 BUILD_TYPE(uint8)
 BUILD_TYPE(int8)
 BUILD_TYPE(uint16)
 BUILD_TYPE(int16)
 BUILD_TYPE(uint32)
 BUILD_TYPE(int32)
+#ifdef JANET_BIGINT
+BUILD_TYPE_BIGINT(uint64)
+BUILD_TYPE_BIGINT(int64)
+#endif
 BUILD_TYPE(float32)
 BUILD_TYPE(float64)
 
 #undef DEFINE_VIEW_TYPE
 #undef DEFINE_VIEW_GETTER
 #undef DEFINE_VIEW_SETTER
+#undef DEFINE_VIEW_GETTER_BIGINT
+#undef DEFINE_VIEW_SETTER_BIGINT
 #undef DEFINE_VIEW_INITIALIZER
 
 #define DEFINE_VIEW_ABSTRACT_TYPE(type) \
@@ -268,6 +323,10 @@ static const JanetAbstractType ta_array_types[] = {
     DEFINE_VIEW_ABSTRACT_TYPE(int16),
     DEFINE_VIEW_ABSTRACT_TYPE(uint32),
     DEFINE_VIEW_ABSTRACT_TYPE(int32),
+#ifdef JANET_BIGINT
+    DEFINE_VIEW_ABSTRACT_TYPE(uint64),
+    DEFINE_VIEW_ABSTRACT_TYPE(int64),
+#endif
     DEFINE_VIEW_ABSTRACT_TYPE(float32),
     DEFINE_VIEW_ABSTRACT_TYPE(float64)
 };
@@ -308,6 +367,10 @@ JanetTArrayView *janet_tarray_view(JanetTArrayType type, size_t size, size_t str
             CASE_TYPE_INITIALIZE(int16);
             CASE_TYPE_INITIALIZE(uint32);
             CASE_TYPE_INITIALIZE(int32);
+#ifdef JANET_BIGINT
+            CASE_TYPE_INITIALIZE(uint64);
+            CASE_TYPE_INITIALIZE(int64);
+#endif
             CASE_TYPE_INITIALIZE(float32);
             CASE_TYPE_INITIALIZE(float64);
         default :
