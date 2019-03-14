@@ -85,7 +85,8 @@ static const JanetAbstractType bi_uint64_type = {
 
 static int parse_int64(const char *str, bi_int64 *box) {
     char *endptr;
-    int base = (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) ? 16 : 10;
+    int base = ((str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) ||
+                (str[0] == '-' && str[1] == '0' && (str[2] == 'x' || str[2] == 'X'))) ? 16 : 10;
     errno = 0;
     *box = (bi_int64)strtoll(str, &endptr, base);
     if ((errno == ERANGE && (*box == LLONG_MAX || *box == LLONG_MIN)) ||
@@ -239,6 +240,33 @@ static Janet cfun_##type##_##name##_mut(int32_t argc, Janet *argv) { \
     return janet_wrap_abstract(box); \
 }
 
+#define DIVMETHOD_SIGNED(type,name,oper) \
+static Janet cfun_##type##_##name(int32_t argc, Janet *argv) { \
+    janet_arity(argc, 2, -1);                       \
+    bi_##type *box = (bi_##type *)janet_abstract(&bi_##type##_type, sizeof(bi_##type)); \
+    *box = check_bi_##type(argv[0]); \
+    for (int i=1;i<argc;i++) { \
+      bi_##type value =  check_bi_##type(argv[i]); \
+      if (value == 0) janet_panic("division by zero"); \
+      if ((value == -1) && (*box == INT64_MIN)) janet_panic("INT64_MIN divided by -1"); \
+      *box oper##= check_bi_##type(argv[i]); \
+    } \
+    return janet_wrap_abstract(box); \
+} \
+ \
+static Janet cfun_##type##_##name##_mut(int32_t argc, Janet *argv) { \
+    janet_arity(argc, 2, -1); \
+    bi_##type *box = (bi_##type *)janet_getabstract(argv,0,&bi_##type##_type); \
+    for (int i=1;i<argc;i++) { \
+      bi_##type value =  check_bi_##type(argv[i]); \
+      if (value == 0) janet_panic("division by zero"); \
+      if ((value == -1) && (*box == INT64_MIN)) janet_panic("INT64_MIN divided by -1"); \
+      *box oper##= check_bi_##type(argv[i]); \
+    } \
+    return janet_wrap_abstract(box); \
+}
+
+
 
 
 #define COMPMETHOD(type,name,oper) \
@@ -254,8 +282,8 @@ static Janet cfun_##type##_##name(int32_t argc, Janet *argv) { \
 OPMETHOD(int64, add, +)
 OPMETHOD(int64, sub, -)
 OPMETHOD(int64, mul, *)
-DIVMETHOD(int64, div, /)
-DIVMETHOD(int64, mod, %)
+DIVMETHOD_SIGNED(int64, div, /)
+DIVMETHOD_SIGNED(int64, mod, %)
 OPMETHOD(int64, and, &)
 OPMETHOD(int64, or, |)
 OPMETHOD(int64, xor, ^)
@@ -287,6 +315,7 @@ COMPMETHOD(uint64, ne, !=)
 
 #undef OPMETHOD
 #undef DIVMETHOD
+#undef DIVMETHOD_SIGNED
 #undef COMPMETHOD
 
 static JanetMethod int64_methods[] = {

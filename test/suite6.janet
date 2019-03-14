@@ -23,44 +23,70 @@
 
 # some tests for bigint 
 
+(def i64 bigint/int64)
+(def u64 bigint/uint64)
+
 (assert-no-error
  "create some uint64 bigints"
  (do
    # from number
-   (def a (bigint/uint64 10))
+   (def a (u64 10))
    # max double we can convert to int (2^53)
-   (def b (bigint/uint64 0x1fffffffffffff))
-   (def b (bigint/uint64 (math/pow 2 53)))
+   (def b (u64 0x1fffffffffffff))
+   (def b (u64 (math/pow 2 53)))
    # from string 
-   (def c (bigint/uint64 "0xffffffffffffffff"))
-   (def d (bigint/uint64 "123456789"))))
+   (def c (u64 "0xffffffffffffffff"))
+   (def d (u64 "123456789"))))
 
 (assert-no-error
  "create some int64 bigints"
  (do
    # from number
-   (def a (bigint/int64 -10))
+   (def a (i64 -10))
    # max double we can convert to int (2^53)
-   (def b (bigint/int64 0x1fffffffffffff))
-   (def b (bigint/int64 (math/pow 2 53)))
+   (def b (i64 0x1fffffffffffff))
+   (def b (i64 (math/pow 2 53)))
    # from string 
-   (def c (bigint/int64 "0x7fffffffffffffff"))
-   (def d (bigint/int64 "123456789"))))
+   (def c (i64 "0x7fffffffffffffff"))
+   (def d (i64 "123456789"))))
 
 (assert-error
  "bad initializers"
  (do
    # double to big to be converted to uint64 without truncation (2^53 + 1)
-   (def b (bigint/uint64 (+ 0xffff_ffff_ffff_ff 1)))
-   (def b (bigint/uint64 (+ (math/pow 2 53) 1)))
+   (def b (u64 (+ 0xffff_ffff_ffff_ff 1)))
+   (def b (u64 (+ (math/pow 2 53) 1)))
    # out of range 65 bits
-   (def c (bigint/uint64 "0x1ffffffffffffffff"))
+   (def c (u64 "0x1ffffffffffffffff"))
    # just to big     
-   (def d (bigint/uint64 "123456789123456789123456789"))))
+   (def d (u64 "123456789123456789123456789"))))
 
-(assert (:== (:/ (bigint/uint64 "0xffffffffffffffff") 8 2) "0xfffffffffffffff") "bigint operations")
-(assert (let [a (bigint/uint64 0xff)] (:== (:+ a a a a) (:* a 2 2))) "bigint operations")
-        
+(assert (:== (:/ (u64 "0xffffffffffffffff") 8 2) "0xfffffffffffffff") "bigint operations")
+(assert (let [a (u64 0xff)] (:== (:+ a a a a) (:* a 2 2))) "bigint operations")
+
+(assert-error
+ "trap INT64_MIN / -1"
+ (:/ (bigint/int64 "-0x8000000000000000") -1))
+
+# in place operators
+(assert (let [a (u64 1e10)] (:+! a 1000000 "1000000" "0xffff") (:== a 10002065535)) "in place operators")
+
+# int64 typed arrays
+(assert (let [t (tarray/new :int64 10)
+              b (i64 1000)]
+          (set (t 0) 1000)
+          (set (t 1) b)
+          (set (t 2) "1000")
+          (set (t 3) (t 0))
+          (set (t 4) (u64 1000))
+          (and 
+           (:== (t 0) (t 1))
+           (:== (t 1) (t 2))
+           (:== (t 2) (t 3))
+           (:== (t 3) (t 4))
+           ))
+        "int64 typed arrays")
+
 
 
 (end-suite)
