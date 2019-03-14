@@ -1247,6 +1247,7 @@ JANET_API JanetFiber *janet_getfiber(const Janet *argv, int32_t n);
 JANET_API JanetFunction *janet_getfunction(const Janet *argv, int32_t n);
 JANET_API JanetCFunction janet_getcfunction(const Janet *argv, int32_t n);
 JANET_API int janet_getboolean(const Janet *argv, int32_t n);
+JANET_API void *janet_getpointer(const Janet *argv, int32_t n);
 
 JANET_API int32_t janet_getinteger(const Janet *argv, int32_t n);
 JANET_API int64_t janet_getinteger64(const Janet *argv, int32_t n);
