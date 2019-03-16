@@ -361,3 +361,101 @@ error:
     free(mant.digits);
     return 1;
 }
+
+#ifdef JANET_BIGINT
+
+static int scan_bigint(
+    const uint8_t *str,
+    int32_t len,
+    uint64_t *out,
+    int *neg
+) {
+    const uint8_t *end = str + len;
+    int seenadigit = 0;
+    int base = 10;
+    *neg = 0;
+    *out = 0;
+    uint64_t accum = 0;
+    /* len max is INT64_MAX in base 2 with _ between each bits */
+    /* '2r' + 64 bits + 63 _  + sign = 130 => 150 for some leading  */
+    /* zeros */
+    if (len > 150) return 0;
+    /* Get sign */
+    if (str >= end) return 0;
+    if (*str == '-') {
+        *neg = 1;
+        str++;
+    } else if (*str == '+') {
+        str++;
+    }
+    /* Check for leading 0x or digit digit r */
+    if (str + 1 < end && str[0] == '0' && str[1] == 'x') {
+        base = 16;
+        str += 2;
+    } else if (str + 1 < end  &&
+               str[0] >= '0' && str[0] <= '9' &&
+               str[1] == 'r') {
+        base = str[0] - '0';
+        str += 2;
+    } else if (str + 2 < end  &&
+               str[0] >= '0' && str[0] <= '9' &&
+               str[1] >= '0' && str[1] <= '9' &&
+               str[2] == 'r') {
+        base = 10 * (str[0] - '0') + (str[1] - '0');
+        if (base < 2 || base > 36) return 0;
+        str += 3;
+    }
+
+    /* Skip leading zeros */
+    while (str < end && *str == '0') {
+        seenadigit = 1;
+        str++;
+    }
+    /* Parse significant digits */
+    while (str < end) {
+        if (*str == '_') {
+            if (!seenadigit) return 0;
+        } else {
+            int digit = digit_lookup[*str & 0x7F];
+            if (*str > 127 || digit >= base) return 0;
+            if (accum > (UINT64_MAX - digit) / base) return 0;
+            accum = accum * base + digit;
+            seenadigit = 1;
+        }
+        str++;
+    }
+
+    if (!seenadigit) return 0;
+    *out = accum;
+    return 1;
+}
+
+int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out) {
+    int neg;
+    uint64_t bi;
+    if (scan_bigint(str, len, &bi, &neg)) {
+        if (neg && bi <= 0x8000000000000000UL) {
+            *out = -bi;
+            return 1;
+        }
+        if (!neg && bi <= 0x7FFFFFFFFFFFFFFFUL) {
+            *out = bi;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out) {
+    int neg;
+    uint64_t bi;
+    if (scan_bigint(str, len, &bi, &neg)) {
+        if (!neg) {
+            *out = bi;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+#endif
