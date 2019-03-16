@@ -83,29 +83,6 @@ static const JanetAbstractType bi_uint64_type = {
     uint64_unmarshal
 };
 
-static int parse_int64(const char *str, bi_int64 *box) {
-    char *endptr;
-    int base = ((str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) ||
-                (str[0] == '-' && str[1] == '0' && (str[2] == 'x' || str[2] == 'X'))) ? 16 : 10;
-    errno = 0;
-    *box = (bi_int64)strtoll(str, &endptr, base);
-    if ((errno == ERANGE && (*box == LLONG_MAX || *box == LLONG_MIN)) ||
-            (errno != 0 && *box == 0) ||
-            (endptr == str)) return 0;
-    return 1;
-}
-
-static int parse_uint64(const char *str, bi_uint64 *box) {
-    char *endptr;
-    int base = (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) ? 16 : 10;
-    errno = 0;
-    *box = (bi_int64)strtoull(str, &endptr, base);
-    if ((errno == ERANGE && (*box == ULLONG_MAX)) ||
-            (errno != 0 && *box == 0) ||
-            (endptr == str)) return 0;
-    return 1;
-}
-
 
 static bi_int64 check_bi_int64(Janet x) {
     switch (janet_type(x)) {
@@ -117,7 +94,8 @@ static bi_int64 check_bi_int64(Janet x) {
         }
         case JANET_STRING: {
             bi_int64 value;
-            if (parse_int64((const char *)janet_unwrap_string(x), &value))
+            const uint8_t *str = janet_unwrap_string(x);
+            if (janet_scan_int64(str, janet_string_length(str), &value))
                 return value;
             break;
         }
@@ -142,7 +120,8 @@ static bi_uint64 check_bi_uint64(Janet x) {
         }
         case JANET_STRING: {
             bi_uint64 value;
-            if (parse_uint64((const char *)janet_unwrap_string(x), &value))
+            const uint8_t *str = janet_unwrap_string(x);
+            if (janet_scan_uint64(str, janet_string_length(str), &value))
                 return value;
             break;
         }

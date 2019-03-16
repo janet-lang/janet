@@ -21,7 +21,7 @@
 (import test/helper :prefix "" :exit true)
 (start-suite 6)
 
-# some tests for bigint 
+# some tests for bigint
 
 (def i64 bigint/int64)
 (def u64 bigint/uint64)
@@ -34,8 +34,9 @@
    # max double we can convert to int (2^53)
    (def b (u64 0x1fffffffffffff))
    (def b (u64 (math/pow 2 53)))
-   # from string 
-   (def c (u64 "0xffffffffffffffff"))
+   # from string
+   (def c (u64 "0xffff_ffff_ffff_ffff"))
+   (def c (u64 "32rvv_vv_vv_vv"))
    (def d (u64 "123456789"))))
 
 (assert-no-error
@@ -47,7 +48,7 @@
    (def b (i64 0x1fffffffffffff))
    (def b (i64 (math/pow 2 53)))
    # from string 
-   (def c (i64 "0x7fffffffffffffff"))
+   (def c (i64 "0x7fff_ffff_ffff_ffff"))
    (def d (i64 "123456789"))))
 
 (assert-error
@@ -58,15 +59,15 @@
    (def b (u64 (+ (math/pow 2 53) 1)))
    # out of range 65 bits
    (def c (u64 "0x1ffffffffffffffff"))
-   # just to big     
+   # just to big
    (def d (u64 "123456789123456789123456789"))))
 
-(assert (:== (:/ (u64 "0xffffffffffffffff") 8 2) "0xfffffffffffffff") "bigint operations")
+(assert (:== (:/ (u64 "0xffff_ffff_ffff_ffff") 8 2) "0xfffffffffffffff") "bigint operations")
 (assert (let [a (u64 0xff)] (:== (:+ a a a a) (:* a 2 2))) "bigint operations")
 
 (assert-error
  "trap INT64_MIN / -1"
- (:/ (bigint/int64 "-0x8000000000000000") -1))
+ (:/ (bigint/int64 "-0x8000_0000_0000_0000") -1))
 
 # in place operators
 (assert (let [a (u64 1e10)] (:+! a 1000000 "1000000" "0xffff") (:== a 10002065535)) "in place operators")
@@ -79,7 +80,7 @@
           (set (t 2) "1000")
           (set (t 3) (t 0))
           (set (t 4) (u64 1000))
-          (and 
+          (and
            (:== (t 0) (t 1))
            (:== (t 1) (t 2))
            (:== (t 2) (t 3))

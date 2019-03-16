@@ -1338,6 +1338,8 @@ JANET_API Janet janet_bigint_int64(int64_t x);
 JANET_API Janet janet_bigint_uint64(uint64_t x);
 JANET_API int64_t janet_checkbigint_int64(Janet x);
 JANET_API uint64_t janet_checkbigint_uint64(Janet x);
+JANET_API int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out);
+JANET_API int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out);
 #endif
 
 
