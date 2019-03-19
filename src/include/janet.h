@@ -133,11 +133,10 @@ extern "C" {
 #define JANET_TYPED_ARRAY
 #endif
 
-/* Enable or disable the bigint module */
-#ifndef JANET_NO_BIGINT
-#define JANET_BIGINT
+/* Enable or disable large int types (for now 64 bit, maybe 128 / 256 bit integer types) */
+#ifndef JANET_NO_INT_TYPES
+#define JANET_INT_TYPES
 #endif
-
 
 /* How to export symbols */
 #ifndef JANET_API
@@ -1032,6 +1031,8 @@ JANET_API int janet_dostring(JanetTable *env, const char *str, const char *sourc
 
 /* Number scanning */
 JANET_API int janet_scan_number(const uint8_t *str, int32_t len, double *out);
+JANET_API int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out);
+JANET_API int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out);
 
 /* Debugging */
 JANET_API void janet_debug_break(JanetFuncDef *def, int32_t pc);
@@ -1269,17 +1270,19 @@ JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length
 JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int *flags);
 
 /* Marshal API */
+#define janet_marshal_size(ctx, x) janet_marshal_int64((ctx), (int64_t) (x))
 JANET_API void janet_marshal_int(JanetMarshalContext *ctx, int32_t value);
-JANET_API void janet_marshal_size(JanetMarshalContext *ctx, size_t value);
+JANET_API void janet_marshal_int64(JanetMarshalContext *ctx, int64_t value);
 JANET_API void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value);
 JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, size_t len);
 JANET_API void janet_marshal_janet(JanetMarshalContext *ctx, Janet x);
 
-JANET_API void janet_unmarshal_int(JanetMarshalContext *ctx, int32_t *i);
-JANET_API void janet_unmarshal_size(JanetMarshalContext *ctx, size_t *i);
-JANET_API void janet_unmarshal_byte(JanetMarshalContext *ctx, uint8_t *b);
+#define janet_unmarshal_size(ctx) ((size_t) janet_unmarshal_int64((ctx)))
+JANET_API int32_t janet_unmarshal_int(JanetMarshalContext *ctx);
+JANET_API int64_t janet_unmarshal_int64(JanetMarshalContext *ctx);
+JANET_API uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx);
 JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, size_t len);
-JANET_API void janet_unmarshal_janet(JanetMarshalContext *ctx, Janet *out);
+JANET_API Janet janet_unmarshal_janet(JanetMarshalContext *ctx);
 
 JANET_API void janet_register_abstract_type(const JanetAbstractType *at);
 JANET_API const JanetAbstractType *janet_get_abstract_type(Janet key);
@@ -1287,19 +1290,16 @@ JANET_API const JanetAbstractType *janet_get_abstract_type(Janet key);
 #ifdef JANET_TYPED_ARRAY
 
 typedef enum {
-    JANET_TARRAY_TYPE_uint8,
-    JANET_TARRAY_TYPE_int8,
-    JANET_TARRAY_TYPE_uint16,
-    JANET_TARRAY_TYPE_int16,
-    JANET_TARRAY_TYPE_uint32,
-    JANET_TARRAY_TYPE_int32,
-#ifdef JANET_BIGINT
-    JANET_TARRAY_TYPE_uint64,
-    JANET_TARRAY_TYPE_int64,
-#endif
-    JANET_TARRAY_TYPE_float32,
-    JANET_TARRAY_TYPE_float64,
-    JANET_TARRAY_TYPE_any,
+    JANET_TARRAY_TYPE_U8,
+    JANET_TARRAY_TYPE_S8,
+    JANET_TARRAY_TYPE_U16,
+    JANET_TARRAY_TYPE_S16,
+    JANET_TARRAY_TYPE_U32,
+    JANET_TARRAY_TYPE_S32,
+    JANET_TARRAY_TYPE_U64,
+    JANET_TARRAY_TYPE_S64,
+    JANET_TARRAY_TYPE_F32,
+    JANET_TARRAY_TYPE_F64
 } JanetTArrayType;
 
 typedef struct {
@@ -1309,8 +1309,20 @@ typedef struct {
 } JanetTArrayBuffer;
 
 typedef struct {
+    union {
+        void *pointer;
+        uint8_t *u8;
+        int8_t *s8;
+        uint16_t *u16;
+        int16_t *s16;
+        uint32_t *u32;
+        int32_t *s32;
+        uint64_t *u64;
+        int64_t *s64;
+        float *f32;
+        double *f64;
+    } as;
     JanetTArrayBuffer *buffer;
-    void *data; /* pointer inside buffer->data */
     size_t size;
     size_t stride;
     JanetTArrayType type;
@@ -1319,30 +1331,29 @@ typedef struct {
 JANET_API JanetTArrayBuffer *janet_tarray_buffer(size_t size);
 JANET_API JanetTArrayView *janet_tarray_view(JanetTArrayType type, size_t size, size_t stride, size_t offset, JanetTArrayBuffer *buffer);
 JANET_API int janet_is_tarray_view(Janet x, JanetTArrayType type);
-JANET_API size_t janet_tarray_type_size(JanetTArrayType type);
 JANET_API JanetTArrayBuffer *janet_gettarray_buffer(const Janet *argv, int32_t n);
 JANET_API JanetTArrayView *janet_gettarray_view(const Janet *argv, int32_t n, JanetTArrayType type);
+JanetTArrayView *janet_gettarray_any(const Janet *argv, int32_t n);
 
 #endif
 
-#ifdef JANET_BIGINT
+#ifdef JANET_INT_TYPES
 
 typedef enum {
-    JANET_BIGINT_TYPE_none,
-    JANET_BIGINT_TYPE_int64,
-    JANET_BIGINT_TYPE_uint64,
-} JanetBigintType;
+    JANET_INT_NONE,
+    JANET_INT_S64,
+    JANET_INT_U64
+} JanetIntType;
 
-JANET_API JanetBigintType janet_is_bigint(Janet x);
-JANET_API Janet janet_bigint_int64(int64_t x);
-JANET_API Janet janet_bigint_uint64(uint64_t x);
-JANET_API int64_t janet_checkbigint_int64(Janet x);
-JANET_API uint64_t janet_checkbigint_uint64(Janet x);
+JANET_API JanetIntType janet_is_int(Janet x);
+JANET_API Janet janet_wrap_s64(int64_t x);
+JANET_API Janet janet_wrap_u64(uint64_t x);
+JANET_API int64_t janet_unwrap_s64(Janet x);
+JANET_API uint64_t janet_unwrap_u64(Janet x);
 JANET_API int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out);
 JANET_API int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out);
+
 #endif
-
-
 
 /***** END SECTION MAIN *****/
 

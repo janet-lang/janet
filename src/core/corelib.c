@@ -827,8 +827,8 @@ JanetTable *janet_core_env(JanetTable *replacements) {
 #ifdef JANET_TYPED_ARRAY
     janet_lib_typed_array(env);
 #endif
-#ifdef JANET_BIGINT
-    janet_lib_bigint(env);
+#ifdef JANET_INT_TYPES
+    janet_lib_inttypes(env);
 #endif
 
 
