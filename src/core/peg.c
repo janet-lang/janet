@@ -986,6 +986,7 @@ static JanetAbstractType peg_type = {
     NULL,
     NULL,
     NULL,
+    NULL,
     NULL
 };
 

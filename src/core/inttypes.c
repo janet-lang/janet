@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <inttypes.h>
 
 #ifndef JANET_AMALG
 #include <janet.h>
@@ -45,6 +46,18 @@ static void int64_unmarshal(void *p, JanetMarshalContext *ctx) {
     *((int64_t *)p) = janet_unmarshal_int64(ctx);
 }
 
+static void it_s64_tostring(void *p, JanetBuffer *buffer) {
+    char str[32];
+    sprintf(str, "<core/s64 %" PRId64 ">", *((int64_t *)p));
+    janet_buffer_push_cstring(buffer, str);
+}
+
+static void it_u64_tostring(void *p, JanetBuffer *buffer) {
+    char str[32];
+    sprintf(str, "<core/u64 %" PRIu64 ">", *((uint64_t *)p));
+    janet_buffer_push_cstring(buffer, str);
+}
+
 static const JanetAbstractType it_s64_type = {
     "core/s64",
     NULL,
@@ -52,7 +65,8 @@ static const JanetAbstractType it_s64_type = {
     it_s64_get,
     NULL,
     int64_marshal,
-    int64_unmarshal
+    int64_unmarshal,
+    it_s64_tostring
 };
 
 static const JanetAbstractType it_u64_type = {
@@ -62,7 +76,8 @@ static const JanetAbstractType it_u64_type = {
     it_u64_get,
     NULL,
     int64_marshal,
-    int64_unmarshal
+    int64_unmarshal,
+    it_u64_tostring
 };
 
 int64_t janet_unwrap_s64(Janet x) {

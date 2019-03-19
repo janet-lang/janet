@@ -833,6 +833,7 @@ struct JanetAbstractType {
     void (*put)(void *data, Janet key, Janet value);
     void (*marshal)(void *p, JanetMarshalContext *ctx);
     void (*unmarshal)(void *p, JanetMarshalContext *ctx);
+    void (*tostring)(void *p, JanetBuffer *buffer);
 };
 
 struct JanetReg {
@@ -1101,6 +1102,7 @@ JANET_API void janet_description_b(JanetBuffer *buffer, Janet x);
 #define janet_cstringv(cstr) janet_wrap_string(janet_cstring(cstr))
 #define janet_stringv(str, len) janet_wrap_string(janet_string((str), (len)))
 JANET_API const uint8_t *janet_formatc(const char *format, ...);
+JANET_API void janet_formatb(JanetBuffer *bufp, const char *format, va_list args);
 
 /* Symbol functions */
 JANET_API const uint8_t *janet_symbol(const uint8_t *str, int32_t len);

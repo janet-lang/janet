@@ -201,8 +201,14 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
             janet_escape_buffer_b(buffer, janet_unwrap_buffer(x));
             return;
         case JANET_ABSTRACT: {
-            const char *n = janet_abstract_type(janet_unwrap_abstract(x))->name;
-            string_description_b(buffer, n, janet_unwrap_abstract(x));
+            void *p = janet_unwrap_abstract(x);
+            const JanetAbstractType *at = janet_abstract_type(p);
+            if (at->tostring) {
+                at->tostring(p, buffer);
+            } else {
+                const char *n = at->name;
+                string_description_b(buffer, n, janet_unwrap_abstract(x));
+            }
             return;
         }
         case JANET_CFUNCTION: {
@@ -456,38 +462,18 @@ static void pushtypes(JanetBuffer *buffer, int types) {
     }
 }
 
-/* Helper function for formatting strings. Useful for generating error messages and the like.
- * Similar to printf, but specialized for operating with janet. */
-const uint8_t *janet_formatc(const char *format, ...) {
-    va_list args;
-    int32_t len = 0;
-    int32_t i;
-    const uint8_t *ret;
-    JanetBuffer buffer;
-    JanetBuffer *bufp = &buffer;
-
-    /* Calculate length */
-    while (format[len]) len++;
-
-    /* Initialize buffer */
-    janet_buffer_init(bufp, len);
-
-    /* Start args */
-    va_start(args, format);
-
-    /* Iterate length */
-    for (i = 0; i < len; i++) {
-        uint8_t c = format[i];
-        switch (c) {
+void janet_formatb(JanetBuffer *bufp, const char *format, va_list args) {
+    for (const char *c = format; *c; c++) {
+        switch (*c) {
             default:
-                janet_buffer_push_u8(bufp, c);
+                janet_buffer_push_u8(bufp, *c);
                 break;
             case '%': {
-                if (i + 1 >= len)
+                if (c[1] == '\0')
                     break;
-                switch (format[++i]) {
+                switch (*++c) {
                     default:
-                        janet_buffer_push_u8(bufp, format[i]);
+                        janet_buffer_push_u8(bufp, *c);
                         break;
                     case 'f':
                         number_to_string_b(bufp, va_arg(args, double));
@@ -535,7 +521,25 @@ const uint8_t *janet_formatc(const char *format, ...) {
             }
         }
     }
+}
 
+/* Helper function for formatting strings. Useful for generating error messages and the like.
+ * Similar to printf, but specialized for operating with janet. */
+const uint8_t *janet_formatc(const char *format, ...) {
+    va_list args;
+    const uint8_t *ret;
+    JanetBuffer buffer;
+    int32_t len = 0;
+
+    /* Calculate length, init buffer and args */
+    while (format[len]) len++;
+    janet_buffer_init(&buffer, len);
+    va_start(args, format);
+
+    /* Run format */
+    janet_formatb(&buffer, format, args);
+
+    /* Iterate length */
     va_end(args);
 
     ret = janet_string(buffer.data, buffer.count);
