@@ -80,21 +80,6 @@ static void integer_to_string_b(JanetBuffer *buffer, int32_t x) {
     buffer->count += len + neg;
 }
 
-#ifdef JANET_BIGINT
-
-static void int64_to_string_b(JanetBuffer *buffer, int64_t x) {
-    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
-    int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, "%li", x);
-    buffer->count += count;
-}
-static void uint64_to_string_b(JanetBuffer *buffer, uint64_t x) {
-    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
-    int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, "%lu", x);
-    buffer->count += count;
-}
-
-#endif
-
 #define HEX(i) (((uint8_t *) janet_base64)[(i)])
 
 /* Returns a string description for a pointer. Truncates
@@ -216,17 +201,6 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
             janet_escape_buffer_b(buffer, janet_unwrap_buffer(x));
             return;
         case JANET_ABSTRACT: {
-#ifdef JANET_BIGINT
-            JanetBigintType bt = janet_is_bigint(x);
-            if (bt == JANET_BIGINT_TYPE_int64) {
-                int64_to_string_b(buffer, *(int64_t *)janet_unwrap_abstract(x));
-                return;
-            }
-            if (bt == JANET_BIGINT_TYPE_uint64) {
-                uint64_to_string_b(buffer, *(uint64_t *)janet_unwrap_abstract(x));
-                return;
-            }
-#endif
             const char *n = janet_abstract_type(janet_unwrap_abstract(x))->name;
             string_description_b(buffer, n, janet_unwrap_abstract(x));
             return;
