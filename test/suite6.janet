@@ -23,8 +23,8 @@
 
 # some tests for bigint
 
-(def i64 bigint/int64)
-(def u64 bigint/uint64)
+(def i64 int/s64)
+(def u64 int/u64)
 
 (assert-no-error
  "create some uint64 bigints"
@@ -67,7 +67,7 @@
 
 (assert-error
  "trap INT64_MIN / -1"
- (:/ (bigint/int64 "-0x8000_0000_0000_0000") -1))
+ (:/ (int/s64 "-0x8000_0000_0000_0000") -1))
 
 # in place operators
 (assert (let [a (u64 1e10)] (:+! a 1000000 "1000000" "0xffff") (:== a 10002065535)) "in place operators")

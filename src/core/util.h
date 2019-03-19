@@ -92,8 +92,8 @@ void janet_lib_peg(JanetTable *env);
 #ifdef JANET_TYPED_ARRAY
 void janet_lib_typed_array(JanetTable *env);
 #endif
-#ifdef JANET_BIGINT
-void janet_lib_bigint(JanetTable *env);
+#ifdef JANET_INT_TYPES
+void janet_lib_inttypes(JanetTable *env);
 #endif
 
 

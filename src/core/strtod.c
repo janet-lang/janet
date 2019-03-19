@@ -362,14 +362,13 @@ error:
     return 1;
 }
 
-#ifdef JANET_BIGINT
+#ifdef JANET_INT_TYPES
 
-static int scan_bigint(
+static int scan_int64(
     const uint8_t *str,
     int32_t len,
     uint64_t *out,
-    int *neg
-) {
+    int *neg) {
     const uint8_t *end = str + len;
     int seenadigit = 0;
     int base = 10;
@@ -433,7 +432,7 @@ static int scan_bigint(
 int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out) {
     int neg;
     uint64_t bi;
-    if (scan_bigint(str, len, &bi, &neg)) {
+    if (scan_int64(str, len, &bi, &neg)) {
         if (neg && bi <= 0x8000000000000000UL) {
             *out = -bi;
             return 1;
@@ -449,7 +448,7 @@ int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out) {
 int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out) {
     int neg;
     uint64_t bi;
-    if (scan_bigint(str, len, &bi, &neg)) {
+    if (scan_int64(str, len, &bi, &neg)) {
         if (!neg) {
             *out = bi;
             return 1;
