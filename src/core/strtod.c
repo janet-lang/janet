@@ -364,7 +364,7 @@ error:
 
 #ifdef JANET_INT_TYPES
 
-static int scan_int64(
+static int scan_uint64(
     const uint8_t *str,
     int32_t len,
     uint64_t *out,
@@ -432,12 +432,12 @@ static int scan_int64(
 int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out) {
     int neg;
     uint64_t bi;
-    if (scan_int64(str, len, &bi, &neg)) {
-        if (neg && bi <= 0x8000000000000000UL) {
-            *out = -bi;
+    if (scan_uint64(str, len, &bi, &neg)) {
+        if (neg && bi <= 0x8000000000000000ULL) {
+            *out = -((int64_t) bi);
             return 1;
         }
-        if (!neg && bi <= 0x7FFFFFFFFFFFFFFFUL) {
+        if (!neg && bi <= 0x7FFFFFFFFFFFFFFFULL) {
             *out = bi;
             return 1;
         }
@@ -448,7 +448,7 @@ int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out) {
 int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out) {
     int neg;
     uint64_t bi;
-    if (scan_int64(str, len, &bi, &neg)) {
+    if (scan_uint64(str, len, &bi, &neg)) {
         if (!neg) {
             *out = bi;
             return 1;

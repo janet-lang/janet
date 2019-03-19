@@ -32,7 +32,7 @@
 /* Conditional compilation */
 #ifdef JANET_INT_TYPES
 
-#define MAX_INT_IN_DBL 9007199254740992UL /* 2^53 */
+#define MAX_INT_IN_DBL 9007199254740992ULL /* 2^53 */
 
 static Janet it_s64_get(void *p, Janet key);
 static Janet it_u64_get(void *p, Janet key);
