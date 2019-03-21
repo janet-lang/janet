@@ -2,10 +2,8 @@
 # of the triangle to the leaves of the triangle.
 
 (defn myfold [xs ys]
-  (let [xs1 (tuple/prepend xs 0)
-        xs2 (tuple/append xs 0)
-        m1 (map + xs1 ys)
-        m2 (map + xs2 ys)]
+  (let [m1 (map + [;xs 0] ys)
+        m2 (map + [0 ;xs] ys)]
     (map max m1 m2)))
 
 (defn maxpath [t]
