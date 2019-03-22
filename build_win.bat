@@ -31,16 +31,12 @@ mkdir build\boot
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Generate the embedded sources
-@build\xxd.exe src\core\core.janet build\core.gen.c janet_gen_core
-@if errorlevel 1 goto :BUILDFAIL
 @build\xxd.exe src\mainclient\init.janet build\init.gen.c janet_gen_init
 @if errorlevel 1 goto :BUILDFAIL
 @build\xxd.exe src\boot\boot.janet build\boot.gen.c janet_gen_boot
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Build the generated sources
-@%JANET_COMPILE% /Fobuild\boot\core.gen.obj build\core.gen.c
-@if errorlevel 1 goto :BUILDFAIL
 @%JANET_COMPILE% /Fobuild\mainclient\init.gen.obj build\init.gen.c
 @if errorlevel 1 goto :BUILDFAIL
 @%JANET_COMPILE% /Fobuild\boot\boot.gen.obj build\boot.gen.c

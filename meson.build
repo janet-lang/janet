@@ -36,7 +36,6 @@ xxd = executable('xxd', 'tools/xxd.c')
 gen = generator(xxd,
   output : '@BASENAME@.gen.c',
   arguments : ['@INPUT@', '@OUTPUT@', '@EXTRA_ARGS@'])
-core_gen = gen.process('src/core/core.janet', extra_args: 'janet_gen_core')
 boot_gen = gen.process('src/boot/boot.janet', extra_args: 'janet_gen_boot')
 init_gen = gen.process('src/mainclient/init.janet', extra_args: 'janet_gen_init')
 
@@ -94,7 +93,7 @@ mainclient_src = [
 ]
 
 # Build boot binary
-janet_boot = executable('janet_boot', core_src, boot_src, core_gen, boot_gen,
+janet_boot = executable('janet_boot', core_src, boot_src, boot_gen,
   c_args : '-DJANET_BOOTSTRAP',
   dependencies : [m_dep, dl_dep])
 
@@ -103,7 +102,7 @@ core_image = custom_target('core_image',
   input : [janet_boot],
   output : 'core_image.gen.c',
   command : [janet_boot, '@OUTPUT@',
-    'JANET_PATH', join_paths(get_option('libdir'), 'janet')])
+    'JANET_PATH', join_paths(get_option('prefix'), get_option('datadir'), 'janet')])
 
 libjanet = shared_library('janet', core_src, core_image,
   dependencies : [m_dep, dl_dep],
@@ -134,7 +133,7 @@ install_man('janet.1')
 install_headers('src/include/janet.h', 'src/include/janetconf.h')
 janet_libs = [
   'src/include/janet.h',
-  'src/include/janetconf.h'
+  'src/include/janetconf.h',
   'tools/bars.janet',
   'tools/cook.janet',
   'tools/highlight.janet'

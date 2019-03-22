@@ -66,7 +66,6 @@ all: $(JANET_TARGET) $(JANET_LIBRARY)
 
 JANET_BOOT_SOURCES=$(sort $(wildcard src/boot/*.c))
 JANET_BOOT_OBJECTS=$(patsubst src/%.c,build/%.boot.o,$(JANET_CORE_SOURCES) $(JANET_BOOT_SOURCES)) \
-	build/core.gen.o \
 	build/boot.gen.o
 
 build/%.boot.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
@@ -138,8 +137,6 @@ emscripten: $(JANET_EMTARGET)
 build/xxd: tools/xxd.c
 	$(CC) $< -o $@
 
-build/core.gen.c: src/core/core.janet build/xxd
-	build/xxd $< $@ janet_gen_core
 build/init.gen.c: src/mainclient/init.janet build/xxd
 	build/xxd $< $@ janet_gen_init
 build/webinit.gen.c: src/webclient/webinit.janet build/xxd
