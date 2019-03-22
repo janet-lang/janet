@@ -53,9 +53,7 @@ for %%f in (src\boot\*.c) do (
 )
 %JANET_LINK% /out:build\janet_boot.exe build\boot\*.obj
 @if errorlevel 1 goto :BUILDFAIL
-set JANET_PATH="C:/Janet/Library"
-set JANET_INCLUDEDIR="C:/Janet/Include"
-build\janet_boot
+build\janet_boot build\core_image.c JANET_PATH "C:/Janet/Library"
 
 @rem Build the core image
 @%JANET_COMPILE% /Fobuild\core_image.obj build\core_image.c
