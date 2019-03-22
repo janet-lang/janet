@@ -20,14 +20,12 @@
 * IN THE SOFTWARE.
 */
 
-/* Compiler feature test macros for things */
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
-
 #ifndef JANET_AMALG
 #include <janet.h>
 #include "util.h"
 #endif
+
+#ifdef JANET_TYPED_ARRAY
 
 static char *ta_type_names[] = {
     "uint8",
@@ -559,3 +557,5 @@ void janet_lib_typed_array(JanetTable *env) {
     janet_register_abstract_type(&ta_buffer_type);
     janet_register_abstract_type(&ta_view_type);
 }
+
+#endif

@@ -41,7 +41,7 @@ extern size_t janet_core_image_size;
 #if defined(JANET_NO_DYNAMIC_MODULES)
 typedef int Clib;
 #define load_clib(name) ((void) name, 0)
-#define symbol_clib(lib, sym) ((void) lib, (void) sym, 0)
+#define symbol_clib(lib, sym) ((void) lib, (void) sym, NULL)
 #define error_clib() "dynamic libraries not supported"
 #elif defined(JANET_WINDOWS)
 #include <windows.h>

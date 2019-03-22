@@ -69,7 +69,7 @@ JANET_BOOT_OBJECTS=$(patsubst src/%.c,build/%.boot.o,$(JANET_CORE_SOURCES) $(JAN
 	build/core.gen.o \
 	build/boot.gen.o
 
-build/%.boot.o: src/%.c
+build/%.boot.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
 	$(CC) $(CFLAGS) -DJANET_BOOTSTRAP -o $@ -c $<
 
 build/janet_boot: $(JANET_BOOT_OBJECTS)
@@ -191,7 +191,8 @@ callgrind: $(JANET_TARGET)
 
 dist: build/janet-dist.tar.gz
 
-build/janet-%.tar.gz: $(JANET_TARGET) src/include/janet.h \
+build/janet-%.tar.gz: $(JANET_TARGET) \
+	src/include/janet.h src/include/janetconf.h \
 	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) \
 	build/doc.html README.md build/janet.c
 	tar -czvf $@ $^
@@ -230,8 +231,8 @@ install: $(JANET_TARGET)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
 	mkdir -p $(INCLUDEDIR)/janet
 	mkdir -p $(JANET_PATH)
-	ln -sf $(INCLUDEDIR)/janet.h $(INCLUDEDIR)/janet/janet.h
 	ln -sf $(INCLUDEDIR)/janet.h $(JANET_PATH)/janet.h
+	ln -sf $(INCLUDEDIR)/janetconf.h $(JANET_PATH)/janetconf.h
 	cp tools/cook.janet $(JANET_PATH)
 	cp tools/highlight.janet $(JANET_PATH)
 	cp tools/bars.janet $(JANET_PATH)

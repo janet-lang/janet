@@ -29,7 +29,11 @@ extern "C" {
 
 /***** START SECTION CONFIG *****/
 
-#define JANET_VERSION "0.4.1"
+#include "janetconf.h"
+
+#ifndef JANET_VERSION
+#define JANET_VERSION "latest"
+#endif
 
 #ifndef JANET_BUILD
 #define JANET_BUILD "local"
