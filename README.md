@@ -165,6 +165,8 @@ or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-down
 3. Run `build_win` to compile janet.
 4. Run `build_win test` to make sure everything is working.
 
+Alternatively, you can try the Meson build system setup.
+
 ### Emscripten
 
 To build janet for the web via [Emscripten](https://kripken.github.io/emscripten-site/), make sure you
@@ -173,6 +175,12 @@ have `emcc` installed and on your path. On a linux or macOS system, use `make em
 The JavaScript build is what runs the repl on the main website,
 but really serves mainly as a proof of concept. Janet will run slower in a browser.
 Building with emscripten on windows is currently unsupported.
+
+## Meson
+
+Janet also has a build file for [Meson](https://mesonbuild.com/), a cross platform build
+system. This is not currently the main supported build system, but should work on any
+system that supports meson.
 
 ## Examples
 
