@@ -831,12 +831,10 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_lib_inttypes(env);
 #endif
 
-
 #ifdef JANET_BOOTSTRAP
     /* Run bootstrap source */
     janet_dobytes(env, janet_gen_core, janet_gen_core_size, "core.janet", NULL);
 #else
-
     /* Unmarshal from core image */
     Janet marsh_out = janet_unmarshal(
                           janet_core_image,

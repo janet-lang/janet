@@ -16,6 +16,15 @@
 # everything else goes. Cfunctions and abstracts will be referenced from a registry
 # table which will be generated on janet startup.
 (do
+
+  # Get process options
+  (def- process/opts @{})
+  (each [k v] (partition 2 (tuple/slice process/args 2))
+    (put process/opts k v))
+
+  # Set up default config from arguments
+  (set module/*syspath* (or (process/opts "JANET_PATH") ""))
+
   (def image (let [env-pairs (pairs (env-lookup *env*))
                    essential-pairs (filter (fn [[k v]] (or (cfunction? v) (abstract? v))) env-pairs)
                    lookup (table ;(mapcat identity essential-pairs))
@@ -26,7 +35,7 @@
   # can be compiled and linked statically into the main janet library
   # and example client.
   (def chunks (string/bytes image))
-  (def image-file (file/open "build/core_image.c" :w))
+  (def image-file (file/open (process/args 1) :w))
   (file/write image-file
               "#ifndef JANET_AMALG\n"
               "#include <janet.h>\n"

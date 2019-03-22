@@ -77,7 +77,7 @@ build/janet_boot: $(JANET_BOOT_OBJECTS)
 
 # Now the reason we bootstrap in the first place
 build/core_image.c: build/janet_boot
-	JANET_PATH=$(JANET_PATH) build/janet_boot
+	build/janet_boot $@ JANET_PATH $(JANET_PATH)
 
 ##########################################################
 ##### The main interpreter program and shared object #####

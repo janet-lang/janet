@@ -26,7 +26,7 @@
 extern const unsigned char *janet_gen_boot;
 extern int32_t janet_gen_boot_size;
 
-int main() {
+int main(int argc, const char **argv) {
 
     /* Init janet */
     janet_init();
@@ -45,6 +45,12 @@ int main() {
     JanetTable *env;
 
     env = janet_core_env(NULL);
+
+    /* Create args tuple */
+    JanetArray *args = janet_array(argc);
+    for (int i = 0; i < argc; i++)
+        janet_array_push(args, janet_cstringv(argv[i]));
+    janet_def(env, "process/args", janet_wrap_array(args), "Command line arguments.");
 
     /* Run bootstrap script to generate core image */
     status = janet_dobytes(env, janet_gen_boot, janet_gen_boot_size, "boot.janet", NULL);

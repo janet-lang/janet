@@ -1584,7 +1584,7 @@
   "The path where globally installed libraries are located.
   The default is set at build time and is /usr/local/lib/janet on linux/posix, and
   on Windows is C:/Janet/Library."
-  (or (os/getenv "JANET_PATH") ""))
+  "")
 
 (defn- fexists [path]
   (def f (file/open path))

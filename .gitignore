@@ -4,6 +4,7 @@ dst
 janet
 !*/**/janet
 /build
+/builddir
 /Build
 /Release
 /Debug
