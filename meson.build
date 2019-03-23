@@ -111,6 +111,7 @@ mainclient_src = [
 
 # Build boot binary
 janet_boot = executable('janet-boot', core_src, boot_src, boot_gen,
+  include_directories : incdir,
   c_args : '-DJANET_BOOTSTRAP',
   dependencies : [m_dep, dl_dep])
 
@@ -121,9 +122,11 @@ core_image = custom_target('core_image',
   command : [janet_boot, '@OUTPUT@', 'JANET_PATH', janet_path])
 
 libjanet = shared_library('janet', core_src, core_image,
+  include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   install : true)
 janet_mainclient = executable('janet', core_src, core_image, init_gen, mainclient_src,
+  include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   install : true)
 
@@ -143,6 +146,7 @@ amalg = custom_target('amalg',
 
 # Amalgamated client
 janet_amalgclient = executable('janet-amalg', amalg, init_gen, mainclient_src,
+  include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   build_by_default : false)
 
