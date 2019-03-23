@@ -13,6 +13,10 @@ janet
 janet-*.tar.gz
 dist
 
+# Eclipse
+.project
+.cproject
+
 # Local directory for testing
 local
 
