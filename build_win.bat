@@ -8,16 +8,16 @@
 @rem Ensure correct command prompt
 @if not defined INCLUDE goto :BADCMD
 
+@rem Set compile and link options here
+@setlocal
+@set JANET_COMPILE=cl /nologo /Isrc\include /c /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS
+@set JANET_LINK=link /nologo
+
 @rem Sub commands
 @if "%1"=="help" goto HELP
 @if "%1"=="clean" goto CLEAN
 @if "%1"=="test" goto TEST
 @if "%1"=="dist" goto DIST
-
-@rem Set compile and link options here
-@setlocal
-@set JANET_COMPILE=cl /nologo /Isrc\include /c /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS
-@set JANET_LINK=link /nologo
 
 mkdir build
 mkdir build\core
@@ -112,7 +112,14 @@ exit /b 0
 :DIST
 mkdir dist
 janet.exe tools\gendoc.janet > dist\doc.html
-janet.exe tools\amalg.janet > dist\janet.c
+
+@rem Gen amlag
+setlocal enabledelayedexpansion
+set "amalg_files="
+for %%f in (src\core\*.c) do (
+    set "amalg_files=!amalg_files! %%f"
+)
+janet.exe tools\amalg.janet src\core\util.h src\core\state.h src\core\gc.h src\core\vector.h src\core\fiber.h src\core\regalloc.h src\core\compile.h src\core\emit.h src\core\symcache.h %amalg_files% build\core_image.c > dist\janet.c
 copy janet.exe dist\janet.exe
 copy LICENSE dist\LICENSE
 copy README.md dist\README.md
