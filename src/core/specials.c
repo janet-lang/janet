@@ -83,7 +83,7 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x) {
         case JANET_TABLE:
         case JANET_STRUCT: {
             const JanetKV *kv = NULL, *kvs = NULL;
-            int32_t len, cap;
+            int32_t len, cap = 0;
             janet_dictionary_view(x, &kvs, &len, &cap);
             while ((kv = janet_dictionary_next(kvs, cap, kv))) {
                 JanetSlot key = quasiquote(opts, kv->key);
@@ -134,10 +134,10 @@ static int destructure(JanetCompiler *c,
             return leaf(c, janet_unwrap_symbol(left), right, attr);
         case JANET_TUPLE:
         case JANET_ARRAY: {
-            int32_t i, len;
-            const Janet *values;
+            int32_t len = 0;
+            const Janet *values = NULL;
             janet_indexed_view(left, &values, &len);
-            for (i = 0; i < len; i++) {
+            for (int32_t i = 0; i < len; i++) {
                 JanetSlot nextright = janetc_farslot(c);
                 Janet subval = values[i];
                 if (i < 0x100) {
@@ -154,9 +154,9 @@ static int destructure(JanetCompiler *c,
         case JANET_TABLE:
         case JANET_STRUCT: {
             const JanetKV *kvs = NULL;
-            int32_t i, cap, len;
+            int32_t cap = 0, len = 0;
             janet_dictionary_view(left, &kvs, &len, &cap);
-            for (i = 0; i < cap; i++) {
+            for (int32_t i = 0; i < cap; i++) {
                 if (janet_checktype(kvs[i].key, JANET_NIL)) continue;
                 JanetSlot nextright = janetc_farslot(c);
                 JanetSlot k = janetc_value(janetc_fopts_default(c), kvs[i].key);

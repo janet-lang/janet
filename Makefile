@@ -48,23 +48,76 @@ endif
 # For other unix likes, add flags here!
 
 $(shell mkdir -p build/core build/mainclient build/webclient build/boot)
-
-# Source headers
-JANET_HEADERS=$(sort $(wildcard src/include/*.h))
-JANET_LOCAL_HEADERS=$(sort $(wildcard src/*/*.h))
-
-# Source files
-JANET_CORE_SOURCES=$(sort $(wildcard src/core/*.c))
-JANET_MAINCLIENT_SOURCES=$(sort $(wildcard src/mainclient/*.c))
-JANET_WEBCLIENT_SOURCES=$(sort $(wildcard src/webclient/*.c))
-
 all: $(JANET_TARGET) $(JANET_LIBRARY)
+
+######################
+##### Name Files #####
+######################
+
+JANET_HEADERS=src/include/janet.h src/include/janetconf.h
+
+JANET_LOCAL_HEADERS=src/core/util.h \
+					src/core/state.h \
+					src/core/gc.h \
+					src/core/vector.h \
+					src/core/fiber.h \
+					src/core/regalloc.h \
+					src/core/compile.h \
+					src/core/emit.h \
+					src/core/symcache.h
+
+JANET_CORE_SOURCES=src/core/abstract.c \
+				   src/core/array.c \
+				   src/core/asm.c \
+				   src/core/buffer.c \
+				   src/core/bytecode.c \
+				   src/core/capi.c \
+				   src/core/cfuns.c \
+				   src/core/compile.c \
+				   src/core/corelib.c \
+				   src/core/debug.c \
+				   src/core/emit.c \
+				   src/core/fiber.c \
+				   src/core/gc.c \
+				   src/core/inttypes.c \
+				   src/core/io.c \
+				   src/core/marsh.c \
+				   src/core/math.c \
+				   src/core/os.c \
+				   src/core/parse.c \
+				   src/core/peg.c \
+				   src/core/pp.c \
+				   src/core/regalloc.c \
+				   src/core/run.c \
+				   src/core/specials.c \
+				   src/core/string.c \
+				   src/core/strtod.c \
+				   src/core/struct.c \
+				   src/core/symcache.c \
+				   src/core/table.c \
+				   src/core/tuple.c \
+				   src/core/typedarray.c \
+				   src/core/util.c \
+				   src/core/value.c \
+				   src/core/vector.c \
+				   src/core/vm.c \
+				   src/core/wrap.c
+
+JANET_BOOT_SOURCES=src/boot/array_test.c \
+				   src/boot/boot.c \
+				   src/boot/buffer_test.c \
+				   src/boot/number_test.c \
+				   src/boot/system_test.c \
+				   src/boot/table_test.c
+
+JANET_MAINCLIENT_SOURCES=src/mainclient/line.c src/mainclient/main.c
+
+JANET_WEBCLIENT_SOURCES=src/webclient/main.c
 
 ##################################################################
 ##### The bootstrap interpreter that compiles the core image #####
 ##################################################################
 
-JANET_BOOT_SOURCES=$(sort $(wildcard src/boot/*.c))
 JANET_BOOT_OBJECTS=$(patsubst src/%.c,build/%.boot.o,$(JANET_CORE_SOURCES) $(JANET_BOOT_SOURCES)) \
 	build/boot.gen.o
 
@@ -150,8 +203,9 @@ build/boot.gen.c: src/boot/boot.janet build/xxd
 
 amalg: build/janet.c build/janet.h build/core_image.c
 
-build/janet.c: $(JANET_LOCAL_HEADERS) $(JANET_CORE_SOURCES) tools/amalg.janet $(JANET_TARGET)
-	$(JANET_TARGET) tools/amalg.janet > $@
+AMALG_SOURCE=$(JANET_LOCAL_HEADERS) $(JANET_CORE_SOURCES) build/core_image.c
+build/janet.c: $(AMALG_SOURCE) tools/amalg.janet $(JANET_TARGET)
+	$(JANET_TARGET) tools/amalg.janet $(AMALG_SOURCE) > $@
 
 build/janet.h: src/include/janet.h
 	cp $< $@
@@ -207,12 +261,8 @@ build/doc.html: $(JANET_TARGET) tools/gendoc.janet
 ##### Other #####
 #################
 
-STYLEOPTS=--style=attach --indent-switches --convert-tabs \
-		  --align-pointer=name --pad-header --pad-oper --unpad-paren --indent-labels
 format:
-	astyle $(STYLEOPTS) */*.c
-	astyle $(STYLEOPTS) */*/*.c
-	astyle $(STYLEOPTS) */*/*.h
+	tools/format.sh
 
 grammar: build/janet.tmLanguage
 build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)

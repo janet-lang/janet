@@ -47,7 +47,7 @@
    # max double we can convert to int (2^53)
    (def b (i64 0x1fffffffffffff))
    (def b (i64 (math/pow 2 53)))
-   # from string 
+   # from string
    (def c (i64 "0x7fff_ffff_ffff_ffff"))
    (def d (i64 "123456789"))))
 
@@ -87,7 +87,5 @@
            (:== (t 3) (t 4))
            ))
         "int64 typed arrays")
-
-
 
 (end-suite)

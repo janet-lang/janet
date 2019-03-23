@@ -96,5 +96,4 @@ void janet_lib_typed_array(JanetTable *env);
 void janet_lib_inttypes(JanetTable *env);
 #endif
 
-
 #endif

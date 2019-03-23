@@ -182,8 +182,8 @@ static Janet cfun_array_concat(int32_t argc, Janet *argv) {
                 break;
             case JANET_ARRAY:
             case JANET_TUPLE: {
-                int32_t j, len;
-                const Janet *vals;
+                int32_t j, len = 0;
+                const Janet *vals = NULL;
                 janet_indexed_view(argv[i], &vals, &len);
                 for (j = 0; j < len; j++)
                     janet_array_push(array, vals[j]);

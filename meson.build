@@ -20,6 +20,9 @@
 
 project('janet', 'c', default_options : ['c_std=c99'])
 
+# Global settings
+janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
+
 # Link math library on all systems
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required : false)
@@ -38,6 +41,20 @@ gen = generator(xxd,
   arguments : ['@INPUT@', '@OUTPUT@', '@EXTRA_ARGS@'])
 boot_gen = gen.process('src/boot/boot.janet', extra_args: 'janet_gen_boot')
 init_gen = gen.process('src/mainclient/init.janet', extra_args: 'janet_gen_init')
+
+# Order is important here, as some headers
+# depend on other headers for the amalg target
+core_headers = [
+  'src/core/util.h',
+  'src/core/state.h',
+  'src/core/gc.h',
+  'src/core/vector.h',
+  'src/core/fiber.h',
+  'src/core/regalloc.h',
+  'src/core/compile.h',
+  'src/core/emit.h',
+  'src/core/symcache.h'
+]
 
 core_src = [
   'src/core/abstract.c',
@@ -93,7 +110,7 @@ mainclient_src = [
 ]
 
 # Build boot binary
-janet_boot = executable('janet_boot', core_src, boot_src, boot_gen,
+janet_boot = executable('janet-boot', core_src, boot_src, boot_gen,
   c_args : '-DJANET_BOOTSTRAP',
   dependencies : [m_dep, dl_dep])
 
@@ -101,8 +118,7 @@ janet_boot = executable('janet_boot', core_src, boot_src, boot_gen,
 core_image = custom_target('core_image',
   input : [janet_boot],
   output : 'core_image.gen.c',
-  command : [janet_boot, '@OUTPUT@',
-    'JANET_PATH', join_paths(get_option('prefix'), get_option('datadir'), 'janet')])
+  command : [janet_boot, '@OUTPUT@', 'JANET_PATH', janet_path])
 
 libjanet = shared_library('janet', core_src, core_image,
   dependencies : [m_dep, dl_dep],
@@ -110,6 +126,25 @@ libjanet = shared_library('janet', core_src, core_image,
 janet_mainclient = executable('janet', core_src, core_image, init_gen, mainclient_src,
   dependencies : [m_dep, dl_dep],
   install : true)
+
+# Documentation
+docs = custom_target('docs',
+  input : ['tools/gendoc.janet'],
+  output : ['doc.html'],
+  capture : true,
+  command : [janet_mainclient, '@INPUT@'])
+
+# Amalgamated source
+amalg = custom_target('amalg',
+  input : ['tools/amalg.janet', core_headers, core_src, core_image],
+  output : ['janet.c'],
+  capture : true,
+  command : [janet_mainclient, '@INPUT@'])
+
+# Amalgamated client
+janet_amalgclient = executable('janet-amalg', amalg, init_gen, mainclient_src,
+  dependencies : [m_dep, dl_dep],
+  build_by_default : false)
 
 # Tests
 test_files = [
@@ -138,4 +173,4 @@ janet_libs = [
   'tools/cook.janet',
   'tools/highlight.janet'
 ]
-install_data(sources : janet_libs)
+install_data(sources : janet_libs, install_dir : janet_path)

@@ -116,17 +116,19 @@ $
 
 The C API for Janet is not yet documented but coming soon.
 
-Janet can be embedded in a host program very easily. There is a make target `make amalg`
-which creates the file `build/janet.c`, which is a single C file that contains all the source
-to Janet. This file, along with `src/include/janet/janet.h` can dragged into any C project
-and compiled into the project. Janet should be compiled with `-std=c99` on most compilers, and
-will need to be linked to the math library, `-lm`, and the dynamic linker, `-ldl`, if one wants
-to be able to load dynamic modules. If there is no need for dynamic modules, add the define
+Janet can be embedded in a host program very easily. There is a make target
+`make amalg` which creates the file `build/janet.c`, which is a single C file
+that contains all the source to Janet. This file, along with
+`src/include/janet.h` and `src/include/janetconf.h` can dragged into any C
+project and compiled into the project. Janet should be compiled with `-std=c99`
+on most compilers, and will need to be linked to the math library, `-lm`, and
+the dynamic linker, `-ldl`, if one wants to be able to load dynamic modules. If
+there is no need for dynamic modules, add the define
 `-DJANET_NO_DYNAMIC_MODULES` to the compiler options.
 
 ## Compiling and Running
 
-Janet only uses Make and batch files to compile on Posix and windows
+Janet only requires Make and batch files to compile on Posix and windows
 respectively. To configure janet, edit the header file src/include/janet/janet.h
 before compilation.
 
@@ -180,7 +182,7 @@ Building with emscripten on windows is currently unsupported.
 
 Janet also has a build file for [Meson](https://mesonbuild.com/), a cross platform build
 system. This is not currently the main supported build system, but should work on any
-system that supports meson.
+system that supports meson. Meson also provides much better IDE integration than Make or batch files.
 
 ## Examples
 
