@@ -8,6 +8,7 @@
   (var *raw-stdin* false)
   (var *handleopts* true)
   (var *exit-on-error* true)
+  (var *colorize* true)
 
   (if-let [jp (os/getenv "JANET_PATH")] (set module/*syspath* jp))
 
@@ -26,6 +27,7 @@
   -q : Hide prompt, logo, and repl output (quiet)
   -m syspath : Set system path for loading global modules
   -c source output : Compile janet source code into an image
+  -n : Disable ANSI color output in the repl
   -l path : Execute code in a file before running the main script
   -- : Stop handling options`)
            (os/exit 0)
@@ -35,6 +37,7 @@
      "r" (fn [&] (set *should-repl* true) 1)
      "p" (fn [&] (set *exit-on-error* false) 1)
      "q" (fn [&] (set *quiet* true) 1)
+     "n" (fn [&] (set *colorize* false) 1)
      "m" (fn [i &] (set module/*syspath* (get process/args (+ i 1))) 2)
      "c" (fn [i &]
            (def e (require (get process/args (+ i 1))))
@@ -83,4 +86,4 @@
     (defn getchunk [buf p]
       (getter (prompter p) buf))
     (def onsig (if *quiet* (fn [x &] x) nil))
-    (repl getchunk onsig)))
+    (repl getchunk onsig (if *colorize* "%.20P" "%.20p"))))

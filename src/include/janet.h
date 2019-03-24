@@ -1200,12 +1200,15 @@ JANET_API JanetFuncDef *janet_funcdef_alloc(void);
 JANET_API JanetFunction *janet_thunk(JanetFuncDef *def);
 JANET_API int janet_verify(JanetFuncDef *def);
 
+/* Pretty printing */
+#define JANET_PRETTY_COLOR 1
+JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x);
+
 /* Misc */
 JANET_API int janet_equals(Janet x, Janet y);
 JANET_API int32_t janet_hash(Janet x);
 JANET_API int janet_compare(Janet x, Janet y);
 JANET_API int janet_cstrcmp(const uint8_t *str, const char *other);
-JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x);
 JANET_API Janet janet_get(Janet ds, Janet key);
 JANET_API Janet janet_getindex(Janet ds, int32_t index);
 JANET_API int32_t janet_length(Janet x);

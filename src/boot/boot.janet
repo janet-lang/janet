@@ -1708,14 +1708,16 @@
   "Run a repl. The first parameter is an optional function to call to
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
-  caught."
-  [&opt chunks onsignal]
+  caught. fmt is a format string used to print results, and defaults to
+  \"%.20P\""
+  [&opt chunks onsignal fmt]
   (def newenv (make-env))
+  (default fmt "%.20P")
   (default onsignal (fn [f x]
                       (case (fiber/status f)
                         :dead (do
                                 (put newenv '_ @{:value x})
-                                (print (buffer/format @"" "%.20p" x)))
+                                (print (buffer/format @"" fmt x)))
                         (debug/stacktrace f x))))
   (run-context {:env newenv
                 :chunks chunks

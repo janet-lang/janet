@@ -297,6 +297,7 @@ struct pretty {
     JanetBuffer *buffer;
     int depth;
     int indent;
+    int flags;
     JanetTable seen;
 };
 
@@ -311,6 +312,26 @@ static void print_newline(struct pretty *S, int just_a_space) {
         janet_buffer_push_u8(S->buffer, ' ');
     }
 }
+
+/* Color coding for types */
+static const char *janet_pretty_colors[] = {
+    "\x1B[32m",
+    "\x1B[36m",
+    "\x1B[36m",
+    NULL,
+    "\x1B[35m",
+    "\x1B[34m",
+    "\x1B[33m",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    "\x1B[35m",
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
 
 /* Helper for pretty printing */
 static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
@@ -336,9 +357,17 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
     }
 
     switch (janet_type(x)) {
-        default:
+        default: {
+            const char *color = janet_pretty_colors[janet_type(x)];
+            if (color && (S->flags & JANET_PRETTY_COLOR)) {
+                janet_buffer_push_cstring(S->buffer, color);
+            }
             janet_description_b(S->buffer, x);
+            if (color && (S->flags & JANET_PRETTY_COLOR)) {
+                janet_buffer_push_cstring(S->buffer, "\x1B[0m");
+            }
             break;
+        }
         case JANET_ARRAY:
         case JANET_TUPLE: {
             int32_t i = 0, len = 0;
@@ -424,7 +453,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
 
 /* Helper for printing a janet value in a pretty form. Not meant to be used
  * for serialization or anything like that. */
-JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x) {
+JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x) {
     struct pretty S;
     if (NULL == buffer) {
         buffer = janet_buffer(0);
@@ -432,6 +461,7 @@ JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, Janet x) {
     S.buffer = buffer;
     S.depth = depth;
     S.indent = 0;
+    S.flags = flags;
     janet_table_init(&S.seen, 10);
     janet_pretty_one(&S, x, 0);
     janet_table_deinit(&S.seen);
@@ -515,7 +545,12 @@ void janet_formatb(JanetBuffer *bufp, const char *format, va_list args) {
                         break;
                     }
                     case 'p': {
-                        janet_pretty(bufp, 4, va_arg(args, Janet));
+                        janet_pretty(bufp, 4, 0, va_arg(args, Janet));
+                        break;
+                    }
+                    case 'P': {
+                        janet_pretty(bufp, 4, JANET_PRETTY_COLOR, va_arg(args, Janet));
+                        break;
                     }
                 }
             }
@@ -646,8 +681,7 @@ void janet_buffer_format(
                         if (l != (int32_t) strlen((const char *) s))
                             janet_panic("string contains zeros");
                         if (!strchr(form, '.') && l >= 100) {
-                            janet_panic
-                            ("no precision and string is too long to be formatted");
+                            janet_panic("no precision and string is too long to be formatted");
                         } else {
                             nb = snprintf(item, MAX_ITEM, form, s);
                         }
@@ -662,11 +696,12 @@ void janet_buffer_format(
                     janet_description_b(b, argv[arg]);
                     break;
                 }
+                case 'P':
                 case 'p': { /* janet pretty , precision = depth */
                     int depth = atoi(precision);
                     if (depth < 1)
                         depth = 4;
-                    janet_pretty(b, depth, argv[arg]);
+                    janet_pretty(b, depth, (strfrmt[-1] == 'P') ? JANET_PRETTY_COLOR : 0, argv[arg]);
                     break;
                 }
                 default: {

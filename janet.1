@@ -3,7 +3,7 @@
 janet \- run the Janet language abstract machine
 .SH SYNOPSIS
 .B janet
-[\fB\-hvsrpq\fR]
+[\fB\-hvsrpnq\fR]
 [\fB\-e\fR \fISOURCE\fR]
 [\fB\-l\fR \fIMODULE\fR]
 [\fB\-m\fR \fIPATH\fR]
@@ -47,6 +47,10 @@ Read raw input from stdin and forgo prompt history and other readline-like featu
 .BR \-e\ code
 Execute a string of Janet source. Source code is executed in the order it is encountered, so earlier
 arguments are executed before later ones.
+
+.TP
+.BR \-n
+Disable ANSI colors in the repl. Has no effect if no repl is run.
 
 .TP
 .BR \-r
