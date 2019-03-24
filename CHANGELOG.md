@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## 0.4.1 latest - ??
+- Add color to repl output
 - Add array/remove function
 - Add meson build support
 - Add int module for int types
