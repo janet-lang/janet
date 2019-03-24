@@ -8,16 +8,16 @@
 @rem Ensure correct command prompt
 @if not defined INCLUDE goto :BADCMD
 
-@rem Set compile and link options here
-@setlocal
-@set JANET_COMPILE=cl /nologo /Isrc\include /c /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS
-@set JANET_LINK=link /nologo
-
 @rem Sub commands
 @if "%1"=="help" goto HELP
 @if "%1"=="clean" goto CLEAN
 @if "%1"=="test" goto TEST
 @if "%1"=="dist" goto DIST
+
+@rem Set compile and link options here
+@setlocal
+@set JANET_COMPILE=cl /nologo /Isrc\include /c /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS
+@set JANET_LINK=link /nologo
 
 mkdir build
 mkdir build\core
