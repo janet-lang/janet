@@ -218,7 +218,7 @@ Janet janet_get(Janet ds, Janet key) {
             if (type->get) {
                 value = (type->get)(janet_unwrap_abstract(ds), key);
             } else {
-                janet_panicf("no getter for %T ", JANET_TFLAG_LENGTHABLE, ds);
+                janet_panicf("no getter for %v ", ds);
                 value = janet_wrap_nil();
             }
             break;
@@ -276,7 +276,7 @@ Janet janet_getindex(Janet ds, int32_t index) {
             if (type->get) {
                 value = (type->get)(janet_unwrap_abstract(ds), janet_wrap_integer(index));
             } else {
-                janet_panicf("no getter for %T ", JANET_TFLAG_LENGTHABLE, ds);
+                janet_panicf("no getter for %v ", ds);
                 value = janet_wrap_nil();
             }
             break;
@@ -343,7 +343,7 @@ void janet_putindex(Janet ds, int32_t index, Janet value) {
             if (type->put) {
                 (type->put)(janet_unwrap_abstract(ds), janet_wrap_integer(index), value);
             } else {
-                janet_panicf("no setter for %T ", JANET_TFLAG_LENGTHABLE, ds);
+                janet_panicf("no setter for %v ", ds);
             }
             break;
         }
@@ -390,7 +390,7 @@ void janet_put(Janet ds, Janet key, Janet value) {
             if (type->put) {
                 (type->put)(janet_unwrap_abstract(ds), key, value);
             } else {
-                janet_panicf("no setter for %T ", JANET_TFLAG_LENGTHABLE, ds);
+                janet_panicf("no setter for %v ", ds);
             }
             break;
         }
