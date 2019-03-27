@@ -270,12 +270,13 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
             int32_t nmlen = 0;
             while (regprefix[reglen]) reglen++;
             while (cfuns->name[nmlen]) nmlen++;
-            uint8_t *longname_buffer =
-                janet_string_begin(reglen + 1 + nmlen);
+            int32_t symlen = reglen + 1 + nmlen;
+            uint8_t *longname_buffer = malloc(symlen);
             memcpy(longname_buffer, regprefix, reglen);
             longname_buffer[reglen] = '/';
             memcpy(longname_buffer + reglen + 1, cfuns->name, nmlen);
-            longname = janet_wrap_symbol(janet_string_end(longname_buffer));
+            longname = janet_wrap_symbol(janet_symbol(longname_buffer, symlen));
+            free(longname_buffer);
         }
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
         janet_def(env, cfuns->name, fun, cfuns->documentation);
@@ -331,18 +332,18 @@ void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p) {
     (void) p;
     Janet key = janet_csymbolv(name);
     Janet value;
-    /* During boot, allow replacing core library cfunctions with values from
+    /* During init, allow replacing core library cfunctions with values from
      * the env. */
     Janet check = janet_table_get(env, key);
     if (janet_checktype(check, JANET_NIL)) {
         value = x;
     } else {
         value = check;
-        if (janet_checktype(check, JANET_CFUNCTION)) {
-            janet_table_put(janet_vm_registry, value, key);
-        }
     }
     janet_table_put(env, key, value);
+    if (janet_checktype(value, JANET_CFUNCTION)) {
+        janet_table_put(janet_vm_registry, value, key);
+    }
 }
 
 void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {

@@ -333,6 +333,9 @@ static const char *janet_pretty_colors[] = {
     NULL
 };
 
+#define JANET_PRETTY_DICT_ONELINE 4
+#define JANET_PRETTY_IND_ONELINE 10
+
 /* Helper for pretty printing */
 static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
     /* Add to seen */
@@ -383,11 +386,11 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
             if (S->depth == 0) {
                 janet_buffer_push_cstring(S->buffer, "...");
             } else {
-                if (!isarray && len >= 5)
+                if (!isarray && len >= JANET_PRETTY_IND_ONELINE)
                     janet_buffer_push_u8(S->buffer, ' ');
-                if (is_dict_value && len >= 5) print_newline(S, 0);
+                if (is_dict_value && len >= JANET_PRETTY_IND_ONELINE) print_newline(S, 0);
                 for (i = 0; i < len; i++) {
-                    if (i) print_newline(S, len < 5);
+                    if (i) print_newline(S, len < JANET_PRETTY_IND_ONELINE);
                     janet_pretty_one(S, arr[i], 0);
                 }
             }
@@ -424,15 +427,15 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 int first_kv_pair = 1;
                 const JanetKV *kvs = NULL;
                 janet_dictionary_view(x, &kvs, &len, &cap);
-                if (!istable && len >= 4)
+                if (!istable && len >= JANET_PRETTY_DICT_ONELINE)
                     janet_buffer_push_u8(S->buffer, ' ');
-                if (is_dict_value && len >= 5) print_newline(S, 0);
+                if (is_dict_value && len >= JANET_PRETTY_DICT_ONELINE) print_newline(S, 0);
                 for (i = 0; i < cap; i++) {
                     if (!janet_checktype(kvs[i].key, JANET_NIL)) {
                         if (first_kv_pair) {
                             first_kv_pair = 0;
                         } else {
-                            print_newline(S, len < 4);
+                            print_newline(S, len < JANET_PRETTY_DICT_ONELINE);
                         }
                         janet_pretty_one(S, kvs[i].key, 0);
                         janet_buffer_push_u8(S->buffer, ' ');
