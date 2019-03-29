@@ -2,8 +2,6 @@ image: freebsd/latest
 packages:
   - gmake
   - gcc
-sources:
-  - https://github.com/janet-lang/janet.git
 tasks:
   - build: |
       cd janet
