@@ -26,16 +26,24 @@
 #endif
 
 #include <stdlib.h>
+
+#ifndef JANET_REDUCED_OS
+
 #include <time.h>
 
 #ifdef JANET_WINDOWS
 #include <Windows.h>
 #include <direct.h>
 #else
+#include <sys/stat.h>
+#include <utime.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdio.h>
+#include <errno.h>
 #endif
 
 /* For macos */
@@ -43,6 +51,12 @@
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
+
+#endif
+
+/* Core OS functions */
+
+/* Full OS functions */
 
 static Janet os_which(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 0);
@@ -57,6 +71,30 @@ static Janet os_which(int32_t argc, Janet *argv) {
     return janet_ckeywordv("posix");
 #endif
 }
+
+static Janet os_exit(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 1);
+    if (argc == 0) {
+        exit(EXIT_SUCCESS);
+    } else if (janet_checkint(argv[0])) {
+        exit(janet_unwrap_integer(argv[0]));
+    } else {
+        exit(EXIT_FAILURE);
+    }
+    return janet_wrap_nil();
+}
+
+#ifdef JANET_REDUCED_OS
+/* Provide a dud os/getenv so init.janet works, but nothing else */
+
+static Janet os_getenv(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_fixarity(argc, 1);
+    return janet_wrap_nil();
+}
+
+#else
+/* Provide full os functionality */
 
 #ifdef JANET_WINDOWS
 static Janet os_execute(int32_t argc, Janet *argv) {
@@ -124,13 +162,13 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 #else
 static Janet os_execute(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
-    const uint8_t **child_argv = malloc(sizeof(uint8_t *) * (argc + 1));
+    const char **child_argv = malloc(sizeof(char *) * (argc + 1));
     int status = 0;
     if (NULL == child_argv) {
         JANET_OUT_OF_MEMORY;
     }
     for (int32_t i = 0; i < argc; i++) {
-        child_argv[i] = janet_getstring(argv, i);
+        child_argv[i] = janet_getcstring(argv, i);
     }
     child_argv[argc] = NULL;
 
@@ -139,7 +177,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     if (pid < 0) {
         janet_panic("failed to execute");
     } else if (pid == 0) {
-        if (-1 == execve((const char *)child_argv[0], (char **)child_argv, NULL)) {
+        if (-1 == execve(child_argv[0], (char **)child_argv, NULL)) {
             exit(1);
         }
     } else {
@@ -153,7 +191,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 static Janet os_shell(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
     const char *cmd = argc
-                      ? (const char *)janet_getstring(argv, 0)
+                      ? janet_getcstring(argv, 0)
                       : NULL;
     int stat = system(cmd);
     return argc
@@ -163,10 +201,9 @@ static Janet os_shell(int32_t argc, Janet *argv) {
 
 static Janet os_getenv(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    const uint8_t *k = janet_getstring(argv, 0);
-    const char *cstr = (const char *) k;
+    const char *cstr = janet_getcstring(argv, 0);
     const char *res = getenv(cstr);
-    return (res && cstr)
+    return res
            ? janet_cstringv(res)
            : janet_wrap_nil();
 }
@@ -180,25 +217,11 @@ static Janet os_setenv(int32_t argc, Janet *argv) {
 #define UNSETENV(K) unsetenv(K)
 #endif
     janet_arity(argc, 1, 2);
-    const uint8_t *k = janet_getstring(argv, 0);
-    const char *ks = (const char *) k;
+    const char *ks = janet_getcstring(argv, 0);
     if (argc == 1 || janet_checktype(argv[1], JANET_NIL)) {
         UNSETENV(ks);
     } else {
-        const uint8_t *v = janet_getstring(argv, 1);
-        SETENV(ks, (const char *)v);
-    }
-    return janet_wrap_nil();
-}
-
-static Janet os_exit(int32_t argc, Janet *argv) {
-    janet_arity(argc, 0, 1);
-    if (argc == 0) {
-        exit(EXIT_SUCCESS);
-    } else if (janet_checkint(argv[0])) {
-        exit(janet_unwrap_integer(argv[0]));
-    } else {
-        exit(EXIT_FAILURE);
+        SETENV(ks, janet_getcstring(argv, 1));
     }
     return janet_wrap_nil();
 }
@@ -301,7 +324,68 @@ static Janet os_date(int32_t argc, Janet *argv) {
     return janet_wrap_struct(janet_struct_end(st));
 }
 
+static Janet os_link(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 3);
+#ifdef JANET_WINDOWS
+    (void) argc;
+    (void) argv;
+    janet_panic("os/link not supported on Windows");
+    return janet_wrap_nil();
+#else
+    const char *oldpath = janet_getcstring(argv, 0);
+    const char *newpath = janet_getcstring(argv, 1);
+    int res = ((argc == 3 && janet_getboolean(argv, 2)) ? symlink : link)(oldpath, newpath);
+    if (res == -1) janet_panicv(janet_cstringv(strerror(errno)));
+    return janet_wrap_integer(res);
+#endif
+}
+
+static Janet os_mkdir(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    const char *path = janet_getcstring(argv, 0);
+#ifdef JANET_WINDOWS
+    int res = _mkdir(path);
+#else
+    int res = mkdir(path, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH);
+#endif
+    return janet_wrap_boolean(res != -1);
+}
+
+static Janet os_cd(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    const char *path = janet_getcstring(argv, 0);
+    int res = chdir(path);
+    return janet_wrap_boolean(res != -1);
+}
+
+static Janet os_touch(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 3);
+    const char *path = janet_getcstring(argv, 0);
+    struct utimbuf timebuf, *bufp;
+    if (argc >= 2) {
+        bufp = &timebuf;
+        timebuf.actime = (time_t) janet_getnumber(argv, 1);
+        if (argc >= 3) {
+            timebuf.modtime = (time_t) janet_getnumber(argv, 2);
+        } else {
+            timebuf.modtime = timebuf.actime;
+        }
+    } else {
+        bufp = NULL;
+    }
+    int res = utime(path, bufp);
+    return janet_wrap_boolean(res != -1);
+}
+
+#endif /* JANET_REDUCED_OS */
+
 static const JanetReg os_cfuns[] = {
+    {
+        "os/exit", os_exit,
+        JDOC("(os/exit x)\n\n"
+             "Exit from janet with an exit code equal to x. If x is not an integer, "
+             "the exit with status equal the hash of x.")
+    },
     {
         "os/which", os_which,
         JDOC("(os/which)\n\n"
@@ -309,6 +393,35 @@ static const JanetReg os_cfuns[] = {
              "\t:windows - Microsoft Windows\n"
              "\t:macos - Apple macos\n"
              "\t:posix - A POSIX compatible system (default)")
+    },
+    {
+        "os/getenv", os_getenv,
+        JDOC("(os/getenv variable)\n\n"
+             "Get the string value of an environment variable.")
+    },
+#ifndef JANET_REDUCED_OS
+    {
+        "os/touch", os_touch,
+        JDOC("(os/touch path [, actime [, modtime]])\n\n"
+             "Update the access time and modification times for a file. By default, sets "
+             "times to the current time.")
+    },
+    {
+        "os/cd", os_cd,
+        JDOC("(os/cd path)\n\n"
+             "Change current directory to path. Returns true on success, false on failure.")
+    },
+    {
+        "os/mkdir", os_mkdir,
+        JDOC("(os/mkdir path)\n\n"
+             "Create a new directory. The path will be relative to the current directory if relative, otherwise "
+             "it will be an absolute path.")
+    },
+    {
+        "os/link", os_link,
+        JDOC("(os/link oldpath newpath [, symlink])\n\n"
+             "Create a symlink from oldpath to newpath. The 3 optional paramater "
+             "enables a hard link over a soft link. Does not work on Windows.")
     },
     {
         "os/execute", os_execute,
@@ -320,17 +433,6 @@ static const JanetReg os_cfuns[] = {
         "os/shell", os_shell,
         JDOC("(os/shell str)\n\n"
              "Pass a command string str directly to the system shell.")
-    },
-    {
-        "os/exit", os_exit,
-        JDOC("(os/exit x)\n\n"
-             "Exit from janet with an exit code equal to x. If x is not an integer, "
-             "the exit with status equal the hash of x.")
-    },
-    {
-        "os/getenv", os_getenv,
-        JDOC("(os/getenv variable)\n\n"
-             "Get the string value of an environment variable.")
     },
     {
         "os/setenv", os_setenv,
@@ -375,6 +477,7 @@ static const JanetReg os_cfuns[] = {
              "\t:year-day - day of the year [0-365]\n"
              "\t:dst - If Day Light Savings is in effect")
     },
+#endif
     {NULL, NULL, NULL}
 };
 

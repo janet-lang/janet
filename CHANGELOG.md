@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Add (break) special form and improve loop macro
 - Allow abstract types to specify custom tostring method
 - Extend C API for marshalling abstract types and other values
+- Add functions to `os` module.
 
 ## 0.4.0 - 2019-03-08
 - Fix a number of smaller bugs

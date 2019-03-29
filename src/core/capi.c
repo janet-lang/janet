@@ -98,6 +98,15 @@ DEFINE_GETTER(cfunction, CFUNCTION, JanetCFunction)
 DEFINE_GETTER(boolean, BOOLEAN, int)
 DEFINE_GETTER(pointer, POINTER, void *)
 
+const char *janet_getcstring(const Janet *argv, int32_t n) {
+    const uint8_t *jstr = janet_getstring(argv, n);
+    const char *cstr = (const char *)jstr;
+    if (strlen(cstr) != (size_t) janet_string_length(jstr)) {
+        janet_panicf("string %v contains embedded 0s");
+    }
+    return cstr;
+}
+
 int32_t janet_getinteger(const Janet *argv, int32_t n) {
     Janet x = argv[n];
     if (!janet_checkint(x)) {

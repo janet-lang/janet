@@ -1256,6 +1256,7 @@ JANET_API const Janet *janet_gettuple(const Janet *argv, int32_t n);
 JANET_API JanetTable *janet_gettable(const Janet *argv, int32_t n);
 JANET_API const JanetKV *janet_getstruct(const Janet *argv, int32_t n);
 JANET_API const uint8_t *janet_getstring(const Janet *argv, int32_t n);
+JANET_API const char *janet_getcstring(const Janet *argv, int32_t n);
 JANET_API const uint8_t *janet_getsymbol(const Janet *argv, int32_t n);
 JANET_API const uint8_t *janet_getkeyword(const Janet *argv, int32_t n);
 JANET_API JanetBuffer *janet_getbuffer(const Janet *argv, int32_t n);

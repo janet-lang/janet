@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <inttypes.h>
+#include <math.h>
 
 #ifndef JANET_AMALG
 #include <janet.h>

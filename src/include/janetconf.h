@@ -34,6 +34,7 @@
 /* #define JANET_NO_PEG */
 /* #define JANET_NO_TYPED_ARRAY */
 /* #define JANET_NO_INT_TYPES */
+/* #define JANET_REDUCED_OS */
 /* #define JANET_API __attribute__((visibility ("default"))) */
 /* #define JANET_OUT_OF_MEMORY do { printf("janet out of memory\n"); exit(1); } while (0) */
 /* #define JANET_RECURSION_GUARD 1024 */
