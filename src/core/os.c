@@ -30,20 +30,23 @@
 #ifndef JANET_REDUCED_OS
 
 #include <time.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
 
 #ifdef JANET_WINDOWS
-#include <Windows.h>
+#include <windows.h>
 #include <direct.h>
+#include <sys/utime.h>
+#include <io.h>
 #else
-#include <sys/stat.h>
 #include <utime.h>
 #include <unistd.h>
 #include <dirent.h>
-#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <stdio.h>
-#include <errno.h>
 #endif
 
 /* For macos */
@@ -52,7 +55,7 @@
 #include <mach/mach.h>
 #endif
 
-#endif
+#endif /* JANET_REDCUED_OS */
 
 /* Core OS functions */
 
@@ -354,7 +357,11 @@ static Janet os_mkdir(int32_t argc, Janet *argv) {
 static Janet os_cd(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
+#ifdef JANET_WINDOWS
+    int res = _chdir(path);
+#else
     int res = chdir(path);
+#endif
     return janet_wrap_boolean(res != -1);
 }
 
