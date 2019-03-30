@@ -338,7 +338,7 @@ static Janet os_link(int32_t argc, Janet *argv) {
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
     int res = ((argc == 3 && janet_getboolean(argv, 2)) ? symlink : link)(oldpath, newpath);
-    if (res == -1) janet_panicv(janet_cstringv(strerror(errno)));
+    if (res == -1) janet_panic(strerror(errno));
     return janet_wrap_integer(res);
 #endif
 }
@@ -354,6 +354,18 @@ static Janet os_mkdir(int32_t argc, Janet *argv) {
     return janet_wrap_boolean(res != -1);
 }
 
+static Janet os_rmdir(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    const char *path = janet_getcstring(argv, 0);
+#ifdef JANET_WINDOWS
+    int res = _rmdir(path);
+#else
+    int res = rmdir(path);
+#endif
+    if (res == -1) janet_panic(strerror(errno));
+    return janet_wrap_nil();
+}
+
 static Janet os_cd(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
@@ -362,7 +374,8 @@ static Janet os_cd(int32_t argc, Janet *argv) {
 #else
     int res = chdir(path);
 #endif
-    return janet_wrap_boolean(res != -1);
+    if (res == -1) janet_panic(strerror(errno));
+    return janet_wrap_nil();
 }
 
 static Janet os_touch(int32_t argc, Janet *argv) {
@@ -381,7 +394,16 @@ static Janet os_touch(int32_t argc, Janet *argv) {
         bufp = NULL;
     }
     int res = utime(path, bufp);
-    return janet_wrap_boolean(res != -1);
+    if (-1 == res) janet_panic(strerror(errno));
+    return janet_wrap_nil();
+}
+
+static Janet os_remove(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    const char *path = janet_getcstring(argv, 0);
+    int status = remove(path);
+    if (-1 == status) janet_panic(strerror(errno));
+    return janet_wrap_nil();
 }
 
 #ifdef JANET_WINDOWS
@@ -552,6 +574,16 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/mkdir path)\n\n"
              "Create a new directory. The path will be relative to the current directory if relative, otherwise "
              "it will be an absolute path.")
+    },
+    {
+        "os/rmdir", os_rmdir,
+        JDOC("(os/rmdir path)\n\n"
+             "Delete a directory. The directory must be empty to succeed.")
+    },
+    {
+        "os/rm", os_remove,
+        JDOC("(os/rm path)\n\n"
+             "Delete a file. Returns nil.")
     },
     {
         "os/link", os_link,
