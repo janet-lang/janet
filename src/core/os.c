@@ -384,6 +384,86 @@ static Janet os_touch(int32_t argc, Janet *argv) {
     return janet_wrap_boolean(res != -1);
 }
 
+#ifdef JANET_WINDOWS
+static const uint8_t *janet_decode_permissions(unsigned short m) {
+    uint8_t flags[9] = {0};
+    flags[0] = flags[3] = flags[6] = (m & S_IREAD) ? 'r' : '-';
+    flags[1] = flags[4] = flags[7] = (m & S_IWRITE) ? 'w' : '-';
+    flags[2] = flags[5] = flags[8] = (m & S_IEXEC) ? 'x' : '-';
+    return janet_string(flags, sizeof(flags));
+}
+
+static const uint8_t *janet_decode_mode(unsigned short m) {
+    const char *str = "other";
+    if (_S_ISREG(m)) str = "file";
+    else if (_S_ISDIR(m)) str = "directory";
+    return janet_ckeyword(str);
+}
+#else
+static const uint8_t *janet_decode_permissions(mode_t m) {
+    uint8_t flags[9] = {0};
+    flags[0] = (m & S_IRUSR) ? 'r' : '-';
+    flags[1] = (m & S_IWUSR) ? 'w' : '-';
+    flags[2] = (m & S_IXUSR) ? 'x' : '-';
+    flags[3] = (m & S_IRGRP) ? 'r' : '-';
+    flags[4] = (m & S_IWGRP) ? 'w' : '-';
+    flags[5] = (m & S_IXGRP) ? 'x' : '-';
+    flags[6] = (m & S_IROTH) ? 'r' : '-';
+    flags[7] = (m & S_IWOTH) ? 'w' : '-';
+    flags[8] = (m & S_IXOTH) ? 'x' : '-';
+    return janet_string(flags, sizeof(flags));
+}
+
+static const uint8_t *janet_decode_mode(mode_t m) {
+    const char *str = "other";
+    if (S_ISREG(m)) str = "file";
+    else if (S_ISDIR(m)) str = "directory";
+    else if (S_ISFIFO(m)) str = "fifo";
+    else if (S_ISBLK(m)) str = "block";
+    else if (S_ISSOCK(m)) str = "socket";
+    else if (S_ISLNK(m)) str = "link";
+    else if (S_ISCHR(m)) str = "character";
+    return janet_ckeyword(str);
+}
+#endif
+
+static Janet os_stat(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    const char *path = janet_getcstring(argv, 0);
+    JanetTable *tab;
+    if (argc == 2) {
+        tab = janet_gettable(argv, 1);
+    } else {
+        tab = janet_table(0);
+    }
+    /* Build result */
+#ifdef JANET_WINDOWS
+    struct _stat st;
+    int res = _stat(path, &st);
+#else
+    struct stat st;
+    int res = stat(path, &st);
+#endif
+    if (-1 == res) {
+        janet_panicv(janet_cstringv(strerror(errno)));
+    }
+    janet_table_put(tab, janet_ckeywordv("dev"), janet_wrap_number(st.st_dev));
+    janet_table_put(tab, janet_ckeywordv("inode"), janet_wrap_number(st.st_ino));
+    janet_table_put(tab, janet_ckeywordv("mode"), janet_wrap_keyword(janet_decode_mode(st.st_mode)));
+    janet_table_put(tab, janet_ckeywordv("permissions"), janet_wrap_string(janet_decode_permissions(st.st_mode)));
+    janet_table_put(tab, janet_ckeywordv("uid"), janet_wrap_number(st.st_uid));
+    janet_table_put(tab, janet_ckeywordv("gid"), janet_wrap_number(st.st_gid));
+    janet_table_put(tab, janet_ckeywordv("size"), janet_wrap_number(st.st_size));
+    janet_table_put(tab, janet_ckeywordv("nlink"), janet_wrap_number(st.st_nlink));
+    janet_table_put(tab, janet_ckeywordv("rdev"), janet_wrap_number(st.st_rdev));
+    janet_table_put(tab, janet_ckeywordv("blocksize"), janet_wrap_number(st.st_blksize));
+    janet_table_put(tab, janet_ckeywordv("blocks"), janet_wrap_number(st.st_blocks));
+    janet_table_put(tab, janet_ckeywordv("accessed"), janet_wrap_number(st.st_atime));
+    janet_table_put(tab, janet_ckeywordv("modified"), janet_wrap_number(st.st_mtime));
+    janet_table_put(tab, janet_ckeywordv("changed"), janet_wrap_number(st.st_ctime));
+    return janet_wrap_table(tab);
+}
+
 #endif /* JANET_REDUCED_OS */
 
 static const JanetReg os_cfuns[] = {
@@ -407,6 +487,11 @@ static const JanetReg os_cfuns[] = {
              "Get the string value of an environment variable.")
     },
 #ifndef JANET_REDUCED_OS
+    {
+        "os/stat", os_stat,
+        JDOC("(os/stat path)\n\n"
+             "Gets information about a file or directory. Returns a table.")
+    },
     {
         "os/touch", os_touch,
         JDOC("(os/touch path [, actime [, modtime]])\n\n"
