@@ -13,6 +13,9 @@ janet
 janet-*.tar.gz
 dist
 
+# VSCode
+.vscode
+
 # Eclipse
 .project
 .cproject

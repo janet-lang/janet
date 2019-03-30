@@ -395,8 +395,9 @@ static const uint8_t *janet_decode_permissions(unsigned short m) {
 
 static const uint8_t *janet_decode_mode(unsigned short m) {
     const char *str = "other";
-    if (m & _S_IFREG(m)) str = "file";
-    else if (m & _S_IFDIR(m)) str = "directory";
+    if (m & _S_IFREG) str = "file";
+    else if (m & _S_IFDIR) str = "directory";
+    else if (m & _S_IFCHR) str = "character";
     return janet_ckeyword(str);
 }
 #else
@@ -478,10 +479,12 @@ static Janet os_dir(int32_t argc, Janet *argv) {
         janet_panicf("path too long: %s", dir);
     sprintf(pattern, "%s/*", dir); 
     intptr_t res = _findfirst(pattern, &afile);
-    while (res != -1) {
-        janet_array_push(paths, janet_cstringv(afile.name));
-        res = _findnext(res, &afile);
-    }
+    if (-1 == res) janet_panicv(janet_cstringv(strerror(errno)));
+    do {
+        if (strcmp(".", afile.name) && strcmp("..", afile.name)) {
+            janet_array_push(paths, janet_cstringv(afile.name));
+        }
+    } while (_findnext(res, &afile) != -1);
     _findclose(res);
 #else
     /* Read directory items with opendir / readdir / closedir */
