@@ -395,8 +395,8 @@ static const uint8_t *janet_decode_permissions(unsigned short m) {
 
 static const uint8_t *janet_decode_mode(unsigned short m) {
     const char *str = "other";
-    if (_S_ISREG(m)) str = "file";
-    else if (_S_ISDIR(m)) str = "directory";
+    if (S_ISREG(m)) str = "file";
+    else if (S_ISDIR(m)) str = "directory";
     return janet_ckeyword(str);
 }
 #else
@@ -480,7 +480,7 @@ static Janet os_dir(int32_t argc, Janet *argv) {
     intptr_t res = _findfirst(pattern, &afile);
     while (res != -1) {
         janet_array_push(paths, janet_cstringv(afile.name));
-        res = _findnext(pattern, &afile);
+        res = _findnext(res, &afile);
     }
     _findclose(res);
 #else
