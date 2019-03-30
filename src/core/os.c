@@ -464,6 +464,23 @@ static Janet os_stat(int32_t argc, Janet *argv) {
     return janet_wrap_table(tab);
 }
 
+static Janet os_dir(int32_t argc, Janet *argv) {
+    struct dirent *dp;
+    DIR *dfd;
+    janet_arity(argc, 1, 2);
+    const char *dir = janet_getcstring(argv, 0);
+    JanetArray *paths = (argc == 2) ? janet_getarray(argv, 1) : janet_array(0);
+    if ((dfd = opendir(dir)) == NULL) janet_panicf("cannot open directory %s", dir);
+    /* Read directory items */
+    while ((dp = readdir(dfd)) != NULL) {
+        if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")) {
+            continue;
+        }
+        janet_array_push(paths, janet_cstringv(dp->d_name));
+    }
+    return janet_wrap_array(paths);
+}
+
 #endif /* JANET_REDUCED_OS */
 
 static const JanetReg os_cfuns[] = {
@@ -488,8 +505,14 @@ static const JanetReg os_cfuns[] = {
     },
 #ifndef JANET_REDUCED_OS
     {
+        "os/dir", os_dir,
+        JDOC("(os/stat dir [, array])\n\n"
+             "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
+             "with only the filename or directory name and no prefix.")
+    },
+    {
         "os/stat", os_stat,
-        JDOC("(os/stat path)\n\n"
+        JDOC("(os/stat path [, tab])\n\n"
              "Gets information about a file or directory. Returns a table.")
     },
     {
