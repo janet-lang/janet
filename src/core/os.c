@@ -395,8 +395,8 @@ static const uint8_t *janet_decode_permissions(unsigned short m) {
 
 static const uint8_t *janet_decode_mode(unsigned short m) {
     const char *str = "other";
-    if (S_ISREG(m)) str = "file";
-    else if (S_ISDIR(m)) str = "directory";
+    if (m & _S_IFREG(m)) str = "file";
+    else if (m & _S_IFDIR(m)) str = "directory";
     return janet_ckeyword(str);
 }
 #else
