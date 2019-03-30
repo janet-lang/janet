@@ -456,28 +456,46 @@ static Janet os_stat(int32_t argc, Janet *argv) {
     janet_table_put(tab, janet_ckeywordv("size"), janet_wrap_number(st.st_size));
     janet_table_put(tab, janet_ckeywordv("nlink"), janet_wrap_number(st.st_nlink));
     janet_table_put(tab, janet_ckeywordv("rdev"), janet_wrap_number(st.st_rdev));
+#ifndef JANET_WINDOWS
     janet_table_put(tab, janet_ckeywordv("blocksize"), janet_wrap_number(st.st_blksize));
     janet_table_put(tab, janet_ckeywordv("blocks"), janet_wrap_number(st.st_blocks));
-    janet_table_put(tab, janet_ckeywordv("accessed"), janet_wrap_number(st.st_atime));
-    janet_table_put(tab, janet_ckeywordv("modified"), janet_wrap_number(st.st_mtime));
-    janet_table_put(tab, janet_ckeywordv("changed"), janet_wrap_number(st.st_ctime));
+#endif
+    janet_table_put(tab, janet_ckeywordv("accessed"), janet_wrap_number((double) st.st_atime));
+    janet_table_put(tab, janet_ckeywordv("modified"), janet_wrap_number((double) st.st_mtime));
+    janet_table_put(tab, janet_ckeywordv("changed"), janet_wrap_number((double) st.st_ctime));
     return janet_wrap_table(tab);
 }
 
 static Janet os_dir(int32_t argc, Janet *argv) {
-    struct dirent *dp;
-    DIR *dfd;
     janet_arity(argc, 1, 2);
     const char *dir = janet_getcstring(argv, 0);
     JanetArray *paths = (argc == 2) ? janet_getarray(argv, 1) : janet_array(0);
-    if ((dfd = opendir(dir)) == NULL) janet_panicf("cannot open directory %s", dir);
-    /* Read directory items */
+#ifdef JANET_WINDOWS
+    /* Read directory items with FindFirstFile / FindNextFile / FindClose */
+    struct _finddata_t afile;
+    char pattern[MAX_PATH + 1];
+    if (strlen(dir) > (sizeof(pattern) - 3))
+        janet_panicf("path too long: %s", dir);
+    sprintf(pattern, "%s/*", dir); 
+    intptr_t res = _findfirst(pattern, &afile);
+    while (res != -1) {
+        janet_array_push(paths, janet_cstringv(afile.name));
+        res = _findnext(pattern, &afile);
+    }
+    _findclose(res);
+#else
+    /* Read directory items with opendir / readdir / closedir */
+    struct dirent *dp;
+    DIR *dfd = opendir(dir);
+    if (dfd == NULL) janet_panicf("cannot open directory %s", dir);
     while ((dp = readdir(dfd)) != NULL) {
         if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")) {
             continue;
         }
         janet_array_push(paths, janet_cstringv(dp->d_name));
     }
+    closedir(dfd);
+#endif
     return janet_wrap_array(paths);
 }
 
