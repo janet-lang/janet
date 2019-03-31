@@ -16,7 +16,7 @@ to run script files. This client program is separate from the core runtime, so
 janet could be embedded into other programs. Try janet in your browser at
 [https://janet-lang.org](https://janet-lang.org).
 
-#
+---
 
 Implemented in mostly standard C99, janet runs on Windows, Linux and macOS.
 The few features that are not standard C (dynamic library loading, compiler specific optimizations),
@@ -56,17 +56,13 @@ Janet makes a good system scripting language, or a language to embed in other pr
 
 ## Documentation
 
-Documentation can be found in the doc directory of
-the repository. There is an introduction
-section contains a good overview of the language.
+* For a quick tutorial, see [the introduction](https://janet-lang.org/introduction.html) for more details.
+* For an overview of functions in the core library, see [the function index](https://janet-lang.org/funcindex.html).
+* For the full API for all functions in the core library, see [the core API doc](https://janet-lang.org/doc.html)
 
-API documentation for all bindings can also be generated
-with `make docs`, which will create `build/doc.html`, which
-can be viewed with any web browser. This
-includes all forms in the core library except special forms.
-
-For individual bindings from within the REPL, use the `(doc symbol-name)` macro to get API
-documentation for the core library. For example,
+Documentation is also available locally in the repl.
+Use the `(doc symbol-name)` macro to get API
+documentation for symbols in the core library. For example,
 ```
 (doc doc)
 ```
@@ -77,21 +73,7 @@ environment, use the `(all-symbols)` function.
 
 ## Installation
 
-Install a stable version of janet from the [releases page](https://github.com/janet-lang/janet/releases).
-Janet is prebuilt for a few systems, but if you want to develop janet, run janet on a non-x86 system, or
-get the latest, you must build janet from source. Janet is in alpha and may change
-in backwards incompatible ways.
-
-### Windows
-
-On Windows, the easiest way to install is via the [scoop](https://scoop.sh)
-package manager. You will first need to add the janet-lang bucket, and then you can install janet
-normally.
-
-```
-scoop bucket add janet-lang https://github.com/janet-lang/scoop
-scoop install janet
-```
+See [the Introduction](https://janet-lang.org/introduction.html) for more details.
 
 ## Usage
 
@@ -123,6 +105,8 @@ Options are:
 $
 ```
 
+If installed, you can also run `man janet` to get usage information.
+
 ## Embedding
 
 The C API for Janet is not yet documented but coming soon.
@@ -136,64 +120,6 @@ on most compilers, and will need to be linked to the math library, `-lm`, and
 the dynamic linker, `-ldl`, if one wants to be able to load dynamic modules. If
 there is no need for dynamic modules, add the define
 `-DJANET_NO_DYNAMIC_MODULES` to the compiler options.
-
-## Compiling and Running
-
-Janet only requires Make and batch files to compile on Posix and windows
-respectively. To configure janet, edit the header file src/include/janet/janet.h
-before compilation.
-
-### macos and Unix-like
-
-On most platforms, use Make to build janet. The resulting binary will be in `build/janet`.
-
-```sh
-cd somewhere/my/projects/janet
-make
-make test
-```
-
-After building, run `make install` to install the janet binary and libs.
-Will install in `/usr/local` by default, see the Makefile to customize.
-
-It's also recommended to set the `JANET_PATH` variable in your profile.
-This is where janet will look for imported libraries after the current directory.
-
-### FreeBSD
-
-FreeBSD build instructions are the same as the unix-like build instuctions,
-but you need `gmake` and `gcc` to compile.
-
-```
-cd somewhere/my/projects/janet
-gmake CC=gcc
-gmake test CC=gcc
-```
-
-### Windows
-
-1. Install [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=15#)
-or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15#)
-2. Run a Visual Studio Command Prompt (cl.exe and link.exe need to be on the PATH) and cd to the directory with janet.
-3. Run `build_win` to compile janet.
-4. Run `build_win test` to make sure everything is working.
-
-Alternatively, you can try the Meson build system setup.
-
-### Emscripten
-
-To build janet for the web via [Emscripten](https://kripken.github.io/emscripten-site/), make sure you
-have `emcc` installed and on your path. On a linux or macOS system, use `make emscripten` to build
-`janet.js` and `janet.wasm` - both are needed to run janet in a browser or in node.
-The JavaScript build is what runs the repl on the main website,
-but really serves mainly as a proof of concept. Janet will run slower in a browser.
-Building with emscripten on windows is currently unsupported.
-
-## Meson
-
-Janet also has a build file for [Meson](https://mesonbuild.com/), a cross platform build
-system. This is not currently the main supported build system, but should work on any
-system that supports meson. Meson also provides much better IDE integration than Make or batch files.
 
 ## Examples
 
