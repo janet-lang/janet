@@ -126,6 +126,7 @@ static void *op_lookup[255] = {
     &&label_JOP_MAKE_STRUCT,
     &&label_JOP_MAKE_TABLE,
     &&label_JOP_MAKE_TUPLE,
+    &&label_JOP_MAKE_BRACKET_TUPLE,
     &&label_JOP_NUMERIC_LESS_THAN,
     &&label_JOP_NUMERIC_LESS_THAN_EQUAL,
     &&label_JOP_NUMERIC_GREATER_THAN,
@@ -681,10 +682,15 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         vm_checkgc_pcnext();
     }
 
-    VM_OP(JOP_MAKE_TUPLE) {
+    VM_OP(JOP_MAKE_TUPLE)
+    /* fallthrough */
+    VM_OP(JOP_MAKE_BRACKET_TUPLE) {
         int32_t count = fiber->stacktop - fiber->stackstart;
         Janet *mem = fiber->data + fiber->stackstart;
-        stack[D] = janet_wrap_tuple(janet_tuple_n(mem, count));
+        const Janet *tup = janet_tuple_n(mem, count);
+        if (opcode == JOP_MAKE_BRACKET_TUPLE)
+            janet_tuple_flag(tup) |= JANET_TUPLE_FLAG_BRACKETCTOR;
+        stack[D] = janet_wrap_tuple(tup);
         fiber->stacktop = fiber->stackstart;
         vm_checkgc_pcnext();
     }

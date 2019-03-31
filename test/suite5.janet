@@ -88,4 +88,7 @@
 (assert (deep= (drop-until pos? @[-1 -2 3]) @[3]) "drop-until 4")
 (assert (deep= (drop-until pos? @[-1 1 -2]) @[1 -2]) "drop-until 5")
 
+# Quasiquote bracketed tuples
+(assert (= (tuple/type ~[1 2 3]) (tuple/type '[1 2 3])) "quasiquote bracket tuples")
+
 (end-suite)

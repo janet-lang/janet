@@ -101,6 +101,7 @@ static const JanetInstructionDef janet_ops[] = {
     {"ltim", JOP_LESS_THAN_IMMEDIATE},
     {"ltn", JOP_NUMERIC_LESS_THAN},
     {"mkarr", JOP_MAKE_ARRAY},
+    {"mkbtp", JOP_MAKE_BRACKET_TUPLE},
     {"mkbuf", JOP_MAKE_BUFFER},
     {"mkstr", JOP_MAKE_STRING},
     {"mkstu", JOP_MAKE_STRUCT},

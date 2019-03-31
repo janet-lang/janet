@@ -71,7 +71,9 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x) {
             }
             for (i = 0; i < len; i++)
                 janet_v_push(slots, quasiquote(opts, tup[i]));
-            return qq_slots(opts, slots, JOP_MAKE_TUPLE);
+            return qq_slots(opts, slots, (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR)
+                            ? JOP_MAKE_BRACKET_TUPLE
+                            : JOP_MAKE_TUPLE);
         }
         case JANET_ARRAY: {
             int32_t i;

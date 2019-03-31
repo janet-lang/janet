@@ -499,7 +499,7 @@ static Janet os_dir(int32_t argc, Janet *argv) {
     char pattern[MAX_PATH + 1];
     if (strlen(dir) > (sizeof(pattern) - 3))
         janet_panicf("path too long: %s", dir);
-    sprintf(pattern, "%s/*", dir); 
+    sprintf(pattern, "%s/*", dir);
     intptr_t res = _findfirst(pattern, &afile);
     if (-1 == res) janet_panicv(janet_cstringv(strerror(errno)));
     do {
