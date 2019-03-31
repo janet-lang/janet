@@ -16,16 +16,6 @@ to run script files. This client program is separate from the core runtime, so
 janet could be embedded into other programs. Try janet in your browser at
 [https://janet-lang.org](https://janet-lang.org).
 
----
-
-Implemented in mostly standard C99, janet runs on Windows, Linux and macOS.
-The few features that are not standard C (dynamic library loading, compiler specific optimizations),
-are fairly straight forward. Janet can be easily ported to new platforms.
-
-For syntax highlighting, there is some preliminary vim syntax highlighting in [janet.vim](https://github.com/janet-lang/janet.vim).
-Generic lisp syntax highlighting should, however, provide good results. One can also generate a janet.tmLanguage
-file for other programs with `make grammar`.
-
 ## Use Cases
 
 Janet makes a good system scripting language, or a language to embed in other programs. Think Lua or Guile.
