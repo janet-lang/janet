@@ -20,7 +20,7 @@
 (defn- rm
   "Remove a directory and all sub directories."
   [path]
-  (if (= ((os/stat path) :mode) :directory)
+  (if (= (os/stat path :mode) :directory)
     (do
       (each subpath (os/dir path) (rm subpath))
       (os/rmdir path))
@@ -32,8 +32,8 @@
   (def f (file/open dest))
   (if (not f) (break true))
   (file/close f)
-  (let [mod-dest ((os/stat dest) :modified)
-        mod-src ((os/stat src) :modified)]
+  (let [mod-dest (os/stat dest :modified)
+        mod-src (os/stat src :modified)]
     (< mod-dest mod-src)))
 
 (defn- needs-build-some
