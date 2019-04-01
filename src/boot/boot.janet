@@ -1578,11 +1578,8 @@
     ["./:all:.:native:" :native]
     ["./:all:/:name:.:native:" :native]
     [":sys:/:all:.:native:" :native]
-    [":sys:/:all:/:name:.:native:" :native]
     ["./:all:.jimage" :image]
-    ["./:all:/:name:.jimage" :image]
     [":sys:/:all:.jimage" :image]
-    [":sys:/:all:/:name:.jimage" :image]
     [":all:" :source]])
 
 (var module/*syspath*
