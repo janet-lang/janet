@@ -63,6 +63,51 @@ Shows documentation for the doc macro.
 To get a list of all bindings in the default
 environment, use the `(all-symbols)` function.
 
+## Building
+
+### macos and Unix-like
+
+```
+cd somewhere/my/projects/janet
+make
+make test
+make repl
+```
+
+### FreeBSD
+
+FreeBSD build instructions are the same as the unix-like build instuctions,
+but you need `gmake` and `gcc` to compile.
+
+```
+cd somewhere/my/projects/janet
+gmake CC=gcc
+gmake test CC=gcc
+gmake repl
+```
+
+### Windows
+
+1. Install [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=15#) or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15#)
+2. Run a Visual Studio Command Prompt (cl.exe and link.exe need to be on the PATH) and cd to the directory with janet.
+3. Run `build_win` to compile janet.
+4. Run `build_win test` to make sure everything is working.
+
+### Emscripten
+
+To build janet for the web via [Emscripten](https://kripken.github.io/emscripten-site/), make sure you
+have `emcc` installed and on your path. On a linux or macOS system, use `make emscripten` to build
+`janet.js` and `janet.wasm` - both are needed to run janet in a browser or in node.
+The JavaScript build is what runs the repl on the main website,
+but really serves mainly as a proof of concept. Janet will run slower in a browser.
+Building with emscripten on windows is currently unsupported.
+
+### Meson
+
+Janet also has a build file for [Meson](https://mesonbuild.com/), a cross platform build
+system. This is not currently the main supported build system, but should work on any
+system that supports meson. Meson also provides much better IDE integration than Make or batch files.
+
 ## Installation
 
 See [the Introduction](https://janet-lang.org/introduction.html) for more details.
