@@ -17,13 +17,6 @@
     (print "Error executing command: " ;args)
     (os/exit res)))
 
-(defn- mkdir
-  "Make a directory. Not safe for user code."
-  [path]
-  (if is-win
-    (shell "mkdir " path)
-    (shell "mkdir -p " path)))
-
 (defn- rm
   "Remove a directory. Not safe for user code."
   [path]
@@ -31,15 +24,19 @@
     (shell "rmdir " path " /s")
     (shell "rm -rf " path)))
 
-(defn- older-than
-  [f1 f2]
-  "Check if f1 is newer than f2. Used for checking if a file should be updated."
-  (if is-win true
-    (not (zero? (os/shell (string "[ " f1 " -nt " f2 " ]"))))))
+(defn- needs-build
+  [dest src]
+  "Check if dest is older than src. Used for checking if a file should be updated."
+  (def f (file/open dest))
+  (if (not f) (break true))
+  (file/close f)
+  (let [mod-dest ((os/stat dest) :modified)
+        mod-src ((os/stat src) :modified)]
+    (< mod-dest mod-src)))
 
-(defn- older-than-some
+(defn- needs-build-some
   [f others]
-  (some (partial older-than f) others))
+  (some (partial needs-build f) others))
 
 (defn- embed-name
   "Rename a janet symbol for embedding."
@@ -94,10 +91,10 @@
 # Defaults
 (def OPTIMIZE 2)
 (def CC (if is-win "cl" "cc"))
-(def LD (if is-win 
-          "link" 
-          (string CC 
-                  " -shared" 
+(def LD (if is-win
+          "link"
+          (string CC
+                  " -shared"
                   (if is-mac " -undefined dynamic_lookup" ""))))
 (def CFLAGS (string
               (if is-win "/I" "-I")
@@ -111,7 +108,7 @@
   (def cc (or (opts :compiler) CC))
   (def cflags (or (opts :cflags) CFLAGS))
   (def defines (interpose " " (make-defines (or (opts :defines) {}))))
-  (if (older-than dest src)
+  (if (needs-build dest src)
     (if is-win
       (shell cc " " ;defines " /nologo /c " cflags " /Fo" dest " " src)
       (shell cc " -c " src " " ;defines " " cflags " -o " dest))))
@@ -123,7 +120,7 @@
   (def cflags (or (opts :cflags) CFLAGS))
   (def lflags (or (opts :lflags) ""))
   (def olist (string/join objects " "))
-  (if (older-than-some target objects)
+  (if (needs-build-some target objects)
     (if is-win
       (shell ld " /DLL /OUT:" target " " olist " %JANET_PATH%\\janet.lib")
       (shell ld " " cflags " -o " target " " olist " " lflags))))
@@ -131,7 +128,7 @@
 (defn- create-buffer-c
   "Inline raw byte file as a c file."
   [source dest name]
-  (when (older-than dest source)
+  (when (needs-build dest source)
     (def f (file/open source :r))
     (if (not f) (error (string "file " f " not found")))
     (def out (file/open dest :w))
@@ -153,7 +150,7 @@
   dynamically by a janet runtime."
   [& opts]
   (def opt-table (table ;opts))
-  (mkdir "build")
+  (os/mkdir "build")
   (def sources (opt-table :source))
   (def name (opt-table :name))
   (loop [src :in sources]
