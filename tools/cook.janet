@@ -18,11 +18,13 @@
     (os/exit res)))
 
 (defn- rm
-  "Remove a directory. Not safe for user code."
+  "Remove a directory and all sub directories."
   [path]
-  (if is-win
-    (shell "rmdir " path " /s")
-    (shell "rm -rf " path)))
+  (if (= ((os/stat path) :mode) :directory)
+    (do
+      (each subpath (os/dir path) (rm subpath))
+      (os/rmdir path))
+    (os/rm path)))
 
 (defn- needs-build
   [dest src]

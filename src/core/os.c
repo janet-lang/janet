@@ -450,43 +450,94 @@ static const uint8_t *janet_decode_mode(mode_t m) {
 }
 #endif
 
+/* Can we do this? */
+#ifdef JANET_WINDOWS
+#define stat _stat
+#endif
+
+/* Getters */
+static Janet os_stat_dev(struct stat *st) { return janet_wrap_number(st->st_dev); }
+static Janet os_stat_inode(struct stat *st) { return janet_wrap_number(st->st_ino); }
+static Janet os_stat_mode(struct stat *st) { return janet_wrap_keyword(janet_decode_mode(st->st_mode)); }
+static Janet os_stat_permissions(struct stat *st) { return janet_wrap_string(janet_decode_permissions(st->st_mode)); }
+static Janet os_stat_uid(struct stat *st) { return janet_wrap_number(st->st_uid); }
+static Janet os_stat_gid(struct stat *st) { return janet_wrap_number(st->st_gid); }
+static Janet os_stat_nlink(struct stat *st) { return janet_wrap_number(st->st_nlink); }
+static Janet os_stat_rdev(struct stat *st) { return janet_wrap_number(st->st_rdev); }
+static Janet os_stat_size(struct stat *st) { return janet_wrap_number(st->st_size); }
+static Janet os_stat_accessed(struct stat *st) { return janet_wrap_number((double) st->st_atime); }
+static Janet os_stat_modified(struct stat *st) { return janet_wrap_number((double) st->st_mtime); }
+static Janet os_stat_changed(struct stat *st) { return janet_wrap_number((double) st->st_ctime); }
+#ifdef JANET_WINDOWS
+static Janet os_stat_blocks(struct stat *st) { return janet_wrap_number(0); }
+static Janet os_stat_blocksize(struct stat *st) { return janet_wrap_number(0); }
+#else
+static Janet os_stat_blocks(struct stat *st) { return janet_wrap_number(st->st_blocks); }
+static Janet os_stat_blocksize(struct stat *st) { return janet_wrap_number(st->st_blksize); }
+#endif
+
+struct OsStatGetter {
+    const char *name;
+    Janet (*fn)(struct stat *st);
+};
+
+static const struct OsStatGetter os_stat_getters[] = {
+    {"dev", os_stat_dev},
+    {"inode", os_stat_inode},
+    {"mode", os_stat_mode},
+    {"permissions", os_stat_permissions},
+    {"uid", os_stat_uid},
+    {"gid", os_stat_gid},
+    {"nlink", os_stat_nlink},
+    {"rdev", os_stat_rdev},
+    {"size", os_stat_size},
+    {"blocks", os_stat_blocks},
+    {"blocksize", os_stat_blocksize},
+    {"accessed", os_stat_accessed},
+    {"modified", os_stat_modified},
+    {"changed", os_stat_changed},
+    {NULL, NULL}
+};
+
 static Janet os_stat(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const char *path = janet_getcstring(argv, 0);
-    JanetTable *tab;
+    JanetTable *tab = NULL;
+    int getall = 1;
+    const uint8_t *key;
     if (argc == 2) {
-        tab = janet_gettable(argv, 1);
+        if (janet_checktype(argv[1], JANET_KEYWORD)) {
+            getall = 0;
+            key = janet_getkeyword(argv, 1);
+        } else {
+            tab = janet_gettable(argv, 1);
+        }
     } else {
         tab = janet_table(0);
     }
+
     /* Build result */
-#ifdef JANET_WINDOWS
-    struct _stat st;
-    int res = _stat(path, &st);
-#else
     struct stat st;
     int res = stat(path, &st);
-#endif
     if (-1 == res) {
         janet_panicv(janet_cstringv(strerror(errno)));
     }
-    janet_table_put(tab, janet_ckeywordv("dev"), janet_wrap_number(st.st_dev));
-    janet_table_put(tab, janet_ckeywordv("inode"), janet_wrap_number(st.st_ino));
-    janet_table_put(tab, janet_ckeywordv("mode"), janet_wrap_keyword(janet_decode_mode(st.st_mode)));
-    janet_table_put(tab, janet_ckeywordv("permissions"), janet_wrap_string(janet_decode_permissions(st.st_mode)));
-    janet_table_put(tab, janet_ckeywordv("uid"), janet_wrap_number(st.st_uid));
-    janet_table_put(tab, janet_ckeywordv("gid"), janet_wrap_number(st.st_gid));
-    janet_table_put(tab, janet_ckeywordv("size"), janet_wrap_number(st.st_size));
-    janet_table_put(tab, janet_ckeywordv("nlink"), janet_wrap_number(st.st_nlink));
-    janet_table_put(tab, janet_ckeywordv("rdev"), janet_wrap_number(st.st_rdev));
-#ifndef JANET_WINDOWS
-    janet_table_put(tab, janet_ckeywordv("blocksize"), janet_wrap_number(st.st_blksize));
-    janet_table_put(tab, janet_ckeywordv("blocks"), janet_wrap_number(st.st_blocks));
-#endif
-    janet_table_put(tab, janet_ckeywordv("accessed"), janet_wrap_number((double) st.st_atime));
-    janet_table_put(tab, janet_ckeywordv("modified"), janet_wrap_number((double) st.st_mtime));
-    janet_table_put(tab, janet_ckeywordv("changed"), janet_wrap_number((double) st.st_ctime));
-    return janet_wrap_table(tab);
+
+    if (getall) {
+        /* Put results in table */
+        for (const struct OsStatGetter *sg = os_stat_getters; sg->name != NULL; sg++) {
+            janet_table_put(tab, janet_ckeywordv(sg->name), sg->fn(&st));
+        }
+        return janet_wrap_table(tab);
+    } else {
+        /* Get one result */
+        for (const struct OsStatGetter *sg = os_stat_getters; sg->name != NULL; sg++) {
+            if (janet_cstrcmp(key, sg->name)) continue;
+            return sg->fn(&st);
+        }
+        janet_panicf("unexpected keyword %v", janet_wrap_keyword(key));
+        return janet_wrap_nil();
+    }
 }
 
 static Janet os_dir(int32_t argc, Janet *argv) {
@@ -555,8 +606,22 @@ static const JanetReg os_cfuns[] = {
     },
     {
         "os/stat", os_stat,
-        JDOC("(os/stat path [, tab])\n\n"
-             "Gets information about a file or directory. Returns a table.")
+        JDOC("(os/stat path [, tab|key])\n\n"
+             "Gets information about a file or directory. Returns a table If the third argument is a keyword, returns "
+             " only that information from stat. The keys are\n\n"
+             "\t:dev - the device that the file is on\n"
+             "\t:mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n"
+             "\t:permissions - A unix permission string like \"rwx--x--x\"\n"
+             "\t:uid - File uid\n"
+             "\t:gid - File gid\n"
+             "\t:nlink - number of links to file\n"
+             "\t:rdev - Real device of file. 0 on windows.\n"
+             "\t:size - size of file in bytes\n"
+             "\t:blocks - number of blocks in file. 0 on windows\n"
+             "\t:blocksize - size of blocks in file. 0 on windows\n"
+             "\t:accessed - timestamp when file last accessed\n"
+             "\t:changed - timestamp when file last chnaged (permissions changed)\n"
+             "\t:modified - timestamp when file last modified (content changed)\n")
     },
     {
         "os/touch", os_touch,
