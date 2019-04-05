@@ -552,7 +552,7 @@ static Janet os_stat(int32_t argc, Janet *argv) {
     struct stat st;
     int res = stat(path, &st);
     if (-1 == res) {
-        janet_panicv(janet_cstringv(strerror(errno)));
+        return janet_wrap_nil()
     }
 
     if (getall) {
@@ -640,7 +640,7 @@ static const JanetReg os_cfuns[] = {
         "os/stat", os_stat,
         JDOC("(os/stat path [, tab|key])\n\n"
              "Gets information about a file or directory. Returns a table If the third argument is a keyword, returns "
-             " only that information from stat. The keys are\n\n"
+             " only that information from stat. If the file or directory does not exist, returns nil. The keys are\n\n"
              "\t:dev - the device that the file is on\n"
              "\t:mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n"
              "\t:permissions - A unix permission string like \"rwx--x--x\"\n"
