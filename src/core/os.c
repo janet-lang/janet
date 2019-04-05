@@ -552,7 +552,7 @@ static Janet os_stat(int32_t argc, Janet *argv) {
     struct stat st;
     int res = stat(path, &st);
     if (-1 == res) {
-        return janet_wrap_nil()
+        return janet_wrap_nil();
     }
 
     if (getall) {
