@@ -1571,7 +1571,8 @@
   or so. Each element is a two element tuple, containing the path
   template and a keyword :source, :native, or :image indicating how
   require should load files found at these paths."
-  @[["./:all:.janet" :source]
+  @[[":all:" :source]
+    ["./:all:.janet" :source]
     ["./:all:/init.janet" :source]
     [":sys:/:all:.janet" :source]
     [":sys:/:all:/init.janet" :source]
@@ -1579,8 +1580,7 @@
     ["./:all:/:name:.:native:" :native]
     [":sys:/:all:.:native:" :native]
     ["./:all:.jimage" :image]
-    [":sys:/:all:.jimage" :image]
-    [":all:" :source]])
+    [":sys:/:all:.jimage" :image]])
 
 (var module/*syspath*
   "The path where globally installed libraries are located.

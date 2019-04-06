@@ -75,8 +75,7 @@ typedef struct {
     int32_t depth;
     enum {
         PEG_MODE_NORMAL,
-        PEG_MODE_ACCUMULATE,
-        PEG_MODE_NOCAPTURE
+        PEG_MODE_ACCUMULATE
     } mode;
 } PegState;
 
@@ -105,10 +104,10 @@ static void cap_load(PegState *s, CapState cs) {
 
 /* Add a capture */
 static void pushcap(PegState *s, Janet capture, uint32_t tag) {
-    if (s->mode == PEG_MODE_ACCUMULATE)
+    if (s->mode == PEG_MODE_ACCUMULATE) {
         janet_to_string_b(s->scratch, capture);
-    if (s->mode == PEG_MODE_NORMAL ||
-            (tag && s->mode == PEG_MODE_ACCUMULATE)) {
+    }
+    if (tag || s->mode == PEG_MODE_NORMAL) {
         janet_array_push(s->captures, capture);
         janet_buffer_push_u8(s->tags, tag);
     }
@@ -125,8 +124,7 @@ static void pushcap(PegState *s, Janet capture, uint32_t tag) {
  * Post-conditions: If there is a match, returns a pointer to the next text.
  * All captures on the capture stack are valid. If there is no match,
  * returns NULL. Extra captures from successful child expressions can be
- * left on the capture stack. If s->mode was PEG_MODE_NOCAPTURE, captures MUST
- * not be changed, though.
+ * left on the capture stack.
  */
 static const uint8_t *peg_rule(
     PegState *s,
@@ -175,12 +173,9 @@ tail:
         case RULE_LOOK: {
             text += ((int32_t *)rule)[1];
             if (text < s->text_start || text > s->text_end) return NULL;
-            int oldmode = s->mode;
-            s->mode = PEG_MODE_NOCAPTURE;
             down1(s);
             const uint8_t *result = peg_rule(s, s->bytecode + rule[2], text);
             up1(s);
-            s->mode = oldmode;
             return result ? text : NULL;
         }
 
@@ -220,12 +215,9 @@ tail:
         case RULE_IFNOT: {
             const uint32_t *rule_a = s->bytecode + rule[1];
             const uint32_t *rule_b = s->bytecode + rule[2];
-            int oldmode = s->mode;
-            s->mode = PEG_MODE_NOCAPTURE;
             down1(s);
             const uint8_t *result = peg_rule(s, rule_a, text);
             up1(s);
-            s->mode = oldmode;
             if (rule[0] == RULE_IF ? !result : !!result) return NULL;
             rule = rule_b;
             goto tail;
@@ -233,12 +225,9 @@ tail:
 
         case RULE_NOT: {
             const uint32_t *rule_a = s->bytecode + rule[1];
-            int oldmode = s->mode;
-            s->mode = PEG_MODE_NOCAPTURE;
             down1(s);
             const uint8_t *result = peg_rule(s, rule_a, text);
             up1(s);
-            s->mode = oldmode;
             return (result) ? NULL : text;
         }
 
@@ -301,10 +290,6 @@ tail:
 
         case RULE_CAPTURE: {
             uint32_t tag = rule[2];
-            if (!tag && s->mode == PEG_MODE_NOCAPTURE) {
-                rule = s->bytecode + rule[1];
-                goto tail;
-            }
             down1(s);
             const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
             up1(s);
@@ -321,8 +306,7 @@ tail:
         case RULE_ACCUMULATE: {
             uint32_t tag = rule[2];
             int oldmode = s->mode;
-            /* No capture mode, skip captures. Accumulate inside accumulate also does nothing. */
-            if (!tag && oldmode != PEG_MODE_NORMAL) {
+            if (!tag && oldmode == PEG_MODE_ACCUMULATE) {
                 rule = s->bytecode + rule[1];
                 goto tail;
             }
@@ -333,7 +317,8 @@ tail:
             up1(s);
             s->mode = oldmode;
             if (!result) return NULL;
-            Janet cap = janet_stringv(s->scratch->data + cs.scratch, s->scratch->count - cs.scratch);
+            Janet cap = janet_stringv(s->scratch->data + cs.scratch,
+                    s->scratch->count - cs.scratch);
             cap_load(s, cs);
             pushcap(s, cap, tag);
             return result;
@@ -352,10 +337,6 @@ tail:
         case RULE_GROUP: {
             uint32_t tag = rule[2];
             int oldmode = s->mode;
-            if (!tag && oldmode == PEG_MODE_NOCAPTURE) {
-                rule = s->bytecode + rule[1];
-                goto tail;
-            }
             CapState cs = cap_save(s);
             s->mode = PEG_MODE_NORMAL;
             down1(s);
@@ -378,10 +359,6 @@ tail:
         case RULE_MATCHTIME: {
             uint32_t tag = rule[3];
             int oldmode = s->mode;
-            if (!tag && rule[0] == RULE_REPLACE && oldmode == PEG_MODE_NOCAPTURE) {
-                rule = s->bytecode + rule[1];
-                goto tail;
-            }
             CapState cs = cap_save(s);
             s->mode = PEG_MODE_NORMAL;
             down1(s);
@@ -495,14 +472,14 @@ static void peg_arity(Builder *b, int32_t arity, int32_t min, int32_t max) {
 
 static const uint8_t *peg_getset(Builder *b, Janet x) {
     if (!janet_checktype(x, JANET_STRING))
-        peg_panicf(b, "expected string for character set");
+        peg_panic(b, "expected string for character set");
     const uint8_t *str = janet_unwrap_string(x);
     return str;
 }
 
 static const uint8_t *peg_getrange(Builder *b, Janet x) {
     if (!janet_checktype(x, JANET_STRING))
-        peg_panicf(b, "expected string for character range");
+        peg_panic(b, "expected string for character range");
     const uint8_t *str = janet_unwrap_string(x);
     if (janet_string_length(str) != 2)
         peg_panicf(b, "expected string to have length 2, got %v", x);
@@ -541,7 +518,7 @@ static uint32_t emit_tag(Builder *b, Janet t) {
     if (janet_checktype(check, JANET_NIL)) {
         uint32_t tag = b->nexttag++;
         if (tag > 255) {
-            peg_panicf(b, "too many tags - up to 255 tags are supported per peg");
+            peg_panic(b, "too many tags - up to 255 tags are supported per peg");
         }
         Janet val = janet_wrap_number(tag);
         janet_table_put(b->tags, t, val);
@@ -898,7 +875,7 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
 
     switch (janet_type(peg)) {
         default:
-            peg_panicf(b, "unexpected peg source");
+            peg_panic(b, "unexpected peg source");
             return 0;
         case JANET_NUMBER: {
             int32_t n = peg_getinteger(b, peg);
@@ -919,7 +896,7 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
         case JANET_KEYWORD: {
             Janet check = janet_table_get(b->grammar, peg);
             if (janet_checktype(check, JANET_NIL))
-                peg_panicf(b, "unknown rule");
+                peg_panic(b, "unknown rule");
             rule = peg_compile1(b, check);
             break;
         }
@@ -929,7 +906,7 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             b->grammar = grammar;
             Janet main_rule = janet_table_get(grammar, janet_ckeywordv("main"));
             if (janet_checktype(main_rule, JANET_NIL))
-                peg_panicf(b, "grammar requires :main rule");
+                peg_panic(b, "grammar requires :main rule");
             rule = peg_compile1(b, main_rule);
             b->grammar = grammar->proto;
             break;
