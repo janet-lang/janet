@@ -22,7 +22,8 @@
   [path]
   (if (= (os/stat path :mode) :directory)
     (do
-      (each subpath (os/dir path) (rm subpath))
+      (each subpath (os/dir path)
+        (rm (string path sep subpath)))
       (os/rmdir path))
     (os/rm path)))
 
