@@ -1033,7 +1033,7 @@ static Janet cfun_peg_match(int32_t argc, Janet *argv) {
     if (argc > 2) {
         start = janet_gethalfrange(argv, 2, bytes.len, "offset");
         s.extrac = argc - 3;
-        s.extrav = argv + 3;
+        s.extrav = janet_tuple_n(argv + 3, argc - 3);
     } else {
         start = 0;
         s.extrac = 0;
