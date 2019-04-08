@@ -761,7 +761,7 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     /* Push frame */
     janet_fiber_pushn(janet_vm_fiber, argv, argc);
     if (janet_fiber_funcframe(janet_vm_fiber, fun)) {
-        janet_panicf("arity mismatch in %v", fun);
+        janet_panicf("arity mismatch in %v", janet_wrap_function(fun));
     }
     janet_fiber_frame(janet_vm_fiber)->flags |= JANET_STACKFRAME_ENTRANCE;
 
