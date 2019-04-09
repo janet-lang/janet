@@ -287,7 +287,7 @@ install: $(JANET_TARGET)
 	cp janet.1 $(MANPATH)
 
 test-install:
-	cd test/install && rm -rf build && janet test
+	cd test/install && rm -rf build && janet build && janet build
 
 uninstall:
 	-rm $(BINDIR)/../$(JANET_TARGET)
