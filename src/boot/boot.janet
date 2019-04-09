@@ -1588,9 +1588,19 @@
   on Windows is C:/Janet/Library."
   (or (process/opts "JANET_PATH") ""))
 
-(defn- fexists [path]
-  (def f (file/open path :r+))
-  (if f (do (file/close f) path)))
+# Version of fexisst that works even with a reduced OS
+(if-let [has-stat (_env 'os/stat)]
+  (let [stat (has-stat :value)]
+    (defglobal "fexists" (fn fexists [path] (= :file (stat path :mode)))))
+  (defglobal "fexists"
+    (fn fexists [path]
+      (def f (file/open path))
+      (when f
+        (def res
+          (try (do (file/read f 1) true)
+               ([err] nil)))
+        (file/close f)
+        res))))
 
 (defn module/find
   "Try to match a module or path name from the patterns in module/paths.
