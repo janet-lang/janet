@@ -1588,7 +1588,7 @@
   on Windows is C:/Janet/Library."
   (or (process/opts "JANET_PATH") ""))
 
-# Version of fexisst that works even with a reduced OS
+# Version of fexists that works even with a reduced OS
 (if-let [has-stat (_env 'os/stat)]
   (let [stat (has-stat :value)]
     (defglobal "fexists" (fn fexists [path] (= :file (stat path :mode)))))
