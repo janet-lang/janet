@@ -1589,7 +1589,7 @@
   (or (process/opts "JANET_PATH") ""))
 
 (defn- fexists [path]
-  (def f (file/open path))
+  (def f (file/open path :r+))
   (if f (do (file/close f) path)))
 
 (defn module/find
