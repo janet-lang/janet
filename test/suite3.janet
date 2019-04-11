@@ -351,6 +351,12 @@
 (def t (put @{} :hi 1))
 (assert (deep= t @{:hi 1}) "regression #24")
 
+# Peg swallowing errors
+(assert (try (peg/match ~(/ '1 ,(fn [x] (nil x))) "x") ([err] err))
+        "errors should not be swallowed")
+(assert (try ((fn [x] (nil x))) ([err] err))
+        "errors should not be swallowed 2")
+
 # Tuple types
 
 (assert (= (tuple/type '(1 2 3)) :parens) "normal tuple")

@@ -578,7 +578,6 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
             janet_fiber_cframe(fiber, janet_unwrap_cfunction(callee));
             Janet ret = janet_unwrap_cfunction(callee)(argc, fiber->data + fiber->frame);
             janet_fiber_popframe(fiber);
-            /*if (fiber->frame == 0) vm_return(JANET_SIGNAL_OK, ret);*/
             stack = fiber->data + fiber->frame;
             stack[A] = ret;
             vm_checkgc_pcnext();
@@ -638,6 +637,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig)))
             vm_return(sig, retreg);
         fiber->child = NULL;
+        stack = fiber->data + fiber->frame;
         stack[A] = retreg;
         vm_checkgc_pcnext();
     }
@@ -749,9 +749,6 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
 }
 
 Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
-    Janet ret;
-    Janet *old_return_reg = janet_vm_return_reg;
-
     /* Check entry conditions */
     if (!janet_vm_fiber)
         janet_panic("janet_call failed because there is no current fiber");
@@ -768,7 +765,6 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     /* Set up */
     int32_t oldn = janet_vm_stackn++;
     int handle = janet_gclock();
-    janet_vm_return_reg = &ret;
 
     /* Run vm */
     JanetSignal signal = run_vm(janet_vm_fiber,
@@ -776,13 +772,12 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
                                 JANET_STATUS_ALIVE);
 
     /* Teardown */
-    janet_vm_return_reg = old_return_reg;
     janet_vm_stackn = oldn;
     janet_gcunlock(handle);
 
-    if (signal != JANET_SIGNAL_OK) janet_panicv(ret);
+    if (signal != JANET_SIGNAL_OK) janet_panicv(*janet_vm_return_reg);
 
-    return ret;
+    return *janet_vm_return_reg;
 }
 
 /* Enter the main vm loop */
