@@ -8,14 +8,16 @@
 (def- objext (if is-win ".obj" ".o"))
 (def- modext (if is-win ".dll" ".so"))
 
-(defn- shell
+(def prefix (or (os/getenv "PREFIX") "/usr/local"))
+
+(defn shell
   "Do a shell command"
   [& args]
-  (print ;args)
-  (def res (os/shell (string ;args)))
+  (def cmd (string ;args))
+  (print cmd)
+  (def res (os/shell cmd))
   (unless (zero? res)
-    (print "Error executing command: " ;args)
-    (os/exit res)))
+    (error "command exited with status " res)))
 
 (defn- rm
   "Remove a directory and all sub directories."
