@@ -318,7 +318,7 @@ tail:
             s->mode = oldmode;
             if (!result) return NULL;
             Janet cap = janet_stringv(s->scratch->data + cs.scratch,
-                    s->scratch->count - cs.scratch);
+                                      s->scratch->count - cs.scratch);
             cap_load(s, cs);
             pushcap(s, cap, tag);
             return result;

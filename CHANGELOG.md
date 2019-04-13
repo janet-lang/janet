@@ -1,7 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 0.4.1 latest - ??
+## 0.4.1 - 2019-04-14
+- Squash some bugs
+- Peg patterns can now make captures in any position in a grammar.
 - Add color to repl output
 - Add array/remove function
 - Add meson build support
