@@ -712,7 +712,7 @@ static Janet cfun_parse_insert(int32_t argc, Janet *argv) {
         const uint8_t *str = janet_to_string(argv[1]);
         int32_t slen = janet_string_length(str);
         size_t newcount = p->bufcount + slen;
-        if (p->bufcap > p->bufcount + slen) {
+        if (p->bufcap < newcount) {
             size_t newcap = 2 * newcount;
             p->buf = realloc(p->buf, newcap);
             if (p->buf == NULL) {
