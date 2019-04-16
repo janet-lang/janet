@@ -852,6 +852,19 @@
     (set prev ~(if-let [,sym ,prev] ,next-prev)))
   prev)
 
+(defmacro with-dyns
+  "Run a block of code in a new fiber that has some
+  dynamic bindings set. The fiber will not mask errors
+  or signals, but the dynamic bindings will be properly
+  unset, as dynamic bindings are fiber local."
+  [bindings & body]
+  (with-syms [currenv env fib]
+    ~(let [,currenv (,fiber/getenv (,fiber/current))
+           ,env (,table/setproto (,table ,;bindings) ,currenv)
+           ,fib (,fiber/new (fn [] ,;body) :)]
+       (,fiber/setenv ,fib ,env)
+       (,resume ,fib))))
+
 (defn partial
   "Partial function application."
   [f & more]

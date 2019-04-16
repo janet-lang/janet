@@ -204,3 +204,18 @@ JanetRange janet_getslice(int32_t argc, const Janet *argv) {
     }
     return range;
 }
+
+Janet janet_dyn(const char *name) {
+    if (janet_vm_fiber->env) {
+        return janet_table_get(janet_vm_fiber->env, janet_ckeywordv(name));
+    } else {
+        return janet_wrap_nil();
+    }
+}
+
+void janet_setdyn(const char *name, Janet value) {
+    if (!janet_vm_fiber->env) {
+        janet_vm_fiber->env = janet_table(1);
+    }
+    janet_table_put(janet_vm_fiber->env, janet_ckeywordv(name), value);
+}

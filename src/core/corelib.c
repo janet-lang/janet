@@ -111,19 +111,6 @@ static Janet janet_core_native(int32_t argc, Janet *argv) {
     return janet_wrap_table(env);
 }
 
-static Janet janet_core_print(int32_t argc, Janet *argv) {
-    for (int32_t i = 0; i < argc; ++i) {
-        int32_t j, len;
-        const uint8_t *vstr = janet_to_string(argv[i]);
-        len = janet_string_length(vstr);
-        for (j = 0; j < len; ++j) {
-            putc(vstr[j], stdout);
-        }
-    }
-    putc('\n', stdout);
-    return janet_wrap_nil();
-}
-
 static Janet janet_core_describe(int32_t argc, Janet *argv) {
     JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
@@ -295,13 +282,6 @@ static const JanetReg corelib_cfuns[] = {
              "usually a .so file on Unix systems, and a .dll file on Windows. "
              "Returns an environment table that contains functions and other values "
              "from the native module.")
-    },
-    {
-        "print", janet_core_print,
-        JDOC("(print & xs)\n\n"
-             "Print values to the console (standard out). Value are converted "
-             "to strings if they are not already. After printing all values, a "
-             "newline character is printed. Returns nil.")
     },
     {
         "describe", janet_core_describe,

@@ -4,11 +4,13 @@ All notable changes to this project will be documented in this file.
 ## 0.5.0 - ??
 - Remove `*env*`, and `*doc-width*`.
 - Add `fiber/getenv`, `fiber/setenv`, and `dyn`, and `setdyn`.
+- Add support for dynamic bindings (via the `dyn` and `setdyn` functions).
 - Change signatures of some functions like `eval` which no longer takes
   an optional environment.
 - Add printf function
 - Make `pp` configurable with dynamic binding `:pretty-format`.
 - Remove the `meta` function.
+- Add `with-dyns` for blocks with dynamic bindings assigned.
 
 ## 0.4.1 - 2019-04-14
 - Squash some bugs
