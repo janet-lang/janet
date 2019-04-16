@@ -49,7 +49,7 @@
   # Make ast from forms
   (def ast ~(fn [&opt params] (default params @{}) (,buffer ,;forms)))
 
-  (def ctor (compile ast *env* source))
+  (def ctor (compile ast (fiber/getenv (fiber/current)) source))
   (if-not (function? ctor)
     (error (string "could not compile template")))
   (ctor))

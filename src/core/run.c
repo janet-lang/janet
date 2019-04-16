@@ -47,6 +47,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
             if (cres.status == JANET_COMPILE_OK) {
                 JanetFunction *f = janet_thunk(cres.funcdef);
                 JanetFiber *fiber = janet_fiber(f, 64, 0, NULL);
+                fiber->env = env;
                 JanetSignal status = janet_continue(fiber, janet_wrap_nil(), &ret);
                 if (status != JANET_SIGNAL_OK) {
                     janet_stacktrace(fiber, ret);

@@ -46,7 +46,7 @@
            3)
      "-" (fn [&] (set *handleopts* false) 1)
      "l" (fn [i &]
-           (import* *env* (get process/args (+ i 1))
+           (import* (get process/args (+ i 1))
                     :prefix "" :exit *exit-on-error*)
            2)
      "e" (fn [i &]
@@ -67,7 +67,7 @@
       (+= i (dohandler (string/slice arg 1 2) i))
       (do
         (set *no-file* false)
-        (import* *env* arg :prefix "" :exit *exit-on-error*)
+        (import* arg :prefix "" :exit *exit-on-error*)
         (set i lenargs))))
 
   (when (or *should-repl* *no-file*)
@@ -86,4 +86,5 @@
     (defn getchunk [buf p]
       (getter (prompter p) buf))
     (def onsig (if *quiet* (fn [x &] x) nil))
-    (repl getchunk onsig (if *colorize* "%.20P" "%.20p"))))
+    (setdyn :pretty-format (if *colorize* "%.20P" "%.20p"))
+    (repl getchunk onsig)))

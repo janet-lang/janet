@@ -69,6 +69,29 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
     return init;
 }
 
+static Janet janet_core_dyn(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    Janet value;
+    if (janet_vm_fiber->env) {
+        value = janet_table_get(janet_vm_fiber->env, argv[0]);
+    } else {
+        value = janet_wrap_nil();
+    }
+    if (argc == 2 && janet_checktype(value, JANET_NIL)) {
+        return argv[1];
+    }
+    return value;
+}
+
+static Janet janet_core_setdyn(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    if (!janet_vm_fiber->env) {
+        janet_vm_fiber->env = janet_table(2);
+    }
+    janet_table_put(janet_vm_fiber->env, argv[0], argv[1]);
+    return argv[1];
+}
+
 static Janet janet_core_native(int32_t argc, Janet *argv) {
     JanetModule init;
     janet_arity(argc, 1, 2);
@@ -418,6 +441,16 @@ static const JanetReg corelib_cfuns[] = {
         JDOC("(getline [, prompt=\"\" [, buffer=@\"\"]])\n\n"
              "Reads a line of input into a buffer, including the newline character, using a prompt. Returns the modified buffer. "
              "Use this function to implement a simple interface for a terminal program.")
+    },
+    {
+        "dyn", janet_core_dyn,
+        JDOC("(dyn key [, default=nil])\n\n"
+             "Get a dynamic binding. Returns the default value if no binding found.")
+    },
+    {
+        "setdyn", janet_core_setdyn,
+        JDOC("(setdyn key value)\n\n"
+             "Set a dynamic binding. Returns value.")
     },
     {NULL, NULL, NULL}
 };

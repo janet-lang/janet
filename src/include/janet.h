@@ -645,6 +645,7 @@ struct JanetFiber {
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
     int32_t capacity;
     int32_t maxstack; /* Arbitrary defined limit for stack overflow */
+    JanetTable *env; /* Dynamic bindings table (usually current environment). */
     Janet *data;
     JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
 };

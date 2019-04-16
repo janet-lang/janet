@@ -7,8 +7,6 @@
 ###
 ###
 
-(var *env* "The current environment." _env)
-
 (def defn :macro
   "(def name & more)\n\nDefine a function. Equivalent to (def name (fn name [args] ...))."
   (fn defn [name & more]
@@ -64,14 +62,14 @@
   "Dynamically create a global def."
   [name value]
   (def name* (symbol name))
-  (put *env* name* @{:value value})
+  (setdyn name* @{:value value})
   nil)
 
 (defn varglobal
   "Dynamically create a global var."
   [name init]
   (def name* (symbol name))
-  (put *env* name* @{:ref @[init]})
+  (setdyn name* @{:ref @[init]})
   nil)
 
 # Basic predicates
@@ -216,7 +214,7 @@
   (let [[[err fib]] catch
         f (gensym)
         r (gensym)]
-    ~(let [,f (,fiber/new (fn [] ,body) :e)
+    ~(let [,f (,fiber/new (fn [] ,body) :ie)
            ,r (resume ,f)]
        (if (= (,fiber/status ,f) :error)
          (do (def ,err ,r) ,(if fib ~(def ,fib ,f)) ,;(tuple/slice catch 1))
@@ -414,12 +412,12 @@
   "Create a generator expression using the loop syntax. Returns a fiber
   that yields all values inside the loop in order. See loop for details."
   [head & body]
-  ~(fiber/new (fn [] (loop ,head (yield (do ,;body))))))
+  ~(fiber/new (fn [] (loop ,head (yield (do ,;body)))) :yi))
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber/new (fn [] ...body))."
+  "A wrapper for making fibers. Same as (fiber/new (fn [] ...body) :yi)."
   [& body]
-  (tuple fiber/new (tuple 'fn '[] ;body)))
+  (tuple fiber/new (tuple 'fn '[] ;body) :yi))
 
 (defn sum
   "Returns the sum of xs. If xs is empty, returns 0."
@@ -1068,6 +1066,12 @@
   (file/close f)
   nil)
 
+(defn printf
+  "Print formatted strings to stdout, followed by
+  a new line."
+  [f & args]
+  (file/write stdout (buffer/format @"" f ;args)))
+
 ###
 ###
 ### Pattern Matching
@@ -1173,15 +1177,11 @@
 ###
 ###
 
-(var *doc-width*
-  "Width in columns to print documentation."
-  80)
-
 (defn doc-format
   "Reformat text to wrap at a given line."
   [text]
 
-  (def maxcol (- *doc-width* 8))
+  (def maxcol (- (dyn :doc-width 80) 8))
   (var buf @"    ")
   (var word @"")
   (var current 0)
@@ -1217,8 +1217,8 @@
 
 (defn doc*
   "Get the documentation for a symbol in a given environment."
-  [env sym]
-  (def x (get env sym))
+  [sym]
+  (def x (dyn sym))
   (if (not x)
     (print "symbol " sym " not found.")
     (do
@@ -1241,7 +1241,7 @@
 (defmacro doc
   "Shows documentation for the given symbol."
   [sym]
-  ~(,doc* *env* ',sym))
+  ~(,doc* ',sym))
 
 ###
 ###
@@ -1320,7 +1320,7 @@
   (defn dotup [t]
     (def h (get t 0))
     (def s (get specs h))
-    (def entry (or (get *env* h) {}))
+    (def entry (or (dyn h) {}))
     (def m (entry :value))
     (def m? (entry :macro))
     (cond
@@ -1390,7 +1390,7 @@
 (defn pp
   "Pretty print to stdout."
   [x]
-  (print (buffer/format @"" "%p" x)))
+  (print (buffer/format @"" (dyn :pretty-format "%p") x)))
 
 ###
 ###
@@ -1436,11 +1436,11 @@
   opts is a table or struct of options. The options are as follows:\n\n\t
   :chunks - callback to read into a buffer - default is getline\n\t
   :on-parse-error - callback when parsing fails - default is bad-parse\n\t
-  :env - the environment to compile against - default is *env*\n\t
+  :env - the environment to compile against - default is the current env\n\t
   :source - string path of source for better errors - default is \"<anonymous>\"\n\t
   :on-compile-error - callback when compilation fails - default is bad-compile\n\t
   :on-status - callback when a value is evaluated - default is debug/stacktrace\n\t
-  :fiber-flags - what flags to wrap the compilation fiber with. Default is :a."
+  :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia."
   [opts]
 
   (def {:env env
@@ -1450,7 +1450,7 @@
         :on-parse-error on-parse-error
         :fiber-flags guard
         :source where} opts)
-  (default env *env*)
+  (default env (fiber/getenv (fiber/current)))
   (default chunks getline)
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
@@ -1463,7 +1463,7 @@
   # The parser object
   (def p (parser/new))
 
-  # Evaluate 1 source form
+  # Evaluate 1 source form in a protected manner
   (defn eval1 [source]
     (var good true)
     (def f
@@ -1481,13 +1481,11 @@
                   err))
               (on-compile-error msg errf where))))
         (or guard :a)))
+    (fiber/setenv f env)
     (def res (resume f nil))
     (when good (if going (onstatus f res))))
 
-  (def oldenv *env*)
-  (set *env* env)
-
-  # Run loop
+  # Loop
   (def buf @"")
   (while going
     (buffer/clear buf)
@@ -1504,21 +1502,18 @@
         (eval1 (parser/produce p)))
       (when (= (parser/status p) :error)
         (on-parse-error p where))))
-
   # Check final parser state
   (while (parser/has-more p)
     (eval1 (parser/produce p)))
   (when (= (parser/status p) :error)
     (on-parse-error p where))
 
-  (set *env* oldenv)
-
   env)
 
 (defn eval-string
   "Evaluates a string in the current environment. If more control over the
   environment is needed, use run-context."
-  [str &opt env]
+  [str]
   (var state (string str))
   (defn chunks [buf _]
     (def ret state)
@@ -1527,26 +1522,24 @@
       (buffer/push-string buf str)
       (buffer/push-string buf "\n")))
   (var returnval nil)
-  (run-context {:env env
-                :chunks chunks
+  (run-context {:chunks chunks
                 :on-compile-error (fn [msg errf &]
                                     (error (string "compile error: " msg)))
                 :on-parse-error (fn [p x]
                                   (error (string "parse error: " (parser/error p))))
-                :fiber-flags :
+                :fiber-flags :i
                 :on-status (fn [f val]
                              (if-not (= (fiber/status f) :dead)
                                (error val))
                              (set returnval val))
-                :source "eval"})
+                :source "eval-string"})
   returnval)
 
 (defn eval
   "Evaluates a form in the current environment. If more control over the
   environment is needed, use run-context."
-  [form &opt env]
-  (default env *env*)
-  (def res (compile form env "eval"))
+  [form]
+  (def res (compile form (fiber/getenv (fiber/current)) "eval"))
   (if (= (type res) :function)
     (res)
     (error (res :error))))
@@ -1605,7 +1598,7 @@
 (defn module/find
   "Try to match a module or path name from the patterns in module/paths.
   Returns a tuple (fullpath kind) where the kind is one of :source, :native,
-  or image if the module is found, otherise a tuple with nil followed by
+  or image if the module is found, otherwise a tuple with nil followed by
   an error message."
   [path]
   (def parts (string/split "/" path))
@@ -1684,10 +1677,10 @@
       env)))
 
 (defn import*
-  "Import a module into a given environment table. This is the
-  functional form of (import ...) that expects and explicit environment
-  table."
-  [env path & args]
+  "Function form of import. Same parameters, but the path
+  and other symbol parameters should be strings instead."
+  [path & args]
+  (def env (fiber/getenv (fiber/current)))
   (def {:as as
         :prefix prefix
         :export ep} (table ;args))
@@ -1709,39 +1702,30 @@
                      x
                      (string x)))
                  args))
-  (tuple import* '*env* (string path) ;argm))
+  (tuple import* (string path) ;argm))
 
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
-  caught. fmt is a format string used to print results, and defaults to
-  \"%.20P\""
-  [&opt chunks onsignal fmt]
+  caught."
+  [&opt chunks onsignal]
   (def newenv (make-env))
-  (default fmt "%.20P")
   (default onsignal (fn [f x]
                       (case (fiber/status f)
                         :dead (do
-                                (put newenv '_ @{:value x})
-                                (print (buffer/format @"" fmt x)))
+                                (pp x)
+                                (put newenv '_ @{:value x}))
                         (debug/stacktrace f x))))
   (run-context {:env newenv
                 :chunks chunks
                 :on-status onsignal
                 :source "repl"}))
 
-(defmacro meta
-  "Add metadata to the current environment."
-  [& args]
-  (def opts (table ;args))
-  (loop [[k v] :pairs opts]
-    (put *env* k v)))
-
 (defn all-bindings
   "Get all symbols available in the current environment."
-  [&opt env]
-  (default env *env*)
+  []
+  (def env (fiber/getenv (fiber/current)))
   (def envs @[])
   (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
   (def symbol-set @{})
@@ -1762,12 +1746,12 @@
 ###
 
 (do
-
-  (def image (let [env-pairs (pairs (env-lookup *env*))
+  (def env (fiber/getenv (fiber/current)))
+  (def image (let [env-pairs (pairs (env-lookup env))
                    essential-pairs (filter (fn [[k v]] (or (cfunction? v) (abstract? v))) env-pairs)
                    lookup (table ;(mapcat identity essential-pairs))
                    reverse-lookup (invert lookup)]
-               (marshal *env* reverse-lookup)))
+               (marshal env reverse-lookup)))
 
   # Create C source file that contains images a uint8_t buffer. This
   # can be compiled and linked statically into the main janet library

@@ -103,7 +103,7 @@
 
 # Generate parts and print them to stdout
 (def parts (seq [[k entry]
-                 :in (sort (pairs (table/getproto *env*)))
+                 :in (sort (pairs (table/getproto (fiber/getenv (fiber/current)))))
                  :when (and (get entry :doc) (not (get entry :private)))]
                 (emit-item k entry)))
 (print

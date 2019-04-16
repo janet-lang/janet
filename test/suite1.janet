@@ -140,7 +140,7 @@
 
 # Marshal
 
-(def um-lookup (env-lookup *env*))
+(def um-lookup (env-lookup (fiber/getenv (fiber/current))))
 (def m-lookup (invert um-lookup))
 
 (defn testmarsh [x msg]
@@ -182,7 +182,7 @@
 # Large functions
 (def manydefs (seq [i :range [0 300]] (tuple 'def (gensym) (string "value_" i))))
 (array/push manydefs (tuple * 10000 3 5 7 9))
-(def f (compile ['do ;manydefs] *env*))
+(def f (compile ['do ;manydefs] (fiber/getenv (fiber/current))))
 (assert (= (f) (* 10000 3 5 7 9)) "long function compilation")
 
 # Some higher order functions and macros

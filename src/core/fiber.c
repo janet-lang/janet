@@ -35,6 +35,7 @@ static void fiber_reset(JanetFiber *fiber) {
     fiber->stacktop = JANET_FRAME_SIZE;
     fiber->child = NULL;
     fiber->flags = JANET_FIBER_MASK_YIELD;
+    fiber->env = NULL;
     janet_fiber_set_status(fiber, JANET_STATUS_NEW);
 }
 
@@ -293,6 +294,25 @@ void janet_fiber_popframe(JanetFiber *fiber) {
 
 /* CFuns */
 
+static Janet cfun_fiber_getenv(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    return fiber->env ?
+           janet_wrap_table(fiber->env) :
+           janet_wrap_nil();
+}
+
+static Janet cfun_fiber_setenv(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    if (janet_checktype(argv[1], JANET_NIL)) {
+        fiber->env = NULL;
+    } else {
+        fiber->env = janet_gettable(argv, 1);
+    }
+    return argv[0];
+}
+
 static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     JanetFunction *func = janet_getfunction(argv, 0);
@@ -332,6 +352,12 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
                         break;
                     case 'y':
                         fiber->flags |= JANET_FIBER_MASK_YIELD;
+                        break;
+                    case 'i':
+                        if (!janet_vm_fiber->env) {
+                            janet_vm_fiber->env = janet_table(0);
+                        }
+                        fiber->env = janet_vm_fiber->env;
                         break;
                 }
             }
@@ -388,7 +414,8 @@ static const JanetReg fiber_cfuns[] = {
              "\te - block error signals\n"
              "\tu - block user signals\n"
              "\ty - block yield signals\n"
-             "\t0-9 - block a specific user signal")
+             "\t0-9 - block a specific user signal\n"
+             "\ti - inherit the environment from the current fiber")
     },
     {
         "fiber/status", cfun_fiber_status,
@@ -419,6 +446,18 @@ static const JanetReg fiber_cfuns[] = {
         JDOC("(fiber/setmaxstack fib maxstack)\n\n"
              "Sets the maximum stack size in janet values for a fiber. By default, the "
              "maximum stack size is usually 8192.")
+    },
+    {
+        "fiber/getenv", cfun_fiber_getenv,
+        JDOC("(fiber/getenv fiber)\n\n"
+             "Gets the environment for a fiber. Returns nil if no such table is "
+             "set yet.")
+    },
+    {
+        "fiber/setenv", cfun_fiber_setenv,
+        JDOC("(fiber/setenv fiber table)\n\n"
+             "Sets the environment table for a fiber. Set to nil to remove the current "
+             "environment.")
     },
     {NULL, NULL, NULL}
 };

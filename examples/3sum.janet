@@ -14,5 +14,5 @@
   (map keys (keys solutions)))
 
 (def arr @[2 4 1 3 8 7 -3 -1 12 -5 -8])
-(print "3sum of " (string/pretty arr) ":")
-(print (string/pretty (sum3 arr)))
+(printf "3sum of %P: " arr)
+(printf "%P\n" (sum3 arr))

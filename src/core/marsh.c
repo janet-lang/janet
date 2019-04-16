@@ -249,6 +249,7 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 }
 
 #define JANET_FIBER_FLAG_HASCHILD (1 << 29)
+#define JANET_FIBER_FLAG_HASENV (1 << 28)
 #define JANET_STACKFRAME_HASENV (1 << 30)
 
 /* Marshal a fiber */
@@ -256,6 +257,7 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
     MARSH_STACKCHECK;
     int32_t fflags = fiber->flags;
     if (fiber->child) fflags |= JANET_FIBER_FLAG_HASCHILD;
+    if (fiber->env) fflags |= JANET_FIBER_FLAG_HASENV;
     if (janet_fiber_status(fiber) == JANET_STATUS_ALIVE)
         janet_panic("cannot marshal alive fiber");
     pushint(st, fflags);
@@ -281,6 +283,9 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
             marshal_one(st, fiber->data[k], flags + 1);
         j = i - JANET_FRAME_SIZE;
         i = frame->prevframe;
+    }
+    if (fiber->env) {
+        marshal_one(st, janet_wrap_table(fiber->env), flags + 1);
     }
     if (fiber->child)
         marshal_one(st, janet_wrap_fiber(fiber->child), flags + 1);
@@ -837,6 +842,7 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->maxstack = 0;
     fiber->data = NULL;
     fiber->child = NULL;
+    fiber->env = NULL;
 
     /* Push fiber to seen stack */
     janet_array_push(&st->lookup, janet_wrap_fiber(fiber));
@@ -932,6 +938,15 @@ static const uint8_t *unmarshal_one_fiber(
     }
     if (stack < 0) {
         janet_panic("fiber has too many stackframes");
+    }
+
+    /* Check for fiber env */
+    if (fiber->flags & JANET_FIBER_FLAG_HASENV) {
+        Janet envv;
+        fiber->flags &= ~JANET_FIBER_FLAG_HASENV;
+        data = unmarshal_one(st, data, &envv, flags + 1);
+        janet_asserttype(envv, JANET_TABLE);
+        fiber->env = janet_unwrap_table(envv);
     }
 
     /* Check for child fiber */

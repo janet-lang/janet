@@ -236,6 +236,9 @@ recur:
         i = frame->prevframe;
     }
 
+    if (fiber->env)
+        janet_mark_table(fiber->env);
+
     /* Explicit tail recursion */
     if (fiber->child) {
         fiber = fiber->child;
