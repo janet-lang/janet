@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 0.5.0 - ??
+- Remove `*env*`, and `*doc-width*`.
+- Add `fiber/getenv`, `fiber/setenv`, and `dyn`, and `setdyn`.
+- Change signatures of some functions like `eval` which no longer takes
+  an optional environment.
+- Add printf function
+- Make `pp` configurable with dynamic binding `:pretty-format`.
+- Remove the `meta` function.
+
 ## 0.4.1 - 2019-04-14
 - Squash some bugs
 - Peg patterns can now make captures in any position in a grammar.
