@@ -95,6 +95,7 @@ void janet_debug_find(
  * consitency with the top level code it is defined once. */
 void janet_stacktrace(JanetFiber *fiber, Janet err) {
     int32_t fi;
+    FILE *out = janet_dynfile("err", stderr);
     const char *errstr = (const char *)janet_to_string(err);
     JanetFiber **fibers = NULL;
     int wrote_error = 0;
@@ -116,43 +117,43 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
             if (!wrote_error) {
                 JanetFiberStatus status = janet_fiber_status(fiber);
                 const char *prefix = status == JANET_STATUS_ERROR ? "" : "status ";
-                fprintf(stderr, "%s%s: %s\n",
+                fprintf(out, "%s%s: %s\n",
                         prefix,
                         janet_status_names[status],
                         errstr);
                 wrote_error = 1;
             }
 
-            fprintf(stderr, "  in");
+            fprintf(out, "  in");
 
             if (frame->func) {
                 def = frame->func->def;
-                fprintf(stderr, " %s", def->name ? (const char *)def->name : "<anonymous>");
+                fprintf(out, " %s", def->name ? (const char *)def->name : "<anonymous>");
                 if (def->source) {
-                    fprintf(stderr, " [%s]", (const char *)def->source);
+                    fprintf(out, " [%s]", (const char *)def->source);
                 }
             } else {
                 JanetCFunction cfun = (JanetCFunction)(frame->pc);
                 if (cfun) {
                     Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
                     if (!janet_checktype(name, JANET_NIL))
-                        fprintf(stderr, " %s", (const char *)janet_to_string(name));
+                        fprintf(out, " %s", (const char *)janet_to_string(name));
                     else
-                        fprintf(stderr, " <cfunction>");
+                        fprintf(out, " <cfunction>");
                 }
             }
             if (frame->flags & JANET_STACKFRAME_TAILCALL)
-                fprintf(stderr, " (tailcall)");
+                fprintf(out, " (tailcall)");
             if (frame->func && frame->pc) {
                 int32_t off = (int32_t)(frame->pc - def->bytecode);
                 if (def->sourcemap) {
                     JanetSourceMapping mapping = def->sourcemap[off];
-                    fprintf(stderr, " at (%d:%d)", mapping.start, mapping.end);
+                    fprintf(out, " at (%d:%d)", mapping.start, mapping.end);
                 } else {
-                    fprintf(stderr, " pc=%d", off);
+                    fprintf(out, " pc=%d", off);
                 }
             }
-            fprintf(stderr, "\n");
+            fprintf(out, "\n");
         }
     }
 

@@ -333,17 +333,17 @@ static Janet io_file_get(void *p, Janet key) {
     return janet_getmethod(janet_unwrap_keyword(key), io_file_methods);
 }
 
-static IOFile *io_isfile(Janet x) {
-    if (!janet_checktype(x, JANET_ABSTRACT)) return NULL;
+FILE *janet_dynfile(const char *name, FILE *def) {
+    Janet x = janet_dyn(name);
+    if (!janet_checktype(x, JANET_ABSTRACT)) return def;
     void *abstract = janet_unwrap_abstract(x);
-    if (janet_abstract_type(abstract) != &cfun_io_filetype) return NULL;
-    return (IOFile *)abstract;
+    if (janet_abstract_type(abstract) != &cfun_io_filetype) return def;
+    IOFile *iofile = abstract;
+    return iofile->file;
 }
 
 static Janet cfun_io_print(int32_t argc, Janet *argv) {
-    /* Get output stream */
-    IOFile *outf = io_isfile(janet_dyn("out"));
-    FILE *f = outf ? outf->file : stdout;
+    FILE *f = janet_dynfile("out", stdout);
     for (int32_t i = 0; i < argc; ++i) {
         int32_t j, len;
         const uint8_t *vstr = janet_to_string(argv[i]);

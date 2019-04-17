@@ -1699,7 +1699,7 @@
         :export ep} (table ;args))
   (def newenv (require path ;args))
   (def prefix (or (and as (string as "/")) prefix (string path "/")))
-  (loop [[k v] :pairs newenv :when (not (v :private))]
+  (loop [[k v] :pairs newenv :when (symbol? k) :when (not (v :private))]
     (def newv (table/setproto @{:private (not ep)} v))
     (put env (symbol prefix k) newv)))
 

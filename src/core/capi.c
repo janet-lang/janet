@@ -206,6 +206,7 @@ JanetRange janet_getslice(int32_t argc, const Janet *argv) {
 }
 
 Janet janet_dyn(const char *name) {
+    if (!janet_vm_fiber) return janet_wrap_nil();
     if (janet_vm_fiber->env) {
         return janet_table_get(janet_vm_fiber->env, janet_ckeywordv(name));
     } else {
@@ -214,6 +215,7 @@ Janet janet_dyn(const char *name) {
 }
 
 void janet_setdyn(const char *name, Janet value) {
+    if (!janet_vm_fiber) return;
     if (!janet_vm_fiber->env) {
         janet_vm_fiber->env = janet_table(1);
     }
