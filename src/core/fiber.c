@@ -415,7 +415,7 @@ static const JanetReg fiber_cfuns[] = {
              "\tu - block user signals\n"
              "\ty - block yield signals\n"
              "\t0-9 - block a specific user signal\n"
-             "\ti - inherit the environment from the current fiber")
+             "\ti - inherit the environment from the current fiber (not related to signals)")
     },
     {
         "fiber/status", cfun_fiber_status,

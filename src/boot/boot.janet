@@ -1735,21 +1735,31 @@
                 :on-status onsignal
                 :source "repl"}))
 
-(defn all-bindings
-  "Get all symbols available in the current environment."
-  []
+(defn- env-walk
+  [pred]
   (def env (fiber/getenv (fiber/current)))
   (def envs @[])
   (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
-  (def symbol-set @{})
+  (def ret-set @{})
   (loop [envi :in envs
          k :keys envi
-         :when (symbol? k)]
-    (put symbol-set k true))
-  (sort (keys symbol-set)))
+         :when (pred k)]
+    (put ret-set k true))
+  (sort (keys ret-set)))
+
+(defn all-bindings
+  "Get all symbols available in the current environment."
+  []
+  (env-walk symbol?))
+
+(defn all-dynamics
+  "Get all dynamic bindings in the current fiber."
+  []
+  (env-walk keyword?))
 
 # Clean up some extra defs
 (put _env 'process/opts nil)
+(put _env 'env-walk nil)
 (put _env '_env nil)
 
 ###
