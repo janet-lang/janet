@@ -197,7 +197,10 @@ extern "C" {
 #ifndef JANET_NO_NANBOX
 #ifdef JANET_32
 #define JANET_NANBOX_32
-#else
+#elif defined(__x86_64__) || defined(_WIN64)
+/* We will only enable nanboxing by default on 64 bit systems
+ * on x86. This is mainly because the approach is tied to the
+ * implicit 47 bit address space. */
 #define JANET_NANBOX_64
 #endif
 #endif
