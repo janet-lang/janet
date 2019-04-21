@@ -257,12 +257,24 @@ static int escape1(JanetParser *p, JanetParseState *state, uint8_t c) {
 
 static int stringend(JanetParser *p, JanetParseState *state) {
     Janet ret;
+    uint8_t *bufstart = p->buf;
+    int32_t buflen = (int32_t) p->bufcount;
+    if (state->flags & PFLAG_LONGSTRING) {
+        /* Check for leading newline character so we can remove it */
+        if (bufstart[0] == '\n') {
+            bufstart++;
+            buflen--;
+        }
+        if (buflen > 0 && bufstart[buflen - 1] == '\n') {
+            buflen--;
+        }
+    }
     if (state->flags & PFLAG_BUFFER) {
-        JanetBuffer *b = janet_buffer((int32_t)p->bufcount);
-        janet_buffer_push_bytes(b, p->buf, (int32_t)p->bufcount);
+        JanetBuffer *b = janet_buffer(buflen);
+        janet_buffer_push_bytes(b, bufstart, buflen);
         ret = janet_wrap_buffer(b);
     } else {
-        ret = janet_wrap_string(janet_string(p->buf, (int32_t)p->bufcount));
+        ret = janet_wrap_string(janet_string(bufstart, buflen));
     }
     p->bufcount = 0;
     popstate(p, ret);

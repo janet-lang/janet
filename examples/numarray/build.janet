@@ -4,7 +4,7 @@
     :name "numarray"
     :source @["numarray.c"])
 
-(import build/numarray :prefix "")
+(import build/numarray :as numarray)
 
 (def a (numarray/new 30))
 (print (get a 20))

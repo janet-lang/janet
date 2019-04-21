@@ -100,12 +100,12 @@ Janet num_array_get(void *p, Janet key) {
 
 static const JanetReg cfuns[] = {
     {
-        "numarray/new", num_array_new,
+        "new", num_array_new,
         "(numarray/new size)\n\n"
         "Create new numarray"
     },
     {
-        "numarray/scale", num_array_scale,
+        "scale", num_array_scale,
         "(numarray/scale numarray factor)\n\n"
         "scale numarray by factor"
     },
