@@ -734,7 +734,7 @@ static const JanetReg os_cfuns[] = {
              "Returns a struct with following key values. Note that all numbers are 0-indexed.\n\n"
              "\t:seconds - number of seconds [0-61]\n"
              "\t:minutes - number of minutes [0-59]\n"
-             "\t:seconds - number of hours [0-23]\n"
+             "\t:hours - number of hours [0-23]\n"
              "\t:month-day - day of month [0-30]\n"
              "\t:month - month of year [0, 11]\n"
              "\t:year - years since year 0 (e.g. 2019)\n"
