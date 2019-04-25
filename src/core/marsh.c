@@ -294,17 +294,17 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
 void janet_marshal_int64(JanetMarshalContext *ctx, int64_t value) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
     push64(st, (uint64_t) value);
-};
+}
 
 void janet_marshal_int(JanetMarshalContext *ctx, int32_t value) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
     pushint(st, value);
-};
+}
 
 void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
     pushbyte(st, value);
-};
+}
 
 void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, size_t len) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
@@ -967,18 +967,18 @@ static const uint8_t *unmarshal_one_fiber(
 int32_t janet_unmarshal_int(JanetMarshalContext *ctx) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     return readint(st, &(ctx->data));
-};
+}
 
 int64_t janet_unmarshal_int64(JanetMarshalContext *ctx) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     return read64(st, &(ctx->data));
-};
+}
 
 uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     MARSH_EOS(st, ctx->data);
     return *(ctx->data++);
-};
+}
 
 void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, size_t len) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
