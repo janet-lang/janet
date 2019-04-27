@@ -634,6 +634,10 @@ void janet_parser_deinit(JanetParser *parser) {
     free(parser->states);
 }
 
+int janet_parser_has_more(JanetParser *parser) {
+    return parser->pending;
+}
+
 /* C functions */
 
 static int parsermark(void *p, size_t size) {

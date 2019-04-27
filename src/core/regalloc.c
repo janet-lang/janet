@@ -23,6 +23,7 @@
 #ifndef JANET_AMALG
 #include <janet.h>
 #include "regalloc.h"
+#include "util.h"
 #endif
 
 void janetc_regalloc_init(JanetcRegisterAllocator *ra) {

@@ -292,6 +292,10 @@ void janet_fiber_popframe(JanetFiber *fiber) {
     fiber->frame = frame->prevframe;
 }
 
+JanetFiberStatus janet_fiber_status(JanetFiber *f) {
+    return ((f)->flags & JANET_FIBER_STATUS_MASK) >> JANET_FIBER_STATUS_OFFSET;
+}
+
 /* CFuns */
 
 static Janet cfun_fiber_getenv(int32_t argc, Janet *argv) {
@@ -369,8 +373,7 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
 static Janet cfun_fiber_status(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
-    uint32_t s = (fiber->flags & JANET_FIBER_STATUS_MASK) >>
-                 JANET_FIBER_STATUS_OFFSET;
+    uint32_t s = janet_fiber_status(fiber);
     return janet_ckeywordv(janet_status_names[s]);
 }
 

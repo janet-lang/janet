@@ -36,6 +36,34 @@ void janet_panicv(Janet message) {
     }
 }
 
+void janet_panicf(const char *format, ...) {
+    va_list args;
+    const uint8_t *ret;
+    JanetBuffer buffer;
+    int32_t len = 0;
+    while (format[len]) len++;
+    janet_buffer_init(&buffer, len);
+    va_start(args, format);
+    janet_formatb(&buffer, format, args);
+    va_end(args);
+    ret = janet_string(buffer.data, buffer.count);
+    janet_buffer_deinit(&buffer);
+    janet_panics(ret);
+}
+
+void janet_printf(const char *format, ...) {
+    va_list args;
+    JanetBuffer buffer;
+    int32_t len = 0;
+    while (format[len]) len++;
+    janet_buffer_init(&buffer, len);
+    va_start(args, format);
+    janet_formatb(&buffer, format, args);
+    va_end(args);
+    fwrite(buffer.data, buffer.count, 1, stdout);
+    janet_buffer_deinit(&buffer);
+}
+
 void janet_panic(const char *message) {
     janet_panicv(janet_cstringv(message));
 }
@@ -220,4 +248,22 @@ void janet_setdyn(const char *name, Janet value) {
         janet_vm_fiber->env = janet_table(1);
     }
     janet_table_put(janet_vm_fiber->env, janet_ckeywordv(name), value);
+}
+
+/* Some definitions for function-like macros */
+
+JANET_API JanetStructHead *(janet_struct_head)(const JanetKV *st) {
+    return janet_struct_head(st);
+}
+
+JANET_API JanetAbstractHead *(janet_abstract_head)(const void *abstract) {
+    return janet_abstract_head(abstract);
+}
+
+JANET_API JanetStringHead *(janet_string_head)(const uint8_t *s) {
+    return janet_string_head(s);
+}
+
+JANET_API JanetTupleHead *(janet_tuple_head)(const Janet *tuple) {
+    return janet_tuple_head(tuple);
 }

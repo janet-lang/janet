@@ -23,6 +23,7 @@
 #ifndef JANET_AMALG
 #include <janet.h>
 #include "gc.h"
+#include "util.h"
 #endif
 
 /* Look up table for instructions */

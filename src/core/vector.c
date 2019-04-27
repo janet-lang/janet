@@ -22,6 +22,7 @@
 
 #ifndef JANET_AMALG
 #include "vector.h"
+#include "util.h"
 #endif
 
 /* Grow the buffer dynamically. Used for push operations. */

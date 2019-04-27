@@ -25,6 +25,7 @@
 #include "state.h"
 #include "symcache.h"
 #include "gc.h"
+#include "util.h"
 #endif
 
 /* GC State */
@@ -107,11 +108,11 @@ static void janet_mark_buffer(JanetBuffer *buffer) {
 }
 
 static void janet_mark_abstract(void *adata) {
-    if (janet_gc_reachable(janet_abstract_header(adata)))
+    if (janet_gc_reachable(janet_abstract_head(adata)))
         return;
-    janet_gc_mark(janet_abstract_header(adata));
-    if (janet_abstract_header(adata)->type->gcmark) {
-        janet_abstract_header(adata)->type->gcmark(adata, janet_abstract_size(adata));
+    janet_gc_mark(janet_abstract_head(adata));
+    if (janet_abstract_head(adata)->type->gcmark) {
+        janet_abstract_head(adata)->type->gcmark(adata, janet_abstract_size(adata));
     }
 }
 

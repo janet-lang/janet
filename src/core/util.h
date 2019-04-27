@@ -27,6 +27,28 @@
 #include <janet.h>
 #endif
 
+/* Handle runtime errors */
+#ifndef janet_exit
+#include <stdio.h>
+#define janet_exit(m) do { \
+    printf("C runtime error at line %d in file %s: %s\n",\
+        __LINE__,\
+        __FILE__,\
+        (m));\
+    exit(1);\
+} while (0)
+#endif
+
+#define janet_assert(c, m) do { \
+    if (!(c)) janet_exit((m)); \
+} while (0)
+
+/* What to do when out of memory */
+#ifndef JANET_OUT_OF_MEMORY
+#include <stdio.h>
+#define JANET_OUT_OF_MEMORY do { printf("janet out of memory\n"); exit(1); } while (0)
+#endif
+
 /* Omit docstrings in some builds */
 #ifndef JANET_BOOTSTRAP
 #define JDOC(x) NULL

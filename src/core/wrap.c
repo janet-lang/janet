@@ -22,7 +22,56 @@
 
 #ifndef JANET_AMALG
 #include <janet.h>
+#include "util.h"
 #endif
+
+/* Macro fills */
+
+JanetType (janet_type)(Janet x) { return janet_type(x); }
+int (janet_checktype)(Janet x, JanetType type) { return janet_checktype(x, type); }
+int (janet_checktypes)(Janet x, int typeflags) { return janet_checktypes(x, typeflags); }
+int (janet_truthy)(Janet x) { return janet_truthy(x); }
+
+const JanetKV *(janet_unwrap_struct)(Janet x) { return janet_unwrap_struct(x); }
+const Janet *(janet_unwrap_tuple)(Janet x) { return janet_unwrap_tuple(x); }
+JanetFiber *(janet_unwrap_fiber)(Janet x) { return janet_unwrap_fiber(x); }
+JanetArray *(janet_unwrap_array)(Janet x) { return janet_unwrap_array(x); }
+JanetTable *(janet_unwrap_table)(Janet x) { return janet_unwrap_table(x); }
+JanetBuffer *(janet_unwrap_buffer)(Janet x) { return janet_unwrap_buffer(x); }
+const uint8_t *(janet_unwrap_string)(Janet x) { return janet_unwrap_string(x); }
+const uint8_t *(janet_unwrap_symbol)(Janet x) { return janet_unwrap_symbol(x); }
+const uint8_t *(janet_unwrap_keyword)(Janet x) { return janet_unwrap_keyword(x); }
+void *(janet_unwrap_abstract)(Janet x) { return janet_unwrap_abstract(x); }
+void *(janet_unwrap_pointer)(Janet x) { return janet_unwrap_pointer(x); }
+JanetFunction *(janet_unwrap_function)(Janet x) { return janet_unwrap_function(x); }
+JanetCFunction (janet_unwrap_cfunction)(Janet x) { return janet_unwrap_cfunction(x); }
+int (janet_unwrap_boolean)(Janet x) { return janet_unwrap_boolean(x); }
+double (janet_unwrap_number)(Janet x) { return janet_unwrap_number(x); }
+int32_t (janet_unwrap_integer)(Janet x) { return janet_unwrap_integer(x); }
+
+#ifdef JANET_NANBOX
+Janet (janet_wrap_nil)(void) { return janet_wrap_nil(); }
+Janet (janet_wrap_number)(double x) { return janet_wrap_number(); }
+Janet (janet_wrap_true)(void) { return janet_wrap_true(); }
+Janet (janet_wrap_false)(void) { return janet_wrap_false(); }
+Janet (janet_wrap_boolean)(int x) { return janet_wrap_boolean(); }
+Janet (janet_wrap_string)(const uint8_t *x) { return janet_wrap_string(); }
+Janet (janet_wrap_symbol)(const uint8_t *x) { return janet_wrap_symbol(); }
+Janet (janet_wrap_keyword)(const uint8_t *x) { return janet_wrap_keyword(); }
+Janet (janet_wrap_array)(JanetArray *x) { return janet_wrap_array(); }
+Janet (janet_wrap_tuple)(const Janet *x) { return janet_wrap_tuple(); }
+Janet (janet_wrap_struct)(const JanetKV *x) { return janet_wrap_struct(); }
+Janet (janet_wrap_fiber)(JanetFiber *x) { return janet_wrap_fiber(); }
+Janet (janet_wrap_buffer)(JanetBuffer *x) { return janet_wrap_buffer(); }
+Janet (janet_wrap_function)(JanetFunction *x) { return janet_wrap_function(); }
+Janet (janet_wrap_cfunction)(JanetCFunction x) { return janet_wrap_cfunction(); }
+Janet (janet_wrap_table)(JanetTable *x) { return janet_wrap_table(); }
+Janet (janet_wrap_abstract)(void *x) { return janet_wrap_abstract(); }
+Janet (janet_wrap_pointer)(void *x) { return janet_wrap_pointer(); }
+Janet (janet_wrap_integer)(int32_t x) { return janet_wrap_integer(); }
+#endif
+
+/*****/
 
 void *janet_memalloc_empty(int32_t count) {
     int32_t i;
