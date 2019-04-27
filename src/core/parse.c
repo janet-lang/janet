@@ -635,7 +635,7 @@ void janet_parser_deinit(JanetParser *parser) {
 }
 
 int janet_parser_has_more(JanetParser *parser) {
-    return parser->pending;
+    return !!parser->pending;
 }
 
 /* C functions */
