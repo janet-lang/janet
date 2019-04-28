@@ -45,6 +45,8 @@ int system_test() {
     assert(janet_equals(janet_wrap_number(1.4), janet_wrap_number(1.4)));
     assert(janet_equals(janet_wrap_number(3.14159265), janet_wrap_number(3.14159265)));
 
+    assert(NULL != &janet_wrap_nil);
+
     assert(janet_equals(janet_cstringv("a string."), janet_cstringv("a string.")));
     assert(janet_equals(janet_csymbolv("sym"), janet_csymbolv("sym")));
 

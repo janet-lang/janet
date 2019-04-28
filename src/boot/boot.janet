@@ -305,6 +305,7 @@
     ~(do
        (var ,i nil)
        (while (set ,i ,expr)
+         (def ,binding ,i)
          ,body))))
 
 (defn- loop1
@@ -713,7 +714,7 @@
 
 (defn juxt*
   "Returns the juxtaposition of functions. In other words,
-  ((juxt* a b c) x) evaluates to ((a x) (b x) (c x))."
+  ((juxt* a b c) x) evaluates to [(a x) (b x) (c x)]."
   [& funs]
   (fn [& args]
     (def ret @[])
