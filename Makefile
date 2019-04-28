@@ -26,6 +26,7 @@ PREFIX?=/usr/local
 
 INCLUDEDIR=$(PREFIX)/include
 BINDIR=$(PREFIX)/bin
+LIBDIR=$(PREFIX)/lib
 JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
 CLIBS=-lm
 JANET_TARGET=build/janet
@@ -271,11 +272,19 @@ build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
 clean:
 	-rm -rf build vgcore.* callgrind.*
 
-install: $(JANET_TARGET)
+build/version.txt: $(JANET_TARGET)
+	$(JANET_TARGET) -e '(print janet/version)' > $@
+
+SONAME=libjanet.so.0
+install: $(JANET_TARGET) build/version.txt
 	mkdir -p $(BINDIR)
 	cp $(JANET_TARGET) $(BINDIR)/janet
 	mkdir -p $(INCLUDEDIR)
 	cp $(JANET_HEADERS) $(INCLUDEDIR)
+	mkdir -p $(LIBDIR)
+	cp $(JANET_LIBRARY) $(LIBDIR)/libjanet.so.$(shell cat build/version.txt)
+	ln -sf $(SONAME) $(LIBDIR)/libjanet.so
+	ln -sf libjanet.so.$(shell cat build/version.txt) $(LIBDIR)/$(SONAME)
 	mkdir -p $(INCLUDEDIR)/janet
 	mkdir -p $(JANET_PATH)
 	ln -sf $(INCLUDEDIR)/janet.h $(JANET_PATH)/janet.h
@@ -285,6 +294,7 @@ install: $(JANET_TARGET)
 	cp tools/bars.janet $(JANET_PATH)
 	mkdir -p $(MANPATH)
 	cp janet.1 $(MANPATH)
+	-ldconfig $(LIBDIR)
 
 test-install:
 	cd test/install && rm -rf build && janet build && janet build
