@@ -46,12 +46,10 @@ void *(janet_unwrap_pointer)(Janet x) { return janet_unwrap_pointer(x); }
 JanetFunction *(janet_unwrap_function)(Janet x) { return janet_unwrap_function(x); }
 JanetCFunction (janet_unwrap_cfunction)(Janet x) { return janet_unwrap_cfunction(x); }
 int (janet_unwrap_boolean)(Janet x) { return janet_unwrap_boolean(x); }
-double (janet_unwrap_number)(Janet x) { return janet_unwrap_number(x); }
 int32_t (janet_unwrap_integer)(Janet x) { return janet_unwrap_integer(x); }
 
 #if defined(JANET_NANBOX_32) || defined(JANET_NANBOX_64)
 Janet (janet_wrap_nil)(void) { return janet_wrap_nil(); }
-Janet (janet_wrap_number)(double x) { return janet_wrap_number(x); }
 Janet (janet_wrap_true)(void) { return janet_wrap_true(); }
 Janet (janet_wrap_false)(void) { return janet_wrap_false(); }
 Janet (janet_wrap_boolean)(int x) { return janet_wrap_boolean(x); }
@@ -69,6 +67,14 @@ Janet (janet_wrap_table)(JanetTable *x) { return janet_wrap_table(x); }
 Janet (janet_wrap_abstract)(void *x) { return janet_wrap_abstract(x); }
 Janet (janet_wrap_pointer)(void *x) { return janet_wrap_pointer(x); }
 Janet (janet_wrap_integer)(int32_t x) { return janet_wrap_integer(x); }
+#endif
+
+#ifndef JANET_NANBOX_32
+double (janet_unwrap_number)(Janet x) { return janet_unwrap_number(x); }
+#endif
+
+#ifdef JANET_NANBOX_64
+Janet (janet_wrap_number)(double x) { return janet_wrap_number(x); }
 #endif
 
 /*****/
