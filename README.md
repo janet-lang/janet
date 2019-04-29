@@ -48,9 +48,8 @@ Janet makes a good system scripting language, or a language to embed in other pr
 
 ## Documentation
 
-* For a quick tutorial, see [the introduction](https://janet-lang.org/introduction.html) for more details.
-* For an overview of functions in the core library, see [the function index](https://janet-lang.org/funcindex.html).
-* For the full API for all functions in the core library, see [the core API doc](https://janet-lang.org/doc.html)
+* For a quick tutorial, see [the introduction](https://janet-lang.org/docs/index.html) for more details.
+* For the full API for all functions in the core library, see [the core API doc](https://janet-lang.org/api/index.html)
 
 Documentation is also available locally in the repl.
 Use the `(doc symbol-name)` macro to get API
