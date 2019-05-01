@@ -62,6 +62,12 @@ Shows documentation for the doc macro.
 To get a list of all bindings in the default
 environment, use the `(all-symbols)` function.
 
+## Source
+
+You can get the source on [GitHub](https://github.com/janet-lang/janet) or
+[SourceHut](https://sr.ht/~bakpakin/janet). While the GitHub repo is the official repo,
+the SourceHut mirror is actively maintained.
+
 ## Building
 
 ### macos and Unix-like
