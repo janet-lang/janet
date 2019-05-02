@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## 0.5.0 - ??
+- Add debugger to repl that activates on errors or debug signal
 - Remove `*env*` and `*doc-width*`.
 - Add `fiber/getenv`, `fiber/setenv`, and `dyn`, and `setdyn`.
 - Add support for dynamic bindings (via the `dyn` and `setdyn` functions).
