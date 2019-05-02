@@ -94,6 +94,7 @@ static int cols = 80;
 static char *history[JANET_HISTORY_MAX];
 static int history_count = 0;
 static int historyi = 0;
+static int sigint_flag = 0;
 static struct termios termios_start;
 
 /* Unsupported terminal list from linenoise */
@@ -333,6 +334,7 @@ static int line() {
                 return 0;
             case 3:     /* ctrl-c */
                 errno = EAGAIN;
+                sigint_flag = 1;
                 return -1;
             case 127:   /* backspace */
             case 8:     /* ctrl-h */
@@ -458,7 +460,11 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
     }
     if (line()) {
         norawmode();
-        fputc('\n', stdout);
+        if (sigint_flag) {
+            raise(SIGINT);
+        } else {
+            fputc('\n', stdout);
+        }
         return;
     }
     norawmode();

@@ -314,23 +314,24 @@ static void print_newline(struct pretty *S, int just_a_space) {
 }
 
 /* Color coding for types */
+static const char janet_cycle_color[] = "\x1B[36m";
 static const char *janet_pretty_colors[] = {
     "\x1B[32m",
     "\x1B[36m",
     "\x1B[36m",
-    NULL,
+    "\x1B[36m",
     "\x1B[35m",
     "\x1B[34m",
     "\x1B[33m",
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    "\x1B[36m",
+    "\x1B[36m",
+    "\x1B[36m",
+    "\x1B[36m"
     "\x1B[35m",
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    "\x1B[36m",
+    "\x1B[36m",
+    "\x1B[36m",
+    "\x1B[36m"
 };
 
 #define JANET_PRETTY_DICT_ONELINE 4
@@ -348,9 +349,15 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
         default: {
             Janet seenid = janet_table_get(&S->seen, x);
             if (janet_checktype(seenid, JANET_NUMBER)) {
+                if (S->flags & JANET_PRETTY_COLOR) {
+                    janet_buffer_push_cstring(S->buffer, janet_cycle_color);
+                }
                 janet_buffer_push_cstring(S->buffer, "<cycle ");
                 integer_to_string_b(S->buffer, janet_unwrap_integer(seenid));
                 janet_buffer_push_u8(S->buffer, '>');
+                if (S->flags & JANET_PRETTY_COLOR) {
+                    janet_buffer_push_cstring(S->buffer, "\x1B[0m");
+                }
                 return;
             } else {
                 janet_table_put(&S->seen, x, janet_wrap_integer(S->seen.count));

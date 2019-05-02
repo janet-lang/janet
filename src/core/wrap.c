@@ -27,54 +27,132 @@
 
 /* Macro fills */
 
-JanetType (janet_type)(Janet x) { return janet_type(x); }
-int (janet_checktype)(Janet x, JanetType type) { return janet_checktype(x, type); }
-int (janet_checktypes)(Janet x, int typeflags) { return janet_checktypes(x, typeflags); }
-int (janet_truthy)(Janet x) { return janet_truthy(x); }
+JanetType(janet_type)(Janet x) {
+    return janet_type(x);
+}
+int (janet_checktype)(Janet x, JanetType type) {
+    return janet_checktype(x, type);
+}
+int (janet_checktypes)(Janet x, int typeflags) {
+    return janet_checktypes(x, typeflags);
+}
+int (janet_truthy)(Janet x) {
+    return janet_truthy(x);
+}
 
-const JanetKV *(janet_unwrap_struct)(Janet x) { return janet_unwrap_struct(x); }
-const Janet *(janet_unwrap_tuple)(Janet x) { return janet_unwrap_tuple(x); }
-JanetFiber *(janet_unwrap_fiber)(Janet x) { return janet_unwrap_fiber(x); }
-JanetArray *(janet_unwrap_array)(Janet x) { return janet_unwrap_array(x); }
-JanetTable *(janet_unwrap_table)(Janet x) { return janet_unwrap_table(x); }
-JanetBuffer *(janet_unwrap_buffer)(Janet x) { return janet_unwrap_buffer(x); }
-const uint8_t *(janet_unwrap_string)(Janet x) { return janet_unwrap_string(x); }
-const uint8_t *(janet_unwrap_symbol)(Janet x) { return janet_unwrap_symbol(x); }
-const uint8_t *(janet_unwrap_keyword)(Janet x) { return janet_unwrap_keyword(x); }
-void *(janet_unwrap_abstract)(Janet x) { return janet_unwrap_abstract(x); }
-void *(janet_unwrap_pointer)(Janet x) { return janet_unwrap_pointer(x); }
-JanetFunction *(janet_unwrap_function)(Janet x) { return janet_unwrap_function(x); }
-JanetCFunction (janet_unwrap_cfunction)(Janet x) { return janet_unwrap_cfunction(x); }
-int (janet_unwrap_boolean)(Janet x) { return janet_unwrap_boolean(x); }
-int32_t (janet_unwrap_integer)(Janet x) { return janet_unwrap_integer(x); }
+const JanetKV *(janet_unwrap_struct)(Janet x) {
+    return janet_unwrap_struct(x);
+}
+const Janet *(janet_unwrap_tuple)(Janet x) {
+    return janet_unwrap_tuple(x);
+}
+JanetFiber *(janet_unwrap_fiber)(Janet x) {
+    return janet_unwrap_fiber(x);
+}
+JanetArray *(janet_unwrap_array)(Janet x) {
+    return janet_unwrap_array(x);
+}
+JanetTable *(janet_unwrap_table)(Janet x) {
+    return janet_unwrap_table(x);
+}
+JanetBuffer *(janet_unwrap_buffer)(Janet x) {
+    return janet_unwrap_buffer(x);
+}
+const uint8_t *(janet_unwrap_string)(Janet x) {
+    return janet_unwrap_string(x);
+}
+const uint8_t *(janet_unwrap_symbol)(Janet x) {
+    return janet_unwrap_symbol(x);
+}
+const uint8_t *(janet_unwrap_keyword)(Janet x) {
+    return janet_unwrap_keyword(x);
+}
+void *(janet_unwrap_abstract)(Janet x) {
+    return janet_unwrap_abstract(x);
+}
+void *(janet_unwrap_pointer)(Janet x) {
+    return janet_unwrap_pointer(x);
+}
+JanetFunction *(janet_unwrap_function)(Janet x) {
+    return janet_unwrap_function(x);
+}
+JanetCFunction(janet_unwrap_cfunction)(Janet x) {
+    return janet_unwrap_cfunction(x);
+}
+int (janet_unwrap_boolean)(Janet x) {
+    return janet_unwrap_boolean(x);
+}
+int32_t (janet_unwrap_integer)(Janet x) {
+    return janet_unwrap_integer(x);
+}
 
 #if defined(JANET_NANBOX_32) || defined(JANET_NANBOX_64)
-Janet (janet_wrap_nil)(void) { return janet_wrap_nil(); }
-Janet (janet_wrap_true)(void) { return janet_wrap_true(); }
-Janet (janet_wrap_false)(void) { return janet_wrap_false(); }
-Janet (janet_wrap_boolean)(int x) { return janet_wrap_boolean(x); }
-Janet (janet_wrap_string)(const uint8_t *x) { return janet_wrap_string(x); }
-Janet (janet_wrap_symbol)(const uint8_t *x) { return janet_wrap_symbol(x); }
-Janet (janet_wrap_keyword)(const uint8_t *x) { return janet_wrap_keyword(x); }
-Janet (janet_wrap_array)(JanetArray *x) { return janet_wrap_array(x); }
-Janet (janet_wrap_tuple)(const Janet *x) { return janet_wrap_tuple(x); }
-Janet (janet_wrap_struct)(const JanetKV *x) { return janet_wrap_struct(x); }
-Janet (janet_wrap_fiber)(JanetFiber *x) { return janet_wrap_fiber(x); }
-Janet (janet_wrap_buffer)(JanetBuffer *x) { return janet_wrap_buffer(x); }
-Janet (janet_wrap_function)(JanetFunction *x) { return janet_wrap_function(x); }
-Janet (janet_wrap_cfunction)(JanetCFunction x) { return janet_wrap_cfunction(x); }
-Janet (janet_wrap_table)(JanetTable *x) { return janet_wrap_table(x); }
-Janet (janet_wrap_abstract)(void *x) { return janet_wrap_abstract(x); }
-Janet (janet_wrap_pointer)(void *x) { return janet_wrap_pointer(x); }
-Janet (janet_wrap_integer)(int32_t x) { return janet_wrap_integer(x); }
+Janet(janet_wrap_nil)(void) {
+    return janet_wrap_nil();
+}
+Janet(janet_wrap_true)(void) {
+    return janet_wrap_true();
+}
+Janet(janet_wrap_false)(void) {
+    return janet_wrap_false();
+}
+Janet(janet_wrap_boolean)(int x) {
+    return janet_wrap_boolean(x);
+}
+Janet(janet_wrap_string)(const uint8_t *x) {
+    return janet_wrap_string(x);
+}
+Janet(janet_wrap_symbol)(const uint8_t *x) {
+    return janet_wrap_symbol(x);
+}
+Janet(janet_wrap_keyword)(const uint8_t *x) {
+    return janet_wrap_keyword(x);
+}
+Janet(janet_wrap_array)(JanetArray *x) {
+    return janet_wrap_array(x);
+}
+Janet(janet_wrap_tuple)(const Janet *x) {
+    return janet_wrap_tuple(x);
+}
+Janet(janet_wrap_struct)(const JanetKV *x) {
+    return janet_wrap_struct(x);
+}
+Janet(janet_wrap_fiber)(JanetFiber *x) {
+    return janet_wrap_fiber(x);
+}
+Janet(janet_wrap_buffer)(JanetBuffer *x) {
+    return janet_wrap_buffer(x);
+}
+Janet(janet_wrap_function)(JanetFunction *x) {
+    return janet_wrap_function(x);
+}
+Janet(janet_wrap_cfunction)(JanetCFunction x) {
+    return janet_wrap_cfunction(x);
+}
+Janet(janet_wrap_table)(JanetTable *x) {
+    return janet_wrap_table(x);
+}
+Janet(janet_wrap_abstract)(void *x) {
+    return janet_wrap_abstract(x);
+}
+Janet(janet_wrap_pointer)(void *x) {
+    return janet_wrap_pointer(x);
+}
+Janet(janet_wrap_integer)(int32_t x) {
+    return janet_wrap_integer(x);
+}
 #endif
 
 #ifndef JANET_NANBOX_32
-double (janet_unwrap_number)(Janet x) { return janet_unwrap_number(x); }
+double (janet_unwrap_number)(Janet x) {
+    return janet_unwrap_number(x);
+}
 #endif
 
 #ifdef JANET_NANBOX_64
-Janet (janet_wrap_number)(double x) { return janet_wrap_number(x); }
+Janet(janet_wrap_number)(double x) {
+    return janet_wrap_number(x);
+}
 #endif
 
 /*****/

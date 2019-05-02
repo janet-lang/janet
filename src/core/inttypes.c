@@ -83,7 +83,8 @@ static const JanetAbstractType it_u64_type = {
 
 int64_t janet_unwrap_s64(Janet x) {
     switch (janet_type(x)) {
-        default: break;
+        default:
+            break;
         case JANET_NUMBER : {
             double dbl = janet_unwrap_number(x);
             if (fabs(dbl) <=  MAX_INT_IN_DBL)
@@ -111,7 +112,8 @@ int64_t janet_unwrap_s64(Janet x) {
 
 uint64_t janet_unwrap_u64(Janet x) {
     switch (janet_type(x)) {
-        default: break;
+        default:
+            break;
         case JANET_NUMBER : {
             double dbl = janet_unwrap_number(x);
             if ((dbl >= 0) && (dbl <= MAX_INT_IN_DBL))

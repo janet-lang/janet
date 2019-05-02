@@ -1724,15 +1724,33 @@
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
   caught."
-  [&opt chunks onsignal]
-  (def newenv (make-env))
+  [&opt chunks onsignal env]
+  (def level (+ (dyn :debug-level 0) 1))
+  (default env (make-env))
   (default onsignal (fn [f x]
                       (case (fiber/status f)
                         :dead (do
                                 (pp x)
-                                (put newenv '_ @{:value x}))
-                        (debug/stacktrace f x))))
-  (run-context {:env newenv
+                                (put env '_ @{:value x}))
+                        (let [nextenv (make-env env)]
+                          (put nextenv '_fiber @{:value f})
+                          (put nextenv '_signal @{:value x})
+                          (setdyn :debug-level level)
+                          (debug/stacktrace f x)
+                          (print ```
+
+entering debugger - Ctrl-D to exit
+_fiber is bound to the suspended fiber
+_signal is the error or signal value
+
+```)
+                          (repl (fn [buf p]
+                                  (def status (parser/state p))
+                                  (def c (parser/where p))
+                                  (def prompt (string "debug[" level "]:" c ":" status "> "))
+                                  (getline prompt buf))
+                                onsignal nextenv)))))
+  (run-context {:env env
                 :chunks chunks
                 :on-status onsignal
                 :source "repl"}))
