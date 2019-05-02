@@ -177,14 +177,19 @@
 
 (defn make-archive
   "Build a janet archive. This is a file that bundles together many janet
-  scripts into a janet form. This file can the be moved to any machine with
+  scripts into a janet image. This file can the be moved to any machine with
   a janet vm and the required dependencies and run there."
   [& opts]
-  (error "Not Yet Implemented."))
+  (def opt-table (table ;opts))
+  (os/mkdir "build")
+  (def entry (opt-table :entry))
+  (def name (opt-table :name))
+  (spit (string name ".jimage") (make-image (require entry))))
 
 (defn make-binary
   "Make a binary executable that can be run on the current platform. This function
   generates a self contained binary that can be run of the same architecture as the
   build machine, as the current janet vm will be packaged with the output binary."
   [& opts]
+  (def
   (error "Not Yet Implemented."))
