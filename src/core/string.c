@@ -274,6 +274,28 @@ static Janet cfun_string_find(int32_t argc, Janet *argv) {
            : janet_wrap_integer(result);
 }
 
+static Janet cfun_string_hasprefix(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    const uint8_t *prefix = janet_getstring(argv, 0);
+    const uint8_t *s = janet_getstring(argv, 1);
+    int32_t prefix_len = janet_string_length(prefix);
+    int32_t s_len = janet_string_length(s);
+    return s_len < prefix_len
+      ? janet_wrap_false()
+      : janet_wrap_boolean(memcmp(prefix, s, prefix_len) == 0);
+}
+
+static Janet cfun_string_hassuffix(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    const uint8_t *suffix = janet_getstring(argv, 0);
+    const uint8_t *s = janet_getstring(argv, 1);
+    int32_t suffix_len = janet_string_length(suffix);
+    int32_t s_len = janet_string_length(s);
+    return s_len < suffix_len
+      ? janet_wrap_false()
+      : janet_wrap_boolean(memcmp(suffix, s+s_len-suffix_len, suffix_len) == 0);
+}
+
 static Janet cfun_string_findall(int32_t argc, Janet *argv) {
     int32_t result;
     struct kmp_state state;
@@ -506,6 +528,16 @@ static const JanetReg string_cfuns[] = {
              "instances of the pattern are not counted, meaning a byte in string "
              "will only contribute to finding at most on occurrence of pattern. If no "
              "occurrences are found, will return an empty array.")
+    },
+    {
+        "string/has-prefix?", cfun_string_hasprefix,
+        JDOC("(string/has-prefix? pfx str)\n\n"
+             "Tests whether str starts with pfx.")
+    },
+    {
+        "string/has-suffix?", cfun_string_hassuffix,
+        JDOC("(string/has-suffix? sfx str)\n\n"
+             "Tests whether str ends with sfx.")
     },
     {
         "string/replace", cfun_string_replace,
