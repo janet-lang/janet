@@ -805,6 +805,8 @@ struct JanetFuncEnv {
         environment is no longer on the stack. */
 };
 
+#define JANET_FUNCFLAG_TRACE (1 << 16)
+
 /* A function */
 struct JanetFunction {
     JanetGCObject gc;

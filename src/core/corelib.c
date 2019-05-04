@@ -273,6 +273,20 @@ static Janet janet_core_getline(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(buf);
 }
 
+static Janet janet_core_trace(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetFunction *func = janet_getfunction(argv, 0);
+    func->gc.flags |= JANET_FUNCFLAG_TRACE;
+    return argv[0];
+}
+
+static Janet janet_core_untrace(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetFunction *func = janet_getfunction(argv, 0);
+    func->gc.flags &= ~JANET_FUNCFLAG_TRACE;
+    return argv[0];
+}
+
 static const JanetReg corelib_cfuns[] = {
     {
         "native", janet_core_native,
@@ -431,6 +445,16 @@ static const JanetReg corelib_cfuns[] = {
         "setdyn", janet_core_setdyn,
         JDOC("(setdyn key value)\n\n"
              "Set a dynamic binding. Returns value.")
+    },
+    {
+        "trace", janet_core_trace,
+        JDOC("(trace func)\n\n"
+             "Enable tracing on a function. Returns the function.")
+    },
+    {
+        "untrace", janet_core_untrace,
+        JDOC("(untrace func)\n\n"
+             "Disables tracing on a function. Returns the function.")
     },
     {NULL, NULL, NULL}
 };

@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## 0.5.0 - ??
+- Add `trace` and `untrace` to the core library.
 - Add `string/has-prefix?` and `string/has-suffix?` to string module.
 - Add simple debugger to repl that activates on errors or debug signal
 - Remove `*env*` and `*doc-width*`.

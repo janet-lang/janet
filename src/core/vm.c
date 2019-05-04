@@ -224,6 +224,23 @@ static void *op_lookup[255] = {
 #define vm_bitop(op) _vm_bitop(op, int32_t)
 #define vm_bitopu(op) _vm_bitop(op, uint32_t)
 
+/* Trace a function call */
+static void vm_do_trace(JanetFunction *func) {
+    Janet *stack = janet_vm_fiber->data + janet_vm_fiber->stackstart;
+    int32_t start = janet_vm_fiber->stackstart;
+    int32_t end = janet_vm_fiber->stacktop;
+    int32_t argc = end - start;
+    if (func->def->name) {
+        janet_printf("trace (%S", func->def->name);
+    } else {
+        janet_printf("trace (%p", janet_wrap_function(func));
+    }
+    for (int32_t i = 0; i < argc; i++) {
+        janet_printf(" %p", stack[i]);
+    }
+    printf(")\n");
+}
+
 /* Call a non function type */
 static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     int32_t argn = fiber->stacktop - fiber->stackstart;
@@ -563,6 +580,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
+            if (func->gc.flags & JANET_FUNCFLAG_TRACE) vm_do_trace(func);
             janet_stack_frame(stack)->pc = pc;
             if (janet_fiber_funcframe(fiber, func)) {
                 int32_t n = fiber->stacktop - fiber->stackstart;
@@ -598,6 +616,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
+            if (func->gc.flags & JANET_FUNCFLAG_TRACE) vm_do_trace(func);
             if (janet_fiber_funcframe_tail(fiber, func)) {
                 janet_stack_frame(fiber->data + fiber->frame)->pc = pc;
                 int32_t n = fiber->stacktop - fiber->stackstart;

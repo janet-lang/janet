@@ -1732,16 +1732,14 @@
                         :dead (do
                                 (pp x)
                                 (put env '_ @{:value x}))
-                        (let [nextenv (make-env env)]
-                          (put nextenv '_fiber @{:value f})
-                          (put nextenv '_signal @{:value x})
-                          (setdyn :debug-level level)
-                          (debug/stacktrace f x)
-                          (print ```
+                        :debug (let [nextenv (make-env env)]
+                                 (put nextenv '_fiber @{:value f})
+                                 (setdyn :debug-level level)
+                                 (debug/stacktrace f x)
+                                 (print ```
 
 entering debugger - Ctrl-D to exit
 _fiber is bound to the suspended fiber
-_signal is the error or signal value
 
 ```)
                           (repl (fn [buf p]
@@ -1749,7 +1747,8 @@ _signal is the error or signal value
                                   (def c (parser/where p))
                                   (def prompt (string "debug[" level "]:" c ":" status "> "))
                                   (getline prompt buf))
-                                onsignal nextenv)))))
+                                onsignal nextenv))
+                        (debug/stacktrace f x))))
   (run-context {:env env
                 :chunks chunks
                 :on-status onsignal
