@@ -296,6 +296,10 @@ JanetFiberStatus janet_fiber_status(JanetFiber *f) {
     return ((f)->flags & JANET_FIBER_STATUS_MASK) >> JANET_FIBER_STATUS_OFFSET;
 }
 
+JanetFiber *janet_current_fiber(void) {
+    return janet_vm_fiber;
+}
+
 /* CFuns */
 
 static Janet cfun_fiber_getenv(int32_t argc, Janet *argv) {

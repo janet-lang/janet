@@ -1174,6 +1174,7 @@ JANET_API JanetKV *janet_table_find(JanetTable *t, Janet key);
 JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv);
 JANET_API JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t argc, const Janet *argv);
 JANET_API JanetFiberStatus janet_fiber_status(JanetFiber *fiber);
+JANET_API JanetFiber *janet_current_fiber(void);
 
 /* Treat similar types through uniform interfaces for iteration */
 JANET_API int janet_indexed_view(Janet seq, const Janet **data, int32_t *len);
