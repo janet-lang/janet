@@ -17,7 +17,7 @@
   (print cmd)
   (def res (os/shell cmd))
   (unless (zero? res)
-    (error "command exited with status " res)))
+    (error (string "command exited with status " res))))
 
 (defn- rm
   "Remove a directory and all sub directories."
