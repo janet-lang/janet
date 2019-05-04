@@ -281,8 +281,8 @@ static Janet cfun_string_hasprefix(int32_t argc, Janet *argv) {
     int32_t prefix_len = janet_string_length(prefix);
     int32_t s_len = janet_string_length(s);
     return s_len < prefix_len
-      ? janet_wrap_false()
-      : janet_wrap_boolean(memcmp(prefix, s, prefix_len) == 0);
+           ? janet_wrap_false()
+           : janet_wrap_boolean(memcmp(prefix, s, prefix_len) == 0);
 }
 
 static Janet cfun_string_hassuffix(int32_t argc, Janet *argv) {
@@ -292,8 +292,8 @@ static Janet cfun_string_hassuffix(int32_t argc, Janet *argv) {
     int32_t suffix_len = janet_string_length(suffix);
     int32_t s_len = janet_string_length(s);
     return s_len < suffix_len
-      ? janet_wrap_false()
-      : janet_wrap_boolean(memcmp(suffix, s+s_len-suffix_len, suffix_len) == 0);
+           ? janet_wrap_false()
+           : janet_wrap_boolean(memcmp(suffix, s + s_len - suffix_len, suffix_len) == 0);
 }
 
 static Janet cfun_string_findall(int32_t argc, Janet *argv) {
