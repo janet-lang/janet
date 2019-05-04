@@ -191,5 +191,4 @@
   generates a self contained binary that can be run of the same architecture as the
   build machine, as the current janet vm will be packaged with the output binary."
   [& opts]
-  (def
   (error "Not Yet Implemented."))
