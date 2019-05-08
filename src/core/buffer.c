@@ -315,9 +315,13 @@ static Janet cfun_buffer_blit(int32_t argc, Janet *argv) {
     if (last > INT32_MAX)
         janet_panic("buffer blit out of range");
     janet_buffer_ensure(dest, (int32_t) last, 2);
-    if (same_buf) src.bytes = dest->data;
     if (last > dest->count) dest->count = (int32_t) last;
-    memcpy(dest->data + offset_dest, src.bytes + offset_src, length_src);
+    if (same_buf) {
+        src.bytes = dest->data;
+        memmove(dest->data + offset_dest, src.bytes + offset_src, length_src);
+    } else {
+        memcpy(dest->data + offset_dest, src.bytes + offset_src, length_src);
+    }
     return argv[0];
 }
 
