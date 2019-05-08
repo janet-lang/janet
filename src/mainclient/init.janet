@@ -9,6 +9,7 @@
   (var *handleopts* true)
   (var *exit-on-error* true)
   (var *colorize* true)
+  (var *implicit* nil)
 
   (if-let [jp (os/getenv "JANET_PATH")] (set module/*syspath* jp))
 
@@ -29,6 +30,8 @@
   -c source output : Compile janet source code into an image
   -n : Disable ANSI color output in the repl
   -l path : Execute code in a file before running the main script
+  -I : Implicitly wrap input lines not starting with '(' with parens.
+  -i form : Like -I but insert form as the first call argument.
   -- : Stop handling options`)
            (os/exit 0)
            1)
@@ -38,12 +41,16 @@
      "p" (fn [&] (set *exit-on-error* false) 1)
      "q" (fn [&] (set *quiet* true) 1)
      "n" (fn [&] (set *colorize* false) 1)
+     "n" (fn [&] (set *colorize* false) 1)
      "m" (fn [i &] (set module/*syspath* (get process/args (+ i 1))) 2)
      "c" (fn [i &]
            (def e (require (get process/args (+ i 1))))
            (spit (get process/args (+ i 2)) (make-image e))
            (set *no-file* false)
            3)
+     "i" (fn [i &]
+           (set *implicit* (string/format "%s " (get process/args (+ i 1)))) 2)
+     "I" (fn [&] (set *implicit* "") 1)
      "-" (fn [&] (set *handleopts* false) 1)
      "l" (fn [i &]
            (import* (get process/args (+ i 1))
@@ -83,8 +90,16 @@
       (file/flush stdout)
       (file/read stdin :line buf))
     (def getter (if *raw-stdin* getstdin getline))
+    (defn want-implicit [buf p]
+      (and *implicit* (> (length buf) 1) (empty? (parser/state p)) (not= (buf 0) 40)))
     (defn getchunk [buf p]
-      (getter (prompter p) buf))
+      (when (getter (prompter p) buf)
+        (when (want-implicit buf p)
+          (buffer/popn buf 1)
+          (let [line (string buf)]
+            (buffer/clear buf)
+            (buffer/format buf "(%s%s)\n" *implicit* line)))
+        buf))
     (def onsig (if *quiet* (fn [x &] x) nil))
     (setdyn :pretty-format (if *colorize* "%.20P" "%.20p"))
     (repl getchunk onsig)))
