@@ -208,15 +208,9 @@ static Janet cfun_buffer_chars(int32_t argc, Janet *argv) {
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     for (i = 1; i < argc; i++) {
         JanetByteView view = janet_getbytes(argv, i);
-        if (janet_checktype(argv[i], JANET_BUFFER)) {
-            JanetBuffer *other = janet_getbuffer(argv, i);
-            if (buffer == other) {
-                JanetBuffer *tmp = janet_buffer(buffer->count);
-                janet_buffer_setcount(tmp, buffer->count);
-                memcpy(tmp->data, buffer->data, buffer->count);
-                view.bytes = tmp->data;
-                view.len = tmp->count;
-            }
+        if (view.bytes == buffer->data) {
+            janet_buffer_ensure(buffer, buffer->count + view.len, 2);
+            view.bytes = buffer->data;
         }
         janet_buffer_push_bytes(buffer, view.bytes, view.len);
     }
