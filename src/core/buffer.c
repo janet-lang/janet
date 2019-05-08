@@ -202,6 +202,23 @@ static Janet cfun_buffer_word(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
+static Janet cfun_buffer_buffer(int32_t argc, Janet *argv) {
+    int32_t i;
+    janet_arity(argc, 1, -1);
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    for (i = 1; i < argc; i++) {
+        JanetBuffer *other = janet_getbuffer(argv, i);
+        if (other == buffer) {
+            JanetBuffer *tmp = janet_buffer(buffer->count);
+            janet_buffer_setcount(tmp, buffer->count);
+            memcpy(tmp->data, buffer->data, buffer->count);
+            other = tmp;
+        }
+        janet_buffer_push_bytes(buffer, other->data, other->count);
+    }
+    return argv[0];
+}
+
 static Janet cfun_buffer_chars(int32_t argc, Janet *argv) {
     int32_t i;
     janet_arity(argc, 1, -1);
@@ -339,6 +356,12 @@ static const JanetReg buffer_cfuns[] = {
         JDOC("(buffer/new-filled count [, byte=0])\n\n"
              "Creates a new buffer of length count filled with byte. "
              "Returns the new buffer.")
+    },
+    {
+        "buffer/push-buffer", cfun_buffer_buffer,
+        JDOC("(buffer/push-buffer buffer x)\n\n"
+             "Append a buffer to another buffer. Will expand the buffer as necessary. "
+             "Returns the modified buffer. Will throw an error if the buffer overflows.")
     },
     {
         "buffer/push-byte", cfun_buffer_u8,

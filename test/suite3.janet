@@ -170,6 +170,11 @@
 (assert (= 8 (length b3)) "buffer/push-word 3")
 (assert (= "\xFF\xFF\xFF\xFF\0\x11\0\0" (string b3)) "buffer/push-word 4")
 
+# Buffer push buffer
+(def b4 @"abc")
+(buffer/push-buffer b4 b4 (buffer/new-filled 2 97))
+(assert (= "abcabcaa" (string b4)) "buffer/push-buffer 1")
+
 # Peg
 
 (defn check-match
