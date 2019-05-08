@@ -198,8 +198,15 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
             janet_escape_string_b(buffer, janet_unwrap_string(x));
             return;
         case JANET_BUFFER:
-            janet_escape_buffer_b(buffer, janet_unwrap_buffer(x));
-            return;
+            {
+                JanetBuffer *b = janet_unwrap_buffer(x);
+                if (b == buffer) {
+                    /* Ensures buffer won't resize while escaping */
+                    janet_buffer_ensure(b, 5 * b->count + 3, 1);
+                }
+                janet_escape_buffer_b(buffer, b);
+                return;
+            }
         case JANET_ABSTRACT: {
             void *p = janet_unwrap_abstract(x);
             const JanetAbstractType *at = janet_abstract_type(p);
@@ -298,6 +305,7 @@ struct pretty {
     int depth;
     int indent;
     int flags;
+    int32_t bufstartlen;
     JanetTable seen;
 };
 
@@ -372,7 +380,13 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
             if (color && (S->flags & JANET_PRETTY_COLOR)) {
                 janet_buffer_push_cstring(S->buffer, color);
             }
-            janet_description_b(S->buffer, x);
+            if (janet_checktype(x, JANET_BUFFER) && janet_unwrap_buffer(x) == S->buffer) {
+                janet_buffer_ensure(S->buffer, S->buffer->count + S->bufstartlen * 4 + 3, 1);
+                janet_buffer_push_u8(S->buffer, '@');
+                janet_escape_string_impl(S->buffer, S->buffer->data, S->bufstartlen);
+            } else {
+                janet_description_b(S->buffer, x);
+            }
             if (color && (S->flags & JANET_PRETTY_COLOR)) {
                 janet_buffer_push_cstring(S->buffer, "\x1B[0m");
             }
@@ -461,9 +475,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
     return;
 }
 
-/* Helper for printing a janet value in a pretty form. Not meant to be used
- * for serialization or anything like that. */
-JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x) {
+static JanetBuffer *janet_pretty_(JanetBuffer *buffer, int depth, int flags, Janet x, int32_t startlen) {
     struct pretty S;
     if (NULL == buffer) {
         buffer = janet_buffer(0);
@@ -472,10 +484,17 @@ JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x) {
     S.depth = depth;
     S.indent = 0;
     S.flags = flags;
+    S.bufstartlen = startlen;
     janet_table_init(&S.seen, 10);
     janet_pretty_one(&S, x, 0);
     janet_table_deinit(&S.seen);
     return S.buffer;
+}
+
+/* Helper for printing a janet value in a pretty form. Not meant to be used
+ * for serialization or anything like that. */
+JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x) {
+    return janet_pretty_(buffer, depth, flags, x, buffer ? buffer->count : 0);
 }
 
 static const char *typestr(Janet x) {
@@ -643,6 +662,7 @@ void janet_buffer_format(
     size_t sfl = strlen(strfrmt);
     const char *strfrmt_end = strfrmt + sfl;
     int32_t arg = argstart;
+    int32_t startlen = b->count;
     while (strfrmt < strfrmt_end) {
         if (*strfrmt != '%')
             janet_buffer_push_u8(b, (uint8_t) * strfrmt++);
@@ -711,7 +731,7 @@ void janet_buffer_format(
                     int depth = atoi(precision);
                     if (depth < 1)
                         depth = 4;
-                    janet_pretty(b, depth, (strfrmt[-1] == 'P') ? JANET_PRETTY_COLOR : 0, argv[arg]);
+                    janet_pretty_(b, depth, (strfrmt[-1] == 'P') ? JANET_PRETTY_COLOR : 0, argv[arg], startlen);
                     break;
                 }
                 default: {

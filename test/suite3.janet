@@ -159,6 +159,14 @@
 (buffer/blit b2 "abcdefg" 5 6)
 (assert (= (string b2) "joytogjoyto") "buffer/blit 3")
 
+# Buffer self blitting, check for use after free
+(def buf1 @"1234567890")
+(buffer/blit buf1 buf1 -1)
+(buffer/blit buf1 buf1 -1)
+(buffer/blit buf1 buf1 -1)
+(buffer/blit buf1 buf1 -1)
+(assert (= (string buf1) (string/repeat "1234567890" 16)) "buffer blit against self")
+
 # Buffer push word
 
 (def b3 @"")
@@ -178,6 +186,13 @@
 (def b5 @"123")
 (buffer/push-string b5 "456" @"789")
 (assert (= "123456789" (string b5)) "buffer/push-buffer 2")
+
+# Check for bugs with printing self with buffer/format
+
+(def buftemp @"abcd")
+(assert (= (string (buffer/format buftemp "---%p---" buftemp)) `abcd---@"abcd"---`) "buffer/format on self 1")
+(def buftemp @"abcd")
+(assert (= (string (buffer/format buftemp "---%p %p---" buftemp buftemp)) `abcd---@"abcd" @"abcd"---`) "buffer/format on self 2")
 
 # Peg
 
