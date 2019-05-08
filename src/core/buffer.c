@@ -296,6 +296,7 @@ static Janet cfun_buffer_blit(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 5);
     JanetBuffer *dest = janet_getbuffer(argv, 0);
     JanetByteView src = janet_getbytes(argv, 1);
+    int same_buf = src.bytes == dest->data;
     int32_t offset_dest = 0;
     int32_t offset_src = 0;
     if (argc > 2)
@@ -314,6 +315,7 @@ static Janet cfun_buffer_blit(int32_t argc, Janet *argv) {
     if (last > INT32_MAX)
         janet_panic("buffer blit out of range");
     janet_buffer_ensure(dest, (int32_t) last, 2);
+    if (same_buf) src.bytes = dest->data;
     if (last > dest->count) dest->count = (int32_t) last;
     memcpy(dest->data + offset_dest, src.bytes + offset_src, length_src);
     return argv[0];

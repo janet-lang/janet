@@ -46,6 +46,14 @@
 
 (assert (= txs '[[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]) "nested seq")
 
+# Buffer self blitting, check for use after free
+(def buf1 @"1234567890")
+(buffer/blit buf1 buf1 -1)
+(buffer/blit buf1 buf1 -1)
+(buffer/blit buf1 buf1 -1)
+(buffer/blit buf1 buf1 -1)
+(assert (= (string buf1) (string/repeat "1234567890" 16)) "buffer blit against self")
+
 # Generators
 (def gen (generate [x :range [0 100] :when (pos? (% x 4))] x))
 (var gencount 0)
