@@ -276,24 +276,22 @@ static Janet cfun_string_find(int32_t argc, Janet *argv) {
 
 static Janet cfun_string_hasprefix(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
-    const uint8_t *prefix = janet_getstring(argv, 0);
-    const uint8_t *s = janet_getstring(argv, 1);
-    int32_t prefix_len = janet_string_length(prefix);
-    int32_t s_len = janet_string_length(s);
-    return s_len < prefix_len
+    JanetByteView prefix = janet_getbytes(argv, 0);
+    JanetByteView str = janet_getbytes(argv, 1);
+    return str.len < prefix.len
            ? janet_wrap_false()
-           : janet_wrap_boolean(memcmp(prefix, s, prefix_len) == 0);
+           : janet_wrap_boolean(memcmp(prefix.bytes, str.bytes, prefix.len) == 0);
 }
 
 static Janet cfun_string_hassuffix(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
-    const uint8_t *suffix = janet_getstring(argv, 0);
-    const uint8_t *s = janet_getstring(argv, 1);
-    int32_t suffix_len = janet_string_length(suffix);
-    int32_t s_len = janet_string_length(s);
-    return s_len < suffix_len
+    JanetByteView suffix = janet_getbytes(argv, 0);
+    JanetByteView str = janet_getbytes(argv, 1);
+    return str.len < suffix.len
            ? janet_wrap_false()
-           : janet_wrap_boolean(memcmp(suffix, s + s_len - suffix_len, suffix_len) == 0);
+           : janet_wrap_boolean(memcmp(suffix.bytes,
+                       str.bytes + str.len - suffix.len,
+                       suffix.len) == 0);
 }
 
 static Janet cfun_string_findall(int32_t argc, Janet *argv) {
