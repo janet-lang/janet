@@ -139,7 +139,7 @@
     (def out (file/open dest :w))
     (def chunks (seq [b :in (file/read f :all)] (string b)))
     (file/write out
-                "#include <janet/janet.h>\n"
+                "#include <janet.h>\n"
                 "static const unsigned char bytes[] = {"
                 ;(interpose ", " chunks)
                 "};\n\n"

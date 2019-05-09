@@ -1,6 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.0.0 - ??
+
 ## 0.5.0 - 2019-05-09
 - Fix some bugs with buffers.
 - Add `trace` and `untrace` to the core library.
