@@ -467,6 +467,60 @@ static Janet cfun_string_format(int32_t argc, Janet *argv) {
     return janet_stringv(buffer->data, buffer->count);
 }
 
+static int trim_help_checkset(JanetByteView set, uint8_t x) {
+    for (int32_t j = 0; j < set.len; j++)
+        if (set.bytes[j] == x)
+            return 1;
+    return 0;
+}
+
+static int32_t trim_help_leftedge(JanetByteView str, JanetByteView set) {
+    for (int32_t i = 0; i < str.len; i++)
+        if (!trim_help_checkset(set, str.bytes[i]))
+            return i;
+    return str.len;
+}
+
+static int32_t trim_help_rightedge(JanetByteView str, JanetByteView set) {
+    for (int32_t i = str.len - 1; i >= 0; i--)
+        if (!trim_help_checkset(set, str.bytes[i]))
+            return i + 1;
+    return 0;
+}
+
+static void trim_help_args(int32_t argc, Janet *argv, JanetByteView *str, JanetByteView *set) {
+    janet_arity(argc, 1, 2);
+    *str = janet_getbytes(argv, 0);
+    if (argc >= 2) {
+        *set = janet_getbytes(argv, 1);
+    } else {
+        set->bytes = (const uint8_t *)(" \t\r\n\v\f");
+        set->len = 6;
+    }
+}
+
+static Janet cfun_string_trim(int32_t argc, Janet *argv) {
+    JanetByteView str, set;
+    trim_help_args(argc, argv, &str, &set);
+    int32_t left_edge = trim_help_leftedge(str, set);
+    int32_t right_edge = trim_help_rightedge(str, set);
+    return janet_stringv(str.bytes + left_edge, right_edge - left_edge);
+}
+
+static Janet cfun_string_triml(int32_t argc, Janet *argv) {
+    JanetByteView str, set;
+    trim_help_args(argc, argv, &str, &set);
+    int32_t left_edge = trim_help_leftedge(str, set);
+    return janet_stringv(str.bytes + left_edge, str.len - left_edge);
+}
+
+static Janet cfun_string_trimr(int32_t argc, Janet *argv) {
+    JanetByteView str, set;
+    trim_help_args(argc, argv, &str, &set);
+    int32_t right_edge = trim_help_rightedge(str, set);
+    return janet_stringv(str.bytes, right_edge);
+}
+
 static const JanetReg string_cfuns[] = {
     {
         "string/slice", cfun_string_slice,
@@ -573,6 +627,24 @@ static const JanetReg string_cfuns[] = {
         JDOC("(string/format format & values)\n\n"
              "Similar to snprintf, but specialized for operating with janet. Returns "
              "a new string.")
+    },
+    {
+        "string/trim", cfun_string_trim,
+        JDOC("(string/trim str [,set])\n\n"
+             "Trim leading and trailing whitespace from a byte sequence. If the argument "
+             "set is provided, consider only characters in set to be whitespace.")
+    },
+    {
+        "string/triml", cfun_string_triml,
+        JDOC("(string/triml str [,set])\n\n"
+             "Trim leading whitespace from a byte sequence. If the argument "
+             "set is provided, consider only characters in set to be whitespace.")
+    },
+    {
+        "string/trimr", cfun_string_trimr,
+        JDOC("(string/trimr str [,set])\n\n"
+             "Trim trailing whitespace from a byte sequence. If the argument "
+             "set is provided, consider only characters in set to be whitespace.")
     },
     {NULL, NULL, NULL}
 };
