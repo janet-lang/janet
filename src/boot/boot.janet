@@ -1646,12 +1646,38 @@
   circular dependencies."
   @{})
 
+(defn dofile
+  "Evaluate a file in a new environment and return the new environment."
+  [path & args]
+  (def {:exit exit-on-error} (table ;args))
+  (def f (file/open path))
+  (def newenv (make-env))
+  (defn chunks [buf _] (file/read f 2048 buf))
+  (defn bp [&opt x y]
+    (def ret (bad-parse x y))
+    (if exit-on-error (os/exit 1))
+    ret)
+  (defn bc [&opt x y z]
+    (def ret (bad-compile x y z))
+    (if exit-on-error (os/exit 1))
+    ret)
+  (run-context {:env newenv
+                :chunks chunks
+                :on-parse-error bp
+                :on-compile-error bc
+                :on-status (fn [f x]
+                             (when (not= (fiber/status f) :dead)
+                               (debug/stacktrace f x)
+                               (if exit-on-error (os/exit 1))))
+                :source path})
+  (file/close f)
+  (table/setproto newenv nil))
+
 (defn require
   "Require a module with the given name. Will search all of the paths in
   module/paths, then the path as a raw file path. Returns the new environment
   returned from compiling and running the file."
   [path & args]
-  (def {:exit exit-on-error} (table ;args))
   (if-let [check (get module/cache path)]
     check
     (do
@@ -1660,31 +1686,10 @@
       (def env
         (case mod-kind
           :source (do
-                    # Normal janet module
-                    (def f (file/open fullpath))
-                    (def newenv (make-env))
                     (put module/loading fullpath true)
-                    (defn chunks [buf _] (file/read f 2048 buf))
-                    (defn bp [&opt x y]
-                      (def ret (bad-parse x y))
-                      (if exit-on-error (os/exit 1))
-                      ret)
-                    (defn bc [&opt x y z]
-                      (def ret (bad-compile x y z))
-                      (if exit-on-error (os/exit 1))
-                      ret)
-                    (run-context {:env newenv
-                                  :chunks chunks
-                                  :on-parse-error bp
-                                  :on-compile-error bc
-                                  :on-status (fn [f x]
-                                               (when (not= (fiber/status f) :dead)
-                                                 (debug/stacktrace f x)
-                                                 (if exit-on-error (os/exit 1))))
-                                  :source fullpath})
-                    (file/close f)
+                    (def newenv (dofile fullpath ;args))
                     (put module/loading fullpath nil)
-                    (table/setproto newenv nil))
+                    newenv)
           :native (native fullpath (make-env))
           :image (load-image (slurp fullpath))))
       (put module/cache fullpath env)
