@@ -1715,7 +1715,9 @@
   symbols into the current environment, prepending a given prefix as needed.
   (use the :as or :prefix option to set a prefix). If no prefix is provided,
   use the name of the module as a prefix. One can also use :export true
-  to re-export the imported symbols."
+  to re-export the imported symbols. If :exit true is given as an argument,
+  any errors encountered at the top level in the module will cause (os/exit 1)
+  to be called."
   [path & args]
   (def argm (map (fn [x]
                    (if (keyword? x)

@@ -160,7 +160,7 @@ static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
     return f ? makef(f, flags) : janet_wrap_nil();
 }
 
-/* Read up to n bytes into buffer. Return error string if error. */
+/* Read up to n bytes into buffer. */
 static void read_chunk(IOFile *iof, JanetBuffer *buffer, int32_t nBytesMax) {
     if (!(iof->flags & (IO_READ | IO_UPDATE)))
         janet_panic("file is not readable");
@@ -183,6 +183,7 @@ static Janet cfun_io_fread(int32_t argc, Janet *argv) {
     } else {
         buffer = janet_getbuffer(argv, 2);
     }
+    int32_t bufstart = buffer->count;
     if (janet_checktype(argv[1], JANET_KEYWORD)) {
         const uint8_t *sym = janet_unwrap_keyword(argv[1]);
         if (!janet_cstrcmp(sym, "all")) {
@@ -207,6 +208,8 @@ static Janet cfun_io_fread(int32_t argc, Janet *argv) {
                 fseek(iof->file, 0, SEEK_SET);
                 read_chunk(iof, buffer, (int32_t) fsize);
             }
+            /* Never return nil for :all */
+            return janet_wrap_buffer(buffer);
         } else if (!janet_cstrcmp(sym, "line")) {
             for (;;) {
                 int x = fgetc(iof->file);
@@ -221,6 +224,7 @@ static Janet cfun_io_fread(int32_t argc, Janet *argv) {
         if (len < 0) janet_panic("expected positive integer");
         read_chunk(iof, buffer, len);
     }
+    if (bufstart == buffer->count) return janet_wrap_nil();
     return janet_wrap_buffer(buffer);
 }
 
