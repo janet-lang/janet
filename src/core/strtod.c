@@ -291,8 +291,9 @@ int janet_scan_number(
         if (*str == '.') {
             if (seenpoint) goto error;
             seenpoint = 1;
+        } else {
+            seenadigit = 1;
         }
-        seenadigit = 1;
         str++;
     }
 
