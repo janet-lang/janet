@@ -79,6 +79,18 @@ make test
 make repl
 ```
 
+### 32-bit Haiku
+
+32-bit Haiku build instructions are the same as the unix-like build instructions,
+but you need to specify an alternative compiler, such as `gcc-x86`.
+
+```
+cd somewhere/my/projects/janet
+make CC=gcc-x86
+make test
+make repl
+```
+
 ### FreeBSD
 
 FreeBSD build instructions are the same as the unix-like build instuctions,

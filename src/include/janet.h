@@ -51,6 +51,7 @@ extern "C" {
     || defined(__FreeBSD__) || defined(__DragonFly__) \
     || defined(__FreeBSD_kernel__) \
     || defined(__GNU__) /* GNU/Hurd */ \
+    || defined(__HAIKU__) \
     || defined(__linux__) \
     || defined(__NetBSD__) \
     || defined(__OpenBSD__) \
