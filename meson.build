@@ -22,6 +22,7 @@ project('janet', 'c', default_options : ['c_std=c99'])
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
+header_path = join_paths(get_option('prefix'), get_option('includedir'), 'janet')
 
 # Link math library on all systems
 cc = meson.get_compiler('c')
@@ -119,7 +120,7 @@ janet_boot = executable('janet-boot', core_src, boot_src, boot_gen,
 core_image = custom_target('core_image',
   input : [janet_boot],
   output : 'core_image.gen.c',
-  command : [janet_boot, '@OUTPUT@', 'JANET_PATH', janet_path])
+  command : [janet_boot, '@OUTPUT@', 'JANET_PATH', janet_path, 'JANET_HEADERPATH', header_path])
 
 libjanet = shared_library('janet', core_src, core_image,
   include_directories : incdir,
@@ -169,10 +170,8 @@ run_target('repl', command : [janet_mainclient])
 
 # Installation
 install_man('janet.1')
-install_headers('src/include/janet.h', 'src/include/janetconf.h')
+install_headers('src/include/janet.h', 'src/include/janetconf.h', subdir: 'janet')
 janet_libs = [
-  'src/include/janet.h',
-  'src/include/janetconf.h',
   'tools/bars.janet',
   'tools/cook.janet',
   'tools/highlight.janet'

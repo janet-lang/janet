@@ -133,7 +133,7 @@ build/janet_boot: $(JANET_BOOT_OBJECTS)
 
 # Now the reason we bootstrap in the first place
 build/core_image.c: build/janet_boot
-	build/janet_boot $@ JANET_PATH $(JANET_PATH)
+	build/janet_boot $@ JANET_PATH $(JANET_PATH) JANET_HEADERPATH $(INCLUDEDIR)/janet
 
 ##########################################################
 ##### The main interpreter program and shared object #####
@@ -282,8 +282,8 @@ SONAME=libjanet.so.0
 install: $(JANET_TARGET) build/version.txt
 	mkdir -p $(BINDIR)
 	cp $(JANET_TARGET) $(BINDIR)/janet
-	mkdir -p $(INCLUDEDIR)
-	cp -rf $(JANET_HEADERS) $(INCLUDEDIR)
+	mkdir -p $(INCLUDEDIR)/janet
+	cp -rf $(JANET_HEADERS) $(INCLUDEDIR)/janet
 	mkdir -p $(JANET_PATH)
 	cp -rf $(JANET_HEADERS) $(JANET_PATH)
 	mkdir -p $(LIBDIR)

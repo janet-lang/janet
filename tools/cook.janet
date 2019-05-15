@@ -103,7 +103,7 @@
                   (if is-mac " -undefined dynamic_lookup" ""))))
 (def CFLAGS (string
               (if is-win "/I" "-I")
-              module/*syspath*
+              module/*headerpath*
               (if is-win " /O" " -std=c99 -Wall -Wextra -fpic -O")
               OPTIMIZE))
 

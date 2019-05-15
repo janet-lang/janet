@@ -1597,6 +1597,11 @@
   on Windows is C:/Janet/Library."
   (or (process/opts "JANET_PATH") ""))
 
+(var module/*headerpath*
+  "The path where the janet headers are installed. Useful for building
+  native modules or compiling code at runtime."
+  (process/opts "JANET_HEADERPATH"))
+
 # Version of fexists that works even with a reduced OS
 (if-let [has-stat (_env 'os/stat)]
   (let [stat (has-stat :value)]
