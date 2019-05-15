@@ -29,7 +29,7 @@ m_dep = cc.find_library('m', required : false)
 dl_dep = cc.find_library('dl', required : false)
 
 # Some options
-add_project_arguments('-DJANET_BUILD="meson"', language : 'c')
+add_project_link_arguments('-rdynamic', language : 'c')
 
 # Include directories
 incdir = include_directories('src/include')
