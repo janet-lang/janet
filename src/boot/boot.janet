@@ -1047,11 +1047,12 @@
   (var i 0) (var nextn n)
   (def len (length ind))
   (def ret (array/new (math/ceil (/ len n))))
+  (def slicer (if (bytes? ind) string/slice tuple/slice))
   (while (<= nextn len)
-    (array/push ret (tuple/slice ind i nextn))
+    (array/push ret (slicer ind i nextn))
     (set i nextn)
     (+= nextn n))
-  (if (not= i len) (array/push ret (tuple/slice ind i)))
+  (if (not= i len) (array/push ret (slicer ind i)))
   ret)
 
 ###
