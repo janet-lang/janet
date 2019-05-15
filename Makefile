@@ -283,15 +283,13 @@ install: $(JANET_TARGET) build/version.txt
 	mkdir -p $(BINDIR)
 	cp $(JANET_TARGET) $(BINDIR)/janet
 	mkdir -p $(INCLUDEDIR)
-	cp $(JANET_HEADERS) $(INCLUDEDIR)
+	cp -rf $(JANET_HEADERS) $(INCLUDEDIR)
+	mkdir -p $(JANET_PATH)
+	cp -rf $(JANET_HEADERS) $(JANET_PATH)
 	mkdir -p $(LIBDIR)
 	cp $(JANET_LIBRARY) $(LIBDIR)/libjanet.so.$(shell cat build/version.txt)
 	ln -sf $(SONAME) $(LIBDIR)/libjanet.so
 	ln -sf libjanet.so.$(shell cat build/version.txt) $(LIBDIR)/$(SONAME)
-	mkdir -p $(INCLUDEDIR)/janet
-	mkdir -p $(JANET_PATH)
-	ln -sf $(INCLUDEDIR)/janet.h $(JANET_PATH)/janet.h
-	ln -sf $(INCLUDEDIR)/janetconf.h $(JANET_PATH)/janetconf.h
 	cp tools/cook.janet $(JANET_PATH)
 	cp tools/highlight.janet $(JANET_PATH)
 	cp tools/bars.janet $(JANET_PATH)
