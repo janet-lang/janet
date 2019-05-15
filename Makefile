@@ -47,6 +47,9 @@ else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
 endif
 # For other unix likes, add flags here!
+ifeq ($(UNAME),Haiku)
+	LDFLAGS=-Wl,--export-dynamic
+endif
 
 $(shell mkdir -p build/core build/mainclient build/webclient build/boot)
 all: $(JANET_TARGET) $(JANET_LIBRARY)
