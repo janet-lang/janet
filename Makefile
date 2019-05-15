@@ -278,7 +278,7 @@ clean:
 build/version.txt: $(JANET_TARGET)
 	$(JANET_TARGET) -e '(print janet/version)' > $@
 
-SONAME=libjanet.so.0
+SONAME=libjanet.so.1
 install: $(JANET_TARGET) build/version.txt
 	mkdir -p $(BINDIR)
 	cp $(JANET_TARGET) $(BINDIR)/janet
