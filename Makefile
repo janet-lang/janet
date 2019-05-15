@@ -285,7 +285,6 @@ install: $(JANET_TARGET) build/version.txt
 	mkdir -p $(INCLUDEDIR)/janet
 	cp -rf $(JANET_HEADERS) $(INCLUDEDIR)/janet
 	mkdir -p $(JANET_PATH)
-	cp -rf $(JANET_HEADERS) $(JANET_PATH)
 	mkdir -p $(LIBDIR)
 	cp $(JANET_LIBRARY) $(LIBDIR)/libjanet.so.$(shell cat build/version.txt)
 	ln -sf $(SONAME) $(LIBDIR)/libjanet.so
