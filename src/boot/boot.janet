@@ -1682,6 +1682,18 @@
   (file/close f)
   (table/setproto newenv nil))
 
+(def module/loaders
+  "A table of loading method names to loading functions.
+  This table lets require and import load many different kinds
+  of files as module."
+  @{:native (fn [path &] (native path (make-env)))
+    :source (fn [path args]
+              (put module/loading path true)
+              (def newenv (dofile path ;args))
+              (put module/loading path nil)
+              newenv)
+    :image (fn [path &] (load-image (slurp path)))})
+
 (defn require
   "Require a module with the given name. Will search all of the paths in
   module/paths, then the path as a raw file path. Returns the new environment
@@ -1692,15 +1704,9 @@
     (do
       (def [fullpath mod-kind] (module/find path))
       (unless fullpath (error mod-kind))
-      (def env
-        (case mod-kind
-          :source (do
-                    (put module/loading fullpath true)
-                    (def newenv (dofile fullpath ;args))
-                    (put module/loading fullpath nil)
-                    newenv)
-          :native (native fullpath (make-env))
-          :image (load-image (slurp fullpath))))
+      (def loader (module/loaders mod-kind))
+      (unless loader (error (string "module type " mod-kind " unknown")))
+      (def env (loader fullpath args))
       (put module/cache fullpath env)
       (put module/cache path env)
       env)))
