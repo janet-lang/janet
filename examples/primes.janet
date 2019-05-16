@@ -13,4 +13,4 @@
     (if isprime? (array/push list i)))
   list)
 
-(print (string/pretty (primes 100)))
+(pp (primes 100))
