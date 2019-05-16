@@ -252,7 +252,7 @@ dist: build/janet-dist.tar.gz
 
 build/janet-%.tar.gz: $(JANET_TARGET) \
 	src/include/janet.h src/include/janetconf.h \
-	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) \
+	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
 	build/doc.html README.md build/janet.c
 	tar -czvf $@ $^
 

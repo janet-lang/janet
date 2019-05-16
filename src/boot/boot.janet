@@ -1127,10 +1127,13 @@
         ~(if (= nil (def ,pattern ,expr)) ,sentinel ,(onmatch))))
 
     (tuple? pattern)
-    (match-1
-      (get pattern 0) expr
-      (fn []
-        ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen)
+    (if (and (= (pattern 0) 'quote) (symbol? (pattern 1)))
+      # Unification with external values
+      ~(if (= ,(pattern 1) ,expr) ,(onmatch) ,sentinel)
+      (match-1
+        (get pattern 0) expr
+        (fn []
+          ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen))
 
     (array? pattern)
     (do
