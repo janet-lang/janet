@@ -31,6 +31,7 @@ JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
 CLIBS=-lm
 JANET_TARGET=build/janet
 JANET_LIBRARY=build/libjanet.so
+JANET_STATIC_LIBRARY=build/libjanet.a
 JANET_PATH?=$(PREFIX)/lib/janet
 MANPATH?=$(PREFIX)/share/man/man1/
 DEBUGGER=gdb
@@ -52,7 +53,7 @@ ifeq ($(UNAME),Haiku)
 endif
 
 $(shell mkdir -p build/core build/mainclient build/webclient build/boot)
-all: $(JANET_TARGET) $(JANET_LIBRARY)
+all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY)
 
 ######################
 ##### Name Files #####
@@ -154,6 +155,9 @@ $(JANET_TARGET): $(JANET_CORE_OBJECTS) $(JANET_MAINCLIENT_OBJECTS)
 
 $(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
 	$(CC) $(LDFLAGS) $(CFLAGS) -shared -o $@ $^ $(CLIBS)
+
+$(JANET_STATIC_LIBRARY): $(JANET_CORE_OBJECTS)
+	$(AR) rcs $@ $^
 
 ######################
 ##### Emscripten #####
@@ -287,6 +291,7 @@ install: $(JANET_TARGET) build/version.txt
 	mkdir -p $(JANET_PATH)
 	mkdir -p $(LIBDIR)
 	cp $(JANET_LIBRARY) $(LIBDIR)/libjanet.so.$(shell cat build/version.txt)
+	cp $(JANET_STATIC_LIBRARY) $(LIBDIR)/libjanet.a
 	ln -sf $(SONAME) $(LIBDIR)/libjanet.so
 	ln -sf libjanet.so.$(shell cat build/version.txt) $(LIBDIR)/$(SONAME)
 	cp tools/cook.janet $(JANET_PATH)
