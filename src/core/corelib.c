@@ -653,7 +653,7 @@ static void make_apply(JanetTable *env) {
                          "be an array-like. Each element in this last argument is then also pushed as an argument to "
                          "f. For example:\n\n"
                          "\t(apply + 1000 (range 10))\n\n"
-                         "sums the first 10 integers and 1000.)"));
+                         "sums the first 10 integers and 1000."));
 }
 
 static const uint32_t error_asm[] = {
