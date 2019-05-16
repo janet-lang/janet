@@ -266,7 +266,7 @@ static const JanetReg array_cfuns[] = {
     {
         "array/ensure", cfun_array_ensure,
         JDOC("(array/ensure arr capacity)\n\n"
-             "Ensures that the memory backing the array has enough memory for capacity "
+             "Ensures that the memory backing the array is large enough for capacity "
              "items. Capacity must be an integer. If the backing capacity is already enough, "
              "then this function does nothing. Otherwise, the backing memory will be reallocated "
              "so that there is enough space.")

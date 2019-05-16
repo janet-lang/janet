@@ -139,9 +139,9 @@
   [])
 
 (defmacro if-not
-  "Shorthand for (if (not ... "
-  [condition exp-1 &opt exp-2]
-  ~(if ,condition ,exp-2 ,exp-1))
+  "Shorthand for (if (not condition) else then)."
+  [condition then &opt else]
+  ~(if ,condition ,else ,then))
 
 (defmacro when
   "Evaluates the body when the condition is true. Otherwise returns nil."
@@ -149,7 +149,7 @@
   ~(if ,condition (do ,;body)))
 
 (defmacro unless
-  "Shorthand for (when (not ... "
+  "Shorthand for (when (not condition) ;body). "
   [condition & body]
   ~(if ,condition nil (do ,;body)))
 
@@ -171,7 +171,7 @@
 (defmacro case
   "Select the body that equals the dispatch value. When pairs
   has an odd number of arguments, the last is the default expression.
-  If no match is found, returns nil"
+  If no match is found, returns nil."
   [dispatch & pairs]
   (def atm (idempotent? dispatch))
   (def sym (if atm dispatch (gensym)))
@@ -416,7 +416,7 @@
   ~(fiber/new (fn [] (loop ,head (yield (do ,;body)))) :yi))
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber/new (fn [] ...body) :yi)."
+  "A wrapper for making fibers. Same as (fiber/new (fn [] ;body) :yi)."
   [& body]
   (tuple fiber/new (tuple 'fn '[] ;body) :yi))
 
@@ -678,7 +678,7 @@
 
 (defn find
   "Find the first value in an indexed collection that satisfies a predicate. Returns
-  nil if not found. Note their is no way to differentiate a nil from the indexed collection
+  nil if not found. Note there is no way to differentiate a nil from the indexed collection
   and a not found. Consider find-index if this is an issue."
   [pred ind]
   (def i (find-index pred ind))
