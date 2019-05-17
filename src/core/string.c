@@ -542,8 +542,8 @@ static const JanetReg string_cfuns[] = {
     },
     {
         "string/from-bytes", cfun_string_frombytes,
-        JDOC("(string/from-bytes byte-array)\n\n"
-             "Creates a string from an array of integers with byte values. All integers "
+        JDOC("(string/from-bytes &byte-vals)\n\n"
+             "Creates a string from integer params with byte values. All integers "
              "will be coerced to the range of 1 byte 0-255.")
     },
     {
