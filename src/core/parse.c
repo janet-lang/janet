@@ -928,7 +928,7 @@ static const JanetReg parse_cfuns[] = {
     },
     {
         "parser/eof", cfun_parse_eof,
-        JDOC("(parser/insert parser)\n\n"
+        JDOC("(parser/eof parser)\n\n"
              "Indicate that the end of file was reached to the parser. This puts the parser in the :dead state.")
     },
     {

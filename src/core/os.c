@@ -632,7 +632,7 @@ static const JanetReg os_cfuns[] = {
 #ifndef JANET_REDUCED_OS
     {
         "os/dir", os_dir,
-        JDOC("(os/stat dir [, array])\n\n"
+        JDOC("(os/dir dir [, array])\n\n"
              "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
              "with only the filename or directory name and no prefix.")
     },
