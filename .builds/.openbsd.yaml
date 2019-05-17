@@ -1,0 +1,10 @@
+image: openbsd/6.5
+packages:
+  - gmake
+tasks:
+  - build: |
+      cd janet
+      gmake
+      gmake test
+      doas gmake install
+      gmake test-install
