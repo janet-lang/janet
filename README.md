@@ -184,6 +184,16 @@ See the examples directory for some example janet code.
 Feel free to ask questions and join discussion on the [Janet Gitter Channel](https://gitter.im/janet-language/community).
 Alternatively, check out [the #janet channel on Freenode](https://webchat.freenode.net/)
 
+## FAQ
+
+### Why is my terminal is spitting out junk when I run the repl?
+
+Make sure your terminal supports ANSI escape codes. Most modern terminals will
+support these, but some older terminals, windows consoles, or embedded terminals
+will not. If your terminal does not support ANSI escape codes, run the repl with
+the `-n` flag, which disables color output. You can also try the `-s` if further issues
+ensue.
+
 ## Why Janet
 
 Janet is named after the almost omniscient and friendly artificial being in [The Good Place](https://en.wikipedia.org/wiki/The_Good_Place).
