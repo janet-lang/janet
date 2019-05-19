@@ -1458,6 +1458,7 @@
   :env - the environment to compile against - default is the current env\n\t
   :source - string path of source for better errors - default is \"<anonymous>\"\n\t
   :on-compile-error - callback when compilation fails - default is bad-compile\n\t
+  :compile-only - only compile the souce, do not execute it - default is false\n\t
   :on-status - callback when a value is evaluated - default is debug/stacktrace\n\t
   :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia."
   [opts]
@@ -1468,9 +1469,11 @@
         :on-compile-error on-compile-error
         :on-parse-error on-parse-error
         :fiber-flags guard
+        :compile-only compile-only
         :source where} opts)
   (default env (fiber/getenv (fiber/current)))
   (default chunks getline)
+  (default compile-only false)
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
   (default on-parse-error bad-parse)
@@ -1490,7 +1493,7 @@
         (fn []
           (def res (compile source env where))
           (if (= (type res) :function)
-            (res)
+            (unless compile-only (res))
             (do
               (set good false)
               (def {:error err :start start :end end :fiber errf} res)
@@ -1658,7 +1661,8 @@
 (defn dofile
   "Evaluate a file in a new environment and return the new environment."
   [path & args]
-  (def {:exit exit-on-error} (table ;args))
+  (def {:exit exit-on-error
+        :compile-only compile-only} (table ;args))
   (def f (file/open path))
   (def newenv (make-env))
   (defn chunks [buf _] (file/read f 2048 buf))
@@ -1678,6 +1682,7 @@
                              (when (not= (fiber/status f) :dead)
                                (debug/stacktrace f x)
                                (if exit-on-error (os/exit 1))))
+                :compile-only compile-only
                 :source path})
   (file/close f)
   (table/setproto newenv nil))

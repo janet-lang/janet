@@ -9,6 +9,7 @@
   (var *handleopts* true)
   (var *exit-on-error* true)
   (var *colorize* true)
+  (var *compile-only* false)
 
   (if-let [jp (os/getenv "JANET_PATH")] (set module/*syspath* jp))
 
@@ -25,6 +26,7 @@
   -r : Enter the repl after running all scripts
   -p : Keep on executing if there is a top level error (persistent)
   -q : Hide prompt, logo, and repl output (quiet)
+  -k : Compile scripts but do not execute
   -m syspath : Set system path for loading global modules
   -c source output : Compile janet source code into an image
   -n : Disable ANSI color output in the repl
@@ -37,6 +39,7 @@
      "r" (fn [&] (set *should-repl* true) 1)
      "p" (fn [&] (set *exit-on-error* false) 1)
      "q" (fn [&] (set *quiet* true) 1)
+     "k" (fn [&] (set *compile-only* true) 1)
      "n" (fn [&] (set *colorize* false) 1)
      "m" (fn [i &] (set module/*syspath* (get process/args (+ i 1))) 2)
      "c" (fn [i &]
@@ -67,10 +70,10 @@
       (+= i (dohandler (string/slice arg 1 2) i))
       (do
         (set *no-file* false)
-        (import* arg :prefix "" :exit *exit-on-error*)
+        (import* arg :prefix "" :exit *exit-on-error* :compile-only *compile-only*)
         (set i lenargs))))
 
-  (when (or *should-repl* *no-file*)
+  (when (and (not *compile-only*) (or *should-repl* *no-file*))
     (if-not *quiet*
       (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2019 Calvin Rose"))
     (defn noprompt [_] "")
