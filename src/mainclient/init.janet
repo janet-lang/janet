@@ -39,7 +39,7 @@
      "r" (fn [&] (set *should-repl* true) 1)
      "p" (fn [&] (set *exit-on-error* false) 1)
      "q" (fn [&] (set *quiet* true) 1)
-     "k" (fn [&] (set *compile-only* true) 1)
+     "k" (fn [&] (set *compile-only* true) (set *exit-on-error* false) 1)
      "n" (fn [&] (set *colorize* false) 1)
      "m" (fn [i &] (set module/*syspath* (get process/args (+ i 1))) 2)
      "c" (fn [i &]

@@ -3,7 +3,7 @@
 janet \- run the Janet language abstract machine
 .SH SYNOPSIS
 .B janet
-[\fB\-hvsrpnq\fR]
+[\fB\-hvsrpnqk\fR]
 [\fB\-e\fR \fISOURCE\fR]
 [\fB\-l\fR \fIMODULE\fR]
 [\fB\-m\fR \fIPATH\fR]
@@ -66,6 +66,10 @@ after an error. Persistent mode can be good for debugging and testing.
 .TP
 .BR \-q
 Quiet output. Don't print a repl prompt or expression results to stdout.
+
+.TP
+.BR \-k
+Don't execute a script, only compile it to check for errors. Useful for linting scripts.
 
 .TP
 .BR \-m\ syspath
