@@ -26,6 +26,7 @@
 #include "emit.h"
 #include "vector.h"
 #include "util.h"
+#include "state.h"
 #endif
 
 JanetFopts janetc_fopts_default(JanetCompiler *c) {
@@ -716,8 +717,12 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
 
 /* C Function for compiling */
 static Janet cfun(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 3);
-    JanetTable *env = janet_gettable(argv, 1);
+    janet_arity(argc, 1, 3);
+    JanetTable *env = argc > 1 ? janet_gettable(argv, 1) : janet_vm_fiber->env;
+    if (NULL == env) {
+        env = janet_table(0);
+        janet_vm_fiber->env = env;
+    }
     const uint8_t *source = NULL;
     if (argc == 3) {
         source = janet_getstring(argv, 2);
@@ -740,7 +745,7 @@ static Janet cfun(int32_t argc, Janet *argv) {
 static const JanetReg compile_cfuns[] = {
     {
         "compile", cfun,
-        JDOC("(compile ast env [, source])\n\n"
+        JDOC("(compile ast &opt env source)\n\n"
              "Compiles an Abstract Syntax Tree (ast) into a janet function. "
              "Pair the compile function with parsing functionality to implement "
              "eval. Returns a janet function and does not modify ast. Throws an "
