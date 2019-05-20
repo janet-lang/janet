@@ -115,6 +115,23 @@ static Janet cfun_tuple_type(int32_t argc, Janet *argv) {
     }
 }
 
+static Janet cfun_tuple_sourcemap(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    const Janet *tup = janet_gettuple(argv, 0);
+    Janet contents[2];
+    contents[0] = janet_wrap_integer(janet_tuple_head(tup)->sm_start);
+    contents[1] = janet_wrap_integer(janet_tuple_head(tup)->sm_end);
+    return janet_wrap_tuple(janet_tuple_n(contents, 2));
+}
+
+static Janet cfun_tuple_setmap(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 3);
+    const Janet *tup = janet_gettuple(argv, 0);
+    janet_tuple_head(tup)->sm_start = janet_getinteger(argv, 1);
+    janet_tuple_head(tup)->sm_end = janet_getinteger(argv, 2);
+    return argv[0];
+}
+
 static const JanetReg tuple_cfuns[] = {
     {
         "tuple/brackets", cfun_tuple_brackets,
@@ -137,6 +154,20 @@ static const JanetReg tuple_cfuns[] = {
              "otherwise. The two types of tuples will behave the same most of "
              "the time, but will print differently and be treated differently by "
              "the compiler.")
+    },
+    {
+        "tuple/sourcemap", cfun_tuple_sourcemap,
+        JDOC("(tuple/sourcemap tup)\n\n"
+             "Returns the sourcemap metadata attached to a tuple. "
+             "The mapping is represented by a pair of byte offsets into the "
+             "the source code representing the start and end byte indices where "
+             "the tuple is. ")
+    },
+    {
+        "tuple/setmap", cfun_tuple_setmap,
+        JDOC("(tuple/setmap tup start end)\n\n"
+             "Set the sourcemap metadata on a tuple. start and end should "
+             "be integers representing byte offsets into the file. Returns tup.")
     },
     {NULL, NULL, NULL}
 };

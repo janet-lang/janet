@@ -174,7 +174,7 @@ static int destructure(JanetCompiler *c,
 /* Create a source map for definitions. */
 static const Janet *janetc_make_sourcemap(JanetCompiler *c) {
     Janet *tup = janet_tuple_begin(3);
-    tup[0] = janet_wrap_string(c->source);
+    tup[0] = c->source ? janet_wrap_string(c->source) : janet_wrap_nil();
     tup[1] = janet_wrap_integer(c->current_mapping.start);
     tup[2] = janet_wrap_integer(c->current_mapping.end);
     return janet_tuple_end(tup);

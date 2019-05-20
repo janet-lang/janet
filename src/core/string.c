@@ -290,8 +290,8 @@ static Janet cfun_string_hassuffix(int32_t argc, Janet *argv) {
     return str.len < suffix.len
            ? janet_wrap_false()
            : janet_wrap_boolean(memcmp(suffix.bytes,
-                       str.bytes + str.len - suffix.len,
-                       suffix.len) == 0);
+                                       str.bytes + str.len - suffix.len,
+                                       suffix.len) == 0);
 }
 
 static Janet cfun_string_findall(int32_t argc, Janet *argv) {

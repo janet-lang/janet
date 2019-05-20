@@ -197,16 +197,15 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
         case JANET_STRING:
             janet_escape_string_b(buffer, janet_unwrap_string(x));
             return;
-        case JANET_BUFFER:
-            {
-                JanetBuffer *b = janet_unwrap_buffer(x);
-                if (b == buffer) {
-                    /* Ensures buffer won't resize while escaping */
-                    janet_buffer_ensure(b, 5 * b->count + 3, 1);
-                }
-                janet_escape_buffer_b(buffer, b);
-                return;
+        case JANET_BUFFER: {
+            JanetBuffer *b = janet_unwrap_buffer(x);
+            if (b == buffer) {
+                /* Ensures buffer won't resize while escaping */
+                janet_buffer_ensure(b, 5 * b->count + 3, 1);
             }
+            janet_escape_buffer_b(buffer, b);
+            return;
+        }
         case JANET_ABSTRACT: {
             void *p = janet_unwrap_abstract(x);
             const JanetAbstractType *at = janet_abstract_type(p);
