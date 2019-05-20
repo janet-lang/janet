@@ -300,5 +300,8 @@
 (assert (= (length {1 2 3 nil}) 1) "nil value struct literal")
 (assert (= (length @{1 2 3 nil}) 1) "nil value table literal")
 
+# Regression Test
+(assert (= 1 (((compile '(fn [] 1) @{})))) "regression test")
+
 (end-suite)
 
