@@ -42,6 +42,5 @@
 /* #define JANET_MAX_MACRO_EXPAND 200 */
 /* #define JANET_STACK_MAX 16384 */
 /* #define JANET_NO_NANBOX */
-/* #define JANET_WALIGN 8 */
 
 #endif /* end of include guard: JANETCONF_H */

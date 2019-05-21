@@ -184,15 +184,6 @@ extern "C" {
 #endif
 #endif
 
-/* Alignment for pointers */
-#ifndef JANET_WALIGN
-#ifdef JANET_32
-#define JANET_WALIGN 4
-#else
-#define JANET_WALIGN 8
-#endif
-#endif
-
 /***** END SECTION CONFIG *****/
 
 /***** START SECTION TYPES *****/
