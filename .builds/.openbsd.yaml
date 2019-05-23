@@ -8,3 +8,4 @@ tasks:
       gmake test
       doas gmake install
       gmake test-install
+      gmake test-amalg

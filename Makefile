@@ -304,6 +304,16 @@ install: $(JANET_TARGET) build/version.txt
 test-install:
 	cd test/install && rm -rf build && janet build && janet build
 
+build/embed_janet.o: build/janet.c $(JANET_HEADERS)
+	$(CC) $(CFLAGS) -c $< -o $@
+build/embed_main.o: test/amalg/main.c $(JANET_HEADERS)
+	$(CC) $(CFLAGS) -c $< -o $@
+build/embed_test: build/embed_janet.o build/embed_main.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(CLIBS)
+
+test-amalg: build/embed_test
+	./build/embed_test
+
 uninstall:
 	-rm $(BINDIR)/../$(JANET_TARGET)
 	-rm -rf $(INCLUDEDIR)

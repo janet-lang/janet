@@ -239,11 +239,11 @@ void janetc_copy(
         return;
     }
     /* Process: src -> near -> dest */
-    int32_t near = janetc_allocnear(c, JANETC_REGTEMP_3);
-    janetc_movenear(c, near, src);
-    janetc_moveback(c, dest, near);
+    int32_t nearreg = janetc_allocnear(c, JANETC_REGTEMP_3);
+    janetc_movenear(c, nearreg, src);
+    janetc_moveback(c, dest, nearreg);
     /* Cleanup */
-    janetc_regalloc_freetemp(&c->scope->ra, near, JANETC_REGTEMP_3);
+    janetc_regalloc_freetemp(&c->scope->ra, nearreg, JANETC_REGTEMP_3);
 
 }
 /* Instruction templated emitters */
