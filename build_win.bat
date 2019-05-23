@@ -75,6 +75,14 @@ for %%f in (src\mainclient\*.c) do (
 %JANET_LINK% /out:janet.exe build\core\*.obj build\mainclient\*.obj build\core_image.obj
 @if errorlevel 1 goto :BUILDFAIL
 
+@rem Gen amlag
+setlocal enabledelayedexpansion
+set "amalg_files="
+for %%f in (src\core\*.c) do (
+    set "amalg_files=!amalg_files! %%f"
+)
+janet.exe tools\amalg.janet src\core\util.h src\core\state.h src\core\gc.h src\core\vector.h src\core\fiber.h src\core\regalloc.h src\core\compile.h src\core\emit.h src\core\symcache.h %amalg_files% build\core_image.c > build\janet.c
+
 echo === Successfully built janet.exe for Windows ===
 echo === Run 'build_win test' to run tests. ==
 echo === Run 'build_win clean' to delete build artifacts. ===
@@ -106,6 +114,14 @@ for %%f in (test/suite*.janet) do (
     janet.exe test\%%f
     @if errorlevel 1 goto :TESTFAIL
 )
+@%JANET_COMPILE% \Fobuild\embed_janet.obj build\janet.c
+@if errorlevel 1 goto :TESTFAIL
+@%JANET_COMPILE% \Fobuild\embed_main.obj test\amalg\main.c
+@if errorlevel 1 goto :TESTFAIL
+%JANET_LINK% /out:build\embed_test.exe build\embed_janet.obj build\embed_main.obj
+@if errorlevel 1 goto :TESTFAIL
+build\embed_test
+@if errorlevel 1 goto :TESTFAIL
 exit /b 0
 
 @rem Build a dist directory
@@ -113,13 +129,7 @@ exit /b 0
 mkdir dist
 janet.exe tools\gendoc.janet > dist\doc.html
 
-@rem Gen amlag
-setlocal enabledelayedexpansion
-set "amalg_files="
-for %%f in (src\core\*.c) do (
-    set "amalg_files=!amalg_files! %%f"
-)
-janet.exe tools\amalg.janet src\core\util.h src\core\state.h src\core\gc.h src\core\vector.h src\core\fiber.h src\core\regalloc.h src\core\compile.h src\core\emit.h src\core\symcache.h %amalg_files% build\core_image.c > dist\janet.c
+copy build\janet.c dist\janet.c
 copy janet.exe dist\janet.exe
 copy LICENSE dist\LICENSE
 copy README.md dist\README.md
