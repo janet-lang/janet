@@ -1472,7 +1472,7 @@
         :compile-only compile-only
         :source where} opts)
   (default env (fiber/getenv (fiber/current)))
-  (default chunks getline)
+  (default chunks (fn [buf p] (getline "" buf)))
   (default compile-only false)
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
@@ -1754,6 +1754,11 @@
   [&opt chunks onsignal env]
   (def level (+ (dyn :debug-level 0) 1))
   (default env (make-env))
+  (default chunks (fn [buf p] (getline (string "repl:"
+                                               (parser/where p)
+                                               ":"
+                                               (parser/state p) "> ")
+                                       buf)))
   (default onsignal (fn [f x]
                       (case (fiber/status f)
                         :dead (do
