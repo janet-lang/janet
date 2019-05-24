@@ -114,14 +114,6 @@ for %%f in (test/suite*.janet) do (
     janet.exe test\%%f
     @if errorlevel 1 goto :TESTFAIL
 )
-@%JANET_COMPILE% \Fobuild\embed_janet.obj build\janet.c
-@if errorlevel 1 goto :TESTFAIL
-@%JANET_COMPILE% \Fobuild\embed_main.obj test\amalg\main.c
-@if errorlevel 1 goto :TESTFAIL
-%JANET_LINK% /out:build\embed_test.exe build\embed_janet.obj build\embed_main.obj
-@if errorlevel 1 goto :TESTFAIL
-build\embed_test
-@if errorlevel 1 goto :TESTFAIL
 exit /b 0
 
 @rem Build a dist directory
