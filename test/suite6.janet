@@ -96,4 +96,11 @@
 (setdyn :a 100)
 (assert (= 100 (dyn :a)) "dyn usage 4")
 
+# Keyword arguments
+(defn myfn [x y z &keys {:a a :b b :c c}]
+  (+ x y z a b c))
+
+(assert (= (+ ;(range 6)) (myfn 0 1 2 :a 3 :b 4 :c 5)) "keyword args 1")
+(assert (= (+ ;(range 6)) (myfn 0 1 2 :a 1 :b 6 :c 5 :d 11)) "keyword args 2")
+
 (end-suite)
