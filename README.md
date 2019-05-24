@@ -95,12 +95,13 @@ make repl
 ### FreeBSD
 
 FreeBSD build instructions are the same as the unix-like build instuctions,
-but you need `gmake` and `gcc` to compile.
+but you need `gmake` to compile. Alternatively, install directly from
+packages, using `pkg install lang/janet`.
 
 ```
 cd somewhere/my/projects/janet
-gmake CC=gcc
-gmake test CC=gcc
+gmake
+gmake test
 gmake repl
 ```
 
