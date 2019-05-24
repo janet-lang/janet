@@ -3,6 +3,21 @@ All notable changes to this project will be documented in this file.
 
 ## 1.0.0 - ??
 
+- Add keyword arguments via `&keys` in parameter list.
+- Add `-k` flag for flychecking source.
+- Change signature to `compile` function.
+- Add `module/loaders` for custom loading functions.
+- Add external unification to `match` macro.
+- Add static library to main build.
+- Add `janet/*headerpath*` and change location of installed headers.
+- Let `partition` take strings.
+- Haiku OS support
+- Add `string/trim`, `string/trimr`, and `string/triml`.
+- Add `dofile` function.
+- Numbers require at least 1 significant digit.
+- `file/read` will return nil on end of file.
+- Fix various bugs.
+
 ## 0.5.0 - 2019-05-09
 - Fix some bugs with buffers.
 - Add `trace` and `untrace` to the core library.
