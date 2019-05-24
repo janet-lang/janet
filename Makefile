@@ -279,21 +279,18 @@ build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
 clean:
 	-rm -rf build vgcore.* callgrind.*
 
-build/version.txt: $(JANET_TARGET)
-	$(JANET_TARGET) -e '(print janet/version)' > $@
-
 SONAME=libjanet.so.1
-install: $(JANET_TARGET) build/version.txt
+install: $(JANET_TARGET)
 	mkdir -p $(BINDIR)
 	cp $(JANET_TARGET) $(BINDIR)/janet
 	mkdir -p $(INCLUDEDIR)/janet
 	cp -rf $(JANET_HEADERS) $(INCLUDEDIR)/janet
 	mkdir -p $(JANET_PATH)
 	mkdir -p $(LIBDIR)
-	cp $(JANET_LIBRARY) $(LIBDIR)/libjanet.so.$(shell cat build/version.txt)
+	cp $(JANET_LIBRARY) $(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')
 	cp $(JANET_STATIC_LIBRARY) $(LIBDIR)/libjanet.a
 	ln -sf $(SONAME) $(LIBDIR)/libjanet.so
-	ln -sf libjanet.so.$(shell cat build/version.txt) $(LIBDIR)/$(SONAME)
+	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(LIBDIR)/$(SONAME)
 	cp tools/cook.janet $(JANET_PATH)
 	cp tools/highlight.janet $(JANET_PATH)
 	cp tools/bars.janet $(JANET_PATH)

@@ -25,7 +25,7 @@
 #ifndef JANETCONF_H
 #define JANETCONF_H
 
-#define JANET_VERSION "1.0.0-dev"
+#define JANET_VERSION "1.0.0"
 
 /* #define JANET_BUILD "local" */
 /* #define JANET_SINGLE_THREADED */
