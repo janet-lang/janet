@@ -652,6 +652,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     /* Function flags */
     int vararg = 0;
+    int structarg = 0;
     int allow_extra = 0;
     int selfref = 0;
     int seenamp = 0;
@@ -712,6 +713,19 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
                 min_arity = i;
                 arity--;
                 seenopt = 1;
+            } else if (!janet_cstrcmp(janet_unwrap_symbol(param), "&keys")) {
+                if (seenamp) {
+                    errmsg = "&keys in unexpected location";
+                    goto error;
+                } else if (i == paramcount - 2) {
+                    vararg = 1;
+                    structarg = 1;
+                    arity -= 2;
+                } else {
+                    errmsg = "&keys in unexpected location";
+                    goto error;
+                }
+                seenamp = 1;
             } else {
                 janetc_nameslot(c, janet_unwrap_symbol(param), janetc_farslot(c));
             }
@@ -749,6 +763,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     def->min_arity = min_arity;
     def->max_arity = max_arity;
     if (vararg) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
+    if (structarg) def->flags |= JANET_FUNCDEF_FLAG_STRUCTARG;
 
     if (selfref) def->name = janet_unwrap_symbol(head);
     defindex = janetc_addfuncdef(c, def);

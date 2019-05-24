@@ -127,6 +127,16 @@ void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n) {
     fiber->stacktop = newtop;
 }
 
+/* Create a struct with n values. If n is odd, the last value is ignored. */
+static Janet make_struct_n(const Janet *args, int32_t n) {
+    int32_t i = 0;
+    JanetKV *st = janet_struct_begin(n & (~1));
+    for (; i < n; i += 2) {
+        janet_struct_put(st, args[i], args[i + 1]);
+    }
+    return janet_wrap_struct(janet_struct_end(st));
+}
+
 /* Push a stack frame to a fiber */
 int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     JanetStackFrame *newframe;
@@ -164,12 +174,19 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     /* Check varargs */
     if (func->def->flags & JANET_FUNCDEF_FLAG_VARARG) {
         int32_t tuplehead = fiber->frame + func->def->arity;
+        int st = func->def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
         if (tuplehead >= oldtop) {
-            fiber->data[tuplehead] = janet_wrap_tuple(janet_tuple_n(NULL, 0));
+            fiber->data[tuplehead] = st
+                                     ? make_struct_n(NULL, 0)
+                                     : janet_wrap_tuple(janet_tuple_n(NULL, 0));
         } else {
-            fiber->data[tuplehead] = janet_wrap_tuple(janet_tuple_n(
+            fiber->data[tuplehead] = st
+                                     ? make_struct_n(
                                          fiber->data + tuplehead,
-                                         oldtop - tuplehead));
+                                         oldtop - tuplehead)
+                                     : janet_wrap_tuple(janet_tuple_n(
+                                                 fiber->data + tuplehead,
+                                                 oldtop - tuplehead));
         }
     }
 
@@ -220,14 +237,21 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
     /* Check varargs */
     if (func->def->flags & JANET_FUNCDEF_FLAG_VARARG) {
         int32_t tuplehead = fiber->stackstart + func->def->arity;
+        int st = func->def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
         if (tuplehead >= fiber->stacktop) {
             if (tuplehead >= fiber->capacity) janet_fiber_setcapacity(fiber, 2 * (tuplehead + 1));
             for (i = fiber->stacktop; i < tuplehead; ++i) fiber->data[i] = janet_wrap_nil();
-            fiber->data[tuplehead] = janet_wrap_tuple(janet_tuple_n(NULL, 0));
+            fiber->data[tuplehead] = st
+                                     ? make_struct_n(NULL, 0)
+                                     : janet_wrap_tuple(janet_tuple_n(NULL, 0));
         } else {
-            fiber->data[tuplehead] = janet_wrap_tuple(janet_tuple_n(
+            fiber->data[tuplehead] = st
+                                     ? make_struct_n(
                                          fiber->data + tuplehead,
-                                         fiber->stacktop - tuplehead));
+                                         fiber->stacktop - tuplehead)
+                                     : janet_wrap_tuple(janet_tuple_n(
+                                                 fiber->data + tuplehead,
+                                                 fiber->stacktop - tuplehead));
         }
         stacksize = tuplehead - fiber->stackstart + 1;
     } else {

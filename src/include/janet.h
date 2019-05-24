@@ -753,6 +753,7 @@ struct JanetAbstractHead {
 #define JANET_FUNCDEF_FLAG_HASDEFS 0x200000
 #define JANET_FUNCDEF_FLAG_HASENVS 0x400000
 #define JANET_FUNCDEF_FLAG_HASSOURCEMAP 0x800000
+#define JANET_FUNCDEF_FLAG_STRUCTARG 0x1000000
 #define JANET_FUNCDEF_FLAG_TAG 0xFFFF
 
 /* Source mapping structure for a bytecode instruction */
