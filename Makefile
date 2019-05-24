@@ -285,7 +285,7 @@ $(PKG_CONFIG_PATH)/janet.pc: $(JANET_TARGET)
 	echo "Description: Library for the Janet programming language." >> $@
 	$(JANET_TARGET) -e '(print "Version: " janet/version)' >> $@
 	echo 'Cflags: -I$${includedir}' >> $@
-	echo 'Libs: -L$${libdir} -ljanet' >> $@
+	echo 'Libs: -L$${libdir} -ljanet $(LDFLAGS)' >> $@
 	echo 'Libs.private: $(CLIBS)' >> $@
 
 install: $(JANET_TARGET) $(PKG_CONFIG_PATH)/janet.pc
