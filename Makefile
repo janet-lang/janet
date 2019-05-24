@@ -34,6 +34,7 @@ JANET_LIBRARY=build/libjanet.so
 JANET_STATIC_LIBRARY=build/libjanet.a
 JANET_PATH?=$(PREFIX)/lib/janet
 MANPATH?=$(PREFIX)/share/man/man1/
+PKG_CONFIG_PATH?=$(PREFIX)/lib/pkgconfig
 DEBUGGER=gdb
 
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
@@ -265,22 +266,29 @@ docs: build/doc.html
 build/doc.html: $(JANET_TARGET) tools/gendoc.janet
 	$(JANET_TARGET) tools/gendoc.janet > build/doc.html
 
-#################
-##### Other #####
-#################
-
-format:
-	tools/format.sh
-
-grammar: build/janet.tmLanguage
-build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
-	$(JANET_TARGET) $< > $@
-
-clean:
-	-rm -rf build vgcore.* callgrind.*
+########################
+##### Installation #####
+########################
 
 SONAME=libjanet.so.1
-install: $(JANET_TARGET)
+
+.PHONY: $(PKG_CONFIG_PATH)/janet.pc
+$(PKG_CONFIG_PATH)/janet.pc: $(JANET_TARGET)
+	mkdir -p $(PKG_CONFIG_PATH)
+	echo 'prefix=$(PREFIX)' > $@
+	echo 'exec_prefix=$${prefix}' >> $@
+	echo 'includedir=$(INCLUDEDIR)/janet' >> $@
+	echo 'libdir=$(LIBDIR)' >> $@
+	echo "" >> $@
+	echo "Name: janet" >> $@
+	echo "Url: https://janet-lang.org" >> $@
+	echo "Description: Library for the Janet programming language." >> $@
+	$(JANET_TARGET) -e '(print "Version: " janet/version)' >> $@
+	echo 'Cflags: -I$${includedir}' >> $@
+	echo 'Libs: -L$${libdir} -ljanet' >> $@
+	echo 'Libs.private: $(CLIBS)' >> $@
+
+install: $(JANET_TARGET) $(PKG_CONFIG_PATH)/janet.pc
 	mkdir -p $(BINDIR)
 	cp $(JANET_TARGET) $(BINDIR)/janet
 	mkdir -p $(INCLUDEDIR)/janet
@@ -297,6 +305,20 @@ install: $(JANET_TARGET)
 	mkdir -p $(MANPATH)
 	cp janet.1 $(MANPATH)
 	-ldconfig $(LIBDIR)
+
+#################
+##### Other #####
+#################
+
+format:
+	tools/format.sh
+
+grammar: build/janet.tmLanguage
+build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
+	$(JANET_TARGET) $< > $@
+
+clean:
+	-rm -rf build vgcore.* callgrind.*
 
 test-install:
 	cd test/install && rm -rf build && janet build && janet build
