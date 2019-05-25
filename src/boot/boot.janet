@@ -1638,7 +1638,7 @@
 (defn- mod-filter
   [x path]
   (case (type x)
-    :nil true
+    :nil path
     :string (string/has-suffix? x path)
     (x path)))
 
@@ -1651,12 +1651,17 @@
   (def parts (string/split "/" path))
   (def name (last parts))
   (var ret nil)
-  (each [p mod-kind checker] module/paths
+  (each [p mod-kind checker resolver] module/paths
     (when (mod-filter checker path)
-      (def fullpath (expand-path-name p name path))
-      (when (fexists fullpath)
-        (set ret [fullpath mod-kind])
-        (break))))
+      (if resolver
+        (when-let [res (resolver path)]
+                  (set ret [res mod-kind])
+                  (break))
+        (do
+          (def fullpath (expand-path-name p name path))
+          (when (fexists fullpath)
+            (set ret [fullpath mod-kind])
+            (break))))))
   (if ret ret
     (let [expander (fn [[t _ chk]]
                      (when (mod-filter chk path)
@@ -1683,8 +1688,11 @@
   "Evaluate a file in a new environment and return the new environment."
   [path & args]
   (def {:exit exit-on-error
+        :source source
         :compile-only compile-only} (table ;args))
-  (def f (file/open path))
+  (def f (if (= (type path) :core/file)
+           path
+           (file/open path)))
   (def newenv (make-env))
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
@@ -1704,8 +1712,8 @@
                                (debug/stacktrace f x)
                                (if exit-on-error (os/exit 1))))
                 :compile-only compile-only
-                :source path})
-  (file/close f)
+                :source (or source (if (= f path) "<anonymous>" path))})
+  (when (not= f path) (file/close f))
   (table/setproto newenv nil))
 
 (def module/loaders

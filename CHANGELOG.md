@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## 1.0.0 - ??
 
+- Add optional filters to `module/paths` to further refine import methods.
 - Add keyword arguments via `&keys` in parameter list.
 - Add `-k` flag for flychecking source.
 - Change signature to `compile` function.
