@@ -1589,9 +1589,9 @@
   contain a third element, specifying a filter that prevents module/find
   from searching that path template if the filter doesn't match the input
   path. The filter is often a file extension, including the period."
-  @[[":all:" :source ".janet"]
-    [":all:" :native (if (= (os/which) :windows) ".dll" ".so")]
+  @[[":all:" :native (if (= (os/which) :windows) ".dll" ".so")]
     [":all:" :image ".jimage"]
+    [":all:" :source]
     ["./:all:.janet" :source]
     ["./:all:/init.janet" :source]
     [":sys:/:all:.janet" :source]
