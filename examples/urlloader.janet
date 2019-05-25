@@ -20,9 +20,10 @@
 
 (defn- check-http-url
   [path]
-  (or (string/has-prefix? "http://" path)
-      (string/has-prefix? "https://" path)))
+  (if (or (string/has-prefix? "http://" path)
+          (string/has-prefix? "https://" path))
+    path))
 
 # Add the module loader and path tuple to right places
-(array/push module/paths ["HTTP" :janet-http check-http-url identity])
+(array/push module/paths [check-http-url :janet-http])
 (put module/loaders :janet-http load-url)

@@ -1588,7 +1588,7 @@
   require should load files found at these paths.\n\nA tuple can also
   contain a third element, specifying a filter that prevents module/find
   from searching that path template if the filter doesn't match the input
-  path."
+  path. The filter is often a file extension, including the period."
   @[[":all:" :source ".janet"]
     [":all:" :native (if (= (os/which) :windows) ".dll" ".so")]
     [":all:" :image ".jimage"]
@@ -1651,10 +1651,10 @@
   (def parts (string/split "/" path))
   (def name (last parts))
   (var ret nil)
-  (each [p mod-kind checker resolver] module/paths
+  (each [p mod-kind checker] module/paths
     (when (mod-filter checker path)
-      (if resolver
-        (when-let [res (resolver path)]
+      (if (function? p)
+        (when-let [res (p path)]
                   (set ret [res mod-kind])
                   (break))
         (do
@@ -1664,8 +1664,9 @@
             (break))))))
   (if ret ret
     (let [expander (fn [[t _ chk]]
-                     (when (mod-filter chk path)
-                       (expand-path-name t name path)))
+                     (when (string? t)
+                       (when (mod-filter chk path)
+                         (expand-path-name t name path))))
           paths (filter identity (map expander module/paths))
           str-parts (interpose "\n    " paths)]
       [nil (string "could not find module " path ":\n    " ;str-parts)])))
