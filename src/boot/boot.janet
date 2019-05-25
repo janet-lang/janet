@@ -1585,8 +1585,13 @@
   :native: becomes the dynamic library file extension, usually dll
   or so. Each element is a two element tuple, containing the path
   template and a keyword :source, :native, or :image indicating how
-  require should load files found at these paths."
-  @[[":all:" :source]
+  require should load files found at these paths.\n\nA tuple can also
+  contain a third element, specifying a filter that prevents module/find
+  from searching that path template if the filter doesn't match the input
+  path."
+  @[[":all:" :source ".janet"]
+    [":all:" :native (if (= (os/which) :windows) ".dll" ".so")]
+    [":all:" :image ".jimage"]
     ["./:all:.janet" :source]
     ["./:all:/init.janet" :source]
     [":sys:/:all:.janet" :source]
@@ -1622,6 +1627,21 @@
         (file/close f)
         res))))
 
+(def nati (if (= :windows (os/which)) "dll" "so"))
+(defn- expand-path-name
+  [template name path]
+  (->> template
+       (string/replace ":name:" name)
+       (string/replace ":sys:" module/*syspath*)
+       (string/replace ":native:" nati)
+       (string/replace ":all:" path)))
+(defn- mod-filter
+  [x path]
+  (case (type x)
+    :nil true
+    :string (string/has-suffix? x path)
+    (x path)))
+
 (defn module/find
   "Try to match a module or path name from the patterns in module/paths.
   Returns a tuple (fullpath kind) where the kind is one of :source, :native,
@@ -1629,25 +1649,26 @@
   an error message."
   [path]
   (def parts (string/split "/" path))
-  (def name (get parts (- (length parts) 1)))
-  (def nati (if (= :windows (os/which)) "dll" "so"))
-  (defn make-full
-    [[p mod-kind]]
-    (def fullpath (->> p
-                       (string/replace ":name:" name)
-                       (string/replace ":sys:" module/*syspath*)
-                       (string/replace ":native:" nati)
-                       (string/replace ":all:" path)))
-    [fullpath mod-kind])
-  (defn check-path [x] (if (fexists (x 0)) x))
-  (def paths (map make-full module/paths))
-  (def res (find check-path paths))
-  (if res res [nil (string "could not find module "
-                           path
-                           ":\n    "
-                           ;(interpose "\n    " (map 0 paths)))]))
+  (def name (last parts))
+  (var ret nil)
+  (each [p mod-kind checker] module/paths
+    (when (mod-filter checker path)
+      (def fullpath (expand-path-name p name path))
+      (when (fexists fullpath)
+        (set ret [fullpath mod-kind])
+        (break))))
+  (if ret ret
+    (let [expander (fn [[t _ chk]]
+                     (when (mod-filter chk path)
+                       (expand-path-name t name path)))
+          paths (filter identity (map expander module/paths))
+          str-parts (interpose "\n    " paths)]
+      [nil (string "could not find module " path ":\n    " ;str-parts)])))
 
 (put _env 'fexists nil)
+(put _env 'nati nil)
+(put _env 'expand-path-name nil)
+(put _env 'mod-filter nil)
 
 (def module/cache
   "Table mapping loaded module identifiers to their environments."
