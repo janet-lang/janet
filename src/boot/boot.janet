@@ -136,7 +136,7 @@
 
 (defmacro comment
   "Ignores the body of the comment."
-  [])
+  [&])
 
 (defmacro if-not
   "Shorthand for (if (not condition) else then)."
