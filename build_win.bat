@@ -131,6 +131,7 @@ copy src\include\janet.h dist\janet.h
 copy src\include\janetconf.h dist\janetconf.h
 copy tools\cook.janet dist\cook.janet
 copy tools\highlight.janet dist\highlight.janet
+copy tools\jpm dist\jpm
 exit /b 0
 
 :TESTFAIL

@@ -1,0 +1,29 @@
+#!/usr/bin/env janet
+
+# Cook CLI tool for building janet projects.
+
+(import cook :prefix "")
+
+(defn- load
+  []
+  (dofile "./project.janet" :env (fiber/getenv (fiber/current))))
+
+# Flag handlers
+(case (process/args 2)
+  "install" (do (load) (install))
+  "build" (do (load) (build))
+  "clean" (clean)
+  "test" (do (load) (test))
+  (do
+    (def x (process/args 2))
+      (if (not= x "help") (print "unknown command: " x))
+      (print "usage: jpm [command]")
+      (print
+        `
+  Commands are:
+  help : Show this help
+  install : Install all artifacts 
+  test : Run all tests
+  build : Build all artifacts
+  clean : Remove all artifacts
+        `)))

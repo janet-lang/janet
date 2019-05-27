@@ -1686,15 +1686,16 @@
   @{})
 
 (defn dofile
-  "Evaluate a file in a new environment and return the new environment."
+  "Evaluate a file and return the resulting environment."
   [path & args]
   (def {:exit exit-on-error
         :source source
+        :env env
         :compile-only compile-only} (table ;args))
   (def f (if (= (type path) :core/file)
            path
            (file/open path)))
-  (def newenv (make-env))
+  (default env (make-env))
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
     (def ret (bad-parse x y))
@@ -1704,7 +1705,7 @@
     (def ret (bad-compile x y z))
     (if exit-on-error (os/exit 1))
     ret)
-  (run-context {:env newenv
+  (run-context {:env env
                 :chunks chunks
                 :on-parse-error bp
                 :on-compile-error bc
@@ -1715,7 +1716,7 @@
                 :compile-only compile-only
                 :source (or source (if (= f path) "<anonymous>" path))})
   (when (not= f path) (file/close f))
-  (table/setproto newenv nil))
+  env)
 
 (def module/loaders
   "A table of loading method names to loading functions.

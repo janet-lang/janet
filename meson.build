@@ -130,6 +130,7 @@ janet_mainclient = executable('janet', core_src, core_image, init_gen, mainclien
   include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   install : true)
+janet_jpm = install_data('tools/jpm', install_dir : 'bin')
 
 # Documentation
 docs = custom_target('docs',
