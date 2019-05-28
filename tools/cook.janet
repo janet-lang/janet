@@ -6,6 +6,17 @@
 ### Copyright 2019 © Calvin Rose
 
 #
+# Basic Path Settings
+#
+
+# Windows is the OS outlier
+(def- is-win (= (os/which) :windows))
+(def- is-mac (= (os/which) :macos))
+(def- sep (if is-win "\\" "/"))
+(def- objext (if is-win ".obj" ".o"))
+(def- modext (if is-win ".dll" ".so"))
+
+#
 # Rule Engine
 #
 
@@ -80,16 +91,25 @@
     (thunk))
   (unless phony target))
 
+(def- _env (fiber/getenv (fiber/current)))
+(defn- import-rules*
+  [path & args]
+  (def [realpath] (module/find path))
+  (def env (make-env))
+  (loop [k :keys _env :when (symbol? k)]
+    (unless ((_env k) :private) (put env k (_env k))))
+  (require path :env env ;args)
+  (when-let [rules (env :rules)] (merge-into (getrules) rules)))
+
+(defmacro import-rules
+  "Import another file that defines more cook rules. This ruleset
+  is merged into the current ruleset."
+  [path & args]
+  ~(,import-rules* ,(string path) ,;args))
+
 #
 # Configuration
 #
-
-# Windows is the OS outlier
-(def- is-win (= (os/which) :windows))
-(def- is-mac (= (os/which) :macos))
-(def- sep (if is-win "\\" "/"))
-(def- objext (if is-win ".obj" ".o"))
-(def- modext (if is-win ".dll" ".so"))
 
 # Get default paths and options from environment
 (def PREFIX (or (os/getenv "PREFIX")

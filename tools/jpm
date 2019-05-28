@@ -4,7 +4,7 @@
 
 (import cook :prefix "")
 
-(dofile "./project.janet" :env (fiber/getenv (fiber/current)))
+(import-rules "./project.janet")
 
 (def- argpeg
   (peg/compile
