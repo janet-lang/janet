@@ -144,12 +144,6 @@
   [src dest]
   (shell (if is-win "robocopy " "cp -rf ") src " " dest (if is-win " /s /e" "")))
 
-(defn- install-data
-  "Helper for installing file at path into dir."
-  [path dir]
-  (try (os/mkdir dir) ([err] nil))
-  (copy path dir))
-
 #
 # C Compilation
 #
@@ -259,8 +253,23 @@
 # tailored for janet.
 #
 
+(defn- install-rule
+  "Add install and uninstall rule for moving file from src into destdir."
+  [src destdir]
+  (def parts (string/split sep src))
+  (def name (last parts))
+  (add-body "install"
+            (try (os/mkdir destdir) ([err] nil))
+            (copy src destdir))
+  (add-body "uninstall"
+            (def path (string destdir sep name))
+            (print "removing " path)
+            (try (rm path) ([err]
+                            (unless (= err "No such file or directory")
+                              (error err))))))
+
 (defn declare-native
-  "Build a native binary. This is a shared library that can be loaded
+  "Declare a native binary. This is a shared library that can be loaded
   dynamically by a janet runtime."
   [&keys opts]
   (def sources (opts :source))
@@ -279,8 +288,7 @@
   (link-c opts lname ;objects)
   (add-dep "build" lname)
   (def libdir (opt opts :libdir LIBDIR))
-  (add-body "install" (install-data lname LIBDIR))
-  lname)
+  (install-rule lname LIBDIR))
 
 (defn declare-source
   "Create a Janet modules. This does not actually build the module(s),
@@ -289,15 +297,14 @@
   (def sources (opts :source))
   (def libdir (opt opts :libdir LIBDIR))
   (each s sources
-    (add-body "install" (install-data s libdir))))
+    (install-rule s libdir)))
 
 (defn declare-binscript
   "Declare a janet file to be installed as an executable script."
   [&keys opts]
   (def main (opts :main))
   (def bindir (opt opts :bindir BINDIR))
-  (add-body "install" (install-data main bindir))
-  main)
+  (install-rule main bindir))
 
 (defn declare-archive
   "Build a janet archive. This is a file that bundles together many janet
@@ -310,8 +317,7 @@
   (rule iname (or (opts :deps) [])
         (spit iname (make-image (require entry))))
   (def libdir (opt opts :libdir LIBDIR))
-  (add-body "install" (install-data iname libdir))
-  iname)
+  (install-rule iname libdir))
 
 (defn declare-project
   "Define your project metadata. This should
@@ -322,6 +328,7 @@
   (try (os/mkdir "build") ([err] nil))
   (phony "build" [] (print "Built."))
   (phony "install" ["build"] (print "Installed."))
+  (phony "uninstall" [] (print "Uninstalled."))
   (phony "clean" [] (rm "build") (print "Deleted build directory."))
   (phony "test" ["build"]
          (defn dodir
