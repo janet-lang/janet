@@ -1,8 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.0.0 - ??
+## 0.6.0 - ??
 
+- Add `jpm` tool for building and managing projects.
+- Change interface to `cook` tool.
 - Add optional filters to `module/paths` to further refine import methods.
 - Add keyword arguments via `&keys` in parameter list.
 - Add `-k` flag for flychecking source.

@@ -25,22 +25,25 @@
 #ifndef JANETCONF_H
 #define JANETCONF_H
 
-#define JANET_VERSION "1.0.0"
+#define JANET_VERSION "0.6.0"
 
 /* #define JANET_BUILD "local" */
+
+/* These settings all affect linking, so use cautiously. */
 /* #define JANET_SINGLE_THREADED */
 /* #define JANET_NO_DYNAMIC_MODULES */
+/* #define JANET_NO_NANBOX */
+/* #define JANET_API __attribute__((visibility ("default"))) */
+
 /* #define JANET_NO_ASSEMBLER */
 /* #define JANET_NO_PEG */
 /* #define JANET_NO_TYPED_ARRAY */
 /* #define JANET_NO_INT_TYPES */
 /* #define JANET_REDUCED_OS */
-/* #define JANET_API __attribute__((visibility ("default"))) */
 /* #define JANET_OUT_OF_MEMORY do { printf("janet out of memory\n"); exit(1); } while (0) */
 /* #define JANET_RECURSION_GUARD 1024 */
 /* #define JANET_MAX_PROTO_DEPTH 200 */
 /* #define JANET_MAX_MACRO_EXPAND 200 */
 /* #define JANET_STACK_MAX 16384 */
-/* #define JANET_NO_NANBOX */
 
 #endif /* end of include guard: JANETCONF_H */
