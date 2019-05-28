@@ -346,7 +346,7 @@
   [&keys meta]
   (setdyn :project meta)
   (try (os/mkdir "build") ([err] nil))
-  (phony "build" [] (print "Built."))
+  (phony "build" [])
   (phony "install" ["build"] (print "Installed."))
   (phony "uninstall" [] (print "Uninstalled."))
   (phony "clean" [] (rm "build") (print "Deleted build directory."))
