@@ -1,29 +1,40 @@
 #!/usr/bin/env janet
 
-# Cook CLI tool for building janet projects.
+# CLI tool for building janet projects. Wraps cook.
 
 (import cook :prefix "")
 
-(defn- load
-  []
-  (dofile "./project.janet" :env (fiber/getenv (fiber/current))))
+(dofile "./project.janet" :env (fiber/getenv (fiber/current)))
 
-# Flag handlers
-(case (process/args 2)
-  "install" (do (load) (install))
-  "build" (do (load) (build))
-  "clean" (clean)
-  "test" (do (load) (test))
-  (do
-    (def x (process/args 2))
-      (if (not= x "help") (print "unknown command: " x))
-      (print "usage: jpm [command]")
-      (print
-        `
-  Commands are:
-  help : Show this help
-  install : Install all artifacts 
-  test : Run all tests
-  build : Build all artifacts
-  clean : Remove all artifacts
-        `)))
+(def- argpeg
+  (peg/compile
+    '(* "--" '(some (if-not "=" 1)) "=" '(any 1))))
+
+(defn- help
+  []
+  (print "usage: jpm [targets]... --key=value ...")
+  (print "Available targets are:")
+  (each k (sort (keys (dyn :rules @{})))
+    (print "  " k))
+  (print `
+
+Keys are:
+  --prefix : The prefix to install to. Defaults to $PREFIX or /usr/local
+  --libdir : The directory to install. Defaults to $LIBDIR or $prefix/lib/janet
+  --includedir : The directory containing janet headers. Defaults to $INCLUDEDIR or module/*headerpath*.
+  --bindir : The directory to install binaries and scripts. Defaults to $BINDIR or $prefix/bin
+  --optimize : Optimization level for natives. Defaults to $OPTIMIZE or 2.
+  --compiler : C compiler to use for natives. Defaults to $CC or cc.
+  --linker : C linker to use for linking natives. Defaults to $LINKER or cc.
+  --cflags : Extra compiler flags for native modules. Defaults to $CFLAGS if set.
+  --lflags : Extra linker flags for native modules. Defaults to $LFLAGS if set.
+    `))
+
+(def args (tuple/slice process/args 2))
+(each arg args
+  (if (string/has-prefix? "--" arg)
+    (let [[key value] (peg/match argpeg arg)]
+      (setdyn (keyword key) value))
+    (do-rule arg)))
+
+(if (empty? args) (help))
