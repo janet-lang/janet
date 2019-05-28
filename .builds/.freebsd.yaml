@@ -8,5 +8,5 @@ tasks:
       gmake CC=gcc
       gmake test CC=gcc
       sudo gmake install CC=gcc
-      gmake test-install CC=gcc
+      sudo gmake test-install CC=gcc
       gmake test-amalg CC=gcc

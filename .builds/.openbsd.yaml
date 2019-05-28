@@ -7,5 +7,5 @@ tasks:
       gmake
       gmake test
       doas gmake install
-      gmake test-install
+      doas gmake test-install
       gmake test-amalg
