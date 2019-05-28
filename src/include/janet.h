@@ -31,6 +31,8 @@ extern "C" {
 
 #include "janetconf.h"
 
+#define JANET_API_VERSION 1
+
 #ifndef JANET_VERSION
 #define JANET_VERSION "latest"
 #endif
@@ -183,6 +185,26 @@ extern "C" {
 #define JANET_NANBOX_64
 #endif
 #endif
+
+
+/* Runtime config constants */
+#ifdef JANET_NO_NANBOX
+#define JANET_NANBOX_BIT 0
+#else
+#define JANET_NANBOX_BIT 1
+#endif
+
+#ifdef JANET_SINGLE_THREADED
+#define JANET_SINGLE_THREADED_BIT 1
+#else
+#define JANET_SINGLE_THREADED_BIT 0
+#endif
+
+typedef struct {
+    int api_version;
+    int single_threaded : 1;
+    int nanbox : 1;
+} JanetBuildConfig;
 
 /***** END SECTION CONFIG *****/
 
@@ -1255,6 +1277,15 @@ JANET_API void janet_register(const char *name, JanetCFunction cfun);
 /* New C API */
 
 #define JANET_MODULE_ENTRY JANET_API void _janet_init
+
+JANET_API int janet_api_version();
+JANET_API const JanetBuildConfig *janet_build_config();
+
+#define janet_api_compatible() \
+  ((janet_api_build_config()->api_version == JANET_API_VERSION) \
+   && (janet_api_build_config()->nanbox == JANET_NANBOX_BIT) \
+   && (janet_api_build_config()->single_threaded == JANET_SINGLE_THREADED_BIT))
+
 JANET_API void janet_panicv(Janet message);
 JANET_API void janet_panic(const char *message);
 JANET_API void janet_panics(const uint8_t *message);
