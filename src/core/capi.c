@@ -26,7 +26,7 @@
 #include "fiber.h"
 #endif
 
-static JanetBuildConfig *api_build_config = &(JanetBuildConfig){
+static JanetBuildConfig *api_build_config = &(JanetBuildConfig) {
     .api_version = JANET_API_VERSION,
     .single_threaded = JANET_SINGLE_THREADED_BIT,
     .nanbox = JANET_NANBOX_BIT

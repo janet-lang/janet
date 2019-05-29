@@ -607,6 +607,17 @@ static Janet os_dir(int32_t argc, Janet *argv) {
     return janet_wrap_array(paths);
 }
 
+static Janet os_rename(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    const char *src = janet_getcstring(argv, 0);
+    const char *dest = janet_getcstring(argv, 1);
+    int status = rename(src, dest);
+    if (status) {
+        janet_panic(strerror(errno));
+    }
+    return janet_wrap_nil();
+}
+
 #endif /* JANET_REDUCED_OS */
 
 static const JanetReg os_cfuns[] = {
@@ -741,6 +752,11 @@ static const JanetReg os_cfuns[] = {
              "\t:week-day - day of the week [0-6]\n"
              "\t:year-day - day of the year [0-365]\n"
              "\t:dst - If Day Light Savings is in effect")
+    },
+    {
+        "os/rename", os_rename,
+        JDOC("(os/rename oldname newname)\n\n"
+             "Rename a file on disk to a new path. Returns nil.")
     },
 #endif
     {NULL, NULL, NULL}
