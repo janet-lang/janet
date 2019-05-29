@@ -14,6 +14,7 @@ OutFile "janet-installer.exe"
 !define APPNAME "Janet"
 !define DESCRIPTION "The Janet Programming Language"
 !define HELPURL "http://janet-lang.org"
+BrandingText "The Janet Programming Language"
 
 # MUI Configuration
 !define MUI_ICON "assets\icon.ico"
@@ -65,7 +66,7 @@ section "install"
 	writeUninstaller "$INSTDIR\uninstall.exe"
  
 	# Start Menu
-	createShortCut "$SMPROGRAMS\Janet.lnk" "$INSTDIR\janet.exe" "" "$INSTDIR\logo.ico"
+	createShortCut "$SMPROGRAMS\Janet.lnk" "$INSTDIR\bin\janet.exe" "" "$INSTDIR\logo.ico"
     
     # HKLM (all users) vs HKCU (current user)
     WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_PATH "$INSTDIR\Library"
