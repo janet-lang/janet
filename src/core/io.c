@@ -286,12 +286,15 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
 #ifdef JANET_WINDOWS
 #define pclose _pclose
 #endif
-        if (pclose(iof->file)) janet_panic("could not close file");
+        int status = pclose(iof->file);
+        iof->flags |= IO_CLOSED;
+        if (status) janet_panic("could not close file");
+        return janet_wrap_integer(status);
     } else {
         if (fclose(iof->file)) janet_panic("could not close file");
+        iof->flags |= IO_CLOSED;
+        return janet_wrap_nil();
     }
-    iof->flags |= IO_CLOSED;
-    return argv[0];
 }
 
 /* Seek a file */
