@@ -23,6 +23,12 @@
 #ifndef JANET_UTIL_H_defined
 #define JANET_UTIL_H_defined
 
+#include <stdio.h>
+#include <errno.h>
+#ifndef JANET_WINDOWS
+#include <sys/wait.h>
+#endif
+
 #ifndef JANET_AMALG
 #include <janet.h>
 #endif
