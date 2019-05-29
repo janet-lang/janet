@@ -21,9 +21,9 @@ install:
     - build_win
     - build_win test
     - choco install nsis -y -pre
-    - call "C:\Program Files (x86)\NSIS\makensis.exe" janet-installer.nsi 
     - build_win dist
-    - copy janet-install.exe dist\install.exe 
+    - call "C:\Program Files (x86)\NSIS\makensis.exe" janet-installer.nsi 
+    - copy janet-installer.exe dist\install.exe 
     
 build: off
 
