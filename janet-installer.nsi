@@ -70,11 +70,11 @@ section "install"
     # HKLM (all users) vs HKCU (current user)
     WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_PATH "$INSTDIR\Library"
     WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_HEADERPATH "$INSTDIR\C"
-    WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_BINDIR "$INSTDIR\bin"
+    WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_BINPATH "$INSTDIR\bin"
 
     WriteRegExpandStr HKCU "Environment" JANET_PATH "$INSTDIR\Library"
     WriteRegExpandStr HKCU "Environment" JANET_HEADERPATH "$INSTDIR\C"
-    WriteRegExpandStr HKCU "Environment" JANET_BINDIR "$INSTDIR\bin"
+    WriteRegExpandStr HKCU "Environment" JANET_BINPATH "$INSTDIR\bin"
 
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
     
@@ -137,11 +137,11 @@ section "uninstall"
 
     DeleteRegValue HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_PATH
     DeleteRegValue HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_HEADERPATH
-    DeleteRegValue HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_BINDIR
+    DeleteRegValue HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_BINPATH
 
     DeleteRegValue HKCU "Environment" JANET_PATH
     DeleteRegValue HKCU "Environment" JANET_HEADERPATH
-    DeleteRegValue HKCU "Environment" JANET_BINDIR
+    DeleteRegValue HKCU "Environment" JANET_BINPATH
 
     # Unset PATH
     ${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "$INSTDIR\bin" ; Remove

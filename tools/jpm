@@ -2,7 +2,7 @@
 
 # CLI tool for building janet projects. Wraps cook.
 
-(import cook :prefix "")
+(import cook)
 
 (def- argpeg
   (peg/compile
@@ -17,9 +17,9 @@
   (print `
 
 Keys are:
-  --libdir : The directory to install modules to. Defaults to $JANET_PATH or module/*syspath*
-  --includedir : The directory containing janet headers. Defaults to $JANET_HEADERPATH or module/*headerpath*
-  --bindir : The directory to install binaries and scripts. Defaults to $JANET_BINDIR.
+  --modpath : The directory to install modules to. Defaults to $JANET_MODPATH or module/*syspath*
+  --headerpath : The directory containing janet headers. Defaults to $JANET_HEADERPATH or module/*headerpath*
+  --binpath : The directory to install binaries and scripts. Defaults to $JANET_BINPATH.
   --optimize : Optimization level for natives. Defaults to $OPTIMIZE or 2.
   --compiler : C compiler to use for natives. Defaults to $CC or cc.
   --linker : C linker to use for linking natives. Defaults to $LINKER or cc.
@@ -35,8 +35,7 @@ Keys are:
       (setdyn (keyword key) value))
     (array/push todo arg)))
 
-(import-rules "./project.janet")
+(cook/import-rules "./project.janet")
 
-(each r todo (do-rule r))
-
-(if (empty? args) (help))
+(if (empty? todo) (help))
+(each rule todo (cook/do-rule rule))

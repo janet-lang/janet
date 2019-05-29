@@ -115,9 +115,9 @@
 #
 
 # Installation settings
-(def LIBDIR (or (os/getenv "JANET_PATH") module/*syspath*))
-(def BINDIR (or (os/getenv "JANET_BINDIR") (unless is-win "/usr/local/bin")))
-(def INCLUDEDIR (or (os/getenv "JANET_HEADERPATH") module/*headerpath*))
+(def JANET_MODPATH (or (os/getenv "JANET_MODPATH") module/*syspath*))
+(def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH") module/*headerpath*))
+(def JANET_BINPATH (or (os/getenv "JANET_BINPATH") (unless is-win "/usr/local/bin")))
                     
 # Compilation settings
 (def OPTIMIZE (or (os/getenv "OPTIMIZE") 2))
@@ -225,7 +225,7 @@
   [opts]
   (string (opt opts :cflags CFLAGS)
           (if is-win " /I" " -I")
-          (opt opts :includedir INCLUDEDIR)
+          (opt opts :headerpath JANET_HEADERPATH)
           (if is-win " /O" " -O")
           (opt opts :optimize OPTIMIZE)))
 
@@ -249,7 +249,7 @@
   (def olist (string/join objects " "))
   (rule target objects
         (if is-win
-          (shell ld " " lflags " /DLL /OUT:" target " " olist " " (opt opts :includedir INCLUDEDIR) "\\janet.lib")
+          (shell ld " " lflags " /DLL /OUT:" target " " olist " " (opt opts :headerpath JANET_HEADERPATH) "\\janet.lib")
           (shell ld " " cflags " -o " target " " olist " " lflags))))
 
 (defn- create-buffer-c
@@ -309,24 +309,24 @@
               (compile-c opts c-src o-src)))
   (link-c opts lname ;objects)
   (add-dep "build" lname)
-  (def libdir (opt opts :libdir LIBDIR))
-  (install-rule lname LIBDIR))
+  (def path (opt opts :modpath JANET_MODPATH))
+  (install-rule lname path))
 
 (defn declare-source
   "Create a Janet modules. This does not actually build the module(s),
   but registers it for packaging and installation."
   [&keys opts]
   (def sources (opts :source))
-  (def libdir (opt opts :libdir LIBDIR))
+  (def path (opt opts :modpath JANET_MODPATH))
   (each s sources
-    (install-rule s libdir)))
+    (install-rule s path)))
 
 (defn declare-binscript
   "Declare a janet file to be installed as an executable script."
   [&keys opts]
   (def main (opts :main))
-  (def bindir (opt opts :bindir BINDIR))
-  (install-rule main bindir))
+  (def binpath (opt opts :binpath JANET_BINPATH))
+  (install-rule main binpath))
 
 (defn declare-archive
   "Build a janet archive. This is a file that bundles together many janet
@@ -338,8 +338,8 @@
   (def iname (string "build" sep name ".jimage"))
   (rule iname (or (opts :deps) [])
         (spit iname (make-image (require entry))))
-  (def libdir (opt opts :libdir LIBDIR))
-  (install-rule iname libdir))
+  (def path (opt opts :modpath JANET_MODPATH))
+  (install-rule iname path))
 
 (defn declare-project
   "Define your project metadata. This should
