@@ -23,7 +23,6 @@ install:
     - choco install nsis -y -pre
     - build_win dist
     - call "C:\Program Files (x86)\NSIS\makensis.exe" janet-installer.nsi 
-    - copy janet-installer.exe dist\install.exe 
     
 build: off
 
@@ -33,9 +32,9 @@ only_commits:
     - src/
 
 artifacts:
-    - path: dist
-      name: janet-windows
-      type: Zip
+    - path: janet-installer.exe
+      name: janet-windows-installer.exe
+      type: File
 
 deploy:
   description: 'The Janet Programming Language.'
