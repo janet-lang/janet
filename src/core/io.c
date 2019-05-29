@@ -288,8 +288,8 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
 #endif
         int status = pclose(iof->file);
         iof->flags |= IO_CLOSED;
-        if (status) janet_panic("could not close file");
-        return janet_wrap_integer(status);
+        if (status == -1) janet_panic("could not close file");
+        return janet_wrap_integer(WEXITSTATUS(status));
     } else {
         if (fclose(iof->file)) janet_panic("could not close file");
         iof->flags |= IO_CLOSED;
