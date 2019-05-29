@@ -164,7 +164,7 @@
 (defn copy
   "Copy a file or directory recursively from one location to another."
   [src dest]
-  (shell (if is-win "xcopy " "cp -rf ") src " " dest (if is-win " /h /y /t /e" "")))
+  (shell (if is-win "xcopy " "cp -rf ") `"` src `" "` dest (if is-win `" /h /y /e` `"`)))
 
 #
 # C Compilation
@@ -224,10 +224,12 @@
   "Generate the c flags from the input options."
   [opts]
   (string (opt opts :cflags CFLAGS)
-          (if is-win " /I" " -I")
+          (if is-win " /I\"" " \"-I")
           (opt opts :headerpath JANET_HEADERPATH)
-          (if is-win " /O" " -O")
-          (opt opts :optimize OPTIMIZE)))
+          `"`
+          (if is-win " /O\"" " \"-O")
+          (opt opts :optimize OPTIMIZE)
+          `"`))
 
 (defn- compile-c
   "Compile a C file into an object file."
@@ -237,8 +239,8 @@
   (def defines (interpose " " (make-defines (opt opts :defines {}))))
   (rule dest [src]
         (if is-win
-          (shell cc " " ;defines " /nologo /c " cflags " /Fo" dest " " src)
-          (shell cc " -c " src " " ;defines " " cflags " -o " dest))))
+          (shell cc " " ;defines " /nologo /c " cflags " /Fo\"" dest `" "` src `"`)
+          (shell cc " -c '" src "' " ;defines " " cflags " -o '" dest `'`))))
 
 (defn- link-c
   "Link a number of object files together."
@@ -246,11 +248,11 @@
   (def ld (opt opts :linker LD))
   (def cflags (getcflags opts))
   (def lflags (opt opts :lflags LDFLAGS))
-  (def olist (string/join objects " "))
+  (def olist (string/join objects `" "`))
   (rule target objects
         (if is-win
-          (shell ld " " lflags " /DLL /OUT:" target " " olist " " (opt opts :headerpath JANET_HEADERPATH) "\\janet.lib")
-          (shell ld " " cflags " -o " target " " olist " " lflags))))
+          (shell ld " " lflags " /DLL /OUT:" target ` "` olist `" "` (opt opts :headerpath JANET_HEADERPATH) `"\\janet.lib`)
+          (shell ld " " cflags ` -o "` target `" "` olist `" ` lflags))))
 
 (defn- create-buffer-c
   "Inline raw byte file as a c file."

@@ -12,7 +12,7 @@ VIFileVersion "${PRODUCT_VERSION}"
 !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME ""
 !define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_KEY "Software\Janet\${VERSION}"
 !define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_VALUENAME ""
-!define MULTIUSER_INSTALLMODE_INSTDIR "Janet ${VERSION}"
+!define MULTIUSER_INSTALLMODE_INSTDIR "Janet-${VERSION}"
 !include "MultiUser.nsh"
 !include "MUI2.nsh"
 !include ".\tools\EnvVarUpdate.nsh"
@@ -42,7 +42,7 @@ BrandingText "The Janet Programming Language"
 # Pick Install Directory
 !insertmacro MULTIUSER_PAGE_INSTALLMODE
 !insertmacro MUI_PAGE_DIRECTORY
-!define MUI_PAGE_INSFILES
+!insertmacro MUI_PAGE_INSTFILES
 
 # Done
 !insertmacro MUI_PAGE_FINISH
@@ -58,7 +58,7 @@ section "Janet" BfWSection
     createDirectory "$INSTDIR\Library"
     createDirectory "$INSTDIR\C"
     createDirectory "$INSTDIR\bin"
-	setOutPath $INSTDIR
+	setOutPath "$INSTDIR"
     
     file /oname=bin\janet.exe dist\janet.exe
     file /oname=logo.ico assets\icon.ico
@@ -127,19 +127,10 @@ section "uninstall"
 	delete "$SMPROGRAMS\Janet.lnk"
  
 	# Remove files
-    delete $INSTDIR\logo.ico
-    
-    delete $INSTDIR\C\janet.c
-    delete $INSTDIR\C\janet.h
-    delete $INSTDIR\C\janet.lib
-    delete $INSTDIR\C\janet.exp
-    delete $INSTDIR\C\janetconf.h
-    
-    delete $INSTDIR\bin\jpm.janet
-    delete $INSTDIR\bin\jpm.bat
-    delete $INSTDIR\bin\janet.exe
-
-    delete $INSTDIR\Library\cook.janet
+    delete "$INSTDIR\logo.ico"
+    rmdir /S "$INSTDIR\Library"
+    rmdir /S "$INSTDIR\bin"
+    rmdir /S "$INSTDIR\C"
     
     # Remove env vars
 
@@ -159,11 +150,7 @@ section "uninstall"
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
      
 	# Always delete uninstaller as the last action
-	delete $INSTDIR\uninstall.exe
- 
-    rmDir "$INSTDIR\Library"
-	rmDir "$INSTDIR\C"
-    rmDir "$INSTDIR\bin"
+	delete "$INSTDIR\uninstall.exe"
  
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet"
