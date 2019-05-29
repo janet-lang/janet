@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## 0.6.0 - ??
 
+- `file/close` returns exit code when closing file opened with `file/popen`.
+- Add `os/rename`
 - Update windows installer to include tools like `jpm`.
 - Add `jpm` tool for building and managing projects.
 - Change interface to `cook` tool.
