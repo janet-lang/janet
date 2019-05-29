@@ -285,6 +285,7 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
     if (iof->flags & IO_PIPED) {
 #ifdef JANET_WINDOWS
 #define pclose _pclose
+#define WEXITSTATUS(x) x
 #endif
         int status = pclose(iof->file);
         iof->flags |= IO_CLOSED;
