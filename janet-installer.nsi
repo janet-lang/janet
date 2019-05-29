@@ -128,9 +128,9 @@ section "uninstall"
  
 	# Remove files
     delete "$INSTDIR\logo.ico"
-    rmdir /S "$INSTDIR\Library"
-    rmdir /S "$INSTDIR\bin"
-    rmdir /S "$INSTDIR\C"
+    rmdir /r "$INSTDIR\Library"
+    rmdir /r "$INSTDIR\bin"
+    rmdir /r "$INSTDIR\C"
     
     # Remove env vars
 

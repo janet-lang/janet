@@ -164,7 +164,7 @@
 (defn copy
   "Copy a file or directory recursively from one location to another."
   [src dest]
-  (shell (if is-win "xcopy " "cp -rf ") `"` src `" "` dest (if is-win `" /h /y /e` `"`)))
+  (shell (if is-win "xcopy " "cp -rf ") `"` src `" "` dest (if is-win `" /y /e` `"`)))
 
 #
 # C Compilation
