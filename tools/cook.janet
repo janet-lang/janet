@@ -111,21 +111,17 @@
 # Configuration
 #
 
-# Get default paths and options from environment
-(def PREFIX (or (os/getenv "PREFIX")
-                (if is-win "C:\\Janet" "/usr/local")))
-(def BINDIR (or (os/getenv "BINDIR")
-                (string PREFIX sep "bin")))
-(def LIBDIR (or (os/getenv "LIBDIR")
-                (string PREFIX sep (if is-win "Library" "lib/janet"))))
-(def INCLUDEDIR (or (os/getenv "INCLUDEDIR")
-                    module/*headerpath*
-                    (string PREFIX sep "include" sep "janet")))
+# Installation settings
+(def BINDIR (os/getenv "JANET_BINDIR"))
+(def LIBDIR (or (os/getenv "JANET_PATH") module/*syspath*))
+(def INCLUDEDIR (or (os/getenv "JANET_HEADERPATH") module/*headerpath*))
+                    
+# Compilation settings
 (def OPTIMIZE (or (os/getenv "OPTIMIZE") 2))
 (def CC (or (os/getenv "CC") (if is-win "cl" "cc")))
 (def LD (or (os/getenv "LINKER") (if is-win "link" CC)))
 (def LDFLAGS (or (os/getenv "LFLAGS")
-                 (if is-win ""
+                 (if is-win " /nologo"
                    (string " -shared"
                            (if is-mac " -undefined dynamic_lookup" "")))))
 (def CFLAGS (or (os/getenv "CFLAGS") (if is-win "" " -std=c99 -Wall -Wextra -fpic")))
@@ -134,7 +130,10 @@
   "Get an option, allowing overrides via dynamic bindings AND some
   default value dflt if no dynamic binding is set."
   [opts key dflt]
-  (or (opts key) (dyn key dflt)))
+  (def ret (or (opts key) (dyn key dflt)))
+  (if (= nil ret)
+    (error (string "option :" key " not set")))
+  ret)
 
 #
 # OS and shell helpers
@@ -162,7 +161,7 @@
 (defn copy
   "Copy a file or directory recursively from one location to another."
   [src dest]
-  (shell (if is-win "robocopy " "cp -rf ") src " " dest (if is-win " /s /e" "")))
+  (shell (if is-win "xcopy " "cp -rf ") src " " dest (if is-win " /h /y /t /e" "")))
 
 #
 # C Compilation
@@ -247,7 +246,7 @@
   (def olist (string/join objects " "))
   (rule target objects
         (if is-win
-          (shell ld " " lflags " /DLL /OUT:" target " " olist " %JANET_PATH%\\janet.lib")
+          (shell ld " " lflags " /DLL /OUT:" target " " olist " " (opt opts :includedir INCLUDEDIR) "\\janet.lib")
           (shell ld " " cflags " -o " target " " olist " " lflags))))
 
 (defn- create-buffer-c

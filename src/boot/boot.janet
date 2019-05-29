@@ -1605,13 +1605,14 @@
 (var module/*syspath*
   "The path where globally installed libraries are located.
   The default is set at build time and is /usr/local/lib/janet on linux/posix, and
-  on Windows is C:/Janet/Library."
+  on Windows is the empty string."
   (or (process/opts "JANET_PATH") ""))
 
 (var module/*headerpath*
   "The path where the janet headers are installed. Useful for building
-  native modules or compiling code at runtime."
-  (process/opts "JANET_HEADERPATH"))
+  native modules or compiling code at runtime. Default on linux/posix is
+  /usr/local/include/janet, and on Windows is the empty string."
+  (or (process/opts "JANET_HEADERPATH") ""))
 
 # Version of fexists that works even with a reduced OS
 (if-let [has-stat (_env 'os/stat)]

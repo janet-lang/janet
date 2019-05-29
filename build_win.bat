@@ -53,7 +53,7 @@ for %%f in (src\boot\*.c) do (
 )
 %JANET_LINK% /out:build\janet_boot.exe build\boot\*.obj
 @if errorlevel 1 goto :BUILDFAIL
-build\janet_boot build\core_image.c JANET_PATH "C:/Janet/Library"
+build\janet_boot build\core_image.c
 
 @rem Build the core image
 @%JANET_COMPILE% /Fobuild\core_image.obj build\core_image.c
@@ -65,6 +65,9 @@ for %%f in (src\core\*.c) do (
     @if errorlevel 1 goto :BUILDFAIL
 )
 
+@rem Build the resources
+rc /nologo /fobuild\janet_win.res janet_win.rc
+
 @rem Build the main client
 for %%f in (src\mainclient\*.c) do (
     @%JANET_COMPILE% /Fobuild\mainclient\%%~nf.obj %%f
@@ -72,7 +75,7 @@ for %%f in (src\mainclient\*.c) do (
 )
 
 @rem Link everything to main client
-%JANET_LINK% /out:janet.exe build\core\*.obj build\mainclient\*.obj build\core_image.obj
+%JANET_LINK% /out:janet.exe build\core\*.obj build\mainclient\*.obj build\core_image.obj build\janet_win.res
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Gen amlag
@@ -132,6 +135,7 @@ copy src\include\janetconf.h dist\janetconf.h
 copy tools\cook.janet dist\cook.janet
 copy tools\highlight.janet dist\highlight.janet
 copy tools\jpm dist\jpm
+copy tools\jpm.bat dist\jpm.bat
 exit /b 0
 
 :TESTFAIL

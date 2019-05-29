@@ -19,10 +19,9 @@
   (print `
 
 Keys are:
-  --prefix : The prefix to install to. Defaults to $PREFIX or /usr/local
-  --libdir : The directory to install. Defaults to $LIBDIR or $prefix/lib/janet
-  --includedir : The directory containing janet headers. Defaults to $INCLUDEDIR or module/*headerpath*.
-  --bindir : The directory to install binaries and scripts. Defaults to $BINDIR or $prefix/bin
+  --libdir : The directory to install modules to. Defaults to $JANET_PATH or module/*syspath*
+  --includedir : The directory containing janet headers. Defaults to $JANET_HEADERPATH or module/*headerpath*
+  --bindir : The directory to install binaries and scripts. Defaults to $JANET_BINDIR.
   --optimize : Optimization level for natives. Defaults to $OPTIMIZE or 2.
   --compiler : C compiler to use for natives. Defaults to $CC or cc.
   --linker : C linker to use for linking natives. Defaults to $LINKER or cc.

@@ -12,6 +12,7 @@
   (var *compile-only* false)
 
   (if-let [jp (os/getenv "JANET_PATH")] (set module/*syspath* jp))
+  (if-let [jp (os/getenv "JANET_HEADERPATH")] (set module/*headerpath* jp))
 
   # Flag handlers
   (def handlers :private
