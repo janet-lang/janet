@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.6.0 - ??
 
+- Update windows installer to include tools like `jpm`.
 - Add `jpm` tool for building and managing projects.
 - Change interface to `cook` tool.
 - Add optional filters to `module/paths` to further refine import methods.

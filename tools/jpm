@@ -4,8 +4,6 @@
 
 (import cook :prefix "")
 
-(import-rules "./project.janet")
-
 (def- argpeg
   (peg/compile
     '(* "--" '(some (if-not "=" 1)) "=" '(any 1))))
@@ -30,10 +28,15 @@ Keys are:
     `))
 
 (def args (tuple/slice process/args 2))
+(def todo @[])
 (each arg args
   (if (string/has-prefix? "--" arg)
     (let [[key value] (peg/match argpeg arg)]
       (setdyn (keyword key) value))
-    (do-rule arg)))
+    (array/push todo arg)))
+
+(import-rules "./project.janet")
+
+(each r todo (do-rule r))
 
 (if (empty? args) (help))

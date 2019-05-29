@@ -97,7 +97,10 @@
   (def [realpath] (module/find path))
   (def env (make-env))
   (loop [k :keys _env :when (symbol? k)]
-    (unless ((_env k) :private) (put env k (_env k))))
+     (unless ((_env k) :private) (put env k (_env k))))
+  (def currenv (fiber/getenv (fiber/current)))
+  (loop [k :keys currenv :when (keyword? k)]
+     (put env k (currenv k)))
   (require path :env env ;args)
   (when-let [rules (env :rules)] (merge-into (getrules) rules)))
 
@@ -112,8 +115,8 @@
 #
 
 # Installation settings
-(def BINDIR (os/getenv "JANET_BINDIR"))
 (def LIBDIR (or (os/getenv "JANET_PATH") module/*syspath*))
+(def BINDIR (or (os/getenv "JANET_BINDIR") (unless is-win "/usr/local/bin")))
 (def INCLUDEDIR (or (os/getenv "JANET_HEADERPATH") module/*headerpath*))
                     
 # Compilation settings
