@@ -1,14 +1,25 @@
+# Version
+!define VERSION "0.6.0"
+!define PRODUCT_VERSION "${VERSION}.0"
+VIProductVersion "${PRODUCT_VERSION}"
+VIFileVersion "${PRODUCT_VERSION}"
+
 # Use the modern UI
 !define MULTIUSER_EXECUTIONLEVEL Highest
 !define MULTIUSER_MUI
 !define MULTIUSER_INSTALLMODE_COMMANDLINE
+!define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_KEY "Software\Janet\${VERSION}"
+!define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME ""
+!define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_KEY "Software\Janet\${VERSION}"
+!define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_VALUENAME ""
+!define MULTIUSER_INSTALLMODE_INSTDIR "Janet ${VERSION}"
 !include "MultiUser.nsh"
 !include "MUI2.nsh"
 !include ".\tools\EnvVarUpdate.nsh"
 
 # Basics
 Name "Janet"
-OutFile "janet-installer.exe"
+OutFile "janet-v${VERSION}-windows-installer.exe"
 
 # Some Configuration
 !define APPNAME "Janet"
@@ -22,27 +33,28 @@ BrandingText "The Janet Programming Language"
 !define MUI_HEADERIMAGE
 !define MUI_HEADERIMAGE_BITMAP "assets\janet-w200.png"
 !define MUI_HEADERIMAGE_RIGHT
+!define MUI_ABORTWARNING
 
 # Show a welcome page first
 !insertmacro MUI_PAGE_WELCOME
-
-# License page
 !insertmacro MUI_PAGE_LICENSE "LICENSE"
 
 # Pick Install Directory
 !insertmacro MULTIUSER_PAGE_INSTALLMODE
 !insertmacro MUI_PAGE_DIRECTORY
+!define MUI_PAGE_INSFILES
 
-page instfiles
+# Done
+!insertmacro MUI_PAGE_FINISH
 
 # Need to set a language.
 !insertmacro MUI_LANGUAGE "English"
  
 function .onInit
-	setShellVarContext all
+    !insertmacro MULTIUSER_INIT
 functionEnd
 
-section "install"
+section "Janet" BfWSection
     createDirectory "$INSTDIR\Library"
     createDirectory "$INSTDIR\C"
     createDirectory "$INSTDIR\bin"
@@ -61,7 +73,7 @@ section "install"
     
     file /oname=bin\jpm.janet dist\jpm
     file /oname=bin\jpm.bat dist\jpm.bat
- 
+     
 	# Uninstaller - See function un.onInit and section "uninstall" for configuration
 	writeUninstaller "$INSTDIR\uninstall.exe"
  
@@ -106,12 +118,7 @@ sectionEnd
 # Uninstaller
  
 function un.onInit
-	SetShellVarContext all
- 
-	#Verify the uninstaller - last chance to back out
-	MessageBox MB_OKCANCEL "Permanantly remove Janet?" IDOK next
-		Abort
-	next:
+    !insertmacro MULTIUSER_UNINIT
 functionEnd
  
 section "uninstall"
