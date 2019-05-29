@@ -26,6 +26,16 @@
 #include "fiber.h"
 #endif
 
+static JanetBuildConfig *api_build_config = &(JanetBuildConfig){
+    .api_version = JANET_API_VERSION,
+    .single_threaded = JANET_SINGLE_THREADED_BIT,
+    .nanbox = JANET_NANBOX_BIT
+};
+
+const JanetBuildConfig *janet_build_config() {
+    return api_build_config;
+}
+
 void janet_panicv(Janet message) {
     if (janet_vm_return_reg != NULL) {
         *janet_vm_return_reg = message;
