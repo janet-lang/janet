@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <spawn.h>
 
 #ifdef JANET_WINDOWS
 #include <windows.h>
@@ -88,7 +89,7 @@ static Janet os_exit(int32_t argc, Janet *argv) {
 }
 
 #ifdef JANET_REDUCED_OS
-/* Provide a dud os/getenv so init.janet works, but nothing else */
+/* Provide a dud os/getenv so boot.janet and init.janet work, but nothing else */
 
 static Janet os_getenv(int32_t argc, Janet *argv) {
     (void) argv;
@@ -99,97 +100,152 @@ static Janet os_getenv(int32_t argc, Janet *argv) {
 #else
 /* Provide full os functionality */
 
-#ifdef JANET_WINDOWS
-static Janet os_execute(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, -1);
-    JanetBuffer *buffer = janet_buffer(10);
-    for (int32_t i = 0; i < argc; i++) {
-        const uint8_t *argstring = janet_getstring(argv, i);
-        janet_buffer_push_bytes(buffer, argstring, janet_string_length(argstring));
-        if (i != argc - 1) {
-            janet_buffer_push_u8(buffer, ' ');
+#define JANET_OS_EFLAG_E 0x1
+#define JANET_OS_EFLAG_P 0x2
+
+/* Get flags */
+/* Unfortunately, execvpe is linux (glibc) only. Instead, we can switch
+ * between the more portable execve, execvp, or execv.
+ * Use the :e or :p flag for execve and execvp respectively. Eventually
+ * :ep or :pe could be execvpe. */
+static int os_execute_flags(int32_t argc, const Janet *argv) {
+    if (argc < 2) return 0;
+    int flags = 0;
+    if (argc > 1) {
+        const uint8_t *f = janet_getkeyword(argv, 1);
+        int32_t len = janet_string_length(f);
+        for (int32_t i = 0; i < len; i++) {
+            if (f[i] == 'e') flags |= JANET_OS_EFLAG_E;
+            if (f[i] == 'p') flags |= JANET_OS_EFLAG_P;
         }
     }
-    janet_buffer_push_u8(buffer, 0);
-
-    /* Convert to wide chars */
-    wchar_t *sys_str = malloc(buffer->count * sizeof(wchar_t));
-    if (NULL == sys_str) {
-        JANET_OUT_OF_MEMORY;
-    }
-    int nwritten = MultiByteToWideChar(
-                       CP_UTF8,
-                       MB_PRECOMPOSED,
-                       buffer->data,
-                       buffer->count,
-                       sys_str,
-                       buffer->count);
-    if (nwritten == 0) {
-        free(sys_str);
-        janet_panic("could not create process");
-    }
-
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
-
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
-
-    // Start the child process.
-    if (!CreateProcess(NULL,
-                       (LPSTR) sys_str,
-                       NULL,
-                       NULL,
-                       FALSE,
-                       0,
-                       NULL,
-                       NULL,
-                       &si,
-                       &pi)) {
-        free(sys_str);
-        janet_panic("could not create process");
-    }
-    free(sys_str);
-
-    // Wait until child process exits.
-    WaitForSingleObject(pi.hProcess, INFINITE);
-
-    // Close process and thread handles.
-    WORD status;
-    GetExitCodeProcess(pi.hProcess, (LPDWORD)&status);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-    return janet_wrap_integer(status);
+    return flags;
 }
-#else
+
+/* Get env for os_execute (execv family of functions, as well as CreateProcess) */
+static char **os_execute_env(int32_t argc, const Janet *argv) {
+    char **envp = NULL;
+    if (argc > 2) {
+        JanetDictView dict = janet_getdictionary(argv, 2);
+        envp = malloc(sizeof(char *) * (dict.len + 1));
+        if (NULL == envp) {
+            JANET_OUT_OF_MEMORY;
+        }
+        int32_t j = 0;
+        for (int32_t i = 0; i < dict.cap; i++) {
+            const JanetKV *kv = dict.kvs + i;
+            if (!janet_checktype(kv->key, JANET_STRING)) continue;
+            if (!janet_checktype(kv->value, JANET_STRING)) continue;
+            const uint8_t *keys = janet_unwrap_string(kv->key);
+            const uint8_t *vals = janet_unwrap_string(kv->value);
+            int32_t klen = janet_string_length(keys);
+            int32_t vlen = janet_string_length(vals);
+            /* Check keys has no embedded 0s or =s. */
+            int skip = 0;
+            for (int32_t k = 0; k < klen; k++) {
+                if (keys[k] == '\0' || keys[k] == '=') {
+                    skip = 1;
+                    break;
+                }
+            }
+            if (skip) continue;
+            char *envitem = malloc(klen + vlen + 2);
+            if (NULL == envitem) {
+                JANET_OUT_OF_MEMORY;
+            }
+            memcpy(envitem, keys, klen);
+            envitem[klen] = '=';
+            memcpy(envitem + klen + 1, vals, vlen);
+            envitem[klen + vlen + 1] = 0;
+            envp[j++] = envitem;
+        }
+        envp[j] = NULL;
+    }
+    return envp;
+}
+
+/* Free memory from os_execute */
+static void os_execute_cleanup(char **envp, const char **child_argv) {
+    free(child_argv);
+    if (NULL != envp) {
+        char **envitem = envp;
+        while (*envitem != NULL) {
+            free(*envitem);
+            envitem++;
+        }
+    }
+    free(envp);
+}
+
 static Janet os_execute(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, -1);
-    const char **child_argv = malloc(sizeof(char *) * (argc + 1));
+    janet_arity(argc, 1, 3);
+
+    /* Get arguments */
+    JanetView exargs = janet_getindexed(argv, 0);
+    const char **child_argv = malloc(sizeof(char *) * (exargs.len + 1));
     int status = 0;
     if (NULL == child_argv) {
         JANET_OUT_OF_MEMORY;
     }
-    for (int32_t i = 0; i < argc; i++) {
-        child_argv[i] = janet_getcstring(argv, i);
+    for (int32_t i = 0; i < exargs.len; i++) {
+        child_argv[i] = janet_getcstring(exargs.items, i);
     }
-    child_argv[argc] = NULL;
+    child_argv[exargs.len] = NULL;
 
-    /* Fork child process */
-    pid_t pid = fork();
-    if (pid < 0) {
-        janet_panic("failed to execute");
-    } else if (pid == 0) {
-        if (-1 == execve(child_argv[0], (char **)child_argv, NULL)) {
-            exit(1);
-        }
+    /* Get flags */
+    int flags = os_execute_flags(argc, argv);
+
+    /* Get environment */
+    char **envp = os_execute_env(argc, argv);
+
+    /* Coerce to form that works for spawn. I'm fairly confident no implementation
+     * of posix_spawn would modify the argv array passed in. */
+    char *const *cargv = (char *const *)child_argv;
+
+#ifdef JANET_WINDOWS
+
+    /* Use _spawn family of functions. */
+    /* Windows docs say do this before any spawns. */
+    _flushall();
+
+    if (flags & (JANET_OS_EFLAG_P | JANET_OS_EFLAG_E)) {
+        status = _spawnvpe(_P_WAIT, child_argv[0], cargv, envp);
+    } else if (flags & JANET_OS_EFLAG_P) {
+        status = _spawnvp(_P_WAIT, child_argv[0], cargv);
+    } else if (flags & JANET_OS_EFLAG_E) {
+        status = _spawnve(_P_WAIT, child_argv[0], cargv, envp);
+    } else {
+        status = _spawnv(_P_WAIT, child_argv[0], cargv);
+    }
+
+    os_execute_cleanup(envp, child_argv);
+    return janet_wrap_integer(status);
+#else
+
+    /* Use posix_spawn to spawn new process */
+    pid_t pid;
+    if (flags & JANET_OS_EFLAG_P) {
+        status = posix_spawnp(&pid,
+                              child_argv[0], NULL, NULL, cargv,
+                              (flags & JANET_OS_EFLAG_E) ? envp : NULL);
+    } else {
+        status = posix_spawn(&pid,
+                             child_argv[0], NULL, NULL, cargv,
+                             (flags & JANET_OS_EFLAG_E) ? envp : NULL);
+    }
+
+    /* Wait for child */
+    if (status) {
+        os_execute_cleanup(envp, child_argv);
+        janet_panic(strerror(status));
     } else {
         waitpid(pid, &status, 0);
     }
-    free(child_argv);
-    return janet_wrap_integer(status);
-}
+
+    os_execute_cleanup(envp, child_argv);
+    return janet_wrap_integer(WEXITSTATUS(status));
 #endif
+}
 
 static Janet os_shell(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
@@ -701,9 +757,15 @@ static const JanetReg os_cfuns[] = {
     },
     {
         "os/execute", os_execute,
-        JDOC("(os/execute program & args)\n\n"
-             "Execute a program on the system and pass it string arguments. Returns "
-             "the exit status of the program.")
+        JDOC("(os/execute args &opts flags env)\n\n"
+             "Execute a program on the system and pass it string arguments. Flags "
+             "is a keyword that modifies how the program will execute.\n\n"
+             "\t:e - enables passing an environment to the program. Without :e, the "
+             "current environment is inherited.\n"
+             "\t:p - allows searching the current PATH for the binary to execute. "
+             "Without this flag, binaries must use absolute paths.\n\n"
+             "env is a table or struct mapping environment variables to values. "
+             "Returns the exit status of the program.")
     },
     {
         "os/shell", os_shell,

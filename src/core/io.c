@@ -26,6 +26,9 @@
 
 #include <stdio.h>
 #include <errno.h>
+#ifndef JANET_WINDOWS
+#include <sys/wait.h>
+#endif
 
 #ifndef JANET_AMALG
 #include <janet.h>
