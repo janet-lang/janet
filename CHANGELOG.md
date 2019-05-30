@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+- Add API compatibility checking for modules. This will let native modules not load
+  when the host program is not of a compatible version or configuration.
+
 ## 0.6.0 - 2019-05-29
 - `file/close` returns exit code when closing file opened with `file/popen`.
 - Add `os/rename`

@@ -63,7 +63,30 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
     }
     init = (JanetModule) symbol_clib(lib, "_janet_init");
     if (!init) {
-        *error = janet_cstring("could not find _janet_init symbol");
+        *error = janet_cstring("could not find the _janet_init symbol");
+        return NULL;
+    }
+    JanetBuildConfig(*modconf_getter)(void) = symbol_clib(lib, "_janet_mod_config");
+    if (!modconf_getter) {
+        *error = janet_cstring("could not find the _janet_mod_config symbol");
+        return NULL;
+    }
+    JanetBuildConfig modconf = modconf_getter();
+    JanetBuildConfig host = janet_config_current();
+    if (host.major != modconf.major ||
+            host.minor < modconf.minor ||
+            host.bits != modconf.bits) {
+        char errbuf[128];
+        sprintf(errbuf, "config mismatch - host %d.%.d.%d(%.4x) vs. module %d.%d.%d(%.4x)",
+                host.major,
+                host.minor,
+                host.patch,
+                host.bits,
+                modconf.major,
+                modconf.minor,
+                modconf.patch,
+                modconf.bits);
+        *error = janet_cstring(errbuf);
         return NULL;
     }
     return init;
@@ -830,6 +853,9 @@ JanetTable *janet_core_env(JanetTable *replacements) {
               JDOC("The version number of the running janet program."));
     janet_def(env, "janet/build", janet_cstringv(JANET_BUILD),
               JDOC("The build identifier of the running janet program."));
+    janet_def(env, "janet/config-bits", janet_wrap_integer(JANET_CURRENT_CONFIG_BITS),
+              JDOC("The flag set of config options from janetconf.h which is used to check "
+                   "if native modules are compatible with the host program."));
 
     /* Allow references to the environment */
     janet_def(env, "_env", janet_wrap_table(env), JDOC("The environment table for the current scope."));

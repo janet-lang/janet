@@ -26,14 +26,15 @@
 #include "fiber.h"
 #endif
 
-static JanetBuildConfig *api_build_config = &(JanetBuildConfig) {
-    .api_version = JANET_API_VERSION,
-    .single_threaded = JANET_SINGLE_THREADED_BIT,
-    .nanbox = JANET_NANBOX_BIT
+static const JanetBuildConfig api_build_config = (JanetBuildConfig) {
+    JANET_VERSION_MAJOR,
+    JANET_VERSION_MINOR,
+    JANET_VERSION_PATCH,
+    JANET_CURRENT_CONFIG_BITS
 };
 
-const JanetBuildConfig *janet_build_config() {
-    return api_build_config;
+const JanetBuildConfig *janet_config_host(void) {
+    return &api_build_config;
 }
 
 void janet_panicv(Janet message) {

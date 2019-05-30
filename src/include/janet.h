@@ -31,8 +31,6 @@ extern "C" {
 
 #include "janetconf.h"
 
-#define JANET_API_VERSION 1
-
 #ifndef JANET_VERSION
 #define JANET_VERSION "latest"
 #endif
@@ -186,25 +184,37 @@ extern "C" {
 #endif
 #endif
 
-
 /* Runtime config constants */
 #ifdef JANET_NO_NANBOX
 #define JANET_NANBOX_BIT 0
 #else
-#define JANET_NANBOX_BIT 1
+#define JANET_NANBOX_BIT 0x1
 #endif
 
 #ifdef JANET_SINGLE_THREADED
-#define JANET_SINGLE_THREADED_BIT 1
+#define JANET_SINGLE_THREADED_BIT 0x2
 #else
 #define JANET_SINGLE_THREADED_BIT 0
 #endif
 
+#define JANET_CURRENT_CONFIG_BITS \
+    (JANET_SINGLE_THREADED_BIT | \
+     JANET_NANBOX_BIT)
+
+/* Represents the settings used to compile Janet, as well as the version */
 typedef struct {
-    int api_version;
-    int single_threaded : 1;
-    int nanbox : 1;
+    unsigned major;
+    unsigned minor;
+    unsigned patch;
+    unsigned bits;
 } JanetBuildConfig;
+
+/* Get config of current compilation unit. */
+#define janet_config_current() ((JanetBuildConfig){ \
+    JANET_VERSION_MAJOR, \
+    JANET_VERSION_MINOR, \
+    JANET_VERSION_PATCH, \
+    JANET_CURRENT_CONFIG_BITS })
 
 /***** END SECTION CONFIG *****/
 
@@ -1276,15 +1286,11 @@ JANET_API void janet_register(const char *name, JanetCFunction cfun);
 
 /* New C API */
 
-#define JANET_MODULE_ENTRY JANET_API void _janet_init
-
-JANET_API int janet_api_version();
-JANET_API const JanetBuildConfig *janet_build_config();
-
-#define janet_api_compatible() \
-  ((janet_api_build_config()->api_version == JANET_API_VERSION) \
-   && (janet_api_build_config()->nanbox == JANET_NANBOX_BIT) \
-   && (janet_api_build_config()->single_threaded == JANET_SINGLE_THREADED_BIT))
+#define JANET_MODULE_ENTRY \
+    JANET_API JanetBuildConfig _janet_mod_config(void) { \
+        return janet_config_current(); \
+    } \
+    JANET_API void _janet_init
 
 JANET_API void janet_panicv(Janet message);
 JANET_API void janet_panic(const char *message);
