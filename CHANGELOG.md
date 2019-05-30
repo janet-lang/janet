@@ -87,7 +87,7 @@ All notable changes to this project will be documented in this file.
 - Disallow NaNs as table or struct keys
 - Update module resolution paths and format
 
-## 0.3.0 - 2019-26-01
+## 0.3.0 - 2019-01-26
 - Add amalgamated build to janet for easier embedding.
 - Add os/date function
 - Add slurp and spit to core library.
