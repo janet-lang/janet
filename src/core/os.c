@@ -167,7 +167,7 @@ static char **os_execute_env(int32_t argc, const Janet *argv) {
 
 /* Free memory from os_execute */
 static void os_execute_cleanup(char **envp, const char **child_argv) {
-    free(child_argv);
+    free((void *)child_argv);
     if (NULL != envp) {
         char **envitem = envp;
         while (*envitem != NULL) {
@@ -210,13 +210,13 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     _flushall();
 
     if (flags & (JANET_OS_EFLAG_P | JANET_OS_EFLAG_E)) {
-        status = _spawnvpe(_P_WAIT, child_argv[0], cargv, envp);
+        status = (int) _spawnvpe(_P_WAIT, child_argv[0], cargv, envp);
     } else if (flags & JANET_OS_EFLAG_P) {
-        status = _spawnvp(_P_WAIT, child_argv[0], cargv);
+        status = (int) _spawnvp(_P_WAIT, child_argv[0], cargv);
     } else if (flags & JANET_OS_EFLAG_E) {
-        status = _spawnve(_P_WAIT, child_argv[0], cargv, envp);
+        status = (int) _spawnve(_P_WAIT, child_argv[0], cargv, envp);
     } else {
-        status = _spawnv(_P_WAIT, child_argv[0], cargv);
+        status = (int) _spawnv(_P_WAIT, child_argv[0], cargv);
     }
 
     os_execute_cleanup(envp, child_argv);
