@@ -57,6 +57,7 @@ typedef void *Clib;
 JanetModule janet_native(const char *name, const uint8_t **error) {
     Clib lib = load_clib(name);
     JanetModule init;
+    JanetModconf getter;
     if (!lib) {
         *error = janet_cstring(error_clib());
         return NULL;
@@ -66,12 +67,12 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
         *error = janet_cstring("could not find the _janet_init symbol");
         return NULL;
     }
-    JanetBuildConfig(*modconf_getter)(void) = symbol_clib(lib, "_janet_mod_config");
-    if (!modconf_getter) {
+    getter = (JanetModconf) symbol_clib(lib, "_janet_mod_config");
+    if (!getter) {
         *error = janet_cstring("could not find the _janet_mod_config symbol");
         return NULL;
     }
-    JanetBuildConfig modconf = modconf_getter();
+    JanetBuildConfig modconf = getter();
     JanetBuildConfig host = janet_config_current();
     if (host.major != modconf.major ||
             host.minor < modconf.minor ||

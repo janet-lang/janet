@@ -1216,6 +1216,7 @@ JANET_API void *janet_abstract(const JanetAbstractType *type, size_t size);
 
 /* Native */
 typedef void (*JanetModule)(JanetTable *);
+typedef JanetBuildConfig(*JanetModconf)(void);
 JANET_API JanetModule janet_native(const char *name, const uint8_t **error);
 
 /* Marshaling */
