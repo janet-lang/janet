@@ -35,7 +35,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <spawn.h>
 
 #ifdef JANET_WINDOWS
 #include <windows.h>
@@ -43,6 +42,7 @@
 #include <sys/utime.h>
 #include <io.h>
 #else
+#include <spawn.h>
 #include <utime.h>
 #include <unistd.h>
 #include <dirent.h>
