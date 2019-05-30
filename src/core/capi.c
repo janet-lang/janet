@@ -26,17 +26,6 @@
 #include "fiber.h"
 #endif
 
-static const JanetBuildConfig api_build_config = (JanetBuildConfig) {
-    JANET_VERSION_MAJOR,
-    JANET_VERSION_MINOR,
-    JANET_VERSION_PATCH,
-    JANET_CURRENT_CONFIG_BITS
-};
-
-const JanetBuildConfig *janet_config_host(void) {
-    return &api_build_config;
-}
-
 void janet_panicv(Janet message) {
     if (janet_vm_return_reg != NULL) {
         *janet_vm_return_reg = message;
