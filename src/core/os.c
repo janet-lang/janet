@@ -41,6 +41,7 @@
 #include <direct.h>
 #include <sys/utime.h>
 #include <io.h>
+#include <process.h>
 #else
 #include <spawn.h>
 #include <utime.h>
