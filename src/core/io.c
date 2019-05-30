@@ -26,13 +26,14 @@
 
 #include <stdio.h>
 #include <errno.h>
-#ifndef JANET_WINDOWS
-#include <sys/wait.h>
-#endif
 
 #ifndef JANET_AMALG
 #include <janet.h>
 #include "util.h"
+#endif
+
+#ifndef JANET_WINDOWS
+#include <sys/wait.h>
 #endif
 
 #define IO_WRITE 1
