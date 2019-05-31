@@ -152,6 +152,15 @@ extern "C" {
 #endif
 #endif
 
+/* Tell complier some functions don't return */
+#ifndef JANET_NO_RETURN
+#ifdef JANET_WINDOWS
+#define JANET_NO_RETURN __declspec(noreturn)
+#else
+#define JANET_NO_RETURN __attribute__ ((noreturn))
+#endif
+#endif
+
 /* Prevent some recursive functions from recursing too deeply
  * ands crashing (the parser). Instead, error out. */
 #define JANET_RECURSION_GUARD 1024
@@ -1293,13 +1302,13 @@ JANET_API void janet_register(const char *name, JanetCFunction cfun);
     } \
     JANET_API void _janet_init
 
-JANET_API void janet_panicv(Janet message);
-JANET_API void janet_panic(const char *message);
-JANET_API void janet_panics(const uint8_t *message);
-JANET_API void janet_panicf(const char *format, ...);
+JANET_NO_RETURN JANET_API void janet_panicv(Janet message);
+JANET_NO_RETURN JANET_API void janet_panic(const char *message);
+JANET_NO_RETURN JANET_API void janet_panics(const uint8_t *message);
+JANET_NO_RETURN JANET_API void janet_panicf(const char *format, ...);
 JANET_API void janet_printf(const char *format, ...);
-JANET_API void janet_panic_type(Janet x, int32_t n, int expected);
-JANET_API void janet_panic_abstract(Janet x, int32_t n, const JanetAbstractType *at);
+JANET_NO_RETURN JANET_API void janet_panic_type(Janet x, int32_t n, int expected);
+JANET_NO_RETURN JANET_API void janet_panic_abstract(Janet x, int32_t n, const JanetAbstractType *at);
 JANET_API void janet_arity(int32_t arity, int32_t min, int32_t max);
 JANET_API void janet_fixarity(int32_t arity, int32_t fix);
 

@@ -447,7 +447,7 @@ static void builder_cleanup(Builder *b) {
     janet_v_free(b->bytecode);
 }
 
-static void peg_panic(Builder *b, const char *msg) {
+JANET_NO_RETURN static void peg_panic(Builder *b, const char *msg) {
     builder_cleanup(b);
     janet_panicf("grammar error in %p, %s", b->form, msg);
 }

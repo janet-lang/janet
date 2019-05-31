@@ -151,7 +151,6 @@ Janet janet_get(Janet ds, Janet key) {
     switch (janet_type(ds)) {
         default:
             janet_panicf("expected %T, got %v", JANET_TFLAG_LENGTHABLE, ds);
-            value = janet_wrap_nil();
             break;
         case JANET_STRUCT:
             value = janet_struct_get(janet_unwrap_struct(ds), key);
@@ -219,7 +218,6 @@ Janet janet_get(Janet ds, Janet key) {
                 value = (type->get)(janet_unwrap_abstract(ds), key);
             } else {
                 janet_panicf("no getter for %v ", ds);
-                value = janet_wrap_nil();
             }
             break;
         }
@@ -233,7 +231,6 @@ Janet janet_getindex(Janet ds, int32_t index) {
     switch (janet_type(ds)) {
         default:
             janet_panicf("expected %T, got %v", JANET_TFLAG_LENGTHABLE, ds);
-            value = janet_wrap_nil();
             break;
         case JANET_STRING:
         case JANET_SYMBOL:
@@ -277,7 +274,6 @@ Janet janet_getindex(Janet ds, int32_t index) {
                 value = (type->get)(janet_unwrap_abstract(ds), janet_wrap_integer(index));
             } else {
                 janet_panicf("no getter for %v ", ds);
-                value = janet_wrap_nil();
             }
             break;
         }
@@ -289,7 +285,6 @@ int32_t janet_length(Janet x) {
     switch (janet_type(x)) {
         default:
             janet_panicf("expected %T, got %v", JANET_TFLAG_LENGTHABLE, x);
-            return 0;
         case JANET_STRING:
         case JANET_SYMBOL:
         case JANET_KEYWORD:
@@ -312,7 +307,6 @@ void janet_putindex(Janet ds, int32_t index, Janet value) {
         default:
             janet_panicf("expected %T, got %v",
                          JANET_TFLAG_ARRAY | JANET_TFLAG_BUFFER | JANET_TFLAG_TABLE, ds);
-            break;
         case JANET_ARRAY: {
             JanetArray *array = janet_unwrap_array(ds);
             if (index >= array->count) {
@@ -355,7 +349,6 @@ void janet_put(Janet ds, Janet key, Janet value) {
         default:
             janet_panicf("expected %T, got %v",
                          JANET_TFLAG_ARRAY | JANET_TFLAG_BUFFER | JANET_TFLAG_TABLE, ds);
-            break;
         case JANET_ARRAY: {
             int32_t index;
             JanetArray *array = janet_unwrap_array(ds);
