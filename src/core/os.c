@@ -49,6 +49,7 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+extern char **environ;
 #endif
 
 /* For macos */
@@ -167,7 +168,11 @@ static char **os_execute_env(int32_t argc, const Janet *argv) {
 
 /* Free memory from os_execute */
 static void os_execute_cleanup(char **envp, const char **child_argv) {
+#ifdef JANET_WINDOWS
+    (void) child_argv;
+#else
     free((void *)child_argv);
+#endif
     if (NULL != envp) {
         char **envitem = envp;
         while (*envitem != NULL) {
@@ -178,11 +183,124 @@ static void os_execute_cleanup(char **envp, const char **child_argv) {
     free(envp);
 }
 
+#ifdef JANET_WINDOWS
+/* Windows processes created via CreateProcess get only one command line argument string, and
+ * must parse this themselves. Each processes is free to do this however they like, but the
+ * standard parsing method is CommandLineToArgvW. We need to properly escape arguments into
+ * a single string of this format. Returns a buffer that can be cast into a c string. */
+static JanetBuffer *os_exec_escape(JanetView args) {
+    JanetBuffer *b = janet_buffer(0);
+    for (int32_t i = 0; i < args.len; i++) {
+        const char *arg = janet_getcstring(args.items, i);
+
+        /* Push leading space if not first */
+        if (i) janet_buffer_push_u8(b, ' ');
+
+        /* Find first special character */
+        const char *first_spec = arg;
+        while (*first_spec) {
+            switch (*first_spec) {
+                case ' ':
+                case '\t':
+                case '\v':
+                case '\n':
+                case '"':
+                    goto found;
+                case '\0':
+                    janet_panic("embedded 0 not allowed in command line string");
+                default:
+                    first_spec++;
+                    break;
+            }
+        }
+    found:
+
+        /* Check if needs escape */
+        if (*first_spec == '\0') {
+            /* No escape needed */
+            janet_buffer_push_cstring(b, arg);
+        } else {
+            /* Escape */
+            janet_buffer_push_u8(b, '"');
+            for (const char *c = arg; ; c++) {
+                unsigned numBackSlashes = 0;
+                while (*c == '\\') {
+                    c++;
+                    numBackSlashes++;
+                }
+                if (*c == '"') {
+                    /* Escape all backslashes and double quote mark */
+                    int32_t n = 2 * numBackSlashes + 1;
+                    janet_buffer_extra(b, n + 1);
+                    memset(b->data + b->count, '\\', n);
+                    b->count += n;
+                    janet_buffer_push_u8(b, '"');
+                } else if (*c) {
+                    /* Don't escape backslashes. */
+                    int32_t n = numBackSlashes;
+                    janet_buffer_extra(b, n + 1);
+                    memset(b->data + b->count, '\\', n);
+                    b->count += n;
+                    janet_buffer_push_u8(b, *c);
+                } else {
+                    /* we finished Escape all backslashes */
+                    int32_t n = 2 * numBackSlashes;
+                    janet_buffer_extra(b, n + 1);
+                    memset(b->data + b->count, '\\', n);
+                    b->count += n;
+                    break;
+                }
+            }
+            janet_buffer_push_u8(b, '"');
+        }
+    }
+    janet_buffer_push_u8(b, 0);
+    return b;
+}
+#endif
+
 static Janet os_execute(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 3);
 
+    /* Get flags */
+    int flags = os_execute_flags(argc, argv);
+
+    /* Get environment */
+    char **envp = os_execute_env(argc, argv);
+
     /* Get arguments */
     JanetView exargs = janet_getindexed(argv, 0);
+    if (exargs.len < 1) {
+        janet_panic("expected at least 1 command line argument");
+    }
+
+#ifdef JANET_WINDOWS
+
+    JanetBuffer *buf = os_exec_escape(exargs);
+    if (buf->count > 1025) {
+        janet_panic("command line string too long");
+    }
+    const char *path = (const char *) janet_unwrap_string(exargs.items[0]);
+    char *cargv[2] = {(char *) buf->data, NULL};
+
+    /* Use _spawn family of functions. */
+    /* Windows docs say do this before any spawns. */
+    _flushall();
+
+    if (flags & (JANET_OS_EFLAG_P | JANET_OS_EFLAG_E)) {
+        status = (int) _spawnvpe(_P_WAIT, path, cargv, envp);
+    } else if (flags & JANET_OS_EFLAG_P) {
+        status = (int) _spawnvp(_P_WAIT, path, cargv);
+    } else if (flags & JANET_OS_EFLAG_E) {
+        status = (int) _spawnve(_P_WAIT, path, cargv, envp);
+    } else {
+        status = (int) _spawnv(_P_WAIT, path, cargv);
+    }
+
+    os_execute_cleanup(envp, NULL);
+    return janet_wrap_integer(status);
+#else
+
     const char **child_argv = malloc(sizeof(char *) * (exargs.len + 1));
     int status = 0;
     if (NULL == child_argv) {
@@ -192,47 +310,20 @@ static Janet os_execute(int32_t argc, Janet *argv) {
         child_argv[i] = janet_getcstring(exargs.items, i);
     }
     child_argv[exargs.len] = NULL;
-
-    /* Get flags */
-    int flags = os_execute_flags(argc, argv);
-
-    /* Get environment */
-    char **envp = os_execute_env(argc, argv);
-
     /* Coerce to form that works for spawn. I'm fairly confident no implementation
      * of posix_spawn would modify the argv array passed in. */
     char *const *cargv = (char *const *)child_argv;
-
-#ifdef JANET_WINDOWS
-
-    /* Use _spawn family of functions. */
-    /* Windows docs say do this before any spawns. */
-    _flushall();
-
-    if (flags & (JANET_OS_EFLAG_P | JANET_OS_EFLAG_E)) {
-        status = (int) _spawnvpe(_P_WAIT, child_argv[0], cargv, envp);
-    } else if (flags & JANET_OS_EFLAG_P) {
-        status = (int) _spawnvp(_P_WAIT, child_argv[0], cargv);
-    } else if (flags & JANET_OS_EFLAG_E) {
-        status = (int) _spawnve(_P_WAIT, child_argv[0], cargv, envp);
-    } else {
-        status = (int) _spawnv(_P_WAIT, child_argv[0], cargv);
-    }
-
-    os_execute_cleanup(envp, child_argv);
-    return janet_wrap_integer(status);
-#else
 
     /* Use posix_spawn to spawn new process */
     pid_t pid;
     if (flags & JANET_OS_EFLAG_P) {
         status = posix_spawnp(&pid,
                               child_argv[0], NULL, NULL, cargv,
-                              (flags & JANET_OS_EFLAG_E) ? envp : NULL);
+                              (flags & JANET_OS_EFLAG_E) ? envp : environ);
     } else {
         status = posix_spawn(&pid,
                              child_argv[0], NULL, NULL, cargv,
-                             (flags & JANET_OS_EFLAG_E) ? envp : NULL);
+                             (flags & JANET_OS_EFLAG_E) ? envp : environ);
     }
 
     /* Wait for child */
