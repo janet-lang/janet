@@ -290,17 +290,26 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     /* Windows docs say do this before any spawns. */
     _flushall();
 
-    if (flags & (JANET_OS_EFLAG_P | JANET_OS_EFLAG_E)) {
-        status = (int) _spawnvpe(_P_WAIT, path, cargv, envp);
+    /* Use an empty env instead when envp is NULL to be consistent with other implementation. */
+    char *empty_env[1] = {NULL};
+    char **envp1 = (NULL == envp) ? empty_env : envp;
+
+    if ((flags & JANET_OS_EFLAG_P) && (flags & JANET_OS_EFLAG_E)) {
+        status = (int) _spawnvpe(_P_WAIT, path, cargv, envp1);
     } else if (flags & JANET_OS_EFLAG_P) {
         status = (int) _spawnvp(_P_WAIT, path, cargv);
     } else if (flags & JANET_OS_EFLAG_E) {
-        status = (int) _spawnve(_P_WAIT, path, cargv, envp);
+        status = (int) _spawnve(_P_WAIT, path, cargv, envp1);
     } else {
         status = (int) _spawnv(_P_WAIT, path, cargv);
     }
-
     os_execute_cleanup(envp, NULL);
+
+    /* Check error */
+    if (-1 == status) {
+        janet_panic(strerror(errno));
+    }
+
     return janet_wrap_integer(status);
 #else
 
