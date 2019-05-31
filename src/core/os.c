@@ -274,6 +274,9 @@ static Janet os_execute(int32_t argc, Janet *argv) {
         janet_panic("expected at least 1 command line argument");
     }
 
+    /* Result */
+    int status = 0;
+
 #ifdef JANET_WINDOWS
 
     JanetBuffer *buf = os_exec_escape(exargs);
@@ -302,7 +305,6 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 #else
 
     const char **child_argv = malloc(sizeof(char *) * (exargs.len + 1));
-    int status = 0;
     if (NULL == child_argv) {
         JANET_OUT_OF_MEMORY;
     }
