@@ -352,7 +352,7 @@
   (install-rule main binpath)
   # Create a dud batch file when on windows.
   (when is-win
-    (def name (last (string/split sep src)))
+    (def name (last (string/split sep main)))
     (def bat (string "@echo off\r\njanet %~dp0\\" name "%*"))
     (def newname (string binpath sep name ".bat"))
     (add-body "install"
