@@ -128,13 +128,15 @@ copy build\janet.c dist\janet.c
 copy janet.exe dist\janet.exe
 copy LICENSE dist\LICENSE
 copy README.md dist\README.md
+
 copy janet.lib dist\janet.lib
 copy janet.exp dist\janet.exp
 copy src\include\janet.h dist\janet.h
 copy src\include\janetconf.h dist\janetconf.h
-copy tools\cook.janet dist\cook.janet
-copy tools\highlight.janet dist\highlight.janet
-copy tools\jpm dist\jpm
+
+copy auxlib\cook.janet dist\cook.janet
+
+copy auxbin\jpm dist\jpm
 copy tools\jpm.bat dist\jpm.bat
 exit /b 0
 

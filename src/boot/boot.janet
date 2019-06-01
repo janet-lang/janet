@@ -1088,6 +1088,12 @@
   [f & args]
   (file/write stdout (buffer/format @"" f ;args)))
 
+(defn pp
+  "Pretty print to stdout."
+  [x]
+  (print (buffer/format @"" (dyn :pretty-format "%p") x)))
+
+
 ###
 ###
 ### Pattern Matching
@@ -1405,11 +1411,6 @@
     (set previous current)
     (set current (macex1 current)))
   current)
-
-(defn pp
-  "Pretty print to stdout."
-  [x]
-  (print (buffer/format @"" (dyn :pretty-format "%p") x)))
 
 ###
 ###

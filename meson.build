@@ -130,7 +130,6 @@ janet_mainclient = executable('janet', core_src, core_image, init_gen, mainclien
   include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   install : true)
-janet_jpm = install_data('tools/jpm', install_dir : 'bin')
 
 # Documentation
 docs = custom_target('docs',
@@ -173,8 +172,10 @@ run_target('repl', command : [janet_mainclient])
 install_man('janet.1')
 install_headers('src/include/janet.h', 'src/include/janetconf.h', subdir: 'janet')
 janet_libs = [
-  'tools/bars.janet',
-  'tools/cook.janet',
-  'tools/highlight.janet'
+  'auxlib/cook.janet'
+]
+janet_binscripts = [
+  'auxbin/jpm'
 ]
 install_data(sources : janet_libs, install_dir : janet_path)
+install_data(sources : janet_binscripts, install_dir : 'bin')

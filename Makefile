@@ -299,10 +299,8 @@ install: $(JANET_TARGET) $(PKG_CONFIG_PATH)/janet.pc
 	cp $(JANET_STATIC_LIBRARY) $(LIBDIR)/libjanet.a
 	ln -sf $(SONAME) $(LIBDIR)/libjanet.so
 	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(LIBDIR)/$(SONAME)
-	cp tools/cook.janet $(JANET_PATH)
-	cp tools/jpm $(BINDIR)/jpm
-	cp tools/highlight.janet $(JANET_PATH)
-	cp tools/bars.janet $(JANET_PATH)
+	cp -rf auxlib/* $(JANET_PATH)
+	cp -rf auxbin/* $(BINDIR)
 	mkdir -p $(MANPATH)
 	cp janet.1 $(MANPATH)
 	-ldconfig $(LIBDIR)

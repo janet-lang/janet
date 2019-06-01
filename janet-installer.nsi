@@ -49,7 +49,7 @@ BrandingText "The Janet Programming Language"
 
 # Need to set a language.
 !insertmacro MUI_LANGUAGE "English"
- 
+
 function .onInit
     !insertmacro MULTIUSER_INIT
 functionEnd
@@ -58,28 +58,38 @@ section "Janet" BfWSection
     createDirectory "$INSTDIR\Library"
     createDirectory "$INSTDIR\C"
     createDirectory "$INSTDIR\bin"
+    createDirectory "$INSTDIR\docs"
 	setOutPath "$INSTDIR"
-    
+
+    # Bin files
     file /oname=bin\janet.exe dist\janet.exe
     file /oname=logo.ico assets\icon.ico
-    
-    file /oname=Library\cook.janet dist\cook.janet
-    
+    file /oname=bin\jpm.janet auxbin\jpm
+    file /oname=bin\jpm.bat auxbin\jpm.bat
+
+    # Modules
+    file /oname=Library\cook.janet auxlib\cook.janet
+
+    # C headers
     file /oname=C\janet.h dist\janet.h
     file /oname=C\janetconf.h dist\janetconf.h
     file /oname=C\janet.lib dist\janet.lib
     file /oname=C\janet.exp dist\janet.exp
     file /oname=C\janet.c dist\janet.c
-    
-    file /oname=bin\jpm.janet dist\jpm
-    file /oname=bin\jpm.bat dist\jpm.bat
-     
+
+    # Documentation
+    file /oname=docs/docs.html dist/doc.html
+
+    # Other
+    file README.md
+    file LICENSE
+
 	# Uninstaller - See function un.onInit and section "uninstall" for configuration
 	writeUninstaller "$INSTDIR\uninstall.exe"
- 
+
 	# Start Menu
 	createShortCut "$SMPROGRAMS\Janet.lnk" "$INSTDIR\bin\janet.exe" "" "$INSTDIR\logo.ico"
-    
+
     # HKLM (all users) vs HKCU (current user)
     WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_PATH "$INSTDIR\Library"
     WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_HEADERPATH "$INSTDIR\C"
@@ -90,11 +100,11 @@ section "Janet" BfWSection
     WriteRegExpandStr HKCU "Environment" JANET_BINPATH "$INSTDIR\bin"
 
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
-    
+
     # Update path
     ${EnvVarUpdate} $0 "PATH" "A" "HKCU" "$INSTDIR\bin" ; Append
-    ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\bin" ; Append  
- 
+    ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\bin" ; Append
+
 	# Registry information for add/remove programs
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "DisplayName" "Janet"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "UninstallString" "$INSTDIR\uninstall.exe"
@@ -114,24 +124,27 @@ section "Janet" BfWSection
 	# Set the INSTALLSIZE constant (!defined at the top of this script) so Add/Remove Programs can accurately report the size
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "EstimatedSize" 1000
 sectionEnd
- 
+
 # Uninstaller
- 
+
 function un.onInit
     !insertmacro MULTIUSER_UNINIT
 functionEnd
- 
+
 section "uninstall"
- 
+
 	# Remove Start Menu launcher
 	delete "$SMPROGRAMS\Janet.lnk"
- 
+
 	# Remove files
     delete "$INSTDIR\logo.ico"
+    delete "$INSTDIR\README.md"
+    delete "$INSTDIR\LICENSE"
     rmdir /r "$INSTDIR\Library"
     rmdir /r "$INSTDIR\bin"
     rmdir /r "$INSTDIR\C"
-    
+    rmdir /r "$INSTDIR\docs"
+
     # Remove env vars
 
     DeleteRegValue HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_PATH
@@ -144,14 +157,14 @@ section "uninstall"
 
     # Unset PATH
     ${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "$INSTDIR\bin" ; Remove
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin" ; Remove 
-    
+    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin" ; Remove
+
     # make sure windows knows about the change
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
-     
+
 	# Always delete uninstaller as the last action
 	delete "$INSTDIR\uninstall.exe"
- 
+
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet"
 sectionEnd

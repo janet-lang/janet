@@ -118,16 +118,30 @@
 (def JANET_MODPATH (or (os/getenv "JANET_MODPATH") module/*syspath*))
 (def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH") module/*headerpath*))
 (def JANET_BINPATH (or (os/getenv "JANET_BINPATH") (unless is-win "/usr/local/bin")))
-                    
+
 # Compilation settings
-(def OPTIMIZE (or (os/getenv "OPTIMIZE") 2))
-(def CC (or (os/getenv "CC") (if is-win "cl" "cc")))
-(def LD (or (os/getenv "LINKER") (if is-win "link" CC)))
-(def LDFLAGS (or (os/getenv "LFLAGS")
-                 (if is-win " /nologo"
-                   (string " -shared"
-                           (if is-mac " -undefined dynamic_lookup" "")))))
-(def CFLAGS (or (os/getenv "CFLAGS") (if is-win "" " -std=c99 -Wall -Wextra -fpic")))
+(def- OPTIMIZE (or (os/getenv "OPTIMIZE") 2))
+(def- COMPILER (or (os/getenv "COMPILER") (if is-win "cl" "cc")))
+(def- LINKER (or (os/getenv "LINKER") (if is-win "link" COMPILER)))
+(def- LFLAGS
+  (if-let [lflags (os/getenv "LFLAGS")]
+    (string/split " " lflags)
+    (if is-win ["/nologo" "/DLL"]
+      (if is-mac
+        ["-shared" "-undefined" "dynamic_lookup"]
+        ["-shared"]))))
+(def- CFLAGS
+  (if-let [cflags (os/getenv "CFLAGS")]
+    (string/split " " cflags)
+    (if is-win
+      ["/nologo"]
+      ["-std=c99" "-Wall" "-Wextra" "-fpic"])))
+
+# Some defaults
+(def default-cflags CFLAGS)
+(def default-lflags LFLAGS)
+(def default-cc COMPILER)
+(def default-ld LINKER)
 
 (defn- opt
   "Get an option, allowing overrides via dynamic bindings AND some
@@ -145,9 +159,7 @@
 (defn shell
   "Do a shell command"
   [& args]
-  (def cmd (string/join args))
-  (print cmd)
-  (def res (os/shell cmd))
+  (def res (os/execute args :p))
   (unless (zero? res)
     (error (string "command exited with status " res))))
 
@@ -164,7 +176,10 @@
 (defn copy
   "Copy a file or directory recursively from one location to another."
   [src dest]
-  (shell (if is-win "xcopy " "cp -rf ") `"` src `" "` dest (if is-win `" /y /e` `"`)))
+  (print "copying " src " to " dest "...")
+  (if is-win
+    (shell "xcopy" src dest "/y" "/e")
+    (shell "cp" "-rf" src dest)))
 
 #
 # C Compilation
@@ -223,41 +238,39 @@
 (defn- getcflags
   "Generate the c flags from the input options."
   [opts]
-  (string (opt opts :cflags CFLAGS)
-          (if is-win " /I\"" " \"-I")
-          (opt opts :headerpath JANET_HEADERPATH)
-          `"`
-          (if is-win " /O\"" " \"-O")
-          (opt opts :optimize OPTIMIZE)
-          `"`))
+  @[;(opt opts :cflags CFLAGS)
+    (string (if is-win "/I" "-I") (opt opts :headerpath JANET_HEADERPATH))
+    (string (if is-win "/O" "-O") (opt opts :optimize OPTIMIZE))])
 
 (defn- compile-c
   "Compile a C file into an object file."
   [opts src dest]
-  (def cc (opt opts :compiler CC))
+  (def cc (opt opts :compiler COMPILER))
   (def cflags (getcflags opts))
   (def defines (interpose " " (make-defines (opt opts :defines {}))))
   (rule dest [src]
+        (print "compiling " dest "...")
         (if is-win
-          (shell cc " " ;defines " /nologo /c " cflags " /Fo\"" dest `" "` src `"`)
-          (shell cc " -c '" src "' " ;defines " " cflags " -o '" dest `'`))))
+          (shell cc ;defines "/c" ;cflags (string "/Fo" dest) src)
+          (shell cc "-c" src ;defines ;cflags "-o" dest))))
 
 (defn- link-c
   "Link a number of object files together."
   [opts target & objects]
-  (def ld (opt opts :linker LD))
+  (def ld (opt opts :linker LINKER))
   (def cflags (getcflags opts))
-  (def lflags (opt opts :lflags LDFLAGS))
-  (def olist (string/join objects `" "`))
+  (def lflags (opt opts :lflags LFLAGS))
   (rule target objects
+        (print "linking " target "...")
         (if is-win
-          (shell ld " " lflags " /DLL /OUT:" target ` "` olist `" "` (opt opts :headerpath JANET_HEADERPATH) `"\\janet.lib`)
-          (shell ld " " cflags ` -o "` target `" "` olist `" ` lflags))))
+          (shell ld ;lflags (string "/OUT:" target) ;objects (string (opt opts :headerpath JANET_HEADERPATH) `\\janet.lib`))
+          (shell ld ;cflags `-o` target ;objects ;lflags))))
 
 (defn- create-buffer-c
   "Inline raw byte file as a c file."
   [source dest name]
   (rule dest [source]
+        (print "creating embedded source " dest "...")
         (def f (file/open source :r))
         (if (not f) (error (string "file " f " not found")))
         (def out (file/open dest :w))
@@ -323,12 +336,29 @@
   (each s sources
     (install-rule s path)))
 
-(defn declare-binscript
-  "Declare a janet file to be installed as an executable script."
+(defn declare-bin
+  "Declare a generic file to be installed as an executable."
   [&keys opts]
   (def main (opts :main))
   (def binpath (opt opts :binpath JANET_BINPATH))
   (install-rule main binpath))
+
+(defn declare-binscript
+  "Declare a janet file to be installed as an executable script. Creates
+  a shim on windows."
+  [&keys opts]
+  (def main (opts :main))
+  (def binpath (opt opts :binpath JANET_BINPATH))
+  (install-rule main binpath)
+  # Create a dud batch file when on windows.
+  (when is-win
+    (def name (last (string/split sep src)))
+    (def bat (string "@echo off\r\njanet %~dp0\\" name "%*"))
+    (def newname (string binpath sep name ".bat"))
+    (add-body "install"
+              (spit newname bat))
+    (add-body "uninstall"
+              (os/rm newname))))
 
 (defn declare-archive
   "Build a janet archive. This is a file that bundles together many janet

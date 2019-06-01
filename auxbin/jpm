@@ -21,7 +21,7 @@ Keys are:
   --headerpath : The directory containing janet headers. Defaults to $JANET_HEADERPATH or module/*headerpath*
   --binpath : The directory to install binaries and scripts. Defaults to $JANET_BINPATH.
   --optimize : Optimization level for natives. Defaults to $OPTIMIZE or 2.
-  --compiler : C compiler to use for natives. Defaults to $CC or cc.
+  --compiler : C compiler to use for natives. Defaults to $COMPILER or cc.
   --linker : C linker to use for linking natives. Defaults to $LINKER or cc.
   --cflags : Extra compiler flags for native modules. Defaults to $CFLAGS if set.
   --lflags : Extra linker flags for native modules. Defaults to $LFLAGS if set.
