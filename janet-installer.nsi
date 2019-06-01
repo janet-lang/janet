@@ -13,9 +13,12 @@ VIFileVersion "${PRODUCT_VERSION}"
 !define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_KEY "Software\Janet\${VERSION}"
 !define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_VALUENAME ""
 !define MULTIUSER_INSTALLMODE_INSTDIR "Janet-${VERSION}"
+
+# Includes
 !include "MultiUser.nsh"
 !include "MUI2.nsh"
 !include ".\tools\EnvVarUpdate.nsh"
+!include "LogicLib.nsh"
 
 # Basics
 Name "Janet"
@@ -26,6 +29,23 @@ OutFile "janet-v${VERSION}-windows-installer.exe"
 !define DESCRIPTION "The Janet Programming Language"
 !define HELPURL "http://janet-lang.org"
 BrandingText "The Janet Programming Language"
+
+# Macros for setting registry values
+!define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet-${VERSION}"
+!macro WriteEnv key value
+    ${If} $MultiUser.InstallMode == "AllUsers"
+        WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "${key}" "${value}"
+    ${Else}
+        WriteRegExpandStr HKCU "Environment" "${key}" "${value}"
+    ${EndIf}
+!macroend
+!macro DelEnv key
+    ${If} $MultiUser.InstallMode == "AllUsers"
+        DeleteRegValue HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "${key}"
+    ${Else}
+        DeleteRegValue HKCU "Environment" "${key}"
+    ${EndIf}
+!macroend
 
 # MUI Configuration
 !define MUI_ICON "assets\icon.ico"
@@ -78,7 +98,7 @@ section "Janet" BfWSection
     file /oname=C\janet.c dist\janet.c
 
     # Documentation
-    file /oname=docs/docs.html dist/doc.html
+    file /oname=docs\docs.html dist\doc.html
 
     # Other
     file README.md
@@ -90,14 +110,10 @@ section "Janet" BfWSection
 	# Start Menu
 	createShortCut "$SMPROGRAMS\Janet.lnk" "$INSTDIR\bin\janet.exe" "" "$INSTDIR\logo.ico"
 
-    # HKLM (all users) vs HKCU (current user)
-    WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_PATH "$INSTDIR\Library"
-    WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_HEADERPATH "$INSTDIR\C"
-    WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_BINPATH "$INSTDIR\bin"
-
-    WriteRegExpandStr HKCU "Environment" JANET_PATH "$INSTDIR\Library"
-    WriteRegExpandStr HKCU "Environment" JANET_HEADERPATH "$INSTDIR\C"
-    WriteRegExpandStr HKCU "Environment" JANET_BINPATH "$INSTDIR\bin"
+    # Set up Environment variables
+    !insertmacro WriteEnv JANET_PATH "$INSTDIR\Library"
+    !insertmacro WriteEnv JANET_HEADERPATH "$INSTDIR\C"
+    !insertmacro WriteEnv JANET_BINPATH "$INSTDIR\bin"
 
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
@@ -106,23 +122,23 @@ section "Janet" BfWSection
     ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\bin" ; Append
 
 	# Registry information for add/remove programs
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "DisplayName" "Janet"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "UninstallString" "$INSTDIR\uninstall.exe"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "QuietUninstallString" "$INSTDIR\uninstall.exe /S"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "InstallLocation" "$INSTDIR"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "DisplayIcon" "$INSTDIR\logo.ico"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "Publisher" "Janet-Lang.org"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "HelpLink" "${HELPURL}"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "URLUpdateInfo" "${HELPURL}"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "URLInfoAbout" "${HELPURL}"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "DisplayVersion" "0.6.0"
-	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "VersionMajor" 0
-	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "VersionMinor" 6
-	# There is no option for modifying or repairing the install
-	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "NoModify" 1
-	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "NoRepair" 1
-	# Set the INSTALLSIZE constant (!defined at the top of this script) so Add/Remove Programs can accurately report the size
-	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet" "EstimatedSize" 1000
+	WriteRegStr SHCTX "${UNINST_KEY}" "DisplayName" "Janet"
+	WriteRegStr SHCTX "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+	WriteRegStr SHCTX "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\logo.ico"
+	WriteRegStr SHCTX "${UNINST_KEY}" "Publisher" "Janet-Lang.org"
+	WriteRegStr SHCTX "${UNINST_KEY}" "HelpLink" "${HELPURL}"
+	WriteRegStr SHCTX "${UNINST_KEY}" "URLUpdateInfo" "${HELPURL}"
+	WriteRegStr SHCTX "${UNINST_KEY}" "URLInfoAbout" "${HELPURL}"
+	WriteRegStr SHCTX "${UNINST_KEY}" "DisplayVersion" "0.6.0"
+	WriteRegDWORD SHCTX "${UNINST_KEY}" "VersionMajor" 0
+	WriteRegDWORD SHCTX "${UNINST_KEY}" "VersionMinor" 6
+	WriteRegDWORD SHCTX "${UNINST_KEY}" "NoModify" 1
+	WriteRegDWORD SHCTX "${UNINST_KEY}" "NoRepair" 1
+	WriteRegDWORD SHCTX "${UNINST_KEY}" "EstimatedSize" 1000
+    # Add uninstall
+    WriteRegStr SHCTX "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\" /$MultiUser.InstallMode"
+    WriteRegStr SHCTX "${UNINST_KEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /$MultiUser.InstallMode /S"
+ 
 sectionEnd
 
 # Uninstaller
@@ -146,14 +162,9 @@ section "uninstall"
     rmdir /r "$INSTDIR\docs"
 
     # Remove env vars
-
-    DeleteRegValue HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_PATH
-    DeleteRegValue HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_HEADERPATH
-    DeleteRegValue HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" JANET_BINPATH
-
-    DeleteRegValue HKCU "Environment" JANET_PATH
-    DeleteRegValue HKCU "Environment" JANET_HEADERPATH
-    DeleteRegValue HKCU "Environment" JANET_BINPATH
+    !insertmacro DelEnv JANET_PATH
+    !insertmacro DelEnv JANET_HEADERPATH
+    !insertmacro DelEnv JANET_BINPATH
 
     # Unset PATH
     ${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "$INSTDIR\bin" ; Remove
@@ -166,5 +177,5 @@ section "uninstall"
 	delete "$INSTDIR\uninstall.exe"
 
 	# Remove uninstaller information from the registry
-	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Janet"
+    DeleteRegKey SHCTX "${UNINST_KEY}"
 sectionEnd
