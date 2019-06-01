@@ -65,7 +65,7 @@ section "Janet" BfWSection
     file /oname=bin\janet.exe dist\janet.exe
     file /oname=logo.ico assets\icon.ico
     file /oname=bin\jpm.janet auxbin\jpm
-    file /oname=bin\jpm.bat auxbin\jpm.bat
+    file /oname=bin\jpm.bat tools\jpm.bat
 
     # Modules
     file /oname=Library\cook.janet auxlib\cook.janet
