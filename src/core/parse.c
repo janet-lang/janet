@@ -443,7 +443,7 @@ static int longstring(JanetParser *p, JanetParseState *state, uint8_t c) {
 
 static int root(JanetParser *p, JanetParseState *state, uint8_t c);
 
-static int ampersand(JanetParser *p, JanetParseState *state, uint8_t c) {
+static int atsign(JanetParser *p, JanetParseState *state, uint8_t c) {
     (void) state;
     p->statecount--;
     switch (c) {
@@ -466,7 +466,7 @@ static int ampersand(JanetParser *p, JanetParseState *state, uint8_t c) {
             break;
     }
     pushstate(p, tokenchar, 0);
-    push_buf(p, '@'); /* Push the leading ampersand that was dropped */
+    push_buf(p, '@'); /* Push the leading at-sign that was dropped */
     return 0;
 }
 
@@ -494,7 +494,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
             pushstate(p, comment, 0);
             return 1;
         case '@':
-            pushstate(p, ampersand, 0);
+            pushstate(p, atsign, 0);
             return 1;
         case '`':
             pushstate(p, longstring, PFLAG_LONGSTRING);
