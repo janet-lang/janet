@@ -18,7 +18,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-project('janet', 'c', default_options : ['c_std=c99'])
+project('janet', 'c', default_options : ['c_std=c99'], version : '1.0.0')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -36,7 +36,7 @@ add_project_link_arguments('-rdynamic', language : 'c')
 incdir = include_directories('src/include')
 
 # Building generated sources
-xxd = executable('xxd', 'tools/xxd.c')
+xxd = executable('xxd', 'tools/xxd.c', native : true)
 gen = generator(xxd,
   output : '@BASENAME@.gen.c',
   arguments : ['@INPUT@', '@OUTPUT@', '@EXTRA_ARGS@'])
@@ -114,7 +114,8 @@ mainclient_src = [
 janet_boot = executable('janet-boot', core_src, boot_src, boot_gen,
   include_directories : incdir,
   c_args : '-DJANET_BOOTSTRAP',
-  dependencies : [m_dep, dl_dep])
+  dependencies : [m_dep, dl_dep],
+  native : true)
 
 # Build core image
 core_image = custom_target('core_image',
@@ -126,24 +127,34 @@ libjanet = shared_library('janet', core_src, core_image,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   install : true)
+
 janet_mainclient = executable('janet', core_src, core_image, init_gen, mainclient_src,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   install : true)
+
+if meson.is_cross_build()
+  janet_nativeclient = executable('janet-native', core_src, core_image, init_gen, mainclient_src,
+    include_directories : incdir,
+    dependencies : [m_dep, dl_dep],
+    native : true)
+else
+  janet_nativeclient = janet_mainclient
+endif
 
 # Documentation
 docs = custom_target('docs',
   input : ['tools/gendoc.janet'],
   output : ['doc.html'],
   capture : true,
-  command : [janet_mainclient, '@INPUT@'])
+  command : [janet_nativeclient, '@INPUT@'])
 
 # Amalgamated source
 amalg = custom_target('amalg',
   input : ['tools/amalg.janet', core_headers, core_src, core_image],
   output : ['janet.c'],
   capture : true,
-  command : [janet_mainclient, '@INPUT@'])
+  command : [janet_nativeclient, '@INPUT@'])
 
 # Amalgamated client
 janet_amalgclient = executable('janet-amalg', amalg, init_gen, mainclient_src,
@@ -162,11 +173,11 @@ test_files = [
   'test/suite6.janet'
 ]
 foreach t : test_files
-  test(t, janet_mainclient, args : files([t]), workdir : meson.current_source_dir())
+  test(t, janet_nativeclient, args : files([t]), workdir : meson.current_source_dir())
 endforeach
 
 # Repl
-run_target('repl', command : [janet_mainclient])
+run_target('repl', command : [janet_nativeclient])
 
 # Installation
 install_man('janet.1')
