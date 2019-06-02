@@ -129,10 +129,7 @@ static char **os_execute_env(int32_t argc, const Janet *argv) {
     char **envp = NULL;
     if (argc > 2) {
         JanetDictView dict = janet_getdictionary(argv, 2);
-        envp = malloc(sizeof(char *) * (dict.len + 1));
-        if (NULL == envp) {
-            JANET_OUT_OF_MEMORY;
-        }
+        envp = janet_smalloc(sizeof(char *) * (dict.len + 1));
         int32_t j = 0;
         for (int32_t i = 0; i < dict.cap; i++) {
             const JanetKV *kv = dict.kvs + i;
@@ -151,10 +148,7 @@ static char **os_execute_env(int32_t argc, const Janet *argv) {
                 }
             }
             if (skip) continue;
-            char *envitem = malloc(klen + vlen + 2);
-            if (NULL == envitem) {
-                JANET_OUT_OF_MEMORY;
-            }
+            char *envitem = janet_smalloc(klen + vlen + 2);
             memcpy(envitem, keys, klen);
             envitem[klen] = '=';
             memcpy(envitem + klen + 1, vals, vlen);
@@ -171,16 +165,16 @@ static void os_execute_cleanup(char **envp, const char **child_argv) {
 #ifdef JANET_WINDOWS
     (void) child_argv;
 #else
-    free((void *)child_argv);
+    janet_sfree((void *)child_argv);
 #endif
     if (NULL != envp) {
         char **envitem = envp;
         while (*envitem != NULL) {
-            free(*envitem);
+            janet_sfree(*envitem);
             envitem++;
         }
     }
-    free(envp);
+    janet_sfree(envp);
 }
 
 #ifdef JANET_WINDOWS
@@ -313,13 +307,9 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     return janet_wrap_integer(status);
 #else
 
-    const char **child_argv = malloc(sizeof(char *) * (exargs.len + 1));
-    if (NULL == child_argv) {
-        JANET_OUT_OF_MEMORY;
-    }
-    for (int32_t i = 0; i < exargs.len; i++) {
+    const char **child_argv = janet_smalloc(sizeof(char *) * (exargs.len + 1));
+    for (int32_t i = 0; i < exargs.len; i++)
         child_argv[i] = janet_getcstring(exargs.items, i);
-    }
     child_argv[exargs.len] = NULL;
     /* Coerce to form that works for spawn. I'm fairly confident no implementation
      * of posix_spawn would modify the argv array passed in. */
