@@ -65,4 +65,9 @@ extern JANET_THREAD_LOCAL Janet *janet_vm_roots;
 extern JANET_THREAD_LOCAL uint32_t janet_vm_root_count;
 extern JANET_THREAD_LOCAL uint32_t janet_vm_root_capacity;
 
+/* Scratch memory */
+extern JANET_THREAD_LOCAL void **janet_scratch_mem;
+extern JANET_THREAD_LOCAL size_t janet_scratch_cap;
+extern JANET_THREAD_LOCAL size_t janet_scratch_len;
+
 #endif /* JANET_STATE_H_defined */

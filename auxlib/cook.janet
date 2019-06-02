@@ -270,7 +270,7 @@
   "Inline raw byte file as a c file."
   [source dest name]
   (rule dest [source]
-        (print "creating embedded source " dest "...")
+        (print "generating " dest "...")
         (def f (file/open source :r))
         (if (not f) (error (string "file " f " not found")))
         (def out (file/open dest :w))

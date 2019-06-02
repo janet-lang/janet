@@ -33,16 +33,15 @@
 */
 
 /* This is mainly used code such as the assembler or compiler, which
- * need vector like data structures that are not garbage collected
- * and used only from C */
+ * need vector like data structures that are only garbage collected in case
+ * of an error, and normally rely on malloc/free. */
 
-#define janet_v_free(v)         (((v) != NULL) ? (free(janet_v__raw(v)), 0) : 0)
+#define janet_v_free(v)         (((v) != NULL) ? (janet_sfree(janet_v__raw(v)), 0) : 0)
 #define janet_v_push(v, x)      (janet_v__maybegrow(v, 1), (v)[janet_v__cnt(v)++] = (x))
 #define janet_v_pop(v)          (janet_v_count(v) ? janet_v__cnt(v)-- : 0)
 #define janet_v_count(v)        (((v) != NULL) ? janet_v__cnt(v) : 0)
 #define janet_v_last(v)         ((v)[janet_v__cnt(v) - 1])
 #define janet_v_empty(v)        (((v) != NULL) ? (janet_v__cnt(v) = 0) : 0)
-#define janet_v_copy(v)         (janet_v_copymem((v), sizeof(*(v))))
 #define janet_v_flatten(v)      (janet_v_flattenmem((v), sizeof(*(v))))
 
 #define janet_v__raw(v) ((int32_t *)(v) - 2)
@@ -55,7 +54,6 @@
 
 /* Actual functions defined in vector.c */
 void *janet_v_grow(void *v, int32_t increment, int32_t itemsize);
-void *janet_v_copymem(void *v, int32_t itemsize);
 void *janet_v_flattenmem(void *v, int32_t itemsize);
 
 #endif

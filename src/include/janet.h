@@ -1281,6 +1281,11 @@ JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet 
 JANET_API Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv);
 JANET_API void janet_stacktrace(JanetFiber *fiber, Janet err);
 
+/* Scratch Memory API */
+JANET_API void *janet_smalloc(size_t size);
+JANET_API void *janet_srealloc(void *mem, size_t size);
+JANET_API void janet_sfree(void *mem);
+
 /* C Library helpers */
 typedef enum {
     JANET_BINDING_NONE,

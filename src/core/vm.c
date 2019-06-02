@@ -906,6 +906,10 @@ int janet_init(void) {
     janet_vm_roots = NULL;
     janet_vm_root_count = 0;
     janet_vm_root_capacity = 0;
+    /* Scratch memory */
+    janet_scratch_mem = NULL;
+    janet_scratch_len = 0;
+    janet_scratch_cap = 0;
     /* Initialize registry */
     janet_vm_registry = janet_table(0);
     janet_gcroot(janet_wrap_table(janet_vm_registry));
