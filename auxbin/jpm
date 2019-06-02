@@ -31,8 +31,10 @@ Keys are:
 (def todo @[])
 (each arg args
   (if (string/has-prefix? "--" arg)
-    (let [[key value] (peg/match argpeg arg)]
-      (setdyn (keyword key) value))
+    (if-let [m (peg/match argpeg arg)]
+      (let [[key value] m]
+        (setdyn (keyword key) value))
+      (print "invalid argument " arg))
     (array/push todo arg)))
 
 (cook/import-rules "./project.janet")
