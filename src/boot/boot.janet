@@ -1820,8 +1820,8 @@ _fiber is bound to the suspended fiber
                 :source "repl"}))
 
 (defn- env-walk
-  [pred]
-  (def env (fiber/getenv (fiber/current)))
+  [pred &opt env]
+  (default env (fiber/getenv (fiber/current)))
   (def envs @[])
   (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
   (def ret-set @{})
@@ -1832,14 +1832,16 @@ _fiber is bound to the suspended fiber
   (sort (keys ret-set)))
 
 (defn all-bindings
-  "Get all symbols available in the current environment."
-  []
-  (env-walk symbol?))
+  "Get all symbols available in an enviroment. Defaults to the current
+  fiber's environment."
+  [&opt env]
+  (env-walk symbol? env))
 
 (defn all-dynamics
-  "Get all dynamic bindings in the current fiber."
-  []
-  (env-walk keyword?))
+  "Get all dynamic bindings in an environment. Defaults to the current
+  fiber's environment."
+  [&opt env]
+  (env-walk keyword? env))
 
 # Clean up some extra defs
 (put _env 'process/opts nil)
