@@ -89,6 +89,7 @@ section "Janet" BfWSection
 
     # Modules
     file /oname=Library\cook.janet auxlib\cook.janet
+    file /oname=Library\path.janet auxlib\path.janet
 
     # C headers
     file /oname=C\janet.h dist\janet.h

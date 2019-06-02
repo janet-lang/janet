@@ -172,7 +172,8 @@ run_target('repl', command : [janet_mainclient])
 install_man('janet.1')
 install_headers('src/include/janet.h', 'src/include/janetconf.h', subdir: 'janet')
 janet_libs = [
-  'auxlib/cook.janet'
+  'auxlib/cook.janet',
+  'auxlib/path.janet'
 ]
 janet_binscripts = [
   'auxbin/jpm'
