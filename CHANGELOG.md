@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add scratch memory C API functions for auto-released memory on next gc.
+  Scratch memory differs from normal GCed memory as it can also be freed normally
+  for better performance.
 - Add API compatibility checking for modules. This will let native modules not load
   when the host program is not of a compatible version or configuration.
 - Change signature of `os/execute` to be much more flexible.
