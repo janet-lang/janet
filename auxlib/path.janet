@@ -102,7 +102,7 @@
 
 (redef "ext" "posix/ext")
 (decl-sep "posix" "/")
-(decl-delim "posix" ";")
+(decl-delim "posix" ":")
 (decl-last-sep "posix" "/")
 (decl-basename "posix")
 (decl-parts "posix" "/")
@@ -122,7 +122,7 @@
 
 (redef "ext" "win32/ext")
 (decl-sep "win32" "\\")
-(decl-delim "win32" ":")
+(decl-delim "win32" ";")
 (decl-last-sep "win32" "\\")
 (decl-basename "win32")
 (decl-parts "win32" "\\")
