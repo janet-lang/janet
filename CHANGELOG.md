@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add optional argument to `parser/where` to set parser byte index.
+- Add optional `env` argument to `all-bindings` and `all-dynamics`.
 - Add scratch memory C API functions for auto-released memory on next gc.
   Scratch memory differs from normal GCed memory as it can also be freed normally
   for better performance.
