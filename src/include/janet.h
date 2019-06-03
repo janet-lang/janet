@@ -238,9 +238,9 @@ typedef struct {
 #include <stdio.h>
 
 /* Names of all of the types */
-extern const char *const janet_type_names[16];
-extern const char *const janet_signal_names[14];
-extern const char *const janet_status_names[16];
+JANET_API const char *const janet_type_names[16];
+JANET_API const char *const janet_signal_names[14];
+JANET_API const char *const janet_status_names[16];
 
 /* Fiber signals */
 typedef enum {
@@ -1261,9 +1261,6 @@ JANET_API int janet_verify(JanetFuncDef *def);
 /* Pretty printing */
 #define JANET_PRETTY_COLOR 1
 JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x);
-JANET_API const char *const janet_type_names[16];
-JANET_API const char *const janet_signal_names[14];
-JANET_API const char *const janet_status_names[16];
 
 /* Misc */
 JANET_API int janet_equals(Janet x, Janet y);
