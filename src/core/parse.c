@@ -801,9 +801,15 @@ static Janet cfun_parse_flush(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_parse_where(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 2);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parse_parsertype);
-    return janet_wrap_integer(p->offset);
+    if (argc > 1) {
+        int32_t offset = janet_getinteger(argv, 1);
+        p->offset = offset;
+        return argv[0];
+    } else {
+        return janet_wrap_integer(p->offset);
+    }
 }
 
 static Janet cfun_parse_state(int32_t argc, Janet *argv) {
@@ -921,10 +927,10 @@ static const JanetReg parse_cfuns[] = {
     },
     {
         "parser/where", cfun_parse_where,
-        JDOC("(parser/where parser)\n\n"
+        JDOC("(parser/where parser &opt offset)\n\n"
              "Returns the current line number and column number of the parser's location "
-             "in the byte stream as a tuple (line, column). Lines and columns are counted from "
-             "1, (the first byte is line 1, column 1) and a newline is considered ASCII 0x0A.")
+             "in the byte stream as an index, counted from 0. "
+             "If offset is supplied, then the byte offset is updated to that new value.")
     },
     {
         "parser/eof", cfun_parse_eof,
