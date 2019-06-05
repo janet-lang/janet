@@ -18,7 +18,8 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-project('janet', 'c', default_options : ['c_std=c99'], version : '1.0.0')
+project('janet', 'c', default_options : ['c_std=c99', 'b_lundef=false'],
+  version : '1.0.0')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
