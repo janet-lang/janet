@@ -27,14 +27,32 @@
 #include <math.h>
 #endif
 
-/* Initialize a table */
-JanetTable *janet_table_init(JanetTable *table, int32_t capacity) {
+#define JANET_TABLE_FLAG_STACK 0x10000
+
+static void *janet_memalloc_empty_local(int32_t count) {
+    int32_t i;
+    void *mem = janet_smalloc(count * sizeof(JanetKV));
+    JanetKV *mmem = (JanetKV *)mem;
+    for (i = 0; i < count; i++) {
+        JanetKV *kv = mmem + i;
+        kv->key = janet_wrap_nil();
+        kv->value = janet_wrap_nil();
+    }
+    return mem;
+}
+
+static JanetTable *janet_table_init_impl(JanetTable *table, int32_t capacity, int stackalloc) {
     JanetKV *data;
     capacity = janet_tablen(capacity);
+    if (stackalloc) table->gc.flags = JANET_TABLE_FLAG_STACK;
     if (capacity) {
-        data = (JanetKV *) janet_memalloc_empty(capacity);
-        if (NULL == data) {
-            JANET_OUT_OF_MEMORY;
+        if (stackalloc) {
+            data = janet_memalloc_empty_local(capacity);
+        } else {
+            data = (JanetKV *) janet_memalloc_empty(capacity);
+            if (NULL == data) {
+                JANET_OUT_OF_MEMORY;
+            }
         }
         table->data = data;
         table->capacity = capacity;
@@ -48,15 +66,20 @@ JanetTable *janet_table_init(JanetTable *table, int32_t capacity) {
     return table;
 }
 
+/* Initialize a table */
+JanetTable *janet_table_init(JanetTable *table, int32_t capacity) {
+    return janet_table_init_impl(table, capacity, 1);
+}
+
 /* Deinitialize a table */
 void janet_table_deinit(JanetTable *table) {
-    free(table->data);
+    janet_sfree(table->data);
 }
 
 /* Create a new table */
 JanetTable *janet_table(int32_t capacity) {
     JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE, sizeof(JanetTable));
-    return janet_table_init(table, capacity);
+    return janet_table_init_impl(table, capacity, 0);
 }
 
 /* Find the bucket that contains the given key. Will also return
@@ -68,9 +91,15 @@ JanetKV *janet_table_find(JanetTable *t, Janet key) {
 /* Resize the dictionary table. */
 static void janet_table_rehash(JanetTable *t, int32_t size) {
     JanetKV *olddata = t->data;
-    JanetKV *newdata = (JanetKV *) janet_memalloc_empty(size);
-    if (NULL == newdata) {
-        JANET_OUT_OF_MEMORY;
+    JanetKV *newdata;
+    int islocal = t->gc.flags & JANET_TABLE_FLAG_STACK;
+    if (islocal) {
+        newdata = (JanetKV *) janet_memalloc_empty_local(size);
+    } else {
+        newdata = (JanetKV *) janet_memalloc_empty(size);
+        if (NULL == newdata) {
+            JANET_OUT_OF_MEMORY;
+        }
     }
     int32_t i, oldcapacity;
     oldcapacity = t->capacity;
@@ -84,7 +113,11 @@ static void janet_table_rehash(JanetTable *t, int32_t size) {
             *newkv = *kv;
         }
     }
-    free(olddata);
+    if (islocal) {
+        janet_sfree(olddata);
+    } else {
+        free(olddata);
+    }
 }
 
 /* Get a value out of the table */

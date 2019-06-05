@@ -265,7 +265,7 @@ static void janet_deinit_block(JanetGCObject *mem) {
             free(((JanetArray *) mem)->data);
             break;
         case JANET_MEMORY_TABLE:
-            janet_table_deinit((JanetTable *) mem);
+            free(((JanetTable *) mem)->data);
             break;
         case JANET_MEMORY_FIBER:
             free(((JanetFiber *)mem)->data);
