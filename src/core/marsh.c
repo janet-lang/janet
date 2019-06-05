@@ -535,7 +535,6 @@ void janet_marshal(
     st.rreg = rreg;
     janet_table_init(&st.seen, 0);
     marshal_one(&st, x, flags);
-    /* Clean up. See comment in janet_unmarshal about autoreleasing memory on panics.*/
     janet_table_deinit(&st.seen);
     janet_v_free(st.seen_envs);
     janet_v_free(st.seen_defs);
@@ -543,7 +542,7 @@ void janet_marshal(
 
 typedef struct {
     jmp_buf err;
-    JanetArray lookup;
+    Janet *lookup;
     JanetTable *reg;
     JanetFuncEnv **lookup_envs;
     JanetFuncDef **lookup_defs;
@@ -849,7 +848,7 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->env = NULL;
 
     /* Push fiber to seen stack */
-    janet_array_push(&st->lookup, janet_wrap_fiber(fiber));
+    janet_v_push(st->lookup, janet_wrap_fiber(fiber));
 
     /* Set frame later so fiber can be GCed at anytime if unmarshalling fails */
     int32_t frame = 0;
@@ -1071,7 +1070,7 @@ static const uint8_t *unmarshal_one(
             memcpy(&u.bytes, data + 1, sizeof(double));
 #endif
             *out = janet_wrap_number(u.d);
-            janet_array_push(&st->lookup, *out);
+            janet_v_push(st->lookup, *out);
             return data + 9;
         }
         case LB_STRING:
@@ -1104,7 +1103,7 @@ static const uint8_t *unmarshal_one(
                 memcpy(buffer->data, data, len);
                 *out = janet_wrap_buffer(buffer);
             }
-            janet_array_push(&st->lookup, *out);
+            janet_v_push(st->lookup, *out);
             return data + len;
         }
         case LB_FIBER: {
@@ -1121,7 +1120,7 @@ static const uint8_t *unmarshal_one(
                                  def->environments_length * sizeof(JanetFuncEnv));
             func->def = def;
             *out = janet_wrap_function(func);
-            janet_array_push(&st->lookup, *out);
+            janet_v_push(st->lookup, *out);
             for (int32_t i = 0; i < def->environments_length; i++) {
                 data = unmarshal_one_env(st, data, &(func->envs[i]), flags + 1);
             }
@@ -1146,7 +1145,7 @@ static const uint8_t *unmarshal_one(
                 JanetArray *array = janet_array(len);
                 array->count = len;
                 *out = janet_wrap_array(array);
-                janet_array_push(&st->lookup, *out);
+                janet_v_push(st->lookup, *out);
                 for (int32_t i = 0; i < len; i++) {
                     data = unmarshal_one(st, data, array->data + i, flags + 1);
                 }
@@ -1159,7 +1158,7 @@ static const uint8_t *unmarshal_one(
                     data = unmarshal_one(st, data, tup + i, flags + 1);
                 }
                 *out = janet_wrap_tuple(janet_tuple_end(tup));
-                janet_array_push(&st->lookup, *out);
+                janet_v_push(st->lookup, *out);
             } else if (lead == LB_STRUCT) {
                 /* Struct */
                 JanetKV *struct_ = janet_struct_begin(len);
@@ -1170,16 +1169,16 @@ static const uint8_t *unmarshal_one(
                     janet_struct_put(struct_, key, value);
                 }
                 *out = janet_wrap_struct(janet_struct_end(struct_));
-                janet_array_push(&st->lookup, *out);
+                janet_v_push(st->lookup, *out);
             } else if (lead == LB_REFERENCE) {
-                if (len < 0 || len >= st->lookup.count)
+                if (len < 0 || len >= janet_v_count(st->lookup))
                     janet_panicf("invalid reference %d", len);
-                *out = st->lookup.data[len];
+                *out = st->lookup[len];
             } else {
                 /* Table */
                 JanetTable *t = janet_table(len);
                 *out = janet_wrap_table(t);
-                janet_array_push(&st->lookup, *out);
+                janet_v_push(st->lookup, *out);
                 if (lead == LB_TABLE_PROTO) {
                     Janet proto;
                     data = unmarshal_one(st, data, &proto, flags + 1);
@@ -1216,17 +1215,14 @@ Janet janet_unmarshal(
     st.end = bytes + len;
     st.lookup_defs = NULL;
     st.lookup_envs = NULL;
+    st.lookup = NULL;
     st.reg = reg;
-    janet_array_init(&st.lookup, 0);
     Janet out;
     const uint8_t *nextbytes = unmarshal_one(&st, bytes, &out, flags);
     if (next) *next = nextbytes;
-    /* Clean up - this should be auto released on panics, TODO. We should
-     * change the vector implementation to track allocations for auto release, and
-     * make st.lookup auto release as well, or move to heap. */
-    janet_array_deinit(&st.lookup);
     janet_v_free(st.lookup_defs);
     janet_v_free(st.lookup_envs);
+    janet_v_free(st.lookup);
     return out;
 }
 

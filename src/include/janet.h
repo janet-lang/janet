@@ -1105,8 +1105,6 @@ JANET_API void janet_debug_find(
 /* Array functions */
 JANET_API JanetArray *janet_array(int32_t capacity);
 JANET_API JanetArray *janet_array_n(const Janet *elements, int32_t n);
-JANET_API JanetArray *janet_array_init(JanetArray *array, int32_t capacity);
-JANET_API void janet_array_deinit(JanetArray *array);
 JANET_API void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth);
 JANET_API void janet_array_setcount(JanetArray *array, int32_t count);
 JANET_API void janet_array_push(JanetArray *array, Janet x);

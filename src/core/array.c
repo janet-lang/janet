@@ -28,8 +28,9 @@
 
 #include <string.h>
 
-/* Initializes an array */
-JanetArray *janet_array_init(JanetArray *array, int32_t capacity) {
+/* Creates a new array */
+JanetArray *janet_array(int32_t capacity) {
+    JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
     Janet *data = NULL;
     if (capacity > 0) {
         data = (Janet *) malloc(sizeof(Janet) * capacity);
@@ -41,16 +42,6 @@ JanetArray *janet_array_init(JanetArray *array, int32_t capacity) {
     array->capacity = capacity;
     array->data = data;
     return array;
-}
-
-void janet_array_deinit(JanetArray *array) {
-    free(array->data);
-}
-
-/* Creates a new array */
-JanetArray *janet_array(int32_t capacity) {
-    JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
-    return janet_array_init(array, capacity);
 }
 
 /* Creates a new array from n elements. */

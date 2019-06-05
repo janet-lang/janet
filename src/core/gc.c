@@ -262,7 +262,7 @@ static void janet_deinit_block(JanetGCObject *mem) {
             janet_symbol_deinit(((JanetStringHead *) mem)->data);
             break;
         case JANET_MEMORY_ARRAY:
-            janet_array_deinit((JanetArray *) mem);
+            free(((JanetArray *) mem)->data);
             break;
         case JANET_MEMORY_TABLE:
             janet_table_deinit((JanetTable *) mem);
