@@ -124,12 +124,7 @@ core_image = custom_target('core_image',
   output : 'core_image.gen.c',
   command : [janet_boot, '@OUTPUT@', 'JANET_PATH', janet_path, 'JANET_HEADERPATH', header_path])
 
-libjanet = shared_library('janet', core_src, core_image,
-  include_directories : incdir,
-  dependencies : [m_dep, dl_dep],
-  install : true)
-
-libjanet_static = static_library('janet', core_src, core_image,
+libjanet = library('janet', core_src, core_image,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   install : true)
@@ -186,10 +181,8 @@ endforeach
 run_target('repl', command : [janet_nativeclient])
 
 # For use as meson subproject (wrap)
-janet_shared_dep = declare_dependency(include_directories : incdir,
+janet_dep = declare_dependency(include_directories : incdir,
   link_with : libjanet)
-janet_static_dep = declare_dependency(include_directories : incdir,
-  link_with : libjanet_static)
 
 # Installation
 install_man('janet.1')
