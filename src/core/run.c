@@ -28,6 +28,7 @@
 /* Run a string */
 int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out) {
     JanetParser parser;
+    FILE *errf = janet_dynfile("err", stderr);
     int errflags = 0, done = 0;
     int32_t index = 0;
     Janet ret = janet_wrap_nil();
@@ -55,7 +56,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                     done = 1;
                 }
             } else {
-                fprintf(stderr, "compile error in %s: %s\n", sourcePath,
+                fprintf(errf, "compile error in %s: %s\n", sourcePath,
                         (const char *)cres.error);
                 errflags |= 0x02;
                 done = 1;
@@ -69,7 +70,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 break;
             case JANET_PARSE_ERROR:
                 errflags |= 0x04;
-                fprintf(stderr, "parse error in %s: %s\n",
+                fprintf(errf, "parse error in %s: %s\n",
                         sourcePath, janet_parser_error(&parser));
                 done = 1;
                 break;

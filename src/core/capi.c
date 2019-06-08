@@ -60,7 +60,7 @@ void janet_printf(const char *format, ...) {
     va_start(args, format);
     janet_formatb(&buffer, format, args);
     va_end(args);
-    fwrite(buffer.data, buffer.count, 1, stdout);
+    fwrite(buffer.data, buffer.count, 1, janet_dynfile("out", stdout));
     janet_buffer_deinit(&buffer);
 }
 

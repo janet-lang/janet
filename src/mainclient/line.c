@@ -32,11 +32,12 @@ Janet janet_line_getter(int32_t argc, Janet *argv) {
 }
 
 static void simpleline(JanetBuffer *buffer) {
+    FILE *in = janet_dynfile("in", stdin);
     buffer->count = 0;
     int c;
     for (;;) {
-        c = fgetc(stdin);
-        if (feof(stdin) || c < 0) {
+        c = fgetc(in);
+        if (feof(in) || c < 0) {
             break;
         }
         janet_buffer_push_u8(buffer, (uint8_t) c);
@@ -56,7 +57,9 @@ void janet_line_deinit() {
 }
 
 void janet_line_get(const char *p, JanetBuffer *buffer) {
-    fputs(p, stdout);
+    FILE *out = janet_dynfile("out", stdout);
+    fputs(p, out);
+    fflush(p, out);
     simpleline(buffer);
 }
 
@@ -450,6 +453,7 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
     prompt = p;
     buffer->count = 0;
     historyi = 0;
+    FILE *out = janet_dynfile("out", stdout);
     if (!isatty(STDIN_FILENO) || !checktermsupport()) {
         simpleline(buffer);
         return;
@@ -463,12 +467,12 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
         if (sigint_flag) {
             raise(SIGINT);
         } else {
-            fputc('\n', stdout);
+            fputc('\n', out);
         }
         return;
     }
     norawmode();
-    fputc('\n', stdout);
+    fputc('\n', out);
     janet_buffer_ensure(buffer, len + 1, 2);
     memcpy(buffer->data, buf, len);
     buffer->data[len] = '\n';

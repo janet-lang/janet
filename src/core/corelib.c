@@ -275,19 +275,21 @@ static Janet janet_core_hash(int32_t argc, Janet *argv) {
 }
 
 static Janet janet_core_getline(int32_t argc, Janet *argv) {
+    FILE *in = janet_dynfile("in", stdin);
+    FILE *out = janet_dynfile("out", stdout);
     janet_arity(argc, 0, 2);
     JanetBuffer *buf = (argc >= 2) ? janet_getbuffer(argv, 1) : janet_buffer(10);
     if (argc >= 1) {
         const char *prompt = (const char *) janet_getstring(argv, 0);
-        printf("%s", prompt);
-        fflush(stdout);
+        fprintf(out, "%s", prompt);
+        fflush(out);
     }
     {
         buf->count = 0;
         int c;
         for (;;) {
-            c = fgetc(stdin);
-            if (feof(stdin) || c < 0) {
+            c = fgetc(in);
+            if (feof(in) || c < 0) {
                 break;
             }
             janet_buffer_push_u8(buf, (uint8_t) c);
