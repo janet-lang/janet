@@ -859,12 +859,10 @@
   or signals, but the dynamic bindings will be properly
   unset, as dynamic bindings are fiber local."
   [bindings & body]
-  (with-syms [currenv env fib]
-    ~(let [,currenv (,fiber/getenv (,fiber/current))
-           ,env (,table/setproto (,table ,;bindings) ,currenv)
-           ,fib (,fiber/new (fn [] ,;body) :)]
-       (,fiber/setenv ,fib ,env)
-       (,resume ,fib))))
+  (def dyn-forms
+    (seq [i :range [0 (length bindings) 2]]
+         ~(setdyn ,(bindings i) ,(bindings (+ i 1)))))
+  ~(,resume (,fiber/new (fn [] ,;dyn-forms ,;body) :p)))
 
 (defn partial
   "Partial function application."

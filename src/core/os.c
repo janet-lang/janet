@@ -772,7 +772,7 @@ static Janet os_rename(int32_t argc, Janet *argv) {
 static const JanetReg os_cfuns[] = {
     {
         "os/exit", os_exit,
-        JDOC("(os/exit x)\n\n"
+        JDOC("(os/exit &opt x)\n\n"
              "Exit from janet with an exit code equal to x. If x is not an integer, "
              "the exit with status equal the hash of x.")
     },
@@ -792,13 +792,13 @@ static const JanetReg os_cfuns[] = {
 #ifndef JANET_REDUCED_OS
     {
         "os/dir", os_dir,
-        JDOC("(os/dir dir [, array])\n\n"
+        JDOC("(os/dir dir &opt array)\n\n"
              "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
              "with only the filename or directory name and no prefix.")
     },
     {
         "os/stat", os_stat,
-        JDOC("(os/stat path [, tab|key])\n\n"
+        JDOC("(os/stat path &opt tab|key)\n\n"
              "Gets information about a file or directory. Returns a table If the third argument is a keyword, returns "
              " only that information from stat. If the file or directory does not exist, returns nil. The keys are\n\n"
              "\t:dev - the device that the file is on\n"
@@ -817,7 +817,7 @@ static const JanetReg os_cfuns[] = {
     },
     {
         "os/touch", os_touch,
-        JDOC("(os/touch path [, actime [, modtime]])\n\n"
+        JDOC("(os/touch path &opt actime modtime)\n\n"
              "Update the access time and modification times for a file. By default, sets "
              "times to the current time.")
     },
@@ -844,7 +844,7 @@ static const JanetReg os_cfuns[] = {
     },
     {
         "os/link", os_link,
-        JDOC("(os/link oldpath newpath [, symlink])\n\n"
+        JDOC("(os/link oldpath newpath &opt symlink)\n\n"
              "Create a symlink from oldpath to newpath. The 3 optional paramater "
              "enables a hard link over a soft link. Does not work on Windows.")
     },
@@ -895,7 +895,7 @@ static const JanetReg os_cfuns[] = {
     },
     {
         "os/date", os_date,
-        JDOC("(os/date [,time])\n\n"
+        JDOC("(os/date &opt time)\n\n"
              "Returns the given time as a date struct, or the current time if no time is given. "
              "Returns a struct with following key values. Note that all numbers are 0-indexed.\n\n"
              "\t:seconds - number of seconds [0-61]\n"

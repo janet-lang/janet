@@ -346,8 +346,8 @@ static const JanetReg buffer_cfuns[] = {
     },
     {
         "buffer/new-filled", cfun_buffer_new_filled,
-        JDOC("(buffer/new-filled count [, byte=0])\n\n"
-             "Creates a new buffer of length count filled with byte. "
+        JDOC("(buffer/new-filled count &opt byte)\n\n"
+             "Creates a new buffer of length count filled with byte. By default, byte is 0. "
              "Returns the new buffer.")
     },
     {
@@ -383,7 +383,7 @@ static const JanetReg buffer_cfuns[] = {
     },
     {
         "buffer/slice", cfun_buffer_slice,
-        JDOC("(buffer/slice bytes [, start=0 [, end=(length bytes)]])\n\n"
+        JDOC("(buffer/slice bytes &opt start end)\n\n"
              "Takes a slice of a byte sequence from start to end. The range is half open, "
              "[start, end). Indexes can also be negative, indicating indexing from the end of the "
              "end of the array. By default, start is 0 and end is the length of the buffer. "
@@ -411,7 +411,7 @@ static const JanetReg buffer_cfuns[] = {
     },
     {
         "buffer/blit", cfun_buffer_blit,
-        JDOC("(buffer/blit dest src [, dest-start=0 [, src-start=0 [, src-end=-1]]])\n\n"
+        JDOC("(buffer/blit dest src & opt dest-start src-start src-end)\n\n"
              "Insert the contents of src into dest. Can optionally take indices that "
              "indicate which part of src to copy into which part of dest. Indices can be "
              "negative to index from the end of src or dest. Returns dest.")

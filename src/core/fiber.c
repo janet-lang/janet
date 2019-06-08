@@ -391,6 +391,13 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
                         }
                         fiber->env = janet_vm_fiber->env;
                         break;
+                    case 'p':
+                        if (!janet_vm_fiber->env) {
+                            janet_vm_fiber->env = janet_table(0);
+                        }
+                        fiber->env = janet_table(0);
+                        fiber->env->proto = janet_vm_fiber->env;
+                        break;
                 }
             }
         }
@@ -431,7 +438,7 @@ static Janet cfun_fiber_setmaxstack(int32_t argc, Janet *argv) {
 static const JanetReg fiber_cfuns[] = {
     {
         "fiber/new", cfun_fiber_new,
-        JDOC("(fiber/new func [,sigmask])\n\n"
+        JDOC("(fiber/new func &opt sigmask)\n\n"
              "Create a new fiber with function body func. Can optionally "
              "take a set of signals to block from the current parent fiber "
              "when called. The mask is specified as a keyword where each character "
@@ -445,8 +452,11 @@ static const JanetReg fiber_cfuns[] = {
              "\te - block error signals\n"
              "\tu - block user signals\n"
              "\ty - block yield signals\n"
-             "\t0-9 - block a specific user signal\n"
-             "\ti - inherit the environment from the current fiber (not related to signals)")
+             "\t0-9 - block a specific user signal\n\n"
+             "The sigmask argument also can take environment flags. If any mutually "
+             "exclusive flags are present, the last flag takes precedence.\n\n"
+             "\ti - inherit the environment from the current fiber\n"
+             "\tp - the environment table's prototype is the current environment table")
     },
     {
         "fiber/status", cfun_fiber_status,

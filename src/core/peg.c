@@ -1061,7 +1061,7 @@ static const JanetReg peg_cfuns[] = {
     },
     {
         "peg/match", cfun_peg_match,
-        JDOC("(peg/match peg text [,start=0])\n\n"
+        JDOC("(peg/match peg text &opt start & args)\n\n"
              "Match a Parsing Expression Grammar to a byte string and return an array of captured values. "
              "Returns nil if text does not match the language defined by peg. The syntax of PEGs are very "
              "similar to those defined by LPeg, and have similar capabilities.")

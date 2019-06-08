@@ -883,7 +883,7 @@ static const JanetReg parse_cfuns[] = {
     },
     {
         "parser/consume", cfun_parse_consume,
-        JDOC("(parser/consume parser bytes [, index])\n\n"
+        JDOC("(parser/consume parser bytes &opt index)\n\n"
              "Input bytes into the parser and parse them. Will not throw errors "
              "if there is a parse error. Starts at the byte index given by index. Returns "
              "the number of bytes read.")

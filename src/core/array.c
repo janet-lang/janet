@@ -264,7 +264,7 @@ static const JanetReg array_cfuns[] = {
     },
     {
         "array/slice", cfun_array_slice,
-        JDOC("(array/slice arrtup [, start=0 [, end=(length arrtup)]])\n\n"
+        JDOC("(array/slice arrtup &opt start end)\n\n"
              "Takes a slice of array or tuple from start to end. The range is half open, "
              "[start, end). Indexes can also be negative, indicating indexing from the end of the "
              "end of the array. By default, start is 0 and end is the length of the array. "
@@ -288,9 +288,10 @@ static const JanetReg array_cfuns[] = {
     },
     {
         "array/remove", cfun_array_remove,
-        JDOC("(array/remove arr at [, n=1])\n\n"
+        JDOC("(array/remove arr at &opt n)\n\n"
              "Remove up to n elements starting at index at in array arr. at can index from "
              "the end of the array with a negative index, and n must be a non-negative integer. "
+             "By default, n is 1. "
              "Returns the array.")
     },
     {NULL, NULL, NULL}

@@ -524,7 +524,7 @@ static Janet cfun_string_trimr(int32_t argc, Janet *argv) {
 static const JanetReg string_cfuns[] = {
     {
         "string/slice", cfun_string_slice,
-        JDOC("(string/slice bytes [,start=0 [,end=(length str)]])\n\n"
+        JDOC("(string/slice bytes &opt start end)\n\n"
              "Returns a substring from a byte sequence. The substring is from "
              "index start inclusive to index end exclusive. All indexing "
              "is from 0. 'start' and 'end' can also be negative to indicate indexing "
@@ -542,7 +542,7 @@ static const JanetReg string_cfuns[] = {
     },
     {
         "string/from-bytes", cfun_string_frombytes,
-        JDOC("(string/from-bytes &byte-vals)\n\n"
+        JDOC("(string/from-bytes & byte-vals)\n\n"
              "Creates a string from integer params with byte values. All integers "
              "will be coerced to the range of 1 byte 0-255.")
     },
@@ -618,7 +618,7 @@ static const JanetReg string_cfuns[] = {
     },
     {
         "string/join", cfun_string_join,
-        JDOC("(string/join parts [,sep])\n\n"
+        JDOC("(string/join parts &opt sep)\n\n"
              "Joins an array of strings into one string, optionally separated by "
              "a separator string sep.")
     },
@@ -630,19 +630,19 @@ static const JanetReg string_cfuns[] = {
     },
     {
         "string/trim", cfun_string_trim,
-        JDOC("(string/trim str [,set])\n\n"
+        JDOC("(string/trim str &opt set)\n\n"
              "Trim leading and trailing whitespace from a byte sequence. If the argument "
              "set is provided, consider only characters in set to be whitespace.")
     },
     {
         "string/triml", cfun_string_triml,
-        JDOC("(string/triml str [,set])\n\n"
+        JDOC("(string/triml str &opt set)\n\n"
              "Trim leading whitespace from a byte sequence. If the argument "
              "set is provided, consider only characters in set to be whitespace.")
     },
     {
         "string/trimr", cfun_string_trimr,
-        JDOC("(string/trimr str [,set])\n\n"
+        JDOC("(string/trimr str &opt set)\n\n"
              "Trim trailing whitespace from a byte sequence. If the argument "
              "set is provided, consider only characters in set to be whitespace.")
     },

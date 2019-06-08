@@ -408,7 +408,7 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/open", cfun_io_fopen,
-        JDOC("(file/open path [,mode])\n\n"
+        JDOC("(file/open path &opt mode)\n\n"
              "Open a file. path is an absolute or relative path, and "
              "mode is a set of flags indicating the mode to open the file in. "
              "mode is a keyword where each character represents a flag. If the file "
@@ -422,7 +422,7 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/fdopen", cfun_io_fdopen,
-        JDOC("(file/fdopen fd [,mode])\n\n"
+        JDOC("(file/fdopen fd &opt mode)\n\n"
              "Create a file from an fd. fd is a platform specific file descriptor, and "
              "mode is a set of flags indicating the mode to open the file in. "
              "mode is a keyword where each character represents a flag. If the file "
@@ -449,7 +449,7 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/read", cfun_io_fread,
-        JDOC("(file/read f what [,buf])\n\n"
+        JDOC("(file/read f what &opt buf)\n\n"
              "Read a number of bytes from a file into a buffer. A buffer can "
              "be provided as an optional fourth argument, otherwise a new buffer "
              "is created. 'what' can either be an integer or a keyword. Returns the "
@@ -473,7 +473,7 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/seek", cfun_io_fseek,
-        JDOC("(file/seek f [,whence [,n]])\n\n"
+        JDOC("(file/seek f &opt whence n)\n\n"
              "Jump to a relative location in the file. 'whence' must be one of\n\n"
              "\t:cur - jump relative to the current file location\n"
              "\t:set - jump relative to the beginning of the file\n"
@@ -484,7 +484,7 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/popen", cfun_io_popen,
-        JDOC("(file/popen path [,mode])\n\n"
+        JDOC("(file/popen path &opt mode)\n\n"
              "Open a file that is backed by a process. The file must be opened in either "
              "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
              "process can be read from the file. In :w mode, the stdin of the process "

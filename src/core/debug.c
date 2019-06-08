@@ -323,14 +323,14 @@ static const JanetReg debug_cfuns[] = {
     },
     {
         "debug/fbreak", cfun_debug_fbreak,
-        JDOC("(debug/fbreak fun [,pc=0])\n\n"
+        JDOC("(debug/fbreak fun &opt pc)\n\n"
              "Set a breakpoint in a given function. pc is an optional offset, which "
              "is in bytecode instructions. fun is a function value. Will throw an error "
              "if the offset is too large or negative.")
     },
     {
         "debug/unfbreak", cfun_debug_unfbreak,
-        JDOC("(debug/unfbreak fun [,pc=0])\n\n"
+        JDOC("(debug/unfbreak fun &opt pc)\n\n"
              "Unset a breakpoint set with debug/fbreak.")
     },
     {

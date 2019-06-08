@@ -314,7 +314,7 @@ static Janet janet_core_untrace(int32_t argc, Janet *argv) {
 static const JanetReg corelib_cfuns[] = {
     {
         "native", janet_core_native,
-        JDOC("(native path [,env])\n\n"
+        JDOC("(native path &opt env)\n\n"
              "Load a native module from the given path. The path "
              "must be an absolute or relative path on the file system, and is "
              "usually a .so file on Unix systems, and a .dll file on Windows. "
@@ -440,7 +440,7 @@ static const JanetReg corelib_cfuns[] = {
     },
     {
         "next", janet_core_next,
-        JDOC("(next dict key)\n\n"
+        JDOC("(next dict &opt key)\n\n"
              "Gets the next key in a struct or table. Can be used to iterate through "
              "the keys of a data structure in an unspecified order. Keys are guaranteed "
              "to be seen only once per iteration if they data structure is not mutated "
@@ -456,14 +456,14 @@ static const JanetReg corelib_cfuns[] = {
     },
     {
         "getline", janet_core_getline,
-        JDOC("(getline [, prompt=\"\" [, buffer=@\"\"]])\n\n"
+        JDOC("(getline &opt prompt buf)\n\n"
              "Reads a line of input into a buffer, including the newline character, using a prompt. Returns the modified buffer. "
              "Use this function to implement a simple interface for a terminal program.")
     },
     {
         "dyn", janet_core_dyn,
-        JDOC("(dyn key [, default=nil])\n\n"
-             "Get a dynamic binding. Returns the default value if no binding found.")
+        JDOC("(dyn key &opt default)\n\n"
+             "Get a dynamic binding. Returns the default value (or nil) if no binding found.")
     },
     {
         "setdyn", janet_core_setdyn,
