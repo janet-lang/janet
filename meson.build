@@ -180,6 +180,10 @@ endforeach
 # Repl
 run_target('repl', command : [janet_nativeclient])
 
+# For use as meson subproject (wrap)
+janet_dep = declare_dependency(include_directories : incdir,
+  link_with : libjanet)
+
 # Installation
 install_man('janet.1')
 install_headers('src/include/janet.h', 'src/include/janetconf.h', subdir: 'janet')
