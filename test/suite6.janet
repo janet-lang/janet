@@ -109,4 +109,13 @@
 (comment 1 2 3)
 (comment 1 2 3 4)
 
+# Parser clone
+(def p (parser/new))
+(assert (= 7 (parser/consume p "(1 2 3 ")) "parser 1")
+(def p2 (parser/clone p))
+(parser/consume p2 ") 1 ")
+(parser/consume p ") 1 ")
+(assert (deep= (parser/status p) (parser/status p2)) "parser 2")
+(assert (deep= (parser/state p) (parser/state p2)) "parser 3")
+
 (end-suite)

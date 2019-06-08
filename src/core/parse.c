@@ -634,6 +634,51 @@ void janet_parser_deinit(JanetParser *parser) {
     free(parser->states);
 }
 
+void janet_parser_clone(JanetParser *src, JanetParser *dest) {
+    /* Misc fields */
+    dest->flag = src->flag;
+    dest->pending = src->pending;
+    dest->lookback = src->lookback;
+    dest->offset = src->offset;
+    dest->error = src->error;
+
+    /* Keep counts */
+    dest->argcount = src->argcount;
+    dest->bufcount = src->bufcount;
+    dest->statecount = src->statecount;
+
+    /* Capacities are equal to counts */
+    dest->bufcap = dest->bufcount;
+    dest->statecap = dest->statecount;
+    dest->argcap = dest->argcount;
+
+    /* Deep cloned fields */
+    dest->args = NULL;
+    dest->states = NULL;
+    dest->buf = NULL;
+    if (dest->bufcap) {
+        dest->buf = malloc(dest->bufcap);
+        if (!dest->buf) goto nomem;
+    }
+    if (dest->argcap) {
+        dest->args = malloc(sizeof(Janet) * dest->argcap);
+        if (!dest->args) goto nomem;
+    }
+    if (dest->statecap) {
+        dest->states = malloc(sizeof(JanetParseState) * dest->statecap);
+        if (!dest->states) goto nomem;
+    }
+
+    memcpy(dest->buf, src->buf, dest->bufcap);
+    memcpy(dest->args, src->args, dest->argcap * sizeof(Janet));
+    memcpy(dest->states, src->states, dest->statecap * sizeof(JanetParseState));
+
+    return;
+
+nomem:
+    JANET_OUT_OF_MEMORY;
+}
+
 int janet_parser_has_more(JanetParser *parser) {
     return !!parser->pending;
 }
@@ -841,9 +886,19 @@ static Janet cfun_parse_state(int32_t argc, Janet *argv) {
     return janet_wrap_string(str);
 }
 
+static Janet cfun_parse_clone(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetParser *src = janet_getabstract(argv, 0, &janet_parse_parsertype);
+    JanetParser *dest = janet_abstract(&janet_parse_parsertype, sizeof(JanetParser));
+    janet_parser_clone(src, dest);
+    return janet_wrap_abstract(dest);
+}
+
 static const JanetMethod parser_methods[] = {
     {"byte", cfun_parse_byte},
+    {"clone", cfun_parse_clone},
     {"consume", cfun_parse_consume},
+    {"eof", cfun_parse_eof},
     {"error", cfun_parse_error},
     {"flush", cfun_parse_flush},
     {"has-more", cfun_parse_has_more},
@@ -852,7 +907,6 @@ static const JanetMethod parser_methods[] = {
     {"state", cfun_parse_state},
     {"status", cfun_parse_status},
     {"where", cfun_parse_where},
-    {"eof", cfun_parse_eof},
     {NULL, NULL}
 };
 
@@ -867,7 +921,14 @@ static const JanetReg parse_cfuns[] = {
         "parser/new", cfun_parse_parser,
         JDOC("(parser/new)\n\n"
              "Creates and returns a new parser object. Parsers are state machines "
-             "that can receive bytes, and generate a stream of janet values. ")
+             "that can receive bytes, and generate a stream of janet values.")
+    },
+    {
+        "parser/clone", cfun_parse_clone,
+        JDOC("(parser/clone p)\n\n"
+             "Creates a deep clone of a parser that is identical to the input parser. "
+             "This cloned parser can be used to continue parsing from a good checkpoint "
+             "if parsing later fails. Returns a new parser.")
     },
     {
         "parser/has-more", cfun_parse_has_more,
