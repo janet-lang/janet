@@ -8,7 +8,7 @@
 ###
 
 (def defn :macro
-  "(def name & more)\n\nDefine a function. Equivalent to (def name (fn name [args] ...))."
+  "(defn name & more)\n\nDefine a function. Equivalent to (def name (fn name [args] ...))."
   (fn defn [name & more]
     (def len (length more))
     (def modifiers @[])
