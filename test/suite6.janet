@@ -118,4 +118,11 @@
 (assert (deep= (parser/status p) (parser/status p2)) "parser 2")
 (assert (deep= (parser/state p) (parser/state p2)) "parser 3")
 
+# String check-set
+(assert (string/check-set "abc" "a") "string/check-set 1")
+(assert (not (string/check-set "abc" "z")) "string/check-set 2")
+(assert (string/check-set "abc" "abc") "string/check-set 3")
+(assert (not (string/check-set "abc" "")) "string/check-set 4")
+(assert (not (string/check-set "" "aabc")) "string/check-set 5")
+
 (end-suite)
