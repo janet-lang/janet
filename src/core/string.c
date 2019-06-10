@@ -393,25 +393,20 @@ static Janet cfun_string_split(int32_t argc, Janet *argv) {
 
 static Janet cfun_string_checkset(int32_t argc, Janet *argv) {
     uint32_t bitset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    janet_arity(argc, 2, 3);
+    janet_fixarity(argc, 2);
     JanetByteView set = janet_getbytes(argv, 0);
     JanetByteView str = janet_getbytes(argv, 1);
     /* Populate set */
     for (int32_t i = 0; i < set.len; i++) {
         int index = set.bytes[i] >> 5;
-        uint32_t mask = 1 << (set.bytes[i] & 7);
+        uint32_t mask = 1 << (set.bytes[i] & 0x1F);
         bitset[index] |= mask;
     }
-    if (argc == 3) {
-        if (janet_getboolean(argv, 2)) {
-            for (int i = 0; i < 8; i++)
-                bitset[i] = ~bitset[i];
-        }
-    }
     /* Check set */
+    if (str.len == 0) return janet_wrap_false();
     for (int32_t i = 0; i < str.len; i++) {
         int index = str.bytes[i] >> 5;
-        uint32_t mask = 1 << (str.bytes[i] & 7);
+        uint32_t mask = 1 << (str.bytes[i] & 0x1F);
         if (!(bitset[index] & mask)) {
             return janet_wrap_false();
         }

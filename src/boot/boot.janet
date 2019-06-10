@@ -1130,8 +1130,8 @@
         (put seen pattern true)
         ~(if (= nil (def ,pattern ,expr)) ,sentinel ,(onmatch))))
 
-    (tuple? pattern)
-    (if (and (= (pattern 0) 'quote) (symbol? (pattern 1)))
+    (and (tuple? pattern) (= :parens (tuple/type pattern)))
+    (if (and (= (pattern 0) '@) (symbol? (pattern 1)))
       # Unification with external values
       ~(if (= ,(pattern 1) ,expr) ,(onmatch) ,sentinel)
       (match-1
@@ -1139,7 +1139,7 @@
         (fn []
           ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen))
 
-    (array? pattern)
+    (indexed? pattern)
     (do
       (def len (length pattern))
       (var i -1)
