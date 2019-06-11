@@ -80,7 +80,7 @@
     (defn noprompt [_] "")
     (defn getprompt [p]
       (def offset (parser/where p))
-      (string "janet:" offset ":" (parser/state p) "> "))
+      (string "janet:" offset ":" (parser/state p :delimiters) "> "))
     (def prompter (if *quiet* noprompt getprompt))
     (defn getstdin [prompt buf]
       (file/write stdout prompt)
