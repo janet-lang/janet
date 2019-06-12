@@ -102,29 +102,7 @@ static Janet os_getenv(int32_t argc, Janet *argv) {
 #else
 /* Provide full os functionality */
 
-#define JANET_OS_EFLAG_E 0x1
-#define JANET_OS_EFLAG_P 0x2
-
-/* Get flags */
-/* Unfortunately, execvpe is linux (glibc) only. Instead, we can switch
- * between the more portable execve, execvp, or execv.
- * Use the :e or :p flag for execve and execvp respectively. Eventually
- * :ep or :pe could be execvpe. */
-static int os_execute_flags(int32_t argc, const Janet *argv) {
-    if (argc < 2) return 0;
-    int flags = 0;
-    if (argc > 1) {
-        const uint8_t *f = janet_getkeyword(argv, 1);
-        int32_t len = janet_string_length(f);
-        for (int32_t i = 0; i < len; i++) {
-            if (f[i] == 'e') flags |= JANET_OS_EFLAG_E;
-            if (f[i] == 'p') flags |= JANET_OS_EFLAG_P;
-        }
-    }
-    return flags;
-}
-
-/* Get env for os_execute (execv family of functions, as well as CreateProcess) */
+/* Get env for os_execute */
 static char **os_execute_env(int32_t argc, const Janet *argv) {
     char **envp = NULL;
     if (argc > 2) {
@@ -257,7 +235,10 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 3);
 
     /* Get flags */
-    int flags = os_execute_flags(argc, argv);
+    uint64_t flags = 0;
+    if (argc > 1) {
+        flags = janet_getflags(argv, 1, "ep");
+    }
 
     /* Get environment */
     char **envp = os_execute_env(argc, argv);
@@ -288,11 +269,11 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     char *empty_env[1] = {NULL};
     char **envp1 = (NULL == envp) ? empty_env : envp;
 
-    if ((flags & JANET_OS_EFLAG_P) && (flags & JANET_OS_EFLAG_E)) {
+    if (janet_flag_at(flags, 1) && janet_flag_at(flags, 0)) {
         status = (int) _spawnvpe(_P_WAIT, path, cargv, envp1);
-    } else if (flags & JANET_OS_EFLAG_P) {
+    } else if (janet_flag_at(flags, 1)) {
         status = (int) _spawnvp(_P_WAIT, path, cargv);
-    } else if (flags & JANET_OS_EFLAG_E) {
+    } else if (janet_flag_at(flags, 0)) {
         status = (int) _spawnve(_P_WAIT, path, cargv, envp1);
     } else {
         status = (int) _spawnv(_P_WAIT, path, cargv);
@@ -317,14 +298,14 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 
     /* Use posix_spawn to spawn new process */
     pid_t pid;
-    if (flags & JANET_OS_EFLAG_P) {
+    if (janet_flag_at(flags, 1)) {
         status = posix_spawnp(&pid,
                               child_argv[0], NULL, NULL, cargv,
-                              (flags & JANET_OS_EFLAG_E) ? envp : environ);
+                              janet_flag_at(flags, 0) ? envp : environ);
     } else {
         status = posix_spawn(&pid,
                              child_argv[0], NULL, NULL, cargv,
-                             (flags & JANET_OS_EFLAG_E) ? envp : environ);
+                             janet_flag_at(flags, 0) ? envp : environ);
     }
 
     /* Wait for child */

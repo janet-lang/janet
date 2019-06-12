@@ -250,6 +250,24 @@ void janet_setdyn(const char *name, Janet value) {
     janet_table_put(janet_vm_fiber->env, janet_ckeywordv(name), value);
 }
 
+uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
+    uint64_t ret = 0;
+    const uint8_t *keyw = janet_getkeyword(argv, n);
+    int32_t klen = janet_string_length(keyw);
+    int32_t flen = strlen(flags);
+    if (flen > 64) {
+        flen = 64;
+    }
+    for (int32_t j = 0; j < klen; j++) {
+        for (int32_t i = 0; i < flen; i++) {
+            if (((uint8_t) flags[i]) == keyw[j]) {
+                ret |= 1ULL << i;
+            }
+        }
+    }
+    return ret;
+}
+
 /* Some definitions for function-like macros */
 
 JANET_API JanetStructHead *(janet_struct_head)(const JanetKV *st) {

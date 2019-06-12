@@ -1270,6 +1270,8 @@ JANET_API Janet janet_getindex(Janet ds, int32_t index);
 JANET_API int32_t janet_length(Janet x);
 JANET_API void janet_put(Janet ds, Janet key, Janet value);
 JANET_API void janet_putindex(Janet ds, int32_t index, Janet value);
+JANET_API uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags);
+#define janet_flag_at(F, I) ((F) & ((1ULL) << (I)))
 
 /* VM functions */
 JANET_API int janet_init(void);
