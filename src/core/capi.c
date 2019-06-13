@@ -262,8 +262,12 @@ uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
         for (int32_t i = 0; i < flen; i++) {
             if (((uint8_t) flags[i]) == keyw[j]) {
                 ret |= 1ULL << i;
+                goto found;
             }
         }
+        janet_panicf("unexpected flag %c, expected one of \"%s\"", (char) keyw[j], flags);
+found:
+        ;
     }
     return ret;
 }

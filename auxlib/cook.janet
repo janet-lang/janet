@@ -248,7 +248,8 @@
   (def cc (opt opts :compiler COMPILER))
   (def cflags (getcflags opts))
   (def defines (interpose " " (make-defines (opt opts :defines {}))))
-  (rule dest [src]
+  (def headers (or (opts :headers) []))
+  (rule dest [src ;headers]
         (print "compiling " dest "...")
         (if is-win
           (shell cc ;defines "/c" ;cflags (string "/Fo" dest) src)
