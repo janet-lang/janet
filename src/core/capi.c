@@ -266,7 +266,7 @@ uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
             }
         }
         janet_panicf("unexpected flag %c, expected one of \"%s\"", (char) keyw[j], flags);
-found:
+    found:
         ;
     }
     return ret;
