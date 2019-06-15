@@ -1788,7 +1788,7 @@
   (default chunks (fn [buf p] (getline (string "repl:"
                                                (parser/where p)
                                                ":"
-                                               (parser/state p) "> ")
+                                               (parser/state p :delimiters) "> ")
                                        buf)))
   (default onsignal (fn [f x]
                       (case (fiber/status f)
@@ -1806,7 +1806,7 @@ _fiber is bound to the suspended fiber
 
 ```)
                           (repl (fn [buf p]
-                                  (def status (parser/state p))
+                                  (def status (parser/state p :delimiters))
                                   (def c (parser/where p))
                                   (def prompt (string "debug[" level "]:" c ":" status "> "))
                                   (getline prompt buf))

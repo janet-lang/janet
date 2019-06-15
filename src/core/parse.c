@@ -144,6 +144,8 @@ DEF_PARSER_STACK(_pushstate, JanetParseState, states, statecount, statecap)
 #define PFLAG_LONGSTRING 0x4000
 #define PFLAG_READERMAC 0x8000
 #define PFLAG_ATSYM 0x10000
+#define PFLAG_COMMENT 0x20000
+#define PFLAG_TOKEN 0x40000
 
 static void pushstate(JanetParser *p, Consumer consumer, int flags) {
     JanetParseState s;
@@ -357,7 +359,12 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
 
 static int comment(JanetParser *p, JanetParseState *state, uint8_t c) {
     (void) state;
-    if (c == '\n') p->statecount--;
+    if (c == '\n') {
+        p->statecount--;
+        p->bufcount = 0;
+    } else {
+        push_buf(p, c);
+    }
     return 1;
 }
 
@@ -465,7 +472,7 @@ static int atsign(JanetParser *p, JanetParseState *state, uint8_t c) {
         default:
             break;
     }
-    pushstate(p, tokenchar, 0);
+    pushstate(p, tokenchar, PFLAG_TOKEN);
     push_buf(p, '@'); /* Push the leading at-sign that was dropped */
     return 0;
 }
@@ -479,7 +486,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
                 p->error = "unexpected character";
                 return 1;
             }
-            pushstate(p, tokenchar, 0);
+            pushstate(p, tokenchar, PFLAG_TOKEN);
             return 0;
         case '\'':
         case ',':
@@ -491,10 +498,10 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
             pushstate(p, stringchar, PFLAG_STRING);
             return 1;
         case '#':
-            pushstate(p, comment, 0);
+            pushstate(p, comment, PFLAG_COMMENT);
             return 1;
         case '@':
-            pushstate(p, atsign, 0);
+            pushstate(p, atsign, PFLAG_ATSYM);
             return 1;
         case '`':
             pushstate(p, longstring, PFLAG_LONGSTRING);
@@ -634,7 +641,7 @@ void janet_parser_deinit(JanetParser *parser) {
     free(parser->states);
 }
 
-void janet_parser_clone(JanetParser *src, JanetParser *dest) {
+void janet_parser_clone(const JanetParser *src, JanetParser *dest) {
     /* Misc fields */
     dest->flag = src->flag;
     dest->pending = src->pending;
@@ -857,33 +864,153 @@ static Janet cfun_parse_where(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet cfun_parse_state(int32_t argc, Janet *argv) {
+static Janet janet_wrap_parse_state(JanetParseState *s, Janet *args,
+                                    uint8_t *buff, uint32_t bufcount) {
+    JanetTable *state = janet_table(0);
+    const uint8_t *buffer;
+    int add_buffer = 0;
+    const char *type = NULL;
+
+    if (s->flags & PFLAG_CONTAINER) {
+        JanetArray *container_args = janet_array(s->argn);
+        container_args->count = s->argn;
+        memcpy(container_args->data, args, sizeof(args[0])*s->argn);
+        janet_table_put(state, janet_ckeywordv("args"),
+                        janet_wrap_array(container_args));
+    }
+
+    if (s->flags & PFLAG_PARENS || s->flags & PFLAG_SQRBRACKETS) {
+        if (s->flags & PFLAG_ATSYM) {
+            type = "array";
+        } else {
+            type = "tuple";
+        }
+    } else if (s->flags & PFLAG_CURLYBRACKETS) {
+        if (s->flags & PFLAG_ATSYM) {
+            type = "table";
+        } else {
+            type = "struct";
+        }
+    } else if (s->flags & PFLAG_STRING || s->flags & PFLAG_LONGSTRING) {
+        if (s->flags & PFLAG_BUFFER) {
+            type = "buffer";
+        } else {
+            type = "string";
+        }
+        add_buffer = 1;
+    } else if (s->flags & PFLAG_COMMENT) {
+        type = "comment";
+        add_buffer = 1;
+    } else if (s->flags & PFLAG_TOKEN) {
+        type = "token";
+        add_buffer = 1;
+    } else if (s->flags & PFLAG_ATSYM) {
+        type = "at";
+    } else if (s->flags & PFLAG_READERMAC) {
+        int c = s->flags & 0xFF;
+        type = (c == '\'') ? "quote" :
+               (c == ',') ? "unquote" :
+               (c == ';') ? "splice" :
+               (c == '~') ? "quasiquote" : "<reader>";
+    } else {
+        type = "root";
+    }
+
+    if (type) {
+        janet_table_put(state, janet_ckeywordv("type"),
+                        janet_ckeywordv(type));
+    }
+
+    if (add_buffer) {
+        buffer = janet_string(buff, bufcount);
+        janet_table_put(state, janet_ckeywordv("buffer"), janet_wrap_string(buffer));
+    }
+
+    janet_table_put(state, janet_ckeywordv("start"),
+                    janet_wrap_integer(s->start));
+    return janet_wrap_table(state);
+}
+
+struct ParserStateGetter {
+    const char *name;
+    Janet(*fn)(const JanetParser *p);
+};
+
+static Janet parser_state_delimiters(const JanetParser *_p) {
+    JanetParser *clone = janet_abstract(&janet_parse_parsertype, sizeof(JanetParser));
+    janet_parser_clone(_p, clone);
     size_t i;
     const uint8_t *str;
     size_t oldcount;
-    janet_fixarity(argc, 1);
-    JanetParser *p = janet_getabstract(argv, 0, &janet_parse_parsertype);
-    oldcount = p->bufcount;
-    for (i = 0; i < p->statecount; i++) {
-        JanetParseState *s = p->states + i;
+    oldcount = clone->bufcount;
+    for (i = 0; i < clone->statecount; i++) {
+        JanetParseState *s = clone->states + i;
         if (s->flags & PFLAG_PARENS) {
-            push_buf(p, '(');
+            push_buf(clone, '(');
         } else if (s->flags & PFLAG_SQRBRACKETS) {
-            push_buf(p, '[');
+            push_buf(clone, '[');
         } else if (s->flags & PFLAG_CURLYBRACKETS) {
-            push_buf(p, '{');
+            push_buf(clone, '{');
         } else if (s->flags & PFLAG_STRING) {
-            push_buf(p, '"');
+            push_buf(clone, '"');
         } else if (s->flags & PFLAG_LONGSTRING) {
             int32_t i;
             for (i = 0; i < s->argn; i++) {
-                push_buf(p, '`');
+                push_buf(clone, '`');
             }
         }
     }
-    str = janet_string(p->buf + oldcount, (int32_t)(p->bufcount - oldcount));
-    p->bufcount = oldcount;
+    str = janet_string(clone->buf + oldcount, (int32_t)(clone->bufcount - oldcount));
+    clone->bufcount = oldcount;
     return janet_wrap_string(str);
+}
+
+static Janet parser_state_frames(const JanetParser *p) {
+    size_t i;
+    JanetArray *states = janet_array(p->statecount);
+    states->count = p->statecount;
+    uint8_t *buf = p->buf;
+    Janet *args = p->args;
+    for (i = p->statecount; i > 0; --i) {
+        JanetParseState *s = p->states + (i - 1);
+        states->data[i - 1] = janet_wrap_parse_state(s, args, buf, p->bufcount);
+        args -= s->argn;
+    }
+    return janet_wrap_array(states);
+}
+
+static const struct ParserStateGetter parser_state_getters[] = {
+    {"frames", parser_state_frames},
+    {"delimiters", parser_state_delimiters},
+    {NULL, NULL}
+};
+
+static Janet cfun_parse_state(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    const uint8_t *key = NULL;
+    JanetParser *p = janet_getabstract(argv, 0, &janet_parse_parsertype);
+    if (argc == 2) {
+        key = janet_getkeyword(argv, 1);
+    }
+
+    if (key) {
+        /* Get one result */
+        for (const struct ParserStateGetter *sg = parser_state_getters;
+                sg->name != NULL; sg++) {
+            if (janet_cstrcmp(key, sg->name)) continue;
+            return sg->fn(p);
+        }
+        janet_panicf("unexpected keyword %v", janet_wrap_keyword(key));
+        return janet_wrap_nil();
+    } else {
+        /* Put results in table */
+        JanetTable *tab = janet_table(0);
+        for (const struct ParserStateGetter *sg = parser_state_getters;
+                sg->name != NULL; sg++) {
+            janet_table_put(tab, janet_ckeywordv(sg->name), sg->fn(p));
+        }
+        return janet_wrap_table(tab);
+    }
 }
 
 static Janet cfun_parse_clone(int32_t argc, Janet *argv) {
@@ -980,11 +1107,15 @@ static const JanetReg parse_cfuns[] = {
     },
     {
         "parser/state", cfun_parse_state,
-        JDOC("(parser/state parser)\n\n"
-             "Returns a string representation of the internal state of the parser. "
-             "Each byte in the string represents a nested data structure. For example, "
+        JDOC("(parser/state parser &opt key)\n\n"
+             "Returns a representation of the internal state of the parser. If a key is passed, "
+             "only that information about the state is returned. Allowed keys are:\n\n"
+             "\t:delimiters - Each byte in the string represents a nested data structure. For example, "
              "if the parser state is '([\"', then the parser is in the middle of parsing a "
-             "string inside of square brackets inside parentheses. Can be used to augment a REPL prompt.")
+             "string inside of square brackets inside parentheses. Can be used to augment a REPL prompt."
+             "\t:frames - Each table in the array represents a 'frame' in the parser state. Frames "
+             "contain information about the start of the expression being parsed as well as the "
+             "type of that expression and some type-specific information.")
     },
     {
         "parser/where", cfun_parse_where,
