@@ -35,6 +35,10 @@ static int fixarity1(JanetFopts opts, JanetSlot *args) {
     (void) opts;
     return janet_v_count(args) == 1;
 }
+static int maxarity1(JanetFopts opts, JanetSlot *args) {
+    (void) opts;
+    return janet_v_count(args) <= 1;
+}
 static int minarity2(JanetFopts opts, JanetSlot *args) {
     (void) opts;
     return janet_v_count(args) >= 2;
@@ -115,7 +119,11 @@ static JanetSlot do_length(JanetFopts opts, JanetSlot *args) {
     return genericSS(opts, JOP_LENGTH, args[0]);
 }
 static JanetSlot do_yield(JanetFopts opts, JanetSlot *args) {
-    return genericSSI(opts, JOP_SIGNAL, args[0], 3);
+    if (janet_v_count(args) == 0) {
+        return genericSSI(opts, JOP_SIGNAL, janetc_cslot(janet_wrap_nil()), 3);
+    } else {
+        return genericSSI(opts, JOP_SIGNAL, args[0], 3);
+    }
 }
 static JanetSlot do_resume(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_RESUME, janet_wrap_nil());
@@ -262,7 +270,7 @@ static const JanetFunOptimizer optimizers[] = {
     {fixarity0, do_debug},
     {fixarity1, do_error},
     {minarity2, do_apply},
-    {fixarity1, do_yield},
+    {maxarity1, do_yield},
     {fixarity2, do_resume},
     {fixarity2, do_get},
     {fixarity3, do_put},
