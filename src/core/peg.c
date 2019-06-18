@@ -994,10 +994,129 @@ static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
     for (uint32_t j = 0; j < peg->num_constants; j++)
         constants[j] = janet_unmarshal_janet(ctx);
 
-    /* TODO - verify peg bytecode. This is basically iterating
-     * the bytecode and making sure instructions don't reference
-     * memory outside the bytecode array. Otherwise, all programs
-     * should be valid.*/
+    /* After here, no panics except for the bad: label. */
+
+    /* Keep track at each index if an instruction was
+     * reference (0x01) or is in a main bytecode position
+     * (0x02). This lets us do a linear scan and not
+     * need to a depth first traversal. It is stricter
+     * than a dfs by not allowing certain kinds of unused
+     * bytecode. */
+    uint32_t blen = peg->bytecode_len;
+    uint32_t clen = peg->num_constants;
+    uint8_t *op_flags = calloc(1, blen);
+    if (NULL == op_flags) {
+        JANET_OUT_OF_MEMORY;
+    }
+
+    /* verify peg bytecode */
+    uint32_t i = 0;
+    while (i < blen) {
+        uint32_t instr = bytecode[i];
+        uint32_t *rule = bytecode + i;
+        op_flags[i] |= 0x02;
+        switch (instr & 0x1F) {
+            case RULE_LITERAL:
+                i += 2 + ((rule[1] + 3) >> 2);
+                break;
+            case RULE_NCHAR:
+            case RULE_NOTNCHAR:
+            case RULE_RANGE:
+            case RULE_POSITION:
+                /* [1 word] */
+                i += 2;
+                break;
+            case RULE_SET:
+                /* [8 words] */
+                i += 9;
+                break;
+            case RULE_LOOK:
+                /* [offset, rule] */
+                if (rule[2] >= blen) goto bad;
+                op_flags[rule[2]] |= 0x1;
+                i += 3;
+                break;
+            case RULE_CHOICE:
+            case RULE_SEQUENCE:
+                /* [len, rules...] */
+            {
+                uint32_t len = rule[1];
+                for (uint32_t j = 0; j < len; j++) {
+                    if (rule[2 + j] >= blen) goto bad;
+                    op_flags[rule[2 + j]] |= 0x1;
+                }
+                i += 2 + len;
+            }
+            break;
+            case RULE_IF:
+            case RULE_IFNOT:
+                /* [rule_a, rule_b (b if not a)] */
+                if (rule[1] >= blen) goto bad;
+                if (rule[2] >= blen) goto bad;
+                op_flags[rule[1]] |= 0x01;
+                op_flags[rule[2]] |= 0x01;
+                i += 3;
+                break;
+            case RULE_BETWEEN:
+                /* [lo, hi, rule] */
+                if (rule[3] >= blen) goto bad;
+                op_flags[rule[3]] |= 0x01;
+                i += 4;
+                break;
+            case RULE_ARGUMENT:
+            case RULE_GETTAG:
+                /* [searchtag, tag] */
+                i += 3;
+                break;
+            case RULE_CONSTANT:
+                /* [constant, tag] */
+                if (rule[1] >= clen) goto bad;
+                i += 3;
+                break;
+            case RULE_ACCUMULATE:
+            case RULE_GROUP:
+            case RULE_CAPTURE:
+                /* [rule, tag] */
+                if (rule[1] >= blen) goto bad;
+                op_flags[rule[1]] |= 0x01;
+                i += 3;
+                break;
+            case RULE_REPLACE:
+            case RULE_MATCHTIME:
+                /* [rule, constant, tag] */
+                if (rule[1] >= blen) goto bad;
+                if (rule[2] >= clen) goto bad;
+                op_flags[rule[1]] |= 0x01;
+                i += 2;
+                break;
+            case RULE_ERROR:
+            case RULE_DROP:
+            case RULE_NOT:
+                /* [rule] */
+                if (rule[1] >= blen) goto bad;
+                op_flags[rule[1]] |= 0x01;
+                i += 2;
+                break;
+            default:
+                goto bad;
+        }
+    }
+
+    /* last instruction cannot overflow */
+    if (i != blen) goto bad;
+
+    /* Make sure all referenced instructions are actually
+     * in instruction positions. */
+    for (i = 0; i < blen; i++)
+        if (op_flags[i] == 0x01) goto bad;
+
+    /* Good return */
+    free(op_flags);
+    return;
+
+bad:
+    free(op_flags);
+    janet_panic("invalid peg bytecode");
 }
 
 static const JanetAbstractType peg_type = {
