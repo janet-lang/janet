@@ -254,7 +254,7 @@ uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
     uint64_t ret = 0;
     const uint8_t *keyw = janet_getkeyword(argv, n);
     int32_t klen = janet_string_length(keyw);
-    int32_t flen = strlen(flags);
+    int32_t flen = (int32_t) strlen(flags);
     if (flen > 64) {
         flen = 64;
     }

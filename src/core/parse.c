@@ -966,15 +966,15 @@ static Janet parser_state_delimiters(const JanetParser *_p) {
 }
 
 static Janet parser_state_frames(const JanetParser *p) {
-    size_t i;
-    JanetArray *states = janet_array(p->statecount);
-    states->count = p->statecount;
+    int32_t count = (int32_t) p->statecount;
+    JanetArray *states = janet_array(count);
+    states->count = count;
     uint8_t *buf = p->buf;
     Janet *args = p->args;
-    for (i = p->statecount; i > 0; --i) {
-        JanetParseState *s = p->states + (i - 1);
-        states->data[i - 1] = janet_wrap_parse_state(s, args, buf, p->bufcount);
-        args -= s->argn;
+    for (int32_t i = count - 1; i >= 0; --i) {
+        JanetParseState *s = p->states + i;
+        states->data[i] = janet_wrap_parse_state(s, args, buf, p->bufcount);
+        args -= (ptrdiff_t) s->argn;
     }
     return janet_wrap_array(states);
 }
