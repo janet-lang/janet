@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Change signature to `parser/state`
+- Add `:until` verb to loop.
 - Add `:p` flag to `fiber/new`.
 - Add `file/{fdopen,fileno}` functions.
 - Add `parser/clone` function.

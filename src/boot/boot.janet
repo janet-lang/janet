@@ -325,6 +325,7 @@
     (keyword? binding)
     (let [rest (loop1 body head (+ i 2))]
       (case binding
+        :until ~(do (if ,verb (break) nil) ,rest)
         :while ~(do (if ,verb nil (break)) ,rest)
         :let ~(let ,verb (do ,rest))
         :after ~(do ,rest ,verb nil)
@@ -387,6 +388,7 @@
   where :modifier is one of a set of keywords, and argument is keyword dependent.
   :modifier can be one of:\n\n
   \t:while expression - breaks from the loop if expression is falsey.\n
+  \t:until expression - breaks from the loop if expression is truthy.\n
   \t:let bindings - defines bindings inside the loop as passed to the let macro.\n
   \t:before form - evaluates a form for a side effect before of the next inner loop.\n
   \t:after form - same as :before, but the side effect happens after the next inner loop.\n
