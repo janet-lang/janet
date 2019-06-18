@@ -945,6 +945,7 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
 typedef struct {
     uint32_t *bytecode;
     Janet *constants;
+    size_t bytecode_len;
     uint32_t num_constants;
 } Peg;
 
@@ -956,16 +957,15 @@ static int peg_mark(void *p, size_t size) {
     return 0;
 }
 
-static JanetAbstractType peg_type = {
-    "core/peg",
-    NULL,
-    peg_mark,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
-};
+static void peg_marshal(void *p, JanetMarshalContext *ctx) {
+    Peg *peg = (Peg *)p;
+    janet_marshal_size(ctx, peg->bytecode_len);
+    janet_marshal_int(ctx, (int32_t)peg->num_constants);
+    for (size_t i = 0; i < peg->bytecode_len; i++)
+        janet_marshal_int(ctx, (int32_t) peg->bytecode[i]);
+    for (uint32_t j = 0; j < peg->num_constants; j++)
+        janet_marshal_janet(ctx, peg->constants[j]);
+}
 
 /* Used to ensure that if we place several arrays in one memory chunk, each
  * array will be correctly aligned */
@@ -973,6 +973,43 @@ static size_t size_padded(size_t offset, size_t size) {
     size_t x = size + offset - 1;
     return x - (x % size);
 }
+
+static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
+    char *mem = p;
+    Peg *peg = (Peg *)p;
+    peg->bytecode_len = janet_unmarshal_size(ctx);
+    peg->num_constants = (uint32_t) janet_unmarshal_int(ctx);
+
+    /* Calculate offsets. Should match those in make_peg */
+    size_t bytecode_start = size_padded(sizeof(Peg), sizeof(uint32_t));
+    size_t bytecode_size = peg->bytecode_len * sizeof(uint32_t);
+    size_t constants_start = size_padded(bytecode_start + bytecode_size, sizeof(Janet));
+    uint32_t *bytecode = (uint32_t *)(mem + bytecode_start);
+    Janet *constants = (Janet *)(mem + constants_start);
+    peg->bytecode = bytecode;
+    peg->constants = constants;
+
+    for (size_t i = 0; i < peg->bytecode_len; i++)
+        bytecode[i] = (uint32_t) janet_unmarshal_int(ctx);
+    for (uint32_t j = 0; j < peg->num_constants; j++)
+        constants[j] = janet_unmarshal_janet(ctx);
+
+    /* TODO - verify peg bytecode. This is basically iterating
+     * the bytecode and making sure instructions don't reference
+     * memory outside the bytecode array. Otherwise, all programs
+     * should be valid.*/
+}
+
+static const JanetAbstractType peg_type = {
+    "core/peg",
+    NULL,
+    peg_mark,
+    NULL,
+    NULL,
+    peg_marshal,
+    peg_unmarshal,
+    NULL
+};
 
 /* Convert Builder to Peg (Janet Abstract Value) */
 static Peg *make_peg(Builder *b) {
@@ -988,6 +1025,7 @@ static Peg *make_peg(Builder *b) {
     peg->num_constants = janet_v_count(b->constants);
     memcpy(peg->bytecode, b->bytecode, bytecode_size);
     memcpy(peg->constants, b->constants, constants_size);
+    peg->bytecode_len = janet_v_count(b->bytecode);
     return peg;
 }
 
@@ -1072,6 +1110,7 @@ static const JanetReg peg_cfuns[] = {
 /* Load the peg module */
 void janet_lib_peg(JanetTable *env) {
     janet_core_cfuns(env, NULL, peg_cfuns);
+    janet_register_abstract_type(&peg_type);
 }
 
 #endif /* ifdef JANET_PEG */

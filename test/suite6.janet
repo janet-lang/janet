@@ -125,4 +125,10 @@
 (assert (not (string/check-set "abc" "")) "string/check-set 4")
 (assert (not (string/check-set "" "aabc")) "string/check-set 5")
 
+# Marshal and unmarshal pegs
+(def p (-> "abcd" peg/compile marshal unmarshal))
+(assert (peg/match p "abcd") "peg marshal 1")
+(assert (peg/match p "abcdefg") "peg marshal 2")
+(assert (not (peg/match p "zabcdefg")) "peg marshal 3")
+
 (end-suite)
