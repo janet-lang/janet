@@ -973,8 +973,8 @@ static Janet parser_state_frames(const JanetParser *p) {
     Janet *args = p->args;
     for (int32_t i = count - 1; i >= 0; --i) {
         JanetParseState *s = p->states + i;
-        states->data[i] = janet_wrap_parse_state(s, args, buf, p->bufcount);
-        args -= (ptrdiff_t) s->argn;
+        states->data[i] = janet_wrap_parse_state(s, args, buf, (uint32_t) p->bufcount);
+        args -= s->argn;
     }
     return janet_wrap_array(states);
 }
