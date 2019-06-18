@@ -59,7 +59,7 @@ void janet_line_deinit() {
 void janet_line_get(const char *p, JanetBuffer *buffer) {
     FILE *out = janet_dynfile("out", stdout);
     fputs(p, out);
-    fflush(p, out);
+    fflush(out);
     simpleline(buffer);
 }
 
