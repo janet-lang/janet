@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Compiled PEGs can now be marshaled and unmarshaled.
 - Change signature to `parser/state`
 - Add `:until` verb to loop.
 - Add `:p` flag to `fiber/new`.
