@@ -1580,6 +1580,7 @@
 
 (def- nati (if (= :windows (os/which)) ".dll" ".so"))
 (defn- check-. [x] (string/has-prefix? "." x))
+(defn- not-check-. [x] (not (string/has-prefix? "." x)))
 
 (def module/paths
   "The list of paths to look for modules, templated for module/expand-path.
@@ -1597,16 +1598,16 @@
     [(string ":cur:/:all:" nati) :native check-.]
 
     # As a path from (os/cwd)
-    [":all:.janet" :source]
-    [":all:/init.janet" :source]
-    [":all:.jimage" :image]
-    [(string ":all:" nati) :native]
+    [":all:.janet" :source not-check-.]
+    [":all:/init.janet" :source not-check-.]
+    [":all:.jimage" :image not-check-.]
+    [(string ":all:" nati) :native not-check-.]
 
     # System paths
-    [":sys:/:all:.janet" :source]
-    [":sys:/:all:/init.janet" :source]
-    [":sys:/:all:.jimage" :image]
-    [(string ":sys:/:all:" nati) :native]])
+    [":sys:/:all:.janet" :source not-check-.]
+    [":sys:/:all:/init.janet" :source not-check-.]
+    [":sys:/:all:.jimage" :image not-check-.]
+    [(string ":sys:/:all:" nati) :native not-check-.]])
 
 (setdyn :syspath (process/opts "JANET_PATH"))
 (setdyn :headerpath (process/opts "JANET_HEADERPATH"))
@@ -1663,6 +1664,7 @@
 (put _env 'nati nil)
 (put _env 'mod-filter nil)
 (put _env 'check-. nil)
+(put _env 'not-check-. nil)
 
 (def module/cache
   "Table mapping loaded module identifiers to their environments."
