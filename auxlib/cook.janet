@@ -92,23 +92,21 @@
   (unless phony target))
 
 (def- _env (fiber/getenv (fiber/current)))
-(defn- import-rules*
-  [path & args]
-  (def [realpath] (module/find path))
+
+(defn import-rules
+  "Import another file that defines more cook rules. This ruleset
+  is merged into the current ruleset."
+  [path]
   (def env (make-env))
+  (unless (os/stat path :mode)
+    (error (string "cannot open " path)))
   (loop [k :keys _env :when (symbol? k)]
      (unless ((_env k) :private) (put env k (_env k))))
   (def currenv (fiber/getenv (fiber/current)))
   (loop [k :keys currenv :when (keyword? k)]
      (put env k (currenv k)))
-  (require path :env env ;args)
+  (dofile path :env env)
   (when-let [rules (env :rules)] (merge-into (getrules) rules)))
-
-(defmacro import-rules
-  "Import another file that defines more cook rules. This ruleset
-  is merged into the current ruleset."
-  [path & args]
-  ~(,import-rules* ,(string path) ,;args))
 
 #
 # Configuration
