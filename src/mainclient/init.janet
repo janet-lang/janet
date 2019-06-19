@@ -11,8 +11,8 @@
   (var *colorize* true)
   (var *compile-only* false)
 
-  (if-let [jp (os/getenv "JANET_PATH")] (set module/*syspath* jp))
-  (if-let [jp (os/getenv "JANET_HEADERPATH")] (set module/*headerpath* jp))
+  (if-let [jp (os/getenv "JANET_PATH")] (setdyn :syspath jp))
+  (if-let [jp (os/getenv "JANET_HEADERPATH")] (setdyn :headerpath jp))
 
   # Flag handlers
   (def handlers :private
@@ -42,7 +42,7 @@
      "q" (fn [&] (set *quiet* true) 1)
      "k" (fn [&] (set *compile-only* true) (set *exit-on-error* false) 1)
      "n" (fn [&] (set *colorize* false) 1)
-     "m" (fn [i &] (set module/*syspath* (get process/args (+ i 1))) 2)
+     "m" (fn [i &] (setdyn :syspath (get process/args (+ i 1))) 2)
      "c" (fn [i &]
            (def e (require (get process/args (+ i 1))))
            (spit (get process/args (+ i 2)) (make-image e))
@@ -50,7 +50,7 @@
            3)
      "-" (fn [&] (set *handleopts* false) 1)
      "l" (fn [i &]
-           (import* (get process/args (+ i 1))
+           (dofile (get process/args (+ i 1))
                     :prefix "" :exit *exit-on-error*)
            2)
      "e" (fn [i &]
@@ -71,7 +71,7 @@
       (+= i (dohandler (string/slice arg 1 2) i))
       (do
         (set *no-file* false)
-        (import* arg :prefix "" :exit *exit-on-error* :compile-only *compile-only*)
+        (dofile arg :prefix "" :exit *exit-on-error* :compile-only *compile-only*)
         (set i lenargs))))
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))

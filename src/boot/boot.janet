@@ -1578,42 +1578,43 @@
   [image]
   (unmarshal image (env-lookup _env)))
 
+(def- nati (if (= :windows (os/which)) ".dll" ".so"))
+(defn- check-. [x] (string/has-prefix? "." x))
+
 (def module/paths
-  "The list of paths to look for modules. The following
-  substitutions are preformed on each path. :sys: becomes
-  module/*syspath*, :name: becomes the last part of the module
-  name after the last /, and :all: is the module name literally.
-  :native: becomes the dynamic library file extension, usually dll
-  or so. Each element is a two element tuple, containing the path
+  "The list of paths to look for modules, templated for module/expand-path.
+  Each element is a two element tuple, containing the path
   template and a keyword :source, :native, or :image indicating how
   require should load files found at these paths.\n\nA tuple can also
   contain a third element, specifying a filter that prevents module/find
   from searching that path template if the filter doesn't match the input
-  path. The filter is often a file extension, including the period."
-  @[[":all:" :native (if (= (os/which) :windows) ".dll" ".so")]
+  path. The filter can be a string or a predicate function, and
+  is often a file extension, including the period."
+  @[# Full or relative paths, including extensions
+    [":all:" :native nati]
     [":all:" :image ".jimage"]
-    [":all:" :source]
+    [":all:" :source ".janet"]
+
+    # Relative to (dyn :current-file "./."). Path must start with .
+    [":cur:/:all:.janet" :source check-.]
+    [":cur:/:all:/init.janet" :source check-.]
+    [":cur:/:all:.jimage" :image check-.]
+    [(string ":cur:/:all:" nati) :native check-.]
+
+    # Relative to current dir (os/cwd)
     ["./:all:.janet" :source]
     ["./:all:/init.janet" :source]
+    ["./:all:.jimage" :image]
+    [(string "./:all:" nati) :native]
+
+    # System paths
     [":sys:/:all:.janet" :source]
     [":sys:/:all:/init.janet" :source]
-    ["./:all:.:native:" :native]
-    ["./:all:/:name:.:native:" :native]
-    [":sys:/:all:.:native:" :native]
-    ["./:all:.jimage" :image]
-    [":sys:/:all:.jimage" :image]])
+    [":sys:/:all:.jimage" :image]
+    [(string ":sys:/:all:" nati) :native]])
 
-(var module/*syspath*
-  "The path where globally installed libraries are located.
-  The default is set at build time and is /usr/local/lib/janet on linux/posix, and
-  on Windows is the empty string."
-  (or (process/opts "JANET_PATH") ""))
-
-(var module/*headerpath*
-  "The path where the janet headers are installed. Useful for building
-  native modules or compiling code at runtime. Default on linux/posix is
-  /usr/local/include/janet, and on Windows is the empty string."
-  (or (process/opts "JANET_HEADERPATH") ""))
+(setdyn :syspath (process/opts "JANET_PATH"))
+(setdyn :headerpath (process/opts "JANET_HEADERPATH"))
 
 # Version of fexists that works even with a reduced OS
 (if-let [has-stat (_env 'os/stat)]
@@ -1629,14 +1630,6 @@
         (file/close f)
         res))))
 
-(def nati (if (= :windows (os/which)) "dll" "so"))
-(defn- expand-path-name
-  [template name path]
-  (->> template
-       (string/replace ":name:" name)
-       (string/replace ":sys:" module/*syspath*)
-       (string/replace ":native:" nati)
-       (string/replace ":all:" path)))
 (defn- mod-filter
   [x path]
   (case (type x)
@@ -1650,8 +1643,6 @@
   or image if the module is found, otherwise a tuple with nil followed by
   an error message."
   [path]
-  (def parts (string/split "/" path))
-  (def name (last parts))
   (var ret nil)
   (each [p mod-kind checker] module/paths
     (when (mod-filter checker path)
@@ -1660,7 +1651,7 @@
                   (set ret [res mod-kind])
                   (break))
         (do
-          (def fullpath (expand-path-name p name path))
+          (def fullpath (string (module/expand-path path p)))
           (when (fexists fullpath)
             (set ret [fullpath mod-kind])
             (break))))))
@@ -1668,15 +1659,15 @@
     (let [expander (fn [[t _ chk]]
                      (when (string? t)
                        (when (mod-filter chk path)
-                         (expand-path-name t name path))))
+                         (module/expand-path path t))))
           paths (filter identity (map expander module/paths))
           str-parts (interpose "\n    " paths)]
       [nil (string "could not find module " path ":\n    " ;str-parts)])))
 
 (put _env 'fexists nil)
 (put _env 'nati nil)
-(put _env 'expand-path-name nil)
 (put _env 'mod-filter nil)
+(put _env 'check-. nil)
 
 (def module/cache
   "Table mapping loaded module identifiers to their environments."
@@ -1698,6 +1689,7 @@
            path
            (file/open path)))
   (default env (make-env))
+  (put env :current-file (string path))
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
     (def ret (bad-parse x y))
@@ -1737,16 +1729,15 @@
   module/paths, then the path as a raw file path. Returns the new environment
   returned from compiling and running the file."
   [path & args]
-  (if-let [check (get module/cache path)]
+  (def [fullpath mod-kind] (module/find path))
+  (unless fullpath (error mod-kind))
+  (if-let [check (get module/cache fullpath)]
     check
     (do
-      (def [fullpath mod-kind] (module/find path))
-      (unless fullpath (error mod-kind))
       (def loader (module/loaders mod-kind))
       (unless loader (error (string "module type " mod-kind " unknown")))
       (def env (loader fullpath args))
       (put module/cache fullpath env)
-      (put module/cache path env)
       env)))
 
 (defn import*

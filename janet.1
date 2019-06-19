@@ -73,7 +73,7 @@ Don't execute a script, only compile it to check for errors. Useful for linting 
 
 .TP
 .BR \-m\ syspath
-Set the variable module/*syspath* to the string syspath so that Janet will load system modules
+Set the dynamic binding :syspath to the string syspath so that Janet will load system modules
 from a directory different than the default. The default is set when Janet is built, and defaults to
 /usr/local/lib/janet on Linux/Posix, and C:/Janet/Library on Windows. This option supersedes JANET_PATH.
 

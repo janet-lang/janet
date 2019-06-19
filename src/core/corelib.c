@@ -93,6 +93,126 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
     return init;
 }
 
+static const char *janet_dyncstring(const char *name, const char *dflt) {
+    Janet x = janet_dyn(name);
+    if (janet_checktype(x, JANET_NIL)) return dflt;
+    if (!janet_checktype(x, JANET_STRING)) {
+        janet_panicf("expected string, got %v", x);
+    }
+    const uint8_t *jstr = janet_unwrap_string(x);
+    const char *cstr = (const char *)jstr;
+    if (strlen(cstr) != (size_t) janet_string_length(jstr)) {
+        janet_panicf("string %v contains embedded 0s");
+    }
+    return cstr;
+}
+
+static int is_path_sep(char c) {
+#ifdef JANET_WINDOWS
+    if (c == '\\') return 1;
+#endif
+    return c == '/';
+}
+
+/* Used for module system. */
+static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    const char *input = janet_getcstring(argv, 0);
+    const char *template = janet_getcstring(argv, 1);
+    const char *curfile = janet_dyncstring("current-file", "./.");
+    const char *syspath = janet_dyncstring("syspath", "");
+    JanetBuffer *out = janet_buffer(0);
+    size_t tlen = strlen(template);
+
+    /* Calculate name */
+    const char *name = input + strlen(input) - 1;
+    while (name > input) {
+        if (is_path_sep(*(name - 1))) break;
+        name--;
+    }
+
+    /* Calculate dirpath from current file */
+    const char *curname = curfile + strlen(curfile) - 1;
+    while (curname > curfile) {
+        if (is_path_sep(*curname)) break;
+        curname--;
+    }
+
+    for (size_t i = 0; i < tlen; i++) {
+        if (template[i] == ':') {
+            if (strncmp(template + i, ":all:", 5) == 0) {
+                janet_buffer_push_cstring(out, input);
+                i += 4;
+            } else if (strncmp(template + i, ":cur:", 5) == 0) {
+                janet_buffer_push_bytes(out, (const uint8_t *) curfile, curname - curfile);
+                i += 4;
+            } else if (strncmp(template + i, ":dir:", 5) == 0) {
+                janet_buffer_push_bytes(out, (const uint8_t *) input, name - input);
+                i += 4;
+            } else if (strncmp(template + i, ":sys:", 5) == 0) {
+                janet_buffer_push_cstring(out, syspath);
+                i += 4;
+            } else if (strncmp(template + i, ":name:", 6) == 0) {
+                janet_buffer_push_cstring(out, name);
+                i += 5;
+            } else {
+                janet_buffer_push_u8(out, (uint8_t) template[i]);
+            }
+        } else {
+            janet_buffer_push_u8(out, (uint8_t) template[i]);
+        }
+    }
+
+    /* Normalize */
+    uint8_t *scan = out->data;
+    uint8_t *print = scan;
+    uint8_t *scanend = scan + out->count;
+    int normal_section_count = 0;
+    int dot_count = 0;
+    while (scan < scanend) {
+        if (*scan == '.') {
+            if (dot_count >= 0) {
+                dot_count++;
+            } else {
+                *print++ = '.';
+            }
+        } else if (is_path_sep(*scan)) {
+            if (dot_count == 1) {
+                ;
+            } else if (dot_count == 2) {
+                if (normal_section_count > 0) {
+                    /* unprint last separator */
+                    print--;
+                    /* unprint last section */
+                    while (print > out->data && !is_path_sep(*(print - 1)))
+                        print--;
+                    normal_section_count--;
+                } else {
+                    *print++ = '.';
+                    *print++ = '.';
+                    *print++ = '/';
+                }
+            } else if (scan == out->data || dot_count != 0) {
+                while (dot_count > 0) {
+                    --dot_count;
+                    *print++ = '.';
+                }
+                if (scan > out->data) {
+                    normal_section_count++;
+                }
+                *print++ = '/';
+            }
+            dot_count = 0;
+        } else {
+            dot_count = -1;
+            *print++ = *scan;
+        }
+        scan++;
+    }
+    out->count = print - out->data;
+    return janet_wrap_buffer(out);
+}
+
 static Janet janet_core_dyn(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     Janet value;
@@ -481,6 +601,14 @@ static const JanetReg corelib_cfuns[] = {
         "untrace", janet_core_untrace,
         JDOC("(untrace func)\n\n"
              "Disables tracing on a function. Returns the function.")
+    },
+    {
+        "module/expand-path", janet_core_expand_path,
+        JDOC("(module/expand-path path template)\n\n"
+             "Expands a path template as found in module/paths for module/find. "
+             "This takes in a path (the argument to require) and a template string, template, "
+             "to expand the path to a path that can be "
+             "used for importing files.")
     },
     {NULL, NULL, NULL}
 };

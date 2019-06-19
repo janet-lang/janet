@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Update module system to allow relative imports. The `:cur:` pattern
+  in `module/expand-path` will expand to the directory part of the current file, or
+  whatever the value of `(dyn :current-file)` is. The `:dir:` pattern gets
+  the directory part of the input path name.
+- Remove `:native:` pattern in `module/paths`.
+- Add `module/expand-path`
+- Remove `module/*syspath*` and `module/*headerpath*` in favor of dynamic
+  bindings `:syspath` and `:headerpath`.
 - Compiled PEGs can now be marshaled and unmarshaled.
 - Change signature to `parser/state`
 - Add `:until` verb to loop.

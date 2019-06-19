@@ -115,8 +115,8 @@
 #
 
 # Installation settings
-(def JANET_MODPATH (or (os/getenv "JANET_MODPATH") module/*syspath*))
-(def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH") module/*headerpath*))
+(def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
+(def JANET_HEADERPATH (os/getenv "JANET_HEADERPATH"))
 (def JANET_BINPATH (or (os/getenv "JANET_BINPATH") (unless is-win "/usr/local/bin")))
 
 # Compilation settings
