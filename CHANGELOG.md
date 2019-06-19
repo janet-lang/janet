@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `JANET_NO_DOCSTRINGS` and `JANET_NO_SOURCEMAPS` defines in janetconf.h
+  for shrinking binary size.
+  This seems to save about 50kB in most builds, so it's not usually worth it.
 - Update module system to allow relative imports. The `:cur:` pattern
   in `module/expand-path` will expand to the directory part of the current file, or
   whatever the value of `(dyn :current-file)` is. The `:dir:` pattern gets
