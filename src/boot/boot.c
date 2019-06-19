@@ -52,6 +52,16 @@ int main(int argc, const char **argv) {
         janet_array_push(args, janet_cstringv(argv[i]));
     janet_def(env, "process/args", janet_wrap_array(args), "Command line arguments.");
 
+    /* Add in options from janetconf.h so boot.janet can configure the image as needed. */
+    JanetTable *opts = janet_table(0);
+#ifdef JANET_NO_DOCSTRINGS
+    janet_table_put(opts, janet_ckeywordv("no-docstrings"), janet_wrap_true());
+#endif
+#ifdef JANET_NO_SOURCEMAPS
+    janet_table_put(opts, janet_ckeywordv("no-sourcemaps"), janet_wrap_true());
+#endif
+    janet_def(env, "process/config", janet_wrap_table(opts), "Boot options");
+
     /* Run bootstrap script to generate core image */
     status = janet_dobytes(env, janet_gen_boot, janet_gen_boot_size, "boot.janet", NULL);
 

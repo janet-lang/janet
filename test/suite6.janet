@@ -157,5 +157,9 @@
 (assert (= (test-expand "./abc" ":cur:/:all:") "some-dir/abc") "module/expand-path 2")
 (assert (= (test-expand "abc/def.txt" ":cur:/:name:") "some-dir/def.txt") "module/expand-path 3")
 (assert (= (test-expand "abc/def.txt" ":cur:/:dir:/sub/:name:") "some-dir/abc/sub/def.txt") "module/expand-path 4")
+(assert (= (test-expand "/abc/../def.txt" ":all:") "/def.txt") "module/expand-path 5")
+(assert (= (test-expand "abc/../def.txt" ":all:") "def.txt") "module/expand-path 6")
+(assert (= (test-expand "../def.txt" ":all:") "../def.txt") "module/expand-path 7")
+(assert (= (test-expand "../././././abcd/../def.txt" ":all:") "../def.txt") "module/expand-path 8")
 
 (end-suite)

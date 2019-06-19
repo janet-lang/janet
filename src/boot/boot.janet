@@ -1843,7 +1843,29 @@ _fiber is bound to the suspended fiber
 ###
 
 (do
+
+  (defn proto-flatten
+    "Flatten a table and it's prototypes into a single table."
+    [into x]
+    (when x
+      (proto-flatten into (table/getproto x))
+      (loop [k :keys x]
+        (put into k (x k))))
+    into)
+
   (def env (fiber/getenv (fiber/current)))
+
+  # Modify env based on some options.
+  (loop [[k v] :pairs env
+         :when (symbol? k)]
+    (def flat (proto-flatten @{} v))
+    (when (process/config :no-docstrings)
+      (put flat :doc nil))
+    (when (process/config :no-sourcemaps)
+      (put flat :source-map nil))
+    (put env k flat))
+
+  (put env 'process/config nil)
   (def image (let [env-pairs (pairs (env-lookup env))
                    essential-pairs (filter (fn [[k v]] (or (cfunction? v) (abstract? v))) env-pairs)
                    lookup (table ;(mapcat identity essential-pairs))
