@@ -144,10 +144,12 @@ static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
                 janet_buffer_push_cstring(out, input);
                 i += 4;
             } else if (strncmp(template + i, ":cur:", 5) == 0) {
-                janet_buffer_push_bytes(out, (const uint8_t *) curfile, curname - curfile);
+                janet_buffer_push_bytes(out, (const uint8_t *) curfile,
+                        (int32_t)(curname - curfile));
                 i += 4;
             } else if (strncmp(template + i, ":dir:", 5) == 0) {
-                janet_buffer_push_bytes(out, (const uint8_t *) input, name - input);
+                janet_buffer_push_bytes(out, (const uint8_t *) input,
+                        (int32_t)(name - input));
                 i += 4;
             } else if (strncmp(template + i, ":sys:", 5) == 0) {
                 janet_buffer_push_cstring(out, syspath);
@@ -209,7 +211,7 @@ static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
         }
         scan++;
     }
-    out->count = print - out->data;
+    out->count = (int32_t)(print - out->data);
     return janet_wrap_buffer(out);
 }
 

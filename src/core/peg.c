@@ -1002,7 +1002,7 @@ static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
      * need to a depth first traversal. It is stricter
      * than a dfs by not allowing certain kinds of unused
      * bytecode. */
-    uint32_t blen = peg->bytecode_len;
+    uint32_t blen = (int32_t) peg->bytecode_len;
     uint32_t clen = peg->num_constants;
     uint8_t *op_flags = calloc(1, blen);
     if (NULL == op_flags) {
