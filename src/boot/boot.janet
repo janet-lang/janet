@@ -1590,22 +1590,17 @@
   from searching that path template if the filter doesn't match the input
   path. The filter can be a string or a predicate function, and
   is often a file extension, including the period."
-  @[# Full or relative paths, including extensions
-    [":all:" :native nati]
-    [":all:" :image ".jimage"]
-    [":all:" :source ".janet"]
-
-    # Relative to (dyn :current-file "./."). Path must start with .
+  @[# Relative to (dyn :current-file "./."). Path must start with .
     [":cur:/:all:.janet" :source check-.]
     [":cur:/:all:/init.janet" :source check-.]
     [":cur:/:all:.jimage" :image check-.]
     [(string ":cur:/:all:" nati) :native check-.]
 
-    # Relative to current dir (os/cwd)
-    ["./:all:.janet" :source]
-    ["./:all:/init.janet" :source]
-    ["./:all:.jimage" :image]
-    [(string "./:all:" nati) :native]
+    # As a path from (os/cwd)
+    [":all:.janet" :source]
+    [":all:/init.janet" :source]
+    [":all:.jimage" :image]
+    [(string ":all:" nati) :native]
 
     # System paths
     [":sys:/:all:.janet" :source]
