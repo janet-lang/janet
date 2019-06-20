@@ -952,8 +952,9 @@ typedef struct {
 static int peg_mark(void *p, size_t size) {
     (void) size;
     Peg *peg = (Peg *)p;
-    for (uint32_t i = 0; i < peg->num_constants; i++)
-        janet_mark(peg->constants[i]);
+    if (NULL != peg->constants)
+        for (uint32_t i = 0; i < peg->num_constants; i++)
+            janet_mark(peg->constants[i]);
     return 0;
 }
 
@@ -986,8 +987,8 @@ static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
     size_t constants_start = size_padded(bytecode_start + bytecode_size, sizeof(Janet));
     uint32_t *bytecode = (uint32_t *)(mem + bytecode_start);
     Janet *constants = (Janet *)(mem + constants_start);
-    peg->bytecode = bytecode;
-    peg->constants = constants;
+    peg->bytecode = NULL;
+    peg->constants = NULL;
 
     for (size_t i = 0; i < peg->bytecode_len; i++)
         bytecode[i] = (uint32_t) janet_unmarshal_int(ctx);
@@ -1087,7 +1088,7 @@ static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
                 if (rule[1] >= blen) goto bad;
                 if (rule[2] >= clen) goto bad;
                 op_flags[rule[1]] |= 0x01;
-                i += 2;
+                i += 4;
                 break;
             case RULE_ERROR:
             case RULE_DROP:
@@ -1111,6 +1112,8 @@ static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
         if (op_flags[i] == 0x01) goto bad;
 
     /* Good return */
+    peg->bytecode = bytecode;
+    peg->constants = constants;
     free(op_flags);
     return;
 

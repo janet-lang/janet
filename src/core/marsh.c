@@ -328,11 +328,11 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
     void *abstract = janet_unwrap_abstract(x);
     const JanetAbstractType *at = janet_abstract_type(abstract);
     if (at->marshal) {
-        MARK_SEEN();
         JanetMarshalContext context = {st, NULL, flags, NULL};
         pushbyte(st, LB_ABSTRACT);
         marshal_one(st, janet_csymbolv(at->name), flags + 1);
         push64(st, (uint64_t) janet_abstract_size(abstract));
+        MARK_SEEN();
         at->marshal(abstract, &context);
     } else {
         janet_panicf("try to marshal unregistered abstract type, cannot marshal %p", x);
@@ -1008,10 +1008,11 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
     if (at == NULL) return NULL;
     if (at->unmarshal) {
         void *p = janet_abstract(at, (size_t) read64(st, &data));
-        JanetMarshalContext context = {NULL, st, flags, data};
-        at->unmarshal(p, &context);
         *out = janet_wrap_abstract(p);
-        return data;
+        JanetMarshalContext context = {NULL, st, flags, data};
+        janet_v_push(st->lookup, *out);
+        at->unmarshal(p, &context);
+        return context.data;
     }
     return NULL;
 }

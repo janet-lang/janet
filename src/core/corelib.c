@@ -119,23 +119,36 @@ static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     const char *input = janet_getcstring(argv, 0);
     const char *template = janet_getcstring(argv, 1);
-    const char *curfile = janet_dyncstring("current-file", "./.");
+    const char *curfile = janet_dyncstring("current-file", "");
     const char *syspath = janet_dyncstring("syspath", "");
     JanetBuffer *out = janet_buffer(0);
     size_t tlen = strlen(template);
 
     /* Calculate name */
-    const char *name = input + strlen(input) - 1;
+    const char *name = input + strlen(input);
     while (name > input) {
         if (is_path_sep(*(name - 1))) break;
         name--;
     }
 
     /* Calculate dirpath from current file */
-    const char *curname = curfile + strlen(curfile) - 1;
+    const char *curname = curfile + strlen(curfile);
     while (curname > curfile) {
         if (is_path_sep(*curname)) break;
         curname--;
+    }
+    const char *curdir;
+    int32_t curlen;
+    if (curname == curfile) {
+        /* Current file has one or zero path segments, so
+         * we are in the . directory. */
+        curdir = ".";
+        curlen = 1;
+    } else {
+        /* Current file has 2 or more segments, so we
+         * can cut off the last segment. */
+        curdir = curfile;
+        curlen = (int32_t)(curname - curfile);
     }
 
     for (size_t i = 0; i < tlen; i++) {
@@ -144,12 +157,11 @@ static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
                 janet_buffer_push_cstring(out, input);
                 i += 4;
             } else if (strncmp(template + i, ":cur:", 5) == 0) {
-                janet_buffer_push_bytes(out, (const uint8_t *) curfile,
-                        (int32_t)(curname - curfile));
+                janet_buffer_push_bytes(out, (const uint8_t *)curdir, curlen);
                 i += 4;
             } else if (strncmp(template + i, ":dir:", 5) == 0) {
-                janet_buffer_push_bytes(out, (const uint8_t *) input,
-                        (int32_t)(name - input));
+                janet_buffer_push_bytes(out, (const uint8_t *)input,
+                                        (int32_t)(name - input));
                 i += 4;
             } else if (strncmp(template + i, ":sys:", 5) == 0) {
                 janet_buffer_push_cstring(out, syspath);

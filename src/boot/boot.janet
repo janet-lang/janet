@@ -1579,8 +1579,8 @@
   (unmarshal image (env-lookup _env)))
 
 (def- nati (if (= :windows (os/which)) ".dll" ".so"))
-(defn- check-. [x] (string/has-prefix? "." x))
-(defn- not-check-. [x] (not (string/has-prefix? "." x)))
+(defn- check-. [x] (if (string/has-prefix? "." x) x))
+(defn- not-check-. [x] (unless (string/has-prefix? "." x) x))
 
 (def module/paths
   "The list of paths to look for modules, templated for module/expand-path.
