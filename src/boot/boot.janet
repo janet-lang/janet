@@ -1592,21 +1592,21 @@
   path. The filter can be a string or a predicate function, and
   is often a file extension, including the period."
   @[# Relative to (dyn :current-file "./."). Path must start with .
+    [":cur:/:all:.jimage" :image check-.]
     [":cur:/:all:.janet" :source check-.]
     [":cur:/:all:/init.janet" :source check-.]
-    [":cur:/:all:.jimage" :image check-.]
     [(string ":cur:/:all:" nati) :native check-.]
 
     # As a path from (os/cwd)
+    [":all:.jimage" :image not-check-.]
     [":all:.janet" :source not-check-.]
     [":all:/init.janet" :source not-check-.]
-    [":all:.jimage" :image not-check-.]
     [(string ":all:" nati) :native not-check-.]
 
     # System paths
+    [":sys:/:all:.jimage" :image not-check-.]
     [":sys:/:all:.janet" :source not-check-.]
     [":sys:/:all:/init.janet" :source not-check-.]
-    [":sys:/:all:.jimage" :image not-check-.]
     [(string ":sys:/:all:" nati) :native not-check-.]])
 
 (setdyn :syspath (process/opts "JANET_PATH"))
