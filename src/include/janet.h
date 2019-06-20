@@ -1219,7 +1219,9 @@ JANET_API const JanetKV *janet_dictionary_next(const JanetKV *kvs, int32_t cap, 
 #define janet_abstract_head(u) ((JanetAbstractHead *)((char *)u - offsetof(JanetAbstractHead, data)))
 #define janet_abstract_type(u) (janet_abstract_head(u)->type)
 #define janet_abstract_size(u) (janet_abstract_head(u)->size)
-JANET_API void *janet_abstract(const JanetAbstractType *type, size_t size);
+JANET_API void *janet_abstract_begin(const JanetAbstractType *type, size_t size);
+JANET_API void *janet_abstract_end(void *);
+JANET_API void *janet_abstract(const JanetAbstractType *type, size_t size); /* begin and end in one call */
 
 /* Native */
 typedef void (*JanetModule)(JanetTable *);

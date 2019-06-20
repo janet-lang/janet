@@ -26,10 +26,19 @@
 #endif
 
 /* Create new userdata */
-void *janet_abstract(const JanetAbstractType *atype, size_t size) {
-    JanetAbstractHead *header = janet_gcalloc(JANET_MEMORY_ABSTRACT,
+void *janet_abstract_begin(const JanetAbstractType *atype, size_t size) {
+    JanetAbstractHead *header = janet_gcalloc(JANET_MEMORY_NONE,
                                 sizeof(JanetAbstractHead) + size);
     header->size = size;
     header->type = atype;
     return (void *) & (header->data);
+}
+
+void *janet_abstract_end(void *x) {
+    janet_gc_settype((void *)(janet_gc_header(x)), JANET_MEMORY_ABSTRACT);
+    return x;
+}
+
+void *janet_abstract(const JanetAbstractType *atype, size_t size) {
+    return janet_abstract_end(janet_abstract_begin(atype, size));
 }

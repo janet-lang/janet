@@ -990,6 +990,11 @@ static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
     peg->bytecode = NULL;
     peg->constants = NULL;
 
+    /* Ensure not too large */
+    if (constants_start + sizeof(Janet) * peg->num_constants > janet_abstract_size(p)) {
+        janet_panic("size mismatch");
+    }
+
     for (size_t i = 0; i < peg->bytecode_len; i++)
         bytecode[i] = (uint32_t) janet_unmarshal_int(ctx);
     for (uint32_t j = 0; j < peg->num_constants; j++)
