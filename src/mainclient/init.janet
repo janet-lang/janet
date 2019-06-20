@@ -44,7 +44,7 @@
      "n" (fn [&] (set *colorize* false) 1)
      "m" (fn [i &] (setdyn :syspath (get process/args (+ i 1))) 2)
      "c" (fn [i &]
-           (def e (require (get process/args (+ i 1))))
+           (def e (dofile (get process/args (+ i 1))))
            (spit (get process/args (+ i 2)) (make-image e))
            (set *no-file* false)
            3)
