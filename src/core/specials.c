@@ -278,12 +278,10 @@ static int varleaf(
     JanetCompiler *c,
     const uint8_t *sym,
     JanetSlot s,
-    JanetTable *attr) {
+    JanetTable *reftab) {
     if (c->scope->flags & JANET_SCOPE_TOP) {
         /* Global var, generate var */
         JanetSlot refslot;
-        JanetTable *reftab = janet_table(1);
-        reftab->proto = attr;
         JanetArray *ref = janet_array(1);
         janet_array_push(ref, janet_wrap_nil());
         janet_table_put(reftab, janet_ckeywordv("ref"), janet_wrap_array(ref));
@@ -312,12 +310,10 @@ static int defleaf(
     JanetCompiler *c,
     const uint8_t *sym,
     JanetSlot s,
-    JanetTable *attr) {
+    JanetTable *tab) {
     if (c->scope->flags & JANET_SCOPE_TOP) {
-        JanetTable *tab = janet_table(2);
         janet_table_put(tab, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
-        tab->proto = attr;
         JanetSlot valsym = janetc_cslot(janet_ckeywordv("value"));
         JanetSlot tabslot = janetc_cslot(janet_wrap_table(tab));
 
