@@ -16,7 +16,7 @@
 
 @rem Set compile and link options here
 @setlocal
-@set JANET_COMPILE=cl /nologo /Isrc\include /c /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS
+@set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS
 @set JANET_LINK=link /nologo
 
 mkdir build
@@ -132,7 +132,7 @@ copy README.md dist\README.md
 copy janet.lib dist\janet.lib
 copy janet.exp dist\janet.exp
 copy src\include\janet.h dist\janet.h
-copy src\include\janetconf.h dist\janetconf.h
+copy src\conf\janetconf.h dist\janetconf.h
 
 copy auxlib\cook.janet dist\cook.janet
 

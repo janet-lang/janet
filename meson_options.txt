@@ -1,4 +1,4 @@
-option('build_hash', type : 'string', value : 'meson')
+option('git_hash', type : 'string', value : 'meson')
 
 option('single_threaded', type : 'boolean', value : false)
 option('nanbox', type : 'boolean', value : true)

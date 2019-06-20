@@ -19,9 +19,7 @@
 # IN THE SOFTWARE.
 
 project('janet', 'c',
-  default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both',
-    'strip=true', 'optimization=2', 'werror=true',
-    'debug=false'],
+  default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both'],
   version : '1.0.0-dev')
 
 # Global settings
@@ -34,7 +32,9 @@ m_dep = cc.find_library('m', required : false)
 dl_dep = cc.find_library('dl', required : false)
 
 # Link options
-add_project_link_arguments('-rdynamic', language : 'c')
+if build_machine.system() != 'windows'
+    add_project_link_arguments('-rdynamic', language : 'c')
+endif
 
 # Generate custom janetconf.h
 conf = configuration_data()
@@ -50,7 +50,7 @@ conf.set('JANET_VERSION_MINOR', version_parts[1].to_int())
 conf.set('JANET_VERSION_PATCH', last_parts[0].to_int())
 conf.set_quoted('JANET_VERSION', meson.project_version())
 # Use options
-conf.set_quoted('JANET_BUILD', get_option('build_hash'))
+conf.set_quoted('JANET_BUILD', get_option('git_hash'))
 conf.set('JANET_NO_NANBOX', not get_option('nanbox'))
 conf.set('JANET_SINGLE_THREADED', not get_option('single_threaded'))
 conf.set('JANET_NO_DYNAMIC_MODULES', not get_option('dynamic_modules'))
