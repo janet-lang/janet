@@ -37,7 +37,7 @@ MANPATH?=$(PREFIX)/share/man/man1/
 PKG_CONFIG_PATH?=$(PREFIX)/lib/pkgconfig
 DEBUGGER=gdb
 
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -fpic -O2 -fvisibility=hidden \
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fpic -O2 -fvisibility=hidden \
 	   -DJANET_BUILD=$(JANET_BUILD)
 LDFLAGS=-rdynamic
 
@@ -60,7 +60,7 @@ all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY)
 ##### Name Files #####
 ######################
 
-JANET_HEADERS=src/include/janet.h src/include/janetconf.h
+JANET_HEADERS=src/include/janet.h src/conf/janetconf.h
 
 JANET_LOCAL_HEADERS=src/core/util.h \
 					src/core/state.h \
@@ -252,7 +252,7 @@ callgrind: $(JANET_TARGET)
 dist: build/janet-dist.tar.gz
 
 build/janet-%.tar.gz: $(JANET_TARGET) \
-	src/include/janet.h src/include/janetconf.h \
+	src/include/janet.h src/conf/janetconf.h \
 	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
 	build/doc.html README.md build/janet.c
 	tar -czvf $@ $^

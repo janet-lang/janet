@@ -1,0 +1,17 @@
+option('build_hash', type : 'string', value : 'meson')
+
+option('single_threaded', type : 'boolean', value : false)
+option('nanbox', type : 'boolean', value : true)
+option('dynamic_modules', type : 'boolean', value : true)
+option('docstrings', type : 'boolean', value : true)
+option('sourcemaps', type : 'boolean', value : true)
+option('reduced_os', type : 'boolean', value : true)
+option('assembler', type : 'boolean', value : true)
+option('peg', type : 'boolean', value : true)
+option('typed_array', type : 'boolean', value : true)
+option('int_types', type : 'boolean', value : true)
+
+option('recursion_guard', type : 'integer', min : 10, max : 8000, value : 1024)
+option('max_proto_depth', type : 'integer', min : 10, max : 8000, value : 200)
+option('max_macro_expand', type : 'integer', min : 1, max : 8000, value : 200)
+option('stack_max', type : 'integer', min : 8096, max : 1000000000, value : 16384)

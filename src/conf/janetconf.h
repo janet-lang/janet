@@ -20,7 +20,8 @@
 * IN THE SOFTWARE.
 */
 
-/* Configure Janet. Edit this file to customize the build */
+/* This is an example janetconf.h file. This will be usually generated
+ * by the build system. */
 
 #ifndef JANETCONF_H
 #define JANETCONF_H
@@ -39,13 +40,17 @@
 /* #define JANET_NO_NANBOX */
 /* #define JANET_API __attribute__((visibility ("default"))) */
 
+/* These settings should be specified before amalgamation is
+ * built. */
+/* #define JANET_NO_DOCSTRINGS */
+/* #define JANET_NO_SOURCEMAPS */
+/* #define JANET_REDUCED_OS */
+
+/* Other settings */
 /* #define JANET_NO_ASSEMBLER */
 /* #define JANET_NO_PEG */
 /* #define JANET_NO_TYPED_ARRAY */
 /* #define JANET_NO_INT_TYPES */
-/* #define JANET_NO_DOCSTRINGS */
-/* #define JANET_NO_SOURCEMAPS */
-/* #define JANET_REDUCED_OS */
 /* #define JANET_OUT_OF_MEMORY do { printf("janet out of memory\n"); exit(1); } while (0) */
 /* #define JANET_RECURSION_GUARD 1024 */
 /* #define JANET_MAX_PROTO_DEPTH 200 */

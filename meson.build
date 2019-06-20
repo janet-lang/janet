@@ -18,8 +18,11 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-project('janet', 'c', default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.0.0')
+project('janet', 'c',
+  default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both',
+    'strip=true', 'optimization=2', 'werror=true',
+    'debug=false'],
+  version : '1.0.0-dev')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -30,11 +33,42 @@ cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required : false)
 dl_dep = cc.find_library('dl', required : false)
 
-# Some options
+# Link options
 add_project_link_arguments('-rdynamic', language : 'c')
 
+# Generate custom janetconf.h
+conf = configuration_data()
+version_parts = meson.project_version().split('.')
+last_parts = version_parts[2].split('-')
+if last_parts.length() > 1
+  conf.set_quoted('JANET_VERSION_EXTRA', '-' + last_parts[1])
+else
+  conf.set_quoted('JANET_VERSION_EXTRA', '')
+endif
+conf.set('JANET_VERSION_MAJOR', version_parts[0].to_int())
+conf.set('JANET_VERSION_MINOR', version_parts[1].to_int())
+conf.set('JANET_VERSION_PATCH', last_parts[0].to_int())
+conf.set_quoted('JANET_VERSION', meson.project_version())
+# Use options
+conf.set_quoted('JANET_BUILD', get_option('build_hash'))
+conf.set('JANET_NO_NANBOX', not get_option('nanbox'))
+conf.set('JANET_SINGLE_THREADED', not get_option('single_threaded'))
+conf.set('JANET_NO_DYNAMIC_MODULES', not get_option('dynamic_modules'))
+conf.set('JANET_NO_DOCSTRINGS', not get_option('docstrings'))
+conf.set('JANET_NO_SOURCEMAPS', not get_option('sourcemaps'))
+conf.set('JANET_NO_ASSEMBLER', not get_option('assembler'))
+conf.set('JANET_NO_PEG', not get_option('peg'))
+conf.set('JANET_NO_TYPED_ARRAY', not get_option('typed_array'))
+conf.set('JANET_NO_INT_TYPES', not get_option('int_types'))
+conf.set('JANET_RECURSION_GUARD', get_option('recursion_guard'))
+conf.set('JANET_MAX_PROTO_DEPTH', get_option('max_proto_depth'))
+conf.set('JANET_MAX_MACRO_EXPAND', get_option('max_macro_expand'))
+conf.set('JANET_STACK_MAX', get_option('stack_max'))
+jconf = configure_file(output : 'janetconf.h',
+  configuration : conf)
+
 # Include directories
-incdir = include_directories('src/include')
+incdir = include_directories(['src/include', '.'])
 
 # Building generated sources
 xxd = executable('xxd', 'tools/xxd.c', native : true)
@@ -186,7 +220,7 @@ janet_dep = declare_dependency(include_directories : incdir,
 
 # Installation
 install_man('janet.1')
-install_headers('src/include/janet.h', 'src/include/janetconf.h', subdir: 'janet')
+install_headers(['src/include/janet.h', jconf], subdir: 'janet')
 janet_libs = [
   'auxlib/cook.janet',
   'auxlib/path.janet'
