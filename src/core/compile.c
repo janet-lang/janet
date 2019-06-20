@@ -629,7 +629,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
         }
         memcpy(def->bytecode, c->buffer + scope->bytecode_start, s);
         janet_v__cnt(c->buffer) = scope->bytecode_start;
-        if (NULL != c->mapbuffer) {
+        if (NULL != c->mapbuffer && c->source) {
             size_t s = sizeof(JanetSourceMapping) * def->bytecode_length;
             def->sourcemap = malloc(s);
             if (NULL == def->sourcemap) {

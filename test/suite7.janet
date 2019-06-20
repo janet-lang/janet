@@ -83,7 +83,7 @@
 (def p (peg/compile grammar))
 
 # Just make sure is valgrind clean.
-(-> p make-image load-image)
+(def p (-> p make-image load-image))
 
 (assert (peg/match p "abc") "complex peg grammar 1")
 (assert (peg/match p "[1 2 3 4]") "complex peg grammar 2")

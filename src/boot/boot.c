@@ -63,7 +63,13 @@ int main(int argc, const char **argv) {
     janet_def(env, "process/config", janet_wrap_table(opts), "Boot options");
 
     /* Run bootstrap script to generate core image */
-    status = janet_dobytes(env, janet_gen_boot, janet_gen_boot_size, "boot.janet", NULL);
+    const char *boot_file;
+#ifdef JANET_NO_SOURCEMAPS
+    boot_file = NULL;
+#else
+    boot_file = "boot.janet";
+#endif
+    status = janet_dobytes(env, janet_gen_boot, janet_gen_boot_size, boot_file, NULL);
 
     /* Deinitialize vm */
     janet_deinit();
