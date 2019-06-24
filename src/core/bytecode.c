@@ -79,6 +79,7 @@ enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_S, /* JOP_TAILCALL, */
     JINT_SSS, /* JOP_RESUME, */
     JINT_SSU, /* JOP_SIGNAL, */
+    JINT_SSS, /* JOP_PROPAGATE */
     JINT_SSS, /* JOP_GET, */
     JINT_SSS, /* JOP_PUT, */
     JINT_SSU, /* JOP_GET_INDEX, */

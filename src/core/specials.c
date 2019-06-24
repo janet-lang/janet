@@ -675,6 +675,9 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
         goto error;
     }
 
+    /* Keep track of destructured parameters */
+    JanetSlot *destructed_params = NULL;
+
     /* Compile function parameters */
     params = janet_unwrap_tuple(argv[parami]);
     paramcount = janet_tuple_length(params);
@@ -726,9 +729,21 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
                 janetc_nameslot(c, janet_unwrap_symbol(param), janetc_farslot(c));
             }
         } else {
-            destructure(c, param, janetc_farslot(c), defleaf, NULL);
+            janet_v_push(destructed_params, janetc_farslot(c));
         }
     }
+
+    /* Compile destructed params */
+    int32_t j = 0;
+    for (i = 0; i < paramcount; i++) {
+        Janet param = params[i];
+        if (!janet_checktype(param, JANET_SYMBOL)) {
+            JanetSlot reg = destructed_params[j++];
+            destructure(c, param, reg, defleaf, NULL);
+            janetc_freeslot(c, reg);
+        }
+    }
+    janet_v_free(destructed_params);
 
     max_arity = (vararg || allow_extra) ? INT32_MAX : arity;
     if (!seenopt) min_arity = arity;

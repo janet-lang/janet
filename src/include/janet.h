@@ -1014,6 +1014,7 @@ enum JanetOpCode {
     JOP_TAILCALL,
     JOP_RESUME,
     JOP_SIGNAL,
+    JOP_PROPAGATE,
     JOP_GET,
     JOP_PUT,
     JOP_GET_INDEX,

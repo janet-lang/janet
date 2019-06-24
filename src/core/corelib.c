@@ -855,6 +855,10 @@ static const uint32_t bnot_asm[] = {
     JOP_BNOT,
     JOP_RETURN
 };
+static const uint32_t propagate_asm[] = {
+    JOP_PROPAGATE | (1 << 24),
+    JOP_RETURN
+};
 #endif /* ifndef JANET_NO_BOOTSTRAP */
 
 JanetTable *janet_core_env(JanetTable *replacements) {
@@ -862,6 +866,13 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_core_cfuns(env, NULL, corelib_cfuns);
 
 #ifdef JANET_BOOTSTRAP
+    janet_quick_asm(env, JANET_FUN_PROP,
+                    "propagate", 2, 2, 2, 2, propagate_asm, sizeof(propagate_asm),
+                    JDOC("(propagate x fiber)\n\n"
+                         "Propagate a signal from a fiber to the current fiber. The resulting "
+                         "stack trace from the current fiber will include frames from fiber. If "
+                         "fiber is in a state that can be resumed, resuming the current fiber will "
+                         "first resume fiber."));
     janet_quick_asm(env, JANET_FUN_DEBUG,
                     "debug", 0, 0, 0, 1, debug_asm, sizeof(debug_asm),
                     JDOC("(debug)\n\n"

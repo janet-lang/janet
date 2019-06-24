@@ -112,6 +112,7 @@ static const JanetInstructionDef janet_ops[] = {
     {"mul", JOP_MULTIPLY},
     {"mulim", JOP_MULTIPLY_IMMEDIATE},
     {"noop", JOP_NOOP},
+    {"prop", JOP_PROPAGATE},
     {"push", JOP_PUSH},
     {"push2", JOP_PUSH_2},
     {"push3", JOP_PUSH_3},

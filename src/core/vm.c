@@ -245,6 +245,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         &&label_JOP_TAILCALL,
         &&label_JOP_RESUME,
         &&label_JOP_SIGNAL,
+        &&label_JOP_PROPAGATE,
         &&label_JOP_GET,
         &&label_JOP_PUT,
         &&label_JOP_GET_INDEX,
@@ -277,7 +278,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
      * DO NOT use input when resuming a fiber that has been interrupted at a
      * breakpoint. */
     if (status != JANET_STATUS_NEW &&
-            ((*pc & 0xFF) == JOP_SIGNAL || (*pc & 0xFF) == JOP_RESUME)) {
+            ((*pc & 0xFF) == JOP_SIGNAL ||
+             (*pc & 0xFF) == JOP_PROPAGATE ||
+             (*pc & 0xFF) == JOP_RESUME)) {
         stack[A] = in;
         pc++;
     }
@@ -671,6 +674,18 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         if (s > JANET_SIGNAL_USER9) s = JANET_SIGNAL_USER9;
         if (s < 0) s = 0;
         vm_return(s, stack[B]);
+    }
+
+    VM_OP(JOP_PROPAGATE) {
+        Janet fv = stack[C];
+        vm_assert_type(fv, JANET_FIBER);
+        JanetFiber *f = janet_unwrap_fiber(fv);
+        JanetFiberStatus status = janet_fiber_status(f);
+        if (status > JANET_STATUS_USER9) {
+            vm_throw("cannot propagate from new or alive fiber");
+        }
+        janet_vm_fiber->child = f;
+        vm_return((int) status, stack[B]);
     }
 
     VM_OP(JOP_PUT)

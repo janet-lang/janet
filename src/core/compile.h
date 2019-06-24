@@ -60,6 +60,7 @@
 #define JANET_FUN_LTE 29
 #define JANET_FUN_EQ 30
 #define JANET_FUN_NEQ 31
+#define JANET_FUN_PROP 32
 
 /* Compiler typedefs */
 typedef struct JanetCompiler JanetCompiler;

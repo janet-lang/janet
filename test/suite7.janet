@@ -88,4 +88,21 @@
 (assert (peg/match p "abc") "complex peg grammar 1")
 (assert (peg/match p "[1 2 3 4]") "complex peg grammar 2")
 
+#
+# fn compilation special
+#
+(defn myfn1 [[x y z] & more]
+  more)
+(defn myfn2 [head & more]
+  more)
+(assert (= (myfn1 [1 2 3] 4 5 6) (myfn2 [:a :b :c] 4 5 6)) "destructuring and varargs")
+
+#
+# Test propagation of signals via fibers
+#
+
+(def f (fiber/new (fn [] (error :abc) 1) :ei))
+(def res (resume f))
+(assert-error :abc (propagate res f) "propagate 1")
+
 (end-suite)

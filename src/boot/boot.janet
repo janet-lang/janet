@@ -263,6 +263,21 @@
     (++ i))
   ~(let (,;accum) ,;body))
 
+(defmacro with-resource
+  "Evaluate body with some resource, which will be automatically cleaned up
+  if there is an error in body. binding is bound to the expression ctor, and
+  dtor is a function or callable that is passed the binding. If no destructor
+  (dtor) is given, will call :close on the resource."
+  [[binding ctor dtor] & body]
+  (with-syms [res f]
+    ~(let [,binding ,ctor
+           ,f (,fiber/new (fn [] ,;body) :ie)
+           ,res (,resume ,f)]
+       (,(or dtor :close) ,binding)
+       (if (,= (,fiber/status ,f) :error)
+         (,propagate ,res ,f)
+         ,res))))
+
 (defn- for-template
   [binding start stop step comparison delta body]
   (with-syms [i s]
