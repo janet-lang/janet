@@ -165,7 +165,7 @@ $(JANET_STATIC_LIBRARY): $(JANET_CORE_OBJECTS)
 ######################
 
 EMCC=emcc
-EMCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -O2 \
+EMCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -O2 \
 		  -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]' \
 		  -s ALLOW_MEMORY_GROWTH=1 \
 		  -s AGGRESSIVE_VARIABLE_ELIMINATION=1 \
