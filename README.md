@@ -129,7 +129,8 @@ system that supports meson. Meson also provides much better IDE integration than
 
 ## Installation
 
-See [the Introduction](https://janet-lang.org/introduction.html) for more details.
+See [the Introduction](https://janet-lang.org/introduction.html) for more details. If you just want
+to try out the language, you don't need to install anything. You can also simply move the `janet` executable wherever you want on your system and run it.
 
 ## Usage
 
@@ -202,3 +203,7 @@ Janet is named after the almost omniscient and friendly artificial being in [The
 
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-the-good-place.gif" alt="Janet logo" width="115px" align="left">
 
+## Donate
+
+<script src="https://liberapay.com/Janet-Language/widgets/button.js"></script>
+<noscript><a href="https://liberapay.com/Janet-Language/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a></noscript>
