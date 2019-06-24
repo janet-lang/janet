@@ -305,6 +305,15 @@ install: $(JANET_TARGET) $(PKG_CONFIG_PATH)/janet.pc
 	cp janet.1 $(MANPATH)
 	-ldconfig $(LIBDIR)
 
+uninstall:
+	-rm $(BINDIR)/janet
+	-rm $(BINDIR)/jpm
+	-rm -rf $(INCLUDEDIR)/janet
+	-rm -rf $(LIBDIR)/libjanet.*
+	-rm $(PKG_CONFIG_PATH)/janet.pc
+	-rm $(MANPATH)/janet.1
+	# -rm -rf $(JANET_PATH)/* - err on the side of correctness here
+
 #################
 ##### Other #####
 #################
@@ -331,10 +340,6 @@ build/embed_test: build/embed_janet.o build/embed_main.o
 
 test-amalg: build/embed_test
 	./build/embed_test
-
-uninstall:
-	-rm $(BINDIR)/../$(JANET_TARGET)
-	-rm -rf $(INCLUDEDIR)
 
 .PHONY: clean install repl debug valgrind test amalg \
 	valtest emscripten dist uninstall docs grammar format
