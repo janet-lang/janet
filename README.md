@@ -205,5 +205,4 @@ Janet is named after the almost omniscient and friendly artificial being in [The
 
 ## Donate
 
-<script src="https://liberapay.com/Janet-Language/widgets/button.js"></script>
 <noscript><a href="https://liberapay.com/Janet-Language/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a></noscript>
