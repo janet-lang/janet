@@ -4,6 +4,7 @@
 [![Build Status](https://travis-ci.org/janet-lang/janet.svg?branch=master)](https://travis-ci.org/janet-lang/janet)
 [![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/.freebsd.yaml.svg)](https://builds.sr.ht/~bakpakin/janet/.freebsd.yaml?)
 [![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/.openbsd.yaml.svg)](https://builds.sr.ht/~bakpakin/janet/.openbsd.yaml?)
+<noscript><a href="https://liberapay.com/Janet-Language/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a></noscript>
 
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
@@ -202,7 +203,3 @@ ensue.
 Janet is named after the almost omniscient and friendly artificial being in [The Good Place](https://en.wikipedia.org/wiki/The_Good_Place).
 
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-the-good-place.gif" alt="Janet logo" width="115px" align="left">
-
-## Donate
-
-<noscript><a href="https://liberapay.com/Janet-Language/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a></noscript>
