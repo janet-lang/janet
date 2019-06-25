@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `with` macro for resource handling.
+- Add `propagate` function so we can "rethrow" signals after they are
+  intercepted. This makes signals even more flexible.
 - Add `JANET_NO_DOCSTRINGS` and `JANET_NO_SOURCEMAPS` defines in janetconf.h
   for shrinking binary size.
   This seems to save about 50kB in most builds, so it's not usually worth it.

@@ -263,7 +263,7 @@
     (++ i))
   ~(let (,;accum) ,;body))
 
-(defmacro with-resource
+(defmacro with
   "Evaluate body with some resource, which will be automatically cleaned up
   if there is an error in body. binding is bound to the expression ctor, and
   dtor is a function or callable that is passed the binding. If no destructor
