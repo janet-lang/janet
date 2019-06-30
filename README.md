@@ -74,6 +74,8 @@ the SourceHut mirror is actively maintained.
 
 ### macos and Unix-like
 
+The Makefile is non-portable and requires GNU-flavored make.
+
 ```
 cd somewhere/my/projects/janet
 make
@@ -125,8 +127,10 @@ Building with emscripten on windows is currently unsupported.
 ### Meson
 
 Janet also has a build file for [Meson](https://mesonbuild.com/), a cross platform build
-system. This is not currently the main supported build system, but should work on any
-system that supports meson. Meson also provides much better IDE integration than Make or batch files.
+system. Although Meson has a python dependency, Meson is a very complete build system that
+is maybe more convenient and flexible for integrating into existing pipelines.
+Meson also provides much better IDE integration than Make or batch files, as well as support
+for cross compilation.
 
 ## Installation
 
