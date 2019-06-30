@@ -35,7 +35,7 @@ void *janet_abstract_begin(const JanetAbstractType *atype, size_t size) {
 }
 
 void *janet_abstract_end(void *x) {
-    janet_gc_settype((void *)(janet_gc_header(x)), JANET_MEMORY_ABSTRACT);
+    janet_gc_settype((void *)(janet_abstract_head(x)), JANET_MEMORY_ABSTRACT);
     return x;
 }
 
