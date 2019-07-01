@@ -130,9 +130,9 @@ section "Janet" BfWSection
 	WriteRegStr SHCTX "${UNINST_KEY}" "HelpLink" "${HELPURL}"
 	WriteRegStr SHCTX "${UNINST_KEY}" "URLUpdateInfo" "${HELPURL}"
 	WriteRegStr SHCTX "${UNINST_KEY}" "URLInfoAbout" "${HELPURL}"
-	WriteRegStr SHCTX "${UNINST_KEY}" "DisplayVersion" "0.6.0"
-	WriteRegDWORD SHCTX "${UNINST_KEY}" "VersionMajor" 0
-	WriteRegDWORD SHCTX "${UNINST_KEY}" "VersionMinor" 6
+	WriteRegStr SHCTX "${UNINST_KEY}" "DisplayVersion" "1.0.0"
+	WriteRegDWORD SHCTX "${UNINST_KEY}" "VersionMajor" 1
+	WriteRegDWORD SHCTX "${UNINST_KEY}" "VersionMinor" 0
 	WriteRegDWORD SHCTX "${UNINST_KEY}" "NoModify" 1
 	WriteRegDWORD SHCTX "${UNINST_KEY}" "NoRepair" 1
 	WriteRegDWORD SHCTX "${UNINST_KEY}" "EstimatedSize" 1000
