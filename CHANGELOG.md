@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.0.0 - 2019-07-01
 - Add `with` macro for resource handling.
 - Add `propagate` function so we can "rethrow" signals after they are
   intercepted. This makes signals even more flexible.
