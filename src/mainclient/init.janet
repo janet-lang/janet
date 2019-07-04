@@ -50,7 +50,7 @@
            3)
      "-" (fn [&] (set *handleopts* false) 1)
      "l" (fn [i &]
-           (dofile (get process/args (+ i 1))
+           (import* (get process/args (+ i 1))
                     :prefix "" :exit *exit-on-error*)
            2)
      "e" (fn [i &]
