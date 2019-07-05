@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+- Change semantics of `-l` flag to be import rather than dofile.
+
 ## 1.0.0 - 2019-07-01
 - Add `with` macro for resource handling.
 - Add `propagate` function so we can "rethrow" signals after they are
