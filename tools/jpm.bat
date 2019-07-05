@@ -1,4 +1,4 @@
 @echo off
-@rem Wrapper arounf jpm
+@rem Wrapper around jpm
 
 janet %~dp0\jpm.janet %*
