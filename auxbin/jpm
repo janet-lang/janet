@@ -8,13 +8,27 @@
   (peg/compile
     '(* "--" '(some (if-not "=" 1)) "=" '(any 1))))
 
+(defn- local-rule
+  [rule]
+  (cook/import-rules "./project.janet")
+  (cook/do-rule rule))
+
 (defn- help
   []
-  (print "usage: jpm [targets]... --key=value ...")
-  (print "Available targets are:")
-  (each k (sort (keys (dyn :rules @{})))
-    (print "  " k))
   (print `
+usage: jpm --key=value ... [subcommand] [args]...
+
+Subcommands are:
+  build : build all artifacts
+  install (repo) : install artifacts. If a repo is given, install the contents of that
+                   git repository, assuming that the repository is a jpm project. If not, build
+                   and install the current project.
+  uninstall (module) : uninstall a module. If no module is given, uninstall the module
+                       defined by the current directory.
+  clean : remove any generated files or artifacts
+  test : run tests
+  deps : install dependencies.
+  clear-cache : clear the git cache. Useful for updating dependencies.
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH or (dyn :syspath)
@@ -27,17 +41,64 @@ Keys are:
   --lflags : Extra linker flags for native modules. Defaults to $LFLAGS if set.
     `))
 
+(defn build
+  []
+  (local-rule "build"))
+
+(defn clean
+  []
+  (local-rule "clean"))
+
+(defn install
+  [&opt repo]
+  (if repo
+    (cook/install-git repo)
+    (local-rule "install")))
+
+(defn test
+  []
+  (local-rule "test"))
+
+(defn uninstall
+  [&opt what]
+  (if what
+    (cook/uninstall what)
+    (local-rule "uninstall")))
+
+(defn deps
+  []
+  (local-rule "install-deps"))
+
+(def subcommands
+  {"build" build
+   "clean" clean
+   "install" install
+   "test" test
+   "help" help
+   "deps" deps
+   "clear-cache" cook/clear-cache
+   "uninstall" uninstall})
+
 (def args (tuple/slice process/args 2))
-(def todo @[])
-(each arg args
-  (if (string/has-prefix? "--" arg)
-    (if-let [m (peg/match argpeg arg)]
-      (let [[key value] m]
-        (setdyn (keyword key) value))
-      (print "invalid argument " arg))
-    (array/push todo arg)))
+(def len (length args))
+(var i 0)
 
-(cook/import-rules "./project.janet")
+# Get flags
+(while (< i len)
+  (def arg (args i))
+  (unless (string/has-prefix? "--" arg) (break))
+  (if-let [m (peg/match argpeg arg)]
+    (let [[key value] m]
+      (setdyn (keyword key) value))
+    (print "invalid argument " arg))
+  (++ i))
 
-(if (empty? todo) (help))
-(each rule todo (cook/do-rule rule))
+# Run subcommand
+(if (= i len)
+  (help)
+  (do
+    (if-let [com (subcommands (args i))]
+      (com ;(tuple/slice args (+ i 1)))
+      (do
+        (print "invalid command " (args i))
+        (help)))))

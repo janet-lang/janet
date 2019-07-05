@@ -15,14 +15,14 @@
 (def- sep (if is-win "\\" "/"))
 (def- objext (if is-win ".obj" ".o"))
 (def- modext (if is-win ".dll" ".so"))
+(def- absprefix (if is-win "C:\\" "/"))
 
 #
 # Rule Engine
 #
 
 (defn- getrules []
-  (def rules (dyn :rules))
-  (if rules rules (setdyn :rules @{})))
+  (if-let [rules (dyn :rules)] rules (setdyn :rules @{})))
 
 (defn- gettarget [target]
   (def item ((getrules) target))
@@ -284,25 +284,98 @@
         (file/close out)
         (file/close f)))
 
+(defn- abspath
+  "Create an absolute path. Does not resolve . and .. (useful for
+  generating entries in install manifest file)."
+  [path]
+  (if (string/has-prefix? absprefix)
+    path
+    (string (os/cwd) sep path)))
+
 #
-# Declaring Artifacts - used in project.janet, targets specifically
-# tailored for janet.
+# Public utilities
 #
 
-(defn- install-rule
+(defn repo-id
+  "Convert a repo url into a path component that serves as its id."
+  [repo]
+  (string/replace-all "\\" "_" (string/replace-all "/" "_" repo)))
+
+(defn find-manifest-dir
+  "Get the path to the directory containing manifests for installed
+  packages."
+  [&opt opts]
+  (string (opt (or opts @{}) :modpath JANET_MODPATH) sep ".manifests"))
+
+(defn find-manifest
+  "Get the full path of a manifest file given a package name."
+  [name &opt opts]
+  (string (find-manifest-dir opts) sep name ".txt"))
+
+(defn find-cache
+  "Return the path to the global cache."
+  [&opt opts]
+  (def path (opt (or opts @{}) :modpath JANET_MODPATH))
+  (string path sep ".cache"))
+
+(defn uninstall
+  "Uninstall bundle named name"
+  [name &opt opts]
+  (def manifest (find-manifest name opts))
+  (def f (file/open manifest :r))
+  (unless f (print manifest " does not exist") (break))
+  (loop [line :iterate (:read f :line)]
+    (def path ((string/split "\n" line) 0))
+    (print "removing " path)
+    (try (rm path) ([err]
+                    (unless (= err "No such file or directory")
+                      (error err)))))
+  (print "removing " manifest)
+  (rm manifest)
+  (:close f)
+  (print "Uninstalled."))
+
+(defn clear-cache
+  "Clear the global git cache."
+  [&opt opts]
+  (rm (find-cache opts)))
+
+(defn install-git
+  "Install a bundle from git. If the bundle is already installed, the bundle
+  is reinistalled (but not rebuilt if artifacts are cached)."
+  [repo &opt opts]
+  (def cache (find-cache opts))
+  (os/mkdir cache)
+  (def id (repo-id repo))
+  (def module-dir (string cache sep id))
+  (when (os/mkdir module-dir)
+    (os/execute ["git" "clone" repo module-dir] :p))
+  (def olddir (os/cwd))
+  (os/cd module-dir)
+  (try
+    (with-dyns [:rules @{}]
+      (import-rules "./project.janet")
+      (do-rule "install-deps")
+      (do-rule "build")
+      (do-rule "install"))
+    ([err] nil))
+  (os/cd olddir))
+
+(defn install-rule
   "Add install and uninstall rule for moving file from src into destdir."
   [src destdir]
   (def parts (string/split sep src))
   (def name (last parts))
+  (def path (string destdir sep name))
+  (array/push (dyn :installed-files) path)
   (add-body "install"
             (try (os/mkdir destdir) ([err] nil))
-            (copy src destdir))
-  (add-body "uninstall"
-            (def path (string destdir sep name))
-            (print "removing " path)
-            (try (rm path) ([err]
-                            (unless (= err "No such file or directory")
-                              (error err))))))
+            (copy src destdir)))
+
+#
+# Declaring Artifacts - used in project.janet, targets specifically
+# tailored for janet.
+#
 
 (defn declare-native
   "Declare a native binary. This is a shared library that can be loaded
@@ -378,11 +451,37 @@
   Also sets up basic phony targets like clean, build, test, etc."
   [&keys meta]
   (setdyn :project meta)
-  (try (os/mkdir "build") ([err] nil))
-  (phony "build" [])
-  (phony "install" ["build"] (print "Installed."))
-  (phony "uninstall" [] (print "Uninstalled."))
-  (phony "clean" [] (rm "build") (print "Deleted build directory."))
+
+  (def installed-files @[])
+  (def manifests (find-manifest-dir))
+  (def manifest (find-manifest (meta :name)))
+  (setdyn :manifest manifest)
+  (setdyn :manifest-dir manifests)
+  (setdyn :installed-files installed-files)
+
+  (rule "./build" [] (os/mkdir "build"))
+  (phony "build" ["./build"])
+
+  (phony "manifest" []
+         (print "generating " manifest "...")
+         (os/mkdir manifests)
+         (spit manifest (string (string/join installed-files "\n") "\n")))
+  (phony "install" ["uninstall" "build" "manifest"]
+         (print "Installed as '" (meta :name) "'."))
+
+  (phony "install-deps" []
+         (if-let [deps (meta :dependencies)]
+           (each dep deps
+             (install-git dep))
+           (print "no dependencies found")))
+
+  (phony "uninstall" []
+         (uninstall (meta :name)))
+
+  (phony "clean" []
+         (rm "build")
+         (print "Deleted build directory."))
+
   (phony "test" ["build"]
          (defn dodir
            [dir]
