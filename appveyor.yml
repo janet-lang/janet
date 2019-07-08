@@ -33,7 +33,7 @@ only_commits:
 
 artifacts:
     - path: janet-installer.exe
-      name: janet-v1.0.0-windows-installer.exe
+      name: janet-v1.1.0-windows-installer.exe
       type: File
 
 deploy:

@@ -280,6 +280,12 @@ static Janet cfun_table_rawget(int32_t argc, Janet *argv) {
     return janet_table_rawget(table, argv[1]);
 }
 
+static Janet cfun_table_clone(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetTable *table = janet_gettable(argv, 0);
+    return janet_wrap_table(janet_table_clone(table));
+}
+
 static const JanetReg table_cfuns[] = {
     {
         "table/new", cfun_table_new,
@@ -312,6 +318,12 @@ static const JanetReg table_cfuns[] = {
              "Gets a value from a table without looking at the prototype table. "
              "If a table tab does not contain t directly, the function will return "
              "nil without checking the prototype. Returns the value in the table.")
+    },
+    {
+        "table/clone", cfun_table_clone,
+        JDOC("(table/clone tab)\n\n"
+             "Create a copy of a table. Updates to the new table will not change the old table, "
+             "and vice versa.")
     },
     {NULL, NULL, NULL}
 };

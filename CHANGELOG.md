@@ -1,8 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.1.0 - 2019-07-08
 - Change semantics of `-l` flag to be import rather than dofile.
+- Fix compiler regression in top level defs with destructuring.
+- Add `table/clone`.
+- Improve `jpm` tool with git and dependency capabilities, as well as better
+  module uninstalls.
 
 ## 1.0.0 - 2019-07-01
 - Add `with` macro for resource handling.
