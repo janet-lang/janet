@@ -116,7 +116,7 @@ static JanetSlot janetc_unquote(JanetFopts opts, int32_t argn, const Janet *argv
     return janetc_cslot(janet_wrap_nil());
 }
 
-/* Preform destructuring. Be careful to
+/* Perform destructuring. Be careful to
  * keep the order registers are freed.
  * Returns if the slot 'right' can be freed. */
 static int destructure(JanetCompiler *c,
@@ -282,12 +282,13 @@ static int varleaf(
     if (c->scope->flags & JANET_SCOPE_TOP) {
         /* Global var, generate var */
         JanetSlot refslot;
+        JanetTable *entry = janet_table_clone(reftab);
         JanetArray *ref = janet_array(1);
         janet_array_push(ref, janet_wrap_nil());
-        janet_table_put(reftab, janet_ckeywordv("ref"), janet_wrap_array(ref));
-        janet_table_put(reftab, janet_ckeywordv("source-map"),
+        janet_table_put(entry, janet_ckeywordv("ref"), janet_wrap_array(ref));
+        janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
-        janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(reftab));
+        janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(entry));
         refslot = janetc_cslot(janet_wrap_array(ref));
         janetc_emit_ssu(c, JOP_PUT_INDEX, refslot, s, 0, 0);
         return 1;
@@ -312,13 +313,14 @@ static int defleaf(
     JanetSlot s,
     JanetTable *tab) {
     if (c->scope->flags & JANET_SCOPE_TOP) {
-        janet_table_put(tab, janet_ckeywordv("source-map"),
+        JanetTable *entry = janet_table_clone(tab);
+        janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
         JanetSlot valsym = janetc_cslot(janet_ckeywordv("value"));
-        JanetSlot tabslot = janetc_cslot(janet_wrap_table(tab));
+        JanetSlot tabslot = janetc_cslot(janet_wrap_table(entry));
 
         /* Add env entry to env */
-        janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(tab));
+        janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(entry));
 
         /* Put value in table when evaulated */
         janetc_emit_sss(c, JOP_PUT, tabslot, valsym, s, 0);

@@ -303,5 +303,16 @@
 # Regression Test
 (assert (= 1 (((compile '(fn [] 1) @{})))) "regression test")
 
+# Regression Test #137
+(def [a b c] (range 10))
+(assert (= a 0) "regression #137 (1)")
+(assert (= b 1) "regression #137 (2)")
+(assert (= c 2) "regression #137 (3)")
+
+(var [x y z] (range 10))
+(assert (= a 0) "regression #137 (4)")
+(assert (= b 1) "regression #137 (5)")
+(assert (= c 2) "regression #137 (6)")
+
 (end-suite)
 
