@@ -310,9 +310,9 @@
 (assert (= c 2) "regression #137 (3)")
 
 (var [x y z] (range 10))
-(assert (= a 0) "regression #137 (4)")
-(assert (= b 1) "regression #137 (5)")
-(assert (= c 2) "regression #137 (6)")
+(assert (= x 0) "regression #137 (4)")
+(assert (= y 1) "regression #137 (5)")
+(assert (= z 2) "regression #137 (6)")
 
 (end-suite)
 
