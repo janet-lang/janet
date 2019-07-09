@@ -296,10 +296,14 @@
 # Public utilities
 #
 
+(def- filepath-replacer
+  "Convert url with potential bad characters into a file path element."
+  (peg/compile ~(% (+ (/ '(set "<>:\"/\\|?*") "_") '1))))
+
 (defn repo-id
   "Convert a repo url into a path component that serves as its id."
   [repo]
-  (string/replace-all "\\" "_" (string/replace-all "/" "_" repo)))
+  (get (peg/match filepath-replacer repo) 0))
 
 (defn find-manifest-dir
   "Get the path to the directory containing manifests for installed
