@@ -182,6 +182,12 @@ void janet_memempty(JanetKV *mem, int32_t count) {
 
 #ifdef JANET_NANBOX_64
 
+Janet janet_wrap_number_safe(double d) {
+    Janet ret;
+    ret.number = isnan(d) ? (0.0 / 0.0) : d;
+    return ret;
+}
+
 void *janet_nanbox_to_pointer(Janet x) {
     x.i64 &= JANET_NANBOX_PAYLOADBITS;
     return x.pointer;
@@ -222,6 +228,12 @@ Janet janet_wrap_number(double x) {
     return ret;
 }
 
+Janet janet_wrap_number_safe(double d) {
+    Janet ret;
+    double x = isnan(d) ? (0.0 / 0.0) : d;
+    return janet_wrap_number(x);
+}
+
 Janet janet_nanbox32_from_tagi(uint32_t tag, int32_t integer) {
     Janet ret;
     ret.tagged.type = tag;
@@ -242,6 +254,10 @@ double janet_unwrap_number(Janet x) {
 }
 
 #else
+
+Janet janet_wrap_number_safe(double d) {
+    return janet_wrap_number(d);
+}
 
 Janet janet_wrap_nil(void) {
     Janet y;
@@ -298,3 +314,4 @@ JANET_WRAP_DEFINE(pointer, void *, JANET_POINTER, pointer)
 #undef JANET_WRAP_DEFINE
 
 #endif
+

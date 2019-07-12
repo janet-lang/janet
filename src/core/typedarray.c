@@ -197,10 +197,10 @@ static Janet ta_getter(void *p, Janet key) {
                 break;
 #endif
             case JANET_TARRAY_TYPE_F32:
-                value = janet_wrap_number(array->as.f32[i]);
+                value = janet_wrap_number_safe(array->as.f32[i]);
                 break;
             case JANET_TARRAY_TYPE_F64:
-                value = janet_wrap_number(array->as.f64[i]);
+                value = janet_wrap_number_safe(array->as.f64[i]);
                 break;
             default:
                 janet_panicf("cannot get from typed array of type %s",

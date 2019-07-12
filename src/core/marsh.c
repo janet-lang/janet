@@ -1070,7 +1070,7 @@ static const uint8_t *unmarshal_one(
 #else
             memcpy(&u.bytes, data + 1, sizeof(double));
 #endif
-            *out = janet_wrap_number(u.d);
+            *out = janet_wrap_number_safe(u.d);
             janet_v_push(st->lookup, *out);
             return data + 9;
         }

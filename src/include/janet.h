@@ -1276,6 +1276,7 @@ JANET_API void janet_put(Janet ds, Janet key, Janet value);
 JANET_API void janet_putindex(Janet ds, int32_t index, Janet value);
 JANET_API uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags);
 #define janet_flag_at(F, I) ((F) & ((1ULL) << (I)))
+JANET_API Janet janet_wrap_number_safe(double x);
 
 /* VM functions */
 JANET_API int janet_init(void);

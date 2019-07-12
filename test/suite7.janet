@@ -113,4 +113,17 @@
 (check-table-clone @{:a 123 :b 34 :c :hello : 945 0 1 2 3 4 5} "table/clone 1")
 (check-table-clone @{} "table/clone 1")
 
+# Issue #142
+
+(def buffer (tarray/buffer 8))
+(def buffer-float64-view (tarray/new :float64 1 1 0 buffer))
+(def buffer-uint32-view (tarray/new :uint32 2 1 0 buffer))
+
+(set (buffer-uint32-view 1) 0xfffe9234)
+(set (buffer-uint32-view 0) 0x56789abc)
+
+(assert (buffer-float64-view 0) "issue #142 nanbox hijack 1")
+(assert (= (type (buffer-float64-view 0)) :number) "issue #142 nanbox hijack 2")
+(assert (= (type (unmarshal @"\xC8\xbc\x9axV4\x92\xfe\xff")) :number) "issue #142 nanbox hijack 3")
+
 (end-suite)

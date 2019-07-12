@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+- Fix bug with Nanbox implementation allowing users to created
+  custom values of any type with typed array and marshal modules, which
+  was unsafe.
+- Add `janet_wrap_number_safe` to API, for converting numbers to Janets
+  where the number could be any 64 bit, user provided bit pattern. Certain
+  NaN values (which a machine will never generate as a result of a floating
+  point operation) are guarded against and converted to a default NaN value.
+
 ## 1.1.0 - 2019-07-08
 - Change semantics of `-l` flag to be import rather than dofile.
 - Fix compiler regression in top level defs with destructuring.
