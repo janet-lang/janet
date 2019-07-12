@@ -126,4 +126,8 @@
 (assert (= (type (buffer-float64-view 0)) :number) "issue #142 nanbox hijack 2")
 (assert (= (type (unmarshal @"\xC8\xbc\x9axV4\x92\xfe\xff")) :number) "issue #142 nanbox hijack 3")
 
+# Make sure Carriage Returns don't end up in doc strings.
+
+(assert (not (string/find "\r" (get ((fiber/getenv (fiber/current)) 'cond) :doc))) "no \\r in doc strings")
+
 (end-suite)

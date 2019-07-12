@@ -1080,7 +1080,7 @@
   "Read all data from a file with name path
   and then close the file."
   [path]
-  (def f (file/open path :r))
+  (def f (file/open path :rb))
   (if-not f (error (string "could not open file " path)))
   (def contents (file/read f :all))
   (file/close f)
@@ -1090,7 +1090,7 @@
   "Write contents to a file at path.
   Can optionally append to the file."
   [path contents &opt mode]
-  (default mode :w)
+  (default mode :wb)
   (def f (file/open path mode))
   (if-not f (error (string "could not open file " path " with mode " mode)))
   (file/write f contents)
@@ -1633,7 +1633,7 @@
     (defglobal "fexists" (fn fexists [path] (= :file (stat path :mode)))))
   (defglobal "fexists"
     (fn fexists [path]
-      (def f (file/open path))
+      (def f (file/open path :rb))
       (when f
         (def res
           (try (do (file/read f 1) true)
@@ -1699,7 +1699,7 @@
         :compile-only compile-only} (table ;args))
   (def f (if (= (type path) :core/file)
            path
-           (file/open path)))
+           (file/open path :rb)))
   (default env (make-env))
   (put env :current-file (string path))
   (defn chunks [buf _] (file/read f 2048 buf))
@@ -1891,7 +1891,7 @@ _fiber is bound to the suspended fiber
   # can be compiled and linked statically into the main janet library
   # and example client.
   (def chunks (string/bytes image))
-  (def image-file (file/open (process/args 1) :w))
+  (def image-file (file/open (process/args 1) :wb))
   (file/write image-file
               "#ifndef JANET_AMALG\n"
               "#include <janet.h>\n"
