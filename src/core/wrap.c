@@ -21,6 +21,7 @@
 */
 
 #ifndef JANET_AMALG
+#include <math.h>
 #include <janet.h>
 #include "util.h"
 #endif
@@ -184,7 +185,7 @@ void janet_memempty(JanetKV *mem, int32_t count) {
 
 Janet janet_wrap_number_safe(double d) {
     Janet ret;
-    ret.number = isnan(d) ? (0.0 / 0.0) : d;
+    ret.number = isnan(d) ? NAN : d;
     return ret;
 }
 
@@ -229,8 +230,7 @@ Janet janet_wrap_number(double x) {
 }
 
 Janet janet_wrap_number_safe(double d) {
-    Janet ret;
-    double x = isnan(d) ? (0.0 / 0.0) : d;
+    double x = isnan(d) ? NAN : d;
     return janet_wrap_number(x);
 }
 
