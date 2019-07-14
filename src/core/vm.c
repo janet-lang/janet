@@ -57,7 +57,11 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
 /* How we dispatch instructions. By default, we use
  * a switch inside an infinite loop. For GCC/clang, we use
  * computed gotos. */
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(EMSCRIPTEN)
+#define JANET_USE_COMPUTED_GOTOS
+#endif
+
+#ifdef JANET_USE_COMPUTED_GOTOS
 #define VM_START() { goto *op_lookup[first_opcode];
 #define VM_END() }
 #define VM_OP(op) label_##op :
@@ -192,7 +196,7 @@ static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
 static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) {
 
     /* opcode -> label lookup if using clang/GCC */
-#ifdef __GNUC__
+#ifdef JANET_USE_COMPUTED_GOTOS
     static void *op_lookup[255] = {
         &&label_JOP_NOOP,
         &&label_JOP_ERROR,

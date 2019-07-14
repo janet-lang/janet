@@ -238,9 +238,9 @@ typedef struct {
 #include <stdio.h>
 
 /* Names of all of the types */
-JANET_API const char *const janet_type_names[16];
-JANET_API const char *const janet_signal_names[14];
-JANET_API const char *const janet_status_names[16];
+JANET_API extern const char *const janet_type_names[16];
+JANET_API extern const char *const janet_signal_names[14];
+JANET_API extern const char *const janet_status_names[16];
 
 /* Fiber signals */
 typedef enum {
