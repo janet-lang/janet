@@ -57,7 +57,7 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
 /* How we dispatch instructions. By default, we use
  * a switch inside an infinite loop. For GCC/clang, we use
  * computed gotos. */
-#if defined(__GNUC__) && !defined(EMSCRIPTEN)
+#if defined(__GNUC__) && !defined(__EMSCRIPTEN__)
 #define JANET_USE_COMPUTED_GOTOS
 #endif
 
