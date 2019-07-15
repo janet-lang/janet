@@ -130,4 +130,9 @@
 
 (assert (not (string/find "\r" (get ((fiber/getenv (fiber/current)) 'cond) :doc))) "no \\r in doc strings")
 
+# module/expand-path regression
+(with-dyns [:syspath ".janet/.janet"]
+  (assert (= (string (module/expand-path "hello" ":sys:/:all:.janet"))
+             ".janet/.janet/hello.janet") "module/expand-path 1"))
+
 (end-suite)

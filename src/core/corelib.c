@@ -218,6 +218,10 @@ static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
             }
             dot_count = 0;
         } else {
+            while (dot_count > 0) {
+                --dot_count;
+                *print++ = '.';
+            }
             dot_count = -1;
             *print++ = *scan;
         }
