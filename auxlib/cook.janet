@@ -298,7 +298,7 @@
 
 (def- filepath-replacer
   "Convert url with potential bad characters into a file path element."
-  (peg/compile ~(% (+ (/ '(set "<>:\"/\\|?*") "_") '1))))
+  (peg/compile ~(% (* (+ (/ '(set "<>:\"/\\|?*") "_") '2)))))
 
 (defn repo-id
   "Convert a repo url into a path component that serves as its id."
