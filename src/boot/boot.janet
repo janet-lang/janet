@@ -1433,10 +1433,10 @@
 ###
 ###
 
-# Get process options
-(def- process/opts @{})
-(each [k v] (partition 2 (tuple/slice process/args 2))
-  (put process/opts k v))
+# Get boot options
+(def- boot/opts @{})
+(each [k v] (partition 2 (tuple/slice boot/args 2))
+  (put boot/opts k v))
 
 (defn make-env
   "Create a new environment table. The new environment
@@ -1624,8 +1624,8 @@
     [":sys:/:all:/init.janet" :source not-check-.]
     [(string ":sys:/:all:" nati) :native not-check-.]])
 
-(setdyn :syspath (process/opts "JANET_PATH"))
-(setdyn :headerpath (process/opts "JANET_HEADERPATH"))
+(setdyn :syspath (boot/opts "JANET_PATH"))
+(setdyn :headerpath (boot/opts "JANET_HEADERPATH"))
 
 # Version of fexists that works even with a reduced OS
 (if-let [has-stat (_env 'os/stat)]
@@ -1853,7 +1853,7 @@ _fiber is bound to the suspended fiber
   (env-walk keyword? env))
 
 # Clean up some extra defs
-(put _env 'process/opts nil)
+(put _env 'boot/opts nil)
 (put _env 'env-walk nil)
 (put _env '_env nil)
 
@@ -1880,13 +1880,14 @@ _fiber is bound to the suspended fiber
   (loop [[k v] :pairs env
          :when (symbol? k)]
     (def flat (proto-flatten @{} v))
-    (when (process/config :no-docstrings)
+    (when (boot/config :no-docstrings)
       (put flat :doc nil))
-    (when (process/config :no-sourcemaps)
+    (when (boot/config :no-sourcemaps)
       (put flat :source-map nil))
     (put env k flat))
 
-  (put env 'process/config nil)
+  (put env 'boot/config nil)
+  (put env 'boot/args nil)
   (def image (let [env-pairs (pairs (env-lookup env))
                    essential-pairs (filter (fn [[k v]] (or (cfunction? v) (abstract? v))) env-pairs)
                    lookup (table ;(mapcat identity essential-pairs))
@@ -1897,7 +1898,7 @@ _fiber is bound to the suspended fiber
   # can be compiled and linked statically into the main janet library
   # and example client.
   (def chunks (string/bytes image))
-  (def image-file (file/open (process/args 1) :wb))
+  (def image-file (file/open (boot/args 1) :wb))
   (file/write image-file
               "#ifndef JANET_AMALG\n"
               "#include <janet.h>\n"

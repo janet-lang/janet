@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
     args = janet_array(argc);
     for (i = 0; i < argc; i++)
         janet_array_push(args, janet_cstringv(argv[i]));
-    janet_def(env, "process/args", janet_wrap_array(args), "Command line arguments.");
+    janet_table_put(env, janet_ckeywordv("args"), janet_wrap_array(args));
 
     /* Run startup script */
     status = janet_dobytes(env, janet_gen_init, janet_gen_init_size, "init.janet", NULL);

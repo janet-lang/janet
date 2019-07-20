@@ -79,7 +79,7 @@ Keys are:
    "clear-cache" cook/clear-cache
    "uninstall" uninstall})
 
-(def args (tuple/slice process/args 2))
+(def args (tuple/slice (dyn :args) 2))
 (def len (length args))
 (var i 0)
 

@@ -1,5 +1,7 @@
 # Copyright 2017-2019 (C) Calvin Rose
 
+(def process/args "Deprecated. use '(dyn :args)' at script entry instead for process argument array."
+  (dyn :args))
 (do
 
   (var *should-repl* false)
@@ -13,11 +15,12 @@
 
   (if-let [jp (os/getenv "JANET_PATH")] (setdyn :syspath jp))
   (if-let [jp (os/getenv "JANET_HEADERPATH")] (setdyn :headerpath jp))
+  (def args (dyn :args))
 
   # Flag handlers
   (def handlers :private
     {"h" (fn [&]
-           (print "usage: " (get process/args 0) " [options] script args...")
+           (print "usage: " (get args 0) " [options] script args...")
            (print
              `Options are:
   -h : Show this help
@@ -42,20 +45,20 @@
      "q" (fn [&] (set *quiet* true) 1)
      "k" (fn [&] (set *compile-only* true) (set *exit-on-error* false) 1)
      "n" (fn [&] (set *colorize* false) 1)
-     "m" (fn [i &] (setdyn :syspath (get process/args (+ i 1))) 2)
+     "m" (fn [i &] (setdyn :syspath (get args (+ i 1))) 2)
      "c" (fn [i &]
-           (def e (dofile (get process/args (+ i 1))))
-           (spit (get process/args (+ i 2)) (make-image e))
+           (def e (dofile (get args (+ i 1))))
+           (spit (get args (+ i 2)) (make-image e))
            (set *no-file* false)
            3)
      "-" (fn [&] (set *handleopts* false) 1)
      "l" (fn [i &]
-           (import* (get process/args (+ i 1))
+           (import* (get args (+ i 1))
                     :prefix "" :exit *exit-on-error*)
            2)
      "e" (fn [i &]
            (set *no-file* false)
-           (eval-string (get process/args (+ i 1)))
+           (eval-string (get args (+ i 1)))
            2)})
 
   (defn- dohandler [n i &]
@@ -64,9 +67,9 @@
 
   # Process arguments
   (var i 1)
-  (def lenargs (length process/args))
+  (def lenargs (length args))
   (while (< i lenargs)
-    (def arg (get process/args i))
+    (def arg (get args i))
     (if (and *handleopts* (= "-" (string/slice arg 0 1)))
       (+= i (dohandler (string/slice arg 1 2) i))
       (do
