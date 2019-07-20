@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `use` macro.
+- Remove `process/args` in favor of `(dyn :args)`.
 - Fix bug with Nanbox implementation allowing users to created
   custom values of any type with typed array and marshal modules, which
   was unsafe.
