@@ -1782,6 +1782,12 @@
                  args))
   (tuple import* (string path) ;argm))
 
+(defmacro use
+  "Similar to import, but imported bindings are not prefixed with a namespace
+  identifier. Can also import multiple modules in one shot."
+  [& modules]
+  ~(do ,;(map (fn [x] ~(,import* ,(string x) :prefix "")) modules)))
+
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
   get a chunk of source code that should return nil for end of file.

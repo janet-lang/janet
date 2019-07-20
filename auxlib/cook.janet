@@ -91,23 +91,6 @@
     (thunk))
   (unless phony target))
 
-(def- _env (fiber/getenv (fiber/current)))
-
-(defn import-rules
-  "Import another file that defines more cook rules. This ruleset
-  is merged into the current ruleset."
-  [path]
-  (def env (make-env))
-  (unless (os/stat path :mode)
-    (error (string "cannot open " path)))
-  (loop [k :keys _env :when (symbol? k)]
-     (unless ((_env k) :private) (put env k (_env k))))
-  (def currenv (fiber/getenv (fiber/current)))
-  (loop [k :keys currenv :when (keyword? k)]
-     (put env k (currenv k)))
-  (dofile path :env env)
-  (when-let [rules (env :rules)] (merge-into (getrules) rules)))
-
 #
 # Configuration
 #
@@ -115,7 +98,7 @@
 # Installation settings
 (def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
 (def JANET_HEADERPATH (os/getenv "JANET_HEADERPATH"))
-(def JANET_BINPATH (or (os/getenv "JANET_BINPATH") (unless is-win "/usr/local/bin")))
+(def JANET_BINPATH (os/getenv "JANET_BINPATH"))
 
 # Compilation settings
 (def- OPTIMIZE (or (os/getenv "OPTIMIZE") 2))
@@ -149,6 +132,35 @@
   (if (= nil ret)
     (error (string "option :" key " not set")))
   ret)
+
+#
+# Importing a file
+#
+
+(def- _env (fiber/getenv (fiber/current)))
+
+(defn- proto-flatten
+  [into x]
+  (when x
+    (proto-flatten into (table/getproto x))
+    (loop [k :keys x]
+      (put into k (x k))))
+  into)
+
+(defn import-rules
+  "Import another file that defines more cook rules. This ruleset
+  is merged into the current ruleset."
+  [path]
+  (def env (make-env))
+  (unless (os/stat path :mode)
+    (error (string "cannot open " path)))
+  (loop [k :keys _env :when (symbol? k)]
+     (unless ((_env k) :private) (put env k (_env k))))
+  (def currenv (proto-flatten @{} (fiber/getenv (fiber/current))))
+  (loop [k :keys currenv :when (keyword? k)]
+    (put env k (currenv k)))
+  (dofile path :env env)
+  (when-let [rules (env :rules)] (merge-into (getrules) rules)))
 
 #
 # OS and shell helpers
@@ -237,7 +249,7 @@
   "Generate the c flags from the input options."
   [opts]
   @[;(opt opts :cflags CFLAGS)
-    (string (if is-win "/I" "-I") (opt opts :headerpath JANET_HEADERPATH))
+    (string (if is-win "/I" "-I") (dyn :headerpath JANET_HEADERPATH))
     (string (if is-win "/O" "-O") (opt opts :optimize OPTIMIZE))])
 
 (defn- compile-c
@@ -262,7 +274,7 @@
   (rule target objects
         (print "linking " target "...")
         (if is-win
-          (shell ld ;lflags (string "/OUT:" target) ;objects (string (opt opts :headerpath JANET_HEADERPATH) `\\janet.lib`))
+          (shell ld ;lflags (string "/OUT:" target) ;objects (string (dyn :headerpath JANET_HEADERPATH) `\\janet.lib`))
           (shell ld ;cflags `-o` target ;objects ;lflags))))
 
 (defn- create-buffer-c
@@ -298,7 +310,7 @@
 
 (def- filepath-replacer
   "Convert url with potential bad characters into a file path element."
-  (peg/compile ~(% (* (+ (/ '(set "<>:\"/\\|?*") "_") '2)))))
+  (peg/compile ~(% (any (+ (/ '(set "<>:\"/\\|?*") "_") '1)))))
 
 (defn repo-id
   "Convert a repo url into a path component that serves as its id."
@@ -308,24 +320,24 @@
 (defn find-manifest-dir
   "Get the path to the directory containing manifests for installed
   packages."
-  [&opt opts]
-  (string (opt (or opts @{}) :modpath JANET_MODPATH) sep ".manifests"))
+  []
+  (string (dyn :modpath JANET_MODPATH) sep ".manifests"))
 
 (defn find-manifest
   "Get the full path of a manifest file given a package name."
-  [name &opt opts]
-  (string (find-manifest-dir opts) sep name ".txt"))
+  [name]
+  (string (find-manifest-dir) sep name ".txt"))
 
 (defn find-cache
   "Return the path to the global cache."
-  [&opt opts]
-  (def path (opt (or opts @{}) :modpath JANET_MODPATH))
+  []
+  (def path (dyn :modpath JANET_MODPATH))
   (string path sep ".cache"))
 
 (defn uninstall
   "Uninstall bundle named name"
-  [name &opt opts]
-  (def manifest (find-manifest name opts))
+  [name]
+  (def manifest (find-manifest name))
   (def f (file/open manifest :r))
   (unless f (print manifest " does not exist") (break))
   (loop [line :iterate (:read f :line)]
@@ -341,14 +353,14 @@
 
 (defn clear-cache
   "Clear the global git cache."
-  [&opt opts]
-  (rm (find-cache opts)))
+  []
+  (rm (find-cache)))
 
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle
   is reinistalled (but not rebuilt if artifacts are cached)."
-  [repo &opt opts]
-  (def cache (find-cache opts))
+  [repo]
+  (def cache (find-cache))
   (os/mkdir cache)
   (def id (repo-id repo))
   (def module-dir (string cache sep id))
@@ -400,31 +412,30 @@
               (compile-c opts c-src o-src)))
   (link-c opts lname ;objects)
   (add-dep "build" lname)
-  (def path (opt opts :modpath JANET_MODPATH))
+  (def path (dyn :modpath JANET_MODPATH))
   (install-rule lname path))
 
 (defn declare-source
   "Create a Janet modules. This does not actually build the module(s),
   but registers it for packaging and installation."
-  [&keys opts]
-  (def sources (opts :source))
-  (def path (opt opts :modpath JANET_MODPATH))
-  (each s sources
-    (install-rule s path)))
+  [&keys {:source sources}]
+  (def path (dyn :modpath JANET_MODPATH))
+  (if (bytes? sources)
+    (install-rule sources path)
+    (each s sources
+      (install-rule s path))))
 
 (defn declare-bin
   "Declare a generic file to be installed as an executable."
-  [&keys opts]
-  (def main (opts :main))
-  (def binpath (opt opts :binpath JANET_BINPATH))
-  (install-rule main binpath))
+  [&keys {:main main}]
+  (install-rule main (dyn :binpath JANET_BINPATH)))
 
 (defn declare-binscript
   "Declare a janet file to be installed as an executable script. Creates
   a shim on windows."
   [&keys opts]
   (def main (opts :main))
-  (def binpath (opt opts :binpath JANET_BINPATH))
+  (def binpath (dyn :binpath JANET_BINPATH))
   (install-rule main binpath)
   # Create a dud batch file when on windows.
   (when is-win
@@ -446,7 +457,7 @@
   (def iname (string "build" sep name ".jimage"))
   (rule iname (or (opts :deps) [])
         (spit iname (make-image (require entry))))
-  (def path (opt opts :modpath JANET_MODPATH))
+  (def path (dyn :modpath JANET_MODPATH))
   (install-rule iname path))
 
 (defn declare-project
