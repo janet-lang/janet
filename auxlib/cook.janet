@@ -353,8 +353,7 @@
         # Load entry environment and get main function.
         (def entry-env (dofile source))
         (def main ((entry-env 'main) :value))
-        # Get environments for every native module for the marshalling
-        # dictionary
+        # Create marshalling dictionary
         (def mdict (invert (env-lookup root-env)))
         # Build image
         (def image (marshal main mdict))

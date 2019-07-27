@@ -61,9 +61,12 @@ int main(int argc, char **argv) {
 
     /* Create args tuple */
     args = janet_array(argc);
-    for (i = 0; i < argc; i++)
+    for (i = 1; i < argc; i++)
         janet_array_push(args, janet_cstringv(argv[i]));
     janet_table_put(env, janet_ckeywordv("args"), janet_wrap_array(args));
+
+    /* Save current executable path to (dyn :executable) */
+    janet_table_put(env, janet_ckeywordv("executable"), janet_cstringv(argv[0]));
 
     /* Run startup script */
     status = janet_dobytes(env, janet_gen_init, janet_gen_init_size, "init.janet", NULL);

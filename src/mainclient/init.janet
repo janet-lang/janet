@@ -1,7 +1,5 @@
 # Copyright 2017-2019 (C) Calvin Rose
 
-(def process/args "Deprecated. use '(dyn :args)' at script entry instead for process argument array."
-  (dyn :args))
 (do
 
   (var *should-repl* false)
@@ -66,7 +64,7 @@
     (if h (h i) (do (print "unknown flag -" n) ((get handlers "h")))))
 
   # Process arguments
-  (var i 1)
+  (var i 0)
   (def lenargs (length args))
   (while (< i lenargs)
     (def arg (get args i))
