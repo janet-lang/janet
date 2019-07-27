@@ -15,7 +15,7 @@
 (def- sep (if is-win "\\" "/"))
 (def- objext (if is-win ".obj" ".o"))
 (def- modext (if is-win ".dll" ".so"))
-(def- statext (if is-win ".lib" ".a"))
+(def- statext (if is-win ".static.lib" ".a"))
 (def- absprefix (if is-win "C:\\" "/"))
 
 #
@@ -113,24 +113,24 @@
 
 (def default-compiler (if is-win "cl" "cc"))
 (def default-linker (if is-win "link" "cc"))
-(def default-archiver (if is-win "lib" "ar"))
+(def default-archiver (if is-win "link" "ar"))
 
 # Default flags for natives, but not required
-(def default-lflags [])
+(def default-lflags (if is-win ["/nologo"] []))
 (def default-cflags
   (if is-win
-    []
+    ["/nologo"]
     ["-std=c99" "-Wall" "-Wextra"]))
 
 # Required flags for dynamic libraries. These
 # are used no matter what for dynamic libraries.
 (def- dynamic-cflags
   (if is-win
-    ["/nologo"]
+    []
     ["-fpic"]))
 (def- dynamic-lflags
     (if is-win
-      ["/nologo" "/DLL"]
+      ["/DLL"]
       (if is-mac
         ["-shared" "-undefined" "dynamic_lookup"]
         ["-shared"])))
@@ -277,7 +277,7 @@
     (error "cannot find libpath: provide --libpath or JANET_LIBPATH"))
   (string (dyn :libpath JANET_LIBPATH)
           sep
-          (if is-win "libjanet.lib" "libjanet.a")))
+          "libjanet.a"))
 
 (defn- win-import-library
   "On windows, an import library is needed to link to a dll statically."
@@ -304,7 +304,7 @@
   (rule target objects
         (print "linking " target "...")
         (if is-win
-          (shell ld ;lflags (string "/OUT:" target) (if standalone (libjanet) (win-import-library)) ;objects)
+          (shell ld ;lflags (string "/OUT:" target) ;objects (if standalone (libjanet) (win-import-library)))
           (shell ld ;cflags `-o` target ;objects ;(if standalone [(libjanet)] []) ;lflags))))
 
 (defn- archive-c
@@ -314,7 +314,7 @@
   (rule target objects
         (print "creating static library " target "...")
         (if is-win
-          (do (print "Not Yet Implemented!") (os/exit 1))
+          (shell ar "/lib" "/nologo" (string "/out:" target) ;objects)
           (shell ar "rcs" target ;objects))))
 
 (defn- create-buffer-c-impl
@@ -529,7 +529,7 @@ int main(int argc, const char **argv) {
   (install-rule lname path)
 
   # Make static module
-  (unless (or is-win (dyn :nostatic))
+  (unless (dyn :nostatic)
     (def opts (merge @{:entry-name name} opts))
     (def sname (string "build" sep name statext))
     (def sobjext (string ".static" objext))

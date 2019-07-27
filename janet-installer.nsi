@@ -8,6 +8,7 @@ VIFileVersion "${PRODUCT_VERSION}"
 !define MULTIUSER_EXECUTIONLEVEL Highest
 !define MULTIUSER_MUI
 !define MULTIUSER_INSTALLMODE_COMMANDLINE
+!define MULTIUSER_USE_PROGRAMFILES64
 !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_KEY "Software\Janet\${VERSION}"
 !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME ""
 !define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_KEY "Software\Janet\${VERSION}"
@@ -75,6 +76,7 @@ function .onInit
 functionEnd
 
 section "Janet" BfWSection
+
     createDirectory "$INSTDIR\Library"
     createDirectory "$INSTDIR\C"
     createDirectory "$INSTDIR\bin"
@@ -91,12 +93,14 @@ section "Janet" BfWSection
     file /oname=Library\cook.janet auxlib\cook.janet
     file /oname=Library\path.janet auxlib\path.janet
 
-    # C headers
+    # C headers and library files
     file /oname=C\janet.h dist\janet.h
     file /oname=C\janetconf.h dist\janetconf.h
     file /oname=C\janet.lib dist\janet.lib
     file /oname=C\janet.exp dist\janet.exp
     file /oname=C\janet.c dist\janet.c
+    #file /oname=C\janet.dll dist\janet.dll
+    #file /oname=C\libjanet.a dist\libjanet.a
 
     # Documentation
     file /oname=docs\docs.html dist\doc.html
