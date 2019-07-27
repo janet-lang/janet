@@ -206,7 +206,8 @@ test_files = [
   'test/suite3.janet',
   'test/suite4.janet',
   'test/suite5.janet',
-  'test/suite6.janet'
+  'test/suite6.janet',
+  'test/suite7.janet'
 ]
 foreach t : test_files
   test(t, janet_nativeclient, args : files([t]), workdir : meson.current_source_dir())

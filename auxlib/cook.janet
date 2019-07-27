@@ -15,6 +15,7 @@
 (def- sep (if is-win "\\" "/"))
 (def- objext (if is-win ".obj" ".o"))
 (def- modext (if is-win ".dll" ".so"))
+(def- statext (if is-win ".lib" ".a"))
 (def- absprefix (if is-win "C:\\" "/"))
 
 #
@@ -95,34 +96,44 @@
 # Configuration
 #
 
-# Installation settings
 (def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
-(def JANET_HEADERPATH (os/getenv "JANET_HEADERPATH"))
-(def JANET_BINPATH (os/getenv "JANET_BINPATH"))
+(def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH")
+                          (if-let [j JANET_MODPATH]
+                            (string j "/../../include/janet"))))
+(def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
+                       (if-let [j JANET_MODPATH]
+                         (string j "/../../bin"))))
+(def JANET_LIBPATH (or (os/getenv "JANET_LIBPATH")
+                       (if-let [j JANET_MODPATH]
+                         (string j "/.."))))
 
-# Compilation settings
-(def- OPTIMIZE (or (os/getenv "OPTIMIZE") 2))
-(def- COMPILER (or (os/getenv "COMPILER") (if is-win "cl" "cc")))
-(def- LINKER (or (os/getenv "LINKER") (if is-win "link" COMPILER)))
-(def- LFLAGS
-  (if-let [lflags (os/getenv "LFLAGS")]
-    (string/split " " lflags)
-    (if is-win ["/nologo" "/DLL"]
+#
+# Compilation Defaults
+#
+
+(def default-compiler (if is-win "cl" "cc"))
+(def default-linker (if is-win "link" "cc"))
+(def default-archiver (if is-win "lib" "ar"))
+
+# Default flags for natives, but not required
+(def default-lflags [])
+(def default-cflags
+  (if is-win
+    []
+    ["-std=c99" "-Wall" "-Wextra"]))
+
+# Required flags for dynamic libraries. These
+# are used no matter what for dynamic libraries.
+(def- dynamic-cflags
+  (if is-win
+    ["/nologo"]
+    ["-fpic"]))
+(def- dynamic-lflags
+    (if is-win
+      ["/nologo" "/DLL"]
       (if is-mac
         ["-shared" "-undefined" "dynamic_lookup"]
-        ["-shared"]))))
-(def- CFLAGS
-  (if-let [cflags (os/getenv "CFLAGS")]
-    (string/split " " cflags)
-    (if is-win
-      ["/nologo"]
-      ["-std=c99" "-Wall" "-Wextra" "-fpic"])))
-
-# Some defaults
-(def default-cflags CFLAGS)
-(def default-lflags LFLAGS)
-(def default-cc COMPILER)
-(def default-ld LINKER)
+        ["-shared"])))
 
 (defn- opt
   "Get an option, allowing overrides via dynamic bindings AND some
@@ -166,9 +177,21 @@
 # OS and shell helpers
 #
 
+(def- filepath-replacer
+  "Convert url with potential bad characters into a file path element."
+  (peg/compile ~(% (any (+ (/ '(set "<>:\"/\\|?*") "_") '1)))))
+
+(defn filepath-replace
+  "Remove special characters from a string or path
+  to make it into a path segment."
+  [repo]
+  (get (peg/match filepath-replacer repo) 0))
+
 (defn shell
   "Do a shell command"
   [& args]
+  (if (dyn :verbose)
+    (print ;(interpose " " args)))
   (def res (os/execute args :p))
   (unless (zero? res)
     (error (string "command exited with status " res))))
@@ -202,42 +225,20 @@
        (string/replace-all sep "___")
        (string/replace-all ".janet" "")))
 
-(defn- embed-c-name
-  "Rename a janet file for embedding."
-  [path]
+(defn- out-path
+  "Take a source file path and convert it to an output path."
+  [path from-ext to-ext]
   (->> path
        (string/replace-all sep "___")
-       (string/replace-all ".janet" ".janet.c")
+       (string/replace-all from-ext to-ext)
        (string "build" sep)))
-
-(defn- embed-o-name
-  "Get object file for c file."
-  [path]
-  (->> path
-       (string/replace-all sep "___")
-       (string/replace-all ".janet" (string ".janet" objext))
-       (string "build" sep)))
-
-(defn- object-name
-  "Rename a source file so it can be built in a flat source tree."
-  [path]
-  (->> path
-       (string/replace-all sep "___")
-       (string/replace-all ".c" (if is-win ".obj" ".o"))
-       (string "build" sep)))
-
-(defn- lib-name
-  "Generate name for dynamic library."
-  [name]
-  (string "build" sep name modext))
 
 (defn- make-define
   "Generate strings for adding custom defines to the compiler."
   [define value]
-  (def pre (if is-win "/D" "-D"))
   (if value
-    (string pre define "=" value)
-    (string pre define)))
+    (string (if is-win "/D" "-D") define "=" value)
+    (string (if is-win "/D" "-D") define)))
 
 (defn- make-defines
   "Generate many defines. Takes a dictionary of defines. If a value is
@@ -248,16 +249,19 @@
 (defn- getcflags
   "Generate the c flags from the input options."
   [opts]
-  @[;(opt opts :cflags CFLAGS)
+  @[;(opt opts :cflags default-cflags)
     (string (if is-win "/I" "-I") (dyn :headerpath JANET_HEADERPATH))
-    (string (if is-win "/O" "-O") (opt opts :optimize OPTIMIZE))])
+    (string (if is-win "/O" "-O") (opt opts :optimize 2))])
 
 (defn- compile-c
   "Compile a C file into an object file."
-  [opts src dest]
-  (def cc (opt opts :compiler COMPILER))
-  (def cflags (getcflags opts))
-  (def defines (interpose " " (make-defines (opt opts :defines {}))))
+  [opts src dest &opt static?]
+  (def cc (opt opts :compiler default-compiler))
+  (def cflags [;(getcflags opts) ;(if static? [] dynamic-cflags)])
+  (def entry-defines (if-let [n (opts :name)]
+                       [(string "janet_module_entry_" (filepath-replace n))]
+                       []))
+  (def defines [;(make-defines (opt opts :defines {})) ;entry-defines])
   (def headers (or (opts :headers) []))
   (rule dest [src ;headers]
         (print "compiling " dest "...")
@@ -265,36 +269,152 @@
           (shell cc ;defines "/c" ;cflags (string "/Fo" dest) src)
           (shell cc "-c" src ;defines ;cflags "-o" dest))))
 
+(defn- libjanet
+  "Find libjanet.a (or libjanet.lib on windows) at compile time"
+  []
+  (def libpath (dyn :libpath JANET_LIBPATH))
+  (unless libpath
+    (error "cannot find libpath: provide --libpath or JANET_LIBPATH"))
+  (string (dyn :libpath JANET_LIBPATH)
+          sep
+          (if is-win "libjanet.lib" "libjanet.a")))
+
+(defn- win-import-library
+  "On windows, an import library is needed to link to a dll statically."
+  []
+  (def hpath (dyn :headerpath JANET_HEADERPATH))
+  (unless hpath
+    (error "cannot find headerpath: provide --headerpath or JANET_HEADERPATH"))
+  (string hpath `\\janet.lib`))
+
 (defn- link-c
-  "Link a number of object files together."
+  "Link object files together to make a native module."
   [opts target & objects]
-  (def ld (opt opts :linker LINKER))
+  (def ld (opt opts :linker default-linker))
   (def cflags (getcflags opts))
-  (def lflags (opt opts :lflags LFLAGS))
+  (def standalone (opts :standalone))
+  (def lflags [;(opt opts :lflags default-lflags)
+               ;(if (opts :static) [] dynamic-lflags)
+               ;(if standalone (case (os/which)
+                                :posix ["-ldl" "-lm"]
+                                :macos ["-ldl" "-lm"]
+                                :windows []
+                                :linux ["-lm" "-ldl" "-lrt"]
+                                []) [])])
   (rule target objects
         (print "linking " target "...")
         (if is-win
-          (shell ld ;lflags (string "/OUT:" target) ;objects (string (dyn :headerpath JANET_HEADERPATH) `\\janet.lib`))
-          (shell ld ;cflags `-o` target ;objects ;lflags))))
+          (shell ld ;lflags (string "/OUT:" target) ;objects (if standalone (libjanet) (win-import-library)))
+          (shell ld ;cflags `-o` target ;objects ;lflags ;(if standalone [(libjanet)] [])))))
+
+(defn- archive-c
+  "Link object files together to make a static library."
+  [opts target & objects]
+  (def ar (opt opts :archiver default-archiver))
+  (rule target objects
+        (print "creating static library " target "...")
+        (if is-win
+          (do (print "Not Yet Implemented!") (os/exit 1))
+          (shell ar "rcs" target ;objects))))
+
+(defn- create-buffer-c-impl
+  [bytes dest name]
+  (def out (file/open dest :w))
+  (def chunks (seq [b :in bytes] (string b)))
+  (file/write out
+              "#include <janet.h>\n"
+              "static const unsigned char bytes[] = {"
+              ;(interpose ", " chunks)
+              "};\n\n"
+              "const unsigned char *" name "_embed = bytes;\n"
+              "size_t " name "_embed_size = sizeof(bytes);\n")
+  (file/close out))
 
 (defn- create-buffer-c
   "Inline raw byte file as a c file."
   [source dest name]
   (rule dest [source]
         (print "generating " dest "...")
-        (def f (file/open source :r))
-        (if (not f) (error (string "file " f " not found")))
-        (def out (file/open dest :w))
-        (def chunks (seq [b :in (file/read f :all)] (string b)))
-        (file/write out
-                    "#include <janet.h>\n"
-                    "static const unsigned char bytes[] = {"
-                    ;(interpose ", " chunks)
-                    "};\n\n"
-                    "const unsigned char *" name "_embed = bytes;\n"
-                    "size_t " name "_embed_size = sizeof(bytes);\n")
-        (file/close out)
-        (file/close f)))
+        (with [f (file/open source :r)]
+          (create-buffer-c-impl (:read f :all) dest name))))
+
+(def- root-env (table/getproto (fiber/getenv (fiber/current))))
+
+(defn- create-executable
+  "Links an image with libjanet.a (or .lib) to produce an
+  executable. Also will try to link native modules into the
+  final executable as well."
+  [opts source dest]
+
+  # Create executable's janet image
+  (def cimage_dest (string dest ".c"))
+  (rule cimage_dest [source]
+        (print "generating executable c source...")
+        # Load entry environment and get main function.
+        (def entry-env (dofile source))
+        (def main ((entry-env 'main) :value))
+        # Get environments for every native module for the marshalling
+        # dictionary
+        (def mdict (invert (env-lookup root-env)))
+        # Build image
+        (def image (marshal main mdict))
+        # Make image byte buffer
+        (create-buffer-c-impl image cimage_dest "janet_payload_image")
+        # Append main function
+        (spit cimage_dest ```
+
+int main(int argc, const char **argv) {
+    janet_init();
+
+    /* Unmarshal bytecode */
+    JanetTable *env = janet_core_env(NULL);
+    JanetTable *lookup = janet_env_lookup(env);
+    Janet marsh_out = janet_unmarshal(
+       janet_payload_image_embed,
+       janet_payload_image_embed_size,
+       0,
+       lookup,
+       NULL);
+
+    /* Verify the marshalled object is a function */
+    if (!janet_checktype(marsh_out, JANET_FUNCTION)) {
+       fprintf(stderr, "invalid bytecode image - expected function.");
+       return 1;
+    }
+
+    /* Collect command line arguments */
+    JanetArray *args = janet_array(argc);
+    for (int i = 0; i < argc; i++) {
+      janet_array_push(args, janet_cstringv(argv[i]));
+    }
+
+    /* Create enviornment */
+    JanetTable *runtimeEnv = janet_table(0);
+    runtimeEnv->proto = env;
+    janet_table_put(runtimeEnv, janet_ckeywordv("args"), janet_wrap_array(args));
+    janet_gcroot(janet_wrap_table(runtimeEnv));
+
+    /* Run everything */
+    JanetFiber *fiber = janet_fiber(janet_unwrap_function(marsh_out), 64, argc, args->data);
+    fiber->env = runtimeEnv;
+    Janet out;
+    JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
+    if (result) {
+      janet_stacktrace(fiber, out);
+      return result;
+    }
+    return 0;
+}
+``` :ab))
+
+  # Compile c source
+  (def entryo (string dest objext))
+  (compile-c opts cimage_dest entryo true)
+
+  # Link
+  (link-c (merge @{:static true :standalone true} opts)
+          dest
+          entryo))
 
 (defn- abspath
   "Create an absolute path. Does not resolve . and .. (useful for
@@ -307,15 +427,6 @@
 #
 # Public utilities
 #
-
-(def- filepath-replacer
-  "Convert url with potential bad characters into a file path element."
-  (peg/compile ~(% (any (+ (/ '(set "<>:\"/\\|?*") "_") '1)))))
-
-(defn repo-id
-  "Convert a repo url into a path component that serves as its id."
-  [repo]
-  (get (peg/match filepath-replacer repo) 0))
 
 (defn find-manifest-dir
   "Get the path to the directory containing manifests for installed
@@ -362,7 +473,7 @@
   [repo]
   (def cache (find-cache))
   (os/mkdir cache)
-  (def id (repo-id repo))
+  (def id (filepath-replace repo))
   (def module-dir (string cache sep id))
   (when (os/mkdir module-dir)
     (os/execute ["git" "clone" repo module-dir] :p))
@@ -394,26 +505,48 @@
 #
 
 (defn declare-native
-  "Declare a native binary. This is a shared library that can be loaded
-  dynamically by a janet runtime."
+  "Declare a native module. This is a shared library that can be loaded
+  dynamically by a janet runtime. This also builds a static libary that
+  can be used to bundle janet code and native into a single executable."
   [&keys opts]
   (def sources (opts :source))
   (def name (opts :name))
-  (def lname (lib-name name))
+  (def path (dyn :modpath JANET_MODPATH))
+
+  # Make dynamic module
+  (def lname (string "build" sep name modext))
   (loop [src :in sources]
-    (compile-c opts src (object-name src)))
-  (def objects (map object-name sources))
+    (compile-c opts src (out-path src ".c" objext)))
+  (def objects (map (fn [path] (out-path path ".c" objext)) sources))
   (when-let [embedded (opts :embedded)]
             (loop [src :in embedded]
-              (def c-src (embed-c-name src))
-              (def o-src (embed-o-name src))
+              (def c-src (out-path src ".janet" ".janet.c"))
+              (def o-src (out-path src ".janet" (if is-win ".janet.obj" ".janet.o")))
               (array/push objects o-src)
               (create-buffer-c src c-src (embed-name src))
               (compile-c opts c-src o-src)))
   (link-c opts lname ;objects)
   (add-dep "build" lname)
-  (def path (dyn :modpath JANET_MODPATH))
-  (install-rule lname path))
+  (install-rule lname path)
+
+  # Make static module
+  (unless (or is-win (dyn :nostatic))
+    (def sname (string "build" sep name statext))
+    (def sobjext (string ".static" objext))
+    (def sjobjext (string ".janet" sobjext))
+    (loop [src :in sources]
+      (compile-c opts src (out-path src ".c" sobjext) true))
+    (def sobjects (map (fn [path] (out-path path ".c" sobjext)) sources))
+    (when-let [embedded (opts :embedded)]
+              (loop [src :in embedded]
+                (def c-src (out-path src ".janet" ".janet.c"))
+                (def o-src (out-path src ".janet" sjobjext))
+                (array/push sobjects o-src)
+                # Buffer c-src is already declared by dynamic module
+                (compile-c opts c-src o-src true)))
+    (archive-c opts sname ;sobjects)
+    (add-dep "build" sname)
+    (install-rule sname path)))
 
 (defn declare-source
   "Create a Janet modules. This does not actually build the module(s),
@@ -429,6 +562,19 @@
   "Declare a generic file to be installed as an executable."
   [&keys {:main main}]
   (install-rule main (dyn :binpath JANET_BINPATH)))
+
+(defn declare-executable
+  "Declare a janet file to be the entry of a standalone executable program. The entry
+  file is evaluated and a main function is looked for in the entry file. This function
+  is marshalled into bytecode which is then embedded in a final executable for distribution.\n\n
+  This executable can be installed as well to the --binpath given."
+  [&keys {:install install :name name :entry entry}]
+  (def name (if is-win (string name ".exe") name))
+  (def dest (string "build" sep name))
+  (create-executable @{} entry dest)
+  (add-dep "build" dest)
+  (when install
+    (install-rule dest (dyn :binpath JANET_BINPATH))))
 
 (defn declare-binscript
   "Declare a janet file to be installed as an executable script. Creates
@@ -458,6 +604,7 @@
   (rule iname (or (opts :deps) [])
         (spit iname (make-image (require entry))))
   (def path (dyn :modpath JANET_MODPATH))
+  (add-dep "build" iname)
   (install-rule iname path))
 
 (defn declare-project
@@ -494,8 +641,9 @@
          (uninstall (meta :name)))
 
   (phony "clean" []
-         (rm "build")
-         (print "Deleted build directory."))
+         (when (os/stat "./build" :mode)
+           (rm "build")
+           (print "Deleted build directory.")))
 
   (phony "test" ["build"]
          (defn dodir

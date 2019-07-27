@@ -18,6 +18,7 @@ VIFileVersion "${PRODUCT_VERSION}"
 !include "MultiUser.nsh"
 !include "MUI2.nsh"
 !include ".\tools\EnvVarUpdate.nsh"
+!include ".\tools\FileAssociation.nsh"
 !include "LogicLib.nsh"
 
 # Basics
@@ -114,7 +115,11 @@ section "Janet" BfWSection
     # Set up Environment variables
     !insertmacro WriteEnv JANET_PATH "$INSTDIR\Library"
     !insertmacro WriteEnv JANET_HEADERPATH "$INSTDIR\C"
+    !insertmacro WriteEnv JANET_LIBPATH "$INSTDIR\C"
     !insertmacro WriteEnv JANET_BINPATH "$INSTDIR\bin"
+
+    # File Association
+    ${registerExtension} "$INSTDIR\bin\janet.exe" ".janet" "Janet Source File"
 
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
@@ -163,11 +168,15 @@ section "uninstall"
     # Remove env vars
     !insertmacro DelEnv JANET_PATH
     !insertmacro DelEnv JANET_HEADERPATH
+    !insertmacro DelEnv JANET_LIBPATH
     !insertmacro DelEnv JANET_BINPATH
 
     # Unset PATH
     ${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "$INSTDIR\bin" ; Remove
     ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin" ; Remove
+
+    # Unregister file assocations
+    ${unregisterExtension} ".janet" "Janet Source File"
 
     # make sure windows knows about the change
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000

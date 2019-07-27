@@ -20,6 +20,9 @@ dist
 .project
 .cproject
 
+# Gnome Builder
+.buildconfig
+
 # Local directory for testing
 local
 

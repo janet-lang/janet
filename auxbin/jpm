@@ -6,7 +6,7 @@
 
 (def- argpeg
   (peg/compile
-    '(* "--" '(some (if-not "=" 1)) "=" '(any 1))))
+    '(* "--" '(some (if-not "=" 1)) (+ (* "=" '(any 1)) -1))))
 
 (defn- local-rule
   [rule]
@@ -16,7 +16,7 @@
 (defn- help
   []
   (print `
-usage: jpm --key=value ... [subcommand] [args]...
+usage: jpm [--key=value, --flag] ... [subcommand] [args] ...
 
 Subcommands are:
   build : build all artifacts
@@ -32,13 +32,17 @@ Subcommands are:
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH or (dyn :syspath)
-  --headerpath : The directory containing janet headers. Defaults to $JANET_HEADERPATH or (dyn :headerpath)
+  --headerpath : The directory containing janet headers. Defaults to $JANET_HEADERPATH.
   --binpath : The directory to install binaries and scripts. Defaults to $JANET_BINPATH.
-  --optimize : Optimization level for natives. Defaults to $OPTIMIZE or 2.
-  --compiler : C compiler to use for natives. Defaults to $COMPILER or cc.
-  --linker : C linker to use for linking natives. Defaults to $LINKER or cc.
-  --cflags : Extra compiler flags for native modules. Defaults to $CFLAGS if set.
-  --lflags : Extra linker flags for native modules. Defaults to $LFLAGS if set.
+  --libpath : The directory containing janet C libraries (libjanet.*). Defaults to $JANET_LIBPATH.
+  --optimize : Optimization level for natives. Defaults to 2.
+  --compiler : C compiler to use for natives. Defaults to cc (cl on windows).
+  --linker : C linker to use for linking natives. Defaults to cc (link on windows).
+  --cflags : Extra compiler flags for native modules.
+  --lflags : Extra linker flags for native modules.
+
+Flags are:
+  --verbose : Print shell commands as they are executed.
     `))
 
 (defn build
@@ -85,12 +89,12 @@ Keys are:
 
 # Get flags
 (while (< i len)
-  (def arg (args i))
-  (unless (string/has-prefix? "--" arg) (break))
-  (if-let [m (peg/match argpeg arg)]
-    (let [[key value] m]
-      (setdyn (keyword key) value))
-    (print "invalid argument " arg))
+  (if-let [m (peg/match argpeg (args i))]
+    (if (= 2 (length m))
+      (let [[key value] m]
+        (setdyn (keyword key) value))
+      (setdyn (keyword (m 0)) true))
+    (break))
   (++ i))
 
 # Run subcommand

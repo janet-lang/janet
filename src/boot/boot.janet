@@ -1732,6 +1732,7 @@
     :source (fn [path args]
               (put module/loading path true)
               (def newenv (dofile path ;args))
+              (put newenv :source path)
               (put module/loading path nil)
               newenv)
     :image (fn [path &] (load-image (slurp path)))})

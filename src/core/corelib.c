@@ -270,6 +270,7 @@ static Janet janet_core_native(int32_t argc, Janet *argv) {
         janet_panicf("could not load native %S: %S", path, error);
     }
     init(env);
+    janet_table_put(env, janet_ckeywordv("native"), argv[0]);
     return janet_wrap_table(env);
 }
 

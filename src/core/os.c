@@ -73,6 +73,8 @@ static Janet os_which(int32_t argc, Janet *argv) {
     return janet_ckeywordv("macos");
 #elif defined(__EMSCRIPTEN__)
     return janet_ckeywordv("web");
+#elif defined(__linux__)
+    return janet_ckeywordv("linux");
 #else
     return janet_ckeywordv("posix");
 #endif
@@ -763,6 +765,8 @@ static const JanetReg os_cfuns[] = {
              "Check the current operating system. Returns one of:\n\n"
              "\t:windows - Microsoft Windows\n"
              "\t:macos - Apple macos\n"
+             "\t:web - Web assembly (emscripten)\n"
+             "\t:linux - Linux\n"
              "\t:posix - A POSIX compatible system (default)")
     },
     {
