@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add file associations on windows with default install.
+- Add `:linux` to platforms returned by `(os/which)`.
+- Update jpm to build standalone executables. Use `declare-executable` for this.
 - Add `use` macro.
 - Remove `process/args` in favor of `(dyn :args)`.
 - Fix bug with Nanbox implementation allowing users to created
