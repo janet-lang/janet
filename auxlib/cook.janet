@@ -299,9 +299,8 @@
                                 :macos ["-ldl" "-lm"]
                                 :windows []
                                 :linux ["-lm" "-ldl" "-lrt"]
-                                :openbsd ["-lm"]
                                 #default
-                                ["-ldl" "-lm"]) [])])
+                                ["-lm"]) [])])
   (rule target objects
         (print "linking " target "...")
         (if is-win
