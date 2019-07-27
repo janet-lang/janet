@@ -8,5 +8,5 @@
 (print ```#include "janet.h"```)
 
 # Body
-(each path (tuple/slice process/args 2)
+(each path (tuple/slice (dyn :args) 1)
   (print (slurp path)))

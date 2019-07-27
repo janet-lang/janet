@@ -304,8 +304,8 @@
   (rule target objects
         (print "linking " target "...")
         (if is-win
-          (shell ld ;lflags (string "/OUT:" target) ;objects (if standalone (libjanet) (win-import-library)))
-          (shell ld ;cflags `-o` target ;objects ;lflags ;(if standalone [(libjanet)] [])))))
+          (shell ld ;lflags (string "/OUT:" target) (if standalone (libjanet) (win-import-library)) ;objects)
+          (shell ld ;cflags `-o` target ;objects ;(if standalone [(libjanet)] []) ;lflags))))
 
 (defn- archive-c
   "Link object files together to make a static library."
