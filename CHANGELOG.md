@@ -2,7 +2,6 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
-- Add file associations on windows with default install.
 - Add `(dyn :executable)` at top level to get what used to be
   `(process/args 0)`.
 - Add `:linux` to platforms returned by `(os/which)`.
