@@ -329,7 +329,8 @@ clean:
 	-rm -rf build vgcore.* callgrind.*
 
 test-install:
-	cd test/install && rm -rf build && jpm build && jpm test
+	cd test/install && jpm --verbose clean && jpm --verbose build && jpm --verbose test \
+		&& build/testexec
 
 build/embed_janet.o: build/janet.c $(JANET_HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@

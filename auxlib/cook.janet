@@ -258,8 +258,8 @@
   [opts src dest &opt static?]
   (def cc (opt opts :compiler default-compiler))
   (def cflags [;(getcflags opts) ;(if static? [] dynamic-cflags)])
-  (def entry-defines (if-let [n (opts :name)]
-                       [(string "janet_module_entry_" (filepath-replace n))]
+  (def entry-defines (if-let [n (opts :entry-name)]
+                       [(make-define "JANET_ENTRY_NAME" (string "janet_module_entry_" (filepath-replace n)))]
                        []))
   (def defines [;(make-defines (opt opts :defines {})) ;entry-defines])
   (def headers (or (opts :headers) []))
@@ -530,6 +530,7 @@ int main(int argc, const char **argv) {
 
   # Make static module
   (unless (or is-win (dyn :nostatic))
+    (def opts (merge @{:entry-name name} opts))
     (def sname (string "build" sep name statext))
     (def sobjext (string ".static" objext))
     (def sjobjext (string ".janet" sobjext))

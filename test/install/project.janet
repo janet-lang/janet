@@ -5,3 +5,6 @@
     :name "testmod"
     :source @["testmod.c"])
 
+(declare-executable
+  :name "testexec"
+  :entry "testexec.janet")
