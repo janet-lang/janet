@@ -75,6 +75,12 @@ static Janet os_which(int32_t argc, Janet *argv) {
     return janet_ckeywordv("web");
 #elif defined(__linux__)
     return janet_ckeywordv("linux");
+#elif define(__FreeBSD__)
+    return janet_ckeywordv("freebsd");
+#elif define(__NetBSD__)
+    return janet_ckeywordv("netbsd");
+#elif define(__OpenBSD__)
+    return janet_ckeywordv("openbsd");
 #else
     return janet_ckeywordv("posix");
 #endif
@@ -763,10 +769,13 @@ static const JanetReg os_cfuns[] = {
         "os/which", os_which,
         JDOC("(os/which)\n\n"
              "Check the current operating system. Returns one of:\n\n"
-             "\t:windows - Microsoft Windows\n"
-             "\t:macos - Apple macos\n"
+             "\t:windows\n"
+             "\t:macos\n"
              "\t:web - Web assembly (emscripten)\n"
-             "\t:linux - Linux\n"
+             "\t:linux\n"
+             "\t:freebsd\n"
+             "\t:openbsd\n"
+             "\t:netbsd\n"
              "\t:posix - A POSIX compatible system (default)")
     },
     {

@@ -296,11 +296,12 @@
   (def lflags [;(opt opts :lflags default-lflags)
                ;(if (opts :static) [] dynamic-lflags)
                ;(if standalone (case (os/which)
-                                :posix ["-ldl" "-lm"]
                                 :macos ["-ldl" "-lm"]
                                 :windows []
                                 :linux ["-lm" "-ldl" "-lrt"]
-                                []) [])])
+                                :openbsd ["-lm"]
+                                #default
+                                ["-ldl" "-lm"]) [])])
   (rule target objects
         (print "linking " target "...")
         (if is-win
