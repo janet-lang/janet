@@ -75,11 +75,11 @@ static Janet os_which(int32_t argc, Janet *argv) {
     return janet_ckeywordv("web");
 #elif defined(__linux__)
     return janet_ckeywordv("linux");
-#elif define(__FreeBSD__)
+#elif defined(__FreeBSD__)
     return janet_ckeywordv("freebsd");
-#elif define(__NetBSD__)
+#elif defined(__NetBSD__)
     return janet_ckeywordv("netbsd");
-#elif define(__OpenBSD__)
+#elif defined(__OpenBSD__)
     return janet_ckeywordv("openbsd");
 #else
     return janet_ckeywordv("posix");
