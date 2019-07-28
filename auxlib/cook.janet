@@ -253,13 +253,18 @@
     (string (if is-win "/I" "-I") (dyn :headerpath JANET_HEADERPATH))
     (string (if is-win "/O" "-O") (opt opts :optimize 2))])
 
+(defn- entry-name
+  "Name of symbol that enters static compilation of a module."
+  [name]
+  (string "janet_module_entry_" (filepath-replace name)))
+
 (defn- compile-c
   "Compile a C file into an object file."
   [opts src dest &opt static?]
   (def cc (opt opts :compiler default-compiler))
   (def cflags [;(getcflags opts) ;(if static? [] dynamic-cflags)])
   (def entry-defines (if-let [n (opts :entry-name)]
-                       [(make-define "JANET_ENTRY_NAME" (string "janet_module_entry_" (filepath-replace n)))]
+                       [(make-define "JANET_ENTRY_NAME" n)]
                        []))
   (def defines [;(make-defines (opt opts :defines {})) ;entry-defines])
   (def headers (or (opts :headers) []))
@@ -292,20 +297,13 @@
   [opts target & objects]
   (def ld (opt opts :linker default-linker))
   (def cflags (getcflags opts))
-  (def standalone (opts :standalone))
   (def lflags [;(opt opts :lflags default-lflags)
-               ;(if (opts :static) [] dynamic-lflags)
-               ;(if standalone (case (os/which)
-                                :macos ["-ldl" "-lm"]
-                                :windows []
-                                :linux ["-lm" "-ldl" "-lrt"]
-                                #default
-                                ["-lm"]) [])])
+               ;(if (opts :static) [] dynamic-lflags)])
   (rule target objects
         (print "linking " target "...")
         (if is-win
-          (shell ld ;lflags (string "/OUT:" target) ;objects (if standalone (libjanet) (win-import-library)))
-          (shell ld ;cflags `-o` target ;objects ;(if standalone [(libjanet)] []) ;lflags))))
+          (shell ld ;lflags (string "/OUT:" target) ;objects (win-import-library))
+          (shell ld ;cflags `-o` target ;objects ;lflags))))
 
 (defn- archive-c
   "Link object files together to make a static library."
@@ -340,6 +338,16 @@
 
 (def- root-env (table/getproto (fiber/getenv (fiber/current))))
 
+(defn- modpath-to-meta
+  "Get the meta file path (.meta.janet) corresponding to a native module path (.so)."
+  [path]
+  (string (string/slice path 0 (- (length modext))) "meta.janet"))
+
+(defn- modpath-to-static
+  "Get the static library (.a) path corresponding to a native module path (.so)."
+  [path]
+  (string (string/slice path 0 (- -1 (length modext))) statext))
+
 (defn- create-executable
   "Links an image with libjanet.a (or .lib) to produce an
   executable. Also will try to link native modules into the
@@ -348,37 +356,84 @@
 
   # Create executable's janet image
   (def cimage_dest (string dest ".c"))
-  (rule cimage_dest [source]
+  (rule dest [source]
         (print "generating executable c source...")
         # Load entry environment and get main function.
         (def entry-env (dofile source))
         (def main ((entry-env 'main) :value))
+
         # Create marshalling dictionary
         (def mdict (invert (env-lookup root-env)))
+        # Load all native modules
+        (def prefixes @{})
+        (def static-libs @[])
+        (loop [[name m] :pairs module/cache
+               :let [n (m :native)]
+               :when n
+               :let [prefix (gensym)]]
+          (print "found native " n "...")
+          (put prefixes prefix n)
+          (array/push static-libs (modpath-to-static n))
+          (def oldproto (table/getproto m))
+          (table/setproto m nil)
+          (loop [[sym value] :pairs (env-lookup m)]
+            (put mdict value (symbol prefix sym)))
+          (table/setproto m oldproto))
+
+        # Find static modules
+        (def declarations @"")
+        (def lookup-into-invocations @"")
+        (loop [[prefix name] :pairs prefixes]
+          (def meta (eval-string (slurp (modpath-to-meta name))))
+          (buffer/push-string lookup-into-invocations
+                              "    "
+                              (meta :static-entry)
+                              "(temptab = janet_table(0));\n"
+                              "    janet_env_lookup_into(lookup, temptab, \""
+                              prefix
+                              "\", 0);\n")
+          (buffer/push-string declarations
+                              "extern void "
+                              (meta :static-entry)
+                              "(JanetTable *);\n"))
+
+
         # Build image
         (def image (marshal main mdict))
         # Make image byte buffer
         (create-buffer-c-impl image cimage_dest "janet_payload_image")
         # Append main function
-        (spit cimage_dest ```
+        (spit cimage_dest (string
+                            "\n"
+                            declarations
+```
 
 int main(int argc, const char **argv) {
     janet_init();
 
-    /* Unmarshal bytecode */
+    /* Get core env */
     JanetTable *env = janet_core_env(NULL);
     JanetTable *lookup = janet_env_lookup(env);
+    JanetTable *temptab;
+
+    /* Load natives into unmarshalling dictionary */
+
+```
+                            lookup-into-invocations
+```
+
+    /* Unmarshal bytecode */
     Janet marsh_out = janet_unmarshal(
-       janet_payload_image_embed,
-       janet_payload_image_embed_size,
-       0,
-       lookup,
-       NULL);
+      janet_payload_image_embed,
+      janet_payload_image_embed_size,
+      0,
+      lookup,
+      NULL);
 
     /* Verify the marshalled object is a function */
     if (!janet_checktype(marsh_out, JANET_FUNCTION)) {
-       fprintf(stderr, "invalid bytecode image - expected function.");
-       return 1;
+      fprintf(stderr, "invalid bytecode image - expected function.");
+      return 1;
     }
 
     /* Collect command line arguments */
@@ -404,16 +459,25 @@ int main(int argc, const char **argv) {
     }
     return 0;
 }
-``` :ab))
 
-  # Compile c source
-  (def entryo (string dest objext))
-  (compile-c opts cimage_dest entryo true)
+```) :ab)
 
-  # Link
-  (link-c (merge @{:static true :standalone true} opts)
-          dest
-          entryo))
+# Compile and link final exectable
+(do
+  (def extra-lflags (case (os/which)
+                      :macos ["-ldl" "-lm"]
+                      :windows []
+                      :linux ["-lm" "-ldl" "-lrt"]
+                      #default
+                      ["-lm"]))
+  (def cc (opt opts :compiler default-compiler))
+  (def lflags [(libjanet) ;(opt opts :lflags default-lflags) ;extra-lflags])
+  (def cflags (getcflags opts))
+  (def defines (make-defines (opt opts :defines {})))
+  (print "compiling and linking " dest "...")
+  (if is-win
+    (shell cc ;cflags ;lflags (string "/OUT:" dest) cimage_dest ;static-libs)
+    (shell cc ;cflags `-o` dest cimage_dest ;lflags ;static-libs)))))
 
 (defn- abspath
   "Create an absolute path. Does not resolve . and .. (useful for
@@ -534,10 +598,23 @@ int main(int argc, const char **argv) {
   (add-dep "build" lname)
   (install-rule lname path)
 
+  # Add meta file
+  (def metaname (modpath-to-meta lname))
+  (def ename (entry-name name))
+  (rule metaname []
+        (print "generating meta file " metaname "...")
+        (spit metaname (string/format
+                         "# Metadata for static library %s\n\n%.20p"
+                         (string name statext)
+                         {:static-entry ename
+                          :lflags (opts :lflags)})))
+  (add-dep "build" metaname)
+  (install-rule metaname path)
+
   # Make static module
   (unless (dyn :nostatic)
-    (def opts (merge @{:entry-name name} opts))
     (def sname (string "build" sep name statext))
+    (def opts (merge @{:entry-name ename} opts))
     (def sobjext (string ".static" objext))
     (def sjobjext (string ".janet" sobjext))
     (loop [src :in sources]

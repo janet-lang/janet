@@ -48,8 +48,8 @@ typedef HINSTANCE Clib;
 static char error_clib_buf[256];
 static char *error_clib(void) {
     FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-               NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
-               error_clib_buf, sizeof(error_clib_buf), NULL);
+                   NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                   error_clib_buf, sizeof(error_clib_buf), NULL);
     error_clib_buf[strlen(error_clib_buf) - 1] = '\0';
     return error_clib_buf;
 }

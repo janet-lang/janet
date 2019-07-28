@@ -47,12 +47,12 @@ int main(int argc, char **argv) {
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hOut, dwMode);
     SetConsoleOutputCP(65001);
-    
+
     /* Add directory containing janet.exe as DLL search path for
     dynamic modules on windows. This is needed because dynamic modules reference
     janet.exe for symbols. Otherwise, janet.exe would have to be in the current directory
     to load natives correctly. */
- #ifndef JANET_NO_DYNAMIC_MODULES
+#ifndef JANET_NO_DYNAMIC_MODULES
     {
         SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_USER_DIRS);
         HMODULE hModule = GetModuleHandleW(NULL);
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 
     /* Save current executable path to (dyn :executable) */
     janet_table_put(env, janet_ckeywordv("executable"), janet_cstringv(argv[0]));
-    
+
     /* Run startup script */
     status = janet_dobytes(env, janet_gen_init, janet_gen_init_size, "init.janet", NULL);
 

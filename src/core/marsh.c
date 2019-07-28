@@ -84,19 +84,36 @@ static Janet entry_getval(Janet env_entry) {
     }
 }
 
-/* Make a forward lookup table from an environment (for unmarshaling) */
-JanetTable *janet_env_lookup(JanetTable *env) {
-    JanetTable *renv = janet_table(env->count);
+/* Merge values from an environment into an existing lookup table. */
+void janet_env_lookup_into(JanetTable *renv, JanetTable *env, const char *prefix, int recurse) {
     while (env) {
         for (int32_t i = 0; i < env->capacity; i++) {
             if (janet_checktype(env->data[i].key, JANET_SYMBOL)) {
-                janet_table_put(renv,
-                                env->data[i].key,
-                                entry_getval(env->data[i].value));
+                if (prefix) {
+                    size_t prelen = strlen(prefix);
+                    const uint8_t *oldsym = janet_unwrap_symbol(env->data[i].key);
+                    int32_t oldlen = janet_string_length(oldsym);
+                    uint8_t *symbuf = janet_smalloc(prelen + oldlen);
+                    memcpy(symbuf, prefix, prelen);
+                    memcpy(symbuf + prelen, oldsym, oldlen);
+                    Janet s = janet_symbolv(symbuf, prelen + oldlen);
+                    janet_sfree(symbuf);
+                    janet_table_put(renv, s, entry_getval(env->data[i].value));
+                } else {
+                    janet_table_put(renv,
+                                    env->data[i].key,
+                                    entry_getval(env->data[i].value));
+                }
             }
         }
-        env = env->proto;
+        env = recurse ? env->proto : NULL;
     }
+}
+
+/* Make a forward lookup table from an environment (for unmarshaling) */
+JanetTable *janet_env_lookup(JanetTable *env) {
+    JanetTable *renv = janet_table(env->count);
+    janet_env_lookup_into(renv, env, NULL, 1);
     return renv;
 }
 

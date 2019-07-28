@@ -1243,6 +1243,7 @@ JANET_API Janet janet_unmarshal(
     JanetTable *reg,
     const uint8_t **next);
 JANET_API JanetTable *janet_env_lookup(JanetTable *env);
+JANET_API void janet_env_lookup_into(JanetTable *renv, JanetTable *env, const char *prefix, int recurse);
 
 /* GC */
 JANET_API void janet_mark(Janet x);
