@@ -20,6 +20,10 @@ init:
 install:
     - choco install nsis -y -pre
     - build_win all
+    - refreshenv
+    # We need to reload vcvars after refreshing
+    - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+    - build_win test-install
 build: off
 
 only_commits:

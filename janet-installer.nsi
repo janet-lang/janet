@@ -20,7 +20,6 @@ VIFileVersion "${PRODUCT_VERSION}"
 !include "MUI2.nsh"
 !include ".\tools\EnvVarUpdate.nsh"
 !include "LogicLib.nsh"
-!include "./tools\FileAssociation.nsh"
 
 # Basics
 Name "Janet"
@@ -82,7 +81,7 @@ section "Janet" BfWSection
     createDirectory "$INSTDIR\C"
     createDirectory "$INSTDIR\bin"
     createDirectory "$INSTDIR\docs"
-	setOutPath "$INSTDIR"
+    setOutPath "$INSTDIR"
 
     # Bin files
     file /oname=bin\janet.exe dist\janet.exe
@@ -109,11 +108,11 @@ section "Janet" BfWSection
     file README.md
     file LICENSE
 
-	# Uninstaller - See function un.onInit and section "uninstall" for configuration
-	writeUninstaller "$INSTDIR\uninstall.exe"
+    # Uninstaller - See function un.onInit and section "uninstall" for configuration
+    writeUninstaller "$INSTDIR\uninstall.exe"
 
-	# Start Menu
-	createShortCut "$SMPROGRAMS\Janet.lnk" "$INSTDIR\bin\janet.exe" "" "$INSTDIR\logo.ico"
+    # Start Menu
+    createShortCut "$SMPROGRAMS\Janet.lnk" "$INSTDIR\bin\janet.exe" "" "$INSTDIR\logo.ico"
 
     # Set up Environment variables
     !insertmacro WriteEnv JANET_PATH "$INSTDIR\Library"
@@ -124,28 +123,28 @@ section "Janet" BfWSection
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
     # Update path
-    ${EnvVarUpdate} $0 "PATH" "A" "HKCU" "$INSTDIR\bin" ; Append
-    ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\bin" ; Append
-    
-    # File Assocations
-    ${RegisterExtension} "$INSTDIR\bin\janet.exe" ".janet" "Janet Source File"
+    ${If} $MultiUser.InstallMode == "AllUsers"
+        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\bin" ; Append
+    ${Else}
+        ${EnvVarUpdate} $0 "PATH" "A" "HKCU" "$INSTDIR\bin" ; Append
+    ${EndIf}
 
-	# Registry information for add/remove programs
-	WriteRegStr SHCTX "${UNINST_KEY}" "DisplayName" "Janet"
-	WriteRegStr SHCTX "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
-	WriteRegStr SHCTX "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\logo.ico"
-	WriteRegStr SHCTX "${UNINST_KEY}" "Publisher" "Janet-Lang.org"
-	WriteRegStr SHCTX "${UNINST_KEY}" "HelpLink" "${HELPURL}"
-	WriteRegStr SHCTX "${UNINST_KEY}" "URLUpdateInfo" "${HELPURL}"
-	WriteRegStr SHCTX "${UNINST_KEY}" "URLInfoAbout" "${HELPURL}"
-	WriteRegStr SHCTX "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
-	WriteRegDWORD SHCTX "${UNINST_KEY}" "NoModify" 1
-	WriteRegDWORD SHCTX "${UNINST_KEY}" "NoRepair" 1
-	WriteRegDWORD SHCTX "${UNINST_KEY}" "EstimatedSize" 1000
+    # Registry information for add/remove programs
+    WriteRegStr SHCTX "${UNINST_KEY}" "DisplayName" "Janet"
+    WriteRegStr SHCTX "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+    WriteRegStr SHCTX "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\logo.ico"
+    WriteRegStr SHCTX "${UNINST_KEY}" "Publisher" "Janet-Lang.org"
+    WriteRegStr SHCTX "${UNINST_KEY}" "HelpLink" "${HELPURL}"
+    WriteRegStr SHCTX "${UNINST_KEY}" "URLUpdateInfo" "${HELPURL}"
+    WriteRegStr SHCTX "${UNINST_KEY}" "URLInfoAbout" "${HELPURL}"
+    WriteRegStr SHCTX "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
+    WriteRegDWORD SHCTX "${UNINST_KEY}" "NoModify" 1
+    WriteRegDWORD SHCTX "${UNINST_KEY}" "NoRepair" 1
+    WriteRegDWORD SHCTX "${UNINST_KEY}" "EstimatedSize" 1000
     # Add uninstall
     WriteRegStr SHCTX "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\" /$MultiUser.InstallMode"
     WriteRegStr SHCTX "${UNINST_KEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /$MultiUser.InstallMode /S"
- 
+
 sectionEnd
 
 # Uninstaller
@@ -156,10 +155,10 @@ functionEnd
 
 section "uninstall"
 
-	# Remove Start Menu launcher
-	delete "$SMPROGRAMS\Janet.lnk"
+    # Remove Start Menu launcher
+    delete "$SMPROGRAMS\Janet.lnk"
 
-	# Remove files
+    # Remove files
     delete "$INSTDIR\logo.ico"
     delete "$INSTDIR\README.md"
     delete "$INSTDIR\LICENSE"
@@ -175,18 +174,19 @@ section "uninstall"
     !insertmacro DelEnv JANET_BINPATH
 
     # Unset PATH
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "$INSTDIR\bin" ; Remove
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin" ; Remove
-    
-    # File Associations
-    ${UnRegisterExtension} ".janet" "Janet Source File"
+    ${If} $MultiUser.InstallMode == "AllUsers"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin" ; Remove
+    ${Else}
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "$INSTDIR\bin" ; Remove
+    ${EndIf}
 
     # make sure windows knows about the change
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
-	# Always delete uninstaller as the last action
-	delete "$INSTDIR\uninstall.exe"
+    # Always delete uninstaller as the last action
+    delete "$INSTDIR\uninstall.exe"
 
-	# Remove uninstaller information from the registry
+    # Remove uninstaller information from the registry
     DeleteRegKey SHCTX "${UNINST_KEY}"
+
 sectionEnd

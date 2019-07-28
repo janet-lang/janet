@@ -464,7 +464,13 @@ int main(int argc, const char **argv) {
 (defn clear-cache
   "Clear the global git cache."
   []
-  (rm (find-cache)))
+  (def cache (find-cache))
+  (print "clearing " cache "...")
+  (if is-win
+    # Git for windows decided that .git should be hidden and everything in it read-only.
+    # This means we can't delete things easily.
+    (os/shell (string `rmdir /S /Q "` cache `"`))
+    (rm cache)))
 
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle

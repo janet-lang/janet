@@ -159,7 +159,7 @@ exit /b 0
 :INSTALL
 @echo Running Installer...
 FOR %%a in (janet-*-windows-installer.exe) DO (
-    %%a /S /D=%userprofile%\AppData\Local\Janet\
+    %%a /S /CurrentUser
 )
 exit /b 0
 
@@ -182,8 +182,6 @@ call %0 test
 call %0 dist
 @if errorlevel 1 exit /b 1
 call %0 install
-@if errorlevel 1 exit /b 1
-call %0 test-install
 @if errorlevel 1 exit /b 1
 @echo Done!
 exit /b 0
