@@ -90,7 +90,7 @@ void janet_env_lookup_into(JanetTable *renv, JanetTable *env, const char *prefix
         for (int32_t i = 0; i < env->capacity; i++) {
             if (janet_checktype(env->data[i].key, JANET_SYMBOL)) {
                 if (prefix) {
-                    size_t prelen = strlen(prefix);
+                    int32_t prelen = (int32_t) strlen(prefix);
                     const uint8_t *oldsym = janet_unwrap_symbol(env->data[i].key);
                     int32_t oldlen = janet_string_length(oldsym);
                     uint8_t *symbuf = janet_smalloc(prelen + oldlen);
