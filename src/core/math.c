@@ -149,7 +149,7 @@ static const JanetReg math_cfuns[] = {
     {
         "math/log", janet_log,
         JDOC("(math/log x)\n\n"
-             "Returns log base 2 of x.")
+             "Returns log base natural number of x.")
     },
     {
         "math/log10", janet_log10,
