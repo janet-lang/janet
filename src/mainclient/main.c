@@ -25,6 +25,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <shlwapi.h>
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
 #endif
@@ -38,14 +39,33 @@ int main(int argc, char **argv) {
     JanetArray *args;
     JanetTable *env;
 
-    /* Enable color console on windows 10 console and utf8 output. */
 #ifdef _WIN32
+    /* Enable color console on windows 10 console and utf8 output. */
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
     GetConsoleMode(hOut, &dwMode);
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hOut, dwMode);
     SetConsoleOutputCP(65001);
+    
+    /* Add directory containing janet.exe as DLL search path for
+    dynamic modules on windows. This is needed because dynamic modules reference
+    janet.exe for symbols. Otherwise, janet.exe would have to be in the current directory
+    to load natives correctly. */
+ #ifndef JANET_NO_DYNAMIC_MODULES
+    {
+        SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_USER_DIRS);
+        HMODULE hModule = GetModuleHandleW(NULL);
+        wchar_t path[MAX_PATH];
+        GetModuleFileNameW(hModule, path, MAX_PATH);
+        size_t i = wcsnlen(path, MAX_PATH);
+        while (i > 0 && path[i] != '\\')
+            path[i--] = '\0';
+        if (i) AddDllDirectory(path);
+        GetCurrentDirectoryW(MAX_PATH, path);
+        AddDllDirectory(path);
+    }
+#endif
 #endif
 
     /* Set up VM */
@@ -67,7 +87,7 @@ int main(int argc, char **argv) {
 
     /* Save current executable path to (dyn :executable) */
     janet_table_put(env, janet_ckeywordv("executable"), janet_cstringv(argv[0]));
-
+    
     /* Run startup script */
     status = janet_dobytes(env, janet_gen_init, janet_gen_init_size, "init.janet", NULL);
 

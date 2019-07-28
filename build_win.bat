@@ -14,10 +14,12 @@
 @if "%1"=="test" goto TEST
 @if "%1"=="dist" goto DIST
 @if "%1"=="install" goto INSTALL
+@if "%1"=="test-install" goto TESTINSTALL
+@if "%1"=="all" goto ALL
 
 @rem Set compile and link options here
 @setlocal
-@set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /LD /D_CRT_SECURE_NO_WARNINGS
+@set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS
 @set JANET_LINK=link /nologo
 @set JANET_LINK_STATIC=lib /nologo
 
@@ -81,12 +83,8 @@ for %%f in (src\mainclient\*.c) do (
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Build static library (libjanet.a)
-@rem %JANET_LINK_STATIC% /out:build\libjanet.a build\core\*.obj build\core_image.obj
-@rem @if errorlevel 1 goto :BUILDFAIL
-
-@rem Build dynamic library (janet.dll)
-@rem %JANET_LINK% /out:build\janet.dll /dll build\core\*.obj build\core_image.obj
-@rem @if errorlevel 1 goto :BUILDFAIL
+%JANET_LINK_STATIC% /out:build\libjanet.lib build\core\*.obj build\core_image.obj
+@if errorlevel 1 goto :BUILDFAIL
 
 @rem Gen amlag
 setlocal enabledelayedexpansion
@@ -94,7 +92,7 @@ set "amalg_files="
 for %%f in (src\core\*.c) do (
     set "amalg_files=!amalg_files! %%f"
 )
-build\janet.exe tools\amalg.janet src\core\util.h src\core\state.h src\core\gc.h src\core\vector.h src\core\fiber.h src\core\regalloc.h src\core\compile.h src\core\emit.h src\core\symcache.h %amalg_files% build\core_image.c > build\janet.c
+janet.exe tools\amalg.janet src\core\util.h src\core\state.h src\core\gc.h src\core\vector.h src\core\fiber.h src\core\regalloc.h src\core\compile.h src\core\emit.h src\core\symcache.h %amalg_files% build\core_image.c > build\janet.c
 
 echo === Successfully built janet.exe for Windows ===
 echo === Run 'build_win test' to run tests. ==
@@ -126,7 +124,7 @@ exit /b 0
 :TEST
 for %%f in (test/suite*.janet) do (
     janet.exe test\%%f
-    @if errorlevel 1 goto :TESTFAIL
+    @if errorlevel 1 goto TESTFAIL
 )
 exit /b 0
 
@@ -145,9 +143,7 @@ copy janet.exp dist\janet.exp
 
 copy src\include\janet.h dist\janet.h
 copy src\conf\janetconf.h dist\janetconf.h
-
-@rem copy build\janet.dll dist\janet.dll
-@rem copy build\libjanet.a dist\libjanet.a
+copy build\libjanet.lib dist\libjanet.lib
 
 copy auxlib\cook.janet dist\cook.janet
 copy auxlib\path.janet dist\path.janet
@@ -159,11 +155,37 @@ copy tools\jpm.bat dist\jpm.bat
 "C:\Program Files (x86)\NSIS\makensis.exe" janet-installer.nsi
 exit /b 0
 
-:INSTALL
 @rem Run the installer. (Installs to the local user with default settings)
+:INSTALL
+@echo Running Installer...
 FOR %%a in (janet-*-windows-installer.exe) DO (
     %%a /S /D=%userprofile%\AppData\Local\Janet\
 )
+exit /b 0
+
+@rem Test the installation.
+:TESTINSTALL
+pushd test\install
+call jpm clean
+@if errorlevel 1 goto :TESTFAIL
+call jpm test
+@if errorlevel 1 goto :TESTFAIL
+popd
+exit /b 0
+
+@rem build, test, dist, install. Useful for local dev.
+:ALL
+call %0 build
+@if errorlevel 1 exit /b 1
+call %0 test
+@if errorlevel 1 exit /b 1
+call %0 dist
+@if errorlevel 1 exit /b 1
+call %0 install
+@if errorlevel 1 exit /b 1
+call %0 test-install
+@if errorlevel 1 exit /b 1
+@echo Done!
 exit /b 0
 
 :TESTFAIL

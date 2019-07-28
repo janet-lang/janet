@@ -20,6 +20,7 @@ VIFileVersion "${PRODUCT_VERSION}"
 !include "MUI2.nsh"
 !include ".\tools\EnvVarUpdate.nsh"
 !include "LogicLib.nsh"
+!include "./tools\FileAssociation.nsh"
 
 # Basics
 Name "Janet"
@@ -99,8 +100,7 @@ section "Janet" BfWSection
     file /oname=C\janet.lib dist\janet.lib
     file /oname=C\janet.exp dist\janet.exp
     file /oname=C\janet.c dist\janet.c
-    #file /oname=C\janet.dll dist\janet.dll
-    #file /oname=C\libjanet.a dist\libjanet.a
+    file /oname=C\libjanet.lib dist\libjanet.lib
 
     # Documentation
     file /oname=docs\docs.html dist\doc.html
@@ -126,6 +126,9 @@ section "Janet" BfWSection
     # Update path
     ${EnvVarUpdate} $0 "PATH" "A" "HKCU" "$INSTDIR\bin" ; Append
     ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\bin" ; Append
+    
+    # File Assocations
+    ${RegisterExtension} "$INSTDIR\bin\janet.exe" ".janet" "Janet Source File"
 
 	# Registry information for add/remove programs
 	WriteRegStr SHCTX "${UNINST_KEY}" "DisplayName" "Janet"
@@ -174,6 +177,9 @@ section "uninstall"
     # Unset PATH
     ${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "$INSTDIR\bin" ; Remove
     ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin" ; Remove
+    
+    # File Associations
+    ${UnRegisterExtension} ".janet" "Janet Source File"
 
     # make sure windows knows about the change
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000

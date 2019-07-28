@@ -18,11 +18,8 @@ init:
 - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
 
 install:
-    - build_win
-    - build_win test
     - choco install nsis -y -pre
-    - build_win dist
-    
+    - build_win all
 build: off
 
 only_commits:
@@ -31,7 +28,7 @@ only_commits:
     - src/
 
 artifacts:
-    - path: janet-installer.exe
+    - path: janet-v1.2.0-windows-installer.exe
       name: janet-v1.2.0-windows-installer.exe
       type: File
 

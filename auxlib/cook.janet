@@ -113,7 +113,7 @@
 
 (def default-compiler (if is-win "cl" "cc"))
 (def default-linker (if is-win "link" "cc"))
-(def default-archiver (if is-win "link" "ar"))
+(def default-archiver (if is-win "lib" "ar"))
 
 # Default flags for natives, but not required
 (def default-lflags (if is-win ["/nologo"] []))
@@ -277,7 +277,7 @@
     (error "cannot find libpath: provide --libpath or JANET_LIBPATH"))
   (string (dyn :libpath JANET_LIBPATH)
           sep
-          "libjanet.a"))
+          (if is-win "libjanet.lib" "libjanet.a")))
 
 (defn- win-import-library
   "On windows, an import library is needed to link to a dll statically."
@@ -314,7 +314,7 @@
   (rule target objects
         (print "creating static library " target "...")
         (if is-win
-          (shell ar "/lib" "/nologo" (string "/out:" target) ;objects)
+          (shell ar "/nologo" (string "/out:" target) ;objects)
           (shell ar "rcs" target ;objects))))
 
 (defn- create-buffer-c-impl
@@ -456,9 +456,9 @@ int main(int argc, const char **argv) {
     (try (rm path) ([err]
                     (unless (= err "No such file or directory")
                       (error err)))))
+  (:close f)
   (print "removing " manifest)
   (rm manifest)
-  (:close f)
   (print "Uninstalled."))
 
 (defn clear-cache
