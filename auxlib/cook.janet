@@ -386,12 +386,12 @@
         (loop [[prefix name] :pairs prefixes]
           (def meta (eval-string (slurp (modpath-to-meta name))))
           (buffer/push-string lookup-into-invocations
-                              "    "
-                              (meta :static-entry)
-                              "(temptab = janet_table(0));\n"
+                              "    temptab = janet_table(0);\n"
+                              "    temptab->proto = env;\n"
+                              "    " (meta :static-entry) "(temptab);\n"
                               "    janet_env_lookup_into(lookup, temptab, \""
                               prefix
-                              "\", 0);\n")
+                              "\", 0);\n\n")
           (buffer/push-string declarations
                               "extern void "
                               (meta :static-entry)
@@ -415,13 +415,13 @@ int main(int argc, const char **argv) {
     JanetTable *env = janet_core_env(NULL);
     JanetTable *lookup = janet_env_lookup(env);
     JanetTable *temptab;
+    int handle = janet_gclock();
 
     /* Load natives into unmarshalling dictionary */
 
 ```
                             lookup-into-invocations
 ```
-
     /* Unmarshal bytecode */
     Janet marsh_out = janet_unmarshal(
       janet_payload_image_embed,
@@ -448,6 +448,9 @@ int main(int argc, const char **argv) {
     janet_table_put(runtimeEnv, janet_ckeywordv("args"), janet_wrap_array(args));
     janet_gcroot(janet_wrap_table(runtimeEnv));
 
+    /* Unlock GC */
+    janet_gcunlock(handle);
+
     /* Run everything */
     JanetFiber *fiber = janet_fiber(janet_unwrap_function(marsh_out), 64, argc, args->data);
     fiber->env = runtimeEnv;
@@ -455,8 +458,10 @@ int main(int argc, const char **argv) {
     JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
     if (result) {
       janet_stacktrace(fiber, out);
+      janet_deinit();
       return result;
     }
+    janet_deinit();
     return 0;
 }
 
@@ -471,13 +476,13 @@ int main(int argc, const char **argv) {
                       #default
                       ["-lm"]))
   (def cc (opt opts :compiler default-compiler))
-  (def lflags [(libjanet) ;(opt opts :lflags default-lflags) ;extra-lflags])
+  (def lflags [;(opt opts :lflags default-lflags) ;extra-lflags])
   (def cflags (getcflags opts))
   (def defines (make-defines (opt opts :defines {})))
   (print "compiling and linking " dest "...")
   (if is-win
-    (shell cc ;cflags ;lflags (string "/OUT:" dest) cimage_dest ;static-libs)
-    (shell cc ;cflags `-o` dest cimage_dest ;lflags ;static-libs)))))
+    (shell cc ;cflags (libjanet) ;lflags (string "/OUT:" dest) cimage_dest ;static-libs)
+    (shell cc ;cflags `-o` dest cimage_dest ;lflags ;static-libs (libjanet))))))
 
 (defn- abspath
   "Create an absolute path. Does not resolve . and .. (useful for
