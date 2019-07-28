@@ -481,8 +481,8 @@ int main(int argc, const char **argv) {
   (def defines (make-defines (opt opts :defines {})))
   (print "compiling and linking " dest "...")
   (if is-win
-    (shell cc ;cflags (libjanet) ;lflags (string "/OUT:" dest) cimage_dest ;static-libs)
-    (shell cc ;cflags `-o` dest cimage_dest ;lflags ;static-libs (libjanet))))))
+    (shell cc ;cflags (string "/OUT:" dest) cimage_dest ;static-libs (libjanet) ;lflags)
+    (shell cc ;cflags `-o` dest cimage_dest ;static-libs (libjanet) ;lflags)))))
 
 (defn- abspath
   "Create an absolute path. Does not resolve . and .. (useful for
