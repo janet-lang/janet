@@ -24,6 +24,7 @@
 #include <math.h>
 #include <janet.h>
 #include "util.h"
+#include "state.h"
 #endif
 
 /* Macro fills */
@@ -161,6 +162,7 @@ Janet(janet_wrap_number)(double x) {
 void *janet_memalloc_empty(int32_t count) {
     int32_t i;
     void *mem = malloc(count * sizeof(JanetKV));
+    janet_vm_next_collection += count * sizeof(JanetKV);
     if (NULL == mem) {
         JANET_OUT_OF_MEMORY;
     }
