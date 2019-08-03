@@ -135,4 +135,13 @@
   (assert (= (string (module/expand-path "hello" ":sys:/:all:.janet"))
              ".janet/.janet/hello.janet") "module/expand-path 1"))
 
+# comp should be variadic
+(assert (= 10 ((comp +) 1 2 3 4)) "variadic comp 1")
+(assert (= 11 ((comp inc +) 1 2 3 4)) "variadic comp 2")
+(assert (= 12 ((comp inc inc +) 1 2 3 4)) "variadic comp 3")
+(assert (= 13 ((comp inc inc inc +) 1 2 3 4)) "variadic comp 4")
+(assert (= 14 ((comp inc inc inc inc +) 1 2 3 4)) "variadic comp 5")
+(assert (= 15 ((comp inc inc inc inc inc +) 1 2 3 4)) "variadic comp 6")
+(assert (= 16 ((comp inc inc inc inc inc inc +) 1 2 3 4)) "variadic comp 7")
+
 (end-suite)
