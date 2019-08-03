@@ -494,9 +494,9 @@
   (case (length functions)
     0 nil
     1 (get functions 0)
-    2 (let [[f g]       functions] (fn [x] (f (g x))))
-    3 (let [[f g h]     functions] (fn [x] (f (g (h x)))))
-    4 (let [[f g h i]   functions] (fn [x] (f (g (h (i x))))))
+    2 (let [[f g]       functions] (fn [& x] (f (g ;x))))
+    3 (let [[f g h]     functions] (fn [& x] (f (g (h ;x)))))
+    4 (let [[f g h i]   functions] (fn [& x] (f (g (h (i ;x))))))
     (let [[f g h i j] functions]
       (comp (fn [x] (f (g (h (i (j x))))))
             ;(tuple/slice functions 5 -1)))))
