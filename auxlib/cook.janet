@@ -170,7 +170,7 @@
   (def currenv (proto-flatten @{} (fiber/getenv (fiber/current))))
   (loop [k :keys currenv :when (keyword? k)]
     (put env k (currenv k)))
-  (dofile path :env env)
+  (dofile path :env env :exit true)
   (when-let [rules (env :rules)] (merge-into (getrules) rules)))
 
 #
