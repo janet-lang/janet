@@ -106,6 +106,7 @@
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
 (defn empty? "Check if xs is empty." [xs] (= 0 (length xs)))
+
 (def idempotent?
   "(idempotent? x)\n\nCheck if x is a value that evaluates to itself when compiled."
   (do
@@ -390,7 +391,7 @@
   and object is any janet expression. The available verbs are:\n\n
   \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
   \t:range - loop over a range. The object should be two element tuple with a start
-  and end value, and an optional postive step. The range is half open, [start, end).\n
+  and end value, and an optional positive step. The range is half open, [start, end).\n
   \t:down - Same as range, but loops in reverse.\n
   \t:keys - Iterate over the keys in a data structure.\n
   \t:pairs - Iterate over the keys value pairs in a data structure.\n
@@ -1290,14 +1291,21 @@
 ###
 
 (defn macex1
-  "Expand macros in a form, but do not recursively expand macros."
-  [x]
+  "Expand macros in a form, but do not recursively expand macros.
+  See macex docs for info on on-binding."
+  [x &opt on-binding]
+
+  (when on-binding
+    (when (symbol? x)
+      (break (on-binding x))))
+
+  (defn recur [y] (macex1 y on-binding))
 
   (defn dotable [t on-value]
     (def newt @{})
     (var key (next t nil))
     (while (not= nil key)
-      (put newt (macex1 key) (on-value (get t key)))
+      (put newt (recur key) (on-value (get t key)))
       (set key (next t key)))
     newt)
 
@@ -1307,7 +1315,7 @@
       :tuple (tuple/slice (map expand-bindings x))
       :table (dotable x expand-bindings)
       :struct (table/to-struct (dotable x expand-bindings))
-      (macex1 x)))
+      (recur x)))
 
   (defn expanddef [t]
     (def last (get t (- (length t) 1)))
@@ -1316,20 +1324,20 @@
       (array/concat
         @[(get t 0) (expand-bindings bound)]
         (tuple/slice t 2 -2)
-        @[(macex1 last)])))
+        @[(recur last)])))
 
   (defn expandall [t]
-    (def args (map macex1 (tuple/slice t 1)))
+    (def args (map recur (tuple/slice t 1)))
     (tuple (get t 0) ;args))
 
   (defn expandfn [t]
     (def t1 (get t 1))
     (if (symbol? t1)
       (do
-        (def args (map macex1 (tuple/slice t 3)))
+        (def args (map recur (tuple/slice t 3)))
         (tuple 'fn t1 (get t 2) ;args))
       (do
-        (def args (map macex1 (tuple/slice t 2)))
+        (def args (map recur (tuple/slice t 2)))
         (tuple 'fn t1 ;args))))
 
   (defn expandqq [t]
@@ -1338,7 +1346,7 @@
         :tuple (do
                  (def x0 (get x 0))
                  (if (or (= 'unquote x0) (= 'unquote-splicing x0))
-                   (tuple x0 (macex1 (get x 1)))
+                   (tuple x0 (recur (get x 1)))
                    (tuple/slice (map qq x))))
         :array (map qq x)
         :table (table (map qq (kvs x)))
@@ -1366,16 +1374,16 @@
     (cond
       s (s t)
       m? (m ;(tuple/slice t 1))
-      (tuple/slice (map macex1 t))))
+      (tuple/slice (map recur t))))
 
   (def ret
     (case (type x)
       :tuple (if (= (tuple/type x) :brackets)
-               (tuple/brackets ;(map macex1 x))
+               (tuple/brackets ;(map recur x))
                (dotup x))
-      :array (map macex1 x)
-      :struct (table/to-struct (dotable x macex1))
-      :table (dotable x macex1)
+      :array (map recur x)
+      :struct (table/to-struct (dotable x recur))
+      :table (dotable x recur)
       x))
   ret)
 
@@ -1415,17 +1423,63 @@
   (not (deep-not= x y)))
 
 (defn macex
-  "Expand macros completely."
-  [x]
+  "Expand macros completely.
+  on-binding is an optional callback whenever a normal symbolic binding
+  is encounter. This allows macros to easily see all bindings use by their
+  arguments by calling macex on their contents. The binding itself is also
+  replaced by the value returned by on-binding within the expand macro."
+  [x &opt on-binding]
   (var previous x)
-  (var current (macex1 x))
+  (var current (macex1 x on-binding))
   (var counter 0)
   (while (deep-not= current previous)
     (if (> (++ counter) 200)
       (error "macro expansion too nested"))
     (set previous current)
-    (set current (macex1 current)))
+    (set current (macex1 current on-binding)))
   current)
+
+###
+###
+### Function shorthand
+###
+###
+
+(defmacro short-fn
+  "fn shorthand.\n\n
+  usage:\n\n
+  \t(short-fn (+ $ $)) - A function that double's its arguments.\n
+  \t(short-fn (string $0 $1)) - accepting multiple args\n
+  \t|(+ $ $) - use pipe reader macro for terse function literals\n
+  \t|(+ $&) - variadic functions"
+  [arg]
+  (var max-param-seen -1)
+  (var vararg false)
+  (defn saw-special-arg
+    [num]
+    (set max-param-seen (max max-param-seen num)))
+  (defn on-binding
+    [x]
+    (if (string/has-prefix? '$ x)
+      (cond
+        (= '$ x)
+        (do
+          (saw-special-arg 0)
+          '$0)
+        (= '$& x)
+        (do
+          (set vararg true)
+          x)
+        :else
+        (do
+          (def num (scan-number (string/slice x 1)))
+          (if (nat? num)
+            (saw-special-arg num))
+          x))
+      x))
+  (def expanded (macex arg on-binding))
+  (def fn-args (seq [i :range [0 (+ 1 max-param-seen)]] (symbol '$ i)))
+  ~(fn [,;fn-args ,;(if vararg ['& '$&] [])] ,expanded))
 
 ###
 ###
@@ -1474,7 +1528,7 @@
   :env - the environment to compile against - default is the current env\n\t
   :source - string path of source for better errors - default is \"<anonymous>\"\n\t
   :on-compile-error - callback when compilation fails - default is bad-compile\n\t
-  :compile-only - only compile the souce, do not execute it - default is false\n\t
+  :compile-only - only compile the source, do not execute it - default is false\n\t
   :on-status - callback when a value is evaluated - default is debug/stacktrace\n\t
   :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia."
   [opts]

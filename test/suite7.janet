@@ -144,4 +144,16 @@
 (assert (= 15 ((comp inc inc inc inc inc +) 1 2 3 4)) "variadic comp 6")
 (assert (= 16 ((comp inc inc inc inc inc inc +) 1 2 3 4)) "variadic comp 7")
 
+# Function shorthand
+(assert (= (|(+ 1 2 3)) 6) "function shorthand 1")
+(assert (= (|(+ 1 2 3 $) 4) 10) "function shorthand 2")
+(assert (= (|(+ 1 2 3 $0) 4) 10) "function shorthand 3")
+(assert (= (|(+ $0 $0 $0 $0) 4) 16) "function shorthand 4")
+(assert (= (|(+ $ $ $ $) 4) 16) "function shorthand 5")
+(assert (= (|4) 4) "function shorthand 6")
+(assert (= (((|||4))) 4) "function shorthand 7")
+(assert (= (|(+ $1 $1 $1 $1) 2 4) 16) "function shorthand 8")
+(assert (= (|(+ $0 $1 $3 $2 $6) 0 1 2 3 4 5 6) 12) "function shorthand 9")
+
+
 (end-suite)

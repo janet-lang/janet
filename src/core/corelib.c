@@ -22,6 +22,7 @@
 
 #ifndef JANET_AMALG
 #include <janet.h>
+#include <math.h>
 #include "compile.h"
 #include "state.h"
 #include "util.h"
@@ -459,6 +460,24 @@ static Janet janet_core_untrace(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
+static Janet janet_core_check_int(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    if (!janet_checktype(argv[0], JANET_NUMBER)) goto ret_false;
+    double num = janet_unwrap_number(argv[0]);
+    return janet_wrap_boolean(num == (double)((int32_t)num));
+ret_false:
+    return janet_wrap_false();
+}
+
+static Janet janet_core_check_nat(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    if (!janet_checktype(argv[0], JANET_NUMBER)) goto ret_false;
+    double num = janet_unwrap_number(argv[0]);
+    return janet_wrap_boolean(num >= 0 && (num == (double)((int32_t)num)));
+ret_false:
+    return janet_wrap_false();
+}
+
 static const JanetReg corelib_cfuns[] = {
     {
         "native", janet_core_native,
@@ -635,6 +654,16 @@ static const JanetReg corelib_cfuns[] = {
              "This takes in a path (the argument to require) and a template string, template, "
              "to expand the path to a path that can be "
              "used for importing files.")
+    },
+    {
+        "int?", janet_core_check_int,
+        JDOC("(int? x)\n\n"
+             "Check if x can be exactly represented as a 32 bit signed two's complement integer.")
+    },
+    {
+        "nat?", janet_core_check_nat,
+        JDOC("(nat? x)\n\n"
+             "Check if x can be exactly represented as a non-negative 32 bit signed two's complement integer.")
     },
     {NULL, NULL, NULL}
 };

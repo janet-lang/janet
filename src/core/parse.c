@@ -42,7 +42,7 @@ static int is_whitespace(uint8_t c) {
  * if not. The upper characters are also considered symbol
  * chars and are then checked for utf-8 compliance. */
 static const uint32_t symchars[8] = {
-    0x00000000, 0xf7ffec72, 0xc7ffffff, 0x17fffffe,
+    0x00000000, 0xf7ffec72, 0xc7ffffff, 0x07fffffe,
     0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
 };
 
@@ -179,6 +179,7 @@ static void popstate(JanetParser *p, Janet val) {
                 (c == '\'') ? "quote" :
                 (c == ',') ? "unquote" :
                 (c == ';') ? "splice" :
+                (c == '|') ? "short-fn" :
                 (c == '~') ? "quasiquote" : "<unknown>";
             t[0] = janet_csymbolv(which);
             t[1] = val;
@@ -492,6 +493,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
         case ',':
         case ';':
         case '~':
+        case '|':
             pushstate(p, root, PFLAG_READERMAC | c);
             return 1;
         case '"':

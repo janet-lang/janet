@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add function literal short-hand via `|` reader macro, which maps to the
+  `short-fn` macro.
+- Add `int?` and `nat?` functions to the core.
 - Add `(dyn :executable)` at top level to get what used to be
   `(process/args 0)`.
 - Add `:linux` to platforms returned by `(os/which)`.
