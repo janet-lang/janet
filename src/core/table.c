@@ -211,7 +211,10 @@ const JanetKV *janet_table_to_struct(JanetTable *t) {
 /* Clone a table. */
 JanetTable *janet_table_clone(JanetTable *table) {
     JanetTable *newTable = janet_gcalloc(JANET_MEMORY_TABLE, sizeof(JanetTable));
-    memcpy(newTable, table, sizeof(JanetTable));
+    newTable->count = table->count;
+    newTable->capacity = table->capacity;
+    newTable->deleted = table->deleted;
+    newTable->proto = table->proto;
     newTable->data = malloc(newTable->capacity * sizeof(JanetKV));
     if (NULL == newTable->data) {
         JANET_OUT_OF_MEMORY;
