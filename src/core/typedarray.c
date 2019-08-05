@@ -159,10 +159,14 @@ static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
     view->as.u8 = view->buffer->data + offset;
 }
 
+static JanetMethod tarray_view_methods[];
+
 static Janet ta_getter(void *p, Janet key) {
     Janet value;
     size_t index, i;
     JanetTArrayView *array = p;
+    if (janet_checktype(key, JANET_KEYWORD))
+        return janet_getmethod(janet_unwrap_keyword(key), tarray_view_methods);
     if (!janet_checksize(key)) janet_panic("expected size as key");
     index = (size_t) janet_unwrap_number(key);
     i = index * array->stride;
@@ -549,6 +553,15 @@ static const JanetReg ta_cfuns[] = {
              "the size of the typed array. Returns a new janet array.")
     },
     {NULL, NULL, NULL}
+};
+
+static JanetMethod tarray_view_methods[] = {
+    {"length", cfun_typed_array_size},
+    {"properties", cfun_typed_array_properties},
+    {"copy-bytes", cfun_typed_array_copy_bytes},
+    {"swap-bytes", cfun_typed_array_swap_bytes},
+    {"slice", cfun_typed_array_slice},
+    {NULL, NULL}
 };
 
 /* Module entry point */
