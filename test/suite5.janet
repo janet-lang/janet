@@ -80,6 +80,40 @@
 (assert-no-error "break 3" (for i 0 10 (if (> i 8) (break i))))
 (assert-no-error "break 4" ((fn [i] (if (> i 8) (break i))) 100))
 
+# take
+
+(assert (deep= (take 0 []) []) "take 1")
+(assert (deep= (take 10 []) []) "take 2")
+(assert (deep= (take 0 [1 2 3 4 5]) []) "take 3")
+(assert (deep= (take 10 [1 2 3]) [1 2 3]) "take 4")
+(assert (deep= (take -1 [:a :b :c]) []) "take 5")
+(assert-error :invalid-type (take 3 {}) "take 6")
+
+# take-until
+
+(assert (deep= (take-until pos? @[]) @[]) "take-until 1")
+(assert (deep= (take-until pos? @[1 2 3]) @[]) "take-until 2")
+(assert (deep= (take-until pos? @[-1 -2 -3]) @[-1 -2 -3]) "take-until 3")
+(assert (deep= (take-until pos? @[-1 -2 3]) @[-1 -2]) "take-until 4")
+(assert (deep= (take-until pos? @[-1 1 -2]) @[-1]) "take-until 5")
+
+# take-while
+
+(assert (deep= (take-while neg? @[]) @[]) "take-while 1")
+(assert (deep= (take-while neg? @[1 2 3]) @[]) "take-while 2")
+(assert (deep= (take-while neg? @[-1 -2 -3]) @[-1 -2 -3]) "take-while 3")
+(assert (deep= (take-while neg? @[-1 -2 3]) @[-1 -2]) "take-while 4")
+(assert (deep= (take-while neg? @[-1 1 -2]) @[-1]) "take-while 5")
+
+# drop
+
+(assert (deep= (drop 0 []) []) "drop 1")
+(assert (deep= (drop 10 []) []) "drop 2")
+(assert (deep= (drop 0 [1 2 3 4 5]) [1 2 3 4 5]) "drop 3")
+(assert (deep= (drop 10 [1 2 3]) []) "drop 4")
+(assert (deep= (drop -2 [:a :b :c]) [:a :b :c]) "drop 5")
+(assert-error :invalid-type (drop 3 {}) "drop 6")
+
 # drop-until
 
 (assert (deep= (drop-until pos? @[]) @[]) "drop-until 1")

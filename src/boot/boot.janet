@@ -702,6 +702,20 @@
   (def i (find-index pred ind))
   (if (= i nil) nil (get ind i)))
 
+(defn take
+  "Take first n elements in an indexed type. Returns new indexed instance."
+  [n xs]
+  (def [f empty] (case (type xs)
+                   :array [array/slice @[]]
+                   :buffer [buffer/slice @""]
+                   :string [string/slice ""]
+                   :tarray [tarray/slice @[]]
+                   :tuple [tuple/slice (if (= :parens (tuple/type xs)) '() [])]
+                   (error "should provide an indexed type")))
+  (def len (if (= :tarray (type xs)) (tarray/length xs) (length xs)))
+  (def end (if (pos? n) (min n len) 0))
+  (f xs 0 end))
+
 (defn take-until
   "Given a predicate, take only elements from an indexed type that satisfy
   the predicate, and abort on first failure. Returns a new array."
@@ -715,6 +729,20 @@
   "Same as (take-until (complement pred) ind)."
   [pred ind]
   (take-until (complement pred) ind))
+
+(defn drop
+  "Drop first n elements in an indexed type. Returns new indexed instance."
+  [n xs]
+  (def [f empty] (case (type xs)
+                   :array [array/slice @[]]
+                   :buffer [buffer/slice @""]
+                   :string [string/slice ""]
+                   :tarray [tarray/slice @[]]
+                   :tuple [tuple/slice (if (= :parens (tuple/type xs)) '() [])]
+                   (error "should provide an indexed type")))
+  (def len (if (= :tarray (type xs)) (tarray/length xs) (length xs)))
+  (def start (if (pos? n) (min n len) 0))
+  (f xs start -1))
 
 (defn drop-until
   "Given a predicate, remove elements from an indexed type that satisfy
