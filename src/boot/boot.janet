@@ -703,8 +703,7 @@
   (if (= i nil) nil (get ind i)))
 
 (defn take-until
-  "Given a predicate, take only elements from an indexed type that satisfy
-  the predicate, and abort on first failure. Returns a new array."
+  "Same as (take-while (complement pred) ind)."
   [pred ind]
   (def i (find-index pred ind))
   (if i
@@ -712,13 +711,13 @@
     ind))
 
 (defn take-while
-  "Same as (take-until (complement pred) ind)."
+  "Given a predicate, take only elements from an indexed type that satisfy
+  the predicate, and abort on first failure. Returns a new array."
   [pred ind]
   (take-until (complement pred) ind))
 
 (defn drop-until
-  "Given a predicate, remove elements from an indexed type that satisfy
-  the predicate, and abort on first failure. Returns a new array."
+  "Same as (drop-while (complement pred) ind)."
   [pred ind]
   (def i (find-index pred ind))
   (if i
@@ -726,7 +725,8 @@
     @[]))
 
 (defn drop-while
-  "Same as (drop-until (complement pred) ind)."
+  "Given a predicate, remove elements from an indexed type that satisfy
+  the predicate, and abort on first failure. Returns a new array."
   [pred ind]
   (drop-until (complement pred) ind))
 
