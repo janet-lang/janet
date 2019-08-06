@@ -707,7 +707,7 @@
   [n xs]
   (def use-str (bytes? xs))
   (def f (if use-str string/slice tuple/slice))
-  # make sure end in [0, len]
+  # make sure end is in [0, len]
   (def end (max 0 (min n (length xs))))
   (f xs 0 end))
 
@@ -730,7 +730,7 @@
   [n xs]
   (def use-str (bytes? xs))
   (def f (if use-str string/slice tuple/slice))
-  # make sure start in [0, len]
+  # make sure start is in [0, len]
   (def start (max 0 (min n (length xs))))
   (f xs start -1))
 
