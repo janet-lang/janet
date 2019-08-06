@@ -202,7 +202,7 @@ static void janet_env_detach(JanetFuncEnv *env) {
     if (env) {
         size_t s = sizeof(Janet) * env->length;
         Janet *vmem = malloc(s);
-        janet_vm_next_collection += s;
+        janet_vm_next_collection += (uint32_t) s;
         if (NULL == vmem) {
             JANET_OUT_OF_MEMORY;
         }

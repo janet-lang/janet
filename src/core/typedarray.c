@@ -159,7 +159,7 @@ static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
     view->as.u8 = view->buffer->data + offset;
 }
 
-static JanetMethod tarray_view_methods[];
+static JanetMethod tarray_view_methods[6];
 
 static Janet ta_getter(void *p, Janet key) {
     Janet value;
