@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `take` and `drop` functions that are easier to use compared to the
+  existing slice functions.
+- Add optional default value to `get`.
 - Add function literal short-hand via `|` reader macro, which maps to the
   `short-fn` macro.
 - Add `int?` and `nat?` functions to the core.
