@@ -192,6 +192,16 @@ static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     return janet_get(ds, key);
 }
 
+/* Get a callable from a keyword method name and check ensure that it is valid. */
+static Janet resolve_method(Janet name, JanetFiber *fiber) {
+    int32_t argc = fiber->stacktop - fiber->stackstart;
+    if (argc < 1) janet_panicf("method call takes at least 1 argument, got %d", argc);
+    Janet callee = janet_get(fiber->data[fiber->stackstart], name);
+    if (janet_checktype(callee, JANET_NIL))
+        janet_panicf("unknown method %v invoked on %v", name, fiber->data[fiber->stackstart]);
+    return callee;
+}
+
 /* Interpreter main loop */
 static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) {
 
@@ -586,9 +596,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         }
         if (janet_checktype(callee, JANET_KEYWORD)) {
             vm_commit();
-            int32_t argc = fiber->stacktop - fiber->stackstart;
-            if (argc < 1) janet_panicf("method call takes at least 1 argument, got %d", argc);
-            callee = janet_get(fiber->data[fiber->stackstart], callee);
+            callee = resolve_method(callee, fiber);
         }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
@@ -622,9 +630,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         Janet callee = stack[D];
         if (janet_checktype(callee, JANET_KEYWORD)) {
             vm_commit();
-            int32_t argc = fiber->stacktop - fiber->stackstart;
-            if (argc < 1) janet_panicf("method call takes at least 1 argument, got %d", argc);
-            callee = janet_get(fiber->data[fiber->stackstart], callee);
+            callee = resolve_method(callee, fiber);
         }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);

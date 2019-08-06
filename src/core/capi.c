@@ -107,7 +107,6 @@ Janet janet_getmethod(const uint8_t *method, const JanetMethod *methods) {
             return janet_wrap_cfunction(methods->cfun);
         methods++;
     }
-    janet_panicf("unknown method :%S invoked", method);
     return janet_wrap_nil();
 }
 
