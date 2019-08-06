@@ -702,13 +702,24 @@
   (def i (find-index pred ind))
   (if (= i nil) nil (get ind i)))
 
+(defn take
+  "Take first n elements in an indexed type. Returns new indexed instance."
+  [n ind]
+  (def use-str (bytes? ind))
+  (def f (if use-str string/slice tuple/slice))
+  # make sure end is in [0, len]
+  (def end (max 0 (min n (length ind))))
+  (f ind 0 end))
+
 (defn take-until
   "Same as (take-while (complement pred) ind)."
   [pred ind]
+  (def use-str (bytes? ind))
+  (def f (if use-str string/slice tuple/slice))
+  (def len (length ind))
   (def i (find-index pred ind))
-  (if i
-    (array/slice ind 0 i)
-    ind))
+  (def end (if (nil? i) len i))
+  (f ind 0 end))
 
 (defn take-while
   "Given a predicate, take only elements from an indexed type that satisfy
@@ -716,13 +727,24 @@
   [pred ind]
   (take-until (complement pred) ind))
 
+(defn drop
+  "Drop first n elements in an indexed type. Returns new indexed instance."
+  [n ind]
+  (def use-str (bytes? ind))
+  (def f (if use-str string/slice tuple/slice))
+  # make sure start is in [0, len]
+  (def start (max 0 (min n (length ind))))
+  (f ind start -1))
+
 (defn drop-until
   "Same as (drop-while (complement pred) ind)."
   [pred ind]
+  (def use-str (bytes? ind))
+  (def f (if use-str string/slice tuple/slice))
   (def i (find-index pred ind))
-  (if i
-    (array/slice ind i)
-    @[]))
+  (def len (length ind))
+  (def start (if (nil? i) len i))
+  (f ind start))
 
 (defn drop-while
   "Given a predicate, remove elements from an indexed type that satisfy
