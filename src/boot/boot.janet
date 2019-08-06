@@ -705,15 +705,10 @@
 (defn take
   "Take first n elements in an indexed type. Returns new indexed instance."
   [n xs]
-  (def [f empty] (case (type xs)
-                   :array [array/slice @[]]
-                   :buffer [buffer/slice @""]
-                   :string [string/slice ""]
-                   :tarray [tarray/slice @[]]
-                   :tuple [tuple/slice (if (= :parens (tuple/type xs)) '() [])]
-                   (error "should provide an indexed type")))
-  (def len (if (= :tarray (type xs)) (tarray/length xs) (length xs)))
-  (def end (if (pos? n) (min n len) 0))
+  (def use-str (bytes? xs))
+  (def f (if use-str string/slice tuple/slice))
+  # make sure end in [0, len]
+  (def end (max 0 (min n (length xs))))
   (f xs 0 end))
 
 (defn take-until
@@ -733,15 +728,10 @@
 (defn drop
   "Drop first n elements in an indexed type. Returns new indexed instance."
   [n xs]
-  (def [f empty] (case (type xs)
-                   :array [array/slice @[]]
-                   :buffer [buffer/slice @""]
-                   :string [string/slice ""]
-                   :tarray [tarray/slice @[]]
-                   :tuple [tuple/slice (if (= :parens (tuple/type xs)) '() [])]
-                   (error "should provide an indexed type")))
-  (def len (if (= :tarray (type xs)) (tarray/length xs) (length xs)))
-  (def start (if (pos? n) (min n len) 0))
+  (def use-str (bytes? xs))
+  (def f (if use-str string/slice tuple/slice))
+  # make sure start in [0, len]
+  (def start (max 0 (min n (length xs))))
   (f xs start -1))
 
 (defn drop-until
