@@ -91,19 +91,20 @@
 
 # take-until
 
-(assert (deep= (take-until pos? @[]) @[]) "take-until 1")
-(assert (deep= (take-until pos? @[1 2 3]) @[]) "take-until 2")
-(assert (deep= (take-until pos? @[-1 -2 -3]) @[-1 -2 -3]) "take-until 3")
-(assert (deep= (take-until pos? @[-1 -2 3]) @[-1 -2]) "take-until 4")
-(assert (deep= (take-until pos? @[-1 1 -2]) @[-1]) "take-until 5")
+(assert (deep= (take-until pos? @[]) []) "take-until 1")
+(assert (deep= (take-until pos? @[1 2 3]) []) "take-until 2")
+(assert (deep= (take-until pos? @[-1 -2 -3]) [-1 -2 -3]) "take-until 3")
+(assert (deep= (take-until pos? @[-1 -2 3]) [-1 -2]) "take-until 4")
+(assert (deep= (take-until pos? @[-1 1 -2]) [-1]) "take-until 5")
+(assert (deep= (take-until |(= $ 115) "books") "book") "take-until 6")
 
 # take-while
 
-(assert (deep= (take-while neg? @[]) @[]) "take-while 1")
-(assert (deep= (take-while neg? @[1 2 3]) @[]) "take-while 2")
-(assert (deep= (take-while neg? @[-1 -2 -3]) @[-1 -2 -3]) "take-while 3")
-(assert (deep= (take-while neg? @[-1 -2 3]) @[-1 -2]) "take-while 4")
-(assert (deep= (take-while neg? @[-1 1 -2]) @[-1]) "take-while 5")
+(assert (deep= (take-while neg? @[]) []) "take-while 1")
+(assert (deep= (take-while neg? @[1 2 3]) []) "take-while 2")
+(assert (deep= (take-while neg? @[-1 -2 -3]) [-1 -2 -3]) "take-while 3")
+(assert (deep= (take-while neg? @[-1 -2 3]) [-1 -2]) "take-while 4")
+(assert (deep= (take-while neg? @[-1 1 -2]) [-1]) "take-while 5")
 
 # drop
 
@@ -116,11 +117,12 @@
 
 # drop-until
 
-(assert (deep= (drop-until pos? @[]) @[]) "drop-until 1")
-(assert (deep= (drop-until pos? @[1 2 3]) @[1 2 3]) "drop-until 2")
-(assert (deep= (drop-until pos? @[-1 -2 -3]) @[]) "drop-until 3")
-(assert (deep= (drop-until pos? @[-1 -2 3]) @[3]) "drop-until 4")
-(assert (deep= (drop-until pos? @[-1 1 -2]) @[1 -2]) "drop-until 5")
+(assert (deep= (drop-until pos? @[]) []) "drop-until 1")
+(assert (deep= (drop-until pos? @[1 2 3]) [1 2 3]) "drop-until 2")
+(assert (deep= (drop-until pos? @[-1 -2 -3]) []) "drop-until 3")
+(assert (deep= (drop-until pos? @[-1 -2 3]) [3]) "drop-until 4")
+(assert (deep= (drop-until pos? @[-1 1 -2]) [1 -2]) "drop-until 5")
+(assert (deep= (drop-until |(= $ 115) "books") "s") "drop-until 6")
 
 # Quasiquote bracketed tuples
 (assert (= (tuple/type ~[1 2 3]) (tuple/type '[1 2 3])) "quasiquote bracket tuples")
