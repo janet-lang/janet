@@ -1,7 +1,7 @@
 version: build-{build}
 clone_folder: c:\projects\janet
 image:
-- Visual Studio 2017
+- Visual Studio 2019
 configuration:
 - Release
 - Debug
@@ -15,7 +15,7 @@ matrix:
 
 # skip unsupported combinations
 init:
-- call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+- call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
 
 install:
     - choco install nsis -y -pre
@@ -25,7 +25,7 @@ install:
     - build_win all
     - refreshenv
     # We need to reload vcvars after refreshing
-    - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+    - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
     - build_win test-install
 build: off
 
