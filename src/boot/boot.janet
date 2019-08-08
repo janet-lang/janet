@@ -36,7 +36,7 @@
       (set index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
     # Build return value
-    ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
+    ~(def ,name ,.modifiers (fn ,name ,.(tuple/slice more start)))))
 
 (defn defmacro :macro
   "Define a macro."
@@ -56,7 +56,7 @@
 (defmacro def-
   "Define a private value that will not be exported."
   [name & more]
-  ~(def ,name :private ,;more))
+  ~(def ,name :private ,.more))
 
 (defn defglobal
   "Dynamically create a global def."
@@ -147,12 +147,12 @@
 (defmacro when
   "Evaluates the body when the condition is true. Otherwise returns nil."
   [condition & body]
-  ~(if ,condition (do ,;body)))
+  ~(if ,condition (do ,.body)))
 
 (defmacro unless
-  "Shorthand for (when (not condition) ;body). "
+  "Shorthand for (when (not condition) .body). "
   [condition & body]
-  ~(if ,condition nil (do ,;body)))
+  ~(if ,condition nil (do ,.body)))
 
 (defmacro cond
   "Evaluates conditions sequentially until the first true condition
@@ -218,7 +218,7 @@
     ~(let [,f (,fiber/new (fn [] ,body) :ie)
            ,r (resume ,f)]
        (if (= (,fiber/status ,f) :error)
-         (do (def ,err ,r) ,(if fib ~(def ,fib ,f)) ,;(tuple/slice catch 1))
+         (do (def ,err ,r) ,(if fib ~(def ,fib ,f)) ,.(tuple/slice catch 1))
          ,r))))
 
 (defmacro and
@@ -262,7 +262,7 @@
   (while (< i len)
     (array/push accum (get syms i) [gensym])
     (++ i))
-  ~(let (,;accum) ,;body))
+  ~(let (,.accum) ,.body))
 
 (defmacro with
   "Evaluate body with some resource, which will be automatically cleaned up
@@ -272,7 +272,7 @@
   [[binding ctor dtor] & body]
   (with-syms [res f]
     ~(let [,binding ,ctor
-           ,f (,fiber/new (fn [] ,;body) :ie)
+           ,f (,fiber/new (fn [] ,.body) :ie)
            ,res (,resume ,f)]
        (,(or dtor :close) ,binding)
        (if (,= (,fiber/status ,f) :error)
@@ -287,7 +287,7 @@
        (def ,s ,stop)
        (while (,comparison ,i ,s)
          (def ,binding ,i)
-         ,;body
+         ,.body
          (set ,i (,delta ,i ,step))))))
 
 (defn- each-template
@@ -300,7 +300,7 @@
        (def ,len (,length ,ds))
        (while (,< ,i ,len)
          (def ,binding (get ,ds ,i))
-         ,;body
+         ,.body
          (++ ,i)))))
 
 (defn- keys-template
@@ -312,7 +312,7 @@
        (var ,k (,next ,ds nil))
        (while ,k
          (def ,binding ,(if pair? ~(tuple ,k (get ,ds ,k)) k))
-         ,;body
+         ,.body
          (set ,k (,next ,ds ,k))))))
 
 (defn- iterate-template
@@ -335,7 +335,7 @@
 
     # Terminate recursion
     (<= (length head) i)
-    ~(do ,;body)
+    ~(do ,.body)
 
     # 2 term expression
     (keyword? binding)
@@ -425,18 +425,18 @@
   See loop for details."
   [head & body]
   (def $accum (gensym))
-  ~(do (def ,$accum @[]) (loop ,head (array/push ,$accum (do ,;body))) ,$accum))
+  ~(do (def ,$accum @[]) (loop ,head (array/push ,$accum (do ,.body))) ,$accum))
 
 (defmacro generate
   "Create a generator expression using the loop syntax. Returns a fiber
   that yields all values inside the loop in order. See loop for details."
   [head & body]
-  ~(fiber/new (fn [] (loop ,head (yield (do ,;body)))) :yi))
+  ~(fiber/new (fn [] (loop ,head (yield (do ,.body)))) :yi))
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber/new (fn [] ;body) :yi)."
+  "A wrapper for making fibers. Same as (fiber/new (fn [] .body) :yi)."
   [& body]
-  (tuple fiber/new (tuple 'fn '[] ;body) :yi))
+  (tuple fiber/new (tuple 'fn '[] .body) :yi))
 
 (defn sum
   "Returns the sum of xs. If xs is empty, returns 0."
@@ -484,9 +484,9 @@
   (aux 0))
 
 (defmacro when-let
-  "Same as (if-let bindings (do ;body))."
+  "Same as (if-let bindings (do .body))."
   [bindings & body]
-  ~(if-let ,bindings (do ,;body)))
+  ~(if-let ,bindings (do ,.body)))
 
 (defn comp
   "Takes multiple functions and returns a function that is the composition
@@ -495,12 +495,12 @@
   (case (length functions)
     0 nil
     1 (get functions 0)
-    2 (let [[f g]       functions] (fn [& x] (f (g ;x))))
-    3 (let [[f g h]     functions] (fn [& x] (f (g (h ;x)))))
-    4 (let [[f g h i]   functions] (fn [& x] (f (g (h (i ;x))))))
+    2 (let [[f g]       functions] (fn [& x] (f (g .x))))
+    3 (let [[f g h]     functions] (fn [& x] (f (g (h .x)))))
+    4 (let [[f g h i]   functions] (fn [& x] (f (g (h (i .x))))))
     (let [[f g h i] functions]
       (comp (fn [x] (f (g (h (i x)))))
-            ;(tuple/slice functions 4 -1)))))
+            .(tuple/slice functions 4 -1)))))
 
 (defn identity
   "A function that returns its first argument."
@@ -618,7 +618,7 @@
     (for i 0 limit
       (def args (array/new ninds))
       (for j 0 ninds (set (args j) (get (get inds j) i)))
-      (set (res i) (f ;args))))
+      (set (res i) (f .args))))
   res)
 
 (defn mapcat
@@ -759,7 +759,7 @@
   (fn [& args]
     (def ret @[])
     (each f funs
-      (array/push ret (f ;args)))
+      (array/push ret (f .args)))
     (tuple/slice ret 0)))
 
 (defmacro juxt
@@ -883,7 +883,7 @@
 (defmacro as?->
   "Thread forms together, replacing as in forms with the value
   of the previous form. The first for is the value x. If any
-  intermediate values are falsey, return nil; otherwise, returns the
+  intermediate values are falsey, return nil. otherwise, returns the
   last value."
   [x as & forms]
   (var prev x)
@@ -902,13 +902,13 @@
   (def dyn-forms
     (seq [i :range [0 (length bindings) 2]]
          ~(setdyn ,(bindings i) ,(bindings (+ i 1)))))
-  ~(,resume (,fiber/new (fn [] ,;dyn-forms ,;body) :p)))
+  ~(,resume (,fiber/new (fn [] ,.dyn-forms ,.body) :p)))
 
 (defn partial
   "Partial function application."
   [f & more]
   (if (zero? (length more)) f
-    (fn [& r] (f ;more ;r))))
+    (fn [& r] (f .more .r))))
 
 (defn every?
   "Returns true if each value in is truthy, otherwise the first
@@ -958,7 +958,7 @@
   data structure ds."
   [ds key func & args]
   (def old (get ds key))
-  (set (ds key) (func old ;args)))
+  (set (ds key) (func old .args)))
 
 (defn merge-into
   "Merges multiple tables/structs into a table. If a key appears in more than one
@@ -1027,7 +1027,7 @@
   (def res @[])
   (def ncol (length cols))
   (when (> ncol 0)
-    (def len (min ;(map length cols)))
+    (def len (min .(map length cols)))
     (loop [i :range [0 len]
            ci :range [0 ncol]]
       (array/push res (get (get cols ci) i))))
@@ -1124,7 +1124,7 @@
   "Print formatted strings to stdout, followed by
   a new line."
   [f & args]
-  (file/write stdout (buffer/format @"" f ;args)))
+  (file/write stdout (buffer/format @"" f .args)))
 
 (defn pp
   "Pretty print to stdout."
@@ -1150,7 +1150,7 @@
   ~(do
      (def ,$form ,form)
      (def ,binding (if (idempotent? ,$form) ,$form (gensym)))
-     (def ,$result (do ,;body))
+     (def ,$result (do ,.body))
      (if (= ,$form ,binding)
        ,$result
        (tuple 'do (tuple 'def ,binding ,$form) ,$result))))
@@ -1177,7 +1177,7 @@
       (match-1
         (get pattern 0) expr
         (fn []
-          ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen))
+          ~(if (and ,.(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen))
 
     (indexed? pattern)
     (do
@@ -1350,17 +1350,17 @@
 
   (defn expandall [t]
     (def args (map recur (tuple/slice t 1)))
-    (tuple (get t 0) ;args))
+    (tuple (get t 0) .args))
 
   (defn expandfn [t]
     (def t1 (get t 1))
     (if (symbol? t1)
       (do
         (def args (map recur (tuple/slice t 3)))
-        (tuple 'fn t1 (get t 2) ;args))
+        (tuple 'fn t1 (get t 2) .args))
       (do
         (def args (map recur (tuple/slice t 2)))
-        (tuple 'fn t1 ;args))))
+        (tuple 'fn t1 .args))))
 
   (defn expandqq [t]
     (defn qq [x]
@@ -1395,13 +1395,13 @@
     (def m? (entry :macro))
     (cond
       s (s t)
-      m? (m ;(tuple/slice t 1))
+      m? (m .(tuple/slice t 1))
       (tuple/slice (map recur t))))
 
   (def ret
     (case (type x)
       :tuple (if (= (tuple/type x) :brackets)
-               (tuple/brackets ;(map recur x))
+               (tuple/brackets .(map recur x))
                (dotup x))
       :array (map recur x)
       :struct (table/to-struct (dotable x recur))
@@ -1501,7 +1501,7 @@
       x))
   (def expanded (macex arg on-binding))
   (def fn-args (seq [i :range [0 (+ 1 max-param-seen)]] (symbol '$ i)))
-  ~(fn [,;fn-args ,;(if vararg ['& '$&] [])] ,expanded))
+  ~(fn [,.fn-args ,.(if vararg ['& '$&] [])] ,expanded))
 
 ###
 ###
@@ -1749,7 +1749,7 @@
                          (module/expand-path path t))))
           paths (filter identity (map expander module/paths))
           str-parts (interpose "\n    " paths)]
-      [nil (string "could not find module " path ":\n    " ;str-parts)])))
+      [nil (string "could not find module " path ":\n    " .str-parts)])))
 
 (put _env 'fexists nil)
 (put _env 'nati nil)
@@ -1772,7 +1772,7 @@
   (def {:exit exit-on-error
         :source source
         :env env
-        :compile-only compile-only} (table ;args))
+        :compile-only compile-only} (table .args))
   (def f (if (= (type path) :core/file)
            path
            (file/open path :rb)))
@@ -1807,7 +1807,7 @@
   @{:native (fn [path &] (native path (make-env)))
     :source (fn [path args]
               (put module/loading path true)
-              (def newenv (dofile path ;args))
+              (def newenv (dofile path .args))
               (put newenv :source path)
               (put module/loading path nil)
               newenv)
@@ -1836,8 +1836,8 @@
   (def env (fiber/getenv (fiber/current)))
   (def {:as as
         :prefix prefix
-        :export ep} (table ;args))
-  (def newenv (require path ;args))
+        :export ep} (table .args))
+  (def newenv (require path .args))
   (def prefix (or (and as (string as "/")) prefix (string path "/")))
   (loop [[k v] :pairs newenv :when (symbol? k) :when (not (v :private))]
     (def newv (table/setproto @{:private (not ep)} v))
@@ -1857,13 +1857,13 @@
                      x
                      (string x)))
                  args))
-  (tuple import* (string path) ;argm))
+  (tuple import* (string path) .argm))
 
 (defmacro use
   "Similar to import, but imported bindings are not prefixed with a namespace
   identifier. Can also import multiple modules in one shot."
   [& modules]
-  ~(do ,;(map (fn [x] ~(,import* ,(string x) :prefix "")) modules)))
+  ~(do ,.(map (fn [x] ~(,import* ,(string x) :prefix "")) modules)))
 
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
@@ -1967,7 +1967,7 @@ _fiber is bound to the suspended fiber
   (put env 'boot/args nil)
   (def image (let [env-pairs (pairs (env-lookup env))
                    essential-pairs (filter (fn [[k v]] (or (cfunction? v) (abstract? v))) env-pairs)
-                   lookup (table ;(mapcat identity essential-pairs))
+                   lookup (table .(mapcat identity essential-pairs))
                    reverse-lookup (invert lookup)]
                (marshal env reverse-lookup)))
 
@@ -1982,7 +1982,7 @@ _fiber is bound to the suspended fiber
               "#endif\n"
               "static const unsigned char janet_core_image_bytes[] = {\n")
   (loop [line :in (partition 10 chunks)]
-    (def str (string ;(interpose ", " (map (partial string/format "0x%.2X") line))))
+    (def str (string .(interpose ", " (map (partial string/format "0x%.2X") line))))
     (file/write image-file "    " str ",\n"))
   (file/write image-file
               "    0\n};\n\n"
