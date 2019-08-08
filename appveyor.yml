@@ -19,6 +19,9 @@ init:
 
 install:
     - choco install nsis -y -pre
+    # Replace makensis.exe and files with special long string build. This should
+    # prevent issues when setting PATH during installation.
+    - 7z -e "tools\nsis-3.04-strlen_8192.zip" -o"C:\Program Files (x86)\NSIS\"
     - build_win all
     - refreshenv
     # We need to reload vcvars after refreshing
