@@ -11,7 +11,7 @@
   "(defn name & more)\n\nDefine a function. Equivalent to (def name (fn name [args] ...))."
   (fn defn [name & more]
     (def len (length more))
-    (def modifiers @[])
+    (def modifiers #[])
     (var docstr "")
     (def fstart
       (fn recur [i]
@@ -62,14 +62,14 @@
   "Dynamically create a global def."
   [name value]
   (def name* (symbol name))
-  (setdyn name* @{:value value})
+  (setdyn name* #{:value value})
   nil)
 
 (defn varglobal
   "Dynamically create a global var."
   [name init]
   (def name* (symbol name))
-  (setdyn name* @{:ref @[init]})
+  (setdyn name* #{:ref #[init]})
   nil)
 
 ; Basic predicates
@@ -197,7 +197,7 @@
   (if (odd? (length bindings)) (error "expected even number of bindings to let"))
   (def len (length bindings))
   (var i 0)
-  (var accum @['do])
+  (var accum #['do])
   (while (< i len)
     (def {i k (+ i 1) v} bindings)
     (array/push accum (tuple 'def k v))
@@ -258,7 +258,7 @@
   [syms & body]
   (var i 0)
   (def len (length syms))
-  (def accum @[])
+  (def accum #[])
   (while (< i len)
     (array/push accum (get syms i) [gensym])
     (++ i))
@@ -425,7 +425,7 @@
   See loop for details."
   [head & body]
   (def $accum (gensym))
-  ~(do (def ,$accum @[]) (loop ,head (array/push ,$accum (do ,.body))) ,$accum))
+  ~(do (def ,$accum #[]) (loop ,head (array/push ,$accum (do ,.body))) ,$accum))
 
 (defmacro generate
   "Create a generator expression using the loop syntax. Returns a fiber
@@ -625,7 +625,7 @@
   "Map a function over every element in an array or tuple and
   use array to concatenate the results."
   [f ind]
-  (def res @[])
+  (def res #[])
   (each x ind
     (array/concat res (f x)))
   res)
@@ -634,7 +634,7 @@
   "Given a predicate, take only elements from an array or tuple for
   which (pred element) is truthy. Returns a new array."
   [pred ind]
-  (def res @[])
+  (def res #[])
   (each item ind
     (if (pred item)
       (array/push res item)))
@@ -654,7 +654,7 @@
   "Given a predicate, take only elements from an array or tuple for
   which (pred element) is truthy. Returns a new array of truthy predicate results."
   [pred ind]
-  (def res @[])
+  (def res #[])
   (each item ind
     (if-let [y (pred item)]
       (array/push res y)))
@@ -757,7 +757,7 @@
   ((juxt* a b c) x) evaluates to [(a x) (b x) (c x)]."
   [& funs]
   (fn [& args]
-    (def ret @[])
+    (def ret #[])
     (each f funs
       (array/push ret (f .args)))
     (tuple/slice ret 0)))
@@ -765,7 +765,7 @@
 (defmacro juxt
   "Macro form of juxt*. Same behavior but more efficient."
   [& funs]
-  (def parts @['tuple])
+  (def parts #['tuple])
   (def $args (gensym))
   (each f funs
     (array/push parts (tuple apply f $args)))
@@ -779,8 +779,8 @@
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
                  (tuple (get n 0) (array/slice n 1))
-                 (tuple n @[])))
-    (def parts (array/concat @[h last] t))
+                 (tuple n #[])))
+    (def parts (array/concat #[h last] t))
     (tuple/slice parts 0))
   (reduce fop x forms))
 
@@ -792,8 +792,8 @@
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
                  (tuple (get n 0) (array/slice n 1))
-                 (tuple n @[])))
-    (def parts (array/concat @[h] t @[last]))
+                 (tuple n #[])))
+    (def parts (array/concat #[h] t #[last]))
     (tuple/slice parts 0))
   (reduce fop x forms))
 
@@ -807,9 +807,9 @@
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
                  (tuple (get n 0) (array/slice n 1))
-                 (tuple n @[])))
+                 (tuple n #[])))
     (def sym (gensym))
-    (def parts (array/concat @[h sym] t))
+    (def parts (array/concat #[h sym] t))
     ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
   (reduce fop x forms))
 
@@ -823,9 +823,9 @@
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
                  (tuple (get n 0) (array/slice n 1))
-                 (tuple n @[])))
+                 (tuple n #[])))
     (def sym (gensym))
-    (def parts (array/concat @[h] t @[sym]))
+    (def parts (array/concat #[h] t #[sym]))
     ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
   (reduce fop x forms))
 
@@ -836,7 +836,7 @@
   ret)
 
 (defn walk-dict [f form]
-  (def ret @{})
+  (def ret #{})
   (loop [k :keys form]
     (put ret (f k) (f (get form k))))
   ret)
@@ -935,7 +935,7 @@
   are the values, and the values of the keys. If multiple keys have the same
   value, one key will be ignored."
   [ds]
-  (def ret @{})
+  (def ret #{})
   (loop [k :keys ds]
     (put ret (get ds k) k))
   ret)
@@ -944,7 +944,7 @@
   "Creates a table from two arrays/tuples.
   Returns a new table."
   [keys vals]
-  (def res @{})
+  (def res #{})
   (def lk (length keys))
   (def lv (length vals))
   (def len (if (< lk lv) lk lv))
@@ -975,7 +975,7 @@
   collection, then later values replace any previous ones.
   Returns a new table."
   [& colls]
-  (def container @{})
+  (def container #{})
   (loop [c :in colls
          key :keys c]
     (set (container key) (get c key)))
@@ -1014,7 +1014,7 @@
 (defn frequencies
   "Get the number of occurrences of each value in a indexed structure."
   [ind]
-  (def freqs @{})
+  (def freqs #{})
   (each x ind
     (def n (get freqs x))
     (set (freqs x) (if n (+ 1 n) 1)))
@@ -1024,7 +1024,7 @@
   "Returns an array of the first elements of each col,
   then the second, etc."
   [& cols]
-  (def res @[])
+  (def res #[])
   (def ncol (length cols))
   (when (> ncol 0)
     (def len (min .(map length cols)))
@@ -1036,8 +1036,8 @@
 (defn distinct
   "Returns an array of the deduplicated values in xs."
   [xs]
-  (def ret @[])
-  (def seen @{})
+  (def ret #[])
+  (def seen #{})
   (each x xs (if (get seen x) nil (do (put seen x true) (array/push ret x))))
   ret)
 
@@ -1055,11 +1055,11 @@
   "Takes a nested array (tree), and returns the depth first traversal of
   that array. Returns a new array."
   [xs]
-  (flatten-into @[] xs))
+  (flatten-into #[] xs))
 
 (defn kvs
   "Takes a table or struct and returns and array of key value pairs
-  like @[k v k v ...]. Returns a new array."
+  like #[k v k v ...]. Returns a new array."
   [dict]
   (def ret (array/new (* 2 (length dict))))
   (loop [k :keys dict] (array/push ret k (get dict k)))
@@ -1124,12 +1124,12 @@
   "Print formatted strings to stdout, followed by
   a new line."
   [f & args]
-  (file/write stdout (buffer/format @"" f .args)))
+  (file/write stdout (buffer/format #"" f .args)))
 
 (defn pp
   "Pretty print to stdout."
   [x]
-  (print (buffer/format @"" (dyn :pretty-format "%p") x)))
+  (print (buffer/format #"" (dyn :pretty-format "%p") x)))
 
 
 ;;;
@@ -1171,7 +1171,7 @@
         ~(if (= nil (def ,pattern ,expr)) ,sentinel ,(onmatch))))
 
     (and (tuple? pattern) (= :parens (tuple/type pattern)))
-    (if (and (= (pattern 0) '@) (symbol? (pattern 1)))
+    (if (and (= (pattern 0) '#) (symbol? (pattern 1)))
       ; Unification with external values
       ~(if (= ,(pattern 1) ,expr) ,(onmatch) ,sentinel)
       (match-1
@@ -1226,7 +1226,7 @@
        (cond
          (= i len-1) (get cases i)
          (< i len-1) (with-syms [$res]
-                       ~(if (= ,sentinel (def ,$res ,(match-1 (get cases i) $x (fn [] (get cases (inc i))) @{})))
+                       ~(if (= ,sentinel (def ,$res ,(match-1 (get cases i) $x (fn [] (get cases (inc i))) #{})))
                           ,(aux (+ 2 i))
                           ,$res)))) 0)))
 
@@ -1245,8 +1245,8 @@
   [text]
 
   (def maxcol (- (dyn :doc-width 80) 8))
-  (var buf @"    ")
-  (var word @"")
+  (var buf #"    ")
+  (var word #"")
   (var current 0)
 
   (defn pushword
@@ -1324,7 +1324,7 @@
   (defn recur [y] (macex1 y on-binding))
 
   (defn dotable [t on-value]
-    (def newt @{})
+    (def newt #{})
     (var key (next t nil))
     (while (not= nil key)
       (put newt (recur key) (on-value (get t key)))
@@ -1344,9 +1344,9 @@
     (def bound (get t 1))
     (tuple/slice
       (array/concat
-        @[(get t 0) (expand-bindings bound)]
+        #[(get t 0) (expand-bindings bound)]
         (tuple/slice t 2 -2)
-        @[(recur last)])))
+        #[(recur last)])))
 
   (defn expandall [t]
     (def args (map recur (tuple/slice t 1)))
@@ -1510,7 +1510,7 @@
 ;;;
 
 ; Get boot options
-(def- boot/opts @{})
+(def- boot/opts #{})
 (each [k v] (partition 2 (tuple/slice boot/args 2))
   (put boot/opts k v))
 
@@ -1520,7 +1520,7 @@
   bindings will not pollute the parent environment."
   [&opt parent]
   (def parent (if parent parent _env))
-  (def newenv (table/setproto @{} parent))
+  (def newenv (table/setproto #{} parent))
   newenv)
 
 (defn bad-parse
@@ -1600,7 +1600,7 @@
     (when good (if going (onstatus f res))))
 
   ; Loop
-  (def buf @"")
+  (def buf #"")
   (while going
     (buffer/clear buf)
     (chunks buf p)
@@ -1682,7 +1682,7 @@
   from searching that path template if the filter doesn't match the input
   path. The filter can be a string or a predicate function, and
   is often a file extension, including the period."
-  @[; Relative to (dyn :current-file "./."). Path must start with .
+  #[; Relative to (dyn :current-file "./."). Path must start with .
     [":cur:/:all:.jimage" :image check-.]
     [":cur:/:all:.janet" :source check-.]
     [":cur:/:all:/init.janet" :source check-.]
@@ -1759,12 +1759,12 @@
 
 (def module/cache
   "Table mapping loaded module identifiers to their environments."
-  @{})
+  #{})
 
 (def module/loading
   "Table mapping currently loading modules to true. Used to prevent
   circular dependencies."
-  @{})
+  #{})
 
 (defn dofile
   "Evaluate a file and return the resulting environment."
@@ -1804,7 +1804,7 @@
   "A table of loading method names to loading functions.
   This table lets require and import load many different kinds
   of files as module."
-  @{:native (fn [path &] (native path (make-env)))
+  #{:native (fn [path &] (native path (make-env)))
     :source (fn [path args]
               (put module/loading path true)
               (def newenv (dofile path .args))
@@ -1840,7 +1840,7 @@
   (def newenv (require path .args))
   (def prefix (or (and as (string as "/")) prefix (string path "/")))
   (loop [[k v] :pairs newenv :when (symbol? k) :when (not (v :private))]
-    (def newv (table/setproto @{:private (not ep)} v))
+    (def newv (table/setproto #{:private (not ep)} v))
     (put env (symbol prefix k) newv)))
 
 (defmacro import
@@ -1882,9 +1882,9 @@
                       (case (fiber/status f)
                         :dead (do
                                 (pp x)
-                                (put env '_ @{:value x}))
+                                (put env '_ #{:value x}))
                         :debug (let [nextenv (make-env env)]
-                                 (put nextenv '_fiber @{:value f})
+                                 (put nextenv '_fiber #{:value f})
                                  (setdyn :debug-level level)
                                  (debug/stacktrace f x)
                                  (print ```
@@ -1908,9 +1908,9 @@ _fiber is bound to the suspended fiber
 (defn- env-walk
   [pred &opt env]
   (default env (fiber/getenv (fiber/current)))
-  (def envs @[])
+  (def envs #[])
   (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
-  (def ret-set @{})
+  (def ret-set #{})
   (loop [envi :in envs
          k :keys envi
          :when (pred k)]
@@ -1956,7 +1956,7 @@ _fiber is bound to the suspended fiber
   ; Modify env based on some options.
   (loop [[k v] :pairs env
          :when (symbol? k)]
-    (def flat (proto-flatten @{} v))
+    (def flat (proto-flatten #{} v))
     (when (boot/config :no-docstrings)
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)

@@ -170,7 +170,7 @@ static void janet_escape_string_b(JanetBuffer *buffer, const uint8_t *str) {
 }
 
 static void janet_escape_buffer_b(JanetBuffer *buffer, JanetBuffer *bx) {
-    janet_buffer_push_u8(buffer, '@');
+    janet_buffer_push_u8(buffer, '#');
     janet_escape_string_impl(buffer, bx->data, bx->count);
 }
 
@@ -381,7 +381,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
             }
             if (janet_checktype(x, JANET_BUFFER) && janet_unwrap_buffer(x) == S->buffer) {
                 janet_buffer_ensure(S->buffer, S->buffer->count + S->bufstartlen * 4 + 3, 1);
-                janet_buffer_push_u8(S->buffer, '@');
+                janet_buffer_push_u8(S->buffer, '#');
                 janet_escape_string_impl(S->buffer, S->buffer->data, S->bufstartlen);
             } else {
                 janet_description_b(S->buffer, x);
@@ -398,7 +398,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
             int isarray = janet_checktype(x, JANET_ARRAY);
             janet_indexed_view(x, &arr, &len);
             int hasbrackets = !isarray && (janet_tuple_flag(arr) & JANET_TUPLE_FLAG_BRACKETCTOR);
-            const char *startstr = isarray ? "@[" : hasbrackets ? "[" : "(";
+            const char *startstr = isarray ? "#[" : hasbrackets ? "[" : "(";
             const char endchar = isarray ? ']' : hasbrackets ? ']' : ')';
             janet_buffer_push_cstring(S->buffer, startstr);
             S->depth--;
@@ -422,7 +422,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
         case JANET_STRUCT:
         case JANET_TABLE: {
             int istable = janet_checktype(x, JANET_TABLE);
-            janet_buffer_push_cstring(S->buffer, istable ? "@" : "{");
+            janet_buffer_push_cstring(S->buffer, istable ? "#" : "{");
 
             /* For object-like tables, print class name */
             if (istable) {
