@@ -178,7 +178,7 @@ static void popstate(JanetParser *p, Janet val) {
             const char *which =
                 (c == '\'') ? "quote" :
                 (c == ',') ? "unquote" :
-                (c == '.') ? "splice" :
+                (c == '@') ? "splice" :
                 (c == '|') ? "short-fn" :
                 (c == '~') ? "quasiquote" : "<unknown>";
             t[0] = janet_csymbolv(which);
@@ -491,7 +491,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
             return 0;
         case '\'':
         case ',':
-        case '.':
+        case '@':
         case '~':
         case '|':
             pushstate(p, root, PFLAG_READERMAC | c);
@@ -912,7 +912,7 @@ static Janet janet_wrap_parse_state(JanetParseState *s, Janet *args,
         int c = s->flags & 0xFF;
         type = (c == '\'') ? "quote" :
                (c == ',') ? "unquote" :
-               (c == '.') ? "splice" :
+               (c == '@') ? "splice" :
                (c == '~') ? "quasiquote" : "<reader>";
     } else {
         type = "root";
