@@ -1,4 +1,4 @@
-# Copyright 2017-2019 (C) Calvin Rose
+; Copyright 2017-2019 (C) Calvin Rose
 
 (do
 
@@ -15,7 +15,7 @@
   (if-let [jp (os/getenv "JANET_HEADERPATH")] (setdyn :headerpath jp))
   (def args (dyn :args))
 
-  # Flag handlers
+  ; Flag handlers
   (def handlers :private
     {"h" (fn [&]
            (print "usage: " (get args 0) " [options] script args...")
@@ -63,7 +63,7 @@
     (def h (get handlers n))
     (if h (h i) (do (print "unknown flag -" n) ((get handlers "h")))))
 
-  # Process arguments
+  ; Process arguments
   (var i 0)
   (def lenargs (length args))
   (while (< i lenargs)

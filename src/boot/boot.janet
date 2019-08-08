@@ -1,11 +1,11 @@
-# The core janet library
-# Copyright 2019 © Calvin Rose
+; The core janet library
+; Copyright 2019 © Calvin Rose
 
-###
-###
-### Macros and Basic Functions
-###
-###
+;;;
+;;;
+;;; Macros and Basic Functions
+;;;
+;;;
 
 (def defn :macro
   "(defn name & more)\n\nDefine a function. Equivalent to (def name (fn name [args] ...))."
@@ -26,7 +26,7 @@
             (if (< i len) (recur (+ i 1)))))))
     (def start (fstart 0))
     (def args (get more start))
-    # Add function signature to docstring
+    ; Add function signature to docstring
     (var index 0)
     (def arglen (length args))
     (def buf (buffer "(" name))
@@ -35,7 +35,7 @@
       (buffer/format buf "%p" (get args index))
       (set index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
-    # Build return value
+    ; Build return value
     ~(def ,name ,.modifiers (fn ,name ,.(tuple/slice more start)))))
 
 (defn defmacro :macro
@@ -72,7 +72,7 @@
   (setdyn name* @{:ref @[init]})
   nil)
 
-# Basic predicates
+; Basic predicates
 (defn even? "Check if x is even." [x] (== 0 (% x 2)))
 (defn odd? "Check if x is odd." [x] (not= 0 (% x 2)))
 (defn zero? "Check if x is zero." [x] (== x 0))
@@ -118,7 +118,7 @@
        :struct true})
     (fn idempotent? [x] (not (get non-atomic-types (type x))))))
 
-# C style macros and functions for imperative sugar. No bitwise though.
+; C style macros and functions for imperative sugar. No bitwise though.
 (defn inc "Returns x + 1." [x] (+ x 1))
 (defn dec "Returns x - 1." [x] (- x 1))
 (defmacro ++ "Increments the var x by 1." [x] ~(set ,x (,+ ,x ,1)))
@@ -333,11 +333,11 @@
 
   (cond
 
-    # Terminate recursion
+    ; Terminate recursion
     (<= (length head) i)
     ~(do ,.body)
 
-    # 2 term expression
+    ; 2 term expression
     (keyword? binding)
     (let [rest (loop1 body head (+ i 2))]
       (case binding
@@ -351,7 +351,7 @@
         :when ~(when ,verb ,rest)
         (error (string "unexpected loop modifier " binding))))
 
-    # 3 term expression
+    ; 3 term expression
     (let [rest (loop1 body head (+ i 3))]
       (case verb
         :range (let [[start stop step] object]
@@ -469,11 +469,11 @@
         (def atm (idempotent? bl))
         (def sym (if atm bl (gensym)))
         (if atm
-          # Simple binding
+          ; Simple binding
           (tuple 'do
                  (tuple 'def sym br)
                  (tuple 'if sym (aux (+ 2 i)) fal))
-          # Destructured binding
+          ; Destructured binding
           (tuple 'do
                  (tuple 'def sym br)
                  (tuple 'if sym
@@ -549,11 +549,11 @@
   [xs]
   (get xs (- (length xs) 1)))
 
-###
-###
-### Indexed Combinators
-###
-###
+;;;
+;;;
+;;; Indexed Combinators
+;;;
+;;;
 
 (def sort
   "(sort xs [, by])\n\nSort an array in-place. Uses quick-sort and is not a stable sort."
@@ -707,7 +707,7 @@
   [n ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
-  # make sure end is in [0, len]
+  ; make sure end is in [0, len]
   (def end (max 0 (min n (length ind))))
   (f ind 0 end))
 
@@ -732,7 +732,7 @@
   [n ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
-  # make sure start is in [0, len]
+  ; make sure start is in [0, len]
   (def start (max 0 (min n (length ind))))
   (f ind start -1))
 
@@ -1093,11 +1093,11 @@
   (if (not= i len) (array/push ret (slicer ind i)))
   ret)
 
-###
-###
-### IO Helpers
-###
-###
+;;;
+;;;
+;;; IO Helpers
+;;;
+;;;
 
 (defn slurp
   "Read all data from a file with name path
@@ -1132,11 +1132,11 @@
   (print (buffer/format @"" (dyn :pretty-format "%p") x)))
 
 
-###
-###
-### Pattern Matching
-###
-###
+;;;
+;;;
+;;; Pattern Matching
+;;;
+;;;
 
 (defmacro- with-idemp
   "Return janet code body that has been prepended
@@ -1156,7 +1156,7 @@
        (tuple 'do (tuple 'def ,binding ,$form) ,$result))))
 
 
-# Sentinel value for mismatches
+; Sentinel value for mismatches
 (def- sentinel ~',(gensym))
 
 (defn- match-1
@@ -1172,7 +1172,7 @@
 
     (and (tuple? pattern) (= :parens (tuple/type pattern)))
     (if (and (= (pattern 0) '@) (symbol? (pattern 1)))
-      # Unification with external values
+      ; Unification with external values
       ~(if (= ,(pattern 1) ,expr) ,(onmatch) ,sentinel)
       (match-1
         (get pattern 0) expr
@@ -1234,11 +1234,11 @@
 (put _env 'match-1 nil)
 (put _env 'with-idemp nil)
 
-###
-###
-### Documentation
-###
-###
+;;;
+;;;
+;;; Documentation
+;;;
+;;;
 
 (defn doc-format
   "Reformat text to wrap at a given line."
@@ -1273,7 +1273,7 @@
           (buffer/push-string buf "\n    ")
           (set current 0)))))
 
-  # Last word
+  ; Last word
   (pushword)
 
   buf)
@@ -1306,11 +1306,11 @@
   [sym]
   ~(,doc* ',sym))
 
-###
-###
-### Macro Expansion
-###
-###
+;;;
+;;;
+;;; Macro Expansion
+;;;
+;;;
 
 (defn macex1
   "Expand macros in a form, but do not recursively expand macros.
@@ -1461,11 +1461,11 @@
     (set current (macex1 current on-binding)))
   current)
 
-###
-###
-### Function shorthand
-###
-###
+;;;
+;;;
+;;; Function shorthand
+;;;
+;;;
 
 (defmacro short-fn
   "fn shorthand.\n\n
@@ -1503,13 +1503,13 @@
   (def fn-args (seq [i :range [0 (+ 1 max-param-seen)]] (symbol '$ i)))
   ~(fn [,.fn-args ,.(if vararg ['& '$&] [])] ,expanded))
 
-###
-###
-### Evaluation and Compilation
-###
-###
+;;;
+;;;
+;;; Evaluation and Compilation
+;;;
+;;;
 
-# Get boot options
+; Get boot options
 (def- boot/opts @{})
 (each [k v] (partition 2 (tuple/slice boot/args 2))
   (put boot/opts k v))
@@ -1571,13 +1571,13 @@
   (default on-parse-error bad-parse)
   (default where "<anonymous>")
 
-  # Are we done yet?
+  ; Are we done yet?
   (var going true)
 
-  # The parser object
+  ; The parser object
   (def p (parser/new))
 
-  # Evaluate 1 source form in a protected manner
+  ; Evaluate 1 source form in a protected manner
   (defn eval1 [source]
     (var good true)
     (def f
@@ -1599,7 +1599,7 @@
     (def res (resume f nil))
     (when good (if going (onstatus f res))))
 
-  # Loop
+  ; Loop
   (def buf @"")
   (while going
     (buffer/clear buf)
@@ -1616,7 +1616,7 @@
         (eval1 (parser/produce p)))
       (when (= (parser/status p) :error)
         (on-parse-error p where))))
-  # Check final parser state
+  ; Check final parser state
   (while (parser/has-more p)
     (eval1 (parser/produce p)))
   (when (= (parser/status p) :error)
@@ -1682,19 +1682,19 @@
   from searching that path template if the filter doesn't match the input
   path. The filter can be a string or a predicate function, and
   is often a file extension, including the period."
-  @[# Relative to (dyn :current-file "./."). Path must start with .
+  @[; Relative to (dyn :current-file "./."). Path must start with .
     [":cur:/:all:.jimage" :image check-.]
     [":cur:/:all:.janet" :source check-.]
     [":cur:/:all:/init.janet" :source check-.]
     [(string ":cur:/:all:" nati) :native check-.]
 
-    # As a path from (os/cwd)
+    ; As a path from (os/cwd)
     [":all:.jimage" :image not-check-.]
     [":all:.janet" :source not-check-.]
     [":all:/init.janet" :source not-check-.]
     [(string ":all:" nati) :native not-check-.]
 
-    # System paths
+    ; System paths
     [":sys:/:all:.jimage" :image not-check-.]
     [":sys:/:all:.janet" :source not-check-.]
     [":sys:/:all:/init.janet" :source not-check-.]
@@ -1703,7 +1703,7 @@
 (setdyn :syspath (boot/opts "JANET_PATH"))
 (setdyn :headerpath (boot/opts "JANET_HEADERPATH"))
 
-# Version of fexists that works even with a reduced OS
+; Version of fexists that works even with a reduced OS
 (if-let [has-stat (_env 'os/stat)]
   (let [stat (has-stat :value)]
     (defglobal "fexists" (fn fexists [path] (= :file (stat path :mode)))))
@@ -1929,16 +1929,16 @@ _fiber is bound to the suspended fiber
   [&opt env]
   (env-walk keyword? env))
 
-# Clean up some extra defs
+; Clean up some extra defs
 (put _env 'boot/opts nil)
 (put _env 'env-walk nil)
 (put _env '_env nil)
 
-###
-###
-### Bootstrap
-###
-###
+;;;
+;;;
+;;; Bootstrap
+;;;
+;;;
 
 (do
 
@@ -1953,7 +1953,7 @@ _fiber is bound to the suspended fiber
 
   (def env (fiber/getenv (fiber/current)))
 
-  # Modify env based on some options.
+  ; Modify env based on some options.
   (loop [[k v] :pairs env
          :when (symbol? k)]
     (def flat (proto-flatten @{} v))
@@ -1971,9 +1971,9 @@ _fiber is bound to the suspended fiber
                    reverse-lookup (invert lookup)]
                (marshal env reverse-lookup)))
 
-  # Create C source file that contains images a uint8_t buffer. This
-  # can be compiled and linked statically into the main janet library
-  # and example client.
+  ; Create C source file that contains images a uint8_t buffer. This
+  ; can be compiled and linked statically into the main janet library
+  ; and example client.
   (def chunks (string/bytes image))
   (def image-file (file/open (boot/args 1) :wb))
   (file/write image-file

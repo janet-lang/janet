@@ -499,7 +499,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
         case '"':
             pushstate(p, stringchar, PFLAG_STRING);
             return 1;
-        case '#':
+        case ';':
             pushstate(p, comment, PFLAG_COMMENT);
             return 1;
         case '@':
