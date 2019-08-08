@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.2.0 - 2019-08-08
 - Add `take` and `drop` functions that are easier to use compared to the
   existing slice functions.
 - Add optional default value to `get`.
