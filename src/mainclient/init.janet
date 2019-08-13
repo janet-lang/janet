@@ -92,4 +92,5 @@
       (getter (prompter p) buf))
     (def onsig (if *quiet* (fn [x &] x) nil))
     (setdyn :pretty-format (if *colorize* "%.20P" "%.20p"))
+    (setdyn :err-color (if *colorize* true))
     (repl getchunk onsig)))

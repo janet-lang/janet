@@ -100,6 +100,9 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
     JanetFiber **fibers = NULL;
     int wrote_error = 0;
 
+    int print_color = janet_truthy(janet_dyn("err-color"));
+    if (print_color) fprintf(out, "\x1b[31m");
+
     while (fiber) {
         janet_v_push(fibers, fiber);
         fiber = fiber->child;
@@ -156,6 +159,8 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
             fprintf(out, "\n");
         }
     }
+
+    if (print_color) fprintf(out, "\x1b[0m");
 
     janet_v_free(fibers);
 }

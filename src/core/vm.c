@@ -179,7 +179,7 @@ static void vm_do_trace(JanetFunction *func) {
 static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     int32_t argn = fiber->stacktop - fiber->stackstart;
     Janet ds, key;
-    if (argn != 1) janet_panicf("%v called with arity %d, expected 1", callee, argn);
+    if (argn != 1) janet_panicf("%v called with %d arguments, possibly expected 1", callee, argn);
     if (janet_checktypes(callee, JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY |
                          JANET_TFLAG_STRING | JANET_TFLAG_BUFFER | JANET_TFLAG_ABSTRACT)) {
         ds = callee;
@@ -195,7 +195,7 @@ static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
 /* Get a callable from a keyword method name and check ensure that it is valid. */
 static Janet resolve_method(Janet name, JanetFiber *fiber) {
     int32_t argc = fiber->stacktop - fiber->stackstart;
-    if (argc < 1) janet_panicf("method call takes at least 1 argument, got %d", argc);
+    if (argc < 1) janet_panicf("method call (%v) takes at least 1 argument, got 0", name);
     Janet callee = janet_get(fiber->data[fiber->stackstart], name);
     if (janet_checktype(callee, JANET_NIL))
         janet_panicf("unknown method %v invoked on %v", name, fiber->data[fiber->stackstart]);
