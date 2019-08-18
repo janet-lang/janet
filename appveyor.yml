@@ -35,11 +35,11 @@ only_commits:
     - src/
 
 artifacts:
-    - name: janet-v1.2.0-windows
+    - name: "janet-$(appveyor_repo_tag_name)-windows"
       path: dist
       type: Zip
-    - path: janet-v1.2.0-windows-installer.exe
-      name: janet-v1.2.0-windows-installer.exe
+    - path: "janet-$(appveyor_repo_tag_name)-windows-installer.exe"
+      name: "janet-$(appveyor_repo_tag_name)-windows-installer.exe"
       type: File
 
 deploy:
