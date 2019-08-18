@@ -98,6 +98,8 @@ static Janet os_arch(int32_t argc, Janet *argv) {
     /* Check 64-bit vs 32-bit */
 #if defined(JANET_ARCH_NAME)
     return janet_ckeywordv(janet_stringify(JANET_ARCH_NAME));
+#elif defined(__EMSCRIPTEN__)
+    return janet_ckeywordv("wasm");
 #elif (defined(__x86_64__) || defined(_M_X64))
     return janet_ckeywordv("x86-64");
 #elif defined(__i386) || defined(_M_IX86)
@@ -822,6 +824,7 @@ static const JanetReg os_cfuns[] = {
              "\t:arm\n"
              "\t:aarch64\n"
              "\t:sparc\n"
+             "\t:wasm\n"
              "\t:unknown\n")
     },
 #ifndef JANET_REDUCED_OS
