@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+- Some bug fixes with `jpm`
+- Add `os/arch` to get ISA that janet was compiled for
+- Add color to stacktraces via `(dyn :err-color)`
+
 ## 1.2.0 - 2019-08-08
 - Add `take` and `drop` functions that are easier to use compared to the
   existing slice functions.

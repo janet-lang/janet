@@ -35,6 +35,9 @@ only_commits:
     - src/
 
 artifacts:
+    - name: janet-v1.2.0-windows.zip
+      path: dist
+      type: Zip
     - path: janet-v1.2.0-windows-installer.exe
       name: janet-v1.2.0-windows-installer.exe
       type: File
@@ -44,7 +47,7 @@ deploy:
   provider: GitHub
   auth_token:
     secure: lwEXy09qhj2jSH9s1C/KvCkAUqJSma8phFR+0kbsfUc3rVxpNK5uD3z9Md0SjYRx
-  artifact: janet-windows
+  artifact: /janet-.*/
   draft: true
   on:
       APPVEYOR_REPO_TAG: true
