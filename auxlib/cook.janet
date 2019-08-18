@@ -322,7 +322,7 @@
   (file/write out
               "#include <janet.h>\n"
               "static const unsigned char bytes[] = {"
-              ;(interpose ", " chunks)
+              (string/join (interpose ", " chunks))
               "};\n\n"
               "const unsigned char *" name "_embed = bytes;\n"
               "size_t " name "_embed_size = sizeof(bytes);\n")
