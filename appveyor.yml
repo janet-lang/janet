@@ -35,6 +35,15 @@ only_commits:
     - src/
 
 artifacts:
+    - name: janet.c
+      path: dist\janet.c
+      type: File
+    - name: janet.h
+      path: dist\janet.h
+      type: File
+    - name: janetconf.h
+      path: dist\janetconf.h
+      type: File
     - name: "janet-$(appveyor_repo_tag_name)-windows"
       path: dist
       type: Zip
