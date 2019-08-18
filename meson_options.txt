@@ -15,3 +15,6 @@ option('recursion_guard', type : 'integer', min : 10, max : 8000, value : 1024)
 option('max_proto_depth', type : 'integer', min : 10, max : 8000, value : 200)
 option('max_macro_expand', type : 'integer', min : 1, max : 8000, value : 200)
 option('stack_max', type : 'integer', min : 8096, max : 1000000000, value : 16384)
+
+option('arch_name', type : 'string', value: '')
+option('os_name', type : 'string', value: '')

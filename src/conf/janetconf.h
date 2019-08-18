@@ -56,5 +56,7 @@
 /* #define JANET_MAX_PROTO_DEPTH 200 */
 /* #define JANET_MAX_MACRO_EXPAND 200 */
 /* #define JANET_STACK_MAX 16384 */
+/* #define JANET_OS_NAME my-custom-os */
+/* #define JANET_ARCH_NAME pdp-8 */
 
 #endif /* end of include guard: JANETCONF_H */

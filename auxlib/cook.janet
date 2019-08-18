@@ -555,6 +555,7 @@ int main(int argc, const char **argv) {
   (os/cd module-dir)
   (try
     (with-dyns [:rules @{}]
+      (os/execute ["git" "submodule" "update" "--init" "--recursive"])
       (import-rules "./project.janet")
       (do-rule "install-deps")
       (do-rule "build")

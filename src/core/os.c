@@ -64,12 +64,17 @@ extern char **environ;
 
 /* Full OS functions */
 
+#define janet_stringify1(x) #x
+#define janet_stringify(x) janet_stringify1(x)
+
 static Janet os_which(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 0);
     (void) argv;
-#ifdef JANET_WINDOWS
+#if defined(JANET_OS_NAME)
+    return janet_ckeywordv(janet_stringify(JANET_OS_NAME));
+#elif defined(JANET_WINDOWS)
     return janet_ckeywordv("windows");
-#elif __APPLE__
+#elif defined(__APPLE__)
     return janet_ckeywordv("macos");
 #elif defined(__EMSCRIPTEN__)
     return janet_ckeywordv("web");
@@ -85,6 +90,31 @@ static Janet os_which(int32_t argc, Janet *argv) {
     return janet_ckeywordv("posix");
 #endif
 }
+
+/* Detect the ISA we are compiled for */
+static Janet os_arch(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    /* Check 64-bit vs 32-bit */
+#if defined(JANET_ARCH_NAME)
+    return janet_ckeywordv(janet_stringify(JANET_ARCH_NAME));
+#elif (defined(__x86_64__) || defined(_M_X64))
+    return janet_ckeywordv("x86-64");
+#elif defined(__i386) || defined(_M_IX86)
+    return janet_ckeywordv("x86");
+#elif defined(_M_ARM64) || defined(__aarch64__)
+    return janet_ckeywordv("aarch64");
+#elif defined(_M_ARM) || defined(__arm__)
+    return janet_ckeywordv("arm");
+#elif (defined(__sparc__))
+    return janet_ckeywordv("sparc");
+#else
+    return janet_ckeywordv("unknown");
+#endif
+}
+
+#undef janet_stringify1
+#undef janet_stringify
 
 static Janet os_exit(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
@@ -782,6 +812,17 @@ static const JanetReg os_cfuns[] = {
         "os/getenv", os_getenv,
         JDOC("(os/getenv variable)\n\n"
              "Get the string value of an environment variable.")
+    },
+    {
+        "os/arch", os_arch,
+        JDOC("(os/arch)\n\n"
+             "Check the ISA that janet was compiled for. Returns one of:\n\n"
+             "\t:x86\n"
+             "\t:x86-64\n"
+             "\t:arm\n"
+             "\t:aarch64\n"
+             "\t:sparc\n"
+             "\t:unknown\n")
     },
 #ifndef JANET_REDUCED_OS
     {
