@@ -25,7 +25,19 @@ VIFileVersion "${PRODUCT_VERSION}"
 
 # Basics
 Name "Janet"
-OutFile "janet-v${VERSION}-windows-installer.exe"
+
+# Do some NSIS-fu to figure out at compile time if we are in appveyor
+!define OUTNAME $%APPVEYOR_REPO_TAG_NAME%
+!define "CHECK_${OUTNAME}"
+!define DOLLAR "$"
+!ifdef CHECK_${DOLLAR}%APPVEYOR_REPO_TAG_NAME%
+    # We are not in the appveyor environment, use version name
+    !define OUTNAME_PART v${VERSION}-nonrelease-
+!else
+    # We are in appveyor, use git tag name for installer
+    !define OUTNAME_PART ${OUTNAME}
+!endif
+OutFile "janet-${OUTNAME_PART}-windows-installer.exe"
 
 # Some Configuration
 !define APPNAME "Janet"
