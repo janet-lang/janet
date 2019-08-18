@@ -35,7 +35,7 @@ only_commits:
     - src/
 
 artifacts:
-    - name: janet-v1.2.0-windows.zip
+    - name: janet-v1.2.0-windows
       path: dist
       type: Zip
     - path: janet-v1.2.0-windows-installer.exe
