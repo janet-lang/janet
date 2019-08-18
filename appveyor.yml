@@ -15,7 +15,7 @@ matrix:
 
 # skip unsupported combinations
 init:
-- call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
+    - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
 
 install:
     - choco install nsis -y -pre
@@ -26,7 +26,7 @@ install:
     - refreshenv
     # We need to reload vcvars after refreshing
     - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
-    - build_win test-install\
+    - build_win test-install
     - set janet_outname="%appveyor_repo_tag_name%"
     - if "%janet_outname%"=="" (set janet_outname=v1.2.0)
 build: off
