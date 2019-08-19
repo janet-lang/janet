@@ -171,11 +171,10 @@ extern "C" {
 /* Maximum depth to follow table prototypes before giving up and returning nil. */
 #define JANET_MAX_MACRO_EXPAND 200
 
-/* Define max stack size for stacks before raising a stack overflow error.
- * If this is not defined, fiber stacks can grow without limit (until memory
- * runs out) */
+/* Define default max stack size for stacks before raising a stack overflow error.
+ * This can also be set on a per fiber basis. */
 #ifndef JANET_STACK_MAX
-#define JANET_STACK_MAX 16384
+#define JANET_STACK_MAX 0x7fffffff
 #endif
 
 /* Use nanboxed values - uses 8 bytes per value instead of 12 or 16.

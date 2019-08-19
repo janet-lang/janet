@@ -628,6 +628,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
 
     VM_OP(JOP_TAILCALL) {
         Janet callee = stack[D];
+        if (fiber->stacktop > fiber->maxstack) {
+            vm_throw("stack overflow");
+        }
         if (janet_checktype(callee, JANET_KEYWORD)) {
             vm_commit();
             callee = resolve_method(callee, fiber);

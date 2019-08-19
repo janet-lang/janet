@@ -87,19 +87,27 @@ void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n) {
     fiber->capacity = n;
 }
 
+/* Grow fiber if needed */
+static void janet_fiber_grow(JanetFiber *fiber, int32_t needed) {
+    int32_t cap = needed > (INT32_MAX / 2) ? INT32_MAX : 2 * needed;
+    janet_fiber_setcapacity(fiber, cap);
+}
+
 /* Push a value on the next stack frame */
 void janet_fiber_push(JanetFiber *fiber, Janet x) {
+    if (fiber->stacktop == INT32_MAX) janet_panic("stack overflow");
     if (fiber->stacktop >= fiber->capacity) {
-        janet_fiber_setcapacity(fiber, 2 * fiber->stacktop);
+        janet_fiber_grow(fiber, fiber->stacktop);
     }
     fiber->data[fiber->stacktop++] = x;
 }
 
 /* Push 2 values on the next stack frame */
 void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y) {
+    if (fiber->stacktop >= INT32_MAX - 1) janet_panic("stack overflow");
     int32_t newtop = fiber->stacktop + 2;
     if (newtop > fiber->capacity) {
-        janet_fiber_setcapacity(fiber, 2 * newtop);
+        janet_fiber_grow(fiber, newtop);
     }
     fiber->data[fiber->stacktop] = x;
     fiber->data[fiber->stacktop + 1] = y;
@@ -108,9 +116,10 @@ void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y) {
 
 /* Push 3 values on the next stack frame */
 void janet_fiber_push3(JanetFiber *fiber, Janet x, Janet y, Janet z) {
+    if (fiber->stacktop >= INT32_MAX - 2) janet_panic("stack overflow");
     int32_t newtop = fiber->stacktop + 3;
     if (newtop > fiber->capacity) {
-        janet_fiber_setcapacity(fiber, 2 * newtop);
+        janet_fiber_grow(fiber, newtop);
     }
     fiber->data[fiber->stacktop] = x;
     fiber->data[fiber->stacktop + 1] = y;
@@ -120,9 +129,10 @@ void janet_fiber_push3(JanetFiber *fiber, Janet x, Janet y, Janet z) {
 
 /* Push an array on the next stack frame */
 void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n) {
+    if (fiber->stacktop > INT32_MAX - n) janet_panic("stack overflow");
     int32_t newtop = fiber->stacktop + n;
     if (newtop > fiber->capacity) {
-        janet_fiber_setcapacity(fiber, 2 * newtop);
+        janet_fiber_grow(fiber, newtop);
     }
     memcpy(fiber->data + fiber->stacktop, arr, n * sizeof(Janet));
     fiber->stacktop = newtop;

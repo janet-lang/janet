@@ -64,7 +64,9 @@ void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth) {
     Janet *newData;
     Janet *old = array->data;
     if (capacity <= array->capacity) return;
-    capacity *= growth;
+    int64_t new_capacity = capacity * growth;
+    if (new_capacity > INT32_MAX) new_capacity = INT32_MAX;
+    capacity = (int32_t) new_capacity;
     newData = realloc(old, capacity * sizeof(Janet));
     if (NULL == newData) {
         JANET_OUT_OF_MEMORY;

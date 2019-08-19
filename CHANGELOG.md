@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Change default fiber stack limit to the maximum value of a 32 bit signed integer.
 - Some bug fixes with `jpm`
 - Add `os/arch` to get ISA that janet was compiled for
 - Add color to stacktraces via `(dyn :err-color)`
