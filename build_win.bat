@@ -23,36 +23,41 @@
 @set JANET_LINK=link /nologo
 @set JANET_LINK_STATIC=lib /nologo
 
+@rem Add janet build tag
+if not "%JANET_BUILD%" == "" (
+    @set JANET_COMPILE=%JANET_COMPILE% /DJANET_BUILD="\"%JANET_BUILD%\""
+)
+
 mkdir build
 mkdir build\core
 mkdir build\mainclient
 mkdir build\boot
 
 @rem Build the xxd tool for generating sources
-@cl /nologo /c tools/xxd.c /Fobuild\xxd.obj
+cl /nologo /c tools/xxd.c /Fobuild\xxd.obj
 @if errorlevel 1 goto :BUILDFAIL
-@link /nologo /out:build\xxd.exe build\xxd.obj
+link /nologo /out:build\xxd.exe build\xxd.obj
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Generate the embedded sources
-@build\xxd.exe src\mainclient\init.janet build\init.gen.c janet_gen_init
+build\xxd.exe src\mainclient\init.janet build\init.gen.c janet_gen_init
 @if errorlevel 1 goto :BUILDFAIL
-@build\xxd.exe src\boot\boot.janet build\boot.gen.c janet_gen_boot
+build\xxd.exe src\boot\boot.janet build\boot.gen.c janet_gen_boot
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Build the generated sources
-@%JANET_COMPILE% /Fobuild\mainclient\init.gen.obj build\init.gen.c
+%JANET_COMPILE% /Fobuild\mainclient\init.gen.obj build\init.gen.c
 @if errorlevel 1 goto :BUILDFAIL
-@%JANET_COMPILE% /Fobuild\boot\boot.gen.obj build\boot.gen.c
+%JANET_COMPILE% /Fobuild\boot\boot.gen.obj build\boot.gen.c
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Build the bootstrap interpreter
 for %%f in (src\core\*.c) do (
-    @%JANET_COMPILE% /DJANET_BOOTSTRAP /Fobuild\boot\%%~nf.obj %%f
+    %JANET_COMPILE% /DJANET_BOOTSTRAP /Fobuild\boot\%%~nf.obj %%f
     @if errorlevel 1 goto :BUILDFAIL
 )
 for %%f in (src\boot\*.c) do (
-    @%JANET_COMPILE% /DJANET_BOOTSTRAP /Fobuild\boot\%%~nf.obj %%f
+    %JANET_COMPILE% /DJANET_BOOTSTRAP /Fobuild\boot\%%~nf.obj %%f
     @if errorlevel 1 goto :BUILDFAIL
 )
 %JANET_LINK% /out:build\janet_boot.exe build\boot\*.obj
@@ -60,12 +65,12 @@ for %%f in (src\boot\*.c) do (
 build\janet_boot build\core_image.c
 
 @rem Build the core image
-@%JANET_COMPILE% /Fobuild\core_image.obj build\core_image.c
+%JANET_COMPILE% /Fobuild\core_image.obj build\core_image.c
 @if errorlevel 1 goto :BUILDFAIL
 
 @rem Build the sources
 for %%f in (src\core\*.c) do (
-    @%JANET_COMPILE% /Fobuild\core\%%~nf.obj %%f
+    %JANET_COMPILE% /Fobuild\core\%%~nf.obj %%f
     @if errorlevel 1 goto :BUILDFAIL
 )
 
@@ -74,7 +79,7 @@ rc /nologo /fobuild\janet_win.res janet_win.rc
 
 @rem Build the main client
 for %%f in (src\mainclient\*.c) do (
-    @%JANET_COMPILE% /Fobuild\mainclient\%%~nf.obj %%f
+    %JANET_COMPILE% /Fobuild\mainclient\%%~nf.obj %%f
     @if errorlevel 1 goto :BUILDFAIL
 )
 

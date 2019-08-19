@@ -18,6 +18,7 @@ init:
     - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
 
 install:
+    - set JANET_BUILD=%appveyor_repo_commit:~0,7%
     - choco install nsis -y -pre
     # Replace makensis.exe and files with special long string build. This should
     # prevent issues when setting PATH during installation.

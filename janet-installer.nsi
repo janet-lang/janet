@@ -32,7 +32,7 @@ Name "Janet"
 !define DOLLAR "$"
 !ifdef CHECK_${DOLLAR}%APPVEYOR_REPO_TAG_NAME%
     # We are not in the appveyor environment, use version name
-    !define OUTNAME_PART v${VERSION}-nonrelease-
+    !define OUTNAME_PART v${VERSION}
 !else
     # We are in appveyor, use git tag name for installer
     !define OUTNAME_PART ${OUTNAME}
