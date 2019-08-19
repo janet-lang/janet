@@ -28,7 +28,7 @@ install:
     - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
     - build_win test-install
     - set janet_outname=%appveyor_repo_tag_name%
-    - if %janet_outname%=="" (set janet_outname=v1.2.0)
+    - if %janet_outname%=="" set janet_outname=v1.2.0
     - echo %janet_outname%
 build: off
 
