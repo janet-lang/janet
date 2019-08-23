@@ -15,9 +15,10 @@ matrix:
 
 # skip unsupported combinations
 init:
-- call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
+    - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
 
 install:
+    - set JANET_BUILD=%appveyor_repo_commit:~0,7%
     - choco install nsis -y -pre
     # Replace makensis.exe and files with special long string build. This should
     # prevent issues when setting PATH during installation.
@@ -27,6 +28,8 @@ install:
     # We need to reload vcvars after refreshing
     - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
     - build_win test-install
+    - set janet_outname=%appveyor_repo_tag_name%
+    - if "%janet_outname%"=="" set janet_outname=v1.2.0
 build: off
 
 only_commits:
@@ -35,8 +38,20 @@ only_commits:
     - src/
 
 artifacts:
-    - path: janet-v1.2.0-windows-installer.exe
-      name: janet-v1.2.0-windows-installer.exe
+    - name: janet.c
+      path: dist\janet.c
+      type: File
+    - name: janet.h
+      path: dist\janet.h
+      type: File
+    - name: janetconf.h
+      path: dist\janetconf.h
+      type: File
+    - name: "janet-$(janet_outname)-windows"
+      path: dist
+      type: Zip
+    - path: "janet-$(janet_outname)-windows-installer.exe"
+      name: "janet-$(janet_outname)-windows-installer.exe"
       type: File
 
 deploy:
@@ -44,7 +59,7 @@ deploy:
   provider: GitHub
   auth_token:
     secure: lwEXy09qhj2jSH9s1C/KvCkAUqJSma8phFR+0kbsfUc3rVxpNK5uD3z9Md0SjYRx
-  artifact: janet-windows
+  artifact: /janet.*/
   draft: true
   on:
       APPVEYOR_REPO_TAG: true
