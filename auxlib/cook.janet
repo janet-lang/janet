@@ -560,7 +560,7 @@ int main(int argc, const char **argv) {
       (do-rule "install-deps")
       (do-rule "build")
       (do-rule "install"))
-    ([err] (print "Error building git repository dependency: " err))
+    ([err] (print "Error building git repository dependency: " err)))
   (os/cd olddir))
 
 (defn install-rule
