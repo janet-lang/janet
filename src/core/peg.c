@@ -59,6 +59,7 @@ typedef enum {
     RULE_MATCHTIME,    /* [rule, constant, tag] */
     RULE_ERROR,        /* [rule] */
     RULE_DROP,         /* [rule] */
+    RULE_BACKMATCH,    /* [tag] */
 } Opcode;
 
 /* Hold captured patterns and match state */
@@ -417,6 +418,24 @@ tail:
             }
             return NULL;
         }
+
+        case RULE_BACKMATCH: {
+            uint32_t search = rule[1];
+            for (int32_t i = s->tags->count - 1; i >= 0; i--) {
+                if (s->tags->data[i] == search) {
+                    Janet capture = s->captures->data[i];
+                    if (!janet_checktype(capture, JANET_STRING))
+                        return NULL;
+                    const uint8_t *bytes = janet_unwrap_string(capture); 
+                    int32_t len = janet_string_length(bytes);
+                    if (text + len > s->text_end)
+                        return NULL;
+                    return memcmp(text, bytes, len) ? NULL : text + len;
+                }
+            }
+            return NULL;
+        }
+
     }
 }
 
@@ -754,12 +773,20 @@ static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
     emit_2(r, RULE_GETTAG, search, tag);
 }
 
-static void spec_position(Builder *b, int32_t argc, const Janet *argv) {
+static void spec_tag1(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
     peg_arity(b, argc, 0, 1);
     Reserve r = reserve(b, 2);
     uint32_t tag = (argc) ? emit_tag(b, argv[0]) : 0;
     (void) argv;
-    emit_1(r, RULE_POSITION, tag);
+    emit_1(r, op, tag);
+}
+
+static void spec_position(Builder *b, int32_t argc, const Janet *argv) {
+    spec_tag1(b, argc, argv, RULE_POSITION);
+}
+
+static void spec_backmatch(Builder *b, int32_t argc, const Janet *argv) {
+    spec_tag1(b, argc, argv, RULE_BACKMATCH);
 }
 
 static void spec_argument(Builder *b, int32_t argc, const Janet *argv) {
@@ -824,6 +851,7 @@ static const SpecialPair peg_specials[] = {
     {"argument", spec_argument},
     {"at-least", spec_atleast},
     {"at-most", spec_atmost},
+    {"backmatch", spec_backmatch},
     {"backref", spec_reference},
     {"between", spec_between},
     {"capture", spec_capture},
@@ -1029,6 +1057,7 @@ static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
             case RULE_NOTNCHAR:
             case RULE_RANGE:
             case RULE_POSITION:
+            case RULE_BACKMATCH:
                 /* [1 word] */
                 i += 2;
                 break;

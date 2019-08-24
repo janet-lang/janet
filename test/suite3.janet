@@ -356,6 +356,28 @@
 (check-match janet-longstring "``` `` ```" true)
 (check-match janet-longstring "``  ```" false)
 
+# Backmatch
+
+(def backmatcher-1 '(* (capture (any "x") :1) "y" (backmatch :1) -1))
+
+(check-match backmatcher-1 "y" true)
+(check-match backmatcher-1 "xyx" true)
+(check-match backmatcher-1 "xxxxxxxyxxxxxxx" true)
+(check-match backmatcher-1 "xyxx" false)
+(check-match backmatcher-1 "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy" false)
+(check-match backmatcher-1 (string (string/repeat "x" 10000) "y") false)
+(check-match backmatcher-1 (string (string/repeat "x" 10000) "y" (string/repeat "x" 10000)) true)
+
+(def backmatcher-2 '(* '(any "x") "y" (backmatch) -1))
+
+(check-match backmatcher-2 "y" true)
+(check-match backmatcher-2 "xyx" true)
+(check-match backmatcher-2 "xxxxxxxyxxxxxxx" true)
+(check-match backmatcher-2 "xyxx" false)
+(check-match backmatcher-2 "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy" false)
+(check-match backmatcher-2 (string (string/repeat "x" 10000) "y") false)
+(check-match backmatcher-2 (string (string/repeat "x" 10000) "y" (string/repeat "x" 10000)) true)
+
 # Optional
 
 (check-match '(* (opt "hi") -1) "" true)
