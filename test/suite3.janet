@@ -378,6 +378,16 @@
 (check-match backmatcher-2 (string (string/repeat "x" 10000) "y") false)
 (check-match backmatcher-2 (string (string/repeat "x" 10000) "y" (string/repeat "x" 10000)) true)
 
+(def longstring-2 '(* '(some "`") (some (if-not (backmatch) 1)) (backmatch) -1))
+
+(check-match longstring-2 "`john" false)
+(check-match longstring-2 "abc" false)
+(check-match longstring-2 "` `" true)
+(check-match longstring-2 "`  `" true)
+(check-match longstring-2 "``  ``" true)
+(check-match longstring-2 "``` `` ```" true)
+(check-match longstring-2 "``  ```" false)
+
 # Optional
 
 (check-match '(* (opt "hi") -1) "" true)
