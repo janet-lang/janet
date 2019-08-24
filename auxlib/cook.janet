@@ -144,6 +144,16 @@
     (error (string "option :" key " not set")))
   ret)
 
+(defn check-cc
+  "Ensure we have a c compiler"
+  []
+  (if is-win
+    (do
+      (if (os/getenv "INCLUDE") (break))
+      (error "Run jpm or load cook.janet inside a Developer Command Prompt.
+ jpm needs a c compiler to compile natives. You can install the MSVC compiler at "))
+    (do)))
+
 #
 # Importing a file
 #
@@ -269,6 +279,7 @@
   (def defines [;(make-defines (opt opts :defines {})) ;entry-defines])
   (def headers (or (opts :headers) []))
   (rule dest [src ;headers]
+        (check-cc)
         (print "compiling " dest "...")
         (if is-win
           (shell cc ;defines "/c" ;cflags (string "/Fo" dest) src)
@@ -300,6 +311,7 @@
   (def lflags [;(opt opts :lflags default-lflags)
                ;(if (opts :static) [] dynamic-lflags)])
   (rule target objects
+        (check-cc)
         (print "linking " target "...")
         (if is-win
           (shell ld ;lflags (string "/OUT:" target) ;objects (win-import-library))
@@ -310,6 +322,7 @@
   [opts target & objects]
   (def ar (opt opts :archiver default-archiver))
   (rule target objects
+        (check-cc)
         (print "creating static library " target "...")
         (if is-win
           (shell ar "/nologo" (string "/out:" target) ;objects)
@@ -357,6 +370,7 @@
   # Create executable's janet image
   (def cimage_dest (string dest ".c"))
   (rule dest [source]
+        (check-cc)
         (print "generating executable c source...")
         # Load entry environment and get main function.
         (def entry-env (dofile source))

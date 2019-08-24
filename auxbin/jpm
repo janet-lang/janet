@@ -37,6 +37,7 @@ Keys are:
   --libpath : The directory containing janet C libraries (libjanet.*). Defaults to $JANET_LIBPATH.
   --optimize : Optimization level for natives. Defaults to 2.
   --compiler : C compiler to use for natives. Defaults to cc (cl on windows).
+  --archiver : C compiler to use for static libraries. Defaults to ar (lib on windows).
   --linker : C linker to use for linking natives. Defaults to cc (link on windows).
   --cflags : Extra compiler flags for native modules.
   --lflags : Extra linker flags for native modules.

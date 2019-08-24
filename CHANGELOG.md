@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- jpm detects if not in a Developer Command prompt on windows for a better error message.
+- jpm install git submodules in dependencies
 - Change default fiber stack limit to the maximum value of a 32 bit signed integer.
 - Some bug fixes with `jpm`
 - Add `os/arch` to get ISA that janet was compiled for
