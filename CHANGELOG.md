@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `backmatch` pattern for PEGs.
 - jpm detects if not in a Developer Command prompt on windows for a better error message.
 - jpm install git submodules in dependencies
 - Change default fiber stack limit to the maximum value of a 32 bit signed integer.
