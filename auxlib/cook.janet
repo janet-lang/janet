@@ -689,7 +689,8 @@ int main(int argc, const char **argv) {
   # Create a dud batch file when on windows.
   (when is-win
     (def name (last (string/split sep main)))
-    (def bat (string "@echo off\r\njanet %~dp0\\" name "%*"))
+    (def fullname (string binpath sep name))
+    (def bat (string "@echo off\r\njanet " fullname " %*"))
     (def newname (string binpath sep name ".bat"))
     (array/push (dyn :installed-files) newname)
     (add-body "install"
