@@ -1129,7 +1129,7 @@
 (defn pp
   "Pretty print to stdout."
   [x]
-  (print (buffer/format @"" (dyn :pretty-format "%p") x)))
+  (print (buffer/format @"" (dyn :pretty-format "%q") x)))
 
 
 ###

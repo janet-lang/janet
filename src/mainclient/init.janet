@@ -91,6 +91,6 @@
     (defn getchunk [buf p]
       (getter (prompter p) buf))
     (def onsig (if *quiet* (fn [x &] x) nil))
-    (setdyn :pretty-format (if *colorize* "%.20P" "%.20p"))
+    (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
     (setdyn :err-color (if *colorize* true))
     (repl getchunk onsig)))

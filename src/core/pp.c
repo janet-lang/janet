@@ -310,7 +310,7 @@ struct pretty {
 
 static void print_newline(struct pretty *S, int just_a_space) {
     int i;
-    if (just_a_space) {
+    if (just_a_space || (S->flags & JANET_PRETTY_ONELINE)) {
         janet_buffer_push_u8(S->buffer, ' ');
         return;
     }
@@ -725,12 +725,20 @@ void janet_buffer_format(
                     janet_description_b(b, argv[arg]);
                     break;
                 }
+                case 'Q':
+                case 'q':
                 case 'P':
                 case 'p': { /* janet pretty , precision = depth */
                     int depth = atoi(precision);
                     if (depth < 1)
                         depth = 4;
-                    janet_pretty_(b, depth, (strfrmt[-1] == 'P') ? JANET_PRETTY_COLOR : 0, argv[arg], startlen);
+                    char c = strfrmt[-1];
+                    int has_color = (c == 'P') || (c == 'Q');
+                    int has_oneline = (c == 'Q') || (c == 'q');
+                    int flags = 0;
+                    flags |= has_color ? JANET_PRETTY_COLOR : 0;
+                    flags |= has_oneline ? JANET_PRETTY_ONELINE : 0;
+                    janet_pretty_(b, depth, flags, argv[arg], startlen);
                     break;
                 }
                 default: {
