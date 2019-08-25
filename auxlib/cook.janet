@@ -690,7 +690,7 @@ int main(int argc, const char **argv) {
   (when is-win
     (def name (last (string/split sep main)))
     (def fullname (string binpath sep name))
-    (def bat (string "@echo off\r\njanet " fullname " %*"))
+    (def bat (string "@echo off\r\njanet \"" fullname "\" %*"))
     (def newname (string binpath sep name ".bat"))
     (array/push (dyn :installed-files) newname)
     (add-body "install"
