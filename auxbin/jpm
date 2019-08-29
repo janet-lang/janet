@@ -492,7 +492,7 @@ int main(int argc, const char **argv) {
   (def defines (make-defines (opt opts :defines {})))
   (print "compiling and linking " dest "...")
   (if is-win
-    (shell cc ;cflags (string "/OUT:" dest) cimage_dest ;static-libs (libjanet) ;lflags)
+    (shell cc ;cflags cimage_dest ;static-libs (libjanet) ;lflags `/link` (string "/OUT:" dest))
     (shell cc ;cflags `-o` dest cimage_dest ;static-libs (libjanet) ;lflags)))))
 
 (defn- abspath
