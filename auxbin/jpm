@@ -203,6 +203,15 @@
   (unless (zero? res)
     (error (string "command exited with status " res))))
 
+(defn- shell2
+  "Do a shell command, but don't assum 0 is the (only) passing exit code."
+  [pred & args]
+  (if (dyn :verbose)
+    (print ;(interpose " " args)))
+  (def res (os/execute args :p))
+  (unless (pred res)
+    (error (string "command exited with status " res))))
+
 (defn rm
   "Remove a directory and all sub directories."
   [path]
@@ -218,7 +227,11 @@
   [src dest]
   (print "copying " src " to " dest "...")
   (if is-win
-    (shell "xcopy" src dest "/y" "/e")
+    (if (= (os/stat src :mode) :directory)
+      (let [dname (last (filter |(pos? (length $)) (string/split "/" src)))]
+        (shell2 |(< $ 9) "robocopy" "/MIR" "/COPY:DAT" "/NS" "/NS" "/NFL" "/NDL" "/NP" "/NJH" "/NJS"
+                src (string dest sep dname)))
+      (shell "xcopy" src dest "/y" "/e"))
     (shell "cp" "-rf" src dest)))
 
 #
@@ -532,6 +545,7 @@ int main(int argc, const char **argv) {
   (unless f (print manifest " does not exist") (break))
   (loop [line :iterate (:read f :line)]
     (def path ((string/split "\n" line) 0))
+    (def path ((string/split "\r" path) 0))
     (print "removing " path)
     (try (rm path) ([err]
                     (unless (= err "No such file or directory")
@@ -825,7 +839,7 @@ Flags are:
   []
   (local-rule "test"))
 
-(defn- uninstall
+(defn- uninstall-cmd
   [&opt what]
   (if what
     (uninstall what)
@@ -843,7 +857,7 @@ Flags are:
    "help" help
    "deps" deps
    "clear-cache" clear-cache
-   "uninstall" uninstall})
+   "uninstall" uninstall-cmd})
 
 (def- args (tuple/slice (dyn :args) 1))
 (def- len (length args))
