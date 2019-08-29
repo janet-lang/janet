@@ -203,15 +203,6 @@
   (unless (zero? res)
     (error (string "command exited with status " res))))
 
-(defn- shell2
-  "Do a shell command, but don't assum 0 is the (only) passing exit code."
-  [pred & args]
-  (if (dyn :verbose)
-    (print ;(interpose " " args)))
-  (def res (os/execute args :p))
-  (unless (pred res)
-    (error (string "command exited with status " res))))
-
 (defn rm
   "Remove a directory and all sub directories."
   [path]
@@ -227,11 +218,7 @@
   [src dest]
   (print "copying " src " to " dest "...")
   (if is-win
-    (if (= (os/stat src :mode) :directory)
-      (let [dname (last (filter |(pos? (length $)) (string/split "/" src)))]
-        (shell2 |(< $ 9) "robocopy" "/MIR" "/COPY:DAT" "/NS" "/NS" "/NFL" "/NDL" "/NP" "/NJH" "/NJS"
-                src (string dest sep dname)))
-      (shell "xcopy" src dest "/y" "/e"))
+    (shell "xcopy" src dest "/y" "/s" "/e")
     (shell "cp" "-rf" src dest)))
 
 #
