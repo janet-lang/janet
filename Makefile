@@ -298,7 +298,6 @@ install: $(JANET_TARGET) build/janet.pc
 	cp $(JANET_STATIC_LIBRARY) '$(LIBDIR)/libjanet.a'
 	ln -sf $(SONAME) '$(LIBDIR)/libjanet.so'
 	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(LIBDIR)/$(SONAME)
-	cp -rf auxlib/* '$(JANET_PATH)'
 	cp -rf auxbin/* '$(BINDIR)'
 	mkdir -p '$(MANPATH)'
 	cp janet.1 '$(MANPATH)'

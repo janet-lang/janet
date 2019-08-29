@@ -150,9 +150,6 @@ copy src\include\janet.h dist\janet.h
 copy src\conf\janetconf.h dist\janetconf.h
 copy build\libjanet.lib dist\libjanet.lib
 
-copy auxlib\cook.janet dist\cook.janet
-copy auxlib\path.janet dist\path.janet
-
 copy auxbin\jpm dist\jpm
 copy tools\jpm.bat dist\jpm.bat
 

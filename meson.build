@@ -229,12 +229,7 @@ janet_dep = declare_dependency(include_directories : incdir,
 # Installation
 install_man('janet.1')
 install_headers(['src/include/janet.h', jconf], subdir: 'janet')
-janet_libs = [
-  'auxlib/cook.janet',
-  'auxlib/path.janet'
-]
 janet_binscripts = [
   'auxbin/jpm'
 ]
-install_data(sources : janet_libs, install_dir : janet_path)
 install_data(sources : janet_binscripts, install_dir : 'bin')

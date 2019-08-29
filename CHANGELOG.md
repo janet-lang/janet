@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 - Add `buffer/format` and `string/format` format flags `Q` and `q` to print colored and
-  non-colored single-line values, similar ti `P` and `p`.
+  non-colored single-line values, similar to `P` and `p`.
 - Change default repl to print long sequences on one line.
 - Add `backmatch` pattern for PEGs.
 - jpm detects if not in a Developer Command prompt on windows for a better error message.

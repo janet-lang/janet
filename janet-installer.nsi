@@ -103,10 +103,6 @@ section "Janet" BfWSection
     file /oname=bin\jpm.janet auxbin\jpm
     file /oname=bin\jpm.bat tools\jpm.bat
 
-    # Modules
-    file /oname=Library\cook.janet auxlib\cook.janet
-    file /oname=Library\path.janet auxlib\path.janet
-
     # C headers and library files
     file /oname=C\janet.h dist\janet.h
     file /oname=C\janetconf.h dist\janetconf.h
