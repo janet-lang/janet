@@ -172,6 +172,10 @@ call jpm clean
 @if errorlevel 1 goto :TESTFAIL
 call jpm test
 @if errorlevel 1 goto :TESTFAIL
+call jpm --verbose --modpath=. install https://github.com/janet-lang/json.git
+@if errorlevel 1 goto :TESTFAIL
+call build\testexec
+@if errorlevel 1 goto :TESTFAIL
 popd
 exit /b 0
 
