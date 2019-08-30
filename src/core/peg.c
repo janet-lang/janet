@@ -445,8 +445,6 @@ tail:
 
 typedef struct {
     JanetTable *grammar;
-    JanetTable *memoized;
-    JanetTable *memoized_scopes;
     JanetTable *tags;
     Janet *constants;
     uint32_t *bytecode;
@@ -881,15 +879,53 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
 
     /* Keep track of the form being compiled for error purposes */
     Janet old_form = b->form;
+    JanetTable *old_grammar = b->grammar;
     b->form = peg;
 
-    /* Check depth */
-    if (b->depth-- == 0) {
-        peg_panic(b, "peg grammar recursed too deeply");
+    /* Resolve keyword references */
+    int i = JANET_RECURSION_GUARD;
+    JanetTable *grammar = old_grammar;
+    for (; i > 0 && janet_checktype(peg, JANET_KEYWORD); --i) {
+        peg = janet_table_get_ex(grammar, peg, &grammar);
+        if (!grammar)
+            peg_panic(b, "unknown rule");
+        b->form = peg;
+        b->grammar = grammar;
     }
+    if (i == 0)
+        peg_panic(b, "reference chain too deep");
+
+    /* Check cache - for tuples we check only the local cache, as
+     * in a different grammar, the same tuple can compile to a different
+     * rule - for example, (+ :a :b) depends on whatever :a and :b are bound to. */
+    Janet check = janet_checktype(peg, JANET_TUPLE)
+                  ? janet_table_rawget(grammar, peg)
+                  : janet_table_get(grammar, peg);
+    if (!janet_checktype(check, JANET_NIL)) {
+        b->form = old_form;
+        b->grammar = old_grammar;
+        return (uint32_t) janet_unwrap_number(check);
+    }
+
+    /* Check depth */
+    if (b->depth-- == 0)
+        peg_panic(b, "peg grammar recursed too deeply");
 
     /* The final rule to return */
     uint32_t rule = janet_v_count(b->bytecode);
+
+    /* Add to cache. Do not cache structs, as we don't yet know
+     * what rule they will return! We can just as effectively cache
+     * the structs main rule. */
+    if (!janet_checktype(peg, JANET_STRUCT)) {
+        JanetTable *which_grammar = grammar;
+        /* If we are a primitive pattern, add to the global cache (root grammar table) */
+        if (!janet_checktype(peg, JANET_TUPLE)) {
+            while (which_grammar->proto)
+                which_grammar = which_grammar->proto;
+        }
+        janet_table_put(which_grammar, peg, janet_wrap_number(rule));
+    }
 
     switch (janet_type(peg)) {
         default:
@@ -911,37 +947,22 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             emit_bytes(b, RULE_LITERAL, len, str);
             break;
         }
-        case JANET_KEYWORD: {
-            /* Find rule in grammar */
-            JanetTable *scope = NULL;
-            Janet check = janet_table_get_ex(b->grammar, peg, &scope);
-            if (scope == NULL)
-                peg_panic(b, "unknown rule");
-
-            /* Check if we should compile as a recursion */
-            Janet memo_rule = janet_table_get(b->memoized, peg);
-            Janet memo_scope = janet_table_get(b->memoized_scopes, peg);
-            if (!janet_checktype(memo_rule, JANET_NIL) &&
-                    scope == janet_unwrap_table(memo_scope)) {
-                rule = (uint32_t) janet_unwrap_number(memo_rule);
-                break;
-            }
-
-            /* Compile with rule and current scope memoized. This will
-             * let child rules refer to this rule for recursion */
-            janet_table_put(b->memoized, peg, janet_wrap_number(rule));
-            janet_table_put(b->memoized_scopes, peg, janet_wrap_table(scope));
-            rule = peg_compile1(b, check);
-            janet_table_put(b->memoized, peg, memo_rule);
-            janet_table_put(b->memoized_scopes, peg, memo_scope);
-            break;
-        }
         case JANET_STRUCT: {
-            JanetTable *grammar = janet_struct_to_table(janet_unwrap_struct(peg));
-            grammar->proto = b->grammar;
-            b->grammar = grammar;
-            rule = peg_compile1(b, janet_ckeywordv("main"));
-            b->grammar = grammar->proto;
+            /* Build grammar table */
+            const JanetKV *st = janet_unwrap_struct(peg);
+            JanetTable *new_grammar = janet_table(2 * janet_struct_capacity(st));
+            for (int32_t i = 0; i < janet_struct_capacity(st); i++) {
+                if (janet_checktype(st[i].key, JANET_KEYWORD)) {
+                    janet_table_put(new_grammar, st[i].key, st[i].value);
+                }
+            }
+            new_grammar->proto = grammar;
+            b->grammar = grammar = new_grammar;
+            /* Run the main rule */
+            Janet main_rule = janet_table_rawget(grammar, janet_ckeywordv("main"));
+            if (janet_checktype(main_rule, JANET_NIL))
+                peg_panic(b, "grammar requires :main rule");
+            rule = peg_compile1(b, main_rule);
             break;
         }
         case JANET_TUPLE: {
@@ -968,6 +989,7 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
     /* Increase depth again */
     b->depth++;
     b->form = old_form;
+    b->grammar = old_grammar;
     return rule;
 }
 
@@ -1194,8 +1216,6 @@ static Peg *make_peg(Builder *b) {
 static Peg *compile_peg(Janet x) {
     Builder builder;
     builder.grammar = janet_table(0);
-    builder.memoized = janet_table(0);
-    builder.memoized_scopes = janet_table(0);
     builder.tags = janet_table(0);
     builder.constants = NULL;
     builder.bytecode = NULL;
