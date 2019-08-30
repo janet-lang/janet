@@ -569,17 +569,25 @@ int main(int argc, const char **argv) {
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle
   is reinistalled (but not rebuilt if artifacts are cached)."
-  [repo]
+  [repotab]
+  (def repo (if (string? repotab) repotab (repotab :repo)))
+  (def tag (unless (string? repotab) (repotab :tag)))
   (def cache (find-cache))
   (os/mkdir cache)
   (def id (filepath-replace repo))
   (def module-dir (string cache sep id))
+  (var fresh false)
   (when (os/mkdir module-dir)
+    (set fresh true)
     (os/execute ["git" "clone" repo module-dir] :p))
   (def olddir (os/cwd))
   (os/cd module-dir)
   (try
     (with-dyns [:rules @{}]
+      (unless fresh
+        (os/execute ["git" "pull" "origin" "master"] :p))
+      (when tag
+        (os/execute ["git" "reset" "--hard" tag] :p))
       (os/execute ["git" "submodule" "update" "--init" "--recursive"] :p)
       (import-rules "./project.janet")
       (do-rule "install-deps")
