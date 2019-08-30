@@ -421,4 +421,14 @@
 (assert (= (tuple/type (-> '(1 2 3) marshal unmarshal)) :parens) "normal tuple marshalled/unmarshalled")
 (assert (= (tuple/type (-> '[1 2 3] marshal unmarshal)) :brackets) "normal tuple marshalled/unmarshalled")
 
+# Check for bad memoization (+ :a) should mean different things in different contexts.
+(def redef-a
+  ~{:a "abc"
+    :c (+ :a)
+    :main (* :c {:a "def" :main (+ :a)} -1)})
+
+(check-match redef-a "abcdef" true)
+(check-match redef-a "abcabc" false)
+(check-match redef-a "defdef" false)
+
 (end-suite)

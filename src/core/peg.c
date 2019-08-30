@@ -426,7 +426,7 @@ tail:
                     Janet capture = s->captures->data[i];
                     if (!janet_checktype(capture, JANET_STRING))
                         return NULL;
-                    const uint8_t *bytes = janet_unwrap_string(capture); 
+                    const uint8_t *bytes = janet_unwrap_string(capture);
                     int32_t len = janet_string_length(bytes);
                     if (text + len > s->text_end)
                         return NULL;
@@ -879,10 +879,14 @@ static const SpecialPair peg_specials[] = {
 static uint32_t peg_compile1(Builder *b, Janet peg) {
 
     /* Check for already compiled rules */
-    Janet check = janet_table_get(b->memoized, peg);
-    if (!janet_checktype(check, JANET_NIL)) {
-        uint32_t rule = (uint32_t) janet_unwrap_number(check);
-        return rule;
+    int is_keyword = janet_checktype(peg, JANET_KEYWORD);
+    Janet old_memo = janet_wrap_nil(); /* for compiler warnings */
+    if (is_keyword) {
+        old_memo = janet_table_get(b->memoized, peg);
+        if (!janet_checktype(old_memo, JANET_NIL)) {
+            uint32_t rule = (uint32_t) janet_unwrap_number(old_memo);
+            return rule;
+        }
     }
 
     /* Keep track of the form being compiled for error purposes */
@@ -896,10 +900,10 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
 
     /* The final rule to return */
     uint32_t rule = janet_v_count(b->bytecode);
-    if (!janet_checktype(peg, JANET_KEYWORD) &&
-            !janet_checktype(peg, JANET_STRUCT)) {
+
+    /* Cache keywords for recursion points (loops) */
+    if (is_keyword)
         janet_table_put(b->memoized, peg, janet_wrap_number(rule));
-    }
 
     switch (janet_type(peg)) {
         default:
@@ -959,6 +963,10 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             break;
         }
     }
+
+    /* Reset old cached rule */
+    if (is_keyword)
+        janet_table_put(b->memoized, peg, old_memo);
 
     /* Increase depth again */
     b->depth++;
