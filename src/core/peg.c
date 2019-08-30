@@ -446,6 +446,7 @@ tail:
 typedef struct {
     JanetTable *grammar;
     JanetTable *memoized;
+    JanetTable *memoized_scopes;
     JanetTable *tags;
     Janet *constants;
     uint32_t *bytecode;
@@ -878,17 +879,6 @@ static const SpecialPair peg_specials[] = {
 /* Compile a janet value into a rule and return the rule index. */
 static uint32_t peg_compile1(Builder *b, Janet peg) {
 
-    /* Check for already compiled rules */
-    int is_keyword = janet_checktype(peg, JANET_KEYWORD);
-    Janet old_memo = janet_wrap_nil(); /* for compiler warnings */
-    if (is_keyword) {
-        old_memo = janet_table_get(b->memoized, peg);
-        if (!janet_checktype(old_memo, JANET_NIL)) {
-            uint32_t rule = (uint32_t) janet_unwrap_number(old_memo);
-            return rule;
-        }
-    }
-
     /* Keep track of the form being compiled for error purposes */
     Janet old_form = b->form;
     b->form = peg;
@@ -900,10 +890,6 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
 
     /* The final rule to return */
     uint32_t rule = janet_v_count(b->bytecode);
-
-    /* Cache keywords for recursion points (loops) */
-    if (is_keyword)
-        janet_table_put(b->memoized, peg, janet_wrap_number(rule));
 
     switch (janet_type(peg)) {
         default:
@@ -926,20 +912,35 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             break;
         }
         case JANET_KEYWORD: {
-            Janet check = janet_table_get(b->grammar, peg);
-            if (janet_checktype(check, JANET_NIL))
+            /* Find rule in grammar */
+            JanetTable *scope = NULL;
+            Janet check = janet_table_get_ex(b->grammar, peg, &scope);
+            if (scope == NULL)
                 peg_panic(b, "unknown rule");
+
+            /* Check if we should compile as a recursion */
+            Janet memo_rule = janet_table_get(b->memoized, peg);
+            Janet memo_scope = janet_table_get(b->memoized_scopes, peg);
+            if (!janet_checktype(memo_rule, JANET_NIL) &&
+                    scope == janet_unwrap_table(memo_scope)) {
+                rule = (uint32_t) janet_unwrap_number(memo_rule);
+                break;
+            }
+
+            /* Compile with rule and current scope memoized. This will
+             * let child rules refer to this rule for recursion */
+            janet_table_put(b->memoized, peg, janet_wrap_number(rule));
+            janet_table_put(b->memoized_scopes, peg, janet_wrap_table(scope));
             rule = peg_compile1(b, check);
+            janet_table_put(b->memoized, peg, memo_rule);
+            janet_table_put(b->memoized_scopes, peg, memo_scope);
             break;
         }
         case JANET_STRUCT: {
             JanetTable *grammar = janet_struct_to_table(janet_unwrap_struct(peg));
             grammar->proto = b->grammar;
             b->grammar = grammar;
-            Janet main_rule = janet_table_get(grammar, janet_ckeywordv("main"));
-            if (janet_checktype(main_rule, JANET_NIL))
-                peg_panic(b, "grammar requires :main rule");
-            rule = peg_compile1(b, main_rule);
+            rule = peg_compile1(b, janet_ckeywordv("main"));
             b->grammar = grammar->proto;
             break;
         }
@@ -963,10 +964,6 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             break;
         }
     }
-
-    /* Reset old cached rule */
-    if (is_keyword)
-        janet_table_put(b->memoized, peg, old_memo);
 
     /* Increase depth again */
     b->depth++;
@@ -1198,6 +1195,7 @@ static Peg *compile_peg(Janet x) {
     Builder builder;
     builder.grammar = janet_table(0);
     builder.memoized = janet_table(0);
+    builder.memoized_scopes = janet_table(0);
     builder.tags = janet_table(0);
     builder.constants = NULL;
     builder.bytecode = NULL;

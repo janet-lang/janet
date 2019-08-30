@@ -431,4 +431,12 @@
 (check-match redef-a "abcabc" false)
 (check-match redef-a "defdef" false)
 
+(def redef-b
+  ~{:pork {:pork "beef" :main (+ -1 (* 1 :pork))}
+    :main :pork})
+
+(check-match redef-b "abeef" true)
+(check-match redef-b "aabeef" false)
+(check-match redef-b "aaaaaa" false)
+
 (end-suite)
