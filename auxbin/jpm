@@ -818,6 +818,9 @@ Subcommands are:
   test : run tests. Tests should be .janet files in the test/ directory relative to project.janet.
   deps : install dependencies for the current project.
   clear-cache : clear the git cache. Useful for updating dependencies.
+  run rule : run a rule. Can also run custom rules added via (phony "task" [deps...] ...)
+             or (rule "ouput.file" [deps...] ...).
+  rules : list rules available with run.
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath)
@@ -863,6 +866,12 @@ Flags are:
   []
   (local-rule "install-deps"))
 
+(defn- list-rules
+  []
+  (import-rules "./project.janet")
+  (def ks (sort (seq [k :keys (dyn :rules)] k)))
+  (each k ks (print k)))
+
 (def- subcommands
   {"build" build
    "clean" clean
@@ -871,6 +880,8 @@ Flags are:
    "help" help
    "deps" deps
    "clear-cache" clear-cache
+   "run" local-rule
+   "rules" list-rules
    "uninstall" uninstall-cmd})
 
 (def- args (tuple/slice (dyn :args) 1))
