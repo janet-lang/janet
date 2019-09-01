@@ -2,14 +2,18 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `jpm run rule` and `jpm rules` to jpm to improve utility and discoverability of jpm.
+- Remove `cook` module and move `path` module to https://github.com/janet-lang/path.git.
+  The functionality in `cook` is now bundled directly in the `jpm` script.
 - Add `buffer/format` and `string/format` format flags `Q` and `q` to print colored and
   non-colored single-line values, similar to `P` and `p`.
-- Change default repl to print long sequences on one line.
+- Change default repl to print long sequences on one line and color stacktraces if color is enabled.
 - Add `backmatch` pattern for PEGs.
 - jpm detects if not in a Developer Command prompt on windows for a better error message.
 - jpm install git submodules in dependencies
 - Change default fiber stack limit to the maximum value of a 32 bit signed integer.
 - Some bug fixes with `jpm`
+- Fix bugs with pegs.
 - Add `os/arch` to get ISA that janet was compiled for
 - Add color to stacktraces via `(dyn :err-color)`
 
