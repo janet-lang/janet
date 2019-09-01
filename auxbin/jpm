@@ -95,13 +95,13 @@
 
 (def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
 (def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH")
-                          (if-let [j JANET_MODPATH]
+                          (if-let [j (dyn :syspath)]
                             (string j "/../../include/janet"))))
 (def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
-                       (if-let [j JANET_MODPATH]
+                       (if-let [j (dyn :syspath)]
                          (string j "/../../bin"))))
 (def JANET_LIBPATH (or (os/getenv "JANET_LIBPATH")
-                       (if-let [j JANET_MODPATH]
+                       (if-let [j (dyn :syspath)]
                          (string j "/.."))))
 
 #
@@ -512,7 +512,9 @@ int main(int argc, const char **argv) {
   "Create an absolute path. Does not resolve . and .. (useful for
   generating entries in install manifest file)."
   [path]
-  (if (string/has-prefix? absprefix)
+  (if (if is-win
+        (peg/match '(+ "\\" (* (range "AZ" "az") ":\\")) path)
+        (string/has-prefix? "/" path))
     path
     (string (os/cwd) sep path)))
 
@@ -581,9 +583,13 @@ int main(int argc, const char **argv) {
     (set fresh true)
     (os/execute ["git" "clone" repo module-dir] :p))
   (def olddir (os/cwd))
-  (os/cd module-dir)
   (try
-    (with-dyns [:rules @{}]
+    (with-dyns [:rules @{}
+                :modpath (abspath (dyn :modpath JANET_MODPATH))
+                :headerpath (abspath (dyn :headerpath JANET_HEADERPATH))
+                :libpath (abspath (dyn :libpath JANET_LIBPATH))
+                :binpath (abspath (dyn :binpath JANET_BINPATH))]
+      (os/cd module-dir)
       (unless fresh
         (os/execute ["git" "pull" "origin" "master"] :p))
       (when tag
