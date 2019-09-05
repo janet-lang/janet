@@ -1,0 +1,176 @@
+.TH JPM 1
+.SH NAME
+jpm \- the Janet Project Manager, a build tool for Janet 
+.SH SYNOPSIS
+.B jpm
+[\fB\-\-flag ...\fR]
+[\fB\-\-option=value ...\fR]
+.IR command
+.IR args ...
+.SH DESCRIPTION
+jpm is the build tool that ships with a standard Janet install. It is
+used for building Janet projects, installing dependencies, installing
+projects, building native modules, and exporting your Janet project to a
+standalone executable. Although not required for working with Janet, it
+removes much of the boilerplate with installing dependencies and
+building native modules. jpm requires only Janet to run, and uses git
+to install dependencies (jpm will work without git installed).
+.SH DOCUMENTATION
+
+jpm has several subcommands, each used for managing either a single Janet project or
+all Janet modules installed on the system. Global commands, those that manage modules
+at the system level, do things like install and uninstall packages, as well as clear the cache.
+More interesting are the local commands. For more information on jpm usage, see https://janet-lang.org/docs/index.html
+
+.SH FLAGS
+
+.TP
+.BR \-\-verbose
+Print detailed messages of what jpm is doing, including compilation commands and other shell commands.
+
+.SH OPTIONS
+
+.TP
+.BR \-\-modpath=/some/path
+Set the path to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath) in that order.
+
+.TP
+.BR \-\-headerpath=/some/path
+Set the path the jpm will include when building C source code. This lets
+you specify the location of janet.h and janetconf.h on your system. On a
+normal install, this option is not needed.
+
+.TP
+.BR \-\-binpath=/some/path
+Set the path that jpm will install scripts and standalone executables to. Executables
+defined via declare-execuatble or scripts declared via declare-binscript will be installed
+here when jpm install is run. Defaults to $JANET_BINPATH, or a reasonable default for the system.
+See JANET_BINPATH for more.
+
+.TP
+.BR \-\-libpath=/some/path
+Sets the path jpm will use to look for libjanet.a for building standalone executables. libjanet.so
+is \fBnot\fR used for building native modules or standalone executables, only
+for linking into applications that want to embed janet as a dynamic module.
+Linking statically might be a better idea, even in that case. Defaults to
+$JANET_LIBPATH, or a reasonable default. See JANET_LIBPATH for more.
+
+.TP
+.BR \-\-compiler=cc
+Sets the compiler used for compiling native modules and standalone executables. Defaults
+to cc.
+
+.TP
+.BR \-\-linker=ld
+Sets the linker used to create native modules and executables.
+
+.TP
+.BR \-\-archiver=ar
+Sets the command used for creating static libraries, use for linking into the standalone executable.
+Native modules are compiled twice, once a normal native module (shared object), and once as an
+archive.
+
+.SH COMMANDS
+.TP
+.BR help
+Shows the usage text and exits immediately.
+
+.TP
+.BR build
+Builds all artifacts specified in the project.janet file in the current directory. Artifacts will
+be created in the ./build/ directory.
+
+.TP
+.BR install\ [\fBrepo\fR]
+
+When run with no arguments, installs all installable artifacts in the current project to
+the current JANET_MODPATH for modules and JANET_BINPATH for executables and scripts. Can also
+take an optional git repository URL and will install all artifacts in that repository instead.
+When run with an argument, install does not need to be run from a jpm project directory.
+
+.TP
+.BR uninstall\ [\fBname\fR]
+Uninstall a project installed with install. uninstall expects the name of the project, not the
+repository url, path to installed file or executable name. The name of the project must be specified
+at the top of the project.janet file in the declare-project form. If no name is given, uninstalls
+the current project if installed.
+
+.TP
+.BR clean
+Remove all artifacts created by jpm. This just deletes the build folder.
+
+.TP
+.BR test
+Runs jpm tests. jpm will run all janet source files in the test directory as tests. A test
+is considered failing if it exits with a non-zero exit code.
+
+.TP
+.BR deps
+Install all dependencies that this project requires recursively. jpm does not
+resolve dependency issues, like conflicting versions of the same module are required, or
+different modules with the same name. Dependencies are installed with git, so deps requires
+git to be on the PATH.
+
+.TP
+.BR clear-cache
+jpm caches git repositories that are needed to install modules from a remote
+source in a global cache ($JANET_PATH/.cache). If these dependencies are out of
+date or too large, clear-cache will remove the cache and jpm will rebuild it
+when needed. clear-cache is a global command, so a project.janet is not
+required.
+
+.TP
+.BR run\ [\fBrule\fR]
+Run a given rule defined in project.janet. Project definitions files (project.janet) usually
+contain a few artifact declarations, which set up rules that jpm can then resolve, or execute.
+A project.janet can also create custom rules to create arbitrary files or run arbitrary code, much
+like make. run will run a single rule or build a single file.
+
+.TP
+.BR rules
+List all rules that can be run via run. This is useful for exploring rules in the project.
+
+.SH ENVIRONMENT
+
+.B JANET_PATH
+.RS
+The location to look for Janet libraries. This is the only environment variable Janet needs to
+find native and source code modules. If no JANET_PATH is set, Janet will look in
+the default location set at compile time, which can be determined with (dyn :syspath)
+.RE
+
+.B JANET_MODPATH
+.RS
+The location that jpm will use to install libraries to. Defaults to JANET_PATH, but you could
+set this to a different directory if you want to. Doing so would let you import Janet modules
+on the normal system path (JANET_PATH or (dyn :syspath)), but install to a different directory. It is also a more reliable way to install
+This variable is overwritten by the --modpath=/some/path if it is provided.
+.RE
+
+.B JANET_HEADERPATH
+.RS
+The location that jpm will look for janet header files (janet.h and janetconf.h) that are used
+to build native modules and standalone executables. If janet.h and janetconf.h are available as
+default includes on your system, this value is not required. If not provided, will default to
+(dyn :syspath)/../../include/janet. The --headerpath=/some/path will override this variable.
+.RE
+
+.B JANET_LIBPATH
+.RS
+Similar to JANET_HEADERPATH, this path is where jpm will look for
+libjanet.a for creating standalong executables. This does not need to be
+set on a normal install. 
+If not provided, this will default to (dyn :syspath)/../../lib.
+The --libpath=/some/path will override this variable.
+.RE
+
+.B JANET_BINPATH
+.RS
+The directory where jpm will install binary scripts and executables to.
+Defaults to
+(dyn :syspath)/../../lib.
+The --binpath=/some/path will override this variable.
+.RE
+
+.SH AUTHOR
+Written by Calvin Rose <calsrose@gmail.com>

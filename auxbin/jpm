@@ -809,6 +809,7 @@ on a project, or from anywhere to do operations on the global module cache (modp
 
 Subcommands are:
   build : build all artifacts
+  help : show this help text
   install (repo) : install artifacts. If a repo is given, install the contents of that
                    git repository, assuming that the repository is a jpm project. If not, build
                    and install the current project.
@@ -827,16 +828,17 @@ Keys are:
   --headerpath : The directory containing janet headers. Defaults to $JANET_HEADERPATH.
   --binpath : The directory to install binaries and scripts. Defaults to $JANET_BINPATH.
   --libpath : The directory containing janet C libraries (libjanet.*). Defaults to $JANET_LIBPATH.
-  --optimize : Optimization level for natives. Defaults to 2.
   --compiler : C compiler to use for natives. Defaults to cc (cl on windows).
   --archiver : C compiler to use for static libraries. Defaults to ar (lib on windows).
   --linker : C linker to use for linking natives. Defaults to cc (link on windows).
-  --cflags : Extra compiler flags for native modules.
-  --lflags : Extra linker flags for native modules.
 
 Flags are:
   --verbose : Print shell commands as they are executed.
     `))
+
+(defn- show-help
+  []
+  (print help))
 
 (defn- build
   []
@@ -875,6 +877,7 @@ Flags are:
 (def- subcommands
   {"build" build
    "clean" clean
+   "help" show-help
    "install" install
    "test" test
    "help" help

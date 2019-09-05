@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.3.0 - 2019-09-04
 - Add `jpm run rule` and `jpm rules` to jpm to improve utility and discoverability of jpm.
 - Remove `cook` module and move `path` module to https://github.com/janet-lang/path.git.
   The functionality in `cook` is now bundled directly in the `jpm` script.
