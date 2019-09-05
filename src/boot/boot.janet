@@ -952,6 +952,35 @@
     (put res (get keys i) (get vals i)))
   res)
 
+(defn get-in
+  "Access a value in a nested data structure. Looks into the data structure via
+  a sequence of keys."
+  [ds ks &opt dflt]
+  (var d ds)
+  (loop [k :in ks :while d] (set d (get d k)))
+  (or d dflt))
+
+(defn update-in
+  "Access a value in a nested data structure. Looks into the data structure via
+  a sequence of keys. Missing data structures will be replaced with tables. Returns
+  the modified, original data structure."
+  [ds ks f & args]
+  (var d ds)
+  (def len (length ks))
+  (if (< len 1) (error "expected at least 1 key in ks"))
+  (for i 0 (- len 1)
+    (def k (get ks i))
+    (def v (get d k))
+    (if (= nil v)
+      (let [newv (table)]
+        (put d k newv)
+        (set d newv))
+      (set d v)))
+  (def last-key (last ks))
+  (def last-val (get d last-key))
+  (put d last-key (f last-val ;args))
+  ds)
+
 (defn update
   "Accepts a key argument and passes its associated value to a function.
   The key is the re-associated to the function's return value. Returns the updated
@@ -1443,6 +1472,21 @@
   equal if they have identical structure. Much slower than =."
   [x y]
   (not (deep-not= x y)))
+
+(defn freeze
+  "Freeze an object (make it immutable) and do a deep copy, making
+  child values also immutable. Closures, fibers, and abstract types
+  will not be recursively frozen, but all other types will."
+  [x]
+  (case (type x)
+    :array (tuple/slice (map freeze x))
+    :tuple (tuple/slice (map freeze x))
+    :table (if-let [p (table/getproto x)]
+              (freeze (merge (table/clone p) x))
+              (struct ;(map freeze (kvs x))))
+    :struct (struct ;(map freeze (kvs x)))
+    :buffer (string x)
+    x))
 
 (defn macex
   "Expand macros completely.
