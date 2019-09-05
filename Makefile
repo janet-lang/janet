@@ -253,7 +253,7 @@ dist: build/janet-dist.tar.gz
 
 build/janet-%.tar.gz: $(JANET_TARGET) \
 	src/include/janet.h src/conf/janetconf.h \
-	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
+	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
 	build/doc.html README.md build/janet.c
 	tar -czvf $@ $^
 
@@ -301,6 +301,7 @@ install: $(JANET_TARGET) build/janet.pc
 	cp -rf auxbin/* '$(BINDIR)'
 	mkdir -p '$(MANPATH)'
 	cp janet.1 '$(MANPATH)'
+	cp jpm.1 '$(MANPATH)'
 	mkdir -p '$(PKG_CONFIG_PATH)'
 	cp build/janet.pc '$(PKG_CONFIG_PATH)/janet.pc'
 	-ldconfig $(LIBDIR)
@@ -312,6 +313,7 @@ uninstall:
 	-rm -rf '$(LIBDIR)'/libjanet.*
 	-rm '$(PKG_CONFIG_PATH)/janet.pc'
 	-rm '$(MANPATH)/janet.1'
+	-rm '$(MANPATH)/jpm.1'
 	# -rm -rf '$(JANET_PATH)'/* - err on the side of correctness here
 
 #################
