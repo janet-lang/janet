@@ -961,14 +961,15 @@
   (or d dflt))
 
 (defn update-in
-  "Access a value in a nested data structure. Looks into the data structure via
+  "Update a value in a nested data structure by applying f to the current value.
+  Looks into the data structure via
   a sequence of keys. Missing data structures will be replaced with tables. Returns
   the modified, original data structure."
   [ds ks f & args]
   (var d ds)
-  (def len (length ks))
-  (if (< len 1) (error "expected at least 1 key in ks"))
-  (for i 0 (- len 1)
+  (def len-1 (- (length ks) 1))
+  (if (< len-1 0) (error "expected at least 1 key in ks"))
+  (for i 0 len-1
     (def k (get ks i))
     (def v (get d k))
     (if (= nil v)
@@ -976,9 +977,31 @@
         (put d k newv)
         (set d newv))
       (set d v)))
-  (def last-key (last ks))
+  (def last-key (get ks len-1))
   (def last-val (get d last-key))
   (put d last-key (f last-val ;args))
+  ds)
+
+(defn put-in
+  "Put a value into a nested data structure.
+  Looks into the data structure via
+  a sequence of keys. Missing data structures will be replaced with tables. Returns
+  the modified, original data structure."
+  [ds ks v]
+  (var d ds)
+  (def len-1 (- (length ks) 1))
+  (if (< len-1 0) (error "expected at least 1 key in ks"))
+  (for i 0 len-1
+    (def k (get ks i))
+    (def v (get d k))
+    (if (= nil v)
+      (let [newv (table)]
+        (put d k newv)
+        (set d newv))
+      (set d v)))
+  (def last-key (get ks len-1))
+  (def last-val (get d last-key))
+  (put d last-key v)
   ds)
 
 (defn update
