@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.2.0')
+  version : '1.3.0')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -228,6 +228,7 @@ janet_dep = declare_dependency(include_directories : incdir,
 
 # Installation
 install_man('janet.1')
+install_man('jpm.1')
 install_headers(['src/include/janet.h', jconf], subdir: 'janet')
 janet_binscripts = [
   'auxbin/jpm'

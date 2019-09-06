@@ -1194,6 +1194,7 @@ JANET_API JanetTable *janet_table(int32_t capacity);
 JANET_API JanetTable *janet_table_init(JanetTable *table, int32_t capacity);
 JANET_API void janet_table_deinit(JanetTable *table);
 JANET_API Janet janet_table_get(JanetTable *t, Janet key);
+JANET_API Janet janet_table_get_ex(JanetTable *t, Janet key, JanetTable **which);
 JANET_API Janet janet_table_rawget(JanetTable *t, Janet key);
 JANET_API Janet janet_table_remove(JanetTable *t, Janet key);
 JANET_API void janet_table_put(JanetTable *t, Janet key, Janet value);

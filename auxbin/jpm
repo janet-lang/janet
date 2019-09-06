@@ -95,13 +95,13 @@
 
 (def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
 (def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH")
-                          (if-let [j JANET_MODPATH]
+                          (if-let [j (dyn :syspath)]
                             (string j "/../../include/janet"))))
 (def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
-                       (if-let [j JANET_MODPATH]
+                       (if-let [j (dyn :syspath)]
                          (string j "/../../bin"))))
 (def JANET_LIBPATH (or (os/getenv "JANET_LIBPATH")
-                       (if-let [j JANET_MODPATH]
+                       (if-let [j (dyn :syspath)]
                          (string j "/.."))))
 
 #
@@ -499,7 +499,9 @@ int main(int argc, const char **argv) {
   "Create an absolute path. Does not resolve . and .. (useful for
   generating entries in install manifest file)."
   [path]
-  (if (string/has-prefix? absprefix)
+  (if (if is-win
+        (peg/match '(+ "\\" (* (range "AZ" "az") ":\\")) path)
+        (string/has-prefix? "/" path))
     path
     (string (os/cwd) sep path)))
 
@@ -556,17 +558,29 @@ int main(int argc, const char **argv) {
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle
   is reinistalled (but not rebuilt if artifacts are cached)."
-  [repo]
+  [repotab]
+  (def repo (if (string? repotab) repotab (repotab :repo)))
+  (def tag (unless (string? repotab) (repotab :tag)))
   (def cache (find-cache))
   (os/mkdir cache)
   (def id (filepath-replace repo))
   (def module-dir (string cache sep id))
+  (var fresh false)
   (when (os/mkdir module-dir)
+    (set fresh true)
     (os/execute ["git" "clone" repo module-dir] :p))
   (def olddir (os/cwd))
-  (os/cd module-dir)
   (try
-    (with-dyns [:rules @{}]
+    (with-dyns [:rules @{}
+                :modpath (abspath (dyn :modpath JANET_MODPATH))
+                :headerpath (abspath (dyn :headerpath JANET_HEADERPATH))
+                :libpath (abspath (dyn :libpath JANET_LIBPATH))
+                :binpath (abspath (dyn :binpath JANET_BINPATH))]
+      (os/cd module-dir)
+      (unless fresh
+        (os/execute ["git" "pull" "origin" "master"] :p))
+      (when tag
+        (os/execute ["git" "reset" "--hard" tag] :p))
       (os/execute ["git" "submodule" "update" "--init" "--recursive"] :p)
       (import-rules "./project.janet")
       (do-rule "install-deps")
@@ -782,6 +796,7 @@ on a project, or from anywhere to do operations on the global module cache (modp
 
 Subcommands are:
   build : build all artifacts
+  help : show this help text
   install (repo) : install artifacts. If a repo is given, install the contents of that
                    git repository, assuming that the repository is a jpm project. If not, build
                    and install the current project.
@@ -791,22 +806,26 @@ Subcommands are:
   test : run tests. Tests should be .janet files in the test/ directory relative to project.janet.
   deps : install dependencies for the current project.
   clear-cache : clear the git cache. Useful for updating dependencies.
+  run rule : run a rule. Can also run custom rules added via (phony "task" [deps...] ...)
+             or (rule "ouput.file" [deps...] ...).
+  rules : list rules available with run.
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath)
   --headerpath : The directory containing janet headers. Defaults to $JANET_HEADERPATH.
   --binpath : The directory to install binaries and scripts. Defaults to $JANET_BINPATH.
   --libpath : The directory containing janet C libraries (libjanet.*). Defaults to $JANET_LIBPATH.
-  --optimize : Optimization level for natives. Defaults to 2.
   --compiler : C compiler to use for natives. Defaults to cc (cl on windows).
   --archiver : C compiler to use for static libraries. Defaults to ar (lib on windows).
   --linker : C linker to use for linking natives. Defaults to cc (link on windows).
-  --cflags : Extra compiler flags for native modules.
-  --lflags : Extra linker flags for native modules.
 
 Flags are:
   --verbose : Print shell commands as they are executed.
     `))
+
+(defn- show-help
+  []
+  (print help))
 
 (defn- build
   []
@@ -836,14 +855,23 @@ Flags are:
   []
   (local-rule "install-deps"))
 
+(defn- list-rules
+  []
+  (import-rules "./project.janet")
+  (def ks (sort (seq [k :keys (dyn :rules)] k)))
+  (each k ks (print k)))
+
 (def- subcommands
   {"build" build
    "clean" clean
+   "help" show-help
    "install" install
    "test" test
    "help" help
    "deps" deps
    "clear-cache" clear-cache
+   "run" local-rule
+   "rules" list-rules
    "uninstall" uninstall-cmd})
 
 (def- args (tuple/slice (dyn :args) 1))
