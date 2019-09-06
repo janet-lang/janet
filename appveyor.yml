@@ -32,11 +32,6 @@ install:
     - if "%janet_outname%"=="" set janet_outname=v1.3.0
 build: off
 
-only_commits:
-  files:
-    - appveyor.yml
-    - src/
-
 artifacts:
     - name: janet.c
       path: dist\janet.c
