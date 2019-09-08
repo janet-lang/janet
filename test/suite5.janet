@@ -54,6 +54,7 @@
 (assert (= (a 2) (b 1) ) "tarray views pointing same buffer")
 (assert (= ((tarray/slice b) 3) (b 3) (a 6) 6) "tarray slice")
 (assert (= ((tarray/slice b 1) 2) (b 3) (a 6) 6) "tarray slice")
+(assert (= (:length a) (length a)) "length method and function")
 
 (assert (= ((unmarshal (marshal b)) 3) (b 3)) "marshal")
 

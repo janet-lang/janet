@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+- Allow (length x) on typed arrays an other abstract types that implement
+  the :length method.
+
 ## 1.3.0 - 2019-09-05
 - Add `get-in`, `put-in`, `update-in`, and `freeze` to core.
 - Add `jpm run rule` and `jpm rules` to jpm to improve utility and discoverability of jpm.

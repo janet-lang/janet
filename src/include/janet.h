@@ -1274,6 +1274,7 @@ JANET_API int janet_cstrcmp(const uint8_t *str, const char *other);
 JANET_API Janet janet_get(Janet ds, Janet key);
 JANET_API Janet janet_getindex(Janet ds, int32_t index);
 JANET_API int32_t janet_length(Janet x);
+JANET_API Janet janet_lengthv(Janet x);
 JANET_API void janet_put(Janet ds, Janet key, Janet value);
 JANET_API void janet_putindex(Janet ds, int32_t index, Janet value);
 JANET_API uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags);
@@ -1286,6 +1287,7 @@ JANET_API void janet_deinit(void);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
 JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
 JANET_API Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv);
+JANET_API Janet janet_mcall(const char *name, int32_t argc, Janet *argv);
 JANET_API void janet_stacktrace(JanetFiber *fiber, Janet err);
 
 /* Scratch Memory API */

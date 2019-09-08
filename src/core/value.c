@@ -299,6 +299,38 @@ int32_t janet_length(Janet x) {
             return janet_struct_length(janet_unwrap_struct(x));
         case JANET_TABLE:
             return janet_unwrap_table(x)->count;
+        case JANET_ABSTRACT: {
+            Janet argv[1] = { x };
+            Janet len = janet_mcall("length", 1, argv);
+            if (!janet_checkint(len))
+                janet_panicf("invalid integer length %v", len);
+            return janet_unwrap_integer(len);
+        }
+    }
+}
+
+Janet janet_lengthv(Janet x) {
+    switch (janet_type(x)) {
+        default:
+            janet_panicf("expected %T, got %v", JANET_TFLAG_LENGTHABLE, x);
+        case JANET_STRING:
+        case JANET_SYMBOL:
+        case JANET_KEYWORD:
+            return janet_wrap_integer(janet_string_length(janet_unwrap_string(x)));
+        case JANET_ARRAY:
+            return janet_wrap_integer(janet_unwrap_array(x)->count);
+        case JANET_BUFFER:
+            return janet_wrap_integer(janet_unwrap_buffer(x)->count);
+        case JANET_TUPLE:
+            return janet_wrap_integer(janet_tuple_length(janet_unwrap_tuple(x)));
+        case JANET_STRUCT:
+            return janet_wrap_integer(janet_struct_length(janet_unwrap_struct(x)));
+        case JANET_TABLE:
+            return janet_wrap_integer(janet_unwrap_table(x)->count);
+        case JANET_ABSTRACT: {
+            Janet argv[1] = { x };
+            return janet_mcall("length", 1, argv);
+        }
     }
 }
 
