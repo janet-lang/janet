@@ -255,7 +255,10 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	src/include/janet.h src/conf/janetconf.h \
 	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
 	build/doc.html README.md build/janet.c
-	tar -czvf $@ $^
+	$(eval JANET_DIST_DIR = "janet-$(shell basename $*)")
+	mkdir -p build/$(JANET_DIST_DIR)
+	cp -r $^ build/$(JANET_DIST_DIR)/
+	cd build && tar -czvf ../$@ $(JANET_DIST_DIR)
 
 #########################
 ##### Documentation #####
