@@ -98,6 +98,7 @@ for %%f in (src\core\*.c) do (
     set "amalg_files=!amalg_files! %%f"
 )
 janet.exe tools\amalg.janet src\core\util.h src\core\state.h src\core\gc.h src\core\vector.h src\core\fiber.h src\core\regalloc.h src\core\compile.h src\core\emit.h src\core\symcache.h %amalg_files% build\core_image.c > build\janet.c
+janet.exe tools\removecr.janet build\janet.c
 
 echo === Successfully built janet.exe for Windows ===
 echo === Run 'build_win test' to run tests. ==
@@ -137,6 +138,7 @@ exit /b 0
 :DIST
 mkdir dist
 janet.exe tools\gendoc.janet > dist\doc.html
+janet.exe tools\removecr.janet dist\doc.html
 
 copy build\janet.c dist\janet.c
 copy janet.exe dist\janet.exe

@@ -9,4 +9,4 @@
 
 # Body
 (each path (tuple/slice (dyn :args) 1)
-  (print (slurp path)))
+  (print (slurp path :r)))
