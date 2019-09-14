@@ -696,11 +696,13 @@ int main(int argc, const char **argv) {
   file is evaluated and a main function is looked for in the entry file. This function
   is marshalled into bytecode which is then embedded in a final executable for distribution.\n\n
   This executable can be installed as well to the --binpath given."
-  [&keys {:install install :name name :entry entry}]
+  [&keys {:install install :name name :entry entry :headers headers}]
   (def name (if is-win (string name ".exe") name))
   (def dest (string "build" sep name))
   (create-executable @{} entry dest)
   (add-dep "build" dest)
+  (when headers
+    (each h headers (add-dep dest h)))
   (when install
     (install-rule dest (dyn :binpath JANET_BINPATH))))
 
