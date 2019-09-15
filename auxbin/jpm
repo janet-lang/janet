@@ -778,7 +778,7 @@ int main(int argc, const char **argv) {
   (phony "test" ["build"]
          (defn dodir
            [dir]
-           (each sub (os/dir dir)
+           (each sub (sort (os/dir dir))
              (def ndir (string dir sep sub))
              (case (os/stat ndir :mode)
                :file (when (string/has-suffix? ".janet" ndir)
