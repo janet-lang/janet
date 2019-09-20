@@ -42,13 +42,13 @@ CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fpic -O2 -fvisibility=hi
 LDFLAGS=-rdynamic
 
 # For installation
-LDCONFIG:=ldconfig
+LDCONFIG:=ldconfig "$(LIBDIR)"
 
 # Check OS
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
 	CLIBS:=$(CLIBS) -ldl
-	LDCONFIG:=update_dyld_shared_cache
+	LDCONFIG:=
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
 endif
@@ -311,7 +311,7 @@ install: $(JANET_TARGET) build/janet.pc
 	cp jpm.1 '$(MANPATH)'
 	mkdir -p '$(PKG_CONFIG_PATH)'
 	cp build/janet.pc '$(PKG_CONFIG_PATH)/janet.pc'
-	-$(LDCONFIG) $(LIBDIR)
+	-$(LDCONFIG)
 
 uninstall:
 	-rm '$(BINDIR)/janet'
