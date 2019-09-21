@@ -385,6 +385,7 @@
         # Load entry environment and get main function.
         (def entry-env (dofile source))
         (def main ((entry-env 'main) :value))
+        (def dep-lflags @[])
 
         # Create marshalling dictionary
         (def mdict (invert (env-lookup root-env)))
@@ -416,6 +417,8 @@
                               "    janet_env_lookup_into(lookup, temptab, \""
                               prefix
                               "\", 0);\n\n")
+          (when-let [lfs (meta :lflags)]
+            (array/concat dep-lflags lfs))
           (buffer/push-string declarations
                               "extern void "
                               (meta :static-entry)
@@ -500,7 +503,7 @@ int main(int argc, const char **argv) {
                       #default
                       ["-lm"]))
   (def cc (opt opts :compiler default-compiler))
-  (def lflags [;(opt opts :lflags default-lflags) ;extra-lflags])
+  (def lflags [;dep-lflags ;(opt opts :lflags default-lflags) ;extra-lflags])
   (def cflags (getcflags opts))
   (def defines (make-defines (opt opts :defines {})))
   (print "compiling and linking " dest "...")

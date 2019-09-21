@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Fix some linking issues when creating executables with native dependencies.
+- jpm now runs each test script in a new interpreter.
 - Fix an issue that prevent some valid programs from compiling.
 - Add `mean` to core.
 - Allow (length x) on typed arrays an other abstract types that implement
