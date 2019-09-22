@@ -74,7 +74,8 @@ void janet_debug_find(
                     int32_t line = def->sourcemap[i].line;
                     int32_t column = def->sourcemap[i].column;
                     if (line <= sourceLine && line >= best_line) {
-                        if (column <= sourceColumn && column > best_column) {
+                        if (column <= sourceColumn &&
+                                (line > best_line || column > best_column)) {
                             best_line = line;
                             best_column = column;
                             besti = i;
@@ -89,6 +90,9 @@ void janet_debug_find(
     if (best_def) {
         *def_out = best_def;
         *pc_out = besti;
+        if (best_def->name) {
+            janet_printf("name: %S\n", best_def->name);
+        }
     } else {
         janet_panic("could not find breakpoint");
     }

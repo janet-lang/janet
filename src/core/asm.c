@@ -802,28 +802,28 @@ Janet janet_asm_decode_instruction(uint32_t instr) {
         case JINT_SU:
         case JINT_SD:
             ret = tup3(name,
-                    janet_wrap_integer(oparg(1, 0xFF)),
-                    janet_wrap_integer(oparg(2, 0xFFFF)));
+                       janet_wrap_integer(oparg(1, 0xFF)),
+                       janet_wrap_integer(oparg(2, 0xFFFF)));
             break;
         case JINT_SI:
         case JINT_SL:
             ret =  tup3(name,
-                    janet_wrap_integer(oparg(1, 0xFF)),
-                    janet_wrap_integer((int32_t)instr >> 16));
+                        janet_wrap_integer(oparg(1, 0xFF)),
+                        janet_wrap_integer((int32_t)instr >> 16));
             break;
         case JINT_SSS:
         case JINT_SES:
         case JINT_SSU:
             ret = tup4(name,
-                    janet_wrap_integer(oparg(1, 0xFF)),
-                    janet_wrap_integer(oparg(2, 0xFF)),
-                    janet_wrap_integer(oparg(3, 0xFF)));
+                       janet_wrap_integer(oparg(1, 0xFF)),
+                       janet_wrap_integer(oparg(2, 0xFF)),
+                       janet_wrap_integer(oparg(3, 0xFF)));
             break;
         case JINT_SSI:
             ret = tup4(name,
-                    janet_wrap_integer(oparg(1, 0xFF)),
-                    janet_wrap_integer(oparg(2, 0xFF)),
-                    janet_wrap_integer((int32_t)instr >> 24));
+                       janet_wrap_integer(oparg(1, 0xFF)),
+                       janet_wrap_integer(oparg(2, 0xFF)),
+                       janet_wrap_integer((int32_t)instr >> 24));
             break;
     }
 #undef oparg
