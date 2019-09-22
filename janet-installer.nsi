@@ -1,6 +1,6 @@
 # Version
-!define VERSION "1.3.0"
-!define PRODUCT_VERSION "${VERSION}.0"
+!define VERSION "1.3.1"
+!define PRODUCT_VERSION "${VERSION}.1"
 VIProductVersion "${PRODUCT_VERSION}"
 VIFileVersion "${PRODUCT_VERSION}"
 

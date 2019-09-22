@@ -236,7 +236,8 @@
   "Take a source file path and convert it to an output path."
   [path from-ext to-ext]
   (->> path
-       (string/replace-all sep "___")
+       (string/replace-all "\\" "___")
+       (string/replace-all "/" "___")
        (string/replace-all from-ext to-ext)
        (string "build" sep)))
 
