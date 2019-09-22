@@ -150,8 +150,44 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
             if (frame->func && frame->pc) {
                 int32_t off = (int32_t)(frame->pc - def->bytecode);
                 if (def->sourcemap) {
+                    /* Try to get line and column information */
                     JanetSourceMapping mapping = def->sourcemap[off];
-                    fprintf(out, " at (%d:%d)", mapping.start, mapping.end);
+                    char buf[1024];
+                    size_t nread;
+                    int32_t offset = 0;
+                    int32_t line = 1;
+                    int32_t col = 1;
+                    int notdone = 1;
+                    char last = 0;
+                    FILE *f;
+                    if (def->source && (f = fopen((const char *)def->source, "rb"))) {
+                        while (notdone && (nread = fread(buf, 1, sizeof(buf), f)) > 0) {
+                            for(size_t i = 0; i < nread; i++) {
+                                char c = buf[i];
+                                if (c == '\r') {
+                                    line++;
+                                    col = 1;
+                                } if (c == '\n') {
+                                    col = 1;
+                                    if (last != '\r') {
+                                        line++;
+                                    }
+                                } else {
+                                    col++;
+                                }
+                                last = c;
+                                if (offset == mapping.start) {
+                                    fprintf(out, " on line %d, column %d", line, col);
+                                    notdone = 0;
+                                    break;
+                                }
+                                offset++;
+                            }
+                        }
+                        fclose(f);
+                    } else {
+                        fprintf(out, " at (%d:%d)", mapping.start, mapping.end);
+                    }
                 } else {
                     fprintf(out, " pc=%d", off);
                 }
