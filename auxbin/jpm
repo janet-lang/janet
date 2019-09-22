@@ -184,6 +184,10 @@
 # OS and shell helpers
 #
 
+(def- path-splitter
+  "split paths on / and \\."
+  (peg/compile ~(any (* '(any (if-not (set `\/`) 1)) (set `\/`)))))
+
 (def- filepath-replacer
   "Convert url with potential bad characters into a file path element."
   (peg/compile ~(% (any (+ (/ '(set "<>:\"/\\|?*") "_") '1)))))
@@ -229,7 +233,8 @@
   "Rename a janet symbol for embedding."
   [path]
   (->> path
-       (string/replace-all sep "___")
+       (string/replace-all "\\" "___")
+       (string/replace-all "/" "___")
        (string/replace-all ".janet" "")))
 
 (defn- out-path
@@ -596,7 +601,7 @@ int main(int argc, const char **argv) {
 (defn install-rule
   "Add install and uninstall rule for moving file from src into destdir."
   [src destdir]
-  (def parts (string/split sep src))
+  (def parts (peg/match path-splitter src))
   (def name (last parts))
   (def path (string destdir sep name))
   (array/push (dyn :installed-files) path)
@@ -706,7 +711,7 @@ int main(int argc, const char **argv) {
   (install-rule main binpath)
   # Create a dud batch file when on windows.
   (when is-win
-    (def name (last (string/split sep main)))
+    (def name (last (peg/match path-splitter main)))
     (def fullname (string binpath sep name))
     (def bat (string "@echo off\r\njanet \"" fullname "\" %*"))
     (def newname (string binpath sep name ".bat"))
