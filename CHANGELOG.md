@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+- Add line, column style stacktraces if source is available. Otherwise, default
+  to (start:end) byte offsets.
+
 ## 1.3.1 - 2019-09-21
 - Fix some linking issues when creating executables with native dependencies.
 - jpm now runs each test script in a new interpreter.
