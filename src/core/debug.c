@@ -162,12 +162,12 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
                     FILE *f;
                     if (def->source && (f = fopen((const char *)def->source, "rb"))) {
                         while (notdone && (nread = fread(buf, 1, sizeof(buf), f)) > 0) {
-                            for(size_t i = 0; i < nread; i++) {
+                            for (size_t i = 0; i < nread; i++) {
                                 char c = buf[i];
                                 if (c == '\r') {
                                     line++;
                                     col = 1;
-                                } if (c == '\n') {
+                                } else if (c == '\n') {
                                     col = 1;
                                     if (last != '\r') {
                                         line++;
