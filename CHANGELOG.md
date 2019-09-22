@@ -2,8 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
-- Add line, column style stacktraces if source is available. Otherwise, default
-  to (start:end) byte offsets.
+- Replace (start:end) style stacktrace source position information with
+  line, column. This should be more readable for humans. Also, range information
+  can be recovered by re-parsing source.
 
 ## 1.3.1 - 2019-09-21
 - Fix some linking issues when creating executables with native dependencies.
