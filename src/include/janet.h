@@ -755,8 +755,8 @@ struct JanetTupleHead {
     JanetGCObject gc;
     int32_t length;
     int32_t hash;
-    int32_t sm_start;
-    int32_t sm_end;
+    int32_t sm_line;
+    int32_t sm_column;
     const Janet data[];
 };
 
@@ -798,8 +798,8 @@ struct JanetAbstractHead {
 
 /* Source mapping structure for a bytecode instruction */
 struct JanetSourceMapping {
-    int32_t start;
-    int32_t end;
+    int32_t line;
+    int32_t column;
 };
 
 /* A function definition. Contains information needed to instantiate closures. */
@@ -869,7 +869,8 @@ struct JanetParser {
     size_t statecap;
     size_t bufcount;
     size_t bufcap;
-    size_t offset;
+    size_t line;
+    size_t column;
     size_t pending;
     int lookback;
     int flag;
@@ -1100,7 +1101,7 @@ JANET_API void janet_debug_break(JanetFuncDef *def, int32_t pc);
 JANET_API void janet_debug_unbreak(JanetFuncDef *def, int32_t pc);
 JANET_API void janet_debug_find(
     JanetFuncDef **def_out, int32_t *pc_out,
-    const uint8_t *source, int32_t offset);
+    const uint8_t *source, int32_t line, int32_t column);
 
 /* Array functions */
 JANET_API JanetArray *janet_array(int32_t capacity);
@@ -1133,8 +1134,8 @@ JANET_API void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
 #define janet_tuple_head(t) ((JanetTupleHead *)((char *)t - offsetof(JanetTupleHead, data)))
 #define janet_tuple_length(t) (janet_tuple_head(t)->length)
 #define janet_tuple_hash(t) (janet_tuple_head(t)->hash)
-#define janet_tuple_sm_start(t) (janet_tuple_head(t)->sm_start)
-#define janet_tuple_sm_end(t) (janet_tuple_head(t)->sm_end)
+#define janet_tuple_sm_line(t) (janet_tuple_head(t)->sm_line)
+#define janet_tuple_sm_column(t) (janet_tuple_head(t)->sm_column)
 #define janet_tuple_flag(t) (janet_tuple_head(t)->gc.flags)
 JANET_API Janet *janet_tuple_begin(int32_t length);
 JANET_API const Janet *janet_tuple_end(Janet *tuple);

@@ -1598,19 +1598,33 @@
 (defn bad-parse
   "Default handler for a parse error."
   [p where]
+  (def ec (dyn :err-color))
+  (def [line col] (parser/where p))
   (file/write stderr
+              (if ec "\e[31m" "")
               "parse error in "
               where
-              " around byte "
-              (string (parser/where p))
+              " around line "
+              (string line)
+              ", column "
+              (string col)
               ": "
               (parser/error p)
+              (if ec "\e[0m" "")
               "\n"))
 
 (defn bad-compile
   "Default handler for a compile error."
   [msg macrof where]
-  (file/write stderr "compile error: " msg " while compiling " where "\n")
+  (def ec (dyn :err-color))
+  (file/write stderr
+              (if ec "\e[31m" "")
+              "compile error: "
+              msg
+              " while compiling "
+              where
+              (if ec "\e[0m" "")
+              "\n")
   (when macrof (debug/stacktrace macrof)))
 
 (defn run-context
@@ -1660,10 +1674,10 @@
             (unless compile-only (res))
             (do
               (set good false)
-              (def {:error err :start start :end end :fiber errf} res)
+              (def {:error err :line line :column column :fiber errf} res)
               (def msg
-                (if (<= 0 start)
-                  (string err " at (" start ":" end ")")
+                (if (<= 0 line)
+                  (string err " on line " line ", column " column)
                   err))
               (on-compile-error msg errf where))))
         (or guard :a)))
@@ -1946,7 +1960,7 @@
   (def level (+ (dyn :debug-level 0) 1))
   (default env (make-env))
   (default chunks (fn [buf p] (getline (string "repl:"
-                                               (parser/where p)
+                                               ((parser/where p) 0)
                                                ":"
                                                (parser/state p :delimiters) "> ")
                                        buf)))
@@ -1967,7 +1981,7 @@ _fiber is bound to the suspended fiber
 ```)
                           (repl (fn [buf p]
                                   (def status (parser/state p :delimiters))
-                                  (def c (parser/where p))
+                                  (def c ((parser/where p) 0))
                                   (def prompt (string "debug[" level "]:" c ":" status "> "))
                                   (getline prompt buf))
                                 onsignal nextenv))

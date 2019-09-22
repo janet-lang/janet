@@ -52,31 +52,34 @@ void janet_debug_unbreak(JanetFuncDef *def, int32_t pc) {
  */
 void janet_debug_find(
     JanetFuncDef **def_out, int32_t *pc_out,
-    const uint8_t *source, int32_t offset) {
+    const uint8_t *source, int32_t sourceLine, int32_t sourceColumn) {
     /* Scan the heap for right func def */
     JanetGCObject *current = janet_vm_blocks;
     /* Keep track of the best source mapping we have seen so far */
     int32_t besti = -1;
-    int32_t best_range = INT32_MAX;
+    int32_t best_line = -1;
+    int32_t best_column = -1;
     JanetFuncDef *best_def = NULL;
     while (NULL != current) {
         if ((current->flags & JANET_MEM_TYPEBITS) == JANET_MEMORY_FUNCDEF) {
-            JanetFuncDef *def = (JanetFuncDef *)(current + 1);
+            JanetFuncDef *def = (JanetFuncDef *)(current);
             if (def->sourcemap &&
                     def->source &&
                     !janet_string_compare(source, def->source)) {
                 /* Correct source file, check mappings. The chosen
-                 * pc index is the first match with the smallest range. */
+                 * pc index is the instruction closest to the given line column, but
+                 * not after. */
                 int32_t i;
                 for (i = 0; i < def->bytecode_length; i++) {
-                    int32_t start = def->sourcemap[i].start;
-                    int32_t end = def->sourcemap[i].end;
-                    if (end - start < best_range &&
-                            start <= offset &&
-                            end >= offset) {
-                        best_range = end - start;
-                        besti = i;
-                        best_def = def;
+                    int32_t line = def->sourcemap[i].line;
+                    int32_t column = def->sourcemap[i].column;
+                    if (line <= sourceLine && line >= best_line) {
+                        if (column <= sourceColumn && column > best_column) {
+                            best_line = line;
+                            best_column = column;
+                            besti = i;
+                            best_def = def;
+                        }
                     }
                 }
             }
@@ -150,44 +153,8 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
             if (frame->func && frame->pc) {
                 int32_t off = (int32_t)(frame->pc - def->bytecode);
                 if (def->sourcemap) {
-                    /* Try to get line and column information */
                     JanetSourceMapping mapping = def->sourcemap[off];
-                    char buf[1024];
-                    size_t nread;
-                    int32_t offset = 0;
-                    int32_t line = 1;
-                    int32_t col = 1;
-                    int notdone = 1;
-                    char last = 0;
-                    FILE *f;
-                    if (def->source && (f = fopen((const char *)def->source, "rb"))) {
-                        while (notdone && (nread = fread(buf, 1, sizeof(buf), f)) > 0) {
-                            for (size_t i = 0; i < nread; i++) {
-                                char c = buf[i];
-                                if (c == '\r') {
-                                    line++;
-                                    col = 1;
-                                } else if (c == '\n') {
-                                    col = 1;
-                                    if (last != '\r') {
-                                        line++;
-                                    }
-                                } else {
-                                    col++;
-                                }
-                                last = c;
-                                if (offset == mapping.start) {
-                                    fprintf(out, " on line %d, column %d", line, col);
-                                    notdone = 0;
-                                    break;
-                                }
-                                offset++;
-                            }
-                        }
-                        fclose(f);
-                    } else {
-                        fprintf(out, " at (%d:%d)", mapping.start, mapping.end);
-                    }
+                    fprintf(out, " on line %d, column %d", mapping.line, mapping.column);
                 } else {
                     fprintf(out, " pc=%d", off);
                 }
@@ -208,10 +175,11 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
 /* Helper to find funcdef and bytecode offset to insert or remove breakpoints.
  * Takes a source file name and byte offset. */
 static void helper_find(int32_t argc, Janet *argv, JanetFuncDef **def, int32_t *bytecode_offset) {
-    janet_fixarity(argc, 2);
+    janet_fixarity(argc, 3);
     const uint8_t *source = janet_getstring(argv, 0);
-    int32_t source_offset = janet_getinteger(argv, 1);
-    janet_debug_find(def, bytecode_offset, source, source_offset);
+    int32_t line = janet_getinteger(argv, 1);
+    int32_t col = janet_getinteger(argv, 2);
+    janet_debug_find(def, bytecode_offset, source, line, col);
 }
 
 /* Helper to find funcdef and bytecode offset to insert or remove breakpoints.
@@ -298,8 +266,8 @@ static Janet doframe(JanetStackFrame *frame) {
         janet_table_put(t, janet_ckeywordv("pc"), janet_wrap_integer(off));
         if (def->sourcemap) {
             JanetSourceMapping mapping = def->sourcemap[off];
-            janet_table_put(t, janet_ckeywordv("source-start"), janet_wrap_integer(mapping.start));
-            janet_table_put(t, janet_ckeywordv("source-end"), janet_wrap_integer(mapping.end));
+            janet_table_put(t, janet_ckeywordv("source-line"), janet_wrap_integer(mapping.line));
+            janet_table_put(t, janet_ckeywordv("source-column"), janet_wrap_integer(mapping.column));
         }
         if (def->source) {
             janet_table_put(t, janet_ckeywordv("source"), janet_wrap_string(def->source));
@@ -349,17 +317,17 @@ static const JanetReg debug_cfuns[] = {
     {
         "debug/break", cfun_debug_break,
         JDOC("(debug/break source byte-offset)\n\n"
-             "Sets a breakpoint with source a key at a given byte offset. An offset "
-             "of 0 is the first byte in a file. Will throw an error if the breakpoint location "
+             "Sets a breakpoint with source a key at a given line and column. "
+             "Will throw an error if the breakpoint location "
              "cannot be found. For example\n\n"
              "\t(debug/break \"core.janet\" 1000)\n\n"
              "wil set a breakpoint at the 1000th byte of the file core.janet.")
     },
     {
         "debug/unbreak", cfun_debug_unbreak,
-        JDOC("(debug/unbreak source byte-offset)\n\n"
-             "Remove a breakpoint with a source key at a given byte offset. An offset "
-             "of 0 is the first byte in a file. Will throw an error if the breakpoint "
+        JDOC("(debug/unbreak source line column)\n\n"
+             "Remove a breakpoint with a source key at a given line and column. "
+             "Will throw an error if the breakpoint "
              "cannot be found.")
     },
     {

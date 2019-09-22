@@ -258,9 +258,9 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
         int32_t current = 0;
         for (int32_t i = 0; i < def->bytecode_length; i++) {
             JanetSourceMapping map = def->sourcemap[i];
-            pushint(st, map.start - current);
-            pushint(st, map.end - map.start);
-            current = map.end;
+            pushint(st, map.line - current);
+            pushint(st, map.column);
+            current = map.line;
         }
     }
 }
@@ -827,9 +827,8 @@ static const uint8_t *unmarshal_one_def(
             }
             for (int32_t i = 0; i < bytecode_length; i++) {
                 current += readint(st, &data);
-                def->sourcemap[i].start = current;
-                current += readint(st, &data);
-                def->sourcemap[i].end = current;
+                def->sourcemap[i].line = current;
+                def->sourcemap[i].column = readint(st, &data);
             }
         } else {
             def->sourcemap = NULL;

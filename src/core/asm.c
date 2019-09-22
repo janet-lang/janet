@@ -705,8 +705,8 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             if (!janet_checkint(tup[1])) {
                 janet_asm_error(&a, "expected integer");
             }
-            mapping.start = janet_unwrap_integer(tup[0]);
-            mapping.end = janet_unwrap_integer(tup[1]);
+            mapping.line = janet_unwrap_integer(tup[0]);
+            mapping.column = janet_unwrap_integer(tup[1]);
             def->sourcemap[i] = mapping;
         }
     }
@@ -749,31 +749,31 @@ static const JanetInstructionDef *janet_asm_reverse_lookup(uint32_t instr) {
 }
 
 /* Create some constant sized tuples */
-static Janet tup1(Janet x) {
+static const Janet *tup1(Janet x) {
     Janet *tup = janet_tuple_begin(1);
     tup[0] = x;
-    return janet_wrap_tuple(janet_tuple_end(tup));
+    return janet_tuple_end(tup);
 }
-static Janet tup2(Janet x, Janet y) {
+static const Janet *tup2(Janet x, Janet y) {
     Janet *tup = janet_tuple_begin(2);
     tup[0] = x;
     tup[1] = y;
-    return janet_wrap_tuple(janet_tuple_end(tup));
+    return janet_tuple_end(tup);
 }
-static Janet tup3(Janet x, Janet y, Janet z) {
+static const Janet *tup3(Janet x, Janet y, Janet z) {
     Janet *tup = janet_tuple_begin(3);
     tup[0] = x;
     tup[1] = y;
     tup[2] = z;
-    return janet_wrap_tuple(janet_tuple_end(tup));
+    return janet_tuple_end(tup);
 }
-static Janet tup4(Janet w, Janet x, Janet y, Janet z) {
+static const Janet *tup4(Janet w, Janet x, Janet y, Janet z) {
     Janet *tup = janet_tuple_begin(4);
     tup[0] = w;
     tup[1] = x;
     tup[2] = y;
     tup[3] = z;
-    return janet_wrap_tuple(janet_tuple_end(tup));
+    return janet_tuple_end(tup);
 }
 
 /* Given an argument, convert it to the appropriate integer or symbol */
@@ -784,41 +784,56 @@ Janet janet_asm_decode_instruction(uint32_t instr) {
         return janet_wrap_integer((int32_t)instr);
     }
     name = janet_csymbolv(def->name);
+    const Janet *ret = NULL;
 #define oparg(shift, mask) ((instr >> ((shift) << 3)) & (mask))
     switch (janet_instructions[def->opcode]) {
         case JINT_0:
-            return tup1(name);
+            ret = tup1(name);
+            break;
         case JINT_S:
-            return tup2(name, janet_wrap_integer(oparg(1, 0xFFFFFF)));
+            ret = tup2(name, janet_wrap_integer(oparg(1, 0xFFFFFF)));
+            break;
         case JINT_L:
-            return tup2(name, janet_wrap_integer((int32_t)instr >> 8));
+            ret = tup2(name, janet_wrap_integer((int32_t)instr >> 8));
+            break;
         case JINT_SS:
         case JINT_ST:
         case JINT_SC:
         case JINT_SU:
         case JINT_SD:
-            return tup3(name,
-                        janet_wrap_integer(oparg(1, 0xFF)),
-                        janet_wrap_integer(oparg(2, 0xFFFF)));
+            ret = tup3(name,
+                    janet_wrap_integer(oparg(1, 0xFF)),
+                    janet_wrap_integer(oparg(2, 0xFFFF)));
+            break;
         case JINT_SI:
         case JINT_SL:
-            return tup3(name,
-                        janet_wrap_integer(oparg(1, 0xFF)),
-                        janet_wrap_integer((int32_t)instr >> 16));
+            ret =  tup3(name,
+                    janet_wrap_integer(oparg(1, 0xFF)),
+                    janet_wrap_integer((int32_t)instr >> 16));
+            break;
         case JINT_SSS:
         case JINT_SES:
         case JINT_SSU:
-            return tup4(name,
-                        janet_wrap_integer(oparg(1, 0xFF)),
-                        janet_wrap_integer(oparg(2, 0xFF)),
-                        janet_wrap_integer(oparg(3, 0xFF)));
+            ret = tup4(name,
+                    janet_wrap_integer(oparg(1, 0xFF)),
+                    janet_wrap_integer(oparg(2, 0xFF)),
+                    janet_wrap_integer(oparg(3, 0xFF)));
+            break;
         case JINT_SSI:
-            return tup4(name,
-                        janet_wrap_integer(oparg(1, 0xFF)),
-                        janet_wrap_integer(oparg(2, 0xFF)),
-                        janet_wrap_integer((int32_t)instr >> 24));
+            ret = tup4(name,
+                    janet_wrap_integer(oparg(1, 0xFF)),
+                    janet_wrap_integer(oparg(2, 0xFF)),
+                    janet_wrap_integer((int32_t)instr >> 24));
+            break;
     }
 #undef oparg
+    if (ret) {
+        /* Check if break point set */
+        if (instr & 0x80) {
+            janet_tuple_flag(ret) |= JANET_TUPLE_FLAG_BRACKETCTOR;
+        }
+        return janet_wrap_tuple(ret);
+    }
     return janet_wrap_nil();
 }
 
@@ -849,7 +864,7 @@ Janet janet_disasm(JanetFuncDef *def) {
             Janet src = def->constants[i];
             Janet dest;
             if (janet_checktype(src, JANET_TUPLE)) {
-                dest = tup2(janet_csymbolv("quote"), src);
+                dest = janet_wrap_tuple(tup2(janet_csymbolv("quote"), src));
             } else {
                 dest = src;
             }
@@ -870,8 +885,8 @@ Janet janet_disasm(JanetFuncDef *def) {
         for (i = 0; i < def->bytecode_length; i++) {
             Janet *t = janet_tuple_begin(2);
             JanetSourceMapping mapping = def->sourcemap[i];
-            t[0] = janet_wrap_integer(mapping.start);
-            t[1] = janet_wrap_integer(mapping.end);
+            t[0] = janet_wrap_integer(mapping.line);
+            t[1] = janet_wrap_integer(mapping.column);
             sourcemap->data[i] = janet_wrap_tuple(janet_tuple_end(t));
         }
         sourcemap->count = def->bytecode_length;

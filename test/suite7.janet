@@ -155,5 +155,12 @@
 (assert (= (|(+ $1 $1 $1 $1) 2 4) 16) "function shorthand 8")
 (assert (= (|(+ $0 $1 $3 $2 $6) 0 1 2 3 4 5 6) 12) "function shorthand 9")
 
+# Simple function break
+(debug/fbreak map)
+(def f (fiber/new (fn [] (map inc [1 2 3])) :a))
+(resume f)
+(assert (= :debug (fiber/status f)) "debug/fbreak")
+(debug/unfbreak map)
+(map inc [1 2 3])
 
 (end-suite)

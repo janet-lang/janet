@@ -80,8 +80,8 @@
       (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2019 Calvin Rose"))
     (defn noprompt [_] "")
     (defn getprompt [p]
-      (def offset (parser/where p))
-      (string "janet:" offset ":" (parser/state p :delimiters) "> "))
+      (def [line] (parser/where p))
+      (string "janet:" line ":" (parser/state p :delimiters) "> "))
     (def prompter (if *quiet* noprompt getprompt))
     (defn getstdin [prompt buf]
       (file/write stdout prompt)

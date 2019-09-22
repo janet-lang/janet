@@ -33,8 +33,8 @@
 Janet *janet_tuple_begin(int32_t length) {
     size_t size = sizeof(JanetTupleHead) + (length * sizeof(Janet));
     JanetTupleHead *head = janet_gcalloc(JANET_MEMORY_TUPLE, size);
-    head->sm_start = -1;
-    head->sm_end = -1;
+    head->sm_line = -1;
+    head->sm_column = -1;
     head->length = length;
     return (Janet *)(head->data);
 }
@@ -119,16 +119,16 @@ static Janet cfun_tuple_sourcemap(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     const Janet *tup = janet_gettuple(argv, 0);
     Janet contents[2];
-    contents[0] = janet_wrap_integer(janet_tuple_head(tup)->sm_start);
-    contents[1] = janet_wrap_integer(janet_tuple_head(tup)->sm_end);
+    contents[0] = janet_wrap_integer(janet_tuple_head(tup)->sm_line);
+    contents[1] = janet_wrap_integer(janet_tuple_head(tup)->sm_column);
     return janet_wrap_tuple(janet_tuple_n(contents, 2));
 }
 
 static Janet cfun_tuple_setmap(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 3);
     const Janet *tup = janet_gettuple(argv, 0);
-    janet_tuple_head(tup)->sm_start = janet_getinteger(argv, 1);
-    janet_tuple_head(tup)->sm_end = janet_getinteger(argv, 2);
+    janet_tuple_head(tup)->sm_line = janet_getinteger(argv, 1);
+    janet_tuple_head(tup)->sm_column = janet_getinteger(argv, 2);
     return argv[0];
 }
 
@@ -158,16 +158,14 @@ static const JanetReg tuple_cfuns[] = {
     {
         "tuple/sourcemap", cfun_tuple_sourcemap,
         JDOC("(tuple/sourcemap tup)\n\n"
-             "Returns the sourcemap metadata attached to a tuple. "
-             "The mapping is represented by a pair of byte offsets into the "
-             "the source code representing the start and end byte indices where "
-             "the tuple is. ")
+             "Returns the sourcemap metadata attached to a tuple, "
+             " which is another tuple (line, column).")
     },
     {
         "tuple/setmap", cfun_tuple_setmap,
-        JDOC("(tuple/setmap tup start end)\n\n"
-             "Set the sourcemap metadata on a tuple. start and end should "
-             "be integers representing byte offsets into the file. Returns tup.")
+        JDOC("(tuple/setmap tup line column)\n\n"
+             "Set the sourcemap metadata on a tuple. line and column indicate "
+             "should be integers.")
     },
     {NULL, NULL, NULL}
 };

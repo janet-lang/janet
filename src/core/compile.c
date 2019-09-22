@@ -474,9 +474,9 @@ static int macroexpand1(
     if (janet_tuple_length(form) == 0)
         return 0;
     /* Source map - only set when we get a tuple */
-    if (janet_tuple_sm_start(form) >= 0) {
-        c->current_mapping.start = janet_tuple_sm_start(form);
-        c->current_mapping.end = janet_tuple_sm_end(form);
+    if (janet_tuple_sm_line(form) >= 0) {
+        c->current_mapping.line = janet_tuple_sm_line(form);
+        c->current_mapping.column = janet_tuple_sm_column(form);
     }
     /* Bracketed tuples are not specials or macros! */
     if (janet_tuple_flag(form) & JANET_TUPLE_FLAG_BRACKETCTOR)
@@ -664,15 +664,15 @@ static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where)
     c->recursion_guard = JANET_RECURSION_GUARD;
     c->env = env;
     c->source = where;
-    c->current_mapping.start = -1;
-    c->current_mapping.end = -1;
+    c->current_mapping.line = -1;
+    c->current_mapping.column = -1;
     /* Init result */
     c->result.error = NULL;
     c->result.status = JANET_COMPILE_OK;
     c->result.funcdef = NULL;
     c->result.macrofiber = NULL;
-    c->result.error_mapping.start = -1;
-    c->result.error_mapping.end = -1;
+    c->result.error_mapping.line = -1;
+    c->result.error_mapping.column = -1;
 }
 
 /* Deinitialize a compiler struct */
@@ -733,8 +733,8 @@ static Janet cfun(int32_t argc, Janet *argv) {
     } else {
         JanetTable *t = janet_table(4);
         janet_table_put(t, janet_ckeywordv("error"), janet_wrap_string(res.error));
-        janet_table_put(t, janet_ckeywordv("start"), janet_wrap_integer(res.error_mapping.start));
-        janet_table_put(t, janet_ckeywordv("end"), janet_wrap_integer(res.error_mapping.end));
+        janet_table_put(t, janet_ckeywordv("line"), janet_wrap_integer(res.error_mapping.line));
+        janet_table_put(t, janet_ckeywordv("column"), janet_wrap_integer(res.error_mapping.column));
         if (res.macrofiber) {
             janet_table_put(t, janet_ckeywordv("fiber"), janet_wrap_fiber(res.macrofiber));
         }
