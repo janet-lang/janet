@@ -41,10 +41,14 @@ CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fpic -O2 -fvisibility=hi
 	   -DJANET_BUILD=$(JANET_BUILD)
 LDFLAGS=-rdynamic
 
+# For installation
+LDCONFIG:=ldconfig "$(LIBDIR)"
+
 # Check OS
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
 	CLIBS:=$(CLIBS) -ldl
+	LDCONFIG:=
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
 endif
@@ -255,7 +259,10 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	src/include/janet.h src/conf/janetconf.h \
 	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
 	build/doc.html README.md build/janet.c
-	tar -czvf $@ $^
+	$(eval JANET_DIST_DIR = "janet-$(shell basename $*)")
+	mkdir -p build/$(JANET_DIST_DIR)
+	cp -r $^ build/$(JANET_DIST_DIR)/
+	cd build && tar -czvf ../$@ $(JANET_DIST_DIR)
 
 #########################
 ##### Documentation #####
@@ -304,7 +311,7 @@ install: $(JANET_TARGET) build/janet.pc
 	cp jpm.1 '$(MANPATH)'
 	mkdir -p '$(PKG_CONFIG_PATH)'
 	cp build/janet.pc '$(PKG_CONFIG_PATH)/janet.pc'
-	-ldconfig $(LIBDIR)
+	-$(LDCONFIG)
 
 uninstall:
 	-rm '$(BINDIR)/janet'

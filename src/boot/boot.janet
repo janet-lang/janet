@@ -445,6 +445,11 @@
   (each x xs (+= accum x))
   accum)
 
+(defn mean
+  "Returns the mean of xs. If empty, returns NaN."
+  [xs]
+  (/ (sum xs) (length xs)))
+
 (defn product
   "Returns the product of xs. If xs is empty, returns 1."
   [xs]

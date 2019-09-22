@@ -62,7 +62,7 @@ documentation for symbols in the core library. For example,
 Shows documentation for the doc macro.
 
 To get a list of all bindings in the default
-environment, use the `(all-symbols)` function.
+environment, use the `(all-bindings)` function.
 
 ## Source
 

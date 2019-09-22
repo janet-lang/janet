@@ -372,6 +372,7 @@
         # Load entry environment and get main function.
         (def entry-env (dofile source))
         (def main ((entry-env 'main) :value))
+        (def dep-lflags @[])
 
         # Create marshalling dictionary
         (def mdict (invert (env-lookup root-env)))
@@ -403,6 +404,8 @@
                               "    janet_env_lookup_into(lookup, temptab, \""
                               prefix
                               "\", 0);\n\n")
+          (when-let [lfs (meta :lflags)]
+            (array/concat dep-lflags lfs))
           (buffer/push-string declarations
                               "extern void "
                               (meta :static-entry)
@@ -487,7 +490,7 @@ int main(int argc, const char **argv) {
                       #default
                       ["-lm"]))
   (def cc (opt opts :compiler default-compiler))
-  (def lflags [;(opt opts :lflags default-lflags) ;extra-lflags])
+  (def lflags [;dep-lflags ;(opt opts :lflags default-lflags) ;extra-lflags])
   (def cflags (getcflags opts))
   (def defines (make-defines (opt opts :defines {})))
   (print "compiling and linking " dest "...")
@@ -683,11 +686,13 @@ int main(int argc, const char **argv) {
   file is evaluated and a main function is looked for in the entry file. This function
   is marshalled into bytecode which is then embedded in a final executable for distribution.\n\n
   This executable can be installed as well to the --binpath given."
-  [&keys {:install install :name name :entry entry}]
+  [&keys {:install install :name name :entry entry :headers headers}]
   (def name (if is-win (string name ".exe") name))
   (def dest (string "build" sep name))
   (create-executable @{} entry dest)
   (add-dep "build" dest)
+  (when headers
+    (each h headers (add-dep dest h)))
   (when install
     (install-rule dest (dyn :binpath JANET_BINPATH))))
 
@@ -763,12 +768,14 @@ int main(int argc, const char **argv) {
   (phony "test" ["build"]
          (defn dodir
            [dir]
-           (each sub (os/dir dir)
+           (each sub (sort (os/dir dir))
              (def ndir (string dir sep sub))
              (case (os/stat ndir :mode)
                :file (when (string/has-suffix? ".janet" ndir)
                        (print "running " ndir " ...")
-                       (dofile ndir :exit true))
+                       (def result (os/execute [(dyn :executable "janet") ndir] :p))
+                       (when (not= 0 result)
+                         (os/exit result)))
                :directory (dodir ndir))))
          (dodir "test")
          (print "All tests passed.")))
