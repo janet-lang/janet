@@ -1,11 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.3.1 - 2019-09-21
 - Fix some linking issues when creating executables with native dependencies.
 - jpm now runs each test script in a new interpreter.
 - Fix an issue that prevent some valid programs from compiling.
 - Add `mean` to core.
+- Abstract types that implement the `:+`, `:-`, `:*`, `:/`, `:>`, `:==`, `:<`,
+  `:<=`, and `:>=` methods will work with the corresponding built-in
+  arithmetic functions. This means built-in integer types can now be used as
+  normal number values in many contexts.
 - Allow (length x) on typed arrays an other abstract types that implement
   the :length method.
 
