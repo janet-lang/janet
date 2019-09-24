@@ -108,6 +108,9 @@ static void kmp_init(
     if (!lookup) {
         JANET_OUT_OF_MEMORY;
     }
+    if (patlen == 0) {
+        janet_panic("expected non-empty pattern");
+    }
     s->lookup = lookup;
     s->i = 0;
     s->j = 0;
@@ -378,15 +381,13 @@ static Janet cfun_string_split(int32_t argc, Janet *argv) {
     }
     findsetup(argc, argv, &state, 1);
     array = janet_array(0);
-    while ((result = kmp_next(&state)) >= 0 && limit--) {
+    while ((result = kmp_next(&state)) >= 0 && --limit) {
         const uint8_t *slice = janet_string(state.text + lastindex, result - lastindex);
         janet_array_push(array, janet_wrap_string(slice));
         lastindex = result + state.patlen;
     }
-    {
-        const uint8_t *slice = janet_string(state.text + lastindex, state.textlen - lastindex);
-        janet_array_push(array, janet_wrap_string(slice));
-    }
+    const uint8_t *slice = janet_string(state.text + lastindex, state.textlen - lastindex);
+    janet_array_push(array, janet_wrap_string(slice));
     kmp_deinit(&state);
     return janet_wrap_array(array);
 }
@@ -600,10 +601,12 @@ static const JanetReg string_cfuns[] = {
     },
     {
         "string/split", cfun_string_split,
-        JDOC("(string/split delim str)\n\n"
+        JDOC("(string/split delim str &opt start limit)\n\n"
              "Splits a string str with delimiter delim and returns an array of "
              "substrings. The substrings will not contain the delimiter delim. If delim "
-             "is not found, the returned array will have one element.")
+             "is not found, the returned array will have one element. Will start searching "
+             "for delim at the index start (if provided), and return up to a maximum "
+             "of limit results (if provided).")
     },
     {
         "string/check-set", cfun_string_checkset,

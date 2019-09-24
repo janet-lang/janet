@@ -62,8 +62,7 @@
 
 # String functions
 (assert (= 3 (string/find "abc" "   abcdefghijklmnop")) "string/find 1")
-(assert (= nil (string/find "" "")) "string/find 2")
-(assert (= 0 (string/find "A" "A")) "string/find 3")
+(assert (= 0 (string/find "A" "A")) "string/find 2")
 (assert (string/has-prefix? "" "foo") "string/has-prefix? 1")
 (assert (string/has-prefix? "fo" "foo") "string/has-prefix? 2")
 (assert (not (string/has-prefix? "o" "foo")) "string/has-prefix? 3")
@@ -97,6 +96,12 @@
 (assert (deep= (string/split "," "onetwothree") @["onetwothree"]) "string/split 2")
 (assert (deep= (string/find-all "e" "onetwothree") @[2 9 10]) "string/find-all 1")
 (assert (deep= (string/find-all "," "onetwothree") @[]) "string/find-all 2")
+
+(assert-error "string/find error 1" (string/find "" "abcd"))
+(assert-error "string/split error 1" (string/split "" "abcd"))
+(assert-error "string/replace error 1" (string/replace "" "." "abcd"))
+(assert-error "string/replace-all error 1" (string/replace-all "" "." "abcdabcd"))
+(assert-error "string/find-all error 1" (string/find-all "" "abcd"))
 
 # Check if abstract test works
 (assert (abstract? stdout) "abstract? stdout")

@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- `string/` functions that take a pattern to search for will throw an error
+  when receiving the empty string.
 - Replace (start:end) style stacktrace source position information with
   line, column. This should be more readable for humans. Also, range information
   can be recovered by re-parsing source.
