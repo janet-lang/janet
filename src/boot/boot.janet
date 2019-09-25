@@ -564,7 +564,7 @@
   "(sort xs [, by])\n\nSort an array in-place. Uses quick-sort and is not a stable sort."
   (do
 
-    (defn partition
+    (defn part
       [a lo hi by]
       (def pivot (get a hi))
       (var i lo)
@@ -582,7 +582,7 @@
     (defn sort-help
       [a lo hi by]
       (when (> hi lo)
-        (def piv (partition a lo hi by))
+        (def piv (part a lo hi by))
         (sort-help a lo (- piv 1) by)
         (sort-help a (+ piv 1) hi by))
       a)
@@ -1149,6 +1149,11 @@
     (+= nextn n))
   (if (not= i len) (array/push ret (slicer ind i)))
   ret)
+
+(defn slice
+  "Extract a sub-range of an indexed data strutrue or byte sequence."
+  [ind &opt start end]
+  ((if (bytes? ind) string/slice tuple/slice) ind start end))
 
 ###
 ###
