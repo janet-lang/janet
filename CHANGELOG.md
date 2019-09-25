@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Added `slice` to the core library.
+- The `*/slice` family of functions now can take nil as start or end to get
+  the same behavior as the defaults (0 and -1) for those parameters.
 - `string/` functions that take a pattern to search for will throw an error
   when receiving the empty string.
 - Replace (start:end) style stacktrace source position information with
