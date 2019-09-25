@@ -148,7 +148,8 @@
     (do
       (if (os/getenv "INCLUDE") (break))
       (error "Run jpm inside a Developer Command Prompt.
- jpm needs a c compiler to compile natives. You can install the MSVC compiler at "))
+ jpm needs a c compiler to compile natives. You can install the MSVC compiler from
+ microsoft.com"))
     (do)))
 
 #
