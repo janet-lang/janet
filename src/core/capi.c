@@ -99,6 +99,11 @@ type janet_get##name(const Janet *argv, int32_t n) { \
         janet_panic_type(x, n, JANET_TFLAG_##NAME); \
     } \
     return janet_unwrap_##name(x); \
+} \
+type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, type dflt) { \
+    if (argc >= n) return dflt; \
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt; \
+    return janet_get##name(argv, n); \
 }
 
 Janet janet_getmethod(const uint8_t *method, const JanetMethod *methods) {
@@ -221,11 +226,17 @@ JanetRange janet_getslice(int32_t argc, const Janet *argv) {
         range.start = 0;
         range.end = length;
     } else if (argc == 2) {
-        range.start = janet_gethalfrange(argv, 1, length, "start");
+        range.start = janet_checktype(argv[1], JANET_NIL)
+            ? 0
+            : janet_gethalfrange(argv, 1, length, "start");
         range.end = length;
     } else {
-        range.start = janet_gethalfrange(argv, 1, length, "start");
-        range.end = janet_gethalfrange(argv, 2, length, "end");
+        range.start = janet_checktype(argv[1], JANET_NIL)
+            ? 0
+            : janet_gethalfrange(argv, 1, length, "start");
+        range.end = janet_checktype(argv[2], JANET_NIL)
+            ? length
+            : janet_gethalfrange(argv, 2, length, "end");
         if (range.end < range.start)
             range.end = range.start;
     }
@@ -269,6 +280,30 @@ uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
         ;
     }
     return ret;
+}
+
+int32_t janet_optinteger(const Janet *argv, int32_t argc, int32_t n, int32_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getinteger(argv, n);
+}
+
+int64_t janet_optinteger64(const Janet *argv, int32_t argc, int32_t n, int64_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getinteger64(argv, n);
+}
+
+size_t janet_optsize(const Janet *argv, int32_t argc, int32_t n, size_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getsize(argv, n);
+}
+
+void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetAbstractType *at, void *dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getabstract(argv, n, at);
 }
 
 /* Some definitions for function-like macros */
