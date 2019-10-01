@@ -227,16 +227,16 @@ JanetRange janet_getslice(int32_t argc, const Janet *argv) {
         range.end = length;
     } else if (argc == 2) {
         range.start = janet_checktype(argv[1], JANET_NIL)
-            ? 0
-            : janet_gethalfrange(argv, 1, length, "start");
+                      ? 0
+                      : janet_gethalfrange(argv, 1, length, "start");
         range.end = length;
     } else {
         range.start = janet_checktype(argv[1], JANET_NIL)
-            ? 0
-            : janet_gethalfrange(argv, 1, length, "start");
+                      ? 0
+                      : janet_gethalfrange(argv, 1, length, "start");
         range.end = janet_checktype(argv[2], JANET_NIL)
-            ? length
-            : janet_gethalfrange(argv, 2, length, "end");
+                    ? length
+                    : janet_gethalfrange(argv, 2, length, "end");
         if (range.end < range.start)
             range.end = range.start;
     }
