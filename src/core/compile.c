@@ -320,33 +320,46 @@ JanetSlot *janetc_toslotskv(JanetCompiler *c, Janet ds) {
     return ret;
 }
 
-/* Push slots load via janetc_toslots. */
-void janetc_pushslots(JanetCompiler *c, JanetSlot *slots) {
+/* Push slots loaded via janetc_toslots. Return the minimum number of slots pushed, 
+ * or -1 - min_arity if there is a splice. (if there is no splice, min_arity is also
+ * the maximum possible arity). */
+int32_t janetc_pushslots(JanetCompiler *c, JanetSlot *slots) {
     int32_t i;
     int32_t count = janet_v_count(slots);
+    int32_t min_arity = 0;
+    int has_splice = 0;
     for (i = 0; i < count;) {
         if (slots[i].flags & JANET_SLOT_SPLICED) {
             janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i], 0);
             i++;
+            has_splice = 1;
         } else if (i + 1 == count) {
             janetc_emit_s(c, JOP_PUSH, slots[i], 0);
             i++;
+            min_arity++;
         } else if (slots[i + 1].flags & JANET_SLOT_SPLICED) {
             janetc_emit_s(c, JOP_PUSH, slots[i], 0);
             janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i + 1], 0);
             i += 2;
+            min_arity++;
+            has_splice = 1;
         } else if (i + 2 == count) {
             janetc_emit_ss(c, JOP_PUSH_2, slots[i], slots[i + 1], 0);
             i += 2;
+            min_arity += 2;
         } else if (slots[i + 2].flags & JANET_SLOT_SPLICED) {
             janetc_emit_ss(c, JOP_PUSH_2, slots[i], slots[i + 1], 0);
             janetc_emit_s(c, JOP_PUSH_ARRAY, slots[i + 2], 0);
             i += 3;
+            min_arity += 2;
+            has_splice = 1;
         } else {
             janetc_emit_sss(c, JOP_PUSH_3, slots[i], slots[i + 1], slots[i + 2], 0);
             i += 3;
+            min_arity += 3;
         }
     }
+    return has_splice ? (-1 - min_arity) : min_arity;
 }
 
 /* Check if a list of slots has any spliced slots */
@@ -403,7 +416,68 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun) {
         /* TODO janet function inlining (no c functions)*/
     }
     if (!specialized) {
-        janetc_pushslots(c, slots);
+        int32_t min_arity = janetc_pushslots(c, slots);
+        /* Check for provably incorrect function calls */
+        if (fun.flags & JANET_SLOT_CONSTANT) {
+
+            /* Check for bad arity type if fun is a constant */
+            switch (janet_type(fun.constant)) {
+                case JANET_FUNCTION:
+                    {
+                        JanetFunction *f = janet_unwrap_function(fun.constant);
+                        int32_t min = f->def->min_arity;
+                        int32_t max = f->def->max_arity;
+                        if (min_arity < 0) {
+                            /* Call has splices */
+                            min_arity = -1 - min_arity;
+                            if (min_arity > max && max >= 0) {
+                                const uint8_t *es = janet_formatc(
+                                        "%v expects at most %d argument, got at least %d",
+                                        fun.constant, max, min_arity);
+                                janetc_error(c, es);
+                            }
+                        } else {
+                            /* Call has no splices */
+                            if (min_arity > max && max >= 0) {
+                                const uint8_t *es = janet_formatc(
+                                        "%v expects at most %d argument, got %d",
+                                        fun.constant, max, min_arity);
+                                janetc_error(c, es);
+                            }
+                            if (min_arity < min) {
+                                const uint8_t *es = janet_formatc(
+                                        "%v expects at least %d argument, got %d",
+                                        fun.constant, min, min_arity);
+                                janetc_error(c, es);
+                            }
+                        }
+                    }
+                    break;
+                case JANET_CFUNCTION:
+                case JANET_ABSTRACT:
+                    break;
+                case JANET_KEYWORD:
+                    if (min_arity == 0) {
+                        const uint8_t *es = janet_formatc("%v expects at least 1 argument, got 0",
+                                fun.constant);
+                        janetc_error(c, es);
+                    }
+                    break;
+                default:
+                    if (min_arity > 1 || min_arity == 0) {
+                        const uint8_t *es = janet_formatc("%v expects 1 argument, got %d",
+                                fun.constant, min_arity);
+                        janetc_error(c, es);
+                    }
+                    if (min_arity < -2) {
+                        const uint8_t *es = janet_formatc("%v expects 1 argument, got at least %d",
+                                fun.constant, -1 - min_arity);
+                        janetc_error(c, es);
+                    }
+                    break;
+            }
+        }
+
         if ((opts.flags & JANET_FOPTS_TAIL) &&
                 /* Prevent top level tail calls for better errors */
                 !(c->scope->flags & JANET_SCOPE_TOP)) {

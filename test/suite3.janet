@@ -78,11 +78,15 @@
 
 # Another regression test - no segfaults
 (defn afn [x] x)
-(assert (= 1 (try (afn) ([err] 1))) "bad arity 1")
+(var afn-var afn)
+(var identity-var identity)
+(var map-var map)
+(var not-var not)
+(assert (= 1 (try (afn-var) ([err] 1))) "bad arity 1")
 (assert (= 4 (try ((fn [x y] (+ x y)) 1) ([_] 4))) "bad arity 2")
-(assert (= 1 (try (identity) ([err] 1))) "bad arity 3")
-(assert (= 1 (try (map) ([err] 1))) "bad arity 4")
-(assert (= 1 (try (not) ([err] 1))) "bad arity 5")
+(assert (= 1 (try (identity-var) ([err] 1))) "bad arity 3")
+(assert (= 1 (try (map-var) ([err] 1))) "bad arity 4")
+(assert (= 1 (try (not-var) ([err] 1))) "bad arity 5")
 
 # Assembly test
 # Fibonacci sequence, implemented with naive recursion.
@@ -113,9 +117,9 @@
 
 (assert (= 1 ({:ok 1} :ok)) "calling struct")
 (assert (= 2 (@{:ok 2} :ok)) "calling table")
-(assert (= :bad (try (@{:ok 2} :ok :no) ([err] :bad))) "calling table too many arguments")
-(assert (= :bad (try (:ok @{:ok 2} :no) ([err] :bad))) "calling keyword too many arguments")
-(assert (= :oops (try (1 1) ([err] :oops))) "calling number fails")
+(assert (= :bad (try ((identity @{:ok 2}) :ok :no) ([err] :bad))) "calling table too many arguments")
+(assert (= :bad (try ((identity :ok) @{:ok 2} :no) ([err] :bad))) "calling keyword too many arguments")
+(assert (= :oops (try ((+ 2 -1) 1) ([err] :oops))) "calling number fails")
 
 # Method test
 

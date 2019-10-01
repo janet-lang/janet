@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add compile time arity checking when function in function call is known.
 - Added `slice` to the core library.
 - The `*/slice` family of functions now can take nil as start or end to get
   the same behavior as the defaults (0 and -1) for those parameters.

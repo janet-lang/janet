@@ -214,7 +214,7 @@ JanetSlot *janetc_toslots(JanetCompiler *c, const Janet *vals, int32_t len);
 JanetSlot *janetc_toslotskv(JanetCompiler *c, Janet ds);
 
 /* Push slots load via janetc_toslots. */
-void janetc_pushslots(JanetCompiler *c, JanetSlot *slots);
+int32_t janetc_pushslots(JanetCompiler *c, JanetSlot *slots);
 
 /* Free slots loaded via janetc_toslots */
 void janetc_freeslots(JanetCompiler *c, JanetSlot *slots);
