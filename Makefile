@@ -24,17 +24,17 @@
 
 PREFIX?=/usr/local
 
-INCLUDEDIR=$(PREFIX)/include
-BINDIR=$(PREFIX)/bin
-LIBDIR=$(PREFIX)/lib
+INCLUDEDIR?=$(PREFIX)/include
+BINDIR?=$(PREFIX)/bin
+LIBDIR?=$(PREFIX)/lib
 JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
 CLIBS=-lm
 JANET_TARGET=build/janet
 JANET_LIBRARY=build/libjanet.so
 JANET_STATIC_LIBRARY=build/libjanet.a
-JANET_PATH?=$(PREFIX)/lib/janet
+JANET_PATH?=$(LIBDIR)/janet
 MANPATH?=$(PREFIX)/share/man/man1/
-PKG_CONFIG_PATH?=$(PREFIX)/lib/pkgconfig
+PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 DEBUGGER=gdb
 
 CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fpic -O2 -fvisibility=hidden \
@@ -53,7 +53,8 @@ else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
 endif
 # For other unix likes, add flags here!
-ifeq ($(UNAME),Haiku)
+ifeq ($(UNAME), Haiku)
+	LDCONFIG:=
 	LDFLAGS=-Wl,--export-dynamic
 endif
 
