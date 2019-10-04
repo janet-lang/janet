@@ -1538,6 +1538,30 @@
     (set current (macex1 current on-binding)))
   current)
 
+(defmacro varfn
+  "Create a function that can be rebound. varfn has the same signature
+  as defn, but defines functions in the environment as vars. If a var 'name'
+  already exists in the environment, it is rebound to the new function. Returns
+  a function."
+  [name & body]
+  (def expansion (apply defn name body))
+  (def fbody (last expansion))
+  (def modifiers (tuple/slice expansion 2 -2))
+  (def metadata @{})
+  (each m modifiers
+    (cond
+      (keyword? m) (put metadata m true)
+      (string? m) (put metadata :doc m)
+      (error (string "invalid metadata " m))))
+  (with-syms [entry old-entry f]
+    ~(let [,old-entry (,dyn ',name)]
+       (def ,entry (or ,old-entry @{:ref @[nil]}))
+       (,setdyn ',name ,entry)
+       (def ,f ,fbody)
+       (,put-in ,entry [:ref 0] ,f)
+       (,merge-into ,entry ',metadata)
+       ,f)))
+
 ###
 ###
 ### Function shorthand
