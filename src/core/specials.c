@@ -661,8 +661,8 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     c->scope->flags |= JANET_SCOPE_CLOSURE;
     janetc_scope(&fnscope, c, JANET_SCOPE_FUNCTION, "function");
 
-    if (argn < 2) {
-        errmsg = "expected at least 2 arguments to function literal";
+    if (argn == 0) {
+        errmsg = "expected at least 1 argument to function literal";
         goto error;
     }
 
