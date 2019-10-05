@@ -37,7 +37,7 @@ MANPATH?=$(PREFIX)/share/man/man1/
 PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 DEBUGGER=gdb
 
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fpic -O2 -fvisibility=hidden \
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden \
 	   -DJANET_BUILD=$(JANET_BUILD)
 LDFLAGS=-rdynamic
 

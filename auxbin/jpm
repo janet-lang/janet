@@ -124,7 +124,7 @@
 (def- dynamic-cflags
   (if is-win
     []
-    ["-fpic"]))
+    ["-fPIC"]))
 (def- dynamic-lflags
     (if is-win
       ["/DLL"]

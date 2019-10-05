@@ -170,15 +170,32 @@ libjanet = library('janet', core_src, core_image,
   dependencies : [m_dep, dl_dep],
   install : true)
 
+# Extra c flags - adding -fvisibility=hidden matches the Makefile and
+# shaves off about 10k on linux x64, likely similar on other platforms.
+native_cc = meson.get_compiler('c', native: true)
+cross_cc = meson.get_compiler('c', native: false)
+if native_cc.has_argument('-fvisibility=hidden')
+  extra_native_cflags = ['-fvisibility=hidden']
+else
+  extra_native_cflags = []
+endif
+if cross_cc.has_argument('-fvisibility=hidden')
+  extra_cross_cflags = ['-fvisibility=hidden']
+else
+  extra_cross_cflags = []
+endif
+
 janet_mainclient = executable('janet', core_src, core_image, init_gen, mainclient_src,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep],
+  c_args : extra_native_cflags,
   install : true)
 
 if meson.is_cross_build()
   janet_nativeclient = executable('janet-native', core_src, core_image, init_gen, mainclient_src,
     include_directories : incdir,
     dependencies : [m_dep, dl_dep],
+    c_args : extra_cross_cflags,
     native : true)
 else
   janet_nativeclient = janet_mainclient

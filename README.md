@@ -132,6 +132,25 @@ is maybe more convenient and flexible for integrating into existing pipelines.
 Meson also provides much better IDE integration than Make or batch files, as well as support
 for cross compilation.
 
+For the impatient, building with Meson is as simple as follows. The options provided to
+`meson setup` below emulate Janet's Makefile.
+
+```sh
+git clone https://github.com/janet-lang/janet.git
+cd janet
+meson setup build \
+          --buildtype release \
+          --optimization 2 \
+          -Dgit_hash=$(git log --pretty=format:'%h' -n 1)
+ninja -C build
+
+# Run the binary
+build/janet
+
+# Installation
+ninja -C build install
+```
+
 ## Development
 
 Janet can be hacked on with pretty much any environment you like, but for IDE
