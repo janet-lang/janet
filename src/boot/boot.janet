@@ -1358,7 +1358,8 @@
       (def d (x :doc))
       (print "\n\n"
              (if d bind-type "")
-             (if-let [[path start end] sm] (string "    " path " (" start ":" end ")\n") "")
+             (if-let [[path line col] sm]
+               (string "    " path " on line " line ", column " col "\n") "")
              (if (or d sm) "\n" "")
              (if d (doc-format d) "no documentation found.")
              "\n\n"))))

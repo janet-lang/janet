@@ -52,7 +52,7 @@ conf.set_quoted('JANET_VERSION', meson.project_version())
 # Use options
 conf.set_quoted('JANET_BUILD', get_option('git_hash'))
 conf.set('JANET_NO_NANBOX', not get_option('nanbox'))
-conf.set('JANET_SINGLE_THREADED', not get_option('single_threaded'))
+conf.set('JANET_SINGLE_THREADED', get_option('single_threaded'))
 conf.set('JANET_NO_DYNAMIC_MODULES', not get_option('dynamic_modules'))
 conf.set('JANET_NO_DOCSTRINGS', not get_option('docstrings'))
 conf.set('JANET_NO_SOURCEMAPS', not get_option('sourcemaps'))
