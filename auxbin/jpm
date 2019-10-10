@@ -187,7 +187,7 @@
 
 (def- path-splitter
   "split paths on / and \\."
-  (peg/compile ~(any (* '(any (if-not (set `\/`) 1)) (set `\/`)))))
+  (peg/compile ~(any (* '(any (if-not (set `\/`) 1)) (+ (set `\/`) -1)))))
 
 (def- filepath-replacer
   "Convert url with potential bad characters into a file path element."
@@ -569,7 +569,7 @@ int main(int argc, const char **argv) {
 
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle
-  is reinistalled (but not rebuilt if artifacts are cached)."
+                                             is reinistalled (but not rebuilt if artifacts are cached)."
   [repotab &opt recurse]
   (def repo (if (string? repotab) repotab (repotab :repo)))
   (def tag (unless (string? repotab) (repotab :tag)))
@@ -579,10 +579,17 @@ int main(int argc, const char **argv) {
     (error "too many references resolving package url"))
   # Handle short names
   (unless (string/find ":" repo)
-    (install-git (dyn :pkglist default-pkglist))
-    (def pkgs (require "pkgs"))
-    (break (install-git (get-in pkgs ['packages :value (symbol repo)])
-                        (if recurse (inc recurse) 0))))
+    (def pkgs 
+      (try (require "pkgs")
+                   ([err f]
+                    (install-git (dyn :pkglist default-pkglist))
+                    (require "pkgs"))))
+    (def next-repo (get-in pkgs ['packages :value (symbol repo)]))
+    (unless next-repo
+      (error (string "package " repo " not found.")))
+    (unless (or (string? next-repo) (dictionary? next-repo))
+      (error (string "expected string or table for repository, got " next-repo)))
+    (break (install-git next-repo (if recurse (inc recurse) 0))))
   (def cache (find-cache))
   (os/mkdir cache)
   (def id (filepath-replace repo))
@@ -619,7 +626,7 @@ int main(int argc, const char **argv) {
   (def path (string destdir sep name))
   (array/push (dyn :installed-files) path)
   (add-body "install"
-            (try (os/mkdir destdir) ([err] nil))
+            (os/mkdir destdir)
             (copy src destdir)))
 
 #
@@ -823,7 +830,7 @@ on a project, or from anywhere to do operations on the global module cache (modp
 Subcommands are:
   build : build all artifacts
   help : show this help text
-  install (repo) : install artifacts. If a repo is given, install the contents of that
+  install (repo or name) : install artifacts. If a repo is given, install the contents of that
                    git repository, assuming that the repository is a jpm project. If not, build
                    and install the current project.
   uninstall (module) : uninstall a module. If no module is given, uninstall the module
@@ -835,6 +842,7 @@ Subcommands are:
   run rule : run a rule. Can also run custom rules added via (phony "task" [deps...] ...)
              or (rule "ouput.file" [deps...] ...).
   rules : list rules available with run.
+  update-pkgs : Update the current package listing from the remote git repository selected.
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath)
@@ -888,6 +896,10 @@ Flags are:
   (def ks (sort (seq [k :keys (dyn :rules)] k)))
   (each k ks (print k)))
 
+(defn- update-pkgs
+  []
+  (install-git (dyn :pkglist default-pkglist)))
+
 (def- subcommands
   {"build" build
    "clean" clean
@@ -899,6 +911,7 @@ Flags are:
    "clear-cache" clear-cache
    "run" local-rule
    "rules" list-rules
+   "update-pkgs" update-pkgs
    "uninstall" uninstall-cmd})
 
 (def- args (tuple/slice (dyn :args) 1))
