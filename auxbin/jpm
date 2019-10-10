@@ -565,12 +565,24 @@ int main(int argc, const char **argv) {
     (os/shell (string `rmdir /S /Q "` cache `"`))
     (rm cache)))
 
+(def- default-pkglist (or (os/getenv "JANET_PKGLIST") "https://github.com/janet-lang/pkgs.git"))
+
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle
   is reinistalled (but not rebuilt if artifacts are cached)."
-  [repotab]
+  [repotab &opt recurse]
   (def repo (if (string? repotab) repotab (repotab :repo)))
   (def tag (unless (string? repotab) (repotab :tag)))
+  # prevent infinite recursion (very unlikely, but consider 
+  # 'my-package "my-package" in the package listing)
+  (when (> (or recurse 0) 100)
+    (error "too many references resolving package url"))
+  # Handle short names
+  (unless (string/find ":" repo)
+    (install-git (dyn :pkglist default-pkglist))
+    (def pkgs (require "pkgs"))
+    (break (install-git (get-in pkgs ['packages :value (symbol repo)])
+                        (if recurse (inc recurse) 0))))
   (def cache (find-cache))
   (os/mkdir cache)
   (def id (filepath-replace repo))
@@ -832,6 +844,7 @@ Keys are:
   --compiler : C compiler to use for natives. Defaults to cc (cl on windows).
   --archiver : C compiler to use for static libraries. Defaults to ar (lib on windows).
   --linker : C linker to use for linking natives. Defaults to cc (link on windows).
+  --pkglist : URL of git repository for package listing. Defaults to $JANET_PKGLIST or https://github.com/janet-lang/pkgs.git
 
 Flags are:
   --verbose : Print shell commands as they are executed.

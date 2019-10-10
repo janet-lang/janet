@@ -65,6 +65,10 @@ to cc.
 Sets the linker used to create native modules and executables.
 
 .TP
+.BR \-\-pkglist=https://github.com/janet-lang/pkgs.git
+Sets the git repository for the package listing used to resolve shorthand package names.
+
+.TP
 .BR \-\-archiver=ar
 Sets the command used for creating static libraries, use for linking into the standalone executable.
 Native modules are compiled twice, once a normal native module (shared object), and once as an
@@ -171,6 +175,12 @@ Defaults to
 (dyn :syspath)/../../lib.
 The --binpath=/some/path will override this variable.
 .RE
+
+.B JANET_PKGLIST
+.RS
+The git repository URL that contains a listing of packages. This allows installing packages with shortnames, which
+is mostly a convenience. However, package dependencies can use short names, package listings
+can be used to choose a particular set of dependency versions for a whole project.
 
 .SH AUTHOR
 Written by Calvin Rose <calsrose@gmail.com>

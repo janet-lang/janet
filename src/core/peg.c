@@ -887,10 +887,8 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
     JanetTable *grammar = old_grammar;
     for (; i > 0 && janet_checktype(peg, JANET_KEYWORD); --i) {
         peg = janet_table_get_ex(grammar, peg, &grammar);
-        if (!grammar || janet_checktype(peg, JANET_NIL)) {
-            builder_cleanup(b);
-            janet_panicf("grammar error in %p, unknown rule", b->form);
-        }
+        if (!grammar || janet_checktype(peg, JANET_NIL))
+            peg_panic(b, "unkown rule");
         b->form = peg;
         b->grammar = grammar;
     }
