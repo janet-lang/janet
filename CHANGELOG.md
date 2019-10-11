@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Integrate jpm with https://github.com/janet-lang/pkgs.git. jpm can now
+  install packages based on their short names in the package listing, which
+  can be customized via an env variable.
 - Add `varfn` macro
 - Add compile time arity checking when function in function call is known.
 - Added `slice` to the core library.
