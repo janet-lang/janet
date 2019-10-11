@@ -59,7 +59,7 @@ void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) 
     uint8_t *new_data;
     uint8_t *old = buffer->data;
     if (capacity <= buffer->capacity) return;
-    int64_t big_capacity = capacity * growth;
+    int64_t big_capacity = ((int64_t) capacity) * growth;
     capacity = big_capacity > INT32_MAX ? INT32_MAX : (int32_t) big_capacity;
     janet_vm_next_collection += capacity - buffer->capacity;
     new_data = realloc(old, capacity * sizeof(uint8_t));

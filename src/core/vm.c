@@ -892,12 +892,12 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         Janet fv = stack[C];
         vm_assert_type(fv, JANET_FIBER);
         JanetFiber *f = janet_unwrap_fiber(fv);
-        JanetFiberStatus status = janet_fiber_status(f);
-        if (status > JANET_STATUS_USER9) {
+        JanetFiberStatus sub_status = janet_fiber_status(f);
+        if (sub_status > JANET_STATUS_USER9) {
             vm_throw("cannot propagate from new or alive fiber");
         }
         janet_vm_fiber->child = f;
-        vm_return((int) status, stack[B]);
+        vm_return((int) sub_status, stack[B]);
     }
 
     VM_OP(JOP_PUT)

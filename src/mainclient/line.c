@@ -87,18 +87,18 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 /* static state */
 #define JANET_LINE_MAX 1024
 #define JANET_HISTORY_MAX 100
-static int israwmode = 0;
-static const char *prompt = "> ";
-static int plen = 2;
-static char buf[JANET_LINE_MAX];
-static int len = 0;
-static int pos = 0;
-static int cols = 80;
-static char *history[JANET_HISTORY_MAX];
-static int history_count = 0;
-static int historyi = 0;
-static int sigint_flag = 0;
-static struct termios termios_start;
+static int gbl_israwmode = 0;
+static const char *gbl_prompt = "> ";
+static int gbl_plen = 2;
+static char gbl_buf[JANET_LINE_MAX];
+static int gbl_len = 0;
+static int gbl_pos = 0;
+static int gbl_cols = 80;
+static char *gbl_history[JANET_HISTORY_MAX];
+static int gbl_history_count = 0;
+static int gbl_historyi = 0;
+static int gbl_sigint_flag = 0;
+static struct termios gbl_termios_start;
 
 /* Unsupported terminal list from linenoise */
 static const char *badterms[] = {
@@ -121,8 +121,8 @@ static char *sdup(const char *s) {
 static int rawmode() {
     struct termios t;
     if (!isatty(STDIN_FILENO)) goto fatal;
-    if (tcgetattr(STDIN_FILENO, &termios_start) == -1) goto fatal;
-    t = termios_start;
+    if (tcgetattr(STDIN_FILENO, &gbl_termios_start) == -1) goto fatal;
+    t = gbl_termios_start;
     t.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     t.c_oflag &= ~(OPOST);
     t.c_cflag |= (CS8);
@@ -130,7 +130,7 @@ static int rawmode() {
     t.c_cc[VMIN] = 1;
     t.c_cc[VTIME] = 0;
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &t) < 0) goto fatal;
-    israwmode = 1;
+    gbl_israwmode = 1;
     return 0;
 fatal:
     errno = ENOTTY;
@@ -139,8 +139,8 @@ fatal:
 
 /* Disable raw mode */
 static void norawmode() {
-    if (israwmode && tcsetattr(STDIN_FILENO, TCSAFLUSH, &termios_start) != -1)
-        israwmode = 0;
+    if (gbl_israwmode && tcsetattr(STDIN_FILENO, TCSAFLUSH, &gbl_termios_start) != -1)
+        gbl_israwmode = 0;
 }
 
 static int curpos() {
@@ -171,7 +171,9 @@ static int getcols() {
         if (cols > start) {
             char seq[32];
             snprintf(seq, 32, "\x1b[%dD", cols - start);
-            if (write(STDOUT_FILENO, seq, strlen(seq)) == -1) {}
+            if (write(STDOUT_FILENO, seq, strlen(seq)) == -1) {
+                exit(1);
+            }
         }
         return cols;
     } else {
@@ -182,7 +184,9 @@ failed:
 }
 
 static void clear() {
-    if (write(STDOUT_FILENO, "\x1b[H\x1b[2J", 7) <= 0) {}
+    if (write(STDOUT_FILENO, "\x1b[H\x1b[2J", 7) <= 0) {
+        exit(1);
+    }
 }
 
 static void refresh() {
@@ -190,38 +194,40 @@ static void refresh() {
     JanetBuffer b;
 
     /* Keep cursor position on screen */
-    char *_buf = buf;
-    int _len = len;
-    int _pos = pos;
-    while ((plen + _pos) >= cols) {
+    char *_buf = gbl_buf;
+    int _len = gbl_len;
+    int _pos = gbl_pos;
+    while ((gbl_plen + _pos) >= gbl_cols) {
         _buf++;
         _len--;
         _pos--;
     }
-    while ((plen + _len) > cols) {
+    while ((gbl_plen + _len) > gbl_cols) {
         _len--;
     }
 
     janet_buffer_init(&b, 0);
-    /* Cursor to left edge, prompt and buffer */
+    /* Cursor to left edge, gbl_prompt and buffer */
     janet_buffer_push_u8(&b, '\r');
-    janet_buffer_push_cstring(&b, prompt);
+    janet_buffer_push_cstring(&b, gbl_prompt);
     janet_buffer_push_bytes(&b, (uint8_t *) _buf, _len);
     /* Erase to right */
     janet_buffer_push_cstring(&b, "\x1b[0K");
     /* Move cursor to original position. */
-    snprintf(seq, 64, "\r\x1b[%dC", (int)(_pos + plen));
+    snprintf(seq, 64, "\r\x1b[%dC", (int)(_pos + gbl_plen));
     janet_buffer_push_cstring(&b, seq);
-    if (write(STDOUT_FILENO, b.data, b.count) == -1) {}
+    if (write(STDOUT_FILENO, b.data, b.count) == -1) {
+        exit(1);
+    }
     janet_buffer_deinit(&b);
 }
 
 static int insert(char c) {
-    if (len < JANET_LINE_MAX - 1) {
-        if (len == pos) {
-            buf[pos++] = c;
-            buf[++len] = '\0';
-            if (plen + len < cols) {
+    if (gbl_len < JANET_LINE_MAX - 1) {
+        if (gbl_len == gbl_pos) {
+            gbl_buf[gbl_pos++] = c;
+            gbl_buf[++gbl_len] = '\0';
+            if (gbl_plen + gbl_len < gbl_cols) {
                 /* Avoid a full update of the line in the
                  * trivial case. */
                 if (write(STDOUT_FILENO, &c, 1) == -1) return -1;
@@ -229,9 +235,9 @@ static int insert(char c) {
                 refresh();
             }
         } else {
-            memmove(buf + pos + 1, buf + pos, len - pos);
-            buf[pos++] = c;
-            buf[++len] = '\0';
+            memmove(gbl_buf + gbl_pos + 1, gbl_buf + gbl_pos, gbl_len - gbl_pos);
+            gbl_buf[gbl_pos++] = c;
+            gbl_buf[++gbl_len] = '\0';
             refresh();
         }
     }
@@ -239,21 +245,21 @@ static int insert(char c) {
 }
 
 static void historymove(int delta) {
-    if (history_count > 1) {
-        free(history[historyi]);
-        history[historyi] = sdup(buf);
+    if (gbl_history_count > 1) {
+        free(gbl_history[gbl_historyi]);
+        gbl_history[gbl_historyi] = sdup(gbl_buf);
 
-        historyi += delta;
-        if (historyi < 0) {
-            historyi = 0;
+        gbl_historyi += delta;
+        if (gbl_historyi < 0) {
+            gbl_historyi = 0;
             return;
-        } else if (historyi >= history_count) {
-            historyi = history_count - 1;
+        } else if (gbl_historyi >= gbl_history_count) {
+            gbl_historyi = gbl_history_count - 1;
             return;
         }
-        strncpy(buf, history[historyi], JANET_LINE_MAX - 1);
-        pos = len = strlen(buf);
-        buf[len] = '\0';
+        strncpy(gbl_buf, gbl_history[gbl_historyi], JANET_LINE_MAX - 1);
+        gbl_pos = gbl_len = strlen(gbl_buf);
+        gbl_buf[gbl_len] = '\0';
 
         refresh();
     }
@@ -261,62 +267,62 @@ static void historymove(int delta) {
 
 static void addhistory() {
     int i, len;
-    char *newline = sdup(buf);
+    char *newline = sdup(gbl_buf);
     if (!newline) return;
-    len = history_count;
+    len = gbl_history_count;
     if (len < JANET_HISTORY_MAX) {
-        history[history_count++] = newline;
+        gbl_history[gbl_history_count++] = newline;
         len++;
     } else {
-        free(history[JANET_HISTORY_MAX - 1]);
+        free(gbl_history[JANET_HISTORY_MAX - 1]);
     }
     for (i = len - 1; i > 0; i--) {
-        history[i] = history[i - 1];
+        gbl_history[i] = gbl_history[i - 1];
     }
-    history[0] = newline;
+    gbl_history[0] = newline;
 }
 
 static void replacehistory() {
-    char *newline = sdup(buf);
+    char *newline = sdup(gbl_buf);
     if (!newline) return;
-    free(history[0]);
-    history[0] = newline;
+    free(gbl_history[0]);
+    gbl_history[0] = newline;
 }
 
 static void kleft() {
-    if (pos > 0) {
-        pos--;
+    if (gbl_pos > 0) {
+        gbl_pos--;
         refresh();
     }
 }
 
 static void kright() {
-    if (pos != len) {
-        pos++;
+    if (gbl_pos != gbl_len) {
+        gbl_pos++;
         refresh();
     }
 }
 
 static void kbackspace() {
-    if (pos > 0) {
-        memmove(buf + pos - 1, buf + pos, len - pos);
-        pos--;
-        buf[--len] = '\0';
+    if (gbl_pos > 0) {
+        memmove(gbl_buf + gbl_pos - 1, gbl_buf + gbl_pos, gbl_len - gbl_pos);
+        gbl_pos--;
+        gbl_buf[--gbl_len] = '\0';
         refresh();
     }
 }
 
 static int line() {
-    cols = getcols();
-    plen = 0;
-    len = 0;
-    pos = 0;
-    while (prompt[plen]) plen++;
-    buf[0] = '\0';
+    gbl_cols = getcols();
+    gbl_plen = 0;
+    gbl_len = 0;
+    gbl_pos = 0;
+    while (gbl_prompt[gbl_plen]) gbl_plen++;
+    gbl_buf[0] = '\0';
 
     addhistory();
 
-    if (write(STDOUT_FILENO, prompt, plen) == -1) return -1;
+    if (write(STDOUT_FILENO, gbl_prompt, gbl_plen) == -1) return -1;
     for (;;) {
         char c;
         int nread;
@@ -337,7 +343,7 @@ static int line() {
                 return 0;
             case 3:     /* ctrl-c */
                 errno = EAGAIN;
-                sigint_flag = 1;
+                gbl_sigint_flag = 1;
                 return -1;
             case 127:   /* backspace */
             case 8:     /* ctrl-h */
@@ -352,8 +358,8 @@ static int line() {
                 kright();
                 break;
             case 21:
-                buf[0] = '\0';
-                pos = len = 0;
+                gbl_buf[0] = '\0';
+                gbl_pos = gbl_len = 0;
                 refresh();
                 break;
             case 26: /* ctrl-z */
@@ -399,11 +405,11 @@ static int line() {
                                 kleft();
                                 break;
                             case 'H':
-                                pos = 0;
+                                gbl_pos = 0;
                                 refresh();
                                 break;
                             case 'F':
-                                pos = len;
+                                gbl_pos = gbl_len;
                                 refresh();
                                 break;
                         }
@@ -413,11 +419,11 @@ static int line() {
                         default:
                             break;
                         case 'H':
-                            pos = 0;
+                            gbl_pos = 0;
                             refresh();
                             break;
                         case 'F':
-                            pos = len;
+                            gbl_pos = gbl_len;
                             refresh();
                             break;
                     }
@@ -435,9 +441,9 @@ void janet_line_init() {
 void janet_line_deinit() {
     int i;
     norawmode();
-    for (i = 0; i < history_count; i++)
-        free(history[i]);
-    historyi = 0;
+    for (i = 0; i < gbl_history_count; i++)
+        free(gbl_history[i]);
+    gbl_historyi = 0;
 }
 
 static int checktermsupport() {
@@ -450,9 +456,9 @@ static int checktermsupport() {
 }
 
 void janet_line_get(const char *p, JanetBuffer *buffer) {
-    prompt = p;
+    gbl_prompt = p;
     buffer->count = 0;
-    historyi = 0;
+    gbl_historyi = 0;
     FILE *out = janet_dynfile("out", stdout);
     if (!isatty(STDIN_FILENO) || !checktermsupport()) {
         simpleline(buffer);
@@ -464,7 +470,7 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
     }
     if (line()) {
         norawmode();
-        if (sigint_flag) {
+        if (gbl_sigint_flag) {
             raise(SIGINT);
         } else {
             fputc('\n', out);
@@ -473,10 +479,10 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
     }
     norawmode();
     fputc('\n', out);
-    janet_buffer_ensure(buffer, len + 1, 2);
-    memcpy(buffer->data, buf, len);
-    buffer->data[len] = '\n';
-    buffer->count = len + 1;
+    janet_buffer_ensure(buffer, gbl_len + 1, 2);
+    memcpy(buffer->data, gbl_buf, gbl_len);
+    buffer->data[gbl_len] = '\n';
+    buffer->count = gbl_len + 1;
     replacehistory();
 }
 

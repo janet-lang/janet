@@ -477,13 +477,19 @@ static Janet os_date(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
     (void) argv;
     time_t t;
+    struct tm t_infos;
     struct tm *t_info;
     if (argc) {
         t = (time_t) janet_getinteger64(argv, 0);
     } else {
         time(&t);
     }
-    t_info = localtime(&t);
+#ifdef JANET_WINDOWS
+    localtime_s(&t_infos, &t);
+    t_info = &t_infos;
+#else
+    t_info = localtime_r(&t, &t_infos);
+#endif
     JanetKV *st = janet_struct_begin(9);
     janet_struct_put(st, janet_ckeywordv("seconds"), janet_wrap_number(t_info->tm_sec));
     janet_struct_put(st, janet_ckeywordv("minutes"), janet_wrap_number(t_info->tm_min));

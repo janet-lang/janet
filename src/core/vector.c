@@ -30,7 +30,8 @@ void *janet_v_grow(void *v, int32_t increment, int32_t itemsize) {
     int32_t dbl_cur = (NULL != v) ? 2 * janet_v__cap(v) : 0;
     int32_t min_needed = janet_v_count(v) + increment;
     int32_t m = dbl_cur > min_needed ? dbl_cur : min_needed;
-    int32_t *p = (int32_t *) janet_srealloc(v ? janet_v__raw(v) : 0, itemsize * m + sizeof(int32_t) * 2);
+    size_t newsize = ((size_t) itemsize) * m + sizeof(int32_t) * 2;
+    int32_t *p = (int32_t *) janet_srealloc(v ? janet_v__raw(v) : 0, newsize);
     if (!v) p[1] = 0;
     p[0] = m;
     return p + 2;

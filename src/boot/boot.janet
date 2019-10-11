@@ -1668,7 +1668,8 @@
   :on-compile-error - callback when compilation fails - default is bad-compile\n\t
   :compile-only - only compile the source, do not execute it - default is false\n\t
   :on-status - callback when a value is evaluated - default is debug/stacktrace\n\t
-  :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia."
+  :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia.\n\t
+  :expander - an optional function that is called on each top level form before being compiled."
   [opts]
 
   (def {:env env
@@ -1678,7 +1679,8 @@
         :on-parse-error on-parse-error
         :fiber-flags guard
         :compile-only compile-only
-        :source where} opts)
+        :source where
+        :expander expand} opts)
   (default env (fiber/getenv (fiber/current)))
   (default chunks (fn [buf p] (getline "" buf)))
   (default compile-only false)
@@ -1695,6 +1697,7 @@
 
   # Evaluate 1 source form in a protected manner
   (defn eval1 [source]
+    (def source (if expand (expand source) source))
     (var good true)
     (def f
       (fiber/new
@@ -1718,6 +1721,7 @@
   # Loop
   (def buf @"")
   (while going
+    (if (env :exit) (break))
     (buffer/clear buf)
     (chunks buf p)
     (var pindex 0)
@@ -1739,6 +1743,13 @@
     (on-parse-error p where))
 
   env)
+
+(defn quit
+  "Tries to exit from the current repl or context. Does not always exit the application.
+  Works by setting the :exit dynamic binding to true."
+  []
+  (setdyn :exit true)
+  "Bye!")
 
 (defn eval-string
   "Evaluates a string in the current environment. If more control over the
@@ -2005,7 +2016,7 @@
                                  (debug/stacktrace f x)
                                  (print ```
 
-entering debugger - Ctrl-D to exit
+entering debugger - (quit) or Ctrl-D to exit
 _fiber is bound to the suspended fiber
 
 ```)
