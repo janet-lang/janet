@@ -164,10 +164,10 @@
 (debug/unfbreak map 1)
 (map inc [1 2 3])
 
+(defn idx= [x y] (= (tuple/slice x) (tuple/slice y)))
+
 # Simple take, drop, etc. tests.
-(assert (deep= (take 10 (range 100)) (range 10)) "take 10")
-(assert (deep= (drop 10 (range 100)) (range 10 100)) "drop 10")
-
-
+(assert (idx= (take 10 (range 100)) (range 10)) "take 10")
+(assert (idx= (drop 10 (range 100)) (range 10 100)) "drop 10")
 
 (end-suite)
