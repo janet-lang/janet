@@ -406,7 +406,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
             if (S->depth == 0) {
                 janet_buffer_push_cstring(S->buffer, "...");
             } else {
-                if (!isarray && len >= JANET_PRETTY_IND_ONELINE)
+                if (!isarray && !(S->flags & JANET_PRETTY_ONELINE) && len >= JANET_PRETTY_IND_ONELINE)
                     janet_buffer_push_u8(S->buffer, ' ');
                 if (is_dict_value && len >= JANET_PRETTY_IND_ONELINE) print_newline(S, 0);
                 for (i = 0; i < len; i++) {

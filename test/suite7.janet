@@ -154,6 +154,7 @@
 (assert (= (((|||4))) 4) "function shorthand 7")
 (assert (= (|(+ $1 $1 $1 $1) 2 4) 16) "function shorthand 8")
 (assert (= (|(+ $0 $1 $3 $2 $6) 0 1 2 3 4 5 6) 12) "function shorthand 9")
+(assert (= (|(+ $0 $99) ;(range 100)) 99) "function shorthand 10")
 
 # Simple function break
 (debug/fbreak map 1)
@@ -162,5 +163,11 @@
 (assert (= :debug (fiber/status f)) "debug/fbreak")
 (debug/unfbreak map 1)
 (map inc [1 2 3])
+
+# Simple take, drop, etc. tests.
+(assert (deep= (take 10 (range 100)) (range 10)) "take 10")
+(assert (deep= (drop 10 (range 100)) (range 10 100)) "drop 10")
+
+
 
 (end-suite)
