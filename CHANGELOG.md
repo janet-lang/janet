@@ -1,6 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
 ## 1.4.0 - 2019-10-14
 - Add `quit` function to exit from a repl, but not always exit the entire
   application.

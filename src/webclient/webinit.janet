@@ -5,7 +5,7 @@
 (fiber/new (fn webrepl []
              (setdyn :pretty-format "%.20P")
              (repl (fn get-line [buf p]
-                     (def offset (parser/where p))
+                     (def [offset] (parser/where p))
                      (def prompt (string "janet:" offset ":" (parser/state p :delimiters) "> "))
                      (repl-yield prompt buf)
                      (yield)
