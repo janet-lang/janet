@@ -1,9 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.4.0 - 2019-10-14
 - Add `quit` function to exit from a repl, but not always exit the entire
   application.
+- Add `update-pkgs` to jpm.
 - Integrate jpm with https://github.com/janet-lang/pkgs.git. jpm can now
   install packages based on their short names in the package listing, which
   can be customized via an env variable.
