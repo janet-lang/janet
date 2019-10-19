@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `prin`, `eprint`, `eprintf` and `eprin` functions. The
+  functions prefix with e print to `(dyn :err stderr)`
+- Print family of functions can now also print to buffers
+  (before, they could only print to files.) Output can also
+  be completely disabled with `(setdyn :out false)`.
+- `printf` is now a c function for optimizations in the case
+  of printing to buffers.
 
 ## 1.4.0 - 2019-10-14
 - Add `quit` function to exit from a repl, but not always exit the entire
