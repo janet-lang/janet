@@ -425,8 +425,10 @@ static Janet cfun_io_print_impl(int32_t argc, Janet *argv,
             vstr = janet_to_string(argv[i]);
             len = janet_string_length(vstr);
         }
-        if (1 != fwrite(vstr, len, 1, f)) {
-            janet_panicf("could not print %d bytes to (dyn :%s)", len, name);
+        if (len) {
+            if (1 != fwrite(vstr, len, 1, f)) {
+                janet_panicf("could not print %d bytes to (dyn :%s)", len, name);
+            }
         }
     }
     if (newline)
@@ -480,8 +482,10 @@ static Janet cfun_io_printf_impl(int32_t argc, Janet *argv,
     }
     JanetBuffer *buf = janet_buffer(10);
     janet_buffer_format(buf, fmt, 0, argc, argv);
-    if (1 != fwrite(buf->data, buf->count, 1, f)) {
-        janet_panicf("could not print %d bytes to file", buf->count, name);
+    if (buf->count) {
+        if (1 != fwrite(buf->data, buf->count, 1, f)) {
+            janet_panicf("could not print %d bytes to file", buf->count, name);
+        }
     }
     /* Clear buffer to make things easier for GC */
     buf->count = 0;
