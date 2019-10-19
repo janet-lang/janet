@@ -1182,17 +1182,10 @@
   (file/close f)
   nil)
 
-(defn printf
-  "Print formatted strings to stdout or (dyn :out), followed by
-  a new line."
-  [f & args]
-  (prin (buffer/format @"" f ;args)))
-
 (defn pp
   "Pretty print to stdout or (dyn :out)."
   [x]
   (print (buffer/format @"" (dyn :pretty-format "%q") x)))
-
 
 ###
 ###
