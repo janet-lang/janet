@@ -10,3 +10,6 @@
 # Body
 (each path (tuple/slice (dyn :args) 1)
   (print (slurp path)))
+
+# maybe will help
+(:flush stdout)
