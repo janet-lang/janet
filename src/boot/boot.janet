@@ -1183,13 +1183,13 @@
   nil)
 
 (defn printf
-  "Print formatted strings to stdout, followed by
+  "Print formatted strings to stdout or (dyn :out), followed by
   a new line."
   [f & args]
-  (file/write stdout (buffer/format @"" f ;args)))
+  (prin (buffer/format @"" f ;args)))
 
 (defn pp
-  "Pretty print to stdout."
+  "Pretty print to stdout or (dyn :out)."
   [x]
   (print (buffer/format @"" (dyn :pretty-format "%q") x)))
 
@@ -1630,31 +1630,29 @@
   [p where]
   (def ec (dyn :err-color))
   (def [line col] (parser/where p))
-  (file/write stderr
-              (if ec "\e[31m" "")
-              "parse error in "
-              where
-              " around line "
-              (string line)
-              ", column "
-              (string col)
-              ": "
-              (parser/error p)
-              (if ec "\e[0m" "")
-              "\n"))
+  (eprint
+    (if ec "\e[31m" "")
+    "parse error in "
+    where
+    " around line "
+    (string line)
+    ", column "
+    (string col)
+    ": "
+    (parser/error p)
+    (if ec "\e[0m" "")))
 
 (defn bad-compile
   "Default handler for a compile error."
   [msg macrof where]
   (def ec (dyn :err-color))
-  (file/write stderr
-              (if ec "\e[31m" "")
-              "compile error: "
-              msg
-              " while compiling "
-              where
-              (if ec "\e[0m" "")
-              "\n")
+  (eprint
+    (if ec "\e[31m" "")
+    "compile error: "
+    msg
+    " while compiling "
+    where
+    (if ec "\e[0m" ""))
   (when macrof (debug/stacktrace macrof)))
 
 (defn run-context

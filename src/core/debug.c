@@ -90,9 +90,6 @@ void janet_debug_find(
     if (best_def) {
         *def_out = best_def;
         *pc_out = besti;
-        if (best_def->name) {
-            janet_printf("name: %S\n", best_def->name);
-        }
     } else {
         janet_panic("could not find breakpoint");
     }
@@ -102,13 +99,12 @@ void janet_debug_find(
  * consitency with the top level code it is defined once. */
 void janet_stacktrace(JanetFiber *fiber, Janet err) {
     int32_t fi;
-    FILE *out = janet_dynfile("err", stderr);
     const char *errstr = (const char *)janet_to_string(err);
     JanetFiber **fibers = NULL;
     int wrote_error = 0;
 
     int print_color = janet_truthy(janet_dyn("err-color"));
-    if (print_color) fprintf(out, "\x1b[31m");
+    if (print_color) janet_eprintf("\x1b[31m");
 
     while (fiber) {
         janet_v_push(fibers, fiber);
@@ -127,47 +123,47 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
             if (!wrote_error) {
                 JanetFiberStatus status = janet_fiber_status(fiber);
                 const char *prefix = status == JANET_STATUS_ERROR ? "" : "status ";
-                fprintf(out, "%s%s: %s\n",
-                        prefix,
-                        janet_status_names[status],
-                        errstr);
+                janet_eprintf("%s%s: %s\n",
+                              prefix,
+                              janet_status_names[status],
+                              errstr);
                 wrote_error = 1;
             }
 
-            fprintf(out, "  in");
+            janet_eprintf("  in");
 
             if (frame->func) {
                 def = frame->func->def;
-                fprintf(out, " %s", def->name ? (const char *)def->name : "<anonymous>");
+                janet_eprintf(" %s", def->name ? (const char *)def->name : "<anonymous>");
                 if (def->source) {
-                    fprintf(out, " [%s]", (const char *)def->source);
+                    janet_eprintf(" [%s]", (const char *)def->source);
                 }
             } else {
                 JanetCFunction cfun = (JanetCFunction)(frame->pc);
                 if (cfun) {
                     Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
                     if (!janet_checktype(name, JANET_NIL))
-                        fprintf(out, " %s", (const char *)janet_to_string(name));
+                        janet_eprintf(" %s", (const char *)janet_to_string(name));
                     else
-                        fprintf(out, " <cfunction>");
+                        janet_eprintf(" <cfunction>");
                 }
             }
             if (frame->flags & JANET_STACKFRAME_TAILCALL)
-                fprintf(out, " (tailcall)");
+                janet_eprintf(" (tailcall)");
             if (frame->func && frame->pc) {
                 int32_t off = (int32_t)(frame->pc - def->bytecode);
                 if (def->sourcemap) {
                     JanetSourceMapping mapping = def->sourcemap[off];
-                    fprintf(out, " on line %d, column %d", mapping.line, mapping.column);
+                    janet_eprintf(" on line %d, column %d", mapping.line, mapping.column);
                 } else {
-                    fprintf(out, " pc=%d", off);
+                    janet_eprintf(" pc=%d", off);
                 }
             }
-            fprintf(out, "\n");
+            janet_eprintf("\n");
         }
     }
 
-    if (print_color) fprintf(out, "\x1b[0m");
+    if (print_color) janet_eprintf("\x1b[0m");
 
     janet_v_free(fibers);
 }

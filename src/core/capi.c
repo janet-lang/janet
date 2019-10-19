@@ -51,19 +51,6 @@ void janet_panicf(const char *format, ...) {
     janet_panics(ret);
 }
 
-void janet_printf(const char *format, ...) {
-    va_list args;
-    JanetBuffer buffer;
-    int32_t len = 0;
-    while (format[len]) len++;
-    janet_buffer_init(&buffer, len);
-    va_start(args, format);
-    janet_formatb(&buffer, format, args);
-    va_end(args);
-    fwrite(buffer.data, buffer.count, 1, janet_dynfile("out", stdout));
-    janet_buffer_deinit(&buffer);
-}
-
 void janet_panic(const char *message) {
     janet_panicv(janet_cstringv(message));
 }

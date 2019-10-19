@@ -170,4 +170,16 @@
 (assert (idx= (take 10 (range 100)) (range 10)) "take 10")
 (assert (idx= (drop 10 (range 100)) (range 10 100)) "drop 10")
 
+# Printing to buffers
+(def out-buf @"")
+(def err-buf @"")
+(with-dyns [:out out-buf :err err-buf]
+  (print "Hello")
+  (prin "hi")
+  (eprint "Sup")
+  (eprin "not much."))
+
+(assert (= (string out-buf) "Hello\nhi") "print and prin to buffer 1")
+(assert (= (string err-buf) "Sup\nnot much.") "eprint and eprin to buffer 1")
+
 (end-suite)

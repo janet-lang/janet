@@ -384,8 +384,35 @@ FILE *janet_dynfile(const char *name, FILE *def) {
     return iofile->file;
 }
 
-static Janet cfun_io_print(int32_t argc, Janet *argv) {
-    FILE *f = janet_dynfile("out", stdout);
+static Janet cfun_io_print_impl(int32_t argc, Janet *argv,
+                                int newline, const char *name, FILE *dflt_file) {
+    FILE *f;
+    Janet x = janet_dyn(name);
+    switch (janet_type(x)) {
+        default:
+            goto err;
+        case JANET_BUFFER: {
+            /* Special case buffer */
+            JanetBuffer *buf = janet_unwrap_buffer(x);
+            for (int32_t i = 0; i < argc; ++i) {
+                const uint8_t *vstr = janet_to_string(argv[i]);
+                janet_buffer_push_string(buf, vstr);
+            }
+            if (newline)
+                janet_buffer_push_u8(buf, '\n');
+            return janet_wrap_nil();
+        }
+        case JANET_NIL:
+            f = dflt_file;
+            break;
+        case JANET_ABSTRACT: {
+            void *abstract = janet_unwrap_abstract(x);
+            if (janet_abstract_type(abstract) != &cfun_io_filetype) goto err;
+            IOFile *iofile = abstract;
+            f = iofile->file;
+            break;
+        }
+    }
     for (int32_t i = 0; i < argc; ++i) {
         int32_t j, len;
         const uint8_t *vstr = janet_to_string(argv[i]);
@@ -394,8 +421,60 @@ static Janet cfun_io_print(int32_t argc, Janet *argv) {
             putc(vstr[j], f);
         }
     }
-    putc('\n', f);
+    if (newline)
+        putc('\n', f);
     return janet_wrap_nil();
+err:
+    janet_panicf("expected (dyn :%s) to be a file, buffer, or nil; got %v", name, x);
+}
+
+static Janet cfun_io_print(int32_t argc, Janet *argv) {
+    return cfun_io_print_impl(argc, argv, 1, "out", stdout);
+}
+
+static Janet cfun_io_prin(int32_t argc, Janet *argv) {
+    return cfun_io_print_impl(argc, argv, 0, "out", stdout);
+}
+
+static Janet cfun_io_eprint(int32_t argc, Janet *argv) {
+    return cfun_io_print_impl(argc, argv, 1, "err", stderr);
+}
+
+static Janet cfun_io_eprin(int32_t argc, Janet *argv) {
+    return cfun_io_print_impl(argc, argv, 0, "err", stderr);
+}
+
+void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    Janet x = janet_dyn(name);
+    JanetType xtype = janet_type(x);
+    switch (xtype) {
+        default:
+        case JANET_ABSTRACT: {
+            FILE *f = dflt_file;
+            JanetBuffer buffer;
+            int32_t len = 0;
+            while (format[len]) len++;
+            janet_buffer_init(&buffer, len);
+            janet_formatb(&buffer, format, args);
+            if (xtype == JANET_ABSTRACT) {
+                void *abstract = janet_unwrap_abstract(x);
+                if (janet_abstract_type(abstract) == &cfun_io_filetype) {
+                    IOFile *iofile = abstract;
+                    f = iofile->file;
+                }
+            }
+            fwrite(buffer.data, buffer.count, 1, f);
+            janet_buffer_deinit(&buffer);
+            break;
+        }
+        case JANET_BUFFER:
+            janet_formatb(janet_unwrap_buffer(x), format, args);
+            break;
+    }
+    va_end(args);
+    return;
 }
 
 static const JanetReg io_cfuns[] = {
@@ -404,7 +483,24 @@ static const JanetReg io_cfuns[] = {
         JDOC("(print & xs)\n\n"
              "Print values to the console (standard out). Value are converted "
              "to strings if they are not already. After printing all values, a "
-             "newline character is printed. Returns nil.")
+             "newline character is printed. Use the value of (dyn :out stdout) to determine "
+             "what to push characters to. Expects (dyn :out stdout) to be either a core/file or "
+             "a buffer. Returns nil.")
+    },
+    {
+        "prin", cfun_io_prin,
+        JDOC("(prin & xs)\n\n"
+             "Same as print, but does not add trailing newline.")
+    },
+    {
+        "eprin", cfun_io_eprin,
+        JDOC("(eprin & xs)\n\n"
+             "Same as prin, but uses (dyn :err stderr) instead of (dyn :out stdout).")
+    },
+    {
+        "eprint", cfun_io_eprint,
+        JDOC("(eprint & xs)\n\n"
+             "Same as print, but uses (dyn :err stderr) instead of (dyn :out stdout).")
     },
     {
         "file/open", cfun_io_fopen,
