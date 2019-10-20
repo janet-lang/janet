@@ -628,7 +628,7 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                 const Janet *tup = janet_unwrap_tuple(x);
                 /* Empty tuple is tuple literal */
                 if (janet_tuple_length(tup) == 0) {
-                    ret = janetc_cslot(x);
+                    ret = janetc_cslot(janet_wrap_tuple(janet_tuple_n(NULL, 0)));
                 } else if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) { /* [] tuples are not function call */
                     ret = janetc_tuple(opts, x);
                 } else {
