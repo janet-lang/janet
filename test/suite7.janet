@@ -182,4 +182,6 @@
 (assert (= (string out-buf) "Hello\nhi") "print and prin to buffer 1")
 (assert (= (string err-buf) "Sup\nnot much.") "eprint and eprin to buffer 1")
 
+(assert (= (string '()) (string [])) "empty bracket tuple literal")
+
 (end-suite)

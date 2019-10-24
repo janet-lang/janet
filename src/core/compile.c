@@ -454,6 +454,7 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun) {
                 break;
                 case JANET_CFUNCTION:
                 case JANET_ABSTRACT:
+                case JANET_NIL:
                     break;
                 case JANET_KEYWORD:
                     if (min_arity == 0) {
