@@ -63,6 +63,21 @@
     (def h (get handlers n))
     (if h (h i) (do (print "unknown flag -" n) ((get handlers "h")))))
 
+  (def- safe-forms {'defn true 'defn- true 'defmacro true 'defmacro- true})
+  (def- importers {'import true 'import* true 'use true 'dofile true 'require true})
+  (defn- evaluator
+    [thunk source env where]
+    (if *compile-only*
+      (when (tuple? source)
+        (cond
+          (safe-forms (source 0)) (thunk)
+          (importers (source 0))
+          (do
+            (let [[l c] (tuple/sourcemap source)
+                  newtup (tuple/setmap (tuple ;source :evaluator evaluator) l c)]
+              ((compile newtup env where))))))
+      (thunk)))
+
   # Process arguments
   (var i 0)
   (def lenargs (length args))
@@ -72,7 +87,7 @@
       (+= i (dohandler (string/slice arg 1 2) i))
       (do
         (set *no-file* false)
-        (dofile arg :prefix "" :exit *exit-on-error* :compile-only *compile-only*)
+        (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator)
         (set i lenargs))))
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))

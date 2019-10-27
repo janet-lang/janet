@@ -1657,7 +1657,7 @@
   :env - the environment to compile against - default is the current env\n\t
   :source - string path of source for better errors - default is \"<anonymous>\"\n\t
   :on-compile-error - callback when compilation fails - default is bad-compile\n\t
-  :compile-only - only compile the source, do not execute it - default is false\n\t
+  :evaluator - callback that executes thunks. Signature is (evaluator thunk source env where)\n\t
   :on-status - callback when a value is evaluated - default is debug/stacktrace\n\t
   :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia.\n\t
   :expander - an optional function that is called on each top level form before being compiled."
@@ -1669,15 +1669,15 @@
         :on-compile-error on-compile-error
         :on-parse-error on-parse-error
         :fiber-flags guard
-        :compile-only compile-only
+        :evaluator evaluator
         :source where
         :expander expand} opts)
   (default env (fiber/getenv (fiber/current)))
   (default chunks (fn [buf p] (getline "" buf)))
-  (default compile-only false)
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
   (default on-parse-error bad-parse)
+  (default evaluator (fn evaluate [x &] (x)))
   (default where "<anonymous>")
 
   # Are we done yet?
@@ -1695,7 +1695,7 @@
         (fn []
           (def res (compile source env where))
           (if (= (type res) :function)
-            (unless compile-only (res))
+            (evaluator res source env where)
             (do
               (set good false)
               (def {:error err :line line :column column :fiber errf} res)
@@ -1890,7 +1890,8 @@
   (def {:exit exit-on-error
         :source source
         :env env
-        :compile-only compile-only} (table ;args))
+        :expander expander
+        :evaluator evaluator} (table ;args))
   (def f (if (= (type path) :core/file)
            path
            (file/open path :rb)))
@@ -1913,7 +1914,8 @@
                              (when (not= (fiber/status f) :dead)
                                (debug/stacktrace f x)
                                (if exit-on-error (os/exit 1))))
-                :compile-only compile-only
+                :evaluator evaluator
+                :expander expander
                 :source (or source (if (= f path) "<anonymous>" path))})
   (when (not= f path) (file/close f))
   env)
