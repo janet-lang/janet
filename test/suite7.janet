@@ -128,7 +128,7 @@
 
 # Make sure Carriage Returns don't end up in doc strings.
 
-(assert (not (string/find "\r" (get ((fiber/getenv (fiber/current)) 'cond) :doc))) "no \\r in doc strings")
+(assert (not (string/find "\r" (get ((fiber/getenv (fiber/current)) 'cond) :doc ""))) "no \\r in doc strings")
 
 # module/expand-path regression
 (with-dyns [:syspath ".janet/.janet"]

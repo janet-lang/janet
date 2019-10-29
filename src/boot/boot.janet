@@ -2066,6 +2066,7 @@ _fiber is bound to the suspended fiber
   "Entrance for the Janet CLI tool. Call this functions with the command line
   arguments as an array or tuple of strings to invoke the CLI interface."
   [args]
+
   (setdyn :args args)
 
   (var *should-repl* false)
@@ -2093,7 +2094,7 @@ _fiber is bound to the suspended fiber
   -r : Enter the repl after running all scripts
   -p : Keep on executing if there is a top level error (persistent)
   -q : Hide prompt, logo, and repl output (quiet)
-  -k : Compile scripts but do not execute
+  -k : Compile scripts but do not execute (flycheck)
   -m syspath : Set system path for loading global modules
   -c source output : Compile janet source code into an image
   -n : Disable ANSI color output in the repl
