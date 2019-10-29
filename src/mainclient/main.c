@@ -88,7 +88,9 @@ int main(int argc, char **argv) {
     Janet mainfun, out;
     janet_resolve(env, janet_csymbol("cli-main"), &mainfun);
     Janet mainargs[1] = { janet_wrap_array(args) };
-    status = janet_pcall(janet_unwrap_function(mainfun), 1, mainargs, &out, NULL);
+    JanetFiber *fiber = janet_fiber(janet_unwrap_function(mainfun), 64, 1, mainargs);
+    fiber->env = env;
+    status = janet_continue(fiber, janet_wrap_nil(), &out);
 
     /* Deinitialize vm */
     janet_deinit();

@@ -9,6 +9,7 @@
 
 # Body
 (each path (tuple/slice (dyn :args) 1)
+  (print "\n/* " path " */\n")
   (print (slurp path)))
 
 # maybe will help
