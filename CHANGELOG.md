@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Improve flychecking, and fix flyching bugs introduced in 1.4.0.
 - Add `prin`, `eprint`, `eprintf` and `eprin` functions. The
   functions prefix with e print to `(dyn :err stderr)`
 - Print family of functions can now also print to buffers
