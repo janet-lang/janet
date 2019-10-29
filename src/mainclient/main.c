@@ -31,9 +31,6 @@
 #endif
 #endif
 
-extern const unsigned char *janet_gen_init;
-extern int32_t janet_gen_init_size;
-
 int main(int argc, char **argv) {
     int i, status;
     JanetArray *args;
@@ -83,13 +80,15 @@ int main(int argc, char **argv) {
     args = janet_array(argc);
     for (i = 1; i < argc; i++)
         janet_array_push(args, janet_cstringv(argv[i]));
-    janet_table_put(env, janet_ckeywordv("args"), janet_wrap_array(args));
 
     /* Save current executable path to (dyn :executable) */
     janet_table_put(env, janet_ckeywordv("executable"), janet_cstringv(argv[0]));
 
     /* Run startup script */
-    status = janet_dobytes(env, janet_gen_init, janet_gen_init_size, "init.janet", NULL);
+    Janet mainfun, out;
+    janet_resolve(env, janet_csymbol("cli-main"), &mainfun);
+    Janet mainargs[1] = { janet_wrap_array(args) };
+    status = janet_pcall(janet_unwrap_function(mainfun), 1, mainargs, &out, NULL);
 
     /* Deinitialize vm */
     janet_deinit();

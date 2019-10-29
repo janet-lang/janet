@@ -83,7 +83,6 @@ gen = generator(xxd,
   output : '@BASENAME@.gen.c',
   arguments : ['@INPUT@', '@OUTPUT@', '@EXTRA_ARGS@'])
 boot_gen = gen.process('src/boot/boot.janet', extra_args: 'janet_gen_boot')
-init_gen = gen.process('src/mainclient/init.janet', extra_args: 'janet_gen_init')
 
 # Order is important here, as some headers
 # depend on other headers for the amalg target
@@ -185,14 +184,14 @@ else
   extra_cross_cflags = []
 endif
 
-janet_mainclient = executable('janet', core_src, core_image, init_gen, mainclient_src,
+janet_mainclient = executable('janet', core_src, core_image, mainclient_src,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   c_args : extra_native_cflags,
   install : true)
 
 if meson.is_cross_build()
-  janet_nativeclient = executable('janet-native', core_src, core_image, init_gen, mainclient_src,
+  janet_nativeclient = executable('janet-native', core_src, core_image, mainclient_src,
     include_directories : incdir,
     dependencies : [m_dep, dl_dep],
     c_args : extra_cross_cflags,
@@ -216,7 +215,7 @@ amalg = custom_target('amalg',
   command : [janet_nativeclient, '@INPUT@'])
 
 # Amalgamated client
-janet_amalgclient = executable('janet-amalg', amalg, init_gen, mainclient_src,
+janet_amalgclient = executable('janet-amalg', amalg, mainclient_src,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   build_by_default : false)
