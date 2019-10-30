@@ -23,7 +23,9 @@
 #ifndef JANET_LINE_H_defined
 #define JANET_LINE_H_defined
 
+#ifndef JANET_AMALG
 #include <janet.h>
+#endif
 
 void janet_line_init();
 void janet_line_deinit();

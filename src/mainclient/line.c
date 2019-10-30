@@ -20,7 +20,9 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include "line.h"
+#endif
 
 /* Common */
 Janet janet_line_getter(int32_t argc, Janet *argv) {

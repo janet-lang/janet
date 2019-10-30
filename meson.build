@@ -213,6 +213,12 @@ amalg = custom_target('amalg',
   output : ['janet.c'],
   capture : true,
   command : [janet_nativeclient, '@INPUT@'])
+amalg_shell = custom_target('amalg-shell',
+  input : ['tools/amalg.janet', 'src/mainclient/line.h',
+    'src/mainclient/line.c', 'src/mainlcient/main.c'],
+  output : ['shell.c'],
+  capture : true,
+  command : [janet_nativeclient, '@INPUT@'])
 
 # Amalgamated client
 janet_amalgclient = executable('janet-amalg', amalg, mainclient_src,

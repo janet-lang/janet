@@ -20,8 +20,10 @@
 * IN THE SOFTWARE.
 */
 
+#ifndef JANET_AMALG
 #include <janet.h>
 #include "line.h"
+#endif
 
 #ifdef _WIN32
 #include <windows.h>

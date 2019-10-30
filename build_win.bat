@@ -96,6 +96,10 @@ for %%f in (src\core\*.c) do (
 janet.exe tools\amalg.janet src\core\util.h src\core\state.h src\core\gc.h src\core\vector.h src\core\fiber.h src\core\regalloc.h src\core\compile.h src\core\emit.h src\core\symcache.h %amalg_files% build\core_image.c > build\janet.c
 janet.exe tools\removecr.janet build\janet.c
 
+@rem Gen shell.c
+janet.exe tools\amalg.janet src\mainclient\line.h src\mainclient\line.c src\mainclient\main.c > build\shell.c
+janet.exe tools\removecr.janet build\shell.c
+
 echo === Successfully built janet.exe for Windows ===
 echo === Run 'build_win test' to run tests. ==
 echo === Run 'build_win clean' to delete build artifacts. ===
@@ -137,6 +141,7 @@ janet.exe tools\gendoc.janet > dist\doc.html
 janet.exe tools\removecr.janet dist\doc.html
 
 copy build\janet.c dist\janet.c
+copy build\shell.c dist\shell.c
 copy janet.exe dist\janet.exe
 copy LICENSE dist\LICENSE
 copy README.md dist\README.md

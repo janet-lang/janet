@@ -42,6 +42,9 @@ artifacts:
     - name: janetconf.h
       path: dist\janetconf.h
       type: File
+    - name: shell.c
+      path: dist\shell.c
+      type: File
     - name: "janet-$(janet_outname)-windows"
       path: dist
       type: Zip

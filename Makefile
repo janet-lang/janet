@@ -213,11 +213,15 @@ build/boot.gen.c: src/boot/boot.janet build/xxd
 ##### Amalgamation #####
 ########################
 
-amalg: build/janet.c build/janet.h build/core_image.c
+amalg: build/shell.c build/janet.c build/janet.h build/core_image.c
 
 AMALG_SOURCE=$(JANET_LOCAL_HEADERS) $(JANET_CORE_SOURCES) build/core_image.c
 build/janet.c: $(AMALG_SOURCE) tools/amalg.janet $(JANET_TARGET)
 	$(JANET_TARGET) tools/amalg.janet $(AMALG_SOURCE) > $@
+
+AMALG_SHELL_SOURCE=src/mainclient/line.h src/mainclient/line.c src/mainclient/main.c
+build/shell.c: $(JANET_TARGET) tools/amalg.janet $(AMALG_SHELL_SOURCE)
+	$(JANET_TARGET) tools/amalg.janet $(AMALG_SHELL_SOURCE) > $@
 
 build/janet.h: src/include/janet.h
 	cp $< $@
@@ -257,7 +261,7 @@ dist: build/janet-dist.tar.gz
 build/janet-%.tar.gz: $(JANET_TARGET) \
 	src/include/janet.h src/conf/janetconf.h \
 	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
-	build/doc.html README.md build/janet.c
+	build/doc.html README.md build/janet.c build/shell.c
 	$(eval JANET_DIST_DIR = "janet-$(shell basename $*)")
 	mkdir -p build/$(JANET_DIST_DIR)
 	cp -r $^ build/$(JANET_DIST_DIR)/
