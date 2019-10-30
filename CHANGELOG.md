@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Create shell.c when making the amlagamated source. This can be compiled with
+  janet.c to make the janet interpreter.
 - Add `cli-main` function to the core, which invokes Janet's CLI interface.
   This basically moves what was init.janet into boot.janet.
 - Improve flychecking, and fix flyching bugs introduced in 1.4.0.
