@@ -179,9 +179,9 @@ call jpm --verbose --modpath=. install https://github.com/janet-lang/json.git
 @if errorlevel 1 goto :TESTFAIL
 call build\testexec
 @if errorlevel 1 goto :TESTFAIL
-call jpm --verbose quickbin testexec.janet build\testexec2
+call jpm --verbose quickbin testexec.janet build\testexec2.exe
 @if errorlevel 1 goto :TESTFAIL
-call build\testexec2
+call build\testexec2.exe
 @if errorlevel 1 goto :TESTFAIL
 popd
 exit /b 0
