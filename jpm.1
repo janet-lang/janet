@@ -138,6 +138,13 @@ List all rules that can be run via run. This is useful for exploring rules in th
 .BR update-pkgs
 Update the package listing by installing the 'pkgs' package. Same as jpm install pkgs
 
+.TP
+.BR quickbin [\fBentry\fR] [\fBexecutable\fR]
+Create a standalone, statically linked executable from a Janet source file that contains a main function.
+The main function is the entry point of the program and will receive command line arguments
+as function arguments. The entry file can import other modules, including native C modules, and
+jpm will attempt to include the dependencies into the generated executable.
+
 .SH ENVIRONMENT
 
 .B JANET_PATH

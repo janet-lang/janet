@@ -346,6 +346,8 @@ test-install:
 		&& jpm --verbose build \
 		&& jpm --verbose test \
 		&& build/testexec \
+		&& jpm --verbose quickbin testexec.janet build/testexec2 \
+		&& build/testexec2 \
 		&& jpm --verbose --modpath=. install https://github.com/janet-lang/json.git
 
 build/embed_janet.o: build/janet.c $(JANET_HEADERS)

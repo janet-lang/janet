@@ -464,17 +464,17 @@ int main(int argc, const char **argv) {
     }
 
     /* Create enviornment */
-    JanetTable *runtimeEnv = janet_table(0);
-    runtimeEnv->proto = env;
-    janet_table_put(runtimeEnv, janet_ckeywordv("args"), janet_wrap_array(args));
-    janet_gcroot(janet_wrap_table(runtimeEnv));
+    temptab = janet_table(0);
+    temptab = env;
+    janet_table_put(temptab, janet_ckeywordv("args"), janet_wrap_array(args));
+    janet_gcroot(janet_wrap_table(temptab));
 
     /* Unlock GC */
     janet_gcunlock(handle);
 
     /* Run everything */
     JanetFiber *fiber = janet_fiber(janet_unwrap_function(marsh_out), 64, argc, args->data);
-    fiber->env = runtimeEnv;
+    fiber->env = temptab;
     Janet out;
     JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
     if (result) {
@@ -843,6 +843,7 @@ Subcommands are:
              or (rule "ouput.file" [deps...] ...).
   rules : list rules available with run.
   update-pkgs : Update the current package listing from the remote git repository selected.
+  quickbin entry executable : Create an executable from a janet script with a main function.
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath)
@@ -900,6 +901,11 @@ Flags are:
   []
   (install-git (dyn :pkglist default-pkglist)))
 
+(defn- quickbin
+  [input output]
+  (create-executable @{} input output)
+  (do-rule output))
+
 (def- subcommands
   {"build" build
    "clean" clean
@@ -912,7 +918,8 @@ Flags are:
    "run" local-rule
    "rules" list-rules
    "update-pkgs" update-pkgs
-   "uninstall" uninstall-cmd})
+   "uninstall" uninstall-cmd
+   "quickbin" quickbin})
 
 (def- args (tuple/slice (dyn :args) 1))
 (def- len (length args))
