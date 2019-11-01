@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `with-vars` macro.
 - Add the `quickbin` command to jpm.
 - Create shell.c when making the amlagamated source. This can be compiled with
   janet.c to make the janet interpreter.

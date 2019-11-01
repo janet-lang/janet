@@ -909,6 +909,25 @@
          ~(setdyn ,(bindings i) ,(bindings (+ i 1)))))
   ~(,resume (,fiber/new (fn [] ,;dyn-forms ,;body) :p)))
 
+(defmacro with-vars
+  "Evaluates body with each var in vars temporarily bound. Similar signature to
+  let, but each binding must be a var."
+  [vars & body]
+  (def len (length vars))
+  (unless (even? len) (error "expected even number of argument to vars"))
+  (def temp (seq [i :range [0 len 2]] (gensym)))
+  (def saveold (seq [i :range [0 len 2]] ['def (temp (/ i 2)) (vars i)]))
+  (def setnew (seq [i :range [0 len 2]] ['set (vars i) (vars (+ i 1))]))
+  (def restoreold (seq [i :range [0 len 2]] ['set (vars i) (temp (/ i 2))]))
+  (with-syms [ret f s]
+  ~(do
+     ,;saveold
+     (def ,f (,fiber/new (fn [] ,;setnew ,;body) :ei))
+     (def ,ret (,resume ,f))
+     ,;restoreold
+     (if (= (,fiber/status ,f) :error) (,propagate ,ret ,f))
+     ,ret)))
+
 (defn partial
   "Partial function application."
   [f & more]
@@ -928,7 +947,7 @@
   "Reverses the order of the elements in a given array or tuple and returns a new array."
   [t]
   (def len (length t))
-  (var n (dec len))
+  (var n (- len 1))
   (def reversed (array/new len))
   (while (>= n 0)
     (array/push reversed (get t n))
