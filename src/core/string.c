@@ -170,8 +170,8 @@ static int32_t kmp_next(struct kmp_state *state) {
 /* CFuns */
 
 static Janet cfun_string_slice(int32_t argc, Janet *argv) {
-    JanetRange range = janet_getslice(argc, argv);
     JanetByteView view = janet_getbytes(argv, 0);
+    JanetRange range = janet_getslice(argc, argv);
     return janet_stringv(view.bytes + range.start, range.end - range.start);
 }
 

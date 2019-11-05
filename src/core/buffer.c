@@ -242,8 +242,8 @@ static Janet cfun_buffer_popn(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_buffer_slice(int32_t argc, Janet *argv) {
-    JanetRange range = janet_getslice(argc, argv);
     JanetByteView view = janet_getbytes(argv, 0);
+    JanetRange range = janet_getslice(argc, argv);
     JanetBuffer *buffer = janet_buffer(range.end - range.start);
     if (buffer->data)
         memcpy(buffer->data, view.bytes + range.start, range.end - range.start);

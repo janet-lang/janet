@@ -158,8 +158,8 @@ static Janet cfun_array_ensure(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_array_slice(int32_t argc, Janet *argv) {
-    JanetRange range = janet_getslice(argc, argv);
     JanetView view = janet_getindexed(argv, 0);
+    JanetRange range = janet_getslice(argc, argv);
     JanetArray *array = janet_array(range.end - range.start);
     if (array->data)
         memcpy(array->data, view.items + range.start, sizeof(Janet) * (range.end - range.start));

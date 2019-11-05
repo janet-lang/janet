@@ -100,8 +100,8 @@ static Janet cfun_tuple_brackets(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_tuple_slice(int32_t argc, Janet *argv) {
-    JanetRange range = janet_getslice(argc, argv);
     JanetView view = janet_getindexed(argv, 0);
+    JanetRange range = janet_getslice(argc, argv);
     return janet_wrap_tuple(janet_tuple_n(view.items + range.start, range.end - range.start));
 }
 
