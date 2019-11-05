@@ -342,6 +342,19 @@ static Janet janet_core_array(int32_t argc, Janet *argv) {
     return janet_wrap_array(array);
 }
 
+static Janet janet_core_slice(int32_t argc, Janet *argv) {
+    JanetRange range = janet_getslice(argc, argv);
+    JanetByteView bview;
+    JanetView iview;
+    if (janet_bytes_view(argv[0], &bview.bytes, &bview.len)) {
+        return janet_stringv(bview.bytes + range.start, range.end - range.start);
+    } else if (janet_indexed_view(argv[0], &iview.items, &iview.len)) {
+        return janet_wrap_tuple(janet_tuple_n(iview.items + range.start, range.end - range.start));
+    } else {
+        janet_panic_type(argv[0], 0, JANET_TFLAG_BYTES | JANET_TFLAG_INDEXED);
+    }
+}
+
 static Janet janet_core_table(int32_t argc, Janet *argv) {
     int32_t i;
     if (argc & 1)
@@ -664,6 +677,11 @@ static const JanetReg corelib_cfuns[] = {
         "nat?", janet_core_check_nat,
         JDOC("(nat? x)\n\n"
              "Check if x can be exactly represented as a non-negative 32 bit signed two's complement integer.")
+    },
+    {
+        "slice", janet_core_slice,
+        JDOC("(slice x &opt start end)\n\n"
+             "Extract a sub-range of an indexed data strutrue or byte sequence.")
     },
     {NULL, NULL, NULL}
 };

@@ -1169,11 +1169,6 @@
   (if (not= i len) (array/push ret (slicer ind i)))
   ret)
 
-(defn slice
-  "Extract a sub-range of an indexed data strutrue or byte sequence."
-  [ind &opt start end]
-  ((if (bytes? ind) string/slice tuple/slice) ind start end))
-
 ###
 ###
 ### IO Helpers
