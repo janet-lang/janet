@@ -245,9 +245,11 @@ valgrind: $(JANET_TARGET)
 
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in test/suite*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
+	$(JANET_TARGET) -k auxbin/jpm
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in test/suite*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
+	$(VALGRIND_COMMAND) ./$(JANET_TARGET) -k auxbin/jpm
 
 callgrind: $(JANET_TARGET)
 	for f in test/suite*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
@@ -261,7 +263,7 @@ dist: build/janet-dist.tar.gz
 build/janet-%.tar.gz: $(JANET_TARGET) \
 	src/include/janet.h src/conf/janetconf.h \
 	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
-	build/doc.html README.md build/janet.c build/shell.c
+	build/doc.html README.md build/janet.c build/shell.c auxbin/jpm
 	$(eval JANET_DIST_DIR = "janet-$(shell basename $*)")
 	mkdir -p build/$(JANET_DIST_DIR)
 	cp -r $^ build/$(JANET_DIST_DIR)/
