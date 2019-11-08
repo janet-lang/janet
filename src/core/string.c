@@ -500,6 +500,8 @@ static Janet cfun_string_trim(int32_t argc, Janet *argv) {
     trim_help_args(argc, argv, &str, &set);
     int32_t left_edge = trim_help_leftedge(str, set);
     int32_t right_edge = trim_help_rightedge(str, set);
+    if (right_edge < left_edge)
+        return janet_stringv(NULL, 0);
     return janet_stringv(str.bytes + left_edge, right_edge - left_edge);
 }
 

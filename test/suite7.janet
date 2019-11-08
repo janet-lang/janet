@@ -190,4 +190,7 @@
 (assert-error "with-vars 2" (with-vars [abc 456] (error :oops)))
 (assert (= abc 123) "with-vars 3")
 
+# Trim empty string
+(assert (= "" (string/trim " ")) "string/trim regression")
+
 (end-suite)
