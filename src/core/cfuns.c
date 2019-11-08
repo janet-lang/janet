@@ -104,7 +104,7 @@ static JanetSlot do_debug(JanetFopts opts, JanetSlot *args) {
     janetc_emit(opts.compiler, JOP_SIGNAL | (2 << 24));
     return janetc_cslot(janet_wrap_nil());
 }
-static JanetSlot do_get(JanetFopts opts, JanetSlot *args) {
+static JanetSlot do_in(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_GET, janet_wrap_nil());
 }
 static JanetSlot do_put(JanetFopts opts, JanetSlot *args) {
@@ -275,7 +275,7 @@ static const JanetFunOptimizer optimizers[] = {
     {minarity2, do_apply},
     {maxarity1, do_yield},
     {fixarity2, do_resume},
-    {fixarity2, do_get},
+    {fixarity2, do_in},
     {fixarity3, do_put},
     {fixarity1, do_length},
     {NULL, do_add},

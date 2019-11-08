@@ -1171,6 +1171,8 @@ int janet_init(void) {
     /* Initialize registry */
     janet_vm_registry = janet_table(0);
     janet_gcroot(janet_wrap_table(janet_vm_registry));
+    /* Seed RNG */
+    janet_rng_seed(janet_default_rng(), 0);
     return 0;
 }
 

@@ -316,6 +316,7 @@ typedef struct JanetView JanetView;
 typedef struct JanetByteView JanetByteView;
 typedef struct JanetDictView JanetDictView;
 typedef struct JanetRange JanetRange;
+typedef struct JanetRNG JanetRNG;
 typedef Janet(*JanetCFunction)(int32_t argc, Janet *argv);
 
 /* Basic types for all Janet Values */
@@ -927,6 +928,11 @@ struct JanetRange {
     int32_t end;
 };
 
+struct JanetRNG {
+    uint32_t a, b, c, d;
+    uint32_t counter;
+};
+
 /***** END SECTION TYPES *****/
 
 /***** START SECTION OPCODES *****/
@@ -1102,6 +1108,11 @@ JANET_API void janet_debug_unbreak(JanetFuncDef *def, int32_t pc);
 JANET_API void janet_debug_find(
     JanetFuncDef **def_out, int32_t *pc_out,
     const uint8_t *source, int32_t line, int32_t column);
+
+/* RNG */
+JANET_API JanetRNG *janet_default_rng(void);
+JANET_API void janet_rng_seed(JanetRNG *rng, uint32_t seed);
+JANET_API uint32_t janet_rng_u32(JanetRNG *rng);
 
 /* Array functions */
 JANET_API JanetArray *janet_array(int32_t capacity);

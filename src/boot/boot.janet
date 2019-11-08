@@ -25,14 +25,14 @@
               (array/push modifiers ith))
             (if (< i len) (recur (+ i 1)))))))
     (def start (fstart 0))
-    (def args (get more start))
+    (def args (in more start))
     # Add function signature to docstring
     (var index 0)
     (def arglen (length args))
     (def buf (buffer "(" name))
     (while (< index arglen)
       (buffer/push-string buf " ")
-      (buffer/format buf "%p" (get args index))
+      (buffer/format buf "%p" (in args index))
       (set index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
     # Build return value
@@ -116,7 +116,7 @@
        :table true
        :buffer true
        :struct true})
-    (fn idempotent? [x] (not (get non-atomic-types (type x))))))
+    (fn idempotent? [x] (not (in non-atomic-types (type x))))))
 
 # C style macros and functions for imperative sugar. No bitwise though.
 (defn inc "Returns x + 1." [x] (+ x 1))
@@ -163,9 +163,9 @@
   (defn aux [i]
     (def restlen (- (length pairs) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) (get pairs i)
-        (tuple 'if (get pairs i)
-               (get pairs (+ i 1))
+      (if (= restlen 1) (in pairs i)
+        (tuple 'if (in pairs i)
+               (in pairs (+ i 1))
                (aux (+ i 2))))))
   (aux 0))
 
@@ -179,9 +179,9 @@
   (defn aux [i]
     (def restlen (- (length pairs) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) (get pairs i)
-        (tuple 'if (tuple = sym (get pairs i))
-               (get pairs (+ i 1))
+      (if (= restlen 1) (in pairs i)
+        (tuple 'if (tuple = sym (in pairs i))
+               (in pairs (+ i 1))
                (aux (+ i 2))))))
   (if atm
     (aux 0)
@@ -231,8 +231,8 @@
   (while (> i 0)
     (-- i)
     (set ret (if (= ret true)
-               (get forms i)
-               (tuple 'if (get forms i) ret))))
+               (in forms i)
+               (tuple 'if (in forms i) ret))))
   ret)
 
 (defmacro or
@@ -244,7 +244,7 @@
   (var i len)
   (while (> i 0)
     (-- i)
-    (def fi (get forms i))
+    (def fi (in forms i))
     (set ret (if (idempotent? fi)
                (tuple 'if fi fi ret)
                (do
@@ -260,7 +260,7 @@
   (def len (length syms))
   (def accum @[])
   (while (< i len)
-    (array/push accum (get syms i) [gensym])
+    (array/push accum (in syms i) [gensym])
     (++ i))
   ~(let (,;accum) ,;body))
 
@@ -299,7 +299,7 @@
        ,(unless (= ds in) ~(def ,ds ,in))
        (def ,len (,length ,ds))
        (while (,< ,i ,len)
-         (def ,binding (get ,ds ,i))
+         (def ,binding (in ,ds ,i))
          ,;body
          (++ ,i)))))
 
@@ -311,7 +311,7 @@
        ,(unless (= ds in) ~(def ,ds ,in))
        (var ,k (,next ,ds nil))
        (while ,k
-         (def ,binding ,(if pair? ~(tuple ,k (get ,ds ,k)) k))
+         (def ,binding ,(if pair? ~(tuple ,k (in ,ds ,k)) k))
          ,;body
          (set ,k (,next ,ds ,k))))))
 
@@ -327,48 +327,47 @@
 (defn- loop1
   [body head i]
 
+  # Terminate recursion
+  (when (<= (length head) i)
+    (break ~(do ,;body)))
+
   (def {i binding
-        (+ i 1) verb
-        (+ i 2) object} head)
+        (+ i 1) verb} head)
 
-  (cond
+  # 2 term expression
+  (when (keyword? binding)
+    (break
+      (let [rest (loop1 body head (+ i 2))]
+        (case binding
+          :until ~(do (if ,verb (break) nil) ,rest)
+          :while ~(do (if ,verb nil (break)) ,rest)
+          :let ~(let ,verb (do ,rest))
+          :after ~(do ,rest ,verb nil)
+          :before ~(do ,verb ,rest nil)
+          :repeat (with-syms [iter]
+                    ~(do (var ,iter ,verb) (while (> ,iter 0) ,rest (-- ,iter))))
+          :when ~(when ,verb ,rest)
+          (error (string "unexpected loop modifier " binding))))))
 
-    # Terminate recursion
-    (<= (length head) i)
-    ~(do ,;body)
-
-    # 2 term expression
-    (keyword? binding)
-    (let [rest (loop1 body head (+ i 2))]
-      (case binding
-        :until ~(do (if ,verb (break) nil) ,rest)
-        :while ~(do (if ,verb nil (break)) ,rest)
-        :let ~(let ,verb (do ,rest))
-        :after ~(do ,rest ,verb nil)
-        :before ~(do ,verb ,rest nil)
-        :repeat (with-syms [iter]
-                  ~(do (var ,iter ,verb) (while (> ,iter 0) ,rest (-- ,iter))))
-        :when ~(when ,verb ,rest)
-        (error (string "unexpected loop modifier " binding))))
-
-    # 3 term expression
-    (let [rest (loop1 body head (+ i 3))]
-      (case verb
-        :range (let [[start stop step] object]
-                 (for-template binding start stop (or step 1) < + [rest]))
-        :keys (keys-template binding object false [rest])
-        :pairs (keys-template binding object true [rest])
-        :down (let [[start stop step] object]
-                (for-template binding start stop (or step 1) > - [rest]))
-        :in (each-template binding object [rest])
-        :iterate (iterate-template binding object rest)
-        :generate (with-syms [f s]
-                    ~(let [,f ,object]
-                       (while true
-                         (def ,binding (,resume ,f))
-                         (if (= :dead (,fiber/status ,f)) (break))
-                         ,rest)))
-        (error (string "unexpected loop verb " verb))))))
+  # 3 term expression
+  (def {(+ i 2) object} head)
+  (let [rest (loop1 body head (+ i 3))]
+    (case verb
+      :range (let [[start stop step] object]
+               (for-template binding start stop (or step 1) < + [rest]))
+      :keys (keys-template binding object false [rest])
+      :pairs (keys-template binding object true [rest])
+      :down (let [[start stop step] object]
+              (for-template binding start stop (or step 1) > - [rest]))
+      :in (each-template binding object [rest])
+      :iterate (iterate-template binding object rest)
+      :generate (with-syms [f s]
+                  ~(let [,f ,object]
+                     (while true
+                       (def ,binding (,resume ,f))
+                       (if (= :dead (,fiber/status ,f)) (break))
+                       ,rest)))
+      (error (string "unexpected loop verb " verb)))))
 
 (defmacro for
   "Do a c style for loop for side effects. Returns nil."
@@ -466,11 +465,11 @@
   (if (zero? len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
   (defn aux [i]
-    (def bl (get bindings i))
-    (def br (get bindings (+ 1 i)))
     (if (>= i len)
       tru
       (do
+        (def bl (in bindings i))
+        (def br (in bindings (+ 1 i)))
         (def atm (idempotent? bl))
         (def sym (if atm bl (gensym)))
         (if atm
@@ -499,7 +498,7 @@
   [& functions]
   (case (length functions)
     0 nil
-    1 (get functions 0)
+    1 (in functions 0)
     2 (let [[f g]       functions] (fn [& x] (f (g ;x))))
     3 (let [[f g h]     functions] (fn [& x] (f (g (h ;x)))))
     4 (let [[f g h i]   functions] (fn [& x] (f (g (h (i ;x))))))
@@ -547,12 +546,12 @@
 (defn first
   "Get the first element from an indexed data structure."
   [xs]
-  (get xs 0))
+  (in xs 0))
 
 (defn last
   "Get the last element from an indexed data structure."
   [xs]
-  (get xs (- (length xs) 1)))
+  (in xs (- (length xs) 1)))
 
 ###
 ###
@@ -566,16 +565,16 @@
 
     (defn part
       [a lo hi by]
-      (def pivot (get a hi))
+      (def pivot (in a hi))
       (var i lo)
       (for j lo hi
-        (def aj (get a j))
+        (def aj (in a j))
         (when (by aj pivot)
-          (def ai (get a i))
+          (def ai (in a i))
           (set (a i) aj)
           (set (a j) ai)
           (++ i)))
-      (set (a hi) (get a i))
+      (set (a hi) (in a i))
       (set (a i) pivot)
       i)
 
@@ -609,20 +608,20 @@
   [f & inds]
   (def ninds (length inds))
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
-  (var limit (length (get inds 0)))
+  (var limit (length (in inds 0)))
   (for i 0 ninds
-    (def l (length (get inds i)))
+    (def l (length (in inds i)))
     (if (< l limit) (set limit l)))
   (def [i1 i2 i3 i4] inds)
   (def res (array/new limit))
   (case ninds
-    1 (for i 0 limit (set (res i) (f (get i1 i))))
-    2 (for i 0 limit (set (res i) (f (get i1 i) (get i2 i))))
-    3 (for i 0 limit (set (res i) (f (get i1 i) (get i2 i) (get i3 i))))
-    4 (for i 0 limit (set (res i) (f (get i1 i) (get i2 i) (get i3 i) (get i4 i))))
+    1 (for i 0 limit (set (res i) (f (in i1 i))))
+    2 (for i 0 limit (set (res i) (f (in i1 i) (in i2 i))))
+    3 (for i 0 limit (set (res i) (f (in i1 i) (in i2 i) (in i3 i))))
+    4 (for i 0 limit (set (res i) (f (in i1 i) (in i2 i) (in i3 i) (in i4 i))))
     (for i 0 limit
       (def args (array/new ninds))
-      (for j 0 ninds (set (args j) (get (get inds j) i)))
+      (for j 0 ninds (set (args j) (in (in inds j) i)))
       (set (res i) (f ;args))))
   res)
 
@@ -695,7 +694,7 @@
   (var i 0)
   (var going true)
   (while (if (< i len) going)
-    (def item (get ind i))
+    (def item (in ind i))
     (if (pred item) (set going false) (++ i)))
   (if going nil i))
 
@@ -705,7 +704,7 @@
   and a not found. Consider find-index if this is an issue."
   [pred ind]
   (def i (find-index pred ind))
-  (if (= i nil) nil (get ind i)))
+  (if (= i nil) nil (in ind i)))
 
 (defn take
   "Take first n elements in an indexed type. Returns new indexed instance."
@@ -783,7 +782,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 (tuple (get n 0) (array/slice n 1))
+                 (tuple (in n 0) (array/slice n 1))
                  (tuple n @[])))
     (def parts (array/concat @[h last] t))
     (tuple/slice parts 0))
@@ -796,7 +795,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 (tuple (get n 0) (array/slice n 1))
+                 (tuple (in n 0) (array/slice n 1))
                  (tuple n @[])))
     (def parts (array/concat @[h] t @[last]))
     (tuple/slice parts 0))
@@ -811,7 +810,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 (tuple (get n 0) (array/slice n 1))
+                 (tuple (in n 0) (array/slice n 1))
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h sym] t))
@@ -827,7 +826,7 @@
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
-                 (tuple (get n 0) (array/slice n 1))
+                 (tuple (in n 0) (array/slice n 1))
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h] t @[sym]))
@@ -843,7 +842,7 @@
 (defn walk-dict [f form]
   (def ret @{})
   (loop [k :keys form]
-    (put ret (f k) (f (get form k))))
+    (put ret (f k) (f (in form k))))
   ret)
 
 (defn walk
@@ -950,7 +949,7 @@
   (var n (- len 1))
   (def reversed (array/new len))
   (while (>= n 0)
-    (array/push reversed (get t n))
+    (array/push reversed (in t n))
     (-- n))
   reversed)
 
@@ -961,7 +960,7 @@
   [ds]
   (def ret @{})
   (loop [k :keys ds]
-    (put ret (get ds k) k))
+    (put ret (in ds k) k))
   ret)
 
 (defn zipcoll
@@ -973,7 +972,7 @@
   (def lv (length vals))
   (def len (if (< lk lv) lk lv))
   (for i 0 len
-    (put res (get keys i) (get vals i)))
+    (put res (in keys i) (in vals i)))
   res)
 
 (defn get-in
@@ -1043,7 +1042,7 @@
   [tab & colls]
   (loop [c :in colls
          key :keys c]
-    (set (tab key) (get c key)))
+    (set (tab key) (in c key)))
   tab)
 
 (defn merge
@@ -1054,7 +1053,7 @@
   (def container @{})
   (loop [c :in colls
          key :keys c]
-    (set (container key) (get c key)))
+    (set (container key) (in c key)))
   container)
 
 (defn keys
@@ -1073,7 +1072,7 @@
   (def arr (array/new (length x)))
   (var k (next x nil))
   (while (not= nil k)
-    (array/push arr (get x k))
+    (array/push arr (in x k))
     (set k (next x k)))
   arr)
 
@@ -1083,7 +1082,7 @@
   (def arr (array/new (length x)))
   (var k (next x nil))
   (while (not= nil k)
-    (array/push arr (tuple k (get x k)))
+    (array/push arr (tuple k (in x k)))
     (set k (next x k)))
   arr)
 
@@ -1092,7 +1091,7 @@
   [ind]
   (def freqs @{})
   (each x ind
-    (def n (get freqs x))
+    (def n (in freqs x))
     (set (freqs x) (if n (+ 1 n) 1)))
   freqs)
 
@@ -1106,7 +1105,7 @@
     (def len (min ;(map length cols)))
     (loop [i :range [0 len]
            ci :range [0 ncol]]
-      (array/push res (get (get cols ci) i))))
+      (array/push res (in (in cols ci) i))))
   res)
 
 (defn distinct
@@ -1114,7 +1113,7 @@
   [xs]
   (def ret @[])
   (def seen @{})
-  (each x xs (if (get seen x) nil (do (put seen x true) (array/push ret x))))
+  (each x xs (if (in seen x) nil (do (put seen x true) (array/push ret x))))
   ret)
 
 (defn flatten-into
@@ -1138,7 +1137,7 @@
   like @[k v k v ...]. Returns a new array."
   [dict]
   (def ret (array/new (* 2 (length dict))))
-  (loop [k :keys dict] (array/push ret k (get dict k)))
+  (loop [k :keys dict] (array/push ret k (in dict k)))
   ret)
 
 (defn interpose
@@ -1147,10 +1146,10 @@
   [sep ind]
   (def len (length ind))
   (def ret (array/new (- (* 2 len) 1)))
-  (if (> len 0) (put ret 0 (get ind 0)))
+  (if (> len 0) (put ret 0 (in ind 0)))
   (var i 1)
   (while (< i len)
-    (array/push ret sep (get ind i))
+    (array/push ret sep (in ind i))
     (++ i))
   ret)
 
@@ -1233,7 +1232,7 @@
   (cond
 
     (symbol? pattern)
-    (if (get seen pattern)
+    (if (in seen pattern)
       ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)
       (do
         (put seen pattern true)
@@ -1244,7 +1243,7 @@
       # Unification with external values
       ~(if (= ,(pattern 1) ,expr) ,(onmatch) ,sentinel)
       (match-1
-        (get pattern 0) expr
+        (in pattern 0) expr
         (fn []
           ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen))
 
@@ -1259,7 +1258,7 @@
                (++ i)
                (if (= i len)
                  (onmatch)
-                 (match-1 (get pattern i) (tuple get $arr i) aux seen))))
+                 (match-1 (in pattern i) (tuple in $arr i) aux seen))))
            ,sentinel)))
 
     (dictionary? pattern)
@@ -1272,7 +1271,7 @@
                (set key (next pattern key))
                (if (= key nil)
                  (onmatch)
-                 (match-1 (get pattern key) (tuple get $dict key) aux seen))))
+                 (match-1 (in pattern key) (tuple in $dict key) aux seen))))
            ,sentinel)))
 
     :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
@@ -1293,9 +1292,9 @@
     (def len-1 (dec len))
     ((fn aux [i]
        (cond
-         (= i len-1) (get cases i)
+         (= i len-1) (in cases i)
          (< i len-1) (with-syms [$res]
-                       ~(if (= ,sentinel (def ,$res ,(match-1 (get cases i) $x (fn [] (get cases (inc i))) @{})))
+                       ~(if (= ,sentinel (def ,$res ,(match-1 (in cases i) $x (fn [] (in cases (inc i))) @{})))
                           ,(aux (+ 2 i))
                           ,$res)))) 0)))
 
@@ -1357,7 +1356,7 @@
       (def bind-type
         (string "    "
                 (cond
-                  (x :ref) (string :var " (" (type (get (x :ref) 0)) ")")
+                  (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
                   (x :macro) :macro
                   (type (x :value)))
                 "\n"))
@@ -1397,7 +1396,7 @@
     (def newt @{})
     (var key (next t nil))
     (while (not= nil key)
-      (put newt (recur key) (on-value (get t key)))
+      (put newt (recur key) (on-value (in t key)))
       (set key (next t key)))
     newt)
 
@@ -1410,24 +1409,24 @@
       (recur x)))
 
   (defn expanddef [t]
-    (def last (get t (- (length t) 1)))
-    (def bound (get t 1))
+    (def last (in t (- (length t) 1)))
+    (def bound (in t 1))
     (tuple/slice
       (array/concat
-        @[(get t 0) (expand-bindings bound)]
+        @[(in t 0) (expand-bindings bound)]
         (tuple/slice t 2 -2)
         @[(recur last)])))
 
   (defn expandall [t]
     (def args (map recur (tuple/slice t 1)))
-    (tuple (get t 0) ;args))
+    (tuple (in t 0) ;args))
 
   (defn expandfn [t]
-    (def t1 (get t 1))
+    (def t1 (in t 1))
     (if (symbol? t1)
       (do
         (def args (map recur (tuple/slice t 3)))
-        (tuple 'fn t1 (get t 2) ;args))
+        (tuple 'fn t1 (in t 2) ;args))
       (do
         (def args (map recur (tuple/slice t 2)))
         (tuple 'fn t1 ;args))))
@@ -1436,15 +1435,15 @@
     (defn qq [x]
       (case (type x)
         :tuple (do
-                 (def x0 (get x 0))
+                 (def x0 (in x 0))
                  (if (or (= 'unquote x0) (= 'unquote-splicing x0))
-                   (tuple x0 (recur (get x 1)))
+                   (tuple x0 (recur (in x 1)))
                    (tuple/slice (map qq x))))
         :array (map qq x)
         :table (table (map qq (kvs x)))
         :struct (struct (map qq (kvs x)))
         x))
-    (tuple (get t 0) (qq (get t 1))))
+    (tuple (in t 0) (qq (in t 1))))
 
   (def specs
     {'set expanddef
@@ -1458,8 +1457,8 @@
      'while expandall})
 
   (defn dotup [t]
-    (def h (get t 0))
-    (def s (get specs h))
+    (def h (in t 0))
+    (def s (in specs h))
     (def entry (or (dyn h) {}))
     (def m (entry :value))
     (def m? (entry :macro))
@@ -1956,7 +1955,7 @@
   [path & args]
   (def [fullpath mod-kind] (module/find path))
   (unless fullpath (error mod-kind))
-  (if-let [check (get module/cache fullpath)]
+  (if-let [check (in module/cache fullpath)]
     check
     (do
       (def loader (module/loaders mod-kind))
@@ -2123,25 +2122,25 @@ _fiber is bound to the suspended fiber
      "q" (fn [&] (set *quiet* true) 1)
      "k" (fn [&] (set *compile-only* true) (set *exit-on-error* false) 1)
      "n" (fn [&] (set *colorize* false) 1)
-     "m" (fn [i &] (setdyn :syspath (get args (+ i 1))) 2)
+     "m" (fn [i &] (setdyn :syspath (in args (+ i 1))) 2)
      "c" (fn [i &]
-           (def e (dofile (get args (+ i 1))))
-           (spit (get args (+ i 2)) (make-image e))
+           (def e (dofile (in args (+ i 1))))
+           (spit (in args (+ i 2)) (make-image e))
            (set *no-file* false)
            3)
      "-" (fn [&] (set *handleopts* false) 1)
      "l" (fn [i &]
-           (import* (get args (+ i 1))
+           (import* (in args (+ i 1))
                     :prefix "" :exit *exit-on-error*)
            2)
      "e" (fn [i &]
            (set *no-file* false)
-           (eval-string (get args (+ i 1)))
+           (eval-string (in args (+ i 1)))
            2)})
 
   (defn- dohandler [n i &]
-    (def h (get handlers n))
-    (if h (h i) (do (print "unknown flag -" n) ((get handlers "h")))))
+    (def h (in handlers n))
+    (if h (h i) (do (print "unknown flag -" n) ((in handlers "h")))))
 
   (def- safe-forms {'defn true 'defn- true 'defmacro true 'defmacro- true})
   (def- importers {'import true 'import* true 'use true 'dofile true 'require true})
@@ -2162,7 +2161,7 @@ _fiber is bound to the suspended fiber
   (var i 0)
   (def lenargs (length args))
   (while (< i lenargs)
-    (def arg (get args i))
+    (def arg (in args i))
     (if (and *handleopts* (= "-" (string/slice arg 0 1)))
       (+= i (dohandler (string/slice arg 1 2) i))
       (do

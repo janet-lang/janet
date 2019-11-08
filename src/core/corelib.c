@@ -262,6 +262,61 @@ static Janet janet_core_setdyn(int32_t argc, Janet *argv) {
     return argv[1];
 }
 
+static Janet janet_core_get(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 3);
+    Janet ds = argv[0];
+    Janet key = argv[1];
+    Janet dflt = argc == 3 ? argv[2] : janet_wrap_nil();
+    JanetType t = janet_type(argv[0]);
+    switch (t) {
+        default:
+            return dflt;
+        case JANET_STRING:
+        case JANET_SYMBOL:
+        case JANET_KEYWORD: {
+            if (!janet_checkint(key)) return dflt;
+            int32_t index = janet_unwrap_integer(key);
+            if (index < 0) return dflt;
+            const uint8_t *str = janet_unwrap_string(ds);
+            if (index >= janet_string_length(str)) return dflt;
+            return janet_wrap_integer(str[index]);
+        }
+        case JANET_ABSTRACT: {
+            void *abst = janet_unwrap_abstract(ds);
+            JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(abst);
+            if (!type->get) return dflt;
+            return (type->get)(abst, key);
+        }
+        case JANET_ARRAY:
+        case JANET_TUPLE: {
+            if (!janet_checkint(key)) return dflt;
+            int32_t index = janet_unwrap_integer(key);
+            if (index < 0) return dflt;
+            if (t == JANET_ARRAY) {
+                JanetArray *a = janet_unwrap_array(ds);
+                if (index >= a->count) return dflt;
+                return a->data[index];
+            } else {
+                const Janet *t = janet_unwrap_tuple(ds);
+                if (index >= janet_tuple_length(t)) return dflt;
+                return t[index];
+            }
+        }
+        case JANET_TABLE: {
+            JanetTable *flag = NULL;
+            Janet ret = janet_table_get_ex(janet_unwrap_table(ds), key, &flag);
+            if (flag == NULL) return dflt;
+            return ret;
+        }
+        case JANET_STRUCT: {
+            const JanetKV *st = janet_unwrap_struct(ds);
+            Janet ret = janet_struct_get(st, key);
+            if (janet_checktype(ret, JANET_NIL)) return dflt;
+            return ret;
+        }
+    }
+}
+
 static Janet janet_core_native(int32_t argc, Janet *argv) {
     JanetModule init;
     janet_arity(argc, 1, 2);
@@ -685,6 +740,14 @@ static const JanetReg corelib_cfuns[] = {
         JDOC("(slice x &opt start end)\n\n"
              "Extract a sub-range of an indexed data strutrue or byte sequence.")
     },
+    {
+        "get", janet_core_get,
+        JDOC("(get ds key &opt dflt)\n\n"
+             "Get the value mapped to key in data structure ds, and return dflt or nil if not found. "
+             "Similar to get, but will not throw an error if the key is invalid for the data structure "
+             "unless the data structure is an abstract type. In that case, the abstract type getter may throw "
+             "an error.")
+    },
     {NULL, NULL, NULL}
 };
 
@@ -960,8 +1023,8 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "will be returned to the last yield in the case of a pending fiber, or the argument to "
                          "the dispatch function in the case of a new fiber. Returns either the return result of "
                          "the fiber's dispatch function, or the value from the next yield call in fiber."));
-    janet_quick_asm(env, JANET_FUN_GET,
-                    "get", 3, 2, 3, 4, get_asm, sizeof(get_asm),
+    janet_quick_asm(env, JANET_FUN_IN,
+                    "in", 3, 2, 3, 4, get_asm, sizeof(get_asm),
                     JDOC("(get ds key &opt dflt)\n\n"
                          "Get a value from any associative data structure. Arrays, tuples, tables, structs, strings, "
                          "symbols, and buffers are all associative and can be used with get. Order structures, name "

@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `math/rng`, `math/rng-int`, and `math/rng-uniform`.
+- Add `in` function to index in a stricter manner. Opposingly, `get` will
+  now not throw errors on bad keys.
+- Indexed types and byte sequences will now error when indexed out of range or
+  with bad keys.
+- Add rng functions to Janet. This also replaces the RNG behind `math/random`
+  and `math/seedrandom` with a consistent, platform independent RNG.
 - Add `with-vars` macro.
 - Add the `quickbin` command to jpm.
 - Create shell.c when making the amlagamated source. This can be compiled with

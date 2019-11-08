@@ -193,4 +193,19 @@
 # Trim empty string
 (assert (= "" (string/trim " ")) "string/trim regression")
 
+# RNGs
+
+(defn test-rng
+  [rng]
+  (assert (all identity (seq [i :range [0 1000]]
+                             (<= (math/rng-int rng i) i))) "math/rng-int test")
+  (assert (all identity (seq [i :range [0 1000]]
+    (def x (math/rng-uniform rng))
+    (and (>= x 0) (< x 1))))
+          "math/rng-uniform test"))
+
+(def seedrng (math/rng 123))
+(for i 0 75
+  (test-rng (math/rng (:int seedrng))))
+
 (end-suite)

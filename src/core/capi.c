@@ -129,7 +129,7 @@ const char *janet_getcstring(const Janet *argv, int32_t n) {
 int32_t janet_getinteger(const Janet *argv, int32_t n) {
     Janet x = argv[n];
     if (!janet_checkint(x)) {
-        janet_panicf("bad slot #%d, expected integer, got %v", n, x);
+        janet_panicf("bad slot #%d, expected 32 bit signed integer, got %v", n, x);
     }
     return janet_unwrap_integer(x);
 }
@@ -137,7 +137,7 @@ int32_t janet_getinteger(const Janet *argv, int32_t n) {
 int64_t janet_getinteger64(const Janet *argv, int32_t n) {
     Janet x = argv[n];
     if (!janet_checkint64(x)) {
-        janet_panicf("bad slot #%d, expected 64 bit integer, got %v", n, x);
+        janet_panicf("bad slot #%d, expected 64 bit signed integer, got %v", n, x);
     }
     return (int64_t) janet_unwrap_number(x);
 }

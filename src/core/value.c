@@ -145,6 +145,16 @@ int janet_compare(Janet x, Janet y) {
     return (janet_type(x) < janet_type(y)) ? -1 : 1;
 }
 
+static int32_t getter_checkint(Janet key, int32_t max) {
+    if (!janet_checkint(key)) goto bad;
+    int32_t ret = janet_unwrap_integer(key);
+    if (ret < 0) goto bad;
+    if (ret >= max) goto bad;
+    return ret;
+bad:
+    janet_panicf("expected integer key in range [0, %d), got %v", max, key);
+}
+
 /* Gets a value and returns. Can panic. */
 Janet janet_get(Janet ds, Janet key) {
     Janet value;
@@ -160,56 +170,28 @@ Janet janet_get(Janet ds, Janet key) {
             break;
         case JANET_ARRAY: {
             JanetArray *array = janet_unwrap_array(ds);
-            int32_t index;
-            if (!janet_checkint(key))
-                janet_panic("expected integer key");
-            index = janet_unwrap_integer(key);
-            if (index < 0 || index >= array->count) {
-                value = janet_wrap_nil();
-            } else {
-                value = array->data[index];
-            }
+            int32_t index = getter_checkint(key, array->count);
+            value = array->data[index];
             break;
         }
         case JANET_TUPLE: {
             const Janet *tuple = janet_unwrap_tuple(ds);
-            int32_t index;
-            if (!janet_checkint(key))
-                janet_panic("expected integer key");
-            index = janet_unwrap_integer(key);
-            if (index < 0 || index >= janet_tuple_length(tuple)) {
-                value = janet_wrap_nil();
-            } else {
-                value = tuple[index];
-            }
+            int32_t len = janet_tuple_length(tuple);
+            value = tuple[getter_checkint(key, len)];
             break;
         }
         case JANET_BUFFER: {
             JanetBuffer *buffer = janet_unwrap_buffer(ds);
-            int32_t index;
-            if (!janet_checkint(key))
-                janet_panic("expected integer key");
-            index = janet_unwrap_integer(key);
-            if (index < 0 || index >= buffer->count) {
-                value = janet_wrap_nil();
-            } else {
-                value = janet_wrap_integer(buffer->data[index]);
-            }
+            int32_t index = getter_checkint(key, buffer->count);
+            value = janet_wrap_integer(buffer->data[index]);
             break;
         }
         case JANET_STRING:
         case JANET_SYMBOL:
         case JANET_KEYWORD: {
             const uint8_t *str = janet_unwrap_string(ds);
-            int32_t index;
-            if (!janet_checkint(key))
-                janet_panic("expected integer key");
-            index = janet_unwrap_integer(key);
-            if (index < 0 || index >= janet_string_length(str)) {
-                value = janet_wrap_nil();
-            } else {
-                value = janet_wrap_integer(str[index]);
-            }
+            int32_t index = getter_checkint(key, janet_string_length(str));
+            value = janet_wrap_integer(str[index]);
             break;
         }
         case JANET_ABSTRACT: {
@@ -356,7 +338,7 @@ void janet_putindex(Janet ds, int32_t index, Janet value) {
                 janet_buffer_ensure(buffer, index + 1, 2);
                 buffer->count = index + 1;
             }
-            buffer->data[index] = janet_unwrap_integer(value);
+            buffer->data[index] = (uint8_t)(janet_unwrap_integer(value) & 0xFF);
             break;
         }
         case JANET_TABLE: {
@@ -382,11 +364,8 @@ void janet_put(Janet ds, Janet key, Janet value) {
             janet_panicf("expected %T, got %v",
                          JANET_TFLAG_ARRAY | JANET_TFLAG_BUFFER | JANET_TFLAG_TABLE, ds);
         case JANET_ARRAY: {
-            int32_t index;
             JanetArray *array = janet_unwrap_array(ds);
-            if (!janet_checkint(key)) janet_panicf("expected integer key, got %v", key);
-            index = janet_unwrap_integer(key);
-            if (index < 0 || index == INT32_MAX) janet_panicf("bad integer key, got %v", key);
+            int32_t index = getter_checkint(key, INT32_MAX - 1);
             if (index >= array->count) {
                 janet_array_setcount(array, index + 1);
             }
@@ -394,11 +373,8 @@ void janet_put(Janet ds, Janet key, Janet value) {
             break;
         }
         case JANET_BUFFER: {
-            int32_t index;
             JanetBuffer *buffer = janet_unwrap_buffer(ds);
-            if (!janet_checkint(key)) janet_panicf("expected integer key, got %v", key);
-            index = janet_unwrap_integer(key);
-            if (index < 0 || index == INT32_MAX) janet_panicf("bad integer key, got %v", key);
+            int32_t index = getter_checkint(key, INT32_MAX - 1);
             if (!janet_checkint(value))
                 janet_panicf("can only put integers in buffers, got %v", value);
             if (index >= buffer->count) {

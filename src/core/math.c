@@ -27,19 +27,131 @@
 #include "util.h"
 #endif
 
+static Janet janet_rng_get(void *p, Janet key);
+
+static void janet_rng_marshal(void *p, JanetMarshalContext *ctx) {
+    JanetRNG *rng = (JanetRNG *)p;
+    janet_marshal_int(ctx, (int32_t) rng->a);
+    janet_marshal_int(ctx, (int32_t) rng->b);
+    janet_marshal_int(ctx, (int32_t) rng->c);
+    janet_marshal_int(ctx, (int32_t) rng->d);
+    janet_marshal_int(ctx, (int32_t) rng->counter);
+}
+
+static void janet_rng_unmarshal(void *p, JanetMarshalContext *ctx) {
+    JanetRNG *rng = (JanetRNG *)p;
+    rng->a = (uint32_t) janet_unmarshal_int(ctx);
+    rng->b = (uint32_t) janet_unmarshal_int(ctx);
+    rng->c = (uint32_t) janet_unmarshal_int(ctx);
+    rng->d = (uint32_t) janet_unmarshal_int(ctx);
+    rng->counter = (uint32_t) janet_unmarshal_int(ctx);
+}
+
+static JanetAbstractType JanetRNG_type = {
+    "core/rng",
+    NULL,
+    NULL,
+    janet_rng_get,
+    NULL,
+    janet_rng_marshal,
+    janet_rng_unmarshal,
+    NULL
+};
+
+static JANET_THREAD_LOCAL JanetRNG janet_vm_rng = {0};
+
+JanetRNG *janet_default_rng(void) {
+    return &janet_vm_rng;
+}
+
+void janet_rng_seed(JanetRNG *rng, uint32_t seed) {
+    rng->a = seed + 123573u;
+    rng->b = (seed + 43234283u) % 12391233u;
+    rng->c = 0x17af0931u;
+    rng->d = 0xFFFaaFFFu;
+    rng->counter = 0u;
+}
+
+uint32_t janet_rng_u32(JanetRNG *rng) {
+    /* Algorithm "xorwow" from p. 5 of Marsaglia, "Xorshift RNGs" */
+    uint32_t t = rng->d;
+    uint32_t const s = rng->a;
+    rng->d = rng->c;
+    rng->c = rng->b;
+    rng->b = s;
+    t ^= t >> 2;
+    t ^= t << 1;
+    t ^= s ^ (s << 4);
+    rng->a = t;
+    rng->counter += 362437;
+    return t + rng->counter;
+}
+
+double janet_rng_double(JanetRNG *rng) {
+    uint32_t hi = janet_rng_u32(rng);
+    uint32_t lo = janet_rng_u32(rng);
+    uint64_t big = (uint64_t)(lo) | (((uint64_t) hi) << 32);
+    return ldexp((big >> (64 - 52)), -52);
+}
+
+static Janet cfun_rng_make(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 1);
+    uint32_t seed = (uint32_t)(argc == 1 ? janet_getinteger(argv, 0) : 0);
+    JanetRNG *rng = janet_abstract(&JanetRNG_type, sizeof(JanetRNG));
+    janet_rng_seed(rng, seed);
+    return janet_wrap_abstract(rng);
+}
+
+static Janet cfun_rng_uniform(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetRNG *rng = janet_getabstract(argv, 0, &JanetRNG_type);
+    return janet_wrap_number(janet_rng_double(rng));
+}
+
+static Janet cfun_rng_int(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    JanetRNG *rng = janet_getabstract(argv, 0, &JanetRNG_type);
+    if (argc == 1) {
+        uint32_t word = janet_rng_u32(rng) >> 1;
+        return janet_wrap_integer(word);
+    } else {
+        int32_t max = janet_getinteger(argv, 1);
+        if (max <= 0) return janet_wrap_number(0);
+        uint32_t modulo = (uint32_t) max;
+        uint32_t bad = UINT32_MAX % modulo;
+        uint32_t word;
+        do {
+            word = janet_rng_u32(rng);
+        } while (word > UINT32_MAX - bad);
+        word >>= 1;
+        return janet_wrap_integer(word % modulo);
+    }
+}
+
+static const JanetMethod rng_methods[] = {
+    {"uniform", cfun_rng_uniform},
+    {"int", cfun_rng_int},
+    {NULL, NULL}
+};
+
+static Janet janet_rng_get(void *p, Janet key) {
+    (void) p;
+    if (!janet_checktype(key, JANET_KEYWORD)) janet_panicf("expected keyword method");
+    return janet_getmethod(janet_unwrap_keyword(key), rng_methods);
+}
+
 /* Get a random number */
 static Janet janet_rand(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
-    double r = (rand() % RAND_MAX) / ((double) RAND_MAX);
-    return janet_wrap_number(r);
+    return janet_wrap_number(janet_rng_double(&janet_vm_rng));
 }
 
 /* Seed the random number generator */
 static Janet janet_srand(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     int32_t x = janet_getinteger(argv, 0);
-    srand((unsigned) x);
+    janet_rng_seed(&janet_vm_rng, (uint32_t) x);
     return janet_wrap_nil();
 }
 
@@ -108,7 +220,7 @@ static const JanetReg math_cfuns[] = {
     {
         "math/seedrandom", janet_srand,
         JDOC("(math/seedrandom seed)\n\n"
-             "Set the seed for the random number generator. 'seed' should be an "
+             "Set the seed for the random number generator. 'seed' should be "
              "an integer.")
     },
     {
@@ -200,6 +312,24 @@ static const JanetReg math_cfuns[] = {
         "math/atan2", janet_atan2,
         JDOC("(math/atan2 y x)\n\n"
              "Return the arctangent of y/x. Works even when x is 0.")
+    },
+    {
+        "math/rng", cfun_rng_make,
+        JDOC("(math/rng &opt seed)\n\n"
+             "Creates a Psuedo-Random number generator, with an optional seed. "
+             "The seed should be an unsigned 32 bit integer. "
+             "Do not use this for cryptography. Returns a core/rng abstract type.")
+    },
+    {
+        "math/rng-uniform", cfun_rng_uniform,
+        JDOC("(math/rng-seed rng seed)\n\n"
+             "Extract a random number in the range [0, 1) from the RNG.")
+    },
+    {
+        "math/rng-int", cfun_rng_int,
+        JDOC("(math/rng-int rng &opt max)\n\n"
+             "Extract a random random integer in the range [0, max] from the RNG. If "
+             "no max is given, the default is 2^31 - 1.")
     },
     {NULL, NULL, NULL}
 };

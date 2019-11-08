@@ -55,8 +55,13 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                     done = 1;
                 }
             } else {
-                janet_eprintf("compile error in %s: %s\n", sourcePath,
-                              (const char *)cres.error);
+                if (cres.macrofiber) {
+                    janet_eprintf("compile error in %s: ", sourcePath);
+                    janet_stacktrace(cres.macrofiber, janet_wrap_string(cres.error));
+                } else {
+                    janet_eprintf("compile error in %s: %s\n", sourcePath,
+                                  (const char *)cres.error);
+                }
                 errflags |= 0x02;
                 done = 1;
             }
