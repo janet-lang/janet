@@ -256,3 +256,4 @@ janet_binscripts = [
   'auxbin/jpm'
 ]
 install_data(sources : janet_binscripts, install_dir : 'bin')
+install_data(sources : ['tools/.keep'], install_dir : 'lib/janet')
