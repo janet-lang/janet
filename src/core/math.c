@@ -27,6 +27,8 @@
 #include "util.h"
 #endif
 
+static JANET_THREAD_LOCAL JanetRNG janet_vm_rng = {0, 0, 0, 0, 0};
+
 static Janet janet_rng_get(void *p, Janet key);
 
 static void janet_rng_marshal(void *p, JanetMarshalContext *ctx) {
@@ -57,8 +59,6 @@ static JanetAbstractType JanetRNG_type = {
     janet_rng_unmarshal,
     NULL
 };
-
-static JANET_THREAD_LOCAL JanetRNG janet_vm_rng = {0};
 
 JanetRNG *janet_default_rng(void) {
     return &janet_vm_rng;
