@@ -91,7 +91,7 @@ double janet_rng_double(JanetRNG *rng) {
     uint32_t hi = janet_rng_u32(rng);
     uint32_t lo = janet_rng_u32(rng);
     uint64_t big = (uint64_t)(lo) | (((uint64_t) hi) << 32);
-    return ldexp((big >> (64 - 52)), -52);
+    return ldexp((double)(big >> (64 - 52)), -52);
 }
 
 static Janet cfun_rng_make(int32_t argc, Janet *argv) {
