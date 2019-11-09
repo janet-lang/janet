@@ -775,6 +775,8 @@ int main(int argc, const char **argv) {
          (os/mkdir manifests)
          (spit manifest (string (string/join installed-files "\n") "\n")))
   (phony "install" ["uninstall" "build" "manifest"]
+         (when (dyn :test)
+           (do-rule "test"))
          (print "Installed as '" (meta :name) "'."))
 
   (phony "install-deps" []
@@ -857,6 +859,7 @@ Keys are:
 
 Flags are:
   --verbose : Print shell commands as they are executed.
+  --test : If passed to jpm install, runs tests before installing. Will run tests recursively on dependencies.
     `))
 
 (defn- show-help

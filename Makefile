@@ -353,7 +353,10 @@ test-install:
 		&& build/testexec \
 		&& jpm --verbose quickbin testexec.janet build/testexec2 \
 		&& build/testexec2 \
-		&& jpm --verbose --modpath=. install https://github.com/janet-lang/json.git
+		&& jpm --verbose --testdeps --modpath=. install https://github.com/janet-lang/json.git
+	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/jhydro.git
+	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/path.git
+	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/argparse.git
 
 build/embed_janet.o: build/janet.c $(JANET_HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
