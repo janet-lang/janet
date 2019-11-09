@@ -221,7 +221,7 @@ amalg_shell = custom_target('amalg-shell',
   command : [janet_nativeclient, '@INPUT@'])
 
 # Amalgamated client
-janet_amalgclient = executable('janet-amalg', amalg, mainclient_src,
+janet_amalgclient = executable('janet-amalg', amalg, amalg_shell,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep],
   build_by_default : false)

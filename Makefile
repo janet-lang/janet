@@ -213,7 +213,7 @@ build/boot.gen.c: src/boot/boot.janet build/xxd
 ##### Amalgamation #####
 ########################
 
-amalg: build/shell.c build/janet.c build/janet.h build/core_image.c
+amalg: build/shell.c build/janet.c build/janet.h build/core_image.c build/janetconf.h
 
 AMALG_SOURCE=$(JANET_LOCAL_HEADERS) $(JANET_CORE_SOURCES) build/core_image.c
 build/janet.c: $(AMALG_SOURCE) tools/amalg.janet $(JANET_TARGET)
@@ -224,6 +224,9 @@ build/shell.c: $(JANET_TARGET) tools/amalg.janet $(AMALG_SHELL_SOURCE)
 	$(JANET_TARGET) tools/amalg.janet $(AMALG_SHELL_SOURCE) > $@
 
 build/janet.h: src/include/janet.h
+	cp $< $@
+
+build/janetconf.h: src/conf/janetconf.h
 	cp $< $@
 
 ###################
