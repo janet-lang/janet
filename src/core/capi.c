@@ -86,10 +86,20 @@ type janet_get##name(const Janet *argv, int32_t n) { \
         janet_panic_type(x, n, JANET_TFLAG_##NAME); \
     } \
     return janet_unwrap_##name(x); \
-} \
+}
+
+#define DEFINE_OPT(name, NAME, type) \
 type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, type dflt) { \
-    if (argc >= n) return dflt; \
+    if (n >= argc) return dflt; \
     if (janet_checktype(argv[n], JANET_NIL)) return dflt; \
+    return janet_get##name(argv, n); \
+}
+
+#define DEFINE_OPTLEN(name, NAME, type) \
+type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, int32_t dflt_len) { \
+    if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {\
+        return janet_##name(dflt_len); \
+    }\
     return janet_get##name(argv, n); \
 }
 
@@ -117,6 +127,26 @@ DEFINE_GETTER(cfunction, CFUNCTION, JanetCFunction)
 DEFINE_GETTER(boolean, BOOLEAN, int)
 DEFINE_GETTER(pointer, POINTER, void *)
 
+DEFINE_OPT(number, NUMBER, double)
+DEFINE_OPT(tuple, TUPLE, const Janet *)
+DEFINE_OPT(struct, STRUCT, const JanetKV *)
+DEFINE_OPT(string, STRING, const uint8_t *)
+DEFINE_OPT(keyword, KEYWORD, const uint8_t *)
+DEFINE_OPT(symbol, SYMBOL, const uint8_t *)
+DEFINE_OPT(fiber, FIBER, JanetFiber *)
+DEFINE_OPT(function, FUNCTION, JanetFunction *)
+DEFINE_OPT(cfunction, CFUNCTION, JanetCFunction)
+DEFINE_OPT(boolean, BOOLEAN, int)
+DEFINE_OPT(pointer, POINTER, void *)
+
+DEFINE_OPTLEN(buffer, BUFFER, JanetBuffer *)
+DEFINE_OPTLEN(table, TABLE, JanetTable *)
+DEFINE_OPTLEN(array, ARRAY, JanetArray *)
+
+#undef DEFINE_GETTER
+#undef DEFINE_OPT
+#undef DEFINE_OPTLEN
+
 const char *janet_getcstring(const Janet *argv, int32_t n) {
     const uint8_t *jstr = janet_getstring(argv, n);
     const char *cstr = (const char *)jstr;
@@ -124,6 +154,16 @@ const char *janet_getcstring(const Janet *argv, int32_t n) {
         janet_panicf("string %v contains embedded 0s");
     }
     return cstr;
+}
+
+int32_t janet_getnat(const Janet *argv, int32_t n) {
+    Janet x = argv[n];
+    if (!janet_checkint(x)) goto bad;
+    int32_t ret = janet_unwrap_integer(x);
+    if (ret < 0) goto bad;
+    return ret;
+bad:
+    janet_panicf("bad slot #%d, expected non-negative 32 bit signed integer, got %v", n, x);
 }
 
 int32_t janet_getinteger(const Janet *argv, int32_t n) {
@@ -267,6 +307,12 @@ uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
         ;
     }
     return ret;
+}
+
+int32_t janet_optnat(const Janet *argv, int32_t argc, int32_t n, int32_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getnat(argv, n);
 }
 
 int32_t janet_optinteger(const Janet *argv, int32_t argc, int32_t n, int32_t dflt) {

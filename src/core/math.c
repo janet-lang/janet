@@ -115,15 +115,15 @@ static Janet cfun_rng_int(int32_t argc, Janet *argv) {
         uint32_t word = janet_rng_u32(rng) >> 1;
         return janet_wrap_integer(word);
     } else {
-        int32_t max = janet_getinteger(argv, 1);
-        if (max <= 0) return janet_wrap_number(0);
+        int32_t max = janet_optnat(argv, argc, 1, INT32_MAX);
+        if (max == 0) return janet_wrap_number(0.0);
         uint32_t modulo = (uint32_t) max;
-        uint32_t bad = UINT32_MAX % modulo;
+        uint32_t maxgen = INT32_MAX;
+        uint32_t maxword = maxgen - (maxgen % modulo);
         uint32_t word;
         do {
-            word = janet_rng_u32(rng);
-        } while (word > UINT32_MAX - bad);
-        word >>= 1;
+            word = janet_rng_u32(rng) >> 1;
+        } while (word > maxword);
         return janet_wrap_integer(word % modulo);
     }
 }
