@@ -116,14 +116,14 @@
 (def default-lflags (if is-win ["/nologo"] []))
 (def default-cflags
   (if is-win
-    ["/nologo"]
+    ["/nologo" "/MD"]
     ["-std=c99" "-Wall" "-Wextra"]))
 
 # Required flags for dynamic libraries. These
 # are used no matter what for dynamic libraries.
 (def- dynamic-cflags
   (if is-win
-    []
+    ["/LD"]
     ["-fPIC"]))
 (def- dynamic-lflags
     (if is-win

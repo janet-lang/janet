@@ -46,25 +46,6 @@ int main(int argc, char **argv) {
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hOut, dwMode);
     SetConsoleOutputCP(65001);
-
-    /* Add directory containing janet.exe as DLL search path for
-    dynamic modules on windows. This is needed because dynamic modules reference
-    janet.exe for symbols. Otherwise, janet.exe would have to be in the current directory
-    to load natives correctly. */
-#ifndef JANET_NO_DYNAMIC_MODULES
-    {
-        SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_USER_DIRS);
-        HMODULE hModule = GetModuleHandleW(NULL);
-        wchar_t path[MAX_PATH];
-        GetModuleFileNameW(hModule, path, MAX_PATH);
-        size_t i = wcsnlen(path, MAX_PATH);
-        while (i > 0 && path[i] != '\\')
-            path[i--] = '\0';
-        if (i) AddDllDirectory(path);
-        GetCurrentDirectoryW(MAX_PATH, path);
-        AddDllDirectory(path);
-    }
-#endif
 #endif
 
     /* Set up VM */

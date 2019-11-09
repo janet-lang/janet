@@ -19,7 +19,7 @@
 
 @rem Set compile and link options here
 @setlocal
-@set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS
+@set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD
 @set JANET_LINK=link /nologo
 @set JANET_LINK_STATIC=lib /nologo
 
