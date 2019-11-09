@@ -46,10 +46,10 @@ artifacts:
     - name: shell.c
       path: dist\shell.c
       type: File
-    - name: "janet-$(janet_outname)-windows"
+    - name: "janet-$(janet_outname)-windows-%platform%"
       path: dist
       type: Zip
-    - path: "janet-$(janet_outname)-windows-installer.exe"
+    - path: "janet-$(janet_outname)-windows-%platform%-installer.exe"
       name: "janet-$(janet_outname)-windows-installer.exe"
       type: File
 
