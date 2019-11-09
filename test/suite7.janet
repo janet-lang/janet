@@ -208,4 +208,17 @@
 (for i 0 75
   (test-rng (math/rng (:int seedrng))))
 
+# OS Date test
+
+(assert (deep= {:year-day 0
+                :minutes 30
+                :month 0
+                :dst false
+                :seconds 0
+                :year 2014
+                :month-day 0
+                :hours 20 
+                :week-day 3}
+               (os/date 1388608200)) "os/date")
+
 (end-suite)

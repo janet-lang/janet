@@ -474,22 +474,37 @@ static Janet os_cwd(int32_t argc, Janet *argv) {
 }
 
 static Janet os_date(int32_t argc, Janet *argv) {
-    janet_arity(argc, 0, 1);
+    janet_arity(argc, 0, 2);
     (void) argv;
     time_t t;
     struct tm t_infos;
-    struct tm *t_info;
+    struct tm *t_info = NULL;
     if (argc) {
-        t = (time_t) janet_getinteger64(argv, 0);
+        int64_t integer = janet_getinteger64(argv, 0);
+        if (integer < 0)
+            janet_panicf("expected non-negative 64 bit signed integer, got %v", argv[0]);
+        t = (time_t) integer;
     } else {
         time(&t);
     }
+    if (argc >= 2 && janet_truthy(argv[2])) {
+        /* local time */
 #ifdef JANET_WINDOWS
-    localtime_s(&t_infos, &t);
-    t_info = &t_infos;
+        localtime_s(&t_infos, &t);
+        t_info = &t_infos;
 #else
-    t_info = localtime_r(&t, &t_infos);
+        tzset();
+        t_info = localtime_r(&t, &t_infos);
 #endif
+    } else {
+        /* utc time */
+#ifdef JANET_WINDOWS
+        gmtime_s(&t_infos, &t);
+        t_info = &t_infos;
+#else
+        t_info = gmtime_r(&t, &t_infos);
+#endif
+    }
     JanetKV *st = janet_struct_begin(9);
     janet_struct_put(st, janet_ckeywordv("seconds"), janet_wrap_number(t_info->tm_sec));
     janet_struct_put(st, janet_ckeywordv("minutes"), janet_wrap_number(t_info->tm_min));
@@ -939,9 +954,11 @@ static const JanetReg os_cfuns[] = {
     },
     {
         "os/date", os_date,
-        JDOC("(os/date &opt time)\n\n"
+        JDOC("(os/date &opt time local)\n\n"
              "Returns the given time as a date struct, or the current time if no time is given. "
-             "Returns a struct with following key values. Note that all numbers are 0-indexed.\n\n"
+             "Returns a struct with following key values. Note that all numbers are 0-indexed. "
+             "Date is given in UTC unless local is truthy, in which case the date is formated for "
+             "the local timezone.\n\n"
              "\t:seconds - number of seconds [0-61]\n"
              "\t:minutes - number of minutes [0-59]\n"
              "\t:hours - number of hours [0-23]\n"
