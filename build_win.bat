@@ -172,24 +172,26 @@ exit /b 0
 :TESTINSTALL
 pushd test\install
 call jpm clean
-@if errorlevel 1 goto :TESTFAIL
+@if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm test
-@if errorlevel 1 goto :TESTFAIL
+@if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm --verbose --modpath=. install https://github.com/janet-lang/json.git
-@if errorlevel 1 goto :TESTFAIL
+@if errorlevel 1 goto :TESTINSTALLFAIL
 call build\testexec
-@if errorlevel 1 goto :TESTFAIL
+@if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm --verbose quickbin testexec.janet build\testexec2.exe
-@if errorlevel 1 goto :TESTFAIL
+@if errorlevel 1 goto :TESTINSTALLFAIL
 call build\testexec2.exe
-@if errorlevel 1 goto :TESTFAIL
+@if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm --verbose --test --modpath=. install https://github.com/janet-lang/jhydro.git
-@if errorlevel 1 goto :TESTFAIL
+@if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm --verbose --test --modpath=. install https://github.com/janet-lang/path.git
-@if errorlevel 1 goto :TESTFAIL
+@if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm --verbose --test --modpath=. install https://github.com/janet-lang/argparse.git
-@if errorlevel 1 goto :TESTFAIL
+@if errorlevel 1 goto :TESTINSTALLFAIL
+:TESTINSTALLFAIL
 popd
+goto :TESTFAIL
 exit /b 0
 
 @rem build, test, dist, install. Useful for local dev.
