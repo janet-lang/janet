@@ -215,7 +215,7 @@ amalg = custom_target('amalg',
   command : [janet_nativeclient, '@INPUT@'])
 amalg_shell = custom_target('amalg-shell',
   input : ['tools/amalg.janet', 'src/mainclient/line.h',
-    'src/mainclient/line.c', 'src/mainlcient/main.c'],
+    'src/mainclient/line.c', 'src/mainclient/main.c'],
   output : ['shell.c'],
   capture : true,
   command : [janet_nativeclient, '@INPUT@'])
