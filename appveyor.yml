@@ -16,7 +16,7 @@ matrix:
 
 # skip unsupported combinations
 init:
-    - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
+    - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" %platform%
 
 install:
     - set JANET_BUILD=%appveyor_repo_commit:~0,7%
@@ -27,7 +27,7 @@ install:
     - build_win all
     - refreshenv
     # We need to reload vcvars after refreshing
-    - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
+    - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" %platform%
     - build_win test-install
     - set janet_outname=%appveyor_repo_tag_name%
     - if "%janet_outname%"=="" set janet_outname=v1.4.0
