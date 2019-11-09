@@ -189,10 +189,12 @@ call jpm --verbose --test --modpath=. install https://github.com/janet-lang/path
 @if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm --verbose --test --modpath=. install https://github.com/janet-lang/argparse.git
 @if errorlevel 1 goto :TESTINSTALLFAIL
+popd
+exit /b 0
+
 :TESTINSTALLFAIL
 popd
 goto :TESTFAIL
-exit /b 0
 
 @rem build, test, dist, install. Useful for local dev.
 :ALL
