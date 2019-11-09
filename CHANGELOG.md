@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `--test` flag to jpm to test libraries on installation.
 - Add `math/rng`, `math/rng-int`, and `math/rng-uniform`.
 - Add `in` function to index in a stricter manner. Opposingly, `get` will
   now not throw errors on bad keys.
