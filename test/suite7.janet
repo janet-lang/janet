@@ -221,4 +221,11 @@
                 :week-day 3}
                (os/date 1388608200)) "os/date")
 
+# Appending buffer to self
+
+(with-dyns [:out @""]
+  (prin "abcd")
+  (prin (dyn :out))
+  (assert (deep= (dyn :out) @"abcdabcd") "print buffer to self"))
+
 (end-suite)

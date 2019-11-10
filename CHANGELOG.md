@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### Unreleased
+- Fix bug when printing buffer to self in some cases.
+
 ## 1.5.0 - 2019-11-10
 - `os/date` now defaults to UTC.
 - Add `--test` flag to jpm to test libraries on installation.

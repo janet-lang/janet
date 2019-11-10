@@ -253,11 +253,13 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
         default:
             janet_description_b(buffer, x);
             break;
-        case JANET_BUFFER:
-            janet_buffer_push_bytes(buffer,
-                                    janet_unwrap_buffer(x)->data,
-                                    janet_unwrap_buffer(x)->count);
+        case JANET_BUFFER: {
+            JanetBuffer *to = janet_unwrap_buffer(x);
+            /* Prevent resizing buffer while appending */
+            if (buffer == to) janet_buffer_extra(buffer, to->count);
+            janet_buffer_push_bytes(buffer, to->data, to->count);
             break;
+        }
         case JANET_STRING:
         case JANET_SYMBOL:
         case JANET_KEYWORD:
