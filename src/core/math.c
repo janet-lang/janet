@@ -70,6 +70,8 @@ void janet_rng_seed(JanetRNG *rng, uint32_t seed) {
     rng->c = 0x17af0931u;
     rng->d = 0xFFFaaFFFu;
     rng->counter = 0u;
+    /* First several numbers aren't that random. */
+    for (int i = 0; i < 16; i++) janet_rng_u32(rng);
 }
 
 uint32_t janet_rng_u32(JanetRNG *rng) {

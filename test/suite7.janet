@@ -226,6 +226,7 @@
 (with-dyns [:out @""]
   (prin "abcd")
   (prin (dyn :out))
-  (assert (deep= (dyn :out) @"abcdabcd") "print buffer to self"))
+  (prin (dyn :out))
+  (assert (deep= (dyn :out) @"abcdabcdabcdabcd") "print buffer to self"))
 
 (end-suite)
