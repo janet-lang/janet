@@ -49,8 +49,8 @@ artifacts:
     - name: "janet-$(janet_outname)-windows-%platform%"
       path: dist
       type: Zip
-    - path: "janet-$(janet_outname)-windows-%platform%-installer.exe"
-      name: "janet-$(janet_outname)-windows-installer.exe"
+    - path: "janet-$(janet_outname)-windows-installer.exe"
+      name: "janet-$(janet_outname)-windows-%platform%-installer.exe"
       type: File
 
 deploy:
