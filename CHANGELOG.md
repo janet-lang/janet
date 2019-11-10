@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 - `os/date` now defaults to UTC.
 - Add `--test` flag to jpm to test libraries on installation.
 - Add `math/rng`, `math/rng-int`, and `math/rng-uniform`.
-- Add `in` function to index in a stricter manner. Opposingly, `get` will
+- Add `in` function to index in a stricter manner. Conversely, `get` will
   now not throw errors on bad keys.
 - Indexed types and byte sequences will now error when indexed out of range or
   with bad keys.
@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file.
   and `math/seedrandom` with a consistent, platform independent RNG.
 - Add `with-vars` macro.
 - Add the `quickbin` command to jpm.
-- Create shell.c when making the amlagamated source. This can be compiled with
+- Create shell.c when making the amalgamated source. This can be compiled with
   janet.c to make the janet interpreter.
 - Add `cli-main` function to the core, which invokes Janet's CLI interface.
   This basically moves what was init.janet into boot.janet.
