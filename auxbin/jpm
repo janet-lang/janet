@@ -223,8 +223,9 @@
   [src dest]
   (print "copying " src " to " dest "...")
   (if is-win
-    (let [end (last (peg/match path-splitter src))]
-        (shell "xcopy" src (string dest "\\" end) "/y" "/s" "/e"))
+    (let [end (last (peg/match path-splitter src))
+          isdir (= (os/stat src :mode) :directory)]
+        (shell "xcopy" src (if isdir (string dest "\\" end) dest) "/y" "/s" "/e" "/i"))
     (shell "cp" "-rf" src dest)))
 
 #
