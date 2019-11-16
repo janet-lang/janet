@@ -1033,7 +1033,7 @@
   data structure ds."
   [ds key func & args]
   (def old (get ds key))
-  (set (ds key) (func old ;args)))
+  (put ds key (func old ;args)))
 
 (defn merge-into
   "Merges multiple tables/structs into a table. If a key appears in more than one
