@@ -1,8 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-### Unreleased
-- Fix bug when printing buffer to self in some cases.
+### 1.5.1 - 2019-11-16
+- Fix bug when printing buffer to self in some edge cases.
+- Fix bug with `jpm` on windows.
+- Fix `update` return value.
 
 ## 1.5.0 - 2019-11-10
 - `os/date` now defaults to UTC.

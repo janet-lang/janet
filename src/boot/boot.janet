@@ -966,13 +966,13 @@
 (defn zipcoll
   "Creates a table from two arrays/tuples.
   Returns a new table."
-  [keys vals]
+  [ks vs]
   (def res @{})
-  (def lk (length keys))
-  (def lv (length vals))
+  (def lk (length ks))
+  (def lv (length vs))
   (def len (if (< lk lv) lk lv))
   (for i 0 len
-    (put res (in keys i) (in vals i)))
+    (put res (in ks i) (in vs i)))
   res)
 
 (defn get-in
@@ -981,7 +981,7 @@
   [ds ks &opt dflt]
   (var d ds)
   (loop [k :in ks :while d] (set d (get d k)))
-  (or d dflt))
+  (if (= nil d) dflt d))
 
 (defn update-in
   "Update a value in a nested data structure by applying f to the current value.
