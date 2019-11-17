@@ -394,9 +394,9 @@ static int line() {
                         if (read(STDIN_FILENO, seq + 2, 1) == -1) break;
                         if (seq[2] == '~') {
                             switch (seq[1]) {
-                              case '3': /* delete */
-                                  kdelete();
-                                  break;
+                                case '3': /* delete */
+                                    kdelete();
+                                    break;
                                 default:
                                     break;
                             }
