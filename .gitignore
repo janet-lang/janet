@@ -13,6 +13,9 @@ janet
 janet-*.tar.gz
 dist
 
+# Kakoune (fzf via fd)
+.fdignore
+
 # VSCode
 .vscode
 
