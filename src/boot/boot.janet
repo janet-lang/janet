@@ -847,7 +847,7 @@
 
 (defn walk
   "Iterate over the values in ast and apply f
-  to them. Collect the results in a data structure . If ast is not a
+  to them. Collect the results in a data structure. If ast is not a
   table, struct, array, or tuple,
   returns form."
   [f form]
