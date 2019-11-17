@@ -314,6 +314,14 @@ static void kbackspace() {
     }
 }
 
+static void kdelete() {
+    if (gbl_pos != gbl_len) {
+        memmove(gbl_buf + gbl_pos, gbl_buf + gbl_pos + 1, gbl_len - gbl_pos);
+        gbl_buf[--gbl_len] = '\0';
+        refresh();
+    }
+}
+
 static int line() {
     gbl_cols = getcols();
     gbl_plen = 0;
@@ -386,6 +394,9 @@ static int line() {
                         if (read(STDIN_FILENO, seq + 2, 1) == -1) break;
                         if (seq[2] == '~') {
                             switch (seq[1]) {
+                              case '3': /* delete */
+                                  kdelete();
+                                  break;
                                 default:
                                     break;
                             }
