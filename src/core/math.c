@@ -176,17 +176,26 @@ JANET_DEFINE_MATHOP(asin, asin)
 JANET_DEFINE_MATHOP(atan, atan)
 JANET_DEFINE_MATHOP(cos, cos)
 JANET_DEFINE_MATHOP(cosh, cosh)
+JANET_DEFINE_MATHOP(acosh, acosh)
 JANET_DEFINE_MATHOP(sin, sin)
 JANET_DEFINE_MATHOP(sinh, sinh)
+JANET_DEFINE_MATHOP(asinh, asinh)
 JANET_DEFINE_MATHOP(tan, tan)
 JANET_DEFINE_MATHOP(tanh, tanh)
+JANET_DEFINE_MATHOP(atanh, atanh)
 JANET_DEFINE_MATHOP(exp, exp)
+JANET_DEFINE_MATHOP(exp2, exp2)
+JANET_DEFINE_MATHOP(expm1, expm1)
 JANET_DEFINE_MATHOP(log, log)
 JANET_DEFINE_MATHOP(log10, log10)
+JANET_DEFINE_MATHOP(log2, log2)
 JANET_DEFINE_MATHOP(sqrt, sqrt)
+JANET_DEFINE_MATHOP(cbrt, cbrt)
 JANET_DEFINE_MATHOP(ceil, ceil)
 JANET_DEFINE_MATHOP(fabs, fabs)
 JANET_DEFINE_MATHOP(floor, floor)
+JANET_DEFINE_MATHOP(trunc, trunc)
+JANET_DEFINE_MATHOP(round, round)
 
 #define JANET_DEFINE_MATH2OP(name, fop)\
 static Janet janet_##name(int32_t argc, Janet *argv) {\
@@ -198,6 +207,7 @@ static Janet janet_##name(int32_t argc, Janet *argv) {\
 
 JANET_DEFINE_MATH2OP(atan2, atan2)
 JANET_DEFINE_MATH2OP(pow, pow)
+JANET_DEFINE_MATH2OP(hypot, hypot)
 
 static Janet janet_not(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
@@ -271,9 +281,19 @@ static const JanetReg math_cfuns[] = {
              "Returns log base 10 of x.")
     },
     {
+        "math/log2", janet_log2,
+        JDOC("(math/log2 x)\n\n"
+             "Returns log base 2 of x.")
+    },
+    {
         "math/sqrt", janet_sqrt,
         JDOC("(math/sqrt x)\n\n"
              "Returns the square root of x.")
+    },
+    {
+        "math/cbrt", janet_cbrt,
+        JDOC("(math/cbrt x)\n\n"
+             "Returns the cube root of x.")
     },
     {
         "math/floor", janet_floor,
@@ -311,6 +331,21 @@ static const JanetReg math_cfuns[] = {
              "Return the hyperbolic tangent of x.")
     },
     {
+        "math/atanh", janet_atanh,
+        JDOC("(math/atanh x)\n\n"
+             "Return the hyperbolic arctangent of x.")
+    },
+    {
+        "math/asinh", janet_asinh,
+        JDOC("(math/asinh x)\n\n"
+             "Return the hyperbolic arcsine of x.")
+    },
+    {
+        "math/acosh", janet_acosh,
+        JDOC("(math/acosh x)\n\n"
+             "Return the hyperbolic arccosine of x.")
+    },
+    {
         "math/atan2", janet_atan2,
         JDOC("(math/atan2 y x)\n\n"
              "Return the arctangent of y/x. Works even when x is 0.")
@@ -333,6 +368,31 @@ static const JanetReg math_cfuns[] = {
              "Extract a random random integer in the range [0, max] from the RNG. If "
              "no max is given, the default is 2^31 - 1.")
     },
+    {
+        "math/hypot", janet_hypot,
+        JDOC("(math/hypot a b)\n\n"
+                "Returns the c from the equation c^2 = a^2 + b^2")
+    },
+    {
+        "math/exp2", janet_exp2,
+        JDOC("(math/exp2 x)\n\n"
+                "Returns 2 to the power of x.")
+    },
+    {
+        "math/expm1", janet_expm1,
+        JDOC("(math/expm1 x)\n\n"
+                "Returns e to the power of x minus 1.")
+    },
+    {
+        "math/trunc", janet_trunc,
+        JDOC("(math/trunc x)\n\n"
+                "Returns the integer between x and 0 nearest to x.")
+    },
+    {
+        "math/round", janet_round,
+        JDOC("(math/round x)\n\n"
+                "Returns the integer nearest to x.")
+    },
     {NULL, NULL, NULL}
 };
 
@@ -346,5 +406,7 @@ void janet_lib_math(JanetTable *env) {
               JDOC("The base of the natural log."));
     janet_def(env, "math/inf", janet_wrap_number(INFINITY),
               JDOC("The number representing positive infinity"));
+    janet_def(env, "math/-inf", janet_wrap_number(-INFINITY),
+              JDOC("The number representing negative infinity"));
 #endif
 }
