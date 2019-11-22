@@ -65,17 +65,30 @@ JanetRNG *janet_default_rng(void) {
 }
 
 void janet_rng_seed(JanetRNG *rng, uint32_t seed) {
-    rng->a = seed + 123573u;
-    rng->b = (seed + 43234283u) % 12391233u;
-    rng->c = 0x17af0931u;
-    rng->d = 0xFFFaaFFFu;
+    rng->a = seed;
+    rng->b = 0x97654321u;
+    rng->c = 123871873u;
+    rng->d = 0xf23f56c8u;
     rng->counter = 0u;
     /* First several numbers aren't that random. */
     for (int i = 0; i < 16; i++) janet_rng_u32(rng);
 }
 
+void janet_rng_longseed(JanetRNG *rng, const uint8_t *bytes, int32_t len) {
+    uint8_t state[16] = {0};
+    for (int32_t i = 0; i < len; i++)
+        state[i % 16] ^= bytes[i];
+    rng->a = state[0] + (state[1] << 8) + (state[2] << 16) + (state[3] << 24);
+    rng->b = state[4] + (state[5] << 8) + (state[6] << 16) + (state[7] << 24);
+    rng->c = state[8] + (state[9] << 8) + (state[10] << 16) + (state[11] << 24);
+    rng->d = state[12] + (state[13] << 8) + (state[14] << 16) + (state[15] << 24);
+    rng->counter = 0u;
+    for (int i = 0; i < 16; i++) janet_rng_u32(rng);
+}
+
 uint32_t janet_rng_u32(JanetRNG *rng) {
     /* Algorithm "xorwow" from p. 5 of Marsaglia, "Xorshift RNGs" */
+    /* Modified to remove constraint that a, b, c, d != 0 */
     uint32_t t = rng->d;
     uint32_t const s = rng->a;
     rng->d = rng->c;
@@ -84,7 +97,7 @@ uint32_t janet_rng_u32(JanetRNG *rng) {
     t ^= t >> 2;
     t ^= t << 1;
     t ^= s ^ (s << 4);
-    rng->a = t;
+    rng->a = t + 33;
     rng->counter += 362437;
     return t + rng->counter;
 }
@@ -98,9 +111,18 @@ double janet_rng_double(JanetRNG *rng) {
 
 static Janet cfun_rng_make(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
-    uint32_t seed = (uint32_t)(argc == 1 ? janet_getinteger(argv, 0) : 0);
     JanetRNG *rng = janet_abstract(&JanetRNG_type, sizeof(JanetRNG));
-    janet_rng_seed(rng, seed);
+    if (argc == 1) {
+        if (janet_checkint(argv[0])) {
+            uint32_t seed = (uint32_t)(janet_getinteger(argv, 0));
+            janet_rng_seed(rng, seed);
+        } else {
+            JanetByteView bytes = janet_getbytes(argv, 0);
+            janet_rng_longseed(rng, bytes.bytes, bytes.len);
+        }
+    } else {
+        janet_rng_seed(rng, 0);
+    }
     return janet_wrap_abstract(rng);
 }
 
