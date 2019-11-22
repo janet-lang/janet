@@ -1112,7 +1112,7 @@ JANET_API void janet_debug_find(
 /* RNG */
 JANET_API JanetRNG *janet_default_rng(void);
 JANET_API void janet_rng_seed(JanetRNG *rng, uint32_t seed);
-JANET_API void janet_rng_longseed(JanetRNG *rng, const uint32_t *bytes, int32_t len);
+JANET_API void janet_rng_longseed(JanetRNG *rng, const uint8_t *bytes, int32_t len);
 JANET_API uint32_t janet_rng_u32(JanetRNG *rng);
 
 /* Array functions */

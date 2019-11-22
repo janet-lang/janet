@@ -394,27 +394,27 @@ static const JanetReg math_cfuns[] = {
     {
         "math/hypot", janet_hypot,
         JDOC("(math/hypot a b)\n\n"
-                "Returns the c from the equation c^2 = a^2 + b^2")
+             "Returns the c from the equation c^2 = a^2 + b^2")
     },
     {
         "math/exp2", janet_exp2,
         JDOC("(math/exp2 x)\n\n"
-                "Returns 2 to the power of x.")
+             "Returns 2 to the power of x.")
     },
     {
         "math/expm1", janet_expm1,
         JDOC("(math/expm1 x)\n\n"
-                "Returns e to the power of x minus 1.")
+             "Returns e to the power of x minus 1.")
     },
     {
         "math/trunc", janet_trunc,
         JDOC("(math/trunc x)\n\n"
-                "Returns the integer between x and 0 nearest to x.")
+             "Returns the integer between x and 0 nearest to x.")
     },
     {
         "math/round", janet_round,
         JDOC("(math/round x)\n\n"
-                "Returns the integer nearest to x.")
+             "Returns the integer nearest to x.")
     },
     {NULL, NULL, NULL}
 };
