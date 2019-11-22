@@ -83,12 +83,13 @@ void janet_rng_longseed(JanetRNG *rng, const uint8_t *bytes, int32_t len) {
     rng->c = state[8] + (state[9] << 8) + (state[10] << 16) + (state[11] << 24);
     rng->d = state[12] + (state[13] << 8) + (state[14] << 16) + (state[15] << 24);
     rng->counter = 0u;
+    /* a, b, c, d can't all be 0 */
+    if (rng->a == 0) rng->a = 1;
     for (int i = 0; i < 16; i++) janet_rng_u32(rng);
 }
 
 uint32_t janet_rng_u32(JanetRNG *rng) {
     /* Algorithm "xorwow" from p. 5 of Marsaglia, "Xorshift RNGs" */
-    /* Modified to remove constraint that a, b, c, d != 0 */
     uint32_t t = rng->d;
     uint32_t const s = rng->a;
     rng->d = rng->c;
@@ -97,7 +98,7 @@ uint32_t janet_rng_u32(JanetRNG *rng) {
     t ^= t >> 2;
     t ^= t << 1;
     t ^= s ^ (s << 4);
-    rng->a = t + 33;
+    rng->a = t;
     rng->counter += 362437;
     return t + rng->counter;
 }
