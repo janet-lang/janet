@@ -77,14 +77,14 @@ void janet_rng_seed(JanetRNG *rng, uint32_t seed) {
 void janet_rng_longseed(JanetRNG *rng, const uint8_t *bytes, int32_t len) {
     uint8_t state[16] = {0};
     for (int32_t i = 0; i < len; i++)
-        state[i % 16] ^= bytes[i];
+        state[i & 0xF] ^= bytes[i];
     rng->a = state[0] + (state[1] << 8) + (state[2] << 16) + (state[3] << 24);
     rng->b = state[4] + (state[5] << 8) + (state[6] << 16) + (state[7] << 24);
     rng->c = state[8] + (state[9] << 8) + (state[10] << 16) + (state[11] << 24);
     rng->d = state[12] + (state[13] << 8) + (state[14] << 16) + (state[15] << 24);
     rng->counter = 0u;
     /* a, b, c, d can't all be 0 */
-    if (rng->a == 0) rng->a = 1;
+    if (rng->a == 0) rng->a = 1u;
     for (int i = 0; i < 16; i++) janet_rng_u32(rng);
 }
 
