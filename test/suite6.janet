@@ -118,6 +118,16 @@
 (assert (deep= (parser/status p) (parser/status p2)) "parser 2")
 (assert (deep= (parser/state p) (parser/state p2)) "parser 3")
 
+# Parser errors
+(defn parse-error [input]
+  (def p (parser/new))
+  (parser/consume p input)
+  (parser/error p))
+
+# Invalid utf-8 sequences
+(assert (not= nil (parse-error @"\xc3\x28")) "reject invalid utf-8 symbol")
+(assert (not= nil (parse-error @":\xc3\x28")) "reject invalid utf-8 keyword")
+
 # String check-set
 (assert (string/check-set "abc" "a") "string/check-set 1")
 (assert (not (string/check-set "abc" "z")) "string/check-set 2")
