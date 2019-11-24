@@ -27,10 +27,6 @@
 #include "vector.h"
 #endif
 
-static int fixarity0(JanetFopts opts, JanetSlot *args) {
-    (void) opts;
-    return janet_v_count(args) == 0;
-}
 static int fixarity1(JanetFopts opts, JanetSlot *args) {
     (void) opts;
     return janet_v_count(args) == 1;
@@ -101,8 +97,13 @@ static JanetSlot do_error(JanetFopts opts, JanetSlot *args) {
 }
 static JanetSlot do_debug(JanetFopts opts, JanetSlot *args) {
     (void)args;
-    janetc_emit(opts.compiler, JOP_SIGNAL | (2 << 24));
-    return janetc_cslot(janet_wrap_nil());
+    int32_t len = janet_v_count(args);
+    JanetSlot t = janetc_gettarget(opts);
+    janetc_emit_ssu(opts.compiler, JOP_SIGNAL, t,
+            (len == 1) ? args[0] : janetc_cslot(janet_wrap_nil()),
+            JANET_SIGNAL_DEBUG,
+            1);
+    return t;
 }
 static JanetSlot do_in(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_GET, janet_wrap_nil());
@@ -270,7 +271,7 @@ static JanetSlot do_neq(JanetFopts opts, JanetSlot *args) {
 
 /* Arranged by tag */
 static const JanetFunOptimizer optimizers[] = {
-    {fixarity0, do_debug},
+    {maxarity1, do_debug},
     {fixarity1, do_error},
     {minarity2, do_apply},
     {maxarity1, do_yield},

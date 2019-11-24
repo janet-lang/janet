@@ -953,7 +953,7 @@ static const uint32_t error_asm[] = {
 };
 static const uint32_t debug_asm[] = {
     JOP_SIGNAL | (2 << 24),
-    JOP_RETURN_NIL
+    JOP_RETURN
 };
 static const uint32_t yield_asm[] = {
     JOP_SIGNAL | (3 << 24),
@@ -1002,17 +1002,17 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "fiber is in a state that can be resumed, resuming the current fiber will "
                          "first resume fiber."));
     janet_quick_asm(env, JANET_FUN_DEBUG,
-                    "debug", 0, 0, 0, 1, debug_asm, sizeof(debug_asm),
-                    JDOC("(debug)\n\n"
+                    "debug", 1, 0, 1, 1, debug_asm, sizeof(debug_asm),
+                    JDOC("(debug &opt x)\n\n"
                          "Throws a debug signal that can be caught by a parent fiber and used to inspect "
-                         "the running state of the current fiber. Returns nil."));
+                         "the running state of the current fiber. Returns the value passed in by resume."));
     janet_quick_asm(env, JANET_FUN_ERROR,
                     "error", 1, 1, 1, 1, error_asm, sizeof(error_asm),
                     JDOC("(error e)\n\n"
                          "Throws an error e that can be caught and handled by a parent fiber."));
     janet_quick_asm(env, JANET_FUN_YIELD,
                     "yield", 1, 0, 1, 2, yield_asm, sizeof(yield_asm),
-                    JDOC("(yield x)\n\n"
+                    JDOC("(yield &opt x)\n\n"
                          "Yield a value to a parent fiber. When a fiber yields, its execution is paused until "
                          "another thread resumes it. The fiber will then resume, and the last yield call will "
                          "return the value that was passed to resume."));

@@ -490,20 +490,19 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
      * waiting to be resumed. In those cases, use input and increment pc. We
      * DO NOT use input when resuming a fiber that has been interrupted at a
      * breakpoint. */
+    uint8_t first_opcode;
     if (status != JANET_STATUS_NEW &&
             ((*pc & 0xFF) == JOP_SIGNAL ||
              (*pc & 0xFF) == JOP_PROPAGATE ||
              (*pc & 0xFF) == JOP_RESUME)) {
         stack[A] = in;
         pc++;
+        first_opcode = *pc & 0xFF;
+    } else if (status == JANET_STATUS_DEBUG) {
+        first_opcode = *pc & 0x7F;
+    } else {
+        first_opcode = *pc & 0xFF;
     }
-
-    /* The first opcode to execute. If the first opcode has
-     * the breakpoint bit set and we were in the debug state, skip
-     * that first breakpoint. */
-    uint8_t first_opcode = (status == JANET_STATUS_DEBUG)
-                           ? (*pc & 0x7F)
-                           : (*pc & 0xFF);
 
     /* Main interpreter loop. Semantically is a switch on
      * (*pc & 0xFF) inside of an infinite loop. */
@@ -894,7 +893,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         JanetFiber *f = janet_unwrap_fiber(fv);
         JanetFiberStatus sub_status = janet_fiber_status(f);
         if (sub_status > JANET_STATUS_USER9) {
-            vm_throw("cannot propagate from new or alive fiber");
+            vm_commit();
+            janet_panicf("cannot propagate from fiber with status :%s",
+                         janet_status_names[sub_status]);
         }
         janet_vm_fiber->child = f;
         vm_return((int) sub_status, stack[B]);
@@ -949,8 +950,10 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
     VM_OP(JOP_MAKE_TABLE) {
         int32_t count = fiber->stacktop - fiber->stackstart;
         Janet *mem = fiber->data + fiber->stackstart;
-        if (count & 1)
-            vm_throw("expected even number of arguments to table constructor");
+        if (count & 1) {
+            vm_commit();
+            janet_panicf("expected even number of arguments to table constructor, got %d", count);
+        }
         JanetTable *table = janet_table(count / 2);
         for (int32_t i = 0; i < count; i += 2)
             janet_table_put(table, mem[i], mem[i + 1]);
@@ -962,8 +965,10 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
     VM_OP(JOP_MAKE_STRUCT) {
         int32_t count = fiber->stacktop - fiber->stackstart;
         Janet *mem = fiber->data + fiber->stackstart;
-        if (count & 1)
-            vm_throw("expected even number of arguments to struct constructor");
+        if (count & 1) {
+            vm_commit();
+            janet_panicf("expected even number of arguments to struct constructor, got %d", count);
+        }
         JanetKV *st = janet_struct_begin(count / 2);
         for (int32_t i = 0; i < count; i += 2)
             janet_struct_put(st, mem[i], mem[i + 1]);
@@ -1045,7 +1050,9 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     if (old_status == JANET_STATUS_ALIVE ||
             old_status == JANET_STATUS_DEAD ||
             old_status == JANET_STATUS_ERROR) {
-        *out = janet_cstringv("cannot resume alive, dead, or errored fiber");
+        const uint8_t *str = janet_formatc("cannot resume fiber with status :%s",
+                                           janet_status_names[old_status]);
+        *out = janet_wrap_string(str);
         return JANET_SIGNAL_ERROR;
     }
 

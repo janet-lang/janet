@@ -1308,6 +1308,30 @@
 ###
 ###
 
+(defn- env-walk
+  [pred &opt env]
+  (default env (fiber/getenv (fiber/current)))
+  (def envs @[])
+  (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
+  (def ret-set @{})
+  (loop [envi :in envs
+         k :keys envi
+         :when (pred k)]
+    (put ret-set k true))
+  (sort (keys ret-set)))
+
+(defn all-bindings
+  "Get all symbols available in an enviroment. Defaults to the current
+  fiber's environment."
+  [&opt env]
+  (env-walk symbol? env))
+
+(defn all-dynamics
+  "Get all dynamic bindings in an environment. Defaults to the current
+  fiber's environment."
+  [&opt env]
+  (env-walk keyword? env))
+
 (defn doc-format
   "Reformat text to wrap at a given line."
   [text]
@@ -1346,34 +1370,58 @@
 
   buf)
 
+(defn- print-index
+  "Print bindings in the current environment given a filter function"
+  [fltr]
+  (def bindings (filter fltr (all-bindings)))
+  (def dynamics (map describe (filter fltr (all-dynamics))))
+  (print)
+  (print (doc-format (string "Bindings:\n\n" (string/join bindings " "))))
+  (print)
+  (print (doc-format (string "Dynamics:\n\n" (string/join dynamics " "))))
+  (print))
+
 (defn doc*
   "Get the documentation for a symbol in a given environment."
-  [sym]
-  (def x (dyn sym))
-  (if (not x)
-    (print "symbol " sym " not found.")
+  [&opt sym]
+
+  (cond
+    (string? sym)
+    (print-index (fn [x] (string/find sym x)))
+
+    sym
     (do
-      (def bind-type
-        (string "    "
-                (cond
-                  (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
-                  (x :macro) :macro
-                  (type (x :value)))
-                "\n"))
-      (def sm (x :source-map))
-      (def d (x :doc))
-      (print "\n\n"
-             (if d bind-type "")
-             (if-let [[path line col] sm]
-               (string "    " path " on line " line ", column " col "\n") "")
-             (if (or d sm) "\n" "")
-             (if d (doc-format d) "no documentation found.")
-             "\n\n"))))
+      (def x (dyn sym))
+      (if (not x)
+        (print "symbol " sym " not found.")
+        (do
+          (def bind-type
+            (string "    "
+                    (cond
+                      (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
+                      (x :macro) :macro
+                      (type (x :value)))
+                    "\n"))
+          (def sm (x :source-map))
+          (def d (x :doc))
+          (print "\n\n"
+                 (if d bind-type "")
+                 (if-let [[path line col] sm]
+                   (string "    " path " on line " line ", column " col "\n") "")
+                 (if (or d sm) "\n" "")
+                 (if d (doc-format d) "no documentation found.")
+                 "\n\n"))))
+
+    # else
+    (print-index identity)))
 
 (defmacro doc
   "Shows documentation for the given symbol."
-  [sym]
+  [&opt sym]
   ~(,doc* ',sym))
+
+(put _env 'env-walk nil)
+(put _env 'print-index nil)
 
 ###
 ###
@@ -1719,8 +1767,10 @@
               (on-compile-error msg errf where))))
         (or guard :a)))
     (fiber/setenv f env)
-    (def res (resume f nil))
-    (when good (if going (onstatus f res))))
+    (while (let [fs (fiber/status f)]
+             (and (not= :dead fs) (not= :error fs)))
+      (def res (resume f nil))
+      (when good (when going (onstatus f res)))))
 
   # Loop
   (def buf @"")
@@ -1746,14 +1796,16 @@
   (when (= (parser/status p) :error)
     (on-parse-error p where))
 
-  env)
+  (in env :exit-value env))
 
 (defn quit
   "Tries to exit from the current repl or context. Does not always exit the application.
-  Works by setting the :exit dynamic binding to true."
-  []
+  Works by setting the :exit dynamic binding to true. Passing a non-nil value here will cause the outer
+  run-context to return that value."
+  [&opt value]
   (setdyn :exit true)
-  "Bye!")
+  (setdyn :exit-value value)
+  nil)
 
 (defn eval-string
   "Evaluates a string in the current environment. If more control over the
@@ -1908,8 +1960,11 @@
   (def f (if (= (type path) :core/file)
            path
            (file/open path :rb)))
+  (def path-is-file (= f path))
   (default env (make-env))
-  (put env :current-file (string path))
+  (def spath (string path))
+  (put env :current-file (if-not path-is-file spath))
+  (put env :source (if-not path-is-file spath path))
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
     (def ret (bad-parse x y))
@@ -1921,19 +1976,20 @@
     ret)
   (unless f
     (error (string "could not find file " path)))
-  (run-context {:env env
-                :chunks chunks
-                :on-parse-error bp
-                :on-compile-error bc
-                :on-status (fn [f x]
-                             (when (not= (fiber/status f) :dead)
-                               (debug/stacktrace f x)
-                               (if exit-on-error (os/exit 1))))
-                :evaluator evaluator
-                :expander expander
-                :source (or source (if (= f path) "<anonymous>" path))})
-  (when (not= f path) (file/close f))
-  env)
+  (def nenv
+    (run-context {:env env
+                  :chunks chunks
+                  :on-parse-error bp
+                  :on-compile-error bc
+                  :on-status (fn [f x]
+                               (when (not= (fiber/status f) :dead)
+                                 (debug/stacktrace f x)
+                                 (if exit-on-error (os/exit 1))))
+                  :evaluator evaluator
+                  :expander expander
+                  :source (if path-is-file "<anonymous>" spath)}))
+  (if-not path-is-file (file/close f))
+  nenv)
 
 (def module/loaders
   "A table of loading method names to loading functions.
@@ -1943,7 +1999,6 @@
     :source (fn [path args]
               (put module/loading path true)
               (def newenv (dofile path ;args))
-              (put newenv :source path)
               (put module/loading path nil)
               newenv)
     :image (fn [path &] (load-image (slurp path)))})
@@ -2000,73 +2055,57 @@
   [& modules]
   ~(do ,;(map (fn [x] ~(,import* ,(string x) :prefix "")) modules)))
 
+###
+###
+### REPL
+###
+###
+
 (defn repl
   "Run a repl. The first parameter is an optional function to call to
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
-  caught."
+  caught. Lastly, one can provide an optional environment table to run
+  the repl in."
   [&opt chunks onsignal env]
-  (def level (+ (dyn :debug-level 0) 1))
   (default env (make-env))
   (default chunks (fn [buf p] (getline (string "repl:"
                                                ((parser/where p) 0)
                                                ":"
                                                (parser/state p :delimiters) "> ")
                                        buf)))
-  (default onsignal (fn [f x]
-                      (case (fiber/status f)
-                        :dead (do
-                                (pp x)
-                                (put env '_ @{:value x}))
-                        :debug (let [nextenv (make-env env)]
-                                 (put nextenv '_fiber @{:value f})
-                                 (setdyn :debug-level level)
-                                 (debug/stacktrace f x)
-                                 (print ```
+  (defn make-onsignal
+    [e level]
+    (fn [f x]
+      (case (fiber/status f)
+        :dead (do
+                (pp x)
+                (put e '_ @{:value x}))
+        :debug (let [nextenv (make-env env)]
+                 (put nextenv :fiber f)
+                 (put nextenv :debug-level level)
+                 (debug/stacktrace f x)
+                 (defn debugger-chunks [buf p]
+                   (def status (parser/state p :delimiters))
+                   (def c ((parser/where p) 0))
+                   (def prompt (string "debug[" level "]:" c ":" status "> "))
+                   (getline prompt buf))
+                 (repl debugger-chunks (make-onsignal nextenv (+ 1 level)) nextenv)
+                 (print "exiting debug[" level "]")
+                 (def lastval (get-in nextenv ['_ :value] (nextenv :resume-value)))
+                 (pp lastval)
+                 (put e '_ @{:value lastval}))
+        (debug/stacktrace f x))))
 
-entering debugger - (quit) or Ctrl-D to exit
-_fiber is bound to the suspended fiber
+  (default onsignal (make-onsignal env 1))
 
-```)
-                          (repl (fn [buf p]
-                                  (def status (parser/state p :delimiters))
-                                  (def c ((parser/where p) 0))
-                                  (def prompt (string "debug[" level "]:" c ":" status "> "))
-                                  (getline prompt buf))
-                                onsignal nextenv))
-                        (debug/stacktrace f x))))
   (run-context {:env env
                 :chunks chunks
                 :on-status onsignal
                 :source "repl"}))
 
-(defn- env-walk
-  [pred &opt env]
-  (default env (fiber/getenv (fiber/current)))
-  (def envs @[])
-  (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
-  (def ret-set @{})
-  (loop [envi :in envs
-         k :keys envi
-         :when (pred k)]
-    (put ret-set k true))
-  (sort (keys ret-set)))
-
-(defn all-bindings
-  "Get all symbols available in an enviroment. Defaults to the current
-  fiber's environment."
-  [&opt env]
-  (env-walk symbol? env))
-
-(defn all-dynamics
-  "Get all dynamic bindings in an environment. Defaults to the current
-  fiber's environment."
-  [&opt env]
-  (env-walk keyword? env))
-
 # Clean up some extra defs
 (put _env 'boot/opts nil)
-(put _env 'env-walk nil)
 (put _env '_env nil)
 
 ###

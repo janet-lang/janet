@@ -203,7 +203,7 @@ int32_t janet_verify(JanetFuncDef *def) {
 
 /* Allocate an empty funcdef. This function may have added functionality
  * as commonalities between asm and compile arise. */
-JanetFuncDef *janet_funcdef_alloc() {
+JanetFuncDef *janet_funcdef_alloc(void) {
     JanetFuncDef *def = janet_gcalloc(JANET_MEMORY_FUNCDEF, sizeof(JanetFuncDef));
     def->environments = NULL;
     def->constants = NULL;
