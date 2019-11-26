@@ -313,6 +313,14 @@ static Janet cfun_debug_argstack(int32_t argc, Janet *argv) {
     return janet_wrap_array(array);
 }
 
+static Janet cfun_debug_step(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    Janet out = janet_wrap_nil();
+    janet_step(fiber, argc == 1 ? janet_wrap_nil() : argv[1], &out);
+    return out;
+}
+
 static const JanetReg debug_cfuns[] = {
     {
         "debug/break", cfun_debug_break,
@@ -380,6 +388,13 @@ static const JanetReg debug_cfuns[] = {
              "is useful when a fiber signals or errors to an ancestor fiber. Using this function, "
              "the fiber handling the error can see which fiber raised the signal. This function should "
              "be used mostly for debugging purposes.")
+    },
+    {
+        "debug/step", cfun_debug_step,
+        JDOC("(debug/step fiber &opt x)\n\n"
+             "Run a fiber for one virtual instruction of the Janet machine. Can optionally "
+             "pass in a value that will be passed as the resuming value. Returns the signal value, "
+             "which will usually be nil, as breakpoints raise nil signals.")
     },
     {NULL, NULL, NULL}
 };

@@ -100,9 +100,9 @@ static JanetSlot do_debug(JanetFopts opts, JanetSlot *args) {
     int32_t len = janet_v_count(args);
     JanetSlot t = janetc_gettarget(opts);
     janetc_emit_ssu(opts.compiler, JOP_SIGNAL, t,
-            (len == 1) ? args[0] : janetc_cslot(janet_wrap_nil()),
-            JANET_SIGNAL_DEBUG,
-            1);
+                    (len == 1) ? args[0] : janetc_cslot(janet_wrap_nil()),
+                    JANET_SIGNAL_DEBUG,
+                    1);
     return t;
 }
 static JanetSlot do_in(JanetFopts opts, JanetSlot *args) {

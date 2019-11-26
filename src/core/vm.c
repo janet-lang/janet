@@ -1004,6 +1004,61 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
     VM_END()
 }
 
+/*
+ * Execute a single instruction in the fiber. Does this by inspecting
+ * the fiber, setting a breakpoint at the next instruction, executing, and
+ * reseting breakpoints to how they were prior. Yes, it's a bit hacky.
+ */
+JanetSignal janet_step(JanetFiber *fiber, Janet in, Janet *out) {
+    Janet *stack = fiber->data + fiber->frame;
+    uint32_t *pc = janet_stack_frame(stack)->pc;
+
+    /* Check current opcode (sans debug flag). This tells us where the next or next two candidate
+     * instructions will be. Usually it's the next instruction in memory,
+     * but for branching instructions it is also the target of the branch. */
+    uint32_t *nexta = NULL, *nextb = NULL, olda, oldb;
+
+    /* Set temporary breakpoints */
+    switch (*pc & 0x7F) {
+        default:
+            nexta = pc + 1;
+            break;
+        /* These we just ignore for now. Supporting them means
+         * we could step into and out of functions (including JOP_CALL). */
+        case JOP_RETURN_NIL:
+        case JOP_RETURN:
+        case JOP_ERROR:
+        case JOP_TAILCALL:
+            break;
+        case JOP_JUMP:
+            nexta = pc + DS;
+            break;
+        case JOP_JUMP_IF:
+        case JOP_JUMP_IF_NOT:
+            nexta = pc + 1;
+            nextb = pc + ES;
+            break;
+    }
+    if (nexta) {
+        olda = *nexta;
+        *nexta |= 0x80;
+    }
+    if (nextb) {
+        oldb = *nextb;
+        *nextb |= 0x80;
+    }
+
+    /* Go */
+    JanetSignal signal = run_vm(fiber, in, janet_fiber_status(fiber));
+
+    /* Restore */
+    if (nexta) *nexta = olda;
+    if (nextb) *nextb = oldb;
+
+    *out = *janet_vm_return_reg;
+    return signal;
+}
+
 Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     /* Check entry conditions */
     if (!janet_vm_fiber)

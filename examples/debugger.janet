@@ -69,7 +69,8 @@
   (def sourcemap (dasm 'sourcemap))
   (var last-loc [-2 -2])
   (print "\n  function:   " (dasm 'name) " [" (in dasm 'source "") "]")
-  (printf "  constants:  %.4Q\n" (dasm 'constants))
+  (when-let [constants (dasm 'constants)]
+    (printf "  constants:  %.4Q\n" constants))
   (printf "  slots:      %.4Q\n\n" (frame :slots))
   (def padding (string/repeat " " 20))
   (loop [i :range [0 (length bytecode)]
