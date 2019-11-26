@@ -132,8 +132,9 @@
 (assert (string/check-set "abc" "a") "string/check-set 1")
 (assert (not (string/check-set "abc" "z")) "string/check-set 2")
 (assert (string/check-set "abc" "abc") "string/check-set 3")
-(assert (not (string/check-set "abc" "")) "string/check-set 4")
+(assert (string/check-set "abc" "") "string/check-set 4")
 (assert (not (string/check-set "" "aabc")) "string/check-set 5")
+(assert (not (string/check-set "abc" "abcdefg")) "string/check-set 6")
 
 # Marshal and unmarshal pegs
 (def p (-> "abcd" peg/compile marshal unmarshal))

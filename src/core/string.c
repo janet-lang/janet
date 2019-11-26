@@ -404,7 +404,6 @@ static Janet cfun_string_checkset(int32_t argc, Janet *argv) {
         bitset[index] |= mask;
     }
     /* Check set */
-    if (str.len == 0) return janet_wrap_false();
     for (int32_t i = 0; i < str.len; i++) {
         int index = str.bytes[i] >> 5;
         uint32_t mask = 1 << (str.bytes[i] & 0x1F);
@@ -613,8 +612,9 @@ static const JanetReg string_cfuns[] = {
     {
         "string/check-set", cfun_string_checkset,
         JDOC("(string/check-set set str)\n\n"
-             "Checks if any of the bytes in the string set appear in the string str. "
-             "Returns true if some bytes in set do appear in str, false if no bytes do.")
+             "Checks that the string str only contains bytes that appear in the string set. "
+             "Returns true if all bytes in str appear in set, false if some bytes in str do "
+             "not appear in set.")
     },
     {
         "string/join", cfun_string_join,
