@@ -52,7 +52,6 @@
   (def func (frame :function))
   (disasm func))
 
-
 (defn .bytecode
   "Get the bytecode for the current function."
   [&opt n]
@@ -113,10 +112,19 @@
     (debug/unfbreak fun i))
   (print "Cleared " (length bytecode) " breakpoints in " fun))
 
+(defn .break
+  "Set breakpoint at the current pc."
+  []
+  (def frame (.frame))
+  (def fun (frame :function))
+  (def pc (frame :pc))
+  (debug/fbreak fun pc)
+  (print "Set breakpoint in " fun " at pc=" pc))
+
 (defn .clear
   "Clear the current breakpoint"
   []
-  (def frame (-> (.fiber) debug/stack first))
+  (def frame (.frame))
   (def fun (frame :function))
   (def pc (frame :pc))
   (debug/unfbreak fun pc)
@@ -135,3 +143,11 @@
   [&opt n]
   (.clear)
   (.next n))
+
+(defn .step
+  "Execute the next n instructions."
+  [&opt n]
+  (var res nil)
+  (for i 0 (or n 1)
+    (set res (debug/step (.fiber))))
+  res)
