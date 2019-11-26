@@ -1010,8 +1010,16 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
  * reseting breakpoints to how they were prior. Yes, it's a bit hacky.
  */
 JanetSignal janet_step(JanetFiber *fiber, Janet in, Janet *out) {
-    Janet *stack = fiber->data + fiber->frame;
-    uint32_t *pc = janet_stack_frame(stack)->pc;
+    /* No finished or currently alive fibers. */
+    JanetFiberStatus status = janet_fiber_status(fiber);
+    if (status == JANET_STATUS_ALIVE ||
+            status == JANET_STATUS_DEAD ||
+            status == JANET_STATUS_ERROR) {
+        janet_panicf("cannot step fiber with status :%s", janet_status_names[status]);
+    }
+
+    /* Get PC for setting breakpoints */
+    uint32_t *pc = janet_stack_frame(fiber->data + fiber->frame)->pc;
 
     /* Check current opcode (sans debug flag). This tells us where the next or next two candidate
      * instructions will be. Usually it's the next instruction in memory,
@@ -1049,13 +1057,12 @@ JanetSignal janet_step(JanetFiber *fiber, Janet in, Janet *out) {
     }
 
     /* Go */
-    JanetSignal signal = run_vm(fiber, in, janet_fiber_status(fiber));
+    JanetSignal signal = janet_continue(fiber, in, out);
 
     /* Restore */
     if (nexta) *nexta = olda;
     if (nextb) *nextb = oldb;
 
-    *out = *janet_vm_return_reg;
     return signal;
 }
 

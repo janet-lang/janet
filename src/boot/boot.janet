@@ -1751,6 +1751,7 @@
   (defn eval1 [source]
     (def source (if expand (expand source) source))
     (var good true)
+    (var resumeval nil)
     (def f
       (fiber/new
         (fn []
@@ -1769,8 +1770,8 @@
     (fiber/setenv f env)
     (while (let [fs (fiber/status f)]
              (and (not= :dead fs) (not= :error fs)))
-      (def res (resume f nil))
-      (when good (when going (onstatus f res)))))
+      (def res (resume f resumeval))
+      (when good (when going (set resumeval (onstatus f res))))))
 
   # Loop
   (def buf @"")
@@ -2065,7 +2066,7 @@
   "Run a repl. The first parameter is an optional function to call to
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
-  caught. Lastly, one can provide an optional environment table to run
+  caught. One can provide an optional environment table to run
   the repl in."
   [&opt chunks onsignal env]
   (default env (make-env))
@@ -2076,32 +2077,34 @@
                                        buf)))
   (defn make-onsignal
     [e level]
-    (fn [f x]
-      (case (fiber/status f)
-        :dead (do
-                (pp x)
-                (put e '_ @{:value x}))
-        :debug (let [nextenv (make-env env)]
-                 (put nextenv :fiber f)
-                 (put nextenv :debug-level level)
-                 (debug/stacktrace f x)
-                 (defn debugger-chunks [buf p]
-                   (def status (parser/state p :delimiters))
-                   (def c ((parser/where p) 0))
-                   (def prompt (string "debug[" level "]:" c ":" status "> "))
-                   (getline prompt buf))
-                 (repl debugger-chunks (make-onsignal nextenv (+ 1 level)) nextenv)
-                 (print "exiting debug[" level "]")
-                 (def lastval (get-in nextenv ['_ :value] (nextenv :resume-value)))
-                 (pp lastval)
-                 (put e '_ @{:value lastval}))
-        (debug/stacktrace f x))))
 
-  (default onsignal (make-onsignal env 1))
+    (defn enter-debugger
+      [f x]
+      (def nextenv (make-env env))
+      (put nextenv :fiber f)
+      (put nextenv :debug-level level)
+      (put nextenv :signal x)
+      (debug/stacktrace f x)
+      (defn debugger-chunks [buf p]
+        (def status (parser/state p :delimiters))
+        (def c ((parser/where p) 0))
+        (def prompt (string "debug[" level "]:" c ":" status "> "))
+        (getline prompt buf))
+      (print "entering debug[" level "] - (quit) to exit")
+      (repl debugger-chunks (make-onsignal nextenv (+ 1 level)) nextenv)
+      (print "exiting debug[" level "]")
+      (nextenv :resume-value))
+
+    (fn [f x]
+      (if (= :dead (fiber/status f))
+        (do (pp x) (put e '_ @{:value x}))
+        (if (e :debug)
+          (enter-debugger f x)
+          (do (debug/stacktrace f x) nil)))))
 
   (run-context {:env env
                 :chunks chunks
-                :on-status onsignal
+                :on-status (or onsignal (make-onsignal env 1))
                 :source "repl"}))
 
 # Clean up some extra defs
