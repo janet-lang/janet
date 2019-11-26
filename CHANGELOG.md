@@ -1,6 +1,24 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### Unreleased
+- Allow seeding RNGs with any sequence of bytes. This provides
+  a wider key space for the RNG. Exposed in C as `janet_rng_longseed`.
+- Fix issue in `resume` and similar functions that could cause breakpoints to be skipped.
+- Add a number of new math functions.
+- Improve debugger experience and capabilities. See examples/debugger.janet
+  for what an interactive debugger could look like.
+- Add `debug/step` (janet\_step in the C API) for single stepping Janet bytecode.
+- The built in repl now can enter the debugger on any signal (errors, yields,
+  user signals, and debug signals). To enable this, type (setdyn :debug true)
+  in the repl environment.
+- When exiting the debugger, the fiber being debugged is resumed with the exit value
+  of the debug session (the value returned by `(quit return-value)`, or nil if user typed Ctrl-D).
+- `(quit)` can take an optional argument that is the return value. If a module
+  contains `(quit some-value)`, the value of that module returned to `(require "somemod")`
+  is the return value. This lets module writers completely customize a module without writing
+  a loader.
+
 ### 1.5.1 - 2019-11-16
 - Fix bug when printing buffer to self in some edge cases.
 - Fix bug with `jpm` on windows.
@@ -22,7 +40,7 @@ All notable changes to this project will be documented in this file.
   janet.c to make the janet interpreter.
 - Add `cli-main` function to the core, which invokes Janet's CLI interface.
   This basically moves what was init.janet into boot.janet.
-- Improve flychecking, and fix flyching bugs introduced in 1.4.0.
+- Improve flychecking, and fix flychecking bugs introduced in 1.4.0.
 - Add `prin`, `eprint`, `eprintf` and `eprin` functions. The
   functions prefix with e print to `(dyn :err stderr)`
 - Print family of functions can now also print to buffers
