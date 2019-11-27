@@ -114,7 +114,9 @@
 
 # Detect threads
 (def env (fiber/getenv (fiber/current)))
-(def threads? (not (not (env 'threads/from-image))))
+(def threads? (not (not (env 'thread/from-image))))
+
+(print "threads " threads?)
 
 # Default flags for natives, but not required
 (def default-lflags (if is-win ["/nologo"] []))
@@ -501,11 +503,11 @@ int main(int argc, const char **argv) {
 # Compile and link final exectable
 (do
   (def extra-lflags (case (os/which)
-                      :macos ["-ldl" "-lm"]
-                      :windows []
-                      :linux ["-lm" "-ldl" "-lrt"]
+                      :macos ["-ldl" "-lm" ;thread-flags]
+                      :windows [;thread-flags]
+                      :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
                       #default
-                      ["-lm"]))
+                      ["-lm" ;thread-flags]))
   (def cc (opt opts :compiler default-compiler))
   (def lflags [;dep-lflags ;(opt opts :lflags default-lflags) ;extra-lflags])
   (def cflags (getcflags opts))
