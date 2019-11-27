@@ -37,7 +37,7 @@ MANPATH?=$(PREFIX)/share/man/man1/
 PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 DEBUGGER=gdb
 
-CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden \
+CFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden -pthread \
 	   -DJANET_BUILD=$(JANET_BUILD)
 LDFLAGS=-rdynamic
 
@@ -106,6 +106,7 @@ JANET_CORE_SOURCES=src/core/abstract.c \
 				   src/core/struct.c \
 				   src/core/symcache.c \
 				   src/core/table.c \
+				   src/core/thread.c \
 				   src/core/tuple.c \
 				   src/core/typedarray.c \
 				   src/core/util.c \
