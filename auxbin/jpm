@@ -112,12 +112,20 @@
 (def default-linker (if is-win "link" "cc"))
 (def default-archiver (if is-win "lib" "ar"))
 
+# Detect threads
+(def env (fiber/getenv (fiber/current)))
+(def threads? (not (not (env 'threads/from-image))))
+
 # Default flags for natives, but not required
 (def default-lflags (if is-win ["/nologo"] []))
 (def default-cflags
   (if is-win
     ["/nologo" "/MD"]
     ["-std=c99" "-Wall" "-Wextra"]))
+
+
+# Link to pthreads
+(def- thread-flags (if is-win [] (if threads? ["-lpthread"] [])))
 
 # Required flags for dynamic libraries. These
 # are used no matter what for dynamic libraries.
@@ -127,10 +135,10 @@
     ["-fPIC"]))
 (def- dynamic-lflags
     (if is-win
-      ["/DLL"]
+      ["/DLL" ;thread-flags]
       (if is-mac
-        ["-shared" "-undefined" "dynamic_lookup"]
-        ["-shared"])))
+        ["-shared" "-undefined" "dynamic_lookup" ;thread-flags]
+        ["-shared" ;thread-flags])))
 
 (defn- opt
   "Get an option, allowing overrides via dynamic bindings AND some
