@@ -146,7 +146,7 @@ static Janet cfun_from_image(int32_t argc, Janet *argv) {
     return janet_wrap_abstract(thread);
 }
 
-static const JanetReg it_cfuns[] = {
+static const JanetReg threadlib_cfuns[] = {
     {
         "thread/from-image", cfun_from_image,
         JDOC("(thread/from-image image)\n\n"
@@ -157,7 +157,7 @@ static const JanetReg it_cfuns[] = {
 
 /* Module entry point */
 void janet_lib_thread(JanetTable *env) {
-    janet_core_cfuns(env, NULL, it_cfuns);
+    janet_core_cfuns(env, NULL, threadlib_cfuns);
 }
 
 #endif
