@@ -345,10 +345,11 @@ static Janet cfun_io_fseek(int32_t argc, Janet *argv) {
 
 static JanetMethod io_file_methods[] = {
     {"close", cfun_io_fclose},
-    {"read", cfun_io_fread},
-    {"write", cfun_io_fwrite},
+    {"fileno", cfun_io_fileno},
     {"flush", cfun_io_fflush},
+    {"read", cfun_io_fread},
     {"seek", cfun_io_fseek},
+    {"write", cfun_io_fwrite},
     {NULL, NULL}
 };
 
