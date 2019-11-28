@@ -1304,8 +1304,10 @@ JANET_API Janet janet_mcall(const char *name, int32_t argc, Janet *argv);
 JANET_API void janet_stacktrace(JanetFiber *fiber, Janet err);
 
 /* Scratch Memory API */
+typedef void (*ScratchFinalizer)(void*);
 JANET_API void *janet_smalloc(size_t size);
 JANET_API void *janet_srealloc(void *mem, size_t size);
+JANET_API void janet_sfinalizer(void *mem, ScratchFinalizer finalizer);
 JANET_API void janet_sfree(void *mem);
 
 /* C Library helpers */
