@@ -847,7 +847,7 @@ Subcommands are:
              or (rule "ouput.file" [deps...] ...).
   rules : list rules available with run.
   update-pkgs : Update the current package listing from the remote git repository selected.
-  quickbin entry executable : Create an executable from a janet script with a main function.
+  quick-bin entry executable : Create an executable from a janet script with a main function.
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath)
@@ -906,7 +906,7 @@ Flags are:
   []
   (install-git (dyn :pkglist default-pkglist)))
 
-(defn- quickbin
+(defn- quick-bin
   [input output]
   (create-executable @{} input output)
   (do-rule output))
@@ -924,7 +924,7 @@ Flags are:
    "rules" list-rules
    "update-pkgs" update-pkgs
    "uninstall" uninstall-cmd
-   "quickbin" quickbin})
+   "quick-bin" quick-bin})
 
 (def- args (tuple/slice (dyn :args) 1))
 (def- len (length args))
