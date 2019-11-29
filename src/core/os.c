@@ -372,6 +372,30 @@ static Janet os_shell(int32_t argc, Janet *argv) {
            : janet_wrap_boolean(stat);
 }
 
+static Janet os_environ(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_fixarity(argc, 0);
+    size_t nenv = 0;
+    char **env = environ;
+    while (*env++)
+        nenv += 1;
+    JanetTable *t = janet_table(nenv);
+    for (size_t i = 0; i < nenv; i++) {
+        char *e = environ[i];
+        char *eq = strchr(e, '=');
+        if (!eq) janet_panic("no '=' in environ");
+        char *v = eq + 1;
+        size_t full_len = strlen(e);
+        size_t val_len = strlen(v);
+        janet_table_put(
+            t,
+            janet_stringv((const uint8_t*)e, full_len - val_len - 1),
+            janet_stringv((const uint8_t*)v, val_len)
+        );
+    }
+    return janet_wrap_table(t);
+}
+
 static Janet os_getenv(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     const char *cstr = janet_getcstring(argv, 0);
@@ -830,6 +854,11 @@ static const JanetReg os_cfuns[] = {
              "\t:openbsd\n"
              "\t:netbsd\n"
              "\t:posix - A POSIX compatible system (default)")
+    },
+    {
+        "os/environ", os_environ,
+        JDOC("(os/environ)\n\n"
+             "Get a copy of the os environment table.")
     },
     {
         "os/getenv", os_getenv,

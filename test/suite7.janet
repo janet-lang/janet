@@ -229,4 +229,10 @@
   (prin (dyn :out))
   (assert (deep= (dyn :out) @"abcdabcdabcdabcd") "print buffer to self"))
 
+(os/setenv "TESTENV1" "v1")
+(os/setenv "TESTENV2" "v2")
+(assert (= (os/getenv "TESTENV1") "v1") "getenv works")
+(def environ (os/environ))
+(assert (= [(environ "TESTENV1") (environ "TESTENV2")] ["v1" "v2"]) "environ works")
+
 (end-suite)
