@@ -235,4 +235,7 @@
 (def environ (os/environ))
 (assert (= [(environ "TESTENV1") (environ "TESTENV2")] ["v1" "v2"]) "environ works")
 
+# Issue #183 - just parse it :)
+1e-4000000000000000000000
+
 (end-suite)

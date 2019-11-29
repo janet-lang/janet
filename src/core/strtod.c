@@ -196,7 +196,7 @@ static double bignat_extract(struct BigNat *mant, int32_t exponent2) {
 
 /* Read in a mantissa and exponent of a certain base, and give
  * back the double value. Should properly handle 0s, infinities, and
- * denormalized numbers. (When the exponent values are too large) */
+ * denormalized numbers. (When the exponent values are too large or small) */
 static double convert(
     int negative,
     struct BigNat *mant,
@@ -205,11 +205,20 @@ static double convert(
 
     int32_t exponent2 = 0;
 
-    /* Short circuit zero and huge numbers */
+    /* Approximate exponent in base 2 of mant and exponent. This should get us a good estimate of the final size of the
+     * number, within * 2^32 or so. */
+    int32_t mant_exp2_approx = mant->n * 32 + 16;
+    int32_t exp_exp2_approx = (int32_t)(floor(log2(base) * exponent));
+    int32_t exp2_approx = mant_exp2_approx + exp_exp2_approx;
+
+    /* Short circuit zero, huge, and small numbers. We use the exponent range of valid IEEE754 doubles (-1022, 1023)
+     * with a healthy buffer to allow for inaccuracies in the approximation and denormailzed numbers. */
     if (mant->n == 0 && mant->first_digit == 0)
         return negative ? -0.0 : 0.0;
-    if (exponent > 1023)
+    if (exp2_approx > 1176)
         return negative ? -INFINITY : INFINITY;
+    if (exp2_approx < -1175)
+        return negative ? -0.0 : 0.0;
 
     /* Final value is X = mant * base ^ exponent * 2 ^ exponent2
      * Get exponent to zero while holding X constant. */
@@ -326,7 +335,7 @@ int janet_scan_number(
     /* Read exponent */
     if (str < end && foundexp) {
         int eneg = 0;
-        int ee = 0;
+        int32_t ee = 0;
         seenadigit = 0;
         str++;
         if (str >= end) goto error;
@@ -341,10 +350,12 @@ int janet_scan_number(
             str++;
             seenadigit = 1;
         }
-        while (str < end && ee < (INT32_MAX / 40)) {
+        while (str < end) {
             int digit = digit_lookup[*str & 0x7F];
             if (*str > 127 || digit >= base) goto error;
-            ee = base * ee + digit;
+            if (ee < (INT32_MAX / 40)) {
+                ee = base * ee + digit;
+            }
             str++;
             seenadigit = 1;
         }
