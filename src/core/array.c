@@ -261,11 +261,11 @@ static const JanetReg array_cfuns[] = {
     },
     {
         "array/ensure", cfun_array_ensure,
-        JDOC("(array/ensure arr capacity)\n\n"
+        JDOC("(array/ensure arr capacity growth)\n\n"
              "Ensures that the memory backing the array is large enough for capacity "
-             "items. Capacity must be an integer. If the backing capacity is already enough, "
-             "then this function does nothing. Otherwise, the backing memory will be reallocated "
-             "so that there is enough space.")
+             "items at the given rate of growth. Capacity and growth must be integers. "
+             "If the backing capacity is already enough, then this function does nothing. "
+             "Otherwise, the backing memory will be reallocated so that there is enough space.")
     },
     {
         "array/slice", cfun_array_slice,
