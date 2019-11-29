@@ -389,8 +389,8 @@ static Janet os_environ(int32_t argc, Janet *argv) {
         size_t val_len = strlen(v);
         janet_table_put(
             t,
-            janet_stringv((const uint8_t*)e, full_len - val_len - 1),
-            janet_stringv((const uint8_t*)v, val_len)
+            janet_stringv((const uint8_t *)e, full_len - val_len - 1),
+            janet_stringv((const uint8_t *)v, val_len)
         );
     }
     return janet_wrap_table(t);
