@@ -36,6 +36,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
+
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #include <wincrypt.h>
@@ -474,12 +476,13 @@ static Janet os_sleep(int32_t argc, Janet *argv) {
 #ifdef JANET_WINDOWS
     Sleep((DWORD)(delay * 1000));
 #else
+    int rc;
     struct timespec ts;
     ts.tv_sec = (time_t) delay;
     ts.tv_nsec = (delay <= UINT32_MAX)
                  ? (long)((delay - ((uint32_t)delay)) * 1000000000)
                  : 0;
-    nanosleep(&ts, NULL);
+    RETRY_EINTR(rc, nanosleep(&ts, &ts));
 #endif
     return janet_wrap_nil();
 }
@@ -518,19 +521,22 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
        arc4random_buf, but it needs investigation. 
 
        In both cases, use this fallback path for now... */
-    int randfd = open("/dev/urandom", O_RDONLY);
+    int rc;
+    int randfd;
+    RETRY_EINTR(randfd, open("/dev/urandom", O_RDONLY));
     if (randfd < 0)
         janet_panic(errmsg);
     size_t remaining = buffer->count;
     while (remaining) {
-        ssize_t n = read(randfd, buffer->data + (remaining - buffer->count), remaining);
+        ssize_t n;
+        RETRY_EINTR(n, read(randfd, buffer->data + (remaining - buffer->count), remaining));
         if (n <= 0) {
-            close(randfd);
+            RETRY_EINTR(rc, close(randfd));
             janet_panic(errmsg);
         }
         remaining -= n;
     }
-    close(randfd);
+    RETRY_EINTR(rc, close(randfd));
 #elif defined(__FreeBSD__) || defined(__OpenBSD__)
     (void) errmsg;
     arc4random_buf(buffer->data, buffer->count);
