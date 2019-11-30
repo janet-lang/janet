@@ -241,17 +241,17 @@
 # Ensure randomness puts n of pred into our buffer eventually
 (defn cryptorand-check
   [n pred]
+  (def max-attempts 10000)
   (var attempts 0)
-  (while true
+  (while (not= attempts max-attempts)
     (def cryptobuf (os/cryptorand (buffer/new-filled 10)))
-    (when (= attempts 10000)
-      (assert false "randomness wasn't random enough"))
     (when (= n (count pred cryptobuf))
       (break))
-   (inc attempts)))
+    (inc attempts))
+  (not= attempts max-attempts))
 
 (def v (math/rng-int (math/rng) 100))
-(cryptorand-check 0 |(= $ v))
-(cryptorand-check 1 |(= $ v))
+(assert (cryptorand-check 0 |(= $ v)) "cryptorand skips value sometimes")
+(assert (cryptorand-check 1 |(= $ v)) "cryptorand has value sometimes")
 
 (end-suite)
