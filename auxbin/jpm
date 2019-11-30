@@ -475,7 +475,7 @@ int main(int argc, const char **argv) {
     janet_gcunlock(handle);
 
     /* Run everything */
-    JanetFiber *fiber = janet_fiber(janet_unwrap_function(marsh_out), 64, argc, args->data);
+    JanetFiber *fiber = janet_fiber(janet_unwrap_function(marsh_out), 64, argc, argc ? args->data : NULL);
     fiber->env = temptab;
     Janet out;
     JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
