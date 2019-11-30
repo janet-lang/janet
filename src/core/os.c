@@ -38,6 +38,7 @@
 
 #ifdef JANET_WINDOWS
 #include <windows.h>
+#include <wincrypt.h>
 #include <direct.h>
 #include <sys/utime.h>
 #include <io.h>
@@ -495,6 +496,48 @@ static Janet os_cwd(int32_t argc, Janet *argv) {
 #endif
     if (NULL == ptr) janet_panic("could not get current directory");
     return janet_cstringv(ptr);
+}
+
+static Janet os_cryptorand(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    const char *errmsg = "unable to get sufficient random data";
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+#ifdef JANET_WINDOWS
+    HCRYPTPROV ctx;
+    if (!CryptAcquireContext(&ctx, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+        janet_panic(errmsg);
+    if (!CryptGenRandom(ctx, buffer->count, buffer->data)) {
+        CryptReleaseContext(ctx, 0);
+        janet_panic(errmsg);
+    }
+    if (!CryptReleaseContext(ctx, 0))
+        janet_panic(errmsg);
+#elif defined(__linux__) || defined(__APPLE__)
+    /* We should be able to call getrandom on linux, but it doesn't seem 
+       to be uniformly supported on linux distros. Macos may support 
+       arc4random_buf, but it needs investigation. 
+
+       In both cases, use this fallback path for now... */
+    int randfd = open("/dev/urandom", O_RDONLY);
+    if (randfd < 0)
+        janet_panic(errmsg);
+    size_t remaining = buffer->count;
+    while (remaining) {
+        ssize_t n = read(randfd, buffer->data + (remaining - buffer->count), remaining);
+        if (n <= 0) {
+            close(randfd);
+            janet_panic(errmsg);
+        }
+        remaining -= n;
+    }
+    close(randfd);
+#elif defined(__FreeBSD__) || defined(__OpenBSD__)
+    (void) errmsg;
+    arc4random_buf(buffer->data, buffer->count);
+#else
+    janet_panic("cryptorand currently unsupported on this platform");
+#endif
+    return janet_wrap_buffer(buffer);
 }
 
 static Janet os_date(int32_t argc, Janet *argv) {
@@ -980,6 +1023,11 @@ static const JanetReg os_cfuns[] = {
         "os/cwd", os_cwd,
         JDOC("(os/cwd)\n\n"
              "Returns the current working directory.")
+    },
+    {
+        "os/cryptorand", os_cryptorand,
+        JDOC("(os/cryptorand buf)\n\n"
+             "Fills buf up to length with good quality random data provided by the os. Returns buf.")
     },
     {
         "os/date", os_date,
