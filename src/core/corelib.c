@@ -646,7 +646,7 @@ static const JanetReg corelib_cfuns[] = {
         "gcsetinterval", janet_core_gcsetinterval,
         JDOC("(gcsetinterval interval)\n\n"
              "Set an integer number of bytes to allocate before running garbage collection. "
-             "Low valuesi for interval will be slower but use less memory. "
+             "Low values for interval will be slower but use less memory. "
              "High values will be faster but use more memory.")
     },
     {
