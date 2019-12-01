@@ -65,6 +65,9 @@
 (assert (:== (:/ (u64 "0xffff_ffff_ffff_ffff") 8 2) "0xfffffffffffffff") "bigint operations")
 (assert (let [a (u64 0xff)] (:== (:+ a a a a) (:* a 2 2))) "bigint operations")
 
+(assert (= (string (i64 -123)) "-123") "i64 prints reasonably")
+(assert (= (string (u64 123)) "123") "u64 prints reasonably")
+
 (assert-error
  "trap INT64_MIN / -1"
  (:/ (int/s64 "-0x8000_0000_0000_0000") -1))
