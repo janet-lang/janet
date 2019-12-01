@@ -314,5 +314,8 @@
 (assert (= y 1) "regression #137 (5)")
 (assert (= z 2) "regression #137 (6)")
 
+(assert (= true ;(map truthy? [0 "" true @{} {} [] '()])) "truthy values")
+(assert (= false ;(map truthy? [nil false])) "non-truthy values")
+
 (end-suite)
 
