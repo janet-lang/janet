@@ -34,7 +34,8 @@
 #define JANET_FUN_APPLY 3
 #define JANET_FUN_YIELD 4
 #define JANET_FUN_RESUME 5
-#define JANET_FUN_IN 6
+// XXX cannot remove this and shift down, unsure of reason.
+// #define JANET_FUN_IN 6
 #define JANET_FUN_PUT 7
 #define JANET_FUN_LENGTH 8
 #define JANET_FUN_ADD 9

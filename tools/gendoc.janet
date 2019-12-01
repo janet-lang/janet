@@ -88,7 +88,7 @@
          :ref ref
          :source-map sm
          :doc docstring} env-entry
-        html-key (html-escape key)
+        html-key (html-escape (string key))
         binding-type (cond
                        macro :macro
                        ref (string :var " (" (type (get ref 0)) ")")

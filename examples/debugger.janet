@@ -21,22 +21,22 @@
   "Show a stack frame"
   [&opt n]
   (def stack (debug/stack (.fiber)))
-  (in stack (or n 0)))
+  (stack (or n 0)))
 
 (defn .fn
   "Get the current function"
   [&opt n]
-  (in (.frame n) :function))
+  ((.frame n) :function))
 
 (defn .slots
   "Get an array of slots in a stack frame"
   [&opt n]
-  (in (.frame n) :slots))
+  ((.frame n) :slots))
 
 (defn .slot
   "Get the value of the nth slot."
   [&opt nth frame-idx]
-  (in (.slots frame-idx) (or nth 0)))
+  ((.slots frame-idx) (or nth 0)))
 
 (defn .quit
   "Resume (dyn :fiber) with the value passed to it after exiting the debugger."
@@ -67,7 +67,7 @@
   (def pc (frame :pc))
   (def sourcemap (dasm 'sourcemap))
   (var last-loc [-2 -2])
-  (print "\n  function:   " (dasm 'name) " [" (in dasm 'source "") "]")
+  (print "\n  function:   " (dasm 'name) " [" (dasm 'source "") "]")
   (when-let [constants (dasm 'constants)]
     (printf "  constants:  %.4Q\n" constants))
   (printf "  slots:      %.4Q\n\n" (frame :slots))
