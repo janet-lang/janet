@@ -102,6 +102,7 @@
 (defn indexed? "Check if x is an array or tuple." [x]
   (def t (type x))
   (if (= t :array) true (= t :tuple)))
+(defn truthy? "Check if x is truthy." [x] (if x true false))
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
