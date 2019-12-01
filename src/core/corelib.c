@@ -744,7 +744,7 @@ static const JanetReg corelib_cfuns[] = {
         "get", janet_core_get,
         JDOC("(get ds key &opt dflt)\n\n"
              "Get the value mapped to key in data structure ds, and return dflt or nil if not found. "
-             "Similar to get, but will not throw an error if the key is invalid for the data structure "
+             "Similar to ind, but will not throw an error if the key is invalid for the data structure "
              "unless the data structure is an abstract type. In that case, the abstract type getter may throw "
              "an error.")
     },
@@ -963,7 +963,7 @@ static const uint32_t resume_asm[] = {
     JOP_RESUME | (1 << 24),
     JOP_RETURN
 };
-static const uint32_t get_asm[] = {
+static const uint32_t ind_asm[] = {
     JOP_GET | (1 << 24),
     JOP_LOAD_NIL | (3 << 8),
     JOP_EQUALS | (3 << 8) | (3 << 24),
@@ -1023,10 +1023,10 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "will be returned to the last yield in the case of a pending fiber, or the argument to "
                          "the dispatch function in the case of a new fiber. Returns either the return result of "
                          "the fiber's dispatch function, or the value from the next yield call in fiber."));
-    janet_quick_asm(env, JANET_FUN_IN,
-                    "in", 3, 2, 3, 4, get_asm, sizeof(get_asm),
-                    JDOC("(get ds key &opt dflt)\n\n"
-                         "Get a value from any associative data structure. Arrays, tuples, tables, structs, strings, "
+    janet_quick_asm(env, JANET_FUN_IND,
+                    "ind", 3, 2, 3, 4, ind_asm, sizeof(ind_asm),
+                    JDOC("(ind ds key &opt dflt)\n\n"
+                         "Index into any associative data structure. Arrays, tuples, tables, structs, strings, "
                          "symbols, and buffers are all associative and can be used with get. Order structures, name "
                          "arrays, tuples, strings, buffers, and symbols must use integer keys. Structs and tables can "
                          "take any value as a key except nil and return a value except nil. Byte sequences will return "
