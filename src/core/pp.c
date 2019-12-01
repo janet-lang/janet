@@ -37,7 +37,8 @@
 
 static void number_to_string_b(JanetBuffer *buffer, double x) {
     janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
-    int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, "%g", x);
+    const char *fmt = (x == floor(x) && x <= 2.0e53 && x >= -2.0e53) ? "%.0f" : "%g";
+    int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, fmt, x);
     buffer->count += count;
 }
 
