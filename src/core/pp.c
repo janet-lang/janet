@@ -37,7 +37,11 @@
 
 static void number_to_string_b(JanetBuffer *buffer, double x) {
     janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
-    const char *fmt = (x == floor(x) && x <= 2.0e53 && x >= -2.0e53) ? "%.0f" : "%g";
+    /* Use int32_t range for valid integers because that is the
+     * range most integer-expecting functions in the C api use. */
+    const char *fmt = (x == floor(x) &&
+                       x <= ((double) INT32_MAX) &&
+                       x >= ((double) INT32_MIN)) ? "%.0f" : "%g";
     int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, fmt, x);
     buffer->count += count;
 }
