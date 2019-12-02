@@ -956,7 +956,6 @@ struct JanetThreadShared {
     JanetChannel child;
 };
 struct JanetThread {
-    pthread_t handle;
     JanetThreadShared *shared;
     JanetTable *dict;
     enum {

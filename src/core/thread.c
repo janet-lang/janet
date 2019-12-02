@@ -192,7 +192,6 @@ static JanetThread *janet_make_thread(JanetThreadShared *shared, JanetTable *dic
     thread->shared = shared;
     thread->kind = who;
     thread->dict = dict;
-    thread->handle = NULL;
     return thread;
 }
 
@@ -213,7 +212,6 @@ static int thread_worker(JanetThreadShared *shared) {
 
     /* Create self thread */
     JanetThread *thread = janet_make_thread(shared, dict, JANET_THREAD_SELF);
-    thread->handle = handle;
     Janet threadv = janet_wrap_abstract(thread);
 
     /* Unmarshal the function */
@@ -251,7 +249,8 @@ static void *janet_pthread_wrapper(void *param) {
 
 static void janet_thread_start_child(JanetThread *thread) {
     JanetThreadShared *shared = thread->shared;
-    int error = pthread_create(&thread->handle, NULL, janet_pthread_wrapper, shared);
+    pthread_t handle;
+    int error = pthread_create(&handle, NULL, janet_pthread_wrapper, shared);
     if (error) {
         thread->shared = NULL; /* Prevent GC from trying to mess with shared memory here */
         janet_shared_destroy(shared);
