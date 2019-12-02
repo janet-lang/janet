@@ -1798,7 +1798,7 @@
   (when (= (parser/status p) :error)
     (on-parse-error p where))
 
-  (in env :exit-value env))
+  (get env :exit-value env))
 
 (defn quit
   "Tries to exit from the current repl or context. Does not always exit the application.

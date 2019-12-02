@@ -963,12 +963,8 @@ static const uint32_t resume_asm[] = {
     JOP_RESUME | (1 << 24),
     JOP_RETURN
 };
-static const uint32_t get_asm[] = {
+static const uint32_t in_asm[] = {
     JOP_GET | (1 << 24),
-    JOP_LOAD_NIL | (3 << 8),
-    JOP_EQUALS | (3 << 8) | (3 << 24),
-    JOP_JUMP_IF | (3 << 8) | (2 << 16),
-    JOP_RETURN,
     JOP_RETURN | (2 << 8)
 };
 static const uint32_t put_asm[] = {
@@ -1024,14 +1020,11 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "the dispatch function in the case of a new fiber. Returns either the return result of "
                          "the fiber's dispatch function, or the value from the next yield call in fiber."));
     janet_quick_asm(env, JANET_FUN_IN,
-                    "in", 3, 2, 3, 4, get_asm, sizeof(get_asm),
-                    JDOC("(get ds key &opt dflt)\n\n"
-                         "Get a value from any associative data structure. Arrays, tuples, tables, structs, strings, "
-                         "symbols, and buffers are all associative and can be used with get. Order structures, name "
-                         "arrays, tuples, strings, buffers, and symbols must use integer keys. Structs and tables can "
-                         "take any value as a key except nil and return a value except nil. Byte sequences will return "
-                         "integer representations of bytes as result of a get call. If no values is found, will return "
-                         "dflt or nil if no default is provided."));
+                    "in", 2, 2, 2, 4, in_asm, sizeof(in_asm),
+                    JDOC("(in ds key)\n\n"
+                         "Get value in ds at key from any associative data structure. Arrays, tuples, tables, structs, strings, "
+                         "symbols, and buffers are all associative and can be used with in. For ordered data types, will"
+                         "raise an error for out of bounds access."));
     janet_quick_asm(env, JANET_FUN_PUT,
                     "put", 3, 3, 3, 3, put_asm, sizeof(put_asm),
                     JDOC("(put ds key value)\n\n"
