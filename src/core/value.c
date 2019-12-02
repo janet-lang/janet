@@ -207,6 +207,52 @@ Janet janet_get(Janet ds, Janet key) {
     return value;
 }
 
+Janet janet_get_permissive(Janet ds, Janet key) {
+    JanetType t = janet_type(ds);
+    switch (t) {
+        default:
+            return janet_wrap_nil();
+        case JANET_STRING:
+        case JANET_SYMBOL:
+        case JANET_KEYWORD: {
+            if (!janet_checkint(key)) return janet_wrap_nil();
+            int32_t index = janet_unwrap_integer(key);
+            if (index < 0) return janet_wrap_nil();
+            const uint8_t *str = janet_unwrap_string(ds);
+            if (index >= janet_string_length(str)) return janet_wrap_nil();
+            return janet_wrap_integer(str[index]);
+        }
+        case JANET_ABSTRACT: {
+            void *abst = janet_unwrap_abstract(ds);
+            JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(abst);
+            if (!type->get) return janet_wrap_nil();
+            return (type->get)(abst, key);
+        }
+        case JANET_ARRAY:
+        case JANET_TUPLE: {
+            if (!janet_checkint(key)) return janet_wrap_nil();
+            int32_t index = janet_unwrap_integer(key);
+            if (index < 0) return janet_wrap_nil();
+            if (t == JANET_ARRAY) {
+                JanetArray *a = janet_unwrap_array(ds);
+                if (index >= a->count) return janet_wrap_nil();
+                return a->data[index];
+            } else {
+                const Janet *t = janet_unwrap_tuple(ds);
+                if (index >= janet_tuple_length(t)) return janet_wrap_nil();
+                return t[index];
+            }
+        }
+        case JANET_TABLE: {
+            return janet_table_get(janet_unwrap_table(ds), key);
+        }
+        case JANET_STRUCT: {
+            const JanetKV *st = janet_unwrap_struct(ds);
+            return janet_struct_get(st, key);
+        }
+    }
+}
+
 Janet janet_getindex(Janet ds, int32_t index) {
     Janet value;
     if (index < 0) janet_panic("expected non-negative index");

@@ -262,59 +262,15 @@ static Janet janet_core_setdyn(int32_t argc, Janet *argv) {
     return argv[1];
 }
 
+// XXX inline asm function with a new op - OP_GET_PERMISSIVE?
+// This would match up with OP_GET which is used for 'in'.
 static Janet janet_core_get(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
-    Janet ds = argv[0];
-    Janet key = argv[1];
-    Janet dflt = argc == 3 ? argv[2] : janet_wrap_nil();
-    JanetType t = janet_type(argv[0]);
-    switch (t) {
-        default:
-            return dflt;
-        case JANET_STRING:
-        case JANET_SYMBOL:
-        case JANET_KEYWORD: {
-            if (!janet_checkint(key)) return dflt;
-            int32_t index = janet_unwrap_integer(key);
-            if (index < 0) return dflt;
-            const uint8_t *str = janet_unwrap_string(ds);
-            if (index >= janet_string_length(str)) return dflt;
-            return janet_wrap_integer(str[index]);
-        }
-        case JANET_ABSTRACT: {
-            void *abst = janet_unwrap_abstract(ds);
-            JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(abst);
-            if (!type->get) return dflt;
-            return (type->get)(abst, key);
-        }
-        case JANET_ARRAY:
-        case JANET_TUPLE: {
-            if (!janet_checkint(key)) return dflt;
-            int32_t index = janet_unwrap_integer(key);
-            if (index < 0) return dflt;
-            if (t == JANET_ARRAY) {
-                JanetArray *a = janet_unwrap_array(ds);
-                if (index >= a->count) return dflt;
-                return a->data[index];
-            } else {
-                const Janet *t = janet_unwrap_tuple(ds);
-                if (index >= janet_tuple_length(t)) return dflt;
-                return t[index];
-            }
-        }
-        case JANET_TABLE: {
-            JanetTable *flag = NULL;
-            Janet ret = janet_table_get_ex(janet_unwrap_table(ds), key, &flag);
-            if (flag == NULL) return dflt;
-            return ret;
-        }
-        case JANET_STRUCT: {
-            const JanetKV *st = janet_unwrap_struct(ds);
-            Janet ret = janet_struct_get(st, key);
-            if (janet_checktype(ret, JANET_NIL)) return dflt;
-            return ret;
-        }
+    Janet result = janet_get_permissive(argv[0], argv[1]);
+    if (argc == 3 && janet_checktype(result, JANET_NIL)) {
+        return argv[2];
     }
+    return result;
 }
 
 static Janet janet_core_native(int32_t argc, Janet *argv) {
@@ -744,7 +700,7 @@ static const JanetReg corelib_cfuns[] = {
         "get", janet_core_get,
         JDOC("(get ds key &opt dflt)\n\n"
              "Get the value mapped to key in data structure ds, and return dflt or nil if not found. "
-             "Similar to get, but will not throw an error if the key is invalid for the data structure "
+             "Similar to in, but will not throw an error if the key is invalid for the data structure "
              "unless the data structure is an abstract type. In that case, the abstract type getter may throw "
              "an error.")
     },
@@ -963,7 +919,7 @@ static const uint32_t resume_asm[] = {
     JOP_RESUME | (1 << 24),
     JOP_RETURN
 };
-static const uint32_t get_asm[] = {
+static const uint32_t in_asm[] = {
     JOP_GET | (1 << 24),
     JOP_LOAD_NIL | (3 << 8),
     JOP_EQUALS | (3 << 8) | (3 << 24),
@@ -1065,14 +1021,12 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "the dispatch function in the case of a new fiber. Returns either the return result of "
                          "the fiber's dispatch function, or the value from the next yield call in fiber."));
     janet_quick_asm(env, JANET_FUN_IN,
-                    "in", 3, 2, 3, 4, get_asm, sizeof(get_asm),
-                    JDOC("(get ds key &opt dflt)\n\n"
-                         "Get a value from any associative data structure. Arrays, tuples, tables, structs, strings, "
-                         "symbols, and buffers are all associative and can be used with get. Order structures, name "
-                         "arrays, tuples, strings, buffers, and symbols must use integer keys. Structs and tables can "
-                         "take any value as a key except nil and return a value except nil. Byte sequences will return "
-                         "integer representations of bytes as result of a get call. If no values is found, will return "
-                         "dflt or nil if no default is provided."));
+                    "in", 3, 2, 3, 4, in_asm, sizeof(in_asm),
+                    JDOC("(in ds key &opt dflt)\n\n"
+                         "Get value in ds at key, works on associative data structures. Arrays, tuples, tables, structs, "
+                         "strings, symbols, and buffers are all associative and can be used. Arrays, tuples, strings, buffers, "
+                         "and symbols must use integer keys that are in bounds or an error is raised. Structs and tables can "
+                         "take any value as a key except nil and will return nil or dflt if not found."));
     janet_quick_asm(env, JANET_FUN_PUT,
                     "put", 3, 3, 3, 3, put_asm, sizeof(put_asm),
                     JDOC("(put ds key value)\n\n"
