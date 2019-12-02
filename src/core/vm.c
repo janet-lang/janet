@@ -30,6 +30,7 @@
 #endif
 
 /* VM state */
+JANET_THREAD_LOCAL JanetTable *janet_vm_core_dictionary;
 JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
 JANET_THREAD_LOCAL int janet_vm_stackn = 0;
 JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber = NULL;
@@ -1240,6 +1241,8 @@ int janet_init(void) {
     /* Initialize registry */
     janet_vm_registry = janet_table(0);
     janet_gcroot(janet_wrap_table(janet_vm_registry));
+    /* Core env and dictionary */
+    janet_vm_core_dictionary = NULL;
     /* Seed RNG */
     janet_rng_seed(janet_default_rng(), 0);
     return 0;
@@ -1254,4 +1257,5 @@ void janet_deinit(void) {
     janet_vm_root_count = 0;
     janet_vm_root_capacity = 0;
     janet_vm_registry = NULL;
+    janet_vm_core_dictionary = NULL;
 }

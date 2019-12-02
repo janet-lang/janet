@@ -324,24 +324,6 @@ typedef struct JanetRange JanetRange;
 typedef struct JanetRNG JanetRNG;
 typedef Janet(*JanetCFunction)(int32_t argc, Janet *argv);
 
-/* Thread types */
-#ifdef JANET_THREADS
-#include <pthread.h>
-typedef struct JanetThread JanetThread;
-typedef struct JanetThreadShared JanetThreadShared;
-struct JanetThreadShared {
-    pthread_mutex_t memoryLock;
-    pthread_mutex_t refCountLock;
-    uint8_t *memory;
-    size_t memorySize;
-    int refCount;
-};
-struct JanetThread {
-    pthread_t handle;
-    JanetThreadShared *shared;
-};
-#endif
-
 /* Basic types for all Janet Values */
 typedef enum JanetType {
     JANET_NUMBER,
@@ -955,6 +937,35 @@ struct JanetRNG {
     uint32_t a, b, c, d;
     uint32_t counter;
 };
+
+/* Thread types */
+#ifdef JANET_THREADS
+#include <pthread.h>
+typedef struct JanetThread JanetThread;
+typedef struct JanetThreadShared JanetThreadShared;
+typedef struct JanetChannel JanetChannel;
+struct JanetChannel {
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+    JanetBuffer buf;
+};
+struct JanetThreadShared {
+    pthread_mutex_t refCountLock;
+    int refCount;
+    JanetChannel parent;
+    JanetChannel child;
+};
+struct JanetThread {
+    pthread_t handle;
+    JanetThreadShared *shared;
+    JanetTable *dict;
+    enum {
+        JANET_THREAD_SELF,
+        JANET_THREAD_OTHER
+    } kind;
+};
+#endif
+
 
 /***** END SECTION TYPES *****/
 

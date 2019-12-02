@@ -2121,17 +2121,6 @@
 
 ###
 ###
-### Thread Extras
-###
-###
-
-(defn thread/new
-  "Create a new thread from a closure."
-  [f]
-  (thread/from-image (make-image f)))
-
-###
-###
 ### CLI Tool Main
 ###
 ###

@@ -1194,8 +1194,27 @@ JanetTable *janet_core_env(JanetTable *replacements) {
 #else
 
 JanetTable *janet_core_dictionary(JanetTable *replacements) {
-    JanetTable *dict = (NULL != replacements) ? replacements : janet_table(0);
-    janet_load_libs(dict);
+    JanetTable *dict;
+    if (NULL == janet_vm_core_dictionary) {
+        dict = janet_table(0);
+        janet_load_libs(dict);
+        janet_vm_core_dictionary = dict;
+        janet_gcroot(janet_wrap_table(dict));
+        /* do replacements */
+        if (NULL != replacements) {
+            for (int32_t i = 0; i < replacements->capacity; i++) {
+                if (!janet_checktype(replacements->data[i].key, JANET_NIL)) {
+                    const JanetKV *kv = replacements->data + i;
+                    janet_table_put(dict, kv->key, kv->value);
+                    if (janet_checktype(kv->value, JANET_CFUNCTION)) {
+                        janet_table_put(janet_vm_registry, kv->value, kv->key);
+                    }
+                }
+            }
+        }
+    } else {
+        dict = janet_vm_core_dictionary;
+    }
     return dict;
 }
 
