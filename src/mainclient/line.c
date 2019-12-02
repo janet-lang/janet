@@ -89,18 +89,18 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 /* static state */
 #define JANET_LINE_MAX 1024
 #define JANET_HISTORY_MAX 100
-static int gbl_israwmode = 0;
-static const char *gbl_prompt = "> ";
-static int gbl_plen = 2;
-static char gbl_buf[JANET_LINE_MAX];
-static int gbl_len = 0;
-static int gbl_pos = 0;
-static int gbl_cols = 80;
-static char *gbl_history[JANET_HISTORY_MAX];
-static int gbl_history_count = 0;
-static int gbl_historyi = 0;
-static int gbl_sigint_flag = 0;
-static struct termios gbl_termios_start;
+static JANET_THREAD_LOCAL int gbl_israwmode = 0;
+static JANET_THREAD_LOCAL const char *gbl_prompt = "> ";
+static JANET_THREAD_LOCAL int gbl_plen = 2;
+static JANET_THREAD_LOCAL char gbl_buf[JANET_LINE_MAX];
+static JANET_THREAD_LOCAL int gbl_len = 0;
+static JANET_THREAD_LOCAL int gbl_pos = 0;
+static JANET_THREAD_LOCAL int gbl_cols = 80;
+static JANET_THREAD_LOCAL char *gbl_history[JANET_HISTORY_MAX];
+static JANET_THREAD_LOCAL int gbl_history_count = 0;
+static JANET_THREAD_LOCAL int gbl_historyi = 0;
+static JANET_THREAD_LOCAL int gbl_sigint_flag = 0;
+static JANET_THREAD_LOCAL struct termios gbl_termios_start;
 
 /* Unsupported terminal list from linenoise */
 static const char *badterms[] = {
@@ -126,7 +126,6 @@ static int rawmode() {
     if (tcgetattr(STDIN_FILENO, &gbl_termios_start) == -1) goto fatal;
     t = gbl_termios_start;
     t.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    t.c_oflag &= ~(OPOST);
     t.c_cflag |= (CS8);
     t.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
     t.c_cc[VMIN] = 1;
@@ -490,6 +489,7 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
         }
         return;
     }
+    fflush(stdin);
     norawmode();
     fputc('\n', out);
     janet_buffer_ensure(buffer, gbl_len + 1, 2);

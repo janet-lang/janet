@@ -30,6 +30,7 @@ header_path = join_paths(get_option('prefix'), get_option('includedir'), 'janet'
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required : false)
 dl_dep = cc.find_library('dl', required : false)
+thread_dep = dependency('threads')
 
 # Link options
 if build_machine.system() != 'windows'
@@ -128,6 +129,7 @@ core_src = [
   'src/core/struct.c',
   'src/core/symcache.c',
   'src/core/table.c',
+  'src/core/thread.c',
   'src/core/tuple.c',
   'src/core/typedarray.c',
   'src/core/util.c',
@@ -155,7 +157,7 @@ mainclient_src = [
 janet_boot = executable('janet-boot', core_src, boot_src, boot_gen,
   include_directories : incdir,
   c_args : '-DJANET_BOOTSTRAP',
-  dependencies : [m_dep, dl_dep],
+  dependencies : [m_dep, dl_dep, thread_dep],
   native : true)
 
 # Build core image
@@ -166,7 +168,7 @@ core_image = custom_target('core_image',
 
 libjanet = library('janet', core_src, core_image,
   include_directories : incdir,
-  dependencies : [m_dep, dl_dep],
+  dependencies : [m_dep, dl_dep, thread_dep],
   install : true)
 
 # Extra c flags - adding -fvisibility=hidden matches the Makefile and
@@ -186,14 +188,14 @@ endif
 
 janet_mainclient = executable('janet', core_src, core_image, mainclient_src,
   include_directories : incdir,
-  dependencies : [m_dep, dl_dep],
+  dependencies : [m_dep, dl_dep, thread_dep],
   c_args : extra_native_cflags,
   install : true)
 
 if meson.is_cross_build()
   janet_nativeclient = executable('janet-native', core_src, core_image, mainclient_src,
     include_directories : incdir,
-    dependencies : [m_dep, dl_dep],
+    dependencies : [m_dep, dl_dep, thread_dep],
     c_args : extra_cross_cflags,
     native : true)
 else
@@ -223,7 +225,7 @@ amalg_shell = custom_target('amalg-shell',
 # Amalgamated client
 janet_amalgclient = executable('janet-amalg', amalg, amalg_shell,
   include_directories : incdir,
-  dependencies : [m_dep, dl_dep],
+  dependencies : [m_dep, dl_dep, thread_dep],
   build_by_default : false)
 
 # Tests

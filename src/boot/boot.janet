@@ -1843,16 +1843,27 @@
     (res)
     (error (res :error))))
 
+
+(def make-image-dict
+  "A table used in combination with marshal to marshal code (images), such that
+  (make-image x) is the same as (marshal x make-image-dict)."
+  @{})
+
+(def load-image-dict
+  "A table used in combination with unmarshal to unmarshal byte sequences created
+  by make-image, such that (load-image bytes) is the same as (unmarshal bytes load-images-dict)."
+  @{})
+
 (defn make-image
   "Create an image from an environment returned by require.
   Returns the image source as a string."
   [env]
-  (marshal env (invert (env-lookup _env))))
+  (marshal env make-image-dict))
 
 (defn load-image
   "The inverse operation to make-image. Returns an environment."
   [image]
-  (unmarshal image (env-lookup _env)))
+  (unmarshal image load-image-dict))
 
 (def- nati (if (= :windows (os/which)) ".dll" ".so"))
 (defn- check-. [x] (if (string/has-prefix? "." x) x))
@@ -2108,9 +2119,16 @@
                 :on-status (or onsignal (make-onsignal env 1))
                 :source "repl"}))
 
-# Clean up some extra defs
-(put _env 'boot/opts nil)
-(put _env '_env nil)
+###
+###
+### Thread Extras
+###
+###
+
+(defn thread/new
+  "Create a new thread from a closure."
+  [f]
+  (thread/from-image (make-image f)))
 
 ###
 ###
@@ -2231,6 +2249,19 @@
     (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
     (setdyn :err-color (if *colorize* true))
     (repl getchunk onsig)))
+
+
+###
+###
+### Clean up
+###
+###
+
+(do
+  (put _env 'boot/opts nil)
+  (put _env '_env nil)
+  (merge-into load-image-dict (env-lookup _env))
+  (merge-into make-image-dict (invert load-image-dict)))
 
 ###
 ###

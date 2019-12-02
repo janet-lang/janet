@@ -143,6 +143,11 @@ extern "C" {
 #define JANET_INT_TYPES
 #endif
 
+/* Enable or disable threads */
+#ifndef JANET_NO_THREADS
+#define JANET_THREADS
+#endif
+
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS
@@ -318,6 +323,24 @@ typedef struct JanetDictView JanetDictView;
 typedef struct JanetRange JanetRange;
 typedef struct JanetRNG JanetRNG;
 typedef Janet(*JanetCFunction)(int32_t argc, Janet *argv);
+
+/* Thread types */
+#ifdef JANET_THREADS
+#include <pthread.h>
+typedef struct JanetThread JanetThread;
+typedef struct JanetThreadShared JanetThreadShared;
+struct JanetThreadShared {
+    pthread_mutex_t memoryLock;
+    pthread_mutex_t refCountLock;
+    uint8_t *memory;
+    size_t memorySize;
+    int refCount;
+};
+struct JanetThread {
+    pthread_t handle;
+    JanetThreadShared *shared;
+};
+#endif
 
 /* Basic types for all Janet Values */
 typedef enum JanetType {
@@ -1092,6 +1115,7 @@ struct JanetCompileResult {
 JANET_API JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *where);
 
 /* Get the default environment for janet */
+JANET_API JanetTable *janet_core_dictionary(JanetTable *replacements); /* Used for unmarshaling images */
 JANET_API JanetTable *janet_core_env(JanetTable *replacements);
 
 JANET_API int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out);

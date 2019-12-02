@@ -987,13 +987,54 @@ static const uint32_t propagate_asm[] = {
     JOP_PROPAGATE | (1 << 24),
     JOP_RETURN
 };
-#endif /* ifndef JANET_NO_BOOTSTRAP */
+#endif /* ifdef JANET_BOOTSTRAP */
+
+/*
+ * Setup Environment
+ */
+
+static void janet_load_libs(JanetTable *env) {
+    janet_core_cfuns(env, NULL, corelib_cfuns);
+    janet_lib_io(env);
+    janet_lib_math(env);
+    janet_lib_array(env);
+    janet_lib_tuple(env);
+    janet_lib_buffer(env);
+    janet_lib_table(env);
+    janet_lib_fiber(env);
+    janet_lib_os(env);
+    janet_lib_parse(env);
+    janet_lib_compile(env);
+    janet_lib_debug(env);
+    janet_lib_string(env);
+    janet_lib_marsh(env);
+#ifdef JANET_PEG
+    janet_lib_peg(env);
+#endif
+#ifdef JANET_ASSEMBLER
+    janet_lib_asm(env);
+#endif
+#ifdef JANET_TYPED_ARRAY
+    janet_lib_typed_array(env);
+#endif
+#ifdef JANET_INT_TYPES
+    janet_lib_inttypes(env);
+#endif
+#ifdef JANET_THREADS
+    janet_lib_thread(env);
+#endif
+}
+
+#ifdef JANET_BOOTSTRAP
+
+JanetTable *janet_core_dictionary(JanetTable *replacements) {
+    (void) replacements;
+    janet_panic("not defined in bootstrap");
+    return NULL;
+}
 
 JanetTable *janet_core_env(JanetTable *replacements) {
     JanetTable *env = (NULL != replacements) ? replacements : janet_table(0);
-    janet_core_cfuns(env, NULL, corelib_cfuns);
-
-#ifdef JANET_BOOTSTRAP
     janet_quick_asm(env, JANET_FUN_PROP,
                     "propagate", 2, 2, 2, 2, propagate_asm, sizeof(propagate_asm),
                     JDOC("(propagate x fiber)\n\n"
@@ -1145,48 +1186,29 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     /* Allow references to the environment */
     janet_def(env, "_env", janet_wrap_table(env), JDOC("The environment table for the current scope."));
 
-    /* Set as gc root */
+    janet_load_libs(env);
     janet_gcroot(janet_wrap_table(env));
-#endif
+    return env;
+}
 
-    /* Load auxiliary envs */
-    janet_lib_io(env);
-    janet_lib_math(env);
-    janet_lib_array(env);
-    janet_lib_tuple(env);
-    janet_lib_buffer(env);
-    janet_lib_table(env);
-    janet_lib_fiber(env);
-    janet_lib_os(env);
-    janet_lib_parse(env);
-    janet_lib_compile(env);
-    janet_lib_debug(env);
-    janet_lib_string(env);
-    janet_lib_marsh(env);
-#ifdef JANET_PEG
-    janet_lib_peg(env);
-#endif
-#ifdef JANET_ASSEMBLER
-    janet_lib_asm(env);
-#endif
-#ifdef JANET_TYPED_ARRAY
-    janet_lib_typed_array(env);
-#endif
-#ifdef JANET_INT_TYPES
-    janet_lib_inttypes(env);
-#endif
+#else
 
-#ifndef JANET_BOOTSTRAP
-    /* Unmarshal from core image */
+JanetTable *janet_core_dictionary(JanetTable *replacements) {
+    JanetTable *dict = (NULL != replacements) ? replacements : janet_table(0);
+    janet_load_libs(dict);
+    return dict;
+}
+
+JanetTable *janet_core_env(JanetTable *replacements) {
+    JanetTable *dict = janet_core_dictionary(replacements);
     Janet marsh_out = janet_unmarshal(
                           janet_core_image,
                           janet_core_image_size,
                           0,
-                          env,
+                          dict,
                           NULL);
     janet_gcroot(marsh_out);
-    env = janet_unwrap_table(marsh_out);
-#endif
-
-    return env;
+    return janet_unwrap_table(marsh_out);
 }
+
+#endif

@@ -112,12 +112,22 @@
 (def default-linker (if is-win "link" "cc"))
 (def default-archiver (if is-win "lib" "ar"))
 
+# Detect threads
+(def env (fiber/getenv (fiber/current)))
+(def threads? (not (not (env 'thread/from-image))))
+
+(print "threads " threads?)
+
 # Default flags for natives, but not required
 (def default-lflags (if is-win ["/nologo"] []))
 (def default-cflags
   (if is-win
     ["/nologo" "/MD"]
     ["-std=c99" "-Wall" "-Wextra"]))
+
+
+# Link to pthreads
+(def- thread-flags (if is-win [] (if threads? ["-lpthread"] [])))
 
 # Required flags for dynamic libraries. These
 # are used no matter what for dynamic libraries.
@@ -127,10 +137,10 @@
     ["-fPIC"]))
 (def- dynamic-lflags
     (if is-win
-      ["/DLL"]
+      ["/DLL" ;thread-flags]
       (if is-mac
-        ["-shared" "-undefined" "dynamic_lookup"]
-        ["-shared"])))
+        ["-shared" "-undefined" "dynamic_lookup" ;thread-flags]
+        ["-shared" ;thread-flags])))
 
 (defn- opt
   "Get an option, allowing overrides via dynamic bindings AND some
@@ -497,11 +507,11 @@ int main(int argc, const char **argv) {
 # Compile and link final exectable
 (do
   (def extra-lflags (case (os/which)
-                      :macos ["-ldl" "-lm"]
-                      :windows []
-                      :linux ["-lm" "-ldl" "-lrt"]
+                      :macos ["-ldl" "-lm" ;thread-flags]
+                      :windows [;thread-flags]
+                      :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
                       #default
-                      ["-lm"]))
+                      ["-lm" ;thread-flags]))
   (def cc (opt opts :compiler default-compiler))
   (def lflags [;dep-lflags ;(opt opts :lflags default-lflags) ;extra-lflags])
   (def cflags (getcflags opts))

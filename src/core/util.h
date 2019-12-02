@@ -120,5 +120,8 @@ void janet_lib_typed_array(JanetTable *env);
 #ifdef JANET_INT_TYPES
 void janet_lib_inttypes(JanetTable *env);
 #endif
+#ifdef JANET_THREADS
+void janet_lib_thread(JanetTable *env);
+#endif
 
 #endif
