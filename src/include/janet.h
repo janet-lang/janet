@@ -1285,6 +1285,7 @@ JANET_API int32_t janet_hash(Janet x);
 JANET_API int janet_compare(Janet x, Janet y);
 JANET_API int janet_cstrcmp(const uint8_t *str, const char *other);
 JANET_API Janet janet_get(Janet ds, Janet key);
+JANET_API Janet janet_get_permissive(Janet ds, Janet key);
 JANET_API Janet janet_getindex(Janet ds, int32_t index);
 JANET_API int32_t janet_length(Janet x);
 JANET_API Janet janet_lengthv(Janet x);
