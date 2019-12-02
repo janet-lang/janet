@@ -370,6 +370,14 @@ JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) 
     return JANET_BINDING_DEF;
 }
 
+/* Resolve a symbol in the core environment. */
+Janet janet_resolve_core(const char *name) {
+    JanetTable *env = janet_core_env(NULL);
+    Janet out = janet_wrap_nil();
+    janet_resolve(env, janet_csymbol(name), &out);
+    return out;
+}
+
 /* Read both tuples and arrays as c pointers + int32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */
 int janet_indexed_view(Janet seq, const Janet **data, int32_t *len) {

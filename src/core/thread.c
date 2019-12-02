@@ -32,6 +32,15 @@
 #include <pthread.h>
 #include <setjmp.h>
 
+static JanetTable *janet_get_core_table(const char *name) {
+    JanetTable *env = janet_core_env(NULL);
+    Janet out = janet_wrap_nil();
+    JanetBindingType bt = janet_resolve(env, janet_csymbol(name), &out);
+    if (bt == JANET_BINDING_NONE) return NULL;
+    if (!janet_checktype(out, JANET_TABLE)) return NULL;
+    return janet_unwrap_table(out);
+}
+
 static void janet_channel_init(JanetChannel *channel, size_t initialSize) {
     janet_buffer_init(&channel->buf, (int32_t) initialSize);
     pthread_mutex_init(&channel->lock, NULL);
@@ -212,20 +221,11 @@ static int thread_worker(JanetThreadShared *shared) {
     janet_init();
 
     /* Get dictionaries */
-    JanetTable *decode = janet_core_dictionary(NULL);
-    JanetTable *encode = janet_table(decode->count);
-    for (int32_t i = 0; i < decode->capacity; i++) {
-        JanetKV *kv = decode->data + i;
-        if (!janet_checktype(kv->key, JANET_NIL)) {
-            janet_table_put(encode, kv->value, kv->key);
-        }
-    }
-    janet_gcroot(janet_wrap_table(encode));
+    JanetTable *decode = janet_get_core_table("load-image-dict");
+    JanetTable *encode = janet_get_core_table("make-image-dict");
 
     /* Create self thread */
     JanetThread *thread = janet_make_thread(shared, encode, decode, JANET_THREAD_SELF);
-    thread->encode = encode;
-    thread->decode = decode;
     Janet threadv = janet_wrap_abstract(thread);
 
     /* Unmarshal the function */
@@ -275,10 +275,14 @@ static void janet_thread_start_child(JanetThread *thread) {
  * Cfuns
  */
 
-static Janet cfun_thread_new_ext(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 2);
-    JanetTable *encode = janet_gettable(argv, 0);
-    JanetTable *decode = janet_gettable(argv, 1);
+static Janet cfun_thread_new(int32_t argc, Janet *argv) {
+    janet_arity(argc, 0, 2);
+    JanetTable *encode = (argc < 1 || janet_checktype(argv[0], JANET_NIL))
+                         ? janet_get_core_table("make-image-dict")
+                         : janet_gettable(argv, 0);
+    JanetTable *decode = (argc < 2 || janet_checktype(argv[1], JANET_NIL))
+                         ? janet_get_core_table("load-image-dict")
+                         : janet_gettable(argv, 1);
     JanetThreadShared *shared = janet_shared_create(0);
     JanetThread *thread = janet_make_thread(shared, encode, decode, JANET_THREAD_OTHER);
     janet_thread_start_child(thread);
@@ -316,8 +320,8 @@ static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
 
 static const JanetReg threadlib_cfuns[] = {
     {
-        "thread/new-ext", cfun_thread_new_ext,
-        JDOC("(thread/new-ext encode-book decode-book)\n\n"
+        "thread/new", cfun_thread_new,
+        JDOC("(thread/new &opt encode-book decode-book)\n\n"
              "Start a new thread. The thread will wait for a message containing the function used to start the thread, which should be subsequently "
              "sent over after thread creation.")
     },

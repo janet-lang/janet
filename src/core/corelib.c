@@ -983,12 +983,6 @@ static void janet_load_libs(JanetTable *env) {
 
 #ifdef JANET_BOOTSTRAP
 
-JanetTable *janet_core_dictionary(JanetTable *replacements) {
-    (void) replacements;
-    janet_panic("not defined in bootstrap");
-    return NULL;
-}
-
 JanetTable *janet_core_env(JanetTable *replacements) {
     JanetTable *env = (NULL != replacements) ? replacements : janet_table(0);
     janet_quick_asm(env, JANET_FUN_PROP,
@@ -1147,41 +1141,43 @@ JanetTable *janet_core_env(JanetTable *replacements) {
 
 #else
 
-JanetTable *janet_core_dictionary(JanetTable *replacements) {
-    JanetTable *dict;
-    if (NULL == janet_vm_core_dictionary) {
-        dict = janet_table(0);
-        janet_load_libs(dict);
-        janet_vm_core_dictionary = dict;
-        janet_gcroot(janet_wrap_table(dict));
-        /* do replacements */
-        if (NULL != replacements) {
-            for (int32_t i = 0; i < replacements->capacity; i++) {
-                if (!janet_checktype(replacements->data[i].key, JANET_NIL)) {
-                    const JanetKV *kv = replacements->data + i;
-                    janet_table_put(dict, kv->key, kv->value);
-                    if (janet_checktype(kv->value, JANET_CFUNCTION)) {
-                        janet_table_put(janet_vm_registry, kv->value, kv->key);
-                    }
+JanetTable *janet_core_env(JanetTable *replacements) {
+    /* Memoize core env, ignoring replacements the second time around. */
+    if (NULL != janet_vm_core_env) {
+        return janet_vm_core_env;
+    }
+
+    /* Load core cfunctions (and some built in janet assembly functions) */
+    JanetTable *dict = janet_table(300);
+    janet_load_libs(dict);
+
+    /* Add replacements */
+    if (replacements != NULL) {
+        for (int32_t i = 0; i < replacements->capacity; i++) {
+            JanetKV kv = replacements->data[i];
+            if (!janet_checktype(kv.key, JANET_NIL)) {
+                janet_table_put(dict, kv.key, kv.value);
+                if (janet_checktype(kv.value, JANET_CFUNCTION)) {
+                    janet_table_put(janet_vm_registry, kv.value, kv.key);
                 }
             }
         }
-    } else {
-        dict = janet_vm_core_dictionary;
     }
-    return dict;
-}
 
-JanetTable *janet_core_env(JanetTable *replacements) {
-    JanetTable *dict = janet_core_dictionary(replacements);
+    /* Unmarshal bytecode */
     Janet marsh_out = janet_unmarshal(
                           janet_core_image,
                           janet_core_image_size,
                           0,
                           dict,
                           NULL);
+
+    /* Memoize */
     janet_gcroot(marsh_out);
-    return janet_unwrap_table(marsh_out);
+    JanetTable *env = janet_unwrap_table(marsh_out);
+    janet_vm_core_env = env;
+
+    return env;
 }
 
 #endif

@@ -1126,7 +1126,6 @@ struct JanetCompileResult {
 JANET_API JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *where);
 
 /* Get the default environment for janet */
-JANET_API JanetTable *janet_core_dictionary(JanetTable *replacements); /* Used for unmarshaling images */
 JANET_API JanetTable *janet_core_env(JanetTable *replacements);
 
 JANET_API int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out);
@@ -1358,6 +1357,9 @@ JANET_API void janet_var(JanetTable *env, const char *name, Janet val, const cha
 JANET_API void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 JANET_API JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out);
 JANET_API void janet_register(const char *name, JanetCFunction cfun);
+
+/* Get values from the core environment. */
+JANET_API Janet janet_resolve_core(const char *name);
 
 /* New C API */
 

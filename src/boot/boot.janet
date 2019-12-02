@@ -2070,17 +2070,6 @@
 
 ###
 ###
-### Thread Extras
-###
-###
-
-(defn thread/new
-  "Create a new thread. Same as (thread/new-ext make-image-dict load-image-dict)."
-  []
-  (thread/new-ext make-image-dict load-image-dict))
-
-###
-###
 ### REPL
 ###
 ###

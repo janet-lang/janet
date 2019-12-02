@@ -32,8 +32,8 @@
  * be in it. However, thread local global variables for interpreter
  * state should allow easy multi-threading. */
 
-/* The core dictionary is memoized */
-extern JANET_THREAD_LOCAL JanetTable *janet_vm_core_dictionary;
+/* Cache the core environment */
+extern JANET_THREAD_LOCAL JanetTable *janet_vm_core_env;
 
 /* How many VM stacks have been entered */
 extern JANET_THREAD_LOCAL int janet_vm_stackn;
