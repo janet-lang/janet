@@ -375,18 +375,18 @@ static Janet os_shell(int32_t argc, Janet *argv) {
 static Janet os_environ(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
-    size_t nenv = 0;
+    int32_t nenv = 0;
     char **env = environ;
     while (*env++)
         nenv += 1;
     JanetTable *t = janet_table(nenv);
-    for (size_t i = 0; i < nenv; i++) {
+    for (int32_t i = 0; i < nenv; i++) {
         char *e = environ[i];
         char *eq = strchr(e, '=');
         if (!eq) janet_panic("no '=' in environ");
         char *v = eq + 1;
-        size_t full_len = strlen(e);
-        size_t val_len = strlen(v);
+        int32_t full_len = (int32_t) strlen(e);
+        int32_t val_len = (int32_t) strlen(v);
         janet_table_put(
             t,
             janet_stringv((const uint8_t *)e, full_len - val_len - 1),
