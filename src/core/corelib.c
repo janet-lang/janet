@@ -262,59 +262,15 @@ static Janet janet_core_setdyn(int32_t argc, Janet *argv) {
     return argv[1];
 }
 
+// XXX inline asm function with a new op - OP_GET_PERMISSIVE?
+// This would match up with OP_GET which is used for 'in'.
 static Janet janet_core_get(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
-    Janet ds = argv[0];
-    Janet key = argv[1];
-    Janet dflt = argc == 3 ? argv[2] : janet_wrap_nil();
-    JanetType t = janet_type(argv[0]);
-    switch (t) {
-        default:
-            return dflt;
-        case JANET_STRING:
-        case JANET_SYMBOL:
-        case JANET_KEYWORD: {
-            if (!janet_checkint(key)) return dflt;
-            int32_t index = janet_unwrap_integer(key);
-            if (index < 0) return dflt;
-            const uint8_t *str = janet_unwrap_string(ds);
-            if (index >= janet_string_length(str)) return dflt;
-            return janet_wrap_integer(str[index]);
-        }
-        case JANET_ABSTRACT: {
-            void *abst = janet_unwrap_abstract(ds);
-            JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(abst);
-            if (!type->get) return dflt;
-            return (type->get)(abst, key);
-        }
-        case JANET_ARRAY:
-        case JANET_TUPLE: {
-            if (!janet_checkint(key)) return dflt;
-            int32_t index = janet_unwrap_integer(key);
-            if (index < 0) return dflt;
-            if (t == JANET_ARRAY) {
-                JanetArray *a = janet_unwrap_array(ds);
-                if (index >= a->count) return dflt;
-                return a->data[index];
-            } else {
-                const Janet *t = janet_unwrap_tuple(ds);
-                if (index >= janet_tuple_length(t)) return dflt;
-                return t[index];
-            }
-        }
-        case JANET_TABLE: {
-            JanetTable *flag = NULL;
-            Janet ret = janet_table_get_ex(janet_unwrap_table(ds), key, &flag);
-            if (flag == NULL) return dflt;
-            return ret;
-        }
-        case JANET_STRUCT: {
-            const JanetKV *st = janet_unwrap_struct(ds);
-            Janet ret = janet_struct_get(st, key);
-            if (janet_checktype(ret, JANET_NIL)) return dflt;
-            return ret;
-        }
+    Janet result = janet_get_permissive(argv[0], argv[1]);
+    if (argc == 3 && janet_checktype(result, JANET_NIL)) {
+        return argv[2];
     }
+    return result;
 }
 
 static Janet janet_core_native(int32_t argc, Janet *argv) {
