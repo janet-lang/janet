@@ -188,11 +188,13 @@ static int thread_mark(void *p, size_t size) {
     return 0;
 }
 
+static Janet janet_thread_getter(void *p, Janet key);
+
 static JanetAbstractType Thread_AT = {
     "core/thread",
     thread_gc,
     thread_mark,
-    NULL,
+    janet_thread_getter,
     NULL,
     NULL,
     NULL,
@@ -316,6 +318,18 @@ static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
         janet_panic("failed to receive message");
     }
     return out;
+}
+
+static const JanetMethod janet_thread_methods[] = {
+    {"send", cfun_thread_send},
+    {"receive", cfun_thread_receive},
+    {NULL, NULL}
+};
+
+static Janet janet_thread_getter(void *p, Janet key) {
+    (void) p;
+    if (!janet_checktype(key, JANET_KEYWORD)) janet_panicf("expected keyword method");
+    return janet_getmethod(janet_unwrap_keyword(key), janet_thread_methods);
 }
 
 static const JanetReg threadlib_cfuns[] = {
