@@ -437,7 +437,7 @@ static Janet cfun_io_eprin(int32_t argc, Janet *argv) {
     return cfun_io_print_impl(argc, argv, 0, "err", stderr);
 }
 
-static Janet cfun_io_printf_impl(int32_t argc, Janet *argv,
+static Janet cfun_io_printf_impl(int32_t argc, Janet *argv, int newline,
                                  const char *name, FILE *dflt_file) {
     FILE *f;
     janet_arity(argc, 1, -1);
@@ -451,6 +451,7 @@ static Janet cfun_io_printf_impl(int32_t argc, Janet *argv,
             /* Special case buffer */
             JanetBuffer *buf = janet_unwrap_buffer(x);
             janet_buffer_format(buf, fmt, 0, argc, argv);
+            if (newline) janet_buffer_push_u8(buf, '\n');
             return janet_wrap_nil();
         }
         case JANET_NIL:
@@ -467,6 +468,7 @@ static Janet cfun_io_printf_impl(int32_t argc, Janet *argv,
     }
     JanetBuffer *buf = janet_buffer(10);
     janet_buffer_format(buf, fmt, 0, argc, argv);
+    if (newline) janet_buffer_push_u8(buf, '\n');
     if (buf->count) {
         if (1 != fwrite(buf->data, buf->count, 1, f)) {
             janet_panicf("could not print %d bytes to file", buf->count, name);
@@ -481,11 +483,19 @@ static Janet cfun_io_printf_impl(int32_t argc, Janet *argv,
 }
 
 static Janet cfun_io_printf(int32_t argc, Janet *argv) {
-    return cfun_io_printf_impl(argc, argv, "out", stdout);
+    return cfun_io_printf_impl(argc, argv, 1, "out", stdout);
+}
+
+static Janet cfun_io_prinf(int32_t argc, Janet *argv) {
+    return cfun_io_printf_impl(argc, argv, 0, "out", stdout);
 }
 
 static Janet cfun_io_eprintf(int32_t argc, Janet *argv) {
-    return cfun_io_printf_impl(argc, argv, "err", stderr);
+    return cfun_io_printf_impl(argc, argv, 1, "err", stderr);
+}
+
+static Janet cfun_io_eprinf(int32_t argc, Janet *argv) {
+    return cfun_io_printf_impl(argc, argv, 0, "err", stderr);
 }
 
 void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...) {
@@ -542,7 +552,12 @@ static const JanetReg io_cfuns[] = {
     {
         "printf", cfun_io_printf,
         JDOC("(printf fmt & xs)\n\n"
-             "Prints output formatted as if with (string/format fmt ;xs) to (dyn :out stdout).")
+             "Prints output formatted as if with (string/format fmt ;xs) to (dyn :out stdout) with a trailing newline.")
+    },
+    {
+        "prinf", cfun_io_prinf,
+        JDOC("(prinf fmt & xs)\n\n"
+             "Like printf but with no trailing newline.")
     },
     {
         "eprin", cfun_io_eprin,
@@ -557,7 +572,12 @@ static const JanetReg io_cfuns[] = {
     {
         "eprintf", cfun_io_eprintf,
         JDOC("(eprintf fmt & xs)\n\n"
-             "Prints output formatted as if with (string/format fmt ;xs) to (dyn :err stderr).")
+             "Prints output formatted as if with (string/format fmt ;xs) to (dyn :err stderr) with a trailing newline.")
+    },
+    {
+        "eprinf", cfun_io_eprinf,
+        JDOC("(eprinf fmt & xs)\n\n"
+             "Like eprintf but with no trailing newline.")
     },
     {
         "file/open", cfun_io_fopen,
