@@ -1851,7 +1851,7 @@
 
 (def load-image-dict
   "A table used in combination with unmarshal to unmarshal byte sequences created
-  by make-image, such that (load-image bytes) is the same as (unmarshal bytes load-images-dict)."
+  by make-image, such that (load-image bytes) is the same as (unmarshal bytes load-image-dict)."
   @{})
 
 (defn make-image
@@ -2067,6 +2067,17 @@
   identifier. Can also import multiple modules in one shot."
   [& modules]
   ~(do ,;(map (fn [x] ~(,import* ,(string x) :prefix "")) modules)))
+
+###
+###
+### Thread Extras
+###
+###
+
+(defn thread/new
+  "Create a new thread. Same as (thread/new-ext make-image-dict load-image-dict)."
+  []
+  (thread/new-ext make-image-dict load-image-dict))
 
 ###
 ###

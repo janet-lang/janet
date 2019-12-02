@@ -8,7 +8,7 @@
 
 (defn make-worker
   [name]
-  (-> (thread/new make-image-dict) (thread/send worker-main) (thread/send name)))
+  (-> (thread/new) (thread/send worker-main) (thread/send name)))
 
 (def bob (make-worker "bob"))
 (os/sleep 0.5)

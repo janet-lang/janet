@@ -957,7 +957,8 @@ struct JanetThreadShared {
 };
 struct JanetThread {
     JanetThreadShared *shared;
-    JanetTable *dict;
+    JanetTable *encode;
+    JanetTable *decode;
     enum {
         JANET_THREAD_SELF,
         JANET_THREAD_OTHER

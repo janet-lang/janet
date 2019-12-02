@@ -170,8 +170,11 @@ static int thread_gc(void *p, size_t size) {
 static int thread_mark(void *p, size_t size) {
     JanetThread *thread = (JanetThread *)p;
     (void) size;
-    if (NULL != thread->dict) {
-        janet_mark(janet_wrap_table(thread->dict));
+    if (NULL != thread->encode) {
+        janet_mark(janet_wrap_table(thread->encode));
+    }
+    if (NULL != thread->decode) {
+        janet_mark(janet_wrap_table(thread->decode));
     }
     return 0;
 }
@@ -187,11 +190,12 @@ static JanetAbstractType Thread_AT = {
     NULL
 };
 
-static JanetThread *janet_make_thread(JanetThreadShared *shared, JanetTable *dict, int who) {
+static JanetThread *janet_make_thread(JanetThreadShared *shared, JanetTable *encode, JanetTable *decode, int who) {
     JanetThread *thread = janet_abstract(&Thread_AT, sizeof(JanetThread));
     thread->shared = shared;
     thread->kind = who;
-    thread->dict = dict;
+    thread->encode = encode;
+    thread->decode = decode;
     return thread;
 }
 
@@ -207,16 +211,26 @@ static int thread_worker(JanetThreadShared *shared) {
     /* Init VM */
     janet_init();
 
-    /* Get dictionary */
-    JanetTable *dict = janet_core_dictionary(NULL);
+    /* Get dictionaries */
+    JanetTable *decode = janet_core_dictionary(NULL);
+    JanetTable *encode = janet_table(decode->count);
+    for (int32_t i = 0; i < decode->capacity; i++) {
+        JanetKV *kv = decode->data + i;
+        if (!janet_checktype(kv->key, JANET_NIL)) {
+            janet_table_put(encode, kv->value, kv->key);
+        }
+    }
+    janet_gcroot(janet_wrap_table(encode));
 
     /* Create self thread */
-    JanetThread *thread = janet_make_thread(shared, dict, JANET_THREAD_SELF);
+    JanetThread *thread = janet_make_thread(shared, encode, decode, JANET_THREAD_SELF);
+    thread->encode = encode;
+    thread->decode = decode;
     Janet threadv = janet_wrap_abstract(thread);
 
     /* Unmarshal the function */
     Janet funcv;
-    int status = janet_channel_receive(&shared->child, &funcv, dict);
+    int status = janet_channel_receive(&shared->child, &funcv, decode);
     if (status) goto error;
     if (!janet_checktype(funcv, JANET_FUNCTION)) goto error;
     JanetFunction *func = janet_unwrap_function(funcv);
@@ -261,16 +275,12 @@ static void janet_thread_start_child(JanetThread *thread) {
  * Cfuns
  */
 
-static Janet cfun_thread_new(int32_t argc, Janet *argv) {
-    janet_arity(argc, 0, 1);
-    JanetTable *dict = NULL;
-    if (argc == 0 || janet_checktype(argv[0], JANET_NIL)) {
-        dict = janet_core_dictionary(NULL);
-    } else {
-        dict = janet_gettable(argv, 0);
-    }
+static Janet cfun_thread_new_ext(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    JanetTable *encode = janet_gettable(argv, 0);
+    JanetTable *decode = janet_gettable(argv, 1);
     JanetThreadShared *shared = janet_shared_create(0);
-    JanetThread *thread = janet_make_thread(shared, dict, JANET_THREAD_OTHER);
+    JanetThread *thread = janet_make_thread(shared, encode, decode, JANET_THREAD_OTHER);
     janet_thread_start_child(thread);
     return janet_wrap_abstract(thread);
 }
@@ -282,7 +292,7 @@ static Janet cfun_thread_send(int32_t argc, Janet *argv) {
     if (NULL == shared) janet_panic("channel has closed");
     int status = janet_channel_send(thread->kind == JANET_THREAD_SELF ? &shared->parent : &shared->child,
                                     argv[1],
-                                    thread->dict);
+                                    thread->encode);
     if (status) {
         janet_panicf("failed to send message %v", argv[1]);
     }
@@ -297,7 +307,7 @@ static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
     Janet out = janet_wrap_nil();
     int status = janet_channel_receive(thread->kind == JANET_THREAD_SELF ? &shared->child : &shared->parent,
                                        &out,
-                                       thread->dict);
+                                       thread->decode);
     if (status) {
         janet_panic("failed to receive message");
     }
@@ -306,8 +316,8 @@ static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
 
 static const JanetReg threadlib_cfuns[] = {
     {
-        "thread/new", cfun_thread_new,
-        JDOC("(thread/new &opt dict)\n\n"
+        "thread/new-ext", cfun_thread_new_ext,
+        JDOC("(thread/new-ext encode-book decode-book)\n\n"
              "Start a new thread. The thread will wait for a message containing the function used to start the thread, which should be subsequently "
              "sent over after thread creation.")
     },
