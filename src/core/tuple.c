@@ -143,7 +143,10 @@ static const JanetReg tuple_cfuns[] = {
         JDOC("(tuple/slice arrtup [,start=0 [,end=(length arrtup)]])\n\n"
              "Take a sub sequence of an array or tuple from index start "
              "inclusive to index end exclusive. If start or end are not provided, "
-             "they default to 0 and the length of arrtup respectively."
+             "they default to 0 and the length of arrtup respectively. "
+             "'start' and 'end' can also be negative to indicate indexing "
+             "from the end of the input. Note that index -1 is synonymous with "
+             "index '(length arrtup)' to allow a full negative slice range. "
              "Returns the new tuple.")
     },
     {
