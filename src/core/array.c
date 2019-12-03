@@ -273,7 +273,8 @@ static const JanetReg array_cfuns[] = {
              "Takes a slice of array or tuple from start to end. The range is half open, "
              "[start, end). Indexes can also be negative, indicating indexing from the end of the "
              "end of the array. By default, start is 0 and end is the length of the array. "
-             "Returns a new array.")
+             "Note that index -1 is synonymous with index (length arrtup) to allow a full "
+             "negative slice range. Returns a new array.")
     },
     {
         "array/concat", cfun_array_concat,
