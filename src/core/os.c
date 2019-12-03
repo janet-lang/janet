@@ -25,8 +25,6 @@
 #include "util.h"
 #endif
 
-#include <stdlib.h>
-
 #ifndef JANET_REDUCED_OS
 
 #include <time.h>
@@ -506,19 +504,20 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
     const char *errmsg = "unable to get sufficient random data";
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
 #ifdef JANET_WINDOWS
-    HCRYPTPROV ctx;
-    if (!CryptAcquireContext(&ctx, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
-        janet_panic(errmsg);
-    if (!CryptGenRandom(ctx, buffer->count, buffer->data)) {
-        CryptReleaseContext(ctx, 0);
-        janet_panic(errmsg);
+    for (int32_t i = 0; i < buffer->count; i += sizeof(unsigned int)) {
+        unsigned int v;
+        if (rand_s(&v)) {
+            janet_panic(errmsg);
+        }
+        for (int32_t j = 0; (j < sizeof(unsigned int)) && (i + j < buffer->count); j++) {
+            buffer->data[i + j] = v & 0xff;
+            v = v >> 8;
+        }
     }
-    if (!CryptReleaseContext(ctx, 0))
-        janet_panic(errmsg);
 #elif defined(__linux__) || defined(__APPLE__)
-    /* We should be able to call getrandom on linux, but it doesn't seem 
-       to be uniformly supported on linux distros. Macos may support 
-       arc4random_buf, but it needs investigation. 
+    /* We should be able to call getrandom on linux, but it doesn't seem
+       to be uniformly supported on linux distros. Macos may support
+       arc4random_buf, but it needs investigation.
 
        In both cases, use this fallback path for now... */
     int rc;
@@ -537,7 +536,7 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
         remaining -= n;
     }
     RETRY_EINTR(rc, close(randfd));
-#elif defined(__FreeBSD__) || defined(__OpenBSD__)
+#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
     (void) errmsg;
     arc4random_buf(buffer->data, buffer->count);
 #else

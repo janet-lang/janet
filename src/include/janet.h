@@ -228,6 +228,10 @@ typedef struct {
 
 /***** START SECTION TYPES *****/
 
+#ifdef JANET_WINDOWS
+// Must be defined before including stdlib.h
+#define _CRT_RAND_S
+#endif
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
