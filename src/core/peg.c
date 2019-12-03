@@ -888,7 +888,7 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
     for (; i > 0 && janet_checktype(peg, JANET_KEYWORD); --i) {
         peg = janet_table_get_ex(grammar, peg, &grammar);
         if (!grammar || janet_checktype(peg, JANET_NIL))
-            peg_panic(b, "unkown rule");
+            peg_panic(b, "unknown rule");
         b->form = peg;
         b->grammar = grammar;
     }
