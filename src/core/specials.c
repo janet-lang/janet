@@ -146,7 +146,7 @@ static int destructure(JanetCompiler *c,
                     janetc_emit_ssu(c, JOP_GET_INDEX, nextright, right, (uint8_t) i, 1);
                 } else {
                     JanetSlot k = janetc_cslot(janet_wrap_integer(i));
-                    janetc_emit_sss(c, JOP_GET, nextright, right, k, 1);
+                    janetc_emit_sss(c, JOP_IN, nextright, right, k, 1);
                 }
                 if (destructure(c, subval, nextright, leaf, attr))
                     janetc_freeslot(c, nextright);
@@ -162,7 +162,7 @@ static int destructure(JanetCompiler *c,
                 if (janet_checktype(kvs[i].key, JANET_NIL)) continue;
                 JanetSlot nextright = janetc_farslot(c);
                 JanetSlot k = janetc_value(janetc_fopts_default(c), kvs[i].key);
-                janetc_emit_sss(c, JOP_GET, nextright, right, k, 1);
+                janetc_emit_sss(c, JOP_IN, nextright, right, k, 1);
                 if (destructure(c, kvs[i].value, nextright, leaf, attr))
                     janetc_freeslot(c, nextright);
             }

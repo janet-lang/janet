@@ -203,7 +203,7 @@ static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
         key = callee;
     }
     fiber->stacktop = fiber->stackstart;
-    return janet_get(ds, key);
+    return janet_in(ds, key);
 }
 
 /* Get a callable from a keyword method name and check ensure that it is valid. */
@@ -274,6 +274,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         &&label_JOP_RESUME,
         &&label_JOP_SIGNAL,
         &&label_JOP_PROPAGATE,
+        &&label_JOP_IN,
         &&label_JOP_GET,
         &&label_JOP_PUT,
         &&label_JOP_GET_INDEX,
@@ -291,7 +292,6 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         &&label_JOP_NUMERIC_GREATER_THAN,
         &&label_JOP_NUMERIC_GREATER_THAN_EQUAL,
         &&label_JOP_NUMERIC_EQUAL,
-        &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
@@ -910,6 +910,11 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
     vm_commit();
     janet_putindex(stack[A], C, stack[B]);
     vm_checkgc_pcnext();
+
+    VM_OP(JOP_IN)
+    vm_commit();
+    stack[A] = janet_in(stack[B], stack[C]);
+    vm_pcnext();
 
     VM_OP(JOP_GET)
     vm_commit();

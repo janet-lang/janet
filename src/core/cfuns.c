@@ -106,6 +106,9 @@ static JanetSlot do_debug(JanetFopts opts, JanetSlot *args) {
     return t;
 }
 static JanetSlot do_in(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_IN, janet_wrap_nil());
+}
+static JanetSlot do_get(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_GET, janet_wrap_nil());
 }
 static JanetSlot do_put(JanetFopts opts, JanetSlot *args) {
@@ -302,7 +305,8 @@ static const JanetFunOptimizer optimizers[] = {
     {NULL, do_lte},
     {NULL, do_eq},
     {NULL, do_neq},
-    {fixarity2, do_propagate}
+    {fixarity2, do_propagate},
+    {fixarity2, do_get}
 };
 
 const JanetFunOptimizer *janetc_funopt(uint32_t flags) {
