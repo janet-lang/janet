@@ -38,7 +38,6 @@
 
 #ifdef JANET_WINDOWS
 #include <windows.h>
-#include <wincrypt.h>
 #include <direct.h>
 #include <sys/utime.h>
 #include <io.h>
