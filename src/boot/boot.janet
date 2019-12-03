@@ -2138,7 +2138,7 @@
   (if-let [jp (os/getenv "JANET_HEADERPATH")] (setdyn :headerpath jp))
 
   # Flag handlers
-  (def handlers :private
+  (def handlers
     {"h" (fn [&]
            (print "usage: " (dyn :executable "janet") " [options] script args...")
            (print
@@ -2206,7 +2206,7 @@
   (while (< i lenargs)
     (def arg (in args i))
     (if (and *handleopts* (= "-" (string/slice arg 0 1)))
-      (+= i (dohandler (string/slice arg 1 2) i))
+      (+= i (dohandler (string/slice arg 1) i))
       (do
         (set *no-file* false)
         (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator)
