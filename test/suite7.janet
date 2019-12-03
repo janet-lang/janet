@@ -238,4 +238,26 @@
 # Issue #183 - just parse it :)
 1e-4000000000000000000000
 
+# Ensure randomness puts n of pred into our buffer eventually
+(defn cryptorand-check
+  [n pred]
+  (def max-attempts 10000)
+  (var attempts 0)
+  (while (not= attempts max-attempts)
+    (def cryptobuf (os/cryptorand 10))
+    (when (= n (count pred cryptobuf))
+      (break))
+    (++ attempts))
+  (not= attempts max-attempts))
+
+(def v (math/rng-int (math/rng (os/time)) 100))
+(assert (cryptorand-check 0 |(= $ v)) "cryptorand skips value sometimes")
+(assert (cryptorand-check 1 |(= $ v)) "cryptorand has value sometimes")
+
+(do 
+  (def buf (buffer/new-filled 1))
+  (os/cryptorand 1 buf)
+  (assert (= (in buf 0) 0) "cryptorand doesn't overwrite buffer")
+  (assert (= (length buf) 2) "cryptorand appends to buffer"))
+
 (end-suite)
