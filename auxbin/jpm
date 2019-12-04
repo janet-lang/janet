@@ -108,9 +108,9 @@
 # Compilation Defaults
 #
 
-(def default-compiler (if is-win "cl" "cc"))
-(def default-linker (if is-win "link" "cc"))
-(def default-archiver (if is-win "lib" "ar"))
+(def default-compiler (or (os/getenv "CC") (if is-win "cl.exe" "cc")))
+(def default-linker (or (os/getenv "CC") (if is-win "link.exe" "cc")))
+(def default-archiver (or (os/getenv "AR") (if is-win "lib.exe" "ar")))
 
 # Default flags for natives, but not required
 (def default-lflags (if is-win ["/nologo"] []))
@@ -312,7 +312,7 @@
 (defn- link-c
   "Link object files together to make a native module."
   [opts target & objects]
-  (def ld (opt opts :linker default-linker))
+  (def linker (opt opts (if is-win :linker :compiler) default-linker))
   (def cflags (getcflags opts))
   (def lflags [;(opt opts :lflags default-lflags)
                ;(if (opts :static) [] dynamic-lflags)])
@@ -320,8 +320,8 @@
         (check-cc)
         (print "linking " target "...")
         (if is-win
-          (shell ld ;lflags (string "/OUT:" target) ;objects (win-import-library))
-          (shell ld ;cflags `-o` target ;objects ;lflags))))
+          (shell linker ;lflags (string "/OUT:" target) ;objects (win-import-library))
+          (shell linker ;cflags `-o` target ;objects ;lflags))))
 
 (defn- archive-c
   "Link object files together to make a static library."
@@ -858,9 +858,10 @@ Keys are:
   --headerpath : The directory containing janet headers. Defaults to $JANET_HEADERPATH.
   --binpath : The directory to install binaries and scripts. Defaults to $JANET_BINPATH.
   --libpath : The directory containing janet C libraries (libjanet.*). Defaults to $JANET_LIBPATH.
-  --compiler : C compiler to use for natives. Defaults to cc (cl on windows).
-  --archiver : C compiler to use for static libraries. Defaults to ar (lib on windows).
-  --linker : C linker to use for linking natives. Defaults to cc (link on windows).
+  --compiler : C compiler to use for natives. Defaults to $CC or cc (cl.exe on windows).
+  --archiver : C compiler to use for static libraries. Defaults to $AR ar (lib.exe on windows).
+  --linker : C linker to use for linking natives. Defaults to link.exe on windows, not used on
+             other platforms.
   --pkglist : URL of git repository for package listing. Defaults to $JANET_PKGLIST or https://github.com/janet-lang/pkgs.git
 
 Flags are:

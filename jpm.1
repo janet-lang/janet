@@ -60,23 +60,24 @@ Linking statically might be a better idea, even in that case. Defaults to
 $JANET_LIBPATH, or a reasonable default. See JANET_LIBPATH for more.
 
 .TP
-.BR \-\-compiler=cc
+.BR \-\-compiler=$CC
 Sets the compiler used for compiling native modules and standalone executables. Defaults
 to cc.
 
 .TP
-.BR \-\-linker=ld
-Sets the linker used to create native modules and executables.
+.BR \-\-linker
+Sets the linker used to create native modules and executables. Only used on windows, where
+it defaults to link.exe.
 
 .TP
 .BR \-\-pkglist=https://github.com/janet-lang/pkgs.git
 Sets the git repository for the package listing used to resolve shorthand package names.
 
 .TP
-.BR \-\-archiver=ar
+.BR \-\-archiver=$AR
 Sets the command used for creating static libraries, use for linking into the standalone executable.
 Native modules are compiled twice, once a normal native module (shared object), and once as an
-archive.
+archive. Defaults to ar.
 
 .SH COMMANDS
 .TP
