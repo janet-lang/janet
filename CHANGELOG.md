@@ -18,6 +18,17 @@ All notable changes to this project will be documented in this file.
   contains `(quit some-value)`, the value of that module returned to `(require "somemod")`
   is the return value. This lets module writers completely customize a module without writing
   a loader.
+- Add nested quasiquotation.
+- Add `os/cryptorand`
+- Add `prinf` and `eprinf` to be have like `printf` and `eprintf`. The latter two functions
+  now including a trailing newline, like the other print functions.
+- Add nan?
+- Add `janet_in` to C API.
+- Add `truthy?`
+- Add `os/environ`
+- Use `(doc)` with no arguments to see available bindings and dynamic bindings.
+- `jpm` will use `CC` and `AR` environment variables when compiling programs.
+- Numerous small bug fixes and usability improvements.
 
 ### 1.5.1 - 2019-11-16
 - Fix bug when printing buffer to self in some edge cases.
