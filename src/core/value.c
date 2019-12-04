@@ -229,7 +229,8 @@ Janet janet_get(Janet ds, Janet key) {
             return (type->get)(abst, key);
         }
         case JANET_ARRAY:
-        case JANET_TUPLE: {
+        case JANET_TUPLE:
+        case JANET_BUFFER: {
             if (!janet_checkint(key)) return janet_wrap_nil();
             int32_t index = janet_unwrap_integer(key);
             if (index < 0) return janet_wrap_nil();
@@ -237,6 +238,10 @@ Janet janet_get(Janet ds, Janet key) {
                 JanetArray *a = janet_unwrap_array(ds);
                 if (index >= a->count) return janet_wrap_nil();
                 return a->data[index];
+            } else if (t == JANET_BUFFER) {
+                JanetBuffer *b = janet_unwrap_buffer(ds);
+                if (index >= b->count) return janet_wrap_nil();
+                return janet_wrap_integer(b->data[index]);
             } else {
                 const Janet *t = janet_unwrap_tuple(ds);
                 if (index >= janet_tuple_length(t)) return janet_wrap_nil();
