@@ -326,6 +326,11 @@
          (def ,binding ,i)
          ,body))))
 
+(defn- check-indexed [x]
+  (if (indexed? x)
+    x
+    (error (string "expected tuple for range, got " x))))
+
 (defn- loop1
   [body head i]
 
@@ -355,11 +360,11 @@
   (def {(+ i 2) object} head)
   (let [rest (loop1 body head (+ i 3))]
     (case verb
-      :range (let [[start stop step] object]
+      :range (let [[start stop step] (check-indexed object)]
                (for-template binding start stop (or step 1) < + [rest]))
       :keys (keys-template binding object false [rest])
       :pairs (keys-template binding object true [rest])
-      :down (let [[start stop step] object]
+      :down (let [[start stop step] (check-indexed object)]
               (for-template binding start stop (or step 1) > - [rest]))
       :in (each-template binding object [rest])
       :iterate (iterate-template binding object rest)
@@ -416,6 +421,7 @@
   (loop1 body head 0))
 
 (put _env 'loop1 nil)
+(put _env 'check-indexed nil)
 (put _env 'for-template nil)
 (put _env 'iterate-template nil)
 (put _env 'each-template nil)
