@@ -265,4 +265,9 @@
   (assert (= (in buf 0) 0) "cryptorand doesn't overwrite buffer")
   (assert (= (length buf) 2) "cryptorand appends to buffer"))
 
+# Nested quasiquotation
+
+(def nested ~(a ~(b ,(+ 1 2) ,(foo ,(+ 1 3) d) e) f))
+(assert (deep= nested '(a ~(b ,(+ 1 2) ,(foo 4 d) e) f)) "nested quasiquote")
+
 (end-suite)
