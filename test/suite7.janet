@@ -208,6 +208,11 @@
 (for i 0 75
   (test-rng (math/rng (:int seedrng))))
 
+(assert (deep-not= (-> 123 math/rng (:buffer 16))
+                   (-> 456 math/rng (:buffer 16))) "math/rng-buffer 1")
+
+(assert-no-error "math/rng-buffer 2" (math/seedrandom "abcdefg"))
+
 # OS Date test
 
 (assert (deep= {:year-day 0

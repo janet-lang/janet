@@ -153,9 +153,44 @@ static Janet cfun_rng_int(int32_t argc, Janet *argv) {
     }
 }
 
+static void rng_get_4bytes(JanetRNG *rng, uint8_t *buf) {
+    uint32_t word = janet_rng_u32(rng);
+    buf[0] = word & 0xFF;
+    buf[1] = (word >> 8) & 0xFF;
+    buf[2] = (word >> 16) & 0xFF;
+    buf[3] = (word >> 24) & 0xFF;
+}
+
+static Janet cfun_rng_buffer(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 3);
+    JanetRNG *rng = janet_getabstract(argv, 0, &JanetRNG_type);
+    int32_t n = janet_getnat(argv, 1);
+    JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, n);
+
+    /* Split into first part (that is divisible by 4), and rest */
+    int32_t first_part = n & ~3;
+    int32_t second_part = n - first_part;
+
+    /* Get first part in chunks of 4 bytes */
+    janet_buffer_extra(buffer, n);
+    uint8_t *buf = buffer->data + buffer->count;
+    for (int32_t i = 0; i < first_part; i += 4) rng_get_4bytes(rng, buf + i);
+    buffer->count += first_part;
+
+    /* Get remaining 0 - 3 bytes */
+    if (second_part) {
+        uint8_t wordbuf[4] = {0};
+        rng_get_4bytes(rng, wordbuf);
+        janet_buffer_push_bytes(buffer, wordbuf, second_part);
+    }
+
+    return janet_wrap_buffer(buffer);
+}
+
 static const JanetMethod rng_methods[] = {
     {"uniform", cfun_rng_uniform},
     {"int", cfun_rng_int},
+    {"buffer", cfun_rng_buffer},
     {NULL, NULL}
 };
 
@@ -175,8 +210,13 @@ static Janet janet_rand(int32_t argc, Janet *argv) {
 /* Seed the random number generator */
 static Janet janet_srand(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    int32_t x = janet_getinteger(argv, 0);
-    janet_rng_seed(&janet_vm_rng, (uint32_t) x);
+    if (janet_checkint(argv[0])) {
+        uint32_t seed = (uint32_t)(janet_getinteger(argv, 0));
+        janet_rng_seed(&janet_vm_rng, seed);
+    } else {
+        JanetByteView bytes = janet_getbytes(argv, 0);
+        janet_rng_longseed(&janet_vm_rng, bytes.bytes, bytes.len);
+    }
     return janet_wrap_nil();
 }
 
@@ -255,8 +295,8 @@ static const JanetReg math_cfuns[] = {
     {
         "math/seedrandom", janet_srand,
         JDOC("(math/seedrandom seed)\n\n"
-             "Set the seed for the random number generator. 'seed' should be "
-             "an integer.")
+             "Set the seed for the random number generator. seed should be "
+             "an integer or a buffer.")
     },
     {
         "math/cos", janet_cos,
@@ -392,6 +432,12 @@ static const JanetReg math_cfuns[] = {
              "no max is given, the default is 2^31 - 1.")
     },
     {
+        "math/rng-buffer", cfun_rng_buffer,
+        JDOC("(math/rng-buffer rng n &opt buf)\n\n"
+             "Get n random bytes and put them in a buffer. Creates a new buffer if no buffer is "
+             "provided, otherwise appends to the given buffer. Returns the buffer.")
+    },
+    {
         "math/hypot", janet_hypot,
         JDOC("(math/hypot a b)\n\n"
              "Returns the c from the equation c^2 = a^2 + b^2")
@@ -422,6 +468,7 @@ static const JanetReg math_cfuns[] = {
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
     janet_core_cfuns(env, NULL, math_cfuns);
+    janet_register_abstract_type(&JanetRNG_type);
 #ifdef JANET_BOOTSTRAP
     janet_def(env, "math/pi", janet_wrap_number(3.1415926535897931),
               JDOC("The value pi."));
