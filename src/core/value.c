@@ -156,7 +156,7 @@ bad:
 }
 
 /* Gets a value and returns. Can panic. */
-Janet janet_get(Janet ds, Janet key) {
+Janet janet_in(Janet ds, Janet key) {
     Janet value;
     switch (janet_type(ds)) {
         default:
@@ -207,7 +207,7 @@ Janet janet_get(Janet ds, Janet key) {
     return value;
 }
 
-Janet janet_get_permissive(Janet ds, Janet key) {
+Janet janet_get(Janet ds, Janet key) {
     JanetType t = janet_type(ds);
     switch (t) {
         default:

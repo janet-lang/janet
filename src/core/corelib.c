@@ -262,17 +262,6 @@ static Janet janet_core_setdyn(int32_t argc, Janet *argv) {
     return argv[1];
 }
 
-// XXX inline asm function with a new op - OP_GET_PERMISSIVE?
-// This would match up with OP_GET which is used for 'in'.
-static Janet janet_core_get(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 3);
-    Janet result = janet_get_permissive(argv[0], argv[1]);
-    if (argc == 3 && janet_checktype(result, JANET_NIL)) {
-        return argv[2];
-    }
-    return result;
-}
-
 static Janet janet_core_native(int32_t argc, Janet *argv) {
     JanetModule init;
     janet_arity(argc, 1, 2);
@@ -696,14 +685,6 @@ static const JanetReg corelib_cfuns[] = {
         JDOC("(slice x &opt start end)\n\n"
              "Extract a sub-range of an indexed data strutrue or byte sequence.")
     },
-    {
-        "get", janet_core_get,
-        JDOC("(get ds key &opt dflt)\n\n"
-             "Get the value mapped to key in data structure ds, and return dflt or nil if not found. "
-             "Similar to in, but will not throw an error if the key is invalid for the data structure "
-             "unless the data structure is an abstract type. In that case, the abstract type getter may throw "
-             "an error.")
-    },
     {NULL, NULL, NULL}
 };
 
@@ -785,7 +766,7 @@ static void templatize_varop(
         SSI(JOP_GET_INDEX, 3, 0, 0), /* accum = args[0] */
         SI(JOP_LOAD_INTEGER, 5, 1), /* i = 1 */
         /* Main loop */
-        SSS(JOP_GET, 4, 0, 5), /* operand = args[i] */
+        SSS(JOP_IN, 4, 0, 5), /* operand = args[i] */
         SSS(op, 3, 3, 4), /* accum = accum op operand */
         SSI(JOP_ADD_IMMEDIATE, 5, 5, 1), /* i++ */
         SSI(JOP_EQUALS, 2, 5, 1), /* jump? = (i == argn) */
@@ -833,7 +814,7 @@ static void templatize_comparator(
         SI(JOP_LOAD_INTEGER, 5, 1), /* i = 1 */
 
         /* Main loop */
-        SSS(JOP_GET, 4, 0, 5), /* next = args[i] */
+        SSS(JOP_IN, 4, 0, 5), /* next = args[i] */
         SSS(op, 2, 3, 4), /* jump? = last compare next */
         SI(JOP_JUMP_IF_NOT, 2, 7), /* if not jump? goto fail (return false) */
         SSI(JOP_ADD_IMMEDIATE, 5, 5, 1), /* i++ */
@@ -880,7 +861,7 @@ static void make_apply(JanetTable *env) {
         SI(JOP_LOAD_INTEGER, 4, 0), /* i = 0 */
 
         /* Main loop */
-        SSS(JOP_GET, 5, 1, 4), /* x = args[i] */
+        SSS(JOP_IN, 5, 1, 4), /* x = args[i] */
         SSI(JOP_ADD_IMMEDIATE, 4, 4, 1), /* i++ */
         SSI(JOP_EQUALS, 3, 4, 2), /* jump? = (i == argn) */
         SI(JOP_JUMP_IF, 3, 3), /* if jump? go forward 3 */
@@ -920,6 +901,14 @@ static const uint32_t resume_asm[] = {
     JOP_RETURN
 };
 static const uint32_t in_asm[] = {
+    JOP_IN | (1 << 24),
+    JOP_LOAD_NIL | (3 << 8),
+    JOP_EQUALS | (3 << 8) | (3 << 24),
+    JOP_JUMP_IF | (3 << 8) | (2 << 16),
+    JOP_RETURN,
+    JOP_RETURN | (2 << 8)
+};
+static const uint32_t get_asm[] = {
     JOP_GET | (1 << 24),
     JOP_LOAD_NIL | (3 << 8),
     JOP_EQUALS | (3 << 8) | (3 << 24),
@@ -1021,6 +1010,13 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "strings, symbols, and buffers are all associative and can be used. Arrays, tuples, strings, buffers, "
                          "and symbols must use integer keys that are in bounds or an error is raised. Structs and tables can "
                          "take any value as a key except nil and will return nil or dflt if not found."));
+    janet_quick_asm(env, JANET_FUN_GET,
+                    "get", 3, 2, 3, 4, get_asm, sizeof(in_asm),
+                    JDOC("(get ds key &opt dflt)\n\n"
+                         "Get the value mapped to key in data structure ds, and return dflt or nil if not found. "
+                         "Similar to in, but will not throw an error if the key is invalid for the data structure "
+                         "unless the data structure is an abstract type. In that case, the abstract type getter may throw "
+                         "an error."));
     janet_quick_asm(env, JANET_FUN_PUT,
                     "put", 3, 3, 3, 3, put_asm, sizeof(put_asm),
                     JDOC("(put ds key value)\n\n"
