@@ -2216,7 +2216,9 @@
       (+= i (dohandler (string/slice arg 1) i))
       (do
         (set *no-file* false)
-        (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator)
+        (def env (make-env))
+        (put env :args (array/slice args i))
+        (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator :env env)
         (set i lenargs))))
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
