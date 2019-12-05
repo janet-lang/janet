@@ -273,8 +273,8 @@
 # Top level unquote
 (defn constantly
   []
-  ,(math/random))
+  (comptime (math/random)))
 
-(assert (= (constantly) (constantly)) "top level unquote")
+(assert (= (constantly) (constantly)) "comptime 1")
 
 (end-suite)

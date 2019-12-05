@@ -1850,9 +1850,9 @@
     (res)
     (error (res :error))))
 
-(def unquote
-  "(unquote x)\n\nEscapes one level inside of a quasiquote. When used outside of a quasiquote, evaluates
-  its argument at compile-time."
+(def comptime
+  "(comptime x)\n\n
+  Evals x at compile time and returns the result. Similar to a top level unquote."
   :macro eval)
 
 (defn make-image
