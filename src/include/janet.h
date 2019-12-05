@@ -945,9 +945,10 @@ typedef struct JanetThread JanetThread;
 typedef struct JanetChannel JanetChannel;
 struct JanetChannel {
     pthread_mutex_t lock;
-    pthread_cond_t cond;
+    pthread_cond_t *rx_cond;
     JanetBuffer buf;
     int refCount;
+    int mailboxFlag;
 };
 struct JanetThread {
     JanetChannel *rx;

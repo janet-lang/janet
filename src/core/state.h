@@ -73,4 +73,10 @@ extern JANET_THREAD_LOCAL void **janet_scratch_mem;
 extern JANET_THREAD_LOCAL size_t janet_scratch_cap;
 extern JANET_THREAD_LOCAL size_t janet_scratch_len;
 
+/* Setup / teardown */
+#ifdef JANET_THREADS
+void janet_threads_init(void);
+void janet_threads_deinit(void);
+#endif
+
 #endif /* JANET_STATE_H_defined */

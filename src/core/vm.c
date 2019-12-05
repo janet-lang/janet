@@ -1250,6 +1250,10 @@ int janet_init(void) {
     janet_vm_core_env = NULL;
     /* Seed RNG */
     janet_rng_seed(janet_default_rng(), 0);
+    /* Threads */
+#ifdef JANET_THREADS
+    janet_threads_init();
+#endif
     return 0;
 }
 
@@ -1263,4 +1267,7 @@ void janet_deinit(void) {
     janet_vm_root_capacity = 0;
     janet_vm_registry = NULL;
     janet_vm_core_env = NULL;
+#ifdef JANET_THREADS
+    janet_threads_deinit();
+#endif
 }
