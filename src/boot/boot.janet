@@ -1850,8 +1850,6 @@
     (res)
     (error (res :error))))
 
-<<<<<<< HEAD
-
 (def make-image-dict
   "A table used in combination with marshal to marshal code (images), such that
   (make-image x) is the same as (marshal x make-image-dict)."

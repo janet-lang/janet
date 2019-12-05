@@ -355,7 +355,7 @@ static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
     const Janet *items;
     if (janet_indexed_view(argv[0], &items, &count)) {
         if (count == 0) {
-            janet_panics("expected at least 1 thread");
+            janet_panic("expected at least 1 thread");
         }
         if (count == 1) {
             JanetThread *thread = janet_getthread(items, 0);
