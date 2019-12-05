@@ -5,7 +5,7 @@
   (for i 0 10
     (os/sleep interval)
     (printf "thread %s wakeup no. %d" name i))
-  (:send parent :done))
+  (:send parent name))
 
 (defn make-worker
   [name interval]
@@ -19,6 +19,5 @@
 (def sam (make-worker "sam" 0.5))
 
 # Receive out of order
-(:receive bob)
-(:receive sam)
-(:receive joe)
+(for i 0 3
+  (print "worker " (thread/receive [bob sam joe]) " finished!"))

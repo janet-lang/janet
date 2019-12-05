@@ -32,13 +32,16 @@
 #include <setjmp.h>
 
 JANET_THREAD_LOCAL pthread_cond_t janet_vm_thread_cond;
+JANET_THREAD_LOCAL pthread_mutex_t janet_vm_thread_lock;
 
 void janet_threads_init(void) {
     pthread_cond_init(&janet_vm_thread_cond, NULL);
+    pthread_mutex_init(&janet_vm_thread_lock, NULL);
 }
 
 void janet_threads_deinit(void) {
     pthread_cond_destroy(&janet_vm_thread_cond);
+    pthread_mutex_destroy(&janet_vm_thread_lock);
 }
 
 static JanetTable *janet_get_core_table(const char *name) {
@@ -54,8 +57,8 @@ static void janet_channel_init(JanetChannel *channel) {
     janet_buffer_init(&channel->buf, 0);
     pthread_mutex_init(&channel->lock, NULL);
     channel->rx_cond = NULL;
+    channel->rx_lock = NULL;
     channel->refCount = 2;
-    channel->mailboxFlag = 0;
 }
 
 /* Return 1 if channel memory should be freed, otherwise 0 */
@@ -83,7 +86,10 @@ static int janet_channel_send(JanetChannel *channel, Janet msg, JanetTable *dict
     pthread_mutex_lock(&channel->lock);
 
     /* Check for closed channel */
-    if (channel->refCount <= 1) return 1;
+    if (channel->refCount <= 1) {
+        pthread_mutex_unlock(&channel->lock);
+        return 1;
+    }
 
     /* Hack to capture all panics from marshalling. This works because
      * we know janet_marshal won't mess with other essential global state. */
@@ -114,13 +120,17 @@ static int janet_channel_send(JanetChannel *channel, Janet msg, JanetTable *dict
 
 /* Returns 1 if nothing in queue or failed to get item. Does not block or panic. Uses dict to read bytes from
  * the channel and unmarshal them. */
-static int janet_channel_receive(JanetChannel *channel, Janet *msg_out, JanetTable *dict) {
+static int janet_channel_receive(JanetChannel *channel, Janet *msg_out,
+                                 JanetTable *dict, int nowait) {
     pthread_mutex_lock(&channel->lock);
 
     /* If queue is empty, block for now. */
     while (channel->buf.count == 0) {
         /* Check for closed channel (1 ref left means other side quit) */
-        if (channel->refCount <= 1) return 1;
+        if (nowait || channel->refCount <= 1) {
+            pthread_mutex_unlock(&channel->lock);
+            return 1;
+        }
         /* Since each thread sets its own rx_cond, we know it's not NULL */
         pthread_cond_wait(channel->rx_cond, &channel->lock);
     }
@@ -154,6 +164,25 @@ static int janet_channel_receive(JanetChannel *channel, Janet *msg_out, JanetTab
     pthread_mutex_unlock(&channel->lock);
 
     return ret;
+}
+
+static int janet_channel_select(int32_t n, JanetThread **threads,
+                                Janet *msg_out) {
+    for (;;) {
+        /* First, loop over channels for any that have any messages, but
+         * don't acquire any locks. Any incorrect behavior here will not mess
+         * anything up*/
+        for (int32_t i = 0; i < n; i++) {
+            JanetThread *thread = threads[i];
+            JanetChannel *channel = thread->rx;
+            if (channel != NULL && channel->buf.count) {
+                int status = janet_channel_receive(channel, msg_out, thread->decode, 1);
+                if (!status) return 0;
+            }
+        }
+        /* If no messages waiting, wait for signal */
+        pthread_cond_wait(&janet_vm_thread_cond, &janet_vm_thread_lock);
+    }
 }
 
 static void janet_close_thread(JanetThread *thread) {
@@ -212,7 +241,7 @@ static JanetThread *janet_make_thread(JanetChannel *rx, JanetChannel *tx, JanetT
     return thread;
 }
 
-JanetThread *janet_getthread(Janet *argv, int32_t n) {
+JanetThread *janet_getthread(const Janet *argv, int32_t n) {
     return (JanetThread *) janet_getabstract(argv, n, &Thread_AT);
 }
 
@@ -228,12 +257,13 @@ static int thread_worker(JanetChannel *tx) {
     /* Create self thread */
     JanetChannel *rx = tx + 1;
     rx->rx_cond = &janet_vm_thread_cond;
+    rx->rx_lock = &janet_vm_thread_lock;
     JanetThread *thread = janet_make_thread(rx, tx, encode, decode);
     Janet threadv = janet_wrap_abstract(thread);
 
     /* Unmarshal the function */
     Janet funcv;
-    int status = janet_channel_receive(rx, &funcv, decode);
+    int status = janet_channel_receive(rx, &funcv, decode, 0);
     if (status) goto error;
     if (!janet_checktype(funcv, JANET_FUNCTION)) goto error;
     JanetFunction *func = janet_unwrap_function(funcv);
@@ -299,6 +329,7 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
     janet_channel_init(rx);
     janet_channel_init(tx);
     rx->rx_cond = &janet_vm_thread_cond;
+    rx->rx_lock = &janet_vm_thread_lock;
     JanetThread *thread = janet_make_thread(rx, tx, encode, decode);
     if (janet_thread_start_child(thread))
         janet_panic("could not start thread");
@@ -318,10 +349,26 @@ static Janet cfun_thread_send(int32_t argc, Janet *argv) {
 
 static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    JanetThread *thread = janet_getthread(argv, 0);
-    if (NULL == thread->rx) janet_panic("channel has closed");
+    int status;
     Janet out = janet_wrap_nil();
-    int status = janet_channel_receive(thread->rx, &out, thread->decode);
+    int32_t count;
+    const Janet *items;
+    if (janet_indexed_view(argv[0], &items, &count)) {
+        int32_t realcount = 0;
+        JanetThread **threads = janet_smalloc(sizeof(JanetThread *) * count);
+        /* Select on multiple threads */
+        for (int32_t i = 0; i < count; i++) {
+            JanetThread *thread = janet_getthread(items, i);
+            if (thread->rx != NULL) threads[realcount++] = thread;
+        }
+        status = janet_channel_select(realcount, threads, &out);
+        janet_sfree(threads);
+    } else {
+        /* Get from one thread */
+        JanetThread *thread = janet_getthread(argv, 0);
+        if (NULL == thread->rx) janet_panic("channel has closed");
+        status = janet_channel_receive(thread->rx, &out, thread->decode, 0);
+    }
     if (status) {
         janet_panic("failed to receive message");
     }
@@ -363,8 +410,11 @@ static const JanetReg threadlib_cfuns[] = {
     },
     {
         "thread/receive", cfun_thread_receive,
-        JDOC("(thread/receive thread)\n\n"
-             "Get a value sent to thread. Will block if there is no value was sent to this thread yet. Returns the message sent to the thread.")
+        JDOC("(thread/receive threads)\n\n"
+             "Get a value sent to thread. Will block if there is no value was sent to this thread "
+             "yet. threads can also be an array or tuple of threads, in which case "
+             "thread/receive will select on the first thread to return a value. Returns "
+             "the message sent to the thread.")
     },
     {
         "thread/close", cfun_thread_close,
