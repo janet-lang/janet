@@ -354,15 +354,25 @@ static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
     int32_t count;
     const Janet *items;
     if (janet_indexed_view(argv[0], &items, &count)) {
-        int32_t realcount = 0;
-        JanetThread **threads = janet_smalloc(sizeof(JanetThread *) * count);
-        /* Select on multiple threads */
-        for (int32_t i = 0; i < count; i++) {
-            JanetThread *thread = janet_getthread(items, i);
-            if (thread->rx != NULL) threads[realcount++] = thread;
+        if (count == 0) {
+            janet_panics("expected at least 1 thread");
         }
-        status = janet_channel_select(realcount, threads, &out);
-        janet_sfree(threads);
+        if (count == 1) {
+            JanetThread *thread = janet_getthread(items, 0);
+            if (NULL == thread->rx) janet_panic("channel has closed");
+            status = janet_channel_receive(thread->rx, &out, thread->decode, 0);
+        } else {
+            /* Select */
+            int32_t realcount = 0;
+            JanetThread **threads = janet_smalloc(sizeof(JanetThread *) * count);
+            /* Select on multiple threads */
+            for (int32_t i = 0; i < count; i++) {
+                JanetThread *thread = janet_getthread(items, i);
+                if (thread->rx != NULL) threads[realcount++] = thread;
+            }
+            status = janet_channel_select(realcount, threads, &out);
+            janet_sfree(threads);
+        }
     } else {
         /* Get from one thread */
         JanetThread *thread = janet_getthread(argv, 0);
@@ -411,7 +421,7 @@ static const JanetReg threadlib_cfuns[] = {
     {
         "thread/receive", cfun_thread_receive,
         JDOC("(thread/receive threads)\n\n"
-             "Get a value sent to thread. Will block if there is no value was sent to this thread "
+             "Get a value sent to 1 or more threads. Will block if no value was sent to this thread "
              "yet. threads can also be an array or tuple of threads, in which case "
              "thread/receive will select on the first thread to return a value. Returns "
              "the message sent to the thread.")

@@ -55,7 +55,11 @@ static JanetSlot qq_slots(JanetFopts opts, JanetSlot *slots, int makeop) {
     return target;
 }
 
-static JanetSlot quasiquote(JanetFopts opts, Janet x) {
+static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
+    if (depth == 0) {
+        janetc_cerror(opts.compiler, "quasiquote too deeply nested");
+        return janetc_cslot(janet_wrap_nil());
+    }
     JanetSlot *slots = NULL;
     switch (janet_type(x)) {
         default:
@@ -66,11 +70,18 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x) {
             len = janet_tuple_length(tup);
             if (len > 1 && janet_checktype(tup[0], JANET_SYMBOL)) {
                 const uint8_t *head = janet_unwrap_symbol(tup[0]);
-                if (!janet_cstrcmp(head, "unquote"))
-                    return janetc_value(janetc_fopts_default(opts.compiler), tup[1]);
+                if (!janet_cstrcmp(head, "unquote")) {
+                    if (level == 0) {
+                        return janetc_value(janetc_fopts_default(opts.compiler), tup[1]);
+                    } else {
+                        level--;
+                    }
+                } else if (!janet_cstrcmp(head, "quasiquote")) {
+                    level++;
+                }
             }
             for (i = 0; i < len; i++)
-                janet_v_push(slots, quasiquote(opts, tup[i]));
+                janet_v_push(slots, quasiquote(opts, tup[i], depth - 1, level));
             return qq_slots(opts, slots, (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR)
                             ? JOP_MAKE_BRACKET_TUPLE
                             : JOP_MAKE_TUPLE);
@@ -79,7 +90,7 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x) {
             int32_t i;
             JanetArray *array = janet_unwrap_array(x);
             for (i = 0; i < array->count; i++)
-                janet_v_push(slots, quasiquote(opts, array->data[i]));
+                janet_v_push(slots, quasiquote(opts, array->data[i], depth - 1, level));
             return qq_slots(opts, slots, JOP_MAKE_ARRAY);
         }
         case JANET_TABLE:
@@ -88,8 +99,8 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x) {
             int32_t len, cap = 0;
             janet_dictionary_view(x, &kvs, &len, &cap);
             while ((kv = janet_dictionary_next(kvs, cap, kv))) {
-                JanetSlot key = quasiquote(opts, kv->key);
-                JanetSlot value =  quasiquote(opts, kv->value);
+                JanetSlot key = quasiquote(opts, kv->key, depth - 1, level);
+                JanetSlot value =  quasiquote(opts, kv->value, depth - 1, level);
                 key.flags &= ~JANET_SLOT_SPLICED;
                 value.flags &= ~JANET_SLOT_SPLICED;
                 janet_v_push(slots, key);
@@ -106,7 +117,7 @@ static JanetSlot janetc_quasiquote(JanetFopts opts, int32_t argn, const Janet *a
         janetc_cerror(opts.compiler, "expected 1 argument");
         return janetc_cslot(janet_wrap_nil());
     }
-    return quasiquote(opts, argv[0]);
+    return quasiquote(opts, argv[0], JANET_RECURSION_GUARD, 0);
 }
 
 static JanetSlot janetc_unquote(JanetFopts opts, int32_t argn, const Janet *argv) {

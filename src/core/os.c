@@ -25,8 +25,6 @@
 #include "util.h"
 #endif
 
-#include <stdlib.h>
-
 #ifndef JANET_REDUCED_OS
 
 #include <time.h>
@@ -35,6 +33,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
 
 #ifdef JANET_WINDOWS
 #include <windows.h>
@@ -473,12 +473,13 @@ static Janet os_sleep(int32_t argc, Janet *argv) {
 #ifdef JANET_WINDOWS
     Sleep((DWORD)(delay * 1000));
 #else
+    int rc;
     struct timespec ts;
     ts.tv_sec = (time_t) delay;
     ts.tv_nsec = (delay <= UINT32_MAX)
                  ? (long)((delay - ((uint32_t)delay)) * 1000000000)
                  : 0;
-    nanosleep(&ts, NULL);
+    RETRY_EINTR(rc, nanosleep(&ts, &ts));
 #endif
     return janet_wrap_nil();
 }
@@ -495,6 +496,64 @@ static Janet os_cwd(int32_t argc, Janet *argv) {
 #endif
     if (NULL == ptr) janet_panic("could not get current directory");
     return janet_cstringv(ptr);
+}
+
+static Janet os_cryptorand(int32_t argc, Janet *argv) {
+    JanetBuffer *buffer;
+    const char *genericerr = "unable to get sufficient random data";
+    janet_arity(argc, 1, 2);
+    int32_t offset;
+    int32_t n = janet_getinteger(argv, 0);
+    if (n < 0) janet_panic("expected positive integer");
+    if (argc == 2) {
+        buffer = janet_getbuffer(argv, 1);
+        offset = buffer->count;
+    } else {
+        offset = 0;
+        buffer = janet_buffer(n);
+    }
+    /* We could optimize here by adding setcount_uninit */
+    janet_buffer_setcount(buffer, offset + n);
+
+#ifdef JANET_WINDOWS
+    for (int32_t i = offset; i < buffer->count; i += sizeof(unsigned int)) {
+        unsigned int v;
+        if (rand_s(&v))
+            janet_panic(genericerr);
+        for (int32_t j = 0; (j < sizeof(unsigned int)) && (i + j < buffer->count); j++) {
+            buffer->data[i + j] = v & 0xff;
+            v = v >> 8;
+        }
+    }
+#elif defined(__linux__) || defined(__APPLE__)
+    /* We should be able to call getrandom on linux, but it doesn't seem
+       to be uniformly supported on linux distros. Macos may support
+       arc4random_buf, but it needs investigation.
+
+       In both cases, use this fallback path for now... */
+    int rc;
+    int randfd;
+    RETRY_EINTR(randfd, open("/dev/urandom", O_RDONLY));
+    if (randfd < 0)
+        janet_panic(genericerr);
+    while (n > 0) {
+        ssize_t nread;
+        RETRY_EINTR(nread, read(randfd, buffer->data + offset, n));
+        if (nread <= 0) {
+            RETRY_EINTR(rc, close(randfd));
+            janet_panic(genericerr);
+        }
+        offset += nread;
+        n -= nread;
+    }
+    RETRY_EINTR(rc, close(randfd));
+#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    (void) errmsg;
+    arc4random_buf(buffer->data + offset, n);
+#else
+    janet_panic("cryptorand currently unsupported on this platform");
+#endif
+    return janet_wrap_buffer(buffer);
 }
 
 static Janet os_date(int32_t argc, Janet *argv) {
@@ -980,6 +1039,11 @@ static const JanetReg os_cfuns[] = {
         "os/cwd", os_cwd,
         JDOC("(os/cwd)\n\n"
              "Returns the current working directory.")
+    },
+    {
+        "os/cryptorand", os_cryptorand,
+        JDOC("(os/cryptorand n &opt buf)\n\n"
+             "Get or append n bytes of good quality random data provided by the os. Returns a new buffer or buf.")
     },
     {
         "os/date", os_date,

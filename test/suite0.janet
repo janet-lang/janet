@@ -55,6 +55,8 @@
 (assert (= (get @{} 1) nil) "get nil from empty table")
 (assert (= (get {:boop :bap} :boop) :bap) "get non nil from struct")
 (assert (= (get @{:boop :bap} :boop) :bap) "get non nil from table")
+(assert (= (get @"\0" 0) 0) "get non nil from buffer")
+(assert (= (get @"\0" 1) nil) "get nil from buffer oob")
 (assert (put @{} :boop :bap) "can add to empty table")
 (assert (put @{1 3} :boop :bap) "can add to non-empty table")
 

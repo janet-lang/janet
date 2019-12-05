@@ -525,7 +525,8 @@ static const JanetReg string_cfuns[] = {
              "Returns a substring from a byte sequence. The substring is from "
              "index start inclusive to index end exclusive. All indexing "
              "is from 0. 'start' and 'end' can also be negative to indicate indexing "
-             "from the end of the string.")
+             "from the end of the string. Note that index -1 is synonymous with "
+             "index (length bytes) to allow a full negative slice range. ")
     },
     {
         "string/repeat", cfun_string_repeat,

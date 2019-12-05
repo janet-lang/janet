@@ -73,6 +73,7 @@
   nil)
 
 # Basic predicates
+(defn nan? "Check if x is NaN" [x] (not= x x))
 (defn even? "Check if x is even." [x] (== 0 (% x 2)))
 (defn odd? "Check if x is odd." [x] (not= 0 (% x 2)))
 (defn zero? "Check if x is zero." [x] (== x 0))
@@ -325,6 +326,11 @@
          (def ,binding ,i)
          ,body))))
 
+(defn- check-indexed [x]
+  (if (indexed? x)
+    x
+    (error (string "expected tuple for range, got " x))))
+
 (defn- loop1
   [body head i]
 
@@ -354,11 +360,11 @@
   (def {(+ i 2) object} head)
   (let [rest (loop1 body head (+ i 3))]
     (case verb
-      :range (let [[start stop step] object]
+      :range (let [[start stop step] (check-indexed object)]
                (for-template binding start stop (or step 1) < + [rest]))
       :keys (keys-template binding object false [rest])
       :pairs (keys-template binding object true [rest])
-      :down (let [[start stop step] object]
+      :down (let [[start stop step] (check-indexed object)]
               (for-template binding start stop (or step 1) > - [rest]))
       :in (each-template binding object [rest])
       :iterate (iterate-template binding object rest)
@@ -415,6 +421,7 @@
   (loop1 body head 0))
 
 (put _env 'loop1 nil)
+(put _env 'check-indexed nil)
 (put _env 'for-template nil)
 (put _env 'iterate-template nil)
 (put _env 'each-template nil)
@@ -1843,6 +1850,7 @@
     (res)
     (error (res :error))))
 
+<<<<<<< HEAD
 
 (def make-image-dict
   "A table used in combination with marshal to marshal code (images), such that
@@ -1853,6 +1861,11 @@
   "A table used in combination with unmarshal to unmarshal byte sequences created
   by make-image, such that (load-image bytes) is the same as (unmarshal bytes load-image-dict)."
   @{})
+
+(def comptime
+  "(comptime x)\n\n
+  Evals x at compile time and returns the result. Similar to a top level unquote."
+  :macro eval)
 
 (defn make-image
   "Create an image from an environment returned by require.
@@ -2216,7 +2229,9 @@
       (+= i (dohandler (string/slice arg 1) i))
       (do
         (set *no-file* false)
-        (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator)
+        (def env (make-env))
+        (put env :args (array/slice args i))
+        (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator :env env)
         (set i lenargs))))
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
