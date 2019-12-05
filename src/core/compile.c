@@ -569,15 +569,24 @@ static int macroexpand1(
         return 0;
 
     /* Evaluate macro */
-    JanetFiber *fiberp = NULL;
     JanetFunction *macro = janet_unwrap_function(macroval);
+    int32_t arity = janet_tuple_length(form) - 1;
+    JanetFiber *fiberp = janet_fiber(macro, 64, arity, form + 1);
+    if (NULL == fiberp) {
+        int32_t minar = macro->def->min_arity;
+        int32_t maxar = macro->def->max_arity;
+        const uint8_t *es = NULL;
+        if (minar >= 0 && arity < minar)
+            es = janet_formatc("macro arity mismatch, expected at least %d, got %d", minar, arity);
+        if (maxar >= 0 && arity > maxar)
+            es = janet_formatc("macro arity mismatch, expected at most %d, got %d", maxar, arity);
+        c->result.macrofiber = NULL;
+        janetc_error(c, es);
+    }
+    /* Set env */
+    fiberp->env = c->env;
     int lock = janet_gclock();
-    JanetSignal status = janet_pcall(
-                             macro,
-                             janet_tuple_length(form) - 1,
-                             form + 1,
-                             &x,
-                             &fiberp);
+    JanetSignal status = janet_continue(fiberp, janet_wrap_nil(), &x);
     janet_gcunlock(lock);
     if (status != JANET_SIGNAL_OK) {
         const uint8_t *es = janet_formatc("(macro) %V", x);

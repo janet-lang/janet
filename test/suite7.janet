@@ -270,4 +270,11 @@
 (def nested ~(a ~(b ,(+ 1 2) ,(foo ,(+ 1 3) d) e) f))
 (assert (deep= nested '(a ~(b ,(+ 1 2) ,(foo 4 d) e) f)) "nested quasiquote")
 
+# Top level unquote
+(defn constantly
+  []
+  ,(math/random))
+
+(assert (= (constantly) (constantly)) "top level unquote")
+
 (end-suite)

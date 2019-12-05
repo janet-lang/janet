@@ -120,13 +120,6 @@ static JanetSlot janetc_quasiquote(JanetFopts opts, int32_t argn, const Janet *a
     return quasiquote(opts, argv[0], JANET_RECURSION_GUARD, 0);
 }
 
-static JanetSlot janetc_unquote(JanetFopts opts, int32_t argn, const Janet *argv) {
-    (void) argn;
-    (void) argv;
-    janetc_cerror(opts.compiler, "cannot use unquote here");
-    return janetc_cslot(janet_wrap_nil());
-}
-
 /* Perform destructuring. Be careful to
  * keep the order registers are freed.
  * Returns if the slot 'right' can be freed. */
@@ -819,7 +812,6 @@ static const JanetSpecial janetc_specials[] = {
     {"quote", janetc_quote},
     {"set", janetc_varset},
     {"splice", janetc_splice},
-    {"unquote", janetc_unquote},
     {"var", janetc_var},
     {"while", janetc_while}
 };
