@@ -41,42 +41,34 @@ static JanetTable *janet_get_core_table(const char *name) {
     return janet_unwrap_table(out);
 }
 
-static void janet_channel_init(JanetChannel *channel, size_t initialSize) {
-    janet_buffer_init(&channel->buf, (int32_t) initialSize);
+static void janet_channel_init(JanetChannel *channel) {
+    janet_buffer_init(&channel->buf, 0);
     pthread_mutex_init(&channel->lock, NULL);
     pthread_cond_init(&channel->cond, NULL);
+    channel->refCount = 2;
 }
 
-static void janet_channel_destroy(JanetChannel *channel) {
-    janet_buffer_deinit(&channel->buf);
-    pthread_mutex_destroy(&channel->lock);
-    pthread_cond_destroy(&channel->cond);
-}
-
-static JanetThreadShared *janet_shared_create(size_t initialSize) {
-    const char *errmsg = "could not allocate memory for thread";
-    JanetThreadShared *shared = malloc(sizeof(JanetThreadShared));
-    if (NULL == shared) janet_panicf(errmsg);
-    uint8_t *mem = malloc(initialSize);
-    if (NULL == mem) janet_panic(errmsg);
-    janet_channel_init(&shared->parent, 0);
-    janet_channel_init(&shared->child, initialSize);
-    shared->refCount = 2;
-    pthread_mutex_init(&shared->refCountLock, NULL);
-    return shared;
-}
-
-static void janet_shared_destroy(JanetThreadShared *shared) {
-    janet_channel_destroy(&shared->parent);
-    janet_channel_destroy(&shared->child);
-    pthread_mutex_destroy(&shared->refCountLock);
-    free(shared);
+/* Return 1 if channel memory should be freed, otherwise false */
+static int janet_channel_deref(JanetChannel *channel) {
+    pthread_mutex_lock(&channel->lock);
+    if (0 == --channel->refCount) {
+        janet_buffer_deinit(&channel->buf);
+        pthread_mutex_destroy(&channel->lock);
+        pthread_cond_destroy(&channel->cond);
+        return 1;
+    } else {
+        pthread_mutex_unlock(&channel->lock);
+        return 0;
+    }
 }
 
 /* Returns 1 if could not send. Does not block or panic. Bytes should be a janet value that
  * has been marshalled. */
-static int janet_channel_send_any(JanetChannel *channel, Janet msg, JanetByteView bytes, int is_bytes, JanetTable *dict) {
+static int janet_channel_send(JanetChannel *channel, Janet msg, JanetTable *dict) {
     pthread_mutex_lock(&channel->lock);
+
+    /* Check for closed channel */
+    if (channel->refCount <= 1) return 1;
 
     /* Hack to capture all panics from marshalling. This works because
      * we know janet_marshal won't mess with other essential global state. */
@@ -90,11 +82,7 @@ static int janet_channel_send_any(JanetChannel *channel, Janet msg, JanetByteVie
         ret = 1;
         channel->buf.count = oldcount;
     } else {
-        if (is_bytes) {
-            janet_buffer_push_bytes(&channel->buf, bytes.bytes, bytes.len);
-        } else {
-            janet_marshal(&channel->buf, msg, dict, 0);
-        }
+        janet_marshal(&channel->buf, msg, dict, 0);
 
         /* Was empty, signal to cond */
         if (oldcount == 0) {
@@ -109,17 +97,6 @@ static int janet_channel_send_any(JanetChannel *channel, Janet msg, JanetByteVie
     return ret;
 }
 
-static int janet_channel_send(JanetChannel *channel, Janet msg, JanetTable *dict) {
-    JanetByteView dud = {0};
-    return janet_channel_send_any(channel, msg, dud, 0, dict);
-}
-
-/*
-static int janet_channel_send_image(JanetChannel *channel, JanetByteView bytes) {
-    return janet_channel_send_any(channel, janet_wrap_nil(), bytes, 1, NULL);
-}
-*/
-
 /* Returns 1 if nothing in queue or failed to get item. Does not block or panic. Uses dict to read bytes from
  * the channel and unmarshal them. */
 static int janet_channel_receive(JanetChannel *channel, Janet *msg_out, JanetTable *dict) {
@@ -127,6 +104,8 @@ static int janet_channel_receive(JanetChannel *channel, Janet *msg_out, JanetTab
 
     /* If queue is empty, block for now. */
     while (channel->buf.count == 0) {
+        /* Check for closed channel (1 ref left means other side quit) */
+        if (channel->refCount <= 1) return 1;
         pthread_cond_wait(&channel->cond, &channel->lock);
     }
 
@@ -161,18 +140,25 @@ static int janet_channel_receive(JanetChannel *channel, Janet *msg_out, JanetTab
     return ret;
 }
 
-static int thread_gc(void *p, size_t size) {
-    JanetThread *thread = (JanetThread *)p;
-    JanetThreadShared *shared = thread->shared;
-    if (NULL == shared) return 0;
-    (void) size;
-    pthread_mutex_lock(&shared->refCountLock);
-    int refcount = --shared->refCount;
-    if (refcount == 0) {
-        janet_shared_destroy(shared);
-    } else {
-        pthread_mutex_unlock(&shared->refCountLock);
+static void janet_close_thread(JanetThread *thread) {
+    if (NULL != thread->rx) {
+        JanetChannel *rx = thread->rx;
+        JanetChannel *tx = thread->tx;
+        /* Deref both. The reference counts should be in sync. */
+        janet_channel_deref(rx);
+        if (janet_channel_deref(tx)) {
+            /* tx and rx were allocated together. free the one with the lower address. */
+            free(rx < tx ? rx : tx);
+        }
+        thread->rx = NULL;
+        thread->tx = NULL;
     }
+}
+
+static int thread_gc(void *p, size_t size) {
+    (void) size;
+    JanetThread *thread = (JanetThread *)p;
+    janet_close_thread(thread);
     return 0;
 }
 
@@ -201,10 +187,10 @@ static JanetAbstractType Thread_AT = {
     NULL
 };
 
-static JanetThread *janet_make_thread(JanetThreadShared *shared, JanetTable *encode, JanetTable *decode, int who) {
+static JanetThread *janet_make_thread(JanetChannel *rx, JanetChannel *tx, JanetTable *encode, JanetTable *decode) {
     JanetThread *thread = janet_abstract(&Thread_AT, sizeof(JanetThread));
-    thread->shared = shared;
-    thread->kind = who;
+    thread->rx = rx;
+    thread->tx = tx;
     thread->encode = encode;
     thread->decode = decode;
     return thread;
@@ -215,10 +201,7 @@ JanetThread *janet_getthread(Janet *argv, int32_t n) {
 }
 
 /* Runs in new thread */
-static int thread_worker(JanetThreadShared *shared) {
-    pthread_t handle = pthread_self();
-    pthread_detach(handle);
-
+static int thread_worker(JanetChannel *tx) {
     /* Init VM */
     janet_init();
 
@@ -227,12 +210,13 @@ static int thread_worker(JanetThreadShared *shared) {
     JanetTable *encode = janet_get_core_table("make-image-dict");
 
     /* Create self thread */
-    JanetThread *thread = janet_make_thread(shared, encode, decode, JANET_THREAD_SELF);
+    JanetChannel *rx = tx + 1;
+    JanetThread *thread = janet_make_thread(rx, tx, encode, decode);
     Janet threadv = janet_wrap_abstract(thread);
 
     /* Unmarshal the function */
     Janet funcv;
-    int status = janet_channel_receive(&shared->child, &funcv, decode);
+    int status = janet_channel_receive(rx, &funcv, decode);
     if (status) goto error;
     if (!janet_checktype(funcv, JANET_FUNCTION)) goto error;
     JanetFunction *func = janet_unwrap_function(funcv);
@@ -259,17 +243,22 @@ error:
 }
 
 static void *janet_pthread_wrapper(void *param) {
-    thread_worker((JanetThreadShared *)param);
+    thread_worker((JanetChannel *)param);
     return NULL;
 }
 
-static void janet_thread_start_child(JanetThread *thread) {
-    JanetThreadShared *shared = thread->shared;
+static int janet_thread_start_child(JanetThread *thread) {
     pthread_t handle;
-    int error = pthread_create(&handle, NULL, janet_pthread_wrapper, shared);
+    /* My rx is your tx and vice versa */
+    int error = pthread_create(&handle, NULL, janet_pthread_wrapper, thread->rx);
     if (error) {
-        thread->shared = NULL; /* Prevent GC from trying to mess with shared memory here */
-        janet_shared_destroy(shared);
+        /* double close as there is no other side to close thread */
+        janet_close_thread(thread);
+        janet_close_thread(thread);
+        return 1;
+    } else {
+        pthread_detach(handle);
+        return 0;
     }
 }
 
@@ -285,20 +274,24 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
     JanetTable *decode = (argc < 2 || janet_checktype(argv[1], JANET_NIL))
                          ? janet_get_core_table("load-image-dict")
                          : janet_gettable(argv, 1);
-    JanetThreadShared *shared = janet_shared_create(0);
-    JanetThread *thread = janet_make_thread(shared, encode, decode, JANET_THREAD_OTHER);
-    janet_thread_start_child(thread);
+    JanetChannel *rx = malloc(2 * sizeof(JanetChannel));
+    if (NULL == rx) {
+        JANET_OUT_OF_MEMORY;
+    }
+    JanetChannel *tx = rx + 1;
+    janet_channel_init(rx);
+    janet_channel_init(tx);
+    JanetThread *thread = janet_make_thread(rx, tx, encode, decode);
+    if (janet_thread_start_child(thread))
+        janet_panic("could not start thread");
     return janet_wrap_abstract(thread);
 }
 
 static Janet cfun_thread_send(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     JanetThread *thread = janet_getthread(argv, 0);
-    JanetThreadShared *shared = thread->shared;
-    if (NULL == shared) janet_panic("channel has closed");
-    int status = janet_channel_send(thread->kind == JANET_THREAD_SELF ? &shared->parent : &shared->child,
-                                    argv[1],
-                                    thread->encode);
+    if (NULL == thread->tx) janet_panic("channel has closed");
+    int status = janet_channel_send(thread->tx, argv[1], thread->encode);
     if (status) {
         janet_panicf("failed to send message %v", argv[1]);
     }
@@ -308,12 +301,9 @@ static Janet cfun_thread_send(int32_t argc, Janet *argv) {
 static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetThread *thread = janet_getthread(argv, 0);
-    JanetThreadShared *shared = thread->shared;
-    if (NULL == shared) janet_panic("channel has closed");
+    if (NULL == thread->rx) janet_panic("channel has closed");
     Janet out = janet_wrap_nil();
-    int status = janet_channel_receive(thread->kind == JANET_THREAD_SELF ? &shared->child : &shared->parent,
-                                       &out,
-                                       thread->decode);
+    int status = janet_channel_receive(thread->rx, &out, thread->decode);
     if (status) {
         janet_panic("failed to receive message");
     }

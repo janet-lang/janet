@@ -942,27 +942,18 @@ struct JanetRNG {
 #ifdef JANET_THREADS
 #include <pthread.h>
 typedef struct JanetThread JanetThread;
-typedef struct JanetThreadShared JanetThreadShared;
 typedef struct JanetChannel JanetChannel;
 struct JanetChannel {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     JanetBuffer buf;
-};
-struct JanetThreadShared {
-    pthread_mutex_t refCountLock;
     int refCount;
-    JanetChannel parent;
-    JanetChannel child;
 };
 struct JanetThread {
-    JanetThreadShared *shared;
+    JanetChannel *rx;
+    JanetChannel *tx;
     JanetTable *encode;
     JanetTable *decode;
-    enum {
-        JANET_THREAD_SELF,
-        JANET_THREAD_OTHER
-    } kind;
 };
 #endif
 
