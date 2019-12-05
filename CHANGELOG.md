@@ -28,7 +28,7 @@ All notable changes to this project will be documented in this file.
 - Add `os/environ`
 - Use `(doc)` with no arguments to see available bindings and dynamic bindings.
 - `jpm` will use `CC` and `AR` environment variables when compiling programs.
-- Allow top level unquotes to do compile-time evaluation.
+- Add `comptime` macro for compile time evaluation.
 - Numerous small bug fixes and usability improvements.
 
 ### 1.5.1 - 2019-11-16
