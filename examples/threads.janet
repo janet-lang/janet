@@ -57,3 +57,17 @@
 
 (def lines (:receive (-> (thread/new) (:send worker-tree) (:send "adam") (:send 0))))
 (map print lines)
+
+#
+# Receive timeout
+#
+
+(def slow (make-worker "slow-loras" 4))
+(for i 0 50
+  (try
+    (let [msg (thread/receive slow 0.46)]
+      (print "\n" msg))
+    ([err] (prin ".") (:flush stdout))))
+
+(print "\ndone timing, timeouts ending.")
+(try (while true (print (:receive slow))) ([err] (print "done")))
