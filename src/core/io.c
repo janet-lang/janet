@@ -63,7 +63,8 @@ JanetAbstractType cfun_io_filetype = {
     NULL,
     NULL,
     NULL,
-    NULL
+    NULL,
+    -1,
 };
 
 /* Check arguments to fopen */

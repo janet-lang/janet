@@ -67,7 +67,8 @@ static const JanetAbstractType it_s64_type = {
     NULL,
     int64_marshal,
     int64_unmarshal,
-    it_s64_tostring
+    it_s64_tostring,
+    sizeof(int64_t),
 };
 
 static const JanetAbstractType it_u64_type = {
@@ -78,7 +79,8 @@ static const JanetAbstractType it_u64_type = {
     NULL,
     int64_marshal,
     int64_unmarshal,
-    it_u64_tostring
+    it_u64_tostring,
+    sizeof(uint64_t),
 };
 
 int64_t janet_unwrap_s64(Janet x) {

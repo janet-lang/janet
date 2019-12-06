@@ -740,7 +740,8 @@ static JanetAbstractType janet_parse_parsertype = {
     NULL,
     NULL,
     NULL,
-    NULL
+    NULL,
+    -1,
 };
 
 /* C Function parser */

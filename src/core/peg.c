@@ -1191,7 +1191,8 @@ static const JanetAbstractType peg_type = {
     NULL,
     peg_marshal,
     peg_unmarshal,
-    NULL
+    NULL,
+    sizeof(Peg)
 };
 
 /* Convert Builder to Peg (Janet Abstract Value) */

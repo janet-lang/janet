@@ -898,6 +898,7 @@ struct JanetAbstractType {
     void (*marshal)(void *p, JanetMarshalContext *ctx);
     void (*unmarshal)(void *p, JanetMarshalContext *ctx);
     void (*tostring)(void *p, JanetBuffer *buffer);
+    int min_size;
 };
 
 struct JanetReg {
