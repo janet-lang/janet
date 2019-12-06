@@ -947,18 +947,23 @@ struct JanetRNG {
 #include <pthread.h>
 typedef struct JanetThread JanetThread;
 typedef struct JanetChannel JanetChannel;
+typedef struct JanetThreadSelector JanetThreadSelector;
+struct JanetThreadSelector {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    JanetChannel *channel;
+};
 struct JanetChannel {
     pthread_mutex_t lock;
-    pthread_cond_t *rx_cond;
-    pthread_mutex_t *rx_lock;
     JanetBuffer buf;
     int refCount;
+    JanetThreadSelector *selector;
+    JanetTable *encode; /* only touched by writers */
+    JanetTable *decode; /* only touched by readers */
 };
 struct JanetThread {
     JanetChannel *rx;
     JanetChannel *tx;
-    JanetTable *encode;
-    JanetTable *decode;
 };
 #endif
 
