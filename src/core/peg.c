@@ -1030,7 +1030,10 @@ static size_t size_padded(size_t offset, size_t size) {
     return x - (x % size);
 }
 
-static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
+static void* peg_unmarshal(const JanetAbstractType *t, size_t sz, JanetMarshalContext *ctx) {
+    if (sz < sizeof(Peg))
+        return NULL;
+    void *p = janet_abstract(t, sz);
     char *mem = p;
     Peg *peg = (Peg *)p;
     peg->bytecode_len = janet_unmarshal_size(ctx);
@@ -1176,7 +1179,7 @@ static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
     peg->bytecode = bytecode;
     peg->constants = constants;
     free(op_flags);
-    return;
+    return p;
 
 bad:
     free(op_flags);

@@ -99,12 +99,16 @@ static void ta_buffer_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_bytes(ctx, buf->data, buf->size);
 }
 
-static void ta_buffer_unmarshal(void *p, JanetMarshalContext *ctx) {
+static void* ta_buffer_unmarshal(const JanetAbstractType *t, size_t sz, JanetMarshalContext *ctx) {
+    if (sz < sizeof(JanetTArrayBuffer))
+        return NULL;
+    void *p = janet_abstract(t, sz);
     JanetTArrayBuffer *buf = (JanetTArrayBuffer *)p;
     size_t size = janet_unmarshal_size(ctx);
     ta_buffer_init(buf, size);
     buf->flags = janet_unmarshal_int(ctx);
     janet_unmarshal_bytes(ctx, buf->data, size);
+    return p;
 }
 
 static const JanetAbstractType ta_buffer_type = {
@@ -135,7 +139,10 @@ static void ta_view_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_janet(ctx, janet_wrap_abstract(view->buffer));
 }
 
-static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
+static void* ta_view_unmarshal(const JanetAbstractType *t, size_t sz, JanetMarshalContext *ctx) {
+    if (sz < sizeof(JanetTArrayView))
+        return NULL;
+    void *p = janet_abstract(t, sz);
     JanetTArrayView *view = (JanetTArrayView *)p;
     size_t offset;
     int32_t atype;
@@ -157,6 +164,7 @@ static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
     if (view->buffer->size < buf_need_size)
         janet_panic("bad typed array offset in marshalled data");
     view->as.u8 = view->buffer->data + offset;
+    return p;
 }
 
 static JanetMethod tarray_view_methods[6];

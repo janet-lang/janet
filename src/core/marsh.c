@@ -1023,11 +1023,13 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
     const JanetAbstractType *at = janet_get_abstract_type(key);
     if (at == NULL) return NULL;
     if (at->unmarshal) {
-        void *p = janet_abstract(at, (size_t) read64(st, &data));
-        *out = janet_wrap_abstract(p);
+        size_t sz = (size_t) read64(st, &data);
         JanetMarshalContext context = {NULL, st, flags, data};
+        void *p = at->unmarshal(at, sz, &context);
+        if (!p)
+            janet_panicf("unmarshaling %s failed", at->name);
+        *out = janet_wrap_abstract(p);
         janet_v_push(st->lookup, *out);
-        at->unmarshal(p, &context);
         return context.data;
     }
     return NULL;

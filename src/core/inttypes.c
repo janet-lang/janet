@@ -43,8 +43,12 @@ static void int64_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_int64(ctx, *((int64_t *)p));
 }
 
-static void int64_unmarshal(void *p, JanetMarshalContext *ctx) {
+static void* int64_unmarshal(const JanetAbstractType *t, size_t sz, JanetMarshalContext *ctx) {
+    if (sz != sizeof(int64_t))
+        return NULL;
+    void *p = janet_abstract(t, sz);
     *((int64_t *)p) = janet_unmarshal_int64(ctx);
+    return p;
 }
 
 static void it_s64_tostring(void *p, JanetBuffer *buffer) {

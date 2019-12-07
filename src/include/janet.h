@@ -893,11 +893,11 @@ struct JanetAbstractType {
     const char *name;
     int (*gc)(void *data, size_t len);
     int (*gcmark)(void *data, size_t len);
-    Janet(*get)(void *data, Janet key);
-    void (*put)(void *data, Janet key, Janet value);
-    void (*marshal)(void *p, JanetMarshalContext *ctx);
-    void (*unmarshal)(void *p, JanetMarshalContext *ctx);
-    void (*tostring)(void *p, JanetBuffer *buffer);
+    Janet (*get)(void *data, Janet key);
+    void  (*put)(void *data, Janet key, Janet value);
+    void  (*marshal)(void *p, JanetMarshalContext *ctx);
+    void* (*unmarshal)(const JanetAbstractType *t, size_t sz, JanetMarshalContext *ctx);
+    void  (*tostring)(void *p, JanetBuffer *buffer);
 };
 
 struct JanetReg {
