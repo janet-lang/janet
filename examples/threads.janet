@@ -1,8 +1,8 @@
 (defn worker-main
   "Sends 11 messages back to parent"
   [parent]
-  (def name (:receive parent))
-  (def interval (:receive parent))
+  (def name (thread/receive))
+  (def interval (thread/receive))
   (for i 0 10
     (os/sleep interval)
     (:send parent (string/format "thread %s wakeup no. %d" name i)))
@@ -19,13 +19,9 @@
 (def joe (make-worker "joe" 0.03))
 (def sam (make-worker "sam" 0.05))
 
-(:close joe)
-
-(try (:receive joe) ([err] (print "Got expected error: " err)))
-
 # Receive out of order
-(for i 0 22
-  (print (thread/receive [bob sam])))
+(for i 0 33
+  (print (thread/receive)))
 
 #
 # Recursive Thread Tree - should pause for a bit, and then print a cool zigzag.
@@ -38,8 +34,8 @@
 
 (defn worker-tree
   [parent]
-  (def name (:receive parent))
-  (def depth (:receive parent))
+  (def name (thread/receive))
+  (def depth (thread/receive))
   (if (< depth 5)
     (do
     (defn subtree []
@@ -49,25 +45,26 @@
           (:send (inc depth))))
     (let [l (subtree)
           r (subtree)
-          lrep (thread/receive l)
-          rrep (thread/receive r)]
+          lrep (thread/receive)
+          rrep (thread/receive)]
       (:send parent [name ;lrep ;rrep])))
     (do
       (:send parent [name]))))
 
-(def lines (:receive (-> (thread/new) (:send worker-tree) (:send "adam") (:send 0))))
+(-> (thread/new) (:send worker-tree) (:send "adam") (:send 0))
+(def lines (thread/receive))
 (map print lines)
 
 #
 # Receive timeout
 #
 
-(def slow (make-worker "slow-loras" 4))
+(def slow (make-worker "slow-loras" 0.5))
 (for i 0 50
   (try
-    (let [msg (thread/receive slow 0.46)]
+    (let [msg (thread/receive 0.1)]
       (print "\n" msg))
     ([err] (prin ".") (:flush stdout))))
 
 (print "\ndone timing, timeouts ending.")
-(try (while true (print (:receive slow))) ([err] (print "done")))
+(try (while true (print (thread/receive))) ([err] (print "done")))
