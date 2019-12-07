@@ -2222,8 +2222,12 @@
       (do
         (set *no-file* false)
         (def env (make-env))
-        (put env :args (array/slice args i))
+        (def subargs (array/slice args i))
+        (put env :args subargs)
         (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator :env env)
+        (if-let [main (get (in env 'main) :value)]
+          (let [thunk (compile [main ;(tuple/slice args i)] env arg)]
+            (if (function? thunk) (thunk) (error (thunk :error)))))
         (set i lenargs))))
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
