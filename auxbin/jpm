@@ -674,7 +674,7 @@ int main(int argc, const char **argv) {
                          "# Metadata for static library %s\n\n%.20p"
                          (string name statext)
                          {:static-entry ename
-                          :lflags (opts :lflags)})))
+                          :lflags ~',(opts :lflags)})))
   (add-dep "build" metaname)
   (install-rule metaname path)
 
