@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - Use `(doc)` with no arguments to see available bindings and dynamic bindings.
 - `jpm` will use `CC` and `AR` environment variables when compiling programs.
 - Add `comptime` macro for compile time evaluation.
+- Run `main` functions in scripts if they exist, just like jpm standalone binaries.
 - Numerous small bug fixes and usability improvements.
 
 ### 1.5.1 - 2019-11-16
