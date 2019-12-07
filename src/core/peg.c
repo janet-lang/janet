@@ -1017,6 +1017,7 @@ static void peg_marshal(void *p, JanetMarshalContext *ctx) {
     Peg *peg = (Peg *)p;
     janet_marshal_size(ctx, peg->bytecode_len);
     janet_marshal_int(ctx, (int32_t)peg->num_constants);
+    janet_marshal_abstract(ctx, p);
     for (size_t i = 0; i < peg->bytecode_len; i++)
         janet_marshal_int(ctx, (int32_t) peg->bytecode[i]);
     for (uint32_t j = 0; j < peg->num_constants; j++)
@@ -1030,25 +1031,28 @@ static size_t size_padded(size_t offset, size_t size) {
     return x - (x % size);
 }
 
-static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
-    char *mem = p;
-    Peg *peg = (Peg *)p;
-    peg->bytecode_len = janet_unmarshal_size(ctx);
-    peg->num_constants = (uint32_t) janet_unmarshal_int(ctx);
+static void *peg_unmarshal(JanetMarshalContext *ctx) {
+    size_t bytecode_len = janet_unmarshal_size(ctx);
+    uint32_t num_constants = (uint32_t) janet_unmarshal_int(ctx);
 
     /* Calculate offsets. Should match those in make_peg */
     size_t bytecode_start = size_padded(sizeof(Peg), sizeof(uint32_t));
-    size_t bytecode_size = peg->bytecode_len * sizeof(uint32_t);
+    size_t bytecode_size = bytecode_len * sizeof(uint32_t);
     size_t constants_start = size_padded(bytecode_start + bytecode_size, sizeof(Janet));
+    size_t total_size = constants_start + sizeof(Janet) * num_constants;
+
+    /* DOS prevention? I.E. we could read bytecode and constants before
+     * hand so we don't allocated a ton of memory on bad, short input */
+
+    /* Allocate PEG */
+    char *mem = janet_unmarshal_abstract(ctx, total_size);
+    Peg *peg = (Peg *)mem;
     uint32_t *bytecode = (uint32_t *)(mem + bytecode_start);
     Janet *constants = (Janet *)(mem + constants_start);
     peg->bytecode = NULL;
     peg->constants = NULL;
-
-    /* Ensure not too large */
-    if (constants_start + sizeof(Janet) * peg->num_constants > janet_abstract_size(p)) {
-        janet_panic("size mismatch");
-    }
+    peg->bytecode_len = bytecode_len;
+    peg->num_constants = num_constants;
 
     for (size_t i = 0; i < peg->bytecode_len; i++)
         bytecode[i] = (uint32_t) janet_unmarshal_int(ctx);
@@ -1176,7 +1180,7 @@ static void peg_unmarshal(void *p, JanetMarshalContext *ctx) {
     peg->bytecode = bytecode;
     peg->constants = constants;
     free(op_flags);
-    return;
+    return peg;
 
 bad:
     free(op_flags);

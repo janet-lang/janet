@@ -1876,7 +1876,6 @@
   [image]
   (unmarshal image load-image-dict))
 
-(def- nati (if (= :windows (os/which)) ".dll" ".so"))
 (defn- check-. [x] (if (string/has-prefix? "." x) x))
 (defn- not-check-. [x] (unless (string/has-prefix? "." x) x))
 
@@ -1893,19 +1892,19 @@
     [":cur:/:all:.jimage" :image check-.]
     [":cur:/:all:.janet" :source check-.]
     [":cur:/:all:/init.janet" :source check-.]
-    [(string ":cur:/:all:" nati) :native check-.]
+    [":cur:/:all::native:" :native check-.]
 
     # As a path from (os/cwd)
     [":all:.jimage" :image not-check-.]
     [":all:.janet" :source not-check-.]
     [":all:/init.janet" :source not-check-.]
-    [(string ":all:" nati) :native not-check-.]
+    [":all::native:" :native not-check-.]
 
     # System paths
     [":sys:/:all:.jimage" :image not-check-.]
     [":sys:/:all:.janet" :source not-check-.]
     [":sys:/:all:/init.janet" :source not-check-.]
-    [(string ":sys:/:all:" nati) :native not-check-.]])
+    [":sys:/:all::native:" :native not-check-.]])
 
 (setdyn :syspath (boot/opts "JANET_PATH"))
 (setdyn :headerpath (boot/opts "JANET_HEADERPATH"))
@@ -1959,7 +1958,6 @@
       [nil (string "could not find module " path ":\n    " ;str-parts)])))
 
 (put _env 'fexists nil)
-(put _env 'nati nil)
 (put _env 'mod-filter nil)
 (put _env 'check-. nil)
 (put _env 'not-check-. nil)
@@ -2228,8 +2226,12 @@
       (do
         (set *no-file* false)
         (def env (make-env))
-        (put env :args (array/slice args i))
+        (def subargs (array/slice args i))
+        (put env :args subargs)
         (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator :env env)
+        (if-let [main (get (in env 'main) :value)]
+          (let [thunk (compile [main ;(tuple/slice args i)] env arg)]
+            (if (function? thunk) (thunk) (error (thunk :error)))))
         (set i lenargs))))
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))

@@ -891,6 +891,7 @@ typedef struct {
     void *u_state;
     int flags;
     const uint8_t *data;
+    const JanetAbstractType *at;
 } JanetMarshalContext;
 
 /* Defines an abstract type */
@@ -901,7 +902,7 @@ struct JanetAbstractType {
     Janet(*get)(void *data, Janet key);
     void (*put)(void *data, Janet key, Janet value);
     void (*marshal)(void *p, JanetMarshalContext *ctx);
-    void (*unmarshal)(void *p, JanetMarshalContext *ctx);
+    void *(*unmarshal)(JanetMarshalContext *ctx);
     void (*tostring)(void *p, JanetBuffer *buffer);
 };
 
@@ -1441,13 +1442,16 @@ JANET_API void janet_marshal_int64(JanetMarshalContext *ctx, int64_t value);
 JANET_API void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value);
 JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, size_t len);
 JANET_API void janet_marshal_janet(JanetMarshalContext *ctx, Janet x);
+JANET_API void janet_marshal_abstract(JanetMarshalContext *ctx, void *abstract);
 
+JANET_API void janet_unmarshal_ensure(JanetMarshalContext *ctx, size_t size);
 JANET_API size_t janet_unmarshal_size(JanetMarshalContext *ctx);
 JANET_API int32_t janet_unmarshal_int(JanetMarshalContext *ctx);
 JANET_API int64_t janet_unmarshal_int64(JanetMarshalContext *ctx);
 JANET_API uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx);
 JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, size_t len);
 JANET_API Janet janet_unmarshal_janet(JanetMarshalContext *ctx);
+JANET_API void *janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size);
 
 JANET_API void janet_register_abstract_type(const JanetAbstractType *at);
 JANET_API const JanetAbstractType *janet_get_abstract_type(Janet key);

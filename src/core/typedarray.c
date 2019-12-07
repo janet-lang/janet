@@ -94,17 +94,20 @@ static int ta_buffer_gc(void *p, size_t s) {
 
 static void ta_buffer_marshal(void *p, JanetMarshalContext *ctx) {
     JanetTArrayBuffer *buf = (JanetTArrayBuffer *)p;
+    janet_marshal_abstract(ctx, p);
     janet_marshal_size(ctx, buf->size);
     janet_marshal_int(ctx, buf->flags);
     janet_marshal_bytes(ctx, buf->data, buf->size);
 }
 
-static void ta_buffer_unmarshal(void *p, JanetMarshalContext *ctx) {
-    JanetTArrayBuffer *buf = (JanetTArrayBuffer *)p;
+static void *ta_buffer_unmarshal(JanetMarshalContext *ctx) {
+    JanetTArrayBuffer *buf = janet_unmarshal_abstract(ctx, sizeof(JanetTArrayBuffer));
     size_t size = janet_unmarshal_size(ctx);
+    int32_t flags = janet_unmarshal_int(ctx);
     ta_buffer_init(buf, size);
-    buf->flags = janet_unmarshal_int(ctx);
+    buf->flags = flags;
     janet_unmarshal_bytes(ctx, buf->data, size);
+    return buf;
 }
 
 static const JanetAbstractType ta_buffer_type = {
@@ -128,6 +131,7 @@ static int ta_mark(void *p, size_t s) {
 static void ta_view_marshal(void *p, JanetMarshalContext *ctx) {
     JanetTArrayView *view = (JanetTArrayView *)p;
     size_t offset = (view->buffer->data - view->as.u8);
+    janet_marshal_abstract(ctx, p);
     janet_marshal_size(ctx, view->size);
     janet_marshal_size(ctx, view->stride);
     janet_marshal_int(ctx, view->type);
@@ -135,11 +139,11 @@ static void ta_view_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_janet(ctx, janet_wrap_abstract(view->buffer));
 }
 
-static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
-    JanetTArrayView *view = (JanetTArrayView *)p;
+static void *ta_view_unmarshal(JanetMarshalContext *ctx) {
     size_t offset;
     int32_t atype;
     Janet buffer;
+    JanetTArrayView *view = janet_unmarshal_abstract(ctx, sizeof(JanetTArrayView));
     view->size = janet_unmarshal_size(ctx);
     view->stride = janet_unmarshal_size(ctx);
     atype = janet_unmarshal_int(ctx);
@@ -157,6 +161,7 @@ static void ta_view_unmarshal(void *p, JanetMarshalContext *ctx) {
     if (view->buffer->size < buf_need_size)
         janet_panic("bad typed array offset in marshalled data");
     view->as.u8 = view->buffer->data + offset;
+    return view;
 }
 
 static JanetMethod tarray_view_methods[6];

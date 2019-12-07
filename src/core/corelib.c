@@ -177,6 +177,13 @@ static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
             } else if (strncmp(template + i, ":name:", 6) == 0) {
                 janet_buffer_push_cstring(out, name);
                 i += 5;
+            } else if (strncmp(template + i, ":native:", 8) == 0) {
+#ifdef JANET_WINDOWS
+                janet_buffer_push_cstring(out, ".dll");
+#else
+                janet_buffer_push_cstring(out, ".so");
+#endif
+                i += 7;
             } else {
                 janet_buffer_push_u8(out, (uint8_t) template[i]);
             }
@@ -668,7 +675,13 @@ static const JanetReg corelib_cfuns[] = {
              "Expands a path template as found in module/paths for module/find. "
              "This takes in a path (the argument to require) and a template string, template, "
              "to expand the path to a path that can be "
-             "used for importing files.")
+             "used for importing files. The replacements are as follows:\n\n"
+             "\t:all:\tthe value of path verbatim\n"
+             "\t:cur:\tthe current file, or (dyn :current-file)\n"
+             "\t:dir:\tthe directory containing the current file\n"
+             "\t:name:\tthe filename component of path, with extenion if given\n"
+             "\t:native:\tthe extension used to load natives, .so or .dll\n"
+             "\t:sys:\tthe system path, or (syn :syspath)")
     },
     {
         "int?", janet_core_check_int,

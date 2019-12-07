@@ -338,6 +338,13 @@ void janet_marshal_janet(JanetMarshalContext *ctx, Janet x) {
     marshal_one(st, x, ctx->flags + 1);
 }
 
+void janet_marshal_abstract(JanetMarshalContext *ctx, void *abstract) {
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    janet_table_put(&st->seen,
+                    janet_wrap_abstract(abstract),
+                    janet_wrap_integer(st->nextid++));
+}
+
 #define MARK_SEEN() \
     janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
 
@@ -345,11 +352,9 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
     void *abstract = janet_unwrap_abstract(x);
     const JanetAbstractType *at = janet_abstract_type(abstract);
     if (at->marshal) {
-        JanetMarshalContext context = {st, NULL, flags, NULL};
         pushbyte(st, LB_ABSTRACT);
         marshal_one(st, janet_csymbolv(at->name), flags + 1);
-        push64(st, (uint64_t) janet_abstract_size(abstract));
-        MARK_SEEN();
+        JanetMarshalContext context = {st, NULL, flags, NULL, at};
         at->marshal(abstract, &context);
     } else {
         janet_panicf("try to marshal unregistered abstract type, cannot marshal %p", x);
@@ -983,6 +988,11 @@ static const uint8_t *unmarshal_one_fiber(
     return data;
 }
 
+void janet_unmarshal_ensure(JanetMarshalContext *ctx, size_t size) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    MARSH_EOS(st, ctx->data + size);
+}
+
 int32_t janet_unmarshal_int(JanetMarshalContext *ctx) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     return readint(st, &(ctx->data));
@@ -1017,17 +1027,28 @@ Janet janet_unmarshal_janet(JanetMarshalContext *ctx) {
     return ret;
 }
 
+void *janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+    if (ctx->at == NULL) {
+        janet_panicf("janet_unmarshal_abstract called more than once");
+    }
+    void *p = janet_abstract(ctx->at, size);
+    janet_v_push(st->lookup, janet_wrap_abstract(p));
+    ctx->at = NULL;
+    return p;
+}
+
 static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {
     Janet key;
     data = unmarshal_one(st, data, &key, flags + 1);
     const JanetAbstractType *at = janet_get_abstract_type(key);
     if (at == NULL) return NULL;
     if (at->unmarshal) {
-        void *p = janet_abstract(at, (size_t) read64(st, &data));
-        *out = janet_wrap_abstract(p);
-        JanetMarshalContext context = {NULL, st, flags, data};
-        janet_v_push(st->lookup, *out);
-        at->unmarshal(p, &context);
+        JanetMarshalContext context = {NULL, st, flags, data, at};
+        *out = janet_wrap_abstract(at->unmarshal(&context));
+        if (context.at != NULL) {
+            janet_panicf("janet_unmarshal_abstract not called");
+        }
         return context.data;
     }
     return NULL;
