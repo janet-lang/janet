@@ -40,11 +40,14 @@ static Janet it_s64_get(void *p, Janet key);
 static Janet it_u64_get(void *p, Janet key);
 
 static void int64_marshal(void *p, JanetMarshalContext *ctx) {
+    janet_marshal_abstract(ctx, p);
     janet_marshal_int64(ctx, *((int64_t *)p));
 }
 
-static void int64_unmarshal(void *p, JanetMarshalContext *ctx) {
-    *((int64_t *)p) = janet_unmarshal_int64(ctx);
+static void *int64_unmarshal(JanetMarshalContext *ctx) {
+    int64_t *p = janet_unmarshal_abstract(ctx, sizeof(int64_t));
+    p[0] = janet_unmarshal_int64(ctx);
+    return p;
 }
 
 static void it_s64_tostring(void *p, JanetBuffer *buffer) {

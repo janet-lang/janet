@@ -33,6 +33,7 @@ static Janet janet_rng_get(void *p, Janet key);
 
 static void janet_rng_marshal(void *p, JanetMarshalContext *ctx) {
     JanetRNG *rng = (JanetRNG *)p;
+    janet_marshal_abstract(ctx, p);
     janet_marshal_int(ctx, (int32_t) rng->a);
     janet_marshal_int(ctx, (int32_t) rng->b);
     janet_marshal_int(ctx, (int32_t) rng->c);
@@ -40,13 +41,14 @@ static void janet_rng_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_int(ctx, (int32_t) rng->counter);
 }
 
-static void janet_rng_unmarshal(void *p, JanetMarshalContext *ctx) {
-    JanetRNG *rng = (JanetRNG *)p;
+static void *janet_rng_unmarshal(JanetMarshalContext *ctx) {
+    JanetRNG *rng = janet_unmarshal_abstract(ctx, sizeof(JanetRNG));
     rng->a = (uint32_t) janet_unmarshal_int(ctx);
     rng->b = (uint32_t) janet_unmarshal_int(ctx);
     rng->c = (uint32_t) janet_unmarshal_int(ctx);
     rng->d = (uint32_t) janet_unmarshal_int(ctx);
     rng->counter = (uint32_t) janet_unmarshal_int(ctx);
+    return rng;
 }
 
 static JanetAbstractType JanetRNG_type = {
