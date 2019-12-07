@@ -45,6 +45,7 @@ struct JanetMailbox {
 };
 
 static JANET_THREAD_LOCAL JanetMailbox *janet_vm_mailbox = NULL;
+static JANET_THREAD_LOCAL JanetThread *janet_vm_thread_self = NULL;
 
 static JanetMailbox *janet_mailbox_create(JanetMailbox *parent, int refCount) {
     JanetMailbox *mailbox = malloc(sizeof(JanetMailbox));
@@ -80,20 +81,6 @@ static void janet_mailbox_ref_with_lock(JanetMailbox *mailbox, int delta) {
 static void janet_mailbox_ref(JanetMailbox *mailbox, int delta) {
     pthread_mutex_lock(&mailbox->lock);
     janet_mailbox_ref_with_lock(mailbox, delta);
-}
-
-void janet_threads_init(void) {
-    if (NULL != janet_vm_mailbox) {
-        return;
-    }
-    janet_vm_mailbox = janet_mailbox_create(NULL, 1);
-}
-
-void janet_threads_deinit(void) {
-    pthread_mutex_lock(&janet_vm_mailbox->lock);
-    janet_vm_mailbox->closed = 1;
-    janet_mailbox_ref_with_lock(janet_vm_mailbox, -1);
-    janet_vm_mailbox = NULL;
 }
 
 static void janet_close_thread(JanetThread *thread) {
@@ -349,8 +336,37 @@ static int janet_thread_start_child(JanetThread *thread) {
 }
 
 /*
+ * Setup/Teardown
+ */
+
+void janet_threads_init(void) {
+    if (NULL == janet_vm_mailbox) {
+        janet_vm_mailbox = janet_mailbox_create(NULL, 1);
+    }
+}
+
+void janet_threads_deinit(void) {
+    pthread_mutex_lock(&janet_vm_mailbox->lock);
+    janet_vm_mailbox->closed = 1;
+    janet_mailbox_ref_with_lock(janet_vm_mailbox, -1);
+    janet_vm_mailbox = NULL;
+    janet_vm_thread_self = NULL;
+}
+
+/*
  * Cfuns
  */
+
+static Janet cfun_thread_self(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_fixarity(argc, 0);
+    if (NULL == janet_vm_thread_self) {
+        janet_vm_thread_self = janet_make_thread(janet_vm_mailbox, janet_get_core_table("make-image-dict"));
+        janet_mailbox_ref(janet_vm_mailbox, 1);
+        janet_gcroot(janet_wrap_abstract(janet_vm_thread_self));
+    }
+    return janet_wrap_abstract(janet_vm_thread_self);
+}
 
 static Janet cfun_thread_new(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 0);
@@ -419,6 +435,11 @@ static Janet janet_thread_getter(void *p, Janet key) {
 }
 
 static const JanetReg threadlib_cfuns[] = {
+    {
+        "thread/self", cfun_thread_self,
+        JDOC("(thread/self)\n\n"
+             "Get the current running thread.")
+    },
     {
         "thread/new", cfun_thread_new,
         JDOC("(thread/new)\n\n"
