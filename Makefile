@@ -249,10 +249,12 @@ valgrind: $(JANET_TARGET)
 
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in test/suite*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
-	$(JANET_TARGET) -k auxbin/jpm
+	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
+	./$(JANET_TARGET) -k auxbin/jpm
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in test/suite*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
+	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
 	$(VALGRIND_COMMAND) ./$(JANET_TARGET) -k auxbin/jpm
 
 callgrind: $(JANET_TARGET)

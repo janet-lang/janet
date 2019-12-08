@@ -1030,7 +1030,7 @@ JanetSignal janet_step(JanetFiber *fiber, Janet in, Janet *out) {
     /* Check current opcode (sans debug flag). This tells us where the next or next two candidate
      * instructions will be. Usually it's the next instruction in memory,
      * but for branching instructions it is also the target of the branch. */
-    uint32_t *nexta = NULL, *nextb = NULL, olda, oldb;
+    uint32_t *nexta = NULL, *nextb = NULL, olda = 0, oldb = 0;
 
     /* Set temporary breakpoints */
     switch (*pc & 0x7F) {
