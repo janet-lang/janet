@@ -53,7 +53,7 @@ struct IOFile {
 };
 
 static int cfun_io_gc(void *p, size_t len);
-static Janet io_file_get(void *p, Janet);
+static int io_file_get(void *p, Janet key, Janet *out);
 
 JanetAbstractType cfun_io_filetype = {
     "core/file",
@@ -353,11 +353,12 @@ static JanetMethod io_file_methods[] = {
     {NULL, NULL}
 };
 
-static Janet io_file_get(void *p, Janet key) {
+static int io_file_get(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD))
-        janet_panicf("expected keyword, got %v", key);
-    return janet_getmethod(janet_unwrap_keyword(key), io_file_methods);
+        return 0;
+    *out = janet_getmethod(janet_unwrap_keyword(key), io_file_methods);
+    return !janet_checktype(*out, JANET_NIL);
 }
 
 FILE *janet_dynfile(const char *name, FILE *def) {

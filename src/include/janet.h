@@ -894,7 +894,7 @@ struct JanetAbstractType {
     const char *name;
     int (*gc)(void *data, size_t len);
     int (*gcmark)(void *data, size_t len);
-    Janet(*get)(void *data, Janet key);
+    int (*get)(void *data, Janet key, Janet *out);
     void (*put)(void *data, Janet key, Janet value);
     void (*marshal)(void *p, JanetMarshalContext *ctx);
     void *(*unmarshal)(JanetMarshalContext *ctx);

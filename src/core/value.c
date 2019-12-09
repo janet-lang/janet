@@ -197,7 +197,8 @@ Janet janet_in(Janet ds, Janet key) {
         case JANET_ABSTRACT: {
             JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(janet_unwrap_abstract(ds));
             if (type->get) {
-                value = (type->get)(janet_unwrap_abstract(ds), key);
+                if (!(type->get)(janet_unwrap_abstract(ds), key, &value))
+                    janet_panicf("key %v not found in %v ", key, ds);
             } else {
                 janet_panicf("no getter for %v ", ds);
             }
@@ -223,10 +224,13 @@ Janet janet_get(Janet ds, Janet key) {
             return janet_wrap_integer(str[index]);
         }
         case JANET_ABSTRACT: {
+            Janet value;
             void *abst = janet_unwrap_abstract(ds);
             JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(abst);
             if (!type->get) return janet_wrap_nil();
-            return (type->get)(abst, key);
+            if ((type->get)(abst, key, &value))
+                return value;
+            return janet_wrap_nil();
         }
         case JANET_ARRAY:
         case JANET_TUPLE:
@@ -304,7 +308,8 @@ Janet janet_getindex(Janet ds, int32_t index) {
         case JANET_ABSTRACT: {
             JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(janet_unwrap_abstract(ds));
             if (type->get) {
-                value = (type->get)(janet_unwrap_abstract(ds), janet_wrap_integer(index));
+                if (!(type->get)(janet_unwrap_abstract(ds), janet_wrap_integer(index), &value))
+                    value = janet_wrap_nil();
             } else {
                 janet_panicf("no getter for %v ", ds);
             }
