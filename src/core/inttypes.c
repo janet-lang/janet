@@ -36,8 +36,8 @@
 
 #define MAX_INT_IN_DBL 9007199254740992ULL /* 2^53 */
 
-static Janet it_s64_get(void *p, Janet key);
-static Janet it_u64_get(void *p, Janet key);
+static int it_s64_get(void *p, Janet key, Janet *out);
+static int it_u64_get(void *p, Janet key, Janet *out);
 
 static void int64_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_abstract(ctx, p);
@@ -351,18 +351,20 @@ static JanetMethod it_u64_methods[] = {
     {NULL, NULL}
 };
 
-static Janet it_s64_get(void *p, Janet key) {
+static int it_s64_get(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD))
-        janet_panicf("expected keyword, got %v", key);
-    return janet_getmethod(janet_unwrap_keyword(key), it_s64_methods);
+        return 0;
+    *out = janet_getmethod(janet_unwrap_keyword(key), it_s64_methods);
+    return !janet_checktype(*out, JANET_NIL);
 }
 
-static Janet it_u64_get(void *p, Janet key) {
+static int it_u64_get(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD))
-        janet_panicf("expected keyword, got %v", key);
-    return janet_getmethod(janet_unwrap_keyword(key), it_u64_methods);
+        return 0;
+    *out = janet_getmethod(janet_unwrap_keyword(key), it_u64_methods);
+    return !janet_checktype(*out, JANET_NIL);
 }
 
 static const JanetReg it_cfuns[] = {
