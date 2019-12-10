@@ -355,16 +355,14 @@ static int it_s64_get(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD))
         return 0;
-    *out = janet_getmethod(janet_unwrap_keyword(key), it_s64_methods);
-    return !janet_checktype(*out, JANET_NIL);
+    return janet_getmethod(janet_unwrap_keyword(key), it_s64_methods, out);
 }
 
 static int it_u64_get(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD))
         return 0;
-    *out = janet_getmethod(janet_unwrap_keyword(key), it_u64_methods);
-    return !janet_checktype(*out, JANET_NIL);
+    return janet_getmethod(janet_unwrap_keyword(key), it_u64_methods, out);
 }
 
 static const JanetReg it_cfuns[] = {

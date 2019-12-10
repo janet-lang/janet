@@ -357,8 +357,7 @@ static int io_file_get(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD))
         return 0;
-    *out = janet_getmethod(janet_unwrap_keyword(key), io_file_methods);
-    return !janet_checktype(*out, JANET_NIL);
+    return janet_getmethod(janet_unwrap_keyword(key), io_file_methods, out);
 }
 
 FILE *janet_dynfile(const char *name, FILE *def) {

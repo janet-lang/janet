@@ -170,8 +170,7 @@ static int ta_getter(void *p, Janet key, Janet *out) {
     size_t index, i;
     JanetTArrayView *array = p;
     if (janet_checktype(key, JANET_KEYWORD)) {
-        *out = janet_getmethod(janet_unwrap_keyword(key), tarray_view_methods);
-        return !janet_checktype(*out, JANET_NIL);
+        return janet_getmethod(janet_unwrap_keyword(key), tarray_view_methods, out);
     }
     if (!janet_checksize(key)) janet_panic("expected size as key");
     index = (size_t) janet_unwrap_number(key);

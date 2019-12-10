@@ -199,8 +199,7 @@ static const JanetMethod rng_methods[] = {
 static int janet_rng_get(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD)) return 0;
-    *out = janet_getmethod(janet_unwrap_keyword(key), rng_methods);
-    return !janet_checktype(*out, JANET_NIL);
+    return janet_getmethod(janet_unwrap_keyword(key), rng_methods, out);
 }
 
 /* Get a random number */

@@ -1058,8 +1058,7 @@ static const JanetMethod parser_methods[] = {
 static int parserget(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD)) return 0;
-    *out = janet_getmethod(janet_unwrap_keyword(key), parser_methods);
-    return !janet_checktype(*out, JANET_NIL);
+    return janet_getmethod(janet_unwrap_keyword(key), parser_methods, out);
 }
 
 static const JanetReg parse_cfuns[] = {

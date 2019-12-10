@@ -1355,7 +1355,7 @@ JANET_NO_RETURN JANET_API void janet_panic_abstract(Janet x, int32_t n, const Ja
 JANET_API void janet_arity(int32_t arity, int32_t min, int32_t max);
 JANET_API void janet_fixarity(int32_t arity, int32_t fix);
 
-JANET_API Janet janet_getmethod(const uint8_t *method, const JanetMethod *methods);
+JANET_API int janet_getmethod(const uint8_t *method, const JanetMethod *methods, Janet *out);
 
 JANET_API double janet_getnumber(const Janet *argv, int32_t n);
 JANET_API JanetArray *janet_getarray(const Janet *argv, int32_t n);
