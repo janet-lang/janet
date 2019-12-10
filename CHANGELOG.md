@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 - `jpm` will use `CC` and `AR` environment variables when compiling programs.
 - Add `comptime` macro for compile time evaluation.
 - Run `main` functions in scripts if they exist, just like jpm standalone binaries.
+- Add `protect` macro.
 - Change marshalling protocol with regard to abstract types.
 - Numerous small bug fixes and usability improvements.
 
