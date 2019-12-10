@@ -1164,10 +1164,10 @@ JANET_API void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
 #define janet_tuple_sm_column(t) (janet_tuple_head(t)->sm_column)
 #define janet_tuple_flag(t) (janet_tuple_head(t)->gc.flags)
 JANET_API Janet *janet_tuple_begin(int32_t length);
-JANET_API const Janet *janet_tuple_end(Janet *tuple);
-JANET_API const Janet *janet_tuple_n(const Janet *values, int32_t n);
-JANET_API int janet_tuple_equal(const Janet *lhs, const Janet *rhs);
-JANET_API int janet_tuple_compare(const Janet *lhs, const Janet *rhs);
+JANET_API JanetTuple janet_tuple_end(Janet *tuple);
+JANET_API JanetTuple janet_tuple_n(const Janet *values, int32_t n);
+JANET_API int janet_tuple_equal(JanetTuple lhs, JanetTuple rhs);
+JANET_API int janet_tuple_compare(JanetTuple lhs, JanetTuple rhs);
 
 /* String/Symbol functions */
 #define janet_string_head(s) ((JanetStringHead *)((char *)s - offsetof(JanetStringHead, data)))
@@ -1190,9 +1190,9 @@ JANET_API JanetString janet_formatc(const char *format, ...);
 JANET_API void janet_formatb(JanetBuffer *bufp, const char *format, va_list args);
 
 /* Symbol functions */
-JANET_API JanetString janet_symbol(const uint8_t *str, int32_t len);
-JANET_API JanetString janet_csymbol(const char *str);
-JANET_API JanetString janet_symbol_gen(void);
+JANET_API JanetSymbol janet_symbol(const uint8_t *str, int32_t len);
+JANET_API JanetSymbol janet_csymbol(const char *str);
+JANET_API JanetSymbol janet_symbol_gen(void);
 #define janet_symbolv(str, len) janet_wrap_symbol(janet_symbol((str), (len)))
 #define janet_csymbolv(cstr) janet_wrap_symbol(janet_csymbol(cstr))
 
@@ -1249,7 +1249,7 @@ JANET_API const JanetKV *janet_dictionary_next(const JanetKV *kvs, int32_t cap, 
 #define janet_abstract_type(u) (janet_abstract_head(u)->type)
 #define janet_abstract_size(u) (janet_abstract_head(u)->size)
 JANET_API void *janet_abstract_begin(const JanetAbstractType *type, size_t size);
-JANET_API JanetAbstract janet_abstract_end(void *);
+JANET_API JanetAbstract janet_abstract_end(void *abstractTemplate);
 JANET_API JanetAbstract janet_abstract(const JanetAbstractType *type, size_t size); /* begin and end in one call */
 
 /* Native */
@@ -1335,7 +1335,7 @@ typedef enum {
 JANET_API void janet_def(JanetTable *env, const char *name, Janet val, const char *documentation);
 JANET_API void janet_var(JanetTable *env, const char *name, Janet val, const char *documentation);
 JANET_API void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
-JANET_API JanetBindingType janet_resolve(JanetTable *env, JanetString sym, Janet *out);
+JANET_API JanetBindingType janet_resolve(JanetTable *env, JanetSymbol sym, Janet *out);
 JANET_API void janet_register(const char *name, JanetCFunction cfun);
 
 /* New C API */
@@ -1363,7 +1363,7 @@ JANET_NO_RETURN JANET_API void janet_panic_abstract(Janet x, int32_t n, const Ja
 JANET_API void janet_arity(int32_t arity, int32_t min, int32_t max);
 JANET_API void janet_fixarity(int32_t arity, int32_t fix);
 
-JANET_API int janet_getmethod(JanetString method, const JanetMethod *methods, Janet *out);
+JANET_API int janet_getmethod(JanetKeyword method, const JanetMethod *methods, Janet *out);
 
 JANET_API double janet_getnumber(const Janet *argv, int32_t n);
 JANET_API JanetArray *janet_getarray(const Janet *argv, int32_t n);
@@ -1372,8 +1372,8 @@ JANET_API JanetTable *janet_gettable(const Janet *argv, int32_t n);
 JANET_API JanetStruct janet_getstruct(const Janet *argv, int32_t n);
 JANET_API JanetString janet_getstring(const Janet *argv, int32_t n);
 JANET_API const char *janet_getcstring(const Janet *argv, int32_t n);
-JANET_API JanetString janet_getsymbol(const Janet *argv, int32_t n);
-JANET_API JanetString janet_getkeyword(const Janet *argv, int32_t n);
+JANET_API JanetSymbol janet_getsymbol(const Janet *argv, int32_t n);
+JANET_API JanetKeyword janet_getkeyword(const Janet *argv, int32_t n);
 JANET_API JanetBuffer *janet_getbuffer(const Janet *argv, int32_t n);
 JANET_API JanetFiber *janet_getfiber(const Janet *argv, int32_t n);
 JANET_API JanetFunction *janet_getfunction(const Janet *argv, int32_t n);
@@ -1400,8 +1400,8 @@ JANET_API JanetTuple janet_opttuple(const Janet *argv, int32_t argc, int32_t n, 
 JANET_API JanetStruct janet_optstruct(const Janet *argv, int32_t argc, int32_t n, JanetStruct dflt);
 JANET_API JanetString janet_optstring(const Janet *argv, int32_t argc, int32_t n, JanetString dflt);
 JANET_API const char *janet_optcstring(const Janet *argv, int32_t argc, int32_t n, const char *dflt);
-JANET_API JanetString janet_optsymbol(const Janet *argv, int32_t argc, int32_t n, JanetString dflt);
-JANET_API JanetString janet_optkeyword(const Janet *argv, int32_t argc, int32_t n, JanetString dflt);
+JANET_API JanetSymbol janet_optsymbol(const Janet *argv, int32_t argc, int32_t n, JanetString dflt);
+JANET_API JanetKeyword janet_optkeyword(const Janet *argv, int32_t argc, int32_t n, JanetString dflt);
 JANET_API JanetFiber *janet_optfiber(const Janet *argv, int32_t argc, int32_t n, JanetFiber *dflt);
 JANET_API JanetFunction *janet_optfunction(const Janet *argv, int32_t argc, int32_t n, JanetFunction *dflt);
 JANET_API JanetCFunction janet_optcfunction(const Janet *argv, int32_t argc, int32_t n, JanetCFunction dflt);
