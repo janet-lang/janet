@@ -433,9 +433,10 @@ static Janet os_time(int32_t argc, Janet *argv) {
 /* Clock shims */
 #ifdef JANET_WINDOWS
 static int gettime(struct timespec *spec) {
-    int64_t wintime = 0LL;
-    GetSystemTimeAsFileTime((FILETIME *)&wintime);
-    /* Windows epoch is January 1, 1601 apparently*/
+    FILETIME ftime;
+    GetSystemTimeAsFileTime(&ftime);
+    int64_t wintime = (int64_t)(ftime.dwLowDateTime) | ((int64_t)(ftime.dwHighDateTime) << 32);
+    /* Windows epoch is January 1, 1601 apparently */
     wintime -= 116444736000000000LL;
     spec->tv_sec  = wintime / 10000000LL;
     /* Resolution is 100 nanoseconds. */
