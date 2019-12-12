@@ -612,7 +612,7 @@ static Janet os_link(int32_t argc, Janet *argv) {
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
     int res = ((argc == 3 && janet_getboolean(argv, 2)) ? symlink : link)(oldpath, newpath);
-    if (res == -1) janet_panic(strerror(errno));
+    if (-1 == res) janet_panicf("%s: %s -> %s", strerror(errno), oldpath, newpath);
     return janet_wrap_integer(res);
 #endif
 }
@@ -636,7 +636,7 @@ static Janet os_rmdir(int32_t argc, Janet *argv) {
 #else
     int res = rmdir(path);
 #endif
-    if (res == -1) janet_panic(strerror(errno));
+    if (-1 == res) janet_panicf("%s: %s", strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -648,7 +648,7 @@ static Janet os_cd(int32_t argc, Janet *argv) {
 #else
     int res = chdir(path);
 #endif
-    if (res == -1) janet_panic(strerror(errno));
+    if (-1 == res) janet_panicf("%s: %s", strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -676,7 +676,7 @@ static Janet os_remove(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
     int status = remove(path);
-    if (-1 == status) janet_panic(strerror(errno));
+    if (-1 == status) janet_panicf("%s: %s", strerror(errno), path);
     return janet_wrap_nil();
 }
 
