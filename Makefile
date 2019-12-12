@@ -27,7 +27,7 @@ PREFIX?=/usr/local
 INCLUDEDIR?=$(PREFIX)/include
 BINDIR?=$(PREFIX)/bin
 LIBDIR?=$(PREFIX)/lib
-JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1)\""
+JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 || 'local')\""
 CLIBS=-lm -lpthread
 JANET_TARGET=build/janet
 JANET_LIBRARY=build/libjanet.so

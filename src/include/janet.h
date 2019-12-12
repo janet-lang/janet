@@ -112,8 +112,10 @@ extern "C" {
 #define JANET_THREAD_LOCAL
 #elif defined(__GNUC__)
 #define JANET_THREAD_LOCAL __thread
+#define JANET_THREADS
 #elif defined(_MSC_BUILD)
 #define JANET_THREAD_LOCAL __declspec(thread)
+#define JANET_THREADS
 #else
 #define JANET_THREAD_LOCAL
 #endif
@@ -141,11 +143,6 @@ extern "C" {
 /* Enable or disable large int types (for now 64 bit, maybe 128 / 256 bit integer types) */
 #ifndef JANET_NO_INT_TYPES
 #define JANET_INT_TYPES
-#endif
-
-/* Enable or disable threads */
-#ifndef JANET_NO_THREADS
-#define JANET_THREADS
 #endif
 
 /* How to export symbols */
