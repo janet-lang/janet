@@ -221,12 +221,15 @@
 (defn rm
   "Remove a directory and all sub directories."
   [path]
-  (if (= (os/stat path :mode) :directory)
-    (do
-      (each subpath (os/dir path)
-        (rm (string path sep subpath)))
-      (os/rmdir path))
-    (os/rm path)))
+  (try
+    (if (= (os/stat path :mode) :directory)
+      (do
+        (each subpath (os/dir path)
+          (rm (string path sep subpath)))
+        (os/rmdir path))
+      (os/rm path))
+    ([err f] (unless (string/has-prefix? "No such file or directory" err)
+               (propagate err f)))))
 
 (defn copy
   "Copy a file or directory recursively from one location to another."
@@ -237,6 +240,17 @@
           isdir (= (os/stat src :mode) :directory)]
         (shell "xcopy" src (if isdir (string dest "\\" end) dest) "/y" "/s" "/e" "/i"))
     (shell "cp" "-rf" src dest)))
+
+(defn mkdir
+  "Create a directory if it doesn't exist. If it does exist, do nothing.
+  If we can't create it, give a friendly error. Return true if created, false if
+  existing. Throw an error if we can't create it."
+  [dir]
+  (if (os/mkdir dir)
+    true
+    (if (os/stat dir :mode)
+      false
+      (error (string "Could not create " dir " - this could be a permission issue.")))))
 
 #
 # C Compilation
@@ -562,9 +576,7 @@ int main(int argc, const char **argv) {
     (def path ((string/split "\n" line) 0))
     (def path ((string/split "\r" path) 0))
     (print "removing " path)
-    (try (rm path) ([err]
-                    (unless (= err "No such file or directory")
-                      (error err)))))
+    (rm path))
   (:close f)
   (print "removing " manifest)
   (rm manifest)
@@ -585,17 +597,17 @@ int main(int argc, const char **argv) {
 
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle
-                                             is reinistalled (but not rebuilt if artifacts are cached)."
+   is reinistalled (but not rebuilt if artifacts are cached)."
   [repotab &opt recurse]
   (def repo (if (string? repotab) repotab (repotab :repo)))
   (def tag (unless (string? repotab) (repotab :tag)))
-  # prevent infinite recursion (very unlikely, but consider 
+  # prevent infinite recursion (very unlikely, but consider
   # 'my-package "my-package" in the package listing)
   (when (> (or recurse 0) 100)
     (error "too many references resolving package url"))
   # Handle short names
   (unless (string/find ":" repo)
-    (def pkgs 
+    (def pkgs
       (try (require "pkgs")
                    ([err f]
                     (install-git (dyn :pkglist default-pkglist))
@@ -607,13 +619,14 @@ int main(int argc, const char **argv) {
       (error (string "expected string or table for repository, got " next-repo)))
     (break (install-git next-repo (if recurse (inc recurse) 0))))
   (def cache (find-cache))
-  (os/mkdir cache)
+  (mkdir cache)
   (def id (filepath-replace repo))
   (def module-dir (string cache sep id))
   (var fresh false)
-  (when (os/mkdir module-dir)
-    (set fresh true)
-    (os/execute ["git" "clone" repo module-dir] :p))
+  (when (mkdir module-dir)
+      (set fresh true)
+      (print "cloning repository " repo " to " module-dir)
+      (os/execute ["git" "clone" repo module-dir] :p))
   (def olddir (os/cwd))
   (try
     (with-dyns [:rules @{}
@@ -642,7 +655,7 @@ int main(int argc, const char **argv) {
   (def path (string destdir sep name))
   (array/push (dyn :installed-files) path)
   (add-body "install"
-            (os/mkdir destdir)
+            (mkdir destdir)
             (copy src destdir)))
 
 #
@@ -783,12 +796,12 @@ int main(int argc, const char **argv) {
   (setdyn :manifest-dir manifests)
   (setdyn :installed-files installed-files)
 
-  (rule "./build" [] (os/mkdir "build"))
+  (rule "./build" [] (mkdir "build"))
   (phony "build" ["./build"])
 
   (phony "manifest" []
          (print "generating " manifest "...")
-         (os/mkdir manifests)
+         (mkdir manifests)
          (spit manifest (string (string/join installed-files "\n") "\n")))
   (phony "install" ["uninstall" "build" "manifest"]
          (when (dyn :test)

@@ -218,10 +218,20 @@
         f (gensym)
         r (gensym)]
     ~(let [,f (,fiber/new (fn [] ,body) :ie)
-           ,r (resume ,f)]
+           ,r (,resume ,f)]
        (if (= (,fiber/status ,f) :error)
          (do (def ,err ,r) ,(if fib ~(def ,fib ,f)) ,;(tuple/slice catch 1))
          ,r))))
+
+(defmacro protect
+  "Evaluate expressions, while capturing any errors. Evaluates to a tuple
+  of two elements. The first element is true if successful, false if an
+  error, and the second is the return value or error."
+  [& body]
+  (let [f (gensym) r (gensym)]
+    ~(let [,f (,fiber/new (fn [] ,;body) :ie)
+          ,r (,resume ,f)]
+      [(,not= :error (,fiber/status ,f)) ,r])))
 
 (defmacro and
   "Evaluates to the last argument if all preceding elements are true, otherwise

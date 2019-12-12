@@ -29,7 +29,7 @@
 
 static JANET_THREAD_LOCAL JanetRNG janet_vm_rng = {0, 0, 0, 0, 0};
 
-static Janet janet_rng_get(void *p, Janet key);
+static int janet_rng_get(void *p, Janet key, Janet *out);
 
 static void janet_rng_marshal(void *p, JanetMarshalContext *ctx) {
     JanetRNG *rng = (JanetRNG *)p;
@@ -196,10 +196,10 @@ static const JanetMethod rng_methods[] = {
     {NULL, NULL}
 };
 
-static Janet janet_rng_get(void *p, Janet key) {
+static int janet_rng_get(void *p, Janet key, Janet *out) {
     (void) p;
-    if (!janet_checktype(key, JANET_KEYWORD)) janet_panicf("expected keyword method");
-    return janet_getmethod(janet_unwrap_keyword(key), rng_methods);
+    if (!janet_checktype(key, JANET_KEYWORD)) return 0;
+    return janet_getmethod(janet_unwrap_keyword(key), rng_methods, out);
 }
 
 /* Get a random number */

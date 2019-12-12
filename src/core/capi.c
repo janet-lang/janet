@@ -103,13 +103,15 @@ type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, int32_t dflt_le
     return janet_get##name(argv, n); \
 }
 
-Janet janet_getmethod(const uint8_t *method, const JanetMethod *methods) {
+int janet_getmethod(const uint8_t *method, const JanetMethod *methods, Janet *out) {
     while (methods->name) {
-        if (!janet_cstrcmp(method, methods->name))
-            return janet_wrap_cfunction(methods->cfun);
+        if (!janet_cstrcmp(method, methods->name)) {
+            *out = janet_wrap_cfunction(methods->cfun);
+            return 1;
+        }
         methods++;
     }
-    return janet_wrap_nil();
+    return 0;
 }
 
 DEFINE_GETTER(number, NUMBER, double)

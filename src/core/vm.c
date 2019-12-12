@@ -1201,9 +1201,8 @@ Janet janet_mcall(const char *name, int32_t argc, Janet *argv) {
     if (janet_checktype(argv[0], JANET_ABSTRACT)) {
         void *abst = janet_unwrap_abstract(argv[0]);
         JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(abst);
-        if (!type->get)
+        if (!type->get || !(type->get)(abst, janet_ckeywordv(name), &method))
             janet_panicf("abstract value %v does not implement :%s", argv[0], name);
-        method = (type->get)(abst, janet_ckeywordv(name));
     } else if (janet_checktype(argv[0], JANET_TABLE)) {
         JanetTable *table = janet_unwrap_table(argv[0]);
         method = janet_table_get(table, janet_ckeywordv(name));
