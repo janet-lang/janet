@@ -66,7 +66,8 @@ struct JanetMailbox {
     uint16_t messageFirst;
     uint16_t messageNext;
 
-    /* Buffers to store messages */
+    /* Buffers to store messages. These buffers are manually allocated, so
+     * are not owned by any thread's GC. */
     JanetBuffer messages[];
 };
 
@@ -267,8 +268,6 @@ int janet_thread_send(JanetThread *thread, Janet msg, double timeout) {
         return 2;
     }
 
-    int didWait = 0;
-
     /* Back pressure */
     if (mailbox_at_capacity(mailbox)) {
         JanetWaiter wait;
@@ -281,7 +280,6 @@ int janet_thread_send(JanetThread *thread, Janet msg, double timeout) {
 
         /* Retry loop, as there can be multiple writers */
         while (mailbox_at_capacity(mailbox)) {
-            didWait = 1;
             if (janet_waiter_wait(&wait, mailbox)) {
                 janet_mailbox_unlock(mailbox);
                 janet_mailbox_wakeup(mailbox);
@@ -318,7 +316,7 @@ int janet_thread_send(JanetThread *thread, Janet msg, double timeout) {
     janet_mailbox_unlock(mailbox);
 
     /* Potentially wake up a blocked thread */
-    if (didWait || (oldmcount == 0 && ret == 0)) janet_mailbox_wakeup(mailbox);
+    janet_mailbox_wakeup(mailbox);
 
     return ret;
 }
@@ -367,8 +365,8 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
                 janet_vm_jmp_buf = old_buf;
                 janet_mailbox_unlock(mailbox);
 
-                /* Wake up pending writers */
-                if (wasAtCapacity) janet_mailbox_wakeup(mailbox);
+                /* Potentially wake up pending threads */
+                janet_mailbox_wakeup(mailbox);
 
                 return 0;
             }
