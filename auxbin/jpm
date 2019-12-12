@@ -114,7 +114,7 @@
 
 # Detect threads
 (def env (fiber/getenv (fiber/current)))
-(def threads? (not (not (env 'thread/from-image))))
+(def threads? (not (not (env 'thread/new))))
 
 (print "threads " threads?)
 

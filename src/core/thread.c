@@ -335,10 +335,6 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
         /* Check for messages waiting for us */
         if (mailbox->messageCount > 0) {
 
-            /* If we were over capacity, receiving a message should
-             * bring us under capacity. We can therefor wake up pending writers. */
-            int wasAtCapacity = mailbox_at_capacity(mailbox);
-
             /* Hack to capture all panics from marshalling. This works because
              * we know janet_marshal won't mess with other essential global state. */
             jmp_buf buf;
@@ -386,7 +382,7 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
 
 }
 
-static Janet janet_thread_getter(void *p, Janet key);
+static int janet_thread_getter(void *p, Janet key, Janet *out);
 
 static JanetAbstractType Thread_AT = {
     "core/thread",
@@ -604,10 +600,10 @@ static const JanetMethod janet_thread_methods[] = {
     {NULL, NULL}
 };
 
-static Janet janet_thread_getter(void *p, Janet key) {
+static int janet_thread_getter(void *p, Janet key, Janet *out) {
     (void) p;
-    if (!janet_checktype(key, JANET_KEYWORD)) janet_panicf("expected keyword method");
-    return janet_getmethod(janet_unwrap_keyword(key), janet_thread_methods);
+    if (!janet_checktype(key, JANET_KEYWORD)) return 0;
+    return janet_getmethod(janet_unwrap_keyword(key), janet_thread_methods, out);
 }
 
 static const JanetReg threadlib_cfuns[] = {
