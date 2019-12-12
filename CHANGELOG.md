@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ### Unreleased
+- Add `thread/` module to the core.
 - Allow seeding RNGs with any sequence of bytes. This provides
   a wider key space for the RNG. Exposed in C as `janet_rng_longseed`.
 - Fix issue in `resume` and similar functions that could cause breakpoints to be skipped.
