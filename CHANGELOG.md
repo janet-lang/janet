@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 - Add `comptime` macro for compile time evaluation.
 - Run `main` functions in scripts if they exist, just like jpm standalone binaries.
 - Add `protect` macro.
+- Add `root-env` to get the root environment table.
 - Change marshalling protocol with regard to abstract types.
 - Numerous small bug fixes and usability improvements.
 

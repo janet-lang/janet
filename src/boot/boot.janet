@@ -2271,11 +2271,14 @@
 ###
 ###
 
+(def root-env "The root environment used to create envionments with (make-env)" _env)
+
 (do
   (put _env 'boot/opts nil)
   (put _env '_env nil)
-  (merge-into load-image-dict (env-lookup _env))
-  (merge-into make-image-dict (invert load-image-dict)))
+  (def load-dict (env-lookup _env))
+  (merge-into load-image-dict load-dict)
+  (merge-into make-image-dict (invert load-dict)))
 
 ###
 ###
