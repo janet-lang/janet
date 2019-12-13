@@ -29,6 +29,7 @@
 
 #ifdef JANET_THREADS
 
+#include <math.h>
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #else
