@@ -36,7 +36,7 @@ If passed to jpm install, runs tests before installing. Will run tests recursive
 
 .TP
 .BR \-\-modpath=/some/path
-Set the path to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath) in that order.
+Set the path to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath) in that order. You most likely don't need this.
 
 .TP
 .BR \-\-headerpath=/some/path
@@ -172,7 +172,8 @@ This variable is overwritten by the --modpath=/some/path if it is provided.
 The location that jpm will look for janet header files (janet.h and janetconf.h) that are used
 to build native modules and standalone executables. If janet.h and janetconf.h are available as
 default includes on your system, this value is not required. If not provided, will default to
-(dyn :syspath)/../../include/janet. The --headerpath=/some/path will override this variable.
+<jpm script location>/../include/janet. The --headerpath=/some/path option will override this
+variable.
 .RE
 
 .B JANET_LIBPATH
@@ -180,15 +181,15 @@ default includes on your system, this value is not required. If not provided, wi
 Similar to JANET_HEADERPATH, this path is where jpm will look for
 libjanet.a for creating standalong executables. This does not need to be
 set on a normal install. 
-If not provided, this will default to (dyn :syspath)/../../lib.
-The --libpath=/some/path will override this variable.
+If not provided, this will default to <jpm script location>/../lib.
+The --libpath=/some/path option will override this variable.
 .RE
 
 .B JANET_BINPATH
 .RS
 The directory where jpm will install binary scripts and executables to.
 Defaults to
-(dyn :syspath)/../../lib.
+(dyn :syspath)/bin
 The --binpath=/some/path will override this variable.
 .RE
 

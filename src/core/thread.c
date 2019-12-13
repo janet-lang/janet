@@ -472,7 +472,7 @@ error:
 
 #ifdef JANET_WINDOWS
 
-static DWORD janet_create_thread_wrapper(void *param) {
+static DWORD WINAPI janet_create_thread_wrapper(LPVOID param) {
     thread_worker((JanetMailbox *)param);
     return 0;
 }

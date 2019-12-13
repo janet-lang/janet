@@ -93,16 +93,23 @@
 # Configuration
 #
 
+(def- exe-dir
+  "Directory containing jpm script"
+  (do
+    (def exe (dyn :current-file))
+    (def i (last (string/find-all sep exe)))
+    (slice exe 0 i)))
+
 (def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
+
+# Default based on janet binary location
 (def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH")
-                          (if-let [j (dyn :syspath)]
-                            (string j "/../../include/janet"))))
-(def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
-                       (if-let [j (dyn :syspath)]
-                         (string j "/../../bin"))))
+                          (string exe-dir "/../include/janet")))
 (def JANET_LIBPATH (or (os/getenv "JANET_LIBPATH")
-                       (if-let [j (dyn :syspath)]
-                         (string j "/.."))))
+                       (string exe-dir "/../lib")))
+
+(def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
+                       (string (dyn :syspath) "/bin")))
 
 #
 # Compilation Defaults
@@ -115,8 +122,6 @@
 # Detect threads
 (def env (fiber/getenv (fiber/current)))
 (def threads? (not (not (env 'thread/new))))
-
-(print "threads " threads?)
 
 # Default flags for natives, but not required
 (def default-lflags (if is-win ["/nologo"] []))
