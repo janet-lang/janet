@@ -34,6 +34,7 @@ All notable changes to this project will be documented in this file.
 - Add `protect` macro.
 - Add `root-env` to get the root environment table.
 - Change marshalling protocol with regard to abstract types.
+- Update `jpm` path settings to make using `jpm` easier on non-global module trees.
 - Numerous small bug fixes and usability improvements.
 
 ### 1.5.1 - 2019-11-16
