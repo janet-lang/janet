@@ -1437,6 +1437,16 @@ JANET_API JanetArray *janet_optarray(const Janet *argv, int32_t argc, int32_t n,
 JANET_API Janet janet_dyn(const char *name);
 JANET_API void janet_setdyn(const char *name, Janet value);
 
+#define JANET_FILE_WRITE 1
+#define JANET_FILE_READ 2
+#define JANET_FILE_APPEND 4
+#define JANET_FILE_UPDATE 8
+#define JANET_FILE_NOT_CLOSEABLE 16
+#define JANET_FILE_CLOSED 32
+#define JANET_FILE_BINARY 64
+#define JANET_FILE_SERIALIZABLE 128
+#define JANET_FILE_PIPED 256
+
 JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int *flags);
 JANET_API FILE *janet_dynfile(const char *name, FILE *def);
 
