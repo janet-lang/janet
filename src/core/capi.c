@@ -168,6 +168,30 @@ bad:
     janet_panicf("bad slot #%d, expected non-negative 32 bit signed integer, got %v", n, x);
 }
 
+JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at) {
+    if (!janet_checktype(x, JANET_ABSTRACT)) return NULL;
+    JanetAbstract a = janet_unwrap_abstract(x);
+    if (janet_abstract_type(a) != at) return NULL;
+    return a;
+}
+
+static int janet_strlike_cmp(JanetType type, Janet x, const char *cstring) {
+    if (janet_type(x) != type) return 0;
+    return !janet_cstrcmp(janet_unwrap_string(x), cstring);
+}
+
+int janet_keyeq(Janet x, const char *cstring) {
+    return janet_strlike_cmp(JANET_KEYWORD, x, cstring);
+}
+
+int janet_streq(Janet x, const char *cstring) {
+    return janet_strlike_cmp(JANET_STRING, x, cstring);
+}
+
+int janet_symeq(Janet x, const char *cstring) {
+    return janet_strlike_cmp(JANET_SYMBOL, x, cstring);
+}
+
 int32_t janet_getinteger(const Janet *argv, int32_t n) {
     Janet x = argv[n];
     if (!janet_checkint(x)) {

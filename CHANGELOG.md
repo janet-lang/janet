@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 - Add `janet_in` to C API.
 - Add `truthy?`
 - Add `os/environ`
+- Add `buffer/fill`
 - Use `(doc)` with no arguments to see available bindings and dynamic bindings.
 - `jpm` will use `CC` and `AR` environment variables when compiling programs.
 - Add `comptime` macro for compile time evaluation.

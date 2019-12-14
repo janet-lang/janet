@@ -663,6 +663,7 @@ struct Janet {
 JANET_API int janet_checkint(Janet x);
 JANET_API int janet_checkint64(Janet x);
 JANET_API int janet_checksize(Janet x);
+JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
 #define janet_checkintrange(x) ((x) == (int32_t)(x))
 #define janet_checkint64range(x) ((x) == (int64_t)(x))
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
@@ -1320,6 +1321,9 @@ JANET_API void janet_put(Janet ds, Janet key, Janet value);
 JANET_API void janet_putindex(Janet ds, int32_t index, Janet value);
 #define janet_flag_at(F, I) ((F) & ((1ULL) << (I)))
 JANET_API Janet janet_wrap_number_safe(double x);
+JANET_API int janet_keyeq(Janet x, const char *cstring);
+JANET_API int janet_streq(Janet x, const char *cstring);
+JANET_API int janet_symeq(Janet x, const char *cstring);
 
 /* VM functions */
 JANET_API int janet_init(void);
