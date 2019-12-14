@@ -182,6 +182,19 @@ static Janet cfun_buffer_new_filled(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(buffer);
 }
 
+static Janet cfun_buffer_fill(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    int32_t byte = 0;
+    if (argc == 2) {
+        byte = janet_getinteger(argv, 1) & 0xFF;
+    }
+    if (buffer->count) {
+        memset(buffer->data, byte, buffer->count);
+    }
+    return argv[0];
+}
+
 static Janet cfun_buffer_u8(int32_t argc, Janet *argv) {
     int32_t i;
     janet_arity(argc, 1, -1);
@@ -345,14 +358,20 @@ static const JanetReg buffer_cfuns[] = {
     {
         "buffer/new", cfun_buffer_new,
         JDOC("(buffer/new capacity)\n\n"
-             "Creates a new, empty buffer with enough memory for capacity bytes. "
-             "Returns a new buffer.")
+             "Creates a new, empty buffer with enough backing memory for capacity bytes. "
+             "Returns a new buffer of length 0.")
     },
     {
         "buffer/new-filled", cfun_buffer_new_filled,
         JDOC("(buffer/new-filled count &opt byte)\n\n"
              "Creates a new buffer of length count filled with byte. By default, byte is 0. "
              "Returns the new buffer.")
+    },
+    {
+        "buffer/fill", cfun_buffer_fill,
+        JDOC("(buffer/fill buffer &opt byte)\n\n"
+             "Fill up a buffer with bytes, defaulting to 0s. Does not change the buffer's length. "
+             "Returns the modified buffer.")
     },
     {
         "buffer/push-byte", cfun_buffer_u8,
