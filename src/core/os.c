@@ -549,7 +549,7 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
         n -= nread;
     }
     RETRY_EINTR(rc, close(randfd));
-#elif defined(JANET_BSD) || define(JANET_APPLE)
+#elif defined(JANET_BSD) || defined(JANET_APPLE)
     (void) genericerr;
 
     arc4random_buf(buffer->data + offset, n);
