@@ -59,6 +59,12 @@ extern char **environ;
 #include <mach/mach.h>
 #endif
 
+/* Setting C99 standard makes this not available, but it should
+ * work/link properly if we detect a BSD */
+#if defined(JANET_BSD) || defined(JANET_APPLE)
+void arc4random_buf(void *buf, size_t nbytes);
+#endif
+
 #endif /* JANET_REDCUED_OS */
 
 /* Core OS functions */
@@ -551,7 +557,6 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
     RETRY_EINTR(rc, close(randfd));
 #elif defined(JANET_BSD) || defined(JANET_APPLE)
     (void) genericerr;
-
     arc4random_buf(buffer->data + offset, n);
 #else
     (void) genericerr;
