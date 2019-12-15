@@ -27,6 +27,7 @@
 
 #ifndef JANET_REDUCED_OS
 
+#include <stdlib.h>
 #include <time.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -549,7 +550,6 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
     }
     RETRY_EINTR(rc, close(randfd));
 #elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-    (void) errmsg;
     arc4random_buf(buffer->data + offset, n);
 #else
     janet_panic("cryptorand currently unsupported on this platform");
