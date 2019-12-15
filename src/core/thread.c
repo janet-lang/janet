@@ -407,15 +407,6 @@ JanetThread *janet_getthread(const Janet *argv, int32_t n) {
     return (JanetThread *) janet_getabstract(argv, n, &Thread_AT);
 }
 
-static JanetTable *janet_get_core_table(const char *name) {
-    JanetTable *env = janet_core_env(NULL);
-    Janet out = janet_wrap_nil();
-    JanetBindingType bt = janet_resolve(env, janet_csymbol(name), &out);
-    if (bt == JANET_BINDING_NONE) return NULL;
-    if (!janet_checktype(out, JANET_TABLE)) return NULL;
-    return janet_unwrap_table(out);
-}
-
 /* Runs in new thread */
 static int thread_worker(JanetMailbox *mailbox) {
     JanetFiber *fiber = NULL;

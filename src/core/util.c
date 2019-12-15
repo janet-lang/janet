@@ -448,3 +448,12 @@ int janet_checksize(Janet x) {
     return dval == (double)((size_t) dval) &&
            dval <= SIZE_MAX;
 }
+
+JanetTable *janet_get_core_table(const char *name) {
+    JanetTable *env = janet_core_env(NULL);
+    Janet out = janet_wrap_nil();
+    JanetBindingType bt = janet_resolve(env, janet_csymbol(name), &out);
+    if (bt == JANET_BINDING_NONE) return NULL;
+    if (!janet_checktype(out, JANET_TABLE)) return NULL;
+    return janet_unwrap_table(out);
+}

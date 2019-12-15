@@ -1679,6 +1679,32 @@
 
 ###
 ###
+### Default PEG patterns
+###
+###
+
+(def default-peg-grammar
+  "The default grammar used for pegs. This grammar defines several common patterns
+  that should make it easier to write more complex patterns."
+  ~@{:d (range "09")
+     :a (range "az" "AZ")
+     :s (set " \t\r\n\0\f")
+     :w (range "az" "AZ" "09")
+     :S (if-not :s 1)
+     :W (if-not :w 1)
+     :A (if-not :a 1)
+     :D (if-not :d 1)
+     :d+ (some :d)
+     :a+ (some :a)
+     :s+ (some :s)
+     :w+ (some :w)
+     :d* (any :d)
+     :a* (any :a)
+     :w* (any :w)
+     :s* (any :s)})
+
+###
+###
 ### Evaluation and Compilation
 ###
 ###

@@ -445,6 +445,7 @@ tail:
 
 typedef struct {
     JanetTable *grammar;
+    JanetTable *default_grammar;
     JanetTable *tags;
     Janet *constants;
     uint32_t *bytecode;
@@ -886,9 +887,14 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
     int i = JANET_RECURSION_GUARD;
     JanetTable *grammar = old_grammar;
     for (; i > 0 && janet_checktype(peg, JANET_KEYWORD); --i) {
-        peg = janet_table_get_ex(grammar, peg, &grammar);
-        if (!grammar || janet_checktype(peg, JANET_NIL))
-            peg_panic(b, "unknown rule");
+        Janet nextPeg = janet_table_get_ex(grammar, peg, &grammar);
+        if (!grammar || janet_checktype(nextPeg, JANET_NIL)) {
+            nextPeg = janet_table_get(b->default_grammar, peg);
+            if (janet_checktype(nextPeg, JANET_NIL)) {
+                peg_panic(b, "unknown rule");
+            }
+        }
+        peg = nextPeg;
         b->form = peg;
         b->grammar = grammar;
     }
@@ -1187,11 +1193,13 @@ bad:
     janet_panic("invalid peg bytecode");
 }
 
+static int cfun_peg_getter(JanetAbstract a, Janet key, Janet *out);
+
 static const JanetAbstractType peg_type = {
     "core/peg",
     NULL,
     peg_mark,
-    NULL,
+    cfun_peg_getter,
     NULL,
     peg_marshal,
     peg_unmarshal,
@@ -1220,6 +1228,7 @@ static Peg *make_peg(Builder *b) {
 static Peg *compile_peg(Janet x) {
     Builder builder;
     builder.grammar = janet_table(0);
+    builder.default_grammar = janet_get_core_table("default-peg-grammar");
     builder.tags = janet_table(0);
     builder.constants = NULL;
     builder.bytecode = NULL;
@@ -1274,6 +1283,15 @@ static Janet cfun_peg_match(int32_t argc, Janet *argv) {
     s.bytecode = peg->bytecode;
     const uint8_t *result = peg_rule(&s, s.bytecode, bytes.bytes + start);
     return result ? janet_wrap_array(s.captures) : janet_wrap_nil();
+}
+
+static int cfun_peg_getter(JanetAbstract a, Janet key, Janet *out) {
+    (void) a;
+    if (janet_keyeq(key, "match")) {
+        *out = janet_wrap_cfunction(cfun_peg_match);
+        return 1;
+    }
+    return 0;
 }
 
 static const JanetReg peg_cfuns[] = {

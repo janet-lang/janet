@@ -322,7 +322,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 
     /* Check error */
     if (-1 == status) {
-        janet_panic(strerror(errno));
+        janet_panicf("%p: %s", argv[0], strerror(errno));
     }
 
     return janet_wrap_integer(status);
@@ -351,7 +351,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     /* Wait for child */
     if (status) {
         os_execute_cleanup(envp, child_argv);
-        janet_panic(strerror(status));
+        janet_panicf("%p: %s", argv[0], strerror(errno));
     } else {
         waitpid(pid, &status, 0);
     }
@@ -916,11 +916,6 @@ static const JanetReg os_cfuns[] = {
              "\t:posix - A POSIX compatible system (default)")
     },
     {
-        "os/environ", os_environ,
-        JDOC("(os/environ)\n\n"
-             "Get a copy of the os environment table.")
-    },
-    {
         "os/getenv", os_getenv,
         JDOC("(os/getenv variable)\n\n"
              "Get the string value of an environment variable.")
@@ -938,6 +933,11 @@ static const JanetReg os_cfuns[] = {
              "\t:unknown\n")
     },
 #ifndef JANET_REDUCED_OS
+    {
+        "os/environ", os_environ,
+        JDOC("(os/environ)\n\n"
+             "Get a copy of the os environment table.")
+    },
     {
         "os/dir", os_dir,
         JDOC("(os/dir dir &opt array)\n\n"

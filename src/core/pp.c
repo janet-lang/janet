@@ -27,6 +27,7 @@
 #include <janet.h>
 #include "util.h"
 #include "state.h"
+#include <math.h>
 #endif
 
 /* Implements a pretty printer for Janet. The pretty printer
