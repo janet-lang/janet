@@ -75,11 +75,11 @@ static Janet os_which(int32_t argc, Janet *argv) {
     return janet_ckeywordv(janet_stringify(JANET_OS_NAME));
 #elif defined(JANET_WINDOWS)
     return janet_ckeywordv("windows");
-#elif defined(__APPLE__)
+#elif defined(JANET_APPLE)
     return janet_ckeywordv("macos");
 #elif defined(__EMSCRIPTEN__)
     return janet_ckeywordv("web");
-#elif defined(__linux__)
+#elif defined(JANET_LINUX)
     return janet_ckeywordv("linux");
 #elif defined(__FreeBSD__)
     return janet_ckeywordv("freebsd");
@@ -87,6 +87,8 @@ static Janet os_which(int32_t argc, Janet *argv) {
     return janet_ckeywordv("netbsd");
 #elif defined(__OpenBSD__)
     return janet_ckeywordv("openbsd");
+#elif defined(JANET_BSD)
+    return janet_ckeywordv("bsd");
 #else
     return janet_ckeywordv("posix");
 #endif
@@ -527,11 +529,9 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
             v = v >> 8;
         }
     }
-#elif defined(__linux__) || defined(__APPLE__)
+#elif defined(JANET_LINUX)
     /* We should be able to call getrandom on linux, but it doesn't seem
-       to be uniformly supported on linux distros. Macos may support
-       arc4random_buf, but it needs investigation.
-
+       to be uniformly supported on linux distros.
        In both cases, use this fallback path for now... */
     int rc;
     int randfd;
@@ -549,9 +549,12 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
         n -= nread;
     }
     RETRY_EINTR(rc, close(randfd));
-#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#elif defined(JANET_BSD) || define(JANET_APPLE)
+    (void) genericerr;
+
     arc4random_buf(buffer->data + offset, n);
 #else
+    (void) genericerr;
     janet_panic("cryptorand currently unsupported on this platform");
 #endif
     return janet_wrap_buffer(buffer);

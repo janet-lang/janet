@@ -45,6 +45,23 @@ extern "C" {
  * detection for unsupported platforms
  */
 
+/* Check for any flavor of BSD (except apple) */
+#if defined(__FreeBSD__) || defined(__DragonFly__) || \
+    defined(__NetBSD__) || defined(__OpenBSD__)
+#define JANET_BSD 1
+#define _BSD_SOURCE 1
+#endif
+
+/* Check for Mac */
+#ifdef __APPLE__
+#define JANET_APPLE 1
+#endif
+
+/* Check for Linux */
+#ifdef __linux__
+#define JANET_LINUX 1
+#endif
+
 /* Check Unix */
 #if defined(_AIX) \
     || defined(__APPLE__) /* Darwin */ \
@@ -58,11 +75,8 @@ extern "C" {
     || defined(__QNXNTO__) \
     || defined(sun) || defined(__sun) /* Solaris */ \
     || defined(unix) || defined(__unix) || defined(__unix__)
-#define JANET_UNIX 1
-/* Enable certain posix features */
-#ifndef _POSIX_C_SOURCE
+#define JANET_POSIX 1
 #define _POSIX_C_SOURCE 200112L
-#endif
 #elif defined(__EMSCRIPTEN__)
 #define JANET_WEB 1
 #elif defined(WIN32) || defined(_WIN32)
@@ -71,7 +85,7 @@ extern "C" {
 
 /* Check 64-bit vs 32-bit */
 #if ((defined(__x86_64__) || defined(_M_X64)) \
-     && (defined(JANET_UNIX) || defined(JANET_WINDOWS))) \
+     && (defined(JANET_POSIX) || defined(JANET_WINDOWS))) \
     || (defined(_WIN64)) /* Windows 64 bit */ \
     || (defined(__ia64__) && defined(__LP64__)) /* Itanium in LP64 mode */ \
     || defined(__alpha__) /* DEC Alpha */ \

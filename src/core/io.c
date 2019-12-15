@@ -20,17 +20,13 @@
 * IN THE SOFTWARE.
 */
 
-/* Compiler feature test macros for things */
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
-
-#include <stdio.h>
-#include <errno.h>
-
 #ifndef JANET_AMALG
 #include <janet.h>
 #include "util.h"
 #endif
+
+#include <stdio.h>
+#include <errno.h>
 
 #ifndef JANET_WINDOWS
 #include <sys/wait.h>
