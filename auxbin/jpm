@@ -871,6 +871,7 @@ Subcommands are:
                    and install the current project.
   uninstall (module) : uninstall a module. If no module is given, uninstall the module
                        defined by the current directory.
+  show-paths : prints the paths that will be used to install things.
   clean : remove any generated files or artifacts
   test : run tests. Tests should be .janet files in the test/ directory relative to project.janet.
   deps : install dependencies for the current project.
@@ -900,6 +901,14 @@ Flags are:
 (defn- show-help
   []
   (print help))
+
+(defn- show-paths
+  []
+  (print "binpath:    " (dyn :binpath JANET_BINPATH))
+  (print "modpath:    " (dyn :modpath JANET_MODPATH))
+  (print "libpath:    " (dyn :libpath JANET_LIBPATH))
+  (print "headerpath: " (dyn :headerpath JANET_HEADERPATH))
+  (print "syspath:    " (dyn :syspath)))
 
 (defn- build
   []
@@ -952,6 +961,7 @@ Flags are:
    "test" test
    "help" help
    "deps" deps
+   "show-paths" show-paths
    "clear-cache" clear-cache
    "run" local-rule
    "rules" list-rules
