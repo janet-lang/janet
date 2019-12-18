@@ -1153,7 +1153,11 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
 
     /* Run loop */
     JanetSignal signal;
+#if defined(JANET_BSD) || defined(JANET_APPLE)
+    if (_setjmp(buf)) {
+#else
     if (setjmp(buf)) {
+#endif
         signal = JANET_SIGNAL_ERROR;
     } else {
         signal = run_vm(fiber, in, old_status);

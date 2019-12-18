@@ -173,17 +173,25 @@ static void janet_asm_deinit(JanetAssembler *a) {
     janet_table_deinit(&a->defs);
 }
 
+static void janet_asm_longjmp(JanetAssembler *a) {
+#if defined(JANET_BSD) || defined(JANET_APPLE)
+    _longjmp(a->on_error, 1);
+#else
+    longjmp(a->on_error, 1);
+#endif
+}
+
 /* Throw some kind of assembly error */
 static void janet_asm_error(JanetAssembler *a, const char *message) {
     a->errmessage = janet_formatc("%s, instruction %d", message, a->errindex);
-    longjmp(a->on_error, 1);
+    janet_asm_longjmp(a);
 }
 #define janet_asm_assert(a, c, m) do { if (!(c)) janet_asm_error((a), (m)); } while (0)
 
 /* Throw some kind of assembly error */
 static void janet_asm_errorv(JanetAssembler *a, const uint8_t *m) {
     a->errmessage = m;
-    longjmp(a->on_error, 1);
+    janet_asm_longjmp(a);
 }
 
 /* Add a closure environment to the assembler. Sub funcdefs may need
@@ -501,10 +509,14 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     janet_table_init(&a.defs, 0);
 
     /* Set error jump */
+#if defined(JANET_BSD) || defined(JANET_APPLE)
+    if (_setjmp(a.on_error)) {
+#else
     if (setjmp(a.on_error)) {
+#endif
         if (NULL != a.parent) {
             janet_asm_deinit(&a);
-            longjmp(a.parent->on_error, 1);
+            janet_asm_longjmp(a.parent);
         }
         result.funcdef = NULL;
         result.error = a.errmessage;
