@@ -551,7 +551,9 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
     }
 
     /* If thread started, send the worker function. */
-    janet_thread_send(thread, argv[0], -1.0);
+    if (janet_thread_send(thread, argv[0], -1.0)) {
+        janet_panicf("could not send worker function %v to thread", argv[0]);
+    }
 
     return janet_wrap_abstract(thread);
 }
