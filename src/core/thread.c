@@ -184,11 +184,11 @@ static void janet_waiter_init(JanetWaiter *waiter, double sec) {
     waiter->timedwait = 0;
     waiter->nowait = 0;
 
-    if (sec == 0.0 || isnan(sec)) {
+    if (sec <= 0.0 || isnan(sec)) {
         waiter->nowait = 1;
         return;
     }
-    waiter->timedwait = sec > 0.0;
+    waiter->timedwait = sec > 0.0 && !isinf(sec);
 
     /* Set maximum wait time to 30 days */
     if (sec > (60.0 * 60.0 * 24.0 * 30.0)) {
@@ -369,7 +369,7 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
             }
         }
 
-        if (wait.nowait || mailbox->refCount <= 1) {
+        if (wait.nowait) {
             janet_mailbox_unlock(mailbox);
             return 1;
         }
@@ -430,7 +430,7 @@ static int thread_worker(JanetMailbox *mailbox) {
 
     /* Unmarshal the function */
     Janet funcv;
-    int status = janet_thread_receive(&funcv, -1.0);
+    int status = janet_thread_receive(&funcv, INFINITY);
 
     if (status) goto error;
     if (!janet_checktype(funcv, JANET_FUNCTION)) goto error;
@@ -551,7 +551,7 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
     }
 
     /* If thread started, send the worker function. */
-    if (janet_thread_send(thread, argv[0], -1.0)) {
+    if (janet_thread_send(thread, argv[0], INFINITY)) {
         janet_panicf("could not send worker function %v to thread", argv[0]);
     }
 
