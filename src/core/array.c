@@ -125,6 +125,18 @@ static Janet cfun_array_new(int32_t argc, Janet *argv) {
     return janet_wrap_array(array);
 }
 
+static Janet cfun_array_new_filled(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    int32_t count = janet_getinteger(argv, 0);
+    Janet x = (argc == 2) ? argv[1] : janet_wrap_nil();
+    JanetArray *array = janet_array(count);
+    for (int32_t i = 0; i < count; i++) {
+        array->data[i] = x;
+    }
+    array->count = count;
+    return janet_wrap_array(array);
+}
+
 static Janet cfun_array_pop(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetArray *array = janet_getarray(argv, 0);
@@ -242,6 +254,11 @@ static const JanetReg array_cfuns[] = {
         JDOC("(array/new capacity)\n\n"
              "Creates a new empty array with a pre-allocated capacity. The same as "
              "(array) but can be more efficient if the maximum size of an array is known.")
+    },
+    {
+        "array/new-filled", cfun_array_new_filled,
+        JDOC("(array/new count &opt value)\n\n"
+             "Creates a new array of count elements, all set to value, which defaults to nil. Returns the new array.")
     },
     {
         "array/pop", cfun_array_pop,
