@@ -69,14 +69,14 @@
   (var last-loc [-2 -2])
   (print "\n  function:   " (dasm 'name) " [" (in dasm 'source "") "]")
   (when-let [constants (dasm 'constants)]
-    (printf "  constants:  %.4Q\n" constants))
-  (printf "  slots:      %.4Q\n\n" (frame :slots))
+    (printf "  constants:  %.4Q" constants))
+  (printf "  slots:      %.4Q\n" (frame :slots))
   (def padding (string/repeat " " 20))
   (loop [i :range [0 (length bytecode)]
          :let [instr (bytecode i)]]
     (prin (if (= (tuple/type instr) :brackets) "*" " "))
     (prin (if (= i pc) "> " "  "))
-    (printf "\e[33m%.20s\e[0m" (string (string/join (map string instr) " ") padding))
+    (prinf "\e[33m%.20s\e[0m" (string (string/join (map string instr) " ") padding))
     (when sourcemap
       (let [[sl sc] (sourcemap i)
             loc [sl sc]]
