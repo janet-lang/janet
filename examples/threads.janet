@@ -10,8 +10,7 @@
 
 (defn make-worker
   [name interval]
-  (-> (thread/new)
-      (:send worker-main)
+  (-> (thread/new worker-main)
       (:send name)
       (:send interval)))
 
@@ -39,8 +38,7 @@
   (if (< depth 5)
     (do
     (defn subtree []
-      (-> (thread/new)
-          (:send worker-tree)
+      (-> (thread/new worker-tree)
           (:send (string name "/" (choose "bob" "marley" "harry" "suki" "anna" "yu")))
           (:send (inc depth))))
     (let [l (subtree)
@@ -51,7 +49,7 @@
     (do
       (:send parent [name]))))
 
-(-> (thread/new) (:send worker-tree) (:send "adam") (:send 0))
+(-> (thread/new worker-tree) (:send "adam") (:send 0))
 (def lines (thread/receive))
 (map print lines)
 

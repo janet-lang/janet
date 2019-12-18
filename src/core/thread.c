@@ -530,8 +530,10 @@ static Janet cfun_thread_current(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_thread_new(int32_t argc, Janet *argv) {
-    janet_arity(argc, 0, 1);
-    int32_t cap = janet_optinteger(argv, argc, 0, 10);
+    janet_arity(argc, 1, 2);
+    /* Just type checking */
+    janet_getfunction(argv, 0);
+    int32_t cap = janet_optinteger(argv, argc, 1, 10);
     if (cap < 1 || cap > UINT16_MAX) {
         janet_panicf("bad slot #1, expected integer in range [1, 65535], got %d", cap);
     }
@@ -547,6 +549,10 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
         janet_mailbox_ref(janet_vm_mailbox, -1); /* ->parent reference */
         janet_panic("could not start thread");
     }
+
+    /* If thread started, send the worker function. */
+    janet_thread_send(thread, argv[0], -1.0);
+
     return janet_wrap_abstract(thread);
 }
 
@@ -606,9 +612,9 @@ static const JanetReg threadlib_cfuns[] = {
     },
     {
         "thread/new", cfun_thread_new,
-        JDOC("(thread/new &opt capacity)\n\n"
-             "Start a new thread. The thread will wait for a message containing the function used to start the thread, which should be passed to the thread "
-             "via thread/send. If capacity is provided, that is how many messages can be stored in the thread's mailbox before blocking senders. "
+        JDOC("(thread/new func &opt capacity)\n\n"
+             "Start a new thread that will start immediately. "
+             "If capacity is provided, that is how many messages can be stored in the thread's mailbox before blocking senders. "
              "The capacity must be between 1 and 65535 inclusive, and defaults to 10. "
              "Returns a handle to the new thread.")
     },
