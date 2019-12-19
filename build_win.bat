@@ -157,7 +157,7 @@ copy auxbin\jpm dist\jpm
 copy tools\jpm.bat dist\jpm.bat
 
 @rem Create installer
-janet.exe -e "(print ((peg/match '(* :d+ `.` :d+ `.` :d+) janet/version) 0))" > build\version.txt
+janet.exe -e "(print ((peg/match ''(* :d+ `.` :d+ `.` :d+) janet/version) 0))" > build\version.txt
 janet.exe -e "(print (= (os/arch) :x64))" > build\64bit.txt
 set /p JANET_VERSION= < build\version.txt
 set /p SIXTYFOUR= < build\64bit.txt
