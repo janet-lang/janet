@@ -157,10 +157,11 @@ copy auxbin\jpm dist\jpm
 copy tools\jpm.bat dist\jpm.bat
 
 @rem Create installer
-janet.exe -e "(print ((peg/match ''(* :d+ `.` :d+ `.` :d+) janet/version) 0))" > build\version.txt
+janet.exe -e "(->> janet/version (peg/match ''(* :d+ `.` :d+ `.` :d+)) first print)" > build\version.txt
 janet.exe -e "(print (= (os/arch) :x64))" > build\64bit.txt
 set /p JANET_VERSION= < build\version.txt
 set /p SIXTYFOUR= < build\64bit.txt
+echo "JANET_VERSION is %JANET_VERSION%"
 "C:\Program Files (x86)\NSIS\makensis.exe" janet-installer.nsi /DVERSION=%JANET_VERSION% /DSIXTYFOUR=%SIXTYFOUR%
 exit /b 0
 
