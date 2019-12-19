@@ -162,7 +162,7 @@ janet.exe -e "(print (= (os/arch) :x64))" > build\64bit.txt
 set /p JANET_VERSION= < build\version.txt
 set /p SIXTYFOUR= < build\64bit.txt
 echo "JANET_VERSION is %JANET_VERSION%"
-"C:\Program Files (x86)\NSIS\makensis.exe" janet-installer.nsi /DVERSION=%JANET_VERSION% /DSIXTYFOUR=%SIXTYFOUR%
+"C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=%JANET_VERSION% /DSIXTYFOUR=%SIXTYFOUR% janet-installer.nsi 
 exit /b 0
 
 @rem Run the installer. (Installs to the local user with default settings)
