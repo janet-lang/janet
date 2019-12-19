@@ -110,7 +110,7 @@ static Janet os_arch(int32_t argc, Janet *argv) {
 #elif defined(__EMSCRIPTEN__)
     return janet_ckeywordv("wasm");
 #elif (defined(__x86_64__) || defined(_M_X64))
-    return janet_ckeywordv("x86-64");
+    return janet_ckeywordv("x64");
 #elif defined(__i386) || defined(_M_IX86)
     return janet_ckeywordv("x86");
 #elif defined(_M_ARM64) || defined(__aarch64__)

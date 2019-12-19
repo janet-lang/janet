@@ -157,7 +157,11 @@ copy auxbin\jpm dist\jpm
 copy tools\jpm.bat dist\jpm.bat
 
 @rem Create installer
-"C:\Program Files (x86)\NSIS\makensis.exe" janet-installer.nsi
+janet.exe -e "(print janet/version)" > build\version.txt
+janet.exe -e "(print (= (os/arch) :x64))" > build\64bit.txt
+set /p JANET_VERSION= < build\version.txt
+set /p SIXTYFOUR= < build\64bit.txt
+"C:\Program Files (x86)\NSIS\makensis.exe" janet-installer.nsi /DVERSION=%JANET_VERSION% /DSIXTYFOUR=%SIXTYFOUR%
 exit /b 0
 
 @rem Run the installer. (Installs to the local user with default settings)

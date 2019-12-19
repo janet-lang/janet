@@ -1,5 +1,4 @@
 # Version
-!define VERSION "1.6.0"
 !define PRODUCT_VERSION "${VERSION}.0"
 VIProductVersion "${PRODUCT_VERSION}"
 VIFileVersion "${PRODUCT_VERSION}"
@@ -14,8 +13,9 @@ VIFileVersion "${PRODUCT_VERSION}"
 !define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_VALUENAME ""
 !define MULTIUSER_INSTALLMODE_INSTDIR "Janet-${VERSION}"
 
-# For now, use 32 bit folder as build is 32 bit
-# !define MULTIUSER_USE_PROGRAMFILES64
+!if ${SIXTYFOUR} == "true"
+    !define MULTIUSER_USE_PROGRAMFILES64
+!endif
 
 # Includes
 !include "MultiUser.nsh"
