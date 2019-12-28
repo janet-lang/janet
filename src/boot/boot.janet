@@ -72,14 +72,6 @@
   (setdyn name* @{:ref @[init]})
   nil)
 
-# Aliases
-(def == =)
-(def not== ==)
-(def order< <)
-(def order<= <=)
-(def order> >=)
-(def order>= >=)
-
 # Basic predicates
 (defn nan? "Check if x is NaN" [x] (not= x x))
 (defn even? "Check if x is even." [x] (= 0 (% x 2)))
