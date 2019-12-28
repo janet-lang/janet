@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 
 ### Unreleased
+- Remove `==`, `not==`, `order<`, `order>`, `order<=`, and `order>=`. Instead, use the normal
+  comparison and equality functions.
+- Let abstract types define a hash function and comparison/equality semantics. This lets
+  abstract types much better represent value types. This adds more fields to abstract types, which
+  will generate warnings when compiled against other versions.
 - Update documentation.
 
 ### 1.6.0 - 2019-12-22

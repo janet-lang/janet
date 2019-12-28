@@ -28,6 +28,20 @@
  * Define a number of functions that can be used internally on ANY Janet.
  */
 
+/* Compare two abstract values */
+static int janet_compare_abstract(JanetAbstract xx, JanetAbstract yy) {
+    if (xx == yy) return 0;
+    const JanetAbstractType *xt = janet_abstract_type(xx);
+    const JanetAbstractType *yt = janet_abstract_type(yy);
+    if (xt != yt) {
+        return xt > yt ? 1 : -1;
+    }
+    if (xt->compare == NULL) {
+        return xx > yy ? 1 : -1;
+    }
+    return xt->compare(xx, yy);
+}
+
 /* Check if two values are equal. This is strict equality with no conversion. */
 int janet_equals(Janet x, Janet y) {
     int result = 0;
@@ -52,6 +66,9 @@ int janet_equals(Janet x, Janet y) {
                 break;
             case JANET_STRUCT:
                 result = janet_struct_equal(janet_unwrap_struct(x), janet_unwrap_struct(y));
+                break;
+            case JANET_ABSTRACT:
+                result = !janet_compare_abstract(janet_unwrap_abstract(x), janet_unwrap_abstract(y));
                 break;
             default:
                 /* compare pointers */
@@ -83,6 +100,15 @@ int32_t janet_hash(Janet x) {
         case JANET_STRUCT:
             hash = janet_struct_hash(janet_unwrap_struct(x));
             break;
+        case JANET_ABSTRACT: {
+            JanetAbstract xx = janet_unwrap_abstract(x);
+            const JanetAbstractType *at = janet_abstract_type(xx);
+            if (at->hash != NULL) {
+                hash = at->hash(xx, janet_abstract_size(xx));
+                break;
+            }
+        }
+        /* fallthrough */
         default:
             /* TODO - test performance with different hash functions */
             if (sizeof(double) == sizeof(void *)) {
@@ -104,7 +130,7 @@ int32_t janet_hash(Janet x) {
 
 /* Compares x to y. If they are equal returns 0. If x is less, returns -1.
  * If y is less, returns 1. All types are comparable
- * and should have strict ordering. */
+ * and should have strict ordering, excepts NaNs. */
 int janet_compare(Janet x, Janet y) {
     if (janet_type(x) == janet_type(y)) {
         switch (janet_type(x)) {
@@ -112,20 +138,13 @@ int janet_compare(Janet x, Janet y) {
                 return 0;
             case JANET_BOOLEAN:
                 return janet_unwrap_boolean(x) - janet_unwrap_boolean(y);
-            case JANET_NUMBER:
-                /* Check for NaNs to ensure total order */
-                if (janet_unwrap_number(x) != janet_unwrap_number(x))
-                    return janet_unwrap_number(y) != janet_unwrap_number(y)
-                           ? 0
-                           : -1;
-                if (janet_unwrap_number(y) != janet_unwrap_number(y))
-                    return 1;
-
-                if (janet_unwrap_number(x) == janet_unwrap_number(y)) {
-                    return 0;
-                } else {
-                    return janet_unwrap_number(x) > janet_unwrap_number(y) ? 1 : -1;
-                }
+            case JANET_NUMBER: {
+                double xx = janet_unwrap_number(x);
+                double yy = janet_unwrap_number(y);
+                return xx == yy
+                       ? 0
+                       : (xx < yy) ? -1 : 1;
+            }
             case JANET_STRING:
             case JANET_SYMBOL:
             case JANET_KEYWORD:
@@ -134,6 +153,8 @@ int janet_compare(Janet x, Janet y) {
                 return janet_tuple_compare(janet_unwrap_tuple(x), janet_unwrap_tuple(y));
             case JANET_STRUCT:
                 return janet_struct_compare(janet_unwrap_struct(x), janet_unwrap_struct(y));
+            case JANET_ABSTRACT:
+                return janet_compare_abstract(janet_unwrap_abstract(x), janet_unwrap_abstract(y));
             default:
                 if (janet_unwrap_string(x) == janet_unwrap_string(y)) {
                     return 0;

@@ -37,18 +37,18 @@
 (assert (= 7 (% 20 13)) "modulo 1")
 (assert (= -7 (% -20 13)) "modulo 2")
 
-(assert (order< 1.0 nil false true
-                (fiber/new (fn [] 1))
-                "hi"
-                (quote hello)
-                :hello
-                (array 1 2 3)
-                (tuple 1 2 3)
-                (table "a" "b" "c" "d")
-                (struct 1 2 3 4)
-                (buffer "hi")
-                (fn [x] (+ x x))
-                print) "type ordering")
+(assert (< 1.0 nil false true
+           (fiber/new (fn [] 1))
+           "hi"
+           (quote hello)
+           :hello
+           (array 1 2 3)
+           (tuple 1 2 3)
+           (table "a" "b" "c" "d")
+           (struct 1 2 3 4)
+           (buffer "hi")
+           (fn [x] (+ x x))
+           print) "type ordering")
 
 (assert (= (string (buffer "123" "456")) (string @"123456")) "buffer literal")
 (assert (= (get {} 1) nil) "get nil from empty struct")

@@ -232,11 +232,11 @@
 (assert (= 4 ((get closures 4))) "closure in loop 4")
 
 # More numerical tests
-(assert (== 1 1.0) "numerical equal 1")
-(assert (== 0 0.0) "numerical equal 2")
-(assert (== 0 -0.0) "numerical equal 3")
-(assert (== 2_147_483_647 2_147_483_647.0) "numerical equal 4")
-(assert (== -2_147_483_648 -2_147_483_648.0) "numerical equal 5")
+(assert (= 1 1.0) "numerical equal 1")
+(assert (= 0 0.0) "numerical equal 2")
+(assert (= 0 -0.0) "numerical equal 3")
+(assert (= 2_147_483_647 2_147_483_647.0) "numerical equal 4")
+(assert (= -2_147_483_648 -2_147_483_648.0) "numerical equal 5")
 
 # Array tests
 

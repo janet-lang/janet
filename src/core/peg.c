@@ -1203,6 +1203,8 @@ static const JanetAbstractType peg_type = {
     NULL,
     peg_marshal,
     peg_unmarshal,
+    NULL,
+    NULL,
     NULL
 };
 

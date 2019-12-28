@@ -118,6 +118,8 @@ static const JanetAbstractType ta_buffer_type = {
     NULL,
     ta_buffer_marshal,
     ta_buffer_unmarshal,
+    NULL,
+    NULL,
     NULL
 };
 
@@ -282,6 +284,8 @@ static const JanetAbstractType ta_view_type = {
     ta_setter,
     ta_view_marshal,
     ta_view_unmarshal,
+    NULL,
+    NULL,
     NULL
 };
 

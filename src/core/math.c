@@ -59,6 +59,8 @@ static JanetAbstractType JanetRNG_type = {
     NULL,
     janet_rng_marshal,
     janet_rng_unmarshal,
+    NULL,
+    NULL,
     NULL
 };
 

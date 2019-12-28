@@ -1090,45 +1090,23 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                           "for positive shifts the return value will always be positive."));
 
     /* Variadic comparators */
-    templatize_comparator(env, JANET_FUN_ORDER_GT, "order>", 0, JOP_GREATER_THAN,
-                          JDOC("(order> & xs)\n\n"
-                               "Check if xs is strictly descending according to a total order "
-                               "over all values. Returns a boolean."));
-    templatize_comparator(env, JANET_FUN_ORDER_LT, "order<", 0, JOP_LESS_THAN,
-                          JDOC("(order< & xs)\n\n"
-                               "Check if xs is strictly increasing according to a total order "
-                               "over all values. Returns a boolean."));
-    templatize_comparator(env, JANET_FUN_ORDER_GTE, "order>=", 1, JOP_LESS_THAN,
-                          JDOC("(order>= & xs)\n\n"
-                               "Check if xs is not increasing according to a total order "
-                               "over all values. Returns a boolean."));
-    templatize_comparator(env, JANET_FUN_ORDER_LTE, "order<=", 1, JOP_GREATER_THAN,
-                          JDOC("(order<= & xs)\n\n"
-                               "Check if xs is not decreasing according to a total order "
-                               "over all values. Returns a boolean."));
-    templatize_comparator(env, JANET_FUN_ORDER_EQ, "=", 0, JOP_EQUALS,
-                          JDOC("(= & xs)\n\n"
-                               "Returns true if all values in xs are the same, false otherwise."));
-    templatize_comparator(env, JANET_FUN_ORDER_NEQ, "not=", 1, JOP_EQUALS,
-                          JDOC("(not= & xs)\n\n"
-                               "Return true if any values in xs are not equal, otherwise false."));
-    templatize_comparator(env, JANET_FUN_GT, ">", 0, JOP_NUMERIC_GREATER_THAN,
+    templatize_comparator(env, JANET_FUN_GT, ">", 0, JOP_GREATER_THAN,
                           JDOC("(> & xs)\n\n"
                                "Check if xs is in numerically descending order. Returns a boolean."));
-    templatize_comparator(env, JANET_FUN_LT, "<", 0, JOP_NUMERIC_LESS_THAN,
+    templatize_comparator(env, JANET_FUN_LT, "<", 0, JOP_LESS_THAN,
                           JDOC("(< & xs)\n\n"
                                "Check if xs is in numerically ascending order. Returns a boolean."));
-    templatize_comparator(env, JANET_FUN_GTE, ">=", 0, JOP_NUMERIC_GREATER_THAN_EQUAL,
+    templatize_comparator(env, JANET_FUN_GTE, ">=", 0, JOP_GREATER_THAN_EQUAL,
                           JDOC("(>= & xs)\n\n"
                                "Check if xs is in numerically non-ascending order. Returns a boolean."));
-    templatize_comparator(env, JANET_FUN_LTE, "<=", 0, JOP_NUMERIC_LESS_THAN_EQUAL,
+    templatize_comparator(env, JANET_FUN_LTE, "<=", 0, JOP_LESS_THAN_EQUAL,
                           JDOC("(<= & xs)\n\n"
                                "Check if xs is in numerically non-descending order. Returns a boolean."));
-    templatize_comparator(env, JANET_FUN_EQ, "==", 0, JOP_NUMERIC_EQUAL,
-                          JDOC("(== & xs)\n\n"
+    templatize_comparator(env, JANET_FUN_EQ, "=", 0, JOP_EQUALS,
+                          JDOC("(= & xs)\n\n"
                                "Check if all values in xs are numerically equal (4.0 == 4). Returns a boolean."));
-    templatize_comparator(env, JANET_FUN_NEQ, "not==", 1, JOP_NUMERIC_EQUAL,
-                          JDOC("(not== & xs)\n\n"
+    templatize_comparator(env, JANET_FUN_NEQ, "not=", 1, JOP_EQUALS,
+                          JDOC("(not= & xs)\n\n"
                                "Check if any values in xs are not numerically equal (3.0 not== 4). Returns a boolean."));
 
     /* Platform detection */

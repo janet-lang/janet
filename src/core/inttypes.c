@@ -39,6 +39,24 @@
 static int it_s64_get(void *p, Janet key, Janet *out);
 static int it_u64_get(void *p, Janet key, Janet *out);
 
+static int32_t janet_int64_hash(void *p1, size_t size) {
+    (void) size;
+    int32_t *words = p1;
+    return words[0] ^ words[1];
+}
+
+static int janet_int64_compare(void *p1, void *p2) {
+    int64_t x = *((int64_t *)p1);
+    int64_t y = *((int64_t *)p2);
+    return x == y ? 0 : x < y ? -1 : 1;
+}
+
+static int janet_uint64_compare(void *p1, void *p2) {
+    uint64_t x = *((uint64_t *)p1);
+    uint64_t y = *((uint64_t *)p2);
+    return x == y ? 0 : x < y ? -1 : 1;
+}
+
 static void int64_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_abstract(ctx, p);
     janet_marshal_int64(ctx, *((int64_t *)p));
@@ -70,7 +88,9 @@ static const JanetAbstractType it_s64_type = {
     NULL,
     int64_marshal,
     int64_unmarshal,
-    it_s64_tostring
+    it_s64_tostring,
+    janet_int64_compare,
+    janet_int64_hash
 };
 
 static const JanetAbstractType it_u64_type = {
@@ -81,7 +101,9 @@ static const JanetAbstractType it_u64_type = {
     NULL,
     int64_marshal,
     int64_unmarshal,
-    it_u64_tostring
+    it_u64_tostring,
+    janet_uint64_compare,
+    janet_int64_hash
 };
 
 int64_t janet_unwrap_s64(Janet x) {
@@ -297,7 +319,7 @@ static JanetMethod it_s64_methods[] = {
     {">", cfun_it_s64_gt},
     {"<=", cfun_it_s64_le},
     {">=", cfun_it_s64_ge},
-    {"==", cfun_it_s64_eq},
+    {"=", cfun_it_s64_eq},
     {"!=", cfun_it_s64_ne},
     {"&", cfun_it_s64_and},
     {"|", cfun_it_s64_or},
@@ -329,7 +351,7 @@ static JanetMethod it_u64_methods[] = {
     {">", cfun_it_u64_gt},
     {"<=", cfun_it_u64_le},
     {">=", cfun_it_u64_ge},
-    {"==", cfun_it_u64_eq},
+    {"=", cfun_it_u64_eq},
     {"!=", cfun_it_u64_ne},
     {"&", cfun_it_u64_and},
     {"|", cfun_it_u64_or},

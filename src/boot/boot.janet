@@ -72,14 +72,22 @@
   (setdyn name* @{:ref @[init]})
   nil)
 
+# Aliases
+(def == =)
+(def not== ==)
+(def order< <)
+(def order<= <=)
+(def order> >=)
+(def order>= >=)
+
 # Basic predicates
 (defn nan? "Check if x is NaN" [x] (not= x x))
-(defn even? "Check if x is even." [x] (== 0 (% x 2)))
+(defn even? "Check if x is even." [x] (= 0 (% x 2)))
 (defn odd? "Check if x is odd." [x] (not= 0 (% x 2)))
-(defn zero? "Check if x is zero." [x] (== x 0))
+(defn zero? "Check if x is zero." [x] (= x 0))
 (defn pos? "Check if x is greater than 0." [x] (> x 0))
 (defn neg? "Check if x is less than 0." [x] (< x 0))
-(defn one? "Check if x is equal to 1." [x] (== x 1))
+(defn one? "Check if x is equal to 1." [x] (= x 1))
 (defn number? "Check if x is a number." [x] (= (type x) :number))
 (defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
 (defn string? "Check if x is a string." [x] (= (type x) :string))
@@ -554,12 +562,12 @@
 (defn max-order
   "Returns the maximum of the arguments according to a total
   order over all values."
-  [& args] (extreme order> args))
+  [& args] (extreme > args))
 
 (defn min-order
   "Returns the minimum of the arguments according to a total
   order over all values."
-  [& args] (extreme order< args))
+  [& args] (extreme < args))
 
 (defn first
   "Get the first element from an indexed data structure."
@@ -605,11 +613,11 @@
       a)
 
     (fn sort [a &opt by]
-      (sort-help a 0 (- (length a) 1) (or by order<)))))
+      (sort-help a 0 (- (length a) 1) (or by <)))))
 
 (defn sorted
   "Returns a new sorted array without modifying the old one."
-  [ind by]
+  [ind &opt by]
   (sort (array/slice ind) by))
 
 (defn reduce
@@ -1427,7 +1435,7 @@
                  (if-let [[path line col] sm]
                    (string "    " path " on line " line ", column " col "\n") "")
                  (if (or d sm) "\n" "")
-                 (if d (doc-format d) "no documentation found.")
+                 (if d (doc-format d) "    no documentation found.")
                  "\n\n"))))
 
     # else

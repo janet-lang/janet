@@ -49,6 +49,8 @@ JanetAbstractType cfun_io_filetype = {
     NULL,
     NULL,
     NULL,
+    NULL,
+    NULL,
     NULL
 };
 

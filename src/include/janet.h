@@ -924,6 +924,8 @@ struct JanetAbstractType {
     void (*marshal)(void *p, JanetMarshalContext *ctx);
     void *(*unmarshal)(JanetMarshalContext *ctx);
     void (*tostring)(void *p, JanetBuffer *buffer);
+    int (*compare)(void *lhs, void *rhs);
+    int32_t (*hash)(void *p, size_t len);
 };
 
 struct JanetReg {
@@ -1075,11 +1077,8 @@ enum JanetOpCode {
     JOP_MAKE_TABLE,
     JOP_MAKE_TUPLE,
     JOP_MAKE_BRACKET_TUPLE,
-    JOP_NUMERIC_LESS_THAN,
-    JOP_NUMERIC_LESS_THAN_EQUAL,
-    JOP_NUMERIC_GREATER_THAN,
-    JOP_NUMERIC_GREATER_THAN_EQUAL,
-    JOP_NUMERIC_EQUAL,
+    JOP_GREATER_THAN_EQUAL,
+    JOP_LESS_THAN_EQUAL,
     JOP_INSTRUCTION_COUNT
 };
 

@@ -295,6 +295,8 @@ static const JanetAbstractType type_wrap = {
     NULL,
     NULL,
     NULL,
+    NULL,
+    NULL,
     NULL
 };
 

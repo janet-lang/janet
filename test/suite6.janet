@@ -62,8 +62,8 @@
    # just to big
    (def d (u64 "123456789123456789123456789"))))
 
-(assert (:== (:/ (u64 "0xffff_ffff_ffff_ffff") 8 2) "0xfffffffffffffff") "bigint operations")
-(assert (let [a (u64 0xff)] (:== (:+ a a a a) (:* a 2 2))) "bigint operations")
+(assert (= (:/ (u64 "0xffff_ffff_ffff_ffff") 8 2) (u64 "0xfffffffffffffff")) "bigint operations 1")
+(assert (let [a (u64 0xff)] (= (:+ a a a a) (:* a 2 2))) "bigint operations 2")
 
 (assert (= (string (i64 -123)) "-123") "i64 prints reasonably")
 (assert (= (string (u64 123)) "123") "u64 prints reasonably")
@@ -73,7 +73,7 @@
  (:/ (int/s64 "-0x8000_0000_0000_0000") -1))
 
 # in place operators
-(assert (let [a (u64 1e10)] (:+! a 1000000 "1000000" "0xffff") (:== a 10002065535)) "in place operators")
+(assert (let [a (u64 1e10)] (:+! a 1000000 "1000000" "0xffff") (:= a 10002065535)) "in place operators")
 
 # int64 typed arrays
 (assert (let [t (tarray/new :int64 10)
@@ -84,10 +84,10 @@
           (set (t 3) (t 0))
           (set (t 4) (u64 1000))
           (and
-           (:== (t 0) (t 1))
-           (:== (t 1) (t 2))
-           (:== (t 2) (t 3))
-           (:== (t 3) (t 4))
+           (= (t 0) (t 1))
+           (= (t 1) (t 2))
+           (= (t 2) (t 3))
+           (= (t 3) (t 4))
            ))
         "int64 typed arrays")
 

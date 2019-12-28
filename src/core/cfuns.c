@@ -235,41 +235,23 @@ static JanetSlot compreduce(
     return t;
 }
 
-static JanetSlot do_order_gt(JanetFopts opts, JanetSlot *args) {
+static JanetSlot do_gt(JanetFopts opts, JanetSlot *args) {
     return compreduce(opts, args, JOP_GREATER_THAN, 0);
 }
-static JanetSlot do_order_lt(JanetFopts opts, JanetSlot *args) {
+static JanetSlot do_lt(JanetFopts opts, JanetSlot *args) {
     return compreduce(opts, args, JOP_LESS_THAN, 0);
 }
-static JanetSlot do_order_gte(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_LESS_THAN, 1);
-}
-static JanetSlot do_order_lte(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_GREATER_THAN, 1);
-}
-static JanetSlot do_order_eq(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_EQUALS, 0);
-}
-static JanetSlot do_order_neq(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_EQUALS, 1);
-}
-static JanetSlot do_gt(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_NUMERIC_GREATER_THAN, 0);
-}
-static JanetSlot do_lt(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_NUMERIC_LESS_THAN, 0);
-}
 static JanetSlot do_gte(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_NUMERIC_GREATER_THAN_EQUAL, 0);
+    return compreduce(opts, args, JOP_GREATER_THAN_EQUAL, 0);
 }
 static JanetSlot do_lte(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_NUMERIC_LESS_THAN_EQUAL, 0);
+    return compreduce(opts, args, JOP_LESS_THAN_EQUAL, 0);
 }
 static JanetSlot do_eq(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_NUMERIC_EQUAL, 0);
+    return compreduce(opts, args, JOP_EQUALS, 0);
 }
 static JanetSlot do_neq(JanetFopts opts, JanetSlot *args) {
-    return compreduce(opts, args, JOP_NUMERIC_EQUAL, 1);
+    return compreduce(opts, args, JOP_EQUALS, 1);
 }
 
 /* Arranged by tag */
@@ -293,12 +275,6 @@ static const JanetFunOptimizer optimizers[] = {
     {NULL, do_rshift},
     {NULL, do_rshiftu},
     {fixarity1, do_bnot},
-    {NULL, do_order_gt},
-    {NULL, do_order_lt},
-    {NULL, do_order_gte},
-    {NULL, do_order_lte},
-    {NULL, do_order_eq},
-    {NULL, do_order_neq},
     {NULL, do_gt},
     {NULL, do_lt},
     {NULL, do_gte},
