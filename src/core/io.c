@@ -36,6 +36,7 @@ typedef struct IOFile IOFile;
 struct IOFile {
     FILE *file;
     int flags;
+    char * buf;
 };
 
 static int cfun_io_gc(void *p, size_t len);
