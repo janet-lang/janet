@@ -92,10 +92,11 @@ static int checkflags(const uint8_t *str) {
     return flags;
 }
 
-static Janet makef(FILE *f, int flags) {
+static Janet makef(FILE *f, int flags, char * buffer) {
     IOFile *iof = (IOFile *) janet_abstract(&cfun_io_filetype, sizeof(IOFile));
     iof->file = f;
     iof->flags = flags;
+    iof->buf = buffer;
     return janet_wrap_abstract(iof);
 }
 
