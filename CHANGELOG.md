@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### Unreleased
+- Update documentation.
+
 ### 1.6.0 - 2019-12-22
 - Add `thread/` module to the core.
 - Allow seeding RNGs with any sequence of bytes. This provides
