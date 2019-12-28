@@ -362,6 +362,9 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
         janet_panic("file is closed");
     if (iof->flags & (JANET_FILE_NOT_CLOSEABLE))
         janet_panic("file not closable");
+    if(NULL != iof->buf) {
+        free(iof->buf);
+    }
     if (iof->flags & JANET_FILE_PIPED) {
 #ifdef JANET_WINDOWS
 #define pclose _pclose
