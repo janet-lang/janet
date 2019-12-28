@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 - Let abstract types define a hash function and comparison/equality semantics. This lets
   abstract types much better represent value types. This adds more fields to abstract types, which
   will generate warnings when compiled against other versions.
+- Remove Emscripten build. Instead, use the amalgamated source code with a custom toolchain.
 - Update documentation.
 
 ### 1.6.0 - 2019-12-22

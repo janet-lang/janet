@@ -166,35 +166,6 @@ $(JANET_LIBRARY): $(JANET_CORE_OBJECTS)
 $(JANET_STATIC_LIBRARY): $(JANET_CORE_OBJECTS)
 	$(AR) rcs $@ $^
 
-######################
-##### Emscripten #####
-######################
-
-EMCC=emcc
-EMCFLAGS=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -O2 \
-		  -s EXTRA_EXPORTED_RUNTIME_METHODS='["cwrap"]' \
-		  -s ALLOW_MEMORY_GROWTH=1 \
-		  -s AGGRESSIVE_VARIABLE_ELIMINATION=1 \
-		  -DJANET_BUILD=$(JANET_BUILD)
-JANET_EMTARGET=build/janet.js
-JANET_WEB_SOURCES=$(JANET_CORE_SOURCES) $(JANET_WEBCLIENT_SOURCES)
-JANET_EMOBJECTS=$(patsubst src/%.c,build/%.bc,$(JANET_WEB_SOURCES)) \
-				build/webinit.gen.bc build/core_image.bc
-
-%.gen.bc: %.gen.c
-	$(EMCC) $(EMCFLAGS) -o $@ -c $<
-
-build/core_image.bc: build/core_image.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
-	$(EMCC) $(EMCFLAGS) -o $@ -c $<
-
-build/%.bc: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
-	$(EMCC) $(EMCFLAGS) -o $@ -c $<
-
-$(JANET_EMTARGET): $(JANET_EMOBJECTS)
-	$(EMCC) $(EMCFLAGS) -shared -o $@ $^
-
-emscripten: $(JANET_EMTARGET)
-
 #############################
 ##### Generated C files #####
 #############################
