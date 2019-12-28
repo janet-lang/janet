@@ -604,7 +604,8 @@ static const JanetReg io_cfuns[] = {
         JDOC("(file/close f)\n\n"
              "Close a file and release all related resources. When you are "
              "done reading a file, close it to prevent a resource leak and let "
-             "other processes read the file.")
+             "other processes read the file. If the file is the result of a file/popen "
+             "call, close waits for and returns the process exit status.")
     },
     {
         "file/read", cfun_io_fread,
