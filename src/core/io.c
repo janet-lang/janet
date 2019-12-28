@@ -587,6 +587,7 @@ static const JanetReg io_cfuns[] = {
              "mode is a keyword where each character represents a flag."
              "buf is the buffer instance to be used for output caching."
              "if buf's capacity is equal to zero, buffering is disabled."
+             "the buffer shouldn't be resized after the operation completes."
              "If the file cannot be opened, returns nil, otherwise returns the new file"
              "handle. "
              "Mode flags:\n\n"
