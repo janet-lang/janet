@@ -135,19 +135,33 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
 #endif
 
 static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 2);
+    janet_arity(argc, 1, 3);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode;
     int flags;
-    if (argc == 2) {
+    
+    if (argc == 2 || argc == 3) {
         fmode = janet_getkeyword(argv, 1);
         flags = checkflags(fmode);
     } else {
         fmode = (const uint8_t *)"r";
         flags = JANET_FILE_READ;
     }
+    
     FILE *f = fopen((const char *)fname, (const char *)fmode);
-    return f ? makef(f, flags) : janet_wrap_nil();
+    
+    if(NULL == f) {
+        return janet_wrap_nil();
+    } else {
+        if(argc == 3) {
+            JanetBuffer * buffer = janet_getbuffer(argv, 2);
+            
+            if((buffer->capacity == 0 && setvbuf(f, NULL, _IONBF, 0)) || setvbuf(f, buffer->data, _IOFBF, buffer->capacity))
+                return janet_wrap_nil();
+        }
+        
+        return makef(f, flags);
+    }
 }
 
 static Janet cfun_io_fdopen(int32_t argc, Janet *argv) {
