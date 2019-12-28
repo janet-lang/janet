@@ -342,9 +342,15 @@ static Janet cfun_io_fflush(int32_t argc, Janet *argv) {
 static int cfun_io_gc(void *p, size_t len) {
     (void) len;
     IOFile *iof = (IOFile *)p;
+    
     if (!(iof->flags & (JANET_FILE_NOT_CLOSEABLE | JANET_FILE_CLOSED))) {
         return fclose(iof->file);
     }
+    
+    if(NULL != iof->buf) {
+        free(iof->buf);
+    }
+    
     return 0;
 }
 
