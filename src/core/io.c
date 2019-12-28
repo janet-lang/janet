@@ -108,11 +108,11 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
 }
 #else
 static Janet cfun_io_popen(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 2);
+    janet_arity(argc, 1, 3);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode = NULL;
     int flags;
-    if (argc == 2) {
+    if (argc >= 2) {
         fmode = janet_getkeyword(argv, 1);
         if (janet_string_length(fmode) != 1 ||
                 !(fmode[0] == 'r' || fmode[0] == 'w')) {
@@ -127,10 +127,19 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
 #define popen _popen
 #endif
     FILE *f = popen((const char *)fname, (const char *)fmode);
-    if (!f) {
+    
+    if(NULL == f) {
         return janet_wrap_nil();
+    } else {
+        if(argc == 3) {
+            JanetBuffer * buffer = janet_getbuffer(argv, 2);
+            
+            if((buffer->capacity == 0 && setvbuf(f, NULL, _IONBF, 0)) || setvbuf(f, buffer->data, _IOFBF, buffer->capacity))
+                return janet_wrap_nil();
+        }
+        
+        return makef(f, flags);
     }
-    return makef(f, flags);
 }
 #endif
 
@@ -180,7 +189,7 @@ static Janet cfun_io_fdopen(int32_t argc, Janet *argv) {
 #define fdopen _fdopen
 #endif
     FILE *f = fdopen(fd, (const char *)fmode);
-	
+    
     if(NULL == f) {
         return janet_wrap_nil();
     } else {
@@ -615,11 +624,11 @@ static const JanetReg io_cfuns[] = {
              "Create a file from an fd. fd is a platform specific file descriptor, and "
              "mode is a set of flags indicating the mode to open the file in. "
              "mode is a keyword where each character represents a flag."
-			 "buf is the buffer instance to be used for output caching."
+             "buf is the buffer instance to be used for output caching."
              "if buf's capacity is equal to zero, buffering is disabled."
              "the buffer shouldn't be resized after the operation completes."
-			 "If the file cannot be opened, returns nil, otherwise returns the new file"
-			 "handle. "
+             "If the file cannot be opened, returns nil, otherwise returns the new file"
+             "handle. "
              "Mode flags:\n\n"
              "\tr - allow reading from the file\n"
              "\tw - allow writing to the file\n"
@@ -678,11 +687,15 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/popen", cfun_io_popen,
-        JDOC("(file/popen path &opt mode)\n\n"
+        JDOC("(file/popen path &opt mode &opt buf)\n\n"
              "Open a file that is backed by a process. The file must be opened in either "
              "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
              "process can be read from the file. In :w mode, the stdin of the process "
-             "can be written to. Returns the new file.")
+             "can be written to."
+             "buf is the buffer instance to be used for output caching."
+             "if buf's capacity is equal to zero, buffering is disabled."
+             "the buffer shouldn't be resized after the operation completes."
+             "Returns the new file.")
     },
     {NULL, NULL, NULL}
 };
