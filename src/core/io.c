@@ -646,13 +646,12 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/open", cfun_io_fopen,
-        JDOC("(file/open path &opt mode &opt buf)\n\n"
+        JDOC("(file/open path &opt mode &opt bufsiz)\n\n"
              "Open a file. path is an absolute or relative path, "
              "mode is a set of flags indicating the mode to open the file in."
              "mode is a keyword where each character represents a flag."
-             "buf is the buffer instance to be used for output caching."
-             "if buf's capacity is equal to zero, buffering is disabled."
-             "the buffer shouldn't be resized after the operation completes."
+             "bufsiz is the buffer size to be used for output caching."
+             "if bufsiz is equal to zero, buffering is disabled."
              "If the file cannot be opened, returns nil, otherwise returns the new file"
              "handle. "
              "Mode flags:\n\n"
@@ -664,13 +663,12 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/fdopen", cfun_io_fdopen,
-        JDOC("(file/fdopen fd &opt mode &opt buf)\n\n"
+        JDOC("(file/fdopen fd &opt mode &opt bufsiz)\n\n"
              "Create a file from an fd. fd is a platform specific file descriptor, and "
              "mode is a set of flags indicating the mode to open the file in. "
              "mode is a keyword where each character represents a flag."
-             "buf is the buffer instance to be used for output caching."
-             "if buf's capacity is equal to zero, buffering is disabled."
-             "the buffer shouldn't be resized after the operation completes."
+             "bufsiz is the buffer size to be used for output caching."
+             "if bufsiz is equal to zero, buffering is disabled."
              "If the file cannot be opened, returns nil, otherwise returns the new file"
              "handle. "
              "Mode flags:\n\n"
@@ -696,7 +694,7 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/read", cfun_io_fread,
-        JDOC("(file/read f what &opt buf)\n\n"
+        JDOC("(file/read f what &opt bufsiz)\n\n"
              "Read a number of bytes from a file into a buffer. A buffer can "
              "be provided as an optional fourth argument, otherwise a new buffer "
              "is created. 'what' can either be an integer or a keyword. Returns the "
@@ -731,14 +729,13 @@ static const JanetReg io_cfuns[] = {
     },
     {
         "file/popen", cfun_io_popen,
-        JDOC("(file/popen path &opt mode &opt buf)\n\n"
+        JDOC("(file/popen path &opt mode &opt bufsiz)\n\n"
              "Open a file that is backed by a process. The file must be opened in either "
              "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
              "process can be read from the file. In :w mode, the stdin of the process "
              "can be written to."
-             "buf is the buffer instance to be used for output caching."
-             "if buf's capacity is equal to zero, buffering is disabled."
-             "the buffer shouldn't be resized after the operation completes."
+             "bufsiz is the buffer size to be used for output caching."
+             "if bufsiz is equal to zero, buffering is disabled."
              "Returns the new file.")
     },
     {NULL, NULL, NULL}
