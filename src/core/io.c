@@ -755,15 +755,15 @@ void janet_lib_io(JanetTable *env) {
 
     /* stdout */
     janet_core_def(env, "stdout",
-                   makef(stdout, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
+                   makef(stdout, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE, NULL),
                    JDOC("The standard output file."));
     /* stderr */
     janet_core_def(env, "stderr",
-                   makef(stderr, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
+                   makef(stderr, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE, NULL),
                    JDOC("The standard error file."));
     /* stdin */
     janet_core_def(env, "stdin",
-                   makef(stdin, JANET_FILE_READ | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
+                   makef(stdin, JANET_FILE_READ | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE, NULL),
                    JDOC("The standard input file."));
 
 }
