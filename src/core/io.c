@@ -140,7 +140,7 @@ static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
     const uint8_t *fmode;
     int flags;
     
-    if (argc == 2 || argc == 3) {
+    if (argc >= 2) {
         fmode = janet_getkeyword(argv, 1);
         flags = checkflags(fmode);
     } else {
