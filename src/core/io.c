@@ -133,14 +133,25 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
     if(NULL == f) {
         return janet_wrap_nil();
     } else {
+        char * buffer = NULL;
+        
         if(argc == 3) {
-            JanetBuffer * buffer = janet_getbuffer(argv, 2);
+            int bufsiz = janet_getinteger(argv, 2);
             
-            if((buffer->capacity == 0 && setvbuf(f, NULL, _IONBF, 0)) || setvbuf(f, buffer->data, _IOFBF, buffer->capacity))
+            if(bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
+                return janet_wrap_nil();
+            
+            buffer = malloc(bufsiz);
+            
+            if(NULL == buffer) {
+                janet_panic("memory exhausted");
+            }
+            
+            if(setvbuf(f, buffer, _IOFBF, bufsiz))
                 return janet_wrap_nil();
         }
         
-        return makef(f, flags);
+        return makef(f, flags, buffer);
     }
 }
 #endif
