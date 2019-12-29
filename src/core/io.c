@@ -36,7 +36,7 @@ typedef struct IOFile IOFile;
 struct IOFile {
     FILE *file;
     int flags;
-    char * buf;
+    char *buf;
 };
 
 static int cfun_io_gc(void *p, size_t len);
@@ -92,7 +92,7 @@ static int checkflags(const uint8_t *str) {
     return flags;
 }
 
-static Janet makef(FILE *f, int flags, char * buffer) {
+static Janet makef(FILE *f, int flags, char *buffer) {
     IOFile *iof = (IOFile *) janet_abstract(&cfun_io_filetype, sizeof(IOFile));
     iof->file = f;
     iof->flags = flags;
@@ -129,28 +129,28 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
 #define popen _popen
 #endif
     FILE *f = popen((const char *)fname, (const char *)fmode);
-    
-    if(NULL == f) {
+
+    if (NULL == f) {
         return janet_wrap_nil();
     } else {
-        char * buffer = NULL;
-        
-        if(argc == 3) {
+        char *buffer = NULL;
+
+        if (argc == 3) {
             int bufsiz = janet_getinteger(argv, 2);
-            
-            if(bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
+
+            if (bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
                 return janet_wrap_nil();
-            
+
             buffer = malloc(bufsiz);
-            
-            if(NULL == buffer) {
+
+            if (NULL == buffer) {
                 janet_panic("memory exhausted");
             }
-            
-            if(setvbuf(f, buffer, _IOFBF, bufsiz))
+
+            if (setvbuf(f, buffer, _IOFBF, bufsiz))
                 return janet_wrap_nil();
         }
-        
+
         return makef(f, flags, buffer);
     }
 }
@@ -161,7 +161,7 @@ static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode;
     int flags;
-    
+
     if (argc >= 2) {
         fmode = janet_getkeyword(argv, 1);
         flags = checkflags(fmode);
@@ -169,30 +169,30 @@ static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
         fmode = (const uint8_t *)"r";
         flags = JANET_FILE_READ;
     }
-    
+
     FILE *f = fopen((const char *)fname, (const char *)fmode);
-    
-    if(NULL == f) {
+
+    if (NULL == f) {
         return janet_wrap_nil();
     } else {
-        char * buffer = NULL;
-        
-        if(argc == 3) {
+        char *buffer = NULL;
+
+        if (argc == 3) {
             int bufsiz = janet_getinteger(argv, 2);
-            
-            if(bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
+
+            if (bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
                 return janet_wrap_nil();
-            
+
             buffer = malloc(bufsiz);
-            
-            if(NULL == buffer) {
+
+            if (NULL == buffer) {
                 janet_panic("memory exhausted");
             }
-            
-            if(setvbuf(f, buffer, _IOFBF, bufsiz))
+
+            if (setvbuf(f, buffer, _IOFBF, bufsiz))
                 return janet_wrap_nil();
         }
-        
+
         return makef(f, flags, buffer);
     }
 }
@@ -213,28 +213,28 @@ static Janet cfun_io_fdopen(int32_t argc, Janet *argv) {
 #define fdopen _fdopen
 #endif
     FILE *f = fdopen(fd, (const char *)fmode);
-    
-    if(NULL == f) {
+
+    if (NULL == f) {
         return janet_wrap_nil();
     } else {
-        char * buffer = NULL;
-        
-        if(argc == 3) {
+        char *buffer = NULL;
+
+        if (argc == 3) {
             int bufsiz = janet_getinteger(argv, 2);
-            
-            if(bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
+
+            if (bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
                 return janet_wrap_nil();
-            
+
             buffer = malloc(bufsiz);
-            
-            if(NULL == buffer) {
+
+            if (NULL == buffer) {
                 janet_panic("memory exhausted");
             }
-            
-            if(setvbuf(f, buffer, _IOFBF, bufsiz))
+
+            if (setvbuf(f, buffer, _IOFBF, bufsiz))
                 return janet_wrap_nil();
         }
-        
+
         return makef(f, flags, buffer);
     }
 }
@@ -342,15 +342,15 @@ static Janet cfun_io_fflush(int32_t argc, Janet *argv) {
 static int cfun_io_gc(void *p, size_t len) {
     (void) len;
     IOFile *iof = (IOFile *)p;
-    
+
     if (!(iof->flags & (JANET_FILE_NOT_CLOSEABLE | JANET_FILE_CLOSED))) {
         return fclose(iof->file);
     }
-    
-    if(NULL != iof->buf) {
+
+    if (NULL != iof->buf) {
         free(iof->buf);
     }
-    
+
     return 0;
 }
 
@@ -362,7 +362,7 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
         janet_panic("file is closed");
     if (iof->flags & (JANET_FILE_NOT_CLOSEABLE))
         janet_panic("file not closable");
-    if(NULL != iof->buf) {
+    if (NULL != iof->buf) {
         free(iof->buf);
     }
     if (iof->flags & JANET_FILE_PIPED) {
@@ -603,140 +603,140 @@ static const JanetReg io_cfuns[] = {
     {
         "print", cfun_io_print,
         JDOC("(print & xs)\n\n"
-             "Print values to the console (standard out). Value are converted "
-             "to strings if they are not already. After printing all values, a "
-             "newline character is printed. Use the value of (dyn :out stdout) to determine "
-             "what to push characters to. Expects (dyn :out stdout) to be either a core/file or "
-             "a buffer. Returns nil.")
+        "Print values to the console (standard out). Value are converted "
+        "to strings if they are not already. After printing all values, a "
+        "newline character is printed. Use the value of (dyn :out stdout) to determine "
+        "what to push characters to. Expects (dyn :out stdout) to be either a core/file or "
+        "a buffer. Returns nil.")
     },
     {
         "prin", cfun_io_prin,
         JDOC("(prin & xs)\n\n"
-             "Same as print, but does not add trailing newline.")
+        "Same as print, but does not add trailing newline.")
     },
     {
         "printf", cfun_io_printf,
         JDOC("(printf fmt & xs)\n\n"
-             "Prints output formatted as if with (string/format fmt ;xs) to (dyn :out stdout) with a trailing newline.")
+        "Prints output formatted as if with (string/format fmt ;xs) to (dyn :out stdout) with a trailing newline.")
     },
     {
         "prinf", cfun_io_prinf,
         JDOC("(prinf fmt & xs)\n\n"
-             "Like printf but with no trailing newline.")
+        "Like printf but with no trailing newline.")
     },
     {
         "eprin", cfun_io_eprin,
         JDOC("(eprin & xs)\n\n"
-             "Same as prin, but uses (dyn :err stderr) instead of (dyn :out stdout).")
+        "Same as prin, but uses (dyn :err stderr) instead of (dyn :out stdout).")
     },
     {
         "eprint", cfun_io_eprint,
         JDOC("(eprint & xs)\n\n"
-             "Same as print, but uses (dyn :err stderr) instead of (dyn :out stdout).")
+        "Same as print, but uses (dyn :err stderr) instead of (dyn :out stdout).")
     },
     {
         "eprintf", cfun_io_eprintf,
         JDOC("(eprintf fmt & xs)\n\n"
-             "Prints output formatted as if with (string/format fmt ;xs) to (dyn :err stderr) with a trailing newline.")
+        "Prints output formatted as if with (string/format fmt ;xs) to (dyn :err stderr) with a trailing newline.")
     },
     {
         "eprinf", cfun_io_eprinf,
         JDOC("(eprinf fmt & xs)\n\n"
-             "Like eprintf but with no trailing newline.")
+        "Like eprintf but with no trailing newline.")
     },
     {
         "file/open", cfun_io_fopen,
         JDOC("(file/open path &opt mode &opt bufsiz)\n\n"
-             "Open a file. path is an absolute or relative path, "
-             "mode is a set of flags indicating the mode to open the file in."
-             "mode is a keyword where each character represents a flag."
-             "bufsiz is the buffer size to be used for output caching."
-             "if bufsiz is equal to zero, buffering is disabled."
-             "If the file cannot be opened, returns nil, otherwise returns the new file"
-             "handle. "
-             "Mode flags:\n\n"
-             "\tr - allow reading from the file\n"
-             "\tw - allow writing to the file\n"
-             "\ta - append to the file\n"
-             "\tb - open the file in binary mode (rather than text mode)\n"
-             "\t+ - append to the file instead of overwriting it")
+        "Open a file. path is an absolute or relative path, "
+        "mode is a set of flags indicating the mode to open the file in."
+        "mode is a keyword where each character represents a flag."
+        "bufsiz is the buffer size to be used for output caching."
+        "if bufsiz is equal to zero, buffering is disabled."
+        "If the file cannot be opened, returns nil, otherwise returns the new file"
+        "handle. "
+        "Mode flags:\n\n"
+        "\tr - allow reading from the file\n"
+        "\tw - allow writing to the file\n"
+        "\ta - append to the file\n"
+        "\tb - open the file in binary mode (rather than text mode)\n"
+        "\t+ - append to the file instead of overwriting it")
     },
     {
         "file/fdopen", cfun_io_fdopen,
         JDOC("(file/fdopen fd &opt mode &opt bufsiz)\n\n"
-             "Create a file from an fd. fd is a platform specific file descriptor, and "
-             "mode is a set of flags indicating the mode to open the file in. "
-             "mode is a keyword where each character represents a flag."
-             "bufsiz is the buffer size to be used for output caching."
-             "if bufsiz is equal to zero, buffering is disabled."
-             "If the file cannot be opened, returns nil, otherwise returns the new file"
-             "handle. "
-             "Mode flags:\n\n"
-             "\tr - allow reading from the file\n"
-             "\tw - allow writing to the file\n"
-             "\ta - append to the file\n"
-             "\tb - open the file in binary mode (rather than text mode)\n"
-             "\t+ - append to the file instead of overwriting it")
+        "Create a file from an fd. fd is a platform specific file descriptor, and "
+        "mode is a set of flags indicating the mode to open the file in. "
+        "mode is a keyword where each character represents a flag."
+        "bufsiz is the buffer size to be used for output caching."
+        "if bufsiz is equal to zero, buffering is disabled."
+        "If the file cannot be opened, returns nil, otherwise returns the new file"
+        "handle. "
+        "Mode flags:\n\n"
+        "\tr - allow reading from the file\n"
+        "\tw - allow writing to the file\n"
+        "\ta - append to the file\n"
+        "\tb - open the file in binary mode (rather than text mode)\n"
+        "\t+ - append to the file instead of overwriting it")
     },
     {
         "file/fileno", cfun_io_fileno,
         JDOC("(file/fileno f)\n\n"
-             "Return the underlying file descriptor for the file as a number."
-             "The meaning of this number is platform specific.")
+        "Return the underlying file descriptor for the file as a number."
+        "The meaning of this number is platform specific.")
     },
     {
         "file/close", cfun_io_fclose,
         JDOC("(file/close f)\n\n"
-             "Close a file and release all related resources. When you are "
-             "done reading a file, close it to prevent a resource leak and let "
-             "other processes read the file. If the file is the result of a file/popen "
-             "call, close waits for and returns the process exit status.")
+        "Close a file and release all related resources. When you are "
+        "done reading a file, close it to prevent a resource leak and let "
+        "other processes read the file. If the file is the result of a file/popen "
+        "call, close waits for and returns the process exit status.")
     },
     {
         "file/read", cfun_io_fread,
         JDOC("(file/read f what &opt bufsiz)\n\n"
-             "Read a number of bytes from a file into a buffer. A buffer can "
-             "be provided as an optional fourth argument, otherwise a new buffer "
-             "is created. 'what' can either be an integer or a keyword. Returns the "
-             "buffer with file contents. "
-             "Values for 'what':\n\n"
-             "\t:all - read the whole file\n"
-             "\t:line - read up to and including the next newline character\n"
-             "\tn (integer) - read up to n bytes from the file")
+        "Read a number of bytes from a file into a buffer. A buffer can "
+        "be provided as an optional fourth argument, otherwise a new buffer "
+        "is created. 'what' can either be an integer or a keyword. Returns the "
+        "buffer with file contents. "
+        "Values for 'what':\n\n"
+        "\t:all - read the whole file\n"
+        "\t:line - read up to and including the next newline character\n"
+        "\tn (integer) - read up to n bytes from the file")
     },
     {
         "file/write", cfun_io_fwrite,
         JDOC("(file/write f bytes)\n\n"
-             "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
-             "file.")
+        "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
+        "file.")
     },
     {
         "file/flush", cfun_io_fflush,
         JDOC("(file/flush f)\n\n"
-             "Flush any buffered bytes to the file system. In most files, writes are "
-             "buffered for efficiency reasons. Returns the file handle.")
+        "Flush any buffered bytes to the file system. In most files, writes are "
+        "buffered for efficiency reasons. Returns the file handle.")
     },
     {
         "file/seek", cfun_io_fseek,
         JDOC("(file/seek f &opt whence n)\n\n"
-             "Jump to a relative location in the file. 'whence' must be one of\n\n"
-             "\t:cur - jump relative to the current file location\n"
-             "\t:set - jump relative to the beginning of the file\n"
-             "\t:end - jump relative to the end of the file\n\n"
-             "By default, 'whence' is :cur. Optionally a value n may be passed "
-             "for the relative number of bytes to seek in the file. n may be a real "
-             "number to handle large files of more the 4GB. Returns the file handle.")
+        "Jump to a relative location in the file. 'whence' must be one of\n\n"
+        "\t:cur - jump relative to the current file location\n"
+        "\t:set - jump relative to the beginning of the file\n"
+        "\t:end - jump relative to the end of the file\n\n"
+        "By default, 'whence' is :cur. Optionally a value n may be passed "
+        "for the relative number of bytes to seek in the file. n may be a real "
+        "number to handle large files of more the 4GB. Returns the file handle.")
     },
     {
         "file/popen", cfun_io_popen,
         JDOC("(file/popen path &opt mode &opt bufsiz)\n\n"
-             "Open a file that is backed by a process. The file must be opened in either "
-             "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
-             "process can be read from the file. In :w mode, the stdin of the process "
-             "can be written to."
-             "bufsiz is the buffer size to be used for output caching."
-             "if bufsiz is equal to zero, buffering is disabled."
-             "Returns the new file.")
+        "Open a file that is backed by a process. The file must be opened in either "
+        "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
+        "process can be read from the file. In :w mode, the stdin of the process "
+        "can be written to."
+        "bufsiz is the buffer size to be used for output caching."
+        "if bufsiz is equal to zero, buffering is disabled."
+        "Returns the new file.")
     },
     {NULL, NULL, NULL}
 };

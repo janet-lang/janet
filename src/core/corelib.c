@@ -504,199 +504,199 @@ static const JanetReg corelib_cfuns[] = {
     {
         "native", janet_core_native,
         JDOC("(native path &opt env)\n\n"
-             "Load a native module from the given path. The path "
-             "must be an absolute or relative path on the file system, and is "
-             "usually a .so file on Unix systems, and a .dll file on Windows. "
-             "Returns an environment table that contains functions and other values "
-             "from the native module.")
+        "Load a native module from the given path. The path "
+        "must be an absolute or relative path on the file system, and is "
+        "usually a .so file on Unix systems, and a .dll file on Windows. "
+        "Returns an environment table that contains functions and other values "
+        "from the native module.")
     },
     {
         "describe", janet_core_describe,
         JDOC("(describe x)\n\n"
-             "Returns a string that is a human readable description of a value x.")
+        "Returns a string that is a human readable description of a value x.")
     },
     {
         "string", janet_core_string,
         JDOC("(string & parts)\n\n"
-             "Creates a string by concatenating values together. Values are "
-             "converted to bytes via describe if they are not byte sequences. "
-             "Returns the new string.")
+        "Creates a string by concatenating values together. Values are "
+        "converted to bytes via describe if they are not byte sequences. "
+        "Returns the new string.")
     },
     {
         "symbol", janet_core_symbol,
         JDOC("(symbol & xs)\n\n"
-             "Creates a symbol by concatenating values together. Values are "
-             "converted to bytes via describe if they are not byte sequences. Returns "
-             "the new symbol.")
+        "Creates a symbol by concatenating values together. Values are "
+        "converted to bytes via describe if they are not byte sequences. Returns "
+        "the new symbol.")
     },
     {
         "keyword", janet_core_keyword,
         JDOC("(keyword & xs)\n\n"
-             "Creates a keyword by concatenating values together. Values are "
-             "converted to bytes via describe if they are not byte sequences. Returns "
-             "the new keyword.")
+        "Creates a keyword by concatenating values together. Values are "
+        "converted to bytes via describe if they are not byte sequences. Returns "
+        "the new keyword.")
     },
     {
         "buffer", janet_core_buffer,
         JDOC("(buffer & xs)\n\n"
-             "Creates a new buffer by concatenating values together. Values are "
-             "converted to bytes via describe if they are not byte sequences. Returns "
-             "the new buffer.")
+        "Creates a new buffer by concatenating values together. Values are "
+        "converted to bytes via describe if they are not byte sequences. Returns "
+        "the new buffer.")
     },
     {
         "abstract?", janet_core_is_abstract,
         JDOC("(abstract? x)\n\n"
-             "Check if x is an abstract type.")
+        "Check if x is an abstract type.")
     },
     {
         "table", janet_core_table,
         JDOC("(table & kvs)\n\n"
-             "Creates a new table from a variadic number of keys and values. "
-             "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
-             "an odd number of elements, an error will be thrown. Returns the "
-             "new table.")
+        "Creates a new table from a variadic number of keys and values. "
+        "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
+        "an odd number of elements, an error will be thrown. Returns the "
+        "new table.")
     },
     {
         "array", janet_core_array,
         JDOC("(array & items)\n\n"
-             "Create a new array that contains items. Returns the new array.")
+        "Create a new array that contains items. Returns the new array.")
     },
     {
         "scan-number", janet_core_scannumber,
         JDOC("(scan-number str)\n\n"
-             "Parse a number from a byte sequence an return that number, either and integer "
-             "or a real. The number "
-             "must be in the same format as numbers in janet source code. Will return nil "
-             "on an invalid number.")
+        "Parse a number from a byte sequence an return that number, either and integer "
+        "or a real. The number "
+        "must be in the same format as numbers in janet source code. Will return nil "
+        "on an invalid number.")
     },
     {
         "tuple", janet_core_tuple,
         JDOC("(tuple & items)\n\n"
-             "Creates a new tuple that contains items. Returns the new tuple.")
+        "Creates a new tuple that contains items. Returns the new tuple.")
     },
     {
         "struct", janet_core_struct,
         JDOC("(struct & kvs)\n\n"
-             "Create a new struct from a sequence of key value pairs. "
-             "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
-             "an odd number of elements, an error will be thrown. Returns the "
-             "new struct.")
+        "Create a new struct from a sequence of key value pairs. "
+        "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
+        "an odd number of elements, an error will be thrown. Returns the "
+        "new struct.")
     },
     {
         "gensym", janet_core_gensym,
         JDOC("(gensym)\n\n"
-             "Returns a new symbol that is unique across the runtime. This means it "
-             "will not collide with any already created symbols during compilation, so "
-             "it can be used in macros to generate automatic bindings.")
+        "Returns a new symbol that is unique across the runtime. This means it "
+        "will not collide with any already created symbols during compilation, so "
+        "it can be used in macros to generate automatic bindings.")
     },
     {
         "gccollect", janet_core_gccollect,
         JDOC("(gccollect)\n\n"
-             "Run garbage collection. You should probably not call this manually.")
+        "Run garbage collection. You should probably not call this manually.")
     },
     {
         "gcsetinterval", janet_core_gcsetinterval,
         JDOC("(gcsetinterval interval)\n\n"
-             "Set an integer number of bytes to allocate before running garbage collection. "
-             "Low values for interval will be slower but use less memory. "
-             "High values will be faster but use more memory.")
+        "Set an integer number of bytes to allocate before running garbage collection. "
+        "Low values for interval will be slower but use less memory. "
+        "High values will be faster but use more memory.")
     },
     {
         "gcinterval", janet_core_gcinterval,
         JDOC("(gcinterval)\n\n"
-             "Returns the integer number of bytes to allocate before running an iteration "
-             "of garbage collection.")
+        "Returns the integer number of bytes to allocate before running an iteration "
+        "of garbage collection.")
     },
     {
         "type", janet_core_type,
         JDOC("(type x)\n\n"
-             "Returns the type of x as a keyword symbol. x is one of\n"
-             "\t:nil\n"
-             "\t:boolean\n"
-             "\t:integer\n"
-             "\t:real\n"
-             "\t:array\n"
-             "\t:tuple\n"
-             "\t:table\n"
-             "\t:struct\n"
-             "\t:string\n"
-             "\t:buffer\n"
-             "\t:symbol\n"
-             "\t:keyword\n"
-             "\t:function\n"
-             "\t:cfunction\n\n"
-             "or another symbol for an abstract type.")
+        "Returns the type of x as a keyword symbol. x is one of\n"
+        "\t:nil\n"
+        "\t:boolean\n"
+        "\t:integer\n"
+        "\t:real\n"
+        "\t:array\n"
+        "\t:tuple\n"
+        "\t:table\n"
+        "\t:struct\n"
+        "\t:string\n"
+        "\t:buffer\n"
+        "\t:symbol\n"
+        "\t:keyword\n"
+        "\t:function\n"
+        "\t:cfunction\n\n"
+        "or another symbol for an abstract type.")
     },
     {
         "next", janet_core_next,
         JDOC("(next dict &opt key)\n\n"
-             "Gets the next key in a struct or table. Can be used to iterate through "
-             "the keys of a data structure in an unspecified order. Keys are guaranteed "
-             "to be seen only once per iteration if they data structure is not mutated "
-             "during iteration. If key is nil, next returns the first key. If next "
-             "returns nil, there are no more keys to iterate through. ")
+        "Gets the next key in a struct or table. Can be used to iterate through "
+        "the keys of a data structure in an unspecified order. Keys are guaranteed "
+        "to be seen only once per iteration if they data structure is not mutated "
+        "during iteration. If key is nil, next returns the first key. If next "
+        "returns nil, there are no more keys to iterate through. ")
     },
     {
         "hash", janet_core_hash,
         JDOC("(hash value)\n\n"
-             "Gets a hash value for any janet value. The hash is an integer can be used "
-             "as a cheap hash function for all janet objects. If two values are strictly equal, "
-             "then they will have the same hash value.")
+        "Gets a hash value for any janet value. The hash is an integer can be used "
+        "as a cheap hash function for all janet objects. If two values are strictly equal, "
+        "then they will have the same hash value.")
     },
     {
         "getline", janet_core_getline,
         JDOC("(getline &opt prompt buf)\n\n"
-             "Reads a line of input into a buffer, including the newline character, using a prompt. Returns the modified buffer. "
-             "Use this function to implement a simple interface for a terminal program.")
+        "Reads a line of input into a buffer, including the newline character, using a prompt. Returns the modified buffer. "
+        "Use this function to implement a simple interface for a terminal program.")
     },
     {
         "dyn", janet_core_dyn,
         JDOC("(dyn key &opt default)\n\n"
-             "Get a dynamic binding. Returns the default value (or nil) if no binding found.")
+        "Get a dynamic binding. Returns the default value (or nil) if no binding found.")
     },
     {
         "setdyn", janet_core_setdyn,
         JDOC("(setdyn key value)\n\n"
-             "Set a dynamic binding. Returns value.")
+        "Set a dynamic binding. Returns value.")
     },
     {
         "trace", janet_core_trace,
         JDOC("(trace func)\n\n"
-             "Enable tracing on a function. Returns the function.")
+        "Enable tracing on a function. Returns the function.")
     },
     {
         "untrace", janet_core_untrace,
         JDOC("(untrace func)\n\n"
-             "Disables tracing on a function. Returns the function.")
+        "Disables tracing on a function. Returns the function.")
     },
     {
         "module/expand-path", janet_core_expand_path,
         JDOC("(module/expand-path path template)\n\n"
-             "Expands a path template as found in module/paths for module/find. "
-             "This takes in a path (the argument to require) and a template string, template, "
-             "to expand the path to a path that can be "
-             "used for importing files. The replacements are as follows:\n\n"
-             "\t:all:\tthe value of path verbatim\n"
-             "\t:cur:\tthe current file, or (dyn :current-file)\n"
-             "\t:dir:\tthe directory containing the current file\n"
-             "\t:name:\tthe filename component of path, with extenion if given\n"
-             "\t:native:\tthe extension used to load natives, .so or .dll\n"
-             "\t:sys:\tthe system path, or (syn :syspath)")
+        "Expands a path template as found in module/paths for module/find. "
+        "This takes in a path (the argument to require) and a template string, template, "
+        "to expand the path to a path that can be "
+        "used for importing files. The replacements are as follows:\n\n"
+        "\t:all:\tthe value of path verbatim\n"
+        "\t:cur:\tthe current file, or (dyn :current-file)\n"
+        "\t:dir:\tthe directory containing the current file\n"
+        "\t:name:\tthe filename component of path, with extenion if given\n"
+        "\t:native:\tthe extension used to load natives, .so or .dll\n"
+        "\t:sys:\tthe system path, or (syn :syspath)")
     },
     {
         "int?", janet_core_check_int,
         JDOC("(int? x)\n\n"
-             "Check if x can be exactly represented as a 32 bit signed two's complement integer.")
+        "Check if x can be exactly represented as a 32 bit signed two's complement integer.")
     },
     {
         "nat?", janet_core_check_nat,
         JDOC("(nat? x)\n\n"
-             "Check if x can be exactly represented as a non-negative 32 bit signed two's complement integer.")
+        "Check if x can be exactly represented as a non-negative 32 bit signed two's complement integer.")
     },
     {
         "slice", janet_core_slice,
         JDOC("(slice x &opt start end)\n\n"
-             "Extract a sub-range of an indexed data strutrue or byte sequence.")
+        "Extract a sub-range of an indexed data strutrue or byte sequence.")
     },
     {NULL, NULL, NULL}
 };

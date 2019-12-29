@@ -358,92 +358,92 @@ static const JanetReg buffer_cfuns[] = {
     {
         "buffer/new", cfun_buffer_new,
         JDOC("(buffer/new capacity)\n\n"
-             "Creates a new, empty buffer with enough backing memory for capacity bytes. "
-             "Returns a new buffer of length 0.")
+        "Creates a new, empty buffer with enough backing memory for capacity bytes. "
+        "Returns a new buffer of length 0.")
     },
     {
         "buffer/new-filled", cfun_buffer_new_filled,
         JDOC("(buffer/new-filled count &opt byte)\n\n"
-             "Creates a new buffer of length count filled with byte. By default, byte is 0. "
-             "Returns the new buffer.")
+        "Creates a new buffer of length count filled with byte. By default, byte is 0. "
+        "Returns the new buffer.")
     },
     {
         "buffer/fill", cfun_buffer_fill,
         JDOC("(buffer/fill buffer &opt byte)\n\n"
-             "Fill up a buffer with bytes, defaulting to 0s. Does not change the buffer's length. "
-             "Returns the modified buffer.")
+        "Fill up a buffer with bytes, defaulting to 0s. Does not change the buffer's length. "
+        "Returns the modified buffer.")
     },
     {
         "buffer/push-byte", cfun_buffer_u8,
         JDOC("(buffer/push-byte buffer x)\n\n"
-             "Append a byte to a buffer. Will expand the buffer as necessary. "
-             "Returns the modified buffer. Will throw an error if the buffer overflows.")
+        "Append a byte to a buffer. Will expand the buffer as necessary. "
+        "Returns the modified buffer. Will throw an error if the buffer overflows.")
     },
     {
         "buffer/push-word", cfun_buffer_word,
         JDOC("(buffer/push-word buffer x)\n\n"
-             "Append a machine word to a buffer. The 4 bytes of the integer are appended "
-             "in twos complement, big endian order, unsigned. Returns the modified buffer. Will "
-             "throw an error if the buffer overflows.")
+        "Append a machine word to a buffer. The 4 bytes of the integer are appended "
+        "in twos complement, big endian order, unsigned. Returns the modified buffer. Will "
+        "throw an error if the buffer overflows.")
     },
     {
         "buffer/push-string", cfun_buffer_chars,
         JDOC("(buffer/push-string buffer str)\n\n"
-             "Push a string onto the end of a buffer. Non string values will be converted "
-             "to strings before being pushed. Returns the modified buffer. "
-             "Will throw an error if the buffer overflows.")
+        "Push a string onto the end of a buffer. Non string values will be converted "
+        "to strings before being pushed. Returns the modified buffer. "
+        "Will throw an error if the buffer overflows.")
     },
     {
         "buffer/popn", cfun_buffer_popn,
         JDOC("(buffer/popn buffer n)\n\n"
-             "Removes the last n bytes from the buffer. Returns the modified buffer.")
+        "Removes the last n bytes from the buffer. Returns the modified buffer.")
     },
     {
         "buffer/clear", cfun_buffer_clear,
         JDOC("(buffer/clear buffer)\n\n"
-             "Sets the size of a buffer to 0 and empties it. The buffer retains "
-             "its memory so it can be efficiently refilled. Returns the modified buffer.")
+        "Sets the size of a buffer to 0 and empties it. The buffer retains "
+        "its memory so it can be efficiently refilled. Returns the modified buffer.")
     },
     {
         "buffer/slice", cfun_buffer_slice,
         JDOC("(buffer/slice bytes &opt start end)\n\n"
-             "Takes a slice of a byte sequence from start to end. The range is half open, "
-             "[start, end). Indexes can also be negative, indicating indexing from the end of the "
-             "end of the array. By default, start is 0 and end is the length of the buffer. "
-             "Returns a new buffer.")
+        "Takes a slice of a byte sequence from start to end. The range is half open, "
+        "[start, end). Indexes can also be negative, indicating indexing from the end of the "
+        "end of the array. By default, start is 0 and end is the length of the buffer. "
+        "Returns a new buffer.")
     },
     {
         "buffer/bit-set", cfun_buffer_bitset,
         JDOC("(buffer/bit-set buffer index)\n\n"
-             "Sets the bit at the given bit-index. Returns the buffer.")
+        "Sets the bit at the given bit-index. Returns the buffer.")
     },
     {
         "buffer/bit-clear", cfun_buffer_bitclear,
         JDOC("(buffer/bit-clear buffer index)\n\n"
-             "Clears the bit at the given bit-index. Returns the buffer.")
+        "Clears the bit at the given bit-index. Returns the buffer.")
     },
     {
         "buffer/bit", cfun_buffer_bitget,
         JDOC("(buffer/bit buffer index)\n\n"
-             "Gets the bit at the given bit-index. Returns true if the bit is set, false if not.")
+        "Gets the bit at the given bit-index. Returns true if the bit is set, false if not.")
     },
     {
         "buffer/bit-toggle", cfun_buffer_bittoggle,
         JDOC("(buffer/bit-toggle buffer index)\n\n"
-             "Toggles the bit at the given bit index in buffer. Returns the buffer.")
+        "Toggles the bit at the given bit index in buffer. Returns the buffer.")
     },
     {
         "buffer/blit", cfun_buffer_blit,
         JDOC("(buffer/blit dest src & opt dest-start src-start src-end)\n\n"
-             "Insert the contents of src into dest. Can optionally take indices that "
-             "indicate which part of src to copy into which part of dest. Indices can be "
-             "negative to index from the end of src or dest. Returns dest.")
+        "Insert the contents of src into dest. Can optionally take indices that "
+        "indicate which part of src to copy into which part of dest. Indices can be "
+        "negative to index from the end of src or dest. Returns dest.")
     },
     {
         "buffer/format", cfun_buffer_format,
         JDOC("(buffer/format buffer format & args)\n\n"
-             "Snprintf like functionality for printing values into a buffer. Returns "
-             " the modified buffer.")
+        "Snprintf like functionality for printing values into a buffer. Returns "
+        " the modified buffer.")
     },
     {NULL, NULL, NULL}
 };

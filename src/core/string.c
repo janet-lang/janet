@@ -522,130 +522,130 @@ static const JanetReg string_cfuns[] = {
     {
         "string/slice", cfun_string_slice,
         JDOC("(string/slice bytes &opt start end)\n\n"
-             "Returns a substring from a byte sequence. The substring is from "
-             "index start inclusive to index end exclusive. All indexing "
-             "is from 0. 'start' and 'end' can also be negative to indicate indexing "
-             "from the end of the string. Note that index -1 is synonymous with "
-             "index (length bytes) to allow a full negative slice range. ")
+        "Returns a substring from a byte sequence. The substring is from "
+        "index start inclusive to index end exclusive. All indexing "
+        "is from 0. 'start' and 'end' can also be negative to indicate indexing "
+        "from the end of the string. Note that index -1 is synonymous with "
+        "index (length bytes) to allow a full negative slice range. ")
     },
     {
         "string/repeat", cfun_string_repeat,
         JDOC("(string/repeat bytes n)\n\n"
-             "Returns a string that is n copies of bytes concatenated.")
+        "Returns a string that is n copies of bytes concatenated.")
     },
     {
         "string/bytes", cfun_string_bytes,
         JDOC("(string/bytes str)\n\n"
-             "Returns an array of integers that are the byte values of the string.")
+        "Returns an array of integers that are the byte values of the string.")
     },
     {
         "string/from-bytes", cfun_string_frombytes,
         JDOC("(string/from-bytes & byte-vals)\n\n"
-             "Creates a string from integer params with byte values. All integers "
-             "will be coerced to the range of 1 byte 0-255.")
+        "Creates a string from integer params with byte values. All integers "
+        "will be coerced to the range of 1 byte 0-255.")
     },
     {
         "string/ascii-lower", cfun_string_asciilower,
         JDOC("(string/ascii-lower str)\n\n"
-             "Returns a new string where all bytes are replaced with the "
-             "lowercase version of themselves in ASCII. Does only a very simple "
-             "case check, meaning no unicode support.")
+        "Returns a new string where all bytes are replaced with the "
+        "lowercase version of themselves in ASCII. Does only a very simple "
+        "case check, meaning no unicode support.")
     },
     {
         "string/ascii-upper", cfun_string_asciiupper,
         JDOC("(string/ascii-upper str)\n\n"
-             "Returns a new string where all bytes are replaced with the "
-             "uppercase version of themselves in ASCII. Does only a very simple "
-             "case check, meaning no unicode support.")
+        "Returns a new string where all bytes are replaced with the "
+        "uppercase version of themselves in ASCII. Does only a very simple "
+        "case check, meaning no unicode support.")
     },
     {
         "string/reverse", cfun_string_reverse,
         JDOC("(string/reverse str)\n\n"
-             "Returns a string that is the reversed version of str.")
+        "Returns a string that is the reversed version of str.")
     },
     {
         "string/find", cfun_string_find,
         JDOC("(string/find patt str)\n\n"
-             "Searches for the first instance of pattern patt in string "
-             "str. Returns the index of the first character in patt if found, "
-             "otherwise returns nil.")
+        "Searches for the first instance of pattern patt in string "
+        "str. Returns the index of the first character in patt if found, "
+        "otherwise returns nil.")
     },
     {
         "string/find-all", cfun_string_findall,
         JDOC("(string/find patt str)\n\n"
-             "Searches for all instances of pattern patt in string "
-             "str. Returns an array of all indices of found patterns. Overlapping "
-             "instances of the pattern are not counted, meaning a byte in string "
-             "will only contribute to finding at most on occurrence of pattern. If no "
-             "occurrences are found, will return an empty array.")
+        "Searches for all instances of pattern patt in string "
+        "str. Returns an array of all indices of found patterns. Overlapping "
+        "instances of the pattern are not counted, meaning a byte in string "
+        "will only contribute to finding at most on occurrence of pattern. If no "
+        "occurrences are found, will return an empty array.")
     },
     {
         "string/has-prefix?", cfun_string_hasprefix,
         JDOC("(string/has-prefix? pfx str)\n\n"
-             "Tests whether str starts with pfx.")
+        "Tests whether str starts with pfx.")
     },
     {
         "string/has-suffix?", cfun_string_hassuffix,
         JDOC("(string/has-suffix? sfx str)\n\n"
-             "Tests whether str ends with sfx.")
+        "Tests whether str ends with sfx.")
     },
     {
         "string/replace", cfun_string_replace,
         JDOC("(string/replace patt subst str)\n\n"
-             "Replace the first occurrence of patt with subst in the string str. "
-             "Will return the new string if patt is found, otherwise returns str.")
+        "Replace the first occurrence of patt with subst in the string str. "
+        "Will return the new string if patt is found, otherwise returns str.")
     },
     {
         "string/replace-all", cfun_string_replaceall,
         JDOC("(string/replace-all patt subst str)\n\n"
-             "Replace all instances of patt with subst in the string str. "
-             "Will return the new string if patt is found, otherwise returns str.")
+        "Replace all instances of patt with subst in the string str. "
+        "Will return the new string if patt is found, otherwise returns str.")
     },
     {
         "string/split", cfun_string_split,
         JDOC("(string/split delim str &opt start limit)\n\n"
-             "Splits a string str with delimiter delim and returns an array of "
-             "substrings. The substrings will not contain the delimiter delim. If delim "
-             "is not found, the returned array will have one element. Will start searching "
-             "for delim at the index start (if provided), and return up to a maximum "
-             "of limit results (if provided).")
+        "Splits a string str with delimiter delim and returns an array of "
+        "substrings. The substrings will not contain the delimiter delim. If delim "
+        "is not found, the returned array will have one element. Will start searching "
+        "for delim at the index start (if provided), and return up to a maximum "
+        "of limit results (if provided).")
     },
     {
         "string/check-set", cfun_string_checkset,
         JDOC("(string/check-set set str)\n\n"
-             "Checks that the string str only contains bytes that appear in the string set. "
-             "Returns true if all bytes in str appear in set, false if some bytes in str do "
-             "not appear in set.")
+        "Checks that the string str only contains bytes that appear in the string set. "
+        "Returns true if all bytes in str appear in set, false if some bytes in str do "
+        "not appear in set.")
     },
     {
         "string/join", cfun_string_join,
         JDOC("(string/join parts &opt sep)\n\n"
-             "Joins an array of strings into one string, optionally separated by "
-             "a separator string sep.")
+        "Joins an array of strings into one string, optionally separated by "
+        "a separator string sep.")
     },
     {
         "string/format", cfun_string_format,
         JDOC("(string/format format & values)\n\n"
-             "Similar to snprintf, but specialized for operating with janet. Returns "
-             "a new string.")
+        "Similar to snprintf, but specialized for operating with janet. Returns "
+        "a new string.")
     },
     {
         "string/trim", cfun_string_trim,
         JDOC("(string/trim str &opt set)\n\n"
-             "Trim leading and trailing whitespace from a byte sequence. If the argument "
-             "set is provided, consider only characters in set to be whitespace.")
+        "Trim leading and trailing whitespace from a byte sequence. If the argument "
+        "set is provided, consider only characters in set to be whitespace.")
     },
     {
         "string/triml", cfun_string_triml,
         JDOC("(string/triml str &opt set)\n\n"
-             "Trim leading whitespace from a byte sequence. If the argument "
-             "set is provided, consider only characters in set to be whitespace.")
+        "Trim leading whitespace from a byte sequence. If the argument "
+        "set is provided, consider only characters in set to be whitespace.")
     },
     {
         "string/trimr", cfun_string_trimr,
         JDOC("(string/trimr str &opt set)\n\n"
-             "Trim trailing whitespace from a byte sequence. If the argument "
-             "set is provided, consider only characters in set to be whitespace.")
+        "Trim trailing whitespace from a byte sequence. If the argument "
+        "set is provided, consider only characters in set to be whitespace.")
     },
     {NULL, NULL, NULL}
 };

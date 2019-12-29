@@ -325,76 +325,76 @@ static const JanetReg debug_cfuns[] = {
     {
         "debug/break", cfun_debug_break,
         JDOC("(debug/break source byte-offset)\n\n"
-             "Sets a breakpoint with source a key at a given line and column. "
-             "Will throw an error if the breakpoint location "
-             "cannot be found. For example\n\n"
-             "\t(debug/break \"core.janet\" 1000)\n\n"
-             "wil set a breakpoint at the 1000th byte of the file core.janet.")
+        "Sets a breakpoint with source a key at a given line and column. "
+        "Will throw an error if the breakpoint location "
+        "cannot be found. For example\n\n"
+        "\t(debug/break \"core.janet\" 1000)\n\n"
+        "wil set a breakpoint at the 1000th byte of the file core.janet.")
     },
     {
         "debug/unbreak", cfun_debug_unbreak,
         JDOC("(debug/unbreak source line column)\n\n"
-             "Remove a breakpoint with a source key at a given line and column. "
-             "Will throw an error if the breakpoint "
-             "cannot be found.")
+        "Remove a breakpoint with a source key at a given line and column. "
+        "Will throw an error if the breakpoint "
+        "cannot be found.")
     },
     {
         "debug/fbreak", cfun_debug_fbreak,
         JDOC("(debug/fbreak fun &opt pc)\n\n"
-             "Set a breakpoint in a given function. pc is an optional offset, which "
-             "is in bytecode instructions. fun is a function value. Will throw an error "
-             "if the offset is too large or negative.")
+        "Set a breakpoint in a given function. pc is an optional offset, which "
+        "is in bytecode instructions. fun is a function value. Will throw an error "
+        "if the offset is too large or negative.")
     },
     {
         "debug/unfbreak", cfun_debug_unfbreak,
         JDOC("(debug/unfbreak fun &opt pc)\n\n"
-             "Unset a breakpoint set with debug/fbreak.")
+        "Unset a breakpoint set with debug/fbreak.")
     },
     {
         "debug/arg-stack", cfun_debug_argstack,
         JDOC("(debug/arg-stack fiber)\n\n"
-             "Gets all values currently on the fiber's argument stack. Normally, "
-             "this should be empty unless the fiber signals while pushing arguments "
-             "to make a function call. Returns a new array.")
+        "Gets all values currently on the fiber's argument stack. Normally, "
+        "this should be empty unless the fiber signals while pushing arguments "
+        "to make a function call. Returns a new array.")
     },
     {
         "debug/stack", cfun_debug_stack,
         JDOC("(debug/stack fib)\n\n"
-             "Gets information about the stack as an array of tables. Each table "
-             "in the array contains information about a stack frame. The top most, current "
-             "stack frame is the first table in the array, and the bottom most stack frame "
-             "is the last value. Each stack frame contains some of the following attributes:\n\n"
-             "\t:c - true if the stack frame is a c function invocation\n"
-             "\t:column - the current source column of the stack frame\n"
-             "\t:function - the function that the stack frame represents\n"
-             "\t:line - the current source line of the stack frame\n"
-             "\t:name - the human friendly name of the function\n"
-             "\t:pc - integer indicating the location of the program counter\n"
-             "\t:source - string with the file path or other identifier for the source code\n"
-             "\t:slots - array of all values in each slot\n"
-             "\t:tail - boolean indicating a tail call")
+        "Gets information about the stack as an array of tables. Each table "
+        "in the array contains information about a stack frame. The top most, current "
+        "stack frame is the first table in the array, and the bottom most stack frame "
+        "is the last value. Each stack frame contains some of the following attributes:\n\n"
+        "\t:c - true if the stack frame is a c function invocation\n"
+        "\t:column - the current source column of the stack frame\n"
+        "\t:function - the function that the stack frame represents\n"
+        "\t:line - the current source line of the stack frame\n"
+        "\t:name - the human friendly name of the function\n"
+        "\t:pc - integer indicating the location of the program counter\n"
+        "\t:source - string with the file path or other identifier for the source code\n"
+        "\t:slots - array of all values in each slot\n"
+        "\t:tail - boolean indicating a tail call")
     },
     {
         "debug/stacktrace", cfun_debug_stacktrace,
         JDOC("(debug/stacktrace fiber err)\n\n"
-             "Prints a nice looking stacktrace for a fiber. The error message "
-             "err must be passed to the function as fiber's do not keep track of "
-             "the last error they have thrown. Returns the fiber.")
+        "Prints a nice looking stacktrace for a fiber. The error message "
+        "err must be passed to the function as fiber's do not keep track of "
+        "the last error they have thrown. Returns the fiber.")
     },
     {
         "debug/lineage", cfun_debug_lineage,
         JDOC("(debug/lineage fib)\n\n"
-             "Returns an array of all child fibers from a root fiber. This function "
-             "is useful when a fiber signals or errors to an ancestor fiber. Using this function, "
-             "the fiber handling the error can see which fiber raised the signal. This function should "
-             "be used mostly for debugging purposes.")
+        "Returns an array of all child fibers from a root fiber. This function "
+        "is useful when a fiber signals or errors to an ancestor fiber. Using this function, "
+        "the fiber handling the error can see which fiber raised the signal. This function should "
+        "be used mostly for debugging purposes.")
     },
     {
         "debug/step", cfun_debug_step,
         JDOC("(debug/step fiber &opt x)\n\n"
-             "Run a fiber for one virtual instruction of the Janet machine. Can optionally "
-             "pass in a value that will be passed as the resuming value. Returns the signal value, "
-             "which will usually be nil, as breakpoints raise nil signals.")
+        "Run a fiber for one virtual instruction of the Janet machine. Can optionally "
+        "pass in a value that will be passed as the resuming value. Returns the signal value, "
+        "which will usually be nil, as breakpoints raise nil signals.")
     },
     {NULL, NULL, NULL}
 };

@@ -262,76 +262,76 @@ static const JanetReg array_cfuns[] = {
     {
         "array/new", cfun_array_new,
         JDOC("(array/new capacity)\n\n"
-             "Creates a new empty array with a pre-allocated capacity. The same as "
-             "(array) but can be more efficient if the maximum size of an array is known.")
+        "Creates a new empty array with a pre-allocated capacity. The same as "
+        "(array) but can be more efficient if the maximum size of an array is known.")
     },
     {
         "array/new-filled", cfun_array_new_filled,
         JDOC("(array/new-filled count &opt value)\n\n"
-             "Creates a new array of count elements, all set to value, which defaults to nil. Returns the new array.")
+        "Creates a new array of count elements, all set to value, which defaults to nil. Returns the new array.")
     },
     {
         "array/fill", cfun_array_fill,
         JDOC("(array/fill arr &opt value)\n\n"
-             "Replace all elements of an array with value (defaulting to nil) without changing the length of the array. "
-             "Returns the modified array.")
+        "Replace all elements of an array with value (defaulting to nil) without changing the length of the array. "
+        "Returns the modified array.")
     },
     {
         "array/pop", cfun_array_pop,
         JDOC("(array/pop arr)\n\n"
-             "Remove the last element of the array and return it. If the array is empty, will return nil. Modifies "
-             "the input array.")
+        "Remove the last element of the array and return it. If the array is empty, will return nil. Modifies "
+        "the input array.")
     },
     {
         "array/peek", cfun_array_peek,
         JDOC("(array/peek arr)\n\n"
-             "Returns the last element of the array. Does not modify the array.")
+        "Returns the last element of the array. Does not modify the array.")
     },
     {
         "array/push", cfun_array_push,
         JDOC("(array/push arr x)\n\n"
-             "Insert an element in the end of an array. Modifies the input array and returns it.")
+        "Insert an element in the end of an array. Modifies the input array and returns it.")
     },
     {
         "array/ensure", cfun_array_ensure,
         JDOC("(array/ensure arr capacity growth)\n\n"
-             "Ensures that the memory backing the array is large enough for capacity "
-             "items at the given rate of growth. Capacity and growth must be integers. "
-             "If the backing capacity is already enough, then this function does nothing. "
-             "Otherwise, the backing memory will be reallocated so that there is enough space.")
+        "Ensures that the memory backing the array is large enough for capacity "
+        "items at the given rate of growth. Capacity and growth must be integers. "
+        "If the backing capacity is already enough, then this function does nothing. "
+        "Otherwise, the backing memory will be reallocated so that there is enough space.")
     },
     {
         "array/slice", cfun_array_slice,
         JDOC("(array/slice arrtup &opt start end)\n\n"
-             "Takes a slice of array or tuple from start to end. The range is half open, "
-             "[start, end). Indexes can also be negative, indicating indexing from the end of the "
-             "end of the array. By default, start is 0 and end is the length of the array. "
-             "Note that index -1 is synonymous with index (length arrtup) to allow a full "
-             "negative slice range. Returns a new array.")
+        "Takes a slice of array or tuple from start to end. The range is half open, "
+        "[start, end). Indexes can also be negative, indicating indexing from the end of the "
+        "end of the array. By default, start is 0 and end is the length of the array. "
+        "Note that index -1 is synonymous with index (length arrtup) to allow a full "
+        "negative slice range. Returns a new array.")
     },
     {
         "array/concat", cfun_array_concat,
         JDOC("(array/concat arr & parts)\n\n"
-             "Concatenates a variadic number of arrays (and tuples) into the first argument "
-             "which must an array. If any of the parts are arrays or tuples, their elements will "
-             "be inserted into the array. Otherwise, each part in parts will be appended to arr in order. "
-             "Return the modified array arr.")
+        "Concatenates a variadic number of arrays (and tuples) into the first argument "
+        "which must an array. If any of the parts are arrays or tuples, their elements will "
+        "be inserted into the array. Otherwise, each part in parts will be appended to arr in order. "
+        "Return the modified array arr.")
     },
     {
         "array/insert", cfun_array_insert,
         JDOC("(array/insert arr at & xs)\n\n"
-             "Insert all of xs into array arr at index at. at should be an integer "
-             "0 and the length of the array. A negative value for at will index from "
-             "the end of the array, such that inserting at -1 appends to the array. "
-             "Returns the array.")
+        "Insert all of xs into array arr at index at. at should be an integer "
+        "0 and the length of the array. A negative value for at will index from "
+        "the end of the array, such that inserting at -1 appends to the array. "
+        "Returns the array.")
     },
     {
         "array/remove", cfun_array_remove,
         JDOC("(array/remove arr at &opt n)\n\n"
-             "Remove up to n elements starting at index at in array arr. at can index from "
-             "the end of the array with a negative index, and n must be a non-negative integer. "
-             "By default, n is 1. "
-             "Returns the array.")
+        "Remove up to n elements starting at index at in array arr. at can index from "
+        "the end of the array with a negative index, and n must be a non-negative integer. "
+        "By default, n is 1. "
+        "Returns the array.")
     },
     {NULL, NULL, NULL}
 };

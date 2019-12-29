@@ -610,33 +610,33 @@ static const JanetReg threadlib_cfuns[] = {
     {
         "thread/current", cfun_thread_current,
         JDOC("(thread/current)\n\n"
-             "Get the current running thread.")
+        "Get the current running thread.")
     },
     {
         "thread/new", cfun_thread_new,
         JDOC("(thread/new func &opt capacity)\n\n"
-             "Start a new thread that will start immediately. "
-             "If capacity is provided, that is how many messages can be stored in the thread's mailbox before blocking senders. "
-             "The capacity must be between 1 and 65535 inclusive, and defaults to 10. "
-             "Returns a handle to the new thread.")
+        "Start a new thread that will start immediately. "
+        "If capacity is provided, that is how many messages can be stored in the thread's mailbox before blocking senders. "
+        "The capacity must be between 1 and 65535 inclusive, and defaults to 10. "
+        "Returns a handle to the new thread.")
     },
     {
         "thread/send", cfun_thread_send,
         JDOC("(thread/send thread msg)\n\n"
-             "Send a message to the thread. This will never block and returns thread immediately. "
-             "Will throw an error if there is a problem sending the message.")
+        "Send a message to the thread. This will never block and returns thread immediately. "
+        "Will throw an error if there is a problem sending the message.")
     },
     {
         "thread/receive", cfun_thread_receive,
         JDOC("(thread/receive &opt timeout)\n\n"
-             "Get a message sent to this thread. If timeout is provided, an error will be thrown after the timeout has elapsed but "
-             "no messages are received.")
+        "Get a message sent to this thread. If timeout is provided, an error will be thrown after the timeout has elapsed but "
+        "no messages are received.")
     },
     {
         "thread/close", cfun_thread_close,
         JDOC("(thread/close thread)\n\n"
-             "Close a thread, unblocking it and ending communication with it. Note that closing "
-             "a thread is idempotent and does not cancel the thread's operation. Returns nil.")
+        "Close a thread, unblocking it and ending communication with it. Note that closing "
+        "a thread is idempotent and does not cancel the thread's operation. Returns nil.")
     },
     {NULL, NULL, NULL}
 };

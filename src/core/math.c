@@ -283,7 +283,7 @@ static const JanetReg math_cfuns[] = {
     {
         "%", janet_remainder,
         JDOC("(% dividend divisor)\n\n"
-             "Returns the remainder of dividend / divisor.")
+        "Returns the remainder of dividend / divisor.")
     },
     {
         "not", janet_not,
@@ -292,177 +292,177 @@ static const JanetReg math_cfuns[] = {
     {
         "math/random", janet_rand,
         JDOC("(math/random)\n\n"
-             "Returns a uniformly distributed random number between 0 and 1.")
+        "Returns a uniformly distributed random number between 0 and 1.")
     },
     {
         "math/seedrandom", janet_srand,
         JDOC("(math/seedrandom seed)\n\n"
-             "Set the seed for the random number generator. seed should be "
-             "an integer or a buffer.")
+        "Set the seed for the random number generator. seed should be "
+        "an integer or a buffer.")
     },
     {
         "math/cos", janet_cos,
         JDOC("(math/cos x)\n\n"
-             "Returns the cosine of x.")
+        "Returns the cosine of x.")
     },
     {
         "math/sin", janet_sin,
         JDOC("(math/sin x)\n\n"
-             "Returns the sine of x.")
+        "Returns the sine of x.")
     },
     {
         "math/tan", janet_tan,
         JDOC("(math/tan x)\n\n"
-             "Returns the tangent of x.")
+        "Returns the tangent of x.")
     },
     {
         "math/acos", janet_acos,
         JDOC("(math/acos x)\n\n"
-             "Returns the arccosine of x.")
+        "Returns the arccosine of x.")
     },
     {
         "math/asin", janet_asin,
         JDOC("(math/asin x)\n\n"
-             "Returns the arcsine of x.")
+        "Returns the arcsine of x.")
     },
     {
         "math/atan", janet_atan,
         JDOC("(math/atan x)\n\n"
-             "Returns the arctangent of x.")
+        "Returns the arctangent of x.")
     },
     {
         "math/exp", janet_exp,
         JDOC("(math/exp x)\n\n"
-             "Returns e to the power of x.")
+        "Returns e to the power of x.")
     },
     {
         "math/log", janet_log,
         JDOC("(math/log x)\n\n"
-             "Returns log base natural number of x.")
+        "Returns log base natural number of x.")
     },
     {
         "math/log10", janet_log10,
         JDOC("(math/log10 x)\n\n"
-             "Returns log base 10 of x.")
+        "Returns log base 10 of x.")
     },
     {
         "math/log2", janet_log2,
         JDOC("(math/log2 x)\n\n"
-             "Returns log base 2 of x.")
+        "Returns log base 2 of x.")
     },
     {
         "math/sqrt", janet_sqrt,
         JDOC("(math/sqrt x)\n\n"
-             "Returns the square root of x.")
+        "Returns the square root of x.")
     },
     {
         "math/cbrt", janet_cbrt,
         JDOC("(math/cbrt x)\n\n"
-             "Returns the cube root of x.")
+        "Returns the cube root of x.")
     },
     {
         "math/floor", janet_floor,
         JDOC("(math/floor x)\n\n"
-             "Returns the largest integer value number that is not greater than x.")
+        "Returns the largest integer value number that is not greater than x.")
     },
     {
         "math/ceil", janet_ceil,
         JDOC("(math/ceil x)\n\n"
-             "Returns the smallest integer value number that is not less than x.")
+        "Returns the smallest integer value number that is not less than x.")
     },
     {
         "math/pow", janet_pow,
         JDOC("(math/pow a x)\n\n"
-             "Return a to the power of x.")
+        "Return a to the power of x.")
     },
     {
         "math/abs", janet_fabs,
         JDOC("(math/abs x)\n\n"
-             "Return the absolute value of x.")
+        "Return the absolute value of x.")
     },
     {
         "math/sinh", janet_sinh,
         JDOC("(math/sinh x)\n\n"
-             "Return the hyperbolic sine of x.")
+        "Return the hyperbolic sine of x.")
     },
     {
         "math/cosh", janet_cosh,
         JDOC("(math/cosh x)\n\n"
-             "Return the hyperbolic cosine of x.")
+        "Return the hyperbolic cosine of x.")
     },
     {
         "math/tanh", janet_tanh,
         JDOC("(math/tanh x)\n\n"
-             "Return the hyperbolic tangent of x.")
+        "Return the hyperbolic tangent of x.")
     },
     {
         "math/atanh", janet_atanh,
         JDOC("(math/atanh x)\n\n"
-             "Return the hyperbolic arctangent of x.")
+        "Return the hyperbolic arctangent of x.")
     },
     {
         "math/asinh", janet_asinh,
         JDOC("(math/asinh x)\n\n"
-             "Return the hyperbolic arcsine of x.")
+        "Return the hyperbolic arcsine of x.")
     },
     {
         "math/acosh", janet_acosh,
         JDOC("(math/acosh x)\n\n"
-             "Return the hyperbolic arccosine of x.")
+        "Return the hyperbolic arccosine of x.")
     },
     {
         "math/atan2", janet_atan2,
         JDOC("(math/atan2 y x)\n\n"
-             "Return the arctangent of y/x. Works even when x is 0.")
+        "Return the arctangent of y/x. Works even when x is 0.")
     },
     {
         "math/rng", cfun_rng_make,
         JDOC("(math/rng &opt seed)\n\n"
-             "Creates a Psuedo-Random number generator, with an optional seed. "
-             "The seed should be an unsigned 32 bit integer. "
-             "Do not use this for cryptography. Returns a core/rng abstract type.")
+        "Creates a Psuedo-Random number generator, with an optional seed. "
+        "The seed should be an unsigned 32 bit integer. "
+        "Do not use this for cryptography. Returns a core/rng abstract type.")
     },
     {
         "math/rng-uniform", cfun_rng_uniform,
         JDOC("(math/rng-seed rng seed)\n\n"
-             "Extract a random number in the range [0, 1) from the RNG.")
+        "Extract a random number in the range [0, 1) from the RNG.")
     },
     {
         "math/rng-int", cfun_rng_int,
         JDOC("(math/rng-int rng &opt max)\n\n"
-             "Extract a random random integer in the range [0, max] from the RNG. If "
-             "no max is given, the default is 2^31 - 1.")
+        "Extract a random random integer in the range [0, max] from the RNG. If "
+        "no max is given, the default is 2^31 - 1.")
     },
     {
         "math/rng-buffer", cfun_rng_buffer,
         JDOC("(math/rng-buffer rng n &opt buf)\n\n"
-             "Get n random bytes and put them in a buffer. Creates a new buffer if no buffer is "
-             "provided, otherwise appends to the given buffer. Returns the buffer.")
+        "Get n random bytes and put them in a buffer. Creates a new buffer if no buffer is "
+        "provided, otherwise appends to the given buffer. Returns the buffer.")
     },
     {
         "math/hypot", janet_hypot,
         JDOC("(math/hypot a b)\n\n"
-             "Returns the c from the equation c^2 = a^2 + b^2")
+        "Returns the c from the equation c^2 = a^2 + b^2")
     },
     {
         "math/exp2", janet_exp2,
         JDOC("(math/exp2 x)\n\n"
-             "Returns 2 to the power of x.")
+        "Returns 2 to the power of x.")
     },
     {
         "math/expm1", janet_expm1,
         JDOC("(math/expm1 x)\n\n"
-             "Returns e to the power of x minus 1.")
+        "Returns e to the power of x minus 1.")
     },
     {
         "math/trunc", janet_trunc,
         JDOC("(math/trunc x)\n\n"
-             "Returns the integer between x and 0 nearest to x.")
+        "Returns the integer between x and 0 nearest to x.")
     },
     {
         "math/round", janet_round,
         JDOC("(math/round x)\n\n"
-             "Returns the integer nearest to x.")
+        "Returns the integer nearest to x.")
     },
     {NULL, NULL, NULL}
 };

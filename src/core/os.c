@@ -907,174 +907,174 @@ static const JanetReg os_cfuns[] = {
     {
         "os/exit", os_exit,
         JDOC("(os/exit &opt x)\n\n"
-             "Exit from janet with an exit code equal to x. If x is not an integer, "
-             "the exit with status equal the hash of x.")
+        "Exit from janet with an exit code equal to x. If x is not an integer, "
+        "the exit with status equal the hash of x.")
     },
     {
         "os/which", os_which,
         JDOC("(os/which)\n\n"
-             "Check the current operating system. Returns one of:\n\n"
-             "\t:windows\n"
-             "\t:macos\n"
-             "\t:web - Web assembly (emscripten)\n"
-             "\t:linux\n"
-             "\t:freebsd\n"
-             "\t:openbsd\n"
-             "\t:netbsd\n"
-             "\t:posix - A POSIX compatible system (default)")
+        "Check the current operating system. Returns one of:\n\n"
+        "\t:windows\n"
+        "\t:macos\n"
+        "\t:web - Web assembly (emscripten)\n"
+        "\t:linux\n"
+        "\t:freebsd\n"
+        "\t:openbsd\n"
+        "\t:netbsd\n"
+        "\t:posix - A POSIX compatible system (default)")
     },
     {
         "os/getenv", os_getenv,
         JDOC("(os/getenv variable)\n\n"
-             "Get the string value of an environment variable.")
+        "Get the string value of an environment variable.")
     },
     {
         "os/arch", os_arch,
         JDOC("(os/arch)\n\n"
-             "Check the ISA that janet was compiled for. Returns one of:\n\n"
-             "\t:x86\n"
-             "\t:x86-64\n"
-             "\t:arm\n"
-             "\t:aarch64\n"
-             "\t:sparc\n"
-             "\t:wasm\n"
-             "\t:unknown\n")
+        "Check the ISA that janet was compiled for. Returns one of:\n\n"
+        "\t:x86\n"
+        "\t:x86-64\n"
+        "\t:arm\n"
+        "\t:aarch64\n"
+        "\t:sparc\n"
+        "\t:wasm\n"
+        "\t:unknown\n")
     },
 #ifndef JANET_REDUCED_OS
     {
         "os/environ", os_environ,
         JDOC("(os/environ)\n\n"
-             "Get a copy of the os environment table.")
+        "Get a copy of the os environment table.")
     },
     {
         "os/dir", os_dir,
         JDOC("(os/dir dir &opt array)\n\n"
-             "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
-             "with only the filename or directory name and no prefix.")
+        "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
+        "with only the filename or directory name and no prefix.")
     },
     {
         "os/stat", os_stat,
         JDOC("(os/stat path &opt tab|key)\n\n"
-             "Gets information about a file or directory. Returns a table If the third argument is a keyword, returns "
-             " only that information from stat. If the file or directory does not exist, returns nil. The keys are\n\n"
-             "\t:dev - the device that the file is on\n"
-             "\t:mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n"
-             "\t:permissions - A unix permission string like \"rwx--x--x\"\n"
-             "\t:uid - File uid\n"
-             "\t:gid - File gid\n"
-             "\t:nlink - number of links to file\n"
-             "\t:rdev - Real device of file. 0 on windows.\n"
-             "\t:size - size of file in bytes\n"
-             "\t:blocks - number of blocks in file. 0 on windows\n"
-             "\t:blocksize - size of blocks in file. 0 on windows\n"
-             "\t:accessed - timestamp when file last accessed\n"
-             "\t:changed - timestamp when file last chnaged (permissions changed)\n"
-             "\t:modified - timestamp when file last modified (content changed)\n")
+        "Gets information about a file or directory. Returns a table If the third argument is a keyword, returns "
+        " only that information from stat. If the file or directory does not exist, returns nil. The keys are\n\n"
+        "\t:dev - the device that the file is on\n"
+        "\t:mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n"
+        "\t:permissions - A unix permission string like \"rwx--x--x\"\n"
+        "\t:uid - File uid\n"
+        "\t:gid - File gid\n"
+        "\t:nlink - number of links to file\n"
+        "\t:rdev - Real device of file. 0 on windows.\n"
+        "\t:size - size of file in bytes\n"
+        "\t:blocks - number of blocks in file. 0 on windows\n"
+        "\t:blocksize - size of blocks in file. 0 on windows\n"
+        "\t:accessed - timestamp when file last accessed\n"
+        "\t:changed - timestamp when file last chnaged (permissions changed)\n"
+        "\t:modified - timestamp when file last modified (content changed)\n")
     },
     {
         "os/touch", os_touch,
         JDOC("(os/touch path &opt actime modtime)\n\n"
-             "Update the access time and modification times for a file. By default, sets "
-             "times to the current time.")
+        "Update the access time and modification times for a file. By default, sets "
+        "times to the current time.")
     },
     {
         "os/cd", os_cd,
         JDOC("(os/cd path)\n\n"
-             "Change current directory to path. Returns true on success, false on failure.")
+        "Change current directory to path. Returns true on success, false on failure.")
     },
     {
         "os/mkdir", os_mkdir,
         JDOC("(os/mkdir path)\n\n"
-             "Create a new directory. The path will be relative to the current directory if relative, otherwise "
-             "it will be an absolute path.")
+        "Create a new directory. The path will be relative to the current directory if relative, otherwise "
+        "it will be an absolute path.")
     },
     {
         "os/rmdir", os_rmdir,
         JDOC("(os/rmdir path)\n\n"
-             "Delete a directory. The directory must be empty to succeed.")
+        "Delete a directory. The directory must be empty to succeed.")
     },
     {
         "os/rm", os_remove,
         JDOC("(os/rm path)\n\n"
-             "Delete a file. Returns nil.")
+        "Delete a file. Returns nil.")
     },
     {
         "os/link", os_link,
         JDOC("(os/link oldpath newpath &opt symlink)\n\n"
-             "Create a symlink from oldpath to newpath. The 3 optional paramater "
-             "enables a hard link over a soft link. Does not work on Windows.")
+        "Create a symlink from oldpath to newpath. The 3 optional paramater "
+        "enables a hard link over a soft link. Does not work on Windows.")
     },
     {
         "os/execute", os_execute,
         JDOC("(os/execute args &opts flags env)\n\n"
-             "Execute a program on the system and pass it string arguments. Flags "
-             "is a keyword that modifies how the program will execute.\n\n"
-             "\t:e - enables passing an environment to the program. Without :e, the "
-             "current environment is inherited.\n"
-             "\t:p - allows searching the current PATH for the binary to execute. "
-             "Without this flag, binaries must use absolute paths.\n\n"
-             "env is a table or struct mapping environment variables to values. "
-             "Returns the exit status of the program.")
+        "Execute a program on the system and pass it string arguments. Flags "
+        "is a keyword that modifies how the program will execute.\n\n"
+        "\t:e - enables passing an environment to the program. Without :e, the "
+        "current environment is inherited.\n"
+        "\t:p - allows searching the current PATH for the binary to execute. "
+        "Without this flag, binaries must use absolute paths.\n\n"
+        "env is a table or struct mapping environment variables to values. "
+        "Returns the exit status of the program.")
     },
     {
         "os/shell", os_shell,
         JDOC("(os/shell str)\n\n"
-             "Pass a command string str directly to the system shell.")
+        "Pass a command string str directly to the system shell.")
     },
     {
         "os/setenv", os_setenv,
         JDOC("(os/setenv variable value)\n\n"
-             "Set an environment variable.")
+        "Set an environment variable.")
     },
     {
         "os/time", os_time,
         JDOC("(os/time)\n\n"
-             "Get the current time expressed as the number of seconds since "
-             "January 1, 1970, the Unix epoch. Returns a real number.")
+        "Get the current time expressed as the number of seconds since "
+        "January 1, 1970, the Unix epoch. Returns a real number.")
     },
     {
         "os/clock", os_clock,
         JDOC("(os/clock)\n\n"
-             "Return the number of seconds since some fixed point in time. The clock "
-             "is guaranteed to be non decreasing in real time.")
+        "Return the number of seconds since some fixed point in time. The clock "
+        "is guaranteed to be non decreasing in real time.")
     },
     {
         "os/sleep", os_sleep,
         JDOC("(os/sleep nsec)\n\n"
-             "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
-             "nil.")
+        "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
+        "nil.")
     },
     {
         "os/cwd", os_cwd,
         JDOC("(os/cwd)\n\n"
-             "Returns the current working directory.")
+        "Returns the current working directory.")
     },
     {
         "os/cryptorand", os_cryptorand,
         JDOC("(os/cryptorand n &opt buf)\n\n"
-             "Get or append n bytes of good quality random data provided by the os. Returns a new buffer or buf.")
+        "Get or append n bytes of good quality random data provided by the os. Returns a new buffer or buf.")
     },
     {
         "os/date", os_date,
         JDOC("(os/date &opt time local)\n\n"
-             "Returns the given time as a date struct, or the current time if no time is given. "
-             "Returns a struct with following key values. Note that all numbers are 0-indexed. "
-             "Date is given in UTC unless local is truthy, in which case the date is formated for "
-             "the local timezone.\n\n"
-             "\t:seconds - number of seconds [0-61]\n"
-             "\t:minutes - number of minutes [0-59]\n"
-             "\t:hours - number of hours [0-23]\n"
-             "\t:month-day - day of month [0-30]\n"
-             "\t:month - month of year [0, 11]\n"
-             "\t:year - years since year 0 (e.g. 2019)\n"
-             "\t:week-day - day of the week [0-6]\n"
-             "\t:year-day - day of the year [0-365]\n"
-             "\t:dst - If Day Light Savings is in effect")
+        "Returns the given time as a date struct, or the current time if no time is given. "
+        "Returns a struct with following key values. Note that all numbers are 0-indexed. "
+        "Date is given in UTC unless local is truthy, in which case the date is formated for "
+        "the local timezone.\n\n"
+        "\t:seconds - number of seconds [0-61]\n"
+        "\t:minutes - number of minutes [0-59]\n"
+        "\t:hours - number of hours [0-23]\n"
+        "\t:month-day - day of month [0-30]\n"
+        "\t:month - month of year [0, 11]\n"
+        "\t:year - years since year 0 (e.g. 2019)\n"
+        "\t:week-day - day of the week [0-6]\n"
+        "\t:year-day - day of the year [0-365]\n"
+        "\t:dst - If Day Light Savings is in effect")
     },
     {
         "os/rename", os_rename,
         JDOC("(os/rename oldname newname)\n\n"
-             "Rename a file on disk to a new path. Returns nil.")
+        "Rename a file on disk to a new path. Returns nil.")
     },
 #endif
     {NULL, NULL, NULL}

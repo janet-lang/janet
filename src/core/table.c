@@ -314,40 +314,40 @@ static const JanetReg table_cfuns[] = {
     {
         "table/new", cfun_table_new,
         JDOC("(table/new capacity)\n\n"
-             "Creates a new empty table with pre-allocated memory "
-             "for capacity entries. This means that if one knows the number of "
-             "entries going to go in a table on creation, extra memory allocation "
-             "can be avoided. Returns the new table.")
+        "Creates a new empty table with pre-allocated memory "
+        "for capacity entries. This means that if one knows the number of "
+        "entries going to go in a table on creation, extra memory allocation "
+        "can be avoided. Returns the new table.")
     },
     {
         "table/to-struct", cfun_table_tostruct,
         JDOC("(table/to-struct tab)\n\n"
-             "Convert a table to a struct. Returns a new struct. This function "
-             "does not take into account prototype tables.")
+        "Convert a table to a struct. Returns a new struct. This function "
+        "does not take into account prototype tables.")
     },
     {
         "table/getproto", cfun_table_getproto,
         JDOC("(table/getproto tab)\n\n"
-             "Get the prototype table of a table. Returns nil if a table "
-             "has no prototype, otherwise returns the prototype.")
+        "Get the prototype table of a table. Returns nil if a table "
+        "has no prototype, otherwise returns the prototype.")
     },
     {
         "table/setproto", cfun_table_setproto,
         JDOC("(table/setproto tab proto)\n\n"
-             "Set the prototype of a table. Returns the original table tab.")
+        "Set the prototype of a table. Returns the original table tab.")
     },
     {
         "table/rawget", cfun_table_rawget,
         JDOC("(table/rawget tab key)\n\n"
-             "Gets a value from a table without looking at the prototype table. "
-             "If a table tab does not contain t directly, the function will return "
-             "nil without checking the prototype. Returns the value in the table.")
+        "Gets a value from a table without looking at the prototype table. "
+        "If a table tab does not contain t directly, the function will return "
+        "nil without checking the prototype. Returns the value in the table.")
     },
     {
         "table/clone", cfun_table_clone,
         JDOC("(table/clone tab)\n\n"
-             "Create a copy of a table. Updates to the new table will not change the old table, "
-             "and vice versa.")
+        "Create a copy of a table. Updates to the new table will not change the old table, "
+        "and vice versa.")
     },
     {NULL, NULL, NULL}
 };

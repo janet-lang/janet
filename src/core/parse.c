@@ -1065,92 +1065,92 @@ static const JanetReg parse_cfuns[] = {
     {
         "parser/new", cfun_parse_parser,
         JDOC("(parser/new)\n\n"
-             "Creates and returns a new parser object. Parsers are state machines "
-             "that can receive bytes, and generate a stream of janet values.")
+        "Creates and returns a new parser object. Parsers are state machines "
+        "that can receive bytes, and generate a stream of janet values.")
     },
     {
         "parser/clone", cfun_parse_clone,
         JDOC("(parser/clone p)\n\n"
-             "Creates a deep clone of a parser that is identical to the input parser. "
-             "This cloned parser can be used to continue parsing from a good checkpoint "
-             "if parsing later fails. Returns a new parser.")
+        "Creates a deep clone of a parser that is identical to the input parser. "
+        "This cloned parser can be used to continue parsing from a good checkpoint "
+        "if parsing later fails. Returns a new parser.")
     },
     {
         "parser/has-more", cfun_parse_has_more,
         JDOC("(parser/has-more parser)\n\n"
-             "Check if the parser has more values in the value queue.")
+        "Check if the parser has more values in the value queue.")
     },
     {
         "parser/produce", cfun_parse_produce,
         JDOC("(parser/produce parser)\n\n"
-             "Dequeue the next value in the parse queue. Will return nil if "
-             "no parsed values are in the queue, otherwise will dequeue the "
-             "next value.")
+        "Dequeue the next value in the parse queue. Will return nil if "
+        "no parsed values are in the queue, otherwise will dequeue the "
+        "next value.")
     },
     {
         "parser/consume", cfun_parse_consume,
         JDOC("(parser/consume parser bytes &opt index)\n\n"
-             "Input bytes into the parser and parse them. Will not throw errors "
-             "if there is a parse error. Starts at the byte index given by index. Returns "
-             "the number of bytes read.")
+        "Input bytes into the parser and parse them. Will not throw errors "
+        "if there is a parse error. Starts at the byte index given by index. Returns "
+        "the number of bytes read.")
     },
     {
         "parser/byte", cfun_parse_byte,
         JDOC("(parser/byte parser b)\n\n"
-             "Input a single byte into the parser byte stream. Returns the parser.")
+        "Input a single byte into the parser byte stream. Returns the parser.")
     },
     {
         "parser/error", cfun_parse_error,
         JDOC("(parser/error parser)\n\n"
-             "If the parser is in the error state, returns the message associated with "
-             "that error. Otherwise, returns nil. Also flushes the parser state and parser "
-             "queue, so be sure to handle everything in the queue before calling "
-             "parser/error.")
+        "If the parser is in the error state, returns the message associated with "
+        "that error. Otherwise, returns nil. Also flushes the parser state and parser "
+        "queue, so be sure to handle everything in the queue before calling "
+        "parser/error.")
     },
     {
         "parser/status", cfun_parse_status,
         JDOC("(parser/status parser)\n\n"
-             "Gets the current status of the parser state machine. The status will "
-             "be one of:\n\n"
-             "\t:pending - a value is being parsed.\n"
-             "\t:error - a parsing error was encountered.\n"
-             "\t:root - the parser can either read more values or safely terminate.")
+        "Gets the current status of the parser state machine. The status will "
+        "be one of:\n\n"
+        "\t:pending - a value is being parsed.\n"
+        "\t:error - a parsing error was encountered.\n"
+        "\t:root - the parser can either read more values or safely terminate.")
     },
     {
         "parser/flush", cfun_parse_flush,
         JDOC("(parser/flush parser)\n\n"
-             "Clears the parser state and parse queue. Can be used to reset the parser "
-             "if an error was encountered. Does not reset the line and column counter, so "
-             "to begin parsing in a new context, create a new parser.")
+        "Clears the parser state and parse queue. Can be used to reset the parser "
+        "if an error was encountered. Does not reset the line and column counter, so "
+        "to begin parsing in a new context, create a new parser.")
     },
     {
         "parser/state", cfun_parse_state,
         JDOC("(parser/state parser &opt key)\n\n"
-             "Returns a representation of the internal state of the parser. If a key is passed, "
-             "only that information about the state is returned. Allowed keys are:\n\n"
-             "\t:delimiters - Each byte in the string represents a nested data structure. For example, "
-             "if the parser state is '([\"', then the parser is in the middle of parsing a "
-             "string inside of square brackets inside parentheses. Can be used to augment a REPL prompt."
-             "\t:frames - Each table in the array represents a 'frame' in the parser state. Frames "
-             "contain information about the start of the expression being parsed as well as the "
-             "type of that expression and some type-specific information.")
+        "Returns a representation of the internal state of the parser. If a key is passed, "
+        "only that information about the state is returned. Allowed keys are:\n\n"
+        "\t:delimiters - Each byte in the string represents a nested data structure. For example, "
+        "if the parser state is '([\"', then the parser is in the middle of parsing a "
+        "string inside of square brackets inside parentheses. Can be used to augment a REPL prompt."
+        "\t:frames - Each table in the array represents a 'frame' in the parser state. Frames "
+        "contain information about the start of the expression being parsed as well as the "
+        "type of that expression and some type-specific information.")
     },
     {
         "parser/where", cfun_parse_where,
         JDOC("(parser/where parser)\n\n"
-             "Returns the current line number and column of the parser's internal state.")
+        "Returns the current line number and column of the parser's internal state.")
     },
     {
         "parser/eof", cfun_parse_eof,
         JDOC("(parser/eof parser)\n\n"
-             "Indicate that the end of file was reached to the parser. This puts the parser in the :dead state.")
+        "Indicate that the end of file was reached to the parser. This puts the parser in the :dead state.")
     },
     {
         "parser/insert", cfun_parse_insert,
         JDOC("(parser/insert parser value)\n\n"
-             "Insert a value into the parser. This means that the parser state can be manipulated "
-             "in between chunks of bytes. This would allow a user to add extra elements to arrays "
-             "and tuples, for example. Returns the parser.")
+        "Insert a value into the parser. This means that the parser state can be manipulated "
+        "in between chunks of bytes. This would allow a user to add extra elements to arrays "
+        "and tuples, for example. Returns the parser.")
     },
     {NULL, NULL, NULL}
 };

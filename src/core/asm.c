@@ -954,16 +954,16 @@ static const JanetReg asm_cfuns[] = {
     {
         "asm", cfun_asm,
         JDOC("(asm assembly)\n\n"
-             "Returns a new function that is the compiled result of the assembly.\n"
-             "The syntax for the assembly can be found on the janet wiki. Will throw an\n"
-             "error on invalid assembly.")
+        "Returns a new function that is the compiled result of the assembly.\n"
+        "The syntax for the assembly can be found on the janet wiki. Will throw an\n"
+        "error on invalid assembly.")
     },
     {
         "disasm", cfun_disasm,
         JDOC("(disasm func)\n\n"
-             "Returns assembly that could be used be compile the given function.\n"
-             "func must be a function, not a c function. Will throw on error on a badly\n"
-             "typed argument.")
+        "Returns assembly that could be used be compile the given function.\n"
+        "func must be a function, not a c function. Will throw on error on a badly\n"
+        "typed argument.")
     },
     {NULL, NULL, NULL}
 };

@@ -519,44 +519,44 @@ static const JanetReg ta_cfuns[] = {
     {
         "tarray/new", cfun_typed_array_new,
         JDOC("(tarray/new type size &opt stride offset tarray|buffer)\n\n"
-             "Create new typed array.")
+        "Create new typed array.")
     },
     {
         "tarray/buffer", cfun_typed_array_buffer,
         JDOC("(tarray/buffer array|size)\n\n"
-             "Return typed array buffer or create a new buffer.")
+        "Return typed array buffer or create a new buffer.")
     },
     {
         "tarray/length", cfun_typed_array_size,
         JDOC("(tarray/length array|buffer)\n\n"
-             "Return typed array or buffer size.")
+        "Return typed array or buffer size.")
     },
     {
         "tarray/properties", cfun_typed_array_properties,
         JDOC("(tarray/properties array)\n\n"
-             "Return typed array properties as a struct.")
+        "Return typed array properties as a struct.")
     },
     {
         "tarray/copy-bytes", cfun_typed_array_copy_bytes,
         JDOC("(tarray/copy-bytes src sindex dst dindex &opt count)\n\n"
-             "Copy count elements (default 1) of src array from index sindex "
-             "to dst array at position dindex "
-             "memory can overlap.")
+        "Copy count elements (default 1) of src array from index sindex "
+        "to dst array at position dindex "
+        "memory can overlap.")
     },
     {
         "tarray/swap-bytes", cfun_typed_array_swap_bytes,
         JDOC("(tarray/swap-bytes src sindex dst dindex &opt count)\n\n"
-             "Swap count elements (default 1) between src array from index sindex "
-             "and dst array at position dindex "
-             "memory can overlap.")
+        "Swap count elements (default 1) between src array from index sindex "
+        "and dst array at position dindex "
+        "memory can overlap.")
     },
     {
         "tarray/slice", cfun_typed_array_slice,
         JDOC("(tarray/slice tarr &opt start end)\n\n"
-             "Takes a slice of a typed array from start to end. The range is half "
-             "open, [start, end). Indexes can also be negative, indicating indexing "
-             "from the end of the end of the typed array. By default, start is 0 and end is "
-             "the size of the typed array. Returns a new janet array.")
+        "Takes a slice of a typed array from start to end. The range is half "
+        "open, [start, end). Indexes can also be negative, indicating indexing "
+        "from the end of the end of the typed array. By default, start is 0 and end is "
+        "the size of the typed array. Returns a new janet array.")
     },
     {NULL, NULL, NULL}
 };

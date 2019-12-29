@@ -1302,26 +1302,26 @@ static const JanetReg marsh_cfuns[] = {
     {
         "marshal", cfun_marshal,
         JDOC("(marshal x &opt reverse-lookup buffer)\n\n"
-             "Marshal a janet value into a buffer and return the buffer. The buffer "
-             "can the later be unmarshalled to reconstruct the initial value. "
-             "Optionally, one can pass in a reverse lookup table to not marshal "
-             "aliased values that are found in the table. Then a forward"
-             "lookup table can be used to recover the original janet value when "
-             "unmarshalling.")
+        "Marshal a janet value into a buffer and return the buffer. The buffer "
+        "can the later be unmarshalled to reconstruct the initial value. "
+        "Optionally, one can pass in a reverse lookup table to not marshal "
+        "aliased values that are found in the table. Then a forward"
+        "lookup table can be used to recover the original janet value when "
+        "unmarshalling.")
     },
     {
         "unmarshal", cfun_unmarshal,
         JDOC("(unmarshal buffer &opt lookup)\n\n"
-             "Unmarshal a janet value from a buffer. An optional lookup table "
-             "can be provided to allow for aliases to be resolved. Returns the value "
-             "unmarshalled from the buffer.")
+        "Unmarshal a janet value from a buffer. An optional lookup table "
+        "can be provided to allow for aliases to be resolved. Returns the value "
+        "unmarshalled from the buffer.")
     },
     {
         "env-lookup", cfun_env_lookup,
         JDOC("(env-lookup env)\n\n"
-             "Creates a forward lookup table for unmarshalling from an environment. "
-             "To create a reverse lookup table, use the invert function to swap keys "
-             "and values in the returned table.")
+        "Creates a forward lookup table for unmarshalling from an environment. "
+        "To create a reverse lookup table, use the invert function to swap keys "
+        "and values in the returned table.")
     },
     {NULL, NULL, NULL}
 };

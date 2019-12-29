@@ -253,8 +253,8 @@ OPMETHOD(int64_t, s64, sub, -)
 OPMETHOD(int64_t, s64, mul, *)
 DIVMETHOD_SIGNED(int64_t, s64, div, /)
 DIVMETHOD_SIGNED(int64_t, s64, mod, %)
-OPMETHOD(int64_t, s64, and, &)
-OPMETHOD(int64_t, s64, or, |)
+OPMETHOD(int64_t, s64, and , &)
+OPMETHOD(int64_t, s64, or , |)
 OPMETHOD(int64_t, s64, xor, ^)
 OPMETHOD(int64_t, s64, lshift, <<)
 OPMETHOD(int64_t, s64, rshift, >>)
@@ -270,8 +270,8 @@ OPMETHOD(uint64_t, u64, sub, -)
 OPMETHOD(uint64_t, u64, mul, *)
 DIVMETHOD(uint64_t, u64, div, /)
 DIVMETHOD(uint64_t, u64, mod, %)
-OPMETHOD(uint64_t, u64, and, &)
-OPMETHOD(uint64_t, u64, or, |)
+OPMETHOD(uint64_t, u64, and , &)
+OPMETHOD(uint64_t, u64, or , |)
 OPMETHOD(uint64_t, u64, xor, ^)
 OPMETHOD(uint64_t, u64, lshift, <<)
 OPMETHOD(uint64_t, u64, rshift, >>)
@@ -369,12 +369,12 @@ static const JanetReg it_cfuns[] = {
     {
         "int/s64", cfun_it_s64_new,
         JDOC("(int/s64 value)\n\n"
-             "Create a boxed signed 64 bit integer from a string value.")
+        "Create a boxed signed 64 bit integer from a string value.")
     },
     {
         "int/u64", cfun_it_u64_new,
         JDOC("(int/u64 value)\n\n"
-             "Create a boxed unsigned 64 bit integer from a string value.")
+        "Create a boxed unsigned 64 bit integer from a string value.")
     },
     {NULL, NULL, NULL}
 };
