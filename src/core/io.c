@@ -103,8 +103,8 @@ static Janet makef(FILE *f, int flags, char *buffer) {
 static Janet makef_setbuf(FILE *f, int flags, int bufsiz) {
 	char *buffer = NULL;
 
-	if (bufsiz < 0) {
-		if (bufsiz == 0 && setvbuf(f, NULL, _IONBF, 0))
+	if (bufsiz != -1) {
+		if (bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
 			return janet_wrap_nil();
 
 		buffer = malloc(bufsiz);
