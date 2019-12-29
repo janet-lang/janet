@@ -277,4 +277,10 @@
 
 (assert (= (constantly) (constantly)) "comptime 1")
 
+(with [f (file/temp)]
+  (file/write f "foo\n")
+  (file/flush f)
+  (file/seek f :set 0)
+  (assert (= (string (file/read f :all)) "foo\n") "temp files work"))
+
 (end-suite)
