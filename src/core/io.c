@@ -663,6 +663,20 @@ FILE *janet_getfile(const Janet *argv, int32_t n, int *flags) {
     return iof->file;
 }
 
+Janet janet_makefile(FILE *f, int flags) {
+    return makef(f, flags);
+}
+
+JanetAbstract janet_checkfile(Janet j) {
+    return janet_checkabstract(j, &cfun_io_filetype);
+}
+
+FILE* janet_unwrapfile(Janet j, int *flags) {
+    IOFile *iof = janet_unwrap_abstract(j);
+    if (NULL != flags) *flags = iof->flags;
+    return iof->file;
+}
+
 /* Module entry point */
 void janet_lib_io(JanetTable *env) {
     janet_core_cfuns(env, NULL, io_cfuns);

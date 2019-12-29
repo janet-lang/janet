@@ -1464,8 +1464,11 @@ JANET_API void janet_setdyn(const char *name, Janet value);
 #define JANET_FILE_SERIALIZABLE 128
 #define JANET_FILE_PIPED 256
 
+JANET_API Janet janet_makefile(FILE *f, int flags);
 JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int *flags);
 JANET_API FILE *janet_dynfile(const char *name, FILE *def);
+JANET_API JanetAbstract janet_checkfile(Janet j);
+JANET_API FILE *janet_unwrapfile(Janet j, int *flags);
 
 /* Marshal API */
 JANET_API void janet_marshal_size(JanetMarshalContext *ctx, size_t value);
