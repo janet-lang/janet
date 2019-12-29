@@ -100,6 +100,26 @@ static Janet makef(FILE *f, int flags, char *buffer) {
     return janet_wrap_abstract(iof);
 }
 
+static Janet makef_setbuf(FILE *f, int flags, int bufsiz) {
+	char *buffer = NULL;
+
+	if (bufsiz < 0) {
+		if (bufsiz == 0 && setvbuf(f, NULL, _IONBF, 0))
+			return janet_wrap_nil();
+
+		buffer = malloc(bufsiz);
+
+		if (NULL == buffer) {
+			JANET_OUT_OF_MEMORY;
+		}
+
+		if (setvbuf(f, buffer, _IOFBF, bufsiz))
+			return janet_wrap_nil();
+	}
+
+	return makef(f, flags, buffer);
+}
+
 /* Open a process */
 #ifdef __EMSCRIPTEN__
 static Janet cfun_io_popen(int32_t argc, Janet *argv) {
@@ -130,29 +150,7 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
 #endif
     FILE *f = popen((const char *)fname, (const char *)fmode);
 
-    if (NULL == f) {
-        return janet_wrap_nil();
-    } else {
-        char *buffer = NULL;
-
-        if (argc == 3) {
-            int bufsiz = janet_getinteger(argv, 2);
-
-            if (bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
-                return janet_wrap_nil();
-
-            buffer = malloc(bufsiz);
-
-            if (NULL == buffer) {
-                janet_panic("memory exhausted");
-            }
-
-            if (setvbuf(f, buffer, _IOFBF, bufsiz))
-                return janet_wrap_nil();
-        }
-
-        return makef(f, flags, buffer);
-    }
+	return f ? makef_setbuf(f, flags, argc == 3 ? janet_getinteger(argv, 2) : -1) : janet_wrap_nil();
 }
 #endif
 
@@ -172,29 +170,7 @@ static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
 
     FILE *f = fopen((const char *)fname, (const char *)fmode);
 
-    if (NULL == f) {
-        return janet_wrap_nil();
-    } else {
-        char *buffer = NULL;
-
-        if (argc == 3) {
-            int bufsiz = janet_getinteger(argv, 2);
-
-            if (bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
-                return janet_wrap_nil();
-
-            buffer = malloc(bufsiz);
-
-            if (NULL == buffer) {
-                janet_panic("memory exhausted");
-            }
-
-            if (setvbuf(f, buffer, _IOFBF, bufsiz))
-                return janet_wrap_nil();
-        }
-
-        return makef(f, flags, buffer);
-    }
+    return f ? makef_setbuf(f, flags, argc == 3 ? janet_getinteger(argv, 2) : -1) : janet_wrap_nil();
 }
 
 static Janet cfun_io_fdopen(int32_t argc, Janet *argv) {
@@ -214,29 +190,7 @@ static Janet cfun_io_fdopen(int32_t argc, Janet *argv) {
 #endif
     FILE *f = fdopen(fd, (const char *)fmode);
 
-    if (NULL == f) {
-        return janet_wrap_nil();
-    } else {
-        char *buffer = NULL;
-
-        if (argc == 3) {
-            int bufsiz = janet_getinteger(argv, 2);
-
-            if (bufsiz <= 0 && setvbuf(f, NULL, _IONBF, 0))
-                return janet_wrap_nil();
-
-            buffer = malloc(bufsiz);
-
-            if (NULL == buffer) {
-                janet_panic("memory exhausted");
-            }
-
-            if (setvbuf(f, buffer, _IOFBF, bufsiz))
-                return janet_wrap_nil();
-        }
-
-        return makef(f, flags, buffer);
-    }
+    return f ? makef_setbuf(f, flags, argc == 3 ? janet_getinteger(argv, 2) : -1) : janet_wrap_nil();
 }
 
 static Janet cfun_io_fileno(int32_t argc, Janet *argv) {
