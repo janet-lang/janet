@@ -1520,7 +1520,8 @@
      'quote identity
      'quasiquote expandqq
      'var expanddef
-     'while expandall})
+     'while expandall
+     'break expandall})
 
   (defn dotup [t]
     (def h (in t 0))
