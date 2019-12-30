@@ -49,7 +49,6 @@ extern "C" {
 #if defined(__FreeBSD__) || defined(__DragonFly__) || \
     defined(__NetBSD__) || defined(__OpenBSD__)
 #define JANET_BSD 1
-#define _BSD_SOURCE 1
 #endif
 
 /* Check for Mac */
