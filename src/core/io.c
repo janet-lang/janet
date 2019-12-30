@@ -298,11 +298,10 @@ static int cfun_io_gc(void *p, size_t len) {
     IOFile *iof = (IOFile *)p;
 
     if (!(iof->flags & (JANET_FILE_NOT_CLOSEABLE | JANET_FILE_CLOSED))) {
+        if (NULL != iof->buf) {
+            free(iof->buf);
+        }
         return fclose(iof->file);
-    }
-
-    if (NULL != iof->buf) {
-        free(iof->buf);
     }
 
     return 0;
@@ -316,9 +315,6 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
         janet_panic("file is closed");
     if (iof->flags & (JANET_FILE_NOT_CLOSEABLE))
         janet_panic("file not closable");
-    if (NULL != iof->buf) {
-        free(iof->buf);
-    }
     if (iof->flags & JANET_FILE_PIPED) {
 #ifdef JANET_WINDOWS
 #define pclose _pclose
@@ -327,10 +323,16 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
         int status = pclose(iof->file);
         iof->flags |= JANET_FILE_CLOSED;
         if (status == -1) janet_panic("could not close file");
+        if (NULL != iof->buf) {
+            free(iof->buf);
+        }
         return janet_wrap_integer(WEXITSTATUS(status));
     } else {
         if (fclose(iof->file)) janet_panic("could not close file");
         iof->flags |= JANET_FILE_CLOSED;
+        if (NULL != iof->buf) {
+            free(iof->buf);
+        }
         return janet_wrap_nil();
     }
 }
