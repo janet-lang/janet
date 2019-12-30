@@ -30,6 +30,11 @@
 #include <janet.h>
 #endif
 
+/* For internal usage */
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 /* Handle runtime errors */
 #ifndef janet_exit
 #include <stdio.h>

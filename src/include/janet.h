@@ -76,7 +76,6 @@ extern "C" {
     || defined(sun) || defined(__sun) /* Solaris */ \
     || defined(unix) || defined(__unix) || defined(__unix__)
 #define JANET_POSIX 1
-#define _POSIX_C_SOURCE 200112L
 #elif defined(__EMSCRIPTEN__)
 #define JANET_WEB 1
 #elif defined(WIN32) || defined(_WIN32)
