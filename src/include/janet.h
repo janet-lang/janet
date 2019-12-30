@@ -256,6 +256,11 @@ typedef struct {
 #include <stddef.h>
 #include <stdio.h>
 
+#ifdef JANET_BSD
+int _setjmp(jmp_buf);
+JANET_NO_RETURN void _longjmp(jmp_buf, int);
+#endif
+
 /* Names of all of the types */
 JANET_API extern const char *const janet_type_names[16];
 JANET_API extern const char *const janet_signal_names[14];
