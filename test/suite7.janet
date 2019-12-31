@@ -278,6 +278,7 @@
 (assert (= (constantly) (constantly)) "comptime 1")
 
 (assert-error "arity issue in macro" (eval '(each [])))
+(assert-error "comptime issue" (eval '(comptime (error "oops"))))
 
 (with [f (file/temp)]
   (file/write f "foo\n")
