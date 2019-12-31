@@ -88,6 +88,7 @@ boot_gen = gen.process('src/boot/boot.janet', extra_args: 'janet_gen_boot')
 # Order is important here, as some headers
 # depend on other headers for the amalg target
 core_headers = [
+  'src/core/features.h',
   'src/core/util.h',
   'src/core/state.h',
   'src/core/gc.h',

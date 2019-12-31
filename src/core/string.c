@@ -20,14 +20,15 @@
 * IN THE SOFTWARE.
 */
 
-#include <string.h>
-
 #ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
 #include "gc.h"
 #include "util.h"
 #include "state.h"
 #endif
+
+#include <string.h>
 
 /* Begin building a string */
 uint8_t *janet_string_begin(int32_t length) {

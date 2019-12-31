@@ -24,6 +24,7 @@
 #define JANET_COMPILE_H
 
 #ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
 #include "regalloc.h"
 #endif

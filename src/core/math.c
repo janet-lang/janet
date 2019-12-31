@@ -20,12 +20,13 @@
 * IN THE SOFTWARE.
 */
 
-#include <math.h>
-
 #ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
 #include "util.h"
 #endif
+
+#include <math.h>
 
 static JANET_THREAD_LOCAL JanetRNG janet_vm_rng = {0, 0, 0, 0, 0};
 

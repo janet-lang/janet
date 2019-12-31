@@ -21,6 +21,7 @@
 */
 
 #ifndef JANET_AMALG
+#include "features.h"
 #include "vector.h"
 #include "util.h"
 #endif

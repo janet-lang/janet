@@ -21,8 +21,9 @@
 */
 
 #ifndef JANET_AMALG
-#include <math.h>
+#include "features.h"
 #include <janet.h>
+#include <math.h>
 #include "util.h"
 #include "state.h"
 #endif

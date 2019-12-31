@@ -20,26 +20,17 @@
 * IN THE SOFTWARE.
 */
 
-#ifndef JANET_AMALG
-#include "features.h"
-#include <janet.h>
-#include "gc.h"
+/* Feature test macros */
+
+#ifndef JANET_FEATURES_H_defined
+#define JANET_FEATURES_H_defined
+
+#if !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200112L
 #endif
 
-/* Create new userdata */
-void *janet_abstract_begin(const JanetAbstractType *atype, size_t size) {
-    JanetAbstractHead *header = janet_gcalloc(JANET_MEMORY_NONE,
-                                sizeof(JanetAbstractHead) + size);
-    header->size = size;
-    header->type = atype;
-    return (void *) & (header->data);
-}
+#if !defined(_BSD_SOURCE) && defined(JANET_BSD)
+#define _BSD_SOURCE 1
+#endif
 
-void *janet_abstract_end(void *x) {
-    janet_gc_settype((void *)(janet_abstract_head(x)), JANET_MEMORY_ABSTRACT);
-    return x;
-}
-
-void *janet_abstract(const JanetAbstractType *atype, size_t size) {
-    return janet_abstract_end(janet_abstract_begin(atype, size));
-}
+#endif

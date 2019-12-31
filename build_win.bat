@@ -93,7 +93,7 @@ set "amalg_files="
 for %%f in (src\core\*.c) do (
     set "amalg_files=!amalg_files! %%f"
 )
-janet.exe tools\amalg.janet src\core\util.h src\core\state.h src\core\gc.h src\core\vector.h src\core\fiber.h src\core\regalloc.h src\core\compile.h src\core\emit.h src\core\symcache.h %amalg_files% build\core_image.c > build\janet.c
+janet.exe tools\amalg.janet src\core\features.h src\core\util.h src\core\state.h src\core\gc.h src\core\vector.h src\core\fiber.h src\core\regalloc.h src\core\compile.h src\core\emit.h src\core\symcache.h %amalg_files% build\core_image.c > build\janet.c
 janet.exe tools\removecr.janet build\janet.c
 
 @rem Gen shell.c

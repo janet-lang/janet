@@ -67,7 +67,8 @@ all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY)
 
 JANET_HEADERS=src/include/janet.h src/conf/janetconf.h
 
-JANET_LOCAL_HEADERS=src/core/util.h \
+JANET_LOCAL_HEADERS=src/core/features.h \
+					src/core/util.h \
 					src/core/state.h \
 					src/core/gc.h \
 					src/core/vector.h \

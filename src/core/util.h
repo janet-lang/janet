@@ -23,21 +23,13 @@
 #ifndef JANET_UTIL_H_defined
 #define JANET_UTIL_H_defined
 
-#include <stdio.h>
-#include <errno.h>
-
 #ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
 #endif
 
-/* For internal usage */
-#if !defined(_POSIX_C_SOURCE)
-#define _POSIX_C_SOURCE 200112L
-#endif
-
-#if !defined(_BSD_SOURCE) && defined(JANET_BSD)
-#define _BSD_SOURCE 1
-#endif
+#include <stdio.h>
+#include <errno.h>
 
 /* Handle runtime errors */
 #ifndef janet_exit

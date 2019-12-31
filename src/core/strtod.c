@@ -40,13 +40,14 @@
  * '0xdeadbeef'.
  */
 
-#include <math.h>
-#include <string.h>
-
 #ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
 #include "util.h"
 #endif
+
+#include <math.h>
+#include <string.h>
 
 /* Lookup table for getting values of characters when parsing numbers. Handles
  * digits 0-9 and a-z (and A-Z). A-Z have values of 10 to 35. */

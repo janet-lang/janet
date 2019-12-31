@@ -24,6 +24,7 @@
 #define JANET_VECTOR_H_defined
 
 #ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
 #endif
 

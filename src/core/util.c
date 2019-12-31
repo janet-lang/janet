@@ -20,14 +20,15 @@
 * IN THE SOFTWARE.
 */
 
-#include <inttypes.h>
-
 #ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
 #include "util.h"
 #include "state.h"
 #include "gc.h"
 #endif
+
+#include <inttypes.h>
 
 /* Base 64 lookup table for digits */
 const char janet_base64[65] =
