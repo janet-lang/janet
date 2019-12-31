@@ -277,6 +277,8 @@
 
 (assert (= (constantly) (constantly)) "comptime 1")
 
+(assert-error "arity issue in macro" (eval '(each [])))
+
 (with [f (file/temp)]
   (file/write f "foo\n")
   (file/flush f)
