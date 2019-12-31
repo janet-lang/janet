@@ -142,8 +142,8 @@ static Janet cfun_io_temp(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 0);
     FILE *tmp = tmpfile();
     if (!tmp)
-      janet_panicf("unable to create temporary file - %s", strerror(errno));
-    return janet_makefile(tmp, JANET_FILE_WRITE|JANET_FILE_READ|JANET_FILE_BINARY);
+        janet_panicf("unable to create temporary file - %s", strerror(errno));
+    return janet_makefile(tmp, JANET_FILE_WRITE | JANET_FILE_READ | JANET_FILE_BINARY);
 }
 
 static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
@@ -577,7 +577,7 @@ static const JanetReg io_cfuns[] = {
         JDOC("(eprinf fmt & xs)\n\n"
              "Like eprintf but with no trailing newline.")
     },
-     {
+    {
         "file/temp", cfun_io_temp,
         JDOC("(file/temp)\n\n"
              "Open an anonymous temporary file that is removed on close."
