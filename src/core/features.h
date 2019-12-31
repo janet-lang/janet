@@ -25,12 +25,6 @@
 #ifndef JANET_FEATURES_H_defined
 #define JANET_FEATURES_H_defined
 
-#if !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 200112L
-#endif
-
-#if !defined(_BSD_SOURCE) && defined(JANET_BSD)
-#define _BSD_SOURCE 1
-#endif
 
 #endif

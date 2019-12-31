@@ -20,6 +20,10 @@
 * IN THE SOFTWARE.
 */
 
+#if !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #ifndef JANET_AMALG
 #include <janet.h>
 #include "line.h"
