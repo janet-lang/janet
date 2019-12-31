@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
   will generate warnings when compiled against other versions.
 - Remove Emscripten build. Instead, use the amalgamated source code with a custom toolchain.
 - Update documentation.
+- Fix segfault regression when macros are called with bad arity.
 
 ### 1.6.0 - 2019-12-22
 - Add `thread/` module to the core.
