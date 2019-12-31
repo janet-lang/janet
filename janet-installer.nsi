@@ -20,7 +20,6 @@ VIFileVersion "${PRODUCT_VERSION}"
 # Includes
 !include "MultiUser.nsh"
 !include "MUI2.nsh"
-!include ".\tools\EnvVarUpdate.nsh"
 !include "LogicLib.nsh"
 
 # Basics
@@ -124,6 +123,15 @@ section "Janet" BfWSection
     # Start Menu
     createShortCut "$SMPROGRAMS\Janet.lnk" "$INSTDIR\bin\janet.exe" "" "$INSTDIR\logo.ico"
 
+    # Update path
+    ${If} $MultiUser.InstallMode == "AllUsers"
+        EnVar::SetHKLM
+    ${Else}
+        EnVar::SetHKCU
+    ${EndIf}
+    EnVar::AddValue "PATH" "$INSTDIR\bin"
+    Pop $0
+
     # Set up Environment variables
     !insertmacro WriteEnv JANET_PATH "$INSTDIR\Library"
     !insertmacro WriteEnv JANET_HEADERPATH "$INSTDIR\C"
@@ -131,13 +139,6 @@ section "Janet" BfWSection
     !insertmacro WriteEnv JANET_BINPATH "$INSTDIR\bin"
 
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
-
-    # Update path
-    ${If} $MultiUser.InstallMode == "AllUsers"
-        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\bin" ; Append
-    ${Else}
-        ${EnvVarUpdate} $0 "PATH" "A" "HKCU" "$INSTDIR\bin" ; Append
-    ${EndIf}
 
     # Registry information for add/remove programs
     WriteRegStr SHCTX "${UNINST_KEY}" "DisplayName" "Janet"
@@ -185,10 +186,12 @@ section "uninstall"
 
     # Unset PATH
     ${If} $MultiUser.InstallMode == "AllUsers"
-        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin" ; Remove
+        EnVar::SetHKLM
     ${Else}
-        ${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "$INSTDIR\bin" ; Remove
+        EnVar::SetHKCU
     ${EndIf}
+    EnVar::DeleteValue "PATH" "$INSTDIR\bin"
+    Pop $0
 
     # make sure windows knows about the change
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
