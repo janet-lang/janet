@@ -5,6 +5,7 @@
 (print "/* Generated from janet version " janet/version "-" janet/build " */")
 (print "#define JANET_BUILD \"" janet/build "\"")
 (print ```#define JANET_AMALG```)
+(print ```#define _POSIX_C_SOURCE 200112L```)
 (print ```#include "janet.h"```)
 
 # Body
