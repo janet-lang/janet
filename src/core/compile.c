@@ -583,18 +583,21 @@ static int macroexpand1(
             es = janet_formatc("macro arity mismatch, expected at most %d, got %d", maxar, arity);
         c->result.macrofiber = NULL;
         janetc_error(c, es);
+        return 0;
     }
     /* Set env */
     fiberp->env = c->env;
     int lock = janet_gclock();
-    JanetSignal status = janet_continue(fiberp, janet_wrap_nil(), &x);
+    Janet tempOut;
+    JanetSignal status = janet_continue(fiberp, janet_wrap_nil(), &tempOut);
     janet_gcunlock(lock);
     if (status != JANET_SIGNAL_OK) {
-        const uint8_t *es = janet_formatc("(macro) %V", x);
+        const uint8_t *es = janet_formatc("(macro) %V", tempOut);
         c->result.macrofiber = fiberp;
         janetc_error(c, es);
+        return 0;
     } else {
-        *out = x;
+        *out = tempOut;
     }
 
     return 1;

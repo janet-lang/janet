@@ -1,3 +1,7 @@
+Unicode True
+
+!echo "Program Files: ${PROGRAMFILES}"
+
 # Version
 !define PRODUCT_VERSION "${VERSION}.0"
 VIProductVersion "${PRODUCT_VERSION}"
