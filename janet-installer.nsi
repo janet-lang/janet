@@ -1,6 +1,7 @@
 Unicode True
 
 !echo "Program Files: ${PROGRAMFILES}"
+!addplugindir "tools\"
 
 # Version
 !define PRODUCT_VERSION "${VERSION}.0"
