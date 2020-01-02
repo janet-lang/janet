@@ -102,7 +102,7 @@ static Janet makef(FILE *f, int flags) {
 }
 
 /* Open a process */
-#ifdef __EMSCRIPTEN__
+#ifdef JANET_NO_PIPES
 static Janet cfun_io_popen(int32_t argc, Janet *argv) {
     (void) argc;
     (void) argv;
@@ -137,6 +137,14 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
 }
 #endif
 
+#ifdef JANET_NO_PIPES
+static Janet cfun_io_temp(int32_t argc, Janet *argv) {
+    (void) argc;
+    (void) argv;
+    janet_panic("not implemented on this platform");
+    return janet_wrap_nil();
+}
+#else
 static Janet cfun_io_temp(int32_t argc, Janet *argv) {
     (void)argv;
     janet_fixarity(argc, 0);
@@ -145,6 +153,7 @@ static Janet cfun_io_temp(int32_t argc, Janet *argv) {
         janet_panicf("unable to create temporary file - %s", strerror(errno));
     return janet_makefile(tmp, JANET_FILE_WRITE | JANET_FILE_READ | JANET_FILE_BINARY);
 }
+#endif
 
 static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
@@ -298,6 +307,7 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
         janet_panic("file is closed");
     if (iof->flags & (JANET_FILE_NOT_CLOSEABLE))
         janet_panic("file not closable");
+#ifndef JANET_NO_PIPES
     if (iof->flags & JANET_FILE_PIPED) {
 #ifdef JANET_WINDOWS
 #define pclose _pclose
@@ -307,7 +317,9 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
         iof->flags |= JANET_FILE_CLOSED;
         if (status == -1) janet_panic("could not close file");
         return janet_wrap_integer(WEXITSTATUS(status));
-    } else {
+    }
+#endif
+    else {
         if (fclose(iof->file)) janet_panic("could not close file");
         iof->flags |= JANET_FILE_CLOSED;
         return janet_wrap_nil();

@@ -35,7 +35,7 @@
 /* #define JANET_BUILD "local" */
 
 /* These settings all affect linking, so use cautiously. */
-/* #define JANET_SINGLE_THREADED */
+/* #define JANET_SINGLE_THREADED  */
 /* #define JANET_NO_DYNAMIC_MODULES */
 /* #define JANET_NO_NANBOX */
 /* #define JANET_API __attribute__((visibility ("default"))) */
@@ -58,5 +58,8 @@
 /* #define JANET_STACK_MAX 16384 */
 /* #define JANET_OS_NAME my-custom-os */
 /* #define JANET_ARCH_NAME pdp-8 */
+/* #define JANET_NO_SETJMP */
+/* #define JANET_NO_PIPES */
+/* #define JANET_NO_TERMIOS */
 
 #endif /* end of include guard: JANETCONF_H */

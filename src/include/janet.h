@@ -250,13 +250,21 @@ typedef struct {
 #include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
+
+#ifndef JANET_NO_SETJMP
 #include <setjmp.h>
+#else 
+#define jmp_buf long
+#endif
+
 #include <stddef.h>
 #include <stdio.h>
 
 #ifdef JANET_BSD
+#ifndef JANET_NO_SETJMP
 int _setjmp(jmp_buf);
 JANET_NO_RETURN void _longjmp(jmp_buf, int);
+#endif
 #endif
 
 /* Names of all of the types */
@@ -1465,7 +1473,10 @@ JANET_API void janet_setdyn(const char *name, Janet value);
 #define JANET_FILE_CLOSED 32
 #define JANET_FILE_BINARY 64
 #define JANET_FILE_SERIALIZABLE 128
+
+#ifndef JANET_NO_PIPES
 #define JANET_FILE_PIPED 256
+#endif
 
 JANET_API Janet janet_makefile(FILE *f, int flags);
 JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int *flags);

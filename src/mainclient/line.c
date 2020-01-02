@@ -51,8 +51,7 @@ static void simpleline(JanetBuffer *buffer) {
     }
 }
 
-/* Windows */
-#ifdef JANET_WINDOWS
+#if defined(JANET_WINDOWS) || defined(JANET_NO_TERMIOS)
 
 void janet_line_init() {
     ;
@@ -69,7 +68,6 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
     simpleline(buffer);
 }
 
-/* Posix */
 #else
 
 /*

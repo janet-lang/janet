@@ -30,10 +30,12 @@
 void janet_panicv(Janet message) {
     if (janet_vm_return_reg != NULL) {
         *janet_vm_return_reg = message;
+#ifndef JANET_NO_SETJMP
 #if defined(JANET_BSD) || defined(JANET_APPLE)
         _longjmp(*janet_vm_jmp_buf, 1);
 #else
         longjmp(*janet_vm_jmp_buf, 1);
+#endif
 #endif
     } else {
         fputs((const char *)janet_formatc("janet top level panic - %v\n", message), stdout);

@@ -1156,6 +1156,9 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
 
     /* Run loop */
     JanetSignal signal;
+#ifdef JANET_NO_SETJMP
+    signal = run_vm(fiber, in, old_status);
+#else
 #if defined(JANET_BSD) || defined(JANET_APPLE)
     if (_setjmp(buf)) {
 #else
@@ -1165,6 +1168,7 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     } else {
         signal = run_vm(fiber, in, old_status);
     }
+#endif
 
     /* Tear down fiber */
     janet_fiber_set_status(fiber, signal);

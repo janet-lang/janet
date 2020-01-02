@@ -34,7 +34,11 @@
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #else
+
+#ifndef JANET_NO_SETJMP
 #include <setjmp.h>
+#endif
+
 #include <time.h>
 #include <pthread.h>
 #endif
@@ -298,10 +302,12 @@ int janet_thread_send(JanetThread *thread, Janet msg, double timeout) {
     int32_t oldmcount = mailbox->messageCount;
 
     int ret = 0;
+#ifndef JANET_NO_SETJMP
     if (setjmp(buf)) {
         ret = 1;
         mailbox->messageCount = oldmcount;
     } else {
+#endif
         JanetBuffer *msgbuf = mailbox->messages + mailbox->messageNext;
         msgbuf->count = 0;
 
@@ -311,7 +317,9 @@ int janet_thread_send(JanetThread *thread, Janet msg, double timeout) {
 
         mailbox->messageNext = (mailbox->messageNext + 1) % mailbox->messageCapacity;
         mailbox->messageCount++;
+#ifndef JANET_NO_SETJMP
     }
+#endif
 
     /* Cleanup */
     janet_vm_jmp_buf = old_buf;
@@ -343,11 +351,13 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
             jmp_buf *old_buf = janet_vm_jmp_buf;
             janet_vm_jmp_buf = &buf;
 
+#ifndef JANET_NO_SETJMP
             /* Handle errors */
             if (setjmp(buf)) {
                 /* Cleanup jmp_buf, keep lock */
                 janet_vm_jmp_buf = old_buf;
             } else {
+#endif
                 JanetBuffer *msgbuf = mailbox->messages + mailbox->messageFirst;
                 mailbox->messageCount--;
                 mailbox->messageFirst = (mailbox->messageFirst + 1) % mailbox->messageCapacity;
@@ -367,7 +377,9 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
                 janet_mailbox_wakeup(mailbox);
 
                 return 0;
+#ifndef JANET_NO_SETJMP
             }
+#endif
         }
 
         if (wait.nowait) {
