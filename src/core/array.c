@@ -93,6 +93,9 @@ void janet_array_setcount(JanetArray *array, int32_t count) {
 
 /* Push a value to the top of the array */
 void janet_array_push(JanetArray *array, Janet x) {
+    if (array->count == INT32_MAX) {
+        janet_panic("array overflow");
+    }
     int32_t newcount = array->count + 1;
     janet_array_ensure(array, newcount, 2);
     array->data[array->count] = x;
@@ -225,6 +228,9 @@ static Janet cfun_array_insert(int32_t argc, Janet *argv) {
         janet_panicf("insertion index %d out of range [0,%d]", at, array->count);
     chunksize = (argc - 2) * sizeof(Janet);
     restsize = (array->count - at) * sizeof(Janet);
+    if (INT32_MAX - (argc - 2) < array->count) {
+        janet_panic("array overflow");
+    }
     janet_array_ensure(array, array->count + argc - 2, 2);
     memmove(array->data + at + argc - 2,
             array->data + at,
