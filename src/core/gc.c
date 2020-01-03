@@ -67,7 +67,7 @@ static void janet_mark_abstract(void *adata);
 
 /* Local state that is only temporary for gc */
 static JANET_THREAD_LOCAL uint32_t depth = JANET_RECURSION_GUARD;
-static JANET_THREAD_LOCAL uint32_t orig_rootcount;
+static JANET_THREAD_LOCAL size_t orig_rootcount;
 
 /* Mark a value */
 void janet_mark(Janet x) {
