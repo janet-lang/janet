@@ -1355,6 +1355,7 @@ JANET_API void janet_stacktrace(JanetFiber *fiber, Janet err);
 typedef void (*ScratchFinalizer)(void *);
 JANET_API void *janet_smalloc(size_t size);
 JANET_API void *janet_srealloc(void *mem, size_t size);
+JANET_API void *janet_scalloc(size_t nmemb, size_t size);
 JANET_API void janet_sfinalizer(void *mem, ScratchFinalizer finalizer);
 JANET_API void janet_sfree(void *mem);
 

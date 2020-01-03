@@ -491,6 +491,16 @@ void *janet_smalloc(size_t size) {
     return (char *)mem + SCRATCH_HDR_SIZE;
 }
 
+void *janet_scalloc(size_t nmemb, size_t size) {
+    if (nmemb && size > (size_t)-1/size) {
+        JANET_OUT_OF_MEMORY;
+    }
+    size_t n = nmemb * size;
+    void *p = janet_smalloc(n);
+    memset(p, 0, n);
+    return p;
+}
+
 void *janet_srealloc(void *mem, size_t size) {
     if (NULL == mem) return janet_smalloc(size);
     mem = (char *)mem - SCRATCH_HDR_SIZE;
