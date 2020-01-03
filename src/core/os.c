@@ -157,7 +157,7 @@ static char **os_execute_env(int32_t argc, const Janet *argv) {
     char **envp = NULL;
     if (argc > 2) {
         JanetDictView dict = janet_getdictionary(argv, 2);
-        envp = janet_smalloc(sizeof(char *) * (dict.len + 1));
+        envp = janet_smalloc(sizeof(char *) * ((size_t)dict.len + 1));
         int32_t j = 0;
         for (int32_t i = 0; i < dict.cap; i++) {
             const JanetKV *kv = dict.kvs + i;
@@ -176,7 +176,7 @@ static char **os_execute_env(int32_t argc, const Janet *argv) {
                 }
             }
             if (skip) continue;
-            char *envitem = janet_smalloc(klen + vlen + 2);
+            char *envitem = janet_smalloc((size_t) klen + (size_t) vlen + 2);
             memcpy(envitem, keys, klen);
             envitem[klen] = '=';
             memcpy(envitem + klen + 1, vals, vlen);
@@ -338,7 +338,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     return janet_wrap_integer(status);
 #else
 
-    const char **child_argv = janet_smalloc(sizeof(char *) * (exargs.len + 1));
+    const char **child_argv = janet_smalloc(sizeof(char *) * ((size_t) exargs.len + 1));
     for (int32_t i = 0; i < exargs.len; i++)
         child_argv[i] = janet_getcstring(exargs.items, i);
     child_argv[exargs.len] = NULL;

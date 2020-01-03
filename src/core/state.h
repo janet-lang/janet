@@ -59,14 +59,14 @@ extern JANET_THREAD_LOCAL uint32_t janet_vm_cache_deleted;
 
 /* Garbage collection */
 extern JANET_THREAD_LOCAL void *janet_vm_blocks;
-extern JANET_THREAD_LOCAL uint32_t janet_vm_gc_interval;
-extern JANET_THREAD_LOCAL uint32_t janet_vm_next_collection;
+extern JANET_THREAD_LOCAL size_t janet_vm_gc_interval;
+extern JANET_THREAD_LOCAL size_t janet_vm_next_collection;
 extern JANET_THREAD_LOCAL int janet_vm_gc_suspend;
 
 /* GC roots */
 extern JANET_THREAD_LOCAL Janet *janet_vm_roots;
-extern JANET_THREAD_LOCAL uint32_t janet_vm_root_count;
-extern JANET_THREAD_LOCAL uint32_t janet_vm_root_capacity;
+extern JANET_THREAD_LOCAL size_t janet_vm_root_count;
+extern JANET_THREAD_LOCAL size_t janet_vm_root_capacity;
 
 /* Scratch memory */
 extern JANET_THREAD_LOCAL void **janet_scratch_mem;

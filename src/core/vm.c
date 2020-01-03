@@ -738,7 +738,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         vm_assert(defindex < func->def->defs_length, "invalid funcdef");
         fd = func->def->defs[defindex];
         elen = fd->environments_length;
-        fn = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) + (elen * sizeof(JanetFuncEnv *)));
+        fn = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) + ((size_t) elen * sizeof(JanetFuncEnv *)));
         fn->def = fd;
         {
             int32_t i;

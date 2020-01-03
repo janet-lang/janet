@@ -32,7 +32,7 @@
  * which should be filled with Janets. The memory will not be collected until
  * janet_tuple_end is called. */
 Janet *janet_tuple_begin(int32_t length) {
-    size_t size = sizeof(JanetTupleHead) + (length * sizeof(Janet));
+    size_t size = sizeof(JanetTupleHead) + ((size_t) length * sizeof(Janet));
     JanetTupleHead *head = janet_gcalloc(JANET_MEMORY_TUPLE, size);
     head->sm_line = -1;
     head->sm_column = -1;

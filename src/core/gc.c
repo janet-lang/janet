@@ -31,14 +31,14 @@
 
 /* GC State */
 JANET_THREAD_LOCAL void *janet_vm_blocks;
-JANET_THREAD_LOCAL uint32_t janet_vm_gc_interval;
-JANET_THREAD_LOCAL uint32_t janet_vm_next_collection;
+JANET_THREAD_LOCAL size_t janet_vm_gc_interval;
+JANET_THREAD_LOCAL size_t janet_vm_next_collection;
 JANET_THREAD_LOCAL int janet_vm_gc_suspend = 0;
 
 /* Roots */
 JANET_THREAD_LOCAL Janet *janet_vm_roots;
-JANET_THREAD_LOCAL uint32_t janet_vm_root_count;
-JANET_THREAD_LOCAL uint32_t janet_vm_root_capacity;
+JANET_THREAD_LOCAL size_t janet_vm_root_count;
+JANET_THREAD_LOCAL size_t janet_vm_root_capacity;
 
 /* Scratch Memory */
 #ifdef JANET_64
@@ -65,7 +65,7 @@ static void janet_mark_string(const uint8_t *str);
 static void janet_mark_fiber(JanetFiber *fiber);
 static void janet_mark_abstract(void *adata);
 
-/* Local state that is only temporary */
+/* Local state that is only temporary for gc */
 static JANET_THREAD_LOCAL uint32_t depth = JANET_RECURSION_GUARD;
 static JANET_THREAD_LOCAL uint32_t orig_rootcount;
 
@@ -348,7 +348,7 @@ void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
     mem->flags = type;
 
     /* Prepend block to heap list */
-    janet_vm_next_collection += (int32_t) size;
+    janet_vm_next_collection += size;
     mem->next = janet_vm_blocks;
     janet_vm_blocks = mem;
 

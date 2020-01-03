@@ -1046,7 +1046,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
     size_t bytecode_start = size_padded(sizeof(Peg), sizeof(uint32_t));
     size_t bytecode_size = bytecode_len * sizeof(uint32_t);
     size_t constants_start = size_padded(bytecode_start + bytecode_size, sizeof(Janet));
-    size_t total_size = constants_start + sizeof(Janet) * num_constants;
+    size_t total_size = constants_start + sizeof(Janet) * (size_t) num_constants;
 
     /* DOS prevention? I.E. we could read bytecode and constants before
      * hand so we don't allocated a ton of memory on bad, short input */

@@ -32,7 +32,7 @@
 
 static void *janet_memalloc_empty_local(int32_t count) {
     int32_t i;
-    void *mem = janet_smalloc(count * sizeof(JanetKV));
+    void *mem = janet_smalloc((size_t) count * sizeof(JanetKV));
     JanetKV *mmem = (JanetKV *)mem;
     for (i = 0; i < count; i++) {
         JanetKV *kv = mmem + i;
@@ -241,7 +241,7 @@ JanetTable *janet_table_clone(JanetTable *table) {
     if (NULL == newTable->data) {
         JANET_OUT_OF_MEMORY;
     }
-    memcpy(newTable->data, table->data, table->capacity * sizeof(JanetKV));
+    memcpy(newTable->data, table->data, (size_t) table->capacity * sizeof(JanetKV));
     return newTable;
 }
 

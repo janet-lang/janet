@@ -77,7 +77,7 @@ static JANET_THREAD_LOCAL JanetMailbox *janet_vm_mailbox = NULL;
 static JANET_THREAD_LOCAL JanetThread *janet_vm_thread_current = NULL;
 
 static JanetMailbox *janet_mailbox_create(JanetMailbox *parent, int refCount, uint16_t capacity) {
-    JanetMailbox *mailbox = malloc(sizeof(JanetMailbox) + sizeof(JanetBuffer) * capacity);
+    JanetMailbox *mailbox = malloc(sizeof(JanetMailbox) + sizeof(JanetBuffer) * (size_t) capacity);
     if (NULL == mailbox) {
         JANET_OUT_OF_MEMORY;
     }

@@ -402,17 +402,19 @@ static Janet janet_core_gccollect(int32_t argc, Janet *argv) {
 
 static Janet janet_core_gcsetinterval(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    int32_t val = janet_getinteger(argv, 0);
-    if (val < 0)
-        janet_panic("expected non-negative integer");
-    janet_vm_gc_interval = val;
+    size_t s = janet_getsize(argv, 0);
+    /* limit interval to 48 bits */
+    if (s > 0xFFFFFFFFFFFFUl) {
+        janet_panic("interval too large");
+    }
+    janet_vm_gc_interval = s;
     return janet_wrap_nil();
 }
 
 static Janet janet_core_gcinterval(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
-    return janet_wrap_number(janet_vm_gc_interval);
+    return janet_wrap_number((double) janet_vm_gc_interval);
 }
 
 static Janet janet_core_type(int32_t argc, Janet *argv) {

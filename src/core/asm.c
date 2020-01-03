@@ -580,7 +580,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     x = janet_get1(s, janet_csymbolv("constants"));
     if (janet_indexed_view(x, &arr, &count)) {
         def->constants_length = count;
-        def->constants = malloc(sizeof(Janet) * count);
+        def->constants = malloc(sizeof(Janet) * (size_t) count);
         if (NULL == def->constants) {
             JANET_OUT_OF_MEMORY;
         }
@@ -659,7 +659,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         }
         /* Allocate bytecode array */
         def->bytecode_length = blength;
-        def->bytecode = malloc(sizeof(uint32_t) * blength);
+        def->bytecode = malloc(sizeof(uint32_t) * (size_t) blength);
         if (NULL == def->bytecode) {
             JANET_OUT_OF_MEMORY;
         }
@@ -701,7 +701,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     x = janet_get1(s, janet_csymbolv("sourcemap"));
     if (janet_indexed_view(x, &arr, &count)) {
         janet_asm_assert(&a, count == def->bytecode_length, "sourcemap must have the same length as the bytecode");
-        def->sourcemap = malloc(sizeof(JanetSourceMapping) * count);
+        def->sourcemap = malloc(sizeof(JanetSourceMapping) * (size_t) count);
         for (i = 0; i < count; i++) {
             const Janet *tup;
             Janet entry = arr[i];

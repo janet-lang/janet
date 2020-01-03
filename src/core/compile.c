@@ -708,7 +708,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Copy bytecode (only last chunk) */
     def->bytecode_length = janet_v_count(c->buffer) - scope->bytecode_start;
     if (def->bytecode_length) {
-        size_t s = sizeof(int32_t) * def->bytecode_length;
+        size_t s = sizeof(int32_t) * (size_t) def->bytecode_length;
         def->bytecode = malloc(s);
         if (NULL == def->bytecode) {
             JANET_OUT_OF_MEMORY;
@@ -716,7 +716,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
         memcpy(def->bytecode, c->buffer + scope->bytecode_start, s);
         janet_v__cnt(c->buffer) = scope->bytecode_start;
         if (NULL != c->mapbuffer && c->source) {
-            size_t s = sizeof(JanetSourceMapping) * def->bytecode_length;
+            size_t s = sizeof(JanetSourceMapping) * (size_t) def->bytecode_length;
             def->sourcemap = malloc(s);
             if (NULL == def->sourcemap) {
                 JANET_OUT_OF_MEMORY;

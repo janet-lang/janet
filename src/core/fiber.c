@@ -47,7 +47,7 @@ static JanetFiber *fiber_alloc(int32_t capacity) {
         capacity = 32;
     }
     fiber->capacity = capacity;
-    data = malloc(sizeof(Janet) * capacity);
+    data = malloc(sizeof(Janet) * (size_t) capacity);
     if (NULL == data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -211,7 +211,7 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
 static void janet_env_detach(JanetFuncEnv *env) {
     /* Check for closure environment */
     if (env) {
-        size_t s = sizeof(Janet) * env->length;
+        size_t s = sizeof(Janet) * (size_t) env->length;
         Janet *vmem = malloc(s);
         janet_vm_next_collection += (uint32_t) s;
         if (NULL == vmem) {

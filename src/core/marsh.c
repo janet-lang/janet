@@ -693,7 +693,7 @@ static const uint8_t *unmarshal_one_env(
                 janet_panic("invalid funcenv length");
         } else {
             /* Off stack variant */
-            env->as.values = malloc(sizeof(Janet) * length);
+            env->as.values = malloc(sizeof(Janet) * (size_t) length);
             if (!env->as.values) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -798,7 +798,7 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal environments */
         if (def->flags & JANET_FUNCDEF_FLAG_HASENVS) {
-            def->environments = calloc(1, sizeof(int32_t) * environments_length);
+            def->environments = calloc(1, sizeof(int32_t) * (size_t) environments_length);
             if (!def->environments) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -812,7 +812,7 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal sub funcdefs */
         if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS) {
-            def->defs = calloc(1, sizeof(JanetFuncDef *) * defs_length);
+            def->defs = calloc(1, sizeof(JanetFuncDef *) * (size_t) defs_length);
             if (!def->defs) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -827,7 +827,7 @@ static const uint8_t *unmarshal_one_def(
         /* Unmarshal source maps if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCEMAP) {
             int32_t current = 0;
-            def->sourcemap = malloc(sizeof(JanetSourceMapping) * bytecode_length);
+            def->sourcemap = malloc(sizeof(JanetSourceMapping) * (size_t) bytecode_length);
             if (!def->sourcemap) {
                 JANET_OUT_OF_MEMORY;
             }

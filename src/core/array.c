@@ -36,7 +36,7 @@ JanetArray *janet_array(int32_t capacity) {
     Janet *data = NULL;
     if (capacity > 0) {
         janet_vm_next_collection += capacity * sizeof(Janet);
-        data = (Janet *) malloc(sizeof(Janet) * capacity);
+        data = (Janet *) malloc(sizeof(Janet) * (size_t) capacity);
         if (NULL == data) {
             JANET_OUT_OF_MEMORY;
         }
@@ -52,7 +52,7 @@ JanetArray *janet_array_n(const Janet *elements, int32_t n) {
     JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
     array->capacity = n;
     array->count = n;
-    array->data = malloc(sizeof(Janet) * n);
+    array->data = malloc(sizeof(Janet) * (size_t) n);
     if (!array->data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -166,9 +166,12 @@ static Janet cfun_array_peek(int32_t argc, Janet *argv) {
 static Janet cfun_array_push(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
     JanetArray *array = janet_getarray(argv, 0);
+    if (INT32_MAX - argc + 1 <= array->count) {
+        janet_panic("array overflow");
+    }
     int32_t newcount = array->count - 1 + argc;
     janet_array_ensure(array, newcount, 2);
-    if (argc > 1) memcpy(array->data + array->count, argv + 1, (argc - 1) * sizeof(Janet));
+    if (argc > 1) memcpy(array->data + array->count, argv + 1, (size_t) (argc - 1) * sizeof(Janet));
     array->count = newcount;
     return argv[0];
 }

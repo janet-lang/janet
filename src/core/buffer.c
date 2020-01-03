@@ -33,7 +33,7 @@ JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
     uint8_t *data = NULL;
     if (capacity > 0) {
         janet_vm_next_collection += capacity;
-        data = malloc(sizeof(uint8_t) * capacity);
+        data = malloc(sizeof(uint8_t) * (size_t) capacity);
         if (NULL == data) {
             JANET_OUT_OF_MEMORY;
         }
@@ -63,7 +63,7 @@ void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) 
     int64_t big_capacity = ((int64_t) capacity) * growth;
     capacity = big_capacity > INT32_MAX ? INT32_MAX : (int32_t) big_capacity;
     janet_vm_next_collection += capacity - buffer->capacity;
-    new_data = realloc(old, capacity * sizeof(uint8_t));
+    new_data = realloc(old, (size_t) capacity * sizeof(uint8_t));
     if (NULL == new_data) {
         JANET_OUT_OF_MEMORY;
     }

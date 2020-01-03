@@ -263,27 +263,36 @@ void janet_var(JanetTable *env, const char *name, Janet val, const char *doc) {
 
 /* Load many cfunctions at once */
 void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
+    uint8_t *longname_buffer = NULL;
+    size_t prefixlen = 0;
+    size_t bufsize = 0;
+    if (NULL != regprefix) {
+        prefixlen = strlen(regprefix);
+        bufsize = (prefixlen + 1) * 3;
+        longname_buffer = malloc(bufsize);
+        if (NULL == longname_buffer) {
+            JANET_OUT_OF_MEMORY;
+        }
+        memcpy(longname_buffer, regprefix, prefixlen);
+        longname_buffer[prefixlen] = '/';
+        prefixlen++;
+    }
     while (cfuns->name) {
-        Janet name = janet_csymbolv(cfuns->name);
-        Janet longname = name;
-        if (regprefix) {
-            int32_t reglen = 0;
+        Janet name;
+        if (NULL != regprefix) {
             int32_t nmlen = 0;
-            while (regprefix[reglen]) reglen++;
             while (cfuns->name[nmlen]) nmlen++;
-            int32_t symlen = reglen + 1 + nmlen;
-            uint8_t *longname_buffer = malloc(symlen);
-            memcpy(longname_buffer, regprefix, reglen);
-            longname_buffer[reglen] = '/';
-            memcpy(longname_buffer + reglen + 1, cfuns->name, nmlen);
-            longname = janet_wrap_symbol(janet_symbol(longname_buffer, symlen));
-            free(longname_buffer);
+            memcpy(longname_buffer + prefixlen, cfuns->name, nmlen);
+            name = janet_wrap_symbol(janet_symbol(longname_buffer, (int32_t) prefixlen + nmlen));
+        } else {
+            name = janet_csymbolv(cfuns->name);
         }
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
         janet_def(env, cfuns->name, fun, cfuns->documentation);
-        janet_table_put(janet_vm_registry, fun, longname);
+        janet_table_put(janet_vm_registry, fun, name);
         cfuns++;
     }
+    free(longname_buffer);
 }
 
 /* Abstract type introspection */

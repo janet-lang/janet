@@ -45,7 +45,7 @@ JANET_THREAD_LOCAL uint32_t janet_vm_cache_deleted = 0;
 /* Initialize the cache (allocate cache memory) */
 void janet_symcache_init() {
     janet_vm_cache_capacity = 1024;
-    janet_vm_cache = calloc(1, janet_vm_cache_capacity * sizeof(const uint8_t *));
+    janet_vm_cache = calloc(1, (size_t) janet_vm_cache_capacity * sizeof(const uint8_t *));
     if (NULL == janet_vm_cache) {
         JANET_OUT_OF_MEMORY;
     }
@@ -122,7 +122,7 @@ notfound:
 static void janet_cache_resize(uint32_t newCapacity) {
     uint32_t i, oldCapacity;
     const uint8_t **oldCache = janet_vm_cache;
-    const uint8_t **newCache = calloc(1, newCapacity * sizeof(const uint8_t *));
+    const uint8_t **newCache = calloc(1, (size_t) newCapacity * sizeof(const uint8_t *));
     if (newCache == NULL) {
         JANET_OUT_OF_MEMORY;
     }
@@ -179,7 +179,7 @@ const uint8_t *janet_symbol(const uint8_t *str, int32_t len) {
     const uint8_t **bucket = janet_symcache_findmem(str, len, hash, &success);
     if (success)
         return *bucket;
-    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_SYMBOL, sizeof(JanetStringHead) + len + 1);
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_SYMBOL, sizeof(JanetStringHead) + (size_t) len + 1);
     head->hash = hash;
     head->length = len;
     newstr = (uint8_t *)(head->data);
