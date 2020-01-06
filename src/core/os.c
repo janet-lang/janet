@@ -145,7 +145,7 @@ static Janet os_exit(int32_t argc, Janet *argv) {
 
 static Janet os_getenv(int32_t argc, Janet *argv) {
     (void) argv;
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 2);
     return janet_wrap_nil();
 }
 
@@ -407,11 +407,13 @@ static Janet os_environ(int32_t argc, Janet *argv) {
 }
 
 static Janet os_getenv(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 2);
     const char *cstr = janet_getcstring(argv, 0);
     const char *res = getenv(cstr);
     return res
            ? janet_cstringv(res)
+           : argc == 2
+           ? argv[1]
            : janet_wrap_nil();
 }
 
@@ -926,7 +928,7 @@ static const JanetReg os_cfuns[] = {
     },
     {
         "os/getenv", os_getenv,
-        JDOC("(os/getenv variable)\n\n"
+        JDOC("(os/getenv variable &opt dflt)\n\n"
              "Get the string value of an environment variable.")
     },
     {
