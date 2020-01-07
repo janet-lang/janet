@@ -150,6 +150,13 @@ DEFINE_OPTLEN(buffer, BUFFER, JanetBuffer *)
 DEFINE_OPTLEN(table, TABLE, JanetTable *)
 DEFINE_OPTLEN(array, ARRAY, JanetArray *)
 
+const char *janet_optcstring(const Janet *argv, int32_t argc, int32_t n, const char *dflt) {
+    if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {
+        return dflt;
+    }
+    return janet_getcstring(argv, n);
+}
+
 #undef DEFINE_GETTER
 #undef DEFINE_OPT
 #undef DEFINE_OPTLEN

@@ -52,6 +52,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 extern char **environ;
+#ifdef JANET_THREADS
+#include <pthread.h>
+#endif
 #endif
 
 /* For macos */
@@ -64,6 +67,34 @@ extern char **environ;
  * work/link properly if we detect a BSD */
 #if defined(JANET_BSD) || defined(JANET_APPLE)
 void arc4random_buf(void *buf, size_t nbytes);
+#endif
+
+/* Access to some global variables should be synchronized if not in single threaded mode, as
+ * setenv/getenv are not thread safe. */
+#ifdef JANET_THREADS
+# ifdef JANET_WINDOWS
+static int env_lock_initialized = 0;
+static CRITICAL_SECTION env_lock;
+static void janet_lock_environ(void) {
+    EnterCriticalSection(env_lock);
+}
+static void janet_unlock_environ(void) {
+    LeaveCriticalSection(env_lock);
+}
+# else
+static pthread_mutex_t env_lock = PTHREAD_MUTEX_INITIALIZER;
+static void janet_lock_environ(void) {
+    pthread_mutex_lock(&env_lock);
+}
+static void janet_unlock_environ(void) {
+    pthread_mutex_unlock(&env_lock);
+}
+# endif
+#else
+static void janet_lock_environ(void) {
+}
+static void janet_unlock_environ(void) {
+}
 #endif
 
 #endif /* JANET_REDCUED_OS */
@@ -386,6 +417,7 @@ static Janet os_environ(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
     int32_t nenv = 0;
+    janet_lock_environ();
     char **env = environ;
     while (*env++)
         nenv += 1;
@@ -393,7 +425,10 @@ static Janet os_environ(int32_t argc, Janet *argv) {
     for (int32_t i = 0; i < nenv; i++) {
         char *e = environ[i];
         char *eq = strchr(e, '=');
-        if (!eq) janet_panic("no '=' in environ");
+        if (!eq) {
+            janet_unlock_environ();
+            janet_panic("no '=' in environ");
+        }
         char *v = eq + 1;
         int32_t full_len = (int32_t) strlen(e);
         int32_t val_len = (int32_t) strlen(v);
@@ -403,6 +438,7 @@ static Janet os_environ(int32_t argc, Janet *argv) {
             janet_stringv((const uint8_t *)v, val_len)
         );
     }
+    janet_unlock_environ();
     return janet_wrap_table(t);
 }
 
@@ -410,11 +446,14 @@ static Janet os_getenv(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const char *cstr = janet_getcstring(argv, 0);
     const char *res = getenv(cstr);
-    return res
-           ? janet_cstringv(res)
-           : argc == 2
-           ? argv[1]
-           : janet_wrap_nil();
+    janet_lock_environ();
+    Janet ret = res
+                ? janet_cstringv(res)
+                : argc == 2
+                ? argv[1]
+                : janet_wrap_nil();
+    janet_unlock_environ();
+    return ret;
 }
 
 static Janet os_setenv(int32_t argc, Janet *argv) {
@@ -427,11 +466,14 @@ static Janet os_setenv(int32_t argc, Janet *argv) {
 #endif
     janet_arity(argc, 1, 2);
     const char *ks = janet_getcstring(argv, 0);
-    if (argc == 1 || janet_checktype(argv[1], JANET_NIL)) {
+    const char *vs = janet_optcstring(argv, argc, 1, NULL);
+    janet_lock_environ();
+    if (NULL == vs) {
         UNSETENV(ks);
     } else {
-        SETENV(ks, janet_getcstring(argv, 1));
+        SETENV(ks, vs);
     }
+    janet_unlock_environ();
     return janet_wrap_nil();
 }
 
@@ -1085,5 +1127,13 @@ static const JanetReg os_cfuns[] = {
 
 /* Module entry point */
 void janet_lib_os(JanetTable *env) {
+#if !defined(JANET_REDUCED_OS) && defined(JANET_WINDOWS) && defined(JANET_THREADS)
+    /* During start up, the top-most abstract machine (thread)
+     * in the thread tree sets up the critical section. */
+    if (!env_lock_initialized) {
+        InitializeCriticalSection(env_lock);
+        env_lock_initialized = 1;
+    }
+#endif
     janet_core_cfuns(env, NULL, os_cfuns);
 }

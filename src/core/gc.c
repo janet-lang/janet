@@ -492,7 +492,7 @@ void *janet_smalloc(size_t size) {
 }
 
 void *janet_scalloc(size_t nmemb, size_t size) {
-    if (nmemb && size > (size_t)-1/size) {
+    if (nmemb && size > (size_t) -1 / size) {
         JANET_OUT_OF_MEMORY;
     }
     size_t n = nmemb * size;
