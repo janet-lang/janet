@@ -35,7 +35,7 @@ static void fiber_reset(JanetFiber *fiber) {
     fiber->stackstart = JANET_FRAME_SIZE;
     fiber->stacktop = JANET_FRAME_SIZE;
     fiber->child = NULL;
-    fiber->flags = JANET_FIBER_MASK_YIELD;
+    fiber->flags = JANET_FIBER_MASK_YIELD | JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP;
     fiber->env = NULL;
     janet_fiber_set_status(fiber, JANET_STATUS_NEW);
 }
@@ -369,7 +369,7 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
     if (argc == 2) {
         int32_t i;
         JanetByteView view = janet_getbytes(argv, 1);
-        fiber->flags = 0;
+        fiber->flags = JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP;
         janet_fiber_set_status(fiber, JANET_STATUS_NEW);
         for (i = 0; i < view.len; i++) {
             if (view.bytes[i] >= '0' && view.bytes[i] <= '9') {

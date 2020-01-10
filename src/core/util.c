@@ -268,7 +268,7 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
     size_t bufsize = 0;
     if (NULL != regprefix) {
         prefixlen = strlen(regprefix);
-        bufsize = (prefixlen + 1) * 3;
+        bufsize = prefixlen + 256;
         longname_buffer = malloc(bufsize);
         if (NULL == longname_buffer) {
             JANET_OUT_OF_MEMORY;

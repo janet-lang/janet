@@ -203,12 +203,12 @@
 (defn check-match
   [pat text should-match]
   (def result (peg/match pat text))
-  (assert (= (not should-match) (not result)) text))
+  (assert (= (not should-match) (not result)) (string "check-match " text)))
 
 (defn check-deep
   [pat text what]
   (def result (peg/match pat text))
-  (assert (deep= result what) text))
+  (assert (deep= result what) (string "check-deep " text)))
 
 # Just numbers
 

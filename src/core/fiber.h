@@ -27,6 +27,34 @@
 #include <janet.h>
 #endif
 
+/* Fiber signal masks. */
+#define JANET_FIBER_MASK_ERROR 2
+#define JANET_FIBER_MASK_DEBUG 4
+#define JANET_FIBER_MASK_YIELD 8
+
+#define JANET_FIBER_MASK_USER0 (16 << 0)
+#define JANET_FIBER_MASK_USER1 (16 << 1)
+#define JANET_FIBER_MASK_USER2 (16 << 2)
+#define JANET_FIBER_MASK_USER3 (16 << 3)
+#define JANET_FIBER_MASK_USER4 (16 << 4)
+#define JANET_FIBER_MASK_USER5 (16 << 5)
+#define JANET_FIBER_MASK_USER6 (16 << 6)
+#define JANET_FIBER_MASK_USER7 (16 << 7)
+#define JANET_FIBER_MASK_USER8 (16 << 8)
+#define JANET_FIBER_MASK_USER9 (16 << 9)
+
+#define JANET_FIBER_MASK_USERN(N) (16 << (N))
+#define JANET_FIBER_MASK_USER 0x3FF0
+
+#define JANET_FIBER_STATUS_MASK 0xFF0000
+#define JANET_FIBER_STATUS_OFFSET 16
+
+#define JANET_FIBER_BREAKPOINT       0x1000000
+#define JANET_FIBER_RESUME_NO_USEVAL 0x2000000
+#define JANET_FIBER_RESUME_NO_SKIP   0x4000000
+#define JANET_FIBER_DID_LONGJUMP     0x8000000
+#define JANET_FIBER_FLAG_MASK        0xF000000
+
 extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
 
 #define janet_fiber_set_status(f, s) do {\

@@ -232,7 +232,7 @@ static Janet resolve_method(Janet name, JanetFiber *fiber) {
 }
 
 /* Interpreter main loop */
-static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) {
+static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     /* opcode -> label lookup if using clang/GCC */
 #ifdef JANET_USE_COMPUTED_GOTOS
@@ -501,29 +501,38 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
     register JanetFunction *func;
     vm_restore();
 
-    /* Only should be hit if the fiber is either waiting for a child, or
-     * waiting to be resumed. In those cases, use input and increment pc. We
-     * DO NOT use input when resuming a fiber that has been interrupted at a
-     * breakpoint. */
-    uint8_t first_opcode;
-    if (status != JANET_STATUS_NEW &&
-            ((*pc & 0xFF) == JOP_SIGNAL ||
-             (*pc & 0xFF) == JOP_PROPAGATE ||
-             (*pc & 0xFF) == JOP_RESUME)) {
-        stack[A] = in;
-        pc++;
-        first_opcode = *pc & 0xFF;
-    } else if (status == JANET_STATUS_DEBUG) {
-        first_opcode = *pc & 0x7F;
-    } else {
-        first_opcode = *pc & 0xFF;
+    if (fiber->flags & JANET_FIBER_DID_LONGJUMP) {
+        if (janet_fiber_frame(fiber)->func == NULL) {
+            /* Inside a c function */
+            janet_fiber_popframe(fiber);
+            vm_restore();
+        }
+        /* Check if we were at a tail call instruction. If so, do implicit return */
+        if ((*pc & 0xFF) == JOP_TAILCALL) {
+            /* Tail call resume */
+            int entrance_frame = janet_stack_frame(stack)->flags & JANET_STACKFRAME_ENTRANCE;
+            janet_fiber_popframe(fiber);
+            if (entrance_frame) {
+                fiber->flags &= ~JANET_FIBER_FLAG_MASK;
+                vm_return(JANET_SIGNAL_OK, in);
+            }
+            vm_restore();
+        }
     }
+
+    if (!(fiber->flags & JANET_FIBER_RESUME_NO_USEVAL)) stack[A] = in;
+    if (!(fiber->flags & JANET_FIBER_RESUME_NO_SKIP)) pc++;
+
+    uint8_t first_opcode = *pc & ((fiber->flags & JANET_FIBER_BREAKPOINT) ? 0x7F : 0xFF);
+
+    fiber->flags &= ~JANET_FIBER_FLAG_MASK;
 
     /* Main interpreter loop. Semantically is a switch on
      * (*pc & 0xFF) inside of an infinite loop. */
     VM_START();
 
     VM_DEFAULT();
+    fiber->flags |= JANET_FIBER_BREAKPOINT | JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP;
     vm_return(JANET_SIGNAL_DEBUG, janet_wrap_nil());
 
     VM_OP(JOP_NOOP)
@@ -876,8 +885,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
         JanetFiber *child = janet_unwrap_fiber(stack[B]);
         fiber->child = child;
         JanetSignal sig = janet_continue(child, stack[C], &retreg);
-        if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig)))
+        if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
             vm_return(sig, retreg);
+        }
         fiber->child = NULL;
         stack = fiber->data + fiber->frame;
         stack[A] = retreg;
@@ -901,18 +911,22 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in, JanetFiberStatus status) 
             janet_panicf("cannot propagate from fiber with status :%s",
                          janet_status_names[sub_status]);
         }
-        janet_vm_fiber->child = f;
+        fiber->child = f;
         vm_return((int) sub_status, stack[B]);
     }
 
     VM_OP(JOP_PUT)
     vm_commit();
+    fiber->flags |= JANET_FIBER_RESUME_NO_USEVAL;
     janet_put(stack[A], stack[B], stack[C]);
+    fiber->flags &= ~JANET_FIBER_RESUME_NO_USEVAL;
     vm_checkgc_pcnext();
 
     VM_OP(JOP_PUT_INDEX)
     vm_commit();
+    fiber->flags |= JANET_FIBER_RESUME_NO_USEVAL;
     janet_putindex(stack[A], C, stack[B]);
+    fiber->flags &= ~JANET_FIBER_RESUME_NO_USEVAL;
     vm_checkgc_pcnext();
 
     VM_OP(JOP_IN)
@@ -1094,9 +1108,8 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     int handle = janet_gclock();
 
     /* Run vm */
-    JanetSignal signal = run_vm(janet_vm_fiber,
-                                janet_wrap_nil(),
-                                JANET_STATUS_ALIVE);
+    janet_vm_fiber->flags |= JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP;
+    JanetSignal signal = run_vm(janet_vm_fiber, janet_wrap_nil());
 
     /* Teardown */
     janet_vm_stackn = oldn;
@@ -1156,14 +1169,16 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
 
     /* Run loop */
     JanetSignal signal;
+    int jmpsig;
 #if defined(JANET_BSD) || defined(JANET_APPLE)
-    if (_setjmp(buf)) {
+    jmpsig = _setjmp(buf);
 #else
-    if (setjmp(buf)) {
+    jmpsig = setjmp(buf);
 #endif
-        signal = JANET_SIGNAL_ERROR;
+    if (jmpsig) {
+        signal = (JanetSignal) jmpsig;
     } else {
-        signal = run_vm(fiber, in, old_status);
+        signal = run_vm(fiber, in);
     }
 
     /* Tear down fiber */

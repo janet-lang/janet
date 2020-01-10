@@ -161,13 +161,16 @@ static Janet os_arch(int32_t argc, Janet *argv) {
 
 static Janet os_exit(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
+    int status;
     if (argc == 0) {
-        exit(EXIT_SUCCESS);
+        status = EXIT_SUCCESS;
     } else if (janet_checkint(argv[0])) {
-        exit(janet_unwrap_integer(argv[0]));
+        status = janet_unwrap_integer(argv[0]);
     } else {
-        exit(EXIT_FAILURE);
+        status = EXIT_FAILURE;
     }
+    janet_deinit();
+    exit(status);
     return janet_wrap_nil();
 }
 

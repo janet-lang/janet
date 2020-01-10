@@ -696,28 +696,6 @@ struct JanetGCObject {
     JanetGCObject *next;
 };
 
-/* Fiber signal masks. */
-#define JANET_FIBER_MASK_ERROR 2
-#define JANET_FIBER_MASK_DEBUG 4
-#define JANET_FIBER_MASK_YIELD 8
-
-#define JANET_FIBER_MASK_USER0 (16 << 0)
-#define JANET_FIBER_MASK_USER1 (16 << 1)
-#define JANET_FIBER_MASK_USER2 (16 << 2)
-#define JANET_FIBER_MASK_USER3 (16 << 3)
-#define JANET_FIBER_MASK_USER4 (16 << 4)
-#define JANET_FIBER_MASK_USER5 (16 << 5)
-#define JANET_FIBER_MASK_USER6 (16 << 6)
-#define JANET_FIBER_MASK_USER7 (16 << 7)
-#define JANET_FIBER_MASK_USER8 (16 << 8)
-#define JANET_FIBER_MASK_USER9 (16 << 9)
-
-#define JANET_FIBER_MASK_USERN(N) (16 << (N))
-#define JANET_FIBER_MASK_USER 0x3FF0
-
-#define JANET_FIBER_STATUS_MASK 0xFF0000
-#define JANET_FIBER_STATUS_OFFSET 16
-
 /* A lightweight green thread in janet. Does not correspond to
  * operating system threads. */
 struct JanetFiber {
@@ -1388,6 +1366,7 @@ JANET_API Janet janet_resolve_core(const char *name);
     } \
     JANET_API void JANET_ENTRY_NAME
 
+JANET_NO_RETURN JANET_API void janet_signalv(JanetSignal signal, Janet message);
 JANET_NO_RETURN JANET_API void janet_panicv(Janet message);
 JANET_NO_RETURN JANET_API void janet_panic(const char *message);
 JANET_NO_RETURN JANET_API void janet_panics(JanetString message);

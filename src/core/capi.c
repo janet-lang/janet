@@ -27,18 +27,23 @@
 #include "fiber.h"
 #endif
 
-void janet_panicv(Janet message) {
+void janet_signalv(JanetSignal sig, Janet message) {
     if (janet_vm_return_reg != NULL) {
         *janet_vm_return_reg = message;
+        janet_vm_fiber->flags |= JANET_FIBER_DID_LONGJUMP;
 #if defined(JANET_BSD) || defined(JANET_APPLE)
-        _longjmp(*janet_vm_jmp_buf, 1);
+        _longjmp(*janet_vm_jmp_buf, sig);
 #else
-        longjmp(*janet_vm_jmp_buf, 1);
+        longjmp(*janet_vm_jmp_buf, sig);
 #endif
     } else {
-        fputs((const char *)janet_formatc("janet top level panic - %v\n", message), stdout);
+        fputs((const char *)janet_formatc("janet top level signal - %v\n", message), stdout);
         exit(1);
     }
+}
+
+void janet_panicv(Janet message) {
+    janet_signalv(JANET_SIGNAL_ERROR, message);
 }
 
 void janet_panicf(const char *format, ...) {
