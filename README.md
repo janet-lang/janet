@@ -21,7 +21,7 @@ janet could be embedded into other programs. Try janet in your browser at
 
 ## Use Cases
 
-Janet makes a good system scripting language, or a language to embed in other programs. Think Lua or Guile.
+Janet makes a good system scripting language, or a language to embed in other programs, like Lua or Guile.
 
 ## Features
 
