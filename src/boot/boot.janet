@@ -2273,7 +2273,7 @@
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
     (if-not *quiet*
-      (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2019 Calvin Rose"))
+      (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2020 Calvin Rose"))
     (defn noprompt [_] "")
     (defn getprompt [p]
       (def [line] (parser/where p))
