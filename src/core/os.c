@@ -76,10 +76,10 @@ void arc4random_buf(void *buf, size_t nbytes);
 static int env_lock_initialized = 0;
 static CRITICAL_SECTION env_lock;
 static void janet_lock_environ(void) {
-    EnterCriticalSection(env_lock);
+    EnterCriticalSection(&env_lock);
 }
 static void janet_unlock_environ(void) {
-    LeaveCriticalSection(env_lock);
+    LeaveCriticalSection(&env_lock);
 }
 # else
 static pthread_mutex_t env_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -1134,7 +1134,7 @@ void janet_lib_os(JanetTable *env) {
     /* During start up, the top-most abstract machine (thread)
      * in the thread tree sets up the critical section. */
     if (!env_lock_initialized) {
-        InitializeCriticalSection(env_lock);
+        InitializeCriticalSection(&env_lock);
         env_lock_initialized = 1;
     }
 #endif

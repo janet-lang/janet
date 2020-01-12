@@ -391,7 +391,7 @@ void janet_collect(void) {
  * and all of its children. If gcroot is called on a value n times, unroot
  * must also be called n times to remove it as a gc root. */
 void janet_gcroot(Janet root) {
-    uint32_t newcount = janet_vm_root_count + 1;
+    size_t newcount = janet_vm_root_count + 1;
     if (newcount > janet_vm_root_capacity) {
         uint32_t newcap = 2 * newcount;
         janet_vm_roots = realloc(janet_vm_roots, sizeof(Janet) * newcap);
