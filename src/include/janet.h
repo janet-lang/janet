@@ -1357,14 +1357,14 @@ JANET_API Janet janet_resolve_core(const char *name);
 
 /* Allow setting entry name for static libraries */
 #ifndef JANET_ENTRY_NAME
-#define JANET_ENTRY_NAME _janet_init
-#endif
-
 #define JANET_MODULE_ENTRY \
     JANET_API JanetBuildConfig _janet_mod_config(void) { \
         return janet_config_current(); \
     } \
-    JANET_API void JANET_ENTRY_NAME
+    JANET_API void _janet_init
+#else
+#define JANET_MODULE_ENTRY JANET_API void JANET_ENTRY_NAME
+#endif
 
 JANET_NO_RETURN JANET_API void janet_signalv(JanetSignal signal, Janet message);
 JANET_NO_RETURN JANET_API void janet_panicv(Janet message);
