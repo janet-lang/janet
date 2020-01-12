@@ -393,7 +393,7 @@ void janet_collect(void) {
 void janet_gcroot(Janet root) {
     size_t newcount = janet_vm_root_count + 1;
     if (newcount > janet_vm_root_capacity) {
-        uint32_t newcap = 2 * newcount;
+        size_t newcap = 2 * newcount;
         janet_vm_roots = realloc(janet_vm_roots, sizeof(Janet) * newcap);
         if (NULL == janet_vm_roots) {
             JANET_OUT_OF_MEMORY;
