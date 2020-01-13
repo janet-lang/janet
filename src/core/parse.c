@@ -796,6 +796,7 @@ static Janet cfun_parse_insert(int32_t argc, Janet *argv) {
         p->column--;
         s = p->states + p->statecount - 1;
     }
+    if (s->flags & PFLAG_COMMENT) s--;
     if (s->flags & PFLAG_CONTAINER) {
         s->argn++;
         if (p->statecount == 1) p->pending++;
