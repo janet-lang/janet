@@ -1925,26 +1925,32 @@
   from searching that path template if the filter doesn't match the input
   path. The filter can be a string or a predicate function, and
   is often a file extension, including the period."
-  @[# Relative to (dyn :current-file "./."). Path must start with .
-    [":cur:/:all:.jimage" :image check-.]
-    [":cur:/:all:.janet" :source check-.]
-    [":cur:/:all:/init.janet" :source check-.]
-    [":cur:/:all::native:" :native check-.]
-
-    # As a path from (os/cwd)
-    [":all:.jimage" :image not-check-.]
-    [":all:.janet" :source not-check-.]
-    [":all:/init.janet" :source not-check-.]
-    [":all::native:" :native not-check-.]
-
-    # System paths
-    [":sys:/:all:.jimage" :image not-check-.]
-    [":sys:/:all:.janet" :source not-check-.]
-    [":sys:/:all:/init.janet" :source not-check-.]
-    [":sys:/:all::native:" :native not-check-.]])
+  @[])
 
 (setdyn :syspath (boot/opts "JANET_PATH"))
 (setdyn :headerpath (boot/opts "JANET_HEADERPATH"))
+
+(defn module/add-paths
+  "Add paths to module/paths for a given loader such that
+  the generated paths behave like other module types, including
+  relative imports and syspath imports. ext is the file extension
+  to associate with this module type, including the dot. loader is the
+  keyword name of a loader that is module/loaders. Returns the modified module/paths."
+  [ext loader]
+  (defn- find-prefix
+    [pre]
+    (or (find-index |(string/has-prefix? pre ($ 0)) module/paths) 0))
+  (array/insert module/paths 0 [(string ":cur:/:all:" ext) loader check-.])
+  (def all-index (find-prefix ":all:"))
+  (array/insert module/paths all-index [(string ":all:" ext) loader not-check-.])
+  (def sys-index (find-prefix ":sys:"))
+  (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader not-check-.])
+  module/paths)
+
+(module/add-paths ":native:" :native)
+(module/add-paths "/init.janet" :source)
+(module/add-paths ".janet" :source)
+(module/add-paths ".jimage" :image)
 
 # Version of fexists that works even with a reduced OS
 (if-let [has-stat (_env 'os/stat)]
