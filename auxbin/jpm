@@ -29,7 +29,7 @@
 
 (defn- rule-impl
   [target deps thunk &opt phony]
-  (put (getrules) target @[(array/slice deps) thunk phony]))
+  (put (getrules) target @[(array/slice deps) @[thunk] phony]))
 
 (defmacro rule
   "Add a rule to the rule graph."
@@ -53,8 +53,9 @@
 (defn- add-thunk
   [target more]
   (def item (gettarget target))
-  (def [_ thunk] item)
-  (put item 1 (fn [] (more) (thunk))))
+  (def [_ thunks] item)
+  (array/push thunks more)
+  item)
 
 (defmacro add-body
   "Add recipe code to an existing rule. This makes existing rules do more but
@@ -83,10 +84,10 @@
     (if (os/stat target :mode)
       (break target)
       (error (string "No rule for file " target " found."))))
-  (def [deps thunk phony] item)
+  (def [deps thunks phony] item)
   (def realdeps (seq [dep :in deps :let [x (do-rule dep)] :when x] x))
   (when (or phony (needs-build-some target realdeps))
-    (thunk))
+    (each thunk thunks (thunk)))
   (unless phony target))
 
 #
