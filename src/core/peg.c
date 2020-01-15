@@ -728,6 +728,13 @@ static void spec_opt(Builder *b, int32_t argc, const Janet *argv) {
     emit_3(r, RULE_BETWEEN, 0, 1, subrule);
 }
 
+static void spec_repeat(Builder *b, int32_t argc, const Janet *argv) {
+    peg_fixarity(b, argc, 2);
+    Reserve r = reserve(b, 4);
+    int32_t n = peg_getnat(b, argv[0]);
+    uint32_t subrule = peg_compile1(b, argv[1]);
+    emit_3(r, RULE_BETWEEN, n, n, subrule);
+}
 
 /* Rule of the form [rule] */
 static void spec_onerule(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
@@ -870,6 +877,7 @@ static const SpecialPair peg_specials[] = {
     {"position", spec_position},
     {"quote", spec_capture},
     {"range", spec_range},
+    {"repeat", spec_repeat},
     {"replace", spec_replace},
     {"sequence", spec_sequence},
     {"set", spec_set},
