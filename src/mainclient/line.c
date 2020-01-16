@@ -367,6 +367,9 @@ static int line() {
             case 2:     /* ctrl-b */
                 kleft();
                 break;
+            case 5:     /* ctrl-e */
+                gbl_pos = gbl_len;
+                break;
             case 6:     /* ctrl-f */
                 kright();
                 break;

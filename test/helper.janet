@@ -6,7 +6,9 @@
 (var numchecks 0)
 (var start-time 0)
 
-(defn assert [x e]
+(defn assert
+  "Override's the default assert with some nice error handling."
+  [x e]
   (++ num-tests-run)
   (when x (++ num-tests-passed))
   (if x

@@ -131,6 +131,11 @@
 (defmacro /= "Shorthand for (set x (/ x n))." [x n] ~(set ,x (,/ ,x ,n)))
 (defmacro %= "Shorthand for (set x (% x n))." [x n] ~(set ,x (,% ,x ,n)))
 
+(defn assert
+  "Throw an error if x is not truthy."
+  [x &opt err]
+  (if x x (error (if err err "assert failure"))))
+
 (defmacro default
   "Define a default value for an optional argument.
   Expands to (def sym (if (= nil sym) val sym))"
@@ -276,20 +281,28 @@
     (++ i))
   ~(let (,;accum) ,;body))
 
+(defmacro defer
+  "Run form unconditionally after form, even if the body throws an error."
+  [form & body]
+  (with-syms [f r]
+    ~(do
+       (def ,f (,fiber/new (fn [] ,;body) :ie))
+       (def ,r (,resume ,f))
+       ,form
+       (if (= (,fiber/status ,f) :dead)
+         ,r
+         (propagate ,r ,f)))))
+
 (defmacro with
   "Evaluate body with some resource, which will be automatically cleaned up
   if there is an error in body. binding is bound to the expression ctor, and
   dtor is a function or callable that is passed the binding. If no destructor
   (dtor) is given, will call :close on the resource."
   [[binding ctor dtor] & body]
-  (with-syms [res f]
-    ~(let [,binding ,ctor
-           ,f (,fiber/new (fn [] ,;body) :ie)
-           ,res (,resume ,f)]
-       (,(or dtor :close) ,binding)
-       (if (,= (,fiber/status ,f) :error)
-         (,propagate ,res ,f)
-         ,res))))
+  ~(do
+     (def ,binding ,ctor)
+     (defer (,(or dtor :close) ,binding)
+       ,;body)))
 
 (defn- for-template
   [binding start stop step comparison delta body]

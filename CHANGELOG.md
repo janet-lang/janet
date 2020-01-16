@@ -15,6 +15,9 @@ All notable changes to this project will be documented in this file.
 - Allow signaling from C functions (yielding) via janet\_signalv. This
   makes it easy to write C functions that work with event loops, such as
   in libuv or embedded in a game.
+- Add `defer`
+- Add `assert`
+- Fix thread module issue where sometimes decoding a message failed.
 - Fix segfault regression when macros are called with bad arity.
 
 ### 1.6.0 - 2019-12-22
