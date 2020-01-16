@@ -304,6 +304,22 @@
      (defer (,(or dtor :close) ,binding)
        ,;body)))
 
+(defmacro when-with
+  "Similar to with, but if binding is false or nil, returns
+  nil without evaluating the body. Otherwise, the same as with."
+  [[binding ctor dtor] & body]
+  ~(if-let [,binding ,ctor]
+     (defer (,(or dtor :close) ,binding)
+       ,;body)))
+
+(defmacro if-with
+  "Similar to with, but if binding is false or nil, returns
+  nil without evaluating the body. Otherwise, the same as with."
+  [[binding ctor dtor] truthy &opt falsey ]
+  ~(if-let [,binding ,ctor]
+     (defer (,(or dtor :close) ,binding) ,truthy)
+     ,falsey))
+
 (defn- for-template
   [binding start stop step comparison delta body]
   (with-syms [i s]

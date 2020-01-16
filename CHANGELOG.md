@@ -17,6 +17,8 @@ All notable changes to this project will be documented in this file.
   in libuv or embedded in a game.
 - Add `defer`
 - Add `assert`
+- Add `when-with`
+- Add `if-with`
 - Fix thread module issue where sometimes decoding a message failed.
 - Fix segfault regression when macros are called with bad arity.
 
