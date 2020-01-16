@@ -51,9 +51,6 @@ struct JanetMailbox {
     pthread_cond_t cond;
 #endif
 
-    /* Receiving messages - (only by owner thread)  */
-    JanetTable *decode;
-
     /* Setup procedure - requires a parent mailbox
      * to receive thunk from */
     JanetMailbox *parent;
@@ -75,6 +72,15 @@ struct JanetMailbox {
 
 static JANET_THREAD_LOCAL JanetMailbox *janet_vm_mailbox = NULL;
 static JANET_THREAD_LOCAL JanetThread *janet_vm_thread_current = NULL;
+static JANET_THREAD_LOCAL JanetTable *janet_vm_thread_decode = NULL;
+
+static JanetTable *janet_thread_get_decode(void) {
+    if (janet_vm_thread_decode == NULL) {
+        janet_vm_thread_decode = janet_get_core_table("load-image-dict");
+        janet_gcroot(janet_wrap_table(janet_vm_thread_decode));
+    }
+    return janet_vm_thread_decode;
+}
 
 static JanetMailbox *janet_mailbox_create(JanetMailbox *parent, int refCount, uint16_t capacity) {
     JanetMailbox *mailbox = malloc(sizeof(JanetMailbox) + sizeof(JanetBuffer) * (size_t) capacity);
@@ -356,7 +362,7 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
                 const uint8_t *nextItem = NULL;
                 Janet item = janet_unmarshal(
                                  msgbuf->data, msgbuf->count,
-                                 0, mailbox->decode, &nextItem);
+                                 0, janet_thread_get_decode(), &nextItem);
                 *msg_out = item;
 
                 /* Cleanup */
@@ -423,7 +429,6 @@ static int thread_worker(JanetMailbox *mailbox) {
 
     /* Get dictionaries for default encode/decode */
     JanetTable *encode = janet_get_core_table("make-image-dict");
-    mailbox->decode = janet_get_core_table("load-image-dict");
 
     /* Create parent thread */
     JanetThread *parent = janet_make_thread(mailbox->parent, encode);
@@ -507,6 +512,8 @@ void janet_threads_init(void) {
     if (NULL == janet_vm_mailbox) {
         janet_vm_mailbox = janet_mailbox_create(NULL, 1, 10);
     }
+    janet_vm_thread_decode = NULL;
+    janet_vm_thread_current = NULL;
 }
 
 void janet_threads_deinit(void) {
@@ -515,6 +522,7 @@ void janet_threads_deinit(void) {
     janet_mailbox_ref_with_lock(janet_vm_mailbox, -1);
     janet_vm_mailbox = NULL;
     janet_vm_thread_current = NULL;
+    janet_vm_thread_decode = NULL;
 }
 
 /*

@@ -284,7 +284,7 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
             while (cfuns->name[nmlen]) nmlen++;
             int32_t totallen = (int32_t) prefixlen + nmlen;
             if ((size_t) totallen > bufsize) {
-                bufsize = (size_t) (totallen) + 128;
+                bufsize = (size_t)(totallen) + 128;
                 longname_buffer = realloc(longname_buffer, bufsize);
                 if (NULL == longname_buffer) {
                     JANET_OUT_OF_MEMORY;
@@ -324,7 +324,7 @@ typedef struct {
 
 void janet_register_abstract_type(const JanetAbstractType *at) {
     JanetAbstractTypeWrap *abstract = (JanetAbstractTypeWrap *)
-        janet_abstract(&type_wrap, sizeof(JanetAbstractTypeWrap));
+                                      janet_abstract(&type_wrap, sizeof(JanetAbstractTypeWrap));
     abstract->at = at;
     Janet sym = janet_csymbolv(at->name);
     if (!(janet_checktype(janet_table_get(janet_vm_registry, sym), JANET_NIL))) {
