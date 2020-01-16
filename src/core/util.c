@@ -94,14 +94,110 @@ const char *const janet_status_names[16] = {
     "alive"
 };
 
+/*
+  Public domain siphash implementation sourced from:
+
+  https://raw.githubusercontent.com/veorq/SipHash/master/halfsiphash.c
+
+  We have made a few alterations, such as hardcoding the output size
+  and then removing dead code.
+*/
+#define cROUNDS 2
+#define dROUNDS 4
+
+#define ROTL(x, b) (uint32_t)(((x) << (b)) | ((x) >> (32 - (b))))
+
+#define U8TO32_LE(p)                                                           \
+    (((uint32_t)((p)[0])) | ((uint32_t)((p)[1]) << 8) |                        \
+     ((uint32_t)((p)[2]) << 16) | ((uint32_t)((p)[3]) << 24))
+
+#define SIPROUND                                                               \
+    do {                                                                       \
+        v0 += v1;                                                              \
+        v1 = ROTL(v1, 5);                                                      \
+        v1 ^= v0;                                                              \
+        v0 = ROTL(v0, 16);                                                     \
+        v2 += v3;                                                              \
+        v3 = ROTL(v3, 8);                                                      \
+        v3 ^= v2;                                                              \
+        v0 += v3;                                                              \
+        v3 = ROTL(v3, 7);                                                      \
+        v3 ^= v0;                                                              \
+        v2 += v1;                                                              \
+        v1 = ROTL(v1, 13);                                                     \
+        v1 ^= v2;                                                              \
+        v2 = ROTL(v2, 16);                                                     \
+    } while (0)
+
+static uint32_t halfsiphash(const uint8_t *in, const size_t inlen, const uint8_t *k) {
+
+    uint32_t v0 = 0;
+    uint32_t v1 = 0;
+    uint32_t v2 = UINT32_C(0x6c796765);
+    uint32_t v3 = UINT32_C(0x74656462);
+    uint32_t k0 = U8TO32_LE(k);
+    uint32_t k1 = U8TO32_LE(k + 4);
+    uint32_t m;
+    int i;
+    const uint8_t *end = in + inlen - (inlen % sizeof(uint32_t));
+    const int left = inlen & 3;
+    uint32_t b = ((uint32_t)inlen) << 24;
+    v3 ^= k1;
+    v2 ^= k0;
+    v1 ^= k1;
+    v0 ^= k0;
+
+    for (; in != end; in += 4) {
+        m = U8TO32_LE(in);
+        v3 ^= m;
+
+        for (i = 0; i < cROUNDS; ++i)
+            SIPROUND;
+
+        v0 ^= m;
+    }
+
+    switch (left) {
+        case 3:
+            b |= ((uint32_t)in[2]) << 16;
+        case 2:
+            b |= ((uint32_t)in[1]) << 8;
+        case 1:
+            b |= ((uint32_t)in[0]);
+            break;
+        case 0:
+            break;
+    }
+
+    v3 ^= b;
+
+    for (i = 0; i < cROUNDS; ++i)
+        SIPROUND;
+
+    v0 ^= b;
+
+    v2 ^= 0xff;
+
+    for (i = 0; i < dROUNDS; ++i)
+        SIPROUND;
+
+    b = v1 ^ v3;
+    return b;
+}
+/* end of siphash */
+
+static uint8_t hash_key[16] = {0};
+
+void janet_init_hash_key(uint8_t new_key[16]) {
+    memcpy(hash_key, new_key, sizeof(hash_key));
+}
+
 /* Calculate hash for string */
 
 int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
-    const uint8_t *end = str + len;
-    uint32_t hash = 5381;
-    while (str < end)
-        hash = (hash << 5) + hash + *str++;
-    return (int32_t) hash;
+    uint32_t hash;
+    hash = halfsiphash(str, len, hash_key);
+    return (int32_t)hash;
 }
 
 /* Computes hash of an array of values */

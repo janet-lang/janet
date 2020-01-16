@@ -1303,6 +1303,7 @@ JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, J
 
 /* Misc */
 JANET_API int janet_equals(Janet x, Janet y);
+JANET_API void janet_init_hash_key(uint8_t key[16]);
 JANET_API int32_t janet_hash(Janet x);
 JANET_API int janet_compare(Janet x, Janet y);
 JANET_API int janet_cstrcmp(JanetString str, const char *other);
