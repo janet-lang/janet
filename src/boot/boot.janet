@@ -224,7 +224,7 @@
         r (gensym)]
     ~(let [,f (,fiber/new (fn [] ,body) :ie)
            ,r (,resume ,f)]
-       (if (= (,fiber/status ,f) :error)
+       (if (,= (,fiber/status ,f) :error)
          (do (def ,err ,r) ,(if fib ~(def ,fib ,f)) ,;(tuple/slice catch 1))
          ,r))))
 

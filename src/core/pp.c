@@ -181,49 +181,43 @@ static void janet_escape_buffer_b(JanetBuffer *buffer, JanetBuffer *bx) {
     janet_escape_string_impl(buffer, bx->data, bx->count);
 }
 
-void janet_description_b(JanetBuffer *buffer, Janet x) {
+void janet_to_string_b(JanetBuffer *buffer, Janet x) {
     switch (janet_type(x)) {
         case JANET_NIL:
             janet_buffer_push_cstring(buffer, "nil");
-            return;
+            break;
         case JANET_BOOLEAN:
             janet_buffer_push_cstring(buffer,
                                       janet_unwrap_boolean(x) ? "true" : "false");
-            return;
+            break;
         case JANET_NUMBER:
             number_to_string_b(buffer, janet_unwrap_number(x));
-            return;
-        case JANET_KEYWORD:
-            janet_buffer_push_u8(buffer, ':');
-        /* fallthrough */
+            break;
+        case JANET_STRING:
         case JANET_SYMBOL:
+        case JANET_KEYWORD:
             janet_buffer_push_bytes(buffer,
                                     janet_unwrap_string(x),
                                     janet_string_length(janet_unwrap_string(x)));
-            return;
-        case JANET_STRING:
-            janet_escape_string_b(buffer, janet_unwrap_string(x));
-            return;
+            break;
         case JANET_BUFFER: {
-            JanetBuffer *b = janet_unwrap_buffer(x);
-            if (b == buffer) {
-                /* Ensures buffer won't resize while escaping */
-                janet_buffer_ensure(b, 5 * b->count + 3, 1);
-            }
-            janet_escape_buffer_b(buffer, b);
-            return;
+            JanetBuffer *to = janet_unwrap_buffer(x);
+            /* Prevent resizing buffer while appending */
+            if (buffer == to) janet_buffer_extra(buffer, to->count);
+            janet_buffer_push_bytes(buffer, to->data, to->count);
+            break;
         }
-        case JANET_ABSTRACT: {
-            void *p = janet_unwrap_abstract(x);
-            const JanetAbstractType *at = janet_abstract_type(p);
-            if (at->tostring) {
-                at->tostring(p, buffer);
-            } else {
-                const char *n = at->name;
-                string_description_b(buffer, n, janet_unwrap_abstract(x));
+        case JANET_ABSTRACT:
+            {
+                JanetAbstract p = janet_unwrap_abstract(x);
+                const JanetAbstractType *t = janet_abstract_type(p);
+                if (t->tostring != NULL) {
+                    t->tostring(p, buffer);
+                } else {
+                    string_description_b(buffer, t->name, p);
+                }
             }
             return;
-        }
         case JANET_CFUNCTION: {
             Janet check = janet_table_get(janet_vm_registry, x);
             if (janet_checktype(check, JANET_SYMBOL)) {
@@ -255,26 +249,43 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
     }
 }
 
-void janet_to_string_b(JanetBuffer *buffer, Janet x) {
+
+void janet_description_b(JanetBuffer *buffer, Janet x) {
     switch (janet_type(x)) {
         default:
-            janet_description_b(buffer, x);
             break;
-        case JANET_BUFFER: {
-            JanetBuffer *to = janet_unwrap_buffer(x);
-            /* Prevent resizing buffer while appending */
-            if (buffer == to) janet_buffer_extra(buffer, to->count);
-            janet_buffer_push_bytes(buffer, to->data, to->count);
-            break;
-        }
-        case JANET_STRING:
-        case JANET_SYMBOL:
         case JANET_KEYWORD:
-            janet_buffer_push_bytes(buffer,
-                                    janet_unwrap_string(x),
-                                    janet_string_length(janet_unwrap_string(x)));
+            janet_buffer_push_u8(buffer, ':');
             break;
+        case JANET_STRING:
+            janet_escape_string_b(buffer, janet_unwrap_string(x));
+            return;
+        case JANET_BUFFER: {
+            JanetBuffer *b = janet_unwrap_buffer(x);
+            if (b == buffer) {
+                /* Ensures buffer won't resize while escaping */
+                janet_buffer_ensure(b, 5 * b->count + 3, 1);
+            }
+            janet_escape_buffer_b(buffer, b);
+            return;
+        }
+        case JANET_ABSTRACT:
+            {
+                JanetAbstract p = janet_unwrap_abstract(x);
+                const JanetAbstractType *t = janet_abstract_type(p);
+                if (t->tostring != NULL) {
+                    janet_buffer_push_cstring(buffer, "<");
+                    janet_buffer_push_cstring(buffer, t->name);
+                    janet_buffer_push_cstring(buffer, " ");
+                    t->tostring(p, buffer);
+                    janet_buffer_push_cstring(buffer, ">");
+                } else {
+                    string_description_b(buffer, t->name, p);
+                }
+                return;
+            }
     }
+    janet_to_string_b(buffer, x);
 }
 
 const uint8_t *janet_description(Janet x) {
