@@ -364,11 +364,16 @@ static int line() {
                 break;
             case 4:     /* ctrl-d, eof */
                 return -1;
+            case 1:     /* ctrl-a */
+                gbl_pos = 0;
+                refresh();
+                break;
             case 2:     /* ctrl-b */
                 kleft();
                 break;
             case 5:     /* ctrl-e */
                 gbl_pos = gbl_len;
+                refresh();
                 break;
             case 6:     /* ctrl-f */
                 kright();
