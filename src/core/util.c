@@ -94,6 +94,18 @@ const char *const janet_status_names[16] = {
     "alive"
 };
 
+#ifdef JANET_NO_PRF
+
+int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
+    const uint8_t *end = str + len;
+    uint32_t hash = 5381;
+    while (str < end)
+        hash = (hash << 5) + hash + *str++;
+    return (int32_t) hash;
+}
+
+#else
+
 /*
   Public domain siphash implementation sourced from:
 
@@ -201,6 +213,8 @@ int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
     hash = halfsiphash(str, len, hash_key);
     return (int32_t)hash;
 }
+
+#endif
 
 /* Computes hash of an array of values */
 int32_t janet_array_calchash(const Janet *array, int32_t len) {

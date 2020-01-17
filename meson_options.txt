@@ -10,6 +10,7 @@ option('assembler', type : 'boolean', value : true)
 option('peg', type : 'boolean', value : true)
 option('typed_array', type : 'boolean', value : true)
 option('int_types', type : 'boolean', value : true)
+option('prf', type : 'boolean', value : true)
 
 option('recursion_guard', type : 'integer', min : 10, max : 8000, value : 1024)
 option('max_proto_depth', type : 'integer', min : 10, max : 8000, value : 200)
