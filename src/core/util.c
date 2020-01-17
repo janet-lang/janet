@@ -200,9 +200,9 @@ static uint32_t halfsiphash(const uint8_t *in, const size_t inlen, const uint8_t
 }
 /* end of siphash */
 
-static uint8_t hash_key[16] = {0};
+static uint8_t hash_key[JANET_HASH_KEY_SIZE] = {0};
 
-void janet_init_hash_key(uint8_t new_key[16]) {
+void janet_init_hash_key(uint8_t new_key[JANET_HASH_KEY_SIZE]) {
     memcpy(hash_key, new_key, sizeof(hash_key));
 }
 
