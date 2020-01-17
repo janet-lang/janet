@@ -313,8 +313,9 @@
        ,;body)))
 
 (defmacro if-with
-  "Similar to with, but if binding is false or nil, returns
-  nil without evaluating the body. Otherwise, the same as with."
+  "Similar to with, but if binding is false or nil, evaluates
+  the falsey path. Otherwise, evaluates the truthy path. In both cases,
+  ctor is bound to binding."
   [[binding ctor dtor] truthy &opt falsey ]
   ~(if-let [,binding ,ctor]
      (defer (,(or dtor :close) ,binding) ,truthy)
