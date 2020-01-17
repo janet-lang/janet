@@ -207,17 +207,16 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
             janet_buffer_push_bytes(buffer, to->data, to->count);
             break;
         }
-        case JANET_ABSTRACT:
-            {
-                JanetAbstract p = janet_unwrap_abstract(x);
-                const JanetAbstractType *t = janet_abstract_type(p);
-                if (t->tostring != NULL) {
-                    t->tostring(p, buffer);
-                } else {
-                    string_description_b(buffer, t->name, p);
-                }
+        case JANET_ABSTRACT: {
+            JanetAbstract p = janet_unwrap_abstract(x);
+            const JanetAbstractType *t = janet_abstract_type(p);
+            if (t->tostring != NULL) {
+                t->tostring(p, buffer);
+            } else {
+                string_description_b(buffer, t->name, p);
             }
-            return;
+        }
+        return;
         case JANET_CFUNCTION: {
             Janet check = janet_table_get(janet_vm_registry, x);
             if (janet_checktype(check, JANET_SYMBOL)) {
@@ -269,21 +268,20 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
             janet_escape_buffer_b(buffer, b);
             return;
         }
-        case JANET_ABSTRACT:
-            {
-                JanetAbstract p = janet_unwrap_abstract(x);
-                const JanetAbstractType *t = janet_abstract_type(p);
-                if (t->tostring != NULL) {
-                    janet_buffer_push_cstring(buffer, "<");
-                    janet_buffer_push_cstring(buffer, t->name);
-                    janet_buffer_push_cstring(buffer, " ");
-                    t->tostring(p, buffer);
-                    janet_buffer_push_cstring(buffer, ">");
-                } else {
-                    string_description_b(buffer, t->name, p);
-                }
-                return;
+        case JANET_ABSTRACT: {
+            JanetAbstract p = janet_unwrap_abstract(x);
+            const JanetAbstractType *t = janet_abstract_type(p);
+            if (t->tostring != NULL) {
+                janet_buffer_push_cstring(buffer, "<");
+                janet_buffer_push_cstring(buffer, t->name);
+                janet_buffer_push_cstring(buffer, " ");
+                t->tostring(p, buffer);
+                janet_buffer_push_cstring(buffer, ">");
+            } else {
+                string_description_b(buffer, t->name, p);
             }
+            return;
+        }
     }
     janet_to_string_b(buffer, x);
 }
@@ -342,6 +340,7 @@ static void print_newline(struct pretty *S, int just_a_space) {
 
 /* Color coding for types */
 static const char janet_cycle_color[] = "\x1B[36m";
+static const char janet_class_color[] = "\x1B[34m";
 static const char *janet_pretty_colors[] = {
     "\x1B[32m",
     "\x1B[36m",
@@ -363,6 +362,8 @@ static const char *janet_pretty_colors[] = {
 
 #define JANET_PRETTY_DICT_ONELINE 4
 #define JANET_PRETTY_IND_ONELINE 10
+#define JANET_PRETTY_DICT_LIMIT 16
+#define JANET_PRETTY_ARRAY_LIMIT 16
 
 /* Helper for pretty printing */
 static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
@@ -429,9 +430,22 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (!isarray && !(S->flags & JANET_PRETTY_ONELINE) && len >= JANET_PRETTY_IND_ONELINE)
                     janet_buffer_push_u8(S->buffer, ' ');
                 if (is_dict_value && len >= JANET_PRETTY_IND_ONELINE) print_newline(S, 0);
-                for (i = 0; i < len; i++) {
-                    if (i) print_newline(S, len < JANET_PRETTY_IND_ONELINE);
-                    janet_pretty_one(S, arr[i], 0);
+                if (len > JANET_PRETTY_ARRAY_LIMIT) {
+                    for (i = 0; i < 3; i++) {
+                        if (i) print_newline(S, 0);
+                        janet_pretty_one(S, arr[i], 0);
+                    }
+                    print_newline(S, 0);
+                    janet_buffer_push_cstring(S->buffer, "...");
+                    for (i = 0; i < 3; i++) {
+                        print_newline(S, 0);
+                        janet_pretty_one(S, arr[len - 3 + i], 0);
+                    }
+                } else {
+                    for (i = 0; i < len; i++) {
+                        if (i) print_newline(S, len < JANET_PRETTY_IND_ONELINE);
+                        janet_pretty_one(S, arr[i], 0);
+                    }
                 }
             }
             S->indent -= 2;
@@ -449,10 +463,17 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 JanetTable *t = janet_unwrap_table(x);
                 JanetTable *proto = t->proto;
                 if (NULL != proto) {
-                    Janet name = janet_table_get(proto, janet_csymbolv(":name"));
-                    if (janet_checktype(name, JANET_SYMBOL)) {
-                        const uint8_t *sym = janet_unwrap_symbol(name);
-                        janet_buffer_push_bytes(S->buffer, sym, janet_string_length(sym));
+                    Janet name = janet_table_get(proto, janet_ckeywordv("name"));
+                    const uint8_t *n;
+                    int32_t len;
+                    if (janet_bytes_view(name, &n, &len)) {
+                        if (S->flags & JANET_PRETTY_COLOR) {
+                            janet_buffer_push_cstring(S->buffer, janet_class_color);
+                        }
+                        janet_buffer_push_bytes(S->buffer, n, len);
+                        if (S->flags & JANET_PRETTY_COLOR) {
+                            janet_buffer_push_cstring(S->buffer, "\x1B[0m");
+                        }
                     }
                 }
                 janet_buffer_push_cstring(S->buffer, "{");
@@ -466,8 +487,9 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 int32_t i = 0, len = 0, cap = 0;
                 int first_kv_pair = 1;
                 const JanetKV *kvs = NULL;
+                int counter = 0;
                 janet_dictionary_view(x, &kvs, &len, &cap);
-                if (!istable && len >= JANET_PRETTY_DICT_ONELINE)
+                if (!istable && !(S->flags & JANET_PRETTY_ONELINE) && len >= JANET_PRETTY_DICT_ONELINE)
                     janet_buffer_push_u8(S->buffer, ' ');
                 if (is_dict_value && len >= JANET_PRETTY_DICT_ONELINE) print_newline(S, 0);
                 for (i = 0; i < cap; i++) {
@@ -480,6 +502,12 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                         janet_pretty_one(S, kvs[i].key, 0);
                         janet_buffer_push_u8(S->buffer, ' ');
                         janet_pretty_one(S, kvs[i].value, 1);
+                        counter++;
+                        if (counter == 10) {
+                            print_newline(S, 0);
+                            janet_buffer_push_cstring(S->buffer, "...");
+                            break;
+                        }
                     }
                 }
             }
