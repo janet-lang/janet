@@ -1809,7 +1809,7 @@
         :source where
         :expander expand} opts)
   (default env (fiber/getenv (fiber/current)))
-  (default chunks (fn [buf p] (getline "" buf)))
+  (default chunks (fn [buf p] (getline "" buf env)))
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
   (default on-parse-error bad-parse)
@@ -2168,7 +2168,7 @@
                                                ((parser/where p) 0)
                                                ":"
                                                (parser/state p :delimiters) "> ")
-                                       buf)))
+                                       buf env)))
   (defn make-onsignal
     [e level]
 
@@ -2183,7 +2183,7 @@
         (def status (parser/state p :delimiters))
         (def c ((parser/where p) 0))
         (def prompt (string "debug[" level "]:" c ":" status "> "))
-        (getline prompt buf))
+        (getline prompt buf nextenv))
       (print "entering debug[" level "] - (quit) to exit")
       (repl debugger-chunks (make-onsignal nextenv (+ 1 level)) nextenv)
       (print "exiting debug[" level "]")
@@ -2315,17 +2315,18 @@
       (def [line] (parser/where p))
       (string "janet:" line ":" (parser/state p :delimiters) "> "))
     (def prompter (if *quiet* noprompt getprompt))
-    (defn getstdin [prompt buf]
+    (defn getstdin [prompt buf _]
       (file/write stdout prompt)
       (file/flush stdout)
       (file/read stdin :line buf))
+    (def env (make-env))
     (def getter (if *raw-stdin* getstdin getline))
     (defn getchunk [buf p]
-      (getter (prompter p) buf))
+      (getter (prompter p) buf env))
     (def onsig (if *quiet* (fn [x &] x) nil))
     (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
     (setdyn :err-color (if *colorize* true))
-    (repl getchunk onsig)))
+    (repl getchunk onsig env)))
 
 
 ###

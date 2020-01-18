@@ -28,12 +28,16 @@
 #include "line.h"
 #endif
 
+static JANET_THREAD_LOCAL JanetTable *gbl_complete_env;
+
 /* Common */
 Janet janet_line_getter(int32_t argc, Janet *argv) {
-    janet_arity(argc, 0, 2);
+    janet_arity(argc, 0, 3);
     const char *str = (argc >= 1) ? (const char *) janet_getstring(argv, 0) : "";
     JanetBuffer *buf = (argc >= 2) ? janet_getbuffer(argv, 1) : janet_buffer(10);
+    gbl_complete_env = (argc >= 3) ? janet_gettable(argv, 2) : janet_current_fiber()->env;
     janet_line_get(str, buf);
+    gbl_complete_env = NULL;
     return janet_wrap_buffer(buf);
 }
 
@@ -75,6 +79,8 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
 /*
 https://github.com/antirez/linenoise/blob/master/linenoise.c
 */
+
+#include <janet.h>
 
 #include <termios.h>
 #include <unistd.h>
@@ -124,7 +130,7 @@ static char *sdup(const char *s) {
 }
 
 /* Ansi terminal raw mode */
-static int rawmode() {
+static int rawmode(void) {
     struct termios t;
     if (!isatty(STDIN_FILENO)) goto fatal;
     if (tcgetattr(STDIN_FILENO, &gbl_termios_start) == -1) goto fatal;
@@ -143,12 +149,12 @@ fatal:
 }
 
 /* Disable raw mode */
-static void norawmode() {
+static void norawmode(void) {
     if (gbl_israwmode && tcsetattr(STDIN_FILENO, TCSAFLUSH, &gbl_termios_start) != -1)
         gbl_israwmode = 0;
 }
 
-static int curpos() {
+static int curpos(void) {
     char buf[32];
     int cols, rows;
     unsigned int i = 0;
@@ -164,7 +170,7 @@ static int curpos() {
     return cols;
 }
 
-static int getcols() {
+static int getcols(void) {
     struct winsize ws;
     if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
         int start, cols;
@@ -188,13 +194,13 @@ failed:
     return 80;
 }
 
-static void clear() {
+static void clear(void) {
     if (write(STDOUT_FILENO, "\x1b[H\x1b[2J", 7) <= 0) {
         exit(1);
     }
 }
 
-static void refresh() {
+static void refresh(void) {
     char seq[64];
     JanetBuffer b;
 
@@ -227,23 +233,25 @@ static void refresh() {
     janet_buffer_deinit(&b);
 }
 
-static int insert(char c) {
+static int insert(char c, int draw) {
     if (gbl_len < JANET_LINE_MAX - 1) {
         if (gbl_len == gbl_pos) {
             gbl_buf[gbl_pos++] = c;
             gbl_buf[++gbl_len] = '\0';
-            if (gbl_plen + gbl_len < gbl_cols) {
-                /* Avoid a full update of the line in the
-                 * trivial case. */
-                if (write(STDOUT_FILENO, &c, 1) == -1) return -1;
-            } else {
-                refresh();
+            if (draw) {
+                if (gbl_plen + gbl_len < gbl_cols) {
+                    /* Avoid a full update of the line in the
+                     * trivial case. */
+                    if (write(STDOUT_FILENO, &c, 1) == -1) return -1;
+                } else {
+                    refresh();
+                }
             }
         } else {
             memmove(gbl_buf + gbl_pos + 1, gbl_buf + gbl_pos, gbl_len - gbl_pos);
             gbl_buf[gbl_pos++] = c;
             gbl_buf[++gbl_len] = '\0';
-            refresh();
+            if (draw) refresh();
         }
     }
     return 0;
@@ -270,7 +278,7 @@ static void historymove(int delta) {
     }
 }
 
-static void addhistory() {
+static void addhistory(void) {
     int i, len;
     char *newline = sdup(gbl_buf);
     if (!newline) return;
@@ -287,28 +295,28 @@ static void addhistory() {
     gbl_history[0] = newline;
 }
 
-static void replacehistory() {
+static void replacehistory(void) {
     char *newline = sdup(gbl_buf);
     if (!newline) return;
     free(gbl_history[0]);
     gbl_history[0] = newline;
 }
 
-static void kleft() {
+static void kleft(void) {
     if (gbl_pos > 0) {
         gbl_pos--;
         refresh();
     }
 }
 
-static void kright() {
+static void kright(void) {
     if (gbl_pos != gbl_len) {
         gbl_pos++;
         refresh();
     }
 }
 
-static void kbackspace() {
+static void kbackspace(void) {
     if (gbl_pos > 0) {
         memmove(gbl_buf + gbl_pos - 1, gbl_buf + gbl_pos, gbl_len - gbl_pos);
         gbl_pos--;
@@ -317,12 +325,123 @@ static void kbackspace() {
     }
 }
 
-static void kdelete() {
+static void kdelete(void) {
     if (gbl_pos != gbl_len) {
         memmove(gbl_buf + gbl_pos, gbl_buf + gbl_pos + 1, gbl_len - gbl_pos);
         gbl_buf[--gbl_len] = '\0';
         refresh();
     }
+}
+
+/* See tools/symchargen.c */
+static int is_symbol_char_gen(uint8_t c) {
+    if (c & 0x80) return 1;
+    if (c >= 'a' && c <= 'z') return 1;
+    if (c >= 'A' && c <= 'Z') return 1;
+    if (c >= '0' && c <= '9') return 1;
+    return (c == '!' ||
+            c == '$' ||
+            c == '%' ||
+            c == '&' ||
+            c == '*' ||
+            c == '+' ||
+            c == '-' ||
+            c == '.' ||
+            c == '/' ||
+            c == ':' ||
+            c == '<' ||
+            c == '?' ||
+            c == '=' ||
+            c == '>' ||
+            c == '@' ||
+            c == '^' ||
+            c == '_');
+}
+
+/* TODO - check against special forms and print in alphabetical order */
+static void kshowcomp(void) {
+    JanetTable *env = gbl_complete_env;
+
+    /* Calculate current partial symbol. Maybe we could actually hook up the Janet
+     * parser here...*/
+    int i;
+    int32_t sym_len = 0;
+    for (i = gbl_pos - 1; i >= 0; i--) {
+        uint8_t c = (uint8_t) gbl_buf[i];
+        if (!is_symbol_char_gen(c)) break;
+        sym_len++;
+    }
+    char *sym_start = gbl_buf + i + 1;
+
+    if (sym_len == 0) return;
+
+    int32_t common_prefix_len = 0;
+    int32_t max_test_len = 0;
+    int32_t match_count = 0;
+    const uint8_t *first_match = NULL;
+
+    /* First pass, find match count and common prefix */
+    while (NULL != env) {
+        JanetKV *kvend = env->data + env->capacity;
+        for (JanetKV *kv = env->data; kv < kvend; kv++) {
+            if (janet_checktype(kv->key, JANET_NIL)) continue;
+            const uint8_t *test_str;
+            int32_t test_len;
+            if (!janet_bytes_view(kv->key, &test_str, &test_len)) continue;
+            if (test_len <= sym_len) continue;
+            if (strncmp((char *)test_str, sym_start, sym_len)) continue;
+            /* Found a prefix match */
+            match_count++;
+            if (NULL == first_match) {
+                common_prefix_len = max_test_len = test_len;
+                first_match = test_str;
+            } else {
+                if (max_test_len < test_len) max_test_len = test_len;
+                for (int32_t i = 0; i < common_prefix_len; i++) {
+                    if (first_match[i] != test_str[i]) {
+                        common_prefix_len = i;
+                        break;
+                    }
+                }
+            }
+        }
+        env = env->proto;
+    }
+
+    /* Complete common_prefix_len - sym_len characters */
+    for (int i = sym_len; i < common_prefix_len; i++) {
+        insert(first_match[i], 0);
+    }
+
+    int num_cols = getcols();
+
+    norawmode();
+
+    /* Second pass, print */
+    int col_width = max_test_len + 4;
+    int cols = num_cols / col_width;
+    if (cols == 0) cols = 1;
+    int current_col = 0;
+    env = gbl_complete_env;
+    while (NULL != env) {
+        JanetKV *kvend = env->data + env->capacity;
+        for (JanetKV *kv = env->data; kv < kvend; kv++) {
+            if (janet_checktype(kv->key, JANET_NIL)) continue;
+            const uint8_t *test_str;
+            int32_t test_len;
+            if (!janet_bytes_view(kv->key, &test_str, &test_len)) continue;
+            if (test_len <= sym_len) continue;
+            if (strncmp((char *)test_str, sym_start, sym_len)) continue;
+            /* Found a prefix match */
+            if (current_col == 0) printf("\n");
+            printf("%-*s", col_width, test_str);
+            current_col = (current_col + 1) % cols;
+        }
+        env = env->proto;
+    }
+    printf("\n");
+
+    rawmode();
 }
 
 static int line() {
@@ -346,11 +465,11 @@ static int line() {
 
         switch (c) {
             default:
-                if (insert(c)) return -1;
+                if (insert(c, 1)) return -1;
                 break;
             case 9:     /* tab */
-                if (insert(' ')) return -1;
-                if (insert(' ')) return -1;
+                kshowcomp();
+                refresh();
                 break;
             case 13:    /* enter */
                 return 0;
