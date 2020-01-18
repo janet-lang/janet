@@ -1020,6 +1020,8 @@ enum JanetOpCode {
     JOP_JUMP,
     JOP_JUMP_IF,
     JOP_JUMP_IF_NOT,
+    JOP_JUMP_IF_NIL,
+    JOP_JUMP_IF_NOT_NIL,
     JOP_GREATER_THAN,
     JOP_GREATER_THAN_IMMEDIATE,
     JOP_LESS_THAN,
@@ -1060,6 +1062,7 @@ enum JanetOpCode {
     JOP_MAKE_BRACKET_TUPLE,
     JOP_GREATER_THAN_EQUAL,
     JOP_LESS_THAN_EQUAL,
+    JOP_NEXT,
     JOP_INSTRUCTION_COUNT
 };
 
@@ -1312,6 +1315,7 @@ JANET_API int janet_compare(Janet x, Janet y);
 JANET_API int janet_cstrcmp(JanetString str, const char *other);
 JANET_API Janet janet_in(Janet ds, Janet key);
 JANET_API Janet janet_get(Janet ds, Janet key);
+JANET_API Janet janet_next(Janet ds, Janet key);
 JANET_API Janet janet_getindex(Janet ds, int32_t index);
 JANET_API int32_t janet_length(Janet x);
 JANET_API Janet janet_lengthv(Janet x);

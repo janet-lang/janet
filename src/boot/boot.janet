@@ -333,17 +333,16 @@
          (set ,i (,delta ,i ,step))))))
 
 (defn- each-template
-  [binding in body]
-  (with-syms [i len]
-    (def ds (if (idempotent? in) in (gensym)))
+  [binding inx body]
+  (with-syms [k]
+    (def ds (if (idempotent? inx) inx (gensym)))
     ~(do
-       (var ,i 0)
-       ,(unless (= ds in) ~(def ,ds ,in))
-       (def ,len (,length ,ds))
-       (while (,< ,i ,len)
-         (def ,binding (in ,ds ,i))
+       ,(unless (= ds inx) ~(def ,ds ,inx))
+       (var ,k (,next ,ds nil))
+       (while (,not= nil ,k)
+         (def ,binding (,in ,ds ,k))
          ,;body
-         (++ ,i)))))
+         (set ,k (,next ,ds ,k))))))
 
 (defn- keys-template
   [binding in pair? body]
@@ -352,7 +351,7 @@
     ~(do
        ,(unless (= ds in) ~(def ,ds ,in))
        (var ,k (,next ,ds nil))
-       (while ,k
+       (while (,not= nil ,k)
          (def ,binding ,(if pair? ~(tuple ,k (in ,ds ,k)) k))
          ,;body
          (set ,k (,next ,ds ,k))))))

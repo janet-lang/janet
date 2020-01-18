@@ -22,12 +22,74 @@
 
 #ifndef JANET_AMALG
 #include "features.h"
+#include "util.h"
 #include <janet.h>
 #endif
 
 /*
  * Define a number of functions that can be used internally on ANY Janet.
  */
+
+Janet janet_next(Janet ds, Janet key) {
+    JanetType t = janet_type(ds);
+    switch (t) {
+        default:
+            janet_panicf("expected iterable type, got %v", ds);
+        case JANET_TABLE:
+        case JANET_STRUCT: {
+            const JanetKV *start;
+            int32_t cap;
+            if (t == JANET_TABLE) {
+                JanetTable *tab = janet_unwrap_table(ds);
+                cap = tab->capacity;
+                start = tab->data;
+            } else {
+                JanetStruct st = janet_unwrap_struct(ds);
+                cap = janet_struct_capacity(st);
+                start = st;
+            }
+            const JanetKV *end = start + cap;
+            const JanetKV *kv = janet_checktype(key, JANET_NIL)
+                                ? start
+                                : janet_dict_find(start, cap, key) + 1;
+            while (kv < end) {
+                if (!janet_checktype(kv->key, JANET_NIL)) return kv->key;
+                kv++;
+            }
+            break;
+        }
+        case JANET_STRING:
+        case JANET_KEYWORD:
+        case JANET_SYMBOL:
+        case JANET_BUFFER:
+        case JANET_ARRAY:
+        case JANET_TUPLE: {
+            int32_t i;
+            if (janet_checktype(key, JANET_NIL)) {
+                i = 0;
+            } else if (janet_checkint(key)) {
+                i = janet_unwrap_integer(key) + 1;
+            } else {
+                break;
+            }
+            int32_t len;
+            if (t == JANET_BUFFER) {
+                len = janet_unwrap_buffer(ds)->count;
+            } else if (t == JANET_ARRAY) {
+                len = janet_unwrap_array(ds)->count;
+            } else if (t == JANET_TUPLE) {
+                len = janet_tuple_length(janet_unwrap_tuple(ds));
+            } else {
+                len = janet_string_length(janet_unwrap_string(ds));
+            }
+            if (i < len && i >= 0) {
+                return janet_wrap_integer(i);
+            }
+            break;
+        }
+    }
+    return janet_wrap_nil();
+}
 
 /* Compare two abstract values */
 static int janet_compare_abstract(JanetAbstract xx, JanetAbstract yy) {

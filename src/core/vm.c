@@ -264,6 +264,8 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_JUMP,
         &&label_JOP_JUMP_IF,
         &&label_JOP_JUMP_IF_NOT,
+        &&label_JOP_JUMP_IF_NIL,
+        &&label_JOP_JUMP_IF_NOT_NIL,
         &&label_JOP_GREATER_THAN,
         &&label_JOP_GREATER_THAN_IMMEDIATE,
         &&label_JOP_LESS_THAN,
@@ -304,9 +306,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_MAKE_BRACKET_TUPLE,
         &&label_JOP_GREATER_THAN_EQUAL,
         &&label_JOP_LESS_THAN_EQUAL,
-        &&label_unknown_op,
-        &&label_unknown_op,
-        &&label_unknown_op,
+        &&label_JOP_NEXT,
         &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
@@ -648,6 +648,22 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     }
     vm_next();
 
+    VM_OP(JOP_JUMP_IF_NIL)
+    if (janet_checktype(stack[A], JANET_NIL)) {
+        pc += ES;
+    } else {
+        pc++;
+    }
+    vm_next();
+
+    VM_OP(JOP_JUMP_IF_NOT_NIL)
+    if (janet_checktype(stack[A], JANET_NIL)) {
+        pc++;
+    } else {
+        pc += ES;
+    }
+    vm_next();
+
     VM_OP(JOP_LESS_THAN)
     vm_compop( <);
 
@@ -678,6 +694,10 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_COMPARE)
     stack[A] = janet_wrap_integer(janet_compare(stack[B], stack[C]));
+    vm_pcnext();
+
+    VM_OP(JOP_NEXT)
+    stack[A] = janet_next(stack[B], stack[C]);
     vm_pcnext();
 
     VM_OP(JOP_LOAD_NIL)

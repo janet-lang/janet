@@ -427,20 +427,6 @@ static Janet janet_core_type(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet janet_core_next(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 2);
-    JanetDictView view = janet_getdictionary(argv, 0);
-    const JanetKV *end = view.kvs + view.cap;
-    const JanetKV *kv = janet_checktype(argv[1], JANET_NIL)
-                        ? view.kvs
-                        : janet_dict_find(view.kvs, view.cap, argv[1]) + 1;
-    while (kv < end) {
-        if (!janet_checktype(kv->key, JANET_NIL)) return kv->key;
-        kv++;
-    }
-    return janet_wrap_nil();
-}
-
 static Janet janet_core_hash(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     return janet_wrap_number(janet_hash(argv[0]));
@@ -629,15 +615,6 @@ static const JanetReg corelib_cfuns[] = {
              "\t:function\n"
              "\t:cfunction\n\n"
              "or another symbol for an abstract type.")
-    },
-    {
-        "next", janet_core_next,
-        JDOC("(next dict &opt key)\n\n"
-             "Gets the next key in a struct or table. Can be used to iterate through "
-             "the keys of a data structure in an unspecified order. Keys are guaranteed "
-             "to be seen only once per iteration if they data structure is not mutated "
-             "during iteration. If key is nil, next returns the first key. If next "
-             "returns nil, there are no more keys to iterate through. ")
     },
     {
         "hash", janet_core_hash,
@@ -950,6 +927,10 @@ static const uint32_t propagate_asm[] = {
     JOP_PROPAGATE | (1 << 24),
     JOP_RETURN
 };
+static const uint32_t next_asm[] = {
+    JOP_NEXT | (1 << 24),
+    JOP_RETURN
+};
 #endif /* ifdef JANET_BOOTSTRAP */
 
 /*
@@ -992,6 +973,14 @@ static void janet_load_libs(JanetTable *env) {
 
 JanetTable *janet_core_env(JanetTable *replacements) {
     JanetTable *env = (NULL != replacements) ? replacements : janet_table(0);
+    janet_quick_asm(env, JANET_FUN_NEXT,
+                    "next", 2, 2, 2, 2, next_asm, sizeof(next_asm),
+                    JDOC("(next ds &opt key)\n\n"
+                         "Gets the next key in a datastructure. Can be used to iterate through "
+                         "the keys of a data structure in an unspecified order. Keys are guaranteed "
+                         "to be seen only once per iteration if they data structure is not mutated "
+                         "during iteration. If key is nil, next returns the first key. If next "
+                         "returns nil, there are no more keys to iterate through."));
     janet_quick_asm(env, JANET_FUN_PROP,
                     "propagate", 2, 2, 2, 2, propagate_asm, sizeof(propagate_asm),
                     JDOC("(propagate x fiber)\n\n"

@@ -56,6 +56,8 @@ enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_L, /* JOP_JUMP, */
     JINT_SL, /* JOP_JUMP_IF, */
     JINT_SL, /* JOP_JUMP_IF_NOT, */
+    JINT_SL, /* JOP_JUMP_IF_NIL, */
+    JINT_SL, /* JOP_JUMP_IF_NOT_NIL, */
     JINT_SSS, /* JOP_GREATER_THAN, */
     JINT_SSI, /* JOP_GREATER_THAN_IMMEDIATE, */
     JINT_SSS, /* JOP_LESS_THAN, */
@@ -95,7 +97,8 @@ enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_S, /* JOP_MAKE_TUPLE */
     JINT_S, /* JOP_MAKE_BRACKET_TUPLE */
     JINT_SSS, /* JOP_GREATER_THAN_EQUAL */
-    JINT_SSS /* JOP_LESS_THAN_EQUAL */
+    JINT_SSS, /* JOP_LESS_THAN_EQUAL */
+    JINT_SSS, /* JOP_NEXT */
 };
 
 /* Verify some bytecode */
