@@ -67,7 +67,7 @@ void janet_line_deinit() {
 }
 
 void janet_line_get(const char *p, JanetBuffer *buffer) {
-    FILE *out = janet_dynfile("out", stdout);
+    FILE *out = janet_dynfile("err", stderr);
     fputs(p, out);
     fflush(out);
     simpleline(buffer);
@@ -492,16 +492,16 @@ static void kshowcomp(void) {
         if (cols == 0) cols = 1;
         int current_col = 0;
         for (int i = 0; i < gbl_match_count; i++) {
-            if (current_col == 0) putc('\n', stdout);
+            if (current_col == 0) putc('\n', stderr);
             JanetByteView s = gbl_matches[i];
-            printf("%s", (const char *) s.bytes);
+            fprintf(stderr, "%s", (const char *) s.bytes);
             for (int j = s.len; j < col_width; j++) {
-                putc(' ', stdout);
+                putc(' ', stderr);
             }
             current_col = (current_col + 1) % cols;
         }
-        putc('\n', stdout);
-        fflush(stdout);
+        putc('\n', stderr);
+        fflush(stderr);
 
         rawmode();
     }
@@ -665,7 +665,7 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
     gbl_prompt = p;
     buffer->count = 0;
     gbl_historyi = 0;
-    FILE *out = janet_dynfile("out", stdout);
+    FILE *out = janet_dynfile("err", stderr);
     if (!isatty(STDIN_FILENO) || !checktermsupport()) {
         simpleline(buffer);
         return;
