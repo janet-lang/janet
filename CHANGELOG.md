@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - Add `assert`
 - Add `when-with`
 - Add `if-with`
+- Add completion to the default repl based on currently defined bindings.
 - Fix thread module issue where sometimes decoding a message failed.
 - Fix segfault regression when macros are called with bad arity.
 

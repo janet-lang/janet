@@ -648,8 +648,10 @@ static const JanetReg corelib_cfuns[] = {
     },
     {
         "getline", janet_core_getline,
-        JDOC("(getline &opt prompt buf)\n\n"
-             "Reads a line of input into a buffer, including the newline character, using a prompt. Returns the modified buffer. "
+        JDOC("(getline &opt prompt buf env)\n\n"
+             "Reads a line of input into a buffer, including the newline character, using a prompt. "
+             "An optional environment table can be provided for autocomplete. "
+             "Returns the modified buffer. "
              "Use this function to implement a simple interface for a terminal program.")
     },
     {
