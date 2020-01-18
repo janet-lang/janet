@@ -35,7 +35,7 @@ Janet janet_line_getter(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 3);
     const char *str = (argc >= 1) ? (const char *) janet_getstring(argv, 0) : "";
     JanetBuffer *buf = (argc >= 2) ? janet_getbuffer(argv, 1) : janet_buffer(10);
-    gbl_complete_env = (argc >= 3) ? janet_gettable(argv, 2) : janet_current_fiber()->env;
+    gbl_complete_env = (argc >= 3) ? janet_gettable(argv, 2) : NULL;
     janet_line_get(str, buf);
     gbl_complete_env = NULL;
     return janet_wrap_buffer(buf);
@@ -98,6 +98,7 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 
 /* static state */
 #define JANET_LINE_MAX 1024
+#define JANET_MATCH_MAX 256
 #define JANET_HISTORY_MAX 100
 static JANET_THREAD_LOCAL int gbl_israwmode = 0;
 static JANET_THREAD_LOCAL const char *gbl_prompt = "> ";
@@ -111,6 +112,8 @@ static JANET_THREAD_LOCAL int gbl_history_count = 0;
 static JANET_THREAD_LOCAL int gbl_historyi = 0;
 static JANET_THREAD_LOCAL int gbl_sigint_flag = 0;
 static JANET_THREAD_LOCAL struct termios gbl_termios_start;
+static JANET_THREAD_LOCAL JanetByteView gbl_matches[JANET_MATCH_MAX];
+static JANET_THREAD_LOCAL int gbl_match_count = 0;
 
 /* Unsupported terminal list from linenoise */
 static const char *badterms[] = {
@@ -358,90 +361,140 @@ static int is_symbol_char_gen(uint8_t c) {
             c == '_');
 }
 
-/* TODO - check against special forms and print in alphabetical order */
-static void kshowcomp(void) {
-    JanetTable *env = gbl_complete_env;
-
+static JanetByteView get_symprefix(void) {
     /* Calculate current partial symbol. Maybe we could actually hook up the Janet
      * parser here...*/
     int i;
-    int32_t sym_len = 0;
+    JanetByteView ret;
+    ret.len = 0;
     for (i = gbl_pos - 1; i >= 0; i--) {
         uint8_t c = (uint8_t) gbl_buf[i];
         if (!is_symbol_char_gen(c)) break;
-        sym_len++;
+        ret.len++;
     }
-    char *sym_start = gbl_buf + i + 1;
+    /* Will be const for duration of match checking */
+    ret.bytes = (const uint8_t *)(gbl_buf + i + 1);
+    return ret;
+}
 
-    if (sym_len == 0) return;
+static int compare_bytes(JanetByteView a, JanetByteView b) {
+    int32_t minlen = a.len < b.len ? a.len : b.len;
+    int result = strncmp((const char *) a.bytes, (const char *) b.bytes, minlen);
+    if (result) return result;
+    return a.len < b.len ? -1 : a.len > b.len ? 1 : 0;
+}
 
-    int32_t common_prefix_len = 0;
-    int32_t max_test_len = 0;
-    int32_t match_count = 0;
-    const uint8_t *first_match = NULL;
+static void check_match(JanetByteView src, const uint8_t *testsym, int32_t testlen) {
+    JanetByteView test;
+    test.bytes = testsym;
+    test.len = testlen;
+    if (src.len > test.len || strncmp((const char *) src.bytes, (const char *) test.bytes, src.len)) return;
+    JanetByteView mm = test;
+    for (int i = 0; i < gbl_match_count; i++) {
+        if (compare_bytes(mm, gbl_matches[i]) < 0) {
+            JanetByteView temp = mm;
+            mm = gbl_matches[i];
+            gbl_matches[i] = temp;
+        }
+    }
+    if (gbl_match_count == JANET_MATCH_MAX) return;
+    gbl_matches[gbl_match_count++] = mm;
+}
 
-    /* First pass, find match count and common prefix */
-    while (NULL != env) {
-        JanetKV *kvend = env->data + env->capacity;
-        for (JanetKV *kv = env->data; kv < kvend; kv++) {
-            if (janet_checktype(kv->key, JANET_NIL)) continue;
-            const uint8_t *test_str;
-            int32_t test_len;
-            if (!janet_bytes_view(kv->key, &test_str, &test_len)) continue;
-            if (test_len <= sym_len) continue;
-            if (strncmp((char *)test_str, sym_start, sym_len)) continue;
-            /* Found a prefix match */
-            match_count++;
-            if (NULL == first_match) {
-                common_prefix_len = max_test_len = test_len;
-                first_match = test_str;
-            } else {
-                if (max_test_len < test_len) max_test_len = test_len;
-                for (int32_t i = 0; i < common_prefix_len; i++) {
-                    if (first_match[i] != test_str[i]) {
-                        common_prefix_len = i;
-                        break;
-                    }
+static void check_cmatch(JanetByteView src, const char *cstr) {
+    check_match(src, (const uint8_t *) cstr, (int32_t) strlen(cstr));
+}
+
+static JanetByteView longest_common_prefix(void) {
+    JanetByteView bv;
+    if (gbl_match_count == 0) {
+        bv.len = 0;
+        bv.bytes = NULL;
+    } else {
+        bv = gbl_matches[0];
+        for (int i = 0; i < gbl_match_count; i++) {
+            JanetByteView other = gbl_matches[i];
+            int32_t minlen = other.len < bv.len ? other.len : bv.len;
+            for (bv.len = 0; bv.len < minlen; bv.len++) {
+                if (bv.bytes[bv.len] != other.bytes[bv.len]) {
+                    break;
                 }
             }
         }
-        env = env->proto;
+    }
+    return bv;
+}
+
+static void check_specials(JanetByteView src) {
+    check_cmatch(src, "break");
+    check_cmatch(src, "def");
+    check_cmatch(src, "do");
+    check_cmatch(src, "fn");
+    check_cmatch(src, "if");
+    check_cmatch(src, "quasiquote");
+    check_cmatch(src, "quote");
+    check_cmatch(src, "set");
+    check_cmatch(src, "splice");
+    check_cmatch(src, "unquote");
+    check_cmatch(src, "var");
+    check_cmatch(src, "while");
+}
+
+/* TODO - check against special forms and print in alphabetical order */
+static void kshowcomp(void) {
+    JanetTable *env = gbl_complete_env;
+    if (env == NULL) {
+        insert(' ', 0);
+        insert(' ', 0);
+        return;
     }
 
-    /* Complete common_prefix_len - sym_len characters */
-    for (int i = sym_len; i < common_prefix_len; i++) {
-        insert(first_match[i], 0);
-    }
+    JanetByteView prefix = get_symprefix();
+    if (prefix.len  == 0) return;
 
-    int num_cols = getcols();
-
-    norawmode();
-
-    /* Second pass, print */
-    int col_width = max_test_len + 4;
-    int cols = num_cols / col_width;
-    if (cols == 0) cols = 1;
-    int current_col = 0;
-    env = gbl_complete_env;
+    /* Find all matches */
+    gbl_match_count = 0;
     while (NULL != env) {
         JanetKV *kvend = env->data + env->capacity;
         for (JanetKV *kv = env->data; kv < kvend; kv++) {
-            if (janet_checktype(kv->key, JANET_NIL)) continue;
-            const uint8_t *test_str;
-            int32_t test_len;
-            if (!janet_bytes_view(kv->key, &test_str, &test_len)) continue;
-            if (test_len <= sym_len) continue;
-            if (strncmp((char *)test_str, sym_start, sym_len)) continue;
-            /* Found a prefix match */
-            if (current_col == 0) printf("\n");
-            printf("%-*s", col_width, test_str);
-            current_col = (current_col + 1) % cols;
+            if (!janet_checktype(kv->key, JANET_SYMBOL)) continue;
+            const uint8_t *sym = janet_unwrap_symbol(kv->key);
+            check_match(prefix, sym, janet_string_length(sym));
         }
         env = env->proto;
     }
-    printf("\n");
 
-    rawmode();
+    check_specials(prefix);
+
+    JanetByteView lcp = longest_common_prefix();
+    for (int i = prefix.len; i < lcp.len; i++) {
+        insert(lcp.bytes[i], 0);
+    }
+
+    int32_t maxlen = 0;
+    for (int i = 0; i < gbl_match_count; i++)
+        if (gbl_matches[i].len > maxlen)
+            maxlen = gbl_matches[i].len;
+
+    int num_cols = getcols();
+    if (gbl_match_count >= 2) {
+
+        norawmode();
+
+        /* Second pass, print */
+        int col_width = maxlen + 4;
+        int cols = num_cols / col_width;
+        if (cols == 0) cols = 1;
+        int current_col = 0;
+        for (int i = 0; i < gbl_match_count; i++) {
+            if (current_col == 0) printf("\n");
+            printf("%-*s", col_width, (const char *) gbl_matches[i].bytes);
+            current_col = (current_col + 1) % cols;
+        }
+        printf("\n");
+
+        rawmode();
+    }
 }
 
 static int line() {

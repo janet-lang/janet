@@ -172,10 +172,10 @@ static uint32_t halfsiphash(const uint8_t *in, const size_t inlen, const uint8_t
     switch (left) {
         case 3:
             b |= ((uint32_t)in[2]) << 16;
-            /* fallthrough */
+        /* fallthrough */
         case 2:
             b |= ((uint32_t)in[1]) << 8;
-            /* fallthrough */
+        /* fallthrough */
         case 1:
             b |= ((uint32_t)in[0]);
             break;
