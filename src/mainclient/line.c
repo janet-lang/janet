@@ -487,11 +487,16 @@ static void kshowcomp(void) {
         if (cols == 0) cols = 1;
         int current_col = 0;
         for (int i = 0; i < gbl_match_count; i++) {
-            if (current_col == 0) printf("\n");
-            printf("%-*s", col_width, (const char *) gbl_matches[i].bytes);
+            if (current_col == 0) putc('\n', stdout);
+            JanetByteView s = gbl_matches[i];
+            printf("%s", (const char *) s.bytes);
+            for (int j = s.len; j < col_width; j++) {
+                putc(' ', stdout);
+            }
             current_col = (current_col + 1) % cols;
         }
-        printf("\n");
+        putc('\n', stdout);
+        fflush(stdout);
 
         rawmode();
     }
