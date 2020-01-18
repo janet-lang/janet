@@ -1,4 +1,6 @@
 image: openbsd/6.5
+sources:
+  - https://git.sr.ht/~bakpakin/janet
 packages:
   - gmake
 tasks:

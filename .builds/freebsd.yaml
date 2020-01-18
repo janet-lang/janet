@@ -1,4 +1,6 @@
 image: freebsd/latest
+sources:
+  - https://git.sr.ht/~bakpakin/janet
 packages:
   - gmake
 tasks:
