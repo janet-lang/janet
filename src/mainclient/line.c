@@ -440,7 +440,6 @@ static void check_specials(JanetByteView src) {
     check_cmatch(src, "while");
 }
 
-/* TODO - check against special forms and print in alphabetical order */
 static void kshowcomp(void) {
     JanetTable *env = gbl_complete_env;
     if (env == NULL) {
@@ -448,6 +447,10 @@ static void kshowcomp(void) {
         insert(' ', 0);
         return;
     }
+
+    /* Advance while on symbol char */
+    while (is_symbol_char_gen(gbl_buf[gbl_pos]))
+        gbl_pos++;
 
     JanetByteView prefix = get_symprefix();
     if (prefix.len  == 0) return;
@@ -470,6 +473,8 @@ static void kshowcomp(void) {
     for (int i = prefix.len; i < lcp.len; i++) {
         insert(lcp.bytes[i], 0);
     }
+
+    if (prefix.len != lcp.len) return;
 
     int32_t maxlen = 0;
     for (int i = 0; i < gbl_match_count; i++)
