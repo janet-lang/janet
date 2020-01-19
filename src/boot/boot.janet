@@ -2115,7 +2115,7 @@
   (if-let [check (in module/cache fullpath)]
     check
     (do
-      (def loader (module/loaders mod-kind))
+      (def loader (if (keyword? mod-kind) (module/loaders mod-kind) mod-kind))
       (unless loader (error (string "module type " mod-kind " unknown")))
       (def env (loader fullpath args))
       (put module/cache fullpath env)

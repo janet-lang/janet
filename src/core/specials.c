@@ -630,7 +630,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         janetc_scope(&tempscope, c, JANET_SCOPE_FUNCTION, "while-iife");
 
         /* Recompile in the function scope */
-        cond = janetc_value(subopts, argv[0]);
+        cond = janetc_value(subopts, condform);
         if (!(cond.flags & JANET_SLOT_CONSTANT)) {
             /* If not an infinite loop, return nil when condition false */
             janetc_emit_si(c, ifjmp, cond, 2, 0);
