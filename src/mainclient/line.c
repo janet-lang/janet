@@ -370,13 +370,34 @@ static void kbackspace(int draw) {
     }
 }
 
-static void kdelete(void) {
+static void kdelete(int draw) {
     if (gbl_pos != gbl_len) {
         memmove(gbl_buf + gbl_pos, gbl_buf + gbl_pos + 1, gbl_len - gbl_pos);
         gbl_buf[--gbl_len] = '\0';
-        refresh();
+        if (draw) refresh();
     }
 }
+
+static void kbackspacew(void) {
+    while (gbl_pos && !isspace(gbl_buf[gbl_pos - 1])) {
+        kbackspace(0);
+    }
+    while (gbl_pos && isspace(gbl_buf[gbl_pos - 1])) {
+        kbackspace(0);
+    }
+    refresh();
+}
+
+static void kdeletew(void) {
+    while (gbl_pos < gbl_len && !isspace(gbl_buf[gbl_pos])) {
+        kdelete(0);
+    }
+    while (gbl_pos < gbl_len && isspace(gbl_buf[gbl_pos])) {
+        kdelete(0);
+    }
+    refresh();
+}
+
 
 /* See tools/symchargen.c */
 static int is_symbol_char_gen(uint8_t c) {
@@ -401,13 +422,6 @@ static int is_symbol_char_gen(uint8_t c) {
             c == '@' ||
             c == '^' ||
             c == '_');
-}
-
-static void kbackspaceword(void) {
-    while (gbl_pos && is_symbol_char_gen(gbl_buf[gbl_pos - 1])) {
-        kbackspace(0);
-    }
-    refresh();
 }
 
 static JanetByteView get_symprefix(void) {
@@ -632,7 +646,7 @@ static int line() {
                 refresh();
                 break;
             case 23: /* ctrl-w */
-                kbackspaceword();
+                kbackspacew();
                 break;
             case 26: /* ctrl-z */
                 norawmode();
@@ -653,7 +667,7 @@ static int line() {
                         if (seq[2] == '~') {
                             switch (seq[1]) {
                                 case '3': /* delete */
-                                    kdelete();
+                                    kdelete(1);
                                     break;
                                 default:
                                     break;
@@ -690,6 +704,15 @@ static int line() {
                     /* Check alt-(shift) bindings */
                     switch (seq[0]) {
                         default:
+                            break;
+                        case 'h':
+                            kleft();
+                            break;
+                        case 'l':
+                            kright();
+                            break;
+                        case 'd':
+                            kdeletew();
                             break;
                         case 'b':
                             kleftw();
