@@ -20,6 +20,10 @@ All notable changes to this project will be documented in this file.
 - Add `when-with`
 - Add `if-with`
 - Add completion to the default repl based on currently defined bindings.
+- Add `eachk`
+- Add `eachp`
+- Improve functionality of the `next` function. `next` now works on many different
+  types, not just tables and structs. This allows for more generic data processing.
 - Fix thread module issue where sometimes decoding a message failed.
 - Fix segfault regression when macros are called with bad arity.
 

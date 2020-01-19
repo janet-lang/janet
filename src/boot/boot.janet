@@ -420,10 +420,20 @@
   [i start stop & body]
   (for-template i start stop 1 < + body))
 
+(defmacro eachk
+  "loop over each key in ds. returns nil."
+  [x ds & body]
+  (keys-template x ds false body))
+
+(defmacro eachp
+  "Loop over each (key, value) pair in ds. Returns nil."
+  [x ds & body]
+  (keys-template x ds true body))
+
 (defmacro each
-  "Loop over each value in ind. Returns nil."
-  [x ind & body]
-  (each-template x ind body))
+  "Loop over each value in ds. Returns nil."
+  [x ds & body]
+  (each-template x ds body))
 
 (defmacro loop
   "A general purpose loop macro. This macro is similar to the Common Lisp
