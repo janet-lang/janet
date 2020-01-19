@@ -523,7 +523,7 @@ static void kshowcomp(void) {
         insert(lcp.bytes[i], 0);
     }
 
-    if (prefix.len != lcp.len) return;
+    if (!gbl_lines_below && prefix.len != lcp.len) return;
 
     int32_t maxlen = 0;
     for (int i = 0; i < gbl_match_count; i++)
@@ -531,10 +531,10 @@ static void kshowcomp(void) {
             maxlen = gbl_matches[i].len;
 
     int num_cols = getcols();
+    clearlines();
     if (gbl_match_count >= 2) {
 
         /* Second pass, print */
-        clearlines();
         int col_width = maxlen + 4;
         int cols = num_cols / col_width;
         if (cols == 0) cols = 1;
