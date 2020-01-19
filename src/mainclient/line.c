@@ -299,10 +299,20 @@ static void addhistory(void) {
 }
 
 static void replacehistory(void) {
-    char *newline = sdup(gbl_buf);
-    if (!newline) return;
-    free(gbl_history[0]);
-    gbl_history[0] = newline;
+    /* History count is always > 0 here */
+    if (gbl_len == 0 || (gbl_history_count > 1 && !strcmp(gbl_buf, gbl_history[1]))) {
+        /* Delete history */
+        free(gbl_history[0]);
+        for (int i = 1; i < gbl_history_count; i++) {
+            gbl_history[i - 1] = gbl_history[i];
+        }
+        gbl_history_count--;
+    } else {
+        char *newline = sdup(gbl_buf);
+        if (!newline) return;
+        free(gbl_history[0]);
+        gbl_history[0] = newline;
+    }
 }
 
 static void kleft(void) {
