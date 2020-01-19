@@ -334,11 +334,31 @@ static void kleft(void) {
     }
 }
 
+static void kleftw(void) {
+    while (gbl_pos > 0 && isspace(gbl_buf[gbl_pos - 1])) {
+        gbl_pos--;
+    }
+    while (gbl_pos > 0 && !isspace(gbl_buf[gbl_pos - 1])) {
+        gbl_pos--;
+    }
+    refresh();
+}
+
 static void kright(void) {
     if (gbl_pos != gbl_len) {
         gbl_pos++;
         refresh();
     }
+}
+
+static void krightw(void) {
+    while (gbl_pos != gbl_len && !isspace(gbl_buf[gbl_pos])) {
+        gbl_pos++;
+    }
+    while (gbl_pos != gbl_len && isspace(gbl_buf[gbl_pos])) {
+        gbl_pos++;
+    }
+    refresh();
 }
 
 static void kbackspace(int draw) {
@@ -381,6 +401,13 @@ static int is_symbol_char_gen(uint8_t c) {
             c == '@' ||
             c == '^' ||
             c == '_');
+}
+
+static void kbackspaceword(void) {
+    while (gbl_pos && is_symbol_char_gen(gbl_buf[gbl_pos - 1])) {
+        kbackspace(0);
+    }
+    refresh();
 }
 
 static JanetByteView get_symprefix(void) {
@@ -605,10 +632,7 @@ static int line() {
                 refresh();
                 break;
             case 23: /* ctrl-w */
-                while (gbl_pos && is_symbol_char_gen(gbl_buf[gbl_pos - 1])) {
-                    kbackspace(0);
-                }
-                refresh();
+                kbackspaceword();
                 break;
             case 26: /* ctrl-z */
                 norawmode();
@@ -621,8 +645,8 @@ static int line() {
                  * Use two calls to handle slow terminals returning the two
                  * chars at different times. */
                 if (read(STDIN_FILENO, seq, 1) == -1) break;
-                if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
                 if (seq[0] == '[') {
+                    if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
                     if (seq[1] >= '0' && seq[1] <= '9') {
                         /* Extended escape, read additional byte. */
                         if (read(STDIN_FILENO, seq + 2, 1) == -1) break;
@@ -662,18 +686,16 @@ static int line() {
                                 break;
                         }
                     }
-                } else if (seq[0] == 'O') {
-                    /* Alt codes */
-                    switch (seq[1]) {
+                } else {
+                    /* Check alt-(shift) bindings */
+                    switch (seq[0]) {
                         default:
                             break;
-                        case 'H':
-                            gbl_pos = 0;
-                            refresh();
+                        case 'b':
+                            kleftw();
                             break;
-                        case 'F':
-                            gbl_pos = gbl_len;
-                            refresh();
+                        case 'f':
+                            krightw();
                             break;
                     }
                 }
