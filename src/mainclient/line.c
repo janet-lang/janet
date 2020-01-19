@@ -280,10 +280,8 @@ static void historymove(int delta) {
         gbl_historyi += delta;
         if (gbl_historyi < 0) {
             gbl_historyi = 0;
-            return;
         } else if (gbl_historyi >= gbl_history_count) {
             gbl_historyi = gbl_history_count - 1;
-            return;
         }
         strncpy(gbl_buf, gbl_history[gbl_historyi], JANET_LINE_MAX - 1);
         gbl_pos = gbl_len = strlen(gbl_buf);
@@ -719,6 +717,12 @@ static int line() {
                             break;
                         case 'f':
                             krightw();
+                            break;
+                        case ',':
+                            historymove(JANET_HISTORY_MAX);
+                            break;
+                        case '.':
+                            historymove(-JANET_HISTORY_MAX);
                             break;
                     }
                 }

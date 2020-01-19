@@ -19,7 +19,8 @@ All notable changes to this project will be documented in this file.
 - Add `assert`
 - Add `when-with`
 - Add `if-with`
-- Add completion to the default repl based on currently defined bindings.
+- Add completion to the default repl based on currently defined bindings. Also generally improve
+  the repl keybindings.
 - Add `eachk`
 - Add `eachp`
 - Improve functionality of the `next` function. `next` now works on many different
