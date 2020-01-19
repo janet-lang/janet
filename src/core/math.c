@@ -62,7 +62,8 @@ static JanetAbstractType JanetRNG_type = {
     janet_rng_unmarshal,
     NULL,
     NULL,
-    NULL
+    NULL,
+    NULL,
 };
 
 JanetRNG *janet_default_rng(void) {

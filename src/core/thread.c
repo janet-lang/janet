@@ -402,6 +402,7 @@ static JanetAbstractType Thread_AT = {
     NULL,
     NULL,
     NULL,
+    NULL,
     NULL
 };
 

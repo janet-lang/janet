@@ -907,6 +907,7 @@ struct JanetAbstractType {
     void (*tostring)(void *p, JanetBuffer *buffer);
     int (*compare)(void *lhs, void *rhs);
     int32_t (*hash)(void *p, size_t len);
+    Janet(*next)(void *p, Janet key);
 };
 
 struct JanetReg {

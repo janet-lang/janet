@@ -87,6 +87,12 @@ Janet janet_next(Janet ds, Janet key) {
             }
             break;
         }
+        case JANET_ABSTRACT: {
+            JanetAbstract abst = janet_unwrap_abstract(ds);
+            const JanetAbstractType *at = janet_abstract_type(abst);
+            if (NULL == at->next) break;
+            return at->next(abst, key);
+        }
     }
     return janet_wrap_nil();
 }
