@@ -114,6 +114,7 @@ static JANET_THREAD_LOCAL int gbl_sigint_flag = 0;
 static JANET_THREAD_LOCAL struct termios gbl_termios_start;
 static JANET_THREAD_LOCAL JanetByteView gbl_matches[JANET_MATCH_MAX];
 static JANET_THREAD_LOCAL int gbl_match_count = 0;
+static JANET_THREAD_LOCAL int gbl_lines_below = 0;
 
 /* Unsupported terminal list from linenoise */
 static const char *badterms[] = {
@@ -236,6 +237,17 @@ static void refresh(void) {
     janet_buffer_deinit(&b);
 }
 
+static void clearlines(void) {
+    for (int i = 0; i < gbl_lines_below; i++) {
+        fprintf(stderr, "\x1b[1B\x1b[999D\x1b[K");
+    }
+    if (gbl_lines_below) {
+        fprintf(stderr, "\x1b[%dA\x1b[999D", gbl_lines_below);
+        fflush(stderr);
+        gbl_lines_below = 0;
+    }
+}
+
 static int insert(char c, int draw) {
     if (gbl_len < JANET_LINE_MAX - 1) {
         if (gbl_len == gbl_pos) {
@@ -329,12 +341,12 @@ static void kright(void) {
     }
 }
 
-static void kbackspace(void) {
+static void kbackspace(int draw) {
     if (gbl_pos > 0) {
         memmove(gbl_buf + gbl_pos - 1, gbl_buf + gbl_pos, gbl_len - gbl_pos);
         gbl_pos--;
         gbl_buf[--gbl_len] = '\0';
-        refresh();
+        if (draw) refresh();
     }
 }
 
@@ -494,15 +506,17 @@ static void kshowcomp(void) {
     int num_cols = getcols();
     if (gbl_match_count >= 2) {
 
-        norawmode();
-
         /* Second pass, print */
+        clearlines();
         int col_width = maxlen + 4;
         int cols = num_cols / col_width;
         if (cols == 0) cols = 1;
         int current_col = 0;
         for (int i = 0; i < gbl_match_count; i++) {
-            if (current_col == 0) putc('\n', stderr);
+            if (current_col == 0) {
+                putc('\n', stderr);
+                gbl_lines_below++;
+            }
             JanetByteView s = gbl_matches[i];
             fprintf(stderr, "%s", (const char *) s.bytes);
             for (int j = s.len; j < col_width; j++) {
@@ -510,10 +524,11 @@ static void kshowcomp(void) {
             }
             current_col = (current_col + 1) % cols;
         }
-        putc('\n', stderr);
-        fflush(stderr);
 
-        rawmode();
+        /* Go up to original line (zsh-like autocompletion) */
+        fprintf(stderr, "\x1B[%dA", gbl_lines_below);
+
+        fflush(stderr);
     }
 }
 
@@ -538,24 +553,9 @@ static int line() {
 
         switch (c) {
             default:
+                if (c < 0x20) break;
                 if (insert(c, 1)) return -1;
                 break;
-            case 9:     /* tab */
-                kshowcomp();
-                refresh();
-                break;
-            case 13:    /* enter */
-                return 0;
-            case 3:     /* ctrl-c */
-                errno = EAGAIN;
-                gbl_sigint_flag = 1;
-                return -1;
-            case 127:   /* backspace */
-            case 8:     /* ctrl-h */
-                kbackspace();
-                break;
-            case 4:     /* ctrl-d, eof */
-                return -1;
             case 1:     /* ctrl-a */
                 gbl_pos = 0;
                 refresh();
@@ -563,6 +563,14 @@ static int line() {
             case 2:     /* ctrl-b */
                 kleft();
                 break;
+            case 3:     /* ctrl-c */
+                errno = EAGAIN;
+                gbl_sigint_flag = 1;
+                clearlines();
+                return -1;
+            case 4:     /* ctrl-d, eof */
+                clearlines();
+                return -1;
             case 5:     /* ctrl-e */
                 gbl_pos = gbl_len;
                 refresh();
@@ -570,19 +578,42 @@ static int line() {
             case 6:     /* ctrl-f */
                 kright();
                 break;
-            case 21:
+            case 127:   /* backspace */
+            case 8:     /* ctrl-h */
+                kbackspace(1);
+                break;
+            case 9:     /* tab */
+                kshowcomp();
+                refresh();
+                break;
+            case 12:    /* ctrl-l */
+                clear();
+                refresh();
+                break;
+            case 13:    /* enter */
+                clearlines();
+                return 0;
+            case 14: /* ctrl-n */
+                historymove(-1);
+                break;
+            case 16: /* ctrl-p */
+                historymove(1);
+                break;
+            case 21: /* ctrl-u */
                 gbl_buf[0] = '\0';
                 gbl_pos = gbl_len = 0;
+                refresh();
+                break;
+            case 23: /* ctrl-w */
+                while (gbl_pos && is_symbol_char_gen(gbl_buf[gbl_pos - 1])) {
+                    kbackspace(0);
+                }
                 refresh();
                 break;
             case 26: /* ctrl-z */
                 norawmode();
                 kill(getpid(), SIGSTOP);
                 rawmode();
-                refresh();
-                break;
-            case 12:
-                clear();
                 refresh();
                 break;
             case 27:    /* escape sequence */
@@ -606,6 +637,7 @@ static int line() {
                         }
                     } else {
                         switch (seq[1]) {
+                            /* Single escape sequences */
                             default:
                                 break;
                             case 'A':
@@ -631,6 +663,7 @@ static int line() {
                         }
                     }
                 } else if (seq[0] == 'O') {
+                    /* Alt codes */
                     switch (seq[1]) {
                         default:
                             break;
