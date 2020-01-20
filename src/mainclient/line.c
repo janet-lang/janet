@@ -703,6 +703,22 @@ static int line() {
                     switch (seq[0]) {
                         default:
                             break;
+                        case 'O': {
+                            if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
+                            switch (seq[1]) {
+                                default:
+                                    break;
+                                case 'H':
+                                    gbl_pos = 0;
+                                    refresh();
+                                    break;
+                                case 'F':
+                                    gbl_pos = gbl_len;
+                                    refresh();
+                                    break;
+                            }
+                            break;
+                        }
                         case 'h':
                             kleft();
                             break;

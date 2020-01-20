@@ -9,8 +9,8 @@ janet \- run the Janet language abstract machine
 [\fB\-m\fR \fIPATH\fR]
 [\fB\-c\fR \fIMODULE JIMAGE\fR]
 [\fB\-\-\fR]
-.IR script
-.IR args ...
+.BR script
+.BR args ...
 .SH DESCRIPTION
 Janet is a functional and imperative programming language and bytecode interpreter.
 It is a modern lisp, but lists are replaced by other data structures with better utility
@@ -25,6 +25,86 @@ Implemented in mostly standard C99, Janet runs on Windows, Linux and macOS.
 The few features that are not standard C99 (dynamic library loading, compiler
 specific optimizations), are fairly straight forward. Janet can be easily ported to
 most new platforms.
+
+.SH REPL KEY-BINDINGS
+
+.TP 16
+.BR Home/Ctrl\-A
+Move cursor to the beginning of input line
+
+.TP 16
+.BR End
+Move cursor to the end of input line
+
+.TP 16
+.BR Left/Right
+Move cursor in input line
+
+.TP 16
+.BR Up/Down
+Go backwards and forwards through history.
+
+.TP 16
+.BR Ctrl\-,
+Go to earliest item in history
+
+.TP 16
+.BR Ctrl\-.
+Go to last item in history
+
+.TP 16
+.BR Tab
+Complete current symbol, or show available completion
+
+.TP 16
+.BR Ctrl\-H
+Delete one character behind the cursor.
+
+.TP 16
+.BR Ctrl\-L
+Clear the screen.
+
+.TP 16
+.BR Ctrl\-W
+Delete a word behind the cursor
+
+.TP 16
+.BR Alt\-A
+Move cursor forward one word.
+
+.TP 16
+.BR Alt\-B
+Move cursor backwards one word.
+
+.TP 16
+.BR Delete
+Delete character on cursor.
+
+.TP 16
+.BR Alt\-H
+Move cursor one character to the left.
+
+.TP 16
+.BR Alt\-L
+Move cursor one character to the right.
+
+.TP 16
+.BR Alt\-D
+Delete word at cursor.
+
+.LP
+
+The repl keybindings are loosely based on a subset of GNU readline, although
+Janet does not use GNU readline internally for the repl. It is a limited
+substitute for GNU readline, and does not handle
+utf-8 input or other mutlibyte input well.
+
+To disable the built-in repl input handling, pass the \fB\-s\fR option to Janet, and
+use a program like rlwrap with Janet to provide input.
+
+For key bindings that operate on words, a word is considered to be a sequence
+of characters that does not contain whitespace.
+
 .SH DOCUMENTATION
 
 For more complete API documentation, run a REPL (Read Eval Print Loop), and use the doc macro to
