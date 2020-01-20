@@ -125,11 +125,11 @@
 (def threads? (not (not (env 'thread/new))))
 
 # Default flags for natives, but not required
-(def default-lflags (if is-win ["/nologo"] []))
+(def default-lflags (if is-win ["/nologo"] ["-flto"]))
 (def default-cflags
   (if is-win
     ["/nologo" "/MD"]
-    ["-std=c99" "-Wall" "-Wextra"]))
+    ["-std=c99" "-Wall" "-Wextra" "-flto"]))
 
 
 # Link to pthreads
@@ -140,13 +140,13 @@
 (def- dynamic-cflags
   (if is-win
     ["/LD"]
-    ["-fPIC"]))
+    ["-fPIC" "-flto"]))
 (def- dynamic-lflags
     (if is-win
       ["/DLL" ;thread-flags]
       (if is-mac
-        ["-shared" "-undefined" "dynamic_lookup" ;thread-flags]
-        ["-shared" ;thread-flags])))
+        ["-shared" "-undefined" "dynamic_lookup" "-flto" ;thread-flags]
+        ["-shared" "-flto" ;thread-flags])))
 
 (defn- opt
   "Get an option, allowing overrides via dynamic bindings AND some
