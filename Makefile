@@ -51,7 +51,6 @@ ifeq ($(UNAME), Darwin)
 	LDCONFIG:=
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
-	CFLAGS+= -flto
 endif
 # For other unix likes, add flags here!
 ifeq ($(UNAME), Haiku)
