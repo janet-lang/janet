@@ -119,10 +119,7 @@ static const JanetAbstractType ta_buffer_type = {
     NULL,
     ta_buffer_marshal,
     ta_buffer_unmarshal,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    JANET_ATEND_UNMARSHAL
 };
 
 static int ta_mark(void *p, size_t s) {
@@ -286,10 +283,7 @@ static const JanetAbstractType ta_view_type = {
     ta_setter,
     ta_view_marshal,
     ta_view_unmarshal,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    JANET_ATEND_UNMARSHAL
 };
 
 JanetTArrayBuffer *janet_tarray_buffer(size_t size) {

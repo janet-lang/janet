@@ -47,13 +47,7 @@ JanetAbstractType cfun_io_filetype = {
     cfun_io_gc,
     NULL,
     io_file_get,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    JANET_ATEND_GET
 };
 
 /* Check arguments to fopen */

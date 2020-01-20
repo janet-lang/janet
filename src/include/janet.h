@@ -910,6 +910,22 @@ struct JanetAbstractType {
     Janet(*next)(void *p, Janet key);
 };
 
+/* Some macros to let us add extra types to JanetAbstract types without
+ * needing to changing native modules that declare them as static const
+ * structures. If more fields are added, these macros are modified to include
+ * default values (usually NULL). This silences missing field warnings. */
+#define JANET_ATEND_NAME        NULL,JANET_ATEND_GC
+#define JANET_ATEND_GC          NULL,JANET_ATEND_GCMARK
+#define JANET_ATEND_GCMARK      NULL,JANET_ATEND_GET
+#define JANET_ATEND_GET         NULL,JANET_ATEND_PUT
+#define JANET_ATEND_PUT         NULL,JANET_ATEND_MARSHAL
+#define JANET_ATEND_MARSHAL     NULL,JANET_ATEND_UNMARSHAL
+#define JANET_ATEND_UNMARSHAL   NULL,JANET_ATEND_TOSTRING
+#define JANET_ATEND_TOSTRING    NULL,JANET_ATEND_COMPARE
+#define JANET_ATEND_COMPARE     NULL,JANET_ATEND_HASH
+#define JANET_ATEND_HASH        NULL,JANET_ATEND_NEXT
+#define JANET_ATEND_NEXT
+
 struct JanetReg {
     const char *name;
     JanetCFunction cfun;

@@ -419,16 +419,7 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
 
 static const JanetAbstractType type_wrap = {
     "core/type-info",
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    JANET_ATEND_NAME
 };
 
 typedef struct {

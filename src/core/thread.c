@@ -397,13 +397,7 @@ static JanetAbstractType Thread_AT = {
     thread_gc,
     thread_mark,
     janet_thread_getter,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    JANET_ATEND_GET
 };
 
 static JanetThread *janet_make_thread(JanetMailbox *mailbox, JanetTable *encode) {
