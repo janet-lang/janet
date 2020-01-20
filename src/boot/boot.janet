@@ -1783,7 +1783,7 @@
   [msg macrof where]
   (def ec (dyn :err-color))
   (if macrof
-    (debug/stacktrace macrof msg)
+    (debug/stacktrace macrof (string msg " while compiling " where))
     (eprint
       (if ec "\e[31m" "")
       "compile error: "
