@@ -37,7 +37,7 @@ MANPATH?=$(PREFIX)/share/man/man1/
 PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 DEBUGGER=gdb
 
-CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden -flto \
+CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden \
 	   -DJANET_BUILD=$(JANET_BUILD)
 LDFLAGS=-rdynamic
 
@@ -51,6 +51,7 @@ ifeq ($(UNAME), Darwin)
 	LDCONFIG:=
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
+	CFLAGS+= -flto
 endif
 # For other unix likes, add flags here!
 ifeq ($(UNAME), Haiku)
