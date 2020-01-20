@@ -1782,14 +1782,15 @@
   "Default handler for a compile error."
   [msg macrof where]
   (def ec (dyn :err-color))
-  (eprint
-    (if ec "\e[31m" "")
-    "compile error: "
-    msg
-    " while compiling "
-    where
-    (if ec "\e[0m" ""))
-  (when macrof (debug/stacktrace macrof)))
+  (if macrof
+    (debug/stacktrace macrof msg)
+    (eprint
+      (if ec "\e[31m" "")
+      "compile error: "
+      msg
+      " while compiling "
+      where
+      (if ec "\e[0m" ""))))
 
 (defn run-context
   "Run a context. This evaluates expressions of janet in an environment,
