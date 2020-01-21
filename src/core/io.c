@@ -290,7 +290,7 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     IOFile *iof = janet_getabstract(argv, 0, &cfun_io_filetype);
     if (iof->flags & JANET_FILE_CLOSED)
-        janet_panic("file is closed");
+        return janet_wrap_nil();
     if (iof->flags & (JANET_FILE_NOT_CLOSEABLE))
         janet_panic("file not closable");
     if (iof->flags & JANET_FILE_PIPED) {
