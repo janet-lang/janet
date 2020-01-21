@@ -72,9 +72,6 @@
  "trap INT64_MIN / -1"
  (:/ (int/s64 "-0x8000_0000_0000_0000") -1))
 
-# in place operators
-(assert (let [a (u64 1e10)] (:+! a 1000000 "1000000" "0xffff") (:= a 10002065535)) "in place operators")
-
 # int64 typed arrays
 (assert (let [t (tarray/new :int64 10)
               b (i64 1000)]
