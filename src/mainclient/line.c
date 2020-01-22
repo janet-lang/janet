@@ -377,20 +377,20 @@ static void kdelete(int draw) {
 }
 
 static void kbackspacew(void) {
-    while (gbl_pos && !isspace(gbl_buf[gbl_pos - 1])) {
+    while (gbl_pos && isspace(gbl_buf[gbl_pos - 1])) {
         kbackspace(0);
     }
-    while (gbl_pos && isspace(gbl_buf[gbl_pos - 1])) {
+    while (gbl_pos && !isspace(gbl_buf[gbl_pos - 1])) {
         kbackspace(0);
     }
     refresh();
 }
 
 static void kdeletew(void) {
-    while (gbl_pos < gbl_len && !isspace(gbl_buf[gbl_pos])) {
+    while (gbl_pos < gbl_len && isspace(gbl_buf[gbl_pos])) {
         kdelete(0);
     }
-    while (gbl_pos < gbl_len && isspace(gbl_buf[gbl_pos])) {
+    while (gbl_pos < gbl_len && !isspace(gbl_buf[gbl_pos])) {
         kdelete(0);
     }
     refresh();
@@ -584,11 +584,9 @@ static int line() {
     if (write(STDOUT_FILENO, gbl_prompt, gbl_plen) == -1) return -1;
     for (;;) {
         char c;
-        int nread;
         char seq[3];
 
-        nread = read(STDIN_FILENO, &c, 1);
-        if (nread <= 0) return -1;
+        if (read(STDIN_FILENO, &c, 1) <= 0) return -1;
 
         switch (c) {
             default:
@@ -625,6 +623,11 @@ static int line() {
                 kshowcomp();
                 refresh();
                 break;
+            case 11: /* ctrl-k */
+                gbl_buf[gbl_pos] = '\0';
+                gbl_len = gbl_pos;
+                refresh();
+                break;
             case 12:    /* ctrl-l */
                 clear();
                 refresh();
@@ -638,11 +641,17 @@ static int line() {
             case 16: /* ctrl-p */
                 historymove(1);
                 break;
-            case 21: /* ctrl-u */
-                gbl_buf[0] = '\0';
-                gbl_pos = gbl_len = 0;
+            case 21: { /* ctrl-u */
+                char *temp = sdup(&gbl_buf[gbl_pos]);
+                memcpy(temp, &gbl_buf[gbl_pos], sizeof(char) * (gbl_len - gbl_pos));
+                memcpy(gbl_buf, temp, sizeof(char) * (gbl_len - gbl_pos));
+                free(temp);
+                gbl_buf[gbl_len - gbl_pos] = '\0';
+                gbl_len = gbl_len - gbl_pos;
+                gbl_pos = 0;
                 refresh();
                 break;
+            }
             case 23: /* ctrl-w */
                 kbackspacew();
                 break;
@@ -657,6 +666,7 @@ static int line() {
                  * Use two calls to handle slow terminals returning the two
                  * chars at different times. */
                 if (read(STDIN_FILENO, seq, 1) == -1) break;
+                // Esc[ = Control Sequence Introducer (CSI)
                 if (seq[0] == '[') {
                     if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
                     if (seq[1] >= '0' && seq[1] <= '9') {
@@ -664,8 +674,16 @@ static int line() {
                         if (read(STDIN_FILENO, seq + 2, 1) == -1) break;
                         if (seq[2] == '~') {
                             switch (seq[1]) {
+                                case '1': /* Home */
+                                    gbl_pos = 0;
+                                    refresh();
+                                    break;
                                 case '3': /* delete */
                                     kdelete(1);
+                                    break;
+                                case '4': /* End */
+                                    gbl_pos = gbl_len;
+                                    refresh();
                                     break;
                                 default:
                                     break;
@@ -676,10 +694,10 @@ static int line() {
                             /* Single escape sequences */
                             default:
                                 break;
-                            case 'A':
+                            case 'A': /* Up */
                                 historymove(1);
                                 break;
-                            case 'B':
+                            case 'B': /* Down */
                                 historymove(-1);
                                 break;
                             case 'C': /* Right */
@@ -688,11 +706,11 @@ static int line() {
                             case 'D': /* Left */
                                 kleft();
                                 break;
-                            case 'H':
+                            case 'H': /* Home */
                                 gbl_pos = 0;
                                 refresh();
                                 break;
-                            case 'F':
+                            case 'F': /* End */
                                 gbl_pos = gbl_len;
                                 refresh();
                                 break;
@@ -703,41 +721,19 @@ static int line() {
                     switch (seq[0]) {
                         default:
                             break;
-                        case 'O': {
-                            if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
-                            switch (seq[1]) {
-                                default:
-                                    break;
-                                case 'H':
-                                    gbl_pos = 0;
-                                    refresh();
-                                    break;
-                                case 'F':
-                                    gbl_pos = gbl_len;
-                                    refresh();
-                                    break;
-                            }
-                            break;
-                        }
-                        case 'h':
-                            kleft();
-                            break;
-                        case 'l':
-                            kright();
-                            break;
-                        case 'd':
+                        case 'd': // Alt-d
                             kdeletew();
                             break;
-                        case 'b':
+                        case 'b': // Alt-b
                             kleftw();
                             break;
-                        case 'f':
+                        case 'f': // Alt-f
                             krightw();
                             break;
-                        case ',':
+                        case ',': // Alt-,
                             historymove(JANET_HISTORY_MAX);
                             break;
-                        case '.':
+                        case '.': // Alt-.
                             historymove(-JANET_HISTORY_MAX);
                             break;
                     }
