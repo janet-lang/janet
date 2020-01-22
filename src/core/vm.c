@@ -208,9 +208,18 @@ static void vm_do_trace(JanetFunction *func) {
 static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     int32_t argn = fiber->stacktop - fiber->stackstart;
     Janet ds, key;
+    JanetType t = janet_type(callee);
+    if (t == JANET_ABSTRACT) {
+        JanetAbstract abst = janet_unwrap_abstract(callee);
+        const JanetAbstractType *at = janet_abstract_type(abst);
+        if (NULL != at->call) {
+            fiber->stacktop = fiber->stackstart;
+            return at->call(abst, argn, fiber->data + fiber->stackstart);
+        }
+    }
     if (argn != 1) janet_panicf("%v called with %d arguments, possibly expected 1", callee, argn);
-    if (janet_checktypes(callee, JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY |
-                         JANET_TFLAG_STRING | JANET_TFLAG_BUFFER | JANET_TFLAG_ABSTRACT)) {
+    if ((1 << t) & (JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY |
+                    JANET_TFLAG_STRING | JANET_TFLAG_BUFFER | JANET_TFLAG_ABSTRACT)) {
         ds = callee;
         key = fiber->data[fiber->stackstart];
     } else {
