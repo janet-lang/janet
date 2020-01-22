@@ -642,12 +642,9 @@ static int line() {
                 historymove(1);
                 break;
             case 21: { /* ctrl-u */
-                char *temp = sdup(&gbl_buf[gbl_pos]);
-                memcpy(temp, &gbl_buf[gbl_pos], sizeof(char) * (gbl_len - gbl_pos));
-                memcpy(gbl_buf, temp, sizeof(char) * (gbl_len - gbl_pos));
-                free(temp);
-                gbl_buf[gbl_len - gbl_pos] = '\0';
-                gbl_len = gbl_len - gbl_pos;
+                memmove(gbl_buf, gbl_buf + gbl_pos, gbl_len - gbl_pos);
+                gbl_len -= gbl_pos;
+                gbl_buf[gbl_len] = '\0';
                 gbl_pos = 0;
                 refresh();
                 break;
@@ -666,7 +663,7 @@ static int line() {
                  * Use two calls to handle slow terminals returning the two
                  * chars at different times. */
                 if (read(STDIN_FILENO, seq, 1) == -1) break;
-                // Esc[ = Control Sequence Introducer (CSI)
+                /* Esc[ = Control Sequence Introducer (CSI) */
                 if (seq[0] == '[') {
                     if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
                     if (seq[1] >= '0' && seq[1] <= '9') {
@@ -688,6 +685,20 @@ static int line() {
                                 default:
                                     break;
                             }
+                        }
+                    } else if (seq[0] == 'O') {
+                        if (read(STDIN_FILENO, seq + 1, 1) == -1) break;
+                        switch (seq[1]) {
+                            default:
+                                break;
+                            case 'H': /* Home (some keyboards) */
+                                gbl_pos = 0;
+                                refresh();
+                                break;
+                            case 'F': /* End (some keyboards) */
+                                gbl_pos = gbl_len;
+                                refresh();
+                                break;
                         }
                     } else {
                         switch (seq[1]) {
@@ -721,19 +732,19 @@ static int line() {
                     switch (seq[0]) {
                         default:
                             break;
-                        case 'd': // Alt-d
+                        case 'd': /* Alt-d */
                             kdeletew();
                             break;
-                        case 'b': // Alt-b
+                        case 'b': /* Alt-b */
                             kleftw();
                             break;
-                        case 'f': // Alt-f
+                        case 'f': /* Alt-f */
                             krightw();
                             break;
-                        case ',': // Alt-,
+                        case ',': /* Alt-, */
                             historymove(JANET_HISTORY_MAX);
                             break;
-                        case '.': // Alt-.
+                        case '.': /* Alt-. */
                             historymove(-JANET_HISTORY_MAX);
                             break;
                     }
