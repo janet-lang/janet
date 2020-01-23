@@ -1086,22 +1086,22 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     /* Variadic comparators */
     templatize_comparator(env, JANET_FUN_GT, ">", 0, JOP_GREATER_THAN,
                           JDOC("(> & xs)\n\n"
-                               "Check if xs is in numerically descending order. Returns a boolean."));
+                               "Check if xs is in descending order. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_LT, "<", 0, JOP_LESS_THAN,
                           JDOC("(< & xs)\n\n"
-                               "Check if xs is in numerically ascending order. Returns a boolean."));
+                               "Check if xs is in ascending order. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_GTE, ">=", 0, JOP_GREATER_THAN_EQUAL,
                           JDOC("(>= & xs)\n\n"
-                               "Check if xs is in numerically non-ascending order. Returns a boolean."));
+                               "Check if xs is in non-ascending order. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_LTE, "<=", 0, JOP_LESS_THAN_EQUAL,
                           JDOC("(<= & xs)\n\n"
-                               "Check if xs is in numerically non-descending order. Returns a boolean."));
+                               "Check if xs is in non-descending order. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_EQ, "=", 0, JOP_EQUALS,
                           JDOC("(= & xs)\n\n"
-                               "Check if all values in xs are numerically equal (4.0 == 4). Returns a boolean."));
+                               "Check if all values in xs are equal. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_NEQ, "not=", 1, JOP_EQUALS,
                           JDOC("(not= & xs)\n\n"
-                               "Check if any values in xs are not numerically equal (3.0 not== 4). Returns a boolean."));
+                               "Check if any values in xs are not equal. Returns a boolean."));
 
     /* Platform detection */
     janet_def(env, "janet/version", janet_cstringv(JANET_VERSION),
