@@ -118,12 +118,11 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
 #define vm_binop_immediate(op)\
     {\
         Janet op1 = stack[B];\
-        vm_assert_type(op1, JANET_NUMBER);\
         if (!janet_checktype(op1, JANET_NUMBER)) {\
             vm_commit();\
             Janet _argv[2] = { op1, janet_wrap_number(CS) };\
             stack[A] = janet_mcall(#op, 2, _argv);\
-            vm_pcnext();\
+            vm_checkgc_pcnext();\
         } else {\
             double x1 = janet_unwrap_number(op1);\
             stack[A] = janet_wrap_number(x1 op CS);\
@@ -133,10 +132,16 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
 #define _vm_bitop_immediate(op, type1)\
     {\
         Janet op1 = stack[B];\
-        vm_assert_type(op1, JANET_NUMBER);\
-        type1 x1 = (type1) janet_unwrap_integer(op1);\
-        stack[A] = janet_wrap_integer(x1 op CS);\
-        vm_pcnext();\
+        if (!janet_checktype(op1, JANET_NUMBER)) {\
+            vm_commit();\
+            Janet _argv[2] = { op1, janet_wrap_number(CS) };\
+            stack[A] = janet_mcall(#op, 2, _argv);\
+            vm_checkgc_pcnext();\
+        } else {\
+            type1 x1 = (type1) janet_unwrap_integer(op1);\
+            stack[A] = janet_wrap_integer(x1 op CS);\
+            vm_pcnext();\
+        }\
     }
 #define vm_bitop_immediate(op) _vm_bitop_immediate(op, int32_t);
 #define vm_bitopu_immediate(op) _vm_bitop_immediate(op, uint32_t);
@@ -144,17 +149,15 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
     {\
         Janet op1 = stack[B];\
         Janet op2 = stack[C];\
-        if (!janet_checktype(op1, JANET_NUMBER)) {\
-            vm_commit();\
-            Janet _argv[2] = { op1, op2 };\
-            stack[A] = janet_mcall(#op, 2, _argv);\
-            vm_pcnext();\
-        } else {\
-            vm_assert_type(op2, JANET_NUMBER);\
+        if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {\
             double x1 = janet_unwrap_number(op1);\
             double x2 = janet_unwrap_number(op2);\
             stack[A] = wrap(x1 op x2);\
             vm_pcnext();\
+        } else {\
+            vm_commit();\
+            stack[A] = janet_binop_call(#op, "r" #op, op1, op2);\
+            vm_checkgc_pcnext();\
         }\
     }
 #define vm_binop(op) _vm_binop(op, janet_wrap_number)
@@ -162,12 +165,16 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
     {\
         Janet op1 = stack[B];\
         Janet op2 = stack[C];\
-        vm_assert_type(op1, JANET_NUMBER);\
-        vm_assert_type(op2, JANET_NUMBER);\
-        type1 x1 = (type1) janet_unwrap_integer(op1);\
-        int32_t x2 = janet_unwrap_integer(op2);\
-        stack[A] = janet_wrap_integer(x1 op x2);\
-        vm_pcnext();\
+        if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {\
+            type1 x1 = (type1) janet_unwrap_integer(op1);\
+            int32_t x2 = janet_unwrap_integer(op2);\
+            stack[A] = janet_wrap_integer(x1 op x2);\
+            vm_pcnext();\
+        } else {\
+            vm_commit();\
+            stack[A] = janet_binop_call(#op, "r" #op, op1, op2);\
+            vm_checkgc_pcnext();\
+        }\
     }
 #define vm_bitop(op) _vm_bitop(op, int32_t)
 #define vm_bitopu(op) _vm_bitop(op, uint32_t)
@@ -175,15 +182,15 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
     {\
         Janet op1 = stack[B];\
         Janet op2 = stack[C];\
-        if (!janet_checktype(op1, JANET_NUMBER) || !janet_checktype(op2, JANET_NUMBER)) {\
-            vm_commit();\
-            stack[A] = janet_wrap_boolean(janet_compare(op1, op2) op 0);\
-            vm_pcnext();\
-        } else {\
+        if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {\
             double x1 = janet_unwrap_number(op1);\
             double x2 = janet_unwrap_number(op2);\
             stack[A] = janet_wrap_boolean(x1 op x2);\
             vm_pcnext();\
+        } else {\
+            vm_commit();\
+            stack[A] = janet_wrap_boolean(janet_compare(op1, op2) op 0);\
+            vm_checkgc_pcnext();\
         }\
     }
 
@@ -238,6 +245,60 @@ static Janet resolve_method(Janet name, JanetFiber *fiber) {
     if (janet_checktype(callee, JANET_NIL))
         janet_panicf("unknown method %v invoked on %v", name, fiber->data[fiber->stackstart]);
     return callee;
+}
+
+/* Lookup method on value x */
+static Janet janet_method_lookup(Janet x, const char *name) {
+    Janet kname = janet_ckeywordv(name);
+    switch (janet_type(x)) {
+        default:
+            return janet_wrap_nil();
+        case JANET_ABSTRACT: {
+            Janet method;
+            void *abst = janet_unwrap_abstract(x);
+            JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(abst);
+            if (!type->get || !(type->get)(abst, kname, &method)) {
+                return janet_wrap_nil();
+            } else {
+                return method;
+            }
+        }
+        case JANET_TABLE:
+            return janet_table_get(janet_unwrap_table(x), kname);
+        case JANET_STRUCT:
+            return janet_struct_get(janet_unwrap_struct(x), kname);
+    }
+}
+
+/* Invoke a method once we have looked it up */
+static Janet janet_method_invoke(Janet method, int32_t argc, Janet *argv) {
+    if (janet_checktype(method, JANET_CFUNCTION)) {
+        return (janet_unwrap_cfunction(method))(argc, argv);
+    } else if (janet_checktype(method, JANET_FUNCTION)) {
+        JanetFunction *fun = janet_unwrap_function(method);
+        return janet_call(fun, argc, argv);
+    } else {
+        janet_panicf("method is not callable: %v", method);
+    }
+}
+
+/* Call a method first on the righthand side, and then on the left hand side with a prefix */
+static Janet janet_binop_call(const char *lmethod, const char *rmethod, Janet lhs, Janet rhs) {
+    Janet lm = janet_method_lookup(lhs, lmethod);
+    if (janet_checktype(lm, JANET_NIL)) {
+        /* Invert order for rmethod */
+        Janet lr = janet_method_lookup(rhs, rmethod);
+        Janet argv[2] = { rhs, lhs };
+        if (janet_checktype(lr, JANET_NIL)) {
+            janet_panicf("could not find method :%s for %v, or :%s for %v",
+                         lmethod, lhs,
+                         rmethod, rhs);
+        }
+        return janet_method_invoke(lr, 2, argv);
+    } else {
+        Janet argv[2] = { lhs, rhs };
+        return janet_method_invoke(lm, 2, argv);
+    }
 }
 
 /* Interpreter main loop */
@@ -1248,30 +1309,12 @@ Janet janet_mcall(const char *name, int32_t argc, Janet *argv) {
     /* At least 1 argument */
     if (argc < 1) janet_panicf("method :%s expected at least 1 argument");
     /* Find method */
-    Janet method;
-    if (janet_checktype(argv[0], JANET_ABSTRACT)) {
-        void *abst = janet_unwrap_abstract(argv[0]);
-        JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(abst);
-        if (!type->get || !(type->get)(abst, janet_ckeywordv(name), &method))
-            janet_panicf("abstract value %v does not implement :%s", argv[0], name);
-    } else if (janet_checktype(argv[0], JANET_TABLE)) {
-        JanetTable *table = janet_unwrap_table(argv[0]);
-        method = janet_table_get(table, janet_ckeywordv(name));
-    } else if (janet_checktype(argv[0], JANET_STRUCT)) {
-        const JanetKV *st = janet_unwrap_struct(argv[0]);
-        method = janet_struct_get(st, janet_ckeywordv(name));
-    } else {
+    Janet method = janet_method_lookup(argv[0], name);
+    if (janet_checktype(method, JANET_NIL)) {
         janet_panicf("could not find method :%s for %v", name, argv[0]);
     }
     /* Invoke method */
-    if (janet_checktype(method, JANET_CFUNCTION)) {
-        return (janet_unwrap_cfunction(method))(argc, argv);
-    } else if (janet_checktype(method, JANET_FUNCTION)) {
-        JanetFunction *fun = janet_unwrap_function(method);
-        return janet_call(fun, argc, argv);
-    } else {
-        janet_panicf("method %s has unexpected value %v", name, method);
-    }
+    return janet_method_invoke(method, argc, argv);
 }
 
 /* Setup VM */

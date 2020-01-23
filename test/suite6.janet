@@ -164,6 +164,11 @@
 (defn test-expand [path temp]
   (string (module/expand-path path temp)))
 
+# Right hand operators
+(assert (= (int/s64 (sum (range 10))) (sum (map int/s64 (range 10)))) "right hand operators 1")
+(assert (= (int/s64 (product (range 1 10))) (product (map int/s64 (range 1 10)))) "right hand operators 2")
+(assert (= (int/s64 15) (bor 10 (int/s64 5)) (bor (int/s64 10) 5)) "right hand operators 3")
+
 (assert (= (test-expand "abc" ":cur:/:all:") "some-dir/abc") "module/expand-path 1")
 (assert (= (test-expand "./abc" ":cur:/:all:") "some-dir/abc") "module/expand-path 2")
 (assert (= (test-expand "abc/def.txt" ":cur:/:name:") "some-dir/def.txt") "module/expand-path 3")
