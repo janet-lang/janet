@@ -256,7 +256,7 @@ static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
 
 #define DIVMETHODINVERT_SIGNED(T, type, name, oper) \
 static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
-    janet_arity(argc, 2, -1);                       \
+    janet_fixarity(argc, 2);                       \
     T *box = janet_abstract(&it_##type##_type, sizeof(T)); \
     *box = janet_unwrap_##type(argv[1]); \
     T value = janet_unwrap_##type(argv[0]); \

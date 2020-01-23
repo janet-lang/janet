@@ -195,49 +195,64 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
     }
 
 /* Trace a function call */
-static void vm_do_trace(JanetFunction *func) {
-    Janet *stack = janet_vm_fiber->data + janet_vm_fiber->stackstart;
-    int32_t start = janet_vm_fiber->stackstart;
-    int32_t end = janet_vm_fiber->stacktop;
-    int32_t argc = end - start;
-    if (func->def->name) {
+static void vm_do_trace(JanetFunction *func, int32_t argc, const Janet *argv) {
+    if (func->def->name){
         janet_printf("trace (%S", func->def->name);
     } else {
         janet_printf("trace (%p", janet_wrap_function(func));
     }
     for (int32_t i = 0; i < argc; i++) {
-        janet_printf(" %p", stack[i]);
+        janet_printf(" %p", argv[i]);
     }
-    printf(")\n");
+    janet_printf(")\n");
 }
 
-/* Call a non function type */
-static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
-    int32_t argn = fiber->stacktop - fiber->stackstart;
-    Janet ds, key;
-    JanetType t = janet_type(callee);
-    if (t == JANET_ABSTRACT) {
-        JanetAbstract abst = janet_unwrap_abstract(callee);
-        const JanetAbstractType *at = janet_abstract_type(abst);
-        if (NULL != at->call) {
-            fiber->stacktop = fiber->stackstart;
-            return at->call(abst, argn, fiber->data + fiber->stackstart);
+/* Invoke a method once we have looked it up */
+static Janet janet_method_invoke(Janet method, int32_t argc, Janet *argv) {
+    switch (janet_type(method)) {
+        case JANET_CFUNCTION:
+            return (janet_unwrap_cfunction(method))(argc, argv);
+        case JANET_FUNCTION: {
+            JanetFunction *fun = janet_unwrap_function(method);
+            return janet_call(fun, argc, argv);
+        }
+        case JANET_ABSTRACT: {
+            JanetAbstract abst = janet_unwrap_abstract(method);
+            const JanetAbstractType *at = janet_abstract_type(abst);
+            if (NULL != at->call) {
+                return at->call(abst, argc, argv);
+            }
+        }
+        /* fallthrough */
+        case JANET_STRING:
+        case JANET_BUFFER:
+        case JANET_TABLE:
+        case JANET_STRUCT:
+        case JANET_ARRAY:
+        case JANET_TUPLE: {
+            if (argc != 1) {
+                janet_panicf("%v called with %d arguments, possibly expected 1", method, argc);
+            }
+            return janet_in(method, argv[0]);
+        }
+        default: {
+            if (argc != 1) {
+                janet_panicf("%v called with %d arguments, possibly expected 1", method, argc);
+            }
+            return janet_in(argv[0], method);
         }
     }
-    if (argn != 1) janet_panicf("%v called with %d arguments, possibly expected 1", callee, argn);
-    if ((1 << t) & (JANET_TFLAG_INDEXED | JANET_TFLAG_DICTIONARY |
-                    JANET_TFLAG_STRING | JANET_TFLAG_BUFFER | JANET_TFLAG_ABSTRACT)) {
-        ds = callee;
-        key = fiber->data[fiber->stackstart];
-    } else {
-        ds = fiber->data[fiber->stackstart];
-        key = callee;
-    }
-    fiber->stacktop = fiber->stackstart;
-    return janet_in(ds, key);
 }
 
-/* Get a callable from a keyword method name and check ensure that it is valid. */
+/* Call a non function type from a JOP_CALL or JOP_TAILCALL instruction.
+ * Assumes that the arguments are on the fiber stack. */
+static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
+    int32_t argc = fiber->stacktop - fiber->stackstart;
+    fiber->stacktop = fiber->stackstart;
+    return janet_method_invoke(callee, argc, fiber->data + fiber->stacktop);
+}
+
+/* Get a callable from a keyword method name and ensure that it is valid. */
 static Janet resolve_method(Janet name, JanetFiber *fiber) {
     int32_t argc = fiber->stacktop - fiber->stackstart;
     if (argc < 1) janet_panicf("method call (%v) takes at least 1 argument, got 0", name);
@@ -250,36 +265,7 @@ static Janet resolve_method(Janet name, JanetFiber *fiber) {
 /* Lookup method on value x */
 static Janet janet_method_lookup(Janet x, const char *name) {
     Janet kname = janet_ckeywordv(name);
-    switch (janet_type(x)) {
-        default:
-            return janet_wrap_nil();
-        case JANET_ABSTRACT: {
-            Janet method;
-            void *abst = janet_unwrap_abstract(x);
-            JanetAbstractType *type = (JanetAbstractType *)janet_abstract_type(abst);
-            if (!type->get || !(type->get)(abst, kname, &method)) {
-                return janet_wrap_nil();
-            } else {
-                return method;
-            }
-        }
-        case JANET_TABLE:
-            return janet_table_get(janet_unwrap_table(x), kname);
-        case JANET_STRUCT:
-            return janet_struct_get(janet_unwrap_struct(x), kname);
-    }
-}
-
-/* Invoke a method once we have looked it up */
-static Janet janet_method_invoke(Janet method, int32_t argc, Janet *argv) {
-    if (janet_checktype(method, JANET_CFUNCTION)) {
-        return (janet_unwrap_cfunction(method))(argc, argv);
-    } else if (janet_checktype(method, JANET_FUNCTION)) {
-        JanetFunction *fun = janet_unwrap_function(method);
-        return janet_call(fun, argc, argv);
-    } else {
-        janet_panicf("method is not callable: %v", method);
-    }
+    return janet_get(x, kname);
 }
 
 /* Call a method first on the righthand side, and then on the left hand side with a prefix */
@@ -901,7 +887,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
-            if (func->gc.flags & JANET_FUNCFLAG_TRACE) vm_do_trace(func);
+            if (func->gc.flags & JANET_FUNCFLAG_TRACE) {
+                vm_do_trace(func, fiber->stacktop - fiber->stackstart, stack);
+            }
             janet_stack_frame(stack)->pc = pc;
             if (janet_fiber_funcframe(fiber, func)) {
                 int32_t n = fiber->stacktop - fiber->stackstart;
@@ -938,7 +926,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
-            if (func->gc.flags & JANET_FUNCFLAG_TRACE) vm_do_trace(func);
+            if (func->gc.flags & JANET_FUNCFLAG_TRACE) {
+                vm_do_trace(func, fiber->stacktop - fiber->stackstart, stack);
+            }
             if (janet_fiber_funcframe_tail(fiber, func)) {
                 janet_stack_frame(fiber->data + fiber->frame)->pc = pc;
                 int32_t n = fiber->stacktop - fiber->stackstart;
@@ -1185,6 +1175,11 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
         janet_panic("janet_call failed because there is no current fiber");
     if (janet_vm_stackn >= JANET_RECURSION_GUARD)
         janet_panic("C stack recursed too deeply");
+
+    /* Tracing */
+    if (fun->gc.flags & JANET_FUNCFLAG_TRACE) {
+        vm_do_trace(fun, argc, argv);
+    }
 
     /* Push frame */
     janet_fiber_pushn(janet_vm_fiber, argv, argc);

@@ -157,36 +157,6 @@ static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
     return f ? makef(f, flags) : janet_wrap_nil();
 }
 
-static Janet cfun_io_fdopen(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 2);
-    const int fd = janet_getinteger(argv, 0);
-    const uint8_t *fmode;
-    int flags;
-    if (argc == 2) {
-        fmode = janet_getkeyword(argv, 1);
-        flags = checkflags(fmode);
-    } else {
-        fmode = (const uint8_t *)"r";
-        flags = JANET_FILE_READ;
-    }
-#ifdef JANET_WINDOWS
-#define fdopen _fdopen
-#endif
-    FILE *f = fdopen(fd, (const char *)fmode);
-    return f ? makef(f, flags) : janet_wrap_nil();
-}
-
-static Janet cfun_io_fileno(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
-    IOFile *iof = janet_getabstract(argv, 0, &cfun_io_filetype);
-    if (iof->flags & JANET_FILE_CLOSED)
-        janet_panic("file is closed");
-#ifdef JANET_WINDOWS
-#define fileno _fileno
-#endif
-    return janet_wrap_integer(fileno(iof->file));
-}
-
 /* Read up to n bytes into buffer. */
 static void read_chunk(IOFile *iof, JanetBuffer *buffer, int32_t nBytesMax) {
     if (!(iof->flags & (JANET_FILE_READ | JANET_FILE_UPDATE)))
@@ -338,7 +308,6 @@ static Janet cfun_io_fseek(int32_t argc, Janet *argv) {
 
 static JanetMethod io_file_methods[] = {
     {"close", cfun_io_fclose},
-    {"fileno", cfun_io_fileno},
     {"flush", cfun_io_fflush},
     {"read", cfun_io_fread},
     {"seek", cfun_io_fseek},
@@ -591,26 +560,6 @@ static const JanetReg io_cfuns[] = {
              "\ta - append to the file\n"
              "\tb - open the file in binary mode (rather than text mode)\n"
              "\t+ - append to the file instead of overwriting it")
-    },
-    {
-        "file/fdopen", cfun_io_fdopen,
-        JDOC("(file/fdopen fd &opt mode)\n\n"
-             "Create a file from an fd. fd is a platform specific file descriptor, and "
-             "mode is a set of flags indicating the mode to open the file in. "
-             "mode is a keyword where each character represents a flag. If the file "
-             "cannot be opened, returns nil, otherwise returns the new file handle. "
-             "Mode flags:\n\n"
-             "\tr - allow reading from the file\n"
-             "\tw - allow writing to the file\n"
-             "\ta - append to the file\n"
-             "\tb - open the file in binary mode (rather than text mode)\n"
-             "\t+ - append to the file instead of overwriting it")
-    },
-    {
-        "file/fileno", cfun_io_fileno,
-        JDOC("(file/fileno f)\n\n"
-             "Return the underlying file descriptor for the file as a number."
-             "The meaning of this number is platform specific.")
     },
     {
         "file/close", cfun_io_fclose,
