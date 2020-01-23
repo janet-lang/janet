@@ -69,6 +69,11 @@ static void janet_mark_abstract(void *adata);
 static JANET_THREAD_LOCAL uint32_t depth = JANET_RECURSION_GUARD;
 static JANET_THREAD_LOCAL size_t orig_rootcount;
 
+/* Hint to the GC that we may need to collect */
+void janet_gcpressure(size_t s) {
+    janet_vm_next_collection += s;
+}
+
 /* Mark a value */
 void janet_mark(Janet x) {
     if (depth) {

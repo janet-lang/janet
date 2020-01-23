@@ -1312,6 +1312,7 @@ JANET_API int janet_gcunroot(Janet root);
 JANET_API int janet_gcunrootall(Janet root);
 JANET_API int janet_gclock(void);
 JANET_API void janet_gcunlock(int handle);
+JANET_API void janet_gcpressure(size_t s);
 
 /* Functions */
 JANET_API JanetFuncDef *janet_funcdef_alloc(void);
