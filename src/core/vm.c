@@ -196,7 +196,7 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
 
 /* Trace a function call */
 static void vm_do_trace(JanetFunction *func, int32_t argc, const Janet *argv) {
-    if (func->def->name){
+    if (func->def->name) {
         janet_printf("trace (%S", func->def->name);
     } else {
         janet_printf("trace (%p", janet_wrap_function(func));
@@ -642,8 +642,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     VM_OP(JOP_DIVIDE)
     vm_binop( /);
 
-    VM_OP(JOP_MODULO)
-    {
+    VM_OP(JOP_MODULO) {
         Janet op1 = stack[B];
         Janet op2 = stack[C];
         if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {
@@ -659,8 +658,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         }
     }
 
-    VM_OP(JOP_REMAINDER)
-    {
+    VM_OP(JOP_REMAINDER) {
         Janet op1 = stack[B];
         Janet op2 = stack[C];
         if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {

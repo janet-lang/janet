@@ -177,6 +177,10 @@ static void janet_escape_string_b(JanetBuffer *buffer, const uint8_t *str) {
 }
 
 static void janet_escape_buffer_b(JanetBuffer *buffer, JanetBuffer *bx) {
+    if (bx == buffer) {
+        /* Ensures buffer won't resize while escaping */
+        janet_buffer_ensure(bx, bx->count + 5 * bx->count + 3, 1);
+    }
     janet_buffer_push_u8(buffer, '@');
     janet_escape_string_impl(buffer, bx->data, bx->count);
 }
@@ -248,6 +252,26 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
     }
 }
 
+/* See parse.c for full table */
+
+static const uint32_t pp_symchars[8] = {
+    0x00000000, 0xf7ffec72, 0xc7ffffff, 0x07fffffe,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000
+};
+
+static int pp_is_symbol_char(uint8_t c) {
+    return pp_symchars[c >> 5] & ((uint32_t)1 << (c & 0x1F));
+}
+
+/* Check if a symbol or keyword contains no symbol characters */
+static int contains_bad_chars(const uint8_t *sym, int issym) {
+    int32_t len = janet_string_length(sym);
+    if (len && issym && sym[0] >= '0' && sym[0] <= '9') return 1;
+    for (int32_t i = 0; i < len; i++) {
+        if (!pp_is_symbol_char(sym[i])) return 1;
+    }
+    return 0;
+}
 
 void janet_description_b(JanetBuffer *buffer, Janet x) {
     switch (janet_type(x)) {
@@ -261,10 +285,6 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
             return;
         case JANET_BUFFER: {
             JanetBuffer *b = janet_unwrap_buffer(x);
-            if (b == buffer) {
-                /* Ensures buffer won't resize while escaping */
-                janet_buffer_ensure(b, 5 * b->count + 3, 1);
-            }
             janet_escape_buffer_b(buffer, b);
             return;
         }
@@ -325,6 +345,82 @@ struct pretty {
     int32_t bufstartlen;
     JanetTable seen;
 };
+
+/* Print jdn format */
+static int print_jdn_one(struct pretty *S, Janet x, int depth) {
+    if (depth == 0) return 1;
+    switch (janet_type(x)) {
+        case JANET_NIL:
+        case JANET_NUMBER:
+        case JANET_BOOLEAN:
+        case JANET_BUFFER:
+            janet_description_b(S->buffer, x);
+            break;
+        case JANET_SYMBOL:
+        case JANET_KEYWORD:
+            if (contains_bad_chars(janet_unwrap_keyword(x), janet_type(x) == JANET_SYMBOL)) return 1;
+            janet_description_b(S->buffer, x);
+            break;
+        case JANET_TUPLE: {
+            JanetTuple t = janet_unwrap_tuple(x);
+            int isb = janet_tuple_flag(t) & JANET_TUPLE_FLAG_BRACKETCTOR;
+            janet_buffer_push_u8(S->buffer, isb ? '[' : '(');
+            for (int32_t i = 0; i < janet_tuple_length(t); i++) {
+                if (i) janet_buffer_push_u8(S->buffer, ' ');
+                if (print_jdn_one(S, t[i], depth - 1)) return 1;
+            }
+            janet_buffer_push_u8(S->buffer, isb ? ']' : ')');
+        }
+        break;
+        case JANET_ARRAY: {
+            janet_table_put(&S->seen, x, janet_wrap_true());
+            JanetArray *a = janet_unwrap_array(x);
+            janet_buffer_push_cstring(S->buffer, "@[");
+            for (int32_t i = 0; i < a->count; i++) {
+                if (i) janet_buffer_push_u8(S->buffer, ' ');
+                if (print_jdn_one(S, a->data[i], depth - 1)) return 1;
+            }
+            janet_buffer_push_u8(S->buffer, ']');
+        }
+        break;
+        case JANET_TABLE: {
+            janet_table_put(&S->seen, x, janet_wrap_true());
+            JanetTable *tab = janet_unwrap_table(x);
+            janet_buffer_push_cstring(S->buffer, "@{");
+            int isFirst = 1;
+            for (int32_t i = 0; i < tab->capacity; i++) {
+                const JanetKV *kv = tab->data + i;
+                if (janet_checktype(kv->key, JANET_NIL)) continue;
+                if (!isFirst) janet_buffer_push_u8(S->buffer, ' ');
+                isFirst = 0;
+                if (print_jdn_one(S, kv->key, depth - 1)) return 1;
+                janet_buffer_push_u8(S->buffer, ' ');
+                if (print_jdn_one(S, kv->value, depth - 1)) return 1;
+            }
+            janet_buffer_push_u8(S->buffer, '}');
+        }
+        break;
+        case JANET_STRUCT: {
+            JanetStruct st = janet_unwrap_struct(x);
+            janet_buffer_push_u8(S->buffer, '{');
+            int isFirst = 1;
+            for (int32_t i = 0; i < janet_struct_capacity(st); i++) {
+                const JanetKV *kv = st + i;
+                if (janet_checktype(kv->key, JANET_NIL)) continue;
+                if (!isFirst) janet_buffer_push_u8(S->buffer, ' ');
+                isFirst = 0;
+                if (print_jdn_one(S, kv->key, depth - 1)) return 1;
+                janet_buffer_push_u8(S->buffer, ' ');
+                if (print_jdn_one(S, kv->value, depth - 1)) return 1;
+            }
+            janet_buffer_push_u8(S->buffer, '}');
+        }
+        break;
+        default:
+            return 1;
+    }
+    return 0;
+}
 
 static void print_newline(struct pretty *S, int just_a_space) {
     int i;
@@ -542,6 +638,29 @@ static JanetBuffer *janet_pretty_(JanetBuffer *buffer, int depth, int flags, Jan
  * for serialization or anything like that. */
 JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x) {
     return janet_pretty_(buffer, depth, flags, x, buffer ? buffer->count : 0);
+}
+
+static JanetBuffer *janet_jdn_(JanetBuffer *buffer, int depth, Janet x, int32_t startlen) {
+    struct pretty S;
+    if (NULL == buffer) {
+        buffer = janet_buffer(0);
+    }
+    S.buffer = buffer;
+    S.depth = depth;
+    S.indent = 0;
+    S.flags = 0;
+    S.bufstartlen = startlen;
+    janet_table_init(&S.seen, 10);
+    int res = print_jdn_one(&S, x, depth);
+    janet_table_deinit(&S.seen);
+    if (res) {
+        janet_panic("could not print to jdn format");
+    }
+    return S.buffer;
+}
+
+JanetBuffer *janet_jdn(JanetBuffer *buffer, int depth, Janet x) {
+    return janet_jdn_(buffer, depth, x, buffer ? buffer->count : 0);
 }
 
 static const char *typestr(Janet x) {
@@ -787,6 +906,13 @@ void janet_buffer_format(
                     flags |= has_color ? JANET_PRETTY_COLOR : 0;
                     flags |= has_oneline ? JANET_PRETTY_ONELINE : 0;
                     janet_pretty_(b, depth, flags, argv[arg], startlen);
+                    break;
+                }
+                case 'j': {
+                    int depth = atoi(precision);
+                    if (depth < 1)
+                        depth = JANET_RECURSION_GUARD;
+                    janet_jdn_(b, depth, argv[arg], startlen);
                     break;
                 }
                 default: {
