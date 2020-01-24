@@ -354,6 +354,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
         case JANET_NUMBER:
         case JANET_BOOLEAN:
         case JANET_BUFFER:
+        case JANET_STRING:
             janet_description_b(S->buffer, x);
             break;
         case JANET_SYMBOL:

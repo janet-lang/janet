@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Allow signaling from C functions (yielding) via janet\_signalv. This
   makes it easy to write C functions that work with event loops, such as
   in libuv or embedded in a game.
+- Add '%j' formatting option to the format family of functions.
 - Add `defer`
 - Add `assert`
 - Add `when-with`
