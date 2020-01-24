@@ -588,16 +588,6 @@
   "Returns the numeric minimum of the arguments."
   [& args] (extreme < args))
 
-(defn max-order
-  "Returns the maximum of the arguments according to a total
-  order over all values."
-  [& args] (extreme > args))
-
-(defn min-order
-  "Returns the minimum of the arguments according to a total
-  order over all values."
-  [& args] (extreme < args))
-
 (defn first
   "Get the first element from an indexed data structure."
   [xs]
@@ -766,8 +756,9 @@
   [n ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
+  (def len (length ind))
   # make sure end is in [0, len]
-  (def end (max 0 (min n (length ind))))
+  (def end (if (< n 0) n (if (> n len) len n)))
   (f ind 0 end))
 
 (defn take-until
@@ -791,8 +782,9 @@
   [n ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
+  (def len (length ind))
   # make sure start is in [0, len]
-  (def start (max 0 (min n (length ind))))
+  (def start (if (< n 0) n (if (> n len) len n)))
   (f ind start -1))
 
 (defn drop-until
