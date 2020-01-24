@@ -58,6 +58,8 @@
 #define JANET_FUN_PROP 26
 #define JANET_FUN_GET 27
 #define JANET_FUN_NEXT 28
+#define JANET_FUN_MODULO 29
+#define JANET_FUN_REMAINDER 30
 
 /* Compiler typedefs */
 typedef struct JanetCompiler JanetCompiler;

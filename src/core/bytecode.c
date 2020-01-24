@@ -41,6 +41,8 @@ enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_SSS, /* JOP_MULTIPLY, */
     JINT_SSI, /* JOP_DIVIDE_IMMEDIATE, */
     JINT_SSS, /* JOP_DIVIDE, */
+    JINT_SSS, /* JOP_MODULO, */
+    JINT_SSS, /* JOP_REMAINDER, */
     JINT_SSS, /* JOP_BAND, */
     JINT_SSS, /* JOP_BOR, */
     JINT_SSS, /* JOP_BXOR, */

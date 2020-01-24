@@ -223,13 +223,6 @@ static Janet janet_srand(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet janet_remainder(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 2);
-    double x = janet_getnumber(argv, 0);
-    double y = janet_getnumber(argv, 1);
-    return janet_wrap_number(fmod(x, y));
-}
-
 #define JANET_DEFINE_MATHOP(name, fop)\
 static Janet janet_##name(int32_t argc, Janet *argv) {\
     janet_fixarity(argc, 1); \
@@ -281,11 +274,6 @@ static Janet janet_not(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg math_cfuns[] = {
-    {
-        "%", janet_remainder,
-        JDOC("(% dividend divisor)\n\n"
-             "Returns the remainder of dividend / divisor.")
-    },
     {
         "not", janet_not,
         JDOC("(not x)\n\nReturns the boolean inverse of x.")

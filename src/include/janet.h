@@ -1024,6 +1024,8 @@ enum JanetOpCode {
     JOP_MULTIPLY,
     JOP_DIVIDE_IMMEDIATE,
     JOP_DIVIDE,
+    JOP_MODULO,
+    JOP_REMAINDER,
     JOP_BAND,
     JOP_BOR,
     JOP_BXOR,

@@ -931,6 +931,14 @@ static const uint32_t next_asm[] = {
     JOP_NEXT | (1 << 24),
     JOP_RETURN
 };
+static const uint32_t modulo_asm[] = {
+    JOP_MODULO | (1 << 24),
+    JOP_RETURN
+};
+static const uint32_t remainder_asm[] = {
+    JOP_REMAINDER | (1 << 24),
+    JOP_RETURN
+};
 #endif /* ifdef JANET_BOOTSTRAP */
 
 /*
@@ -973,6 +981,14 @@ static void janet_load_libs(JanetTable *env) {
 
 JanetTable *janet_core_env(JanetTable *replacements) {
     JanetTable *env = (NULL != replacements) ? replacements : janet_table(0);
+    janet_quick_asm(env, JANET_FUN_MODULO,
+                    "mod", 2, 2, 2, 2, modulo_asm, sizeof(modulo_asm),
+                    JDOC("(mod dividend divisor)\n\n"
+                         "Returns the modulo of dividend / divisor."));
+    janet_quick_asm(env, JANET_FUN_REMAINDER,
+                    "%", 2, 2, 2, 2, remainder_asm, sizeof(remainder_asm),
+                    JDOC("(% dividend divisor)\n\n"
+                         "Returns the remainder of dividend / divisor."));
     janet_quick_asm(env, JANET_FUN_NEXT,
                     "next", 2, 2, 2, 2, next_asm, sizeof(next_asm),
                     JDOC("(next ds &opt key)\n\n"

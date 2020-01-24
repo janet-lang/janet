@@ -202,7 +202,7 @@ static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     janet_arity(argc, 2, -1); \
     T *box = janet_abstract(&it_##type##_type, sizeof(T)); \
     *box = janet_unwrap_##type(argv[0]); \
-    for (int i = 1; i < argc; i++) \
+    for (int32_t i = 1; i < argc; i++) \
         *box oper##= janet_unwrap_##type(argv[i]); \
     return janet_wrap_abstract(box); \
 } \
@@ -221,7 +221,7 @@ static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     janet_arity(argc, 2, -1);                       \
     T *box = janet_abstract(&it_##type##_type, sizeof(T)); \
     *box = janet_unwrap_##type(argv[0]); \
-    for (int i = 1; i < argc; i++) { \
+    for (int32_t i = 1; i < argc; i++) { \
       T value = janet_unwrap_##type(argv[i]); \
       if (value == 0) janet_panic("division by zero"); \
       *box oper##= value; \
@@ -245,7 +245,7 @@ static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     janet_arity(argc, 2, -1);                       \
     T *box = janet_abstract(&it_##type##_type, sizeof(T)); \
     *box = janet_unwrap_##type(argv[0]); \
-    for (int i = 1; i < argc; i++) { \
+    for (int32_t i = 1; i < argc; i++) { \
       T value = janet_unwrap_##type(argv[i]); \
       if (value == 0) janet_panic("division by zero"); \
       if ((value == -1) && (*box == INT64_MIN)) janet_panic("INT64_MIN divided by -1"); \
@@ -274,14 +274,43 @@ static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     return janet_wrap_boolean(v1 oper v2); \
 }
 
+static Janet cfun_it_s64_mod(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, -1);
+    int64_t *box = janet_abstract(&it_s64_type, sizeof(int64_t));
+    *box = janet_unwrap_s64(argv[0]);
+    for (int32_t i = 1; i < argc; i++) {
+        int64_t value = janet_unwrap_s64(argv[i]);
+        if (value == 0) janet_panic("division by zero");
+        int64_t x = *box % value;
+        if (x < 0) {
+            x = (*box < 0) ? x - *box : x + *box;
+        }
+        *box = x;
+    }
+    return janet_wrap_abstract(box);
+}
+
+static Janet cfun_it_s64_modi(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    int64_t *box = janet_abstract(&it_s64_type, sizeof(int64_t));
+    int64_t op1 = janet_unwrap_s64(argv[0]);
+    int64_t op2 = janet_unwrap_s64(argv[1]);
+    int64_t x = op1 % op2;
+    if (x < 0) {
+        x = (op1 < 0) ? x - op1 : x + op1;
+    }
+    *box = x;
+    return janet_wrap_abstract(box);
+}
+
 OPMETHOD(int64_t, s64, add, +)
 OPMETHOD(int64_t, s64, sub, -)
 OPMETHODINVERT(int64_t, s64, subi, -)
 OPMETHOD(int64_t, s64, mul, *)
 DIVMETHOD_SIGNED(int64_t, s64, div, /)
-DIVMETHOD_SIGNED(int64_t, s64, mod, %)
+DIVMETHOD_SIGNED(int64_t, s64, rem, %)
 DIVMETHODINVERT_SIGNED(int64_t, s64, divi, /)
-DIVMETHODINVERT_SIGNED(int64_t, s64, modi, %)
+DIVMETHODINVERT_SIGNED(int64_t, s64, remi, %)
 OPMETHOD(int64_t, s64, and, &)
 OPMETHOD(int64_t, s64, or, |)
 OPMETHOD(int64_t, s64, xor, ^)
@@ -328,8 +357,10 @@ static JanetMethod it_s64_methods[] = {
     {"r*", cfun_it_s64_mul},
     {"/", cfun_it_s64_div},
     {"r/", cfun_it_s64_divi},
-    {"%", cfun_it_s64_mod},
-    {"r%", cfun_it_s64_modi},
+    {"mod", cfun_it_s64_mod},
+    {"rmod", cfun_it_s64_modi},
+    {"%", cfun_it_s64_rem},
+    {"r%", cfun_it_s64_remi},
     {"<", cfun_it_s64_lt},
     {">", cfun_it_s64_gt},
     {"<=", cfun_it_s64_le},
@@ -357,6 +388,8 @@ static JanetMethod it_u64_methods[] = {
     {"r*", cfun_it_u64_mul},
     {"/", cfun_it_u64_div},
     {"r/", cfun_it_u64_divi},
+    {"mod", cfun_it_u64_mod},
+    {"rmod", cfun_it_u64_modi},
     {"%", cfun_it_u64_mod},
     {"r%", cfun_it_u64_modi},
     {"<", cfun_it_u64_lt},
