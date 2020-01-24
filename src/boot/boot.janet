@@ -758,7 +758,8 @@
   (def f (if use-str string/slice tuple/slice))
   (def len (length ind))
   # make sure end is in [0, len]
-  (def end (if (< n 0) n (if (> n len) len n)))
+  (def m (if (> n 0) n 0))
+  (def end (if (> m len) len m))
   (f ind 0 end))
 
 (defn take-until
@@ -784,7 +785,8 @@
   (def f (if use-str string/slice tuple/slice))
   (def len (length ind))
   # make sure start is in [0, len]
-  (def start (if (< n 0) n (if (> n len) len n)))
+  (def m (if (> n 0) n 0))
+  (def start (if (> m len) len m))
   (f ind start -1))
 
 (defn drop-until
