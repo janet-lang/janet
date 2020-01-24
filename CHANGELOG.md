@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ### Unreleased
+- Remove `file/fileno` and `file/fdopen`.
 - Remove `==`, `not==`, `order<`, `order>`, `order<=`, and `order>=`. Instead, use the normal
   comparison and equality functions.
 - Let abstract types define a hash function and comparison/equality semantics. This lets
@@ -11,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Update documentation.
 - Add `module/add-paths`
 - Add `file/temp`
+- Add `mod` function to core.
 - Small bug fixes
 - Allow signaling from C functions (yielding) via janet\_signalv. This
   makes it easy to write C functions that work with event loops, such as
