@@ -58,6 +58,11 @@
   [name & more]
   ~(def ,name :private ,;more))
 
+(defmacro var-
+  "Define a private var that will not be exported."
+  [name & more]
+  ~(var ,name :private ,;more))
+
 (defn defglobal
   "Dynamically create a global def."
   [name value]

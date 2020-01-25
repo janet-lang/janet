@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
   will generate warnings when compiled against other versions.
 - Remove Emscripten build. Instead, use the amalgamated source code with a custom toolchain.
 - Update documentation.
+- Add `var-`
 - Add `module/add-paths`
 - Add `file/temp`
 - Add `mod` function to core.

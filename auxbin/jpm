@@ -131,7 +131,6 @@
     ["/nologo" "/MD"]
     ["-std=c99" "-Wall" "-Wextra"]))
 
-
 # Link to pthreads
 (def- thread-flags (if is-win [] (if threads? ["-lpthread"] [])))
 
