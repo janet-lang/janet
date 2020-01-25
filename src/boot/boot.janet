@@ -1589,7 +1589,7 @@
   ret)
 
 (defn some
-  "Returns false if all xs are false or nil, otherwise returns the first true value."
+  "Returns nil if all xs are false or nil, otherwise returns the first true value."
   [pred xs]
   (var ret nil)
   (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (set ret y)))
