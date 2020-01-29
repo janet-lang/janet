@@ -156,10 +156,10 @@ build/janetconf.h: src/conf/janetconf.h
 	cp $< $@
 
 build/janet.o: build/janet.c build/janet.h build/janetconf.h
-	$(CC) $(LDFLAGS) $(CFLAGS) -c $< -o $@ -I build $(CLIBS)
+	$(CC) $(CFLAGS) -c $< -o $@ -I build
 
 build/shell.o: build/shell.c build/janet.h build/janetconf.h
-	$(CC) $(LDFLAGS) $(CFLAGS) -c $< -o $@ -I build $(CLIBS)
+	$(CC) $(CFLAGS) -c $< -o $@ -I build
 
 $(JANET_TARGET): build/janet.o build/shell.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(CLIBS)

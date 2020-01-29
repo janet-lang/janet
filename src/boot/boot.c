@@ -24,7 +24,7 @@
 #include "tests.h"
 
 #ifdef JANET_WINDOWS
-#include <windows.h>
+#include <direct.h>
 #define chdir(x) _chdir(x)
 #else
 #include <unistd.h>
@@ -77,7 +77,11 @@ int main(int argc, const char **argv) {
     boot_filename = "boot.janet";
 #endif
 
-    chdir(argv[1]);
+    int chdir_status = chdir(argv[1]);
+    if (chdir_status) {
+        fprintf(stderr, "Could not change to directory %s\n", argv[1]);
+        exit(1);
+    }
 
     FILE *boot_file = fopen("src/boot/boot.janet", "rb");
     if (NULL == boot_file) {
