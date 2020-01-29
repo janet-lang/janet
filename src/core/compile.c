@@ -713,7 +713,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
         if (NULL == def->bytecode) {
             JANET_OUT_OF_MEMORY;
         }
-        memcpy(def->bytecode, c->buffer + scope->bytecode_start, s);
+        safe_memcpy(def->bytecode, c->buffer + scope->bytecode_start, s);
         janet_v__cnt(c->buffer) = scope->bytecode_start;
         if (NULL != c->mapbuffer && c->source) {
             size_t s = sizeof(JanetSourceMapping) * (size_t) def->bytecode_length;
@@ -721,7 +721,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
             if (NULL == def->sourcemap) {
                 JANET_OUT_OF_MEMORY;
             }
-            memcpy(def->sourcemap, c->mapbuffer + scope->bytecode_start, s);
+            safe_memcpy(def->sourcemap, c->mapbuffer + scope->bytecode_start, s);
             janet_v__cnt(c->mapbuffer) = scope->bytecode_start;
         }
     }

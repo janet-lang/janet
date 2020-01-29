@@ -275,7 +275,7 @@ static Janet doframe(JanetStackFrame *frame) {
         }
         /* Add stack arguments */
         slots = janet_array(def->slotcount);
-        memcpy(slots->data, stack, sizeof(Janet) * def->slotcount);
+        safe_memcpy(slots->data, stack, sizeof(Janet) * def->slotcount);
         slots->count = def->slotcount;
         janet_table_put(t, janet_ckeywordv("slots"), janet_wrap_array(slots));
     }

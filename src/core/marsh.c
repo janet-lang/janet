@@ -95,8 +95,8 @@ void janet_env_lookup_into(JanetTable *renv, JanetTable *env, const char *prefix
                     const uint8_t *oldsym = janet_unwrap_symbol(env->data[i].key);
                     int32_t oldlen = janet_string_length(oldsym);
                     uint8_t *symbuf = janet_smalloc(prelen + oldlen);
-                    memcpy(symbuf, prefix, prelen);
-                    memcpy(symbuf + prelen, oldsym, oldlen);
+                    safe_memcpy(symbuf, prefix, prelen);
+                    safe_memcpy(symbuf + prelen, oldsym, oldlen);
                     Janet s = janet_symbolv(symbuf, prelen + oldlen);
                     janet_sfree(symbuf);
                     janet_table_put(renv, s, entry_getval(env->data[i].value));
@@ -1017,7 +1017,7 @@ uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx) {
 void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, size_t len) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     MARSH_EOS(st, ctx->data + len - 1);
-    memcpy(dest, ctx->data, len);
+    safe_memcpy(dest, ctx->data, len);
     ctx->data += len;
 }
 
@@ -1139,7 +1139,7 @@ static const uint8_t *unmarshal_one(
             } else { /* (lead == LB_BUFFER) */
                 JanetBuffer *buffer = janet_buffer(len);
                 buffer->count = len;
-                memcpy(buffer->data, data, len);
+                safe_memcpy(buffer->data, data, len);
                 *out = janet_wrap_buffer(buffer);
             }
             janet_v_push(st->lookup, *out);

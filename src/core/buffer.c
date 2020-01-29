@@ -112,6 +112,7 @@ void janet_buffer_push_cstring(JanetBuffer *buffer, const char *cstring) {
 
 /* Push multiple bytes into the buffer */
 void janet_buffer_push_bytes(JanetBuffer *buffer, const uint8_t *string, int32_t length) {
+    if (0 == length) return;
     janet_buffer_extra(buffer, length);
     memcpy(buffer->data + buffer->count, string, length);
     buffer->count += length;
@@ -338,11 +339,13 @@ static Janet cfun_buffer_blit(int32_t argc, Janet *argv) {
         janet_panic("buffer blit out of range");
     janet_buffer_ensure(dest, (int32_t) last, 2);
     if (last > dest->count) dest->count = (int32_t) last;
-    if (same_buf) {
-        src.bytes = dest->data;
-        memmove(dest->data + offset_dest, src.bytes + offset_src, length_src);
-    } else {
-        memcpy(dest->data + offset_dest, src.bytes + offset_src, length_src);
+    if (length_src) {
+        if (same_buf) {
+            src.bytes = dest->data;
+            memmove(dest->data + offset_dest, src.bytes + offset_src, length_src);
+        } else {
+            memcpy(dest->data + offset_dest, src.bytes + offset_src, length_src);
+        }
     }
     return argv[0];
 }

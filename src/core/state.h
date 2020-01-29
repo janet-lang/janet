@@ -32,6 +32,8 @@
  * be in it. However, thread local global variables for interpreter
  * state should allow easy multi-threading. */
 
+typedef struct JanetScratch JanetScratch;
+
 /* Cache the core environment */
 extern JANET_THREAD_LOCAL JanetTable *janet_vm_core_env;
 
@@ -69,7 +71,7 @@ extern JANET_THREAD_LOCAL size_t janet_vm_root_count;
 extern JANET_THREAD_LOCAL size_t janet_vm_root_capacity;
 
 /* Scratch memory */
-extern JANET_THREAD_LOCAL void **janet_scratch_mem;
+extern JANET_THREAD_LOCAL JanetScratch **janet_scratch_mem;
 extern JANET_THREAD_LOCAL size_t janet_scratch_cap;
 extern JANET_THREAD_LOCAL size_t janet_scratch_len;
 

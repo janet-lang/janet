@@ -65,7 +65,7 @@ JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t 
         if (newstacktop >= fiber->capacity) {
             janet_fiber_setcapacity(fiber, 2 * newstacktop);
         }
-        memcpy(fiber->data + fiber->stacktop, argv, argc * sizeof(Janet));
+        safe_memcpy(fiber->data + fiber->stacktop, argv, argc * sizeof(Janet));
         fiber->stacktop = newstacktop;
     }
     if (janet_fiber_funcframe(fiber, callee)) return NULL;
@@ -135,7 +135,7 @@ void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n) {
     if (newtop > fiber->capacity) {
         janet_fiber_grow(fiber, newtop);
     }
-    memcpy(fiber->data + fiber->stacktop, arr, n * sizeof(Janet));
+    safe_memcpy(fiber->data + fiber->stacktop, arr, n * sizeof(Janet));
     fiber->stacktop = newtop;
 }
 
@@ -217,7 +217,7 @@ static void janet_env_detach(JanetFuncEnv *env) {
         if (NULL == vmem) {
             JANET_OUT_OF_MEMORY;
         }
-        memcpy(vmem, env->as.fiber->data + env->offset, s);
+        safe_memcpy(vmem, env->as.fiber->data + env->offset, s);
         env->offset = 0;
         env->as.values = vmem;
     }

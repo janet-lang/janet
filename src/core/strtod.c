@@ -447,12 +447,16 @@ int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out) {
     int neg;
     uint64_t bi;
     if (scan_uint64(str, len, &bi, &neg)) {
-        if (neg && bi <= 0x8000000000000000ULL) {
-            *out = -((int64_t) bi);
+        if (neg && bi <= (UINT64_MAX / 2)) {
+            if (bi > INT64_MAX) {
+                *out = INT64_MIN;
+            } else {
+                *out = -((int64_t) bi);
+            }
             return 1;
         }
-        if (!neg && bi <= 0x7FFFFFFFFFFFFFFFULL) {
-            *out = bi;
+        if (!neg && bi <= INT64_MAX) {
+            *out = (int64_t) bi;
             return 1;
         }
     }

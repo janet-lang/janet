@@ -183,7 +183,7 @@ const uint8_t *janet_symbol(const uint8_t *str, int32_t len) {
     head->hash = hash;
     head->length = len;
     newstr = (uint8_t *)(head->data);
-    memcpy(newstr, str, len);
+    safe_memcpy(newstr, str, len);
     newstr[len] = 0;
     janet_symcache_put((const uint8_t *)newstr, bucket);
     return newstr;

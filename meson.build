@@ -79,13 +79,6 @@ jconf = configure_file(output : 'janetconf.h',
 # Include directories
 incdir = include_directories(['src/include', '.'])
 
-# Building generated sources
-xxd = executable('xxd', 'tools/xxd.c', native : true)
-gen = generator(xxd,
-  output : '@BASENAME@.gen.c',
-  arguments : ['@INPUT@', '@OUTPUT@', '@EXTRA_ARGS@'])
-boot_gen = gen.process('src/boot/boot.janet', extra_args: 'janet_gen_boot')
-
 # Order is important here, as some headers
 # depend on other headers for the amalg target
 core_headers = [
@@ -151,24 +144,27 @@ boot_src = [
 ]
 
 mainclient_src = [
-  'src/mainclient/line.c',
-  'src/mainclient/main.c'
+  'src/mainclient/shell.c'
 ]
 
 # Build boot binary
-janet_boot = executable('janet-boot', core_src, boot_src, boot_gen,
+janet_boot = executable('janet-boot', core_src, boot_src,
   include_directories : incdir,
   c_args : '-DJANET_BOOTSTRAP',
   dependencies : [m_dep, dl_dep, thread_dep],
   native : true)
 
-# Build core image
-core_image = custom_target('core_image',
+# Build janet.c
+janetc = custom_target('janetc',
   input : [janet_boot],
-  output : 'core_image.gen.c',
-  command : [janet_boot, '@OUTPUT@', 'JANET_PATH', janet_path, 'JANET_HEADERPATH', header_path])
+  output : 'janet.c',
+  capture : true,
+  command : [
+    janet_boot, '@CURRENT_SOURCE_DIR@',
+    'JANET_PATH', janet_path, 'JANET_HEADERPATH', header_path
+  ])
 
-libjanet = library('janet', core_src, core_image,
+libjanet = library('janet', janetc,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep, thread_dep],
   install : true)
@@ -188,14 +184,14 @@ else
   extra_cross_cflags = []
 endif
 
-janet_mainclient = executable('janet', core_src, core_image, mainclient_src,
+janet_mainclient = executable('janet', janetc, mainclient_src,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep, thread_dep],
   c_args : extra_native_cflags,
   install : true)
 
 if meson.is_cross_build()
-  janet_nativeclient = executable('janet-native', core_src, core_image, mainclient_src,
+  janet_nativeclient = executable('janet-native', janetc, mainclient_src,
     include_directories : incdir,
     dependencies : [m_dep, dl_dep, thread_dep],
     c_args : extra_cross_cflags,
@@ -210,25 +206,6 @@ docs = custom_target('docs',
   output : ['doc.html'],
   capture : true,
   command : [janet_nativeclient, '@INPUT@'])
-
-# Amalgamated source
-amalg = custom_target('amalg',
-  input : ['tools/amalg.janet', core_headers, core_src, core_image],
-  output : ['janet.c'],
-  capture : true,
-  command : [janet_nativeclient, '@INPUT@'])
-amalg_shell = custom_target('amalg-shell',
-  input : ['tools/amalg.janet', 'src/mainclient/line.h',
-    'src/mainclient/line.c', 'src/mainclient/main.c'],
-  output : ['shell.c'],
-  capture : true,
-  command : [janet_nativeclient, '@INPUT@'])
-
-# Amalgamated client
-janet_amalgclient = executable('janet-amalg', amalg, amalg_shell,
-  include_directories : incdir,
-  dependencies : [m_dep, dl_dep, thread_dep],
-  build_by_default : false)
 
 # Tests
 test_files = [

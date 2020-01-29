@@ -346,7 +346,7 @@ static Janet janet_core_tuple(int32_t argc, Janet *argv) {
 static Janet janet_core_array(int32_t argc, Janet *argv) {
     JanetArray *array = janet_array(argc);
     array->count = argc;
-    memcpy(array->data, argv, argc * sizeof(Janet));
+    safe_memcpy(array->data, argv, argc * sizeof(Janet));
     return janet_wrap_array(array);
 }
 

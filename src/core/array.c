@@ -56,7 +56,7 @@ JanetArray *janet_array_n(const Janet *elements, int32_t n) {
     if (!array->data) {
         JANET_OUT_OF_MEMORY;
     }
-    memcpy(array->data, elements, sizeof(Janet) * n);
+    safe_memcpy(array->data, elements, sizeof(Janet) * n);
     return array;
 }
 
@@ -235,10 +235,12 @@ static Janet cfun_array_insert(int32_t argc, Janet *argv) {
         janet_panic("array overflow");
     }
     janet_array_ensure(array, array->count + argc - 2, 2);
-    memmove(array->data + at + argc - 2,
-            array->data + at,
-            restsize);
-    memcpy(array->data + at, argv + 2, chunksize);
+    if (restsize) {
+        memmove(array->data + at + argc - 2,
+                array->data + at,
+                restsize);
+    }
+    safe_memcpy(array->data + at, argv + 2, chunksize);
     array->count += (argc - 2);
     return argv[0];
 }

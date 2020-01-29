@@ -348,9 +348,9 @@ tail:
             if (!result) return NULL;
             int32_t num_sub_captures = s->captures->count - cs.cap;
             JanetArray *sub_captures = janet_array(num_sub_captures);
-            memcpy(sub_captures->data,
-                   s->captures->data + cs.cap,
-                   sizeof(Janet) * num_sub_captures);
+            safe_memcpy(sub_captures->data,
+                        s->captures->data + cs.cap,
+                        sizeof(Janet) * num_sub_captures);
             sub_captures->count = num_sub_captures;
             cap_load(s, cs);
             pushcap(s, janet_wrap_array(sub_captures), tag);
@@ -1227,8 +1227,8 @@ static Peg *make_peg(Builder *b) {
     peg->bytecode = (uint32_t *)(mem + bytecode_start);
     peg->constants = (Janet *)(mem + constants_start);
     peg->num_constants = janet_v_count(b->constants);
-    memcpy(peg->bytecode, b->bytecode, bytecode_size);
-    memcpy(peg->constants, b->constants, constants_size);
+    safe_memcpy(peg->bytecode, b->bytecode, bytecode_size);
+    safe_memcpy(peg->constants, b->constants, constants_size);
     peg->bytecode_len = janet_v_count(b->bytecode);
     return peg;
 }

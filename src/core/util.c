@@ -248,6 +248,12 @@ int32_t janet_tablen(int32_t n) {
     return n + 1;
 }
 
+/* Avoid some undefined behavior that was common in the code base. */
+void safe_memcpy(void *dest, const void *src, size_t len) {
+    if (!len) return;
+    memcpy(dest, src, len);
+}
+
 /* Helper to find a value in a Janet struct or table. Returns the bucket
  * containing the key, or the first empty bucket if there is no such key. */
 const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
@@ -385,7 +391,7 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
         if (NULL == longname_buffer) {
             JANET_OUT_OF_MEMORY;
         }
-        memcpy(longname_buffer, regprefix, prefixlen);
+        safe_memcpy(longname_buffer, regprefix, prefixlen);
         longname_buffer[prefixlen] = '/';
         prefixlen++;
     }
@@ -402,7 +408,7 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
                     JANET_OUT_OF_MEMORY;
                 }
             }
-            memcpy(longname_buffer + prefixlen, cfuns->name, nmlen);
+            safe_memcpy(longname_buffer + prefixlen, cfuns->name, nmlen);
             name = janet_wrap_symbol(janet_symbol(longname_buffer, totallen));
         } else {
             name = janet_csymbolv(cfuns->name);

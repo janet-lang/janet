@@ -688,19 +688,18 @@ void janet_parser_clone(const JanetParser *src, JanetParser *dest) {
     if (dest->bufcap) {
         dest->buf = malloc(dest->bufcap);
         if (!dest->buf) goto nomem;
+        memcpy(dest->buf, src->buf, dest->bufcap);
     }
     if (dest->argcap) {
         dest->args = malloc(sizeof(Janet) * dest->argcap);
         if (!dest->args) goto nomem;
+        memcpy(dest->args, src->args, dest->argcap * sizeof(Janet));
     }
     if (dest->statecap) {
         dest->states = malloc(sizeof(JanetParseState) * dest->statecap);
         if (!dest->states) goto nomem;
+        memcpy(dest->states, src->states, dest->statecap * sizeof(JanetParseState));
     }
-
-    memcpy(dest->buf, src->buf, dest->bufcap);
-    memcpy(dest->args, src->args, dest->argcap * sizeof(Janet));
-    memcpy(dest->states, src->states, dest->statecap * sizeof(JanetParseState));
 
     return;
 
@@ -808,7 +807,7 @@ static Janet cfun_parse_insert(int32_t argc, Janet *argv) {
             }
             p->bufcap = newcap;
         }
-        memcpy(p->buf + p->bufcount, str, slen);
+        safe_memcpy(p->buf + p->bufcount, str, slen);
         p->bufcount = newcount;
     } else {
         janet_panic("cannot insert value into parser");
@@ -891,7 +890,7 @@ static Janet janet_wrap_parse_state(JanetParseState *s, Janet *args,
     if (s->flags & PFLAG_CONTAINER) {
         JanetArray *container_args = janet_array(s->argn);
         container_args->count = s->argn;
-        memcpy(container_args->data, args, sizeof(args[0])*s->argn);
+        safe_memcpy(container_args->data, args, sizeof(args[0])*s->argn);
         janet_table_put(state, janet_ckeywordv("args"),
                         janet_wrap_array(container_args));
     }

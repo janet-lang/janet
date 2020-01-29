@@ -45,7 +45,7 @@ void *janet_v_flattenmem(void *v, int32_t itemsize) {
     size_t size = (size_t) itemsize * janet_v__cnt(v);
     p = malloc(size);
     if (NULL != p) {
-        memcpy(p, v, size);
+        safe_memcpy(p, v, size);
         return p;
     } else {
         JANET_OUT_OF_MEMORY;

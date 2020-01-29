@@ -51,7 +51,7 @@ const uint8_t *janet_string(const uint8_t *buf, int32_t len) {
     head->length = len;
     head->hash = janet_string_calchash(buf, len);
     uint8_t *data = (uint8_t *)head->data;
-    memcpy(data, buf, len);
+    safe_memcpy(data, buf, len);
     data[len] = 0;
     return data;
 }
@@ -187,7 +187,7 @@ static Janet cfun_string_repeat(int32_t argc, Janet *argv) {
     uint8_t *newbuf = janet_string_begin((int32_t) mulres);
     uint8_t *end = newbuf + mulres;
     for (uint8_t *p = newbuf; p < end; p += view.len) {
-        memcpy(p, view.bytes, view.len);
+        safe_memcpy(p, view.bytes, view.len);
     }
     return janet_wrap_string(janet_string_end(newbuf));
 }
@@ -343,11 +343,11 @@ static Janet cfun_string_replace(int32_t argc, Janet *argv) {
         return janet_stringv(s.kmp.text, s.kmp.textlen);
     }
     buf = janet_string_begin(s.kmp.textlen - s.kmp.patlen + s.substlen);
-    memcpy(buf, s.kmp.text, result);
-    memcpy(buf + result, s.subst, s.substlen);
-    memcpy(buf + result + s.substlen,
-           s.kmp.text + result + s.kmp.patlen,
-           s.kmp.textlen - result - s.kmp.patlen);
+    safe_memcpy(buf, s.kmp.text, result);
+    safe_memcpy(buf + result, s.subst, s.substlen);
+    safe_memcpy(buf + result + s.substlen,
+                s.kmp.text + result + s.kmp.patlen,
+                s.kmp.textlen - result - s.kmp.patlen);
     kmp_deinit(&s.kmp);
     return janet_wrap_string(janet_string_end(buf));
 }
@@ -445,11 +445,11 @@ static Janet cfun_string_join(int32_t argc, Janet *argv) {
         const uint8_t *chunk = NULL;
         int32_t chunklen = 0;
         if (i) {
-            memcpy(out, joiner.bytes, joiner.len);
+            safe_memcpy(out, joiner.bytes, joiner.len);
             out += joiner.len;
         }
         janet_bytes_view(parts.items[i], &chunk, &chunklen);
-        memcpy(out, chunk, chunklen);
+        safe_memcpy(out, chunk, chunklen);
         out += chunklen;
     }
     return janet_wrap_string(janet_string_end(buf));

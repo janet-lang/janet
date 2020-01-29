@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2019 © Calvin Rose
+# Copyright 2020 © Calvin Rose
 
 ###
 ###
@@ -2391,21 +2391,88 @@
                    reverse-lookup (invert lookup)]
                (marshal env reverse-lookup)))
 
+  # Create amalgamation
+
+  (def local-headers
+    ["src/core/features.h"
+     "src/core/util.h"
+     "src/core/state.h"
+     "src/core/gc.h"
+     "src/core/vector.h"
+     "src/core/fiber.h"
+     "src/core/regalloc.h"
+     "src/core/compile.h"
+     "src/core/emit.h"
+     "src/core/symcache.h"])
+
+  (def core-sources
+    ["src/core/abstract.c"
+     "src/core/array.c"
+     "src/core/asm.c"
+     "src/core/buffer.c"
+     "src/core/bytecode.c"
+     "src/core/capi.c"
+     "src/core/cfuns.c"
+     "src/core/compile.c"
+     "src/core/corelib.c"
+     "src/core/debug.c"
+     "src/core/emit.c"
+     "src/core/fiber.c"
+     "src/core/gc.c"
+     "src/core/inttypes.c"
+     "src/core/io.c"
+     "src/core/marsh.c"
+     "src/core/math.c"
+     "src/core/os.c"
+     "src/core/parse.c"
+     "src/core/peg.c"
+     "src/core/pp.c"
+     "src/core/regalloc.c"
+     "src/core/run.c"
+     "src/core/specials.c"
+     "src/core/string.c"
+     "src/core/strtod.c"
+     "src/core/struct.c"
+     "src/core/symcache.c"
+     "src/core/table.c"
+     "src/core/thread.c"
+     "src/core/tuple.c"
+     "src/core/typedarray.c"
+     "src/core/util.c"
+     "src/core/value.c"
+     "src/core/vector.c"
+     "src/core/vm.c"
+     "src/core/wrap.c"])
+
+  # Print janet.c to stdout
+  (print "/* Amalgamated build - DO NOT EDIT */")
+  (print "/* Generated from janet version " janet/version "-" janet/build " */")
+  (print "#define JANET_BUILD \"" janet/build "\"")
+  (print ```#define JANET_AMALG```)
+  (print ```#define _POSIX_C_SOURCE 200112L```)
+  (print ```#include "janet.h"```)
+
+  (defn do-one-flie
+    [fname]
+    (print "\n/* " fname " */\n")
+    (def source (slurp fname))
+    (print (string/replace-all "\r" "" source)))
+
+  (each h local-headers
+    (do-one-flie h))
+
+  (each s core-sources
+    (do-one-flie s))
+
   # Create C source file that contains images a uint8_t buffer. This
   # can be compiled and linked statically into the main janet library
   # and example client.
-  (def chunks (string/bytes image))
-  (def image-file (file/open (boot/args 1) :wb))
-  (file/write image-file
-              "#ifndef JANET_AMALG\n"
-              "#include <janet.h>\n"
-              "#endif\n"
-              "static const unsigned char janet_core_image_bytes[] = {\n")
-  (loop [line :in (partition 10 chunks)]
-    (def str (string ;(interpose ", " (map (partial string/format "0x%.2X") line))))
-    (file/write image-file "    " str ",\n"))
-  (file/write image-file
-              "    0\n};\n\n"
-              "const unsigned char *janet_core_image = janet_core_image_bytes;\n"
-              "size_t janet_core_image_size = sizeof(janet_core_image_bytes);\n")
-  (file/close image-file))
+  (print "static const unsigned char janet_core_image_bytes[] = {")
+  (loop [line :in (partition 16 image)]
+    (prin "  ")
+    (each b line
+      (prinf "0x%.2X, " b))
+    (print))
+  (print "  0\n};\n")
+  (print "const unsigned char *janet_core_image = janet_core_image_bytes;")
+  (print "size_t janet_core_image_size = sizeof(janet_core_image_bytes);"))
