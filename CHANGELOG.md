@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-### 1.7.0 - 2020-02-01
+## 1.7.0 - 2020-02-01
 - Remove `file/fileno` and `file/fdopen`.
 - Remove `==`, `not==`, `order<`, `order>`, `order<=`, and `order>=`. Instead, use the normal
   comparison and equality functions.
@@ -32,7 +32,7 @@ All notable changes to this project will be documented in this file.
 - Fix thread module issue where sometimes decoding a message failed.
 - Fix segfault regression when macros are called with bad arity.
 
-### 1.6.0 - 2019-12-22
+## 1.6.0 - 2019-12-22
 - Add `thread/` module to the core.
 - Allow seeding RNGs with any sequence of bytes. This provides
   a wider key space for the RNG. Exposed in C as `janet_rng_longseed`.
