@@ -596,7 +596,7 @@
 (defn first
   "Get the first element from an indexed data structure."
   [xs]
-  (in xs 0))
+  (get xs 0))
 
 (defn last
   "Get the last element from an indexed data structure."

@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-### Unreleased
+### 1.7.0 - 2020-02-01
 - Remove `file/fileno` and `file/fdopen`.
 - Remove `==`, `not==`, `order<`, `order>`, `order<=`, and `order>=`. Instead, use the normal
   comparison and equality functions.
