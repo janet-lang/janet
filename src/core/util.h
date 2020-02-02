@@ -126,5 +126,8 @@ void janet_lib_inttypes(JanetTable *env);
 #ifdef JANET_THREADS
 void janet_lib_thread(JanetTable *env);
 #endif
+#ifdef JANET_NET
+void janet_lib_net(JanetTable *env);
+#endif
 
 #endif

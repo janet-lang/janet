@@ -152,6 +152,11 @@ extern "C" {
 #define JANET_TYPED_ARRAY
 #endif
 
+/* Enable or disable networking */
+#ifndef JANET_NO_NET
+#define JANET_NET
+#endif
+
 /* Enable or disable large int types (for now 64 bit, maybe 128 / 256 bit integer types) */
 #ifndef JANET_NO_INT_TYPES
 #define JANET_INT_TYPES

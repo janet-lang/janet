@@ -59,6 +59,7 @@ conf.set('JANET_NO_DOCSTRINGS', not get_option('docstrings'))
 conf.set('JANET_NO_SOURCEMAPS', not get_option('sourcemaps'))
 conf.set('JANET_NO_ASSEMBLER', not get_option('assembler'))
 conf.set('JANET_NO_PEG', not get_option('peg'))
+conf.set('JANET_NO_NET', not get_option('net'))
 conf.set('JANET_REDUCED_OS', get_option('reduced_os'))
 conf.set('JANET_NO_TYPED_ARRAY', not get_option('typed_array'))
 conf.set('JANET_NO_INT_TYPES', not get_option('int_types'))
@@ -112,6 +113,7 @@ core_src = [
   'src/core/io.c',
   'src/core/marsh.c',
   'src/core/math.c',
+  'src/core/net.c',
   'src/core/os.c',
   'src/core/parse.c',
   'src/core/peg.c',

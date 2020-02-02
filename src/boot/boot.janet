@@ -2423,6 +2423,7 @@
      "src/core/io.c"
      "src/core/marsh.c"
      "src/core/math.c"
+     "src/core/net.c"
      "src/core/os.c"
      "src/core/parse.c"
      "src/core/peg.c"
