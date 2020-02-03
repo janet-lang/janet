@@ -384,6 +384,9 @@ void janet_collect(void) {
     if (janet_vm_gc_suspend) return;
     depth = JANET_RECURSION_GUARD;
     orig_rootcount = janet_vm_root_count;
+#ifdef JANET_NET
+    janet_net_markloop();
+#endif
     for (i = 0; i < orig_rootcount; i++)
         janet_mark(janet_vm_roots[i]);
     while (orig_rootcount < janet_vm_root_count) {
