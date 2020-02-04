@@ -460,6 +460,38 @@ static Janet cfun_io_eprinf(int32_t argc, Janet *argv) {
     return cfun_io_printf_impl(argc, argv, 0, "err", stderr);
 }
 
+static void janet_flusher(const char *name, FILE *dflt_file) {
+    Janet x = janet_dyn(name);
+    switch (janet_type(x)) {
+        default:
+            break;
+        case JANET_NIL:
+            fflush(dflt_file);
+            break;
+        case JANET_ABSTRACT: {
+            void *abstract = janet_unwrap_abstract(x);
+            if (janet_abstract_type(abstract) != &cfun_io_filetype) break;
+            IOFile *iofile = abstract;
+            fflush(iofile->file);
+            break;
+        }
+    }
+}
+
+static Janet cfun_io_flush(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    janet_flusher("out", stdout);
+    return janet_wrap_nil();
+}
+
+static Janet cfun_io_eflush(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    janet_flusher("err", stderr);
+    return janet_wrap_nil();
+}
+
 void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...) {
     va_list args;
     va_start(args, format);
@@ -540,6 +572,16 @@ static const JanetReg io_cfuns[] = {
         "eprinf", cfun_io_eprinf,
         JDOC("(eprinf fmt & xs)\n\n"
              "Like eprintf but with no trailing newline.")
+    },
+    {
+        "flush", cfun_io_flush,
+        JDOC("(flush)\n\n"
+             "Flush (dyn :out stdout) if it is a file, otherwise do nothing.")
+    },
+    {
+        "eflush", cfun_io_eflush,
+        JDOC("(eflush)\n\n"
+             "Flush (dyn :err stderr) if it is a file, otherwise do nothing.")
     },
     {
         "file/temp", cfun_io_temp,
