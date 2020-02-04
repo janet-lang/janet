@@ -1252,7 +1252,8 @@
 (defn pp
   "Pretty print to stdout or (dyn :out)."
   [x]
-  (print (buffer/format @"" (dyn :pretty-format "%q") x)))
+  (printf (dyn :pretty-format "%q") x)
+  (flush))
 
 ###
 ###
@@ -1775,7 +1776,8 @@
     (string col)
     ": "
     (parser/error p)
-    (if ec "\e[0m" "")))
+    (if ec "\e[0m" ""))
+  (eflush))
 
 (defn bad-compile
   "Default handler for a compile error."
@@ -1789,7 +1791,8 @@
       msg
       " while compiling "
       where
-      (if ec "\e[0m" ""))))
+      (if ec "\e[0m" "")))
+  (eflush))
 
 (defn run-context
   "Run a context. This evaluates expressions of janet in an environment,
@@ -2086,7 +2089,7 @@
                   :on-status (fn [f x]
                                (when (not= (fiber/status f) :dead)
                                  (debug/stacktrace f x)
-                                 (if exit-on-error (os/exit 1))))
+                                 (if exit-on-error (os/exit 1) (eflush))))
                   :evaluator evaluator
                   :expander expander
                   :source (if path-is-file "<anonymous>" spath)}))
@@ -2189,14 +2192,17 @@
       (put nextenv :debug-level level)
       (put nextenv :signal x)
       (debug/stacktrace f x)
+      (eflush)
       (defn debugger-chunks [buf p]
         (def status (parser/state p :delimiters))
         (def c ((parser/where p) 0))
         (def prompt (string "debug[" level "]:" c ":" status "> "))
         (getline prompt buf nextenv))
       (print "entering debug[" level "] - (quit) to exit")
+      (flush)
       (repl debugger-chunks (make-onsignal nextenv (+ 1 level)) nextenv)
       (print "exiting debug[" level "]")
+      (flush)
       (nextenv :resume-value))
 
     (fn [f x]
@@ -2204,7 +2210,7 @@
         (do (pp x) (put e '_ @{:value x}))
         (if (e :debug)
           (enter-debugger f x)
-          (do (debug/stacktrace f x) nil)))))
+          (do (debug/stacktrace f x) (eflush))))))
 
   (run-context {:env env
                 :chunks chunks
@@ -2320,6 +2326,7 @@
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
     (if-not *quiet*
       (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2020 Calvin Rose"))
+    (flush)
     (defn noprompt [_] "")
     (defn getprompt [p]
       (def [line] (parser/where p))

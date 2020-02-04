@@ -993,7 +993,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                     JDOC("(% dividend divisor)\n\n"
                          "Returns the remainder of dividend / divisor."));
     janet_quick_asm(env, JANET_FUN_NEXT,
-                    "next", 2, 2, 2, 2, next_asm, sizeof(next_asm),
+                    "next", 2, 1, 2, 2, next_asm, sizeof(next_asm),
                     JDOC("(next ds &opt key)\n\n"
                          "Gets the next key in a datastructure. Can be used to iterate through "
                          "the keys of a data structure in an unspecified order. Keys are guaranteed "
