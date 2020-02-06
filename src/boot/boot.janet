@@ -1583,14 +1583,16 @@
   ret)
 
 (defn all
-  "Returns true if all xs are truthy, otherwise the first false or nil value."
+  "Returns true if all xs are truthy, otherwise the resulty of first
+  falsey predicate value, (pred x)."
   [pred xs]
   (var ret true)
   (loop [x :in xs :while ret] (set ret (pred x)))
   ret)
 
 (defn some
-  "Returns nil if all xs are false or nil, otherwise returns the first true value."
+  "Returns nil if all xs are false or nil, otherwise returns the result of the
+  first truthy predicate, (pred x)."
   [pred xs]
   (var ret nil)
   (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (set ret y)))
