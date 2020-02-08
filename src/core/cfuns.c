@@ -28,6 +28,11 @@
 #include "vector.h"
 #endif
 
+static int arity1or2(JanetFopts opts, JanetSlot *args) {
+    (void) opts;
+    int32_t arity = janet_v_count(args);
+    return arity == 1 || arity == 2;
+}
 static int fixarity1(JanetFopts opts, JanetSlot *args) {
     (void) opts;
     return janet_v_count(args) == 1;
@@ -61,6 +66,27 @@ static JanetSlot genericSSI(JanetFopts opts, int op, JanetSlot s, int32_t imm) {
     JanetSlot target = janetc_gettarget(opts);
     janetc_emit_ssi(opts.compiler, op, target, s, imm, 1);
     return target;
+}
+
+/* Emit an insruction that implements a form by itself. */
+static JanetSlot opfunction(
+        JanetFopts opts,
+        JanetSlot *args,
+        int op,
+        Janet defaultArg2) {
+    JanetCompiler *c = opts.compiler;
+    int32_t len;
+    len = janet_v_count(args);
+    JanetSlot t;
+    if (len == 1) {
+        t = janetc_gettarget(opts);
+        janetc_emit_sss(c, op, t, args[0], janetc_cslot(defaultArg2), 1);
+        return t;
+    } else if (len == 2) {
+        t = janetc_gettarget(opts);
+        janetc_emit_sss(c, op, t, args[0], args[1], 1);
+    }
+    return t;
 }
 
 /* Emit a series of instructions instead of a function call to a math op */
@@ -113,7 +139,7 @@ static JanetSlot do_get(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_GET, janet_wrap_nil());
 }
 static JanetSlot do_next(JanetFopts opts, JanetSlot *args) {
-    return opreduce(opts, args, JOP_NEXT, janet_wrap_nil());
+    return opfunction(opts, args, JOP_NEXT, janet_wrap_nil());
 }
 static JanetSlot do_modulo(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_MODULO, janet_wrap_nil());
@@ -143,7 +169,7 @@ static JanetSlot do_yield(JanetFopts opts, JanetSlot *args) {
     }
 }
 static JanetSlot do_resume(JanetFopts opts, JanetSlot *args) {
-    return opreduce(opts, args, JOP_RESUME, janet_wrap_nil());
+    return opfunction(opts, args, JOP_RESUME, janet_wrap_nil());
 }
 static JanetSlot do_apply(JanetFopts opts, JanetSlot *args) {
     /* Push phase */
@@ -270,7 +296,7 @@ static const JanetFunOptimizer optimizers[] = {
     {fixarity1, do_error},
     {minarity2, do_apply},
     {maxarity1, do_yield},
-    {fixarity2, do_resume},
+    {arity1or2, do_resume},
     {fixarity2, do_in},
     {fixarity3, do_put},
     {fixarity1, do_length},
@@ -293,7 +319,7 @@ static const JanetFunOptimizer optimizers[] = {
     {NULL, do_neq},
     {fixarity2, do_propagate},
     {fixarity2, do_get},
-    {fixarity2, do_next},
+    {arity1or2, do_next},
     {fixarity2, do_modulo},
     {fixarity2, do_remainder},
 };
