@@ -1825,6 +1825,7 @@
   (default on-parse-error bad-parse)
   (default evaluator (fn evaluate [x &] (x)))
   (default where "<anonymous>")
+  (default guard :yed)
 
   # Are we done yet?
   (var going true)
@@ -1851,7 +1852,7 @@
                   (string err " on line " line ", column " column)
                   err))
               (on-compile-error msg errf where))))
-        (or guard :a)))
+        guard))
     (fiber/setenv f env)
     (while (let [fs (fiber/status f)]
              (and (not= :dead fs) (not= :error fs)))
@@ -2290,6 +2291,7 @@
     (def h (in handlers n))
     (if h (h i) (do (print "unknown flag -" n) ((in handlers "h")))))
 
+  # Use special evaulator for fly checking (-k option)
   (def- safe-forms {'defn true 'defn- true 'defmacro true 'defmacro- true})
   (def- importers {'import true 'import* true 'use true 'dofile true 'require true})
   (defn- evaluator

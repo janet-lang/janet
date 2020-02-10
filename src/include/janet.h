@@ -1099,6 +1099,11 @@ extern enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
 
 /***** START SECTION MAIN *****/
 
+/* Event Loop */
+#ifdef JANET_NET
+JANET_API void janet_loop(void);
+#endif
+
 /* Parsing */
 JANET_API void janet_parser_init(JanetParser *parser);
 JANET_API void janet_parser_deinit(JanetParser *parser);
@@ -1273,6 +1278,7 @@ JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32
 JANET_API JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t argc, const Janet *argv);
 JANET_API JanetFiberStatus janet_fiber_status(JanetFiber *fiber);
 JANET_API JanetFiber *janet_current_fiber(void);
+JANET_API JanetFiber *janet_root_fiber(void);
 
 /* Treat similar types through uniform interfaces for iteration */
 JANET_API int janet_indexed_view(Janet seq, const Janet **data, int32_t *len);

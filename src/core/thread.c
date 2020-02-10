@@ -448,10 +448,14 @@ static int thread_worker(JanetMailbox *mailbox) {
     Janet argv[1] = { parentv };
     fiber = janet_fiber(func, 64, 1, argv);
     JanetSignal sig = janet_continue(fiber, janet_wrap_nil(), &out);
-    if (sig != JANET_SIGNAL_OK) {
+    if (sig != JANET_SIGNAL_OK && sig < JANET_SIGNAL_USER0) {
         janet_eprintf("in thread %v: ", janet_wrap_abstract(janet_make_thread(mailbox, encode)));
         janet_stacktrace(fiber, out);
     }
+
+#ifdef JANET_NET
+    janet_loop();
+#endif
 
     /* Normal exit */
     janet_deinit();

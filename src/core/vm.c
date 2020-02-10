@@ -35,6 +35,7 @@ JANET_THREAD_LOCAL JanetTable *janet_vm_core_env;
 JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
 JANET_THREAD_LOCAL int janet_vm_stackn = 0;
 JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber = NULL;
+JANET_THREAD_LOCAL JanetFiber *janet_vm_root_fiber = NULL;
 JANET_THREAD_LOCAL Janet *janet_vm_return_reg = NULL;
 JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
 
@@ -1231,7 +1232,9 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     janet_vm_stackn = oldn;
     janet_gcunlock(handle);
 
-    if (signal != JANET_SIGNAL_OK) janet_panicv(*janet_vm_return_reg);
+    if (signal != JANET_SIGNAL_OK) {
+        janet_panicv(*janet_vm_return_reg);
+    }
 
     return *janet_vm_return_reg;
 }
@@ -1277,6 +1280,7 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     Janet *old_vm_return_reg = janet_vm_return_reg;
 
     /* Setup fiber */
+    if (oldn == 0) janet_vm_root_fiber = fiber;
     janet_vm_fiber = fiber;
     janet_gcroot(janet_wrap_fiber(fiber));
     janet_fiber_set_status(fiber, JANET_STATUS_ALIVE);
@@ -1302,6 +1306,7 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     janet_gcunroot(janet_wrap_fiber(fiber));
 
     /* Restore global state */
+    if (oldn == 0) janet_vm_root_fiber = NULL;
     janet_vm_gc_suspend = handle;
     janet_vm_fiber = old_vm_fiber;
     janet_vm_stackn = oldn;
@@ -1369,6 +1374,9 @@ int janet_init(void) {
     janet_vm_core_env = NULL;
     /* Seed RNG */
     janet_rng_seed(janet_default_rng(), 0);
+    /* Fibers */
+    janet_vm_fiber = NULL;
+    janet_vm_root_fiber = NULL;
     /* Threads */
 #ifdef JANET_THREADS
     janet_threads_init();
@@ -1386,6 +1394,8 @@ void janet_deinit(void) {
     janet_vm_root_capacity = 0;
     janet_vm_registry = NULL;
     janet_vm_core_env = NULL;
+    janet_vm_fiber = NULL;
+    janet_vm_root_fiber = NULL;
 #ifdef JANET_THREADS
     janet_threads_deinit();
 #endif

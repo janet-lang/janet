@@ -39,39 +39,72 @@
  * Event loops
  */
 
+#define JANET_STREAM_CLOSED 1
+
+typedef struct {
+    int fd;
+    int flags;
+} JanetStream;
+
+static int janet_stream_close(void *p, size_t s);
+
+static const JanetAbstractType StreamAT = {
+    "core/stream",
+    janet_stream_close,
+    JANET_ATEND_GC
+};
+
+static int janet_stream_close(void *p, size_t s) {
+    (void) s;
+    JanetStream *stream = p;
+    if (!(stream->flags & JANET_STREAM_CLOSED)) {
+        stream->flags |= JANET_STREAM_CLOSED;
+        close(stream->fd);
+    }
+    return 0;
+}
+
+static JanetStream *make_stream(int fd) {
+    JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    stream->fd = fd;
+    stream->flags = 0;
+    return stream;
+}
+
 /* This large struct describes a waiting file descriptor, as well
- * as what to do when we get an event for it. */
+ * as what to do when we get an event for it. It is a variant type, where
+ * each variant implements a simple state machine. */
 typedef struct {
 
     /* File descriptor to listen for events on. */
     int fd;
 
-    /* Fiber to resume when event finishes. Can be NULL. */
+    /* Fiber to resume when event finishes. Can be NULL, in which case,
+     * no fiber is resumed when event completes. */
     JanetFiber *fiber;
-
-    /* We need to tell which fd_set to put in for select. */
-    enum {
-        JLFD_READ,
-        JLFD_WRITE
-    } select_mode;
 
     /* What kind of event we are listening for.
      * As more IO functionality get's added, we can
      * expand this. */
     enum {
-        JLE_READ_INTO_BUFFER,
+        JLE_READ_CHUNK,
+        JLE_READ_SOME,
         JLE_READ_ACCEPT,
+        JLE_CONNECT,
         JLE_WRITE_FROM_BUFFER,
         JLE_WRITE_FROM_STRINGLIKE
     } event_type;
 
+    /* Each variant can have a different payload. */
     union {
 
-        /* JLE_READ_INTO_BUFFER */
+        /* JLE_READ_CHUNK/JLE_READ_SOME */
         struct {
-            int32_t n;
+            int32_t bytes_left;
             JanetBuffer *buf;
-        } read_into_buffer;
+        } read_chunk;
 
         /* JLE_READ_ACCEPT */
         struct {
@@ -81,12 +114,15 @@ typedef struct {
         /* JLE_WRITE_FROM_BUFFER */
         struct {
             JanetBuffer *buf;
+            int32_t start;
         } write_from_buffer;
 
         /* JLE_WRITE_FROM_STRINGLIKE */
         struct {
             const uint8_t *str;
+            int32_t start;
         } write_from_stringlike;
+
     } data;
 
 } JanetLoopFD;
@@ -104,17 +140,20 @@ void janet_net_markloop(void) {
         switch (lfd.event_type) {
             default:
                 break;
-            case JLE_READ_INTO_BUFFER:
-                janet_mark(janet_wrap_buffer(lfd.data.read_into_buffer.buf));
+            case JLE_READ_CHUNK:
+            case JLE_READ_SOME:
+                janet_mark(janet_wrap_buffer(lfd.data.read_chunk.buf));
                 break;
             case JLE_READ_ACCEPT:
                 janet_mark(janet_wrap_function(lfd.data.read_accept.handler));
+                break;
+            case JLE_CONNECT:
                 break;
             case JLE_WRITE_FROM_BUFFER:
                 janet_mark(janet_wrap_buffer(lfd.data.write_from_buffer.buf));
                 break;
             case JLE_WRITE_FROM_STRINGLIKE:
-                janet_mark(janet_wrap_buffer(lfd.data.write_from_buffer.buf));
+                janet_mark(janet_wrap_string(lfd.data.write_from_stringlike.str));
         }
     }
 }
@@ -132,11 +171,6 @@ static int janet_loop_schedule(JanetLoopFD lfd) {
     return index;
 }
 
-/* Remove an event listener by the handle it returned when scheduled. */
-static void janet_loop_unschedule(int index) {
-    janet_vm_loopfds[index] = janet_vm_loopfds[--janet_vm_loop_count];
-}
-
 /* Return delta in number of loop fds. Abstracted out so
  * we can separate out the polling logic */
 static size_t janet_loop_event(size_t index) {
@@ -145,55 +179,122 @@ static size_t janet_loop_event(size_t index) {
     int should_resume = 0;
     Janet resumeval = janet_wrap_nil();
     switch (jlfd->event_type) {
-        case JLE_READ_INTO_BUFFER:
-            {
-                JanetBuffer *buffer = jlfd->data.read_into_buffer.buf;
-                int32_t how_much = jlfd->data.read_into_buffer.n;
-                janet_buffer_extra(buffer, how_much);
-                int status = read(jlfd->fd, buffer->data + buffer->count, how_much);
-                if (status > 0) {
-                    buffer->count += how_much;
-                }
-                should_resume = 1;
-                resumeval = janet_wrap_buffer(buffer);
-                /* Bag pop */
-                janet_loop_unschedule(index);
-                ret = 0;
-                break;
-            }
-        case JLE_READ_ACCEPT:
-            {
-                char addr[256]; /* Just make sure it is large enough for largest address type */
-                socklen_t len;
-                int connfd = accept(jlfd->fd, (void *) &addr, &len);
-                if (connfd >= 0) {
-                    /* Made a new connection socket */
-                    int flags = fcntl(connfd, F_GETFL, 0);
-                    fcntl(connfd, F_SETFL, flags | O_NONBLOCK);
-                    FILE *f = fdopen(connfd, "r+");
-                    Janet filev = janet_makefile(f, JANET_FILE_WRITE | JANET_FILE_READ);
-                    JanetFunction *handler = jlfd->data.read_accept.handler;
-                    Janet out;
-                    /* Launch connection fiber */
-                    janet_pcall(handler, 1, &filev, &out, NULL);
-                }
+        case JLE_READ_CHUNK:
+        case JLE_READ_SOME: {
+            JanetBuffer *buffer = jlfd->data.read_chunk.buf;
+            int32_t bytes_left = jlfd->data.read_chunk.bytes_left;
+            janet_buffer_extra(buffer, bytes_left);
+            ssize_t nread;
+            errno = 0;
+            do {
+                nread = read(jlfd->fd, buffer->data + buffer->count, bytes_left);
+            } while (errno == EINTR);
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 ret = 1;
                 break;
             }
-        case JLE_WRITE_FROM_BUFFER:
-        case JLE_WRITE_FROM_STRINGLIKE:
-            ret = 1;
+            if (nread > 0) {
+                buffer->count += nread;
+                bytes_left -= nread;
+            } else {
+                bytes_left = 0;
+            }
+            if (jlfd->event_type == JLE_READ_SOME || bytes_left == 0) {
+                should_resume = 1;
+                if (nread > 0) {
+                    resumeval = janet_wrap_buffer(buffer);
+                }
+                ret = 0;
+            } else {
+                jlfd->data.read_chunk.bytes_left = bytes_left;
+                ret = 1;
+            }
             break;
+        }
+        case JLE_READ_ACCEPT: {
+            char addr[256] = {0}; /* Just make sure it is large enough for largest address type */
+            socklen_t len = 0;
+            int connfd = accept(jlfd->fd, (void *) &addr, &len);
+            if (connfd >= 0) {
+                /* Made a new connection socket */
+                JanetStream *stream = make_stream(connfd);
+                Janet streamv = janet_wrap_abstract(stream);
+                JanetFunction *handler = jlfd->data.read_accept.handler;
+                Janet out;
+                JanetFiber *fiberp = NULL;
+                /* Launch connection fiber */
+                JanetSignal sig = janet_pcall(handler, 1, &streamv, &out, &fiberp);
+                if (sig != JANET_SIGNAL_OK && sig != JANET_SIGNAL_USER9) {
+                    janet_stacktrace(fiberp, out);
+                }
+            }
+            ret = JANET_LOOPFD_MAX;
+            break;
+        }
+        case JLE_WRITE_FROM_BUFFER:
+        case JLE_WRITE_FROM_STRINGLIKE: {
+            int32_t start, len;
+            const uint8_t *bytes;
+            if (jlfd->event_type == JLE_WRITE_FROM_BUFFER) {
+                JanetBuffer *buffer = jlfd->data.write_from_buffer.buf;
+                bytes = buffer->data;
+                len = buffer->count;
+                start = jlfd->data.write_from_buffer.start;
+            } else {
+                bytes = jlfd->data.write_from_stringlike.str;
+                len = janet_string_length(bytes);
+                start = jlfd->data.write_from_stringlike.start;
+            }
+            if (start < len) {
+                int32_t nbytes = len - start;
+                ssize_t nwrote;
+                do {
+                    nwrote = write(jlfd->fd, bytes + start, nbytes);
+                } while (nwrote == EINTR);
+                if (nwrote > 0) {
+                    start += nwrote;
+                } else {
+                    start = len;
+                }
+            }
+            if (start >= len) {
+                should_resume = 1;
+                ret = 0;
+            } else {
+                if (jlfd->event_type == JLE_WRITE_FROM_BUFFER) {
+                    jlfd->data.write_from_buffer.start = start;
+                } else {
+                    jlfd->data.write_from_stringlike.start = start;
+                }
+                ret = 1;
+            }
+            break;
+        }
+        case JLE_CONNECT: {
+
+            break;
+        }
     }
+
+    /* Resume a fiber for some events */
     if (NULL != jlfd->fiber && should_resume) {
         /* Resume the fiber */
         Janet out;
-        janet_continue(jlfd->fiber, resumeval, &out);
+        JanetSignal sig = janet_continue(jlfd->fiber, resumeval, &out);
+        if (sig != JANET_SIGNAL_OK && sig != JANET_SIGNAL_USER9) {
+            janet_stacktrace(jlfd->fiber, out);
+        }
     }
+
+    /* Remove this handler from the handler pool. */
+    if (should_resume) {
+        janet_vm_loopfds[index] = janet_vm_loopfds[--janet_vm_loop_count];
+    }
+
     return ret;
 }
 
-void janet_loop1(void) {
+static void janet_loop1(void) {
     /* Set up fd_sets */
     fd_set readfds;
     fd_set writefds;
@@ -203,20 +304,17 @@ void janet_loop1(void) {
     for (int i = 0; i < janet_vm_loop_count; i++) {
         JanetLoopFD *jlfd = janet_vm_loopfds + i;
         if (jlfd->fd > fd_max) fd_max = jlfd->fd;
-        fd_set *set = (jlfd->select_mode == JLFD_READ) ? &readfds : &writefds;
+        fd_set *set = (jlfd->event_type <= JLE_READ_ACCEPT) ? &readfds : &writefds;
         FD_SET(jlfd->fd, set);
     }
 
     /* Blocking call - we should add timeout functionality */
-    printf("selecting %d!\n", janet_vm_loop_count);
-    int status = select(fd_max, &readfds, &writefds, NULL, NULL);
-    (void) status;
-    printf("selected!\n");
+    select(fd_max + 1, &readfds, &writefds, NULL, NULL);
 
     /* Now handle all events */
     for (int i = 0; i < janet_vm_loop_count;) {
         JanetLoopFD *jlfd = janet_vm_loopfds + i;
-        fd_set *set = (jlfd->select_mode == JLFD_READ) ? &readfds : &writefds;
+        fd_set *set = (jlfd->event_type <= JLE_READ_ACCEPT) ? &readfds : &writefds;
         if (FD_ISSET(jlfd->fd, set)) {
             size_t delta = janet_loop_event(i);
             i += delta;
@@ -227,23 +325,57 @@ void janet_loop1(void) {
 }
 
 void janet_loop(void) {
-    while (janet_vm_loop_count) janet_loop1();
+    while (janet_vm_loop_count) {
+        janet_loop1();
+    }
 }
 
 /*
- * C Funs
+ * Scheduling Helpers
  */
 
-static Janet cfun_net_server(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 3);
+#define JANET_SCHED_FSOME 1
 
-    /* Get host, port, and handler*/
-    const char *host = janet_getcstring(argv, 0);
-    const char *port = janet_getcstring(argv, 1);
-    JanetFunction *fun = janet_getfunction(argv, 2);
+JANET_NO_RETURN static void janet_sched_read(int fd, JanetBuffer *buf, int32_t nbytes, int flags) {
+    JanetLoopFD lfd = {0};
+    lfd.fd = fd;
+    lfd.fiber = janet_root_fiber();
+    lfd.event_type = (flags & JANET_SCHED_FSOME) ? JLE_READ_SOME : JLE_READ_CHUNK;
+    lfd.data.read_chunk.buf = buf;
+    lfd.data.read_chunk.bytes_left = nbytes;
+    janet_loop_schedule(lfd);
+    janet_signalv(JANET_SIGNAL_USER9, janet_wrap_nil());
+}
 
+JANET_NO_RETURN static void janet_sched_write_buffer(int fd, JanetBuffer *buf) {
+    JanetLoopFD lfd = {0};
+    lfd.fd = fd;
+    lfd.fiber = janet_root_fiber();
+    lfd.event_type = JLE_WRITE_FROM_BUFFER;
+    lfd.data.write_from_buffer.buf = buf;
+    lfd.data.write_from_buffer.start = 0;
+    janet_loop_schedule(lfd);
+    janet_signalv(JANET_SIGNAL_USER9, janet_wrap_nil());
+}
+
+JANET_NO_RETURN static void janet_sched_write_stringlike(int fd, const uint8_t *str) {
+    JanetLoopFD lfd = {0};
+    lfd.fd = fd;
+    lfd.fiber = janet_root_fiber();
+    lfd.event_type = JLE_WRITE_FROM_STRINGLIKE;
+    lfd.data.write_from_stringlike.str = str;
+    lfd.data.write_from_stringlike.start = 0;
+    janet_loop_schedule(lfd);
+    janet_signalv(JANET_SIGNAL_USER9, janet_wrap_nil());
+}
+
+/* Needs argc >= offset + 2 */
+static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset) {
+    /* Get host and port */
+    const char *host = janet_getcstring(argv, offset);
+    const char *port = janet_getcstring(argv, offset + 1);
     /* getaddrinfo */
-    struct addrinfo *ai;
+    struct addrinfo *ai = NULL;
     struct addrinfo hints = {0};
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -253,8 +385,46 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     if (status) {
         janet_panicf("could not get address info: %s", gai_strerror(status));
     }
+    return ai;
+}
 
-    /* bind */
+/*
+ * C Funs
+ */
+
+static Janet cfun_net_connect(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0);
+
+    /* Create socket */
+    int sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+    if (sock < 0) {
+        freeaddrinfo(ai);
+        janet_panic("could not create socket");
+    }
+
+    /* Connect to socket */
+    int status = connect(sock, ai->ai_addr, ai->ai_addrlen);
+    freeaddrinfo(ai);
+    if (status < 0) {
+        close(sock);
+        janet_panic("could not connect to socket");
+    }
+
+    /* Wrap socket in abstract type JanetStream */
+    JanetStream *stream = make_stream(sock);
+    return janet_wrap_abstract(stream);
+}
+
+static Janet cfun_net_server(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 3);
+
+    /* Get host, port, and handler*/
+    JanetFunction *fun = janet_getfunction(argv, 2);
+
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0);
+
     /* Check all addrinfos in a loop for the first that we can bind to. */
     int sfd = 0;
     struct addrinfo *rp = NULL;
@@ -270,9 +440,9 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     }
 
     /* listen */
-    status = listen(sfd, 1024);
+    int status = listen(sfd, 1024);
+    freeaddrinfo(ai);
     if (status) {
-        freeaddrinfo(ai);
         close(sfd);
         janet_panic("could not listen on file descriptor");
     }
@@ -282,13 +452,9 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
      * We don't want to blow up the whole application. */
     signal(SIGPIPE, SIG_IGN);
 
-    /* cleanup */
-    freeaddrinfo(ai);
-
     /* Put sfd on our loop */
     JanetLoopFD lfd = {0};
     lfd.fd = sfd;
-    lfd.select_mode = JLFD_READ;
     lfd.event_type = JLE_READ_ACCEPT;
     lfd.data.read_accept.handler = fun;
     janet_loop_schedule(lfd);
@@ -296,18 +462,50 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet cfun_net_loop(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 0);
-    (void) argv;
-    printf("starting loop...\n");
-    janet_loop();
+static Janet cfun_stream_read(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 3);
+    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
+    int32_t n = janet_getnat(argv, 1);
+    JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, 10);
+    janet_sched_read(stream->fd, buffer, n, JANET_SCHED_FSOME);
+}
+
+static Janet cfun_stream_chunk(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 3);
+    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
+    int32_t n = janet_getnat(argv, 1);
+    JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, 10);
+    janet_sched_read(stream->fd, buffer, n, 0);
+}
+
+static Janet cfun_stream_close(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
+    janet_stream_close(stream, 0);
     return janet_wrap_nil();
 }
 
+static Janet cfun_stream_write(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
+    if (janet_checktype(argv[1], JANET_BUFFER)) {
+        janet_sched_write_buffer(stream->fd, janet_getbuffer(argv, 1));
+    } else {
+        JanetByteView bytes = janet_getbytes(argv, 1);
+        janet_sched_write_stringlike(stream->fd, bytes.bytes);
+    }
+}
+
 static const JanetReg net_cfuns[] = {
-    {"net/server", cfun_net_server,
-        JDOC("(net/server host port)\n\nStart a simple TCP echo server.")},
-    {"net/loop", cfun_net_loop, NULL},
+    {
+        "net/server", cfun_net_server,
+        JDOC("(net/server host port)\n\nStart a TCP server.")
+    },
+    {"net/read", cfun_stream_read, NULL},
+    {"net/chunk", cfun_stream_chunk, NULL},
+    {"net/write", cfun_stream_write, NULL},
+    {"net/close", cfun_stream_close, NULL},
+    {"net/connect", cfun_net_connect, NULL},
     {NULL, NULL, NULL}
 };
 
