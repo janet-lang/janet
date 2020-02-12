@@ -287,7 +287,7 @@
   ~(let (,;accum) ,;body))
 
 (defmacro defer
-  "Run form unconditionally after form, even if the body throws an error."
+  "Run form unconditionally after body, even if the body throws an error."
   [form & body]
   (with-syms [f r]
     ~(do
