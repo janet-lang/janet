@@ -50,12 +50,14 @@ typedef struct {
 
 static int janet_stream_close(void *p, size_t s);
 
-static int janet_stream_getter(void *p, size_t, Janet key);
+static int janet_stream_getter(void *p, Janet key, Janet *out);
 
 static const JanetAbstractType StreamAT = {
     "core/stream",
     janet_stream_close,
-    JANET_ATEND_GC
+    NULL,
+    janet_stream_getter,
+    JANET_ATEND_GET
 };
 
 static int janet_stream_close(void *p, size_t s) {
@@ -521,6 +523,20 @@ static Janet cfun_stream_write(int32_t argc, Janet *argv) {
         JanetByteView bytes = janet_getbytes(argv, 1);
         janet_sched_write_stringlike(stream, bytes.bytes);
     }
+}
+
+static const JanetMethod stream_methods[] = {
+    {"chunk", cfun_stream_chunk},
+    {"close", cfun_stream_close},
+    {"read", cfun_stream_read},
+    {"write", cfun_stream_write},
+    {NULL, NULL}
+};
+
+static int janet_stream_getter(void *p, Janet key, Janet *out) {
+    (void) p;
+    if (!janet_checktype(key, JANET_KEYWORD)) return 0;
+    return janet_getmethod(janet_unwrap_keyword(key), stream_methods, out);
 }
 
 static const JanetReg net_cfuns[] = {
