@@ -26,8 +26,6 @@
 #include "util.h"
 #endif
 
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/ioctl.h>
@@ -425,7 +423,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset) {
  */
 
 static Janet cfun_net_connect(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, -1);
+    janet_fixarity(argc, 2);
 
     struct addrinfo *ai = janet_get_addrinfo(argv, 0);
 
@@ -435,16 +433,6 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
         freeaddrinfo(ai);
         janet_panic("could not create socket");
     }
-
-    /* Set socket opts */
-    /*for (int32_t argi = 1; argi < argc; argi++) {
-        const uint8_t *kw = janet_getkeyword(argv, argi);
-        if (janet_cstrcmp(kw, "no-delay")) {
-            int one = 1;
-            setsockopt(sock, SOL_TCP, TCP_NODELAY, &one, sizeof(one));
-        }
-    }*/
-
 
     /* Connect to socket */
     int status = connect(sock, ai->ai_addr, ai->ai_addrlen);
