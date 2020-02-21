@@ -26,6 +26,8 @@
 #include "util.h"
 #endif
 
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/ioctl.h>
@@ -146,6 +148,9 @@ JANET_THREAD_LOCAL int janet_vm_loop_count;
 void janet_net_markloop(void) {
     for (int i = 0; i < janet_vm_loop_count; i++) {
         JanetLoopFD lfd = janet_vm_loopfds[i];
+        if (lfd.fiber != NULL) {
+            janet_mark(janet_wrap_fiber(lfd.fiber));
+        }
         janet_mark(janet_wrap_abstract(lfd.stream));
         switch (lfd.event_type) {
             default:
@@ -175,9 +180,6 @@ static int janet_loop_schedule(JanetLoopFD lfd) {
     }
     int index = janet_vm_loop_count;
     janet_vm_loopfds[janet_vm_loop_count++] = lfd;
-    if (NULL != lfd.fiber) {
-        janet_gcroot(janet_wrap_fiber(lfd.fiber));
-    }
     return index;
 }
 
@@ -274,9 +276,10 @@ static size_t janet_loop_event(size_t index) {
                 if (start < len) {
                     int32_t nbytes = len - start;
                     ssize_t nwrote;
+                    errno = 0;
                     do {
                         nwrote = write(fd, bytes + start, nbytes);
-                    } while (nwrote == EINTR);
+                    } while (errno == EINTR);
                     if (nwrote > 0) {
                         start += nwrote;
                     } else {
@@ -422,7 +425,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset) {
  */
 
 static Janet cfun_net_connect(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 2);
+    janet_arity(argc, 2, -1);
 
     struct addrinfo *ai = janet_get_addrinfo(argv, 0);
 
@@ -432,6 +435,16 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
         freeaddrinfo(ai);
         janet_panic("could not create socket");
     }
+
+    /* Set socket opts */
+    /*for (int32_t argi = 1; argi < argc; argi++) {
+        const uint8_t *kw = janet_getkeyword(argv, argi);
+        if (janet_cstrcmp(kw, "no-delay")) {
+            int one = 1;
+            setsockopt(sock, SOL_TCP, TCP_NODELAY, &one, sizeof(one));
+        }
+    }*/
+
 
     /* Connect to socket */
     int status = connect(sock, ai->ai_addr, ai->ai_addrlen);

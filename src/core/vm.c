@@ -1280,7 +1280,7 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     Janet *old_vm_return_reg = janet_vm_return_reg;
 
     /* Setup fiber */
-    if (oldn == 0) janet_vm_root_fiber = fiber;
+    if (janet_vm_root_fiber == NULL) janet_vm_root_fiber = fiber;
     janet_vm_fiber = fiber;
     janet_gcroot(janet_wrap_fiber(fiber));
     janet_fiber_set_status(fiber, JANET_STATUS_ALIVE);
@@ -1306,7 +1306,7 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     janet_gcunroot(janet_wrap_fiber(fiber));
 
     /* Restore global state */
-    if (oldn == 0) janet_vm_root_fiber = NULL;
+    if (janet_vm_root_fiber == fiber) janet_vm_root_fiber = NULL;
     janet_vm_gc_suspend = handle;
     janet_vm_fiber = old_vm_fiber;
     janet_vm_stackn = oldn;
@@ -1377,6 +1377,7 @@ int janet_init(void) {
     /* Fibers */
     janet_vm_fiber = NULL;
     janet_vm_root_fiber = NULL;
+    janet_vm_stackn = 0;
     /* Threads */
 #ifdef JANET_THREADS
     janet_threads_init();
