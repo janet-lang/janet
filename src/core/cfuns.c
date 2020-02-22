@@ -70,10 +70,10 @@ static JanetSlot genericSSI(JanetFopts opts, int op, JanetSlot s, int32_t imm) {
 
 /* Emit an insruction that implements a form by itself. */
 static JanetSlot opfunction(
-        JanetFopts opts,
-        JanetSlot *args,
-        int op,
-        Janet defaultArg2) {
+    JanetFopts opts,
+    JanetSlot *args,
+    int op,
+    Janet defaultArg2) {
     JanetCompiler *c = opts.compiler;
     int32_t len;
     len = janet_v_count(args);
@@ -82,7 +82,8 @@ static JanetSlot opfunction(
         t = janetc_gettarget(opts);
         janetc_emit_sss(c, op, t, args[0], janetc_cslot(defaultArg2), 1);
         return t;
-    } else if (len == 2) {
+    } else {
+        /* len == 2 */
         t = janetc_gettarget(opts);
         janetc_emit_sss(c, op, t, args[0], args[1], 1);
     }

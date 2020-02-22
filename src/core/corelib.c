@@ -599,11 +599,10 @@ static const JanetReg corelib_cfuns[] = {
     {
         "type", janet_core_type,
         JDOC("(type x)\n\n"
-             "Returns the type of x as a keyword symbol. x is one of\n"
+             "Returns the type of x as a keyword. x is one of\n"
              "\t:nil\n"
              "\t:boolean\n"
-             "\t:integer\n"
-             "\t:real\n"
+             "\t:number\n"
              "\t:array\n"
              "\t:tuple\n"
              "\t:table\n"
@@ -614,7 +613,7 @@ static const JanetReg corelib_cfuns[] = {
              "\t:keyword\n"
              "\t:function\n"
              "\t:cfunction\n\n"
-             "or another symbol for an abstract type.")
+             "or another keyword for an abstract type.")
     },
     {
         "hash", janet_core_hash,
