@@ -2225,6 +2225,29 @@
 ###
 ###
 
+(defn- no-side-effects
+  "Check if form may have side effects. If returns true, then the src
+  must not have side effects, such as calling a C function."
+  [src]
+  (cond
+    (tuple? src)
+    (if (= (tuple/type src) :brackets)
+      (all no-side-effects src))
+    (array? src)
+    (all no-side-effects src)
+    (dictionary? src)
+    (and (all no-side-effects (keys src))
+         (all no-side-effects (values src)))
+    true))
+
+(defn- is-safe-def [x] (no-side-effects (last x)))
+
+(def- safe-forms {'defn true 'defn- true 'defmacro true 'defmacro- true
+                  'def is-safe-def 'var is-safe-def 'def- is-safe-def 'var- is-safe-def
+                  'defglobal is-safe-def 'varglobal is-safe-def})
+
+(def- importers {'import true 'import* true 'use true 'dofile true 'require true})
+
 (defn cli-main
   "Entrance for the Janet CLI tool. Call this functions with the command line
   arguments as an array or tuple of strings to invoke the CLI interface."
@@ -2292,15 +2315,21 @@
     (def h (in handlers n))
     (if h (h i) (do (print "unknown flag -" n) ((in handlers "h")))))
 
-  (def- safe-forms {'defn true 'defn- true 'defmacro true 'defmacro- true})
-  (def- importers {'import true 'import* true 'use true 'dofile true 'require true})
   (defn- evaluator
     [thunk source env where]
     (if *compile-only*
       (when (tuple? source)
+        (def head (source 0))
+        (def safe-check (safe-forms head))
         (cond
-          (safe-forms (source 0)) (thunk)
-          (importers (source 0))
+          # Sometimes safe form
+          (function? safe-check)
+          (if (safe-check source) (thunk))
+          # Always safe form
+          safe-check
+          (thunk)
+          # Import-like form
+          (importers head)
           (do
             (let [[l c] (tuple/sourcemap source)
                   newtup (tuple/setmap (tuple ;source :evaluator evaluator) l c)]
@@ -2346,6 +2375,11 @@
     (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
     (setdyn :err-color (if *colorize* true))
     (repl getchunk onsig env)))
+
+(put _env 'no-side-effects nil)
+(put _env 'is-safe-def nil)
+(put _env 'safe-forms nil)
+(put _env 'importers nil)
 
 
 ###
