@@ -70,7 +70,16 @@
 (test-bf "+[+[<<<+>>>>]+<-<-<<<+<++]<<.<++.<++..+++.<<++.<---.>>.>.+++.------.>-.>>--."
          "Hello, World!")
 
-# Prompts
+# Prompts and Labels
+
+(assert (= 10 (label a (for i 0 10 (if (= i 5) (return a 10))))) "label 1")
+
+(defn recur
+  [lab x y]
+  (when (= x y) (return lab :done))
+  (def res (label newlab (recur (or lab newlab) (+ x 1) y)))
+  (if lab :oops res))
+(assert (= :done (recur nil 0 10)) "label 2")
 
 (assert (= 10 (prompt :a (for i 0 10 (if (= i 5) (return :a 10))))) "prompt 1")
 

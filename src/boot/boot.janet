@@ -317,7 +317,7 @@
   that will be bound to the label."
   [name & body]
   ~(do
-     (def ,name ',(gensym))
+     (def ,name @"")
      ,(apply prompt name body)))
 
 (defn return
