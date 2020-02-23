@@ -300,7 +300,7 @@
          (propagate ,r ,f)))))
 
 (defmacro prompt
-  "Set up a prompt point that can be aborted to. Tag should be a value
+  "Set up a checkpoint that can be returned to. Tag should be a value
   that is used in a return statement, like a keyword."
   [tag & body]
   (with-syms [res target payload fib]
@@ -312,9 +312,17 @@
          ,payload
          (propagate ,res ,fib)))))
 
+(defmacro label
+  "Set a label point that is lexically scoped. Name should be a symbol
+  that will be bound to the label."
+  [name & body]
+  ~(do
+     (def ,name ',(gensym))
+     ,(apply prompt name body)))
+
 (defn return
   "Return to a prompt point."
-  [to value]
+  [to &opt value]
   (signal 0 [to value]))
 
 (defmacro with
