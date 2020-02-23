@@ -1249,6 +1249,7 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     }
     if (old_status == JANET_STATUS_ALIVE ||
             old_status == JANET_STATUS_DEAD ||
+            (old_status >= JANET_STATUS_USER0 && old_status <= JANET_STATUS_USER4) ||
             old_status == JANET_STATUS_ERROR) {
         const uint8_t *str = janet_formatc("cannot resume fiber with status :%s",
                                            janet_status_names[old_status]);

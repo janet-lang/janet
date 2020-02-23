@@ -287,11 +287,12 @@
   ~(let (,;accum) ,;body))
 
 (defmacro defer
-  "Run form unconditionally after body, even if the body throws an error."
+  "Run form unconditionally after body, even if the body throws an error.
+  Will also run form if a user signal 0-4 is received."
   [form & body]
   (with-syms [f r]
     ~(do
-       (def ,f (,fiber/new (fn [] ,;body) :ie))
+       (def ,f (,fiber/new (fn [] ,;body) :ti))
        (def ,r (,resume ,f))
        ,form
        (if (= (,fiber/status ,f) :dead)
@@ -975,11 +976,10 @@
   (with-syms [ret f s]
   ~(do
      ,;saveold
-     (def ,f (,fiber/new (fn [] ,;setnew ,;body) :ei))
+     (def ,f (,fiber/new (fn [] ,;setnew ,;body) :ti))
      (def ,ret (,resume ,f))
      ,;restoreold
-     (if (= (,fiber/status ,f) :error) (,propagate ,ret ,f))
-     ,ret)))
+     (if (= (,fiber/status ,f) :dead) ,ret (,propagate ,ret ,f)))))
 
 (defn partial
   "Partial function application."
@@ -1855,8 +1855,7 @@
               (on-compile-error msg errf where))))
         (or guard :a)))
     (fiber/setenv f env)
-    (while (let [fs (fiber/status f)]
-             (and (not= :dead fs) (not= :error fs)))
+    (while (fiber/can-resume? f)
       (def res (resume f resumeval))
       (when good (when going (set resumeval (onstatus f res))))))
 
