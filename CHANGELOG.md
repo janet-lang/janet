@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+- Add `signal`
+- Add `fiber/can-resume?`
+- Allow fiber functions to accept arguments that are passed in via `resume`.
+- Make flychecking slightly less strict but more useful
+- Correct arity for `next`
+- Correct arity for `marshal`
+- Add `flush` and `eflush`
+
 ## 1.7.0 - 2020-02-01
 - Remove `file/fileno` and `file/fdopen`.
 - Remove `==`, `not==`, `order<`, `order>`, `order<=`, and `order>=`. Instead, use the normal
