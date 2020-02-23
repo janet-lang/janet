@@ -299,6 +299,24 @@
          ,r
          (propagate ,r ,f)))))
 
+(defmacro prompt
+  "Set up a prompt point that can be aborted to. Tag should be a value
+  that is used in a return statement, like a keyword."
+  [tag & body]
+  (with-syms [res target payload fib]
+    ~(do
+       (def ,fib (,fiber/new (fn [] [,tag (do ,;body)]) :i0))
+       (def ,res (,resume ,fib))
+       (def [,target ,payload] ,res)
+       (if (,= ,tag ,target)
+         ,payload
+         (propagate ,res ,fib)))))
+
+(defn return
+  "Return to a prompt point."
+  [to value]
+  (signal 0 [to value]))
+
 (defmacro with
   "Evaluate body with some resource, which will be automatically cleaned up
   if there is an error in body. binding is bound to the expression ctor, and

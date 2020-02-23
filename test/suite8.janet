@@ -70,4 +70,24 @@
 (test-bf "+[+[<<<+>>>>]+<-<-<<<+<++]<<.<++.<++..+++.<<++.<---.>>.>.+++.------.>-.>>--."
          "Hello, World!")
 
+# Prompts
+
+(assert (= 10 (prompt :a (for i 0 10 (if (= i 5) (return :a 10))))) "prompt 1")
+
+(defn- inner-loop
+  [i]
+  (if (= i 5)
+    (return :a 10)))
+
+(assert (= 10 (prompt :a (for i 0 10 (inner-loop i)))) "prompt 2")
+
+(defn- inner-loop2
+  [i]
+  (try
+    (if (= i 5)
+      (error 10))
+    ([err] (return :a err))))
+
+(assert (= 10 (prompt :a (for i 0 10 (inner-loop2 i)))) "prompt 3")
+
 (end-suite)
