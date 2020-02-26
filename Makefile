@@ -37,8 +37,7 @@ MANPATH?=$(PREFIX)/share/man/man1/
 PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 DEBUGGER=gdb
 
-CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden \
-	   -DJANET_BUILD=$(JANET_BUILD)
+CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden
 LDFLAGS:=$(LDFLAGS) -rdynamic
 
 # For installation
@@ -129,14 +128,15 @@ JANET_BOOT_HEADERS=src/boot/tests.h
 ##########################################################
 
 JANET_BOOT_OBJECTS=$(patsubst src/%.c,build/%.boot.o,$(JANET_CORE_SOURCES) $(JANET_BOOT_SOURCES))
+BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) $(CFLAGS)
 
 $(JANET_BOOT_OBJECTS): $(JANET_BOOT_HEADERS)
 
 build/%.boot.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
-	$(CC) $(CFLAGS) -DJANET_BOOTSTRAP -o $@ -c $<
+	$(CC) $(BOOT_CFLAGS) -o $@ -c $<
 
 build/janet_boot: $(JANET_BOOT_OBJECTS)
-	$(CC) $(CFLAGS) -DJANET_BOOTSTRAP -o $@ $(JANET_BOOT_OBJECTS) $(CLIBS)
+	$(CC) $(BOOT_CFLAGS) -o $@ $(JANET_BOOT_OBJECTS) $(CLIBS)
 
 # Now the reason we bootstrap in the first place
 build/janet.c: build/janet_boot src/boot/boot.janet
@@ -300,16 +300,6 @@ test-install:
 	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/jhydro.git
 	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/path.git
 	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/argparse.git
-
-build/embed_janet.o: build/janet.c $(JANET_HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
-build/embed_main.o: test/amalg/main.c $(JANET_HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
-build/embed_test: build/embed_janet.o build/embed_main.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(CLIBS)
-
-test-amalg: build/embed_test
-	./build/embed_test
 
 .PHONY: clean install repl debug valgrind test \
 	valtest emscripten dist uninstall docs grammar format
