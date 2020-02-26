@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Improve `janet_formatc` and `janet_panicf` formatters to be more like `string/format`.
+  This makes it easier to make nice error messages from C.
 - Add `signal`
 - Add `fiber/can-resume?`
 - Allow fiber functions to accept arguments that are passed in via `resume`.
