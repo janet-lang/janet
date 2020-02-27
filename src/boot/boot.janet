@@ -2522,7 +2522,8 @@
 
   (defn do-one-flie
     [fname]
-    (print "\n/* " fname " */\n")
+    (print "\n/* " fname " */")
+    (print "#line 0 \"" fname "\"\n")
     (def source (slurp fname))
     (print (string/replace-all "\r" "" source)))
 

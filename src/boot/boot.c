@@ -105,6 +105,7 @@ int main(int argc, const char **argv) {
     fclose(boot_file);
 
     status = janet_dobytes(env, boot_buffer, (int32_t) boot_size, boot_filename, NULL);
+    free(boot_buffer);
 
     /* Deinitialize vm */
     janet_deinit();
