@@ -51,10 +51,6 @@ struct JanetMailbox {
     pthread_cond_t cond;
 #endif
 
-    /* Setup procedure - requires a parent mailbox
-     * to receive thunk from */
-    JanetMailbox *parent;
-
     /* Memory management - reference counting */
     int refCount;
     int closed;
@@ -70,6 +66,11 @@ struct JanetMailbox {
     JanetBuffer messages[];
 };
 
+typedef struct {
+    JanetMailbox *original;
+    JanetMailbox *newbox;
+} JanetMailboxPair;
+
 static JANET_THREAD_LOCAL JanetMailbox *janet_vm_mailbox = NULL;
 static JANET_THREAD_LOCAL JanetThread *janet_vm_thread_current = NULL;
 static JANET_THREAD_LOCAL JanetTable *janet_vm_thread_decode = NULL;
@@ -82,7 +83,7 @@ static JanetTable *janet_thread_get_decode(void) {
     return janet_vm_thread_decode;
 }
 
-static JanetMailbox *janet_mailbox_create(JanetMailbox *parent, int refCount, uint16_t capacity) {
+static JanetMailbox *janet_mailbox_create(int refCount, uint16_t capacity) {
     JanetMailbox *mailbox = malloc(sizeof(JanetMailbox) + sizeof(JanetBuffer) * (size_t) capacity);
     if (NULL == mailbox) {
         JANET_OUT_OF_MEMORY;
@@ -96,7 +97,6 @@ static JanetMailbox *janet_mailbox_create(JanetMailbox *parent, int refCount, ui
 #endif
     mailbox->refCount = refCount;
     mailbox->closed = 0;
-    mailbox->parent = parent;
     mailbox->messageCount = 0;
     mailbox->messageCapacity = capacity;
     mailbox->messageFirst = 0;
@@ -173,6 +173,23 @@ static int thread_mark(void *p, size_t size) {
         janet_mark(janet_wrap_table(thread->encode));
     }
     return 0;
+}
+
+static JanetMailboxPair *make_mailbox_pair(JanetMailbox *original) {
+    JanetMailboxPair *pair = malloc(sizeof(JanetMailboxPair));
+    if (NULL == pair) {
+        JANET_OUT_OF_MEMORY;
+    }
+    pair->original = original;
+    janet_mailbox_ref(original, 1);
+    pair->newbox = janet_mailbox_create(1, 16);
+    return pair;
+}
+
+static void destory_mailbox_pair(JanetMailboxPair *pair) {
+    janet_mailbox_ref(pair->original, -1);
+    janet_mailbox_ref(pair->newbox, -1);
+    free(pair);
 }
 
 /* Abstract waiting for timeout across windows/posix */
@@ -402,6 +419,7 @@ static JanetAbstractType Thread_AT = {
 
 static JanetThread *janet_make_thread(JanetMailbox *mailbox, JanetTable *encode) {
     JanetThread *thread = janet_abstract(&Thread_AT, sizeof(JanetThread));
+    janet_mailbox_ref(mailbox, 1);
     thread->mailbox = mailbox;
     thread->encode = encode;
     return thread;
@@ -412,12 +430,13 @@ JanetThread *janet_getthread(const Janet *argv, int32_t n) {
 }
 
 /* Runs in new thread */
-static int thread_worker(JanetMailbox *mailbox) {
+static int thread_worker(JanetMailboxPair *pair) {
     JanetFiber *fiber = NULL;
     Janet out;
 
     /* Use the mailbox we were given */
-    janet_vm_mailbox = mailbox;
+    janet_vm_mailbox = pair->newbox;
+    janet_mailbox_ref(pair->newbox, 1);
 
     /* Init VM */
     janet_init();
@@ -426,9 +445,7 @@ static int thread_worker(JanetMailbox *mailbox) {
     JanetTable *encode = janet_get_core_table("make-image-dict");
 
     /* Create parent thread */
-    JanetThread *parent = janet_make_thread(mailbox->parent, encode);
-    janet_mailbox_ref(mailbox->parent, -1);
-    mailbox->parent = NULL; /* only used to create the thread */
+    JanetThread *parent = janet_make_thread(pair->original, encode);
     Janet parentv = janet_wrap_abstract(parent);
 
     /* Unmarshal the function */
@@ -449,16 +466,18 @@ static int thread_worker(JanetMailbox *mailbox) {
     fiber = janet_fiber(func, 64, 1, argv);
     JanetSignal sig = janet_continue(fiber, janet_wrap_nil(), &out);
     if (sig != JANET_SIGNAL_OK) {
-        janet_eprintf("in thread %v: ", janet_wrap_abstract(janet_make_thread(mailbox, encode)));
+        janet_eprintf("in thread %v: ", janet_wrap_abstract(janet_make_thread(pair->newbox, encode)));
         janet_stacktrace(fiber, out);
     }
 
     /* Normal exit */
+    destory_mailbox_pair(pair);
     janet_deinit();
     return 0;
 
     /* Fail to set something up */
 error:
+    destory_mailbox_pair(pair);
     janet_eprintf("\nthread failed to start\n");
     janet_deinit();
     return 1;
@@ -467,12 +486,12 @@ error:
 #ifdef JANET_WINDOWS
 
 static DWORD WINAPI janet_create_thread_wrapper(LPVOID param) {
-    thread_worker((JanetMailbox *)param);
+    thread_worker((JanetMailboxPair *)param);
     return 0;
 }
 
-static int janet_thread_start_child(JanetThread *thread) {
-    HANDLE handle = CreateThread(NULL, 0, janet_create_thread_wrapper, thread->mailbox, 0, NULL);
+static int janet_thread_start_child(JanetMailboxPair *pair) {
+    HANDLE handle = CreateThread(NULL, 0, janet_create_thread_wrapper, pair, 0, NULL);
     int ret = NULL == handle;
     /* Does not kill thread, simply detatches */
     if (!ret) CloseHandle(handle);
@@ -482,13 +501,13 @@ static int janet_thread_start_child(JanetThread *thread) {
 #else
 
 static void *janet_pthread_wrapper(void *param) {
-    thread_worker((JanetMailbox *)param);
+    thread_worker((JanetMailboxPair *)param);
     return NULL;
 }
 
-static int janet_thread_start_child(JanetThread *thread) {
+static int janet_thread_start_child(JanetMailboxPair *pair) {
     pthread_t handle;
-    int error = pthread_create(&handle, NULL, janet_pthread_wrapper, thread->mailbox);
+    int error = pthread_create(&handle, NULL, janet_pthread_wrapper, pair);
     if (error) {
         return 1;
     } else {
@@ -505,7 +524,7 @@ static int janet_thread_start_child(JanetThread *thread) {
 
 void janet_threads_init(void) {
     if (NULL == janet_vm_mailbox) {
-        janet_vm_mailbox = janet_mailbox_create(NULL, 1, 10);
+        janet_vm_mailbox = janet_mailbox_create(1, 10);
     }
     janet_vm_thread_decode = NULL;
     janet_vm_thread_current = NULL;
@@ -529,7 +548,6 @@ static Janet cfun_thread_current(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 0);
     if (NULL == janet_vm_thread_current) {
         janet_vm_thread_current = janet_make_thread(janet_vm_mailbox, janet_get_core_table("make-image-dict"));
-        janet_mailbox_ref(janet_vm_mailbox, 1);
         janet_gcroot(janet_wrap_abstract(janet_vm_thread_current));
     }
     return janet_wrap_abstract(janet_vm_thread_current);
@@ -544,15 +562,11 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
         janet_panicf("bad slot #1, expected integer in range [1, 65535], got %d", cap);
     }
     JanetTable *encode = janet_get_core_table("make-image-dict");
-    JanetMailbox *mailbox = janet_mailbox_create(janet_vm_mailbox, 2, (uint16_t) cap);
 
-    /* one for created thread, one for ->parent reference in new mailbox */
-    janet_mailbox_ref(janet_vm_mailbox, 2);
-
-    JanetThread *thread = janet_make_thread(mailbox, encode);
-    if (janet_thread_start_child(thread)) {
-        janet_mailbox_ref(mailbox, -1); /* mailbox reference */
-        janet_mailbox_ref(janet_vm_mailbox, -1); /* ->parent reference */
+    JanetMailboxPair *pair = make_mailbox_pair(janet_vm_mailbox);
+    JanetThread *thread = janet_make_thread(pair->newbox, encode);
+    if (janet_thread_start_child(pair)) {
+        destory_mailbox_pair(pair);
         janet_panic("could not start thread");
     }
 

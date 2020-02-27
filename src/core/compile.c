@@ -202,7 +202,7 @@ JanetSlot janetc_resolve(
         switch (btype) {
             default:
             case JANET_BINDING_NONE:
-                janetc_error(c, janet_formatc("unknown symbol %q", sym));
+                janetc_error(c, janet_formatc("unknown symbol %q", janet_wrap_symbol(sym)));
                 return janetc_cslot(janet_wrap_nil());
             case JANET_BINDING_DEF:
             case JANET_BINDING_MACRO: /* Macro should function like defs when not in calling pos */
