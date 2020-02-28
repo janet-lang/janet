@@ -186,7 +186,7 @@ static JanetMailboxPair *make_mailbox_pair(JanetMailbox *original) {
     return pair;
 }
 
-static void destory_mailbox_pair(JanetMailboxPair *pair) {
+static void destroy_mailbox_pair(JanetMailboxPair *pair) {
     janet_mailbox_ref(pair->original, -1);
     janet_mailbox_ref(pair->newbox, -1);
     free(pair);
@@ -471,13 +471,13 @@ static int thread_worker(JanetMailboxPair *pair) {
     }
 
     /* Normal exit */
-    destory_mailbox_pair(pair);
+    destroy_mailbox_pair(pair);
     janet_deinit();
     return 0;
 
     /* Fail to set something up */
 error:
-    destory_mailbox_pair(pair);
+    destroy_mailbox_pair(pair);
     janet_eprintf("\nthread failed to start\n");
     janet_deinit();
     return 1;
@@ -566,7 +566,7 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
     JanetMailboxPair *pair = make_mailbox_pair(janet_vm_mailbox);
     JanetThread *thread = janet_make_thread(pair->newbox, encode);
     if (janet_thread_start_child(pair)) {
-        destory_mailbox_pair(pair);
+        destroy_mailbox_pair(pair);
         janet_panic("could not start thread");
     }
 
