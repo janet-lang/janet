@@ -41,7 +41,7 @@ CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvi
 LDFLAGS:=$(LDFLAGS) -rdynamic
 
 # For installation
-LDCONFIG:=ldconfig "$(LIBDIR)"
+LDCONFIG:=ldconfig "$(DESTDIR)$(LIBDIR)"
 
 # Check OS
 UNAME:=$(shell uname -s)
@@ -230,7 +230,7 @@ build/doc.html: $(JANET_TARGET) tools/gendoc.janet
 
 SONAME=libjanet.so.1
 
-.PHONY: build/janet.pc
+.INTERMEDIATE: build/janet.pc
 build/janet.pc: $(JANET_TARGET)
 	echo 'prefix=$(PREFIX)' > $@
 	echo 'exec_prefix=$${prefix}' >> $@
@@ -246,33 +246,33 @@ build/janet.pc: $(JANET_TARGET)
 	echo 'Libs.private: $(CLIBS)' >> $@
 
 install: $(JANET_TARGET) build/janet.pc
-	mkdir -p '$(BINDIR)'
-	cp $(JANET_TARGET) '$(BINDIR)/janet'
-	mkdir -p '$(INCLUDEDIR)/janet'
-	cp -rf $(JANET_HEADERS) '$(INCLUDEDIR)/janet'
-	mkdir -p '$(JANET_PATH)'
-	mkdir -p '$(LIBDIR)'
-	cp $(JANET_LIBRARY) '$(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')'
-	cp $(JANET_STATIC_LIBRARY) '$(LIBDIR)/libjanet.a'
-	ln -sf $(SONAME) '$(LIBDIR)/libjanet.so'
-	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(LIBDIR)/$(SONAME)
-	cp -rf auxbin/* '$(BINDIR)'
-	mkdir -p '$(MANPATH)'
-	cp janet.1 '$(MANPATH)'
-	cp jpm.1 '$(MANPATH)'
-	mkdir -p '$(PKG_CONFIG_PATH)'
-	cp build/janet.pc '$(PKG_CONFIG_PATH)/janet.pc'
+	mkdir -p '$(DESTDIR)$(BINDIR)'
+	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
+	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
+	cp -rf $(JANET_HEADERS) '$(DESTDIR)$(INCLUDEDIR)/janet'
+	mkdir -p '$(DESTDIR)$(JANET_PATH)'
+	mkdir -p '$(DESTDIR)$(LIBDIR)'
+	cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')'
+	cp $(JANET_STATIC_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.a'
+	ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so'
+	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME)
+	cp -rf auxbin/* '$(DESTDIR)$(BINDIR)'
+	mkdir -p '$(DESTDIR)$(MANPATH)'
+	cp janet.1 '$(DESTDIR)$(MANPATH)'
+	cp jpm.1 '$(DESTDIR)$(MANPATH)'
+	mkdir -p '$(DESTDIR)$(PKG_CONFIG_PATH)'
+	cp build/janet.pc '$(DESTDIR)$(PKG_CONFIG_PATH)/janet.pc'
 	-$(LDCONFIG)
 
 uninstall:
-	-rm '$(BINDIR)/janet'
-	-rm '$(BINDIR)/jpm'
-	-rm -rf '$(INCLUDEDIR)/janet'
-	-rm -rf '$(LIBDIR)'/libjanet.*
-	-rm '$(PKG_CONFIG_PATH)/janet.pc'
-	-rm '$(MANPATH)/janet.1'
-	-rm '$(MANPATH)/jpm.1'
-	# -rm -rf '$(JANET_PATH)'/* - err on the side of correctness here
+	-rm '$(DESTDIR)$(BINDIR)/janet'
+	-rm '$(DESTDIR)$(BINDIR)/jpm'
+	-rm -rf '$(DESTDIR)$(INCLUDEDIR)/janet'
+	-rm -rf '$(DESTDIR)$(LIBDIR)'/libjanet.*
+	-rm '$(DESTDIR)$(PKG_CONFIG_PATH)/janet.pc'
+	-rm '$(DESTDIR)$(MANPATH)/janet.1'
+	-rm '$(DESTDIR)$(MANPATH)/jpm.1'
+	# -rm -rf '$(DESTDIR)$(JANET_PATH)'/* - err on the side of correctness here
 
 #################
 ##### Other #####
