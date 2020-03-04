@@ -476,7 +476,7 @@ JANET_NO_RETURN static void peg_panic(Builder *b, const char *msg) {
 
 static void peg_fixarity(Builder *b, int32_t argc, int32_t arity) {
     if (argc != arity) {
-        peg_panicf(b, "expected %d argument%s, got %d%",
+        peg_panicf(b, "expected %d argument%s, got %d",
                    arity,
                    arity == 1 ? "" : "s",
                    argc);
