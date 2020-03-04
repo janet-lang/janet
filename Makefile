@@ -41,7 +41,7 @@ CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvi
 LDFLAGS:=$(LDFLAGS) -rdynamic
 
 # For installation
-LDCONFIG:=ldconfig "$(DESTDIR)$(LIBDIR)"
+LDCONFIG:=ldconfig "$(LIBDIR)"
 
 # Check OS
 UNAME:=$(shell uname -s)
@@ -262,7 +262,7 @@ install: $(JANET_TARGET) build/janet.pc
 	cp jpm.1 '$(DESTDIR)$(MANPATH)'
 	mkdir -p '$(DESTDIR)$(PKG_CONFIG_PATH)'
 	cp build/janet.pc '$(DESTDIR)$(PKG_CONFIG_PATH)/janet.pc'
-	-$(LDCONFIG)
+	[ -z '$(DESTDIR)' ] && $(LDCONFIG) || true
 
 uninstall:
 	-rm '$(DESTDIR)$(BINDIR)/janet'
