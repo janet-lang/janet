@@ -47,13 +47,13 @@ LDCONFIG:=ldconfig "$(LIBDIR)"
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
 	CLIBS:=$(CLIBS) -ldl
-	LDCONFIG:=
+	LDCONFIG:=true
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
 endif
 # For other unix likes, add flags here!
 ifeq ($(UNAME), Haiku)
-	LDCONFIG:=
+	LDCONFIG:=true
 	LDFLAGS=-Wl,--export-dynamic
 endif
 
