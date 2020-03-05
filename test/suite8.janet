@@ -99,4 +99,12 @@
 
 (assert (= 10 (prompt :a (for i 0 10 (inner-loop2 i)))) "prompt 3")
 
+# Match checks
+
+(assert (= :hi (match nil nil :hi)) "match 1")
+(assert (= :hi (match {:a :hi} {:a a} a)) "match 2")
+(assert (= nil (match {:a :hi} {:a a :b b} a)) "match 3")
+(assert (= nil (match [1 2] [a b c] a)) "match 4")
+(assert (= 2 (match [1 2] [a b] b)) "match 5")
+
 (end-suite)

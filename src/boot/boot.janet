@@ -1317,7 +1317,7 @@
       ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)
       (do
         (put seen pattern true)
-        ~(if (= nil (def ,pattern ,expr)) ,sentinel ,(onmatch))))
+        ~(do (def ,pattern ,expr) ,(onmatch))))
 
     (and (tuple? pattern) (= :parens (tuple/type pattern)))
     (if (and (= (pattern 0) '@) (symbol? (pattern 1)))
@@ -1334,12 +1334,14 @@
       (var i -1)
       (with-idemp
         $arr expr
-        ~(if (indexed? ,$arr)
-           ,((fn aux []
-               (++ i)
-               (if (= i len)
-                 (onmatch)
-                 (match-1 (in pattern i) (tuple in $arr i) aux seen))))
+        ~(if (,indexed? ,$arr)
+           (if (< (,length ,$arr) ,len)
+             ,sentinel
+             ,((fn aux []
+                 (++ i)
+                 (if (= i len)
+                   (onmatch)
+                   (match-1 (in pattern i) (tuple in $arr i) aux seen)))))
            ,sentinel)))
 
     (dictionary? pattern)
@@ -1347,12 +1349,12 @@
       (var key nil)
       (with-idemp
         $dict expr
-        ~(if (dictionary? ,$dict)
+        ~(if (,dictionary? ,$dict)
            ,((fn aux []
                (set key (next pattern key))
                (if (= key nil)
                  (onmatch)
-                 (match-1 (in pattern key) (tuple in $dict key) aux seen))))
+                 (match-1 [(in pattern key) [not= (in pattern key) nil]] [in $dict key] aux seen))))
            ,sentinel)))
 
     :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
