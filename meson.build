@@ -230,6 +230,11 @@ run_target('repl', command : [janet_nativeclient])
 janet_dep = declare_dependency(include_directories : incdir,
   link_with : libjanet)
 
+# pkgconfig
+pkg = import('pkgconfig')
+pkg.generate(libjanet,
+  description: 'Library for the Janet programming language.')
+
 # Installation
 install_man('janet.1')
 install_man('jpm.1')

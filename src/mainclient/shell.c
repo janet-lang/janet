@@ -620,8 +620,12 @@ static int line() {
                 clearlines();
                 return -1;
             case 4:     /* ctrl-d, eof */
-                clearlines();
-                return -1;
+                if (gbl_len == 0) {   /* quit on empty line */
+                    clearlines();
+                    return -1;
+                } 
+                kdelete(1);
+                break;
             case 5:     /* ctrl-e */
                 gbl_pos = gbl_len;
                 refresh();
