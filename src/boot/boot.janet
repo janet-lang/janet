@@ -244,26 +244,30 @@
       [(,not= :error (,fiber/status ,f)) ,r])))
 
 (defmacro and
-  "Evaluates to the last argument if all preceding elements are true, otherwise
-  evaluates to false."
+  "Evaluates to the last argument if all preceding elements are truthy, otherwise
+  evaluates to the first falsey argument."
   [& forms]
   (var ret true)
   (def len (length forms))
   (var i len)
   (while (> i 0)
     (-- i)
+    (def v (in forms i))
     (set ret (if (= ret true)
-               (in forms i)
-               (tuple 'if (in forms i) ret))))
+               v
+               (if (idempotent? v)
+                 ['if v ret v]
+                 (do (def s (gensym))
+                   ['if ['def s v] ret s])))))
   ret)
 
 (defmacro or
-  "Evaluates to the last argument if all preceding elements are false, otherwise
-  evaluates to true."
+  "Evaluates to the last argument if all preceding elements are falsey, otherwise
+  evaluates to the first truthy element."
   [& forms]
-  (var ret nil)
   (def len (length forms))
-  (var i len)
+  (var i (- len 1))
+  (var ret (in forms i))
   (while (> i 0)
     (-- i)
     (def fi (in forms i))

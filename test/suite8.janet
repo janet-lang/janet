@@ -107,4 +107,9 @@
 (assert (= nil (match [1 2] [a b c] a)) "match 4")
 (assert (= 2 (match [1 2] [a b] b)) "match 5")
 
+# And/or checks
+
+(assert (= false (and false false)) "and 1")
+(assert (= false (or false false)) "or 1")
+
 (end-suite)
