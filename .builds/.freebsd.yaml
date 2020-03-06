@@ -1,12 +1,12 @@
 image: freebsd/latest
 sources:
-  - https://git.sr.ht/~bakpakin/janet
+- https://git.sr.ht/~bakpakin/janet
 packages:
-  - gmake
+- gmake
 tasks:
-  - build: |
-      cd janet
-      gmake
-      gmake test
-      sudo gmake install
-      gmake test-install
+- build: |
+    cd janet
+    gmake
+    gmake test
+    sudo gmake install
+    gmake test-install
