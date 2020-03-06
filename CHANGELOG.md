@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Correct arity for `marshal`
 - Add `flush` and `eflush`
 - Add `prompt` and `return` on top of signal for user friendly delimited continuations.
+- Fix possible segfault with malformed pegs.
 
 ## 1.7.0 - 2020-02-01
 - Remove `file/fileno` and `file/fdopen`.

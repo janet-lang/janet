@@ -481,7 +481,8 @@
   \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
   \t:range - loop over a range. The object should be two element tuple with a start
   and end value, and an optional positive step. The range is half open, [start, end).\n
-  \t:down - Same as range, but loops in reverse.\n
+  \t:down - Same as range, but breaks the loop when the binding is less than or equal to end.
+  Step should still be a positive integer.\n
   \t:keys - Iterate over the keys in a data structure.\n
   \t:pairs - Iterate over the keys value pairs in a data structure.\n
   \t:in - Iterate over the values in an indexed data structure or byte sequence.\n
@@ -1280,7 +1281,7 @@
   nil)
 
 (defn pp
-  "Pretty print to stdout or (dyn :out)."
+  `Pretty print to stdout or (dyn :out). The format string used is (dyn :pretty-format "%q").`
   [x]
   (printf (dyn :pretty-format "%q") x)
   (flush))
