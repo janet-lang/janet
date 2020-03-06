@@ -4,7 +4,6 @@ script:
 - make test
 - sudo make install
 - make test-install
-- make test-amalg
 - make build/janet-${TRAVIS_TAG}-${TRAVIS_OS_NAME}.tar.gz
 compiler:
 - clang

@@ -387,7 +387,7 @@ static const JanetReg buffer_cfuns[] = {
         "buffer/push-word", cfun_buffer_word,
         JDOC("(buffer/push-word buffer x)\n\n"
              "Append a machine word to a buffer. The 4 bytes of the integer are appended "
-             "in twos complement, big endian order, unsigned. Returns the modified buffer. Will "
+             "in twos complement, little endian order, unsigned. Returns the modified buffer. Will "
              "throw an error if the buffer overflows.")
     },
     {

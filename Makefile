@@ -27,7 +27,7 @@ PREFIX?=/usr/local
 INCLUDEDIR?=$(PREFIX)/include
 BINDIR?=$(PREFIX)/bin
 LIBDIR?=$(PREFIX)/lib
-JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 || 'local')\""
+JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 || echo local)\""
 CLIBS=-lm -lpthread
 JANET_TARGET=build/janet
 JANET_LIBRARY=build/libjanet.so
@@ -37,8 +37,7 @@ MANPATH?=$(PREFIX)/share/man/man1/
 PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 DEBUGGER=gdb
 
-CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden \
-	   -DJANET_BUILD=$(JANET_BUILD)
+CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden
 LDFLAGS:=$(LDFLAGS) -rdynamic
 
 # For installation
@@ -48,13 +47,13 @@ LDCONFIG:=ldconfig "$(LIBDIR)"
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
 	CLIBS:=$(CLIBS) -ldl
-	LDCONFIG:=
+	LDCONFIG:=true
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
 endif
 # For other unix likes, add flags here!
 ifeq ($(UNAME), Haiku)
-	LDCONFIG:=
+	LDCONFIG:=true
 	LDFLAGS=-Wl,--export-dynamic
 endif
 
@@ -130,14 +129,15 @@ JANET_BOOT_HEADERS=src/boot/tests.h
 ##########################################################
 
 JANET_BOOT_OBJECTS=$(patsubst src/%.c,build/%.boot.o,$(JANET_CORE_SOURCES) $(JANET_BOOT_SOURCES))
+BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) $(CFLAGS)
 
 $(JANET_BOOT_OBJECTS): $(JANET_BOOT_HEADERS)
 
 build/%.boot.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS)
-	$(CC) $(CFLAGS) -DJANET_BOOTSTRAP -o $@ -c $<
+	$(CC) $(BOOT_CFLAGS) -o $@ -c $<
 
 build/janet_boot: $(JANET_BOOT_OBJECTS)
-	$(CC) $(CFLAGS) -DJANET_BOOTSTRAP -o $@ $(JANET_BOOT_OBJECTS) $(CLIBS)
+	$(CC) $(BOOT_CFLAGS) -o $@ $(JANET_BOOT_OBJECTS) $(CLIBS)
 
 # Now the reason we bootstrap in the first place
 build/janet.c: build/janet_boot src/boot/boot.janet
@@ -231,7 +231,7 @@ build/doc.html: $(JANET_TARGET) tools/gendoc.janet
 
 SONAME=libjanet.so.1
 
-.PHONY: build/janet.pc
+.INTERMEDIATE: build/janet.pc
 build/janet.pc: $(JANET_TARGET)
 	echo 'prefix=$(PREFIX)' > $@
 	echo 'exec_prefix=$${prefix}' >> $@
@@ -247,33 +247,33 @@ build/janet.pc: $(JANET_TARGET)
 	echo 'Libs.private: $(CLIBS)' >> $@
 
 install: $(JANET_TARGET) build/janet.pc
-	mkdir -p '$(BINDIR)'
-	cp $(JANET_TARGET) '$(BINDIR)/janet'
-	mkdir -p '$(INCLUDEDIR)/janet'
-	cp -rf $(JANET_HEADERS) '$(INCLUDEDIR)/janet'
-	mkdir -p '$(JANET_PATH)'
-	mkdir -p '$(LIBDIR)'
-	cp $(JANET_LIBRARY) '$(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')'
-	cp $(JANET_STATIC_LIBRARY) '$(LIBDIR)/libjanet.a'
-	ln -sf $(SONAME) '$(LIBDIR)/libjanet.so'
-	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(LIBDIR)/$(SONAME)
-	cp -rf auxbin/* '$(BINDIR)'
-	mkdir -p '$(MANPATH)'
-	cp janet.1 '$(MANPATH)'
-	cp jpm.1 '$(MANPATH)'
-	mkdir -p '$(PKG_CONFIG_PATH)'
-	cp build/janet.pc '$(PKG_CONFIG_PATH)/janet.pc'
-	-$(LDCONFIG)
+	mkdir -p '$(DESTDIR)$(BINDIR)'
+	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
+	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
+	cp -rf $(JANET_HEADERS) '$(DESTDIR)$(INCLUDEDIR)/janet'
+	mkdir -p '$(DESTDIR)$(JANET_PATH)'
+	mkdir -p '$(DESTDIR)$(LIBDIR)'
+	cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')'
+	cp $(JANET_STATIC_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.a'
+	ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so'
+	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME)
+	cp -rf auxbin/* '$(DESTDIR)$(BINDIR)'
+	mkdir -p '$(DESTDIR)$(MANPATH)'
+	cp janet.1 '$(DESTDIR)$(MANPATH)'
+	cp jpm.1 '$(DESTDIR)$(MANPATH)'
+	mkdir -p '$(DESTDIR)$(PKG_CONFIG_PATH)'
+	cp build/janet.pc '$(DESTDIR)$(PKG_CONFIG_PATH)/janet.pc'
+	[ -z '$(DESTDIR)' ] && $(LDCONFIG) || true
 
 uninstall:
-	-rm '$(BINDIR)/janet'
-	-rm '$(BINDIR)/jpm'
-	-rm -rf '$(INCLUDEDIR)/janet'
-	-rm -rf '$(LIBDIR)'/libjanet.*
-	-rm '$(PKG_CONFIG_PATH)/janet.pc'
-	-rm '$(MANPATH)/janet.1'
-	-rm '$(MANPATH)/jpm.1'
-	# -rm -rf '$(JANET_PATH)'/* - err on the side of correctness here
+	-rm '$(DESTDIR)$(BINDIR)/janet'
+	-rm '$(DESTDIR)$(BINDIR)/jpm'
+	-rm -rf '$(DESTDIR)$(INCLUDEDIR)/janet'
+	-rm -rf '$(DESTDIR)$(LIBDIR)'/libjanet.*
+	-rm '$(DESTDIR)$(PKG_CONFIG_PATH)/janet.pc'
+	-rm '$(DESTDIR)$(MANPATH)/janet.1'
+	-rm '$(DESTDIR)$(MANPATH)/jpm.1'
+	# -rm -rf '$(DESTDIR)$(JANET_PATH)'/* - err on the side of correctness here
 
 #################
 ##### Other #####
@@ -301,16 +301,6 @@ test-install:
 	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/jhydro.git
 	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/path.git
 	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/argparse.git
-
-build/embed_janet.o: build/janet.c $(JANET_HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
-build/embed_main.o: test/amalg/main.c $(JANET_HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
-build/embed_test: build/embed_janet.o build/embed_main.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(CLIBS)
-
-test-amalg: build/embed_test
-	./build/embed_test
 
 .PHONY: clean install repl debug valgrind test \
 	valtest emscripten dist uninstall docs grammar format

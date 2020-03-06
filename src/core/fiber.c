@@ -65,7 +65,14 @@ JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t 
         if (newstacktop >= fiber->capacity) {
             janet_fiber_setcapacity(fiber, 2 * newstacktop);
         }
-        safe_memcpy(fiber->data + fiber->stacktop, argv, argc * sizeof(Janet));
+        if (argv) {
+            memcpy(fiber->data + fiber->stacktop, argv, argc * sizeof(Janet));
+        } else {
+            /* If argv not given, fill with nil */
+            for (int32_t i = 0; i < argc; i++) {
+                fiber->data[fiber->stacktop + i] = janet_wrap_nil();
+            }
+        }
         fiber->stacktop = newstacktop;
     }
     if (janet_fiber_funcframe(fiber, callee)) return NULL;
@@ -366,10 +373,10 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     JanetFunction *func = janet_getfunction(argv, 0);
     JanetFiber *fiber;
-    if (func->def->min_arity != 0) {
-        janet_panic("expected nullary function in fiber constructor");
+    if (func->def->min_arity > 1) {
+        janet_panicf("fiber function must accept 0 or 1 arguments");
     }
-    fiber = janet_fiber(func, 64, 0, NULL);
+    fiber = janet_fiber(func, 64, func->def->min_arity, NULL);
     if (argc == 2) {
         int32_t i;
         JanetByteView view = janet_getbytes(argv, 1);
@@ -389,6 +396,15 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
                             JANET_FIBER_MASK_ERROR |
                             JANET_FIBER_MASK_USER |
                             JANET_FIBER_MASK_YIELD;
+                        break;
+                    case 't':
+                        fiber->flags |=
+                            JANET_FIBER_MASK_ERROR |
+                            JANET_FIBER_MASK_USER0 |
+                            JANET_FIBER_MASK_USER1 |
+                            JANET_FIBER_MASK_USER2 |
+                            JANET_FIBER_MASK_USER3 |
+                            JANET_FIBER_MASK_USER4;
                         break;
                     case 'd':
                         fiber->flags |= JANET_FIBER_MASK_DEBUG;
@@ -452,6 +468,20 @@ static Janet cfun_fiber_setmaxstack(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
+static Janet cfun_fiber_can_resume(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    JanetFiberStatus s = janet_fiber_status(fiber);
+    int isFinished = s == JANET_STATUS_DEAD ||
+                     s == JANET_STATUS_ERROR ||
+                     s == JANET_STATUS_USER0 ||
+                     s == JANET_STATUS_USER1 ||
+                     s == JANET_STATUS_USER2 ||
+                     s == JANET_STATUS_USER3 ||
+                     s == JANET_STATUS_USER4;
+    return janet_wrap_boolean(!isFinished);
+}
+
 static const JanetReg fiber_cfuns[] = {
     {
         "fiber/new", cfun_fiber_new,
@@ -467,6 +497,7 @@ static const JanetReg fiber_cfuns[] = {
              "\ta - block all signals\n"
              "\td - block debug signals\n"
              "\te - block error signals\n"
+             "\tt - block termination signals: error + user[0-4]\n"
              "\tu - block user signals\n"
              "\ty - block yield signals\n"
              "\t0-9 - block a specific user signal\n\n"
@@ -516,6 +547,11 @@ static const JanetReg fiber_cfuns[] = {
         JDOC("(fiber/setenv fiber table)\n\n"
              "Sets the environment table for a fiber. Set to nil to remove the current "
              "environment.")
+    },
+    {
+        "fiber/can-resume?", cfun_fiber_can_resume,
+        JDOC("(fiber/can-resume? fiber)\n\n"
+             "Check if a fiber is finished and cannot be resumed.")
     },
     {NULL, NULL, NULL}
 };

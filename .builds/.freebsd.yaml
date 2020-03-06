@@ -10,4 +10,3 @@ tasks:
       gmake test
       sudo gmake install
       gmake test-install
-      gmake test-amalg

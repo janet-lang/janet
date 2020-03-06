@@ -1,6 +1,18 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+- Improve `janet_formatc` and `janet_panicf` formatters to be more like `string/format`.
+  This makes it easier to make nice error messages from C.
+- Add `signal`
+- Add `fiber/can-resume?`
+- Allow fiber functions to accept arguments that are passed in via `resume`.
+- Make flychecking slightly less strict but more useful
+- Correct arity for `next`
+- Correct arity for `marshal`
+- Add `flush` and `eflush`
+- Add `prompt` and `return` on top of signal for user friendly delimited continuations.
+
 ## 1.7.0 - 2020-02-01
 - Remove `file/fileno` and `file/fdopen`.
 - Remove `==`, `not==`, `order<`, `order>`, `order<=`, and `order>=`. Instead, use the normal

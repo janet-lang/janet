@@ -686,8 +686,8 @@ JANET_API int janet_checkint(Janet x);
 JANET_API int janet_checkint64(Janet x);
 JANET_API int janet_checksize(Janet x);
 JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
-#define janet_checkintrange(x) ((x) == (int32_t)(x))
-#define janet_checkint64range(x) ((x) == (int64_t)(x))
+#define janet_checkintrange(x) ((x) >= INT32_MIN && (x) <= INT32_MAX && (x) == (int32_t)(x))
+#define janet_checkint64range(x) ((x) >= INT64_MIN && (x) <= INT64_MAX && (x) == (int64_t)(x))
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
 #define janet_wrap_integer(x) janet_wrap_number((int32_t)(x))
 

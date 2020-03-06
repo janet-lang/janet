@@ -688,96 +688,6 @@ static void pushtypes(JanetBuffer *buffer, int types) {
     }
 }
 
-void janet_formatb(JanetBuffer *bufp, const char *format, va_list args) {
-    for (const char *c = format; *c; c++) {
-        switch (*c) {
-            default:
-                janet_buffer_push_u8(bufp, *c);
-                break;
-            case '%': {
-                if (c[1] == '\0')
-                    break;
-                switch (*++c) {
-                    default:
-                        janet_buffer_push_u8(bufp, *c);
-                        break;
-                    case 'f':
-                        number_to_string_b(bufp, va_arg(args, double));
-                        break;
-                    case 'd':
-                        integer_to_string_b(bufp, va_arg(args, long));
-                        break;
-                    case 'S': {
-                        const uint8_t *str = va_arg(args, const uint8_t *);
-                        janet_buffer_push_bytes(bufp, str, janet_string_length(str));
-                        break;
-                    }
-                    case 's':
-                        janet_buffer_push_cstring(bufp, va_arg(args, const char *));
-                        break;
-                    case 'c':
-                        janet_buffer_push_u8(bufp, (uint8_t) va_arg(args, long));
-                        break;
-                    case 'q': {
-                        const uint8_t *str = va_arg(args, const uint8_t *);
-                        janet_escape_string_b(bufp, str);
-                        break;
-                    }
-                    case 't': {
-                        janet_buffer_push_cstring(bufp, typestr(va_arg(args, Janet)));
-                        break;
-                    }
-                    case 'T': {
-                        int types = va_arg(args, long);
-                        pushtypes(bufp, types);
-                        break;
-                    }
-                    case 'V': {
-                        janet_to_string_b(bufp, va_arg(args, Janet));
-                        break;
-                    }
-                    case 'v': {
-                        janet_description_b(bufp, va_arg(args, Janet));
-                        break;
-                    }
-                    case 'p': {
-                        janet_pretty(bufp, 4, 0, va_arg(args, Janet));
-                        break;
-                    }
-                    case 'P': {
-                        janet_pretty(bufp, 4, JANET_PRETTY_COLOR, va_arg(args, Janet));
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
-
-/* Helper function for formatting strings. Useful for generating error messages and the like.
- * Similar to printf, but specialized for operating with janet. */
-const uint8_t *janet_formatc(const char *format, ...) {
-    va_list args;
-    const uint8_t *ret;
-    JanetBuffer buffer;
-    int32_t len = 0;
-
-    /* Calculate length, init buffer and args */
-    while (format[len]) len++;
-    janet_buffer_init(&buffer, len);
-    va_start(args, format);
-
-    /* Run format */
-    janet_formatb(&buffer, format, args);
-
-    /* Iterate length */
-    va_end(args);
-
-    ret = janet_string(buffer.data, buffer.count);
-    janet_buffer_deinit(&buffer);
-    return ret;
-}
-
 /*
  * code adapted from lua/lstrlib.c http://lua.org
  */
@@ -816,6 +726,141 @@ static const char *scanformat(
     form += (p - strfrmt) + 1;
     *form = '\0';
     return p;
+}
+
+void janet_formatb(JanetBuffer *b, const char *format, va_list args) {
+    const char *format_end = format + strlen(format);
+    const char *c = format;
+    int32_t startlen = b->count;
+    while (c < format_end) {
+        if (*c != '%') {
+            janet_buffer_push_u8(b, (uint8_t) *c++);
+        } else if (*++c == '%') {
+            janet_buffer_push_u8(b, (uint8_t) *c++);
+        } else {
+            char form[MAX_FORMAT], item[MAX_ITEM];
+            char width[3], precision[3];
+            int nb = 0; /* number of bytes in added item */
+            c = scanformat(c, form, width, precision);
+            switch (*c++) {
+                case 'c': {
+                    int n = va_arg(args, long);
+                    nb = snprintf(item, MAX_ITEM, form, n);
+                    break;
+                }
+                case 'd':
+                case 'i':
+                case 'o':
+                case 'u':
+                case 'x':
+                case 'X': {
+                    int32_t n = va_arg(args, long);
+                    nb = snprintf(item, MAX_ITEM, form, n);
+                    break;
+                }
+                case 'a':
+                case 'A':
+                case 'e':
+                case 'E':
+                case 'f':
+                case 'g':
+                case 'G': {
+                    double d = va_arg(args, double);
+                    nb = snprintf(item, MAX_ITEM, form, d);
+                    break;
+                }
+                case 's':
+                case 'S': {
+                    const char *str = va_arg(args, const char *);
+                    int32_t len = c[-1] == 's'
+                                  ? (int32_t) strlen(str)
+                                  : janet_string_length((JanetString) str);
+                    if (form[2] == '\0')
+                        janet_buffer_push_bytes(b, (const uint8_t *) str, len);
+                    else {
+                        if (len != (int32_t) strlen((const char *) str))
+                            janet_panic("string contains zeros");
+                        if (!strchr(form, '.') && len >= 100) {
+                            janet_panic("no precision and string is too long to be formatted");
+                        } else {
+                            nb = snprintf(item, MAX_ITEM, form, str);
+                        }
+                    }
+                    break;
+                }
+                case 'V':
+                    janet_to_string_b(b, va_arg(args, Janet));
+                    break;
+                case 'v':
+                    janet_description_b(b, va_arg(args, Janet));
+                    break;
+                case 't':
+                    janet_buffer_push_cstring(b, typestr(va_arg(args, Janet)));
+                    break;
+                case 'T': {
+                    int types = va_arg(args, long);
+                    pushtypes(b, types);
+                    break;
+                }
+                case 'Q':
+                case 'q':
+                case 'P':
+                case 'p': { /* janet pretty , precision = depth */
+                    int depth = atoi(precision);
+                    if (depth < 1) depth = 4;
+                    char d = c[-1];
+                    int has_color = (d == 'P') || (d == 'Q');
+                    int has_oneline = (d == 'Q') || (d == 'q');
+                    int flags = 0;
+                    flags |= has_color ? JANET_PRETTY_COLOR : 0;
+                    flags |= has_oneline ? JANET_PRETTY_ONELINE : 0;
+                    janet_pretty_(b, depth, flags, va_arg(args, Janet), startlen);
+                    break;
+                }
+                case 'j': {
+                    int depth = atoi(precision);
+                    if (depth < 1)
+                        depth = JANET_RECURSION_GUARD;
+                    janet_jdn_(b, depth, va_arg(args, Janet), startlen);
+                    break;
+                }
+                default: {
+                    /* also treat cases 'nLlh' */
+                    janet_panicf("invalid conversion '%s' to 'format'",
+                                 form);
+                }
+            }
+            if (nb >= MAX_ITEM)
+                janet_panicf("format buffer overflow", form);
+            if (nb > 0)
+                janet_buffer_push_bytes(b, (uint8_t *) item, nb);
+        }
+
+    }
+}
+
+/* Helper function for formatting strings. Useful for generating error messages and the like.
+ * Similar to printf, but specialized for operating with janet. */
+const uint8_t *janet_formatc(const char *format, ...) {
+    va_list args;
+    const uint8_t *ret;
+    JanetBuffer buffer;
+    int32_t len = 0;
+
+    /* Calculate length, init buffer and args */
+    while (format[len]) len++;
+    janet_buffer_init(&buffer, len);
+    va_start(args, format);
+
+    /* Run format */
+    janet_formatb(&buffer, format, args);
+
+    /* Iterate length */
+    va_end(args);
+
+    ret = janet_string(buffer.data, buffer.count);
+    janet_buffer_deinit(&buffer);
+    return ret;
 }
 
 /* Shared implementation between string/format and

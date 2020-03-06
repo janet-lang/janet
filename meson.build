@@ -218,7 +218,8 @@ test_files = [
   'test/suite4.janet',
   'test/suite5.janet',
   'test/suite6.janet',
-  'test/suite7.janet'
+  'test/suite7.janet',
+  'test/suite8.janet'
 ]
 foreach t : test_files
   test(t, janet_nativeclient, args : files([t]), workdir : meson.current_source_dir())
@@ -230,6 +231,11 @@ run_target('repl', command : [janet_nativeclient])
 # For use as meson subproject (wrap)
 janet_dep = declare_dependency(include_directories : incdir,
   link_with : libjanet)
+
+# pkgconfig
+pkg = import('pkgconfig')
+pkg.generate(libjanet,
+  description: 'Library for the Janet programming language.')
 
 # Installation
 install_man('janet.1')

@@ -1274,7 +1274,7 @@ static Janet cfun_env_lookup(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_marshal(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 2);
+    janet_arity(argc, 1, 3);
     JanetBuffer *buffer;
     JanetTable *rreg = NULL;
     if (argc > 1) {

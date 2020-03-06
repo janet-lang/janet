@@ -1252,6 +1252,7 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     }
     if (old_status == JANET_STATUS_ALIVE ||
             old_status == JANET_STATUS_DEAD ||
+            (old_status >= JANET_STATUS_USER0 && old_status <= JANET_STATUS_USER4) ||
             old_status == JANET_STATUS_ERROR) {
         const uint8_t *str = janet_formatc("cannot resume fiber with status :%s",
                                            janet_status_names[old_status]);
@@ -1270,6 +1271,19 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
             return sig;
         }
         fiber->child = NULL;
+    }
+
+    /* Handle new fibers being resumed with a non-nil value */
+    if (old_status == JANET_STATUS_NEW && !janet_checktype(in, JANET_NIL)) {
+        Janet *stack = fiber->data + fiber->frame;
+        JanetFunction *func = janet_stack_frame(stack)->func;
+        if (func) {
+            if (func->def->arity > 0) {
+                stack[0] = in;
+            } else if (func->def->flags & JANET_FUNCDEF_FLAG_VARARG) {
+                stack[0] = janet_wrap_tuple(janet_tuple_n(&in, 1));
+            }
+        }
     }
 
     /* Save global state */

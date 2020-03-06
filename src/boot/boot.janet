@@ -287,16 +287,43 @@
   ~(let (,;accum) ,;body))
 
 (defmacro defer
-  "Run form unconditionally after form, even if the body throws an error."
+  "Run form unconditionally after body, even if the body throws an error.
+  Will also run form if a user signal 0-4 is received."
   [form & body]
   (with-syms [f r]
     ~(do
-       (def ,f (,fiber/new (fn [] ,;body) :ie))
+       (def ,f (,fiber/new (fn [] ,;body) :ti))
        (def ,r (,resume ,f))
        ,form
        (if (= (,fiber/status ,f) :dead)
          ,r
          (propagate ,r ,f)))))
+
+(defmacro prompt
+  "Set up a checkpoint that can be returned to. Tag should be a value
+  that is used in a return statement, like a keyword."
+  [tag & body]
+  (with-syms [res target payload fib]
+    ~(do
+       (def ,fib (,fiber/new (fn [] [,tag (do ,;body)]) :i0))
+       (def ,res (,resume ,fib))
+       (def [,target ,payload] ,res)
+       (if (,= ,tag ,target)
+         ,payload
+         (propagate ,res ,fib)))))
+
+(defmacro label
+  "Set a label point that is lexically scoped. Name should be a symbol
+  that will be bound to the label."
+  [name & body]
+  ~(do
+     (def ,name @"")
+     ,(apply prompt name body)))
+
+(defn return
+  "Return to a prompt point."
+  [to &opt value]
+  (signal 0 [to value]))
 
 (defmacro with
   "Evaluate body with some resource, which will be automatically cleaned up
@@ -975,11 +1002,10 @@
   (with-syms [ret f s]
   ~(do
      ,;saveold
-     (def ,f (,fiber/new (fn [] ,;setnew ,;body) :ei))
+     (def ,f (,fiber/new (fn [] ,;setnew ,;body) :ti))
      (def ,ret (,resume ,f))
      ,;restoreold
-     (if (= (,fiber/status ,f) :error) (,propagate ,ret ,f))
-     ,ret)))
+     (if (= (,fiber/status ,f) :dead) ,ret (,propagate ,ret ,f)))))
 
 (defn partial
   "Partial function application."
@@ -1291,7 +1317,7 @@
       ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)
       (do
         (put seen pattern true)
-        ~(if (= nil (def ,pattern ,expr)) ,sentinel ,(onmatch))))
+        ~(do (def ,pattern ,expr) ,(onmatch))))
 
     (and (tuple? pattern) (= :parens (tuple/type pattern)))
     (if (and (= (pattern 0) '@) (symbol? (pattern 1)))
@@ -1308,12 +1334,14 @@
       (var i -1)
       (with-idemp
         $arr expr
-        ~(if (indexed? ,$arr)
-           ,((fn aux []
-               (++ i)
-               (if (= i len)
-                 (onmatch)
-                 (match-1 (in pattern i) (tuple in $arr i) aux seen))))
+        ~(if (,indexed? ,$arr)
+           (if (< (,length ,$arr) ,len)
+             ,sentinel
+             ,((fn aux []
+                 (++ i)
+                 (if (= i len)
+                   (onmatch)
+                   (match-1 (in pattern i) (tuple in $arr i) aux seen)))))
            ,sentinel)))
 
     (dictionary? pattern)
@@ -1321,12 +1349,12 @@
       (var key nil)
       (with-idemp
         $dict expr
-        ~(if (dictionary? ,$dict)
+        ~(if (,dictionary? ,$dict)
            ,((fn aux []
                (set key (next pattern key))
                (if (= key nil)
                  (onmatch)
-                 (match-1 (in pattern key) (tuple in $dict key) aux seen))))
+                 (match-1 [(in pattern key) [not= (in pattern key) nil]] [in $dict key] aux seen))))
            ,sentinel)))
 
     :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
@@ -1856,8 +1884,7 @@
               (on-compile-error msg errf where))))
         guard))
     (fiber/setenv f env)
-    (while (let [fs (fiber/status f)]
-             (and (not= :dead fs) (not= :error fs)))
+    (while (fiber/can-resume? f)
       (def res (resume f resumeval))
       (when good (when going (set resumeval (onstatus f res))))))
 
@@ -2226,6 +2253,29 @@
 ###
 ###
 
+(defn- no-side-effects
+  "Check if form may have side effects. If returns true, then the src
+  must not have side effects, such as calling a C function."
+  [src]
+  (cond
+    (tuple? src)
+    (if (= (tuple/type src) :brackets)
+      (all no-side-effects src))
+    (array? src)
+    (all no-side-effects src)
+    (dictionary? src)
+    (and (all no-side-effects (keys src))
+         (all no-side-effects (values src)))
+    true))
+
+(defn- is-safe-def [x] (no-side-effects (last x)))
+
+(def- safe-forms {'defn true 'defn- true 'defmacro true 'defmacro- true
+                  'def is-safe-def 'var is-safe-def 'def- is-safe-def 'var- is-safe-def
+                  'defglobal is-safe-def 'varglobal is-safe-def})
+
+(def- importers {'import true 'import* true 'use true 'dofile true 'require true})
+
 (defn cli-main
   "Entrance for the Janet CLI tool. Call this functions with the command line
   arguments as an array or tuple of strings to invoke the CLI interface."
@@ -2293,16 +2343,21 @@
     (def h (in handlers n))
     (if h (h i) (do (print "unknown flag -" n) ((in handlers "h")))))
 
-  # Use special evaulator for fly checking (-k option)
-  (def- safe-forms {'defn true 'defn- true 'defmacro true 'defmacro- true})
-  (def- importers {'import true 'import* true 'use true 'dofile true 'require true})
   (defn- evaluator
     [thunk source env where]
     (if *compile-only*
       (when (tuple? source)
+        (def head (source 0))
+        (def safe-check (safe-forms head))
         (cond
-          (safe-forms (source 0)) (thunk)
-          (importers (source 0))
+          # Sometimes safe form
+          (function? safe-check)
+          (if (safe-check source) (thunk))
+          # Always safe form
+          safe-check
+          (thunk)
+          # Import-like form
+          (importers head)
           (do
             (let [[l c] (tuple/sourcemap source)
                   newtup (tuple/setmap (tuple ;source :evaluator evaluator) l c)]
@@ -2348,6 +2403,11 @@
     (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
     (setdyn :err-color (if *colorize* true))
     (repl getchunk onsig env)))
+
+(put _env 'no-side-effects nil)
+(put _env 'is-safe-def nil)
+(put _env 'safe-forms nil)
+(put _env 'importers nil)
 
 
 ###
@@ -2466,7 +2526,8 @@
 
   (defn do-one-flie
     [fname]
-    (print "\n/* " fname " */\n")
+    (print "\n/* " fname " */")
+    (print "#line 0 \"" fname "\"\n")
     (def source (slurp fname))
     (print (string/replace-all "\r" "" source)))
 

@@ -82,7 +82,8 @@ static JanetSlot opfunction(
         t = janetc_gettarget(opts);
         janetc_emit_sss(c, op, t, args[0], janetc_cslot(defaultArg2), 1);
         return t;
-    } else if (len == 2) {
+    } else {
+        /* len == 2 */
         t = janetc_gettarget(opts);
         janetc_emit_sss(c, op, t, args[0], args[1], 1);
     }

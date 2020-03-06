@@ -489,6 +489,26 @@ ret_false:
     return janet_wrap_false();
 }
 
+static Janet janet_core_signal(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    int sig;
+    if (janet_checkint(argv[0])) {
+        int32_t s = janet_unwrap_integer(argv[0]);
+        if (s < 0 || s > 9) {
+            janet_panicf("expected user signal between 0 and 9, got %d", s);
+        }
+        sig = JANET_SIGNAL_USER0 + s;
+    } else {
+        JanetKeyword kw = janet_getkeyword(argv, 0);
+        if (!janet_cstrcmp(kw, "yield")) sig = JANET_SIGNAL_YIELD;
+        if (!janet_cstrcmp(kw, "error")) sig = JANET_SIGNAL_ERROR;
+        if (!janet_cstrcmp(kw, "debug")) sig = JANET_SIGNAL_DEBUG;
+        janet_panicf("unknown signal, expected :yield, :error, or :debug, got %v", argv[0]);
+    }
+    Janet payload = argc == 2 ? argv[1] : janet_wrap_nil();
+    janet_signalv(sig, payload);
+}
+
 static const JanetReg corelib_cfuns[] = {
     {
         "native", janet_core_native,
@@ -599,11 +619,10 @@ static const JanetReg corelib_cfuns[] = {
     {
         "type", janet_core_type,
         JDOC("(type x)\n\n"
-             "Returns the type of x as a keyword symbol. x is one of\n"
+             "Returns the type of x as a keyword. x is one of\n"
              "\t:nil\n"
              "\t:boolean\n"
-             "\t:integer\n"
-             "\t:real\n"
+             "\t:number\n"
              "\t:array\n"
              "\t:tuple\n"
              "\t:table\n"
@@ -614,7 +633,7 @@ static const JanetReg corelib_cfuns[] = {
              "\t:keyword\n"
              "\t:function\n"
              "\t:cfunction\n\n"
-             "or another symbol for an abstract type.")
+             "or another keyword for an abstract type.")
     },
     {
         "hash", janet_core_hash,
@@ -679,6 +698,11 @@ static const JanetReg corelib_cfuns[] = {
         "slice", janet_core_slice,
         JDOC("(slice x &opt start end)\n\n"
              "Extract a sub-range of an indexed data strutrue or byte sequence.")
+    },
+    {
+        "signal", janet_core_signal,
+        JDOC("(signal what x)\n\n"
+             "Raise a signal with payload x. ")
     },
     {NULL, NULL, NULL}
 };
