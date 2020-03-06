@@ -112,4 +112,9 @@
 (assert (= false (and false false)) "and 1")
 (assert (= false (or false false)) "or 1")
 
+# #300 Regression test
+
+# Just don't segfault
+(assert (peg/match '{:main (replace "S" {"S" :spade})} "S7") "regression #300")
+
 (end-suite)

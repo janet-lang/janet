@@ -369,19 +369,23 @@ tail:
             s->mode = oldmode;
             if (!result) return NULL;
 
-            Janet cap;
+            Janet cap = janet_wrap_nil();
             Janet constant = s->constants[rule[2]];
             switch (janet_type(constant)) {
                 default:
                     cap = constant;
                     break;
                 case JANET_STRUCT:
-                    cap = janet_struct_get(janet_unwrap_struct(constant),
-                                           s->captures->data[s->captures->count - 1]);
+                    if (s->captures->count) {
+                        cap = janet_struct_get(janet_unwrap_struct(constant),
+                                               s->captures->data[s->captures->count - 1]);
+                    }
                     break;
                 case JANET_TABLE:
-                    cap = janet_table_get(janet_unwrap_table(constant),
-                                          s->captures->data[s->captures->count - 1]);
+                    if (s->captures->count) {
+                        cap = janet_table_get(janet_unwrap_table(constant),
+                                              s->captures->data[s->captures->count - 1]);
+                    }
                     break;
                 case JANET_CFUNCTION:
                     cap = janet_unwrap_cfunction(constant)(s->captures->count - cs.cap,
