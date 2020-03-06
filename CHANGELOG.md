@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Fix `and` and `or` macros returning nil instead of false in some cases.
+- Allow matching successfully against nil values in the `match` macro.
 - Improve `janet_formatc` and `janet_panicf` formatters to be more like `string/format`.
   This makes it easier to make nice error messages from C.
 - Add `signal`
