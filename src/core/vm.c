@@ -1262,10 +1262,12 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
 
     /* Continue child fiber if it exists */
     if (fiber->child) {
+        if (janet_vm_root_fiber == NULL) janet_vm_root_fiber = fiber;
         JanetFiber *child = fiber->child;
         janet_vm_stackn++;
         JanetSignal sig = janet_continue(child, in, &in);
         janet_vm_stackn--;
+        if (janet_vm_root_fiber == fiber) janet_vm_root_fiber = NULL;
         if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
             *out = in;
             return sig;
