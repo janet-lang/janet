@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Allow `_` in the `match` macro to match anything without creating a binding
+  or doing unification.
 - Add `:range-to` and `:down-to` verbs in the `loop` macro.
 - Fix `and` and `or` macros returning nil instead of false in some cases.
 - Allow matching successfully against nil values in the `match` macro.

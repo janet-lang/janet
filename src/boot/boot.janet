@@ -1325,6 +1325,9 @@
   [pattern expr onmatch seen]
   (cond
 
+    (= '_ pattern)
+    (onmatch)
+
     (symbol? pattern)
     (if (in seen pattern)
       ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)
@@ -1374,14 +1377,15 @@
 
 (defmacro match
   "Pattern matching. Match an expression x against
-  any number of cases. Easy case is a pattern to match against, followed
+  any number of cases. Each case is a pattern to match against, followed
   by an expression to evaluate to if that case is matched. A pattern that is
   a symbol will match anything, binding x's value to that symbol. An array
   will match only if all of it's elements match the corresponding elements in
   x. A table or struct will match if all values match with the corresponding
   values in x. A tuple pattern will match if it's first element matches, and the following
-  elements are treated as predicates and are true. Any other value pattern will only
-  match if it is equal to x."
+  elements are treated as predicates and are true. The last special case is
+  the '_ symbol, which is a wildcard that will match any value without creating a binding.
+  Any other value pattern will only match if it is equal to x."
   [x & cases]
   (with-idemp $x x
     (def len (length cases))
