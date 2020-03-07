@@ -765,6 +765,9 @@ static int line() {
                         case '.': /* Alt-. */
                             historymove(-JANET_HISTORY_MAX);
                             break;
+                        case 127: /* Alt-backspace */
+                            kbackspacew();
+                            break;
                     }
                 }
                 break;
