@@ -1,4 +1,4 @@
-image: freebsd/latest
+image: freebsd/12.x
 sources:
 - https://git.sr.ht/~bakpakin/janet
 packages:

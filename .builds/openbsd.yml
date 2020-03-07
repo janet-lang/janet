@@ -1,4 +1,4 @@
-image: openbsd/6.5
+image: openbsd/latest
 sources:
 - https://git.sr.ht/~bakpakin/janet
 packages:
