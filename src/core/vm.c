@@ -30,6 +30,8 @@
 #include "util.h"
 #endif
 
+#include <math.h>
+
 /* VM state */
 JANET_THREAD_LOCAL JanetTable *janet_vm_core_env;
 JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
