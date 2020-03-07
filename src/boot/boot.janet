@@ -366,6 +366,16 @@
          ,;body
          (set ,i (,delta ,i ,step))))))
 
+(defn- check-indexed [x]
+  (if (indexed? x)
+    x
+    (error (string "expected tuple for range, got " x))))
+
+(defn- range-template
+  [binding object rest op comparison]
+  (let [[start stop step] (check-indexed object)]
+    (for-template binding start stop (or step 1) comparison op [rest])))
+
 (defn- each-template
   [binding inx body]
   (with-syms [k]
@@ -399,11 +409,6 @@
          (def ,binding ,i)
          ,body))))
 
-(defn- check-indexed [x]
-  (if (indexed? x)
-    x
-    (error (string "expected tuple for range, got " x))))
-
 (defn- loop1
   [body head i]
 
@@ -433,12 +438,12 @@
   (def {(+ i 2) object} head)
   (let [rest (loop1 body head (+ i 3))]
     (case verb
-      :range (let [[start stop step] (check-indexed object)]
-               (for-template binding start stop (or step 1) < + [rest]))
+      :range (range-template binding object rest + <)
+      :range-to (range-template binding object rest + <=)
+      :down (range-template binding object rest - >)
+      :down-to (range-template binding object rest - >=)
       :keys (keys-template binding object false [rest])
       :pairs (keys-template binding object true [rest])
-      :down (let [[start stop step] (check-indexed object)]
-              (for-template binding start stop (or step 1) > - [rest]))
       :in (each-template binding object [rest])
       :iterate (iterate-template binding object rest)
       :generate (with-syms [f s]
@@ -481,12 +486,14 @@
   \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
   \t:range - loop over a range. The object should be two element tuple with a start
   and end value, and an optional positive step. The range is half open, [start, end).\n
-  \t:down - Same as range, but breaks the loop when the binding is less than or equal to end.
-  Step should still be a positive integer.\n
-  \t:keys - Iterate over the keys in a data structure.\n
-  \t:pairs - Iterate over the keys value pairs in a data structure.\n
-  \t:in - Iterate over the values in an indexed data structure or byte sequence.\n
-  \t:generate - Iterate over values yielded from a fiber. Can be paired with the generator
+  \t:range-to - same as :range, but the range is inclusive [start, end].\n
+  \t:down - loop over a range, stepping downwards. The object should be two element tuple
+  with a start and (exclusive) end value, and an optional (positive!) step size.\n
+  \t:down-to - same :as down, but the range is inclusive [start, end].\n
+  \t:keys - iterate over the keys in a data structure.\n
+  \t:pairs - iterate over the keys value pairs as tuples in a data structure.\n
+  \t:in - iterate over the values in a data structure.\n
+  \t:generate - iterate over values yielded from a fiber. Can be paired with the generator
   function for the producer/consumer pattern.\n\n
   loop also accepts conditionals to refine the looping further. Conditionals are of
   the form:\n\n
@@ -510,6 +517,7 @@
 (put _env 'iterate-template nil)
 (put _env 'each-template nil)
 (put _env 'keys-template nil)
+(put _env 'range-template nil)
 
 (defmacro seq
   "Similar to loop, but accumulates the loop body into an array and returns that.
