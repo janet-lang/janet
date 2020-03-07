@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Allow `_` in the `match` macro to match anything without creating a binding
+  or doing unification.
+- Add `:range-to` and `:down-to` verbs in the `loop` macro.
+- Fix `and` and `or` macros returning nil instead of false in some cases.
+- Allow matching successfully against nil values in the `match` macro.
 - Improve `janet_formatc` and `janet_panicf` formatters to be more like `string/format`.
   This makes it easier to make nice error messages from C.
 - Add `signal`
@@ -12,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Correct arity for `marshal`
 - Add `flush` and `eflush`
 - Add `prompt` and `return` on top of signal for user friendly delimited continuations.
+- Fix possible segfault with malformed pegs.
 
 ## 1.7.0 - 2020-02-01
 - Remove `file/fileno` and `file/fdopen`.

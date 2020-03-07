@@ -1,0 +1,12 @@
+image: openbsd/latest
+sources:
+- https://git.sr.ht/~bakpakin/janet
+packages:
+- gmake
+tasks:
+- build: |
+    cd janet
+    gmake
+    gmake test
+    doas gmake install
+    gmake test-install

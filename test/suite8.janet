@@ -107,4 +107,23 @@
 (assert (= nil (match [1 2] [a b c] a)) "match 4")
 (assert (= 2 (match [1 2] [a b] b)) "match 5")
 
+# And/or checks
+
+(assert (= false (and false false)) "and 1")
+(assert (= false (or false false)) "or 1")
+
+# #300 Regression test
+
+# Just don't segfault
+(assert (peg/match '{:main (replace "S" {"S" :spade})} "S7") "regression #300")
+
+# Test cases for #293
+(assert (= :yes (match [1 2 3] [_ a _] :yes :no)) "match wildcard 1")
+(assert (= :no (match [1 2 3] [__ a __] :yes :no)) "match wildcard 2")
+(assert (= :yes (match [1 2 [1 2 3]] [_ a [_ _ _]] :yes :no)) "match wildcard 3")
+(assert (= :yes (match [1 2 3] (_ (even? 2)) :yes :no)) "match wildcard 4")
+(assert (= :yes (match {:a 1} {:a _} :yes :no)) "match wildcard 5")
+(assert (= false (match {:a 1 :b 2 :c 3} {:a a :b _ :c _ :d _} :no {:a _ :b _ :c _} false :no)) "match wildcard 6")
+(assert (= nil (match {:a 1 :b 2 :c 3} {:a a :b _ :c _ :d _} :no {:a _ :b _ :c _} nil :no)) "match wildcard 7")
+
 (end-suite)

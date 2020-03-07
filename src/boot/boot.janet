@@ -244,26 +244,30 @@
       [(,not= :error (,fiber/status ,f)) ,r])))
 
 (defmacro and
-  "Evaluates to the last argument if all preceding elements are true, otherwise
-  evaluates to false."
+  "Evaluates to the last argument if all preceding elements are truthy, otherwise
+  evaluates to the first falsey argument."
   [& forms]
   (var ret true)
   (def len (length forms))
   (var i len)
   (while (> i 0)
     (-- i)
+    (def v (in forms i))
     (set ret (if (= ret true)
-               (in forms i)
-               (tuple 'if (in forms i) ret))))
+               v
+               (if (idempotent? v)
+                 ['if v ret v]
+                 (do (def s (gensym))
+                   ['if ['def s v] ret s])))))
   ret)
 
 (defmacro or
-  "Evaluates to the last argument if all preceding elements are false, otherwise
-  evaluates to true."
+  "Evaluates to the last argument if all preceding elements are falsey, otherwise
+  evaluates to the first truthy element."
   [& forms]
-  (var ret nil)
   (def len (length forms))
-  (var i len)
+  (var i (- len 1))
+  (var ret (in forms i))
   (while (> i 0)
     (-- i)
     (def fi (in forms i))
@@ -362,6 +366,16 @@
          ,;body
          (set ,i (,delta ,i ,step))))))
 
+(defn- check-indexed [x]
+  (if (indexed? x)
+    x
+    (error (string "expected tuple for range, got " x))))
+
+(defn- range-template
+  [binding object rest op comparison]
+  (let [[start stop step] (check-indexed object)]
+    (for-template binding start stop (or step 1) comparison op [rest])))
+
 (defn- each-template
   [binding inx body]
   (with-syms [k]
@@ -395,11 +409,6 @@
          (def ,binding ,i)
          ,body))))
 
-(defn- check-indexed [x]
-  (if (indexed? x)
-    x
-    (error (string "expected tuple for range, got " x))))
-
 (defn- loop1
   [body head i]
 
@@ -429,12 +438,12 @@
   (def {(+ i 2) object} head)
   (let [rest (loop1 body head (+ i 3))]
     (case verb
-      :range (let [[start stop step] (check-indexed object)]
-               (for-template binding start stop (or step 1) < + [rest]))
+      :range (range-template binding object rest + <)
+      :range-to (range-template binding object rest + <=)
+      :down (range-template binding object rest - >)
+      :down-to (range-template binding object rest - >=)
       :keys (keys-template binding object false [rest])
       :pairs (keys-template binding object true [rest])
-      :down (let [[start stop step] (check-indexed object)]
-              (for-template binding start stop (or step 1) > - [rest]))
       :in (each-template binding object [rest])
       :iterate (iterate-template binding object rest)
       :generate (with-syms [f s]
@@ -477,11 +486,14 @@
   \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
   \t:range - loop over a range. The object should be two element tuple with a start
   and end value, and an optional positive step. The range is half open, [start, end).\n
-  \t:down - Same as range, but loops in reverse.\n
-  \t:keys - Iterate over the keys in a data structure.\n
-  \t:pairs - Iterate over the keys value pairs in a data structure.\n
-  \t:in - Iterate over the values in an indexed data structure or byte sequence.\n
-  \t:generate - Iterate over values yielded from a fiber. Can be paired with the generator
+  \t:range-to - same as :range, but the range is inclusive [start, end].\n
+  \t:down - loop over a range, stepping downwards. The object should be two element tuple
+  with a start and (exclusive) end value, and an optional (positive!) step size.\n
+  \t:down-to - same :as down, but the range is inclusive [start, end].\n
+  \t:keys - iterate over the keys in a data structure.\n
+  \t:pairs - iterate over the keys value pairs as tuples in a data structure.\n
+  \t:in - iterate over the values in a data structure.\n
+  \t:generate - iterate over values yielded from a fiber. Can be paired with the generator
   function for the producer/consumer pattern.\n\n
   loop also accepts conditionals to refine the looping further. Conditionals are of
   the form:\n\n
@@ -505,6 +517,7 @@
 (put _env 'iterate-template nil)
 (put _env 'each-template nil)
 (put _env 'keys-template nil)
+(put _env 'range-template nil)
 
 (defmacro seq
   "Similar to loop, but accumulates the loop body into an array and returns that.
@@ -1276,7 +1289,7 @@
   nil)
 
 (defn pp
-  "Pretty print to stdout or (dyn :out)."
+  `Pretty print to stdout or (dyn :out). The format string used is (dyn :pretty-format "%q").`
   [x]
   (printf (dyn :pretty-format "%q") x)
   (flush))
@@ -1311,6 +1324,9 @@
 (defn- match-1
   [pattern expr onmatch seen]
   (cond
+
+    (= '_ pattern)
+    (onmatch)
 
     (symbol? pattern)
     (if (in seen pattern)
@@ -1352,23 +1368,26 @@
         ~(if (,dictionary? ,$dict)
            ,((fn aux []
                (set key (next pattern key))
+               (def $val (gensym))
                (if (= key nil)
                  (onmatch)
-                 (match-1 [(in pattern key) [not= (in pattern key) nil]] [in $dict key] aux seen))))
+                 ~(do (def ,$val (,get ,$dict ,key))
+                   ,(match-1 [(in pattern key) [not= nil $val]] $val aux seen)))))
            ,sentinel)))
 
     :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
 
 (defmacro match
   "Pattern matching. Match an expression x against
-  any number of cases. Easy case is a pattern to match against, followed
+  any number of cases. Each case is a pattern to match against, followed
   by an expression to evaluate to if that case is matched. A pattern that is
   a symbol will match anything, binding x's value to that symbol. An array
   will match only if all of it's elements match the corresponding elements in
   x. A table or struct will match if all values match with the corresponding
   values in x. A tuple pattern will match if it's first element matches, and the following
-  elements are treated as predicates and are true. Any other value pattern will only
-  match if it is equal to x."
+  elements are treated as predicates and are true. The last special case is
+  the '_ symbol, which is a wildcard that will match any value without creating a binding.
+  Any other value pattern will only match if it is equal to x."
   [x & cases]
   (with-idemp $x x
     (def len (length cases))
