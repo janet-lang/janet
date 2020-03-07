@@ -14,7 +14,7 @@ The language also supports bridging to native code written in C, meta-programmin
 
 There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
-janet could be embedded into other programs. Try janet in your browser at
+janet can be embedded into other programs. Try janet in your browser at
 [https://janet-lang.org](https://janet-lang.org).
 
 <br>
@@ -61,7 +61,9 @@ documentation for symbols in the core library. For example,
 Shows documentation for the doc macro.
 
 To get a list of all bindings in the default
-environment, use the `(all-bindings)` function.
+environment, use the `(all-bindings)` function. You
+can also use the `(doc)` macro with no arguments if you are in the repl
+to show bound symbols.
 
 ## Source
 
@@ -122,7 +124,7 @@ is maybe more convenient and flexible for integrating into existing pipelines.
 Meson also provides much better IDE integration than Make or batch files, as well as support
 for cross compilation.
 
-For the impatient, building with Meson is as simple as follows. The options provided to
+For the impatient, building with Meson is as follows. The options provided to
 `meson setup` below emulate Janet's Makefile.
 
 ```sh
@@ -152,7 +154,7 @@ Emacs, and Atom will have syntax packages for the Janet language, though.
 ## Installation
 
 See [the Introduction](https://janet-lang.org/introduction.html) for more details. If you just want
-to try out the language, you don't need to install anything. You can also simply move the `janet` executable wherever you want on your system and run it.
+to try out the language, you don't need to install anything. You can also move the `janet` executable wherever you want on your system and run it.
 
 ## Usage
 
@@ -163,35 +165,38 @@ If you are looking to explore, you can print a list of all available macros, fun
 by entering the command `(all-bindings)` into the repl.
 
 ```
-$ ./janet
-Janet 0.0.0 alpha  Copyright (C) 2017-2018 Calvin Rose
+$ janet
+Janet 1.7.1-dev-951e10f  Copyright (C) 2017-2020 Calvin Rose
 janet:1:> (+ 1 2 3)
 6
 janet:2:> (print "Hello, World!")
 Hello, World!
 nil
 janet:3:> (os/exit)
-$ ./janet -h
-usage: ./janet [options] scripts...
+$ janet -h
+usage: build/janet [options] script args...
 Options are:
-  -h Show this help
-  -v Print the version string
-  -s Use raw stdin instead of getline like functionality
-  -e Execute a string of janet
-  -r Enter the repl after running all scripts
-  -p Keep on executing if there is a top level error (persistent)
-  -- Stop handling option
-$
+  -h : Show this help
+  -v : Print the version string
+  -s : Use raw stdin instead of getline like functionality
+  -e code : Execute a string of janet
+  -r : Enter the repl after running all scripts
+  -p : Keep on executing if there is a top level error (persistent)
+  -q : Hide prompt, logo, and repl output (quiet)
+  -k : Compile scripts but do not execute (flycheck)
+  -m syspath : Set system path for loading global modules
+  -c source output : Compile janet source code into an image
+  -n : Disable ANSI color output in the repl
+  -l path : Execute code in a file before running the main script
+  -- : Stop handling options
 ```
 
-If installed, you can also run `man janet` to get usage information.
+If installed, you can also run `man janet` and `man jpm` to get usage information.
 
 ## Embedding
 
-The C API for Janet is not yet documented but coming soon.
-
-Janet can be embedded in a host program very easily. There is a make target
-`make amalg` which creates the file `build/janet.c`, which is a single C file
+Janet can be embedded in a host program very easily. The normal build
+will create a file `build/janet.c`, which is a single C file
 that contains all the source to Janet. This file, along with
 `src/include/janet.h` and `src/include/janetconf.h` can dragged into any C
 project and compiled into the project. Janet should be compiled with `-std=c99`
@@ -199,6 +204,8 @@ on most compilers, and will need to be linked to the math library, `-lm`, and
 the dynamic linker, `-ldl`, if one wants to be able to load dynamic modules. If
 there is no need for dynamic modules, add the define
 `-DJANET_NO_DYNAMIC_MODULES` to the compiler options.
+
+See the [Embedding Section](https://janet-lang.org/capi/embedding.html) on the website for more information.
 
 ## Examples
 
