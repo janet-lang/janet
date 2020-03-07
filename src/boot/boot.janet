@@ -1368,9 +1368,11 @@
         ~(if (,dictionary? ,$dict)
            ,((fn aux []
                (set key (next pattern key))
+               (def $val (gensym))
                (if (= key nil)
                  (onmatch)
-                 (match-1 [(in pattern key) [not= (in pattern key) nil]] [in $dict key] aux seen))))
+                 ~(do (def ,$val (,get ,$dict ,key))
+                   ,(match-1 [(in pattern key) [not= nil $val]] $val aux seen)))))
            ,sentinel)))
 
     :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
