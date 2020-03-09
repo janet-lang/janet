@@ -334,13 +334,15 @@ static Janet cfun_buffer_blit(int32_t argc, Janet *argv) {
     } else {
         length_src = src.len - offset_src;
     }
-    int64_t last = ((int64_t) offset_dest - offset_src) + length_src;
+    int64_t last = (int64_t) offset_dest + length_src;
     if (last > INT32_MAX)
         janet_panic("buffer blit out of range");
-    janet_buffer_ensure(dest, (int32_t) last, 2);
-    if (last > dest->count) dest->count = (int32_t) last;
+    int32_t last32 = (int32_t) last;
+    janet_buffer_ensure(dest, last32, 2);
+    if (last32 > dest->count) dest->count = last32;
     if (length_src) {
         if (same_buf) {
+            /* janet_buffer_ensure may have invalidated src */
             src.bytes = dest->data;
             memmove(dest->data + offset_dest, src.bytes + offset_src, length_src);
         } else {
@@ -438,7 +440,7 @@ static const JanetReg buffer_cfuns[] = {
     },
     {
         "buffer/blit", cfun_buffer_blit,
-        JDOC("(buffer/blit dest src & opt dest-start src-start src-end)\n\n"
+        JDOC("(buffer/blit dest src &opt dest-start src-start src-end)\n\n"
              "Insert the contents of src into dest. Can optionally take indices that "
              "indicate which part of src to copy into which part of dest. Indices can be "
              "negative to index from the end of src or dest. Returns dest.")

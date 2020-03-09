@@ -623,7 +623,7 @@ static int line() {
                 if (gbl_len == 0) {   /* quit on empty line */
                     clearlines();
                     return -1;
-                } 
+                }
                 kdelete(1);
                 break;
             case 5:     /* ctrl-e */

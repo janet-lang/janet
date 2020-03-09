@@ -126,4 +126,14 @@
 (assert (= false (match {:a 1 :b 2 :c 3} {:a a :b _ :c _ :d _} :no {:a _ :b _ :c _} false :no)) "match wildcard 6")
 (assert (= nil (match {:a 1 :b 2 :c 3} {:a a :b _ :c _ :d _} :no {:a _ :b _ :c _} nil :no)) "match wildcard 7")
 
+# Regression #301
+(def b (buffer/new-filled 128 0x78))
+(assert (= 38 (length (buffer/blit @"" b -1 90))) "buffer/blit 1")
+
+(def a @"abcdefghijklm")
+(assert (deep= @"abcde" (buffer/blit @"" a -1 0 5)) "buffer/blit 2")
+(assert (deep= @"bcde" (buffer/blit @"" a -1 1 5)) "buffer/blit 3")
+(assert (deep= @"cde" (buffer/blit @"" a -1 2 5)) "buffer/blit 4")
+(assert (deep= @"de" (buffer/blit @"" a -1 3 5)) "buffer/blit 5")
+
 (end-suite)
