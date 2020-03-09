@@ -32,6 +32,7 @@
 #include <time.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -737,6 +738,23 @@ static Janet os_remove(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
+static Janet os_readlink(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+#ifdef JANET_WINDOWS
+    (void) argc;
+    (void) argv;
+    janet_panic("os/readlink not supported on Windows");
+    return janet_wrap_nil();
+#else
+    static char buffer[PATH_MAX];
+    const char *path = janet_getcstring(argv, 0);
+    ssize_t len = readlink(path, buffer, sizeof buffer);
+    if (len < 0 || (size_t)len >= sizeof buffer)
+        janet_panicf("%s: %s", strerror(errno), path);
+    return janet_stringv((const uint8_t *)buffer, len);
+#endif
+}
+
 #ifdef JANET_WINDOWS
 static const uint8_t *janet_decode_permissions(unsigned short m) {
     uint8_t flags[9] = {0};
@@ -1144,6 +1162,11 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/link oldpath newpath &opt symlink)\n\n"
              "Create a symlink from oldpath to newpath. The 3 optional paramater "
              "enables a hard link over a soft link. Does not work on Windows.")
+    },
+    {
+        "os/readlink", os_readlink,
+        JDOC("(os/readlink path)\n\n"
+             "Read the contents of a symbolic link. Does not work on Windows.\n")
     },
     {
         "os/execute", os_execute,
