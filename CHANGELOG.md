@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `chr` macro.
 - Allow `_` in the `match` macro to match anything without creating a binding
   or doing unification.
 - Add `:range-to` and `:down-to` verbs in the `loop` macro.

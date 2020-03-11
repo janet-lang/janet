@@ -316,6 +316,13 @@
          ,payload
          (propagate ,res ,fib)))))
 
+(defmacro chr
+  "Convert a string of length 1 to its byte (ascii) value at compile time."
+  [c]
+  (unless (and (string? c) (= (length c) 1))
+    (error (string/format "expected string of length 1, got %v" c)))
+  (c 0))
+
 (defmacro label
   "Set a label point that is lexically scoped. Name should be a symbol
   that will be bound to the label."

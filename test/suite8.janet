@@ -136,4 +136,7 @@
 (assert (deep= @"cde" (buffer/blit @"" a -1 2 5)) "buffer/blit 4")
 (assert (deep= @"de" (buffer/blit @"" a -1 3 5)) "buffer/blit 5")
 
+# chr
+(assert (= (chr "a") 97) "chr 1")
+
 (end-suite)
