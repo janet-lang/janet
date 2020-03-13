@@ -1028,7 +1028,7 @@ static const JanetReg os_cfuns[] = {
     {
         "os/cd", os_cd,
         JDOC("(os/cd path)\n\n"
-             "Change current directory to path. Returns true on success, false on failure.")
+             "Change current directory to path. Returns nil on success, errors on failure.")
     },
     {
         "os/mkdir", os_mkdir,
