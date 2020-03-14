@@ -52,7 +52,7 @@ static void *janet_rng_unmarshal(JanetMarshalContext *ctx) {
     return rng;
 }
 
-static JanetAbstractType JanetRNG_type = {
+const JanetAbstractType janet_rng_type = {
     "core/rng",
     NULL,
     NULL,
@@ -115,7 +115,7 @@ double janet_rng_double(JanetRNG *rng) {
 
 static Janet cfun_rng_make(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
-    JanetRNG *rng = janet_abstract(&JanetRNG_type, sizeof(JanetRNG));
+    JanetRNG *rng = janet_abstract(&janet_rng_type, sizeof(JanetRNG));
     if (argc == 1) {
         if (janet_checkint(argv[0])) {
             uint32_t seed = (uint32_t)(janet_getinteger(argv, 0));
@@ -132,13 +132,13 @@ static Janet cfun_rng_make(int32_t argc, Janet *argv) {
 
 static Janet cfun_rng_uniform(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    JanetRNG *rng = janet_getabstract(argv, 0, &JanetRNG_type);
+    JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     return janet_wrap_number(janet_rng_double(rng));
 }
 
 static Janet cfun_rng_int(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
-    JanetRNG *rng = janet_getabstract(argv, 0, &JanetRNG_type);
+    JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     if (argc == 1) {
         uint32_t word = janet_rng_u32(rng) >> 1;
         return janet_wrap_integer(word);
@@ -166,7 +166,7 @@ static void rng_get_4bytes(JanetRNG *rng, uint8_t *buf) {
 
 static Janet cfun_rng_buffer(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
-    JanetRNG *rng = janet_getabstract(argv, 0, &JanetRNG_type);
+    JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, n);
 
@@ -459,7 +459,7 @@ static const JanetReg math_cfuns[] = {
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
     janet_core_cfuns(env, NULL, math_cfuns);
-    janet_register_abstract_type(&JanetRNG_type);
+    janet_register_abstract_type(&janet_rng_type);
 #ifdef JANET_BOOTSTRAP
     janet_def(env, "math/pi", janet_wrap_number(3.1415926535897931),
               JDOC("The value pi."));
