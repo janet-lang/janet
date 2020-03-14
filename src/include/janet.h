@@ -975,6 +975,15 @@ struct JanetThread {
 };
 #endif
 
+#ifdef JANET_PEG
+extern const JanetAbstractType janet_peg_type;
+typedef struct {
+    uint32_t *bytecode;
+    Janet *constants;
+    size_t bytecode_len;
+    uint32_t num_constants;
+} Peg;
+#endif
 
 /***** END SECTION TYPES *****/
 

@@ -1016,13 +1016,6 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
  * Post-Compilation
  */
 
-typedef struct {
-    uint32_t *bytecode;
-    Janet *constants;
-    size_t bytecode_len;
-    uint32_t num_constants;
-} Peg;
-
 static int peg_mark(void *p, size_t size) {
     (void) size;
     Peg *peg = (Peg *)p;
@@ -1208,7 +1201,7 @@ bad:
 
 static int cfun_peg_getter(JanetAbstract a, Janet key, Janet *out);
 
-static const JanetAbstractType peg_type = {
+const JanetAbstractType janet_peg_type = {
     "core/peg",
     NULL,
     peg_mark,
@@ -1226,7 +1219,7 @@ static Peg *make_peg(Builder *b) {
     size_t constants_start = size_padded(bytecode_start + bytecode_size, sizeof(Janet));
     size_t constants_size = janet_v_count(b->constants) * sizeof(Janet);
     size_t total_size = constants_start + constants_size;
-    char *mem = janet_abstract(&peg_type, total_size);
+    char *mem = janet_abstract(&janet_peg_type, total_size);
     Peg *peg = (Peg *)mem;
     peg->bytecode = (uint32_t *)(mem + bytecode_start);
     peg->constants = (Janet *)(mem + constants_start);
@@ -1268,7 +1261,7 @@ static Janet cfun_peg_match(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, -1);
     Peg *peg;
     if (janet_checktype(argv[0], JANET_ABSTRACT) &&
-            janet_abstract_type(janet_unwrap_abstract(argv[0])) == &peg_type) {
+            janet_abstract_type(janet_unwrap_abstract(argv[0])) == &janet_peg_type) {
         peg = janet_unwrap_abstract(argv[0]);
     } else {
         peg = compile_peg(argv[0]);
@@ -1327,7 +1320,7 @@ static const JanetReg peg_cfuns[] = {
 /* Load the peg module */
 void janet_lib_peg(JanetTable *env) {
     janet_core_cfuns(env, NULL, peg_cfuns);
-    janet_register_abstract_type(&peg_type);
+    janet_register_abstract_type(&janet_peg_type);
 }
 
 #endif /* ifdef JANET_PEG */
