@@ -929,10 +929,11 @@ static Janet os_stat(int32_t argc, Janet *argv) {
     }
 
     /* Build result */
-    struct stat st;
 #ifdef JANET_WINDOWS
+    struct _stat st;
     int res = _stat(path, &st);
 #else
+    struct stat st;
     int res = stat(path, &st);
 #endif
     if (-1 == res) {
