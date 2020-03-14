@@ -739,10 +739,10 @@ static Janet os_remove(int32_t argc, Janet *argv) {
 
 #ifdef JANET_WINDOWS
 static const uint8_t *janet_decode_permissions(unsigned short m) {
-    uint8_t flags[3] = {0};
-    flags[0] = (m & S_IREAD) ? 'r' : '-';
-    flags[1] = (m & S_IWRITE) ? 'w' : '-';
-    flags[2] = (m & S_IEXEC) ? 'x' : '-';
+    uint8_t flags[9] = {0};
+    flags[0] = flags[3] = flags[6] = (m & S_IREAD) ? 'r' : '-';
+    flags[1] = flags[4] = flags[7] = (m & S_IWRITE) ? 'w' : '-';
+    flags[2] = flags[5] = flags[8] = (m & S_IEXEC) ? 'x' : '-';
     return janet_string(flags, sizeof(flags));
 }
 
