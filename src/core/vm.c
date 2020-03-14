@@ -35,6 +35,7 @@
 /* VM state */
 JANET_THREAD_LOCAL JanetTable *janet_vm_core_env;
 JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
+JANET_THREAD_LOCAL JanetTable *janet_vm_abstract_registry;
 JANET_THREAD_LOCAL int janet_vm_stackn = 0;
 JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber = NULL;
 JANET_THREAD_LOCAL Janet *janet_vm_return_reg = NULL;
@@ -1380,7 +1381,9 @@ int janet_init(void) {
     janet_scratch_cap = 0;
     /* Initialize registry */
     janet_vm_registry = janet_table(0);
+    janet_vm_abstract_registry = janet_table(0);
     janet_gcroot(janet_wrap_table(janet_vm_registry));
+    janet_gcroot(janet_wrap_table(janet_vm_abstract_registry));
     /* Core env */
     janet_vm_core_env = NULL;
     /* Seed RNG */
@@ -1401,6 +1404,7 @@ void janet_deinit(void) {
     janet_vm_root_count = 0;
     janet_vm_root_capacity = 0;
     janet_vm_registry = NULL;
+    janet_vm_abstract_registry = NULL;
     janet_vm_core_env = NULL;
 #ifdef JANET_THREADS
     janet_threads_deinit();

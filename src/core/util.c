@@ -421,40 +421,23 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
     free(longname_buffer);
 }
 
-/* Abstract type introspection - not meant to be used directly */
-
-static const JanetAbstractType janet_abstract_info_type = {
-    "core/abstract-info",
-    JANET_ATEND_NAME
-};
-
-typedef struct {
-    const JanetAbstractType *at;
-} JanetAbstractTypeWrap;
+/* Abstract type introspection */
 
 void janet_register_abstract_type(const JanetAbstractType *at) {
-    JanetAbstractTypeWrap *abstract = (JanetAbstractTypeWrap *)
-                                      janet_abstract(&janet_abstract_info_type, sizeof(JanetAbstractTypeWrap));
-    abstract->at = at;
     Janet sym = janet_csymbolv(at->name);
-    if (!(janet_checktype(janet_table_get(janet_vm_registry, sym), JANET_NIL))) {
+    if (!(janet_checktype(janet_table_get(janet_vm_abstract_registry, sym), JANET_NIL))) {
         janet_panicf("cannot register abstract type %s, "
                      "a type with the same name exists", at->name);
     }
-    janet_table_put(janet_vm_registry, sym, janet_wrap_abstract(abstract));
+    janet_table_put(janet_vm_abstract_registry, sym, janet_wrap_pointer((void *) at));
 }
 
 const JanetAbstractType *janet_get_abstract_type(Janet key) {
-    Janet twrap = janet_table_get(janet_vm_registry, key);
-    if (janet_checktype(twrap, JANET_NIL)) {
+    Janet wrapped = janet_table_get(janet_vm_abstract_registry, key);
+    if (janet_checktype(wrapped, JANET_NIL)) {
         return NULL;
     }
-    if (!janet_checktype(twrap, JANET_ABSTRACT) ||
-            (janet_abstract_type(janet_unwrap_abstract(twrap)) != &janet_abstract_info_type)) {
-        janet_panic("expected abstract type");
-    }
-    JanetAbstractTypeWrap *w = (JanetAbstractTypeWrap *)janet_unwrap_abstract(twrap);
-    return w->at;
+    return (JanetAbstractType *)(janet_unwrap_pointer(wrapped));
 }
 
 #ifndef JANET_BOOTSTRAP

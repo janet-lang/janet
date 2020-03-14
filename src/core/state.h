@@ -53,6 +53,10 @@ extern JANET_THREAD_LOCAL Janet *janet_vm_return_reg;
  * along with otherwise bare c function pointers. */
 extern JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
 
+/* Registry for abstract abstract types that can be marshalled.
+ * We need this to look up the constructors when unmarshalling. */
+extern JANET_THREAD_LOCAL JanetTable *janet_vm_abstract_registry;
+
 /* Immutable value cache */
 extern JANET_THREAD_LOCAL const uint8_t **janet_vm_cache;
 extern JANET_THREAD_LOCAL uint32_t janet_vm_cache_capacity;
