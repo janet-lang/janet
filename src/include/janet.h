@@ -1613,7 +1613,7 @@ JanetTArrayView *janet_gettarray_any(const Janet *argv, int32_t n);
 #ifdef JANET_INT_TYPES
 
 extern JANET_API const JanetAbstractType janet_s64_type;
-extern JANET_API const JanetAbstractType janet_s64_type;
+extern JANET_API const JanetAbstractType janet_u64_type;
 
 typedef enum {
     JANET_INT_NONE,
