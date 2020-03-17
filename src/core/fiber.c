@@ -230,6 +230,24 @@ static void janet_env_detach(JanetFuncEnv *env) {
     }
 }
 
+/* Detach a fiber from the env if the target fiber has stopped mutating */
+void janet_env_maybe_detach(JanetFuncEnv *env) {
+    /* Check for detachable closure envs */
+    if (env->offset) {
+        JanetFiberStatus s = janet_fiber_status(env->as.fiber);
+        int isFinished = s == JANET_STATUS_DEAD ||
+                         s == JANET_STATUS_ERROR ||
+                         s == JANET_STATUS_USER0 ||
+                         s == JANET_STATUS_USER1 ||
+                         s == JANET_STATUS_USER2 ||
+                         s == JANET_STATUS_USER3 ||
+                         s == JANET_STATUS_USER4;
+        if (isFinished) {
+            janet_env_detach(env);
+        }
+    }
+}
+
 /* Create a tail frame for a function */
 int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
     int32_t i;

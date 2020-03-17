@@ -73,5 +73,6 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func);
 int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func);
 void janet_fiber_cframe(JanetFiber *fiber, JanetCFunction cfun);
 void janet_fiber_popframe(JanetFiber *fiber);
+void janet_env_maybe_detach(JanetFuncEnv *env);
 
 #endif

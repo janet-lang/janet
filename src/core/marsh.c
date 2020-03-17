@@ -184,6 +184,7 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
         }
     }
     janet_v_push(st->seen_envs, env);
+    janet_env_maybe_detach(env);
     pushint(st, env->offset);
     pushint(st, env->length);
     if (env->offset) {
