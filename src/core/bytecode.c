@@ -212,6 +212,7 @@ JanetFuncDef *janet_funcdef_alloc(void) {
     def->environments = NULL;
     def->constants = NULL;
     def->bytecode = NULL;
+    def->closure_bitset = NULL;
     def->flags = 0;
     def->slotcount = 0;
     def->arity = 0;

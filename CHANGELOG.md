@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 - Add `os/chmod`.
 - Add `chr` macro.
 - Allow `_` in the `match` macro to match anything without creating a binding
-  or doing unification.
+  or doing unification. Also change behavior of matching nil.
 - Add `:range-to` and `:down-to` verbs in the `loop` macro.
 - Fix `and` and `or` macros returning nil instead of false in some cases.
 - Allow matching successfully against nil values in the `match` macro.

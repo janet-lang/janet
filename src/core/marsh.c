@@ -188,8 +188,14 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
         pushint(st, 0);
         pushint(st, env->length);
         Janet *values = env->as.fiber->data + env->offset;
-        for (int32_t i = 0; i < env->length; i++)
-            marshal_one(st, values[i], flags + 1);
+        uint32_t *bitset = janet_stack_frame(values)->func->def->closure_bitset;
+        for (int32_t i = 0; i < env->length; i++) {
+            if (1 & (bitset[i >> 5] >> (i & 0x1F))) {
+                marshal_one(st, values[i], flags + 1);
+            } else {
+                pushbyte(st, LB_NIL);
+            }
+        }
     } else {
         janet_env_maybe_detach(env);
         pushint(st, env->offset);
@@ -212,6 +218,16 @@ static void janet_func_addflags(JanetFuncDef *def) {
     if (def->defs) def->flags |= JANET_FUNCDEF_FLAG_HASDEFS;
     if (def->environments) def->flags |= JANET_FUNCDEF_FLAG_HASENVS;
     if (def->sourcemap) def->flags |= JANET_FUNCDEF_FLAG_HASSOURCEMAP;
+}
+
+/* Marshal a sequence of u32s */
+static void janet_marshal_u32s(MarshalState *st, const uint32_t *u32s, int32_t n) {
+    for (int32_t i = 0; i < n; i++) {
+        pushbyte(st, u32s[i] & 0xFF);
+        pushbyte(st, (u32s[i] >> 8) & 0xFF);
+        pushbyte(st, (u32s[i] >> 16) & 0xFF);
+        pushbyte(st, (u32s[i] >> 24) & 0xFF);
+    }
 }
 
 /* Marshal a function def */
@@ -248,12 +264,7 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
         marshal_one(st, def->constants[i], flags);
 
     /* marshal the bytecode */
-    for (int32_t i = 0; i < def->bytecode_length; i++) {
-        pushbyte(st, def->bytecode[i] & 0xFF);
-        pushbyte(st, (def->bytecode[i] >> 8) & 0xFF);
-        pushbyte(st, (def->bytecode[i] >> 16) & 0xFF);
-        pushbyte(st, (def->bytecode[i] >> 24) & 0xFF);
-    }
+    janet_marshal_u32s(st, def->bytecode, def->bytecode_length);
 
     /* marshal the environments if needed */
     for (int32_t i = 0; i < def->environments_length; i++)
@@ -272,6 +283,11 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
             pushint(st, map.column);
             current = map.line;
         }
+    }
+
+    /* Marshal closure bitset, if needed */
+    if (def->flags & JANET_FUNCDEF_FLAG_HASCLOBITSET) {
+        janet_marshal_u32s(st, def->closure_bitset, ((def->slotcount + 31) >> 5));
     }
 }
 
@@ -716,6 +732,20 @@ static const uint8_t *unmarshal_one_env(
     return data;
 }
 
+/* Unmarshal a series of u32s */
+static const uint8_t *janet_unmarshal_u32s(UnmarshalState *st, const uint8_t *data, uint32_t *into, int32_t n) {
+    for (int32_t i = 0; i < n; i++) {
+        MARSH_EOS(st, data + 3);
+        into[i] =
+            (uint32_t)(data[0]) |
+            ((uint32_t)(data[1]) << 8) |
+            ((uint32_t)(data[2]) << 16) |
+            ((uint32_t)(data[3]) << 24);
+        data += 4;
+    }
+    return data;
+}
+
 /* Unmarshal a funcdef */
 static const uint8_t *unmarshal_one_def(
     UnmarshalState *st,
@@ -739,6 +769,7 @@ static const uint8_t *unmarshal_one_def(
         def->bytecode_length = 0;
         def->name = NULL;
         def->source = NULL;
+        def->closure_bitset = NULL;
         janet_v_push(st->lookup_defs, def);
 
         /* Set default lengths to zero */
@@ -794,15 +825,7 @@ static const uint8_t *unmarshal_one_def(
         if (!def->bytecode) {
             JANET_OUT_OF_MEMORY;
         }
-        for (int32_t i = 0; i < bytecode_length; i++) {
-            MARSH_EOS(st, data + 3);
-            def->bytecode[i] =
-                (uint32_t)(data[0]) |
-                ((uint32_t)(data[1]) << 8) |
-                ((uint32_t)(data[2]) << 16) |
-                ((uint32_t)(data[3]) << 24);
-            data += 4;
-        }
+        data = janet_unmarshal_u32s(st, data, def->bytecode, bytecode_length);
         def->bytecode_length = bytecode_length;
 
         /* Unmarshal environments */
@@ -847,6 +870,15 @@ static const uint8_t *unmarshal_one_def(
             }
         } else {
             def->sourcemap = NULL;
+        }
+
+        /* Unmarshal closure bitset if needed */
+        if (def->flags & JANET_FUNCDEF_FLAG_HASCLOBITSET) {
+            def->closure_bitset = malloc(sizeof(uint32_t) * def->slotcount);
+            if (NULL == def->closure_bitset) {
+                JANET_OUT_OF_MEMORY;
+            }
+            data = janet_unmarshal_u32s(st, data, def->closure_bitset, (def->slotcount + 31) >> 5);
         }
 
         /* Validate */

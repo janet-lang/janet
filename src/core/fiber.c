@@ -218,13 +218,27 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
 static void janet_env_detach(JanetFuncEnv *env) {
     /* Check for closure environment */
     if (env) {
-        size_t s = sizeof(Janet) * (size_t) env->length;
+        int32_t len = env->length;
+        size_t s = sizeof(Janet) * (size_t) len;
         Janet *vmem = malloc(s);
         janet_vm_next_collection += (uint32_t) s;
         if (NULL == vmem) {
             JANET_OUT_OF_MEMORY;
         }
-        safe_memcpy(vmem, env->as.fiber->data + env->offset, s);
+        Janet *values = env->as.fiber->data + env->offset;
+        safe_memcpy(vmem, values, s);
+        uint32_t *bitset = janet_stack_frame(values)->func->def->closure_bitset;
+        if (bitset) {
+            /* Clear unneeded references in closure environment */
+            for (int32_t i = 0; i < len; i += 32) {
+                uint32_t mask = ~(bitset[i >> 5]);
+                int32_t maxj = i + 32 > len ? len : i + 32;
+                for (int32_t j = i; j < maxj; j++) {
+                    if (mask & 1) vmem[j] = janet_wrap_nil();
+                    mask >>= 1;
+                }
+            }
+        }
         env->offset = 0;
         env->as.values = vmem;
     }

@@ -175,4 +175,10 @@
   (assert (= 1 (f1)) "marshal-live-closure 1")
   (assert (= 2 (f2)) "marshal-live-closure 2"))
 
+(do
+  (var a 1)
+  (defn b [x] (+ a x))
+  (def c (unmarshal (marshal b)))
+  (assert (= 2 (c 1)) "marshal-on-stack-closure 1"))
+
 (end-suite)

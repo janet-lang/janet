@@ -805,6 +805,7 @@ struct JanetAbstractHead {
 #define JANET_FUNCDEF_FLAG_HASENVS 0x400000
 #define JANET_FUNCDEF_FLAG_HASSOURCEMAP 0x800000
 #define JANET_FUNCDEF_FLAG_STRUCTARG 0x1000000
+#define JANET_FUNCDEF_FLAG_HASCLOBITSET 0x2000000
 #define JANET_FUNCDEF_FLAG_TAG 0xFFFF
 
 /* Source mapping structure for a bytecode instruction */
@@ -820,6 +821,7 @@ struct JanetFuncDef {
     Janet *constants;
     JanetFuncDef **defs;
     uint32_t *bytecode;
+    uint32_t *closure_bitset; /* Bit set indicating which slots can be referenced by closures. */
 
     /* Various debug information */
     JanetSourceMapping *sourcemap;
