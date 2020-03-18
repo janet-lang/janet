@@ -139,4 +139,40 @@
 # chr
 (assert (= (chr "a") 97) "chr 1")
 
+# Detaching closure over non resumable fiber.
+(do
+  (defn f1
+    [a]
+    (defn f1 [] (++ (a 0)))
+    (defn f2 [] (++ (a 0)))
+    (error [f1 f2]))
+  (def [_ [f1 f2]] (protect (f1 @[0])))
+  # At time of writing, mark phase can detach closure envs.
+  (gccollect)
+  (assert (= 1 (f1)) "detach-non-resumable-closure 1")
+  (assert (= 2 (f2)) "detach-non-resumable-closure 2"))
+
+# Marshal closure over non resumable fiber.
+(do
+  (defn f1
+    [a]
+    (defn f1 [] (++ (a 0)))
+    (defn f2 [] (++ (a 0)))
+    (error [f1 f2]))
+  (def [_ tup] (protect (f1 @[0])))
+  (def [f1 f2] (unmarshal (marshal tup make-image-dict) load-image-dict))
+  (assert (= 1 (f1)) "marshal-non-resumable-closure 1")
+  (assert (= 2 (f2)) "marshal-non-resumable-closure 2"))
+
+# Marshal closure over currently alive fiber.
+(do
+  (defn f1
+    [a]
+    (defn f1 [] (++ (a 0)))
+    (defn f2 [] (++ (a 0)))
+    (marshal [f1 f2] make-image-dict))
+  (def [f1 f2] (unmarshal (f1 @[0]) load-image-dict))
+  (assert (= 1 (f1)) "marshal-live-closure 1")
+  (assert (= 2 (f2)) "marshal-live-closure 2"))
+
 (end-suite)
