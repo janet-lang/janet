@@ -32,6 +32,7 @@
 #include <time.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -746,6 +747,23 @@ static Janet os_remove(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
+static Janet os_readlink(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+#ifdef JANET_WINDOWS
+    (void) argc;
+    (void) argv;
+    janet_panic("os/readlink not supported on Windows");
+    return janet_wrap_nil();
+#else
+    static char buffer[PATH_MAX];
+    const char *path = janet_getcstring(argv, 0);
+    ssize_t len = readlink(path, buffer, sizeof buffer);
+    if (len < 0 || (size_t)len >= sizeof buffer)
+        janet_panicf("%s: %s", strerror(errno), path);
+    return janet_stringv((const uint8_t *)buffer, len);
+#endif
+}
+
 #ifdef JANET_WINDOWS
 static const uint8_t *janet_decode_permissions(unsigned short m) {
     uint8_t flags[9] = {0};
@@ -920,7 +938,7 @@ static const struct OsStatGetter os_stat_getters[] = {
     {NULL, NULL}
 };
 
-static Janet os_stat(int32_t argc, Janet *argv) {
+static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const char *path = janet_getcstring(argv, 0);
     JanetTable *tab = NULL;
@@ -939,11 +957,17 @@ static Janet os_stat(int32_t argc, Janet *argv) {
 
     /* Build result */
 #ifdef JANET_WINDOWS
+    (void) do_lstat;
     struct _stat st;
     int res = _stat(path, &st);
 #else
     struct stat st;
-    int res = stat(path, &st);
+    int res;
+    if (do_lstat) {
+        res = lstat(path, &st);
+    } else {
+        res = stat(path, &st);
+    }
 #endif
     if (-1 == res) {
         return janet_wrap_nil();
@@ -964,6 +988,14 @@ static Janet os_stat(int32_t argc, Janet *argv) {
         janet_panicf("unexpected keyword %v", janet_wrap_keyword(key));
         return janet_wrap_nil();
     }
+}
+
+static Janet os_stat(int32_t argc, Janet *argv) {
+    return os_stat_or_lstat(0, argc, argv);
+}
+
+static Janet os_lstat(int32_t argc, Janet *argv) {
+    return os_stat_or_lstat(1, argc, argv);
 }
 
 static Janet os_chmod(int32_t argc, Janet *argv) {
@@ -1095,6 +1127,11 @@ static const JanetReg os_cfuns[] = {
              "\t:modified - timestamp when file last modified (content changed)\n")
     },
     {
+        "os/lstat", os_lstat,
+        JDOC("(os/lstat path &opt tab|key)\n\n"
+             "Like os/stat, but don't follow symlinks.\n")
+    },
+    {
         "os/chmod", os_chmod,
         JDOC("(os/chmod path mode)\n\n"
              "Change file permissions, where mode is a permission string as returned by "
@@ -1134,6 +1171,11 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/link oldpath newpath &opt symlink)\n\n"
              "Create a symlink from oldpath to newpath. The 3 optional paramater "
              "enables a hard link over a soft link. Does not work on Windows.")
+    },
+    {
+        "os/readlink", os_readlink,
+        JDOC("(os/readlink path)\n\n"
+             "Read the contents of a symbolic link. Does not work on Windows.\n")
     },
     {
         "os/execute", os_execute,
