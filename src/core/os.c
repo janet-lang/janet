@@ -627,7 +627,7 @@ static Janet os_date(int32_t argc, Janet *argv) {
     } else {
         time(&t);
     }
-    if (argc >= 2 && janet_truthy(argv[2])) {
+    if (argc >= 2 && janet_truthy(argv[1])) {
         /* local time */
 #ifdef JANET_WINDOWS
         localtime_s(&t_infos, &t);
