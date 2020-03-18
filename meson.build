@@ -160,7 +160,7 @@ janetc = custom_target('janetc',
   output : 'janet.c',
   capture : true,
   command : [
-    janet_boot, '@CURRENT_SOURCE_DIR@',
+    janet_boot, meson.current_source_dir(),
     'JANET_PATH', janet_path, 'JANET_HEADERPATH', header_path
   ])
 
