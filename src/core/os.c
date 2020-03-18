@@ -621,8 +621,6 @@ static Janet os_date(int32_t argc, Janet *argv) {
     struct tm *t_info = NULL;
     if (argc) {
         int64_t integer = janet_getinteger64(argv, 0);
-        if (integer < 0)
-            janet_panicf("expected non-negative 64 bit signed integer, got %v", argv[0]);
         t = (time_t) integer;
     } else {
         time(&t);
