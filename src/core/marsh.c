@@ -184,16 +184,24 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
         }
     }
     janet_v_push(st->seen_envs, env);
-    janet_env_maybe_detach(env);
-    pushint(st, env->offset);
-    pushint(st, env->length);
-    if (env->offset) {
-        /* On stack variant */
-        marshal_one(st, janet_wrap_fiber(env->as.fiber), flags + 1);
-    } else {
-        /* Off stack variant */
+    if (env->offset && (JANET_STATUS_ALIVE == janet_fiber_status(env->as.fiber))) {
+        pushint(st, 0);
+        pushint(st, env->length);
+        Janet *values = env->as.fiber->data + env->offset;
         for (int32_t i = 0; i < env->length; i++)
-            marshal_one(st, env->as.values[i], flags + 1);
+            marshal_one(st, values[i], flags + 1);
+    } else {
+        janet_env_maybe_detach(env);
+        pushint(st, env->offset);
+        pushint(st, env->length);
+        if (env->offset) {
+            /* On stack variant */
+            marshal_one(st, janet_wrap_fiber(env->as.fiber), flags + 1);
+        } else {
+            /* Off stack variant */
+            for (int32_t i = 0; i < env->length; i++)
+                marshal_one(st, env->as.values[i], flags + 1);
+        }
     }
 }
 
