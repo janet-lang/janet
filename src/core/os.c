@@ -401,7 +401,16 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     }
 
     os_execute_cleanup(envp, child_argv);
-    return janet_wrap_integer(WEXITSTATUS(status));
+    /* Use POSIX shell semantics for interpreting signals */
+    int ret;
+    if (WIFEXITED(status)) {
+        ret = WEXITSTATUS(status);
+    } else if (WIFSTOPPED(status)) {
+        ret = WSTOPSIG(status) + 128;
+    } else {
+        ret = WTERMSIG(status) + 128;
+    }
+    return janet_wrap_integer(ret);
 #endif
 }
 
