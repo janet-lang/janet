@@ -953,62 +953,68 @@ static const uint8_t *janet_decode_mode(mode_t m) {
 }
 #endif
 
+#ifdef JANET_WINDOWS
+typedef struct _stat jstat_t;
+#else
+typedef struct stat jstat_t;
+#endif
+
 /* Getters */
-static Janet os_stat_dev(struct stat *st) {
+static Janet os_stat_dev(jstat_t *st) {
     return janet_wrap_number(st->st_dev);
 }
-static Janet os_stat_inode(struct stat *st) {
+static Janet os_stat_inode(jstat_t *st) {
     return janet_wrap_number(st->st_ino);
 }
-static Janet os_stat_mode(struct stat *st) {
+static Janet os_stat_mode(jstat_t *st) {
     return janet_wrap_keyword(janet_decode_mode(st->st_mode));
 }
-static Janet os_stat_permissions(struct stat *st) {
+static Janet os_stat_permissions(jstat_t *st) {
     return janet_wrap_string(janet_decode_permissions(st->st_mode));
 }
-static Janet os_stat_uid(struct stat *st) {
+static Janet os_stat_uid(jstat_t *st) {
     return janet_wrap_number(st->st_uid);
 }
-static Janet os_stat_gid(struct stat *st) {
+static Janet os_stat_gid(jstat_t *st) {
     return janet_wrap_number(st->st_gid);
 }
-static Janet os_stat_nlink(struct stat *st) {
+static Janet os_stat_nlink(jstat_t *st) {
     return janet_wrap_number(st->st_nlink);
 }
-static Janet os_stat_rdev(struct stat *st) {
+static Janet os_stat_rdev(jstat_t *st) {
     return janet_wrap_number(st->st_rdev);
 }
-static Janet os_stat_size(struct stat *st) {
+static Janet os_stat_size(jstat_t *st) {
     return janet_wrap_number(st->st_size);
 }
-static Janet os_stat_accessed(struct stat *st) {
+static Janet os_stat_accessed(jstat_t *st) {
     return janet_wrap_number((double) st->st_atime);
 }
-static Janet os_stat_modified(struct stat *st) {
+static Janet os_stat_modified(jstat_t *st) {
     return janet_wrap_number((double) st->st_mtime);
 }
-static Janet os_stat_changed(struct stat *st) {
+static Janet os_stat_changed(jstat_t *st) {
     return janet_wrap_number((double) st->st_ctime);
 }
 #ifdef JANET_WINDOWS
-static Janet os_stat_blocks(struct stat *st) {
+static Janet os_stat_blocks(jstat_t *st) {
     return janet_wrap_number(0);
 }
-static Janet os_stat_blocksize(struct stat *st) {
+static Janet os_stat_blocksize(jstat_t *st) {
     return janet_wrap_number(0);
 }
 #else
-static Janet os_stat_blocks(struct stat *st) {
+static Janet os_stat_blocks(jstat_t *st) {
     return janet_wrap_number(st->st_blocks);
 }
-static Janet os_stat_blocksize(struct stat *st) {
+static Janet os_stat_blocksize(jstat_t *st) {
     return janet_wrap_number(st->st_blksize);
 }
 #endif
 
 struct OsStatGetter {
     const char *name;
-    Janet(*fn)(struct stat *st);
+    Janet(*fn)(jstat_t *st);
 };
 
 static const struct OsStatGetter os_stat_getters[] = {
@@ -1047,12 +1053,11 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
     }
 
     /* Build result */
+    jstat_t st;
 #ifdef JANET_WINDOWS
     (void) do_lstat;
-    struct _stat st;
     int res = _stat(path, &st);
 #else
-    struct stat st;
     int res;
     if (do_lstat) {
         res = lstat(path, &st);
