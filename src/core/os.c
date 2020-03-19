@@ -673,7 +673,13 @@ static Janet os_date(int32_t argc, Janet *argv) {
     return janet_wrap_struct(janet_struct_end(st));
 }
 
-static int64_t entry_getint(Janet env_entry, char *field) {
+#ifdef JANET_WINDOWS
+typedef int32_t timeint_t;
+#else
+typedef int64_t timeint_t;
+#endif
+
+static timeint_t entry_getint(Janet env_entry, char *field) {
     Janet i;
     if (janet_checktype(env_entry, JANET_TABLE)) {
         JanetTable *entry = janet_unwrap_table(env_entry);
@@ -689,12 +695,19 @@ static int64_t entry_getint(Janet env_entry, char *field) {
         return 0;
     }
 
-    if (!janet_checkint64(i)) {
-        janet_panicf("bad slot :%s, expected 64 bit signed integer, got %v",
-	    field, i);
+#ifdef JANET_WINDOWS
+    if (!janet_checkint(i)) {
+        janet_panicf("bad slot #%s, expected 32 bit signed integer, got %v",
+                     field, i);
     }
+#else
+    if (!janet_checkint64(i)) {
+        janet_panicf("bad slot #%s, expected 64 bit signed integer, got %v",
+                     field, i);
+    }
+#endif
 
-    return (int64_t)janet_unwrap_number(i);
+    return (timeint_t)janet_unwrap_number(i);
 }
 
 static Janet os_mktime(int32_t argc, Janet *argv) {
@@ -703,8 +716,8 @@ static Janet os_mktime(int32_t argc, Janet *argv) {
     struct tm t_info = { 0 };
 
     if (!janet_checktype(argv[0], JANET_TABLE) &&
-	!janet_checktype(argv[0], JANET_STRUCT))
-	    janet_panic_type(argv[0], 0, JANET_TFLAG_DICTIONARY);
+            !janet_checktype(argv[0], JANET_STRUCT))
+        janet_panic_type(argv[0], 0, JANET_TFLAG_DICTIONARY);
 
     t_info.tm_sec = entry_getint(argv[0], "seconds");
     t_info.tm_min = entry_getint(argv[0], "minutes");
@@ -719,14 +732,14 @@ static Janet os_mktime(int32_t argc, Janet *argv) {
     } else {
         /* utc time */
 #ifdef __sun
-	janet_panic("os/mktime UTC not supported on Solaris");
-	return janet_wrap_nil();
+        janet_panic("os/mktime UTC not supported on Solaris");
+        return janet_wrap_nil();
 #else
         t = timegm(&t_info);
 #endif
     }
 
-    if (t == (time_t)-1) {
+    if (t == (time_t) -1) {
         janet_panicf("%s", strerror(errno));
     }
 
