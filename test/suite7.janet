@@ -226,6 +226,23 @@
                 :week-day 3}
                (os/date 1388608200)) "os/date")
 
+# OS mktime test
+
+(assert (= 1388608200 (os/mktime {:year-day 0
+                                  :minutes 30
+                                  :month 0
+                                  :dst false
+                                  :seconds 0
+                                  :year 2014
+                                  :month-day 0
+                                  :hours 20
+                                  :week-day 3})) "os/mktime")
+
+(def now (os/time))
+(assert (= (os/mktime (os/date now)) now) "UTC os/mktime")
+(assert (= (os/mktime (os/date now true) true) now) "local os/mktime")
+(assert (= (os/mktime {:year 1970}) 0) "os/mktime default values")
+
 # Appending buffer to self
 
 (with-dyns [:out @""]

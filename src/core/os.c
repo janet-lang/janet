@@ -70,6 +70,13 @@ extern char **environ;
 void arc4random_buf(void *buf, size_t nbytes);
 #endif
 
+/* Not POSIX, but all Unixes but Solaris have this function. */
+#if defined(JANET_POSIX) && !defined(__sun)
+time_t timegm(struct tm *tm);
+#elif defined(JANET_WINDOWS)
+#define timegm _mkgmtime
+#endif
+
 /* Access to some global variables should be synchronized if not in single threaded mode, as
  * setenv/getenv are not thread safe. */
 #ifdef JANET_THREADS
@@ -631,13 +638,11 @@ static Janet os_date(int32_t argc, Janet *argv) {
     struct tm *t_info = NULL;
     if (argc) {
         int64_t integer = janet_getinteger64(argv, 0);
-        if (integer < 0)
-            janet_panicf("expected non-negative 64 bit signed integer, got %v", argv[0]);
         t = (time_t) integer;
     } else {
         time(&t);
     }
-    if (argc >= 2 && janet_truthy(argv[2])) {
+    if (argc >= 2 && janet_truthy(argv[1])) {
         /* local time */
 #ifdef JANET_WINDOWS
         localtime_s(&t_infos, &t);
@@ -666,6 +671,66 @@ static Janet os_date(int32_t argc, Janet *argv) {
     janet_struct_put(st, janet_ckeywordv("year-day"), janet_wrap_number(t_info->tm_yday));
     janet_struct_put(st, janet_ckeywordv("dst"), janet_wrap_boolean(t_info->tm_isdst));
     return janet_wrap_struct(janet_struct_end(st));
+}
+
+static int64_t entry_getint(Janet env_entry, char *field) {
+    Janet i;
+    if (janet_checktype(env_entry, JANET_TABLE)) {
+        JanetTable *entry = janet_unwrap_table(env_entry);
+        i = janet_table_get(entry, janet_ckeywordv(field));
+    } else if (janet_checktype(env_entry, JANET_STRUCT)) {
+        const JanetKV *entry = janet_unwrap_struct(env_entry);
+        i = janet_struct_get(entry, janet_ckeywordv(field));
+    } else {
+        return 0;
+    }
+
+    if (janet_checktype(i, JANET_NIL)) {
+        return 0;
+    }
+
+    if (!janet_checkint64(i)) {
+        janet_panicf("bad slot :%s, expected 64 bit signed integer, got %v",
+	    field, i);
+    }
+
+    return (int64_t)janet_unwrap_number(i);
+}
+
+static Janet os_mktime(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    time_t t;
+    struct tm t_info = { 0 };
+
+    if (!janet_checktype(argv[0], JANET_TABLE) &&
+	!janet_checktype(argv[0], JANET_STRUCT))
+	    janet_panic_type(argv[0], 0, JANET_TFLAG_DICTIONARY);
+
+    t_info.tm_sec = entry_getint(argv[0], "seconds");
+    t_info.tm_min = entry_getint(argv[0], "minutes");
+    t_info.tm_hour = entry_getint(argv[0], "hours");
+    t_info.tm_mday = entry_getint(argv[0], "month-day") + 1;
+    t_info.tm_mon = entry_getint(argv[0], "month");
+    t_info.tm_year = entry_getint(argv[0], "year") - 1900;
+
+    if (argc >= 2 && janet_truthy(argv[1])) {
+        /* local time */
+        t = mktime(&t_info);
+    } else {
+        /* utc time */
+#ifdef __sun
+	janet_panic("os/mktime UTC not supported on Solaris");
+	return janet_wrap_nil();
+#else
+        t = timegm(&t_info);
+#endif
+    }
+
+    if (t == (time_t)-1) {
+        janet_panicf("%s", strerror(errno));
+    }
+
+    return janet_wrap_number((double)t);
 }
 
 static Janet os_link(int32_t argc, Janet *argv) {
@@ -1204,6 +1269,16 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/time)\n\n"
              "Get the current time expressed as the number of seconds since "
              "January 1, 1970, the Unix epoch. Returns a real number.")
+    },
+    {
+        "os/mktime", os_mktime,
+        JDOC("(os/mktime date-struct &opt local)\n\n"
+             "Get the broken down date-struct time expressed as the number "
+             " of seconds since January 1, 1970, the Unix epoch. "
+             "Returns a real number. "
+             "Date is given in UTC unless local is truthy, in which case the "
+             "date is computed for the local timezone.\n\n"
+             "Inverse function to os/date.")
     },
     {
         "os/clock", os_clock,
