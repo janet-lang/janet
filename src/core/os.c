@@ -674,14 +674,20 @@ static Janet os_date(int32_t argc, Janet *argv) {
 }
 
 static int entry_getdst(Janet env_entry) {
+    Janet v;
     if (janet_checktype(env_entry, JANET_TABLE)) {
         JanetTable *entry = janet_unwrap_table(env_entry);
-        return janet_truthy(janet_table_get(entry, janet_ckeywordv("dst")));
+        v = janet_table_get(entry, janet_ckeywordv("dst"));
     } else if (janet_checktype(env_entry, JANET_STRUCT)) {
         const JanetKV *entry = janet_unwrap_struct(env_entry);
-        return janet_truthy(janet_struct_get(entry, janet_ckeywordv("dst")));
+        v = janet_struct_get(entry, janet_ckeywordv("dst"));
     } else {
-        return 0;
+        v = janet_wrap_nil();
+    }
+    if (janet_checktype(v, JANET_NIL)) {
+        return -1;
+    } else {
+        return janet_truthy(v);
     }
 }
 
