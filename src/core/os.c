@@ -673,6 +673,18 @@ static Janet os_date(int32_t argc, Janet *argv) {
     return janet_wrap_struct(janet_struct_end(st));
 }
 
+static int entry_getdst(Janet env_entry) {
+    if (janet_checktype(env_entry, JANET_TABLE)) {
+        JanetTable *entry = janet_unwrap_table(env_entry);
+        return janet_truthy(janet_table_get(entry, janet_ckeywordv("dst")));
+    } else if (janet_checktype(env_entry, JANET_STRUCT)) {
+        const JanetKV *entry = janet_unwrap_struct(env_entry);
+        return janet_truthy(janet_struct_get(entry, janet_ckeywordv("dst")));
+    } else {
+        return 0;
+    }
+}
+
 #ifdef JANET_WINDOWS
 typedef int32_t timeint_t;
 #else
@@ -725,6 +737,7 @@ static Janet os_mktime(int32_t argc, Janet *argv) {
     t_info.tm_mday = entry_getint(argv[0], "month-day") + 1;
     t_info.tm_mon = entry_getint(argv[0], "month");
     t_info.tm_year = entry_getint(argv[0], "year") - 1900;
+    t_info.tm_isdst = entry_getdst(argv[0]);
 
     if (argc >= 2 && janet_truthy(argv[1])) {
         /* local time */
