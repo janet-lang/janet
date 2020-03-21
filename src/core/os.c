@@ -1271,8 +1271,8 @@ static const JanetReg os_cfuns[] = {
     {
         "os/link", os_link,
         JDOC("(os/link oldpath newpath &opt symlink)\n\n"
-             "Create a symlink from oldpath to newpath. The 3 optional paramater "
-             "enables a hard link over a soft link. Does not work on Windows.")
+             "Create a symlink from oldpath to newpath. The 3rd optional paramater "
+             "enables a symlink over a hard link. Does not work on Windows.")
     },
     {
         "os/readlink", os_readlink,
