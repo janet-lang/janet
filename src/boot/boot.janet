@@ -2546,6 +2546,7 @@
   (print "#define JANET_BUILD \"" janet/build "\"")
   (print ```#define JANET_AMALG```)
   (print ```#define _POSIX_C_SOURCE 200112L```)
+  (print ```#define _XOPEN_SOURCE 500```)
   (print ```#include "janet.h"```)
 
   (defn do-one-flie

@@ -775,9 +775,25 @@ static Janet os_link(int32_t argc, Janet *argv) {
 #else
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
-    int res = ((argc == 3 && janet_getboolean(argv, 2)) ? symlink : link)(oldpath, newpath);
+    int res = ((argc == 3 && janet_truthy(argv[2])) ? symlink : link)(oldpath, newpath);
     if (-1 == res) janet_panicf("%s: %s -> %s", strerror(errno), oldpath, newpath);
-    return janet_wrap_integer(res);
+    return janet_wrap_nil();
+#endif
+}
+
+static Janet os_symlink(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+#ifdef JANET_WINDOWS
+    (void) argc;
+    (void) argv;
+    janet_panic("os/symlink not supported on Windows");
+    return janet_wrap_nil();
+#else
+    const char *oldpath = janet_getcstring(argv, 0);
+    const char *newpath = janet_getcstring(argv, 1);
+    int res = symlink(oldpath, newpath);
+    if (-1 == res) janet_panicf("%s: %s -> %s", strerror(errno), oldpath, newpath);
+    return janet_wrap_nil();
 #endif
 }
 
@@ -789,7 +805,9 @@ static Janet os_mkdir(int32_t argc, Janet *argv) {
 #else
     int res = mkdir(path, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH);
 #endif
-    return janet_wrap_boolean(res != -1);
+    if (res == 0) return janet_wrap_true();
+    if (errno == EEXIST) return janet_wrap_false();
+    janet_panicf("%s: %s", strerror(errno), path);
 }
 
 static Janet os_rmdir(int32_t argc, Janet *argv) {
@@ -1158,6 +1176,21 @@ static Janet os_rename(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
+static Janet os_realpath(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+#ifdef JANET_WINDOWS
+    (void) argv;
+    janet_panic("os/realpath not supported on Windows");
+#else
+    const char *src = janet_getcstring(argv, 0);
+    char *dest = realpath(src, NULL);
+    if (NULL == dest) janet_panicf("%s: %s", strerror(errno), src);
+    Janet ret = janet_cstringv(dest);
+    free(dest);
+    return ret;
+#endif
+}
+
 #endif /* JANET_REDUCED_OS */
 
 static const JanetReg os_cfuns[] = {
@@ -1256,7 +1289,8 @@ static const JanetReg os_cfuns[] = {
         "os/mkdir", os_mkdir,
         JDOC("(os/mkdir path)\n\n"
              "Create a new directory. The path will be relative to the current directory if relative, otherwise "
-             "it will be an absolute path.")
+             "it will be an absolute path. Returns true if the directory was create, false if the directoyr already exists, and "
+             "errors otherwise.")
     },
     {
         "os/rmdir", os_rmdir,
@@ -1271,8 +1305,13 @@ static const JanetReg os_cfuns[] = {
     {
         "os/link", os_link,
         JDOC("(os/link oldpath newpath &opt symlink)\n\n"
-             "Create a symlink from oldpath to newpath. The 3rd optional paramater "
-             "enables a symlink over a hard link. Does not work on Windows.")
+             "Create a symlink from oldpath to newpath, returning nil. The 3rd optional paramater "
+             "enables a symlink iff truthy, hard link otherwise or if not provided. Does not work on Windows.")
+    },
+    {
+        "os/symlink", os_symlink,
+        JDOC("(os/symlink oldpath newpath)\n\n"
+             "Create a symlink from oldpath to newpath, returning nil. Same as (os/link oldpath newpath true).")
     },
     {
         "os/readlink", os_readlink,
@@ -1360,6 +1399,12 @@ static const JanetReg os_cfuns[] = {
         "os/rename", os_rename,
         JDOC("(os/rename oldname newname)\n\n"
              "Rename a file on disk to a new path. Returns nil.")
+    },
+    {
+        "os/realpath", os_realpath,
+        JDOC("(os/realpath path)\n\n"
+                "Get the absolute path for a given path, resolving the relative path, following ../, ./, and symlinks. "
+                "Returns an absolute path as a string. Will raise an error on Windows.")
     },
 #endif
     {NULL, NULL, NULL}

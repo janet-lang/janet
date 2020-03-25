@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add `os/realpath` (Not supported on windows).
 - Add `os/chmod`.
 - Add `chr` macro.
 - Allow `_` in the `match` macro to match anything without creating a binding

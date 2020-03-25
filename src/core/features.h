@@ -29,4 +29,8 @@
 #define _POSIX_C_SOURCE 200112L
 #endif
 
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 500
+#endif
+
 #endif
