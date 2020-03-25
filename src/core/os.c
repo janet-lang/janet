@@ -1403,7 +1403,7 @@ static const JanetReg os_cfuns[] = {
     {
         "os/realpath", os_realpath,
         JDOC("(os/realpath path)\n\n"
-                "Get the absolute path for a given path, resolving the relative path, following ../, ./, and symlinks. "
+                "Get the absolute path for a given path, following ../, ./, and symlinks. "
                 "Returns an absolute path as a string. Will raise an error on Windows.")
     },
 #endif
