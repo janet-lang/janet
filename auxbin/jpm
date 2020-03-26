@@ -194,7 +194,8 @@
   (loop [k :keys currenv :when (keyword? k)]
     (put env k (currenv k)))
   (dofile path :env env :exit true)
-  (when-let [rules (env :rules)] (merge-into (getrules) rules)))
+  (when-let [rules (env :rules)] (merge-into (getrules) rules))
+  env)
 
 #
 # OS and shell helpers
@@ -251,11 +252,7 @@
   If we can't create it, give a friendly error. Return true if created, false if
   existing. Throw an error if we can't create it."
   [dir]
-  (if (os/mkdir dir)
-    true
-    (if (os/stat dir :mode)
-      false
-      (error (string "Could not create " dir " - this could be a permission issue.")))))
+  (os/mkdir dir))
 
 #
 # C Compilation
@@ -607,7 +604,7 @@ int main(int argc, const char **argv) {
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle
    is reinistalled (but not rebuilt if artifacts are cached)."
-  [repotab &opt recurse]
+  [repotab &opt recurse no-deps]
   (def repo (if (string? repotab) repotab (repotab :repo)))
   (def tag (unless (string? repotab) (repotab :tag)))
   # prevent infinite recursion (very unlikely, but consider
@@ -639,24 +636,22 @@ int main(int argc, const char **argv) {
         (rimraf module-dir)
         (error (string "could not clone git dependency " repo))))
   (def olddir (os/cwd))
-  (try
+  (os/cd module-dir)
+  (defer (os/cd olddir)
     (with-dyns [:rules @{}
                 :modpath (abspath (dyn :modpath JANET_MODPATH))
                 :headerpath (abspath (dyn :headerpath JANET_HEADERPATH))
                 :libpath (abspath (dyn :libpath JANET_LIBPATH))
                 :binpath (abspath (dyn :binpath JANET_BINPATH))]
-      (os/cd module-dir)
       (unless fresh
         (os/execute ["git" "pull" "origin" "master"] :p))
       (when tag
         (os/execute ["git" "reset" "--hard" tag] :p))
       (os/execute ["git" "submodule" "update" "--init" "--recursive"] :p)
       (import-rules "./project.janet")
-      (do-rule "install-deps")
+      (unless no-deps (do-rule "install-deps"))
       (do-rule "build")
-      (do-rule "install"))
-    ([err] (print "Error building git repository dependency: " err)))
-  (os/cd olddir))
+      (do-rule "install"))))
 
 (defn install-rule
   "Add install and uninstall rule for moving file from src into destdir."
@@ -668,6 +663,54 @@ int main(int argc, const char **argv) {
   (add-body "install"
             (mkdir destdir)
             (copy src destdir)))
+
+(defn- pslurp
+  "Like slurp, but with file/popen instead file/open. Also trims output"
+  [cmd]
+  (string/trim (with [f (file/popen cmd)] (:read f :all))))
+
+(defn- make-lockfile
+  [&opt filename]
+  (default filename "lockfile.janet")
+  (def cwd (os/cwd))
+  (def packages @[])
+  (os/cd (find-cache))
+  (defer (os/cd cwd)
+    (each repo (os/dir ".")
+      (os/cd repo)
+      (def sha (pslurp "git rev-parse HEAD"))
+      (def url (pslurp "git remote get-url origin"))
+      (def deps
+        (with-dyns [:rules @{}]
+          (def env (import-rules "./project.janet"))
+          ((env :project) :dependencies)))
+      (array/push packages {:repo url :sha sha :deps (or deps [])})
+      (os/cd "..")))
+  # Put in correct order, such that a package is preceded by all of its dependencies
+  (def ordered-packages @[])
+  (def resolved @{})
+  (while (< (length ordered-packages) (length packages))
+    (each p packages
+      (def {:repo r :sha s :deps d} p)
+      (unless (resolved r)
+        (when (all resolved d)
+          (array/push ordered-packages p)
+          (put resolved r true)))))
+  # Write to file
+  (with [f (file/open filename :w)] (with-dyns [:out f] (printf "%j" ordered-packages))))
+
+(defn- load-lockfile
+  [&opt filename]
+  (default filename "lockfile.janet")
+  (def locksource (slurp filename))
+  (def lockarray
+    (let [p (parser/new)]
+      (:consume p locksource)
+      (if (= :error (:status p))
+        (error (string "Could not parse lockfile " filename ": " (parser/error p))))
+      (:produce p)))
+  (each {:repo url :sha sha} lockarray
+    (install-git {:repo url :tag sha} nil true)))
 
 #
 # Declaring Artifacts - used in project.janet, targets specifically
@@ -815,6 +858,7 @@ int main(int argc, const char **argv) {
          (print "generating " manifest "...")
          (mkdir manifests)
          (spit manifest (string (string/join installed-files "\n") "\n")))
+
   (phony "install" ["uninstall" "build" "manifest"]
          (when (dyn :test)
            (do-rule "test"))
@@ -888,6 +932,12 @@ Subcommands are:
   rules : list rules available with run.
   update-pkgs : Update the current package listing from the remote git repository selected.
   quickbin entry executable : Create an executable from a janet script with a main function.
+  make-lockfile (lockfile) : Create a lockfile based on repositories in the cache. The
+            lockfile will record the exact versions of dependencies used to ensure a reproducible
+            build. Lockfiles are best used with applications, not libraries. The default lockfile
+            name is lockfile.janet.
+  load-lockfile (lockfile) : Install modules from a lockfile in a reproducible way. The
+                             default lockfile name is lockfile.janet.
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath)
@@ -974,6 +1024,8 @@ Flags are:
    "rules" list-rules
    "update-pkgs" update-pkgs
    "uninstall" uninstall-cmd
+   "make-lockfile" make-lockfile
+   "load-lockfile" load-lockfile
    "quickbin" quickbin})
 
 (def- args (tuple/slice (dyn :args) 1))
