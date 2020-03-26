@@ -686,7 +686,7 @@ int main(int argc, const char **argv) {
   (os/cd (find-manifest-dir))
   (defer (os/cd cwd)
     (each man (os/dir ".")
-      (def package (parse slurp man))
+      (def package (parse (slurp man)))
       (if (or (not package :repo) (not package :sha))
         (print "Cannot add local package " man " to lockfile, skipping...")
         (array/push packages package))
