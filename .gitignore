@@ -13,6 +13,9 @@ janet
 janet-*.tar.gz
 dist
 
+# jpm lockfile
+lockfile.janet
+
 # Kakoune (fzf via fd)
 .fdignore
 
