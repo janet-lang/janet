@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+- Add lockfiles to `jpm` via `jpm make-lockfile` and `jpm load-lockfile`.
 - Add `os/realpath` (Not supported on windows).
 - Add `os/chmod`.
 - Add `chr` macro.
