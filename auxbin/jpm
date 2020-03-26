@@ -693,12 +693,18 @@ int main(int argc, const char **argv) {
   (def ordered-packages @[])
   (def resolved @{})
   (while (< (length ordered-packages) (length packages))
+    (var made-progress false)
     (each p packages
       (def {:repo r :sha s :dependencies d} p)
+      (def dep-urls (map |(if (string? $) $ ($ :repo)) d))
       (unless (resolved r)
-        (when (all resolved d)
+        (when (all resolved dep-urls)
           (array/push ordered-packages p)
-          (put resolved r true)))))
+          (set made-progress true)
+          (put resolved r true))))
+    (unless made-progress
+      (error (string/format "could not resolve package order for: %j"
+                            (filter (complement resolved) (map |($ :repo) packages))))))
   # Write to file
   (with [f (file/open filename :w)] (with-dyns [:out f] (printf "%j" ordered-packages))))
 
