@@ -551,6 +551,15 @@ int main(int argc, const char **argv) {
 # Public utilities
 #
 
+(defn parse
+  "Read a string of Janet source and parse out the first expression."
+  [src]
+  (let [p (parser/new)]
+    (:consume p src)
+    (if (= :error (:status p))
+      (error (string "Could not parse: " (parser/error p))))
+    (:produce p)))
+
 (defn find-manifest-dir
   "Get the path to the directory containing manifests for installed
   packages."
@@ -560,7 +569,7 @@ int main(int argc, const char **argv) {
 (defn find-manifest
   "Get the full path of a manifest file given a package name."
   [name]
-  (string (find-manifest-dir) sep name ".txt"))
+  (string (find-manifest-dir) sep name ".jdn"))
 
 (defn find-cache
   "Return the path to the global cache."
@@ -572,17 +581,14 @@ int main(int argc, const char **argv) {
   "Uninstall bundle named name"
   [name]
   (def manifest (find-manifest name))
-  (def f (file/open manifest :r))
-  (unless f (print manifest " does not exist") (break))
-  (loop [line :iterate (:read f :line)]
-    (def path ((string/split "\n" line) 0))
-    (def path ((string/split "\r" path) 0))
-    (print "removing " path)
-    (rm path))
-  (:close f)
-  (print "removing " manifest)
-  (rm manifest)
-  (print "Uninstalled."))
+  (when-with [f (file/open manifest)]
+    (def man (parse (:read f :all)))
+    (each path (get man :paths [])
+      (print "removing " path)
+      (rm path))
+    (print "removing " manifest)
+    (rm manifest)
+    (print "Uninstalled.")))
 
 (defn- rimraf
   "Hard delete directory tree"
@@ -636,13 +642,13 @@ int main(int argc, const char **argv) {
         (rimraf module-dir)
         (error (string "could not clone git dependency " repo))))
   (def olddir (os/cwd))
-  (os/cd module-dir)
-  (defer (os/cd olddir)
+  (try
     (with-dyns [:rules @{}
                 :modpath (abspath (dyn :modpath JANET_MODPATH))
                 :headerpath (abspath (dyn :headerpath JANET_HEADERPATH))
                 :libpath (abspath (dyn :libpath JANET_LIBPATH))
                 :binpath (abspath (dyn :binpath JANET_BINPATH))]
+      (os/cd module-dir)
       (unless fresh
         (os/execute ["git" "pull" "origin" "master"] :p))
       (when tag
@@ -651,7 +657,9 @@ int main(int argc, const char **argv) {
       (import-rules "./project.janet")
       (unless no-deps (do-rule "install-deps"))
       (do-rule "build")
-      (do-rule "install"))))
+      (do-rule "install"))
+    ([err] (print "Error building git repository dependency: " err)))
+  (os/cd olddir))
 
 (defn install-rule
   "Add install and uninstall rule for moving file from src into destdir."
@@ -674,24 +682,21 @@ int main(int argc, const char **argv) {
   (default filename "lockfile.janet")
   (def cwd (os/cwd))
   (def packages @[])
-  (os/cd (find-cache))
+  # Read installed modules from manifests
+  (os/cd (find-manifest-dir))
   (defer (os/cd cwd)
-    (each repo (os/dir ".")
-      (os/cd repo)
-      (def sha (pslurp "git rev-parse HEAD"))
-      (def url (pslurp "git remote get-url origin"))
-      (def deps
-        (with-dyns [:rules @{}]
-          (def env (import-rules "./project.janet"))
-          ((env :project) :dependencies)))
-      (array/push packages {:repo url :sha sha :deps (or deps [])})
+    (each man (os/dir ".")
+      (def package (parse slurp man))
+      (if (or (not package :repo) (not package :sha))
+        (print "Cannot add local package " man " to lockfile, skipping...")
+        (array/push packages package))
       (os/cd "..")))
   # Put in correct order, such that a package is preceded by all of its dependencies
   (def ordered-packages @[])
   (def resolved @{})
   (while (< (length ordered-packages) (length packages))
     (each p packages
-      (def {:repo r :sha s :deps d} p)
+      (def {:repo r :sha s :dependencies d} p)
       (unless (resolved r)
         (when (all resolved d)
           (array/push ordered-packages p)
@@ -702,13 +707,7 @@ int main(int argc, const char **argv) {
 (defn- load-lockfile
   [&opt filename]
   (default filename "lockfile.janet")
-  (def locksource (slurp filename))
-  (def lockarray
-    (let [p (parser/new)]
-      (:consume p locksource)
-      (if (= :error (:status p))
-        (error (string "Could not parse lockfile " filename ": " (parser/error p))))
-      (:produce p)))
+  (def lockarray (parse (slurp filename)))
   (each {:repo url :sha sha} lockarray
     (install-git {:repo url :tag sha} nil true)))
 
@@ -857,7 +856,14 @@ int main(int argc, const char **argv) {
   (phony "manifest" []
          (print "generating " manifest "...")
          (mkdir manifests)
-         (spit manifest (string (string/join installed-files "\n") "\n")))
+         (def sha (pslurp "git rev-parse HEAD"))
+         (def url (pslurp "git remote get-url origin"))
+         (def man
+           {:sha (if-not (empty? sha) sha)
+            :repo (if-not (empty? url) url)
+            :dependencies (array/slice (get meta :dependencies []))
+            :paths installed-files})
+         (spit manifest (string/format "%j\n" man)))
 
   (phony "install" ["uninstall" "build" "manifest"]
          (when (dyn :test)
