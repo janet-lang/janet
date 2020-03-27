@@ -699,6 +699,43 @@
   (each x ind (set res (f res x)))
   res)
 
+(defn reduce2
+  "The 2 argument version of reduce that does not take an initialization value.
+  Instead the first element of the array is used for initialization."
+  [f ind]
+  (var k (next ind))
+  (var res (in ind k))
+  (set k (next ind k))
+  (while (not= nil k)
+    (set res (f res (in ind k)))
+    (set k (next ind k)))
+  res)
+
+(defn accumulate
+  "Similar to reduce, but accumulates intermediate values into an array.
+  The last element in the array is what would be the return value from reduce.
+  The init value is not added to the array.
+  Returns a new array."
+  [f init ind]
+  (var res init)
+  (def ret (array/new (length ind)))
+  (each x ind (array/push ret (set res (f res x))))
+  ret)
+
+(defn accumulate2
+  "The 2 argument version of accumulate that does not take an initialization value."
+  [f ind]
+  (var k (next ind))
+  (def ret (array/new (length ind)))
+  (var res (in ind k))
+  (array/push ret res)
+  (set k (next ind k))
+  (while (not= nil k)
+    (set res (f res (in ind k)))
+    (array/push ret res)
+    (set k (next ind k)))
+  ret)
+
 (defn map
   "Map a function over every element in an indexed data structure and
   return an array of the results."

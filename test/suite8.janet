@@ -181,4 +181,14 @@
   (def c (unmarshal (marshal b)))
   (assert (= 2 (c 1)) "marshal-on-stack-closure 1"))
 
+# Reduce2
+
+(assert (= (reduce + 0 (range 1 10)) (reduce2 + (range 10))) "reduce2 1")
+(assert (= (reduce * 1 (range 2 10)) (reduce2 * (range 1 10))) "reduce2")
+
+# Accumulate
+
+(assert (deep= (accumulate + 0 (range 5)) @[0 1 3 6 10]) "accumulate 1")
+(assert (deep= (accumulate2 + (range 5)) @[0 1 3 6 10]) "accumulate2 1")
+
 (end-suite)
