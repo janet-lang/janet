@@ -704,6 +704,7 @@
   Instead the first element of the array is used for initialization."
   [f ind]
   (var k (next ind))
+  (if (= nil k) (break nil))
   (var res (in ind k))
   (set k (next ind k))
   (while (not= nil k)
@@ -727,6 +728,7 @@
   [f ind]
   (var k (next ind))
   (def ret (array/new (length ind)))
+  (if (= nil k) (break ret))
   (var res (in ind k))
   (array/push ret res)
   (set k (next ind k))

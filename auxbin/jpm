@@ -686,9 +686,9 @@ int main(int argc, const char **argv) {
   (def mdir (find-manifest-dir))
   (each man (os/dir mdir)
     (def package (parse (slurp (string mdir sep man))))
-    (if (or (not (dictionary? package)) (not (package :repo)) (not (package :sha)))
-      (print "Cannot add local or malformed package " mdir sep man " to lockfile, skipping...")
-      (array/push packages package)))
+    (if (and (dictionary? package) (package :repo) (package :sha))
+      (array/push packages package)
+      (print "Cannot add local or malformed package " mdir sep man " to lockfile, skipping...")))
   # Put in correct order, such that a package is preceded by all of its dependencies
   (def ordered-packages @[])
   (def resolved @{})

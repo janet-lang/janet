@@ -184,11 +184,14 @@
 # Reduce2
 
 (assert (= (reduce + 0 (range 1 10)) (reduce2 + (range 10))) "reduce2 1")
-(assert (= (reduce * 1 (range 2 10)) (reduce2 * (range 1 10))) "reduce2")
+(assert (= (reduce * 1 (range 2 10)) (reduce2 * (range 1 10))) "reduce2 2")
+(assert (= nil (reduce2 * [])) "reduce2 3")
 
 # Accumulate
 
 (assert (deep= (accumulate + 0 (range 5)) @[0 1 3 6 10]) "accumulate 1")
 (assert (deep= (accumulate2 + (range 5)) @[0 1 3 6 10]) "accumulate2 1")
+(assert (deep= @[] (accumulate2 + [])) "accumulate2 2")
+(assert (deep= @[] (accumulate 0 + [])) "accumulate 2")
 
 (end-suite)
