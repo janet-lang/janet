@@ -79,8 +79,8 @@
 
 # Basic predicates
 (defn nan? "Check if x is NaN" [x] (not= x x))
-(defn even? "Check if x is even." [x] (= 0 (% x 2)))
-(defn odd? "Check if x is odd." [x] (not= 0 (% x 2)))
+(defn even? "Check if x is even." [x] (= 0 (mod x 2)))
+(defn odd? "Check if x is odd." [x] (= 1 (mod x 2)))
 (defn zero? "Check if x is zero." [x] (= x 0))
 (defn pos? "Check if x is greater than 0." [x] (> x 0))
 (defn neg? "Check if x is less than 0." [x] (< x 0))

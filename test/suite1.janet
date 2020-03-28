@@ -259,4 +259,26 @@
 (assert (array= (array/slice @[1 2 3] 0 2) @[1 2]) "array/slice 1")
 (assert (array= (array/slice @[0 7 3 9 1 4] 2 -2) @[3 9 1]) "array/slice 2")
 
+# Even and odd
+
+(assert (odd? 9) "odd? 1")
+(assert (odd? -9) "odd? 2")
+(assert (not (odd? 10)) "odd? 3")
+(assert (not (odd? 0)) "odd? 4")
+(assert (not (odd? -10)) "odd? 5")
+(assert (not (odd? 1.1)) "odd? 6")
+(assert (not (odd? -0.1)) "odd? 7")
+(assert (not (odd? -1.1)) "odd? 8")
+(assert (not (odd? -1.6)) "odd? 9")
+
+(assert (even? 10) "even? 1")
+(assert (even? -10) "even? 2")
+(assert (even? 0) "even? 3")
+(assert (not (even? 9)) "even? 4")
+(assert (not (even? -9)) "even? 5")
+(assert (not (even? 0.1)) "even? 6")
+(assert (not (even? -0.1)) "even? 7")
+(assert (not (even? -10.1)) "even? 8")
+(assert (not (even? -10.6)) "even? 9")
+
 (end-suite)
