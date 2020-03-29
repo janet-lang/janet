@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.8.0 - 2020-03-29
 - Add `reduce2`, `accumulate`, and `accumulate2`.
 - Add lockfiles to `jpm` via `jpm make-lockfile` and `jpm load-lockfile`.
 - Add `os/realpath` (Not supported on windows).
