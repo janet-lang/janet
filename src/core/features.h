@@ -29,7 +29,8 @@
 #define _POSIX_C_SOURCE 200112L
 #endif
 
-#ifndef _XOPEN_SOURCE
+/* Needed for realpath on linux */
+#if !defined(_XOPEN_SOURCE) && defined(__linux__)
 #define _XOPEN_SOURCE 500
 #endif
 
