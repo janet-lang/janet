@@ -1141,7 +1141,7 @@ static const uint8_t *unmarshal_one(
             u.bytes[0] = data[8];
             u.bytes[1] = data[7];
             u.bytes[2] = data[6];
-            u.bytes[5] = data[5];
+            u.bytes[3] = data[5];
             u.bytes[4] = data[4];
             u.bytes[5] = data[3];
             u.bytes[6] = data[2];
