@@ -97,7 +97,14 @@ extern "C" {
 #endif
 
 /* Check big endian */
-#if defined(__MIPSEB__) /* MIPS 32-bit */ \
+#if defined(__LITTLE_ENDIAN__) || \
+    (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
+/* If we know the target is LE, always use that - e.g. ppc64 little endian
+ * defines the __LITTLE_ENDIAN__ macro in the ABI spec, so we can rely
+ * on that and if that's not defined, fall back to big endian assumption
+ */
+#define JANET_LITTLE_ENDIAN 1
+#elif defined(__MIPSEB__) /* MIPS 32-bit */ \
     || defined(__ppc__) || defined(__PPC__) /* CPU(PPC) - PowerPC 32-bit */ \
     || defined(__powerpc__) || defined(__powerpc) || defined(__POWERPC__) \
     || defined(_M_PPC) || defined(__PPC) \
