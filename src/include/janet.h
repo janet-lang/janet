@@ -663,7 +663,7 @@ struct Janet {
 #define janet_type(x) ((x).type)
 #define janet_checktype(x, t) ((x).type == (t))
 #define janet_truthy(x) \
-    ((x).type != JANET_NIL && ((x).type != JANET_BOOLEAN || ((x).as.integer & 0x1)))
+    ((x).type != JANET_NIL && ((x).type != JANET_BOOLEAN || ((x).as.u64 & 0x1)))
 
 #define janet_unwrap_struct(x) ((const JanetKV *)(x).as.pointer)
 #define janet_unwrap_tuple(x) ((const Janet *)(x).as.pointer)
