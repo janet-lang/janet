@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.8.1 - 2020-03-30
+- Fix bugs for big endian systems
+- Fix 1.8.0 regression on BSDs
+
 ## 1.8.0 - 2020-03-29
 - Add `reduce2`, `accumulate`, and `accumulate2`.
 - Add lockfiles to `jpm` via `jpm make-lockfile` and `jpm load-lockfile`.
