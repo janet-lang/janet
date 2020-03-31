@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.8.1 - 2020-03-30
+## 1.8.1 - 2020-03-31
 - Fix bugs for big endian systems
 - Fix 1.8.0 regression on BSDs
 

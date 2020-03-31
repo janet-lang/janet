@@ -2528,9 +2528,10 @@
 
   # Create amalgamation
 
+  (def feature-header "src/core/features.h")
+
   (def local-headers
-    ["src/core/features.h"
-     "src/core/util.h"
+    ["src/core/util.h"
      "src/core/state.h"
      "src/core/gc.h"
      "src/core/vector.h"
@@ -2584,9 +2585,6 @@
   (print "/* Generated from janet version " janet/version "-" janet/build " */")
   (print "#define JANET_BUILD \"" janet/build "\"")
   (print ```#define JANET_AMALG```)
-  (print ```#define _POSIX_C_SOURCE 200112L```)
-  (print ```#define _XOPEN_SOURCE 500```)
-  (print ```#include "janet.h"```)
 
   (defn do-one-flie
     [fname]
@@ -2594,6 +2592,10 @@
     (print "#line 0 \"" fname "\"\n")
     (def source (slurp fname))
     (print (string/replace-all "\r" "" source)))
+
+  (do-one-flie feature-header)
+
+  (print ```#include "janet.h"```)
 
   (each h local-headers
     (do-one-flie h))
