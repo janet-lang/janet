@@ -2586,22 +2586,22 @@
   (print "#define JANET_BUILD \"" janet/build "\"")
   (print ```#define JANET_AMALG```)
 
-  (defn do-one-flie
+  (defn do-one-file
     [fname]
     (print "\n/* " fname " */")
     (print "#line 0 \"" fname "\"\n")
     (def source (slurp fname))
     (print (string/replace-all "\r" "" source)))
 
-  (do-one-flie feature-header)
+  (do-one-file feature-header)
 
   (print ```#include "janet.h"```)
 
   (each h local-headers
-    (do-one-flie h))
+    (do-one-file h))
 
   (each s core-sources
-    (do-one-flie s))
+    (do-one-file s))
 
   # Create C source file that contains images a uint8_t buffer. This
   # can be compiled and linked statically into the main janet library
