@@ -112,6 +112,8 @@ struct JanetParseState {
     Consumer consumer;
 };
 
+static int root(JanetParser *p, JanetParseState *state, uint8_t c);
+
 /* Define a stack on the main parser struct */
 #define DEF_PARSER_STACK(NAME, T, STACK, STACKCOUNT, STACKCAP) \
 static void NAME(JanetParser *p, T x) { \
@@ -183,8 +185,12 @@ static void popstate(JanetParser *p, Janet val) {
                 (c == ',') ? "unquote" :
                 (c == ';') ? "splice" :
                 (c == '|') ? "short-fn" :
-                (c == '~') ? "quasiquote" : "<unknown>";
-            t[0] = janet_csymbolv(which);
+                (c == '~') ? "quasiquote" : NULL;
+            if (!which) {
+                t[0] = p->args[--p->argcount];
+            } else {
+                t[0] = janet_csymbolv(which);
+            }
             t[1] = val;
             /* Quote source mapping info */
             janet_tuple_sm_line(t) = (int32_t) newtop->line;
@@ -320,6 +326,7 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     Janet ret;
     double numval;
     int32_t blen;
+    int prefix_symbol = 0;
     if (is_symbol_char(c)) {
         push_buf(p, (uint8_t) c);
         if (c > 127) state->argn = 1; /* Use to indicate non ascii */
@@ -357,10 +364,20 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
                 return 0;
             }
             ret = janet_symbolv(p->buf, blen);
+            prefix_symbol = c == '"' || c == '`' || c == '[' || c == '(' || c == '{';
         }
     }
     p->bufcount = 0;
-    popstate(p, ret);
+    if (prefix_symbol) {
+        push_arg(p, ret);
+        /* Set current state to a different state */
+        JanetParseState newState = {0};
+        newState.flags = PFLAG_READERMAC;
+        newState.consumer = root;
+        *state = newState;
+    } else {
+        popstate(p, ret);
+    }
     return 0;
 }
 
@@ -454,8 +471,6 @@ static int longstring(JanetParser *p, JanetParseState *state, uint8_t c) {
         return 1;
     }
 }
-
-static int root(JanetParser *p, JanetParseState *state, uint8_t c);
 
 static int atsign(JanetParser *p, JanetParseState *state, uint8_t c) {
     (void) state;
@@ -927,6 +942,7 @@ static Janet janet_wrap_parse_state(JanetParseState *s, Janet *args,
         type = (c == '\'') ? "quote" :
                (c == ',') ? "unquote" :
                (c == ';') ? "splice" :
+               (c == '|') ? "short-fn" :
                (c == '~') ? "quasiquote" : "<reader>";
     } else {
         type = "root";
