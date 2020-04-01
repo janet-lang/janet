@@ -942,7 +942,7 @@
   (reduce fop x forms))
 
 (defmacro -?>
-  "Short circuit threading macro. Inserts x as the last value in the first form
+  "Short circuit threading macro. Inserts x as the second value in the first form
   in forms, and inserts the modified first form into the second form
   in the same manner, and so on. The pipeline will return nil
   if an intermediate value is nil.
@@ -958,7 +958,7 @@
   (reduce fop x forms))
 
 (defmacro -?>>
-  "Threading macro. Inserts x as the last value in the first form
+  "Short circuit threading macro. Inserts x as the last value in the first form
   in forms, and inserts the modified first form into the second form
   in the same manner, and so on. The pipeline will return nil
   if an intermediate value is nil.
