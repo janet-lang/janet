@@ -1289,7 +1289,7 @@ static const JanetReg os_cfuns[] = {
         "os/mkdir", os_mkdir,
         JDOC("(os/mkdir path)\n\n"
              "Create a new directory. The path will be relative to the current directory if relative, otherwise "
-             "it will be an absolute path. Returns true if the directory was create, false if the directoyr already exists, and "
+             "it will be an absolute path. Returns true if the directory was create, false if the directory already exists, and "
              "errors otherwise.")
     },
     {
