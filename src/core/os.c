@@ -797,6 +797,16 @@ static Janet os_symlink(int32_t argc, Janet *argv) {
 #endif
 }
 
+static Janet os_umask(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+#ifdef JANET_WINDOWS
+    janet_panicf("os/umask not supported on Windows");
+#else
+    int32_t mask = janet_getinteger(argv, 0);
+    return janet_wrap_integer(umask(mask));
+#endif
+}
+
 static Janet os_mkdir(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
@@ -1284,6 +1294,11 @@ static const JanetReg os_cfuns[] = {
         "os/cd", os_cd,
         JDOC("(os/cd path)\n\n"
              "Change current directory to path. Returns nil on success, errors on failure.")
+    },
+    {
+        "os/umask", os_umask,
+        JDOC("(os/umask mask)\n\n"
+             "Set a new umask, returns the old umask.")
     },
     {
         "os/mkdir", os_mkdir,
