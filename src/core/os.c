@@ -1303,7 +1303,7 @@ static const JanetReg os_cfuns[] = {
         "os/chmod", os_chmod,
         JDOC("(os/chmod path mode)\n\n"
              "Change file permissions, where mode is a permission string as returned by "
-             "os/perm-str, or an integer as returned by os/perm-int. "
+             "os/perm-string, or an integer as returned by os/perm-int. "
              "When mode is an integer, it is interpreted as a Unix permission value, best specified in octal, like "
              "8r666 or 8r400. Windows will not differentiate between user, group, and other permissions, and thus will combine all of these permissions. Returns nil.")
     },
@@ -1445,8 +1445,8 @@ static const JanetReg os_cfuns[] = {
              "Returns an absolute path as a string. Will raise an error on Windows.")
     },
     {
-        "os/perm-str", os_permission_string,
-        JDOC("(os/perm-str int)\n\n"
+        "os/perm-string", os_permission_string,
+        JDOC("(os/perm-string int)\n\n"
              "Convert a Unix octal permission value from a permission integer as returned by os/stat "
              "to a human readable string, that follows the formatting "
              "of unix tools like ls. Returns the string as a 9 character string of r, w, x and - characters. Does not "

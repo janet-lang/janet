@@ -194,4 +194,18 @@
 (assert (deep= @[] (accumulate2 + [])) "accumulate2 2")
 (assert (deep= @[] (accumulate 0 + [])) "accumulate 2")
 
+# Perm strings
+
+(assert (= (os/perm-int "rwxrwxrwx") 8r777) "perm 1")
+(assert (= (os/perm-int "rwxr-xr-x") 8r755) "perm 2")
+(assert (= (os/perm-int "rw-r--r--") 8r644) "perm 3")
+
+(assert (= (band (os/perm-int "rwxrwxrwx") 8r077) 8r077) "perm 4")
+(assert (= (band (os/perm-int "rwxr-xr-x") 8r077) 8r055) "perm 5")
+(assert (= (band (os/perm-int "rw-r--r--") 8r077) 8r044) "perm 6")
+
+(assert (= (os/perm-string 8r777) "rwxrwxrwx") "perm 7")
+(assert (= (os/perm-string 8r755) "rwxr-xr-x") "perm 8")
+(assert (= (os/perm-string 8r644) "rw-r--r--") "perm 9")
+
 (end-suite)

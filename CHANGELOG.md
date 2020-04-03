@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 ## Unreleased - ???
 - Add os/umask
 - Add os/perm-int
-- Add os/perm-str
+- Add os/perm-string
 
 ## 1.8.1 - 2020-03-31
 - Fix bugs for big endian systems

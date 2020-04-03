@@ -8,7 +8,8 @@
 
 (defn assert
   "Override's the default assert with some nice error handling."
-  [x e]
+  [x &opt e]
+  (default e "assert error")
   (++ num-tests-run)
   (when x (++ num-tests-passed))
   (if x
