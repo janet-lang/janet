@@ -799,13 +799,15 @@ int main(int argc, const char **argv) {
   is marshalled into bytecode which is then embedded in a final executable for distribution.\n\n
   This executable can be installed as well to the --binpath given."
   [&keys {:install install :name name :entry entry :headers headers
-          :cflags cflags :lflags lflags}]
+          :cflags cflags :lflags lflags :deps deps}]
   (def name (if is-win (string name ".exe") name))
   (def dest (string "build" sep name))
   (create-executable @{:cflags cflags :lflags lflags} entry dest)
   (add-dep "build" dest)
   (when headers
     (each h headers (add-dep dest h)))
+  (when deps
+    (each d deps (add-dep dest d)))
   (when install
     (install-rule dest (dyn :binpath JANET_BINPATH))))
 
