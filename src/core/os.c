@@ -1005,6 +1005,9 @@ static Janet os_stat_inode(jstat_t *st) {
 static Janet os_stat_mode(jstat_t *st) {
     return janet_wrap_keyword(janet_decode_mode(st->st_mode));
 }
+static Janet os_stat_int_permissions(jstat_t *st) {
+    return janet_wrap_integer(janet_perm_to_unix(janet_decode_permissions(st->st_mode)));
+}
 static Janet os_stat_permissions(jstat_t *st) {
     return os_make_permstring(janet_perm_to_unix(janet_decode_permissions(st->st_mode)));
 }
@@ -1057,6 +1060,7 @@ static const struct OsStatGetter os_stat_getters[] = {
     {"dev", os_stat_dev},
     {"inode", os_stat_inode},
     {"mode", os_stat_mode},
+    {"octal-permissions", os_stat_int_permissions},
     {"permissions", os_stat_permissions},
     {"uid", os_stat_uid},
     {"gid", os_stat_gid},
@@ -1282,7 +1286,8 @@ static const JanetReg os_cfuns[] = {
              " only that information from stat. If the file or directory does not exist, returns nil. The keys are\n\n"
              "\t:dev - the device that the file is on\n"
              "\t:mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n"
-             "\t:permissions - A Unix permission integer like 8r740\n"
+             "\t:octal-permissions - A Unix permission integer like 8r744\n"
+             "\t:permissions - A Unix permission string like \"rwxr--r--\"\n"
              "\t:uid - File uid\n"
              "\t:gid - File gid\n"
              "\t:nlink - number of links to file\n"
