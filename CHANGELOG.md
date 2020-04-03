@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add os/umask
+- Add os/perm-int
+- Add os/perm-str
+
 ## 1.8.1 - 2020-03-31
 - Fix bugs for big endian systems
 - Fix 1.8.0 regression on BSDs
