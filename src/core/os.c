@@ -880,40 +880,23 @@ static Janet os_readlink(int32_t argc, Janet *argv) {
 }
 
 #ifdef JANET_WINDOWS
-static const uint8_t *janet_decode_permissions(unsigned short m) {
-    uint8_t flags[9] = {0};
-    flags[0] = flags[3] = flags[6] = (m & S_IREAD) ? 'r' : '-';
-    flags[1] = flags[4] = flags[7] = (m & S_IWRITE) ? 'w' : '-';
-    flags[2] = flags[5] = flags[8] = (m & S_IEXEC) ? 'x' : '-';
-    return janet_string(flags, sizeof(flags));
+
+typedef struct _stat jstat_t;
+typedef unsigned short jmode_t;
+
+static int32_t janet_perm_to_unix(unsigned short m) {
+    int32_t ret = 0;
+    if (m & S_IEXEC) ret |= 0111;
+    if (m & S_IWRITE) ret |= 0222;
+    if (m & S_IREAD) ret |= 0444;
+    return ret;
 }
 
-static unsigned short janet_encode_permissions(Janet *argv, int32_t n) {
-    if (janet_checkint(argv[n])) {
-        int32_t x = janet_unwrap_integer(argv[n]);
-        if (x < 0 || x > 0777) {
-            janet_panicf("expected integer in range [0, 8r777], got %v", argv[n]);
-        }
-        unsigned short m = 0;
-        if (x & 1 || x & 010 || x & 0100) m |= S_IEXEC;
-        if (x & 2 || x & 020 || x & 0200) m |= S_IWRITE;
-        if (x & 4 || x & 040 || x & 0400) m |= S_IREAD;
-        return m;
-    }
-    JanetString perm = janet_getstring(argv, n);
-    if (janet_string_length(perm) != 9) {
-        janet_panicf("expected string of length 9, got %S", perm);
-    }
+static unsigned short janet_perm_from_unix(int32_t x) {
     unsigned short m = 0;
-    if (perm[0] == 'r') m |= S_IREAD;
-    if (perm[1] == 'w') m |= S_IWRITE;
-    if (perm[2] == 'x') m |= S_IEXEC;
-    if (perm[3] == 'r') m |= S_IREAD;
-    if (perm[4] == 'w') m |= S_IWRITE;
-    if (perm[5] == 'x') m |= S_IEXEC;
-    if (perm[6] == 'r') m |= S_IREAD;
-    if (perm[7] == 'w') m |= S_IWRITE;
-    if (perm[8] == 'x') m |= S_IEXEC;
+    if (x & 111) m |= S_IEXEC;
+    if (x & 222) m |= S_IWRITE;
+    if (x & 444) m |= S_IREAD;
     return m;
 }
 
@@ -924,44 +907,22 @@ static const uint8_t *janet_decode_mode(unsigned short m) {
     else if (m & _S_IFCHR) str = "character";
     return janet_ckeyword(str);
 }
-#else
-static const uint8_t *janet_decode_permissions(mode_t m) {
-    uint8_t flags[9] = {0};
-    flags[0] = (m & S_IRUSR) ? 'r' : '-';
-    flags[1] = (m & S_IWUSR) ? 'w' : '-';
-    flags[2] = (m & S_IXUSR) ? 'x' : '-';
-    flags[3] = (m & S_IRGRP) ? 'r' : '-';
-    flags[4] = (m & S_IWGRP) ? 'w' : '-';
-    flags[5] = (m & S_IXGRP) ? 'x' : '-';
-    flags[6] = (m & S_IROTH) ? 'r' : '-';
-    flags[7] = (m & S_IWOTH) ? 'w' : '-';
-    flags[8] = (m & S_IXOTH) ? 'x' : '-';
-    return janet_string(flags, sizeof(flags));
+
+static int32_t janet_decode_permissions(jmode_t mode) {
+    return (int32_t)(mode & (S_IEXEC | S_IWRITE | S_IREAD));
 }
 
-static mode_t janet_encode_permissions(Janet *argv, int32_t n) {
-    if (janet_checkint(argv[n])) {
-        int32_t x = janet_unwrap_integer(argv[n]);
-        if (x < 0 || x > 0777) {
-            janet_panicf("expected integer in range [0, 8r777], got %v", argv[n]);
-        }
-        return (mode_t) x;
-    }
-    JanetString perm = janet_getstring(argv, n);
-    if (janet_string_length(perm) != 9) {
-        janet_panicf("expected string of length 9, got %S", perm);
-    }
-    mode_t m = 0;
-    if (perm[0] == 'r') m |= S_IRUSR;
-    if (perm[1] == 'w') m |= S_IWUSR;
-    if (perm[2] == 'x') m |= S_IXUSR;
-    if (perm[3] == 'r') m |= S_IRGRP;
-    if (perm[4] == 'w') m |= S_IWGRP;
-    if (perm[5] == 'x') m |= S_IXGRP;
-    if (perm[6] == 'r') m |= S_IROTH;
-    if (perm[7] == 'w') m |= S_IWOTH;
-    if (perm[8] == 'x') m |= S_IXOTH;
-    return m;
+#else
+
+typedef struct stat jstat_t;
+typedef mode_t jmode_t;
+
+static int32_t janet_perm_to_unix(mode_t m) {
+    return (int32_t) m;
+}
+
+static mode_t janet_perm_from_unix(int32_t x) {
+    return (mode_t) x;
 }
 
 static const uint8_t *janet_decode_mode(mode_t m) {
@@ -975,13 +936,64 @@ static const uint8_t *janet_decode_mode(mode_t m) {
     else if (S_ISCHR(m)) str = "character";
     return janet_ckeyword(str);
 }
+
+static int32_t janet_decode_permissions(jmode_t mode) {
+    return (int32_t)(mode & 0777);
+}
+
 #endif
 
-#ifdef JANET_WINDOWS
-typedef struct _stat jstat_t;
-#else
-typedef struct stat jstat_t;
-#endif
+static int32_t os_parse_permstring(const uint8_t *perm) {
+    int32_t m = 0;
+    if (perm[0] == 'r') m |= 0400;
+    if (perm[1] == 'w') m |= 0200;
+    if (perm[2] == 'x') m |= 0100;
+    if (perm[3] == 'r') m |= 0040;
+    if (perm[4] == 'w') m |= 0020;
+    if (perm[5] == 'x') m |= 0010;
+    if (perm[6] == 'r') m |= 0004;
+    if (perm[7] == 'w') m |= 0002;
+    if (perm[8] == 'x') m |= 0001;
+    return m;
+}
+
+static Janet os_make_permstring(int32_t permissions) {
+    uint8_t bytes[9] = {0};
+    bytes[0] = (permissions & 0400) ? 'r' : '-';
+    bytes[1] = (permissions & 0200) ? 'w' : '-';
+    bytes[2] = (permissions & 0100) ? 'x' : '-';
+    bytes[3] = (permissions & 0040) ? 'r' : '-';
+    bytes[4] = (permissions & 0020) ? 'w' : '-';
+    bytes[5] = (permissions & 0010) ? 'x' : '-';
+    bytes[6] = (permissions & 0004) ? 'r' : '-';
+    bytes[7] = (permissions & 0002) ? 'w' : '-';
+    bytes[8] = (permissions & 0001) ? 'x' : '-';
+    return janet_stringv(bytes, sizeof(bytes));
+}
+
+static int32_t os_get_unix_mode(const Janet *argv, int32_t n) {
+    int32_t unix_mode;
+    if (janet_checkint(argv[n])) {
+        /* Integer mode */
+        int32_t x = janet_unwrap_integer(argv[n]);
+        if (x < 0 || x > 0777) {
+            janet_panicf("bad slot #%d, expected integer in range [0, 8r777], got %v", n, argv[n]);
+        }
+        unix_mode = x;
+    } else {
+        /* Bytes mode */
+        JanetByteView bytes = janet_getbytes(argv, n);
+        if (bytes.len != 9) {
+            janet_panicf("bad slot #%d: expected byte sequence of length 9, got %v", n, argv[n]);
+        }
+        unix_mode = os_parse_permstring(bytes.bytes);
+    }
+    return unix_mode;
+}
+
+static jmode_t os_getmode(const Janet *argv, int32_t n) {
+    return janet_perm_from_unix(os_get_unix_mode(argv, n));
+}
 
 /* Getters */
 static Janet os_stat_dev(jstat_t *st) {
@@ -994,7 +1006,7 @@ static Janet os_stat_mode(jstat_t *st) {
     return janet_wrap_keyword(janet_decode_mode(st->st_mode));
 }
 static Janet os_stat_permissions(jstat_t *st) {
-    return janet_wrap_string(janet_decode_permissions(st->st_mode));
+    return os_make_permstring(janet_perm_to_unix(janet_decode_permissions(st->st_mode)));
 }
 static Janet os_stat_uid(jstat_t *st) {
     return janet_wrap_number(st->st_uid);
@@ -1122,9 +1134,9 @@ static Janet os_chmod(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
-    int res = _chmod(path, janet_encode_permissions(argv, 1));
+    int res = _chmod(path, os_getmode(argv, 1));
 #else
-    int res = chmod(path, janet_encode_permissions(argv, 1));
+    int res = chmod(path, os_getmode(argv, 1));
 #endif
     if (-1 == res) janet_panicf("%s: %s", strerror(errno), path);
     return janet_wrap_nil();
@@ -1191,6 +1203,16 @@ static Janet os_realpath(int32_t argc, Janet *argv) {
 #endif
 }
 
+static Janet os_permission_string(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    return os_make_permstring(os_get_unix_mode(argv, 0));
+}
+
+static Janet os_permission_int(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    return janet_wrap_integer(os_get_unix_mode(argv, 0));
+}
+
 #endif /* JANET_REDUCED_OS */
 
 static const JanetReg os_cfuns[] = {
@@ -1249,7 +1271,7 @@ static const JanetReg os_cfuns[] = {
              " only that information from stat. If the file or directory does not exist, returns nil. The keys are\n\n"
              "\t:dev - the device that the file is on\n"
              "\t:mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n"
-             "\t:permissions - A unix permission string like \"rwx--x--x\". On windows, a string like \"rwx\".\n"
+             "\t:permissions - A Unix permission integer like 8r740\n"
              "\t:uid - File uid\n"
              "\t:gid - File gid\n"
              "\t:nlink - number of links to file\n"
@@ -1270,9 +1292,9 @@ static const JanetReg os_cfuns[] = {
         "os/chmod", os_chmod,
         JDOC("(os/chmod path mode)\n\n"
              "Change file permissions, where mode is a permission string as returned by "
-             "os/stat, or an integer. "
-             "When mode is an integer, it is interpreted as a unix permission value, best specified in octal, like "
-             "8r666 or 8r400. Windows will not differentiate between user, group, and other permissions. Returns nil.")
+             "os/perm-str, or an integer as returned by os/perm-int. "
+             "When mode is an integer, it is interpreted as a Unix permission value, best specified in octal, like "
+             "8r666 or 8r400. Windows will not differentiate between user, group, and other permissions, and thus will combine all of these permissions. Returns nil.")
     },
     {
         "os/touch", os_touch,
@@ -1289,7 +1311,7 @@ static const JanetReg os_cfuns[] = {
         "os/mkdir", os_mkdir,
         JDOC("(os/mkdir path)\n\n"
              "Create a new directory. The path will be relative to the current directory if relative, otherwise "
-             "it will be an absolute path. Returns true if the directory was create, false if the directoyr already exists, and "
+             "it will be an absolute path. Returns true if the directory was created, false if the directory already exists, and "
              "errors otherwise.")
     },
     {
@@ -1305,7 +1327,7 @@ static const JanetReg os_cfuns[] = {
     {
         "os/link", os_link,
         JDOC("(os/link oldpath newpath &opt symlink)\n\n"
-             "Create a symlink from oldpath to newpath, returning nil. The 3rd optional paramater "
+             "Create a symlink from oldpath to newpath, returning nil. The 3rd optional parameter "
              "enables a symlink iff truthy, hard link otherwise or if not provided. Does not work on Windows.")
     },
     {
@@ -1376,14 +1398,14 @@ static const JanetReg os_cfuns[] = {
     {
         "os/cryptorand", os_cryptorand,
         JDOC("(os/cryptorand n &opt buf)\n\n"
-             "Get or append n bytes of good quality random data provided by the os. Returns a new buffer or buf.")
+             "Get or append n bytes of good quality random data provided by the OS. Returns a new buffer or buf.")
     },
     {
         "os/date", os_date,
         JDOC("(os/date &opt time local)\n\n"
              "Returns the given time as a date struct, or the current time if no time is given. "
              "Returns a struct with following key values. Note that all numbers are 0-indexed. "
-             "Date is given in UTC unless local is truthy, in which case the date is formated for "
+             "Date is given in UTC unless local is truthy, in which case the date is formatted for "
              "the local timezone.\n\n"
              "\t:seconds - number of seconds [0-61]\n"
              "\t:minutes - number of minutes [0-59]\n"
@@ -1405,6 +1427,19 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/realpath path)\n\n"
              "Get the absolute path for a given path, following ../, ./, and symlinks. "
              "Returns an absolute path as a string. Will raise an error on Windows.")
+    },
+    {
+        "os/perm-str", os_permission_string,
+        JDOC("(os/perm-str int)\n\n"
+             "Convert a Unix octal permission value from a permission integer as returned by os/stat "
+             "to a human readable string, that follows the formatting "
+             "of unix tools like ls. Returns the string as a 9 character string of r, w, x and - characters. Does not "
+             "include the file/directory/symlink character as rendered by `ls`.")
+    },
+    {
+        "os/perm-int", os_permission_int,
+        JDOC("(os/perm-int bytes)\n\n"
+             "Parse a 9 character permission string and return an integer that can be used by chmod.")
     },
 #endif
     {NULL, NULL, NULL}
