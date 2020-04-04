@@ -25,6 +25,10 @@ More interesting are the local commands. For more information on jpm usage, see 
 .SH FLAGS
 
 .TP
+.BR \-\-nocolor
+Disable color in the jpm repl.
+
+.TP
 .BR \-\-verbose
 Print detailed messages of what jpm is doing, including compilation commands and other shell commands.
 
@@ -153,6 +157,11 @@ Create a standalone, statically linked executable from a Janet source file that 
 The main function is the entry point of the program and will receive command line arguments
 as function arguments. The entry file can import other modules, including native C modules, and
 jpm will attempt to include the dependencies into the generated executable.
+
+.TP
+.BR repl
+Load the current project.janet file and start a repl in it's environment. This lets a user better
+debug the project file, as well as run rules manually.
 
 .SH ENVIRONMENT
 

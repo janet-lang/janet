@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 - Add os/umask
 - Add os/perm-int
 - Add os/perm-string
+- Add :octal-permissions option for os/stat.
+- Add `jpm repl` subcommand, as well as `post-deps` macro in project.janet files.
 
 ## 1.8.1 - 2020-03-31
 - Fix bugs for big endian systems
