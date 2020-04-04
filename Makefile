@@ -36,6 +36,7 @@ JANET_PATH?=$(LIBDIR)/janet
 MANPATH?=$(PREFIX)/share/man/man1/
 PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 DEBUGGER=gdb
+SONAME_SETTER=-Wl,-soname,
 
 CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden
 LDFLAGS:=$(LDFLAGS) -rdynamic
@@ -47,6 +48,7 @@ LDCONFIG:=ldconfig "$(LIBDIR)"
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
 	CLIBS:=$(CLIBS) -ldl
+	SONAME_SETTER:=-Wl,-install_name,
 	LDCONFIG:=true
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
@@ -167,7 +169,7 @@ $(JANET_TARGET): build/janet.o build/shell.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 $(JANET_LIBRARY): build/janet.o build/shell.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -Wl,-soname,$(SONAME) -shared -o $@ $^ $(CLIBS)
+	$(CC) $(LDFLAGS) $(CFLAGS) $(SONAME_SETTER)$(SONAME) -shared -o $@ $^ $(CLIBS)
 
 $(JANET_STATIC_LIBRARY): build/janet.o build/shell.o
 	$(AR) rcs $@ $^
