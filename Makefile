@@ -146,6 +146,8 @@ build/janet.c: build/janet_boot src/boot/boot.janet
 ##### Amalgamation #####
 ########################
 
+SONAME=libjanet.so.1
+
 build/shell.c: src/mainclient/shell.c
 	cp $< $@
 
@@ -165,7 +167,7 @@ $(JANET_TARGET): build/janet.o build/shell.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 $(JANET_LIBRARY): build/janet.o build/shell.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -shared -o $@ $^ $(CLIBS)
+	$(CC) $(LDFLAGS) $(CFLAGS) -Wl,-soname,$(SONAME) -shared -o $@ $^ $(CLIBS)
 
 $(JANET_STATIC_LIBRARY): build/janet.o build/shell.o
 	$(AR) rcs $@ $^
@@ -228,8 +230,6 @@ build/doc.html: $(JANET_TARGET) tools/gendoc.janet
 ##### Installation #####
 ########################
 
-SONAME=libjanet.so.1
-
 .INTERMEDIATE: build/janet.pc
 build/janet.pc: $(JANET_TARGET)
 	echo 'prefix=$(PREFIX)' > $@
@@ -242,7 +242,7 @@ build/janet.pc: $(JANET_TARGET)
 	echo "Description: Library for the Janet programming language." >> $@
 	$(JANET_TARGET) -e '(print "Version: " janet/version)' >> $@
 	echo 'Cflags: -I$${includedir}' >> $@
-	echo 'Libs: -L$${libdir} -ljanet $(LDFLAGS)' >> $@
+	echo 'Libs: -L$${libdir} -ljanet' >> $@
 	echo 'Libs.private: $(CLIBS)' >> $@
 
 install: $(JANET_TARGET) build/janet.pc
