@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `math/erf`
+- Add `math/erfc`
+- Add `math/log1p`
+- Add `math/next`
 - Add os/umask
 - Add os/perm-int
 - Add os/perm-string

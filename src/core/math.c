@@ -255,6 +255,10 @@ JANET_DEFINE_MATHOP(fabs, fabs)
 JANET_DEFINE_MATHOP(floor, floor)
 JANET_DEFINE_MATHOP(trunc, trunc)
 JANET_DEFINE_MATHOP(round, round)
+JANET_DEFINE_MATHOP(gamma, lgamma)
+JANET_DEFINE_MATHOP(log1p, log1p)
+JANET_DEFINE_MATHOP(erf, erf)
+JANET_DEFINE_MATHOP(erfc, erfc)
 
 #define JANET_DEFINE_MATH2OP(name, fop)\
 static Janet janet_##name(int32_t argc, Janet *argv) {\
@@ -267,6 +271,7 @@ static Janet janet_##name(int32_t argc, Janet *argv) {\
 JANET_DEFINE_MATH2OP(atan2, atan2)
 JANET_DEFINE_MATH2OP(pow, pow)
 JANET_DEFINE_MATH2OP(hypot, hypot)
+JANET_DEFINE_MATH2OP(nextafter, nextafter)
 
 static Janet janet_not(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
@@ -439,6 +444,26 @@ static const JanetReg math_cfuns[] = {
              "Returns 2 to the power of x.")
     },
     {
+        "math/log1p", janet_log1p,
+        JDOC("(math/log1p x)\n\n"
+             "Returns (log base e of x) + 1 more accurately than (+ (math/log x) 1)")
+    },
+    {
+        "math/gamma", janet_gamma,
+        JDOC("(math/gamma x)\n\n"
+             "Returns gamma(x).")
+    },
+    {
+        "math/erfc", janet_erfc,
+        JDOC("(math/erfc x)\n\n"
+             "Returns the complementary error function of x.")
+    },
+    {
+        "math/erf", janet_erf,
+        JDOC("(math/erf x)\n\n"
+             "Returns the error function of x.")
+    },
+    {
         "math/expm1", janet_expm1,
         JDOC("(math/expm1 x)\n\n"
              "Returns e to the power of x minus 1.")
@@ -452,6 +477,11 @@ static const JanetReg math_cfuns[] = {
         "math/round", janet_round,
         JDOC("(math/round x)\n\n"
              "Returns the integer nearest to x.")
+    },
+    {
+        "math/next", janet_nextafter,
+        JDOC("(math/next y)\n\n"
+             "Returns the next representable floating point value after x in the direction of y.")
     },
     {NULL, NULL, NULL}
 };
