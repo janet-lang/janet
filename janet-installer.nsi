@@ -3,7 +3,6 @@
 
 Unicode True
 
-!verbose 4
 !echo "Program Files: ${PROGRAMFILES}"
 !addplugindir "tools\"
 
