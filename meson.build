@@ -167,6 +167,8 @@ janetc = custom_target('janetc',
 libjanet = library('janet', janetc,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep, thread_dep],
+  version: meson.project_version(),
+  soversion: version_parts[0] + '.' + version_parts[1],
   install : true)
 
 # Extra c flags - adding -fvisibility=hidden matches the Makefile and
