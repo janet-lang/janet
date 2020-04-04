@@ -731,7 +731,10 @@ static timeint_t entry_getint(Janet env_entry, char *field) {
 static Janet os_mktime(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     time_t t;
-    struct tm t_info = { 0 };
+    struct tm t_info;
+
+    /* Use memset instead of = {0} to silence paranoid warning in macos */
+    memset(&t_info, 0, sizeof(t_info));
 
     if (!janet_checktype(argv[0], JANET_TABLE) &&
             !janet_checktype(argv[0], JANET_STRUCT))
