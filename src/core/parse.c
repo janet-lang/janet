@@ -273,6 +273,10 @@ static int escapeu(JanetParser *p, JanetParseState *state, uint8_t c) {
     state->argn = (state->argn << 4) + digit;
     state->counter--;
     if (!state->counter) {
+        if (state->argn > 0x10FFFF) {
+            p->error = "invalid unicode codepoint";
+            return 1;
+        }
         write_codepoint(p, state->argn);
         state->argn = 0;
         state->consumer = stringchar;
@@ -291,7 +295,7 @@ static int escape1(JanetParser *p, JanetParseState *state, uint8_t c) {
         state->argn = 0;
         state->consumer = escapeh;
     } else if (c == 'u' || c == 'U') {
-        state->counter = c == 'u' ? 4 : 8;
+        state->counter = c == 'u' ? 4 : 6;
         state->argn = 0;
         state->consumer = escapeu;
     } else {

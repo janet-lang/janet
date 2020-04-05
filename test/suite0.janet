@@ -206,9 +206,9 @@
 (def 🐮 :cow)
 (assert (= (string "🐼" 🦊 🐮) "🐼foxcow") "emojis 🙉 :)")
 (assert (not= 🦊 "🦊") "utf8 strings are not symbols and vice versa")
-(assert (= "\U0001F637" "😷") "unicode escape 1")
-(assert (= "\u2623" "\U00002623" "☣") "unicode escape 2")
-(assert (= "\u24c2" "\U000024c2" "Ⓜ") "unicode escape 3")
+(assert (= "\U01F637" "😷") "unicode escape 1")
+(assert (= "\u2623" "\U002623" "☣") "unicode escape 2")
+(assert (= "\u24c2" "\U0024c2" "Ⓜ") "unicode escape 3")
 (assert (= "\u0061" "a") "unicode escape 4")
 
 # Symbols with @ character
