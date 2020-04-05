@@ -42,26 +42,26 @@ typedef struct {
 /* Lead bytes in marshaling protocol */
 enum {
     LB_REAL = 200,
-    LB_NIL,
-    LB_FALSE,
-    LB_TRUE,
-    LB_FIBER,
-    LB_INTEGER,
-    LB_STRING,
-    LB_SYMBOL,
-    LB_KEYWORD,
-    LB_ARRAY,
-    LB_TUPLE,
-    LB_TABLE,
-    LB_TABLE_PROTO,
-    LB_STRUCT,
-    LB_BUFFER,
-    LB_FUNCTION,
-    LB_REGISTRY,
-    LB_ABSTRACT,
-    LB_REFERENCE,
-    LB_FUNCENV_REF,
-    LB_FUNCDEF_REF
+    LB_NIL, /* 201 */
+    LB_FALSE, /* 202 */
+    LB_TRUE,  /* 203 */
+    LB_FIBER, /* 204 */
+    LB_INTEGER, /* 205 */
+    LB_STRING, /* 206 */
+    LB_SYMBOL, /* 207 */
+    LB_KEYWORD, /* 208 */
+    LB_ARRAY, /* 209 */
+    LB_TUPLE, /* 210 */
+    LB_TABLE, /* 211 */
+    LB_TABLE_PROTO, /* 212 */
+    LB_STRUCT, /* 213 */
+    LB_BUFFER, /* 214 */
+    LB_FUNCTION, /* 215 */
+    LB_REGISTRY, /* 216 */
+    LB_ABSTRACT, /* 217 */
+    LB_REFERENCE, /* 218 */
+    LB_FUNCENV_REF, /* 219 */
+    LB_FUNCDEF_REF /* 220 */
 } LeadBytes;
 
 /* Helper to look inside an entry in an environment */
@@ -634,6 +634,15 @@ static int32_t readint(UnmarshalState *st, const uint8_t **atdata) {
     return ret;
 }
 
+/* Helper to read a natural number (int >= 0). */
+static int32_t readnat(UnmarshalState *st, const uint8_t **atdata) {
+    int32_t ret = readint(st, atdata);
+    if (ret < 0) {
+        janet_panicf("expected integer >= 0, got %d", ret);
+    }
+    return ret;
+}
+
 /* Helper to read a size_t (up to 8 bytes unsigned). */
 static uint64_t read64(UnmarshalState *st, const uint8_t **atdata) {
     uint64_t ret;
@@ -704,8 +713,8 @@ static const uint8_t *unmarshal_one_env(
         env->offset = 0;
         janet_v_push(st->lookup_envs, env);
         int32_t offset = readint(st, &data);
-        int32_t length = readint(st, &data);
-        if (offset) {
+        int32_t length = readnat(st, &data);
+        if (offset > 0) {
             Janet fiberv;
             /* On stack variant */
             data = unmarshal_one(st, data, &fiberv, flags);
@@ -770,6 +779,11 @@ static const uint8_t *unmarshal_one_def(
         def->name = NULL;
         def->source = NULL;
         def->closure_bitset = NULL;
+        def->defs = NULL;
+        def->environments = NULL;
+        def->constants = NULL;
+        def->bytecode = NULL;
+        def->sourcemap = NULL;
         janet_v_push(st->lookup_defs, def);
 
         /* Set default lengths to zero */
@@ -780,18 +794,18 @@ static const uint8_t *unmarshal_one_def(
 
         /* Read flags and other fixed values */
         def->flags = readint(st, &data);
-        def->slotcount = readint(st, &data);
-        def->arity = readint(st, &data);
-        def->min_arity = readint(st, &data);
-        def->max_arity = readint(st, &data);
+        def->slotcount = readnat(st, &data);
+        def->arity = readnat(st, &data);
+        def->min_arity = readnat(st, &data);
+        def->max_arity = readnat(st, &data);
 
         /* Read some lengths */
-        constants_length = readint(st, &data);
-        bytecode_length = readint(st, &data);
+        constants_length = readnat(st, &data);
+        bytecode_length = readnat(st, &data);
         if (def->flags & JANET_FUNCDEF_FLAG_HASENVS)
-            environments_length = readint(st, &data);
+            environments_length = readnat(st, &data);
         if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS)
-            defs_length = readint(st, &data);
+            defs_length = readnat(st, &data);
 
         /* Check name and source (optional) */
         if (def->flags & JANET_FUNCDEF_FLAG_HASNAME) {
@@ -866,7 +880,7 @@ static const uint8_t *unmarshal_one_def(
             for (int32_t i = 0; i < bytecode_length; i++) {
                 current += readint(st, &data);
                 def->sourcemap[i].line = current;
-                def->sourcemap[i].column = readint(st, &data);
+                def->sourcemap[i].column = readnat(st, &data);
             }
         } else {
             def->sourcemap = NULL;
@@ -920,10 +934,10 @@ static const uint8_t *unmarshal_one_fiber(
 
     /* Read ints */
     fiber->flags = readint(st, &data);
-    frame = readint(st, &data);
-    fiber->stackstart = readint(st, &data);
-    fiber->stacktop = readint(st, &data);
-    fiber->maxstack = readint(st, &data);
+    frame = readnat(st, &data);
+    fiber->stackstart = readnat(st, &data);
+    fiber->stacktop = readnat(st, &data);
+    fiber->maxstack = readnat(st, &data);
 
     /* Check for bad flags and ints */
     if ((int32_t)(frame + JANET_FRAME_SIZE) > fiber->stackstart ||
@@ -947,8 +961,8 @@ static const uint8_t *unmarshal_one_fiber(
         JanetFuncDef *def = NULL;
         JanetFuncEnv *env = NULL;
         int32_t frameflags = readint(st, &data);
-        int32_t prevframe = readint(st, &data);
-        int32_t pcdiff = readint(st, &data);
+        int32_t prevframe = readnat(st, &data);
+        int32_t pcdiff = readnat(st, &data);
 
         /* Get frame items */
         Janet *framestack = fiber->data + stack;
@@ -984,7 +998,7 @@ static const uint8_t *unmarshal_one_fiber(
             janet_panic("fiber stackframe has invalid pc");
         }
         if ((int32_t)(prevframe + JANET_FRAME_SIZE) > stack) {
-            janet_panic("fibre stackframe does not align with previous frame");
+            janet_panic("fiber stackframe does not align with previous frame");
         }
 
         /* Get stack items */
@@ -1105,7 +1119,7 @@ static const uint8_t *unmarshal_one(
     MARSH_STACKCHECK;
     MARSH_EOS(st, data);
     lead = data[0];
-    if (lead < 200) {
+    if (lead < LB_REAL) {
         *out = janet_wrap_integer(readint(st, &data));
         return data;
     }
@@ -1159,7 +1173,7 @@ static const uint8_t *unmarshal_one(
         case LB_KEYWORD:
         case LB_REGISTRY: {
             data++;
-            int32_t len = readint(st, &data);
+            int32_t len = readnat(st, &data);
             MARSH_EOS(st, data - 1 + len);
             if (lead == LB_STRING) {
                 const uint8_t *str = janet_string(data, len);
@@ -1219,7 +1233,7 @@ static const uint8_t *unmarshal_one(
             /* Things that open with integers */
         {
             data++;
-            int32_t len = readint(st, &data);
+            int32_t len = readnat(st, &data);
             if (lead == LB_ARRAY) {
                 /* Array */
                 JanetArray *array = janet_array(len);

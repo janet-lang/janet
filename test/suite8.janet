@@ -208,4 +208,9 @@
 (assert (= (os/perm-string 8r755) "rwxr-xr-x") "perm 8")
 (assert (= (os/perm-string 8r644) "rw-r--r--") "perm 9")
 
+# Issue #336 cases - don't segfault
+
+(assert-error "unmarshal errors 1" (unmarshal @"\xd6\xb9\xb9"))
+(assert-error "unmarshal errors 2" (unmarshal @"\xd7bc"))
+
 (end-suite)
