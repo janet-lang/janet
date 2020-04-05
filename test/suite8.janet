@@ -212,5 +212,6 @@
 
 (assert-error "unmarshal errors 1" (unmarshal @"\xd6\xb9\xb9"))
 (assert-error "unmarshal errors 2" (unmarshal @"\xd7bc"))
+(assert-error "unmarshal errors 3" (unmarshal "\xd3\x01\xd9\x01\x62\xcf\x03\x78\x79\x7a" load-image-dict))
 
 (end-suite)

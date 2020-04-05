@@ -1098,7 +1098,7 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
     Janet key;
     data = unmarshal_one(st, data, &key, flags + 1);
     const JanetAbstractType *at = janet_get_abstract_type(key);
-    if (at == NULL) return NULL;
+    if (at == NULL) goto oops;
     if (at->unmarshal) {
         JanetMarshalContext context = {NULL, st, flags, data, at};
         *out = janet_wrap_abstract(at->unmarshal(&context));
@@ -1107,7 +1107,8 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
         }
         return context.data;
     }
-    return NULL;
+oops:
+    janet_panic("invalid abstract type");
 }
 
 static const uint8_t *unmarshal_one(

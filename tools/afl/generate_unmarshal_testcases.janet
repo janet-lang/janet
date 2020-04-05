@@ -8,15 +8,15 @@
 
 (def cases [
   nil
-  
+
   "abc"
-  
+
   :def
-  
+
   'hij
-  
+
   123
-  
+
   (int/s64 123)
 
   "7"
@@ -28,12 +28,12 @@
   {:a 123}
 
   @{:b 'xyz}
-  
+
   (peg/compile
     '{:a (* "a" :b "a")
       :b (* "b" (+ :a 0) "b")
       :main (* "(" :b ")")})
-  
+
   (fn f [a] (fn [] {:ab a}))
 
   (fn f [a] (print "hello world!"))
