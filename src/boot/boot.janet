@@ -32,7 +32,7 @@
     (def buf (buffer "(" name))
     (while (< index arglen)
       (buffer/push-string buf " ")
-      (buffer/format buf "%p" (in args index))
+      (buffer/format buf "%j" (in args index))
       (set index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
     # Build return value
@@ -1892,6 +1892,7 @@
 (defn run-context
   "Run a context. This evaluates expressions of janet in an environment,
   and is encapsulates the parsing, compilation, and evaluation.
+  Returns (in environment :exit-value environment) when complete.
   opts is a table or struct of options. The options are as follows:\n\n\t
   :chunks - callback to read into a buffer - default is getline\n\t
   :on-parse-error - callback when parsing fails - default is bad-parse\n\t
@@ -2149,13 +2150,15 @@
   @{})
 
 (defn dofile
-  "Evaluate a file and return the resulting environment."
-  [path & args]
-  (def {:exit exit-on-error
-        :source source
-        :env env
-        :expander expander
-        :evaluator evaluator} (table ;args))
+  "Evaluate a file and return the resulting environment. :env, :expander, and
+  :evaluator are passed through to the underlying run-context call.
+  If exit is true, any top level errors will trigger a call to (os/exit 1)
+  after printing the error."
+  [path &keys
+   {:exit exit
+    :env env
+    :expander expander
+    :evaluator evaluator}]
   (def f (if (= (type path) :core/file)
            path
            (file/open path :rb)))
@@ -2167,11 +2170,11 @@
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
     (def ret (bad-parse x y))
-    (if exit-on-error (os/exit 1))
+    (if exit (os/exit 1))
     ret)
   (defn bc [&opt x y z]
     (def ret (bad-compile x y z))
-    (if exit-on-error (os/exit 1))
+    (if exit (os/exit 1))
     ret)
   (unless f
     (error (string "could not find file " path)))
@@ -2183,7 +2186,7 @@
                   :on-status (fn [f x]
                                (when (not= (fiber/status f) :dead)
                                  (debug/stacktrace f x)
-                                 (if exit-on-error (os/exit 1) (eflush))))
+                                 (if exit (os/exit 1) (eflush))))
                   :evaluator evaluator
                   :expander expander
                   :source (if path-is-file "<anonymous>" spath)}))
@@ -2244,18 +2247,14 @@
   any errors encountered at the top level in the module will cause (os/exit 1)
   to be called. Dynamic bindings will NOT be imported."
   [path & args]
-  (def argm (map (fn [x]
-                   (if (keyword? x)
-                     x
-                     (string x)))
-                 args))
+  (def argm (map |(if (keyword? $) $ (string $)) args))
   (tuple import* (string path) ;argm))
 
 (defmacro use
   "Similar to import, but imported bindings are not prefixed with a namespace
   identifier. Can also import multiple modules in one shot."
   [& modules]
-  ~(do ,;(map (fn [x] ~(,import* ,(string x) :prefix "")) modules)))
+  ~(do ,;(map |~(,import* ,(string $) :prefix "") modules)))
 
 ###
 ###
@@ -2271,11 +2270,15 @@
   the repl in."
   [&opt chunks onsignal env]
   (default env (make-env))
-  (default chunks (fn [buf p] (getline (string "repl:"
-                                               ((parser/where p) 0)
-                                               ":"
-                                               (parser/state p :delimiters) "> ")
-                                       buf env)))
+  (default chunks
+    (fn [buf p]
+      (getline
+        (string
+          "repl:"
+          ((parser/where p) 0)
+          ":"
+          (parser/state p :delimiters) "> ")
+        buf env)))
   (defn make-onsignal
     [e level]
 
