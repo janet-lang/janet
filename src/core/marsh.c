@@ -1234,6 +1234,10 @@ static const uint8_t *unmarshal_one(
         {
             data++;
             int32_t len = readnat(st, &data);
+            /* DOS check */
+            if (lead != LB_REFERENCE) {
+                MARSH_EOS(st, data - 1 + len);
+            }
             if (lead == LB_ARRAY) {
                 /* Array */
                 JanetArray *array = janet_array(len);
@@ -1265,7 +1269,7 @@ static const uint8_t *unmarshal_one(
                 *out = janet_wrap_struct(janet_struct_end(struct_));
                 janet_v_push(st->lookup, *out);
             } else if (lead == LB_REFERENCE) {
-                if (len < 0 || len >= janet_v_count(st->lookup))
+                if (len >= janet_v_count(st->lookup))
                     janet_panicf("invalid reference %d", len);
                 *out = st->lookup[len];
             } else {
