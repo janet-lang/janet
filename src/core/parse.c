@@ -201,6 +201,8 @@ static int checkescape(uint8_t c) {
         default:
             return -1;
         case 'x':
+        case 'u':
+        case 'U':
             return 1;
         case 'n':
             return '\n';
@@ -228,6 +230,24 @@ static int checkescape(uint8_t c) {
 /* Forward declare */
 static int stringchar(JanetParser *p, JanetParseState *state, uint8_t c);
 
+static void write_codepoint(JanetParser *p, int32_t codepoint) {
+    if (codepoint <= 0x7F) {
+        push_buf(p, (uint8_t) codepoint);
+    } else if (codepoint <= 0x7FF) {
+        push_buf(p, (uint8_t)((codepoint >>  6) & 0x1F) | 0xC0);
+        push_buf(p, (uint8_t)((codepoint >>  0) & 0x3F) | 0x80);
+    } else if (codepoint <= 0xFFFF) {
+        push_buf(p, (uint8_t)((codepoint >> 12) & 0x0F) | 0xE0);
+        push_buf(p, (uint8_t)((codepoint >>  6) & 0x3F) | 0x80);
+        push_buf(p, (uint8_t)((codepoint >>  0) & 0x3F) | 0x80);
+    } else {
+        push_buf(p, (uint8_t)((codepoint >> 18) & 0x07) | 0xF0);
+        push_buf(p, (uint8_t)((codepoint >> 12) & 0x3F) | 0x80);
+        push_buf(p, (uint8_t)((codepoint >>  6) & 0x3F) | 0x80);
+        push_buf(p, (uint8_t)((codepoint >>  0) & 0x3F) | 0x80);
+    }
+}
+
 static int escapeh(JanetParser *p, JanetParseState *state, uint8_t c) {
     int digit = to_hex(c);
     if (digit < 0) {
@@ -237,7 +257,23 @@ static int escapeh(JanetParser *p, JanetParseState *state, uint8_t c) {
     state->argn = (state->argn << 4) + digit;
     state->counter--;
     if (!state->counter) {
-        push_buf(p, (state->argn & 0xFF));
+        push_buf(p, (uint8_t)(state->argn & 0xFF));
+        state->argn = 0;
+        state->consumer = stringchar;
+    }
+    return 1;
+}
+
+static int escapeu(JanetParser *p, JanetParseState *state, uint8_t c) {
+    int digit = to_hex(c);
+    if (digit < 0) {
+        p->error = "invalid hex digit in unicode escape";
+        return 1;
+    }
+    state->argn = (state->argn << 4) + digit;
+    state->counter--;
+    if (!state->counter) {
+        write_codepoint(p, state->argn);
         state->argn = 0;
         state->consumer = stringchar;
     }
@@ -254,6 +290,10 @@ static int escape1(JanetParser *p, JanetParseState *state, uint8_t c) {
         state->counter = 2;
         state->argn = 0;
         state->consumer = escapeh;
+    } else if (c == 'u' || c == 'U') {
+        state->counter = c == 'u' ? 4 : 8;
+        state->argn = 0;
+        state->consumer = escapeu;
     } else {
         push_buf(p, (uint8_t) e);
         state->consumer = stringchar;
