@@ -916,7 +916,7 @@ static const uint8_t *unmarshal_one_fiber(
     JanetFiber **out,
     int flags) {
 
-    /* Initialize a new fiber */
+    /* Initialize a new fiber with gc friendly defaults */
     JanetFiber *fiber = janet_gcalloc(JANET_MEMORY_FIBER, sizeof(JanetFiber));
     fiber->flags = 0;
     fiber->frame = 0;
@@ -937,16 +937,16 @@ static const uint8_t *unmarshal_one_fiber(
     int32_t stacktop = 0;
 
     /* Read ints */
-    fiber->flags = readint(st, &data);
+    int32_t fiber_flags = readint(st, &data);
     frame = readnat(st, &data);
-    fiber->stackstart = readnat(st, &data);
-    fiber->stacktop = readnat(st, &data);
-    fiber->maxstack = readnat(st, &data);
+    int32_t fiber_stackstart = readnat(st, &data);
+    int32_t fiber_stacktop = readnat(st, &data);
+    int32_t fiber_maxstack = readnat(st, &data);
 
     /* Check for bad flags and ints */
-    if ((int32_t)(frame + JANET_FRAME_SIZE) > fiber->stackstart ||
-            fiber->stackstart > fiber->stacktop ||
-            fiber->stacktop > fiber->maxstack) {
+    if ((int32_t)(frame + JANET_FRAME_SIZE) > fiber_stackstart ||
+            fiber_stackstart > fiber_stacktop ||
+            fiber_stacktop > fiber_maxstack) {
         janet_panic("fiber has incorrect stack setup");
     }
 
@@ -959,7 +959,7 @@ static const uint8_t *unmarshal_one_fiber(
 
     /* get frames */
     stack = frame;
-    stacktop = fiber->stackstart - JANET_FRAME_SIZE;
+    stacktop = fiber_stackstart - JANET_FRAME_SIZE;
     while (stack > 0) {
         JanetFunction *func = NULL;
         JanetFuncDef *def = NULL;
@@ -1028,25 +1028,31 @@ static const uint8_t *unmarshal_one_fiber(
     }
 
     /* Check for fiber env */
-    if (fiber->flags & JANET_FIBER_FLAG_HASENV) {
+    if (fiber_flags & JANET_FIBER_FLAG_HASENV) {
         Janet envv;
-        fiber->flags &= ~JANET_FIBER_FLAG_HASENV;
+        fiber_flags &= ~JANET_FIBER_FLAG_HASENV;
         data = unmarshal_one(st, data, &envv, flags + 1);
         janet_asserttype(envv, JANET_TABLE);
         fiber->env = janet_unwrap_table(envv);
     }
 
     /* Check for child fiber */
-    if (fiber->flags & JANET_FIBER_FLAG_HASCHILD) {
+    if (fiber_flags & JANET_FIBER_FLAG_HASCHILD) {
         Janet fiberv;
-        fiber->flags &= ~JANET_FIBER_FLAG_HASCHILD;
+        fiber_flags &= ~JANET_FIBER_FLAG_HASCHILD;
         data = unmarshal_one(st, data, &fiberv, flags + 1);
         janet_asserttype(fiberv, JANET_FIBER);
         fiber->child = janet_unwrap_fiber(fiberv);
     }
 
-    /* Return data */
+    /* We have valid fiber, finally construct remaining fields. */
     fiber->frame = frame;
+    fiber->flags = fiber_flags;
+    fiber->stackstart = fiber_stackstart;
+    fiber->stacktop = fiber_stacktop;
+    fiber->maxstack = fiber_maxstack;
+
+    /* Return data */
     *out = fiber;
     return data;
 }
