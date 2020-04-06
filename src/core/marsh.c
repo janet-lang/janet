@@ -931,17 +931,13 @@ static const uint8_t *unmarshal_one_fiber(
     /* Push fiber to seen stack */
     janet_v_push(st->lookup, janet_wrap_fiber(fiber));
 
-    /* Set frame later so fiber can be GCed at anytime if unmarshalling fails */
-    int32_t frame = 0;
-    int32_t stack = 0;
-    int32_t stacktop = 0;
-
     /* Read ints */
     int32_t fiber_flags = readint(st, &data);
-    frame = readnat(st, &data);
+    int32_t frame = readnat(st, &data);
     int32_t fiber_stackstart = readnat(st, &data);
     int32_t fiber_stacktop = readnat(st, &data);
     int32_t fiber_maxstack = readnat(st, &data);
+    JanetTable *fiber_env = NULL;
 
     /* Check for bad flags and ints */
     if ((int32_t)(frame + JANET_FRAME_SIZE) > fiber_stackstart ||
@@ -951,15 +947,18 @@ static const uint8_t *unmarshal_one_fiber(
     }
 
     /* Allocate stack memory */
-    fiber->capacity = fiber->stacktop + 10;
+    fiber->capacity = fiber_stacktop + 10;
     fiber->data = malloc(sizeof(Janet) * fiber->capacity);
     if (!fiber->data) {
         JANET_OUT_OF_MEMORY;
     }
+    for (int32_t i = 0; i < fiber->capacity; i++) {
+        fiber->data[i] = janet_wrap_nil();
+    }
 
     /* get frames */
-    stack = frame;
-    stacktop = fiber_stackstart - JANET_FRAME_SIZE;
+    int32_t stack = frame;
+    int32_t stacktop = fiber_stackstart - JANET_FRAME_SIZE;
     while (stack > 0) {
         JanetFunction *func = NULL;
         JanetFuncDef *def = NULL;
@@ -1033,7 +1032,7 @@ static const uint8_t *unmarshal_one_fiber(
         fiber_flags &= ~JANET_FIBER_FLAG_HASENV;
         data = unmarshal_one(st, data, &envv, flags + 1);
         janet_asserttype(envv, JANET_TABLE);
-        fiber->env = janet_unwrap_table(envv);
+        fiber_env = janet_unwrap_table(envv);
     }
 
     /* Check for child fiber */
@@ -1051,6 +1050,7 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->stackstart = fiber_stackstart;
     fiber->stacktop = fiber_stacktop;
     fiber->maxstack = fiber_maxstack;
+    fiber->env = fiber_env;
 
     /* Return data */
     *out = fiber;
