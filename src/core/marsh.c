@@ -183,8 +183,9 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
             return;
         }
     }
+    janet_env_valid(env);
     janet_v_push(st->seen_envs, env);
-    if (env->offset && (JANET_STATUS_ALIVE == janet_fiber_status(env->as.fiber))) {
+    if (env->offset > 0 && (JANET_STATUS_ALIVE == janet_fiber_status(env->as.fiber))) {
         pushint(st, 0);
         pushint(st, env->length);
         Janet *values = env->as.fiber->data + env->offset;
@@ -200,7 +201,7 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
         janet_env_maybe_detach(env);
         pushint(st, env->offset);
         pushint(st, env->length);
-        if (env->offset) {
+        if (env->offset > 0) {
             /* On stack variant */
             marshal_one(st, janet_wrap_fiber(env->as.fiber), flags + 1);
         } else {
@@ -721,11 +722,8 @@ static const uint8_t *unmarshal_one_env(
             data = unmarshal_one(st, data, &fiberv, flags);
             janet_asserttype(fiberv, JANET_FIBER);
             env->as.fiber = janet_unwrap_fiber(fiberv);
-            /* Unmarshalling fiber may set values */
-            if (env->offset != 0 && env->offset != offset)
-                janet_panic("invalid funcenv offset");
-            if (env->length != 0 && env->length != length)
-                janet_panic("invalid funcenv length");
+            /* Negative offset indicates untrusted input */
+            env->offset = -offset;
         } else {
             /* Off stack variant */
             if (length == 0) {
@@ -735,10 +733,10 @@ static const uint8_t *unmarshal_one_env(
             if (!env->as.values) {
                 JANET_OUT_OF_MEMORY;
             }
+            env->offset = 0;
             for (int32_t i = 0; i < length; i++)
                 data = unmarshal_one(st, data, env->as.values + i, flags);
         }
-        env->offset = offset;
         env->length = length;
         *out = env;
     }
@@ -981,18 +979,7 @@ static const uint8_t *unmarshal_one_fiber(
         /* Check env */
         if (frameflags & JANET_STACKFRAME_HASENV) {
             frameflags &= ~JANET_STACKFRAME_HASENV;
-            int32_t offset = stack;
-            int32_t length = stacktop - stack;
-            if (length <= 0) {
-                janet_panic("invalid funcenv length");
-            }
             data = unmarshal_one_env(st, data, &env, flags + 1);
-            if (env->offset != 0 && env->offset != offset)
-                janet_panic("funcenv offset does not match fiber frame");
-            if (env->length != 0 && env->length != length)
-                janet_panic("funcenv length does not match fiber frame");
-            env->offset = offset;
-            env->length = length;
         }
 
         /* Error checking */

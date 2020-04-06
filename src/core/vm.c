@@ -824,7 +824,8 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         vm_assert(func->def->environments_length > eindex, "invalid upvalue environment");
         env = func->envs[eindex];
         vm_assert(env->length > vindex, "invalid upvalue index");
-        if (env->offset) {
+        vm_assert(janet_env_valid(env), "invalid upvalue environment");
+        if (env->offset > 0) {
             /* On stack */
             stack[A] = env->as.fiber->data[env->offset + vindex];
         } else {
@@ -841,7 +842,8 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         vm_assert(func->def->environments_length > eindex, "invalid upvalue environment");
         env = func->envs[eindex];
         vm_assert(env->length > vindex, "invalid upvalue index");
-        if (env->offset) {
+        vm_assert(janet_env_valid(env), "invalid upvalue environment");
+        if (env->offset > 0) {
             env->as.fiber->data[env->offset + vindex] = stack[A];
         } else {
             env->as.values[vindex] = stack[A];

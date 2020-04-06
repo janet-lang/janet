@@ -193,7 +193,7 @@ static void janet_mark_funcenv(JanetFuncEnv *env) {
     /* If closure env references a dead fiber, we can just copy out the stack frame we need so
      * we don't need to keep around the whole dead fiber. */
     janet_env_maybe_detach(env);
-    if (env->offset) {
+    if (env->offset > 0) {
         /* On stack */
         janet_mark_fiber(env->as.fiber);
     } else {

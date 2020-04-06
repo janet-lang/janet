@@ -218,6 +218,7 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
 static void janet_env_detach(JanetFuncEnv *env) {
     /* Check for closure environment */
     if (env) {
+        janet_env_valid(env);
         int32_t len = env->length;
         size_t s = sizeof(Janet) * (size_t) len;
         Janet *vmem = malloc(s);
@@ -244,10 +245,38 @@ static void janet_env_detach(JanetFuncEnv *env) {
     }
 }
 
+/* Validate potentially untrusted func env (unmarshalled envs are difficult to verify) */
+int janet_env_valid(JanetFuncEnv *env) {
+    if (env->offset < 0) {
+        int32_t real_offset = -(env->offset);
+        JanetFiber *fiber = env->as.fiber;
+        int32_t i = fiber->frame;
+        while (i > 0) {
+            JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
+            if (real_offset == i &&
+                    frame->env == env &&
+                    frame->func &&
+                    frame->func->def->slotcount == env->length) {
+                env->offset = real_offset;
+                return 1;
+            }
+            i = frame->prevframe;
+        }
+        /* Invalid, set to empty off-stack variant. */
+        env->offset = 0;
+        env->length = 0;
+        env->as.values = NULL;
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
 /* Detach a fiber from the env if the target fiber has stopped mutating */
 void janet_env_maybe_detach(JanetFuncEnv *env) {
     /* Check for detachable closure envs */
-    if (env->offset) {
+    janet_env_valid(env);
+    if (env->offset > 0) {
         JanetFiberStatus s = janet_fiber_status(env->as.fiber);
         int isFinished = s == JANET_STATUS_DEAD ||
                          s == JANET_STATUS_ERROR ||
