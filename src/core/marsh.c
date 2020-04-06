@@ -987,7 +987,7 @@ static const uint8_t *unmarshal_one_fiber(
         if (expected_framesize != stacktop - stack) {
             janet_panic("fiber stackframe size mismatch");
         }
-        if (pcdiff < 0 || pcdiff >= def->bytecode_length) {
+        if (pcdiff >= def->bytecode_length) {
             janet_panic("fiber stackframe has invalid pc");
         }
         if ((int32_t)(prevframe + JANET_FRAME_SIZE) > stack) {

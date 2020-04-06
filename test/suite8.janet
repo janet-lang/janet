@@ -232,10 +232,9 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (unmarshal b load-image-dict)
 (gccollect)
 
-(def v
-  (unmarshal
-    @"\xD7\xCD0\xD4000000\0\x03\x01\xCE\00\0\x01\0\0000\x03\0\0\0000000000\xCC0\0000"
-    load-image-dict))
+(unmarshal
+  @"\xD7\xCD0\xD4000000\0\x03\x01\xCE\00\0\x01\0\0000\x03\0\0\0000000000\xCC0\0000"
+  load-image-dict)
 (gccollect)
 
 (end-suite)

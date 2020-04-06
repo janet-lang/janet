@@ -733,8 +733,9 @@ struct JanetStackFrame {
     int32_t flags;
 };
 
-/* Number of Janets a frame takes up in the stack */
-#define JANET_FRAME_SIZE ((sizeof(JanetStackFrame) + sizeof(Janet) - 1) / sizeof(Janet))
+/* Number of Janets a frame takes up in the stack
+ * Should be constant across architectures */
+#define JANET_FRAME_SIZE 4
 
 /* A dynamic array type. */
 struct JanetArray {
