@@ -213,5 +213,13 @@
 (assert-error "unmarshal errors 1" (unmarshal @"\xd6\xb9\xb9"))
 (assert-error "unmarshal errors 2" (unmarshal @"\xd7bc"))
 (assert-error "unmarshal errors 3" (unmarshal "\xd3\x01\xd9\x01\x62\xcf\x03\x78\x79\x7a" load-image-dict))
+(assert-error "unmarshal errors 4"
+              (unmarshal
+                @"\xD7\xCD\0e/p\x98\0\0\x03\x01\x01\x01\x02\0\0\x04\0\xCEe/p../tools
+                \0\0\0/afl\0\0\x01\0erate\xDE\xDE\xDE\xDE\xDE\xDE\xDE\xDE\xDE\xDE
+                \xA8\xDE\xDE\xDE\xDE\xDE\xDE\0\0\0\xDE\xDE_unmarshal_testcase3.ja
+                neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
+                \0\0\0\0\0*\xFE\x01\04\x02\0\0'\x03\0\r\0\r\0\r\0\r" load-image-dict))
+
 
 (end-suite)

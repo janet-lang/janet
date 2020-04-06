@@ -711,8 +711,9 @@ static const uint8_t *unmarshal_one_env(
         JanetFuncEnv *env = janet_gcalloc(JANET_MEMORY_FUNCENV, sizeof(JanetFuncEnv));
         env->length = 0;
         env->offset = 0;
+        env->as.values = NULL;
         janet_v_push(st->lookup_envs, env);
-        int32_t offset = readint(st, &data);
+        int32_t offset = readnat(st, &data);
         int32_t length = readnat(st, &data);
         if (offset > 0) {
             Janet fiberv;
@@ -727,6 +728,9 @@ static const uint8_t *unmarshal_one_env(
                 janet_panic("invalid funcenv length");
         } else {
             /* Off stack variant */
+            if (length == 0) {
+                janet_panic("invalid funcenv length");
+            }
             env->as.values = malloc(sizeof(Janet) * (size_t) length);
             if (!env->as.values) {
                 JANET_OUT_OF_MEMORY;
@@ -980,6 +984,9 @@ static const uint8_t *unmarshal_one_fiber(
             frameflags &= ~JANET_STACKFRAME_HASENV;
             int32_t offset = stack;
             int32_t length = stacktop - stack;
+            if (length <= 0) {
+                janet_panic("invalid funcenv length");
+            }
             data = unmarshal_one_env(st, data, &env, flags + 1);
             if (env->offset != 0 && env->offset != offset)
                 janet_panic("funcenv offset does not match fiber frame");
