@@ -237,4 +237,8 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
   load-image-dict))
 (gccollect)
 
+# in vs get regression
+(assert (nil? (first @"")) "in vs get 1")
+(assert (nil? (last @"")) "in vs get 1")
+
 (end-suite)
