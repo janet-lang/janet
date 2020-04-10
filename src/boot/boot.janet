@@ -467,7 +467,7 @@
   (for-template i start stop 1 < + body))
 
 (defmacro eachk
-  "loop over each key in ds. returns nil."
+  "Loop over each key in ds. Returns nil."
   [x ds & body]
   (keys-template x ds false body))
 
@@ -1495,9 +1495,9 @@
 
 (defn doc-format
   "Reformat text to wrap at a given line."
-  [text]
+  [text &opt width]
 
-  (def maxcol (- (dyn :doc-width 80) 8))
+  (def maxcol (- (or width (dyn :doc-width 80)) 8))
   (var buf @"    ")
   (var word @"")
   (var current 0)

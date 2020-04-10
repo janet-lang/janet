@@ -515,6 +515,147 @@ static void check_specials(JanetByteView src) {
     check_cmatch(src, "while");
 }
 
+static void resolve_format(JanetTable *entry) {
+    int is_macro = janet_truthy(janet_table_get(entry, janet_ckeywordv("macro")));
+    Janet refv = janet_table_get(entry, janet_ckeywordv("ref"));
+    int is_ref = janet_checktype(refv, JANET_ARRAY);
+    Janet value = janet_wrap_nil();
+    if (is_ref) {
+        JanetArray *a = janet_unwrap_array(refv);
+        if (a->count) value = a->data[0];
+    } else {
+        value = janet_table_get(entry, janet_ckeywordv("value"));
+    }
+    if (is_macro) {
+        fprintf(stderr, "    macro\n");
+        gbl_lines_below++;
+    } else if (is_ref) {
+        janet_eprintf("    var (%t)\n", value);
+        gbl_lines_below++;
+    } else {
+        janet_eprintf("    %t\n", value);
+        gbl_lines_below++;
+    }
+    Janet sm = janet_table_get(entry, janet_ckeywordv("source-map"));
+    Janet path = janet_get(sm, janet_wrap_integer(0));
+    Janet line = janet_get(sm, janet_wrap_integer(1));
+    Janet col = janet_get(sm, janet_wrap_integer(2));
+    if (janet_checktype(path, JANET_STRING) && janet_truthy(line) && janet_truthy(col)) {
+        janet_eprintf("    %S on line %v, column %v\n", janet_unwrap_string(path), line, col);
+        gbl_lines_below++;
+    }
+}
+
+static void doc_format(JanetString doc, int32_t width) {
+    int32_t maxcol = width - 8;
+    uint8_t wordbuf[256] = {0};
+    int32_t wordp = 0;
+    int32_t current = 0;
+    if (maxcol > 200) maxcol = 200;
+    fprintf(stderr, "    ");
+    for (int32_t i = 0; i < janet_string_length(doc); i++) {
+        uint8_t b = doc[i];
+        switch (b) {
+            default: {
+                if (maxcol <= current + wordp + 1) {
+                    if (!current) {
+                        fwrite(wordbuf, wordp, 1, stderr);
+                        wordp = 0;
+                    }
+                    fprintf(stderr, "\n    ");
+                    gbl_lines_below++;
+                    current = 0;
+                }
+                wordbuf[wordp++] = b;
+                break;
+            }
+            case '\t': {
+                if (maxcol <= current + wordp + 2) {
+                    if (!current) {
+                        fwrite(wordbuf, wordp, 1, stderr);
+                        wordp = 0;
+                    }
+                    fprintf(stderr, "\n    ");
+                    gbl_lines_below++;
+                    current = 0;
+                }
+                wordbuf[wordp++] = ' ';
+                wordbuf[wordp++] = ' ';
+                break;
+            }
+            case '\n':
+            case ' ': {
+                if (wordp) {
+                    int32_t oldcur = current;
+                    int spacer = maxcol > current + wordp + 1;
+                    if (spacer) current++;
+                    else current = 0;
+                    current += wordp;
+                    if (oldcur) fprintf(stderr, spacer ? " " : "\n    ");
+                    if (oldcur && !spacer) gbl_lines_below++;
+                    fwrite(wordbuf, wordp, 1, stderr);
+                    wordp = 0;
+                }
+                if (b == '\n') {
+                    fprintf(stderr, "\n    ");
+                    gbl_lines_below++;
+                    current = 0;
+                }
+            }
+        }
+    }
+    if (wordp) {
+        int32_t oldcur = current;
+        int spacer = maxcol > current + wordp + 1;
+        if (spacer) current++;
+        else current = 0;
+        current += wordp + 1;
+        if (oldcur) fprintf(stderr, spacer ? " " : "\n    ");
+        if (oldcur && !spacer) gbl_lines_below++;
+        fwrite(wordbuf, wordp, 1, stderr);
+        wordp = 0;
+    }
+}
+
+static void find_matches(JanetByteView prefix) {
+    JanetTable *env = gbl_complete_env;
+    gbl_match_count = 0;
+    while (NULL != env) {
+        JanetKV *kvend = env->data + env->capacity;
+        for (JanetKV *kv = env->data; kv < kvend; kv++) {
+            if (!janet_checktype(kv->key, JANET_SYMBOL)) continue;
+            const uint8_t *sym = janet_unwrap_symbol(kv->key);
+            check_match(prefix, sym, janet_string_length(sym));
+        }
+        env = env->proto;
+    }
+}
+
+static void kshowdoc(void) {
+    if (!gbl_complete_env) return;
+    while (is_symbol_char_gen(gbl_buf[gbl_pos])) gbl_pos++;
+    JanetByteView prefix = get_symprefix();
+    Janet symbol = janet_symbolv(prefix.bytes, prefix.len);
+    Janet entry = janet_table_get(gbl_complete_env, symbol);
+    if (!janet_checktype(entry, JANET_TABLE)) return;
+    Janet doc = janet_table_get(janet_unwrap_table(entry), janet_ckeywordv("doc"));
+    if (!janet_checktype(doc, JANET_STRING)) return;
+    JanetString docs = janet_unwrap_string(doc);
+    int num_cols = getcols();
+    clearlines();
+    fprintf(stderr, "\n\n\n");
+    gbl_lines_below += 3;
+    resolve_format(janet_unwrap_table(entry));
+    fprintf(stderr, "\n");
+    gbl_lines_below += 1;
+    doc_format(docs, num_cols);
+    fprintf(stderr, "\n\n");
+    gbl_lines_below += 2;
+    /* Go up to original line (zsh-like autocompletion) */
+    fprintf(stderr, "\x1B[%dA", gbl_lines_below);
+    fflush(stderr);
+}
+
 static void kshowcomp(void) {
     JanetTable *env = gbl_complete_env;
     if (env == NULL) {
@@ -528,19 +669,9 @@ static void kshowcomp(void) {
         gbl_pos++;
 
     JanetByteView prefix = get_symprefix();
-    if (prefix.len  == 0) return;
+    if (prefix.len == 0) return;
 
-    /* Find all matches */
-    gbl_match_count = 0;
-    while (NULL != env) {
-        JanetKV *kvend = env->data + env->capacity;
-        for (JanetKV *kv = env->data; kv < kvend; kv++) {
-            if (!janet_checktype(kv->key, JANET_SYMBOL)) continue;
-            const uint8_t *sym = janet_unwrap_symbol(kv->key);
-            check_match(prefix, sym, janet_string_length(sym));
-        }
-        env = env->proto;
-    }
+    find_matches(prefix);
 
     check_specials(prefix);
 
@@ -632,6 +763,10 @@ static int line() {
                 break;
             case 6:     /* ctrl-f */
                 kright();
+                break;
+            case 7: /* ctrl-g */
+                kshowdoc();
+                refresh();
                 break;
             case 127:   /* backspace */
             case 8:     /* ctrl-h */
