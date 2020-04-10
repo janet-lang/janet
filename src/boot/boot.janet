@@ -2280,11 +2280,16 @@
   []
   (dyn :fiber))
 
+(defn .signal
+  "Get the current signal being debugged."
+  []
+  (dyn :signal))
+
 (defn .stack
   "Print the current fiber stack"
   []
   (print)
-  (with-dyns [:err-color false] (debug/stacktrace (.fiber) ""))
+  (with-dyns [:err-color false] (debug/stacktrace (.fiber) (.signal)))
   (print))
 
 (defn .frame
@@ -2330,7 +2335,8 @@
   (def pc (frame :pc))
   (def sourcemap (dasm 'sourcemap))
   (var last-loc [-2 -2])
-  (print "\n  function:   " (dasm 'name) " [" (in dasm 'source "") "]")
+  (print "\n  signal: " (.signal))
+  (print "  function:   " (dasm 'name) " [" (in dasm 'source "") "]")
   (when-let [constants (dasm 'constants)]
     (printf "  constants:  %.4q" constants))
   (printf "  slots:      %.4q\n" (frame :slots))
@@ -2458,8 +2464,8 @@
       (defn debugger-chunks [buf p]
         (def status (parser/state p :delimiters))
         (def c ((parser/where p) 0))
-        (def prompt (string "debug[" level "]:" c ":" status "> "))
-        (getline prompt buf nextenv))
+        (def prpt (string "debug[" level "]:" c ":" status "> "))
+        (getline prpt buf nextenv))
       (print "entering debug[" level "] - (quit) to exit")
       (flush)
       (repl debugger-chunks (make-onsignal nextenv (+ 1 level)) nextenv)

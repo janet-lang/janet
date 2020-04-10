@@ -89,8 +89,8 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
     func = janet_stack_frame(stack)->func; \
 } while (0)
 #define vm_return(sig, val) do { \
-    vm_commit(); \
     janet_vm_return_reg[0] = (val); \
+    vm_commit(); \
     return (sig); \
 } while (0)
 
@@ -289,6 +289,10 @@ static Janet janet_binop_call(const char *lmethod, const char *rmethod, Janet lh
         return janet_method_invoke(lm, 2, argv);
     }
 }
+
+/* Forward declaration */
+static JanetSignal janet_check_can_resume(JanetFiber *fiber, Janet *out);
+static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *out);
 
 /* Interpreter main loop */
 static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
@@ -999,8 +1003,12 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         Janet retreg;
         vm_assert_type(stack[B], JANET_FIBER);
         JanetFiber *child = janet_unwrap_fiber(stack[B]);
+        if (janet_check_can_resume(child, &retreg)) {
+            vm_commit();
+            janet_panicv(retreg);
+        }
         fiber->child = child;
-        JanetSignal sig = janet_continue(child, stack[C], &retreg);
+        JanetSignal sig = janet_continue_no_check(child, stack[C], &retreg);
         if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
             vm_return(sig, retreg);
         }
@@ -1241,10 +1249,7 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     return *janet_vm_return_reg;
 }
 
-/* Enter the main vm loop */
-JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
-    jmp_buf buf;
-
+static JanetSignal janet_check_can_resume(JanetFiber *fiber, Janet *out) {
     /* Check conditions */
     JanetFiberStatus old_status = janet_fiber_status(fiber);
     if (janet_vm_stackn >= JANET_RECURSION_GUARD) {
@@ -1261,6 +1266,13 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
         *out = janet_wrap_string(str);
         return JANET_SIGNAL_ERROR;
     }
+    return JANET_SIGNAL_OK;
+}
+
+static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *out) {
+    jmp_buf buf;
+
+    JanetFiberStatus old_status = janet_fiber_status(fiber);
 
     /* Continue child fiber if it exists */
     if (fiber->child) {
@@ -1328,6 +1340,14 @@ JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
     janet_vm_jmp_buf = old_vm_jmp_buf;
 
     return signal;
+}
+
+/* Enter the main vm loop */
+JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out) {
+    /* Check conditions */
+    JanetSignal tmp_signal = janet_check_can_resume(fiber, out);
+    if (tmp_signal) return tmp_signal;
+    return janet_continue_no_check(fiber, in, out);
 }
 
 JanetSignal janet_pcall(
