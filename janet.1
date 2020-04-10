@@ -97,6 +97,10 @@ Delete everything before the cursor on the input line.
 Delete one word before the cursor.
 
 .TP 16
+.BR Ctrl\-G
+Show documentation for the current symbol under the cursor.
+
+.TP 16
 .BR Alt\-B/Alt\-F
 Move cursor backwards and forwards one word.
 
@@ -147,6 +151,12 @@ Read raw input from stdin and forgo prompt history and other readline-like featu
 .BR \-e\ code
 Execute a string of Janet source. Source code is executed in the order it is encountered, so earlier
 arguments are executed before later ones.
+
+.TP
+.BR \-d
+Enable debug mode. On all terminating signals as well the debug signal, this will
+cause the debugger to come up in the REPL. Same as calling (setdyn :debug true) in a
+default repl.
 
 .TP
 .BR \-n

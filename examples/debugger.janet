@@ -1,20 +1,18 @@
 ###
 ### A useful debugger library for Janet. Should be used
-### inside a debug repl.
+### inside a debug repl. This has been moved into the core.
 ###
 
 (defn .fiber
   "Get the current fiber being debugged."
   []
-  (if-let [entry (dyn '_fiber)]
-    (entry :value)
-    (dyn :fiber)))
+  (dyn :fiber))
 
 (defn .stack
   "Print the current fiber stack"
   []
   (print)
-  (debug/stacktrace (.fiber) "")
+  (with-dyns [:err-color false] (debug/stacktrace (.fiber) ""))
   (print))
 
 (defn .frame

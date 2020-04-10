@@ -2271,6 +2271,157 @@
 
 ###
 ###
+### Debugger
+###
+###
+
+(defn .fiber
+  "Get the current fiber being debugged."
+  []
+  (dyn :fiber))
+
+(defn .stack
+  "Print the current fiber stack"
+  []
+  (print)
+  (with-dyns [:err-color false] (debug/stacktrace (.fiber) ""))
+  (print))
+
+(defn .frame
+  "Show a stack frame"
+  [&opt n]
+  (def stack (debug/stack (.fiber)))
+  (in stack (or n 0)))
+
+(defn .fn
+  "Get the current function"
+  [&opt n]
+  (in (.frame n) :function))
+
+(defn .slots
+  "Get an array of slots in a stack frame"
+  [&opt n]
+  (in (.frame n) :slots))
+
+(defn .slot
+  "Get the value of the nth slot."
+  [&opt nth frame-idx]
+  (in (.slots frame-idx) (or nth 0)))
+
+(defn .disasm
+  "Gets the assembly for the current function."
+  [&opt n]
+  (def frame (.frame n))
+  (def func (frame :function))
+  (disasm func))
+
+(defn .bytecode
+  "Get the bytecode for the current function."
+  [&opt n]
+  ((.disasm n) 'bytecode))
+
+(defn .ppasm
+  "Pretty prints the assembly for the current function"
+  [&opt n]
+  (def frame (.frame n))
+  (def func (frame :function))
+  (def dasm (disasm func))
+  (def bytecode (dasm 'bytecode))
+  (def pc (frame :pc))
+  (def sourcemap (dasm 'sourcemap))
+  (var last-loc [-2 -2])
+  (print "\n  function:   " (dasm 'name) " [" (in dasm 'source "") "]")
+  (when-let [constants (dasm 'constants)]
+    (printf "  constants:  %.4q" constants))
+  (printf "  slots:      %.4q\n" (frame :slots))
+  (def padding (string/repeat " " 20))
+  (loop [i :range [0 (length bytecode)]
+         :let [instr (bytecode i)]]
+    (prin (if (= (tuple/type instr) :brackets) "*" " "))
+    (prin (if (= i pc) "> " "  "))
+    (prinf "%.20s" (string (string/join (map string instr) " ") padding))
+    (when sourcemap
+      (let [[sl sc] (sourcemap i)
+            loc [sl sc]]
+        (when (not= loc last-loc)
+          (set last-loc loc)
+          (prin " # line " sl ", column " sc))))
+    (print))
+  (print))
+
+(defn .source
+  "Show the source code for the function being debugged."
+  [&opt n]
+  (def frame (.frame n))
+  (def s (frame :source))
+  (def all-source (slurp s))
+  (print "\n" all-source "\n"))
+
+(defn .breakall
+  "Set breakpoints on all instructions in the current function."
+  [&opt n]
+  (def fun (.fn n))
+  (def bytecode (.bytecode n))
+  (for i 0 (length bytecode)
+    (debug/fbreak fun i))
+  (print "Set " (length bytecode) " breakpoints in " fun))
+
+(defn .clearall
+  "Clear all breakpoints on the current function."
+  [&opt n]
+  (def fun (.fn n))
+  (def bytecode (.bytecode n))
+  (for i 0 (length bytecode)
+    (debug/unfbreak fun i))
+  (print "Cleared " (length bytecode) " breakpoints in " fun))
+
+(defn .break
+  "Set breakpoint at the current pc."
+  []
+  (def frame (.frame))
+  (def fun (frame :function))
+  (def pc (frame :pc))
+  (debug/fbreak fun pc)
+  (print "Set breakpoint in " fun " at pc=" pc))
+
+(defn .clear
+  "Clear the current breakpoint"
+  []
+  (def frame (.frame))
+  (def fun (frame :function))
+  (def pc (frame :pc))
+  (debug/unfbreak fun pc)
+  (print "Cleared breakpoint in " fun " at pc=" pc))
+
+(defn .next
+  "Go to the next breakpoint."
+  [&opt n]
+  (var res nil)
+  (for i 0 (or n 1)
+    (set res (resume (.fiber))))
+  res)
+
+(defn .nextc
+  "Go to the next breakpoint, clearing the current breakpoint."
+  [&opt n]
+  (.clear)
+  (.next n))
+
+(defn .step
+  "Execute the next n instructions."
+  [&opt n]
+  (var res nil)
+  (for i 0 (or n 1)
+    (set res (debug/step (.fiber))))
+  res)
+
+(def- debugger-keys (filter (partial string/has-prefix? ".") (keys _env)))
+(def- debugger-env @{})
+(each k debugger-keys (put debugger-env k (_env k)) (put _env k nil))
+(put _env 'debugger-keys nil)
+
+###
+###
 ### REPL
 ###
 ###
@@ -2301,6 +2452,7 @@
       (put nextenv :fiber f)
       (put nextenv :debug-level level)
       (put nextenv :signal x)
+      (merge-into nextenv debugger-env)
       (debug/stacktrace f x)
       (eflush)
       (defn debugger-chunks [buf p]
@@ -2326,6 +2478,8 @@
                 :chunks chunks
                 :on-status (or onsignal (make-onsignal env 1))
                 :source "repl"}))
+
+(put _env 'debugger-env nil)
 
 ###
 ###
@@ -2370,6 +2524,7 @@
   (var *handleopts* true)
   (var *exit-on-error* true)
   (var *colorize* true)
+  (var *debug* false)
   (var *compile-only* false)
 
   (if-let [jp (os/getenv "JANET_PATH")] (setdyn :syspath jp))
@@ -2385,6 +2540,7 @@
   -v : Print the version string
   -s : Use raw stdin instead of getline like functionality
   -e code : Execute a string of janet
+  -d : Set the debug flag in the repl
   -r : Enter the repl after running all scripts
   -p : Keep on executing if there is a top level error (persistent)
   -q : Hide prompt, logo, and repl output (quiet)
@@ -2417,7 +2573,8 @@
      "e" (fn [i &]
            (set *no-file* false)
            (eval-string (in args (+ i 1)))
-           2)})
+           2)
+     "d" (fn [&] (set *debug* true) 1)})
 
   (defn- dohandler [n i &]
     (def h (in handlers n))
@@ -2476,6 +2633,7 @@
       (file/flush stdout)
       (file/read stdin :line buf))
     (def env (make-env))
+    (if *debug* (put env :debug true))
     (def getter (if *raw-stdin* getstdin getline))
     (defn getchunk [buf p]
       (getter (prompter p) buf env))

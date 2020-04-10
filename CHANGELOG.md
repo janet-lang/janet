@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add debugger to core. The debugger functions are only available
+  in a debug repl, and are prefixed by a `.`.
 - Add `sort-by` and `sorted-by` to core.
 - Support UTF-8 escapes in strings via `\uXXXX` or `\UXXXXXX`.
 - Add `math/erf`
