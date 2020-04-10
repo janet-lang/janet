@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `sort-by` and `sorted-by` to core.
 - Support UTF-8 escapes in strings via `\uXXXX` or `\UXXXXXX`.
 - Add `math/erf`
 - Add `math/erfc`

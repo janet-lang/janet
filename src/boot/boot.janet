@@ -656,40 +656,53 @@
 ###
 ###
 
-(def sort
-  "(sort xs [, by])\n\nSort an array in-place. Uses quick-sort and is not a stable sort."
-  (do
+(defn- sort-part
+  [a lo hi by]
+  (def pivot (in a hi))
+  (var i lo)
+  (for j lo hi
+    (def aj (in a j))
+    (when (by aj pivot)
+      (def ai (in a i))
+      (set (a i) aj)
+      (set (a j) ai)
+      (++ i)))
+  (set (a hi) (in a i))
+  (set (a i) pivot)
+  i)
 
-    (defn part
-      [a lo hi by]
-      (def pivot (in a hi))
-      (var i lo)
-      (for j lo hi
-        (def aj (in a j))
-        (when (by aj pivot)
-          (def ai (in a i))
-          (set (a i) aj)
-          (set (a j) ai)
-          (++ i)))
-      (set (a hi) (in a i))
-      (set (a i) pivot)
-      i)
+(defn- sort-help
+  [a lo hi by]
+  (when (> hi lo)
+    (def piv (sort-part a lo hi by))
+    (sort-help a lo (- piv 1) by)
+    (sort-help a (+ piv 1) hi by))
+  a)
 
-    (defn sort-help
-      [a lo hi by]
-      (when (> hi lo)
-        (def piv (part a lo hi by))
-        (sort-help a lo (- piv 1) by)
-        (sort-help a (+ piv 1) hi by))
-      a)
+(defn sort
+  "Sort an array in-place. Uses quick-sort and is not a stable sort."
+  [a &opt by]
+  (sort-help a 0 (- (length a) 1) (or by <)))
 
-    (fn sort [a &opt by]
-      (sort-help a 0 (- (length a) 1) (or by <)))))
+(put _env 'sort-part nil)
+(put _env 'sort-help nil)
+
+(defn sort-by
+  "Returns a new sorted array that compares elements by invoking
+  a function on each element and comparing the result with <."
+  [f ind]
+  (sort ind (fn [x y] (< (f x) (f y)))))
 
 (defn sorted
   "Returns a new sorted array without modifying the old one."
   [ind &opt by]
   (sort (array/slice ind) by))
+
+(defn sorted-by
+  "Returns a new sorted array that compares elements by invoking
+  a function on each element and comparing the result with <."
+  [f ind]
+  (sorted ind (fn [x y] (< (f x) (f y)))))
 
 (defn reduce
   "Reduce, also know as fold-left in many languages, transforms

@@ -254,6 +254,11 @@
 (assert (apply <= (merge @[1 3 5] @[2 4 6 6 6 9])) "merge sort merge 3")
 (assert (apply <= (merge '(1 3 5) @[2 4 6 6 6 9])) "merge sort merge 4")
 
+(assert (deep= @[1 2 3 4 5] (sort @[5 3 4 1 2])) "sort 1")
+(assert (deep= @[{:a 1} {:a 4} {:a 7}] (sort-by |($ :a) @[{:a 4} {:a 7} {:a 1}])) "sort 2")
+(assert (deep= @[1 2 3 4 5] (sorted [5 3 4 1 2])) "sort 3")
+(assert (deep= @[{:a 1} {:a 4} {:a 7}] (sorted-by |($ :a) [{:a 4} {:a 7} {:a 1}])) "sort 4")
+
 # Gensym tests
 
 (assert (not= (gensym) (gensym)) "two gensyms not equal")
