@@ -328,5 +328,11 @@
 (assert (= true ;(map truthy? [0 "" true @{} {} [] '()])) "truthy values")
 (assert (= false ;(map truthy? [nil false])) "non-truthy values")
 
+# Struct and Table duplicate elements
+(assert (= {:a 3 :b 2} {:a 1 :b 2 :a 3}) "struct literal duplicate keys")
+(assert (= {:a 3 :b 2} (struct :a 1 :b 2 :a 3)) "struct constructor duplicate keys")
+(assert (deep= @{:a 3 :b 2} @{:a 1 :b 2 :a 3}) "table literal duplicate keys")
+(assert (deep= @{:a 3 :b 2} (table :a 1 :b 2 :a 3)) "table constructor duplicate keys")
+
 (end-suite)
 

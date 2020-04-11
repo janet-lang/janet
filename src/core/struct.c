@@ -123,7 +123,8 @@ void janet_struct_put(JanetKV *st, Janet key, Janet value) {
                 dist = otherdist;
                 hash = otherhash;
             } else if (status == 0) {
-                /* A key was added to the struct more than once */
+                /* A key was added to the struct more than once - replace old value */
+                kv->value = value;
                 return;
             }
         }

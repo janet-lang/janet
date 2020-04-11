@@ -437,21 +437,23 @@ static Janet close_array(JanetParser *p, JanetParseState *state) {
 
 static Janet close_struct(JanetParser *p, JanetParseState *state) {
     JanetKV *st = janet_struct_begin(state->argn >> 1);
-    for (int32_t i = state->argn; i > 0; i -= 2) {
-        Janet value = p->args[--p->argcount];
-        Janet key = p->args[--p->argcount];
+    for (size_t i = p->argcount - state->argn; i < p->argcount; i += 2) {
+        Janet key = p->args[i];
+        Janet value = p->args[i + 1];
         janet_struct_put(st, key, value);
     }
+    p->argcount -= state->argn;
     return janet_wrap_struct(janet_struct_end(st));
 }
 
 static Janet close_table(JanetParser *p, JanetParseState *state) {
     JanetTable *table = janet_table(state->argn >> 1);
-    for (int32_t i = state->argn; i > 0; i -= 2) {
-        Janet value = p->args[--p->argcount];
-        Janet key = p->args[--p->argcount];
+    for (size_t i = p->argcount - state->argn; i < p->argcount; i += 2) {
+        Janet key = p->args[i];
+        Janet value = p->args[i + 1];
         janet_table_put(table, key, value);
     }
+    p->argcount -= state->argn;
     return janet_wrap_table(table);
 }
 
