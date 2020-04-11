@@ -648,7 +648,7 @@
 (defn last
   "Get the last element from an indexed data structure."
   [xs]
-  (in xs (- (length xs) 1)))
+  (get xs (- (length xs) 1)))
 
 ###
 ###
