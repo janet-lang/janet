@@ -30,7 +30,7 @@
 #endif
 
 /* Needed for realpath on linux */
-#if !defined(_XOPEN_SOURCE) && defined(__linux__)
+#if !defined(_XOPEN_SOURCE) && (defined(__linux__) || defined(__EMSCRIPTEN__))
 #define _XOPEN_SOURCE 500
 #endif
 
