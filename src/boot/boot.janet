@@ -301,7 +301,19 @@
        ,form
        (if (= (,fiber/status ,f) :dead)
          ,r
-         (propagate ,r ,f)))))
+         (,propagate ,r ,f)))))
+
+(defmacro edefer
+  "Run form after body in the case that body terminates abnormally (an error or user signal 0-4).
+  Otherwise, return last form in body."
+  [form & body]
+  (with-syms [f r]
+    ~(do
+       (def ,f (,fiber/new (fn [] ,;body) :ti))
+       (def ,r (,resume ,f))
+       (if (= (,fiber/status ,f) :dead)
+         ,r
+         (do ,form (,propagate ,r ,f))))))
 
 (defmacro prompt
   "Set up a checkpoint that can be returned to. Tag should be a value
@@ -314,7 +326,7 @@
        (def [,target ,payload] ,res)
        (if (,= ,tag ,target)
          ,payload
-         (propagate ,res ,fib)))))
+         (,propagate ,res ,fib)))))
 
 (defmacro chr
   "Convert a string of length 1 to its byte (ascii) value at compile time."

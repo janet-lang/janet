@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `edefer` macro to core.
 - A struct/table literal/constructor with duplicate keys will use the last value given.
   Previously, this was inconsistent between tables and structs, literals and constructor functions.
 - Add debugger to core. The debugger functions are only available

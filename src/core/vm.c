@@ -107,13 +107,13 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
 #define vm_assert_type(X, T) do { \
     if (!(janet_checktype((X), (T)))) { \
         vm_commit(); \
-        janet_panicf("expected %T, got %t", (1 << (T)), (X)); \
+        janet_panicf("expected %T, got %v", (1 << (T)), (X)); \
     } \
 } while (0)
 #define vm_assert_types(X, TS) do { \
     if (!(janet_checktypes((X), (TS)))) { \
         vm_commit(); \
-        janet_panicf("expected %T, got %t", (TS), (X)); \
+        janet_panicf("expected %T, got %v", (TS), (X)); \
     } \
 } while (0)
 
@@ -910,7 +910,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         if (janet_indexed_view(stack[D], &vals, &len)) {
             janet_fiber_pushn(fiber, vals, len);
         } else {
-            janet_panicf("expected %T, got %t", JANET_TFLAG_INDEXED, stack[D]);
+            janet_panicf("expected %T, got %v", JANET_TFLAG_INDEXED, stack[D]);
         }
     }
     stack = fiber->data + fiber->frame;
