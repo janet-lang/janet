@@ -863,6 +863,14 @@ const uint8_t *janet_formatc(const char *format, ...) {
     return ret;
 }
 
+JanetBuffer *janet_formatbb(JanetBuffer *buffer, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    janet_formatb(buffer, format, args);
+    va_end(args);
+    return buffer;
+}
+
 /* Shared implementation between string/format and
  * buffer/format */
 void janet_buffer_format(

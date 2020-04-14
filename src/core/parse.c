@@ -26,6 +26,9 @@
 #include "util.h"
 #endif
 
+#define JANET_PARSER_DEAD 0x1
+#define JANET_PARSER_GENERATED_ERROR 0x2
+
 /* Check if a character is whitespace */
 static int is_whitespace(uint8_t c) {
     return c == ' '
@@ -637,11 +640,30 @@ void janet_parser_eof(JanetParser *parser) {
     size_t oldline = parser->line;
     janet_parser_consume(parser, '\n');
     if (parser->statecount > 1) {
-        parser->error = "unexpected end of source";
+        JanetParseState *s = parser->states + (parser->statecount - 1);
+        JanetBuffer *buffer = janet_buffer(40);
+        janet_buffer_push_cstring(buffer, "unexpected end of source: ");
+        if (s->flags & PFLAG_PARENS) {
+            janet_buffer_push_u8(buffer, '(');
+        } else if (s->flags & PFLAG_SQRBRACKETS) {
+            janet_buffer_push_u8(buffer, '[');
+        } else if (s->flags & PFLAG_CURLYBRACKETS) {
+            janet_buffer_push_u8(buffer, '{');
+        } else if (s->flags & PFLAG_STRING) {
+            janet_buffer_push_u8(buffer, '"');
+        } else if (s->flags & PFLAG_LONGSTRING) {
+            int32_t i;
+            for (i = 0; i < s->argn; i++) {
+                janet_buffer_push_u8(buffer, '`');
+            }
+        }
+        janet_formatbb(buffer, " opened at line %d, column %d", s->line, s->column);
+        parser->error = (const char *) janet_string(buffer->data, buffer->count);
+        parser->flag |= JANET_PARSER_GENERATED_ERROR;
     }
     parser->line = oldline;
     parser->column = oldcolumn;
-    parser->flag = 1;
+    parser->flag |= JANET_PARSER_DEAD;
 }
 
 enum JanetParserStatus janet_parser_status(JanetParser *parser) {
@@ -663,6 +685,7 @@ const char *janet_parser_error(JanetParser *parser) {
     if (status == JANET_PARSE_ERROR) {
         const char *e = parser->error;
         parser->error = NULL;
+        parser->flag &= ~JANET_PARSER_GENERATED_ERROR;
         janet_parser_flush(parser);
         return e;
     }
@@ -765,6 +788,9 @@ static int parsermark(void *p, size_t size) {
     (void) size;
     for (i = 0; i < parser->argcount; i++) {
         janet_mark(parser->args[i]);
+    }
+    if (parser->flag & JANET_PARSER_GENERATED_ERROR) {
+        janet_mark(janet_wrap_string(parser->error));
     }
     return 0;
 }
@@ -900,7 +926,11 @@ static Janet cfun_parse_error(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     const char *err = janet_parser_error(p);
-    if (err) return janet_cstringv(err);
+    if (err) {
+        return (p->flag & JANET_PARSER_GENERATED_ERROR)
+               ? janet_wrap_string(err)
+               : janet_cstringv(err);
+    }
     return janet_wrap_nil();
 }
 
@@ -999,31 +1029,30 @@ struct ParserStateGetter {
 };
 
 static Janet parser_state_delimiters(const JanetParser *_p) {
-    JanetParser *clone = janet_abstract(&janet_parser_type, sizeof(JanetParser));
-    janet_parser_clone(_p, clone);
+    JanetParser *p = (JanetParser *)_p;
     size_t i;
     const uint8_t *str;
     size_t oldcount;
-    oldcount = clone->bufcount;
-    for (i = 0; i < clone->statecount; i++) {
-        JanetParseState *s = clone->states + i;
+    oldcount = p->bufcount;
+    for (i = 0; i < p->statecount; i++) {
+        JanetParseState *s = p->states + i;
         if (s->flags & PFLAG_PARENS) {
-            push_buf(clone, '(');
+            push_buf(p, '(');
         } else if (s->flags & PFLAG_SQRBRACKETS) {
-            push_buf(clone, '[');
+            push_buf(p, '[');
         } else if (s->flags & PFLAG_CURLYBRACKETS) {
-            push_buf(clone, '{');
+            push_buf(p, '{');
         } else if (s->flags & PFLAG_STRING) {
-            push_buf(clone, '"');
+            push_buf(p, '"');
         } else if (s->flags & PFLAG_LONGSTRING) {
             int32_t i;
             for (i = 0; i < s->argn; i++) {
-                push_buf(clone, '`');
+                push_buf(p, '`');
             }
         }
     }
-    str = janet_string(clone->buf + oldcount, (int32_t)(clone->bufcount - oldcount));
-    clone->bufcount = oldcount;
+    str = janet_string(p->buf + oldcount, (int32_t)(p->bufcount - oldcount));
+    p->bufcount = oldcount;
     return janet_wrap_string(str);
 }
 
