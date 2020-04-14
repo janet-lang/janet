@@ -728,7 +728,7 @@ static const char *scanformat(
     return p;
 }
 
-void janet_formatb(JanetBuffer *b, const char *format, va_list args) {
+void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
     const char *format_end = format + strlen(format);
     const char *c = format;
     int32_t startlen = b->count;
@@ -853,7 +853,7 @@ const uint8_t *janet_formatc(const char *format, ...) {
     va_start(args, format);
 
     /* Run format */
-    janet_formatb(&buffer, format, args);
+    janet_formatbv(&buffer, format, args);
 
     /* Iterate length */
     va_end(args);
@@ -863,10 +863,10 @@ const uint8_t *janet_formatc(const char *format, ...) {
     return ret;
 }
 
-JanetBuffer *janet_formatbb(JanetBuffer *buffer, const char *format, ...) {
+JanetBuffer *janet_formatb(JanetBuffer *buffer, const char *format, ...) {
     va_list args;
     va_start(args, format);
-    janet_formatb(buffer, format, args);
+    janet_formatbv(buffer, format, args);
     va_end(args);
     return buffer;
 }

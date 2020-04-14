@@ -642,7 +642,7 @@ void janet_parser_eof(JanetParser *parser) {
     if (parser->statecount > 1) {
         JanetParseState *s = parser->states + (parser->statecount - 1);
         JanetBuffer *buffer = janet_buffer(40);
-        janet_buffer_push_cstring(buffer, "unexpected end of source: ");
+        janet_buffer_push_cstring(buffer, "unexpected end of source, ");
         if (s->flags & PFLAG_PARENS) {
             janet_buffer_push_u8(buffer, '(');
         } else if (s->flags & PFLAG_SQRBRACKETS) {
@@ -657,7 +657,7 @@ void janet_parser_eof(JanetParser *parser) {
                 janet_buffer_push_u8(buffer, '`');
             }
         }
-        janet_formatbb(buffer, " opened at line %d, column %d", s->line, s->column);
+        janet_formatb(buffer, " opened at line %d, column %d", s->line, s->column);
         parser->error = (const char *) janet_string(buffer->data, buffer->count);
         parser->flag |= JANET_PARSER_GENERATED_ERROR;
     }

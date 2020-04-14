@@ -502,7 +502,7 @@ void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...)
             int32_t len = 0;
             while (format[len]) len++;
             janet_buffer_init(&buffer, len);
-            janet_formatb(&buffer, format, args);
+            janet_formatbv(&buffer, format, args);
             if (xtype == JANET_ABSTRACT) {
                 void *abstract = janet_unwrap_abstract(x);
                 if (janet_abstract_type(abstract) != &janet_file_type)
@@ -515,7 +515,7 @@ void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...)
             break;
         }
         case JANET_BUFFER:
-            janet_formatb(janet_unwrap_buffer(x), format, args);
+            janet_formatbv(janet_unwrap_buffer(x), format, args);
             break;
     }
     va_end(args);

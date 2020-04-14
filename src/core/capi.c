@@ -54,7 +54,7 @@ void janet_panicf(const char *format, ...) {
     while (format[len]) len++;
     janet_buffer_init(&buffer, len);
     va_start(args, format);
-    janet_formatb(&buffer, format, args);
+    janet_formatbv(&buffer, format, args);
     va_end(args);
     ret = janet_string(buffer.data, buffer.count);
     janet_buffer_deinit(&buffer);
