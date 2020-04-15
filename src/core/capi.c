@@ -235,18 +235,20 @@ size_t janet_getsize(const Janet *argv, int32_t n) {
 
 int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which) {
     int32_t raw = janet_getinteger(argv, n);
-    if (raw < 0) raw += length + 1;
-    if (raw < 0 || raw > length)
-        janet_panicf("%s index %d out of range [0,%d]", which, raw, length);
-    return raw;
+    int32_t not_raw = raw;
+    if (not_raw < 0) not_raw += length + 1;
+    if (not_raw < 0 || not_raw > length)
+        janet_panicf("%s index %d out of range [%d,%d]", which, raw, -length - 1, length);
+    return not_raw;
 }
 
 int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which) {
     int32_t raw = janet_getinteger(argv, n);
-    if (raw < 0) raw += length;
-    if (raw < 0 || raw > length)
-        janet_panicf("%s index %d out of range [0,%d)", which, raw, length);
-    return raw;
+    int32_t not_raw = raw;
+    if (not_raw < 0) not_raw += length;
+    if (not_raw < 0 || not_raw > length)
+        janet_panicf("%s index %d out of range [%d,%d)", which, raw, -length, length);
+    return not_raw;
 }
 
 JanetView janet_getindexed(const Janet *argv, int32_t n) {

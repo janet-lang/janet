@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `sh-rule` and `sh-phony` to jpm's dialect of Janet.
 - Change C api's `janet_formatb` -> `janet_formatbv`.
 - Add C `janet_formatb` to C api.
 - Add `edefer` macro to core.
