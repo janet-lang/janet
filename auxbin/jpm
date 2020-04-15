@@ -34,7 +34,7 @@
 (defmacro rule
   "Add a rule to the rule graph."
   [target deps & body]
-  ~(,rule-impl ,target ,deps (fn [] nil ,;body)))
+  ~(,rule-impl ,target ,deps (fn [] ,;body)))
 
 (defmacro phony
   "Add a phony rule to the rule graph. A phony rule will run every time
@@ -42,6 +42,16 @@
   user facing tasks."
   [target deps & body]
   ~(,rule-impl ,target ,deps (fn [] nil ,;body) true))
+
+(defmacro sh-rule
+  "Add a rule that invokes a shell command, and fails if the command returns non-zero."
+  [target deps & body]
+  ~(,rule-impl ,target ,deps (fn [] (,assert (,zero? (,os/shell (,string ,;body)))))))
+
+(defmacro sh-phony
+  "Add a phony rule that invokes a shell command, and fails if the command returns non-zero."
+  [target deps & body]
+  ~(,rule-impl ,target ,deps (fn [] (,assert (,zero? (,os/shell (,string ,;body))))) true))
 
 (defn add-dep
   "Add a dependency to an existing rule. Useful for extending phony
