@@ -435,7 +435,7 @@ static Janet janet_core_hash(int32_t argc, Janet *argv) {
 static Janet janet_core_getline(int32_t argc, Janet *argv) {
     FILE *in = janet_dynfile("in", stdin);
     FILE *out = janet_dynfile("out", stdout);
-    janet_arity(argc, 0, 2);
+    janet_arity(argc, 0, 3);
     JanetBuffer *buf = (argc >= 2) ? janet_getbuffer(argv, 1) : janet_buffer(10);
     if (argc >= 1) {
         const char *prompt = (const char *) janet_getstring(argv, 0);
