@@ -707,6 +707,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     if (janet_indexed_view(x, &arr, &count)) {
         janet_asm_assert(&a, count == def->bytecode_length, "sourcemap must have the same length as the bytecode");
         def->sourcemap = malloc(sizeof(JanetSourceMapping) * (size_t) count);
+        if (NULL == def->sourcemap) {
+            JANET_OUT_OF_MEMORY;
+        }
         for (i = 0; i < count; i++) {
             const Janet *tup;
             Janet entry = arr[i];
@@ -730,6 +733,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     /* Set environments */
     def->environments =
         realloc(def->environments, def->environments_length * sizeof(int32_t));
+    if (NULL == def->environments) {
+        JANET_OUT_OF_MEMORY;
+    }
 
     /* Verify the func def */
     if (janet_verify(def)) {
