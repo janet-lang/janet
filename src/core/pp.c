@@ -459,8 +459,8 @@ static const char *janet_pretty_colors[] = {
 
 #define JANET_PRETTY_DICT_ONELINE 4
 #define JANET_PRETTY_IND_ONELINE 10
-#define JANET_PRETTY_DICT_LIMIT 16
-#define JANET_PRETTY_ARRAY_LIMIT 16
+#define JANET_PRETTY_DICT_LIMIT 30
+#define JANET_PRETTY_ARRAY_LIMIT 160
 
 /* Helper for pretty printing */
 static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {

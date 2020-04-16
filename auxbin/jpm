@@ -730,7 +730,7 @@ int main(int argc, const char **argv) {
       (def dep-urls (map |(if (string? $) $ ($ :repo)) d))
       (unless (resolved r)
         (when (all resolved dep-urls)
-          (array/push ordered-packages p)
+          (array/push ordered-packages {:repo r :sha s})
           (set made-progress true)
           (put resolved r true))))
     (unless made-progress
