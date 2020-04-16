@@ -187,20 +187,25 @@
   [into x]
   (when x
     (proto-flatten into (table/getproto x))
-    (loop [k :keys x]
-      (put into k (x k))))
+    (merge-into into x))
   into)
+
+(defn make-jpm-env
+  "Build an environment table with jpm functions preloaded."
+  [&opt no-deps]
+  (def env (make-env))
+  (put env :jpm-no-deps no-deps)
+  (loop [k :keys _env :when (symbol? k)]
+     (unless ((_env k) :private) (put env k (_env k))))
+  env)
 
 (defn require-jpm
   "Require a jpm file project file. This is different from a normal require
   in that code is loaded in the jpm environment."
   [path &opt no-deps]
-  (def env (make-env))
-  (put env :jpm-no-deps no-deps)
   (unless (os/stat path :mode)
     (error (string "cannot open " path)))
-  (loop [k :keys _env :when (symbol? k)]
-     (unless ((_env k) :private) (put env k (_env k))))
+  (def env (make-jpm-env no-deps))
   (def currenv (proto-flatten @{} (fiber/getenv (fiber/current))))
   (loop [k :keys currenv :when (keyword? k)]
     (put env k (currenv k)))
@@ -1053,17 +1058,23 @@ Flags are:
 
 (defn jpm-repl
   []
-  (def env (require-jpm "./project.janet"))
-  (def p (env :project))
-  (def name (p :name))
+  (def env
+    (try
+      (require-jpm "./project.janet")
+    ([err f]
+     (if (= "cannot open ./project.janet" err)
+       (put (make-jpm-env) :project {})
+       (propagate err f)))))
   (setdyn :pretty-format (if-not (dyn :nocolor) "%.20Q" "%.20q"))
   (setdyn :err-color (if-not (dyn :nocolor) true))
-  (print "Project:     " name)
-  (print "Repository:  " (p :repo))
-  (print "Author:      " (p :author))
+  (def p (env :project))
+  (def name (p :name))
+  (if name (print "Project:     " name))
+  (if-let [r (p :repo)] (print "Repository:  " r))
+  (if-let [a (p :author)] (print "Author:      " a))
   (defn getchunk [buf p]
     (def [line] (parser/where p))
-    (getline (string "jpm[" name "]:" line ":" (parser/state p :delimiters) "> ") buf env))
+    (getline (string "jpm[" (or name "repl") "]:" line ":" (parser/state p :delimiters) "> ") buf env))
   (repl getchunk nil env))
 
 (def- subcommands

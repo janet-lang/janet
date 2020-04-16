@@ -501,7 +501,7 @@
   that define something to loop over. They are formatted like:\n\n
   \tbinding :verb object/expression\n\n
   Where binding is a binding as passed to def, :verb is one of a set of keywords,
-  and object is any janet expression. The available verbs are:\n\n
+  and object is any expression. The available verbs are:\n\n
   \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
   \t:range - loop over a range. The object should be two element tuple with a start
   and end value, and an optional positive step. The range is half open, [start, end).\n
@@ -1482,10 +1482,10 @@
 ###
 
 (defn- env-walk
-  [pred &opt env]
+  [pred &opt env local]
   (default env (fiber/getenv (fiber/current)))
   (def envs @[])
-  (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
+  (do (var e env) (while e (array/push envs e) (set e (table/getproto e)) (if local (break))))
   (def ret-set @{})
   (loop [envi :in envs
          k :keys envi
@@ -1494,16 +1494,18 @@
   (sort (keys ret-set)))
 
 (defn all-bindings
-  "Get all symbols available in an enviroment. Defaults to the current
-  fiber's environment."
-  [&opt env]
-  (env-walk symbol? env))
+  "Get all symbols available in an environment. Defaults to the current
+  fiber's environment. If local is truthy, will not show inherited bindings
+  (from prototype tables)."
+  [&opt env local]
+  (env-walk symbol? env local))
 
 (defn all-dynamics
   "Get all dynamic bindings in an environment. Defaults to the current
-  fiber's environment."
-  [&opt env]
-  (env-walk keyword? env))
+  fiber's environment. If local is truthy, will not show inherited bindings
+  (from prototype tables)."
+  [&opt env local]
+  (env-walk keyword? env local))
 
 (defn doc-format
   "Reformat text to wrap at a given line."
@@ -1701,7 +1703,7 @@
   ret)
 
 (defn all
-  "Returns true if all xs are truthy, otherwise the resulty of first
+  "Returns true if all xs are truthy, otherwise the result of first
   falsey predicate value, (pred x)."
   [pred xs]
   (var ret true)
@@ -1915,7 +1917,7 @@
   (eflush))
 
 (defn run-context
-  "Run a context. This evaluates expressions of janet in an environment,
+  "Run a context. This evaluates expressions in an environment,
   and is encapsulates the parsing, compilation, and evaluation.
   Returns (in environment :exit-value environment) when complete.
   opts is a table or struct of options. The options are as follows:\n\n\t
@@ -2672,7 +2674,7 @@
 ###
 ###
 
-(def root-env "The root environment used to create envionments with (make-env)" _env)
+(def root-env "The root environment used to create environments with (make-env)" _env)
 
 (do
   (put _env 'boot/opts nil)
