@@ -1948,7 +1948,7 @@
   (default on-parse-error bad-parse)
   (default evaluator (fn evaluate [x &] (x)))
   (default where "<anonymous>")
-  (default guard :yed)
+  (default guard :ydt)
 
   # Are we done yet?
   (var going true)

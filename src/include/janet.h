@@ -294,6 +294,8 @@ typedef enum {
     JANET_SIGNAL_USER9
 } JanetSignal;
 
+#define JANET_SIGNAL_EVENT JANET_SIGNAL_USER9
+
 /* Fiber statuses - mostly corresponds to signals. */
 typedef enum {
     JANET_STATUS_DEAD,

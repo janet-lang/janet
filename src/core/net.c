@@ -245,7 +245,7 @@ static size_t janet_loop_event(size_t index) {
                     JanetFiber *fiberp = NULL;
                     /* Launch connection fiber */
                     JanetSignal sig = janet_pcall(handler, 1, &streamv, &out, &fiberp);
-                    if (sig != JANET_SIGNAL_OK && sig != JANET_SIGNAL_USER9) {
+                    if (sig != JANET_SIGNAL_OK && sig != JANET_SIGNAL_EVENT) {
                         janet_stacktrace(fiberp, out);
                     }
                 }
@@ -309,7 +309,7 @@ static size_t janet_loop_event(size_t index) {
         /* Resume the fiber */
         Janet out;
         JanetSignal sig = janet_continue(jlfd->fiber, resumeval, &out);
-        if (sig != JANET_SIGNAL_OK && sig != JANET_SIGNAL_USER9) {
+        if (sig != JANET_SIGNAL_OK && sig != JANET_SIGNAL_EVENT) {
             janet_stacktrace(jlfd->fiber, out);
         }
     }
@@ -374,7 +374,7 @@ JANET_NO_RETURN static void janet_sched_read(JanetStream *stream, JanetBuffer *b
     lfd.data.read_chunk.buf = buf;
     lfd.data.read_chunk.bytes_left = nbytes;
     janet_loop_schedule(lfd);
-    janet_signalv(JANET_SIGNAL_USER9, janet_wrap_nil());
+    janet_signalv(JANET_SIGNAL_EVENT, janet_wrap_nil());
 }
 
 JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetBuffer *buf) {
@@ -385,7 +385,7 @@ JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetB
     lfd.data.write_from_buffer.buf = buf;
     lfd.data.write_from_buffer.start = 0;
     janet_loop_schedule(lfd);
-    janet_signalv(JANET_SIGNAL_USER9, janet_wrap_nil());
+    janet_signalv(JANET_SIGNAL_EVENT, janet_wrap_nil());
 }
 
 JANET_NO_RETURN static void janet_sched_write_stringlike(JanetStream *stream, const uint8_t *str) {
@@ -396,7 +396,7 @@ JANET_NO_RETURN static void janet_sched_write_stringlike(JanetStream *stream, co
     lfd.data.write_from_stringlike.str = str;
     lfd.data.write_from_stringlike.start = 0;
     janet_loop_schedule(lfd);
-    janet_signalv(JANET_SIGNAL_USER9, janet_wrap_nil());
+    janet_signalv(JANET_SIGNAL_EVENT, janet_wrap_nil());
 }
 
 /* Needs argc >= offset + 2 */
