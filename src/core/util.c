@@ -380,7 +380,7 @@ void janet_var(JanetTable *env, const char *name, Janet val, const char *doc) {
 }
 
 /* Load many cfunctions at once */
-void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
+static void _janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns, int defprefix) {
     uint8_t *longname_buffer = NULL;
     size_t prefixlen = 0;
     size_t bufsize = 0;
@@ -414,11 +414,27 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
             name = janet_csymbolv(cfuns->name);
         }
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
-        janet_def(env, cfuns->name, fun, cfuns->documentation);
+        if (defprefix) {
+            JanetTable *subt = janet_table(2);
+            janet_table_put(subt, janet_ckeywordv("value"), fun);
+            if (cfuns->documentation)
+                janet_table_put(subt, janet_ckeywordv("doc"), janet_cstringv(cfuns->documentation));
+            janet_table_put(env, name, janet_wrap_table(subt));
+        } else {
+            janet_def(env, cfuns->name, fun, cfuns->documentation);
+        }
         janet_table_put(janet_vm_registry, fun, name);
         cfuns++;
     }
     free(longname_buffer);
+}
+
+void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
+    _janet_cfuns_prefix(env, regprefix, cfuns, 1);
+}
+
+void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
+    _janet_cfuns_prefix(env, regprefix, cfuns, 0);
 }
 
 /* Abstract type introspection */
