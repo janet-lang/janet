@@ -591,6 +591,11 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (is_dict_value && len >= JANET_PRETTY_DICT_ONELINE) print_newline(S, 0);
                 for (i = 0; i < cap; i++) {
                     if (!janet_checktype(kvs[i].key, JANET_NIL)) {
+                        if (counter == JANET_PRETTY_DICT_LIMIT) {
+                            print_newline(S, 0);
+                            janet_buffer_push_cstring(S->buffer, "...");
+                            break;
+                        }
                         if (first_kv_pair) {
                             first_kv_pair = 0;
                         } else {
@@ -600,11 +605,6 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                         janet_buffer_push_u8(S->buffer, ' ');
                         janet_pretty_one(S, kvs[i].value, 1);
                         counter++;
-                        if (counter == 10) {
-                            print_newline(S, 0);
-                            janet_buffer_push_cstring(S->buffer, "...");
-                            break;
-                        }
                     }
                 }
             }
