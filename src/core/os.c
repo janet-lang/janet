@@ -1063,7 +1063,7 @@ static const struct OsStatGetter os_stat_getters[] = {
     {"dev", os_stat_dev},
     {"inode", os_stat_inode},
     {"mode", os_stat_mode},
-    {"octal-permissions", os_stat_int_permissions},
+    {"int-permissions", os_stat_int_permissions},
     {"permissions", os_stat_permissions},
     {"uid", os_stat_uid},
     {"gid", os_stat_gid},
@@ -1289,7 +1289,7 @@ static const JanetReg os_cfuns[] = {
              " only that information from stat. If the file or directory does not exist, returns nil. The keys are\n\n"
              "\t:dev - the device that the file is on\n"
              "\t:mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n"
-             "\t:octal-permissions - A Unix permission integer like 8r744\n"
+             "\t:int-permissions - A Unix permission integer like 8r744\n"
              "\t:permissions - A Unix permission string like \"rwxr--r--\"\n"
              "\t:uid - File uid\n"
              "\t:gid - File gid\n"
