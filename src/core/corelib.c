@@ -435,7 +435,7 @@ static Janet janet_core_hash(int32_t argc, Janet *argv) {
 static Janet janet_core_getline(int32_t argc, Janet *argv) {
     FILE *in = janet_dynfile("in", stdin);
     FILE *out = janet_dynfile("out", stdout);
-    janet_arity(argc, 0, 2);
+    janet_arity(argc, 0, 3);
     JanetBuffer *buf = (argc >= 2) ? janet_getbuffer(argv, 1) : janet_buffer(10);
     if (argc >= 1) {
         const char *prompt = (const char *) janet_getstring(argv, 0);
@@ -646,7 +646,7 @@ static const JanetReg corelib_cfuns[] = {
         "getline", janet_core_getline,
         JDOC("(getline &opt prompt buf env)\n\n"
              "Reads a line of input into a buffer, including the newline character, using a prompt. "
-             "An optional environment table can be provided for autocomplete. "
+             "An optional environment table can be provided for auto-complete. "
              "Returns the modified buffer. "
              "Use this function to implement a simple interface for a terminal program.")
     },
@@ -680,7 +680,7 @@ static const JanetReg corelib_cfuns[] = {
              "\t:all:\tthe value of path verbatim\n"
              "\t:cur:\tthe current file, or (dyn :current-file)\n"
              "\t:dir:\tthe directory containing the current file\n"
-             "\t:name:\tthe filename component of path, with extenion if given\n"
+             "\t:name:\tthe filename component of path, with extension if given\n"
              "\t:native:\tthe extension used to load natives, .so or .dll\n"
              "\t:sys:\tthe system path, or (syn :syspath)")
     },
@@ -697,7 +697,7 @@ static const JanetReg corelib_cfuns[] = {
     {
         "slice", janet_core_slice,
         JDOC("(slice x &opt start end)\n\n"
-             "Extract a sub-range of an indexed data strutrue or byte sequence.")
+             "Extract a sub-range of an indexed data structure or byte sequence.")
     },
     {
         "signal", janet_core_signal,

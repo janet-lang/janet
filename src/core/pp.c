@@ -156,7 +156,7 @@ static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, in
                 janet_buffer_push_bytes(buffer, (const uint8_t *)"\\\\", 2);
                 break;
             default:
-                if (c < 32 || c > 127) {
+                if (c < 32 || c > 126) {
                     uint8_t buf[4];
                     buf[0] = '\\';
                     buf[1] = 'x';
@@ -459,8 +459,8 @@ static const char *janet_pretty_colors[] = {
 
 #define JANET_PRETTY_DICT_ONELINE 4
 #define JANET_PRETTY_IND_ONELINE 10
-#define JANET_PRETTY_DICT_LIMIT 16
-#define JANET_PRETTY_ARRAY_LIMIT 16
+#define JANET_PRETTY_DICT_LIMIT 30
+#define JANET_PRETTY_ARRAY_LIMIT 160
 
 /* Helper for pretty printing */
 static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
@@ -591,6 +591,11 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (is_dict_value && len >= JANET_PRETTY_DICT_ONELINE) print_newline(S, 0);
                 for (i = 0; i < cap; i++) {
                     if (!janet_checktype(kvs[i].key, JANET_NIL)) {
+                        if (counter == JANET_PRETTY_DICT_LIMIT) {
+                            print_newline(S, 0);
+                            janet_buffer_push_cstring(S->buffer, "...");
+                            break;
+                        }
                         if (first_kv_pair) {
                             first_kv_pair = 0;
                         } else {
@@ -600,11 +605,6 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                         janet_buffer_push_u8(S->buffer, ' ');
                         janet_pretty_one(S, kvs[i].value, 1);
                         counter++;
-                        if (counter == 10) {
-                            print_newline(S, 0);
-                            janet_buffer_push_cstring(S->buffer, "...");
-                            break;
-                        }
                     }
                 }
             }
@@ -728,7 +728,7 @@ static const char *scanformat(
     return p;
 }
 
-void janet_formatb(JanetBuffer *b, const char *format, va_list args) {
+void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
     const char *format_end = format + strlen(format);
     const char *c = format;
     int32_t startlen = b->count;
@@ -853,7 +853,7 @@ const uint8_t *janet_formatc(const char *format, ...) {
     va_start(args, format);
 
     /* Run format */
-    janet_formatb(&buffer, format, args);
+    janet_formatbv(&buffer, format, args);
 
     /* Iterate length */
     va_end(args);
@@ -861,6 +861,14 @@ const uint8_t *janet_formatc(const char *format, ...) {
     ret = janet_string(buffer.data, buffer.count);
     janet_buffer_deinit(&buffer);
     return ret;
+}
+
+JanetBuffer *janet_formatb(JanetBuffer *buffer, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    janet_formatbv(buffer, format, args);
+    va_end(args);
+    return buffer;
 }
 
 /* Shared implementation between string/format and

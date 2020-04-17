@@ -27,6 +27,7 @@
 #include "symcache.h"
 #include "gc.h"
 #include "util.h"
+#include "fiber.h"
 #endif
 
 struct JanetScratch {
@@ -189,7 +190,10 @@ static void janet_mark_funcenv(JanetFuncEnv *env) {
     if (janet_gc_reachable(env))
         return;
     janet_gc_mark(env);
-    if (env->offset) {
+    /* If closure env references a dead fiber, we can just copy out the stack frame we need so
+     * we don't need to keep around the whole dead fiber. */
+    janet_env_maybe_detach(env);
+    if (env->offset > 0) {
         /* On stack */
         janet_mark_fiber(env->as.fiber);
     } else {
@@ -305,6 +309,7 @@ static void janet_deinit_block(JanetGCObject *mem) {
             free(def->constants);
             free(def->bytecode);
             free(def->sourcemap);
+            free(def->closure_bitset);
         }
         break;
     }

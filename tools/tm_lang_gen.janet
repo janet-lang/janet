@@ -308,7 +308,7 @@
       <array>
         <dict>
           <key>match</key>
-          <string>(\\[nevr0zft"\\']|\\x[0-9a-fA-F][0-9a-fA-f])</string>
+          <string>(\\[nevr0zft"\\']|\\x[0-9a-fA-F]{2}|\\u[0-9a-fA-F]{4}|\\U[0-9a-fA-F]{6})</string>
           <key>name</key>
           <string>constant.character.escape.janet</string>
         </dict>

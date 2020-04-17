@@ -52,7 +52,7 @@ static void *janet_rng_unmarshal(JanetMarshalContext *ctx) {
     return rng;
 }
 
-static JanetAbstractType JanetRNG_type = {
+const JanetAbstractType janet_rng_type = {
     "core/rng",
     NULL,
     NULL,
@@ -115,7 +115,7 @@ double janet_rng_double(JanetRNG *rng) {
 
 static Janet cfun_rng_make(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
-    JanetRNG *rng = janet_abstract(&JanetRNG_type, sizeof(JanetRNG));
+    JanetRNG *rng = janet_abstract(&janet_rng_type, sizeof(JanetRNG));
     if (argc == 1) {
         if (janet_checkint(argv[0])) {
             uint32_t seed = (uint32_t)(janet_getinteger(argv, 0));
@@ -132,13 +132,13 @@ static Janet cfun_rng_make(int32_t argc, Janet *argv) {
 
 static Janet cfun_rng_uniform(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-    JanetRNG *rng = janet_getabstract(argv, 0, &JanetRNG_type);
+    JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     return janet_wrap_number(janet_rng_double(rng));
 }
 
 static Janet cfun_rng_int(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
-    JanetRNG *rng = janet_getabstract(argv, 0, &JanetRNG_type);
+    JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     if (argc == 1) {
         uint32_t word = janet_rng_u32(rng) >> 1;
         return janet_wrap_integer(word);
@@ -166,7 +166,7 @@ static void rng_get_4bytes(JanetRNG *rng, uint8_t *buf) {
 
 static Janet cfun_rng_buffer(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
-    JanetRNG *rng = janet_getabstract(argv, 0, &JanetRNG_type);
+    JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, n);
 
@@ -255,6 +255,10 @@ JANET_DEFINE_MATHOP(fabs, fabs)
 JANET_DEFINE_MATHOP(floor, floor)
 JANET_DEFINE_MATHOP(trunc, trunc)
 JANET_DEFINE_MATHOP(round, round)
+JANET_DEFINE_MATHOP(gamma, lgamma)
+JANET_DEFINE_MATHOP(log1p, log1p)
+JANET_DEFINE_MATHOP(erf, erf)
+JANET_DEFINE_MATHOP(erfc, erfc)
 
 #define JANET_DEFINE_MATH2OP(name, fop)\
 static Janet janet_##name(int32_t argc, Janet *argv) {\
@@ -267,6 +271,7 @@ static Janet janet_##name(int32_t argc, Janet *argv) {\
 JANET_DEFINE_MATH2OP(atan2, atan2)
 JANET_DEFINE_MATH2OP(pow, pow)
 JANET_DEFINE_MATH2OP(hypot, hypot)
+JANET_DEFINE_MATH2OP(nextafter, nextafter)
 
 static Janet janet_not(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
@@ -439,6 +444,26 @@ static const JanetReg math_cfuns[] = {
              "Returns 2 to the power of x.")
     },
     {
+        "math/log1p", janet_log1p,
+        JDOC("(math/log1p x)\n\n"
+             "Returns (log base e of x) + 1 more accurately than (+ (math/log x) 1)")
+    },
+    {
+        "math/gamma", janet_gamma,
+        JDOC("(math/gamma x)\n\n"
+             "Returns gamma(x).")
+    },
+    {
+        "math/erfc", janet_erfc,
+        JDOC("(math/erfc x)\n\n"
+             "Returns the complementary error function of x.")
+    },
+    {
+        "math/erf", janet_erf,
+        JDOC("(math/erf x)\n\n"
+             "Returns the error function of x.")
+    },
+    {
         "math/expm1", janet_expm1,
         JDOC("(math/expm1 x)\n\n"
              "Returns e to the power of x minus 1.")
@@ -453,13 +478,18 @@ static const JanetReg math_cfuns[] = {
         JDOC("(math/round x)\n\n"
              "Returns the integer nearest to x.")
     },
+    {
+        "math/next", janet_nextafter,
+        JDOC("(math/next y)\n\n"
+             "Returns the next representable floating point value after x in the direction of y.")
+    },
     {NULL, NULL, NULL}
 };
 
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
     janet_core_cfuns(env, NULL, math_cfuns);
-    janet_register_abstract_type(&JanetRNG_type);
+    janet_register_abstract_type(&janet_rng_type);
 #ifdef JANET_BOOTSTRAP
     janet_def(env, "math/pi", janet_wrap_number(3.1415926535897931),
               JDOC("The value pi."));

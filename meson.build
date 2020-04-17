@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.7.1-dev')
+  version : '1.9.0-dev')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -162,13 +162,15 @@ janetc = custom_target('janetc',
   output : 'janet.c',
   capture : true,
   command : [
-    janet_boot, '@CURRENT_SOURCE_DIR@',
+    janet_boot, meson.current_source_dir(),
     'JANET_PATH', janet_path, 'JANET_HEADERPATH', header_path
   ])
 
 libjanet = library('janet', janetc,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep, thread_dep],
+  version: meson.project_version(),
+  soversion: version_parts[0] + '.' + version_parts[1],
   install : true)
 
 # Extra c flags - adding -fvisibility=hidden matches the Makefile and

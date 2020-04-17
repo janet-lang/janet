@@ -32,7 +32,7 @@
     (def buf (buffer "(" name))
     (while (< index arglen)
       (buffer/push-string buf " ")
-      (buffer/format buf "%p" (in args index))
+      (buffer/format buf "%j" (in args index))
       (set index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
     # Build return value
@@ -79,8 +79,8 @@
 
 # Basic predicates
 (defn nan? "Check if x is NaN" [x] (not= x x))
-(defn even? "Check if x is even." [x] (= 0 (% x 2)))
-(defn odd? "Check if x is odd." [x] (not= 0 (% x 2)))
+(defn even? "Check if x is even." [x] (= 0 (mod x 2)))
+(defn odd? "Check if x is odd." [x] (= 1 (mod x 2)))
 (defn zero? "Check if x is zero." [x] (= x 0))
 (defn pos? "Check if x is greater than 0." [x] (> x 0))
 (defn neg? "Check if x is less than 0." [x] (< x 0))
@@ -301,7 +301,19 @@
        ,form
        (if (= (,fiber/status ,f) :dead)
          ,r
-         (propagate ,r ,f)))))
+         (,propagate ,r ,f)))))
+
+(defmacro edefer
+  "Run form after body in the case that body terminates abnormally (an error or user signal 0-4).
+  Otherwise, return last form in body."
+  [form & body]
+  (with-syms [f r]
+    ~(do
+       (def ,f (,fiber/new (fn [] ,;body) :ti))
+       (def ,r (,resume ,f))
+       (if (= (,fiber/status ,f) :dead)
+         ,r
+         (do ,form (,propagate ,r ,f))))))
 
 (defmacro prompt
   "Set up a checkpoint that can be returned to. Tag should be a value
@@ -314,7 +326,14 @@
        (def [,target ,payload] ,res)
        (if (,= ,tag ,target)
          ,payload
-         (propagate ,res ,fib)))))
+         (,propagate ,res ,fib)))))
+
+(defmacro chr
+  "Convert a string of length 1 to its byte (ascii) value at compile time."
+  [c]
+  (unless (and (string? c) (= (length c) 1))
+    (error (string/format "expected string of length 1, got %v" c)))
+  (c 0))
 
 (defmacro label
   "Set a label point that is lexically scoped. Name should be a symbol
@@ -460,7 +479,7 @@
   (for-template i start stop 1 < + body))
 
 (defmacro eachk
-  "loop over each key in ds. returns nil."
+  "Loop over each key in ds. Returns nil."
   [x ds & body]
   (keys-template x ds false body))
 
@@ -482,7 +501,7 @@
   that define something to loop over. They are formatted like:\n\n
   \tbinding :verb object/expression\n\n
   Where binding is a binding as passed to def, :verb is one of a set of keywords,
-  and object is any janet expression. The available verbs are:\n\n
+  and object is any expression. The available verbs are:\n\n
   \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
   \t:range - loop over a range. The object should be two element tuple with a start
   and end value, and an optional positive step. The range is half open, [start, end).\n
@@ -641,7 +660,7 @@
 (defn last
   "Get the last element from an indexed data structure."
   [xs]
-  (in xs (- (length xs) 1)))
+  (get xs (- (length xs) 1)))
 
 ###
 ###
@@ -649,40 +668,53 @@
 ###
 ###
 
-(def sort
-  "(sort xs [, by])\n\nSort an array in-place. Uses quick-sort and is not a stable sort."
-  (do
+(defn- sort-part
+  [a lo hi by]
+  (def pivot (in a hi))
+  (var i lo)
+  (for j lo hi
+    (def aj (in a j))
+    (when (by aj pivot)
+      (def ai (in a i))
+      (set (a i) aj)
+      (set (a j) ai)
+      (++ i)))
+  (set (a hi) (in a i))
+  (set (a i) pivot)
+  i)
 
-    (defn part
-      [a lo hi by]
-      (def pivot (in a hi))
-      (var i lo)
-      (for j lo hi
-        (def aj (in a j))
-        (when (by aj pivot)
-          (def ai (in a i))
-          (set (a i) aj)
-          (set (a j) ai)
-          (++ i)))
-      (set (a hi) (in a i))
-      (set (a i) pivot)
-      i)
+(defn- sort-help
+  [a lo hi by]
+  (when (> hi lo)
+    (def piv (sort-part a lo hi by))
+    (sort-help a lo (- piv 1) by)
+    (sort-help a (+ piv 1) hi by))
+  a)
 
-    (defn sort-help
-      [a lo hi by]
-      (when (> hi lo)
-        (def piv (part a lo hi by))
-        (sort-help a lo (- piv 1) by)
-        (sort-help a (+ piv 1) hi by))
-      a)
+(defn sort
+  "Sort an array in-place. Uses quick-sort and is not a stable sort."
+  [a &opt by]
+  (sort-help a 0 (- (length a) 1) (or by <)))
 
-    (fn sort [a &opt by]
-      (sort-help a 0 (- (length a) 1) (or by <)))))
+(put _env 'sort-part nil)
+(put _env 'sort-help nil)
+
+(defn sort-by
+  "Returns a new sorted array that compares elements by invoking
+  a function on each element and comparing the result with <."
+  [f ind]
+  (sort ind (fn [x y] (< (f x) (f y)))))
 
 (defn sorted
   "Returns a new sorted array without modifying the old one."
   [ind &opt by]
   (sort (array/slice ind) by))
+
+(defn sorted-by
+  "Returns a new sorted array that compares elements by invoking
+  a function on each element and comparing the result with <."
+  [f ind]
+  (sorted ind (fn [x y] (< (f x) (f y)))))
 
 (defn reduce
   "Reduce, also know as fold-left in many languages, transforms
@@ -691,6 +723,45 @@
   (var res init)
   (each x ind (set res (f res x)))
   res)
+
+(defn reduce2
+  "The 2 argument version of reduce that does not take an initialization value.
+  Instead the first element of the array is used for initialization."
+  [f ind]
+  (var k (next ind))
+  (if (= nil k) (break nil))
+  (var res (in ind k))
+  (set k (next ind k))
+  (while (not= nil k)
+    (set res (f res (in ind k)))
+    (set k (next ind k)))
+  res)
+
+(defn accumulate
+  "Similar to reduce, but accumulates intermediate values into an array.
+  The last element in the array is what would be the return value from reduce.
+  The init value is not added to the array.
+  Returns a new array."
+  [f init ind]
+  (var res init)
+  (def ret (array/new (length ind)))
+  (each x ind (array/push ret (set res (f res x))))
+  ret)
+
+(defn accumulate2
+  "The 2 argument version of accumulate that does not take an initialization value."
+  [f ind]
+  (var k (next ind))
+  (def ret (array/new (length ind)))
+  (if (= nil k) (break ret))
+  (var res (in ind k))
+  (array/push ret res)
+  (set k (next ind k))
+  (while (not= nil k)
+    (set res (f res (in ind k)))
+    (array/push ret res)
+    (set k (next ind k)))
+  ret)
 
 (defn map
   "Map a function over every element in an indexed data structure and
@@ -896,7 +967,7 @@
   (reduce fop x forms))
 
 (defmacro -?>
-  "Short circuit threading macro. Inserts x as the last value in the first form
+  "Short circuit threading macro. Inserts x as the second value in the first form
   in forms, and inserts the modified first form into the second form
   in the same manner, and so on. The pipeline will return nil
   if an intermediate value is nil.
@@ -912,7 +983,7 @@
   (reduce fop x forms))
 
 (defmacro -?>>
-  "Threading macro. Inserts x as the last value in the first form
+  "Short circuit threading macro. Inserts x as the last value in the first form
   in forms, and inserts the modified first form into the second form
   in the same manner, and so on. The pipeline will return nil
   if an intermediate value is nil.
@@ -1411,10 +1482,10 @@
 ###
 
 (defn- env-walk
-  [pred &opt env]
+  [pred &opt env local]
   (default env (fiber/getenv (fiber/current)))
   (def envs @[])
-  (do (var e env) (while e (array/push envs e) (set e (table/getproto e))))
+  (do (var e env) (while e (array/push envs e) (set e (table/getproto e)) (if local (break))))
   (def ret-set @{})
   (loop [envi :in envs
          k :keys envi
@@ -1423,22 +1494,24 @@
   (sort (keys ret-set)))
 
 (defn all-bindings
-  "Get all symbols available in an enviroment. Defaults to the current
-  fiber's environment."
-  [&opt env]
-  (env-walk symbol? env))
+  "Get all symbols available in an environment. Defaults to the current
+  fiber's environment. If local is truthy, will not show inherited bindings
+  (from prototype tables)."
+  [&opt env local]
+  (env-walk symbol? env local))
 
 (defn all-dynamics
   "Get all dynamic bindings in an environment. Defaults to the current
-  fiber's environment."
-  [&opt env]
-  (env-walk keyword? env))
+  fiber's environment. If local is truthy, will not show inherited bindings
+  (from prototype tables)."
+  [&opt env local]
+  (env-walk keyword? env local))
 
 (defn doc-format
   "Reformat text to wrap at a given line."
-  [text]
+  [text &opt width]
 
-  (def maxcol (- (dyn :doc-width 80) 8))
+  (def maxcol (- (or width (dyn :doc-width 80)) 8))
   (var buf @"    ")
   (var word @"")
   (var current 0)
@@ -1630,7 +1703,7 @@
   ret)
 
 (defn all
-  "Returns true if all xs are truthy, otherwise the resulty of first
+  "Returns true if all xs are truthy, otherwise the result of first
   falsey predicate value, (pred x)."
   [pred xs]
   (var ret true)
@@ -1844,8 +1917,9 @@
   (eflush))
 
 (defn run-context
-  "Run a context. This evaluates expressions of janet in an environment,
+  "Run a context. This evaluates expressions in an environment,
   and is encapsulates the parsing, compilation, and evaluation.
+  Returns (in environment :exit-value environment) when complete.
   opts is a table or struct of options. The options are as follows:\n\n\t
   :chunks - callback to read into a buffer - default is getline\n\t
   :on-parse-error - callback when parsing fails - default is bad-parse\n\t
@@ -2104,13 +2178,15 @@
   @{})
 
 (defn dofile
-  "Evaluate a file and return the resulting environment."
-  [path & args]
-  (def {:exit exit-on-error
-        :source source
-        :env env
-        :expander expander
-        :evaluator evaluator} (table ;args))
+  "Evaluate a file and return the resulting environment. :env, :expander, and
+  :evaluator are passed through to the underlying run-context call.
+  If exit is true, any top level errors will trigger a call to (os/exit 1)
+  after printing the error."
+  [path &keys
+   {:exit exit
+    :env env
+    :expander expander
+    :evaluator evaluator}]
   (def f (if (= (type path) :core/file)
            path
            (file/open path :rb)))
@@ -2122,11 +2198,11 @@
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
     (def ret (bad-parse x y))
-    (if exit-on-error (os/exit 1))
+    (if exit (os/exit 1))
     ret)
   (defn bc [&opt x y z]
     (def ret (bad-compile x y z))
-    (if exit-on-error (os/exit 1))
+    (if exit (os/exit 1))
     ret)
   (unless f
     (error (string "could not find file " path)))
@@ -2138,7 +2214,7 @@
                   :on-status (fn [f x]
                                (when (not= (fiber/status f) :dead)
                                  (debug/stacktrace f x)
-                                 (if exit-on-error (os/exit 1) (eflush))))
+                                 (if exit (os/exit 1) (eflush))))
                   :evaluator evaluator
                   :expander expander
                   :source (if path-is-file "<anonymous>" spath)}))
@@ -2199,18 +2275,171 @@
   any errors encountered at the top level in the module will cause (os/exit 1)
   to be called. Dynamic bindings will NOT be imported."
   [path & args]
-  (def argm (map (fn [x]
-                   (if (keyword? x)
-                     x
-                     (string x)))
-                 args))
+  (def argm (map |(if (keyword? $) $ (string $)) args))
   (tuple import* (string path) ;argm))
 
 (defmacro use
   "Similar to import, but imported bindings are not prefixed with a namespace
   identifier. Can also import multiple modules in one shot."
   [& modules]
-  ~(do ,;(map (fn [x] ~(,import* ,(string x) :prefix "")) modules)))
+  ~(do ,;(map |~(,import* ,(string $) :prefix "") modules)))
+
+###
+###
+### Debugger
+###
+###
+
+(defn .fiber
+  "Get the current fiber being debugged."
+  []
+  (dyn :fiber))
+
+(defn .signal
+  "Get the current signal being debugged."
+  []
+  (dyn :signal))
+
+(defn .stack
+  "Print the current fiber stack"
+  []
+  (print)
+  (with-dyns [:err-color false] (debug/stacktrace (.fiber) (.signal)))
+  (print))
+
+(defn .frame
+  "Show a stack frame"
+  [&opt n]
+  (def stack (debug/stack (.fiber)))
+  (in stack (or n 0)))
+
+(defn .fn
+  "Get the current function"
+  [&opt n]
+  (in (.frame n) :function))
+
+(defn .slots
+  "Get an array of slots in a stack frame"
+  [&opt n]
+  (in (.frame n) :slots))
+
+(defn .slot
+  "Get the value of the nth slot."
+  [&opt nth frame-idx]
+  (in (.slots frame-idx) (or nth 0)))
+
+(defn .disasm
+  "Gets the assembly for the current function."
+  [&opt n]
+  (def frame (.frame n))
+  (def func (frame :function))
+  (disasm func))
+
+(defn .bytecode
+  "Get the bytecode for the current function."
+  [&opt n]
+  ((.disasm n) 'bytecode))
+
+(defn .ppasm
+  "Pretty prints the assembly for the current function"
+  [&opt n]
+  (def frame (.frame n))
+  (def func (frame :function))
+  (def dasm (disasm func))
+  (def bytecode (dasm 'bytecode))
+  (def pc (frame :pc))
+  (def sourcemap (dasm 'sourcemap))
+  (var last-loc [-2 -2])
+  (print "\n  signal: " (.signal))
+  (print "  function:   " (dasm 'name) " [" (in dasm 'source "") "]")
+  (when-let [constants (dasm 'constants)]
+    (printf "  constants:  %.4q" constants))
+  (printf "  slots:      %.4q\n" (frame :slots))
+  (def padding (string/repeat " " 20))
+  (loop [i :range [0 (length bytecode)]
+         :let [instr (bytecode i)]]
+    (prin (if (= (tuple/type instr) :brackets) "*" " "))
+    (prin (if (= i pc) "> " "  "))
+    (prinf "%.20s" (string (string/join (map string instr) " ") padding))
+    (when sourcemap
+      (let [[sl sc] (sourcemap i)
+            loc [sl sc]]
+        (when (not= loc last-loc)
+          (set last-loc loc)
+          (prin " # line " sl ", column " sc))))
+    (print))
+  (print))
+
+(defn .source
+  "Show the source code for the function being debugged."
+  [&opt n]
+  (def frame (.frame n))
+  (def s (frame :source))
+  (def all-source (slurp s))
+  (print "\n" all-source "\n"))
+
+(defn .breakall
+  "Set breakpoints on all instructions in the current function."
+  [&opt n]
+  (def fun (.fn n))
+  (def bytecode (.bytecode n))
+  (for i 0 (length bytecode)
+    (debug/fbreak fun i))
+  (print "Set " (length bytecode) " breakpoints in " fun))
+
+(defn .clearall
+  "Clear all breakpoints on the current function."
+  [&opt n]
+  (def fun (.fn n))
+  (def bytecode (.bytecode n))
+  (for i 0 (length bytecode)
+    (debug/unfbreak fun i))
+  (print "Cleared " (length bytecode) " breakpoints in " fun))
+
+(defn .break
+  "Set breakpoint at the current pc."
+  []
+  (def frame (.frame))
+  (def fun (frame :function))
+  (def pc (frame :pc))
+  (debug/fbreak fun pc)
+  (print "Set breakpoint in " fun " at pc=" pc))
+
+(defn .clear
+  "Clear the current breakpoint"
+  []
+  (def frame (.frame))
+  (def fun (frame :function))
+  (def pc (frame :pc))
+  (debug/unfbreak fun pc)
+  (print "Cleared breakpoint in " fun " at pc=" pc))
+
+(defn .next
+  "Go to the next breakpoint."
+  [&opt n]
+  (var res nil)
+  (for i 0 (or n 1)
+    (set res (resume (.fiber))))
+  res)
+
+(defn .nextc
+  "Go to the next breakpoint, clearing the current breakpoint."
+  [&opt n]
+  (.clear)
+  (.next n))
+
+(defn .step
+  "Execute the next n instructions."
+  [&opt n]
+  (var res nil)
+  (for i 0 (or n 1)
+    (set res (debug/step (.fiber))))
+  res)
+
+(def- debugger-keys (filter (partial string/has-prefix? ".") (keys _env)))
+(def- debugger-env @{})
+(each k debugger-keys (put debugger-env k (_env k)) (put _env k nil))
+(put _env 'debugger-keys nil)
 
 ###
 ###
@@ -2226,11 +2455,15 @@
   the repl in."
   [&opt chunks onsignal env]
   (default env (make-env))
-  (default chunks (fn [buf p] (getline (string "repl:"
-                                               ((parser/where p) 0)
-                                               ":"
-                                               (parser/state p :delimiters) "> ")
-                                       buf env)))
+  (default chunks
+    (fn [buf p]
+      (getline
+        (string
+          "repl:"
+          ((parser/where p) 0)
+          ":"
+          (parser/state p :delimiters) "> ")
+        buf env)))
   (defn make-onsignal
     [e level]
 
@@ -2240,13 +2473,14 @@
       (put nextenv :fiber f)
       (put nextenv :debug-level level)
       (put nextenv :signal x)
+      (merge-into nextenv debugger-env)
       (debug/stacktrace f x)
       (eflush)
       (defn debugger-chunks [buf p]
         (def status (parser/state p :delimiters))
         (def c ((parser/where p) 0))
-        (def prompt (string "debug[" level "]:" c ":" status "> "))
-        (getline prompt buf nextenv))
+        (def prpt (string "debug[" level "]:" c ":" status "> "))
+        (getline prpt buf nextenv))
       (print "entering debug[" level "] - (quit) to exit")
       (flush)
       (repl debugger-chunks (make-onsignal nextenv (+ 1 level)) nextenv)
@@ -2265,6 +2499,8 @@
                 :chunks chunks
                 :on-status (or onsignal (make-onsignal env 1))
                 :source "repl"}))
+
+(put _env 'debugger-env nil)
 
 ###
 ###
@@ -2309,6 +2545,7 @@
   (var *handleopts* true)
   (var *exit-on-error* true)
   (var *colorize* true)
+  (var *debug* false)
   (var *compile-only* false)
 
   (if-let [jp (os/getenv "JANET_PATH")] (setdyn :syspath jp))
@@ -2324,6 +2561,7 @@
   -v : Print the version string
   -s : Use raw stdin instead of getline like functionality
   -e code : Execute a string of janet
+  -d : Set the debug flag in the repl
   -r : Enter the repl after running all scripts
   -p : Keep on executing if there is a top level error (persistent)
   -q : Hide prompt, logo, and repl output (quiet)
@@ -2356,7 +2594,8 @@
      "e" (fn [i &]
            (set *no-file* false)
            (eval-string (in args (+ i 1)))
-           2)})
+           2)
+     "d" (fn [&] (set *debug* true) 1)})
 
   (defn- dohandler [n i &]
     (def h (in handlers n))
@@ -2415,6 +2654,7 @@
       (file/flush stdout)
       (file/read stdin :line buf))
     (def env (make-env))
+    (if *debug* (put env :debug true))
     (def getter (if *raw-stdin* getstdin getline))
     (defn getchunk [buf p]
       (getter (prompter p) buf env))
@@ -2435,7 +2675,7 @@
 ###
 ###
 
-(def root-env "The root environment used to create envionments with (make-env)" _env)
+(def root-env "The root environment used to create environments with (make-env)" _env)
 
 (do
   (put _env 'boot/opts nil)
@@ -2483,9 +2723,10 @@
 
   # Create amalgamation
 
+  (def feature-header "src/core/features.h")
+
   (def local-headers
-    ["src/core/features.h"
-     "src/core/util.h"
+    ["src/core/util.h"
      "src/core/state.h"
      "src/core/gc.h"
      "src/core/vector.h"
@@ -2540,21 +2781,23 @@
   (print "/* Generated from janet version " janet/version "-" janet/build " */")
   (print "#define JANET_BUILD \"" janet/build "\"")
   (print ```#define JANET_AMALG```)
-  (print ```#define _POSIX_C_SOURCE 200112L```)
-  (print ```#include "janet.h"```)
 
-  (defn do-one-flie
+  (defn do-one-file
     [fname]
     (print "\n/* " fname " */")
     (print "#line 0 \"" fname "\"\n")
     (def source (slurp fname))
     (print (string/replace-all "\r" "" source)))
 
+  (do-one-file feature-header)
+
+  (print ```#include "janet.h"```)
+
   (each h local-headers
-    (do-one-flie h))
+    (do-one-file h))
 
   (each s core-sources
-    (do-one-flie s))
+    (do-one-file s))
 
   # Create C source file that contains images a uint8_t buffer. This
   # can be compiled and linked statically into the main janet library

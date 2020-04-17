@@ -127,7 +127,10 @@ struct JanetScope {
     /* Regsiter allocator */
     JanetcRegisterAllocator ra;
 
-    /* Referenced closure environents. The values at each index correspond
+    /* Upvalue allocator */
+    JanetcRegisterAllocator ua;
+
+    /* Referenced closure environments. The values at each index correspond
      * to which index to get the environment from in the parent. The environment
      * that corresponds to the direct parent's stack will always have value 0. */
     int32_t *envs;

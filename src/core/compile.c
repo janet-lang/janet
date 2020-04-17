@@ -102,6 +102,7 @@ void janetc_scope(JanetScope *s, JanetCompiler *c, int flags, const char *name) 
     scope.bytecode_start = janet_v_count(c->buffer);
     scope.flags = flags;
     scope.parent = c->scope;
+    janetc_regalloc_init(&scope.ua);
     /* Inherit slots */
     if ((!(flags & JANET_SCOPE_FUNCTION)) && c->scope) {
         janetc_regalloc_clone(&scope.ra, &(c->scope->ra));
@@ -149,6 +150,7 @@ void janetc_popscope(JanetCompiler *c) {
     janet_v_free(oldscope->envs);
     janet_v_free(oldscope->defs);
     janetc_regalloc_deinit(&oldscope->ra);
+    janetc_regalloc_deinit(&oldscope->ua);
     /* Update pointer */
     if (newscope)
         newscope->child = NULL;
@@ -236,6 +238,11 @@ found:
         scope = scope->parent;
     janet_assert(scope, "invalid scopes");
     scope->flags |= JANET_SCOPE_ENV;
+
+    /* In the function scope, allocate the slot as an upvalue */
+    janetc_regalloc_touch(&scope->ua, ret.index);
+
+    /* Iterate through child scopes and make sure environment is propagated */
     scope = scope->child;
 
     /* Propagate env up to current scope */
@@ -735,6 +742,21 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     def->flags = 0;
     if (scope->flags & JANET_SCOPE_ENV) {
         def->flags |= JANET_FUNCDEF_FLAG_NEEDSENV;
+    }
+
+    /* Copy upvalue bitset */
+    if (scope->ua.count) {
+        /* Number of u32s we need to create a bitmask for all slots */
+        int32_t numchunks = (def->slotcount + 31) >> 5;
+        uint32_t *chunks = malloc(sizeof(uint32_t) * numchunks);
+        if (NULL == chunks) {
+            JANET_OUT_OF_MEMORY;
+        }
+        memcpy(chunks, scope->ua.chunks, sizeof(uint32_t) * numchunks);
+        /* Register allocator preallocates some registers [240-255, high 16 bits of chunk index 7], we can ignore those. */
+        if (scope->ua.count > 7) chunks[7] &= 0xFFFFU;
+        def->closure_bitset = chunks;
+        def->flags |= JANET_FUNCDEF_FLAG_HASCLOBITSET;
     }
 
     /* Pop the scope */

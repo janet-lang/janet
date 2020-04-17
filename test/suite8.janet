@@ -126,4 +126,119 @@
 (assert (= false (match {:a 1 :b 2 :c 3} {:a a :b _ :c _ :d _} :no {:a _ :b _ :c _} false :no)) "match wildcard 6")
 (assert (= nil (match {:a 1 :b 2 :c 3} {:a a :b _ :c _ :d _} :no {:a _ :b _ :c _} nil :no)) "match wildcard 7")
 
+# Regression #301
+(def b (buffer/new-filled 128 0x78))
+(assert (= 38 (length (buffer/blit @"" b -1 90))) "buffer/blit 1")
+
+(def a @"abcdefghijklm")
+(assert (deep= @"abcde" (buffer/blit @"" a -1 0 5)) "buffer/blit 2")
+(assert (deep= @"bcde" (buffer/blit @"" a -1 1 5)) "buffer/blit 3")
+(assert (deep= @"cde" (buffer/blit @"" a -1 2 5)) "buffer/blit 4")
+(assert (deep= @"de" (buffer/blit @"" a -1 3 5)) "buffer/blit 5")
+
+# chr
+(assert (= (chr "a") 97) "chr 1")
+
+# Detaching closure over non resumable fiber.
+(do
+  (defn f1
+    [a]
+    (defn f1 [] (++ (a 0)))
+    (defn f2 [] (++ (a 0)))
+    (error [f1 f2]))
+  (def [_ [f1 f2]] (protect (f1 @[0])))
+  # At time of writing, mark phase can detach closure envs.
+  (gccollect)
+  (assert (= 1 (f1)) "detach-non-resumable-closure 1")
+  (assert (= 2 (f2)) "detach-non-resumable-closure 2"))
+
+# Marshal closure over non resumable fiber.
+(do
+  (defn f1
+    [a]
+    (defn f1 [] (++ (a 0)))
+    (defn f2 [] (++ (a 0)))
+    (error [f1 f2]))
+  (def [_ tup] (protect (f1 @[0])))
+  (def [f1 f2] (unmarshal (marshal tup make-image-dict) load-image-dict))
+  (assert (= 1 (f1)) "marshal-non-resumable-closure 1")
+  (assert (= 2 (f2)) "marshal-non-resumable-closure 2"))
+
+# Marshal closure over currently alive fiber.
+(do
+  (defn f1
+    [a]
+    (defn f1 [] (++ (a 0)))
+    (defn f2 [] (++ (a 0)))
+    (marshal [f1 f2] make-image-dict))
+  (def [f1 f2] (unmarshal (f1 @[0]) load-image-dict))
+  (assert (= 1 (f1)) "marshal-live-closure 1")
+  (assert (= 2 (f2)) "marshal-live-closure 2"))
+
+(do
+  (var a 1)
+  (defn b [x] (+ a x))
+  (def c (unmarshal (marshal b)))
+  (assert (= 2 (c 1)) "marshal-on-stack-closure 1"))
+
+# Reduce2
+
+(assert (= (reduce + 0 (range 1 10)) (reduce2 + (range 10))) "reduce2 1")
+(assert (= (reduce * 1 (range 2 10)) (reduce2 * (range 1 10))) "reduce2 2")
+(assert (= nil (reduce2 * [])) "reduce2 3")
+
+# Accumulate
+
+(assert (deep= (accumulate + 0 (range 5)) @[0 1 3 6 10]) "accumulate 1")
+(assert (deep= (accumulate2 + (range 5)) @[0 1 3 6 10]) "accumulate2 1")
+(assert (deep= @[] (accumulate2 + [])) "accumulate2 2")
+(assert (deep= @[] (accumulate 0 + [])) "accumulate 2")
+
+# Perm strings
+
+(assert (= (os/perm-int "rwxrwxrwx") 8r777) "perm 1")
+(assert (= (os/perm-int "rwxr-xr-x") 8r755) "perm 2")
+(assert (= (os/perm-int "rw-r--r--") 8r644) "perm 3")
+
+(assert (= (band (os/perm-int "rwxrwxrwx") 8r077) 8r077) "perm 4")
+(assert (= (band (os/perm-int "rwxr-xr-x") 8r077) 8r055) "perm 5")
+(assert (= (band (os/perm-int "rw-r--r--") 8r077) 8r044) "perm 6")
+
+(assert (= (os/perm-string 8r777) "rwxrwxrwx") "perm 7")
+(assert (= (os/perm-string 8r755) "rwxr-xr-x") "perm 8")
+(assert (= (os/perm-string 8r644) "rw-r--r--") "perm 9")
+
+# Issue #336 cases - don't segfault
+
+(assert-error "unmarshal errors 1" (unmarshal @"\xd6\xb9\xb9"))
+(assert-error "unmarshal errors 2" (unmarshal @"\xd7bc"))
+(assert-error "unmarshal errors 3" (unmarshal "\xd3\x01\xd9\x01\x62\xcf\x03\x78\x79\x7a" load-image-dict))
+(assert-error "unmarshal errors 4"
+              (unmarshal
+                @"\xD7\xCD\0e/p\x98\0\0\x03\x01\x01\x01\x02\0\0\x04\0\xCEe/p../tools
+\0\0\0/afl\0\0\x01\0erate\xDE\xDE\xDE\xDE\xDE\xDE\xDE\xDE\xDE\xDE
+\xA8\xDE\xDE\xDE\xDE\xDE\xDE\0\0\0\xDE\xDE_unmarshal_testcase3.ja
+neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
+\0\0\0\0\0*\xFE\x01\04\x02\0\0'\x03\0\r\0\r\0\r\0\r" load-image-dict))
+
+# No segfault, valgrind clean.
+
+(def x @"\xCC\xCD.nd\x80\0\r\x1C\xCDg!\0\x07\xCC\xCD\r\x1Ce\x10\0\r;\xCDb\x04\xFF9\xFF\x80\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04uu\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\0\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04}\x04\x04\x04\x04\x04\x04\x04\x04#\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\0\x01\0\0\x03\x04\x04\x04\xE2\x03\x04\x04\x04\x04\x04\x04\x04\x04\x04\x14\x1A\x04\x04\x04\x04\x04\x18\x04\x04!\x04\xE2\x03\x04\x04\x04\x04\x04\x04$\x04\x04\x04\x04\x04\x04\x04\x04\x04\x80\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04\x04A\0\0\0\x03\0\0!\xBF\xFF")
+(unmarshal x load-image-dict)
+(gccollect)
+(marshal x make-image-dict)
+
+(def b @"\xCC\xCD\0\x03\0\x08\x04\rm\xCD\x7F\xFF\xFF\xFF\x02\0\x02\xD7\xCD\0\x98\0\0\x05\x01\x01\x01\x01\x08\xCE\x01f\xCE../tools/afl/generate_unmarshal_testcases.janet\xCE\x012,\x01\0\0&\x03\0\06\x02\x03\x03)\x03\x01\0*\x04\0\00\x03\x04\0>\x03\0\0\x03\x03\0\0*\x05\0\x11\0\x11\0\x05\0\x05\0\x05\0\x05\0\x05\xC9\xDA\x04\xC9\xC9\xC9")
+(unmarshal b load-image-dict)
+(gccollect)
+
+(def v (unmarshal
+  @"\xD7\xCD0\xD4000000\0\x03\x01\xCE\00\0\x01\0\0000\x03\0\0\0000000000\xCC0\0000"
+  load-image-dict))
+(gccollect)
+
+# in vs get regression
+(assert (nil? (first @"")) "in vs get 1")
+(assert (nil? (last @"")) "in vs get 1")
+
 (end-suite)

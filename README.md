@@ -2,26 +2,28 @@
 &nbsp;
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/bjraxrxexmt3sxyv/branch/master?svg=true)](https://ci.appveyor.com/project/bakpakin/janet/branch/master)
 [![Build Status](https://travis-ci.org/janet-lang/janet.svg?branch=master)](https://travis-ci.org/janet-lang/janet)
-[![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/.freebsd.yaml.svg)](https://builds.sr.ht/~bakpakin/janet/.freebsd.yaml?)
-[![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/.openbsd.yaml.svg)](https://builds.sr.ht/~bakpakin/janet/.openbsd.yaml?)
+[![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/freebsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/freebsd.yml?)
+[![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/openbsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/openbsd.yml?)
 
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
 **Janet** is a functional and imperative programming language and bytecode interpreter. It is a
 modern lisp, but lists are replaced
-by other data structures with better utility and performance (arrays, tables, structs, tuples).
+by other data structures (arrays, tables (hash table), struct (immutable hash table), tuples).
 The language also supports bridging to native code written in C, meta-programming with macros, and bytecode assembly.
 
 There is a repl for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
-janet can be embedded into other programs. Try janet in your browser at
+Janet can be embedded into other programs. Try Janet in your browser at
 [https://janet-lang.org](https://janet-lang.org).
 
 <br>
 
 ## Use Cases
 
-Janet makes a good system scripting language, or a language to embed in other programs, like Lua or Guile.
+Janet makes a good system scripting language, or a language to embed in other programs.
+It's like Lua and Guile in that regard. It has more built-in functionality and a richer core language than
+Lua, but smaller than GNU Guile or Python.
 
 ## Features
 
@@ -43,7 +45,7 @@ Janet makes a good system scripting language, or a language to embed in other pr
 * Imperative programming as well as functional
 * REPL
 * Parsing Expression Grammars built in to the core library
-* 300+ functions and macros in the core library
+* 400+ functions and macros in the core library
 * Embedding Janet in other programs
 * Interactive environment with detailed stack traces
 

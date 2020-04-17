@@ -1,3 +1,6 @@
+# This file is invoked by build_win.bat
+# Relevant configuration variables are set there.
+
 Unicode True
 
 !echo "Program Files: ${PROGRAMFILES}"
@@ -20,6 +23,9 @@ VIFileVersion "${PRODUCT_VERSION}"
 
 !if ${SIXTYFOUR} == "true"
     !define MULTIUSER_USE_PROGRAMFILES64
+    !define PLATNAME "x64"
+!else
+    !define PLATNAME "x86"
 !endif
 
 # Includes
@@ -36,12 +42,12 @@ Name "Janet"
 !define DOLLAR "$"
 !ifdef CHECK_${DOLLAR}%APPVEYOR_REPO_TAG_NAME%
     # We are not in the appveyor environment, use version name
-    !define OUTNAME_PART v${VERSION}
+    !define OUTNAME_PART ${VERSION}
 !else
     # We are in appveyor, use git tag name for installer
     !define OUTNAME_PART ${OUTNAME}
 !endif
-OutFile "janet-${OUTNAME_PART}-windows-installer.exe"
+OutFile "janet-${OUTNAME_PART}-windows-${PLATNAME}-installer.exe"
 
 # Some Configuration
 !define APPNAME "Janet"

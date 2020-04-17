@@ -1,9 +1,40 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## Unreleased - ???
+- Fix bug in `getline`.
+- Add `sh-rule` and `sh-phony` to jpm's dialect of Janet.
+- Change C api's `janet_formatb` -> `janet_formatbv`.
+- Add C `janet_formatb` to C api.
+- Add `edefer` macro to core.
+- A struct/table literal/constructor with duplicate keys will use the last value given.
+  Previously, this was inconsistent between tables and structs, literals and constructor functions.
+- Add debugger to core. The debugger functions are only available
+  in a debug repl, and are prefixed by a `.`.
+- Add `sort-by` and `sorted-by` to core.
+- Support UTF-8 escapes in strings via `\uXXXX` or `\UXXXXXX`.
+- Add `math/erf`
+- Add `math/erfc`
+- Add `math/log1p`
+- Add `math/next`
+- Add os/umask
+- Add os/perm-int
+- Add os/perm-string
+- Add :octal-permissions option for os/stat.
+- Add `jpm repl` subcommand, as well as `post-deps` macro in project.janet files.
+
+## 1.8.1 - 2020-03-31
+- Fix bugs for big endian systems
+- Fix 1.8.0 regression on BSDs
+
+## 1.8.0 - 2020-03-29
+- Add `reduce2`, `accumulate`, and `accumulate2`.
+- Add lockfiles to `jpm` via `jpm make-lockfile` and `jpm load-lockfile`.
+- Add `os/realpath` (Not supported on windows).
+- Add `os/chmod`.
+- Add `chr` macro.
 - Allow `_` in the `match` macro to match anything without creating a binding
-  or doing unification.
+  or doing unification. Also change behavior of matching nil.
 - Add `:range-to` and `:down-to` verbs in the `loop` macro.
 - Fix `and` and `or` macros returning nil instead of false in some cases.
 - Allow matching successfully against nil values in the `match` macro.
@@ -17,7 +48,8 @@ All notable changes to this project will be documented in this file.
 - Correct arity for `marshal`
 - Add `flush` and `eflush`
 - Add `prompt` and `return` on top of signal for user friendly delimited continuations.
-- Fix possible segfault with malformed pegs.
+- Fix bug in buffer/blit when using the offset-src argument.
+- Fix segfault with malformed pegs.
 
 ## 1.7.0 - 2020-02-01
 - Remove `file/fileno` and `file/fdopen`.

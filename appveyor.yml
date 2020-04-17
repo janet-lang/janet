@@ -30,7 +30,7 @@ install:
     - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" %platform%
     - build_win test-install
     - set janet_outname=%appveyor_repo_tag_name%
-    - if "%janet_outname%"=="" set janet_outname=v1.7.1
+    - if "%janet_outname%"=="" set /P janet_outname=<build\version.txt
 build: off
 
 artifacts:
@@ -49,8 +49,7 @@ artifacts:
     - name: "janet-$(janet_outname)-windows-%platform%"
       path: dist
       type: Zip
-    - path: "janet-$(janet_outname)-windows-installer.exe"
-      name: "janet-$(janet_outname)-windows-%platform%-installer.exe"
+    - path: "janet-$(janet_outname)-windows-%platform%-installer.exe"
       type: File
 
 deploy:

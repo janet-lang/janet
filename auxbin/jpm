@@ -34,7 +34,7 @@
 (defmacro rule
   "Add a rule to the rule graph."
   [target deps & body]
-  ~(,rule-impl ,target ,deps (fn [] nil ,;body)))
+  ~(,rule-impl ,target ,deps (fn [] ,;body)))
 
 (defmacro phony
   "Add a phony rule to the rule graph. A phony rule will run every time
@@ -42,6 +42,16 @@
   user facing tasks."
   [target deps & body]
   ~(,rule-impl ,target ,deps (fn [] nil ,;body) true))
+
+(defmacro sh-rule
+  "Add a rule that invokes a shell command, and fails if the command returns non-zero."
+  [target deps & body]
+  ~(,rule-impl ,target ,deps (fn [] (,assert (,zero? (,os/shell (,string ,;body)))))))
+
+(defmacro sh-phony
+  "Add a phony rule that invokes a shell command, and fails if the command returns non-zero."
+  [target deps & body]
+  ~(,rule-impl ,target ,deps (fn [] (,assert (,zero? (,os/shell (,string ,;body))))) true))
 
 (defn add-dep
   "Add a dependency to an existing rule. Useful for extending phony
@@ -177,24 +187,46 @@
   [into x]
   (when x
     (proto-flatten into (table/getproto x))
-    (loop [k :keys x]
-      (put into k (x k))))
+    (merge-into into x))
   into)
 
-(defn import-rules
-  "Import another file that defines more rules. This ruleset
-  is merged into the current ruleset."
-  [path]
+(defn make-jpm-env
+  "Build an environment table with jpm functions preloaded."
+  [&opt no-deps]
   (def env (make-env))
-  (unless (os/stat path :mode)
-    (error (string "cannot open " path)))
+  (put env :jpm-no-deps no-deps)
   (loop [k :keys _env :when (symbol? k)]
      (unless ((_env k) :private) (put env k (_env k))))
+  env)
+
+(defn require-jpm
+  "Require a jpm file project file. This is different from a normal require
+  in that code is loaded in the jpm environment."
+  [path &opt no-deps]
+  (unless (os/stat path :mode)
+    (error (string "cannot open " path)))
+  (def env (make-jpm-env no-deps))
   (def currenv (proto-flatten @{} (fiber/getenv (fiber/current))))
   (loop [k :keys currenv :when (keyword? k)]
     (put env k (currenv k)))
   (dofile path :env env :exit true)
-  (when-let [rules (env :rules)] (merge-into (getrules) rules)))
+  env)
+
+(defn import-rules
+  "Import another file that defines more rules. This ruleset
+  is merged into the current ruleset."
+  [path &opt no-deps]
+  (def env (require-jpm path no-deps))
+  (when-let [rules (env :rules)] (merge-into (getrules) rules))
+  env)
+
+(defmacro post-deps
+  "Run code at the top level if jpm dependencies are installed. Build
+  code that imports dependencies should be wrapped with this macro, as project.janet
+  needs to be able to run successfully even without dependencies installed."
+  [& body]
+  (unless (dyn :jpm-no-deps)
+    ~',(reduce |(eval $1) nil body)))
 
 #
 # OS and shell helpers
@@ -251,11 +283,7 @@
   If we can't create it, give a friendly error. Return true if created, false if
   existing. Throw an error if we can't create it."
   [dir]
-  (if (os/mkdir dir)
-    true
-    (if (os/stat dir :mode)
-      false
-      (error (string "Could not create " dir " - this could be a permission issue.")))))
+  (os/mkdir dir))
 
 #
 # C Compilation
@@ -557,6 +585,15 @@ int main(int argc, const char **argv) {
 # Public utilities
 #
 
+(defn parse
+  "Read a string of Janet source and parse out the first expression."
+  [src]
+  (let [p (parser/new)]
+    (:consume p src)
+    (if (= :error (:status p))
+      (error (string "Could not parse: " (parser/error p))))
+    (:produce p)))
+
 (defn find-manifest-dir
   "Get the path to the directory containing manifests for installed
   packages."
@@ -566,7 +603,7 @@ int main(int argc, const char **argv) {
 (defn find-manifest
   "Get the full path of a manifest file given a package name."
   [name]
-  (string (find-manifest-dir) sep name ".txt"))
+  (string (find-manifest-dir) sep name ".jdn"))
 
 (defn find-cache
   "Return the path to the global cache."
@@ -578,17 +615,14 @@ int main(int argc, const char **argv) {
   "Uninstall bundle named name"
   [name]
   (def manifest (find-manifest name))
-  (def f (file/open manifest :r))
-  (unless f (print manifest " does not exist") (break))
-  (loop [line :iterate (:read f :line)]
-    (def path ((string/split "\n" line) 0))
-    (def path ((string/split "\r" path) 0))
-    (print "removing " path)
-    (rm path))
-  (:close f)
-  (print "removing " manifest)
-  (rm manifest)
-  (print "Uninstalled."))
+  (when-with [f (file/open manifest)]
+    (def man (parse (:read f :all)))
+    (each path (get man :paths [])
+      (print "removing " path)
+      (rm path))
+    (print "removing " manifest)
+    (rm manifest)
+    (print "Uninstalled.")))
 
 (defn- rimraf
   "Hard delete directory tree"
@@ -610,7 +644,7 @@ int main(int argc, const char **argv) {
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle
    is reinistalled (but not rebuilt if artifacts are cached)."
-  [repotab &opt recurse]
+  [repotab &opt recurse no-deps]
   (def repo (if (string? repotab) repotab (repotab :repo)))
   (def tag (unless (string? repotab) (repotab :tag)))
   # prevent infinite recursion (very unlikely, but consider
@@ -655,7 +689,7 @@ int main(int argc, const char **argv) {
         (os/execute ["git" "reset" "--hard" tag] :p))
       (os/execute ["git" "submodule" "update" "--init" "--recursive"] :p)
       (import-rules "./project.janet")
-      (do-rule "install-deps")
+      (unless no-deps (do-rule "install-deps"))
       (do-rule "build")
       (do-rule "install"))
     ([err] (print "Error building git repository dependency: " err)))
@@ -671,6 +705,49 @@ int main(int argc, const char **argv) {
   (add-body "install"
             (mkdir destdir)
             (copy src destdir)))
+
+(defn- pslurp
+  "Like slurp, but with file/popen instead file/open. Also trims output"
+  [cmd]
+  (string/trim (with [f (file/popen cmd)] (:read f :all))))
+
+(defn- make-lockfile
+  [&opt filename]
+  (default filename "lockfile.janet")
+  (def cwd (os/cwd))
+  (def packages @[])
+  # Read installed modules from manifests
+  (def mdir (find-manifest-dir))
+  (each man (os/dir mdir)
+    (def package (parse (slurp (string mdir sep man))))
+    (if (and (dictionary? package) (package :repo) (package :sha))
+      (array/push packages package)
+      (print "Cannot add local or malformed package " mdir sep man " to lockfile, skipping...")))
+  # Put in correct order, such that a package is preceded by all of its dependencies
+  (def ordered-packages @[])
+  (def resolved @{})
+  (while (< (length ordered-packages) (length packages))
+    (var made-progress false)
+    (each p packages
+      (def {:repo r :sha s :dependencies d} p)
+      (def dep-urls (map |(if (string? $) $ ($ :repo)) d))
+      (unless (resolved r)
+        (when (all resolved dep-urls)
+          (array/push ordered-packages {:repo r :sha s})
+          (set made-progress true)
+          (put resolved r true))))
+    (unless made-progress
+      (error (string/format "could not resolve package order for: %j"
+                            (filter (complement resolved) (map |($ :repo) packages))))))
+  # Write to file
+  (with [f (file/open filename :w)] (with-dyns [:out f] (printf "%j" ordered-packages))))
+
+(defn- load-lockfile
+  [&opt filename]
+  (default filename "lockfile.janet")
+  (def lockarray (parse (slurp filename)))
+  (each {:repo url :sha sha} lockarray
+    (install-git {:repo url :tag sha} nil true)))
 
 #
 # Declaring Artifacts - used in project.janet, targets specifically
@@ -756,13 +833,15 @@ int main(int argc, const char **argv) {
   is marshalled into bytecode which is then embedded in a final executable for distribution.\n\n
   This executable can be installed as well to the --binpath given."
   [&keys {:install install :name name :entry entry :headers headers
-          :cflags cflags :lflags lflags}]
+          :cflags cflags :lflags lflags :deps deps}]
   (def name (if is-win (string name ".exe") name))
   (def dest (string "build" sep name))
   (create-executable @{:cflags cflags :lflags lflags} entry dest)
   (add-dep "build" dest)
   (when headers
     (each h headers (add-dep dest h)))
+  (when deps
+    (each d deps (add-dep dest d)))
   (when install
     (install-rule dest (dyn :binpath JANET_BINPATH))))
 
@@ -817,7 +896,15 @@ int main(int argc, const char **argv) {
   (phony "manifest" []
          (print "generating " manifest "...")
          (mkdir manifests)
-         (spit manifest (string (string/join installed-files "\n") "\n")))
+         (def sha (pslurp "git rev-parse HEAD"))
+         (def url (pslurp "git remote get-url origin"))
+         (def man
+           {:sha (if-not (empty? sha) sha)
+            :repo (if-not (empty? url) url)
+            :dependencies (array/slice (get meta :dependencies []))
+            :paths installed-files})
+         (spit manifest (string/format "%j\n" man)))
+
   (phony "install" ["uninstall" "build" "manifest"]
          (when (dyn :test)
            (do-rule "test"))
@@ -861,8 +948,8 @@ int main(int argc, const char **argv) {
     '(* "--" '(some (if-not "=" 1)) (+ (* "=" '(any 1)) -1))))
 
 (defn- local-rule
-  [rule]
-  (import-rules "./project.janet")
+  [rule &opt no-deps]
+  (import-rules "./project.janet" no-deps)
   (do-rule rule))
 
 (defn- help
@@ -891,6 +978,14 @@ Subcommands are:
   rules : list rules available with run.
   update-pkgs : Update the current package listing from the remote git repository selected.
   quickbin entry executable : Create an executable from a janet script with a main function.
+  make-lockfile (lockfile) : Create a lockfile based on repositories in the cache. The
+            lockfile will record the exact versions of dependencies used to ensure a reproducible
+            build. Lockfiles are best used with applications, not libraries. The default lockfile
+            name is lockfile.janet.
+  load-lockfile (lockfile) : Install modules from a lockfile in a reproducible way. The
+                             default lockfile name is lockfile.janet.
+  repl : Run a repl in the context of the current project.janet file. This lets you run rules and
+         otherwise debug the current project.janet file.
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath)
@@ -904,15 +999,16 @@ Keys are:
   --pkglist : URL of git repository for package listing. Defaults to $JANET_PKGLIST or https://github.com/janet-lang/pkgs.git
 
 Flags are:
+  --nocolor : Disable color in the jpm repl.
   --verbose : Print shell commands as they are executed.
   --test : If passed to jpm install, runs tests before installing. Will run tests recursively on dependencies.
     `))
 
-(defn- show-help
+(defn show-help
   []
   (print help))
 
-(defn- show-paths
+(defn show-paths
   []
   (print "binpath:    " (dyn :binpath JANET_BINPATH))
   (print "modpath:    " (dyn :modpath JANET_MODPATH))
@@ -920,21 +1016,21 @@ Flags are:
   (print "headerpath: " (dyn :headerpath JANET_HEADERPATH))
   (print "syspath:    " (dyn :syspath)))
 
-(defn- build
+(defn build
   []
   (local-rule "build"))
 
-(defn- clean
+(defn clean
   []
   (local-rule "clean"))
 
-(defn- install
+(defn install
   [&opt repo]
   (if repo
     (install-git repo)
     (local-rule "install")))
 
-(defn- test
+(defn test
   []
   (local-rule "test"))
 
@@ -944,24 +1040,45 @@ Flags are:
     (uninstall what)
     (local-rule "uninstall")))
 
-(defn- deps
+(defn deps
   []
-  (local-rule "install-deps"))
+  (local-rule "install-deps" true))
 
-(defn- list-rules
-  []
-  (import-rules "./project.janet")
+(defn list-rules
+  [&opt ctx]
+  (import-rules "./project.janet" true)
   (def ks (sort (seq [k :keys (dyn :rules)] k)))
   (each k ks (print k)))
 
-(defn- update-pkgs
+(defn update-pkgs
   []
   (install-git (dyn :pkglist default-pkglist)))
 
-(defn- quickbin
+(defn quickbin
   [input output]
   (create-executable @{} input output)
   (do-rule output))
+
+(defn jpm-repl
+  []
+  (def env
+    (try
+      (require-jpm "./project.janet")
+    ([err f]
+     (if (= "cannot open ./project.janet" err)
+       (put (make-jpm-env) :project {})
+       (propagate err f)))))
+  (setdyn :pretty-format (if-not (dyn :nocolor) "%.20Q" "%.20q"))
+  (setdyn :err-color (if-not (dyn :nocolor) true))
+  (def p (env :project))
+  (def name (p :name))
+  (if name (print "Project:     " name))
+  (if-let [r (p :repo)] (print "Repository:  " r))
+  (if-let [a (p :author)] (print "Author:      " a))
+  (defn getchunk [buf p]
+    (def [line] (parser/where p))
+    (getline (string "jpm[" (or name "repl") "]:" line ":" (parser/state p :delimiters) "> ") buf env))
+  (repl getchunk nil env))
 
 (def- subcommands
   {"build" build
@@ -971,12 +1088,15 @@ Flags are:
    "test" test
    "help" help
    "deps" deps
+   "repl" jpm-repl
    "show-paths" show-paths
    "clear-cache" clear-cache
    "run" local-rule
    "rules" list-rules
    "update-pkgs" update-pkgs
    "uninstall" uninstall-cmd
+   "make-lockfile" make-lockfile
+   "load-lockfile" load-lockfile
    "quickbin" quickbin})
 
 (def- args (tuple/slice (dyn :args) 1))

@@ -206,6 +206,10 @@
 (def 🐮 :cow)
 (assert (= (string "🐼" 🦊 🐮) "🐼foxcow") "emojis 🙉 :)")
 (assert (not= 🦊 "🦊") "utf8 strings are not symbols and vice versa")
+(assert (= "\U01F637" "😷") "unicode escape 1")
+(assert (= "\u2623" "\U002623" "☣") "unicode escape 2")
+(assert (= "\u24c2" "\U0024c2" "Ⓜ") "unicode escape 3")
+(assert (= "\u0061" "a") "unicode escape 4")
 
 # Symbols with @ character
 
@@ -249,6 +253,11 @@
 (assert (apply <= (merge @[1 2 3] @[4 5 6])) "merge sort merge 2")
 (assert (apply <= (merge @[1 3 5] @[2 4 6 6 6 9])) "merge sort merge 3")
 (assert (apply <= (merge '(1 3 5) @[2 4 6 6 6 9])) "merge sort merge 4")
+
+(assert (deep= @[1 2 3 4 5] (sort @[5 3 4 1 2])) "sort 1")
+(assert (deep= @[{:a 1} {:a 4} {:a 7}] (sort-by |($ :a) @[{:a 4} {:a 7} {:a 1}])) "sort 2")
+(assert (deep= @[1 2 3 4 5] (sorted [5 3 4 1 2])) "sort 3")
+(assert (deep= @[{:a 1} {:a 4} {:a 7}] (sorted-by |($ :a) [{:a 4} {:a 7} {:a 1}])) "sort 4")
 
 # Gensym tests
 
@@ -318,6 +327,12 @@
 
 (assert (= true ;(map truthy? [0 "" true @{} {} [] '()])) "truthy values")
 (assert (= false ;(map truthy? [nil false])) "non-truthy values")
+
+# Struct and Table duplicate elements
+(assert (= {:a 3 :b 2} {:a 1 :b 2 :a 3}) "struct literal duplicate keys")
+(assert (= {:a 3 :b 2} (struct :a 1 :b 2 :a 3)) "struct constructor duplicate keys")
+(assert (deep= @{:a 3 :b 2} @{:a 1 :b 2 :a 3}) "table literal duplicate keys")
+(assert (deep= @{:a 3 :b 2} (table :a 1 :b 2 :a 3)) "table constructor duplicate keys")
 
 (end-suite)
 

@@ -131,7 +131,7 @@ exit /b 0
 @rem Run the installer. (Installs to the local user with default settings)
 :INSTALL
 @echo Running Installer...
-FOR %%a in (janet-*-windows-installer.exe) DO (
+FOR %%a in (janet-*-windows-*-installer.exe) DO (
     %%a /S /CurrentUser
 )
 exit /b 0
