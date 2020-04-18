@@ -418,7 +418,7 @@ static void janet_loop1(void) {
     for (int i = 0; i < janet_vm_loop_count;) {
         int revents = janet_vm_pollfds[i].revents;
         janet_vm_pollfds[i].revents = 0;
-        if ((janet_vm_pollfds[i].events | POLLHUP | POLLER) & revents) {
+        if ((janet_vm_pollfds[i].events | POLLHUP | POLLERR) & revents) {
             size_t delta = janet_loop_event(i);
             i += (int) delta;
         } else {
