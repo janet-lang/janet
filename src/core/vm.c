@@ -1444,4 +1444,7 @@ void janet_deinit(void) {
 #ifdef JANET_THREADS
     janet_threads_deinit();
 #endif
+#ifdef JANET_NET
+    janet_net_deinit();
+#endif
 }
