@@ -32,7 +32,7 @@
 #include <sys/fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/select.h>
+#include <poll.h>
 #include <netdb.h>
 
 /*
@@ -139,6 +139,7 @@ typedef struct {
 #define JANET_LOOPFD_MAX 1024
 
 /* Global loop data */
+JANET_THREAD_LOCAL struct pollfd janet_vm_pollfds[JANET_LOOPFD_MAX];
 JANET_THREAD_LOCAL JanetLoopFD janet_vm_loopfds[JANET_LOOPFD_MAX];
 JANET_THREAD_LOCAL int janet_vm_loop_count;
 
@@ -172,14 +173,24 @@ void janet_net_markloop(void) {
 }
 
 /* Add a loop fd to the global event loop */
-static int janet_loop_schedule(JanetLoopFD lfd) {
+static int janet_loop_schedule(JanetLoopFD lfd, short events) {
     if (janet_vm_loop_count == JANET_LOOPFD_MAX) {
         return -1;
     }
-    int index = janet_vm_loop_count;
-    janet_vm_loopfds[janet_vm_loop_count++] = lfd;
+    int index = janet_vm_loop_count++;
+    janet_vm_loopfds[index] = lfd;
+    janet_vm_pollfds[index].fd = lfd.stream->fd;
+    janet_vm_pollfds[index].events = events;
+    janet_vm_pollfds[index].revents = 0;
     return index;
 }
+
+/* Remove event from list */
+static void janet_loop_rmindex(int index) {
+    janet_vm_loopfds[index] = janet_vm_loopfds[--janet_vm_loop_count];
+    janet_vm_pollfds[index] = janet_vm_pollfds[janet_vm_loop_count];
+}
+
 
 /* Return delta in number of loop fds. Abstracted out so
  * we can separate out the polling logic */
@@ -315,37 +326,30 @@ static size_t janet_loop_event(size_t index) {
     }
 
     /* Remove this handler from the handler pool. */
-    if (should_resume) {
-        janet_vm_loopfds[index] = janet_vm_loopfds[--janet_vm_loop_count];
-    }
+    if (should_resume) janet_loop_rmindex(index);
 
     return ret;
 }
 
 static void janet_loop1(void) {
-    /* Set up fd_sets */
-    fd_set readfds;
-    fd_set writefds;
-    FD_ZERO(&readfds);
-    FD_ZERO(&writefds);
-    int fd_max = 0;
-    for (int i = 0; i < janet_vm_loop_count; i++) {
-        JanetLoopFD *jlfd = janet_vm_loopfds + i;
-        int fd = jlfd->stream->fd;
-        if (fd > fd_max) fd_max = fd;
-        fd_set *set = (jlfd->event_type <= JLE_READ_ACCEPT) ? &readfds : &writefds;
-        FD_SET(fd, set);
-    }
-
-    /* Blocking call - we should add timeout functionality */
-    select(fd_max + 1, &readfds, &writefds, NULL, NULL);
-
-    /* Now handle all events */
+    /* Remove closed file descriptors */
     for (int i = 0; i < janet_vm_loop_count;) {
-        JanetLoopFD *jlfd = janet_vm_loopfds + i;
-        int fd = jlfd->stream->fd;
-        fd_set *set = (jlfd->event_type <= JLE_READ_ACCEPT) ? &readfds : &writefds;
-        if (FD_ISSET(fd, set)) {
+        if (janet_vm_loopfds[i].stream->flags & JANET_STREAM_CLOSED) {
+            janet_loop_rmindex(i);
+        } else {
+            i++;
+        }
+    }
+    /* Poll */
+    if (janet_vm_loop_count == 0) return;
+    int ready;
+    do {
+        ready = poll(janet_vm_pollfds, janet_vm_loop_count, -1);
+    } while (ready == -1 && errno == EAGAIN);
+    if (ready == -1) return;
+    /* Handle events */
+    for (int i = 0; i < janet_vm_loop_count;) {
+        if (janet_vm_pollfds[i].events & janet_vm_pollfds[i].revents) {
             size_t delta = janet_loop_event(i);
             i += delta;
         } else {
@@ -373,7 +377,7 @@ JANET_NO_RETURN static void janet_sched_read(JanetStream *stream, JanetBuffer *b
     lfd.event_type = (flags & JANET_SCHED_FSOME) ? JLE_READ_SOME : JLE_READ_CHUNK;
     lfd.data.read_chunk.buf = buf;
     lfd.data.read_chunk.bytes_left = nbytes;
-    janet_loop_schedule(lfd);
+    janet_loop_schedule(lfd, POLLIN);
     janet_signalv(JANET_SIGNAL_EVENT, janet_wrap_nil());
 }
 
@@ -384,7 +388,7 @@ JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetB
     lfd.event_type = JLE_WRITE_FROM_BUFFER;
     lfd.data.write_from_buffer.buf = buf;
     lfd.data.write_from_buffer.start = 0;
-    janet_loop_schedule(lfd);
+    janet_loop_schedule(lfd, POLLOUT);
     janet_signalv(JANET_SIGNAL_EVENT, janet_wrap_nil());
 }
 
@@ -395,7 +399,7 @@ JANET_NO_RETURN static void janet_sched_write_stringlike(JanetStream *stream, co
     lfd.event_type = JLE_WRITE_FROM_STRINGLIKE;
     lfd.data.write_from_stringlike.str = str;
     lfd.data.write_from_stringlike.start = 0;
-    janet_loop_schedule(lfd);
+    janet_loop_schedule(lfd, POLLOUT);
     janet_signalv(JANET_SIGNAL_EVENT, janet_wrap_nil());
 }
 
@@ -461,6 +465,19 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     for (rp = ai; rp != NULL; rp = rp->ai_next) {
         sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (sfd == -1) continue;
+        /* Set various socket options */
+        int enable = 1;
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+            close(sfd);
+            janet_panic("setsockopt(SO_REUSEADDR) failed");
+        }
+#ifdef SO_REUSEPORT
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
+            close(sfd);
+            janet_panic("setsockopt(SO_REUSEPORT) failed");
+        }
+#endif
+        /* Bind */
         if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0) break;
         close(sfd);
     }
@@ -487,7 +504,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     lfd.stream = make_stream(sfd, 0);
     lfd.event_type = JLE_READ_ACCEPT;
     lfd.data.read_accept.handler = fun;
-    janet_loop_schedule(lfd);
+    janet_loop_schedule(lfd, POLLIN);
 
     return janet_wrap_abstract(lfd.stream);
 }
