@@ -500,10 +500,15 @@ static Janet janet_core_signal(int32_t argc, Janet *argv) {
         sig = JANET_SIGNAL_USER0 + s;
     } else {
         JanetKeyword kw = janet_getkeyword(argv, 0);
-        if (!janet_cstrcmp(kw, "yield")) sig = JANET_SIGNAL_YIELD;
-        if (!janet_cstrcmp(kw, "error")) sig = JANET_SIGNAL_ERROR;
-        if (!janet_cstrcmp(kw, "debug")) sig = JANET_SIGNAL_DEBUG;
-        janet_panicf("unknown signal, expected :yield, :error, or :debug, got %v", argv[0]);
+        if (!janet_cstrcmp(kw, "yield")) {
+            sig = JANET_SIGNAL_YIELD;
+        } else if (!janet_cstrcmp(kw, "error")) {
+            sig = JANET_SIGNAL_ERROR;
+        } else if (!janet_cstrcmp(kw, "debug")) {
+            sig = JANET_SIGNAL_DEBUG;
+        } else {
+            janet_panicf("unknown signal, expected :yield, :error, or :debug, got %v", argv[0]);
+        }
     }
     Janet payload = argc == 2 ? argv[1] : janet_wrap_nil();
     janet_signalv(sig, payload);

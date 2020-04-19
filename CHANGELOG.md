@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Allow sending pointers and C functions across threads via `thread/send`.
 - Fix bug in `getline`.
 - Add `sh-rule` and `sh-phony` to jpm's dialect of Janet.
 - Change C api's `janet_formatb` -> `janet_formatbv`.
@@ -22,6 +23,7 @@ All notable changes to this project will be documented in this file.
 - Add os/perm-string
 - Add :octal-permissions option for os/stat.
 - Add `jpm repl` subcommand, as well as `post-deps` macro in project.janet files.
+- Various bug fixes.
 
 ## 1.8.1 - 2020-03-31
 - Fix bugs for big endian systems

@@ -61,7 +61,9 @@ enum {
     LB_ABSTRACT, /* 217 */
     LB_REFERENCE, /* 218 */
     LB_FUNCENV_REF, /* 219 */
-    LB_FUNCDEF_REF /* 220 */
+    LB_FUNCDEF_REF, /* 220 */
+    LB_UNSAFE_CFUNCTION, /* 221 */
+    LB_UNSAFE_POINTER /* 222 */
 } LeadBytes;
 
 /* Helper to look inside an entry in an environment */
@@ -563,9 +565,25 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             marshal_one_fiber(st, janet_unwrap_fiber(x), flags + 1);
             return;
         }
+        case JANET_CFUNCTION: {
+            if (!(flags & JANET_MARSHAL_UNSAFE)) goto no_registry;
+            MARK_SEEN();
+            pushbyte(st, LB_UNSAFE_CFUNCTION);
+            JanetCFunction cfn = janet_unwrap_cfunction(x);
+            pushbytes(st, (uint8_t *) &cfn, sizeof(JanetCFunction));
+            return;
+        }
+        case JANET_POINTER: {
+            if (!(flags & JANET_MARSHAL_UNSAFE)) goto no_registry;
+            MARK_SEEN();
+            pushbyte(st, LB_UNSAFE_POINTER);
+            void *ptr = janet_unwrap_pointer(x);
+            pushbytes(st, (uint8_t *) &ptr, sizeof(void *));
+            return;
+        }
+    no_registry:
         default: {
             janet_panicf("no registry value and cannot marshal %p", x);
-            return;
         }
     }
 #undef MARK_SEEN
@@ -1291,6 +1309,42 @@ static const uint8_t *unmarshal_one(
                     janet_table_put(t, key, value);
                 }
             }
+            return data;
+        }
+        case LB_UNSAFE_POINTER: {
+            MARSH_EOS(st, data + sizeof(void *));
+            data++;
+            if (!(flags & JANET_MARSHAL_UNSAFE)) {
+                janet_panicf("unsafe flag not given, "
+                             "will not unmarshal raw pointer at index %d",
+                             (int)(data - st->start));
+            }
+            union {
+                void *ptr;
+                uint8_t bytes[sizeof(void *)];
+            } u;
+            memcpy(u.bytes, data, sizeof(void *));
+            data += sizeof(void *);
+            *out = janet_wrap_pointer(u.ptr);
+            janet_v_push(st->lookup, *out);
+            return data;
+        }
+        case LB_UNSAFE_CFUNCTION: {
+            MARSH_EOS(st, data + sizeof(JanetCFunction));
+            data++;
+            if (!(flags & JANET_MARSHAL_UNSAFE)) {
+                janet_panicf("unsafe flag not given, "
+                             "will not unmarshal function pointer at index %d",
+                             (int)(data - st->start));
+            }
+            union {
+                JanetCFunction ptr;
+                uint8_t bytes[sizeof(JanetCFunction)];
+            } u;
+            memcpy(u.bytes, data, sizeof(JanetCFunction));
+            data += sizeof(JanetCFunction);
+            *out = janet_wrap_cfunction(u.ptr);
+            janet_v_push(st->lookup, *out);
             return data;
         }
         default: {
