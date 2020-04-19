@@ -2101,7 +2101,7 @@
   [ext loader]
   (defn- find-prefix
     [pre]
-    (or (find-index |(string/has-prefix? pre ($ 0)) module/paths) 0))
+    (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) module/paths) 0))
   (array/insert module/paths 0 [(string ":cur:/:all:" ext) loader check-.])
   (def all-index (find-prefix ":all:"))
   (array/insert module/paths all-index [(string ":all:" ext) loader not-check-.])
@@ -2184,6 +2184,7 @@
   [path &keys
    {:exit exit
     :env env
+    :source src
     :expander expander
     :evaluator evaluator}]
   (def f (if (= (type path) :core/file)
@@ -2192,8 +2193,8 @@
   (def path-is-file (= f path))
   (default env (make-env))
   (def spath (string path))
-  (put env :current-file (if-not path-is-file spath))
-  (put env :source (if-not path-is-file spath path))
+  (put env :current-file (or src (if-not path-is-file spath)))
+  (put env :source (or src (if-not path-is-file spath path)))
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
     (def ret (bad-parse x y))
@@ -2216,7 +2217,7 @@
                                  (if exit (os/exit 1) (eflush))))
                   :evaluator evaluator
                   :expander expander
-                  :source (if path-is-file "<anonymous>" spath)}))
+                  :source (or src (if path-is-file "<anonymous>" spath))}))
   (if-not path-is-file (file/close f))
   nenv)
 
@@ -2241,12 +2242,14 @@
   (unless fullpath (error mod-kind))
   (if-let [check (in module/cache fullpath)]
     check
-    (do
-      (def loader (if (keyword? mod-kind) (module/loaders mod-kind) mod-kind))
-      (unless loader (error (string "module type " mod-kind " unknown")))
-      (def env (loader fullpath args))
-      (put module/cache fullpath env)
-      env)))
+    (if-let [check2 (module/loading fullpath)]
+      (error (string "circular dependency " fullpath " detected"))
+      (do
+        (def loader (if (keyword? mod-kind) (module/loaders mod-kind) mod-kind))
+        (unless loader (error (string "module type " mod-kind " unknown")))
+        (def env (loader fullpath args))
+        (put module/cache fullpath env)
+        env))))
 
 (defn import*
   "Function form of import. Same parameters, but the path
