@@ -2242,7 +2242,7 @@
   (unless fullpath (error mod-kind))
   (if-let [check (in module/cache fullpath)]
     check
-    (if-let [check2 (module/loading fullpath)]
+    (if (module/loading fullpath)
       (error (string "circular dependency " fullpath " detected"))
       (do
         (def loader (if (keyword? mod-kind) (module/loaders mod-kind) mod-kind))
