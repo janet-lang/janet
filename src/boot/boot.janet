@@ -2102,7 +2102,7 @@
   [ext loader]
   (defn- find-prefix
     [pre]
-    (or (find-index |(string/has-prefix? pre ($ 0)) module/paths) 0))
+    (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) module/paths) 0))
   (array/insert module/paths 0 [(string ":cur:/:all:" ext) loader check-.])
   (def all-index (find-prefix ":all:"))
   (array/insert module/paths all-index [(string ":all:" ext) loader not-check-.])
@@ -2243,12 +2243,14 @@
   (unless fullpath (error mod-kind))
   (if-let [check (in module/cache fullpath)]
     check
-    (do
-      (def loader (if (keyword? mod-kind) (module/loaders mod-kind) mod-kind))
-      (unless loader (error (string "module type " mod-kind " unknown")))
-      (def env (loader fullpath args))
-      (put module/cache fullpath env)
-      env)))
+    (if-let [check2 (module/loading fullpath)]
+      (error (string "circular dependency " fullpath " detected"))
+      (do
+        (def loader (if (keyword? mod-kind) (module/loaders mod-kind) mod-kind))
+        (unless loader (error (string "module type " mod-kind " unknown")))
+        (def env (loader fullpath args))
+        (put module/cache fullpath env)
+        env))))
 
 (defn import*
   "Function form of import. Same parameters, but the path
