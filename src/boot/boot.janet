@@ -2185,6 +2185,7 @@
   [path &keys
    {:exit exit
     :env env
+    :source src
     :expander expander
     :evaluator evaluator}]
   (def f (if (= (type path) :core/file)
@@ -2193,8 +2194,8 @@
   (def path-is-file (= f path))
   (default env (make-env))
   (def spath (string path))
-  (put env :current-file (if-not path-is-file spath))
-  (put env :source (if-not path-is-file spath path))
+  (put env :current-file (or src (if-not path-is-file spath)))
+  (put env :source (or src (if-not path-is-file spath path)))
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
     (def ret (bad-parse x y))
@@ -2217,7 +2218,7 @@
                                  (if exit (os/exit 1) (eflush))))
                   :evaluator evaluator
                   :expander expander
-                  :source (if path-is-file "<anonymous>" spath)}))
+                  :source (or src (if path-is-file "<anonymous>" spath))}))
   (if-not path-is-file (file/close f))
   nenv)
 
