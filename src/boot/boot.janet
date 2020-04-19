@@ -2234,7 +2234,7 @@
 
 (defn require
   "Require a module with the given name. Will search all of the paths in
-  module/paths, then the path as a raw file path. Returns the new environment
+  module/paths. Returns the new environment
   returned from compiling and running the file."
   [path & args]
   (def [fullpath mod-kind] (module/find path))
