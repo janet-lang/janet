@@ -329,7 +329,7 @@ int janet_thread_send(JanetThread *thread, Janet msg, double timeout) {
         msgbuf->count = 0;
 
         /* Start panic zone */
-        janet_marshal(msgbuf, msg, thread->encode, 0);
+        janet_marshal(msgbuf, msg, thread->encode, JANET_MARSHAL_UNSAFE);
         /* End panic zone */
 
         mailbox->messageNext = (mailbox->messageNext + 1) % mailbox->messageCapacity;
@@ -379,7 +379,7 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
                 const uint8_t *nextItem = NULL;
                 Janet item = janet_unmarshal(
                                  msgbuf->data, msgbuf->count,
-                                 0, janet_thread_get_decode(), &nextItem);
+                                 JANET_MARSHAL_UNSAFE, janet_thread_get_decode(), &nextItem);
                 *msg_out = item;
 
                 /* Cleanup */
