@@ -859,6 +859,25 @@ int main(int argc, const char **argv) {
     (add-body "install"
               (spit newname bat))))
 
+(def- tree-l " └─")
+(def- tree-t " ├─")
+(def- tree-i " │ ")
+(def- tree-s "   ")
+(defn- print-rule-tree
+  "Show dependencies for a given rule recursively in a nice tree."
+  [root depth prefix prefix-part]
+  (printf "%s%s" prefix root)
+  (def rules (getrules))
+  (when-let [[root-deps] (rules root)]
+    (def l (-> root-deps length dec))
+    (when (pos? depth)
+      (eachp [i d] (sorted root-deps)
+        (def is-last (= i l))
+        (print-rule-tree
+          d (dec depth)
+          (string prefix-part (if is-last tree-l tree-t))
+          (string prefix-part (if is-last tree-s tree-i)))))))
+
 (defn declare-archive
   "Build a janet archive. This is a file that bundles together many janet
   scripts into a janet image. This file can the be moved to any machine with
@@ -973,6 +992,10 @@ Subcommands are:
   run rule : run a rule. Can also run custom rules added via (phony "task" [deps...] ...)
              or (rule "ouput.file" [deps...] ...).
   rules : list rules available with run.
+  rule-tree (root rule) (depth) : Print a nice tree to see what rules depend on other rules.
+                                  Optinally provide a root rule to start printing from, and a
+                                  max depth to print. Without these options, all rules will print
+                                  their full dependency tree.
   update-pkgs : Update the current package listing from the remote git repository selected.
   quickbin entry executable : Create an executable from a janet script with a main function.
   make-lockfile (lockfile) : Create a lockfile based on repositories in the cache. The
@@ -1041,6 +1064,15 @@ Flags are:
   []
   (local-rule "install-deps" true))
 
+(defn show-rule-tree
+  [&opt root depth]
+  (import-rules "./project.janet" true)
+  (def max-depth (if depth (scan-number depth) math/inf))
+  (if root
+    (print-rule-tree root max-depth "" "")
+    (let [ks (sort (seq [k :keys (dyn :rules)] k))]
+      (each k ks (print-rule-tree k max-depth "" "")))))
+
 (defn list-rules
   [&opt ctx]
   (import-rules "./project.janet" true)
@@ -1086,6 +1118,7 @@ Flags are:
    "help" help
    "deps" deps
    "repl" jpm-repl
+   "rule-tree" show-rule-tree
    "show-paths" show-paths
    "clear-cache" clear-cache
    "run" local-rule
