@@ -2646,11 +2646,9 @@
     (if-not *quiet*
       (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2020 Calvin Rose"))
     (flush)
-    (defn noprompt [_] "")
     (defn getprompt [p]
       (def [line] (parser/where p))
       (string "janet:" line ":" (parser/state p :delimiters) "> "))
-    (def prompter (if *quiet* noprompt getprompt))
     (defn getstdin [prompt buf _]
       (file/write stdout prompt)
       (file/flush stdout)
@@ -2659,7 +2657,7 @@
     (if *debug* (put env :debug true))
     (def getter (if *raw-stdin* getstdin getline))
     (defn getchunk [buf p]
-      (getter (prompter p) buf env))
+      (getter (getprompt p) buf env))
     (def onsig (if *quiet* (fn [x &] x) nil))
     (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
     (setdyn :err-color (if *colorize* true))
