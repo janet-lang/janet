@@ -45,10 +45,6 @@
 /* #define JANET_NO_DOCSTRINGS */
 /* #define JANET_NO_SOURCEMAPS */
 /* #define JANET_REDUCED_OS */
-/* #define JANET_OS_NO_EXECUTE */
-/* #define JANET_OS_NO_TIME */
-/* #define JANET_OS_NO_FS */
-/* #define JANET_OS_NO_ENV */
 
 /* Other settings */
 /* #define JANET_NO_ASSEMBLER */
