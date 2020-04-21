@@ -445,7 +445,7 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
             } else {
                 switch (view.bytes[i]) {
                     default:
-                        janet_panicf("invalid flag %c, expected a, d, e, u, or y", view.bytes[i]);
+                        janet_panicf("invalid flag %c, expected a, t, d, e, u, y, i, or p", view.bytes[i]);
                         break;
                     case 'a':
                         fiber->flags |=
