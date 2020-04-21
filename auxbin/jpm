@@ -873,24 +873,18 @@ int main(int argc, const char **argv) {
     (add-body "install"
               (spit newname bat))))
 
-(def- tree-l " └─")
-(def- tree-t " ├─")
-(def- tree-i " │ ")
-(def- tree-s "   ")
 (defn- print-rule-tree
   "Show dependencies for a given rule recursively in a nice tree."
   [root depth prefix prefix-part]
-  (printf "%s%s" prefix root)
-  (def rules (getrules))
-  (when-let [[root-deps] (rules root)]
-    (def l (-> root-deps length dec))
+  (print prefix root)
+  (when-let [[root-deps] ((getrules) root)]
     (when (pos? depth)
+      (def l (-> root-deps length dec))
       (eachp [i d] (sorted root-deps)
-        (def is-last (= i l))
         (print-rule-tree
           d (dec depth)
-          (string prefix-part (if is-last tree-l tree-t))
-          (string prefix-part (if is-last tree-s tree-i)))))))
+          (string prefix-part (if (= i l) " └─"  " ├─"))
+          (string prefix-part (if (= i l) "   "  " │ ")))))))
 
 (defn declare-archive
   "Build a janet archive. This is a file that bundles together many janet
