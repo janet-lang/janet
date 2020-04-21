@@ -36,6 +36,12 @@ Print detailed messages of what jpm is doing, including compilation commands and
 .BR \-\-test
 If passed to jpm install, runs tests before installing. Will run tests recursively on dependencies.
 
+.TP
+.BR \-\-offline
+Prevents jpm from going to network to get dependencies - all dependencies should be in the cache or this command will fail.
+Use this flag with the deps and update-pkgs subcommands. This is not a surefire way to prevent a build script from accessing
+the network, for example, a build script that invokes curl will still have network access.
+
 .SH OPTIONS
 
 .TP

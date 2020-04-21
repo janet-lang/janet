@@ -266,15 +266,12 @@
 (defn rm
   "Remove a directory and all sub directories."
   [path]
-  (try
-    (if (= (os/lstat path :mode) :directory)
-      (do
-        (each subpath (os/dir path)
-          (rm (string path sep subpath)))
-        (os/rmdir path))
-      (os/rm path))
-    ([err f] (unless (string/has-prefix? "No such file or directory" err)
-               (propagate err f)))))
+  (if (= (os/lstat path :mode) :directory)
+    (do
+      (each subpath (os/dir path)
+        (rm (string path sep subpath)))
+      (os/rmdir path))
+    (os/rm path)))
 
 (defn copy
   "Copy a file or directory recursively from one location to another."
@@ -680,12 +677,16 @@ int main(int argc, const char **argv) {
   (def id (filepath-replace repo))
   (def module-dir (string cache sep id))
   (var fresh false)
-  (when (mkdir module-dir)
-      (set fresh true)
-      (print "cloning repository " repo " to " module-dir)
-      (unless (zero? (os/execute ["git" "clone" repo module-dir] :p))
-        (rimraf module-dir)
-        (error (string "could not clone git dependency " repo))))
+  (if (dyn :offline)
+    (if (not= :directory (os/stat module-dir :mode))
+      (error (string "did not find cached repo for dependency " repo))
+      (set fresh true))
+    (when (mkdir module-dir)
+        (set fresh true)
+        (print "cloning repository " repo " to " module-dir)
+        (unless (zero? (os/execute ["git" "clone" repo module-dir] :p))
+          (rimraf module-dir)
+          (error (string "could not clone git dependency " repo)))))
   (def olddir (os/cwd))
   (try
     (with-dyns [:rules @{}
@@ -698,7 +699,8 @@ int main(int argc, const char **argv) {
         (os/execute ["git" "pull" "origin" "master"] :p))
       (when tag
         (os/execute ["git" "reset" "--hard" tag] :p))
-      (os/execute ["git" "submodule" "update" "--init" "--recursive"] :p)
+      (unless (dyn :offline)
+        (os/execute ["git" "submodule" "update" "--init" "--recursive"] :p))
       (import-rules "./project.janet")
       (unless no-deps (do-rule "install-deps"))
       (do-rule "build")
@@ -1030,6 +1032,7 @@ Flags are:
   --nocolor : Disable color in the jpm repl.
   --verbose : Print shell commands as they are executed.
   --test : If passed to jpm install, runs tests before installing. Will run tests recursively on dependencies.
+  --offline : Prevents jpm from going to network to get dependencies - all dependencies should be in the cache or this command will fail.
     `))
 
 (defn show-help
