@@ -1,5 +1,4 @@
 #!/usr/bin/env janet
-(os/mkdir "build")
 
 # CLI tool for building janet projects.
 
