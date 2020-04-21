@@ -2,11 +2,12 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `jpm rule-tree` subcommand.
+- Add `--offline` flag to jpm to force use of the cache.
 - Allow sending pointers and C functions across threads via `thread/send`.
 - Fix bug in `getline`.
 - Add `sh-rule` and `sh-phony` to jpm's dialect of Janet.
-- Change C api's `janet_formatb` -> `janet_formatbv`.
-- Add C `janet_formatb` to C api.
+- Change C api's `janet_formatb` -> `janet_formatbv`, and add new function `janet_formatb` to C api.
 - Add `edefer` macro to core.
 - A struct/table literal/constructor with duplicate keys will use the last value given.
   Previously, this was inconsistent between tables and structs, literals and constructor functions.
