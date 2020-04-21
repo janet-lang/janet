@@ -1080,7 +1080,7 @@ Flags are:
 
 (defn show-rule-tree
   [&opt root depth]
-  (import-rules "./project.janet" true)
+  (import-rules "./project.janet")
   (def max-depth (if depth (scan-number depth) math/inf))
   (if root
     (print-rule-tree root max-depth "" "")
