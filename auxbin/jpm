@@ -267,7 +267,7 @@
   "Remove a directory and all sub directories."
   [path]
   (try
-    (if (= (os/stat path :mode) :directory)
+    (if (= (os/lstat path :mode) :directory)
       (do
         (each subpath (os/dir path)
           (rm (string path sep subpath)))
