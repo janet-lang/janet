@@ -1,4 +1,5 @@
 #!/usr/bin/env janet
+(os/mkdir "build")
 
 # CLI tool for building janet projects.
 
@@ -167,7 +168,7 @@
   ret)
 
 (defn check-cc
-  "Ensure we have a c compiler"
+  "Ensure we have a c compiler."
   []
   (if is-win
     (do
@@ -176,6 +177,14 @@
  jpm needs a c compiler to compile natives. You can install the MSVC compiler from
  microsoft.com"))
     (do)))
+
+(defn create-dirs
+  "Create all directories needed for a file (mkdir -p)."
+  [dest]
+  (def segs (string/split "/" dest))
+  (for i 1 (length segs)
+    (def path (string/join (slice segs 0 i) "/"))
+    (unless (empty? path) (os/mkdir path))))
 
 #
 # Importing a file
@@ -344,6 +353,7 @@
   (rule dest [src ;headers]
         (check-cc)
         (print "compiling " dest "...")
+        (create-dirs dest)
         (if is-win
           (shell cc ;defines "/c" ;cflags (string "/Fo" dest) src)
           (shell cc "-c" src ;defines ;cflags "-o" dest))))
@@ -376,6 +386,7 @@
   (rule target objects
         (check-cc)
         (print "linking " target "...")
+        (create-dirs target)
         (if is-win
           (shell linker ;lflags (string "/OUT:" target) ;objects (win-import-library))
           (shell linker ;cflags `-o` target ;objects ;lflags))))
@@ -387,12 +398,14 @@
   (rule target objects
         (check-cc)
         (print "creating static library " target "...")
+        (create-dirs target)
         (if is-win
           (shell ar "/nologo" (string "/out:" target) ;objects)
           (shell ar "rcs" target ;objects))))
 
 (defn- create-buffer-c-impl
   [bytes dest name]
+  (create-dirs dest)
   (def out (file/open dest :w))
   (def chunks (seq [b :in bytes] (string b)))
   (file/write out
@@ -409,6 +422,7 @@
   [source dest name]
   (rule dest [source]
         (print "generating " dest "...")
+        (create-dirs dest)
         (with [f (file/open source :r)]
           (create-buffer-c-impl (:read f :all) dest name))))
 
@@ -435,6 +449,7 @@
   (rule dest [source]
         (check-cc)
         (print "generating executable c source...")
+        (create-dirs dest)
         # Load entry environment and get main function.
         (def entry-env (dofile source))
         (def main ((entry-env 'main) :value))
@@ -887,6 +902,7 @@ int main(int argc, const char **argv) {
   (def name (opts :name))
   (def iname (string "build" sep name ".jimage"))
   (rule iname (or (opts :deps) [])
+        (create-dirs iname)
         (spit iname (make-image (require entry))))
   (def path (dyn :modpath JANET_MODPATH))
   (add-dep "build" iname)
@@ -906,8 +922,7 @@ int main(int argc, const char **argv) {
   (setdyn :manifest-dir manifests)
   (setdyn :installed-files installed-files)
 
-  (rule "./build" [] (mkdir "build"))
-  (phony "build" ["./build"])
+  (phony "build" [])
 
   (phony "manifest" []
          (print "generating " manifest "...")
