@@ -724,7 +724,7 @@ int main(int argc, const char **argv) {
 
 (defn- make-lockfile
   [&opt filename]
-  (default filename "lockfile.janet")
+  (default filename "lockfile.jdn")
   (def cwd (os/cwd))
   (def packages @[])
   # Read installed modules from manifests
@@ -755,7 +755,7 @@ int main(int argc, const char **argv) {
 
 (defn- load-lockfile
   [&opt filename]
-  (default filename "lockfile.janet")
+  (default filename "lockfile.jdn")
   (def lockarray (parse (slurp filename)))
   (each {:repo url :sha sha} lockarray
     (install-git {:repo url :tag sha} nil true)))
@@ -1015,9 +1015,9 @@ Subcommands are:
   make-lockfile (lockfile) : Create a lockfile based on repositories in the cache. The
             lockfile will record the exact versions of dependencies used to ensure a reproducible
             build. Lockfiles are best used with applications, not libraries. The default lockfile
-            name is lockfile.janet.
+            name is lockfile.jdn.
   load-lockfile (lockfile) : Install modules from a lockfile in a reproducible way. The
-                             default lockfile name is lockfile.janet.
+                             default lockfile name is lockfile.jdn.
   repl : Run a repl in the context of the current project.janet file. This lets you run rules and
          otherwise debug the current project.janet file.
 
