@@ -175,6 +175,18 @@ jpm will attempt to include the dependencies into the generated executable.
 Load the current project.janet file and start a repl in it's environment. This lets a user better
 debug the project file, as well as run rules manually.
 
+.TP
+.BR make-lockfile\ [\fBfilename\fR]
+Create a lockfile. A lockfile is a record that describes what dependencies were installed at the
+time of the lockfile's creation, including exact versions. A lockfile can then be later used
+to set up that environment on a different machine via load-lockfile. By default, the lockfile
+is created at lockfile.jdn, although any path can be used.
+
+.TP
+.BR load-lockfile\ [\fBfilename\fR]
+Install dependencies from a lockfile previously created with make-lockfile. By default, will look
+for a lockfile at lockfile.jdn, although any path can be used.
+
 .SH ENVIRONMENT
 
 .B JANET_PATH
