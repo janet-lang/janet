@@ -1557,7 +1557,7 @@
   (print))
 
 (defn doc*
-  "Get the documentation for a symbol in a given environment."
+  "Get the documentation for a symbol in a given environment. Function form of doc."
   [&opt sym]
 
   (cond
@@ -1591,7 +1591,10 @@
     (print-index identity)))
 
 (defmacro doc
-  "Shows documentation for the given symbol."
+  "Shows documentation for the given symbol, or can show a list of available bindings.
+  If sym is a symbol, will look for documentation for that symbol. If sym is a string
+  or is not provided, will show all lexical and dynamic bindings in the current environment with
+  that prefix (all bindings will be shown if no prefix is given)."
   [&opt sym]
   ~(,doc* ',sym))
 
