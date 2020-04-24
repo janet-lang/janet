@@ -32,12 +32,12 @@ JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal = NULL;
 JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_top = NULL;
 JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_base = NULL;
 
-static void push_traversal_node(void *lhs, void *rhs) {
+static void push_traversal_node(void *lhs, void *rhs, int32_t index2) {
     JanetTraversalNode node;
     node.self = (JanetGCObject *) lhs;
     node.other = (JanetGCObject *) rhs;
     node.index = 0;
-    node.index2 = 0;
+    node.index2 = index2;
     if (janet_vm_traversal + 1 >= janet_vm_traversal_top) {
         size_t oldsize = janet_vm_traversal - janet_vm_traversal_base;
         size_t newsize = 2 * oldsize + 1;
@@ -55,7 +55,14 @@ static void push_traversal_node(void *lhs, void *rhs) {
     *(++janet_vm_traversal) = node;
 }
 
-/* Used for travsersing structs and tuples without recursion */
+/*
+ * Used for travsersing structs and tuples without recursion
+ * Returns:
+ * 0 - next node found
+ * 1 - early stop - lhs < rhs
+ * 2 - no next node found
+ * 3 - early stop - lhs > rhs
+ */
 static int traversal_next(Janet *x, Janet *y) {
     JanetTraversalNode *t = janet_vm_traversal;
     while (t && t > janet_vm_traversal_base) {
@@ -67,12 +74,15 @@ static int traversal_next(Janet *x, Janet *y) {
         JanetStructHead *sother = (JanetStructHead *)other;
         if ((self->flags & JANET_MEM_TYPEBITS) == JANET_MEMORY_TUPLE) {
             /* Node is a tuple at index t->index */
-            if (t->index < tself->length) {
+            if (t->index < tself->length && t->index < tother->length) {
                 int32_t index = t->index++;
                 *x = tself->data[index];
                 *y = tother->data[index];
                 janet_vm_traversal = t;
-                return 1;
+                return 0;
+            }
+            if (t->index2 && tself->length != tother->length) {
+                return tself->length > tother->length ? 3 : 1;
             }
         } else {
             /* Node is a struct at index t->index: if t->index2 is true, we should return the values. */
@@ -82,20 +92,20 @@ static int traversal_next(Janet *x, Janet *y) {
                 *x = sself->data[index].value;
                 *y = sother->data[index].value;
                 janet_vm_traversal = t;
-                return 1;
+                return 0;
             }
             for (int32_t i = t->index; i < sself->capacity; i++) {
                 t->index2 = 1;
                 *x = sself->data[t->index].key;
                 *y = sother->data[t->index].key;
                 janet_vm_traversal = t;
-                return 1;
+                return 0;
             }
         }
         t--;
     }
     janet_vm_traversal = t;
-    return 0;
+    return 2;
 }
 
 /*
@@ -211,7 +221,7 @@ int janet_equals(Janet x, Janet y) {
                 if (t1 == t2) break;
                 if (janet_tuple_hash(t1) != janet_tuple_hash(t2)) return 0;
                 if (janet_tuple_length(t1) != janet_tuple_length(t2)) return 0;
-                push_traversal_node(janet_tuple_head(t1), janet_tuple_head(t2));
+                push_traversal_node(janet_tuple_head(t1), janet_tuple_head(t2), 0);
                 break;
             }
             break;
@@ -221,12 +231,12 @@ int janet_equals(Janet x, Janet y) {
                 if (s1 == s2) break;
                 if (janet_struct_hash(s1) != janet_struct_hash(s2)) return 0;
                 if (janet_struct_length(s1) != janet_struct_length(s2)) return 0;
-                push_traversal_node(janet_struct_head(s1), janet_struct_head(s2));
+                push_traversal_node(janet_struct_head(s1), janet_struct_head(s2), 0);
                 break;
             }
             break;
         }
-    } while (traversal_next(&x, &y));
+    } while (!traversal_next(&x, &y));
     return 1;
 }
 
@@ -284,6 +294,7 @@ int32_t janet_hash(Janet x) {
  * and should have strict ordering, excepts NaNs. */
 int janet_compare(Janet x, Janet y) {
     janet_vm_traversal = janet_vm_traversal_base;
+    int status;
     do {
         JanetType tx = janet_type(x);
         JanetType ty = janet_type(y);
@@ -327,11 +338,7 @@ int janet_compare(Janet x, Janet y) {
             case JANET_TUPLE: {
                 const Janet *lhs = janet_unwrap_tuple(x);
                 const Janet *rhs = janet_unwrap_tuple(y);
-                int32_t llen = janet_tuple_length(lhs);
-                int32_t rlen = janet_tuple_length(rhs);
-                if (llen < rlen) return -1;
-                if (llen > rlen) return 1;
-                push_traversal_node(janet_tuple_head(lhs), janet_tuple_head(rhs));
+                push_traversal_node(janet_tuple_head(lhs), janet_tuple_head(rhs), 1);
                 break;
             }
             case JANET_STRUCT: {
@@ -345,12 +352,12 @@ int janet_compare(Janet x, Janet y) {
                 if (llen > rlen) return 1;
                 if (lhash < rhash) return -1;
                 if (lhash > rhash) return 1;
-                push_traversal_node(janet_struct_head(lhs), janet_struct_head(rhs));
+                push_traversal_node(janet_struct_head(lhs), janet_struct_head(rhs), 0);
                 break;
             }
         }
-    } while (traversal_next(&x, &y));
-    return 0;
+    } while (!(status = traversal_next(&x, &y)));
+    return status - 2;
 }
 
 static int32_t getter_checkint(Janet key, int32_t max) {

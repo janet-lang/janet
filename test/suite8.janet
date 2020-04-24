@@ -244,4 +244,12 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 # For undefined behavior sanitizer
 0xf&1fffFFFF
 
+# Tuple comparison
+(assert (< [1 2 3] [2 2 3]) "tuple comparison 1")
+(assert (< [1 2 3] [2 2]) "tuple comparison 2")
+(assert (< [1 2 3] [2 2 3 4]) "tuple comparison 3")
+(assert (< [1 2 3] [1 2 3 4]) "tuple comparison 4")
+(assert (< [1 2 3] [1 2 3 -1]) "tuple comparison 5")
+(assert (> [1 2 3] [1 2]) "tuple comparison 6")
+
 (end-suite)
