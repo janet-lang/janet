@@ -53,45 +53,6 @@ const Janet *janet_tuple_n(const Janet *values, int32_t n) {
     return janet_tuple_end(t);
 }
 
-/* Check if two tuples are equal */
-int janet_tuple_equal(const Janet *lhs, const Janet *rhs) {
-    int32_t index;
-    int32_t llen = janet_tuple_length(lhs);
-    int32_t rlen = janet_tuple_length(rhs);
-    int32_t lhash = janet_tuple_hash(lhs);
-    int32_t rhash = janet_tuple_hash(rhs);
-    if (lhash == 0)
-        lhash = janet_tuple_hash(lhs) = janet_array_calchash(lhs, llen);
-    if (rhash == 0)
-        rhash = janet_tuple_hash(rhs) = janet_array_calchash(rhs, rlen);
-    if (lhash != rhash)
-        return 0;
-    if (llen != rlen)
-        return 0;
-    for (index = 0; index < llen; index++) {
-        if (!janet_equals(lhs[index], rhs[index]))
-            return 0;
-    }
-    return 1;
-}
-
-/* Compare tuples */
-int janet_tuple_compare(const Janet *lhs, const Janet *rhs) {
-    int32_t i;
-    int32_t llen = janet_tuple_length(lhs);
-    int32_t rlen = janet_tuple_length(rhs);
-    int32_t count = llen < rlen ? llen : rlen;
-    for (i = 0; i < count; ++i) {
-        int comp = janet_compare(lhs[i], rhs[i]);
-        if (comp != 0) return comp;
-    }
-    if (llen < rlen)
-        return -1;
-    else if (llen > rlen)
-        return 1;
-    return 0;
-}
-
 /* C Functions */
 
 static Janet cfun_tuple_brackets(int32_t argc, Janet *argv) {

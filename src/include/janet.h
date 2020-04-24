@@ -1209,6 +1209,7 @@ JANET_API void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
 #define JANET_TUPLE_FLAG_BRACKETCTOR 0x10000
 
 #define janet_tuple_head(t) ((JanetTupleHead *)((char *)t - offsetof(JanetTupleHead, data)))
+#define janet_tuple_from_head(gcobject) ((const Janet *)((char *)gcobject + offsetof(JanetTupleHead, data)))
 #define janet_tuple_length(t) (janet_tuple_head(t)->length)
 #define janet_tuple_hash(t) (janet_tuple_head(t)->hash)
 #define janet_tuple_sm_line(t) (janet_tuple_head(t)->sm_line)
@@ -1217,8 +1218,6 @@ JANET_API void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
 JANET_API Janet *janet_tuple_begin(int32_t length);
 JANET_API JanetTuple janet_tuple_end(Janet *tuple);
 JANET_API JanetTuple janet_tuple_n(const Janet *values, int32_t n);
-JANET_API int janet_tuple_equal(JanetTuple lhs, JanetTuple rhs);
-JANET_API int janet_tuple_compare(JanetTuple lhs, JanetTuple rhs);
 
 /* String/Symbol functions */
 #define janet_string_head(s) ((JanetStringHead *)((char *)s - offsetof(JanetStringHead, data)))
@@ -1256,6 +1255,7 @@ JANET_API JanetSymbol janet_symbol_gen(void);
 
 /* Structs */
 #define janet_struct_head(t) ((JanetStructHead *)((char *)t - offsetof(JanetStructHead, data)))
+#define janet_struct_from_head(t) ((const JanetKV *)((char *)gcobject + offsetof(JanetStructHead, data)))
 #define janet_struct_length(t) (janet_struct_head(t)->length)
 #define janet_struct_capacity(t) (janet_struct_head(t)->capacity)
 #define janet_struct_hash(t) (janet_struct_head(t)->hash)
@@ -1264,8 +1264,6 @@ JANET_API void janet_struct_put(JanetKV *st, Janet key, Janet value);
 JANET_API JanetStruct janet_struct_end(JanetKV *st);
 JANET_API Janet janet_struct_get(JanetStruct st, Janet key);
 JANET_API JanetTable *janet_struct_to_table(JanetStruct st);
-JANET_API int janet_struct_equal(JanetStruct lhs, JanetStruct rhs);
-JANET_API int janet_struct_compare(JanetStruct lhs, JanetStruct rhs);
 JANET_API const JanetKV *janet_struct_find(JanetStruct st, Janet key);
 
 /* Table functions */
@@ -1298,6 +1296,7 @@ JANET_API const JanetKV *janet_dictionary_next(const JanetKV *kvs, int32_t cap, 
 
 /* Abstract */
 #define janet_abstract_head(u) ((JanetAbstractHead *)((char *)u - offsetof(JanetAbstractHead, data)))
+#define janet_abstract_from_head(gcobject) ((JanetAbstract)((char *)gcobject + offsetof(JanetAbstractHead, data)))
 #define janet_abstract_type(u) (janet_abstract_head(u)->type)
 #define janet_abstract_size(u) (janet_abstract_head(u)->size)
 JANET_API void *janet_abstract_begin(const JanetAbstractType *type, size_t size);

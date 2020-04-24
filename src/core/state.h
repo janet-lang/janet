@@ -79,6 +79,17 @@ extern JANET_THREAD_LOCAL JanetScratch **janet_scratch_mem;
 extern JANET_THREAD_LOCAL size_t janet_scratch_cap;
 extern JANET_THREAD_LOCAL size_t janet_scratch_len;
 
+/* Recursionless traversal of data structures */
+typedef struct {
+    JanetGCObject *self;
+    JanetGCObject *other;
+    int32_t index;
+    int32_t index2;
+} JanetTraversalNode;
+extern JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal;
+extern JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_top;
+extern JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_base;
+
 /* Setup / teardown */
 #ifdef JANET_THREADS
 void janet_threads_init(void);

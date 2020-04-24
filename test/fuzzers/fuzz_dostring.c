@@ -10,9 +10,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     /* fuzz the parser */
     JanetParser parser;
     janet_parser_init(&parser);
-    for (int i=0, done = 0; i < size; i++)
-    {
-         switch (janet_parser_status(&parser)) {
+    for (int i = 0, done = 0; i < size; i++) {
+        switch (janet_parser_status(&parser)) {
             case JANET_PARSE_DEAD:
             case JANET_PARSE_ERROR:
                 done = 1;

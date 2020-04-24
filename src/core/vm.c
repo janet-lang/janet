@@ -1406,6 +1406,10 @@ int janet_init(void) {
     janet_vm_abstract_registry = janet_table(0);
     janet_gcroot(janet_wrap_table(janet_vm_registry));
     janet_gcroot(janet_wrap_table(janet_vm_abstract_registry));
+    /* Traversal */
+    janet_vm_traversal = NULL;
+    janet_vm_traversal_base = NULL;
+    janet_vm_traversal_top = NULL;
     /* Core env */
     janet_vm_core_env = NULL;
     /* Seed RNG */
@@ -1428,6 +1432,7 @@ void janet_deinit(void) {
     janet_vm_registry = NULL;
     janet_vm_abstract_registry = NULL;
     janet_vm_core_env = NULL;
+    free(janet_vm_traversal_base);
 #ifdef JANET_THREADS
     janet_threads_deinit();
 #endif
