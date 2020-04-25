@@ -26,6 +26,8 @@ build_script:
     - build_win all
 
 test_script:
+    - refreshenv
+    - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" %platform%
     - build_win test-install
     - set janet_outname=%appveyor_repo_tag_name%
     - if "%janet_outname%"=="" set /P janet_outname=<build\version.txt
