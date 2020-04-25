@@ -14,24 +14,21 @@ environment:
 matrix:
   fast_finish: true
 
-# skip unsupported combinations
 init:
     - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" %platform%
 
-install:
-    - set JANET_BUILD=%appveyor_repo_commit:~0,7%
+before_build:
     - choco install nsis -y -pre --version 3.05
-    # Replace makensis.exe and files with special long string build. This should
-    # prevent issues when setting PATH during installation.
     - 7z e "tools\nsis-3.05-strlen_8192.zip" -o"C:\Program Files (x86)\NSIS\" -y
+
+build_script:
+    - set JANET_BUILD=%appveyor_repo_commit:~0,7%
     - build_win all
-    - refreshenv
-    # We need to reload vcvars after refreshing
-    - call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" %platform%
+
+test_script:
     - build_win test-install
     - set janet_outname=%appveyor_repo_tag_name%
     - if "%janet_outname%"=="" set /P janet_outname=<build\version.txt
-build: off
 
 artifacts:
     - name: janet.c
