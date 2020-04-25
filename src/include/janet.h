@@ -27,6 +27,12 @@
 extern "C" {
 #endif
 
+/* Variable length arrays are ok */
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4200 )
+#endif
+
 /***** START SECTION CONFIG *****/
 
 #include "janetconf.h"
@@ -1651,6 +1657,11 @@ JANET_API int janet_thread_send(JanetThread *thread, Janet msg, double timeout);
 #endif
 
 /***** END SECTION MAIN *****/
+
+/* Re-enable popped variable length array warnings */
+#ifdef _MSC_VER
+#pragma warning( pop )
+#endif
 
 #ifdef __cplusplus
 }
