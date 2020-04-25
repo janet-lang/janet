@@ -177,14 +177,6 @@
  microsoft.com"))
     (do)))
 
-(defn create-dirs
-  "Create all directories needed for a file (mkdir -p)."
-  [dest]
-  (def segs (string/split "/" dest))
-  (for i 1 (length segs)
-    (def path (string/join (slice segs 0 i) "/"))
-    (unless (empty? path) (os/mkdir path))))
-
 #
 # Importing a file
 #
@@ -243,6 +235,14 @@
 (def- path-splitter
   "split paths on / and \\."
   (peg/compile ~(any (* '(any (if-not (set `\/`) 1)) (+ (set `\/`) -1)))))
+
+(defn create-dirs
+  "Create all directories needed for a file (mkdir -p)."
+  [dest]
+  (def segs (peg/match path-splitter dest))
+  (for i 1 (length segs)
+    (def path (string/join (slice segs 0 i) sep))
+    (unless (empty? path) (os/mkdir path))))
 
 (def- filepath-replacer
   "Convert url with potential bad characters into a file path element."
