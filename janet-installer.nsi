@@ -1,8 +1,6 @@
 # This file is invoked by build_win.bat
 # Relevant configuration variables are set there.
 
-Unicode True
-
 !echo "Program Files: ${PROGRAMFILES}"
 !addplugindir "tools\"
 
