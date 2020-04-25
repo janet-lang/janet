@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add the `parse` function to parse strings of source code more conveniently.
 - Add `jpm rule-tree` subcommand.
 - Add `--offline` flag to jpm to force use of the cache.
 - Allow sending pointers and C functions across threads via `thread/send`.

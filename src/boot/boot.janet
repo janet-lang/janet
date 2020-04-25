@@ -2052,6 +2052,19 @@
     (res)
     (error (res :error))))
 
+(defn parse
+  "Parse a string and return the first value. For complex parsing, such as for a repl with error handling,
+  use the parser api."
+  [str]
+  (let [p (parser/new)]
+    (parser/consume p str)
+    (parser/eof p)
+    (if (parser/has-more p)
+      (parser/produce p)
+      (if (= :error (parser/status p))
+        (error (parser/error p))
+        (error "no value")))))
+
 (def make-image-dict
   "A table used in combination with marshal to marshal code (images), such that
   (make-image x) is the same as (marshal x make-image-dict)."

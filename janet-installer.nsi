@@ -1,6 +1,7 @@
 # This file is invoked by build_win.bat
 # Relevant configuration variables are set there.
 
+SetCompressor /FINAL /SOLID lzma
 Unicode True
 
 !echo "Program Files: ${PROGRAMFILES}"
