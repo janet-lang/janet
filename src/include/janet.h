@@ -309,14 +309,6 @@ typedef enum {
     JANET_STATUS_ALIVE
 } JanetFiberStatus;
 
-#ifdef JANET_NANBOX_64
-typedef union Janet Janet;
-#elif defined(JANET_NANBOX_32)
-typedef union Janet Janet;
-#else
-typedef struct Janet Janet;
-#endif
-
 /* Use type punning for GC objects */
 typedef struct JanetGCObject JanetGCObject;
 
@@ -347,6 +339,52 @@ typedef struct JanetByteView JanetByteView;
 typedef struct JanetDictView JanetDictView;
 typedef struct JanetRange JanetRange;
 typedef struct JanetRNG JanetRNG;
+
+/* Recursive type (Janet) */
+#ifdef JANET_NANBOX_64
+typedef union Janet Janet;
+union Janet {
+    uint64_t u64;
+    int64_t i64;
+    double number;
+    void *pointer;
+};
+#elif defined(JANET_NANBOX_32)
+typedef union Janet Janet;
+union Janet {
+    struct {
+#ifdef JANET_BIG_ENDIAN
+        uint32_t type;
+        union {
+            int32_t integer;
+            void *pointer;
+        } payload;
+#else
+        union {
+            int32_t integer;
+            void *pointer;
+        } payload;
+        uint32_t type;
+#endif
+    } tagged;
+    double number;
+    uint64_t u64;
+};
+#else
+typedef struct Janet Janet;
+struct Janet {
+    union {
+        uint64_t u64;
+        double number;
+        int32_t integer;
+        void *pointer;
+        const void *cpointer;
+    } as;
+    JanetType type;
+};
+#endif
+
+/* C functions */
 typedef Janet(*JanetCFunction)(int32_t argc, Janet *argv);
 
 /* String and other aliased pointer types */
@@ -485,13 +523,6 @@ JANET_API Janet janet_wrap_integer(int32_t x);
 
 #include <math.h>
 
-/* 64 Nanboxed Janet value */
-union Janet {
-    uint64_t u64;
-    int64_t i64;
-    double number;
-    void *pointer;
-};
 #define janet_u64(x) ((x).u64)
 
 #define JANET_NANBOX_TAGBITS     0xFFFF800000000000llu
@@ -576,27 +607,6 @@ JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
 
 #elif defined(JANET_NANBOX_32)
 
-/* 32 bit nanboxed janet */
-union Janet {
-    struct {
-#ifdef JANET_BIG_ENDIAN
-        uint32_t type;
-        union {
-            int32_t integer;
-            void *pointer;
-        } payload;
-#else
-        union {
-            int32_t integer;
-            void *pointer;
-        } payload;
-        uint32_t type;
-#endif
-    } tagged;
-    double number;
-    uint64_t u64;
-};
-
 #define JANET_DOUBLE_OFFSET 0xFFFF
 
 #define janet_u64(x) ((x).u64)
@@ -646,18 +656,6 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 #define janet_unwrap_boolean(x) ((x).tagged.payload.integer)
 
 #else
-
-/* A general janet value type for more standard C */
-struct Janet {
-    union {
-        uint64_t u64;
-        double number;
-        int32_t integer;
-        void *pointer;
-        const void *cpointer;
-    } as;
-    JanetType type;
-};
 
 #define janet_u64(x) ((x).as.u64)
 #define janet_type(x) ((x).type)
