@@ -2495,13 +2495,14 @@
 
     (fn [f x]
       (if (= :dead (fiber/status f))
-        (do (pp x) (put e '_ @{:value x}))
+        (put e '_ @{:value x})
         (if (e :debug)
           (enter-debugger f x)
           (do (debug/stacktrace f x) (eflush))))))
 
   (run-context {:env env
                 :chunks chunks
+                :expander (fn [x] [pp x])
                 :on-status (or onsignal (make-onsignal env 1))
                 :source "repl"}))
 
