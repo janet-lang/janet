@@ -2,7 +2,10 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `%M`, `%m`, `%N`, and `%n` formatters to formatting functions. These are the
+  same as `%Q`, `%q`, `%P`, and `%p`, but will not truncate long values.
 - Add beta `net/` module to core for socket based networking.
+- Add the `dedent` function.
 - Add the `parse` function to parse strings of source code more conveniently.
 - Add `jpm rule-tree` subcommand.
 - Add `--offline` flag to jpm to force use of the cache.

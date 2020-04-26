@@ -1362,6 +1362,7 @@ JANET_API int janet_verify(JanetFuncDef *def);
 /* Pretty printing */
 #define JANET_PRETTY_COLOR 1
 #define JANET_PRETTY_ONELINE 2
+#define JANET_PRETTY_NOTRUNC 4
 JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x);
 
 /* Misc */

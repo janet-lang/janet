@@ -527,7 +527,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (!isarray && !(S->flags & JANET_PRETTY_ONELINE) && len >= JANET_PRETTY_IND_ONELINE)
                     janet_buffer_push_u8(S->buffer, ' ');
                 if (is_dict_value && len >= JANET_PRETTY_IND_ONELINE) print_newline(S, 0);
-                if (len > JANET_PRETTY_ARRAY_LIMIT) {
+                if (len > JANET_PRETTY_ARRAY_LIMIT && !(S->flags && JANET_PRETTY_NOTRUNC)) {
                     for (i = 0; i < 3; i++) {
                         if (i) print_newline(S, 0);
                         janet_pretty_one(S, arr[i], 0);
@@ -591,7 +591,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (is_dict_value && len >= JANET_PRETTY_DICT_ONELINE) print_newline(S, 0);
                 for (i = 0; i < cap; i++) {
                     if (!janet_checktype(kvs[i].key, JANET_NIL)) {
-                        if (counter == JANET_PRETTY_DICT_LIMIT) {
+                        if (counter == JANET_PRETTY_DICT_LIMIT && !(S->flags && JANET_PRETTY_NOTRUNC)) {
                             print_newline(S, 0);
                             janet_buffer_push_cstring(S->buffer, "...");
                             break;
@@ -802,6 +802,10 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                     pushtypes(b, types);
                     break;
                 }
+                case 'M':
+                case 'm':
+                case 'N':
+                case 'n':
                 case 'Q':
                 case 'q':
                 case 'P':
@@ -809,11 +813,13 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                     int depth = atoi(precision);
                     if (depth < 1) depth = 4;
                     char d = c[-1];
-                    int has_color = (d == 'P') || (d == 'Q');
-                    int has_oneline = (d == 'Q') || (d == 'q');
+                    int has_color = (d == 'P') || (d == 'Q') || (d == 'M') || (d == 'N');
+                    int has_oneline = (d == 'Q') || (d == 'q') || (d == 'N') || (d == 'n');
+                    int has_notrunc = (d == 'M') || (d == 'm') || (d == 'N') || (d == 'n');
                     int flags = 0;
                     flags |= has_color ? JANET_PRETTY_COLOR : 0;
                     flags |= has_oneline ? JANET_PRETTY_ONELINE : 0;
+                    flags |= has_notrunc ? JANET_PRETTY_NOTRUNC : 0;
                     janet_pretty_(b, depth, flags, va_arg(args, Janet), startlen);
                     break;
                 }
@@ -946,19 +952,24 @@ void janet_buffer_format(
                     janet_description_b(b, argv[arg]);
                     break;
                 }
+                case 'M':
+                case 'm':
+                case 'N':
+                case 'n':
                 case 'Q':
                 case 'q':
                 case 'P':
                 case 'p': { /* janet pretty , precision = depth */
                     int depth = atoi(precision);
-                    if (depth < 1)
-                        depth = 4;
-                    char c = strfrmt[-1];
-                    int has_color = (c == 'P') || (c == 'Q');
-                    int has_oneline = (c == 'Q') || (c == 'q');
+                    if (depth < 1) depth = 4;
+                    char d = strfrmt[-1];
+                    int has_color = (d == 'P') || (d == 'Q') || (d == 'M') || (d == 'N');
+                    int has_oneline = (d == 'Q') || (d == 'q') || (d == 'N') || (d == 'n');
+                    int has_notrunc = (d == 'M') || (d == 'm') || (d == 'N') || (d == 'n');
                     int flags = 0;
                     flags |= has_color ? JANET_PRETTY_COLOR : 0;
                     flags |= has_oneline ? JANET_PRETTY_ONELINE : 0;
+                    flags |= has_notrunc ? JANET_PRETTY_NOTRUNC : 0;
                     janet_pretty_(b, depth, flags, argv[arg], startlen);
                     break;
                 }
