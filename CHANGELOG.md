@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add beta `net/` module to core for socket based networking.
 - Add the `parse` function to parse strings of source code more conveniently.
 - Add `jpm rule-tree` subcommand.
 - Add `--offline` flag to jpm to force use of the cache.

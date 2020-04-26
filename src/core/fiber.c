@@ -405,6 +405,10 @@ JanetFiber *janet_current_fiber(void) {
     return janet_vm_fiber;
 }
 
+JanetFiber *janet_root_fiber(void) {
+    return janet_vm_root_fiber;
+}
+
 /* CFuns */
 
 static Janet cfun_fiber_getenv(int32_t argc, Janet *argv) {

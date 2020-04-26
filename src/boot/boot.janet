@@ -1972,6 +1972,7 @@
   (default on-parse-error bad-parse)
   (default evaluator (fn evaluate [x &] (x)))
   (default where "<anonymous>")
+  (default guard :ydt)
 
   # Are we done yet?
   (var going true)
@@ -1998,7 +1999,7 @@
                   (string err " on line " line ", column " column)
                   err))
               (on-compile-error msg errf where))))
-        (or guard :a)))
+        guard))
     (fiber/setenv f env)
     (while (fiber/can-resume? f)
       (def res (resume f resumeval))
@@ -2792,6 +2793,7 @@
      "src/core/io.c"
      "src/core/marsh.c"
      "src/core/math.c"
+     "src/core/net.c"
      "src/core/os.c"
      "src/core/parse.c"
      "src/core/peg.c"

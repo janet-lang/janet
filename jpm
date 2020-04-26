@@ -494,11 +494,14 @@
         fiber->env = temptab;
         Janet out;
         JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
-        if (result) {
-            janet_stacktrace(fiber, out);
-            janet_deinit();
-            return result;
+        if (result != JANET_SIGNAL_OK && result != JANET_SIGNAL_EVENT) {
+          janet_stacktrace(fiber, out);
+          janet_deinit();
+          return result;
         }
+    #ifdef JANET_NET
+        janet_loop();
+    #endif
         janet_deinit();
         return 0;
     }

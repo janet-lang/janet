@@ -43,6 +43,7 @@ extern JANET_THREAD_LOCAL int janet_vm_stackn;
 /* The current running fiber on the current thread.
  * Set and unset by janet_run. */
 extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
+extern JANET_THREAD_LOCAL JanetFiber *janet_vm_root_fiber;
 
 /* The current pointer to the inner most jmp_buf. The current
  * return point for panics. */

@@ -29,6 +29,10 @@
 #define _POSIX_C_SOURCE 200112L
 #endif
 
+#if defined(WIN32) || defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 /* Needed for realpath on linux */
 #if !defined(_XOPEN_SOURCE) && (defined(__linux__) || defined(__EMSCRIPTEN__))
 #define _XOPEN_SOURCE 500

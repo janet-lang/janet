@@ -1011,9 +1011,14 @@ int main(int argc, char **argv) {
     JanetFiber *fiber = janet_fiber(janet_unwrap_function(mainfun), 64, 1, mainargs);
     fiber->env = env;
     status = janet_continue(fiber, janet_wrap_nil(), &out);
-    if (status != JANET_SIGNAL_OK) {
+    if (status != JANET_SIGNAL_OK && status != JANET_SIGNAL_EVENT) {
         janet_stacktrace(fiber, out);
     }
+
+#ifdef JANET_NET
+    status = JANET_SIGNAL_OK;
+    janet_loop();
+#endif
 
     /* Deinitialize vm */
     janet_deinit();

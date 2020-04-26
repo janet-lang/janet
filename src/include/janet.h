@@ -165,6 +165,11 @@ extern "C" {
 #define JANET_TYPED_ARRAY
 #endif
 
+/* Enable or disable networking */
+#ifndef JANET_NO_NET
+#define JANET_NET
+#endif
+
 /* Enable or disable large int types (for now 64 bit, maybe 128 / 256 bit integer types) */
 #ifndef JANET_NO_INT_TYPES
 #define JANET_INT_TYPES
@@ -294,6 +299,8 @@ typedef enum {
     JANET_SIGNAL_USER8,
     JANET_SIGNAL_USER9
 } JanetSignal;
+
+#define JANET_SIGNAL_EVENT JANET_SIGNAL_USER9
 
 /* Fiber statuses - mostly corresponds to signals. */
 typedef enum {
@@ -1115,6 +1122,11 @@ extern enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
 
 /***** START SECTION MAIN *****/
 
+/* Event Loop */
+#ifdef JANET_NET
+JANET_API void janet_loop(void);
+#endif
+
 /* Parsing */
 extern JANET_API const JanetAbstractType janet_parser_type;
 JANET_API void janet_parser_init(JanetParser *parser);
@@ -1290,6 +1302,7 @@ JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32
 JANET_API JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t argc, const Janet *argv);
 JANET_API JanetFiberStatus janet_fiber_status(JanetFiber *fiber);
 JANET_API JanetFiber *janet_current_fiber(void);
+JANET_API JanetFiber *janet_root_fiber(void);
 
 /* Treat similar types through uniform interfaces for iteration */
 JANET_API int janet_indexed_view(Janet seq, const Janet **data, int32_t *len);
