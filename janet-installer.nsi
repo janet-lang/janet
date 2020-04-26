@@ -111,7 +111,7 @@ section "Janet" BfWSection
     # Bin files
     file /oname=bin\janet.exe dist\janet.exe
     file /oname=logo.ico assets\icon.ico
-    file /oname=bin\jpm.janet auxbin\jpm
+    file /oname=bin\jpm.janet .\jpm
     file /oname=bin\jpm.bat tools\jpm.bat
 
     # C headers and library files
