@@ -241,8 +241,5 @@ pkg.generate(libjanet,
 install_man('janet.1')
 install_man('jpm.1')
 install_headers(['src/include/janet.h', jconf], subdir: 'janet')
-janet_binscripts = [
-  'auxbin/jpm'
-]
-install_data(sources : janet_binscripts, install_dir : get_option('bindir'))
+install_data(sources : ['jpm'], install_dir : get_option('bindir'))
 install_data(sources : ['tools/.keep'], install_dir : join_paths(get_option('libdir'), 'janet'))

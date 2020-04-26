@@ -116,7 +116,7 @@ copy src\include\janet.h dist\janet.h
 copy src\conf\janetconf.h dist\janetconf.h
 copy build\libjanet.lib dist\libjanet.lib
 
-copy auxbin\jpm dist\jpm
+copy jpm dist\jpm
 copy tools\jpm.bat dist\jpm.bat
 
 @rem Create installer

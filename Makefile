@@ -194,12 +194,12 @@ valgrind: $(JANET_TARGET)
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in test/suite*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
 	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
-	./$(JANET_TARGET) -k auxbin/jpm
+	./$(JANET_TARGET) -k jpm
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in test/suite*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
 	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
-	$(VALGRIND_COMMAND) ./$(JANET_TARGET) -k auxbin/jpm
+	$(VALGRIND_COMMAND) ./$(JANET_TARGET) -k jpm
 
 callgrind: $(JANET_TARGET)
 	for f in test/suite*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
@@ -213,7 +213,7 @@ dist: build/janet-dist.tar.gz
 build/janet-%.tar.gz: $(JANET_TARGET) \
 	src/include/janet.h src/conf/janetconf.h \
 	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
-	build/doc.html README.md build/janet.c build/shell.c auxbin/jpm
+	build/doc.html README.md build/janet.c build/shell.c jpm
 	$(eval JANET_DIST_DIR = "janet-$(shell basename $*)")
 	mkdir -p build/$(JANET_DIST_DIR)
 	cp -r $^ build/$(JANET_DIST_DIR)/
@@ -258,7 +258,7 @@ install: $(JANET_TARGET) build/janet.pc
 	cp $(JANET_STATIC_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.a'
 	ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so'
 	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME)
-	cp -rf auxbin/* '$(DESTDIR)$(BINDIR)'
+	cp -rf jpm '$(DESTDIR)$(BINDIR)'
 	mkdir -p '$(DESTDIR)$(MANPATH)'
 	cp janet.1 '$(DESTDIR)$(MANPATH)'
 	cp jpm.1 '$(DESTDIR)$(MANPATH)'
