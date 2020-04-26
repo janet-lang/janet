@@ -677,13 +677,40 @@ static int janet_stream_getter(void *p, Janet key, Janet *out) {
 static const JanetReg net_cfuns[] = {
     {
         "net/server", cfun_net_server,
-        JDOC("(net/server host port)\n\nStart a TCP server.")
+        JDOC("(net/server host port handler)\n\n"
+             "Start a TCP server. handler is a function that will be called with a stream "
+             "on each connection to the server. Returns a new stream that is neither readable nor "
+             "writeable.")
     },
-    {"net/read", cfun_stream_read, NULL},
-    {"net/chunk", cfun_stream_chunk, NULL},
-    {"net/write", cfun_stream_write, NULL},
-    {"net/close", cfun_stream_close, NULL},
-    {"net/connect", cfun_net_connect, NULL},
+    {
+        "net/read", cfun_stream_read,
+        JDOC("(net/read stream nbytes &opt buf)\n\n"
+             "Read n bytes from a stream, suspending the current fiber until the bytes are available. "
+             "Returns a buffer with n more bytes in it.")
+    },
+    {
+        "net/chunk", cfun_stream_chunk,
+        JDOC("(net/chunk stream nbytes &opt buf)\n\n"
+             "Same a net/read, but will return as soon as any data is available "
+             "rather than wait for all n bytes to arrive.")
+    },
+    {
+        "net/write", cfun_stream_write,
+        JDOC("(net/write stream data)\n\n"
+             "Write data to a stream, suspending the current fiber until the write "
+             "completes. Returns stream.")
+    },
+    {
+        "net/close", cfun_stream_close,
+        JDOC("(net/close stream)\n\n"
+             "Close a stream so that no further communication can occur.")
+    },
+    {
+        "net/connect", cfun_net_connect,
+        JDOC("(net/connect host port)\n\n"
+             "Open a connection to communicate with a server. Returns a duplex stream "
+             "that can be used to communicate with the server.")
+    },
     {NULL, NULL, NULL}
 };
 
