@@ -751,7 +751,6 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 case 'd':
                 case 'i':
                 case 'o':
-                case 'u':
                 case 'x':
                 case 'X': {
                     int32_t n = va_arg(args, long);
@@ -910,7 +909,6 @@ void janet_buffer_format(
                 case 'd':
                 case 'i':
                 case 'o':
-                case 'u':
                 case 'x':
                 case 'X': {
                     int32_t n = janet_getinteger(argv, arg);
