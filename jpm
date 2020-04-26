@@ -434,6 +434,77 @@
   [path]
   (string (string/slice path 0 (- -1 (length modext))) statext))
 
+(defn- make-bin-source
+  [declarations lookup-into-invocations]
+  (dedent
+    ```
+    ```
+    declarations
+    ```
+
+    int main(int argc, const char **argv) {
+        janet_init();
+
+        /* Get core env */
+        JanetTable *env = janet_core_env(NULL);
+        JanetTable *lookup = janet_env_lookup(env);
+        JanetTable *temptab;
+        int handle = janet_gclock();
+
+        /* Load natives into unmarshalling dictionary */
+
+    ```
+    lookup-into-invocations
+    ```
+        /* Unmarshal bytecode */
+        Janet marsh_out = janet_unmarshal(
+          janet_payload_image_embed,
+          janet_payload_image_embed_size,
+          0,
+          lookup,
+          NULL);
+
+        /* Verify the marshalled object is a function */
+        if (!janet_checktype(marsh_out, JANET_FUNCTION)) {
+            fprintf(stderr, "invalid bytecode image - expected function.");
+            return 1;
+        }
+        JanetFunction *jfunc = janet_unwrap_function(marsh_out);
+
+        /* Check arity */
+        janet_arity(argc, jfunc->def->min_arity, jfunc->def->max_arity);
+
+        /* Collect command line arguments */
+        JanetArray *args = janet_array(argc);
+        for (int i = 0; i < argc; i++) {
+            janet_array_push(args, janet_cstringv(argv[i]));
+        }
+
+        /* Create enviornment */
+        temptab = janet_table(0);
+        temptab = env;
+        janet_table_put(temptab, janet_ckeywordv("args"), janet_wrap_array(args));
+        janet_gcroot(janet_wrap_table(temptab));
+
+        /* Unlock GC */
+        janet_gcunlock(handle);
+
+        /* Run everything */
+        JanetFiber *fiber = janet_fiber(jfunc, 64, argc, argc ? args->data : NULL);
+        fiber->env = temptab;
+        Janet out;
+        JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
+        if (result) {
+            janet_stacktrace(fiber, out);
+            janet_deinit();
+            return result;
+        }
+        janet_deinit();
+        return 0;
+    }
+
+    ```))
+
 (defn- create-executable
   "Links an image with libjanet.a (or .lib) to produce an
   executable. Also will try to link native modules into the
@@ -482,7 +553,7 @@
                               prefix
                               "\", 0);\n\n")
           (when-let [lfs (meta :lflags)]
-            (array/concat dep-lflags lfs))
+                    (array/concat dep-lflags lfs))
           (buffer/push-string declarations
                               "extern void "
                               (meta :static-entry)
@@ -494,90 +565,23 @@
         # Make image byte buffer
         (create-buffer-c-impl image cimage_dest "janet_payload_image")
         # Append main function
-        (spit cimage_dest (string
-                            "\n"
-                            declarations
-```
-
-int main(int argc, const char **argv) {
-    janet_init();
-
-    /* Get core env */
-    JanetTable *env = janet_core_env(NULL);
-    JanetTable *lookup = janet_env_lookup(env);
-    JanetTable *temptab;
-    int handle = janet_gclock();
-
-    /* Load natives into unmarshalling dictionary */
-
-```
-                            lookup-into-invocations
-```
-    /* Unmarshal bytecode */
-    Janet marsh_out = janet_unmarshal(
-      janet_payload_image_embed,
-      janet_payload_image_embed_size,
-      0,
-      lookup,
-      NULL);
-
-    /* Verify the marshalled object is a function */
-    if (!janet_checktype(marsh_out, JANET_FUNCTION)) {
-      fprintf(stderr, "invalid bytecode image - expected function.");
-      return 1;
-    }
-    JanetFunction *jfunc = janet_unwrap_function(marsh_out);
-
-    /* Check arity */
-    janet_arity(argc, jfunc->def->min_arity, jfunc->def->max_arity);
-
-    /* Collect command line arguments */
-    JanetArray *args = janet_array(argc);
-    for (int i = 0; i < argc; i++) {
-      janet_array_push(args, janet_cstringv(argv[i]));
-    }
-
-    /* Create enviornment */
-    temptab = janet_table(0);
-    temptab = env;
-    janet_table_put(temptab, janet_ckeywordv("args"), janet_wrap_array(args));
-    janet_gcroot(janet_wrap_table(temptab));
-
-    /* Unlock GC */
-    janet_gcunlock(handle);
-
-    /* Run everything */
-    JanetFiber *fiber = janet_fiber(jfunc, 64, argc, argc ? args->data : NULL);
-    fiber->env = temptab;
-    Janet out;
-    JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
-    if (result) {
-      janet_stacktrace(fiber, out);
-      janet_deinit();
-      return result;
-    }
-    janet_deinit();
-    return 0;
-}
-
-```) :ab)
-
-# Compile and link final exectable
-(do
-  (def extra-lflags (case (os/which)
-                      :macos ["-ldl" "-lm" ;thread-flags]
-                      :windows [;thread-flags]
-                      :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
-                      #default
-                      ["-lm" ;thread-flags]))
-  (def cc (opt opts :compiler default-compiler))
-  (def lflags [;dep-lflags ;(opt opts :lflags default-lflags) ;extra-lflags])
-  (def cflags (getcflags opts))
-  (def defines (make-defines (opt opts :defines {})))
-  (print "compiling and linking " dest "...")
-  (if is-win
-    (shell cc ;cflags cimage_dest ;static-libs (libjanet) ;lflags `/link` (string "/OUT:" dest))
-    (shell cc ;cflags `-o` dest cimage_dest ;static-libs (libjanet) ;lflags)))))
+        (spit cimage_dest (make-bin-source declarations lookup-into-invocations) :ab)
+        # Compile and link final exectable
+        (do
+          (def extra-lflags (case (os/which)
+                              :macos ["-ldl" "-lm" ;thread-flags]
+                              :windows [;thread-flags]
+                              :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
+                              #default
+                              ["-lm" ;thread-flags]))
+          (def cc (opt opts :compiler default-compiler))
+          (def lflags [;dep-lflags ;(opt opts :lflags default-lflags) ;extra-lflags])
+          (def cflags (getcflags opts))
+          (def defines (make-defines (opt opts :defines {})))
+          (print "compiling and linking " dest "...")
+          (if is-win
+            (shell cc ;cflags cimage_dest ;static-libs (libjanet) ;lflags `/link` (string "/OUT:" dest))
+            (shell cc ;cflags `-o` dest cimage_dest ;static-libs (libjanet) ;lflags)))))
 
 (defn- abspath
   "Create an absolute path. Does not resolve . and .. (useful for
