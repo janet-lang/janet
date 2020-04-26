@@ -166,7 +166,7 @@ extern "C" {
 #endif
 
 /* Enable or disable networking */
-#ifndef JANET_NO_NET
+#if !defined(JANET_NO_NET) && !defined(__EMSCRIPTEN__)
 #define JANET_NET
 #endif
 
