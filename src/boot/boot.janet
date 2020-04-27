@@ -2537,7 +2537,7 @@
 
   (run-context {:env env
                 :chunks chunks
-                :expander (fn [x] [pp x])
+                :expander (fn [x] (with-syms [g] (apply let [g x] [pp g] [g])))
                 :on-status (or onsignal (make-onsignal env 1))
                 :source "repl"}))
 
@@ -2605,7 +2605,7 @@
   -d : Set the debug flag in the repl
   -r : Enter the repl after running all scripts
   -p : Keep on executing if there is a top level error (persistent)
-  -q : Hide prompt, logo, and repl output (quiet)
+  -q : Hide logo (quiet)
   -k : Compile scripts but do not execute (flycheck)
   -m syspath : Set system path for loading global modules
   -c source output : Compile janet source code into an image
