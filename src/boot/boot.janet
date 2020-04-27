@@ -2697,10 +2697,9 @@
     (def getter (if *raw-stdin* getstdin getline))
     (defn getchunk [buf p]
       (getter (getprompt p) buf env))
-    (def onsig (if *quiet* (fn [x &] x) nil))
     (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
     (setdyn :err-color (if *colorize* true))
-    (repl getchunk onsig env)))
+    (repl getchunk nil env)))
 
 (put _env 'no-side-effects nil)
 (put _env 'is-safe-def nil)
