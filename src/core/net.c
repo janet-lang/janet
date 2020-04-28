@@ -685,14 +685,14 @@ static const JanetReg net_cfuns[] = {
     {
         "net/read", cfun_stream_read,
         JDOC("(net/read stream nbytes &opt buf)\n\n"
-             "Read n bytes from a stream, suspending the current fiber until the bytes are available. "
-             "Returns a buffer with n more bytes in it.")
+             "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
+             "If less than n bytes are available (and more than 0), will push those bytes and return early. "
+             "Returns a buffer with up to n more bytes in it.")
     },
     {
         "net/chunk", cfun_stream_chunk,
         JDOC("(net/chunk stream nbytes &opt buf)\n\n"
-             "Same a net/read, but will return as soon as any data is available "
-             "rather than wait for all n bytes to arrive.")
+             "Same a net/read, but will wait for all n bytes to arrive rather than return early.")
     },
     {
         "net/write", cfun_stream_write,
