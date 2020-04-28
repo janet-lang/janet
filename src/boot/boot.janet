@@ -2483,8 +2483,11 @@
     (set res (debug/step (.fiber))))
   res)
 
+(def debugger-env
+  "An environment that contains dot prefixed functions for debugging."
+  @{})
+
 (def- debugger-keys (filter (partial string/has-prefix? ".") (keys _env)))
-(def- debugger-env @{})
 (each k debugger-keys (put debugger-env k (_env k)) (put _env k nil))
 (put _env 'debugger-keys nil)
 
@@ -2547,8 +2550,6 @@
                 :expander (fn [x] (with-syms [g] (apply let [g x] [pp g] [g])))
                 :on-status (or onsignal (make-onsignal env 1))
                 :source "repl"}))
-
-(put _env 'debugger-env nil)
 
 ###
 ###
