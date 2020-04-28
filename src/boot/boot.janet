@@ -2505,6 +2505,7 @@
   the repl in."
   [&opt chunks onsignal env]
   (default env (make-env))
+  (defn repl-wrap [x] (pp x) x)
   (default chunks
     (fn [buf p]
       (getline
@@ -2547,7 +2548,7 @@
 
   (run-context {:env env
                 :chunks chunks
-                :expander (fn [x] (with-syms [g] (apply let [g x] [pp g] [g])))
+                :expander (fn [x] [repl-wrap x])
                 :on-status (or onsignal (make-onsignal env 1))
                 :source "repl"}))
 
