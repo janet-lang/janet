@@ -2005,6 +2005,13 @@
       (def res (resume f resumeval))
       (when good (when going (set resumeval (onstatus f res))))))
 
+  (defn parse-err
+    "Handle parser error in the correct environment"
+    [p where]
+    (def f (coro (on-parse-error p where)))
+    (fiber/setenv f env)
+    (resume f))
+
   # Loop
   (def buf @"")
   (while going
@@ -2022,12 +2029,12 @@
       (while (parser/has-more p)
         (eval1 (parser/produce p)))
       (when (= (parser/status p) :error)
-        (on-parse-error p where))))
+        (parse-err p where))))
   # Check final parser state
   (while (parser/has-more p)
     (eval1 (parser/produce p)))
   (when (= (parser/status p) :error)
-    (on-parse-error p where))
+    (parse-err p where))
 
   (in env :exit-value env))
 
