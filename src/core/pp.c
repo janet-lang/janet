@@ -527,7 +527,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (!isarray && !(S->flags & JANET_PRETTY_ONELINE) && len >= JANET_PRETTY_IND_ONELINE)
                     janet_buffer_push_u8(S->buffer, ' ');
                 if (is_dict_value && len >= JANET_PRETTY_IND_ONELINE) print_newline(S, 0);
-                if (len > JANET_PRETTY_ARRAY_LIMIT && !(S->flags && JANET_PRETTY_NOTRUNC)) {
+                if (len > JANET_PRETTY_ARRAY_LIMIT && !(S->flags & JANET_PRETTY_NOTRUNC)) {
                     for (i = 0; i < 3; i++) {
                         if (i) print_newline(S, 0);
                         janet_pretty_one(S, arr[i], 0);
@@ -591,7 +591,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (is_dict_value && len >= JANET_PRETTY_DICT_ONELINE) print_newline(S, 0);
                 for (i = 0; i < cap; i++) {
                     if (!janet_checktype(kvs[i].key, JANET_NIL)) {
-                        if (counter == JANET_PRETTY_DICT_LIMIT && !(S->flags && JANET_PRETTY_NOTRUNC)) {
+                        if (counter == JANET_PRETTY_DICT_LIMIT && !(S->flags & JANET_PRETTY_NOTRUNC)) {
                             print_newline(S, 0);
                             janet_buffer_push_cstring(S->buffer, "...");
                             break;

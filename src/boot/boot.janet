@@ -2505,7 +2505,6 @@
   the repl in."
   [&opt chunks onsignal env]
   (default env (make-env))
-  (defn repl-wrap [x] (pp x) x)
   (default chunks
     (fn [buf p]
       (getline
@@ -2541,14 +2540,16 @@
 
     (fn [f x]
       (if (= :dead (fiber/status f))
-        (put e '_ @{:value x})
+        (do
+          (put e '_ @{:value x})
+          (printf (get e :pretty-format "%q") x)
+          (flush))
         (if (e :debug)
           (enter-debugger f x)
           (do (debug/stacktrace f x) (eflush))))))
 
   (run-context {:env env
                 :chunks chunks
-                :expander (fn [x] [repl-wrap x])
                 :on-status (or onsignal (make-onsignal env 1))
                 :source "repl"}))
 
