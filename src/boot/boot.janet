@@ -2375,12 +2375,15 @@
   [&opt nth frame-idx]
   (in (.slots frame-idx) (or nth 0)))
 
+# Conditional compilation for disasm
+(def disasm-alias (if-let [x (_env 'disasm)] (x :value)))
+
 (defn .disasm
   "Gets the assembly for the current function."
   [&opt n]
   (def frame (.frame n))
   (def func (frame :function))
-  (disasm func))
+  (disasm-alias func))
 
 (defn .bytecode
   "Get the bytecode for the current function."
@@ -2392,10 +2395,10 @@
   [&opt n]
   (def frame (.frame n))
   (def func (frame :function))
-  (def dasm (disasm func))
-  (def bytecode (dasm 'bytecode))
+  (def dasm (disasm-alias func))
+  (def bytecode (disasm-alias 'bytecode))
   (def pc (frame :pc))
-  (def sourcemap (dasm 'sourcemap))
+  (def sourcemap (disasm-alias 'sourcemap))
   (var last-loc [-2 -2])
   (print "\n  signal: " (.signal))
   (print "  function:   " (dasm 'name) " [" (in dasm 'source "") "]")
@@ -2416,6 +2419,11 @@
           (prin " # line " sl ", column " sc))))
     (print))
   (print))
+
+(unless (get _env 'disasm)
+  (put _env .disasm nil)
+  (put _env .bytecode nil)
+  (put _env .ppasm nil))
 
 (defn .source
   "Show the source code for the function being debugged."
