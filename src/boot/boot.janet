@@ -2421,9 +2421,10 @@
   (print))
 
 (unless (get _env 'disasm)
-  (put _env .disasm nil)
-  (put _env .bytecode nil)
-  (put _env .ppasm nil))
+  (put _env '.disasm nil)
+  (put _env '.bytecode nil)
+  (put _env '.ppasm nil))
+(put _env 'disasm-alias nil)
 
 (defn .source
   "Show the source code for the function being debugged."
