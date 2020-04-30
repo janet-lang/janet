@@ -69,7 +69,7 @@ typedef struct {
 } JanetStream;
 #define JSOCKCLOSE(x) closesocket(x)
 #define JSOCKDEFAULT INVALID_SOCKET
-#define JLASTERR WSALastError()
+#define JLASTERR WSAGetLastError()
 #define JSOCKVALID(x) ((x) != INVALID_SOCKET)
 #define JEINTR WSAEINTR
 #define JEWOULDBLOCK WSAEWOULDBLOCK
