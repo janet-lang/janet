@@ -436,77 +436,75 @@
 
 (defn- make-bin-source
   [declarations lookup-into-invocations]
-  (dedent
-    ```
-    ```
+  (string
     declarations
     ```
 
-    int main(int argc, const char **argv) {
-        janet_init();
+int main(int argc, const char **argv) {
+    janet_init();
 
-        /* Get core env */
-        JanetTable *env = janet_core_env(NULL);
-        JanetTable *lookup = janet_env_lookup(env);
-        JanetTable *temptab;
-        int handle = janet_gclock();
+    /* Get core env */
+    JanetTable *env = janet_core_env(NULL);
+    JanetTable *lookup = janet_env_lookup(env);
+    JanetTable *temptab;
+    int handle = janet_gclock();
 
-        /* Load natives into unmarshalling dictionary */
+    /* Load natives into unmarshalling dictionary */
 
     ```
     lookup-into-invocations
     ```
-        /* Unmarshal bytecode */
-        Janet marsh_out = janet_unmarshal(
-          janet_payload_image_embed,
-          janet_payload_image_embed_size,
-          0,
-          lookup,
-          NULL);
+    /* Unmarshal bytecode */
+    Janet marsh_out = janet_unmarshal(
+      janet_payload_image_embed,
+      janet_payload_image_embed_size,
+      0,
+      lookup,
+      NULL);
 
-        /* Verify the marshalled object is a function */
-        if (!janet_checktype(marsh_out, JANET_FUNCTION)) {
-            fprintf(stderr, "invalid bytecode image - expected function.");
-            return 1;
-        }
-        JanetFunction *jfunc = janet_unwrap_function(marsh_out);
+    /* Verify the marshalled object is a function */
+    if (!janet_checktype(marsh_out, JANET_FUNCTION)) {
+        fprintf(stderr, "invalid bytecode image - expected function.");
+        return 1;
+    }
+    JanetFunction *jfunc = janet_unwrap_function(marsh_out);
 
-        /* Check arity */
-        janet_arity(argc, jfunc->def->min_arity, jfunc->def->max_arity);
+    /* Check arity */
+    janet_arity(argc, jfunc->def->min_arity, jfunc->def->max_arity);
 
-        /* Collect command line arguments */
-        JanetArray *args = janet_array(argc);
-        for (int i = 0; i < argc; i++) {
-            janet_array_push(args, janet_cstringv(argv[i]));
-        }
-
-        /* Create enviornment */
-        temptab = janet_table(0);
-        temptab = env;
-        janet_table_put(temptab, janet_ckeywordv("args"), janet_wrap_array(args));
-        janet_gcroot(janet_wrap_table(temptab));
-
-        /* Unlock GC */
-        janet_gcunlock(handle);
-
-        /* Run everything */
-        JanetFiber *fiber = janet_fiber(jfunc, 64, argc, argc ? args->data : NULL);
-        fiber->env = temptab;
-        Janet out;
-        JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
-        if (result != JANET_SIGNAL_OK && result != JANET_SIGNAL_EVENT) {
-          janet_stacktrace(fiber, out);
-          janet_deinit();
-          return result;
-        }
-    #ifdef JANET_NET
-        janet_loop();
-    #endif
-        janet_deinit();
-        return 0;
+    /* Collect command line arguments */
+    JanetArray *args = janet_array(argc);
+    for (int i = 0; i < argc; i++) {
+        janet_array_push(args, janet_cstringv(argv[i]));
     }
 
-    ```))
+    /* Create enviornment */
+    temptab = janet_table(0);
+    temptab = env;
+    janet_table_put(temptab, janet_ckeywordv("args"), janet_wrap_array(args));
+    janet_gcroot(janet_wrap_table(temptab));
+
+    /* Unlock GC */
+    janet_gcunlock(handle);
+
+    /* Run everything */
+    JanetFiber *fiber = janet_fiber(jfunc, 64, argc, argc ? args->data : NULL);
+    fiber->env = temptab;
+    Janet out;
+    JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
+    if (result != JANET_SIGNAL_OK && result != JANET_SIGNAL_EVENT) {
+      janet_stacktrace(fiber, out);
+      janet_deinit();
+      return result;
+    }
+#ifdef JANET_NET
+    janet_loop();
+#endif
+    janet_deinit();
+    return 0;
+}
+
+```))
 
 (defn- create-executable
   "Links an image with libjanet.a (or .lib) to produce an
