@@ -453,7 +453,12 @@ JANET_NO_RETURN static void janet_sched_write_stringlike(JanetStream *stream, co
 static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset) {
     /* Get host and port */
     const char *host = janet_getcstring(argv, offset);
-    const char *port = janet_getcstring(argv, offset + 1);
+    const char *port;
+    if (janet_checkint(argv[offset + 1])) {
+        port = (const char *)janet_to_string(argv[offset + 1]);
+    } else {
+        port = janet_getcstring(argv, offset + 1);
+    }
     /* getaddrinfo */
     struct addrinfo *ai = NULL;
     struct addrinfo hints = {0};

@@ -512,6 +512,12 @@ static Janet cfun_fiber_current(int32_t argc, Janet *argv) {
     return janet_wrap_fiber(janet_vm_fiber);
 }
 
+static Janet cfun_fiber_root(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_fixarity(argc, 0);
+    return janet_wrap_fiber(janet_vm_root_fiber);
+}
+
 static Janet cfun_fiber_maxstack(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
@@ -578,6 +584,12 @@ static const JanetReg fiber_cfuns[] = {
              "\t:user(0-9) - the fiber is suspended by a user signal\n"
              "\t:alive - the fiber is currently running and cannot be resumed\n"
              "\t:new - the fiber has just been created and not yet run")
+    },
+    {
+        "fiber/root", cfun_fiber_root,
+        JDOC("(fiber/root)\n\n"
+             "Returns the current root fiber. The root fiber is the oldest ancestor "
+             "that does not have a parent.")
     },
     {
         "fiber/current", cfun_fiber_current,
