@@ -413,6 +413,38 @@ tail:
             return NULL;
         }
 
+        case RULE_LENPREFIX: {
+            int oldmode = s->mode;
+            s->mode = PEG_MODE_NORMAL;
+            const uint8_t *next_text;
+            CapState cs = cap_save(s);
+            down1(s);
+            next_text = peg_rule(s, s->bytecode + rule[1], text);
+            up1(s);
+            if (NULL == next_text) return NULL;
+            s->mode = oldmode;
+            int32_t num_sub_captures = s->captures->count - cs.cap;
+            Janet lencap;
+            if (num_sub_captures <= 0 ||
+                    (lencap = s->captures->data[cs.cap], !janet_checkint(lencap))) {
+                cap_load(s, cs);
+                return NULL;
+            }
+            int32_t nrep = janet_unwrap_integer(lencap);
+            /* drop captures from len pattern */
+            cap_load(s, cs);
+            for (int32_t i = 0; i < nrep; i++) {
+                down1(s);
+                next_text = peg_rule(s, s->bytecode + rule[2], next_text);
+                up1(s);
+                if (NULL == next_text) {
+                    cap_load(s, cs);
+                    return NULL;
+                }
+            }
+            return next_text;
+        }
+
     }
 }
 
@@ -657,6 +689,9 @@ static void spec_if(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_ifnot(Builder *b, int32_t argc, const Janet *argv) {
     spec_branch(b, argc, argv, RULE_IFNOT);
 }
+static void spec_lenprefix(Builder *b, int32_t argc, const Janet *argv) {
+    spec_branch(b, argc, argv, RULE_LENPREFIX);
+}
 
 static void spec_between(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 3);
@@ -847,6 +882,7 @@ static const SpecialPair peg_specials[] = {
     {"group", spec_group},
     {"if", spec_if},
     {"if-not", spec_ifnot},
+    {"lenprefix", spec_lenprefix},
     {"look", spec_look},
     {"not", spec_not},
     {"opt", spec_opt},
@@ -1100,6 +1136,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             break;
             case RULE_IF:
             case RULE_IFNOT:
+            case RULE_LENPREFIX:
                 /* [rule_a, rule_b (b if not a)] */
                 if (rule[1] >= blen) goto bad;
                 if (rule[2] >= blen) goto bad;

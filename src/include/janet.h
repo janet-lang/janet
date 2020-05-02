@@ -1576,6 +1576,7 @@ typedef enum {
     RULE_ERROR,        /* [rule] */
     RULE_DROP,         /* [rule] */
     RULE_BACKMATCH,    /* [tag] */
+    RULE_LENPREFIX,    /* [rule_a, rule_b (repeat rule_b rule_a times)] */
 } JanetPegOpcode;
 
 typedef struct {

@@ -252,4 +252,33 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (< [1 2 3] [1 2 3 -1]) "tuple comparison 5")
 (assert (> [1 2 3] [1 2]) "tuple comparison 6")
 
+# Lenprefix rule
+
+(def peg (peg/compile ~(* (lenprefix (/ (* '(any (if-not ":" 1)) ":") ,scan-number) 1) -1)))
+
+(assert (peg/match peg "5:abcde") "lenprefix 1")
+(assert (not (peg/match peg "5:abcdef")) "lenprefix 2")
+(assert (not (peg/match peg "5:abcd")) "lenprefix 3")
+
+# Packet capture
+
+(def peg2
+  (peg/compile
+    ~{# capture packet length in tag :header-len
+      :packet-header (* (/ ':d+ ,scan-number :header-len) ":")
+
+      # capture n bytes from a backref :header-len
+      :packet-body '(lenprefix (-> :header-len) 1)
+
+      # header, followed by body, and drop the :header-len capture
+      :packet (/ (* :packet-header :packet-body) ,|$1) 
+
+      # any exact seqence of packets (no extra characters)
+      :main (* (any :packet) -1)}))
+
+(assert (deep= @["a" "bb" "ccc"] (peg/match peg2 "1:a2:bb3:ccc")) "lenprefix 4")
+(assert (deep= @["a" "bb" "cccccc"] (peg/match peg2 "1:a2:bb6:cccccc")) "lenprefix 5")
+(assert (= nil (peg/match peg2 "1:a2:bb:5:cccccc")) "lenprefix 6")
+(assert (= nil (peg/match peg2 "1:a2:bb:7:cccccc")) "lenprefix 7")
+
 (end-suite)
