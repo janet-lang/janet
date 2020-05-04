@@ -1407,9 +1407,9 @@
         ~(do (def ,pattern ,expr) ,(onmatch))))
 
     (and (tuple? pattern) (= :parens (tuple/type pattern)))
-    (if (and (= (pattern 0) '@) (symbol? (pattern 1)))
+    (if (= (get pattern 0) '@)
       # Unification with external values
-      ~(if (= ,(pattern 1) ,expr) ,(onmatch) ,sentinel)
+      ~(if (= ,(get pattern 1) ,expr) ,(onmatch) ,sentinel)
       (match-1
         (in pattern 0) expr
         (fn []
