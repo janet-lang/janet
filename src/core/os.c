@@ -389,15 +389,26 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     char *const *cargv = (char *const *)child_argv;
 
     /* Use posix_spawn to spawn new process */
+
+    int use_environ = !janet_flag_at(flags, 0);
+
+    if (use_environ) {
+        janet_lock_environ();
+    }
+
     pid_t pid;
     if (janet_flag_at(flags, 1)) {
         status = posix_spawnp(&pid,
                               child_argv[0], NULL, NULL, cargv,
-                              janet_flag_at(flags, 0) ? envp : environ);
+                              use_environ ? environ : envp);
     } else {
         status = posix_spawn(&pid,
                              child_argv[0], NULL, NULL, cargv,
-                             janet_flag_at(flags, 0) ? envp : environ);
+                             use_environ ? environ : envp);
+    }
+
+    if (use_environ) {
+        janet_unlock_environ();
     }
 
     /* Wait for child */
