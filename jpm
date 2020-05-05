@@ -151,11 +151,11 @@
     ["/LD"]
     ["-fPIC"]))
 (def- dynamic-lflags
-    (if is-win
-      ["/DLL" ;thread-flags]
-      (if is-mac
-        ["-shared" "-undefined" "dynamic_lookup" ;thread-flags]
-        ["-shared" ;thread-flags])))
+  (if is-win
+    ["/DLL" ;thread-flags]
+    (if is-mac
+      ["-shared" "-undefined" "dynamic_lookup" ;thread-flags]
+      ["-shared" ;thread-flags])))
 
 (defn- opt
   "Get an option, allowing overrides via dynamic bindings AND some
@@ -196,7 +196,7 @@
   (def env (make-env))
   (put env :jpm-no-deps no-deps)
   (loop [k :keys _env :when (symbol? k)]
-     (unless ((_env k) :private) (put env k (_env k))))
+    (unless ((_env k) :private) (put env k (_env k))))
   env)
 
 (defn require-jpm
@@ -280,7 +280,7 @@
   (if is-win
     (let [end (last (peg/match path-splitter src))
           isdir (= (os/stat src :mode) :directory)]
-        (shell "xcopy" src (if isdir (string dest "\\" end) dest) "/y" "/s" "/e" "/i"))
+      (shell "xcopy" src (if isdir (string dest "\\" end) dest) "/y" "/s" "/e" "/i"))
     (shell "cp" "-rf" src dest)))
 
 (defn mkdir
@@ -554,12 +554,11 @@ int main(int argc, const char **argv) {
                               prefix
                               "\", 0);\n\n")
           (when-let [lfs (meta :lflags)]
-                    (array/concat dep-lflags lfs))
+            (array/concat dep-lflags lfs))
           (buffer/push-string declarations
                               "extern void "
                               (meta :static-entry)
                               "(JanetTable *);\n"))
-
 
         # Build image
         (def image (marshal main mdict))
@@ -643,7 +642,7 @@ int main(int argc, const char **argv) {
   (if is-win
     # windows get rid of read-only files
     (os/shell `rmdir /S /Q "` path `"`))
-    (rm path))
+  (rm path))
 
 (defn clear-cache
   "Clear the global git cache."
@@ -668,9 +667,9 @@ int main(int argc, const char **argv) {
   (unless (string/find ":" repo)
     (def pkgs
       (try (require "pkgs")
-                   ([err f]
-                    (install-git (dyn :pkglist default-pkglist))
-                    (require "pkgs"))))
+        ([err f]
+          (install-git (dyn :pkglist default-pkglist))
+          (require "pkgs"))))
     (def next-repo (get-in pkgs ['packages :value (symbol repo)]))
     (unless next-repo
       (error (string "package " repo " not found.")))
@@ -687,11 +686,11 @@ int main(int argc, const char **argv) {
       (error (string "did not find cached repo for dependency " repo))
       (set fresh true))
     (when (mkdir module-dir)
-        (set fresh true)
-        (print "cloning repository " repo " to " module-dir)
-        (unless (zero? (os/execute ["git" "clone" repo module-dir] :p))
-          (rimraf module-dir)
-          (error (string "could not clone git dependency " repo)))))
+      (set fresh true)
+      (print "cloning repository " repo " to " module-dir)
+      (unless (zero? (os/execute ["git" "clone" repo module-dir] :p))
+        (rimraf module-dir)
+        (error (string "could not clone git dependency " repo)))))
   (def olddir (os/cwd))
   (try
     (with-dyns [:rules @{}
@@ -787,12 +786,12 @@ int main(int argc, const char **argv) {
     (compile-c opts src (out-path src ".c" objext)))
   (def objects (map (fn [path] (out-path path ".c" objext)) sources))
   (when-let [embedded (opts :embedded)]
-            (loop [src :in embedded]
-              (def c-src (out-path src ".janet" ".janet.c"))
-              (def o-src (out-path src ".janet" (if is-win ".janet.obj" ".janet.o")))
-              (array/push objects o-src)
-              (create-buffer-c src c-src (embed-name src))
-              (compile-c opts c-src o-src)))
+    (loop [src :in embedded]
+      (def c-src (out-path src ".janet" ".janet.c"))
+      (def o-src (out-path src ".janet" (if is-win ".janet.obj" ".janet.o")))
+      (array/push objects o-src)
+      (create-buffer-c src c-src (embed-name src))
+      (compile-c opts c-src o-src)))
   (link-c opts lname ;objects)
   (add-dep "build" lname)
   (install-rule lname path)
@@ -820,12 +819,12 @@ int main(int argc, const char **argv) {
       (compile-c opts src (out-path src ".c" sobjext) true))
     (def sobjects (map (fn [path] (out-path path ".c" sobjext)) sources))
     (when-let [embedded (opts :embedded)]
-              (loop [src :in embedded]
-                (def c-src (out-path src ".janet" ".janet.c"))
-                (def o-src (out-path src ".janet" sjobjext))
-                (array/push sobjects o-src)
-                # Buffer c-src is already declared by dynamic module
-                (compile-c opts c-src o-src true)))
+      (loop [src :in embedded]
+        (def c-src (out-path src ".janet" ".janet.c"))
+        (def o-src (out-path src ".janet" sjobjext))
+        (array/push sobjects o-src)
+        # Buffer c-src is already declared by dynamic module
+        (compile-c opts c-src o-src true)))
     (archive-c opts sname ;sobjects)
     (add-dep "build" sname)
     (install-rule sname path)))
@@ -890,8 +889,8 @@ int main(int argc, const char **argv) {
       (eachp [i d] (sorted root-deps)
         (print-rule-tree
           d (dec depth)
-          (string prefix-part (if (= i l) " └─"  " ├─"))
-          (string prefix-part (if (= i l) "   "  " │ ")))))))
+          (string prefix-part (if (= i l) " └─" " ├─"))
+          (string prefix-part (if (= i l) "   " " │ ")))))))
 
 (defn declare-archive
   "Build a janet archive. This is a file that bundles together many janet
@@ -1109,10 +1108,10 @@ Flags are:
   (def env
     (try
       (require-jpm "./project.janet")
-    ([err f]
-     (if (= "cannot open ./project.janet" err)
-       (put (make-jpm-env) :project {})
-       (propagate err f)))))
+      ([err f]
+        (if (= "cannot open ./project.janet" err)
+          (put (make-jpm-env) :project {})
+          (propagate err f)))))
   (setdyn :pretty-format (if-not (dyn :nocolor) "%.20Q" "%.20q"))
   (setdyn :err-color (if-not (dyn :nocolor) true))
   (def p (env :project))
