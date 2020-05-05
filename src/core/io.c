@@ -30,6 +30,7 @@
 #include <errno.h>
 
 #ifndef JANET_WINDOWS
+#include <fcntl.h>
 #include <sys/wait.h>
 #endif
 
@@ -132,6 +133,21 @@ static Janet cfun_io_temp(int32_t argc, Janet *argv) {
     FILE *tmp = tmpfile();
     if (!tmp)
         janet_panicf("unable to create temporary file - %s", strerror(errno));
+
+#ifndef JANET_WINDOWS
+    /* It seems highly unlikely a typical janet user wants a tempfile to be inherited and
+       libc tmpfile does NOT set O_CLOEXEC by default,
+
+       Even though setting this flag after a delay is racy in threaded programs,
+       It helps in single threaded ones. The fix for threaded programs would be to use mkostemp
+       which is coming to POSIX at a later time. */
+    if (fcntl(fileno(tmp), F_SETFD, FD_CLOEXEC) != 0) {
+        fclose(tmp);
+        janet_panic("unable initialize temporary file");
+    }
+/* Do anything for windows? */
+#endif
+
     return janet_makefile(tmp, JANET_FILE_WRITE | JANET_FILE_READ | JANET_FILE_BINARY);
 }
 
