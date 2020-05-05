@@ -240,8 +240,8 @@
   [& body]
   (let [f (gensym) r (gensym)]
     ~(let [,f (,fiber/new (fn [] ,;body) :ie)
-          ,r (,resume ,f)]
-      [(,not= :error (,fiber/status ,f)) ,r])))
+           ,r (,resume ,f)]
+       [(,not= :error (,fiber/status ,f)) ,r])))
 
 (defmacro and
   "Evaluates to the last argument if all preceding elements are truthy, otherwise
@@ -369,7 +369,7 @@
   "Similar to with, but if binding is false or nil, evaluates
   the falsey path. Otherwise, evaluates the truthy path. In both cases,
   ctor is bound to binding."
-  [[binding ctor dtor] truthy &opt falsey ]
+  [[binding ctor dtor] truthy &opt falsey]
   ~(if-let [,binding ,ctor]
      ,(apply defer [(or dtor :close) binding] [truthy])
      ,falsey))
@@ -618,9 +618,9 @@
   (case (length functions)
     0 nil
     1 (in functions 0)
-    2 (let [[f g]       functions] (fn [& x] (f (g ;x))))
-    3 (let [[f g h]     functions] (fn [& x] (f (g (h ;x)))))
-    4 (let [[f g h i]   functions] (fn [& x] (f (g (h (i ;x))))))
+    2 (let [[f g] functions] (fn [& x] (f (g ;x))))
+    3 (let [[f g h] functions] (fn [& x] (f (g (h ;x)))))
+    4 (let [[f g h i] functions] (fn [& x] (f (g (h (i ;x))))))
     (let [[f g h i] functions]
       (comp (fn [x] (f (g (h (i x)))))
             ;(tuple/slice functions 4 -1)))))
@@ -1070,7 +1070,7 @@
   [bindings & body]
   (def dyn-forms
     (seq [i :range [0 (length bindings) 2]]
-         ~(setdyn ,(bindings i) ,(bindings (+ i 1)))))
+      ~(setdyn ,(bindings i) ,(bindings (+ i 1)))))
   ~(,resume (,fiber/new (fn [] ,;dyn-forms ,;body) :p)))
 
 (defmacro with-vars
@@ -1084,12 +1084,12 @@
   (def setnew (seq [i :range [0 len 2]] ['set (vars i) (vars (+ i 1))]))
   (def restoreold (seq [i :range [0 len 2]] ['set (vars i) (temp (/ i 2))]))
   (with-syms [ret f s]
-  ~(do
-     ,;saveold
-     (def ,f (,fiber/new (fn [] ,;setnew ,;body) :ti))
-     (def ,ret (,resume ,f))
-     ,;restoreold
-     (if (= (,fiber/status ,f) :dead) ,ret (,propagate ,ret ,f)))))
+    ~(do
+       ,;saveold
+       (def ,f (,fiber/new (fn [] ,;setnew ,;body) :ti))
+       (def ,ret (,resume ,f))
+       ,;restoreold
+       (if (= (,fiber/status ,f) :dead) ,ret (,propagate ,ret ,f)))))
 
 (defn partial
   "Partial function application."
@@ -1443,7 +1443,7 @@
                (if (= key nil)
                  (onmatch)
                  ~(do (def ,$val (,get ,$dict ,key))
-                   ,(match-1 [(in pattern key) [not= nil $val]] $val aux seen)))))
+                    ,(match-1 [(in pattern key) [not= nil $val]] $val aux seen)))))
            ,sentinel)))
 
     :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
@@ -1751,8 +1751,8 @@
     :array (tuple/slice (map freeze x))
     :tuple (tuple/slice (map freeze x))
     :table (if-let [p (table/getproto x)]
-              (freeze (merge (table/clone p) x))
-              (struct ;(map freeze (kvs x))))
+             (freeze (merge (table/clone p) x))
+             (struct ;(map freeze (kvs x))))
     :struct (struct ;(map freeze (kvs x)))
     :buffer (string x)
     x))
@@ -2148,7 +2148,7 @@
       (when f
         (def res
           (try (do (file/read f 1) true)
-               ([err] nil)))
+            ([err] nil)))
         (file/close f)
         res))))
 
@@ -2170,8 +2170,8 @@
     (when (mod-filter checker path)
       (if (function? p)
         (when-let [res (p path)]
-                  (set ret [res mod-kind])
-                  (break))
+          (set ret [res mod-kind])
+          (break))
         (do
           (def fullpath (string (module/expand-path path p)))
           (when (fexists fullpath)
