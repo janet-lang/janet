@@ -155,6 +155,9 @@ static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, in
             case '\\':
                 janet_buffer_push_bytes(buffer, (const uint8_t *)"\\\\", 2);
                 break;
+            case '\t':
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\t", 2);
+                break;
             default:
                 if (c < 32 || c > 126) {
                     uint8_t buf[4];
