@@ -78,6 +78,7 @@ typedef struct {
 #define JPollStruct WSAPOLLFD
 #define JSock SOCKET
 #define JReadInt long
+#define JSOCKFLAGS 0
 static JanetStream *make_stream(SOCKET fd, int flags) {
     u_long iMode = 0;
     JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
@@ -102,6 +103,7 @@ typedef struct {
 #define JPollStruct struct pollfd
 #define JSock int
 #define JReadInt ssize_t
+#define JSOCKFLAGS SOCK_CLOEXEC
 static JanetStream *make_stream(int fd, int flags) {
     JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
@@ -483,7 +485,7 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     struct addrinfo *ai = janet_get_addrinfo(argv, 0);
 
     /* Create socket */
-    JSock sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+    JSock sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol | JSOCKFLAGS);
     if (!JSOCKVALID(sock)) {
         freeaddrinfo(ai);
         janet_panic("could not create socket");
@@ -514,7 +516,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     JSock sfd = JSOCKDEFAULT;
     struct addrinfo *rp = NULL;
     for (rp = ai; rp != NULL; rp = rp->ai_next) {
-        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol | JSOCKFLAGS);
         if (!JSOCKVALID(sfd)) continue;
         /* Set various socket options */
         int enable = 1;

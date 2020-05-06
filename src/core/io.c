@@ -31,6 +31,8 @@
 
 #ifndef JANET_WINDOWS
 #include <sys/wait.h>
+#include <unistd.h>
+#include <fcntl.h>
 #endif
 
 static int cfun_io_gc(void *p, size_t len);
@@ -87,6 +89,11 @@ static Janet makef(FILE *f, int flags) {
     JanetFile *iof = (JanetFile *) janet_abstract(&janet_file_type, sizeof(JanetFile));
     iof->file = f;
     iof->flags = flags;
+#ifndef JANET_WINDOWS
+    /* While we would like fopen to set cloexec by default (like O_CLOEXEC) with the e flag, that is
+     * not standard. */
+    fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
+#endif
     return janet_wrap_abstract(iof);
 }
 
@@ -239,12 +246,22 @@ static Janet cfun_io_fflush(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
+#ifdef JANET_WINDOWS
+#define pclose _pclose
+#define WEXITSTATUS(x) x
+#endif
+
 /* Cleanup a file */
 static int cfun_io_gc(void *p, size_t len) {
     (void) len;
     JanetFile *iof = (JanetFile *)p;
     if (!(iof->flags & (JANET_FILE_NOT_CLOSEABLE | JANET_FILE_CLOSED))) {
-        return fclose(iof->file);
+        /* We can't panic inside a gc, so just ignore bad statuses here */
+        if (iof->flags & JANET_FILE_PIPED) {
+            pclose(iof->file);
+        } else {
+            fclose(iof->file);
+        }
     }
     return 0;
 }
@@ -258,10 +275,6 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
     if (iof->flags & (JANET_FILE_NOT_CLOSEABLE))
         janet_panic("file not closable");
     if (iof->flags & JANET_FILE_PIPED) {
-#ifdef JANET_WINDOWS
-#define pclose _pclose
-#define WEXITSTATUS(x) x
-#endif
         int status = pclose(iof->file);
         iof->flags |= JANET_FILE_CLOSED;
         if (status == -1) janet_panic("could not close file");

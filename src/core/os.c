@@ -606,7 +606,7 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
        In both cases, use this fallback path for now... */
     int rc;
     int randfd;
-    RETRY_EINTR(randfd, open("/dev/urandom", O_RDONLY));
+    RETRY_EINTR(randfd, open("/dev/urandom", O_RDONLY | O_CLOEXEC));
     if (randfd < 0)
         janet_panic(genericerr);
     while (n > 0) {
