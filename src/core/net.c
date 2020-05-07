@@ -103,10 +103,19 @@ typedef struct {
 #define JPollStruct struct pollfd
 #define JSock int
 #define JReadInt ssize_t
+#ifdef SOCK_CLOEXEC
 #define JSOCKFLAGS SOCK_CLOEXEC
+#else
+#define JSOCKFLAGS 0
+#endif
 static JanetStream *make_stream(int fd, int flags) {
     JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+#ifndef SOCK_CLOEXEC
+    int extra = O_CLOEXEC;
+#else
+    int extra = 0;
+#endif
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK | extra);
     stream->fd = fd;
     stream->flags = flags;
     return stream;
