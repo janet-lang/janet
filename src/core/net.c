@@ -78,7 +78,6 @@ typedef struct {
 #define JPollStruct WSAPOLLFD
 #define JSock SOCKET
 #define JReadInt long
-#define JSOCKFLAGS 0
 static JanetStream *make_stream(SOCKET fd, int flags) {
     u_long iMode = 0;
     JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
@@ -103,7 +102,6 @@ typedef struct {
 #define JPollStruct struct pollfd
 #define JSock int
 #define JReadInt ssize_t
-#define JSOCKFLAGS SOCK_CLOEXEC
 static JanetStream *make_stream(int fd, int flags) {
     JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
@@ -485,11 +483,17 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     struct addrinfo *ai = janet_get_addrinfo(argv, 0);
 
     /* Create socket */
-    JSock sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol | JSOCKFLAGS);
+    JSock sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
     if (!JSOCKVALID(sock)) {
         freeaddrinfo(ai);
         janet_panic("could not create socket");
     }
+#ifndef JANET_WINDOWS
+    if (fcntl(sock, F_SETFD, FD_CLOEXEC) < 0) {
+        freeaddrinfo(ai);
+        janet_panic("fcntl(FD_CLOEXEC) failed");
+    }
+#endif
 
     /* Connect to socket */
     int status = connect(sock, ai->ai_addr, (int) ai->ai_addrlen);
@@ -516,10 +520,16 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     JSock sfd = JSOCKDEFAULT;
     struct addrinfo *rp = NULL;
     for (rp = ai; rp != NULL; rp = rp->ai_next) {
-        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol | JSOCKFLAGS);
+        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (!JSOCKVALID(sfd)) continue;
         /* Set various socket options */
         int enable = 1;
+#ifndef JANET_WINDOWS
+        if (fcntl(sfd, F_SETFD, FD_CLOEXEC) < 0) {
+            JSOCKCLOSE(sfd);
+            janet_panic("fcntl(FD_CLOEXEC) failed");
+        }
+#endif
         if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(int)) < 0) {
             JSOCKCLOSE(sfd);
             janet_panic("setsockopt(SO_REUSEADDR) failed");
