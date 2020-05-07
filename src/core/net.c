@@ -494,7 +494,7 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     struct addrinfo *ai = janet_get_addrinfo(argv, 0);
 
     /* Create socket */
-    JSock sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol | JSOCKFLAGS);
+    JSock sock = socket(ai->ai_family, ai->ai_socktype | JSOCKFLAGS, ai->ai_protocol);
     if (!JSOCKVALID(sock)) {
         freeaddrinfo(ai);
         janet_panic("could not create socket");
@@ -525,7 +525,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     JSock sfd = JSOCKDEFAULT;
     struct addrinfo *rp = NULL;
     for (rp = ai; rp != NULL; rp = rp->ai_next) {
-        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol | JSOCKFLAGS);
+        sfd = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
         if (!JSOCKVALID(sfd)) continue;
         /* Set various socket options */
         int enable = 1;
