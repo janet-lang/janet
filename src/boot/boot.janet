@@ -141,6 +141,11 @@
   [x &opt err]
   (if x x (error (if err err "assert failure"))))
 
+(defn errorf
+  "A combination of error and string/format. Equivalent to (error (string/format fmt ;args))"
+  [fmt & args]
+  (error (string/format fmt ;args)))
+
 (defmacro default
   "Define a default value for an optional argument.
   Expands to (def sym (if (= nil sym) val sym))"

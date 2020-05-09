@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `errorf` to core.
 - Add `lenprefix` combinator to PEGs.
 - Add `%M`, `%m`, `%N`, and `%n` formatters to formatting functions. These are the
   same as `%Q`, `%q`, `%P`, and `%p`, but will not truncate long values.
