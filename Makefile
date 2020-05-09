@@ -290,6 +290,7 @@ build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
 
 clean:
 	-rm -rf build vgcore.* callgrind.*
+	-rm -rf test/install/build test/install/modpath
 
 test-install:
 	cd test/install \
@@ -299,10 +300,11 @@ test-install:
 		&& build/testexec \
 		&& jpm --verbose quickbin testexec.janet build/testexec2 \
 		&& build/testexec2 \
-		&& jpm --verbose --testdeps --modpath=. install https://github.com/janet-lang/json.git
-	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/jhydro.git
-	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/path.git
-	cd test/install && jpm --verbose --test --modpath=. install https://github.com/janet-lang/argparse.git
+		&& mkdir -p modpath \
+		&& jpm --verbose --testdeps --modpath=./modpath install https://github.com/janet-lang/json.git
+	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/jhydro.git
+	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/path.git
+	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/argparse.git
 
 .PHONY: clean install repl debug valgrind test \
 	valtest emscripten dist uninstall docs grammar format
