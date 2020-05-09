@@ -145,7 +145,7 @@ void janetc_regalloc_free(JanetcRegisterAllocator *ra, int32_t reg) {
 int32_t janetc_regalloc_temp(JanetcRegisterAllocator *ra, JanetcRegisterTemp nth) {
     int32_t oldmax = ra->max;
     if (ra->regtemps & (1 << nth)) {
-        janet_exit("regtemp already allocated");
+        JANET_EXIT("regtemp already allocated");
     }
     ra->regtemps |= 1 << nth;
     int32_t reg = janetc_regalloc_1(ra);

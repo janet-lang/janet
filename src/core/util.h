@@ -32,9 +32,9 @@
 #include <errno.h>
 
 /* Handle runtime errors */
-#ifndef janet_exit
+#ifndef JANET_EXIT
 #include <stdio.h>
-#define janet_exit(m) do { \
+#define JANET_EXIT(m) do { \
     fprintf(stderr, "C runtime error at line %d in file %s: %s\n",\
         __LINE__,\
         __FILE__,\
@@ -44,7 +44,7 @@
 #endif
 
 #define janet_assert(c, m) do { \
-    if (!(c)) janet_exit((m)); \
+    if (!(c)) JANET_EXIT((m)); \
 } while (0)
 
 /* What to do when out of memory */

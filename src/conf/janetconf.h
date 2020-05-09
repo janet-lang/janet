@@ -45,15 +45,20 @@
 /* #define JANET_NO_DOCSTRINGS */
 /* #define JANET_NO_SOURCEMAPS */
 /* #define JANET_REDUCED_OS */
-
-/* Other settings */
+/* #define JANET_NO_PROCESSES */
 /* #define JANET_NO_ASSEMBLER */
 /* #define JANET_NO_PEG */
 /* #define JANET_NO_NET */
 /* #define JANET_NO_TYPED_ARRAY */
 /* #define JANET_NO_INT_TYPES */
+
+/* Other settings */
 /* #define JANET_NO_PRF */
+/* #define JANET_NO_UTC_MKTIME */
+/* #define JANET_NO_SYMLINKS */
 /* #define JANET_OUT_OF_MEMORY do { printf("janet out of memory\n"); exit(1); } while (0) */
+/* #define JANET_EXIT(msg) do { printf("C assert failed executing janet: %s\n", msg); exit(1); } while (0) */
+/* #define JANET_TOP_LEVEL_SIGNAL(msg) call_my_function((msg), stderr) */
 /* #define JANET_RECURSION_GUARD 1024 */
 /* #define JANET_MAX_PROTO_DEPTH 200 */
 /* #define JANET_MAX_MACRO_EXPAND 200 */

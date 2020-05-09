@@ -27,6 +27,15 @@
 #include "fiber.h"
 #endif
 
+JANET_NO_RETURN static void janet_top_level_signal(const char *msg) {
+#ifdef JANET_TOP_LEVEL_SIGNAL
+    JANET_TOP_LEVEL_SIGNAL(msg);
+#else
+    fputs(msg, stdout);
+    exit(1);
+#endif
+}
+
 void janet_signalv(JanetSignal sig, Janet message) {
     if (janet_vm_return_reg != NULL) {
         *janet_vm_return_reg = message;
@@ -37,8 +46,8 @@ void janet_signalv(JanetSignal sig, Janet message) {
         longjmp(*janet_vm_jmp_buf, sig);
 #endif
     } else {
-        fputs((const char *)janet_formatc("janet top level signal - %v\n", message), stdout);
-        exit(1);
+        const char *str = (const char *)janet_formatc("janet top level signal - %v\n", message);
+        janet_top_level_signal(str);
     }
 }
 

@@ -2575,6 +2575,9 @@
 
 (def- importers {'import true 'import* true 'use true 'dofile true 'require true})
 
+# conditional compilation for reduced os
+(def- getenv-alias (if-let [entry (in _env 'os/getenv)] (entry :value) (fn [&])))
+
 (defn cli-main
   "Entrance for the Janet CLI tool. Call this functions with the command line
   arguments as an array or tuple of strings to invoke the CLI interface."
@@ -2592,8 +2595,8 @@
   (var *debug* false)
   (var *compile-only* false)
 
-  (if-let [jp (os/getenv "JANET_PATH")] (setdyn :syspath jp))
-  (if-let [jp (os/getenv "JANET_HEADERPATH")] (setdyn :headerpath jp))
+  (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
+  (if-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
 
   # Flag handlers
   (def handlers
@@ -2708,7 +2711,7 @@
 (put _env 'is-safe-def nil)
 (put _env 'safe-forms nil)
 (put _env 'importers nil)
-
+(put _env 'getenv-alias nil)
 
 ###
 ###

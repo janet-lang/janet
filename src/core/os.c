@@ -182,18 +182,9 @@ static Janet os_exit(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-#ifdef JANET_REDUCED_OS
-/* Provide a dud os/getenv so boot.janet and init.janet work, but nothing else */
+#ifndef JANET_REDUCED_OS
 
-static Janet os_getenv(int32_t argc, Janet *argv) {
-    (void) argv;
-    janet_arity(argc, 1, 2);
-    return janet_wrap_nil();
-}
-
-#else
-/* Provide full os functionality */
-
+#ifndef JANET_NO_PROCESSES
 /* Get env for os_execute */
 static char **os_execute_env(int32_t argc, const Janet *argv) {
     char **envp = NULL;
@@ -443,6 +434,8 @@ static Janet os_shell(int32_t argc, Janet *argv) {
            ? janet_wrap_integer(stat)
            : janet_wrap_boolean(stat);
 }
+
+#endif /* JANET_NO_PROCESSES */
 
 static Janet os_environ(int32_t argc, Janet *argv) {
     (void) argv;
@@ -764,8 +757,8 @@ static Janet os_mktime(int32_t argc, Janet *argv) {
         t = mktime(&t_info);
     } else {
         /* utc time */
-#ifdef __sun
-        janet_panic("os/mktime UTC not supported on Solaris");
+#ifdef JANET_NO_UTC_MKTIME
+        janet_panic("os/mktime UTC not supported on this platform");
         return janet_wrap_nil();
 #else
         t = timegm(&t_info);
@@ -779,6 +772,12 @@ static Janet os_mktime(int32_t argc, Janet *argv) {
     return janet_wrap_number((double)t);
 }
 
+#ifdef JANET_NO_SYMLINKS
+#define j_symlink link
+#else
+#define j_symlink symlink
+#endif
+
 static Janet os_link(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
 #ifdef JANET_WINDOWS
@@ -789,7 +788,7 @@ static Janet os_link(int32_t argc, Janet *argv) {
 #else
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
-    int res = ((argc == 3 && janet_truthy(argv[2])) ? symlink : link)(oldpath, newpath);
+    int res = ((argc == 3 && janet_truthy(argv[2])) ? j_symlink : link)(oldpath, newpath);
     if (-1 == res) janet_panicf("%s: %s -> %s", strerror(errno), oldpath, newpath);
     return janet_wrap_nil();
 #endif
@@ -805,11 +804,13 @@ static Janet os_symlink(int32_t argc, Janet *argv) {
 #else
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
-    int res = symlink(oldpath, newpath);
+    int res = j_symlink(oldpath, newpath);
     if (-1 == res) janet_panicf("%s: %s -> %s", strerror(errno), oldpath, newpath);
     return janet_wrap_nil();
 #endif
 }
+
+#undef j_symlink
 
 static Janet os_mkdir(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
@@ -1265,11 +1266,6 @@ static const JanetReg os_cfuns[] = {
              "\t:posix - A POSIX compatible system (default)")
     },
     {
-        "os/getenv", os_getenv,
-        JDOC("(os/getenv variable &opt dflt)\n\n"
-             "Get the string value of an environment variable.")
-    },
-    {
         "os/arch", os_arch,
         JDOC("(os/arch)\n\n"
              "Check the ISA that janet was compiled for. Returns one of:\n\n"
@@ -1286,6 +1282,11 @@ static const JanetReg os_cfuns[] = {
         "os/environ", os_environ,
         JDOC("(os/environ)\n\n"
              "Get a copy of the os environment table.")
+    },
+    {
+        "os/getenv", os_getenv,
+        JDOC("(os/getenv variable &opt dflt)\n\n"
+             "Get the string value of an environment variable.")
     },
     {
         "os/dir", os_dir,
@@ -1377,6 +1378,7 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/readlink path)\n\n"
              "Read the contents of a symbolic link. Does not work on Windows.\n")
     },
+#ifndef JANET_NO_PROCESSES
     {
         "os/execute", os_execute,
         JDOC("(os/execute args &opts flags env)\n\n"
@@ -1394,6 +1396,7 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/shell str)\n\n"
              "Pass a command string str directly to the system shell.")
     },
+#endif
     {
         "os/setenv", os_setenv,
         JDOC("(os/setenv variable value)\n\n"

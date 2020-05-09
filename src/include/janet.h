@@ -132,6 +132,11 @@ extern "C" {
 #define JANET_NO_DYNAMIC_MODULES
 #endif
 
+/* Check sun */
+#ifdef __sun
+#define JANET_NO_UTC_MKTIME
+#endif
+
 /* Define how global janet state is declared */
 #ifdef JANET_SINGLE_THREADED
 #define JANET_THREAD_LOCAL

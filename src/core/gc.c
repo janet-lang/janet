@@ -533,7 +533,7 @@ void *janet_srealloc(void *mem, size_t size) {
             if (i == 0) break;
         }
     }
-    janet_exit("invalid janet_srealloc");
+    JANET_EXIT("invalid janet_srealloc");
 }
 
 void janet_sfinalizer(void *mem, JanetScratchFinalizer finalizer) {
@@ -554,5 +554,5 @@ void janet_sfree(void *mem) {
             if (i == 0) break;
         }
     }
-    janet_exit("invalid janet_sfree");
+    JANET_EXIT("invalid janet_sfree");
 }

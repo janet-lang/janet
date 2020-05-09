@@ -93,20 +93,13 @@ static Janet makef(FILE *f, int flags) {
     /* While we would like fopen to set cloexec by default (like O_CLOEXEC) with the e flag, that is
      * not standard. */
     if (!(flags & JANET_FILE_NOT_CLOSEABLE))
-      fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
+        fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
 #endif
     return janet_wrap_abstract(iof);
 }
 
 /* Open a process */
-#ifdef __EMSCRIPTEN__
-static Janet cfun_io_popen(int32_t argc, Janet *argv) {
-    (void) argc;
-    (void) argv;
-    janet_panic("not implemented on this platform");
-    return janet_wrap_nil();
-}
-#else
+#ifndef JANET_NO_PROCESSES
 static Janet cfun_io_popen(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
@@ -655,6 +648,7 @@ static const JanetReg io_cfuns[] = {
              "for the relative number of bytes to seek in the file. n may be a real "
              "number to handle large files of more the 4GB. Returns the file handle.")
     },
+#ifndef JANET_NO_PROCESSES
     {
         "file/popen", cfun_io_popen,
         JDOC("(file/popen path &opt mode)\n\n"
@@ -663,6 +657,7 @@ static const JanetReg io_cfuns[] = {
              "process can be read from the file. In :w mode, the stdin of the process "
              "can be written to. Returns the new file.")
     },
+#endif
     {NULL, NULL, NULL}
 };
 
