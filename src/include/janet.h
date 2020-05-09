@@ -130,6 +130,7 @@ extern "C" {
 /* Check emscripten */
 #ifdef __EMSCRIPTEN__
 #define JANET_NO_DYNAMIC_MODULES
+#define JANET_NO_PROCESSES
 #endif
 
 /* Check sun */
