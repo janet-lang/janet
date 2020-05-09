@@ -92,7 +92,8 @@ static Janet makef(FILE *f, int flags) {
 #ifndef JANET_WINDOWS
     /* While we would like fopen to set cloexec by default (like O_CLOEXEC) with the e flag, that is
      * not standard. */
-    fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
+    if (!(flags & JANET_FILE_NOT_CLOSEABLE))
+      fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
 #endif
     return janet_wrap_abstract(iof);
 }
@@ -136,22 +137,10 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
 static Janet cfun_io_temp(int32_t argc, Janet *argv) {
     (void)argv;
     janet_fixarity(argc, 0);
+    // XXX use mkostemp when we can to avoid CLOEXEC race.
     FILE *tmp = tmpfile();
     if (!tmp)
         janet_panicf("unable to create temporary file - %s", strerror(errno));
-
-#ifndef JANET_WINDOWS
-    /* It seems highly unlikely a typical janet user wants a tempfile to be inherited and
-       libc tmpfile does NOT set O_CLOEXEC by default.
-
-       For threaded programs we should use mkostemp
-       which is coming to POSIX at a later time. */
-    if (fcntl(fileno(tmp), F_SETFD, FD_CLOEXEC) != 0) {
-        fclose(tmp);
-        janet_panic("unable initialize temporary file");
-    }
-#endif
-
     return janet_makefile(tmp, JANET_FILE_WRITE | JANET_FILE_READ | JANET_FILE_BINARY);
 }
 
