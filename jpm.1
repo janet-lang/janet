@@ -100,19 +100,20 @@ Builds all artifacts specified in the project.janet file in the current director
 be created in the ./build/ directory.
 
 .TP
-.BR install\ [\fBrepo\fR]
+.BR install\ [\fBrepo...\fR]
 
 When run with no arguments, installs all installable artifacts in the current project to
 the current JANET_MODPATH for modules and JANET_BINPATH for executables and scripts. Can also
 take an optional git repository URL and will install all artifacts in that repository instead.
-When run with an argument, install does not need to be run from a jpm project directory.
+When run with an argument, install does not need to be run from a jpm project directory. Will also
+install multiple dependencies in one command.
 
 .TP
-.BR uninstall\ [\fBname\fR]
+.BR uninstall\ [\fBname...\fR]
 Uninstall a project installed with install. uninstall expects the name of the project, not the
 repository url, path to installed file or executable name. The name of the project must be specified
 at the top of the project.janet file in the declare-project form. If no name is given, uninstalls
-the current project if installed.
+the current project if installed. Will also uninstall multiple packages in one command.
 
 .TP
 .BR clean

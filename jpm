@@ -16,6 +16,140 @@
 (def- absprefix (if is-win "C:\\" "/"))
 
 #
+# Defaults
+#
+
+(def- exe-dir
+  "Directory containing jpm script"
+  (do
+    (def exe (dyn :current-file))
+    (def i (last (string/find-all sep exe)))
+    (slice exe 0 i)))
+
+(def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
+
+# Default based on janet binary location
+(def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH")
+                          (string exe-dir "/../include/janet")))
+(def JANET_LIBPATH (or (os/getenv "JANET_LIBPATH")
+                       (string exe-dir "/../lib")))
+
+(def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
+                       (string (dyn :syspath) "/bin")))
+
+#
+# Utilities
+#
+
+(defn find-manifest-dir
+  "Get the path to the directory containing manifests for installed
+  packages."
+  []
+  (string (dyn :modpath JANET_MODPATH) sep ".manifests"))
+
+(defn find-manifest
+  "Get the full path of a manifest file given a package name."
+  [name]
+  (string (find-manifest-dir) sep name ".jdn"))
+
+(defn find-cache
+  "Return the path to the global cache."
+  []
+  (def path (dyn :modpath JANET_MODPATH))
+  (string path sep ".cache"))
+
+(defn rm
+  "Remove a directory and all sub directories."
+  [path]
+  (if (= (os/lstat path :mode) :directory)
+    (do
+      (each subpath (os/dir path)
+        (rm (string path sep subpath)))
+      (os/rmdir path))
+    (os/rm path)))
+
+(defn- rimraf
+  "Hard delete directory tree"
+  [path]
+  (if is-win
+    # windows get rid of read-only files
+    (os/shell `rmdir /S /Q "` path `"`))
+  (rm path))
+
+(defn clear-cache
+  "Clear the global git cache."
+  []
+  (def cache (find-cache))
+  (print "clearing " cache "...")
+  (rimraf cache))
+
+(def- default-pkglist
+  (or (os/getenv "JANET_PKGLIST") "https://github.com/janet-lang/pkgs.git"))
+
+(defn- pslurp
+  "Like slurp, but with file/popen instead file/open. Also trims output"
+  [cmd]
+  (string/trim (with [f (file/popen cmd)] (:read f :all))))
+
+(def- path-splitter
+  "split paths on / and \\."
+  (peg/compile ~(any (* '(any (if-not (set `\/`) 1)) (+ (set `\/`) -1)))))
+
+(defn create-dirs
+  "Create all directories needed for a file (mkdir -p)."
+  [dest]
+  (def segs (peg/match path-splitter dest))
+  (for i 1 (length segs)
+    (def path (string/join (slice segs 0 i) sep))
+    (unless (empty? path) (os/mkdir path))))
+
+(def- filepath-replacer
+  "Convert url with potential bad characters into a file path element."
+  (peg/compile ~(% (any (+ (/ '(set "<>:\"/\\|?*") "_") '1)))))
+
+(defn filepath-replace
+  "Remove special characters from a string or path
+  to make it into a path segment."
+  [repo]
+  (get (peg/match filepath-replacer repo) 0))
+
+(defn shell
+  "Do a shell command"
+  [& args]
+  (if (dyn :verbose)
+    (print ;(interpose " " args)))
+  (def res (os/execute args :p))
+  (unless (zero? res)
+    (error (string "command exited with status " res))))
+
+(defn copy
+  "Copy a file or directory recursively from one location to another."
+  [src dest]
+  (print "copying " src " to " dest "...")
+  (if is-win
+    (let [end (last (peg/match path-splitter src))
+          isdir (= (os/stat src :mode) :directory)]
+      (shell "xcopy" src (if isdir (string dest "\\" end) dest) "/y" "/s" "/e" "/i"))
+    (shell "cp" "-rf" src dest)))
+
+(defn mkdir
+  "Create a directory if it doesn't exist. If it does exist, do nothing.
+  If we can't create it, give a friendly error. Return true if created, false if
+  existing. Throw an error if we can't create it."
+  [dir]
+  (os/mkdir dir))
+
+(defn- abspath
+  "Create an absolute path. Does not resolve . and .. (useful for
+  generating entries in install manifest file)."
+  [path]
+  (if (if is-win
+        (peg/match '(+ "\\" (* (range "AZ" "az") ":\\")) path)
+        (string/has-prefix? "/" path))
+    path
+    (string (os/cwd) sep path)))
+
+#
 # Rule Engine
 #
 
@@ -101,83 +235,6 @@
   (unless phony target))
 
 #
-# Configuration
-#
-
-(def- exe-dir
-  "Directory containing jpm script"
-  (do
-    (def exe (dyn :current-file))
-    (def i (last (string/find-all sep exe)))
-    (slice exe 0 i)))
-
-(def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
-
-# Default based on janet binary location
-(def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH")
-                          (string exe-dir "/../include/janet")))
-(def JANET_LIBPATH (or (os/getenv "JANET_LIBPATH")
-                       (string exe-dir "/../lib")))
-
-(def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
-                       (string (dyn :syspath) "/bin")))
-
-#
-# Compilation Defaults
-#
-
-(def default-compiler (or (os/getenv "CC") (if is-win "cl.exe" "cc")))
-(def default-linker (or (os/getenv "CC") (if is-win "link.exe" "cc")))
-(def default-archiver (or (os/getenv "AR") (if is-win "lib.exe" "ar")))
-
-# Detect threads
-(def env (fiber/getenv (fiber/current)))
-(def threads? (not (not (env 'thread/new))))
-
-# Default flags for natives, but not required
-(def default-lflags (if is-win ["/nologo"] []))
-(def default-cflags
-  (if is-win
-    ["/nologo" "/MD"]
-    ["-std=c99" "-Wall" "-Wextra"]))
-
-# Link to pthreads
-(def- thread-flags (if is-win [] (if threads? ["-lpthread"] [])))
-
-# Required flags for dynamic libraries. These
-# are used no matter what for dynamic libraries.
-(def- dynamic-cflags
-  (if is-win
-    ["/LD"]
-    ["-fPIC"]))
-(def- dynamic-lflags
-  (if is-win
-    ["/DLL" ;thread-flags]
-    (if is-mac
-      ["-shared" "-undefined" "dynamic_lookup" ;thread-flags]
-      ["-shared" ;thread-flags])))
-
-(defn- opt
-  "Get an option, allowing overrides via dynamic bindings AND some
-  default value dflt if no dynamic binding is set."
-  [opts key dflt]
-  (def ret (or (opts key) (dyn key dflt)))
-  (if (= nil ret)
-    (error (string "option :" key " not set")))
-  ret)
-
-(defn check-cc
-  "Ensure we have a c compiler."
-  []
-  (if is-win
-    (do
-      (if (os/getenv "INCLUDE") (break))
-      (error "Run jpm inside a Developer Command Prompt.
- jpm needs a c compiler to compile natives. You can install the MSVC compiler from
- microsoft.com"))
-    (do)))
-
-#
 # Importing a file
 #
 
@@ -229,70 +286,67 @@
     ~',(reduce |(eval $1) nil body)))
 
 #
-# OS and shell helpers
-#
-
-(def- path-splitter
-  "split paths on / and \\."
-  (peg/compile ~(any (* '(any (if-not (set `\/`) 1)) (+ (set `\/`) -1)))))
-
-(defn create-dirs
-  "Create all directories needed for a file (mkdir -p)."
-  [dest]
-  (def segs (peg/match path-splitter dest))
-  (for i 1 (length segs)
-    (def path (string/join (slice segs 0 i) sep))
-    (unless (empty? path) (os/mkdir path))))
-
-(def- filepath-replacer
-  "Convert url with potential bad characters into a file path element."
-  (peg/compile ~(% (any (+ (/ '(set "<>:\"/\\|?*") "_") '1)))))
-
-(defn filepath-replace
-  "Remove special characters from a string or path
-  to make it into a path segment."
-  [repo]
-  (get (peg/match filepath-replacer repo) 0))
-
-(defn shell
-  "Do a shell command"
-  [& args]
-  (if (dyn :verbose)
-    (print ;(interpose " " args)))
-  (def res (os/execute args :p))
-  (unless (zero? res)
-    (error (string "command exited with status " res))))
-
-(defn rm
-  "Remove a directory and all sub directories."
-  [path]
-  (if (= (os/lstat path :mode) :directory)
-    (do
-      (each subpath (os/dir path)
-        (rm (string path sep subpath)))
-      (os/rmdir path))
-    (os/rm path)))
-
-(defn copy
-  "Copy a file or directory recursively from one location to another."
-  [src dest]
-  (print "copying " src " to " dest "...")
-  (if is-win
-    (let [end (last (peg/match path-splitter src))
-          isdir (= (os/stat src :mode) :directory)]
-      (shell "xcopy" src (if isdir (string dest "\\" end) dest) "/y" "/s" "/e" "/i"))
-    (shell "cp" "-rf" src dest)))
-
-(defn mkdir
-  "Create a directory if it doesn't exist. If it does exist, do nothing.
-  If we can't create it, give a friendly error. Return true if created, false if
-  existing. Throw an error if we can't create it."
-  [dir]
-  (os/mkdir dir))
-
-#
 # C Compilation
 #
+
+(def default-compiler (or (os/getenv "CC") (if is-win "cl.exe" "cc")))
+(def default-linker (or (os/getenv "CC") (if is-win "link.exe" "cc")))
+(def default-archiver (or (os/getenv "AR") (if is-win "lib.exe" "ar")))
+
+# Detect threads
+(def env (fiber/getenv (fiber/current)))
+(def threads? (not (not (env 'thread/new))))
+
+# Default flags for natives, but not required
+(def default-lflags (if is-win ["/nologo"] []))
+(def default-cflags
+  (if is-win
+    ["/nologo" "/MD"]
+    ["-std=c99" "-Wall" "-Wextra"]))
+
+# Default libraries to link
+(def- thread-flags
+  (if is-win []
+    (if threads? ["-lpthread"] [])))
+(def default-libs
+  (case (os/which)
+    :macos ["-ldl" "-lm" ;thread-flags]
+    :windows [;thread-flags]
+    :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
+    ["-lm" ;thread-flags]))
+
+# Required flags for dynamic libraries. These
+# are used no matter what for dynamic libraries.
+(def- dynamic-cflags
+  (if is-win
+    ["/LD"]
+    ["-fPIC"]))
+(def- dynamic-lflags
+  (if is-win
+    ["/DLL" ;thread-flags]
+    (if is-mac
+      ["-shared" "-undefined" "dynamic_lookup" ;thread-flags]
+      ["-shared" ;thread-flags])))
+
+(defn- opt
+  "Get an option, allowing overrides via dynamic bindings AND some
+  default value dflt if no dynamic binding is set."
+  [opts key dflt]
+  (def ret (or (opts key) (dyn key dflt)))
+  (if (= nil ret)
+    (error (string "option :" key " not set")))
+  ret)
+
+(defn check-cc
+  "Ensure we have a c compiler."
+  []
+  (if is-win
+    (do
+      (if (os/getenv "INCLUDE") (break))
+      (error "Run jpm inside a Developer Command Prompt.
+ jpm needs a c compiler to compile natives. You can install the MSVC compiler from
+ microsoft.com"))
+    (do)))
 
 (defn- embed-name
   "Rename a janet symbol for embedding."
@@ -379,13 +433,14 @@
   (def cflags (getcflags opts))
   (def lflags [;(opt opts :lflags default-lflags)
                ;(if (opts :static) [] dynamic-lflags)])
+  (def ldlibs [;(opt opts :libs default-libs)])
   (rule target objects
         (check-cc)
         (print "linking " target "...")
         (create-dirs target)
         (if is-win
-          (shell linker ;lflags (string "/OUT:" target) ;objects (win-import-library))
-          (shell linker ;cflags `-o` target ;objects ;lflags))))
+          (shell linker ;lflags (string "/OUT:" target) ;objects (win-import-library) ;ldlibs)
+          (shell linker ;cflags ;lflags `-o` target ;objects ;ldlibs))))
 
 (defn- archive-c
   "Link object files together to make a static library."
@@ -522,6 +577,7 @@ int main(int argc, const char **argv) {
         (def entry-env (dofile source))
         (def main ((entry-env 'main) :value))
         (def dep-lflags @[])
+        (def dep-libs @[])
 
         # Create marshalling dictionary
         (def mdict (invert (env-lookup root-env)))
@@ -555,6 +611,8 @@ int main(int argc, const char **argv) {
                               "\", 0);\n\n")
           (when-let [lfs (meta :lflags)]
             (array/concat dep-lflags lfs))
+          (when-let [lfs (meta :libs)]
+            (array/concat dep-libs lfs))
           (buffer/push-string declarations
                               "extern void "
                               (meta :static-entry)
@@ -568,60 +626,19 @@ int main(int argc, const char **argv) {
         (spit cimage_dest (make-bin-source declarations lookup-into-invocations) :ab)
         # Compile and link final exectable
         (do
-          (def extra-lflags (case (os/which)
-                              :macos ["-ldl" "-lm" ;thread-flags]
-                              :windows [;thread-flags]
-                              :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
-                              #default
-                              ["-lm" ;thread-flags]))
           (def cc (opt opts :compiler default-compiler))
-          (def lflags [;dep-lflags ;(opt opts :lflags default-lflags) ;extra-lflags])
+          (def ldlibs [;dep-libs ;(opt opts :libs default-libs)])
+          (def lflags [;dep-lflags ;(opt opts :lflags default-lflags)])
           (def cflags (getcflags opts))
           (def defines (make-defines (opt opts :defines {})))
           (print "compiling and linking " dest "...")
           (if is-win
-            (shell cc ;cflags cimage_dest ;static-libs (libjanet) ;lflags `/link` (string "/OUT:" dest))
-            (shell cc ;cflags `-o` dest cimage_dest ;static-libs (libjanet) ;lflags)))))
-
-(defn- abspath
-  "Create an absolute path. Does not resolve . and .. (useful for
-  generating entries in install manifest file)."
-  [path]
-  (if (if is-win
-        (peg/match '(+ "\\" (* (range "AZ" "az") ":\\")) path)
-        (string/has-prefix? "/" path))
-    path
-    (string (os/cwd) sep path)))
+            (shell cc ;cflags ;lflags cimage_dest ;static-libs (libjanet) ;ldlibs `/link` (string "/OUT:" dest))
+            (shell cc ;cflags ;lflags `-o` dest cimage_dest ;static-libs (libjanet) ;ldlibs)))))
 
 #
-# Public utilities
+# Installation and Dependencies
 #
-
-(defn parse
-  "Read a string of Janet source and parse out the first expression."
-  [src]
-  (let [p (parser/new)]
-    (:consume p src)
-    (if (= :error (:status p))
-      (error (string "Could not parse: " (parser/error p))))
-    (:produce p)))
-
-(defn find-manifest-dir
-  "Get the path to the directory containing manifests for installed
-  packages."
-  []
-  (string (dyn :modpath JANET_MODPATH) sep ".manifests"))
-
-(defn find-manifest
-  "Get the full path of a manifest file given a package name."
-  [name]
-  (string (find-manifest-dir) sep name ".jdn"))
-
-(defn find-cache
-  "Return the path to the global cache."
-  []
-  (def path (dyn :modpath JANET_MODPATH))
-  (string path sep ".cache"))
 
 (defn uninstall
   "Uninstall bundle named name"
@@ -635,23 +652,6 @@ int main(int argc, const char **argv) {
     (print "removing " manifest)
     (rm manifest)
     (print "Uninstalled.")))
-
-(defn- rimraf
-  "Hard delete directory tree"
-  [path]
-  (if is-win
-    # windows get rid of read-only files
-    (os/shell `rmdir /S /Q "` path `"`))
-  (rm path))
-
-(defn clear-cache
-  "Clear the global git cache."
-  []
-  (def cache (find-cache))
-  (print "clearing " cache "...")
-  (rimraf cache))
-
-(def- default-pkglist (or (os/getenv "JANET_PKGLIST") "https://github.com/janet-lang/pkgs.git"))
 
 (defn install-git
   "Install a bundle from git. If the bundle is already installed, the bundle
@@ -722,11 +722,6 @@ int main(int argc, const char **argv) {
   (add-body "install"
             (mkdir destdir)
             (copy src destdir)))
-
-(defn- pslurp
-  "Like slurp, but with file/popen instead file/open. Also trims output"
-  [cmd]
-  (string/trim (with [f (file/popen cmd)] (:read f :all))))
 
 (defn- make-lockfile
   [&opt filename]
@@ -805,6 +800,7 @@ int main(int argc, const char **argv) {
                          "# Metadata for static library %s\n\n%.20p"
                          (string name statext)
                          {:static-entry ename
+                          :libs ~',(opts :libs)
                           :lflags ~',(opts :lflags)})))
   (add-dep "build" metaname)
   (install-rule metaname path)
@@ -850,10 +846,10 @@ int main(int argc, const char **argv) {
   is marshalled into bytecode which is then embedded in a final executable for distribution.\n\n
   This executable can be installed as well to the --binpath given."
   [&keys {:install install :name name :entry entry :headers headers
-          :cflags cflags :lflags lflags :deps deps}]
+          :cflags cflags :lflags lflags :deps deps :libs libs}]
   (def name (if is-win (string name ".exe") name))
   (def dest (string "build" sep name))
-  (create-executable @{:cflags cflags :lflags lflags} entry dest)
+  (create-executable @{:cflags cflags :lflags lflags :libs libs} entry dest)
   (add-dep "build" dest)
   (when headers
     (each h headers (add-dep dest h)))
@@ -993,10 +989,10 @@ on a project, or from anywhere to do operations on the global module cache (modp
 Subcommands are:
   build : build all artifacts
   help : show this help text
-  install (repo or name) : install artifacts. If a repo is given, install the contents of that
+  install (repo or name)... : install artifacts. If a repo is given, install the contents of that
                    git repository, assuming that the repository is a jpm project. If not, build
                    and install the current project.
-  uninstall (module) : uninstall a module. If no module is given, uninstall the module
+  uninstall (module)... : uninstall a module. If no module is given, uninstall the module
                        defined by the current directory.
   show-paths : prints the paths that will be used to install things.
   clean : remove any generated files or artifacts
@@ -1060,20 +1056,20 @@ Flags are:
   (local-rule "clean"))
 
 (defn install
-  [&opt repo]
-  (if repo
-    (install-git repo)
-    (local-rule "install")))
+  [& repo]
+  (if (empty? repo)
+    (local-rule "install")
+    (each rep repo (install-git rep))))
 
 (defn test
   []
   (local-rule "test"))
 
 (defn- uninstall-cmd
-  [&opt what]
-  (if what
-    (uninstall what)
-    (local-rule "uninstall")))
+  [& what]
+  (if (empty? what)
+    (local-rule "uninstall")
+    (each wha what (uninstall wha))))
 
 (defn deps
   []
