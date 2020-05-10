@@ -428,7 +428,7 @@ void janet_loop(void) {
 #define JANET_SCHED_FSOME 1
 
 JANET_NO_RETURN static void janet_sched_read(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags) {
-    JanetLoopFD lfd = {0};
+    JanetLoopFD lfd;
     lfd.stream = stream;
     lfd.fiber = janet_root_fiber();
     lfd.event_type = (flags & JANET_SCHED_FSOME) ? JLE_READ_SOME : JLE_READ_CHUNK;
@@ -439,7 +439,7 @@ JANET_NO_RETURN static void janet_sched_read(JanetStream *stream, JanetBuffer *b
 }
 
 JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetBuffer *buf) {
-    JanetLoopFD lfd = {0};
+    JanetLoopFD lfd;
     lfd.stream = stream;
     lfd.fiber = janet_root_fiber();
     lfd.event_type = JLE_WRITE_FROM_BUFFER;
@@ -450,7 +450,7 @@ JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetB
 }
 
 JANET_NO_RETURN static void janet_sched_write_stringlike(JanetStream *stream, const uint8_t *str) {
-    JanetLoopFD lfd = {0};
+    JanetLoopFD lfd;
     lfd.stream = stream;
     lfd.fiber = janet_root_fiber();
     lfd.event_type = JLE_WRITE_FROM_STRINGLIKE;
@@ -472,7 +472,8 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset) {
     }
     /* getaddrinfo */
     struct addrinfo *ai = NULL;
-    struct addrinfo hints = {0};
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = 0;
