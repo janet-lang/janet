@@ -1263,7 +1263,8 @@ static const JanetReg os_cfuns[] = {
              "\t:freebsd\n"
              "\t:openbsd\n"
              "\t:netbsd\n"
-             "\t:posix - A POSIX compatible system (default)")
+             "\t:posix - A POSIX compatible system (default)\n\n"
+             "May also return a custom keyword specified at build time.")
     },
     {
         "os/arch", os_arch,
@@ -1292,7 +1293,7 @@ static const JanetReg os_cfuns[] = {
         "os/dir", os_dir,
         JDOC("(os/dir dir &opt array)\n\n"
              "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
-             "with only the filename or directory name and no prefix.")
+             "with only the file name or directory name and no prefix.")
     },
     {
         "os/stat", os_stat,
@@ -1311,7 +1312,7 @@ static const JanetReg os_cfuns[] = {
              "\t:blocks - number of blocks in file. 0 on windows\n"
              "\t:blocksize - size of blocks in file. 0 on windows\n"
              "\t:accessed - timestamp when file last accessed\n"
-             "\t:changed - timestamp when file last chnaged (permissions changed)\n"
+             "\t:changed - timestamp when file last changed (permissions changed)\n"
              "\t:modified - timestamp when file last modified (content changed)\n")
     },
     {

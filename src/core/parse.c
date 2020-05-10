@@ -1139,7 +1139,7 @@ static const JanetReg parse_cfuns[] = {
         "parser/new", cfun_parse_parser,
         JDOC("(parser/new)\n\n"
              "Creates and returns a new parser object. Parsers are state machines "
-             "that can receive bytes, and generate a stream of janet values.")
+             "that can receive bytes, and generate a stream of values.")
     },
     {
         "parser/clone", cfun_parse_clone,

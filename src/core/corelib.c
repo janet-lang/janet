@@ -643,8 +643,8 @@ static const JanetReg corelib_cfuns[] = {
     {
         "hash", janet_core_hash,
         JDOC("(hash value)\n\n"
-             "Gets a hash value for any janet value. The hash is an integer can be used "
-             "as a cheap hash function for all janet objects. If two values are strictly equal, "
+             "Gets a hash for any value. The hash is an integer can be used "
+             "as a cheap hash function for all values. If two values are strictly equal, "
              "then they will have the same hash value.")
     },
     {
@@ -685,7 +685,7 @@ static const JanetReg corelib_cfuns[] = {
              "\t:all:\tthe value of path verbatim\n"
              "\t:cur:\tthe current file, or (dyn :current-file)\n"
              "\t:dir:\tthe directory containing the current file\n"
-             "\t:name:\tthe filename component of path, with extension if given\n"
+             "\t:name:\tthe name component of path, with extension if given\n"
              "\t:native:\tthe extension used to load natives, .so or .dll\n"
              "\t:sys:\tthe system path, or (syn :syspath)")
     },
@@ -742,7 +742,7 @@ static void janet_quick_asm(
     janet_def(env, name, janet_wrap_function(janet_thunk(def)), doc);
 }
 
-/* Macros for easier inline janet assembly */
+/* Macros for easier inline assembly */
 #define SSS(op, a, b, c) ((op) | ((a) << 8) | ((b) << 16) | ((c) << 24))
 #define SS(op, a, b) ((op) | ((a) << 8) | ((b) << 16))
 #define SSI(op, a, b, I) ((op) | ((a) << 8) | ((b) << 16) | ((uint32_t)(I) << 24))
@@ -1024,7 +1024,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_quick_asm(env, JANET_FUN_NEXT,
                     "next", 2, 1, 2, 2, next_asm, sizeof(next_asm),
                     JDOC("(next ds &opt key)\n\n"
-                         "Gets the next key in a datastructure. Can be used to iterate through "
+                         "Gets the next key in a data structure. Can be used to iterate through "
                          "the keys of a data structure in an unspecified order. Keys are guaranteed "
                          "to be seen only once per iteration if they data structure is not mutated "
                          "during iteration. If key is nil, next returns the first key. If next "
@@ -1035,7 +1035,8 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "Propagate a signal from a fiber to the current fiber. The resulting "
                          "stack trace from the current fiber will include frames from fiber. If "
                          "fiber is in a state that can be resumed, resuming the current fiber will "
-                         "first resume fiber."));
+                         "first resume fiber. This function can be used to re-raise an error without "
+                         "losing the original stack trace."));
     janet_quick_asm(env, JANET_FUN_DEBUG,
                     "debug", 1, 0, 1, 1, debug_asm, sizeof(debug_asm),
                     JDOC("(debug &opt x)\n\n"
@@ -1107,7 +1108,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                      JDOC("(/ & xs)\n\n"
                           "Returns the quotient of xs. If xs is empty, returns 1. If xs has one value x, returns "
                           "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
-                          "values. Division by two integers uses truncating division."));
+                          "values."));
     templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
                      JDOC("(band & xs)\n\n"
                           "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));

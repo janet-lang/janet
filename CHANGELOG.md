@@ -1,7 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.9.0 - 2020-05-10
+- Add `:ldflags` option to many jpm declare functions.
 - Add `errorf` to core.
 - Add `lenprefix` combinator to PEGs.
 - Add `%M`, `%m`, `%N`, and `%n` formatters to formatting functions. These are the
@@ -29,7 +30,7 @@ All notable changes to this project will be documented in this file.
 - Add os/umask
 - Add os/perm-int
 - Add os/perm-string
-- Add :octal-permissions option for os/stat.
+- Add :int-permissions option for os/stat.
 - Add `jpm repl` subcommand, as well as `post-deps` macro in project.janet files.
 - Various bug fixes.
 

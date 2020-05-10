@@ -855,10 +855,10 @@ static const JanetReg compile_cfuns[] = {
     {
         "compile", cfun,
         JDOC("(compile ast &opt env source)\n\n"
-             "Compiles an Abstract Syntax Tree (ast) into a janet function. "
+             "Compiles an Abstract Syntax Tree (ast) into a function. "
              "Pair the compile function with parsing functionality to implement "
-             "eval. Returns a janet function and does not modify ast. Throws an "
-             "error if the ast cannot be compiled.")
+             "eval. Returns a new function and does not modify ast. Returns an error "
+             "struct with keys :line, :column, and :error if compilation fails.")
     },
     {NULL, NULL, NULL}
 };

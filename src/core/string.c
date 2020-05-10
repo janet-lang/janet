@@ -542,7 +542,7 @@ static const JanetReg string_cfuns[] = {
     {
         "string/from-bytes", cfun_string_frombytes,
         JDOC("(string/from-bytes & byte-vals)\n\n"
-             "Creates a string from integer params with byte values. All integers "
+             "Creates a string from integer parameters with byte values. All integers "
              "will be coerced to the range of 1 byte 0-255.")
     },
     {
@@ -627,7 +627,7 @@ static const JanetReg string_cfuns[] = {
     {
         "string/format", cfun_string_format,
         JDOC("(string/format format & values)\n\n"
-             "Similar to snprintf, but specialized for operating with janet. Returns "
+             "Similar to snprintf, but specialized for operating with Janet values. Returns "
              "a new string.")
     },
     {

@@ -480,7 +480,7 @@ static const JanetReg math_cfuns[] = {
     },
     {
         "math/next", janet_nextafter,
-        JDOC("(math/next y)\n\n"
+        JDOC("(math/next x y)\n\n"
              "Returns the next representable floating point value after x in the direction of y.")
     },
     {NULL, NULL, NULL}

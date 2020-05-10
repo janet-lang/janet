@@ -1417,17 +1417,17 @@ static const JanetReg marsh_cfuns[] = {
     {
         "marshal", cfun_marshal,
         JDOC("(marshal x &opt reverse-lookup buffer)\n\n"
-             "Marshal a janet value into a buffer and return the buffer. The buffer "
+             "Marshal a value into a buffer and return the buffer. The buffer "
              "can the later be unmarshalled to reconstruct the initial value. "
              "Optionally, one can pass in a reverse lookup table to not marshal "
              "aliased values that are found in the table. Then a forward"
-             "lookup table can be used to recover the original janet value when "
+             "lookup table can be used to recover the original value when "
              "unmarshalling.")
     },
     {
         "unmarshal", cfun_unmarshal,
         JDOC("(unmarshal buffer &opt lookup)\n\n"
-             "Unmarshal a janet value from a buffer. An optional lookup table "
+             "Unmarshal a value from a buffer. An optional lookup table "
              "can be provided to allow for aliases to be resolved. Returns the value "
              "unmarshalled from the buffer.")
     },
