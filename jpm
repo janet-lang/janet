@@ -302,23 +302,25 @@
 (def env (fiber/getenv (fiber/current)))
 (def threads? (not (not (env 'thread/new))))
 
+# Default libraries to link
+(def- thread-flags
+  (if is-win []
+    (if threads? ["-lpthread"] [])))
+
+# lflags needed for the janet binary.
+(def janet-lflags
+  (case (os/which)
+    :macos ["-ldl" "-lm" ;thread-flags]
+    :windows [;thread-flags]
+    :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
+    ["-lm" ;thread-flags]))
+
 # Default flags for natives, but not required
 (def default-lflags (if is-win ["/nologo"] []))
 (def default-cflags
   (if is-win
     ["/nologo" "/MD"]
     ["-std=c99" "-Wall" "-Wextra"]))
-
-# Default libraries to link
-(def- thread-flags
-  (if is-win []
-    (if threads? ["-lpthread"] [])))
-(def default-libs
-  (case (os/which)
-    :macos ["-ldl" "-lm" ;thread-flags]
-    :windows [;thread-flags]
-    :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
-    ["-lm" ;thread-flags]))
 
 # Required flags for dynamic libraries. These
 # are used no matter what for dynamic libraries.
@@ -438,14 +440,14 @@
   (def cflags (getcflags opts))
   (def lflags [;(opt opts :lflags default-lflags)
                ;(if (opts :static) [] dynamic-lflags)])
-  (def ldlibs [;(opt opts :libs default-libs)])
+  (def ldflags [;(opt opts :ldflags [])])
   (rule target objects
         (check-cc)
         (print "linking " target "...")
         (create-dirs target)
         (if is-win
-          (shell linker ;lflags (string "/OUT:" target) ;objects (win-import-library) ;ldlibs)
-          (shell linker ;cflags ;lflags `-o` target ;objects ;ldlibs))))
+          (shell linker ;ldflags (string "/OUT:" target) ;objects (win-import-library) ;lflags)
+          (shell linker ;cflags ;ldflags `-o` target ;objects ;lflags))))
 
 (defn- archive-c
   "Link object files together to make a static library."
@@ -582,7 +584,7 @@ int main(int argc, const char **argv) {
         (def entry-env (dofile source))
         (def main ((entry-env 'main) :value))
         (def dep-lflags @[])
-        (def dep-libs @[])
+        (def dep-ldflags @[])
 
         # Create marshalling dictionary
         (def mdict (invert (env-lookup root-env)))
@@ -616,8 +618,8 @@ int main(int argc, const char **argv) {
                               "\", 0);\n\n")
           (when-let [lfs (meta :lflags)]
             (array/concat dep-lflags lfs))
-          (when-let [lfs (meta :libs)]
-            (array/concat dep-libs lfs))
+          (when-let [lfs (meta :ldflags)]
+            (array/concat dep-ldflags lfs))
           (buffer/push-string declarations
                               "extern void "
                               (meta :static-entry)
@@ -632,14 +634,14 @@ int main(int argc, const char **argv) {
         # Compile and link final exectable
         (do
           (def cc (opt opts :compiler default-compiler))
-          (def ldlibs [;dep-libs ;(opt opts :libs default-libs)])
-          (def lflags [;dep-lflags ;(opt opts :lflags default-lflags)])
+          (def ldflags [;dep-ldflags ;(opt opts :ldflags [])])
+          (def lflags [;static-libs (libjanet) ;dep-lflags ;(opt opts :lflags default-lflags) ;janet-lflags])
           (def cflags (getcflags opts))
           (def defines (make-defines (opt opts :defines {})))
           (print "compiling and linking " dest "...")
           (if is-win
-            (shell cc ;cflags ;lflags cimage_dest ;static-libs (libjanet) ;ldlibs `/link` (string "/OUT:" dest))
-            (shell cc ;cflags ;lflags `-o` dest cimage_dest ;static-libs (libjanet) ;ldlibs)))))
+            (shell cc ;cflags ;ldflags cimage_dest ;lflags `/link` (string "/OUT:" dest))
+            (shell cc ;cflags ;ldflags `-o` dest cimage_dest ;lflags)))))
 
 #
 # Installation and Dependencies
@@ -805,7 +807,7 @@ int main(int argc, const char **argv) {
                          "# Metadata for static library %s\n\n%.20p"
                          (string name statext)
                          {:static-entry ename
-                          :libs ~',(opts :libs)
+                          :ldflags ~',(opts :ldflags)
                           :lflags ~',(opts :lflags)})))
   (add-dep "build" metaname)
   (install-rule metaname path)
@@ -851,10 +853,10 @@ int main(int argc, const char **argv) {
   is marshalled into bytecode which is then embedded in a final executable for distribution.\n\n
   This executable can be installed as well to the --binpath given."
   [&keys {:install install :name name :entry entry :headers headers
-          :cflags cflags :lflags lflags :deps deps :libs libs}]
+          :cflags cflags :lflags lflags :deps deps :ldflags ldflags}]
   (def name (if is-win (string name ".exe") name))
   (def dest (string "build" sep name))
-  (create-executable @{:cflags cflags :lflags lflags :libs libs} entry dest)
+  (create-executable @{:cflags cflags :lflags lflags :ldflags ldflags} entry dest)
   (add-dep "build" dest)
   (when headers
     (each h headers (add-dep dest h)))
