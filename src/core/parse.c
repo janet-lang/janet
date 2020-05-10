@@ -790,7 +790,7 @@ static int parsermark(void *p, size_t size) {
         janet_mark(parser->args[i]);
     }
     if (parser->flag & JANET_PARSER_GENERATED_ERROR) {
-        janet_mark(janet_wrap_string(parser->error));
+        janet_mark(janet_wrap_string((const uint8_t *) parser->error));
     }
     return 0;
 }
@@ -928,7 +928,7 @@ static Janet cfun_parse_error(int32_t argc, Janet *argv) {
     const char *err = janet_parser_error(p);
     if (err) {
         return (p->flag & JANET_PARSER_GENERATED_ERROR)
-               ? janet_wrap_string(err)
+               ? janet_wrap_string((const uint8_t *) err)
                : janet_cstringv(err);
     }
     return janet_wrap_nil();
