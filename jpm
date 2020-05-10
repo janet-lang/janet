@@ -34,8 +34,13 @@
 (def JANET_LIBPATH (or (os/getenv "JANET_LIBPATH")
                        (string exe-dir "/../lib")))
 
+# We want setting JANET_PATH to contain installed binaries. However, it is convenient
+# to have globally installed binaries got to the same place as jpm itself, which is on
+# the $PATH.
 (def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
-                       (string (dyn :syspath) "/bin")))
+                       (if-let [mp (os/getenv "JANET_MODPATH")] (string mp "/bin"))
+                       (if-let [mp (os/getenv "JANET_PATH")] (string mp "/bin"))
+                       exe-dir))
 
 #
 # Utilities
