@@ -253,7 +253,9 @@ static int cfun_io_gc(void *p, size_t len) {
     if (!(iof->flags & (JANET_FILE_NOT_CLOSEABLE | JANET_FILE_CLOSED))) {
         /* We can't panic inside a gc, so just ignore bad statuses here */
         if (iof->flags & JANET_FILE_PIPED) {
+#ifndef JANET_NO_PROCESSES
             pclose(iof->file);
+#endif
         } else {
             fclose(iof->file);
         }
@@ -270,10 +272,12 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
     if (iof->flags & (JANET_FILE_NOT_CLOSEABLE))
         janet_panic("file not closable");
     if (iof->flags & JANET_FILE_PIPED) {
+#ifndef JANET_NO_PROCESSES
         int status = pclose(iof->file);
         iof->flags |= JANET_FILE_CLOSED;
         if (status == -1) janet_panic("could not close file");
         return janet_wrap_integer(WEXITSTATUS(status));
+#endif
     } else {
         if (fclose(iof->file)) janet_panic("could not close file");
         iof->flags |= JANET_FILE_CLOSED;
