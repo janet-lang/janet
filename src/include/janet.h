@@ -138,6 +138,11 @@ extern "C" {
 #define JANET_NO_UTC_MKTIME
 #endif
 
+/* Add some windows flags */
+#ifdef JANET_WINDOWS
+#define JANET_NO_REALPATH
+#endif
+
 /* Define how global janet state is declared */
 #ifdef JANET_SINGLE_THREADED
 #define JANET_THREAD_LOCAL

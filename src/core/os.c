@@ -877,6 +877,7 @@ static Janet os_remove(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
+#ifndef JANET_NO_SYMLINKS
 static Janet os_readlink(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
 #ifdef JANET_WINDOWS
@@ -893,6 +894,7 @@ static Janet os_readlink(int32_t argc, Janet *argv) {
     return janet_stringv((const uint8_t *)buffer, len);
 #endif
 }
+#endif
 
 #ifdef JANET_WINDOWS
 
@@ -1161,6 +1163,7 @@ static Janet os_chmod(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
+#ifndef JANET_NO_UMASK
 static Janet os_umask(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     int mask = (int) os_getmode(argv, 0);
@@ -1171,6 +1174,7 @@ static Janet os_umask(int32_t argc, Janet *argv) {
 #endif
     return janet_wrap_integer(janet_perm_to_unix(res));
 }
+#endif
 
 static Janet os_dir(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
@@ -1220,9 +1224,9 @@ static Janet os_rename(int32_t argc, Janet *argv) {
 
 static Janet os_realpath(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
-#ifdef JANET_WINDOWS
+#ifdef JANET_NO_REALPATH
     (void) argv;
-    janet_panic("os/realpath not supported on Windows");
+    janet_panic("os/realpath not supported on this platform");
 #else
     const char *src = janet_getcstring(argv, 0);
     char *dest = realpath(src, NULL);
@@ -1339,11 +1343,13 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/cd path)\n\n"
              "Change current directory to path. Returns nil on success, errors on failure.")
     },
+#ifndef JANET_NO_UMASK
     {
         "os/umask", os_umask,
         JDOC("(os/umask mask)\n\n"
              "Set a new umask, returns the old umask.")
     },
+#endif
     {
         "os/mkdir", os_mkdir,
         JDOC("(os/mkdir path)\n\n"
@@ -1369,6 +1375,7 @@ static const JanetReg os_cfuns[] = {
              "Iff symlink is falsey or not provided, "
              "creates a hard link. Does not work on Windows.")
     },
+#ifndef JANET_NO_SYMLINKS
     {
         "os/symlink", os_symlink,
         JDOC("(os/symlink oldpath newpath)\n\n"
@@ -1379,6 +1386,7 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/readlink path)\n\n"
              "Read the contents of a symbolic link. Does not work on Windows.\n")
     },
+#endif
 #ifndef JANET_NO_PROCESSES
     {
         "os/execute", os_execute,

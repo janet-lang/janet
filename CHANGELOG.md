@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Fix compilation issue when nanboxing is disabled.
+
 ## 1.9.0 - 2020-05-10
 - Add `:ldflags` option to many jpm declare functions.
 - Add `errorf` to core.
