@@ -190,8 +190,10 @@
 (var abc 123)
 (assert (= 356 (with-vars [abc 456] (- abc 100)))
   "with-vars variable shadowing")
+(assert (= 356 (with-vars [abc 456] (set abc (- abc 100)) abc))
+  "with-vars setting inner varible")
 (assert-error "with-vars error propagation" (with-vars [abc 456] (error :oops)))
-(assert (= abc 123) "with-vars check initial variable")
+(assert (= abc 123) "with-vars check outer scope variable")
 
 # Trim empty string
 (assert (= "" (string/trim " ")) "string/trim regression")
