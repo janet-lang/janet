@@ -1084,16 +1084,11 @@
   [vars & body]
   (def len (length vars))
   (unless (even? len) (error "expected even number of argument to vars"))
-  (def temp (seq [i :range [0 len 2]] (gensym)))
-  (def saveold (seq [i :range [0 len 2]] ['def (temp (/ i 2)) (vars i)]))
-  (def setnew (seq [i :range [0 len 2]] ['set (vars i) (vars (+ i 1))]))
-  (def restoreold (seq [i :range [0 len 2]] ['set (vars i) (temp (/ i 2))]))
+  (def new-vars (seq [i :range [0 len 2]] ['var (vars i) (vars (+ i 1))]))
   (with-syms [ret f s]
     ~(do
-       ,;saveold
-       (def ,f (,fiber/new (fn [] ,;setnew ,;body) :ti))
+       (def ,f (,fiber/new (fn [] ,;new-vars ,;body) :ti))
        (def ,ret (,resume ,f))
-       ,;restoreold
        (if (= (,fiber/status ,f) :dead) ,ret (,propagate ,ret ,f)))))
 
 (defn partial

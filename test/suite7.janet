@@ -185,10 +185,13 @@
 (assert (= (string '()) (string [])) "empty bracket tuple literal")
 
 # with-vars
+(assert (= [356 221] (with-vars [abc 456 cba 321] [(- abc 100) (- cba 100)]))
+  "with-vars fresh variable")
 (var abc 123)
-(assert (= 356 (with-vars [abc 456] (- abc 100))) "with-vars 1")
-(assert-error "with-vars 2" (with-vars [abc 456] (error :oops)))
-(assert (= abc 123) "with-vars 3")
+(assert (= 356 (with-vars [abc 456] (- abc 100)))
+  "with-vars variable shadowing")
+(assert-error "with-vars error propagation" (with-vars [abc 456] (error :oops)))
+(assert (= abc 123) "with-vars check initial variable")
 
 # Trim empty string
 (assert (= "" (string/trim " ")) "string/trim regression")
