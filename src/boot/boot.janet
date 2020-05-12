@@ -2405,20 +2405,6 @@
     (print))
   (print))
 
-(unless (get _env 'disasm)
-  (put _env '.disasm nil)
-  (put _env '.bytecode nil)
-  (put _env '.ppasm nil))
-(put _env 'disasm-alias nil)
-
-(defn .source
-  "Show the source code for the function being debugged."
-  [&opt n]
-  (def frame (.frame n))
-  (def s (frame :source))
-  (def all-source (slurp s))
-  (print "\n" all-source "\n"))
-
 (defn .breakall
   "Set breakpoints on all instructions in the current function."
   [&opt n]
@@ -2436,6 +2422,22 @@
   (for i 0 (length bytecode)
     (debug/unfbreak fun i))
   (print "Cleared " (length bytecode) " breakpoints in " fun))
+
+(unless (get _env 'disasm)
+  (put _env '.disasm nil)
+  (put _env '.bytecode nil)
+  (put _env '.breakall nil)
+  (put _env '.clearall nil)
+  (put _env '.ppasm nil))
+(put _env 'disasm-alias nil)
+
+(defn .source
+  "Show the source code for the function being debugged."
+  [&opt n]
+  (def frame (.frame n))
+  (def s (frame :source))
+  (def all-source (slurp s))
+  (print "\n" all-source "\n"))
 
 (defn .break
   "Set breakpoint at the current pc."
