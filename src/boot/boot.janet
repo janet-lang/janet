@@ -2131,11 +2131,12 @@
   (defn- find-prefix
     [pre]
     (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) module/paths) 0))
-  (array/insert module/paths 0 [(string ":cur:/:all:" ext) loader check-.])
   (def all-index (find-prefix ":all:"))
   (array/insert module/paths all-index [(string ":all:" ext) loader not-check-.])
   (def sys-index (find-prefix ":sys:"))
   (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader not-check-.])
+  (def curall-index (find-prefix ":cur:/:all:"))
+  (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-.])
   module/paths)
 
 (module/add-paths ":native:" :native)

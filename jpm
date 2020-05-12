@@ -835,8 +835,8 @@ int main(int argc, const char **argv) {
 (defn declare-source
   "Create a Janet modules. This does not actually build the module(s),
   but registers it for packaging and installation."
-  [&keys {:source sources}]
-  (def path (dyn :modpath JANET_MODPATH))
+  [&keys {:source sources :prefix prefix}]
+  (def path (string (dyn :modpath JANET_MODPATH) (or prefix "")))
   (if (bytes? sources)
     (install-rule sources path)
     (each s sources

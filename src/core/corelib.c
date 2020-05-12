@@ -687,7 +687,7 @@ static const JanetReg corelib_cfuns[] = {
              "\t:dir:\tthe directory containing the current file\n"
              "\t:name:\tthe name component of path, with extension if given\n"
              "\t:native:\tthe extension used to load natives, .so or .dll\n"
-             "\t:sys:\tthe system path, or (syn :syspath)")
+             "\t:sys:\tthe system path, or (dyn :syspath)")
     },
     {
         "int?", janet_core_check_int,

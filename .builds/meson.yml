@@ -1,0 +1,12 @@
+image: openbsd/latest
+sources:
+- https://git.sr.ht/~bakpakin/janet
+packages:
+- meson
+tasks:
+- build: |
+    cd janet
+    meson setup build --buildtype=release
+    cd build
+    ninja
+    ninja test

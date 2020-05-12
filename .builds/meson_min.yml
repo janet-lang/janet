@@ -1,0 +1,22 @@
+image: openbsd/latest
+sources:
+- https://git.sr.ht/~bakpakin/janet
+packages:
+- meson
+tasks:
+- build: |
+    cd janet
+    meson setup build --buildtype=release
+    cd build
+    meson configure -Dsingle_threaded=true 
+    meson configure -Dnanbox=false 
+    meson configure -Ddynamic_modules=false
+    meson configure -Ddocstrings=false
+    meson configure -Dnet=false
+    meson configure -Dsourcemaps=false
+    meson configure -Dpeg=false
+    meson configure -Dassembler=false
+    meson configure -Dint_types=false
+    meson configure -Dtyped_arrays=false
+    meson configure -Dreduced_os=true
+    ninja # will not pass tests but should build
