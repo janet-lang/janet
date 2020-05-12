@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Fix broken meson build from 1.9.0 and add meson to CI.
 - Fix compilation issue when nanboxing is disabled.
 
 ## 1.9.0 - 2020-05-10
