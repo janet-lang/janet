@@ -833,8 +833,11 @@ int main(int argc, const char **argv) {
     (install-rule sname path)))
 
 (defn declare-source
-  "Create a Janet modules. This does not actually build the module(s),
-  but registers it for packaging and installation."
+  "Create Janet modules. This does not actually build the module(s),
+  but registers them for packaging and installation. :source should be an
+  array of files and directores to copy into JANET_MODPATH or JANET_PATH.
+  :prefix can optionally be given to modify the destination path to be
+  (string JANET_PATH prefix source)."
   [&keys {:source sources :prefix prefix}]
   (def path (string (dyn :modpath JANET_MODPATH) (or prefix "")))
   (if (bytes? sources)

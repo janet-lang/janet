@@ -1,7 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.9.1 - 2020-05-12
+- Add :prefix option to declare-source
+- Re-enable minimal builds with the debugger.
+- Add several flags for configuring Janet on different platforms.
 - Fix broken meson build from 1.9.0 and add meson to CI.
 - Fix compilation issue when nanboxing is disabled.
 

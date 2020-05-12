@@ -8,8 +8,8 @@ tasks:
     cd janet
     meson setup build --buildtype=release
     cd build
-    meson configure -Dsingle_threaded=true 
-    meson configure -Dnanbox=false 
+    meson configure -Dsingle_threaded=true
+    meson configure -Dnanbox=false
     meson configure -Ddynamic_modules=false
     meson configure -Ddocstrings=false
     meson configure -Dnet=false
