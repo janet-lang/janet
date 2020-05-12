@@ -68,6 +68,9 @@ conf.set('JANET_RECURSION_GUARD', get_option('recursion_guard'))
 conf.set('JANET_MAX_PROTO_DEPTH', get_option('max_proto_depth'))
 conf.set('JANET_MAX_MACRO_EXPAND', get_option('max_macro_expand'))
 conf.set('JANET_STACK_MAX', get_option('stack_max'))
+conf.set('JANET_NO_UMASK', not get_option('umask'))
+conf.set('JANET_NO_REALPATH', not get_option('realpath'))
+conf.set('JANET_NO_PROCESSES', not get_option('processes'))
 if get_option('os_name') != ''
   conf.set('JANET_OS_NAME', get_option('os_name'))
 endif
