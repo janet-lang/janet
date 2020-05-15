@@ -88,6 +88,16 @@ make test
 make repl
 ```
 
+### Docker
+
+If you'd rather build and run Janet within an isolated container, you can use
+the provided Dockerfile to build it yourself and jump straight into a REPL:
+
+```sh
+docker build -t janet .
+docker run -it --rm janet
+```
+
 ### 32-bit Haiku
 
 32-bit Haiku build instructions are the same as the unix-like build instructions,
