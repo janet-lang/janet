@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add `:fresh` option to `(import ...)` to overwrite the module cache.
+- `(range x y 0)` will return an empty array instead of hanging forever.
+
 ## 1.9.1 - 2020-05-12
 - Add :prefix option to declare-source
 - Re-enable minimal builds with the debugger.

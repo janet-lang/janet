@@ -848,8 +848,9 @@
         arr)
     3 (do
         (def [n m s] args)
-        (if (neg? s)
-          (seq [i :down [n m (- s)]] i)
+        (cond
+          (zero? s) @[]
+          (neg? s) (seq [i :down [n m (- s)]] i)
           (seq [i :range [n m s]] i)))
     (error "expected 1 to 3 arguments to range")))
 
@@ -2263,14 +2264,11 @@
               newenv)
     :image (fn [path &] (load-image (slurp path)))})
 
-(defn require
-  "Require a module with the given name. Will search all of the paths in
-  module/paths. Returns the new environment
-  returned from compiling and running the file."
-  [path & args]
+(defn require-1
+  [path args kargs]
   (def [fullpath mod-kind] (module/find path))
   (unless fullpath (error mod-kind))
-  (if-let [check (in module/cache fullpath)]
+  (if-let [check (if-not (kargs :fresh) (in module/cache fullpath))]
     check
     (if (module/loading fullpath)
       (error (string "circular dependency " fullpath " detected"))
@@ -2281,15 +2279,23 @@
         (put module/cache fullpath env)
         env))))
 
+(defn require
+  "Require a module with the given name. Will search all of the paths in
+  module/paths. Returns the new environment
+  returned from compiling and running the file."
+  [path & args]
+  (require-1 path args (struct ;args)))
+
 (defn import*
   "Function form of import. Same parameters, but the path
   and other symbol parameters should be strings instead."
   [path & args]
   (def env (fiber/getenv (fiber/current)))
+  (def kargs (table ;args))
   (def {:as as
         :prefix prefix
-        :export ep} (table ;args))
-  (def newenv (require path ;args))
+        :export ep} kargs)
+  (def newenv (require-1 path args kargs))
   (def prefix (or
                 (and as (string as "/"))
                 prefix
@@ -2298,6 +2304,8 @@
     (def newv (table/setproto @{:private (not ep)} v))
     (put env (symbol prefix k) newv)))
 
+(put _env 'require-1 nil)
+
 (defmacro import
   "Import a module. First requires the module, and then merges its
   symbols into the current environment, prepending a given prefix as needed.
@@ -2305,7 +2313,8 @@
   use the name of the module as a prefix. One can also use :export true
   to re-export the imported symbols. If :exit true is given as an argument,
   any errors encountered at the top level in the module will cause (os/exit 1)
-  to be called. Dynamic bindings will NOT be imported."
+  to be called. Dynamic bindings will NOT be imported. Use :fresh to bypass the
+  module cache."
   [path & args]
   (def argm (map |(if (keyword? $) $ (string $)) args))
   (tuple import* (string path) ;argm))
