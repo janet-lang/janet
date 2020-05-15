@@ -306,5 +306,25 @@ test-install:
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/path.git
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/argparse.git
 
+help:
+	@echo
+	@echo 'Janet: A Dynamic Language & Bytecode VM'
+	@echo
+	@echo Usage:
+	@echo '   make            Build Janet'
+	@echo '   make repl       Start a REPL from a built Janet'
+	@echo
+	@echo '   make test       Test a built Janet'
+	@echo '   make valgrind   Assess Janet with Valgrind'
+	@echo '   make callgrind  Assess Janet with Valgrind, using Callgrind'
+	@echo '   make dist       Create a distribution tarball'
+	@echo '   make docs       Generate documentation'
+	@echo '   make install    Install into the current filesystem'
+	@echo '   make uninstall  Uninstall from the current filesystem'
+	@echo '   make clean      Clean intermediate build artifacts'
+	@echo "   make format     Format Janet's own source files"
+	@echo '   make grammar    Generate a TextMate language grammar'
+	@echo
+
 .PHONY: clean install repl debug valgrind test \
-	valtest emscripten dist uninstall docs grammar format
+	valtest emscripten dist uninstall docs grammar format help

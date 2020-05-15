@@ -88,6 +88,8 @@ make test
 make repl
 ```
 
+Find out more about the available make targets by running `make help`.
+
 ### 32-bit Haiku
 
 32-bit Haiku build instructions are the same as the unix-like build instructions,
