@@ -1024,8 +1024,8 @@ Subcommands are:
             name is lockfile.jdn.
   load-lockfile (lockfile) : Install modules from a lockfile in a reproducible way. The
                              default lockfile name is lockfile.jdn.
-  repl : Run a repl in the context of the current project.janet file. This lets you run rules and
-         otherwise debug the current project.janet file.
+  debug-repl : Run a repl in the context of the current project.janet file. This lets you run rules and
+               otherwise debug the current project.janet file.
 
 Keys are:
   --modpath : The directory to install modules to. Defaults to $JANET_MODPATH, $JANET_PATH, or (dyn :syspath)
@@ -1109,7 +1109,7 @@ Flags are:
   (create-executable @{} input output)
   (do-rule output))
 
-(defn jpm-repl
+(defn jpm-debug-repl
   []
   (def env
     (try
@@ -1138,7 +1138,7 @@ Flags are:
    "test" test
    "help" help
    "deps" deps
-   "repl" jpm-repl
+   "debug-repl" jpm-debug-repl
    "rule-tree" show-rule-tree
    "show-paths" show-paths
    "clear-cache" clear-cache
