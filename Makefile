@@ -317,8 +317,10 @@ help:
 	@echo '   make test       Test a built Janet'
 	@echo '   make valgrind   Assess Janet with Valgrind'
 	@echo '   make callgrind  Assess Janet with Valgrind, using Callgrind'
+	@echo '   make valtest    Run the test suite with Valgrind to check for memory leaks'
 	@echo '   make dist       Create a distribution tarball'
 	@echo '   make docs       Generate documentation'
+	@echo '   make debug      Run janet with GDB or LLDB'
 	@echo '   make install    Install into the current filesystem'
 	@echo '   make uninstall  Uninstall from the current filesystem'
 	@echo '   make clean      Clean intermediate build artifacts'
@@ -327,4 +329,4 @@ help:
 	@echo
 
 .PHONY: clean install repl debug valgrind test \
-	valtest emscripten dist uninstall docs grammar format help
+	valtest dist uninstall docs grammar format help
