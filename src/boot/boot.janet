@@ -945,24 +945,27 @@
     (array/push parts (tuple apply f $args)))
   (tuple 'fn (tuple '& $args) (tuple/slice parts 0)))
 
-(defmacro dbg
+(defmacro trace-pp
   "Displays the variables or literals listed, providing both the name and
-  and the value for variables. Designed for quick debugging of values and
-  nothing else."
+  and the value for variables. Designed for quick debugging of values. Returns
+  the traced forms: nil for none, the form itself for one, and a tuple of the
+  forms for many."
   [& forms]
   (with-syms [results var]
     ~(do
       (def ,results @[])
       ,;(map (fn [form]
-              (def preface (if (symbol? form)
-                             (string "`" form "` has value ")
-                             "Literal has value "))
-              ~(do
-                (prin ,preface)
-                (def ,var ,form)
-                (pp ,var)
-                (array/push ,results ,var)))
-            forms)
+               (def preface (if (symbol? form)
+                              (string form " is")
+                              "is"))
+               ~(do
+                 (def ,var ,form)
+                 (eprintf (string "%s " (dyn :pretty-format "%q"))
+                          ,preface
+                          ,var)
+                 (eflush)
+                 (array/push ,results ,var)))
+             forms)
       (case (length ,results)
         0 nil
         1 (,results 0)
