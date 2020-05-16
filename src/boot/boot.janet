@@ -950,16 +950,23 @@
   and the value for variables. Designed for quick debugging of values and
   nothing else."
   [& forms]
-  ~(do
-    ,;(map (fn [arg]
-            (def preface (if (symbol? arg)
-                           (string "`" arg "` has value ")
-                           "Literal has value "))
-            ~(do
-              (prin ,preface)
-              (pp ,arg)
-              nil))
-          forms)))
+  (with-syms [results var]
+    ~(do
+      (def ,results @[])
+      ,;(map (fn [form]
+              (def preface (if (symbol? form)
+                             (string "`" form "` has value ")
+                             "Literal has value "))
+              ~(do
+                (prin ,preface)
+                (def ,var ,form)
+                (pp ,var)
+                (array/push ,results ,var)))
+            forms)
+      (case (length ,results)
+        0 nil
+        1 (,results 0)
+        ,results))))
 
 (defmacro ->
   "Threading macro. Inserts x as the second value in the first form
