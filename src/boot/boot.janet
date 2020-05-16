@@ -2852,6 +2852,14 @@
   (each h local-headers
     (do-one-file h))
 
+  # windows.h should not be included in any of the external or internal headers - only in .c files.
+  (print)
+  (print "/* Windows work around - winsock2 must be included before windows.h, especially in amalgamated build */")
+  (print "#if defined(JANET_WINDOWS) && defined(JANET_NET)")
+  (print "#include <winsock2.h>")
+  (print "#endif")
+  (print)
+
   (each s core-sources
     (do-one-file s))
 
