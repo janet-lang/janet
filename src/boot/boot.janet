@@ -966,7 +966,7 @@
       (case (length ,results)
         0 nil
         1 (,results 0)
-        ,results))))
+        (tuple ;,results)))))
 
 (defmacro ->
   "Threading macro. Inserts x as the second value in the first form
