@@ -945,6 +945,22 @@
     (array/push parts (tuple apply f $args)))
   (tuple 'fn (tuple '& $args) (tuple/slice parts 0)))
 
+(defmacro dbg
+  "Displays the variables or literals listed, providing both the name and
+  and the value for variables. Designed for quick debugging of values and
+  nothing else."
+  [& forms]
+  ~(do
+    ,;(map (fn [arg]
+            (def preface (if (symbol? arg)
+                           (string "`" arg "` has value ")
+                           "Literal has value "))
+            ~(do
+              (prin ,preface)
+              (pp ,arg)
+              nil))
+          forms)))
+
 (defmacro ->
   "Threading macro. Inserts x as the second value in the first form
   in forms, and inserts the modified first form into the second form
