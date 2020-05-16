@@ -35,8 +35,9 @@ may require changes before being merged.
   [astyle](http://astyle.sourceforge.net/astyle.html). You will probably need
   to install this, but it can be installed with most package managers.
 
-  For janet code, the use lisp indentation with 2 spaces. One can use janet.vim to
-  do this indentation, or approximate as close as possible.
+  For janet code, use lisp indentation with 2 spaces. One can use janet.vim to
+  do this indentation, or approximate as close as possible. There is a janet formatter
+  in [spork](https://github.com/janet-lang/spork.git) that can be used to format code as well.
 
 ## C style
 

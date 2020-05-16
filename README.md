@@ -10,7 +10,7 @@
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
 **Janet** is a functional and imperative programming language and bytecode interpreter. It is a
-modern lisp, but lists are replaced
+lisp-like language, but lists are replaced
 by other data structures (arrays, tables (hash table), struct (immutable hash table), tuples).
 The language also supports bridging to native code written in C, meta-programming with macros, and bytecode assembly.
 
@@ -37,7 +37,7 @@ Lua, but smaller than GNU Guile or Python.
 * Mutable and immutable arrays (array/tuple)
 * Mutable and immutable hashtables (table/struct)
 * Mutable and immutable strings (buffer/string)
-* Lisp Macros
+* Macros
 * Byte code interpreter with an assembly interface, as well as bytecode verification
 * Tailcall Optimization
 * Direct interop with C via abstract types and C functions
