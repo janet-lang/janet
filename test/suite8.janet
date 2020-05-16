@@ -281,4 +281,8 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (= nil (peg/match peg2 "1:a2:bb:5:cccccc")) "lenprefix 6")
 (assert (= nil (peg/match peg2 "1:a2:bb:7:cccccc")) "lenprefix 7")
 
+# Regression #400
+(assert (= nil (while (and false false) (fn []) (error "should not happen"))) "strangeloop 1")
+(assert (= nil (while (not= nil nil) (fn []) (error "should not happen"))) "strangeloop 2")
+
 (end-suite)

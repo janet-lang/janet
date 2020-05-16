@@ -622,6 +622,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
     /* Check if closure created in while scope. If so,
      * recompile in a function scope. */
     if (tempscope.flags & JANET_SCOPE_CLOSURE) {
+        subopts = janetc_fopts_default(c);
         tempscope.flags |= JANET_SCOPE_UNUSED;
         janetc_popscope(c);
         janet_v__cnt(c->buffer) = labelwt;
