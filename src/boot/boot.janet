@@ -957,7 +957,7 @@
       ,;(map (fn [form]
                (def preface (if (symbol? form)
                               (string form " is")
-                              "is"))
+                              "Literal is"))
                ~(do
                  (def ,var ,form)
                  (eprintf (string "%s " (dyn :pretty-format "%q"))
