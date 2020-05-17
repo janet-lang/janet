@@ -870,11 +870,27 @@ int main(int argc, const char **argv) {
 
 (defn declare-binscript
   "Declare a janet file to be installed as an executable script. Creates
-  a shim on windows."
-  [&keys opts]
-  (def main (opts :main))
+  a shim on windows. If hardcode is true, will insert code into the script
+  such that it will run correctly even when JANET_PATH is changed."
+  [&keys {:main main :hardcode-syspath hardcode}]
   (def binpath (dyn :binpath JANET_BINPATH))
-  (install-rule main binpath)
+  (if hardcode
+    (let [syspath (dyn :modpath JANET_MODPATH)]
+      (def parts (peg/match path-splitter main))
+      (def name (last parts))
+      (def path (string binpath sep name))
+      (array/push (dyn :installed-files) path)
+      (add-body "install"
+                (def contents
+                  (with [f (file/open main)]
+                    (def first-line (:read f :line))
+                    (def second-line (string/format "(put root-env :syspath %v)\n" syspath))
+                    (def rest (:read f :all))
+                    (string first-line second-line rest)))
+                (create-dirs path)
+                (spit path contents)
+                (unless is-win (shell "chmod" "+x" path))))
+    (install-rule main binpath))
   # Create a dud batch file when on windows.
   (when is-win
     (def name (last (peg/match path-splitter main)))
