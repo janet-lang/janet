@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `tracev` macro.
 - Fix compiler bug that emitted incorrect code in some cases for while loops that create closures.
 - Add `:fresh` option to `(import ...)` to overwrite the module cache.
 - `(range x y 0)` will return an empty array instead of hanging forever.
