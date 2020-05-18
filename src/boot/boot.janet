@@ -1633,8 +1633,6 @@
   See macex docs for info on on-binding."
   [x &opt on-binding]
 
-  (setdyn :macro-form x)
-
   (when on-binding
     (when (symbol? x)
       (break (on-binding x))))
@@ -1714,7 +1712,7 @@
     (def m? (entry :macro))
     (cond
       s (s t)
-      m? (m ;(tuple/slice t 1))
+      m? (do (setdyn :macro-form t) (m ;(tuple/slice t 1)))
       (tuple/slice (map recur t))))
 
   (def ret
