@@ -77,7 +77,7 @@ the SourceHut mirror is actively maintained.
 
 ## Building
 
-### macos and Unix-like
+### macOS and Unix-like
 
 The Makefile is non-portable and requires GNU-flavored make.
 
@@ -224,10 +224,10 @@ Alternatively, check out [the #janet channel on Freenode](https://webchat.freeno
 
 ## FAQ
 
-### Why is my terminal is spitting out junk when I run the repl?
+### Why is my terminal spitting out junk when I run the repl?
 
 Make sure your terminal supports ANSI escape codes. Most modern terminals will
-support these, but some older terminals, windows consoles, or embedded terminals
+support these, but some older terminals, Windows consoles, or embedded terminals
 will not. If your terminal does not support ANSI escape codes, run the repl with
 the `-n` flag, which disables color output. You can also try the `-s` if further issues
 ensue.
