@@ -946,6 +946,32 @@
     (array/push parts (tuple apply f $args)))
   (tuple 'fn (tuple '& $args) (tuple/slice parts 0)))
 
+(defmacro tracev
+  "Displays the variables or literals listed, providing both the name and
+  and the value for variables. Designed for quick debugging of values. Returns
+  the traced forms: nil for none, the form itself for one, and a tuple of the
+  forms for many."
+  [& forms]
+  (with-syms [results var]
+    ~(do
+      (def ,results @[])
+      ,;(map (fn [form]
+               ~(do
+                 (def ,var ,form)
+                 (eprintf (string "trace "
+                                  (dyn :pretty-format "%q")
+                                  " is "
+                                  (dyn :pretty-format "%q"))
+                          ',form
+                          ,var)
+                 (eflush)
+                 (array/push ,results ,var)))
+             forms)
+      (case (length ,results)
+        0 nil
+        1 (,results 0)
+        (tuple ;,results)))))
+
 (defmacro ->
   "Threading macro. Inserts x as the second value in the first form
   in forms, and inserts the modified first form into the second form
