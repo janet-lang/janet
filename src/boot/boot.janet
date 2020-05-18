@@ -950,9 +950,14 @@
   "Print a value and a description of the form that produced that value to
   stderr. Evaluates to x."
   [x]
+  (def [l c] (tuple/sourcemap (dyn :macro-form ())))
+  (def cf (dyn :current-file))
+  (def fmt-1 (if cf (string/format "trace [%s]" cf) "trace"))
+  (def fmt-2 (if (or (neg? l) (neg? c)) ": " (string/format " on line %d, column %d:" l c)))
+  (def fmt (string fmt-1 fmt-2 " %j is "))
   (def s (gensym))
   ~(let [,s ,x]
-     (,eprinf "trace %j is " ',x)
+     (,eprinf ,fmt ',x)
      (,eprintf (,dyn :pretty-format "%q") ,s)
      ,s))
 
@@ -1627,6 +1632,8 @@
   "Expand macros in a form, but do not recursively expand macros.
   See macex docs for info on on-binding."
   [x &opt on-binding]
+
+  (setdyn :macro-form x)
 
   (when on-binding
     (when (symbol? x)

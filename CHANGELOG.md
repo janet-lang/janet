@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Expose current macro form inside macros as (dyn :macro-form)
 - Add `tracev` macro.
 - Fix compiler bug that emitted incorrect code in some cases for while loops that create closures.
 - Add `:fresh` option to `(import ...)` to overwrite the module cache.

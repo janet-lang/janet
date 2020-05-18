@@ -596,8 +596,11 @@ static int macroexpand1(
     /* Set env */
     fiberp->env = c->env;
     int lock = janet_gclock();
+    Janet mf_kw = janet_ckeywordv("macro-form");
+    janet_table_put(c->env, mf_kw, x);
     Janet tempOut;
     JanetSignal status = janet_continue(fiberp, janet_wrap_nil(), &tempOut);
+    janet_table_put(c->env, mf_kw, janet_wrap_nil());
     janet_gcunlock(lock);
     if (status != JANET_SIGNAL_OK) {
         const uint8_t *es = janet_formatc("(macro) %V", tempOut);
