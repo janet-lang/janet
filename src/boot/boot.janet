@@ -945,7 +945,7 @@
     (array/push parts (tuple apply f $args)))
   (tuple 'fn (tuple '& $args) (tuple/slice parts 0)))
 
-(defmacro trace-pp
+(defmacro tracev
   "Displays the variables or literals listed, providing both the name and
   and the value for variables. Designed for quick debugging of values. Returns
   the traced forms: nil for none, the form itself for one, and a tuple of the
@@ -955,13 +955,12 @@
     ~(do
       (def ,results @[])
       ,;(map (fn [form]
-               (def preface (if (symbol? form)
-                              (string form " is")
-                              "Expression is"))
                ~(do
                  (def ,var ,form)
-                 (eprintf (string "%s " (dyn :pretty-format "%q"))
-                          ,preface
+                 (eprintf (string (dyn :pretty-format "%q")
+                                  " is "
+                                  (dyn :pretty-format "%q"))
+                          ',form
                           ,var)
                  (eflush)
                  (array/push ,results ,var)))
