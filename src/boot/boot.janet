@@ -957,7 +957,8 @@
       ,;(map (fn [form]
                ~(do
                  (def ,var ,form)
-                 (eprintf (string (dyn :pretty-format "%q")
+                 (eprintf (string "trace "
+                                  (dyn :pretty-format "%q")
                                   " is "
                                   (dyn :pretty-format "%q"))
                           ',form
