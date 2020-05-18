@@ -758,8 +758,15 @@ int main(int argc, const char **argv) {
     (unless made-progress
       (error (string/format "could not resolve package order for: %j"
                             (filter (complement resolved) (map |($ :repo) packages))))))
-  # Write to file
-  (with [f (file/open filename :w)] (with-dyns [:out f] (printf "%j" ordered-packages))))
+  # Write to file, manual format for better diffs.
+  (with [f (file/open filename :w)]
+    (with-dyns [:out f]
+      (prin "@[")
+      (eachk i ordered-packages
+        (unless (zero? i)
+          (prin "\n  "))
+        (prinf "%j" (ordered-packages i)))
+      (print "]"))))
 
 (defn- load-lockfile
   [&opt filename]
