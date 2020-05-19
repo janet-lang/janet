@@ -658,8 +658,6 @@ int main(int argc, const char **argv) {
            (or (os/getenv "JANET_GIT") (pslurp "where git"))
            (os/getenv "JANET_GIT" "git"))))
 
-(if is-win (pslurp "where git") "git"))
-
 (defn uninstall
   "Uninstall bundle named name"
   [name]
@@ -969,7 +967,7 @@ int main(int argc, const char **argv) {
          (print "generating " manifest "...")
          (mkdir manifests)
          (def sha (pslurp (string "\"" (git-path) "\" rev-parse HEAD")))
-         (def url (pslurp (string "\"" (git-path) "\" remote get-url origin"))
+         (def url (pslurp (string "\"" (git-path) "\" remote get-url origin")))
          (def man
            {:sha (if-not (empty? sha) sha)
             :repo (if-not (empty? url) url)
