@@ -91,7 +91,7 @@
 (defn clear-manifest
   "Clear the global installation manifest."
   []
-  (def manifest (find-manifest))
+  (def manifest (find-manifest-dir))
   (print "clearing manifests " manifest "...")
   (rimraf manifest))
 
