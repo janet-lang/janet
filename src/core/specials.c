@@ -625,8 +625,8 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         subopts = janetc_fopts_default(c);
         tempscope.flags |= JANET_SCOPE_UNUSED;
         janetc_popscope(c);
-        janet_v__cnt(c->buffer) = labelwt;
-        janet_v__cnt(c->mapbuffer) = labelwt;
+        if (c->buffer) janet_v__cnt(c->buffer) = labelwt;
+        if (c->mapbuffer) janet_v__cnt(c->mapbuffer) = labelwt;
 
         janetc_scope(&tempscope, c, JANET_SCOPE_FUNCTION, "while-iife");
 
