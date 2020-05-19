@@ -1,0 +1,200 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+
+<?define Name = "Janet" ?>
+<?define Description = "The Janet Programming Language" ?>
+<?define Manufacturer = "Janet-Lang.org" ?>
+<?define WebPage = "https://janet-lang.org" ?>
+<?ifdef env.JANET_VERSION ?>
+    <?define Version = "$(env.JANET_VERSION)" ?>
+<?else?>
+    <?define Version = "0.0.0" ?>
+<?endif?>
+<?if $(sys.BUILDARCH)="x64" ?>
+    <?define UpgradeCode="712CACD6-09AA-430A-831C-80FDFFE3F9ED" ?>
+    <?define ProgramFilesFolder="ProgramFiles64Folder" ?>
+    <?define Win64="yes" ?>
+    <?define Arch="(x64)" ?>
+<?elseif $(sys.BUILDARCH)="x86" ?>
+    <?define UpgradeCode="0411837a-82c4-4dc7-872b-134d0c1b0228" ?>
+    <?define ProgramFilesFolder="ProgramFilesFolder" ?>
+    <?define Win64="no" ?>
+    <?define Arch="(x86)" ?>
+<?else ?>
+    <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
+<?endif?>
+<?define BaseRegKey="Software\Microsoft\$(var.Manufacturer)\$(var.Name)" ?>
+
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*"
+			 Name="$(var.Name)"
+			 Language="1033"
+			 Version="$(var.Version)"
+			 Manufacturer="$(var.Manufacturer)"
+			 UpgradeCode="$(var.UpgradeCode)">
+        <Package Compressed="yes"
+				 InstallScope="perUser"
+				 Manufacturer="$(var.Manufacturer)"
+				 Description="$(var.Description)" />
+        <MajorUpgrade DowngradeErrorMessage="A later version of [ProductName] is already installed. Setup will now exit."/>
+        <MediaTemplate EmbedCab="yes" />
+        <Property Id="DISABLEADVTSHORTCUTS" Value="1" />
+
+        <!-- Set UI images (use the -b option to light.exe to set where these files are) -->
+        <WixVariable Id="WixUIBannerBmp" Value="JanetTopBanner.png" />
+        <WixVariable Id="WixUIDialogBmp" Value="JanetDialog.png" />
+        <WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
+
+        <Icon Id="Janet.ico" SourceFile="assets\icon.ico" />
+
+        <!-- Add some details to Add/Remove Programs entry -->
+        <Property Id="ARPPRODUCTICON" Value="Janet.ico" />
+        <Property Id='ARPCOMMENTS'>$(var.Description)</Property>
+        <Property Id='ARPURLINFOABOUT'>$(var.WebPage)</Property>
+        <Property Id='COMPANY'>$(var.Manufacturer)</Property>
+
+        <!-- Default to per-user installs -->
+        <Property Id="WixAppFolder" Value="WixPerUserFolder" />
+
+        <Property Id="ApplicationFolderName" Value="$(var.Name)" />
+
+        <!-- Fix WixUI_Advanced to work with x64 -->
+        <CustomAction Id="WixSetDefaultPerMachineFolderPerArch"
+            Property="WixPerMachineFolder"
+            Value="[$(var.ProgramFilesFolder)][ApplicationFolderName]"
+            Execute="immediate"/>
+        <InstallExecuteSequence>
+            <Custom Action="WixSetDefaultPerMachineFolderPerArch" Before="WixSetPerMachineFolder" />
+        </InstallExecuteSequence>
+        <InstallUISequence>
+            <Custom Action="WixSetDefaultPerMachineFolderPerArch" Before="WixSetPerMachineFolder" />
+        </InstallUISequence>
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="$(var.ProgramFilesFolder)">
+                <Directory Id="APPLICATIONFOLDER" Name="$(var.Name)">
+                    <Directory Id="BinDir" Name="bin"/>
+                    <Directory Id="CDir" Name="C"/>
+                    <Directory Id="DocsDir" Name="docs"/>
+                    <Directory Id="LibraryDir" Name="Library"/>
+                </Directory>
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="$(var.Name)" />
+            </Directory>
+        </Directory>
+
+        <!-- 
+          Define the files to be installed.
+          File/@Source is relative to where this file is compiled, the root of the repository in this case.
+          File/@Name is the destination file name, if not set it defaults to the file name part of Source.
+          Component/@Directory is the Id of the destination directory - where the directory name and
+            hierarchy is set in the section above
+        -->
+        <ComponentGroup Id="Files">
+            <Component Directory="APPLICATIONFOLDER">
+                <File Source="README.md"/>
+                <RemoveFolder Id="RemoveRootDir" On="uninstall" />
+            </Component>
+            <Component Directory="APPLICATIONFOLDER">
+                <File Source="LICENSE"/>
+            </Component>
+            <Component Directory="APPLICATIONFOLDER">
+                <File Source="assets\icon.ico"/>
+            </Component>
+
+            <Component Directory="BinDir">
+                <File Source="dist\janet.exe" KeyPath="yes">
+                    <Shortcut Id="JanetExeShortcut"
+                        Directory="ApplicationProgramsFolder"
+                        Name="$(var.Name)"
+                        Description="$(var.Description)"
+                        Icon="Janet.ico"
+                        Advertise="yes"
+                        WorkingDirectory="INSTALLFOLDER" />
+                </File>
+                <RemoveFolder Id="RemoveBinDir" On="uninstall" />
+            </Component>
+            <Component Directory="BinDir">
+                <File Source="jpm" Name="jpm.janet"/>
+            </Component>
+            <Component Directory="BinDir">
+                <File Source="tools\jpm.bat"/>
+            </Component>
+
+            <Component Directory="CDir">
+                <File Source="dist\janet.h"/>
+                <RemoveFolder Id="RemoveCDir" On="uninstall" />
+            </Component>
+            <Component Directory="CDir">
+                <File Source="dist\janetconf.h"/>
+            </Component>
+            <Component Directory="CDir">
+                <File Source="dist\janet.lib"/>
+            </Component>
+            <Component Directory="CDir">
+                <File Source="dist\janet.exp"/>
+            </Component>
+            <Component Directory="CDir">
+                <File Source="dist\janet.c"/>
+            </Component>
+            <Component Directory="CDir">
+                <File Source="dist\libjanet.lib"/>
+            </Component>
+
+            <Component Id="LibraryComponent" Directory="LibraryDir" Guid="3860e981-5f94-4002-b5d5-2d9ec0d2792d" KeyPath="yes">
+                <RemoveFolder Id="RemoveLibraryDir" On="uninstall" />
+            </Component>
+
+            <Component Id="DocsComponent" Directory="DocsDir">
+                <File Source="dist\doc.html" Name="docs.html" KeyPath="yes">
+                    <Shortcut Id="JanetDocsShortcut"
+                        Directory="ApplicationProgramsFolder"
+                        Name="$(var.Name) Documentation"
+                        Description="$(var.Description)"
+                        Advertise="yes"/>
+                </File>
+                <RemoveFolder Id="RemoveDocsDir" On="uninstall" />
+            </Component>
+        </ComponentGroup>
+
+        <Component Id="StartMenu" Directory="ApplicationProgramsFolder">
+            <RegistryValue Root="HKMU" Key="$(var.BaseRegKey)" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+            <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        </Component>
+
+        <!-- This component is duplicated with different conditions so that we can set system or user environment variables -->
+        <Component Id="SetEnvVarsPerMachine" Directory="ApplicationProgramsFolder" Guid="57b1e1ef-89c8-4ce4-9f0f-37618677c5a4" KeyPath="yes">
+            <Condition>ALLUSERS=1</Condition>
+            <Environment Id="PATH_PERMACHINE" Name="PATH" Value="[BinDir]" Action="set" Permanent="no" System="yes" Part="last"/>
+            <Environment Id="JANET_BINPATH_PERMACHINE" Name="JANET_BINPATH" Value="[BinDir]" Action="set" Permanent="no" System="yes"/>
+            <Environment Id="JANET_PATH_PERMACHINE" Name="JANET_PATH" Value="[LibraryDir]" Action="set" Permanent="no" System="yes" />
+            <Environment Id="JANET_HEADERPATH_PERMACHINE" Name="JANET_HEADERPATH" Value="[CDir]" Action="set" Permanent="no" System="yes"/>
+            <Environment Id="JANET_LIBPATH_PERMACHINE" Name="JANET_LIBPATH" Value="[CDir]" Action="set" Permanent="no" System="yes"/>
+        </Component>
+        <Component Id="SetEnvVarsPerUser" Directory="ApplicationProgramsFolder" Guid="128be307-488b-49aa-971a-d2ae00a1a584" KeyPath="yes">
+            <Condition>NOT ALLUSERS=1</Condition>
+            <Environment Id="PATH_PERUSER" Name="PATH" Value="[BinDir]" Action="set" Permanent="no" System="no" Part="last"/>
+            <Environment Id="JANET_BINPATH_PERUSER" Name="JANET_BINPATH" Value="[BinDir]" Action="set" Permanent="no" System="no"/>
+            <Environment Id="JANET_PATH_PERUSER" Name="JANET_PATH" Value="[LibraryDir]" Action="set" Permanent="no" System="no" />
+            <Environment Id="JANET_HEADERPATH_PERUSER" Name="JANET_HEADERPATH" Value="[CDir]" Action="set" Permanent="no" System="no"/>
+            <Environment Id="JANET_LIBPATH_PERUSER" Name="JANET_LIBPATH" Value="[CDir]" Action="set" Permanent="no" System="no"/>
+        </Component>
+
+        <Feature Id="MainFeature" Title="$(var.Name) $(var.Version)" 
+            Level="1" Absent="disallow" AllowAdvertise="no" InstallDefault="local"
+            Description="$(var.Description)">
+            <ComponentGroupRef Id="Files" />
+            <ComponentRef Id="StartMenu" />
+            <ComponentRef Id="SetEnvVarsPerMachine" />
+            <ComponentRef Id="SetEnvVarsPerUser" />
+        </Feature>
+
+        <UI>
+            <UIRef Id="WixUI_Advanced"/>
+            <!-- FindRelatedProducts runs before the user select the install scope, so we ask it to run again if the have changed the scope
+             -->
+            <Publish Dialog="InstallScopeDlg" Control="Next" Order="8" Event="DoAction" Value="FindRelatedProducts">WixAppFolder = "WixPerMachineFolder"</Publish>
+        </UI>
+    </Product>
+</Wix>
