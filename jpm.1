@@ -140,6 +140,14 @@ when needed. clear-cache is a global command, so a project.janet is not
 required.
 
 .TP
+.BR clear-manifest
+jpm creates a manifest directory that contains a list of all installed files.
+By deleting this directory, jpm will think that nothing is installed and will
+try reinstalling everything on the jpm deps or jpm load-lockfile commands. Be careful with
+this command, as it may leave extra files on your system and shouldn't be needed
+most of the time in a healthy install.
+
+.TP
 .BR run\ [\fBrule\fR]
 Run a given rule defined in project.janet. Project definitions files (project.janet) usually
 contain a few artifact declarations, which set up rules that jpm can then resolve, or execute.

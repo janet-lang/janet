@@ -85,8 +85,15 @@
   "Clear the global git cache."
   []
   (def cache (find-cache))
-  (print "clearing " cache "...")
+  (print "clearing cache " cache "...")
   (rimraf cache))
+
+(defn clear-manifest
+  "Clear the global installation manifest."
+  []
+  (def manifest (find-manifest))
+  (print "clearing manifests " manifest "...")
+  (rimraf manifest))
 
 (def- default-pkglist
   (or (os/getenv "JANET_PKGLIST") "https://github.com/janet-lang/pkgs.git"))
@@ -134,7 +141,7 @@
   (if is-win
     (let [end (last (peg/match path-splitter src))
           isdir (= (os/stat src :mode) :directory)]
-      (shell "xcopy" src (if isdir (string dest "\\" end) dest) "/y" "/s" "/e" "/i"))
+      (shell "C:\\Windows\\System32\\xcopy.exe" src (if isdir (string dest "\\" end) dest) "/y" "/s" "/e" "/i"))
     (shell "cp" "-rf" src dest)))
 
 (defn mkdir
@@ -706,7 +713,7 @@ int main(int argc, const char **argv) {
     (when (mkdir module-dir)
       (set fresh true)
       (print "cloning repository " repo " to " module-dir)
-      (unless (zero? (os/execute ["git" "clone" repo module-dir] :p))
+      (unless (zero? (os/execute [(git-path) "clone" repo module-dir] :p))
         (rimraf module-dir)
         (error (string "could not clone git dependency " repo)))))
   (def olddir (os/cwd))
@@ -1043,6 +1050,7 @@ Subcommands are:
   test : run tests. Tests should be .janet files in the test/ directory relative to project.janet.
   deps : install dependencies for the current project.
   clear-cache : clear the git cache. Useful for updating dependencies.
+  clear-manifest : clear the manifest. Useful for fixing broken installs.
   run rule : run a rule. Can also run custom rules added via (phony "task" [deps...] ...)
              or (rule "ouput.file" [deps...] ...).
   rules : list rules available with run.
@@ -1176,6 +1184,7 @@ Flags are:
    "rule-tree" show-rule-tree
    "show-paths" show-paths
    "clear-cache" clear-cache
+   "clear-manifest" clear-manifest
    "run" local-rule
    "rules" list-rules
    "update-pkgs" update-pkgs
