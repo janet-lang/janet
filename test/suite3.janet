@@ -91,8 +91,8 @@
 # Assembly test
 # Fibonacci sequence, implemented with naive recursion.
 (def fibasm (asm '{
-  arity 1
-  bytecode [
+  :arity 1
+  :bytecode [
     (ltim 1 0 0x2)      # $1 = $0 < 2
     (jmpif 1 :done)     # if ($1) goto :done
     (lds 1)             # $1 = self

@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- `asm` and `disasm` functions now use keywords instead of macros for keys. Also
+  some slight changes to the way constants are encoded (remove wrapping `quote` in some cases).
 - Expose current macro form inside macros as (dyn :macro-form)
 - Add `tracev` macro.
 - Fix compiler bug that emitted incorrect code in some cases for while loops that create closures.

@@ -2397,7 +2397,7 @@
 (defn .bytecode
   "Get the bytecode for the current function."
   [&opt n]
-  ((.disasm n) 'bytecode))
+  ((.disasm n) :bytecode))
 
 (defn .ppasm
   "Pretty prints the assembly for the current function"
@@ -2405,13 +2405,13 @@
   (def frame (.frame n))
   (def func (frame :function))
   (def dasm (disasm-alias func))
-  (def bytecode (in dasm 'bytecode))
+  (def bytecode (in dasm :bytecode))
   (def pc (frame :pc))
-  (def sourcemap (in dasm 'sourcemap))
+  (def sourcemap (in dasm :sourcemap))
   (var last-loc [-2 -2])
   (print "\n  signal: " (.signal))
-  (print "  function:   " (dasm 'name) " [" (in dasm 'source "") "]")
-  (when-let [constants (dasm 'constants)]
+  (print "  function:   " (dasm :name) " [" (in dasm :source "") "]")
+  (when-let [constants (dasm :constants)]
     (printf "  constants:  %.4q" constants))
   (printf "  slots:      %.4q\n" (frame :slots))
   (def padding (string/repeat " " 20))
