@@ -78,7 +78,7 @@
   [path]
   (if is-win
     # windows get rid of read-only files
-    (os/shell `rmdir /S /Q "` path `"`))
+    (os/shell (string `rmdir /S /Q "` path `"`)))
   (rm path))
 
 (defn clear-cache
