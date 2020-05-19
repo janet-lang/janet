@@ -339,7 +339,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 
     JanetBuffer *buf = os_exec_escape(exargs);
     if (buf->count > 8191) {
-        janet_panic("command line string too long");
+        janet_panic("command line string too long (max 8191 characters)");
     }
     const char *path = (const char *) janet_unwrap_string(exargs.items[0]);
     char *cargv[2] = {(char *) buf->data, NULL};

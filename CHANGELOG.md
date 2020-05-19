@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add JANET_GIT environment variable to jpm to use a specific git binary (useful mainly on windows).
 - `asm` and `disasm` functions now use keywords instead of macros for keys. Also
   some slight changes to the way constants are encoded (remove wrapping `quote` in some cases).
 - Expose current macro form inside macros as (dyn :macro-form)

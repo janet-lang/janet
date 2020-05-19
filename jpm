@@ -647,6 +647,19 @@ int main(int argc, const char **argv) {
 # Installation and Dependencies
 #
 
+(var- stored-git-path nil)
+(defn- git-path
+    "Get the location of git such that it can be passed as an argument to os/execute."
+    "(Some builds/configurations of windows don't like just the string 'git')"
+    []
+    (if stored-git-path (break stored-git-path))
+    (set stored-git-path
+         (if is-win
+           (or (os/getenv "JANET_GIT") (pslurp "where git"))
+           (os/getenv "JANET_GIT" "git"))))
+
+(if is-win (pslurp "where git") "git"))
+
 (defn uninstall
   "Uninstall bundle named name"
   [name]
@@ -707,11 +720,11 @@ int main(int argc, const char **argv) {
                 :binpath (abspath (dyn :binpath JANET_BINPATH))]
       (os/cd module-dir)
       (unless fresh
-        (os/execute ["git" "pull" "origin" "master"] :p))
+        (os/execute [(git-path) "pull" "origin" "master"] :p))
       (when tag
-        (os/execute ["git" "reset" "--hard" tag] :p))
+        (os/execute [(git-path) "reset" "--hard" tag] :p))
       (unless (dyn :offline)
-        (os/execute ["git" "submodule" "update" "--init" "--recursive"] :p))
+        (os/execute [(git-path) "submodule" "update" "--init" "--recursive"] :p))
       (import-rules "./project.janet")
       (unless no-deps (do-rule "install-deps"))
       (do-rule "build")
@@ -955,8 +968,8 @@ int main(int argc, const char **argv) {
   (phony "manifest" []
          (print "generating " manifest "...")
          (mkdir manifests)
-         (def sha (pslurp "git rev-parse HEAD"))
-         (def url (pslurp "git remote get-url origin"))
+         (def sha (pslurp (string "\"" (git-path) "\" rev-parse HEAD")))
+         (def url (pslurp (string "\"" (git-path) "\" remote get-url origin"))
          (def man
            {:sha (if-not (empty? sha) sha)
             :repo (if-not (empty? url) url)

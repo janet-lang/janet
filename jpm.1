@@ -237,5 +237,10 @@ The git repository URL that contains a listing of packages. This allows installi
 is mostly a convenience. However, package dependencies can use short names, package listings
 can be used to choose a particular set of dependency versions for a whole project.
 
+.B JANET_GIT
+.RS
+An optional path to a git executable to use to clone git dependencies. By default, uses "git" on the current $PATH. You shouldn't need to set this
+if you have a normal install of git.
+
 .SH AUTHOR
 Written by Calvin Rose <calsrose@gmail.com>
