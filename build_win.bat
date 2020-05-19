@@ -121,18 +121,29 @@ copy tools\jpm.bat dist\jpm.bat
 
 @rem Create installer
 janet.exe -e "(->> janet/version (peg/match ''(* :d+ `.` :d+ `.` :d+)) first print)" > build\version.txt
-janet.exe -e "(print (= (os/arch) :x64))" > build\64bit.txt
+janet.exe -e "(print (os/arch))" > build\arch.txt
 set /p JANET_VERSION= < build\version.txt
-set /p SIXTYFOUR= < build\64bit.txt
+set /p BUILDARCH= < build\arch.txt
 echo "JANET_VERSION is %JANET_VERSION%"
-"C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=%JANET_VERSION% /DSIXTYFOUR=%SIXTYFOUR% janet-installer.nsi 
+if defined APPVEYOR_REPO_TAG_NAME (
+    set RELEASE_VERSION=%APPVEYOR_REPO_TAG_NAME%
+) else (
+    set RELEASE_VERSION=%JANET_VERSION%
+)
+if defined CI (
+    set WIXBIN="c:\Program Files (x86)\WiX Toolset v3.11\bin\"
+) else (
+    set WIXBIN=
+)
+%WIXBIN%candle.exe tools\msi\janet.wxs -arch %BUILDARCH% -out build\
+%WIXBIN%light.exe "-sice:ICE38" -b tools\msi -ext WixUIExtension build\janet.wixobj -out janet-%RELEASE_VERSION%-windows-%BUILDARCH%-installer.msi
 exit /b 0
 
 @rem Run the installer. (Installs to the local user with default settings)
 :INSTALL
-@echo Running Installer...
-FOR %%a in (janet-*-windows-*-installer.exe) DO (
-    %%a /S /CurrentUser
+FOR %%a in (janet-*-windows-*-installer.msi) DO (
+    @echo Running Installer %%a...
+    %%a /QN
 )
 exit /b 0
 
