@@ -19,10 +19,6 @@ init:
 
 install:
     - set JANET_BUILD=%appveyor_repo_commit:~0,7%
-    - choco install nsis -y -pre --version 3.05
-    # Replace makensis.exe and files with special long string build. This should
-    # prevent issues when setting PATH during installation.
-    - 7z e "tools\nsis-3.05-strlen_8192.zip" -o"C:\Program Files (x86)\NSIS\" -y
     - build_win all
     - refreshenv
     # We need to reload vcvars after refreshing
@@ -48,7 +44,7 @@ artifacts:
     - name: "janet-$(janet_outname)-windows-%platform%"
       path: dist
       type: Zip
-    - path: "janet-$(janet_outname)-windows-%platform%-installer.exe"
+    - path: "janet-$(janet_outname)-windows-%platform%-installer.msi"
       type: File
 
 deploy:
