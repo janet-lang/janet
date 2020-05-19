@@ -953,7 +953,7 @@
   (def [l c] (tuple/sourcemap (dyn :macro-form ())))
   (def cf (dyn :current-file))
   (def fmt-1 (if cf (string/format "trace [%s]" cf) "trace"))
-  (def fmt-2 (if (or (neg? l) (neg? c)) ": " (string/format " on line %d, column %d:" l c)))
+  (def fmt-2 (if (or (neg? l) (neg? c)) ":" (string/format " on line %d, column %d:" l c)))
   (def fmt (string fmt-1 fmt-2 " %j is "))
   (def s (gensym))
   ~(let [,s ,x]

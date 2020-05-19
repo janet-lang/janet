@@ -167,12 +167,12 @@ static void popstate(JanetParser *p, Janet val) {
     for (;;) {
         JanetParseState top = p->states[--p->statecount];
         JanetParseState *newtop = p->states + p->statecount - 1;
+        /* Source mapping info */
+        if (janet_checktype(val, JANET_TUPLE)) {
+            janet_tuple_sm_line(janet_unwrap_tuple(val)) = (int32_t) top.line;
+            janet_tuple_sm_column(janet_unwrap_tuple(val)) = (int32_t) top.column;
+        }
         if (newtop->flags & PFLAG_CONTAINER) {
-            /* Source mapping info */
-            if (janet_checktype(val, JANET_TUPLE)) {
-                janet_tuple_sm_line(janet_unwrap_tuple(val)) = (int32_t) top.line;
-                janet_tuple_sm_column(janet_unwrap_tuple(val)) = (int32_t) top.column;
-            }
             newtop->argn++;
             /* Keep track of number of values in the root state */
             if (p->statecount == 1) p->pending++;
