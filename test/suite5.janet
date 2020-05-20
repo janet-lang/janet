@@ -58,6 +58,17 @@
 
 (assert (= ((unmarshal (marshal b)) 3) (b 3)) "marshal")
 
+# Issue 408
+(assert-error :invalid-type (tarray/new :int32 10 1 0 (int/u64 7)) "tarray/new should only allow tarray or buffer for last argument")
+(def ta (tarray/new :int32 10))
+(assert (= (next a nil) 0) "tarray next 1")
+(assert (= (next a 0) 1) "tarray next 2")
+(assert (= (next a 8) 9) "tarray next 3")
+(assert (nil? (next a 9)) "tarray next 4")
+(put ta 3 7)
+(put ta 9 7)
+(assert (= 2 (count |(= $ 7) ta)) "tarray count")
+
 # Array remove
 
 (assert (deep= (array/remove @[1 2 3 4 5] 2) @[1 2 4 5]) "array/remove 1")
