@@ -23,7 +23,6 @@
 
 # Using a large test grammar
 
-(def- core-env (table/getproto (fiber/getenv (fiber/current))))
 (def- specials {'fn true
                'var true
                'do true
@@ -41,7 +40,7 @@
 (defn capture-sym
   [text]
   (def sym (symbol text))
-  [(if (or (core-env sym) (specials sym)) :coresym :symbol) text])
+  [(if (or (root-env sym) (specials sym)) :coresym :symbol) text])
 
 (def grammar
   ~{:ws (set " \v\t\r\f\n\0")

@@ -78,8 +78,8 @@
   [path]
   (if is-win
     # windows get rid of read-only files
-    (os/shell (string `rmdir /S /Q "` path `"`)))
-  (rm path))
+    (os/shell (string `rmdir /S /Q "` path `"`))
+    (rm path)))
 
 (defn clear-cache
   "Clear the global git cache."
@@ -674,7 +674,8 @@ int main(int argc, const char **argv) {
     (each path (get man :paths [])
       (print "removing " path)
       (rm path))
-    (print "removing " manifest)
+    (print "removing manifest " manifest)
+    (:close f) # I hate windows
     (rm manifest)
     (print "Uninstalled.")))
 
