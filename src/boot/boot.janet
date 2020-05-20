@@ -1978,7 +1978,7 @@
   (var going true)
 
   # The parser object
-  (def p (parser/new))
+  (var p (parser/new))
 
   # Evaluate 1 source form in a protected manner
   (defn eval1 [source]
@@ -2017,19 +2017,30 @@
   (while going
     (if (env :exit) (break))
     (buffer/clear buf)
-    (chunks buf p)
-    (var pindex 0)
-    (var pstatus nil)
-    (def len (length buf))
-    (when (= len 0)
-      (parser/eof p)
-      (set going false))
-    (while (> len pindex)
-      (+= pindex (parser/consume p buf pindex))
-      (while (parser/has-more p)
-        (eval1 (parser/produce p)))
-      (when (= (parser/status p) :error)
-        (parse-err p where))))
+    (if (nil? (chunks buf p))
+      (do
+        # Nil chunks represents a cancelled form in the REPL, so reset.
+        (set-repl-within-form false)
+        (set p (parser/new))
+        (buffer/clear buf))
+      (do
+        (var pindex 0)
+        (var pstatus nil)
+        (def len (length buf))
+        (when (= len 0)
+          (parser/eof p)
+          (set going false))
+        (if (= len 1)
+          (set-repl-within-form false)
+          (set-repl-within-form true))
+        (while (> len pindex)
+          (set-repl-within-form true)
+          (+= pindex (parser/consume p buf pindex))
+          (while (parser/has-more p)
+            (eval1 (parser/produce p)))
+          (when (= (parser/status p) :error)
+            (parse-err p where))))))
+
   # Check final parser state
   (while (parser/has-more p)
     (eval1 (parser/produce p)))

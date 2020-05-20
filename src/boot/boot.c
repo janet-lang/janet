@@ -33,6 +33,12 @@
 extern const unsigned char *janet_gen_boot;
 extern int32_t janet_gen_boot_size;
 
+static Janet janet_set_repl_within_form(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    (void) argv;
+    return janet_wrap_nil();
+}
+
 int main(int argc, const char **argv) {
 
     /* Init janet */
@@ -52,6 +58,8 @@ int main(int argc, const char **argv) {
     JanetTable *env;
 
     env = janet_core_env(NULL);
+
+    janet_def(env, "set-repl-within-form", janet_wrap_cfunction(janet_set_repl_within_form), "");
 
     /* Create args tuple */
     JanetArray *args = janet_array(argc);

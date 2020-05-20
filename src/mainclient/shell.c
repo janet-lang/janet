@@ -25,6 +25,7 @@
 #endif
 
 #include <janet.h>
+#include <stdbool.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -39,6 +40,10 @@ void janet_line_deinit();
 
 void janet_line_get(const char *p, JanetBuffer *buffer);
 Janet janet_line_getter(int32_t argc, Janet *argv);
+static Janet janet_set_repl_within_form(int32_t argc, Janet *argv);
+
+static JANET_THREAD_LOCAL bool gbl_cancel_current_repl_form = false;
+static JANET_THREAD_LOCAL bool gbl_repl_within_form = false;
 
 /*
  * Line Editing
@@ -54,7 +59,17 @@ Janet janet_line_getter(int32_t argc, Janet *argv) {
     gbl_complete_env = (argc >= 3) ? janet_gettable(argv, 2) : NULL;
     janet_line_get(str, buf);
     gbl_complete_env = NULL;
-    return janet_wrap_buffer(buf);
+
+    Janet result;
+    if (gbl_cancel_current_repl_form) {
+        gbl_cancel_current_repl_form = false;
+
+        // Signal that the user bailed out of the current form
+        result = janet_wrap_nil();
+    } else {
+        result = janet_wrap_buffer(buf);
+    }
+    return result;
 }
 
 static void simpleline(JanetBuffer *buffer) {
@@ -69,6 +84,12 @@ static void simpleline(JanetBuffer *buffer) {
         janet_buffer_push_u8(buffer, (uint8_t) c);
         if (c == '\n') break;
     }
+}
+
+static Janet janet_set_repl_within_form(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    gbl_repl_within_form = janet_unwrap_boolean(argv[0]) != 0;
+    return janet_wrap_nil();
 }
 
 /* Windows */
@@ -746,8 +767,15 @@ static int line() {
                 kleft();
                 break;
             case 3:     /* ctrl-c */
-                errno = EAGAIN;
-                gbl_sigint_flag = 1;
+                if (
+                        (gbl_len == 0)
+                        && !gbl_repl_within_form
+                ) {   /* quit on empty line */
+                    errno = EAGAIN;
+                    gbl_sigint_flag = 1;
+                } else {              /* interrupt expression on non-empty line */
+                    gbl_cancel_current_repl_form = true;
+                }
                 clearlines();
                 return -1;
             case 4:     /* ctrl-d, eof */
@@ -947,12 +975,16 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
     }
     if (line()) {
         norawmode();
-        if (gbl_sigint_flag) {
-            raise(SIGINT);
-        } else {
+        if (gbl_cancel_current_repl_form) {
             fputc('\n', out);
+        } else {
+            if (gbl_sigint_flag) {
+                raise(SIGINT);
+            } else {
+                fputc('\n', out);
+            }
+            return;
         }
-        return;
     }
     fflush(stdin);
     norawmode();
@@ -991,6 +1023,7 @@ int main(int argc, char **argv) {
     /* Replace original getline with new line getter */
     JanetTable *replacements = janet_table(0);
     janet_table_put(replacements, janet_csymbolv("getline"), janet_wrap_cfunction(janet_line_getter));
+    janet_table_put(replacements, janet_csymbolv("set-repl-within-form"), janet_wrap_cfunction(janet_set_repl_within_form));
     janet_line_init();
 
     /* Get core env */
