@@ -2020,8 +2020,7 @@
     (if (nil? (chunks buf p))
       (do
         # Nil chunks represents a cancelled form in the REPL, so reset.
-        (set-repl-within-form false)
-        (set p (parser/new))
+        (parser/flush p)
         (buffer/clear buf))
       (do
         (var pindex 0)
@@ -2030,11 +2029,7 @@
         (when (= len 0)
           (parser/eof p)
           (set going false))
-        (if (= len 1)
-          (set-repl-within-form false)
-          (set-repl-within-form true))
         (while (> len pindex)
-          (set-repl-within-form true)
           (+= pindex (parser/consume p buf pindex))
           (while (parser/has-more p)
             (eval1 (parser/produce p)))

@@ -40,10 +40,8 @@ void janet_line_deinit();
 
 void janet_line_get(const char *p, JanetBuffer *buffer);
 Janet janet_line_getter(int32_t argc, Janet *argv);
-static Janet janet_set_repl_within_form(int32_t argc, Janet *argv);
 
 static JANET_THREAD_LOCAL bool gbl_cancel_current_repl_form = false;
-static JANET_THREAD_LOCAL bool gbl_repl_within_form = false;
 
 /*
  * Line Editing
@@ -84,12 +82,6 @@ static void simpleline(JanetBuffer *buffer) {
         janet_buffer_push_u8(buffer, (uint8_t) c);
         if (c == '\n') break;
     }
-}
-
-static Janet janet_set_repl_within_form(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
-    gbl_repl_within_form = janet_unwrap_boolean(argv[0]) != 0;
-    return janet_wrap_nil();
 }
 
 /* Windows */
@@ -767,15 +759,7 @@ static int line() {
                 kleft();
                 break;
             case 3:     /* ctrl-c */
-                if (
-                        (gbl_len == 0)
-                        && !gbl_repl_within_form
-                ) {   /* quit on empty line */
-                    errno = EAGAIN;
-                    gbl_sigint_flag = 1;
-                } else {              /* interrupt expression on non-empty line */
-                    gbl_cancel_current_repl_form = true;
-                }
+                gbl_cancel_current_repl_form = true;
                 clearlines();
                 return -1;
             case 4:     /* ctrl-d, eof */
@@ -1023,7 +1007,6 @@ int main(int argc, char **argv) {
     /* Replace original getline with new line getter */
     JanetTable *replacements = janet_table(0);
     janet_table_put(replacements, janet_csymbolv("getline"), janet_wrap_cfunction(janet_line_getter));
-    janet_table_put(replacements, janet_csymbolv("set-repl-within-form"), janet_wrap_cfunction(janet_set_repl_within_form));
     janet_line_init();
 
     /* Get core env */
