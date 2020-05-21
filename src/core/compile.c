@@ -751,11 +751,11 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     if (scope->ua.count) {
         /* Number of u32s we need to create a bitmask for all slots */
         int32_t numchunks = (def->slotcount + 31) >> 5;
-        uint32_t *chunks = malloc(sizeof(uint32_t) * numchunks);
+        uint32_t *chunks = calloc(sizeof(uint32_t), numchunks);
         if (NULL == chunks) {
             JANET_OUT_OF_MEMORY;
         }
-        memcpy(chunks, scope->ua.chunks, sizeof(uint32_t) * numchunks);
+        memcpy(chunks, scope->ua.chunks, sizeof(uint32_t) * scope->ua.count);
         /* Register allocator preallocates some registers [240-255, high 16 bits of chunk index 7], we can ignore those. */
         if (scope->ua.count > 7) chunks[7] &= 0xFFFFU;
         def->closure_bitset = chunks;
