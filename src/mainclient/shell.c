@@ -63,7 +63,8 @@ Janet janet_line_getter(int32_t argc, Janet *argv) {
         gbl_cancel_current_repl_form = false;
 
         // Signal that the user bailed out of the current form
-        result = janet_wrap_nil();
+        const static char *const msg = "cancel";
+        result = janet_ckeywordv(msg);
     } else {
         result = janet_wrap_buffer(buf);
     }

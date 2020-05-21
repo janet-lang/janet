@@ -2017,7 +2017,8 @@
   (while going
     (if (env :exit) (break))
     (buffer/clear buf)
-    (if (nil? (chunks buf p))
+    (if (= (chunks buf p)
+           :cancel)
       (do
         # Nil chunks represents a cancelled form in the REPL, so reset.
         (parser/flush p)
