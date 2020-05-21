@@ -1978,7 +1978,7 @@
   (var going true)
 
   # The parser object
-  (var p (parser/new))
+  (def p (parser/new))
 
   # Evaluate 1 source form in a protected manner
   (defn eval1 [source]
@@ -2020,7 +2020,7 @@
     (if (= (chunks buf p)
            :cancel)
       (do
-        # Nil chunks represents a cancelled form in the REPL, so reset.
+        # A :cancel chunk represents a cancelled form in the REPL, so reset.
         (parser/flush p)
         (buffer/clear buf))
       (do
