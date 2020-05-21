@@ -2600,7 +2600,9 @@
                   'def is-safe-def 'var is-safe-def 'def- is-safe-def 'var- is-safe-def
                   'defglobal is-safe-def 'varglobal is-safe-def})
 
-(def- importers {'import true 'import* true 'use true 'dofile true 'require true})
+(def- importers {'import true 'import* true 'dofile true 'require true})
+(defn- use-2 [evaluator args]
+  (each a args (import* (string a) :prefix "" :evaluator evaluator)))
 
 # conditional compilation for reduced os
 (def- getenv-alias (if-let [entry (in _env 'os/getenv)] (entry :value) (fn [&])))
@@ -2688,6 +2690,9 @@
           # Always safe form
           safe-check
           (thunk)
+          # Use
+          (= 'use head)
+          (use-2 evaluator (tuple/slice source 1))
           # Import-like form
           (importers head)
           (do
@@ -2738,6 +2743,7 @@
 (put _env 'is-safe-def nil)
 (put _env 'safe-forms nil)
 (put _env 'importers nil)
+(put _env 'use-2 nil)
 (put _env 'getenv-alias nil)
 
 ###
