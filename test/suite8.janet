@@ -285,4 +285,7 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (= nil (while (and false false) (fn []) (error "should not happen"))) "strangeloop 1")
 (assert (= nil (while (not= nil nil) (fn []) (error "should not happen"))) "strangeloop 2")
 
+# Issue #412
+(assert (peg/match '(* "a" (> -1 "a") "b") "abc") "lookhead does not move cursor")
+
 (end-suite)
