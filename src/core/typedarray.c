@@ -275,6 +275,24 @@ static void ta_setter(void *p, Janet key, Janet value) {
     }
 }
 
+static Janet ta_view_next(void *p, Janet key) {
+    JanetTArrayView *view = p;
+    if (janet_checktype(key, JANET_NIL)) {
+        if (view->size > 0) {
+            return janet_wrap_number(0);
+        } else {
+            return janet_wrap_nil();
+        }
+    }
+    if (!janet_checksize(key)) janet_panic("expected size as key");
+    size_t index = janet_unwrap_number(key);
+    index++;
+    if (index < view->size) {
+        return janet_wrap_number((double) index);
+    }
+    return janet_wrap_nil();
+}
+
 const JanetAbstractType janet_ta_view_type = {
     "ta/view",
     NULL,
@@ -283,7 +301,11 @@ const JanetAbstractType janet_ta_view_type = {
     ta_setter,
     ta_view_marshal,
     ta_view_unmarshal,
-    JANET_ATEND_UNMARSHAL
+    NULL,
+    NULL,
+    NULL,
+    ta_view_next,
+    JANET_ATEND_NEXT
 };
 
 JanetTArrayBuffer *janet_tarray_buffer(size_t size) {
@@ -364,8 +386,11 @@ static Janet cfun_typed_array_new(int32_t argc, Janet *argv) {
             offset = (view->buffer->data - view->as.u8) + offset * ta_type_sizes[view->type];
             stride *= view->stride;
             buffer = view->buffer;
-        } else {
+        } else if (janet_abstract_type(p) == &janet_ta_buffer_type) {
             buffer = p;
+        } else {
+            janet_panicf("bad slot #%d, expected ta/view|ta/buffer, got %v",
+                         4, argv[4]);
         }
     }
     JanetTArrayView *view = janet_tarray_view(type, size, stride, offset, buffer);
