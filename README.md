@@ -122,11 +122,12 @@ gmake repl
 3. Run `build_win` to compile janet.
 4. Run `build_win test` to make sure everything is working.
 
-To build an `.msi` installer executable, you will have to:
+To build an `.msi` installer executable, in addition to the above steps, you will have to:
 
 5. Install, or otherwise add to your PATH the [WiX 3.11 Toolset](https://github.com/wixtoolset/wix3/releases)
-6. run `build_win dist` then
-7. run `build_win install`
+6. run `build_win dist`
+
+Now you should have an `.msi`. You can run `build_win install` to install the `.msi`, or execute the file itself.
 
 ### Meson
 
