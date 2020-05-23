@@ -25,7 +25,6 @@
 #endif
 
 #include <janet.h>
-#include <stdbool.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -41,7 +40,7 @@ void janet_line_deinit();
 void janet_line_get(const char *p, JanetBuffer *buffer);
 Janet janet_line_getter(int32_t argc, Janet *argv);
 
-static JANET_THREAD_LOCAL bool gbl_cancel_current_repl_form = false;
+static JANET_THREAD_LOCAL int gbl_cancel_current_repl_form = 0;
 
 /*
  * Line Editing
@@ -60,9 +59,9 @@ Janet janet_line_getter(int32_t argc, Janet *argv) {
 
     Janet result;
     if (gbl_cancel_current_repl_form) {
-        gbl_cancel_current_repl_form = false;
+        gbl_cancel_current_repl_form = 0;
 
-        // Signal that the user bailed out of the current form
+        /* Signal that the user bailed out of the current form */
         result = janet_ckeywordv("cancel");
     } else {
         result = janet_wrap_buffer(buf);
@@ -759,7 +758,7 @@ static int line() {
                 kleft();
                 break;
             case 3:     /* ctrl-c */
-                gbl_cancel_current_repl_form = true;
+                gbl_cancel_current_repl_form = 1;
                 clearlines();
                 return -1;
             case 4:     /* ctrl-d, eof */
