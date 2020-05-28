@@ -1004,6 +1004,9 @@ static void janet_load_libs(JanetTable *env) {
 #ifdef JANET_THREADS
     janet_lib_thread(env);
 #endif
+#ifdef JANET_EV
+    janet_lib_ev(env);
+#endif
 #ifdef JANET_NET
     janet_lib_net(env);
 #endif

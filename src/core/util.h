@@ -128,8 +128,10 @@ void janet_lib_thread(JanetTable *env);
 #endif
 #ifdef JANET_NET
 void janet_lib_net(JanetTable *env);
-void janet_net_deinit(void);
-void janet_net_markloop(void);
+#endif
+#ifdef JANET_EV
+void janet_lib_ev(JanetTable *env);
+void janet_ev_mark(void);
 #endif
 
 #endif

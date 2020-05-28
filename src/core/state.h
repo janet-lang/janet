@@ -97,4 +97,14 @@ void janet_threads_init(void);
 void janet_threads_deinit(void);
 #endif
 
+#ifdef JANET_NET
+void janet_net_init(void);
+void janet_net_deinit(void);
+#endif
+
+#ifdef JANET_EV
+void janet_ev_init(void);
+void janet_ev_deinit(void);
+#endif
+
 #endif /* JANET_STATE_H_defined */

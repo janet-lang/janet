@@ -1429,6 +1429,12 @@ int janet_init(void) {
 #ifdef JANET_THREADS
     janet_threads_init();
 #endif
+#ifdef JANET_EV
+    janet_ev_init();
+#endif
+#ifdef JANET_NET
+    janet_net_init();
+#endif
     return 0;
 }
 
@@ -1448,6 +1454,9 @@ void janet_deinit(void) {
     janet_vm_root_fiber = NULL;
 #ifdef JANET_THREADS
     janet_threads_deinit();
+#endif
+#ifdef JANET_EV
+    janet_ev_deinit();
 #endif
 #ifdef JANET_NET
     janet_net_deinit();

@@ -1026,7 +1026,7 @@ int main(int argc, char **argv) {
         janet_stacktrace(fiber, out);
     }
 
-#ifdef JANET_NET
+#ifdef JANET_EV
     status = JANET_SIGNAL_OK;
     janet_loop();
 #endif

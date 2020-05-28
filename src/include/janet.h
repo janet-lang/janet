@@ -176,8 +176,13 @@ extern "C" {
 #define JANET_TYPED_ARRAY
 #endif
 
+/* Enable or disable event loop */
+#if !defined(JANET_NO_EV) && !defined(__EMSCRIPTEN__)
+#define JANET_EV
+#endif
+
 /* Enable or disable networking */
-#if !defined(JANET_NO_NET) && !defined(__EMSCRIPTEN__)
+#if defined(JANET_EV) && !defined(JANET_NO_NET) && !defined(__EMSCRIPTEN__)
 #define JANET_NET
 #endif
 
@@ -1134,8 +1139,65 @@ extern enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
 /***** START SECTION MAIN *****/
 
 /* Event Loop */
-#ifdef JANET_NET
+#ifdef JANET_EV
+#define JANET_POLL_FLAG_CLOSED 0x1
+#define JANET_POLL_FLAG_SOCKET 0x2
+#define JANET_ASYNC_EVENT_INIT 0
+#define JANET_ASYNC_EVENT_MARK 1
+#define JANET_ASYNC_EVENT_DEINIT 2
+#define JANET_ASYNC_EVENT_CLOSE 3
+#define JANET_ASYNC_EVENT_READ 4
+#define JANET_ASYNC_EVENT_WRITE 5
+#define JANET_ASYNC_EVENT_TIMEOUT 6
+
+/* Typedefs */
+#ifdef JANET_WINDOWS
+typedef HANDLE JanetPollType;
+#else
+typedef int JanetPollType;
+#endif
+typedef struct JanetListenerState JanetListenerState;
+typedef struct JanetPollable JanetPollable;
+typedef void (*JanetListener)(JanetListenerState *state, int event);
+
+/* Wrapper around file descriptors and HANDLEs that can be polled. */
+struct JanetPollable {
+    JanetPollType handle;
+    uint32_t flags;
+    JanetListenerState *state;
+    /* internal */
+    int _mask;
+};
+
+/* Interface for state machine based event loop */
+struct JanetListenerState {
+    JanetListener machine;
+    JanetFiber *fiber;
+    JanetPollable *pollable;
+    /* internal */
+    int _mask;
+    JanetListenerState *_next;
+};
+
+/* Run the event loop */
+JANET_API void janet_loop1(void);
 JANET_API void janet_loop(void);
+
+/* Wrapper around pollables */
+JANET_API void janet_pollable_init(JanetPollable *pollable, JanetPollType handle);
+JANET_API void janet_pollable_mark(JanetPollable *pollable);
+JANET_API void janet_pollable_deinit(JanetPollable *pollable);
+
+/* Queue a fiber to run on the event loop */
+JANET_API void janet_schedule(JanetFiber *fiber, Janet value);
+
+/* Start a state machine listening for events from a pollable */
+JANET_API JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size);
+JANET_API void janet_unlisten(JanetListenerState *state);
+
+/* Shorthand for yielding to event loop in C */
+JANET_NO_RETURN JANET_API void janet_await(void);
+
 #endif
 
 /* Parsing */

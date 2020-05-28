@@ -90,6 +90,7 @@ JANET_CORE_SOURCES=src/core/abstract.c \
 				   src/core/corelib.c \
 				   src/core/debug.c \
 				   src/core/emit.c \
+				   src/core/ev.c \
 				   src/core/fiber.c \
 				   src/core/gc.c \
 				   src/core/inttypes.c \
