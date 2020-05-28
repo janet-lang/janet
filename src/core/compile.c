@@ -750,12 +750,14 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Copy upvalue bitset */
     if (scope->ua.count) {
         /* Number of u32s we need to create a bitmask for all slots */
-        int32_t numchunks = (def->slotcount + 31) >> 5;
-        uint32_t *chunks = calloc(sizeof(uint32_t), numchunks);
+        int32_t slotchunks = (def->slotcount + 31) >> 5;
+        /* numchunks is min of slotchunks and scope->ua.count */
+        int32_t numchunks = slotchunks > scope->ua.count ? scope->ua.count : slotchunks;
+        uint32_t *chunks = calloc(sizeof(uint32_t), slotchunks);
         if (NULL == chunks) {
             JANET_OUT_OF_MEMORY;
         }
-        memcpy(chunks, scope->ua.chunks, sizeof(uint32_t) * scope->ua.count);
+        memcpy(chunks, scope->ua.chunks, sizeof(uint32_t) * numchunks);
         /* Register allocator preallocates some registers [240-255, high 16 bits of chunk index 7], we can ignore those. */
         if (scope->ua.count > 7) chunks[7] &= 0xFFFFU;
         def->closure_bitset = chunks;

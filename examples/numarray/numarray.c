@@ -23,7 +23,7 @@ static int num_array_gc(void *p, size_t s) {
     return 0;
 }
 
-Janet num_array_get(void *p, Janet key);
+int num_array_get(void *p, Janet key, Janet *out); 
 void num_array_put(void *p, Janet key, Janet value);
 
 static const JanetAbstractType num_array_type = {
@@ -31,7 +31,8 @@ static const JanetAbstractType num_array_type = {
     num_array_gc,
     NULL,
     num_array_get,
-    num_array_put
+    num_array_put,
+    JANET_ATEND_PUT
 };
 
 static Janet num_array_new(int32_t argc, Janet *argv) {
@@ -81,21 +82,20 @@ static const JanetMethod methods[] = {
     {NULL, NULL}
 };
 
-Janet num_array_get(void *p, Janet key) {
+int num_array_get(void *p, Janet key, Janet *out) {
     size_t index;
-    Janet value;
     num_array *array = (num_array *)p;
     if (janet_checktype(key, JANET_KEYWORD))
-        return janet_getmethod(janet_unwrap_keyword(key), methods);
+        return janet_getmethod(janet_unwrap_keyword(key), methods, out);
     if (!janet_checkint(key))
         janet_panic("expected integer key");
     index = (size_t)janet_unwrap_integer(key);
     if (index >= array->size) {
-        value = janet_wrap_nil();
+        return 0;
     } else {
-        value = janet_wrap_number(array->data[index]);
+        *out = janet_wrap_number(array->data[index]);
     }
-    return value;
+    return 1;
 }
 
 static const JanetReg cfuns[] = {
