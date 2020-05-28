@@ -1180,7 +1180,6 @@ struct JanetListenerState {
 };
 
 /* Run the event loop */
-JANET_API void janet_loop1(void);
 JANET_API void janet_loop(void);
 
 /* Wrapper around pollables */

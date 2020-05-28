@@ -164,41 +164,41 @@ void net_machine_read(JanetListenerState *s, int event) {
             break;
         case JANET_ASYNC_EVENT_READ:
             /* Read in bytes */
-            {
-                JanetBuffer *buffer = state->buf;
-                int32_t bytes_left = state->bytes_left;
-                janet_buffer_extra(buffer, bytes_left);
-                JReadInt nread;
-                do {
-                    nread = recv(s->pollable->handle, buffer->data + buffer->count, bytes_left, 0);
-                } while (nread == -1 && JLASTERR == JEINTR);
-                if (JLASTERR == JEAGAIN || JLASTERR == JEWOULDBLOCK) {
-                    break;
-                }
-
-                /* Increment buffer counts */
-                if (nread > 0) {
-                    buffer->count += nread;
-                    bytes_left -= nread;
-                } else {
-                    bytes_left = 0;
-                }
-                state->bytes_left = bytes_left;
-
-                /* Resume if done */
-                if (!state->is_chunk || bytes_left == 0) {
-                    Janet resume_val = nread > 0 ? janet_wrap_buffer(buffer) : janet_wrap_nil();
-                    janet_schedule(s->fiber, resume_val);
-                    janet_unlisten(s);
-                }
+        {
+            JanetBuffer *buffer = state->buf;
+            int32_t bytes_left = state->bytes_left;
+            janet_buffer_extra(buffer, bytes_left);
+            JReadInt nread;
+            do {
+                nread = recv(s->pollable->handle, buffer->data + buffer->count, bytes_left, 0);
+            } while (nread == -1 && JLASTERR == JEINTR);
+            if (JLASTERR == JEAGAIN || JLASTERR == JEWOULDBLOCK) {
+                break;
             }
-            break;
+
+            /* Increment buffer counts */
+            if (nread > 0) {
+                buffer->count += nread;
+                bytes_left -= nread;
+            } else {
+                bytes_left = 0;
+            }
+            state->bytes_left = bytes_left;
+
+            /* Resume if done */
+            if (!state->is_chunk || bytes_left == 0) {
+                Janet resume_val = nread > 0 ? janet_wrap_buffer(buffer) : janet_wrap_nil();
+                janet_schedule(s->fiber, resume_val);
+                janet_unlisten(s);
+            }
+        }
+        break;
     }
 }
 
 JANET_NO_RETURN static void janet_sched_read(JanetStream *stream, JanetBuffer *buf, int32_t nbytes) {
     NetStateRead *state = (NetStateRead *) janet_listen(stream, net_machine_read,
-            JANET_ASYNC_EVENT_READ, sizeof(NetStateRead));
+                          JANET_ASYNC_EVENT_READ, sizeof(NetStateRead));
     state->is_chunk = 0;
     state->buf = buf;
     state->bytes_left = nbytes;
@@ -207,7 +207,7 @@ JANET_NO_RETURN static void janet_sched_read(JanetStream *stream, JanetBuffer *b
 
 JANET_NO_RETURN static void janet_sched_chunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes) {
     NetStateRead *state = (NetStateRead *) janet_listen(stream, net_machine_read,
-            JANET_ASYNC_EVENT_READ, sizeof(NetStateRead));
+                          JANET_ASYNC_EVENT_READ, sizeof(NetStateRead));
     state->is_chunk = 1;
     state->buf = buf;
     state->bytes_left = nbytes;
@@ -235,50 +235,50 @@ void net_machine_write(JanetListenerState *s, int event) {
             break;
         case JANET_ASYNC_EVENT_MARK:
             janet_mark(state->is_buffer
-                    ? janet_wrap_buffer(state->src.buf)
-                    : janet_wrap_string(state->src.str));
+                       ? janet_wrap_buffer(state->src.buf)
+                       : janet_wrap_string(state->src.str));
             break;
         case JANET_ASYNC_EVENT_CLOSE:
             janet_schedule(s->fiber, janet_wrap_nil());
             break;
         case JANET_ASYNC_EVENT_WRITE: {
-                int32_t start, len;
-                const uint8_t *bytes;
-                start = state->start;
-                if (state->is_buffer) {
-                    JanetBuffer *buffer = state->src.buf;
-                    bytes = buffer->data;
-                    len = buffer->count;
+            int32_t start, len;
+            const uint8_t *bytes;
+            start = state->start;
+            if (state->is_buffer) {
+                JanetBuffer *buffer = state->src.buf;
+                bytes = buffer->data;
+                len = buffer->count;
+            } else {
+                bytes = state->src.str;
+                len = janet_string_length(bytes);
+            }
+            if (start < len) {
+                int32_t nbytes = len - start;
+                JReadInt nwrote;
+                do {
+                    nwrote = send(s->pollable->handle, bytes + start, nbytes, MSG_NOSIGNAL);
+                } while (nwrote == -1 && JLASTERR == JEINTR);
+                if (nwrote > 0) {
+                    start += nwrote;
                 } else {
-                    bytes = state->src.str;
-                    len = janet_string_length(bytes);
+                    start = len;
                 }
-                if (start < len) {
-                    int32_t nbytes = len - start;
-                    JReadInt nwrote;
-                    do {
-                        nwrote = send(s->pollable->handle, bytes + start, nbytes, MSG_NOSIGNAL);
-                    } while (nwrote == -1 && JLASTERR == JEINTR);
-                    if (nwrote > 0) {
-                        start += nwrote;
-                    } else {
-                        start = len;
-                    }
-                }
-                state->start = start;
-                if (start >= len) {
-                    janet_schedule(s->fiber, janet_wrap_nil());
-                    janet_unlisten(s);
-                }
-                break;
+            }
+            state->start = start;
+            if (start >= len) {
+                janet_schedule(s->fiber, janet_wrap_nil());
+                janet_unlisten(s);
             }
             break;
+        }
+        break;
     }
 }
 
 JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetBuffer *buf) {
     NetStateWrite *state = (NetStateWrite *) janet_listen(stream, net_machine_write,
-            JANET_ASYNC_EVENT_WRITE, sizeof(NetStateWrite));
+                           JANET_ASYNC_EVENT_WRITE, sizeof(NetStateWrite));
     state->is_buffer = 1;
     state->start = 0;
     state->src.buf = buf;
@@ -288,7 +288,7 @@ JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetB
 
 JANET_NO_RETURN static void janet_sched_write_stringlike(JanetStream *stream, const uint8_t *str) {
     NetStateWrite *state = (NetStateWrite *) janet_listen(stream, net_machine_write,
-            JANET_ASYNC_EVENT_WRITE, sizeof(NetStateWrite));
+                           JANET_ASYNC_EVENT_WRITE, sizeof(NetStateWrite));
     state->is_buffer = 0;
     state->start = 0;
     state->src.str = str;
@@ -442,7 +442,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     /* Put sfd on our loop */
     JanetStream *stream = make_stream(sfd, 0);
     NetStateSimpleServer *ss = (NetStateSimpleServer *) janet_listen(stream, net_machine_simple_server,
-            JANET_ASYNC_EVENT_READ, sizeof(NetStateSimpleServer));
+                               JANET_ASYNC_EVENT_READ, sizeof(NetStateSimpleServer));
     ss->function = fun;
     return janet_wrap_abstract(stream);
 }

@@ -32,6 +32,9 @@ lockfile.janet
 # Local directory for testing
 local
 
+# Common test file I use.
+temp.janet
+
 # Emscripten
 *.bc
 janet.js

@@ -10,4 +10,5 @@
       (buffer/clear b))
     (printf "Done %v!" id)))
 
+(print "Starting echo server on 127.0.0.1:8000")
 (net/server "127.0.0.1" "8000" handler)
