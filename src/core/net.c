@@ -41,7 +41,7 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <poll.h>
+#include <netinet/tcp.h>
 #include <netdb.h>
 #include <fcntl.h>
 #endif
@@ -75,7 +75,6 @@ typedef JanetPollable JanetStream;
 #define JEWOULDBLOCK WSAEWOULDBLOCK
 #define JEAGAIN WSAEWOULDBLOCK
 #define JPOLL WSAPoll
-#define JPollStruct WSAPOLLFD
 #define JSock SOCKET
 #define JReadInt long
 #define JSOCKFLAGS 0
@@ -96,7 +95,6 @@ static JanetStream *make_stream(SOCKET fd, uint32_t flags) {
 #define JEWOULDBLOCK EWOULDBLOCK
 #define JEAGAIN EAGAIN
 #define JPOLL poll
-#define JPollStruct struct pollfd
 #define JSock int
 #define JReadInt ssize_t
 #ifdef SOCK_CLOEXEC
@@ -490,11 +488,26 @@ static Janet cfun_stream_write(int32_t argc, Janet *argv) {
     }
 }
 
+static Janet cfun_stream_flush(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
+    if (!(stream->flags & JANET_STREAM_WRITABLE) || (stream->flags & JANET_POLL_FLAG_CLOSED)) {
+        janet_panic("got non writeable stream");
+    }
+    /* Toggle no delay flag */
+    int flag = 1;
+    setsockopt(stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+    flag = 0;
+    setsockopt(stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+    return argv[0];
+}
+
 static const JanetMethod stream_methods[] = {
     {"chunk", cfun_stream_chunk},
     {"close", cfun_stream_close},
     {"read", cfun_stream_read},
     {"write", cfun_stream_write},
+    {"flush", cfun_stream_flush},
     {NULL, NULL}
 };
 
@@ -529,6 +542,12 @@ static const JanetReg net_cfuns[] = {
         JDOC("(net/write stream data)\n\n"
              "Write data to a stream, suspending the current fiber until the write "
              "completes. Returns stream.")
+    },
+    {
+        "net/flush", cfun_stream_flush,
+        JDOC("(net/flush stream)\n\n"
+             "Make sure that a stream is not buffering any data. This temporarily disables Nagle's algorithm. "
+             "Use this to make sure data is sent without delay. Returns stream.")
     },
     {
         "net/close", cfun_stream_close,

@@ -295,6 +295,7 @@ void janet_loop(void) {
     }
 }
 
+#ifdef JANET_LINUX
 
 /*
  * Start linux/epoll implementation
@@ -435,6 +436,12 @@ void janet_ev_deinit(void) {
 /*
  * End epoll implementation
  */
+
+#else
+
+
+#endif
+
 
 /* C functions */
 
