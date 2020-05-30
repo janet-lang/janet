@@ -1142,13 +1142,21 @@ extern enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
 #ifdef JANET_EV
 #define JANET_POLL_FLAG_CLOSED 0x1
 #define JANET_POLL_FLAG_SOCKET 0x2
-#define JANET_ASYNC_EVENT_INIT 0
-#define JANET_ASYNC_EVENT_MARK 1
-#define JANET_ASYNC_EVENT_DEINIT 2
-#define JANET_ASYNC_EVENT_CLOSE 3
-#define JANET_ASYNC_EVENT_READ 4
-#define JANET_ASYNC_EVENT_WRITE 5
-#define JANET_ASYNC_EVENT_TIMEOUT 6
+
+typedef enum {
+    JANET_ASYNC_EVENT_INIT,
+    JANET_ASYNC_EVENT_MARK,
+    JANET_ASYNC_EVENT_DEINIT,
+    JANET_ASYNC_EVENT_CLOSE,
+    JANET_ASYNC_EVENT_READ,
+    JANET_ASYNC_EVENT_WRITE,
+    JANET_ASYNC_EVENT_TIMEOUT
+} JanetAsyncEvent;
+
+typedef enum {
+    JANET_ASYNC_STATUS_NOT_DONE,
+    JANET_ASYNC_STATUS_DONE
+} JanetAsyncStatus;
 
 /* Typedefs */
 #ifdef JANET_WINDOWS
@@ -1158,7 +1166,7 @@ typedef int JanetPollType;
 #endif
 typedef struct JanetListenerState JanetListenerState;
 typedef struct JanetPollable JanetPollable;
-typedef void (*JanetListener)(JanetListenerState *state, int event);
+typedef JanetAsyncStatus(*JanetListener)(JanetListenerState *state, JanetAsyncEvent event);
 
 /* Wrapper around file descriptors and HANDLEs that can be polled. */
 struct JanetPollable {
@@ -1192,7 +1200,6 @@ JANET_API void janet_schedule(JanetFiber *fiber, Janet value);
 
 /* Start a state machine listening for events from a pollable */
 JANET_API JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size);
-JANET_API void janet_unlisten(JanetListenerState *state);
 
 /* Shorthand for yielding to event loop in C */
 JANET_NO_RETURN JANET_API void janet_await(void);

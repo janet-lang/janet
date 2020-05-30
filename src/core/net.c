@@ -148,7 +148,7 @@ typedef struct {
     int is_chunk;
 } NetStateRead;
 
-void net_machine_read(JanetListenerState *s, int event) {
+JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
     NetStateRead *state = (NetStateRead *) s;
     switch (event) {
         default:
@@ -159,7 +159,7 @@ void net_machine_read(JanetListenerState *s, int event) {
         case JANET_ASYNC_EVENT_CLOSE:
             /* Read is finished, even if chunk is incomplete */
             janet_schedule(s->fiber, janet_wrap_nil());
-            break;
+            return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_READ:
             /* Read in bytes */
         {
@@ -187,11 +187,12 @@ void net_machine_read(JanetListenerState *s, int event) {
             if (!state->is_chunk || bytes_left == 0) {
                 Janet resume_val = nread > 0 ? janet_wrap_buffer(buffer) : janet_wrap_nil();
                 janet_schedule(s->fiber, resume_val);
-                janet_unlisten(s);
+                return JANET_ASYNC_STATUS_DONE;
             }
         }
         break;
     }
+    return JANET_ASYNC_STATUS_NOT_DONE;
 }
 
 JANET_NO_RETURN static void janet_sched_read(JanetStream *stream, JanetBuffer *buf, int32_t nbytes) {
@@ -226,7 +227,7 @@ typedef struct {
     int is_buffer;
 } NetStateWrite;
 
-void net_machine_write(JanetListenerState *s, int event) {
+JanetAsyncStatus net_machine_write(JanetListenerState *s, JanetAsyncEvent event) {
     NetStateWrite *state = (NetStateWrite *) s;
     switch (event) {
         default:
@@ -238,7 +239,7 @@ void net_machine_write(JanetListenerState *s, int event) {
             break;
         case JANET_ASYNC_EVENT_CLOSE:
             janet_schedule(s->fiber, janet_wrap_nil());
-            break;
+            return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_WRITE: {
             int32_t start, len;
             const uint8_t *bytes;
@@ -266,12 +267,13 @@ void net_machine_write(JanetListenerState *s, int event) {
             state->start = start;
             if (start >= len) {
                 janet_schedule(s->fiber, janet_wrap_nil());
-                janet_unlisten(s);
+                return JANET_ASYNC_STATUS_DONE;
             }
             break;
         }
         break;
     }
+    return JANET_ASYNC_STATUS_NOT_DONE;
 }
 
 JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetBuffer *buf) {
@@ -302,7 +304,7 @@ typedef struct {
     JanetFunction *function;
 } NetStateSimpleServer;
 
-void net_machine_simple_server(JanetListenerState *s, int event) {
+JanetAsyncStatus net_machine_simple_server(JanetListenerState *s, JanetAsyncEvent event) {
     NetStateSimpleServer *state = (NetStateSimpleServer *) s;
     switch (event) {
         default:
@@ -317,7 +319,7 @@ void net_machine_simple_server(JanetListenerState *s, int event) {
         case JANET_ASYNC_EVENT_CLOSE:
             janet_schedule(s->fiber, janet_wrap_nil());
             janet_gcunroot(janet_wrap_abstract(s->pollable));
-            break;
+            return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_READ: {
             JSock connfd = accept(s->pollable->handle, NULL, NULL);
             if (JSOCKVALID(connfd)) {
@@ -330,6 +332,7 @@ void net_machine_simple_server(JanetListenerState *s, int event) {
             break;
         }
     }
+    return JANET_ASYNC_STATUS_NOT_DONE;
 }
 
 /* Adress info */

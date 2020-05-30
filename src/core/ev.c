@@ -343,7 +343,7 @@ JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior
 }
 
 /* Tell system we are done listening for a certain event */
-void janet_unlisten(JanetListenerState *state) {
+static void janet_unlisten(JanetListenerState *state) {
     JanetPollable *pollable = state->pollable;
     int is_last = (state->_next == NULL && pollable->state == state);
     int op = is_last ? EPOLL_CTL_DEL : EPOLL_CTL_MOD;
@@ -401,11 +401,15 @@ void janet_loop1_impl(void) {
             int mask = events[i].events;
             JanetListenerState *state = pollable->state;
             while (NULL != state) {
+                JanetListenerState *next_state = state->_next;
+                JanetAsyncStatus status = JANET_ASYNC_STATUS_NOT_DONE;
                 if (mask & EPOLLOUT)
-                    state->machine(state, JANET_ASYNC_EVENT_WRITE);
-                if (mask & EPOLLIN)
-                    state->machine(state, JANET_ASYNC_EVENT_READ);
-                state = state->_next;
+                    status = state->machine(state, JANET_ASYNC_EVENT_WRITE);
+                if (status == JANET_ASYNC_STATUS_NOT_DONE && (mask & EPOLLIN))
+                    status = state->machine(state, JANET_ASYNC_EVENT_READ);
+                if (status == JANET_ASYNC_STATUS_DONE)
+                    janet_unlisten(state);
+                state = next_state;
             }
         }
     }
