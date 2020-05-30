@@ -285,7 +285,7 @@ static Janet ta_view_next(void *p, Janet key) {
         }
     }
     if (!janet_checksize(key)) janet_panic("expected size as key");
-    size_t index = janet_unwrap_number(key);
+    size_t index = (size_t) janet_unwrap_number(key);
     index++;
     if (index < view->size) {
         return janet_wrap_number((double) index);
