@@ -1,14 +1,19 @@
 (defn handler
   "Simple handler for connections."
   [stream]
-  (defer (:close stream)
-    (def id (gensym))
-    (def b @"")
-    (print "Connection " id "!")
-    (while (:read stream 1024 b)
-      (:write stream b)
-      (buffer/clear b))
-    (printf "Done %v!" id)))
+  (def id (gensym))
+  (def b @"")
+  (print "Connection " id "!")
+  (while (:read stream 1024 b)
+    (:write stream b)
+    (buffer/clear b))
+  (printf "Done %v!" id))
 
 (print "Starting echo server on 127.0.0.1:8000")
-(net/server "127.0.0.1" "8000" handler)
+
+(def server (net/server "127.0.0.1" "8000"))
+
+# Run server.
+(while true
+  (with [conn (:accept server)]
+    (handler conn)))
