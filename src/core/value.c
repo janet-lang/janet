@@ -271,7 +271,6 @@ int32_t janet_hash(Janet x) {
         }
         /* fallthrough */
         default:
-            /* TODO - test performance with different hash functions */
             if (sizeof(double) == sizeof(void *)) {
                 /* Assuming 8 byte pointer */
                 uint64_t i = janet_u64(x);

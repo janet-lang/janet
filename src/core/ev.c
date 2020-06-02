@@ -139,6 +139,9 @@ static void pop_timeout(void) {
 
 /* Create a new event listener */
 static JanetListenerState *janet_listen_impl(JanetPollable *pollable, JanetListener behavior, int mask, size_t size) {
+    if (pollable->_mask & mask) {
+        janet_panic("cannot listen for duplicate event on pollable");
+    }
     if (size < sizeof(JanetListenerState))
         size = sizeof(JanetListenerState);
     JanetListenerState *state = malloc(size);
@@ -315,10 +318,10 @@ JANET_THREAD_LOCAL int janet_vm_timerfd = 0;
 JANET_THREAD_LOCAL int janet_vm_timer_enabled = 0;
 
 static int make_epoll_events(int mask) {
-    int events = 0;
-    if (mask & JANET_ASYNC_EVENT_READ)
+    int events = EPOLLET;
+    if (mask & JANET_ASYNC_LISTEN_READ)
         events |= EPOLLIN;
-    if (mask & JANET_ASYNC_EVENT_WRITE)
+    if (mask & JANET_ASYNC_LISTEN_WRITE)
         events |= EPOLLOUT;
     return events;
 }
@@ -348,7 +351,7 @@ static void janet_unlisten(JanetListenerState *state) {
     int is_last = (state->_next == NULL && pollable->state == state);
     int op = is_last ? EPOLL_CTL_DEL : EPOLL_CTL_MOD;
     struct epoll_event ev;
-    ev.events = make_epoll_events(pollable->_mask);
+    ev.events = make_epoll_events(pollable->_mask & ~state->_mask);
     ev.data.ptr = pollable;
     int status;
     do {
@@ -402,12 +405,13 @@ void janet_loop1_impl(void) {
             JanetListenerState *state = pollable->state;
             while (NULL != state) {
                 JanetListenerState *next_state = state->_next;
-                JanetAsyncStatus status = JANET_ASYNC_STATUS_NOT_DONE;
+                JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
+                JanetAsyncStatus status2 = JANET_ASYNC_STATUS_NOT_DONE;
                 if (mask & EPOLLOUT)
-                    status = state->machine(state, JANET_ASYNC_EVENT_WRITE);
-                if (status == JANET_ASYNC_STATUS_NOT_DONE && (mask & EPOLLIN))
-                    status = state->machine(state, JANET_ASYNC_EVENT_READ);
-                if (status == JANET_ASYNC_STATUS_DONE)
+                    status1 = state->machine(state, JANET_ASYNC_EVENT_WRITE);
+                if (mask & EPOLLIN)
+                    status2 = state->machine(state, JANET_ASYNC_EVENT_READ);
+                if (status1 == JANET_ASYNC_STATUS_DONE || status2 == JANET_ASYNC_STATUS_DONE)
                     janet_unlisten(state);
                 state = next_state;
             }
