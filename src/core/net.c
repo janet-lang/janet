@@ -41,6 +41,7 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <fcntl.h>
@@ -175,7 +176,7 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
             int32_t bytes_left = state->bytes_left;
             janet_buffer_extra(buffer, bytes_left);
             JReadInt nread;
-            struct sockaddr_in saddr;
+            char saddr[256];
             socklen_t socklen = sizeof(saddr);
             do {
                 if (state->is_recv_from) {
@@ -427,14 +428,27 @@ static int janet_get_sockettype(Janet *argv, int32_t argc, int32_t n) {
 }
 
 /* Needs argc >= offset + 2 */
-static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int socktype, int passive) {
+/* For unix paths, just rertuns a single sockaddr and sets *is_unix to 1, otherwise 0 */
+static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int socktype, int passive, int *is_unix) {
+    /* Unix socket support */
+    if (janet_keyeq(argv[offset], "unix")) {
+        const char *path = janet_getcstring(argv, offset + 1);
+        struct sockaddr_un *saddr = malloc(sizeof(struct sockaddr_un));
+        if (saddr == NULL) {
+            JANET_OUT_OF_MEMORY;
+        }
+        saddr->sun_family = AF_UNIX;
+        snprintf(saddr->sun_path, 108, "%s", path);
+        *is_unix = 1;
+        return (struct addrinfo *) saddr;
+    }
     /* Get host and port */
     const char *host = janet_getcstring(argv, offset);
     const char *port;
     if (janet_checkint(argv[offset + 1])) {
         port = (const char *)janet_to_string(argv[offset + 1]);
     } else {
-        port = janet_getcstring(argv, offset + 1);
+        port = janet_optcstring(argv, offset + 2, offset + 1, NULL);
     }
     /* getaddrinfo */
     struct addrinfo *ai = NULL;
@@ -447,6 +461,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
     if (status) {
         janet_panicf("could not get address info: %s", gai_strerror(status));
     }
+    *is_unix = 0;
     return ai;
 }
 
@@ -457,8 +472,16 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
 static Janet cfun_net_sockaddr(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 4);
     int socktype = janet_get_sockettype(argv, argc, 2);
-    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0);
-    if (argc >= 3 && janet_truthy(argv[3])) {
+    int is_unix = 0;
+    int make_arr = (argc >= 3 && janet_truthy(argv[3]));
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix);
+    if (is_unix) {
+        void *abst = janet_abstract(&AddressAT, sizeof(struct sockaddr_un));
+        memcpy(abst, ai, sizeof(struct sockaddr_un));
+        Janet ret = janet_wrap_abstract(abst);
+        return make_arr ? janet_wrap_array(janet_array_n(&ret, 1)) : ret;
+    }
+    if (make_arr) {
         /* Select all */
         JanetArray *arr = janet_array(10);
         struct addrinfo *iter = ai;
@@ -486,23 +509,44 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
 
     int socktype = janet_get_sockettype(argv, argc, 2);
-    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0);
+    int is_unix = 0;
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix);
 
     /* Create socket */
     JSock sock = JSOCKDEFAULT;
-    struct addrinfo *rp = NULL;
-    for (rp = ai; rp != NULL; rp = rp->ai_next) {
-        sock = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
-        if (JSOCKVALID(sock)) break;
-    }
-    if (!JSOCKVALID(sock)) {
-        freeaddrinfo(ai);
-        janet_panic("could not create socket");
+    void *addr = NULL;
+    socklen_t addrlen;
+    if (is_unix) {
+        sock = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);
+        if (!JSOCKVALID(sock)) {
+            janet_panic("could not create socket");
+        }
+        addr = (void *) ai;
+        addrlen = sizeof(struct sockaddr_un);
+    } else {
+        struct addrinfo *rp = NULL;
+        for (rp = ai; rp != NULL; rp = rp->ai_next) {
+            sock = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
+            if (JSOCKVALID(sock)) {
+                addr = rp->ai_addr;
+                addrlen = rp->ai_addrlen;
+                break;
+            }
+        }
+        if (NULL == addr) {
+            freeaddrinfo(ai);
+            janet_panic("could not create socket");
+        }
     }
 
     /* Connect to socket */
-    int status = connect(sock, ai->ai_addr, (int) ai->ai_addrlen);
-    freeaddrinfo(ai);
+    int status = connect(sock, addr, addrlen);
+    if (is_unix) {
+        free(ai);
+    } else {
+        freeaddrinfo(ai);
+    }
+
     if (status == -1) {
         JSOCKCLOSE(sock);
         janet_panic("could not connect to socket");
@@ -513,6 +557,25 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     return janet_wrap_abstract(stream);
 }
 
+static const char *serverify_socket(JSock sfd) {
+    /* Set various socket options */
+    int enable = 1;
+    if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(int)) < 0) {
+        return "setsockopt(SO_REUSEADDR) failed";
+    }
+#ifdef SO_NOSIGPIPE
+    if (setsockopt(sfd, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) < 0) {
+        return "setsockopt(SO_NOSIGPIPE) failed";
+    }
+#endif
+#ifdef SO_REUSEPORT
+    if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
+        return "setsockopt(SO_REUSEPORT) failed";
+    }
+#endif
+    return NULL;
+}
+
 static Janet cfun_net_server(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 4);
 
@@ -520,40 +583,42 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     JanetFunction *fun = janet_optfunction(argv, argc, 2, NULL);
 
     int socktype = janet_get_sockettype(argv, argc, 3);
-    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1);
+    int is_unix = 0;
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1, &is_unix);
 
-    /* Check all addrinfos in a loop for the first that we can bind to. */
     JSock sfd = JSOCKDEFAULT;
-    struct addrinfo *rp = NULL;
-    for (rp = ai; rp != NULL; rp = rp->ai_next) {
-        sfd = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
-        if (!JSOCKVALID(sfd)) continue;
-        /* Set various socket options */
-        int enable = 1;
-        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(int)) < 0) {
-            JSOCKCLOSE(sfd);
-            janet_panic("setsockopt(SO_REUSEADDR) failed");
+    if (is_unix) {
+        sfd = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);
+        if (!JSOCKVALID(sfd)) {
+            free(ai);
+            janet_panic("could not create socket");
         }
-#ifdef SO_NOSIGPIPE
-        if (setsockopt(sfd, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) < 0) {
+        const char *err = serverify_socket(sfd);
+        if (NULL != err || bind(sfd, (struct sockaddr *)ai, sizeof(struct sockaddr_un))) {
             JSOCKCLOSE(sfd);
-            janet_panic("setsockopt(SO_NOSIGPIPE) failed");
+            free(ai);
+            janet_panic(err ? err : "could not bind socket");
         }
-#endif
-#ifdef SO_REUSEPORT
-        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
+        free(ai);
+    } else {
+        /* Check all addrinfos in a loop for the first that we can bind to. */
+        struct addrinfo *rp = NULL;
+        for (rp = ai; rp != NULL; rp = rp->ai_next) {
+            sfd = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
+            if (!JSOCKVALID(sfd)) continue;
+            const char *err = serverify_socket(sfd);
+            if (NULL != err) {
+                JSOCKCLOSE(sfd);
+                continue;
+            }
+            /* Bind */
+            if (bind(sfd, rp->ai_addr, (int) rp->ai_addrlen) == 0) break;
             JSOCKCLOSE(sfd);
-            janet_panic("setsockopt(SO_REUSEPORT) failed");
         }
-#endif
-        /* Bind */
-        if (bind(sfd, rp->ai_addr, (int) rp->ai_addrlen) == 0) break;
-        JSOCKCLOSE(sfd);
-    }
-
-    freeaddrinfo(ai);
-    if (NULL == rp) {
-        janet_panic("could not bind to any sockets");
+        freeaddrinfo(ai);
+        if (NULL == rp) {
+            janet_panic("could not bind to any sockets");
+        }
     }
 
     if (socktype == SOCK_DGRAM) {
