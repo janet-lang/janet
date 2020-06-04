@@ -26,6 +26,8 @@
 #include "util.h"
 #endif
 
+#ifdef JANET_NET
+
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
@@ -675,3 +677,5 @@ void janet_net_deinit(void) {
     WSACleanup();
 #endif
 }
+
+#endif

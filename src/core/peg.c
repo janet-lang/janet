@@ -150,6 +150,7 @@ tail:
             down1(s);
             const uint8_t *result = peg_rule(s, s->bytecode + rule[2], text);
             up1(s);
+            text -= ((int32_t *)rule)[1];
             return result ? text : NULL;
         }
 

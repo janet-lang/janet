@@ -1,10 +1,4 @@
-(import cook)
-
-(cook/make-native
-    :name "numarray"
-    :source @["numarray.c"])
-
-(import build/numarray :as numarray)
+(import build/numarray)
 
 (def a (numarray/new 30))
 (print (get a 20))
