@@ -692,7 +692,7 @@
                fyx (f y x)] (- fyx))
     (compare-primitive x y)))
 
-(defn compare-reduce- [op & xs]
+(defn compare-reduce- [op xs]
   (var r true)
   (loop [i :range [0 (- (length xs) 1)]
          :let [c (compare (xs i) (xs (+ i 1)))
@@ -705,27 +705,27 @@
 (defn compare=
   "Equivalent of '=' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce- := xs))
+  (compare-reduce- = xs))
 
 (defn compare<
   "Equivalent of '<' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce- :< xs))
+  (compare-reduce- < xs))
 
 (defn compare<=
   "Equivalent of '<=' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce- :<= xs))
+  (compare-reduce- <= xs))
 
 (defn compare>
   "Equivalent of '>' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce- :> xs))
+  (compare-reduce- > xs))
 
 (defn compare>=
   "Equivalent of '>=' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce- :>= xs))
+  (compare-reduce- >= xs))
 
 ###
 ###

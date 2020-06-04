@@ -345,9 +345,11 @@
 (assert (= 1 (compare "foo" "bar")) "compare strings (1)")
 
 (assert (compare< 1 2 3 4 5 6) "compare less than integers")
+(assert (not (compare> 1 2 3 4 5 6)) "compare not greater than integers")
 (assert (compare< 1.0 2.0 3.0 4.0 5.0 6.0) "compare less than reals")
 (assert (compare> 6 5 4 3 2 1) "compare greater than integers")
 (assert (compare> 6.0 5.0 4.0 3.0 2.0 1.0) "compare greater than reals")
+(assert (not (compare< 6.0 5.0 4.0 3.0 2.0 1.0)) "compare less than reals")
 (assert (compare<= 1 2 3 3 4 5 6) "compare less than or equal to integers")
 (assert (compare<= 1.0 2.0 3.0 3.0 4.0 5.0 6.0) "compare less than or equal to reals")
 (assert (compare>= 6 5 4 4 3 2 1) "compare greater than or equal to integers")
@@ -370,9 +372,9 @@
   @{:type :mynum :v 0 :compare
     (fn [self other]
       (case (type other)
-      :number (compare-primitive (self :v) other))
+      :number (compare-primitive (self :v) other)
       :table (when (= (get other :type) :mynum)
-               (compare-primitive (self :v) (other :v))))})
+               (compare-primitive (self :v) (other :v)))))})
 
 (let [n3 (table/setproto @{:v 3} mynum)]
   (assert (= 0 (compare 3 n3)) "compare num to object (1)")
@@ -383,6 +385,7 @@
   (assert (compare<= 2 3 n3 4) "compare<= poly")
   (assert (compare= 3 n3 (table/setproto @{:v 3} mynum)) "compare= poly")
   (assert (deep= (sorted @[4 5 n3 2] compare<) @[2 n3 4 5]) "polymorphic sort"))
+
 
 (end-suite)
 
