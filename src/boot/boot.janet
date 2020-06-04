@@ -667,6 +667,66 @@
   [xs]
   (get xs (- (length xs) 1)))
 
+## Polymorphic comparisons
+
+(defn compare-primitive
+  "Compare x and y using primitive operators.
+   Returns -1,0,1 for x < y, x = y, x > y respectively.
+   Present mostly for constructing 'compare' methods in prototypes."
+  [x y]
+  (cond
+    (= x y) 0
+    (< x y) -1
+    (> x y) 1))
+
+(defn compare
+  "Polymorphic compare.  Returns -1,0,1 for x < y, x = y, x > y respectively.
+   Differs from the primitive comparators in that it first checks to
+   see whether either x or y implement a 'compare' method which can
+   compare x and y.  If so it uses that compare method.  If not, it
+   delegates to the primitive comparators."
+  [x y]
+  (or
+    (when-let [f (get x :compare)] (f x y))
+    (when-let [f (get y :compare)
+               fyx (f y x)] (- fyx))
+    (compare-primitive x y)))
+
+(defn compare-reduce- [op & xs]
+  (var r true)
+  (loop [i :range [0 (- (length xs) 1)]
+         c (compare (xs i) (xs (+ i 1)))
+         ok (op c 0)
+         :when (not ok)]
+    (set r false)
+    (break))
+  r)
+
+(defn compare=
+  "Equivalent of '=' but using compare function instead of primitive comparator"
+  [& xs]
+  (compare-reduce := xs))
+
+(defn compare<
+  "Equivalent of '<' but using compare function instead of primitive comparator"
+  [& xs]
+  (compare-reduce :< xs))
+
+(defn compare<=
+  "Equivalent of '<=' but using compare function instead of primitive comparator"
+  [& xs]
+  (compare-reduce :<= xs))
+
+(defn compare>
+  "Equivalent of '>' but using compare function instead of primitive comparator"
+  [& xs]
+  (compare-reduce :> xs))
+
+(defn compare>=
+  "Equivalent of '>=' but using compare function instead of primitive comparator"
+  [& xs]
+  (compare-reduce :>= xs))
+
 ###
 ###
 ### Indexed Combinators

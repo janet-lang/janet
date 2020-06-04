@@ -334,5 +334,52 @@
 (assert (deep= @{:a 3 :b 2} @{:a 1 :b 2 :a 3}) "table literal duplicate keys")
 (assert (deep= @{:a 3 :b 2} (table :a 1 :b 2 :a 3)) "table constructor duplicate keys")
 
+## Polymorphic comparison -- Issue #272
+
+# confirm delegation to primitive comparators:
+(assert (= 0 (compare 1 1)) "compare integers (1)")
+(assert (< 0 (compare 1 2)) "compare integers (2)")
+(assert (> 0 (compare "foo" "bar")) "compare strings (1)")
+
+(assert (compare< 1 2 3 4 5 6) "compare less than integers")
+(assert (compare< 1.0 2.0 3.0 4.0 5.0 6.0) "compare less than reals")
+(assert (compare> 6 5 4 3 2 1) "compare greater than integers")
+(assert (compare> 6.0 5.0 4.0 3.0 2.0 1.0) "compare greater than reals")
+(assert (compare<= 1 2 3 3 4 5 6) "compare less than or equal to integers")
+(assert (compare<= 1.0 2.0 3.0 3.0 4.0 5.0 6.0) "compare less than or equal to reals")
+(assert (compare>= 6 5 4 4 3 2 1) "compare greater than or equal to integers")
+(assert (compare>= 6.0 5.0 4.0 4.0 3.0 2.0 1.0) "compare greater than or equal to reals")
+(assert (compare< 1.0 nil false true
+           (fiber/new (fn [] 1))
+           "hi"
+           (quote hello)
+           :hello
+           (array 1 2 3)
+           (tuple 1 2 3)
+           (table "a" "b" "c" "d")
+           (struct 1 2 3 4)
+           (buffer "hi")
+           (fn [x] (+ x x))
+           print) "compare type ordering")
+
+# test polymorphic
+(def mynum
+  @{:type :mynum :v 0 :compare
+    (fn [self other]
+      (case (type other)
+      :number (compare-primitive (self :v) other))
+      :table (when (= (get self :type) :mynum)
+               (compare-primitive (self :v) (other :v))))})
+
+(let [n3 (table/setproto @{:v 3} mynum)]
+  (assert (= 0 (compare 3 n3)) "compare num to object (1)")
+  (assert (< 0 (compare n3 4)) "compare object to num (2)")
+  (assert (> 0 (compare (table/setproto @{:v 4} mynum) n3)) "compare object to object")
+  (assert (compare< 2 n3 4) "compare< poly")
+  (assert (compare> 4 n3 2) "compare> poly")
+  (assert (compare<= 2 3 n3 4) "compare<= poly")
+  (assert (compare= 3 n3 (table/setproto @{:v 3} mynum)) "compare= poly")
+  (assert (deep= (sorted [4 5 n3 2] compare<) @[2 n3 4 5])))
+
 (end-suite)
 
