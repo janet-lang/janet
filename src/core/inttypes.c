@@ -197,6 +197,10 @@ static Janet cfun_it_u64_new(int32_t argc, Janet *argv) {
     return janet_wrap_u64(janet_unwrap_u64(argv[0]));
 }
 
+static int64_t compare_double(double x, double y) {
+    return (x < y) ? -1 : ((x > y) ? 1 : 0);
+}
+
 static Janet cfun_it_s64_compare(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     if (janet_is_int(argv[0]) != JANET_INT_S64)
@@ -206,9 +210,20 @@ static Janet cfun_it_s64_compare(int32_t argc, Janet *argv) {
         default:
             break;
         case JANET_NUMBER : {
-            double y = round(janet_unwrap_number(argv[1]));
-            double dx = round((double) x);  //double trouble?
-            return janet_wrap_number(dx < y ? -1 : (dx > y ? 1 : 0));
+            double y = janet_unwrap_number(argv[1]);
+            if (isnan(y)) {
+                return janet_wrap_number(0); // per python compare function
+            } else if ((y > ((double) -MAX_INT_IN_DBL)) && (y < ((double) MAX_INT_IN_DBL))) {
+                double dx = (double) x;
+                return janet_wrap_number(compare_double(dx, y));
+            } else if (y > ((double) INT64_MAX)) {
+                return janet_wrap_number(1);
+            } else if (y < ((double) INT64_MIN)) {
+                return janet_wrap_number(-1);
+            } else {
+                int64_t yi = (int64_t) y;
+                return janet_wrap_number((x < yi) ? -1 : ((x > yi) ? 1 : 0));
+            }
         }
         case JANET_ABSTRACT: {
             void *abst = janet_unwrap_abstract(argv[1]);
