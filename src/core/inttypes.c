@@ -197,6 +197,80 @@ static Janet cfun_it_u64_new(int32_t argc, Janet *argv) {
     return janet_wrap_u64(janet_unwrap_u64(argv[0]));
 }
 
+static Janet cfun_it_s64_compare(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    if (janet_is_int(argv[0]) != JANET_INT_S64)
+        janet_panic("compare method requires int/s64 as first argument");
+    int64_t x = janet_unwrap_s64(argv[0]);
+    switch (janet_type(argv[1])) {
+        default:
+            break;
+        case JANET_NUMBER : {
+            double y = round(janet_unwrap_number(argv[1]));
+            double dx = round((double) x);  //double trouble?
+            return janet_wrap_number(dx < y ? -1 : (dx > y ? 1 : 0));
+        }
+        case JANET_ABSTRACT: {
+            void *abst = janet_unwrap_abstract(argv[1]);
+            if (janet_abstract_type(abst) == &janet_s64_type) {
+                int64_t y = *(int64_t *)abst;
+                return janet_wrap_number((x < y) ? -1 : (x > y ? 1 : 0));
+            } else if (janet_abstract_type(abst) == &janet_u64_type) {
+                // comparing signed to unsigned -- be careful!
+                uint64_t y = *(uint64_t *)abst;
+                if (x < 0) {
+                    return janet_wrap_number(-1);
+                } else if (y > INT64_MAX) {
+                    return janet_wrap_number(-1);
+                } else {
+                    int64_t y2 = (int64_t) y;
+                    return janet_wrap_number((x < y2) ? -1 : (x > y2 ? 1 : 0));
+                }
+            }
+            break;
+        }
+    }
+    return janet_wrap_nil();
+}
+
+static Janet cfun_it_u64_compare(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    if (janet_is_int(argv[0]) != JANET_INT_U64)  // is this needed?
+        janet_panic("compare method requires int/u64 as first argument");
+    uint64_t x = janet_unwrap_u64(argv[0]);
+    switch (janet_type(argv[1])) {
+        default:
+            break;
+        case JANET_NUMBER : {
+            double y = round(janet_unwrap_number(argv[1]));
+            if (y < 0)  // unsigned int x has to be greater
+                return janet_wrap_number(1);
+            double dx = round((double) x);  //double trouble?
+            return janet_wrap_number(dx < y ? -1 : (dx > y ? 1 : 0));
+        }
+        case JANET_ABSTRACT: {
+            void *abst = janet_unwrap_abstract(argv[1]);
+            if (janet_abstract_type(abst) == &janet_u64_type) {
+                uint64_t y = *(uint64_t *)abst;
+                return janet_wrap_number((x < y) ? -1 : (x > y ? 1 : 0));
+            } else if (janet_abstract_type(abst) == &janet_s64_type) {
+                // comparing unsigned to signed -- be careful!
+                int64_t y = *(int64_t *)abst;
+                if (y < 0) {
+                    return janet_wrap_number(1);
+                } else if (x > INT64_MAX) {
+                    return janet_wrap_number(1);
+                } else {
+                    int64_t x2 = (int64_t) x;
+                    return janet_wrap_number((x2 < y) ? -1 : (x2 > y ? 1 : 0));
+                }
+            }
+            break;
+        }
+    }
+    return janet_wrap_nil();
+}
+
 #define OPMETHOD(T, type, name, oper) \
 static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     janet_arity(argc, 2, -1); \
@@ -266,13 +340,14 @@ static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     return janet_wrap_abstract(box); \
 } \
 
+/*
 #define COMPMETHOD(T, type, name, oper) \
 static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     janet_fixarity(argc, 2); \
     T v1 = janet_unwrap_##type(argv[0]); \
     T v2 = janet_unwrap_##type(argv[1]); \
     return janet_wrap_boolean(v1 oper v2); \
-}
+} */
 
 static Janet cfun_it_s64_mod(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, -1);
@@ -316,12 +391,14 @@ OPMETHOD(int64_t, s64, or, |)
 OPMETHOD(int64_t, s64, xor, ^)
 OPMETHOD(int64_t, s64, lshift, <<)
 OPMETHOD(int64_t, s64, rshift, >>)
+    /*
 COMPMETHOD(int64_t, s64, lt, <)
 COMPMETHOD(int64_t, s64, gt, >)
 COMPMETHOD(int64_t, s64, le, <=)
 COMPMETHOD(int64_t, s64, ge, >=)
 COMPMETHOD(int64_t, s64, eq, ==)
 COMPMETHOD(int64_t, s64, ne, !=)
+*/
 
 OPMETHOD(uint64_t, u64, add, +)
 OPMETHOD(uint64_t, u64, sub, -)
@@ -336,17 +413,19 @@ OPMETHOD(uint64_t, u64, or, |)
 OPMETHOD(uint64_t, u64, xor, ^)
 OPMETHOD(uint64_t, u64, lshift, <<)
 OPMETHOD(uint64_t, u64, rshift, >>)
+    /*
 COMPMETHOD(uint64_t, u64, lt, <)
 COMPMETHOD(uint64_t, u64, gt, >)
 COMPMETHOD(uint64_t, u64, le, <=)
 COMPMETHOD(uint64_t, u64, ge, >=)
 COMPMETHOD(uint64_t, u64, eq, ==)
-COMPMETHOD(uint64_t, u64, ne, !=)
+COMPMETHOD(uint64_t, u64, ne, !=) */
 
 #undef OPMETHOD
 #undef DIVMETHOD
 #undef DIVMETHOD_SIGNED
 #undef COMPMETHOD
+
 
 static JanetMethod it_s64_methods[] = {
     {"+", cfun_it_s64_add},
@@ -361,12 +440,12 @@ static JanetMethod it_s64_methods[] = {
     {"rmod", cfun_it_s64_modi},
     {"%", cfun_it_s64_rem},
     {"r%", cfun_it_s64_remi},
-    {"<", cfun_it_s64_lt},
+/*    {"<", cfun_it_s64_lt},
     {">", cfun_it_s64_gt},
     {"<=", cfun_it_s64_le},
     {">=", cfun_it_s64_ge},
     {"=", cfun_it_s64_eq},
-    {"!=", cfun_it_s64_ne},
+    {"!=", cfun_it_s64_ne},*/
     {"&", cfun_it_s64_and},
     {"r&", cfun_it_s64_and},
     {"|", cfun_it_s64_or},
@@ -375,6 +454,7 @@ static JanetMethod it_s64_methods[] = {
     {"r^", cfun_it_s64_xor},
     {"<<", cfun_it_s64_lshift},
     {">>", cfun_it_s64_rshift},
+    {"compare", cfun_it_s64_compare},
 
     {NULL, NULL}
 };
@@ -392,12 +472,12 @@ static JanetMethod it_u64_methods[] = {
     {"rmod", cfun_it_u64_modi},
     {"%", cfun_it_u64_mod},
     {"r%", cfun_it_u64_modi},
-    {"<", cfun_it_u64_lt},
+/*    {"<", cfun_it_u64_lt},
     {">", cfun_it_u64_gt},
     {"<=", cfun_it_u64_le},
     {">=", cfun_it_u64_ge},
     {"=", cfun_it_u64_eq},
-    {"!=", cfun_it_u64_ne},
+    {"!=", cfun_it_u64_ne}, */
     {"&", cfun_it_u64_and},
     {"r&", cfun_it_u64_and},
     {"|", cfun_it_u64_or},
@@ -406,6 +486,7 @@ static JanetMethod it_u64_methods[] = {
     {"r^", cfun_it_u64_xor},
     {"<<", cfun_it_u64_lshift},
     {">>", cfun_it_u64_rshift},
+    {"compare", cfun_it_u64_compare},
 
     {NULL, NULL}
 };

@@ -336,7 +336,7 @@
 
 ## Polymorphic comparison -- Issue #272
 
-# confirm delegation to primitive comparators:
+# confirm polymorphic comparison delegation to primitive comparators:
 (assert (= 0 (compare-primitive 3 3)) "compare-primitive integers (1)")
 (assert (= -1 (compare-primitive 3 5)) "compare-primitive integers (2)")
 (assert (= 1 (compare-primitive "foo" "bar")) "compare-primitive strings")
@@ -367,7 +367,7 @@
            (fn [x] (+ x x))
            print) "compare type ordering")
 
-# test polymorphic
+# test polymorphic compare with 'objects' (table/setproto)
 (def mynum
   @{:type :mynum :v 0 :compare
     (fn [self other]
@@ -386,6 +386,34 @@
   (assert (compare= 3 n3 (table/setproto @{:v 3} mynum)) "compare= poly")
   (assert (deep= (sorted @[4 5 n3 2] compare<) @[2 n3 4 5]) "polymorphic sort"))
 
+# test polymorphic compare with int/u64 and int/s64
+(def MAX_INT_64_STRING "9223372036854775807")
+(def MAX_UINT_64_STRING "18446744073709551615")
+(def MAX_INT_IN_DBL_STRING "9007199254740992")
+(assert (= 0 (compare (int/u64 3) 3)) "compare number to int/u64")
+(assert (= -1 (compare (int/u64 3) 4)) "compare number to int/u64 less")
+(assert (= 0 (compare 3 (int/u64 3))) "compare number to int/u64")
+(assert (= 1 (compare 4 (int/u64 3))) "compare number to int/u64 greater")
+(assert (= 0 (compare (int/u64 3) (int/u64 3))) "compare int/u64 to int/u64")
+(assert (= 1 (compare (int/u64 4) (int/u64 3))) "compare int/u64 to int/u64 greater")
+(assert (= 0 (compare (int/s64 3) 3)) "compare number to int/s64")
+(assert (= -1 (compare (int/s64 3) 4)) "compare number to int/s64 less")
+(assert (= 0 (compare 3 (int/s64 3))) "compare number to int/s64")
+(assert (= 1 (compare 4 (int/s64 3))) "compare number to int/s64 greater")
+(assert (= 0 (compare (int/s64 3) (int/s64 3))) "compare int/s64 to int/s64")
+(assert (= 1 (compare (int/s64 4) (int/s64 3))) "compare int/s64 to int/s64 greater")
+(assert (= 0 (compare (int/u64 3) (int/s64 3))) "compare int/u64 to int/s64 (1)")
+(assert (= -1 (compare (int/u64 3) (int/s64 4))) "compare int/u64 to int/s64 (2)")
+(assert (= 1 (compare (int/u64 1) (int/s64 -1))) "compare int/u64 to int/s64 (3)")
+(assert (= 1 (compare (int/s64 4) (int/u64 3))) "compare int/s64 to int/u64")
+(assert (= -1 (compare (int/s64 -1) (int/u64 0))) "compare int/s64 to int/u64 negative")
+(assert (= -1 (compare (int/s64 MAX_INT_64_STRING) (int/u64 MAX_UINT_64_STRING))) "compare big ints")
+(assert (= 0 (compare (int/s64 MAX_INT_IN_DBL_STRING) (scan-number MAX_INT_IN_DBL_STRING))) "compare max int in double (1)")
+(assert (= 0 (compare (int/u64 MAX_INT_IN_DBL_STRING) (scan-number MAX_INT_IN_DBL_STRING))) "compare max int in double (2)")
+(assert (= 1 (compare (+ 2 (int/u64 MAX_INT_IN_DBL_STRING)) (scan-number MAX_INT_IN_DBL_STRING))) "compare max int in double (3)")
+# Beware: This is a horrible effect of comparing doubles to integers 
+# int/64(MAX+1) should compare greater than the double, (but doesn't due to precision)
+(assert (= 0 (compare (+ 1 (int/u64 MAX_INT_IN_DBL_STRING)) (scan-number MAX_INT_IN_DBL_STRING))) "compare max int in double (3)")
 
 (end-suite)
 
