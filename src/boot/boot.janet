@@ -695,8 +695,8 @@
 (defn compare-reduce- [op & xs]
   (var r true)
   (loop [i :range [0 (- (length xs) 1)]
-         c (compare (xs i) (xs (+ i 1)))
-         ok (op c 0)
+         :let [c (compare (xs i) (xs (+ i 1)))
+               ok (op c 0)]
          :when (not ok)]
     (set r false)
     (break))
@@ -705,27 +705,27 @@
 (defn compare=
   "Equivalent of '=' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce := xs))
+  (compare-reduce- := xs))
 
 (defn compare<
   "Equivalent of '<' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce :< xs))
+  (compare-reduce- :< xs))
 
 (defn compare<=
   "Equivalent of '<=' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce :<= xs))
+  (compare-reduce- :<= xs))
 
 (defn compare>
   "Equivalent of '>' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce :> xs))
+  (compare-reduce- :> xs))
 
 (defn compare>=
   "Equivalent of '>=' but using compare function instead of primitive comparator"
   [& xs]
-  (compare-reduce :>= xs))
+  (compare-reduce- :>= xs))
 
 ###
 ###

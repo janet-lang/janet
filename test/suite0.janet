@@ -337,9 +337,12 @@
 ## Polymorphic comparison -- Issue #272
 
 # confirm delegation to primitive comparators:
+(assert (= 0 (compare-primitive 3 3)) "compare-primitive integers (1)")
+(assert (= -1 (compare-primitive 3 5)) "compare-primitive integers (2)")
+(assert (= 1 (compare-primitive "foo" "bar")) "compare-primitive strings")
 (assert (= 0 (compare 1 1)) "compare integers (1)")
-(assert (< 0 (compare 1 2)) "compare integers (2)")
-(assert (> 0 (compare "foo" "bar")) "compare strings (1)")
+(assert (= -1 (compare 1 2)) "compare integers (2)")
+(assert (= 1 (compare "foo" "bar")) "compare strings (1)")
 
 (assert (compare< 1 2 3 4 5 6) "compare less than integers")
 (assert (compare< 1.0 2.0 3.0 4.0 5.0 6.0) "compare less than reals")
@@ -368,18 +371,18 @@
     (fn [self other]
       (case (type other)
       :number (compare-primitive (self :v) other))
-      :table (when (= (get self :type) :mynum)
+      :table (when (= (get other :type) :mynum)
                (compare-primitive (self :v) (other :v))))})
 
 (let [n3 (table/setproto @{:v 3} mynum)]
   (assert (= 0 (compare 3 n3)) "compare num to object (1)")
-  (assert (< 0 (compare n3 4)) "compare object to num (2)")
-  (assert (> 0 (compare (table/setproto @{:v 4} mynum) n3)) "compare object to object")
+  (assert (= -1 (compare n3 4)) "compare object to num (2)")
+  (assert (= 1 (compare (table/setproto @{:v 4} mynum) n3)) "compare object to object")
   (assert (compare< 2 n3 4) "compare< poly")
   (assert (compare> 4 n3 2) "compare> poly")
   (assert (compare<= 2 3 n3 4) "compare<= poly")
   (assert (compare= 3 n3 (table/setproto @{:v 3} mynum)) "compare= poly")
-  (assert (deep= (sorted [4 5 n3 2] compare<) @[2 n3 4 5])))
+  (assert (deep= (sorted @[4 5 n3 2] compare<) @[2 n3 4 5]) "polymorphic sort"))
 
 (end-suite)
 
