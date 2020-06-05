@@ -382,15 +382,6 @@ static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     return janet_wrap_abstract(box); \
 } \
 
-/*
-#define COMPMETHOD(T, type, name, oper) \
-static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
-    janet_fixarity(argc, 2); \
-    T v1 = janet_unwrap_##type(argv[0]); \
-    T v2 = janet_unwrap_##type(argv[1]); \
-    return janet_wrap_boolean(v1 oper v2); \
-} */
-
 static Janet cfun_it_s64_mod(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, -1);
     int64_t *box = janet_abstract(&janet_s64_type, sizeof(int64_t));
@@ -433,15 +424,6 @@ OPMETHOD(int64_t, s64, or, |)
 OPMETHOD(int64_t, s64, xor, ^)
 OPMETHOD(int64_t, s64, lshift, <<)
 OPMETHOD(int64_t, s64, rshift, >>)
-    /*
-COMPMETHOD(int64_t, s64, lt, <)
-COMPMETHOD(int64_t, s64, gt, >)
-COMPMETHOD(int64_t, s64, le, <=)
-COMPMETHOD(int64_t, s64, ge, >=)
-COMPMETHOD(int64_t, s64, eq, ==)
-COMPMETHOD(int64_t, s64, ne, !=)
-*/
-
 OPMETHOD(uint64_t, u64, add, +)
 OPMETHOD(uint64_t, u64, sub, -)
 OPMETHODINVERT(uint64_t, u64, subi, -)
@@ -455,13 +437,6 @@ OPMETHOD(uint64_t, u64, or, |)
 OPMETHOD(uint64_t, u64, xor, ^)
 OPMETHOD(uint64_t, u64, lshift, <<)
 OPMETHOD(uint64_t, u64, rshift, >>)
-    /*
-COMPMETHOD(uint64_t, u64, lt, <)
-COMPMETHOD(uint64_t, u64, gt, >)
-COMPMETHOD(uint64_t, u64, le, <=)
-COMPMETHOD(uint64_t, u64, ge, >=)
-COMPMETHOD(uint64_t, u64, eq, ==)
-COMPMETHOD(uint64_t, u64, ne, !=) */
 
 #undef OPMETHOD
 #undef DIVMETHOD
@@ -482,12 +457,6 @@ static JanetMethod it_s64_methods[] = {
     {"rmod", cfun_it_s64_modi},
     {"%", cfun_it_s64_rem},
     {"r%", cfun_it_s64_remi},
-/*    {"<", cfun_it_s64_lt},
-    {">", cfun_it_s64_gt},
-    {"<=", cfun_it_s64_le},
-    {">=", cfun_it_s64_ge},
-    {"=", cfun_it_s64_eq},
-    {"!=", cfun_it_s64_ne},*/
     {"&", cfun_it_s64_and},
     {"r&", cfun_it_s64_and},
     {"|", cfun_it_s64_or},
@@ -514,12 +483,6 @@ static JanetMethod it_u64_methods[] = {
     {"rmod", cfun_it_u64_modi},
     {"%", cfun_it_u64_mod},
     {"r%", cfun_it_u64_modi},
-/*    {"<", cfun_it_u64_lt},
-    {">", cfun_it_u64_gt},
-    {"<=", cfun_it_u64_le},
-    {">=", cfun_it_u64_ge},
-    {"=", cfun_it_u64_eq},
-    {"!=", cfun_it_u64_ne}, */
     {"&", cfun_it_u64_and},
     {"r&", cfun_it_u64_and},
     {"|", cfun_it_u64_or},
