@@ -390,27 +390,35 @@
 (def MAX_INT_64_STRING "9223372036854775807")
 (def MAX_UINT_64_STRING "18446744073709551615")
 (def MAX_INT_IN_DBL_STRING "9007199254740991")
-(assert (= 0 (compare (int/u64 3) 3)) "compare number to int/u64")
-(assert (= -1 (compare (int/u64 3) 4)) "compare number to int/u64 less")
-(assert (= 0 (compare 3 (int/u64 3))) "compare number to int/u64")
-(assert (= 1 (compare 4 (int/u64 3))) "compare number to int/u64 greater")
-(assert (= 0 (compare (int/u64 3) (int/u64 3))) "compare int/u64 to int/u64")
-(assert (= 1 (compare (int/u64 4) (int/u64 3))) "compare int/u64 to int/u64 greater")
-(assert (= 0 (compare (int/s64 3) 3)) "compare number to int/s64")
-(assert (= -1 (compare (int/s64 3) 4)) "compare number to int/s64 less")
-(assert (= 0 (compare 3 (int/s64 3))) "compare number to int/s64")
-(assert (= 1 (compare 4 (int/s64 3))) "compare number to int/s64 greater")
-(assert (= 0 (compare (int/s64 3) (int/s64 3))) "compare int/s64 to int/s64")
-(assert (= 1 (compare (int/s64 4) (int/s64 3))) "compare int/s64 to int/s64 greater")
-(assert (= 0 (compare (int/u64 3) (int/s64 3))) "compare int/u64 to int/s64 (1)")
-(assert (= -1 (compare (int/u64 3) (int/s64 4))) "compare int/u64 to int/s64 (2)")
-(assert (= 1 (compare (int/u64 1) (int/s64 -1))) "compare int/u64 to int/s64 (3)")
-(assert (= 1 (compare (int/s64 4) (int/u64 3))) "compare int/s64 to int/u64")
-(assert (= -1 (compare (int/s64 -1) (int/u64 0))) "compare int/s64 to int/u64 negative")
-(assert (= -1 (compare (int/s64 MAX_INT_64_STRING) (int/u64 MAX_UINT_64_STRING))) "compare big ints")
-(assert (= 0 (compare (int/s64 MAX_INT_IN_DBL_STRING) (scan-number MAX_INT_IN_DBL_STRING))) "compare max int in double (1)")
-(assert (= 0 (compare (int/u64 MAX_INT_IN_DBL_STRING) (scan-number MAX_INT_IN_DBL_STRING))) "compare max int in double (2)")
-(assert (= 1 (compare (+ 1 (int/u64 MAX_INT_IN_DBL_STRING)) (scan-number MAX_INT_IN_DBL_STRING))) "compare max int in double (3)")
+
+(let [
+      MAX_INT_64_STRING "9223372036854775807"
+      MAX_UINT_64_STRING "18446744073709551615"
+      MAX_INT_IN_DBL_STRING "9007199254740991"
+      NAN (math/log -1)
+      INF (/ 1 0)
+      MINUS_INF (/ -1 0)
+
+      compare-poly-tests
+      [
+       [(int/s64 3) (int/u64 3) 0]
+       [(int/s64 -3) (int/u64 3) -1]
+       [(int/s64 3) (int/u64 2) 1] 
+       [(int/s64 3) 3 0] [(int/s64 3) 4 -1] [(int/s64 3) -9 1]
+       [(int/u64 3) 3 0] [(int/u64 3) 4 -1] [(int/u64 3) -9 1]
+       [3 (int/s64 3) 0] [3 (int/s64 4) -1] [3 (int/s64 -5) 1]
+       [3 (int/u64 3) 0] [3 (int/u64 4) -1] [3 (int/u64 2) 1]
+       [(int/s64 MAX_INT_64_STRING) (int/u64 MAX_UINT_64_STRING) -1]
+       [(int/s64 MAX_INT_IN_DBL_STRING) (scan-number MAX_INT_IN_DBL_STRING) 0]
+       [(int/u64 MAX_INT_IN_DBL_STRING) (scan-number MAX_INT_IN_DBL_STRING) 0]
+       [(+ 1 (int/u64 MAX_INT_IN_DBL_STRING)) (scan-number MAX_INT_IN_DBL_STRING) 1]
+       [(int/s64 0) INF -1] [(int/u64 0) INF -1]
+       [MINUS_INF (int/u64 0) -1] [MINUS_INF (int/s64 0) -1] 
+       [(int/s64 1) NAN 0] [NAN (int/u64 1) 0]
+       ]]
+  (each [x y c] compare-poly-tests
+    (assert (= c (compare x y)) (string/format "compare polymorphic %q %q %d" x y c)))
+  )
 
 (end-suite)
 

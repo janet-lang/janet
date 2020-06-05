@@ -197,9 +197,51 @@ static Janet cfun_it_u64_new(int32_t argc, Janet *argv) {
     return janet_wrap_u64(janet_unwrap_u64(argv[0]));
 }
 
-static int64_t compare_double(double x, double y) {
+// Code to support polymorphic comparison.
+//
+// int/u64 and int/s64 support a "compare" method that allows
+// comparison to each other, and to Janet numbers, using the
+// "compare" "compare<" ... functions.
+//
+// In the following code explicit casts are sometimes used to help
+// make it clear when int/float conversions are happening.
+//
+static int64_t compare_double_double(double x, double y) {
     return (x < y) ? -1 : ((x > y) ? 1 : 0);
 }
+
+static int64_t compare_int64_double(int64_t x, double y) {
+    if (isnan(y)) {
+        return 0; // clojure and python do this
+    } else if ((y > ((double) -MAX_INT_IN_DBL)) && (y < ((double) MAX_INT_IN_DBL))) {
+        double dx = (double) x;
+        return compare_double_double(dx, y);
+    } else if (y > ((double) INT64_MAX)) {
+        return -1;
+    } else if (y < ((double) INT64_MIN)) {
+        return 1;
+    } else {
+        int64_t yi = (int64_t) y;
+        return (x < yi) ? -1 : ((x > yi) ? 1 : 0);
+    }
+}
+
+static int64_t compare_uint64_double(uint64_t x, double y) {
+    if (isnan(y)) {
+        return 0; // clojure and python do this
+    } else if (y < 0) {
+        return 1;
+    } else if ((y >= 0) && (y < ((double) MAX_INT_IN_DBL))) {
+        double dx = (double) x;
+        return compare_double_double(dx, y);
+    } else if (y > ((double) UINT64_MAX)) {
+        return -1;
+    } else {
+        uint64_t yi = (uint64_t) y;
+        return (x < yi) ? -1 : ((x > yi) ? 1 : 0);
+    }
+}
+
 
 static Janet cfun_it_s64_compare(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
@@ -211,19 +253,7 @@ static Janet cfun_it_s64_compare(int32_t argc, Janet *argv) {
             break;
         case JANET_NUMBER : {
             double y = janet_unwrap_number(argv[1]);
-            if (isnan(y)) {
-                return janet_wrap_number(0); // per python compare function
-            } else if ((y > ((double) -MAX_INT_IN_DBL)) && (y < ((double) MAX_INT_IN_DBL))) {
-                double dx = (double) x;
-                return janet_wrap_number(compare_double(dx, y));
-            } else if (y > ((double) INT64_MAX)) {
-                return janet_wrap_number(1);
-            } else if (y < ((double) INT64_MIN)) {
-                return janet_wrap_number(-1);
-            } else {
-                int64_t yi = (int64_t) y;
-                return janet_wrap_number((x < yi) ? -1 : ((x > yi) ? 1 : 0));
-            }
+            return janet_wrap_number(compare_int64_double(x, y));
         }
         case JANET_ABSTRACT: {
             void *abst = janet_unwrap_abstract(argv[1]);
@@ -258,10 +288,7 @@ static Janet cfun_it_u64_compare(int32_t argc, Janet *argv) {
             break;
         case JANET_NUMBER : {
             double y = round(janet_unwrap_number(argv[1]));
-            if (y < 0)  // unsigned int x has to be greater
-                return janet_wrap_number(1);
-            double dx = round((double) x);  //double trouble?
-            return janet_wrap_number(dx < y ? -1 : (dx > y ? 1 : 0));
+            return janet_wrap_number(compare_uint64_double(x, y));
         }
         case JANET_ABSTRACT: {
             void *abst = janet_unwrap_abstract(argv[1]);
