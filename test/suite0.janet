@@ -386,11 +386,6 @@
   (assert (compare= 3 n3 (table/setproto @{:v 3} mynum)) "compare= poly")
   (assert (deep= (sorted @[4 5 n3 2] compare<) @[2 n3 4 5]) "polymorphic sort"))
 
-# test polymorphic compare with int/u64 and int/s64
-(def MAX_INT_64_STRING "9223372036854775807")
-(def MAX_UINT_64_STRING "18446744073709551615")
-(def MAX_INT_IN_DBL_STRING "9007199254740991")
-
 (let [
       MAX_INT_64_STRING "9223372036854775807"
       MAX_UINT_64_STRING "18446744073709551615"

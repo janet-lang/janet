@@ -287,7 +287,7 @@ static Janet cfun_it_u64_compare(int32_t argc, Janet *argv) {
         default:
             break;
         case JANET_NUMBER : {
-            double y = round(janet_unwrap_number(argv[1]));
+            double y = janet_unwrap_number(argv[1]);
             return janet_wrap_number(compare_uint64_double(x, y));
         }
         case JANET_ABSTRACT: {
