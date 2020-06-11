@@ -301,4 +301,10 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (= "abc" (0 (peg/match peg4 "(abc)"))) "peg thru/to 2")
 (assert (not (peg/match peg4 "123(abc")) "peg thru/to 3")
 
+(def peg5 (peg/compile [3 "abc"]))
+
+(assert (:match peg5 "abcabcabc") "repeat alias 1")
+(assert (:match peg5 "abcabcabcac") "repeat alias 2")
+(assert (not (:match peg5 "abcabc")) "repeat alias 3")
+
 (end-suite)

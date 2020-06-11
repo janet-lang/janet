@@ -1028,6 +1028,14 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             const Janet *tup = janet_unwrap_tuple(peg);
             int32_t len = janet_tuple_length(tup);
             if (len == 0) peg_panic(b, "tuple in grammar must have non-zero length");
+            if (janet_checkint(tup[0])) {
+                int32_t n = janet_unwrap_integer(tup[0]);
+                if (n < 0) {
+                    peg_panicf(b, "expected non-negative integer, got %d", n);
+                }
+                spec_repeat(b, len, tup);
+                break;
+            }
             if (!janet_checktype(tup[0], JANET_SYMBOL))
                 peg_panicf(b, "expected grammar command, found %v", tup[0]);
             const uint8_t *sym = janet_unwrap_symbol(tup[0]);
