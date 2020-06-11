@@ -23,7 +23,7 @@ static int num_array_gc(void *p, size_t s) {
     return 0;
 }
 
-int num_array_get(void *p, Janet key, Janet *out); 
+int num_array_get(void *p, Janet key, Janet *out);
 void num_array_put(void *p, Janet key, Janet value);
 
 static const JanetAbstractType num_array_type = {

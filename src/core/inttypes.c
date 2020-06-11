@@ -213,7 +213,7 @@ static int64_t compare_double_double(double x, double y) {
 static int64_t compare_int64_double(int64_t x, double y) {
     if (isnan(y)) {
         return 0; // clojure and python do this
-    } else if ((y > ((double) -MAX_INT_IN_DBL)) && (y < ((double) MAX_INT_IN_DBL))) {
+    } else if ((y > ((double) - MAX_INT_IN_DBL)) && (y < ((double) MAX_INT_IN_DBL))) {
         double dx = (double) x;
         return compare_double_double(dx, y);
     } else if (y > ((double) INT64_MAX)) {

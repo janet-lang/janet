@@ -288,4 +288,17 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 # Issue #412
 (assert (peg/match '(* "a" (> -1 "a") "b") "abc") "lookhead does not move cursor")
 
+(def peg3
+  ~{:main (* "(" (thru ")"))})
+
+(def peg4 (peg/compile ~(* (thru "(") '(to ")"))))
+
+(assert (peg/match peg3 "(12345)") "peg thru 1")
+(assert (not (peg/match peg3 " (12345)")) "peg thru 2")
+(assert (not (peg/match peg3 "(12345")) "peg thru 3")
+
+(assert (= "abc" (0 (peg/match peg4 "123(abc)"))) "peg thru/to 1")
+(assert (= "abc" (0 (peg/match peg4 "(abc)"))) "peg thru/to 2")
+(assert (not (peg/match peg4 "123(abc")) "peg thru/to 3")
+
 (end-suite)
