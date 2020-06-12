@@ -334,5 +334,86 @@
 (assert (deep= @{:a 3 :b 2} @{:a 1 :b 2 :a 3}) "table literal duplicate keys")
 (assert (deep= @{:a 3 :b 2} (table :a 1 :b 2 :a 3)) "table constructor duplicate keys")
 
+## Polymorphic comparison -- Issue #272
+
+# confirm polymorphic comparison delegation to primitive comparators:
+(assert (= 0 (compare-primitive 3 3)) "compare-primitive integers (1)")
+(assert (= -1 (compare-primitive 3 5)) "compare-primitive integers (2)")
+(assert (= 1 (compare-primitive "foo" "bar")) "compare-primitive strings")
+(assert (= 0 (compare 1 1)) "compare integers (1)")
+(assert (= -1 (compare 1 2)) "compare integers (2)")
+(assert (= 1 (compare "foo" "bar")) "compare strings (1)")
+
+(assert (compare< 1 2 3 4 5 6) "compare less than integers")
+(assert (not (compare> 1 2 3 4 5 6)) "compare not greater than integers")
+(assert (compare< 1.0 2.0 3.0 4.0 5.0 6.0) "compare less than reals")
+(assert (compare> 6 5 4 3 2 1) "compare greater than integers")
+(assert (compare> 6.0 5.0 4.0 3.0 2.0 1.0) "compare greater than reals")
+(assert (not (compare< 6.0 5.0 4.0 3.0 2.0 1.0)) "compare less than reals")
+(assert (compare<= 1 2 3 3 4 5 6) "compare less than or equal to integers")
+(assert (compare<= 1.0 2.0 3.0 3.0 4.0 5.0 6.0) "compare less than or equal to reals")
+(assert (compare>= 6 5 4 4 3 2 1) "compare greater than or equal to integers")
+(assert (compare>= 6.0 5.0 4.0 4.0 3.0 2.0 1.0) "compare greater than or equal to reals")
+(assert (compare< 1.0 nil false true
+           (fiber/new (fn [] 1))
+           "hi"
+           (quote hello)
+           :hello
+           (array 1 2 3)
+           (tuple 1 2 3)
+           (table "a" "b" "c" "d")
+           (struct 1 2 3 4)
+           (buffer "hi")
+           (fn [x] (+ x x))
+           print) "compare type ordering")
+
+# test polymorphic compare with 'objects' (table/setproto)
+(def mynum
+  @{:type :mynum :v 0 :compare
+    (fn [self other]
+      (case (type other)
+      :number (compare-primitive (self :v) other)
+      :table (when (= (get other :type) :mynum)
+               (compare-primitive (self :v) (other :v)))))})
+
+(let [n3 (table/setproto @{:v 3} mynum)]
+  (assert (= 0 (compare 3 n3)) "compare num to object (1)")
+  (assert (= -1 (compare n3 4)) "compare object to num (2)")
+  (assert (= 1 (compare (table/setproto @{:v 4} mynum) n3)) "compare object to object")
+  (assert (compare< 2 n3 4) "compare< poly")
+  (assert (compare> 4 n3 2) "compare> poly")
+  (assert (compare<= 2 3 n3 4) "compare<= poly")
+  (assert (compare= 3 n3 (table/setproto @{:v 3} mynum)) "compare= poly")
+  (assert (deep= (sorted @[4 5 n3 2] compare<) @[2 n3 4 5]) "polymorphic sort"))
+
+(let [
+      MAX_INT_64_STRING "9223372036854775807"
+      MAX_UINT_64_STRING "18446744073709551615"
+      MAX_INT_IN_DBL_STRING "9007199254740991"
+      NAN (math/log -1)
+      INF (/ 1 0)
+      MINUS_INF (/ -1 0)
+
+      compare-poly-tests
+      [
+       [(int/s64 3) (int/u64 3) 0]
+       [(int/s64 -3) (int/u64 3) -1]
+       [(int/s64 3) (int/u64 2) 1] 
+       [(int/s64 3) 3 0] [(int/s64 3) 4 -1] [(int/s64 3) -9 1]
+       [(int/u64 3) 3 0] [(int/u64 3) 4 -1] [(int/u64 3) -9 1]
+       [3 (int/s64 3) 0] [3 (int/s64 4) -1] [3 (int/s64 -5) 1]
+       [3 (int/u64 3) 0] [3 (int/u64 4) -1] [3 (int/u64 2) 1]
+       [(int/s64 MAX_INT_64_STRING) (int/u64 MAX_UINT_64_STRING) -1]
+       [(int/s64 MAX_INT_IN_DBL_STRING) (scan-number MAX_INT_IN_DBL_STRING) 0]
+       [(int/u64 MAX_INT_IN_DBL_STRING) (scan-number MAX_INT_IN_DBL_STRING) 0]
+       [(+ 1 (int/u64 MAX_INT_IN_DBL_STRING)) (scan-number MAX_INT_IN_DBL_STRING) 1]
+       [(int/s64 0) INF -1] [(int/u64 0) INF -1]
+       [MINUS_INF (int/u64 0) -1] [MINUS_INF (int/s64 0) -1] 
+       [(int/s64 1) NAN 0] [NAN (int/u64 1) 0]
+       ]]
+  (each [x y c] compare-poly-tests
+    (assert (= c (compare x y)) (string/format "compare polymorphic %q %q %d" x y c)))
+  )
+
 (end-suite)
 

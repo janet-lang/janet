@@ -206,6 +206,29 @@ tail:
             return (result) ? NULL : text;
         }
 
+        case RULE_THRU:
+        case RULE_TO: {
+            const uint32_t *rule_a = s->bytecode + rule[1];
+            const uint8_t *next_text;
+            CapState cs = cap_save(s);
+            down1(s);
+            while (text < s->text_end) {
+                CapState cs2 = cap_save(s);
+                next_text = peg_rule(s, rule_a, text);
+                if (next_text) {
+                    if (rule[0] == RULE_TO) cap_load(s, cs2);
+                    break;
+                }
+                text++;
+            }
+            up1(s);
+            if (text >= s->text_end) {
+                cap_load(s, cs);
+                return NULL;
+            }
+            return rule[0] == RULE_TO ? text : next_text;
+        }
+
         case RULE_BETWEEN: {
             uint32_t lo = rule[1];
             uint32_t hi = rule[2];
@@ -765,6 +788,12 @@ static void spec_error(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_drop(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_DROP);
 }
+static void spec_to(Builder *b, int32_t argc, const Janet *argv) {
+    spec_onerule(b, argc, argv, RULE_TO);
+}
+static void spec_thru(Builder *b, int32_t argc, const Janet *argv) {
+    spec_onerule(b, argc, argv, RULE_THRU);
+}
 
 /* Rule of the form [rule, tag] */
 static void spec_cap1(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
@@ -895,6 +924,8 @@ static const SpecialPair peg_specials[] = {
     {"sequence", spec_sequence},
     {"set", spec_set},
     {"some", spec_some},
+    {"thru", spec_thru},
+    {"to", spec_to},
 };
 
 /* Compile a janet value into a rule and return the rule index. */
@@ -997,6 +1028,14 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             const Janet *tup = janet_unwrap_tuple(peg);
             int32_t len = janet_tuple_length(tup);
             if (len == 0) peg_panic(b, "tuple in grammar must have non-zero length");
+            if (janet_checkint(tup[0])) {
+                int32_t n = janet_unwrap_integer(tup[0]);
+                if (n < 0) {
+                    peg_panicf(b, "expected non-negative integer, got %d", n);
+                }
+                spec_repeat(b, len, tup);
+                break;
+            }
             if (!janet_checktype(tup[0], JANET_SYMBOL))
                 peg_panicf(b, "expected grammar command, found %v", tup[0]);
             const uint8_t *sym = janet_unwrap_symbol(tup[0]);
@@ -1180,6 +1219,8 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_ERROR:
             case RULE_DROP:
             case RULE_NOT:
+            case RULE_TO:
+            case RULE_THRU:
                 /* [rule] */
                 if (rule[1] >= blen) goto bad;
                 op_flags[rule[1]] |= 0x01;

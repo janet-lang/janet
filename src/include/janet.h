@@ -138,11 +138,6 @@ extern "C" {
 #define JANET_NO_UTC_MKTIME
 #endif
 
-/* Add some windows flags */
-#ifdef JANET_WINDOWS
-#define JANET_NO_REALPATH
-#endif
-
 /* Define how global janet state is declared */
 #ifdef JANET_SINGLE_THREADED
 #define JANET_THREAD_LOCAL
@@ -1658,6 +1653,8 @@ typedef enum {
     RULE_ERROR,        /* [rule] */
     RULE_DROP,         /* [rule] */
     RULE_BACKMATCH,    /* [tag] */
+    RULE_TO,           /* [rule] */
+    RULE_THRU,         /* [rule] */
     RULE_LENPREFIX,    /* [rule_a, rule_b (repeat rule_b rule_a times)] */
 } JanetPegOpcode;
 
