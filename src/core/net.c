@@ -630,8 +630,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
             return janet_wrap_abstract(stream);
         } else {
             /* Server with handler */
-            /* TODO - state machine */
-            janet_panic("nyi");
+            janet_panic("handler must be nil for datagram server");
         }
     } else {
         /* Stream server (TCP) */
