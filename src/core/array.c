@@ -270,6 +270,26 @@ static Janet cfun_array_remove(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
+static Janet cfun_array_trim(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetArray *array = janet_getarray(argv, 0);
+    if (array->count) {
+        if (array->count < array->capacity) {
+            Janet *newData = realloc(array->data, array->count * sizeof(Janet));
+            if (NULL == newData) {
+                JANET_OUT_OF_MEMORY;
+            }
+            array->data = newData;
+            array->capacity = array->count;
+        }
+    } else {
+        array->capacity = 0;
+        free(array->data);
+        array->data = NULL;
+    }
+    return argv[0];
+}
+
 static const JanetReg array_cfuns[] = {
     {
         "array/new", cfun_array_new,
@@ -344,6 +364,11 @@ static const JanetReg array_cfuns[] = {
              "the end of the array with a negative index, and n must be a non-negative integer. "
              "By default, n is 1. "
              "Returns the array.")
+    },
+    {
+        "array/trim", cfun_array_trim,
+        JDOC("(array/trim arr)\n\n"
+             "Set the backing capacity of an array to its current length. Returns the modified array.")
     },
     {NULL, NULL, NULL}
 };

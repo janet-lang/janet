@@ -197,6 +197,26 @@ static Janet cfun_buffer_fill(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
+static Janet cfun_buffer_trim(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    if (buffer->count) {
+        if (buffer->count < buffer->capacity) {
+            uint8_t *newData = realloc(buffer->data, buffer->count);
+            if (NULL == newData) {
+                JANET_OUT_OF_MEMORY;
+            }
+            buffer->data = newData;
+            buffer->capacity = buffer->count;
+        }
+    } else {
+        buffer->capacity = 0;
+        free(buffer->data);
+        buffer->data = NULL;
+    }
+    return argv[0];
+}
+
 static Janet cfun_buffer_u8(int32_t argc, Janet *argv) {
     int32_t i;
     janet_arity(argc, 1, -1);
@@ -378,6 +398,12 @@ static const JanetReg buffer_cfuns[] = {
         JDOC("(buffer/fill buffer &opt byte)\n\n"
              "Fill up a buffer with bytes, defaulting to 0s. Does not change the buffer's length. "
              "Returns the modified buffer.")
+    },
+    {
+        "buffer/trim", cfun_buffer_trim,
+        JDOC("(buffer/trim buffer)\n\n"
+             "Set the backing capacity of the buffer to the current length of the buffer. Returns the "
+             "modified buffer.")
     },
     {
         "buffer/push-byte", cfun_buffer_u8,

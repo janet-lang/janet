@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add `array/trim` and `buffer/trim` to shrink the backing capacity of these types
+  to their current length.
+
 ## 1.10.0 - 2020-06-14
 - Hardcode default jpm paths on install so env variables are needed in fewer cases.
 - Add `:no-compile` to `create-executable` option for jpm.
