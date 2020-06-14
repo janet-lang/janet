@@ -74,7 +74,7 @@ static const char janet_thread_flags[] = "hac";
 typedef struct {
     JanetMailbox *original;
     JanetMailbox *newbox;
-    int flags;
+    uint64_t flags;
 } JanetMailboxPair;
 
 static JANET_THREAD_LOCAL JanetMailbox *janet_vm_mailbox = NULL;
@@ -181,7 +181,7 @@ static int thread_mark(void *p, size_t size) {
     return 0;
 }
 
-static JanetMailboxPair *make_mailbox_pair(JanetMailbox *original, int flags) {
+static JanetMailboxPair *make_mailbox_pair(JanetMailbox *original, uint64_t flags) {
     JanetMailboxPair *pair = malloc(sizeof(JanetMailboxPair));
     if (NULL == pair) {
         JANET_OUT_OF_MEMORY;
@@ -600,7 +600,7 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
     if (cap < 1 || cap > UINT16_MAX) {
         janet_panicf("bad slot #1, expected integer in range [1, 65535], got %d", cap);
     }
-    int flags = argc >= 3 ? janet_getflags(argv, 2, janet_thread_flags) : JANET_THREAD_ABSTRACTS;
+    uint64_t flags = argc >= 3 ? janet_getflags(argv, 2, janet_thread_flags) : JANET_THREAD_ABSTRACTS;
     JanetTable *encode;
     if (flags & JANET_THREAD_HEAVYWEIGHT) {
         encode = janet_get_core_table("make-image-dict");
