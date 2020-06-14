@@ -929,7 +929,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
             if (func->gc.flags & JANET_FUNCFLAG_TRACE) {
-                vm_do_trace(func, fiber->stacktop - fiber->stackstart, stack);
+                vm_do_trace(func, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
             }
             janet_stack_frame(stack)->pc = pc;
             if (janet_fiber_funcframe(fiber, func)) {
@@ -968,7 +968,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
             if (func->gc.flags & JANET_FUNCFLAG_TRACE) {
-                vm_do_trace(func, fiber->stacktop - fiber->stackstart, stack);
+                vm_do_trace(func, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
             }
             if (janet_fiber_funcframe_tail(fiber, func)) {
                 janet_stack_frame(fiber->data + fiber->frame)->pc = pc;
