@@ -233,6 +233,10 @@ build/doc.html: $(JANET_TARGET) tools/gendoc.janet
 ##### Installation #####
 ########################
 
+build/jpm: jpm $(JANET_TARGET)
+	$(JANET_TARGET) tools/patch-jpm.janet jpm build/jpm "--libpath=$(LIBDIR)" "--headerpath=$(INCLUDEDIR)/janet" "--binpath=$(BINDIR)"
+	chmod +x build/jpm
+
 .INTERMEDIATE: build/janet.pc
 build/janet.pc: $(JANET_TARGET)
 	echo 'prefix=$(PREFIX)' > $@
@@ -248,7 +252,7 @@ build/janet.pc: $(JANET_TARGET)
 	echo 'Libs: -L$${libdir} -ljanet' >> $@
 	echo 'Libs.private: $(CLIBS)' >> $@
 
-install: $(JANET_TARGET) build/janet.pc
+install: $(JANET_TARGET) build/janet.pc build/jpm
 	mkdir -p '$(DESTDIR)$(BINDIR)'
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
 	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
@@ -259,7 +263,7 @@ install: $(JANET_TARGET) build/janet.pc
 	cp $(JANET_STATIC_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.a'
 	ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so'
 	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME)
-	cp -rf jpm '$(DESTDIR)$(BINDIR)'
+	cp -rf build/jpm '$(DESTDIR)$(BINDIR)'
 	mkdir -p '$(DESTDIR)$(MANPATH)'
 	cp janet.1 '$(DESTDIR)$(MANPATH)'
 	cp jpm.1 '$(DESTDIR)$(MANPATH)'

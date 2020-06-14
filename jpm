@@ -26,21 +26,29 @@
     (def i (last (string/find-all sep exe)))
     (slice exe 0 i)))
 
-(def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
+###START###
+# Overriden on some installs.
+(def- install-paths 
+  {:headerpath (os/realpath (string exe-dir "/../include/janet"))
+   :libpath (os/realpath (string exe-dir "/../lib"))
+   :binpath exe-dir})
+###END###
 
 # Default based on janet binary location
 (def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH")
-                          (string exe-dir "/../include/janet")))
+                          (get install-paths :headerpath)))
 (def JANET_LIBPATH (or (os/getenv "JANET_LIBPATH")
-                       (string exe-dir "/../lib")))
-
+                       (get install-paths :libpath)))
 # We want setting JANET_PATH to contain installed binaries. However, it is convenient
 # to have globally installed binaries got to the same place as jpm itself, which is on
 # the $PATH.
 (def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
                        (if-let [mp (os/getenv "JANET_MODPATH")] (string mp "/bin"))
                        (if-let [mp (os/getenv "JANET_PATH")] (string mp "/bin"))
-                       exe-dir))
+                       (get install-paths :binpath)))
+
+# modpath should only be derived from the syspath being used or an environment variable.
+(def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
 
 #
 # Utilities
