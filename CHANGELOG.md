@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.10.1 - 2020-06-14
+## 1.10.0 - 2020-06-14
 - Hardcode default jpm paths on install so env variables are needed in fewer cases.
 - Add `:no-compile` to `create-executable` option for jpm.
 - Fix bug with the `trace` function.
