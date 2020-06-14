@@ -19,6 +19,9 @@
 # Defaults
 #
 
+###START###
+
+# Overriden on some installs.
 (def- exe-dir
   "Directory containing jpm script"
   (do
@@ -26,12 +29,11 @@
     (def i (last (string/find-all sep exe)))
     (slice exe 0 i)))
 
-###START###
-# Overriden on some installs.
 (def- install-paths 
   {:headerpath (os/realpath (string exe-dir "/../include/janet"))
    :libpath (os/realpath (string exe-dir "/../lib"))
    :binpath exe-dir})
+
 ###END###
 
 # Default based on janet binary location
