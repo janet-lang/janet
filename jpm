@@ -310,26 +310,30 @@
 # Detect threads
 (def env (fiber/getenv (fiber/current)))
 (def threads? (not (not (env 'thread/new))))
-
-# Default libraries to link
 (def- thread-flags
   (if is-win []
     (if threads? ["-lpthread"] [])))
 
-# lflags needed for the janet binary.
+# flags needed for the janet binary and compiling standalone
+# executables.
 (def janet-lflags
   (case (os/which)
     :macos ["-ldl" "-lm" ;thread-flags]
     :windows [;thread-flags]
     :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
     ["-lm" ;thread-flags]))
+(def janet-ldflags [])
+(def janet-cflags [])
 
 # Default flags for natives, but not required
+# How can we better detect the need for -pthread?
+# we probably want to better detect compiler
 (def default-lflags (if is-win ["/nologo"] []))
 (def default-cflags
   (if is-win
     ["/nologo" "/MD"]
     ["-std=c99" "-Wall" "-Wextra"]))
+(def default-ldflags [])
 
 # Required flags for dynamic libraries. These
 # are used no matter what for dynamic libraries.
@@ -339,7 +343,7 @@
     ["-fPIC"]))
 (def- dynamic-lflags
   (if is-win
-    ["/DLL" ;thread-flags]
+    ["/DLL"]
     (if is-mac
       ["-shared" "-undefined" "dynamic_lookup" ;thread-flags]
       ["-shared" ;thread-flags])))
@@ -385,8 +389,8 @@
   "Generate strings for adding custom defines to the compiler."
   [define value]
   (if value
-    (string (if is-win "/D" "-D") define "=" value)
-    (string (if is-win "/D" "-D") define)))
+    (string "-D" define "=" value)
+    (string "-D" define)))
 
 (defn- make-defines
   "Generate many defines. Takes a dictionary of defines. If a value is
@@ -398,8 +402,8 @@
   "Generate the c flags from the input options."
   [opts]
   @[;(opt opts :cflags default-cflags)
-    (string (if is-win "/I" "-I") (dyn :headerpath JANET_HEADERPATH))
-    (string (if is-win "/O" "-O") (opt opts :optimize 2))])
+    (string "-I" (dyn :headerpath JANET_HEADERPATH))
+    (string "-O" (opt opts :optimize 2))])
 
 (defn- entry-name
   "Name of symbol that enters static compilation of a module."
@@ -585,7 +589,8 @@ int main(int argc, const char **argv) {
 
   # Create executable's janet image
   (def cimage_dest (string dest ".c"))
-  (rule dest [source]
+  (def no-compile (opts :no-compile))
+  (rule (if no-compile cimage_dest dest) [source]
         (check-cc)
         (print "generating executable c source...")
         (create-dirs dest)
@@ -641,11 +646,11 @@ int main(int argc, const char **argv) {
         # Append main function
         (spit cimage_dest (make-bin-source declarations lookup-into-invocations) :ab)
         # Compile and link final exectable
-        (do
+        (unless no-compile
           (def cc (opt opts :compiler default-compiler))
-          (def ldflags [;dep-ldflags ;(opt opts :ldflags [])])
+          (def ldflags [;dep-ldflags ;(opt opts :ldflags []) ;janet-ldflags])
           (def lflags [;static-libs (libjanet) ;dep-lflags ;(opt opts :lflags default-lflags) ;janet-lflags])
-          (def cflags (getcflags opts))
+          (def cflags [;(getcflags opts) ;janet-cflags])
           (def defines (make-defines (opt opts :defines {})))
           (print "compiling and linking " dest "...")
           (if is-win
@@ -884,17 +889,22 @@ int main(int argc, const char **argv) {
   is marshalled into bytecode which is then embedded in a final executable for distribution.\n\n
   This executable can be installed as well to the --binpath given."
   [&keys {:install install :name name :entry entry :headers headers
-          :cflags cflags :lflags lflags :deps deps :ldflags ldflags}]
+          :cflags cflags :lflags lflags :deps deps :ldflags ldflags
+          :no-compile no-compile}]
   (def name (if is-win (string name ".exe") name))
   (def dest (string "build" sep name))
-  (create-executable @{:cflags cflags :lflags lflags :ldflags ldflags} entry dest)
-  (add-dep "build" dest)
-  (when headers
-    (each h headers (add-dep dest h)))
-  (when deps
-    (each d deps (add-dep dest d)))
-  (when install
-    (install-rule dest (dyn :binpath JANET_BINPATH))))
+  (create-executable @{:cflags cflags :lflags lflags :ldflags ldflags :no-compile no-compile} entry dest)
+  (if no-compile
+    (let [cdest (string dest ".c")]
+      (add-dep "build" cdest))
+    (do
+      (add-dep "build" dest)
+      (when headers
+        (each h headers (add-dep dest h)))
+      (when deps
+        (each d deps (add-dep dest d)))
+      (when install
+        (install-rule dest (dyn :binpath JANET_BINPATH))))))
 
 (defn declare-binscript
   "Declare a janet file to be installed as an executable script. Creates
