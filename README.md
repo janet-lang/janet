@@ -146,6 +146,7 @@ cd janet
 meson setup build \
           --buildtype release \
           --optimization 2 \
+          --libdir /usr/local/lib \
           -Dgit_hash=$(git log --pretty=format:'%h' -n 1)
 ninja -C build
 

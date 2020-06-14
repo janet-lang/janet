@@ -1,8 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.10.1 - 2020-06-14
+- Fix bug with the `trace` function.
 - Add `:h`, `:a`, and `:c` flags to `thread/new` for creating new kinds of threads.
+  By default, threads will now consume much less memory per thread, but sending data between
+  threads may cost more.
 - Fix flychecking when using the `use` macro.
 - CTRL-C no longer exits the repl, and instead cancels the current form.
 - Various small bug fixes
