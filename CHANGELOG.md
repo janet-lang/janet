@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## 1.10.1 - 2020-06-14
+- Add `:no-compile` to `create-executable` option for jpm.
 - Fix bug with the `trace` function.
 - Add `:h`, `:a`, and `:c` flags to `thread/new` for creating new kinds of threads.
   By default, threads will now consume much less memory per thread, but sending data between
