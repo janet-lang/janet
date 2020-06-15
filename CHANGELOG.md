@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Respect `JANET_NO_PROCESSES` define when building
+- Fix `jpm` rules having multiple copies of the same dependency.
 - Add `array/trim` and `buffer/trim` to shrink the backing capacity of these types
   to their current length.
 
