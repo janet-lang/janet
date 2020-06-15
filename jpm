@@ -76,11 +76,13 @@
 (defn rm
   "Remove a directory and all sub directories."
   [path]
-  (if (= (os/lstat path :mode) :directory)
-    (do
+  (case (os/lstat path :mode)
+    :directory (do
       (each subpath (os/dir path)
         (rm (string path sep subpath)))
       (os/rmdir path))
+    nil nil # do nothing if file does not exist
+    # Default, try to remove
     (os/rm path)))
 
 (defn- rimraf
@@ -88,7 +90,8 @@
   [path]
   (if is-win
     # windows get rid of read-only files
-    (os/shell (string `rmdir /S /Q "` path `"`))
+    (when (os/stat path :mode)
+      (os/shell (string `rmdir /S /Q "` path `"`)))
     (rm path)))
 
 (defn clear-cache
@@ -185,9 +188,27 @@
   (unless item (error (string "No rule for target " target)))
   item)
 
+(defn add-dep
+  "Add a dependency to an existing rule. Useful for extending phony
+  rules or extending the dependency graph of existing rules."
+  [target dep]
+  (def [deps] (gettarget target))
+  (unless (find |(= dep $) deps)
+    (array/push deps dep)))
+
+(defn- add-thunk
+  [target more &opt phony]
+  (def item (gettarget target))
+  (def [_ thunks pthunks] item)
+  (array/push (if phony pthunks thunks) more)
+  item)
+
 (defn- rule-impl
   [target deps thunk &opt phony]
-  (put (getrules) target @[(array/slice deps) @[thunk] phony]))
+  (def rules (getrules))
+  (unless (rules target) (put rules target @[(array/slice deps) @[] @[]]))
+  (each d deps (add-dep target d))
+  (add-thunk target thunk phony))
 
 (defmacro rule
   "Add a rule to the rule graph."
@@ -210,20 +231,6 @@
   "Add a phony rule that invokes a shell command, and fails if the command returns non-zero."
   [target deps & body]
   ~(,rule-impl ,target ,deps (fn [] (,assert (,zero? (,os/shell (,string ,;body))))) true))
-
-(defn add-dep
-  "Add a dependency to an existing rule. Useful for extending phony
-  rules or extending the dependency graph of existing rules."
-  [target dep]
-  (def [deps] (gettarget target))
-  (array/push deps dep))
-
-(defn- add-thunk
-  [target more]
-  (def item (gettarget target))
-  (def [_ thunks] item)
-  (array/push thunks more)
-  item)
 
 (defmacro add-body
   "Add recipe code to an existing rule. This makes existing rules do more but
@@ -254,9 +261,11 @@
       (error (string "No rule for file " target " found."))))
   (def [deps thunks phony] item)
   (def realdeps (seq [dep :in deps :let [x (do-rule dep)] :when x] x))
-  (when (or phony (needs-build-some target realdeps))
-    (each thunk thunks (thunk)))
-  (unless phony target))
+  (each thunk phony (thunk))
+  (unless (empty? thunks)
+    (when (needs-build-some target realdeps)
+      (each thunk thunks (thunk))
+    target)))
 
 #
 # Importing a file
@@ -743,7 +752,7 @@ int main(int argc, const char **argv) {
                 :binpath (abspath (dyn :binpath JANET_BINPATH))]
       (os/cd module-dir)
       (unless fresh
-        (os/execute [(git-path) "pull" "origin" "master"] :p))
+        (os/execute [(git-path) "pull" "origin" "master" "--ff-only"] :p))
       (when tag
         (os/execute [(git-path) "reset" "--hard" tag] :p))
       (unless (dyn :offline)
@@ -762,9 +771,9 @@ int main(int argc, const char **argv) {
   (def name (last parts))
   (def path (string destdir sep name))
   (array/push (dyn :installed-files) path)
-  (add-body "install"
-            (mkdir destdir)
-            (copy src destdir)))
+  (phony "install" []
+          (mkdir destdir)
+          (copy src destdir)))
 
 (defn- make-lockfile
   [&opt filename]
@@ -928,7 +937,7 @@ int main(int argc, const char **argv) {
       (def name (last parts))
       (def path (string binpath sep name))
       (array/push (dyn :installed-files) path)
-      (add-body "install"
+      (phony "install" []
                 (def contents
                   (with [f (file/open main)]
                     (def first-line (:read f :line))
@@ -946,7 +955,7 @@ int main(int argc, const char **argv) {
     (def bat (string "@echo off\r\njanet \"" fullname "\" %*"))
     (def newname (string binpath sep name ".bat"))
     (array/push (dyn :installed-files) newname)
-    (add-body "install"
+    (phony "install" []
               (spit newname bat))))
 
 (defn- print-rule-tree
@@ -993,7 +1002,8 @@ int main(int argc, const char **argv) {
 
   (phony "build" [])
 
-  (phony "manifest" []
+  (phony "manifest" [manifest])
+  (rule manifest []
          (print "generating " manifest "...")
          (mkdir manifests)
          (def sha (pslurp (string "\"" (git-path) "\" rev-parse HEAD")))
@@ -1005,7 +1015,7 @@ int main(int argc, const char **argv) {
             :paths installed-files})
          (spit manifest (string/format "%j\n" man)))
 
-  (phony "install" ["uninstall" "build" "manifest"]
+  (phony "install" ["uninstall" "build" manifest]
          (when (dyn :test)
            (do-rule "test"))
          (print "Installed as '" (meta :name) "'."))
