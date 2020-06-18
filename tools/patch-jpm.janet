@@ -20,7 +20,7 @@
 (def- replace-peg
   (peg/compile
     ~(% (* '(to "###START###")
-           (constant ,(string/format "# Inserted by tools/patch-jpm.janet\n(def install-paths %j)" install-paths))
+           (constant ,(string/format "# Inserted by tools/patch-jpm.janet\n(defn- install-paths [] %j)" install-paths))
            (thru "###END###")
            '(any 1)))))
 
