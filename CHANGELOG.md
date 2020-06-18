@@ -1,9 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.10.1 - 2020-06-18
+- Expose `janet_table_clear` in API.
 - Respect `JANET_NO_PROCESSES` define when building
 - Fix `jpm` rules having multiple copies of the same dependency.
+- Fix `jpm` install in some cases.
 - Add `array/trim` and `buffer/trim` to shrink the backing capacity of these types
   to their current length.
 
