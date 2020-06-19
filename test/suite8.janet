@@ -307,4 +307,16 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (:match peg5 "abcabcabcac") "repeat alias 2")
 (assert (not (:match peg5 "abcabc")) "repeat alias 3")
 
+(defn check-jdn [x]
+  (assert (deep= (parse (string/format "%j" x)) x) "round trip jdn"))
+
+(check-jdn 0)
+(check-jdn nil)
+(check-jdn [])
+(check-jdn @[[] [] 1231 9.123123 -123123 0.1231231230001])
+(check-jdn -0.123123123123)
+(check-jdn 12837192371923)
+(check-jdn "a string")
+(check-jdn @"a buffer")
+
 (end-suite)

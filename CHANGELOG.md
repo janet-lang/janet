@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Fix `%j` formatter to print numbers precisely (using the `%.17g` format string to printf).
+
 ## 1.10.1 - 2020-06-18
 - Expose `janet_table_clear` in API.
 - Respect `JANET_NO_PROCESSES` define when building
