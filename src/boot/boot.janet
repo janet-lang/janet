@@ -471,10 +471,12 @@
       :in (each-template binding object [rest])
       :iterate (iterate-template binding object rest)
       :generate (with-syms [f s]
+                   (def ds (if (idempotent? binding) binding (gensym)))
                   ~(let [,f ,object]
                      (while true
-                       (def ,binding (,resume ,f))
+                       (def ,ds (,resume ,f))
                        (if (= :dead (,fiber/status ,f)) (break))
+                       ,;(if (= ds binding) [] [~(def ,binding ,ds)])
                        ,rest)))
       (error (string "unexpected loop verb " verb)))))
 
