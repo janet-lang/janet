@@ -23,7 +23,6 @@
 #ifndef JANET_AMALG
 #include "features.h"
 #include <janet.h>
-#include "state.h"
 #endif
 
 /* Run a string */
