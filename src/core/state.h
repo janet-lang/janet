@@ -34,6 +34,9 @@
 
 typedef struct JanetScratch JanetScratch;
 
+/* Top level dynamic bindings */
+extern JANET_THREAD_LOCAL JanetTable *janet_vm_top_dyns;
+
 /* Cache the core environment */
 extern JANET_THREAD_LOCAL JanetTable *janet_vm_core_env;
 

@@ -33,6 +33,7 @@
 #include <math.h>
 
 /* VM state */
+JANET_THREAD_LOCAL JanetTable *janet_vm_top_dyns;
 JANET_THREAD_LOCAL JanetTable *janet_vm_core_env;
 JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
 JANET_THREAD_LOCAL JanetTable *janet_vm_abstract_registry;
@@ -1419,6 +1420,8 @@ int janet_init(void) {
     janet_vm_traversal_top = NULL;
     /* Core env */
     janet_vm_core_env = NULL;
+    /* Dynamic bindings */
+    janet_vm_top_dyns = NULL;
     /* Seed RNG */
     janet_rng_seed(janet_default_rng(), 0);
     /* Fibers */
@@ -1443,6 +1446,7 @@ void janet_deinit(void) {
     janet_vm_registry = NULL;
     janet_vm_abstract_registry = NULL;
     janet_vm_core_env = NULL;
+    janet_vm_top_dyns = NULL;
     free(janet_vm_traversal_base);
     janet_vm_fiber = NULL;
     janet_vm_root_fiber = NULL;

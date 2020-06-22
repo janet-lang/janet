@@ -325,7 +325,10 @@ JanetRange janet_getslice(int32_t argc, const Janet *argv) {
 }
 
 Janet janet_dyn(const char *name) {
-    if (!janet_vm_fiber) return janet_wrap_nil();
+    if (!janet_vm_fiber) {
+        if (!janet_vm_top_dyns) return janet_wrap_nil();
+        return janet_table_get(janet_vm_top_dyns, janet_ckeywordv(name));
+    }
     if (janet_vm_fiber->env) {
         return janet_table_get(janet_vm_fiber->env, janet_ckeywordv(name));
     } else {
@@ -334,11 +337,15 @@ Janet janet_dyn(const char *name) {
 }
 
 void janet_setdyn(const char *name, Janet value) {
-    if (!janet_vm_fiber) return;
-    if (!janet_vm_fiber->env) {
-        janet_vm_fiber->env = janet_table(1);
+    if (!janet_vm_fiber) {
+        if (!janet_vm_top_dyns) janet_vm_top_dyns = janet_table(10);
+        janet_table_put(janet_vm_top_dyns, janet_ckeywordv(name), value);
+    } else {
+        if (!janet_vm_fiber->env) {
+            janet_vm_fiber->env = janet_table(1);
+        }
+        janet_table_put(janet_vm_fiber->env, janet_ckeywordv(name), value);
     }
-    janet_table_put(janet_vm_fiber->env, janet_ckeywordv(name), value);
 }
 
 uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
