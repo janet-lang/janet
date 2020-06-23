@@ -2,7 +2,35 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
-- Add JANET_GIT environment variable to jpm to use a specific git binary (useful mainly on windows).
+- `janet_dobytes` and `janet_dostring` return parse errors in \*out
+- Add `repeat` macro for iterating something n times.
+- Add `eachy` (each yield) macro for iterating a fiber.
+- Fix `:generate` verb in loop macro to accept non symbols as bindings.
+- Fix `%j` formatter to print numbers precisely (using the `%.17g` format string to printf).
+
+## 1.10.1 - 2020-06-18
+- Expose `janet_table_clear` in API.
+- Respect `JANET_NO_PROCESSES` define when building
+- Fix `jpm` rules having multiple copies of the same dependency.
+- Fix `jpm` install in some cases.
+- Add `array/trim` and `buffer/trim` to shrink the backing capacity of these types
+  to their current length.
+
+## 1.10.0 - 2020-06-14
+- Hardcode default jpm paths on install so env variables are needed in fewer cases.
+- Add `:no-compile` to `create-executable` option for jpm.
+- Fix bug with the `trace` function.
+- Add `:h`, `:a`, and `:c` flags to `thread/new` for creating new kinds of threads.
+  By default, threads will now consume much less memory per thread, but sending data between
+  threads may cost more.
+- Fix flychecking when using the `use` macro.
+- CTRL-C no longer exits the repl, and instead cancels the current form.
+- Various small bug fixes
+- New MSI installer instead of NSIS based installer.
+- Make `os/realpath` work on windows.
+- Add polymorphic `compare` functions for comparing numbers.
+- Add `to` and `thru` peg combinators.
+- Add `JANET_GIT` environment variable to jpm to use a specific git binary (useful mainly on windows).
 - `asm` and `disasm` functions now use keywords instead of macros for keys. Also
   some slight changes to the way constants are encoded (remove wrapping `quote` in some cases).
 - Expose current macro form inside macros as (dyn :macro-form)

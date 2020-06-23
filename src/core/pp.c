@@ -123,9 +123,6 @@ static void string_description_b(JanetBuffer *buffer, const char *title, void *p
 #undef POINTSIZE
 }
 
-#undef HEX
-#undef BUFSIZE
-
 static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, int32_t len) {
     janet_buffer_push_u8(buffer, '"');
     for (int32_t i = 0; i < len; ++i) {
@@ -354,11 +351,15 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
     if (depth == 0) return 1;
     switch (janet_type(x)) {
         case JANET_NIL:
-        case JANET_NUMBER:
         case JANET_BOOLEAN:
         case JANET_BUFFER:
         case JANET_STRING:
             janet_description_b(S->buffer, x);
+            break;
+        case JANET_NUMBER:
+            janet_buffer_ensure(S->buffer, S->buffer->count + BUFSIZE, 2);
+            int count = snprintf((char *) S->buffer->data + S->buffer->count, BUFSIZE, "%.17g", janet_unwrap_number(x));
+            S->buffer->count += count;
             break;
         case JANET_SYMBOL:
         case JANET_KEYWORD:
@@ -994,3 +995,6 @@ void janet_buffer_format(
         }
     }
 }
+
+#undef HEX
+#undef BUFSIZE

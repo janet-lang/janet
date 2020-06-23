@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.10.0')
+  version : '1.10.2')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -247,7 +247,18 @@ pkg.generate(libjanet,
 
 # Installation
 install_man('janet.1')
-install_man('jpm.1')
 install_headers(['src/include/janet.h', jconf], subdir: 'janet')
-install_data(sources : ['jpm'], install_dir : get_option('bindir'))
 install_data(sources : ['tools/.keep'], install_dir : join_paths(get_option('libdir'), 'janet'))
+if get_option('peg') and not get_option('reduced_os') and get_option('processes')
+  install_man('jpm.1')
+  patched_jpm = custom_target('patched-jpm',
+    input : ['tools/patch-jpm.janet', 'jpm'],
+    install : true,
+    install_dir : get_option('bindir'),
+    build_by_default : true,
+    output : ['jpm'],
+    command : [janet_nativeclient, '@INPUT@', '@OUTPUT@',
+      '--binpath=' + join_paths(get_option('prefix'), get_option('bindir')),
+      '--libpath=' + join_paths(get_option('prefix'), get_option('libdir'), 'janet'),
+      '--headerpath=' + join_paths(get_option('prefix'), get_option('includedir'))])
+endif

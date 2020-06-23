@@ -206,14 +206,14 @@ static Janet cfun_it_u64_new(int32_t argc, Janet *argv) {
 // In the following code explicit casts are sometimes used to help
 // make it clear when int/float conversions are happening.
 //
-static int64_t compare_double_double(double x, double y) {
+static int compare_double_double(double x, double y) {
     return (x < y) ? -1 : ((x > y) ? 1 : 0);
 }
 
-static int64_t compare_int64_double(int64_t x, double y) {
+static int compare_int64_double(int64_t x, double y) {
     if (isnan(y)) {
         return 0; // clojure and python do this
-    } else if ((y > ((double) - MAX_INT_IN_DBL)) && (y < ((double) MAX_INT_IN_DBL))) {
+    } else if ((y > (- ((double) MAX_INT_IN_DBL))) && (y < ((double) MAX_INT_IN_DBL))) {
         double dx = (double) x;
         return compare_double_double(dx, y);
     } else if (y > ((double) INT64_MAX)) {
@@ -226,7 +226,7 @@ static int64_t compare_int64_double(int64_t x, double y) {
     }
 }
 
-static int64_t compare_uint64_double(uint64_t x, double y) {
+static int compare_uint64_double(uint64_t x, double y) {
     if (isnan(y)) {
         return 0; // clojure and python do this
     } else if (y < 0) {

@@ -433,6 +433,17 @@
          (def ,binding ,i)
          ,body))))
 
+(defn- loop-fiber-template
+  [binding expr body]
+  (with-syms [f s]
+    (def ds (if (idempotent? binding) binding (gensym)))
+    ~(let [,f ,expr]
+       (while true
+         (def ,ds (,resume ,f))
+         (if (= :dead (,fiber/status ,f)) (break))
+         ,;(if (= ds binding) [] [~(def ,binding ,ds)])
+         ,;body))))
+
 (defn- loop1
   [body head i]
 
@@ -470,12 +481,7 @@
       :pairs (keys-template binding object true [rest])
       :in (each-template binding object [rest])
       :iterate (iterate-template binding object rest)
-      :generate (with-syms [f s]
-                  ~(let [,f ,object]
-                     (while true
-                       (def ,binding (,resume ,f))
-                       (if (= :dead (,fiber/status ,f)) (break))
-                       ,rest)))
+      :generate (loop-fiber-template binding object [rest])
       (error (string "unexpected loop verb " verb)))))
 
 (defmacro for
@@ -492,6 +498,18 @@
   "Loop over each (key, value) pair in ds. Returns nil."
   [x ds & body]
   (keys-template x ds true body))
+
+(defmacro eachy
+  "Resume a fiber in a loop until it has errored or died. Evaluate the body
+  of the loop with binding set to the yielded value."
+  [x fiber & body]
+  (loop-fiber-template x fiber body))
+
+(defmacro repeat
+  "Evaluate body n times. If n is negative, body will be evaluated 0 times. Evaluates to nil."
+  [n & body]
+  (with-syms [iter]
+    ~(do (var ,iter ,n) (while (> ,iter 0) ,;body (-- ,iter)))))
 
 (defmacro each
   "Loop over each value in ds. Returns nil."
@@ -542,6 +560,7 @@
 (put _env 'each-template nil)
 (put _env 'keys-template nil)
 (put _env 'range-template nil)
+(put _env 'loop-fiber-template nil)
 
 (defmacro seq
   "Similar to loop, but accumulates the loop body into an array and returns that.

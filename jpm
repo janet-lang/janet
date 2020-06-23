@@ -19,6 +19,9 @@
 # Defaults
 #
 
+###START###
+
+# Overriden on some installs.
 (def- exe-dir
   "Directory containing jpm script"
   (do
@@ -26,21 +29,28 @@
     (def i (last (string/find-all sep exe)))
     (slice exe 0 i)))
 
-(def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
+(defn- install-paths []
+  {:headerpath (os/realpath (string exe-dir "/../include/janet"))
+   :libpath (os/realpath (string exe-dir "/../lib"))
+   :binpath exe-dir})
+
+###END###
 
 # Default based on janet binary location
 (def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH")
-                          (string exe-dir "/../include/janet")))
+                          (get (install-paths) :headerpath)))
 (def JANET_LIBPATH (or (os/getenv "JANET_LIBPATH")
-                       (string exe-dir "/../lib")))
-
+                       (get (install-paths) :libpath)))
 # We want setting JANET_PATH to contain installed binaries. However, it is convenient
 # to have globally installed binaries got to the same place as jpm itself, which is on
 # the $PATH.
 (def JANET_BINPATH (or (os/getenv "JANET_BINPATH")
                        (if-let [mp (os/getenv "JANET_MODPATH")] (string mp "/bin"))
                        (if-let [mp (os/getenv "JANET_PATH")] (string mp "/bin"))
-                       exe-dir))
+                       (get (install-paths) :binpath)))
+
+# modpath should only be derived from the syspath being used or an environment variable.
+(def JANET_MODPATH (or (os/getenv "JANET_MODPATH") (dyn :syspath)))
 
 #
 # Utilities
@@ -66,11 +76,13 @@
 (defn rm
   "Remove a directory and all sub directories."
   [path]
-  (if (= (os/lstat path :mode) :directory)
-    (do
+  (case (os/lstat path :mode)
+    :directory (do
       (each subpath (os/dir path)
         (rm (string path sep subpath)))
       (os/rmdir path))
+    nil nil # do nothing if file does not exist
+    # Default, try to remove
     (os/rm path)))
 
 (defn- rimraf
@@ -78,7 +90,8 @@
   [path]
   (if is-win
     # windows get rid of read-only files
-    (os/shell (string `rmdir /S /Q "` path `"`))
+    (when (os/stat path :mode)
+      (os/shell (string `rmdir /S /Q "` path `"`)))
     (rm path)))
 
 (defn clear-cache
@@ -175,9 +188,27 @@
   (unless item (error (string "No rule for target " target)))
   item)
 
+(defn add-dep
+  "Add a dependency to an existing rule. Useful for extending phony
+  rules or extending the dependency graph of existing rules."
+  [target dep]
+  (def [deps] (gettarget target))
+  (unless (find |(= dep $) deps)
+    (array/push deps dep)))
+
+(defn- add-thunk
+  [target more &opt phony]
+  (def item (gettarget target))
+  (def [_ thunks pthunks] item)
+  (array/push (if phony pthunks thunks) more)
+  item)
+
 (defn- rule-impl
   [target deps thunk &opt phony]
-  (put (getrules) target @[(array/slice deps) @[thunk] phony]))
+  (def rules (getrules))
+  (unless (rules target) (put rules target @[(array/slice deps) @[] @[]]))
+  (each d deps (add-dep target d))
+  (add-thunk target thunk phony))
 
 (defmacro rule
   "Add a rule to the rule graph."
@@ -200,20 +231,6 @@
   "Add a phony rule that invokes a shell command, and fails if the command returns non-zero."
   [target deps & body]
   ~(,rule-impl ,target ,deps (fn [] (,assert (,zero? (,os/shell (,string ,;body))))) true))
-
-(defn add-dep
-  "Add a dependency to an existing rule. Useful for extending phony
-  rules or extending the dependency graph of existing rules."
-  [target dep]
-  (def [deps] (gettarget target))
-  (array/push deps dep))
-
-(defn- add-thunk
-  [target more]
-  (def item (gettarget target))
-  (def [_ thunks] item)
-  (array/push thunks more)
-  item)
 
 (defmacro add-body
   "Add recipe code to an existing rule. This makes existing rules do more but
@@ -244,9 +261,11 @@
       (error (string "No rule for file " target " found."))))
   (def [deps thunks phony] item)
   (def realdeps (seq [dep :in deps :let [x (do-rule dep)] :when x] x))
-  (when (or phony (needs-build-some target realdeps))
-    (each thunk thunks (thunk)))
-  (unless phony target))
+  (each thunk phony (thunk))
+  (unless (empty? thunks)
+    (when (needs-build-some target realdeps)
+      (each thunk thunks (thunk))
+    target)))
 
 #
 # Importing a file
@@ -310,26 +329,30 @@
 # Detect threads
 (def env (fiber/getenv (fiber/current)))
 (def threads? (not (not (env 'thread/new))))
-
-# Default libraries to link
 (def- thread-flags
   (if is-win []
     (if threads? ["-lpthread"] [])))
 
-# lflags needed for the janet binary.
+# flags needed for the janet binary and compiling standalone
+# executables.
 (def janet-lflags
   (case (os/which)
     :macos ["-ldl" "-lm" ;thread-flags]
     :windows [;thread-flags]
     :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
     ["-lm" ;thread-flags]))
+(def janet-ldflags [])
+(def janet-cflags [])
 
 # Default flags for natives, but not required
+# How can we better detect the need for -pthread?
+# we probably want to better detect compiler
 (def default-lflags (if is-win ["/nologo"] []))
 (def default-cflags
   (if is-win
     ["/nologo" "/MD"]
     ["-std=c99" "-Wall" "-Wextra"]))
+(def default-ldflags [])
 
 # Required flags for dynamic libraries. These
 # are used no matter what for dynamic libraries.
@@ -339,7 +362,7 @@
     ["-fPIC"]))
 (def- dynamic-lflags
   (if is-win
-    ["/DLL" ;thread-flags]
+    ["/DLL"]
     (if is-mac
       ["-shared" "-undefined" "dynamic_lookup" ;thread-flags]
       ["-shared" ;thread-flags])))
@@ -385,8 +408,8 @@
   "Generate strings for adding custom defines to the compiler."
   [define value]
   (if value
-    (string (if is-win "/D" "-D") define "=" value)
-    (string (if is-win "/D" "-D") define)))
+    (string "-D" define "=" value)
+    (string "-D" define)))
 
 (defn- make-defines
   "Generate many defines. Takes a dictionary of defines. If a value is
@@ -398,8 +421,8 @@
   "Generate the c flags from the input options."
   [opts]
   @[;(opt opts :cflags default-cflags)
-    (string (if is-win "/I" "-I") (dyn :headerpath JANET_HEADERPATH))
-    (string (if is-win "/O" "-O") (opt opts :optimize 2))])
+    (string "-I" (dyn :headerpath JANET_HEADERPATH))
+    (string "-O" (opt opts :optimize 2))])
 
 (defn- entry-name
   "Name of symbol that enters static compilation of a module."
@@ -585,7 +608,8 @@ int main(int argc, const char **argv) {
 
   # Create executable's janet image
   (def cimage_dest (string dest ".c"))
-  (rule dest [source]
+  (def no-compile (opts :no-compile))
+  (rule (if no-compile cimage_dest dest) [source]
         (check-cc)
         (print "generating executable c source...")
         (create-dirs dest)
@@ -641,11 +665,11 @@ int main(int argc, const char **argv) {
         # Append main function
         (spit cimage_dest (make-bin-source declarations lookup-into-invocations) :ab)
         # Compile and link final exectable
-        (do
+        (unless no-compile
           (def cc (opt opts :compiler default-compiler))
-          (def ldflags [;dep-ldflags ;(opt opts :ldflags [])])
+          (def ldflags [;dep-ldflags ;(opt opts :ldflags []) ;janet-ldflags])
           (def lflags [;static-libs (libjanet) ;dep-lflags ;(opt opts :lflags default-lflags) ;janet-lflags])
-          (def cflags (getcflags opts))
+          (def cflags [;(getcflags opts) ;janet-cflags])
           (def defines (make-defines (opt opts :defines {})))
           (print "compiling and linking " dest "...")
           (if is-win
@@ -728,7 +752,7 @@ int main(int argc, const char **argv) {
                 :binpath (abspath (dyn :binpath JANET_BINPATH))]
       (os/cd module-dir)
       (unless fresh
-        (os/execute [(git-path) "pull" "origin" "master"] :p))
+        (os/execute [(git-path) "pull" "origin" "master" "--ff-only"] :p))
       (when tag
         (os/execute [(git-path) "reset" "--hard" tag] :p))
       (unless (dyn :offline)
@@ -747,9 +771,9 @@ int main(int argc, const char **argv) {
   (def name (last parts))
   (def path (string destdir sep name))
   (array/push (dyn :installed-files) path)
-  (add-body "install"
-            (mkdir destdir)
-            (copy src destdir)))
+  (phony "install" []
+          (mkdir destdir)
+          (copy src destdir)))
 
 (defn- make-lockfile
   [&opt filename]
@@ -884,17 +908,22 @@ int main(int argc, const char **argv) {
   is marshalled into bytecode which is then embedded in a final executable for distribution.\n\n
   This executable can be installed as well to the --binpath given."
   [&keys {:install install :name name :entry entry :headers headers
-          :cflags cflags :lflags lflags :deps deps :ldflags ldflags}]
+          :cflags cflags :lflags lflags :deps deps :ldflags ldflags
+          :no-compile no-compile}]
   (def name (if is-win (string name ".exe") name))
   (def dest (string "build" sep name))
-  (create-executable @{:cflags cflags :lflags lflags :ldflags ldflags} entry dest)
-  (add-dep "build" dest)
-  (when headers
-    (each h headers (add-dep dest h)))
-  (when deps
-    (each d deps (add-dep dest d)))
-  (when install
-    (install-rule dest (dyn :binpath JANET_BINPATH))))
+  (create-executable @{:cflags cflags :lflags lflags :ldflags ldflags :no-compile no-compile} entry dest)
+  (if no-compile
+    (let [cdest (string dest ".c")]
+      (add-dep "build" cdest))
+    (do
+      (add-dep "build" dest)
+      (when headers
+        (each h headers (add-dep dest h)))
+      (when deps
+        (each d deps (add-dep dest d)))
+      (when install
+        (install-rule dest (dyn :binpath JANET_BINPATH))))))
 
 (defn declare-binscript
   "Declare a janet file to be installed as an executable script. Creates
@@ -908,7 +937,7 @@ int main(int argc, const char **argv) {
       (def name (last parts))
       (def path (string binpath sep name))
       (array/push (dyn :installed-files) path)
-      (add-body "install"
+      (phony "install" []
                 (def contents
                   (with [f (file/open main)]
                     (def first-line (:read f :line))
@@ -926,7 +955,7 @@ int main(int argc, const char **argv) {
     (def bat (string "@echo off\r\njanet \"" fullname "\" %*"))
     (def newname (string binpath sep name ".bat"))
     (array/push (dyn :installed-files) newname)
-    (add-body "install"
+    (phony "install" []
               (spit newname bat))))
 
 (defn- print-rule-tree
@@ -973,7 +1002,8 @@ int main(int argc, const char **argv) {
 
   (phony "build" [])
 
-  (phony "manifest" []
+  (phony "manifest" [manifest])
+  (rule manifest []
          (print "generating " manifest "...")
          (mkdir manifests)
          (def sha (pslurp (string "\"" (git-path) "\" rev-parse HEAD")))
@@ -985,7 +1015,7 @@ int main(int argc, const char **argv) {
             :paths installed-files})
          (spit manifest (string/format "%j\n" man)))
 
-  (phony "install" ["uninstall" "build" "manifest"]
+  (phony "install" ["uninstall" "build" manifest]
          (when (dyn :test)
            (do-rule "test"))
          (print "Installed as '" (meta :name) "'."))

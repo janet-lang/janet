@@ -1225,6 +1225,9 @@ static Janet os_rename(int32_t argc, Janet *argv) {
 static Janet os_realpath(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     const char *src = janet_getcstring(argv, 0);
+#ifdef JANET_NO_REALPATH
+    janet_panic("os/realpath not enabled for this platform");
+#else
 #ifdef JANET_WINDOWS
     char *dest = _fullpath(NULL, src, _MAX_PATH);
 #else
@@ -1234,6 +1237,7 @@ static Janet os_realpath(int32_t argc, Janet *argv) {
     Janet ret = janet_cstringv(dest);
     free(dest);
     return ret;
+#endif
 }
 
 static Janet os_permission_string(int32_t argc, Janet *argv) {
