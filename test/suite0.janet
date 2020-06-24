@@ -337,9 +337,9 @@
 ## Polymorphic comparison -- Issue #272
 
 # confirm polymorphic comparison delegation to primitive comparators:
-(assert (= 0 (compare-primitive 3 3)) "compare-primitive integers (1)")
-(assert (= -1 (compare-primitive 3 5)) "compare-primitive integers (2)")
-(assert (= 1 (compare-primitive "foo" "bar")) "compare-primitive strings")
+(assert (= 0 (cmp 3 3)) "compare-primitive integers (1)")
+(assert (= -1 (cmp 3 5)) "compare-primitive integers (2)")
+(assert (= 1 (cmp "foo" "bar")) "compare-primitive strings")
 (assert (= 0 (compare 1 1)) "compare integers (1)")
 (assert (= -1 (compare 1 2)) "compare integers (2)")
 (assert (= 1 (compare "foo" "bar")) "compare strings (1)")
@@ -372,9 +372,9 @@
   @{:type :mynum :v 0 :compare
     (fn [self other]
       (case (type other)
-      :number (compare-primitive (self :v) other)
+      :number (cmp (self :v) other)
       :table (when (= (get other :type) :mynum)
-               (compare-primitive (self :v) (other :v)))))})
+               (cmp (self :v) (other :v)))))})
 
 (let [n3 (table/setproto @{:v 3} mynum)]
   (assert (= 0 (compare 3 n3)) "compare num to object (1)")

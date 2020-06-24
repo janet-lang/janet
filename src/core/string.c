@@ -62,7 +62,7 @@ int janet_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
     int32_t ylen = janet_string_length(rhs);
     int32_t len = xlen > ylen ? ylen : xlen;
     int res = memcmp(lhs, rhs, len);
-    if (res) return res;
+    if (res) return res > 0 ? 1 : -1;
     if (xlen == ylen) return 0;
     return xlen < ylen ? -1 : 1;
 }

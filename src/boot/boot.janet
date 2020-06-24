@@ -688,28 +688,17 @@
 
 ## Polymorphic comparisons
 
-(defn compare-primitive
-  "Compare x and y using primitive operators.
-   Returns -1,0,1 for x < y, x = y, x > y respectively.
-   Present mostly for constructing 'compare' methods in prototypes."
-  [x y]
-  (cond
-    (= x y) 0
-    (< x y) -1
-    (> x y) 1))
-
 (defn compare
-  "Polymorphic compare.  Returns -1,0,1 for x < y, x = y, x > y respectively.
+  "Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
    Differs from the primitive comparators in that it first checks to
    see whether either x or y implement a 'compare' method which can
-   compare x and y.  If so it uses that compare method.  If not, it
+   compare x and y. If so it uses that compare method. If not, it
    delegates to the primitive comparators."
   [x y]
   (or
     (when-let [f (get x :compare)] (f x y))
-    (when-let [f (get y :compare)
-               fyx (f y x)] (- fyx))
-    (compare-primitive x y)))
+    (when-let [f (get y :compare)] (- (f y x)))
+    (cmp x y)))
 
 (defn- compare-reduce [op xs]
   (var r true)
@@ -1211,16 +1200,29 @@
 (defn reverse
   "Reverses the order of the elements in a given array or tuple and returns a new array."
   [t]
+  (def len-1 (- (length t) 1))
+  (def half (/ len-1 2))
+  (for i 0 half
+    (def j (- len-1 i))
+    (def l (in t i))
+    (def r (in t j))
+    (put t i r)
+    (put t j l))
+  t)
+
+(defn reversed
+  "Reverses the order of the elements in a given array or tuple and returns a new array."
+  [t]
   (def len (length t))
   (var n (- len 1))
-  (def reversed (array/new len))
+  (def ret (array/new len))
   (while (>= n 0)
-    (array/push reversed (in t n))
+    (array/push ret (in t n))
     (-- n))
-  reversed)
+  ret)
 
 (defn invert
-  "Returns a table of where the keys of an associative data structure
+  "Returns a table where the keys of an associative data structure
   are the values, and the values of the keys. If multiple keys have the same
   value, one key will be ignored."
   [ds]

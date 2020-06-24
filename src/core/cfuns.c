@@ -148,6 +148,9 @@ static JanetSlot do_modulo(JanetFopts opts, JanetSlot *args) {
 static JanetSlot do_remainder(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_REMAINDER, janet_wrap_nil());
 }
+static JanetSlot do_cmp(JanetFopts opts, JanetSlot *args) {
+    return opreduce(opts, args, JOP_COMPARE, janet_wrap_nil());
+}
 static JanetSlot do_put(JanetFopts opts, JanetSlot *args) {
     if (opts.flags & JANET_FOPTS_DROP) {
         janetc_emit_sss(opts.compiler, JOP_PUT, args[0], args[1], args[2], 0);
@@ -323,6 +326,7 @@ static const JanetFunOptimizer optimizers[] = {
     {arity1or2, do_next},
     {fixarity2, do_modulo},
     {fixarity2, do_remainder},
+    {fixarity2, do_cmp},
 };
 
 const JanetFunOptimizer *janetc_funopt(uint32_t flags) {

@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Change `compare-primitve` to `cmp` and make it more efficient.
+- Change `reverse` to `reversed`, reverse now mutates the backing array
 - `janet_dobytes` and `janet_dostring` return parse errors in \*out
 - Add `repeat` macro for iterating something n times.
 - Add `eachy` (each yield) macro for iterating a fiber.
