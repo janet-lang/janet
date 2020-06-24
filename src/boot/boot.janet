@@ -1236,11 +1236,14 @@
   Returns a new table."
   [ks vs]
   (def res @{})
-  (def lk (length ks))
-  (def lv (length vs))
-  (def len (if (< lk lv) lk lv))
-  (for i 0 len
-    (put res (in ks i) (in vs i)))
+  (var kk nil)
+  (var vk nil)
+  (while true
+    (set kk (next ks kk))
+    (if (= nil kk) (break))
+    (set vk (next vs vk))
+    (if (= nil vk) (break))
+    (put res (in ks kk) (in vs vk)))
   res)
 
 (defn get-in
