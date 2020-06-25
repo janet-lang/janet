@@ -1198,7 +1198,7 @@
   res)
 
 (defn reverse
-  "Reverses the order of the elements in a given array or tuple and returns a new array."
+  "Reverses the order of the elements in a given array or tuple and returns it mutated."
   [t]
   (def len-1 (- (length t) 1))
   (def half (/ len-1 2))
