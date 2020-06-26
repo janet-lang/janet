@@ -70,6 +70,20 @@ extern char **environ;
 void arc4random_buf(void *buf, size_t nbytes);
 #endif
 
+/* arc4random_buf wasn't available in OS X until 10.7. */
+#ifdef JANET_NO_ARC4RANDOM_BUF
+/* Based on https://stackoverflow.com/a/12956868/558735 */
+uint32_t arc4random(void);
+void arc4random_buf(void *buf, size_t nbytes) {
+    size_t entropy_len = (nbytes/4)+1;
+    uint32_t entropy[entropy_len];        
+    for (size_t i = 0; i < entropy_len; i++) {
+        entropy[i] = arc4random();
+    }
+    memcpy(buf, entropy, nbytes);
+}
+#endif
+
 /* Not POSIX, but all Unixes but Solaris have this function. */
 #if defined(JANET_POSIX) && !defined(__sun)
 time_t timegm(struct tm *tm);

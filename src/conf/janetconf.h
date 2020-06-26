@@ -58,6 +58,7 @@
 /* #define JANET_NO_REALPATH */
 /* #define JANET_NO_SYMLINKS */
 /* #define JANET_NO_UMASK */
+/* #define JANET_NO_ARC4RANDOM_BUF */
 /* #define JANET_OUT_OF_MEMORY do { printf("janet out of memory\n"); exit(1); } while (0) */
 /* #define JANET_EXIT(msg) do { printf("C assert failed executing janet: %s\n", msg); exit(1); } while (0) */
 /* #define JANET_TOP_LEVEL_SIGNAL(msg) call_my_function((msg), stderr) */
