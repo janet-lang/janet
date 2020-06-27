@@ -38,8 +38,15 @@ PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 DEBUGGER=gdb
 SONAME_SETTER=-Wl,-soname,
 
-CFLAGS:=$(CFLAGS) -std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fPIC -O2 -fvisibility=hidden
-LDFLAGS:=$(LDFLAGS) -rdynamic
+# For cross compilation
+HOSTCC?=$(CC)
+HOSTAR?=$(AR)
+CFLAGS?=-fPIC -O2
+LDFLAGS?=-rdynamic
+
+COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden
+BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) -O0 -g $(COMMON_CFLAGS)
+BUILD_CFLAGS:=$(CFLAGS) $(COMMON_CFLAGS)
 
 # For installation
 LDCONFIG:=ldconfig "$(LIBDIR)"
@@ -131,7 +138,6 @@ JANET_BOOT_HEADERS=src/boot/tests.h
 ##########################################################
 
 JANET_BOOT_OBJECTS=$(patsubst src/%.c,build/%.boot.o,$(JANET_CORE_SOURCES) $(JANET_BOOT_SOURCES))
-BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) $(CFLAGS)
 
 $(JANET_BOOT_OBJECTS): $(JANET_BOOT_HEADERS)
 
@@ -161,23 +167,25 @@ build/janetconf.h: src/conf/janetconf.h
 	cp $< $@
 
 build/janet.o: build/janet.c build/janet.h build/janetconf.h
-	$(CC) $(CFLAGS) -c $< -o $@ -I build
+	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@ -I build
 
 build/shell.o: build/shell.c build/janet.h build/janetconf.h
-	$(CC) $(CFLAGS) -c $< -o $@ -I build
+	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@ -I build
 
 $(JANET_TARGET): build/janet.o build/shell.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(CLIBS)
+	$(HOSTCC) $(LDFLAGS) $(BUILD_CFLAGS) -o $@ $^ $(CLIBS)
 
 $(JANET_LIBRARY): build/janet.o build/shell.o
-	$(CC) $(LDFLAGS) $(CFLAGS) $(SONAME_SETTER)$(SONAME) -shared -o $@ $^ $(CLIBS)
+	$(HOSTCC) $(LDFLAGS) $(BUILD_CFLAGS) $(SONAME_SETTER)$(SONAME) -shared -o $@ $^ $(CLIBS)
 
 $(JANET_STATIC_LIBRARY): build/janet.o build/shell.o
-	$(AR) rcs $@ $^
+	$(HOSTAR) rcs $@ $^
 
 ###################
 ##### Testing #####
 ###################
+
+# Testing assumes HOSTCC=CC
 
 TEST_SCRIPTS=$(wildcard test/suite*.janet)
 

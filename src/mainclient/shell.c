@@ -84,7 +84,7 @@ static void simpleline(JanetBuffer *buffer) {
 }
 
 /* Windows */
-#ifdef JANET_WINDOWS
+#if defined(JANET_WINDOWS) || defined(JANET_SIMPLE_GETLINE)
 
 void janet_line_init() {
     ;

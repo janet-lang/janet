@@ -127,6 +127,12 @@ extern "C" {
 #define JANET_LITTLE_ENDIAN 1
 #endif
 
+/* Limits for converting doubles to 64 bit integers */
+#define JANET_INTMAX_DOUBLE 9007199254740991.0
+#define JANET_INTMIN_DOUBLE (-9007199254740991.0)
+#define JANET_INTMAX_INT64 9007199254740991
+#define JANET_INTMIN_INT64 (-9007199254740991)
+
 /* Check emscripten */
 #ifdef __EMSCRIPTEN__
 #define JANET_NO_DYNAMIC_MODULES
@@ -541,12 +547,6 @@ JANET_API Janet janet_wrap_integer(int32_t x);
 #ifdef JANET_NANBOX_64
 
 #include <math.h>
-
-/* Limits for converting doubles to 64 bit integers */
-#define JANET_INTMAX_DOUBLE 9007199254740991.0
-#define JANET_INTMIN_DOUBLE (-9007199254740991.0)
-#define JANET_INTMAX_INT64 9007199254740991
-#define JANET_INTMIN_INT64 (-9007199254740991)
 
 #define janet_u64(x) ((x).u64)
 

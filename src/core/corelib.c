@@ -404,9 +404,11 @@ static Janet janet_core_gcsetinterval(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     size_t s = janet_getsize(argv, 0);
     /* limit interval to 48 bits */
-    if (s > 0xFFFFFFFFFFFFUl) {
+#ifdef JANET_64
+    if (s >> 48) {
         janet_panic("interval too large");
     }
+#endif
     janet_vm_gc_interval = s;
     return janet_wrap_nil();
 }

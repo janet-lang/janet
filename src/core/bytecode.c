@@ -104,7 +104,7 @@ enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
 };
 
 /* Verify some bytecode */
-int32_t janet_verify(JanetFuncDef *def) {
+int janet_verify(JanetFuncDef *def) {
     int vargs = !!(def->flags & JANET_FUNCDEF_FLAG_VARARG);
     int32_t i;
     int32_t maxslot = def->arity + vargs;

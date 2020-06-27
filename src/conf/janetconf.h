@@ -68,4 +68,7 @@
 /* #define JANET_OS_NAME my-custom-os */
 /* #define JANET_ARCH_NAME pdp-8 */
 
+/* Main client settings, does not affect library code */
+/* #define JANET_SIMPLE_GETLINE */
+
 #endif /* end of include guard: JANETCONF_H */
