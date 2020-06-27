@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `symbol/slice`
+- Add `keyword/slice`
+- Allow cross compilation with Makefile.
 - Change `compare-primitve` to `cmp` and make it more efficient.
 - Change `reverse` to `reversed`, reverse now mutates the backing array
 - `janet_dobytes` and `janet_dostring` return parse errors in \*out

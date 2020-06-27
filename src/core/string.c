@@ -176,6 +176,18 @@ static Janet cfun_string_slice(int32_t argc, Janet *argv) {
     return janet_stringv(view.bytes + range.start, range.end - range.start);
 }
 
+static Janet cfun_symbol_slice(int32_t argc, Janet *argv) {
+    JanetByteView view = janet_getbytes(argv, 0);
+    JanetRange range = janet_getslice(argc, argv);
+    return janet_symbolv(view.bytes + range.start, range.end - range.start);
+}
+
+static Janet cfun_keyword_slice(int32_t argc, Janet *argv) {
+    JanetByteView view = janet_getbytes(argv, 0);
+    JanetRange range = janet_getslice(argc, argv);
+    return janet_keywordv(view.bytes + range.start, range.end - range.start);
+}
+
 static Janet cfun_string_repeat(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     JanetByteView view = janet_getbytes(argv, 0);
@@ -528,6 +540,16 @@ static const JanetReg string_cfuns[] = {
              "is from 0. 'start' and 'end' can also be negative to indicate indexing "
              "from the end of the string. Note that index -1 is synonymous with "
              "index (length bytes) to allow a full negative slice range. ")
+    },
+    {
+        "keyword/slice", cfun_keyword_slice,
+        JDOC("(keyword/slice bytes &opt start end)\n\n"
+             "Same a string/slice, but returns a keyword.")
+    },
+    {
+        "symbol/slice", cfun_symbol_slice,
+        JDOC("(symbol/slice bytes &opt start end)\n\n"
+             "Same a string/slice, but returns a symbol.")
     },
     {
         "string/repeat", cfun_string_repeat,
