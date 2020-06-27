@@ -574,8 +574,12 @@ int janet_checksize(Janet x) {
     if (!janet_checktype(x, JANET_NUMBER))
         return 0;
     double dval = janet_unwrap_number(x);
-    return dval == (double)((size_t) dval) &&
-           dval <= SIZE_MAX;
+    if (dval != (double)((size_t) dval)) return 0;
+    if (SIZE_MAX > JANET_INTMAX_INT64) {
+        return dval <= JANET_INTMAX_INT64;
+    } else {
+        return dval <= SIZE_MAX;
+    }
 }
 
 JanetTable *janet_get_core_table(const char *name) {

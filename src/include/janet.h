@@ -542,6 +542,12 @@ JANET_API Janet janet_wrap_integer(int32_t x);
 
 #include <math.h>
 
+/* Limits for converting doubles to 64 bit integers */
+#define JANET_INTMAX_DOUBLE 9007199254740991.0
+#define JANET_INTMIN_DOUBLE (-9007199254740991.0)
+#define JANET_INTMAX_INT64 9007199254740991
+#define JANET_INTMIN_INT64 (-9007199254740991)
+
 #define janet_u64(x) ((x).u64)
 
 #define JANET_NANBOX_TAGBITS     0xFFFF800000000000llu
@@ -706,7 +712,7 @@ JANET_API int janet_checkint64(Janet x);
 JANET_API int janet_checksize(Janet x);
 JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
 #define janet_checkintrange(x) ((x) >= INT32_MIN && (x) <= INT32_MAX && (x) == (int32_t)(x))
-#define janet_checkint64range(x) ((x) >= INT64_MIN && (x) <= INT64_MAX && (x) == (int64_t)(x))
+#define janet_checkint64range(x) ((x) >= JANET_INTMIN_DOUBLE && (x) <= JANET_INTMAX_DOUBLE && (x) == (int64_t)(x))
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
 #define janet_wrap_integer(x) janet_wrap_number((int32_t)(x))
 
