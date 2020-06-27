@@ -1395,11 +1395,8 @@ int janet_init(void) {
     /* Garbage collection */
     janet_vm_blocks = NULL;
     janet_vm_next_collection = 0;
-    /* Setting memoryInterval to zero forces
-     * a collection pretty much every cycle, which is
-     * incredibly horrible for performance, but can help ensure
-     * there are no memory bugs during development */
     janet_vm_gc_interval = 0x400000;
+    janet_vm_block_count = 0;
     janet_symcache_init();
     /* Initialize gc roots */
     janet_vm_roots = NULL;

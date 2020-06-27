@@ -39,6 +39,7 @@ struct JanetScratch {
 JANET_THREAD_LOCAL void *janet_vm_blocks;
 JANET_THREAD_LOCAL size_t janet_vm_gc_interval;
 JANET_THREAD_LOCAL size_t janet_vm_next_collection;
+JANET_THREAD_LOCAL size_t janet_vm_block_count;
 JANET_THREAD_LOCAL int janet_vm_gc_suspend = 0;
 
 /* Roots */
@@ -327,6 +328,7 @@ void janet_sweep() {
             previous = current;
             current->flags &= ~JANET_MEM_REACHABLE;
         } else {
+            janet_vm_block_count--;
             janet_deinit_block(current);
             if (NULL != previous) {
                 previous->next = next;
@@ -359,6 +361,7 @@ void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
     janet_vm_next_collection += size;
     mem->next = janet_vm_blocks;
     janet_vm_blocks = mem;
+    janet_vm_block_count++;
 
     return (void *)mem;
 }
@@ -388,6 +391,14 @@ void janet_collect(void) {
     uint32_t i;
     if (janet_vm_gc_suspend) return;
     depth = JANET_RECURSION_GUARD;
+    /* Try and prevent many major collections back to back.
+     * A full collection will take O(janet_vm_block_count) time.
+     * If we have a large heap, make sure our interval is not too
+     * small so we won't make many collections over it. This is just a
+     * heuristic for automatically changing the gc interval */
+    if (janet_vm_block_count * 8 > janet_vm_gc_interval) {
+        janet_vm_gc_interval = janet_vm_block_count * sizeof(JanetGCObject);
+    }
     orig_rootcount = janet_vm_root_count;
 #ifdef JANET_NET
     janet_net_markloop();

@@ -71,6 +71,7 @@ extern JANET_THREAD_LOCAL uint32_t janet_vm_cache_deleted;
 extern JANET_THREAD_LOCAL void *janet_vm_blocks;
 extern JANET_THREAD_LOCAL size_t janet_vm_gc_interval;
 extern JANET_THREAD_LOCAL size_t janet_vm_next_collection;
+extern JANET_THREAD_LOCAL size_t janet_vm_block_count;
 extern JANET_THREAD_LOCAL int janet_vm_gc_suspend;
 
 /* GC roots */
