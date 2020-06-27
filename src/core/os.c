@@ -159,6 +159,8 @@ static Janet os_arch(int32_t argc, Janet *argv) {
     return janet_ckeywordv("arm");
 #elif (defined(__sparc__))
     return janet_ckeywordv("sparc");
+#elif (defined(__ppc__))
+    return janet_ckeywordv("ppc");
 #else
     return janet_ckeywordv("unknown");
 #endif
