@@ -33,6 +33,11 @@ static int arity1or2(JanetFopts opts, JanetSlot *args) {
     int32_t arity = janet_v_count(args);
     return arity == 1 || arity == 2;
 }
+static int arity2or3(JanetFopts opts, JanetSlot *args) {
+    (void) opts;
+    int32_t arity = janet_v_count(args);
+    return arity == 2 || arity == 3;
+}
 static int fixarity1(JanetFopts opts, JanetSlot *args) {
     (void) opts;
     return janet_v_count(args) == 1;
@@ -137,7 +142,18 @@ static JanetSlot do_in(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_IN, janet_wrap_nil());
 }
 static JanetSlot do_get(JanetFopts opts, JanetSlot *args) {
-    return opreduce(opts, args, JOP_GET, janet_wrap_nil());
+    if (janet_v_count(args) == 3) {
+        JanetCompiler *c = opts.compiler;
+        JanetSlot t = janetc_gettarget(opts);
+        janetc_emit_sss(c, JOP_GET, t, args[0], args[1], 1);
+        int32_t label = janetc_emit_si(c, JOP_JUMP_IF_NOT_NIL, t, 0, 0);
+        janetc_copy(c, t, args[2]);
+        int32_t current = janet_v_count(c->buffer);
+        c->buffer[label] |= (current - label) << 16;
+        return t;
+    } else {
+        return opreduce(opts, args, JOP_GET, janet_wrap_nil());
+    }
 }
 static JanetSlot do_next(JanetFopts opts, JanetSlot *args) {
     return opfunction(opts, args, JOP_NEXT, janet_wrap_nil());
@@ -322,7 +338,7 @@ static const JanetFunOptimizer optimizers[] = {
     {NULL, do_eq},
     {NULL, do_neq},
     {fixarity2, do_propagate},
-    {fixarity2, do_get},
+    {arity2or3, do_get},
     {arity1or2, do_next},
     {fixarity2, do_modulo},
     {fixarity2, do_remainder},
