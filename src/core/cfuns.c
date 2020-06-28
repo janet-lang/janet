@@ -145,9 +145,16 @@ static JanetSlot do_get(JanetFopts opts, JanetSlot *args) {
     if (janet_v_count(args) == 3) {
         JanetCompiler *c = opts.compiler;
         JanetSlot t = janetc_gettarget(opts);
+        int target_is_default = janetc_sequal(t, args[2]);
+        JanetSlot dflt_slot = args[2];
+        if (target_is_default) {
+            dflt_slot = janetc_farslot(c);
+            janetc_copy(c, dflt_slot, t);
+        }
         janetc_emit_sss(c, JOP_GET, t, args[0], args[1], 1);
         int32_t label = janetc_emit_si(c, JOP_JUMP_IF_NOT_NIL, t, 0, 0);
-        janetc_copy(c, t, args[2]);
+        janetc_copy(c, t, dflt_slot);
+        if (target_is_default) janetc_freeslot(c, dflt_slot);
         int32_t current = janet_v_count(c->buffer);
         c->buffer[label] |= (current - label) << 16;
         return t;

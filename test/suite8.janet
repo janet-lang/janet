@@ -325,4 +325,7 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert-no-error "issue 428 1" (loop [{:a x} :generate (fiber/new f)] (set result x)))
 (assert (= result :ok) "issue 428 2")
 
+# Inline 3 argument get
+(assert (= 10 (do (var a 10) (set a (get '{} :a a)))) "inline get 1")
+
 (end-suite)

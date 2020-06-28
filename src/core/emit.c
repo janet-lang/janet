@@ -37,7 +37,7 @@ int32_t janetc_allocfar(JanetCompiler *c) {
     return reg;
 }
 
-/* Get a register less than 256 */
+/* Get a register less than 256 for temporary use. */
 int32_t janetc_allocnear(JanetCompiler *c, JanetcRegisterTemp tag) {
     return janetc_regalloc_temp(&c->scope->ra, tag);
 }
@@ -205,7 +205,7 @@ static int32_t janetc_regnear(JanetCompiler *c, JanetSlot s, JanetcRegisterTemp 
 }
 
 /* Check if two slots are equal */
-static int janetc_sequal(JanetSlot lhs, JanetSlot rhs) {
+int janetc_sequal(JanetSlot lhs, JanetSlot rhs) {
     if ((lhs.flags & ~JANET_SLOTTYPE_ANY) == (rhs.flags & ~JANET_SLOTTYPE_ANY) &&
             lhs.index == rhs.index &&
             lhs.envindex == rhs.envindex) {
@@ -245,8 +245,8 @@ void janetc_copy(
     janetc_moveback(c, dest, nearreg);
     /* Cleanup */
     janetc_regalloc_freetemp(&c->scope->ra, nearreg, JANETC_REGTEMP_3);
-
 }
+
 /* Instruction templated emitters */
 
 static int32_t emit1s(JanetCompiler *c, uint8_t op, JanetSlot s, int32_t rest, int wr) {
