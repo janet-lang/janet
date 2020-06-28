@@ -112,6 +112,8 @@ static const JanetInstructionDef janet_ops[] = {
     {"movn", JOP_MOVE_NEAR},
     {"mul", JOP_MULTIPLY},
     {"mulim", JOP_MULTIPLY_IMMEDIATE},
+    {"neq", JOP_NOT_EQUALS},
+    {"neqim", JOP_NOT_EQUALS_IMMEDIATE},
     {"next", JOP_NEXT},
     {"noop", JOP_NOOP},
     {"prop", JOP_PROPAGATE},

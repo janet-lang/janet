@@ -374,8 +374,8 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_GREATER_THAN_EQUAL,
         &&label_JOP_LESS_THAN_EQUAL,
         &&label_JOP_NEXT,
-        &&label_unknown_op,
-        &&label_unknown_op,
+        &&label_JOP_NOT_EQUALS,
+        &&label_JOP_NOT_EQUALS_IMMEDIATE,
         &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
@@ -786,6 +786,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_EQUALS_IMMEDIATE)
     stack[A] = janet_wrap_boolean(janet_unwrap_integer(stack[B]) == CS);
+    vm_pcnext();
+
+    VM_OP(JOP_NOT_EQUALS)
+    stack[A] = janet_wrap_boolean(!janet_equals(stack[B], stack[C]));
+    vm_pcnext();
+
+    VM_OP(JOP_NOT_EQUALS_IMMEDIATE)
+    stack[A] = janet_wrap_boolean(janet_unwrap_integer(stack[B]) != CS);
     vm_pcnext();
 
     VM_OP(JOP_COMPARE)
