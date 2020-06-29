@@ -36,7 +36,7 @@
       :loop (/ (* "[" :main "]") ,(fn [& captures]
                                     ~(while (not= (get DATA POS) 0)
                                        ,;captures)))
-      :main (any (+ :s :loop :+ :- :> :< :.)) }))
+      :main (any (+ :s :loop :+ :- :> :< :.))}))
 
 (defn bf
   "Run brainfuck."
@@ -233,8 +233,8 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (gccollect)
 
 (def v (unmarshal
-  @"\xD7\xCD0\xD4000000\0\x03\x01\xCE\00\0\x01\0\0000\x03\0\0\0000000000\xCC0\0000"
-  load-image-dict))
+         @"\xD7\xCD0\xD4000000\0\x03\x01\xCE\00\0\x01\0\0000\x03\0\0\0000000000\xCC0\0000"
+         load-image-dict))
 (gccollect)
 
 # in vs get regression
@@ -271,7 +271,7 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
       :packet-body '(lenprefix (-> :header-len) 1)
 
       # header, followed by body, and drop the :header-len capture
-      :packet (/ (* :packet-header :packet-body) ,|$1) 
+      :packet (/ (* :packet-header :packet-body) ,|$1)
 
       # any exact seqence of packets (no extra characters)
       :main (* (any :packet) -1)}))
@@ -327,5 +327,9 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 
 # Inline 3 argument get
 (assert (= 10 (do (var a 10) (set a (get '{} :a a)))) "inline get 1")
+
+# Keyword and Symbol slice
+(assert (= :keyword (keyword/slice "some_keyword_slice" 5 12)) "keyword slice")
+(assert (= 'symbol (symbol/slice "some_symbol_slice" 5 11)) "symbol slice")
 
 (end-suite)
