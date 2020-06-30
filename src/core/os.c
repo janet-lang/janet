@@ -72,15 +72,20 @@ void arc4random_buf(void *buf, size_t nbytes);
 
 /* arc4random_buf wasn't available in OS X until 10.7. */
 #ifdef JANET_NO_ARC4RANDOM_BUF
-/* Based on https://stackoverflow.com/a/12956868/558735 */
 uint32_t arc4random(void);
 void arc4random_buf(void *buf, size_t nbytes) {
-    size_t entropy_len = (nbytes/4)+1;
-    uint32_t entropy[entropy_len];        
-    for (size_t i = 0; i < entropy_len; i++) {
-        entropy[i] = arc4random();
+    uint32_t *buf_as_words = (uint32_t*)buf;
+    size_t nwords = nbytes / 4;
+    for (size_t i=0; i < nwords; i++) {
+        buf_as_words[i] = arc4random();
     }
-    memcpy(buf, entropy, nbytes);
+
+    size_t tail_len = nbytes % 4;
+    if (tail_len) {
+        uint8_t *tail = buf + nbytes - tail_len;
+        uint32_t rand = arc4random();
+        memcpy(tail, &rand, tail_len);
+    }
 }
 #endif
 
