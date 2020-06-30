@@ -112,7 +112,7 @@ typedef struct {
 #endif
 static JanetStream *make_stream(int fd, int flags) {
     JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
-#if !defined(SOCK_CLOEXEC) && !defined(JANET_NO_CLOEXEC)
+#if !defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
     int extra = O_CLOEXEC;
 #else
     int extra = 0;
