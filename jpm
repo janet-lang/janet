@@ -757,7 +757,7 @@ int main(int argc, const char **argv) {
         (os/execute [(git-path) "reset" "--hard" tag] :p))
       (unless (dyn :offline)
         (os/execute [(git-path) "submodule" "update" "--init" "--recursive"] :p))
-      (import-rules "./project.janet")
+      (import-rules "./project.janet" true)
       (unless no-deps (do-rule "install-deps"))
       (do-rule "build")
       (do-rule "install"))
@@ -1182,7 +1182,7 @@ Flags are:
 
 (defn list-rules
   [&opt ctx]
-  (import-rules "./project.janet" true)
+  (import-rules "./project.janet")
   (def ks (sort (seq [k :keys (dyn :rules)] k)))
   (each k ks (print k)))
 
