@@ -39,6 +39,10 @@
 
 #define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
 
+#ifdef JANET_APPLE
+#include <AvailabilityMacros.h>
+#endif
+
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #include <direct.h>
@@ -66,27 +70,8 @@ extern char **environ;
 
 /* Setting C99 standard makes this not available, but it should
  * work/link properly if we detect a BSD */
-#if defined(JANET_BSD) || defined(JANET_APPLE)
+#if defined(JANET_BSD) || defined(MAC_OS_X_VERSION_10_7)
 void arc4random_buf(void *buf, size_t nbytes);
-#endif
-
-/* arc4random_buf wasn't available in OS X until 10.7. */
-#ifdef JANET_NO_ARC4RANDOM_BUF
-uint32_t arc4random(void);
-void arc4random_buf(void *buf, size_t nbytes) {
-    uint32_t *buf_as_words = (uint32_t*)buf;
-    size_t nwords = nbytes / 4;
-    for (size_t i=0; i < nwords; i++) {
-        buf_as_words[i] = arc4random();
-    }
-
-    size_t tail_len = nbytes % 4;
-    if (tail_len) {
-        uint8_t *tail = buf + nbytes - tail_len;
-        uint32_t rand = arc4random();
-        memcpy(tail, &rand, tail_len);
-    }
-}
 #endif
 
 /* Not POSIX, but all Unixes but Solaris have this function. */
@@ -625,10 +610,11 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
             v = v >> 8;
         }
     }
-#elif defined(JANET_LINUX)
+#elif defined(JANET_LINUX) || ( defined(JANET_APPLE) && !defined(MAC_OS_X_VERSION_10_7) )
     /* We should be able to call getrandom on linux, but it doesn't seem
        to be uniformly supported on linux distros.
-       In both cases, use this fallback path for now... */
+       On Mac, arc4random_buf wasn't available on until 10.7.
+       In these cases, use this fallback path for now... */
     int rc;
     int randfd;
     RETRY_EINTR(randfd, open("/dev/urandom", O_RDONLY | O_CLOEXEC));
@@ -645,7 +631,7 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
         n -= nread;
     }
     RETRY_EINTR(rc, close(randfd));
-#elif defined(JANET_BSD) || defined(JANET_APPLE)
+#elif defined(JANET_BSD) || defined(MAC_OS_X_VERSION_10_7)
     (void) genericerr;
     arc4random_buf(buffer->data + offset, n);
 #else
