@@ -1308,47 +1308,89 @@ static Janet cfun_peg_compile(int32_t argc, Janet *argv) {
     return janet_wrap_abstract(peg);
 }
 
-static Janet cfun_peg_match(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, -1);
+/* Common data for peg cfunctions */
+typedef struct {
     JanetPeg *peg;
+    PegState s;
+    JanetByteView bytes;
+    int32_t start;
+} PegCall;
+
+/* Initialize state for peg cfunctions */
+static PegCall peg_cfun_init(int32_t argc, Janet *argv) {
+    PegCall ret;
+    janet_arity(argc, 2, -1);
     if (janet_checktype(argv[0], JANET_ABSTRACT) &&
             janet_abstract_type(janet_unwrap_abstract(argv[0])) == &janet_peg_type) {
-        peg = janet_unwrap_abstract(argv[0]);
+        ret.peg = janet_unwrap_abstract(argv[0]);
     } else {
-        peg = compile_peg(argv[0]);
+        ret.peg = compile_peg(argv[0]);
     }
-    JanetByteView bytes = janet_getbytes(argv, 1);
-    int32_t start;
-    PegState s;
+    ret.bytes = janet_getbytes(argv, 1);
     if (argc > 2) {
-        start = janet_gethalfrange(argv, 2, bytes.len, "offset");
-        s.extrac = argc - 3;
-        s.extrav = janet_tuple_n(argv + 3, argc - 3);
+        ret.start = janet_gethalfrange(argv, 2, ret.bytes.len, "offset");
+        ret.s.extrac = argc - 3;
+        ret.s.extrav = janet_tuple_n(argv + 3, argc - 3);
     } else {
-        start = 0;
-        s.extrac = 0;
-        s.extrav = NULL;
+        ret.start = 0;
+        ret.s.extrac = 0;
+        ret.s.extrav = NULL;
     }
-    s.mode = PEG_MODE_NORMAL;
-    s.text_start = bytes.bytes;
-    s.text_end = bytes.bytes + bytes.len;
-    s.depth = JANET_RECURSION_GUARD;
-    s.captures = janet_array(0);
-    s.scratch = janet_buffer(10);
-    s.tags = janet_buffer(10);
-    s.constants = peg->constants;
-    s.bytecode = peg->bytecode;
-    const uint8_t *result = peg_rule(&s, s.bytecode, bytes.bytes + start);
-    return result ? janet_wrap_array(s.captures) : janet_wrap_nil();
+    ret.s.mode = PEG_MODE_NORMAL;
+    ret.s.text_start = ret.bytes.bytes;
+    ret.s.text_end = ret.bytes.bytes + ret.bytes.len;
+    ret.s.depth = JANET_RECURSION_GUARD;
+    ret.s.captures = janet_array(0);
+    ret.s.scratch = janet_buffer(10);
+    ret.s.tags = janet_buffer(10);
+    ret.s.constants = ret.peg->constants;
+    ret.s.bytecode = ret.peg->bytecode;
+    return ret;
 }
+
+static Janet cfun_peg_match(int32_t argc, Janet *argv) {
+    PegCall c = peg_cfun_init(argc, argv);
+    const uint8_t *result = peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + c.start);
+    return result ? janet_wrap_array(c.s.captures) : janet_wrap_nil();
+}
+
+static Janet cfun_peg_find(int32_t argc, Janet *argv) {
+    PegCall c = peg_cfun_init(argc, argv);
+    for (int32_t i = c.start; i < c.bytes.len; i++) {
+        c.s.captures->count = 0;
+        c.s.scratch->count = 0;
+        c.s.tags->count = 0;
+        if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i))
+            return janet_wrap_integer(i);
+    }
+    return janet_wrap_nil();
+}
+
+static Janet cfun_peg_find_all(int32_t argc, Janet *argv) {
+    PegCall c = peg_cfun_init(argc, argv);
+    JanetArray *ret = janet_array(0);
+    for (int32_t i = c.start; i < c.bytes.len; i++) {
+        c.s.captures->count = 0;
+        c.s.scratch->count = 0;
+        c.s.tags->count = 0;
+        if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i))
+            janet_array_push(ret, janet_wrap_integer(i));
+    }
+    return janet_wrap_array(ret);
+}
+
+static JanetMethod peg_methods[] = {
+    {"match", cfun_peg_match},
+    {"find", cfun_peg_find},
+    {"find-all", cfun_peg_find_all},
+    {NULL, NULL}
+};
 
 static int cfun_peg_getter(JanetAbstract a, Janet key, Janet *out) {
     (void) a;
-    if (janet_keyeq(key, "match")) {
-        *out = janet_wrap_cfunction(cfun_peg_match);
-        return 1;
-    }
-    return 0;
+    if (!janet_checktype(key, JANET_KEYWORD))
+        return 0;
+    return janet_getmethod(janet_unwrap_keyword(key), peg_methods, out);
 }
 
 static const JanetReg peg_cfuns[] = {
@@ -1363,6 +1405,16 @@ static const JanetReg peg_cfuns[] = {
         JDOC("(peg/match peg text &opt start & args)\n\n"
              "Match a Parsing Expression Grammar to a byte string and return an array of captured values. "
              "Returns nil if text does not match the language defined by peg. The syntax of PEGs is documented on the Janet website.")
+    },
+    {
+        "peg/find", cfun_peg_find,
+        JDOC("(peg/find peg text &opt start & args)\n\n"
+             "Find first index where the peg matches in text. Returns an integer, or nil if not found.")
+    },
+    {
+        "peg/find-all", cfun_peg_find_all,
+        JDOC("(peg/find-all peg text &opt start & args)\n\n"
+             "Find all indexes where the peg matches in text. Returns an array of integers.")
     },
     {NULL, NULL, NULL}
 };

@@ -99,7 +99,7 @@
 (defn array? "Check if x is an array." [x] (= (type x) :array))
 (defn tuple? "Check if x is a tuple." [x] (= (type x) :tuple))
 (defn boolean? "Check if x is a boolean." [x] (= (type x) :boolean))
-(defn bytes? "Check if x is a string, symbol, or buffer." [x]
+(defn bytes? "Check if x is a string, symbol, keyword, or buffer." [x]
   (def t (type x))
   (if (= t :string) true (if (= t :symbol) true (if (= t :keyword) true (= t :buffer)))))
 (defn dictionary? "Check if x a table or struct." [x]
@@ -112,7 +112,7 @@
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
-(defn empty? "Check if xs is empty." [xs] (= 0 (length xs)))
+(defn empty? "Check if xs is empty." [xs] (= (length xs) 0))
 
 (def idempotent?
   "(idempotent? x)\n\nCheck if x is a value that evaluates to itself when compiled."
