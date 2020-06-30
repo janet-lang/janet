@@ -764,7 +764,7 @@
   [a lo hi by]
   (def pivot (in a hi))
   (var i lo)
-  (for j lo hi
+  (forv j lo hi
     (def aj (in a j))
     (when (by aj pivot)
       (def ai (in a i))
@@ -862,19 +862,19 @@
   (def ninds (length inds))
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
   (var limit (length (in inds 0)))
-  (for i 0 ninds
+  (forv i 0 ninds
     (def l (length (in inds i)))
     (if (< l limit) (set limit l)))
   (def [i1 i2 i3 i4] inds)
   (def res (array/new limit))
   (case ninds
-    1 (for i 0 limit (set (res i) (f (in i1 i))))
-    2 (for i 0 limit (set (res i) (f (in i1 i) (in i2 i))))
-    3 (for i 0 limit (set (res i) (f (in i1 i) (in i2 i) (in i3 i))))
-    4 (for i 0 limit (set (res i) (f (in i1 i) (in i2 i) (in i3 i) (in i4 i))))
-    (for i 0 limit
+    1 (forv i 0 limit (set (res i) (f (in i1 i))))
+    2 (forv i 0 limit (set (res i) (f (in i1 i) (in i2 i))))
+    3 (forv i 0 limit (set (res i) (f (in i1 i) (in i2 i) (in i3 i))))
+    4 (forv i 0 limit (set (res i) (f (in i1 i) (in i2 i) (in i3 i) (in i4 i))))
+    (forv i 0 limit
       (def args (array/new ninds))
-      (for j 0 ninds (set (args j) (in (in inds j) i)))
+      (forv j 0 ninds (set (args j) (in (in inds j) i)))
       (set (res i) (f ;args))))
   res)
 
@@ -926,12 +926,12 @@
     1 (do
         (def [n] args)
         (def arr (array/new n))
-        (for i 0 n (put arr i i))
+        (forv i 0 n (put arr i i))
         arr)
     2 (do
         (def [n m] args)
         (def arr (array/new (- m n)))
-        (for i n m (put arr (- i n) i))
+        (forv i n m (put arr (- i n) i))
         arr)
     3 (do
         (def [n m s] args)
@@ -1280,7 +1280,7 @@
   (var d ds)
   (def len-1 (- (length ks) 1))
   (if (< len-1 0) (error "expected at least 1 key in ks"))
-  (for i 0 len-1
+  (forv i 0 len-1
     (def k (get ks i))
     (def v (get d k))
     (if (= nil v)
@@ -1302,7 +1302,7 @@
   (var d ds)
   (def len-1 (- (length ks) 1))
   (if (< len-1 0) (error "expected at least 1 key in ks"))
-  (for i 0 len-1
+  (forv i 0 len-1
     (def k (get ks i))
     (def v (get d k))
     (if (= nil v)
@@ -2548,7 +2548,7 @@
   [&opt n]
   (def fun (.fn n))
   (def bytecode (.bytecode n))
-  (for i 0 (length bytecode)
+  (forv i 0 (length bytecode)
     (debug/fbreak fun i))
   (print "Set " (length bytecode) " breakpoints in " fun))
 
@@ -2557,7 +2557,7 @@
   [&opt n]
   (def fun (.fn n))
   (def bytecode (.bytecode n))
-  (for i 0 (length bytecode)
+  (forv i 0 (length bytecode)
     (debug/unfbreak fun i))
   (print "Cleared " (length bytecode) " breakpoints in " fun))
 
@@ -2599,7 +2599,7 @@
   "Go to the next breakpoint."
   [&opt n]
   (var res nil)
-  (for i 0 (or n 1)
+  (forv i 0 (or n 1)
     (set res (resume (.fiber))))
   res)
 
@@ -2613,7 +2613,7 @@
   "Execute the next n instructions."
   [&opt n]
   (var res nil)
-  (for i 0 (or n 1)
+  (forv i 0 (or n 1)
     (set res (debug/step (.fiber))))
   res)
 
