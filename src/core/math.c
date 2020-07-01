@@ -499,5 +499,11 @@ void janet_lib_math(JanetTable *env) {
               JDOC("The number representing positive infinity"));
     janet_def(env, "math/-inf", janet_wrap_number(-INFINITY),
               JDOC("The number representing negative infinity"));
+#ifdef NAN
+    janet_def(env, "math/nan", janet_wrap_number(NAN),
+#else
+    janet_def(env, "math/nan", janet_wrap_number(0.0/0.0),
+#endif
+              JDOC("Not a number (IEEE-754 NaN)"));
 #endif
 }
