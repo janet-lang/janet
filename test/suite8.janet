@@ -332,4 +332,10 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (= :keyword (keyword/slice "some_keyword_slice" 5 12)) "keyword slice")
 (assert (= 'symbol (symbol/slice "some_symbol_slice" 5 11)) "symbol slice")
 
+# Peg find and find-all
+(def p "/usr/local/bin/janet")
+(assert (= (peg/find '"n/" p) 13) "peg find 1")
+(assert (not (peg/find '"t/" p)) "peg find 2")
+(assert (deep= (peg/find-all '"/" p) @[0 4 10 14]) "peg find-all")
+
 (end-suite)
