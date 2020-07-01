@@ -281,7 +281,8 @@ static Janet janet_not(int32_t argc, Janet *argv) {
 static const JanetReg math_cfuns[] = {
     {
         "not", janet_not,
-        JDOC("(not x)\n\nReturns the boolean inverse of x.")
+        JDOC("(not x)\n\nReturns the boolean inverse of x.\n"
+             "falsey? can be implemented as (def falsey? not).")
     },
     {
         "math/random", janet_rand,
