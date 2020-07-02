@@ -379,26 +379,23 @@
      ,(apply defer [(or dtor :close) binding] [truthy])
      ,falsey))
 
-(defn- for-template
-  [binding start stop step comparison delta body]
-  (with-syms [i s]
-    ~(do
-       (var ,i ,start)
-       (def ,s ,stop)
-       (while (,comparison ,i ,s)
-         (def ,binding ,i)
-         ,;body
-         (set ,i (,delta ,i ,step))))))
-
 (defn- for-var-template
   [i start stop step comparison delta body]
   (with-syms [s]
+    (def st (if (idempotent? step) step (gensym)))
     ~(do
        (var ,i ,start)
        (def ,s ,stop)
+       ,;(if (= st step) [] [~(def ,st ,step)])
        (while (,comparison ,i ,s)
          ,;body
-         (set ,i (,delta ,i ,step))))))
+         (set ,i (,delta ,i ,st))))))
+
+(defn- for-template
+  [binding start stop step comparison delta body]
+  (def i (gensym))
+  (for-var-template i start stop step comparison delta
+                    [~(def ,binding ,i) ;body]))
 
 (defn- check-indexed [x]
   (if (indexed? x)
@@ -411,26 +408,18 @@
     (for-template binding start stop (or step 1) comparison op [rest])))
 
 (defn- each-template
-  [binding inx body]
+  [binding inx kind body]
   (with-syms [k]
     (def ds (if (idempotent? inx) inx (gensym)))
     ~(do
        ,(unless (= ds inx) ~(def ,ds ,inx))
        (var ,k (,next ,ds nil))
        (while (,not= nil ,k)
-         (def ,binding (,in ,ds ,k))
-         ,;body
-         (set ,k (,next ,ds ,k))))))
-
-(defn- keys-template
-  [binding in pair? body]
-  (with-syms [k]
-    (def ds (if (idempotent? in) in (gensym)))
-    ~(do
-       ,(unless (= ds in) ~(def ,ds ,in))
-       (var ,k (,next ,ds nil))
-       (while (,not= nil ,k)
-         (def ,binding ,(if pair? ~(tuple ,k (in ,ds ,k)) k))
+         (def ,binding
+           ,(case kind
+              :each ~(,in ,ds ,k)
+              :keys k
+              :pairs ~(,tuple ,k (,in ,ds ,k))))
          ,;body
          (set ,k (,next ,ds ,k))))))
 
@@ -487,9 +476,9 @@
       :range-to (range-template binding object rest + <=)
       :down (range-template binding object rest - >)
       :down-to (range-template binding object rest - >=)
-      :keys (keys-template binding object false [rest])
-      :pairs (keys-template binding object true [rest])
-      :in (each-template binding object [rest])
+      :keys (each-template binding object :keys [rest])
+      :pairs (each-template binding object :pairs [rest])
+      :in (each-template binding object :each [rest])
       :iterate (iterate-template binding object rest)
       :generate (loop-fiber-template binding object [rest])
       (error (string "unexpected loop verb " verb)))))
@@ -508,12 +497,12 @@
 (defmacro eachk
   "Loop over each key in ds. Returns nil."
   [x ds & body]
-  (keys-template x ds false body))
+  (each-template x ds :each body))
 
 (defmacro eachp
   "Loop over each (key, value) pair in ds. Returns nil."
   [x ds & body]
-  (keys-template x ds true body))
+  (each-template x ds :pairs body))
 
 (defmacro eachy
   "Resume a fiber in a loop until it has errored or died. Evaluate the body
@@ -530,7 +519,7 @@
 (defmacro each
   "Loop over each value in ds. Returns nil."
   [x ds & body]
-  (each-template x ds body))
+  (each-template x ds :each body))
 
 (defmacro loop
   "A general purpose loop macro. This macro is similar to the Common Lisp
@@ -575,7 +564,6 @@
 (put _env 'for-var-template nil)
 (put _env 'iterate-template nil)
 (put _env 'each-template nil)
-(put _env 'keys-template nil)
 (put _env 'range-template nil)
 (put _env 'loop-fiber-template nil)
 
