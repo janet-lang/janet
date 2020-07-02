@@ -502,7 +502,7 @@ void janet_lib_math(JanetTable *env) {
 #ifdef NAN
     janet_def(env, "math/nan", janet_wrap_number(NAN),
 #else
-    janet_def(env, "math/nan", janet_wrap_number(0.0/0.0),
+    janet_def(env, "math/nan", janet_wrap_number(0.0 / 0.0),
 #endif
               JDOC("Not a number (IEEE-754 NaN)"));
 #endif

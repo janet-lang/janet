@@ -338,4 +338,15 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (not (peg/find '"t/" p)) "peg find 2")
 (assert (deep= (peg/find-all '"/" p) @[0 4 10 14]) "peg find-all")
 
+# Peg replace and replace-all
+(var ti 0)
+(defn check-replacer
+  [x y z]
+  (assert (= (string/replace x y z) (string (peg/replace x y z))) "replacer test replace")
+  (assert (= (string/replace-all x y z) (string (peg/replace-all x y z))) "replacer test replace-all"))
+(check-replacer "abc" "Z" "abcabcabcabasciabsabc")
+(check-replacer "abc" "Z" "")
+(check-replacer "aba" "ZZZZZZ" "ababababababa")
+(check-replacer "aba" "" "ababababababa")
+
 (end-suite)
