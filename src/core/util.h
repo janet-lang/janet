@@ -100,6 +100,9 @@ void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cf
 /* Clock gettime */
 #if !defined(JANET_REDUCED_OS) || !defined(JANET_SINGLE_THREADED)
 #include <time.h>
+#ifndef JANET_WINDOWS
+#include <sys/time.h>
+#endif
 #define JANET_GETTIME
 int janet_gettime(struct timespec *spec);
 #endif

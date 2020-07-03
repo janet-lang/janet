@@ -1400,7 +1400,7 @@ static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
                 janet_buffer_push_bytes(ret, c.bytes.bytes + trail, (i - trail));
                 trail = i;
             }
-            int32_t nexti = result - c.bytes.bytes;
+            int32_t nexti = (int32_t)(result - c.bytes.bytes);
             janet_buffer_push_bytes(ret, c.repl.bytes, c.repl.len);
             trail = nexti;
             if (nexti == i) nexti++;
