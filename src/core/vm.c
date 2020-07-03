@@ -374,8 +374,8 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_GREATER_THAN_EQUAL,
         &&label_JOP_LESS_THAN_EQUAL,
         &&label_JOP_NEXT,
-        &&label_unknown_op,
-        &&label_unknown_op,
+        &&label_JOP_NOT_EQUALS,
+        &&label_JOP_NOT_EQUALS_IMMEDIATE,
         &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
@@ -786,6 +786,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_EQUALS_IMMEDIATE)
     stack[A] = janet_wrap_boolean(janet_unwrap_integer(stack[B]) == CS);
+    vm_pcnext();
+
+    VM_OP(JOP_NOT_EQUALS)
+    stack[A] = janet_wrap_boolean(!janet_equals(stack[B], stack[C]));
+    vm_pcnext();
+
+    VM_OP(JOP_NOT_EQUALS_IMMEDIATE)
+    stack[A] = janet_wrap_boolean(janet_unwrap_integer(stack[B]) != CS);
     vm_pcnext();
 
     VM_OP(JOP_COMPARE)
@@ -1395,11 +1403,8 @@ int janet_init(void) {
     /* Garbage collection */
     janet_vm_blocks = NULL;
     janet_vm_next_collection = 0;
-    /* Setting memoryInterval to zero forces
-     * a collection pretty much every cycle, which is
-     * incredibly horrible for performance, but can help ensure
-     * there are no memory bugs during development */
-    janet_vm_gc_interval = 0x10000;
+    janet_vm_gc_interval = 0x400000;
+    janet_vm_block_count = 0;
     janet_symcache_init();
     /* Initialize gc roots */
     janet_vm_roots = NULL;

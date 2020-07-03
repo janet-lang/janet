@@ -26,6 +26,9 @@
 #include "util.h"
 #include "state.h"
 #include "gc.h"
+#ifdef JANET_WINDOWS
+#include <windows.h>
+#endif
 #endif
 
 #include <inttypes.h>
@@ -574,8 +577,12 @@ int janet_checksize(Janet x) {
     if (!janet_checktype(x, JANET_NUMBER))
         return 0;
     double dval = janet_unwrap_number(x);
-    return dval == (double)((size_t) dval) &&
-           dval <= SIZE_MAX;
+    if (dval != (double)((size_t) dval)) return 0;
+    if (SIZE_MAX > JANET_INTMAX_INT64) {
+        return dval <= JANET_INTMAX_INT64;
+    } else {
+        return dval <= SIZE_MAX;
+    }
 }
 
 JanetTable *janet_get_core_table(const char *name) {
@@ -586,3 +593,35 @@ JanetTable *janet_get_core_table(const char *name) {
     if (!janet_checktype(out, JANET_TABLE)) return NULL;
     return janet_unwrap_table(out);
 }
+
+/* Clock shims for various platforms */
+#ifdef JANET_GETTIME
+#ifdef JANET_WINDOWS
+int janet_gettime(struct timespec *spec) {
+    FILETIME ftime;
+    GetSystemTimeAsFileTime(&ftime);
+    int64_t wintime = (int64_t)(ftime.dwLowDateTime) | ((int64_t)(ftime.dwHighDateTime) << 32);
+    /* Windows epoch is January 1, 1601 apparently */
+    wintime -= 116444736000000000LL;
+    spec->tv_sec  = wintime / 10000000LL;
+    /* Resolution is 100 nanoseconds. */
+    spec->tv_nsec = wintime % 10000000LL * 100;
+    return 0;
+}
+#elif defined(__MACH__)
+int janet_gettime(struct timespec *spec) {
+    clock_serv_t cclock;
+    mach_timespec_t mts;
+    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+    clock_get_time(cclock, &mts);
+    mach_port_deallocate(mach_task_self(), cclock);
+    spec->tv_sec = mts.tv_sec;
+    spec->tv_nsec = mts.tv_nsec;
+    return 0;
+}
+#else
+int janet_gettime(struct timespec *spec) {
+    return clock_gettime(CLOCK_MONOTONIC, spec);
+}
+#endif
+#endif

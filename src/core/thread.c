@@ -234,7 +234,7 @@ static void janet_waiter_init(JanetWaiter *waiter, double sec) {
     if (waiter->timedwait) {
         /* N seconds -> timespec of (now + sec) */
         struct timespec now;
-        clock_gettime(CLOCK_REALTIME, &now);
+        janet_gettime(&now);
         time_t tvsec = (time_t) floor(sec);
         long tvnsec = (long) floor(1000000000.0 * (sec - ((double) tvsec)));
         tvsec += now.tv_sec;

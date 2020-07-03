@@ -39,6 +39,10 @@
 
 #define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
 
+#ifdef JANET_APPLE
+#include <AvailabilityMacros.h>
+#endif
+
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #include <direct.h>
@@ -66,7 +70,7 @@ extern char **environ;
 
 /* Setting C99 standard makes this not available, but it should
  * work/link properly if we detect a BSD */
-#if defined(JANET_BSD) || defined(JANET_APPLE)
+#if defined(JANET_BSD) || defined(MAC_OS_X_VERSION_10_7)
 void arc4random_buf(void *buf, size_t nbytes);
 #endif
 
@@ -159,6 +163,8 @@ static Janet os_arch(int32_t argc, Janet *argv) {
     return janet_ckeywordv("arm");
 #elif (defined(__sparc__))
     return janet_ckeywordv("sparc");
+#elif (defined(__ppc__))
+    return janet_ckeywordv("ppc");
 #else
     return janet_ckeywordv("unknown");
 #endif
@@ -508,39 +514,11 @@ static Janet os_time(int32_t argc, Janet *argv) {
     return janet_wrap_number(dtime);
 }
 
-/* Clock shims */
-#ifdef JANET_WINDOWS
-static int gettime(struct timespec *spec) {
-    FILETIME ftime;
-    GetSystemTimeAsFileTime(&ftime);
-    int64_t wintime = (int64_t)(ftime.dwLowDateTime) | ((int64_t)(ftime.dwHighDateTime) << 32);
-    /* Windows epoch is January 1, 1601 apparently */
-    wintime -= 116444736000000000LL;
-    spec->tv_sec  = wintime / 10000000LL;
-    /* Resolution is 100 nanoseconds. */
-    spec->tv_nsec = wintime % 10000000LL * 100;
-    return 0;
-}
-#elif defined(__MACH__)
-static int gettime(struct timespec *spec) {
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    spec->tv_sec = mts.tv_sec;
-    spec->tv_nsec = mts.tv_nsec;
-    return 0;
-}
-#else
-#define gettime(TV) clock_gettime(CLOCK_MONOTONIC, (TV))
-#endif
-
 static Janet os_clock(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 0);
     (void) argv;
     struct timespec tv;
-    if (gettime(&tv)) janet_panic("could not get time");
+    if (janet_gettime(&tv)) janet_panic("could not get time");
     double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
     return janet_wrap_number(dtime);
 }
@@ -604,10 +582,11 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
             v = v >> 8;
         }
     }
-#elif defined(JANET_LINUX)
+#elif defined(JANET_LINUX) || ( defined(JANET_APPLE) && !defined(MAC_OS_X_VERSION_10_7) )
     /* We should be able to call getrandom on linux, but it doesn't seem
        to be uniformly supported on linux distros.
-       In both cases, use this fallback path for now... */
+       On Mac, arc4random_buf wasn't available on until 10.7.
+       In these cases, use this fallback path for now... */
     int rc;
     int randfd;
     RETRY_EINTR(randfd, open("/dev/urandom", O_RDONLY | O_CLOEXEC));
@@ -624,7 +603,7 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
         n -= nread;
     }
     RETRY_EINTR(rc, close(randfd));
-#elif defined(JANET_BSD) || defined(JANET_APPLE)
+#elif defined(JANET_BSD) || defined(MAC_OS_X_VERSION_10_7)
     (void) genericerr;
     arc4random_buf(buffer->data + offset, n);
 #else

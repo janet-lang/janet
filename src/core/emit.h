@@ -42,6 +42,9 @@ int32_t janetc_emit_ssi(JanetCompiler *c, uint8_t op, JanetSlot s1, JanetSlot s2
 int32_t janetc_emit_ssu(JanetCompiler *c, uint8_t op, JanetSlot s1, JanetSlot s2, uint8_t immediate, int wr);
 int32_t janetc_emit_sss(JanetCompiler *c, uint8_t op, JanetSlot s1, JanetSlot s2, JanetSlot s3, int wr);
 
+/* Check if two slots are equivalent */
+int janetc_sequal(JanetSlot x, JanetSlot y);
+
 /* Move value from one slot to another. Cannot copy to constant slots. */
 void janetc_copy(JanetCompiler *c, JanetSlot dest, JanetSlot src);
 

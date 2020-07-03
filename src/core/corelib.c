@@ -404,9 +404,11 @@ static Janet janet_core_gcsetinterval(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     size_t s = janet_getsize(argv, 0);
     /* limit interval to 48 bits */
-    if (s > 0xFFFFFFFFFFFFUl) {
+#ifdef JANET_64
+    if (s >> 48) {
         janet_panic("interval too large");
     }
+#endif
     janet_vm_gc_interval = s;
     return janet_wrap_nil();
 }
@@ -968,6 +970,10 @@ static const uint32_t remainder_asm[] = {
     JOP_REMAINDER | (1 << 24),
     JOP_RETURN
 };
+static const uint32_t cmp_asm[] = {
+    JOP_COMPARE | (1 << 24),
+    JOP_RETURN
+};
 #endif /* ifdef JANET_BOOTSTRAP */
 
 /*
@@ -1024,6 +1030,11 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                     "%", 2, 2, 2, 2, remainder_asm, sizeof(remainder_asm),
                     JDOC("(% dividend divisor)\n\n"
                          "Returns the remainder of dividend / divisor."));
+    janet_quick_asm(env, JANET_FUN_CMP,
+                    "cmp", 2, 2, 2, 2, cmp_asm, sizeof(cmp_asm),
+                    JDOC("(cmp x y)\n\n"
+                         "Returns -1 if x is strictly less than y, 1 if y is strictly greater "
+                         "than x, and 0 otherwise. To return 0, x and y must be the exact same type."));
     janet_quick_asm(env, JANET_FUN_NEXT,
                     "next", 2, 1, 2, 2, next_asm, sizeof(next_asm),
                     JDOC("(next ds &opt key)\n\n"

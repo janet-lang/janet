@@ -188,7 +188,7 @@ static void janet_escape_buffer_b(JanetBuffer *buffer, JanetBuffer *bx) {
 void janet_to_string_b(JanetBuffer *buffer, Janet x) {
     switch (janet_type(x)) {
         case JANET_NIL:
-            janet_buffer_push_cstring(buffer, "nil");
+            janet_buffer_push_cstring(buffer, "");
             break;
         case JANET_BOOLEAN:
             janet_buffer_push_cstring(buffer,
@@ -277,6 +277,9 @@ void janet_description_b(JanetBuffer *buffer, Janet x) {
     switch (janet_type(x)) {
         default:
             break;
+        case JANET_NIL:
+            janet_buffer_push_cstring(buffer, "nil");
+            return;
         case JANET_KEYWORD:
             janet_buffer_push_u8(buffer, ':');
             break;

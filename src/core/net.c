@@ -113,7 +113,7 @@ static JanetStream *make_stream(SOCKET fd, uint32_t flags) {
 static JanetStream *make_stream(int fd, uint32_t flags) {
     JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
     janet_pollable_init(stream, fd);
-#ifndef SOCK_CLOEXEC
+#if !defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
     int extra = O_CLOEXEC;
 #else
     int extra = 0;

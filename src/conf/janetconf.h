@@ -41,7 +41,8 @@
 /* #define JANET_API __attribute__((visibility ("default"))) */
 
 /* These settings should be specified before amalgamation is
- * built. */
+ * built. Any build with these set should be considered non-standard, and
+ * certain Janet libraries should be expected not to work. */
 /* #define JANET_NO_DOCSTRINGS */
 /* #define JANET_NO_SOURCEMAPS */
 /* #define JANET_REDUCED_OS */
@@ -52,13 +53,13 @@
 /* #define JANET_NO_TYPED_ARRAY */
 /* #define JANET_NO_INT_TYPES */
 /* #define JANET_NO_EV */
+/* #define JANET_NO_REALPATH */
+/* #define JANET_NO_SYMLINKS */
+/* #define JANET_NO_UMASK */
 
 /* Other settings */
 /* #define JANET_NO_PRF */
 /* #define JANET_NO_UTC_MKTIME */
-/* #define JANET_NO_REALPATH */
-/* #define JANET_NO_SYMLINKS */
-/* #define JANET_NO_UMASK */
 /* #define JANET_OUT_OF_MEMORY do { printf("janet out of memory\n"); exit(1); } while (0) */
 /* #define JANET_EXIT(msg) do { printf("C assert failed executing janet: %s\n", msg); exit(1); } while (0) */
 /* #define JANET_TOP_LEVEL_SIGNAL(msg) call_my_function((msg), stderr) */
@@ -68,5 +69,8 @@
 /* #define JANET_STACK_MAX 16384 */
 /* #define JANET_OS_NAME my-custom-os */
 /* #define JANET_ARCH_NAME pdp-8 */
+
+/* Main client settings, does not affect library code */
+/* #define JANET_SIMPLE_GETLINE */
 
 #endif /* end of include guard: JANETCONF_H */

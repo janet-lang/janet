@@ -757,7 +757,7 @@ int main(int argc, const char **argv) {
         (os/execute [(git-path) "reset" "--hard" tag] :p))
       (unless (dyn :offline)
         (os/execute [(git-path) "submodule" "update" "--init" "--recursive"] :p))
-      (import-rules "./project.janet")
+      (import-rules "./project.janet" true)
       (unless no-deps (do-rule "install-deps"))
       (do-rule "build")
       (do-rule "install"))
@@ -1069,36 +1069,47 @@ usage: jpm [--key=value, --flag] ... [subcommand] [args] ...
 
 Run from a directory containing a project.janet file to perform operations
 on a project, or from anywhere to do operations on the global module cache (modpath).
+Commands that need write permission to the modpath are considered privileged commands - in
+some environments they may require super user privileges.
+Other project-level commands need to have a ./project.janet file in the current directory.
 
-Subcommands are:
-  build : build all artifacts
+Unprivileged global subcommands:
   help : show this help text
+  show-paths : prints the paths that will be used to install things.
+  quickbin entry executable : Create an executable from a janet script with a main function.
+
+Privileged global subcommands:
   install (repo or name)... : install artifacts. If a repo is given, install the contents of that
                    git repository, assuming that the repository is a jpm project. If not, build
                    and install the current project.
   uninstall (module)... : uninstall a module. If no module is given, uninstall the module
                        defined by the current directory.
-  show-paths : prints the paths that will be used to install things.
-  clean : remove any generated files or artifacts
-  test : run tests. Tests should be .janet files in the test/ directory relative to project.janet.
-  deps : install dependencies for the current project.
   clear-cache : clear the git cache. Useful for updating dependencies.
   clear-manifest : clear the manifest. Useful for fixing broken installs.
-  run rule : run a rule. Can also run custom rules added via (phony "task" [deps...] ...)
-             or (rule "ouput.file" [deps...] ...).
-  rules : list rules available with run.
-  rule-tree (root rule) (depth) : Print a nice tree to see what rules depend on other rules.
-                                  Optinally provide a root rule to start printing from, and a
-                                  max depth to print. Without these options, all rules will print
-                                  their full dependency tree.
-  update-pkgs : Update the current package listing from the remote git repository selected.
-  quickbin entry executable : Create an executable from a janet script with a main function.
   make-lockfile (lockfile) : Create a lockfile based on repositories in the cache. The
             lockfile will record the exact versions of dependencies used to ensure a reproducible
             build. Lockfiles are best used with applications, not libraries. The default lockfile
             name is lockfile.jdn.
   load-lockfile (lockfile) : Install modules from a lockfile in a reproducible way. The
                              default lockfile name is lockfile.jdn.
+  update-pkgs : Update the current package listing from the remote git repository selected.
+
+Privileged project subcommands:
+  deps : install dependencies for the current project.
+  install : install artifacts of the current project.
+  uninstall : uninstall the current project's artifacts.
+
+Unprivileged project subcommands:
+  build : build all artifacts
+  clean : remove any generated files or artifacts
+  test : run tests. Tests should be .janet files in the test/ directory relative to project.janet.
+  run rule : run a rule. Can also run custom rules added via (phony "task" [deps...] ...)
+             or (rule "ouput.file" [deps...] ...).
+  rules : list rules available with run.
+  rule-tree (root rule) (depth) : Print a nice tree to see what rules depend on other rules.
+                                  Optionally provide a root rule to start printing from, and a
+                                  max depth to print. Without these options, all rules will print
+                                  their full dependency tree.
   debug-repl : Run a repl in the context of the current project.janet file. This lets you run rules and
                otherwise debug the current project.janet file.
 
@@ -1171,7 +1182,7 @@ Flags are:
 
 (defn list-rules
   [&opt ctx]
-  (import-rules "./project.janet" true)
+  (import-rules "./project.janet")
   (def ks (sort (seq [k :keys (dyn :rules)] k)))
   (each k ks (print k)))
 

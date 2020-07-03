@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- The gc interval is now autotuned, to prevent very bad gc behavior.
+- Improvements to the bytecode compiler, Janet will now generate more efficient bytecode.
+- Add `peg/find`, `peg/find-all`, `peg/replace`, and `peg/replace-all`
+- Add `math/nan`
+- Add `forv` macro
+- Add `symbol/slice`
+- Add `keyword/slice`
+- Allow cross compilation with Makefile.
+- Change `compare-primitve` to `cmp` and make it more efficient.
+- Add `reverse!` for reversing an array or buffer in place.
 - `janet_dobytes` and `janet_dostring` return parse errors in \*out
 - Add `repeat` macro for iterating something n times.
 - Add `eachy` (each yield) macro for iterating a fiber.
