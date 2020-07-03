@@ -675,6 +675,18 @@ static Janet cfun_thread_close(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
+static Janet cfun_thread_exit(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_arity(argc, 0, 1);
+#if defined(JANET_WINDOWS)
+    int32_t flag = janet_optinteger(argv, argc, 0, 0);
+    ExitThread(flag);
+#else
+    pthread_exit(NULL);
+#endif
+    return janet_wrap_nil();
+}
+
 static const JanetMethod janet_thread_methods[] = {
     {"send", cfun_thread_send},
     {"close", cfun_thread_close},
@@ -722,6 +734,12 @@ static const JanetReg threadlib_cfuns[] = {
         JDOC("(thread/close thread)\n\n"
              "Close a thread, unblocking it and ending communication with it. Note that closing "
              "a thread is idempotent and does not cancel the thread's operation. Returns nil.")
+    },
+    {
+        "thread/exit", cfun_thread_exit,
+        JDOC("(thread/exit &opt code)\n\n"
+             "Exit from the current thread. If no more threads are running, ends the process, but otherwise does "
+             "not end the current process.")
     },
     {NULL, NULL, NULL}
 };
