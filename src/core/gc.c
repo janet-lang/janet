@@ -285,6 +285,9 @@ static void janet_deinit_block(JanetGCObject *mem) {
             break;
         case JANET_MEMORY_FIBER:
             free(((JanetFiber *)mem)->data);
+#ifdef JANET_EV
+            free(((JanetFiber *)mem)->waiting);
+#endif
             break;
         case JANET_MEMORY_BUFFER:
             janet_buffer_deinit((JanetBuffer *) mem);

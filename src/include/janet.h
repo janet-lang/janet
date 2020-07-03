@@ -472,6 +472,59 @@ typedef void *JanetAbstract;
 #define JANET_TFLAG_CALLABLE (JANET_TFLAG_FUNCTION | JANET_TFLAG_CFUNCTION | \
         JANET_TFLAG_LENGTHABLE | JANET_TFLAG_ABSTRACT)
 
+/* Event Loop Types */
+#ifdef JANET_EV
+#define JANET_POLL_FLAG_CLOSED 0x1
+#define JANET_POLL_FLAG_SOCKET 0x2
+
+typedef enum {
+    JANET_ASYNC_EVENT_INIT,
+    JANET_ASYNC_EVENT_MARK,
+    JANET_ASYNC_EVENT_DEINIT,
+    JANET_ASYNC_EVENT_CLOSE,
+    JANET_ASYNC_EVENT_READ,
+    JANET_ASYNC_EVENT_WRITE,
+    JANET_ASYNC_EVENT_TIMEOUT
+} JanetAsyncEvent;
+
+#define JANET_ASYNC_LISTEN_READ (1 << JANET_ASYNC_EVENT_READ)
+#define JANET_ASYNC_LISTEN_WRITE (1 << JANET_ASYNC_EVENT_WRITE)
+
+typedef enum {
+    JANET_ASYNC_STATUS_NOT_DONE,
+    JANET_ASYNC_STATUS_DONE
+} JanetAsyncStatus;
+
+/* Typedefs */
+#ifdef JANET_WINDOWS
+typedef HANDLE JanetPollType;
+#else
+typedef int JanetPollType;
+#endif
+typedef struct JanetListenerState JanetListenerState;
+typedef struct JanetPollable JanetPollable;
+typedef JanetAsyncStatus(*JanetListener)(JanetListenerState *state, JanetAsyncEvent event);
+
+/* Wrapper around file descriptors and HANDLEs that can be polled. */
+struct JanetPollable {
+    JanetPollType handle;
+    uint32_t flags;
+    JanetListenerState *state;
+    /* internal */
+    int _mask;
+};
+
+/* Interface for state machine based event loop */
+struct JanetListenerState {
+    JanetListener machine;
+    JanetFiber *fiber;
+    JanetPollable *pollable;
+    /* internal */
+    int _mask;
+    JanetListenerState *_next;
+};
+#endif
+
 /* We provide three possible implementations of Janets. The preferred
  * nanboxing approach, for 32 or 64 bits, and the standard C version. Code in the rest of the
  * application must interact through exposed interface. */
@@ -739,11 +792,16 @@ struct JanetFiber {
     int32_t frame; /* Index of the stack frame */
     int32_t stackstart; /* Beginning of next args */
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
-    int32_t capacity;
+    int32_t capacity; /* How big is the stack memory */
     int32_t maxstack; /* Arbitrary defined limit for stack overflow */
     JanetTable *env; /* Dynamic bindings table (usually current environment). */
-    Janet *data;
+    Janet *data; /* Dynamically resized stack memory */
     JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
+#ifdef JANET_EV
+    JanetListenerState **waiting;
+#else
+    void *waiting;
+#endif
 };
 
 /* Mark if a stack frame is a tail call for debugging */
@@ -1141,57 +1199,7 @@ extern enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
 
 /***** START SECTION MAIN *****/
 
-/* Event Loop */
 #ifdef JANET_EV
-#define JANET_POLL_FLAG_CLOSED 0x1
-#define JANET_POLL_FLAG_SOCKET 0x2
-
-typedef enum {
-    JANET_ASYNC_EVENT_INIT,
-    JANET_ASYNC_EVENT_MARK,
-    JANET_ASYNC_EVENT_DEINIT,
-    JANET_ASYNC_EVENT_CLOSE,
-    JANET_ASYNC_EVENT_READ,
-    JANET_ASYNC_EVENT_WRITE,
-    JANET_ASYNC_EVENT_TIMEOUT
-} JanetAsyncEvent;
-
-#define JANET_ASYNC_LISTEN_READ (1 << JANET_ASYNC_EVENT_READ)
-#define JANET_ASYNC_LISTEN_WRITE (1 << JANET_ASYNC_EVENT_WRITE)
-
-typedef enum {
-    JANET_ASYNC_STATUS_NOT_DONE,
-    JANET_ASYNC_STATUS_DONE
-} JanetAsyncStatus;
-
-/* Typedefs */
-#ifdef JANET_WINDOWS
-typedef HANDLE JanetPollType;
-#else
-typedef int JanetPollType;
-#endif
-typedef struct JanetListenerState JanetListenerState;
-typedef struct JanetPollable JanetPollable;
-typedef JanetAsyncStatus(*JanetListener)(JanetListenerState *state, JanetAsyncEvent event);
-
-/* Wrapper around file descriptors and HANDLEs that can be polled. */
-struct JanetPollable {
-    JanetPollType handle;
-    uint32_t flags;
-    JanetListenerState *state;
-    /* internal */
-    int _mask;
-};
-
-/* Interface for state machine based event loop */
-struct JanetListenerState {
-    JanetListener machine;
-    JanetFiber *fiber;
-    JanetPollable *pollable;
-    /* internal */
-    int _mask;
-    JanetListenerState *_next;
-};
 
 /* Run the event loop */
 JANET_API void janet_loop(void);
