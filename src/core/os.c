@@ -514,39 +514,11 @@ static Janet os_time(int32_t argc, Janet *argv) {
     return janet_wrap_number(dtime);
 }
 
-/* Clock shims */
-#ifdef JANET_WINDOWS
-static int gettime(struct timespec *spec) {
-    FILETIME ftime;
-    GetSystemTimeAsFileTime(&ftime);
-    int64_t wintime = (int64_t)(ftime.dwLowDateTime) | ((int64_t)(ftime.dwHighDateTime) << 32);
-    /* Windows epoch is January 1, 1601 apparently */
-    wintime -= 116444736000000000LL;
-    spec->tv_sec  = wintime / 10000000LL;
-    /* Resolution is 100 nanoseconds. */
-    spec->tv_nsec = wintime % 10000000LL * 100;
-    return 0;
-}
-#elif defined(__MACH__)
-static int gettime(struct timespec *spec) {
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    spec->tv_sec = mts.tv_sec;
-    spec->tv_nsec = mts.tv_nsec;
-    return 0;
-}
-#else
-#define gettime(TV) clock_gettime(CLOCK_MONOTONIC, (TV))
-#endif
-
 static Janet os_clock(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 0);
     (void) argv;
     struct timespec tv;
-    if (gettime(&tv)) janet_panic("could not get time");
+    if (janet_gettime(&tv)) janet_panic("could not get time");
     double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
     return janet_wrap_number(dtime);
 }

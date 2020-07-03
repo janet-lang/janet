@@ -97,6 +97,13 @@ void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p);
 void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 #endif
 
+/* Clock gettime */
+#if !defined(JANET_REDUCED_OS) || !defined(JANET_SINGLE_THREADED)
+#include <time.h>
+#define JANET_GETTIME
+int janet_gettime(struct timespec *spec);
+#endif
+
 /* Initialize builtin libraries */
 void janet_lib_io(JanetTable *env);
 void janet_lib_math(JanetTable *env);
