@@ -499,6 +499,10 @@ static int thread_worker(JanetMailboxPair *pair) {
     /* Call function */
     Janet argv[1] = { parentv };
     fiber = janet_fiber(func, 64, 1, argv);
+    if (pair->flags & JANET_THREAD_HEAVYWEIGHT) {
+        fiber->env = janet_table(0);
+        fiber->env->proto = janet_core_env(NULL);
+    }
     JanetSignal sig = janet_continue(fiber, janet_wrap_nil(), &out);
     if (sig != JANET_SIGNAL_OK && sig < JANET_SIGNAL_USER0) {
         janet_eprintf("in thread %v: ", janet_wrap_abstract(janet_make_thread(pair->newbox, encode)));
