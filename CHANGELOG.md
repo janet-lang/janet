@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `math/int-min`, `math/int-max`, `math/int32-min`, and `math/int32-max` for getting integer limits.
 - The gc interval is now autotuned, to prevent very bad gc behavior.
 - Improvements to the bytecode compiler, Janet will now generate more efficient bytecode.
 - Add `peg/find`, `peg/find-all`, `peg/replace`, and `peg/replace-all`

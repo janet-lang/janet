@@ -499,6 +499,14 @@ void janet_lib_math(JanetTable *env) {
               JDOC("The number representing positive infinity"));
     janet_def(env, "math/-inf", janet_wrap_number(-INFINITY),
               JDOC("The number representing negative infinity"));
+    janet_def(env, "math/int32-min", janet_wrap_number(INT32_MIN),
+              JDOC("The maximum contiguous integer representable by a 32 bit signed integer"));
+    janet_def(env, "math/int32-max", janet_wrap_number(INT32_MAX),
+              JDOC("The minimum contiguous integer represtenable by a 32 bit signed integer"));
+    janet_def(env, "math/int-min", janet_wrap_number(JANET_INTMIN_DOUBLE),
+              JDOC("The maximum contiguous integer representable by a double (2^53)"));
+    janet_def(env, "math/int-max", janet_wrap_number(JANET_INTMAX_DOUBLE),
+              JDOC("The minimum contiguous integer represtenable by a double (-(2^53))"));
 #ifdef NAN
     janet_def(env, "math/nan", janet_wrap_number(NAN),
 #else
