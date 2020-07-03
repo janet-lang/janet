@@ -26,6 +26,9 @@
 #include "util.h"
 #include "state.h"
 #include "gc.h"
+#ifdef JANET_WINDOWS
+#include <windows.h>
+#endif
 #endif
 
 #include <inttypes.h>

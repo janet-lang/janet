@@ -1202,13 +1202,13 @@
     (if x nil (set res x)))
   res)
 
-(defn reverse
+(defn reverse!
   "Reverses the order of the elements in a given array or buffer and returns it
   mutated."
   [t]
   (def len-1 (- (length t) 1))
   (def half (/ len-1 2))
-  (for i 0 half
+  (forv i 0 half
     (def j (- len-1 i))
     (def l (in t i))
     (def r (in t j))
@@ -1216,7 +1216,7 @@
     (put t j l))
   t)
 
-(defn reversed
+(defn reverse
   "Reverses the order of the elements in a given array or tuple and returns
   a new array. If string or buffer is provided function returns array of chars reversed."
   [t]
