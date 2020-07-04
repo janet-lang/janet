@@ -741,6 +741,7 @@ static void janet_quick_asm(
         JANET_OUT_OF_MEMORY;
     }
     memcpy(def->bytecode, bytecode, bytecode_size);
+    janet_def_addflags(def);
     janet_def(env, name, janet_wrap_function(janet_thunk(def)), doc);
 }
 

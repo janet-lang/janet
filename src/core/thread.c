@@ -375,8 +375,12 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
 
             /* Handle errors */
             if (setjmp(buf)) {
-                /* Cleanup jmp_buf, keep lock */
+                /* Cleanup jmp_buf, return error.
+                 * Do not ignore bad messages as before. */
                 janet_vm_jmp_buf = old_buf;
+                *msg_out = *janet_vm_return_reg;
+                janet_mailbox_unlock(mailbox);
+                return 2;
             } else {
                 JanetBuffer *msgbuf = mailbox->messages + mailbox->messageFirst;
                 mailbox->messageCount--;
@@ -411,7 +415,6 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
             return 1;
         }
     }
-
 }
 
 static int janet_thread_getter(void *p, Janet key, Janet *out);
@@ -664,6 +667,8 @@ static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
             break;
         case 1:
             janet_panicf("timeout after %f seconds", wait);
+        case 2:
+            janet_panicf("failed to receive message: %v", out);
     }
     return out;
 }
