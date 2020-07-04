@@ -169,7 +169,9 @@ static char *sdup(const char *s) {
 /* Ansi terminal raw mode */
 static int rawmode(void) {
     struct termios t;
+#ifndef JANET_SINGLE_THREADED
     pthread_mutex_lock(&gbl_lock);
+#endif
     if (!isatty(STDIN_FILENO)) goto fatal;
     if (tcgetattr(STDIN_FILENO, &gbl_termios_start) == -1) goto fatal;
     t = gbl_termios_start;
@@ -183,7 +185,9 @@ static int rawmode(void) {
     return 0;
 fatal:
     errno = ENOTTY;
+#ifndef JANET_SINGLE_THREADED
     pthread_mutex_unlock(&gbl_lock);
+#endif
     return -1;
 }
 
@@ -191,7 +195,9 @@ fatal:
 static void norawmode(void) {
     if (gbl_israwmode && tcsetattr(STDIN_FILENO, TCSAFLUSH, &gbl_termios_start) != -1)
         gbl_israwmode = 0;
+#ifndef JANET_SINGLE_THREADED
     pthread_mutex_unlock(&gbl_lock);
+#endif
 }
 
 static int curpos(void) {
