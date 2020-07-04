@@ -898,8 +898,8 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal closure bitset if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASCLOBITSET) {
-            size_t n = (size_t)(def->slotcount + 31) >> 5;
-            def->closure_bitset = malloc(sizeof(uint32_t) * n);
+            int32_t n = (def->slotcount + 31) >> 5;
+            def->closure_bitset = malloc(sizeof(uint32_t) * (size_t) n);
             if (NULL == def->closure_bitset) {
                 JANET_OUT_OF_MEMORY;
             }

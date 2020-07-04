@@ -339,7 +339,11 @@ static int io_file_get(void *p, Janet key, Janet *out) {
 static void io_file_marshal(void *p, JanetMarshalContext *ctx) {
     JanetFile *iof = (JanetFile *)p;
     if (ctx->flags & JANET_MARSHAL_UNSAFE) {
+#ifdef JANET_WINDOWS
+        janet_marshal_int(ctx, _fileno(iof->file));
+#else
         janet_marshal_int(ctx, fileno(iof->file));
+#endif
         janet_marshal_int(ctx, iof->flags);
     } else {
         janet_panic("cannot marshal file in safe mode");
@@ -359,7 +363,11 @@ static void *io_file_unmarshal(JanetMarshalContext *ctx) {
         } else if (flags & JANET_FILE_WRITE) {
             fmt[index++] = 'w';
         }
+#ifdef JANET_WINDOWS
+        iof->file = _fdopen(fd, fmt);
+#else
         iof->file = fdopen(fd, fmt);
+#endif
         if (iof->file == NULL) {
             iof->flags = JANET_FILE_CLOSED;
         } else {
