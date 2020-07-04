@@ -722,6 +722,8 @@ void janet_def_addflags(JanetFuncDef *def) {
 }
 
 /* Compile a funcdef */
+/* Once the various other settings of the FuncDef have been tweaked,
+ * call janet_def_addflags to set the proper flags for the funcdef */
 JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     JanetScope *scope = c->scope;
     JanetFuncDef *def = janet_funcdef_alloc();
@@ -789,9 +791,6 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Pop the scope */
     janetc_popscope(c);
 
-    /* Finalize some flags */
-    janet_def_addflags(def);
-
     return def;
 }
 
@@ -843,6 +842,7 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
     if (c.result.status == JANET_COMPILE_OK) {
         JanetFuncDef *def = janetc_pop_funcdef(&c);
         def->name = janet_cstring("_thunk");
+        janet_def_addflags(def);
         c.result.funcdef = def;
     } else {
         c.result.error_mapping = c.current_mapping;
