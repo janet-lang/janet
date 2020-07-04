@@ -1006,8 +1006,10 @@ int main(int argc, char **argv) {
     SetConsoleOutputCP(65001);
 #endif
 
+#if !defined(JANET_WINDOWS) && !defined(JANET_SIMPLE_GETLINE)
     /* Try and not leave the terminal in a bad state */
     atexit(norawmode);
+#endif
 
     /* Set up VM */
     janet_init();
