@@ -140,6 +140,15 @@ when needed. clear-cache is a global command, so a project.janet is not
 required.
 
 .TP
+.BR list-installed
+List all installed packages in the current syspath.
+
+.TP
+.BR list-pkgs [\fBsearch\fR]
+List all package aliases in the current package listing that contain the given search string.
+If no search string is given, prints the entire listing.
+
+.TP
 .BR clear-manifest
 jpm creates a manifest directory that contains a list of all installed files.
 By deleting this directory, jpm will think that nothing is installed and will

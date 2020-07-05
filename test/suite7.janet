@@ -315,4 +315,9 @@
 
 (assert (= 40 counter) "if-with 1")
 
+(def a @[])
+(eachk x [:a :b :c :d]
+  (array/push a x))
+(assert (deep= (range 4) a) "eachk 1")
+
 (end-suite)

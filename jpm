@@ -1106,6 +1106,9 @@ Unprivileged project subcommands:
   run rule : run a rule. Can also run custom rules added via (phony "task" [deps...] ...)
              or (rule "ouput.file" [deps...] ...).
   rules : list rules available with run.
+  list-installed : list installed packages in the current syspath.
+  list-pkgs (search) : list packages in the package listing that the contain the string search.
+                       If no search pattern is given, prints the entire package listing.
   rule-tree (root rule) (depth) : Print a nice tree to see what rules depend on other rules.
                                   Optionally provide a root rule to start printing from, and a
                                   max depth to print. Without these options, all rules will print
@@ -1186,6 +1189,20 @@ Flags are:
   (def ks (sort (seq [k :keys (dyn :rules)] k)))
   (each k ks (print k)))
 
+(defn list-installed
+  []
+  (each x (os/dir (find-manifest-dir))
+    (if (string/has-suffix? ".jdn" x)
+      (print (string/slice x 0 -5)))))
+
+(defn list-pkgs
+  [&opt search]
+  (def pkgs-mod (require "pkgs"))
+  (eachk p (get-in pkgs-mod ['packages :value] [])
+    (if search
+      (if (string/find search p) (print p))
+      (print p))))
+
 (defn update-pkgs
   []
   (install-git (dyn :pkglist default-pkglist)))
@@ -1227,6 +1244,8 @@ Flags are:
    "debug-repl" jpm-debug-repl
    "rule-tree" show-rule-tree
    "show-paths" show-paths
+   "list-installed" list-installed
+   "list-pkgs" list-pkgs
    "clear-cache" clear-cache
    "clear-manifest" clear-manifest
    "run" local-rule
