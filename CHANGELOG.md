@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `jpm list-pkgs` subcommand to see which package aliases are in the listing.
 - Add `jpm list-installed` subcommand to see which packages are installed.
 - Add `math/int-min`, `math/int-max`, `math/int32-min`, and `math/int32-max` for getting integer limits.
 - The gc interval is now autotuned, to prevent very bad gc behavior.

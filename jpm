@@ -1191,17 +1191,26 @@ Flags are:
 
 (defn list-installed
   []
-  (each x (os/dir (find-manifest-dir))
-    (if (string/has-suffix? ".jdn" x)
-      (print (string/slice x 0 -5)))))
+  (def xs
+    (seq [x :in (os/dir (find-manifest-dir))
+          :when (string/has-suffix? ".jdn" x)]
+      (string/slice x 0 -5)))
+  (sort xs)
+  (each x xs (print x)))
 
 (defn list-pkgs
   [&opt search]
+  (def [ok _] (module/find "pkgs"))
+  (unless ok
+    (eprint "no local package listing found. Run `jpm update-pkgs` to get listing.")
+    (os/exit 1))
   (def pkgs-mod (require "pkgs"))
-  (eachk p (get-in pkgs-mod ['packages :value] [])
-    (if search
-      (if (string/find search p) (print p))
-      (print p))))
+  (def ps
+    (seq [p :keys (get-in pkgs-mod ['packages :value] [])
+          :when (if search (string/find search p) true)]
+      p))
+  (sort ps)
+  (each p ps (print p)))
 
 (defn update-pkgs
   []
