@@ -31,6 +31,11 @@
 #include <stdio.h>
 #include <errno.h>
 
+#if !defined(JANET_REDUCED_OS) || !defined(JANET_SINGLE_THREADED)
+#include <time.h>
+#define JANET_GETTIME
+#endif
+
 /* Handle runtime errors */
 #ifndef JANET_EXIT
 #include <stdio.h>
@@ -75,6 +80,7 @@ Janet janet_dict_get(const JanetKV *buckets, int32_t cap, Janet key);
 void janet_memempty(JanetKV *mem, int32_t count);
 void *janet_memalloc_empty(int32_t count);
 JanetTable *janet_get_core_table(const char *name);
+void janet_def_addflags(JanetFuncDef *def);
 const void *janet_strbinsearch(
     const void *tab,
     size_t tabcount,
@@ -98,12 +104,7 @@ void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cf
 #endif
 
 /* Clock gettime */
-#if !defined(JANET_REDUCED_OS) || !defined(JANET_SINGLE_THREADED)
-#include <time.h>
-#ifndef JANET_WINDOWS
-#include <sys/time.h>
-#endif
-#define JANET_GETTIME
+#ifdef JANET_GETTIME
 int janet_gettime(struct timespec *spec);
 #endif
 

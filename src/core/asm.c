@@ -720,6 +720,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         janet_asm_error(&a, "invalid assembly");
     }
 
+    /* Add final flags */
+    janet_def_addflags(def);
+
     /* Finish everything and return funcdef */
     janet_asm_deinit(&a);
     result.error = NULL;

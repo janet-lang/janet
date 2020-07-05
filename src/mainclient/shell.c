@@ -126,21 +126,28 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 #define JANET_LINE_MAX 1024
 #define JANET_MATCH_MAX 256
 #define JANET_HISTORY_MAX 100
-static JANET_THREAD_LOCAL int gbl_israwmode = 0;
-static JANET_THREAD_LOCAL const char *gbl_prompt = "> ";
-static JANET_THREAD_LOCAL int gbl_plen = 2;
-static JANET_THREAD_LOCAL char gbl_buf[JANET_LINE_MAX];
-static JANET_THREAD_LOCAL int gbl_len = 0;
-static JANET_THREAD_LOCAL int gbl_pos = 0;
-static JANET_THREAD_LOCAL int gbl_cols = 80;
-static JANET_THREAD_LOCAL char *gbl_history[JANET_HISTORY_MAX];
-static JANET_THREAD_LOCAL int gbl_history_count = 0;
-static JANET_THREAD_LOCAL int gbl_historyi = 0;
-static JANET_THREAD_LOCAL int gbl_sigint_flag = 0;
-static JANET_THREAD_LOCAL struct termios gbl_termios_start;
-static JANET_THREAD_LOCAL JanetByteView gbl_matches[JANET_MATCH_MAX];
-static JANET_THREAD_LOCAL int gbl_match_count = 0;
-static JANET_THREAD_LOCAL int gbl_lines_below = 0;
+static int gbl_israwmode = 0;
+static const char *gbl_prompt = "> ";
+static int gbl_plen = 2;
+static char gbl_buf[JANET_LINE_MAX];
+static int gbl_len = 0;
+static int gbl_pos = 0;
+static int gbl_cols = 80;
+static char *gbl_history[JANET_HISTORY_MAX];
+static int gbl_history_count = 0;
+static int gbl_historyi = 0;
+static int gbl_sigint_flag = 0;
+static struct termios gbl_termios_start;
+static JanetByteView gbl_matches[JANET_MATCH_MAX];
+static int gbl_match_count = 0;
+static int gbl_lines_below = 0;
+
+/* Put a lock around this global state so we don't screw up
+ * the terminal in a multithreaded situation */
+#ifndef JANET_SINGLE_THREADED
+#include <pthread.h>
+static pthread_mutex_t gbl_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /* Unsupported terminal list from linenoise */
 static const char *badterms[] = {
@@ -162,6 +169,9 @@ static char *sdup(const char *s) {
 /* Ansi terminal raw mode */
 static int rawmode(void) {
     struct termios t;
+#ifndef JANET_SINGLE_THREADED
+    pthread_mutex_lock(&gbl_lock);
+#endif
     if (!isatty(STDIN_FILENO)) goto fatal;
     if (tcgetattr(STDIN_FILENO, &gbl_termios_start) == -1) goto fatal;
     t = gbl_termios_start;
@@ -175,6 +185,9 @@ static int rawmode(void) {
     return 0;
 fatal:
     errno = ENOTTY;
+#ifndef JANET_SINGLE_THREADED
+    pthread_mutex_unlock(&gbl_lock);
+#endif
     return -1;
 }
 
@@ -182,6 +195,9 @@ fatal:
 static void norawmode(void) {
     if (gbl_israwmode && tcsetattr(STDIN_FILENO, TCSAFLUSH, &gbl_termios_start) != -1)
         gbl_israwmode = 0;
+#ifndef JANET_SINGLE_THREADED
+    pthread_mutex_unlock(&gbl_lock);
+#endif
 }
 
 static int curpos(void) {
@@ -994,6 +1010,11 @@ int main(int argc, char **argv) {
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hOut, dwMode);
     SetConsoleOutputCP(65001);
+#endif
+
+#if !defined(JANET_WINDOWS) && !defined(JANET_SIMPLE_GETLINE)
+    /* Try and not leave the terminal in a bad state */
+    atexit(norawmode);
 #endif
 
     /* Set up VM */

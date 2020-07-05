@@ -37,18 +37,23 @@
 
 static int cfun_io_gc(void *p, size_t len);
 static int io_file_get(void *p, Janet key, Janet *out);
+static void io_file_marshal(void *p, JanetMarshalContext *ctx);
+static void *io_file_unmarshal(JanetMarshalContext *ctx);
 
 const JanetAbstractType janet_file_type = {
     "core/file",
     cfun_io_gc,
     NULL,
     io_file_get,
-    JANET_ATEND_GET
+    NULL,
+    io_file_marshal,
+    io_file_unmarshal,
+    JANET_ATEND_UNMARSHAL
 };
 
 /* Check arguments to fopen */
-static int checkflags(const uint8_t *str) {
-    int flags = 0;
+static int32_t checkflags(const uint8_t *str) {
+    int32_t flags = 0;
     int32_t i;
     int32_t len = janet_string_length(str);
     if (!len || len > 3)
@@ -85,7 +90,7 @@ static int checkflags(const uint8_t *str) {
     return flags;
 }
 
-static Janet makef(FILE *f, int flags) {
+static void *makef(FILE *f, int32_t flags) {
     JanetFile *iof = (JanetFile *) janet_abstract(&janet_file_type, sizeof(JanetFile));
     iof->file = f;
     iof->flags = flags;
@@ -95,7 +100,7 @@ static Janet makef(FILE *f, int flags) {
     if (!(flags & JANET_FILE_NOT_CLOSEABLE))
         fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
 #endif
-    return janet_wrap_abstract(iof);
+    return iof;
 }
 
 /* Open a process */
@@ -104,7 +109,7 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode = NULL;
-    int flags;
+    int32_t flags;
     if (argc == 2) {
         fmode = janet_getkeyword(argv, 1);
         if (janet_string_length(fmode) != 1 ||
@@ -123,7 +128,7 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
     if (!f) {
         return janet_wrap_nil();
     }
-    return makef(f, flags);
+    return janet_makefile(f, flags);
 }
 #endif
 
@@ -141,7 +146,7 @@ static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode;
-    int flags;
+    int32_t flags;
     if (argc == 2) {
         fmode = janet_getkeyword(argv, 1);
         flags = checkflags(fmode);
@@ -150,7 +155,7 @@ static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
         flags = JANET_FILE_READ;
     }
     FILE *f = fopen((const char *)fname, (const char *)fmode);
-    return f ? makef(f, flags) : janet_wrap_nil();
+    return f ? janet_makefile(f, flags) : janet_wrap_nil();
 }
 
 /* Read up to n bytes into buffer. */
@@ -329,6 +334,49 @@ static int io_file_get(void *p, Janet key, Janet *out) {
     if (!janet_checktype(key, JANET_KEYWORD))
         return 0;
     return janet_getmethod(janet_unwrap_keyword(key), io_file_methods, out);
+}
+
+static void io_file_marshal(void *p, JanetMarshalContext *ctx) {
+    JanetFile *iof = (JanetFile *)p;
+    if (ctx->flags & JANET_MARSHAL_UNSAFE) {
+#ifdef JANET_WINDOWS
+        janet_marshal_int(ctx, _fileno(iof->file));
+#else
+        janet_marshal_int(ctx, fileno(iof->file));
+#endif
+        janet_marshal_int(ctx, iof->flags);
+    } else {
+        janet_panic("cannot marshal file in safe mode");
+    }
+}
+
+static void *io_file_unmarshal(JanetMarshalContext *ctx) {
+    if (ctx->flags & JANET_MARSHAL_UNSAFE) {
+        JanetFile *iof = janet_unmarshal_abstract(ctx, sizeof(JanetFile));
+        int32_t fd = janet_unmarshal_int(ctx);
+        int32_t flags = janet_unmarshal_int(ctx);
+        char fmt[4] = {0};
+        int index = 0;
+        if (flags & JANET_FILE_READ) fmt[index++] = 'r';
+        if (flags & JANET_FILE_APPEND) {
+            fmt[index++] = 'a';
+        } else if (flags & JANET_FILE_WRITE) {
+            fmt[index++] = 'w';
+        }
+#ifdef JANET_WINDOWS
+        iof->file = _fdopen(fd, fmt);
+#else
+        iof->file = fdopen(fd, fmt);
+#endif
+        if (iof->file == NULL) {
+            iof->flags = JANET_FILE_CLOSED;
+        } else {
+            iof->flags = flags;
+        }
+        return iof;
+    } else {
+        janet_panic("cannot unmarshal file in safe mode");
+    }
 }
 
 FILE *janet_dynfile(const char *name, FILE *def) {
@@ -677,7 +725,7 @@ FILE *janet_getfile(const Janet *argv, int32_t n, int *flags) {
 }
 
 Janet janet_makefile(FILE *f, int flags) {
-    return makef(f, flags);
+    return janet_wrap_abstract(makef(f, flags));
 }
 
 JanetAbstract janet_checkfile(Janet j) {
@@ -693,18 +741,18 @@ FILE *janet_unwrapfile(Janet j, int *flags) {
 /* Module entry point */
 void janet_lib_io(JanetTable *env) {
     janet_core_cfuns(env, NULL, io_cfuns);
-
+    janet_register_abstract_type(&janet_file_type);
     /* stdout */
     janet_core_def(env, "stdout",
-                   makef(stdout, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
+                   janet_makefile(stdout, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
                    JDOC("The standard output file."));
     /* stderr */
     janet_core_def(env, "stderr",
-                   makef(stderr, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
+                   janet_makefile(stderr, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
                    JDOC("The standard error file."));
     /* stdin */
     janet_core_def(env, "stdin",
-                   makef(stdin, JANET_FILE_READ | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
+                   janet_makefile(stdin, JANET_FILE_READ | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
                    JDOC("The standard input file."));
 
 }

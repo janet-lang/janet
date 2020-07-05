@@ -375,8 +375,12 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
 
             /* Handle errors */
             if (setjmp(buf)) {
-                /* Cleanup jmp_buf, keep lock */
+                /* Cleanup jmp_buf, return error.
+                 * Do not ignore bad messages as before. */
                 janet_vm_jmp_buf = old_buf;
+                *msg_out = *janet_vm_return_reg;
+                janet_mailbox_unlock(mailbox);
+                return 2;
             } else {
                 JanetBuffer *msgbuf = mailbox->messages + mailbox->messageFirst;
                 mailbox->messageCount--;
@@ -411,7 +415,6 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
             return 1;
         }
     }
-
 }
 
 static int janet_thread_getter(void *p, Janet key, Janet *out);
@@ -499,6 +502,10 @@ static int thread_worker(JanetMailboxPair *pair) {
     /* Call function */
     Janet argv[1] = { parentv };
     fiber = janet_fiber(func, 64, 1, argv);
+    if (pair->flags & JANET_THREAD_HEAVYWEIGHT) {
+        fiber->env = janet_table(0);
+        fiber->env->proto = janet_core_env(NULL);
+    }
     JanetSignal sig = janet_continue(fiber, janet_wrap_nil(), &out);
     if (sig != JANET_SIGNAL_OK && sig < JANET_SIGNAL_USER0) {
         janet_eprintf("in thread %v: ", janet_wrap_abstract(janet_make_thread(pair->newbox, encode)));
@@ -660,6 +667,8 @@ static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
             break;
         case 1:
             janet_panicf("timeout after %f seconds", wait);
+        case 2:
+            janet_panicf("failed to receive message: %v", out);
     }
     return out;
 }
@@ -668,6 +677,18 @@ static Janet cfun_thread_close(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetThread *thread = janet_getthread(argv, 0);
     janet_close_thread(thread);
+    return janet_wrap_nil();
+}
+
+static Janet cfun_thread_exit(int32_t argc, Janet *argv) {
+    (void) argv;
+    janet_arity(argc, 0, 1);
+#if defined(JANET_WINDOWS)
+    int32_t flag = janet_optinteger(argv, argc, 0, 0);
+    ExitThread(flag);
+#else
+    pthread_exit(NULL);
+#endif
     return janet_wrap_nil();
 }
 
@@ -718,6 +739,12 @@ static const JanetReg threadlib_cfuns[] = {
         JDOC("(thread/close thread)\n\n"
              "Close a thread, unblocking it and ending communication with it. Note that closing "
              "a thread is idempotent and does not cancel the thread's operation. Returns nil.")
+    },
+    {
+        "thread/exit", cfun_thread_exit,
+        JDOC("(thread/exit &opt code)\n\n"
+             "Exit from the current thread. If no more threads are running, ends the process, but otherwise does "
+             "not end the current process.")
     },
     {NULL, NULL, NULL}
 };

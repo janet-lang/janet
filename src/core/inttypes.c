@@ -20,17 +20,17 @@
 * IN THE SOFTWARE.
 */
 
-#include <errno.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <inttypes.h>
-#include <math.h>
-
 #ifndef JANET_AMALG
 #include "features.h"
 #include <janet.h>
 #include "util.h"
 #endif
+
+#include <errno.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <inttypes.h>
+#include <math.h>
 
 /* Conditional compilation */
 #ifdef JANET_INT_TYPES

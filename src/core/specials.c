@@ -649,6 +649,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         /* Compile function */
         JanetFuncDef *def = janetc_pop_funcdef(c);
         def->name = janet_cstring("_while");
+        janet_def_addflags(def);
         int32_t defindex = janetc_addfuncdef(c, def);
         /* And then load the closure and call it. */
         int32_t cloreg = janetc_regalloc_temp(&c->scope->ra, JANETC_REGTEMP_0);
@@ -823,6 +824,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (structarg) def->flags |= JANET_FUNCDEF_FLAG_STRUCTARG;
 
     if (selfref) def->name = janet_unwrap_symbol(head);
+    janet_def_addflags(def);
     defindex = janetc_addfuncdef(c, def);
 
     /* Ensure enough slots for vararg function. */

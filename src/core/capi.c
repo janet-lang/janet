@@ -27,12 +27,26 @@
 #include "fiber.h"
 #endif
 
+#ifndef JANET_SINGLE_THREADED
+#ifndef JANET_WINDOWS
+#include <pthread.h>
+#else
+#include <windows.h>
+#endif
+#endif
+
 JANET_NO_RETURN static void janet_top_level_signal(const char *msg) {
 #ifdef JANET_TOP_LEVEL_SIGNAL
     JANET_TOP_LEVEL_SIGNAL(msg);
 #else
     fputs(msg, stdout);
-    exit(1);
+# ifdef JANET_SINGLE_THREADED
+    exit(-1);
+# elif defined(JANET_WINDOWS)
+    ExitThread(-1);
+# else
+    pthread_exit(NULL);
+# endif
 #endif
 }
 

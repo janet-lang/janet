@@ -596,6 +596,11 @@ JanetTable *janet_get_core_table(const char *name) {
 
 /* Clock shims for various platforms */
 #ifdef JANET_GETTIME
+/* For macos */
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
 #ifdef JANET_WINDOWS
 int janet_gettime(struct timespec *spec) {
     FILETIME ftime;
@@ -621,7 +626,7 @@ int janet_gettime(struct timespec *spec) {
 }
 #else
 int janet_gettime(struct timespec *spec) {
-    return clock_gettime(CLOCK_MONOTONIC, spec);
+    return clock_gettime(CLOCK_REALTIME, spec);
 }
 #endif
 #endif

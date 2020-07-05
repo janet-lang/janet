@@ -698,7 +698,32 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
     return ret;
 }
 
+/* Add function flags to janet functions */
+void janet_def_addflags(JanetFuncDef *def) {
+    int32_t set_flags = 0;
+    int32_t unset_flags = 0;
+    /* pos checks */
+    if (def->name)            set_flags |= JANET_FUNCDEF_FLAG_HASNAME;
+    if (def->source)          set_flags |= JANET_FUNCDEF_FLAG_HASSOURCE;
+    if (def->defs)            set_flags |= JANET_FUNCDEF_FLAG_HASDEFS;
+    if (def->environments)    set_flags |= JANET_FUNCDEF_FLAG_HASENVS;
+    if (def->sourcemap)       set_flags |= JANET_FUNCDEF_FLAG_HASSOURCEMAP;
+    if (def->closure_bitset)  set_flags |= JANET_FUNCDEF_FLAG_HASCLOBITSET;
+    /* negative checks */
+    if (!def->name)           unset_flags |= JANET_FUNCDEF_FLAG_HASNAME;
+    if (!def->source)         unset_flags |= JANET_FUNCDEF_FLAG_HASSOURCE;
+    if (!def->defs)           unset_flags |= JANET_FUNCDEF_FLAG_HASDEFS;
+    if (!def->environments)   unset_flags |= JANET_FUNCDEF_FLAG_HASENVS;
+    if (!def->sourcemap)      unset_flags |= JANET_FUNCDEF_FLAG_HASSOURCEMAP;
+    if (!def->closure_bitset) unset_flags |= JANET_FUNCDEF_FLAG_HASCLOBITSET;
+    /* Update flags */
+    def->flags |= set_flags;
+    def->flags &= ~unset_flags;
+}
+
 /* Compile a funcdef */
+/* Once the various other settings of the FuncDef have been tweaked,
+ * call janet_def_addflags to set the proper flags for the funcdef */
 JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     JanetScope *scope = c->scope;
     JanetFuncDef *def = janet_funcdef_alloc();
@@ -761,7 +786,6 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
         /* Register allocator preallocates some registers [240-255, high 16 bits of chunk index 7], we can ignore those. */
         if (scope->ua.count > 7) chunks[7] &= 0xFFFFU;
         def->closure_bitset = chunks;
-        def->flags |= JANET_FUNCDEF_FLAG_HASCLOBITSET;
     }
 
     /* Pop the scope */
@@ -818,6 +842,7 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
     if (c.result.status == JANET_COMPILE_OK) {
         JanetFuncDef *def = janetc_pop_funcdef(&c);
         def->name = janet_cstring("_thunk");
+        janet_def_addflags(def);
         c.result.funcdef = def;
     } else {
         c.result.error_mapping = c.current_mapping;

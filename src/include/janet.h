@@ -128,10 +128,10 @@ extern "C" {
 #endif
 
 /* Limits for converting doubles to 64 bit integers */
-#define JANET_INTMAX_DOUBLE 9007199254740991.0
-#define JANET_INTMIN_DOUBLE (-9007199254740991.0)
-#define JANET_INTMAX_INT64 9007199254740991
-#define JANET_INTMIN_INT64 (-9007199254740991)
+#define JANET_INTMAX_DOUBLE 9007199254740992.0
+#define JANET_INTMIN_DOUBLE (-9007199254740992.0)
+#define JANET_INTMAX_INT64 9007199254740992
+#define JANET_INTMIN_INT64 (-9007199254740992)
 
 /* Check emscripten */
 #ifdef __EMSCRIPTEN__
@@ -1065,7 +1065,7 @@ struct JanetRNG {
 typedef struct JanetFile JanetFile;
 struct JanetFile {
     FILE *file;
-    int flags;
+    int32_t flags;
 };
 
 /* Thread types */
@@ -1613,11 +1613,11 @@ extern JANET_API const JanetAbstractType janet_file_type;
 #define JANET_FILE_SERIALIZABLE 128
 #define JANET_FILE_PIPED 256
 
-JANET_API Janet janet_makefile(FILE *f, int flags);
-JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int *flags);
+JANET_API Janet janet_makefile(FILE *f, int32_t flags);
+JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int32_t *flags);
 JANET_API FILE *janet_dynfile(const char *name, FILE *def);
 JANET_API JanetAbstract janet_checkfile(Janet j);
-JANET_API FILE *janet_unwrapfile(Janet j, int *flags);
+JANET_API FILE *janet_unwrapfile(Janet j, int32_t *flags);
 
 /* Marshal API */
 JANET_API void janet_marshal_size(JanetMarshalContext *ctx, size_t value);

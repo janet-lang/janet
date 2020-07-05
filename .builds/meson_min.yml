@@ -17,7 +17,7 @@ tasks:
     meson configure -Dpeg=false
     meson configure -Dassembler=false
     meson configure -Dint_types=false
-    meson configure -Dtyped_arrays=false
+    meson configure -Dtyped_array=false
     meson configure -Dreduced_os=true
     meson configure -Dprf=false
     ninja # will not pass tests but should build

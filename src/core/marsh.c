@@ -214,15 +214,6 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
     }
 }
 
-/* Add function flags to janet functions */
-static void janet_func_addflags(JanetFuncDef *def) {
-    if (def->name) def->flags |= JANET_FUNCDEF_FLAG_HASNAME;
-    if (def->source) def->flags |= JANET_FUNCDEF_FLAG_HASSOURCE;
-    if (def->defs) def->flags |= JANET_FUNCDEF_FLAG_HASDEFS;
-    if (def->environments) def->flags |= JANET_FUNCDEF_FLAG_HASENVS;
-    if (def->sourcemap) def->flags |= JANET_FUNCDEF_FLAG_HASSOURCEMAP;
-}
-
 /* Marshal a sequence of u32s */
 static void janet_marshal_u32s(MarshalState *st, const uint32_t *u32s, int32_t n) {
     for (int32_t i = 0; i < n; i++) {
@@ -243,7 +234,6 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
             return;
         }
     }
-    janet_func_addflags(def);
     /* Add to lookup */
     janet_v_push(st->seen_defs, def);
     pushint(st, def->flags);
@@ -900,7 +890,7 @@ static const uint8_t *unmarshal_one_def(
             for (int32_t i = 0; i < bytecode_length; i++) {
                 current += readint(st, &data);
                 def->sourcemap[i].line = current;
-                def->sourcemap[i].column = readnat(st, &data);
+                def->sourcemap[i].column = readint(st, &data);
             }
         } else {
             def->sourcemap = NULL;
@@ -908,11 +898,12 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal closure bitset if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASCLOBITSET) {
-            def->closure_bitset = malloc(sizeof(uint32_t) * def->slotcount);
+            int32_t n = (def->slotcount + 31) >> 5;
+            def->closure_bitset = malloc(sizeof(uint32_t) * (size_t) n);
             if (NULL == def->closure_bitset) {
                 JANET_OUT_OF_MEMORY;
             }
-            data = janet_unmarshal_u32s(st, data, def->closure_bitset, (def->slotcount + 31) >> 5);
+            data = janet_unmarshal_u32s(st, data, def->closure_bitset, n);
         }
 
         /* Validate */
