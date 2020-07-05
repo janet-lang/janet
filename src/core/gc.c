@@ -28,6 +28,7 @@
 #include "gc.h"
 #include "util.h"
 #include "fiber.h"
+#include "vector.h"
 #endif
 
 struct JanetScratch {
@@ -286,7 +287,7 @@ static void janet_deinit_block(JanetGCObject *mem) {
         case JANET_MEMORY_FIBER:
             free(((JanetFiber *)mem)->data);
 #ifdef JANET_EV
-            free(((JanetFiber *)mem)->waiting);
+            janet_v_free(((JanetFiber *)mem)->waiting);
 #endif
             break;
         case JANET_MEMORY_BUFFER:

@@ -37,7 +37,10 @@ static void fiber_reset(JanetFiber *fiber) {
     fiber->child = NULL;
     fiber->flags = JANET_FIBER_MASK_YIELD | JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP;
     fiber->env = NULL;
+#ifdef JANET_EV
     fiber->waiting = NULL;
+    fiber->timeout_index = -1;
+#endif
     janet_fiber_set_status(fiber, JANET_STATUS_NEW);
 }
 

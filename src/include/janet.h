@@ -489,6 +489,7 @@ typedef enum {
 
 #define JANET_ASYNC_LISTEN_READ (1 << JANET_ASYNC_EVENT_READ)
 #define JANET_ASYNC_LISTEN_WRITE (1 << JANET_ASYNC_EVENT_WRITE)
+#define JANET_ASYNC_LISTEN_SPAWNER 0x1000
 
 typedef enum {
     JANET_ASYNC_STATUS_NOT_DONE,
@@ -799,8 +800,7 @@ struct JanetFiber {
     JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
 #ifdef JANET_EV
     JanetListenerState **waiting;
-#else
-    void *waiting;
+    int32_t timeout_index;
 #endif
 };
 
@@ -1217,6 +1217,10 @@ JANET_API JanetListenerState *janet_listen(JanetPollable *pollable, JanetListene
 
 /* Shorthand for yielding to event loop in C */
 JANET_NO_RETURN JANET_API void janet_await(void);
+
+/* For use inside listeners - adds a timeout to the current fiber, such that
+ * it will be resumed after sec seconds if no other event schedules the current fiber. */
+void janet_addtimeout(double sec);
 
 #endif
 
