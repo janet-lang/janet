@@ -173,7 +173,7 @@ Janet janet_table_rawget(JanetTable *t, Janet key) {
 Janet janet_table_remove(JanetTable *t, Janet key) {
     JanetKV *bucket = janet_table_find(t, key);
     if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL)) {
-        Janet ret = bucket->key;
+        Janet ret = bucket->value;
         t->count--;
         t->deleted++;
         bucket->key = janet_wrap_nil();
