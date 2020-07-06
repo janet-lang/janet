@@ -497,7 +497,7 @@
 (defmacro eachk
   "Loop over each key in ds. Returns nil."
   [x ds & body]
-  (each-template x ds :each body))
+  (each-template x ds :keys body))
 
 (defmacro eachp
   "Loop over each (key, value) pair in ds. Returns nil."
