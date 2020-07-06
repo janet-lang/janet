@@ -1202,6 +1202,15 @@
     (if x nil (set res x)))
   res)
 
+(defn any?
+  "Returns the first truthy valye in ind, otherwise nil.
+  falsey value."
+  [ind]
+  (var res nil)
+  (loop [x :in ind :until res]
+    (if x (set res x)))
+  res)
+
 (defn reverse!
   "Reverses the order of the elements in a given array or buffer and returns it
   mutated."
