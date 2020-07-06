@@ -2825,7 +2825,7 @@
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
     (if-not *quiet*
-      (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2020 Calvin Rose"))
+      (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch)))
     (flush)
     (defn getprompt [p]
       (def [line] (parser/where p))
