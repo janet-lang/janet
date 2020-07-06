@@ -1202,6 +1202,15 @@
     (if x nil (set res x)))
   res)
 
+(defn any?
+  "Returns the first truthy valye in ind, otherwise nil.
+  falsey value."
+  [ind]
+  (var res nil)
+  (loop [x :in ind :until res]
+    (if x (set res x)))
+  res)
+
 (defn reverse!
   "Reverses the order of the elements in a given array or buffer and returns it
   mutated."
@@ -2825,11 +2834,11 @@
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
     (if-not *quiet*
-      (print "Janet " janet/version "-" janet/build "  Copyright (C) 2017-2020 Calvin Rose"))
+      (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch)))
     (flush)
     (defn getprompt [p]
       (def [line] (parser/where p))
-      (string "janet:" line ":" (parser/state p :delimiters) "> "))
+      (string "repl:" line ":" (parser/state p :delimiters) "> "))
     (defn getstdin [prompt buf _]
       (file/write stdout prompt)
       (file/flush stdout)

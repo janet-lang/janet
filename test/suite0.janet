@@ -386,17 +386,14 @@
   (assert (compare= 3 n3 (table/setproto @{:v 3} mynum)) "compare= poly")
   (assert (deep= (sorted @[4 5 n3 2] compare<) @[2 n3 4 5]) "polymorphic sort"))
 
-(let [
-      MAX_INT_64_STRING "9223372036854775807"
+(let [MAX_INT_64_STRING "9223372036854775807"
       MAX_UINT_64_STRING "18446744073709551615"
       MAX_INT_IN_DBL_STRING "9007199254740991"
       NAN (math/log -1)
       INF (/ 1 0)
       MINUS_INF (/ -1 0)
-
       compare-poly-tests
-      [
-       [(int/s64 3) (int/u64 3) 0]
+      [[(int/s64 3) (int/u64 3) 0]
        [(int/s64 -3) (int/u64 3) -1]
        [(int/s64 3) (int/u64 2) 1] 
        [(int/s64 3) 3 0] [(int/s64 3) 4 -1] [(int/s64 3) -9 1]
@@ -409,11 +406,16 @@
        [(+ 1 (int/u64 MAX_INT_IN_DBL_STRING)) (scan-number MAX_INT_IN_DBL_STRING) 1]
        [(int/s64 0) INF -1] [(int/u64 0) INF -1]
        [MINUS_INF (int/u64 0) -1] [MINUS_INF (int/s64 0) -1] 
-       [(int/s64 1) NAN 0] [NAN (int/u64 1) 0]
-       ]]
+       [(int/s64 1) NAN 0] [NAN (int/u64 1) 0]]]
   (each [x y c] compare-poly-tests
-    (assert (= c (compare x y)) (string/format "compare polymorphic %q %q %d" x y c)))
-  )
+    (assert (= c (compare x y)) (string/format "compare polymorphic %q %q %d" x y c))))
+
+(assert (= nil (any? [])) "any? 1")
+(assert (= nil (any? [false nil])) "any? 2")
+(assert (= nil (any? [nil false])) "any? 3")
+(assert (= 1 (any? [1])) "any? 4")
+(assert (nan? (any? [nil math/nan nil])) "any? 5")
+(assert (= true (any? [nil nil false nil nil true nil nil nil nil false :a nil])) "any? 6")
 
 (end-suite)
 
