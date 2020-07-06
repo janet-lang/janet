@@ -2829,7 +2829,7 @@
     (flush)
     (defn getprompt [p]
       (def [line] (parser/where p))
-      (string "janet:" line ":" (parser/state p :delimiters) "> "))
+      (string "repl:" line ":" (parser/state p :delimiters) "> "))
     (defn getstdin [prompt buf _]
       (file/write stdout prompt)
       (file/flush stdout)
