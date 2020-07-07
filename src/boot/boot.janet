@@ -2763,7 +2763,7 @@
   -m syspath : Set system path for loading global modules
   -c source output : Compile janet source code into an image
   -n : Disable ANSI color output in the repl
-  -l path : Execute code in a file before running the main script
+  -l lib : Import a module before processing more arguments
   -- : Stop handling options`)
            (os/exit 0)
            1)
