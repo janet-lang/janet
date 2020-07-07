@@ -516,6 +516,11 @@
   (with-syms [iter]
     ~(do (var ,iter ,n) (while (> ,iter 0) ,;body (-- ,iter)))))
 
+(defmacro forever
+  "Evaluate body repeatedly forever, or until a break statement at the top level."
+  [& body]
+  ~(while true ,;body))
+
 (defmacro each
   "Loop over each value in ds. Returns nil."
   [x ds & body]

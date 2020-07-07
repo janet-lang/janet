@@ -664,7 +664,7 @@ static void check_stream_flag(JanetStream *stream, int flag) {
         if (flag == JANET_STREAM_WRITABLE) msg = "writable";
         if (flag == JANET_STREAM_ACCEPTABLE) msg = "server";
         if (flag == JANET_STREAM_UDPSERVER) msg = "datagram server";
-        janet_panicf("bad stream - expected %s stream", msg);
+        janet_panicf("bad stream, expected %s stream", msg);
     }
 }
 

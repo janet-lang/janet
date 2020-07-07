@@ -517,12 +517,20 @@ void janet_ev_deinit(void) {
 
 /* C functions */
 
-static Janet cfun_ev_spawn(int32_t argc, Janet *argv) {
+static Janet cfun_ev_go(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet value = argc == 2 ? argv[1] : janet_wrap_nil();
     janet_schedule(fiber, value);
     return argv[0];
+}
+
+static Janet cfun_ev_call(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, -1);
+    JanetFunction *fn = janet_getfunction(argv, 0);
+    JanetFiber *fiber = janet_fiber(fn, 64, argc - 1, argv + 1);
+    janet_schedule(fiber, janet_wrap_nil());
+    return janet_wrap_fiber(fiber);
 }
 
 static Janet cfun_ev_sleep(int32_t argc, Janet *argv) {
@@ -537,7 +545,13 @@ static Janet cfun_ev_sleep(int32_t argc, Janet *argv) {
 
 static const JanetReg ev_cfuns[] = {
     {
-        "ev/go", cfun_ev_spawn,
+        "ev/call", cfun_ev_call,
+        JDOC("(ev/call fn & args)\n\n"
+             "Call a function asynchronously. Returns a fiber that is scheduled to "
+             "run the function.")
+    },
+    {
+        "ev/go", cfun_ev_go,
         JDOC("(ev/go fiber &opt value)\n\n"
              "Put a fiber on the event loop to be resumed later. Optionally pass "
              "a value to resume with, otherwise resumes with nil.")
