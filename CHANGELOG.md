@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `forever` macro.
 - Add `any?` predicate to core.
 - Add `jpm list-pkgs` subcommand to see which package aliases are in the listing.
 - Add `jpm list-installed` subcommand to see which packages are installed.

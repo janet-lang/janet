@@ -516,6 +516,11 @@
   (with-syms [iter]
     ~(do (var ,iter ,n) (while (> ,iter 0) ,;body (-- ,iter)))))
 
+(defmacro forever
+  "Evaluate body forever in a loop, or until a break statement."
+  [& body]
+  ~(while true ,;body))
+
 (defmacro each
   "Loop over each value in ds. Returns nil."
   [x ds & body]
@@ -2173,12 +2178,12 @@
       (buffer/push-string buf "\n")))
   (var returnval nil)
   (run-context {:chunks chunks
-                :on-compile-error (fn [msg errf &]
+                :on-compile-error (fn compile-error [msg errf &]
                                     (error (string "compile error: " msg)))
-                :on-parse-error (fn [p x]
+                :on-parse-error (fn parse-error [p x]
                                   (error (string "parse error: " (parser/error p))))
                 :fiber-flags :i
-                :on-status (fn [f val]
+                :on-status (fn on-status [f val]
                              (if-not (= (fiber/status f) :dead)
                                (error val))
                              (set returnval val))
@@ -2770,17 +2775,17 @@
      "k" (fn [&] (set *compile-only* true) (set *exit-on-error* false) 1)
      "n" (fn [&] (set *colorize* false) 1)
      "m" (fn [i &] (setdyn :syspath (in args (+ i 1))) 2)
-     "c" (fn [i &]
+     "c" (fn c-switch [i &]
            (def e (dofile (in args (+ i 1))))
            (spit (in args (+ i 2)) (make-image e))
            (set *no-file* false)
            3)
      "-" (fn [&] (set *handleopts* false) 1)
-     "l" (fn [i &]
+     "l" (fn l-switch [i &]
            (import* (in args (+ i 1))
                     :prefix "" :exit *exit-on-error*)
            2)
-     "e" (fn [i &]
+     "e" (fn e-switch [i &]
            (set *no-file* false)
            (eval-string (in args (+ i 1)))
            2)
