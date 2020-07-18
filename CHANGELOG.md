@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.11.0 - 2020-07-18
 - Add `forever` macro.
 - Add `any?` predicate to core.
 - Add `jpm list-pkgs` subcommand to see which package aliases are in the listing.
