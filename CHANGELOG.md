@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - Add `repeat` macro for iterating something n times.
 - Add `eachy` (each yield) macro for iterating a fiber.
 - Fix `:generate` verb in loop macro to accept non symbols as bindings.
+- Add `:h`, `:h+`, and `:h*` in `default-peg-grammar` for hexidecimal digits.
 - Fix `%j` formatter to print numbers precisely (using the `%.17g` format string to printf).
 
 ## 1.10.1 - 2020-06-18

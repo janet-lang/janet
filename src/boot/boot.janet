@@ -383,13 +383,17 @@
   [i start stop step comparison delta body]
   (with-syms [s]
     (def st (if (idempotent? step) step (gensym)))
+    (def loop-body
+      ~(while (,comparison ,i ,s)
+         ,;body
+         (set ,i (,delta ,i ,st))))
     ~(do
        (var ,i ,start)
        (def ,s ,stop)
        ,;(if (= st step) [] [~(def ,st ,step)])
-       (while (,comparison ,i ,s)
-         ,;body
-         (set ,i (,delta ,i ,st))))))
+       ,(if (and (number? st) (> st 0))
+          loop-body
+          ~(if (,> ,st 0) ,loop-body)))))
 
 (defn- for-template
   [binding start stop step comparison delta body]
