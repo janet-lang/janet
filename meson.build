@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.10.2')
+  version : '1.11.0')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -259,6 +259,6 @@ if get_option('peg') and not get_option('reduced_os') and get_option('processes'
     output : ['jpm'],
     command : [janet_nativeclient, '@INPUT@', '@OUTPUT@',
       '--binpath=' + join_paths(get_option('prefix'), get_option('bindir')),
-      '--libpath=' + join_paths(get_option('prefix'), get_option('libdir'), 'janet'),
+      '--libpath=' + join_paths(get_option('prefix'), get_option('libdir')),
       '--headerpath=' + join_paths(get_option('prefix'), get_option('includedir'))])
 endif

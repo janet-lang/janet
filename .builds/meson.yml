@@ -10,3 +10,5 @@ tasks:
     cd build
     ninja
     ninja test
+    mkdir modpath
+	jpm --verbose --modpath=./modpath install https://github.com/bakpakin/x43bot.git
