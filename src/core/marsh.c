@@ -285,8 +285,8 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 }
 
 #define JANET_FIBER_FLAG_HASCHILD (1 << 29)
-#define JANET_FIBER_FLAG_HASENV (1 << 28)
-#define JANET_STACKFRAME_HASENV (1 << 30)
+#define JANET_FIBER_FLAG_HASENV   (1 << 30)
+#define JANET_STACKFRAME_HASENV   (1 << 31)
 
 /* Marshal a fiber */
 static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
@@ -934,6 +934,8 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->data = NULL;
     fiber->child = NULL;
     fiber->env = NULL;
+    fiber->waiting = NULL;
+    fiber->timeout_index = -1;
 
     /* Push fiber to seen stack */
     janet_v_push(st->lookup, janet_wrap_fiber(fiber));
@@ -1047,6 +1049,11 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->stacktop = fiber_stacktop;
     fiber->maxstack = fiber_maxstack;
     fiber->env = fiber_env;
+
+    int status = janet_fiber_status(fiber);
+    if (status < 0 || status > JANET_STATUS_ALIVE) {
+        janet_panic("invalid fiber status");
+    }
 
     /* Return data */
     *out = fiber;

@@ -1218,6 +1218,10 @@ JANET_API JanetListenerState *janet_listen(JanetPollable *pollable, JanetListene
 /* Shorthand for yielding to event loop in C */
 JANET_NO_RETURN JANET_API void janet_await(void);
 
+/* Cancel a waiting fiber. Will notify the canceled state machines, but will not
+ * unwind the fiber. */
+void janet_cancel(JanetFiber *fiber);
+
 /* For use inside listeners - adds a timeout to the current fiber, such that
  * it will be resumed after sec seconds if no other event schedules the current fiber. */
 void janet_addtimeout(double sec);

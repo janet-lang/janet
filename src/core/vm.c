@@ -1286,6 +1286,10 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
 
     JanetFiberStatus old_status = janet_fiber_status(fiber);
 
+#ifdef JANET_EV
+    janet_cancel(fiber);
+#endif
+
     /* Continue child fiber if it exists */
     if (fiber->child) {
         if (janet_vm_root_fiber == NULL) janet_vm_root_fiber = fiber;

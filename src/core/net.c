@@ -364,7 +364,6 @@ JanetAsyncStatus net_machine_simple_server(JanetListenerState *s, JanetAsyncEven
             janet_mark(janet_wrap_function(state->function));
             break;
         case JANET_ASYNC_EVENT_CLOSE:
-            janet_schedule(s->fiber, janet_wrap_nil());
             janet_gcunroot(janet_wrap_abstract(s->pollable));
             return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_READ: {
@@ -650,7 +649,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
             /* Server with handler */
             JanetStream *stream = make_stream(sfd, 0);
             NetStateSimpleServer *ss = (NetStateSimpleServer *) janet_listen(stream, net_machine_simple_server,
-                                       JANET_ASYNC_LISTEN_READ, sizeof(NetStateSimpleServer));
+                                       JANET_ASYNC_LISTEN_READ | JANET_ASYNC_LISTEN_SPAWNER, sizeof(NetStateSimpleServer));
             ss->function = fun;
             return janet_wrap_abstract(stream);
         }
@@ -669,36 +668,44 @@ static void check_stream_flag(JanetStream *stream, int flag) {
 }
 
 static Janet cfun_stream_accept(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 2);
     JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
     check_stream_flag(stream, JANET_STREAM_ACCEPTABLE);
+    double to = janet_optnumber(argv, argc, 1, INFINITY);
+    if (to != INFINITY) janet_addtimeout(to);
     janet_sched_accept(stream);
 }
 
 static Janet cfun_stream_read(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 3);
+    janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
     check_stream_flag(stream, JANET_STREAM_READABLE);
     int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, 10);
+    double to = janet_optnumber(argv, argc, 3, INFINITY);
+    if (to != INFINITY) janet_addtimeout(to);
     janet_sched_read(stream, buffer, n);
 }
 
 static Janet cfun_stream_chunk(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 3);
+    janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
     check_stream_flag(stream, JANET_STREAM_READABLE);
     int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, 10);
+    double to = janet_optnumber(argv, argc, 3, INFINITY);
+    if (to != INFINITY) janet_addtimeout(to);
     janet_sched_chunk(stream, buffer, n);
 }
 
 static Janet cfun_stream_recv_from(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 3);
+    janet_arity(argc, 3, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
     check_stream_flag(stream, JANET_STREAM_UDPSERVER);
     int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_getbuffer(argv, 2);
+    double to = janet_optnumber(argv, argc, 3, INFINITY);
+    if (to != INFINITY) janet_addtimeout(to);
     janet_sched_recv_from(stream, buffer, n);
 }
 
@@ -710,26 +717,32 @@ static Janet cfun_stream_close(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_stream_write(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 2);
+    janet_arity(argc, 2, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
     check_stream_flag(stream, JANET_STREAM_WRITABLE);
+    double to = janet_optnumber(argv, argc, 2, INFINITY);
     if (janet_checktype(argv[1], JANET_BUFFER)) {
+        if (to != INFINITY) janet_addtimeout(to);
         janet_sched_write_buffer(stream, janet_getbuffer(argv, 1), NULL);
     } else {
         JanetByteView bytes = janet_getbytes(argv, 1);
+        if (to != INFINITY) janet_addtimeout(to);
         janet_sched_write_stringlike(stream, bytes.bytes, NULL);
     }
 }
 
 static Janet cfun_stream_send_to(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 3);
+    janet_arity(argc, 3, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
     check_stream_flag(stream, JANET_STREAM_UDPSERVER);
     void *dest = janet_getabstract(argv, 1, &AddressAT);
+    double to = janet_optnumber(argv, argc, 3, INFINITY);
     if (janet_checktype(argv[2], JANET_BUFFER)) {
+        if (to != INFINITY) janet_addtimeout(to);
         janet_sched_write_buffer(stream, janet_getbuffer(argv, 2), dest);
     } else {
         JanetByteView bytes = janet_getbytes(argv, 2);
+        if (to != INFINITY) janet_addtimeout(to);
         janet_sched_write_stringlike(stream, bytes.bytes, dest);
     }
 }
@@ -783,39 +796,44 @@ static const JanetReg net_cfuns[] = {
     },
     {
         "net/accept", cfun_stream_accept,
-        JDOC("(net/accept stream)\n\n"
+        JDOC("(net/accept stream &opt timeout)\n\n"
              "Get the next connection on a server stream. This would usually be called in a loop in a dedicated fiber. "
+             "Takes an optional timeout in seconds, after which will return nil. "
              "Returns a new duplex stream which represents a connection to the client.")
     },
     {
         "net/read", cfun_stream_read,
-        JDOC("(net/read stream nbytes &opt buf)\n\n"
+        JDOC("(net/read stream nbytes &opt buf timeout)\n\n"
              "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
              "If less than n bytes are available (and more than 0), will push those bytes and return early. "
+             "Takes an optional timeout in seconds, after which will return nil. "
              "Returns a buffer with up to n more bytes in it.")
     },
     {
         "net/chunk", cfun_stream_chunk,
-        JDOC("(net/chunk stream nbytes &opt buf)\n\n"
-             "Same a net/read, but will wait for all n bytes to arrive rather than return early.")
+        JDOC("(net/chunk stream nbytes &opt buf timeout)\n\n"
+             "Same a net/read, but will wait for all n bytes to arrive rather than return early. "
+             "Takes an optional timeout in seconds, after which will return nil.")
     },
     {
         "net/write", cfun_stream_write,
-        JDOC("(net/write stream data)\n\n"
+        JDOC("(net/write stream data &opt timeout)\n\n"
              "Write data to a stream, suspending the current fiber until the write "
-             "completes. Returns stream.")
+             "completes. Takes an optional timeout in seconds, after which will return nil. "
+             "Returns stream.")
     },
     {
         "net/send-to", cfun_stream_send_to,
-        JDOC("(net/send-to stream dest data)\n\n"
+        JDOC("(net/send-to stream dest data &opt timeout)\n\n"
              "Writes a datagram to a server stream. dest is a the destination address of the packet. "
+             "Takes an optional timeout in seconds, after which will return nil. "
              "Returns stream.")
     },
     {
         "net/recv-from", cfun_stream_recv_from,
-        JDOC("(net/recv-from stream nbytes buf)\n\n"
+        JDOC("(net/recv-from stream nbytes buf &opt timoeut)\n\n"
              "Receives data from a server stream and puts it into a buffer. Returns the socket-address the "
-             "packet came from.")
+             "packet came from. Takes an optional timeout in seconds, after which will return nil.")
     },
     {
         "net/flush", cfun_stream_flush,

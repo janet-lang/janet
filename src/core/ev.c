@@ -27,6 +27,7 @@
 #include "gc.h"
 #include "state.h"
 #include "vector.h"
+#include "fiber.h"
 #endif
 
 #ifdef JANET_EV
@@ -240,12 +241,8 @@ void janet_pollable_deinit(JanetPollable *pollable) {
     pollable->state = NULL;
 }
 
-/* In order to avoid unexpected wakeups on a fiber, prior to
- * resuming a fiber after and event is triggered, we need to
- * cancel all listeners that also want to wakeup this fiber.
- * Otherwise, these listeners make wakeup the fiber on an unexpected
- * await point. */
-void janet_unschedule_others(JanetFiber *fiber) {
+/* Cancel any state machines waiting on this fiber. */
+void janet_cancel(JanetFiber *fiber) {
     int32_t lcount = janet_v_count(fiber->waiting);
     janet_v_empty(fiber->waiting);
     for (int32_t index = 0; index < lcount; index++) {
@@ -260,11 +257,8 @@ void janet_unschedule_others(JanetFiber *fiber) {
 
 /* Register a fiber to resume with value */
 void janet_schedule(JanetFiber *fiber, Janet value) {
-    if (fiber->gc.flags & 0x10000) {
-        /* already scheduled to run, do nothing */
-        return;
-    }
-    fiber->gc.flags |= 0x10000;
+    if (fiber->flags & JANET_FIBER_FLAG_SCHEDULED) return;
+    fiber->flags |= JANET_FIBER_FLAG_SCHEDULED;
     size_t oldcount = janet_vm_spawn_count;
     size_t newcount = oldcount + 1;
     if (newcount > janet_vm_spawn_capacity) {
@@ -294,9 +288,7 @@ void janet_ev_mark(void) {
 
 /* Run a top level task */
 static void run_one(JanetFiber *fiber, Janet value) {
-    /* Use a gc flag bit to indicate (is this fiber scheduled?) */
-    fiber->gc.flags &= ~0x10000;
-    janet_unschedule_others(fiber);
+    fiber->flags &= ~JANET_FIBER_FLAG_SCHEDULED;
     Janet res;
     JanetSignal sig = janet_continue(fiber, value, &res);
     if (sig != JANET_SIGNAL_OK && sig != JANET_SIGNAL_EVENT) {
