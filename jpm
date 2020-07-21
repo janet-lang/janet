@@ -688,7 +688,7 @@ int main(int argc, const char **argv) {
     (if stored-git-path (break stored-git-path))
     (set stored-git-path
          (if is-win
-           (or (os/getenv "JANET_GIT") (pslurp "where git"))
+           (or (os/getenv "JANET_GIT") (first (string/split "\n" (pslurp "where git"))))
            (os/getenv "JANET_GIT" "git"))))
 
 (defn uninstall
