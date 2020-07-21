@@ -33,8 +33,8 @@ JANET_TARGET=build/janet
 JANET_LIBRARY=build/libjanet.so
 JANET_STATIC_LIBRARY=build/libjanet.a
 JANET_PATH?=$(LIBDIR)/janet
-MANPATH?=$(PREFIX)/share/man/man1/
-PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
+JANET_MANPATH?=$(PREFIX)/share/man/man1/
+JANET_PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 DEBUGGER=gdb
 SONAME_SETTER=-Wl,-soname,
 
@@ -272,11 +272,11 @@ install: $(JANET_TARGET) build/janet.pc build/jpm
 	ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so'
 	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME)
 	cp -rf build/jpm '$(DESTDIR)$(BINDIR)'
-	mkdir -p '$(DESTDIR)$(MANPATH)'
-	cp janet.1 '$(DESTDIR)$(MANPATH)'
-	cp jpm.1 '$(DESTDIR)$(MANPATH)'
-	mkdir -p '$(DESTDIR)$(PKG_CONFIG_PATH)'
-	cp build/janet.pc '$(DESTDIR)$(PKG_CONFIG_PATH)/janet.pc'
+	mkdir -p '$(DESTDIR)$(JANET_MANPATH)'
+	cp janet.1 '$(DESTDIR)$(JANET_MANPATH)'
+	cp jpm.1 '$(DESTDIR)$(JANET_MANPATH)'
+	mkdir -p '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)'
+	cp build/janet.pc '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)/janet.pc'
 	[ -z '$(DESTDIR)' ] && $(LDCONFIG) || true
 
 uninstall:
@@ -284,9 +284,9 @@ uninstall:
 	-rm '$(DESTDIR)$(BINDIR)/jpm'
 	-rm -rf '$(DESTDIR)$(INCLUDEDIR)/janet'
 	-rm -rf '$(DESTDIR)$(LIBDIR)'/libjanet.*
-	-rm '$(DESTDIR)$(PKG_CONFIG_PATH)/janet.pc'
-	-rm '$(DESTDIR)$(MANPATH)/janet.1'
-	-rm '$(DESTDIR)$(MANPATH)/jpm.1'
+	-rm '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)/janet.pc'
+	-rm '$(DESTDIR)$(JANET_MANPATH)/janet.1'
+	-rm '$(DESTDIR)$(JANET_MANPATH)/jpm.1'
 	# -rm -rf '$(DESTDIR)$(JANET_PATH)'/* - err on the side of correctness here
 
 #################
@@ -317,6 +317,7 @@ test-install:
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/jhydro.git
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/path.git
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/argparse.git
+	cd test/install && jpm --verbose --modpath=./modpath install https://github.com/bakpakin/x43bot.git
 
 help:
 	@echo
