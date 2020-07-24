@@ -76,7 +76,7 @@ static char *get_processed_name(const char *name) {
     }
     ret[0] = '.';
     ret[1] = '/';
-    memcpy(ret + 2, name, l + 3);
+    memcpy(ret + 2, name, l + 1);
     return ret;
 }
 
