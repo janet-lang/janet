@@ -11,4 +11,4 @@ tasks:
     ninja
     ninja test
     mkdir modpath
-	jpm --verbose --modpath=./modpath install https://github.com/bakpakin/x43bot.git
+    jpm --verbose --modpath=./modpath install https://github.com/bakpakin/x43bot.git
