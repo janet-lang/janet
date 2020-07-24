@@ -63,10 +63,29 @@ typedef void *Clib;
 #define error_clib() dlerror()
 #endif
 
+static char *get_processed_name(const char *name) {
+    if (name[0] == '.') return (char *) name;
+    const char *c;
+    for (c = name; *c; c++) {
+        if (*c == '/') return (char *) name;
+    }
+    size_t l = (size_t)(c - name);
+    char *ret = malloc(l + 3);
+    if (NULL == ret) {
+        JANET_OUT_OF_MEMORY;
+    }
+    ret[0] = '.';
+    ret[1] = '/';
+    memcpy(ret + 2, name, l + 3);
+    return ret;
+}
+
 JanetModule janet_native(const char *name, const uint8_t **error) {
-    Clib lib = load_clib(name);
+    char *processed_name = get_processed_name(name);
+    Clib lib = load_clib(processed_name);
     JanetModule init;
     JanetModconf getter;
+    if (name != processed_name) free(processed_name);
     if (!lib) {
         *error = janet_cstring(error_clib());
         return NULL;

@@ -376,21 +376,29 @@ static Janet cfun_typed_array_new(int32_t argc, Janet *argv) {
     if (argc > 3)
         offset = janet_getsize(argv, 3);
     if (argc > 4) {
-        if (!janet_checktype(argv[4], JANET_ABSTRACT)) {
-            janet_panicf("bad slot #%d, expected ta/view|ta/buffer, got %v",
-                         4, argv[4]);
-        }
-        void *p = janet_unwrap_abstract(argv[4]);
-        if (janet_abstract_type(p) == &janet_ta_view_type) {
-            JanetTArrayView *view = (JanetTArrayView *)p;
-            offset = (view->buffer->data - view->as.u8) + offset * ta_type_sizes[view->type];
-            stride *= view->stride;
-            buffer = view->buffer;
-        } else if (janet_abstract_type(p) == &janet_ta_buffer_type) {
-            buffer = p;
+        int32_t blen;
+        const uint8_t *bytes;
+        if (janet_bytes_view(argv[4], &bytes, &blen)) {
+            buffer = janet_abstract(&janet_ta_buffer_type, sizeof(JanetTArrayBuffer));
+            ta_buffer_init(buffer, (size_t) blen);
+            memcpy(buffer->data, bytes, blen);
         } else {
-            janet_panicf("bad slot #%d, expected ta/view|ta/buffer, got %v",
-                         4, argv[4]);
+            if (!janet_checktype(argv[4], JANET_ABSTRACT)) {
+                janet_panicf("bad slot #%d, expected ta/view|ta/buffer, got %v",
+                             4, argv[4]);
+            }
+            void *p = janet_unwrap_abstract(argv[4]);
+            if (janet_abstract_type(p) == &janet_ta_view_type) {
+                JanetTArrayView *view = (JanetTArrayView *)p;
+                offset = (view->buffer->data - view->as.u8) + offset * ta_type_sizes[view->type];
+                stride *= view->stride;
+                buffer = view->buffer;
+            } else if (janet_abstract_type(p) == &janet_ta_buffer_type) {
+                buffer = p;
+            } else {
+                janet_panicf("bad slot #%d, expected ta/view|ta/buffer, got %v",
+                             4, argv[4]);
+            }
         }
     }
     JanetTArrayView *view = janet_tarray_view(type, size, stride, offset, buffer);
