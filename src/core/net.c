@@ -566,7 +566,8 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     }
 
     /* Put sfd on our loop */
-    JanetLoopFD lfd = {0};
+    JanetLoopFD lfd;
+    memset(&lfd, 0, sizeof(lfd));
     lfd.stream = make_stream(sfd, 0);
     lfd.event_type = JLE_READ_ACCEPT;
     lfd.data.read_accept.handler = fun;
