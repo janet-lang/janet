@@ -49,7 +49,7 @@
   "Run a marshaling test using the make-image and load-image functions."
   [x msg]
   (def im (make-image x))
-  (printf "\nimage-hash: %d" (-> im string hash))
+  # (printf "\nimage-hash: %d" (-> im string hash))
   (assert-no-error msg (load-image im)))
 
 (check-image (fn [] (fn [] 1)) "marshal nested functions")
