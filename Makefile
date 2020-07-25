@@ -317,7 +317,6 @@ test-install:
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/jhydro.git
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/path.git
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/argparse.git
-	cd test/install && jpm --verbose --modpath=./modpath install https://github.com/bakpakin/x43bot.git
 
 help:
 	@echo
