@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 - Fix jpm and git with multiple git installs on Windows
 - Fix importing a .so file in the current directory
 - Allow passing byte sequence types directly to typed-array constructors.
+- Fix bug sending files between threads.
 
 ## 1.11.0 - 2020-07-18
 - Add `forever` macro.
