@@ -339,6 +339,7 @@ static int io_file_get(void *p, Janet key, Janet *out) {
 static void io_file_marshal(void *p, JanetMarshalContext *ctx) {
     JanetFile *iof = (JanetFile *)p;
     if (ctx->flags & JANET_MARSHAL_UNSAFE) {
+        janet_marshal_abstract(ctx, p);
 #ifdef JANET_WINDOWS
         janet_marshal_int(ctx, _fileno(iof->file));
 #else
