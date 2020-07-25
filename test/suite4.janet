@@ -48,7 +48,9 @@
 (defn check-image
   "Run a marshaling test using the make-image and load-image functions."
   [x msg]
-  (assert-no-error msg (load-image (make-image x))))
+  (def im (make-image x))
+  # (printf "\nimage-hash: %d" (-> im string hash))
+  (assert-no-error msg (load-image im)))
 
 (check-image (fn [] (fn [] 1)) "marshal nested functions")
 (check-image (fiber/new (fn [] (fn [] 1))) "marshal nested functions in fiber")

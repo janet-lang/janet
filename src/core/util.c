@@ -97,7 +97,7 @@ const char *const janet_status_names[16] = {
     "alive"
 };
 
-#ifdef JANET_NO_PRF
+#ifndef JANET_PRF
 
 int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
     const uint8_t *end = str + len;

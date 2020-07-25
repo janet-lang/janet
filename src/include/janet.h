@@ -1468,7 +1468,7 @@ JANET_API int janet_verify(JanetFuncDef *def);
 JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x);
 
 /* Misc */
-#ifndef JANET_NO_PRF
+#ifdef JANET_PRF
 #define JANET_HASH_KEY_SIZE 16
 JANET_API void janet_init_hash_key(uint8_t key[JANET_HASH_KEY_SIZE]);
 #endif
