@@ -289,8 +289,8 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
             janet_panic("could not close file");
         }
         iof->flags |= JANET_FILE_CLOSED;
-        return janet_wrap_nil();
     }
+    return janet_wrap_nil();
 }
 
 /* Seek a file */
