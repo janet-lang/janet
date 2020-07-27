@@ -38,4 +38,11 @@
 #define _XOPEN_SOURCE 500
 #endif
 
+/* Needed for timegm and other extensions when building with -std=c99.
+ * It also defines realpath, etc, which would normally require
+ * _XOPEN_SOURCE >= 500. */
+#if !defined(_NETBSD_SOURCE) && defined(__NetBSD__)
+#define _NETBSD_SOURCE
+#endif
+
 #endif

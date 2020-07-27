@@ -115,6 +115,11 @@ gmake test
 gmake repl
 ```
 
+### NetBSD
+
+NetBSD build instructions are the same as the FreeBSD build instuctions.
+Alternatively, install directly from packages, using `pkgin install janet`.
+
 ### Windows
 
 1. Install [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=15#) or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15#)
