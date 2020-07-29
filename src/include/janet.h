@@ -225,6 +225,11 @@ extern "C" {
  * To turn of nanboxing, for debugging purposes or for certain
  * architectures (Nanboxing only tested on x86 and x64), comment out
  * the JANET_NANBOX define.*/
+
+#if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__)
+#define JANET_NO_NANBOX
+#endif
+
 #ifndef JANET_NO_NANBOX
 #ifdef JANET_32
 #define JANET_NANBOX_32
