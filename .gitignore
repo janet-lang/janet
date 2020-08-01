@@ -46,6 +46,7 @@ janet.wasm
 
 # Generate test files
 *.out
+.orig
 
 # Tools
 xxd
@@ -53,6 +54,7 @@ xxd.exe
 
 # VSCode
 .vs
+.clangd
 
 # Swap files
 *.swp

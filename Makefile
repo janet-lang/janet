@@ -301,6 +301,10 @@ grammar: build/janet.tmLanguage
 build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
 	$(JANET_TARGET) $< > $@
 
+compile-commands:
+	# Requires pip install copmiledb
+	compiledb make
+
 clean:
 	-rm -rf build vgcore.* callgrind.*
 	-rm -rf test/install/build test/install/modpath
@@ -342,4 +346,4 @@ help:
 	@echo
 
 .PHONY: clean install repl debug valgrind test \
-	valtest dist uninstall docs grammar format help
+	valtest dist uninstall docs grammar format help compile-commands
