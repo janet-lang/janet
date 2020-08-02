@@ -1212,7 +1212,7 @@
   res)
 
 (defn any?
-  "Returns the first truthy valye in ind, otherwise nil.
+  "Returns the first truthy value in ind, otherwise nil.
   falsey value."
   [ind]
   (var res nil)
