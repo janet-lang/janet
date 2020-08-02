@@ -957,6 +957,18 @@
   (def i (find-index pred ind))
   (if (= i nil) nil (in ind i)))
 
+(defn index-of
+  "Find the first key associated with a value x in a data structure, acting like a reverse lookup.
+  Will not look at table prototypes.
+  Returns dflt if not found."
+  [x ind &opt dflt]
+  (var k (next ind nil))
+  (var ret dflt)
+  (while (not= nil k)
+    (when (= (in ind k) x) (set ret k) (break))
+    (set k (next ind k)))
+  ret)
+
 (defn take
   "Take first n elements in an indexed type. Returns new indexed instance."
   [n ind]
