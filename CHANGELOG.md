@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.11.2 - 2020-08-03
+- Add `index-of` to core library.
+- Add `-fPIC` back to core CFLAGS (non-optional when compiling default client  with Makefile)
+- Fix defaults on Windows for ARM
+- Fix defaults on NetBSD.
+
 ## 1.11.1 - 2020-07-25
 - Fix jpm and git with multiple git installs on Windows
 - Fix importing a .so file in the current directory

@@ -168,8 +168,6 @@ call jpm --verbose --test --modpath=. install https://github.com/janet-lang/path
 @if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm --verbose --test --modpath=. install https://github.com/janet-lang/argparse.git
 @if errorlevel 1 goto :TESTINSTALLFAIL
-call jpm --verbose --modpath=. install https://github.com/bakpakin/x43bot.git
-@if errorlevel 1 goto :TESTINSTALLFAIL
 popd
 exit /b 0
 
