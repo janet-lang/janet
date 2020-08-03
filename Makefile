@@ -41,10 +41,10 @@ SONAME_SETTER=-Wl,-soname,
 # For cross compilation
 HOSTCC?=$(CC)
 HOSTAR?=$(AR)
-CFLAGS?=-fPIC -O2
+CFLAGS?=-O2
 LDFLAGS?=-rdynamic
 
-COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden
+COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC
 BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) -O0 -g $(COMMON_CFLAGS)
 BUILD_CFLAGS:=$(CFLAGS) $(COMMON_CFLAGS)
 

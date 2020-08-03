@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
 - Silence warnings in some compilers.
+- Add `index-of` to core library.
 
 ## 1.11.1 - 2020-07-25
 - Fix jpm and git with multiple git installs on Windows
