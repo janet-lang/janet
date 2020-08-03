@@ -521,7 +521,7 @@ static Janet cfun_channel_count(int32_t argc, Janet *argv) {
 
 static Janet cfun_channel_new(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
-    int32_t limit = janet_optnat(argv, argc, 0, 10);
+    int32_t limit = janet_optnat(argv, argc, 0, 0);
     JanetChannel *channel = janet_abstract(&ChannelAT, sizeof(JanetChannel));
     janet_chan_init(channel, limit);
     return janet_wrap_abstract(channel);
@@ -756,7 +756,7 @@ static const JanetReg ev_cfuns[] = {
         "ev/chan", cfun_channel_new,
         JDOC("(ev/chan &opt capacity)\n\n"
              "Create a new channel. capacity is the number of values to queue before "
-             "blocking writers, defaults to 10 if not provided. Returns a new channel.")
+             "blocking writers, defaults to 0 if not provided. Returns a new channel.")
     },
     {
         "ev/give", cfun_channel_push,
