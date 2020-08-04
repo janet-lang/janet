@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## 1.11.3 - 2020-08-03
 - Add `JANET_HASHSEED` environment variable when `JANET_PRF` is enabled.
-- Expose `janet_cryptorand` in C API.
+- Expose `janet_init_random_hash_key` in C API.
 - Properly initialize PRF in default janet program
 - Add `index-of` to core library.
 - Add `-fPIC` back to core CFLAGS (non-optional when compiling default client  with Makefile)

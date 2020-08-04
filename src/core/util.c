@@ -214,6 +214,10 @@ void janet_init_hash_key(uint8_t new_key[JANET_HASH_KEY_SIZE]) {
     memcpy(hash_key, new_key, sizeof(hash_key));
 }
 
+int janet_init_random_hash_key() {
+    return janet_cryptorand(hash_key, JANET_HASH_KEY_SIZE);
+}
+
 /* Calculate hash for string */
 
 int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
