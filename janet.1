@@ -213,5 +213,13 @@ find native and source code modules. If no JANET_PATH is set, Janet will look in
 the default location set at compile time.
 .RE
 
+.B JANET_HASHSEED
+.RS
+To disable randomization of Janet's PRF on start up, one can set this variable. This can have the
+effect of making programs deterministic that otherwise would depend on the random seed chosen at program start.
+This variable does nothing in the default configuration of Janet, as PRF is disabled by default. Also, JANET_REDUCED_OS
+cannot be defined for this variable to have an effect.
+.RE
+
 .SH AUTHOR
 Written by Calvin Rose <calsrose@gmail.com>
