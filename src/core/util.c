@@ -677,7 +677,7 @@ int janet_cryptorand(uint8_t *out, size_t n) {
     RETRY_EINTR(rc, close(randfd));
     return 0;
 #elif defined(JANET_BSD) || defined(MAC_OS_X_VERSION_10_7)
-    arc4random_buf(out, sz);
+    arc4random_buf(out, n);
     return 0;
 #else
     return -1;
