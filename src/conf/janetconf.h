@@ -57,7 +57,7 @@
 /* #define JANET_NO_UMASK */
 
 /* Other settings */
-#define JANET_PRF
+/* #define JANET_PRF */
 /* #define JANET_NO_UTC_MKTIME */
 /* #define JANET_OUT_OF_MEMORY do { printf("janet out of memory\n"); exit(1); } while (0) */
 /* #define JANET_EXIT(msg) do { printf("C assert failed executing janet: %s\n", msg); exit(1); } while (0) */
