@@ -214,16 +214,17 @@ docs = custom_target('docs',
 
 # Tests
 test_files = [
-  'test/suite0.janet',
-  'test/suite1.janet',
-  'test/suite2.janet',
-  'test/suite3.janet',
-  'test/suite4.janet',
-  'test/suite5.janet',
-  'test/suite6.janet',
-  'test/suite7.janet',
-  'test/suite8.janet',
-  'test/suite9.janet'
+  'test/suite0000.janet',
+  'test/suite0001.janet',
+  'test/suite0002.janet',
+  'test/suite0003.janet',
+  'test/suite0004.janet',
+  'test/suite0005.janet',
+  'test/suite0006.janet',
+  'test/suite0007.janet',
+  'test/suite0008.janet',
+  'test/suite0009.janet',
+  'test/suite0010.janet'
 ]
 foreach t : test_files
   test(t, janet_nativeclient, args : files([t]), workdir : meson.current_source_dir())
