@@ -3,7 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
 - Silence warnings in some compilers.
+- Update meson build script to fix bug on Debian's version of meson
+
+## 1.11.3 - 2020-08-03
+- Add `JANET_HASHSEED` environment variable when `JANET_PRF` is enabled.
+- Expose `janet_cryptorand` in C API.
+- Properly initialize PRF in default janet program
 - Add `index-of` to core library.
+- Add `-fPIC` back to core CFLAGS (non-optional when compiling default client  with Makefile)
+- Fix defaults on Windows for ARM
+- Fix defaults on NetBSD.
 
 ## 1.11.1 - 2020-07-25
 - Fix jpm and git with multiple git installs on Windows

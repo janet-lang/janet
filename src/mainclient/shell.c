@@ -1017,6 +1017,23 @@ int main(int argc, char **argv) {
     atexit(norawmode);
 #endif
 
+#if defined(JANET_PRF)
+    uint8_t hash_key[JANET_HASH_KEY_SIZE + 1];
+#ifdef JANET_REDUCED_OS
+    char *envvar = NULL;
+#else
+    char *envvar = getenv("JANET_HASHSEED");
+#endif
+    if (NULL != envvar) {
+        strncpy((char *) hash_key, envvar, sizeof(hash_key) - 1);
+    } else if (janet_cryptorand(hash_key, JANET_HASH_KEY_SIZE) != 0) {
+        fputs("unable to initialize janet PRF hash function.\n", stderr);
+        return 1;
+    }
+    janet_init_hash_key(hash_key);
+#endif
+
+
     /* Set up VM */
     janet_init();
 

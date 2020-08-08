@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.11.1')
+  version : '1.11.4')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -180,30 +180,28 @@ libjanet = library('janet', janetc,
 
 # Extra c flags - adding -fvisibility=hidden matches the Makefile and
 # shaves off about 10k on linux x64, likely similar on other platforms.
-native_cc = meson.get_compiler('c', native: true)
-cross_cc = meson.get_compiler('c', native: false)
-if native_cc.has_argument('-fvisibility=hidden')
-  extra_native_cflags = ['-fvisibility=hidden']
+if cc.has_argument('-fvisibility=hidden')
+  extra_cflags = ['-fvisibility=hidden']
 else
-  extra_native_cflags = []
+  extra_cflags = []
 endif
-if cross_cc.has_argument('-fvisibility=hidden')
-  extra_cross_cflags = ['-fvisibility=hidden']
-else
-  extra_cross_cflags = []
-endif
-
 janet_mainclient = executable('janet', janetc, mainclient_src,
   include_directories : incdir,
   dependencies : [m_dep, dl_dep, thread_dep],
-  c_args : extra_native_cflags,
+  c_args : extra_cflags,
   install : true)
 
 if meson.is_cross_build()
+  native_cc = meson.get_compiler('c', native: true)
+  if native_cc.has_argument('-fvisibility=hidden')
+    extra_native_cflags = ['-fvisibility=hidden']
+  else
+    extra_native_cflags = []
+  endif
   janet_nativeclient = executable('janet-native', janetc, mainclient_src,
     include_directories : incdir,
     dependencies : [m_dep, dl_dep, thread_dep],
-    c_args : extra_cross_cflags,
+    c_args : extra_native_cflags,
     native : true)
 else
   janet_nativeclient = janet_mainclient
@@ -218,16 +216,17 @@ docs = custom_target('docs',
 
 # Tests
 test_files = [
-  'test/suite0.janet',
-  'test/suite1.janet',
-  'test/suite2.janet',
-  'test/suite3.janet',
-  'test/suite4.janet',
-  'test/suite5.janet',
-  'test/suite6.janet',
-  'test/suite7.janet',
-  'test/suite8.janet',
-  'test/suite9.janet'
+  'test/suite0000.janet',
+  'test/suite0001.janet',
+  'test/suite0002.janet',
+  'test/suite0003.janet',
+  'test/suite0004.janet',
+  'test/suite0005.janet',
+  'test/suite0006.janet',
+  'test/suite0007.janet',
+  'test/suite0008.janet',
+  'test/suite0009.janet',
+  'test/suite0010.janet'
 ]
 foreach t : test_files
   test(t, janet_nativeclient, args : files([t]), workdir : meson.current_source_dir())

@@ -1,0 +1,15 @@
+image: openbsd/latest
+sources:
+- https://git.sr.ht/~bakpakin/janet
+packages:
+- meson
+tasks:
+- build: |
+    cd janet
+    meson setup build --buildtype=release
+    cd build
+    meson configure -Dprf=true
+    ninja
+    ninja test
+    doas ninja install
+    doas jpm --verbose install circlet

@@ -1632,6 +1632,8 @@ JANET_API FILE *janet_dynfile(const char *name, FILE *def);
 JANET_API JanetAbstract janet_checkfile(Janet j);
 JANET_API FILE *janet_unwrapfile(Janet j, int32_t *flags);
 
+JANET_API int janet_cryptorand(uint8_t *out, size_t n);
+
 /* Marshal API */
 JANET_API void janet_marshal_size(JanetMarshalContext *ctx, size_t value);
 JANET_API void janet_marshal_int(JanetMarshalContext *ctx, int32_t value);

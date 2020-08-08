@@ -37,8 +37,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
-
 #ifdef JANET_APPLE
 #include <AvailabilityMacros.h>
 #endif
@@ -66,12 +64,6 @@ extern char **environ;
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach.h>
-#endif
-
-/* Setting C99 standard makes this not available, but it should
- * work/link properly if we detect a BSD */
-#if defined(JANET_BSD) || defined(MAC_OS_X_VERSION_10_7)
-void arc4random_buf(void *buf, size_t nbytes);
 #endif
 
 /* Not POSIX, but all Unixes but Solaris have this function. */
@@ -557,7 +549,6 @@ static Janet os_cwd(int32_t argc, Janet *argv) {
 
 static Janet os_cryptorand(int32_t argc, Janet *argv) {
     JanetBuffer *buffer;
-    const char *genericerr = "unable to get sufficient random data";
     janet_arity(argc, 1, 2);
     int32_t offset;
     int32_t n = janet_getinteger(argv, 0);
@@ -572,44 +563,9 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
     /* We could optimize here by adding setcount_uninit */
     janet_buffer_setcount(buffer, offset + n);
 
-#ifdef JANET_WINDOWS
-    for (int32_t i = offset; i < buffer->count; i += sizeof(unsigned int)) {
-        unsigned int v;
-        if (rand_s(&v))
-            janet_panic(genericerr);
-        for (int32_t j = 0; (j < sizeof(unsigned int)) && (i + j < buffer->count); j++) {
-            buffer->data[i + j] = v & 0xff;
-            v = v >> 8;
-        }
-    }
-#elif defined(JANET_LINUX) || ( defined(JANET_APPLE) && !defined(MAC_OS_X_VERSION_10_7) )
-    /* We should be able to call getrandom on linux, but it doesn't seem
-       to be uniformly supported on linux distros.
-       On Mac, arc4random_buf wasn't available on until 10.7.
-       In these cases, use this fallback path for now... */
-    int rc;
-    int randfd;
-    RETRY_EINTR(randfd, open("/dev/urandom", O_RDONLY | O_CLOEXEC));
-    if (randfd < 0)
-        janet_panic(genericerr);
-    while (n > 0) {
-        ssize_t nread;
-        RETRY_EINTR(nread, read(randfd, buffer->data + offset, n));
-        if (nread <= 0) {
-            RETRY_EINTR(rc, close(randfd));
-            janet_panic(genericerr);
-        }
-        offset += nread;
-        n -= nread;
-    }
-    RETRY_EINTR(rc, close(randfd));
-#elif defined(JANET_BSD) || defined(MAC_OS_X_VERSION_10_7)
-    (void) genericerr;
-    arc4random_buf(buffer->data + offset, n);
-#else
-    (void) genericerr;
-    janet_panic("cryptorand currently unsupported on this platform");
-#endif
+    if (janet_cryptorand(buffer->data + offset, n) != 0)
+        janet_panic("unable to get sufficient random data");
+
     return janet_wrap_buffer(buffer);
 }
 

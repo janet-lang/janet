@@ -108,6 +108,8 @@ void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cf
 int janet_gettime(struct timespec *spec);
 #endif
 
+#define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
+
 /* Initialize builtin libraries */
 void janet_lib_io(JanetTable *env);
 void janet_lib_math(JanetTable *env);
