@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Update meson build script to fix bug on Debian's version of meson
+
 ## 1.11.3 - 2020-08-03
 - Add `JANET_HASHSEED` environment variable when `JANET_PRF` is enabled.
 - Expose `janet_cryptorand` in C API.

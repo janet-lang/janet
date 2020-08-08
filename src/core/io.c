@@ -282,6 +282,8 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
         iof->flags |= JANET_FILE_CLOSED;
         if (status == -1) janet_panic("could not close file");
         return janet_wrap_integer(WEXITSTATUS(status));
+#else
+        return janet_wrap_nil();
 #endif
     } else {
         if (fclose(iof->file)) {
