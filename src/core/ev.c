@@ -26,7 +26,6 @@
 #include "util.h"
 #include "gc.h"
 #include "state.h"
-#include "vector.h"
 #include "fiber.h"
 #endif
 
@@ -212,6 +211,9 @@ static JanetListenerState *janet_listen_impl(JanetPollable *pollable, JanetListe
     if (pollable->_mask & mask) {
         janet_panic("cannot listen for duplicate event on pollable");
     }
+    if (janet_vm_root_fiber->waiting != NULL) {
+        janet_panic("current fiber is already waiting for event");
+    }
     if (size < sizeof(JanetListenerState))
         size = sizeof(JanetListenerState);
     JanetListenerState *state = malloc(size);
@@ -223,7 +225,7 @@ static JanetListenerState *janet_listen_impl(JanetPollable *pollable, JanetListe
         state->fiber = NULL;
     } else {
         state->fiber = janet_vm_root_fiber;
-        janet_v_push(janet_vm_root_fiber->waiting, state);
+        janet_vm_root_fiber->waiting = state;
     }
     mask |= JANET_ASYNC_LISTEN_SPAWNER;
     state->pollable = pollable;
@@ -253,15 +255,8 @@ static void janet_unlisten_impl(JanetListenerState *state) {
     state->pollable->_mask &= ~(state->_mask);
     /* Ensure fiber does not reference this state */
     JanetFiber *fiber = state->fiber;
-    if (NULL != fiber) {
-        int32_t count = janet_v_count(fiber->waiting);
-        for (int32_t i = 0; i < count; i++) {
-            if (fiber->waiting[i] == state) {
-                fiber->waiting[i] = janet_v_last(fiber->waiting);
-                janet_v_pop(fiber->waiting);
-                break;
-            }
-        }
+    if (NULL != fiber && fiber->waiting == state) {
+        fiber->waiting = NULL;
     }
     free(state);
 }
@@ -302,12 +297,7 @@ void janet_pollable_deinit(JanetPollable *pollable) {
 
 /* Cancel any state machines waiting on this fiber. */
 void janet_cancel(JanetFiber *fiber) {
-    int32_t lcount = janet_v_count(fiber->waiting);
-    janet_v_empty(fiber->waiting);
-    for (int32_t index = 0; index < lcount; index++) {
-        janet_unlisten(fiber->waiting[index]);
-    }
-    /* Clear timeout on the current fiber */
+    if (fiber->waiting) janet_unlisten(fiber->waiting);
     if (fiber->timeout_index >= 0) {
         pop_timeout(fiber->timeout_index);
         fiber->timeout_index = -1;
