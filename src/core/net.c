@@ -350,6 +350,12 @@ static size_t janet_loop_event(size_t index) {
                     if (nwrote > 0) {
                         start += nwrote;
                     } else {
+                        if (nwrote == -1) {
+                            const uint8_t *msg = janet_formatc("write error: %s", strerror(JLASTERR));
+                            resumeval = janet_wrap_string(msg);
+                        } else {
+                            resumeval = janet_cstringv("could not write");
+                        }
                         start = len;
                     }
                 }
@@ -637,7 +643,7 @@ static const JanetReg net_cfuns[] = {
         JDOC("(net/read stream nbytes &opt buf)\n\n"
              "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
              "If less than n bytes are available (and more than 0), will push those bytes and return early. "
-             "Returns a buffer with up to n more bytes in it.")
+             "Returns a buffer with up to n more bytes in it, or nil if the read failed.")
     },
     {
         "net/chunk", cfun_stream_chunk,
@@ -648,7 +654,7 @@ static const JanetReg net_cfuns[] = {
         "net/write", cfun_stream_write,
         JDOC("(net/write stream data)\n\n"
              "Write data to a stream, suspending the current fiber until the write "
-             "completes. Returns stream.")
+             "completes. Returns nil, or an error message if the write failed.")
     },
     {
         "net/close", cfun_stream_close,
