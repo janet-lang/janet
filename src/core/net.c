@@ -542,6 +542,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
             janet_panic("setsockopt(SO_NOSIGPIPE) failed");
         }
 #endif
+	
 #ifdef SO_REUSEPORT
         if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
             JSOCKCLOSE(sfd);
@@ -610,11 +611,24 @@ static Janet cfun_stream_write(int32_t argc, Janet *argv) {
     }
 }
 
+static Janet cfun_stream_ready(int32_t argc, Janet *argv) {
+    JPollStruct pollfds[1];
+    int r;
+    janet_fixarity(argc, 1);
+    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
+    pollfds[0].fd = stream->fd;
+    pollfds[0].events = POLLIN | POLLOUT;
+    pollfds[0].revents = 0;
+    r = JPOLL(pollfds, 1, -1);
+    return janet_wrap_boolean((pollfds[0].revents & POLLHUP) == 0);
+}
+  
 static const JanetMethod stream_methods[] = {
     {"chunk", cfun_stream_chunk},
     {"close", cfun_stream_close},
     {"read", cfun_stream_read},
     {"write", cfun_stream_write},
+    {"ready", cfun_stream_ready},
     {NULL, NULL}
 };
 
@@ -660,6 +674,12 @@ static const JanetReg net_cfuns[] = {
         JDOC("(net/connect host port)\n\n"
              "Open a connection to communicate with a server. Returns a duplex stream "
              "that can be used to communicate with the server.")
+    },
+    {
+        "net/ready", cfun_stream_ready,
+        JDOC("(net/ready stream)\n\n"
+             "Check if a stream can perform I/O. Returns boolean"
+	     )
     },
     {NULL, NULL, NULL}
 };
