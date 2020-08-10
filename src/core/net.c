@@ -497,6 +497,18 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset) {
  * C Funs
  */
 
+static void nosigpipe(JSock s) {
+#ifdef SO_NOSIGPIPE
+    int enable = 1;
+    if (setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) < 0) {
+        JSOCKCLOSE(s);
+        janet_panic("setsockopt(SO_NOSIGPIPE) failed");
+    }
+#else
+    (void) s;
+#endif
+}
+
 static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
 
@@ -516,6 +528,8 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
         JSOCKCLOSE(sock);
         janet_panic("could not connect to socket");
     }
+
+    nosigpipe(sock);
 
     /* Wrap socket in abstract type JanetStream */
     JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
@@ -542,12 +556,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
             JSOCKCLOSE(sfd);
             janet_panic("setsockopt(SO_REUSEADDR) failed");
         }
-#ifdef SO_NOSIGPIPE
-        if (setsockopt(sfd, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) < 0) {
-            JSOCKCLOSE(sfd);
-            janet_panic("setsockopt(SO_NOSIGPIPE) failed");
-        }
-#endif
+        nosigpipe(sfd);
 #ifdef SO_REUSEPORT
         if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
             JSOCKCLOSE(sfd);
