@@ -139,6 +139,19 @@ static int janet_stream_close(void *p, size_t s) {
     return 0;
 }
 
+
+static void nosigpipe(JSock s) {
+#ifdef SO_NOSIGPIPE
+    int enable = 1;
+    if (setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) < 0) {
+        JSOCKCLOSE(s);
+        janet_panic("setsockopt(SO_NOSIGPIPE) failed");
+    }
+#else
+    (void) s;
+#endif
+}
+
 /*
  * Event loop
  */
@@ -308,6 +321,7 @@ static size_t janet_loop_event(size_t index) {
                 JSock connfd = accept(fd, NULL, NULL);
                 if (JSOCKVALID(connfd)) {
                     /* Made a new connection socket */
+                    nosigpipe(connfd);
                     JanetStream *stream = make_stream(connfd, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
                     Janet streamv = janet_wrap_abstract(stream);
                     JanetFunction *handler = jlfd->data.read_accept.handler;
@@ -496,18 +510,6 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset) {
 /*
  * C Funs
  */
-
-static void nosigpipe(JSock s) {
-#ifdef SO_NOSIGPIPE
-    int enable = 1;
-    if (setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) < 0) {
-        JSOCKCLOSE(s);
-        janet_panic("setsockopt(SO_NOSIGPIPE) failed");
-    }
-#else
-    (void) s;
-#endif
-}
 
 static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
