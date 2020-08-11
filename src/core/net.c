@@ -275,8 +275,11 @@ static size_t janet_loop_event(size_t index) {
     int ret = 1;
     int should_resume = 0;
     Janet resumeval = janet_wrap_nil();
+    JanetSignal resumesignal = JANET_SIGNAL_OK;
     if (stream->flags & JANET_STREAM_CLOSED) {
         should_resume = 1;
+        resumeval = janet_cstringv("stream is closed");
+        resumesignal = JANET_SIGNAL_ERROR;
         ret = 0;
     } else {
         switch (jlfd->event_type) {
@@ -288,6 +291,8 @@ static size_t janet_loop_event(size_t index) {
                 if (!(stream->flags & JANET_STREAM_READABLE)) {
                     should_resume = 1;
                     ret = 0;
+                    resumesignal = JANET_SIGNAL_ERROR;
+                    resumeval = janet_cstringv("stream not readable");
                     break;
                 }
                 JReadInt nread;
@@ -309,6 +314,13 @@ static size_t janet_loop_event(size_t index) {
                     should_resume = 1;
                     if (nread > 0) {
                         resumeval = janet_wrap_buffer(buffer);
+                    } else {
+                        if (nread == 0) {
+                            resumeval = janet_cstringv("could not read from stream");
+                        } else {
+                            resumeval = janet_cstringv(strerror(JLASTERR));
+                        }
+                        resumesignal = JANET_SIGNAL_ERROR;
                     }
                     ret = 0;
                 } else {
@@ -342,6 +354,8 @@ static size_t janet_loop_event(size_t index) {
                 const uint8_t *bytes;
                 if (!(stream->flags & JANET_STREAM_WRITABLE)) {
                     should_resume = 1;
+                    resumesignal = JANET_SIGNAL_ERROR;
+                    resumeval = janet_cstringv("stream not writeable");
                     ret = 0;
                     break;
                 }
@@ -364,9 +378,9 @@ static size_t janet_loop_event(size_t index) {
                     if (nwrote > 0) {
                         start += nwrote;
                     } else {
+                        resumesignal = JANET_SIGNAL_ERROR;
                         if (nwrote == -1) {
-                            const uint8_t *msg = janet_formatc("write error: %s", strerror(JLASTERR));
-                            resumeval = janet_wrap_string(msg);
+                            resumeval = janet_cstringv(strerror(JLASTERR));
                         } else {
                             resumeval = janet_cstringv("could not write");
                         }
@@ -396,7 +410,7 @@ static size_t janet_loop_event(size_t index) {
     if (NULL != jlfd->fiber && should_resume) {
         /* Resume the fiber */
         Janet out;
-        JanetSignal sig = janet_continue(jlfd->fiber, resumeval, &out);
+        JanetSignal sig = janet_continue_signal(jlfd->fiber, resumeval, &out, resumesignal);
         if (sig != JANET_SIGNAL_OK && sig != JANET_SIGNAL_EVENT) {
             janet_stacktrace(jlfd->fiber, out);
         }
@@ -654,7 +668,7 @@ static const JanetReg net_cfuns[] = {
         JDOC("(net/read stream nbytes &opt buf)\n\n"
              "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
              "If less than n bytes are available (and more than 0), will push those bytes and return early. "
-             "Returns a buffer with up to n more bytes in it, or nil if the read failed.")
+             "Returns a buffer with up to n more bytes in it, or raises an error if the read failed.")
     },
     {
         "net/chunk", cfun_stream_chunk,
@@ -665,7 +679,7 @@ static const JanetReg net_cfuns[] = {
         "net/write", cfun_stream_write,
         JDOC("(net/write stream data)\n\n"
              "Write data to a stream, suspending the current fiber until the write "
-             "completes. Returns nil, or an error message if the write failed.")
+             "completes. Returns nil, or raises an error if the write failed.")
     },
     {
         "net/close", cfun_stream_close,

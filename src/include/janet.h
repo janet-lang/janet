@@ -1412,6 +1412,7 @@ JANET_API int janet_symeq(Janet x, const char *cstring);
 JANET_API int janet_init(void);
 JANET_API void janet_deinit(void);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
+JANET_API JanetSignal janet_continue_signal(JanetFiber *fiber, Janet in, Janet *out, JanetSignal sig);
 JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
 JANET_API JanetSignal janet_step(JanetFiber *fiber, Janet in, Janet *out);
 JANET_API Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv);
