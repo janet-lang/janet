@@ -810,6 +810,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     vm_pcnext();
 
     VM_OP(JOP_NEXT)
+    vm_commit();
     stack[A] = janet_next(stack[B], stack[C]);
     vm_pcnext();
 
