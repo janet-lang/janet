@@ -25,8 +25,15 @@
 #ifndef JANET_FEATURES_H_defined
 #define JANET_FEATURES_H_defined
 
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 200809L
+#if defined(__NetBSD__) || defined(__APPLE__) || defined(__OpenBSD__) \
+    || defined(__bsdi__) || defined(__DragonFly__)
+/* Use BSD soucre on any BSD systems, include OSX */
+# define _BSD_SOURCE
+#else
+/* Use POSIX feature flags */
+# ifndef _POSIX_C_SOURCE
+# define _POSIX_C_SOURCE 200809L
+# endif
 #endif
 
 #if defined(WIN32) || defined(_WIN32)

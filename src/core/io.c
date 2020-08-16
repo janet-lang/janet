@@ -391,18 +391,16 @@ FILE *janet_dynfile(const char *name, FILE *def) {
     return iofile->file;
 }
 
-static Janet cfun_io_print_impl(int32_t argc, Janet *argv,
-                                int newline, const char *name, FILE *dflt_file) {
+static Janet cfun_io_print_impl_x(int32_t argc, Janet *argv, int newline,
+                                  FILE *dflt_file, int32_t offset, Janet x) {
     FILE *f;
-    Janet x = janet_dyn(name);
     switch (janet_type(x)) {
         default:
-            /* Other values simply do nothing */
-            return janet_wrap_nil();
+            janet_panicf("cannot print to %v", x);
         case JANET_BUFFER: {
             /* Special case buffer */
             JanetBuffer *buf = janet_unwrap_buffer(x);
-            for (int32_t i = 0; i < argc; ++i) {
+            for (int32_t i = offset; i < argc; ++i) {
                 janet_to_string_b(buf, argv[i]);
             }
             if (newline)
@@ -411,6 +409,7 @@ static Janet cfun_io_print_impl(int32_t argc, Janet *argv,
         }
         case JANET_NIL:
             f = dflt_file;
+            if (f == NULL) janet_panic("cannot print to nil");
             break;
         case JANET_ABSTRACT: {
             void *abstract = janet_unwrap_abstract(x);
@@ -421,7 +420,7 @@ static Janet cfun_io_print_impl(int32_t argc, Janet *argv,
             break;
         }
     }
-    for (int32_t i = 0; i < argc; ++i) {
+    for (int32_t i = offset; i < argc; ++i) {
         int32_t len;
         const uint8_t *vstr;
         if (janet_checktype(argv[i], JANET_BUFFER)) {
@@ -434,13 +433,24 @@ static Janet cfun_io_print_impl(int32_t argc, Janet *argv,
         }
         if (len) {
             if (1 != fwrite(vstr, len, 1, f)) {
-                janet_panicf("could not print %d bytes to (dyn :%s)", len, name);
+                if (f == dflt_file) {
+                    janet_panicf("cannot print %d bytes", len);
+                } else {
+                    janet_panicf("cannot print %d bytes to %v", len, x);
+                }
             }
         }
     }
     if (newline)
         putc('\n', f);
     return janet_wrap_nil();
+}
+
+
+static Janet cfun_io_print_impl(int32_t argc, Janet *argv,
+                                int newline, const char *name, FILE *dflt_file) {
+    Janet x = janet_dyn(name);
+    return cfun_io_print_impl_x(argc, argv, newline, dflt_file, 0, x);
 }
 
 static Janet cfun_io_print(int32_t argc, Janet *argv) {
@@ -459,25 +469,33 @@ static Janet cfun_io_eprin(int32_t argc, Janet *argv) {
     return cfun_io_print_impl(argc, argv, 0, "err", stderr);
 }
 
-static Janet cfun_io_printf_impl(int32_t argc, Janet *argv, int newline,
-                                 const char *name, FILE *dflt_file) {
-    FILE *f;
+static Janet cfun_io_xprint(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
-    const char *fmt = janet_getcstring(argv, 0);
-    Janet x = janet_dyn(name);
+    return cfun_io_print_impl_x(argc, argv, 1, NULL, 1, argv[0]);
+}
+
+static Janet cfun_io_xprin(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, -1);
+    return cfun_io_print_impl_x(argc, argv, 0, NULL, 1, argv[0]);
+}
+
+static Janet cfun_io_printf_impl_x(int32_t argc, Janet *argv, int newline,
+                                   FILE *dflt_file, int32_t offset, Janet x) {
+    FILE *f;
+    const char *fmt = janet_getcstring(argv, offset);
     switch (janet_type(x)) {
         default:
-            /* Other values simply do nothing */
-            return janet_wrap_nil();
+            janet_panicf("cannot print to %v", x);
         case JANET_BUFFER: {
             /* Special case buffer */
             JanetBuffer *buf = janet_unwrap_buffer(x);
-            janet_buffer_format(buf, fmt, 0, argc, argv);
+            janet_buffer_format(buf, fmt, offset, argc, argv);
             if (newline) janet_buffer_push_u8(buf, '\n');
             return janet_wrap_nil();
         }
         case JANET_NIL:
             f = dflt_file;
+            if (f == NULL) janet_panic("cannot print to nil");
             break;
         case JANET_ABSTRACT: {
             void *abstract = janet_unwrap_abstract(x);
@@ -489,11 +507,11 @@ static Janet cfun_io_printf_impl(int32_t argc, Janet *argv, int newline,
         }
     }
     JanetBuffer *buf = janet_buffer(10);
-    janet_buffer_format(buf, fmt, 0, argc, argv);
+    janet_buffer_format(buf, fmt, offset, argc, argv);
     if (newline) janet_buffer_push_u8(buf, '\n');
     if (buf->count) {
         if (1 != fwrite(buf->data, buf->count, 1, f)) {
-            janet_panicf("could not print %d bytes to file", buf->count, name);
+            janet_panicf("could not print %d bytes to file", buf->count);
         }
     }
     /* Clear buffer to make things easier for GC */
@@ -502,6 +520,14 @@ static Janet cfun_io_printf_impl(int32_t argc, Janet *argv, int newline,
     free(buf->data);
     buf->data = NULL;
     return janet_wrap_nil();
+}
+
+static Janet cfun_io_printf_impl(int32_t argc, Janet *argv, int newline,
+                                 const char *name, FILE *dflt_file) {
+    janet_arity(argc, 1, -1);
+    Janet x = janet_dyn(name);
+    return cfun_io_printf_impl_x(argc, argv, newline, dflt_file, 0, x);
+
 }
 
 static Janet cfun_io_printf(int32_t argc, Janet *argv) {
@@ -518,6 +544,16 @@ static Janet cfun_io_eprintf(int32_t argc, Janet *argv) {
 
 static Janet cfun_io_eprinf(int32_t argc, Janet *argv) {
     return cfun_io_printf_impl(argc, argv, 0, "err", stderr);
+}
+
+static Janet cfun_io_xprintf(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, -1);
+    return cfun_io_printf_impl_x(argc, argv, 1, NULL, 1, argv[0]);
+}
+
+static Janet cfun_io_xprinf(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, -1);
+    return cfun_io_printf_impl_x(argc, argv, 0, NULL, 1, argv[0]);
 }
 
 static void janet_flusher(const char *name, FILE *dflt_file) {
@@ -632,6 +668,29 @@ static const JanetReg io_cfuns[] = {
         "eprinf", cfun_io_eprinf,
         JDOC("(eprinf fmt & xs)\n\n"
              "Like eprintf but with no trailing newline.")
+    },
+    {
+        "xprint", cfun_io_xprint,
+        JDOC("(xprint to & xs)\n\n"
+             "Print to a file or other value explicitly (no dynamic bindings) with a trailing "
+             "newline character. The value to print "
+             "to is the first argument, and is otherwise the same as print. Returns nil.")
+    },
+    {
+        "xprin", cfun_io_xprin,
+        JDOC("(xprin to & xs)\n\n"
+             "Print to a file or other value explicitly (no dynamic bindings). The value to print "
+             "to is the first argument, and is otherwise the same as prin. Returns nil.")
+    },
+    {
+        "xprintf", cfun_io_xprintf,
+        JDOC("(xprint to fmt & xs)\n\n"
+             "Like printf but prints to an explicit file or value to. Returns nil.")
+    },
+    {
+        "xprinf", cfun_io_xprinf,
+        JDOC("(xprin to fmt & xs)\n\n"
+             "Like prinf but prints to an explicit file or value to. Returns nil.")
     },
     {
         "flush", cfun_io_flush,

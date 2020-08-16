@@ -113,6 +113,7 @@ typedef struct JanetTask JanetTask;
 struct JanetTask {
     JanetFiber *fiber;
     Janet value;
+    JanetSignal sig;
 };
 
 /* Min priority queue of timestamps for timeouts. */
@@ -121,6 +122,7 @@ typedef struct JanetTimeout JanetTimeout;
 struct JanetTimeout {
     JanetTimestamp when;
     JanetFiber *fiber;
+    int is_error;
 };
 
 /* Forward declaration */
@@ -300,22 +302,30 @@ void janet_pollable_deinit(JanetPollable *pollable) {
     pollable->state = NULL;
 }
 
-/* Cancel any state machines waiting on this fiber. */
-void janet_cancel(JanetFiber *fiber) {
+/* Register a fiber to resume with value */
+void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig) {
+    if (fiber->flags & JANET_FIBER_FLAG_SCHEDULED) return;
+    fiber->flags |= JANET_FIBER_FLAG_SCHEDULED;
+    fiber->sched_id++;
+    JanetTask t = { fiber, value, sig };
+    janet_q_push(&janet_vm_spawn, &t, sizeof(t));
+}
+
+void janet_cancel(JanetFiber *fiber, Janet value) {
+    janet_schedule_signal(fiber, value, JANET_SIGNAL_ERROR);
+}
+
+void janet_schedule(JanetFiber *fiber, Janet value) {
+    janet_schedule_signal(fiber, value, JANET_SIGNAL_OK);
+}
+
+void janet_fiber_did_resume(JanetFiber *fiber) {
+    /* Cancel any pending fibers */
     if (fiber->waiting) janet_unlisten(fiber->waiting);
     if (fiber->timeout_index >= 0) {
         pop_timeout(fiber->timeout_index);
         fiber->timeout_index = -1;
     }
-}
-
-/* Register a fiber to resume with value */
-void janet_schedule(JanetFiber *fiber, Janet value) {
-    if (fiber->flags & JANET_FIBER_FLAG_SCHEDULED) return;
-    fiber->flags |= JANET_FIBER_FLAG_SCHEDULED;
-    fiber->sched_id++;
-    JanetTask t = { fiber, value };
-    janet_q_push(&janet_vm_spawn, &t, sizeof(t));
 }
 
 /* Mark all pending tasks */
@@ -342,10 +352,10 @@ void janet_ev_mark(void) {
 }
 
 /* Run a top level task */
-static void run_one(JanetFiber *fiber, Janet value) {
+static void run_one(JanetFiber *fiber, Janet value, JanetSignal sigin) {
     fiber->flags &= ~JANET_FIBER_FLAG_SCHEDULED;
     Janet res;
-    JanetSignal sig = janet_continue(fiber, value, &res);
+    JanetSignal sig = janet_continue_signal(fiber, value, &res, sigin);
     if (sig != JANET_SIGNAL_OK && sig != JANET_SIGNAL_EVENT) {
         janet_stacktrace(fiber, res);
     }
@@ -377,6 +387,7 @@ void janet_addtimeout(double sec) {
     JanetTimeout to;
     to.when = ts_delta(ts_now(), sec);
     to.fiber = fiber;
+    to.is_error = 1;
     add_timeout(to);
 }
 
@@ -595,9 +606,9 @@ void janet_loop(void) {
         }
         /* Run scheduled fibers */
         while (janet_vm_spawn.head != janet_vm_spawn.tail) {
-            JanetTask task = {NULL, janet_wrap_nil()};
+            JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK};
             janet_q_pop(&janet_vm_spawn, &task, sizeof(task));
-            run_one(task.fiber, task.value);
+            run_one(task.fiber, task.value, task.sig);
         }
         /* Poll for events */
         if (janet_vm_active_listeners || janet_vm_tq_count) {
@@ -707,7 +718,11 @@ void janet_loop1_impl(void) {
             /* Timer event */
             pop_timeout(0);
             /* Cancel waiters for this fiber */
-            janet_schedule(to.fiber, janet_wrap_nil());
+            if (to.is_error) {
+                janet_cancel(to.fiber, janet_cstringv("timeout"));
+            } else {
+                janet_schedule(to.fiber, janet_wrap_nil());
+            }
         } else {
             /* Normal event */
             int mask = events[i].events;
@@ -784,6 +799,7 @@ static Janet cfun_ev_sleep(int32_t argc, Janet *argv) {
     JanetTimeout to;
     to.when = ts_delta(ts_now(), sec);
     to.fiber = janet_vm_root_fiber;
+    to.is_error = 0;
     add_timeout(to);
     janet_await();
 }

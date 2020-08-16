@@ -34,4 +34,14 @@
 (assert (= nil (index-of 10 @[])) "index-of 10")
 (assert (= nil (index-of 10 @[1 2 3])) "index-of 11")
 
+# Regression
+(assert (= {:x 10} (|(let [x $] ~{:x ,x}) 10)) "issue 463")
+
+# macex testing
+(assert (deep= (macex1 '~{1 2 3 4}) '~{1 2 3 4}) "macex1 qq struct")
+(assert (deep= (macex1 '~@{1 2 3 4}) '~@{1 2 3 4}) "macex1 qq table")
+(assert (deep= (macex1 '~(1 2 3 4)) '~[1 2 3 4]) "macex1 qq tuple")
+(assert (= :brackets (tuple/type (1 (macex1 '~[1 2 3 4])))) "macex1 qq bracket tuple")
+(assert (deep= (macex1 '~@[1 2 3 4 ,blah]) '~@[1 2 3 4 ,blah]) "macex1 qq array")
+
 (end-suite)

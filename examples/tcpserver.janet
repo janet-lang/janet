@@ -15,6 +15,6 @@
 (let [server (net/server "127.0.0.1" "8000")]
   (print "Starting echo server on 127.0.0.1:8000")
   (forever
-    (if-let [conn (:accept server 2.8)]
+    (if-let [conn (:accept server)]
       (ev/call handler conn)
       (print "no new connections"))))

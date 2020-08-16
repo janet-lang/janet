@@ -3,7 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
 - Silence warnings in some compilers.
+- Change `net/read`, `net/chunk`, and `net/write` to raise errors in the case of failures.
+- Add `janet_continue_signal` to C API. This indirectly enables C functions that yield to the event loop
+  to raise errors or other signals.
 - Update meson build script to fix bug on Debian's version of meson
+- Add `xprint`, `xprin`, `xprintf`, and `xprinf`.
+- `net/write` now raises an error message if write fails.
+- Fix issue with SIGPIPE on macOS and BSDs.
 
 ## 1.11.3 - 2020-08-03
 - Add `JANET_HASHSEED` environment variable when `JANET_PRF` is enabled.

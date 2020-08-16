@@ -139,6 +139,18 @@ static int janet_stream_close(void *p, size_t s) {
     return 0;
 }
 
+static void nosigpipe(JSock s) {
+#ifdef SO_NOSIGPIPE
+    int enable = 1;
+    if (setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) < 0) {
+        JSOCKCLOSE(s);
+        janet_panic("setsockopt(SO_NOSIGPIPE) failed");
+    }
+#else
+    (void) s;
+#endif
+}
+
 static int janet_stream_mark(void *p, size_t s) {
     (void) s;
     janet_pollable_mark((JanetPollable *) p);
@@ -166,8 +178,7 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
             janet_mark(janet_wrap_buffer(state->buf));
             break;
         case JANET_ASYNC_EVENT_CLOSE:
-            /* Read is finished, even if chunk is incomplete */
-            janet_schedule(s->fiber, janet_wrap_nil());
+            janet_cancel(s->fiber, janet_cstringv("stream closed"));
             return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_READ:
             /* Read in bytes */
@@ -201,15 +212,23 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
 
             /* Resume if done */
             if (!state->is_chunk || bytes_left == 0) {
+                JanetSignal sig = JANET_SIGNAL_OK;
                 Janet resume_val;
                 if (state->is_recv_from) {
                     void *abst = janet_abstract(&AddressAT, socklen);
                     memcpy(abst, &saddr, socklen);
                     resume_val = janet_wrap_abstract(abst);
                 } else {
-                    resume_val = nread > 0 ? janet_wrap_buffer(buffer) : janet_wrap_nil();
+                    if (nread > 0) {
+                        resume_val = janet_wrap_buffer(buffer);
+                    } else {
+                        sig = JANET_SIGNAL_ERROR;
+                        resume_val = (nread == -1)
+                            ? janet_cstringv(strerror(JLASTERR))
+                            : janet_cstringv("could not read");
+                    }
                 }
-                janet_schedule(s->fiber, resume_val);
+                janet_schedule_signal(s->fiber, resume_val, sig);
                 return JANET_ASYNC_STATUS_DONE;
             }
         }
@@ -277,7 +296,7 @@ JanetAsyncStatus net_machine_write(JanetListenerState *s, JanetAsyncEvent event)
             }
             break;
         case JANET_ASYNC_EVENT_CLOSE:
-            janet_schedule(s->fiber, janet_wrap_nil());
+            janet_cancel(s->fiber, janet_cstringv("stream closed"));
             return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_WRITE: {
             int32_t start, len;
@@ -291,9 +310,9 @@ JanetAsyncStatus net_machine_write(JanetListenerState *s, JanetAsyncEvent event)
                 bytes = state->src.str;
                 len = janet_string_length(bytes);
             }
+            JReadInt nwrote = 0;
             if (start < len) {
                 int32_t nbytes = len - start;
-                JReadInt nwrote;
                 do {
                     void *dest_abst = state->dest_abst;
                     if (dest_abst) {
@@ -311,7 +330,13 @@ JanetAsyncStatus net_machine_write(JanetListenerState *s, JanetAsyncEvent event)
             }
             state->start = start;
             if (start >= len) {
-                janet_schedule(s->fiber, janet_wrap_nil());
+                if (nwrote > 0) {
+                    janet_schedule(s->fiber, janet_wrap_nil());
+                } else if (nwrote == 0) {
+                    janet_cancel(s->fiber, janet_cstringv("could not write"));
+                } else {
+                    janet_cancel(s->fiber, janet_cstringv(strerror(JLASTERR)));
+                }
                 return JANET_ASYNC_STATUS_DONE;
             }
             break;
@@ -370,6 +395,7 @@ JanetAsyncStatus net_machine_simple_server(JanetListenerState *s, JanetAsyncEven
             JSock connfd = accept(s->pollable->handle, NULL, NULL);
             if (JSOCKVALID(connfd)) {
                 /* Made a new connection socket */
+                nosigpipe(connfd);
                 JanetStream *stream = make_stream(connfd, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
                 Janet streamv = janet_wrap_abstract(stream);
                 JanetFiber *fiber = janet_fiber(state->function, 64, 1, &streamv);
@@ -392,11 +418,12 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
         default:
             break;
         case JANET_ASYNC_EVENT_CLOSE:
-            janet_schedule(s->fiber, janet_wrap_nil());
+            janet_cancel(s->fiber, janet_cstringv("stream closed"));
             return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_READ: {
             JSock connfd = accept(s->pollable->handle, NULL, NULL);
             if (JSOCKVALID(connfd)) {
+                nosigpipe(connfd);
                 JanetStream *stream = make_stream(connfd, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
                 Janet streamv = janet_wrap_abstract(stream);
                 janet_schedule(s->fiber, streamv);
@@ -551,6 +578,8 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
         janet_panic("could not connect to socket");
     }
 
+    nosigpipe(sock);
+
     /* Wrap socket in abstract type JanetStream */
     JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
     return janet_wrap_abstract(stream);
@@ -562,11 +591,6 @@ static const char *serverify_socket(JSock sfd) {
     if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(int)) < 0) {
         return "setsockopt(SO_REUSEADDR) failed";
     }
-#ifdef SO_NOSIGPIPE
-    if (setsockopt(sfd, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) < 0) {
-        return "setsockopt(SO_NOSIGPIPE) failed";
-    }
-#endif
 #ifdef SO_REUSEPORT
     if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
         return "setsockopt(SO_REUSEPORT) failed";
@@ -619,6 +643,8 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
             janet_panic("could not bind to any sockets");
         }
     }
+
+    nosigpipe(sfd);
 
     if (socktype == SOCK_DGRAM) {
         /* Datagram server (UDP) */
@@ -807,7 +833,7 @@ static const JanetReg net_cfuns[] = {
              "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
              "If less than n bytes are available (and more than 0), will push those bytes and return early. "
              "Takes an optional timeout in seconds, after which will return nil. "
-             "Returns a buffer with up to n more bytes in it.")
+             "Returns a buffer with up to n more bytes in it, or raises an error if the read failed.")
     },
     {
         "net/chunk", cfun_stream_chunk,
@@ -820,7 +846,7 @@ static const JanetReg net_cfuns[] = {
         JDOC("(net/write stream data &opt timeout)\n\n"
              "Write data to a stream, suspending the current fiber until the write "
              "completes. Takes an optional timeout in seconds, after which will return nil. "
-             "Returns stream.")
+             "Returns nil, or raises an error if the write failed.")
     },
     {
         "net/send-to", cfun_stream_send_to,

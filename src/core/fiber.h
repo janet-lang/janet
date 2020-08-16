@@ -46,8 +46,9 @@
 #define JANET_FIBER_MASK_USERN(N) (16 << (N))
 #define JANET_FIBER_MASK_USER 0x3FF0
 
-#define JANET_FIBER_STATUS_MASK 0x7F0000
+#define JANET_FIBER_STATUS_MASK 0x3F0000
 #define JANET_FIBER_FLAG_SCHEDULED 0x800000
+#define JANET_FIBER_RESUME_SIGNAL 0x400000
 #define JANET_FIBER_STATUS_OFFSET 16
 
 #define JANET_FIBER_BREAKPOINT       0x1000000
@@ -76,5 +77,9 @@ void janet_fiber_cframe(JanetFiber *fiber, JanetCFunction cfun);
 void janet_fiber_popframe(JanetFiber *fiber);
 void janet_env_maybe_detach(JanetFuncEnv *env);
 int janet_env_valid(JanetFuncEnv *env);
+
+#ifdef JANET_EV
+void janet_fiber_did_resume(JanetFiber *fiber);
+#endif
 
 #endif

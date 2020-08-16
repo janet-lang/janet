@@ -1804,14 +1804,16 @@
   (defn expandqq [t]
     (defn qq [x]
       (case (type x)
-        :tuple (do
-                 (def x0 (in x 0))
-                 (if (or (= 'unquote x0) (= 'unquote-splicing x0))
-                   (tuple x0 (recur (in x 1)))
-                   (tuple/slice (map qq x))))
+        :tuple (if (= :brackets (tuple/type x))
+                 ~[,;(map qq x)]
+                 (do
+                   (def x0 (get x 0))
+                   (if (= 'unquote x0)
+                     (tuple x0 (recur (get x 1)))
+                     (tuple/slice (map qq x)))))
         :array (map qq x)
-        :table (table (map qq (kvs x)))
-        :struct (struct (map qq (kvs x)))
+        :table (table ;(map qq (kvs x)))
+        :struct (struct ;(map qq (kvs x)))
         x))
     (tuple (in t 0) (qq (in t 1))))
 

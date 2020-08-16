@@ -1217,16 +1217,14 @@ JANET_API void janet_pollable_deinit(JanetPollable *pollable);
 
 /* Queue a fiber to run on the event loop */
 JANET_API void janet_schedule(JanetFiber *fiber, Janet value);
+JANET_API void janet_cancel(JanetFiber *fiber, Janet value);
+JANET_API void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig);
 
 /* Start a state machine listening for events from a pollable */
 JANET_API JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size);
 
 /* Shorthand for yielding to event loop in C */
 JANET_NO_RETURN JANET_API void janet_await(void);
-
-/* Cancel a waiting fiber. Will notify the canceled state machines, but will not
- * unwind the fiber. */
-void janet_cancel(JanetFiber *fiber);
 
 /* For use inside listeners - adds a timeout to the current fiber, such that
  * it will be resumed after sec seconds if no other event schedules the current fiber. */
@@ -1500,6 +1498,7 @@ JANET_API int janet_symeq(Janet x, const char *cstring);
 JANET_API int janet_init(void);
 JANET_API void janet_deinit(void);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
+JANET_API JanetSignal janet_continue_signal(JanetFiber *fiber, Janet in, Janet *out, JanetSignal sig);
 JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
 JANET_API JanetSignal janet_step(JanetFiber *fiber, Janet in, Janet *out);
 JANET_API Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv);
