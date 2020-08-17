@@ -95,6 +95,10 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
     vm_commit(); \
     return (sig); \
 } while (0)
+#define vm_return_no_restore(sig, val) do { \
+    janet_vm_return_reg[0] = (val); \
+    return (sig); \
+} while (0)
 
 /* Next instruction variations */
 #define maybe_collect() do {\
@@ -623,7 +627,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         Janet retval = stack[D];
         int entrance_frame = janet_stack_frame(stack)->flags & JANET_STACKFRAME_ENTRANCE;
         janet_fiber_popframe(fiber);
-        if (entrance_frame) vm_return(JANET_SIGNAL_OK, retval);
+        if (entrance_frame) vm_return_no_restore(JANET_SIGNAL_OK, retval);
         vm_restore();
         stack[A] = retval;
         vm_checkgc_pcnext();
@@ -633,7 +637,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         Janet retval = janet_wrap_nil();
         int entrance_frame = janet_stack_frame(stack)->flags & JANET_STACKFRAME_ENTRANCE;
         janet_fiber_popframe(fiber);
-        if (entrance_frame) vm_return(JANET_SIGNAL_OK, retval);
+        if (entrance_frame) vm_return_no_restore(JANET_SIGNAL_OK, retval);
         vm_restore();
         stack[A] = retval;
         vm_checkgc_pcnext();
@@ -1011,8 +1015,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
                 retreg = call_nonfn(fiber, callee);
             }
             janet_fiber_popframe(fiber);
-            if (entrance_frame)
-                vm_return(JANET_SIGNAL_OK, retreg);
+            if (entrance_frame) {
+                vm_return_no_restore(JANET_SIGNAL_OK, retreg);
+            }
             vm_restore();
             stack[A] = retreg;
             vm_checkgc_pcnext();

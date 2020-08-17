@@ -85,6 +85,22 @@ JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, c
     return janet_fiber_reset(fiber_alloc(capacity), callee, argc, argv);
 }
 
+#ifdef JANET_DEBUG
+/* Test for memory issues by reallocating fiber every time we push a stack frame */
+static void janet_fiber_refresh_memory(JanetFiber *fiber) {
+    int32_t n = fiber->capacity;
+    if (n) {
+        Janet *newData = malloc(sizeof(Janet) * n);
+        if (NULL == newData) {
+            JANET_OUT_OF_MEMORY;
+        }
+        memcpy(newData, fiber->data, fiber->capacity * sizeof(Janet));
+        free(fiber->data);
+        fiber->data = newData;
+    }
+}
+#endif
+
 /* Ensure that the fiber has enough extra capacity */
 void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n) {
     Janet *newData = realloc(fiber->data, sizeof(Janet) * n);
@@ -173,6 +189,10 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
 
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);
+#ifdef JANET_DEBUG
+    } else {
+        janet_fiber_refresh_memory(fiber);
+#endif
     }
 
     /* Nil unset stack arguments (Needed for gc correctness) */
@@ -305,6 +325,10 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
 
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);
+#ifdef JANET_DEBUG
+    } else {
+        janet_fiber_refresh_memory(fiber);
+#endif
     }
 
     Janet *stack = fiber->data + fiber->frame;
@@ -367,6 +391,10 @@ void janet_fiber_cframe(JanetFiber *fiber, JanetCFunction cfun) {
 
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);
+#ifdef JANET_DEBUG
+    } else {
+        janet_fiber_refresh_memory(fiber);
+#endif
     }
 
     /* Set the next frame */
