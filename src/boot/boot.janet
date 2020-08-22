@@ -2069,6 +2069,14 @@
       (if ec "\e[0m" "")))
   (eflush))
 
+(defn curenv
+  "Get the current environment table. Same as (fiber/getenv (fiber/current)). If n
+  is provided, gets the nth prototype of the environment table."
+  [&opt n]
+  (var e (fiber/getenv (fiber/current)))
+  (if n (repeat n (if (= nil e) (break)) (set e (table/getproto e))))
+  e)
+
 (defn run-context
   "Run a context. This evaluates expressions in an environment,
   and is encapsulates the parsing, compilation, and evaluation.

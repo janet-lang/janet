@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `(curenv)`.
 - Change `net/read`, `net/chunk`, and `net/write` to raise errors in the case of failures.
 - Add `janet_continue_signal` to C API. This indirectly enables C functions that yield to the event loop
   to raise errors or other signals.
