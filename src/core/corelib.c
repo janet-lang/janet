@@ -946,6 +946,10 @@ static const uint32_t resume_asm[] = {
     JOP_RESUME | (1 << 24),
     JOP_RETURN
 };
+static const uint32_t cancel_asm[] = {
+    JOP_CANCEL | (1 << 24),
+    JOP_RETURN
+};
 static const uint32_t in_asm[] = {
     JOP_IN | (1 << 24),
     JOP_LOAD_NIL | (3 << 8),
@@ -1083,6 +1087,11 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "Yield a value to a parent fiber. When a fiber yields, its execution is paused until "
                          "another thread resumes it. The fiber will then resume, and the last yield call will "
                          "return the value that was passed to resume."));
+    janet_quick_asm(env, JANET_FUN_CANCEL,
+                    "cancel", 2, 2, 2, 2, cancel_asm, sizeof(cancel_asm),
+                    JDOC("(cancel fiber err)\n\n"
+                         "Resume a fiber but have it immediately raise an error. This lets a programmer unwind a pending fiber. "
+                         "Returns the same result as resume."));
     janet_quick_asm(env, JANET_FUN_RESUME,
                     "resume", 2, 1, 2, 2, resume_asm, sizeof(resume_asm),
                     JDOC("(resume fiber &opt x)\n\n"
