@@ -180,7 +180,7 @@ static int rawmode(void) {
     t.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
     t.c_cc[VMIN] = 1;
     t.c_cc[VTIME] = 0;
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &t) < 0) goto fatal;
+    if (tcsetattr(STDIN_FILENO, TCSADRAIN, &t) < 0) goto fatal;
     gbl_israwmode = 1;
     return 0;
 fatal:
@@ -193,7 +193,7 @@ fatal:
 
 /* Disable raw mode */
 static void norawmode(void) {
-    if (gbl_israwmode && tcsetattr(STDIN_FILENO, TCSAFLUSH, &gbl_termios_start) != -1)
+    if (gbl_israwmode && tcsetattr(STDIN_FILENO, TCSADRAIN, &gbl_termios_start) != -1)
         gbl_israwmode = 0;
 #ifndef JANET_SINGLE_THREADED
     pthread_mutex_unlock(&gbl_lock);
