@@ -231,6 +231,9 @@ static JanetSlot do_yield(JanetFopts opts, JanetSlot *args) {
 static JanetSlot do_resume(JanetFopts opts, JanetSlot *args) {
     return opfunction(opts, args, JOP_RESUME, janet_wrap_nil());
 }
+static JanetSlot do_cancel(JanetFopts opts, JanetSlot *args) {
+    return opfunction(opts, args, JOP_CANCEL, janet_wrap_nil());
+}
 static JanetSlot do_apply(JanetFopts opts, JanetSlot *args) {
     /* Push phase */
     JanetCompiler *c = opts.compiler;
@@ -383,6 +386,7 @@ static const JanetFunOptimizer optimizers[] = {
     {fixarity2, do_modulo},
     {fixarity2, do_remainder},
     {fixarity2, do_cmp},
+    {fixarity2, do_cancel},
 };
 
 const JanetFunOptimizer *janetc_funopt(uint32_t flags) {

@@ -804,6 +804,14 @@ static Janet cfun_ev_sleep(int32_t argc, Janet *argv) {
     janet_await();
 }
 
+static Janet cfun_ev_cancel(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    Janet err = argv[1];
+    janet_cancel(fiber, err);
+    return argv[0];
+}
+
 static const JanetReg ev_cfuns[] = {
     {
         "ev/call", cfun_ev_call,
@@ -866,6 +874,11 @@ static const JanetReg ev_cfuns[] = {
              "Get a channel that is not empty, suspending the current fiber until at least one channel "
              "is not empty. Will prefer channels in a random order (random choice). "
              "Returns a non-empty channel.")
+    },
+    {
+        "ev/cancel", cfun_ev_cancel,
+        JDOC("(ev/cancel fiber err)\n\n"
+             "Cancel a suspended fiber in the event loop. Differs from cancel in that it returns the canceled fiber immediately")
     },
     {NULL, NULL, NULL}
 };

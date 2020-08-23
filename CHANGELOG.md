@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
 - Silence warnings in some compilers.
+- Allow passing a second argument to `disasm`.
+- Add `cancel`. Resumes a fiber but makes it immediately error at the yield point.
+- Allow multi-line paste into built in repl.
+- Add `(curenv)`.
 - Change `net/read`, `net/chunk`, and `net/write` to raise errors in the case of failures.
 - Add `janet_continue_signal` to C API. This indirectly enables C functions that yield to the event loop
   to raise errors or other signals.
@@ -16,7 +20,7 @@ All notable changes to this project will be documented in this file.
 - Expose `janet_cryptorand` in C API.
 - Properly initialize PRF in default janet program
 - Add `index-of` to core library.
-- Add `-fPIC` back to core CFLAGS (non-optional when compiling default client  with Makefile)
+- Add `-fPIC` back to core CFLAGS (non-optional when compiling default client with Makefile)
 - Fix defaults on Windows for ARM
 - Fix defaults on NetBSD.
 

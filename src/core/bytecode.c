@@ -103,6 +103,7 @@ enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_SSS, /* JOP_NEXT */
     JINT_SSS, /* JOP_NOT_EQUALS, */
     JINT_SSI, /* JOP_NOT_EQUALS_IMMEDIATE, */
+    JINT_SSS /* JOP_CANCEL, */
 };
 
 /* Verify some bytecode */

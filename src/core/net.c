@@ -224,8 +224,8 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
                     } else {
                         sig = JANET_SIGNAL_ERROR;
                         resume_val = (nread == -1)
-                            ? janet_cstringv(strerror(JLASTERR))
-                            : janet_cstringv("could not read");
+                                     ? janet_cstringv(strerror(JLASTERR))
+                                     : janet_cstringv("could not read");
                     }
                 }
                 janet_schedule_signal(s->fiber, resume_val, sig);

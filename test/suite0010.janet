@@ -44,4 +44,17 @@
 (assert (= :brackets (tuple/type (1 (macex1 '~[1 2 3 4])))) "macex1 qq bracket tuple")
 (assert (deep= (macex1 '~@[1 2 3 4 ,blah]) '~@[1 2 3 4 ,blah]) "macex1 qq array")
 
+# Cancel test
+(def f (fiber/new (fn [&] (yield 1) (yield 2) (yield 3) 4) :yti))
+(assert (= 1 (resume f)) "cancel resume 1")
+(assert (= 2 (resume f)) "cancel resume 2")
+(assert (= :hi (cancel f :hi)) "cancel resume 3")
+(assert (= :error (fiber/status f)) "cancel resume 4")
+
+# Curenv
+(assert (= (curenv) (curenv 0)) "curenv 1")
+(assert (= (table/getproto (curenv)) (curenv 1)) "curenv 2")
+(assert (= nil (curenv 1000000)) "curenv 3")
+(assert (= root-env (curenv 1)) "curenv 4")
+
 (end-suite)
