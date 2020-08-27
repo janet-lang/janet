@@ -2475,7 +2475,8 @@
   to be called. Dynamic bindings will NOT be imported. Use :fresh to bypass the
   module cache."
   [path & args]
-  (def argm (map |(if (keyword? $) $ (string $)) args))
+  (def ps (partition 2 args))
+  (def argm (mapcat (fn [[k v]] [k (if (= k :as) (string v) v)]) ps))
   (tuple import* (string path) ;argm))
 
 (defmacro use
