@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `:n` flag to `file/open` to raise an error if file cannot be opened.
+- Fix import macro to not try and coerce everything to a string.
 - Allow passing a second argument to `disasm`.
 - Add `cancel`. Resumes a fiber but makes it immediately error at the yield point.
 - Allow multi-line paste into built in repl.

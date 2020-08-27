@@ -57,4 +57,8 @@
 (assert (= nil (curenv 1000000)) "curenv 3")
 (assert (= root-env (curenv 1)) "curenv 4")
 
+# Import macro test
+(assert-no-error "import macro 1" (macex '(import a :as b :fresh maybe)))
+(assert (deep= ~(,import* "a" :as "b" :fresh maybe) (macex '(import a :as b :fresh maybe))) "import macro 2")
+
 (end-suite)

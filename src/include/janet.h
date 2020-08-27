@@ -1540,6 +1540,7 @@ extern JANET_API const JanetAbstractType janet_file_type;
 #define JANET_FILE_BINARY 64
 #define JANET_FILE_SERIALIZABLE 128
 #define JANET_FILE_PIPED 256
+#define JANET_FILE_NONIL 512
 
 JANET_API Janet janet_makefile(FILE *f, int32_t flags);
 JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int32_t *flags);
