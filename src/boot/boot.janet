@@ -2859,9 +2859,10 @@
         (def subargs (array/slice args i))
         (put env :args subargs)
         (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator :env env)
-        (if-let [main (get (in env 'main) :value)]
-          (let [thunk (compile [main ;(tuple/slice args i)] env arg)]
-            (if (function? thunk) (thunk) (error (thunk :error)))))
+        (unless *compile-only*
+          (if-let [main (get (in env 'main) :value)]
+            (let [thunk (compile [main ;(tuple/slice args i)] env arg)]
+              (if (function? thunk) (thunk) (error (thunk :error))))))
         (set i lenargs))))
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
