@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `janet_getjfile` to C API.
 - Add `:x` flag to os/execute to raise error when exit code is non-zero.
 - Don't run `main` when flychecking.
 - Add `:n` flag to `file/open` to raise an error if file cannot be opened.

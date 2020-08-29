@@ -789,6 +789,10 @@ static const JanetReg io_cfuns[] = {
 
 /* C API */
 
+JanetFile *janet_getjfile(const Janet *argv, int32_t n) {
+    return janet_getabstract(argv, n, &janet_file_type);
+}
+
 FILE *janet_getfile(const Janet *argv, int32_t n, int *flags) {
     JanetFile *iof = janet_getabstract(argv, n, &janet_file_type);
     if (NULL != flags) *flags = iof->flags;
@@ -813,17 +817,18 @@ FILE *janet_unwrapfile(Janet j, int *flags) {
 void janet_lib_io(JanetTable *env) {
     janet_core_cfuns(env, NULL, io_cfuns);
     janet_register_abstract_type(&janet_file_type);
+    int default_flags = JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE;
     /* stdout */
     janet_core_def(env, "stdout",
-                   janet_makefile(stdout, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
+                   janet_makefile(stdout, JANET_FILE_APPEND | default_flags),
                    JDOC("The standard output file."));
     /* stderr */
     janet_core_def(env, "stderr",
-                   janet_makefile(stderr, JANET_FILE_APPEND | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
+                   janet_makefile(stderr, JANET_FILE_APPEND | default_flags),
                    JDOC("The standard error file."));
     /* stdin */
     janet_core_def(env, "stdin",
-                   janet_makefile(stdin, JANET_FILE_READ | JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE),
+                   janet_makefile(stdin, JANET_FILE_READ | default_flags),
                    JDOC("The standard input file."));
 
 }

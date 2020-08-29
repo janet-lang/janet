@@ -1545,6 +1545,7 @@ extern JANET_API const JanetAbstractType janet_file_type;
 JANET_API Janet janet_makefile(FILE *f, int32_t flags);
 JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int32_t *flags);
 JANET_API FILE *janet_dynfile(const char *name, FILE *def);
+JANET_API JanetFile *janet_getjfile(const Janet *argv, int32_t n);
 JANET_API JanetAbstract janet_checkfile(Janet j);
 JANET_API FILE *janet_unwrapfile(Janet j, int32_t *flags);
 
