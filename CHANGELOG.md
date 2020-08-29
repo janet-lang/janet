@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Don't run `main` when flychecking.
 - Add `:n` flag to `file/open` to raise an error if file cannot be opened.
 - Fix import macro to not try and coerce everything to a string.
 - Allow passing a second argument to `disasm`.
