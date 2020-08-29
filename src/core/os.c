@@ -318,7 +318,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     /* Get flags */
     uint64_t flags = 0;
     if (argc > 1) {
-        flags = janet_getflags(argv, 1, "ep");
+        flags = janet_getflags(argv, 1, "epx");
     }
 
     /* Get environment */
@@ -365,8 +365,6 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     if (-1 == status) {
         janet_panicf("%p: %s", argv[0], strerror(errno));
     }
-
-    return janet_wrap_integer(status);
 #else
 
     const char **child_argv = janet_smalloc(sizeof(char *) * ((size_t) exargs.len + 1));
@@ -410,16 +408,18 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 
     os_execute_cleanup(envp, child_argv);
     /* Use POSIX shell semantics for interpreting signals */
-    int ret;
     if (WIFEXITED(status)) {
-        ret = WEXITSTATUS(status);
+        status = WEXITSTATUS(status);
     } else if (WIFSTOPPED(status)) {
-        ret = WSTOPSIG(status) + 128;
+        status = WSTOPSIG(status) + 128;
     } else {
-        ret = WTERMSIG(status) + 128;
+        status = WTERMSIG(status) + 128;
     }
-    return janet_wrap_integer(ret);
 #endif
+    if (janet_flag_at(flags, 2) && status) {
+        janet_panicf("command failed with non-zero exit code %d", status);
+    }
+    return janet_wrap_integer(status);
 }
 
 static Janet os_shell(int32_t argc, Janet *argv) {
@@ -1334,7 +1334,8 @@ static const JanetReg os_cfuns[] = {
              "\t:e - enables passing an environment to the program. Without :e, the "
              "current environment is inherited.\n"
              "\t:p - allows searching the current PATH for the binary to execute. "
-             "Without this flag, binaries must use absolute paths.\n\n"
+             "Without this flag, binaries must use absolute paths.\n"
+             "\t:x - raise error if exit code is non-zero.\n\n"
              "env is a table or struct mapping environment variables to values. "
              "Returns the exit status of the program.")
     },
