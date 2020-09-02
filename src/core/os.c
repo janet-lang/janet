@@ -24,6 +24,7 @@
 #include "features.h"
 #include <janet.h>
 #include "util.h"
+#include "gc.h"
 #endif
 
 #ifndef JANET_REDUCED_OS
@@ -312,13 +313,83 @@ static JanetBuffer *os_exec_escape(JanetView args) {
 }
 #endif
 
+/* Process type for when running a subprocess and not immediately waiting */
+static const JanetAbstractType ProcAT;
+typedef struct {
+#ifdef JANET_WINDOWS
+    HANDLE pid;
+#else
+    int pid;
+#endif
+    int return_code;
+    JanetFile *in;
+    JanetFile *out;
+    JanetFile *err;
+} JanetProc;
+
+static int janet_proc_mark(void *p, size_t s) {
+    (void) s;
+    JanetProc *proc = (JanetProc *)p;
+    if (NULL != proc->in) janet_mark(janet_wrap_abstract(proc->in));
+    if (NULL != proc->out) janet_mark(janet_wrap_abstract(proc->out));
+    if (NULL != proc->err) janet_mark(janet_wrap_abstract(proc->err));
+    return 0;
+}
+
+static Janet os_proc_wait(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
+    if (proc->return_code != -1) {
+        janet_panicf("can't wait on process that has already finished");
+    }
+    int status = 0;
+    waitpid(proc->pid, &status, 0);
+    proc->return_code = (int32_t) status;
+    return janet_wrap_integer(proc->return_code);
+}
+
+static const JanetMethod proc_methods[] = {
+    {"wait", os_proc_wait},
+    {NULL, NULL}
+};
+
+static int janet_proc_get(void *p, Janet key, Janet *out) {
+    JanetProc *proc = (JanetProc *)p;
+    if (janet_keyeq(key, "in")) {
+        *out = (NULL == proc->in) ? janet_wrap_nil() : janet_wrap_abstract(proc->in);
+        return 1;
+    }
+    if (janet_keyeq(key, "out")) {
+        *out = (NULL == proc->out) ? janet_wrap_nil() : janet_wrap_abstract(proc->out);
+        return 1;
+    }
+    if (janet_keyeq(key, "err")) {
+        *out = (NULL == proc->out) ? janet_wrap_nil() : janet_wrap_abstract(proc->err);
+        return 1;
+    }
+    if ((-1 != proc->return_code) && janet_keyeq(key, "return-code")) {
+        *out = janet_wrap_integer(proc->return_code);
+        return 1;
+    }
+    if (!janet_checktype(key, JANET_KEYWORD)) return 0;
+    return janet_getmethod(janet_unwrap_keyword(key), proc_methods, out);
+}
+
+static const JanetAbstractType ProcAT = {
+    "core/process",
+    NULL,
+    janet_proc_mark,
+    janet_proc_get,
+    JANET_ATEND_GET
+};
+
 static Janet os_execute(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 3);
 
     /* Get flags */
     uint64_t flags = 0;
     if (argc > 1) {
-        flags = janet_getflags(argv, 1, "epx");
+        flags = janet_getflags(argv, 1, "epxa");
     }
 
     /* Get environment */
@@ -330,10 +401,27 @@ static Janet os_execute(int32_t argc, Janet *argv) {
         janet_panic("expected at least 1 command line argument");
     }
 
+#ifndef JANET_WINDOWS
+    /* Get optional redirections */
+    JanetFile *new_in = NULL, *new_out = NULL, *new_err = NULL;
+    if (argc > 2) {
+        JanetDictView tab = janet_getdictionary(argv, 2);
+        Janet maybe_stdin = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("in"));
+        Janet maybe_stdout = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("out"));
+        Janet maybe_stderr = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("err"));
+        if (!janet_checktype(maybe_stdin, JANET_NIL)) new_in = janet_getjfile(&maybe_stdin, 0);
+        if (!janet_checktype(maybe_stdout, JANET_NIL)) new_out = janet_getjfile(&maybe_stdout, 0);
+        if (!janet_checktype(maybe_stderr, JANET_NIL)) new_err = janet_getjfile(&maybe_stderr, 0);
+    }
+#endif
+
     /* Result */
     int status = 0;
+    int is_async = janet_flag_at(flags, 3);
 
 #ifdef JANET_WINDOWS
+
+    HANDLE pid;
 
     JanetBuffer *buf = os_exec_escape(exargs);
     if (buf->count > 8191) {
@@ -350,20 +438,28 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     char *empty_env[1] = {NULL};
     char **envp1 = (NULL == envp) ? empty_env : envp;
 
+    int spawn_type = is_async ? : _P_NOWAIT : _P_WAIT;
+    intptr_t spawn_result;
     if (janet_flag_at(flags, 1) && janet_flag_at(flags, 0)) {
-        status = (int) _spawnvpe(_P_WAIT, path, cargv, envp1);
+        spawn_result = (int) _spawnvpe(spawn_type, path, cargv, envp1);
     } else if (janet_flag_at(flags, 1)) {
-        status = (int) _spawnvp(_P_WAIT, path, cargv);
+        spawn_result = (int) _spawnvp(spawn_type, path, cargv);
     } else if (janet_flag_at(flags, 0)) {
-        status = (int) _spawnve(_P_WAIT, path, cargv, envp1);
+        spawn_result = (int) _spawnve(spawn_type, path, cargv, envp1);
     } else {
-        status = (int) _spawnv(_P_WAIT, path, cargv);
+        spawn_result = (int) _spawnv(spawn_type, path, cargv);
     }
     os_execute_cleanup(envp, NULL);
 
     /* Check error */
-    if (-1 == status) {
+    if (-1 == spawn_result) {
         janet_panicf("%p: %s", argv[0], strerror(errno));
+    }
+
+    if (is_async) {
+        pid = (HANDLE) spawn_result;
+    } else {
+        status = (int) spawn_result;
     }
 #else
 
@@ -383,16 +479,31 @@ static Janet os_execute(int32_t argc, Janet *argv) {
         janet_lock_environ();
     }
 
+    /* Posix spawn setup */
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    if (new_in != NULL) {
+        posix_spawn_file_actions_adddup2(&actions, fileno(new_in->file), 0);
+    }
+    if (new_out != NULL) {
+        posix_spawn_file_actions_adddup2(&actions, fileno(new_out->file), 1);
+    }
+    if (new_err != NULL) {
+        posix_spawn_file_actions_adddup2(&actions, fileno(new_err->file), 2);
+    }
+
     pid_t pid;
     if (janet_flag_at(flags, 1)) {
         status = posix_spawnp(&pid,
-                              child_argv[0], NULL, NULL, cargv,
+                              child_argv[0], &actions, NULL, cargv,
                               use_environ ? environ : envp);
     } else {
         status = posix_spawn(&pid,
-                             child_argv[0], NULL, NULL, cargv,
+                             child_argv[0], &actions, NULL, cargv,
                              use_environ ? environ : envp);
     }
+
+    posix_spawn_file_actions_destroy(&actions);
 
     if (use_environ) {
         janet_unlock_environ();
@@ -402,24 +513,37 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     if (status) {
         os_execute_cleanup(envp, child_argv);
         janet_panicf("%p: %s", argv[0], strerror(errno));
+    } else if (janet_flag_at(flags, 3)) {
+        /* Get process handle */
+        os_execute_cleanup(envp, child_argv);
     } else {
+        /* Wait to complete */
         waitpid(pid, &status, 0);
+        os_execute_cleanup(envp, child_argv);
+        /* Use POSIX shell semantics for interpreting signals */
+        if (WIFEXITED(status)) {
+            status = WEXITSTATUS(status);
+        } else if (WIFSTOPPED(status)) {
+            status = WSTOPSIG(status) + 128;
+        } else {
+            status = WTERMSIG(status) + 128;
+        }
     }
 
-    os_execute_cleanup(envp, child_argv);
-    /* Use POSIX shell semantics for interpreting signals */
-    if (WIFEXITED(status)) {
-        status = WEXITSTATUS(status);
-    } else if (WIFSTOPPED(status)) {
-        status = WSTOPSIG(status) + 128;
-    } else {
-        status = WTERMSIG(status) + 128;
-    }
 #endif
-    if (janet_flag_at(flags, 2) && status) {
+    if (is_async) {
+        JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
+        proc->return_code = -1;
+        proc->pid = pid;;
+        proc->in = new_in;
+        proc->out = new_out;
+        proc->err = new_err;
+        return janet_wrap_abstract(proc);
+    } else if (janet_flag_at(flags, 2) && status) {
         janet_panicf("command failed with non-zero exit code %d", status);
+    } else {
+        return janet_wrap_integer(status);
     }
-    return janet_wrap_integer(status);
 }
 
 static Janet os_shell(int32_t argc, Janet *argv) {
@@ -1428,6 +1552,11 @@ static const JanetReg os_cfuns[] = {
         "os/perm-int", os_permission_int,
         JDOC("(os/perm-int bytes)\n\n"
              "Parse a 9 character permission string and return an integer that can be used by chmod.")
+    },
+    {
+        "os/proc-wait", os_proc_wait,
+        JDOC("(os/proc-wait proc)\n\n"
+             "Block until the subprocess completes. Returns the subprocess return code.")
     },
 #endif
     {NULL, NULL, NULL}

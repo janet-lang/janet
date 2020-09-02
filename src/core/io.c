@@ -162,8 +162,8 @@ static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
     }
     FILE *f = fopen((const char *)fname, (const char *)fmode);
     return f ? janet_makefile(f, flags)
-        : (flags & JANET_FILE_NONIL) ? (janet_panicf("failed to open file %s: %s", fname, strerror(errno)), janet_wrap_nil())
-        : janet_wrap_nil();
+           : (flags & JANET_FILE_NONIL) ? (janet_panicf("failed to open file %s: %s", fname, strerror(errno)), janet_wrap_nil())
+           : janet_wrap_nil();
 }
 
 /* Read up to n bytes into buffer. */
