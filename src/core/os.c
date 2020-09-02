@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <signal.h>
 
 #ifdef JANET_APPLE
 #include <AvailabilityMacros.h>
@@ -438,9 +439,11 @@ static Janet os_execute(int32_t argc, Janet *argv) {
         janet_panic("expected at least 1 command line argument");
     }
 
+    /* Optional stdio redirections */
+    JanetFile *new_in = NULL, *new_out = NULL, *new_err = NULL;
+
 #ifndef JANET_WINDOWS
     /* Get optional redirections */
-    JanetFile *new_in = NULL, *new_out = NULL, *new_err = NULL;
     if (argc > 2) {
         JanetDictView tab = janet_getdictionary(argv, 2);
         Janet maybe_stdin = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("in"));
@@ -475,7 +478,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     char *empty_env[1] = {NULL};
     char **envp1 = (NULL == envp) ? empty_env : envp;
 
-    int spawn_type = is_async ? : _P_NOWAIT : _P_WAIT;
+    int spawn_type = is_async ? _P_NOWAIT : _P_WAIT;
     intptr_t spawn_result;
     if (janet_flag_at(flags, 1) && janet_flag_at(flags, 0)) {
         spawn_result = (int) _spawnvpe(spawn_type, path, cargv, envp1);
