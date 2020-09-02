@@ -315,7 +315,10 @@ static JanetBuffer *os_exec_escape(JanetView args) {
 
 /* Process type for when running a subprocess and not immediately waiting */
 static const JanetAbstractType ProcAT;
+#define JANET_PROC_CLOSED 1
+#define JANET_PROC_WAITED 2
 typedef struct {
+    int flags;
 #ifdef JANET_WINDOWS
     HANDLE pid;
 #else
@@ -336,20 +339,54 @@ static int janet_proc_mark(void *p, size_t s) {
     return 0;
 }
 
-static Janet os_proc_wait(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
-    JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
-    if (proc->return_code != -1) {
-        janet_panicf("can't wait on process that has already finished");
+static Janet os_proc_wait_impl(JanetProc *proc) {
+    if (proc->flags & JANET_PROC_WAITED) {
+        janet_panicf("cannot wait on process that has already finished");
     }
+    proc->flags |= JANET_PROC_WAITED;
     int status = 0;
+#ifdef JANET_WINDOWS
+    WaitForSingleObject(proc->pid, INFINITE);
+    GetExitCodeProcess(proc->pid, &status);
+#else
     waitpid(proc->pid, &status, 0);
+#endif
     proc->return_code = (int32_t) status;
     return janet_wrap_integer(proc->return_code);
 }
 
+static Janet os_proc_wait(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
+    return os_proc_wait_impl(proc);
+}
+
+static Janet os_proc_kill(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
+#ifdef JANET_WINDOWS
+    if (proc->flags & JANET_PROC_CLOSED) {
+        janet_panicf("cannot close process handle that is already closed");
+    }
+    proc->flags |= JANET_PROC_CLOSED;
+    int status = CloseHandle(proc->pid);
+#else
+    int status = kill(proc->pid, SIGKILL);
+#endif
+    if (status) {
+        janet_panic(strerror(errno));
+    }
+    /* After killing process we wait on it. */
+    if (argc > 1 && janet_truthy(argv[1])) {
+        return os_proc_wait_impl(proc);
+    } else {
+        return argv[0];
+    }
+}
+
 static const JanetMethod proc_methods[] = {
     {"wait", os_proc_wait},
+    {"kill", os_proc_kill},
     {NULL, NULL}
 };
 
@@ -538,6 +575,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
         proc->in = new_in;
         proc->out = new_out;
         proc->err = new_err;
+        proc->flags = 0;
         return janet_wrap_abstract(proc);
     } else if (janet_flag_at(flags, 2) && status) {
         janet_panicf("command failed with non-zero exit code %d", status);
@@ -1459,9 +1497,12 @@ static const JanetReg os_cfuns[] = {
              "current environment is inherited.\n"
              "\t:p - allows searching the current PATH for the binary to execute. "
              "Without this flag, binaries must use absolute paths.\n"
-             "\t:x - raise error if exit code is non-zero.\n\n"
-             "env is a table or struct mapping environment variables to values. "
-             "Returns the exit status of the program.")
+             "\t:x - raise error if exit code is non-zero.\n"
+             "\t:a - Runs the process asynchronously and returns a core/process.\n\n"
+             "env is a table or struct mapping environment variables to values. It can also "
+             "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
+             "These arguments should be core/file values. "
+             "Returns the exit status of the program, or a core/process object if the :a flag is given.")
     },
     {
         "os/shell", os_shell,
@@ -1557,6 +1598,13 @@ static const JanetReg os_cfuns[] = {
         "os/proc-wait", os_proc_wait,
         JDOC("(os/proc-wait proc)\n\n"
              "Block until the subprocess completes. Returns the subprocess return code.")
+    },
+    {
+        "os/proc-kill", os_proc_kill,
+        JDOC("(os/proc-kill proc &opt wait)\n\n"
+             "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
+             "handle on windows. If wait is truthy, will wait for the process to finsih and "
+             "returns the exit code. Otherwise, returns proc.")
     },
 #endif
     {NULL, NULL, NULL}
