@@ -321,7 +321,8 @@ static const JanetAbstractType ProcAT;
 typedef struct {
     int flags;
 #ifdef JANET_WINDOWS
-    HANDLE pid;
+    HANDLE pHandle;
+	HANDLE tHandle;
 #else
     int pid;
 #endif
@@ -347,8 +348,13 @@ static Janet os_proc_wait_impl(JanetProc *proc) {
     proc->flags |= JANET_PROC_WAITED;
     int status = 0;
 #ifdef JANET_WINDOWS
-    WaitForSingleObject(proc->pid, INFINITE);
-    GetExitCodeProcess(proc->pid, &status);
+    WaitForSingleObject(proc->pHandle, INFINITE);
+    GetExitCodeProcess(proc->pHandle, &status);
+	if (!(proc->flags & JANET_PROC_CLOSED)) {
+		proc->flags |= JANET_PROC_CLOSED;
+		CloseHandle(proc->pHandle);
+		CloseHandle(proc->tHandle);
+    }
 #else
     waitpid(proc->pid, &status, 0);
 #endif
@@ -370,13 +376,14 @@ static Janet os_proc_kill(int32_t argc, Janet *argv) {
         janet_panicf("cannot close process handle that is already closed");
     }
     proc->flags |= JANET_PROC_CLOSED;
-    int status = CloseHandle(proc->pid);
+	CloseHandle(proc->pHandle);
+	CloseHandle(proc->tHandle);
 #else
     int status = kill(proc->pid, SIGKILL);
-#endif
     if (status) {
         janet_panic(strerror(errno));
     }
+#endif
     /* After killing process we wait on it. */
     if (argc > 1 && janet_truthy(argv[1])) {
         return os_proc_wait_impl(proc);
@@ -442,7 +449,6 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     /* Optional stdio redirections */
     JanetFile *new_in = NULL, *new_out = NULL, *new_err = NULL;
 
-#ifndef JANET_WINDOWS
     /* Get optional redirections */
     if (argc > 2) {
         JanetDictView tab = janet_getdictionary(argv, 2);
@@ -453,7 +459,6 @@ static Janet os_execute(int32_t argc, Janet *argv) {
         if (!janet_checktype(maybe_stdout, JANET_NIL)) new_out = janet_getjfile(&maybe_stdout, 0);
         if (!janet_checktype(maybe_stderr, JANET_NIL)) new_err = janet_getjfile(&maybe_stderr, 0);
     }
-#endif
 
     /* Result */
     int status = 0;
@@ -461,45 +466,56 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 
 #ifdef JANET_WINDOWS
 
-    HANDLE pid;
+    HANDLE pHandle, tHandle;
+	PROCESS_INFORMATION processInfo;
+	STARTUPINFO startupInfo;
+	memset(&processInfo, 0, sizeof(processInfo));
+	memset(&startupInfo, 0, sizeof(startupInfo));
+	startupInfo.cb = sizeof(startupInfo);
+	startupInfo.dwFlags |= STARTF_USESTDHANDLES;
 
     JanetBuffer *buf = os_exec_escape(exargs);
     if (buf->count > 8191) {
         janet_panic("command line string too long (max 8191 characters)");
     }
     const char *path = (const char *) janet_unwrap_string(exargs.items[0]);
-    char *cargv[2] = {(char *) buf->data, NULL};
+
+	/* Do IO redirection */
+	startupInfo.hStdInput = (HANDLE) _get_osfhandle((new_in == NULL) ? 0 : _fileno(new_in->file));
+	startupInfo.hStdOutput = (HANDLE) _get_osfhandle((new_out == NULL) ? 1 : _fileno(new_out->file));
+	startupInfo.hStdError = (HANDLE) _get_osfhandle((new_err == NULL) ? 2 : _fileno(new_err->file));
 
     /* Use _spawn family of functions. */
     /* Windows docs say do this before any spawns. */
     _flushall();
 
-    /* Use an empty env instead when envp is NULL to be consistent with other implementation. */
-    char *empty_env[1] = {NULL};
-    char **envp1 = (NULL == envp) ? empty_env : envp;
-
-    int spawn_type = is_async ? _P_NOWAIT : _P_WAIT;
-    intptr_t spawn_result;
-    if (janet_flag_at(flags, 1) && janet_flag_at(flags, 0)) {
-        spawn_result = (int) _spawnvpe(spawn_type, path, cargv, envp1);
-    } else if (janet_flag_at(flags, 1)) {
-        spawn_result = (int) _spawnvp(spawn_type, path, cargv);
-    } else if (janet_flag_at(flags, 0)) {
-        spawn_result = (int) _spawnve(spawn_type, path, cargv, envp1);
-    } else {
-        spawn_result = (int) _spawnv(spawn_type, path, cargv);
+	/* TODO - redirection, :p flag */
+	if(!CreateProcess(janet_flag_at(flags, 1) ? NULL : path, /* NULL? */
+		(char *) buf->data, /* Single CLI argument */
+        NULL, /* no proc inheritance */
+        NULL, /* no thread inheritance */
+        TRUE, /* handle inheritance */
+        0, /* flags */
+        envp, /* pass in environment */
+        NULL, /* use parents starting directory */
+        &startupInfo,
+        &processInfo))  {
+        janet_panic("failed to create process");
     }
+	
+	pHandle = processInfo.hProcess;
+	tHandle = processInfo.hThread;
+
     os_execute_cleanup(envp, NULL);
 
-    /* Check error */
-    if (-1 == spawn_result) {
-        janet_panicf("%p: %s", argv[0], strerror(errno));
-    }
-
-    if (is_async) {
-        pid = (HANDLE) spawn_result;
-    } else {
-        status = (int) spawn_result;
+	/* Wait and cleanup immedaitely */
+    if (!is_async) {
+		DWORD code;
+		WaitForSingleObject(pHandle, INFINITE);
+		GetExitCodeProcess(pHandle, &code);
+        status = (int) code;
+		CloseHandle(pHandle);
+		CloseHandle(tHandle);
     }
 #else
 
@@ -574,7 +590,12 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     if (is_async) {
         JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
         proc->return_code = -1;
-        proc->pid = pid;;
+#ifdef JANET_WINDOWS
+		proc->pHandle = pHandle;
+		proc->tHandle = tHandle;
+#else
+	    proc->pid = pid;
+#endif
         proc->in = new_in;
         proc->out = new_out;
         proc->err = new_err;
