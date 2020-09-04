@@ -1556,11 +1556,11 @@ static const JanetReg os_cfuns[] = {
              "These arguments should be core/file values. "
              "Returns the exit status of the program.")
     },
-    {
+	{
         "os/spawn", os_spawn,
         JDOC("(os/spawn args &opts flags env)\n\n"
              "Execute a program on the system and return a handle to the process. Otherwise, the "
-             "same arguments as os/execute. Does not wait for the process.")
+		     "same arguments as os/execute. Does not wait for the process.")
     },
     {
         "os/shell", os_shell,
