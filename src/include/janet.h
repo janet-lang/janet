@@ -201,7 +201,7 @@ extern "C" {
 #ifdef JANET_WINDOWS
 #define JANET_NO_RETURN __declspec(noreturn)
 #else
-#define JANET_NO_RETURN __attribute__ ((noreturn))
+#define JANET_NO_RETURN __attribute__((noreturn))
 #endif
 #endif
 
@@ -561,7 +561,7 @@ JANET_API Janet janet_wrap_integer(int32_t x);
 #define janet_nanbox_tag(type) (janet_nanbox_lowtag(type) << 47)
 #define janet_type(x) \
     (isnan((x).number) \
-        ? (((x).u64 >> 47) & 0xF) \
+        ? (JanetType) (((x).u64 >> 47) & 0xF) \
         : JANET_NUMBER)
 
 #define janet_nanbox_checkauxtype(x, type) \
@@ -640,7 +640,7 @@ JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
 #define JANET_DOUBLE_OFFSET 0xFFFF
 
 #define janet_u64(x) ((x).u64)
-#define janet_type(x) (((x).tagged.type < JANET_DOUBLE_OFFSET) ? (x).tagged.type : JANET_NUMBER)
+#define janet_type(x) (((x).tagged.type < JANET_DOUBLE_OFFSET) ? (JanetType)((x).tagged.type) : JANET_NUMBER)
 #define janet_checktype(x, t) ((t) == JANET_NUMBER \
         ? (x).tagged.type >= JANET_DOUBLE_OFFSET \
         : (x).tagged.type == (t))
@@ -1449,14 +1449,19 @@ JANET_API Janet janet_resolve_core(const char *name);
 /* New C API */
 
 /* Allow setting entry name for static libraries */
+#ifdef __cplusplus
+#define JANET_MODULE_PREFIX extern "C"
+#else
+#define JANET_MODULE_PREFIX
+#endif
 #ifndef JANET_ENTRY_NAME
 #define JANET_MODULE_ENTRY \
-    JANET_API JanetBuildConfig _janet_mod_config(void) { \
+    JANET_MODULE_PREFIX JANET_API JanetBuildConfig _janet_mod_config(void) { \
         return janet_config_current(); \
     } \
-    JANET_API void _janet_init
+    JANET_MODULE_PREFIX JANET_API void _janet_init
 #else
-#define JANET_MODULE_ENTRY JANET_API void JANET_ENTRY_NAME
+#define JANET_MODULE_ENTRY JANET_MODULE_PREFIX JANET_API void JANET_ENTRY_NAME
 #endif
 
 JANET_NO_RETURN JANET_API void janet_signalv(JanetSignal signal, Janet message);
