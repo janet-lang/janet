@@ -1439,6 +1439,7 @@ typedef enum {
 JANET_API void janet_def(JanetTable *env, const char *name, Janet val, const char *documentation);
 JANET_API void janet_var(JanetTable *env, const char *name, Janet val, const char *documentation);
 JANET_API void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
+JANET_API void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 JANET_API JanetBindingType janet_resolve(JanetTable *env, JanetSymbol sym, Janet *out);
 JANET_API void janet_register(const char *name, JanetCFunction cfun);
 

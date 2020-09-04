@@ -2,10 +2,11 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Expose `janet_cfuns_prefix` in C API.
 - Add `os/proc-wait` and `os/proc-kill` for interacting with processes.
 - Add `janet_getjfile` to C API.
-- Allow redirection of stdin, stdout, and stderr by passing keywords in the env table.
-- Add `:a` flag to `os/execute` to get a core/process back instead of an exit code.
+- Allow redirection of stdin, stdout, and stderr by passing keywords in the env table in `os/spawn` and `os/execute`.
+- Add `os/spawn` to get a core/process back instead of an exit code as in `os/execute`.
   When called like this, `os/execute` returns immediately.
 - Add `:x` flag to os/execute to raise error when exit code is non-zero.
 - Don't run `main` when flychecking.

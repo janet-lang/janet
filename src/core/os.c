@@ -428,13 +428,13 @@ static const JanetAbstractType ProcAT = {
     JANET_ATEND_GET
 };
 
-static Janet os_execute(int32_t argc, Janet *argv) {
+static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     janet_arity(argc, 1, 3);
 
     /* Get flags */
     uint64_t flags = 0;
     if (argc > 1) {
-        flags = janet_getflags(argv, 1, "epxa");
+        flags = janet_getflags(argv, 1, "epx");
     }
 
     /* Get environment */
@@ -462,7 +462,6 @@ static Janet os_execute(int32_t argc, Janet *argv) {
 
     /* Result */
     int status = 0;
-    int is_async = janet_flag_at(flags, 3);
 
 #ifdef JANET_WINDOWS
 
@@ -569,7 +568,7 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     if (status) {
         os_execute_cleanup(envp, child_argv);
         janet_panicf("%p: %s", argv[0], strerror(errno));
-    } else if (janet_flag_at(flags, 3)) {
+    } else if (is_async) {
         /* Get process handle */
         os_execute_cleanup(envp, child_argv);
     } else {
@@ -606,6 +605,14 @@ static Janet os_execute(int32_t argc, Janet *argv) {
     } else {
         return janet_wrap_integer(status);
     }
+}
+
+static Janet os_execute(int32_t argc, Janet *argv) {
+    return os_execute_impl(argc, argv, 1);
+}
+
+static Janet os_spawn(int32_t argc, Janet *argv) {
+    return os_execute_impl(argc, argv, 0);
 }
 
 static Janet os_shell(int32_t argc, Janet *argv) {
@@ -1522,11 +1529,16 @@ static const JanetReg os_cfuns[] = {
              "\t:p - allows searching the current PATH for the binary to execute. "
              "Without this flag, binaries must use absolute paths.\n"
              "\t:x - raise error if exit code is non-zero.\n"
-             "\t:a - Runs the process asynchronously and returns a core/process.\n\n"
              "env is a table or struct mapping environment variables to values. It can also "
              "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
              "These arguments should be core/file values. "
-             "Returns the exit status of the program, or a core/process object if the :a flag is given.")
+             "Returns the exit status of the program.")
+    },
+	{
+        "os/spawn", os_spawn,
+        JDOC("(os/spawn args &opts flags env)\n\n"
+             "Execute a program on the system and return a handle to the process. Otherwise, the "
+		     "same arguments as os/execute. Does not wait for the process.")
     },
     {
         "os/shell", os_shell,
