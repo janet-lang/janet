@@ -356,7 +356,7 @@
     ["-std=c99" "-Wall" "-Wextra"]))
 (def default-cppflags
   (if is-win
-    ["/nologo" "/MD"]
+    ["/nologo" "/MD" "/EHsc"]
     ["-std=c++11" "-Wall" "-Wextra"]))
 (def default-ldflags [])
 
