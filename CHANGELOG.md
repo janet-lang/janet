@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add C++ support to jpm and improve C++ interop in janet.h.
+- Add `%t` formatter to `printf`, `string/format`, and other formatter functions.
 - Expose `janet_cfuns_prefix` in C API.
 - Add `os/proc-wait` and `os/proc-kill` for interacting with processes.
 - Add `janet_getjfile` to C API.
