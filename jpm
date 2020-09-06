@@ -132,6 +132,15 @@
   "Convert url with potential bad characters into a file path element."
   (peg/compile ~(% (any (+ (/ '(set "<>:\"/\\|?*") "_") '1)))))
 
+(def- entry-replacer
+  "Convert url with potential bad characters into an entry-name"
+  (peg/compile ~(% (any (+ '(range "AZ" "az" "09" "__") (/ '1 ,|(string "_" ($ 0) "_")))))))
+
+(defn entry-replace
+  "Escape special characters in the entry-name"
+  [name]
+  (get (peg/match entry-replacer name) 0))
+
 (defn filepath-replace
   "Remove special characters from a string or path
   to make it into a path segment."
@@ -440,14 +449,14 @@
 (defn- entry-name
   "Name of symbol that enters static compilation of a module."
   [name]
-  (string "janet_module_entry_" (filepath-replace name)))
+  (string "janet_module_entry_" (entry-replace name)))
 
 (defn- compile-c
   "Compile a C file into an object file."
   [opts src dest &opt static?]
   (def cc (opt opts :compiler default-compiler))
   (def cflags [;(getcflags opts) ;(if static? [] dynamic-cflags)])
-  (def entry-defines (if-let [n (opts :entry-name)]
+  (def entry-defines (if-let [n (and static? (opts :entry-name))]
                        [(make-define "JANET_ENTRY_NAME" n)]
                        []))
   (def defines [;(make-defines (opt opts :defines {})) ;entry-defines])
@@ -465,7 +474,7 @@
   [opts src dest &opt static?]
   (def cpp (opt opts :cpp-compiler default-cpp-compiler))
   (def cflags [;(getcppflags opts) ;(if static? [] dynamic-cflags)])
-  (def entry-defines (if-let [n (opts :entry-name)]
+  (def entry-defines (if-let [n (and static? (opts :entry-name))]
                        [(make-define "JANET_ENTRY_NAME" n)]
                        []))
   (def defines [;(make-defines (opt opts :defines {})) ;entry-defines])
