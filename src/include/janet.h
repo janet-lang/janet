@@ -273,14 +273,14 @@ typedef struct {
     JANET_VERSION_MAJOR, \
     JANET_VERSION_MINOR, \
     JANET_VERSION_PATCH, \
-    JANET_CURRENT_CONFIG_BITS })	
+    JANET_CURRENT_CONFIG_BITS })
 #else
 /* C99 syntax */
 #define janet_config_current() ((JanetBuildConfig){ \
     JANET_VERSION_MAJOR, \
     JANET_VERSION_MINOR, \
     JANET_VERSION_PATCH, \
-    JANET_CURRENT_CONFIG_BITS })	
+    JANET_CURRENT_CONFIG_BITS })
 #endif
 
 
