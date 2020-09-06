@@ -955,6 +955,9 @@ void janet_buffer_format(
                     janet_description_b(b, argv[arg]);
                     break;
                 }
+                case 't':
+                    janet_buffer_push_cstring(b, typestr(argv[arg]));
+                    break;
                 case 'M':
                 case 'm':
                 case 'N':

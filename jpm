@@ -738,25 +738,25 @@ int main(int argc, const char **argv) {
           (def defines (make-defines (opt opts :defines {})))
           (def cc (opt opts :compiler default-compiler))
           (def cflags [;(getcflags opts) ;janet-cflags])
-		  (check-cc)
-		  (print "compiling " cimage_dest " to " oimage_dest "...")
+          (check-cc)
+          (print "compiling " cimage_dest " to " oimage_dest "...")
           (create-dirs oimage_dest)
-		  (if is-win
+          (if is-win
             (shell cc ;defines "/c" ;cflags (string "/Fo" oimage_dest) cimage_dest)
             (shell cc "-c" cimage_dest ;defines ;cflags "-o" oimage_dest))
           (if has-cpp
             (let [linker (opt opts (if is-win :cpp-linker :cpp-compiler) default-cpp-linker)
-		          cppflags [;(getcppflags opts) ;janet-cflags]]
+                  cppflags [;(getcppflags opts) ;janet-cflags]]
               (print "linking " dest "...")
               (if is-win
                 (shell linker ;ldflags (string "/OUT:" dest) oimage_dest ;lflags)
                 (shell linker ;cppflags ;ldflags `-o` dest oimage_dest ;lflags)))
             (let [linker (opt opts (if is-win :linker :compiler) default-linker)]
               (print "linking " dest "...")
-			  (create-dirs dest)
-			  (if is-win
-				(shell linker ;ldflags (string "/OUT:" dest) oimage_dest ;lflags)
-				(shell linker ;cflags ;ldflags `-o` dest oimage_dest ;lflags)))))))
+              (create-dirs dest)
+              (if is-win
+                (shell linker ;ldflags (string "/OUT:" dest) oimage_dest ;lflags)
+                (shell linker ;cflags ;ldflags `-o` dest oimage_dest ;lflags)))))))
 
 #
 # Installation and Dependencies
