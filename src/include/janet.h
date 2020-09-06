@@ -579,7 +579,7 @@ JANET_API Janet janet_wrap_integer(int32_t x);
     (((x).u64 & JANET_NANBOX_TAGBITS) == janet_nanbox_tag((type)))
 
 #define janet_nanbox_isnumber(x) \
-    (!isnan((x).number) || janet_nanbox_checkauxtype((x), JANET_NUMBER))
+    (!isnan((x).number) || ((((x).u64 >> 47) & 0xF) == JANET_NUMBER))
 
 #define janet_checktype(x, t) \
     (((t) == JANET_NUMBER) \

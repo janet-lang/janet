@@ -23,6 +23,7 @@
 #include <janet.h>
 #include <assert.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "tests.h"
 
@@ -44,6 +45,11 @@ int system_test() {
     assert(janet_equals(janet_wrap_integer(INT32_MIN), janet_wrap_integer(INT32_MIN)));
     assert(janet_equals(janet_wrap_number(1.4), janet_wrap_number(1.4)));
     assert(janet_equals(janet_wrap_number(3.14159265), janet_wrap_number(3.14159265)));
+#ifdef NAN
+    assert(janet_checktype(janet_wrap_number(NAN), JANET_NUMBER));
+#else
+    assert(janet_checktype(janet_wrap_number(0.0 / 0.0), JANET_NUMBER));
+#endif
 
     assert(NULL != &janet_wrap_nil);
 

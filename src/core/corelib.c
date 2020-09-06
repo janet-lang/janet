@@ -1218,7 +1218,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     }
 
     /* Load core cfunctions (and some built in janet assembly functions) */
-    JanetTable *dict = janet_table(300);
+    JanetTable *dict = janet_table(512);
     janet_load_libs(dict);
 
     /* Add replacements */

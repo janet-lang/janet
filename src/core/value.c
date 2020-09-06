@@ -274,9 +274,9 @@ int32_t janet_hash(Janet x) {
             if (sizeof(double) == sizeof(void *)) {
                 /* Assuming 8 byte pointer */
                 uint64_t i = janet_u64(x);
-                uint32_t lo = (uint32_t) (i & 0xFFFFFFFF);
-                uint32_t hi = (uint32_t) (i >> 32);
-                hash = (int32_t) (hi ^ (lo >> 3));
+                uint32_t lo = (uint32_t)(i & 0xFFFFFFFF);
+                uint32_t hi = (uint32_t)(i >> 32);
+                hash = (int32_t)(hi ^ (lo >> 3));
             } else {
                 /* Assuming 4 byte pointer (or smaller) */
                 hash = (int32_t)((char *)janet_unwrap_pointer(x) - (char *)0);
