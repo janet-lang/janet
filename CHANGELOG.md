@@ -1,7 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.12.0 - 2020-09-07
+- Make `zero?`, `one?`, `pos?`, and `neg?` polymorphic.
 - Add C++ support to jpm and improve C++ interop in janet.h.
 - Add `%t` formatter to `printf`, `string/format`, and other formatter functions.
 - Expose `janet_cfuns_prefix` in C API.
