@@ -83,10 +83,6 @@
 (defn nan? "Check if x is NaN" [x] (not= x x))
 (defn even? "Check if x is even." [x] (= 0 (mod x 2)))
 (defn odd? "Check if x is odd." [x] (= 1 (mod x 2)))
-(defn zero? "Check if x is zero." [x] (= x 0))
-(defn pos? "Check if x is greater than 0." [x] (> x 0))
-(defn neg? "Check if x is less than 0." [x] (< x 0))
-(defn one? "Check if x is equal to 1." [x] (= x 1))
 (defn number? "Check if x is a number." [x] (= (type x) :number))
 (defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
 (defn string? "Check if x is a string." [x] (= (type x) :string))
@@ -622,7 +618,7 @@
   the fal form. Bindings have the same syntax as the let macro."
   [bindings tru &opt fal]
   (def len (length bindings))
-  (if (zero? len) (error "expected at least 1 binding"))
+  (if (= 0 len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
   (defn aux [i]
     (if (>= i len)
@@ -751,6 +747,11 @@
   "Equivalent of '>=' but using compare function instead of primitive comparator"
   [& xs]
   (compare-reduce >= xs))
+
+(defn zero? "Check if x is zero." [x] (= (compare x 0) 0))
+(defn pos? "Check if x is greater than 0." [x] (= (compare x 0) 1))
+(defn neg? "Check if x is less than 0." [x] (= (compare x 0) -1))
+(defn one? "Check if x is equal to 1." [x] (= (compare x 1) 0))
 
 (undef compare-reduce)
 
