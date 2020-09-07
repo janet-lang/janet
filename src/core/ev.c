@@ -39,9 +39,12 @@
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <sys/epoll.h>
 #include <fcntl.h>
+
+#ifdef JANET_EV_EPOLL
+#include <sys/epoll.h>
 #include <sys/timerfd.h>
+#endif
 
 /* General queue */
 
