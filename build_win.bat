@@ -102,6 +102,7 @@ exit /b 0
 mkdir dist
 janet.exe tools\gendoc.janet > dist\doc.html
 janet.exe tools\removecr.janet dist\doc.html
+janet.exe tools\removecr.janet build\janet.c
 
 copy build\janet.c dist\janet.c
 copy src\mainclient\shell.c dist\shell.c
