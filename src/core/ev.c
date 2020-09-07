@@ -41,6 +41,10 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
+#ifdef JANET_BSD
+#include <netinet/in.h>
+#endif
+
 #ifdef JANET_EV_EPOLL
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
