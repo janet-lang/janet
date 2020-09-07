@@ -763,7 +763,7 @@ static int line() {
 
         switch (c) {
             default:
-                if (c < 0x20) break;
+                if ((unsigned char) c < 0x20) break;
                 if (insert(c, 1)) return -1;
                 break;
             case 1:     /* ctrl-a */

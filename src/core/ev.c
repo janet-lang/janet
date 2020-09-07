@@ -237,6 +237,7 @@ static JanetListenerState *janet_listen_impl(JanetPollable *pollable, JanetListe
     mask |= JANET_ASYNC_LISTEN_SPAWNER;
     state->pollable = pollable;
     state->_mask = mask;
+    state->_index = 0;
     pollable->_mask |= mask;
     janet_vm_active_listeners++;
     /* Prepend to linked list */
@@ -617,7 +618,7 @@ void janet_loop(void) {
     }
 }
 
-#ifdef JANET_LINUX
+#ifdef JANET_EV_EPOLL
 
 /*
  * Start linux/epoll implementation
@@ -683,7 +684,6 @@ static void janet_unlisten(JanetListenerState *state) {
     janet_unlisten_impl(state);
 }
 
-/* Replace janet_loop with this */
 #define JANET_EPOLL_MAX_EVENTS 64
 void janet_loop1_impl(void) {
     /* Set timer */
@@ -771,9 +771,147 @@ void janet_ev_deinit(void) {
 
 #else
 
+#include <poll.h>
+
+/* Poll implementation */
+
+static JanetTimestamp ts_now(void) {
+    struct timespec now;
+    janet_assert(-1 != clock_gettime(CLOCK_REALTIME, &now), "failed to get time");
+    uint64_t res = 1000 * now.tv_sec;
+    res += now.tv_nsec / 1000000;
+    return res;
+}
+
+/* Epoll global data */
+JANET_THREAD_LOCAL struct pollfd *janet_vm_fds = NULL;
+JANET_THREAD_LOCAL JanetListenerState **janet_vm_listener_map = NULL;
+JANET_THREAD_LOCAL size_t janet_vm_fdcap = 0;
+JANET_THREAD_LOCAL size_t janet_vm_fdcount = 0;
+
+static int make_poll_events(int mask) {
+    int events = 0;
+    if (mask & JANET_ASYNC_LISTEN_READ)
+        events |= POLLIN;
+    if (mask & JANET_ASYNC_LISTEN_WRITE)
+        events |= POLLOUT;
+    return events;
+}
+
+static void janet_push_pollfd(struct pollfd pfd) {
+    if (janet_vm_fdcap == janet_vm_fdcount) {
+        size_t newcap = janet_vm_fdcount ? janet_vm_fdcount * 2 : 16;
+        janet_vm_fds = realloc(janet_vm_fds, newcap * sizeof(struct pollfd));
+        if (NULL == janet_vm_fds) {
+            JANET_OUT_OF_MEMORY;
+        }
+        janet_vm_listener_map = realloc(janet_vm_listener_map, newcap * sizeof(JanetListenerState *));
+        if (NULL == janet_vm_listener_map) {
+            JANET_OUT_OF_MEMORY;
+        }
+        janet_vm_fdcap = newcap;
+    }
+    janet_vm_fds[janet_vm_fdcount++] = pfd;
+}
+
+/* Wait for the next event */
+JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size) {
+    JanetListenerState *state = janet_listen_impl(pollable, behavior, mask, size);
+    struct pollfd ev;
+    ev.fd = pollable->handle;
+    ev.events = make_poll_events(state->pollable->_mask);
+    ev.revents = 0;
+    state->_index = janet_vm_fdcount;
+    janet_push_pollfd(ev);
+    janet_vm_listener_map[state->_index] = state;
+    return state;
+}
+
+/* Tell system we are done listening for a certain event */
+static void janet_unlisten(JanetListenerState *state) {
+    janet_vm_fds[state->_index] = janet_vm_fds[--janet_vm_fdcount];
+    JanetListenerState *replacer = janet_vm_listener_map[janet_vm_fdcount];
+    janet_vm_listener_map[state->_index] = replacer;
+    /* Update pointers in replacer */
+    replacer->_index = state->_index;
+    /* Destroy state machine and free memory */
+    janet_unlisten_impl(state);
+}
+
+void janet_loop1_impl(void) {
+    /* Set timer */
+    JanetTimeout to;
+    memset(&to, 0, sizeof(to));
+    int has_timeout = peek_timeout(&to);
+
+    /* Poll for events */
+    int ready;
+    do {
+        if (has_timeout) {
+            int64_t diff = to.when - ts_now();
+            ready = poll(janet_vm_fds, janet_vm_fdcount, diff < 0 ? 0 : (int) diff);
+        } else {
+            ready = poll(janet_vm_fds, janet_vm_fdcount, -1);
+        }
+    } while (ready == -1 && errno == EINTR);
+    if (ready == -1) {
+        JANET_EXIT("failed to poll events");
+    }
+
+    /* Step state machines */
+    int did_handle_something = 0;
+    for (size_t i = 0; i < janet_vm_fdcount; i++) {
+        struct pollfd *pfd = janet_vm_fds + i;
+        did_handle_something |= pfd->revents;
+        /* Skip fds where nothing interesting happened */
+        if (!(pfd->revents & (pfd->events | POLLHUP | POLLERR | POLLNVAL))) continue;
+        JanetListenerState *state = janet_vm_listener_map[i];
+        /* Normal event */
+        int mask = janet_vm_fds[i].revents;
+        JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
+        JanetAsyncStatus status2 = JANET_ASYNC_STATUS_NOT_DONE;
+        if (mask & POLLOUT)
+            status1 = state->machine(state, JANET_ASYNC_EVENT_WRITE);
+        if (mask & POLLIN)
+            status2 = state->machine(state, JANET_ASYNC_EVENT_READ);
+        if (status1 == JANET_ASYNC_STATUS_DONE || status2 == JANET_ASYNC_STATUS_DONE)
+            janet_unlisten(state);
+    }
+
+    /* If nothing was handled and poll returned, then we know that it timedout and we should trigger
+     * one of our timers. */
+    if (!did_handle_something) {
+        /* Timer event */
+        pop_timeout(0);
+        /* Cancel waiters for this fiber */
+        if (to.is_error) {
+            janet_cancel(to.fiber, janet_cstringv("timeout"));
+        } else {
+            janet_schedule(to.fiber, janet_wrap_nil());
+        }
+    }
+}
+
+void janet_ev_init(void) {
+    janet_ev_init_common();
+    janet_vm_fds = NULL;
+    janet_vm_listener_map = NULL;
+    janet_vm_fdcap = 0;
+    janet_vm_fdcount = 0;
+    return;
+}
+
+void janet_ev_deinit(void) {
+    janet_ev_deinit_common();
+    free(janet_vm_fds);
+    free(janet_vm_listener_map);
+    janet_vm_fds = NULL;
+    janet_vm_listener_map = NULL;
+    janet_vm_fdcap = 0;
+    janet_vm_fdcount = 0;
+}
 
 #endif
-
 
 /* C functions */
 

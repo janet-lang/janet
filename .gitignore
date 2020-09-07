@@ -66,6 +66,10 @@ tags
 vgcore.*
 *.out.*
 
+# Wix artifacts
+*.msi
+*.wixpdb
+
 # Created by https://www.gitignore.io/api/c
 
 ### C ###

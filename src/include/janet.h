@@ -206,7 +206,7 @@ extern "C" {
 #ifdef JANET_WINDOWS
 #define JANET_NO_RETURN __declspec(noreturn)
 #else
-#define JANET_NO_RETURN __attribute__ ((noreturn))
+#define JANET_NO_RETURN __attribute__((noreturn))
 #endif
 #endif
 
@@ -272,11 +272,22 @@ typedef struct {
 } JanetBuildConfig;
 
 /* Get config of current compilation unit. */
+#ifdef __cplusplus
+/* C++11 syntax */
+#define janet_config_current() (JanetBuildConfig { \
+    JANET_VERSION_MAJOR, \
+    JANET_VERSION_MINOR, \
+    JANET_VERSION_PATCH, \
+    JANET_CURRENT_CONFIG_BITS })
+#else
+/* C99 syntax */
 #define janet_config_current() ((JanetBuildConfig){ \
     JANET_VERSION_MAJOR, \
     JANET_VERSION_MINOR, \
     JANET_VERSION_PATCH, \
     JANET_CURRENT_CONFIG_BITS })
+#endif
+
 
 /***** END SECTION CONFIG *****/
 
@@ -526,6 +537,7 @@ struct JanetListenerState {
     JanetFiber *fiber;
     JanetPollable *pollable;
     /* internal */
+    int _index; /* not used in all implementations */
     int _mask;
     JanetListenerState *_next;
 };
@@ -620,14 +632,14 @@ JANET_API Janet janet_wrap_integer(int32_t x);
 #define janet_nanbox_tag(type) (janet_nanbox_lowtag(type) << 47)
 #define janet_type(x) \
     (isnan((x).number) \
-        ? (((x).u64 >> 47) & 0xF) \
+        ? (JanetType) (((x).u64 >> 47) & 0xF) \
         : JANET_NUMBER)
 
 #define janet_nanbox_checkauxtype(x, type) \
     (((x).u64 & JANET_NANBOX_TAGBITS) == janet_nanbox_tag((type)))
 
 #define janet_nanbox_isnumber(x) \
-    (!isnan((x).number) || janet_nanbox_checkauxtype((x), JANET_NUMBER))
+    (!isnan((x).number) || ((((x).u64 >> 47) & 0xF) == JANET_NUMBER))
 
 #define janet_checktype(x, t) \
     (((t) == JANET_NUMBER) \
@@ -699,7 +711,7 @@ JANET_API Janet janet_nanbox_from_bits(uint64_t bits);
 #define JANET_DOUBLE_OFFSET 0xFFFF
 
 #define janet_u64(x) ((x).u64)
-#define janet_type(x) (((x).tagged.type < JANET_DOUBLE_OFFSET) ? (x).tagged.type : JANET_NUMBER)
+#define janet_type(x) (((x).tagged.type < JANET_DOUBLE_OFFSET) ? (JanetType)((x).tagged.type) : JANET_NUMBER)
 #define janet_checktype(x, t) ((t) == JANET_NUMBER \
         ? (x).tagged.type >= JANET_DOUBLE_OFFSET \
         : (x).tagged.type == (t))
@@ -1525,6 +1537,7 @@ typedef enum {
 JANET_API void janet_def(JanetTable *env, const char *name, Janet val, const char *documentation);
 JANET_API void janet_var(JanetTable *env, const char *name, Janet val, const char *documentation);
 JANET_API void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
+JANET_API void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 JANET_API JanetBindingType janet_resolve(JanetTable *env, JanetSymbol sym, Janet *out);
 JANET_API void janet_register(const char *name, JanetCFunction cfun);
 
@@ -1534,14 +1547,19 @@ JANET_API Janet janet_resolve_core(const char *name);
 /* New C API */
 
 /* Allow setting entry name for static libraries */
+#ifdef __cplusplus
+#define JANET_MODULE_PREFIX extern "C"
+#else
+#define JANET_MODULE_PREFIX
+#endif
 #ifndef JANET_ENTRY_NAME
 #define JANET_MODULE_ENTRY \
-    JANET_API JanetBuildConfig _janet_mod_config(void) { \
+    JANET_MODULE_PREFIX JANET_API JanetBuildConfig _janet_mod_config(void) { \
         return janet_config_current(); \
     } \
-    JANET_API void _janet_init
+    JANET_MODULE_PREFIX JANET_API void _janet_init
 #else
-#define JANET_MODULE_ENTRY JANET_API void JANET_ENTRY_NAME
+#define JANET_MODULE_ENTRY JANET_MODULE_PREFIX JANET_API void JANET_ENTRY_NAME
 #endif
 
 JANET_NO_RETURN JANET_API void janet_signalv(JanetSignal signal, Janet message);
@@ -1626,10 +1644,12 @@ extern JANET_API const JanetAbstractType janet_file_type;
 #define JANET_FILE_BINARY 64
 #define JANET_FILE_SERIALIZABLE 128
 #define JANET_FILE_PIPED 256
+#define JANET_FILE_NONIL 512
 
 JANET_API Janet janet_makefile(FILE *f, int32_t flags);
 JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int32_t *flags);
 JANET_API FILE *janet_dynfile(const char *name, FILE *def);
+JANET_API JanetFile *janet_getjfile(const Janet *argv, int32_t n);
 JANET_API JanetAbstract janet_checkfile(Janet j);
 JANET_API FILE *janet_unwrapfile(Janet j, int32_t *flags);
 

@@ -3,6 +3,18 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
 - Silence warnings in some compilers.
+- Add C++ support to jpm and improve C++ interop in janet.h.
+- Add `%t` formatter to `printf`, `string/format`, and other formatter functions.
+- Expose `janet_cfuns_prefix` in C API.
+- Add `os/proc-wait` and `os/proc-kill` for interacting with processes.
+- Add `janet_getjfile` to C API.
+- Allow redirection of stdin, stdout, and stderr by passing keywords in the env table in `os/spawn` and `os/execute`.
+- Add `os/spawn` to get a core/process back instead of an exit code as in `os/execute`.
+  When called like this, `os/execute` returns immediately.
+- Add `:x` flag to os/execute to raise error when exit code is non-zero.
+- Don't run `main` when flychecking.
+- Add `:n` flag to `file/open` to raise an error if file cannot be opened.
+- Fix import macro to not try and coerce everything to a string.
 - Allow passing a second argument to `disasm`.
 - Add `cancel`. Resumes a fiber but makes it immediately error at the yield point.
 - Allow multi-line paste into built in repl.
