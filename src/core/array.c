@@ -344,16 +344,16 @@ static const JanetReg array_cfuns[] = {
     {
         "array/concat", cfun_array_concat,
         JDOC("(array/concat arr & parts)\n\n"
-             "Concatenates a variadic number of arrays (and tuples) into the first argument "
-             "which must an array. If any of the parts are arrays or tuples, their elements will "
+             "Concatenates a variable number of arrays (and tuples) into the first argument "
+             "which must be an array. If any of the parts are arrays or tuples, their elements will "
              "be inserted into the array. Otherwise, each part in parts will be appended to arr in order. "
              "Return the modified array arr.")
     },
     {
         "array/insert", cfun_array_insert,
         JDOC("(array/insert arr at & xs)\n\n"
-             "Insert all of xs into array arr at index at. at should be an integer "
-             "0 and the length of the array. A negative value for at will index from "
+             "Insert all xs into array arr at index at. at should be an integer between "
+             "0 and the length of the array. A negative value for at will index backwards from "
              "the end of the array, such that inserting at -1 appends to the array. "
              "Returns the array.")
     },
