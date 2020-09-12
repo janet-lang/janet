@@ -454,7 +454,7 @@ static const char *janet_pretty_colors[] = {
     "\x1B[36m",
     "\x1B[36m",
     "\x1B[36m",
-    "\x1B[36m"
+    "\x1B[36m",
     "\x1B[35m",
     "\x1B[36m",
     "\x1B[36m",

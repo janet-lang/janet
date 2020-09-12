@@ -680,6 +680,8 @@ int janet_cryptorand(uint8_t *out, size_t n) {
     arc4random_buf(out, n);
     return 0;
 #else
+    (void) n;
+    (void) out;
     return -1;
 #endif
 }

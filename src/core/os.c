@@ -1567,6 +1567,18 @@ static const JanetReg os_cfuns[] = {
         JDOC("(os/shell str)\n\n"
              "Pass a command string str directly to the system shell.")
     },
+    {
+        "os/proc-wait", os_proc_wait,
+        JDOC("(os/proc-wait proc)\n\n"
+             "Block until the subprocess completes. Returns the subprocess return code.")
+    },
+    {
+        "os/proc-kill", os_proc_kill,
+        JDOC("(os/proc-kill proc &opt wait)\n\n"
+             "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
+             "handle on windows. If wait is truthy, will wait for the process to finsih and "
+             "returns the exit code. Otherwise, returns proc.")
+    },
 #endif
     {
         "os/setenv", os_setenv,
@@ -1651,18 +1663,6 @@ static const JanetReg os_cfuns[] = {
         "os/perm-int", os_permission_int,
         JDOC("(os/perm-int bytes)\n\n"
              "Parse a 9 character permission string and return an integer that can be used by chmod.")
-    },
-    {
-        "os/proc-wait", os_proc_wait,
-        JDOC("(os/proc-wait proc)\n\n"
-             "Block until the subprocess completes. Returns the subprocess return code.")
-    },
-    {
-        "os/proc-kill", os_proc_kill,
-        JDOC("(os/proc-kill proc &opt wait)\n\n"
-             "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
-             "handle on windows. If wait is truthy, will wait for the process to finsih and "
-             "returns the exit code. Otherwise, returns proc.")
     },
 #endif
     {NULL, NULL, NULL}
