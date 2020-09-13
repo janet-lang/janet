@@ -310,6 +310,15 @@ JANET_API extern const char *const janet_type_names[16];
 JANET_API extern const char *const janet_signal_names[14];
 JANET_API extern const char *const janet_status_names[16];
 
+/* For various IO routines, we want to use an int on posix and HANDLE on windows */
+#ifdef JANET_WINDOWS
+typedef void *JanetHandle;
+#define JANET_HANDLE_NONE NULL
+#else
+typedef int JanetHandle;
+#define JANET_HANDLE_NONE (-1)
+#endif
+
 /* Fiber signals */
 typedef enum {
     JANET_SIGNAL_OK,
@@ -1560,6 +1569,7 @@ extern JANET_API const JanetAbstractType janet_file_type;
 #define JANET_FILE_NONIL 512
 
 JANET_API Janet janet_makefile(FILE *f, int32_t flags);
+JANET_API JanetFile *janet_makejfile(FILE *f, int32_t flags);
 JANET_API FILE *janet_getfile(const Janet *argv, int32_t n, int32_t *flags);
 JANET_API FILE *janet_dynfile(const char *name, FILE *def);
 JANET_API JanetFile *janet_getjfile(const Janet *argv, int32_t n);

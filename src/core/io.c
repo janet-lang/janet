@@ -799,6 +799,10 @@ FILE *janet_getfile(const Janet *argv, int32_t n, int *flags) {
     return iof->file;
 }
 
+JanetFile *janet_makejfile(FILE *f, int flags) {
+    return makef(f, flags);
+}
+
 Janet janet_makefile(FILE *f, int flags) {
     return janet_wrap_abstract(makef(f, flags));
 }
