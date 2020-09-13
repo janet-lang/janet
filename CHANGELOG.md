@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add :pipe option to `os/spawn`.
+- Fix docstring typos.
 
 ## 1.12.1 - 2020-09-07
 - Make `zero?`, `one?`, `pos?`, and `neg?` polymorphic.
