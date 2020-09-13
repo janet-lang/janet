@@ -414,6 +414,36 @@ static Janet os_proc_kill(int32_t argc, Janet *argv) {
     }
 }
 
+/* Create piped file for os/execute and os/spawn. */
+static JanetFile *make_pipes(JanetHandle *handle, int reverse) {
+    JanetHandle handles[2];
+#ifdef JANET_WINDOWS
+    if (!CreatePipe(handles, handles + 1, NULL, 0)) janet_panic("failed to create pipe");
+    if (reverse) {
+        JanetHandle temp = handles[0];
+        handles[0] = handles[1];
+        handles[1] = temp;
+    }
+    *handle = handles[1];
+    int fd = _open_osfhandle((intptr_t) handles[0], reverse ? _O_WRONLY : _O_RDONLY);
+    if (fd == -1) janet_panic("could not create file for piping");
+    FILE *f = _fdopen(fd, reverse ? "w" : "r");
+    if (NULL == f) janet_panic(strerror(errno));
+    return janet_makejfile(f, reverse ? JANET_FILE_WRITE : JANET_FILE_READ);
+#else
+    if (pipe(handles)) janet_panic(strerror(errno));
+    if (reverse) {
+        JanetHandle temp = handles[0];
+        handles[0] = handles[1];
+        handles[1] = temp;
+    }
+    *handle = handles[1];
+    FILE *f = fdopen(handles[0], reverse ? "w" : "r");
+    if (NULL == f) janet_panic(strerror(errno));
+    return janet_makejfile(f, reverse ? JANET_FILE_WRITE : JANET_FILE_READ);
+#endif
+}
+
 static const JanetMethod proc_methods[] = {
     {"wait", os_proc_wait},
     {"kill", os_proc_kill},
@@ -470,6 +500,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
 
     /* Optional stdio redirections */
     JanetFile *new_in = NULL, *new_out = NULL, *new_err = NULL;
+    JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
 
     /* Get optional redirections */
     if (argc > 2) {
@@ -477,9 +508,21 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
         Janet maybe_stdin = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("in"));
         Janet maybe_stdout = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("out"));
         Janet maybe_stderr = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("err"));
-        if (!janet_checktype(maybe_stdin, JANET_NIL)) new_in = janet_getjfile(&maybe_stdin, 0);
-        if (!janet_checktype(maybe_stdout, JANET_NIL)) new_out = janet_getjfile(&maybe_stdout, 0);
-        if (!janet_checktype(maybe_stderr, JANET_NIL)) new_err = janet_getjfile(&maybe_stderr, 0);
+        if (janet_keyeq(maybe_stdin, "pipe")) {
+            new_in = make_pipes(&pipe_in, 1);
+        } else if (!janet_checktype(maybe_stdin, JANET_NIL)) {
+            new_in = janet_getjfile(&maybe_stdin, 0);
+        }
+        if (janet_keyeq(maybe_stdout, "pipe")) {
+            new_out = make_pipes(&pipe_out, 0);
+        } else if (!janet_checktype(maybe_stdout, JANET_NIL)) {
+            new_out = janet_getjfile(&maybe_stdout, 0);
+        }
+        if (janet_keyeq(maybe_stderr, "err")) {
+            new_err = make_pipes(&pipe_err, 0);
+        } else if (!janet_checktype(maybe_stderr, JANET_NIL)) {
+            new_err = janet_getjfile(&maybe_stderr, 0);
+        }
     }
 
     /* Result */
@@ -502,9 +545,24 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     const char *path = (const char *) janet_unwrap_string(exargs.items[0]);
 
     /* Do IO redirection */
-    startupInfo.hStdInput = (HANDLE) _get_osfhandle((new_in == NULL) ? 0 : _fileno(new_in->file));
-    startupInfo.hStdOutput = (HANDLE) _get_osfhandle((new_out == NULL) ? 1 : _fileno(new_out->file));
-    startupInfo.hStdError = (HANDLE) _get_osfhandle((new_err == NULL) ? 2 : _fileno(new_err->file));
+
+    if (pipe_in != JANET_HANDLE_NONE) {
+        startupInfo.hStdInput = pipe_in;
+    } else if (new_in != NULL) {
+        startupInfo.hStdInput = (HANDLE) _get_osfhandle(_fileno(new_in->file));
+    }
+
+    if (pipe_out != JANET_HANDLE_NONE) {
+        startupInfo.hStdInput = pipe_out;
+    } else if (new_out != NULL) {
+        startupInfo.hStdOutput = (HANDLE) _get_osfhandle(_fileno(new_out->file));
+    }
+
+    if (pipe_err != JANET_HANDLE_NONE) {
+        startupInfo.hStdInput = pipe_err;
+    } else if (new_err != NULL) {
+        startupInfo.hStdError = (HANDLE) _get_osfhandle(_fileno(new_err->file));
+    }
 
     /* Use _spawn family of functions. */
     /* Windows docs say do this before any spawns. */
@@ -523,6 +581,10 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
                        &processInfo))  {
         janet_panic("failed to create process");
     }
+
+    if (pipe_in != JANET_HANDLE_NONE) CloseHandle(pipe_in);
+    if (pipe_out != JANET_HANDLE_NONE) CloseHandle(pipe_out);
+    if (pipe_err != JANET_HANDLE_NONE) CloseHandle(pipe_err);
 
     pHandle = processInfo.hProcess;
     tHandle = processInfo.hThread;
@@ -559,13 +621,19 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     /* Posix spawn setup */
     posix_spawn_file_actions_t actions;
     posix_spawn_file_actions_init(&actions);
-    if (new_in != NULL) {
+    if (pipe_in != JANET_HANDLE_NONE) {
+        posix_spawn_file_actions_adddup2(&actions, pipe_in, 0);
+    } else if (new_in != NULL) {
         posix_spawn_file_actions_adddup2(&actions, fileno(new_in->file), 0);
     }
-    if (new_out != NULL) {
+    if (pipe_out != JANET_HANDLE_NONE) {
+        posix_spawn_file_actions_adddup2(&actions, pipe_out, 1);
+    } else if (new_out != NULL) {
         posix_spawn_file_actions_adddup2(&actions, fileno(new_out->file), 1);
     }
-    if (new_err != NULL) {
+    if (pipe_err != JANET_HANDLE_NONE) {
+        posix_spawn_file_actions_adddup2(&actions, pipe_err, 2);
+    } else if (new_err != NULL) {
         posix_spawn_file_actions_adddup2(&actions, fileno(new_err->file), 2);
     }
 
@@ -581,6 +649,10 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     }
 
     posix_spawn_file_actions_destroy(&actions);
+
+    if (pipe_in != JANET_HANDLE_NONE) close(pipe_in);
+    if (pipe_out != JANET_HANDLE_NONE) close(pipe_out);
+    if (pipe_err != JANET_HANDLE_NONE) close(pipe_err);
 
     if (use_environ) {
         janet_unlock_environ();
@@ -1554,6 +1626,11 @@ static const JanetReg os_cfuns[] = {
              "env is a table or struct mapping environment variables to values. It can also "
              "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
              "These arguments should be core/file values. "
+             "One can also pass in the :pipe keyword "
+             "for these arguments to create files that will read (for :err and :out) or write (for :in) "
+             "to the file descriptor of the subprocess. This is only useful in os/spawn, which takes "
+             "the same parameters as os/execute, but will return an object that contains references to these "
+             "files via (return-value :in), (return-value :out), and (return-value :err). "
              "Returns the exit status of the program.")
     },
     {
