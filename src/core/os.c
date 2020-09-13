@@ -418,12 +418,18 @@ static Janet os_proc_kill(int32_t argc, Janet *argv) {
 static JanetFile *make_pipes(JanetHandle *handle, int reverse) {
     JanetHandle handles[2];
 #ifdef JANET_WINDOWS
-    bool result = CreatePipe(handles, handles + 1, NULL, 0);
-    if (result) {
-
-    } else {
-
+    if (!CreatePipe(handles, handles + 1, NULL, 0)) janet_panic("failed to create pipe");
+    if (reverse) {
+        JanetHandle temp = handles[0];
+        handles[0] = handles[1];
+        handles[1] = temp;
     }
+    *handle = handles[1];
+    int fd = _open_osfhandle((intptr_t) handles[0], reverse ? _O_WRONLY : _O_RDONLY);
+    if (fd == -1) janet_panic("could not create file for piping");
+    FILE *f = _fdopen(fd, reverse ? "w" : "r");
+    if (NULL == f) janet_panic(strerror(errno));
+    return janet_makejfile(f, reverse ? JANET_FILE_WRITE : JANET_FILE_READ);
 #else
     if (pipe(handles)) janet_panic(strerror(errno));
     if (reverse) {
