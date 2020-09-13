@@ -724,15 +724,18 @@ static const JanetReg threadlib_cfuns[] = {
     },
     {
         "thread/send", cfun_thread_send,
-        JDOC("(thread/send thread msg)\n\n"
-             "Send a message to the thread. This will never block and returns thread immediately. "
+        JDOC("(thread/send thread msgi &opt timeout)\n\n"
+             "Send a message to the thread. By default, the timeout is 1 second, but an optional timeout "
+             "in seconds can be provided. Use math/inf for no timeout. "
              "Will throw an error if there is a problem sending the message.")
     },
     {
         "thread/receive", cfun_thread_receive,
         JDOC("(thread/receive &opt timeout)\n\n"
-             "Get a message sent to this thread. If timeout is provided, an error will be thrown after the timeout has elapsed but "
-             "no messages are received.")
+             "Get a message sent to this thread. If timeout (in seconds) is provided, an error "
+             "will be thrown after the timeout has elapsed but "
+             "no messages are received. The default timeout is 1 second, and math/inf cam be passed to "
+             "turn off the timeout.")
     },
     {
         "thread/close", cfun_thread_close,
