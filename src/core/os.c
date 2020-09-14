@@ -221,7 +221,8 @@ static char **os_execute_env(int32_t argc, const Janet *argv) {
     return envp;
 }
 
-/* Free memory from os_execute */
+/* Free memory from os_execute. Not actually needed, but doesn't pressure the GC
+   in the happy path. */
 static void os_execute_cleanup(char **envp, const char **child_argv) {
 #ifdef JANET_WINDOWS
     (void) child_argv;
@@ -414,33 +415,66 @@ static Janet os_proc_kill(int32_t argc, Janet *argv) {
     }
 }
 
-/* Create piped file for os/execute and os/spawn. */
-static JanetFile *make_pipes(JanetHandle *handle, int reverse) {
+static void swap_handles(JanetHandle *handles) {
+    JanetHandle temp = handles[0];
+    handles[0] = handles[1];
+    handles[1] = temp;
+}
+
+static void close_handle(JanetHandle handle) {
+#ifdef JANET_WINDOWS
+    CloseHandle(handle);
+#else
+    close(handle);
+#endif
+}
+
+/* Create piped file for os/execute and os/spawn. Need to be careful that we mark
+   the error flag if we can't create pipe and don't leak handles. *handle will be cleaned
+   up by the calling function. If everything goes well, *handle is owned by the calling function,
+   (if it is set) and the returned JanetFile owns the other end of the pipe, which will be closed
+   on GC or fclose. */
+static JanetFile *make_pipes(JanetHandle *handle, int reverse, int *errflag) {
     JanetHandle handles[2];
 #ifdef JANET_WINDOWS
-    if (!CreatePipe(handles, handles + 1, NULL, 0)) janet_panic("failed to create pipe");
-    if (reverse) {
-        JanetHandle temp = handles[0];
-        handles[0] = handles[1];
-        handles[1] = temp;
-    }
+    SECURITY_ATTRIBUTES saAttr;
+    memset(&saAttr, 0, sizeof(saAttr));
+    saAttr.nLength = sizeof(saAttr);
+    saAttr.bInheritHandle = TRUE;
+    if (!CreatePipe(handles, handles + 1, &saAttr, 0)) goto error_pipe;
+    if (reverse) swap_handles(handles);
+    /* Don't inherit the side of the pipe owned by this process */
+    if (!SetHandleInformation(handles[0], HANDLE_FLAG_INHERIT, 0)) goto error_set_handle_info;
     *handle = handles[1];
     int fd = _open_osfhandle((intptr_t) handles[0], reverse ? _O_WRONLY : _O_RDONLY);
-    if (fd == -1) janet_panic("could not create file for piping");
+    if (fd == -1) goto error_open_osfhandle;
     FILE *f = _fdopen(fd, reverse ? "w" : "r");
-    if (NULL == f) janet_panic(strerror(errno));
+    if (NULL == f) goto error_fdopen;
     return janet_makejfile(f, reverse ? JANET_FILE_WRITE : JANET_FILE_READ);
+error_fdopen:
+    _close(fd); /* we need to close the fake file descriptor instead of the handle, as ownership has been transfered. */
+    *errflag = 1;
+    return NULL;
+error_set_handle_info:
+error_open_osfhandle:
+    close_handle(handles[0]);
+    /* fallthrough */
+error_pipe:
+    *errflag = 1;
+    return NULL;
 #else
-    if (pipe(handles)) janet_panic(strerror(errno));
-    if (reverse) {
-        JanetHandle temp = handles[0];
-        handles[0] = handles[1];
-        handles[1] = temp;
-    }
+    if (pipe(handles)) goto error_pipe;
+    if (reverse) swap_handles(handles);
     *handle = handles[1];
     FILE *f = fdopen(handles[0], reverse ? "w" : "r");
-    if (NULL == f) janet_panic(strerror(errno));
+    if (NULL == f) goto error_fdopen;
     return janet_makejfile(f, reverse ? JANET_FILE_WRITE : JANET_FILE_READ);
+error_fdopen:
+    close_handle(handles[0]);
+    /* fallthrough */
+error_pipe:
+    *errflag = 1;
+    return NULL;
 #endif
 }
 
@@ -490,6 +524,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     }
 
     /* Get environment */
+    int use_environ = !janet_flag_at(flags, 0);
     char **envp = os_execute_env(argc, argv);
 
     /* Get arguments */
@@ -501,6 +536,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     /* Optional stdio redirections */
     JanetFile *new_in = NULL, *new_out = NULL, *new_err = NULL;
     JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
+    int pipe_errflag = 0; /* Track errors setting up pipes */
 
     /* Get optional redirections */
     if (argc > 2) {
@@ -509,20 +545,28 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
         Janet maybe_stdout = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("out"));
         Janet maybe_stderr = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("err"));
         if (janet_keyeq(maybe_stdin, "pipe")) {
-            new_in = make_pipes(&pipe_in, 1);
+            new_in = make_pipes(&pipe_in, 1, &pipe_errflag);
         } else if (!janet_checktype(maybe_stdin, JANET_NIL)) {
             new_in = janet_getjfile(&maybe_stdin, 0);
         }
         if (janet_keyeq(maybe_stdout, "pipe")) {
-            new_out = make_pipes(&pipe_out, 0);
+            new_out = make_pipes(&pipe_out, 0, &pipe_errflag);
         } else if (!janet_checktype(maybe_stdout, JANET_NIL)) {
             new_out = janet_getjfile(&maybe_stdout, 0);
         }
         if (janet_keyeq(maybe_stderr, "err")) {
-            new_err = make_pipes(&pipe_err, 0);
+            new_err = make_pipes(&pipe_err, 0, &pipe_errflag);
         } else if (!janet_checktype(maybe_stderr, JANET_NIL)) {
             new_err = janet_getjfile(&maybe_stderr, 0);
         }
+    }
+
+    /* Clean up if any of the pipes have any issues */
+    if (pipe_errflag) {
+        if (pipe_in != JANET_HANDLE_NONE) close_handle(pipe_in);
+        if (pipe_out != JANET_HANDLE_NONE) close_handle(pipe_out);
+        if (pipe_err != JANET_HANDLE_NONE) close_handle(pipe_err);
+        janet_panic("failed to create pipes");
     }
 
     /* Result */
@@ -531,12 +575,16 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
 #ifdef JANET_WINDOWS
 
     HANDLE pHandle, tHandle;
+    SECURITY_ATTRIBUTES saAttr;
     PROCESS_INFORMATION processInfo;
     STARTUPINFO startupInfo;
+    memset(&saAttr, 0, sizeof(saAttr));
     memset(&processInfo, 0, sizeof(processInfo));
     memset(&startupInfo, 0, sizeof(startupInfo));
     startupInfo.cb = sizeof(startupInfo);
     startupInfo.dwFlags |= STARTF_USESTDHANDLES;
+    saAttr.nLength = sizeof(saAttr);
+    saAttr.bInheritHandle = TRUE;
 
     JanetBuffer *buf = os_exec_escape(exargs);
     if (buf->count > 8191) {
@@ -550,46 +598,57 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
         startupInfo.hStdInput = pipe_in;
     } else if (new_in != NULL) {
         startupInfo.hStdInput = (HANDLE) _get_osfhandle(_fileno(new_in->file));
+    } else {
+        startupInfo.hStdInput = (HANDLE) _get_osfhandle(0);
     }
 
+
     if (pipe_out != JANET_HANDLE_NONE) {
-        startupInfo.hStdInput = pipe_out;
+        startupInfo.hStdOutput = pipe_out;
     } else if (new_out != NULL) {
         startupInfo.hStdOutput = (HANDLE) _get_osfhandle(_fileno(new_out->file));
+    } else {
+        startupInfo.hStdOutput = (HANDLE) _get_osfhandle(1);
     }
 
     if (pipe_err != JANET_HANDLE_NONE) {
-        startupInfo.hStdInput = pipe_err;
+        startupInfo.hStdError = pipe_err;
     } else if (new_err != NULL) {
         startupInfo.hStdError = (HANDLE) _get_osfhandle(_fileno(new_err->file));
+    } else {
+        startupInfo.hStdError = (HANDLE) _get_osfhandle(2);
     }
 
     /* Use _spawn family of functions. */
     /* Windows docs say do this before any spawns. */
     _flushall();
 
-    /* TODO - redirection, :p flag */
-    if (!CreateProcess(janet_flag_at(flags, 1) ? NULL : path, /* NULL? */
+    int cp_failed = 0;
+    if (!CreateProcess(janet_flag_at(flags, 1) ? NULL : path,
                        (char *) buf->data, /* Single CLI argument */
-                       NULL, /* no proc inheritance */
-                       NULL, /* no thread inheritance */
+                       &saAttr, /* no proc inheritance */
+                       &saAttr, /* no thread inheritance */
                        TRUE, /* handle inheritance */
                        0, /* flags */
-                       envp, /* pass in environment */
+                       use_environ ? NULL : envp, /* pass in environment */
                        NULL, /* use parents starting directory */
                        &startupInfo,
-                       &processInfo))  {
-        janet_panic("failed to create process");
+                       &processInfo)) {
+        cp_failed = 1;
     }
 
     if (pipe_in != JANET_HANDLE_NONE) CloseHandle(pipe_in);
     if (pipe_out != JANET_HANDLE_NONE) CloseHandle(pipe_out);
     if (pipe_err != JANET_HANDLE_NONE) CloseHandle(pipe_err);
 
+    os_execute_cleanup(envp, NULL);
+
+    if (cp_failed)  {
+        janet_panic("failed to create process");
+    }
+
     pHandle = processInfo.hProcess;
     tHandle = processInfo.hThread;
-
-    os_execute_cleanup(envp, NULL);
 
     /* Wait and cleanup immedaitely */
     if (!is_async) {
@@ -611,8 +670,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     char *const *cargv = (char *const *)child_argv;
 
     /* Use posix_spawn to spawn new process */
-
-    int use_environ = !janet_flag_at(flags, 0);
 
     if (use_environ) {
         janet_lock_environ();
