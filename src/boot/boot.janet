@@ -2868,7 +2868,7 @@
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
     (if-not *quiet*
-      (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch)))
+      (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) " - '(doc)' for help"))
     (flush)
     (defn getprompt [p]
       (def [line] (parser/where p))
