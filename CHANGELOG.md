@@ -1,7 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.12.2 - 2020-09-19
+- Fix `os/execute` regression on windows.
 - Add :pipe option to `os/spawn`.
 - Fix docstring typos.
 
