@@ -3,7 +3,6 @@
 (var num-tests-passed 0)
 (var num-tests-run 0)
 (var suite-num 0)
-(var numchecks 0)
 (var start-time 0)
 
 (defn assert
@@ -13,16 +12,8 @@
   (++ num-tests-run)
   (when x (++ num-tests-passed))
   (if x
-    (do
-      (when (= numchecks 25)
-        (set numchecks 0)
-        (print))
-      (++ numchecks)
-      (file/write stdout "\e[32m✔\e[0m"))
-    (do
-      (file/write stdout "\n\e[31m✘\e[0m  ")
-      (set numchecks 0)
-      (print e)))
+    (xprintf stdout "\e[32m✔\e[0m %s: %v" (string e) x)
+    (xprintf stdout "\n\e[31m✘\e[0m %s: %v" (string e) x))
   x)
 
 (defmacro assert-error

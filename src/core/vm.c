@@ -1315,8 +1315,25 @@ static JanetSignal janet_check_can_resume(JanetFiber *fiber, Janet *out) {
     return JANET_SIGNAL_OK;
 }
 
+void janet_try_init(JanetTryState *state) {
+    state->stackn = janet_vm_stackn++;
+    state->gc_handle = janet_vm_gc_suspend;
+    state->vm_fiber = janet_vm_fiber;
+    state->vm_jmp_buf = janet_vm_jmp_buf;
+    state->vm_return_reg = janet_vm_return_reg;
+    janet_vm_return_reg = &(state->payload);
+    janet_vm_jmp_buf = &(state->buf);
+}
+
+void janet_restore(JanetTryState *state) {
+    janet_vm_stackn = state->stackn;
+    janet_vm_gc_suspend = state->gc_handle;
+    janet_vm_fiber = state->vm_fiber;
+    janet_vm_jmp_buf = state->vm_jmp_buf;
+    janet_vm_return_reg = state->vm_return_reg;
+}
+
 static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *out) {
-    jmp_buf buf;
 
     JanetFiberStatus old_status = janet_fiber_status(fiber);
 
@@ -1349,45 +1366,23 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
     }
 
     /* Save global state */
-    int32_t oldn = janet_vm_stackn++;
-    int handle = janet_vm_gc_suspend;
-    JanetFiber *old_vm_fiber = janet_vm_fiber;
-    jmp_buf *old_vm_jmp_buf = janet_vm_jmp_buf;
-    Janet *old_vm_return_reg = janet_vm_return_reg;
-
-    /* Setup fiber */
-    if (janet_vm_root_fiber == NULL) janet_vm_root_fiber = fiber;
-    janet_vm_fiber = fiber;
-    janet_gcroot(janet_wrap_fiber(fiber));
-    janet_fiber_set_status(fiber, JANET_STATUS_ALIVE);
-    janet_vm_return_reg = out;
-    janet_vm_jmp_buf = &buf;
-
-    /* Run loop */
-    JanetSignal signal;
-    int jmpsig;
-#if defined(JANET_BSD) || defined(JANET_APPLE)
-    jmpsig = _setjmp(buf);
-#else
-    jmpsig = setjmp(buf);
-#endif
-    if (jmpsig) {
-        signal = (JanetSignal) jmpsig;
-    } else {
+    JanetTryState tstate;
+    JanetSignal signal = janet_try(&tstate);
+    if (!signal) {
+        /* Normal setup */
+        if (janet_vm_root_fiber == NULL) janet_vm_root_fiber = fiber;
+        janet_vm_fiber = fiber;
+        janet_gcroot(janet_wrap_fiber(fiber));
+        janet_fiber_set_status(fiber, JANET_STATUS_ALIVE);
         signal = run_vm(fiber, in);
     }
 
-    /* Tear down fiber */
+    /* Restore */
+    if (janet_vm_root_fiber == fiber) janet_vm_root_fiber = NULL;
     janet_fiber_set_status(fiber, signal);
     janet_gcunroot(janet_wrap_fiber(fiber));
-
-    /* Restore global state */
-    if (janet_vm_root_fiber == fiber) janet_vm_root_fiber = NULL;
-    janet_vm_gc_suspend = handle;
-    janet_vm_fiber = old_vm_fiber;
-    janet_vm_stackn = oldn;
-    janet_vm_return_reg = old_vm_return_reg;
-    janet_vm_jmp_buf = old_vm_jmp_buf;
+    janet_restore(&tstate);
+    *out = tstate.payload;
 
     return signal;
 }
