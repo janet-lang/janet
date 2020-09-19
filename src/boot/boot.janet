@@ -1702,7 +1702,7 @@
   (print (doc-format (string "Bindings:\n\n" (string/join bindings " "))))
   (print)
   (print (doc-format (string "Dynamics:\n\n" (string/join dynamics " "))))
-  (print))
+  (print "\n    Use (doc sym) for more information on a binding.\n"))
 
 (defn doc*
   "Get the documentation for a symbol in a given environment. Function form of doc."
