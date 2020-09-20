@@ -1,7 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.12.2 - 2020-09-19
+## 1.12.2 - 2020-09-20
+- Add janet\_try and janet\_restore to C API.
 - Fix `os/execute` regression on windows.
 - Add :pipe option to `os/spawn`.
 - Fix docstring typos.
