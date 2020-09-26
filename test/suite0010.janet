@@ -61,4 +61,8 @@
 (assert-no-error "import macro 1" (macex '(import a :as b :fresh maybe)))
 (assert (deep= ~(,import* "a" :as "b" :fresh maybe) (macex '(import a :as b :fresh maybe))) "import macro 2")
 
+# #477 walk preserving bracket type
+(assert (= :brackets (tuple/type (postwalk identity '[]))) "walk square brackets 1")
+(assert (= :brackets (tuple/type (walk identity '[]))) "walk square brackets 2")
+
 (end-suite)

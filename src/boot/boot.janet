@@ -1141,7 +1141,10 @@
     :table (walk-dict f form)
     :struct (table/to-struct (walk-dict f form))
     :array (walk-ind f form)
-    :tuple (tuple/slice (walk-ind f form))
+    :tuple (let [x (walk-ind f form)]
+             (if (= :parens (tuple/type form))
+               (tuple/slice x)
+               (tuple/brackets ;x)))
     form))
 
 (undef walk-ind)
