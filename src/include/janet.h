@@ -1095,6 +1095,19 @@ struct JanetFile {
     int32_t flags;
 };
 
+/* For janet_try and janet_restore */
+typedef struct {
+    /* old state */
+    int32_t stackn;
+    int gc_handle;
+    JanetFiber *vm_fiber;
+    jmp_buf *vm_jmp_buf;
+    Janet *vm_return_reg;
+    /* new state */
+    jmp_buf buf;
+    Janet payload;
+} JanetTryState;
+
 /* Thread types */
 #ifdef JANET_THREADS
 typedef struct JanetThread JanetThread;
@@ -1498,6 +1511,13 @@ JANET_API JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, J
 #define JANET_HASH_KEY_SIZE 16
 JANET_API void janet_init_hash_key(uint8_t key[JANET_HASH_KEY_SIZE]);
 #endif
+JANET_API void janet_try_init(JanetTryState *state);
+#if defined(JANET_BSD) || defined(JANET_APPLE)
+#define janet_try(state) (janet_try_init(state), (JanetSignal) _setjmp((state)->buf))
+#else
+#define janet_try(state) (janet_try_init(state), (JanetSignal) setjmp((state)->buf))
+#endif
+JANET_API void janet_restore(JanetTryState *state);
 JANET_API int janet_equals(Janet x, Janet y);
 JANET_API int32_t janet_hash(Janet x);
 JANET_API int janet_compare(Janet x, Janet y);

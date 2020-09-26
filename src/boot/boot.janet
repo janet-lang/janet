@@ -1702,7 +1702,7 @@
   (print (doc-format (string "Bindings:\n\n" (string/join bindings " "))))
   (print)
   (print (doc-format (string "Dynamics:\n\n" (string/join dynamics " "))))
-  (print))
+  (print "\n    Use (doc sym) for more information on a binding.\n"))
 
 (defn doc*
   "Get the documentation for a symbol in a given environment. Function form of doc."
@@ -2868,7 +2868,7 @@
 
   (when (and (not *compile-only*) (or *should-repl* *no-file*))
     (if-not *quiet*
-      (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch)))
+      (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) " - '(doc)' for help"))
     (flush)
     (defn getprompt [p]
       (def [line] (parser/where p))
