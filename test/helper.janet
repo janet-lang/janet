@@ -11,9 +11,12 @@
   (default e "assert error")
   (++ num-tests-run)
   (when x (++ num-tests-passed))
+  (def str (string e))
+  (def truncated
+    (if (> (length e) 40) (string (string/slice e 0 35) "...") (string e)))
   (if x
-    (xprintf stdout "\e[32m✔\e[0m %s: %v" (string e) x)
-    (xprintf stdout "\n\e[31m✘\e[0m %s: %v" (string e) x))
+    (xprintf stdout "\e[32m✔\e[0m %s: %v" truncated x)
+    (xprintf stdout "\n\e[31m✘\e[0m %s: %v" truncated x))
   x)
 
 (defmacro assert-error

@@ -1652,6 +1652,7 @@ typedef enum {
     RULE_TO,           /* [rule] */
     RULE_THRU,         /* [rule] */
     RULE_LENPREFIX,    /* [rule_a, rule_b (repeat rule_b rule_a times)] */
+    RULE_READINT,      /* [(signedness << 4) | (endianess << 5) | bytewidth, tag] */
 } JanetPegOpcode;
 
 typedef struct {
