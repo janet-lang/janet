@@ -87,6 +87,12 @@ static void pushcap(PegState *s, Janet capture, uint32_t tag) {
     }
 }
 
+/* Convert a uint64_t to a int64_t by wrapping to a maximum number of bytes */
+static int64_t peg_convert_u64_s64(uint64_t from, int width) {
+    int shift = 8 * (8 - width);
+    return ((int64_t)(from << shift)) >> shift;
+}
+
 /* Prevent stack overflow */
 #define down1(s) do { \
     if (0 == --((s)->depth)) janet_panic("peg/match recursed too deeply"); \
@@ -467,6 +473,47 @@ tail:
                 }
             }
             return next_text;
+        }
+
+        case RULE_READINT: {
+            uint32_t tag = rule[2];
+            uint32_t signedness = rule[1] & 0x10;
+            uint32_t endianess = rule[1] & 0x20;
+            int width = (int)(rule[1] & 0xF);
+            if (text + width > s->text_end) return NULL;
+            uint64_t accum = 0;
+            if (endianess) {
+                /* BE */
+                for (int i = 0; i < width; i++) accum = (accum << 8) | text[i];
+            } else {
+                /* LE */
+                for (int i = width - 1; i >= 0; i--) accum = (accum << 8) | text[i];
+            }
+
+            Janet capture_value;
+            /* We can only parse integeres of greater than 6 bytes reliable if int-types are enabled.
+             * Otherwise, we may lose precision, so 6 is the maximum size when int-types are disabled. */
+#ifdef JANET_INT_TYPES
+            if (width > 6) {
+                if (signedness) {
+                    capture_value = janet_wrap_s64(peg_convert_u64_s64(accum, width));
+                } else {
+                    capture_value = janet_wrap_u64(accum);
+                }
+            } else
+#endif
+            {
+                double double_value;
+                if (signedness) {
+                    double_value = (double)(peg_convert_u64_s64(accum, width));
+                } else {
+                    double_value = (double)accum;
+                }
+                capture_value = janet_wrap_number(double_value);
+            }
+
+            pushcap(s, capture_value, tag);
+            return text + width;
         }
 
     }
@@ -876,6 +923,36 @@ static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
     emit_3(r, RULE_MATCHTIME, subrule, cindex, tag);
 }
 
+#ifdef JANET_INT_TYPES
+#define JANET_MAX_READINT_WIDTH 8
+#else
+#define JANET_MAX_READINT_WIDTH 6
+#endif
+
+static void spec_readint(Builder *b, int32_t argc, const Janet *argv, uint32_t mask) {
+    peg_arity(b, argc, 1, 2);
+    Reserve r = reserve(b, 3);
+    uint32_t tag = (argc == 2) ? emit_tag(b, argv[3]) : 0;
+    int32_t width = peg_getnat(b, argv[0]);
+    if ((width < 0) || (width > JANET_MAX_READINT_WIDTH)) {
+        peg_panicf(b, "width must be between 0 and %d, got %d", JANET_MAX_READINT_WIDTH, width);
+    }
+    emit_2(r, RULE_READINT, mask | ((uint32_t) width), tag);
+}
+
+static void spec_uint_le(Builder *b, int32_t argc, const Janet *argv) {
+    spec_readint(b, argc, argv, 0x0u);
+}
+static void spec_int_le(Builder *b, int32_t argc, const Janet *argv) {
+    spec_readint(b, argc, argv, 0x10u);
+}
+static void spec_uint_be(Builder *b, int32_t argc, const Janet *argv) {
+    spec_readint(b, argc, argv, 0x20u);
+}
+static void spec_int_be(Builder *b, int32_t argc, const Janet *argv) {
+    spec_readint(b, argc, argv, 0x30u);
+}
+
 /* Special compiler form */
 typedef void (*Special)(Builder *b, int32_t argc, const Janet *argv);
 typedef struct {
@@ -912,6 +989,8 @@ static const SpecialPair peg_specials[] = {
     {"group", spec_group},
     {"if", spec_if},
     {"if-not", spec_ifnot},
+    {"int", spec_int_le},
+    {"int-be", spec_int_be},
     {"lenprefix", spec_lenprefix},
     {"look", spec_look},
     {"not", spec_not},
@@ -926,6 +1005,8 @@ static const SpecialPair peg_specials[] = {
     {"some", spec_some},
     {"thru", spec_thru},
     {"to", spec_to},
+    {"uint", spec_uint_le},
+    {"uint-be", spec_uint_be},
 };
 
 /* Compile a janet value into a rule and return the rule index. */
@@ -1225,6 +1306,11 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 if (rule[1] >= blen) goto bad;
                 op_flags[rule[1]] |= 0x01;
                 i += 2;
+                break;
+            case RULE_READINT:
+                /* [ width | (endianess << 5) | (signedness << 6), tag ] */
+                if (rule[1] > JANET_MAX_READINT_WIDTH) goto bad;
+                i += 3;
                 break;
             default:
                 goto bad;

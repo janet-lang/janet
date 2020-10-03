@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add integer parsing forms to pegs. This makes parsing many binary protocols easier.
+
 ## 1.12.2 - 2020-09-20
 - Add janet\_try and janet\_restore to C API.
 - Fix `os/execute` regression on windows.

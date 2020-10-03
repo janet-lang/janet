@@ -443,4 +443,26 @@
 (check-match redef-b "aabeef" false)
 (check-match redef-b "aaaaaa" false)
 
+# Integer parsing
+
+(check-deep '(int 1) "a" @[(chr "a")])
+(check-deep '(uint 1) "a" @[(chr "a")])
+(check-deep '(int-be 1) "a" @[(chr "a")])
+(check-deep '(uint-be 1) "a" @[(chr "a")])
+(check-deep '(int 1) "\xFF" @[-1])
+(check-deep '(uint 1) "\xFF" @[255])
+(check-deep '(int-be 1) "\xFF" @[-1])
+(check-deep '(uint-be 1) "\xFF" @[255])
+(check-deep '(int 2) "\xFF\x7f" @[0x7fff])
+(check-deep '(int-be 2) "\x7f\xff" @[0x7fff])
+(check-deep '(uint 2) "\xff\x7f" @[0x7fff])
+(check-deep '(uint-be 2) "\x7f\xff" @[0x7fff])
+(check-deep '(uint-be 2) "\x7f\xff" @[0x7fff])
+(check-deep '(uint 8) "\xff\x7f\x00\x00\x00\x00\x00\x00" @[(int/u64 0x7fff)])
+(check-deep '(int 8) "\xff\x7f\x00\x00\x00\x00\x00\x00" @[(int/s64 0x7fff)])
+(check-deep '(uint 7) "\xff\x7f\x00\x00\x00\x00\x00" @[(int/u64 0x7fff)])
+(check-deep '(int 7) "\xff\x7f\x00\x00\x00\x00\x00" @[(int/s64 0x7fff)])
+
+(check-deep '(* (int 2) -1) "123" nil)
+
 (end-suite)
