@@ -509,7 +509,8 @@ typedef enum {
     JANET_ASYNC_EVENT_CLOSE,
     JANET_ASYNC_EVENT_READ,
     JANET_ASYNC_EVENT_WRITE,
-    JANET_ASYNC_EVENT_TIMEOUT
+    JANET_ASYNC_EVENT_TIMEOUT,
+    JANET_ASYNC_EVENT_COMPLETE /* Used on windows for IOCP */
 } JanetAsyncEvent;
 
 #define JANET_ASYNC_LISTEN_READ (1 << JANET_ASYNC_EVENT_READ)
@@ -522,21 +523,19 @@ typedef enum {
 } JanetAsyncStatus;
 
 /* Typedefs */
-#ifdef JANET_WINDOWS
-typedef HANDLE JanetPollType;
-#else
-typedef int JanetPollType;
-#endif
 typedef struct JanetListenerState JanetListenerState;
 typedef struct JanetPollable JanetPollable;
 typedef JanetAsyncStatus(*JanetListener)(JanetListenerState *state, JanetAsyncEvent event);
 
 /* Wrapper around file descriptors and HANDLEs that can be polled. */
 struct JanetPollable {
-    JanetPollType handle;
+    JanetHandle handle;
     uint32_t flags;
+    /* Linked list of all in-flight IO routines for this pollable */
     JanetListenerState *state;
-    /* internal */
+    /* internal - used to disallow multiple concurrent reads / writes on the same pollable.
+     * this constraint may be lifted later but allowing such would require more internal book keeping
+     * for some implementations. You can read and write at the same time on the same pollable, though. */
     int _mask;
 };
 
@@ -545,6 +544,8 @@ struct JanetListenerState {
     JanetListener machine;
     JanetFiber *fiber;
     JanetPollable *pollable;
+    void *event; /* Used to pass data from asynchronous IO event. Contents depend on both
+                    implementation of the event loop and the particular event. */
     /* internal */
     int _index; /* not used in all implementations */
     int _mask;
@@ -1246,7 +1247,7 @@ extern enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
 JANET_API void janet_loop(void);
 
 /* Wrapper around pollables */
-JANET_API void janet_pollable_init(JanetPollable *pollable, JanetPollType handle);
+JANET_API void janet_pollable_init(JanetPollable *pollable, JanetHandle handle);
 JANET_API void janet_pollable_mark(JanetPollable *pollable);
 JANET_API void janet_pollable_deinit(JanetPollable *pollable);
 

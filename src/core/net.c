@@ -75,7 +75,7 @@ static const JanetAbstractType AddressAT = {
 };
 
 #ifdef JANET_WINDOWS
-#define JSOCKCLOSE(x) closesocket(x)
+#define JSOCKCLOSE(x) closesocket((SOCKET) x)
 #define JSOCKDEFAULT INVALID_SOCKET
 #define JLASTERR WSAGetLastError()
 #define JSOCKVALID(x) ((x) != INVALID_SOCKET)
@@ -89,7 +89,7 @@ static const JanetAbstractType AddressAT = {
 static JanetStream *make_stream(SOCKET fd, uint32_t flags) {
     u_long iMode = 0;
     JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
-    janet_pollable_init(stream, fd);
+    janet_pollable_init(stream, (JanetHandle) fd);
     ioctlsocket(fd, FIONBIO, &iMode);
     stream->flags = flags;
     return stream;
@@ -180,6 +180,16 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
         case JANET_ASYNC_EVENT_CLOSE:
             janet_cancel(s->fiber, janet_cstringv("stream closed"));
             return JANET_ASYNC_STATUS_DONE;
+#ifdef JANET_WINDOWS
+        case JANET_ASYNC_EVENT_INIT: {
+            /* Begin read */
+        }
+        break;
+        case JANET_ASYNC_EVENT_COMPLETE: {
+            /* Called when read finished */
+        }
+        break;
+#else
         case JANET_ASYNC_EVENT_READ:
             /* Read in bytes */
         {
@@ -233,6 +243,7 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
             }
         }
         break;
+#endif
     }
     return JANET_ASYNC_STATUS_NOT_DONE;
 }
@@ -298,6 +309,17 @@ JanetAsyncStatus net_machine_write(JanetListenerState *s, JanetAsyncEvent event)
         case JANET_ASYNC_EVENT_CLOSE:
             janet_cancel(s->fiber, janet_cstringv("stream closed"));
             return JANET_ASYNC_STATUS_DONE;
+#ifdef JANET_WINDOWS
+        case JANET_ASYNC_EVENT_INIT: {
+            /* Begin write */
+        }
+        break;
+        case JANET_ASYNC_EVENT_COMPLETE: {
+
+            /* Called when write finished */
+        }
+        break;
+#else
         case JANET_ASYNC_EVENT_WRITE: {
             int32_t start, len;
             const uint8_t *bytes;
@@ -342,6 +364,7 @@ JanetAsyncStatus net_machine_write(JanetListenerState *s, JanetAsyncEvent event)
             break;
         }
         break;
+#endif
     }
     return JANET_ASYNC_STATUS_NOT_DONE;
 }
@@ -384,6 +407,9 @@ JanetAsyncStatus net_machine_simple_server(JanetListenerState *s, JanetAsyncEven
         case JANET_ASYNC_EVENT_INIT:
             /* We know the pollable will be a stream */
             janet_gcroot(janet_wrap_abstract(s->pollable));
+#ifdef JANET_WINDOWS
+            /* requires some more setup code */
+#endif
             break;
         case JANET_ASYNC_EVENT_MARK:
             janet_mark(janet_wrap_function(state->function));
@@ -391,6 +417,12 @@ JanetAsyncStatus net_machine_simple_server(JanetListenerState *s, JanetAsyncEven
         case JANET_ASYNC_EVENT_CLOSE:
             janet_gcunroot(janet_wrap_abstract(s->pollable));
             return JANET_ASYNC_STATUS_DONE;
+#ifdef JANET_WINDOWS
+        case JANET_ASYNC_EVENT_COMPLETE: {
+            /* Called when ever we get an IOCP event */
+        }
+        break;
+#else
         case JANET_ASYNC_EVENT_READ: {
             JSock connfd = accept(s->pollable->handle, NULL, NULL);
             if (JSOCKVALID(connfd)) {
@@ -403,6 +435,7 @@ JanetAsyncStatus net_machine_simple_server(JanetListenerState *s, JanetAsyncEven
             }
             break;
         }
+#endif
     }
     return JANET_ASYNC_STATUS_NOT_DONE;
 }
@@ -420,6 +453,16 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
         case JANET_ASYNC_EVENT_CLOSE:
             janet_cancel(s->fiber, janet_cstringv("stream closed"));
             return JANET_ASYNC_STATUS_DONE;
+#ifdef JANET_WINDOWS
+        case JANET_ASYNC_EVENT_INIT: {
+
+        }
+        break;
+        case JANET_ASYNC_EVENT_COMPLETE: {
+
+        }
+        break;
+#else
         case JANET_ASYNC_EVENT_READ: {
             JSock connfd = accept(s->pollable->handle, NULL, NULL);
             if (JSOCKVALID(connfd)) {
@@ -431,6 +474,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
             }
             break;
         }
+#endif
     }
     return JANET_ASYNC_STATUS_NOT_DONE;
 }
@@ -456,7 +500,8 @@ static int janet_get_sockettype(Janet *argv, int32_t argc, int32_t n) {
 /* Needs argc >= offset + 2 */
 /* For unix paths, just rertuns a single sockaddr and sets *is_unix to 1, otherwise 0 */
 static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int socktype, int passive, int *is_unix) {
-    /* Unix socket support */
+    /* Unix socket support - not yet supported on windows. */
+#ifndef JANET_WINDOWS
     if (janet_keyeq(argv[offset], "unix")) {
         const char *path = janet_getcstring(argv, offset + 1);
         struct sockaddr_un *saddr = malloc(sizeof(struct sockaddr_un));
@@ -468,6 +513,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
         *is_unix = 1;
         return (struct addrinfo *) saddr;
     }
+#endif
     /* Get host and port */
     const char *host = janet_getcstring(argv, offset);
     const char *port;
@@ -501,12 +547,15 @@ static Janet cfun_net_sockaddr(int32_t argc, Janet *argv) {
     int is_unix = 0;
     int make_arr = (argc >= 3 && janet_truthy(argv[3]));
     struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix);
+#ifndef JANET_WINDOWS
+    /* no unix domain socket support on windows yet */
     if (is_unix) {
         void *abst = janet_abstract(&AddressAT, sizeof(struct sockaddr_un));
         memcpy(abst, ai, sizeof(struct sockaddr_un));
         Janet ret = janet_wrap_abstract(abst);
         return make_arr ? janet_wrap_array(janet_array_n(&ret, 1)) : ret;
     }
+#endif
     if (make_arr) {
         /* Select all */
         JanetArray *arr = janet_array(10);
@@ -542,6 +591,7 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     JSock sock = JSOCKDEFAULT;
     void *addr = NULL;
     socklen_t addrlen;
+#ifndef JANET_WINDOWS
     if (is_unix) {
         sock = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);
         if (!JSOCKVALID(sock)) {
@@ -549,13 +599,15 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
         }
         addr = (void *) ai;
         addrlen = sizeof(struct sockaddr_un);
-    } else {
+    } else
+#endif
+    {
         struct addrinfo *rp = NULL;
         for (rp = ai; rp != NULL; rp = rp->ai_next) {
             sock = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
             if (JSOCKVALID(sock)) {
                 addr = rp->ai_addr;
-                addrlen = rp->ai_addrlen;
+                addrlen = (socklen_t) rp->ai_addrlen;
                 break;
             }
         }
@@ -610,6 +662,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
     struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1, &is_unix);
 
     JSock sfd = JSOCKDEFAULT;
+#ifndef JANET_WINDOWS
     if (is_unix) {
         sfd = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);
         if (!JSOCKVALID(sfd)) {
@@ -623,7 +676,9 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
             janet_panic(err ? err : "could not bind socket");
         }
         free(ai);
-    } else {
+    } else
+#endif
+    {
         /* Check all addrinfos in a loop for the first that we can bind to. */
         struct addrinfo *rp = NULL;
         for (rp = ai; rp != NULL; rp = rp->ai_next) {
@@ -779,9 +834,9 @@ static Janet cfun_stream_flush(int32_t argc, Janet *argv) {
     check_stream_flag(stream, JANET_STREAM_WRITABLE);
     /* Toggle no delay flag */
     int flag = 1;
-    setsockopt(stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+    setsockopt((JSock) stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
     flag = 0;
-    setsockopt(stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+    setsockopt((JSock) stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
     return argv[0];
 }
 

@@ -33,6 +33,12 @@
 
 /* Includes */
 
+#ifdef JANET_WINDOWS
+
+#include <windows.h>
+
+#else
+
 #include <limits.h>
 #include <errno.h>
 #include <unistd.h>
@@ -48,6 +54,8 @@
 #ifdef JANET_EV_EPOLL
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
+#endif
+
 #endif
 
 /* General queue */
@@ -95,22 +103,22 @@ static int janet_q_push(JanetQueue *q, void *item, size_t itemsize) {
             int32_t newhead = q->head + (newcap - q->capacity);
             size_t seg1 = (size_t)(q->capacity - q->head);
             if (seg1 > 0) {
-                memmove(q->data + (newhead * itemsize),
-                        q->data + (q->head * itemsize),
+                memmove((char *) q->data + (newhead * itemsize),
+                        (char *) q->data + (q->head * itemsize),
                         seg1 * itemsize);
             }
             q->head = newhead;
         }
         q->capacity = newcap;
     }
-    memcpy(q->data + itemsize * q->tail, item, itemsize);
+    memcpy((char *) q->data + itemsize * q->tail, item, itemsize);
     q->tail = q->tail + 1 < q->capacity ? q->tail + 1 : 0;
     return 0;
 }
 
 static int janet_q_pop(JanetQueue *q, void *out, size_t itemsize) {
     if (q->head == q->tail) return 1;
-    memcpy(out, q->data + itemsize * q->head, itemsize);
+    memcpy(out, (char *) q->data + itemsize * q->head, itemsize);
     q->head = q->head + 1 < q->capacity ? q->head + 1 : 0;
     return 0;
 }
@@ -165,7 +173,7 @@ static void pop_timeout(size_t index) {
     if (janet_vm_tq_count <= index) return;
     janet_vm_tq[index].fiber->timeout_index = -1;
     janet_vm_tq[index] = janet_vm_tq[--janet_vm_tq_count];
-    janet_vm_tq[index].fiber->timeout_index = index;
+    janet_vm_tq[index].fiber->timeout_index = (int32_t) index;
     for (;;) {
         size_t left = (index << 1) + 1;
         size_t right = left + 1;
@@ -180,8 +188,8 @@ static void pop_timeout(size_t index) {
         JanetTimeout temp = janet_vm_tq[index];
         janet_vm_tq[index] = janet_vm_tq[smallest];
         janet_vm_tq[smallest] = temp;
-        janet_vm_tq[index].fiber->timeout_index = index;
-        janet_vm_tq[smallest].fiber->timeout_index = smallest;
+        janet_vm_tq[index].fiber->timeout_index = (int32_t) index;
+        janet_vm_tq[smallest].fiber->timeout_index = (int32_t) smallest;
         index = smallest;
     }
 }
@@ -200,14 +208,14 @@ static void add_timeout(JanetTimeout to) {
         janet_vm_tq_capacity = newcap;
     }
     /* Append */
-    janet_vm_tq_count = newcount;
+    janet_vm_tq_count = (int32_t) newcount;
     janet_vm_tq[oldcount] = to;
     /* Heapify */
     size_t index = oldcount;
     if (to.fiber->timeout_index >= 0) {
         pop_timeout(to.fiber->timeout_index);
     }
-    to.fiber->timeout_index = index;
+    to.fiber->timeout_index = (int32_t) index;
     while (index > 0) {
         size_t parent = (index - 1) >> 1;
         if (janet_vm_tq[parent].when <= janet_vm_tq[index].when) break;
@@ -277,7 +285,7 @@ static void janet_unlisten_impl(JanetListenerState *state) {
 }
 
 /* Call after creating a pollable */
-void janet_pollable_init(JanetPollable *pollable, JanetPollType handle) {
+void janet_pollable_init(JanetPollable *pollable, JanetHandle handle) {
     pollable->handle = handle;
     pollable->flags = 0;
     pollable->state = NULL;
@@ -625,7 +633,92 @@ void janet_loop(void) {
     }
 }
 
-#ifdef JANET_EV_EPOLL
+#ifdef JANET_WINDOWS
+
+/* Epoll global data */
+JANET_THREAD_LOCAL HANDLE janet_vm_iocp = NULL;
+
+static JanetTimestamp ts_now(void) {
+    FILETIME ftime;
+    GetSystemTimeAsFileTime(&ftime);
+    return (uint64_t)(ftime.dwLowDateTime) | ((uint64_t)(ftime.dwHighDateTime) << 32);
+}
+
+void janet_ev_init(void) {
+    janet_ev_init_common();
+    janet_vm_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+    if (NULL == janet_vm_iocp) janet_panic("could not create io completion port");
+}
+
+void janet_ev_deinit(void) {
+    janet_ev_deinit_common();
+    CloseHandle(janet_vm_iocp);
+}
+
+JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size) {
+    JanetListenerState *state = janet_listen_impl(pollable, behavior, mask, size);
+    /* TODO - associate IO operation with listener state somehow
+     * maybe we could require encoding the operation in a mask. */
+    /* on windows, janet_listen does not actually start any listening behavior. */
+    return state;
+}
+
+
+static void janet_unlisten(JanetListenerState *state) {
+    /* We don't necessarily want to cancel all io on this pollable */
+    janet_unlisten_impl(state);
+}
+
+
+void janet_loop1_impl(void) {
+    JanetTimeout to;
+    memset(&to, 0, sizeof(to));
+    int has_timeout = peek_timeout(&to);
+    ULONG_PTR completionKey = 0;
+    DWORD num_bytes_transfered = 0;
+    LPOVERLAPPED overlapped;
+
+    /* Calculate how long to wait before timeout */
+    uint64_t waittime;
+    if (has_timeout) {
+        JanetTimestamp now = ts_now();
+        if (now > to.when) {
+            waittime = 0;
+        } else {
+            waittime = (uint64_t) (to.when - now);
+        }
+    } else {
+        waittime = INFINITE;
+    }
+	BOOL result = GetQueuedCompletionStatus(janet_vm_iocp, &num_bytes_transfered, &completionKey, &overlapped, (DWORD) waittime);
+
+	if (!result) {
+        /* timeout ? */
+        if (has_timeout) {
+            /* Timer event */
+            pop_timeout(0);
+            /* Cancel waiters for this fiber */
+            if (to.is_error) {
+                janet_cancel(to.fiber, janet_cstringv("timeout"));
+            } else {
+                janet_schedule(to.fiber, janet_wrap_nil());
+            }
+        } else {
+            JANET_EXIT("failed to get iocp GetQueuedCompletionStatus");
+        }
+	} else {
+        JANET_EXIT("Unexpected event");
+        /* Normal event */
+        JanetListenerState *state = (JanetListenerState *) completionKey;
+        state->event = overlapped;
+        JanetAsyncStatus status = state->machine(state, JANET_ASYNC_EVENT_COMPLETE);
+        if (status == JANET_ASYNC_STATUS_DONE)
+            janet_unlisten(state);
+    }
+}
+
+
+#elif defined(JANET_EV_POLL)
 
 /*
  * Start linux/epoll implementation
@@ -734,6 +827,7 @@ void janet_loop1_impl(void) {
             /* Normal event */
             int mask = events[i].events;
             JanetListenerState *state = pollable->state;
+            state->event = events + i;
             while (NULL != state) {
                 JanetListenerState *next_state = state->_next;
                 JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
@@ -877,6 +971,7 @@ void janet_loop1_impl(void) {
         int mask = janet_vm_fds[i].revents;
         JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
         JanetAsyncStatus status2 = JANET_ASYNC_STATUS_NOT_DONE;
+        state->event = pfd;
         if (mask & POLLOUT)
             status1 = state->machine(state, JANET_ASYNC_EVENT_WRITE);
         if (mask & POLLIN)
