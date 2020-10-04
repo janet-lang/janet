@@ -68,7 +68,7 @@ typedef struct {
     void *data;
 } JanetQueue;
 
-#define JANET_MAX_Q_CAPACITY 0x7FFFFFFF
+#define JANET_MAX_Q_CAPACITY 0x7FFFFFF
 
 static void janet_q_init(JanetQueue *q) {
     q->data = NULL;
@@ -132,7 +132,7 @@ struct JanetTask {
 };
 
 /* Min priority queue of timestamps for timeouts. */
-typedef uint64_t JanetTimestamp;
+typedef int64_t JanetTimestamp;
 typedef struct JanetTimeout JanetTimeout;
 struct JanetTimeout {
     JanetTimestamp when;
@@ -639,9 +639,7 @@ void janet_loop(void) {
 JANET_THREAD_LOCAL HANDLE janet_vm_iocp = NULL;
 
 static JanetTimestamp ts_now(void) {
-    FILETIME ftime;
-    GetSystemTimeAsFileTime(&ftime);
-    return (uint64_t)(ftime.dwLowDateTime) | ((uint64_t)(ftime.dwHighDateTime) << 32);
+    return (JanetTimestamp) GetTickCount64();
 }
 
 void janet_ev_init(void) {
@@ -671,9 +669,11 @@ static void janet_unlisten(JanetListenerState *state) {
 
 
 void janet_loop1_impl(void) {
+    /* Check for timeout */
     JanetTimeout to;
     memset(&to, 0, sizeof(to));
     int has_timeout = peek_timeout(&to);
+
     ULONG_PTR completionKey = 0;
     DWORD num_bytes_transfered = 0;
     LPOVERLAPPED overlapped;
