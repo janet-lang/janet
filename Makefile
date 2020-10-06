@@ -261,7 +261,7 @@ build/janet.pc: $(JANET_TARGET)
 	echo 'Libs: -L$${libdir} -ljanet' >> $@
 	echo 'Libs.private: $(CLIBS)' >> $@
 
-install: $(JANET_TARGET) build/janet.pc build/jpm
+install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/jpm
 	mkdir -p '$(DESTDIR)$(BINDIR)'
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
 	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
