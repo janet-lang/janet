@@ -585,7 +585,7 @@
   (string (string/slice path 0 (- -1 (length modext))) statext))
 
 (defn- make-bin-source
-  [declarations lookup-into-invocations]
+  [declarations lookup-into-invocations global-state-reachable]
   (string
     declarations
     ```
@@ -609,12 +609,25 @@ int main(int argc, const char **argv) {
 #endif
 
     janet_init();
+    int handle = janet_gclock();
 
-    /* Get core env */
+    ```
+    (if global-state-reachable
+    ```
+
+    JanetTable *temptab = NULL;
     JanetTable *env = janet_core_env(NULL);
     JanetTable *lookup = janet_env_lookup(env);
-    JanetTable *temptab;
-    int handle = janet_gclock();
+    ```
+
+    ```
+
+    JanetTable *temptab = NULL;
+    JanetTable *env = janet_table(8);
+    JanetTable *lookup = janet_make_core_lookup_table();
+    ```
+    )
+    ```
 
     /* Load natives into unmarshalling dictionary */
 
@@ -646,10 +659,8 @@ int main(int argc, const char **argv) {
     }
 
     /* Create enviornment */
-    temptab = janet_table(0);
-    temptab = env;
-    janet_table_put(temptab, janet_ckeywordv("args"), janet_wrap_array(args));
-    janet_gcroot(janet_wrap_table(temptab));
+    janet_table_put(env, janet_ckeywordv("args"), janet_wrap_array(args));
+    janet_gcroot(janet_wrap_table(env));
 
     /* Unlock GC */
     janet_gcunlock(handle);
@@ -733,12 +744,51 @@ int main(int argc, const char **argv) {
                               (meta :static-entry)
                               "(JanetTable *);\n"))
 
+        (def global-state-reachable
+          # We only tree shake the core environment
+          # when global state is not reachable from main.
+          # Here we scan for global state references by looking
+          # for a unique cookie in the marshalled image.
+          (do
+            (def global-state-cookie (symbol (os/cryptorand 32)))
+
+            (def global-state [
+              root-env
+              default-peg-grammar
+              make-image-dict
+              load-image-dict
+              debugger-env
+              module/loading
+              module/cache
+            ])
+
+            (def old @{})
+            (each g global-state
+              (put old g (mdict g))
+              (put mdict g global-state-cookie))
+            (def image (marshal main mdict))
+            (eachk g old
+              (put mdict g (old g)))
+
+            (truthy? (string/find global-state-cookie image))))
+
+
+        (unless global-state-reachable
+          # When we tree shake core, we only want things that
+          # cannot be marshalled to be referenced by symbol.
+          (each k (keys mdict)
+            (unless (or (cfunction? k)
+                        (= stdout k)
+                        (= stderr k)
+                        (= stdin k))
+              (put mdict k nil))))
+
         # Build image
         (def image (marshal main mdict))
         # Make image byte buffer
         (create-buffer-c-impl image cimage_dest "janet_payload_image")
         # Append main function
-        (spit cimage_dest (make-bin-source declarations lookup-into-invocations) :ab)
+        (spit cimage_dest (make-bin-source declarations lookup-into-invocations global-state-reachable) :ab)
         (def oimage_dest (out-path cimage_dest ".c" ".o"))
         # Compile and link final exectable
         (unless no-compile

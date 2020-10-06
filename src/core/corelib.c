@@ -1211,22 +1211,28 @@ JanetTable *janet_core_env(JanetTable *replacements) {
 
 #else
 
+JanetTable *janet_make_core_lookup_table() {
+    JanetTable *t = janet_table(512);
+    /* Load core cfunctions (and some built in janet assembly functions) */
+    janet_load_libs(t);
+    return t;
+}
+
+
 JanetTable *janet_core_env(JanetTable *replacements) {
     /* Memoize core env, ignoring replacements the second time around. */
     if (NULL != janet_vm_core_env) {
         return janet_vm_core_env;
     }
 
-    /* Load core cfunctions (and some built in janet assembly functions) */
-    JanetTable *dict = janet_table(512);
-    janet_load_libs(dict);
+    JanetTable *lookup = janet_make_core_lookup_table();
 
     /* Add replacements */
     if (replacements != NULL) {
         for (int32_t i = 0; i < replacements->capacity; i++) {
             JanetKV kv = replacements->data[i];
             if (!janet_checktype(kv.key, JANET_NIL)) {
-                janet_table_put(dict, kv.key, kv.value);
+                janet_table_put(lookup, kv.key, kv.value);
                 if (janet_checktype(kv.value, JANET_CFUNCTION)) {
                     janet_table_put(janet_vm_registry, kv.value, kv.key);
                 }
@@ -1239,7 +1245,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                           janet_core_image,
                           janet_core_image_size,
                           0,
-                          dict,
+                          lookup,
                           NULL);
 
     /* Memoize */
