@@ -449,7 +449,8 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
 
 void janet_register_abstract_type(const JanetAbstractType *at) {
     Janet sym = janet_csymbolv(at->name);
-    if (!(janet_checktype(janet_table_get(janet_vm_abstract_registry, sym), JANET_NIL))) {
+    Janet check = janet_table_get(janet_vm_abstract_registry, sym);
+    if (!janet_checktype(check, JANET_NIL) && at != janet_unwrap_pointer(check)) {
         janet_panicf("cannot register abstract type %s, "
                      "a type with the same name exists", at->name);
     }
