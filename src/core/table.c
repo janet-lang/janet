@@ -86,7 +86,26 @@ JanetTable *janet_table(int32_t capacity) {
 /* Find the bucket that contains the given key. Will also return
  * bucket where key should go if not in the table. */
 JanetKV *janet_table_find(JanetTable *t, Janet key) {
-    return (JanetKV *) janet_dict_find(t->data, t->capacity, key);
+    /* If we have deleted an item do slower search that checks tombstone values. */
+    if (t->deleted)
+        return (JanetKV *) janet_dict_find(t->data, t->capacity, key);
+
+    JanetKV *buckets = t->data;
+    int32_t i;
+    int32_t cap = t->capacity;
+    int32_t index = janet_maphash(cap, janet_hash(key));
+
+    for (i = index; i < cap; i++) {
+        JanetKV *kv = buckets + i;
+        if (janet_checktype(kv->key, JANET_NIL) || janet_equals(kv->key, key))
+            return kv;
+    }
+    for (i = 0; i < index; i++) {
+        JanetKV *kv = buckets + i;
+        if (janet_checktype(kv->key, JANET_NIL) || janet_equals(kv->key, key))
+            return kv;
+    }
+    return NULL;
 }
 
 /* Resize the dictionary table. */
