@@ -167,6 +167,10 @@ typedef struct {
     JanetBuffer *buf;
     int is_chunk;
     int is_recv_from;
+#ifdef JANET_WINDOWS
+    WSAOVERLAPPED overlapped;
+    uint8_t chunk_buf[2048];
+#endif
 } NetStateRead;
 
 JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
@@ -181,10 +185,6 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
             janet_cancel(s->fiber, janet_cstringv("stream closed"));
             return JANET_ASYNC_STATUS_DONE;
 #ifdef JANET_WINDOWS
-        case JANET_ASYNC_EVENT_INIT: {
-            /* Begin read */
-        }
-        break;
         case JANET_ASYNC_EVENT_COMPLETE: {
             /* Called when read finished */
         }
@@ -250,17 +250,21 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
 
 JANET_NO_RETURN static void janet_sched_read(JanetStream *stream, JanetBuffer *buf, int32_t nbytes) {
     NetStateRead *state = (NetStateRead *) janet_listen(stream, net_machine_read,
-                          JANET_ASYNC_LISTEN_READ, sizeof(NetStateRead));
+                          JANET_ASYNC_LISTEN_READ, sizeof(NetStateRead), NULL);
     state->is_chunk = 0;
     state->buf = buf;
     state->bytes_left = nbytes;
     state->is_recv_from = 0;
+#ifdef JANET_WINDOWS
+    WSARecv((SOCKET) stream->handle,
+
+#endif
     janet_await();
 }
 
 JANET_NO_RETURN static void janet_sched_chunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes) {
     NetStateRead *state = (NetStateRead *) janet_listen(stream, net_machine_read,
-                          JANET_ASYNC_LISTEN_READ, sizeof(NetStateRead));
+                          JANET_ASYNC_LISTEN_READ, sizeof(NetStateRead), NULL);
     state->is_chunk = 1;
     state->buf = buf;
     state->bytes_left = nbytes;
@@ -270,7 +274,7 @@ JANET_NO_RETURN static void janet_sched_chunk(JanetStream *stream, JanetBuffer *
 
 JANET_NO_RETURN static void janet_sched_recv_from(JanetStream *stream, JanetBuffer *buf, int32_t nbytes) {
     NetStateRead *state = (NetStateRead *) janet_listen(stream, net_machine_read,
-                          JANET_ASYNC_LISTEN_READ, sizeof(NetStateRead));
+                          JANET_ASYNC_LISTEN_READ, sizeof(NetStateRead), NULL);
     state->is_chunk = 0;
     state->buf = buf;
     state->bytes_left = nbytes;
@@ -371,7 +375,7 @@ JanetAsyncStatus net_machine_write(JanetListenerState *s, JanetAsyncEvent event)
 
 JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetBuffer *buf, void *dest_abst) {
     NetStateWrite *state = (NetStateWrite *) janet_listen(stream, net_machine_write,
-                           JANET_ASYNC_LISTEN_WRITE, sizeof(NetStateWrite));
+                           JANET_ASYNC_LISTEN_WRITE, sizeof(NetStateWrite), NULL);
     state->is_buffer = 1;
     state->start = 0;
     state->src.buf = buf;
@@ -382,7 +386,7 @@ JANET_NO_RETURN static void janet_sched_write_buffer(JanetStream *stream, JanetB
 
 JANET_NO_RETURN static void janet_sched_write_stringlike(JanetStream *stream, const uint8_t *str, void *dest_abst) {
     NetStateWrite *state = (NetStateWrite *) janet_listen(stream, net_machine_write,
-                           JANET_ASYNC_LISTEN_WRITE, sizeof(NetStateWrite));
+                           JANET_ASYNC_LISTEN_WRITE, sizeof(NetStateWrite), NULL);
     state->is_buffer = 0;
     state->start = 0;
     state->src.str = str;
@@ -480,7 +484,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
 }
 
 JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream) {
-    janet_listen(stream, net_machine_accept, JANET_ASYNC_LISTEN_READ, sizeof(NetStateAccept));
+    janet_listen(stream, net_machine_accept, JANET_ASYNC_LISTEN_READ, sizeof(NetStateAccept), NULL);
     janet_await();
 }
 
@@ -730,7 +734,7 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
             /* Server with handler */
             JanetStream *stream = make_stream(sfd, 0);
             NetStateSimpleServer *ss = (NetStateSimpleServer *) janet_listen(stream, net_machine_simple_server,
-                                       JANET_ASYNC_LISTEN_READ | JANET_ASYNC_LISTEN_SPAWNER, sizeof(NetStateSimpleServer));
+                                       JANET_ASYNC_LISTEN_READ | JANET_ASYNC_LISTEN_SPAWNER, sizeof(NetStateSimpleServer), NULL);
             ss->function = fun;
             return janet_wrap_abstract(stream);
         }

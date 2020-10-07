@@ -3,9 +3,10 @@
 
 (defn writer [c]
   (for i 0 3
+    (def item (string i ":" (hash c)))
     (ev/sleep 0.1)
-    (print "writer giving item " i " to " c "...")
-    (ev/give c (string "item " i)))
+    (print "writer giving item " item " to " c "...")
+    (ev/give c item))
   (print "Done!"))
 
 (defn reader [name]

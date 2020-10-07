@@ -229,7 +229,7 @@ static void add_timeout(JanetTimeout to) {
 }
 
 /* Create a new event listener */
-static JanetListenerState *janet_listen_impl(JanetPollable *pollable, JanetListener behavior, int mask, size_t size) {
+static JanetListenerState *janet_listen_impl(JanetPollable *pollable, JanetListener behavior, int mask, size_t size, void *user) {
     if (pollable->_mask & mask) {
         janet_panic("cannot listen for duplicate event on pollable");
     }
@@ -259,6 +259,7 @@ static JanetListenerState *janet_listen_impl(JanetPollable *pollable, JanetListe
     state->_next = pollable->state;
     pollable->state = state;
     /* Emit INIT event for convenience */
+    state->event = user;
     state->machine(state, JANET_ASYNC_EVENT_INIT);
     return state;
 }
@@ -653,8 +654,8 @@ void janet_ev_deinit(void) {
     CloseHandle(janet_vm_iocp);
 }
 
-JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size) {
-    JanetListenerState *state = janet_listen_impl(pollable, behavior, mask, size);
+JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size, void *user) {
+    JanetListenerState *state = janet_listen_impl(pollable, behavior, mask, size, user);
     /* TODO - associate IO operation with listener state somehow
      * maybe we could require encoding the operation in a mask. */
     /* on windows, janet_listen does not actually start any listening behavior. */
@@ -747,10 +748,10 @@ static int make_epoll_events(int mask) {
 }
 
 /* Wait for the next event */
-JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size) {
+JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size, void *user) {
     int is_first = !(pollable->state);
     int op = is_first ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
-    JanetListenerState *state = janet_listen_impl(pollable, behavior, mask, size);
+    JanetListenerState *state = janet_listen_impl(pollable, behavior, mask, size, user);
     struct epoll_event ev;
     ev.events = make_epoll_events(state->pollable->_mask);
     ev.data.ptr = pollable;
@@ -916,8 +917,8 @@ static void janet_push_pollfd(struct pollfd pfd) {
 }
 
 /* Wait for the next event */
-JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size) {
-    JanetListenerState *state = janet_listen_impl(pollable, behavior, mask, size);
+JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size, void *user) {
+    JanetListenerState *state = janet_listen_impl(pollable, behavior, mask, size, user);
     struct pollfd ev;
     ev.fd = pollable->handle;
     ev.events = make_poll_events(state->pollable->_mask);

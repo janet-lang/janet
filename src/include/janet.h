@@ -1257,7 +1257,7 @@ JANET_API void janet_cancel(JanetFiber *fiber, Janet value);
 JANET_API void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig);
 
 /* Start a state machine listening for events from a pollable */
-JANET_API JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size);
+JANET_API JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size, void *user);
 
 /* Shorthand for yielding to event loop in C */
 JANET_NO_RETURN JANET_API void janet_await(void);
