@@ -1392,7 +1392,7 @@
   arr)
 
 (defn pairs
-  "Get the values of an associative data structure."
+  "Get the key-value pairs of an associative data structure."
   [x]
   (def arr (array/new (length x)))
   (var k (next x nil))
