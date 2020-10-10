@@ -1392,7 +1392,7 @@
   arr)
 
 (defn pairs
-  "Get the values of an associative data structure."
+  "Get the key-value pairs of an associative data structure."
   [x]
   (def arr (array/new (length x)))
   (var k (next x nil))
@@ -2488,7 +2488,7 @@
   (tuple import* (string path) ;argm))
 
 (defmacro use
-  "Similar to import, but imported bindings are not prefixed with a namespace
+  "Similar to import, but imported bindings are not prefixed with a module
   identifier. Can also import multiple modules in one shot."
   [& modules]
   ~(do ,;(map |~(,import* ,(string $) :prefix "") modules)))
