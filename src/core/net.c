@@ -259,7 +259,7 @@ JANET_NO_RETURN static void janet_sched_read(JanetStream *stream, JanetBuffer *b
     WSARecv((SOCKET) stream->handle,
 
 #endif
-    janet_await();
+            janet_await();
 }
 
 JANET_NO_RETURN static void janet_sched_chunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes) {

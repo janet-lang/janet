@@ -753,18 +753,18 @@ void janet_loop1_impl(int has_timeout, JanetTimeout timeout) {
         if (now > to.when) {
             waittime = 0;
         } else {
-            waittime = (uint64_t) (to.when - now);
+            waittime = (uint64_t)(to.when - now);
         }
     } else {
         waittime = INFINITE;
     }
-	BOOL result = GetQueuedCompletionStatus(janet_vm_iocp, &num_bytes_transfered, &completionKey, &overlapped, (DWORD) waittime);
+    BOOL result = GetQueuedCompletionStatus(janet_vm_iocp, &num_bytes_transfered, &completionKey, &overlapped, (DWORD) waittime);
 
-	if (!result) {
+    if (!result) {
         if (!has_timeout) {
             JANET_EXIT("failed to get iocp GetQueuedCompletionStatus");
         }
-	} else {
+    } else {
         /* Normal event */
         JanetListenerState *state = (JanetListenerState *) completionKey;
         state->event = overlapped;
@@ -986,7 +986,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     do {
         if (has_timeout) {
             JanetTimestamp now = ts_now();
-            ready = poll(janet_vm_fds, janet_vm_fdcount, now > timeout ? 0 : (int) (timeout - now));
+            ready = poll(janet_vm_fds, janet_vm_fdcount, now > timeout ? 0 : (int)(timeout - now));
         } else {
             ready = poll(janet_vm_fds, janet_vm_fdcount, -1);
         }
@@ -1139,7 +1139,7 @@ static const JanetReg ev_cfuns[] = {
     {
         "ev/rselect", cfun_channel_rchoice,
         JDOC("(ev/rselect & clauses)\n\n"
-            "Similar to ev/choice, but will try clauses in a random order for fairness.")
+             "Similar to ev/choice, but will try clauses in a random order for fairness.")
     },
     {NULL, NULL, NULL}
 };
