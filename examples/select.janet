@@ -3,14 +3,15 @@
 
 (defn writer [c]
   (for i 0 3
+    (def item (string i ":" (mod (hash c) 999)))
     (ev/sleep 0.1)
-    (print "writer giving item " i " to " c "...")
-    (ev/give c (string "item " i)))
+    (print "writer giving item " item " to " c "...")
+    (ev/give c item))
   (print "Done!"))
 
 (defn reader [name]
   (forever
-    (def [_ c x] (ev/select ;channels))
+    (def [_ c x] (ev/rselect ;channels))
     (print "reader " name " got " x " from " c)))
 
 # Readers

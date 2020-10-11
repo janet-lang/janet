@@ -70,7 +70,7 @@
 /* #define JANET_STACK_MAX 16384 */
 /* #define JANET_OS_NAME my-custom-os */
 /* #define JANET_ARCH_NAME pdp-8 */
-/* #define JANET_EV_EPOLL */
+#define JANET_EV_EPOLL
 
 /* Main client settings, does not affect library code */
 /* #define JANET_SIMPLE_GETLINE */
