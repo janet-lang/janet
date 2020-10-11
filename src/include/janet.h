@@ -826,7 +826,6 @@ struct JanetFiber {
     JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
 #ifdef JANET_EV
     JanetListenerState *waiting;
-    int32_t timeout_index;
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
 #endif
 };

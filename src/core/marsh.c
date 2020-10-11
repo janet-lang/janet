@@ -934,8 +934,10 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->data = NULL;
     fiber->child = NULL;
     fiber->env = NULL;
+#ifdef JANET_EV
     fiber->waiting = NULL;
-    fiber->timeout_index = -1;
+    fiber->sched_id = 0;
+#endif
 
     /* Push fiber to seen stack */
     janet_v_push(st->lookup, janet_wrap_fiber(fiber));

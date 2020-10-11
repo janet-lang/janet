@@ -10,8 +10,8 @@
 
 (defn reader [name]
   (forever
-    (def c (ev/select ;channels))
-    (print "reader " name " got " (ev/take c) " from " c)))
+    (def [_ c x] (ev/select ;channels))
+    (print "reader " name " got " x " from " c)))
 
 # Readers
 (each letter [:a :b :c :d :e :f :g]
