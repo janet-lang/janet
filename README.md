@@ -137,7 +137,7 @@ Now you should have an `.msi`. You can run `build_win install` to install the `.
 ### Meson
 
 Janet also has a build file for [Meson](https://mesonbuild.com/), a cross-platform build
-system. Although Meson has a python dependency, Meson is a very complete build system that
+system. Although Meson has a Python dependency, Meson is a very complete build system that
 is maybe more convenient and flexible for integrating into existing pipelines.
 Meson also provides much better IDE integration than Make or batch files, as well as support
 for cross-compilation.
