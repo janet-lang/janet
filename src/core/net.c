@@ -207,9 +207,6 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
                     nread = recv(s->pollable->handle, buffer->data + buffer->count, bytes_left, 0);
                 }
             } while (nread == -1 && JLASTERR == JEINTR);
-            if (JLASTERR == JEAGAIN || JLASTERR == JEWOULDBLOCK) {
-                break;
-            }
 
             /* Increment buffer counts */
             if (nread > 0) {
