@@ -14,9 +14,9 @@ lisp-like language, but lists are replaced
 by other data structures (arrays, tables (hash table), struct (immutable hash table), tuples).
 The language also supports bridging to native code written in C, meta-programming with macros, and bytecode assembly.
 
-There is a repl for trying out the language, as well as the ability
+There is a REPL for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
-Janet can be embedded into other programs. Try Janet in your browser at
+Janet can be embedded in other programs. Try Janet in your browser at
 [https://janet-lang.org](https://janet-lang.org).
 
 <br>
@@ -30,23 +30,23 @@ Lua, but smaller than GNU Guile or Python.
 ## Features
 
 * Minimal setup - one binary and you are good to go!
-* First class closures
+* First-class closures
 * Garbage collection
-* First class green threads (continuations)
-* Python style generators (implemented as a plain macro)
+* First-class green threads (continuations)
+* Python-style generators (implemented as a plain macro)
 * Mutable and immutable arrays (array/tuple)
 * Mutable and immutable hashtables (table/struct)
 * Mutable and immutable strings (buffer/string)
 * Macros
 * Byte code interpreter with an assembly interface, as well as bytecode verification
-* Tailcall Optimization
+* Tail call Optimization
 * Direct interop with C via abstract types and C functions
 * Dynamically load C libraries
 * Functional and imperative standard library
 * Lexical scoping
 * Imperative programming as well as functional
 * REPL
-* Parsing Expression Grammars built in to the core library
+* Parsing Expression Grammars built into the core library
 * 400+ functions and macros in the core library
 * Embedding Janet in other programs
 * Interactive environment with detailed stack traces
@@ -56,7 +56,7 @@ Lua, but smaller than GNU Guile or Python.
 * For a quick tutorial, see [the introduction](https://janet-lang.org/docs/index.html) for more details.
 * For the full API for all functions in the core library, see [the core API doc](https://janet-lang.org/api/index.html)
 
-Documentation is also available locally in the repl.
+Documentation is also available locally in the REPL.
 Use the `(doc symbol-name)` macro to get API
 documentation for symbols in the core library. For example,
 ```
@@ -66,7 +66,7 @@ Shows documentation for the doc macro.
 
 To get a list of all bindings in the default
 environment, use the `(all-bindings)` function. You
-can also use the `(doc)` macro with no arguments if you are in the repl
+can also use the `(doc)` macro with no arguments if you are in the REPL
 to show bound symbols.
 
 ## Source
@@ -92,7 +92,7 @@ Find out more about the available make targets by running `make help`.
 
 ### 32-bit Haiku
 
-32-bit Haiku build instructions are the same as the unix-like build instructions,
+32-bit Haiku build instructions are the same as the UNIX-like build instructions,
 but you need to specify an alternative compiler, such as `gcc-x86`.
 
 ```
@@ -104,7 +104,7 @@ make repl
 
 ### FreeBSD
 
-FreeBSD build instructions are the same as the unix-like build instuctions,
+FreeBSD build instructions are the same as the UNIX-like build instructions,
 but you need `gmake` to compile. Alternatively, install directly from
 packages, using `pkg install lang/janet`.
 
@@ -117,7 +117,7 @@ gmake repl
 
 ### NetBSD
 
-NetBSD build instructions are the same as the FreeBSD build instuctions.
+NetBSD build instructions are the same as the FreeBSD build instructions.
 Alternatively, install directly from packages, using `pkgin install janet`.
 
 ### Windows
@@ -136,11 +136,11 @@ Now you should have an `.msi`. You can run `build_win install` to install the `.
 
 ### Meson
 
-Janet also has a build file for [Meson](https://mesonbuild.com/), a cross platform build
+Janet also has a build file for [Meson](https://mesonbuild.com/), a cross-platform build
 system. Although Meson has a python dependency, Meson is a very complete build system that
 is maybe more convenient and flexible for integrating into existing pipelines.
 Meson also provides much better IDE integration than Make or batch files, as well as support
-for cross compilation.
+for cross-compilation.
 
 For the impatient, building with Meson is as follows. The options provided to
 `meson setup` below emulate Janet's Makefile.
@@ -177,11 +177,11 @@ to try out the language, you don't need to install anything. You can also move t
 
 ## Usage
 
-A repl is launched when the binary is invoked with no arguments. Pass the -h flag
+A REPL is launched when the binary is invoked with no arguments. Pass the -h flag
 to display the usage information. Individual scripts can be run with `./janet myscript.janet`
 
 If you are looking to explore, you can print a list of all available macros, functions, and constants
-by entering the command `(all-bindings)` into the repl.
+by entering the command `(all-bindings)` into the REPL.
 
 ```
 $ janet
@@ -199,13 +199,13 @@ Options are:
   -v : Print the version string
   -s : Use raw stdin instead of getline like functionality
   -e code : Execute a string of janet
-  -r : Enter the repl after running all scripts
-  -p : Keep on executing if there is a top level error (persistent)
-  -q : Hide prompt, logo, and repl output (quiet)
+  -r : Enter the REPL after running all scripts
+  -p : Keep on executing if there is a top-level error (persistent)
+  -q : Hide prompt, logo, and REPL output (quiet)
   -k : Compile scripts but do not execute (flycheck)
   -m syspath : Set system path for loading global modules
   -c source output : Compile janet source code into an image
-  -n : Disable ANSI color output in the repl
+  -n : Disable ANSI color output in the REPL
   -l path : Execute code in a file before running the main script
   -- : Stop handling options
 ```
@@ -232,16 +232,16 @@ See the examples directory for some example janet code.
 
 ## Discussion
 
-Feel free to ask questions and join discussion on the [Janet Gitter Channel](https://gitter.im/janet-language/community).
+Feel free to ask questions and join the discussion on the [Janet Gitter Channel](https://gitter.im/janet-language/community).
 Alternatively, check out [the #janet channel on Freenode](https://webchat.freenode.net/)
 
 ## FAQ
 
-### Why is my terminal spitting out junk when I run the repl?
+### Why is my terminal spitting out junk when I run the REPL?
 
 Make sure your terminal supports ANSI escape codes. Most modern terminals will
 support these, but some older terminals, Windows consoles, or embedded terminals
-will not. If your terminal does not support ANSI escape codes, run the repl with
+will not. If your terminal does not support ANSI escape codes, run the REPL with
 the `-n` flag, which disables color output. You can also try the `-s` if further issues
 ensue.
 
