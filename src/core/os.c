@@ -1743,8 +1743,8 @@ static const JanetReg os_cfuns[] = {
     },
     {
         "os/sleep", os_sleep,
-        JDOC("(os/sleep nsec)\n\n"
-             "Suspend the program for nsec seconds. 'nsec' can be a real number. Returns "
+        JDOC("(os/sleep n)\n\n"
+             "Suspend the program for n seconds. 'nsec' can be a real number. Returns "
              "nil.")
     },
     {
