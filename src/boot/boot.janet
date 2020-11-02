@@ -2025,6 +2025,118 @@
 
 ###
 ###
+### Parsing
+###
+###
+
+# Forward declaration
+(varfn require-1 [path args kargs])
+
+(defn- load-parser
+  [name]
+  (require-1 (string "parser-" name) [] {})
+  ((symbol (string name "/new"))))
+
+(defn parser/new
+  [&opt syntax]
+  "Creates and returns a new parser object. Parsers are state machines that can
+  receive bytes, and generate a stream of values."
+  (default syntax :default)
+  (if (= syntax :default)
+    (parser/default)
+    (load-parser syntax)))
+
+(defn parser/clone
+  [p]
+  "Creates a deep clone of a parser that is identical to the input parser. This
+  cloned parser can be used to continue parsing from a good checkpoint if
+  parsing later fails. Returns a new parser."
+  (:clone p))
+
+(defn parser/has-more
+  [parser]
+  "Check if the parser has more values in the value queue."
+  (:has-more parser))
+
+(defn parser/produce
+  [parser]
+  "Dequeue the next value in the parse queue. Will return nil if no parsed
+  values are in the queue, otherwise will dequeue the next value."
+  (:produce parser))
+
+(defn parser/consume
+  [parser bytes &opt index]
+  "Input bytes into the parser and parse them. Will not throw errors if there is
+  a parse error. Starts at the byte index given by index. Returns the number of
+  bytes read."
+  (if (nil? index)
+    (:consume parser bytes)
+    (:consume parser bytes index)))
+
+(defn parser/byte
+  [parser b]
+  "Input a single byte into the parser byte stream. Returns the parser."
+  (:byte parser b))
+
+(defn parser/error
+  [parser]
+  "If the parser is in the error state, returns the message associated with that
+  error. Otherwise, returns nil. Also flushes the parser state and parser queue,
+  so be sure to handle everything in the queue before calling parser/error."
+  (:error parser))
+
+(defn parser/status
+  [parser]
+  "Gets the current status of the parser state machine. The status will
+  be one of:\n\n
+  \t:pending - a value is being parsed.\n
+  \t:error - a parsing error was encountered.\n
+  \t:root - the parser can either read more values or safely terminate."
+  (:status parser))
+
+(defn parser/flush
+  [parser]
+  "Clears the parser state and parse queue. Can be used to reset the parser if
+  an error was encountered. Does not reset the line and column counter, so to
+  begin parsing in a new context, create a new parser."
+  (:flush parser))
+
+(defn parser/state
+  [parser &opt key]
+  "Returns a representation of the internal state of the parser. If a key is
+  passed, only that information about the state is returned. Allowed keys are:
+  \n\n
+  \t:delimiters - Each byte in the string represents a nested data structure.
+  For example, if the parser state is '([\"', then the parser is in the middle
+  of parsing a string inside of square brackets inside parentheses. Can be used
+  to augment a REPL prompt.\n
+  \t:frames - Each table in the array represents a 'frame' in the parser state.
+  Frames contain information about the start of the expression being parsed as
+  well as the type of that expression and some type-specific information."
+  (if (nil? key)
+    (:state parser)
+    (:state parser key)))
+
+(defn parser/where
+  [parser]
+  "Returns the current line number and column of the parser's internal state."
+  (:where parser))
+
+(defn parser/eof
+  [parser]
+  "Indicate that the end of file was reached to the parser. This puts the
+  parser in the :dead state."
+  (:eof parser))
+
+(defn parser/insert
+  [parser value]
+  "Insert a value into the parser. This means that the parser state can be
+  manipulated in between chunks of bytes. This would allow a user to add extra
+  elements to arrays and tuples, for example. Returns the parser."
+  (:insert parser value))
+
+###
+###
 ### Evaluation and Compilation
 ###
 ###
@@ -2102,6 +2214,7 @@
 
   (def {:env env
         :chunks chunks
+        :syntax syntax
         :on-status onstatus
         :on-compile-error on-compile-error
         :on-parse-error on-parse-error
@@ -2111,6 +2224,7 @@
         :expander expand} opts)
   (default env (fiber/getenv (fiber/current)))
   (default chunks (fn [buf p] (getline "" buf env)))
+  (default syntax :default)
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
   (default on-parse-error bad-parse)
@@ -2122,7 +2236,7 @@
   (var going true)
 
   # The parser object
-  (def p (parser/new))
+  (def p (parser/new syntax))
 
   # Evaluate 1 source form in a protected manner
   (defn eval1 [source]
@@ -2394,6 +2508,13 @@
   (put env :current-file (or src (if-not path-is-file spath)))
   (put env :source (or src (if-not path-is-file spath path)))
   (defn chunks [buf _] (file/read f 2048 buf))
+  (def syntax
+    (let [line (file/read f :line)]
+      (if (string/has-prefix? "#syntax " line)
+        (string/slice line 8 -2)
+        (do
+          (file/seek f :set 0)
+          :default))))
   (defn bp [&opt x y]
     (def ret (bad-parse x y))
     (if exit (os/exit 1))
@@ -2407,6 +2528,7 @@
   (def nenv
     (run-context {:env env
                   :chunks chunks
+                  :syntax syntax
                   :on-parse-error bp
                   :on-compile-error bc
                   :on-status (fn [f x]
@@ -2431,7 +2553,7 @@
               newenv)
     :image (fn [path &] (load-image (slurp path)))})
 
-(defn require-1
+(varfn require-1
   [path args kargs]
   (def [fullpath mod-kind] (module/find path))
   (unless fullpath (error mod-kind))
