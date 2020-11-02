@@ -2034,8 +2034,8 @@
 
 (defn- load-parser
   [name]
-  (require-1 (string "parser-" name) [] {})
-  ((symbol (string name "/new"))))
+  (require-1 (string name "-parser") [] {})
+  ((symbol (string name "/parser"))))
 
 (defn parser/new
   "Creates and returns a new parser object. Parsers are state machines that can
