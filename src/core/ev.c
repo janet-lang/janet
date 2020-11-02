@@ -741,7 +741,7 @@ static void janet_unlisten(JanetListenerState *state) {
     janet_unlisten_impl(state);
 }
 
-void janet_loop1_impl(int has_timeout, JanetTimeout timeout) {
+void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     ULONG_PTR completionKey = 0;
     DWORD num_bytes_transfered = 0;
     LPOVERLAPPED overlapped;
