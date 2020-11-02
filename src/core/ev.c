@@ -750,10 +750,10 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     uint64_t waittime;
     if (has_timeout) {
         JanetTimestamp now = ts_now();
-        if (now > to.when) {
+        if (now > to) {
             waittime = 0;
         } else {
-            waittime = (uint64_t)(to.when - now);
+            waittime = (uint64_t)(to - now);
         }
     } else {
         waittime = INFINITE;
