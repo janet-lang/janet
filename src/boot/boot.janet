@@ -2034,8 +2034,12 @@
 
 (defn- load-parser
   [name]
-  (require-1 (string name "-parser") [] {})
-  ((symbol (string name "/parser"))))
+  (require-1 (string name "-syntax") [] {})
+  (def form (tuple (symbol (string name "-syntax/parser"))))
+  (def res (compile form))
+  (if (= (type res) :function)
+    (res)
+    (error (res :error))))
 
 (defn parser/new
   "Creates and returns a new parser object. Parsers are state machines that can
