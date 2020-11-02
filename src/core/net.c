@@ -513,7 +513,16 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
             JANET_OUT_OF_MEMORY;
         }
         saddr->sun_family = AF_UNIX;
-        snprintf(saddr->sun_path, 108, "%s", path);
+        memset(&saddr->sun_path, 0, 108);
+#ifdef JANET_LINUX
+        if (path[0] == '@') {
+            saddr->sun_path[0] = '\0';
+            snprintf(saddr->sun_path + 1, 107, "%s", path + 1);
+        } else
+#endif
+        {
+            snprintf(saddr->sun_path, 108, "%s", path);
+        }
         *is_unix = 1;
         return (struct addrinfo *) saddr;
     }
@@ -867,7 +876,10 @@ static const JanetReg net_cfuns[] = {
         "net/address", cfun_net_sockaddr,
         JDOC("(net/address host port &opt type)\n\n"
              "Look up the connection information for a given hostname, port, and connection type. Returns "
-             "a handle that can be used to send datagrams over network without establishing a connection.")
+             "a handle that can be used to send datagrams over network without establishing a connection. "
+             "On Posix platforms, you can use :unix for host to connet to a unix domain socket, where the name is "
+             "given in the port argument. On Linux, abstract "
+             "unix domain sockets are specified with a leading '@' character in port.")
     },
     {
         "net/server", cfun_net_server,
@@ -876,8 +888,8 @@ static const JanetReg net_cfuns[] = {
              "on each connection to the server. Returns a new stream that is neither readable nor "
              "writeable. If handler is nil or not provided, net/accept must be used to get the next connection "
              "to the server. The type parameter specifies the type of network connection, either "
-             "a stream (usually tcp), or datagram (usually udp). If not specified, the default is "
-             "stream.")
+             "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
+             ":stream. The host and port arguments are the same as in net/address.")
     },
     {
         "net/accept", cfun_stream_accept,
