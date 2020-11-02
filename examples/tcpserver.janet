@@ -6,7 +6,7 @@
     (def b @"")
     (print "Connection " id "!")
     (while (:read stream 1024 b)
-      (repeat 10 (print "work for " id " ...") (ev/sleep 1))
+      (repeat 10 (print "work for " id " ...") (ev/sleep 0.1))
       (:write stream b)
       (buffer/clear b))
     (printf "Done %v!" id)))
