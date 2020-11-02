@@ -2786,14 +2786,14 @@
   -v : Print the version string
   -s : Use raw stdin instead of getline like functionality
   -e code : Execute a string of janet
-  -d : Set the debug flag in the repl
-  -r : Enter the repl after running all scripts
-  -p : Keep on executing if there is a top level error (persistent)
+  -d : Set the debug flag in the REPL
+  -r : Enter the REPL after running all scripts
+  -p : Keep on executing if there is a top-level error (persistent)
   -q : Hide logo (quiet)
   -k : Compile scripts but do not execute (flycheck)
   -m syspath : Set system path for loading global modules
   -c source output : Compile janet source code into an image
-  -n : Disable ANSI color output in the repl
+  -n : Disable ANSI color output in the REPL
   -l lib : Import a module before processing more arguments
   -- : Stop handling options`)
            (os/exit 0)
