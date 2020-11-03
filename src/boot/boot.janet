@@ -2032,10 +2032,20 @@
 # Forward declaration
 (varfn require-1 [path args kargs])
 
+(def- parsers @{})
+
 (defn- load-parser
   [name]
-  (require-1 (string name "-syntax") [] {})
-  (def form (tuple (symbol (string name "-syntax/parser"))))
+  (def path (string name "-syntax"))
+  (def prefix (string path "/"))
+  (unless (get parsers name)
+    (def env (fiber/getenv (fiber/current)))
+    (def newenv (require-1 path [] {}))
+    (loop [[k v] :pairs newenv :when (symbol? k) :when (not (v :private))]
+      (def newv (table/setproto @{:private true} v))
+      (put env (symbol prefix k) newv))
+    (put parsers name true))
+  (def form (tuple (symbol (string prefix "parser"))))
   (def res (compile form))
   (if (= (type res) :function)
     (res)
