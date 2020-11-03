@@ -2051,6 +2051,8 @@
     (res)
     (error (res :error))))
 
+(undef parsers)
+
 (defn parser/new
   "Creates and returns a new parser object. Parsers are state machines that can
   receive bytes, and generate a stream of values."
