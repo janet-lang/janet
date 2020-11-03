@@ -2514,11 +2514,10 @@
   (defn chunks [buf _] (file/read f 2048 buf))
   (def syntax
     (let [line (file/read f :line)]
+      (file/seek f :set 0)
       (if (string/has-prefix? "#syntax " line)
         (string/slice line 8 -2)
-        (do
-          (file/seek f :set 0)
-          :default))))
+        :default)))
   (defn bp [&opt x y]
     (def ret (bad-parse x y))
     (if exit (os/exit 1))
