@@ -777,7 +777,7 @@ static const JanetReg io_cfuns[] = {
 #ifndef JANET_NO_PROCESSES
     {
         "file/popen", cfun_io_popen,
-        JDOC("(file/popen path &opt mode)\n\n"
+        JDOC("(file/popen command &opt mode)\n\n"
              "Open a file that is backed by a process. The file must be opened in either "
              "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
              "process can be read from the file. In :w mode, the stdin of the process "
