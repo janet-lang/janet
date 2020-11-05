@@ -988,7 +988,7 @@ static const JanetReg asm_cfuns[] = {
     {
         "disasm", cfun_disasm,
         JDOC("(disasm func &opt field)\n\n"
-             "Returns assembly that could be used be compile the given function.\n"
+             "Returns assembly that could be used to compile the given function.\n"
              "func must be a function, not a c function. Will throw on error on a badly\n"
              "typed argument. If given a field name, will only return that part of the function assembly.\n"
              "Possible fields are:\n\n"
