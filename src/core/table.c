@@ -256,7 +256,7 @@ static void janet_table_mergekv(JanetTable *table, const JanetKV *kvs, int32_t c
     }
 }
 
-/* Merge a table other into another table */
+/* Merge a table into another table */
 void janet_table_merge_table(JanetTable *table, JanetTable *other) {
     janet_table_mergekv(table, other->data, other->capacity);
 }
