@@ -108,12 +108,15 @@ static void janet_fiber_refresh_memory(JanetFiber *fiber) {
 
 /* Ensure that the fiber has enough extra capacity */
 void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n) {
+    int32_t old_size = fiber->capacity;
+    int32_t diff = n - old_size;
     Janet *newData = realloc(fiber->data, sizeof(Janet) * n);
     if (NULL == newData) {
         JANET_OUT_OF_MEMORY;
     }
     fiber->data = newData;
     fiber->capacity = n;
+    janet_vm_next_collection += sizeof(Janet) * diff;
 }
 
 /* Grow fiber if needed */
