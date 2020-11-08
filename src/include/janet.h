@@ -501,6 +501,7 @@ typedef void *JanetAbstract;
 #ifdef JANET_EV
 #define JANET_POLL_FLAG_CLOSED 0x1
 #define JANET_POLL_FLAG_SOCKET 0x2
+#define JANET_POLL_FLAG_IOCP 0x4
 
 typedef enum {
     JANET_ASYNC_EVENT_INIT,
@@ -510,7 +511,8 @@ typedef enum {
     JANET_ASYNC_EVENT_READ,
     JANET_ASYNC_EVENT_WRITE,
     JANET_ASYNC_EVENT_TIMEOUT,
-    JANET_ASYNC_EVENT_COMPLETE /* Used on windows for IOCP */
+    JANET_ASYNC_EVENT_COMPLETE, /* Used on windows for IOCP */
+    JANET_ASYNC_EVENT_USER
 } JanetAsyncEvent;
 
 #define JANET_ASYNC_LISTEN_READ (1 << JANET_ASYNC_EVENT_READ)
@@ -546,6 +548,9 @@ struct JanetListenerState {
     JanetPollable *pollable;
     void *event; /* Used to pass data from asynchronous IO event. Contents depend on both
                     implementation of the event loop and the particular event. */
+#ifdef JANET_WINDOWS
+    void *tag; /* Used to associate listeners with an overlapped structure */
+#endif
     /* internal */
     int _index; /* not used in all implementations */
     int _mask;

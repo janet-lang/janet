@@ -728,16 +728,19 @@ void janet_ev_deinit(void) {
 }
 
 JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size, void *user) {
+    /* Add the handle to the io completion port if not already added */
     JanetListenerState *state = janet_listen_impl(pollable, behavior, mask, size, user);
-    /* TODO - associate IO operation with listener state somehow
-     * maybe we could require encoding the operation in a mask. */
-    /* on windows, janet_listen does not actually start any listening behavior. */
+    if (!(pollable->flags & JANET_POLL_FLAG_IOCP)) {
+        if (NULL == CreateIoCompletionPort(pollable->handle, janet_vm_iocp, (ULONG_PTR) pollable, 0)) {
+            janet_panic("failed to listen for events");
+        }
+        pollable->flags |= JANET_POLL_FLAG_IOCP;
+    }
     return state;
 }
 
 
 static void janet_unlisten(JanetListenerState *state) {
-    /* We don't necessarily want to cancel all io on this pollable */
     janet_unlisten_impl(state);
 }
 
@@ -766,11 +769,20 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
         }
     } else {
         /* Normal event */
-        JanetListenerState *state = (JanetListenerState *) completionKey;
-        state->event = overlapped;
-        JanetAsyncStatus status = state->machine(state, JANET_ASYNC_EVENT_COMPLETE);
-        if (status == JANET_ASYNC_STATUS_DONE)
-            janet_unlisten(state);
+        JanetPollable *pollable = (JanetPollable *) completionKey;
+        JanetListenerState *state = pollable->state;
+        while (state != NULL) {
+            if (state->tag == overlapped) {
+                state->event = overlapped;
+                JanetAsyncStatus status = state->machine(state, JANET_ASYNC_EVENT_COMPLETE);
+                if (status == JANET_ASYNC_STATUS_DONE) {
+                    janet_unlisten(state);
+                } 
+                break;
+            } else {
+                state = state->_next;
+            }
+        }
     }
 }
 
