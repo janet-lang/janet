@@ -668,7 +668,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
 }
 
 JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunction *fun) {
-    JanetListenerState *state = janet_listen(stream, net_machine_accept, JANET_ASYNC_LISTEN_READ, sizeof(NetStateAccept), NULL);
+    NetStateAccept *state = (NetStateAccept *) janet_listen(stream, net_machine_accept, JANET_ASYNC_LISTEN_READ, sizeof(NetStateAccept), NULL);
     state->function = fun;
     janet_await();
 }
