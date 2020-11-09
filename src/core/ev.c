@@ -36,6 +36,7 @@
 #ifdef JANET_WINDOWS
 
 #include <windows.h>
+#include <math.h>
 
 #else
 

@@ -47,6 +47,7 @@
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <math.h>
 #endif
 
 /*
