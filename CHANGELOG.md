@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
 - Add integer parsing forms to pegs. This makes parsing many binary protocols easier.
+- Lots of updates to networking code - now can use epoll (or poll) on linux and IOCP on windows.
+- Add `ev/` module. This exposes a fiber scheduler, queues, timeouts, and other functionality to users
+  for single threaded cooperative scheduling and asynchornous IO.
+- Add `net/accept-loop` and `net/listen`. These functions break down `net/server` into it's essential parts
+  and are more flexible. They also allow furter improvements to these utility functions.
 
 ## 1.12.2 - 2020-09-20
 - Add janet\_try and janet\_restore to C API.
