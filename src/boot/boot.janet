@@ -2724,6 +2724,28 @@
 
 ###
 ###
+### Extras
+###
+###
+
+(defmacro- guarddef
+  [sym form]
+  (if (dyn sym)
+    form))
+
+(guarddef net/listen
+  (defn net/server
+    "Start a server asynchornously with net/listen and net/accept-loop. Returns the new server stream."
+    [host port &opt handler type]
+    (def s (net/listen host port type))
+    (if handler
+      (ev/go (fn [] (net/accept-loop s handler))))
+    s))
+
+(undef guarddef)
+
+###
+###
 ### CLI Tool Main
 ###
 ###

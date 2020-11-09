@@ -856,13 +856,11 @@ static const char *serverify_socket(JSock sfd) {
     return NULL;
 }
 
-static Janet cfun_net_server(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 4);
+static Janet cfun_net_listen(int32_t argc, Janet *argv) {
+    janet_arity(argc, 2, 3);
 
     /* Get host, port, and handler*/
-    JanetFunction *fun = janet_optfunction(argv, argc, 2, NULL);
-
-    int socktype = janet_get_sockettype(argv, argc, 3);
+    int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
     struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1, &is_unix);
 
@@ -912,15 +910,8 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
 
     if (socktype == SOCK_DGRAM) {
         /* Datagram server (UDP) */
-
-        if (NULL == fun) {
-            /* Server no handler */
-            JanetStream *stream = make_stream(sfd, JANET_STREAM_UDPSERVER | JANET_STREAM_READABLE);
-            return janet_wrap_abstract(stream);
-        } else {
-            /* Server with handler */
-            janet_panic("handler must be nil for datagram server");
-        }
+        JanetStream *stream = make_stream(sfd, JANET_STREAM_UDPSERVER | JANET_STREAM_READABLE);
+        return janet_wrap_abstract(stream);
     } else {
         /* Stream server (TCP) */
 
@@ -932,14 +923,8 @@ static Janet cfun_net_server(int32_t argc, Janet *argv) {
         }
 
         /* Put sfd on our loop */
-        if (NULL == fun) {
-            JanetStream *stream = make_stream(sfd, JANET_STREAM_ACCEPTABLE);
-            return janet_wrap_abstract(stream);
-        } else {
-            /* Server with handler */
-            JanetStream *stream = make_stream(sfd, JANET_STREAM_ACCEPTABLE);
-            janet_sched_accept(stream, fun);
-        }
+        JanetStream *stream = make_stream(sfd, JANET_STREAM_ACCEPTABLE);
+        return janet_wrap_abstract(stream);
     }
 }
 
@@ -952,6 +937,14 @@ static void check_stream_flag(JanetStream *stream, int flag) {
         if (flag == JANET_STREAM_UDPSERVER) msg = "datagram server";
         janet_panicf("bad stream, expected %s stream", msg);
     }
+}
+
+static Janet cfun_stream_accept_loop(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
+    check_stream_flag(stream, JANET_STREAM_ACCEPTABLE);
+    JanetFunction *fun = janet_getfunction(argv, 1);
+    janet_sched_accept(stream, fun);
 }
 
 static Janet cfun_stream_accept(int32_t argc, Janet *argv) {
@@ -1060,6 +1053,7 @@ static const JanetMethod stream_methods[] = {
     {"write", cfun_stream_write},
     {"flush", cfun_stream_flush},
     {"accept", cfun_stream_accept},
+    {"accept-loop", cfun_stream_accept_loop},
     {"send-to", cfun_stream_send_to},
     {"recv-from", cfun_stream_recv_from},
     {NULL, NULL}
@@ -1082,12 +1076,11 @@ static const JanetReg net_cfuns[] = {
              "unix domain sockets are specified with a leading '@' character in port.")
     },
     {
-        "net/server", cfun_net_server,
-        JDOC("(net/server host port &opt handler type)\n\n"
-             "Start a TCP server. handler is a function that will be called with a stream "
-             "on each connection to the server. Returns a new stream that is neither readable nor "
-             "writeable. If handler is nil or not provided, net/accept must be used to get the next connection "
-             "to the server. The type parameter specifies the type of network connection, either "
+        "net/listen", cfun_net_listen,
+        JDOC("(net/listen host port &opt type)\n\n"
+             "Creates a server. Returns a new stream that is neither readable nor "
+             "writeable. Use net/accept or net/accept-loop be to handle connections and start the server."
+             "The type parameter specifies the type of network connection, either "
              "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
              ":stream. The host and port arguments are the same as in net/address.")
     },
@@ -1097,6 +1090,12 @@ static const JanetReg net_cfuns[] = {
              "Get the next connection on a server stream. This would usually be called in a loop in a dedicated fiber. "
              "Takes an optional timeout in seconds, after which will return nil. "
              "Returns a new duplex stream which represents a connection to the client.")
+    },
+    {
+        "net/accept-loop", cfun_stream_accept_loop,
+        JDOC("(net/accept-loop stream handler)\n\n"
+             "Shorthand for running a server stream that will continuously accept new connections."
+             "Blocks the current fiber until the stream is closed, and will return the stream.")
     },
     {
         "net/read", cfun_stream_read,
