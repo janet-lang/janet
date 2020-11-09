@@ -550,6 +550,7 @@ struct JanetListenerState {
                     implementation of the event loop and the particular event. */
 #ifdef JANET_WINDOWS
     void *tag; /* Used to associate listeners with an overlapped structure */
+    int bytes; /* Used to track how many bytes were transfered. */
 #endif
     /* internal */
     int _index; /* not used in all implementations */

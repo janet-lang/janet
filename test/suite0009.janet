@@ -33,8 +33,15 @@
     (:write stream b)
     (buffer/clear b)))
 
-(def s (net/server "127.0.0.1" "8000" handler))
+(def s (net/server "127.0.0.1" "8000"))
 (assert s "made server 1")
+
+(ev/go
+  (coro
+    (while (not (net/closed? s))
+      (def conn (net/accept s))
+      (unless conn (break))
+      (ev/call handler conn))))
 
 (defn test-echo [msg]
   (with [conn (net/connect "127.0.0.1" "8000")]

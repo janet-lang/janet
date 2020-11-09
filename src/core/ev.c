@@ -765,7 +765,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
 
     if (!result) {
         if (!has_timeout) {
-            JANET_EXIT("failed to get iocp GetQueuedCompletionStatus");
+            /* queue emptied */
         }
     } else {
         /* Normal event */
@@ -774,6 +774,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
         while (state != NULL) {
             if (state->tag == overlapped) {
                 state->event = overlapped;
+                state->bytes = num_bytes_transfered;
                 JanetAsyncStatus status = state->machine(state, JANET_ASYNC_EVENT_COMPLETE);
                 if (status == JANET_ASYNC_STATUS_DONE) {
                     janet_unlisten(state);

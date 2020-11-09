@@ -9,6 +9,7 @@
       (printf " %v -> %v" id b)
       (:write stream b)
       (buffer/clear b))
-    (printf "Done %v!" id)))
+    (printf "Done %v!" id)
+    (ev/sleep 0.5)))
 
 (net/server "127.0.0.1" "8000" handler)
