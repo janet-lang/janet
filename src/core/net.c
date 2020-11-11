@@ -103,12 +103,12 @@ static Janet net_lasterr(void) {
     char msgbuf[256];
     msgbuf[0] = '\0';
     FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-            NULL,
-            code,
-            MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
-            msgbuf,
-            sizeof (msgbuf),
-            NULL);
+                  NULL,
+                  code,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  msgbuf,
+                  sizeof(msgbuf),
+                  NULL);
     if (!*msgbuf) sprintf(msgbuf, "%d", code);
     char *c = msgbuf;
     while (*c) {
@@ -222,7 +222,7 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
         case JANET_ASYNC_EVENT_COMPLETE: {
             /* Called when read finished */
             if (s->bytes == 0 && !state->is_recv_from) {
-                janet_schedule(s->fiber, janet_wrap_nil()); 
+                janet_schedule(s->fiber, janet_wrap_nil());
                 return JANET_ASYNC_STATUS_DONE;
             }
 
@@ -244,8 +244,7 @@ JanetAsyncStatus net_machine_read(JanetListenerState *s, JanetAsyncEvent event) 
         }
 
         /* fallthrough */
-        case JANET_ASYNC_EVENT_USER:
-        {
+        case JANET_ASYNC_EVENT_USER: {
             state->flags = 0;
             int32_t chunk_size = state->bytes_left > JANET_NET_CHUNKSIZE ? JANET_NET_CHUNKSIZE : state->bytes_left;
             state->wbuf.len = (ULONG) chunk_size;
@@ -557,7 +556,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
             if (state->astream) janet_mark(janet_wrap_abstract(state->astream));
             if (state->function) janet_mark(janet_wrap_abstract(state->function));
             break;
-        } 
+        }
         case JANET_ASYNC_EVENT_CLOSE:
             janet_schedule(s->fiber, janet_wrap_nil());
             return JANET_ASYNC_STATUS_DONE;
@@ -565,16 +564,16 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
             int seconds;
             int bytes = sizeof(seconds);
             if (NO_ERROR != getsockopt((SOCKET) state->astream->handle, SOL_SOCKET, SO_CONNECT_TIME,
-                    (char *)&seconds, &bytes)) {
+                                       (char *)&seconds, &bytes)) {
                 janet_cancel(s->fiber, janet_cstringv("failed to accept connection"));
                 return JANET_ASYNC_STATUS_DONE;
             }
-            if (NO_ERROR != setsockopt((SOCKET) state->astream->handle, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, 
-                (char *)&(state->lstream->handle), sizeof(SOCKET))) {
+            if (NO_ERROR != setsockopt((SOCKET) state->astream->handle, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+                                       (char *) & (state->lstream->handle), sizeof(SOCKET))) {
                 janet_cancel(s->fiber, janet_cstringv("failed to accept connection"));
                 return JANET_ASYNC_STATUS_DONE;
             }
-   
+
             Janet streamv = janet_wrap_abstract(state->astream);
             if (state->function) {
                 /* Schedule worker */
@@ -587,7 +586,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
                     return JANET_ASYNC_STATUS_DONE;
                 }
             } else {
-                janet_schedule(s->fiber, streamv); 
+                janet_schedule(s->fiber, streamv);
                 return JANET_ASYNC_STATUS_DONE;
             }
         }
