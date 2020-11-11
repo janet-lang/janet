@@ -779,7 +779,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
                 JanetAsyncStatus status = state->machine(state, JANET_ASYNC_EVENT_COMPLETE);
                 if (status == JANET_ASYNC_STATUS_DONE) {
                     janet_unlisten(state);
-                } 
+                }
                 break;
             } else {
                 state = state->_next;
