@@ -2739,7 +2739,7 @@
     [host port &opt handler type]
     (def s (net/listen host port type))
     (if handler
-      (ev/go (fn [] (net/accept-loop s handler))))
+      (ev/call (fn [] (net/accept-loop s handler))))
     s))
 
 (undef guarddef)
