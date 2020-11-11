@@ -1070,7 +1070,7 @@ static const JanetReg net_cfuns[] = {
         JDOC("(net/address host port &opt type)\n\n"
              "Look up the connection information for a given hostname, port, and connection type. Returns "
              "a handle that can be used to send datagrams over network without establishing a connection. "
-             "On Posix platforms, you can use :unix for host to connet to a unix domain socket, where the name is "
+             "On Posix platforms, you can use :unix for host to connect to a unix domain socket, where the name is "
              "given in the port argument. On Linux, abstract "
              "unix domain sockets are specified with a leading '@' character in port.")
     },
