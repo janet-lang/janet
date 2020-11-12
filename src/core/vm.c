@@ -1376,7 +1376,6 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
         /* Normal setup */
         if (janet_vm_root_fiber == NULL) janet_vm_root_fiber = fiber;
         janet_vm_fiber = fiber;
-        janet_gcroot(janet_wrap_fiber(fiber));
         janet_fiber_set_status(fiber, JANET_STATUS_ALIVE);
         signal = run_vm(fiber, in);
     }
@@ -1384,7 +1383,6 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
     /* Restore */
     if (janet_vm_root_fiber == fiber) janet_vm_root_fiber = NULL;
     janet_fiber_set_status(fiber, signal);
-    janet_gcunroot(janet_wrap_fiber(fiber));
     janet_restore(&tstate);
     *out = tstate.payload;
 

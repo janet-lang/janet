@@ -404,6 +404,7 @@ void janet_collect(void) {
 #ifdef JANET_EV
     janet_ev_mark();
 #endif
+    janet_mark_fiber(janet_vm_root_fiber);
     for (i = 0; i < orig_rootcount; i++)
         janet_mark(janet_vm_roots[i]);
     while (orig_rootcount < janet_vm_root_count) {
