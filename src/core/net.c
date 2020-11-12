@@ -28,6 +28,7 @@
 
 #ifdef JANET_NET
 
+#include <math.h>
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
@@ -47,7 +48,6 @@
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <fcntl.h>
-#include <math.h>
 #endif
 
 /*
