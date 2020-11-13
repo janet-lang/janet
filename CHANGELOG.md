@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `janet_thread_current(void)` to C API
 - Add integer parsing forms to pegs. This makes parsing many binary protocols easier.
 - Lots of updates to networking code - now can use epoll (or poll) on linux and IOCP on windows.
 - Add `ev/` module. This exposes a fiber scheduler, queues, timeouts, and other functionality to users

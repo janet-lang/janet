@@ -585,6 +585,14 @@ void janet_threads_deinit(void) {
     janet_vm_thread_decode = NULL;
 }
 
+JanetThread *janet_thread_current(void) {
+    if (NULL == janet_vm_thread_current) {
+        janet_vm_thread_current = janet_make_thread(janet_vm_mailbox, janet_get_core_table("make-image-dict"));
+        janet_gcroot(janet_wrap_abstract(janet_vm_thread_current));
+    }
+    return janet_vm_thread_current;
+}
+
 /*
  * Cfuns
  */
@@ -592,11 +600,7 @@ void janet_threads_deinit(void) {
 static Janet cfun_thread_current(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
-    if (NULL == janet_vm_thread_current) {
-        janet_vm_thread_current = janet_make_thread(janet_vm_mailbox, janet_get_core_table("make-image-dict"));
-        janet_gcroot(janet_wrap_abstract(janet_vm_thread_current));
-    }
-    return janet_wrap_abstract(janet_vm_thread_current);
+    return janet_wrap_abstract(janet_thread_current());
 }
 
 static Janet cfun_thread_new(int32_t argc, Janet *argv) {
