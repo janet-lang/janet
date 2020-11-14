@@ -1252,7 +1252,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
 #endif
             {
                 status = ReadFile(s->stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped);
-                if (status && (ERROR_IO_PENDING != WSAGetLastError())) {
+                if (!status && (ERROR_IO_PENDING != WSAGetLastError())) {
                     janet_cancel(s->fiber, janet_ev_lasterr());
                     return JANET_ASYNC_STATUS_DONE;
                 }
@@ -1470,7 +1470,7 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
 #endif
             {
                 status = WriteFile(s->stream->handle, bytes, len, NULL, &state->overlapped);
-                if (status && (ERROR_IO_PENDING != WSAGetLastError())) {
+                if (!status && (ERROR_IO_PENDING != WSAGetLastError())) {
                     janet_cancel(s->fiber, janet_ev_lasterr());
                     return JANET_ASYNC_STATUS_DONE;
                 }
