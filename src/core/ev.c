@@ -1674,12 +1674,49 @@ Janet janet_cfun_stream_write(int32_t argc, Janet *argv) {
     janet_await();
 }
 
+/* For a pipe ID */
+#ifdef JANET_WINDOWS
+static volatile long PipeSerialNumber;
+#endif
+
 static Janet cfun_ev_pipe(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
 #ifdef JANET_WINDOWS
+    /*
+     * On windows, the built in CreatePipe function doesn't support overlapped IO
+     * so we lift from the windows source code and modify for our own version.
+     */
     JanetHandle rhandle, whandle;
-    if (!CreatePipe(&rhandle, &whandle, NULL, 0)) janet_panicv(janet_ev_lasterr());
+    DWORD dwError;
+    UCHAR PipeNameBuffer[MAX_PATH];
+    sprintf(PipeNameBuffer,
+            "\\\\.\\Pipe\\JanetExeAnon.%08x.%08x",
+            GetCurrentProcessId(),
+            InterlockedIncrement(&PipeSerialNumber));
+    rhandle = CreateNamedPipeA(
+                  PipeNameBuffer,
+                  PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+                  PIPE_TYPE_BYTE | PIPE_WAIT,
+                  1,             /* Number of pipes */
+                  4096,          /* Out buffer size */
+                  4096,          /* In buffer size */
+                  120 * 1000,    /* Timeout in ms */
+                  NULL);
+    if (!rhandle) janet_panicv(janet_ev_lasterr());
+    whandle = CreateFileA(
+                  PipeNameBuffer,
+                  GENERIC_WRITE,
+                  0,
+                  NULL,
+                  OPEN_EXISTING,
+                  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
+                  NULL);
+    if (whandle == INVALID_HANDLE_VALUE) {
+        Janet x = janet_ev_lasterr();
+        CloseHandle(rhandle);
+        janet_panicv(x);
+    }
     JanetStream *reader = janet_stream(rhandle, JANET_STREAM_READABLE, NULL);
     JanetStream *writer = janet_stream(whandle, JANET_STREAM_WRITABLE, NULL);
 #else
