@@ -789,7 +789,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
         if (NULL == CreateIoCompletionPort(stream->handle, janet_vm_iocp, (ULONG_PTR) stream, 0)) {
             janet_panic("failed to listen for events");
         }
-        stream->flags |= JANET_POLL_FLAG_IOCP;
+        stream->flags |= JANET_STREAM_IOCP;
     }
     return state;
 }
