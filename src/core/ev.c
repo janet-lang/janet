@@ -884,7 +884,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     } while (status == -1 && errno == EINTR);
     if (status == -1) {
         janet_unlisten_impl(state);
-        janet_panicf("failed to schedule event: %s", strerror(errno));
+        janet_panicv(janet_ev_lasterr());
     }
     return state;
 }
@@ -903,7 +903,7 @@ static void janet_unlisten(JanetListenerState *state) {
             status = epoll_ctl(janet_vm_epoll, op, stream->handle, &ev);
         } while (status == -1 && errno == EINTR);
         if (status == -1) {
-            janet_panicf("failed to unschedule event: %s", strerror(errno));
+            janet_panicv(janet_ev_lasterr());
         }
     }
     /* Destroy state machine and free memory */
@@ -1463,7 +1463,7 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
                     status = WSASend(sock, &state->wbuf, 1, NULL, state->flags, &state->overlapped, NULL);
                 }
                 if (status && (WSA_IO_PENDING != WSAGetLastError())) {
-                    janet_cancel(s->fiber, janet_cstringv("failed to write to stream"));
+                    janet_cancel(s->fiber, janet_ev_lasterr());
                     return JANET_ASYNC_STATUS_DONE;
                 }
             } else
@@ -1471,7 +1471,7 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
             {
                 status = WriteFile(s->stream->handle, bytes, len, NULL, &state->overlapped);
                 if (status && (ERROR_IO_PENDING != WSAGetLastError())) {
-                    janet_cancel(s->fiber, janet_cstringv("failed to write to stream"));
+                    janet_cancel(s->fiber, janet_ev_lasterr());
                     return JANET_ASYNC_STATUS_DONE;
                 }
             }
@@ -1688,7 +1688,6 @@ static Janet cfun_ev_pipe(int32_t argc, Janet *argv) {
      * so we lift from the windows source code and modify for our own version.
      */
     JanetHandle rhandle, whandle;
-    DWORD dwError;
     UCHAR PipeNameBuffer[MAX_PATH];
     sprintf(PipeNameBuffer,
             "\\\\.\\Pipe\\JanetExeAnon.%08x.%08x",
