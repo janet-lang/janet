@@ -499,6 +499,7 @@ typedef void *JanetAbstract;
 
 /* Event Loop Types */
 #ifdef JANET_EV
+
 #define JANET_POLL_FLAG_CLOSED 0x1
 #define JANET_POLL_FLAG_SOCKET 0x2
 #define JANET_POLL_FLAG_IOCP 0x4
@@ -1269,7 +1270,29 @@ JANET_NO_RETURN JANET_API void janet_await(void);
 
 /* For use inside listeners - adds a timeout to the current fiber, such that
  * it will be resumed after sec seconds if no other event schedules the current fiber. */
-void janet_addtimeout(double sec);
+JANET_API void janet_addtimeout(double sec);
+
+/* Get last error from a an IO operation */
+JANET_API Janet janet_ev_lasterr(void);
+
+/* Read async from a pollable */
+JANET_API void janet_ev_read(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes);
+JANET_API void janet_ev_readchunk(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes);
+#ifdef JANET_NET
+JANET_API void janet_ev_recv(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_API void janet_ev_recvchunk(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_API void janet_ev_recvfrom(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+#endif
+
+/* Write async to a pollable */
+JANET_API void janet_ev_write_buffer(JanetPollable *stream, JanetBuffer *buf);
+JANET_API void janet_ev_write_string(JanetPollable *stream, JanetString str);
+#ifdef JANET_NET
+JANET_API void janet_ev_send_buffer(JanetPollable *stream, JanetBuffer *buf, int flags);
+JANET_API void janet_ev_send_string(JanetPollable *stream, JanetString str, int flags);
+JANET_API void janet_ev_sendto_buffer(JanetPollable *stream, JanetBuffer *buf, void *dest, int flags);
+JANET_API void janet_ev_sendto_string(JanetPollable *stream, JanetString str, void *dest, int flags);
+#endif
 
 #endif
 

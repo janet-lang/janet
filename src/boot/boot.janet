@@ -2733,6 +2733,12 @@
   (if (dyn sym)
     form))
 
+(guarddef ev/go
+  (defmacro ev/spawn
+    "Run some code in a new fiber. This is shorthand for (ev/call (fn [] ;body))."
+    [& body]
+    ~(,ev/call (fn [] ,;body))))
+
 (guarddef net/listen
   (defn net/server
     "Start a server asynchornously with net/listen and net/accept-loop. Returns the new server stream."

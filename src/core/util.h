@@ -140,6 +140,7 @@ void janet_lib_thread(JanetTable *env);
 #endif
 #ifdef JANET_NET
 void janet_lib_net(JanetTable *env);
+extern const JanetAbstractType janet_address_type;
 #endif
 #ifdef JANET_EV
 void janet_lib_ev(JanetTable *env);

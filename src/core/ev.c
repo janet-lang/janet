@@ -32,14 +32,11 @@
 #ifdef JANET_EV
 
 /* Includes */
-
 #ifdef JANET_WINDOWS
-
+#include <winsock2.h>
 #include <windows.h>
 #include <math.h>
-
 #else
-
 #include <limits.h>
 #include <errno.h>
 #include <unistd.h>
@@ -47,19 +44,15 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <fcntl.h>
-
-#ifdef JANET_BSD
 #include <netinet/in.h>
-#endif
-
+#include <netinet/tcp.h>
+#include <netdb.h>
+#include <sys/socket.h>
 #ifdef JANET_EV_EPOLL
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
 #endif
-
 #endif
-
-/* General queue */
 
 /* Ring buffer for storing a list of fibers */
 typedef struct {
@@ -1048,6 +1041,458 @@ void janet_ev_deinit(void) {
     janet_vm_fdcount = 0;
 }
 
+#endif
+
+/* C API helpers for reading and writing from streams.
+ * There is some networking code in here as well as generic
+ * reading and writing primitives. */
+
+
+/* When there is an IO error, we need to be able to convert it to a Janet
+ * string to raise a Janet error. */
+#ifdef JANET_WINDOWS
+#define JANET_EV_CHUNKSIZE 4096
+Janet janet_ev_lasterr(void) {
+    int code = GetLastError();
+    char msgbuf[256];
+    msgbuf[0] = '\0';
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                  NULL,
+                  code,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  msgbuf,
+                  sizeof(msgbuf),
+                  NULL);
+    if (!*msgbuf) sprintf(msgbuf, "%d", code);
+    char *c = msgbuf;
+    while (*c) {
+        if (*c == '\n' || *c == '\r') {
+            *c = '\0';
+            break;
+        }
+        c++;
+    }
+    return janet_cstringv(msgbuf);
+}
+#else
+Janet janet_ev_lasterr(void) {
+    return janet_cstringv(strerror(errno));
+}
+#endif
+
+/* State machine for read/recv/recvfrom */
+
+typedef enum {
+    JANET_ASYNC_READMODE_READ,
+    JANET_ASYNC_READMODE_RECV,
+    JANET_ASYNC_READMODE_RECVFROM
+} JanetReadMode;
+
+typedef struct {
+    JanetListenerState head;
+    int32_t bytes_left;
+    JanetBuffer *buf;
+    int is_chunk;
+    JanetReadMode mode;
+#ifdef JANET_WINDOWS
+    OVERLAPPED overlapped;
+#ifdef JANET_NET
+    WSABUF wbuf;
+    DWORD flags;
+    struct sockaddr from;
+    int fromlen;
+#endif
+    uint8_t chunk_buf[JANET_EV_CHUNKSIZE];
+#else
+    int flags;
+#endif
+} StateRead;
+
+JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
+    StateRead *state = (StateRead *) s;
+    switch (event) {
+        default:
+            break;
+        case JANET_ASYNC_EVENT_MARK:
+            janet_mark(janet_wrap_buffer(state->buf));
+            break;
+        case JANET_ASYNC_EVENT_CLOSE:
+            janet_cancel(s->fiber, janet_cstringv("stream closed"));
+            return JANET_ASYNC_STATUS_DONE;
+#ifdef JANET_WINDOWS
+        case JANET_ASYNC_EVENT_COMPLETE: {
+            /* Called when read finished */
+            if (s->bytes == 0 && (state->mode != JANET_ASYNC_READMODE_RECVFROM)) {
+                janet_schedule(s->fiber, janet_wrap_nil());
+                return JANET_ASYNC_STATUS_DONE;
+            }
+
+            janet_buffer_push_bytes(state->buf, state->chunk_buf, s->bytes);
+            state->bytes_left -= s->bytes;
+
+            if (state->bytes_left <= 0 || !state->is_chunk) {
+                Janet resume_val;
+#ifdef JANET_NET
+                if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
+                    void *abst = janet_abstract(&janet_address_type, state->fromlen);
+                    memcpy(abst, &state->from, state->fromlen);
+                    resume_val = janet_wrap_abstract(abst);
+                } else
+#endif
+                {
+                    resume_val = janet_wrap_buffer(state->buf);
+                }
+                janet_schedule(s->fiber, resume_val);
+                return JANET_ASYNC_STATUS_DONE;
+            }
+        }
+
+        /* fallthrough */
+        case JANET_ASYNC_EVENT_USER: {
+            int32_t chunk_size = state->bytes_left > JANET_EV_CHUNKSIZE ? JANET_EV_CHUNKSIZE : state->bytes_left;
+            s->tag = &state->overlapped;
+            memset(&(state->overlapped), 0, sizeof(OVERLAPPED));
+            int status;
+#ifdef JANET_NET
+            if (state->mode != JANET_ASYNC_READMODE_READ) {
+                state->wbuf.len = (ULONG) chunk_size;
+                state->wbuf.buf = state->chunk_buf;
+                if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
+                    status = WSARecvFrom((SOCKET) s->pollable->handle, &state->wbuf, 1, NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped, NULL);
+                } else
+                }
+            status = WSARecv((SOCKET) s->pollable->handle, &state->wbuf, 1, NULL, &state->flags, &state->overlapped, NULL);
+        }
+        if (status && (WSA_IO_PENDING != WSAGetLastError())) {
+            janet_cancel(s->fiber, janet_ev_lasterr());
+            return JANET_ASYNC_STATUS_DONE;
+        }
+    } else
+#endif
+    {
+        status = ReadFile(s->pollable->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped);
+        if (status && (ERROR_IO_PENDING != WSAGetLastError())) {
+            janet_cancel(s->fiber, janet_ev_lasterr());
+            return JANET_ASYNC_STATUS_DONE;
+        }
+    }
+}
+break;
+#else
+        case JANET_ASYNC_EVENT_READ:
+            /* Read in bytes */
+            {
+                JanetBuffer *buffer = state->buf;
+                int32_t bytes_left = state->bytes_left;
+                janet_buffer_extra(buffer, bytes_left);
+                ssize_t nread;
+#ifdef JANET_NET
+                char saddr[256];
+                socklen_t socklen = sizeof(saddr);
+#endif
+                do {
+#ifdef JANET_NET
+                    if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
+                        nread = recvfrom(s->pollable->handle, buffer->data + buffer->count, bytes_left, state->flags,
+                                         (struct sockaddr *)&saddr, &socklen);
+                    } else if (state->mode == JANET_ASYNC_READMODE_RECV) {
+                        nread = recv(s->pollable->handle, buffer->data + buffer->count, bytes_left, state->flags);
+                    } else
+#endif
+                    {
+                        nread = read(s->pollable->handle, buffer->data + buffer->count, bytes_left);
+                    }
+                } while (nread == -1 && errno == EINTR);
+
+                /* Check for errors - special case errors that can just be waited on to fix */
+                if (nread == -1) {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+                    janet_cancel(s->fiber, janet_ev_lasterr());
+                    return JANET_ASYNC_STATUS_DONE;
+                }
+
+                /* Only allow 0-length packets in recv-from. In stream protocols, a zero length packet is EOS. */
+                if (nread == 0 && (state->mode != JANET_ASYNC_READMODE_RECVFROM)) {
+                    janet_schedule(s->fiber, janet_wrap_nil());
+                    return JANET_ASYNC_STATUS_DONE;
+                }
+
+                /* Increment buffer counts */
+                if (nread > 0) {
+                    buffer->count += nread;
+                    bytes_left -= nread;
+                } else {
+                    bytes_left = 0;
+                }
+                state->bytes_left = bytes_left;
+
+                /* Resume if done */
+                if (!state->is_chunk || bytes_left == 0) {
+                    Janet resume_val;
+#ifdef JANET_NET
+                    if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
+                        void *abst = janet_abstract(&janet_address_type, socklen);
+                        memcpy(abst, &saddr, socklen);
+                        resume_val = janet_wrap_abstract(abst);
+                    } else
+#endif
+                    {
+                        resume_val = janet_wrap_buffer(buffer);
+                    }
+                    janet_schedule(s->fiber, resume_val);
+                    return JANET_ASYNC_STATUS_DONE;
+                }
+            }
+            break;
+#endif
+}
+return JANET_ASYNC_STATUS_NOT_DONE;
+}
+
+static void janet_ev_read_generic(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int is_chunked, JanetReadMode mode, int flags) {
+    StateRead *state = (StateRead *) janet_listen(stream, ev_machine_read,
+                       JANET_ASYNC_LISTEN_READ, sizeof(StateRead), NULL);
+    state->is_chunk = is_chunked;
+    state->buf = buf;
+    state->bytes_left = nbytes;
+    state->mode = mode;
+#ifdef JANET_WINDOWS
+    ev_machine_read((JanetListenerState *) state, JANET_ASYNC_EVENT_USER);
+    state->flags = (DWORD) flags;
+#else
+    state->flags = flags;
+#endif
+}
+
+void janet_ev_read(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes) {
+    janet_ev_read_generic(stream, buf, nbytes, 0, JANET_ASYNC_READMODE_READ, 0);
+}
+void janet_ev_readchunk(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes) {
+    janet_ev_read_generic(stream, buf, nbytes, 1, JANET_ASYNC_READMODE_READ, 0);
+}
+#ifdef JANET_NET
+void janet_ev_recv(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int flags) {
+    janet_ev_read_generic(stream, buf, nbytes, 0, JANET_ASYNC_READMODE_RECV, flags);
+}
+void janet_ev_recvchunk(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int flags) {
+    janet_ev_read_generic(stream, buf, nbytes, 1, JANET_ASYNC_READMODE_RECV, flags);
+}
+void janet_ev_recvfrom(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int flags) {
+    janet_ev_read_generic(stream, buf, nbytes, 0, JANET_ASYNC_READMODE_RECVFROM, flags);
+}
+#endif
+
+/*
+ * State machine for write/send/send-to
+ */
+
+typedef enum {
+    JANET_ASYNC_WRITEMODE_WRITE,
+    JANET_ASYNC_WRITEMODE_SEND,
+    JANET_ASYNC_WRITEMODE_SENDTO
+} JanetWriteMode;
+
+typedef struct {
+    JanetListenerState head;
+    union {
+        JanetBuffer *buf;
+        const uint8_t *str;
+    } src;
+    int is_buffer;
+    JanetWriteMode mode;
+    void *dest_abst;
+#ifdef JANET_WINDOWS
+    OVERLAPPED overlapped;
+#ifdef JANET_NET
+    WSABUF wbuf;
+    DWORD flags;
+#endif
+#else
+    int flags;
+    int32_t start;
+#endif
+} StateWrite;
+
+JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) {
+    StateWrite *state = (StateWrite *) s;
+    switch (event) {
+        default:
+            break;
+        case JANET_ASYNC_EVENT_MARK:
+            janet_mark(state->is_buffer
+                       ? janet_wrap_buffer(state->src.buf)
+                       : janet_wrap_string(state->src.str));
+            if (state->mode == JANET_ASYNC_WRITEMODE_SENDTO) {
+                janet_mark(janet_wrap_abstract(state->dest_abst));
+            }
+            break;
+        case JANET_ASYNC_EVENT_CLOSE:
+            janet_cancel(s->fiber, janet_cstringv("stream closed"));
+            return JANET_ASYNC_STATUS_DONE;
+#ifdef JANET_WINDOWS
+        case JANET_ASYNC_EVENT_COMPLETE: {
+            /* Called when write finished */
+            if (s->bytes == 0 && (state->mode != JANET_ASYNC_WRITEMODE_SENDTO)) {
+                janet_cancel(s->fiber, janet_cstringv("disconnect"));
+                return JANET_ASYNC_STATUS_DONE;
+            }
+
+            janet_schedule(s->fiber, janet_wrap_nil());
+            return JANET_ASYNC_STATUS_DONE;
+        }
+        break;
+        case JANET_ASYNC_EVENT_USER: {
+            /* Begin write */
+            int32_t start, len;
+            const uint8_t *bytes;
+            if (state->is_buffer) {
+                /* If buffer, convert to string. */
+                /* TODO - be more efficient about this */
+                JanetBuffer *buffer = state->src.buf;
+                JanetString str = janet_string(buffer->data, buffer->count);
+                bytes = str;
+                len = buffer->count;
+                state->is_buffer = 0;
+                state->src.str = str;
+            } else {
+                bytes = state->src.str;
+                len = janet_string_length(bytes);
+            }
+            s->tag = &state->overlapped;
+            memset(&(state->overlapped), 0, sizeof(WSAOVERLAPPED));
+
+            int status;
+#ifdef JANET_NET
+            if (state->mode != JANET_ASYNC_WRITEMODE_WRITE) {
+                SOCKET sock = (SOCKET) s->pollable->handle;
+                state->wbuf.buf = (char *) bytes;
+                state->wbuf.len = len;
+                if (state->mode == JANET_ASYNC_WRITEMODE_SENDTO) {
+                    const struct sockaddr *to = state->dest_abst;
+                    int tolen = (int) janet_abstract_size((void *) to);
+                    status = WSASendTo(sock, &state->wbuf, 1, NULL, state->flags, to, tolen, &state->overlapped, NULL);
+                } else {
+                    status = WSASend(sock, &state->wbuf, 1, NULL, state->flags, &state->overlapped, NULL);
+                }
+                if (status && (WSA_IO_PENDING != WSAGetLastError())) {
+                    janet_cancel(s->fiber, janet_cstringv("failed to write to stream"));
+                    return JANET_ASYNC_STATUS_DONE;
+                }
+            } else
+#endif
+            {
+                status = WriteFile(s->pollable->handle, bytes, len, NULL, &state->overlapped);
+                if (status && (ERROR_IO_PENDING != WSAGetLastError())) {
+                    janet_cancel(s->fiber, janet_cstringv("failed to write to stream"));
+                    return JANET_ASYNC_STATUS_DONE;
+                }
+            }
+        }
+        break;
+#else
+        case JANET_ASYNC_EVENT_WRITE: {
+            int32_t start, len;
+            const uint8_t *bytes;
+            start = state->start;
+            if (state->is_buffer) {
+                JanetBuffer *buffer = state->src.buf;
+                bytes = buffer->data;
+                len = buffer->count;
+            } else {
+                bytes = state->src.str;
+                len = janet_string_length(bytes);
+            }
+            ssize_t nwrote = 0;
+            if (start < len) {
+                int32_t nbytes = len - start;
+                void *dest_abst = state->dest_abst;
+                do {
+#ifdef JANET_NET
+                    if (state->mode == JANET_ASYNC_WRITEMODE_SENDTO) {
+                        nwrote = sendto(s->pollable->handle, bytes + start, nbytes, state->flags,
+                                        (struct sockaddr *) dest_abst, janet_abstract_size(dest_abst));
+                    } else if (state->mode == JANET_ASYNC_WRITEMODE_SEND) {
+                        nwrote = send(s->pollable->handle, bytes + start, nbytes, state->flags);
+                    } else
+#endif
+                    {
+                        nwrote = write(s->pollable->handle, bytes + start, nbytes);
+                    }
+                } while (nwrote == -1 && errno == EINTR);
+
+                /* Handle write errors */
+                if (nwrote == -1) {
+                    if (errno == EAGAIN || errno  == EWOULDBLOCK) break;
+                    janet_cancel(s->fiber, janet_ev_lasterr());
+                    return JANET_ASYNC_STATUS_DONE;
+                }
+
+                /* Unless using datagrams, empty message is a disconnect */
+                if (nwrote == 0 && !dest_abst) {
+                    janet_cancel(s->fiber, janet_cstringv("disconnect"));
+                    return JANET_ASYNC_STATUS_DONE;
+                }
+
+                if (nwrote > 0) {
+                    start += nwrote;
+                } else {
+                    start = len;
+                }
+            }
+            state->start = start;
+            if (start >= len) {
+                janet_schedule(s->fiber, janet_wrap_nil());
+                return JANET_ASYNC_STATUS_DONE;
+            }
+            break;
+        }
+        break;
+#endif
+    }
+    return JANET_ASYNC_STATUS_NOT_DONE;
+}
+
+static void janet_ev_write_generic(JanetPollable *stream, void *buf, void *dest_abst, JanetWriteMode mode, int is_buffer, int flags) {
+    StateWrite *state = (StateWrite *) janet_listen(stream, ev_machine_write,
+                        JANET_ASYNC_LISTEN_WRITE, sizeof(StateWrite), NULL);
+    state->is_buffer = is_buffer;
+    state->src.buf = buf;
+    state->dest_abst = dest_abst;
+    state->mode = mode;
+#ifdef JANET_WINDOWS
+    state->flags = (DWORD) flags;
+    net_machine_write((JanetListenerState *) state, JANET_ASYNC_EVENT_USER);
+#else
+    state->start = 0;
+    state->flags = flags;
+#endif
+}
+
+
+void janet_ev_write_buffer(JanetPollable *stream, JanetBuffer *buf) {
+    janet_ev_write_generic(stream, buf, NULL, JANET_ASYNC_WRITEMODE_WRITE, 1, 0);
+}
+
+void janet_ev_write_string(JanetPollable *stream, JanetString str) {
+    janet_ev_write_generic(stream, (void *) str, NULL, JANET_ASYNC_WRITEMODE_WRITE, 0, 0);
+}
+
+#ifdef JANET_NET
+void janet_ev_send_buffer(JanetPollable *stream, JanetBuffer *buf, int flags) {
+    janet_ev_write_generic(stream, buf, NULL, JANET_ASYNC_WRITEMODE_SEND, 1, flags);
+}
+
+void janet_ev_send_string(JanetPollable *stream, JanetString str, int flags) {
+    janet_ev_write_generic(stream, (void *) str, NULL, JANET_ASYNC_WRITEMODE_SEND, 0, flags);
+}
+
+void janet_ev_sendto_buffer(JanetPollable *stream, JanetBuffer *buf, void *dest, int flags) {
+    janet_ev_write_generic(stream, buf, dest, JANET_ASYNC_WRITEMODE_SENDTO, 1, flags);
+}
+
+void janet_ev_sendto_string(JanetPollable *stream, JanetString str, void *dest, int flags) {
+    janet_ev_write_generic(stream, (void *) str, dest, JANET_ASYNC_WRITEMODE_SENDTO, 0, flags);
+}
 #endif
 
 /* C functions */
