@@ -33,15 +33,8 @@
     (:write stream b)
     (buffer/clear b)))
 
-(def s (net/server "127.0.0.1" "8000"))
+(def s (net/server "127.0.0.1" "8000" handler))
 (assert s "made server 1")
-
-(ev/go
-  (coro
-    (while (not (net/closed? s))
-      (def conn (net/accept s))
-      (unless conn (break))
-      (ev/call handler conn))))
 
 (defn test-echo [msg]
   (with [conn (net/connect "127.0.0.1" "8000")]
@@ -54,5 +47,20 @@
 (test-echo (string/repeat "abcd" 200))
 
 (:close s)
+
+# Create pipe
+
+(var pipe-counter 0)
+(def [reader writer] (ev/pipe))
+(ev/spawn
+  (while (ev/read reader 3)
+    (++ pipe-counter))
+  (assert (= 20 pipe-counter) "ev/pipe 1"))
+
+(for i 0 10
+  (ev/write writer "xxx---"))
+
+(ev/close writer)
+(ev/sleep 0.1)
 
 (end-suite)

@@ -500,15 +500,20 @@ typedef void *JanetAbstract;
 /* Event Loop Types */
 #ifdef JANET_EV
 
-#define JANET_POLL_FLAG_CLOSED 0x1
-#define JANET_POLL_FLAG_SOCKET 0x2
-#define JANET_POLL_FLAG_IOCP 0x4
+#define JANET_STREAM_CLOSED 0x1
+#define JANET_STREAM_SOCKET 0x2
+#define JANET_STREAM_READABLE 0x200
+#define JANET_STREAM_WRITABLE 0x400
+#define JANET_STREAM_ACCEPTABLE 0x800
+#define JANET_STREAM_UDPSERVER 0x1000
 
 typedef enum {
     JANET_ASYNC_EVENT_INIT,
     JANET_ASYNC_EVENT_MARK,
     JANET_ASYNC_EVENT_DEINIT,
     JANET_ASYNC_EVENT_CLOSE,
+    JANET_ASYNC_EVENT_ERR,
+    JANET_ASYNC_EVENT_HUP,
     JANET_ASYNC_EVENT_READ,
     JANET_ASYNC_EVENT_WRITE,
     JANET_ASYNC_EVENT_TIMEOUT,
@@ -518,7 +523,6 @@ typedef enum {
 
 #define JANET_ASYNC_LISTEN_READ (1 << JANET_ASYNC_EVENT_READ)
 #define JANET_ASYNC_LISTEN_WRITE (1 << JANET_ASYNC_EVENT_WRITE)
-#define JANET_ASYNC_LISTEN_SPAWNER 0x1000
 
 typedef enum {
     JANET_ASYNC_STATUS_NOT_DONE,
@@ -527,18 +531,19 @@ typedef enum {
 
 /* Typedefs */
 typedef struct JanetListenerState JanetListenerState;
-typedef struct JanetPollable JanetPollable;
+typedef struct JanetStream JanetStream;
 typedef JanetAsyncStatus(*JanetListener)(JanetListenerState *state, JanetAsyncEvent event);
 
 /* Wrapper around file descriptors and HANDLEs that can be polled. */
-struct JanetPollable {
+struct JanetStream {
     JanetHandle handle;
     uint32_t flags;
-    /* Linked list of all in-flight IO routines for this pollable */
+    /* Linked list of all in-flight IO routines for this stream */
     JanetListenerState *state;
-    /* internal - used to disallow multiple concurrent reads / writes on the same pollable.
+    const void *methods; /* Methods for this stream */
+    /* internal - used to disallow multiple concurrent reads / writes on the same stream.
      * this constraint may be lifted later but allowing such would require more internal book keeping
-     * for some implementations. You can read and write at the same time on the same pollable, though. */
+     * for some implementations. You can read and write at the same time on the same stream, though. */
     int _mask;
 };
 
@@ -546,7 +551,7 @@ struct JanetPollable {
 struct JanetListenerState {
     JanetListener machine;
     JanetFiber *fiber;
-    JanetPollable *pollable;
+    JanetStream *stream;
     void *event; /* Used to pass data from asynchronous IO event. Contents depend on both
                     implementation of the event loop and the particular event. */
 #ifdef JANET_WINDOWS
@@ -1249,21 +1254,27 @@ extern enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
 
 #ifdef JANET_EV
 
+extern JANET_API const JanetAbstractType janet_stream_type;
+
 /* Run the event loop */
 JANET_API void janet_loop(void);
 
-/* Wrapper around pollables */
-JANET_API void janet_pollable_init(JanetPollable *pollable, JanetHandle handle);
-JANET_API void janet_pollable_mark(JanetPollable *pollable);
-JANET_API void janet_pollable_deinit(JanetPollable *pollable);
+/* Wrapper around streams */
+JANET_API JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod *methods);
+JANET_API void janet_stream_close(JanetStream *stream);
+JANET_API Janet janet_cfun_stream_close(int32_t argc, Janet *argv);
+JANET_API Janet janet_cfun_stream_read(int32_t argc, Janet *argv);
+JANET_API Janet janet_cfun_stream_chunk(int32_t argc, Janet *argv);
+JANET_API Janet janet_cfun_stream_write(int32_t argc, Janet *argv);
+JANET_API void janet_stream_flags(JanetStream *stream, uint32_t flags);
 
 /* Queue a fiber to run on the event loop */
 JANET_API void janet_schedule(JanetFiber *fiber, Janet value);
 JANET_API void janet_cancel(JanetFiber *fiber, Janet value);
 JANET_API void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig);
 
-/* Start a state machine listening for events from a pollable */
-JANET_API JanetListenerState *janet_listen(JanetPollable *pollable, JanetListener behavior, int mask, size_t size, void *user);
+/* Start a state machine listening for events from a stream */
+JANET_API JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user);
 
 /* Shorthand for yielding to event loop in C */
 JANET_NO_RETURN JANET_API void janet_await(void);
@@ -1275,23 +1286,23 @@ JANET_API void janet_addtimeout(double sec);
 /* Get last error from a an IO operation */
 JANET_API Janet janet_ev_lasterr(void);
 
-/* Read async from a pollable */
-JANET_API void janet_ev_read(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes);
-JANET_API void janet_ev_readchunk(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes);
+/* Read async from a stream */
+JANET_API void janet_ev_read(JanetStream *stream, JanetBuffer *buf, int32_t nbytes);
+JANET_API void janet_ev_readchunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes);
 #ifdef JANET_NET
-JANET_API void janet_ev_recv(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int flags);
-JANET_API void janet_ev_recvchunk(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int flags);
-JANET_API void janet_ev_recvfrom(JanetPollable *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_API void janet_ev_recv(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_API void janet_ev_recvchunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_API void janet_ev_recvfrom(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
 #endif
 
-/* Write async to a pollable */
-JANET_API void janet_ev_write_buffer(JanetPollable *stream, JanetBuffer *buf);
-JANET_API void janet_ev_write_string(JanetPollable *stream, JanetString str);
+/* Write async to a stream */
+JANET_API void janet_ev_write_buffer(JanetStream *stream, JanetBuffer *buf);
+JANET_API void janet_ev_write_string(JanetStream *stream, JanetString str);
 #ifdef JANET_NET
-JANET_API void janet_ev_send_buffer(JanetPollable *stream, JanetBuffer *buf, int flags);
-JANET_API void janet_ev_send_string(JanetPollable *stream, JanetString str, int flags);
-JANET_API void janet_ev_sendto_buffer(JanetPollable *stream, JanetBuffer *buf, void *dest, int flags);
-JANET_API void janet_ev_sendto_string(JanetPollable *stream, JanetString str, void *dest, int flags);
+JANET_API void janet_ev_send_buffer(JanetStream *stream, JanetBuffer *buf, int flags);
+JANET_API void janet_ev_send_string(JanetStream *stream, JanetString str, int flags);
+JANET_API void janet_ev_sendto_buffer(JanetStream *stream, JanetBuffer *buf, void *dest, int flags);
+JANET_API void janet_ev_sendto_string(JanetStream *stream, JanetString str, void *dest, int flags);
 #endif
 
 #endif
@@ -1603,6 +1614,9 @@ JANET_API void janet_register(const char *name, JanetCFunction cfun);
 JANET_API Janet janet_resolve_core(const char *name);
 
 /* New C API */
+
+/* Shorthand for janet C function declarations */
+#define JANET_CFUN(name) Janet name (int32_t argc, Janet *argv)
 
 /* Allow setting entry name for static libraries */
 #ifdef __cplusplus

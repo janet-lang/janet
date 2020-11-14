@@ -2748,6 +2748,9 @@
       (ev/call (fn [] (net/accept-loop s handler))))
     s))
 
+(guarddef ev/close
+  (defn net/close "Alias for ev/close." [stream] (ev/close stream)))
+
 (undef guarddef)
 
 ###
@@ -2757,7 +2760,7 @@
 ###
 
 (defn- no-side-effects
-  "Check if form may have side effects. If returns true, then the src
+  "Check if form may have side effects. If rturns true, then the src
   must not have side effects, such as calling a C function."
   [src]
   (cond

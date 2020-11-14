@@ -50,28 +50,6 @@
 #include <fcntl.h>
 #endif
 
-/*
- * Streams - simple abstract type that wraps a pollable + extra flags
- */
-
-#define JANET_STREAM_READABLE 0x200
-#define JANET_STREAM_WRITABLE 0x400
-#define JANET_STREAM_ACCEPTABLE 0x800
-#define JANET_STREAM_UDPSERVER 0x1000
-
-static int janet_stream_close(void *p, size_t s);
-static int janet_stream_mark(void *p, size_t s);
-static int janet_stream_getter(void *p, Janet key, Janet *out);
-static const JanetAbstractType StreamAT = {
-    "core/stream",
-    janet_stream_close,
-    janet_stream_mark,
-    janet_stream_getter,
-    JANET_ATEND_GET
-};
-
-typedef JanetPollable JanetStream;
-
 const JanetAbstractType janet_address_type = {
     "core/socket-address",
     JANET_ATEND_NAME
@@ -82,14 +60,6 @@ const JanetAbstractType janet_address_type = {
 #define JSOCKVALID(x) ((x) != INVALID_SOCKET)
 #define JSock SOCKET
 #define JSOCKFLAGS 0
-static JanetStream *make_stream(SOCKET fd, uint32_t flags) {
-    u_long iMode = 0;
-    JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
-    janet_pollable_init(stream, (JanetHandle) fd);
-    ioctlsocket(fd, FIONBIO, &iMode);
-    stream->flags = flags;
-    return stream;
-}
 #else
 #define JSOCKCLOSE(x) close(x)
 #define JSOCKDEFAULT 0
@@ -100,34 +70,14 @@ static JanetStream *make_stream(SOCKET fd, uint32_t flags) {
 #else
 #define JSOCKFLAGS 0
 #endif
-static JanetStream *make_stream(int fd, uint32_t flags) {
-    JanetStream *stream = janet_abstract(&StreamAT, sizeof(JanetStream));
-    janet_pollable_init(stream, fd);
-#if !defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
-    int extra = O_CLOEXEC;
-#else
-    int extra = 0;
 #endif
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK | extra);
-    stream->flags = flags;
-    return stream;
-}
-#endif
+
+static JanetStream *make_stream(JanetHandle handle, uint32_t flags);
 
 /* We pass this flag to all send calls to prevent sigpipe */
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
 #endif
-
-static int janet_stream_close(void *p, size_t s) {
-    (void) s;
-    JanetStream *stream = p;
-    if (!(stream->flags & JANET_POLL_FLAG_CLOSED)) {
-        JSOCKCLOSE(stream->handle);
-        janet_pollable_deinit(stream);
-    }
-    return 0;
-}
 
 static void nosigpipe(JSock s) {
 #ifdef SO_NOSIGPIPE
@@ -139,12 +89,6 @@ static void nosigpipe(JSock s) {
 #else
     (void) s;
 #endif
-}
-
-static int janet_stream_mark(void *p, size_t s) {
-    (void) s;
-    janet_pollable_mark((JanetPollable *) p);
-    return 0;
 }
 
 /* State machine for accepting connections. */
@@ -263,7 +207,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
             janet_schedule(s->fiber, janet_wrap_nil());
             return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_READ: {
-            JSock connfd = accept(s->pollable->handle, NULL, NULL);
+            JSock connfd = accept(s->stream->handle, NULL, NULL);
             if (JSOCKVALID(connfd)) {
                 nosigpipe(connfd);
                 JanetStream *stream = make_stream(connfd, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
@@ -543,29 +487,30 @@ static Janet cfun_net_listen(int32_t argc, Janet *argv) {
     }
 }
 
-static void check_stream_flag(JanetStream *stream, int flag) {
-    if (!(stream->flags & flag) || (stream->flags & JANET_POLL_FLAG_CLOSED)) {
-        const char *msg = "";
-        if (flag == JANET_STREAM_READABLE) msg = "readable";
-        if (flag == JANET_STREAM_WRITABLE) msg = "writable";
-        if (flag == JANET_STREAM_ACCEPTABLE) msg = "server";
-        if (flag == JANET_STREAM_UDPSERVER) msg = "datagram server";
-        janet_panicf("bad stream, expected %s stream", msg);
+void janet_stream_flags(JanetStream *stream, uint32_t flags) {
+    if ((stream->flags & flags) != flags || (stream->flags & JANET_STREAM_CLOSED)) {
+        const char *rmsg = "", *wmsg = "", *amsg = "", *dmsg = "", *smsg = "stream";
+        if (flags & JANET_STREAM_READABLE) rmsg = "readable ";
+        if (flags & JANET_STREAM_WRITABLE) wmsg = "writable ";
+        if (flags & JANET_STREAM_ACCEPTABLE) amsg = "server ";
+        if (flags & JANET_STREAM_UDPSERVER) dmsg = "datagram ";
+        if (flags & JANET_STREAM_SOCKET) smsg = "socket";
+        janet_panicf("bad stream, expected %s%s%s%s%s", rmsg, wmsg, amsg, dmsg, smsg);
     }
 }
 
 static Janet cfun_stream_accept_loop(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    check_stream_flag(stream, JANET_STREAM_ACCEPTABLE);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_ACCEPTABLE | JANET_STREAM_SOCKET);
     JanetFunction *fun = janet_getfunction(argv, 1);
     janet_sched_accept(stream, fun);
 }
 
 static Janet cfun_stream_accept(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    check_stream_flag(stream, JANET_STREAM_ACCEPTABLE);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_ACCEPTABLE | JANET_STREAM_SOCKET);
     double to = janet_optnumber(argv, argc, 1, INFINITY);
     if (to != INFINITY) janet_addtimeout(to);
     janet_sched_accept(stream, NULL);
@@ -573,8 +518,8 @@ static Janet cfun_stream_accept(int32_t argc, Janet *argv) {
 
 static Janet cfun_stream_read(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 4);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    check_stream_flag(stream, JANET_STREAM_READABLE);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_READABLE | JANET_STREAM_SOCKET);
     int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, 10);
     double to = janet_optnumber(argv, argc, 3, INFINITY);
@@ -585,8 +530,8 @@ static Janet cfun_stream_read(int32_t argc, Janet *argv) {
 
 static Janet cfun_stream_chunk(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 4);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    check_stream_flag(stream, JANET_STREAM_READABLE);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_READABLE | JANET_STREAM_SOCKET);
     int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, 10);
     double to = janet_optnumber(argv, argc, 3, INFINITY);
@@ -597,8 +542,8 @@ static Janet cfun_stream_chunk(int32_t argc, Janet *argv) {
 
 static Janet cfun_stream_recv_from(int32_t argc, Janet *argv) {
     janet_arity(argc, 3, 4);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    check_stream_flag(stream, JANET_STREAM_UDPSERVER);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_UDPSERVER | JANET_STREAM_SOCKET);
     int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_getbuffer(argv, 2);
     double to = janet_optnumber(argv, argc, 3, INFINITY);
@@ -607,23 +552,10 @@ static Janet cfun_stream_recv_from(int32_t argc, Janet *argv) {
     janet_await();
 }
 
-static Janet cfun_stream_close(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    janet_stream_close(stream, 0);
-    return janet_wrap_nil();
-}
-
-static Janet cfun_stream_closed(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    return janet_wrap_boolean(stream->flags & JANET_POLL_FLAG_CLOSED);
-}
-
 static Janet cfun_stream_write(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    check_stream_flag(stream, JANET_STREAM_WRITABLE);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_WRITABLE | JANET_STREAM_SOCKET);
     double to = janet_optnumber(argv, argc, 2, INFINITY);
     if (janet_checktype(argv[1], JANET_BUFFER)) {
         if (to != INFINITY) janet_addtimeout(to);
@@ -638,8 +570,8 @@ static Janet cfun_stream_write(int32_t argc, Janet *argv) {
 
 static Janet cfun_stream_send_to(int32_t argc, Janet *argv) {
     janet_arity(argc, 3, 4);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    check_stream_flag(stream, JANET_STREAM_UDPSERVER);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_UDPSERVER | JANET_STREAM_SOCKET);
     void *dest = janet_getabstract(argv, 1, &janet_address_type);
     double to = janet_optnumber(argv, argc, 3, INFINITY);
     if (janet_checktype(argv[2], JANET_BUFFER)) {
@@ -655,8 +587,8 @@ static Janet cfun_stream_send_to(int32_t argc, Janet *argv) {
 
 static Janet cfun_stream_flush(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
-    JanetStream *stream = janet_getabstract(argv, 0, &StreamAT);
-    check_stream_flag(stream, JANET_STREAM_WRITABLE);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_WRITABLE | JANET_STREAM_SOCKET);
     /* Toggle no delay flag */
     int flag = 1;
     setsockopt((JSock) stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
@@ -665,10 +597,9 @@ static Janet cfun_stream_flush(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static const JanetMethod stream_methods[] = {
+static const JanetMethod net_stream_methods[] = {
     {"chunk", cfun_stream_chunk},
-    {"close", cfun_stream_close},
-    {"closed?", cfun_stream_closed},
+    {"close", janet_cfun_stream_close},
     {"read", cfun_stream_read},
     {"write", cfun_stream_write},
     {"flush", cfun_stream_flush},
@@ -676,13 +607,15 @@ static const JanetMethod stream_methods[] = {
     {"accept-loop", cfun_stream_accept_loop},
     {"send-to", cfun_stream_send_to},
     {"recv-from", cfun_stream_recv_from},
+    {"recv-from", cfun_stream_recv_from},
+    {"evread", janet_cfun_stream_read},
+    {"evchunk", janet_cfun_stream_chunk},
+    {"evwrite", janet_cfun_stream_write},
     {NULL, NULL}
 };
 
-static int janet_stream_getter(void *p, Janet key, Janet *out) {
-    (void) p;
-    if (!janet_checktype(key, JANET_KEYWORD)) return 0;
-    return janet_getmethod(janet_unwrap_keyword(key), stream_methods, out);
+static JanetStream *make_stream(JanetHandle handle, uint32_t flags) {
+    return janet_stream(handle, flags | JANET_STREAM_SOCKET, net_stream_methods);
 }
 
 static const JanetReg net_cfuns[] = {
@@ -756,16 +689,6 @@ static const JanetReg net_cfuns[] = {
         JDOC("(net/flush stream)\n\n"
              "Make sure that a stream is not buffering any data. This temporarily disables Nagle's algorithm. "
              "Use this to make sure data is sent without delay. Returns stream.")
-    },
-    {
-        "net/close", cfun_stream_close,
-        JDOC("(net/close stream)\n\n"
-             "Close a stream so that no further communication can occur.")
-    },
-    {
-        "net/closed?", cfun_stream_closed,
-        JDOC("(net/closed? stream)\n\n"
-             "Check if a stream is closed.")
     },
     {
         "net/connect", cfun_net_connect,
