@@ -288,7 +288,7 @@ JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod 
     if (flags & JANET_STREAM_SOCKET) {
 #ifdef JANET_WINDOWS
         u_long iMode = 0;
-        ioctlsocket(handle, FIONBIO, &iMode);
+        ioctlsocket((SOCKET) handle, FIONBIO, &iMode);
 #else
 #if !defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
         int extra = O_CLOEXEC;
@@ -785,7 +785,7 @@ void janet_ev_deinit(void) {
 JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user) {
     /* Add the handle to the io completion port if not already added */
     JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
-    if (!(stream->flags & JANET_POLL_FLAG_IOCP)) {
+    if (!(stream->flags & JANET_STREAM_IOCP)) {
         if (NULL == CreateIoCompletionPort(stream->handle, janet_vm_iocp, (ULONG_PTR) stream, 0)) {
             janet_panic("failed to listen for events");
         }
@@ -1239,27 +1239,26 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
                 state->wbuf.buf = state->chunk_buf;
                 if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
                     status = WSARecvFrom((SOCKET) s->stream->handle, &state->wbuf, 1,
-                                         NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped, NULL);
+                            NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped, NULL);
                 } else {
                     status = WSARecv((SOCKET) s->stream->handle, &state->wbuf, 1,
-                                     NULL, &state->flags, &state->overlapped, NULL);
+                            NULL, &state->flags, &state->overlapped, NULL);
+                }
+                if (status && (WSA_IO_PENDING != WSAGetLastError())) {
+                    janet_cancel(s->fiber, janet_ev_lasterr());
+                    return JANET_ASYNC_STATUS_DONE;
+                }
+            } else
+#endif
+            {
+                status = ReadFile(s->stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped);
+                if (status && (ERROR_IO_PENDING != WSAGetLastError())) {
+                    janet_cancel(s->fiber, janet_ev_lasterr());
+                    return JANET_ASYNC_STATUS_DONE;
                 }
             }
-            if (status && (WSA_IO_PENDING != WSAGetLastError())) {
-                janet_cancel(s->fiber, janet_ev_lasterr());
-                return JANET_ASYNC_STATUS_DONE;
-            }
-        } else
-#endif
-        {
-            status = ReadFile(s->stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped);
-            if (status && (ERROR_IO_PENDING != WSAGetLastError())) {
-                janet_cancel(s->fiber, janet_ev_lasterr());
-                return JANET_ASYNC_STATUS_DONE;
-            }
         }
-    }
-    break;
+        break;
 #else
         case JANET_ASYNC_EVENT_ERR:
         case JANET_ASYNC_EVENT_HUP: {
