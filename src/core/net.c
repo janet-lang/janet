@@ -57,6 +57,7 @@ const JanetAbstractType janet_address_type = {
 
 #ifdef JANET_WINDOWS
 #define JSOCKCLOSE(x) closesocket((SOCKET) x)
+#define JSOCKDEFAULT INVALID_SOCKET
 #define JSOCKVALID(x) ((x) != INVALID_SOCKET)
 #define JSock SOCKET
 #define JSOCKFLAGS 0
@@ -72,7 +73,7 @@ const JanetAbstractType janet_address_type = {
 #endif
 #endif
 
-static JanetStream *make_stream(JanetHandle handle, uint32_t flags);
+static JanetStream *make_stream(JSock handle, uint32_t flags);
 
 /* We pass this flag to all send calls to prevent sigpipe */
 #ifndef MSG_NOSIGNAL
@@ -172,7 +173,7 @@ static int net_sched_accept_impl(NetStateAccept *state, Janet *err) {
     SOCKET lsock = (SOCKET) state->lstream->handle;
     SOCKET asock = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
     if (asock == INVALID_SOCKET) {
-        *err = net_lasterr();
+        *err = ev_lasterr();
         return 1;
     }
     JanetStream *astream = make_stream(asock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
@@ -181,7 +182,7 @@ static int net_sched_accept_impl(NetStateAccept *state, Janet *err) {
     if (FALSE == AcceptEx(lsock, asock, state->buf, 0, socksize, socksize, NULL, &state->overlapped)) {
         int code = WSAGetLastError();
         if (code == WSA_IO_PENDING) return 0; /* indicates io is happening async */
-        *err = net_lasterr();
+        *err = ev_lasterr();
         return 1;
     }
     return 0;
@@ -614,8 +615,8 @@ static const JanetMethod net_stream_methods[] = {
     {NULL, NULL}
 };
 
-static JanetStream *make_stream(JanetHandle handle, uint32_t flags) {
-    return janet_stream(handle, flags | JANET_STREAM_SOCKET, net_stream_methods);
+static JanetStream *make_stream(JSock handle, uint32_t flags) {
+    return janet_stream((JanetHandle) handle, flags | JANET_STREAM_SOCKET, net_stream_methods);
 }
 
 static const JanetReg net_cfuns[] = {
