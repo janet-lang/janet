@@ -15,8 +15,8 @@
   (def truncated
     (if (> (length e) 40) (string (string/slice e 0 35) "...") (string e)))
   (if x
-    (xprintf stdout "\e[32m✔\e[0m %s: %v" truncated x)
-    (xprintf stdout "\n\e[31m✘\e[0m %s: %v" truncated x))
+    (eprintf "\e[32m✔\e[0m %s: %v" truncated x)
+    (eprintf "\n\e[31m✘\e[0m %s: %v" truncated x))
   x)
 
 (defmacro assert-error
@@ -32,10 +32,10 @@
 (defn start-suite [x]
   (set suite-num x)
   (set start-time (os/clock))
-  (print "\nRunning test suite " x " tests...\n  "))
+  (eprint "\nRunning test suite " x " tests...\n  "))
 
 (defn end-suite []
   (def delta (- (os/clock) start-time))
-  (printf "\n\nTest suite %d finished in %.3f seconds" suite-num delta)
-  (print num-tests-passed " of " num-tests-run " tests passed.\n")
+  (eprintf "\n\nTest suite %d finished in %.3f seconds" suite-num delta)
+  (eprint num-tests-passed " of " num-tests-run " tests passed.\n")
   (if (not= num-tests-passed num-tests-run) (os/exit 1)))
