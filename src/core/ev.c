@@ -1253,7 +1253,11 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             {
                 status = ReadFile(s->stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped);
                 if (!status && (ERROR_IO_PENDING != WSAGetLastError())) {
-                    janet_cancel(s->fiber, janet_ev_lasterr());
+                    if (WSAGetLastError() == ERROR_BROKEN_PIPE) {
+                        janet_schedule(s->fiber, janet_wrap_nil()); 
+                    } else {
+                        janet_cancel(s->fiber, janet_ev_lasterr());
+                    }
                     return JANET_ASYNC_STATUS_DONE;
                 }
             }
