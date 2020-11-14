@@ -173,7 +173,7 @@ static int net_sched_accept_impl(NetStateAccept *state, Janet *err) {
     SOCKET lsock = (SOCKET) state->lstream->handle;
     SOCKET asock = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
     if (asock == INVALID_SOCKET) {
-        *err = ev_lasterr();
+        *err = janet_ev_lasterr();
         return 1;
     }
     JanetStream *astream = make_stream(asock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
@@ -182,7 +182,7 @@ static int net_sched_accept_impl(NetStateAccept *state, Janet *err) {
     if (FALSE == AcceptEx(lsock, asock, state->buf, 0, socksize, socksize, NULL, &state->overlapped)) {
         int code = WSAGetLastError();
         if (code == WSA_IO_PENDING) return 0; /* indicates io is happening async */
-        *err = ev_lasterr();
+        *err = janet_ev_lasterr();
         return 1;
     }
     return 0;
