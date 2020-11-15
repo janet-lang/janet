@@ -32,10 +32,10 @@
 #ifdef JANET_EV
 
 /* Includes */
+#include <math.h>
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
-#include <math.h>
 #else
 #include <limits.h>
 #include <errno.h>
