@@ -51,16 +51,18 @@
 # Create pipe
 
 (var pipe-counter 0)
-(def [reader writer] (os/pipe))
-(ev/spawn
-  (while (ev/read reader 3)
-    (++ pipe-counter))
-  (assert (= 20 pipe-counter) "ev/pipe 1"))
+(def chan (ev/chan 10))
+(let [[reader writer] (os/pipe)]
+  (ev/spawn
+    (while (ev/read reader 3)
+      (++ pipe-counter))
+    (assert (= 20 pipe-counter) "ev/pipe 1")
+    (ev/give chan 1))
 
-(for i 0 10
-  (ev/write writer "xxx---"))
+  (for i 0 10
+    (ev/write writer "xxx---"))
 
-(ev/close writer)
-(ev/sleep 0.1)
+  (ev/close writer)
+  (ev/take chan))
 
 (end-suite)
