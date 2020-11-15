@@ -1125,6 +1125,20 @@ void janet_ev_deinit(void) {
  * There is some networking code in here as well as generic
  * reading and writing primitives. */
 
+void janet_stream_flags(JanetStream *stream, uint32_t flags) {
+    if (stream->flags & JANET_STREAM_CLOSED) {
+        janet_panic("stream is closed");
+    }
+    if ((stream->flags & flags) != flags) {
+        const char *rmsg = "", *wmsg = "", *amsg = "", *dmsg = "", *smsg = "stream";
+        if (flags & JANET_STREAM_READABLE) rmsg = "readable ";
+        if (flags & JANET_STREAM_WRITABLE) wmsg = "writable ";
+        if (flags & JANET_STREAM_ACCEPTABLE) amsg = "server ";
+        if (flags & JANET_STREAM_UDPSERVER) dmsg = "datagram ";
+        if (flags & JANET_STREAM_SOCKET) smsg = "socket";
+        janet_panicf("bad stream, expected %s%s%s%s%s", rmsg, wmsg, amsg, dmsg, smsg);
+    }
+}
 
 /* When there is an IO error, we need to be able to convert it to a Janet
  * string to raise a Janet error. */

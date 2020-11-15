@@ -1661,12 +1661,6 @@ static Janet os_open(int32_t argc, Janet *argv) {
             case 'x':
                 open_flags |= O_SYNC;
                 break;
-            case 'y':
-                open_flags |= O_DSYNC;
-                break;
-            case 'z':
-                open_flags |= O_RSYNC;
-                break;
             case 'C':
                 open_flags |= O_NOCTTY;
                 break;
@@ -2023,9 +2017,7 @@ static const JanetReg os_cfuns[] = {
              "\t:t - shorten an existing file to length 0 (O_TRUNC)\n\n"
              "Posix only flags:\n"
              "\t:a - append to a file (O_APPEND)\n"
-             "\t:x - O_DSYNC\n"
-             "\t:y - O_SYNC\n"
-             "\t:z - O_RSYNC\n"
+             "\t:x - O_SYNC\n"
              "\t:C - O_NOCTTY\n\n"
              "Windows only flags:\n"
              "\t:R - share reads (FILE_SHARE_READ)\n"

@@ -488,18 +488,6 @@ static Janet cfun_net_listen(int32_t argc, Janet *argv) {
     }
 }
 
-void janet_stream_flags(JanetStream *stream, uint32_t flags) {
-    if ((stream->flags & flags) != flags || (stream->flags & JANET_STREAM_CLOSED)) {
-        const char *rmsg = "", *wmsg = "", *amsg = "", *dmsg = "", *smsg = "stream";
-        if (flags & JANET_STREAM_READABLE) rmsg = "readable ";
-        if (flags & JANET_STREAM_WRITABLE) wmsg = "writable ";
-        if (flags & JANET_STREAM_ACCEPTABLE) amsg = "server ";
-        if (flags & JANET_STREAM_UDPSERVER) dmsg = "datagram ";
-        if (flags & JANET_STREAM_SOCKET) smsg = "socket";
-        janet_panicf("bad stream, expected %s%s%s%s%s", rmsg, wmsg, amsg, dmsg, smsg);
-    }
-}
-
 static Janet cfun_stream_accept_loop(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
