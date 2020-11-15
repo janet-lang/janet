@@ -1875,6 +1875,7 @@ extern JANET_API const JanetAbstractType janet_thread_type;
 
 JANET_API int janet_thread_receive(Janet *msg_out, double timeout);
 JANET_API int janet_thread_send(JanetThread *thread, Janet msg, double timeout);
+JANET_API JanetThread *janet_thread_current(void);
 
 #endif
 
