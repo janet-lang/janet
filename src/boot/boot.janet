@@ -2047,7 +2047,7 @@
   "Default handler for a parse error."
   [p where]
   (def ec (dyn :err-color))
-  (def [line col] (parser/where p))
+  (def [line col] (:where p))
   (eprint
     (if ec "\e[31m" "")
     "parse error in "
@@ -2057,7 +2057,7 @@
     ", column "
     (string col)
     ": "
-    (parser/error p)
+    (:error p)
     (if ec "\e[0m" ""))
   (eflush))
 
@@ -2097,7 +2097,9 @@
   :evaluator - callback that executes thunks. Signature is (evaluator thunk source env where)\n\t
   :on-status - callback when a value is evaluated - default is debug/stacktrace\n\t
   :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia.\n\t
-  :expander - an optional function that is called on each top level form before being compiled."
+  :expander - an optional function that is called on each top level form before being compiled.\n\t
+  :parser - provide a custom parser that implements the same interface as Janet's built in parser.\n\t
+  :read - optional function to get the next form, called like (read env source). Overrides all parsing."
   [opts]
 
   (def {:env env
@@ -2108,6 +2110,8 @@
         :fiber-flags guard
         :evaluator evaluator
         :source where
+        :parser parser
+        :read read
         :expander expand} opts)
   (default env (fiber/getenv (fiber/current)))
   (default chunks (fn [buf p] (getline "" buf env)))
@@ -2120,9 +2124,6 @@
 
   # Are we done yet?
   (var going true)
-
-  # The parser object
-  (def p (parser/new))
 
   # Evaluate 1 source form in a protected manner
   (defn eval1 [source]
@@ -2149,6 +2150,20 @@
       (def res (resume f resumeval))
       (when good (when going (set resumeval (onstatus f res))))))
 
+  # Reader version
+  (when read
+    (forever
+      (if (in env :exit) (break))
+      (eval1 (read env where)))
+    (break (in env :exit-value env)))
+
+  # The parser object
+  (def p (or parser (parser/new)))
+  (def p-consume (p :consume))
+  (def p-produce (p :produce))
+  (def p-status (p :status))
+  (def p-has-more (p :has-more))
+
   (defn parse-err
     "Handle parser error in the correct environment"
     [p where]
@@ -2165,26 +2180,26 @@
            :cancel)
       (do
         # A :cancel chunk represents a cancelled form in the REPL, so reset.
-        (parser/flush p)
+        (:flush p)
         (buffer/clear buf))
       (do
         (var pindex 0)
         (var pstatus nil)
         (def len (length buf))
         (when (= len 0)
-          (parser/eof p)
+          (:eof p)
           (set going false))
         (while (> len pindex)
-          (+= pindex (parser/consume p buf pindex))
-          (while (parser/has-more p)
-            (eval1 (parser/produce p)))
-          (when (= (parser/status p) :error)
+          (+= pindex (p-consume p buf pindex))
+          (while (p-has-more p)
+            (eval1 (p-produce p)))
+          (when (= (p-status p) :error)
             (parse-err p where))))))
 
   # Check final parser state
-  (while (parser/has-more p)
-    (eval1 (parser/produce p)))
-  (when (= (parser/status p) :error)
+  (while (p-has-more p)
+    (eval1 (p-produce p)))
+  (when (= (p-status p) :error)
     (parse-err p where))
 
   (in env :exit-value env))
@@ -2384,7 +2399,9 @@
     :env env
     :source src
     :expander expander
-    :evaluator evaluator}]
+    :evaluator evaluator
+    :read read
+    :parser parser}]
   (def f (if (= (type path) :core/file)
            path
            (file/open path :rb)))
@@ -2415,6 +2432,8 @@
                                  (if exit (os/exit 1) (eflush))))
                   :evaluator evaluator
                   :expander expander
+                  :read read
+                  :parser parser
                   :source (or src (if path-is-file "<anonymous>" spath))}))
   (if-not path-is-file (file/close f))
   nenv)
@@ -2671,8 +2690,9 @@
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
   caught. One can provide an optional environment table to run
-  the repl in."
-  [&opt chunks onsignal env]
+  the repl in, as well as an optional parser or read function to pass 
+  to run-context."
+  [&opt chunks onsignal env parser read]
   (default env (make-env))
   (default chunks
     (fn [buf p]
@@ -2720,6 +2740,8 @@
   (run-context {:env env
                 :chunks chunks
                 :on-status (or onsignal (make-onsignal env 1))
+                :parser parser
+                :read read
                 :source "repl"}))
 
 ###
