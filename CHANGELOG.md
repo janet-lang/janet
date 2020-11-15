@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- `os/execute` and `os/spawn` can take streams for redirecting IO.
+- Add `;parser` and `:read` parameters to `run-context`.
 - Add `os/open` if ev is enabled.
 - Add `os/pipe` if ev is enabled.
 - Add `janet_thread_current(void)` to C API

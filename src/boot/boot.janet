@@ -2690,7 +2690,7 @@
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
   caught. One can provide an optional environment table to run
-  the repl in, as well as an optional parser or read function to pass 
+  the repl in, as well as an optional parser or read function to pass
   to run-context."
   [&opt chunks onsignal env parser read]
   (default env (make-env))
