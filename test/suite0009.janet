@@ -51,7 +51,7 @@
 # Create pipe
 
 (var pipe-counter 0)
-(def [reader writer] (ev/pipe))
+(def [reader writer] (os/pipe))
 (ev/spawn
   (while (ev/read reader 3)
     (++ pipe-counter))
