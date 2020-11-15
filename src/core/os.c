@@ -328,9 +328,15 @@ typedef struct {
     int pid;
 #endif
     int return_code;
+#ifdef JANET_EV
+    JanetStream *in;
+    JanetStream *out;
+    JanetStream *err;
+#else
     JanetFile *in;
     JanetFile *out;
     JanetFile *err;
+#endif
 } JanetProc;
 
 static int janet_proc_gc(void *p, size_t s) {
@@ -434,48 +440,28 @@ static void close_handle(JanetHandle handle) {
    up by the calling function. If everything goes well, *handle is owned by the calling function,
    (if it is set) and the returned JanetFile owns the other end of the pipe, which will be closed
    on GC or fclose. */
-static JanetFile *make_pipes(JanetHandle *handle, int reverse, int *errflag) {
+static JanetHandle make_pipes(JanetHandle *handle, int reverse, int *errflag) {
     JanetHandle handles[2];
 #ifdef JANET_WINDOWS
     SECURITY_ATTRIBUTES saAttr;
     memset(&saAttr, 0, sizeof(saAttr));
     saAttr.nLength = sizeof(saAttr);
     saAttr.bInheritHandle = TRUE;
-    if (!CreatePipe(handles, handles + 1, &saAttr, 0)) goto error_pipe;
+    if (!CreatePipe(handles, handles + 1, &saAttr, 0)) goto error;
     if (reverse) swap_handles(handles);
     /* Don't inherit the side of the pipe owned by this process */
-    if (!SetHandleInformation(handles[0], HANDLE_FLAG_INHERIT, 0)) goto error_set_handle_info;
+    if (!SetHandleInformation(handles[0], HANDLE_FLAG_INHERIT, 0)) goto error;
     *handle = handles[1];
-    int fd = _open_osfhandle((intptr_t) handles[0], reverse ? _O_WRONLY : _O_RDONLY);
-    if (fd == -1) goto error_open_osfhandle;
-    FILE *f = _fdopen(fd, reverse ? "w" : "r");
-    if (NULL == f) goto error_fdopen;
-    return janet_makejfile(f, reverse ? JANET_FILE_WRITE : JANET_FILE_READ);
-error_fdopen:
-    _close(fd); /* we need to close the fake file descriptor instead of the handle, as ownership has been transfered. */
-    *errflag = 1;
-    return NULL;
-error_set_handle_info:
-error_open_osfhandle:
-    close_handle(handles[0]);
-    /* fallthrough */
-error_pipe:
-    *errflag = 1;
-    return NULL;
+    return handles[0];
 #else
-    if (pipe(handles)) goto error_pipe;
+    if (pipe(handles)) goto error;
     if (reverse) swap_handles(handles);
     *handle = handles[1];
-    FILE *f = fdopen(handles[0], reverse ? "w" : "r");
-    if (NULL == f) goto error_fdopen;
-    return janet_makejfile(f, reverse ? JANET_FILE_WRITE : JANET_FILE_READ);
-error_fdopen:
-    close_handle(handles[0]);
-    /* fallthrough */
-error_pipe:
-    *errflag = 1;
-    return NULL;
+    return handles[0];
 #endif
+error:
+    *errflag = 1;
+    return JANET_HANDLE_NONE;
 }
 
 static const JanetMethod proc_methods[] = {
@@ -514,6 +500,81 @@ static const JanetAbstractType ProcAT = {
     JANET_ATEND_GET
 };
 
+static JanetHandle janet_getjstream(Janet *argv, int32_t n, void **orig) {
+#ifdef JANET_EV
+    JanetStream *stream = janet_checkabstract(argv[0], &janet_stream_type);
+    if (stream != NULL) {
+        if (stream->flags & JANET_STREAM_CLOSED)
+            janet_panic("stream is closed");
+        *orig = stream;
+        return stream->handle;
+    }
+#endif
+    JanetFile *f = janet_checkabstract(argv[0], &janet_file_type);
+    if (f != NULL) {
+        if (f->flags & JANET_FILE_CLOSED) {
+            janet_panic("file is closed");
+        }
+        *orig = f;
+#ifdef JANET_WINDOWS
+        return (HANDLE) _get_osfhandle(_fileno(f->file));
+#else
+        return fileno(f->file);
+#endif
+    }
+    janet_panicf("expected file|stream, got %v", argv[n]);
+}
+
+#ifdef JANET_EV
+static JanetStream *get_stdio_for_handle(JanetHandle handle, void *orig, int iswrite) {
+    if (orig == NULL) {
+        return janet_stream(handle, iswrite ? JANET_STREAM_WRITABLE : JANET_STREAM_READABLE, NULL);
+    } else if (janet_abstract_type(orig) == &janet_file_type) {
+        JanetFile *jf = (JanetFile *)orig;
+        uint32_t flags = 0;
+        if (jf->flags & JANET_FILE_WRITE) {
+            flags |= JANET_STREAM_WRITABLE;
+        }
+        if (jf->flags & JANET_FILE_READ) {
+            flags |= JANET_STREAM_READABLE;
+        }
+        /* duplicate handle when converting file to stream */
+#ifdef JANET_WINDOWS
+        HANDLE prochandle = GetCurrentProcess();
+        HANDLE newHandle;
+        if (!DuplicateHandle(prochandle, handle, prochandle, &newHandle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+            return NULL;
+        }
+#else
+        int newHandle = dup(handle);
+        if (newHandle < 0) {
+            return NULL;
+        }
+        return janet_stream(newHandle, flags, NULL);
+#endif
+    } else {
+        return orig;
+    }
+}
+#else
+static JanetFile *get_stdio_for_handle(JanetHandle handle, void *orig, int iswrite) {
+    if (NULL != orig) return (JanetFile *) orig;
+#ifdef JANET_WINDOWS
+    int fd = _open_osfhandle((intptr_t) handle, iswrite ? _O_WRONLY : _O_RDONLY);
+    if (-1 == fd) return NULL;
+    FILE *f = _fdopen(fd, iswrite ? "w" : "r");
+    if (NULL == f) {
+        _close(fd);
+        return NULL;
+    }
+#else
+    FILE *f = fdopen(handle, iswrite ? "w" : "r");
+    if (NULL == f) return NULL;
+#endif
+    return janet_makejfile(f, iswrite ? JANET_FILE_WRITE : JANET_FILE_READ);
+}
+#endif
+
 static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     janet_arity(argc, 1, 3);
 
@@ -534,7 +595,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     }
 
     /* Optional stdio redirections */
-    JanetFile *new_in = NULL, *new_out = NULL, *new_err = NULL;
+    JanetAbstract orig_in = NULL, orig_out = NULL, orig_err = NULL;
+    JanetHandle new_in = JANET_HANDLE_NONE, new_out = JANET_HANDLE_NONE, new_err = JANET_HANDLE_NONE;
     JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
     int pipe_errflag = 0; /* Track errors setting up pipes */
 
@@ -547,17 +609,17 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
         if (janet_keyeq(maybe_stdin, "pipe")) {
             new_in = make_pipes(&pipe_in, 1, &pipe_errflag);
         } else if (!janet_checktype(maybe_stdin, JANET_NIL)) {
-            new_in = janet_getjfile(&maybe_stdin, 0);
+            new_in = janet_getjstream(&maybe_stdin, 0, &orig_in);
         }
         if (janet_keyeq(maybe_stdout, "pipe")) {
             new_out = make_pipes(&pipe_out, 0, &pipe_errflag);
         } else if (!janet_checktype(maybe_stdout, JANET_NIL)) {
-            new_out = janet_getjfile(&maybe_stdout, 0);
+            new_out = janet_getjstream(&maybe_stdout, 0, &orig_out);
         }
         if (janet_keyeq(maybe_stderr, "err")) {
             new_err = make_pipes(&pipe_err, 0, &pipe_errflag);
         } else if (!janet_checktype(maybe_stderr, JANET_NIL)) {
-            new_err = janet_getjfile(&maybe_stderr, 0);
+            new_err = janet_getjstream(&maybe_stderr, 0, &orig_err);
         }
     }
 
@@ -596,8 +658,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
 
     if (pipe_in != JANET_HANDLE_NONE) {
         startupInfo.hStdInput = pipe_in;
-    } else if (new_in != NULL) {
-        startupInfo.hStdInput = (HANDLE) _get_osfhandle(_fileno(new_in->file));
+    } else if (new_in != JANET_HANDLE_NONE) {
+        startupInfo.hStdInput = new_in;
     } else {
         startupInfo.hStdInput = (HANDLE) _get_osfhandle(0);
     }
@@ -605,8 +667,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
 
     if (pipe_out != JANET_HANDLE_NONE) {
         startupInfo.hStdOutput = pipe_out;
-    } else if (new_out != NULL) {
-        startupInfo.hStdOutput = (HANDLE) _get_osfhandle(_fileno(new_out->file));
+    } else if (new_out != JANET_HANDLE_NONE) {
+        startupInfo.hStdOutput = new_out;
     } else {
         startupInfo.hStdOutput = (HANDLE) _get_osfhandle(1);
     }
@@ -614,7 +676,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     if (pipe_err != JANET_HANDLE_NONE) {
         startupInfo.hStdError = pipe_err;
     } else if (new_err != NULL) {
-        startupInfo.hStdError = (HANDLE) _get_osfhandle(_fileno(new_err->file));
+        startupInfo.hStdError = new_err;
     } else {
         startupInfo.hStdError = (HANDLE) _get_osfhandle(2);
     }
@@ -680,18 +742,18 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     posix_spawn_file_actions_init(&actions);
     if (pipe_in != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_in, 0);
-    } else if (new_in != NULL) {
-        posix_spawn_file_actions_adddup2(&actions, fileno(new_in->file), 0);
+    } else if (new_in != JANET_HANDLE_NONE) {
+        posix_spawn_file_actions_adddup2(&actions, new_in, 0);
     }
     if (pipe_out != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_out, 1);
-    } else if (new_out != NULL) {
-        posix_spawn_file_actions_adddup2(&actions, fileno(new_out->file), 1);
+    } else if (new_out != JANET_HANDLE_NONE) {
+        posix_spawn_file_actions_adddup2(&actions, new_out, 1);
     }
     if (pipe_err != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_err, 2);
-    } else if (new_err != NULL) {
-        posix_spawn_file_actions_adddup2(&actions, fileno(new_err->file), 2);
+    } else if (new_err != JANET_HANDLE_NONE) {
+        posix_spawn_file_actions_adddup2(&actions, new_err, 2);
     }
 
     pid_t pid;
@@ -746,10 +808,13 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
 #else
         proc->pid = pid;
 #endif
-        proc->in = new_in;
-        proc->out = new_out;
-        proc->err = new_err;
+        proc->in = get_stdio_for_handle(new_in, orig_in, 0);
+        proc->out = get_stdio_for_handle(new_out, orig_out, 1);
+        proc->err = get_stdio_for_handle(new_err, orig_err, 1);
         proc->flags = 0;
+        if (proc->in == NULL || proc->out == NULL || proc->err == NULL) {
+            janet_panic("failed to construct proc");
+        }
         return janet_wrap_abstract(proc);
     } else if (janet_flag_at(flags, 2) && status) {
         janet_panicf("command failed with non-zero exit code %d", status);
@@ -1291,11 +1356,6 @@ static jmode_t os_getmode(const Janet *argv, int32_t n) {
     return janet_perm_from_unix(os_get_unix_mode(argv, n));
 }
 
-static jmode_t os_optmode(int32_t argc, const Janet *argv, int32_t n, int32_t dflt) {
-    if (argc > n) return os_getmode(argv, n);
-    return janet_perm_from_unix(dflt);
-}
-
 /* Getters */
 static Janet os_stat_dev(jstat_t *st) {
     return janet_wrap_number(st->st_dev);
@@ -1535,6 +1595,16 @@ static Janet os_permission_int(int32_t argc, Janet *argv) {
 }
 
 #ifdef JANET_EV
+
+/*
+ * Define a few functions on streams the require JANET_EV to be defined.
+ */
+
+static jmode_t os_optmode(int32_t argc, const Janet *argv, int32_t n, int32_t dflt) {
+    if (argc > n) return os_getmode(argv, n);
+    return janet_perm_from_unix(dflt);
+}
+
 static Janet os_open(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 3);
     const char *path = janet_getcstring(argv, 0);
