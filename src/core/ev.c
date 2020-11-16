@@ -1317,9 +1317,16 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
 
             /* Check for errors - special case errors that can just be waited on to fix */
             if (nread == -1) {
-                if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-                janet_cancel(s->fiber, janet_ev_lasterr());
-                return JANET_ASYNC_STATUS_DONE;
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    return JANET_ASYNC_STATUS_NOT_DONE;
+                }
+                /* In stream protocols, a pipe error is end of stream */
+                if (errno == EPIPE && (state->mode != JANET_ASYNC_READMODE_RECVFROM)) {
+                    nread = 0;
+                } else {
+                    janet_cancel(s->fiber, janet_ev_lasterr());
+                    return JANET_ASYNC_STATUS_DONE;
+                }
             }
 
             /* Only allow 0-length packets in recv-from. In stream protocols, a zero length packet is EOS. */

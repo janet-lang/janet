@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `upscope` special form.
 - `os/execute` and `os/spawn` can take streams for redirecting IO.
 - Add `;parser` and `:read` parameters to `run-context`.
 - Add `os/open` if ev is enabled.
