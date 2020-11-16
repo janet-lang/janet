@@ -1,0 +1,14 @@
+image: archlinux
+sources:
+- https://git.sr.ht/~bakpakin/janet
+packages:
+- meson
+tasks:
+- build: |
+    meson setup build --buildtype=release
+    cd build
+    meson configure -Depoll=false
+    ninja
+    ninja test
+    sudo ninja install
+    sudo jpm --verbose install circlet

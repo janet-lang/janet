@@ -73,6 +73,7 @@ conf.set('JANET_NO_UMASK', not get_option('umask'))
 conf.set('JANET_NO_REALPATH', not get_option('realpath'))
 conf.set('JANET_NO_PROCESSES', not get_option('processes'))
 conf.set('JANET_SIMPLE_GETLINE', get_option('simple_getline'))
+conf.set('JANET_EV_EPOLL', get_option('epoll'))
 if get_option('os_name') != ''
   conf.set('JANET_OS_NAME', get_option('os_name'))
 endif

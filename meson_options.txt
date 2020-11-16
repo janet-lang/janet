@@ -17,6 +17,7 @@ option('processes', type : 'boolean', value : true)
 option('umask', type : 'boolean', value : true)
 option('realpath', type : 'boolean', value : true)
 option('simple_getline', type : 'boolean', value : false)
+option('epoll', type : 'boolean', value : false)
 
 option('recursion_guard', type : 'integer', min : 10, max : 8000, value : 1024)
 option('max_proto_depth', type : 'integer', min : 10, max : 8000, value : 200)
