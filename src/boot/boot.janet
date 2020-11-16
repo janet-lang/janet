@@ -2292,7 +2292,7 @@
 
 (def module/paths
   "The list of paths to look for modules, templated for module/expand-path.
-  Each element is a two element tuple, containing the path
+  Each element is a two-element tuple, containing the path
   template and a keyword :source, :native, or :image indicating how
   require should load files found at these paths.\n\nA tuple can also
   contain a third element, specifying a filter that prevents module/find
@@ -2351,7 +2351,7 @@
 (defn module/find
   "Try to match a module or path name from the patterns in module/paths.
   Returns a tuple (fullpath kind) where the kind is one of :source, :native,
-  or image if the module is found, otherwise a tuple with nil followed by
+  or :image if the module is found, otherwise a tuple with nil followed by
   an error message."
   [path]
   (var ret nil)
@@ -2390,10 +2390,10 @@
   @{})
 
 (defn dofile
-  "Evaluate a file and return the resulting environment. :env, :expander, and
-  :evaluator are passed through to the underlying run-context call.
-  If exit is true, any top level errors will trigger a call to (os/exit 1)
-  after printing the error."
+  "Evaluate a file and return the resulting environment. :env, :expander,
+  :evaluator, :read, and :parser are passed through to the underlying
+  run-context call. If exit is true, any top level errors will trigger a
+  call to (os/exit 1) after printing the error."
   [path &keys
    {:exit exit
     :env env
@@ -2441,7 +2441,7 @@
 (def module/loaders
   "A table of loading method names to loading functions.
   This table lets require and import load many different kinds
-  of files as module."
+  of files as modules."
   @{:native (fn [path &] (native path (make-env)))
     :source (fn [path args]
               (put module/loading path true)
@@ -2763,7 +2763,7 @@
 
 (guarddef net/listen
   (defn net/server
-    "Start a server asynchornously with net/listen and net/accept-loop. Returns the new server stream."
+    "Start a server asynchronously with net/listen and net/accept-loop. Returns the new server stream."
     [host port &opt handler type]
     (def s (net/listen host port type))
     (if handler
@@ -2810,7 +2810,7 @@
 (def- getenv-alias (if-let [entry (in root-env 'os/getenv)] (entry :value) (fn [&])))
 
 (defn cli-main
-  "Entrance for the Janet CLI tool. Call this functions with the command line
+  "Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface."
   [args]
 
