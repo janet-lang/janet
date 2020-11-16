@@ -2086,7 +2086,7 @@
 
 (defn run-context
   "Run a context. This evaluates expressions in an environment,
-  and is encapsulates the parsing, compilation, and evaluation.
+  and encapsulates the parsing, compilation, and evaluation.
   Returns (in environment :exit-value environment) when complete.
   opts is a table or struct of options. The options are as follows:\n\n\t
   :chunks - callback to read into a buffer - default is getline\n\t
@@ -2098,7 +2098,7 @@
   :on-status - callback when a value is evaluated - default is debug/stacktrace\n\t
   :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia.\n\t
   :expander - an optional function that is called on each top level form before being compiled.\n\t
-  :parser - provide a custom parser that implements the same interface as Janet's built in parser.\n\t
+  :parser - provide a custom parser that implements the same interface as Janet's built-in parser.\n\t
   :read - optional function to get the next form, called like (read env source). Overrides all parsing."
   [opts]
 
