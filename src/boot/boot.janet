@@ -2229,7 +2229,7 @@
                 :on-compile-error (fn compile-error [msg errf &]
                                     (error (string "compile error: " msg)))
                 :on-parse-error (fn parse-error [p x]
-                                  (error (string "parse error: " (parser/error p))))
+                                  (error (string "parse error: " (:error p))))
                 :fiber-flags :i
                 :on-status (fn on-status [f val]
                              (if-not (= (fiber/status f) :dead)
@@ -2699,9 +2699,9 @@
       (getline
         (string
           "repl:"
-          ((parser/where p) 0)
+          ((:where p) 0)
           ":"
-          (parser/state p :delimiters) "> ")
+          (:state p :delimiters) "> ")
         buf env)))
   (defn make-onsignal
     [e level]
@@ -2716,8 +2716,8 @@
       (debug/stacktrace f x)
       (eflush)
       (defn debugger-chunks [buf p]
-        (def status (parser/state p :delimiters))
-        (def c ((parser/where p) 0))
+        (def status (:state p :delimiters))
+        (def c ((:where p) 0))
         (def prpt (string "debug[" level "]:" c ":" status "> "))
         (getline prpt buf nextenv))
       (print "entering debug[" level "] - (quit) to exit")
