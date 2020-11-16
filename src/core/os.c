@@ -541,7 +541,7 @@ static JanetStream *get_stdio_for_handle(JanetHandle handle, void *orig, int isw
         /* duplicate handle when converting file to stream */
 #ifdef JANET_WINDOWS
         HANDLE prochandle = GetCurrentProcess();
-        HANDLE newHandle;
+        HANDLE newHandle = INVALID_HANDLE_VALUE;
         if (!DuplicateHandle(prochandle, handle, prochandle, &newHandle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
             return NULL;
         }
@@ -550,8 +550,8 @@ static JanetStream *get_stdio_for_handle(JanetHandle handle, void *orig, int isw
         if (newHandle < 0) {
             return NULL;
         }
-        return janet_stream(newHandle, flags, NULL);
 #endif
+        return janet_stream(newHandle, flags, NULL);
     } else {
         return orig;
     }
