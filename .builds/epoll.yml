@@ -5,6 +5,7 @@ packages:
 - meson
 tasks:
 - build: |
+    cd janet
     meson setup build --buildtype=release
     cd build
     meson configure -Depoll=false
