@@ -2271,10 +2271,22 @@
   @{})
 
 (defmacro comptime
-  "(comptime x)\n\n
-  Evals x at compile time and returns the result. Similar to a top level unquote."
+  "Evals x at compile time and returns the result. Similar to a top level unquote."
   [x]
   (eval x))
+
+(defmacro compif
+  "Check the condition cnd at compile time - if truthy, compile tru, else compile fals."
+  [cnd tru &opt fals]
+  (if (eval cnd)
+    tru
+    fals))
+
+(defmacro compwhen
+  "Check the condition cnd at compile time - if truthy, compile (upscope ;body), else compile nil."
+  [cnd & body]
+  (if (eval cnd)
+    ~(upscope ,;body)))
 
 (defn make-image
   "Create an image from an environment returned by require.
@@ -2328,18 +2340,16 @@
 (module/add-paths ".jimage" :image)
 
 # Version of fexists that works even with a reduced OS
-(if-let [has-stat (root-env 'os/stat)]
-  (let [stat (has-stat :value)]
-    (defglobal "fexists" (fn fexists [path] (= :file (stat path :mode)))))
-  (defglobal "fexists"
-    (fn fexists [path]
-      (def f (file/open path :rb))
-      (when f
-        (def res
-          (try (do (file/read f 1) true)
-            ([err] nil)))
-        (file/close f)
-        res))))
+(defn fexists
+  [path]
+  (compif (dyn 'os/stat)
+    (= :file (os/stat path :mode))
+    (when-let [f (file/open path :rb)]
+      (def res
+        (try (do (file/read f 1) true)
+          ([err] nil)))
+      (file/close f)
+      res)))
 
 (defn- mod-filter
   [x path]
@@ -2750,18 +2760,14 @@
 ###
 ###
 
-(defmacro- guarddef
-  [sym form]
-  (if (dyn sym)
-    form))
-
-(guarddef ev/go
+(compwhen (dyn 'ev/go)
+  (defn net/close "Alias for ev/close." [stream] (ev/close stream))
   (defmacro ev/spawn
     "Run some code in a new fiber. This is shorthand for (ev/call (fn [] ;body))."
     [& body]
     ~(,ev/call (fn [] ,;body))))
 
-(guarddef net/listen
+(compwhen (dyn 'net/listen)
   (defn net/server
     "Start a server asynchornously with net/listen and net/accept-loop. Returns the new server stream."
     [host port &opt handler type]
@@ -2769,11 +2775,6 @@
     (if handler
       (ev/call (fn [] (net/accept-loop s handler))))
     s))
-
-(guarddef ev/close
-  (defn net/close "Alias for ev/close." [stream] (ev/close stream)))
-
-(undef guarddef)
 
 ###
 ###

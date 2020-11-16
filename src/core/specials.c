@@ -336,10 +336,8 @@ static int defleaf(
 
         /* Put value in table when evaulated */
         janetc_emit_sss(c, JOP_PUT, tabslot, valsym, s, 0);
-        return 1;
-    } else {
-        return namelocal(c, sym, 0, s);
     }
+    return namelocal(c, sym, 0, s);
 }
 
 static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
@@ -467,6 +465,28 @@ static JanetSlot janetc_do(JanetFopts opts, int32_t argn, const Janet *argv) {
         }
     }
     janetc_popscope_keepslot(c, ret);
+    return ret;
+}
+
+
+/* Compile an upscope form. Upscope forms execute their body sequentially and
+ * evaluate to the last expression in the body, but without lexical scope. */
+static JanetSlot janetc_upscope(JanetFopts opts, int32_t argn, const Janet *argv) {
+    int32_t i;
+    JanetSlot ret = janetc_cslot(janet_wrap_nil());
+    JanetCompiler *c = opts.compiler;
+    JanetFopts subopts = janetc_fopts_default(c);
+    for (i = 0; i < argn; i++) {
+        if (i != argn - 1) {
+            subopts.flags = JANET_FOPTS_DROP;
+        } else {
+            subopts = opts;
+        }
+        ret = janetc_value(subopts, argv[i]);
+        if (i != argn - 1) {
+            janetc_freeslot(c, ret);
+        }
+    }
     return ret;
 }
 
@@ -854,6 +874,7 @@ static const JanetSpecial janetc_specials[] = {
     {"set", janetc_varset},
     {"splice", janetc_splice},
     {"unquote", janetc_unquote},
+    {"upscope", janetc_upscope},
     {"var", janetc_var},
     {"while", janetc_while}
 };
