@@ -20,6 +20,8 @@
 * IN THE SOFTWARE.
 */
 
+#include "janetconf.h"
+
 #ifndef JANET_H_defined
 #define JANET_H_defined
 
@@ -34,8 +36,6 @@ extern "C" {
 #endif
 
 /***** START SECTION CONFIG *****/
-
-#include "janetconf.h"
 
 #ifndef JANET_VERSION
 #define JANET_VERSION "latest"

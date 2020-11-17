@@ -35,9 +35,6 @@ artifacts:
     - name: janet.h
       path: dist\janet.h
       type: File
-    - name: janetconf.h
-      path: dist\janetconf.h
-      type: File
     - name: shell.c
       path: dist\shell.c
       type: File

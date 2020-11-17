@@ -67,7 +67,7 @@ ifeq ($(UNAME), Haiku)
 endif
 
 $(shell mkdir -p build/core build/mainclient build/webclient build/boot)
-all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY)
+all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.h
 
 ######################
 ##### Name Files #####
@@ -162,16 +162,16 @@ SONAME=libjanet.so.1.12
 build/shell.c: src/mainclient/shell.c
 	cp $< $@
 
-build/janet.h: src/include/janet.h
-	cp $< $@
+build/janet.h: $(JANET_TARGET) src/include/janet.h src/conf/janetconf.h
+	./$(JANET_TARGET) tools/patch-header.janet src/include/janet.h src/conf/janetconf.h $@
 
 build/janetconf.h: src/conf/janetconf.h
 	cp $< $@
 
-build/janet.o: build/janet.c build/janet.h build/janetconf.h
+build/janet.o: build/janet.c src/include/janet.h src/conf/janetconf.h
 	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@ -I build
 
-build/shell.o: build/shell.c build/janet.h build/janetconf.h
+build/shell.o: build/shell.c src/include/janet.h src/conf/janetconf.h
 	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@ -I build
 
 $(JANET_TARGET): build/janet.o build/shell.o
@@ -222,7 +222,7 @@ callgrind: $(JANET_TARGET)
 dist: build/janet-dist.tar.gz
 
 build/janet-%.tar.gz: $(JANET_TARGET) \
-	src/include/janet.h src/conf/janetconf.h \
+	build/janet.h \
 	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
 	build/doc.html README.md build/janet.c build/shell.c jpm
 	$(eval JANET_DIST_DIR = "janet-$(shell basename $*)")
@@ -262,11 +262,11 @@ build/janet.pc: $(JANET_TARGET)
 	echo 'Libs: -L$${libdir} -ljanet' >> $@
 	echo 'Libs.private: $(CLIBS)' >> $@
 
-install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/jpm
+install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/jpm build/janet.h
 	mkdir -p '$(DESTDIR)$(BINDIR)'
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
 	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
-	cp -rf $(JANET_HEADERS) '$(DESTDIR)$(INCLUDEDIR)/janet'
+	cp -r build/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet'
 	mkdir -p '$(DESTDIR)$(JANET_PATH)'
 	mkdir -p '$(DESTDIR)$(LIBDIR)'
 	cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')'

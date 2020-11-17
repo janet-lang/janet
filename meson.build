@@ -248,8 +248,14 @@ pkg.generate(libjanet,
 
 # Installation
 install_man('janet.1')
-install_headers(['src/include/janet.h', jconf], subdir: 'janet')
 install_data(sources : ['tools/.keep'], install_dir : join_paths(get_option('libdir'), 'janet'))
+patched_janet = custom_target('patched-janeth',
+  input : ['tools/patch-header.janet', 'src/include/janet.h', jconf],
+  install : true,
+  install_dir : join_paths(get_option('includedir'), 'janet'),
+  build_by_default : true,
+  output : ['janet.h'],
+  command : [janet_nativeclient, '@INPUT@', '@OUTPUT@'])
 if get_option('peg') and not get_option('reduced_os') and get_option('processes')
   install_man('jpm.1')
   patched_jpm = custom_target('patched-jpm',

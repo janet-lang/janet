@@ -113,8 +113,8 @@ copy README.md dist\README.md
 copy janet.lib dist\janet.lib
 copy janet.exp dist\janet.exp
 
-copy src\include\janet.h dist\janet.h
-copy src\conf\janetconf.h dist\janetconf.h
+janet.exe tools\patch-header.janet src\include\janet.h src\conf\janetconf.h build\janet.h
+copy build\janet.h dist\janet.h
 copy build\libjanet.lib dist\libjanet.lib
 
 copy .\jpm dist\jpm

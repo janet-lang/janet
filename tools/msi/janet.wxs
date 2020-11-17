@@ -127,9 +127,6 @@
                 <RemoveFolder Id="RemoveCDir" On="uninstall" />
             </Component>
             <Component Directory="CDir">
-                <File Source="dist\janetconf.h"/>
-            </Component>
-            <Component Directory="CDir">
                 <File Source="dist\janet.lib"/>
             </Component>
             <Component Directory="CDir">
