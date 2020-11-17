@@ -100,7 +100,7 @@
 (defn bytes? "Check if x is a string, symbol, keyword, or buffer." [x]
   (def t (type x))
   (if (= t :string) true (if (= t :symbol) true (if (= t :keyword) true (= t :buffer)))))
-(defn dictionary? "Check if x a table or struct." [x]
+(defn dictionary? "Check if x is a table or struct." [x]
   (def t (type x))
   (if (= t :table) true (= t :struct)))
 (defn indexed? "Check if x is an array or tuple." [x]
@@ -538,26 +538,26 @@
   Where binding is a binding as passed to def, :verb is one of a set of keywords,
   and object is any expression. The available verbs are:\n\n
   \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
-  \t:range - loop over a range. The object should be two element tuple with a start
+  \t:range - loop over a range. The object should be a two-element tuple with a start
   and end value, and an optional positive step. The range is half open, [start, end).\n
   \t:range-to - same as :range, but the range is inclusive [start, end].\n
-  \t:down - loop over a range, stepping downwards. The object should be two element tuple
+  \t:down - loop over a range, stepping downwards. The object should be a two-element tuple
   with a start and (exclusive) end value, and an optional (positive!) step size.\n
   \t:down-to - same :as down, but the range is inclusive [start, end].\n
   \t:keys - iterate over the keys in a data structure.\n
-  \t:pairs - iterate over the keys value pairs as tuples in a data structure.\n
+  \t:pairs - iterate over the key-value pairs as tuples in a data structure.\n
   \t:in - iterate over the values in a data structure.\n
   \t:generate - iterate over values yielded from a fiber. Can be paired with the generator
   function for the producer/consumer pattern.\n\n
   loop also accepts conditionals to refine the looping further. Conditionals are of
   the form:\n\n
   \t:modifier argument\n\n
-  where :modifier is one of a set of keywords, and argument is keyword dependent.
+  where :modifier is one of a set of keywords, and argument is keyword-dependent.
   :modifier can be one of:\n\n
   \t:while expression - breaks from the loop if expression is falsey.\n
   \t:until expression - breaks from the loop if expression is truthy.\n
   \t:let bindings - defines bindings inside the loop as passed to the let macro.\n
-  \t:before form - evaluates a form for a side effect before of the next inner loop.\n
+  \t:before form - evaluates a form for a side effect before the next inner loop.\n
   \t:after form - same as :before, but the side effect happens after the next inner loop.\n
   \t:repeat n - repeats the next inner loop n times.\n
   \t:when condition - only evaluates the loop body when condition is true.\n\n
@@ -818,8 +818,8 @@
   res)
 
 (defn reduce2
-  "The 2 argument version of reduce that does not take an initialization value.
-  Instead the first element of the array is used for initialization."
+  "The 2-argument version of reduce that does not take an initialization value.
+  Instead, the first element of the array is used for initialization."
   [f ind]
   (var k (next ind))
   (if (= nil k) (break nil))
@@ -842,7 +842,7 @@
   ret)
 
 (defn accumulate2
-  "The 2 argument version of accumulate that does not take an initialization value."
+  "The 2-argument version of accumulate that does not take an initialization value."
   [f ind]
   (var k (next ind))
   (def ret (array/new (length ind)))
@@ -2086,7 +2086,7 @@
 
 (defn run-context
   "Run a context. This evaluates expressions in an environment,
-  and is encapsulates the parsing, compilation, and evaluation.
+  and encapsulates the parsing, compilation, and evaluation.
   Returns (in environment :exit-value environment) when complete.
   opts is a table or struct of options. The options are as follows:\n\n\t
   :chunks - callback to read into a buffer - default is getline\n\t
@@ -2098,7 +2098,7 @@
   :on-status - callback when a value is evaluated - default is debug/stacktrace\n\t
   :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia.\n\t
   :expander - an optional function that is called on each top level form before being compiled.\n\t
-  :parser - provide a custom parser that implements the same interface as Janet's built in parser.\n\t
+  :parser - provide a custom parser that implements the same interface as Janet's built-in parser.\n\t
   :read - optional function to get the next form, called like (read env source). Overrides all parsing."
   [opts]
 
@@ -2304,7 +2304,7 @@
 
 (def module/paths
   "The list of paths to look for modules, templated for module/expand-path.
-  Each element is a two element tuple, containing the path
+  Each element is a two-element tuple, containing the path
   template and a keyword :source, :native, or :image indicating how
   require should load files found at these paths.\n\nA tuple can also
   contain a third element, specifying a filter that prevents module/find
@@ -2361,7 +2361,7 @@
 (defn module/find
   "Try to match a module or path name from the patterns in module/paths.
   Returns a tuple (fullpath kind) where the kind is one of :source, :native,
-  or image if the module is found, otherwise a tuple with nil followed by
+  or :image if the module is found, otherwise a tuple with nil followed by
   an error message."
   [path]
   (var ret nil)
@@ -2400,10 +2400,10 @@
   @{})
 
 (defn dofile
-  "Evaluate a file and return the resulting environment. :env, :expander, and
-  :evaluator are passed through to the underlying run-context call.
-  If exit is true, any top level errors will trigger a call to (os/exit 1)
-  after printing the error."
+  "Evaluate a file and return the resulting environment. :env, :expander,
+  :evaluator, :read, and :parser are passed through to the underlying
+  run-context call. If exit is true, any top level errors will trigger a
+  call to (os/exit 1) after printing the error."
   [path &keys
    {:exit exit
     :env env
@@ -2451,7 +2451,7 @@
 (def module/loaders
   "A table of loading method names to loading functions.
   This table lets require and import load many different kinds
-  of files as module."
+  of files as modules."
   @{:native (fn [path &] (native path (make-env)))
     :source (fn [path args]
               (put module/loading path true)
@@ -2769,7 +2769,7 @@
 
 (compwhen (dyn 'net/listen)
   (defn net/server
-    "Start a server asynchornously with net/listen and net/accept-loop. Returns the new server stream."
+    "Start a server asynchronously with net/listen and net/accept-loop. Returns the new server stream."
     [host port &opt handler type]
     (def s (net/listen host port type))
     (if handler
@@ -2783,7 +2783,7 @@
 ###
 
 (defn- no-side-effects
-  "Check if form may have side effects. If rturns true, then the src
+  "Check if form may have side effects. If returns true, then the src
   must not have side effects, such as calling a C function."
   [src]
   (cond
@@ -2811,7 +2811,7 @@
 (def- getenv-alias (if-let [entry (in root-env 'os/getenv)] (entry :value) (fn [&])))
 
 (defn cli-main
-  "Entrance for the Janet CLI tool. Call this functions with the command line
+  "Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface."
   [args]
 
@@ -2970,7 +2970,7 @@
 (do
 
   (defn proto-flatten
-    "Flatten a table and it's prototypes into a single table."
+    "Flatten a table and its prototypes into a single table."
     [into x]
     (when x
       (proto-flatten into (table/getproto x))
