@@ -403,7 +403,10 @@ void janet_schedule(JanetFiber *fiber, Janet value) {
 
 void janet_fiber_did_resume(JanetFiber *fiber) {
     /* Cancel any pending fibers */
-    if (fiber->waiting) janet_unlisten(fiber->waiting);
+    if (fiber->waiting) {
+        fiber->waiting->machine(fiber->waiting, JANET_ASYNC_EVENT_CANCEL);
+        janet_unlisten(fiber->waiting);
+    }
 }
 
 /* Mark all pending tasks */
@@ -786,8 +789,10 @@ void janet_loop1(void) {
         while ((has_timeout = peek_timeout(&to)) && to.fiber->sched_id != to.sched_id) {
             pop_timeout(0);
         }
-        /* Run polling implementation */
-        janet_loop1_impl(has_timeout, to.when);
+        /* Run polling implementation only if pending timeouts or pending events */
+        if (janet_vm_tq_count || janet_vm_listener_count) {
+            janet_loop1_impl(has_timeout, to.when);
+        }
     }
 }
 

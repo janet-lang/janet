@@ -65,4 +65,13 @@
   (ev/close writer)
   (ev/take chan))
 
+(var result nil)
+(def fiber
+  (ev/spawn 
+    (set result (protect (ev/sleep 0.4)))
+    (assert (= result '(false "boop")) "ev/cancel 1")))
+(ev/sleep 0.1)
+(ev/cancel fiber "boop")
+(ev/sleep 0.1)
+
 (end-suite)
