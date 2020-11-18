@@ -145,6 +145,7 @@ extern const JanetAbstractType janet_address_type;
 #ifdef JANET_EV
 void janet_lib_ev(JanetTable *env);
 void janet_ev_mark(void);
+int janet_make_pipe(JanetHandle handles[2]);
 #endif
 
 #endif

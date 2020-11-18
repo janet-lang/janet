@@ -1622,6 +1622,54 @@ void janet_ev_sendto_string(JanetStream *stream, JanetString str, void *dest, in
 }
 #endif
 
+/* For a pipe ID */
+#ifdef JANET_WINDOWS
+static volatile long PipeSerialNumber;
+#endif
+
+int janet_make_pipe(JanetHandle handles[2]) {
+#ifdef JANET_WINDOWS
+    /*
+     * On windows, the built in CreatePipe function doesn't support overlapped IO
+     * so we lift from the windows source code and modify for our own version.
+     */
+    JanetHandle rhandle, whandle;
+    UCHAR PipeNameBuffer[MAX_PATH];
+    sprintf(PipeNameBuffer,
+            "\\\\.\\Pipe\\JanetPipeFile.%08x.%08x",
+            GetCurrentProcessId(),
+            InterlockedIncrement(&PipeSerialNumber));
+    rhandle = CreateNamedPipeA(
+                  PipeNameBuffer,
+                  PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+                  PIPE_TYPE_BYTE | PIPE_WAIT,
+                  1,             /* Number of pipes */
+                  4096,          /* Out buffer size */
+                  4096,          /* In buffer size */
+                  120 * 1000,    /* Timeout in ms */
+                  NULL);
+    if (!rhandle) return -1;
+    whandle = CreateFileA(
+                  PipeNameBuffer,
+                  GENERIC_WRITE,
+                  0,
+                  NULL,
+                  OPEN_EXISTING,
+                  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
+                  NULL);
+    if (whandle == INVALID_HANDLE_VALUE) {
+        CloseHandle(rhandle);
+        return -1;
+    }
+    handles[0] = rhandle;
+    handles[1] = whandle;
+    return 0;
+#else
+    if (pipe(handles)) return -1;
+    return 0;
+#endif
+}
+
 /* C functions */
 
 static Janet cfun_ev_go(int32_t argc, Janet *argv) {
