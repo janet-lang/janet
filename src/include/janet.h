@@ -560,7 +560,7 @@ struct JanetListenerState {
     int bytes; /* Used to track how many bytes were transfered. */
 #endif
     /* internal */
-    int _index; /* not used in all implementations */
+    size_t _index;
     int _mask;
     JanetListenerState *_next;
 };
