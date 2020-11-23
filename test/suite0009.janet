@@ -74,4 +74,6 @@
 (ev/cancel fiber "boop")
 (ev/sleep 0.1)
 
+(assert-error "bad arity to ev/call" (ev/call inc 1 2 3))
+
 (end-suite)
