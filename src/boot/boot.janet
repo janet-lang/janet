@@ -540,33 +540,33 @@
   Where `binding` is a binding as passed to def, `:verb` is one of a set of keywords,
   and `object` is any expression. The available verbs are:
   
-  `:iterate`
+  :iterate
     : repeatedly evaluate and bind to the expression while it is truthy.
     
-  `:range`
+  :range
     : loop over a range. The object should be a two-element tuple with a start
       and end value, and an optional positive step. The range is half open, [start, end).
       
-  `:range-to`
+  :range-to
     : same as :range, but the range is inclusive [start, end].
     
-  `:down`
+  :down
     : loop over a range, stepping downwards. The object should be a two-element tuple
       with a start and (exclusive) end value, and an optional (positive!) step size.
       
-  `:down-to`
+  :down-to
     : same :as down, but the range is inclusive [start, end].
     
-  `:keys`
+  :keys
     : iterate over the keys in a data structure.
     
-  `:pairs`
+  :pairs
     : iterate over the key-value pairs as tuples in a data structure.
     
-  `:in`
+  :in
     : iterate over the values in a data structure.
     
-  `:generate`
+  :generate
     : iterate over values yielded from a fiber. Can be paired with the generator
       function for the producer/consumer pattern.
   
