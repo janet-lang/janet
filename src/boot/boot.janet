@@ -529,39 +529,64 @@
   (each-template x ds :each body))
 
 (defmacro loop
-  "A general purpose loop macro. This macro is similar to the Common Lisp
+  ``A general purpose loop macro. This macro is similar to the Common Lisp
   loop macro, although intentionally much smaller in scope.
   The head of the loop should be a tuple that contains a sequence of
   either bindings or conditionals. A binding is a sequence of three values
-  that define something to loop over. They are formatted like:\n\n
-  \tbinding :verb object/expression\n\n
-  Where binding is a binding as passed to def, :verb is one of a set of keywords,
-  and object is any expression. The available verbs are:\n\n
-  \t:iterate - repeatedly evaluate and bind to the expression while it is truthy.\n
-  \t:range - loop over a range. The object should be a two-element tuple with a start
-  and end value, and an optional positive step. The range is half open, [start, end).\n
-  \t:range-to - same as :range, but the range is inclusive [start, end].\n
-  \t:down - loop over a range, stepping downwards. The object should be a two-element tuple
-  with a start and (exclusive) end value, and an optional (positive!) step size.\n
-  \t:down-to - same :as down, but the range is inclusive [start, end].\n
-  \t:keys - iterate over the keys in a data structure.\n
-  \t:pairs - iterate over the key-value pairs as tuples in a data structure.\n
-  \t:in - iterate over the values in a data structure.\n
-  \t:generate - iterate over values yielded from a fiber. Can be paired with the generator
-  function for the producer/consumer pattern.\n\n
-  loop also accepts conditionals to refine the looping further. Conditionals are of
-  the form:\n\n
-  \t:modifier argument\n\n
-  where :modifier is one of a set of keywords, and argument is keyword-dependent.
-  :modifier can be one of:\n\n
-  \t:while expression - breaks from the loop if expression is falsey.\n
-  \t:until expression - breaks from the loop if expression is truthy.\n
-  \t:let bindings - defines bindings inside the loop as passed to the let macro.\n
-  \t:before form - evaluates a form for a side effect before the next inner loop.\n
-  \t:after form - same as :before, but the side effect happens after the next inner loop.\n
-  \t:repeat n - repeats the next inner loop n times.\n
-  \t:when condition - only evaluates the loop body when condition is true.\n\n
-  The loop macro always evaluates to nil."
+  that define something to loop over. They are formatted like:
+  
+      binding :verb object/expression
+      
+  Where `binding` is a binding as passed to def, `:verb` is one of a set of keywords,
+  and `object` is any expression. The available verbs are:
+  
+  `:iterate`
+    : repeatedly evaluate and bind to the expression while it is truthy.
+    
+  `:range`
+    : loop over a range. The object should be a two-element tuple with a start
+      and end value, and an optional positive step. The range is half open, [start, end).
+      
+  `:range-to`
+    : same as :range, but the range is inclusive [start, end].
+    
+  `:down`
+    : loop over a range, stepping downwards. The object should be a two-element tuple
+      with a start and (exclusive) end value, and an optional (positive!) step size.
+      
+  `:down-to`
+    : same :as down, but the range is inclusive [start, end].
+    
+  `:keys`
+    : iterate over the keys in a data structure.
+    
+  `:pairs`
+    : iterate over the key-value pairs as tuples in a data structure.
+    
+  `:in`
+    : iterate over the values in a data structure.
+    
+  `:generate`
+    : iterate over values yielded from a fiber. Can be paired with the generator
+      function for the producer/consumer pattern.
+  
+  `loop` also accepts conditionals to refine the looping further. Conditionals are of
+  the form:
+  
+      :modifier argument
+      
+  where `:modifier` is one of a set of keywords, and `argument` is keyword-dependent.
+  `:modifier` can be one of:
+  
+    * `:while expression` - breaks from the loop if `expression` is falsey.
+    * `:until expression` - breaks from the loop if `expression` is truthy.
+    * `:let bindings` - defines bindings inside the loop as passed to the `let` macro.
+    * `:before form` - evaluates a form for a side effect before the next inner loop.
+    * `:after form` - same as `:before`, but the side effect happens after the next inner loop.
+    * `:repeat n` - repeats the next inner loop `n` times.
+    * `:when condition` - only evaluates the loop body when condition is true.
+      
+  The `loop` macro always evaluates to nil.``
   [head & body]
   (loop1 body head 0))
 
