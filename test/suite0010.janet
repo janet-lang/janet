@@ -65,4 +65,8 @@
 (assert (= :brackets (tuple/type (postwalk identity '[]))) "walk square brackets 1")
 (assert (= :brackets (tuple/type (walk identity '[]))) "walk square brackets 2")
 
+# # off by 1 error in inttypes
+(assert (= (int/s64 "-0x8000_0000_0000_0000") (+ (int/s64 "0x7FFF_FFFF_FFFF_FFFF") 1)) "int types wrap around")
+
+
 (end-suite)

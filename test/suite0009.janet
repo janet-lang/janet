@@ -36,6 +36,12 @@
 (def s (net/server "127.0.0.1" "8000" handler))
 (assert s "made server 1")
 
+# We need some sleep for windows to let the server stabilize
+# or else the first read can fail. Might be a strange windows
+# "bug", but needs further investigating. Otherwise, `build_win test`
+# can sometimes fail on windows, leading to flaky testing.
+(ev/sleep 0.2)
+
 (defn test-echo [msg]
   (with [conn (net/connect "127.0.0.1" "8000")]
     (:write conn msg)

@@ -1642,7 +1642,7 @@ int janet_make_pipe(JanetHandle handles[2]) {
     rhandle = CreateNamedPipeA(
                   PipeNameBuffer,
                   PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
-                  PIPE_TYPE_BYTE | PIPE_WAIT,
+                  PIPE_TYPE_BYTE | PIPE_NOWAIT,
                   1,             /* Number of pipes */
                   4096,          /* Out buffer size */
                   4096,          /* In buffer size */
