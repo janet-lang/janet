@@ -2842,21 +2842,23 @@
     {"h" (fn [&]
            (print "usage: " (dyn :executable "janet") " [options] script args...")
            (print
-             `Options are:
-  -h : Show this help
-  -v : Print the version string
-  -s : Use raw stdin instead of getline like functionality
-  -e code : Execute a string of janet
-  -d : Set the debug flag in the REPL
-  -r : Enter the REPL after running all scripts
-  -p : Keep on executing if there is a top-level error (persistent)
-  -q : Hide logo (quiet)
-  -k : Compile scripts but do not execute (flycheck)
-  -m syspath : Set system path for loading global modules
-  -c source output : Compile janet source code into an image
-  -n : Disable ANSI color output in the REPL
-  -l lib : Import a module before processing more arguments
-  -- : Stop handling options`)
+             ```
+             Options are:
+               -h : Show this help
+               -v : Print the version string
+               -s : Use raw stdin instead of getline like functionality
+               -e code : Execute a string of janet
+               -d : Set the debug flag in the REPL
+               -r : Enter the REPL after running all scripts
+               -p : Keep on executing if there is a top-level error (persistent)
+               -q : Hide logo (quiet)
+               -k : Compile scripts but do not execute (flycheck)
+               -m syspath : Set system path for loading global modules
+               -c source output : Compile janet source code into an image
+               -n : Disable ANSI color output in the REPL
+               -l lib : Import a module before processing more arguments
+               -- : Stop handling options
+             ```)
            (os/exit 0)
            1)
      "v" (fn [&] (print janet/version "-" janet/build) (os/exit 0) 1)

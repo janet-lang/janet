@@ -313,11 +313,48 @@ static int stringend(JanetParser *p, JanetParseState *state) {
     uint8_t *bufstart = p->buf;
     int32_t buflen = (int32_t) p->bufcount;
     if (state->flags & PFLAG_LONGSTRING) {
-        /* Check for leading newline character so we can remove it */
-        if (bufstart[0] == '\n') {
-            bufstart++;
-            buflen--;
+        /* Post process to remove leading whitespace */
+        JanetParseState top = p->states[p->statecount - 1];
+        int32_t indent_col = (int32_t) top.column - 1;
+        uint8_t *r = bufstart, *end = r + buflen;
+        /* Check if there are any characters before the start column -
+         * if so, do not reindent. */
+        int reindent = 1;
+        while (reindent && (r < end)) {
+            if (*r++ == '\n') {
+                for (int32_t j = 0; (r < end) && (*r != '\n') && (j < indent_col); j++, r++) {
+                    if (*r != ' ') {
+                        reindent = 0;
+                        break;
+                    }
+                }
+            }
         }
+        /* Now reindent if able to, otherwise just drop leading newline. */
+        if (!reindent) {
+            if (buflen > 0 && bufstart[0] == '\n') {
+                buflen--;
+                bufstart++;
+            }
+        } else {
+            uint8_t *w = bufstart;
+            r = bufstart;
+            while (r < end) {
+                if (*r == '\n') {
+                    if (r == bufstart) {
+                        /* Skip leading newline */
+                        r++;
+                    } else {
+                        *w++ = *r++;
+                    }
+                    for (int32_t j = 0; (r < end) && (*r != '\n') && (j < indent_col); j++, r++);
+                } else {
+                    *w++ = *r++;
+                }
+            }
+            buflen = (int32_t) (w - bufstart);
+        }
+        /* Check for trailing newline character so we can remove it */
         if (buflen > 0 && bufstart[buflen - 1] == '\n') {
             buflen--;
         }
