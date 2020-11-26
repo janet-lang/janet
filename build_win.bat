@@ -28,10 +28,10 @@ if not "%JANET_BUILD%" == "" (
     @set JANET_COMPILE=%JANET_COMPILE% /DJANET_BUILD="\"%JANET_BUILD%\""
 )
 
-mkdir build
-mkdir build\core
-mkdir build\mainclient
-mkdir build\boot
+if not exist build mkdir build
+if not exist build\core mkdir build\core
+if not exist build\mainclient mkdir build\mainclient
+if not exist build\boot mkdir build\boot
 
 @rem Build the bootstrap interpreter
 for %%f in (src\core\*.c) do (

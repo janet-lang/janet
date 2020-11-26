@@ -621,7 +621,7 @@ static const JanetReg net_cfuns[] = {
         "net/listen", cfun_net_listen,
         JDOC("(net/listen host port &opt type)\n\n"
              "Creates a server. Returns a new stream that is neither readable nor "
-             "writeable. Use net/accept or net/accept-loop be to handle connections and start the server."
+             "writeable. Use net/accept or net/accept-loop be to handle connections and start the server. "
              "The type parameter specifies the type of network connection, either "
              "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
              ":stream. The host and port arguments are the same as in net/address.")
@@ -681,7 +681,7 @@ static const JanetReg net_cfuns[] = {
     },
     {
         "net/connect", cfun_net_connect,
-        JDOC("(net/connect host porti &opt type)\n\n"
+        JDOC("(net/connect host port &opt type)\n\n"
              "Open a connection to communicate with a server. Returns a duplex stream "
              "that can be used to communicate with the server. Type is an optional keyword "
              "to specify a connection type, either :stream or :datagram. The default is :stream. ")
