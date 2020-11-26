@@ -811,11 +811,15 @@
 
 (defn reduce
   "Reduce, also know as fold-left in many languages, transforms
-  an indexed type (array, tuple) with a function to produce a value."
+  an indexed type (array, tuple) with a function to produce a value by applying f to
+  each element in order. f is a function of 2 arguments, (f accum el), where
+  accum is the initial value and el is the next value in the indexed type ind.
+  f returns a value that will be used as accum in the next call to f. reduce
+  returns the value of the final call to f."
   [f init ind]
-  (var res init)
-  (each x ind (set res (f res x)))
-  res)
+  (var accum init)
+  (each el ind (set accum (f accum el)))
+  accum)
 
 (defn reduce2
   "The 2-argument version of reduce that does not take an initialization value.
@@ -833,7 +837,8 @@
 (defn accumulate
   "Similar to reduce, but accumulates intermediate values into an array.
   The last element in the array is what would be the return value from reduce.
-  The init value is not added to the array.
+  The init value is not added to the array (the return value will have the same
+  number of elements as ind).
   Returns a new array."
   [f init ind]
   (var res init)
@@ -842,7 +847,9 @@
   ret)
 
 (defn accumulate2
-  "The 2-argument version of accumulate that does not take an initialization value."
+  "The 2-argument version of accumulate that does not take an initialization value.
+  The first value in ind will be added to the array as is, so the length of the
+  return value will be (length ind)."
   [f ind]
   (var k (next ind))
   (def ret (array/new (length ind)))
