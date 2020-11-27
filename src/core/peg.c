@@ -488,8 +488,9 @@ tail:
             } else {
                 /* Throw generic error */
                 int32_t start = (int32_t)(text - s->text_start);
+                LineCol lc = get_linecol_from_position(s, start);
                 int32_t end = (int32_t)(result - s->text_start);
-                janet_panicf("match error in range (%d:%d)", start, end);
+                janet_panicf("match error at line %d, column %d", lc.line, lc.col);
             }
             return NULL;
         }
@@ -898,7 +899,13 @@ static void spec_not(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_NOT);
 }
 static void spec_error(Builder *b, int32_t argc, const Janet *argv) {
-    spec_onerule(b, argc, argv, RULE_ERROR);
+    if (argc == 0) {
+        Reserve r = reserve(b, 2);
+        uint32_t rule = peg_compile1(b, janet_wrap_number(0));
+        emit_1(r, RULE_ERROR, rule);
+    } else {
+        spec_onerule(b, argc, argv, RULE_ERROR);
+    }
 }
 static void spec_drop(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_DROP);

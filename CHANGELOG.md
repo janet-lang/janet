@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Backtick delimited strings and buffers are now reindented based on the column of the
+  opening delimiter. WHitespace in columns to the left of the starting column is ignored unless
+  there are non-space/non-newline characters in that region, in which case the old behavior is preserved.
+- Argument to `(error)` combinator in PEGs is now optional.
+- Add `(line)` and `(column)` combinators to PEGs to capture source line and column.
+  This should make error reporting a bit easier.
 - During installation and release, merge janetconf.h into janet.h for easier install.
 - Add `upscope` special form.
 - `os/execute` and `os/spawn` can take streams for redirecting IO.
