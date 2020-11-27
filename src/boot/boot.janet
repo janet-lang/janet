@@ -12,7 +12,7 @@
 (def defn :macro
   ```
   (defn name & more)
-  
+
   Define a function. Equivalent to (def name (fn name [args] ...)).
   ```
   (fn defn [name & more]
@@ -119,7 +119,7 @@
 (def idempotent?
   ```
   (idempotent? x)
-  
+
   Check if x is a value that evaluates to itself when compiled.
   ```
   (do
@@ -544,41 +544,52 @@
   either bindings or conditionals. A binding is a sequence of three values
   that define something to loop over. They are formatted like:
 
-    binding :verb object/expression
+      binding :verb object/expression
 
-  Where binding is a binding as passed to def, :verb is one of a set of keywords,
-  and object is any expression. The available verbs are:
+  Where `binding` is a binding as passed to def, `:verb` is one of a set of
+  keywords, and `object` is any expression. The available verbs are:
 
-    * :iterate - repeatedly evaluate and bind to the expression while it is truthy.
-    * :range - loop over a range. The object should be a two-element tuple with a start
-               and end value, and an optional positive step. The range is half open, [start, end).
-    * :range-to - same as :range, but the range is inclusive [start, end].
-    * :down - loop over a range, stepping downwards. The object should be a two-element tuple
-              with a start and (exclusive) end value, and an optional (positive!) step size.
-    * :down-to - same :as down, but the range is inclusive [start, end].
-    * :keys - iterate over the keys in a data structure.
-    * :pairs - iterate over the key-value pairs as tuples in a data structure.
-    * :in - iterate over the values in a data structure.
-    * :generate - iterate over values yielded from a fiber. Can be paired with the generator
-                  function for the producer/consumer pattern.
+  * :iterate -- repeatedly evaluate and bind to the expression while it is
+    truthy.
 
-  loop also accepts conditionals to refine the looping further. Conditionals are of
+  * :range -- loop over a range. The object should be a two-element tuple with
+    a start and end value, and an optional positive step. The range is half
+    open, [start, end).
+
+  * :range-to -- same as :range, but the range is inclusive [start, end].
+
+  * :down -- loop over a range, stepping downwards. The object should be a
+    two-element tuple with a start and (exclusive) end value, and an optional
+    (positive!) step size.
+
+  * :down-to -- same :as down, but the range is inclusive [start, end].
+
+  * :keys -- terate over the keys in a data structure.
+
+  * :pairs -- iterate over the key-value pairs as tuples in a data structure.
+
+  * :in -- iterate over the values in a data structure.
+
+  * :generate -- iterate over values yielded from a fiber. Can be paired with
+    the generator function for the producer/consumer pattern.
+
+  `loop` also accepts conditionals to refine the looping further. Conditionals are of
   the form:
 
-    :modifier argument
+      :modifier argument
 
-  where :modifier is one of a set of keywords, and argument is keyword-dependent.
-  :modifier can be one of:
+  where `:modifier` is one of a set of keywords, and `argument` is keyword-dependent.
+  `:modifier` can be one of:
 
-    * :while expression - breaks from the loop if expression is falsey.
-    * :until expression - breaks from the loop if expression is truthy.
-    * :let bindings - defines bindings inside the loop as passed to the let macro.
-    * :before form - evaluates a form for a side effect before the next inner loop.
-    * :after form - same as :before, but the side effect happens after the next inner loop.
-    * :repeat n - repeats the next inner loop n times.
-    * :when condition - only evaluates the loop body when condition is true.
+    * `:while expression` - breaks from the loop if `expression` is falsey.
+    * `:until expression` - breaks from the loop if `expression` is truthy.
+    * `:let bindings` - defines bindings inside the loop as passed to the `let` macro.
+    * `:before form` - evaluates a form for a side effect before the next inner loop.
+    * `:after form` - same as `:before`, but the side effect happens after the next inner loop.
+    * `:repeat n` - repeats the next inner loop `n` times.
+    * `:when condition` - only evaluates the loop body when condition is true.
 
-  The loop macro always evaluates to nil.
+  The `loop` macro always evaluates to nil.
   ```
   [head & body]
   (loop1 body head 0))
@@ -1683,48 +1694,268 @@
   (env-walk keyword? env local))
 
 (defn doc-format
-  `Reformat text to wrap at a given line. By default, uses the value of
-  (dyn :doc-width 120) to wrap text. Returns a buffer containing a formatted
-  docstring.`
-  [text &opt width]
+  `Reformat a docstring to wrap a certain width.
+  Returns a buffer containing the formatted text.`
+  [str &opt width indent]
+  (default indent 4)
+  (def max-width (- (or width (dyn :doc-width 80)) 8))
+  (def len (length str))
+  (def res @"")
+  (var pos 0)
+  (def line @"")
+  (var line-width 0)
+  (def levels @[0])
+  (var leading 0)
+  (var c nil)
 
-  (def maxcol (- (or width (dyn :doc-width 120)) 8))
-  (var buf @"    ")
-  (var word @"")
-  (var current 0)
-  (var indenting true)
+  (def base-indent
+    # Is there a better way?
+    (do
+      (var min-indent 0)
+      (var curr-indent 0)
+      (var start-of-line false)
+      (set c (get str pos))
+      (while (not= nil c)
+        (case c
+          10 (do
+               (set start-of-line true)
+               (set curr-indent 0))
+          32 (when start-of-line
+               (++ curr-indent))
+          (when start-of-line
+            (set start-of-line false)
+            (when (or (= 0 min-indent)
+                      (< curr-indent min-indent))
+              (set min-indent curr-indent))))
+        (set c (get str (++ pos))))
+      min-indent))
 
-  (defn pushword
-    []
-    (def oldcur current)
-    (def spacer
-      (if (<= maxcol (+ current (length word) 1))
-        (do (set current 0) (set indenting true) "\n    ")
-        (do (++ current) " ")))
-    (+= current (length word))
-    (if (> oldcur 0)
-      (buffer/push-string buf spacer))
-    (buffer/push-string buf word)
-    (buffer/clear word))
+  (set pos 0)
 
-  (each b text
-    (if (and (not= b 10) (not= b 32))
-      (if (= b 9)
-        (buffer/push-string word "  ")
-        (do (set indenting false) (buffer/push-byte word b)))
-      (if (and indenting (= b 32))
-        (buffer/push-byte word b)
-        (do
-          (if (> (length word) 0) (pushword))
-          (when (= b 10)
-            (buffer/push-string buf "\n    ")
-            (set current 0)
-            (set indenting true))))))
+  (defn skip-base-indent []
+    (var pos* pos)
+    (set c (get str pos*))
+    (while (and (< (- pos* pos) base-indent)
+                (= 32 c))
+      (set c (get str (++ pos*))))
+    (set pos pos*))
 
-  # Last word
-  (pushword)
+  (defn skip-line-indent []
+    (var pos* pos)
+    (set c (get str pos*))
+    (while (and (not= nil c)
+                (not= 10 c)
+                (= 32 c))
+      (set c (get str (++ pos*))))
+    (set leading (- pos* pos))
+    (set pos pos*))
 
-  buf)
+  (defn update-levels []
+    (while (< leading (array/peek levels))
+      (array/pop levels)))
+
+  (defn start-nl? []
+    (= 10 (get str pos)))
+
+  (defn start-fcb? []
+    (and (= 96 (get str (+ pos)))
+         (= 96 (get str (+ pos 1)))
+         (= 96 (get str (+ pos 2)))))
+
+  (defn end-fcb? []
+    (and (= 96 (get str (+ pos)))
+         (= 96 (get str (+ pos 1)))
+         (= 96 (get str (+ pos 2)))
+         (= 10 (get str (+ pos 3)))))
+
+  (defn start-icb? []
+    (and (not= leading (array/peek levels))
+         (or (= 4 leading)
+             (= 4 (- leading (array/peek levels))))))
+
+  (defn start-ul? []
+    (var pos* pos)
+    (var c* (get str pos*))
+    (while (and (not= nil c*)
+                (= 32 c*))
+      (set c* (get str (++ pos*))))
+    (and (or (= 42 c*)
+             (= 43 c*)
+             (= 45 c*))
+         (= 32 (get str (+ pos* 1)))))
+
+  (defn start-ol? []
+    (var pos* pos)
+    (var c* (get str pos*))
+    (while (and (not= nil c*)
+                (= 32 c*))
+      (set c* (get str (++ pos*))))
+    (while (and (not= nil c*)
+                (<= 48 c*)
+                (>= 57 c*))
+      (set c* (get str (++ pos*))))
+    (set c* (get str (-- pos*)))
+    (and (<= 48 c*)
+         (>= 57 c*)
+         (= 46 (get str (+ pos* 1)))
+         (= 32 (get str (+ pos* 2)))))
+
+  (defn push-line []
+    (buffer/push-string res (buffer/new-filled indent 32))
+    (set c (get str pos))
+    (while (not= 10 c)
+      (buffer/push-byte res c)
+      (set c (get str (++ pos))))
+    (buffer/push-byte res c)
+    (++ pos))
+
+  (defn push-bullet []
+    (var pos* pos)
+    (buffer/push-string line (buffer/new-filled leading 32))
+    (set c (get str pos*))
+    # Add bullet
+    (while (and (not= nil c) (not= 32 c))
+      (buffer/push-byte line c)
+      (set c (get str (++ pos*))))
+    # Add item indentation
+    (while (and (not= nil c) (= 32 c))
+      (buffer/push-byte line c)
+      (set c (get str (++ pos*))))
+    # Record indentation if necessary
+    (def item-indent (+ leading (- pos* pos)))
+    (when (not= item-indent (array/peek levels))
+       (array/push levels item-indent))
+    # Update line width
+    (+= line-width item-indent)
+    # Update position
+    (set pos pos*))
+
+  (defn push-word [hang-indent]
+    (def word @"")
+    (var word-len 0)
+    # Build a word
+    (while (and (not= nil c)
+                (not= 10 c)
+                (not= 32 c))
+      (buffer/push-byte word c)
+      (++ word-len)
+      (set c (get str (++ pos))))
+    # Start new line if necessary
+    (when (> (+ line-width word-len) max-width)
+      # Push existing line
+      (buffer/push-byte line 10)
+      (buffer/push-string res line)
+      (buffer/clear line)
+      # Indent new line
+      (buffer/push-string line (buffer/new-filled hang-indent 32))
+      (set line-width hang-indent))
+    # Add single space if not beginning of line
+    (when (not= line-width hang-indent)
+      (buffer/push-byte line 32)
+      (++ line-width))
+    # Push word onto line
+    (buffer/push-string line word)
+    (set line-width (+ line-width word-len)))
+
+  (defn push-nl []
+    (when (< pos len)
+      (buffer/push-byte res 10)
+      (++ pos)))
+
+  (defn push-list []
+    (update-levels)
+    # Indent first line
+    (buffer/push-string line (buffer/new-filled indent 32))
+    (set line-width indent)
+    # Add bullet
+    (push-bullet)
+    # Add words
+    (set c (get str pos))
+    (while (and (not= nil c)
+                (not= 10 c))
+      # Skip spaces
+      (while (= 32 c)
+        (set c (get str (++ pos))))
+      # Add word
+      (push-word (+ indent (array/peek levels)))
+      (def old-c c)
+      (set c (get str (++ pos)))
+      # Check if next line is a new item
+      (when (and (= 10 old-c)
+                 (or (start-ul?)
+                     (start-ol?)))
+        (set c (get str (-- pos)))))
+    # Add final line
+    (buffer/push-string res line)
+    (buffer/clear line)
+    # Move position back for newline
+    (-- pos)
+    (push-nl))
+
+  (defn push-fcb []
+    (update-levels)
+    (push-line)
+    (skip-base-indent)
+    (while (not (end-fcb?))
+      (push-line)
+      (skip-base-indent))
+    (push-line))
+
+  (defn push-icb []
+    (buffer/push-string res (buffer/new-filled leading 32))
+    (push-line)
+    (skip-base-indent)
+    (while (not (start-nl?))
+      (push-line)
+      (skip-base-indent))
+    (push-nl))
+
+  (defn push-p []
+    (update-levels)
+    # Set up the indentation
+    (def para-indent (+ indent (array/peek levels)))
+    # Indent first line
+    (buffer/push-string line (buffer/new-filled para-indent 32))
+    (set line-width para-indent)
+    # Add words
+    (set c (get str pos))
+    (while (and (not= nil c)
+                (not= 10 c))
+      # Skip spaces
+      (while (= 32 c)
+        (set c (get str (++ pos))))
+      # Add word
+      (push-word para-indent)
+      (set c (get str (++ pos))))
+    # Add final line
+    (buffer/push-string res line)
+    (buffer/clear line)
+    # Move position back for newline
+    (-- pos)
+    (push-nl)
+    (push-nl))
+
+  (while (< pos len)
+    (skip-base-indent)
+    (skip-line-indent)
+    (cond
+      (start-nl?)
+      (push-nl)
+
+      (start-ul?)
+      (push-list)
+
+      (start-ol?)
+      (push-list)
+
+      (start-fcb?)
+      (push-fcb)
+
+      (start-icb?)
+      (push-icb)
+
+      (push-p)))
+  res)
 
 (defn- print-index
   "Print bindings in the current environment given a filter function"
@@ -2348,7 +2579,7 @@
   Each element is a two-element tuple, containing the path
   template and a keyword :source, :native, or :image indicating how
   require should load files found at these paths.
-  
+
   A tuple can also
   contain a third element, specifying a filter that prevents module/find
   from searching that path template if the filter doesn't match the input
@@ -2531,10 +2762,10 @@
   (require-1 path args (struct ;args)))
 
 (defn merge-module
-  "Merge a module source into the target environment with a prefix, as with the import macro.
+  `Merge a module source into the target environment with a prefix, as with the import macro.
   This lets users emulate the behavior of import with a custom module table.
   If export is truthy, then merged functions are not marked as private. Returns
-  the modified target environment."
+  the modified target environment.`
   [target source &opt prefix export]
   (loop [[k v] :pairs source :when (symbol? k) :when (not (v :private))]
     (def newv (table/setproto @{:private (not export)} v))
