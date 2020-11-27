@@ -352,7 +352,7 @@ static int stringend(JanetParser *p, JanetParseState *state) {
                     *w++ = *r++;
                 }
             }
-            buflen = (int32_t) (w - bufstart);
+            buflen = (int32_t)(w - bufstart);
         }
         /* Check for trailing newline character so we can remove it */
         if (buflen > 0 && bufstart[buflen - 1] == '\n') {

@@ -102,10 +102,7 @@ static LineCol get_linecol_from_position(PegState *s, int32_t position) {
         for (const uint8_t *c = s->text_start; c < s->text_end; c++) {
             if (*c == '\n') newline_count++;
         }
-        int32_t *mem = malloc(sizeof(int32_t) * newline_count);
-        if (NULL == mem) {
-            JANET_OUT_OF_MEMORY;
-        }
+        int32_t *mem = janet_smalloc(sizeof(int32_t) * newline_count);
         size_t index = 0;
         for (const uint8_t *c = s->text_start; c < s->text_end; c++) {
             if (*c == '\n') mem[index++] = (int32_t)(c - s->text_start);
@@ -337,13 +334,13 @@ tail:
         }
 
         case RULE_LINE: {
-            LineCol lc = get_linecol_from_position(s, (int32_t) (text - s->text_start));
+            LineCol lc = get_linecol_from_position(s, (int32_t)(text - s->text_start));
             pushcap(s, janet_wrap_number((double)(lc.line)), rule[1]);
             return text;
         }
 
         case RULE_COLUMN: {
-            LineCol lc = get_linecol_from_position(s, (int32_t) (text - s->text_start));
+            LineCol lc = get_linecol_from_position(s, (int32_t)(text - s->text_start));
             pushcap(s, janet_wrap_number((double)(lc.col)), rule[1]);
             return text;
         }
@@ -489,7 +486,6 @@ tail:
                 /* Throw generic error */
                 int32_t start = (int32_t)(text - s->text_start);
                 LineCol lc = get_linecol_from_position(s, start);
-                int32_t end = (int32_t)(result - s->text_start);
                 janet_panicf("match error at line %d, column %d", lc.line, lc.col);
             }
             return NULL;
