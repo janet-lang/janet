@@ -2120,7 +2120,7 @@
         :parser parser
         :read read
         :expander expand} opts)
-  (default env (fiber/getenv (fiber/current)))
+  (default env (or (fiber/getenv (fiber/current)) @{}))
   (default chunks (fn [buf p] (getline "" buf env)))
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
