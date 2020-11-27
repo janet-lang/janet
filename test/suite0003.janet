@@ -360,6 +360,14 @@
 (check-match janet-longstring "``` `` ```" true)
 (check-match janet-longstring "``  ```" false)
 
+# Line and column capture
+
+(def line-col (peg/compile '(any (* (line) (column) 1))))
+(check-deep line-col "abcd" @[1 1 1 2 1 3 1 4])
+(check-deep line-col "" @[])
+(check-deep line-col "abcd\n" @[1 1 1 2 1 3 1 4 1 5])
+(check-deep line-col "abcd\nz" @[1 1 1 2 1 3 1 4 1 5 2 1])
+
 # Backmatch
 
 (def backmatcher-1 '(* (capture (any "x") :1) "y" (backmatch :1) -1))

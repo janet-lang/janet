@@ -45,8 +45,10 @@ typedef struct {
     JanetBuffer *scratch;
     JanetBuffer *tags;
     const Janet *extrav;
+    int32_t *linemap;
     int32_t extrac;
     int32_t depth;
+    int32_t linemaplen;
     enum {
         PEG_MODE_NORMAL,
         PEG_MODE_ACCUMULATE
@@ -85,6 +87,60 @@ static void pushcap(PegState *s, Janet capture, uint32_t tag) {
         janet_array_push(s->captures, capture);
         janet_buffer_push_u8(s->tags, tag);
     }
+}
+
+/* Lazily generate line map to get line and column information for PegState.
+ * line and column are 1-indexed. */
+typedef struct {
+    int32_t line;
+    int32_t col;
+} LineCol;
+static LineCol get_linecol_from_position(PegState *s, int32_t position) {
+    /* Generate if not made yet */
+    if (s->linemaplen < 0) {
+        int32_t newline_count = 0;
+        for (const uint8_t *c = s->text_start; c < s->text_end; c++) {
+            if (*c == '\n') newline_count++;
+        }
+        int32_t *mem = malloc(sizeof(int32_t) * newline_count);
+        if (NULL == mem) {
+            JANET_OUT_OF_MEMORY;
+        }
+        size_t index = 0;
+        for (const uint8_t *c = s->text_start; c < s->text_end; c++) {
+            if (*c == '\n') mem[index++] = (int32_t)(c - s->text_start);
+        }
+        s->linemaplen = newline_count;
+        s->linemap = mem;
+    }
+    /* Do binary search for line. Slightly modified from classic binary search:
+     * - if we find that our current character is a line break, just return immediately.
+     *   a newline character is consider to be on the same line as the character before
+     *   (\n is line terminator, not line separator).
+     * - in the not-found case, we still want to find the greatest-indexed newline that
+     *   is before position. we use that to calcuate the line and column.
+     * - in the case that lo = 0 and s->linemap[0] is still greater than position, we
+     *   are on the first line and our column is position + 1. */
+    int32_t hi = s->linemaplen; /* hi is greater than the actual line */
+    int32_t lo = 0; /* lo is less than or equal to the actual line */
+    LineCol ret;
+    while (lo + 1 < hi) {
+        int32_t mid = lo + (hi - lo) / 2;
+        if (s->linemap[mid] >= position) {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    /* first line case */
+    if (s->linemaplen == 0 || (lo == 0 && s->linemap[0] >= position)) {
+        ret.line = 1;
+        ret.col = position + 1;
+    } else {
+        ret.line = lo + 2;
+        ret.col = position - s->linemap[lo];
+    }
+    return ret;
 }
 
 /* Convert a uint64_t to a int64_t by wrapping to a maximum number of bytes */
@@ -277,6 +333,18 @@ tail:
 
         case RULE_POSITION: {
             pushcap(s, janet_wrap_number((double)(text - s->text_start)), rule[1]);
+            return text;
+        }
+
+        case RULE_LINE: {
+            LineCol lc = get_linecol_from_position(s, (int32_t) (text - s->text_start));
+            pushcap(s, janet_wrap_number((double)(lc.line)), rule[1]);
+            return text;
+        }
+
+        case RULE_COLUMN: {
+            LineCol lc = get_linecol_from_position(s, (int32_t) (text - s->text_start));
+            pushcap(s, janet_wrap_number((double)(lc.col)), rule[1]);
             return text;
         }
 
@@ -880,6 +948,12 @@ static void spec_tag1(Builder *b, int32_t argc, const Janet *argv, uint32_t op) 
 static void spec_position(Builder *b, int32_t argc, const Janet *argv) {
     spec_tag1(b, argc, argv, RULE_POSITION);
 }
+static void spec_line(Builder *b, int32_t argc, const Janet *argv) {
+    spec_tag1(b, argc, argv, RULE_LINE);
+}
+static void spec_column(Builder *b, int32_t argc, const Janet *argv) {
+    spec_tag1(b, argc, argv, RULE_COLUMN);
+}
 
 static void spec_backmatch(Builder *b, int32_t argc, const Janet *argv) {
     spec_tag1(b, argc, argv, RULE_BACKMATCH);
@@ -983,6 +1057,7 @@ static const SpecialPair peg_specials[] = {
     {"capture", spec_capture},
     {"choice", spec_choice},
     {"cmt", spec_matchtime},
+    {"column", spec_column},
     {"constant", spec_constant},
     {"drop", spec_drop},
     {"error", spec_error},
@@ -992,6 +1067,7 @@ static const SpecialPair peg_specials[] = {
     {"int", spec_int_le},
     {"int-be", spec_int_be},
     {"lenprefix", spec_lenprefix},
+    {"line", spec_line},
     {"look", spec_look},
     {"not", spec_not},
     {"opt", spec_opt},
@@ -1229,6 +1305,8 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_NOTNCHAR:
             case RULE_RANGE:
             case RULE_POSITION:
+            case RULE_LINE:
+            case RULE_COLUMN:
             case RULE_BACKMATCH:
                 /* [1 word] */
                 i += 2;
@@ -1438,6 +1516,8 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
     ret.s.tags = janet_buffer(10);
     ret.s.constants = ret.peg->constants;
     ret.s.bytecode = ret.peg->bytecode;
+    ret.s.linemap = NULL;
+    ret.s.linemaplen = -1;
     return ret;
 }
 
