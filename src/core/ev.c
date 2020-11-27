@@ -1684,7 +1684,8 @@ static Janet cfun_ev_call(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
     JanetFunction *fn = janet_getfunction(argv, 0);
     JanetFiber *fiber = janet_fiber(fn, 64, argc - 1, argv + 1);
-    fiber->env = janet_current_fiber()->env;
+    fiber->env = janet_table(0);
+    fiber->env->proto = janet_current_fiber()->env;
     if (NULL == fiber) janet_panicf("invalid arity to function %v", argv[0]);
     janet_schedule(fiber, janet_wrap_nil());
     return janet_wrap_fiber(fiber);
