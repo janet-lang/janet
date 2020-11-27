@@ -1658,6 +1658,268 @@
   [&opt env local]
   (env-walk keyword? env local))
 
+(defn docstring-format
+  "Reformat a docstring."
+  [str &opt width indent]
+  (default indent 4)
+  (def max-width (- (or width (dyn :doc-width 80)) 8))
+  (def len (length str))
+  (def res @"")
+  (var pos 0)
+  (def line @"")
+  (var line-width 0)
+  (def levels @[0])
+  (var level 0)
+  (var c nil)
+
+  (def base-indent
+    # Is there a better way?
+    (do
+      (var min-indent 0)
+      (var curr-indent 0)
+      (var start-of-line false)
+      (set c (get str pos))
+      (while (not= nil c)
+        (case c
+          10 (do
+               (set start-of-line true)
+               (set curr-indent 0))
+          32 (when start-of-line
+               (++ curr-indent))
+          (when start-of-line
+            (set start-of-line false)
+            (when (or (= 0 min-indent)
+                      (< curr-indent min-indent))
+              (set min-indent curr-indent))))
+        (set c (get str (++ pos))))
+      min-indent))
+
+  (set pos 0)
+
+  (defn skip-base-indent []
+    (var pos* pos)
+    (set c (get str pos*))
+    (while (and (< (- pos* pos) base-indent)
+                (= 32 c))
+      (set c (get str (++ pos*))))
+    (set pos pos*))
+
+  (defn update-level []
+    (var pos* pos)
+    (set c (get str pos*))
+    (while (and (not= nil c)
+                (= 32 c))
+      (set c (get str (++ pos*))))
+    (set level (- pos* pos)))
+
+  (defn reset-level []
+    (while (< level (array/peek levels))
+      (array/pop levels))
+    (+= pos level))
+
+  (defn start-nl? []
+    (= 10 (get str pos)))
+
+  (defn start-fcb? []
+    (and (or (= 0 level)
+             (= (array/peek levels) level))
+         (= 96 (get str (+ level pos)))
+         (= 96 (get str (+ level pos 1)))
+         (= 96 (get str (+ level pos 2)))))
+
+  (defn end-fcb? []
+    (and (or (= 0 level)
+             (= (array/peek levels) level))
+         (= 96 (get str (+ level pos)))
+         (= 96 (get str (+ level pos 1)))
+         (= 96 (get str (+ level pos 2)))
+         (= 10 (get str (+ level pos 3)))))
+
+  (defn start-icb? []
+    (and (not= level (array/peek levels))
+         (or (= 4 level)
+             (= 4 (- level (array/peek levels))))))
+
+  (defn start-ul? []
+    (var pos* pos)
+    (var c* (get str pos*))
+    (while (and (not= nil c*)
+                (= 32 c*))
+      (set c* (get str (++ pos*))))
+    (and (or (= 42 c*)
+             (= 43 c*)
+             (= 45 c*))
+         (= 32 (get str (+ pos* 1)))))
+
+  (defn start-ol? []
+    (var pos* pos)
+    (var c* (get str pos*))
+    (while (and (not= nil c*)
+                (= 32 c*))
+      (set c* (get str (++ pos*))))
+    (while (and (not= nil c*)
+                (<= 48 c*)
+                (>= 57 c*))
+      (set c* (get str (++ pos*))))
+    (set c* (get str (-- pos*)))
+    (and (<= 48 c*)
+         (>= 57 c*)
+         (= 46 (get str (+ pos* 1)))
+         (= 32 (get str (+ pos* 2)))))
+
+  (defn push-line []
+    (buffer/push-string res (buffer/new-filled indent 32))
+    (set c (get str pos))
+    (while (not= 10 c)
+      (buffer/push-byte res c)
+      (set c (get str (++ pos))))
+    (buffer/push-byte res c)
+    (++ pos))
+
+  (defn push-bullet []
+    (var pos* pos)
+    (set c (get str pos*))
+    # Add leading space
+    (while (and (not= nil c) (= 32 c))
+      (buffer/push-byte line c)
+      (set c (get str (++ pos*))))
+    # Add bullet
+    (while (and (not= nil c) (not= 32 c))
+      (buffer/push-byte line c)
+      (set c (get str (++ pos*))))
+    # Add item indentation
+    (while (and (not= nil c) (= 32 c))
+      (buffer/push-byte line c)
+      (set c (get str (++ pos*))))
+    # Record indentation if necessary
+    (def item-level (+ level (- pos* pos)))
+    (when (not= item-level (array/peek levels))
+       (array/push levels item-level))
+    (set line-width item-level)
+    # Update position
+    (set pos pos*))
+
+  (defn push-word [hang-indent]
+    (def word @"")
+    (var word-len 0)
+    # Build a word
+    (while (and (not= nil c) (not= 10 c) (not= 32 c))
+      (buffer/push-byte word c)
+      (++ word-len)
+      (set c (get str (++ pos))))
+    # Start new line if necessary
+    (when (> (+ line-width word-len) max-width)
+      # Push existing line
+      (buffer/push-byte line 10)
+      (buffer/push-string res line)
+      (buffer/clear line)
+      # Indent new line
+      (buffer/push-string line (buffer/new-filled hang-indent 32))
+      (set line-width hang-indent))
+    # Add single space if not beginning of line
+    (when (not= line-width hang-indent)
+      (buffer/push-byte line 32)
+      (++ line-width))
+    # Push word onto line
+    (buffer/push-string line word)
+    (set line-width (+ line-width word-len)))
+
+  (defn push-nl []
+    (when (< pos len)
+      (buffer/push-byte res 10)
+      (++ pos)))
+
+  (defn push-list []
+    (reset-level)
+    # Set up the indentation
+    (def list-indent (+ indent (array/peek levels)))
+    # Indent first line
+    (buffer/push-string line (buffer/new-filled list-indent 32))
+    (set line-width list-indent)
+    # Add bullet
+    (push-bullet)
+    # Add words
+    (set c (get str pos))
+    (while (and (not= nil c)
+                (not= 10 c)
+                (not (or (start-ul?)
+                         (start-ol?))))
+      # Skip spaces
+      (while (= 32 c)
+        (set c (get str (++ pos))))
+      # Add word
+      (push-word (+ list-indent (array/peek levels)))
+      (set c (get str (++ pos))))
+    # Add final line
+    (buffer/push-string res line)
+    (buffer/clear line)
+    # Move position back for newline
+    (-- pos)
+    (push-nl))
+
+  (defn push-fcb []
+    (push-line)
+    (skip-base-indent)
+    (while (not (end-fcb?))
+      (push-line)
+      (skip-base-indent))
+    (push-line))
+
+  (defn push-icb []
+    (push-line)
+    (skip-base-indent)
+    (while (not (start-nl?))
+      (push-line)
+      (skip-base-indent))
+    (push-nl))
+
+  (defn push-p []
+    (reset-level)
+    # Set up the indentation
+    (def para-indent (+ indent (array/peek levels)))
+    # Indent first line
+    (buffer/push-string line (buffer/new-filled para-indent 32))
+    (set line-width para-indent)
+    # Add words
+    (set c (get str pos))
+    (while (and (not= nil c)
+                (not= 10 c))
+      # Skip spaces
+      (while (= 32 c)
+        (set c (get str (++ pos))))
+      # Add word
+      (push-word para-indent)
+      (set c (get str (++ pos))))
+    # Add final line
+    (buffer/push-string res line)
+    (buffer/clear line)
+    # Move position back for newline
+    (-- pos)
+    (push-nl)
+    (push-nl))
+
+  (while (< pos len)
+    (skip-base-indent)
+    (update-level)
+    (cond
+      (start-nl?)
+      (push-nl)
+
+      (start-ul?)
+      (push-list)
+
+      (start-ol?)
+      (push-list)
+
+      (start-fcb?)
+      (push-fcb)
+
+      (start-icb?)
+      (push-icb)
+
+      (push-p)))
+  res)
+
 (defn doc-format
   "Reformat text to wrap at a given line."
   [text &opt width]
@@ -1735,7 +1997,7 @@
                  (if-let [[path line col] sm]
                    (string "    " path " on line " line ", column " col "\n") "")
                  (if (or d sm) "\n" "")
-                 (if d (doc-format d) "    no documentation found.")
+                 (if d (docstring-format d) "    no documentation found.")
                  "\n\n"))))
 
     # else
