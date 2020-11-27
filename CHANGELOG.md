@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Argument to `(error)` combinator in PEGs is now optional.
 - Add `(line)` and `(column)` combinators to PEGs to capture source line and column.
   This should make error reporting a bit easier.
+- Add `merge-module` to core.
 - During installation and release, merge janetconf.h into janet.h for easier install.
 - Add `upscope` special form.
 - `os/execute` and `os/spawn` can take streams for redirecting IO.

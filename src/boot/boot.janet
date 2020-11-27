@@ -2153,7 +2153,7 @@
         :parser parser
         :read read
         :expander expand} opts)
-  (default env (fiber/getenv (fiber/current)))
+  (default env (or (fiber/getenv (fiber/current)) @{}))
   (default chunks (fn [buf p] (getline "" buf env)))
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
@@ -2530,11 +2530,22 @@
   [path & args]
   (require-1 path args (struct ;args)))
 
+(defn merge-module
+  "Merge a module source into the target environment with a prefix, as with the import macro.
+  This lets users emulate the behavior of import with a custom module table.
+  If export is truthy, then merged functions are not marked as private. Returns
+  the modified target environment."
+  [target source &opt prefix export]
+  (loop [[k v] :pairs source :when (symbol? k) :when (not (v :private))]
+    (def newv (table/setproto @{:private (not export)} v))
+    (put target (symbol prefix k) newv))
+  target)
+
 (defn import*
   `Function form of import. Same parameters, but the path
   and other symbol parameters should be strings instead.`
   [path & args]
-  (def env (fiber/getenv (fiber/current)))
+  (def env (curenv))
   (def kargs (table ;args))
   (def {:as as
         :prefix prefix
@@ -2544,9 +2555,7 @@
                 (and as (string as "/"))
                 prefix
                 (string (last (string/split "/" path)) "/")))
-  (loop [[k v] :pairs newenv :when (symbol? k) :when (not (v :private))]
-    (def newv (table/setproto @{:private (not ep)} v))
-    (put env (symbol prefix k) newv)))
+  (merge-module env newenv prefix ep))
 
 (undef require-1)
 
