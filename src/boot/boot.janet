@@ -564,7 +564,7 @@
 
   * :down-to -- same :as down, but the range is inclusive [start, end].
 
-  * :keys -- terate over the keys in a data structure.
+  * :keys -- iterate over the keys in a data structure.
 
   * :pairs -- iterate over the key-value pairs as tuples in a data structure.
 
