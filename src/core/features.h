@@ -27,7 +27,7 @@
 
 #if defined(__NetBSD__) || defined(__APPLE__) || defined(__OpenBSD__) \
     || defined(__bsdi__) || defined(__DragonFly__)
-/* Use BSD soucre on any BSD systems, include OSX */
+/* Use BSD source on any BSD systems, include OSX */
 # define _BSD_SOURCE
 #else
 /* Use POSIX feature flags */
