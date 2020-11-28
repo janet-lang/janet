@@ -692,7 +692,7 @@
             ;(tuple/slice functions 4 -1)))))
 
 (defn identity
-  "A function that returns its first argument."
+  "A function that returns its argument."
   [x]
   x)
 
