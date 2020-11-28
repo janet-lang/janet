@@ -1694,8 +1694,9 @@
   (env-walk keyword? env local))
 
 (defn doc-format
-  `Reformat a docstring to wrap a certain width.
-  Returns a buffer containing the formatted text.`
+  `Reformat a docstring to wrap a certain width. Docstrings can either be plaintext
+  or a subset of markdown. This allows a long single line of prose or formatted text to be
+  a well-formed docstring. Returns a buffer containing the formatted text.`
   [str &opt width indent]
   (default indent 4)
   (def max-width (- (or width (dyn :doc-width 80)) 8))
@@ -1708,37 +1709,7 @@
   (var leading 0)
   (var c nil)
 
-  (def base-indent
-    # Is there a better way?
-    (do
-      (var min-indent 0)
-      (var curr-indent 0)
-      (var start-of-line false)
-      (set c (get str pos))
-      (while (not= nil c)
-        (case c
-          10 (do
-               (set start-of-line true)
-               (set curr-indent 0))
-          32 (when start-of-line
-               (++ curr-indent))
-          (when start-of-line
-            (set start-of-line false)
-            (when (or (= 0 min-indent)
-                      (< curr-indent min-indent))
-              (set min-indent curr-indent))))
-        (set c (get str (++ pos))))
-      min-indent))
-
   (set pos 0)
-
-  (defn skip-base-indent []
-    (var pos* pos)
-    (set c (get str pos*))
-    (while (and (< (- pos* pos) base-indent)
-                (= 32 c))
-      (set c (get str (++ pos*))))
-    (set pos pos*))
 
   (defn skip-line-indent []
     (var pos* pos)
@@ -1895,19 +1866,15 @@
   (defn push-fcb []
     (update-levels)
     (push-line)
-    (skip-base-indent)
     (while (not (end-fcb?))
-      (push-line)
-      (skip-base-indent))
+      (push-line))
     (push-line))
 
   (defn push-icb []
     (buffer/push-string res (buffer/new-filled leading 32))
     (push-line)
-    (skip-base-indent)
     (while (not (start-nl?))
-      (push-line)
-      (skip-base-indent))
+      (push-line))
     (push-nl))
 
   (defn push-p []
@@ -1936,7 +1903,6 @@
     (push-nl))
 
   (while (< pos len)
-    (skip-base-indent)
     (skip-line-indent)
     (cond
       (start-nl?)
