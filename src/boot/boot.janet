@@ -180,8 +180,8 @@
 (defmacro cond
   `Evaluates conditions sequentially until the first true condition
   is found, and then executes the corresponding body. If there are an
-  odd number of forms, the last expression is executed if no forms
-  are matched. If there are no matches, return nil.`
+  odd number of forms, and no forms are matched, the last expression
+  is executed. If there are no matches, return nil.`
   [& pairs]
   (defn aux [i]
     (def restlen (- (length pairs) i))
