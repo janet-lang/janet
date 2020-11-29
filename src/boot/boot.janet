@@ -500,7 +500,7 @@
   (for-var-template i start stop 1 < + body))
 
 (defmacro for
-  "Do a C-style for loop for side effects. Returns nil."
+  "Do a C-style for-loop for side effects. Returns nil."
   [i start stop & body]
   (for-template i start stop 1 < + body))
 
