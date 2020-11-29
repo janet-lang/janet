@@ -495,7 +495,7 @@
 
 (defmacro forv
   ``Do a C-style for-loop for side effects. The iteration variable `i`
-  can be mutated in the loop, unlike normal for. Returns nil.`
+  can be mutated in the loop, unlike normal `for`. Returns nil.``
   [i start stop & body]
   (for-var-template i start stop 1 < + body))
 
