@@ -1279,10 +1279,13 @@ JANET_API JanetListenerState *janet_listen(JanetStream *stream, JanetListener be
 
 /* Shorthand for yielding to event loop in C */
 JANET_NO_RETURN JANET_API void janet_await(void);
+JANET_NO_RETURN JANET_API void janet_sleep_await(double sec);
 
 /* For use inside listeners - adds a timeout to the current fiber, such that
  * it will be resumed after sec seconds if no other event schedules the current fiber. */
 JANET_API void janet_addtimeout(double sec);
+JANET_API void janet_ev_inc_refcount(void);
+JANET_API void janet_ev_dec_refcount(void);
 
 /* Get last error from a an IO operation */
 JANET_API Janet janet_ev_lasterr(void);

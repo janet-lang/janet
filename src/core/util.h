@@ -146,6 +146,7 @@ extern const JanetAbstractType janet_address_type;
 void janet_lib_ev(JanetTable *env);
 void janet_ev_mark(void);
 int janet_make_pipe(JanetHandle handles[2]);
+void janet_schedule_pid(pid_t pid, int status);
 #endif
 
 #endif

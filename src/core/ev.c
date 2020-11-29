@@ -48,6 +48,7 @@
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #ifdef JANET_EV_EPOLL
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
@@ -147,6 +148,7 @@ JANET_THREAD_LOCAL JanetRNG janet_vm_ev_rng;
 JANET_THREAD_LOCAL JanetListenerState **janet_vm_listeners = NULL;
 JANET_THREAD_LOCAL size_t janet_vm_listener_count = 0;
 JANET_THREAD_LOCAL size_t janet_vm_listener_cap = 0;
+JANET_THREAD_LOCAL size_t janet_vm_extra_listeners = 0;
 
 /* Get current timestamp (millisecond precision) */
 static JanetTimestamp ts_now(void);
@@ -491,6 +493,14 @@ void janet_addtimeout(double sec) {
     add_timeout(to);
 }
 
+void janet_ev_inc_refcount(void) {
+    janet_vm_extra_listeners++;
+}
+
+void janet_ev_dec_refcount(void) {
+    janet_vm_extra_listeners--;
+}
+
 /* Channels */
 
 typedef struct {
@@ -774,14 +784,16 @@ void janet_loop1(void) {
             }
         }
     }
+
     /* Run scheduled fibers */
     while (janet_vm_spawn.head != janet_vm_spawn.tail) {
         JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK};
         janet_q_pop(&janet_vm_spawn, &task, sizeof(task));
         run_one(task.fiber, task.value, task.sig);
     }
+
     /* Poll for events */
-    if (janet_vm_listener_count || janet_vm_tq_count) {
+    if (janet_vm_listener_count || janet_vm_tq_count || janet_vm_extra_listeners) {
         JanetTimeout to;
         memset(&to, 0, sizeof(to));
         int has_timeout;
@@ -790,17 +802,66 @@ void janet_loop1(void) {
             pop_timeout(0);
         }
         /* Run polling implementation only if pending timeouts or pending events */
-        if (janet_vm_tq_count || janet_vm_listener_count) {
+        if (janet_vm_tq_count || janet_vm_listener_count || janet_vm_extra_listeners) {
             janet_loop1_impl(has_timeout, to.when);
         }
     }
 }
 
 void janet_loop(void) {
-    while (janet_vm_listener_count || (janet_vm_spawn.head != janet_vm_spawn.tail) || janet_vm_tq_count) {
+    while (janet_vm_listener_count || (janet_vm_spawn.head != janet_vm_spawn.tail) || janet_vm_tq_count || janet_vm_extra_listeners) {
         janet_loop1();
     }
 }
+
+/*
+ * Signal handling code.
+ */
+
+#ifdef JANET_WINDOWS
+
+#else
+
+JANET_THREAD_LOCAL int janet_vm_selfpipe[2];
+
+static void janet_ev_handle_signals(void) {
+    int sig = 0;
+    while (read(janet_vm_selfpipe[0], &sig, sizeof(sig)) > 0) {
+        switch (sig) {
+            default:
+                break;
+            case SIGCHLD:
+                {
+                    int status = 0;
+                    pid_t pid = waitpid(-1, &status, WNOHANG | WUNTRACED);
+                    /* invalid pid on failure will do no harm */
+                    janet_schedule_pid(pid, status);
+                }
+                break;
+        }
+    }
+}
+
+static void janet_sig_handler(int sig) {
+    int result = write(janet_vm_selfpipe[1], &sig, sizeof(sig));
+    if (result) {
+        /* Failed to handle signal. */
+        ;
+    }
+    signal(sig, janet_sig_handler);
+}
+
+static void janet_ev_setup_signals(void) {
+    if (-1 == pipe(janet_vm_selfpipe)) goto error;
+    if (fcntl(janet_vm_selfpipe[0], F_SETFL, O_NONBLOCK)) goto error;
+    if (fcntl(janet_vm_selfpipe[1], F_SETFL, O_NONBLOCK)) goto error;
+    signal(SIGCHLD, janet_sig_handler);
+    return;
+error:
+    JANET_EXIT("failed to initialize self pipe in event loop");
+}
+
+#endif
 
 #ifdef JANET_WINDOWS
 
@@ -969,8 +1030,14 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
     /* Step state machines */
     for (int i = 0; i < ready; i++) {
-        JanetStream *stream = events[i].data.ptr;
-        if (NULL != stream) { /* If NULL, is a timeout */
+        void *p = events[i].data.ptr;
+        if (&janet_vm_timerfd == p) {
+            /* Timer expired, ignore */;
+        } else if (janet_vm_selfpipe == p) {
+            /* Signal */
+            janet_ev_handle_signals();
+        } else {
+            JanetStream *stream = p;
             int mask = events[i].events;
             JanetListenerState *state = stream->state;
             state->event = events + i;
@@ -1001,14 +1068,18 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
 void janet_ev_init(void) {
     janet_ev_init_common();
+    janet_ev_setup_signals();
     janet_vm_epoll = epoll_create1(EPOLL_CLOEXEC);
     janet_vm_timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
     janet_vm_timer_enabled = 0;
     if (janet_vm_epoll == -1 || janet_vm_timerfd == -1) goto error;
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLET;
-    ev.data.ptr = NULL;
+    ev.data.ptr = &janet_vm_timerfd;
     if (-1 == epoll_ctl(janet_vm_epoll, EPOLL_CTL_ADD, janet_vm_timerfd, &ev)) goto error;
+    ev.events = EPOLLIN | EPOLLET;
+    ev.data.ptr = janet_vm_selfpipe;
+    if (-1 == epoll_ctl(janet_vm_epoll, EPOLL_CTL_ADD, janet_vm_selfpipe[0], &ev)) goto error;
     return;
 error:
     JANET_EXIT("failed to initialize event loop");
@@ -1054,7 +1125,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
     size_t newsize = janet_vm_listener_cap;
     if (newsize > oldsize) {
-        janet_vm_fds = realloc(janet_vm_fds, newsize * sizeof(struct pollfd));
+        janet_vm_fds = realloc(janet_vm_fds, (newsize + 1) * sizeof(struct pollfd));
         if (NULL == janet_vm_fds) {
             JANET_OUT_OF_MEMORY;
         }
@@ -1063,12 +1134,12 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     ev.fd = stream->handle;
     ev.events = make_poll_events(state->stream->_mask);
     ev.revents = 0;
-    janet_vm_fds[state->_index] = ev;
+    janet_vm_fds[state->_index + 1] = ev;
     return state;
 }
 
 static void janet_unlisten(JanetListenerState *state) {
-    janet_vm_fds[state->_index] = janet_vm_fds[janet_vm_listener_count - 1];
+    janet_vm_fds[state->_index + 1] = janet_vm_fds[janet_vm_listener_count];
     janet_unlisten_impl(state);
 }
 
@@ -1081,19 +1152,25 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             JanetTimestamp now = ts_now();
             to = now > timeout ? 0 : (int)(timeout - now);
         }
-        ready = poll(janet_vm_fds, janet_vm_listener_count, to);
+        ready = poll(janet_vm_fds, janet_vm_listener_count + 1, to);
     } while (ready == -1 && errno == EINTR);
     if (ready == -1) {
         JANET_EXIT("failed to poll events");
     }
 
+    /* Check selfpipe */
+    if (janet_vm_fds[0].revents & POLLIN) {
+        janet_vm_fds[0].revents = 0;
+        janet_ev_handle_signals();
+    }
+
     /* Step state machines */
     for (size_t i = 0; i < janet_vm_listener_count; i++) {
-        struct pollfd *pfd = janet_vm_fds + i;
+        struct pollfd *pfd = janet_vm_fds + i + 1;
         /* Skip fds where nothing interesting happened */
         JanetListenerState *state = janet_vm_listeners[i];
         /* Normal event */
-        int mask = janet_vm_fds[i].revents;
+        int mask = pfd->revents;
         JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
         JanetAsyncStatus status2 = JANET_ASYNC_STATUS_NOT_DONE;
         JanetAsyncStatus status3 = JANET_ASYNC_STATUS_NOT_DONE;
@@ -1118,12 +1195,22 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 void janet_ev_init(void) {
     janet_ev_init_common();
     janet_vm_fds = NULL;
+    janet_ev_setup_signals();
+    janet_vm_fds = malloc(sizeof(struct pollfd));
+    if (NULL == janet_vm_fds) {
+        JANET_OUT_OF_MEMORY;
+    }
+    janet_vm_fds[0].fd = janet_vm_selfpipe[0];
+    janet_vm_fds[0].events = POLLIN;
+    janet_vm_fds[0].revents = 0;
     return;
 }
 
 void janet_ev_deinit(void) {
     janet_ev_deinit_common();
     free(janet_vm_fds);
+    close(janet_vm_selfpipe[0]);
+    close(janet_vm_selfpipe[1]);
     janet_vm_fds = NULL;
 }
 
@@ -1691,9 +1778,7 @@ static Janet cfun_ev_call(int32_t argc, Janet *argv) {
     return janet_wrap_fiber(fiber);
 }
 
-static Janet cfun_ev_sleep(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
-    double sec = janet_getnumber(argv, 0);
+JANET_NO_RETURN void janet_sleep_await(double sec) {
     JanetTimeout to;
     to.when = ts_delta(ts_now(), sec);
     to.fiber = janet_vm_root_fiber;
@@ -1701,6 +1786,12 @@ static Janet cfun_ev_sleep(int32_t argc, Janet *argv) {
     to.sched_id = to.fiber->sched_id;
     add_timeout(to);
     janet_await();
+}
+
+static Janet cfun_ev_sleep(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    double sec = janet_getnumber(argv, 0);
+    janet_sleep_await(sec);
 }
 
 static Janet cfun_ev_cancel(int32_t argc, Janet *argv) {

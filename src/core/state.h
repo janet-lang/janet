@@ -111,4 +111,6 @@ void janet_ev_init(void);
 void janet_ev_deinit(void);
 #endif
 
+void janet_os_deinit(void);
+
 #endif /* JANET_STATE_H_defined */
