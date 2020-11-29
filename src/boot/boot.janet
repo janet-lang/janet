@@ -734,7 +734,7 @@
   ``Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
   Differs from the primitive comparators in that it first checks to
   see whether either x or y implement a `compare` method which can
-  compare x and y. If so, it uses that compare method. If not, it
+  compare x and y. If so, it uses that method. If not, it
   delegates to the primitive comparators.``
   [x y]
   (or
