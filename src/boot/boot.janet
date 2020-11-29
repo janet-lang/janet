@@ -753,7 +753,7 @@
   r)
 
 (defn compare=
-  ``Equivalent of `=` but using compare function instead of primitive comparator.``
+  ``Equivalent of `=` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce = xs))
 
