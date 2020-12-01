@@ -548,7 +548,7 @@ static const JanetReg corelib_cfuns[] = {
     {
         "describe", janet_core_describe,
         JDOC("(describe x)\n\n"
-             "Returns a string that is a human readable description of a value x.")
+             "Returns a string that is a human-readable description of a value x.")
     },
     {
         "string", janet_core_string,
