@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 - During installation and release, merge janetconf.h into janet.h for easier install.
 - Add `upscope` special form.
 - `os/execute` and `os/spawn` can take streams for redirecting IO.
-- Add `;parser` and `:read` parameters to `run-context`.
+- Add `:parser` and `:read` parameters to `run-context`.
 - Add `os/open` if ev is enabled.
 - Add `os/pipe` if ev is enabled.
 - Add `janet_thread_current(void)` to C API
