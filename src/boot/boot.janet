@@ -731,11 +731,11 @@
 ## Polymorphic comparisons
 
 (defn compare
-  `Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
+  ``Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
   Differs from the primitive comparators in that it first checks to
-  see whether either x or y implement a 'compare' method which can
-  compare x and y. If so it uses that compare method. If not, it
-  delegates to the primitive comparators.`
+  see whether either x or y implement a `compare` method which can
+  compare x and y. If so, it uses that method. If not, it
+  delegates to the primitive comparators.``
   [x y]
   (or
     (when-let [f (get x :compare)] (f x y))
@@ -753,27 +753,27 @@
   r)
 
 (defn compare=
-  "Equivalent of '=' but using compare function instead of primitive comparator"
+  ``Equivalent of `=` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce = xs))
 
 (defn compare<
-  "Equivalent of '<' but using compare function instead of primitive comparator"
+  ``Equivalent of `<` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce < xs))
 
 (defn compare<=
-  "Equivalent of '<=' but using compare function instead of primitive comparator"
+  ``Equivalent of `<=` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce <= xs))
 
 (defn compare>
-  "Equivalent of '>' but using compare function instead of primitive comparator"
+  ``Equivalent of `>` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce > xs))
 
 (defn compare>=
-  "Equivalent of '>=' but using compare function instead of primitive comparator"
+  ``Equivalent of `>=` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce >= xs))
 
