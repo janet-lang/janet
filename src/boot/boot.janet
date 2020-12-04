@@ -494,13 +494,13 @@
       (error (string "unexpected loop verb " verb)))))
 
 (defmacro forv
-  `Do a c style for loop for side effects. The iteration variable i
-  can be mutated in the loop, unlike normal for. Returns nil.`
+  ``Do a C-style for-loop for side effects. The iteration variable `i`
+  can be mutated in the loop, unlike normal `for`. Returns nil.``
   [i start stop & body]
   (for-var-template i start stop 1 < + body))
 
 (defmacro for
-  "Do a c style for loop for side effects. Returns nil."
+  "Do a C-style for-loop for side effects. Returns nil."
   [i start stop & body]
   (for-template i start stop 1 < + body))
 
