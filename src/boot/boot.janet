@@ -562,7 +562,7 @@
     two-element tuple with a start and (exclusive) end value, and an optional
     (positive!) step size.
 
-  * :down-to -- same :as down, but the range is inclusive [start, end].
+  * :down-to -- same as :down, but the range is inclusive [start, end].
 
   * :keys -- iterate over the keys in a data structure.
 
