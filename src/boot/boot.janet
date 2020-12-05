@@ -945,8 +945,10 @@
   counter)
 
 (defn keep
-  `Given a predicate, take only elements from an array or tuple for
-  which (pred element) is truthy. Returns a new array of truthy predicate results.`
+  ``Given a predicate `pred`, return a new array containing the truthy results
+  of applying `pred` to each element in the indexed collection `ind`. This is
+  different from `filter` which returns an array of the original elements where
+  the predicate is truthy.``
   [pred ind]
   (def res @[])
   (each item ind
