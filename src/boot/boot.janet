@@ -947,7 +947,7 @@
 (defn keep
   ``Given a predicate `pred`, return a new array containing the truthy results
   of applying `pred` to each element in the indexed collection `ind`. This is
-  different to `filter` which returns an array of the original elements where
+  different from `filter` which returns an array of the original elements where
   the predicate is truthy.``
   [pred ind]
   (def res @[])
