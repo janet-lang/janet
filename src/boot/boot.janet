@@ -3019,7 +3019,16 @@
   (defmacro ev/spawn
     "Run some code in a new fiber. This is shorthand for (ev/call (fn [] ;body))."
     [& body]
-    ~(,ev/call (fn [] ,;body))))
+    ~(,ev/call (fn [] ,;body)))
+
+  (defmacro ev/with-deadline
+    `Run a body of code with a deadline, such that if the code does not complete before
+    the deadline is up, it will be canceled.`
+    [deadline & body]
+    (with-syms [f]
+      ~(let [,f (coro ,;body)]
+         (,ev/deadline ,deadline nil ,f)
+         (,resume ,f)))))
 
 (compwhen (dyn 'net/listen)
   (defn net/server
