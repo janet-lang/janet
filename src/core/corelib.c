@@ -1250,6 +1250,21 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     JanetTable *env = janet_unwrap_table(marsh_out);
     janet_vm_core_env = env;
 
+    /* Invert image dict manually here. We can't do this in boot.janet as it
+     * breaks deterministic builds */
+    Janet lidv, midv;
+    lidv = midv = janet_wrap_nil();
+    janet_resolve(env, janet_csymbol("load-image-dict"), &lidv);
+    janet_resolve(env, janet_csymbol("make-image-dict"), &midv);
+    JanetTable *lid = janet_unwrap_table(lidv);
+    JanetTable *mid = janet_unwrap_table(midv);
+    for (int32_t i = 0; i < lid->capacity; i++) {
+        const JanetKV *kv = lid->data + i;
+        if (!janet_checktype(kv->key, JANET_NIL)) {
+            janet_table_put(mid, kv->value, kv->key);
+        }
+    }
+
     return env;
 }
 

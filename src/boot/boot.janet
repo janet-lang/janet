@@ -2063,7 +2063,8 @@
      'quasiquote expandqq
      'var expanddef
      'while expandall
-     'break expandall})
+     'break expandall
+     'upscope expandall})
 
   (defn dotup [t]
     (def h (in t 0))
@@ -2499,14 +2500,14 @@
         (error (parser/error p))
         (error "no value")))))
 
-(def make-image-dict
-  `A table used in combination with marshal to marshal code (images), such that
-  (make-image x) is the same as (marshal x make-image-dict).`
-  @{})
-
 (def load-image-dict
   `A table used in combination with unmarshal to unmarshal byte sequences created
   by make-image, such that (load-image bytes) is the same as (unmarshal bytes load-image-dict).`
+  @{})
+
+(def make-image-dict
+  `A table used in combination with marshal to marshal code (images), such that
+  (make-image x) is the same as (marshal x make-image-dict).`
   @{})
 
 (defmacro comptime
@@ -3225,8 +3226,7 @@
   (put load-dict 'boot/args nil)
   (each [k v] (pairs load-dict)
     (if (number? v) (put load-dict k nil)))
-  (merge-into load-image-dict load-dict)
-  (merge-into make-image-dict (invert load-dict)))
+  (merge-into load-image-dict load-dict))
 
 ###
 ###

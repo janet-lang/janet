@@ -226,11 +226,14 @@ static void janet_mark_function(JanetFunction *func) {
     if (janet_gc_reachable(func))
         return;
     janet_gc_mark(func);
-    numenvs = func->def->environments_length;
-    for (i = 0; i < numenvs; ++i) {
-        janet_mark_funcenv(func->envs[i]);
+    if (NULL != func->def) {
+        /* this should always be true, except if function is only partially constructed */
+        numenvs = func->def->environments_length;
+        for (i = 0; i < numenvs; ++i) {
+            janet_mark_funcenv(func->envs[i]);
+        }
+        janet_mark_funcdef(func->def);
     }
-    janet_mark_funcdef(func->def);
 }
 
 static void janet_mark_fiber(JanetFiber *fiber) {
