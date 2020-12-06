@@ -126,21 +126,21 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 #define JANET_LINE_MAX 1024
 #define JANET_MATCH_MAX 256
 #define JANET_HISTORY_MAX 100
-JANET_THREAD_LOCAL static int gbl_israwmode = 0;
-JANET_THREAD_LOCAL static const char *gbl_prompt = "> ";
-JANET_THREAD_LOCAL static int gbl_plen = 2;
-JANET_THREAD_LOCAL static char gbl_buf[JANET_LINE_MAX];
-JANET_THREAD_LOCAL static int gbl_len = 0;
-JANET_THREAD_LOCAL static int gbl_pos = 0;
-JANET_THREAD_LOCAL static int gbl_cols = 80;
-JANET_THREAD_LOCAL static char *gbl_history[JANET_HISTORY_MAX];
-JANET_THREAD_LOCAL static int gbl_history_count = 0;
-JANET_THREAD_LOCAL static int gbl_historyi = 0;
-JANET_THREAD_LOCAL static int gbl_sigint_flag = 0;
-JANET_THREAD_LOCAL static struct termios gbl_termios_start;
-JANET_THREAD_LOCAL static JanetByteView gbl_matches[JANET_MATCH_MAX];
-JANET_THREAD_LOCAL static int gbl_match_count = 0;
-JANET_THREAD_LOCAL static int gbl_lines_below = 0;
+static JANET_THREAD_LOCAL int gbl_israwmode = 0;
+static JANET_THREAD_LOCAL const char *gbl_prompt = "> ";
+static JANET_THREAD_LOCAL int gbl_plen = 2;
+static JANET_THREAD_LOCAL char gbl_buf[JANET_LINE_MAX];
+static JANET_THREAD_LOCAL int gbl_len = 0;
+static JANET_THREAD_LOCAL int gbl_pos = 0;
+static JANET_THREAD_LOCAL int gbl_cols = 80;
+static JANET_THREAD_LOCAL char *gbl_history[JANET_HISTORY_MAX];
+static JANET_THREAD_LOCAL int gbl_history_count = 0;
+static JANET_THREAD_LOCAL int gbl_historyi = 0;
+static JANET_THREAD_LOCAL int gbl_sigint_flag = 0;
+static JANET_THREAD_LOCAL struct termios gbl_termios_start;
+static JANET_THREAD_LOCAL JanetByteView gbl_matches[JANET_MATCH_MAX];
+static JANET_THREAD_LOCAL int gbl_match_count = 0;
+static JANET_THREAD_LOCAL int gbl_lines_below = 0;
 
 /* Unsupported terminal list from linenoise */
 static const char *badterms[] = {

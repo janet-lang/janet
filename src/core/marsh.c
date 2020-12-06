@@ -286,7 +286,7 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 
 #define JANET_FIBER_FLAG_HASCHILD (1 << 29)
 #define JANET_FIBER_FLAG_HASENV   (1 << 30)
-#define JANET_STACKFRAME_HASENV   (1 << 31)
+#define JANET_STACKFRAME_HASENV   (INT32_MIN)
 
 /* Marshal a fiber */
 static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
