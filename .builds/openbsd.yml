@@ -3,10 +3,48 @@ sources:
 - https://git.sr.ht/~bakpakin/janet
 packages:
 - gmake
+- meson
 tasks:
 - build: |
+    # Makefile testing on BSD.
     cd janet
     gmake
     gmake test
     doas gmake install
     gmake test-install
+    doas gmake uninstall
+    rm -rf build # clean up
+    # meson min testing
+    meson setup build --buildtype=release
+    cd build
+    meson configure -Dsingle_threaded=true
+    meson configure -Dnanbox=false
+    meson configure -Ddynamic_modules=false
+    meson configure -Ddocstrings=false
+    meson configure -Dnet=false
+    meson configure -Dsourcemaps=false
+    meson configure -Dpeg=false
+    meson configure -Dassembler=false
+    meson configure -Dint_types=false
+    meson configure -Dtyped_array=false
+    meson configure -Dreduced_os=true
+    ninja # will not pass tests but should build
+    cd ..
+    rm -rf build # clean up
+    # meson (with prf)
+    meson setup build --buildtype=release
+    cd build
+    meson configure -Dprf=true
+    ninja
+    ninja test
+    cd ..
+    rm -rf build
+    # meson (default build)
+    cd janet
+    meson setup build --buildtype=release
+    cd build
+    ninja
+    ninja test
+    doas ninja install
+    doas jpm --verbose install circlet
+
