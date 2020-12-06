@@ -5,27 +5,27 @@ packages:
 - gmake
 - meson
 tasks:
-- build: |
-    cd janet # Makefile testing on BSD.
+- gmake: |
+    cd janet
     gmake
     gmake test
     doas gmake install
     gmake test-install
-    doas gmake uninstall
-    rm -rf build # clean up
-    meson setup build --buildtype=release -Dsingle_threaded=true -Dnanbox=false -Ddynamic_modules=false -Ddocstrings=false -Dnet=false -Dsourcemaps=false -Dpeg=false -Dassembler=false -Dint_types=false -Dtyped_array=false -Dreduced_os=true # meson minimum build
-    cd build
-    ninja # will not pass tests but should build
-    cd ..
-    rm -rf build # clean up
-    meson setup build --buildtype=release -Dprf=true # meson (with prf)
-    cd build
+- meson_min: |
+    cd janet
+    meson setup build_meson_min --buildtype=release -Dsingle_threaded=true -Dnanbox=false -Ddynamic_modules=false -Ddocstrings=false -Dnet=false -Dsourcemaps=false -Dpeg=false -Dassembler=false -Dint_types=false -Dtyped_array=false -Dreduced_os=true
+    cd build_meson_min
+    ninja
+- meson_prf: |
+    cd janet
+    meson setup build_meson_prf --buildtype=release -Dprf=true
+    cd build_meson_prf
     ninja
     ninja test
-    cd ..
-    rm -rf build
-    meson setup build --buildtype=release # meson (default build)
-    cd build
+- meson_default: |
+    cd janet
+    meson setup build_meson_default --buildtype=release
+    cd build_meson_default
     ninja
     ninja test
     doas ninja install
