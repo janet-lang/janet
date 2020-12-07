@@ -552,31 +552,31 @@ static const JanetReg corelib_cfuns[] = {
     },
     {
         "string", janet_core_string,
-        JDOC("(string & parts)\n\n"
-             "Creates a string by concatenating values together. Values are "
-             "converted to bytes via `describe` if they are not byte sequences. "
+        JDOC("(string & pieces)\n\n"
+             "Creates a string by concatenating the pieces together. If a piece "
+             "is not a byte sequence, it is converted to bytes via `describe`. "
              "Returns the new string.")
     },
     {
         "symbol", janet_core_symbol,
-        JDOC("(symbol & xs)\n\n"
-             "Creates a symbol by concatenating values together. Values are "
-             "converted to bytes via `describe` if they are not byte sequences. Returns "
-             "the new symbol.")
+        JDOC("(symbol & pieces)\n\n"
+             "Creates a symbol by concatenating the pieces together. If a piece "
+             "is not a byte sequence, it is converted to bytes via `describe`. "
+             "Returns the new symbol.")
     },
     {
         "keyword", janet_core_keyword,
-        JDOC("(keyword & xs)\n\n"
-             "Creates a keyword by concatenating values together. Values are "
-             "converted to bytes via `describe` if they are not byte sequences. Returns "
-             "the new keyword.")
+        JDOC("(keyword & pieces)\n\n"
+             "Creates a keyword by concatenating the pieces together. If a piece "
+             "is not a byte sequence, it is converted to bytes via `describe`. "
+             "Returns the new keyword.")
     },
     {
         "buffer", janet_core_buffer,
-        JDOC("(buffer & xs)\n\n"
-             "Creates a new buffer by concatenating values together. Values are "
-             "converted to bytes via `describe` if they are not byte sequences. Returns "
-             "the new buffer.")
+        JDOC("(buffer & pieces)\n\n"
+             "Creates a buffer by concatenating the pieces together. If a piece "
+             "is not a byte sequence, it is converted to bytes via `describe`. "
+             "Returns the new buffer.")
     },
     {
         "abstract?", janet_core_is_abstract,
