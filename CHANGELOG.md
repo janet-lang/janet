@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Adds a :preload loader which allows one to manually put things into `module/cache`.
 - Add `buffer/push` function.
 - Backtick delimited strings and buffers are now reindented based on the column of the
   opening delimiter. WHitespace in columns to the left of the starting column is ignored unless
