@@ -2560,6 +2560,10 @@
 (setdyn :syspath (boot/opts "JANET_PATH"))
 (setdyn :headerpath (boot/opts "JANET_HEADERPATH"))
 
+(def module/cache
+  "Table mapping loaded module identifiers to their environments."
+  @{})
+
 (defn module/add-paths
   ```
   Add paths to module/paths for a given loader such that
@@ -2584,6 +2588,7 @@
 (module/add-paths "/init.janet" :source)
 (module/add-paths ".janet" :source)
 (module/add-paths ".jimage" :image)
+(array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload])
 
 # Version of fexists that works even with a reduced OS
 (defn fexists
@@ -2637,10 +2642,6 @@
 (undef mod-filter)
 (undef check-.)
 (undef not-check-.)
-
-(def module/cache
-  "Table mapping loaded module identifiers to their environments."
-  @{})
 
 (def module/loading
   `Table mapping currently loading modules to true. Used to prevent
@@ -2706,6 +2707,11 @@
               (def newenv (dofile path ;args))
               (put module/loading path nil)
               newenv)
+    :preload (fn [path & args]
+               (when-let [m (in module/cache path)]
+                 (if (function? m)
+                   (set (module/cache path) (m path ;args))
+                   m)))
     :image (fn [path &] (load-image (slurp path)))})
 
 (defn require-1
