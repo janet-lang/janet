@@ -1559,85 +1559,9 @@
 ###
 ###
 
-(defmacro- with-idemp
-  `Return janet code body that has been prepended
-  with a binding of form to atom. If form is a non-idempotent
-  form (a function call, etc.), make sure the resulting
-  code will only evaluate once, even if body contains multiple
-  copies of binding. In body, use binding instead of form.`
-  [binding form & body]
-  (def $result (gensym))
-  (def $form (gensym))
-  ~(do
-     (def ,$form ,form)
-     (def ,binding (if (idempotent? ,$form) ,$form (gensym)))
-     (def ,$result (do ,;body))
-     (if (= ,$form ,binding)
-       ,$result
-       (tuple 'do (tuple 'def ,binding ,$form) ,$result))))
-
-
-# Sentinel value for mismatches
-(def- sentinel ~',(gensym))
-
-(defn- match-1
-  [pattern expr onmatch seen]
-  (cond
-
-    (= '_ pattern)
-    (onmatch)
-
-    (symbol? pattern)
-    (if (in seen pattern)
-      ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)
-      (do
-        (put seen pattern true)
-        ~(do (def ,pattern ,expr) ,(onmatch))))
-
-    (and (tuple? pattern) (= :parens (tuple/type pattern)))
-    (if (= (get pattern 0) '@)
-      # Unification with external values
-      ~(if (= ,(get pattern 1) ,expr) ,(onmatch) ,sentinel)
-      (match-1
-        (in pattern 0) expr
-        (fn []
-          ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen))
-
-    (indexed? pattern)
-    (do
-      (def len (length pattern))
-      (var i -1)
-      (with-idemp
-        $arr expr
-        ~(if (,indexed? ,$arr)
-           (if (< (,length ,$arr) ,len)
-             ,sentinel
-             ,((fn aux []
-                 (++ i)
-                 (if (= i len)
-                   (onmatch)
-                   (match-1 (in pattern i) (tuple in $arr i) aux seen)))))
-           ,sentinel)))
-
-    (dictionary? pattern)
-    (do
-      (var key nil)
-      (with-idemp
-        $dict expr
-        ~(if (,dictionary? ,$dict)
-           ,((fn aux []
-               (set key (next pattern key))
-               (def $val (gensym))
-               (if (= key nil)
-                 (onmatch)
-                 ~(do (def ,$val (,get ,$dict ,key))
-                    ,(match-1 [(in pattern key) [not= nil $val]] $val aux seen)))))
-           ,sentinel)))
-
-    :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
-
 (defmacro match
-  `Pattern matching. Match an expression x against
+  ```
+  Pattern matching. Match an expression x against
   any number of cases. Each case is a pattern to match against, followed
   by an expression to evaluate to if that case is matched. A pattern that is
   a symbol will match anything, binding x's value to that symbol. An array
@@ -1646,22 +1570,152 @@
   values in x. A tuple pattern will match if it's first element matches, and the following
   elements are treated as predicates and are true. The last special case is
   the '_ symbol, which is a wildcard that will match any value without creating a binding.
-  Any other value pattern will only match if it is equal to x.`
+  Any other value pattern will only match if it is equal to x.
+  ```
   [x & cases]
-  (with-idemp $x x
-    (def len (length cases))
-    (def len-1 (dec len))
-    ((fn aux [i]
-       (cond
-         (= i len-1) (in cases i)
-         (< i len-1) (with-syms [$res]
-                       ~(if (= ,sentinel (def ,$res ,(match-1 (in cases i) $x (fn [] (in cases (inc i))) @{})))
-                          ,(aux (+ 2 i))
-                          ,$res)))) 0)))
 
-(undef sentinel)
-(undef match-1)
-(undef with-idemp)
+  # Partition body into sections.
+  (def oddlen (odd? (length cases)))
+  (def else (if oddlen (last cases)))
+  (def patterns (partition 2 (if oddlen (slice cases 0 -2) cases)))
+
+  # Keep an array for accumulating the compilation output
+  (def x-sym (if (idempotent? x) x (gensym)))
+  (def accum @[])
+  (if (not= x x-sym) (array/push accum ['def x-sym x]))
+
+  # Table of gensyms
+  (def symbols @{[nil nil] x-sym})
+  (def length-symbols @{})
+
+  (defn emit [x] (array/push accum x))
+  (defn emit-branch [condition result] (array/push accum :branch condition result))
+
+  (defn get-sym
+    [parent-sym key]
+    (def symbol-key [parent-sym key])
+    (or (get symbols symbol-key)
+        (let [s (gensym)]
+          (put symbols symbol-key s)
+          (emit ['def s [get parent-sym key]])
+          s)))
+
+  (defn get-length-sym
+    [parent-sym]
+    (or (get length-symbols parent-sym)
+        (let [s (gensym)]
+          (put length-symbols parent-sym s)
+          (emit ['def s ['if [indexed? parent-sym] [length parent-sym]]])
+          s)))
+
+  (defn visit-pattern-1
+    [b2g parent-sym key pattern]
+    (if (= pattern '_) (break))
+    (def s (get-sym parent-sym key))
+    (def t (type pattern))
+    (def isarr (or (= t :array) (and (= t :tuple) (= (tuple/type pattern) :brackets))))
+    (cond
+
+      # match local binding
+      (= t :symbol)
+      (if-let [x (in b2g pattern)]
+        (array/push x s)
+        (put b2g pattern @[s]))
+
+      # match data structure template
+      (or isarr (= t :struct) (= t :table))
+      (do
+        (when isarr (get-length-sym s))
+        (eachp [i sub-pattern] pattern
+          (visit-pattern-1 b2g s i sub-pattern)))
+
+      # match global unification
+      (and (= t :tuple) (= 2 (length pattern)) (= '@ (pattern 0)))
+      (break)
+
+      # match predicated binding
+      (and (= t :tuple) (>= (length pattern) 2))
+      (do
+        (visit-pattern-1 b2g parent-sym key (pattern 0)))))
+
+  (defn visit-pattern-2
+    [anda gun preds parent-sym key pattern]
+    (if (= pattern '_) (break))
+    (def s (get-sym parent-sym key))
+    (def t (type pattern))
+    (def isarr (or (= t :array) (and (= t :tuple) (= (tuple/type pattern) :brackets))))
+    (when isarr
+      (array/push anda (get-length-sym s))
+      (array/push anda [<= (length pattern) (get-length-sym s)]))
+    (cond
+
+      # match data structure template
+      (or isarr (= t :struct) (= t :table))
+      (eachp [i sub-pattern] pattern
+        (when (not= t :array)
+          (array/push anda [not= nil (get-sym s i)]))
+        (visit-pattern-2 anda gun preds s i sub-pattern))
+
+      # match local binding
+      (= t :symbol) (break)
+
+      # match global unification
+      (and (= t :tuple) (= 2 (length pattern)) (= '@ (pattern 0)))
+      (if-let [x (in gun (pattern 1))]
+        (array/push x s)
+        (put gun (pattern 1) @[s]))
+
+      # match predicated binding
+      (and (= t :tuple) (>= (length pattern) 2))
+      (do
+        (array/push preds ;(slice pattern 1))
+        (visit-pattern-2 anda gun preds parent-sym key (pattern 0)))
+
+      # match literal
+      (array/push anda ['= s pattern])))
+
+  # Compile the patterns
+  (each [pattern expression] patterns
+    (def b2g @{})
+    (def gun @{})
+    (def preds @[])
+    (visit-pattern-1 b2g nil nil pattern)
+    (def anda @['and])
+    (visit-pattern-2 anda gun preds nil nil pattern)
+    # Local unification
+    (def unify @[])
+    (each syms b2g 
+      (when (< 1 (length syms))
+        (array/push unify [= ;syms])))
+    # Global unification
+    (eachp [binding syms] gun
+      (array/push unify [= binding ;syms]))
+    (sort unify)
+    (array/concat anda unify)
+    # Final binding
+    (def defs (seq [[k v] :in (sort (pairs b2g))] ['def k (first v)]))
+    # Predicates
+    (unless (empty? preds)
+      (def pred-join ~(do ,;defs (and ,;preds)))
+      (array/push anda pred-join))
+    (emit-branch (tuple/slice anda) ['do ;defs expression]))
+
+  # Expand branches
+  (def stack @[else])
+  (each el (reverse accum)
+    (if (= :branch el)
+      (let [condition (array/pop stack)
+            truthy (array/pop stack)
+            if-form ~(if ,condition ,truthy 
+                       ,(case (length stack)
+                          0 nil
+                          1 (stack 0)
+                          ~(do ,;(reverse stack))))]
+        (array/remove stack 0 (length stack))
+        (array/push stack if-form))
+      (array/push stack el)))
+
+  ~(do ,;(reverse stack)))
 
 ###
 ###
