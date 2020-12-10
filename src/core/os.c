@@ -808,9 +808,9 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
 #else
         proc->pid = pid;
 #endif
-        proc->in = get_stdio_for_handle(new_in, orig_in, 0);
-        proc->out = get_stdio_for_handle(new_out, orig_out, 1);
-        proc->err = get_stdio_for_handle(new_err, orig_err, 1);
+        proc->in = get_stdio_for_handle(new_in, orig_in, 1);
+        proc->out = get_stdio_for_handle(new_out, orig_out, 0);
+        proc->err = get_stdio_for_handle(new_err, orig_err, 0);
         proc->flags = 0;
         if (proc->in == NULL || proc->out == NULL || proc->err == NULL) {
             janet_panic("failed to construct proc");
