@@ -1652,7 +1652,7 @@
       # match data structure template
       (or isarr (= t :struct) (= t :table))
       (eachp [i sub-pattern] pattern
-        (when (not= t :array)
+        (when (not isarr)
           (array/push anda [not= nil (get-sym s i)]))
         (visit-pattern-2 anda gun preds s i sub-pattern))
 

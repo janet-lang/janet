@@ -125,6 +125,7 @@
 (assert (= :yes (match {:a 1} {:a _} :yes :no)) "match wildcard 5")
 (assert (= false (match {:a 1 :b 2 :c 3} {:a a :b _ :c _ :d _} :no {:a _ :b _ :c _} false :no)) "match wildcard 6")
 (assert (= nil (match {:a 1 :b 2 :c 3} {:a a :b _ :c _ :d _} :no {:a _ :b _ :c _} nil :no)) "match wildcard 7")
+(assert (= "t" (match [true nil] [true _] "t")) "match wildcard 8")
 
 # Regression #301
 (def b (buffer/new-filled 128 0x78))
