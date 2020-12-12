@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Pretty printing a table with a prototype will look for `:_name` instead of `:name`
+  in the prototype table to tag the output.
 - `match` macro implemtentation cahned to be tail recursive.
 - Adds a :preload loader which allows one to manually put things into `module/cache`.
 - Add `buffer/push` function.
