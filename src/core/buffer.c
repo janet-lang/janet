@@ -31,12 +31,11 @@
 /* Initialize a buffer */
 JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
     uint8_t *data = NULL;
-    if (capacity > 0) {
-        janet_gcpressure(capacity);
-        data = malloc(sizeof(uint8_t) * (size_t) capacity);
-        if (NULL == data) {
-            JANET_OUT_OF_MEMORY;
-        }
+    if (capacity < 4) capacity = 4;
+    janet_gcpressure(capacity);
+    data = malloc(sizeof(uint8_t) * (size_t) capacity);
+    if (NULL == data) {
+        JANET_OUT_OF_MEMORY;
     }
     buffer->count = 0;
     buffer->capacity = capacity;

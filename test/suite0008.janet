@@ -336,4 +336,12 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (check-replacer "aba" "ZZZZZZ" "ababababababa")
 (check-replacer "aba" "" "ababababababa")
 
+# Peg bug
+(assert (deep= @[] (peg/match '(any 1) @"")) "peg empty pattern 1")
+(assert (deep= @[] (peg/match '(any 1) (buffer))) "peg empty pattern 2")
+(assert (deep= @[] (peg/match '(any 1) "")) "peg empty pattern 3")
+(assert (deep= @[] (peg/match '(any 1) (string))) "peg empty pattern 4")
+(assert (deep= @[] (peg/match '(* "test" (any 1)) @"test")) "peg empty pattern 5")
+(assert (deep= @[] (peg/match '(* "test" (any 1)) (buffer "test"))) "peg empty pattern 6")
+
 (end-suite)

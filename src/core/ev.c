@@ -377,12 +377,56 @@ static int janet_stream_getter(void *p, Janet key, Janet *out) {
     return 0;
 }
 
+static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
+    JanetStream *s = p;
+    if (!(ctx->flags & JANET_MARSHAL_UNSAFE)) {
+        janet_panic("can only marshal stream with unsafe flag");
+    }
+    janet_marshal_abstract(ctx, p);
+    janet_marshal_int(ctx, (int32_t) s->flags);
+    janet_marshal_int64(ctx, (intptr_t) s->methods);
+#ifdef JANET_WINDOWS
+    /* TODO - ref counting to avoid situation where a handle is closed or GCed
+     * while in transit, and it's value gets reused. DuplicateHandle does not work
+     * for network sockets, and in general for winsock it is better to nipt duplicate
+     * unless there is a need to. */
+    janet_marshal_int64(ctx, (int64_t)(s->handle));
+#else
+    /* Marshal after dup becuse it is easier than maintaining our own ref counting. */
+    int duph = dup(s->handle);
+    if (duph < 0) janet_panicf("failed to duplicate stream handle: %V", janet_ev_lasterr());
+    janet_marshal_int(ctx, (int32_t)(duph));
+#endif
+}
+
+static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
+    if (!(ctx->flags & JANET_MARSHAL_UNSAFE)) {
+        janet_panic("can only unmarshal stream with unsafe flag");
+    }
+    JanetStream *p = janet_unmarshal_abstract(ctx, sizeof(JanetStream));
+    /* Can't share listening state and such across threads */
+    p->_mask = 0;
+    p->state = NULL;
+    p->flags = (uint32_t) janet_unmarshal_int(ctx);
+    p->methods = (void *) janet_unmarshal_int64(ctx);
+#ifdef JANET_WINDOWS
+    p->handle = (JanetHandle) janet_unmarshal_int64(ctx);
+#else
+    p->handle = (JanetHandle) janet_unmarshal_int(ctx);
+#endif
+    return p;
+}
+
+
 const JanetAbstractType janet_stream_type = {
     "core/stream",
     janet_stream_gc,
     janet_stream_mark,
     janet_stream_getter,
-    JANET_ATEND_GET
+    NULL,
+    janet_stream_marshal,
+    janet_stream_unmarshal,
+    JANET_ATEND_UNMARSHAL
 };
 
 /* Register a fiber to resume with value */
