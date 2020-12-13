@@ -199,19 +199,14 @@ static Janet cfun_buffer_fill(int32_t argc, Janet *argv) {
 static Janet cfun_buffer_trim(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
-    if (buffer->count) {
-        if (buffer->count < buffer->capacity) {
-            uint8_t *newData = realloc(buffer->data, buffer->count);
-            if (NULL == newData) {
-                JANET_OUT_OF_MEMORY;
-            }
-            buffer->data = newData;
-            buffer->capacity = buffer->count;
+    if (buffer->count < buffer->capacity) {
+        int32_t newcap = buffer->count > 4 ? buffer->count : 4;
+        uint8_t *newData = realloc(buffer->data, newcap);
+        if (NULL == newData) {
+            JANET_OUT_OF_MEMORY;
         }
-    } else {
-        buffer->capacity = 0;
-        free(buffer->data);
-        buffer->data = NULL;
+        buffer->data = newData;
+        buffer->capacity = newcap;
     }
     return argv[0];
 }
