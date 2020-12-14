@@ -1684,7 +1684,7 @@
     (visit-pattern-2 anda gun preds nil nil pattern)
     # Local unification
     (def unify @[])
-    (each syms b2g 
+    (each syms b2g
       (when (< 1 (length syms))
         (array/push unify [= ;syms])))
     # Global unification
@@ -1706,7 +1706,7 @@
     (if (= :branch el)
       (let [condition (array/pop stack)
             truthy (array/pop stack)
-            if-form ~(if ,condition ,truthy 
+            if-form ~(if ,condition ,truthy
                        ,(case (length stack)
                           0 nil
                           1 (stack 0)
@@ -2416,9 +2416,6 @@
   (default where "<anonymous>")
   (default guard :ydt)
 
-  # Are we done yet?
-  (var going true)
-
   # Evaluate 1 source form in a protected manner
   (defn eval1 [source]
     (def source (if expand (expand source) source))
@@ -2442,7 +2439,7 @@
     (fiber/setenv f env)
     (while (fiber/can-resume? f)
       (def res (resume f resumeval))
-      (when good (when going (set resumeval (onstatus f res))))))
+      (when good (set resumeval (onstatus f res)))))
 
   # Reader version
   (when read
@@ -2467,11 +2464,11 @@
 
   # Loop
   (def buf @"")
-  (while going
+  (var parser-not-done true)
+  (while parser-not-done
     (if (env :exit) (break))
     (buffer/clear buf)
-    (if (= (chunks buf p)
-           :cancel)
+    (if (= (chunks buf p) :cancel)
       (do
         # A :cancel chunk represents a cancelled form in the REPL, so reset.
         (:flush p)
@@ -2482,19 +2479,23 @@
         (def len (length buf))
         (when (= len 0)
           (:eof p)
-          (set going false))
+          (set parser-not-done false))
         (while (> len pindex)
           (+= pindex (p-consume p buf pindex))
           (while (p-has-more p)
-            (eval1 (p-produce p)))
+            (eval1 (p-produce p))
+            (if (env :exit) (break)))
           (when (= (p-status p) :error)
-            (parse-err p where))))))
+            (parse-err p where)
+            (if (env :exit) (break)))))))
 
   # Check final parser state
-  (while (p-has-more p)
-    (eval1 (p-produce p)))
-  (when (= (p-status p) :error)
-    (parse-err p where))
+  (unless (env :exit)
+    (while (p-has-more p)
+      (eval1 (p-produce p))
+      (if (env :exit) (break)))
+    (when (= (p-status p) :error)
+      (parse-err p where)))
 
   (in env :exit-value env))
 
@@ -2723,15 +2724,25 @@
   (def spath (string path))
   (put env :current-file (or src (if-not path-is-file spath)))
   (put env :source (or src (if-not path-is-file spath path)))
+  (var exit-error nil)
+  (var exit-fiber nil)
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
-    (def ret (bad-parse x y))
-    (if exit (os/exit 1))
-    ret)
+    (when exit
+      (bad-parse x y)
+      (os/exit 1))
+    (put env :exit true)
+    (def [line col] (:where x))
+    (def pe (string (:error x) " in " y " around line " line ", column " col))
+    (set exit-error pe))
   (defn bc [&opt x y z]
-    (def ret (bad-compile x y z))
-    (if exit (os/exit 1))
-    ret)
+    (when exit
+      (bad-compile x y z)
+      (os/exit 1))
+    (put env :exit true)
+    (def ce (string x " while compiling " z))
+    (set exit-error ce)
+    (set exit-fiber y))
   (unless f
     (error (string "could not find file " path)))
   (def nenv
@@ -2741,32 +2752,40 @@
                   :on-compile-error bc
                   :on-status (fn [f x]
                                (when (not= (fiber/status f) :dead)
-                                 (debug/stacktrace f x)
-                                 (if exit (os/exit 1) (eflush))))
+                                 (when exit
+                                   (debug/stacktrace f x)
+                                   (eflush)
+                                   (os/exit 1))
+                                 (put env :exit true)
+                                 (set exit-error x)
+                                 (set exit-fiber f)))
                   :evaluator evaluator
                   :expander expander
                   :read read
                   :parser parser
                   :source (or src (if path-is-file "<anonymous>" spath))}))
   (if-not path-is-file (file/close f))
+  (when exit-error
+    (if exit-fiber
+      (propagate exit-error exit-fiber)
+      (error exit-error)))
   nenv)
 
 (def module/loaders
   `A table of loading method names to loading functions.
   This table lets require and import load many different kinds
   of files as modules.`
-  @{:native (fn [path &] (native path (make-env)))
-    :source (fn [path args]
+  @{:native (fn native-loader [path &] (native path (make-env)))
+    :source (fn source-loader [path args]
               (put module/loading path true)
-              (def newenv (dofile path ;args))
-              (put module/loading path nil)
-              newenv)
-    :preload (fn [path & args]
+              (defer (put module/loading path nil)
+                (dofile path ;args)))
+    :preload (fn preload-loader [path & args]
                (when-let [m (in module/cache path)]
                  (if (function? m)
                    (set (module/cache path) (m path ;args))
                    m)))
-    :image (fn [path &] (load-image (slurp path)))})
+    :image (fn image-loader [path &] (load-image (slurp path)))})
 
 (defn require-1
   [path args kargs]

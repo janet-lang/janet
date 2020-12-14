@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Improve error handling of `dofile`.
+
 ## 1.13.1 - 2020-12-13
 - Pretty printing a table with a prototype will look for `:_name` instead of `:name`
   in the prototype table to tag the output.
