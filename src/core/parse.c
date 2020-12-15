@@ -1260,9 +1260,9 @@ static const JanetReg parse_cfuns[] = {
     {
         "parser/where", cfun_parse_where,
         JDOC("(parser/where parser &opt line col)\n\n"
-             "Returns the current line number and column of the parser's internal state. If line or "
-             "line and col are provided, the current line number and column of the parser are set to "
-             "those values.")
+             "Returns the current line number and column of the parser's internal state. If line is "
+             "provided, the current line number of the parser is first set to that value. If column is "
+             "also provided, the current column number of the parser is also first set to that value.")
     },
     {
         "parser/eof", cfun_parse_eof,
