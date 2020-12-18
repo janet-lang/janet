@@ -898,21 +898,52 @@
   [f & inds]
   (def ninds (length inds))
   (if (= 0 ninds) (error "expected at least 1 indexed collection"))
-  (var limit (length (in inds 0)))
-  (forv i 0 ninds
-    (def l (length (in inds i)))
-    (if (< l limit) (set limit l)))
+  (def res @[])
   (def [i1 i2 i3 i4] inds)
-  (def res (array/new limit))
   (case ninds
-    1 (forv i 0 limit (set (res i) (f (in i1 i))))
-    2 (forv i 0 limit (set (res i) (f (in i1 i) (in i2 i))))
-    3 (forv i 0 limit (set (res i) (f (in i1 i) (in i2 i) (in i3 i))))
-    4 (forv i 0 limit (set (res i) (f (in i1 i) (in i2 i) (in i3 i) (in i4 i))))
-    (forv i 0 limit
-      (def args (array/new ninds))
-      (forv j 0 ninds (set (args j) (in (in inds j) i)))
-      (set (res i) (f ;args))))
+    1 (each x i1 (array/push res (f x)))
+    2 (do
+        (var k1 nil)
+        (var k2 nil)
+        (while true
+          (if (= nil (set k1 (next i1 k1))) (break))
+          (if (= nil (set k2 (next i2 k2))) (break))
+          (array/push res (f (in i1 k1) (in i2 k2)))))
+    3 (do
+        (var k1 nil)
+        (var k2 nil)
+        (var k3 nil)
+        (while true
+          (if (= nil (set k1 (next i1 k1))) (break))
+          (if (= nil (set k2 (next i2 k2))) (break))
+          (if (= nil (set k3 (next i2 k3))) (break))
+          (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3)))))
+    4 (do
+        (var k1 nil)
+        (var k2 nil)
+        (var k3 nil)
+        (var k4 nil)
+        (while true
+          (if (= nil (set k1 (next i1 k1))) (break))
+          (if (= nil (set k2 (next i2 k2))) (break))
+          (if (= nil (set k3 (next i2 k3))) (break))
+          (if (= nil (set k4 (next i2 k4))) (break))
+          (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3) (in i4 k4)))))
+    (do
+      (def iterkeys (array/new-filled ninds))
+      (var done false)
+      (def call-buffer @[])
+      (while true
+        (forv i 0 ninds
+              (let [old-key (in iterkeys i)
+                    ii (in inds i)
+                    new-key (next ii old-key)]
+                (if (= nil new-key)
+                  (do (set done true) (break))
+                  (do (set (iterkeys i) new-key) (array/push call-buffer (in ii new-key))))))
+        (if done (break))
+        (array/push res (f ;call-buffer))
+        (array/clear call-buffer))))
   res)
 
 (defn mapcat
@@ -983,21 +1014,31 @@
 (defn find-index
   `Find the index of indexed type for which pred is true. Returns nil if not found.`
   [pred ind]
-  (def len (length ind))
-  (var i 0)
-  (var going true)
-  (while (if (< i len) going)
-    (def item (in ind i))
-    (if (pred item) (set going false) (++ i)))
-  (if going nil i))
+  (var k nil)
+  (var ret nil)
+  (while true
+    (set k (next ind k))
+    (if (= k nil) (break))
+    (def item (in ind k))
+    (when (pred item)
+      (set ret k)
+      (break)))
+  ret)
 
 (defn find
   `Find the first value in an indexed collection that satisfies a predicate. Returns
-  nil if not found. Note there is no way to differentiate a nil from the indexed collection
-  and a not found. Consider find-index if this is an issue.`
-  [pred ind]
-  (def i (find-index pred ind))
-  (if (= i nil) nil (in ind i)))
+  dflt if not found.`
+  [pred ind &opt dflt]
+  (var k nil)
+  (var ret dflt)
+  (while true
+    (set k (next ind k))
+    (if (= k nil) (break))
+    (def item (in ind k))
+    (when (pred item)
+      (set ret item)
+      (break)))
+  ret)
 
 (defn index-of
   `Find the first key associated with a value x in a data structure, acting like a reverse lookup.

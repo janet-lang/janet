@@ -290,6 +290,13 @@ static Janet cfun_array_trim(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
+static Janet cfun_array_clear(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetArray *array = janet_getarray(argv, 0);
+    array->count = 0;
+    return argv[0];
+}
+
 static const JanetReg array_cfuns[] = {
     {
         "array/new", cfun_array_new,
@@ -369,6 +376,12 @@ static const JanetReg array_cfuns[] = {
         "array/trim", cfun_array_trim,
         JDOC("(array/trim arr)\n\n"
              "Set the backing capacity of an array to its current length. Returns the modified array.")
+    },
+    {
+        "array/clear", cfun_array_clear,
+        JDOC("(array/clear arr)\n\n"
+             "Empties an array, setting it's count to 0 but does not free the backing capacity. "
+             "Returns the modified array.")
     },
     {NULL, NULL, NULL}
 };
