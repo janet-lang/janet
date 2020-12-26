@@ -261,6 +261,13 @@ int32_t janet_hash(Janet x) {
         case JANET_STRUCT:
             hash = janet_struct_hash(janet_unwrap_struct(x));
             break;
+        case JANET_NUMBER: {
+            uint64_t i = janet_u64(x);
+            uint32_t lo = (uint32_t)(i & 0xFFFFFFFF);
+            uint32_t hi = (uint32_t)(i >> 32);
+            hash = (int32_t)(hi ^ lo);
+            break;
+        }
         case JANET_ABSTRACT: {
             JanetAbstract xx = janet_unwrap_abstract(x);
             const JanetAbstractType *at = janet_abstract_type(xx);

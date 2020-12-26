@@ -815,7 +815,7 @@
     (sort-help a lo right by)
     (sort-help a left hi by))
   a)
-    
+
 (defn sort
   "Sort an array in-place. Uses quick-sort and is not a stable sort."
   [a &opt by]
@@ -2598,7 +2598,8 @@
   (unmarshal image load-image-dict))
 
 (defn- check-. [x] (if (string/has-prefix? "." x) x))
-(defn- not-check-. [x] (unless (string/has-prefix? "." x) x))
+(defn- not-check-. [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "." x)) x))
+(defn- check-/ [x] (if (string/has-prefix? "/" x) x))
 
 (def module/paths
   ```
@@ -2634,8 +2635,8 @@
   (defn- find-prefix
     [pre]
     (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) module/paths) 0))
-  (def all-index (find-prefix ":all:"))
-  (array/insert module/paths all-index [(string ":all:" ext) loader not-check-.])
+  (def all-index (find-prefix ".:all:"))
+  (array/insert module/paths all-index [(string ".:all:" ext) loader check-/])
   (def sys-index (find-prefix ":sys:"))
   (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader not-check-.])
   (def curall-index (find-prefix ":cur:/:all:"))
@@ -2700,6 +2701,7 @@
 (undef mod-filter)
 (undef check-.)
 (undef not-check-.)
+(undef check-/)
 
 (def module/loading
   `Table mapping currently loading modules to true. Used to prevent

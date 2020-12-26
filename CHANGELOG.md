@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Importing modules that start with `/` is now the only way to import from project root.
+  Before, this would import from / on disk.
+- Change hash function for numbers.
 - Improve error handling of `dofile`.
 
 ## 1.13.1 - 2020-12-13
