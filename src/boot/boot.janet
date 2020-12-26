@@ -790,35 +790,38 @@
 ###
 ###
 
-(defn- sort-part
-  [a lo hi by]
-  (def pivot (in a hi))
-  (var i lo)
-  (forv j lo hi
-    (def aj (in a j))
-    (when (by aj pivot)
-      (def ai (in a i))
-      (set (a i) aj)
-      (set (a j) ai)
-      (++ i)))
-  (set (a hi) (in a i))
-  (set (a i) pivot)
-  i)
+(defn- median-of-three [a b c]
+  (if (not= (> a b) (> a  c))
+    a
+    (if (not= (> b a) (> b c)) b c)))
 
-(defn- sort-help
-  [a lo hi by]
-  (when (> hi lo)
-    (def piv (sort-part a lo hi by))
-    (sort-help a lo (- piv 1) by)
-    (sort-help a (+ piv 1) hi by))
+(defn sort-help [a lo hi by]
+  (when (< lo hi)
+    (def pivot
+      (median-of-three (in a hi) (in a lo)
+                       (in a (math/floor (/ (+ lo hi) 2)))))
+    (var left lo)
+    (var right hi)
+    (while true
+      (while (by (in a left) pivot) (++ left))
+      (while (by pivot (in a right)) (-- right))
+      (when (<= left right)
+        (def tmp (in a left))
+        (set (a left) (in a right))
+        (set (a right) tmp)
+        (++ left)
+        (-- right))
+      (if (>= left right) (break)))
+    (sort-help a lo right by)
+    (sort-help a left hi by))
   a)
-
+    
 (defn sort
   "Sort an array in-place. Uses quick-sort and is not a stable sort."
   [a &opt by]
   (sort-help a 0 (- (length a) 1) (or by <)))
 
-(undef sort-part)
+(undef median-of-three)
 (undef sort-help)
 
 (defn sort-by
