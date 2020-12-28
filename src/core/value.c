@@ -268,14 +268,13 @@ int32_t janet_hash(Janet x) {
             if (isnan(num) || isinf(num) || num == 0) {
                 hash = 0;
             } else {
-                int e = 0;
-                double rest = frexp(num, &e);
-                int64_t intrest = (int64_t)(rest * JANET_INTMAX_DOUBLE);
-                uint32_t accum = (uint32_t)((intrest >> 22) ^ intrest);
-                accum ^= 0x9e3779b9 + (accum << 3) + (accum >> 2);
-                accum += (int32_t)(e);
-                accum ^= 0x9e3779b9 + (accum << 3) + (accum >> 2);
-                hash = (int32_t) accum;
+                hash = (int32_t)num;
+                hash = ((hash >> 16) ^ hash) * 0x45d9f3b;
+                hash = ((hash >> 16) ^ hash) * 0x45d9f3b;
+                hash = (hash >> 16) ^ hash;
+
+                uint32_t lo = (uint32_t)(janet_u64(x) & 0xFFFFFFFF);
+                hash ^= lo + 0x9e3779b9 + (hash << 6) + (hash >> 2);
             }
             break;
         }
