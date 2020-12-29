@@ -758,6 +758,10 @@ static int line() {
                 kleft();
                 break;
             case 3:     /* ctrl-c */
+                clearlines();
+                gbl_sigint_flag = 1;
+                return -1;
+            case 17:    /* ctrl-q */
                 gbl_cancel_current_repl_form = 1;
                 clearlines();
                 return -1;
