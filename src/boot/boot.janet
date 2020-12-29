@@ -1575,16 +1575,26 @@
 
 (defmacro match
   ```
-  Pattern matching. Match an expression x against
-  any number of cases. Each case is a pattern to match against, followed
-  by an expression to evaluate to if that case is matched. A pattern that is
-  a symbol will match anything, binding x's value to that symbol. An array
-  will match only if all of it's elements match the corresponding elements in
-  x. A table or struct will match if all values match with the corresponding
-  values in x. A tuple pattern will match if it's first element matches, and the following
-  elements are treated as predicates and are true. The last special case is
-  the '_ symbol, which is a wildcard that will match any value without creating a binding.
-  Any other value pattern will only match if it is equal to x.
+  Pattern matching. Match an expression `x` against any number of cases.
+  Each case is a pattern to match against, followed by an expression to
+  evaluate to if that case is matched.  Legal patterns are:
+
+  * symbol -- a pattern that is a symbol will match anything, binding `x`'s
+    value to that symbol.
+
+  * array -- an array will match only if all of its elements match the
+    corresponding elements in `x`.
+
+  * table or struct -- a table or struct will match if all values match with
+    the corresponding values in `x`.
+
+  * tuple -- a tuple pattern will match if its first element matches, and the
+    following elements are treated as predicates and are true.
+
+  * `_` symbol -- the last special case is the `_` symbol, which is a wildcard
+    that will match any value without creating a binding.
+
+  Any other value pattern will only match if it is equal to `x`.
   ```
   [x & cases]
 
