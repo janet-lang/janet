@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Deprecate `file/popen` in favor of `os/spawn`.
 - Add `:all` keyword to `ev/read` and `net/read` to make them more like `file/read`. However, we
   do not provide any `:line` option as that requires buffering.
 - Change repl behavior to make Ctrl-C raise SIGINT on posix. The old behavior for Ctrl-C,
