@@ -509,11 +509,16 @@ static Janet cfun_stream_read(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE | JANET_STREAM_SOCKET);
-    int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, 10);
     double to = janet_optnumber(argv, argc, 3, INFINITY);
-    if (to != INFINITY) janet_addtimeout(to);
-    janet_ev_recv(stream, buffer, n, MSG_NOSIGNAL);
+    if (janet_keyeq(argv[1], "all")) {
+        if (to != INFINITY) janet_addtimeout(to);
+        janet_ev_recvchunk(stream, buffer, -1, MSG_NOSIGNAL);
+    } else {
+        int32_t n = janet_getnat(argv, 1);
+        if (to != INFINITY) janet_addtimeout(to);
+        janet_ev_recv(stream, buffer, n, MSG_NOSIGNAL);
+    }
     janet_await();
 }
 
@@ -643,6 +648,7 @@ static const JanetReg net_cfuns[] = {
         "net/read", cfun_stream_read,
         JDOC("(net/read stream nbytes &opt buf timeout)\n\n"
              "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
+             "`n` can also be the keyword `:all` to read into the buffer until end of stream. "
              "If less than n bytes are available (and more than 0), will push those bytes and return early. "
              "Takes an optional timeout in seconds, after which will return nil. "
              "Returns a buffer with up to n more bytes in it, or raises an error if the read failed.")
