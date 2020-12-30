@@ -3,10 +3,31 @@ sources:
 - https://git.sr.ht/~bakpakin/janet
 packages:
 - gmake
+- meson
 tasks:
-- build: |
+- gmake: |
     cd janet
     gmake
     gmake test
     doas gmake install
     gmake test-install
+- meson_min: |
+    cd janet
+    meson setup build_meson_min --buildtype=release -Dsingle_threaded=true -Dnanbox=false -Ddynamic_modules=false -Ddocstrings=false -Dnet=false -Dsourcemaps=false -Dpeg=false -Dassembler=false -Dint_types=false -Dtyped_array=false -Dreduced_os=true
+    cd build_meson_min
+    ninja
+- meson_prf: |
+    cd janet
+    meson setup build_meson_prf --buildtype=release -Dprf=true
+    cd build_meson_prf
+    ninja
+    ninja test
+- meson_default: |
+    cd janet
+    meson setup build_meson_default --buildtype=release
+    cd build_meson_default
+    ninja
+    ninja test
+    doas ninja install
+    doas jpm --verbose install circlet
+

@@ -132,6 +132,7 @@ typedef struct JanetTimeout JanetTimeout;
 struct JanetTimeout {
     JanetTimestamp when;
     JanetFiber *fiber;
+    JanetFiber *curr_fiber;
     uint32_t sched_id;
     int is_error;
 };
@@ -378,12 +379,56 @@ static int janet_stream_getter(void *p, Janet key, Janet *out) {
     return 0;
 }
 
+static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
+    JanetStream *s = p;
+    if (!(ctx->flags & JANET_MARSHAL_UNSAFE)) {
+        janet_panic("can only marshal stream with unsafe flag");
+    }
+    janet_marshal_abstract(ctx, p);
+    janet_marshal_int(ctx, (int32_t) s->flags);
+    janet_marshal_int64(ctx, (intptr_t) s->methods);
+#ifdef JANET_WINDOWS
+    /* TODO - ref counting to avoid situation where a handle is closed or GCed
+     * while in transit, and it's value gets reused. DuplicateHandle does not work
+     * for network sockets, and in general for winsock it is better to nipt duplicate
+     * unless there is a need to. */
+    janet_marshal_int64(ctx, (int64_t)(s->handle));
+#else
+    /* Marshal after dup becuse it is easier than maintaining our own ref counting. */
+    int duph = dup(s->handle);
+    if (duph < 0) janet_panicf("failed to duplicate stream handle: %V", janet_ev_lasterr());
+    janet_marshal_int(ctx, (int32_t)(duph));
+#endif
+}
+
+static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
+    if (!(ctx->flags & JANET_MARSHAL_UNSAFE)) {
+        janet_panic("can only unmarshal stream with unsafe flag");
+    }
+    JanetStream *p = janet_unmarshal_abstract(ctx, sizeof(JanetStream));
+    /* Can't share listening state and such across threads */
+    p->_mask = 0;
+    p->state = NULL;
+    p->flags = (uint32_t) janet_unmarshal_int(ctx);
+    p->methods = (void *) janet_unmarshal_int64(ctx);
+#ifdef JANET_WINDOWS
+    p->handle = (JanetHandle) janet_unmarshal_int64(ctx);
+#else
+    p->handle = (JanetHandle) janet_unmarshal_int(ctx);
+#endif
+    return p;
+}
+
+
 const JanetAbstractType janet_stream_type = {
     "core/stream",
     janet_stream_gc,
     janet_stream_mark,
     janet_stream_getter,
-    JANET_ATEND_GET
+    NULL,
+    janet_stream_marshal,
+    janet_stream_unmarshal,
+    JANET_ATEND_UNMARSHAL
 };
 
 /* Register a fiber to resume with value */
@@ -435,6 +480,9 @@ void janet_ev_mark(void) {
     /* Pending timeouts */
     for (size_t i = 0; i < janet_vm_tq_count; i++) {
         janet_mark(janet_wrap_fiber(janet_vm_tq[i].fiber));
+        if (janet_vm_tq[i].curr_fiber != NULL) {
+            janet_mark(janet_wrap_fiber(janet_vm_tq[i].curr_fiber));
+        }
     }
 
     /* Pending listeners */
@@ -488,6 +536,7 @@ void janet_addtimeout(double sec) {
     JanetTimeout to;
     to.when = ts_delta(ts_now(), sec);
     to.fiber = fiber;
+    to.curr_fiber = NULL;
     to.sched_id = fiber->sched_id;
     to.is_error = 1;
     add_timeout(to);
@@ -776,11 +825,27 @@ void janet_loop1(void) {
     JanetTimestamp now = ts_now();
     while (peek_timeout(&to) && to.when <= now) {
         pop_timeout(0);
-        if (to.fiber->sched_id == to.sched_id) {
-            if (to.is_error) {
-                janet_cancel(to.fiber, janet_cstringv("timeout"));
-            } else {
-                janet_schedule(to.fiber, janet_wrap_nil());
+        if (to.curr_fiber != NULL) {
+            /* This is a deadline (for a fiber, not a function call) */
+            JanetFiberStatus s = janet_fiber_status(to.curr_fiber);
+            int isFinished = s == (JANET_STATUS_DEAD ||
+                                   s == JANET_STATUS_ERROR ||
+                                   s == JANET_STATUS_USER0 ||
+                                   s == JANET_STATUS_USER1 ||
+                                   s == JANET_STATUS_USER2 ||
+                                   s == JANET_STATUS_USER3 ||
+                                   s == JANET_STATUS_USER4);
+            if (!isFinished) {
+                janet_cancel(to.fiber, janet_cstringv("deadline expired"));
+            }
+        } else {
+            /* This is a timeout (for a function call, not a whole fiber) */
+            if (to.fiber->sched_id == to.sched_id) {
+                if (to.is_error) {
+                    janet_cancel(to.fiber, janet_cstringv("timeout"));
+                } else {
+                    janet_schedule(to.fiber, janet_wrap_nil());
+                }
             }
         }
     }
@@ -798,7 +863,7 @@ void janet_loop1(void) {
         memset(&to, 0, sizeof(to));
         int has_timeout;
         /* Drop timeouts that are no longer needed */
-        while ((has_timeout = peek_timeout(&to)) && to.fiber->sched_id != to.sched_id) {
+        while ((has_timeout = peek_timeout(&to)) && (to.curr_fiber == NULL) && to.fiber->sched_id != to.sched_id) {
             pop_timeout(0);
         }
         /* Run polling implementation only if pending timeouts or pending events */
@@ -1319,7 +1384,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             janet_buffer_push_bytes(state->buf, state->chunk_buf, s->bytes);
             state->bytes_left -= s->bytes;
 
-            if (state->bytes_left <= 0 || !state->is_chunk || s->bytes == 0) {
+            if (state->bytes_left == 0 || !state->is_chunk || s->bytes == 0) {
                 Janet resume_val;
 #ifdef JANET_NET
                 if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
@@ -1382,12 +1447,11 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             }
             return JANET_ASYNC_STATUS_DONE;
         }
-        case JANET_ASYNC_EVENT_READ:
-            /* Read in bytes */
-        {
+        case JANET_ASYNC_EVENT_READ: {
             JanetBuffer *buffer = state->buf;
             int32_t bytes_left = state->bytes_left;
-            janet_buffer_extra(buffer, bytes_left);
+            int32_t read_limit = bytes_left < 0 ? 4096 : bytes_left;
+            janet_buffer_extra(buffer, read_limit);
             ssize_t nread;
 #ifdef JANET_NET
             char saddr[256];
@@ -1396,14 +1460,14 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             do {
 #ifdef JANET_NET
                 if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
-                    nread = recvfrom(s->stream->handle, buffer->data + buffer->count, bytes_left, state->flags,
+                    nread = recvfrom(s->stream->handle, buffer->data + buffer->count, read_limit, state->flags,
                                      (struct sockaddr *)&saddr, &socklen);
                 } else if (state->mode == JANET_ASYNC_READMODE_RECV) {
-                    nread = recv(s->stream->handle, buffer->data + buffer->count, bytes_left, state->flags);
+                    nread = recv(s->stream->handle, buffer->data + buffer->count, read_limit, state->flags);
                 } else
 #endif
                 {
-                    nread = read(s->stream->handle, buffer->data + buffer->count, bytes_left);
+                    nread = read(s->stream->handle, buffer->data + buffer->count, read_limit);
                 }
             } while (nread == -1 && errno == EINTR);
 
@@ -1784,6 +1848,7 @@ JANET_NO_RETURN void janet_sleep_await(double sec) {
     to.fiber = janet_vm_root_fiber;
     to.is_error = 0;
     to.sched_id = to.fiber->sched_id;
+    to.curr_fiber = NULL;
     add_timeout(to);
     janet_await();
 }
@@ -1792,6 +1857,21 @@ static Janet cfun_ev_sleep(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     double sec = janet_getnumber(argv, 0);
     janet_sleep_await(sec);
+}
+
+static Janet cfun_ev_deadline(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 3);
+    double sec = janet_getnumber(argv, 0);
+    JanetFiber *tocancel = janet_optfiber(argv, argc, 1, janet_vm_root_fiber);
+    JanetFiber *tocheck = janet_optfiber(argv, argc, 2, janet_vm_fiber);
+    JanetTimeout to;
+    to.when = ts_delta(ts_now(), sec);
+    to.fiber = tocancel;
+    to.curr_fiber = tocheck;
+    to.is_error = 0;
+    to.sched_id = to.fiber->sched_id;
+    add_timeout(to);
+    return janet_wrap_fiber(tocancel);
 }
 
 static Janet cfun_ev_cancel(int32_t argc, Janet *argv) {
@@ -1813,11 +1893,16 @@ Janet janet_cfun_stream_read(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE);
-    int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, 10);
     double to = janet_optnumber(argv, argc, 3, INFINITY);
-    if (to != INFINITY) janet_addtimeout(to);
-    janet_ev_read(stream, buffer, n);
+    if (janet_keyeq(argv[1], "all")) {
+        if (to != INFINITY) janet_addtimeout(to);
+        janet_ev_readchunk(stream, buffer, -1);
+    } else {
+        int32_t n = janet_getnat(argv, 1);
+        if (to != INFINITY) janet_addtimeout(to);
+        janet_ev_read(stream, buffer, n);
+    }
     janet_await();
 }
 
@@ -1866,6 +1951,14 @@ static const JanetReg ev_cfuns[] = {
         "ev/sleep", cfun_ev_sleep,
         JDOC("(ev/sleep sec)\n\n"
              "Suspend the current fiber for sec seconds without blocking the event loop.")
+    },
+    {
+        "ev/deadline", cfun_ev_deadline,
+        JDOC("(ev/deadline sec &opt tocancel tocheck)\n\n"
+             "Set a deadline for a fiber `tocheck`. If `tocheck` is not finished after `sec` seconds, "
+             "`tocancel` will be canceled as with `ev/cancel`. "
+             "If `tocancel` and `tocheck` are not given, they default to `(fiber/root)` and "
+             "`(fiber/current)` respectively. Returns `tocancel`.")
     },
     {
         "ev/chan", cfun_channel_new,
@@ -1924,7 +2017,8 @@ static const JanetReg ev_cfuns[] = {
     {
         "ev/read", janet_cfun_stream_read,
         JDOC("(ev/read stream n &opt buffer timeout)\n\n"
-             "Read up to n bytes into a buffer asynchronously from a stream. "
+             "Read up to n bytes into a buffer asynchronously from a stream. `n` can also be the keyword "
+             "`:all` to read into the buffer until end of stream. "
              "Optionally provide a buffer to write into "
              "as well as a timeout in seconds after which to cancel the operation and raise an error. "
              "Returns the buffer if the read was successful or nil if end-of-stream reached. Will raise an "

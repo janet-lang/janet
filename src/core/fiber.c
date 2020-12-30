@@ -420,8 +420,7 @@ void janet_fiber_cframe(JanetFiber *fiber, JanetCFunction cfun) {
     newframe->flags = 0;
 }
 
-/* Pop a stack frame from the fiber. Returns the new stack frame, or
- * NULL if there are no more frames */
+/* Pop a stack frame from the fiber. */
 void janet_fiber_popframe(JanetFiber *fiber) {
     JanetStackFrame *frame = janet_fiber_frame(fiber);
     if (fiber->frame == 0) return;

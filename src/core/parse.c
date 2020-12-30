@@ -985,8 +985,20 @@ static Janet cfun_parse_flush(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_parse_where(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 3);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
+    if (argc > 1) {
+        int32_t line = janet_getinteger(argv, 1);
+        if (line < 1)
+            janet_panicf("invalid line number %d", line);
+        p->line = (size_t) line;
+    }
+    if (argc > 2) {
+        int32_t column = janet_getinteger(argv, 2);
+        if (column < 0)
+            janet_panicf("invalid column number %d", column);
+        p->column = (size_t) column;
+    }
     Janet *tup = janet_tuple_begin(2);
     tup[0] = janet_wrap_integer(p->line);
     tup[1] = janet_wrap_integer(p->column);
@@ -1247,8 +1259,10 @@ static const JanetReg parse_cfuns[] = {
     },
     {
         "parser/where", cfun_parse_where,
-        JDOC("(parser/where parser)\n\n"
-             "Returns the current line number and column of the parser's internal state.")
+        JDOC("(parser/where parser &opt line col)\n\n"
+             "Returns the current line number and column of the parser's internal state. If line is "
+             "provided, the current line number of the parser is first set to that value. If column is "
+             "also provided, the current column number of the parser is also first set to that value.")
     },
     {
         "parser/eof", cfun_parse_eof,

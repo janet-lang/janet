@@ -565,7 +565,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 JanetTable *t = janet_unwrap_table(x);
                 JanetTable *proto = t->proto;
                 if (NULL != proto) {
-                    Janet name = janet_table_get(proto, janet_ckeywordv("name"));
+                    Janet name = janet_table_get(proto, janet_ckeywordv("_name"));
                     const uint8_t *n;
                     int32_t len;
                     if (janet_bytes_view(name, &n, &len)) {

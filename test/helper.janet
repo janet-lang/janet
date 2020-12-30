@@ -13,7 +13,7 @@
   (when x (++ num-tests-passed))
   (def str (string e))
   (def truncated
-    (if (> (length e) 40) (string (string/slice e 0 35) "...") (string e)))
+    (if (> (length e) 40) (string (string/slice e 0 35) "...") (describe e)))
   (if x
     (eprintf "\e[32m✔\e[0m %s: %v" truncated x)
     (eprintf "\n\e[31m✘\e[0m %s: %v" truncated x))

@@ -65,6 +65,10 @@ Move cursor to the beginning of input line.
 Move cursor one character to the left.
 
 .TP 16
+.BR Ctrl\-D
+If on a newline, indicate end of stream and exit the repl.
+
+.TP 16
 .BR Ctrl\-E
 Move cursor to the end of input line.
 
@@ -99,6 +103,10 @@ Delete one word before the cursor.
 .TP 16
 .BR Ctrl\-G
 Show documentation for the current symbol under the cursor.
+
+.TP 16
+.BR Ctrl\-Q
+Clear the current command, including already typed lines.
 
 .TP 16
 .BR Alt\-B/Alt\-F

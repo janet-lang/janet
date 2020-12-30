@@ -2,8 +2,24 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Deprecate `file/popen` in favor of `os/spawn`.
+- Add `:all` keyword to `ev/read` and `net/read` to make them more like `file/read`. However, we
+  do not provide any `:line` option as that requires buffering.
+- Change repl behavior to make Ctrl-C raise SIGINT on posix. The old behavior for Ctrl-C,
+  to clear the current line buffer, has been moved to Ctrl-Q.
+- Importing modules that start with `/` is now the only way to import from project root.
+  Before, this would import from / on disk.
+- Change hash function for numbers.
+- Improve error handling of `dofile`.
+
+## 1.13.1 - 2020-12-13
+- Pretty printing a table with a prototype will look for `:_name` instead of `:name`
+  in the prototype table to tag the output.
+- `match` macro implementation changed to be tail recursive.
+- Adds a :preload loader which allows one to manually put things into `module/cache`.
+- Add `buffer/push` function.
 - Backtick delimited strings and buffers are now reindented based on the column of the
-  opening delimiter. WHitespace in columns to the left of the starting column is ignored unless
+  opening delimiter. Whitespace in columns to the left of the starting column is ignored unless
   there are non-space/non-newline characters in that region, in which case the old behavior is preserved.
 - Argument to `(error)` combinator in PEGs is now optional.
 - Add `(line)` and `(column)` combinators to PEGs to capture source line and column.
@@ -12,16 +28,17 @@ All notable changes to this project will be documented in this file.
 - During installation and release, merge janetconf.h into janet.h for easier install.
 - Add `upscope` special form.
 - `os/execute` and `os/spawn` can take streams for redirecting IO.
-- Add `;parser` and `:read` parameters to `run-context`.
+- Add `:parser` and `:read` parameters to `run-context`.
 - Add `os/open` if ev is enabled.
 - Add `os/pipe` if ev is enabled.
 - Add `janet_thread_current(void)` to C API
 - Add integer parsing forms to pegs. This makes parsing many binary protocols easier.
 - Lots of updates to networking code - now can use epoll (or poll) on linux and IOCP on windows.
 - Add `ev/` module. This exposes a fiber scheduler, queues, timeouts, and other functionality to users
-  for single threaded cooperative scheduling and asynchornous IO.
+  for single threaded cooperative scheduling and asynchronous IO.
 - Add `net/accept-loop` and `net/listen`. These functions break down `net/server` into it's essential parts
-  and are more flexible. They also allow furter improvements to these utility functions.
+  and are more flexible. They also allow further improvements to these utility functions.
+- Various small bug fixes.
 
 ## 1.12.2 - 2020-09-20
 - Add janet\_try and janet\_restore to C API.

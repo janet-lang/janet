@@ -180,8 +180,8 @@
 (defmacro cond
   `Evaluates conditions sequentially until the first true condition
   is found, and then executes the corresponding body. If there are an
-  odd number of forms, the last expression is executed if no forms
-  are matched. If there are no matches, return nil.`
+  odd number of forms, and no forms are matched, the last expression
+  is executed. If there are no matches, return nil.`
   [& pairs]
   (defn aux [i]
     (def restlen (- (length pairs) i))
@@ -494,13 +494,13 @@
       (error (string "unexpected loop verb " verb)))))
 
 (defmacro forv
-  `Do a c style for loop for side effects. The iteration variable i
-  can be mutated in the loop, unlike normal for. Returns nil.`
+  ``Do a C-style for-loop for side effects. The iteration variable `i`
+  can be mutated in the loop, unlike normal `for`. Returns nil.``
   [i start stop & body]
   (for-var-template i start stop 1 < + body))
 
 (defmacro for
-  "Do a c style for loop for side effects. Returns nil."
+  "Do a C-style for-loop for side effects. Returns nil."
   [i start stop & body]
   (for-template i start stop 1 < + body))
 
@@ -562,7 +562,7 @@
     two-element tuple with a start and (exclusive) end value, and an optional
     (positive!) step size.
 
-  * :down-to -- same :as down, but the range is inclusive [start, end].
+  * :down-to -- same as :down, but the range is inclusive [start, end].
 
   * :keys -- iterate over the keys in a data structure.
 
@@ -692,7 +692,7 @@
             ;(tuple/slice functions 4 -1)))))
 
 (defn identity
-  "A function that returns its first argument."
+  "A function that returns its argument."
   [x]
   x)
 
@@ -731,11 +731,11 @@
 ## Polymorphic comparisons
 
 (defn compare
-  `Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
+  ``Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
   Differs from the primitive comparators in that it first checks to
-  see whether either x or y implement a 'compare' method which can
-  compare x and y. If so it uses that compare method. If not, it
-  delegates to the primitive comparators.`
+  see whether either x or y implement a `compare` method which can
+  compare x and y. If so, it uses that method. If not, it
+  delegates to the primitive comparators.``
   [x y]
   (or
     (when-let [f (get x :compare)] (f x y))
@@ -753,27 +753,27 @@
   r)
 
 (defn compare=
-  "Equivalent of '=' but using compare function instead of primitive comparator"
+  ``Equivalent of `=` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce = xs))
 
 (defn compare<
-  "Equivalent of '<' but using compare function instead of primitive comparator"
+  ``Equivalent of `<` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce < xs))
 
 (defn compare<=
-  "Equivalent of '<=' but using compare function instead of primitive comparator"
+  ``Equivalent of `<=` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce <= xs))
 
 (defn compare>
-  "Equivalent of '>' but using compare function instead of primitive comparator"
+  ``Equivalent of `>` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce > xs))
 
 (defn compare>=
-  "Equivalent of '>=' but using compare function instead of primitive comparator"
+  ``Equivalent of `>=` but using polymorphic `compare` instead of primitive comparator.``
   [& xs]
   (compare-reduce >= xs))
 
@@ -790,36 +790,50 @@
 ###
 ###
 
-(defn- sort-part
-  [a lo hi by]
-  (def pivot (in a hi))
-  (var i lo)
-  (forv j lo hi
-    (def aj (in a j))
-    (when (by aj pivot)
-      (def ai (in a i))
-      (set (a i) aj)
-      (set (a j) ai)
-      (++ i)))
-  (set (a hi) (in a i))
-  (set (a i) pivot)
-  i)
+(defn- median-of-three [a b c]
+  (if (not= (> a b) (> a c))
+    a
+    (if (not= (> b a) (> b c)) b c)))
 
-(defn- sort-help
-  [a lo hi by]
-  (when (> hi lo)
-    (def piv (sort-part a lo hi by))
-    (sort-help a lo (- piv 1) by)
-    (sort-help a (+ piv 1) hi by))
+(defn- insertion-sort [a lo hi by]
+  (for i (+ lo 1) (+ hi 1)
+    (def temp (in a i))
+    (var j (- i 1))
+    (while (and (>= j lo) (by temp (in a j)))
+      (set (a (+ j 1)) (in a j))
+      (-- j))
+
+    (set (a (+ j 1)) temp))
   a)
 
 (defn sort
   "Sort an array in-place. Uses quick-sort and is not a stable sort."
   [a &opt by]
-  (sort-help a 0 (- (length a) 1) (or by <)))
+  (default by <)
+  (def stack @[[0 (- (length a) 1)]])
+  (while (not (empty? stack))
+    (def [lo hi] (array/pop stack))
+    (when (< lo hi)
+      (when (< (- hi lo) 32) (insertion-sort a lo hi by) (break))
+      (def pivot (median-of-three (in a hi) (in a lo) (in a (math/floor (/ (+ lo hi) 2)))))
+      (var left lo)
+      (var right hi)
+      (while true
+        (while (by (in a left) pivot) (++ left))
+        (while (by pivot (in a right)) (-- right))
+        (when (<= left right)
+          (def tmp (in a left))
+          (set (a left) (in a right))
+          (set (a right) tmp)
+          (++ left)
+          (-- right))
+        (if (>= left right) (break)))
+      (array/push stack [lo right])
+      (array/push stack [left hi])))
+  a)
 
-(undef sort-part)
-(undef sort-help)
+(undef median-of-three)
+(undef insertion-sort)
 
 (defn sort-by
   `Returns a new sorted array that compares elements by invoking
@@ -945,8 +959,10 @@
   counter)
 
 (defn keep
-  `Given a predicate, take only elements from an array or tuple for
-  which (pred element) is truthy. Returns a new array of truthy predicate results.`
+  ``Given a predicate `pred`, return a new array containing the truthy results
+  of applying `pred` to each element in the indexed collection `ind`. This is
+  different from `filter` which returns an array of the original elements where
+  the predicate is truthy.``
   [pred ind]
   (def res @[])
   (each item ind
@@ -1557,109 +1573,173 @@
 ###
 ###
 
-(defmacro- with-idemp
-  `Return janet code body that has been prepended
-  with a binding of form to atom. If form is a non-idempotent
-  form (a function call, etc.), make sure the resulting
-  code will only evaluate once, even if body contains multiple
-  copies of binding. In body, use binding instead of form.`
-  [binding form & body]
-  (def $result (gensym))
-  (def $form (gensym))
-  ~(do
-     (def ,$form ,form)
-     (def ,binding (if (idempotent? ,$form) ,$form (gensym)))
-     (def ,$result (do ,;body))
-     (if (= ,$form ,binding)
-       ,$result
-       (tuple 'do (tuple 'def ,binding ,$form) ,$result))))
-
-
-# Sentinel value for mismatches
-(def- sentinel ~',(gensym))
-
-(defn- match-1
-  [pattern expr onmatch seen]
-  (cond
-
-    (= '_ pattern)
-    (onmatch)
-
-    (symbol? pattern)
-    (if (in seen pattern)
-      ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)
-      (do
-        (put seen pattern true)
-        ~(do (def ,pattern ,expr) ,(onmatch))))
-
-    (and (tuple? pattern) (= :parens (tuple/type pattern)))
-    (if (= (get pattern 0) '@)
-      # Unification with external values
-      ~(if (= ,(get pattern 1) ,expr) ,(onmatch) ,sentinel)
-      (match-1
-        (in pattern 0) expr
-        (fn []
-          ~(if (and ,;(tuple/slice pattern 1)) ,(onmatch) ,sentinel)) seen))
-
-    (indexed? pattern)
-    (do
-      (def len (length pattern))
-      (var i -1)
-      (with-idemp
-        $arr expr
-        ~(if (,indexed? ,$arr)
-           (if (< (,length ,$arr) ,len)
-             ,sentinel
-             ,((fn aux []
-                 (++ i)
-                 (if (= i len)
-                   (onmatch)
-                   (match-1 (in pattern i) (tuple in $arr i) aux seen)))))
-           ,sentinel)))
-
-    (dictionary? pattern)
-    (do
-      (var key nil)
-      (with-idemp
-        $dict expr
-        ~(if (,dictionary? ,$dict)
-           ,((fn aux []
-               (set key (next pattern key))
-               (def $val (gensym))
-               (if (= key nil)
-                 (onmatch)
-                 ~(do (def ,$val (,get ,$dict ,key))
-                    ,(match-1 [(in pattern key) [not= nil $val]] $val aux seen)))))
-           ,sentinel)))
-
-    :else ~(if (= ,pattern ,expr) ,(onmatch) ,sentinel)))
-
 (defmacro match
-  `Pattern matching. Match an expression x against
-  any number of cases. Each case is a pattern to match against, followed
-  by an expression to evaluate to if that case is matched. A pattern that is
-  a symbol will match anything, binding x's value to that symbol. An array
-  will match only if all of it's elements match the corresponding elements in
-  x. A table or struct will match if all values match with the corresponding
-  values in x. A tuple pattern will match if it's first element matches, and the following
-  elements are treated as predicates and are true. The last special case is
-  the '_ symbol, which is a wildcard that will match any value without creating a binding.
-  Any other value pattern will only match if it is equal to x.`
-  [x & cases]
-  (with-idemp $x x
-    (def len (length cases))
-    (def len-1 (dec len))
-    ((fn aux [i]
-       (cond
-         (= i len-1) (in cases i)
-         (< i len-1) (with-syms [$res]
-                       ~(if (= ,sentinel (def ,$res ,(match-1 (in cases i) $x (fn [] (in cases (inc i))) @{})))
-                          ,(aux (+ 2 i))
-                          ,$res)))) 0)))
+  ```
+  Pattern matching. Match an expression `x` against any number of cases.
+  Each case is a pattern to match against, followed by an expression to
+  evaluate to if that case is matched.  Legal patterns are:
 
-(undef sentinel)
-(undef match-1)
-(undef with-idemp)
+  * symbol -- a pattern that is a symbol will match anything, binding `x`'s
+    value to that symbol.
+
+  * array -- an array will match only if all of its elements match the
+    corresponding elements in `x`.
+
+  * table or struct -- a table or struct will match if all values match with
+    the corresponding values in `x`.
+
+  * tuple -- a tuple pattern will match if its first element matches, and the
+    following elements are treated as predicates and are true.
+
+  * `_` symbol -- the last special case is the `_` symbol, which is a wildcard
+    that will match any value without creating a binding.
+
+  Any other value pattern will only match if it is equal to `x`.
+  ```
+  [x & cases]
+
+  # Partition body into sections.
+  (def oddlen (odd? (length cases)))
+  (def else (if oddlen (last cases)))
+  (def patterns (partition 2 (if oddlen (slice cases 0 -2) cases)))
+
+  # Keep an array for accumulating the compilation output
+  (def x-sym (if (idempotent? x) x (gensym)))
+  (def accum @[])
+  (if (not= x x-sym) (array/push accum ['def x-sym x]))
+
+  # Table of gensyms
+  (def symbols @{[nil nil] x-sym})
+  (def length-symbols @{})
+
+  (defn emit [x] (array/push accum x))
+  (defn emit-branch [condition result] (array/push accum :branch condition result))
+
+  (defn get-sym
+    [parent-sym key]
+    (def symbol-key [parent-sym key])
+    (or (get symbols symbol-key)
+        (let [s (gensym)]
+          (put symbols symbol-key s)
+          (emit ['def s [get parent-sym key]])
+          s)))
+
+  (defn get-length-sym
+    [parent-sym]
+    (or (get length-symbols parent-sym)
+        (let [s (gensym)]
+          (put length-symbols parent-sym s)
+          (emit ['def s ['if [indexed? parent-sym] [length parent-sym]]])
+          s)))
+
+  (defn visit-pattern-1
+    [b2g parent-sym key pattern]
+    (if (= pattern '_) (break))
+    (def s (get-sym parent-sym key))
+    (def t (type pattern))
+    (def isarr (or (= t :array) (and (= t :tuple) (= (tuple/type pattern) :brackets))))
+    (cond
+
+      # match local binding
+      (= t :symbol)
+      (if-let [x (in b2g pattern)]
+        (array/push x s)
+        (put b2g pattern @[s]))
+
+      # match data structure template
+      (or isarr (= t :struct) (= t :table))
+      (do
+        (when isarr (get-length-sym s))
+        (eachp [i sub-pattern] pattern
+          (visit-pattern-1 b2g s i sub-pattern)))
+
+      # match global unification
+      (and (= t :tuple) (= 2 (length pattern)) (= '@ (pattern 0)))
+      (break)
+
+      # match predicated binding
+      (and (= t :tuple) (>= (length pattern) 2))
+      (do
+        (visit-pattern-1 b2g parent-sym key (pattern 0)))))
+
+  (defn visit-pattern-2
+    [anda gun preds parent-sym key pattern]
+    (if (= pattern '_) (break))
+    (def s (get-sym parent-sym key))
+    (def t (type pattern))
+    (def isarr (or (= t :array) (and (= t :tuple) (= (tuple/type pattern) :brackets))))
+    (when isarr
+      (array/push anda (get-length-sym s))
+      (array/push anda [<= (length pattern) (get-length-sym s)]))
+    (cond
+
+      # match data structure template
+      (or isarr (= t :struct) (= t :table))
+      (eachp [i sub-pattern] pattern
+        (when (not isarr)
+          (array/push anda [not= nil (get-sym s i)]))
+        (visit-pattern-2 anda gun preds s i sub-pattern))
+
+      # match local binding
+      (= t :symbol) (break)
+
+      # match global unification
+      (and (= t :tuple) (= 2 (length pattern)) (= '@ (pattern 0)))
+      (if-let [x (in gun (pattern 1))]
+        (array/push x s)
+        (put gun (pattern 1) @[s]))
+
+      # match predicated binding
+      (and (= t :tuple) (>= (length pattern) 2))
+      (do
+        (array/push preds ;(slice pattern 1))
+        (visit-pattern-2 anda gun preds parent-sym key (pattern 0)))
+
+      # match literal
+      (array/push anda ['= s pattern])))
+
+  # Compile the patterns
+  (each [pattern expression] patterns
+    (def b2g @{})
+    (def gun @{})
+    (def preds @[])
+    (visit-pattern-1 b2g nil nil pattern)
+    (def anda @['and])
+    (visit-pattern-2 anda gun preds nil nil pattern)
+    # Local unification
+    (def unify @[])
+    (each syms b2g
+      (when (< 1 (length syms))
+        (array/push unify [= ;syms])))
+    # Global unification
+    (eachp [binding syms] gun
+      (array/push unify [= binding ;syms]))
+    (sort unify)
+    (array/concat anda unify)
+    # Final binding
+    (def defs (seq [[k v] :in (sort (pairs b2g))] ['def k (first v)]))
+    # Predicates
+    (unless (empty? preds)
+      (def pred-join ~(do ,;defs (and ,;preds)))
+      (array/push anda pred-join))
+    (emit-branch (tuple/slice anda) ['do ;defs expression]))
+
+  # Expand branches
+  (def stack @[else])
+  (each el (reverse accum)
+    (if (= :branch el)
+      (let [condition (array/pop stack)
+            truthy (array/pop stack)
+            if-form ~(if ,condition ,truthy
+                       ,(case (length stack)
+                          0 nil
+                          1 (stack 0)
+                          ~(do ,;(reverse stack))))]
+        (array/remove stack 0 (length stack))
+        (array/push stack if-form))
+      (array/push stack el)))
+
+  ~(do ,;(reverse stack)))
 
 ###
 ###
@@ -2061,7 +2141,8 @@
      'quasiquote expandqq
      'var expanddef
      'while expandall
-     'break expandall})
+     'break expandall
+     'upscope expandall})
 
   (defn dotup [t]
     (def h (in t 0))
@@ -2359,9 +2440,6 @@
   (default where "<anonymous>")
   (default guard :ydt)
 
-  # Are we done yet?
-  (var going true)
-
   # Evaluate 1 source form in a protected manner
   (defn eval1 [source]
     (def source (if expand (expand source) source))
@@ -2385,7 +2463,7 @@
     (fiber/setenv f env)
     (while (fiber/can-resume? f)
       (def res (resume f resumeval))
-      (when good (when going (set resumeval (onstatus f res))))))
+      (when good (set resumeval (onstatus f res)))))
 
   # Reader version
   (when read
@@ -2410,11 +2488,11 @@
 
   # Loop
   (def buf @"")
-  (while going
+  (var parser-not-done true)
+  (while parser-not-done
     (if (env :exit) (break))
     (buffer/clear buf)
-    (if (= (chunks buf p)
-           :cancel)
+    (if (= (chunks buf p) :cancel)
       (do
         # A :cancel chunk represents a cancelled form in the REPL, so reset.
         (:flush p)
@@ -2425,19 +2503,23 @@
         (def len (length buf))
         (when (= len 0)
           (:eof p)
-          (set going false))
+          (set parser-not-done false))
         (while (> len pindex)
           (+= pindex (p-consume p buf pindex))
           (while (p-has-more p)
-            (eval1 (p-produce p)))
+            (eval1 (p-produce p))
+            (if (env :exit) (break)))
           (when (= (p-status p) :error)
-            (parse-err p where))))))
+            (parse-err p where)
+            (if (env :exit) (break)))))))
 
   # Check final parser state
-  (while (p-has-more p)
-    (eval1 (p-produce p)))
-  (when (= (p-status p) :error)
-    (parse-err p where))
+  (unless (env :exit)
+    (while (p-has-more p)
+      (eval1 (p-produce p))
+      (if (env :exit) (break)))
+    (when (= (p-status p) :error)
+      (parse-err p where)))
 
   (in env :exit-value env))
 
@@ -2497,14 +2579,14 @@
         (error (parser/error p))
         (error "no value")))))
 
-(def make-image-dict
-  `A table used in combination with marshal to marshal code (images), such that
-  (make-image x) is the same as (marshal x make-image-dict).`
-  @{})
-
 (def load-image-dict
   `A table used in combination with unmarshal to unmarshal byte sequences created
   by make-image, such that (load-image bytes) is the same as (unmarshal bytes load-image-dict).`
+  @{})
+
+(def make-image-dict
+  `A table used in combination with marshal to marshal code (images), such that
+  (make-image x) is the same as (marshal x make-image-dict).`
   @{})
 
 (defmacro comptime
@@ -2536,8 +2618,9 @@
   [image]
   (unmarshal image load-image-dict))
 
-(defn- check-. [x] (if (string/has-prefix? "." x) x))
-(defn- not-check-. [x] (unless (string/has-prefix? "." x) x))
+(defn- check-relative [x] (if (string/has-prefix? "." x) x))
+(defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "." x)) x))
+(defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
 (def module/paths
   ```
@@ -2557,6 +2640,10 @@
 (setdyn :syspath (boot/opts "JANET_PATH"))
 (setdyn :headerpath (boot/opts "JANET_HEADERPATH"))
 
+(def module/cache
+  "Table mapping loaded module identifiers to their environments."
+  @{})
+
 (defn module/add-paths
   ```
   Add paths to module/paths for a given loader such that
@@ -2569,18 +2656,19 @@
   (defn- find-prefix
     [pre]
     (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) module/paths) 0))
-  (def all-index (find-prefix ":all:"))
-  (array/insert module/paths all-index [(string ":all:" ext) loader not-check-.])
+  (def all-index (find-prefix ".:all:"))
+  (array/insert module/paths all-index [(string ".:all:" ext) loader check-project-relative])
   (def sys-index (find-prefix ":sys:"))
-  (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader not-check-.])
+  (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader check-is-dep])
   (def curall-index (find-prefix ":cur:/:all:"))
-  (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-.])
+  (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-relative])
   module/paths)
 
 (module/add-paths ":native:" :native)
 (module/add-paths "/init.janet" :source)
 (module/add-paths ".janet" :source)
 (module/add-paths ".jimage" :image)
+(array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload])
 
 # Version of fexists that works even with a reduced OS
 (defn fexists
@@ -2632,12 +2720,9 @@
 
 (undef fexists)
 (undef mod-filter)
-(undef check-.)
-(undef not-check-.)
-
-(def module/cache
-  "Table mapping loaded module identifiers to their environments."
-  @{})
+(undef check-relative)
+(undef check-project-relative)
+(undef check-is-dep)
 
 (def module/loading
   `Table mapping currently loading modules to true. Used to prevent
@@ -2665,15 +2750,25 @@
   (def spath (string path))
   (put env :current-file (or src (if-not path-is-file spath)))
   (put env :source (or src (if-not path-is-file spath path)))
+  (var exit-error nil)
+  (var exit-fiber nil)
   (defn chunks [buf _] (file/read f 2048 buf))
   (defn bp [&opt x y]
-    (def ret (bad-parse x y))
-    (if exit (os/exit 1))
-    ret)
+    (when exit
+      (bad-parse x y)
+      (os/exit 1))
+    (put env :exit true)
+    (def [line col] (:where x))
+    (def pe (string (:error x) " in " y " around line " line ", column " col))
+    (set exit-error pe))
   (defn bc [&opt x y z]
-    (def ret (bad-compile x y z))
-    (if exit (os/exit 1))
-    ret)
+    (when exit
+      (bad-compile x y z)
+      (os/exit 1))
+    (put env :exit true)
+    (def ce (string x " while compiling " z))
+    (set exit-error ce)
+    (set exit-fiber y))
   (unless f
     (error (string "could not find file " path)))
   (def nenv
@@ -2683,27 +2778,40 @@
                   :on-compile-error bc
                   :on-status (fn [f x]
                                (when (not= (fiber/status f) :dead)
-                                 (debug/stacktrace f x)
-                                 (if exit (os/exit 1) (eflush))))
+                                 (when exit
+                                   (debug/stacktrace f x)
+                                   (eflush)
+                                   (os/exit 1))
+                                 (put env :exit true)
+                                 (set exit-error x)
+                                 (set exit-fiber f)))
                   :evaluator evaluator
                   :expander expander
                   :read read
                   :parser parser
                   :source (or src (if path-is-file "<anonymous>" spath))}))
   (if-not path-is-file (file/close f))
+  (when exit-error
+    (if exit-fiber
+      (propagate exit-error exit-fiber)
+      (error exit-error)))
   nenv)
 
 (def module/loaders
   `A table of loading method names to loading functions.
   This table lets require and import load many different kinds
   of files as modules.`
-  @{:native (fn [path &] (native path (make-env)))
-    :source (fn [path args]
+  @{:native (fn native-loader [path &] (native path (make-env)))
+    :source (fn source-loader [path args]
               (put module/loading path true)
-              (def newenv (dofile path ;args))
-              (put module/loading path nil)
-              newenv)
-    :image (fn [path &] (load-image (slurp path)))})
+              (defer (put module/loading path nil)
+                (dofile path ;args)))
+    :preload (fn preload-loader [path & args]
+               (when-let [m (in module/cache path)]
+                 (if (function? m)
+                   (set (module/cache path) (m path ;args))
+                   m)))
+    :image (fn image-loader [path &] (load-image (slurp path)))})
 
 (defn require-1
   [path args kargs]
@@ -3019,7 +3127,16 @@
   (defmacro ev/spawn
     "Run some code in a new fiber. This is shorthand for (ev/call (fn [] ;body))."
     [& body]
-    ~(,ev/call (fn [] ,;body))))
+    ~(,ev/call (fn [] ,;body)))
+
+  (defmacro ev/with-deadline
+    `Run a body of code with a deadline, such that if the code does not complete before
+    the deadline is up, it will be canceled.`
+    [deadline & body]
+    (with-syms [f]
+      ~(let [,f (coro ,;body)]
+         (,ev/deadline ,deadline nil ,f)
+         (,resume ,f)))))
 
 (compwhen (dyn 'net/listen)
   (defn net/server
@@ -3214,8 +3331,7 @@
   (put load-dict 'boot/args nil)
   (each [k v] (pairs load-dict)
     (if (number? v) (put load-dict k nil)))
-  (merge-into load-image-dict load-dict)
-  (merge-into make-image-dict (invert load-dict)))
+  (merge-into load-image-dict load-dict))
 
 ###
 ###

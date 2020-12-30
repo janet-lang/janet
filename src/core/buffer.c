@@ -31,12 +31,11 @@
 /* Initialize a buffer */
 JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
     uint8_t *data = NULL;
-    if (capacity > 0) {
-        janet_gcpressure(capacity);
-        data = malloc(sizeof(uint8_t) * (size_t) capacity);
-        if (NULL == data) {
-            JANET_OUT_OF_MEMORY;
-        }
+    if (capacity < 4) capacity = 4;
+    janet_gcpressure(capacity);
+    data = malloc(sizeof(uint8_t) * (size_t) capacity);
+    if (NULL == data) {
+        JANET_OUT_OF_MEMORY;
     }
     buffer->count = 0;
     buffer->capacity = capacity;
@@ -200,19 +199,14 @@ static Janet cfun_buffer_fill(int32_t argc, Janet *argv) {
 static Janet cfun_buffer_trim(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
-    if (buffer->count) {
-        if (buffer->count < buffer->capacity) {
-            uint8_t *newData = realloc(buffer->data, buffer->count);
-            if (NULL == newData) {
-                JANET_OUT_OF_MEMORY;
-            }
-            buffer->data = newData;
-            buffer->capacity = buffer->count;
+    if (buffer->count < buffer->capacity) {
+        int32_t newcap = buffer->count > 4 ? buffer->count : 4;
+        uint8_t *newData = realloc(buffer->data, newcap);
+        if (NULL == newData) {
+            JANET_OUT_OF_MEMORY;
         }
-    } else {
-        buffer->capacity = 0;
-        free(buffer->data);
-        buffer->data = NULL;
+        buffer->data = newData;
+        buffer->capacity = newcap;
     }
     return argv[0];
 }
@@ -255,6 +249,26 @@ static Janet cfun_buffer_chars(int32_t argc, Janet *argv) {
     }
     return argv[0];
 }
+
+static Janet cfun_buffer_push(int32_t argc, Janet *argv) {
+    int32_t i;
+    janet_arity(argc, 1, -1);
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    for (i = 1; i < argc; i++) {
+        if (janet_checktype(argv[i], JANET_NUMBER)) {
+            janet_buffer_push_u8(buffer, (uint8_t)(janet_getinteger(argv, i) & 0xFF));
+        } else {
+            JanetByteView view = janet_getbytes(argv, i);
+            if (view.bytes == buffer->data) {
+                janet_buffer_ensure(buffer, buffer->count + view.len, 2);
+                view.bytes = buffer->data;
+            }
+            janet_buffer_push_bytes(buffer, view.bytes, view.len);
+        }
+    }
+    return argv[0];
+}
+
 
 static Janet cfun_buffer_clear(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
@@ -407,22 +421,32 @@ static const JanetReg buffer_cfuns[] = {
     },
     {
         "buffer/push-byte", cfun_buffer_u8,
-        JDOC("(buffer/push-byte buffer x)\n\n"
-             "Append a byte to a buffer. Will expand the buffer as necessary. "
+        JDOC("(buffer/push-byte buffer & xs)\n\n"
+             "Append bytes to a buffer. Will expand the buffer as necessary. "
              "Returns the modified buffer. Will throw an error if the buffer overflows.")
     },
     {
         "buffer/push-word", cfun_buffer_word,
-        JDOC("(buffer/push-word buffer x)\n\n"
-             "Append a machine word to a buffer. The 4 bytes of the integer are appended "
-             "in twos complement, little endian order, unsigned. Returns the modified buffer. Will "
+        JDOC("(buffer/push-word buffer & xs)\n\n"
+             "Append machine words to a buffer. The 4 bytes of the integer are appended "
+             "in twos complement, little endian order, unsigned for all x. Returns the modified buffer. Will "
              "throw an error if the buffer overflows.")
     },
     {
         "buffer/push-string", cfun_buffer_chars,
-        JDOC("(buffer/push-string buffer str)\n\n"
-             "Push a string onto the end of a buffer. Non string values will be converted "
-             "to strings before being pushed. Returns the modified buffer. "
+        JDOC("(buffer/push-string buffer & xs)\n\n"
+             "Push byte sequences onto the end of a buffer. "
+             "Will accept any of strings, keywords, symbols, and buffers. "
+             "Returns the modified buffer. "
+             "Will throw an error if the buffer overflows.")
+    },
+    {
+        "buffer/push", cfun_buffer_push,
+        JDOC("(buffer/push buffer & xs)\n\n"
+             "Push both individual bytes and byte sequences to a buffer. For each x in xs, "
+             "push the byte if x is an integer, otherwise push the bytesequence to the buffer. "
+             "Thus, this function behaves like both `buffer/push-string` and `buffer/push-byte`. "
+             "Returns the modified buffer. "
              "Will throw an error if the buffer overflows.")
     },
     {

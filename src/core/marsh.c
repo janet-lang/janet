@@ -286,7 +286,7 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 
 #define JANET_FIBER_FLAG_HASCHILD (1 << 29)
 #define JANET_FIBER_FLAG_HASENV   (1 << 30)
-#define JANET_STACKFRAME_HASENV   (1 << 31)
+#define JANET_STACKFRAME_HASENV   (INT32_MIN)
 
 /* Marshal a fiber */
 static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
@@ -542,9 +542,10 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         case JANET_FUNCTION: {
             pushbyte(st, LB_FUNCTION);
             JanetFunction *func = janet_unwrap_function(x);
-            marshal_one_def(st, func->def, flags);
-            /* Mark seen after reading def, but before envs */
+            /* Mark seen before reading def */
             MARK_SEEN();
+            pushint(st, func->def->environments_length);
+            marshal_one_def(st, func->def, flags);
             for (int32_t i = 0; i < func->def->environments_length; i++)
                 marshal_one_env(st, func->envs[i], flags + 1);
             return;
@@ -1228,12 +1229,20 @@ static const uint8_t *unmarshal_one(
         case LB_FUNCTION: {
             JanetFunction *func;
             JanetFuncDef *def;
-            data = unmarshal_one_def(st, data + 1, &def, flags + 1);
+            data++;
+            int32_t len = readnat(st, &data);
+            if (len > 255) {
+                janet_panicf("invalid function");
+            }
             func = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) +
-                                 def->environments_length * sizeof(JanetFuncEnv));
-            func->def = def;
+                                 len * sizeof(JanetFuncEnv));
             *out = janet_wrap_function(func);
             janet_v_push(st->lookup, *out);
+            data = unmarshal_one_def(st, data, &def, flags + 1);
+            if (def->environments_length != len) {
+                janet_panicf("invalid function");
+            }
+            func->def = def;
             for (int32_t i = 0; i < def->environments_length; i++) {
                 data = unmarshal_one_env(st, data, &(func->envs[i]), flags + 1);
             }
