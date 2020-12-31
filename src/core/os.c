@@ -544,7 +544,7 @@ static int janet_proc_get(void *p, Janet key, Janet *out) {
         return 1;
     }
     if (janet_keyeq(key, "err")) {
-        *out = (NULL == proc->out) ? janet_wrap_nil() : janet_wrap_abstract(proc->err);
+        *out = (NULL == proc->err) ? janet_wrap_nil() : janet_wrap_abstract(proc->err);
         return 1;
     }
     if ((-1 != proc->return_code) && janet_keyeq(key, "return-code")) {

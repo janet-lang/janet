@@ -962,12 +962,8 @@ void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage ar
     init->cb = cb;
 
     /* Create thread - TODO thread pool? */
-    pthread_attr_t attr;
     pthread_t waiter_thread;
-    pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN);
     int err = pthread_create(&waiter_thread, NULL, janet_thread_body, init);
-    pthread_attr_destroy(&attr);
     if (err) {
         free(init);
         janet_panicf("%s", strerror(err));
