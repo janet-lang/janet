@@ -880,7 +880,7 @@ void janet_loop(void) {
 }
 
 /*
- * Signal handling code.
+ * Self-pipe handling code.
  */
 
 #ifdef JANET_WINDOWS
@@ -889,41 +889,32 @@ void janet_loop(void) {
 
 JANET_THREAD_LOCAL int janet_vm_selfpipe[2];
 
-static void janet_ev_handle_signals(void) {
-    int sig = 0;
-    while (read(janet_vm_selfpipe[0], &sig, sizeof(sig)) > 0) {
-        switch (sig) {
+/* Handle events from the self pipe inside the event loop */
+static void janet_ev_handle_selfpipe(void) {
+    JanetSelfPipeEvent ev;
+    while (read(janet_vm_selfpipe[0], &ev, sizeof(ev)) > 0) {
+        switch (ev.tag) {
             default:
                 break;
-            case SIGCHLD:
-                {
-                    int status = 0;
-                    pid_t pid = waitpid(-1, &status, WNOHANG | WUNTRACED);
-                    /* invalid pid on failure will do no harm */
-                    janet_schedule_pid(pid, status);
-                }
+            case JANET_SELFPIPE_PROC:
+                janet_schedule_pid(ev.as.proc.pid, ev.as.proc.status);
                 break;
         }
     }
 }
 
-static void janet_sig_handler(int sig) {
-    int result = write(janet_vm_selfpipe[1], &sig, sizeof(sig));
-    if (result) {
-        /* Failed to handle signal. */
-        ;
-    }
-    signal(sig, janet_sig_handler);
-}
-
-static void janet_ev_setup_signals(void) {
+static void janet_ev_setup_selfpipe(void) {
     if (-1 == pipe(janet_vm_selfpipe)) goto error;
     if (fcntl(janet_vm_selfpipe[0], F_SETFL, O_NONBLOCK)) goto error;
     if (fcntl(janet_vm_selfpipe[1], F_SETFL, O_NONBLOCK)) goto error;
-    signal(SIGCHLD, janet_sig_handler);
     return;
 error:
     JANET_EXIT("failed to initialize self pipe in event loop");
+}
+
+static void janet_ev_cleanup_selfpipe(void) {
+    close(janet_vm_selfpipe[0]);
+    close(janet_vm_selfpipe[1]);
 }
 
 #endif
@@ -1099,8 +1090,8 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         if (&janet_vm_timerfd == p) {
             /* Timer expired, ignore */;
         } else if (janet_vm_selfpipe == p) {
-            /* Signal */
-            janet_ev_handle_signals();
+            /* Self-pipe handling */
+            janet_ev_handle_selfpipe();
         } else {
             JanetStream *stream = p;
             int mask = events[i].events;
@@ -1133,7 +1124,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
 void janet_ev_init(void) {
     janet_ev_init_common();
-    janet_ev_setup_signals();
+    janet_ev_setup_selfpipe();
     janet_vm_epoll = epoll_create1(EPOLL_CLOEXEC);
     janet_vm_timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
     janet_vm_timer_enabled = 0;
@@ -1154,6 +1145,7 @@ void janet_ev_deinit(void) {
     janet_ev_deinit_common();
     close(janet_vm_epoll);
     close(janet_vm_timerfd);
+    janet_ev_cleanup_selfpipe();
     janet_vm_epoll = 0;
 }
 
@@ -1226,7 +1218,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     /* Check selfpipe */
     if (janet_vm_fds[0].revents & POLLIN) {
         janet_vm_fds[0].revents = 0;
-        janet_ev_handle_signals();
+        janet_ev_handle_selfpipe();
     }
 
     /* Step state machines */
@@ -1260,7 +1252,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 void janet_ev_init(void) {
     janet_ev_init_common();
     janet_vm_fds = NULL;
-    janet_ev_setup_signals();
+    janet_ev_setup_selfpipe();
     janet_vm_fds = malloc(sizeof(struct pollfd));
     if (NULL == janet_vm_fds) {
         JANET_OUT_OF_MEMORY;
@@ -1273,9 +1265,8 @@ void janet_ev_init(void) {
 
 void janet_ev_deinit(void) {
     janet_ev_deinit_common();
+    janet_ev_cleanup_selfpipe();
     free(janet_vm_fds);
-    close(janet_vm_selfpipe[0]);
-    close(janet_vm_selfpipe[1]);
     janet_vm_fds = NULL;
 }
 

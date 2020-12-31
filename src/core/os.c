@@ -328,7 +328,7 @@ typedef struct {
     HANDLE pHandle;
     HANDLE tHandle;
 #else
-    int pid;
+    pid_t pid;
 #endif
     int return_code;
 #ifdef JANET_EV
@@ -349,6 +349,41 @@ JANET_THREAD_LOCAL JanetProc **janet_vm_waiting_procs = NULL;
 JANET_THREAD_LOCAL size_t janet_vm_proc_count = 0;
 JANET_THREAD_LOCAL size_t janet_vm_proc_cap = 0;
 
+/* Structure used to initialize the thread used to call wait
+ * on child processes */
+typedef struct {
+    pid_t pid;
+    int write_pipe;
+} JanetReaperInit;
+
+static void *janet_thread_waiter(void *ptr) {
+    JanetReaperInit *init = (JanetReaperInit *)ptr;
+    pid_t pid = init->pid;
+    int fd = init->write_pipe;
+    free(init);
+    for (;;) {
+        int status = 0;
+        pid_t which = 0;
+        do {
+            which = waitpid(pid, &status, 0);
+        } while (which == -1 && errno == EINTR);
+        if (which < 0) {
+            /* Error, could not wait or no children to wait on. */
+            break;
+        } else {
+            JanetSelfPipeEvent ev;
+            ev.tag = JANET_SELFPIPE_PROC;
+            ev.as.proc.status = status;
+            ev.as.proc.pid = which;
+            if (write(fd, &ev, sizeof(ev)) < 0) {
+                /* TODO failed to handle signal. */
+                fprintf(stderr, "failed to write event\n");
+            }
+        }
+    }
+    return NULL;
+}
+
 /* Map pids to JanetProc to allow for lookup after a call to
  * waitpid. */
 static void janet_add_waiting_proc(JanetProc *proc) {
@@ -362,6 +397,26 @@ static void janet_add_waiting_proc(JanetProc *proc) {
         janet_vm_waiting_procs = newprocs;
         janet_vm_proc_cap = newcap;
     }
+
+    /* Set proccess group for tracking purposes */
+    pid_t pid = proc->pid;
+    JanetReaperInit *init = malloc(sizeof(JanetReaperInit));
+    if (NULL == init) {
+        JANET_OUT_OF_MEMORY;
+    }
+    init->pid = pid;
+    init->write_pipe = janet_vm_selfpipe[1];
+    pthread_attr_t attr;
+    pthread_t waiter_thread;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN);
+    int err = pthread_create(&waiter_thread, NULL, janet_thread_waiter, init);
+    pthread_attr_destroy(&attr);
+    if (err) {
+        janet_panicf("%s", strerror(err));
+    }
+    pthread_detach(waiter_thread);
+
     janet_vm_waiting_procs[janet_vm_proc_count++] = proc;
     janet_gcroot(janet_wrap_abstract(proc));
     janet_ev_inc_refcount();
