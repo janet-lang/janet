@@ -146,7 +146,7 @@ extern const JanetAbstractType janet_address_type;
 void janet_lib_ev(JanetTable *env);
 void janet_ev_mark(void);
 int janet_make_pipe(JanetHandle handles[2]);
-void janet_schedule_pid(pid_t pid, int status);
+void janet_schedule_proc(void *proc, int status);
 
 /* Single message that is written to self pipe. This is used
  * to communicate messages inside Janet to work with the event loop.
@@ -158,7 +158,7 @@ typedef struct {
     union {
         struct {
             int status;
-            pid_t pid;
+            void *proc;
         } proc;
     } as;
 } JanetSelfPipeEvent;

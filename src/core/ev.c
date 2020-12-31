@@ -897,7 +897,7 @@ static void janet_ev_handle_selfpipe(void) {
             default:
                 break;
             case JANET_SELFPIPE_PROC:
-                janet_schedule_pid(ev.as.proc.pid, ev.as.proc.status);
+                janet_schedule_proc(ev.as.proc.proc, ev.as.proc.status);
                 break;
         }
     }
