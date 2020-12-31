@@ -522,6 +522,7 @@ void janet_ev_init_common(void) {
 /* Common deinit code */
 void janet_ev_deinit_common(void) {
     janet_q_deinit(&janet_vm_spawn);
+    free(janet_vm_tq);
     free(janet_vm_listeners);
     janet_vm_listeners = NULL;
 }
