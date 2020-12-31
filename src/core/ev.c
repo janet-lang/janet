@@ -33,6 +33,7 @@
 
 /* Includes */
 #include <math.h>
+#include <pthread.h>
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
@@ -883,6 +884,21 @@ void janet_loop(void) {
  * Self-pipe handling code.
  */
 
+/* Structure used to initialize threads in the thread pool. */
+typedef struct {
+    int write_pipe;
+    JanetEVGenericMessage msg;
+    JanetThreadedSubroutine subr;
+    JanetThreadedCallback cb;
+} JanetEVThreadInit;
+
+/* Wrap return value by pairing it with the callback used to handle it
+ * in the main thread */
+typedef struct {
+    JanetEVGenericMessage msg;
+    JanetThreadedCallback cb;
+} JanetSelfPipeEvent;
+
 #ifdef JANET_WINDOWS
 
 #else
@@ -891,15 +907,10 @@ JANET_THREAD_LOCAL int janet_vm_selfpipe[2];
 
 /* Handle events from the self pipe inside the event loop */
 static void janet_ev_handle_selfpipe(void) {
-    JanetSelfPipeEvent ev;
-    while (read(janet_vm_selfpipe[0], &ev, sizeof(ev)) > 0) {
-        switch (ev.tag) {
-            default:
-                break;
-            case JANET_SELFPIPE_PROC:
-                janet_schedule_proc(ev.as.proc.proc, ev.as.proc.status);
-                break;
-        }
+    JanetSelfPipeEvent response;
+    while (read(janet_vm_selfpipe[0], &response, sizeof(response)) > 0) {
+        response.cb(response.msg);
+        janet_ev_dec_refcount();
     }
 }
 
@@ -918,6 +929,97 @@ static void janet_ev_cleanup_selfpipe(void) {
 }
 
 #endif
+
+static void *janet_thread_body(void *ptr) {
+    JanetEVThreadInit *init = (JanetEVThreadInit *)ptr;
+    int fd = init->write_pipe;
+    JanetEVGenericMessage msg = init->msg;
+    JanetThreadedSubroutine subr = init->subr;
+    JanetThreadedCallback cb = init->cb;
+    free(init);
+
+    JanetSelfPipeEvent response;
+    response.msg = subr(msg);
+    response.cb = cb;
+
+    /* TODO - implement for windows */
+    if (write(fd, &response, sizeof(response)) < 0) {
+        /* TODO failed to handle signal. */
+        fprintf(stderr, "failed to write response\n");
+    }
+
+    return NULL;
+}
+
+void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage arguments, JanetThreadedCallback cb) {
+    JanetEVThreadInit *init = malloc(sizeof(JanetEVThreadInit));
+    if (NULL == init) {
+        JANET_OUT_OF_MEMORY;
+    }
+    init->write_pipe = janet_vm_selfpipe[1];
+    init->msg = arguments;
+    init->subr = fp;
+    init->cb = cb;
+
+    /* Create thread - TODO thread pool? */
+    pthread_attr_t attr;
+    pthread_t waiter_thread;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN);
+    int err = pthread_create(&waiter_thread, NULL, janet_thread_body, init);
+    pthread_attr_destroy(&attr);
+    if (err) {
+        free(init);
+        janet_panicf("%s", strerror(err));
+    }
+    pthread_detach(waiter_thread);
+
+    /* Increment ev refcount so we don't quit while waiting for a subprocess */
+    janet_ev_inc_refcount();
+}
+
+/* Default callback for janet_ev_threaded_await. */
+void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
+    switch (return_value.tag) {
+        default:
+        case JANET_EV_TCTAG_NIL:
+            janet_schedule(return_value.fiber, janet_wrap_nil());
+            break;
+        case JANET_EV_TCTAG_INTEGER:
+            janet_schedule(return_value.fiber, janet_wrap_integer(return_value.argi));
+            break;
+        case JANET_EV_TCTAG_STRING:
+        case JANET_EV_TCTAG_STRINGF:
+            janet_schedule(return_value.fiber, janet_cstringv((const char *) return_value.argp));
+            if (return_value.tag == JANET_EV_TCTAG_STRINGF) free(return_value.argp);
+            break;
+        case JANET_EV_TCTAG_KEYWORD:
+            janet_schedule(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
+            break;
+        case JANET_EV_TCTAG_ERR_STRING:
+        case JANET_EV_TCTAG_ERR_STRINGF:
+            janet_cancel(return_value.fiber, janet_cstringv((const char *) return_value.argp));
+            if (return_value.tag == JANET_EV_TCTAG_STRINGF) free(return_value.argp);
+            break;
+        case JANET_EV_TCTAG_ERR_KEYWORD:
+            janet_cancel(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
+            break;
+    }
+    janet_gcunroot(janet_wrap_fiber(return_value.fiber));
+}
+
+
+/* Convenience method for common case */
+void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp) {
+    JanetEVGenericMessage arguments;
+    arguments.tag = tag;
+    arguments.argi = argi;
+    arguments.argp = argp;
+    arguments.fiber = janet_root_fiber();
+    janet_gcroot(janet_wrap_fiber(arguments.fiber));
+    janet_ev_threaded_call(fp, arguments, janet_ev_default_threaded_callback);
+    janet_await();
+}
 
 #ifdef JANET_WINDOWS
 

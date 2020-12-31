@@ -1,6 +1,6 @@
 (defn dowork [name n]
   (print name " starting work...")
-  (os/execute ["sleep" (string n)] :p)
+  (os/execute [(dyn :executable) "-e" (string "(os/sleep " n ")")])
   (print name " finished work!"))
 
 # Will be done in parallel

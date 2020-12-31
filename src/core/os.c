@@ -335,7 +335,6 @@ typedef struct {
     JanetStream *in;
     JanetStream *out;
     JanetStream *err;
-    JanetFiber *fiber;
 #else
     JanetFile *in;
     JanetFile *out;
@@ -345,69 +344,22 @@ typedef struct {
 
 #ifdef JANET_EV
 
-/* Structure used to initialize the thread used to call wait
- * on child processes */
-typedef struct {
-    int write_pipe;
-    JanetProc *proc;
-} JanetReaperInit;
-
-static void *janet_thread_waiter(void *ptr) {
-    JanetReaperInit *init = (JanetReaperInit *)ptr;
-    JanetProc *proc = (JanetProc *) init->proc;
-    int fd = init->write_pipe;
-    pid_t pid = proc->pid;
-    free(init);
-    for (;;) {
-        int status = 0;
-        pid_t which = 0;
-        do {
-            which = waitpid(pid, &status, 0);
-        } while (which == -1 && errno == EINTR);
-        if (which < 0) {
-            /* Error, could not wait or no children to wait on. */
-            break;
-        } else {
-            JanetSelfPipeEvent ev;
-            ev.tag = JANET_SELFPIPE_PROC;
-            ev.as.proc.status = status;
-            ev.as.proc.proc = proc;
-            if (write(fd, &ev, sizeof(ev)) < 0) {
-                /* TODO failed to handle signal. */
-                fprintf(stderr, "failed to write event\n");
-            }
-        }
-    }
-    return NULL;
+/* Function that is called in separate thread to wait on a pid */
+static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
+    JanetProc *proc = (JanetProc *) args.argp;
+    pid_t result;
+    int status = 0;
+    do {
+        result = waitpid(proc->pid, &status, 0);
+    } while (result == -1 && errno == EINTR);
+    args.argi = status;
+    return args;
 }
 
-/* Map pids to JanetProc to allow for lookup after a call to
- * waitpid. */
-static void janet_add_waiting_proc(JanetProc *proc) {
-    JanetReaperInit *init = malloc(sizeof(JanetReaperInit));
-    if (NULL == init) {
-        JANET_OUT_OF_MEMORY;
-    }
-    init->write_pipe = janet_vm_selfpipe[1];
-    init->proc = proc;
-    pthread_attr_t attr;
-    pthread_t waiter_thread;
-    pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN);
-    int err = pthread_create(&waiter_thread, NULL, janet_thread_waiter, init);
-    pthread_attr_destroy(&attr);
-    if (err) janet_panicf("%s", strerror(err));
-    pthread_detach(waiter_thread);
-    janet_gcroot(janet_wrap_abstract(proc));
-    janet_ev_inc_refcount();
-}
-
-static void janet_remove_waiting_proc(JanetProc *proc) {
-    janet_gcunroot(janet_wrap_abstract(proc));
-    janet_ev_dec_refcount();
-}
-
-void janet_schedule_proc(void *ptr, int status) {
+/* Callback that is called in main thread when subroutine completes. */
+static void janet_proc_wait_cb(JanetEVGenericMessage args) {
+    int status = args.argi;
+    JanetProc *proc = (JanetProc *) args.argp;
     /* Use POSIX shell semantics for interpreting signals */
     if (WIFEXITED(status)) {
         status = WEXITSTATUS(status);
@@ -416,19 +368,21 @@ void janet_schedule_proc(void *ptr, int status) {
     } else {
         status = WTERMSIG(status) + 128;
     }
-    JanetProc *proc = (JanetProc *)ptr;
-    if (NULL == proc) return;
-    proc->return_code = (int32_t) status;
-    proc->flags |= JANET_PROC_WAITED;
-    proc->flags &= ~JANET_PROC_WAITING;
-    janet_remove_waiting_proc(proc);
-    if ((status != 0) && (proc->flags & JANET_PROC_ERROR_NONZERO)) {
-        JanetString s = janet_formatc("command failed with non-zero exit code %d", status);
-        janet_cancel(proc->fiber, janet_wrap_string(s));
-    } else {
-        janet_schedule(proc->fiber, janet_wrap_integer(status));
+    if (NULL != proc) {
+        proc->return_code = (int32_t) status;
+        proc->flags |= JANET_PROC_WAITED;
+        proc->flags &= ~JANET_PROC_WAITING;
+        janet_gcunroot(janet_wrap_abstract(proc));
+        janet_gcunroot(janet_wrap_fiber(args.fiber));
+        if ((status != 0) && (proc->flags & JANET_PROC_ERROR_NONZERO)) {
+            JanetString s = janet_formatc("command failed with non-zero exit code %d", status);
+            janet_cancel(args.fiber, janet_wrap_string(s));
+        } else {
+            janet_schedule(args.fiber, janet_wrap_integer(status));
+        }
     }
 }
+
 #endif
 
 static int janet_proc_gc(void *p, size_t s) {
@@ -456,9 +410,6 @@ static int janet_proc_mark(void *p, size_t s) {
     if (NULL != proc->in) janet_mark(janet_wrap_abstract(proc->in));
     if (NULL != proc->out) janet_mark(janet_wrap_abstract(proc->out));
     if (NULL != proc->err) janet_mark(janet_wrap_abstract(proc->err));
-#ifdef JANET_EV
-    if (NULL != proc->fiber) janet_mark(janet_wrap_fiber(proc->fiber));
-#endif
     return 0;
 }
 
@@ -470,10 +421,15 @@ static Janet os_proc_wait_impl(JanetProc *proc) {
         janet_panicf("cannot wait twice on a process");
     }
 #ifdef JANET_EV
-    /* Event loop implementation */
-    proc->fiber = janet_root_fiber();
+    /* Event loop implementation - threaded call */
     proc->flags |= JANET_PROC_WAITING;
-    janet_add_waiting_proc(proc);
+    JanetEVGenericMessage targs;
+    memset(&targs, 0, sizeof(targs));
+    targs.argp = proc;
+    targs.fiber = janet_root_fiber();
+    janet_gcroot(janet_wrap_abstract(proc));
+    janet_gcroot(janet_wrap_fiber(targs.fiber));
+    janet_ev_threaded_call(janet_proc_wait_subr, targs, janet_proc_wait_cb);
     janet_await();
 #else
     /* Non evented implementation */
@@ -905,13 +861,22 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
 #else
     proc->pid = pid;
 #endif
-    proc->in = get_stdio_for_handle(new_in, orig_in, 0);
-    proc->out = get_stdio_for_handle(new_out, orig_out, 1);
-    proc->err = get_stdio_for_handle(new_err, orig_err, 1);
-    proc->flags = 0;
-    if (proc->in == NULL || proc->out == NULL || proc->err == NULL) {
-        janet_panic("failed to construct proc");
+    proc->in = NULL;
+    proc->out = NULL;
+    proc->err = NULL;
+    if (new_in != JANET_HANDLE_NONE) {
+        proc->in = get_stdio_for_handle(new_in, orig_in, 0);
+        if (NULL == proc->in) janet_panic("failed to construct proc");
     }
+    if (new_out != JANET_HANDLE_NONE) {
+        proc->out = get_stdio_for_handle(new_out, orig_out, 1);
+        if (NULL == proc->out) janet_panic("failed to construct proc");
+    }
+    if (new_err != JANET_HANDLE_NONE) {
+        proc->err = get_stdio_for_handle(new_err, orig_err, 1);
+        if (NULL == proc->err) janet_panic("failed to construct proc");
+    }
+    proc->flags = 0;
     if (janet_flag_at(flags, 2)) {
         proc->flags |= JANET_PROC_ERROR_NONZERO;
     }
@@ -2172,8 +2137,6 @@ static const JanetReg os_cfuns[] = {
 #endif
     {NULL, NULL, NULL}
 };
-
-void janet_os_deinit(void) {}
 
 /* Module entry point */
 void janet_lib_os(JanetTable *env) {
