@@ -22,6 +22,19 @@
 ###START###
 
 # Overriden on some installs.
+# To configure this script, replace the code between
+# the START and END comments and define a function 
+# (install-paths) that gives the the default paths
+# to use. Trailing directory separator not expected.
+#
+# Example.
+# 
+#   (defn- install-paths []
+#     {:headerpath "/usr/local/include/janet"
+#      :libpath "/usr/local/lib/janet"
+#      :binpath "/usr/local/bin"
+#
+
 (def- exe-dir
   "Directory containing jpm script"
   (do
@@ -29,9 +42,13 @@
     (def i (last (string/find-all sep exe)))
     (slice exe 0 i)))
 
+(defn- try-real [path]
+  "If os/realpath fails just use normal path."
+  (try (os/realpath) ([_] path)))
+
 (defn- install-paths []
-  {:headerpath (os/realpath (string exe-dir "/../include/janet"))
-   :libpath (os/realpath (string exe-dir "/../lib"))
+  {:headerpath (try-real (string exe-dir "/../include/janet"))
+   :libpath (try-real (string exe-dir "/../lib"))
    :binpath exe-dir})
 
 ###END###
