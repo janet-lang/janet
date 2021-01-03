@@ -795,45 +795,34 @@
     a
     (if (not= (> b a) (> b c)) b c)))
 
-(defn- insertion-sort [a lo hi by]
-  (for i (+ lo 1) (+ hi 1)
-    (def temp (in a i))
-    (var j (- i 1))
-    (while (and (>= j lo) (by temp (in a j)))
-      (set (a (+ j 1)) (in a j))
-      (-- j))
-
-    (set (a (+ j 1)) temp))
+(defn sort-help [a lo hi by]
+  (when (< lo hi)
+    (def pivot
+      (median-of-three (in a hi) (in a lo)
+                       (in a (math/floor (/ (+ lo hi) 2)))))
+    (var left lo)
+    (var right hi)
+    (while true
+      (while (by (in a left) pivot) (++ left))
+      (while (by pivot (in a right)) (-- right))
+      (when (<= left right)
+        (def tmp (in a left))
+        (set (a left) (in a right))
+        (set (a right) tmp)
+        (++ left)
+        (-- right))
+      (if (>= left right) (break)))
+    (sort-help a lo right by)
+    (sort-help a left hi by))
   a)
 
 (defn sort
   "Sort an array in-place. Uses quick-sort and is not a stable sort."
   [a &opt by]
-  (default by <)
-  (def stack @[[0 (- (length a) 1)]])
-  (while (not (empty? stack))
-    (def [lo hi] (array/pop stack))
-    (when (< lo hi)
-      (when (< (- hi lo) 32) (insertion-sort a lo hi by) (break))
-      (def pivot (median-of-three (in a hi) (in a lo) (in a (math/floor (/ (+ lo hi) 2)))))
-      (var left lo)
-      (var right hi)
-      (while true
-        (while (by (in a left) pivot) (++ left))
-        (while (by pivot (in a right)) (-- right))
-        (when (<= left right)
-          (def tmp (in a left))
-          (set (a left) (in a right))
-          (set (a right) tmp)
-          (++ left)
-          (-- right))
-        (if (>= left right) (break)))
-      (array/push stack [lo right])
-      (array/push stack [left hi])))
-  a)
+  (sort-help a 0 (- (length a) 1) (or by <)))
 
 (undef median-of-three)
-(undef insertion-sort)
+(undef sort-help)
 
 (defn sort-by
   `Returns a new sorted array that compares elements by invoking
