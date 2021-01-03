@@ -1026,10 +1026,10 @@
     (error "expected 1 to 3 arguments to range")))
 
 (defn find-index
-  `Find the index of indexed type for which pred is true. Returns nil if not found.`
-  [pred ind]
+  `Find the index of indexed type for which pred is true. Returns dflt if not found.`
+  [pred ind &opt dflt]
   (var k nil)
-  (var ret nil)
+  (var ret dflt)
   (while true
     (set k (next ind k))
     (if (= k nil) (break))

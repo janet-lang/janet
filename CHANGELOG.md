@@ -2,12 +2,15 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `dflt` argument to find-index.
 - Add `:all` keyword to `ev/read` and `net/read` to make them more like `file/read`. However, we
   do not provide any `:line` option as that requires buffering.
 - Change repl behavior to make Ctrl-C raise SIGINT on posix. The old behavior for Ctrl-C,
   to clear the current line buffer, has been moved to Ctrl-Q.
 - Importing modules that start with `/` is now the only way to import from project root.
-  Before, this would import from / on disk.
+  Before, this would import from / on disk. Previous imports that did not start with `.` or `/`
+  are now unambiguously importing from the syspath, instead of checking both the syspath and
+  the project root. This is backwards incompatible and dependencies should be updated for this.
 - Change hash function for numbers.
 - Improve error handling of `dofile`.
 
