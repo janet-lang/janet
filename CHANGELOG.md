@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `:all` keyword to `ev/read` and `net/read` to make them more like `file/read`. However, we
+  do not provide any `:line` option as that requires buffering.
+- Change repl behavior to make Ctrl-C raise SIGINT on posix. The old behavior for Ctrl-C,
+  to clear the current line buffer, has been moved to Ctrl-Q.
+- Importing modules that start with `/` is now the only way to import from project root.
+  Before, this would import from / on disk.
+- Change hash function for numbers.
 - Improve error handling of `dofile`.
 
 ## 1.13.1 - 2020-12-13

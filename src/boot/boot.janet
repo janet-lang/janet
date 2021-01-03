@@ -790,36 +790,50 @@
 ###
 ###
 
-(defn- sort-part
-  [a lo hi by]
-  (def pivot (in a hi))
-  (var i lo)
-  (forv j lo hi
-    (def aj (in a j))
-    (when (by aj pivot)
-      (def ai (in a i))
-      (set (a i) aj)
-      (set (a j) ai)
-      (++ i)))
-  (set (a hi) (in a i))
-  (set (a i) pivot)
-  i)
+(defn- median-of-three [a b c]
+  (if (not= (> a b) (> a c))
+    a
+    (if (not= (> b a) (> b c)) b c)))
 
-(defn- sort-help
-  [a lo hi by]
-  (when (> hi lo)
-    (def piv (sort-part a lo hi by))
-    (sort-help a lo (- piv 1) by)
-    (sort-help a (+ piv 1) hi by))
+(defn- insertion-sort [a lo hi by]
+  (for i (+ lo 1) (+ hi 1)
+    (def temp (in a i))
+    (var j (- i 1))
+    (while (and (>= j lo) (by temp (in a j)))
+      (set (a (+ j 1)) (in a j))
+      (-- j))
+
+    (set (a (+ j 1)) temp))
   a)
 
 (defn sort
   "Sort an array in-place. Uses quick-sort and is not a stable sort."
   [a &opt by]
-  (sort-help a 0 (- (length a) 1) (or by <)))
+  (default by <)
+  (def stack @[[0 (- (length a) 1)]])
+  (while (not (empty? stack))
+    (def [lo hi] (array/pop stack))
+    (when (< lo hi)
+      (when (< (- hi lo) 32) (insertion-sort a lo hi by) (break))
+      (def pivot (median-of-three (in a hi) (in a lo) (in a (math/floor (/ (+ lo hi) 2)))))
+      (var left lo)
+      (var right hi)
+      (while true
+        (while (by (in a left) pivot) (++ left))
+        (while (by pivot (in a right)) (-- right))
+        (when (<= left right)
+          (def tmp (in a left))
+          (set (a left) (in a right))
+          (set (a right) tmp)
+          (++ left)
+          (-- right))
+        (if (>= left right) (break)))
+      (array/push stack [lo right])
+      (array/push stack [left hi])))
+  a)
 
-(undef sort-part)
-(undef sort-help)
+(undef median-of-three)
+(undef insertion-sort)
 
 (defn sort-by
   `Returns a new sorted array that compares elements by invoking
@@ -1602,16 +1616,26 @@
 
 (defmacro match
   ```
-  Pattern matching. Match an expression x against
-  any number of cases. Each case is a pattern to match against, followed
-  by an expression to evaluate to if that case is matched. A pattern that is
-  a symbol will match anything, binding x's value to that symbol. An array
-  will match only if all of it's elements match the corresponding elements in
-  x. A table or struct will match if all values match with the corresponding
-  values in x. A tuple pattern will match if it's first element matches, and the following
-  elements are treated as predicates and are true. The last special case is
-  the '_ symbol, which is a wildcard that will match any value without creating a binding.
-  Any other value pattern will only match if it is equal to x.
+  Pattern matching. Match an expression `x` against any number of cases.
+  Each case is a pattern to match against, followed by an expression to
+  evaluate to if that case is matched.  Legal patterns are:
+
+  * symbol -- a pattern that is a symbol will match anything, binding `x`'s
+    value to that symbol.
+
+  * array -- an array will match only if all of its elements match the
+    corresponding elements in `x`.
+
+  * table or struct -- a table or struct will match if all values match with
+    the corresponding values in `x`.
+
+  * tuple -- a tuple pattern will match if its first element matches, and the
+    following elements are treated as predicates and are true.
+
+  * `_` symbol -- the last special case is the `_` symbol, which is a wildcard
+    that will match any value without creating a binding.
+
+  Any other value pattern will only match if it is equal to `x`.
   ```
   [x & cases]
 
@@ -2635,8 +2659,9 @@
   [image]
   (unmarshal image load-image-dict))
 
-(defn- check-. [x] (if (string/has-prefix? "." x) x))
-(defn- not-check-. [x] (unless (string/has-prefix? "." x) x))
+(defn- check-relative [x] (if (string/has-prefix? "." x) x))
+(defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "." x)) x))
+(defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
 (def module/paths
   ```
@@ -2672,12 +2697,12 @@
   (defn- find-prefix
     [pre]
     (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) module/paths) 0))
-  (def all-index (find-prefix ":all:"))
-  (array/insert module/paths all-index [(string ":all:" ext) loader not-check-.])
+  (def all-index (find-prefix ".:all:"))
+  (array/insert module/paths all-index [(string ".:all:" ext) loader check-project-relative])
   (def sys-index (find-prefix ":sys:"))
-  (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader not-check-.])
+  (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader check-is-dep])
   (def curall-index (find-prefix ":cur:/:all:"))
-  (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-.])
+  (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-relative])
   module/paths)
 
 (module/add-paths ":native:" :native)
@@ -2736,8 +2761,9 @@
 
 (undef fexists)
 (undef mod-filter)
-(undef check-.)
-(undef not-check-.)
+(undef check-relative)
+(undef check-project-relative)
+(undef check-is-dep)
 
 (def module/loading
   `Table mapping currently loading modules to true. Used to prevent

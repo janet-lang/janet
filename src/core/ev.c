@@ -1297,7 +1297,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             janet_buffer_push_bytes(state->buf, state->chunk_buf, s->bytes);
             state->bytes_left -= s->bytes;
 
-            if (state->bytes_left <= 0 || !state->is_chunk || s->bytes == 0) {
+            if (state->bytes_left == 0 || !state->is_chunk || s->bytes == 0) {
                 Janet resume_val;
 #ifdef JANET_NET
                 if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
@@ -1360,12 +1360,11 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             }
             return JANET_ASYNC_STATUS_DONE;
         }
-        case JANET_ASYNC_EVENT_READ:
-            /* Read in bytes */
-        {
+        case JANET_ASYNC_EVENT_READ: {
             JanetBuffer *buffer = state->buf;
             int32_t bytes_left = state->bytes_left;
-            janet_buffer_extra(buffer, bytes_left);
+            int32_t read_limit = bytes_left < 0 ? 4096 : bytes_left;
+            janet_buffer_extra(buffer, read_limit);
             ssize_t nread;
 #ifdef JANET_NET
             char saddr[256];
@@ -1374,14 +1373,14 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             do {
 #ifdef JANET_NET
                 if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
-                    nread = recvfrom(s->stream->handle, buffer->data + buffer->count, bytes_left, state->flags,
+                    nread = recvfrom(s->stream->handle, buffer->data + buffer->count, read_limit, state->flags,
                                      (struct sockaddr *)&saddr, &socklen);
                 } else if (state->mode == JANET_ASYNC_READMODE_RECV) {
-                    nread = recv(s->stream->handle, buffer->data + buffer->count, bytes_left, state->flags);
+                    nread = recv(s->stream->handle, buffer->data + buffer->count, read_limit, state->flags);
                 } else
 #endif
                 {
-                    nread = read(s->stream->handle, buffer->data + buffer->count, bytes_left);
+                    nread = read(s->stream->handle, buffer->data + buffer->count, read_limit);
                 }
             } while (nread == -1 && errno == EINTR);
 
@@ -1803,11 +1802,16 @@ Janet janet_cfun_stream_read(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE);
-    int32_t n = janet_getnat(argv, 1);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, 10);
     double to = janet_optnumber(argv, argc, 3, INFINITY);
-    if (to != INFINITY) janet_addtimeout(to);
-    janet_ev_read(stream, buffer, n);
+    if (janet_keyeq(argv[1], "all")) {
+        if (to != INFINITY) janet_addtimeout(to);
+        janet_ev_readchunk(stream, buffer, -1);
+    } else {
+        int32_t n = janet_getnat(argv, 1);
+        if (to != INFINITY) janet_addtimeout(to);
+        janet_ev_read(stream, buffer, n);
+    }
     janet_await();
 }
 
@@ -1922,7 +1926,8 @@ static const JanetReg ev_cfuns[] = {
     {
         "ev/read", janet_cfun_stream_read,
         JDOC("(ev/read stream n &opt buffer timeout)\n\n"
-             "Read up to n bytes into a buffer asynchronously from a stream. "
+             "Read up to n bytes into a buffer asynchronously from a stream. `n` can also be the keyword "
+             "`:all` to read into the buffer until end of stream. "
              "Optionally provide a buffer to write into "
              "as well as a timeout in seconds after which to cancel the operation and raise an error. "
              "Returns the buffer if the read was successful or nil if end-of-stream reached. Will raise an "

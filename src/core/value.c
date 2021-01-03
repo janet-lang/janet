@@ -28,6 +28,8 @@
 #include <janet.h>
 #endif
 
+#include <math.h>
+
 JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal = NULL;
 JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_top = NULL;
 JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_base = NULL;
@@ -261,6 +263,21 @@ int32_t janet_hash(Janet x) {
         case JANET_STRUCT:
             hash = janet_struct_hash(janet_unwrap_struct(x));
             break;
+        case JANET_NUMBER: {
+            double num = janet_unwrap_number(x);
+            if (isnan(num) || isinf(num) || num == 0) {
+                hash = 0;
+            } else {
+                hash = (int32_t)num;
+                hash = ((hash >> 16) ^ hash) * 0x45d9f3b;
+                hash = ((hash >> 16) ^ hash) * 0x45d9f3b;
+                hash = (hash >> 16) ^ hash;
+
+                uint32_t lo = (uint32_t)(janet_u64(x) & 0xFFFFFFFF);
+                hash ^= lo + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+            }
+            break;
+        }
         case JANET_ABSTRACT: {
             JanetAbstract xx = janet_unwrap_abstract(x);
             const JanetAbstractType *at = janet_abstract_type(xx);

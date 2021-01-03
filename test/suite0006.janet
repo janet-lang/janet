@@ -128,6 +128,18 @@
 (assert (not= nil (parse-error @"\xc3\x28")) "reject invalid utf-8 symbol")
 (assert (not= nil (parse-error @":\xc3\x28")) "reject invalid utf-8 keyword")
 
+# Parser line and column numbers
+(defn parser-location [input &opt location]
+  (def p (parser/new))
+  (parser/consume p input)
+  (if location
+    (parser/where p ;location)
+    (parser/where p)))
+
+(assert (= [1 7] (parser-location @"(+ 1 2)")) "parser location 1")
+(assert (= [5 7] (parser-location @"(+ 1 2)" [5])) "parser location 2")
+(assert (= [10 10] (parser-location @"(+ 1 2)" [10 10])) "parser location 3")
+
 # String check-set
 (assert (string/check-set "abc" "a") "string/check-set 1")
 (assert (not (string/check-set "abc" "z")) "string/check-set 2")
