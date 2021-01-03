@@ -514,12 +514,6 @@
   [x ds & body]
   (each-template x ds :pairs body))
 
-(defmacro eachy
-  `Resume a fiber in a loop until it has errored or died. Evaluate the body
-  of the loop with binding set to the yielded value.`
-  [x fiber & body]
-  (loop-fiber-template x fiber body))
-
 (defmacro repeat
   "Evaluate body n times. If n is negative, body will be evaluated 0 times. Evaluates to nil."
   [n & body]
@@ -568,7 +562,7 @@
 
   * :pairs -- iterate over the key-value pairs as tuples in a data structure.
 
-  * :in -- iterate over the values in a data structure.
+  * :in -- iterate over the values in a data structure or fiber.
 
   * :generate -- iterate over values yielded from a fiber. Can be paired with
     the generator function for the producer/consumer pattern.
