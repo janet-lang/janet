@@ -901,7 +901,7 @@
   ret)
 
 (defn map
-  `Map a function over every element in an indexed data structure and
+  `Map a function over every value in a data structure and
   return an array of the results.`
   [f & inds]
   (def ninds (length inds))

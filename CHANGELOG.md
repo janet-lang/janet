@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Define `next`, `get`, and `in` for fibers. This lets
+  `each`, `map`, and similar iteration macros can now iterate over fibers.
+- Remove macro `eachy`, which can be replaced by `each`.
 - Add `dflt` argument to find-index.
 - Deprecate `file/popen` in favor of `os/spawn`.
 - Add `:all` keyword to `ev/read` and `net/read` to make them more like `file/read`. However, we
