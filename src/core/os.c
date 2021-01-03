@@ -427,9 +427,11 @@ static int janet_proc_mark(void *p, size_t s) {
 }
 
 #ifdef JANET_EV
-JANET_NO_RETURN
+static JANET_NO_RETURN void
+#else
+static Janet
 #endif
-static Janet os_proc_wait_impl(JanetProc *proc) {
+os_proc_wait_impl(JanetProc *proc) {
     if (proc->flags & (JANET_PROC_WAITED | JANET_PROC_WAITING)) {
         janet_panicf("cannot wait twice on a process");
     }
