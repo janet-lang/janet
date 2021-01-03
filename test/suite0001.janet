@@ -288,4 +288,10 @@
 (assert (deep= (map + [1 2 3] [10 20 30] [100 200 300] [1000 2000 3000]) @[1111 2222 3333]))
 (assert (deep= (map + [1 2 3] [10 20 30] [100 200 300] [1000 2000 3000] [10000 20000 30000]) @[11111 22222 33333]))
 
+# Sort function
+(assert (deep=
+          (range 99)
+          (sort (mapcat (fn [[x y z]] [z y x]) (partition 3 (range 99))))) "sort 5")
+(assert (<= ;(sort (map (fn [x] (math/random)) (range 1000)))) "sort 6")
+
 (end-suite)
