@@ -344,6 +344,17 @@ typedef struct {
 
 #ifdef JANET_EV
 
+#ifdef JANET_WINDOWS
+
+static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
+    JanetProc *proc = (JanetProc *) args.argp;
+    WaitForSingleObject(proc->pHandle, INFINITE);
+    GetExitCodeProcess(proc->pHandle, &args.argi);
+    return args;
+}
+
+#else /* windows check */
+
 /* Function that is called in separate thread to wait on a pid */
 static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
     JanetProc *proc = (JanetProc *) args.argp;
@@ -352,14 +363,6 @@ static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
     do {
         result = waitpid(proc->pid, &status, 0);
     } while (result == -1 && errno == EINTR);
-    args.argi = status;
-    return args;
-}
-
-/* Callback that is called in main thread when subroutine completes. */
-static void janet_proc_wait_cb(JanetEVGenericMessage args) {
-    int status = args.argi;
-    JanetProc *proc = (JanetProc *) args.argp;
     /* Use POSIX shell semantics for interpreting signals */
     if (WIFEXITED(status)) {
         status = WEXITSTATUS(status);
@@ -368,6 +371,16 @@ static void janet_proc_wait_cb(JanetEVGenericMessage args) {
     } else {
         status = WTERMSIG(status) + 128;
     }
+    args.argi = status;
+    return args;
+}
+
+#endif /* End windows check */
+
+/* Callback that is called in main thread when subroutine completes. */
+static void janet_proc_wait_cb(JanetEVGenericMessage args) {
+    int status = args.argi;
+    JanetProc *proc = (JanetProc *) args.argp;
     if (NULL != proc) {
         proc->return_code = (int32_t) status;
         proc->flags |= JANET_PROC_WAITED;
@@ -383,7 +396,7 @@ static void janet_proc_wait_cb(JanetEVGenericMessage args) {
     }
 }
 
-#endif
+#endif /* End ev check */
 
 static int janet_proc_gc(void *p, size_t s) {
     (void) s;

@@ -990,7 +990,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
         if (!has_timeout) {
             /* queue emptied */
         }
-    } else if (NULL == completionKey) {
+    } else if (0 == completionKey) {
         /* Custom event */
         JanetSelfPipeEvent *response = (JanetSelfPipeEvent *)(overlapped);
         response->cb(response->msg);
@@ -1308,7 +1308,10 @@ static DWORD WINAPI janet_thread_body(LPVOID ptr) {
     /* Reuse memory from thread init for returning data */
     init->msg = subr(msg);
     init->cb = cb;
-    janet_assert(PostQueuedCompletionStatus(iocp, sizeof(JanetSelfPipeEvent), NULL, init),
+    janet_assert(PostQueuedCompletionStatus(iocp,
+                                            sizeof(JanetSelfPipeEvent),
+                                            0,
+                                            (LPOVERLAPPED) init),
                  "failed to post completion event");
     return 0;
 }
