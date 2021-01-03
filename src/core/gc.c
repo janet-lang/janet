@@ -244,6 +244,8 @@ recur:
         return;
     janet_gc_mark(fiber);
 
+    janet_mark(fiber->last_value);
+
     /* Mark values on the argument stack */
     janet_mark_many(fiber->data + fiber->stackstart,
                     fiber->stacktop - fiber->stackstart);

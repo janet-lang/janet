@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -815,7 +815,11 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_NEXT)
     vm_commit();
-    stack[A] = janet_next(stack[B], stack[C]);
+    {
+        Janet temp = janet_next_impl(stack[B], stack[C], 1);
+        vm_restore();
+        stack[A] = temp;
+    }
     vm_pcnext();
 
     VM_OP(JOP_LOAD_NIL)
@@ -1341,10 +1345,14 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
     janet_fiber_did_resume(fiber);
 #endif
 
+    /* Clear last value */
+    fiber->last_value = janet_wrap_nil();
+
     /* Continue child fiber if it exists */
     if (fiber->child) {
         if (janet_vm_root_fiber == NULL) janet_vm_root_fiber = fiber;
         JanetFiber *child = fiber->child;
+        uint32_t instr = (janet_stack_frame(fiber->data + fiber->frame)->pc)[0];
         janet_vm_stackn++;
         JanetSignal sig = janet_continue(child, in, &in);
         janet_vm_stackn--;
@@ -1352,6 +1360,25 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
         if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
             *out = in;
             return sig;
+        }
+        /* Check if we need any special handling for certain opcodes */
+        switch (instr & 0x7F) {
+            default:
+                break;
+            case JOP_NEXT: {
+                if (sig == JANET_SIGNAL_OK ||
+                        sig == JANET_SIGNAL_ERROR ||
+                        sig == JANET_SIGNAL_USER0 ||
+                        sig == JANET_SIGNAL_USER1 ||
+                        sig == JANET_SIGNAL_USER2 ||
+                        sig == JANET_SIGNAL_USER3 ||
+                        sig == JANET_SIGNAL_USER4) {
+                    in = janet_wrap_nil();
+                } else {
+                    in = janet_wrap_integer(0);
+                }
+                break;
+            }
         }
         fiber->child = NULL;
     }
@@ -1384,6 +1411,7 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
     if (janet_vm_root_fiber == fiber) janet_vm_root_fiber = NULL;
     janet_fiber_set_status(fiber, signal);
     janet_restore(&tstate);
+    fiber->last_value = tstate.payload;
     *out = tstate.payload;
 
     return signal;

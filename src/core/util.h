@@ -91,6 +91,7 @@ void janet_buffer_format(
     int32_t argstart,
     int32_t argc,
     Janet *argv);
+Janet janet_next_impl(Janet ds, Janet key, int is_interpreter);
 
 /* Inside the janet core, defining globals is different
  * at bootstrap time and normal runtime */

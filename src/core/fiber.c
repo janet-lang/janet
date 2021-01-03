@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -37,6 +37,7 @@ static void fiber_reset(JanetFiber *fiber) {
     fiber->child = NULL;
     fiber->flags = JANET_FIBER_MASK_YIELD | JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP;
     fiber->env = NULL;
+    fiber->last_value = janet_wrap_nil();
 #ifdef JANET_EV
     fiber->waiting = NULL;
     fiber->sched_id = 0;
@@ -586,6 +587,12 @@ static Janet cfun_fiber_can_resume(int32_t argc, Janet *argv) {
     return janet_wrap_boolean(!isFinished);
 }
 
+static Janet cfun_fiber_last_value(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    return fiber->last_value;
+}
+
 static const JanetReg fiber_cfuns[] = {
     {
         "fiber/new", cfun_fiber_new,
@@ -662,6 +669,11 @@ static const JanetReg fiber_cfuns[] = {
         "fiber/can-resume?", cfun_fiber_can_resume,
         JDOC("(fiber/can-resume? fiber)\n\n"
              "Check if a fiber is finished and cannot be resumed.")
+    },
+    {
+        "fiber/last-value", cfun_fiber_last_value,
+        JDOC("(fiber/last-value\n\n"
+             "Get the last value returned or signaled from the fiber.")
     },
     {NULL, NULL, NULL}
 };

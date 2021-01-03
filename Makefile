@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Calvin Rose
+# Copyright (c) 2021 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -27,7 +27,7 @@ PREFIX?=/usr/local
 INCLUDEDIR?=$(PREFIX)/include
 BINDIR?=$(PREFIX)/bin
 LIBDIR?=$(PREFIX)/lib
-JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n &>2 /dev/null || echo local)\""
+JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 2> /dev/null || echo local)\""
 CLIBS=-lm -lpthread
 JANET_TARGET=build/janet
 JANET_LIBRARY=build/libjanet.so

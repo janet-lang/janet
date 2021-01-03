@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -25,6 +25,7 @@
 #include "util.h"
 #include "state.h"
 #include "gc.h"
+#include "fiber.h"
 #include <janet.h>
 #endif
 
@@ -115,6 +116,10 @@ static int traversal_next(Janet *x, Janet *y) {
  */
 
 Janet janet_next(Janet ds, Janet key) {
+    return janet_next_impl(ds, key, 0);
+}
+
+Janet janet_next_impl(Janet ds, Janet key, int is_interpreter) {
     JanetType t = janet_type(ds);
     switch (t) {
         default:
@@ -176,6 +181,44 @@ Janet janet_next(Janet ds, Janet key) {
             const JanetAbstractType *at = janet_abstract_type(abst);
             if (NULL == at->next) break;
             return at->next(abst, key);
+        }
+        case JANET_FIBER: {
+            JanetFiber *child = janet_unwrap_fiber(ds);
+            Janet retreg;
+            JanetFiberStatus status = janet_fiber_status(child);
+            if (status == JANET_STATUS_ALIVE ||
+                    status == JANET_STATUS_DEAD ||
+                    status == JANET_STATUS_ERROR ||
+                    status == JANET_STATUS_USER0 ||
+                    status == JANET_STATUS_USER1 ||
+                    status == JANET_STATUS_USER2 ||
+                    status == JANET_STATUS_USER3 ||
+                    status == JANET_STATUS_USER4) {
+                return janet_wrap_nil();
+            }
+            janet_vm_fiber->child = child;
+            JanetSignal sig = janet_continue(child, janet_wrap_nil(), &retreg);
+            if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
+                if (is_interpreter) {
+                    janet_signalv(sig, retreg);
+                } else {
+                    janet_vm_fiber->child = NULL;
+                    janet_panicv(retreg);
+                }
+            }
+            janet_vm_fiber->child = NULL;
+            if (sig == JANET_SIGNAL_OK ||
+                    sig == JANET_SIGNAL_ERROR ||
+                    sig == JANET_SIGNAL_USER0 ||
+                    sig == JANET_SIGNAL_USER1 ||
+                    sig == JANET_SIGNAL_USER2 ||
+                    sig == JANET_SIGNAL_USER3 ||
+                    sig == JANET_SIGNAL_USER4) {
+                /* Fiber cannot be resumed, so discard last value. */
+                return janet_wrap_nil();
+            } else {
+                return janet_wrap_integer(0);
+            }
         }
     }
     return janet_wrap_nil();
@@ -434,6 +477,14 @@ Janet janet_in(Janet ds, Janet key) {
             }
             break;
         }
+        case JANET_FIBER: {
+            /* Bit of a hack to allow iterating over fibers. */
+            if (janet_equals(key, janet_wrap_integer(0))) {
+                return janet_unwrap_fiber(ds)->last_value;
+            } else {
+                janet_panicf("expected key 0, got %v", key);
+            }
+        }
     }
     return value;
 }
@@ -489,6 +540,14 @@ Janet janet_get(Janet ds, Janet key) {
             const JanetKV *st = janet_unwrap_struct(ds);
             return janet_struct_get(st, key);
         }
+        case JANET_FIBER: {
+            /* Bit of a hack to allow iterating over fibers. */
+            if (janet_equals(key, janet_wrap_integer(0))) {
+                return janet_unwrap_fiber(ds)->last_value;
+            } else {
+                return janet_wrap_nil();
+            }
+        }
     }
 }
 
@@ -542,6 +601,14 @@ Janet janet_getindex(Janet ds, int32_t index) {
                     value = janet_wrap_nil();
             } else {
                 janet_panicf("no getter for %v ", ds);
+            }
+            break;
+        }
+        case JANET_FIBER: {
+            if (index == 0) {
+                value = janet_unwrap_fiber(ds)->last_value;
+            } else {
+                value = janet_wrap_nil();
             }
             break;
         }

@@ -838,6 +838,7 @@ struct JanetFiber {
     JanetTable *env; /* Dynamic bindings table (usually current environment). */
     Janet *data; /* Dynamically resized stack memory */
     JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
+    Janet last_value; /* Last returned value from a fiber */
 #ifdef JANET_EV
     JanetListenerState *waiting;
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
