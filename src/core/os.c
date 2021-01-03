@@ -469,7 +469,12 @@ os_proc_wait_impl(JanetProc *proc) {
 static Janet os_proc_wait(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
+#ifdef JANET_EV
+    os_proc_wait_impl(proc);
+    return janet_wrap_nil();
+#else
     return os_proc_wait_impl(proc);
+#endif
 }
 
 static Janet os_proc_kill(int32_t argc, Janet *argv) {
@@ -493,7 +498,12 @@ static Janet os_proc_kill(int32_t argc, Janet *argv) {
 #endif
     /* After killing process we wait on it. */
     if (argc > 1 && janet_truthy(argv[1])) {
+#ifdef JANET_EV
+        os_proc_wait_impl(proc);
+        return janet_wrap_nil();
+#else
         return os_proc_wait_impl(proc);
+#endif
     } else {
         return argv[0];
     }
