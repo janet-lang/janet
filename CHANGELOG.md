@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `fiber/last-value` to get the value that was last yielded, errored, or signaled
+  by a fiber.
+- Remove `:generate` verb from `loop` macros. Instead, use the `:in` verb
+  which will now work on fibers as well as other data structures.
 - Define `next`, `get`, and `in` for fibers. This lets
   `each`, `map`, and similar iteration macros can now iterate over fibers.
 - Remove macro `eachy`, which can be replaced by `each`.

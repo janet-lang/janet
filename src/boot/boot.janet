@@ -442,17 +442,6 @@
          (def ,binding ,i)
          ,body))))
 
-(defn- loop-fiber-template
-  [binding expr body]
-  (with-syms [f s]
-    (def ds (if (idempotent? binding) binding (gensym)))
-    ~(let [,f ,expr]
-       (while true
-         (def ,ds (,resume ,f))
-         (if (= :dead (,fiber/status ,f)) (break))
-         ,;(if (= ds binding) [] [~(def ,binding ,ds)])
-         ,;body))))
-
 (defn- loop1
   [body head i]
 
@@ -490,7 +479,6 @@
       :pairs (each-template binding object :pairs [rest])
       :in (each-template binding object :each [rest])
       :iterate (iterate-template binding object rest)
-      :generate (loop-fiber-template binding object [rest])
       (error (string "unexpected loop verb " verb)))))
 
 (defmacro forv
@@ -564,9 +552,6 @@
 
   * :in -- iterate over the values in a data structure or fiber.
 
-  * :generate -- iterate over values yielded from a fiber. Can be paired with
-    the generator function for the producer/consumer pattern.
-
   `loop` also accepts conditionals to refine the looping further. Conditionals are of
   the form:
 
@@ -614,7 +599,7 @@
 (undef _env)
 
 (undef loop1 check-indexed for-template for-var-template iterate-template
-       each-template range-template loop-fiber-template)
+       each-template range-template)
 
 (defn sum
   "Returns the sum of xs. If xs is empty, returns 0."

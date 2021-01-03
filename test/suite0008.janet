@@ -309,7 +309,7 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 # Issue 428
 (var result nil)
 (defn f [] (yield {:a :ok}))
-(assert-no-error "issue 428 1" (loop [{:a x} :generate (fiber/new f)] (set result x)))
+(assert-no-error "issue 428 1" (loop [{:a x} :in (fiber/new f)] (set result x)))
 (assert (= result :ok) "issue 428 2")
 
 # Inline 3 argument get
