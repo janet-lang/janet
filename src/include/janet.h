@@ -1279,13 +1279,58 @@ JANET_API JanetListenerState *janet_listen(JanetStream *stream, JanetListener be
 
 /* Shorthand for yielding to event loop in C */
 JANET_NO_RETURN JANET_API void janet_await(void);
+JANET_NO_RETURN JANET_API void janet_sleep_await(double sec);
 
 /* For use inside listeners - adds a timeout to the current fiber, such that
  * it will be resumed after sec seconds if no other event schedules the current fiber. */
 JANET_API void janet_addtimeout(double sec);
+JANET_API void janet_ev_inc_refcount(void);
+JANET_API void janet_ev_dec_refcount(void);
 
 /* Get last error from a an IO operation */
 JANET_API Janet janet_ev_lasterr(void);
+
+/* Async service for calling a function or syscall in a background thread. This is not
+ * as efficient in the slightest as using Streams but can be used for arbitrary blocking
+ * functions and syscalls. */
+
+/* Used to pass data between the main thread and worker threads for simple tasks.
+ * We could just use a pointer but this prevents malloc/free in the common case
+ * of only a handful of arguments. */
+typedef struct {
+    int tag;
+    int argi;
+    void *argp;
+    JanetFiber *fiber;
+} JanetEVGenericMessage;
+
+/* How to resume or cancel after a threaded call. Not exhaustive of the possible
+ * ways one might want to resume after returning from a threaded call, but should
+ * cover most of the common cases. For something more complicated, such as resuming
+ * with an abstract type or a struct, one should use janet_ev_threaded_call instead
+ * of janet_ev_threaded_await with a custom callback. */
+
+#define JANET_EV_TCTAG_NIL 0          /* resume with nil */
+#define JANET_EV_TCTAG_INTEGER 1      /* resume with janet_wrap_integer(argi) */
+#define JANET_EV_TCTAG_STRING 2       /* resume with janet_cstringv((const char *) argp) */
+#define JANET_EV_TCTAG_STRINGF 3      /* resume with janet_cstringv((const char *) argp), then call free on argp. */
+#define JANET_EV_TCTAG_KEYWORD 4      /* resume with janet_ckeywordv((const char *) argp) */
+#define JANET_EV_TCTAG_ERR_STRING 5   /* cancel with janet_cstringv((const char *) argp) */
+#define JANET_EV_TCTAG_ERR_STRINGF 6  /* cancel with janet_cstringv((const char *) argp), then call free on argp. */
+#define JANET_EV_TCTAG_ERR_KEYWORD 7  /* cancel with janet_ckeywordv((const char *) argp) */
+
+/* Function pointer that is run in the thread pool */
+typedef JanetEVGenericMessage(*JanetThreadedSubroutine)(JanetEVGenericMessage arguments);
+
+/* Handler that is run in the main thread with the result of the JanetAsyncSubroutine */
+typedef void (*JanetThreadedCallback)(JanetEVGenericMessage return_value);
+
+/* API calls for quickly offloading some work in C to a new thread or thread pool. */
+JANET_API void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage arguments, JanetThreadedCallback cb);
+JANET_API void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp);
+
+/* Callback used by janet_ev_threaded_await */
+JANET_API void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value);
 
 /* Read async from a stream */
 JANET_API void janet_ev_read(JanetStream *stream, JanetBuffer *buf, int32_t nbytes);

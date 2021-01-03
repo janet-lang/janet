@@ -1478,7 +1478,6 @@ int janet_init(void) {
     janet_vm_fiber = NULL;
     janet_vm_root_fiber = NULL;
     janet_vm_stackn = 0;
-    /* Threads */
 #ifdef JANET_THREADS
     janet_threads_init();
 #endif

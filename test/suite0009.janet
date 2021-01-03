@@ -40,7 +40,7 @@
 # or else the first read can fail. Might be a strange windows
 # "bug", but needs further investigating. Otherwise, `build_win test`
 # can sometimes fail on windows, leading to flaky testing.
-(ev/sleep 0.2)
+(ev/sleep 0.3)
 
 (defn test-echo [msg]
   (with [conn (net/connect "127.0.0.1" "8000")]
@@ -59,6 +59,7 @@
 (var pipe-counter 0)
 (def chan (ev/chan 10))
 (let [[reader writer] (os/pipe)]
+  (ev/sleep 0.3)
   (ev/spawn
     (while (ev/read reader 3)
       (++ pipe-counter))

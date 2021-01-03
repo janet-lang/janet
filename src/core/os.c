@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -185,6 +185,7 @@ static Janet os_exit(int32_t argc, Janet *argv) {
 #ifndef JANET_REDUCED_OS
 
 #ifndef JANET_NO_PROCESSES
+
 /* Get env for os_execute */
 static char **os_execute_env(int32_t argc, const Janet *argv) {
     char **envp = NULL;
@@ -319,13 +320,15 @@ static JanetBuffer *os_exec_escape(JanetView args) {
 static const JanetAbstractType ProcAT;
 #define JANET_PROC_CLOSED 1
 #define JANET_PROC_WAITED 2
+#define JANET_PROC_WAITING 4
+#define JANET_PROC_ERROR_NONZERO 8
 typedef struct {
     int flags;
 #ifdef JANET_WINDOWS
     HANDLE pHandle;
     HANDLE tHandle;
 #else
-    int pid;
+    pid_t pid;
 #endif
     int return_code;
 #ifdef JANET_EV
@@ -338,6 +341,62 @@ typedef struct {
     JanetFile *err;
 #endif
 } JanetProc;
+
+#ifdef JANET_EV
+
+#ifdef JANET_WINDOWS
+
+static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
+    JanetProc *proc = (JanetProc *) args.argp;
+    WaitForSingleObject(proc->pHandle, INFINITE);
+    GetExitCodeProcess(proc->pHandle, &args.argi);
+    return args;
+}
+
+#else /* windows check */
+
+/* Function that is called in separate thread to wait on a pid */
+static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
+    JanetProc *proc = (JanetProc *) args.argp;
+    pid_t result;
+    int status = 0;
+    do {
+        result = waitpid(proc->pid, &status, 0);
+    } while (result == -1 && errno == EINTR);
+    /* Use POSIX shell semantics for interpreting signals */
+    if (WIFEXITED(status)) {
+        status = WEXITSTATUS(status);
+    } else if (WIFSTOPPED(status)) {
+        status = WSTOPSIG(status) + 128;
+    } else {
+        status = WTERMSIG(status) + 128;
+    }
+    args.argi = status;
+    return args;
+}
+
+#endif /* End windows check */
+
+/* Callback that is called in main thread when subroutine completes. */
+static void janet_proc_wait_cb(JanetEVGenericMessage args) {
+    int status = args.argi;
+    JanetProc *proc = (JanetProc *) args.argp;
+    if (NULL != proc) {
+        proc->return_code = (int32_t) status;
+        proc->flags |= JANET_PROC_WAITED;
+        proc->flags &= ~JANET_PROC_WAITING;
+        janet_gcunroot(janet_wrap_abstract(proc));
+        janet_gcunroot(janet_wrap_fiber(args.fiber));
+        if ((status != 0) && (proc->flags & JANET_PROC_ERROR_NONZERO)) {
+            JanetString s = janet_formatc("command failed with non-zero exit code %d", status);
+            janet_cancel(args.fiber, janet_wrap_string(s));
+        } else {
+            janet_schedule(args.fiber, janet_wrap_integer(status));
+        }
+    }
+}
+
+#endif /* End ev check */
 
 static int janet_proc_gc(void *p, size_t s) {
     (void) s;
@@ -367,10 +426,28 @@ static int janet_proc_mark(void *p, size_t s) {
     return 0;
 }
 
-static Janet os_proc_wait_impl(JanetProc *proc) {
-    if (proc->flags & JANET_PROC_WAITED) {
-        janet_panicf("cannot wait on process that has already finished");
+#ifdef JANET_EV
+static JANET_NO_RETURN void
+#else
+static Janet
+#endif
+os_proc_wait_impl(JanetProc *proc) {
+    if (proc->flags & (JANET_PROC_WAITED | JANET_PROC_WAITING)) {
+        janet_panicf("cannot wait twice on a process");
     }
+#ifdef JANET_EV
+    /* Event loop implementation - threaded call */
+    proc->flags |= JANET_PROC_WAITING;
+    JanetEVGenericMessage targs;
+    memset(&targs, 0, sizeof(targs));
+    targs.argp = proc;
+    targs.fiber = janet_root_fiber();
+    janet_gcroot(janet_wrap_abstract(proc));
+    janet_gcroot(janet_wrap_fiber(targs.fiber));
+    janet_ev_threaded_call(janet_proc_wait_subr, targs, janet_proc_wait_cb);
+    janet_await();
+#else
+    /* Non evented implementation */
     proc->flags |= JANET_PROC_WAITED;
     int status = 0;
 #ifdef JANET_WINDOWS
@@ -386,6 +463,7 @@ static Janet os_proc_wait_impl(JanetProc *proc) {
 #endif
     proc->return_code = (int32_t) status;
     return janet_wrap_integer(proc->return_code);
+#endif
 }
 
 static Janet os_proc_wait(int32_t argc, Janet *argv) {
@@ -481,7 +559,7 @@ static int janet_proc_get(void *p, Janet key, Janet *out) {
         return 1;
     }
     if (janet_keyeq(key, "err")) {
-        *out = (NULL == proc->out) ? janet_wrap_nil() : janet_wrap_abstract(proc->err);
+        *out = (NULL == proc->err) ? janet_wrap_nil() : janet_wrap_abstract(proc->err);
         return 1;
     }
     if ((-1 != proc->return_code) && janet_keyeq(key, "return-code")) {
@@ -575,7 +653,7 @@ static JanetFile *get_stdio_for_handle(JanetHandle handle, void *orig, int iswri
 }
 #endif
 
-static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
+static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     janet_arity(argc, 1, 3);
 
     /* Get flags */
@@ -713,7 +791,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     tHandle = processInfo.hThread;
 
     /* Wait and cleanup immedaitely */
-    if (!is_async) {
+    if (!is_spawn) {
         DWORD code;
         WaitForSingleObject(pHandle, INFINITE);
         GetExitCodeProcess(pHandle, &code);
@@ -781,45 +859,51 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_async) {
     if (status) {
         os_execute_cleanup(envp, child_argv);
         janet_panicf("%p: %s", argv[0], strerror(errno));
-    } else if (is_async) {
+    } else if (is_spawn) {
         /* Get process handle */
         os_execute_cleanup(envp, child_argv);
     } else {
         /* Wait to complete */
-        waitpid(pid, &status, 0);
         os_execute_cleanup(envp, child_argv);
-        /* Use POSIX shell semantics for interpreting signals */
-        if (WIFEXITED(status)) {
-            status = WEXITSTATUS(status);
-        } else if (WIFSTOPPED(status)) {
-            status = WSTOPSIG(status) + 128;
-        } else {
-            status = WTERMSIG(status) + 128;
-        }
     }
 
 #endif
-    if (is_async) {
-        JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
-        proc->return_code = -1;
+    JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
+    proc->return_code = -1;
 #ifdef JANET_WINDOWS
-        proc->pHandle = pHandle;
-        proc->tHandle = tHandle;
+    proc->pHandle = pHandle;
+    proc->tHandle = tHandle;
 #else
-        proc->pid = pid;
+    proc->pid = pid;
 #endif
-        proc->in = get_stdio_for_handle(new_in, orig_in, 1);
-        proc->out = get_stdio_for_handle(new_out, orig_out, 0);
-        proc->err = get_stdio_for_handle(new_err, orig_err, 0);
-        proc->flags = 0;
-        if (proc->in == NULL || proc->out == NULL || proc->err == NULL) {
-            janet_panic("failed to construct proc");
-        }
+    proc->in = NULL;
+    proc->out = NULL;
+    proc->err = NULL;
+    if (new_in != JANET_HANDLE_NONE) {
+        proc->in = get_stdio_for_handle(new_in, orig_in, 0);
+        if (NULL == proc->in) janet_panic("failed to construct proc");
+    }
+    if (new_out != JANET_HANDLE_NONE) {
+        proc->out = get_stdio_for_handle(new_out, orig_out, 1);
+        if (NULL == proc->out) janet_panic("failed to construct proc");
+    }
+    if (new_err != JANET_HANDLE_NONE) {
+        proc->err = get_stdio_for_handle(new_err, orig_err, 1);
+        if (NULL == proc->err) janet_panic("failed to construct proc");
+    }
+    proc->flags = 0;
+    if (janet_flag_at(flags, 2)) {
+        proc->flags |= JANET_PROC_ERROR_NONZERO;
+    }
+
+    if (is_spawn) {
         return janet_wrap_abstract(proc);
-    } else if (janet_flag_at(flags, 2) && status) {
-        janet_panicf("command failed with non-zero exit code %d", status);
     } else {
-        return janet_wrap_integer(status);
+#ifdef JANET_EV
+        os_proc_wait_impl(proc);
+#else
+        return os_proc_wait_impl(proc);
+#endif
     }
 }
 
@@ -2078,6 +2162,8 @@ void janet_lib_os(JanetTable *env) {
         InitializeCriticalSection(&env_lock);
         env_lock_initialized = 1;
     }
+#endif
+#ifndef JANET_NO_PROCESSES
 #endif
     janet_core_cfuns(env, NULL, os_cfuns);
 }
