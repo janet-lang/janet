@@ -439,22 +439,22 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun) {
                         min_arity = -1 - min_arity;
                         if (min_arity > max && max >= 0) {
                             const uint8_t *es = janet_formatc(
-                                                    "%v expects at most %d argument, got at least %d",
-                                                    fun.constant, max, min_arity);
+                                                    "%v expects at most %d argument%s, got at least %d",
+                                                    fun.constant, max, max == 1 ? "" : "s", min_arity);
                             janetc_error(c, es);
                         }
                     } else {
                         /* Call has no splices */
                         if (min_arity > max && max >= 0) {
                             const uint8_t *es = janet_formatc(
-                                                    "%v expects at most %d argument, got %d",
-                                                    fun.constant, max, min_arity);
+                                                    "%v expects at most %d argument%s, got %d",
+                                                    fun.constant, max, max == 1 ? "" : "s", min_arity);
                             janetc_error(c, es);
                         }
                         if (min_arity < min) {
                             const uint8_t *es = janet_formatc(
-                                                    "%v expects at least %d argument, got %d",
-                                                    fun.constant, min, min_arity);
+                                                    "%v expects at least %d argument%s, got %d",
+                                                    fun.constant, min, min == 1 ? "" : "s", min_arity);
                             janetc_error(c, es);
                         }
                     }
