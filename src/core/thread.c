@@ -720,10 +720,10 @@ static const JanetReg threadlib_cfuns[] = {
              "Start a new thread that will start immediately. "
              "If capacity is provided, that is how many messages can be stored in the thread's mailbox before blocking senders. "
              "The capacity must be between 1 and 65535 inclusive, and defaults to 10. "
-             "Can optionally provide flags to the new thread - supported flags are:\n"
-             "\t:h - Start a heavyweight thread. This loads the core environment by default, so may use more memory initially. Messages may compress better, though.\n"
-             "\t:a - Allow sending over registered abstract types to the new thread\n"
-             "\t:c - Send over cfunction information to the new thread.\n"
+             "Can optionally provide flags to the new thread - supported flags are:\n\n"
+             "* :h - Start a heavyweight thread. This loads the core environment by default, so may use more memory initially. Messages may compress better, though.\n\n"
+             "* :a - Allow sending over registered abstract types to the new thread\n\n"
+             "* :c - Send over cfunction information to the new thread.\n\n"
              "Returns a handle to the new thread.")
     },
     {
