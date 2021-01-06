@@ -599,7 +599,7 @@ static const JanetReg string_cfuns[] = {
         JDOC("(string/find-all patt str)\n\n"
              "Searches for all instances of pattern patt in string "
              "str. Returns an array of all indices of found patterns. Overlapping "
-             "instances of the pattern are counted individual, meaning a byte in string "
+             "instances of the pattern are counted individually, meaning a byte in str "
              "may contribute to multiple found patterns.")
     },
     {
