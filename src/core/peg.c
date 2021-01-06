@@ -44,11 +44,13 @@ typedef struct {
     JanetArray *captures;
     JanetBuffer *scratch;
     JanetBuffer *tags;
+    JanetArray *tagged_captures;
     const Janet *extrav;
     int32_t *linemap;
     int32_t extrac;
     int32_t depth;
     int32_t linemaplen;
+    int32_t has_backref;
     enum {
         PEG_MODE_NORMAL,
         PEG_MODE_ACCUMULATE
@@ -60,6 +62,7 @@ typedef struct {
  * if one branch fails and try a new branch. */
 typedef struct {
     int32_t cap;
+    int32_t tcap;
     int32_t scratch;
 } CapState;
 
@@ -68,6 +71,7 @@ static CapState cap_save(PegState *s) {
     CapState cs;
     cs.scratch = s->scratch->count;
     cs.cap = s->captures->count;
+    cs.tcap = s->tagged_captures->count;
     return cs;
 }
 
@@ -75,7 +79,15 @@ static CapState cap_save(PegState *s) {
 static void cap_load(PegState *s, CapState cs) {
     s->scratch->count = cs.scratch;
     s->captures->count = cs.cap;
-    s->tags->count = cs.cap;
+    s->tags->count = cs.tcap;
+    s->tagged_captures->count = cs.tcap;
+}
+
+/* Load a saved capture state in the case of success. Keeps
+ * tagged captures around for backref. */
+static void cap_load_keept(PegState *s, CapState cs) {
+    s->scratch->count = cs.scratch;
+    s->captures->count = cs.cap;
 }
 
 /* Add a capture */
@@ -83,8 +95,11 @@ static void pushcap(PegState *s, Janet capture, uint32_t tag) {
     if (s->mode == PEG_MODE_ACCUMULATE) {
         janet_to_string_b(s->scratch, capture);
     }
-    if (tag || s->mode == PEG_MODE_NORMAL) {
+    if (s->mode == PEG_MODE_NORMAL) {
         janet_array_push(s->captures, capture);
+    }
+    if (s->has_backref) {
+        janet_array_push(s->tagged_captures, capture);
         janet_buffer_push_u8(s->tags, tag);
     }
 }
@@ -321,7 +336,7 @@ tail:
             uint32_t tag = rule[2];
             for (int32_t i = s->tags->count - 1; i >= 0; i--) {
                 if (s->tags->data[i] == search) {
-                    pushcap(s, s->captures->data[i], tag);
+                    pushcap(s, s->tagged_captures->data[i], tag);
                     return text;
                 }
             }
@@ -358,15 +373,15 @@ tail:
         }
 
         case RULE_CAPTURE: {
-            uint32_t tag = rule[2];
             down1(s);
             const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
             up1(s);
             if (!result) return NULL;
             /* Specialized pushcap - avoid intermediate string creation */
-            if (!tag && s->mode == PEG_MODE_ACCUMULATE) {
+            if (!s->has_backref && s->mode == PEG_MODE_ACCUMULATE) {
                 janet_buffer_push_bytes(s->scratch, text, (int32_t)(result - text));
             } else {
+                uint32_t tag = rule[2];
                 pushcap(s, janet_stringv(text, (int32_t)(result - text)), tag);
             }
             return result;
@@ -388,7 +403,7 @@ tail:
             if (!result) return NULL;
             Janet cap = janet_stringv(s->scratch->data + cs.scratch,
                                       s->scratch->count - cs.scratch);
-            cap_load(s, cs);
+            cap_load_keept(s, cs);
             pushcap(s, cap, tag);
             return result;
         }
@@ -419,7 +434,7 @@ tail:
                         s->captures->data + cs.cap,
                         sizeof(Janet) * num_sub_captures);
             sub_captures->count = num_sub_captures;
-            cap_load(s, cs);
+            cap_load_keept(s, cs);
             pushcap(s, janet_wrap_array(sub_captures), tag);
             return result;
         }
@@ -464,7 +479,7 @@ tail:
                                      s->captures->data + cs.cap);
                     break;
             }
-            cap_load(s, cs);
+            cap_load_keept(s, cs);
             if (rule[0] == RULE_MATCHTIME && !janet_truthy(cap)) return NULL;
             pushcap(s, cap, tag);
             return result;
@@ -495,7 +510,7 @@ tail:
             uint32_t search = rule[1];
             for (int32_t i = s->tags->count - 1; i >= 0; i--) {
                 if (s->tags->data[i] == search) {
-                    Janet capture = s->captures->data[i];
+                    Janet capture = s->tagged_captures->data[i];
                     if (!janet_checktype(capture, JANET_STRING))
                         return NULL;
                     const uint8_t *bytes = janet_unwrap_string(capture);
@@ -597,6 +612,7 @@ typedef struct {
     Janet form;
     int depth;
     uint32_t nexttag;
+    int has_backref;
 } Builder;
 
 /* Forward declaration to allow recursion */
@@ -937,6 +953,7 @@ static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
     Reserve r = reserve(b, 3);
     uint32_t search = emit_tag(b, argv[0]);
     uint32_t tag = (argc == 2) ? emit_tag(b, argv[1]) : 0;
+    b->has_backref = 1;
     emit_2(r, RULE_GETTAG, search, tag);
 }
 
@@ -959,6 +976,7 @@ static void spec_column(Builder *b, int32_t argc, const Janet *argv) {
 }
 
 static void spec_backmatch(Builder *b, int32_t argc, const Janet *argv) {
+    b->has_backref = 1;
     spec_tag1(b, argc, argv, RULE_BACKMATCH);
 }
 
@@ -1295,6 +1313,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
     }
 
     /* verify peg bytecode */
+    int32_t has_backref = 0;
     uint32_t i = 0;
     while (i < blen) {
         uint32_t instr = bytecode[i];
@@ -1310,9 +1329,13 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_POSITION:
             case RULE_LINE:
             case RULE_COLUMN:
+                /* [1 word] */
+                i += 2;
+                break;
             case RULE_BACKMATCH:
                 /* [1 word] */
                 i += 2;
+                has_backref = 1;
                 break;
             case RULE_SET:
                 /* [8 words] */
@@ -1353,9 +1376,13 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 i += 4;
                 break;
             case RULE_ARGUMENT:
+                /* [searchtag, tag] */
+                i += 3;
+                break;
             case RULE_GETTAG:
                 /* [searchtag, tag] */
                 i += 3;
+                has_backref = 1;
                 break;
             case RULE_CONSTANT:
                 /* [constant, tag] */
@@ -1409,6 +1436,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
     /* Good return */
     peg->bytecode = bytecode;
     peg->constants = constants;
+    peg->has_backref = has_backref;
     free(op_flags);
     return peg;
 
@@ -1445,6 +1473,7 @@ static JanetPeg *make_peg(Builder *b) {
     safe_memcpy(peg->bytecode, b->bytecode, bytecode_size);
     safe_memcpy(peg->constants, b->constants, constants_size);
     peg->bytecode_len = janet_v_count(b->bytecode);
+    peg->has_backref = b->has_backref;
     return peg;
 }
 
@@ -1459,6 +1488,7 @@ static JanetPeg *compile_peg(Janet x) {
     builder.nexttag = 1;
     builder.form = x;
     builder.depth = JANET_RECURSION_GUARD;
+    builder.has_backref = 0;
     peg_compile1(&builder, x);
     JanetPeg *peg = make_peg(&builder);
     builder_cleanup(&builder);
@@ -1515,12 +1545,14 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
     ret.s.text_end = ret.bytes.bytes + ret.bytes.len;
     ret.s.depth = JANET_RECURSION_GUARD;
     ret.s.captures = janet_array(0);
+    ret.s.tagged_captures = janet_array(0);
     ret.s.scratch = janet_buffer(10);
     ret.s.tags = janet_buffer(10);
     ret.s.constants = ret.peg->constants;
     ret.s.bytecode = ret.peg->bytecode;
     ret.s.linemap = NULL;
     ret.s.linemaplen = -1;
+    ret.s.has_backref = ret.peg->has_backref;
     return ret;
 }
 

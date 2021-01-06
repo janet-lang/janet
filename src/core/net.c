@@ -351,7 +351,7 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     /* Create socket */
     JSock sock = JSOCKDEFAULT;
     void *addr = NULL;
-    socklen_t addrlen;
+    socklen_t addrlen = 0;
 #ifndef JANET_WINDOWS
     if (is_unix) {
         sock = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);

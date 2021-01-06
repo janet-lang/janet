@@ -41,7 +41,7 @@ SONAME_SETTER=-Wl,-soname,
 # For cross compilation
 HOSTCC?=$(CC)
 HOSTAR?=$(AR)
-CFLAGS?=-O2
+CFLAGS?=-Og -g3
 LDFLAGS?=-rdynamic
 
 COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC

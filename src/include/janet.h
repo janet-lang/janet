@@ -1839,6 +1839,7 @@ typedef struct {
     Janet *constants;
     size_t bytecode_len;
     uint32_t num_constants;
+    int has_backref;
 } JanetPeg;
 
 #endif
