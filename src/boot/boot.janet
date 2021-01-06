@@ -3172,7 +3172,7 @@
 
 (defn- is-safe-def [x] (no-side-effects (last x)))
 
-(def- safe-forms {'defn true 'defn- true 'defmacro true 'defmacro- true
+(def- safe-forms {'defn true 'varfn true 'defn- true 'defmacro true 'defmacro- true
                   'def is-safe-def 'var is-safe-def 'def- is-safe-def 'var- is-safe-def
                   'defglobal is-safe-def 'varglobal is-safe-def})
 
