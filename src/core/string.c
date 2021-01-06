@@ -398,6 +398,7 @@ static Janet cfun_string_split(int32_t argc, Janet *argv) {
         const uint8_t *slice = janet_string(state.text + lastindex, result - lastindex);
         janet_array_push(array, janet_wrap_string(slice));
         lastindex = result + state.patlen;
+        kmp_seti(&state, lastindex);
     }
     const uint8_t *slice = janet_string(state.text + lastindex, state.textlen - lastindex);
     janet_array_push(array, janet_wrap_string(slice));
@@ -598,9 +599,8 @@ static const JanetReg string_cfuns[] = {
         JDOC("(string/find-all patt str)\n\n"
              "Searches for all instances of pattern patt in string "
              "str. Returns an array of all indices of found patterns. Overlapping "
-             "instances of the pattern are not counted, meaning a byte in string "
-             "will only contribute to finding at most on occurrence of pattern. If no "
-             "occurrences are found, will return an empty array.")
+             "instances of the pattern are counted individual, meaning a byte in string "
+             "may contribute to multiple found patterns.")
     },
     {
         "string/has-prefix?", cfun_string_hasprefix,
@@ -621,7 +621,8 @@ static const JanetReg string_cfuns[] = {
     {
         "string/replace-all", cfun_string_replaceall,
         JDOC("(string/replace-all patt subst str)\n\n"
-             "Replace all instances of patt with subst in the string str. "
+             "Replace all instances of patt with subst in the string str. Overlapping "
+             "matches will not be counted, only the first match in such a span will be replaced. "
              "Will return the new string if patt is found, otherwise returns str.")
     },
     {
