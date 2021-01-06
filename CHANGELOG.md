@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Make janet's `-k` flag work on stdin if no files are given.
+- Add `flycheck` function to core.
 - Make `backmatch` and `backref` more expressive in pegs.
 - Fix buggy `string/split`.
 - Add `fiber/last-value` to get the value that was last yielded, errored, or signaled

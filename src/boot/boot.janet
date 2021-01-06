@@ -3158,7 +3158,7 @@
 
 ###
 ###
-### CLI Tool Main
+### Flychecking
 ###
 ###
 
@@ -3186,6 +3186,43 @@
 (def- importers {'import true 'import* true 'dofile true 'require true})
 (defn- use-2 [evaluator args]
   (each a args (import* (string a) :prefix "" :evaluator evaluator)))
+
+(defn- evaluator
+  [thunk source env where]
+  (when (tuple? source)
+    (def head (source 0))
+    (def safe-check (safe-forms head))
+    (cond
+      # Sometimes safe form
+      (function? safe-check)
+      (if (safe-check source) (thunk))
+      # Always safe form
+      safe-check
+      (thunk)
+      # Use
+      (= 'use head)
+      (use-2 evaluator (tuple/slice source 1))
+      # Import-like form
+      (importers head)
+      (do
+        (let [[l c] (tuple/sourcemap source)
+              newtup (tuple/setmap (tuple ;source :evaluator evaluator) l c)]
+          ((compile newtup env where)))))))
+
+(defn flycheck
+  ``Check a file for errors without running the file. Found errors will be printed to stderr
+  in the usual format. Macros will still be executed, however, so
+  arbitrary execution is possible. Other arguments are the same as dofile. `path` can also be
+  a file value such as stdin.``
+  [path &keys kwargs]
+  (dofile path :evaluator evaluator ;(kvs kwargs)))
+
+###
+###
+### CLI Tool Main
+###
+###
+
 
 # conditional compilation for reduced os
 (def- getenv-alias (if-let [entry (in root-env 'os/getenv)] (entry :value) (fn [&])))
@@ -3262,30 +3299,6 @@
     (def h (in handlers n))
     (if h (h i) (do (print "unknown flag -" n) ((in handlers "h")))))
 
-  (defn- evaluator
-    [thunk source env where]
-    (if *compile-only*
-      (when (tuple? source)
-        (def head (source 0))
-        (def safe-check (safe-forms head))
-        (cond
-          # Sometimes safe form
-          (function? safe-check)
-          (if (safe-check source) (thunk))
-          # Always safe form
-          safe-check
-          (thunk)
-          # Use
-          (= 'use head)
-          (use-2 evaluator (tuple/slice source 1))
-          # Import-like form
-          (importers head)
-          (do
-            (let [[l c] (tuple/sourcemap source)
-                  newtup (tuple/setmap (tuple ;source :evaluator evaluator) l c)]
-              ((compile newtup env where))))))
-      (thunk)))
-
   # Process arguments
   (var i 0)
   (def lenargs (length args))
@@ -3298,32 +3311,37 @@
         (def env (make-env))
         (def subargs (array/slice args i))
         (put env :args subargs)
-        (dofile arg :prefix "" :exit *exit-on-error* :evaluator evaluator :env env)
-        (unless *compile-only*
-          (if-let [main (get (in env 'main) :value)]
-            (let [thunk (compile [main ;(tuple/slice args i)] env arg)]
-              (if (function? thunk) (thunk) (error (thunk :error))))))
+        (if *compile-only*
+          (flycheck arg :exit *exit-on-error* :env env)
+          (do
+            (dofile arg :exit *exit-on-error* :env env)
+            (if-let [main (get (in env 'main) :value)]
+              (let [thunk (compile [main ;(tuple/slice args i)] env arg)]
+                (if (function? thunk) (thunk) (error (thunk :error)))))))
         (set i lenargs))))
 
-  (when (and (not *compile-only*) (or *should-repl* *no-file*))
-    (if-not *quiet*
-      (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) " - '(doc)' for help"))
-    (flush)
-    (defn getprompt [p]
-      (def [line] (parser/where p))
-      (string "repl:" line ":" (parser/state p :delimiters) "> "))
-    (defn getstdin [prompt buf _]
-      (file/write stdout prompt)
-      (file/flush stdout)
-      (file/read stdin :line buf))
-    (def env (make-env))
-    (if *debug* (put env :debug true))
-    (def getter (if *raw-stdin* getstdin getline))
-    (defn getchunk [buf p]
-      (getter (getprompt p) buf env))
-    (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
-    (setdyn :err-color (if *colorize* true))
-    (repl getchunk nil env)))
+  (if (or *should-repl* *no-file*)
+    (if
+      *compile-only* (flycheck stdin :source "stdin" :exit *exit-on-error*)
+      (do
+        (if-not *quiet*
+          (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) " - '(doc)' for help"))
+        (flush)
+        (defn getprompt [p]
+          (def [line] (parser/where p))
+          (string "repl:" line ":" (parser/state p :delimiters) "> "))
+        (defn getstdin [prompt buf _]
+          (file/write stdout prompt)
+          (file/flush stdout)
+          (file/read stdin :line buf))
+        (def env (make-env))
+        (if *debug* (put env :debug true))
+        (def getter (if *raw-stdin* getstdin getline))
+        (defn getchunk [buf p]
+          (getter (getprompt p) buf env))
+        (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
+        (setdyn :err-color (if *colorize* true))
+        (repl getchunk nil env)))))
 
 (undef no-side-effects is-safe-def safe-forms importers use-2 getenv-alias)
 
