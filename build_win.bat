@@ -118,7 +118,6 @@ copy build\janet.h dist\janet.h
 copy build\libjanet.lib dist\libjanet.lib
 
 copy .\jpm dist\jpm
-copy tools\jpm.bat dist\jpm.bat
 
 @rem Create installer
 janet.exe -e "(->> janet/version (peg/match ''(* :d+ `.` :d+ `.` :d+)) first print)" > build\version.txt
