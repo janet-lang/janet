@@ -842,6 +842,7 @@ struct JanetFiber {
 #ifdef JANET_EV
     JanetListenerState *waiting;
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
+    void *supervisor_channel; /* Channel to push self to when signaling. */
 #endif
 };
 

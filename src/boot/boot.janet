@@ -3138,7 +3138,32 @@
     (with-syms [f]
       ~(let [,f (coro ,;body)]
          (,ev/deadline ,deadline nil ,f)
-         (,resume ,f)))))
+         (,resume ,f))))
+
+  (defn- wait-for-fibers
+    [chan n]
+    (repeat n
+      (def fiber (ev/take chan))
+      (def x (fiber/last-value fiber))
+      (if (not= :dead (fiber/status fiber))
+        (propagate x fiber))))
+
+  (defmacro ev/gather
+    ``
+    Run a number of fibers in parallel on the event loop, and join when they complete.
+    Returns the gathered results in an array.
+    ``
+    [& bodies]
+    (with-syms [chan res]
+      ~(do
+         (def ,chan (,ev/chan))
+         (def ,res @[])
+         ,;(seq [[i body] :pairs bodies]
+             ~(,ev/go (,fiber/new (fn [] (put ,res ,i ,body))) nil ,chan))
+         (,wait-for-fibers ,chan ,(length bodies))
+         ,res)))
+
+  (undef wait-for-fibers))
 
 (compwhen (dyn 'net/listen)
   (defn net/server

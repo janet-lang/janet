@@ -267,6 +267,12 @@ recur:
     if (fiber->env)
         janet_mark_table(fiber->env);
 
+#ifdef JANET_EV
+    if (fiber->supervisor_channel) {
+        janet_mark_abstract(fiber->supervisor_channel);
+    }
+#endif
+
     /* Explicit tail recursion */
     if (fiber->child) {
         fiber = fiber->child;
