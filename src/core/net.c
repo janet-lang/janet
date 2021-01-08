@@ -641,7 +641,7 @@ static const JanetReg net_cfuns[] = {
     {
         "net/accept-loop", cfun_stream_accept_loop,
         JDOC("(net/accept-loop stream handler)\n\n"
-             "Shorthand for running a server stream that will continuously accept new connections."
+             "Shorthand for running a server stream that will continuously accept new connections. "
              "Blocks the current fiber until the stream is closed, and will return the stream.")
     },
     {
