@@ -1,4 +1,4 @@
-(def server (net/server "127.0.0.1" "8009" nil :datagram))
+(def server (net/listen "127.0.0.1" "8009" :datagram))
 (while true
   (def buf @"")
   (def who (:recv-from server 1024 buf))

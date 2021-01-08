@@ -1982,7 +1982,8 @@ static Janet cfun_ev_go(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 3);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet value = argc == 2 ? argv[1] : janet_wrap_nil();
-    JanetChannel *channel = janet_optabstract(argv, argc, 2, &ChannelAT, NULL);
+    JanetChannel *channel = janet_optabstract(argv, argc, 2, &ChannelAT,
+            janet_vm_root_fiber->supervisor_channel);
     fiber->supervisor_channel = channel;
     janet_schedule(fiber, value);
     return argv[0];
@@ -1995,6 +1996,7 @@ static Janet cfun_ev_call(int32_t argc, Janet *argv) {
     if (NULL == fiber) janet_panicf("invalid arity to function %v", argv[0]);
     fiber->env = janet_table(0);
     fiber->env->proto = janet_current_fiber()->env;
+    fiber->supervisor_channel = janet_vm_root_fiber->supervisor_channel;
     janet_schedule(fiber, janet_wrap_nil());
     return janet_wrap_fiber(fiber);
 }
