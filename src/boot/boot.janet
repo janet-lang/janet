@@ -3222,10 +3222,9 @@
       (use-2 evaluator (tuple/slice source 1))
       # Import-like form
       (importers head)
-      (do
-        (let [[l c] (tuple/sourcemap source)
-              newtup (tuple/setmap (tuple ;source :evaluator evaluator) l c)]
-          ((compile newtup env where)))))))
+      (let [[l c] (tuple/sourcemap source)
+            newtup (tuple/setmap (tuple ;source :evaluator evaluator) l c)]
+        ((compile newtup env where))))))
 
 (defn flycheck
   ``Check a file for errors without running the file. Found errors will be printed to stderr
