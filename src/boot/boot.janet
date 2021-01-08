@@ -2670,7 +2670,7 @@
 (module/add-paths "/init.janet" :source)
 (module/add-paths ".janet" :source)
 (module/add-paths ".jimage" :image)
-(array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload])
+(array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload check-is-dep])
 
 # Version of fexists that works even with a reduced OS
 (defn fexists
