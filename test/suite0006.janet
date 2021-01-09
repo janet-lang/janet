@@ -190,4 +190,39 @@
 (assert (= (test-expand "../def.txt" ":all:") "../def.txt") "module/expand-path 7")
 (assert (= (test-expand "../././././abcd/../def.txt" ":all:") "../def.txt") "module/expand-path 8")
 
+# Integer type checks
+(assert (compare= 0 (- (int/u64 "1000") 1000)) "subtract from int/u64")
+
+(assert (odd? (int/u64 "1001")) "odd? 1")
+(assert (not (odd? (int/u64 "1000"))) "odd? 2")
+(assert (odd? (int/s64 "1001")) "odd? 3")
+(assert (not (odd? (int/s64 "1000"))) "odd? 4")
+(assert (odd? (int/s64 "-1001")) "odd? 5")
+(assert (not (odd? (int/s64 "-1000"))) "odd? 6")
+
+(assert (even? (int/u64 "1000")) "even? 1")
+(assert (not (even? (int/u64 "1001"))) "even? 2")
+(assert (even? (int/s64 "1000")) "even? 3")
+(assert (not (even? (int/s64 "1001"))) "even? 4")
+(assert (even? (int/s64 "-1000")) "even? 5")
+(assert (not (even? (int/s64 "-1001"))) "even? 6")
+
+# integer type operations
+(defn modcheck [x y]
+  (assert (= (string (mod x y)) (string (mod (int/s64 x) y)))
+          (string "int/s64 (mod " x " " y ") expected " (mod x y) ", got "
+                  (mod (int/s64 x) y)))
+  (assert (= (string (% x y)) (string (% (int/s64 x) y)))
+          (string "int/s64 (% " x " " y ") expected " (% x y) ", got "
+                  (% (int/s64 x) y))))
+
+(modcheck 1 2)
+(modcheck 1 3)
+(modcheck 4 2)
+(modcheck 4 1)
+(modcheck 10 3)
+(modcheck 10 -3)
+(modcheck -10 3)
+(modcheck -10 -3)
+
 (end-suite)

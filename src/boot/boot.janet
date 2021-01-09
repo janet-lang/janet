@@ -85,8 +85,6 @@
 
 # Basic predicates
 (defn nan? "Check if x is NaN" [x] (not= x x))
-(defn even? "Check if x is even." [x] (= 0 (mod x 2)))
-(defn odd? "Check if x is odd." [x] (= 1 (mod x 2)))
 (defn number? "Check if x is a number." [x] (= (type x) :number))
 (defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
 (defn string? "Check if x is a string." [x] (= (type x) :string))
@@ -115,6 +113,9 @@
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
 (defn empty? "Check if xs is empty." [xs] (= (length xs) 0))
+
+# For macros, we define an imcomplete odd? function that will be overriden.
+(defn odd? [x] (= 1 (mod x 2)))
 
 (def idempotent?
   ```
@@ -753,6 +754,8 @@
 (defn pos? "Check if x is greater than 0." [x] (= (compare x 0) 1))
 (defn neg? "Check if x is less than 0." [x] (= (compare x 0) -1))
 (defn one? "Check if x is equal to 1." [x] (= (compare x 1) 0))
+(defn even? "Check if x is even." [x] (= 0 (compare 0 (mod x 2))))
+(defn odd? "Check if x is odd." [x] (= 0 (compare 1 (mod x 2))))
 
 (undef compare-reduce)
 
