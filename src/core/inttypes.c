@@ -134,7 +134,7 @@ int64_t janet_unwrap_s64(Janet x) {
             break;
         }
     }
-    janet_panic("bad s64 initializer");
+    janet_panicf("bad s64 initializer: %t", x);
     return 0;
 }
 
@@ -144,7 +144,9 @@ uint64_t janet_unwrap_u64(Janet x) {
             break;
         case JANET_NUMBER : {
             double dbl = janet_unwrap_number(x);
-            if ((dbl >= 0) && (dbl <= MAX_INT_IN_DBL))
+            /* Allow negative values to be cast to "wrap around".
+             * This let's addition and subtraction work as expected. */
+            if (fabs(dbl) <=  MAX_INT_IN_DBL)
                 return (uint64_t)dbl;
             break;
         }
@@ -163,7 +165,7 @@ uint64_t janet_unwrap_u64(Janet x) {
             break;
         }
     }
-    janet_panic("bad u64 initializer");
+    janet_panicf("bad u64 initializer: %t", x);
     return 0;
 }
 
@@ -197,15 +199,14 @@ static Janet cfun_it_u64_new(int32_t argc, Janet *argv) {
     return janet_wrap_u64(janet_unwrap_u64(argv[0]));
 }
 
-// Code to support polymorphic comparison.
-//
-// int/u64 and int/s64 support a "compare" method that allows
-// comparison to each other, and to Janet numbers, using the
-// "compare" "compare<" ... functions.
-//
-// In the following code explicit casts are sometimes used to help
-// make it clear when int/float conversions are happening.
-//
+/*
+ * Code to support polymorphic comparison.
+ * int/u64 and int/s64 support a "compare" method that allows
+ * comparison to each other, and to Janet numbers, using the
+ * "compare" "compare<" ... functions.
+ * In the following code explicit casts are sometimes used to help
+ * make it clear when int/float conversions are happening.
+ */
 static int compare_double_double(double x, double y) {
     return (x < y) ? -1 : ((x > y) ? 1 : 0);
 }
@@ -241,7 +242,6 @@ static int compare_uint64_double(uint64_t x, double y) {
         return (x < yi) ? -1 : ((x > yi) ? 1 : 0);
     }
 }
-
 
 static Janet cfun_it_s64_compare(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
