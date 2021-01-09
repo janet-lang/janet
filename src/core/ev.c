@@ -1983,7 +1983,7 @@ static Janet cfun_ev_go(int32_t argc, Janet *argv) {
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet value = argc == 2 ? argv[1] : janet_wrap_nil();
     JanetChannel *channel = janet_optabstract(argv, argc, 2, &ChannelAT,
-            janet_vm_root_fiber->supervisor_channel);
+                            janet_vm_root_fiber->supervisor_channel);
     fiber->supervisor_channel = channel;
     janet_schedule(fiber, value);
     return argv[0];
