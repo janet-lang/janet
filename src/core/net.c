@@ -591,7 +591,7 @@ static Janet cfun_stream_send_to(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_stream_flush(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 2);
+    janet_fixarity(argc, 1);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_WRITABLE | JANET_STREAM_SOCKET);
     /* Toggle no delay flag */

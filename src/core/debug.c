@@ -325,12 +325,12 @@ static Janet cfun_debug_step(int32_t argc, Janet *argv) {
 static const JanetReg debug_cfuns[] = {
     {
         "debug/break", cfun_debug_break,
-        JDOC("(debug/break source byte-offset)\n\n"
-             "Sets a breakpoint with source a key at a given line and column. "
+        JDOC("(debug/break source line col)\n\n"
+             "Sets a breakpoint in `source` at a given line and column. "
              "Will throw an error if the breakpoint location "
              "cannot be found. For example\n\n"
-             "\t(debug/break \"core.janet\" 1000)\n\n"
-             "wil set a breakpoint at the 1000th byte of the file core.janet.")
+             "\t(debug/break \"core.janet\" 10 4)\n\n"
+             "wil set a breakpoint at line 10, 4th column of the file core.janet.")
     },
     {
         "debug/unbreak", cfun_debug_unbreak,
