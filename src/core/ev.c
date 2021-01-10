@@ -2178,7 +2178,7 @@ static const JanetReg ev_cfuns[] = {
     {
         "ev/rselect", cfun_channel_rchoice,
         JDOC("(ev/rselect & clauses)\n\n"
-             "Similar to ev/choice, but will try clauses in a random order for fairness.")
+             "Similar to ev/select, but will try clauses in a random order for fairness.")
     },
     {
         "ev/close", janet_cfun_stream_close,
