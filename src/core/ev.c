@@ -520,7 +520,7 @@ static void run_one(JanetFiber *fiber, Janet value, JanetSignal sigin) {
     fiber->flags &= ~JANET_FIBER_FLAG_SCHEDULED;
     Janet res;
     JanetSignal sig = janet_continue_signal(fiber, value, &res, sigin);
-    if (sig != JANET_SIGNAL_EVENT) {
+    if (sig != JANET_SIGNAL_EVENT && sig != JANET_SIGNAL_YIELD) {
         if (fiber->done_channel) {
             JanetChannel *chan = (JanetChannel *)(fiber->done_channel);
             janet_channel_push(chan, janet_wrap_fiber(fiber), 2);
