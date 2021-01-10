@@ -321,21 +321,6 @@ JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod 
     stream->_mask = 0;
     if (methods == NULL) methods = ev_default_stream_methods;
     stream->methods = methods;
-#ifdef JANET_NET
-    if (flags & JANET_STREAM_SOCKET) {
-#ifdef JANET_WINDOWS
-        u_long iMode = 0;
-        ioctlsocket((SOCKET) handle, FIONBIO, &iMode);
-#else
-#if !defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
-        int extra = O_CLOEXEC;
-#else
-        int extra = 0;
-#endif
-        fcntl(handle, F_SETFL, fcntl(handle, F_GETFL, 0) | O_NONBLOCK | extra);
-#endif
-    }
-#endif
     return stream;
 }
 
@@ -1990,7 +1975,7 @@ static Janet cfun_ev_go(int32_t argc, Janet *argv) {
     JanetChannel *new_channel = janet_optabstract(argv, argc, 3, &ChannelAT,
                                 janet_vm_root_fiber->new_channel);
     JanetChannel *event_channel = janet_optabstract(argv, argc, 4, &ChannelAT,
-                                janet_vm_root_fiber->event_channel);
+                                  janet_vm_root_fiber->event_channel);
     fiber->done_channel = done_channel;
     fiber->new_channel = new_channel;
     fiber->event_channel = event_channel;

@@ -80,15 +80,22 @@ static JanetStream *make_stream(JSock handle, uint32_t flags);
 #define MSG_NOSIGNAL 0
 #endif
 
-static void nosigpipe(JSock s) {
+/* Make sure a socket doesn't block */
+static void janet_net_socknoblock(JSock s) {
+#ifdef JANET_WINDOWS
+    unsigned long arg = 1;
+    ioctlsocket(s, FIONBIO, &arg);
+#else
+#if !defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
+    int extra = O_CLOEXEC;
+#else
+    int extra = 0;
+#endif
+    fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK | extra);
 #ifdef SO_NOSIGPIPE
     int enable = 1;
-    if (setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) < 0) {
-        JSOCKCLOSE(s);
-        janet_panic("setsockopt(SO_NOSIGPIPE) failed");
-    }
-#else
-    (void) s;
+    setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int));
+#endif
 #endif
 }
 
@@ -210,7 +217,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
         case JANET_ASYNC_EVENT_READ: {
             JSock connfd = accept(s->stream->handle, NULL, NULL);
             if (JSOCKVALID(connfd)) {
-                nosigpipe(connfd);
+                janet_net_socknoblock(connfd);
                 JanetStream *stream = make_stream(connfd, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
                 Janet streamv = janet_wrap_abstract(stream);
                 if (state->function) {
@@ -356,7 +363,7 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     if (is_unix) {
         sock = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);
         if (!JSOCKVALID(sock)) {
-            janet_panic("could not create socket");
+            janet_panicf("could not create socket: %V", janet_ev_lasterr());
         }
         addr = (void *) ai;
         addrlen = sizeof(struct sockaddr_un);
@@ -378,7 +385,7 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
         }
         if (NULL == addr) {
             freeaddrinfo(ai);
-            janet_panic("could not create socket");
+            janet_panicf("could not create socket: %V", janet_ev_lasterr());
         }
     }
 
@@ -392,10 +399,11 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
 
     if (status == -1) {
         JSOCKCLOSE(sock);
-        janet_panic("could not connect to socket");
+        janet_panicf("could not connect to socket: %V", janet_ev_lasterr());
     }
 
-    nosigpipe(sock);
+    /* Set up the socket for non-blocking IO after connect - TODO - non-blocking connect? */
+    janet_net_socknoblock(sock);
 
     /* Wrap socket in abstract type JanetStream */
     JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
@@ -413,6 +421,7 @@ static const char *serverify_socket(JSock sfd) {
         return "setsockopt(SO_REUSEPORT) failed";
     }
 #endif
+    janet_net_socknoblock(sfd);
     return NULL;
 }
 
@@ -430,13 +439,17 @@ static Janet cfun_net_listen(int32_t argc, Janet *argv) {
         sfd = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);
         if (!JSOCKVALID(sfd)) {
             free(ai);
-            janet_panic("could not create socket");
+            janet_panicf("could not create socket: %V", janet_ev_lasterr());
         }
         const char *err = serverify_socket(sfd);
         if (NULL != err || bind(sfd, (struct sockaddr *)ai, sizeof(struct sockaddr_un))) {
             JSOCKCLOSE(sfd);
             free(ai);
-            janet_panic(err ? err : "could not bind socket");
+            if (err) {
+                janet_panic(err);
+            } else {
+                janet_panicf("could not bind socket: %V", janet_ev_lasterr());
+            }
         }
         free(ai);
     } else
@@ -466,8 +479,6 @@ static Janet cfun_net_listen(int32_t argc, Janet *argv) {
         }
     }
 
-    nosigpipe(sfd);
-
     if (socktype == SOCK_DGRAM) {
         /* Datagram server (UDP) */
         JanetStream *stream = make_stream(sfd, JANET_STREAM_UDPSERVER | JANET_STREAM_READABLE);
@@ -479,7 +490,7 @@ static Janet cfun_net_listen(int32_t argc, Janet *argv) {
         int status = listen(sfd, 1024);
         if (status) {
             JSOCKCLOSE(sfd);
-            janet_panic("could not listen on file descriptor");
+            janet_panicf("could not listen on file descriptor: %V", janet_ev_lasterr());
         }
 
         /* Put sfd on our loop */
