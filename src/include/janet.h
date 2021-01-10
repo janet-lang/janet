@@ -840,9 +840,14 @@ struct JanetFiber {
     JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
     Janet last_value; /* Last returned value from a fiber */
 #ifdef JANET_EV
+    /* These fields are only relevant for fibers that are used as "root fibers" -
+     * that is, fibers that are scheduled on the event loop and behave much like threads
+     * in a multi-tasking system. It would be possible to move these fields to a new
+     * type, say "JanetTask", that as separate from fibers to save a bit of space. */
     JanetListenerState *waiting;
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
     void *done_channel; /* Channel to push self to when complete */
+    void *event_channel; /* Channel to push self to when yielding to event loop */
     void *new_channel; /* Channel to push spawned children */
 #endif
 };

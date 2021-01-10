@@ -271,6 +271,9 @@ recur:
     if (fiber->done_channel) {
         janet_mark_abstract(fiber->done_channel);
     }
+    if (fiber->event_channel) {
+        janet_mark_abstract(fiber->event_channel);
+    }
     if (fiber->new_channel) {
         janet_mark_abstract(fiber->new_channel);
     }
