@@ -389,8 +389,8 @@ static Janet cfun_it_s64_mod(int32_t argc, Janet *argv) {
     int64_t op2 = janet_unwrap_s64(argv[1]);
     int64_t x = op1 % op2;
     *box = (op1 > 0)
-        ? ((op2 > 0) ? x : (0 == x ? x : x + op2))
-        : ((op2 > 0) ? (0 == x ? x : x + op2) : x);
+           ? ((op2 > 0) ? x : (0 == x ? x : x + op2))
+           : ((op2 > 0) ? (0 == x ? x : x + op2) : x);
     return janet_wrap_abstract(box);
 }
 

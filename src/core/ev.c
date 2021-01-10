@@ -513,7 +513,7 @@ void janet_ev_mark(void) {
     }
 }
 
-static int janet_channel_push(JanetChannel *channel, Janet x, int is_choice);
+static int janet_channel_push(JanetChannel *channel, Janet x, int mode);
 
 /* Run a top level task */
 static void run_one(JanetFiber *fiber, Janet value, JanetSignal sigin) {
@@ -521,10 +521,10 @@ static void run_one(JanetFiber *fiber, Janet value, JanetSignal sigin) {
     Janet res;
     JanetSignal sig = janet_continue_signal(fiber, value, &res, sigin);
     if (sig != JANET_SIGNAL_EVENT) {
-        if (fiber->supervisor_channel) {
-            JanetChannel *chan = (JanetChannel *)(fiber->supervisor_channel);
-            janet_channel_push(chan, janet_wrap_fiber(fiber), 0);
-            fiber->supervisor_channel = NULL;
+        if (fiber->done_channel) {
+            JanetChannel *chan = (JanetChannel *)(fiber->done_channel);
+            janet_channel_push(chan, janet_wrap_fiber(fiber), 2);
+            fiber->done_channel = NULL;
         } else if (sig != JANET_SIGNAL_OK) {
             janet_stacktrace(fiber, res);
         }
@@ -665,7 +665,7 @@ static Janet make_read_result(JanetChannel *channel, Janet x) {
 
 /* Push a value to a channel, and return 1 if channel should block, zero otherwise.
  * If the push would block, will add to the write_pending queue in the channel. */
-static int janet_channel_push(JanetChannel *channel, Janet x, int is_choice) {
+static int janet_channel_push(JanetChannel *channel, Janet x, int mode) {
     JanetChannelPending reader;
     int is_empty;
     do {
@@ -677,14 +677,12 @@ static int janet_channel_push(JanetChannel *channel, Janet x, int is_choice) {
             janet_panicf("channel overflow: %v", x);
         } else if (janet_q_count(&channel->items) > channel->limit) {
             /* No root fiber, we are in completion on a root fiber. Don't block. */
-            if (NULL == janet_vm_root_fiber) {
-                return 0;
-            }
+            if (mode == 2) return 0;
             /* Pushed successfully, but should block. */
             JanetChannelPending pending;
             pending.fiber = janet_vm_root_fiber,
             pending.sched_id = janet_vm_root_fiber->sched_id,
-            pending.mode = is_choice ? JANET_CP_MODE_CHOICE_WRITE : JANET_CP_MODE_ITEM;
+            pending.mode = mode ? JANET_CP_MODE_CHOICE_WRITE : JANET_CP_MODE_ITEM;
             janet_q_push(&channel->write_pending, &pending, sizeof(pending));
             return 1;
         }
@@ -1979,12 +1977,18 @@ error:
 /* C functions */
 
 static Janet cfun_ev_go(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 3);
+    janet_arity(argc, 1, 4);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet value = argc == 2 ? argv[1] : janet_wrap_nil();
-    JanetChannel *channel = janet_optabstract(argv, argc, 2, &ChannelAT,
-                            janet_vm_root_fiber->supervisor_channel);
-    fiber->supervisor_channel = channel;
+    JanetChannel *done_channel = janet_optabstract(argv, argc, 2, &ChannelAT,
+                                 janet_vm_root_fiber->done_channel);
+    JanetChannel *new_channel = janet_optabstract(argv, argc, 3, &ChannelAT,
+                                janet_vm_root_fiber->new_channel);
+    fiber->done_channel = done_channel;
+    fiber->new_channel = new_channel;
+    if (new_channel != NULL) {
+        janet_channel_push((JanetChannel *) new_channel, janet_wrap_fiber(fiber), 2);
+    }
     janet_schedule(fiber, value);
     return argv[0];
 }
@@ -1996,7 +2000,11 @@ static Janet cfun_ev_call(int32_t argc, Janet *argv) {
     if (NULL == fiber) janet_panicf("invalid arity to function %v", argv[0]);
     fiber->env = janet_table(0);
     fiber->env->proto = janet_current_fiber()->env;
-    fiber->supervisor_channel = janet_vm_root_fiber->supervisor_channel;
+    fiber->done_channel = janet_vm_root_fiber->done_channel;
+    fiber->new_channel = janet_vm_root_fiber->new_channel;
+    if (fiber->new_channel != NULL) {
+        janet_channel_push((JanetChannel *) fiber->new_channel, janet_wrap_fiber(fiber), 2);
+    }
     janet_schedule(fiber, janet_wrap_nil());
     return janet_wrap_fiber(fiber);
 }
