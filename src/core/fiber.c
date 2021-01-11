@@ -607,33 +607,33 @@ static const JanetReg fiber_cfuns[] = {
              "take a set of signals to block from the current parent fiber "
              "when called. The mask is specified as a keyword where each character "
              "is used to indicate a signal to block. The default sigmask is :y. "
-             "For example, \n\n"
-             "\t(fiber/new myfun :e123)\n\n"
+             "For example,\n\n"
+             "    (fiber/new myfun :e123)\n\n"
              "blocks error signals and user signals 1, 2 and 3. The signals are "
-             "as follows: \n\n"
-             "\ta - block all signals\n"
-             "\td - block debug signals\n"
-             "\te - block error signals\n"
-             "\tt - block termination signals: error + user[0-4]\n"
-             "\tu - block user signals\n"
-             "\ty - block yield signals\n"
-             "\t0-9 - block a specific user signal\n\n"
+             "as follows:\n\n"
+             "* :a - block all signals\n"
+             "* :d - block debug signals\n"
+             "* :e - block error signals\n"
+             "* :t - block termination signals: error + user[0-4]\n"
+             "* :u - block user signals\n"
+             "* :y - block yield signals\n"
+             "* :0-9 - block a specific user signal\n\n"
              "The sigmask argument also can take environment flags. If any mutually "
              "exclusive flags are present, the last flag takes precedence.\n\n"
-             "\ti - inherit the environment from the current fiber\n"
-             "\tp - the environment table's prototype is the current environment table")
+             "* :i - inherit the environment from the current fiber\n"
+             "* :p - the environment table's prototype is the current environment table")
     },
     {
         "fiber/status", cfun_fiber_status,
         JDOC("(fiber/status fib)\n\n"
              "Get the status of a fiber. The status will be one of:\n\n"
-             "\t:dead - the fiber has finished\n"
-             "\t:error - the fiber has errored out\n"
-             "\t:debug - the fiber is suspended in debug mode\n"
-             "\t:pending - the fiber has been yielded\n"
-             "\t:user(0-9) - the fiber is suspended by a user signal\n"
-             "\t:alive - the fiber is currently running and cannot be resumed\n"
-             "\t:new - the fiber has just been created and not yet run")
+             "* :dead - the fiber has finished\n"
+             "* :error - the fiber has errored out\n"
+             "* :debug - the fiber is suspended in debug mode\n"
+             "* :pending - the fiber has been yielded\n"
+             "* :user(0-9) - the fiber is suspended by a user signal\n"
+             "* :alive - the fiber is currently running and cannot be resumed\n"
+             "* :new - the fiber has just been created and not yet run")
     },
     {
         "fiber/root", cfun_fiber_root,
