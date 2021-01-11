@@ -83,9 +83,16 @@
 
 (assert-error "bad arity to ev/call" (ev/call inc 1 2 3))
 
+(assert (os/execute [(dyn :executable) "-e" `(+ 1 2 3)`] :xp) "os/execute self")
+
 # Subprocess
+(let [p (os/spawn [(dyn :executable) "-e" `(file/read stdin :line)`] :px {:in :pipe})]
+  (:write (p :in) "hello!")
+  (assert-no-error "pipe stdin to process" (os/proc-wait p)))
+
 (let [p (os/spawn [(dyn :executable) "-e" `(print "hello")`] :p {:out :pipe})]
-  (assert (deep= @"hello\n" (:read (p :out) :all)) "capture stdout from os/spawn")
-  (os/proc-wait p))
+  (os/proc-wait p)
+  (def x (:read (p :out) 1024))
+  (assert (deep= "hello" (string/trim x)) "capture stdout from os/spawn"))
 
 (end-suite)

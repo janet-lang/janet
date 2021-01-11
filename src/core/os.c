@@ -527,10 +527,24 @@ static void close_handle(JanetHandle handle) {
 /* Create piped file for os/execute and os/spawn. Need to be careful that we mark
    the error flag if we can't create pipe and don't leak handles. *handle will be cleaned
    up by the calling function. If everything goes well, *handle is owned by the calling function,
-   (if it is set) and the returned JanetFile owns the other end of the pipe, which will be closed
+   (if it is set) and the returned handle owns the other end of the pipe, which will be closed
    on GC or fclose. */
 static JanetHandle make_pipes(JanetHandle *handle, int reverse, int *errflag) {
     JanetHandle handles[2];
+#ifdef JANET_EV
+
+    /* non-blocking pipes */
+    if (janet_make_pipe(handles)) goto error;
+    if (reverse) swap_handles(handles);
+#ifdef JANET_WINDOWS
+    if (!SetHandleInformation(handles[0], HANDLE_FLAG_INHERIT, 0)) goto error;
+#endif
+    *handle = handles[1];
+    return handles[0];
+
+#else
+
+    /* Normal blocking pipes */
 #ifdef JANET_WINDOWS
     SECURITY_ATTRIBUTES saAttr;
     memset(&saAttr, 0, sizeof(saAttr));
@@ -547,6 +561,8 @@ static JanetHandle make_pipes(JanetHandle *handle, int reverse, int *errflag) {
     if (reverse) swap_handles(handles);
     *handle = handles[1];
     return handles[0];
+#endif
+
 #endif
 error:
     *errflag = 1;
@@ -736,7 +752,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     startupInfo.cb = sizeof(startupInfo);
     startupInfo.dwFlags |= STARTF_USESTDHANDLES;
     saAttr.nLength = sizeof(saAttr);
-    saAttr.bInheritHandle = TRUE;
 
     JanetBuffer *buf = os_exec_escape(exargs);
     if (buf->count > 8191) {
@@ -862,9 +877,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     if (status) {
         os_execute_cleanup(envp, child_argv);
         janet_panicf("%p: %s", argv[0], strerror(errno));
-    } else if (is_spawn) {
-        /* Get process handle */
-        os_execute_cleanup(envp, child_argv);
     } else {
         /* Wait to complete */
         os_execute_cleanup(envp, child_argv);

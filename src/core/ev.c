@@ -955,7 +955,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
     if (!(stream->flags & JANET_STREAM_IOCP)) {
         if (NULL == CreateIoCompletionPort(stream->handle, janet_vm_iocp, (ULONG_PTR) stream, 0)) {
-            janet_panic("failed to listen for events");
+            janet_panicf("failed to listen for events: %V", janet_ev_lasterr());
         }
         stream->flags |= JANET_STREAM_IOCP;
     }
@@ -1587,7 +1587,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_READ: {
             JanetBuffer *buffer = state->buf;
             int32_t bytes_left = state->bytes_left;
-            int32_t read_limit = bytes_left < 0 ? 4096 : bytes_left;
+            int32_t read_limit = bytes_left > 4096 ? 4096 : bytes_left;
             janet_buffer_extra(buffer, read_limit);
             ssize_t nread;
 #ifdef JANET_NET
@@ -1923,6 +1923,10 @@ int janet_make_pipe(JanetHandle handles[2]) {
      */
     JanetHandle rhandle, whandle;
     UCHAR PipeNameBuffer[MAX_PATH];
+    SECURITY_ATTRIBUTES saAttr;
+    memset(&saAttr, 0, sizeof(saAttr));
+    saAttr.nLength = sizeof(saAttr);
+    saAttr.bInheritHandle = TRUE;
     sprintf(PipeNameBuffer,
             "\\\\.\\Pipe\\JanetPipeFile.%08x.%08x",
             GetCurrentProcessId(),
@@ -1931,17 +1935,17 @@ int janet_make_pipe(JanetHandle handles[2]) {
                   PipeNameBuffer,
                   PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
                   PIPE_TYPE_BYTE | PIPE_NOWAIT,
-                  1,             /* Number of pipes */
+                  255,           /* Max number of pipes for duplication. */
                   4096,          /* Out buffer size */
                   4096,          /* In buffer size */
                   120 * 1000,    /* Timeout in ms */
-                  NULL);
+                  &saAttr);
     if (!rhandle) return -1;
     whandle = CreateFileA(
                   PipeNameBuffer,
                   GENERIC_WRITE,
                   0,
-                  NULL,
+                  &saAttr,
                   OPEN_EXISTING,
                   FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
                   NULL);
@@ -2058,7 +2062,7 @@ Janet janet_cfun_stream_read(int32_t argc, Janet *argv) {
     double to = janet_optnumber(argv, argc, 3, INFINITY);
     if (janet_keyeq(argv[1], "all")) {
         if (to != INFINITY) janet_addtimeout(to);
-        janet_ev_readchunk(stream, buffer, -1);
+        janet_ev_readchunk(stream, buffer, INT32_MAX);
     } else {
         int32_t n = janet_getnat(argv, 1);
         if (to != INFINITY) janet_addtimeout(to);
