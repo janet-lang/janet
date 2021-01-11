@@ -83,4 +83,9 @@
 
 (assert-error "bad arity to ev/call" (ev/call inc 1 2 3))
 
+# Subprocess
+(let [p (os/spawn [(dyn :executable) "-e" `(print "hello")`] :p {:out :pipe})]
+  (assert (deep= @"hello\n" (:read (p :out) :all)) "capture stdout from os/spawn")
+  (os/proc-wait p))
+
 (end-suite)

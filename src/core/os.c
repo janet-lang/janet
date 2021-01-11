@@ -1,4 +1,5 @@
 /*
+ *
 * Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -590,7 +591,7 @@ static const JanetAbstractType ProcAT = {
 
 static JanetHandle janet_getjstream(Janet *argv, int32_t n, void **orig) {
 #ifdef JANET_EV
-    JanetStream *stream = janet_checkabstract(argv[0], &janet_stream_type);
+    JanetStream *stream = janet_checkabstract(argv[n], &janet_stream_type);
     if (stream != NULL) {
         if (stream->flags & JANET_STREAM_CLOSED)
             janet_panic("stream is closed");
@@ -598,7 +599,7 @@ static JanetHandle janet_getjstream(Janet *argv, int32_t n, void **orig) {
         return stream->handle;
     }
 #endif
-    JanetFile *f = janet_checkabstract(argv[0], &janet_file_type);
+    JanetFile *f = janet_checkabstract(argv[n], &janet_file_type);
     if (f != NULL) {
         if (f->flags & JANET_FILE_CLOSED) {
             janet_panic("file is closed");
@@ -670,6 +671,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     uint64_t flags = 0;
     if (argc > 1) {
         flags = janet_getflags(argv, 1, "epx");
+
     }
 
     /* Get environment */
@@ -704,7 +706,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
         } else if (!janet_checktype(maybe_stdout, JANET_NIL)) {
             new_out = janet_getjstream(&maybe_stdout, 0, &orig_out);
         }
-        if (janet_keyeq(maybe_stderr, "err")) {
+        if (janet_keyeq(maybe_stderr, "pipe")) {
             new_err = make_pipes(&pipe_err, 0, &pipe_errflag);
         } else if (!janet_checktype(maybe_stderr, JANET_NIL)) {
             new_err = janet_getjstream(&maybe_stderr, 0, &orig_err);
@@ -800,15 +802,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     pHandle = processInfo.hProcess;
     tHandle = processInfo.hThread;
 
-    /* Wait and cleanup immedaitely */
-    if (!is_spawn) {
-        DWORD code;
-        WaitForSingleObject(pHandle, INFINITE);
-        GetExitCodeProcess(pHandle, &code);
-        status = (int) code;
-        CloseHandle(pHandle);
-        CloseHandle(tHandle);
-    }
 #else
 
     const char **child_argv = janet_smalloc(sizeof(char *) * ((size_t) exargs.len + 1));
@@ -890,15 +883,15 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     proc->out = NULL;
     proc->err = NULL;
     if (new_in != JANET_HANDLE_NONE) {
-        proc->in = get_stdio_for_handle(new_in, orig_in, 0);
+        proc->in = get_stdio_for_handle(new_in, orig_in, 1);
         if (NULL == proc->in) janet_panic("failed to construct proc");
     }
     if (new_out != JANET_HANDLE_NONE) {
-        proc->out = get_stdio_for_handle(new_out, orig_out, 1);
+        proc->out = get_stdio_for_handle(new_out, orig_out, 0);
         if (NULL == proc->out) janet_panic("failed to construct proc");
     }
     if (new_err != JANET_HANDLE_NONE) {
-        proc->err = get_stdio_for_handle(new_err, orig_err, 1);
+        proc->err = get_stdio_for_handle(new_err, orig_err, 0);
         if (NULL == proc->err) janet_panic("failed to construct proc");
     }
     proc->flags = 0;
