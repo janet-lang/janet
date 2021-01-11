@@ -36,12 +36,6 @@
 (def s (net/server "127.0.0.1" "8000" handler))
 (assert s "made server 1")
 
-# We need some sleep for windows to let the server stabilize
-# or else the first read can fail. Might be a strange windows
-# "bug", but needs further investigating. Otherwise, `build_win test`
-# can sometimes fail on windows, leading to flaky testing.
-(ev/sleep 0.3)
-
 (defn test-echo [msg]
   (with [conn (net/connect "127.0.0.1" "8000")]
     (:write conn msg)
@@ -59,7 +53,6 @@
 (var pipe-counter 0)
 (def chan (ev/chan 10))
 (let [[reader writer] (os/pipe)]
-  (ev/sleep 0.3)
   (ev/spawn
     (while (ev/read reader 3)
       (++ pipe-counter))
@@ -73,13 +66,13 @@
   (ev/take chan))
 
 (var result nil)
-(def fiber
+(var fiber nil)
+(set fiber
   (ev/spawn 
-    (set result (protect (ev/sleep 0.4)))
+    (set result (protect (ev/sleep 10)))
     (assert (= result '(false "boop")) "ev/cancel 1")))
-(ev/sleep 0.1)
+(ev/sleep 0)
 (ev/cancel fiber "boop")
-(ev/sleep 0.1)
 
 (assert-error "bad arity to ev/call" (ev/call inc 1 2 3))
 
