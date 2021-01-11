@@ -112,7 +112,7 @@
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
-(defn empty? "Check if xs is empty." [xs] (= (length xs) 0))
+(defn empty? "Check if xs is empty." [xs] (= nil (next xs nil)))
 
 # For macros, we define an imcomplete odd? function that will be overriden.
 (defn odd? [x] (= 1 (mod x 2)))
@@ -849,7 +849,7 @@
   Returns a new array.`
   [f init ind]
   (var res init)
-  (def ret (array/new (length ind)))
+  (def ret @[])
   (each x ind (array/push ret (set res (f res x))))
   ret)
 
@@ -859,7 +859,7 @@
   return value will be (length ind).`
   [f ind]
   (var k (next ind))
-  (def ret (array/new (length ind)))
+  (def ret @[])
   (if (= nil k) (break ret))
   (var res (in ind k))
   (array/push ret res)
@@ -1177,8 +1177,7 @@
   (reduce fop x forms))
 
 (defn- walk-ind [f form]
-  (def len (length form))
-  (def ret (array/new len))
+  (def ret @[])
   (each x form (array/push ret (f x)))
   ret)
 
@@ -1431,7 +1430,7 @@
 (defn keys
   "Get the keys of an associative data structure."
   [x]
-  (def arr (array/new (length x)))
+  (def arr @[])
   (var k (next x nil))
   (while (not= nil k)
     (array/push arr k)
@@ -1441,7 +1440,7 @@
 (defn values
   "Get the values of an associative data structure."
   [x]
-  (def arr (array/new (length x)))
+  (def arr @[])
   (var k (next x nil))
   (while (not= nil k)
     (array/push arr (in x k))
@@ -1451,7 +1450,7 @@
 (defn pairs
   "Get the key-value pairs of an associative data structure."
   [x]
-  (def arr (array/new (length x)))
+  (def arr @[])
   (var k (next x nil))
   (while (not= nil k)
     (array/push arr (tuple k (in x k)))
@@ -1507,7 +1506,7 @@
   `Takes a table or struct and returns and array of key value pairs
   like @[k v k v ...]. Returns a new array.`
   [dict]
-  (def ret (array/new (* 2 (length dict))))
+  (def ret @[])
   (loop [k :keys dict] (array/push ret k (in dict k)))
   ret)
 
