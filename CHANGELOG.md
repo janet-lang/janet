@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `doc-of` for reverse documentation lookup.
 - Add `ev/gather` and `chan` argument to `ev/go`. This new argument allows "supervisor channels"
   for fibers to enable structured concurrency.
 - Make `-k` flag work on stdin if no files are given.

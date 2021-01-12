@@ -2018,6 +2018,29 @@
   (print (doc-format (string "Dynamics:\n\n" (string/join dynamics " "))))
   (print "\n    Use (doc sym) for more information on a binding.\n"))
 
+(defn- print-module-entry
+  [x]
+  (def bind-type
+    (string "    "
+            (cond
+              (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
+              (x :macro) :macro
+              (type (x :value)))
+            "\n"))
+  (def sm (x :source-map))
+  (def d (x :doc))
+  (print "\n\n"
+         (if d bind-type "")
+         (if-let [[path line col] sm]
+           (string "    " path " on line " line ", column " col "\n") "")
+         (if (or d sm) "\n" "")
+         (if d (doc-format d) "    no documentation found.")
+         "\n\n"))
+
+(def module/cache
+  "Table mapping loaded module identifiers to their environments."
+  @{})
+
 (defn doc*
   "Get the documentation for a symbol in a given environment. Function form of doc."
   [&opt sym]
@@ -2031,23 +2054,7 @@
       (def x (dyn sym))
       (if (not x)
         (print "symbol " sym " not found.")
-        (do
-          (def bind-type
-            (string "    "
-                    (cond
-                      (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
-                      (x :macro) :macro
-                      (type (x :value)))
-                    "\n"))
-          (def sm (x :source-map))
-          (def d (x :doc))
-          (print "\n\n"
-                 (if d bind-type "")
-                 (if-let [[path line col] sm]
-                   (string "    " path " on line " line ", column " col "\n") "")
-                 (if (or d sm) "\n" "")
-                 (if d (doc-format d) "    no documentation found.")
-                 "\n\n"))))
+        (print-module-entry x)))
 
     # else
     (print-index identity)))
@@ -2060,8 +2067,25 @@
   [&opt sym]
   ~(,doc* ',sym))
 
+(defn doc-of
+  `Searches all loaded modules in module/cache for a given binding and prints out its documentation.
+  This does a search by value instead of by name. Returns nil.`
+  [x]
+  (var found false)
+  (loop [module-set :in [[root-env] module/cache]
+         module :in module-set
+         value :in module]
+    (let [check (or (get value :ref) (get value :value))]
+      (when (= check x)
+        (print-module-entry value)
+        (set found true)
+        (break))))
+  (if-not found
+    (print "documentation for value " x " not found.")))
+
 (undef env-walk)
 (undef print-index)
+(undef print-module-entry)
 
 ###
 ###
@@ -2643,10 +2667,6 @@
 
 (setdyn :syspath (boot/opts "JANET_PATH"))
 (setdyn :headerpath (boot/opts "JANET_HEADERPATH"))
-
-(def module/cache
-  "Table mapping loaded module identifiers to their environments."
-  @{})
 
 (defn module/add-paths
   ```
