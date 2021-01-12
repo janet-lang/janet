@@ -529,7 +529,7 @@ static Janet cfun_stream_read(int32_t argc, Janet *argv) {
     double to = janet_optnumber(argv, argc, 3, INFINITY);
     if (janet_keyeq(argv[1], "all")) {
         if (to != INFINITY) janet_addtimeout(to);
-        janet_ev_recvchunk(stream, buffer, -1, MSG_NOSIGNAL);
+        janet_ev_recvchunk(stream, buffer, INT32_MAX, MSG_NOSIGNAL);
     } else {
         int32_t n = janet_getnat(argv, 1);
         if (to != INFINITY) janet_addtimeout(to);

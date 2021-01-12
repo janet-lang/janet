@@ -21,25 +21,63 @@
 (import ./helper :prefix "" :exit true)
 (start-suite 9)
 
+# Subprocess
+
+(def janet (dyn :executable))
+
 (repeat 10
-  # Subprocess
-  (let [p (os/spawn [(dyn :executable) "-e" `(print "hello")`] :p {:out :pipe})]
+  (let [p (os/spawn [janet "-e" `(print "hello")`] :p {:out :pipe})]
     (os/proc-wait p)
     (def x (:read (p :out) 1024))
     (assert (deep= "hello" (string/trim x)) "capture stdout from os/spawn pre close."))
 
-  (let [p (os/spawn [(dyn :executable) "-e" `(print "hello")`] :p {:out :pipe})]
+  (let [p (os/spawn [janet "-e" `(print "hello")`] :p {:out :pipe})]
     (def x (:read (p :out) 1024))
     (os/proc-wait p)
     (assert (deep= "hello" (string/trim x)) "capture stdout from os/spawn post close."))
 
-  (let [p (os/spawn [(dyn :executable) "-e" `(file/read stdin :line)`] :px {:in :pipe})]
+  (let [p (os/spawn [janet "-e" `(file/read stdin :line)`] :px {:in :pipe})]
     (:write (p :in) "hello!")
     (assert-no-error "pipe stdin to process" (os/proc-wait p))))
 
+# Parallel subprocesses
+
+(defn calc-1
+  "Run subprocess, read from stdout, then wait on subprocess."
+  [code]
+  (let [p (os/spawn [janet "-e" (string `(printf "%j" ` code `)`)] :px {:out :pipe})]
+    (os/proc-wait p)
+    (def output (:read (p :out) :all))
+    (parse output)))
+
+(assert
+  (deep=
+    (ev/gather
+      (calc-1 "(+ 1 2 3 4)")
+      (calc-1 "(+ 5 6 7 8)")
+      (calc-1 "(+ 9 10 11 12)"))
+    @[10 26 42]) "parallel subprocesses 1")
+
+(defn calc-2
+  "Run subprocess, wait on subprocess, then read from stdout. Read only up to 10 bytes instead of :all"
+  [code]
+  (let [p (os/spawn [janet "-e" (string `(printf "%j" ` code `)`)] :px {:out :pipe})]
+    (def output (:read (p :out) 10))
+    (os/proc-wait p)
+    (parse output)))
+
+(assert
+  (deep=
+    (ev/gather
+      (calc-2 "(+ 1 2 3 4)")
+      (calc-2 "(+ 5 6 7 8)")
+      (calc-2 "(+ 9 10 11 12)"))
+    @[10 26 42]) "parallel subprocesses 2")
+
+
 # Net testing
 
-(repeat 30
+(repeat 10
 
   (defn handler
     "Simple handler for connections."
@@ -86,7 +124,7 @@
 (var result nil)
 (var fiber nil)
 (set fiber
-  (ev/spawn 
+  (ev/spawn
     (set result (protect (ev/sleep 10)))
     (assert (= result '(false "boop")) "ev/cancel 1")))
 (ev/sleep 0)
