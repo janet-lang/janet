@@ -418,13 +418,21 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
 }
 
 static int janet_thread_getter(void *p, Janet key, Janet *out);
+static Janet janet_thread_next(void *p, Janet key);
 
 const JanetAbstractType janet_thread_type = {
     "core/thread",
     thread_gc,
     thread_mark,
     janet_thread_getter,
-    JANET_ATEND_GET
+    NULL, /* put */
+    NULL, /* marshal */
+    NULL, /* unmarshal */
+    NULL, /* tostring */
+    NULL, /* compare */
+    NULL, /* hash */
+    janet_thread_next,
+    JANET_ATEND_NEXT
 };
 
 static JanetThread *janet_make_thread(JanetMailbox *mailbox, JanetTable *encode) {
@@ -706,6 +714,11 @@ static int janet_thread_getter(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD)) return 0;
     return janet_getmethod(janet_unwrap_keyword(key), janet_thread_methods, out);
+}
+
+static Janet janet_thread_next(void *p, Janet key) {
+    (void) p;
+    return janet_nextmethod(janet_thread_methods, key);
 }
 
 static const JanetReg threadlib_cfuns[] = {

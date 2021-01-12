@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose & contributors
+* Copyright (c) 2021 Calvin Rose & contributors
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -39,6 +39,8 @@
 
 static int it_s64_get(void *p, Janet key, Janet *out);
 static int it_u64_get(void *p, Janet key, Janet *out);
+static Janet janet_int64_next(void *p, Janet key);
+static Janet janet_uint64_next(void *p, Janet key);
 
 static int32_t janet_int64_hash(void *p1, size_t size) {
     (void) size;
@@ -92,7 +94,8 @@ const JanetAbstractType janet_s64_type = {
     it_s64_tostring,
     janet_int64_compare,
     janet_int64_hash,
-    JANET_ATEND_HASH
+    janet_int64_next,
+    JANET_ATEND_NEXT
 };
 
 const JanetAbstractType janet_u64_type = {
@@ -106,7 +109,8 @@ const JanetAbstractType janet_u64_type = {
     it_u64_tostring,
     janet_uint64_compare,
     janet_int64_hash,
-    JANET_ATEND_HASH
+    janet_uint64_next,
+    JANET_ATEND_NEXT
 };
 
 int64_t janet_unwrap_s64(Janet x) {
@@ -476,6 +480,16 @@ static JanetMethod it_u64_methods[] = {
 
     {NULL, NULL}
 };
+
+static Janet janet_int64_next(void *p, Janet key) {
+    (void) p;
+    return janet_nextmethod(it_s64_methods, key);
+}
+
+static Janet janet_uint64_next(void *p, Janet key) {
+    (void) p;
+    return janet_nextmethod(it_u64_methods, key);
+}
 
 static int it_s64_get(void *p, Janet key, Janet *out) {
     (void) p;

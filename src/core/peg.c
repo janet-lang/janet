@@ -1446,16 +1446,21 @@ bad:
 }
 
 static int cfun_peg_getter(JanetAbstract a, Janet key, Janet *out);
+static Janet peg_next(void *p, Janet key);
 
 const JanetAbstractType janet_peg_type = {
     "core/peg",
     NULL,
     peg_mark,
     cfun_peg_getter,
-    NULL,
+    NULL, /* put */
     peg_marshal,
     peg_unmarshal,
-    JANET_ATEND_UNMARSHAL
+    NULL, /* tostring */
+    NULL, /* compare */
+    NULL, /* hash */
+    peg_next,
+    JANET_ATEND_NEXT
 };
 
 /* Convert Builder to JanetPeg (Janet Abstract Value) */
@@ -1639,6 +1644,11 @@ static int cfun_peg_getter(JanetAbstract a, Janet key, Janet *out) {
     if (!janet_checktype(key, JANET_KEYWORD))
         return 0;
     return janet_getmethod(janet_unwrap_keyword(key), peg_methods, out);
+}
+
+static Janet peg_next(void *p, Janet key) {
+    (void) p;
+    return janet_nextmethod(peg_methods, key);
 }
 
 static const JanetReg peg_cfuns[] = {

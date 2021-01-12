@@ -1702,6 +1702,7 @@ JANET_API void janet_arity(int32_t arity, int32_t min, int32_t max);
 JANET_API void janet_fixarity(int32_t arity, int32_t fix);
 
 JANET_API int janet_getmethod(JanetKeyword method, const JanetMethod *methods, Janet *out);
+JANET_API Janet janet_nextmethod(const JanetMethod *methods, Janet key);
 
 JANET_API double janet_getnumber(const Janet *argv, int32_t n);
 JANET_API JanetArray *janet_getarray(const Janet *argv, int32_t n);

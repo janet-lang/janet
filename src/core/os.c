@@ -571,6 +571,10 @@ error:
 static const JanetMethod proc_methods[] = {
     {"wait", os_proc_wait},
     {"kill", os_proc_kill},
+    /* dud methods for janet_proc_next */
+    {"in", NULL},
+    {"out", NULL},
+    {"err", NULL},
     {NULL, NULL}
 };
 
@@ -596,12 +600,24 @@ static int janet_proc_get(void *p, Janet key, Janet *out) {
     return janet_getmethod(janet_unwrap_keyword(key), proc_methods, out);
 }
 
+static Janet janet_proc_next(void *p, Janet key) {
+    (void) p;
+    return janet_nextmethod(proc_methods, key);
+}
+
 static const JanetAbstractType ProcAT = {
     "core/process",
     janet_proc_gc,
     janet_proc_mark,
     janet_proc_get,
-    JANET_ATEND_GET
+    NULL, /* put */
+    NULL, /* marshal */
+    NULL, /* unmarshal */
+    NULL, /* tostring */
+    NULL, /* compare */
+    NULL, /* hash */
+    janet_proc_next,
+    JANET_ATEND_NEXT
 };
 
 static JanetHandle janet_getjstream(Janet *argv, int32_t n, void **orig) {

@@ -378,7 +378,6 @@ static int janet_stream_getter(void *p, Janet key, Janet *out) {
     if (!janet_checktype(key, JANET_KEYWORD)) return 0;
     const JanetMethod *stream_methods = stream->methods;
     return janet_getmethod(janet_unwrap_keyword(key), stream_methods, out);
-    return 0;
 }
 
 static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
@@ -421,6 +420,10 @@ static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
     return p;
 }
 
+static Janet janet_stream_next(void *p, Janet key) {
+    JanetStream *stream = (JanetStream *)p;
+    return janet_nextmethod(stream->methods, key);
+}
 
 const JanetAbstractType janet_stream_type = {
     "core/stream",
@@ -430,7 +433,11 @@ const JanetAbstractType janet_stream_type = {
     NULL,
     janet_stream_marshal,
     janet_stream_unmarshal,
-    JANET_ATEND_UNMARSHAL
+    NULL,
+    NULL,
+    NULL,
+    janet_stream_next,
+    JANET_ATEND_NEXT
 };
 
 /* Register a fiber to resume with value */
@@ -587,16 +594,24 @@ static void janet_chan_deinit(JanetChannel *chan) {
  * Janet Channel abstract type
  */
 
-/*static int janet_chanat_get(void *p, Janet key, Janet *out);*/
 static int janet_chanat_mark(void *p, size_t s);
 static int janet_chanat_gc(void *p, size_t s);
+static Janet janet_chanat_next(void *p, Janet key);
+static int janet_chanat_get(void *p, Janet key, Janet *out);
 
 static const JanetAbstractType ChannelAT = {
     "core/channel",
     janet_chanat_gc,
     janet_chanat_mark,
-    NULL, /* janet_chanat_get */
-    JANET_ATEND_GET
+    janet_chanat_get,
+    NULL, /* put */
+    NULL, /* marshal */
+    NULL, /* unmarshal */
+    NULL, /* tostring */
+    NULL, /* compare */
+    NULL, /* hash */
+    janet_chanat_next,
+    JANET_ATEND_NEXT
 };
 
 static int janet_chanat_gc(void *p, size_t s) {
@@ -814,6 +829,28 @@ static Janet cfun_channel_new(int32_t argc, Janet *argv) {
     JanetChannel *channel = janet_abstract(&ChannelAT, sizeof(JanetChannel));
     janet_chan_init(channel, limit);
     return janet_wrap_abstract(channel);
+}
+
+static const JanetMethod ev_chanat_methods[] = {
+    {"select", cfun_channel_choice},
+    {"rselect", cfun_channel_rchoice},
+    {"count", cfun_channel_count},
+    {"take", cfun_channel_pop},
+    {"give", cfun_channel_push},
+    {"capacity", cfun_channel_capacity},
+    {"full", cfun_channel_full},
+    {NULL, NULL}
+};
+
+static int janet_chanat_get(void *p, Janet key, Janet *out) {
+    (void) p;
+    if (!janet_checktype(key, JANET_KEYWORD)) return 0;
+    return janet_getmethod(janet_unwrap_keyword(key), ev_chanat_methods, out);
+}
+
+static Janet janet_chanat_next(void *p, Janet key) {
+    (void) p;
+    return janet_nextmethod(ev_chanat_methods, key);
 }
 
 /* Main event loop */
@@ -1256,9 +1293,9 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         if (mask & POLLIN)
             status2 = state->machine(state, JANET_ASYNC_EVENT_READ);
         if (mask & POLLERR)
-            status2 = state->machine(state, JANET_ASYNC_EVENT_ERR);
+            status3 = state->machine(state, JANET_ASYNC_EVENT_ERR);
         if (mask & POLLHUP)
-            status2 = state->machine(state, JANET_ASYNC_EVENT_HUP);
+            status4 = state->machine(state, JANET_ASYNC_EVENT_HUP);
         if (status1 == JANET_ASYNC_STATUS_DONE ||
                 status2 == JANET_ASYNC_STATUS_DONE ||
                 status3 == JANET_ASYNC_STATUS_DONE ||

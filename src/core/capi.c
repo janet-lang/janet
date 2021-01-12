@@ -147,6 +147,23 @@ int janet_getmethod(const uint8_t *method, const JanetMethod *methods, Janet *ou
     return 0;
 }
 
+Janet janet_nextmethod(const JanetMethod *methods, Janet key) {
+    if (!janet_checktype(key, JANET_NIL)) {
+        while (methods->name) {
+            if (janet_keyeq(key, methods->name)) {
+                methods++;
+                break;
+            }
+            methods++;
+        }
+    }
+    if (methods->name) {
+        return janet_ckeywordv(methods->name);
+    } else {
+        return janet_wrap_nil();
+    }
+}
+
 DEFINE_GETTER(number, NUMBER, double)
 DEFINE_GETTER(array, ARRAY, JanetArray *)
 DEFINE_GETTER(tuple, TUPLE, const Janet *)

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -840,13 +840,21 @@ static int parsergc(void *p, size_t size) {
 }
 
 static int parserget(void *p, Janet key, Janet *out);
+static Janet parsernext(void *p, Janet key);
 
 const JanetAbstractType janet_parser_type = {
     "core/parser",
     parsergc,
     parsermark,
     parserget,
-    JANET_ATEND_GET
+    NULL, /* put */
+    NULL, /* marshal */
+    NULL, /* unmarshal */
+    NULL, /* tostring */
+    NULL, /* compare */
+    NULL, /* hash */
+    parsernext,
+    JANET_ATEND_NEXT
 };
 
 /* C Function parser */
@@ -1181,6 +1189,11 @@ static int parserget(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD)) return 0;
     return janet_getmethod(janet_unwrap_keyword(key), parser_methods, out);
+}
+
+static Janet parsernext(void *p, Janet key) {
+    (void) p;
+    return janet_nextmethod(parser_methods, key);
 }
 
 static const JanetReg parse_cfuns[] = {

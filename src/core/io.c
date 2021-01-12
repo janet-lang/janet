@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -39,6 +39,7 @@ static int cfun_io_gc(void *p, size_t len);
 static int io_file_get(void *p, Janet key, Janet *out);
 static void io_file_marshal(void *p, JanetMarshalContext *ctx);
 static void *io_file_unmarshal(JanetMarshalContext *ctx);
+static Janet io_file_next(void *p, Janet key);
 
 const JanetAbstractType janet_file_type = {
     "core/file",
@@ -48,7 +49,11 @@ const JanetAbstractType janet_file_type = {
     NULL,
     io_file_marshal,
     io_file_unmarshal,
-    JANET_ATEND_UNMARSHAL
+    NULL, /* tostring */
+    NULL, /* compare */
+    NULL, /* hash */
+    io_file_next,
+    JANET_ATEND_NEXT
 };
 
 /* Check arguments to fopen */
@@ -344,6 +349,11 @@ static int io_file_get(void *p, Janet key, Janet *out) {
     if (!janet_checktype(key, JANET_KEYWORD))
         return 0;
     return janet_getmethod(janet_unwrap_keyword(key), io_file_methods, out);
+}
+
+static Janet io_file_next(void *p, Janet key) {
+    (void) p;
+    return janet_nextmethod(io_file_methods, key);
 }
 
 static void io_file_marshal(void *p, JanetMarshalContext *ctx) {

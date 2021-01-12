@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -31,6 +31,7 @@
 static JANET_THREAD_LOCAL JanetRNG janet_vm_rng = {0, 0, 0, 0, 0};
 
 static int janet_rng_get(void *p, Janet key, Janet *out);
+static Janet janet_rng_next(void *p, Janet key);
 
 static void janet_rng_marshal(void *p, JanetMarshalContext *ctx) {
     JanetRNG *rng = (JanetRNG *)p;
@@ -60,7 +61,11 @@ const JanetAbstractType janet_rng_type = {
     NULL,
     janet_rng_marshal,
     janet_rng_unmarshal,
-    JANET_ATEND_UNMARSHAL
+    NULL, /* tostring */
+    NULL, /* compare */
+    NULL, /* hash */
+    janet_rng_next,
+    JANET_ATEND_NEXT
 };
 
 JanetRNG *janet_default_rng(void) {
@@ -201,6 +206,11 @@ static int janet_rng_get(void *p, Janet key, Janet *out) {
     (void) p;
     if (!janet_checktype(key, JANET_KEYWORD)) return 0;
     return janet_getmethod(janet_unwrap_keyword(key), rng_methods, out);
+}
+
+static Janet janet_rng_next(void *p, Janet key) {
+    (void) p;
+    return janet_nextmethod(rng_methods, key);
 }
 
 /* Get a random number */
