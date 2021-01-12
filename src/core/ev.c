@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2021 Calvin Rose
+* Copyright (c) 2021 Calvin Rose and contributors.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -910,7 +910,7 @@ typedef struct {
 static JANET_THREAD_LOCAL JanetHandle janet_vm_selfpipe[2];
 
 static void janet_ev_setup_selfpipe(void) {
-    if (janet_make_pipe(janet_vm_selfpipe)) {
+    if (janet_make_pipe(janet_vm_selfpipe, 0)) {
         JANET_EXIT("failed to initialize self pipe in event loop");
     }
 }
@@ -1545,16 +1545,11 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             memset(&(state->overlapped), 0, sizeof(OVERLAPPED));
             int status;
 #ifdef JANET_NET
-            if (state->mode != JANET_ASYNC_READMODE_READ) {
+            if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
                 state->wbuf.len = (ULONG) chunk_size;
                 state->wbuf.buf = state->chunk_buf;
-                if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
-                    status = WSARecvFrom((SOCKET) s->stream->handle, &state->wbuf, 1,
-                                         NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped, NULL);
-                } else {
-                    status = WSARecv((SOCKET) s->stream->handle, &state->wbuf, 1,
-                                     NULL, &state->flags, &state->overlapped, NULL);
-                }
+                status = WSARecvFrom((SOCKET) s->stream->handle, &state->wbuf, 1,
+                                     NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped, NULL);
                 if (status && (WSA_IO_PENDING != WSAGetLastError())) {
                     janet_cancel(s->fiber, janet_ev_lasterr());
                     return JANET_ASYNC_STATUS_DONE;
@@ -1772,17 +1767,13 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
 
             int status;
 #ifdef JANET_NET
-            if (state->mode != JANET_ASYNC_WRITEMODE_WRITE) {
+            if (state->mode == JANET_ASYNC_WRITEMODE_SENDTO) {
                 SOCKET sock = (SOCKET) s->stream->handle;
                 state->wbuf.buf = (char *) bytes;
                 state->wbuf.len = len;
-                if (state->mode == JANET_ASYNC_WRITEMODE_SENDTO) {
-                    const struct sockaddr *to = state->dest_abst;
-                    int tolen = (int) janet_abstract_size((void *) to);
-                    status = WSASendTo(sock, &state->wbuf, 1, NULL, state->flags, to, tolen, &state->overlapped, NULL);
-                } else {
-                    status = WSASend(sock, &state->wbuf, 1, NULL, state->flags, &state->overlapped, NULL);
-                }
+                const struct sockaddr *to = state->dest_abst;
+                int tolen = (int) janet_abstract_size((void *) to);
+                status = WSASendTo(sock, &state->wbuf, 1, NULL, state->flags, to, tolen, &state->overlapped, NULL);
                 if (status && (WSA_IO_PENDING != WSAGetLastError())) {
                     janet_cancel(s->fiber, janet_ev_lasterr());
                     return JANET_ASYNC_STATUS_DONE;
@@ -1915,7 +1906,7 @@ void janet_ev_sendto_string(JanetStream *stream, JanetString str, void *dest, in
 static volatile long PipeSerialNumber;
 #endif
 
-int janet_make_pipe(JanetHandle handles[2]) {
+int janet_make_pipe(JanetHandle handles[2], int keep_write_side) {
 #ifdef JANET_WINDOWS
     /*
      * On windows, the built in CreatePipe function doesn't support overlapped IO
@@ -1934,8 +1925,8 @@ int janet_make_pipe(JanetHandle handles[2]) {
     rhandle = CreateNamedPipeA(
                   PipeNameBuffer,
                   PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
-                  PIPE_TYPE_BYTE | PIPE_NOWAIT,
-                  255,           /* Max number of pipes for duplication. */
+                  PIPE_TYPE_BYTE | (keep_write_side ? PIPE_NOWAIT : PIPE_WAIT), /* why does this work? */
+                  1,           /* Max number of pipes for duplication. */
                   4096,          /* Out buffer size */
                   4096,          /* In buffer size */
                   120 * 1000,    /* Timeout in ms */
@@ -1957,6 +1948,7 @@ int janet_make_pipe(JanetHandle handles[2]) {
     handles[1] = whandle;
     return 0;
 #else
+    (void) keep_write_side;
     if (pipe(handles)) return -1;
     if (fcntl(handles[0], F_SETFL, O_NONBLOCK)) goto error;
     if (fcntl(handles[1], F_SETFL, O_NONBLOCK)) goto error;

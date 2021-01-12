@@ -1,6 +1,5 @@
 /*
- *
-* Copyright (c) 2021 Calvin Rose
+* Copyright (c) 2021 Calvin Rose and contributors.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -534,7 +533,7 @@ static JanetHandle make_pipes(JanetHandle *handle, int reverse, int *errflag) {
 #ifdef JANET_EV
 
     /* non-blocking pipes */
-    if (janet_make_pipe(handles)) goto error;
+    if (janet_make_pipe(handles, reverse)) goto error;
     if (reverse) swap_handles(handles);
 #ifdef JANET_WINDOWS
     if (!SetHandleInformation(handles[0], HANDLE_FLAG_INHERIT, 0)) goto error;
@@ -1850,7 +1849,7 @@ static Janet os_pipe(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
     JanetHandle fds[2];
-    if (janet_make_pipe(fds)) janet_panicv(janet_ev_lasterr());
+    if (janet_make_pipe(fds, 0)) janet_panicv(janet_ev_lasterr());
     JanetStream *reader = janet_stream(fds[0], JANET_STREAM_READABLE, NULL);
     JanetStream *writer = janet_stream(fds[1], JANET_STREAM_WRITABLE, NULL);
     Janet tup[2] = {janet_wrap_abstract(reader), janet_wrap_abstract(writer)};

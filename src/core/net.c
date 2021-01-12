@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose and contributors.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -390,12 +390,17 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     }
 
     /* Connect to socket */
+#ifdef JANET_WINDOWS
+    int status = WSAConnect(sock, addr, addrlen, NULL, NULL, NULL, NULL);
+    freeaddrinfo(ai);
+#else
     int status = connect(sock, addr, addrlen);
     if (is_unix) {
         free(ai);
     } else {
         freeaddrinfo(ai);
     }
+#endif
 
     if (status == -1) {
         JSOCKCLOSE(sock);
