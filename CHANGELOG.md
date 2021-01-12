@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
   the project root. This is backwards incompatible and dependencies should be updated for this.
 - Change hash function for numbers.
 - Improve error handling of `dofile`.
+- Bug fixes in networking code and improvements in doc strings.
 
 ## 1.13.1 - 2020-12-13
 - Pretty printing a table with a prototype will look for `:_name` instead of `:name`

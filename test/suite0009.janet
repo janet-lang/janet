@@ -74,7 +74,6 @@
       (calc-2 "(+ 9 10 11 12)"))
     @[10 26 42]) "parallel subprocesses 2")
 
-
 # Net testing
 
 (repeat 10
@@ -132,6 +131,6 @@
 
 (assert-error "bad arity to ev/call" (ev/call inc 1 2 3))
 
-(assert (os/execute [(dyn :executable) "-e" `(+ 1 2 3)`] :xp) "os/execute self")
+(assert (os/execute [janet "-e" `(+ 1 2 3)`] :xp) "os/execute self")
 
 (end-suite)
