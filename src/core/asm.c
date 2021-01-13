@@ -992,18 +992,18 @@ static const JanetReg asm_cfuns[] = {
              "func must be a function, not a c function. Will throw on error on a badly\n"
              "typed argument. If given a field name, will only return that part of the function assembly.\n"
              "Possible fields are:\n\n"
-             "\t:arity - number of required and optional arguments.\n"
-             "\t:min-arity - minimum number of arguments function can be called with.\n"
-             "\t:max-arity - maximum number of arguments function can be called with.\n"
-             "\t:vararg - true if function can take a variable number of arguments.\n"
-             "\t:bytecode - array of parsed bytecode instructions. Each instruction is a tuple.\n"
-             "\t:source - name of source file that this function was compiled from.\n"
-             "\t:name - name of function.\n"
-             "\t:slotcount - how many virtual registers, or slots, this function uses. Corresponds to stack space used by function.\n"
-             "\t:constants - an array of constants referenced by this function.\n"
-             "\t:sourcemap - a mapping of each bytecode instruction to a line and column in the source file.\n"
-             "\t:environments - an internal mapping of which enclosing functions are referenced for bindings.\n"
-             "\t:defs - other function definitions that this function may instantiate.\n")
+             "* :arity - number of required and optional arguments.\n\n"
+             "* :min-arity - minimum number of arguments function can be called with.\n\n"
+             "* :max-arity - maximum number of arguments function can be called with.\n\n"
+             "* :vararg - true if function can take a variable number of arguments.\n\n"
+             "* :bytecode - array of parsed bytecode instructions. Each instruction is a tuple.\n\n"
+             "* :source - name of source file that this function was compiled from.\n\n"
+             "* :name - name of function.\n\n"
+             "* :slotcount - how many virtual registers, or slots, this function uses. Corresponds to stack space used by function.\n\n"
+             "* :constants - an array of constants referenced by this function.\n\n"
+             "* :sourcemap - a mapping of each bytecode instruction to a line and column in the source file.\n\n"
+             "* :environments - an internal mapping of which enclosing functions are referenced for bindings.\n\n"
+             "* :defs - other function definitions that this function may instantiate.\n")
     },
     {NULL, NULL, NULL}
 };
