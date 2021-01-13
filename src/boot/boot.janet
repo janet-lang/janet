@@ -1399,9 +1399,9 @@
   ds)
 
 (defn update
-  `Accepts a key argument and passes its associated value to a function.
-  The key is the re-associated to the function's return value. Returns the updated
-  data structure ds.`
+  ``Accepts a key argument and passes its associated value to a function.
+  The key is then re-associated to the function's return value. Returns the updated
+  data structure `ds`.``
   [ds key func & args]
   (def old (get ds key))
   (put ds key (func old ;args)))
