@@ -699,16 +699,16 @@ static const JanetReg corelib_cfuns[] = {
     {
         "module/expand-path", janet_core_expand_path,
         JDOC("(module/expand-path path template)\n\n"
-             "Expands a path template as found in module/paths for module/find. "
-             "This takes in a path (the argument to require) and a template string, template, "
+             "Expands a path template as found in `module/paths` for `module/find`. "
+             "This takes in a path (the argument to require) and a template string, "
              "to expand the path to a path that can be "
              "used for importing files. The replacements are as follows:\n\n"
-             "\t:all:\tthe value of path verbatim\n"
-             "\t:cur:\tthe current file, or (dyn :current-file)\n"
-             "\t:dir:\tthe directory containing the current file\n"
-             "\t:name:\tthe name component of path, with extension if given\n"
-             "\t:native:\tthe extension used to load natives, .so or .dll\n"
-             "\t:sys:\tthe system path, or (dyn :syspath)")
+             "* :all: -- the value of path verbatim\n\n"
+             "* :cur: -- the current file, or (dyn :current-file)\n\n"
+             "* :dir: -- the directory containing the current file\n\n"
+             "* :name: -- the name component of path, with extension if given\n\n"
+             "* :native: -- the extension used to load natives, .so or .dll\n\n"
+             "* :sys: -- the system path, or (dyn :syspath)")
     },
     {
         "int?", janet_core_check_int,
