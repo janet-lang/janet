@@ -74,6 +74,12 @@
       (calc-2 "(+ 9 10 11 12)"))
     @[10 26 42]) "parallel subprocesses 2")
 
+# ev/gather
+
+(assert (deep= @[1 2 3] (ev/gather 1 2 3)) "ev/gather 1")
+(assert (deep= @[] (ev/gather)) "ev/gather 2")
+(assert-error "ev/gather 3" (ev/gather 1 2 (error 3)))
+
 # Net testing
 
 (repeat 10

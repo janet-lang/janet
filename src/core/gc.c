@@ -268,14 +268,8 @@ recur:
         janet_mark_table(fiber->env);
 
 #ifdef JANET_EV
-    if (fiber->done_channel) {
-        janet_mark_abstract(fiber->done_channel);
-    }
-    if (fiber->event_channel) {
-        janet_mark_abstract(fiber->event_channel);
-    }
-    if (fiber->new_channel) {
-        janet_mark_abstract(fiber->new_channel);
+    if (fiber->supervisor_channel) {
+        janet_mark_abstract(fiber->supervisor_channel);
     }
 #endif
 

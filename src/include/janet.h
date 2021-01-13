@@ -846,9 +846,7 @@ struct JanetFiber {
      * type, say "JanetTask", that as separate from fibers to save a bit of space. */
     JanetListenerState *waiting;
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
-    void *done_channel; /* Channel to push self to when complete */
-    void *event_channel; /* Channel to push self to when yielding to event loop */
-    void *new_channel; /* Channel to push spawned children */
+    void *supervisor_channel; /* Channel to push self to when complete */
 #endif
 };
 

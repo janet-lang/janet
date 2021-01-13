@@ -3163,12 +3163,12 @@
          (,resume ,f))))
 
   (defn- wait-for-fibers
-    [chan n]
-    (repeat n
-      (def fiber (ev/take chan))
-      (def x (fiber/last-value fiber))
-      (if (not= :dead (fiber/status fiber))
-        (propagate x fiber))))
+    [chan fibers]
+    (repeat (length fibers)
+      (def [sig fiber] (ev/take chan))
+      (unless (= sig :ok)
+        (each f fibers (ev/cancel f "sibling canceled"))
+        (propagate (fiber/last-value fiber) fiber))))
 
   (defmacro ev/gather
     ``
@@ -3180,9 +3180,9 @@
       ~(do
          (def ,chan (,ev/chan))
          (def ,res @[])
-         ,;(seq [[i body] :pairs bodies]
-             ~(,ev/go (,fiber/new (fn [] (put ,res ,i ,body))) nil ,chan))
-         (,wait-for-fibers ,chan ,(length bodies))
+         (,wait-for-fibers ,chan
+           ,(seq [[i body] :pairs bodies]
+              ~(,ev/go (,fiber/new (fn [] (put ,res ,i ,body)) :tp) nil ,chan)))
          ,res)))
 
   (undef wait-for-fibers))
