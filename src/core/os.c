@@ -1887,27 +1887,27 @@ static const JanetReg os_cfuns[] = {
         "os/which", os_which,
         JDOC("(os/which)\n\n"
              "Check the current operating system. Returns one of:\n\n"
-             "\t:windows\n"
-             "\t:macos\n"
-             "\t:web - Web assembly (emscripten)\n"
-             "\t:linux\n"
-             "\t:freebsd\n"
-             "\t:openbsd\n"
-             "\t:netbsd\n"
-             "\t:posix - A POSIX compatible system (default)\n\n"
+             "* :windows\n\n"
+             "* :macos\n\n"
+             "* :web - Web assembly (emscripten)\n\n"
+             "* :linux\n\n"
+             "* :freebsd\n\n"
+             "* :openbsd\n\n"
+             "* :netbsd\n\n"
+             "* :posix - A POSIX compatible system (default)\n\n"
              "May also return a custom keyword specified at build time.")
     },
     {
         "os/arch", os_arch,
         JDOC("(os/arch)\n\n"
              "Check the ISA that janet was compiled for. Returns one of:\n\n"
-             "\t:x86\n"
-             "\t:x86-64\n"
-             "\t:arm\n"
-             "\t:aarch64\n"
-             "\t:sparc\n"
-             "\t:wasm\n"
-             "\t:unknown\n")
+             "* :x86\n\n"
+             "* :x86-64\n\n"
+             "* :arm\n\n"
+             "* :aarch64\n\n"
+             "* :sparc\n\n"
+             "* :wasm\n\n"
+             "* :unknown\n")
     },
 #ifndef JANET_REDUCED_OS
     {
@@ -1929,22 +1929,22 @@ static const JanetReg os_cfuns[] = {
     {
         "os/stat", os_stat,
         JDOC("(os/stat path &opt tab|key)\n\n"
-             "Gets information about a file or directory. Returns a table If the third argument is a keyword, returns "
-             " only that information from stat. If the file or directory does not exist, returns nil. The keys are\n\n"
-             "\t:dev - the device that the file is on\n"
-             "\t:mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n"
-             "\t:int-permissions - A Unix permission integer like 8r744\n"
-             "\t:permissions - A Unix permission string like \"rwxr--r--\"\n"
-             "\t:uid - File uid\n"
-             "\t:gid - File gid\n"
-             "\t:nlink - number of links to file\n"
-             "\t:rdev - Real device of file. 0 on windows.\n"
-             "\t:size - size of file in bytes\n"
-             "\t:blocks - number of blocks in file. 0 on windows\n"
-             "\t:blocksize - size of blocks in file. 0 on windows\n"
-             "\t:accessed - timestamp when file last accessed\n"
-             "\t:changed - timestamp when file last changed (permissions changed)\n"
-             "\t:modified - timestamp when file last modified (content changed)\n")
+             "Gets information about a file or directory. Returns a table if the second argument is a keyword, returns "
+             " only that information from stat. If the file or directory does not exist, returns nil. The keys are:\n\n"
+             "* :dev - the device that the file is on\n\n"
+             "* :mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n\n"
+             "* :int-permissions - A Unix permission integer like 8r744\n\n"
+             "* :permissions - A Unix permission string like \"rwxr--r--\"\n\n"
+             "* :uid - File uid\n\n"
+             "* :gid - File gid\n\n"
+             "* :nlink - number of links to file\n\n"
+             "* :rdev - Real device of file. 0 on windows.\n\n"
+             "* :size - size of file in bytes\n\n"
+             "* :blocks - number of blocks in file. 0 on windows\n\n"
+             "* :blocksize - size of blocks in file. 0 on windows\n\n"
+             "* :accessed - timestamp when file last accessed\n\n"
+             "* :changed - timestamp when file last changed (permissions changed)\n\n"
+             "* :modified - timestamp when file last modified (content changed)\n")
     },
     {
         "os/lstat", os_lstat,
@@ -2018,20 +2018,20 @@ static const JanetReg os_cfuns[] = {
     {
         "os/execute", os_execute,
         JDOC("(os/execute args &opts flags env)\n\n"
-             "Execute a program on the system and pass it string arguments. Flags "
+             "Execute a program on the system and pass it string arguments. `flags` "
              "is a keyword that modifies how the program will execute.\n\n"
-             "\t:e - enables passing an environment to the program. Without :e, the "
-             "current environment is inherited.\n"
-             "\t:p - allows searching the current PATH for the binary to execute. "
-             "Without this flag, binaries must use absolute paths.\n"
-             "\t:x - raise error if exit code is non-zero.\n"
-             "env is a table or struct mapping environment variables to values. It can also "
+             "* :e - enables passing an environment to the program. Without :e, the "
+             "current environment is inherited.\n\n"
+             "* :p - allows searching the current PATH for the binary to execute. "
+             "Without this flag, binaries must use absolute paths.\n\n"
+             "* :x - raise error if exit code is non-zero.\n\n"
+             "`env` is a table or struct mapping environment variables to values. It can also "
              "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
              "These arguments should be core/file values. "
              "One can also pass in the :pipe keyword "
              "for these arguments to create files that will read (for :err and :out) or write (for :in) "
-             "to the file descriptor of the subprocess. This is only useful in os/spawn, which takes "
-             "the same parameters as os/execute, but will return an object that contains references to these "
+             "to the file descriptor of the subprocess. This is only useful in `os/spawn`, which takes "
+             "the same parameters as `os/execute`, but will return an object that contains references to these "
              "files via (return-value :in), (return-value :out), and (return-value :err). "
              "Returns the exit status of the program.")
     },
@@ -2105,19 +2105,19 @@ static const JanetReg os_cfuns[] = {
     {
         "os/date", os_date,
         JDOC("(os/date &opt time local)\n\n"
-             "Returns the given time as a date struct, or the current time if no time is given. "
+             "Returns the given time as a date struct, or the current time if `time` is not given. "
              "Returns a struct with following key values. Note that all numbers are 0-indexed. "
-             "Date is given in UTC unless local is truthy, in which case the date is formatted for "
+             "Date is given in UTC unless `local` is truthy, in which case the date is formatted for "
              "the local timezone.\n\n"
-             "\t:seconds - number of seconds [0-61]\n"
-             "\t:minutes - number of minutes [0-59]\n"
-             "\t:hours - number of hours [0-23]\n"
-             "\t:month-day - day of month [0-30]\n"
-             "\t:month - month of year [0, 11]\n"
-             "\t:year - years since year 0 (e.g. 2019)\n"
-             "\t:week-day - day of the week [0-6]\n"
-             "\t:year-day - day of the year [0-365]\n"
-             "\t:dst - If Day Light Savings is in effect")
+             "* :seconds - number of seconds [0-61]\n\n"
+             "* :minutes - number of minutes [0-59]\n\n"
+             "* :hours - number of hours [0-23]\n\n"
+             "* :month-day - day of month [0-30]\n\n"
+             "* :month - month of year [0, 11]\n\n"
+             "* :year - years since year 0 (e.g. 2019)\n\n"
+             "* :week-day - day of the week [0-6]\n\n"
+             "* :year-day - day of the year [0-365]\n\n"
+             "* :dst - if Day Light Savings is in effect")
     },
     {
         "os/rename", os_rename,
