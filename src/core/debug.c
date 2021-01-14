@@ -362,18 +362,18 @@ static const JanetReg debug_cfuns[] = {
         "debug/stack", cfun_debug_stack,
         JDOC("(debug/stack fib)\n\n"
              "Gets information about the stack as an array of tables. Each table "
-             "in the array contains information about a stack frame. The top most, current "
-             "stack frame is the first table in the array, and the bottom most stack frame "
+             "in the array contains information about a stack frame. The top-most, current "
+             "stack frame is the first table in the array, and the bottom-most stack frame "
              "is the last value. Each stack frame contains some of the following attributes:\n\n"
-             "\t:c - true if the stack frame is a c function invocation\n"
-             "\t:column - the current source column of the stack frame\n"
-             "\t:function - the function that the stack frame represents\n"
-             "\t:line - the current source line of the stack frame\n"
-             "\t:name - the human friendly name of the function\n"
-             "\t:pc - integer indicating the location of the program counter\n"
-             "\t:source - string with the file path or other identifier for the source code\n"
-             "\t:slots - array of all values in each slot\n"
-             "\t:tail - boolean indicating a tail call")
+             "* :c - true if the stack frame is a c function invocation\n\n"
+             "* :column - the current source column of the stack frame\n\n"
+             "* :function - the function that the stack frame represents\n\n"
+             "* :line - the current source line of the stack frame\n\n"
+             "* :name - the human-friendly name of the function\n\n"
+             "* :pc - integer indicating the location of the program counter\n\n"
+             "* :source - string with the file path or other identifier for the source code\n\n"
+             "* :slots - array of all values in each slot\n\n"
+             "* :tail - boolean indicating a tail call")
     },
     {
         "debug/stacktrace", cfun_debug_stacktrace,
