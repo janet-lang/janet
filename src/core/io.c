@@ -729,17 +729,17 @@ static const JanetReg io_cfuns[] = {
     {
         "file/open", cfun_io_fopen,
         JDOC("(file/open path &opt mode)\n\n"
-             "Open a file. path is an absolute or relative path, and "
-             "mode is a set of flags indicating the mode to open the file in. "
-             "mode is a keyword where each character represents a flag. If the file "
+             "Open a file. `path` is an absolute or relative path, and "
+             "`mode` is a set of flags indicating the mode to open the file in. "
+             "`mode` is a keyword where each character represents a flag. If the file "
              "cannot be opened, returns nil, otherwise returns the new file handle. "
              "Mode flags:\n\n"
-             "\tr - allow reading from the file\n"
-             "\tw - allow writing to the file\n"
-             "\ta - append to the file\n"
-             "\tb - open the file in binary mode (rather than text mode)\n"
-             "\t+ - append to the file instead of overwriting it\n"
-             "\tn - error if the file cannot be opened instead of returning nil")
+             "* r - allow reading from the file\n\n"
+             "* w - allow writing to the file\n\n"
+             "* a - append to the file\n\n"
+             "* b - open the file in binary mode (rather than text mode)\n\n"
+             "* + - append to the file instead of overwriting it\n\n"
+             "* n - error if the file cannot be opened instead of returning nil")
     },
     {
         "file/close", cfun_io_fclose,
@@ -752,14 +752,14 @@ static const JanetReg io_cfuns[] = {
     {
         "file/read", cfun_io_fread,
         JDOC("(file/read f what &opt buf)\n\n"
-             "Read a number of bytes from a file into a buffer. A buffer can "
-             "be provided as an optional fourth argument, otherwise a new buffer "
-             "is created. 'what' can either be an integer or a keyword. Returns the "
+             "Read a number of bytes from a file `f` into a buffer. A buffer `buf` can "
+             "be provided as an optional third argument, otherwise a new buffer "
+             "is created. `what` can either be an integer or a keyword. Returns the "
              "buffer with file contents. "
-             "Values for 'what':\n\n"
-             "\t:all - read the whole file\n"
-             "\t:line - read up to and including the next newline character\n"
-             "\tn (integer) - read up to n bytes from the file")
+             "Values for `what`:\n\n"
+             "* :all - read the whole file\n\n"
+             "* :line - read up to and including the next newline character\n\n"
+             "* n (integer) - read up to n bytes from the file")
     },
     {
         "file/write", cfun_io_fwrite,
@@ -776,13 +776,13 @@ static const JanetReg io_cfuns[] = {
     {
         "file/seek", cfun_io_fseek,
         JDOC("(file/seek f &opt whence n)\n\n"
-             "Jump to a relative location in the file. 'whence' must be one of\n\n"
-             "\t:cur - jump relative to the current file location\n"
-             "\t:set - jump relative to the beginning of the file\n"
-             "\t:end - jump relative to the end of the file\n\n"
-             "By default, 'whence' is :cur. Optionally a value n may be passed "
-             "for the relative number of bytes to seek in the file. n may be a real "
-             "number to handle large files of more the 4GB. Returns the file handle.")
+             "Jump to a relative location in the file `f`. `whence` must be one of:\n\n"
+             "* :cur - jump relative to the current file location\n\n"
+             "* :set - jump relative to the beginning of the file\n\n"
+             "* :end - jump relative to the end of the file\n\n"
+             "By default, `whence` is :cur. Optionally a value `n` may be passed "
+             "for the relative number of bytes to seek in the file. `n` may be a real "
+             "number to handle large files of more than 4GB. Returns the file handle.")
     },
 #ifndef JANET_NO_PROCESSES
     {
