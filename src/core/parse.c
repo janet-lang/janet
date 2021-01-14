@@ -1247,9 +1247,9 @@ static const JanetReg parse_cfuns[] = {
         JDOC("(parser/status parser)\n\n"
              "Gets the current status of the parser state machine. The status will "
              "be one of:\n\n"
-             "\t:pending - a value is being parsed.\n"
-             "\t:error - a parsing error was encountered.\n"
-             "\t:root - the parser can either read more values or safely terminate.")
+             "* :pending - a value is being parsed.\n\n"
+             "* :error - a parsing error was encountered.\n\n"
+             "* :root - the parser can either read more values or safely terminate.")
     },
     {
         "parser/flush", cfun_parse_flush,
@@ -1263,10 +1263,10 @@ static const JanetReg parse_cfuns[] = {
         JDOC("(parser/state parser &opt key)\n\n"
              "Returns a representation of the internal state of the parser. If a key is passed, "
              "only that information about the state is returned. Allowed keys are:\n\n"
-             "\t:delimiters - Each byte in the string represents a nested data structure. For example, "
+             "* :delimiters - Each byte in the string represents a nested data structure. For example, "
              "if the parser state is '([\"', then the parser is in the middle of parsing a "
-             "string inside of square brackets inside parentheses. Can be used to augment a REPL prompt."
-             "\t:frames - Each table in the array represents a 'frame' in the parser state. Frames "
+             "string inside of square brackets inside parentheses. Can be used to augment a REPL prompt.\n\n"
+             "* :frames - Each table in the array represents a 'frame' in the parser state. Frames "
              "contain information about the start of the expression being parsed as well as the "
              "type of that expression and some type-specific information.")
     },
