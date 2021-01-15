@@ -3283,9 +3283,9 @@
   (var *debug* false)
   (var *compile-only* false)
 
-  (when-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
-  (when-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
-  (when-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn :profilepath jprofile))
+  (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
+  (if-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
+  (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn :profilepath jprofile))
   
   # Flag handlers
   (def handlers
@@ -3378,7 +3378,7 @@
           (file/read stdin :line buf))
         (def env (make-env))
         (when-let [profile.janet (dyn :profilepath)] 
-            (def new-env (dofile profile.janet :exit *exit-on-error* :env env))
+            (def new-env (dofile profile.janet :exit true :env env))
             (merge-module env new-env "" false))
         (if *debug* (put env :debug true))
         (def getter (if *raw-stdin* getstdin getline))
