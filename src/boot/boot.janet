@@ -3283,9 +3283,10 @@
   (var *debug* false)
   (var *compile-only* false)
 
-  (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
-  (if-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
-
+  (when-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
+  (when-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
+  (when-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn :profilepath jprofile))
+  
   # Flag handlers
   (def handlers
     {"h" (fn [&]
@@ -3299,6 +3300,7 @@
                -e code : Execute a string of janet
                -d : Set the debug flag in the REPL
                -r : Enter the REPL after running all scripts
+               -R : Disables loading profile.janet when JANET_PROFILE is present
                -p : Keep on executing if there is a top-level error (persistent)
                -q : Hide logo (quiet)
                -k : Compile scripts but do not execute (flycheck)
@@ -3332,7 +3334,8 @@
            (set *no-file* false)
            (eval-string (in args (+ i 1)))
            2)
-     "d" (fn [&] (set *debug* true) 1)})
+     "d" (fn [&] (set *debug* true) 1)
+     "R" (fn [&] (setdyn :profilepath nil) 1)})
 
   (defn- dohandler [n i &]
     (def h (in handlers n))
@@ -3374,6 +3377,9 @@
           (file/flush stdout)
           (file/read stdin :line buf))
         (def env (make-env))
+        (when-let [profile.janet (dyn :profilepath)] 
+            (def new-env (dofile profile.janet :exit *exit-on-error* :env env))
+            (merge-module env new-env "" false))
         (if *debug* (put env :debug true))
         (def getter (if *raw-stdin* getstdin getline))
         (defn getchunk [buf p]
