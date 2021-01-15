@@ -3378,8 +3378,10 @@
           (file/read stdin :line buf))
         (def env (make-env))
         (when-let [profile.janet (dyn :profilepath)] 
-            (def new-env (dofile profile.janet :exit true :env env))
-            (merge-module env new-env "" false))
+            (def src (env :source))
+            (def new-env (dofile profile.janet :exit true :source "profile.janet"))
+            (merge-module env new-env "" false)
+            (put env :source src))
         (if *debug* (put env :debug true))
         (def getter (if *raw-stdin* getstdin getline))
         (defn getchunk [buf p]
