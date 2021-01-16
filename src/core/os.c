@@ -322,9 +322,6 @@ static const JanetAbstractType ProcAT;
 #define JANET_PROC_WAITED 2
 #define JANET_PROC_WAITING 4
 #define JANET_PROC_ERROR_NONZERO 8
-#define JANET_PROC_OWNS_STDIN 16
-#define JANET_PROC_OWNS_STDOUT 32
-#define JANET_PROC_OWNS_STDERR 64
 typedef struct {
     int flags;
 #ifdef JANET_WINDOWS
