@@ -2004,7 +2004,6 @@ error:
 
 static void janet_ev_go(JanetFiber *fiber, Janet value, JanetChannel *supervisor_channel) {
     fiber->supervisor_channel = supervisor_channel;
-    /* janet_channel_push(supervisor_channel, make_supervisor_event("new", fiber), 2); */
     janet_schedule(fiber, value);
 }
 
@@ -2029,6 +2028,17 @@ static Janet cfun_ev_call(int32_t argc, Janet *argv) {
     fiber->env->proto = janet_current_fiber()->env;
     janet_ev_go(fiber, janet_wrap_nil(), (JanetChannel *)(janet_vm_root_fiber->supervisor_channel));
     return janet_wrap_fiber(fiber);
+}
+
+static Janet cfun_ev_give_supervisor(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, -1);
+    JanetChannel *chan = janet_vm_root_fiber->supervisor_channel;
+    if (NULL != chan) {
+        if (janet_channel_push(chan, janet_wrap_tuple(janet_tuple_n(argv, argc)), 0)) {
+            janet_await();
+        }
+    }
+    return janet_wrap_nil();
 }
 
 JANET_NO_RETURN void janet_sleep_await(double sec) {
@@ -2138,6 +2148,13 @@ static const JanetReg ev_cfuns[] = {
              "An optional `core/channel` can be provided as well as a supervisor. When various "
              "events occur in the newly scheduled fiber, an event will be pushed to the supervisor. "
              "If not provided, the new fiber will inherit the current supervisor.")
+    },
+    {
+        "ev/give-supervisor", cfun_ev_give_supervisor,
+        JDOC("(ev/give-supervsior tag & payload)\n\n"
+             "Send a message to the current supervior channel if there is one. The message will be a "
+             "tuple of all of the arguments combined into a single message, where the first element is tag. "
+             "By convention, tag should be a keyword indicating the type of message. Returns nil.")
     },
     {
         "ev/sleep", cfun_ev_sleep,

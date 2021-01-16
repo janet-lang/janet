@@ -322,6 +322,9 @@ static const JanetAbstractType ProcAT;
 #define JANET_PROC_WAITED 2
 #define JANET_PROC_WAITING 4
 #define JANET_PROC_ERROR_NONZERO 8
+#define JANET_PROC_OWNS_STDIN 16
+#define JANET_PROC_OWNS_STDOUT 32
+#define JANET_PROC_OWNS_STDERR 64
 typedef struct {
     int flags;
 #ifdef JANET_WINDOWS
@@ -889,12 +892,9 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     }
 
     /* Wait for child */
+    os_execute_cleanup(envp, child_argv);
     if (status) {
-        os_execute_cleanup(envp, child_argv);
         janet_panicf("%p: %s", argv[0], strerror(errno));
-    } else {
-        /* Wait to complete */
-        os_execute_cleanup(envp, child_argv);
     }
 
 #endif
@@ -909,24 +909,24 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     proc->in = NULL;
     proc->out = NULL;
     proc->err = NULL;
-    if (new_in != JANET_HANDLE_NONE) {
-        proc->in = get_stdio_for_handle(new_in, orig_in, 1);
-        if (NULL == proc->in) janet_panic("failed to construct proc");
-    }
-    if (new_out != JANET_HANDLE_NONE) {
-        proc->out = get_stdio_for_handle(new_out, orig_out, 0);
-        if (NULL == proc->out) janet_panic("failed to construct proc");
-    }
-    if (new_err != JANET_HANDLE_NONE) {
-        proc->err = get_stdio_for_handle(new_err, orig_err, 0);
-        if (NULL == proc->err) janet_panic("failed to construct proc");
-    }
     proc->flags = 0;
     if (janet_flag_at(flags, 2)) {
         proc->flags |= JANET_PROC_ERROR_NONZERO;
     }
-
     if (is_spawn) {
+        /* Only set up pointers to stdin, stdout, and stderr if os/spawn. */
+        if (new_in != JANET_HANDLE_NONE) {
+            proc->in = get_stdio_for_handle(new_in, orig_in, 1);
+            if (NULL == proc->in) janet_panic("failed to construct proc");
+        }
+        if (new_out != JANET_HANDLE_NONE) {
+            proc->out = get_stdio_for_handle(new_out, orig_out, 0);
+            if (NULL == proc->out) janet_panic("failed to construct proc");
+        }
+        if (new_err != JANET_HANDLE_NONE) {
+            proc->err = get_stdio_for_handle(new_err, orig_err, 0);
+            if (NULL == proc->err) janet_panic("failed to construct proc");
+        }
         return janet_wrap_abstract(proc);
     } else {
 #ifdef JANET_EV

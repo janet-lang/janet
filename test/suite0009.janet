@@ -74,6 +74,25 @@
       (calc-2 "(+ 9 10 11 12)"))
     @[10 26 42]) "parallel subprocesses 2")
 
+# File piping
+
+(assert-no-error "file writing 1"
+  (with [f (file/temp)]
+    (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})))
+
+(assert-no-error "file writing 2"
+  (with [f (file/open "unique.txt" :w)]
+    (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})
+    (file/flush f)))
+
+# Issue #593
+(assert-no-error "file writing 3"
+  (def outfile (file/open "unique.txt" :w))
+  (os/execute [janet "-e" "(pp (seq [i :range (1 10)] i))"] :p {:out outfile})
+  (file/flush outfile)
+  (file/close outfile)
+  (os/rm "unique.txt"))
+
 # ev/gather
 
 (assert (deep= @[1 2 3] (ev/gather 1 2 3)) "ev/gather 1")
