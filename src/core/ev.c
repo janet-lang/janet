@@ -1948,13 +1948,17 @@ void janet_ev_sendto_string(JanetStream *stream, JanetString str, void *dest, in
 static volatile long PipeSerialNumber;
 #endif
 
-int janet_make_pipe(JanetHandle handles[2], int keep_write_side) {
+int janet_make_pipe(JanetHandle handles[2], int mode) {
 #ifdef JANET_WINDOWS
     /*
      * On windows, the built in CreatePipe function doesn't support overlapped IO
      * so we lift from the windows source code and modify for our own version.
+     *
+     * mode = 0: both sides non-blocking.
+     * mode = 1: only read side non-blocking: write side sent to subprocess
+     * mode = 2: only write side non-blocking: read side sent to subprocess
      */
-    JanetHandle rhandle, whandle;
+    JanetHandle shandle, chandle;
     UCHAR PipeNameBuffer[MAX_PATH];
     SECURITY_ATTRIBUTES saAttr;
     memset(&saAttr, 0, sizeof(saAttr));
@@ -1964,33 +1968,45 @@ int janet_make_pipe(JanetHandle handles[2], int keep_write_side) {
             "\\\\.\\Pipe\\JanetPipeFile.%08x.%08x",
             GetCurrentProcessId(),
             InterlockedIncrement(&PipeSerialNumber));
-    rhandle = CreateNamedPipeA(
+
+    /* server handle goes to subprocess */
+    shandle = CreateNamedPipeA(
                   PipeNameBuffer,
-                  PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
-                  PIPE_TYPE_BYTE | (keep_write_side ? PIPE_NOWAIT : PIPE_WAIT), /* why does this work? */
-                  1,           /* Max number of pipes for duplication. */
+                  (mode == 2 ? PIPE_ACCESS_INBOUND : PIPE_ACCESS_OUTBOUND) | FILE_FLAG_OVERLAPPED,
+                  PIPE_TYPE_BYTE | PIPE_WAIT,
+                  255,           /* Max number of pipes for duplication. */
                   4096,          /* Out buffer size */
                   4096,          /* In buffer size */
                   120 * 1000,    /* Timeout in ms */
                   &saAttr);
-    if (!rhandle) return -1;
-    whandle = CreateFileA(
+    if (shandle == INVALID_HANDLE_VALUE) {
+        return -1;
+    }
+
+    /* we keep client handle */
+    chandle = CreateFileA(
                   PipeNameBuffer,
-                  GENERIC_WRITE,
+                  (mode == 2 ? GENERIC_WRITE : GENERIC_READ),
                   0,
                   &saAttr,
                   OPEN_EXISTING,
                   FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
                   NULL);
-    if (whandle == INVALID_HANDLE_VALUE) {
-        CloseHandle(rhandle);
+
+    if (chandle == INVALID_HANDLE_VALUE) {
+        CloseHandle(shandle);
         return -1;
     }
-    handles[0] = rhandle;
-    handles[1] = whandle;
+    if (mode == 2) {
+        handles[0] = shandle;
+        handles[1] = chandle;
+    } else {
+        handles[0] = chandle;
+        handles[1] = shandle;
+    }
     return 0;
 #else
-    (void) keep_write_side;
+    (void) mode;
     if (pipe(handles)) return -1;
     if (fcntl(handles[0], F_SETFL, O_NONBLOCK)) goto error;
     if (fcntl(handles[1], F_SETFL, O_NONBLOCK)) goto error;

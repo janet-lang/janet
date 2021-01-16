@@ -322,6 +322,9 @@ static const JanetAbstractType ProcAT;
 #define JANET_PROC_WAITED 2
 #define JANET_PROC_WAITING 4
 #define JANET_PROC_ERROR_NONZERO 8
+#define JANET_PROC_OWNS_STDIN 16
+#define JANET_PROC_OWNS_STDOUT 32
+#define JANET_PROC_OWNS_STDERR 64
 typedef struct {
     int flags;
 #ifdef JANET_WINDOWS
@@ -509,6 +512,33 @@ static Janet os_proc_kill(int32_t argc, Janet *argv) {
     }
 }
 
+static Janet os_proc_close(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
+#ifdef JANET_EV
+    if (proc->flags & JANET_PROC_OWNS_STDIN) janet_stream_close(proc->in);
+    if (proc->flags & JANET_PROC_OWNS_STDOUT) janet_stream_close(proc->out);
+    if (proc->flags & JANET_PROC_OWNS_STDERR) janet_stream_close(proc->err);
+#else
+    if (proc->flags & JANET_PROC_OWNS_STDIN) janet_file_close(proc->in);
+    if (proc->flags & JANET_PROC_OWNS_STDOUT) janet_file_close(proc->out);
+    if (proc->flags & JANET_PROC_OWNS_STDERR) janet_file_close(proc->err);
+#endif
+    proc->in = NULL;
+    proc->out = NULL;
+    proc->err = NULL;
+    proc->flags &= ~(JANET_PROC_OWNS_STDIN | JANET_PROC_OWNS_STDOUT | JANET_PROC_OWNS_STDERR);
+    if (proc->flags & (JANET_PROC_WAITED | JANET_PROC_WAITING)) {
+        return janet_wrap_nil();
+    }
+#ifdef JANET_EV
+    os_proc_wait_impl(proc);
+    return janet_wrap_nil();
+#else
+    return os_proc_wait_impl(proc);
+#endif
+}
+
 static void swap_handles(JanetHandle *handles) {
     JanetHandle temp = handles[0];
     handles[0] = handles[1];
@@ -533,7 +563,7 @@ static JanetHandle make_pipes(JanetHandle *handle, int reverse, int *errflag) {
 #ifdef JANET_EV
 
     /* non-blocking pipes */
-    if (janet_make_pipe(handles, reverse)) goto error;
+    if (janet_make_pipe(handles, reverse ? 2 : 1)) goto error;
     if (reverse) swap_handles(handles);
 #ifdef JANET_WINDOWS
     if (!SetHandleInformation(handles[0], HANDLE_FLAG_INHERIT, 0)) goto error;
@@ -571,6 +601,7 @@ error:
 static const JanetMethod proc_methods[] = {
     {"wait", os_proc_wait},
     {"kill", os_proc_kill},
+    {"close", os_proc_close},
     /* dud methods for janet_proc_next */
     {"in", NULL},
     {"out", NULL},
@@ -720,6 +751,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     JanetHandle new_in = JANET_HANDLE_NONE, new_out = JANET_HANDLE_NONE, new_err = JANET_HANDLE_NONE;
     JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
     int pipe_errflag = 0; /* Track errors setting up pipes */
+    int pipe_owner_flags = 0;
 
     /* Get optional redirections */
     if (argc > 2) {
@@ -729,16 +761,19 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
         Janet maybe_stderr = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("err"));
         if (janet_keyeq(maybe_stdin, "pipe")) {
             new_in = make_pipes(&pipe_in, 1, &pipe_errflag);
+            pipe_owner_flags |= JANET_PROC_OWNS_STDIN;
         } else if (!janet_checktype(maybe_stdin, JANET_NIL)) {
             new_in = janet_getjstream(&maybe_stdin, 0, &orig_in);
         }
         if (janet_keyeq(maybe_stdout, "pipe")) {
             new_out = make_pipes(&pipe_out, 0, &pipe_errflag);
+            pipe_owner_flags |= JANET_PROC_OWNS_STDOUT;
         } else if (!janet_checktype(maybe_stdout, JANET_NIL)) {
             new_out = janet_getjstream(&maybe_stdout, 0, &orig_out);
         }
         if (janet_keyeq(maybe_stderr, "pipe")) {
             new_err = make_pipes(&pipe_err, 0, &pipe_errflag);
+            pipe_owner_flags |= JANET_PROC_OWNS_STDERR;
         } else if (!janet_checktype(maybe_stderr, JANET_NIL)) {
             new_err = janet_getjstream(&maybe_stderr, 0, &orig_err);
         }
@@ -770,6 +805,9 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
 
     JanetBuffer *buf = os_exec_escape(exargs);
     if (buf->count > 8191) {
+        if (pipe_in != JANET_HANDLE_NONE) CloseHandle(pipe_in);
+        if (pipe_out != JANET_HANDLE_NONE) CloseHandle(pipe_out);
+        if (pipe_err != JANET_HANDLE_NONE) CloseHandle(pipe_err);
         janet_panic("command line string too long (max 8191 characters)");
     }
     const char *path = (const char *) janet_unwrap_string(exargs.items[0]);
@@ -800,10 +838,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     } else {
         startupInfo.hStdError = (HANDLE) _get_osfhandle(2);
     }
-
-    /* Use _spawn family of functions. */
-    /* Windows docs say do this before any spawns. */
-    _flushall();
 
     int cp_failed = 0;
     if (!CreateProcess(janet_flag_at(flags, 1) ? NULL : path,
@@ -906,7 +940,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     proc->in = NULL;
     proc->out = NULL;
     proc->err = NULL;
-    proc->flags = 0;
+    proc->flags = pipe_owner_flags;
     if (janet_flag_at(flags, 2)) {
         proc->flags |= JANET_PROC_ERROR_NONZERO;
     }
@@ -2054,6 +2088,12 @@ static const JanetReg os_cfuns[] = {
              "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
              "handle on windows. If wait is truthy, will wait for the process to finsih and "
              "returns the exit code. Otherwise, returns proc.")
+    },
+    {
+        "os/proc-close", os_proc_close,
+        JDOC("(os/proc-close proc)\n\n"
+             "Wait on a process if it has not been waited on, and close pipes created by `os/spawn` "
+             "if they have not been closed. Returns nil.")
     },
 #endif
     {

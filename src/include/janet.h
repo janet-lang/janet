@@ -1778,6 +1778,7 @@ JANET_API FILE *janet_dynfile(const char *name, FILE *def);
 JANET_API JanetFile *janet_getjfile(const Janet *argv, int32_t n);
 JANET_API JanetAbstract janet_checkfile(Janet j);
 JANET_API FILE *janet_unwrapfile(Janet j, int32_t *flags);
+JANET_API int janet_file_close(JanetFile *file);
 
 JANET_API int janet_cryptorand(uint8_t *out, size_t n);
 

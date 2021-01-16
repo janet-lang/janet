@@ -264,20 +264,29 @@ static Janet cfun_io_fflush(int32_t argc, Janet *argv) {
 #define WEXITSTATUS(x) x
 #endif
 
+/* For closing files from C API */
+int janet_file_close(JanetFile *file) {
+    int ret = 0;
+    if (!(file->flags & (JANET_FILE_NOT_CLOSEABLE | JANET_FILE_CLOSED))) {
+#ifndef JANET_NO_PROCESSES
+        if (file->flags & JANET_FILE_PIPED) {
+            ret = pclose(file->file);
+        } else
+#endif
+        {
+            ret = fclose(file->file);
+        }
+        file->flags |= JANET_FILE_CLOSED;
+        return ret;
+    }
+    return 0;
+}
+
 /* Cleanup a file */
 static int cfun_io_gc(void *p, size_t len) {
     (void) len;
     JanetFile *iof = (JanetFile *)p;
-    if (!(iof->flags & (JANET_FILE_NOT_CLOSEABLE | JANET_FILE_CLOSED))) {
-        /* We can't panic inside a gc, so just ignore bad statuses here */
-        if (iof->flags & JANET_FILE_PIPED) {
-#ifndef JANET_NO_PROCESSES
-            pclose(iof->file);
-#endif
-        } else {
-            fclose(iof->file);
-        }
-    }
+    janet_file_close(iof);
     return 0;
 }
 
@@ -723,7 +732,7 @@ static const JanetReg io_cfuns[] = {
     {
         "file/temp", cfun_io_temp,
         JDOC("(file/temp)\n\n"
-             "Open an anonymous temporary file that is removed on close."
+             "Open an anonymous temporary file that is removed on close. "
              "Raises an error on failure.")
     },
     {

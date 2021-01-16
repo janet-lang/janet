@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Calvin Rose & contributors
+# Copyright (c) 2021 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -26,9 +26,10 @@
 (def janet (dyn :executable))
 
 (repeat 10
+
   (let [p (os/spawn [janet "-e" `(print "hello")`] :p {:out :pipe})]
     (os/proc-wait p)
-    (def x (:read (p :out) 1024))
+    (def x (:read (p :out) :all))
     (assert (deep= "hello" (string/trim x)) "capture stdout from os/spawn pre close."))
 
   (let [p (os/spawn [janet "-e" `(print "hello")`] :p {:out :pipe})]
@@ -37,8 +38,14 @@
     (assert (deep= "hello" (string/trim x)) "capture stdout from os/spawn post close."))
 
   (let [p (os/spawn [janet "-e" `(file/read stdin :line)`] :px {:in :pipe})]
-    (:write (p :in) "hello!")
+    (:write (p :in) "hello!\n")
     (assert-no-error "pipe stdin to process" (os/proc-wait p))))
+
+(let [p (os/spawn [janet "-e" `(print (file/read stdin :line))`] :px {:in :pipe :out :pipe})]
+  (:write (p :in) "hello!\n")
+  (def x (:read (p :out) 1024))
+  (assert-no-error "pipe stdin to process 2" (os/proc-wait p))
+  (assert (= "hello!" (string/trim x)) "round trip pipeline in process"))
 
 # Parallel subprocesses
 
