@@ -1798,7 +1798,7 @@
   (defn skip-line-indent []
     (var pos* pos)
     (set c (get str pos*))
-    (while (and (not= nil c)
+    (while (and c
                 (not= 10 c)
                 (= 32 c))
       (set c (get str (++ pos*))))
@@ -1807,7 +1807,8 @@
 
   (defn update-levels []
     (while (< leading (array/peek levels))
-      (array/pop levels)))
+      (array/pop levels)
+      (if (empty? levels) (break))))
 
   (defn start-nl? []
     (= 10 (get str pos)))
@@ -1831,8 +1832,7 @@
   (defn start-ul? []
     (var pos* pos)
     (var c* (get str pos*))
-    (while (and (not= nil c*)
-                (= 32 c*))
+    (while (and c* (= 32 c*))
       (set c* (get str (++ pos*))))
     (and (or (= 42 c*)
              (= 43 c*)
@@ -1842,10 +1842,9 @@
   (defn start-ol? []
     (var pos* pos)
     (var c* (get str pos*))
-    (while (and (not= nil c*)
-                (= 32 c*))
+    (while (and c* (= 32 c*))
       (set c* (get str (++ pos*))))
-    (while (and (not= nil c*)
+    (while (and c*
                 (<= 48 c*)
                 (>= 57 c*))
       (set c* (get str (++ pos*))))
@@ -1858,10 +1857,10 @@
   (defn push-line []
     (buffer/push-string res (buffer/new-filled indent 32))
     (set c (get str pos))
-    (while (not= 10 c)
+    (while (and c (not= 10 c))
       (buffer/push-byte res c)
       (set c (get str (++ pos))))
-    (buffer/push-byte res c)
+    (buffer/push-byte res 10)
     (++ pos))
 
   (defn push-bullet []
@@ -1869,11 +1868,11 @@
     (buffer/push-string line (buffer/new-filled leading 32))
     (set c (get str pos*))
     # Add bullet
-    (while (and (not= nil c) (not= 32 c))
+    (while (and c (not= 32 c))
       (buffer/push-byte line c)
       (set c (get str (++ pos*))))
     # Add item indentation
-    (while (and (not= nil c) (= 32 c))
+    (while (= 32 c)
       (buffer/push-byte line c)
       (set c (get str (++ pos*))))
     # Record indentation if necessary
@@ -1889,7 +1888,7 @@
     (def word @"")
     (var word-len 0)
     # Build a word
-    (while (and (not= nil c)
+    (while (and c
                 (not= 10 c)
                 (not= 32 c))
       (buffer/push-byte word c)
@@ -1926,7 +1925,7 @@
     (push-bullet)
     # Add words
     (set c (get str pos))
-    (while (and (not= nil c)
+    (while (and c
                 (not= 10 c))
       # Skip spaces
       (while (= 32 c)
@@ -1950,14 +1949,14 @@
   (defn push-fcb []
     (update-levels)
     (push-line)
-    (while (not (end-fcb?))
+    (while (and (< pos len) (not (end-fcb?)))
       (push-line))
     (push-line))
 
   (defn push-icb []
     (buffer/push-string res (buffer/new-filled leading 32))
     (push-line)
-    (while (not (start-nl?))
+    (while (and (< pos len) (not (start-nl?)))
       (push-line))
     (push-nl))
 
@@ -1970,8 +1969,7 @@
     (set line-width para-indent)
     # Add words
     (set c (get str pos))
-    (while (and (not= nil c)
-                (not= 10 c))
+    (while (and c (not= 10 c))
       # Skip spaces
       (while (= 32 c)
         (set c (get str (++ pos))))
