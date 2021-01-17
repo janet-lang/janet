@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
 - Add `doc-of` for reverse documentation lookup.
+- Add `ev/give-supervsior` to send a message to the supervising channel.
 - Add `ev/gather` and `chan` argument to `ev/go`. This new argument allows "supervisor channels"
   for fibers to enable structured concurrency.
 - Make `-k` flag work on stdin if no files are given.
@@ -28,7 +29,8 @@ All notable changes to this project will be documented in this file.
   the project root. This is backwards incompatible and dependencies should be updated for this.
 - Change hash function for numbers.
 - Improve error handling of `dofile`.
-- Bug fixes in networking code and improvements in doc strings.
+- Bug fixes in networking and subprocess code.
+- Use markdown formatting in more places for docstrings.
 
 ## 1.13.1 - 2020-12-13
 - Pretty printing a table with a prototype will look for `:_name` instead of `:name`
