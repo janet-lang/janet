@@ -176,6 +176,10 @@ Open a REPL (Read Eval Print Loop) after executing all sources. By default, if J
 arguments, a REPL is opened.
 
 .TP
+.BR \-R
+If using the REPL, disable loading the user profile from the JANET_PROFILE environment variable.
+
+.TP
 .BR \-p
 Turn on the persistent flag. By default, when Janet is executing commands from a file and encounters an error,
 it will immediately exit after printing the error message. In persistent mode, Janet will keep executing commands
@@ -219,6 +223,12 @@ and then arguments to the script.
 The location to look for Janet libraries. This is the only environment variable Janet needs to
 find native and source code modules. If no JANET_PATH is set, Janet will look in
 the default location set at compile time.
+.RE
+
+.B JANET_PROFILE
+.RS
+Path to a profile file that the interpreter will load before entering the REPL. This profile file will
+not run for scripts, though. This behavior can be disabled with the -R option.
 .RE
 
 .B JANET_HASHSEED
