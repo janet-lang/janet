@@ -1065,7 +1065,11 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
                          janet_status_names[sub_status]);
         }
         fiber->child = f;
-        vm_return((int) sub_status, stack[B]);
+        if (janet_checktype(stack[B], JANET_NIL)) {
+            vm_return((int) sub_status, f->last_value);
+        } else {
+            vm_return((int) sub_status, stack[B]);
+        }
     }
 
     VM_OP(JOP_CANCEL) {

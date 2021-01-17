@@ -299,9 +299,11 @@ static Janet cfun_debug_stack(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_debug_stacktrace(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 2);
+    janet_arity(argc, 1, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
-    janet_stacktrace(fiber, argv[1]);
+    Janet x = argc == 1 ? janet_wrap_nil() : argv[1];
+    x = janet_checktype(x, JANET_NIL) ? fiber->last_value : x;
+    janet_stacktrace(fiber, x);
     return argv[0];
 }
 
@@ -377,10 +379,10 @@ static const JanetReg debug_cfuns[] = {
     },
     {
         "debug/stacktrace", cfun_debug_stacktrace,
-        JDOC("(debug/stacktrace fiber err)\n\n"
-             "Prints a nice looking stacktrace for a fiber. The error message "
-             "err must be passed to the function as fiber's do not keep track of "
-             "the last error they have thrown. Returns the fiber.")
+        JDOC("(debug/stacktrace fiber &opt err)\n\n"
+             "Prints a nice looking stacktrace for a fiber. Can optionally provide "
+             "an error value to print the stack trace with. If `err` is nil or not "
+             "provided, will default to `(fiber/last-value fiber)`. Returns the fiber.")
     },
     {
         "debug/lineage", cfun_debug_lineage,
