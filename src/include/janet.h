@@ -1324,6 +1324,7 @@ typedef struct {
 #define JANET_EV_TCTAG_ERR_STRING 5   /* cancel with janet_cstringv((const char *) argp) */
 #define JANET_EV_TCTAG_ERR_STRINGF 6  /* cancel with janet_cstringv((const char *) argp), then call free on argp. */
 #define JANET_EV_TCTAG_ERR_KEYWORD 7  /* cancel with janet_ckeywordv((const char *) argp) */
+#define JANET_EV_TCTAG_BOOLEAN 8      /* resume with janet_wrap_boolean(argi) */
 
 /* Function pointer that is run in the thread pool */
 typedef JanetEVGenericMessage(*JanetThreadedSubroutine)(JanetEVGenericMessage arguments);
@@ -1333,7 +1334,7 @@ typedef void (*JanetThreadedCallback)(JanetEVGenericMessage return_value);
 
 /* API calls for quickly offloading some work in C to a new thread or thread pool. */
 JANET_API void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage arguments, JanetThreadedCallback cb);
-JANET_API void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp);
+JANET_NO_RETURN JANET_API void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp);
 
 /* Callback used by janet_ev_threaded_await */
 JANET_API void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value);

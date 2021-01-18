@@ -1435,12 +1435,16 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
         case JANET_EV_TCTAG_ERR_KEYWORD:
             janet_cancel(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
             break;
+        case JANET_EV_TCTAG_BOOLEAN:
+            janet_schedule(return_value.fiber, janet_wrap_boolean(return_value.argi));
+            break;
     }
     janet_gcunroot(janet_wrap_fiber(return_value.fiber));
 }
 
 
 /* Convenience method for common case */
+JANET_NO_RETURN
 void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp) {
     JanetEVGenericMessage arguments;
     arguments.tag = tag;
@@ -2016,11 +2020,6 @@ error:
 #endif
 }
 
-static void janet_ev_go(JanetFiber *fiber, Janet value, JanetChannel *supervisor_channel) {
-    fiber->supervisor_channel = supervisor_channel;
-    janet_schedule(fiber, value);
-}
-
 /* C functions */
 
 static Janet cfun_ev_go(int32_t argc, Janet *argv) {
@@ -2029,19 +2028,9 @@ static Janet cfun_ev_go(int32_t argc, Janet *argv) {
     Janet value = argc == 2 ? argv[1] : janet_wrap_nil();
     JanetChannel *supervisor_channel = janet_optabstract(argv, argc, 2, &ChannelAT,
                                        janet_vm_root_fiber->supervisor_channel);
-    janet_ev_go(fiber, value, supervisor_channel);
+    fiber->supervisor_channel = supervisor_channel;
+    janet_schedule(fiber, value);
     return argv[0];
-}
-
-static Janet cfun_ev_call(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, -1);
-    JanetFunction *fn = janet_getfunction(argv, 0);
-    JanetFiber *fiber = janet_fiber(fn, 64, argc - 1, argv + 1);
-    if (NULL == fiber) janet_panicf("invalid arity to function %v", argv[0]);
-    fiber->env = janet_table(0);
-    fiber->env->proto = janet_current_fiber()->env;
-    janet_ev_go(fiber, janet_wrap_nil(), (JanetChannel *)(janet_vm_root_fiber->supervisor_channel));
-    return janet_wrap_fiber(fiber);
 }
 
 static Janet cfun_ev_give_supervisor(int32_t argc, Janet *argv) {
@@ -2148,12 +2137,6 @@ Janet janet_cfun_stream_write(int32_t argc, Janet *argv) {
 }
 
 static const JanetReg ev_cfuns[] = {
-    {
-        "ev/call", cfun_ev_call,
-        JDOC("(ev/call fn & args)\n\n"
-             "Call a function asynchronously. Returns a fiber that is scheduled to "
-             "run the function.")
-    },
     {
         "ev/go", cfun_ev_go,
         JDOC("(ev/go fiber &opt value supervisor)\n\n"

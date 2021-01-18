@@ -3146,10 +3146,17 @@
 
 (compwhen (dyn 'ev/go)
   (defn net/close "Alias for ev/close." [stream] (ev/close stream))
+
+  (defn ev/call
+    "Call a function asynchronously. Returns a fiber that is scheduled to "
+    "run the function."
+    [f & args]
+    (ev/go (fiber/new (fn [&] (f ;args)) :tp)))
+
   (defmacro ev/spawn
     "Run some code in a new fiber. This is shorthand for (ev/call (fn [] ;body))."
     [& body]
-    ~(,ev/call (fn [] ,;body)))
+    ~(,ev/go (fiber/new (fn _spawn [&] ,;body) :tp)))
 
   (defmacro ev/with-deadline
     `Run a body of code with a deadline, such that if the code does not complete before

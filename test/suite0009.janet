@@ -161,8 +161,6 @@
 (ev/sleep 0)
 (ev/cancel fiber "boop")
 
-(assert-error "bad arity to ev/call" (ev/call inc 1 2 3))
-
 (assert (os/execute [janet "-e" `(+ 1 2 3)`] :xp) "os/execute self")
 
 (end-suite)

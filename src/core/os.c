@@ -973,15 +973,34 @@ static Janet os_spawn(int32_t argc, Janet *argv) {
     return os_execute_impl(argc, argv, 1);
 }
 
+#ifdef JANET_EV
+/* Runs in a separate thread */
+static JanetEVGenericMessage os_shell_subr(JanetEVGenericMessage args) {
+    int stat = system((const char *) args.argp);
+    free(args.argp);
+    if (args.argi) {
+        args.tag = JANET_EV_TCTAG_INTEGER;
+    } else {
+        args.tag = JANET_EV_TCTAG_BOOLEAN;
+    }
+    args.argi = stat;
+    return args;
+}
+#endif
+
 static Janet os_shell(int32_t argc, Janet *argv) {
     janet_arity(argc, 0, 1);
     const char *cmd = argc
                       ? janet_getcstring(argv, 0)
                       : NULL;
+#ifdef JANET_EV
+    janet_ev_threaded_await(os_shell_subr, 0, argc, cmd ? strdup(cmd) : NULL);
+#else
     int stat = system(cmd);
     return argc
            ? janet_wrap_integer(stat)
            : janet_wrap_boolean(stat);
+#endif
 }
 
 #endif /* JANET_NO_PROCESSES */
