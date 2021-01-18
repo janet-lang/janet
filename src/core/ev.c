@@ -1008,7 +1008,7 @@ static void janet_unlisten(JanetListenerState *state) {
 void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     ULONG_PTR completionKey = 0;
     DWORD num_bytes_transfered = 0;
-    LPOVERLAPPED overlapped;
+    LPOVERLAPPED overlapped = NULL;
 
     /* Calculate how long to wait before timeout */
     uint64_t waittime;

@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.14.1 - 2021-01-18
 - Add `doc-of` for reverse documentation lookup.
 - Add `ev/give-supervsior` to send a message to the supervising channel.
 - Add `ev/gather` and `chan` argument to `ev/go`. This new argument allows "supervisor channels"
