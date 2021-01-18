@@ -524,9 +524,6 @@ static Janet os_proc_close(int32_t argc, Janet *argv) {
     if (proc->flags & JANET_PROC_OWNS_STDOUT) janet_file_close(proc->out);
     if (proc->flags & JANET_PROC_OWNS_STDERR) janet_file_close(proc->err);
 #endif
-    proc->in = NULL;
-    proc->out = NULL;
-    proc->err = NULL;
     proc->flags &= ~(JANET_PROC_OWNS_STDIN | JANET_PROC_OWNS_STDOUT | JANET_PROC_OWNS_STDERR);
     if (proc->flags & (JANET_PROC_WAITED | JANET_PROC_WAITING)) {
         return janet_wrap_nil();

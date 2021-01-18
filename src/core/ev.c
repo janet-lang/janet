@@ -1024,31 +1024,29 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     }
     BOOL result = GetQueuedCompletionStatus(janet_vm_iocp, &num_bytes_transfered, &completionKey, &overlapped, (DWORD) waittime);
 
-    if (!result) {
-        if (!has_timeout) {
-            /* queue emptied */
-        }
-    } else if (0 == completionKey) {
-        /* Custom event */
-        JanetSelfPipeEvent *response = (JanetSelfPipeEvent *)(overlapped);
-        response->cb(response->msg);
-        free(response);
-        janet_ev_dec_refcount();
-    } else {
-        /* Normal event */
-        JanetStream *stream = (JanetStream *) completionKey;
-        JanetListenerState *state = stream->state;
-        while (state != NULL) {
-            if (state->tag == overlapped) {
-                state->event = overlapped;
-                state->bytes = num_bytes_transfered;
-                JanetAsyncStatus status = state->machine(state, JANET_ASYNC_EVENT_COMPLETE);
-                if (status == JANET_ASYNC_STATUS_DONE) {
-                    janet_unlisten(state);
+    if (result || overlapped) {
+        if (0 == completionKey) {
+            /* Custom event */
+            JanetSelfPipeEvent *response = (JanetSelfPipeEvent *)(overlapped);
+            response->cb(response->msg);
+            free(response);
+            janet_ev_dec_refcount();
+        } else {
+            /* Normal event */
+            JanetStream *stream = (JanetStream *) completionKey;
+            JanetListenerState *state = stream->state;
+            while (state != NULL) {
+                if (state->tag == overlapped) {
+                    state->event = overlapped;
+                    state->bytes = num_bytes_transfered;
+                    JanetAsyncStatus status = state->machine(state, JANET_ASYNC_EVENT_COMPLETE);
+                    if (status == JANET_ASYNC_STATUS_DONE) {
+                        janet_unlisten(state);
+                    }
+                    break;
+                } else {
+                    state = state->_next;
                 }
-                break;
-            } else {
-                state = state->_next;
             }
         }
     }
@@ -1545,7 +1543,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             janet_mark(janet_wrap_buffer(state->buf));
             break;
         case JANET_ASYNC_EVENT_CLOSE:
-            janet_cancel(s->fiber, janet_cstringv("stream closed"));
+            janet_schedule(s->fiber, janet_wrap_nil());
             return JANET_ASYNC_STATUS_DONE;
 #ifdef JANET_WINDOWS
         case JANET_ASYNC_EVENT_COMPLETE: {
