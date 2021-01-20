@@ -3148,8 +3148,10 @@
   (defn net/close "Alias for ev/close." [stream] (ev/close stream))
 
   (defn ev/call
-    "Call a function asynchronously. Returns a fiber that is scheduled to "
-    "run the function."
+    ```
+    Call a function asynchronously.
+    Returns a fiber that is scheduled to run the function.
+    ```
     [f & args]
     (ev/go (fiber/new (fn [&] (f ;args)) :tp)))
 
@@ -3291,7 +3293,7 @@
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
   (if-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn :profilepath jprofile))
-  
+
   # Flag handlers
   (def handlers
     {"h" (fn [&]
@@ -3382,7 +3384,7 @@
           (file/flush stdout)
           (file/read stdin :line buf))
         (def env (make-env))
-        (when-let [profile.janet (dyn :profilepath)] 
+        (when-let [profile.janet (dyn :profilepath)]
             (def new-env (dofile profile.janet :exit true))
             (merge-module env new-env "" false))
         (if *debug* (put env :debug true))
