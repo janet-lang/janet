@@ -1747,346 +1747,6 @@
 
 ###
 ###
-### Documentation
-###
-###
-
-(defn- env-walk
-  [pred &opt env local]
-  (default env (fiber/getenv (fiber/current)))
-  (def envs @[])
-  (do (var e env) (while e (array/push envs e) (set e (table/getproto e)) (if local (break))))
-  (def ret-set @{})
-  (loop [envi :in envs
-         k :keys envi
-         :when (pred k)]
-    (put ret-set k true))
-  (sort (keys ret-set)))
-
-(defn all-bindings
-  `Get all symbols available in an environment. Defaults to the current
-  fiber's environment. If local is truthy, will not show inherited bindings
-  (from prototype tables).`
-  [&opt env local]
-  (env-walk symbol? env local))
-
-(defn all-dynamics
-  `Get all dynamic bindings in an environment. Defaults to the current
-  fiber's environment. If local is truthy, will not show inherited bindings
-  (from prototype tables).`
-  [&opt env local]
-  (env-walk keyword? env local))
-
-(defn doc-format
-  `Reformat a docstring to wrap a certain width. Docstrings can either be plaintext
-  or a subset of markdown. This allows a long single line of prose or formatted text to be
-  a well-formed docstring. Returns a buffer containing the formatted text.`
-  [str &opt width indent]
-  (default indent 4)
-  (def max-width (- (or width (dyn :doc-width 80)) 8))
-  (def len (length str))
-  (def res @"")
-  (var pos 0)
-  (def line @"")
-  (var line-width 0)
-  (def levels @[0])
-  (var leading 0)
-  (var c nil)
-
-  (set pos 0)
-
-  (defn skip-line-indent []
-    (var pos* pos)
-    (set c (get str pos*))
-    (while (and c
-                (not= 10 c)
-                (= 32 c))
-      (set c (get str (++ pos*))))
-    (set leading (- pos* pos))
-    (set pos pos*))
-
-  (defn update-levels []
-    (while (< leading (array/peek levels))
-      (array/pop levels)
-      (if (empty? levels) (break))))
-
-  (defn start-nl? []
-    (= 10 (get str pos)))
-
-  (defn start-fcb? []
-    (and (= 96 (get str (+ pos)))
-         (= 96 (get str (+ pos 1)))
-         (= 96 (get str (+ pos 2)))))
-
-  (defn end-fcb? []
-    (and (= 96 (get str (+ pos)))
-         (= 96 (get str (+ pos 1)))
-         (= 96 (get str (+ pos 2)))
-         (= 10 (get str (+ pos 3)))))
-
-  (defn start-icb? []
-    (and (not= leading (array/peek levels))
-         (or (= 4 leading)
-             (= 4 (- leading (array/peek levels))))))
-
-  (defn start-ul? []
-    (var pos* pos)
-    (var c* (get str pos*))
-    (while (and c* (= 32 c*))
-      (set c* (get str (++ pos*))))
-    (and (or (= 42 c*)
-             (= 43 c*)
-             (= 45 c*))
-         (= 32 (get str (+ pos* 1)))))
-
-  (defn start-ol? []
-    (var pos* pos)
-    (var c* (get str pos*))
-    (while (and c* (= 32 c*))
-      (set c* (get str (++ pos*))))
-    (while (and c*
-                (<= 48 c*)
-                (>= 57 c*))
-      (set c* (get str (++ pos*))))
-    (set c* (get str (-- pos*)))
-    (and (<= 48 c*)
-         (>= 57 c*)
-         (= 46 (get str (+ pos* 1)))
-         (= 32 (get str (+ pos* 2)))))
-
-  (defn push-line []
-    (buffer/push-string res (buffer/new-filled indent 32))
-    (set c (get str pos))
-    (while (and c (not= 10 c))
-      (buffer/push-byte res c)
-      (set c (get str (++ pos))))
-    (buffer/push-byte res 10)
-    (++ pos))
-
-  (defn push-bullet []
-    (var pos* pos)
-    (buffer/push-string line (buffer/new-filled leading 32))
-    (set c (get str pos*))
-    # Add bullet
-    (while (and c (not= 32 c))
-      (buffer/push-byte line c)
-      (set c (get str (++ pos*))))
-    # Add item indentation
-    (while (= 32 c)
-      (buffer/push-byte line c)
-      (set c (get str (++ pos*))))
-    # Record indentation if necessary
-    (def item-indent (+ leading (- pos* pos)))
-    (when (not= item-indent (array/peek levels))
-       (array/push levels item-indent))
-    # Update line width
-    (+= line-width item-indent)
-    # Update position
-    (set pos pos*))
-
-  (defn push-word [hang-indent]
-    (def word @"")
-    (var word-len 0)
-    # Build a word
-    (while (and c
-                (not= 10 c)
-                (not= 32 c))
-      (buffer/push-byte word c)
-      (++ word-len)
-      (set c (get str (++ pos))))
-    # Start new line if necessary
-    (when (> (+ line-width word-len) max-width)
-      # Push existing line
-      (buffer/push-byte line 10)
-      (buffer/push-string res line)
-      (buffer/clear line)
-      # Indent new line
-      (buffer/push-string line (buffer/new-filled hang-indent 32))
-      (set line-width hang-indent))
-    # Add single space if not beginning of line
-    (when (not= line-width hang-indent)
-      (buffer/push-byte line 32)
-      (++ line-width))
-    # Push word onto line
-    (buffer/push-string line word)
-    (set line-width (+ line-width word-len)))
-
-  (defn push-nl []
-    (when (< pos len)
-      (buffer/push-byte res 10)
-      (++ pos)))
-
-  (defn push-list []
-    (update-levels)
-    # Indent first line
-    (buffer/push-string line (buffer/new-filled indent 32))
-    (set line-width indent)
-    # Add bullet
-    (push-bullet)
-    # Add words
-    (set c (get str pos))
-    (while (and c
-                (not= 10 c))
-      # Skip spaces
-      (while (= 32 c)
-        (set c (get str (++ pos))))
-      # Add word
-      (push-word (+ indent (array/peek levels)))
-      (def old-c c)
-      (set c (get str (++ pos)))
-      # Check if next line is a new item
-      (when (and (= 10 old-c)
-                 (or (start-ul?)
-                     (start-ol?)))
-        (set c (get str (-- pos)))))
-    # Add final line
-    (buffer/push-string res line)
-    (buffer/clear line)
-    # Move position back for newline
-    (-- pos)
-    (push-nl))
-
-  (defn push-fcb []
-    (update-levels)
-    (push-line)
-    (while (and (< pos len) (not (end-fcb?)))
-      (push-line))
-    (push-line))
-
-  (defn push-icb []
-    (buffer/push-string res (buffer/new-filled leading 32))
-    (push-line)
-    (while (and (< pos len) (not (start-nl?)))
-      (push-line))
-    (push-nl))
-
-  (defn push-p []
-    (update-levels)
-    # Set up the indentation
-    (def para-indent (+ indent (array/peek levels)))
-    # Indent first line
-    (buffer/push-string line (buffer/new-filled para-indent 32))
-    (set line-width para-indent)
-    # Add words
-    (set c (get str pos))
-    (while (and c (not= 10 c))
-      # Skip spaces
-      (while (= 32 c)
-        (set c (get str (++ pos))))
-      # Add word
-      (push-word para-indent)
-      (set c (get str (++ pos))))
-    # Add final line
-    (buffer/push-string res line)
-    (buffer/clear line)
-    # Move position back for newline
-    (-- pos)
-    (push-nl)
-    (push-nl))
-
-  (while (< pos len)
-    (skip-line-indent)
-    (cond
-      (start-nl?)
-      (push-nl)
-
-      (start-ul?)
-      (push-list)
-
-      (start-ol?)
-      (push-list)
-
-      (start-fcb?)
-      (push-fcb)
-
-      (start-icb?)
-      (push-icb)
-
-      (push-p)))
-  res)
-
-(defn- print-index
-  "Print bindings in the current environment given a filter function"
-  [fltr]
-  (def bindings (filter fltr (all-bindings)))
-  (def dynamics (map describe (filter fltr (all-dynamics))))
-  (print)
-  (print (doc-format (string "Bindings:\n\n" (string/join bindings " "))))
-  (print)
-  (print (doc-format (string "Dynamics:\n\n" (string/join dynamics " "))))
-  (print "\n    Use (doc sym) for more information on a binding.\n"))
-
-(defn- print-module-entry
-  [x]
-  (def bind-type
-    (string "    "
-            (cond
-              (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
-              (x :macro) :macro
-              (type (x :value)))
-            "\n"))
-  (def sm (x :source-map))
-  (def d (x :doc))
-  (print "\n\n"
-         (if d bind-type "")
-         (if-let [[path line col] sm]
-           (string "    " path " on line " line ", column " col "\n") "")
-         (if (or d sm) "\n" "")
-         (if d (doc-format d) "    no documentation found.")
-         "\n\n"))
-
-(def module/cache
-  "Table mapping loaded module identifiers to their environments."
-  @{})
-
-(defn doc*
-  "Get the documentation for a symbol in a given environment. Function form of doc."
-  [&opt sym]
-
-  (cond
-    (string? sym)
-    (print-index (fn [x] (string/find sym x)))
-
-    sym
-    (do
-      (def x (dyn sym))
-      (if (not x)
-        (print "symbol " sym " not found.")
-        (print-module-entry x)))
-
-    # else
-    (print-index identity)))
-
-(defmacro doc
-  `Shows documentation for the given symbol, or can show a list of available bindings.
-  If sym is a symbol, will look for documentation for that symbol. If sym is a string
-  or is not provided, will show all lexical and dynamic bindings in the current environment with
-  that prefix (all bindings will be shown if no prefix is given).`
-  [&opt sym]
-  ~(,doc* ',sym))
-
-(defn doc-of
-  `Searches all loaded modules in module/cache for a given binding and prints out its documentation.
-  This does a search by value instead of by name. Returns nil.`
-  [x]
-  (var found false)
-  (loop [module-set :in [[root-env] module/cache]
-         module :in module-set
-         value :in module]
-    (let [check (or (get value :ref) (get value :value))]
-      (when (= check x)
-        (print-module-entry value)
-        (set found true)
-        (break))))
-  (if-not found
-    (print "documentation for value " x " not found.")))
-
-(undef env-walk)
-(undef print-index)
-(undef print-module-entry)
-
-###
-###
 ### Macro Expansion
 ###
 ###
@@ -2648,6 +2308,10 @@
 (defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "." x)) x))
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
+(def module/cache
+  "Table mapping loaded module identifiers to their environments."
+  @{})
+
 (def module/paths
   ```
   The list of paths to look for modules, templated for module/expand-path.
@@ -2905,6 +2569,346 @@
   identifier. Can also import multiple modules in one shot.`
   [& modules]
   ~(do ,;(map |~(,import* ,(string $) :prefix "") modules)))
+
+###
+###
+### Documentation
+###
+###
+
+(defn- env-walk
+  [pred &opt env local]
+  (default env (fiber/getenv (fiber/current)))
+  (def envs @[])
+  (do (var e env) (while e (array/push envs e) (set e (table/getproto e)) (if local (break))))
+  (def ret-set @{})
+  (loop [envi :in envs
+         k :keys envi
+         :when (pred k)]
+    (put ret-set k true))
+  (sort (keys ret-set)))
+
+(defn all-bindings
+  `Get all symbols available in an environment. Defaults to the current
+  fiber's environment. If local is truthy, will not show inherited bindings
+  (from prototype tables).`
+  [&opt env local]
+  (env-walk symbol? env local))
+
+(defn all-dynamics
+  `Get all dynamic bindings in an environment. Defaults to the current
+  fiber's environment. If local is truthy, will not show inherited bindings
+  (from prototype tables).`
+  [&opt env local]
+  (env-walk keyword? env local))
+
+(defn doc-format
+  `Reformat a docstring to wrap a certain width. Docstrings can either be plaintext
+  or a subset of markdown. This allows a long single line of prose or formatted text to be
+  a well-formed docstring. Returns a buffer containing the formatted text.`
+  [str &opt width indent]
+  (default indent 4)
+  (def max-width (- (or width (dyn :doc-width 80)) 8))
+  (def len (length str))
+  (def res @"")
+  (var pos 0)
+  (def line @"")
+  (var line-width 0)
+  (def levels @[0])
+  (var leading 0)
+  (var c nil)
+
+  (set pos 0)
+
+  (defn skip-line-indent []
+    (var pos* pos)
+    (set c (get str pos*))
+    (while (and c
+                (not= 10 c)
+                (= 32 c))
+      (set c (get str (++ pos*))))
+    (set leading (- pos* pos))
+    (set pos pos*))
+
+  (defn update-levels []
+    (while (< leading (array/peek levels))
+      (array/pop levels)
+      (if (empty? levels) (break))))
+
+  (defn start-nl? []
+    (= 10 (get str pos)))
+
+  (defn start-fcb? []
+    (and (= 96 (get str (+ pos)))
+         (= 96 (get str (+ pos 1)))
+         (= 96 (get str (+ pos 2)))))
+
+  (defn end-fcb? []
+    (and (= 96 (get str (+ pos)))
+         (= 96 (get str (+ pos 1)))
+         (= 96 (get str (+ pos 2)))
+         (= 10 (get str (+ pos 3)))))
+
+  (defn start-icb? []
+    (and (not= leading (array/peek levels))
+         (or (= 4 leading)
+             (= 4 (- leading (array/peek levels))))))
+
+  (defn start-ul? []
+    (var pos* pos)
+    (var c* (get str pos*))
+    (while (and c* (= 32 c*))
+      (set c* (get str (++ pos*))))
+    (and (or (= 42 c*)
+             (= 43 c*)
+             (= 45 c*))
+         (= 32 (get str (+ pos* 1)))))
+
+  (defn start-ol? []
+    (var pos* pos)
+    (var c* (get str pos*))
+    (while (and c* (= 32 c*))
+      (set c* (get str (++ pos*))))
+    (while (and c*
+                (<= 48 c*)
+                (>= 57 c*))
+      (set c* (get str (++ pos*))))
+    (set c* (get str (-- pos*)))
+    (and (<= 48 c*)
+         (>= 57 c*)
+         (= 46 (get str (+ pos* 1)))
+         (= 32 (get str (+ pos* 2)))))
+
+  (defn push-line []
+    (buffer/push-string res (buffer/new-filled indent 32))
+    (set c (get str pos))
+    (while (and c (not= 10 c))
+      (buffer/push-byte res c)
+      (set c (get str (++ pos))))
+    (buffer/push-byte res 10)
+    (++ pos))
+
+  (defn push-bullet []
+    (var pos* pos)
+    (buffer/push-string line (buffer/new-filled leading 32))
+    (set c (get str pos*))
+    # Add bullet
+    (while (and c (not= 32 c))
+      (buffer/push-byte line c)
+      (set c (get str (++ pos*))))
+    # Add item indentation
+    (while (= 32 c)
+      (buffer/push-byte line c)
+      (set c (get str (++ pos*))))
+    # Record indentation if necessary
+    (def item-indent (+ leading (- pos* pos)))
+    (when (not= item-indent (array/peek levels))
+       (array/push levels item-indent))
+    # Update line width
+    (+= line-width item-indent)
+    # Update position
+    (set pos pos*))
+
+  (defn push-word [hang-indent]
+    (def word @"")
+    (var word-len 0)
+    # Build a word
+    (while (and c
+                (not= 10 c)
+                (not= 32 c))
+      (buffer/push-byte word c)
+      (++ word-len)
+      (set c (get str (++ pos))))
+    # Start new line if necessary
+    (when (> (+ line-width word-len) max-width)
+      # Push existing line
+      (buffer/push-byte line 10)
+      (buffer/push-string res line)
+      (buffer/clear line)
+      # Indent new line
+      (buffer/push-string line (buffer/new-filled hang-indent 32))
+      (set line-width hang-indent))
+    # Add single space if not beginning of line
+    (when (not= line-width hang-indent)
+      (buffer/push-byte line 32)
+      (++ line-width))
+    # Push word onto line
+    (buffer/push-string line word)
+    (set line-width (+ line-width word-len)))
+
+  (defn push-nl []
+    (when (< pos len)
+      (buffer/push-byte res 10)
+      (++ pos)))
+
+  (defn push-list []
+    (update-levels)
+    # Indent first line
+    (buffer/push-string line (buffer/new-filled indent 32))
+    (set line-width indent)
+    # Add bullet
+    (push-bullet)
+    # Add words
+    (set c (get str pos))
+    (while (and c
+                (not= 10 c))
+      # Skip spaces
+      (while (= 32 c)
+        (set c (get str (++ pos))))
+      # Add word
+      (push-word (+ indent (array/peek levels)))
+      (def old-c c)
+      (set c (get str (++ pos)))
+      # Check if next line is a new item
+      (when (and (= 10 old-c)
+                 (or (start-ul?)
+                     (start-ol?)))
+        (set c (get str (-- pos)))))
+    # Add final line
+    (buffer/push-string res line)
+    (buffer/clear line)
+    # Move position back for newline
+    (-- pos)
+    (push-nl))
+
+  (defn push-fcb []
+    (update-levels)
+    (push-line)
+    (while (and (< pos len) (not (end-fcb?)))
+      (push-line))
+    (push-line))
+
+  (defn push-icb []
+    (buffer/push-string res (buffer/new-filled leading 32))
+    (push-line)
+    (while (and (< pos len) (not (start-nl?)))
+      (push-line))
+    (push-nl))
+
+  (defn push-p []
+    (update-levels)
+    # Set up the indentation
+    (def para-indent (+ indent (array/peek levels)))
+    # Indent first line
+    (buffer/push-string line (buffer/new-filled para-indent 32))
+    (set line-width para-indent)
+    # Add words
+    (set c (get str pos))
+    (while (and c (not= 10 c))
+      # Skip spaces
+      (while (= 32 c)
+        (set c (get str (++ pos))))
+      # Add word
+      (push-word para-indent)
+      (set c (get str (++ pos))))
+    # Add final line
+    (buffer/push-string res line)
+    (buffer/clear line)
+    # Move position back for newline
+    (-- pos)
+    (push-nl)
+    (push-nl))
+
+  (while (< pos len)
+    (skip-line-indent)
+    (cond
+      (start-nl?)
+      (push-nl)
+
+      (start-ul?)
+      (push-list)
+
+      (start-ol?)
+      (push-list)
+
+      (start-fcb?)
+      (push-fcb)
+
+      (start-icb?)
+      (push-icb)
+
+      (push-p)))
+  res)
+
+(defn- print-index
+  "Print bindings in the current environment given a filter function"
+  [fltr]
+  (def bindings (filter fltr (all-bindings)))
+  (def dynamics (map describe (filter fltr (all-dynamics))))
+  (print)
+  (print (doc-format (string "Bindings:\n\n" (string/join bindings " "))))
+  (print)
+  (print (doc-format (string "Dynamics:\n\n" (string/join dynamics " "))))
+  (print "\n    Use (doc sym) for more information on a binding.\n"))
+
+(defn- print-module-entry
+  [x]
+  (def bind-type
+    (string "    "
+            (cond
+              (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
+              (x :macro) :macro
+              (type (x :value)))
+            "\n"))
+  (def sm (x :source-map))
+  (def d (x :doc))
+  (print "\n\n"
+         (if d bind-type "")
+         (if-let [[path line col] sm]
+           (string "    " path " on line " line ", column " col "\n") "")
+         (if (or d sm) "\n" "")
+         (if d (doc-format d) "    no documentation found.")
+         "\n\n"))
+
+(defn doc*
+  "Get the documentation for a symbol in a given environment. Function form of doc."
+  [&opt sym]
+
+  (cond
+    (string? sym)
+    (print-index (fn [x] (string/find sym x)))
+
+    sym
+    (do
+      (def x (dyn sym))
+      (if (not x)
+        (do
+          (def [fullpath _] (module/find (string sym)))
+          (if-let [mod-env (in module/cache fullpath)]
+            (in mod-env :doc)
+            (print "symbol " sym " not found.")))
+        (print-module-entry x)))
+
+    # else
+    (print-index identity)))
+
+(defmacro doc
+  `Shows documentation for the given symbol, or can show a list of available bindings.
+  If sym is a symbol, will look for documentation for that symbol. If sym is a string
+  or is not provided, will show all lexical and dynamic bindings in the current environment with
+  that prefix (all bindings will be shown if no prefix is given).`
+  [&opt sym]
+  ~(,doc* ',sym))
+
+(defn doc-of
+  `Searches all loaded modules in module/cache for a given binding and prints out its documentation.
+  This does a search by value instead of by name. Returns nil.`
+  [x]
+  (var found false)
+  (loop [module-set :in [[root-env] module/cache]
+         module :in module-set
+         value :in module]
+    (let [check (or (get value :ref) (get value :value))]
+      (when (= check x)
+        (print-module-entry value)
+        (set found true)
+        (break))))
+  (if-not found
+    (print "documentation for value " x " not found.")))
+
+(undef env-walk)
+(undef print-index)
+(undef print-module-entry)
 
 ###
 ###
