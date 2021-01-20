@@ -2848,6 +2848,7 @@
             (cond
               (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
               (x :macro) :macro
+              (x :module) (string :module " (" (x :kind) ": " (x :path) ")")
               (type (x :value)))
             "\n"))
   (def sm (x :source-map))
@@ -2873,9 +2874,12 @@
       (def x (dyn sym))
       (if (not x)
         (do
-          (def [fullpath _] (module/find (string sym)))
+          (def [fullpath mod-kind] (module/find (string sym)))
           (if-let [mod-env (in module/cache fullpath)]
-            (in mod-env :doc)
+            (print-module-entry {:module true
+                                 :path   fullpath
+                                 :kind   mod-kind
+                                 :doc    (in mod-env :doc)})
             (print "symbol " sym " not found.")))
         (print-module-entry x)))
 
