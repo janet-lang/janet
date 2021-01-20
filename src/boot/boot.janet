@@ -2848,16 +2848,16 @@
             (cond
               (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
               (x :macro) :macro
-              (x :module) (string :module " (" (x :kind) ": " (x :path) ")")
+              (x :module) (string :module " (" (x :kind) ")")
               (type (x :value)))
             "\n"))
   (def sm (x :source-map))
   (def d (x :doc))
   (print "\n\n"
-         (if d bind-type "")
-         (if-let [[path line col] sm]
-           (string "    " path " on line " line ", column " col "\n") "")
-         (if (or d sm) "\n" "")
+         (when d bind-type)
+         (when-let [[path line col] sm]
+           (string "    " path (when (and line col) (string " on line " line ", column " col)) "\n"))
+         (when (or d sm) "\n")
          (if d (doc-format d) "    no documentation found.")
          "\n\n"))
 
@@ -2876,10 +2876,10 @@
         (do
           (def [fullpath mod-kind] (module/find (string sym)))
           (if-let [mod-env (in module/cache fullpath)]
-            (print-module-entry {:module true
-                                 :path   fullpath
-                                 :kind   mod-kind
-                                 :doc    (in mod-env :doc)})
+            (print-module-entry {:module     true
+                                 :kind       mod-kind
+                                 :source-map [fullpath nil nil]
+                                 :doc        (in mod-env :doc)})
             (print "symbol " sym " not found.")))
         (print-module-entry x)))
 
