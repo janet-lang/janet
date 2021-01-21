@@ -263,12 +263,11 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
 #ifndef JANET_WINDOWS
     if (janet_keyeq(argv[offset], "unix")) {
         const char *path = janet_getcstring(argv, offset + 1);
-        struct sockaddr_un *saddr = malloc(sizeof(struct sockaddr_un));
+        struct sockaddr_un *saddr = calloc(1, sizeof(struct sockaddr_un));
         if (saddr == NULL) {
             JANET_OUT_OF_MEMORY;
         }
         saddr->sun_family = AF_UNIX;
-        memset(&saddr->sun_path, 0, 108);
 #ifdef JANET_LINUX
         if (path[0] == '@') {
             saddr->sun_path[0] = '\0';
