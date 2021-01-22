@@ -3168,6 +3168,12 @@
     [& body]
     ~(,ev/go (fiber/new (fn _spawn [&] ,;body) :tp)))
 
+  (defmacro ev/do-thread
+    ``Run some code in a new thread. Suspends the current fiber until the thread is complete, and
+    evaluates to nil.``
+    [& body]
+    ~(,ev/thread (fiber/new (fn _thread [&] ,;body) :t)))
+
   (defmacro ev/with-deadline
     `Run a body of code with a deadline, such that if the code does not complete before
     the deadline is up, it will be canceled.`

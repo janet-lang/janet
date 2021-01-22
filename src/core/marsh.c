@@ -938,6 +938,7 @@ static const uint8_t *unmarshal_one_fiber(
 #ifdef JANET_EV
     fiber->waiting = NULL;
     fiber->sched_id = 0;
+    fiber->supervisor_channel = NULL;
 #endif
 
     /* Push fiber to seen stack */

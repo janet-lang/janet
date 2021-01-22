@@ -2033,6 +2033,65 @@ static Janet cfun_ev_go(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
+/* For ev/thread - Run an interpreter in the new thread. */
+static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
+    JanetBuffer *buffer = (JanetBuffer *) args.argp;
+    const uint8_t *nextbytes = buffer->data;
+    const uint8_t *endbytes = nextbytes + buffer->count;
+    janet_init();
+    JanetTryState tstate;
+    JanetSignal signal = janet_try(&tstate);
+    if (!signal) {
+        Janet aregv = janet_unmarshal(nextbytes, endbytes - nextbytes,
+                                      JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
+        if (!janet_checktype(aregv, JANET_TABLE)) janet_panic("expected table for abstract registry");
+        janet_vm_abstract_registry = janet_unwrap_table(aregv);
+        Janet regv = janet_unmarshal(nextbytes, endbytes - nextbytes,
+                                     JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
+        if (!janet_checktype(regv, JANET_TABLE)) janet_panic("expected table for cfunction registry");
+        janet_vm_registry = janet_unwrap_table(regv);
+        Janet fiberv = janet_unmarshal(nextbytes, endbytes - nextbytes,
+                                       JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
+        Janet value = janet_unmarshal(nextbytes, endbytes - nextbytes,
+                                      JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
+        if (!janet_checktype(fiberv, JANET_FIBER)) janet_panic("expected fiber");
+        JanetFiber *fiber = janet_unwrap_fiber(fiberv);
+        janet_gcroot(fiberv);
+        janet_schedule(fiber, value);
+        janet_loop();
+        args.tag = JANET_EV_TCTAG_NIL;
+    } else {
+        if (janet_checktype(tstate.payload, JANET_STRING)) {
+            args.tag = JANET_EV_TCTAG_ERR_STRINGF;
+            args.argp = strdup((const char *) janet_unwrap_string(tstate.payload));
+        } else {
+            args.tag = JANET_EV_TCTAG_ERR_STRING;
+            args.argp = "failed to start thread";
+        }
+    }
+    janet_buffer_deinit(buffer);
+    janet_restore(&tstate);
+    janet_deinit();
+    return args;
+}
+
+static Janet cfun_ev_thread(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 3);
+    janet_getfiber(argv, 0);
+    Janet value = argc == 2 ? argv[1] : janet_wrap_nil();
+    /* Marshal arguments for the new thread. */
+    JanetBuffer *buffer = malloc(sizeof(JanetBuffer));
+    if (NULL == buffer) {
+        JANET_OUT_OF_MEMORY;
+    }
+    janet_buffer_init(buffer, 0);
+    janet_marshal(buffer, janet_wrap_table(janet_vm_abstract_registry), NULL, JANET_MARSHAL_UNSAFE);
+    janet_marshal(buffer, janet_wrap_table(janet_vm_registry), NULL, JANET_MARSHAL_UNSAFE);
+    janet_marshal(buffer, argv[0], NULL, JANET_MARSHAL_UNSAFE);
+    janet_marshal(buffer, value, NULL, JANET_MARSHAL_UNSAFE);
+    janet_ev_threaded_await(janet_go_thread_subr, 0, argc, buffer);
+}
+
 static Janet cfun_ev_give_supervisor(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, -1);
     JanetChannel *chan = janet_vm_root_fiber->supervisor_channel;
@@ -2145,6 +2204,14 @@ static const JanetReg ev_cfuns[] = {
              "An optional `core/channel` can be provided as well as a supervisor. When various "
              "events occur in the newly scheduled fiber, an event will be pushed to the supervisor. "
              "If not provided, the new fiber will inherit the current supervisor.")
+    },
+    {
+        "ev/thread", cfun_ev_thread,
+        JDOC("(ev/thread fiber &opt value flags)\n\n"
+             "Resume a (copy of a) `fiber` in a new operating system thread, optionally passing `value` "
+             "to resume with. "
+             "Unlike `ev/go`, this function will suspend the current fiber until the thread is complete. "
+             "The the final result.")
     },
     {
         "ev/give-supervisor", cfun_ev_give_supervisor,

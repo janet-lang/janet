@@ -520,7 +520,7 @@ static int thread_worker(JanetMailboxPair *pair) {
         janet_stacktrace(fiber, out);
     }
 
-#ifdef JANET_NET
+#ifdef JANET_EV
     janet_loop();
 #endif
 

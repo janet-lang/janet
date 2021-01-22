@@ -53,7 +53,9 @@ JANET_NO_RETURN static void janet_top_level_signal(const char *msg) {
 void janet_signalv(JanetSignal sig, Janet message) {
     if (janet_vm_return_reg != NULL) {
         *janet_vm_return_reg = message;
-        janet_vm_fiber->flags |= JANET_FIBER_DID_LONGJUMP;
+        if (NULL != janet_vm_fiber) {
+            janet_vm_fiber->flags |= JANET_FIBER_DID_LONGJUMP;
+        }
 #if defined(JANET_BSD) || defined(JANET_APPLE)
         _longjmp(*janet_vm_jmp_buf, sig);
 #else

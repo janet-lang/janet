@@ -146,6 +146,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
             if (state->function) {
                 /* Schedule worker */
                 JanetFiber *fiber = janet_fiber(state->function, 64, 1, &streamv);
+                fiber->supervisor_channel = s->fiber->supervisor_channel;
                 janet_schedule(fiber, janet_wrap_nil());
                 /* Now listen again for next connection */
                 Janet err;
@@ -222,6 +223,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
                 Janet streamv = janet_wrap_abstract(stream);
                 if (state->function) {
                     JanetFiber *fiber = janet_fiber(state->function, 64, 1, &streamv);
+                    fiber->supervisor_channel = s->fiber->supervisor_channel;
                     janet_schedule(fiber, janet_wrap_nil());
                 } else {
                     janet_schedule(s->fiber, streamv);
