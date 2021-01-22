@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Add `ev/thread` for combining threading with the event loop.
+- Add `ev/do-thread` to make `ev/thread` easier to use.
+- Automatically set supervisor channel in `net/accept-loop` and `net/server` correctly.
+
 ## 1.14.1 - 2021-01-18
 - Add `doc-of` for reverse documentation lookup.
 - Add `ev/give-supervsior` to send a message to the supervising channel.
