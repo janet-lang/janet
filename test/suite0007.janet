@@ -320,4 +320,8 @@
   (array/push a x))
 (assert (deep= (range 4) a) "eachk 1")
 
+
+(tracev (def my-unique-var-name true))
+(assert my-unique-var-name "tracev upscopes")
+
 (end-suite)
