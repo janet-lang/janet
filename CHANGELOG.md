@@ -1,7 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.14.2 - 2021-01-23
+- Allow `JANET_PROFILE` env variable to load a profile before loading the repl.
+- Update `tracev` macro to allow `def` and `var` inside to work as expected.
 - Use `(dyn :peg-grammar)` for passing a default grammar to `peg/compile` instead of loading
   `default-peg-grammar` directly from the root environment.
 - Add `ev/thread` for combining threading with the event loop.
