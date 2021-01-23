@@ -2056,7 +2056,6 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
                                       JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
         if (!janet_checktype(fiberv, JANET_FIBER)) janet_panic("expected fiber");
         JanetFiber *fiber = janet_unwrap_fiber(fiberv);
-        janet_gcroot(fiberv);
         janet_schedule(fiber, value);
         janet_loop();
         args.tag = JANET_EV_TCTAG_NIL;

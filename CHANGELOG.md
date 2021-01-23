@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Use `(dyn :peg-grammar)` for passing a default grammar to `peg/compile` instead of loading
+  `default-peg-grammar` directly from the root environment.
 - Add `ev/thread` for combining threading with the event loop.
 - Add `ev/do-thread` to make `ev/thread` easier to use.
 - Automatically set supervisor channel in `net/accept-loop` and `net/server` correctly.

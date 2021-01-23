@@ -2007,7 +2007,7 @@
      :a (range "az" "AZ")
      :s (set " \t\r\n\0\f\v")
      :w (range "az" "AZ" "09")
-     :h (range "09" "af")
+     :h (range "09" "af" "AF")
      :S (if-not :s 1)
      :W (if-not :w 1)
      :A (if-not :a 1)
@@ -2023,6 +2023,8 @@
      :w* (any :w)
      :s* (any :s)
      :h* (any :h)})
+
+(setdyn :peg-grammar default-peg-grammar)
 
 ###
 ###

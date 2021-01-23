@@ -1486,7 +1486,13 @@ static JanetPeg *make_peg(Builder *b) {
 static JanetPeg *compile_peg(Janet x) {
     Builder builder;
     builder.grammar = janet_table(0);
-    builder.default_grammar = janet_get_core_table("default-peg-grammar");
+    builder.default_grammar = NULL;
+    {
+        Janet default_grammarv = janet_dyn("peg-grammar");
+        if (janet_checktype(default_grammarv, JANET_TABLE)) {
+            builder.default_grammar = janet_unwrap_table(default_grammarv);
+        }
+    }
     builder.tags = janet_table(0);
     builder.constants = NULL;
     builder.bytecode = NULL;
@@ -1656,7 +1662,8 @@ static const JanetReg peg_cfuns[] = {
         "peg/compile", cfun_peg_compile,
         JDOC("(peg/compile peg)\n\n"
              "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
-             "if the same peg will be used multiple times.")
+             "if the same peg will be used multiple times. Will also use `(dyn :peg-grammar)` to suppliment "
+             "the grammar of the peg for otherwise undefined peg keywords.")
     },
     {
         "peg/match", cfun_peg_match,
