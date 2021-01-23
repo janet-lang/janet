@@ -1113,7 +1113,8 @@
   (def fmt-2 (if (or (neg? l) (neg? c)) ":" (string/format " on line %d, column %d:" l c)))
   (def fmt (string fmt-1 fmt-2 " %j is "))
   (def s (gensym))
-  ~(let [,s ,x]
+  ~(upscope
+     (def ,s ,x)
      (,eprinf ,fmt ',x)
      (,eprintf (,dyn :pretty-format "%q") ,s)
      ,s))
