@@ -1614,8 +1614,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
         }
         break;
 #else
-        case JANET_ASYNC_EVENT_ERR:
-        case JANET_ASYNC_EVENT_HUP: {
+        case JANET_ASYNC_EVENT_ERR: {
             if (state->bytes_read) {
                 janet_schedule(s->fiber, janet_wrap_buffer(state->buf));
             } else {
@@ -1623,6 +1622,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             }
             return JANET_ASYNC_STATUS_DONE;
         }
+        case JANET_ASYNC_EVENT_HUP:
         case JANET_ASYNC_EVENT_READ: {
             JanetBuffer *buffer = state->buf;
             int32_t bytes_left = state->bytes_left;
