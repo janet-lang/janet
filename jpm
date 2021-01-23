@@ -663,7 +663,6 @@ int main(int argc, const char **argv) {
     }
 
     /* Create enviornment */
-    temptab = janet_table(0);
     temptab = env;
     janet_table_put(temptab, janet_ckeywordv("args"), janet_wrap_array(args));
     janet_gcroot(janet_wrap_table(temptab));
@@ -674,6 +673,14 @@ int main(int argc, const char **argv) {
     /* Run everything */
     JanetFiber *fiber = janet_fiber(jfunc, 64, argc, argc ? args->data : NULL);
     fiber->env = temptab;
+#ifdef JANET_EV
+    janet_gcroot(janet_wrap_fiber(fiber));
+    janet_schedule(fiber, janet_wrap_nil());
+    janet_loop();
+    int status = janet_fiber_status(fiber);
+    janet_deinit();
+    return status;
+#else
     Janet out;
     JanetSignal result = janet_continue(fiber, janet_wrap_nil(), &out);
     if (result != JANET_SIGNAL_OK && result != JANET_SIGNAL_EVENT) {
@@ -681,11 +688,9 @@ int main(int argc, const char **argv) {
       janet_deinit();
       return result;
     }
-#ifdef JANET_NET
-    janet_loop();
-#endif
     janet_deinit();
     return 0;
+#endif
 }
 
 ```))

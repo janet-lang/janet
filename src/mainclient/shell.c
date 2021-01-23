@@ -1042,19 +1042,23 @@ int main(int argc, char **argv) {
     janet_table_put(env, janet_ckeywordv("executable"), janet_cstringv(argv[0]));
 
     /* Run startup script */
-    Janet mainfun, out;
+    Janet mainfun;
     janet_resolve(env, janet_csymbol("cli-main"), &mainfun);
     Janet mainargs[1] = { janet_wrap_array(args) };
     JanetFiber *fiber = janet_fiber(janet_unwrap_function(mainfun), 64, 1, mainargs);
     fiber->env = env;
+
+#ifdef JANET_EV
+    janet_gcroot(janet_wrap_fiber(fiber));
+    janet_schedule(fiber, janet_wrap_nil());
+    janet_loop();
+    status = janet_fiber_status(fiber);
+#else
+    Janet out;
     status = janet_continue(fiber, janet_wrap_nil(), &out);
     if (status != JANET_SIGNAL_OK && status != JANET_SIGNAL_EVENT) {
         janet_stacktrace(fiber, out);
     }
-
-#ifdef JANET_EV
-    status = JANET_SIGNAL_OK;
-    janet_loop();
 #endif
 
     /* Deinitialize vm */

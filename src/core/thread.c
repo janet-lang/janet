@@ -84,6 +84,9 @@ static JANET_THREAD_LOCAL JanetTable *janet_vm_thread_decode = NULL;
 static JanetTable *janet_thread_get_decode(void) {
     if (janet_vm_thread_decode == NULL) {
         janet_vm_thread_decode = janet_get_core_table("load-image-dict");
+        if (NULL == janet_vm_thread_decode) {
+            janet_vm_thread_decode = janet_table(0);
+        }
         janet_gcroot(janet_wrap_table(janet_vm_thread_decode));
     }
     return janet_vm_thread_decode;
