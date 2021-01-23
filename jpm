@@ -602,7 +602,7 @@
   (string (string/slice path 0 (- -1 (length modext))) statext))
 
 (defn- make-bin-source
-  [declarations lookup-into-invocations]
+  [declarations lookup-into-invocations no-core]
   (string
     declarations
     ```
@@ -627,15 +627,22 @@ int main(int argc, const char **argv) {
 
     janet_init();
 
+    ```
+    (if no-core
+    ```
+    /* Get core env */
+    JanetTable *env = janet_table(8);
+    JanetTable *lookup = janet_core_lookup_table(NULL);
+    JanetTable *temptab;
+    int handle = janet_gclock();
+    ```
+    ```
     /* Get core env */
     JanetTable *env = janet_core_env(NULL);
     JanetTable *lookup = janet_env_lookup(env);
     JanetTable *temptab;
     int handle = janet_gclock();
-
-    /* Load natives into unmarshalling dictionary */
-
-    ```
+    ```)
     lookup-into-invocations
     ```
     /* Unmarshal bytecode */
@@ -699,7 +706,7 @@ int main(int argc, const char **argv) {
   "Links an image with libjanet.a (or .lib) to produce an
   executable. Also will try to link native modules into the
   final executable as well."
-  [opts source dest]
+  [opts source dest no-core]
 
   # Create executable's janet image
   (def cimage_dest (string dest ".c"))
@@ -715,7 +722,16 @@ int main(int argc, const char **argv) {
         (def dep-ldflags @[])
 
         # Create marshalling dictionary
-        (def mdict (invert (env-lookup root-env)))
+        (def mdict1 (invert (env-lookup root-env)))
+        (def mdict
+          (if no-core
+            (let [temp @{}]
+              (eachp [k v] mdict1
+                (if (or (cfunction? k) (abstract? k))
+                  (put temp k v)))
+              temp)
+            mdict1))
+
         # Load all native modules
         (def prefixes @{})
         (def static-libs @[])
@@ -760,7 +776,7 @@ int main(int argc, const char **argv) {
         # Make image byte buffer
         (create-buffer-c-impl image cimage_dest "janet_payload_image")
         # Append main function
-        (spit cimage_dest (make-bin-source declarations lookup-into-invocations) :ab)
+        (spit cimage_dest (make-bin-source declarations lookup-into-invocations no-core) :ab)
         (def oimage_dest (out-path cimage_dest ".c" ".o"))
         # Compile and link final exectable
         (unless no-compile
@@ -1049,10 +1065,10 @@ int main(int argc, const char **argv) {
   This executable can be installed as well to the --binpath given."
   [&keys {:install install :name name :entry entry :headers headers
           :cflags cflags :lflags lflags :deps deps :ldflags ldflags
-          :no-compile no-compile}]
+          :no-compile no-compile :no-core no-core}]
   (def name (if is-win (string name ".exe") name))
   (def dest (string "build" sep name))
-  (create-executable @{:cflags cflags :lflags lflags :ldflags ldflags :no-compile no-compile} entry dest)
+  (create-executable @{:cflags cflags :lflags lflags :ldflags ldflags :no-compile no-compile} entry dest no-core)
   (if no-compile
     (let [cdest (string dest ".c")]
       (add-dep "build" cdest))
@@ -1359,7 +1375,9 @@ Flags are:
 
 (defn quickbin
   [input output]
-  (create-executable @{} input output)
+  (if (= (os/stat output :mode) :file)
+    (print "output " output " exists."))
+  (create-executable @{:no-compile (dyn :no-compile)} input output (dyn :no-core))
   (do-rule output))
 
 (defn jpm-debug-repl
