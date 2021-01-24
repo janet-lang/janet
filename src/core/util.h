@@ -108,6 +108,11 @@ void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cf
 int janet_gettime(struct timespec *spec);
 #endif
 
+/* strdup */
+#ifdef JANET_WINDOWS
+#define strdup(x) _strdup(x)
+#endif
+
 #define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
 
 /* Initialize builtin libraries */

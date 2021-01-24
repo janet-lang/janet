@@ -393,7 +393,20 @@ static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
      * while in transit, and it's value gets reused. DuplicateHandle does not work
      * for network sockets, and in general for winsock it is better to nipt duplicate
      * unless there is a need to. */
-    janet_marshal_int64(ctx, (int64_t)(s->handle));
+    HANDLE duph = INVALID_HANDLE_VALUE;
+    if (s->flags & JANET_STREAM_SOCKET) {
+        duph = s->handle;
+    } else {
+        DuplicateHandle(
+                GetCurrentProcess(),
+                s->handle,
+                GetCurrentProcess(),
+                &duph,
+                0,
+                FALSE,
+                DUPLICATE_SAME_ACCESS);
+    }
+    janet_marshal_int64(ctx, (int64_t)(duph));
 #else
     /* Marshal after dup becuse it is easier than maintaining our own ref counting. */
     int duph = dup(s->handle);
@@ -2314,6 +2327,7 @@ static const JanetReg ev_cfuns[] = {
 
 void janet_lib_ev(JanetTable *env) {
     janet_core_cfuns(env, NULL, ev_cfuns);
+    janet_register_abstract_type(&janet_stream_type);
 }
 
 #endif
