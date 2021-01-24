@@ -58,9 +58,9 @@ Documentation is also available locally in the REPL.
 Use the `(doc symbol-name)` macro to get API
 documentation for symbols in the core library. For example,
 ```
-(doc doc)
+(doc apply)
 ```
-Shows documentation for the doc macro.
+Shows documentation for the `apply` function.
 
 To get a list of all bindings in the default
 environment, use the `(all-bindings)` function. You
