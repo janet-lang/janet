@@ -91,7 +91,9 @@ void janet_buffer_extra(JanetBuffer *buffer, int32_t n) {
     }
     int32_t new_size = buffer->count + n;
     if (new_size > buffer->capacity) {
-        int32_t new_capacity = new_size * 2;
+        size_t new_capacity_sizet = (size_t) (new_size) * 2;
+        if (new_capacity_sizet > INT32_MAX) new_capacity_sizet = INT32_MAX;
+        int32_t new_capacity = (int32_t) new_capacity_sizet;
         uint8_t *new_data = realloc(buffer->data, new_capacity * sizeof(uint8_t));
         janet_gcpressure(new_capacity - buffer->capacity);
         if (NULL == new_data) {
