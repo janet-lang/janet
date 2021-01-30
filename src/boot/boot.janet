@@ -2442,22 +2442,25 @@
   (put env :source (or src (if-not path-is-file spath path)))
   (var exit-error nil)
   (var exit-fiber nil)
-  (defn chunks [buf _] (file/read f 2048 buf))
+  (defn chunks [buf _] (file/read f 4096 buf))
   (defn bp [&opt x y]
     (when exit
       (bad-parse x y)
       (os/exit 1))
     (put env :exit true)
-    (def [line col] (:where x))
-    (def pe (string (:error x) " in " y " around line " line ", column " col))
-    (set exit-error pe))
+    (def buf @"")
+    (with-dyns [:err buf :err-color false]
+      (bad-parse x y))
+    (set exit-error (string/slice buf 0 -2)))
   (defn bc [&opt x y z a b]
     (when exit
       (bad-compile x y z a b)
       (os/exit 1))
     (put env :exit true)
-    (def ce (string x " while compiling " z))
-    (set exit-error ce)
+    (def buf @"")
+    (with-dyns [:err buf :err-color false]
+      (bad-compile x nil z a b))
+    (set exit-error (string/slice buf 0 -2))
     (set exit-fiber y))
   (unless f
     (error (string "could not find file " path)))
@@ -2469,7 +2472,8 @@
                   :on-status (fn [f x]
                                (when (not= (fiber/status f) :dead)
                                  (when exit
-                                   (debug/stacktrace f x)
+                                   (eprint x)
+                                   (debug/stacktrace f)
                                    (eflush)
                                    (os/exit 1))
                                  (put env :exit true)
@@ -3252,7 +3256,10 @@
 (defn- use-2 [evaluator args]
   (each a args (import* (string a) :prefix "" :evaluator evaluator)))
 
-(defn- evaluator
+(defn flycheck-evaluator
+  ``An evaluator function that is passed to `run-context` that lints (flychecks) code.
+  This means code will parsed and compiled, macros executed, but the code will not be run.
+  Used by `flycheck`.``
   [thunk source env where]
   (when (tuple? source)
     (def head (source 0))
@@ -3266,20 +3273,25 @@
       (thunk)
       # Use
       (= 'use head)
-      (use-2 evaluator (tuple/slice source 1))
+      (use-2 flycheck-evaluator (tuple/slice source 1))
       # Import-like form
       (importers head)
       (let [[l c] (tuple/sourcemap source)
-            newtup (tuple/setmap (tuple ;source :evaluator evaluator) l c)]
+            newtup (tuple/setmap (tuple ;source :evaluator flycheck-evaluator) l c)]
         ((compile newtup env where))))))
 
 (defn flycheck
   ``Check a file for errors without running the file. Found errors will be printed to stderr
   in the usual format. Macros will still be executed, however, so
   arbitrary execution is possible. Other arguments are the same as dofile. `path` can also be
-  a file value such as stdin.``
+  a file value such as stdin. Returns nil.``
   [path &keys kwargs]
-  (dofile path :evaluator evaluator ;(kvs kwargs)))
+  (try
+    (dofile path :evaluator flycheck-evaluator ;(kvs kwargs))
+    ([e f]
+     (eprint e)
+     (debug/stacktrace f)))
+  nil)
 
 ###
 ###

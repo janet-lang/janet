@@ -102,7 +102,9 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
     int32_t fi;
     const char *errstr = (const char *)janet_to_string(err);
     JanetFiber **fibers = NULL;
-    int wrote_error = 0;
+
+    /* Don't print error line if it is nil. */
+    int wrote_error = janet_checktype(err, JANET_NIL);
 
     int print_color = janet_truthy(janet_dyn("err-color"));
     if (print_color) janet_eprintf("\x1b[31m");
@@ -302,7 +304,6 @@ static Janet cfun_debug_stacktrace(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet x = argc == 1 ? janet_wrap_nil() : argv[1];
-    x = janet_checktype(x, JANET_NIL) ? fiber->last_value : x;
     janet_stacktrace(fiber, x);
     return argv[0];
 }
@@ -382,7 +383,7 @@ static const JanetReg debug_cfuns[] = {
         JDOC("(debug/stacktrace fiber &opt err)\n\n"
              "Prints a nice looking stacktrace for a fiber. Can optionally provide "
              "an error value to print the stack trace with. If `err` is nil or not "
-             "provided, will default to `(fiber/last-value fiber)`. Returns the fiber.")
+             "provided, will skipp the error line. Returns the fiber.")
     },
     {
         "debug/lineage", cfun_debug_lineage,
