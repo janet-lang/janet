@@ -398,13 +398,13 @@ static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
         duph = s->handle;
     } else {
         DuplicateHandle(
-                GetCurrentProcess(),
-                s->handle,
-                GetCurrentProcess(),
-                &duph,
-                0,
-                FALSE,
-                DUPLICATE_SAME_ACCESS);
+            GetCurrentProcess(),
+            s->handle,
+            GetCurrentProcess(),
+            &duph,
+            0,
+            FALSE,
+            DUPLICATE_SAME_ACCESS);
     }
     janet_marshal_int64(ctx, (int64_t)(duph));
 #else
