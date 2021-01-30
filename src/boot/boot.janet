@@ -2054,30 +2054,31 @@
   (def [line col] (:where p))
   (eprint
     (if ec "\e[31m" "")
-    "parse error in "
     where
-    " around line "
-    (string line)
-    ", column "
-    (string col)
-    ": "
+    ":"
+    line
+    ":"
+    col
+    ": parse error: "
     (:error p)
     (if ec "\e[0m" ""))
   (eflush))
 
 (defn bad-compile
   "Default handler for a compile error."
-  [msg macrof where]
+  [msg macrof where line col]
   (def ec (dyn :err-color))
+  (eprin
+    (if ec "\e[31m" "")
+    where
+    ":"
+    line
+    ":"
+    col
+    ": compile error: ")
   (if macrof
-    (debug/stacktrace macrof (string msg " while compiling " where))
-    (eprint
-      (if ec "\e[31m" "")
-      "compile error: "
-      msg
-      " while compiling "
-      where
-      (if ec "\e[0m" "")))
+    (debug/stacktrace macrof msg)
+    (eprint msg (if ec "\e[0m" "")))
   (eflush))
 
 (defn curenv
@@ -2130,7 +2131,7 @@
   (default guard :ydt)
 
   # Evaluate 1 source form in a protected manner
-  (defn eval1 [source]
+  (defn eval1 [source &opt l c]
     (def source (if expand (expand source) source))
     (var good true)
     (var resumeval nil)
@@ -2143,11 +2144,7 @@
             (do
               (set good false)
               (def {:error err :line line :column column :fiber errf} res)
-              (def msg
-                (if (<= 0 line)
-                  (string err " on line " line ", column " column)
-                  err))
-              (on-compile-error msg errf where))))
+              (on-compile-error err errf where (or line l) (or column c)))))
         guard))
     (fiber/setenv f env)
     (while (fiber/can-resume? f)
@@ -2175,6 +2172,10 @@
     (fiber/setenv f env)
     (resume f))
 
+  (defn produce []
+    (def tup (p-produce p true))
+    [(in tup 0) ;(tuple/sourcemap tup)])
+
   # Loop
   (def buf @"")
   (var parser-not-done true)
@@ -2196,7 +2197,7 @@
         (while (> len pindex)
           (+= pindex (p-consume p buf pindex))
           (while (p-has-more p)
-            (eval1 (p-produce p))
+            (eval1 ;(produce))
             (if (env :exit) (break)))
           (when (= (p-status p) :error)
             (parse-err p where)
@@ -2205,7 +2206,7 @@
   # Check final parser state
   (unless (env :exit)
     (while (p-has-more p)
-      (eval1 (p-produce p))
+      (eval1 ;(produce))
       (if (env :exit) (break)))
     (when (= (p-status p) :error)
       (parse-err p where)))
@@ -2450,9 +2451,9 @@
     (def [line col] (:where x))
     (def pe (string (:error x) " in " y " around line " line ", column " col))
     (set exit-error pe))
-  (defn bc [&opt x y z]
+  (defn bc [&opt x y z a b]
     (when exit
-      (bad-compile x y z)
+      (bad-compile x y z a b)
       (os/exit 1))
     (put env :exit true)
     (def ce (string x " while compiling " z))

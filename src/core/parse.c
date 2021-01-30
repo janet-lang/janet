@@ -175,7 +175,14 @@ static void popstate(JanetParser *p, Janet val) {
         if (newtop->flags & PFLAG_CONTAINER) {
             newtop->argn++;
             /* Keep track of number of values in the root state */
-            if (p->statecount == 1) p->pending++;
+            if (p->statecount == 1) {
+                p->pending++;
+                /* Root items are always wrapped in a tuple for source map info. */
+                const Janet *tup = janet_tuple_n(&val, 1);
+                janet_tuple_sm_line(tup) = (int32_t) top.line;
+                janet_tuple_sm_column(tup) = (int32_t) top.column;
+                val = janet_wrap_tuple(tup);
+            }
             push_arg(p, val);
             return;
         } else if (newtop->flags & PFLAG_READERMAC) {
@@ -733,6 +740,19 @@ Janet janet_parser_produce(JanetParser *parser) {
     Janet ret;
     size_t i;
     if (parser->pending == 0) return janet_wrap_nil();
+    ret = janet_unwrap_tuple(parser->args[0])[0];
+    for (i = 1; i < parser->argcount; i++) {
+        parser->args[i - 1] = parser->args[i];
+    }
+    parser->pending--;
+    parser->argcount--;
+    return ret;
+}
+
+Janet janet_parser_produce_wrapped(JanetParser *parser) {
+    Janet ret;
+    size_t i;
+    if (parser->pending == 0) return janet_wrap_nil();
     ret = parser->args[0];
     for (i = 1; i < parser->argcount; i++) {
         parser->args[i - 1] = parser->args[i];
@@ -980,9 +1000,13 @@ static Janet cfun_parse_error(int32_t argc, Janet *argv) {
 }
 
 static Janet cfun_parse_produce(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 2);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
-    return janet_parser_produce(p);
+    if (argc == 2 && janet_truthy(argv[1])) {
+        return janet_parser_produce_wrapped(p);
+    } else {
+        return janet_parser_produce(p);
+    }
 }
 
 static Janet cfun_parse_flush(int32_t argc, Janet *argv) {
@@ -1217,10 +1241,12 @@ static const JanetReg parse_cfuns[] = {
     },
     {
         "parser/produce", cfun_parse_produce,
-        JDOC("(parser/produce parser)\n\n"
+        JDOC("(parser/produce parser &opt wrap)\n\n"
              "Dequeue the next value in the parse queue. Will return nil if "
              "no parsed values are in the queue, otherwise will dequeue the "
-             "next value.")
+             "next value. If `wrap` is truthy, will return a 1-element tuple that "
+             "wraps the result. This tuple can be used for source-mapping "
+             "purposes.")
     },
     {
         "parser/consume", cfun_parse_consume,

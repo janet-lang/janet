@@ -1367,6 +1367,7 @@ JANET_API void janet_parser_deinit(JanetParser *parser);
 JANET_API void janet_parser_consume(JanetParser *parser, uint8_t c);
 JANET_API enum JanetParserStatus janet_parser_status(JanetParser *parser);
 JANET_API Janet janet_parser_produce(JanetParser *parser);
+JANET_API Janet janet_parser_produce_wrapped(JanetParser *parser);
 JANET_API const char *janet_parser_error(JanetParser *parser);
 JANET_API void janet_parser_flush(JanetParser *parser);
 JANET_API void janet_parser_eof(JanetParser *parser);

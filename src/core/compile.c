@@ -872,8 +872,12 @@ static Janet cfun(int32_t argc, Janet *argv) {
     } else {
         JanetTable *t = janet_table(4);
         janet_table_put(t, janet_ckeywordv("error"), janet_wrap_string(res.error));
-        janet_table_put(t, janet_ckeywordv("line"), janet_wrap_integer(res.error_mapping.line));
-        janet_table_put(t, janet_ckeywordv("column"), janet_wrap_integer(res.error_mapping.column));
+        if (res.error_mapping.line > 0) {
+            janet_table_put(t, janet_ckeywordv("line"), janet_wrap_integer(res.error_mapping.line));
+        }
+        if (res.error_mapping.column > 0) {
+            janet_table_put(t, janet_ckeywordv("column"), janet_wrap_integer(res.error_mapping.column));
+        }
         if (res.macrofiber) {
             janet_table_put(t, janet_ckeywordv("fiber"), janet_wrap_fiber(res.macrofiber));
         }

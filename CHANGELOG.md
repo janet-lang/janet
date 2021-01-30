@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Fix bug where a buffer overflow could be confused with an out of memory error.
+- Change error output to `file:line:column: message`. Column is in bytes - tabs
+  are considered to have width 1 (instead of 8).
+
 ## 1.14.2 - 2021-01-23
 - Allow `JANET_PROFILE` env variable to load a profile before loading the repl.
 - Update `tracev` macro to allow `def` and `var` inside to work as expected.
