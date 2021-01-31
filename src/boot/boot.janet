@@ -7,8 +7,6 @@
 ###
 ###
 
-(def root-env "The root environment used to create environments with (make-env)" _env)
-
 (def defn :macro
   ```
   (defn name & more)
@@ -585,16 +583,6 @@
   [& body]
   (tuple fiber/new (tuple 'fn '[] ;body) :yi))
 
-(defmacro- undef
-  "Remove binding from root-env"
-  [& syms]
-  ~(do ,;(seq [s :in syms] ~(put root-env ',s nil))))
-
-(undef _env)
-
-(undef loop1 check-indexed for-template for-var-template iterate-template
-       each-template range-template)
-
 (defn sum
   "Returns the sum of xs. If xs is empty, returns 0."
   [xs]
@@ -757,8 +745,6 @@
 (defn even? "Check if x is even." [x] (= 0 (compare 0 (mod x 2))))
 (defn odd? "Check if x is odd." [x] (= 0 (compare 1 (mod x 2))))
 
-(undef compare-reduce)
-
 ###
 ###
 ### Indexed Combinators
@@ -770,7 +756,7 @@
     a
     (if (not= (> b a) (> b c)) b c)))
 
-(defn sort-help [a lo hi by]
+(defn- sort-help [a lo hi by]
   (when (< lo hi)
     (def pivot
       (median-of-three (in a hi) (in a lo)
@@ -795,9 +781,6 @@
   "Sort an array in-place. Uses quick-sort and is not a stable sort."
   [a &opt by]
   (sort-help a 0 (- (length a) 1) (or by <)))
-
-(undef median-of-three)
-(undef sort-help)
 
 (defn sort-by
   `Returns a new sorted array that compares elements by invoking
@@ -1203,9 +1186,6 @@
                (tuple/slice x)
                (tuple/brackets ;x)))
     form))
-
-(undef walk-ind)
-(undef walk-dict)
 
 (defn postwalk
   `Do a post-order traversal of a data structure and call (f x)
@@ -2033,10 +2013,11 @@
 ###
 ###
 
-# Get boot options
-(def- boot/opts @{})
+# Initialize syspath and header path
 (each [k v] (partition 2 (tuple/slice boot/args 2))
-  (put boot/opts k v))
+  (case k
+    "JANET_PATH" (setdyn :syspath v)
+    "JANET_HEADERPATH" (setdyn :headerpath v)))
 
 (defn make-env
   `Create a new environment table. The new environment
@@ -2331,9 +2312,6 @@
   ```
   @[])
 
-(setdyn :syspath (boot/opts "JANET_PATH"))
-(setdyn :headerpath (boot/opts "JANET_HEADERPATH"))
-
 (defn module/add-paths
   ```
   Add paths to module/paths for a given loader such that
@@ -2361,7 +2339,7 @@
 (array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload check-is-dep])
 
 # Version of fexists that works even with a reduced OS
-(defn fexists
+(defn- fexists
   [path]
   (compif (dyn 'os/stat)
     (= :file (os/stat path :mode))
@@ -2407,12 +2385,6 @@
           paths (filter identity (map expander module/paths))
           str-parts (interpose "\n    " paths)]
       [nil (string "could not find module " path ":\n    " ;str-parts)])))
-
-(undef fexists)
-(undef mod-filter)
-(undef check-relative)
-(undef check-project-relative)
-(undef check-is-dep)
 
 (def module/loading
   `Table mapping currently loading modules to true. Used to prevent
@@ -2507,7 +2479,7 @@
                    m)))
     :image (fn image-loader [path &] (load-image (slurp path)))})
 
-(defn require-1
+(defn- require-1
   [path args kargs]
   (def [fullpath mod-kind] (module/find path))
   (unless fullpath (error mod-kind))
@@ -2555,8 +2527,6 @@
                 prefix
                 (string (last (string/split "/" path)) "/")))
   (merge-module env newenv prefix ep))
-
-(undef require-1)
 
 (defmacro import
   `Import a module. First requires the module, and then merges its
@@ -2918,10 +2888,6 @@
   (if-not found
     (print "documentation for value " x " not found.")))
 
-(undef env-walk)
-(undef print-index)
-(undef print-module-entry)
-
 ###
 ###
 ### Debugger
@@ -2967,71 +2933,67 @@
   (in (.slots frame-idx) (or nth 0)))
 
 # Conditional compilation for disasm
-(def disasm-alias (if-let [x (root-env 'disasm)] (x :value)))
+(compwhen (dyn 'disasm)
 
-(defn .disasm
-  "Gets the assembly for the current function."
-  [&opt n]
-  (def frame (.frame n))
-  (def func (frame :function))
-  (disasm-alias func))
+  (defn .disasm
+    "Gets the assembly for the current function."
+    [&opt n]
+    (def frame (.frame n))
+    (def func (frame :function))
+    (disasm func))
 
-(defn .bytecode
-  "Get the bytecode for the current function."
-  [&opt n]
-  ((.disasm n) :bytecode))
+  (defn .bytecode
+    "Get the bytecode for the current function."
+    [&opt n]
+    ((.disasm n) :bytecode))
 
-(defn .ppasm
-  "Pretty prints the assembly for the current function"
-  [&opt n]
-  (def frame (.frame n))
-  (def func (frame :function))
-  (def dasm (disasm-alias func))
-  (def bytecode (in dasm :bytecode))
-  (def pc (frame :pc))
-  (def sourcemap (in dasm :sourcemap))
-  (var last-loc [-2 -2])
-  (print "\n  signal: " (.signal))
-  (print "  function:   " (dasm :name) " [" (in dasm :source "") "]")
-  (when-let [constants (dasm :constants)]
-    (printf "  constants:  %.4q" constants))
-  (printf "  slots:      %.4q\n" (frame :slots))
-  (def padding (string/repeat " " 20))
-  (loop [i :range [0 (length bytecode)]
-         :let [instr (bytecode i)]]
-    (prin (if (= (tuple/type instr) :brackets) "*" " "))
-    (prin (if (= i pc) "> " "  "))
-    (prinf "%.20s" (string (string/join (map string instr) " ") padding))
-    (when sourcemap
-      (let [[sl sc] (sourcemap i)
-            loc [sl sc]]
-        (when (not= loc last-loc)
-          (set last-loc loc)
-          (prin " # line " sl ", column " sc))))
+  (defn .ppasm
+    "Pretty prints the assembly for the current function"
+    [&opt n]
+    (def frame (.frame n))
+    (def func (frame :function))
+    (def dasm (disasm func))
+    (def bytecode (in dasm :bytecode))
+    (def pc (frame :pc))
+    (def sourcemap (in dasm :sourcemap))
+    (var last-loc [-2 -2])
+    (print "\n  signal: " (.signal))
+    (print "  function:   " (dasm :name) " [" (in dasm :source "") "]")
+    (when-let [constants (dasm :constants)]
+      (printf "  constants:  %.4q" constants))
+    (printf "  slots:      %.4q\n" (frame :slots))
+    (def padding (string/repeat " " 20))
+    (loop [i :range [0 (length bytecode)]
+           :let [instr (bytecode i)]]
+      (prin (if (= (tuple/type instr) :brackets) "*" " "))
+      (prin (if (= i pc) "> " "  "))
+      (prinf "%.20s" (string (string/join (map string instr) " ") padding))
+      (when sourcemap
+        (let [[sl sc] (sourcemap i)
+              loc [sl sc]]
+          (when (not= loc last-loc)
+            (set last-loc loc)
+            (prin " # line " sl ", column " sc))))
+      (print))
     (print))
-  (print))
 
-(defn .breakall
-  "Set breakpoints on all instructions in the current function."
-  [&opt n]
-  (def fun (.fn n))
-  (def bytecode (.bytecode n))
-  (forv i 0 (length bytecode)
-    (debug/fbreak fun i))
-  (print "Set " (length bytecode) " breakpoints in " fun))
+  (defn .breakall
+    "Set breakpoints on all instructions in the current function."
+    [&opt n]
+    (def fun (.fn n))
+    (def bytecode (.bytecode n))
+    (forv i 0 (length bytecode)
+      (debug/fbreak fun i))
+    (print "Set " (length bytecode) " breakpoints in " fun))
 
-(defn .clearall
-  "Clear all breakpoints on the current function."
-  [&opt n]
-  (def fun (.fn n))
-  (def bytecode (.bytecode n))
-  (forv i 0 (length bytecode)
-    (debug/unfbreak fun i))
-  (print "Cleared " (length bytecode) " breakpoints in " fun))
-
-(unless (get root-env 'disasm)
-  (undef .disasm .bytecode .breakall .clearall .ppasm))
-(undef disasm-alias)
+  (defn .clearall
+    "Clear all breakpoints on the current function."
+    [&opt n]
+    (def fun (.fn n))
+    (def bytecode (.bytecode n))
+    (forv i 0 (length bytecode)
+      (debug/unfbreak fun i))
+    (print "Cleared " (length bytecode) " breakpoints in " fun)))
 
 (defn .source
   "Show the source code for the function being debugged."
@@ -3087,7 +3049,6 @@
 
 (def- debugger-keys (filter (partial string/has-prefix? ".") (keys root-env)))
 (each k debugger-keys (put debugger-env k (root-env k)) (put root-env k nil))
-(undef debugger-keys)
 
 ###
 ###
@@ -3161,6 +3122,7 @@
 ###
 
 (compwhen (dyn 'ev/go)
+
   (defn net/close "Alias for ev/close." [stream] (ev/close stream))
 
   (defn ev/call
@@ -3212,9 +3174,7 @@
          (,wait-for-fibers ,chan
            ,(seq [[i body] :pairs bodies]
               ~(,ev/go (,fiber/new (fn [] (put ,res ,i ,body)) :tp) nil ,chan)))
-         ,res)))
-
-  (undef wait-for-fibers))
+         ,res))))
 
 (compwhen (dyn 'net/listen)
   (defn net/server
@@ -3256,7 +3216,7 @@
 (defn- use-2 [evaluator args]
   (each a args (import* (string a) :prefix "" :evaluator evaluator)))
 
-(defn flycheck-evaluator
+(defn- flycheck-evaluator
   ``An evaluator function that is passed to `run-context` that lints (flychecks) code.
   This means code will parsed and compiled, macros executed, but the code will not be run.
   Used by `flycheck`.``
@@ -3298,7 +3258,6 @@
 ### CLI Tool Main
 ###
 ###
-
 
 # conditional compilation for reduced os
 (def- getenv-alias (if-let [entry (in root-env 'os/getenv)] (entry :value) (fn [&])))
@@ -3425,23 +3384,6 @@
         (setdyn :err-color (if *colorize* true))
         (repl getchunk nil env)))))
 
-(undef no-side-effects is-safe-def safe-forms importers use-2 getenv-alias)
-
-###
-###
-### Clean up
-###
-###
-
-(do
-  (undef boot/opts undef)
-  (def load-dict (env-lookup root-env))
-  (put load-dict 'boot/config nil)
-  (put load-dict 'boot/args nil)
-  (each [k v] (pairs load-dict)
-    (if (number? v) (put load-dict k nil)))
-  (merge-into load-image-dict load-dict))
-
 ###
 ###
 ### Bootstrap
@@ -3459,29 +3401,38 @@
         (put into k (x k))))
     into)
 
-  # Modify env based on some options.
-  (loop [[k v] :pairs root-env
+  # Modify root-env to remove private symbols and
+  # flatten nested tables.
+  (loop [[k v] :in (pairs root-env)
          :when (symbol? k)]
     (def flat (proto-flatten @{} v))
     (when (boot/config :no-docstrings)
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)
       (put flat :source-map nil))
-    (put root-env k flat))
-
+    (if (v :private)
+      (put root-env k nil)
+      (put root-env k flat)))
   (put root-env 'boot/config nil)
   (put root-env 'boot/args nil)
 
-  (def image (let [env-pairs (pairs (env-lookup root-env))
-                   essential-pairs (filter (fn [[k v]] (or (cfunction? v) (abstract? v))) env-pairs)
-                   lookup (table ;(mapcat identity essential-pairs))
-                   reverse-lookup (invert lookup)]
-               # Check no duplicate values
-               (def temp @{})
-               (eachp [k v] lookup
-                 (if (in temp v) (errorf "duplicate value: %v" v))
-                 (put temp v k))
-               (marshal root-env reverse-lookup)))
+  # Build dictionary for loading images
+  (def load-dict (env-lookup root-env))
+  (each [k v] (pairs load-dict)
+    (if (number? v) (put load-dict k nil)))
+  (merge-into load-image-dict load-dict)
+
+  (def image
+    (let [env-pairs (pairs (env-lookup root-env))
+          essential-pairs (filter (fn [[k v]] (or (cfunction? v) (abstract? v))) env-pairs)
+          lookup (table ;(mapcat identity essential-pairs))
+          reverse-lookup (invert lookup)]
+      # Check no duplicate values
+      (def temp @{})
+      (eachp [k v] lookup
+        (if (in temp v) (errorf "duplicate value: %v" v))
+        (put temp v k))
+      (marshal root-env reverse-lookup)))
 
   # Create amalgamation
 

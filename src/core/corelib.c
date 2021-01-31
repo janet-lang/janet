@@ -1206,7 +1206,8 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                    "if native modules are compatible with the host program."));
 
     /* Allow references to the environment */
-    janet_def(env, "_env", janet_wrap_table(env), JDOC("The environment table for the current scope."));
+    janet_def(env, "root-env", janet_wrap_table(env),
+            JDOC("The root environment used to create environments with (make-env)."));
 
     janet_load_libs(env);
     janet_gcroot(janet_wrap_table(env));
