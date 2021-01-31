@@ -746,6 +746,7 @@ static const JanetReg io_cfuns[] = {
              "* r - allow reading from the file\n\n"
              "* w - allow writing to the file\n\n"
              "* a - append to the file\n\n"
+             "Following one fo the initial flags, 0 or more of the following flags can be appended:\n\n"
              "* b - open the file in binary mode (rather than text mode)\n\n"
              "* + - append to the file instead of overwriting it\n\n"
              "* n - error if the file cannot be opened instead of returning nil")
