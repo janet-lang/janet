@@ -1207,7 +1207,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
 
     /* Allow references to the environment */
     janet_def(env, "root-env", janet_wrap_table(env),
-            JDOC("The root environment used to create environments with (make-env)."));
+              JDOC("The root environment used to create environments with (make-env)."));
 
     janet_load_libs(env);
     janet_gcroot(janet_wrap_table(env));

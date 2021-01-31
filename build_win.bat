@@ -30,7 +30,7 @@ if not "%JANET_BUILD%" == "" (
 
 if not exist build mkdir build
 if not exist build\core mkdir build\core
-if not exist build\mainclient mkdir build\mainclient
+if not exist build\c mkdir build\c
 if not exist build\boot mkdir build\boot
 
 @rem Build the bootstrap interpreter
@@ -44,10 +44,10 @@ for %%f in (src\boot\*.c) do (
 )
 %JANET_LINK% /out:build\janet_boot.exe build\boot\*.obj
 @if errorlevel 1 goto :BUILDFAIL
-build\janet_boot . > build\janet.c
+build\janet_boot . > build\c\janet.c
 
 @rem Build the sources
-%JANET_COMPILE% /Fobuild\janet.obj build\janet.c
+%JANET_COMPILE% /Fobuild\janet.obj build\c\janet.c
 @if errorlevel 1 goto :BUILDFAIL
 %JANET_COMPILE% /Fobuild\shell.obj src\mainclient\shell.c
 @if errorlevel 1 goto :BUILDFAIL
@@ -102,9 +102,9 @@ exit /b 0
 mkdir dist
 janet.exe tools\gendoc.janet > dist\doc.html
 janet.exe tools\removecr.janet dist\doc.html
-janet.exe tools\removecr.janet build\janet.c
+janet.exe tools\removecr.janet build\c\janet.c
 
-copy build\janet.c dist\janet.c
+copy build\c\janet.c dist\janet.c
 copy src\mainclient\shell.c dist\shell.c
 copy janet.exe dist\janet.exe
 copy LICENSE dist\LICENSE

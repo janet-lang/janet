@@ -66,7 +66,7 @@ ifeq ($(UNAME), Haiku)
 	LDFLAGS=-Wl,--export-dynamic
 endif
 
-$(shell mkdir -p build/core build/mainclient build/webclient build/boot)
+$(shell mkdir -p build/core build/c build/boot)
 all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.h
 
 ######################
@@ -149,7 +149,7 @@ build/janet_boot: $(JANET_BOOT_OBJECTS)
 	$(CC) $(BOOT_CFLAGS) -o $@ $(JANET_BOOT_OBJECTS) $(CLIBS)
 
 # Now the reason we bootstrap in the first place
-build/janet.c: build/janet_boot src/boot/boot.janet
+build/c/janet.c: build/janet_boot src/boot/boot.janet
 	build/janet_boot . JANET_PATH '$(JANET_PATH)' > $@
 	cksum $@
 
@@ -159,7 +159,7 @@ build/janet.c: build/janet_boot src/boot/boot.janet
 
 SONAME=libjanet.so.1.14
 
-build/shell.c: src/mainclient/shell.c
+build/c/shell.c: src/mainclient/shell.c
 	cp $< $@
 
 build/janet.h: $(JANET_TARGET) src/include/janet.h src/conf/janetconf.h
@@ -168,11 +168,11 @@ build/janet.h: $(JANET_TARGET) src/include/janet.h src/conf/janetconf.h
 build/janetconf.h: src/conf/janetconf.h
 	cp $< $@
 
-build/janet.o: build/janet.c src/include/janet.h src/conf/janetconf.h
-	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@ -I build
+build/janet.o: build/c/janet.c src/conf/janetconf.h src/include/janet.h
+	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@
 
-build/shell.o: build/shell.c src/include/janet.h src/conf/janetconf.h
-	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@ -I build
+build/shell.o: build/c/shell.c src/conf/janetconf.h src/include/janet.h
+	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@
 
 $(JANET_TARGET): build/janet.o build/shell.o
 	$(HOSTCC) $(LDFLAGS) $(BUILD_CFLAGS) -o $@ $^ $(CLIBS)
@@ -224,7 +224,7 @@ dist: build/janet-dist.tar.gz
 build/janet-%.tar.gz: $(JANET_TARGET) \
 	build/janet.h \
 	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
-	build/doc.html README.md build/janet.c build/shell.c jpm
+	build/doc.html README.md build/c/janet.c build/c/shell.c jpm
 	$(eval JANET_DIST_DIR = "janet-$(shell basename $*)")
 	mkdir -p build/$(JANET_DIST_DIR)
 	cp -r $^ build/$(JANET_DIST_DIR)/
