@@ -930,8 +930,13 @@ static Janet cfun_parse_insert(int32_t argc, Janet *argv) {
     if (s->flags & PFLAG_COMMENT) s--;
     if (s->flags & PFLAG_CONTAINER) {
         s->argn++;
-        if (p->statecount == 1) p->pending++;
-        push_arg(p, argv[1]);
+        if (p->statecount == 1) {
+            p->pending++;
+            Janet tup = janet_wrap_tuple(janet_tuple_n(argv + 1, 1));
+            push_arg(p, tup);
+        } else {
+            push_arg(p, argv[1]);
+        }
     } else if (s->flags & (PFLAG_STRING | PFLAG_LONGSTRING)) {
         const uint8_t *str = janet_to_string(argv[1]);
         int32_t slen = janet_string_length(str);

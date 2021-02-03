@@ -2047,7 +2047,7 @@
 
 (defn bad-compile
   "Default handler for a compile error."
-  [msg macrof where line col]
+  [msg macrof where &opt line col]
   (def ec (dyn :err-color))
   (eprin
     (if ec "\e[31m" "")
