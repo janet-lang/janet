@@ -2314,11 +2314,11 @@
 
 (defn module/add-paths
   ```
-  Add paths to module/paths for a given loader such that
+  Add paths to `module/paths` for a given loader such that
   the generated paths behave like other module types, including
-  relative imports and syspath imports. ext is the file extension
-  to associate with this module type, including the dot. loader is the
-  keyword name of a loader that is module/loaders. Returns the modified module/paths.
+  relative imports and syspath imports. `ext` is the file extension
+  to associate with this module type, including the dot. `loader` is the
+  keyword name of a loader in `module/loaders`. Returns the modified `module/paths`.
   ```
   [ext loader]
   (defn- find-prefix
