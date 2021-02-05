@@ -307,9 +307,13 @@ int32_t janet_hash(Janet x) {
             hash = janet_struct_hash(janet_unwrap_struct(x));
             break;
         case JANET_NUMBER: {
-            uint64_t i = janet_u64(x);
-            uint32_t lo = (uint32_t)(i & 0xFFFFFFFF);
-            uint32_t hi = (uint32_t)(i >> 32);
+            union {
+                double d;
+                uint64_t u;
+            } as;
+            as.d = janet_unwrap_number(x);
+            uint32_t lo = (uint32_t)(as.u & 0xFFFFFFFF);
+            uint32_t hi = (uint32_t)(as.u >> 32);
             hash = (int32_t)(hi ^ (lo >> 3));
             break;
         }
