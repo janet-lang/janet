@@ -756,7 +756,7 @@
     a
     (if (not= (> b a) (> b c)) b c)))
 
-(defn- sort-help [a lo hi by]
+(defn- sort-help [a lo hi before?]
   (when (< lo hi)
     (def pivot
       (median-of-three (in a hi) (in a lo)
@@ -764,8 +764,8 @@
     (var left lo)
     (var right hi)
     (while true
-      (while (by (in a left) pivot) (++ left))
-      (while (by pivot (in a right)) (-- right))
+      (while (before? (in a left) pivot) (++ left))
+      (while (before? pivot (in a right)) (-- right))
       (when (<= left right)
         (def tmp (in a left))
         (set (a left) (in a right))
@@ -773,14 +773,14 @@
         (++ left)
         (-- right))
       (if (>= left right) (break)))
-    (sort-help a lo right by)
-    (sort-help a left hi by))
+    (sort-help a lo right before?)
+    (sort-help a left hi before?))
   a)
 
 (defn sort
   "Sort an array in-place. Uses quick-sort and is not a stable sort."
-  [a &opt by]
-  (sort-help a 0 (- (length a) 1) (or by <)))
+  [a &opt before?]
+  (sort-help a 0 (- (length a) 1) (or before? <)))
 
 (defn sort-by
   ``Returns `ind` sorted by calling
@@ -790,8 +790,8 @@
 
 (defn sorted
   "Returns a new sorted array without modifying the old one."
-  [ind &opt by]
-  (sort (array/slice ind) by))
+  [ind &opt before?]
+  (sort (array/slice ind) before?))
 
 (defn sorted-by
   ``Returns a new sorted array that compares elements by invoking
