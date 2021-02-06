@@ -1276,7 +1276,14 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     /* Push frame */
     janet_fiber_pushn(janet_vm_fiber, argv, argc);
     if (janet_fiber_funcframe(janet_vm_fiber, fun)) {
-        janet_panicf("arity mismatch in %v", janet_wrap_function(fun));
+        int32_t min = fun->def->min_arity;
+        int32_t max = fun->def->max_arity;
+        Janet funv = janet_wrap_function(fun);
+        if (min == max && min != argc)
+            janet_panicf("arity mismatch in %v, expected %d, got %d", funv, min, argc);
+        if (min >= 0 && argc < min)
+            janet_panicf("arity mismatch in %v, expected at least %d, got %d", funv, min, argc);
+        janet_panicf("arity mismatch in %v, expected at most %d, got %d", funv, max, argc);
     }
     janet_fiber_frame(janet_vm_fiber)->flags |= JANET_STACKFRAME_ENTRANCE;
 
