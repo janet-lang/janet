@@ -780,7 +780,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     vm_compop( <=);
 
     VM_OP(JOP_LESS_THAN_IMMEDIATE)
-    stack[A] = janet_wrap_boolean(janet_unwrap_integer(stack[B]) < CS);
+    stack[A] = janet_wrap_boolean(janet_unwrap_number(stack[B]) < (double) CS);
     vm_pcnext();
 
     VM_OP(JOP_GREATER_THAN)
@@ -790,7 +790,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     vm_compop( >=);
 
     VM_OP(JOP_GREATER_THAN_IMMEDIATE)
-    stack[A] = janet_wrap_boolean(janet_unwrap_integer(stack[B]) > CS);
+    stack[A] = janet_wrap_boolean(janet_unwrap_number(stack[B]) > (double) CS);
     vm_pcnext();
 
     VM_OP(JOP_EQUALS)
@@ -798,7 +798,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     vm_pcnext();
 
     VM_OP(JOP_EQUALS_IMMEDIATE)
-    stack[A] = janet_wrap_boolean(janet_unwrap_integer(stack[B]) == CS);
+    stack[A] = janet_wrap_boolean(janet_unwrap_number(stack[B]) == (double) CS);
     vm_pcnext();
 
     VM_OP(JOP_NOT_EQUALS)
@@ -806,7 +806,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     vm_pcnext();
 
     VM_OP(JOP_NOT_EQUALS_IMMEDIATE)
-    stack[A] = janet_wrap_boolean(janet_unwrap_integer(stack[B]) != CS);
+    stack[A] = janet_wrap_boolean(janet_unwrap_number(stack[B]) != (double) CS);
     vm_pcnext();
 
     VM_OP(JOP_COMPARE)
