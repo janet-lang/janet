@@ -202,6 +202,20 @@ JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf = NULL;
             vm_checkgc_pcnext();\
         }\
     }
+#define vm_compop_imm(op) \
+    {\
+        Janet op1 = stack[B];\
+        if (janet_checktype(op1, JANET_NUMBER)) {\
+            double x1 = janet_unwrap_number(op1);\
+            double x2 = (double) CS; \
+            stack[A] = janet_wrap_boolean(x1 op x2);\
+            vm_pcnext();\
+        } else {\
+            vm_commit();\
+            stack[A] = janet_wrap_boolean(janet_compare(op1, janet_wrap_integer(CS)) op 0);\
+            vm_checkgc_pcnext();\
+        }\
+    }
 
 /* Trace a function call */
 static void vm_do_trace(JanetFunction *func, int32_t argc, const Janet *argv) {
@@ -780,8 +794,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     vm_compop( <=);
 
     VM_OP(JOP_LESS_THAN_IMMEDIATE)
-    stack[A] = janet_wrap_boolean(janet_unwrap_number(stack[B]) < (double) CS);
-    vm_pcnext();
+    vm_compop_imm( <);
 
     VM_OP(JOP_GREATER_THAN)
     vm_compop( >);
@@ -790,8 +803,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     vm_compop( >=);
 
     VM_OP(JOP_GREATER_THAN_IMMEDIATE)
-    stack[A] = janet_wrap_boolean(janet_unwrap_number(stack[B]) > (double) CS);
-    vm_pcnext();
+    vm_compop_imm( >);
 
     VM_OP(JOP_EQUALS)
     stack[A] = janet_wrap_boolean(janet_equals(stack[B], stack[C]));

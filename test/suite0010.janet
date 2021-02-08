@@ -137,4 +137,10 @@
 (assert (deep= (string/split "qq" "1qqqqz") @["1" "" "z"]) "string/split 1")
 (assert (deep= (string/split "aa" "aaa") @["" "a"]) "string/split 2")
 
+# Comparisons
+(assert (> 1e23 100) "less than immediate 1")
+(assert (> 1e23 1000) "less than immediate 2")
+(assert (< 100 1e23) "greater than immediate 1")
+(assert (< 1000 1e23) "greater than immediate 2")
+
 (end-suite)
