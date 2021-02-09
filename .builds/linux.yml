@@ -4,7 +4,14 @@ sources:
 packages:
 - meson
 tasks:
-- build: |
+- with-epoll: |
+    cd janet
+    meson setup build --buildtype=release
+    cd build
+    meson configure -Depoll=true
+    ninja
+    ninja test
+- no-epoll: |
     cd janet
     meson setup build --buildtype=release
     cd build
@@ -13,3 +20,4 @@ tasks:
     ninja test
     sudo ninja install
     sudo jpm --verbose install circlet
+    sudo jpm --verbose install spork

@@ -1,7 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.15.0 - 2021-02-08
+- Fix `gtim` and `ltim` bytecode instructions on non-integer values.
+- Clean up output of flychecking to be the same as the repl.
+- Change behavior of `debug/stacktrace` with a nil error value.
+- Add optional argument to `parser/produce`.
+- Add `no-core` option to creating standalone binaries to make execution faster.
 - Fix bug where a buffer overflow could be confused with an out of memory error.
 - Change error output to `file:line:column: message`. Column is in bytes - tabs
   are considered to have width 1 (instead of 8).
