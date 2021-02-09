@@ -6,15 +6,15 @@ packages:
 tasks:
 - with-epoll: |
     cd janet
-    meson setup build --buildtype=release
-    cd build
+    meson setup with-epoll --buildtype=release
+    cd with-epoll
     meson configure -Depoll=true
     ninja
     ninja test
 - no-epoll: |
     cd janet
-    meson setup build --buildtype=release
-    cd build
+    meson setup no-epoll --buildtype=release
+    cd no-epoll
     meson configure -Depoll=false
     ninja
     ninja test
