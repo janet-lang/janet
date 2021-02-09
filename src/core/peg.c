@@ -1027,7 +1027,7 @@ static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_readint(Builder *b, int32_t argc, const Janet *argv, uint32_t mask) {
     peg_arity(b, argc, 1, 2);
     Reserve r = reserve(b, 3);
-    uint32_t tag = (argc == 2) ? emit_tag(b, argv[3]) : 0;
+    uint32_t tag = (argc == 2) ? emit_tag(b, argv[1]) : 0;
     int32_t width = peg_getnat(b, argv[0]);
     if ((width < 0) || (width > JANET_MAX_READINT_WIDTH)) {
         peg_panicf(b, "width must be between 0 and %d, got %d", JANET_MAX_READINT_WIDTH, width);
