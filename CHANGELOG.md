@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Fix documentation typos
+- Fix peg integer reading combinators when used with capture tags.
+
 ## 1.15.0 - 2021-02-08
 - Fix `gtim` and `ltim` bytecode instructions on non-integer values.
 - Clean up output of flychecking to be the same as the repl.
