@@ -980,7 +980,7 @@ int main(int argc, const char **argv) {
         (let [op (out-path src ".c" objext)]
           (compile-c opts src op)
           op)
-        (errorf "unknown source file type: %s, expected .c or .cpp"))))
+        (errorf "unknown source file type: %s, expected .c or .cpp" src))))
 
   (when-let [embedded (opts :embedded)]
     (loop [src :in embedded]
