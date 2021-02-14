@@ -210,7 +210,6 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
         janet_buffer_push_bytes(temp, vals, janet_string_length(vals));
         janet_buffer_push_u8(temp, '\0');
     }
-    if (temp->count == 0) return NULL;
     janet_buffer_push_u8(temp, '\0');
     char *ret = janet_smalloc(temp->count);
     memcpy(ret, temp->data, temp->count);
