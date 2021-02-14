@@ -941,7 +941,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
         janet_unlock_environ();
     }
 
-    /* Wait for child */
     os_execute_cleanup(envp, child_argv);
     if (status) {
         janet_panicf("%p: %s", argv[0], strerror(errno));

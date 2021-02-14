@@ -143,4 +143,7 @@
 (assert (< 100 1e23) "greater than immediate 1")
 (assert (< 1000 1e23) "greater than immediate 2")
 
+# os/execute with environment variables
+(assert (= 0 (os/execute [(dyn :executable) "-e" "(+ 1 2 3)"] :pe {"HELLO" "WORLD"})) "os/execute with env")
+
 (end-suite)
