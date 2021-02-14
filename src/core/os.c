@@ -187,57 +187,81 @@ static Janet os_exit(int32_t argc, Janet *argv) {
 #ifndef JANET_NO_PROCESSES
 
 /* Get env for os_execute */
-static char **os_execute_env(int32_t argc, const Janet *argv) {
-    char **envp = NULL;
-    if (argc > 2) {
-        JanetDictView dict = janet_getdictionary(argv, 2);
-        envp = janet_smalloc(sizeof(char *) * ((size_t)dict.len + 1));
-        int32_t j = 0;
-        for (int32_t i = 0; i < dict.cap; i++) {
-            const JanetKV *kv = dict.kvs + i;
-            if (!janet_checktype(kv->key, JANET_STRING)) continue;
-            if (!janet_checktype(kv->value, JANET_STRING)) continue;
-            const uint8_t *keys = janet_unwrap_string(kv->key);
-            const uint8_t *vals = janet_unwrap_string(kv->value);
-            int32_t klen = janet_string_length(keys);
-            int32_t vlen = janet_string_length(vals);
-            /* Check keys has no embedded 0s or =s. */
-            int skip = 0;
-            for (int32_t k = 0; k < klen; k++) {
-                if (keys[k] == '\0' || keys[k] == '=') {
-                    skip = 1;
-                    break;
-                }
-            }
-            if (skip) continue;
-            char *envitem = janet_smalloc((size_t) klen + (size_t) vlen + 2);
-            memcpy(envitem, keys, klen);
-            envitem[klen] = '=';
-            memcpy(envitem + klen + 1, vals, vlen);
-            envitem[klen + vlen + 1] = 0;
-            envp[j++] = envitem;
-        }
-        envp[j] = NULL;
+#ifdef JANET_WINDOWS
+typedef char *EnvBlock;
+#else
+typedef char **EnvBlock;
+#endif
+
+/* Get env for os_execute */
+static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
+    if (argc <= 2) return NULL;
+    JanetDictView dict = janet_getdictionary(argv, 2);
+#ifdef JANET_WINDOWS
+    JanetBuffer *temp = janet_buffer(10);
+    for (int32_t i = 0; i < dict.cap; i++) {
+        const JanetKV *kv = dict.kvs + i;
+        if (!janet_checktype(kv->key, JANET_STRING)) continue;
+        if (!janet_checktype(kv->value, JANET_STRING)) continue;
+        const uint8_t *keys = janet_unwrap_string(kv->key);
+        const uint8_t *vals = janet_unwrap_string(kv->value);
+        janet_buffer_push_bytes(temp, keys, janet_string_length(keys));
+        janet_buffer_push_u8(temp, '=');
+        janet_buffer_push_bytes(temp, vals, janet_string_length(vals));
+        janet_buffer_push_u8(temp, '\0');
     }
+    if (temp->count == 0) return NULL;
+    janet_buffer_push_u8(temp, '\0');
+    char *ret = janet_smalloc(temp->count);
+    memcpy(ret, temp->data, temp->count);
+    return ret;
+#else
+    char **envp = janet_smalloc(sizeof(char *) * ((size_t)dict.len + 1));
+    int32_t j = 0;
+    for (int32_t i = 0; i < dict.cap; i++) {
+        const JanetKV *kv = dict.kvs + i;
+        if (!janet_checktype(kv->key, JANET_STRING)) continue;
+        if (!janet_checktype(kv->value, JANET_STRING)) continue;
+        const uint8_t *keys = janet_unwrap_string(kv->key);
+        const uint8_t *vals = janet_unwrap_string(kv->value);
+        int32_t klen = janet_string_length(keys);
+        int32_t vlen = janet_string_length(vals);
+        /* Check keys has no embedded 0s or =s. */
+        int skip = 0;
+        for (int32_t k = 0; k < klen; k++) {
+            if (keys[k] == '\0' || keys[k] == '=') {
+                skip = 1;
+                break;
+            }
+        }
+        if (skip) continue;
+        char *envitem = janet_smalloc((size_t) klen + (size_t) vlen + 2);
+        memcpy(envitem, keys, klen);
+        envitem[klen] = '=';
+        memcpy(envitem + klen + 1, vals, vlen);
+        envitem[klen + vlen + 1] = 0;
+        envp[j++] = envitem;
+    }
+    envp[j] = NULL;
     return envp;
+#endif
 }
 
-/* Free memory from os_execute. Not actually needed, but doesn't pressure the GC
-   in the happy path. */
-static void os_execute_cleanup(char **envp, const char **child_argv) {
+static void os_execute_cleanup(EnvBlock envp, const char **child_argv) {
 #ifdef JANET_WINDOWS
     (void) child_argv;
+    janet_sfree(envp);
 #else
     janet_sfree((void *)child_argv);
-#endif
     if (NULL != envp) {
         char **envitem = envp;
         while (*envitem != NULL) {
-            janet_sfree(*envitem);
+            free(*envitem);
             envitem++;
         }
     }
     janet_sfree(envp);
+#endif
 }
 
 #ifdef JANET_WINDOWS
@@ -730,12 +754,11 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     uint64_t flags = 0;
     if (argc > 1) {
         flags = janet_getflags(argv, 1, "epx");
-
     }
 
     /* Get environment */
     int use_environ = !janet_flag_at(flags, 0);
-    char **envp = os_execute_env(argc, argv);
+    EnvBlock envp = os_execute_env(argc, argv);
 
     /* Get arguments */
     JanetView exargs = janet_getindexed(argv, 0);
