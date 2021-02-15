@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - 1.15.1
+## 1.15.1 - 2021-02-15
 - Fix bug in windows version of `os/spawn` and `os/execute` with setting environment variables.
 - Fix documentation typos.
 - Fix peg integer reading combinators when used with capture tags.
