@@ -249,13 +249,13 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
 static void os_execute_cleanup(EnvBlock envp, const char **child_argv) {
 #ifdef JANET_WINDOWS
     (void) child_argv;
-    janet_sfree(envp);
+    if (NULL != envp) janet_sfree(envp);
 #else
     janet_sfree((void *)child_argv);
     if (NULL != envp) {
         char **envitem = envp;
         while (*envitem != NULL) {
-            free(*envitem);
+            janet_sfree(*envitem);
             envitem++;
         }
     }
