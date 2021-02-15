@@ -1,0 +1,14 @@
+version: 2.1
+
+orbs:
+  # for later
+  windows: circleci/windows@2.2.0
+
+jobs:
+  build:
+    macos:
+      xcode: 11.3.0
+    steps:
+      - checkout
+      - run: make
+      - run: make test
