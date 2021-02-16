@@ -294,4 +294,25 @@
           (sort (mapcat (fn [[x y z]] [z y x]) (partition 3 (range 99))))) "sort 5")
 (assert (<= ;(sort (map (fn [x] (math/random)) (range 1000)))) "sort 6")
 
+# And and or
+
+(assert (= (and true true) true) "and true true")
+(assert (= (and true false) false) "and true false")
+(assert (= (and false true) false) "and false true")
+(assert (= (and true true true) true) "and true true true")
+(assert (= (and 0 1 2) 2) "and 0 1 2")
+(assert (= (and 0 1 nil) nil) "and 0 1 nil")
+(assert (= (and 1) 1) "and 1")
+(assert (= (and) true) "and with no arguments")
+
+(assert (= (or true true) true) "or true true")
+(assert (= (or true false) true) "or true false")
+(assert (= (or false true) true) "or false true")
+(assert (= (or false false) false) "or false true")
+(assert (= (or true true false) true) "or true true false")
+(assert (= (or 0 1 2) 0) "or 0 1 2")
+(assert (= (or nil 1 2) 1) "or nil 1 2")
+(assert (= (or 1) 1) "or 1")
+(assert (= (or) nil) "or with no arguments")
+
 (end-suite)
