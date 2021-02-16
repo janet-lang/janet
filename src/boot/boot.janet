@@ -277,8 +277,7 @@
   [& forms]
   (def len (length forms))
   (var i (- len 1))
-  (var ret (if (= 0 len) nil
-             (in forms i)))
+  (var ret (get forms i))
   (while (> i 0)
     (-- i)
     (def fi (in forms i))
