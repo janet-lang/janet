@@ -286,7 +286,7 @@ tail:
             const uint8_t *next_text;
             CapState cs = cap_save(s);
             down1(s);
-            while (text < s->text_end) {
+            while (text <= s->text_end) {
                 CapState cs2 = cap_save(s);
                 next_text = peg_rule(s, rule_a, text);
                 if (next_text) {
@@ -296,7 +296,7 @@ tail:
                 text++;
             }
             up1(s);
-            if (text >= s->text_end) {
+            if (text > s->text_end) {
                 cap_load(s, cs);
                 return NULL;
             }

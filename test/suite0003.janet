@@ -473,4 +473,12 @@
 
 (check-deep '(* (int 2) -1) "123" nil)
 
+# to/thru bug
+(check-deep '(to -1) "aaaa" @[])
+(check-deep '(thru -1) "aaaa" @[])
+(check-deep ''(to -1) "aaaa" @["aaaa"])
+(check-deep ''(thru -1) "aaaa" @["aaaa"])
+(check-deep '(to "b") "aaaa" nil)
+(check-deep '(thru "b") "aaaa" nil)
+
 (end-suite)
