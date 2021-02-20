@@ -147,17 +147,18 @@
 (assert (= 0 (os/execute [(dyn :executable) "-e" "(+ 1 2 3)"] :pe {"HELLO" "WORLD"})) "os/execute with env")
 
 # Regression #638
-(assert
-  (= [true :caught]
-     (protect
-       (try
-         (do
-           (ev/sleep 0)
-           (with-dyns []
+(compwhen
+  (dyn 'ev/go)
+  (assert
+    (= [true :caught]
+       (protect
+         (try
+           (do
              (ev/sleep 0)
-             (error "oops")))
-         ([err] :caught))))
-  "regression #638")
-
+             (with-dyns []
+               (ev/sleep 0)
+               (error "oops")))
+           ([err] :caught))))
+    "regression #638"))
 
 (end-suite)
