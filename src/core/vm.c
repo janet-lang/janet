@@ -1378,6 +1378,7 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
         if (janet_vm_root_fiber == fiber) janet_vm_root_fiber = NULL;
         if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
             *out = in;
+            janet_fiber_set_status(fiber, sig);
             return sig;
         }
         /* Check if we need any special handling for certain opcodes */
@@ -1417,23 +1418,23 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
 
     /* Save global state */
     JanetTryState tstate;
-    JanetSignal signal = janet_try(&tstate);
-    if (!signal) {
+    JanetSignal sig = janet_try(&tstate);
+    if (!sig) {
         /* Normal setup */
         if (janet_vm_root_fiber == NULL) janet_vm_root_fiber = fiber;
         janet_vm_fiber = fiber;
         janet_fiber_set_status(fiber, JANET_STATUS_ALIVE);
-        signal = run_vm(fiber, in);
+        sig = run_vm(fiber, in);
     }
 
     /* Restore */
     if (janet_vm_root_fiber == fiber) janet_vm_root_fiber = NULL;
-    janet_fiber_set_status(fiber, signal);
+    janet_fiber_set_status(fiber, sig);
     janet_restore(&tstate);
     fiber->last_value = tstate.payload;
     *out = tstate.payload;
 
-    return signal;
+    return sig;
 }
 
 /* Enter the main vm loop */

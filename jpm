@@ -23,12 +23,12 @@
 
 # Overriden on some installs.
 # To configure this script, replace the code between
-# the START and END comments and define a function 
+# the START and END comments and define a function
 # (install-paths) that gives the the default paths
 # to use. Trailing directory separator not expected.
 #
 # Example.
-# 
+#
 #   (defn- install-paths []
 #     {:headerpath "/usr/local/include/janet"
 #      :libpath "/usr/local/lib/janet"
@@ -169,9 +169,7 @@
   [& args]
   (if (dyn :verbose)
     (print ;(interpose " " args)))
-  (def res (os/execute args :p))
-  (unless (zero? res)
-    (error (string "command exited with status " res))))
+  (os/execute args :px))
 
 (defn copy
   "Copy a file or directory recursively from one location to another."
@@ -1424,26 +1422,30 @@ Flags are:
    "load-lockfile" load-lockfile
    "quickbin" quickbin})
 
-(def- args (tuple/slice (dyn :args) 1))
-(def- len (length args))
-(var i :private 0)
+(defn- main
+  "Script entry."
+  [& argv]
 
-# Get flags
-(while (< i len)
-  (if-let [m (peg/match argpeg (args i))]
-    (if (= 2 (length m))
-      (let [[key value] m]
-        (setdyn (keyword key) value))
-      (setdyn (keyword (m 0)) true))
-    (break))
-  (++ i))
+  (def- args (tuple/slice argv 1))
+  (def- len (length args))
+  (var i :private 0)
 
-# Run subcommand
-(if (= i len)
-  (help)
-  (do
-    (if-let [com (subcommands (args i))]
-      (com ;(tuple/slice args (+ i 1)))
-      (do
-        (print "invalid command " (args i))
-        (help)))))
+  # Get flags
+  (while (< i len)
+    (if-let [m (peg/match argpeg (args i))]
+      (if (= 2 (length m))
+        (let [[key value] m]
+          (setdyn (keyword key) value))
+        (setdyn (keyword (m 0)) true))
+      (break))
+    (++ i))
+
+  # Run subcommand
+  (if (= i len)
+    (help)
+    (do
+      (if-let [com (subcommands (args i))]
+        (com ;(tuple/slice args (+ i 1)))
+        (do
+          (print "invalid command " (args i))
+          (help))))))
