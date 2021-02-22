@@ -2173,7 +2173,9 @@
         (buffer/clear buf))
 
       [:source new-where]
-      (set where new-where)
+      (if (string? new-where)
+        (set where new-where)
+        (set where default-where))
 
       (do
         (var pindex 0)
