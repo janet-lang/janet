@@ -2098,7 +2098,7 @@
         :on-parse-error on-parse-error
         :fiber-flags guard
         :evaluator evaluator
-        :source where
+        :source default-where
         :parser parser
         :read read
         :expander expand} opts)
@@ -2108,8 +2108,10 @@
   (default on-compile-error bad-compile)
   (default on-parse-error bad-parse)
   (default evaluator (fn evaluate [x &] (x)))
-  (default where "<anonymous>")
+  (default default-where "<anonymous>")
   (default guard :ydt)
+
+  (var where default-where)
 
   # Evaluate 1 source form in a protected manner
   (defn eval1 [source &opt l c]
@@ -2163,11 +2165,16 @@
   (while parser-not-done
     (if (env :exit) (break))
     (buffer/clear buf)
-    (if (= (chunks buf p) :cancel)
+    (match (= (chunks buf p))
+      :cancel
       (do
         # A :cancel chunk represents a cancelled form in the REPL, so reset.
         (:flush p)
         (buffer/clear buf))
+
+      [:source new-where]
+      (set where new-where)
+
       (do
         (var pindex 0)
         (var pstatus nil)
