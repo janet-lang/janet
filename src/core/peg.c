@@ -596,6 +596,67 @@ tail:
             return text + width;
         }
 
+        case RULE_MATCHCAP: {
+            const uint32_t *rule_a = s->bytecode + rule[1];
+            const uint32_t *rule_b = s->bytecode + rule[2];
+
+            int oldmode = s->mode;
+            CapState cs = cap_save(s);
+            s->mode = PEG_MODE_NORMAL;
+            int32_t old_cap = s->captures->count;
+            down1(s);
+            const uint8_t *b_result = peg_rule(s, rule_b, text);
+            up1(s);
+            s->mode = oldmode;
+            if (!b_result) return NULL;
+            int32_t new_cap = s->captures->count;
+
+            /* Check for bad captures */
+            for (int32_t i = old_cap; i < new_cap; i++) {
+                Janet capture = s->captures->data[i];
+                if (!janet_checktype(capture, JANET_STRING)) {
+                    return NULL;
+                }
+            }
+
+            /* Save captures to temporary buffer */
+            Janet *temp_mem = janet_smalloc(sizeof(Janet) * (new_cap - old_cap));
+            for (int32_t i = old_cap; i < new_cap; i++) {
+                temp_mem[i - old_cap] = s->captures->data[i];
+            }
+            cap_load(s, cs);
+
+            for (int32_t i = old_cap; i < new_cap; i++) {
+                Janet capture = temp_mem[i - old_cap];
+                const uint8_t *str = janet_unwrap_string(capture);
+                PegState subs;
+                subs.mode = PEG_MODE_NORMAL;
+                subs.text_start = str;
+                subs.text_end = str + janet_string_length(str);
+                subs.depth = s->depth - 1;
+                subs.captures = s->captures;
+                subs.tagged_captures = s->tagged_captures;
+                subs.scratch = janet_buffer(10);
+                subs.tags = s->tags;
+                subs.constants = s->constants;
+                subs.bytecode = s->bytecode;
+                subs.linemap = NULL;
+                subs.linemaplen = -1;
+                subs.has_backref = s->has_backref;
+                subs.extrac = s->extrac;
+                subs.extrav = s->extrav;
+
+                const uint8_t *a_result = peg_rule(&subs, rule_a, str);
+                if (NULL == a_result) {
+                    janet_sfree(temp_mem);
+                    return NULL;
+                }
+            }
+
+            janet_sfree(temp_mem);
+            return b_result;
+        }
+
     }
 }
 
@@ -844,6 +905,9 @@ static void spec_ifnot(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_lenprefix(Builder *b, int32_t argc, const Janet *argv) {
     spec_branch(b, argc, argv, RULE_LENPREFIX);
 }
+static void spec_matchcap(Builder *b, int32_t argc, const Janet *argv) {
+    spec_branch(b, argc, argv, RULE_MATCHCAP);
+}
 
 static void spec_between(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 3);
@@ -1090,6 +1154,7 @@ static const SpecialPair peg_specials[] = {
     {"lenprefix", spec_lenprefix},
     {"line", spec_line},
     {"look", spec_look},
+    {"matchcap", spec_matchcap},
     {"not", spec_not},
     {"opt", spec_opt},
     {"position", spec_position},
@@ -1362,6 +1427,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_IF:
             case RULE_IFNOT:
             case RULE_LENPREFIX:
+            case RULE_MATCHCAP:
                 /* [rule_a, rule_b (b if not a)] */
                 if (rule[1] >= blen) goto bad;
                 if (rule[2] >= blen) goto bad;

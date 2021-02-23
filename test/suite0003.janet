@@ -481,4 +481,13 @@
 (check-deep '(to "b") "aaaa" nil)
 (check-deep '(thru "b") "aaaa" nil)
 
+# matchcap
+(def matchcap-test
+  ~{:span (* "{" '(to "}") "}")
+    :parse-span (* '3 3)
+    :main (matchcap :parse-span (any :span ))})
+
+(check-deep matchcap-test "{bigrig}{fatman}{catdog}" @["big" "fat" "cat"])
+(check-deep matchcap-test "{bigrig}{fatman}{catdoggy}" @["big" "fat" "cat"])
+
 (end-suite)
