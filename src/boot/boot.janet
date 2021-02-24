@@ -787,7 +787,7 @@
 
 (defn sort-by
   ``Returns `ind` sorted by calling
-  a function `f` on each element and comparing the result with <.``
+  a function `f` on each element and comparing the result with `<`.``
   [f ind]
   (sort ind (fn [x y] (< (f x) (f y)))))
 
@@ -801,7 +801,7 @@
 
 (defn sorted-by
   ``Returns a new sorted array that compares elements by invoking
-  a function `f` on each element and comparing the result with <.``
+  a function `f` on each element and comparing the result with `<`.``
   [f ind]
   (sorted ind (fn [x y] (< (f x) (f y)))))
 
