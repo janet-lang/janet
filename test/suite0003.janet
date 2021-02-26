@@ -481,4 +481,16 @@
 (check-deep '(to "b") "aaaa" nil)
 (check-deep '(thru "b") "aaaa" nil)
 
+# unref
+(def grammar
+  (peg/compile
+    ~{:main (* :tagged -1)
+      :tagged (unref (replace (* :open-tag :value :close-tag) ,struct)) 
+      :open-tag (* (constant :tag) "<" (capture :w+ :tag-name) ">")
+      :value (* (constant :value) (group (any (+ :tagged :untagged))))
+      :close-tag (* "</" (backmatch :tag-name) ">")
+      :untagged (capture (any (if-not "<" 1)))}))
+(check-deep grammar "<p><em>foobar</em></p>" @[{:tag "p" :value @[{:tag "em" :value @["foobar"]}]}])
+(check-deep grammar "<p>foobar</p>" @[{:tag "p" :value @["foobar"]}])
+
 (end-suite)

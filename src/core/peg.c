@@ -596,6 +596,30 @@ tail:
             return text + width;
         }
 
+        case RULE_UNREF: {
+            int32_t tcap = s->tags->count;
+            down1(s);
+            const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
+            up1(s);
+            if (!result) return NULL;
+            int32_t final_tcap = s->tags->count;
+            /* Truncate tagged captures to not include items of the given tag */
+            int32_t w = tcap;
+            /* If no tag is given, drop ALL tagged captures */
+            if (rule[2]) {
+                for (int32_t i = tcap; i < final_tcap; i++) {
+                    if (s->tags->data[i] != (0xFF & rule[2])) {
+                        s->tags->data[w] = s->tags->data[i];
+                        s->tagged_captures->data[w] = s->tagged_captures->data[i];
+                        w++;
+                    }
+                }
+            }
+            s->tags->count = w;
+            s->tagged_captures->count = w;
+            return result;
+        }
+
     }
 }
 
@@ -919,14 +943,14 @@ static void spec_error(Builder *b, int32_t argc, const Janet *argv) {
         spec_onerule(b, argc, argv, RULE_ERROR);
     }
 }
-static void spec_drop(Builder *b, int32_t argc, const Janet *argv) {
-    spec_onerule(b, argc, argv, RULE_DROP);
-}
 static void spec_to(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_TO);
 }
 static void spec_thru(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_THRU);
+}
+static void spec_drop(Builder *b, int32_t argc, const Janet *argv) {
+    spec_onerule(b, argc, argv, RULE_DROP);
 }
 
 /* Rule of the form [rule, tag] */
@@ -946,6 +970,9 @@ static void spec_accumulate(Builder *b, int32_t argc, const Janet *argv) {
 }
 static void spec_group(Builder *b, int32_t argc, const Janet *argv) {
     spec_cap1(b, argc, argv, RULE_GROUP);
+}
+static void spec_unref(Builder *b, int32_t argc, const Janet *argv) {
+    spec_cap1(b, argc, argv, RULE_UNREF);
 }
 
 static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
@@ -1104,6 +1131,7 @@ static const SpecialPair peg_specials[] = {
     {"to", spec_to},
     {"uint", spec_uint_le},
     {"uint-be", spec_uint_be},
+    {"unref", spec_unref},
 };
 
 /* Compile a janet value into a rule and return the rule index. */
@@ -1392,6 +1420,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_ACCUMULATE:
             case RULE_GROUP:
             case RULE_CAPTURE:
+            case RULE_UNREF:
                 /* [rule, tag] */
                 if (rule[1] >= blen) goto bad;
                 op_flags[rule[1]] |= 0x01;
