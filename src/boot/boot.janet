@@ -778,24 +778,30 @@
   a)
 
 (defn sort
-  "Sort an array in-place. Uses quick-sort and is not a stable sort."
-  [a &opt before?]
-  (sort-help a 0 (- (length a) 1) (or before? <)))
+  ``Sort `ind` in-place, and return it. Uses quick-sort and is not a stable sort.
+  
+  If a `before?` comparator function is provided, sorts elements using that,
+  otherwise uses `<`.``
+  [ind &opt before?]
+  (sort-help ind 0 (- (length ind) 1) (or before? <)))
 
 (defn sort-by
   ``Returns `ind` sorted by calling
-  a function `f` on each element and comparing the result with <.``
+  a function `f` on each element and comparing the result with `<`.``
   [f ind]
   (sort ind (fn [x y] (< (f x) (f y)))))
 
 (defn sorted
-  "Returns a new sorted array without modifying the old one."
+  ``Returns a new sorted array without modifying the old one.
+  
+  If a `before?` comparator function is provided, sorts elements using that,
+  otherwise uses `<`.``
   [ind &opt before?]
   (sort (array/slice ind) before?))
 
 (defn sorted-by
   ``Returns a new sorted array that compares elements by invoking
-  a function `f` on each element and comparing the result with <.``
+  a function `f` on each element and comparing the result with `<`.``
   [f ind]
   (sorted ind (fn [x y] (< (f x) (f y)))))
 
