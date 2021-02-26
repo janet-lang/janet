@@ -778,24 +778,30 @@
   a)
 
 (defn sort
-  "Sort an array in-place. Uses quick-sort and is not a stable sort."
-  [a &opt before?]
-  (sort-help a 0 (- (length a) 1) (or before? <)))
+  ``Sort `ind` in-place, and return it. Uses quick-sort and is not a stable sort.
+  
+  If a `before?` comparator function is provided, sorts elements using that,
+  otherwise uses `<`.``
+  [ind &opt before?]
+  (sort-help ind 0 (- (length ind) 1) (or before? <)))
 
 (defn sort-by
   ``Returns `ind` sorted by calling
-  a function `f` on each element and comparing the result with <.``
+  a function `f` on each element and comparing the result with `<`.``
   [f ind]
   (sort ind (fn [x y] (< (f x) (f y)))))
 
 (defn sorted
-  "Returns a new sorted array without modifying the old one."
+  ``Returns a new sorted array without modifying the old one.
+  
+  If a `before?` comparator function is provided, sorts elements using that,
+  otherwise uses `<`.``
   [ind &opt before?]
   (sort (array/slice ind) before?))
 
 (defn sorted-by
   ``Returns a new sorted array that compares elements by invoking
-  a function `f` on each element and comparing the result with <.``
+  a function `f` on each element and comparing the result with `<`.``
   [f ind]
   (sorted ind (fn [x y] (< (f x) (f y)))))
 
@@ -2098,7 +2104,7 @@
         :on-parse-error on-parse-error
         :fiber-flags guard
         :evaluator evaluator
-        :source where
+        :source default-where
         :parser parser
         :read read
         :expander expand} opts)
@@ -2108,8 +2114,10 @@
   (default on-compile-error bad-compile)
   (default on-parse-error bad-parse)
   (default evaluator (fn evaluate [x &] (x)))
-  (default where "<anonymous>")
+  (default default-where "<anonymous>")
   (default guard :ydt)
+
+  (var where default-where)
 
   # Evaluate 1 source form in a protected manner
   (defn eval1 [source &opt l c]
@@ -2163,11 +2171,18 @@
   (while parser-not-done
     (if (env :exit) (break))
     (buffer/clear buf)
-    (if (= (chunks buf p) :cancel)
+    (match (= (chunks buf p))
+      :cancel
       (do
         # A :cancel chunk represents a cancelled form in the REPL, so reset.
         (:flush p)
         (buffer/clear buf))
+
+      [:source new-where]
+      (if (string? new-where)
+        (set where new-where)
+        (set where default-where))
+
       (do
         (var pindex 0)
         (var pstatus nil)
