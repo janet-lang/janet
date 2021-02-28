@@ -779,7 +779,6 @@
 
 (defn sort
   ``Sort `ind` in-place, and return it. Uses quick-sort and is not a stable sort.
-  
   If a `before?` comparator function is provided, sorts elements using that,
   otherwise uses `<`.``
   [ind &opt before?]
@@ -793,7 +792,6 @@
 
 (defn sorted
   ``Returns a new sorted array without modifying the old one.
-  
   If a `before?` comparator function is provided, sorts elements using that,
   otherwise uses `<`.``
   [ind &opt before?]

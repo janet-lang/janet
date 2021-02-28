@@ -5,9 +5,9 @@
 
 #define JANET_VERSION_MAJOR 1
 #define JANET_VERSION_MINOR 15
-#define JANET_VERSION_PATCH 2
+#define JANET_VERSION_PATCH 3
 #define JANET_VERSION_EXTRA ""
-#define JANET_VERSION "1.15.2"
+#define JANET_VERSION "1.15.3"
 
 /* #define JANET_BUILD "local" */
 

@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.15.3 - 2021-02-28
+- Fix a fiber bug that occured in deeply nested fibers
+- Add `unref` combinator to pegs.
+- Small docstring changes.
+
 ## 1.15.2 - 2021-02-15
 - Fix bug in windows version of `os/spawn` and `os/execute` with setting environment variables.
 - Fix documentation typos.
