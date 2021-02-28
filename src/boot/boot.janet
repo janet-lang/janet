@@ -2169,7 +2169,7 @@
   (while parser-not-done
     (if (env :exit) (break))
     (buffer/clear buf)
-    (match (= (chunks buf p))
+    (match (chunks buf p)
       :cancel
       (do
         # A :cancel chunk represents a cancelled form in the REPL, so reset.
