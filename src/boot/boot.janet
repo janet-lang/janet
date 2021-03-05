@@ -1451,6 +1451,36 @@
     (set (freqs x) (if n (+ 1 n) 1)))
   freqs)
 
+(defn group-by
+  ``Group elements of `ind` by a function `f` and put the results into a table. The keys of
+  the table are the distinct return values of `f`, and the values are arrays of all elements of `ind`
+  that are equal to that value.``
+  [f ind]
+  (def ret @{})
+  (each x ind
+    (def y (f x))
+    (if-let [arr (get ret y)]
+      (array/push arr x)
+      (put ret y @[x])))
+  ret)
+
+(defn partition-by
+  ``Partition elements of a sequential data structure by a representative function `f`. Partitions 
+  split when `(f x)` changes values when iterating to the next element `x` of `ind`. Returns a new array
+  of arrays.``
+  [f ind]
+  (def ret @[])
+  (var span nil)
+  (var category nil)
+  (var is-new true)
+  (each x ind
+    (def y (f x))
+    (cond
+      is-new          (do (set is-new false) (set category y) (set span @[x]) (array/push ret span))
+      (= y category)  (array/push span x)
+      (do (set category y) (set span @[x]) (array/push ret span))))
+  ret)
+
 (defn interleave
   "Returns an array of the first elements of each col, then the second, etc."
   [& cols]
