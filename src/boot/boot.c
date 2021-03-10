@@ -67,6 +67,9 @@ int main(int argc, const char **argv) {
 #ifdef JANET_NO_SOURCEMAPS
     janet_table_put(opts, janet_ckeywordv("no-sourcemaps"), janet_wrap_true());
 #endif
+#ifdef JANET_NO_PATH
+    janet_table_put(opts, janet_ckeywordv("no-path"), janet_wrap_true());
+#endif
     janet_def(env, "boot/config", janet_wrap_table(opts), "Boot options");
 
     /* Run bootstrap script to generate core image */

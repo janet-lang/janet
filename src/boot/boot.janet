@@ -3433,6 +3433,9 @@
 ###
 ###
 
+(unless (boot/config :no-path)
+  (import ./src/modules/path :export true))
+
 (do
 
   (defn proto-flatten
