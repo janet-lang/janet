@@ -21,6 +21,8 @@
 (import ./helper :prefix "" :exit true)
 (start-suite 11)
 
+(import path :from stdlib)
+
 # path
 (defn aeq
   "assert equal"

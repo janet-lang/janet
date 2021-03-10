@@ -33,6 +33,7 @@
 #ifndef JANET_BOOTSTRAP
 extern const unsigned char *janet_core_image;
 extern size_t janet_core_image_size;
+extern JanetImage janet_stdlib_images[];
 #endif
 
 /* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
@@ -309,6 +310,18 @@ static Janet janet_core_native(int32_t argc, Janet *argv) {
     return janet_wrap_table(env);
 }
 
+static Janet janet_core_stdlib(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    const uint8_t *path = janet_getstring(argv, 0);
+    const uint8_t *error = NULL;
+    JanetTable *env;
+    env = janet_stdlib_env((const char *)path, &error);
+    if (!env) {
+        janet_panicf("could not load standard library %S: %S", path, error);
+    }
+    return janet_wrap_table(env);
+}
+
 static Janet janet_core_describe(int32_t argc, Janet *argv) {
     JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
@@ -544,6 +557,12 @@ static const JanetReg corelib_cfuns[] = {
              "usually a .so file on Unix systems, and a .dll file on Windows. "
              "Returns an environment table that contains functions and other values "
              "from the native module.")
+    },
+    {
+        "stdlib", janet_core_stdlib,
+        JDOC("(stdlib name)\n\n"
+             "Return an environment table that contains functions and other values "
+             "from the given standard libary.")
     },
     {
         "describe", janet_core_describe,
@@ -1214,6 +1233,12 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     return env;
 }
 
+JanetTable *janet_stdlib_env(const char *name, const uint8_t **error) {
+    (void) name;
+    *error = janet_cstring("not available during bootstrapping");
+    return NULL;
+}
+
 #else
 
 JanetTable *janet_core_env(JanetTable *replacements) {
@@ -1253,6 +1278,34 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     }
 
     return env;
+}
+
+JanetTable *janet_stdlib_env(const char *name, const uint8_t **error) {
+    JanetImage *images = janet_stdlib_images;
+    if (images == NULL) {
+        *error = janet_cstring("standard library not available");
+        return NULL;
+    }
+
+    while (images->name) {
+        if (!strcmp(images->name, name)) break;
+        images++;
+    }
+
+    if (!images->name) {
+        *error = janet_cstring("could not find library");
+        return NULL;
+    }
+
+    /* Unmarshal bytecode */
+    Janet marsh_out = janet_unmarshal(
+                          images->bytes,
+                          images->size,
+                          0,
+                          janet_core_lookup_table(NULL),
+                          NULL);
+
+    return janet_unwrap_table(marsh_out);
 }
 
 #endif

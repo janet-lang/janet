@@ -2561,10 +2561,13 @@
   [path & args]
   (def env (curenv))
   (def kargs (table ;args))
-  (def {:as as
+  (def {:from from
+        :as as
         :prefix prefix
         :export ep} kargs)
-  (def newenv (require-1 path args kargs))
+  (def newenv (if (= "stdlib" from)
+                (stdlib path)
+                (require-1 path args kargs)))
   (def prefix (or
                 (and as (string as "/"))
                 prefix
@@ -2582,7 +2585,8 @@
   module cache.`
   [path & args]
   (def ps (partition 2 args))
-  (def argm (mapcat (fn [[k v]] [k (if (= k :as) (string v) v)]) ps))
+  (def argm
+    (mapcat (fn [[k v]] [k (case k :as (string v) :from (string v) v)]) ps))
   (tuple import* (string path) ;argm))
 
 (defmacro use
@@ -3433,9 +3437,6 @@
 ###
 ###
 
-(unless (boot/config :no-path)
-  (import ./src/modules/path :export true))
-
 (do
 
   (defn proto-flatten
@@ -3578,4 +3579,32 @@
     (print))
   (print "  0\n};\n")
   (print "const unsigned char *janet_core_image = janet_core_image_bytes;")
-  (print "size_t janet_core_image_size = sizeof(janet_core_image_bytes);"))
+  (print "size_t janet_core_image_size = sizeof(janet_core_image_bytes);")
+
+  (defn lib-image [name]
+    (let [lib-env (require (string "./src/modules/" name))
+          env-pairs (pairs (env-lookup root-env))
+          essential-pairs (filter (fn [[k v]] (or (cfunction? v) (abstract? v))) env-pairs)
+          lookup (table ;(mapcat identity essential-pairs))
+          reverse-lookup (invert lookup)]
+      # Check no duplicate values
+      (def temp @{})
+      (eachp [k v] lookup
+        (if (in temp v) (errorf "duplicate value: %v" v))
+        (put temp v k))
+      (marshal lib-env reverse-lookup)))
+
+  (unless (boot/config :no-path)
+    (print "static const unsigned char janet_path_image_bytes[] = {")
+    (loop [line :in (partition 16 (lib-image "path"))]
+      (prin "  ")
+      (each b line
+        (prinf "0x%.2X, " b))
+      (print))
+    (print "  0\n};\n"))
+
+  (print "JanetImage janet_stdlib_images[] = {")
+  (unless (boot/config :no-path)
+    (print `    {"path", janet_path_image_bytes, sizeof(janet_path_image_bytes)},`))
+  (print "    {NULL, NULL, 0}")
+  (print "};\n"))

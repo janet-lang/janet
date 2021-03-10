@@ -1409,6 +1409,14 @@ JANET_API JanetCompileResult janet_compile(Janet source, JanetTable *env, JanetS
 JANET_API JanetTable *janet_core_env(JanetTable *replacements);
 JANET_API JanetTable *janet_core_lookup_table(JanetTable *replacements);
 
+/* Standard Library */
+typedef struct {
+    const char *name;
+    const unsigned char *bytes;
+    size_t size;
+} JanetImage;
+JANET_API JanetTable *janet_stdlib_env(const char *name, const uint8_t **error);
+
 JANET_API int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out);
 JANET_API int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Janet *out);
 
