@@ -42,6 +42,10 @@ Prevents jpm from going to network to get dependencies - all dependencies should
 Use this flag with the deps and update-pkgs subcommands. This is not a surefire way to prevent a build script from accessing
 the network, for example, a build script that invokes curl will still have network access.
 
+.TP
+.BR \-\-auto\-shebang
+Prepends installed scripts with a generated shebang line, such that they will use a janet binary located in JANET_BINPATH.
+
 .SH OPTIONS
 
 .TP

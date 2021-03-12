@@ -1087,6 +1087,7 @@ int main(int argc, const char **argv) {
   ``
   [&keys {:main main :hardcode-syspath hardcode :auto-shebang auto-shebang}]
   (def binpath (dyn :binpath JANET_BINPATH))
+  (def auto-shebang (or auto-shebang (dyn :auto-shebang)))
   (if (or auto-shebang hardcode)
     (let [syspath (dyn :modpath JANET_MODPATH)]
       (def parts (peg/match path-splitter main))
@@ -1100,7 +1101,7 @@ int main(int argc, const char **argv) {
                     (def second-line (string/format "(put root-env :syspath %v)\n" syspath))
                     (def rest (:read f :all))
                     (string (if auto-shebang
-                              (string "#!" JANET_BINPATH "/janet\n"))
+                              (string "#!" (dyn :binpath JANET_BINPATH) "/janet\n"))
                             first-line (if hardcode second-line) rest)))
                 (create-dirs path)
                 (spit path contents)
