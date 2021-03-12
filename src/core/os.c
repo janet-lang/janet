@@ -2085,7 +2085,7 @@ static const JanetReg os_cfuns[] = {
 #ifndef JANET_NO_PROCESSES
     {
         "os/execute", os_execute,
-        JDOC("(os/execute args &opts flags env)\n\n"
+        JDOC("(os/execute args &opt flags env)\n\n"
              "Execute a program on the system and pass it string arguments. `flags` "
              "is a keyword that modifies how the program will execute.\n\n"
              "* :e - enables passing an environment to the program. Without :e, the "
@@ -2105,7 +2105,7 @@ static const JanetReg os_cfuns[] = {
     },
     {
         "os/spawn", os_spawn,
-        JDOC("(os/spawn args &opts flags env)\n\n"
+        JDOC("(os/spawn args &opt flags env)\n\n"
              "Execute a program on the system and return a handle to the process. Otherwise, the "
              "same arguments as os/execute. Does not wait for the process.")
     },
