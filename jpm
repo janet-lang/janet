@@ -1085,9 +1085,9 @@ int main(int argc, const char **argv) {
   such that it will run correctly even when JANET_PATH is changed. if auto-shebang
   is truthy, will also automatically insert a correct shebang line.
   ``
-  [&keys {:main main :hardcode-syspath hardcode :auto-shebang auto-shebang}]
+  [&keys {:main main :hardcode-syspath hardcode :is-janet is-janet}]
   (def binpath (dyn :binpath JANET_BINPATH))
-  (def auto-shebang (or auto-shebang (dyn :auto-shebang)))
+  (def auto-shebang (and is-janet (dyn :auto-shebang)))
   (if (or auto-shebang hardcode)
     (let [syspath (dyn :modpath JANET_MODPATH)]
       (def parts (peg/match path-splitter main))
