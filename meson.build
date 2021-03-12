@@ -19,7 +19,7 @@
 # IN THE SOFTWARE.
 
 project('janet', 'c',
-  default_options : ['c_std=c99', 'b_lundef=false', 'default_library=both'],
+  default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
   version : '1.15.3')
 
 # Global settings
