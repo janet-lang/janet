@@ -33,7 +33,7 @@ dl_dep = cc.find_library('dl', required : false)
 thread_dep = dependency('threads')
 
 # Link options
-if build_machine.system() != 'windows'
+if get_option('default_library') != 'static' and build_machine.system() != 'windows'
     add_project_link_arguments('-rdynamic', language : 'c')
 endif
 
