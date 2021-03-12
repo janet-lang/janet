@@ -244,6 +244,7 @@ janet_dep = declare_dependency(include_directories : incdir,
 # pkgconfig
 pkg = import('pkgconfig')
 pkg.generate(libjanet,
+  subdirs: 'janet',
   description: 'Library for the Janet programming language.')
 
 # Installation
