@@ -1080,12 +1080,14 @@ int main(int argc, const char **argv) {
         (install-rule dest (dyn :binpath JANET_BINPATH))))))
 
 (defn declare-binscript
-  "Declare a janet file to be installed as an executable script. Creates
+  ``Declare a janet file to be installed as an executable script. Creates
   a shim on windows. If hardcode is true, will insert code into the script
-  such that it will run correctly even when JANET_PATH is changed."
-  [&keys {:main main :hardcode-syspath hardcode}]
+  such that it will run correctly even when JANET_PATH is changed. if auto-shebang
+  is truthy, will also automatically insert a correct shebang line.
+  ``
+  [&keys {:main main :hardcode-syspath hardcode :auto-shebang auto-shebang}]
   (def binpath (dyn :binpath JANET_BINPATH))
-  (if hardcode
+  (if (or auto-shebang hardcode)
     (let [syspath (dyn :modpath JANET_MODPATH)]
       (def parts (peg/match path-splitter main))
       (def name (last parts))
@@ -1097,7 +1099,9 @@ int main(int argc, const char **argv) {
                     (def first-line (:read f :line))
                     (def second-line (string/format "(put root-env :syspath %v)\n" syspath))
                     (def rest (:read f :all))
-                    (string first-line second-line rest)))
+                    (string (if auto-shebang
+                              (string "#!" JANET_BINPATH "/janet\n"))
+                            first-line (if hardcode second-line) rest)))
                 (create-dirs path)
                 (spit path contents)
                 (unless is-win (shell "chmod" "+x" path))))
