@@ -44,7 +44,7 @@
 
 (defn- try-real [path]
   "If os/realpath fails just use normal path."
-  (try (os/realpath) ([_] path)))
+  (try (os/realpath path) ([_] path)))
 
 (defn- install-paths []
   {:headerpath (try-real (string exe-dir "/../include/janet"))
