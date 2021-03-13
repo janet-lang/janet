@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Increase default nesting depth of pretty printing to `JANET_RECURSION_GUARD`
+- Update meson.build
+- Add option to automatically add shebang line in installed scripts with `jpm`.
+- Add `partition-by` and `group-by` to the core.
+
 ## 1.15.3 - 2021-02-28
 - Fix a fiber bug that occured in deeply nested fibers
 - Add `unref` combinator to pegs.

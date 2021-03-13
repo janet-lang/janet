@@ -822,7 +822,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 case 'P':
                 case 'p': { /* janet pretty , precision = depth */
                     int depth = atoi(precision);
-                    if (depth < 1) depth = 4;
+                    if (depth < 1) depth = JANET_RECURSION_GUARD;
                     char d = c[-1];
                     int has_color = (d == 'P') || (d == 'Q') || (d == 'M') || (d == 'N');
                     int has_oneline = (d == 'Q') || (d == 'q') || (d == 'N') || (d == 'n');
@@ -974,7 +974,7 @@ void janet_buffer_format(
                 case 'P':
                 case 'p': { /* janet pretty , precision = depth */
                     int depth = atoi(precision);
-                    if (depth < 1) depth = 4;
+                    if (depth < 1) depth = JANET_RECURSION_GUARD;
                     char d = strfrmt[-1];
                     int has_color = (d == 'P') || (d == 'Q') || (d == 'M') || (d == 'N');
                     int has_oneline = (d == 'Q') || (d == 'q') || (d == 'N') || (d == 'n');
