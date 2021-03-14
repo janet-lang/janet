@@ -14,7 +14,6 @@ Please read this document before making contributions.
   on how to reproduce it. If it is a compiler or language bug, please try to include a minimal
   example. This means don't post all 200 lines of code from your project, but spend some time
   distilling the problem to just the relevant code.
-* Add the `bug` tag to the issue.
 
 ## Contributing Changes
 
@@ -30,8 +29,7 @@ may require changes before being merged.
   the test folder and make sure it is run when`make test` is invoked.
 * Be consistent with the style. For C this means follow the indentation and style in
   other files (files have MIT license at top, 4 spaces indentation, no trailing
-          whitespace, cuddled brackets, etc.) Use `make format` to
-  automatically format your C code with
+  whitespace, cuddled brackets, etc.) Use `make format` to automatically format your C code with
   [astyle](http://astyle.sourceforge.net/astyle.html). You will probably need
   to install this, but it can be installed with most package managers.
 
@@ -75,4 +73,3 @@ timely manner. In short, if you want extra functionality now, then build it.
 
 * Include a good description of the problem that is being solved
 * Include descriptions of potential solutions if you have some in mind.
-* Add the appropriate tags to the issue. For new features, add the `enhancement` tag.
