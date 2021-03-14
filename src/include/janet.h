@@ -1630,6 +1630,7 @@ JANET_API Janet janet_wrap_number_safe(double x);
 JANET_API int janet_keyeq(Janet x, const char *cstring);
 JANET_API int janet_streq(Janet x, const char *cstring);
 JANET_API int janet_symeq(Janet x, const char *cstring);
+JANET_API int32_t janet_sorted_keys(const JanetKV *dict, int32_t cap, int32_t *index_buffer);
 
 /* VM functions */
 JANET_API int janet_init(void);

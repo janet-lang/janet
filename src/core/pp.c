@@ -351,6 +351,9 @@ struct pretty {
     int indent;
     int flags;
     int32_t bufstartlen;
+    int32_t *keysort_buffer;
+    int32_t keysort_capacity;
+    int32_t keysort_start;
     JanetTable seen;
 };
 
@@ -594,31 +597,55 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 janet_buffer_push_cstring(S->buffer, "...");
             } else {
                 int32_t i = 0, len = 0, cap = 0;
-                int first_kv_pair = 1;
                 const JanetKV *kvs = NULL;
-                int counter = 0;
                 janet_dictionary_view(x, &kvs, &len, &cap);
                 if (!istable && !(S->flags & JANET_PRETTY_ONELINE) && len >= JANET_PRETTY_DICT_ONELINE)
                     janet_buffer_push_u8(S->buffer, ' ');
                 if (is_dict_value && len >= JANET_PRETTY_DICT_ONELINE) print_newline(S, 0);
-                for (i = 0; i < cap; i++) {
-                    if (!janet_checktype(kvs[i].key, JANET_NIL)) {
-                        if (counter == JANET_PRETTY_DICT_LIMIT && !(S->flags & JANET_PRETTY_NOTRUNC)) {
-                            print_newline(S, 0);
-                            janet_buffer_push_cstring(S->buffer, "...");
-                            break;
-                        }
-                        if (first_kv_pair) {
-                            first_kv_pair = 0;
-                        } else {
-                            print_newline(S, len < JANET_PRETTY_DICT_ONELINE);
-                        }
-                        janet_pretty_one(S, kvs[i].key, 0);
-                        janet_buffer_push_u8(S->buffer, ' ');
-                        janet_pretty_one(S, kvs[i].value, 1);
-                        counter++;
+                int32_t ks_start = S->keysort_start;
+
+                /* Ensure buffer is large enough to sort keys. */
+                int truncated = 0;
+                int64_t mincap = (int64_t) len + (int64_t) ks_start;
+                if (mincap > INT32_MAX) {
+                    truncated = 1;
+                    len = 0;
+                    mincap = ks_start;
+                }
+
+                if (S->keysort_capacity < mincap) {
+                    if (mincap >= INT32_MAX / 2) {
+                        S->keysort_capacity = INT32_MAX;
+                    } else {
+                        S->keysort_capacity = mincap * 2;
+                    }
+                    S->keysort_buffer = janet_srealloc(S->keysort_buffer, sizeof(int32_t) * S->keysort_capacity);
+                    if (NULL == S->keysort_buffer) {
+                        JANET_OUT_OF_MEMORY;
                     }
                 }
+
+                janet_sorted_keys(kvs, cap, S->keysort_buffer + ks_start);
+                S->keysort_start += len;
+                if (!(S->flags & JANET_PRETTY_NOTRUNC) && (len > JANET_PRETTY_DICT_LIMIT)) {
+                    len = JANET_PRETTY_DICT_LIMIT;
+                    truncated = 1;
+                }
+
+                for (i = 0; i < len; i++) {
+                    if (i) print_newline(S, len < JANET_PRETTY_DICT_ONELINE);
+                    int32_t j = S->keysort_buffer[i + ks_start];
+                    janet_pretty_one(S, kvs[j].key, 0);
+                    janet_buffer_push_u8(S->buffer, ' ');
+                    janet_pretty_one(S, kvs[j].value, 1);
+                }
+
+                if (truncated) {
+                    print_newline(S, 0);
+                    janet_buffer_push_cstring(S->buffer, "...");
+                }
+
+                S->keysort_start = ks_start;
             }
             S->indent -= 2;
             S->depth++;
@@ -641,6 +668,9 @@ static JanetBuffer *janet_pretty_(JanetBuffer *buffer, int depth, int flags, Jan
     S.indent = 0;
     S.flags = flags;
     S.bufstartlen = startlen;
+    S.keysort_capacity = 0;
+    S.keysort_buffer = NULL;
+    S.keysort_start = 0;
     janet_table_init(&S.seen, 10);
     janet_pretty_one(&S, x, 0);
     janet_table_deinit(&S.seen);
@@ -663,6 +693,9 @@ static JanetBuffer *janet_jdn_(JanetBuffer *buffer, int depth, Janet x, int32_t 
     S.indent = 0;
     S.flags = 0;
     S.bufstartlen = startlen;
+    S.keysort_capacity = 0;
+    S.keysort_buffer = NULL;
+    S.keysort_start = 0;
     janet_table_init(&S.seen, 10);
     int res = print_jdn_one(&S, x, depth);
     janet_table_deinit(&S.seen);

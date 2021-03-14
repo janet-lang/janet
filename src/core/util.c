@@ -602,6 +602,38 @@ JanetTable *janet_get_core_table(const char *name) {
     return janet_unwrap_table(out);
 }
 
+/* Sort keys of a dictionary type */
+int32_t janet_sorted_keys(const JanetKV *dict, int32_t cap, int32_t *index_buffer) {
+
+    /* First, put populated indices into index_buffer */
+    int32_t next_index = 0;
+    for (int32_t i = 0; i < cap; i++) {
+        if (!janet_checktype(dict[i].key, JANET_NIL)) {
+            index_buffer[next_index++] = i;
+        }
+    }
+
+    /* Next, sort those (simple insertion sort here for now) */
+    for (int32_t i = 1; i < next_index; i++) {
+        int32_t index_to_insert = index_buffer[i];
+        Janet lhs = dict[index_to_insert].key;
+        for (int32_t j = i - 1; j >= 0; j--) {
+            index_buffer[j + 1] = index_buffer[j];
+            Janet rhs = dict[index_buffer[j]].key;
+            if (janet_compare(lhs, rhs) >= 0) {
+                index_buffer[j + 1] = index_to_insert;
+                break;
+            } else if (j == 0) {
+                index_buffer[0] = index_to_insert;
+            }
+        }
+    }
+
+    /* Return number of indices found */
+    return next_index;
+
+}
+
 /* Clock shims for various platforms */
 #ifdef JANET_GETTIME
 /* For macos */
