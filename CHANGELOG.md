@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 - Update meson.build
 - Add option to automatically add shebang line in installed scripts with `jpm`.
 - Add `partition-by` and `group-by` to the core.
+- Sort keys in pretty printing output.
 
 ## 1.15.3 - 2021-02-28
 - Fix a fiber bug that occured in deeply nested fibers
