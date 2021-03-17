@@ -504,10 +504,40 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun) {
 static JanetSlot janetc_maker(JanetFopts opts, JanetSlot *slots, int op) {
     JanetCompiler *c = opts.compiler;
     JanetSlot retslot;
-    janetc_pushslots(c, slots);
-    janetc_freeslots(c, slots);
-    retslot = janetc_gettarget(opts);
-    janetc_emit_s(c, op, retslot, 1);
+
+    /* Check if this structure is composed entirely of constants */
+    int can_inline = 1;
+    for (int32_t i = 0; i < janet_v_count(slots); i++) {
+        if (!(slots[i].flags & JANET_SLOT_CONSTANT) ||
+                (slots[i].flags & JANET_SLOT_SPLICED)) {
+            can_inline = 0;
+            break;
+        }
+    }
+
+    if (can_inline && (op == JOP_MAKE_STRUCT)) {
+        JanetKV *st = janet_struct_begin(janet_v_count(slots) / 2);
+        for (int32_t i = 0; i < janet_v_count(slots); i += 2) {
+            Janet k = slots[i].constant;
+            Janet v = slots[i + 1].constant;
+            janet_struct_put(st, k, v);
+        }
+        retslot = janetc_cslot(janet_wrap_struct(janet_struct_end(st)));
+        janetc_freeslots(c, slots);
+    } else if (can_inline && (op == JOP_MAKE_TUPLE)) {
+        Janet *tup = janet_tuple_begin(janet_v_count(slots));
+        for (int32_t i = 0; i < janet_v_count(slots); i++) {
+            tup[i] = slots[i].constant;
+        }
+        retslot = janetc_cslot(janet_wrap_tuple(janet_tuple_end(tup)));
+        janetc_freeslots(c, slots);
+    } else {
+        janetc_pushslots(c, slots);
+        janetc_freeslots(c, slots);
+        retslot = janetc_gettarget(opts);
+        janetc_emit_s(c, op, retslot, 1);
+    }
+
     return retslot;
 }
 
