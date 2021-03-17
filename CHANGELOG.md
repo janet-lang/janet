@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.15.4 - 2021-03-16
 - Increase default nesting depth of pretty printing to `JANET_RECURSION_GUARD`
 - Update meson.build
 - Add option to automatically add shebang line in installed scripts with `jpm`.
