@@ -60,7 +60,7 @@ conf.set('JANET_NO_SOURCEMAPS', not get_option('sourcemaps'))
 conf.set('JANET_NO_ASSEMBLER', not get_option('assembler'))
 conf.set('JANET_NO_PEG', not get_option('peg'))
 conf.set('JANET_NO_NET', not get_option('net'))
-conf.set('JANET_NO_EV', not get_option('ev'))
+conf.set('JANET_NO_EV', not get_option('ev') or get_option('single_threaded'))
 conf.set('JANET_REDUCED_OS', get_option('reduced_os'))
 conf.set('JANET_NO_TYPED_ARRAY', not get_option('typed_array'))
 conf.set('JANET_NO_INT_TYPES', not get_option('int_types'))
@@ -173,9 +173,14 @@ janetc = custom_target('janetc',
     'JANET_PATH', janet_path, 'JANET_HEADERPATH', header_path
   ])
 
+janet_dependencies = [m_dep, dl_dep]
+if not get_option('single_threaded')
+  janet_dependencies += thread_dep
+endif
+
 libjanet = library('janet', janetc,
   include_directories : incdir,
-  dependencies : [m_dep, dl_dep, thread_dep],
+  dependencies : janet_dependencies,
   version: meson.project_version(),
   soversion: version_parts[0] + '.' + version_parts[1],
   install : true)
@@ -189,7 +194,7 @@ else
 endif
 janet_mainclient = executable('janet', janetc, mainclient_src,
   include_directories : incdir,
-  dependencies : [m_dep, dl_dep, thread_dep],
+  dependencies : janet_dependencies,
   c_args : extra_cflags,
   install : true)
 
@@ -202,7 +207,7 @@ if meson.is_cross_build()
   endif
   janet_nativeclient = executable('janet-native', janetc, mainclient_src,
     include_directories : incdir,
-    dependencies : [m_dep, dl_dep, thread_dep],
+    dependencies : janet_dependencies,
     c_args : extra_native_cflags,
     native : true)
 else
