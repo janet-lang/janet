@@ -3127,6 +3127,7 @@
       (put nextenv :debug-level level)
       (put nextenv :signal x)
       (merge-into nextenv debugger-env)
+      (eprint (fiber/status f) ": " x)
       (debug/stacktrace f x)
       (eflush)
       (defn debugger-chunks [buf p]
@@ -3142,14 +3143,15 @@
       (nextenv :resume-value))
 
     (fn [f x]
-      (if (= :dead (fiber/status f))
+      (def fs (fiber/status f))
+      (if (= :dead fs)
         (do
           (put e '_ @{:value x})
           (printf (get e :pretty-format "%q") x)
           (flush))
         (if (e :debug)
           (enter-debugger f x)
-          (do (debug/stacktrace f x) (eflush))))))
+          (do (eprint fs ": " x) (debug/stacktrace f x) (eflush))))))
 
   (run-context {:env env
                 :chunks chunks

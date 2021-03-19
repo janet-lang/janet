@@ -275,11 +275,21 @@ static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     return janet_method_invoke(callee, argc, fiber->data + fiber->stacktop);
 }
 
+static Janet method_to_fun(Janet method, Janet obj) {
+    if (janet_checktype(obj, JANET_TABLE)) {
+        JanetTable *proto = janet_unwrap_table(obj)->proto;
+        if (NULL == proto) return janet_wrap_nil();
+        return janet_table_get(proto, method);
+    } else {
+        return janet_get(obj, method);
+    }
+}
+
 /* Get a callable from a keyword method name and ensure that it is valid. */
 static Janet resolve_method(Janet name, JanetFiber *fiber) {
     int32_t argc = fiber->stacktop - fiber->stackstart;
     if (argc < 1) janet_panicf("method call (%v) takes at least 1 argument, got 0", name);
-    Janet callee = janet_get(fiber->data[fiber->stackstart], name);
+    Janet callee = method_to_fun(name, fiber->data[fiber->stackstart]);
     if (janet_checktype(callee, JANET_NIL))
         janet_panicf("unknown method %v invoked on %v", name, fiber->data[fiber->stackstart]);
     return callee;
@@ -287,8 +297,7 @@ static Janet resolve_method(Janet name, JanetFiber *fiber) {
 
 /* Lookup method on value x */
 static Janet janet_method_lookup(Janet x, const char *name) {
-    Janet kname = janet_ckeywordv(name);
-    return janet_get(x, kname);
+    return method_to_fun(janet_ckeywordv(name), x);
 }
 
 /* Call a method first on the righthand side, and then on the left hand side with a prefix */
