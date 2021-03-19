@@ -275,14 +275,9 @@ static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     return janet_method_invoke(callee, argc, fiber->data + fiber->stacktop);
 }
 
+/* Method lookup could potentially handle tables specially... */
 static Janet method_to_fun(Janet method, Janet obj) {
-    if (janet_checktype(obj, JANET_TABLE)) {
-        JanetTable *proto = janet_unwrap_table(obj)->proto;
-        if (NULL == proto) return janet_wrap_nil();
-        return janet_table_get(proto, method);
-    } else {
-        return janet_get(obj, method);
-    }
+    return janet_get(obj, method);
 }
 
 /* Get a callable from a keyword method name and ensure that it is valid. */

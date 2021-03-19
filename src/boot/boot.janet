@@ -3127,9 +3127,6 @@
       (put nextenv :debug-level level)
       (put nextenv :signal x)
       (merge-into nextenv debugger-env)
-      (eprint (fiber/status f) ": " x)
-      (debug/stacktrace f x)
-      (eflush)
       (defn debugger-chunks [buf p]
         (def status (:state p :delimiters))
         (def c ((:where p) 0))
@@ -3149,9 +3146,12 @@
           (put e '_ @{:value x})
           (printf (get e :pretty-format "%q") x)
           (flush))
-        (if (e :debug)
-          (enter-debugger f x)
-          (do (eprint fs ": " x) (debug/stacktrace f x) (eflush))))))
+        (do
+          (def ec (dyn :err-color))
+          (eprint (if ec "\e[31m" "") fs ": " x)
+          (debug/stacktrace f)
+          (eflush)
+          (if (e :debug) (enter-debugger f x))))))
 
   (run-context {:env env
                 :chunks chunks
