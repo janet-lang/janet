@@ -290,13 +290,13 @@ static void janet_deinit_block(JanetGCObject *mem) {
             janet_symbol_deinit(((JanetStringHead *) mem)->data);
             break;
         case JANET_MEMORY_ARRAY:
-            free(((JanetArray *) mem)->data);
+            janet_free(((JanetArray *) mem)->data);
             break;
         case JANET_MEMORY_TABLE:
-            free(((JanetTable *) mem)->data);
+            janet_free(((JanetTable *) mem)->data);
             break;
         case JANET_MEMORY_FIBER:
-            free(((JanetFiber *)mem)->data);
+            janet_free(((JanetFiber *)mem)->data);
             break;
         case JANET_MEMORY_BUFFER:
             janet_buffer_deinit((JanetBuffer *) mem);
@@ -311,18 +311,18 @@ static void janet_deinit_block(JanetGCObject *mem) {
         case JANET_MEMORY_FUNCENV: {
             JanetFuncEnv *env = (JanetFuncEnv *)mem;
             if (0 == env->offset)
-                free(env->as.values);
+                janet_free(env->as.values);
         }
         break;
         case JANET_MEMORY_FUNCDEF: {
             JanetFuncDef *def = (JanetFuncDef *)mem;
             /* TODO - get this all with one alloc and one free */
-            free(def->defs);
-            free(def->environments);
-            free(def->constants);
-            free(def->bytecode);
-            free(def->sourcemap);
-            free(def->closure_bitset);
+            janet_free(def->defs);
+            janet_free(def->environments);
+            janet_free(def->constants);
+            janet_free(def->bytecode);
+            janet_free(def->sourcemap);
+            janet_free(def->closure_bitset);
         }
         break;
     }
@@ -347,7 +347,7 @@ void janet_sweep() {
             } else {
                 janet_vm_blocks = next;
             }
-            free(current);
+            janet_free(current);
         }
         current = next;
     }
@@ -359,7 +359,7 @@ void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
 
     /* Make sure everything is inited */
     janet_assert(NULL != janet_vm_cache, "please initialize janet before use");
-    mem = malloc(size);
+    mem = janet_malloc(size);
 
     /* Check for bad malloc */
     if (NULL == mem) {
@@ -382,7 +382,7 @@ static void free_one_scratch(JanetScratch *s) {
     if (NULL != s->finalize) {
         s->finalize((char *) s->mem);
     }
-    free(s);
+    janet_free(s);
 }
 
 /* Free all allocated scratch memory */
@@ -434,7 +434,7 @@ void janet_gcroot(Janet root) {
     size_t newcount = janet_vm_root_count + 1;
     if (newcount > janet_vm_root_capacity) {
         size_t newcap = 2 * newcount;
-        janet_vm_roots = realloc(janet_vm_roots, sizeof(Janet) * newcap);
+        janet_vm_roots = janet_realloc(janet_vm_roots, sizeof(Janet) * newcap);
         if (NULL == janet_vm_roots) {
             JANET_OUT_OF_MEMORY;
         }
@@ -494,12 +494,12 @@ void janet_clear_memory(void) {
     while (NULL != current) {
         janet_deinit_block(current);
         JanetGCObject *next = current->next;
-        free(current);
+        janet_free(current);
         current = next;
     }
     janet_vm_blocks = NULL;
     janet_free_all_scratch();
-    free(janet_scratch_mem);
+    janet_free(janet_scratch_mem);
 }
 
 /* Primitives for suspending GC. */
@@ -513,14 +513,14 @@ void janet_gcunlock(int handle) {
 /* Scratch memory API */
 
 void *janet_smalloc(size_t size) {
-    JanetScratch *s = malloc(sizeof(JanetScratch) + size);
+    JanetScratch *s = janet_malloc(sizeof(JanetScratch) + size);
     if (NULL == s) {
         JANET_OUT_OF_MEMORY;
     }
     s->finalize = NULL;
     if (janet_scratch_len == janet_scratch_cap) {
         size_t newcap = 2 * janet_scratch_cap + 2;
-        JanetScratch **newmem = (JanetScratch **) realloc(janet_scratch_mem, newcap * sizeof(JanetScratch));
+        JanetScratch **newmem = (JanetScratch **) janet_realloc(janet_scratch_mem, newcap * sizeof(JanetScratch));
         if (NULL == newmem) {
             JANET_OUT_OF_MEMORY;
         }
@@ -547,7 +547,7 @@ void *janet_srealloc(void *mem, size_t size) {
     if (janet_scratch_len) {
         for (size_t i = janet_scratch_len - 1; ; i--) {
             if (janet_scratch_mem[i] == s) {
-                JanetScratch *news = realloc(s, size + sizeof(JanetScratch));
+                JanetScratch *news = janet_realloc(s, size + sizeof(JanetScratch));
                 if (NULL == news) {
                     JANET_OUT_OF_MEMORY;
                 }

@@ -117,7 +117,7 @@ static void janet_table_rehash(JanetTable *t, int32_t size) {
     if (islocal) {
         janet_sfree(olddata);
     } else {
-        free(olddata);
+        janet_free(olddata);
     }
 }
 
@@ -237,7 +237,7 @@ JanetTable *janet_table_clone(JanetTable *table) {
     newTable->capacity = table->capacity;
     newTable->deleted = table->deleted;
     newTable->proto = table->proto;
-    newTable->data = malloc(newTable->capacity * sizeof(JanetKV));
+    newTable->data = janet_malloc(newTable->capacity * sizeof(JanetKV));
     if (NULL == newTable->data) {
         JANET_OUT_OF_MEMORY;
     }

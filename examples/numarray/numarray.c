@@ -7,13 +7,13 @@ typedef struct {
 } num_array;
 
 static num_array *num_array_init(num_array *array, size_t size) {
-    array->data = (double *)calloc(size, sizeof(double));
+    array->data = (double *)janet_calloc(size, sizeof(double));
     array->size = size;
     return array;
 }
 
 static void num_array_deinit(num_array *array) {
-    free(array->data);
+    janet_free(array->data);
 }
 
 static int num_array_gc(void *p, size_t s) {

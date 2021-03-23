@@ -123,7 +123,7 @@ static void NAME(JanetParser *p, T x) { \
     if (newcount > p->STACKCAP) { \
         T *next; \
         size_t newcap = 2 * newcount; \
-        next = realloc(p->STACK, sizeof(T) * newcap); \
+        next = janet_realloc(p->STACK, sizeof(T) * newcap); \
         if (NULL == next) { \
             JANET_OUT_OF_MEMORY; \
         } \
@@ -783,9 +783,9 @@ void janet_parser_init(JanetParser *parser) {
 }
 
 void janet_parser_deinit(JanetParser *parser) {
-    free(parser->args);
-    free(parser->buf);
-    free(parser->states);
+    janet_free(parser->args);
+    janet_free(parser->buf);
+    janet_free(parser->states);
 }
 
 void janet_parser_clone(const JanetParser *src, JanetParser *dest) {
@@ -812,17 +812,17 @@ void janet_parser_clone(const JanetParser *src, JanetParser *dest) {
     dest->states = NULL;
     dest->buf = NULL;
     if (dest->bufcap) {
-        dest->buf = malloc(dest->bufcap);
+        dest->buf = janet_malloc(dest->bufcap);
         if (!dest->buf) goto nomem;
         memcpy(dest->buf, src->buf, dest->bufcap);
     }
     if (dest->argcap) {
-        dest->args = malloc(sizeof(Janet) * dest->argcap);
+        dest->args = janet_malloc(sizeof(Janet) * dest->argcap);
         if (!dest->args) goto nomem;
         memcpy(dest->args, src->args, dest->argcap * sizeof(Janet));
     }
     if (dest->statecap) {
-        dest->states = malloc(sizeof(JanetParseState) * dest->statecap);
+        dest->states = janet_malloc(sizeof(JanetParseState) * dest->statecap);
         if (!dest->states) goto nomem;
         memcpy(dest->states, src->states, dest->statecap * sizeof(JanetParseState));
     }
@@ -943,7 +943,7 @@ static Janet cfun_parse_insert(int32_t argc, Janet *argv) {
         size_t newcount = p->bufcount + slen;
         if (p->bufcap < newcount) {
             size_t newcap = 2 * newcount;
-            p->buf = realloc(p->buf, newcap);
+            p->buf = janet_realloc(p->buf, newcap);
             if (p->buf == NULL) {
                 JANET_OUT_OF_MEMORY;
             }

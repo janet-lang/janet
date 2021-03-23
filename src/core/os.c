@@ -998,7 +998,7 @@ static Janet os_spawn(int32_t argc, Janet *argv) {
 /* Runs in a separate thread */
 static JanetEVGenericMessage os_shell_subr(JanetEVGenericMessage args) {
     int stat = system((const char *) args.argp);
-    free(args.argp);
+    janet_free(args.argp);
     if (args.argi) {
         args.tag = JANET_EV_TCTAG_INTEGER;
     } else {
@@ -1761,7 +1761,7 @@ static Janet os_realpath(int32_t argc, Janet *argv) {
 #endif
     if (NULL == dest) janet_panicf("%s: %s", strerror(errno), src);
     Janet ret = janet_cstringv(dest);
-    free(dest);
+    janet_free(dest);
     return ret;
 #endif
 }

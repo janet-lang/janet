@@ -89,7 +89,7 @@ static JanetTArrayBuffer *ta_buffer_init(JanetTArrayBuffer *buf, size_t size) {
 static int ta_buffer_gc(void *p, size_t s) {
     (void) s;
     JanetTArrayBuffer *buf = (JanetTArrayBuffer *)p;
-    free(buf->data);
+    janet_free(buf->data);
     return 0;
 }
 

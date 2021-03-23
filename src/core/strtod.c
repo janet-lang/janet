@@ -87,7 +87,7 @@ static uint32_t *bignat_extra(struct BigNat *mant, int32_t n) {
     int32_t newn = oldn + n;
     if (mant->cap < newn) {
         int32_t newcap = 2 * newn;
-        uint32_t *mem = realloc(mant->digits, (size_t) newcap * sizeof(uint32_t));
+        uint32_t *mem = janet_realloc(mant->digits, (size_t) newcap * sizeof(uint32_t));
         if (NULL == mem) {
             JANET_OUT_OF_MEMORY;
         }
@@ -368,11 +368,11 @@ int janet_scan_number(
         goto error;
 
     *out = convert(neg, &mant, base, ex);
-    free(mant.digits);
+    janet_free(mant.digits);
     return 0;
 
 error:
-    free(mant.digits);
+    janet_free(mant.digits);
     return 1;
 }
 

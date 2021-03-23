@@ -90,7 +90,7 @@ static void janet_q_init(JanetQueue *q) {
 }
 
 static void janet_q_deinit(JanetQueue *q) {
-    free(q->data);
+    janet_free(q->data);
 }
 
 static int32_t janet_q_count(JanetQueue *q) {
@@ -106,7 +106,7 @@ static int janet_q_push(JanetQueue *q, void *item, size_t itemsize) {
         if (count + 1 >= JANET_MAX_Q_CAPACITY) return 1;
         int32_t newcap = (count + 2) * 2;
         if (newcap > JANET_MAX_Q_CAPACITY) newcap = JANET_MAX_Q_CAPACITY;
-        q->data = realloc(q->data, itemsize * newcap);
+        q->data = janet_realloc(q->data, itemsize * newcap);
         if (NULL == q->data) {
             JANET_OUT_OF_MEMORY;
         }
@@ -213,7 +213,7 @@ static void add_timeout(JanetTimeout to) {
     size_t newcount = oldcount + 1;
     if (newcount > janet_vm_tq_capacity) {
         size_t newcap = 2 * newcount;
-        JanetTimeout *tq = realloc(janet_vm_tq, newcap * sizeof(JanetTimeout));
+        JanetTimeout *tq = janet_realloc(janet_vm_tq, newcap * sizeof(JanetTimeout));
         if (NULL == tq) {
             JANET_OUT_OF_MEMORY;
         }
@@ -247,7 +247,7 @@ static JanetListenerState *janet_listen_impl(JanetStream *stream, JanetListener 
     }
     if (size < sizeof(JanetListenerState))
         size = sizeof(JanetListenerState);
-    JanetListenerState *state = malloc(size);
+    JanetListenerState *state = janet_malloc(size);
     if (NULL == state) {
         JANET_OUT_OF_MEMORY;
     }
@@ -264,7 +264,7 @@ static JanetListenerState *janet_listen_impl(JanetStream *stream, JanetListener 
     int resize = janet_vm_listener_cap == janet_vm_listener_count;
     if (resize) {
         size_t newcap = janet_vm_listener_count ? janet_vm_listener_cap * 2 : 16;
-        janet_vm_listeners = realloc(janet_vm_listeners, newcap * sizeof(JanetListenerState *));
+        janet_vm_listeners = janet_realloc(janet_vm_listeners, newcap * sizeof(JanetListenerState *));
         if (NULL == janet_vm_listeners) {
             JANET_OUT_OF_MEMORY;
         }
@@ -301,7 +301,7 @@ static void janet_unlisten_impl(JanetListenerState *state) {
     size_t index = state->_index;
     janet_vm_listeners[index] = janet_vm_listeners[--janet_vm_listener_count];
     janet_vm_listeners[index]->_index = index;
-    free(state);
+    janet_free(state);
 }
 
 static const JanetMethod ev_default_stream_methods[] = {
@@ -557,8 +557,8 @@ void janet_ev_init_common(void) {
 /* Common deinit code */
 void janet_ev_deinit_common(void) {
     janet_q_deinit(&janet_vm_spawn);
-    free(janet_vm_tq);
-    free(janet_vm_listeners);
+    janet_free(janet_vm_tq);
+    janet_free(janet_vm_listeners);
     janet_vm_listeners = NULL;
 }
 
@@ -1042,7 +1042,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
             /* Custom event */
             JanetSelfPipeEvent *response = (JanetSelfPipeEvent *)(overlapped);
             response->cb(response->msg);
-            free(response);
+            janet_free(response);
             janet_ev_dec_refcount();
         } else {
             /* Normal event */
@@ -1249,7 +1249,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
     size_t newsize = janet_vm_listener_cap;
     if (newsize > oldsize) {
-        janet_vm_fds = realloc(janet_vm_fds, (newsize + 1) * sizeof(struct pollfd));
+        janet_vm_fds = janet_realloc(janet_vm_fds, (newsize + 1) * sizeof(struct pollfd));
         if (NULL == janet_vm_fds) {
             JANET_OUT_OF_MEMORY;
         }
@@ -1320,7 +1320,7 @@ void janet_ev_init(void) {
     janet_ev_init_common();
     janet_vm_fds = NULL;
     janet_ev_setup_selfpipe();
-    janet_vm_fds = malloc(sizeof(struct pollfd));
+    janet_vm_fds = janet_malloc(sizeof(struct pollfd));
     if (NULL == janet_vm_fds) {
         JANET_OUT_OF_MEMORY;
     }
@@ -1333,7 +1333,7 @@ void janet_ev_init(void) {
 void janet_ev_deinit(void) {
     janet_ev_deinit_common();
     janet_ev_cleanup_selfpipe();
-    free(janet_vm_fds);
+    janet_free(janet_vm_fds);
     janet_vm_fds = NULL;
 }
 
@@ -1371,7 +1371,7 @@ static void *janet_thread_body(void *ptr) {
     JanetThreadedSubroutine subr = init->subr;
     JanetThreadedCallback cb = init->cb;
     int fd = init->write_pipe;
-    free(init);
+    janet_free(init);
     JanetSelfPipeEvent response;
     response.msg = subr(msg);
     response.cb = cb;
@@ -1391,7 +1391,7 @@ static void *janet_thread_body(void *ptr) {
 #endif
 
 void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage arguments, JanetThreadedCallback cb) {
-    JanetEVThreadInit *init = malloc(sizeof(JanetEVThreadInit));
+    JanetEVThreadInit *init = janet_malloc(sizeof(JanetEVThreadInit));
     if (NULL == init) {
         JANET_OUT_OF_MEMORY;
     }
@@ -1403,7 +1403,7 @@ void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage ar
     init->write_pipe = janet_vm_iocp;
     HANDLE thread_handle = CreateThread(NULL, 0, janet_thread_body, init, 0, NULL);
     if (NULL == thread_handle) {
-        free(init);
+        janet_free(init);
         janet_panic("failed to create thread");
     }
     CloseHandle(thread_handle); /* detach from thread */
@@ -1412,7 +1412,7 @@ void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage ar
     pthread_t waiter_thread;
     int err = pthread_create(&waiter_thread, NULL, janet_thread_body, init);
     if (err) {
-        free(init);
+        janet_free(init);
         janet_panicf("%s", strerror(err));
     }
     pthread_detach(waiter_thread);
@@ -1435,7 +1435,7 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
         case JANET_EV_TCTAG_STRING:
         case JANET_EV_TCTAG_STRINGF:
             janet_schedule(return_value.fiber, janet_cstringv((const char *) return_value.argp));
-            if (return_value.tag == JANET_EV_TCTAG_STRINGF) free(return_value.argp);
+            if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
             break;
         case JANET_EV_TCTAG_KEYWORD:
             janet_schedule(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
@@ -1443,7 +1443,7 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
         case JANET_EV_TCTAG_ERR_STRING:
         case JANET_EV_TCTAG_ERR_STRINGF:
             janet_cancel(return_value.fiber, janet_cstringv((const char *) return_value.argp));
-            if (return_value.tag == JANET_EV_TCTAG_STRINGF) free(return_value.argp);
+            if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
             break;
         case JANET_EV_TCTAG_ERR_KEYWORD:
             janet_cancel(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
@@ -2092,7 +2092,7 @@ static Janet cfun_ev_thread(int32_t argc, Janet *argv) {
     janet_getfiber(argv, 0);
     Janet value = argc == 2 ? argv[1] : janet_wrap_nil();
     /* Marshal arguments for the new thread. */
-    JanetBuffer *buffer = malloc(sizeof(JanetBuffer));
+    JanetBuffer *buffer = janet_malloc(sizeof(JanetBuffer));
     if (NULL == buffer) {
         JANET_OUT_OF_MEMORY;
     }

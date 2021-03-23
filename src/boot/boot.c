@@ -93,7 +93,7 @@ int main(int argc, const char **argv) {
     fseek(boot_file, 0, SEEK_END);
     size_t boot_size = ftell(boot_file);
     fseek(boot_file, 0, SEEK_SET);
-    unsigned char *boot_buffer = malloc(boot_size);
+    unsigned char *boot_buffer = janet_malloc(boot_size);
     if (NULL == boot_buffer) {
         fprintf(stderr, "Failed to allocate boot buffer\n");
         exit(1);
@@ -105,7 +105,7 @@ int main(int argc, const char **argv) {
     fclose(boot_file);
 
     status = janet_dobytes(env, boot_buffer, (int32_t) boot_size, boot_filename, NULL);
-    free(boot_buffer);
+    janet_free(boot_buffer);
 
     /* Deinitialize vm */
     janet_deinit();

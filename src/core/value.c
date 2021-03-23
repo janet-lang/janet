@@ -47,7 +47,7 @@ static void push_traversal_node(void *lhs, void *rhs, int32_t index2) {
         if (newsize < 128) {
             newsize = 128;
         }
-        JanetTraversalNode *tn = realloc(janet_vm_traversal_base, newsize * sizeof(JanetTraversalNode));
+        JanetTraversalNode *tn = janet_realloc(janet_vm_traversal_base, newsize * sizeof(JanetTraversalNode));
         if (tn == NULL) {
             JANET_OUT_OF_MEMORY;
         }

@@ -108,7 +108,7 @@ static void kmp_init(
     if (patlen == 0) {
         janet_panic("expected non-empty pattern");
     }
-    int32_t *lookup = calloc(patlen, sizeof(int32_t));
+    int32_t *lookup = janet_calloc(patlen, sizeof(int32_t));
     if (!lookup) {
         JANET_OUT_OF_MEMORY;
     }
@@ -131,7 +131,7 @@ static void kmp_init(
 }
 
 static void kmp_deinit(struct kmp_state *state) {
-    free(state->lookup);
+    janet_free(state->lookup);
 }
 
 static void kmp_seti(struct kmp_state *state, int32_t i) {

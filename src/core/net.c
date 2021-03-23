@@ -265,7 +265,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
 #ifndef JANET_WINDOWS
     if (janet_keyeq(argv[offset], "unix")) {
         const char *path = janet_getcstring(argv, offset + 1);
-        struct sockaddr_un *saddr = calloc(1, sizeof(struct sockaddr_un));
+        struct sockaddr_un *saddr = janet_calloc(1, sizeof(struct sockaddr_un));
         if (saddr == NULL) {
             JANET_OUT_OF_MEMORY;
         }
@@ -397,7 +397,7 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
 #else
     int status = connect(sock, addr, addrlen);
     if (is_unix) {
-        free(ai);
+        janet_free(ai);
     } else {
         freeaddrinfo(ai);
     }
@@ -444,20 +444,20 @@ static Janet cfun_net_listen(int32_t argc, Janet *argv) {
     if (is_unix) {
         sfd = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);
         if (!JSOCKVALID(sfd)) {
-            free(ai);
+            janet_free(ai);
             janet_panicf("could not create socket: %V", janet_ev_lasterr());
         }
         const char *err = serverify_socket(sfd);
         if (NULL != err || bind(sfd, (struct sockaddr *)ai, sizeof(struct sockaddr_un))) {
             JSOCKCLOSE(sfd);
-            free(ai);
+            janet_free(ai);
             if (err) {
                 janet_panic(err);
             } else {
                 janet_panicf("could not bind socket: %V", janet_ev_lasterr());
             }
         }
-        free(ai);
+        janet_free(ai);
     } else
 #endif
     {

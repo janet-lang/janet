@@ -49,6 +49,13 @@
 /* #define JANET_ARCH_NAME pdp-8 */
 /* #define JANET_EV_EPOLL */
 
+/* Custom vm allocator support */
+/* #include <mimalloc.h> */
+/* #define janet_malloc(X) mi_malloc((X)) */
+/* #define janet_realloc(X, Y) mi_realloc((X), (Y)) */
+/* #define janet_calloc(X, Y) mi_calloc((X), (Y)) */
+/* #define janet_free(X) mi_free((X)) */
+
 /* Main client settings, does not affect library code */
 /* #define JANET_SIMPLE_GETLINE */
 

@@ -33,7 +33,7 @@ JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
     uint8_t *data = NULL;
     if (capacity < 4) capacity = 4;
     janet_gcpressure(capacity);
-    data = malloc(sizeof(uint8_t) * (size_t) capacity);
+    data = janet_malloc(sizeof(uint8_t) * (size_t) capacity);
     if (NULL == data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -45,7 +45,7 @@ JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
 
 /* Deinitialize a buffer (free data memory) */
 void janet_buffer_deinit(JanetBuffer *buffer) {
-    free(buffer->data);
+    janet_free(buffer->data);
 }
 
 /* Initialize a buffer */
@@ -62,7 +62,7 @@ void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) 
     int64_t big_capacity = ((int64_t) capacity) * growth;
     capacity = big_capacity > INT32_MAX ? INT32_MAX : (int32_t) big_capacity;
     janet_gcpressure(capacity - buffer->capacity);
-    new_data = realloc(old, (size_t) capacity * sizeof(uint8_t));
+    new_data = janet_realloc(old, (size_t) capacity * sizeof(uint8_t));
     if (NULL == new_data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -92,7 +92,7 @@ void janet_buffer_extra(JanetBuffer *buffer, int32_t n) {
     int32_t new_size = buffer->count + n;
     if (new_size > buffer->capacity) {
         int32_t new_capacity = (new_size > (INT32_MAX / 2)) ? INT32_MAX : (new_size * 2);
-        uint8_t *new_data = realloc(buffer->data, new_capacity * sizeof(uint8_t));
+        uint8_t *new_data = janet_realloc(buffer->data, new_capacity * sizeof(uint8_t));
         janet_gcpressure(new_capacity - buffer->capacity);
         if (NULL == new_data) {
             JANET_OUT_OF_MEMORY;
@@ -201,7 +201,7 @@ static Janet cfun_buffer_trim(int32_t argc, Janet *argv) {
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     if (buffer->count < buffer->capacity) {
         int32_t newcap = buffer->count > 4 ? buffer->count : 4;
-        uint8_t *newData = realloc(buffer->data, newcap);
+        uint8_t *newData = janet_realloc(buffer->data, newcap);
         if (NULL == newData) {
             JANET_OUT_OF_MEMORY;
         }

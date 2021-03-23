@@ -775,7 +775,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     def->bytecode_length = janet_v_count(c->buffer) - scope->bytecode_start;
     if (def->bytecode_length) {
         size_t s = sizeof(int32_t) * (size_t) def->bytecode_length;
-        def->bytecode = malloc(s);
+        def->bytecode = janet_malloc(s);
         if (NULL == def->bytecode) {
             JANET_OUT_OF_MEMORY;
         }
@@ -783,7 +783,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
         janet_v__cnt(c->buffer) = scope->bytecode_start;
         if (NULL != c->mapbuffer && c->source) {
             size_t s = sizeof(JanetSourceMapping) * (size_t) def->bytecode_length;
-            def->sourcemap = malloc(s);
+            def->sourcemap = janet_malloc(s);
             if (NULL == def->sourcemap) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -808,7 +808,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
         int32_t slotchunks = (def->slotcount + 31) >> 5;
         /* numchunks is min of slotchunks and scope->ua.count */
         int32_t numchunks = slotchunks > scope->ua.count ? scope->ua.count : slotchunks;
-        uint32_t *chunks = calloc(sizeof(uint32_t), slotchunks);
+        uint32_t *chunks = janet_calloc(sizeof(uint32_t), slotchunks);
         if (NULL == chunks) {
             JANET_OUT_OF_MEMORY;
         }
