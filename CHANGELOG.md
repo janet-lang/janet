@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Support .cc and .cxx extensions in `jpm` for C++ code.
+- Change networking code to not create as many HUP errors.
+- Add `net/shutdown` to close sockets in one direction without hang ups.
 - Update code for printing the debug repl
 
 ## 1.15.4 - 2021-03-16

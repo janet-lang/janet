@@ -968,17 +968,18 @@ int main(int argc, const char **argv) {
   (var has-cpp false)
   (def objects
     (seq [src :in sources]
-      (cond
-        (string/has-suffix? ".cpp" src)
-        (let [op (out-path src ".cpp" objext)]
-          (compile-cpp opts src op)
-          (set has-cpp true)
-          op)
-        (string/has-suffix? ".c" src)
-        (let [op (out-path src ".c" objext)]
-          (compile-c opts src op)
-          op)
-        (errorf "unknown source file type: %s, expected .c or .cpp" src))))
+      (def suffix
+        (cond
+          (string/has-suffix? ".cpp" src) ".cpp"
+          (string/has-suffix? ".cc" src) ".cc"
+          (string/has-suffix? ".c" src) ".c"
+          (errorf "unknown source file type: %s, expected .c, .cc, or .cpp" src)))
+      (def op (out-path src suffix objext))
+      (if (= suffix ".c")
+        (compile-c opts src op)
+        (do (compile-cpp opts src op)
+          (set has-cpp true)))
+      op))
 
   (when-let [embedded (opts :embedded)]
     (loop [src :in embedded]
@@ -1016,16 +1017,17 @@ int main(int argc, const char **argv) {
     # Get static objects
     (def sobjects
       (seq [src :in sources]
-        (cond
-          (string/has-suffix? ".cpp" src)
-          (let [op (out-path src ".cpp" sobjext)]
-            (compile-cpp opts src op true)
-            op)
-          (string/has-suffix? ".c" src)
-          (let [op (out-path src ".c" sobjext)]
-            (compile-c opts src op true)
-            op)
-          (errorf "unknown source file type: %s, expected .c or .cpp"))))
+        (def suffix
+          (cond
+            (string/has-suffix? ".cpp" src) ".cpp"
+            (string/has-suffix? ".cc" src) ".cc"
+            (string/has-suffix? ".c" src) ".c"
+            (errorf "unknown source file type: %s, expected .c, .cc, or .cpp" src)))
+        (def op (out-path src suffix sobjext))
+        (if (= suffix ".c")
+          (compile-c opts src op true)
+          (compile-cpp opts src op true))
+        op))
 
     (when-let [embedded (opts :embedded)]
       (loop [src :in embedded]

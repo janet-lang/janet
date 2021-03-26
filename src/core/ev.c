@@ -1080,7 +1080,7 @@ static JanetTimestamp ts_now(void) {
 }
 
 static int make_epoll_events(int mask) {
-    int events = EPOLLET;
+    int events = 0;
     if (mask & JANET_ASYNC_LISTEN_READ)
         events |= EPOLLIN;
     if (mask & JANET_ASYNC_LISTEN_WRITE)

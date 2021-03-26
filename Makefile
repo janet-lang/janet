@@ -226,8 +226,18 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
 	build/doc.html README.md build/c/janet.c build/c/shell.c jpm
 	$(eval JANET_DIST_DIR = "janet-$(shell basename $*)")
-	mkdir -p build/$(JANET_DIST_DIR)
-	cp -r $^ build/$(JANET_DIST_DIR)/
+	mkdir -p build/$(JANET_DIST_DIR)/bin
+	cp $(JANET_TARGET) build/$(JANET_DIST_DIR)/bin/
+	cp jpm build/$(JANET_DIST_DIR)/bin/
+	mkdir -p build/$(JANET_DIST_DIR)/include
+	cp build/janet.h build/$(JANET_DIST_DIR)/include/
+	mkdir -p build/$(JANET_DIST_DIR)/lib/
+	cp $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/$(JANET_DIST_DIR)/lib/
+	mkdir -p build/$(JANET_DIST_DIR)/man/man1/
+	cp janet.1 jpm.1 build/$(JANET_DIST_DIR)/man/man1/
+	mkdir -p build/$(JANET_DIST_DIR)/src/
+	cp build/c/janet.c build/c/shell.c build/$(JANET_DIST_DIR)/src/
+	cp CONTRIBUTING.md build/doc.html LICENSE README.md build/$(JANET_DIST_DIR)/
 	cd build && tar -czvf ../$@ $(JANET_DIST_DIR)
 
 #########################

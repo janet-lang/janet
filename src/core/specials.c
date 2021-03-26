@@ -251,6 +251,9 @@ static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv)
             case JANET_STRING:
                 janet_table_put(tab, janet_ckeywordv("doc"), attr);
                 break;
+            case JANET_STRUCT:
+                janet_table_merge_struct(tab, janet_unwrap_struct(attr));
+                break;
         }
     }
     return tab;
